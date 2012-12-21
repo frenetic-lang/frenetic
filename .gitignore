@@ -1,0 +1,7 @@
+*.vo
+*.v.d
+*.glob
+Makefile.coq
+_build
+*.d.byte
+ocaml/extracted
