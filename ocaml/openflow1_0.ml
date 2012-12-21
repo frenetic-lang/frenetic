@@ -1,5 +1,6 @@
 (** OpenFlow 1.0 *)
 
+open Printf
 open Word
 open MessagesDef
 
@@ -13,7 +14,7 @@ cstruct ofp_header {
 } as big_endian
 
 cenum msg_code {
-  HELLO = 0;
+  HELLO;
   ERROR;
   ECHO_REQ;
   ECHO_RESP;
@@ -54,6 +55,105 @@ cstruct ofp_match {
   uint16_t tp_src;           
   uint16_t tp_dst
 } as big_endian
+
+cstruct ofp_switch_features {
+  uint64_t datapath_id; 
+  uint32_t n_buffers; 
+  uint8_t n_tables; 
+  uint8_t pad[3]; 
+  uint32_t capabilities; 
+  uint32_t action
+} as big_endian 
+
+module Capabilities = struct
+
+  type t = capabilities
+
+  let parse bits =
+    { arp_match_ip = Word32.test_bit 7 bits; 
+      queue_stats = Word32.test_bit 6 bits; 
+      ip_reasm = Word32.test_bit 5 bits; 
+      stp = Word32.test_bit 3 bits; 
+      port_stats = Word32.test_bit 2 bits; 
+      table_stats = Word32.test_bit 1 bits; 
+      flow_stats = Word32.test_bit 0 bits;
+    }
+
+  let marshal (c : t) : Word32.t =
+    let bits = Word32.from_int32 0l in
+    let bits = Word32.bit bits 7 c.arp_match_ip in
+    let bits = Word32.bit bits 6 c.queue_stats in
+    let bits = Word32.bit bits 5 c.ip_reasm in
+    let bits = Word32.bit bits 3 c.stp in 
+    let bits = Word32.bit bits 2 c.port_stats in
+    let bits = Word32.bit bits 1 c.table_stats in
+    let bits = Word32.bit bits 0 c.flow_stats in
+    bits
+
+end
+
+module Actions = struct
+
+  type t = actions
+
+ let parse bits = 
+   { output = Word32.test_bit 0 bits; 
+     set_vlan_id = Word32.test_bit 1 bits; 
+     set_vlan_pcp = Word32.test_bit 2 bits; 
+     strip_vlan = Word32.test_bit 3 bits;
+     set_dl_src = Word32.test_bit 4 bits; 
+     set_dl_dst = Word32.test_bit 5 bits; 
+     set_nw_src = Word32.test_bit 6 bits; 
+     set_nw_dst = Word32.test_bit 7 bits;
+     set_nw_tos = Word32.test_bit 8 bits; 
+     set_tp_src = Word32.test_bit 9 bits; 
+     set_tp_dst = Word32.test_bit 10 bits; 
+     enqueue = Word32.test_bit 11 bits; 
+     vendor = Word32.test_bit 12 bits; }
+
+  let marshal (a : actions) : Word32.t =
+    let bits = Word32.from_int32 0l in
+    let bits = Word32.bit bits 0 a.output in  
+    let bits = Word32.bit bits 1 a.set_vlan_id in  
+    let bits = Word32.bit bits 2 a.set_vlan_pcp in  
+    let bits = Word32.bit bits 3 a.strip_vlan in 
+    let bits = Word32.bit bits 4 a.set_dl_src in  
+    let bits = Word32.bit bits 5 a.set_dl_dst in  
+    let bits = Word32.bit bits 6 a.set_nw_src in  
+    let bits = Word32.bit bits 7 a.set_nw_dst in 
+    let bits = Word32.bit bits 8 a.set_nw_tos in  
+    let bits = Word32.bit bits 9 a.set_tp_src in  
+    let bits = Word32.bit bits 10 a.set_tp_dst in  
+    let bits = Word32.bit bits 11 a.enqueue in  
+    let bits = Word32.bit bits 12 a.vendor in  
+    bits
+
+end
+
+module Features = struct
+
+  type t = features
+
+  let parse (buf : Cstruct.buf) : t =
+    let switch_id = Word64.from_int64 
+      (get_ofp_switch_features_datapath_id buf) in 
+    let num_buffers = Word32.from_int32
+      (get_ofp_switch_features_n_buffers buf) in
+    let num_tables = Word8.from_int (get_ofp_switch_features_n_tables buf) in 
+    let supported_capabilities = Capabilities.parse
+      (Word32.from_int32 (get_ofp_switch_features_capabilities buf)) in
+    let supported_actions = Actions.parse 
+      (Word32.from_int32 (get_ofp_switch_features_action buf)) in
+    let buf = Cstruct.shift buf sizeof_ofp_switch_features in
+    { switch_id; 
+      num_buffers; 
+      num_tables; 
+      supported_capabilities; 
+      supported_actions }
+
+
+end
+
 
 (** Internal module, only used to parse the wildcards bitfield *)
 module Wildcards = struct
@@ -290,6 +390,8 @@ module Message = struct
       | HELLO -> Hello buf
       | ECHO_REQ -> EchoRequest buf
       | ECHO_RESP -> EchoReply buf
+      | FEATURES_REQ -> FeaturesRequest
+      | FEATURES_RESP -> FeaturesReply (Features.parse buf)
       | _ -> failwith "expected msg"
     in
     let xid = hdr.Header.xid in
@@ -299,6 +401,8 @@ module Message = struct
     | Hello _ -> HELLO
     | EchoRequest _ -> ECHO_REQ
     | EchoReply _ -> ECHO_RESP
+    | FeaturesRequest -> FEATURES_REQ
+    | FeaturesReply _ -> FEATURES_RESP
 
   open Bigarray
 
@@ -306,22 +410,29 @@ module Message = struct
     | Hello buf -> Array1.dim buf
     | EchoRequest buf -> Array1.dim buf
     | EchoReply buf -> Array1.dim buf
+    | FeaturesRequest -> 0
+    | FeaturesReply _ -> sizeof_ofp_switch_features
     | _ -> failwith "unknowns"
 
   let blit_message (msg : t) (out : Cstruct.buf) = match msg with
     | Hello buf
     | EchoRequest buf
     | EchoReply buf ->
-      Cstruct.blit_buffer buf 0 out sizeof_ofp_header (Cstruct.len buf)
+      Cstruct.blit_buffer buf 0 out 0 (Cstruct.len buf)
+    | FeaturesRequest -> ()
 
   let marshal (xid : xid) (msg : t) : string = 
     let sizeof_buf = sizeof_ofp_header + sizeof_body msg in
+    eprintf "marshaling %d bytes.\n%!" sizeof_buf;
     let buf = Array1.create char c_layout sizeof_buf in
+    eprintf "MArshaling.\n%!";
     set_ofp_header_version buf 0x1;
     set_ofp_header_typ buf (msg_code_to_int (msg_code_of_message msg));
     set_ofp_header_length buf sizeof_buf;
     set_ofp_header_xid buf (Word32.to_int32 xid);
+    eprintf "Wrote teh header\n%!";
     blit_message msg buf;
+    eprintf "Wrote the message body\n%!";
     Cstruct.to_string buf
 
 end

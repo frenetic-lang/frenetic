@@ -10,7 +10,8 @@ module ServerFd : Platform.FD = struct
     
   let _ = 
     bind fd (ADDR_INET (inet_addr_any, 6633));
-    listen fd 10
+    listen fd 10;
+    at_exit (fun () -> close fd)
 end
 
 module Platform = ActualPlatform (ServerFd)

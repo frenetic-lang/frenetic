@@ -2,7 +2,7 @@ open Word
 open Unix
 open MessagesDef
 
-type switchId = Word32.t
+type switchId = Word64.t
 
 module type PLATFORM = sig
 
@@ -12,7 +12,7 @@ module type PLATFORM = sig
 
   val recv_from_switch : switchId -> xid * message
 
-  val accept_switch : unit -> switchId
+  val accept_switch : unit -> features
 
 end
 

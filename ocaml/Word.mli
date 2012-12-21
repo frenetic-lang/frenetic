@@ -34,5 +34,8 @@ module Word48 : sig
   val from_bytes : string -> t
 end
 
-module Word64 : WORD
-
+module Word64 : sig
+  include WORD
+  val to_int64 : t -> Int64.t
+  val from_int64 : Int64.t -> t
+end

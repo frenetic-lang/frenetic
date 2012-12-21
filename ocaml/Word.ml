@@ -107,4 +107,7 @@ module Word64 = struct
   let bit (x : t) (n : int) (v : bool) : t = 
     if v then set_bit n x else clear_bit n x
 
+  let from_int64 (n : Int64.t) : t = n
+  let to_int64 (x : t) : Int64.t = x
+
 end

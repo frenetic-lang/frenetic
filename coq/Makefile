@@ -1,6 +1,7 @@
 .PHONY: all clean extract
 
 all: Makefile.coq
+	mkdir -p ../ocaml/extracted
 	$(MAKE) -f Makefile.coq
 
 doc:
