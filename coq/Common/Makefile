@@ -1,4 +1,4 @@
-MODULES := MessagesDef ControllerInterface
+MODULES := CpdtTactics Types List Monad
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean

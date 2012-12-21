@@ -1,22 +1,8 @@
 Set Implicit Arguments.
 
 Require Import Coq.Structures.Equalities.
-
 Require Import Word.WordInterface.
-
-Axiom bytes : Type.
-
-Extract Constant bytes => "Cstruct.buf".
-
-Definition portId := Word16.t.
-Definition dlAddr := Word48.t.
-Definition dlTyp := Word16.t.
-Definition dlVlan := Word16.t.
-Definition dlVlanPcp := Word8.t. (* 3 bits *)
-Definition nwAddr := Word32.t.
-Definition nwProto := Word8.t.
-Definition nwTos := Word8.t. (** 6 bits *)
-Definition tpPort := Word16.t.
+Require Import Network.Packet.
 
 Record of_match : Type := Match {
   matchDlSrc : option dlAddr;
@@ -59,6 +45,8 @@ Record actions : Type := Actions {
   vendor: bool
 }.
 
+
+
 Record features : Type := Features {
   switch_id : Word64.t;
   num_buffers: Word32.t;
@@ -75,6 +63,7 @@ Inductive flowModCommand : Type :=
 | DeleteFlow : flowModCommand
 | DeleteStrictFlow : flowModCommand.
 
+Definition switchId := Word64.t.
 Definition priority := Word16.t.
 Definition cookie := Word32.t.
 Definition bufferId := Word16.t.
@@ -133,22 +122,3 @@ Inductive message : Type :=
 | FlowModMsg : flowMod -> message.
 
 
-(*
-Inductive OnlyFromSwitchMessage : Type :=
-| BarrierReply : OnlyFromSwitchMessage
-| PacketIn : option BufferID -> Port -> Packet -> OnlyFromSwitchMessage.
-
-Inductive OnlyFromControllerMessage : Type :=
-| ModifyFlow : ModFlowRecord -> OnlyFromControllerMessage
-| BarrierRequest : OnlyFromControllerMessage
-| PacketOut : (BufferID + Packet) -> 
-    option Port -> 
-    ActionSequence -> 
-    OnlyFromControllerMessage.
-
-Definition FromSwitchMessage := 
-  (SymmetricMessage + OnlyFromSwitchMessage) % type.
-
-Definition FromControllerMessage := 
-  (SymmetricMessage + OnlyFromControllerMessage) % type.
-*)

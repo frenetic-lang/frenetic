@@ -43,6 +43,8 @@ Module Word8 <: WORD.
   Axiom set_bit : forall (n : N), n < Npos width -> t -> t.
   Axiom clear_bit : forall (n : N), n < Npos width -> t -> t.
 
+  Definition zero : t := Mk 0 eq_refl.
+
 End Word8.
 
 Module Word16 <: WORD.
@@ -68,7 +70,7 @@ Module Word16 <: WORD.
       | Mk n _ => n
     end.
 
-  Definition zero := Mk 0 eq_refl.
+  Definition zero : t := Mk 0 eq_refl.
 
 End Word16.
 
@@ -90,6 +92,8 @@ Module Word32 <: WORD.
   Axiom set_bit : forall (n : N), n < Npos width -> t -> t.
   Axiom clear_bit : forall (n : N), n < Npos width -> t -> t.
 
+  Definition zero : t := Mk 0 eq_refl.
+
 End Word32.
 
 (** Easiest way to represent ethernet addresses *)
@@ -110,6 +114,8 @@ Module Word48 <: WORD.
   Axiom test_bit : forall (n : N), n < Npos width -> t -> bool.
   Axiom set_bit : forall (n : N), n < Npos width -> t -> t.
   Axiom clear_bit : forall (n : N), n < Npos width -> t -> t.
+
+  Definition zero : t := Mk 0 eq_refl.
 
 End Word48.
 

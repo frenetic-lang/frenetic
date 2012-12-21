@@ -1,4 +1,4 @@
-MODULES := MessagesDef ControllerInterface
+MODULES := Packet
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean

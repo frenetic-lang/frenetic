@@ -1,0 +1,61 @@
+Set Implicit Arguments.
+
+Require Import Common.Types.
+Require Import Coq.Lists.List.
+Require Import Common.List.
+
+Require Import Network.Packet.
+Require Import Word.WordInterface.
+Require Import Pattern.Defs.
+
+Local Open Scope list_scope.
+
+Definition Classifier (A : Type) := list (Pattern * A) %type.
+
+Fixpoint scan {A : Type} (default : A) (classifier : Classifier A)  (pt : portId) 
+  (pk : packet) := 
+  match classifier with
+    | nil => default
+    | (pat,a) :: rest => 
+      match Pattern.match_packet pt pk pat with
+        | true => a
+        | false => scan default rest pt pk
+      end
+  end. 
+
+Definition inter_entry {A : Type} (f : A -> A -> A) 
+  (cl : Classifier A) (v : Pattern * A) :=
+  let (pat, act) := v in
+    fold_right (fun (v' : Pattern * A) acc =>
+      let (pat', act') := v' in
+        (Pattern.inter pat pat', f act act') :: acc)
+    nil cl.
+
+Definition inter {A : Type} (f : A -> A -> A) (cl1 cl2 : Classifier A) :=
+  fold_right (fun v acc => inter_entry f cl2 v ++ acc)
+  nil cl1.
+
+Definition union {A : Type} (f : A -> A -> A) (cl1 cl2 : Classifier A) :=
+  inter f cl1 cl2 ++ cl1 ++ cl2.
+
+(** Why so baroque? Filtering the tail of the list is not structurally
+   recursive.
+ *)
+Fixpoint elim_shadowed_helper {A : Type} (prefix : Classifier A)
+  (cf : Classifier A) :=
+  match cf with
+    | nil => prefix
+    | (pat,act) :: cf' => 
+      match existsb 
+        (fun (entry : Pattern * A) =>
+          let (pat', act) := entry in
+            if Pattern.eq_dec pat pat' then true else false)
+        prefix with
+        | true => elim_shadowed_helper prefix cf'
+        | false => elim_shadowed_helper (prefix ++ [(pat,act)]) cf'
+      end
+  end.
+
+Definition elim_shadowed {A : Type} (cf : Classifier A) :=
+  elim_shadowed_helper nil cf.
+

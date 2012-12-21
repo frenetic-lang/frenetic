@@ -1,9 +1,9 @@
-MODULES := MessagesDef ControllerInterface
+MODULES := NetCore NetCoreTheorems
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean
 
-all: Makefile.coq
+all : Makefile.coq
 	$(MAKE) -f Makefile.coq
 
 Makefile.coq: Makefile $(VS)

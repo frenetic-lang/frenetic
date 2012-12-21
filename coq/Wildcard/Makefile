@@ -1,4 +1,4 @@
-MODULES := MessagesDef ControllerInterface
+MODULES := Defs Theory
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean
