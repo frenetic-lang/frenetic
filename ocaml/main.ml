@@ -1,21 +1,18 @@
 open Printf
 open Word
 open Openflow1_0
-
+open Platform
 open Unix
 
-let switch_thread (uid : int) (t : float) : unit =
-  let rec loop () = 
-    printf "%d unpaused ...\n%!" uid;
-    Thread.delay t;
-    loop ()
-  in loop ()
 
+module ServerFd : Platform.FD = struct
+  let fd = socket PF_INET SOCK_STREAM 0
+    
+  let _ = 
+    bind fd (ADDR_INET (inet_addr_any, 6633));
+    listen fd 10
+end
 
-let main () = 
-  Thread.create (switch_thread 10) 1.0;
-  let x =  Thread.create (switch_thread 20) 2.0 in
-  Thread.join x;
-  printf "Hello, world"
+module Platform = ActualPlatform (ServerFd)
+module Controller = DummyController.Make (Platform)
 
-let _ = main ()

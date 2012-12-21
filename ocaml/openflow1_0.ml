@@ -263,7 +263,7 @@ module Header = struct
   type t = {
     ver: Word8.t;
     typ: msg_code;
-    len: Word16.t;
+    len: int;
     xid: Word32.t
   }
       
@@ -274,7 +274,7 @@ module Header = struct
         | Some typ -> typ
         | None -> raise (Unparsable "unrecognized message code")
       end;
-      len = Word16.from_int (get_ofp_header_length buf);
+      len = get_ofp_header_length buf;
       xid = Word32.from_int32 (get_ofp_header_xid buf)
     }
 
@@ -285,20 +285,43 @@ module Message = struct
   type t = message
 
   
-  let parse (buf : Cstruct.buf) : xid * t =
-    let hdr = Header.parse buf in
-    let body = Cstruct.shift buf sizeof_ofp_header in
-    let msg = 
-      if Cstruct.len buf <> Word16.to_int (hdr.Header.len) then
-        failwith "size mismatch"
-      else
-        match hdr.Header.typ with
-          | HELLO -> Hello body
-          | ECHO_REQ -> EchoRequest body
-          | ECHO_RESP -> EchoReply body
-          | _ -> failwith "expected msg"
+  let parse (hdr : Header.t) (buf : Cstruct.buf) : xid * t =
+    let msg =  match hdr.Header.typ with
+      | HELLO -> Hello buf
+      | ECHO_REQ -> EchoRequest buf
+      | ECHO_RESP -> EchoReply buf
+      | _ -> failwith "expected msg"
     in
     let xid = hdr.Header.xid in
     (xid, msg)
+
+  let msg_code_of_message (msg : t) : msg_code = match msg with
+    | Hello _ -> HELLO
+    | EchoRequest _ -> ECHO_REQ
+    | EchoReply _ -> ECHO_RESP
+
+  open Bigarray
+
+  let sizeof_body (msg : t) : int = match msg with
+    | Hello buf -> Array1.dim buf
+    | EchoRequest buf -> Array1.dim buf
+    | EchoReply buf -> Array1.dim buf
+    | _ -> failwith "unknowns"
+
+  let blit_message (msg : t) (out : Cstruct.buf) = match msg with
+    | Hello buf
+    | EchoRequest buf
+    | EchoReply buf ->
+      Cstruct.blit_buffer buf 0 out sizeof_ofp_header (Cstruct.len buf)
+
+  let marshal (xid : xid) (msg : t) : string = 
+    let sizeof_buf = sizeof_ofp_header + sizeof_body msg in
+    let buf = Array1.create char c_layout sizeof_buf in
+    set_ofp_header_version buf 0x1;
+    set_ofp_header_typ buf (msg_code_to_int (msg_code_of_message msg));
+    set_ofp_header_length buf sizeof_buf;
+    set_ofp_header_xid buf (Word32.to_int32 xid);
+    blit_message msg buf;
+    Cstruct.to_string buf
 
 end
