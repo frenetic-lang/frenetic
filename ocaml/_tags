@@ -1,4 +1,5 @@
 <extracted> : include
-true : syntax_camlp4o
 <*.ml> : syntax(camlp4o)
-"main.d.byte" or <**/*.ml{,i}> : package(cstruct), package(cstruct.syntax)
+"main.d.byte" or <**/*.ml{,i}> : package(cstruct)
+"main.d.byte" or <**/*.ml{,i}> : package(cstruct.syntax)
+"main.d.byte" or <**/*.ml{,i}> : thread
