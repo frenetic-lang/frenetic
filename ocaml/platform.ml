@@ -22,6 +22,108 @@ module type FD = sig
   val fd : file_descr
 end
 
+module TestPlatform = struct
+
+  type status = Connecting | Connected | Disconnected
+
+  type switch = {
+    mutable status : status;
+    (** Unlock the mutexes when dequeuing. *)
+    to_controller : (xid * message) Event.channel;
+    to_switch : (xid * message) Event.channel;    
+  }
+
+  let switches : (switchId, switch) Hashtbl.t = Hashtbl.create 100
+
+  let pending_switches : (switchId * switch) Event.channel = 
+    Event.new_channel ()
+
+  exception SwitchDisconnected of switchId
+
+  let connect_switch sw_id = 
+    let sw = { status = Connecting; 
+               to_controller = Event.new_channel (); 
+               to_switch = Event.new_channel () } in
+    if Hashtbl.mem switches sw_id then
+      failwith "already connected"
+    else
+      begin
+        let _ = Event.sync (Event.send pending_switches (sw_id, sw)) in
+        ()
+      end
+
+  let disconnect_switch sw_id = 
+    let sw = Hashtbl.find switches sw_id in
+    sw.status <- Disconnected
+
+  let accept_switch () = 
+    let (sw_id, sw) = Event.sync (Event.receive pending_switches) in
+    sw.status = Connected;
+    Hashtbl.add switches sw_id sw;
+    { switch_id = sw_id;
+      num_buffers = Word32.from_int32 100l;
+      num_tables = Word8.from_int 1;
+      (* This is an amazing switch! *)
+      supported_capabilities = 
+        { flow_stats = true;
+          table_stats = true;
+          port_stats = true; 
+          stp = true;
+          ip_reasm = true;
+          queue_stats = true; 
+          arp_match_ip = true };
+      supported_actions =
+        { output = true;
+          set_vlan_id = true; 
+          set_vlan_pcp = true;
+          strip_vlan = true; 
+          set_dl_src = true;
+          set_dl_dst = true;
+          set_nw_src = true; 
+          set_nw_dst = true; 
+          set_nw_tos = true;
+          set_tp_src = true; 
+          set_tp_dst = true;
+          enqueue = true;
+          vendor = false } }
+
+  let exn_if_disconnected sw_id sw = 
+    if sw.status = Disconnected then
+      begin
+        Hashtbl.remove switches sw_id;
+        raise (SwitchDisconnected sw_id)
+      end
+     
+  let send_to_switch sw_id xid msg = 
+    let sw = Hashtbl.find switches sw_id in
+    exn_if_disconnected sw_id sw;
+    Event.sync (Event.send sw.to_switch (xid, msg))
+
+  let recv_from_switch sw_id = 
+    let sw = Hashtbl.find switches sw_id in
+    exn_if_disconnected sw_id sw;
+    (* The controller is receiving messages from the switch. *)
+    Event.sync (Event.receive sw.to_controller)
+
+  let fail_if_disconnected sw_id sw = 
+    if sw.status = Disconnected then
+      begin
+        Hashtbl.remove switches sw_id;
+        failwith "dude, the switch is sending after it disconnected ..."
+      end
+
+  let send_to_controller sw_id xid msg = 
+    let sw = Hashtbl.find switches sw_id in
+    fail_if_disconnected sw_id sw;
+    Event.sync (Event.send sw.to_controller (xid, msg))
+    
+  let recv_from_controller sw_id = 
+    let sw = Hashtbl.find switches sw_id in
+    exn_if_disconnected sw_id sw;
+    Event.sync (Event.receive sw.to_switch)
+
+end
+
 let string_of_sockaddr (sa : sockaddr) : string = match sa with
   | ADDR_UNIX str -> str
   | ADDR_INET (addr,port) -> sprintf "%s:%d" (string_of_inet_addr addr) port
@@ -39,7 +141,7 @@ let ba_of_string (str : string) : Cstruct.buf =
 module ActualPlatform (Server : FD): PLATFORM = struct
 
   exception Internal of string
-
+      
   (** Receives an OpenFlow message from a raw file. Does not update
       any controller state. *)
   let recv_from_switch_fd (fd : file_descr) : xid * message = 
@@ -138,6 +240,3 @@ module ActualPlatform (Server : FD): PLATFORM = struct
       end
       
 end
-
-
-  

@@ -11,13 +11,18 @@ module type WORD = sig
 end
 
 module Word8 : sig
-  include WORD
+  include WORD 
   val from_int : int -> t
   val to_int : t -> int
 end
 
 module Word16 : sig
-  include WORD
+  type t = int
+  val eq_dec : t -> t -> bool
+  val test_bit : int -> t -> bool
+  val clear_bit : int -> t -> t
+  val set_bit : int -> t -> t
+  val bit : t -> int -> bool -> t
   val from_int : int -> t
   val to_int : t -> int
 end

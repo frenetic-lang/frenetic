@@ -68,6 +68,60 @@ Record features : Type := Features {
   (* TODO(arjun): physical ports go here  *)
 }.
 
+Inductive flowModCommand : Type :=
+| AddFlow : flowModCommand
+| ModFlow : flowModCommand
+| ModStrictFlow : flowModCommand
+| DeleteFlow : flowModCommand
+| DeleteStrictFlow : flowModCommand.
+
+Definition priority := Word16.t.
+Definition cookie := Word32.t.
+Definition bufferId := Word16.t.
+
+Inductive pseudoPort : Type :=
+| PhysicalPort : portId -> pseudoPort
+| InPort : pseudoPort
+| Flood : pseudoPort
+| AllPorts : pseudoPort
+| Controller : Word16.t -> pseudoPort.
+
+Inductive action : Type :=
+| Output : pseudoPort -> action
+| SetDlVlan : dlVlan -> action
+| SetDlVlanPcp : dlVlanPcp -> action
+| StripVlan : action
+| SetDlSrc : dlAddr -> action
+| SetDlDst : dlAddr -> action
+| SetNwSrc : nwAddr -> action
+| SetNwDst : nwAddr -> action
+| SetNwTos : nwTos -> action
+| SetTpSrc : tpPort -> action	
+| SetTpDst : tpPort -> action.
+
+Definition actionSequence := list action.
+
+Inductive timeout : Type :=
+| Permanent : timeout
+| ExpiresAfter : forall (n : Word16.t), 
+    Word16.to_nat n > Word16.to_nat Word16.zero -> 
+    timeout.
+
+(* TODO(arjun): Missing the flag for emergency flows. *)
+Record flowMod := FlowMod {
+  mfModCmd : flowModCommand;
+  mfMatch : of_match;
+  mfPriority : priority;
+  mfActions : actionSequence;
+  mfCookie : cookie;
+  mfIdleTimeOut : timeout;
+  mfHardTimeOut : timeout; 
+  mfNotifyWhenRemoved : bool;
+  mfApplyToPacket : option bufferId;
+  mfOutPort : option pseudoPort;
+  mfOverlapAllowed : bool
+}.
+
 Definition xid : Type := Word32.t.
 
 Inductive message : Type :=
@@ -75,7 +129,8 @@ Inductive message : Type :=
 | EchoRequest : bytes -> message
 | EchoReply : bytes -> message
 | FeaturesRequest : message
-| FeaturesReply : features -> message.
+| FeaturesReply : features -> message
+| FlowModMsg : flowMod -> message.
 
 
 (*

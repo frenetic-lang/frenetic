@@ -65,6 +65,85 @@ cstruct ofp_switch_features {
   uint32_t action
 } as big_endian 
 
+cenum ofp_flow_mod_command {
+  OFPFC_ADD;
+  OFPFC_MODIFY;
+  OFPFC_MODIFY_STRICT;
+  OFPFC_DELETE;
+  OFPFC_DELETE_STRICT
+} as uint16_t
+
+cenum ofp_port {
+  (* Maximum number of physical switch ports. *)
+  OFPP_MAX = 0xff00;
+
+  (*Fake output "ports". *)
+  OFPP_IN_PORT = 0xfff8;  (* Send the packet out the input port.  This
+                             virtual port must be explicitly used
+                             in order to send back out of the input
+                             port. *)
+
+  OFPP_TABLE = 0xfff9; (* Perform actions in flow table.
+                          NB: This can only be the destination
+                          port for packet-out messages. *)
+  OFPP_NORMAL = 0xfffa; (* Process with normal L2/L3 switching. *)
+  OFPP_FLOOD = 0xfffb; (* All physical porbts except input port and
+                          those disabled by STP. *)
+  OFPP_ALL = 0xfffc; (* All physical ports except input port. *)
+  OFPP_CONTROLLER = 0xfffd; (* Send to controller. *)
+  OFPP_LOCAL = 0xfffe; (* Local openflow "port". *)
+  OFPP_NONE = 0xffff  (* Not associated with a physical port. *)
+} as uint16_t
+
+cstruct ofp_flow_mod {
+  uint64_t cookie;         
+  uint16_t command;        
+  uint16_t idle_timeout;   
+  uint16_t hard_timeout;   
+  uint16_t priority;       
+  uint32_t buffer_id;      
+  uint16_t out_port;       
+  uint16_t flags
+} as big_endian
+
+
+module Timeout = struct
+
+  type t = timeout
+
+  let marshal (t : t) : int = match t with
+    | Permanent -> 0
+    | ExpiresAfter n -> n
+
+end
+
+module FlowModCommand = struct
+    
+  type t = flowModCommand
+
+  let marshal (t : t) : int = match t with
+    | AddFlow -> ofp_flow_mod_command_to_int OFPFC_ADD
+    | ModFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY
+    | ModStrictFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY_STRICT
+    | DeleteFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE
+    | DeleteStrictFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE_STRICT
+     
+end
+
+module PseudoPort = struct
+
+  type t = pseudoPort
+
+  let marshal (t : t) : int = match t with
+    | PhysicalPort p -> p
+    | InPort -> ofp_port_to_int OFPP_IN_PORT
+    | Flood -> ofp_port_to_int OFPP_FLOOD
+    | AllPorts -> ofp_port_to_int OFPP_ALL
+    (* TODO(arjun): what happened to the byte count? *)
+    | Controller _ -> ofp_port_to_int OFPP_CONTROLLER
+
+end
+
 module Capabilities = struct
 
   type t = capabilities

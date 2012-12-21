@@ -3,3 +3,4 @@
 "main.d.byte" or <**/*.ml{,i}> : package(cstruct)
 "main.d.byte" or <**/*.ml{,i}> : package(cstruct.syntax)
 "main.d.byte" or <**/*.ml{,i}> : thread
+"concTest.d.byte" : thread, package(threads)

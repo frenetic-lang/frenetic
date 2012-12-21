@@ -63,6 +63,13 @@ Module Word16 <: WORD.
   Axiom set_bit : forall (n : N), n < Npos width -> t -> t.
   Axiom clear_bit : forall (n : N), n < Npos width -> t -> t.
 
+  Definition to_nat (w : Word) : nat := 
+    match w with
+      | Mk n _ => n
+    end.
+
+  Definition zero := Mk 0 eq_refl.
+
 End Word16.
 
 Module Word32 <: WORD.
