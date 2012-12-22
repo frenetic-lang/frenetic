@@ -41,7 +41,7 @@ Section ToFlowMod.
             (Pattern.to_match pat isfls)
             prio
             (List.map translate_action act)
-            Word32.zero
+            Word64.zero
             Permanent
             Permanent
             false
@@ -77,7 +77,7 @@ Section ToFlowMod.
             (Pattern.to_match Pattern.all Pattern_all_not_empty)
             Word16.zero
             nil
-            Word32.zero
+            Word64.zero
             Permanent
             Permanent
             false
@@ -113,7 +113,6 @@ End NETCORE_MONAD.
 Module Make (Import Monad : NETCORE_MONAD).
 
   Local Notation "x <- M ; K" := (bind M (fun x => K)).
-  Check compile_pol.
 
   Fixpoint sequence (lst : list (m unit)) : m unit := 
     match lst with

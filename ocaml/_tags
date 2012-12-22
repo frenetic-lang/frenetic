@@ -1,6 +1,6 @@
 <extracted> : include
-<*.ml> : syntax(camlp4o)
-"main.d.byte" or <**/*.ml{,i}> : package(cstruct)
-"main.d.byte" or <**/*.ml{,i}> : package(cstruct.syntax)
-"main.d.byte" or <**/*.ml{,i}> : thread
-"concTest.d.byte" : thread, package(threads)
+"openflow1_0.ml" : syntax(camlp4o), package(cstruct.syntax)
+<**/*.ml{,i}> : package(cstruct), thread
+"main.d.byte" : thread, package(cstruct)
+"test.d.byte" : thread, package(cstruct)
+

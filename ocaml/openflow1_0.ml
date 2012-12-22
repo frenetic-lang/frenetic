@@ -142,6 +142,10 @@ module PseudoPort = struct
     (* TODO(arjun): what happened to the byte count? *)
     | Controller _ -> ofp_port_to_int OFPP_CONTROLLER
 
+  let marshal_optional (t : t option) : int = match t with
+    | None -> ofp_port_to_int OFPP_NONE
+    | Some x -> marshal x
+
 end
 
 module Capabilities = struct
@@ -434,6 +438,40 @@ module Match = struct
 
 end
 
+module TimeoutSer = struct
+
+  let to_int (x : timeout) = match x with
+    | Permanent -> 0
+    | ExpiresAfter w -> Word16.to_int w
+
+end
+
+module FlowMod = struct
+
+  type t = flowMod
+
+  let flags_to_int (check_overlap : bool) (notify_when_removed : bool) =
+    (if check_overlap then 1 lsl 2 else 0) lor
+      (if notify_when_removed then 1 else 0)
+
+  let marshal m bits = 
+    let bits = Cstruct.shift bits (Match.marshal m.mfMatch bits) in
+    set_ofp_flow_mod_cookie bits (Word64.to_int64 m.mfCookie);
+    set_ofp_flow_mod_command bits (FlowModCommand.marshal m.mfModCmd);
+    set_ofp_flow_mod_idle_timeout bits (TimeoutSer.to_int m.mfIdleTimeOut);
+    set_ofp_flow_mod_hard_timeout bits (TimeoutSer.to_int m.mfHardTimeOut);
+    set_ofp_flow_mod_priority bits (Word16.to_int m.mfPriority);
+    set_ofp_flow_mod_buffer_id bits
+      (match m.mfApplyToPacket with
+        | None -> -1l
+        | Some bufId -> Word32.to_int32 bufId);
+    set_ofp_flow_mod_out_port bits (PseudoPort.marshal_optional m.mfOutPort);
+    set_ofp_flow_mod_flags bits
+      (flags_to_int m.mfOverlapAllowed m.mfNotifyWhenRemoved)
+
+end
+    
+
 module Header = struct
 
   let ver : Word8.t = Word8.from_int 0x01
@@ -462,7 +500,6 @@ end
 module Message = struct
 
   type t = message
-
   
   let parse (hdr : Header.t) (buf : Cstruct.buf) : xid * t =
     let msg =  match hdr.Header.typ with
@@ -482,15 +519,18 @@ module Message = struct
     | EchoReply _ -> ECHO_RESP
     | FeaturesRequest -> FEATURES_REQ
     | FeaturesReply _ -> FEATURES_RESP
+    | FlowModMsg _ -> FLOW_MOD
 
   open Bigarray
 
+  (** Size of the message body, without the header *)
   let sizeof_body (msg : t) : int = match msg with
     | Hello buf -> Array1.dim buf
     | EchoRequest buf -> Array1.dim buf
     | EchoReply buf -> Array1.dim buf
     | FeaturesRequest -> 0
     | FeaturesReply _ -> sizeof_ofp_switch_features
+    | FlowModMsg _ -> sizeof_ofp_match + sizeof_ofp_flow_mod
     | _ -> failwith "unknowns"
 
   let blit_message (msg : t) (out : Cstruct.buf) = match msg with
@@ -499,19 +539,17 @@ module Message = struct
     | EchoReply buf ->
       Cstruct.blit_buffer buf 0 out 0 (Cstruct.len buf)
     | FeaturesRequest -> ()
+    | FlowModMsg flow_mod -> FlowMod.marshal flow_mod out
 
   let marshal (xid : xid) (msg : t) : string = 
     let sizeof_buf = sizeof_ofp_header + sizeof_body msg in
-    eprintf "marshaling %d bytes.\n%!" sizeof_buf;
     let buf = Array1.create char c_layout sizeof_buf in
-    eprintf "MArshaling.\n%!";
     set_ofp_header_version buf 0x1;
     set_ofp_header_typ buf (msg_code_to_int (msg_code_of_message msg));
     set_ofp_header_length buf sizeof_buf;
     set_ofp_header_xid buf (Word32.to_int32 xid);
-    eprintf "Wrote teh header\n%!";
-    blit_message msg buf;
-    eprintf "Wrote the message body\n%!";
-    Cstruct.to_string buf
+    blit_message msg (Cstruct.shift buf sizeof_ofp_header);
+    let str = Cstruct.to_string buf in
+    str
 
 end

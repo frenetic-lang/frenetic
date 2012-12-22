@@ -146,7 +146,7 @@ module ActualPlatform (Server : FD): PLATFORM = struct
       any controller state. *)
   let recv_from_switch_fd (fd : file_descr) : xid * message = 
     eprintf "creating header \n%!";
-    let ofhdr_str = String.create sizeof_ofp_header in
+    let ofhdr_str = String.create (2 * sizeof_ofp_header) in
     let n = read fd ofhdr_str 0 sizeof_ofp_header in
     if n <> sizeof_ofp_header then
       begin
@@ -167,13 +167,21 @@ module ActualPlatform (Server : FD): PLATFORM = struct
   let send_to_switch_fd (fd : file_descr) (xid : xid) (msg : message) : unit = 
     let out = Message.marshal xid msg in
     let len = String.length out in
-    let n = write fd out 0 len in
-    if n <> len then
-      begin
-        eprintf "[send_to_switch] not enough bytes written\n%!";
-        raise (Internal "not enough bytes written")
-      end;
-    ()
+    eprintf "[platform] sending a message of length %d, code %d\n" len
+      (msg_code_to_int (Message.msg_code_of_message msg));
+    try
+      let n = write fd out 0 len in
+      if n <> len then
+        begin
+          eprintf "[send_to_switch] not enough bytes written\n%!";
+          raise (Internal "not enough bytes written")
+        end;
+      ()
+    with Unix.Unix_error (err, fn, arg) ->
+      eprintf "[platform] error sending: %s (in %s)\n%!"
+        (Unix.error_message err)
+        fn
+      
 
 
   exception SwitchDisconnected of switchId
@@ -197,9 +205,7 @@ module ActualPlatform (Server : FD): PLATFORM = struct
       raise (UnknownSwitch sw_id)
 
   let switch_handshake (fd : file_descr) : features = 
-    eprintf "[switch_handshake] sending HELLO\n%!";
     send_to_switch_fd fd (Word32.from_int32 0l) (Hello (ba_of_string ""));
-    eprintf "[switch_handshake] waiting HELLO\n%!";
     let (xid, msg) = recv_from_switch_fd fd in
     begin 
       match msg with
@@ -211,25 +217,16 @@ module ActualPlatform (Server : FD): PLATFORM = struct
     match msg with
       | FeaturesReply feats ->
         Hashtbl.add switch_fds feats.switch_id fd;
+        eprintf "[platform] switch %Ld connected\n%!" 
+          (Word64.to_int64 feats.switch_id);
         feats
       | _ -> raise (Internal "expected FEATURES_REPLY")
 
   let accept_switch () = 
     let (fd, sa) = accept Server.fd in
-    eprintf "[accept_switch] : %s connected\n%!" (string_of_sockaddr sa);
+    eprintf "[platform] : %s connected, handshaking...\n%!" 
+      (string_of_sockaddr sa);
     switch_handshake fd
-
-  let recv_from_switch (sw_id : switchId) : xid * message = 
-    let switch_fd = fd_of_switch_id sw_id in
-    try
-      recv_from_switch_fd switch_fd
-    with Internal s ->
-      begin
-        disconnect_switch sw_id;
-        raise (SwitchDisconnected sw_id)
-      end
-
-
 
   let send_to_switch (sw_id : switchId) (xid : xid) (msg : message) : unit = 
     let fd = fd_of_switch_id sw_id in
@@ -239,5 +236,27 @@ module ActualPlatform (Server : FD): PLATFORM = struct
         disconnect_switch sw_id;
         raise (SwitchDisconnected sw_id)
       end
+
+  (* By handling echoes here, we do not respond to echoes during the
+     handshake. *)
+  let rec recv_from_switch (sw_id : switchId) : xid * message = 
+    let switch_fd = fd_of_switch_id sw_id in
+    let (xid, msg) = 
+      try
+        recv_from_switch_fd switch_fd
+      with Internal s ->
+        begin
+          disconnect_switch sw_id;
+          raise (SwitchDisconnected sw_id)
+        end in
+    match msg with
+      | EchoRequest bytes -> 
+        send_to_switch sw_id xid (EchoReply bytes);
+        recv_from_switch sw_id
+      | _ -> (xid, msg)
+
+
+
+
       
 end

@@ -63,8 +63,7 @@ Inductive flowModCommand : Type :=
 
 Definition switchId := Word64.t.
 Definition priority := Word16.t.
-Definition cookie := Word32.t.
-Definition bufferId := Word16.t.
+Definition bufferId := Word32.t.
 
 Inductive pseudoPort : Type :=
 | PhysicalPort : portId -> pseudoPort
@@ -100,13 +99,13 @@ Record flowMod := FlowMod {
   mfMatch : of_match;
   mfPriority : priority;
   mfActions : actionSequence;
-  mfCookie : cookie;
+  mfCookie : Word64.t;
   mfIdleTimeOut : timeout;
   mfHardTimeOut : timeout; 
   mfNotifyWhenRemoved : bool;
   mfApplyToPacket : option bufferId;
   mfOutPort : option pseudoPort;
-  mfOverlapAllowed : bool
+  mfOverlapAllowed : bool (* TODO(arjun): should be "check overlap": invert *)
 }.
 
 Definition xid : Type := Word32.t.
@@ -118,5 +117,3 @@ Inductive message : Type :=
 | FeaturesRequest : message
 | FeaturesReply : features -> message
 | FlowModMsg : flowMod -> message.
-
-
