@@ -1,3 +1,4 @@
+open Printf
 open Platform
 open MessagesDef
 open ControllerInterface
@@ -51,7 +52,9 @@ module Make
 
   let rec accept_switch_thread () = 
     let feats = Platform.accept_switch () in
+    eprintf "[netcore-monad] SwitchConnected event queued.\n%!";
     Event.sync (Event.send events (SwitchConnected feats.switch_id));
+    eprintf "[netcore-monad] SwitchConnected event consumed.\n%!";
     let _ = Thread.create recv_from_switch_thread feats.switch_id in
     accept_switch_thread ()
 
