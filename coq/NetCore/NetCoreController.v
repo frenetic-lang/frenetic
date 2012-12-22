@@ -88,15 +88,15 @@ Section ToFlowMod.
 
 End ToFlowMod.
 
+Record ncstate := State {
+  policy : Pol;
+  switches : list switchId
+}.
 
 Module Type NETCORE_MONAD <: CONTROLLER_MONAD.
 
   Include MONAD.
 
-  Record ncstate := State {
-    policy : Pol;
-    switches : list switchId
-  }.
 
   Definition state := ncstate.
 

@@ -1,3 +1,4 @@
+open Platform
 open MessagesDef
 open ControllerInterface
 
@@ -7,7 +8,7 @@ end
 
 module Make 
   (Platform : Platform.PLATFORM) 
-  (State : STATE) : CONTROLLER_MONAD = struct
+  (State : STATE) = struct
 
   type state = State.state
       
@@ -62,3 +63,30 @@ module Make
     result
 
   end
+
+module NetCoreState = struct
+
+  type state = NetCoreController.ncstate
+
+end
+
+module MakeNetCoreController (Platform : PLATFORM) = struct
+
+  (* The monad is written in OCaml *)
+  module NetCoreMonad = Make (Platform) (NetCoreState)
+  (* The controller is written in Coq *)
+  module Controller = NetCoreController.Make (NetCoreMonad)
+
+
+  let start_controller pol =
+    let init_state = { 
+      NetCoreController.policy = pol; 
+      NetCoreController.switches = []
+    } in
+    NetCoreMonad.run init_state Controller.main
+
+  (** We'll do this by comingling OCaml and Coq functions in the monad instead
+      of simply calling Controller.main *)
+  let set_policy _ = failwith "NYI"
+
+end

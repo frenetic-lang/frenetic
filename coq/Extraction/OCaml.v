@@ -1,7 +1,24 @@
 Extraction Language Ocaml.
 
+Require Import Coq.Lists.List.
 Require Import PArith.BinPos.
 Require Import NArith.BinNat.
+
+(** Without this hack, these are "extracted as axioms":
+
+      failwith "AXIOM TO BE REALIZED"
+   
+   IMO, something in the library is poorly designed. The alternative
+   is to Set Extraction Opaque. If we do that, we won't get the opacity
+   warning in our code, which we can and should fix. *)
+Extract Constant destruct_list => 
+  "fun _ -> failwith ""destruct_list axiom""".
+
+Extract Constant exists_last => 
+  "fun _ -> failwith ""exists_last axiom""".
+
+Extract Constant nth_in_or_default => 
+  "fun _ _ _ -> failwith ""nth_in_or_default axiom""".
 
 Extract Inductive nat => "int" [ "0" "succ" ]
   "(fun f0 fS n -> if n = 0 then f0 () else fS (n - 1))".
@@ -43,8 +60,3 @@ Extract Inductive list => "list" [ "[]" "(::)" ].
    inputs other than 0, -1, and +1. *)
 Extract Inductive comparison => "int" [ "0" "(-1)" "1" ].
 
-Local Open Scope positive_scope.
-
-Example pos5 := 5 %positive.
-Example pos3 := 3 %positive.
-Example pos15 := Pos.mul 5 3.
