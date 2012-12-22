@@ -6,6 +6,8 @@ open MessagesDef
 
 exception Unparsable of string
 
+let sum (lst : int list) = List.fold_left (fun x y -> x + y) lst 0
+
 cstruct ofp_header {
   uint8_t version;    
   uint8_t typ;   
@@ -106,6 +108,147 @@ cstruct ofp_flow_mod {
   uint16_t flags
 } as big_endian
 
+cstruct ofp_action_header {
+   uint16_t typ;
+   uint16_t len;
+   uint8_t pad[4]
+} as big_endian
+
+cstruct ofp_action_output {
+  uint16_t typ;
+  uint16_t len;
+  uint16_t port;
+  uint16_t max_len
+} as big_endian 
+
+ cstruct ofp_action_vlan_vid {
+   uint16_t typ;          
+   uint16_t len;           
+   uint16_t vlan_vid;      
+   uint8_t pad[2]
+ } as big_endian
+
+ cstruct ofp_action_vlan_pcp {
+   uint16_t typ;
+   uint16_t len;           
+   uint8_t vlan_pcp;       
+   uint8_t pad[3]
+ } as big_endian
+
+ cstruct ofp_action_dl_addr {
+   uint16_t typ; 
+   uint16_t len;          
+   uint8_t dl_addr[6];
+   uint8_t pad[6]
+ } as big_endian 
+
+ cstruct ofp_action_nw_addr {
+   uint16_t typ;
+   uint16_t len; 
+   uint32_t nw_addr
+ } as big_endian
+
+ cstruct ofp_action_tp_port {
+   uint16_t typ;         
+   uint16_t len;          
+   uint16_t tp_port;      
+   uint8_t pad[2]
+ } as big_endian
+
+ cstruct ofp_action_nw_tos {
+   uint16_t typ;
+   uint16_t len; 
+   uint8_t nw_tos; 
+   uint8_t pad[3]
+ } as big_endian
+
+ cstruct ofp_action_enqueue {
+   uint16_t typ;
+   uint16_t len;
+   uint16_t port;
+   uint8_t pad[6]; 
+   uint32_t queue_id
+ } as big_endian 
+
+cenum ofp_action_type {
+  OFPAT_OUTPUT;
+  OFPAT_SET_VLAN_VID;
+  OFPAT_SET_VLAN_PCP;
+  OFPAT_STRIP_VLAN;
+  OFPAT_SET_DL_SRC;
+  OFPAT_SET_DL_DST;
+  OFPAT_SET_NW_SRC;
+  OFPAT_SET_NW_DST;
+  OFPAT_SET_NW_TOS;
+  OFPAT_SET_TP_SRC;
+  OFPAT_SET_TP_DST;
+  OFPAT_ENQUEUE
+} as uint16_t
+
+module PseudoPort = struct
+
+  type t = pseudoPort
+
+  let marshal (t : t) : int = match t with
+    | PhysicalPort p -> p
+    | InPort -> ofp_port_to_int OFPP_IN_PORT
+    | Flood -> ofp_port_to_int OFPP_FLOOD
+    | AllPorts -> ofp_port_to_int OFPP_ALL
+    (* TODO(arjun): what happened to the byte count? *)
+    | Controller _ -> ofp_port_to_int OFPP_CONTROLLER
+
+  let marshal_optional (t : t option) : int = match t with
+    | None -> ofp_port_to_int OFPP_NONE
+    | Some x -> marshal x
+
+end
+
+module Action = struct
+
+  type t = action
+
+  let type_code (a : t) = match a with
+    | Output _ -> OFPAT_OUTPUT
+    | SetDlVlan _ -> OFPAT_SET_VLAN_VID
+    | SetDlVlanPcp _ -> OFPAT_SET_VLAN_PCP
+    | StripVlan -> OFPAT_STRIP_VLAN
+    | SetDlSrc _ -> OFPAT_SET_DL_SRC
+    | SetDlDst _ -> OFPAT_SET_DL_DST
+    | SetNwSrc _ -> OFPAT_SET_NW_SRC
+    | SetNwDst _ -> OFPAT_SET_NW_DST
+    | SetNwTos _ -> OFPAT_SET_NW_TOS
+    | SetTpSrc _ -> OFPAT_SET_TP_SRC
+    | SetTpDst _ -> OFPAT_SET_TP_DST
+
+  let sizeof (a : t) = match a with
+    | Output _ -> sizeof_ofp_action_output
+    | SetDlVlan _ -> sizeof_ofp_action_vlan_vid
+    | SetDlVlanPcp _ -> sizeof_ofp_action_vlan_pcp
+    | StripVlan -> sizeof_ofp_action_header
+    | SetDlSrc _
+    | SetDlDst _ -> sizeof_ofp_action_dl_addr
+    | SetNwSrc _
+    | SetNwDst _ -> sizeof_ofp_action_nw_addr
+    | SetNwTos _ -> sizeof_ofp_action_nw_tos
+    | SetTpSrc _
+    | SetTpDst _ -> sizeof_ofp_action_tp_port
+
+  let marshal a bits = 
+    set_ofp_action_header_typ bits (ofp_action_type_to_int (type_code a));
+    set_ofp_action_header_len bits (sizeof a);
+    begin
+      match a with
+        | Output pp ->
+          set_ofp_action_output_port bits (PseudoPort.marshal pp);
+          set_ofp_action_output_max_len bits
+            (match pp with
+              | Controller w -> Word16.to_int w
+              | _ -> 0)
+    end;
+    sizeof a
+      
+        
+end
 
 module Timeout = struct
 
@@ -128,24 +271,6 @@ module FlowModCommand = struct
     | DeleteFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE
     | DeleteStrictFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE_STRICT
      
-end
-
-module PseudoPort = struct
-
-  type t = pseudoPort
-
-  let marshal (t : t) : int = match t with
-    | PhysicalPort p -> p
-    | InPort -> ofp_port_to_int OFPP_IN_PORT
-    | Flood -> ofp_port_to_int OFPP_FLOOD
-    | AllPorts -> ofp_port_to_int OFPP_ALL
-    (* TODO(arjun): what happened to the byte count? *)
-    | Controller _ -> ofp_port_to_int OFPP_CONTROLLER
-
-  let marshal_optional (t : t option) : int = match t with
-    | None -> ofp_port_to_int OFPP_NONE
-    | Some x -> marshal x
-
 end
 
 module Capabilities = struct
@@ -256,11 +381,9 @@ module Wildcards = struct
     nw_tos: bool;
   }
 
-  let set_nw_mask (f : Word32.t) (off : int) (v : int) : Word32.t = 
-    (* 0x3f = b111111 (six bit field) *)
-    let v = Int32.of_int (0x3f land v) in (* select six LSB *)
-    Word32.from_int32 (Int32.logor (Word32.to_int32 f) 
-                         (Int32.shift_left v off))
+  let set_nw_mask f  (off : int) (v : int) : Word32.t = 
+    let value = Int32.of_int ((0x3f land v) lsl off) in
+    Word32.from_int32 (Int32.logor (Word32.to_int32 f) value)
 
   (* TODO(arjun): this is different from mirage *)
   let get_nw_mask (f : Word32.t) (off : int) : int = 
@@ -331,8 +454,8 @@ module Match = struct
       Wildcards.tp_src = is_none m.matchTpSrc;
       Wildcards.tp_dst = is_none m.matchTpDst;
       (* TODO(arjun): support IP prefixes *)
-      Wildcards.nw_src = if is_none m.matchNwSrc then 0x3f else 0x0;
-      Wildcards.nw_dst = if is_none m.matchNwDst then 0x3f else 0x0;
+      Wildcards.nw_src = if is_none m.matchNwSrc then 32 else 0x0;
+      Wildcards.nw_dst = if is_none m.matchNwDst then 32 else 0x0;
       Wildcards.dl_vlan_pcp = is_none m.matchDlVlanPcp;
       Wildcards.nw_tos = is_none m.matchNwTos;
   }
@@ -451,8 +574,8 @@ module FlowMod = struct
   type t = flowMod
 
   let flags_to_int (check_overlap : bool) (notify_when_removed : bool) =
-    (if check_overlap then 1 lsl 2 else 0) lor
-      (if notify_when_removed then 1 else 0)
+    (if check_overlap then 1 lsl 1 else 0) lor
+      (if notify_when_removed then 1 lsl 0 else 0)
 
   let marshal m bits = 
     let bits = Cstruct.shift bits (Match.marshal m.mfMatch bits) in
@@ -467,10 +590,20 @@ module FlowMod = struct
         | Some bufId -> Word32.to_int32 bufId);
     set_ofp_flow_mod_out_port bits (PseudoPort.marshal_optional m.mfOutPort);
     set_ofp_flow_mod_flags bits
-      (flags_to_int m.mfOverlapAllowed m.mfNotifyWhenRemoved)
+      (flags_to_int m.mfCheckOverlap m.mfNotifyWhenRemoved);
+    let bits = Cstruct.shift bits sizeof_ofp_flow_mod in
+    (* TODO(arjun): this is using Coq's extracted List
+       library. Extraction blacklist, imo *)
+    let _ = List.fold_left
+      (fun bits act -> 
+        Cstruct.shift bits (Action.marshal act bits))
+      m.mfActions
+      bits
+    in
+    ()
 
 end
-    
+  
 
 module Header = struct
 
@@ -530,7 +663,9 @@ module Message = struct
     | EchoReply buf -> Array1.dim buf
     | FeaturesRequest -> 0
     | FeaturesReply _ -> sizeof_ofp_switch_features
-    | FlowModMsg _ -> sizeof_ofp_match + sizeof_ofp_flow_mod
+    | FlowModMsg msg ->
+      sizeof_ofp_match + sizeof_ofp_flow_mod + 
+        sum (List.map Action.sizeof msg.mfActions)
     | _ -> failwith "unknowns"
 
   let blit_message (msg : t) (out : Cstruct.buf) = match msg with

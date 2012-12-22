@@ -47,7 +47,7 @@ Section ToFlowMod.
             false
             None
             None
-            true.
+            false.
 
   Definition flow_mods_of_classifier lst :=
     List.fold_right
@@ -83,7 +83,7 @@ Section ToFlowMod.
             false
             None
             None
-            true.
+            false.
 
 
 End ToFlowMod.

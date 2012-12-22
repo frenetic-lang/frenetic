@@ -105,7 +105,7 @@ Record flowMod := FlowMod {
   mfNotifyWhenRemoved : bool;
   mfApplyToPacket : option bufferId;
   mfOutPort : option pseudoPort;
-  mfOverlapAllowed : bool (* TODO(arjun): should be "check overlap": invert *)
+  mfCheckOverlap : bool
 }.
 
 Definition xid : Type := Word32.t.

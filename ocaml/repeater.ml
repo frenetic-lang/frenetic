@@ -7,7 +7,7 @@ open MonadicController
 open MessagesDef
 open NetCore
 
-let policy = PoAtom (PrAll, [])
+let policy = PoAtom (PrAll, [Forward AllPorts])
 
 module Make (Platform : PLATFORM) = struct
   module Controller = MakeNetCoreController (Platform)
