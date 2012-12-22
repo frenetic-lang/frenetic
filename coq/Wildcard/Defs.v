@@ -44,5 +44,12 @@ Module Wildcard.
   Proof with auto.
     decide equality.
   Defined.
+ 
+  Definition to_option (A : Type) (w : Wildcard A)  :=
+    match w as w0 return (w0 <> WildcardNone -> option A) with
+      | WildcardExact a => fun _ => Some a
+      | WildcardAll => fun _  => None
+      | WildcardNone => fun not_null => False_rect _ (not_null eq_refl)
+    end.
 
 End Wildcard.

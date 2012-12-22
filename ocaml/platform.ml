@@ -58,7 +58,7 @@ module TestPlatform = struct
 
   let accept_switch () = 
     let (sw_id, sw) = Event.sync (Event.receive pending_switches) in
-    sw.status = Connected;
+    sw.status <- Connected;
     Hashtbl.add switches sw_id sw;
     { switch_id = sw_id;
       num_buffers = Word32.from_int32 100l;
@@ -228,6 +228,7 @@ module ActualPlatform (Server : FD): PLATFORM = struct
         disconnect_switch sw_id;
         raise (SwitchDisconnected sw_id)
       end
+
 
 
   let send_to_switch (sw_id : switchId) (xid : xid) (msg : message) : unit = 

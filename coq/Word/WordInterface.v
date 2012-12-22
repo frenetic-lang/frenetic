@@ -58,6 +58,9 @@ Module Word16 <: WORD.
 
   Definition t := Word.
 
+  (* TODO(arjun): broken now for simplicity *)
+  Axiom pred : Word -> Word.
+
   Local Open Scope N_scope.
 
   Axiom eq_dec : forall (m n : t), { m = n } + { m <> n }.
@@ -65,12 +68,15 @@ Module Word16 <: WORD.
   Axiom set_bit : forall (n : N), n < Npos width -> t -> t.
   Axiom clear_bit : forall (n : N), n < Npos width -> t -> t.
 
+
   Definition to_nat (w : Word) : nat := 
     match w with
       | Mk n _ => n
     end.
 
   Definition zero : t := Mk 0 eq_refl.
+
+  Definition max_value : t := Mk 0 eq_refl.
 
 End Word16.
 
@@ -114,9 +120,6 @@ Module Word48 <: WORD.
   Axiom test_bit : forall (n : N), n < Npos width -> t -> bool.
   Axiom set_bit : forall (n : N), n < Npos width -> t -> t.
   Axiom clear_bit : forall (n : N), n < Npos width -> t -> t.
-
-  Definition zero : t := Mk 0 eq_refl.
-
 End Word48.
 
 Module Word64 <: WORD.
@@ -137,6 +140,8 @@ Module Word64 <: WORD.
   Axiom set_bit : forall (n : N), n < Npos width -> t -> t.
   Axiom clear_bit : forall (n : N), n < Npos width -> t -> t.
 
+  Definition zero : t := Mk 0 eq_refl.
+
 End Word64.
 
 Extract Inductive Word8.Word => "Word.Word8.t" [ "" ].
@@ -150,6 +155,8 @@ Extract Constant Word16.eq_dec => "Word.Word16.eq_dec".
 Extract Constant Word16.test_bit => "Word.Word16.test_bit".
 Extract Constant Word16.set_bit => "Word.Word16.set_bit".
 Extract Constant Word16.clear_bit => "Word.Word16.clear_bit".
+Extract Constant Word16.pred => "Word.Word16.succ".
+Extract Constant Word16.max_value => "Word.Word16.from_int 65535".
 
 Extract Inductive Word32.Word => "Word.Word32.t" [ "" ].
 Extract Constant Word32.eq_dec => "Word.Word32.eq_dec".
@@ -168,3 +175,8 @@ Extract Constant Word64.eq_dec => "Word.Word64.eq_dec".
 Extract Constant Word64.test_bit => "Word.Word64.test_bit".
 Extract Constant Word64.set_bit => "Word.Word64.set_bit".
 Extract Constant Word64.clear_bit => "Word.Word64.clear_bit".
+
+Extract Constant Word8.zero => "Word.Word8.from_int 0".
+Extract Constant Word32.zero => "Word.Word32.from_int 0".
+
+Extract Constant Word64.zero => "Word.Word64.from_int 0".

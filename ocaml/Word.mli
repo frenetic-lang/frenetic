@@ -11,7 +11,7 @@ module type WORD = sig
 end
 
 module Word8 : sig
-  include WORD 
+  include WORD
   val from_int : int -> t
   val to_int : t -> int
 end
@@ -25,22 +25,26 @@ module Word16 : sig
   val bit : t -> int -> bool -> t
   val from_int : int -> t
   val to_int : t -> int
+  val succ : t -> t
 end
 
 module Word32 : sig
   include WORD
   val to_int32 : t -> Int32.t
   val from_int32 : Int32.t -> t
+  val from_int : int -> t
 end
 
 module Word48 : sig
   include WORD
   val to_bytes : t -> string
   val from_bytes : string -> t
+
 end
 
 module Word64 : sig
   include WORD
   val to_int64 : t -> Int64.t
   val from_int64 : Int64.t -> t
+  val from_int : int -> t
 end

@@ -43,6 +43,8 @@ module Word16  = struct
   let from_int (n : int) : t = n
   let to_int (x : t) : int = x
 
+  let succ (x : t) : t = x + 1
+
 end
 
 module Word32 = struct
@@ -62,6 +64,8 @@ module Word32 = struct
 
   let to_int32 (x : t) : Int32.t = x
   let from_int32 (n : Int32.t) : t = n
+
+  let from_int (n : int) : t = Int32.of_int n
 
 end
 
@@ -109,5 +113,7 @@ module Word64 = struct
 
   let from_int64 (n : Int64.t) : t = n
   let to_int64 (x : t) : Int64.t = x
+
+  let from_int (n : int) : t = Int64.of_int n
 
 end

@@ -1,33 +1,28 @@
 Set Implicit Arguments.
 
+Require Import Common.Types.
+Require Import Common.Monad.
 Require Import OpenFlow.MessagesDef.
 
-(*
+Inductive event : Type :=
+  | SwitchConnected : switchId -> event
+  | SwitchDisconnected : switchId -> event
+  | SwitchMessage : switchId -> xid -> message -> event.
+
+(** Using a thin trusted shim, written in Haskell, we drive verified
+    controllers that match this signature. *)
 Module Type CONTROLLER_MONAD <: MONAD.
 
   Include MONAD.
-  Parameter send : switchId * xid * message -> m unit.
-  Parameter recv : m (switchId * xid * message).
+  Parameter state : Type.
 
-End CONTROLLER_MONAD.  
-*)
-(** Using a thin trusted shim, written in Haskell, we drive verified
-    controllers that match this signature. *)
-Module Type SINGLE_THREADED_CONTROLLER.
+  Parameter get : m state.
+  Parameter put : state -> m unit.
+  Parameter send : switchId -> xid -> message -> m unit.
+  Parameter recv : m event.
 
-  (** Controller state that is threaded between calls to verified code.
-      State threading is single-threaded, so we disallow multi-threaded
-      controllers. *)
-  Parameter st : Type.
+  (** Must be defined in OCaml *)
+  Parameter forever : m unit -> m unit.
 
-  (** A command transforms the controller state and sends messages to
-     switches. *)
-  Definition command := st -> list (switchId * xid * message) * st.
+End CONTROLLER_MONAD.
 
-  Parameter initial_state : st.
-
-  Parameter new_switch :  switchId -> command.
-  
-  Parameter recv_message : switchId -> xid -> message -> command.
-
-End SINGLE_THREADED_CONTROLLER.

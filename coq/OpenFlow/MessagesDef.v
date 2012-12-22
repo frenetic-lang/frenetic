@@ -45,8 +45,6 @@ Record actions : Type := Actions {
   vendor: bool
 }.
 
-
-
 Record features : Type := Features {
   switch_id : Word64.t;
   num_buffers: Word32.t;

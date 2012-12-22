@@ -327,4 +327,44 @@ Module Pattern.
         Wildcard.is_exact tpDst
     end.
 
+Require Import OpenFlow.MessagesDef.
+
+Lemma is_empty_neq_None : forall {A : Type} (w : Wildcard A),
+  Wildcard.is_empty w = false -> w <> WildcardNone.
+Proof.
+  unfold not.
+  intros.
+  destruct w.
+
+  inversion H0.
+  inversion H0.
+  simpl in H.
+  inversion H.
+Qed.
+
+(** Extracts to shockingly good code. *)
+Lemma to_match : forall (pat : Pattern)
+                        (H : is_empty pat = false),
+                   of_match. 
+Proof.
+  intros.
+  destruct pat.
+  unfold is_empty in H.
+  repeat rewrite -> orb_false_iff in H.
+  do 11 (destruct H).
+  exact (Match
+           (Wildcard.to_option (is_empty_neq_None H10))
+           (Wildcard.to_option (is_empty_neq_None H9))
+           (Wildcard.to_option (is_empty_neq_None H8))
+           (Wildcard.to_option (is_empty_neq_None H6))
+           (Wildcard.to_option (is_empty_neq_None H7))
+           (Wildcard.to_option (is_empty_neq_None H5))
+           (Wildcard.to_option (is_empty_neq_None H4))
+           (Wildcard.to_option (is_empty_neq_None H3))
+           (Wildcard.to_option (is_empty_neq_None H2))
+           (Wildcard.to_option (is_empty_neq_None H1))
+           (Wildcard.to_option (is_empty_neq_None H0))
+           (Wildcard.to_option (is_empty_neq_None H))).
+Defined.
+
 End Pattern.
