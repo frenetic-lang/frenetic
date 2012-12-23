@@ -8,7 +8,7 @@ module type STATE = sig
 end
 
 module Make 
-  (Platform : Platform.PLATFORM) 
+  (Platform : PLATFORM) 
   (State : STATE) = struct
 
   type state = State.state

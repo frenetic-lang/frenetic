@@ -18,10 +18,6 @@ module type PLATFORM = sig
 
 end
 
-module type FD = sig
-  val fd : file_descr
-end
-
 module TestPlatform = struct
 
   type status = Connecting | Connected | Disconnected
@@ -137,8 +133,28 @@ let ba_of_string (str : string) : Cstruct.buf =
     Array1.set ba i (String.get str i)
   done;
   ba
-   
-module ActualPlatform (Server : FD): PLATFORM = struct
+
+
+module OpenFlowPlatform = struct
+
+  let server_fd : file_descr option ref = ref None
+
+  let init_with_fd (fd : file_descr) : unit = match !server_fd with
+    | Some _ -> raise (Invalid_argument "Platform already initialized")
+    | None -> server_fd := Some fd
+
+  let init_with_port (p : int) : unit = match !server_fd with
+    | Some _ -> raise (Invalid_argument "Platform already initialized")
+    | None -> 
+      let fd = socket PF_INET SOCK_STREAM 0 in
+      bind fd (ADDR_INET (inet_addr_any, p));
+      listen fd 10;
+      at_exit (fun () -> close fd);
+      server_fd := Some fd
+
+  let get_fd () = match !server_fd with
+    | Some fd -> fd
+    | None -> raise (Invalid_argument "Platform not initialized")
 
   exception Internal of string
       
@@ -223,9 +239,15 @@ module ActualPlatform (Server : FD): PLATFORM = struct
       | _ -> raise (Internal "expected FEATURES_REPLY")
 
   let accept_switch () = 
-    let (fd, sa) = accept Server.fd in
+    let (fd, sa) = accept (get_fd ()) in
     eprintf "[platform] : %s connected, handshaking...\n%!" 
       (string_of_sockaddr sa);
+    (* TODO(arjun): a switch can stall during a handshake, while another
+       switch is ready to connect. To be fully robust, this module should
+       have a dedicated thread to accept TCP connections, a thread per new
+       connection to handle handshakes, and a queue of accepted switches.
+       Then, accept_switch will simply dequeue (or block if the queue is
+       empty). *)
     switch_handshake fd
 
   let send_to_switch (sw_id : switchId) (xid : xid) (msg : message) : unit = 
