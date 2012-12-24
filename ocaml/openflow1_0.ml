@@ -4,6 +4,8 @@ open Printf
 open Word
 open MessagesDef
 
+module Z = PacketParser
+
 exception Unparsable of string
 
 let sum (lst : int list) = List.fold_left (fun x y -> x + y) 0 lst
@@ -200,6 +202,43 @@ module PseudoPort = struct
   let marshal_optional (t : t option) : int = match t with
     | None -> ofp_port_to_int OFPP_NONE
     | Some x -> marshal x
+
+end
+
+module PacketIn = struct
+
+  cenum reason {
+    NO_MATCH = 0;
+    ACTION = 1
+  } as uint8_t
+
+ cstruct ofp_packet_in {
+   uint32_t buffer_id;     
+   uint16_t total_len;     
+   uint16_t in_port;       
+   uint8_t reason;         
+   uint8_t pad
+  } as big_endian
+
+  let parse bits =
+    let bufId = match get_ofp_packet_in_buffer_id bits with
+      | -1l -> None
+      | n -> Some (Word32.from_int32 n) in
+  let total_len = get_ofp_packet_in_total_len bits in
+  let in_port = get_ofp_packet_in_in_port bits in
+  let reason_code = get_ofp_packet_in_reason bits in
+  let reason = match int_to_reason reason_code with
+    | Some NO_MATCH -> NoMatch
+    | Some ACTION -> ExplicitSend
+    | None ->
+      raise (Unparsable (sprintf "bad reason in packet_in (%d)" reason_code)) in
+  let pkt_bits = Cstruct.shift bits sizeof_ofp_packet_in in
+  let pkt = PacketParser.parse_dl pkt_bits in
+  { packetInBufferId = bufId;
+    packetInTotalLen = Word16.from_int total_len;
+    packetInPort = Word16.from_int in_port;
+    packetInReason_ = reason;
+    packetInPacket = pkt }
 
 end
 
@@ -639,6 +678,7 @@ module Message = struct
       | ECHO_RESP -> EchoReply buf
       | FEATURES_REQ -> FeaturesRequest
       | FEATURES_RESP -> FeaturesReply (Features.parse buf)
+      | PACKET_IN -> PacketInMsg (PacketIn.parse buf)
       | _ -> failwith "expected msg"
     in
     let xid = hdr.Header.xid in

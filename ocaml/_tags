@@ -1,5 +1,6 @@
 <extracted> : include
 "openflow1_0.ml" : syntax(camlp4o), package(cstruct.syntax)
+"packetParser.ml" : syntax(camlp4o), package(cstruct.syntax)
 <**/*.ml{,i}> : package(cstruct), thread
 "main.d.byte" : thread, package(cstruct)
 "test.d.byte" : thread, package(cstruct)

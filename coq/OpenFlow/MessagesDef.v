@@ -108,6 +108,18 @@ Record flowMod := FlowMod {
   mfCheckOverlap : bool
 }.
 
+Inductive packetInReason : Type :=
+| NoMatch : packetInReason
+| ExplicitSend : packetInReason. (* OFPR_ACTION in the specification *)
+
+Record packetIn : Type := PacketIn {
+  packetInBufferId : option bufferId;
+  packetInTotalLen : Word16.t;
+  packetInPort : portId;
+  packetInReason_ : packetInReason;
+  packetInPacket : packet
+}.
+
 Definition xid : Type := Word32.t.
 
 Inductive message : Type :=
@@ -116,4 +128,7 @@ Inductive message : Type :=
 | EchoReply : bytes -> message
 | FeaturesRequest : message
 | FeaturesReply : features -> message
-| FlowModMsg : flowMod -> message.
+| FlowModMsg : flowMod -> message
+| PacketInMsg : packetIn -> message.
+
+
