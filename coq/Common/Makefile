@@ -1,4 +1,4 @@
-MODULES := CpdtTactics Types List Monad
+MODULES := CpdtTactics Types Monad
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean

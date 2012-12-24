@@ -5,7 +5,6 @@ Require Import Coq.Lists.List.
 Require Import Coq.Bool.Bool.
 
 Require Import Common.Types.
-Require Import Common.List.
 Require Import Word.WordInterface.
 Require Import Classifier.Defs.
 Require Import Network.Packet.

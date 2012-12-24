@@ -5,7 +5,6 @@ Require Import NPeano.
 Require Import Arith.Peano_dec.
 Require Import Bool.Bool.
 Require Import Coq.Classes.Equivalence.
-Require Import Common.List.
 Require Import Lists.List.
 
 Require Import Word.WordInterface.

@@ -9,7 +9,6 @@ Require Import Lists.List.
 Require Import PArith.BinPos.
 
 Require Import Word.WordInterface.
-Require Import Common.List.
 Require Import Network.Packet.
 Require Import Common.Types.
 Require Import Pattern.Defs.

@@ -3,7 +3,6 @@ Set Implicit Arguments.
 Require Import Coq.Classes.Equivalence.
 Require Import Coq.Lists.List.
 Require Import Coq.Bool.Bool.
-Require Import Common.List.
 Require Import Common.CpdtTactics.
 Require Import Common.Types.
 Require Import Network.Packet.

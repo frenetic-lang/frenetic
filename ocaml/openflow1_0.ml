@@ -6,7 +6,7 @@ open MessagesDef
 
 exception Unparsable of string
 
-let sum (lst : int list) = List.fold_left (fun x y -> x + y) lst 0
+let sum (lst : int list) = List.fold_left (fun x y -> x + y) 0 lst
 
 cstruct ofp_header {
   uint8_t version;    
@@ -592,13 +592,11 @@ module FlowMod = struct
     set_ofp_flow_mod_flags bits
       (flags_to_int m.mfCheckOverlap m.mfNotifyWhenRemoved);
     let bits = Cstruct.shift bits sizeof_ofp_flow_mod in
-    (* TODO(arjun): this is using Coq's extracted List
-       library. Extraction blacklist, imo *)
     let _ = List.fold_left
       (fun bits act -> 
         Cstruct.shift bits (Action.marshal act bits))
-      m.mfActions
       bits
+      m.mfActions
     in
     ()
 

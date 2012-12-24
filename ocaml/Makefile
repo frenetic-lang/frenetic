@@ -8,3 +8,7 @@ all: extracted doc
 doc:
 	$(OCAMLBUILD) doc.docdir/index.html
 
+
+clean:
+	rm -rf _build
+	rm -rf extracted

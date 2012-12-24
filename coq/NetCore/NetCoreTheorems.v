@@ -6,7 +6,6 @@ Require Import Coq.Bool.Bool.
 
 Require Import Common.Types.
 Require Import Common.CpdtTactics.
-Require Import Common.List.
 Require Import Word.WordInterface.
 Require Import Classifier.Defs.
 Require Import Classifier.Theory.
