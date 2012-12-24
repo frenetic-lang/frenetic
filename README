@@ -15,14 +15,18 @@ Prerequisites
 
 - The cstruct library (version 0.5.3), which you can install using opam:
 
-    $ opam install cstruct.0.5.3
+  ```bash
+  $ opam install cstruct.0.5.3
+  ```
 
 Building
 --------
 
 - From the root directory of the repository, run `make`
 
-    $ make
+  ```bash
+  $ make
+  ```
 
   Make compiles the Coq code first, extracts it to OCaml, and then compiles
   the OCaml shim.
