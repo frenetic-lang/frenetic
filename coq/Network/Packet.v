@@ -30,6 +30,7 @@ Extract Constant Const_0x7 => "Word.Word8.from_int 7".
 Extract Constant Const_0x1 => "Word.Word8.from_int 1".
 
 
+
 Definition portId := Word16.t.
 Definition dlAddr := Word48.t.
 Definition dlTyp := Word16.t.
@@ -39,6 +40,8 @@ Definition nwAddr := Word32.t.
 Definition nwProto := Word8.t.
 Definition nwTos := Word8.t. (** 6 bits *)
 Definition tpPort := Word16.t.
+
+Unset Elimination Schemes.
 
 Record tcp : Type := Tcp {
   tcpSrc : tpPort;
