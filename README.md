@@ -15,7 +15,7 @@ Prerequisites
 
 - The cstruct library (version 0.5.3), which you can install using opam:
 
-  ```bash
+  ```
   $ opam install cstruct.0.5.3
   ```
 
@@ -24,7 +24,7 @@ Building
 
 - From the root directory of the repository, run `make`
 
-  ```bash
+  ```
   $ make
   ```
 
