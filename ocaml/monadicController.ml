@@ -1,15 +1,32 @@
 open Printf
 open Platform
+open Packet
 open MessagesDef
 open ControllerInterface
 
 module type STATE = sig
+
   type state
+
+end
+
+module type HANDLERS = sig
+
+  val get_packet_handler : 
+    NetCore.coq_Id -> switchId -> portId -> packet -> unit
+
+end
+
+module EmptyHandlers : HANDLERS = struct
+
+  let get_packet_handler _ _ _ _ = ()
+
 end
 
 module Make 
   (Platform : PLATFORM) 
-  (State : STATE) = struct
+  (State : STATE)
+  (Handlers : HANDLERS) = struct
 
   type state = State.state
       
@@ -58,6 +75,8 @@ module Make
     let _ = Thread.create recv_from_switch_thread feats.switch_id in
     accept_switch_thread ()
 
+  let handle_get_packet id switchId portId pkt : unit m = fun state ->
+    (Handlers.get_packet_handler id switchId portId pkt, state)
 
   let run (init : state) (action : 'a m) : 'a = 
     (** TODO(arjun): kill threads etc. *)
@@ -65,7 +84,7 @@ module Make
     let (result, _) = action init in
     result
 
-  end
+end
 
 module NetCoreState = struct
 
@@ -73,10 +92,12 @@ module NetCoreState = struct
 
 end
 
-module MakeNetCoreController (Platform : PLATFORM) = struct
+module MakeNetCoreController 
+  (Platform : PLATFORM)
+  (Handlers : HANDLERS) = struct
 
   (* The monad is written in OCaml *)
-  module NetCoreMonad = Make (Platform) (NetCoreState)
+  module NetCoreMonad = Make (Platform) (NetCoreState) (Handlers)
   (* The controller is written in Coq *)
   module Controller = NetCoreController.Make (NetCoreMonad)
 

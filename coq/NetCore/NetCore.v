@@ -32,7 +32,7 @@ Inductive Pol : Type :=
 | PoUnion : Pol -> Pol -> Pol.
 
 Inductive In : Type :=
-| InPkt : switchId -> portId -> packet -> bufferId -> In.
+| InPkt : switchId -> portId -> packet -> option bufferId -> In.
 
 Inductive Out : Type :=
 | OutPkt : switchId -> pseudoPort -> packet -> bufferId + bytes -> Out
@@ -52,9 +52,17 @@ Fixpoint match_pred (pr : Pred) (sw : switchId) (pt : portId) (pk : packet) :=
     | PrNone => false
   end.
 
+Axiom marshal_pkt : packet -> bytes.
+
+Extract Constant marshal_pkt => "fun _ -> failwith ""marshal_pkt missing""".
+
 Definition eval_action (inp : In) (act : Action) : Out := 
   match (act, inp)  with
-    | (Forward pp, InPkt sw _ pk buf) => OutPkt sw pp pk (inl buf)
+    | (Forward pp, InPkt sw _ pk buf) => OutPkt sw pp pk 
+        (match buf with
+           | Some b => inl b
+           | None => inr (marshal_pkt pk)
+         end)
     | (ActGetPkt x, InPkt sw pt pk buf) => OutGetPkt x sw pt pk
   end.
 

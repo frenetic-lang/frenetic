@@ -10,7 +10,7 @@ open NetCore
 let policy = PoAtom (PrAll, [Forward AllPorts])
 
 module Make (Platform : PLATFORM) = struct
-  module Controller = MakeNetCoreController (Platform)
+  module Controller = MakeNetCoreController (Platform) (EmptyHandlers)
 
   let start () = Controller.start_controller policy
 

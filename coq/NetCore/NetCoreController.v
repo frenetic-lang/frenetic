@@ -27,6 +27,14 @@ Section Prioritize.
 
 End Prioritize.
 
+Section PacketIn.
+
+  Definition packetIn_to_in (sw : switchId) (pktIn : packetIn) :=
+    InPkt sw (packetInPort pktIn) (packetInPacket pktIn)
+      (packetInBufferId pktIn).
+
+End PacketIn.
+
 Section ToFlowMod.
 
   Definition translate_action (act : Action) :=
@@ -108,6 +116,8 @@ Module Type NETCORE_MONAD <: CONTROLLER_MONAD.
   (** Must be defined in OCaml *)
   Parameter forever : m unit -> m unit.
 
+  Parameter handle_get_packet : Id -> switchId -> portId -> packet -> m unit.
+
 End NETCORE_MONAD.
 
 Module Make (Import Monad : NETCORE_MONAD).
@@ -155,11 +165,27 @@ Module Make (Import Monad : NETCORE_MONAD).
     _ <- config_commands (policy st) swId;
     ret tt.
 
+  Definition send_output (out : Out) := 
+    match out with
+      | OutNothing => ret tt
+      | OutPkt _ _ _ _ => ret tt (* TODO(arjun): fill *)
+      | OutGetPkt x switchId portId packet => 
+        handle_get_packet x switchId portId packet
+    end.
+  
+  Definition handle_packet_in (swId : switchId) (pk : packetIn) := 
+    st <- get;
+    let outs := classify (policy st) (packetIn_to_in swId pk) in
+    sequence (List.map send_output outs).
+    
+
   Definition body :=
     evt <- recv;
     match evt with
       | SwitchDisconnected swId => handle_switch_disconnected swId
       | SwitchConnected swId => handle_switch_connected swId
+      | SwitchMessage swId xid (PacketInMsg pktIn) => 
+        handle_packet_in swId pktIn
       | SwitchMessage swId xid msg => ret tt
     end.
 
