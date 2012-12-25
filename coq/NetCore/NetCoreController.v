@@ -147,8 +147,8 @@ Module Make (Import Monad : NETCORE_MONAD).
     _ <- put (State (policy st) switch_list);
     ret tt.
 
-  (** TODO(arjun): I'm assuming we don't disconnected and connected are
-      interleaved. OCaml should provide that guarantee. *)
+  (** I'm assuming disconnected and connected are interleaved. OCaml
+      should provide that guarantee. *)
   Definition handle_switch_connected (swId : switchId) :=
     st <- get;
     _ <- put (State (policy st) (swId :: (switches st)));
