@@ -1,4 +1,4 @@
-MODULES := Defs Valid Theory
+MODULES := Pattern Valid Theory
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean

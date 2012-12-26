@@ -4,11 +4,11 @@ Require Import Common.Types.
 Require Import Coq.Lists.List.
 Require Import Network.Packet.
 Require Import Word.WordInterface.
-Require Import Pattern.Defs.
+Require Import Pattern.Pattern.
 
 Local Open Scope list_scope.
 
-Definition Classifier (A : Type) := list (Pattern * A) %type.
+Definition Classifier (A : Type) := list (pattern * A) %type.
 
 Fixpoint scan {A : Type} (default : A) (classifier : Classifier A)  (pt : portId) 
   (pk : packet) := 
@@ -22,9 +22,9 @@ Fixpoint scan {A : Type} (default : A) (classifier : Classifier A)  (pt : portId
   end. 
 
 Definition inter_entry {A : Type} (f : A -> A -> A) 
-  (cl : Classifier A) (v : Pattern * A) :=
+  (cl : Classifier A) (v : pattern * A) :=
   let (pat, act) := v in
-    fold_right (fun (v' : Pattern * A) acc =>
+    fold_right (fun (v' : pattern * A) acc =>
       let (pat', act') := v' in
         (Pattern.inter pat pat', f act act') :: acc)
     nil cl.
@@ -45,7 +45,7 @@ Fixpoint elim_shadowed_helper {A : Type} (prefix : Classifier A)
     | nil => prefix
     | (pat,act) :: cf' => 
       match existsb 
-        (fun (entry : Pattern * A) =>
+        (fun (entry : pattern * A) =>
           let (pat', act) := entry in
             if Pattern.eq_dec pat pat' then true else false)
         prefix with

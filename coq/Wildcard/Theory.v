@@ -3,7 +3,7 @@ Set Implicit Arguments.
 Require Import Coq.Structures.Equalities.
 
 Require Import Common.Types.
-Require Import Wildcard.Defs.
+Require Import Wildcard.Wildcard.
 
 Import Wildcard.
 

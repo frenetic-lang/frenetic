@@ -5,9 +5,9 @@ Require Import Common.Monad.
 Require Import Word.WordInterface.
 Require Import Network.Packet.
 Require Import OpenFlow.MessagesDef.
-Require Import Pattern.Defs.
-Require Import Classifier.Defs.
-Require Import NetCore.NetCore.
+Require Import Pattern.Pattern.
+Require Import Classifier.Classifier.
+Require Import NetCore.NetCoreSemantics.
 Require Import OpenFlow.ControllerInterface.
 
 Local Open Scope list_scope.
@@ -43,7 +43,7 @@ Section ToFlowMod.
       | ActGetPkt x => Output (Controller Word16.max_value)
     end.
 
-  Definition to_flow_mod prio (pat : Pattern) (act : list Action)
+  Definition to_flow_mod prio (pat : pattern) (act : list Action)
              (isfls : Pattern.is_empty pat = false) :=
     FlowMod AddFlow
             (Pattern.to_match pat isfls)
@@ -59,7 +59,7 @@ Section ToFlowMod.
 
   Definition flow_mods_of_classifier lst :=
     List.fold_right
-      (fun (ppa : priority * Pattern * list Action)
+      (fun (ppa : priority * pattern * list Action)
            (lst : list flowMod) => 
          match ppa with
            | (prio,pat,act) => 

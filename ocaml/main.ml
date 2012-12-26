@@ -5,7 +5,7 @@ open Platform
 open Unix
 open MonadicController
 open MessagesDef
-open NetCore
+
 
 let _ = OpenFlowPlatform.init_with_port 6633
     

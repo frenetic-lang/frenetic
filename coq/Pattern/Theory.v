@@ -10,9 +10,9 @@ Require Import Lists.List.
 Require Import Word.WordInterface.
 Require Import Network.Packet.
 Require Import Common.Types.
-Require Import Pattern.Defs.
+Require Import Pattern.Pattern.
 Require Import Pattern.Valid.
-Require Import Wildcard.Defs.
+Require Import Wildcard.Wildcard.
 Require Import Wildcard.Theory.
 
 Open Scope bool_scope.
@@ -35,7 +35,7 @@ Qed.
 
 Module PatMatchable.
 
-  Definition t := Pattern.
+  Definition t := pattern.
 
   Definition inter := Pattern.inter.
   Definition empty := Pattern.empty.
@@ -146,7 +146,7 @@ Module PatMatchable.
   Qed.
 
   Lemma is_match_false_inter_l :
-    forall (pt : portId) (pkt : packet) (pat1 pat2 : Pattern),
+    forall (pt : portId) (pkt : packet) pat1 pat2,
       Pattern.match_packet pt pkt pat1 = false ->
       Pattern.match_packet pt pkt (inter pat1 pat2) = false.
   Proof with auto.
@@ -258,7 +258,7 @@ Module PatMatchable.
   Lemma pres0 : forall dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
     nwProto nwProto' nwTos tpSrc tpDst inPort,
     nwProto <> nwProto' ->
-    ValidPattern (MkPattern dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+    ValidPattern (Pattern dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
                             (Wildcard.inter Word8.eq_dec 
                                 (WildcardExact nwProto)
                                 (WildcardExact nwProto'))
@@ -280,7 +280,7 @@ Module PatMatchable.
     nwProto nwProto' nwTos tpSrc tpDst inPort,
     In nwProto SupportedNwProto ->
     ~ In nwProto' SupportedNwProto ->
-    ValidPattern (MkPattern dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+    ValidPattern (Pattern dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
                             (Wildcard.inter Word8.eq_dec 
                                 (WildcardExact nwProto)
                                 (WildcardExact nwProto'))
@@ -297,7 +297,7 @@ Module PatMatchable.
     nwProto nwProto' nwTos tpSrc tpDst inPort,
     ~ In nwProto SupportedNwProto ->
     In nwProto' SupportedNwProto ->
-    ValidPattern (MkPattern dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+    ValidPattern (Pattern dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
                             (Wildcard.inter Word8.eq_dec 
                                 (WildcardExact nwProto)
                                 (WildcardExact nwProto'))
@@ -313,7 +313,7 @@ Module PatMatchable.
   Lemma pres2 : forall dlSrc dlDst dlTyp dlTyp' dlVlan dlVlanPcp nwSrc nwDst
     nwProto nwTos tpSrc tpDst inPort,
     dlTyp <> dlTyp' ->
-    ValidPattern (MkPattern dlSrc dlDst 
+    ValidPattern (Pattern dlSrc dlDst 
                     (Wildcard.inter Word16.eq_dec 
                       (WildcardExact dlTyp)
                       (WildcardExact dlTyp'))
@@ -334,7 +334,7 @@ Module PatMatchable.
     nwProto nwTos tpSrc tpDst inPort,
     In dlTyp SupportedDlTyp ->
     ~ In dlTyp' SupportedDlTyp ->
-    ValidPattern (MkPattern dlSrc dlDst 
+    ValidPattern (Pattern dlSrc dlDst 
                     (Wildcard.inter Word16.eq_dec 
                       (WildcardExact dlTyp)
                       (WildcardExact dlTyp'))
@@ -352,7 +352,7 @@ Module PatMatchable.
     nwProto nwTos tpSrc tpDst inPort,
     ~ In dlTyp SupportedDlTyp ->
     In dlTyp' SupportedDlTyp ->
-    ValidPattern (MkPattern dlSrc dlDst 
+    ValidPattern (Pattern dlSrc dlDst 
                     (Wildcard.inter Word16.eq_dec 
                       (WildcardExact dlTyp)
                       (WildcardExact dlTyp'))
@@ -384,7 +384,7 @@ Module PatMatchable.
 
     Lemma pres5 : forall dlSrc dlDst  dlVlan dlVlanPcp nwSrc nwDst
                          nwProto nwTos tpSrc tpDst inPort,
-    ValidPattern (MkPattern dlSrc dlDst 
+    ValidPattern (Pattern dlSrc dlDst 
                     (Wildcard.inter Word16.eq_dec 
                       (WildcardExact Const_0x800)
                       (WildcardExact Const_0x806))
@@ -400,7 +400,7 @@ Module PatMatchable.
 
     Lemma pres5' : forall dlSrc dlDst  dlVlan dlVlanPcp nwSrc nwDst
                           nwProto nwTos tpSrc tpDst inPort,
-    ValidPattern (MkPattern dlSrc dlDst 
+    ValidPattern (Pattern dlSrc dlDst 
                     (Wildcard.inter Word16.eq_dec 
                       (WildcardExact Const_0x806)
                       (WildcardExact Const_0x800))
@@ -491,7 +491,7 @@ End PatMatchable.
 
 Section Equivalence.
   
-  Inductive Pattern_equiv : Pattern -> Pattern -> Prop :=
+  Inductive Pattern_equiv : pattern -> pattern -> Prop :=
   | Pattern_equiv_match : forall pat1 pat2,
     (forall pt pk, 
       Pattern.match_packet pt pk pat1 = Pattern.match_packet pt pk pat2) ->

@@ -1,4 +1,4 @@
-MODULES := Defs Theory
+MODULES := Wildcard Theory
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean
