@@ -6,6 +6,8 @@ open Unix
 open MonadicController
 open MessagesDef
 open NetCoreSemantics
+open NetCore
+
 
 module Test1 = struct
   module Platform = TestPlatform

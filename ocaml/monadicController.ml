@@ -101,7 +101,6 @@ module MakeNetCoreController
   (* The controller is written in Coq *)
   module Controller = NetCoreController.Make (NetCoreMonad)
 
-
   let start_controller pol =
     let init_state = { 
       NetCoreController.policy = pol; 
