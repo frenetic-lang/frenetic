@@ -233,7 +233,10 @@ module PacketIn = struct
     | None ->
       raise (Unparsable (sprintf "bad reason in packet_in (%d)" reason_code)) in
   let pkt_bits = Cstruct.shift bits sizeof_ofp_packet_in in
-  let pkt = PacketParser.parse_dl pkt_bits in
+  let pkt = match PacketParser.parse_packet pkt_bits with 
+    | Some pkt -> pkt 
+    | None -> 
+      raise (Unparsable (sprintf "malformed packet in packet_in")) in
   { packetInBufferId = bufId;
     packetInTotalLen = Word16.from_int total_len;
     packetInPort = Word16.from_int in_port;

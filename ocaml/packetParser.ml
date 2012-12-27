@@ -1,7 +1,9 @@
 open Packet
 open Word
 
-(* JNF: what about the 7-octet preamble and 1 octet frame delimeter? *)
+(* ----- Data Link Layer Structures ----- *)
+
+(* TODO(jnf): 7-octet preamble and 1 octet frame delimeter? *)
 cstruct eth {
   uint8_t dst[6];
   uint8_t src[6];
@@ -11,8 +13,7 @@ cstruct eth {
 cstruct vlan {
   uint8_t dst[6];
   uint8_t src[6];
-  (* 3-bits (MSB) are the PCP, 12-bits (LSB) are the VLAN ID tag *)
-  uint16_t tag; 
+  uint16_t tag; (* tag and pcp *)
   uint16_t typ
 } as big_endian
 
@@ -21,6 +22,16 @@ cenum eth_typ {
   ETHTYP_ARP = 0x0806;
   ETHTYP_VLAN = 0x8100
 } as uint16_t
+
+let vlan_none = 0xffff
+
+let eth_cutoff = 0x0600
+
+let vlan_mask = 0xfff
+
+let vlan_pcp_mask = 0x7 lsl 9
+
+(* ----- Network Layer Structures ----- *)
 
 cstruct arp {
   uint16_t htype;
@@ -59,13 +70,113 @@ cstruct ip {
   uint32_t options (* options and padding *)
 } as big_endian
 
-let vlan_none = 0xffff
+(* ----- Transport Layer Structures ----- *)
 
-let eth_cutoff = 0x0600
+cstruct tcp { 
+  uint16_t src;
+  uint16_t dst;
+  uint32_t seq;
+  uint32_t ack;
+  uint8_t offset; (* offset and reserved *)
+  uint8_t flags; 
+  uint16_t window;
+  uint16_t chksum;
+  uint16_t urgent;
+  uint32_t options (* options and padding *)
+} as big_endian
 
-let vlan_mask = 0xfff
+cstruct udp { 
+  uint16_t src;
+  uint16_t dst;
+  uint16_t len;
+  uint16_t chksum
+} as big_endian
 
-let vlan_pcp_mask = 0x7 lsl 9
+cstruct icmp { 
+  uint8_t typ;
+  uint8_t code;
+  uint16_t chksum
+} as big_endian
+
+(* ----- Parsers ----- *)
+
+let parse_tcp (bits:Cstruct.buf) : tcp option =
+  let src = get_tcp_src bits in 
+  let dst = get_tcp_dst bits in 
+  let seq = get_tcp_seq bits in 
+  let ack = get_tcp_ack bits in 
+  let offset = get_tcp_offset bits in 
+  let offset = offset lsr 4 in 
+  let _ = offset land 0x0f in 
+  let flags = get_tcp_flags bits in 
+  let window = get_tcp_window bits in 
+  let payload = Cstruct.shift bits sizeof_tcp in 
+  Some { tcpSrc = Word16.from_int src;
+	 tcpDst = Word16.from_int dst;
+	 tcpSeq = Word32.from_int32 seq;
+	 tcpAck = Word32.from_int32 ack;
+	 tcpOffset = Word8.from_int offset;
+	 tcpFlags = Word16.from_int flags;
+	 tcpWindow = Word16.from_int window;
+	 tcpPayload = payload }
+
+(* let parse_udp (bits:Cstruct.buf) : udp option =  *)
+(*   let src = get_ucp_src bits in  *)
+(*   let dst = get_ucp_dst bits in  *)
+(*   let chksum = get_udp_chksum bits in  *)
+(*   let payload = Cstruct.shift bits sizeof_udp in  *)
+(*   Some { udpSrc = Word16.from_int src; *)
+(* 	 udpDst = Word16.from_int dst; *)
+(* 	 udpChksum = Word16.from_int seq; *)
+(* 	 udpPayload = payload } *)
+
+let parse_icmp (bits:Cstruct.buf) : icmp option = 
+  let typ = get_icmp_typ bits in 
+  let code = get_icmp_code bits in 
+  let chksum = get_icmp_chksum bits in 
+  let payload = Cstruct.shift bits sizeof_icmp in 
+  Some { icmpType = Word8.from_int typ;
+	 icmpCode = Word8.from_int code;
+	 icmpChksum = Word16.from_int chksum;
+	 icmpPayload = payload }
+
+let parse_ip (bits:Cstruct.buf) : ip option = 
+  let vhl = get_ip_vhl bits in 
+  let _ = vhl lsr 4 in (* TODO(jnf): test for IPv4? *)
+  let tos = get_ip_tos bits in 
+  let len = get_ip_len bits in 
+  let frag = get_ip_frag bits in 
+  let flags = frag lsr 13 in 
+  let frag = frag land 0x1fff in 
+  let ttl = get_ip_ttl bits in 
+  let ident = get_ip_ident bits in 
+  let proto = get_ip_proto bits in 
+  let chksum = get_ip_chksum bits in 
+  let src = get_ip_src bits in 
+  let dst = get_ip_dst bits in 
+  let tp_header = match int_to_ip_proto proto with 
+    | Some IP_ICMP -> 
+      begin match parse_icmp (Cstruct.shift bits len) with 
+      | Some icmp -> TpICMP icmp 
+      | _ -> TpUnparsable (Word8.from_int proto) 
+      end
+    | Some IP_TCP -> 
+      begin match parse_tcp (Cstruct.shift bits len) with 
+      | Some tcp -> TpTCP tcp 
+      | _ -> TpUnparsable (Word8.from_int proto) 
+      end
+    | _ -> 
+      TpUnparsable (Word8.from_int proto) in 
+  Some { pktIPTos = Word8.from_int tos;
+	 pktIPIdent = Word16.from_int ident;
+	 pktIPFlags = Word8.from_int flags ;
+	 pktFrag = Word16.from_int frag;
+	 pktIPTTL = Word8.from_int ttl;
+	 pktIPProto = Word8.from_int proto;
+	 pktChksum = Word16.from_int chksum;
+	 pktIPSrc = Word32.from_int32 src;
+	 pktIPDst = Word32.from_int32 dst;     
+	 pktTPHeader = tp_header }
 
 let parse_arp (bits:Cstruct.buf) : arp option = 
   let oper = get_arp_oper bits in 
@@ -79,62 +190,43 @@ let parse_arp (bits:Cstruct.buf) : arp option =
        let tha = Word48.from_bytes (Cstruct.to_string (get_arp_tha bits)) in 
        Some (ARPReply(sha,spa,tha,tpa))
     | _ -> None
-
-let parse_ip (bits:Cstruct.buf) : ip option = 
-  let vhl = get_ip_vhl bits in 
-  let _ = vhl lsr 4 in (* TODO(jnf): test that version is IPv4! *)
-  let tos = get_ip_tos bits in 
-  let frag = get_ip_frag bits in 
-  let flags = frag lsr 13 in 
-  let frag = frag land 0x1fff in 
-  let ttl = get_ip_ttl bits in 
-  let ident = get_ip_ident bits in 
-  let proto = get_ip_proto bits in 
-  let chksum = get_ip_chksum bits in 
-  let src = get_ip_src bits in 
-  let dst = get_ip_dst bits in 
-  Some { pktIPTos = Word8.from_int tos;
-	 pktIPIdent = Word16.from_int ident;
-	 pktIPFlags = Word8.from_int flags ;
-	 pktFrag = Word16.from_int frag;
-	 pktIPTTL = Word8.from_int ttl;
-	 pktIPProto = Word8.from_int proto;
-	 pktChksum = Word16.from_int chksum;
-	 pktIPSrc = Word32.from_int32 src;
-	 pktIPDst = Word32.from_int32 dst;     
-	 pktTPHeader = TpUnparsable (Word8.from_int proto) }
     
-let parse_nw (eth_typ:eth_typ option) (typ_or_tag:int) (bits:Cstruct.buf) : nw = 
-  match eth_typ with 
-  | Some ETHTYP_ARP -> 
-    begin match parse_arp bits with 
-    | Some arp -> NwARP arp
-    | _ -> NwUnparsable typ_or_tag
-    end 
-  | Some ETHTYP_IP -> 
-    begin match parse_ip bits with 
-    | Some ip -> NwIP ip 
-    | _ -> NwUnparsable typ_or_tag 
-    end
+let parse_vlan (bits:Cstruct.buf) : int * int * int * int = 
+  let typ = get_eth_typ bits in 
+  match int_to_eth_typ typ with 
+  | Some ETHTYP_VLAN -> 
+    let tag_and_pcp = get_vlan_tag bits in 
+    let vlan_tag = tag_and_pcp land 0xfff in 
+    let vlan_pcp = (tag_and_pcp lsr 9) land 0x7 in 
+    let typ = get_vlan_typ bits in 
+    (vlan_tag, vlan_pcp, typ, sizeof_vlan)
   | _ -> 
-    NwUnparsable typ_or_tag
+    (vlan_none, 0x0, typ, sizeof_eth)
 
-let parse_dl bits = 
+let parse_eth (bits:Cstruct.buf) : packet option = 
   let dst = Cstruct.to_string (get_eth_dst bits) in
   let src = Cstruct.to_string (get_eth_src bits) in
-  let typ_or_tag = get_eth_typ bits in
-  let eth_typ = int_to_eth_typ typ_or_tag in
-  let (vlan, vlan_pcp, vlan_typ) = match eth_typ with
-    | Some ETHTYP_VLAN -> 
-      let tag_and_pcp = get_vlan_tag bits in
-      (tag_and_pcp land 0xfff, 
-       (tag_and_pcp lsr 9) land 0x7,
-        get_vlan_typ bits)
-    | _ -> (vlan_none, 0x0, typ_or_tag) in
- { pktDlSrc = Word48.from_bytes src;
-   pktDlDst = Word48.from_bytes dst;
-   pktDlTyp = vlan_typ;
-   pktDlVlan = vlan;
-   pktDlVlanPcp = Word8.from_int vlan_pcp;
-   pktNwHeader = parse_nw eth_typ typ_or_tag (Cstruct.shift bits sizeof_eth) }
+  let (vlan_tag, vlan_pcp, typ, offset) = parse_vlan bits in 
+  let bits = Cstruct.shift bits offset in 
+  let nw_header = 
+    match int_to_eth_typ typ with 
+    | Some ETHTYP_IP -> 
+      begin match parse_ip bits with 
+      | Some ip -> NwIP ip
+      | _ -> NwUnparsable typ 
+      end
+    | Some ETHTYP_ARP -> 
+      begin match parse_arp bits with 
+      | Some arp -> NwARP arp 
+      | _ -> NwUnparsable typ 
+      end
+    | _ -> 
+      NwUnparsable typ in 
+  Some { pktDlSrc = Word48.from_bytes src;
+	 pktDlDst = Word48.from_bytes dst;
+	 pktDlTyp = Word16.from_int typ;
+	 pktDlVlan = Word16.from_int vlan_tag;
+	 pktDlVlanPcp = Word8.from_int vlan_pcp;
+	 pktNwHeader = nw_header }
 
+let parse_packet = parse_eth
