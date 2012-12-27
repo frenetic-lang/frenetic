@@ -1,3 +1,4 @@
+open OUnit
 open Printf
 open Word
 open Openflow1_0
@@ -7,81 +8,48 @@ open MonadicController
 open MessagesDef
 open NetCoreSemantics
 open NetCore
+open Packet
 
+open TestPlatform
 
 module Test1 = struct
-  module Platform = TestPlatform
-  module Controller = Repeater.Make (Platform)
 
-  open Platform
+  module Controller = Repeater.Make (TestPlatform)
 
   let test_script () = 
     connect_switch (Word64.from_int64 100L);
     connect_switch (Word64.from_int64 200L);
+    assert_equal
+      ~msg:"delete all flows from switch 100"
+      (Word32.from_int32 0l, FlowModMsg NetCoreController.delete_all_flows)
+      (recv_from_controller (Word64.from_int64 100L));
     let (_, msg) = recv_from_controller (Word64.from_int64 100L) in
     begin
       match msg with
         | FlowModMsg fm ->
-          assert (fm = NetCoreController.delete_all_flows)
-        | _ -> failwith "expected delete"
+          assert_equal ~msg:"add flow" AddFlow fm.mfModCmd
+
+        | _ -> assert_failure "expected flow mod"
     end;
-    let (_, msg) = recv_from_controller (Word64.from_int64 100L) in
-    begin
-      match msg with
-        | FlowModMsg fm ->
-          assert (fm.mfModCmd = AddFlow)
-        | _ -> failwith "expected add"
-    end;
-    let (_, msg) = recv_from_controller (Word64.from_int64 200L) in
-    begin
-      match msg with
-        | FlowModMsg fm ->
-          assert (fm = NetCoreController.delete_all_flows)
-        | _ -> failwith "expected delete from 200"
-    end;
+    assert_equal
+      ~msg:"delete all flows from switch 200"
+      (Word32.from_int32 0l, FlowModMsg NetCoreController.delete_all_flows)
+      (recv_from_controller (Word64.from_int64 200L));
     let (_, msg) = recv_from_controller (Word64.from_int64 200L) in
     begin
       match msg with
         | FlowModMsg fm ->
           assert (fm.mfModCmd = AddFlow)
         | _ -> failwith "expected add from 100"
-    end;    
-    eprintf "Terminating test script in style\n%!";
-    assert false;
-    ()    
+    end
 
-  let t1 = Thread.create test_script ()
-  let t2 = Thread.create Controller.start ()
-
-  let _ = 
-    Thread.join t1;
-    Thread.join t2
-
+  let go = 
+    "repeater test" >::
+      (bracket 
+         (fun () -> Thread.create Controller.start ())
+         (fun _ -> test_script ())
+         (fun h -> Thread.kill h; tear_down ()))
+      
 end
 
-
-
-    
-
-(*
-module Test1 = struct
-  module Platform = TestPlatform
-  module Controller = DummyController.Make (Platform)
-
-  open Platform
-
-  let test_script () = 
-    connect_switch (Word64.from_int64 100L);
-    connect_switch (Word64.from_int64 200L)
-    
-
-  let t1 = Thread.create test_script ()
-  let t2 = Thread.create Controller.start ()
-
-  let _ = 
-    Thread.join t1;
-    Thread.join t2
-
-
-end
-*)
+let _ = run_test_tt_main Test1.go
