@@ -1,3 +1,5 @@
+(** The module NetCore is defined in OCaml, which is why this is called 
+    NetCore semantics. *)
 Set Implicit Arguments.
 
 Require Import Coq.Classes.Equivalence.
@@ -6,9 +8,9 @@ Require Import Coq.Bool.Bool.
 
 Require Import Common.Types.
 Require Import Word.WordInterface.
-Require Import Classifier.Defs.
+Require Import Classifier.Classifier.
 Require Import Network.Packet.
-Require Import Pattern.Defs.
+Require Import Pattern.Pattern.
 Require Import OpenFlow.MessagesDef.
 
 Local Open Scope list_scope.
@@ -20,7 +22,7 @@ Inductive Action : Type :=
 | ActGetPkt : Id -> Action.
 
 Inductive Pred : Type := 
-| PrHdr : Pattern ->  Pred
+| PrHdr : pattern ->  Pred
 | PrOnSwitch : switchId -> Pred
 | PrOr : Pred -> Pred -> Pred
 | PrNot : Pred -> Pred
@@ -101,6 +103,7 @@ Definition apply_act (a : list Action) (b : bool) :=
     | false => nil
   end.
 
+(** TODO(arjun): rank-2 polymorphism. The extracted code makes me nervous. *)
 Fixpoint compile_pol (opt : forall (A : Type), Classifier A -> Classifier A) (p : Pol) (sw : switchId) : Classifier (list Action) :=
   match p with
     | PoAtom pr act => 

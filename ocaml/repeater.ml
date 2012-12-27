@@ -5,7 +5,7 @@ open Platform
 open Unix
 open MonadicController
 open MessagesDef
-open NetCore
+open NetCoreSemantics
 
 let policy = PoAtom (PrAll, [Forward AllPorts])
 

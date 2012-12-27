@@ -13,12 +13,12 @@ Require Import Coq.Lists.List.
 Require Import Common.Types.
 Require Import Word.WordInterface.
 Require Import Network.Packet.
-Require Import Wildcard.Defs.
+Require Import Wildcard.Wildcard.
 
 Local Open Scope bool_scope.
 Local Open Scope list_scope.
 
-Record Pattern : Type := MkPattern {
+Record pattern : Type := Pattern {
   ptrnDlSrc : Wildcard dlAddr;
   ptrnDlDst : Wildcard dlAddr;
   ptrnDlType : Wildcard dlTyp;
@@ -33,190 +33,9 @@ Record Pattern : Type := MkPattern {
   ptrnInPort : Wildcard portId
 }.
 
-
-Definition dlSrc (eth : dlAddr) : Pattern :=
-  MkPattern
-  (WildcardExact eth)
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll.
-
-Definition dlDst (eth : dlAddr) : Pattern :=
-  MkPattern
-  WildcardAll
-  (WildcardExact eth)
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll.
-
-Definition dlType (typ : dlTyp) : Pattern :=
-  MkPattern
-  WildcardAll
-  WildcardAll
-  (WildcardExact typ)
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll.
-
-Definition dlVlan (vlan : dlVlan) : Pattern :=
-  MkPattern
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  (WildcardExact vlan)
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll.
-
-Definition dlVlanPcp (vlanPcp : dlVlanPcp) : Pattern :=
-  MkPattern
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  (WildcardExact vlanPcp)
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll.
-
-Definition nwSrc (ip : nwAddr) : Pattern :=
-  MkPattern
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  (WildcardExact ip)
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll.
-
-Definition nwDst (ip : nwAddr) : Pattern :=
-  MkPattern
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  (WildcardExact ip)
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll.
-
-Definition nwProto (proto : nwProto) : Pattern :=
-  MkPattern
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  (WildcardExact proto)
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll.
-
-Definition nwTos (tos : nwTos) : Pattern :=
-  MkPattern
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  (WildcardExact tos)
-  WildcardAll
-  WildcardAll
-  WildcardAll.
-
-Definition tpSrc (pt : tpPort) : Pattern :=
-  MkPattern
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  (WildcardExact pt)
-  WildcardAll
-  WildcardAll.
-
-Definition tpDst (pt : tpPort) : Pattern :=
-  MkPattern
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  (WildcardExact pt)
-  WildcardAll.
-
-Definition inPort (pt : Word16.t) : Pattern :=
-  MkPattern
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  WildcardAll
-  (WildcardExact pt).
-
 Module Pattern.
 
-  Lemma eq_dec : forall (x y : Pattern), { x = y } + { x <> y }.
+  Lemma eq_dec : forall (x y : pattern), { x = y } + { x <> y }.
   Proof.
     decide equality;
       try solve [ apply (Wildcard.eq_dec Word16.eq_dec) |
@@ -231,13 +50,13 @@ Module Pattern.
                      | Some v => v
                    end).
 
-  Definition all : Pattern :=
-    MkPattern WildcardAll WildcardAll WildcardAll WildcardAll WildcardAll 
+  Definition all :=
+    Pattern WildcardAll WildcardAll WildcardAll WildcardAll WildcardAll 
     WildcardAll WildcardAll WildcardAll WildcardAll WildcardAll 
     WildcardAll WildcardAll.
 
-  Definition empty : Pattern :=
-    MkPattern WildcardNone
+  Definition empty :=
+    Pattern WildcardNone
     WildcardNone
     WildcardNone
     WildcardNone
@@ -251,9 +70,9 @@ Module Pattern.
     WildcardNone.
 
 (** Note that we do not have a unique representation for empty patterns! *)
-  Definition is_empty (pat : Pattern) : bool :=
+  Definition is_empty pat : bool :=
     match pat with
-      | MkPattern dlSrc dlDst typ vlan pcp nwSrc nwDst nwProto nwTos tpSrc tpDst
+      | Pattern dlSrc dlDst typ vlan pcp nwSrc nwDst nwProto nwTos tpSrc tpDst
         inPort =>
         Wildcard.is_empty inPort ||
         Wildcard.is_empty dlSrc ||
@@ -269,7 +88,7 @@ Module Pattern.
         Wildcard.is_empty tpDst
     end.
 
-  Definition inter (p p':Pattern) :=
+  Definition inter p p' :=
     let dlSrc := Wildcard.inter Word48.eq_dec (ptrnDlSrc p) 
                    (ptrnDlSrc p') in
     let dlDst := Wildcard.inter Word48.eq_dec (ptrnDlDst p) 
@@ -286,13 +105,13 @@ Module Pattern.
     let tpSrc := Wildcard.inter Word16.eq_dec (ptrnTpSrc p) (ptrnTpSrc p') in
     let tpDst := Wildcard.inter Word16.eq_dec (ptrnTpDst p) (ptrnTpDst p') in
     let inPort := Wildcard.inter Word16.eq_dec (ptrnInPort p) (ptrnInPort p') in
-      MkPattern dlSrc dlDst dlType dlVlan dlVlanPcp 
+      Pattern dlSrc dlDst dlType dlVlan dlVlanPcp 
         nwSrc nwDst nwProto nwTos 
         tpSrc tpDst 
         inPort.
 
-  Definition exact_pattern (pk : packet) (pt : Word16.t) : Pattern :=
-    MkPattern
+  Definition exact_pattern (pk : packet) (pt : Word16.t) :=
+    Pattern
     (WildcardExact (pktDlSrc pk))
     (WildcardExact (pktDlDst pk))
     (WildcardExact (pktDlTyp pk))
@@ -306,12 +125,12 @@ Module Pattern.
     (WildcardExact (pktTpDst pk))
     (WildcardExact pt).
 
-  Definition match_packet (pt : Word16.t) (pk : packet) (pat : Pattern) :=
+  Definition match_packet (pt : Word16.t) (pk : packet) pat :=
     negb (is_empty (inter (exact_pattern pk pt) pat)).
 
-  Definition is_exact (pat : Pattern) := 
+  Definition is_exact pat := 
     match pat with
-      | MkPattern dlSrc dlDst typ vlan pcp nwSrc nwDst nwProto nwTos tpSrc tpDst
+      | Pattern dlSrc dlDst typ vlan pcp nwSrc nwDst nwProto nwTos tpSrc tpDst
         inPort =>
         Wildcard.is_exact inPort &&
         Wildcard.is_exact dlSrc &&
@@ -343,8 +162,7 @@ Proof.
 Qed.
 
 (** Extracts to shockingly good code. *)
-Lemma to_match : forall (pat : Pattern)
-                        (H : is_empty pat = false),
+Lemma to_match : forall pat (H : is_empty pat = false),
                    of_match. 
 Proof.
   intros.

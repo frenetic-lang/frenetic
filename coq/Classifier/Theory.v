@@ -10,8 +10,8 @@ Require Import Network.Packet.
 Require Import Pattern.Theory.
 Import PatMatchable.
 
-Require Import Pattern.Defs.
-Require Import Classifier.Defs.
+Require Import Pattern.Pattern.
+Require Import Classifier.Classifier.
 
 Local Open Scope list_scope.
 Local Open Scope equiv_scope.
@@ -106,11 +106,11 @@ Section Lemmas.
     (N1 : Classifier A),
     ((forall m a,  In (m,a) N1 -> Pattern.match_packet port pkt  m = false) /\
       scan def N1 port pkt = def) \/
-    (exists N2 N3, exists m : Pattern, exists a : A,
+    (exists N2 N3, exists m : pattern, exists a : A,
       N1 = N2 ++ (m,a)::N3 /\
       Pattern.match_packet port pkt m  = true /\
       scan def N1 port pkt = a /\
-      (forall (m' : Pattern) (a' : A), In (m',a') N2 -> 
+      (forall (m' : pattern) (a' : A), In (m',a') N2 -> 
         Pattern.match_packet port pkt  m' = false)).
   Proof with intros; simpl; auto with datatypes.
     intros.
@@ -199,7 +199,7 @@ Section Lemmas.
     Pattern.match_packet pt pkt m = false ->
     scan def
     (fold_right
-      (fun (v' : Pattern * A) (acc : list (Pattern * A)) =>
+      (fun (v' : pattern * A) (acc : list (pattern * A)) =>
         let (pat', act') := v' in (Pattern.inter m pat', f a act') :: acc) 
       nil cf1 ++ cf2) pt pkt = scan def cf2 pt pkt.
   Proof with auto.
@@ -492,7 +492,7 @@ Section Action.
     remember (inter f cf1 cf2 ++ (m,a) :: cf1 ++ cf2) as Trash.
     assert (forall m5 (a5 : A), 
       In (m5,a5) (fold_right
-        (fun (v' : Pattern * A) (acc : list (Pattern * A)) =>
+        (fun (v' : pattern * A) (acc : list (pattern * A)) =>
           let (pat', act') := v' in (Pattern.inter m pat', f a act') :: acc) 
         nil N2')  ->
       Pattern.match_packet pt pk m5  = false) as HOMG.
@@ -507,7 +507,7 @@ Section Action.
     assert (F = inter_entry f (N2' ++ (m',a') :: N3') (m,a)).
     rewrite -> HeqF. simpl. auto.
     assert ( (fold_right
-      (fun (v' : Pattern * A) (acc : list (Pattern * A)) =>
+      (fun (v' : pattern * A) (acc : list (pattern * A)) =>
         let (pat', act') := v' in (Pattern.inter m pat', f a act') :: acc)
       nil N2') = inter_entry f N2' (m,a)). simpl. auto.
     rewrite -> H6 in HOMG.

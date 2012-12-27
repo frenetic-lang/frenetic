@@ -13,7 +13,7 @@ end
 module type HANDLERS = sig
 
   val get_packet_handler : 
-    NetCore.coq_Id -> switchId -> portId -> packet -> unit
+    NetCoreSemantics.coq_Id -> switchId -> portId -> packet -> unit
 
 end
 

@@ -10,7 +10,7 @@ end
 module type HANDLERS = sig
 
   val get_packet_handler : 
-    NetCore.coq_Id -> switchId -> portId -> packet -> unit
+    NetCoreSemantics.coq_Id -> switchId -> portId -> packet -> unit
 
 end
 
@@ -27,7 +27,7 @@ module Make :
 module MakeNetCoreController :
   functor (Platform : PLATFORM) -> 
     functor (Handlers : HANDLERS) -> sig
-      val set_policy : NetCore.coq_Pol -> unit
-      val start_controller : NetCore.coq_Pol -> unit
+      val set_policy : NetCoreSemantics.coq_Pol -> unit
+      val start_controller : NetCoreSemantics.coq_Pol -> unit
     end
 

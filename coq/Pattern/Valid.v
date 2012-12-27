@@ -11,8 +11,8 @@ Require Import PArith.BinPos.
 Require Import Word.WordInterface.
 Require Import Network.Packet.
 Require Import Common.Types.
-Require Import Pattern.Defs.
-Require Import Wildcard.Defs.
+Require Import Pattern.Pattern.
+Require Import Wildcard.Wildcard.
 Require Import Wildcard.Theory.
 
 Open Scope bool_scope.
@@ -32,43 +32,43 @@ Definition SupportedDlTyp :=
   (** Based on the flow chart on Page 8 of OpenFlow 1.0 specification. In
       a ValidPattern, all exact-match fields are used to match packets. *)
 
-Inductive ValidPattern : Pattern -> Prop :=
+Inductive ValidPattern : pattern -> Prop :=
 | ValidPat_TCPUDP : forall dlSrc dlDst dlVlan dlVlanPcp nwSrc nwDst 
                                    nwTos tpSrc tpDst inPort nwProto,
     In nwProto SupportedNwProto ->
-    ValidPattern (MkPattern dlSrc dlDst (WildcardExact Const_0x800)
+    ValidPattern (Pattern dlSrc dlDst (WildcardExact Const_0x800)
                             dlVlan dlVlanPcp
                             nwSrc nwDst (WildcardExact nwProto)
                             nwTos tpSrc tpDst inPort)
 | ValidPat_ARP : forall dlSrc dlDst dlVlan dlVlanPcp nwSrc nwDst 
                         inPort,
-    ValidPattern (MkPattern dlSrc dlDst (WildcardExact Const_0x806)
+    ValidPattern (Pattern dlSrc dlDst (WildcardExact Const_0x806)
                             dlVlan dlVlanPcp
                             nwSrc nwDst WildcardAll
                             WildcardAll WildcardAll WildcardAll inPort)
 | ValidPat_IP_other : forall dlSrc dlDst dlVlan dlVlanPcp nwSrc nwDst
                              nwTos inPort nwProto,
     ~ In nwProto SupportedNwProto ->
-    ValidPattern (MkPattern dlSrc dlDst (WildcardExact Const_0x800)
+    ValidPattern (Pattern dlSrc dlDst (WildcardExact Const_0x800)
                             dlVlan dlVlanPcp
                             nwSrc nwDst (WildcardExact nwProto)
                             nwTos WildcardAll WildcardAll inPort)
 | ValidPat_IP_NoNwProto : forall dlSrc dlDst dlVlan dlVlanPcp nwSrc nwDst
                               nwTos inPort,
-    ValidPattern (MkPattern dlSrc dlDst (WildcardExact Const_0x800)
+    ValidPattern (Pattern dlSrc dlDst (WildcardExact Const_0x800)
                             dlVlan dlVlanPcp
                             nwSrc nwDst WildcardAll
                             nwTos WildcardAll WildcardAll inPort)
 | ValidPat_OtherFrameTyp : forall dlSrc dlDst dlVlan dlVlanPcp
                                   inPort frameTyp,
     ~ In frameTyp SupportedDlTyp ->
-    ValidPattern (MkPattern dlSrc dlDst (WildcardExact frameTyp)
+    ValidPattern (Pattern dlSrc dlDst (WildcardExact frameTyp)
                             dlVlan dlVlanPcp
                             WildcardAll WildcardAll WildcardAll
                             WildcardAll WildcardAll WildcardAll inPort)
 | ValidPat_AnyFrameTyp : forall dlSrc dlDst dlVlan dlVlanPcp
                                   inPort,
-    ValidPattern (MkPattern dlSrc dlDst WildcardAll
+    ValidPattern (Pattern dlSrc dlDst WildcardAll
                             dlVlan dlVlanPcp
                             WildcardAll WildcardAll WildcardAll
                             WildcardAll WildcardAll WildcardAll inPort)
