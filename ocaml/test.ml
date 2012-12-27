@@ -46,9 +46,7 @@ module Test1 = struct
     end;    
     eprintf "Terminating test script in style\n%!";
     assert false;
-    ()
-
-    
+    ()    
 
   let t1 = Thread.create test_script ()
   let t2 = Thread.create Controller.start ()
