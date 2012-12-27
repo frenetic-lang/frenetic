@@ -82,4 +82,7 @@ module TestPlatform : sig
       sends a message to [switch_id]. *)
   val recv_from_controller : switchId -> xid * message
 
+  (** Call [tear_down] after a test completes. *)
+  val tear_down : unit -> unit
+
 end    

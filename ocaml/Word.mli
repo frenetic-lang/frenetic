@@ -39,7 +39,7 @@ module Word48 : sig
   include WORD
   val to_bytes : t -> string
   val from_bytes : string -> t
-
+  val from_int64 : Int64.t -> t
 end
 
 module Word64 : sig

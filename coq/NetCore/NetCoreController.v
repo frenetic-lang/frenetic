@@ -105,17 +105,16 @@ Module Type NETCORE_MONAD <: CONTROLLER_MONAD.
 
   Include MONAD.
 
-
+  (** These functions are from CONTROLLER_MONAD, with the [state]
+     parameter specialized to [ncstate]. *)
   Definition state := ncstate.
-
   Parameter get : m state.
   Parameter put : state -> m unit.
   Parameter send : switchId -> xid -> message -> m unit.
   Parameter recv : m event.
-
-  (** Must be defined in OCaml *)
   Parameter forever : m unit -> m unit.
 
+  (** These functions are NetCore-specific. *)
   Parameter handle_get_packet : Id -> switchId -> portId -> packet -> m unit.
 
 End NETCORE_MONAD.

@@ -24,7 +24,6 @@ module TestPlatform = struct
 
   type switch = {
     mutable status : status;
-    (** Unlock the mutexes when dequeuing. *)
     to_controller : (xid * message) Event.channel;
     to_switch : (xid * message) Event.channel;    
   }
@@ -35,6 +34,32 @@ module TestPlatform = struct
     Event.new_channel ()
 
   exception SwitchDisconnected of switchId
+
+  let destroy_switch (id : switchId) (sw : switch) : unit = 
+    let id = Word64.to_int64 id in
+    let rec drain_to_controller () = 
+      match Event.poll (Event.receive sw.to_controller) with
+        | Some (xid,msg) -> 
+          eprintf "message to controller from %Ld not consumed.\n%!" id;
+          drain_to_controller ()
+        | None -> () in
+    let rec drain_to_switch () = 
+      match Event.poll (Event.receive sw.to_switch) with
+        | Some (xid,msg) -> 
+          eprintf "message to switch from %Ld not consumed.\n%!" id;
+          drain_to_switch () 
+        | None -> () in
+    drain_to_controller ();
+    drain_to_switch ();
+    sw.status <- Disconnected
+      
+  let tear_down () = 
+    Hashtbl.iter destroy_switch switches;
+    let rec kill_pending_switches () = 
+      match Event.poll (Event.receive pending_switches) with
+        | Some (id, sw) -> destroy_switch id sw; kill_pending_switches ()
+        | None -> () in
+    kill_pending_switches ()
 
   let connect_switch sw_id = 
     let sw = { status = Connecting; 

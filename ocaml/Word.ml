@@ -1,3 +1,24 @@
+module Int64Ex = struct
+
+  open Int64
+
+  let get_byte (n : t) (i : int) : char = 
+    if i < 0 or i > 5 then
+      raise (Invalid_argument "Int64Ex.get_byte index out of range");
+    Char.chr (to_int (logand 0xFFL (shift_right_logical n (8 * i))))
+      
+  let from_bytes (str : string) : t = 
+    if String.length str != 8 then
+      raise (Invalid_argument "Int64Ex.from_bytes expected eight-byte string");
+    let n = ref 0L in
+    for i = 0 to 7 do
+      let b = of_int (Char.code (String.get str i)) in
+      n := logor !n (shift_left b (8 * i))
+    done;
+    !n
+
+end
+
 module type WORD = sig
 
   type t
@@ -71,26 +92,28 @@ end
 
 module Word48 = struct
 
-  type t = string
+  type t = Int64.t
 
   let eq_dec x y = x = y
 
-  let test_bit n x = failwith "undefined"
-(*    Int64.logand (Int64.shift_right_logical x n) Int64.one = Int64.one *)
-  let clear_bit n x = failwith "undefined"
-(*    Int64.logand x (Int64.lognot (Int64.shift_left Int64.one n)) *)
-  let set_bit n x = failwith "undefined"
-(*    Int64.logor x (Int64.shift_left Int64.one n) *)
-  let bit (x : t) (n : int) (v : bool) : t = failwith "undefined"
-(*    if v then set_bit n x else clear_bit n x *)
+  let test_bit n x =
+    Int64.logand (Int64.shift_right_logical x n) Int64.one = Int64.one
+  let clear_bit n x =
+    Int64.logand x (Int64.lognot (Int64.shift_left Int64.one n))
+  let set_bit n x =
+    Int64.logor x (Int64.shift_left Int64.one n)
+  let bit (x : t) (n : int) (v : bool) : t =
+    if v then set_bit n x else clear_bit n x
 
-  let to_bytes (x : t) = x
+  let to_bytes (x : t) = 
+    Format.sprintf "%c%c%c%c%c%c"
+      (Int64Ex.get_byte x 5) (Int64Ex.get_byte x 4) (Int64Ex.get_byte x 3)
+      (Int64Ex.get_byte x 2) (Int64Ex.get_byte x 1) (Int64Ex.get_byte x 0)
 
-  let from_bytes (s : string) : t =
-    if String.length s <> 6 then
-      failwith "Word64.from_bytes expects a six-byte string"
-    else
-      s
+  let from_bytes (str : string) : t = 
+    Int64Ex.from_bytes (Format.sprintf "\x00\x00%s" str)
+
+  let from_int64 (n : Int64.t) : t = n
 
 end
 
