@@ -19,6 +19,12 @@ Prerequisites
   $ opam install cstruct.0.5.3
   ```
 
+- The oUnit library, which you can install using opam:
+
+  ```
+  $ opam install oUnit
+  ```
+
 Building
 --------
 
