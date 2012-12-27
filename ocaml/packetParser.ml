@@ -36,8 +36,28 @@ cstruct arp {
 
 cenum arp_oper {
   ARP_REQUEST = 0x0001;
-  ARP_REPLY = 0x002
+  ARP_REPLY = 0x0002
 } as uint16_t
+
+cenum ip_proto { 
+  IP_ICMP = 0x01;
+  IP_TCP = 0x06;
+  IP_UDP = 0x11
+} as uint8_t
+
+cstruct ip { 
+  uint8_t vhl; (* version and ihl *)
+  uint8_t tos; 
+  uint16_t len;
+  uint16_t ident;
+  uint16_t frag; (* flags and frag *)
+  uint8_t ttl;
+  uint8_t proto;
+  uint16_t chksum;
+  uint32_t src;
+  uint32_t dst;
+  uint32_t options (* options and padding *)
+} as big_endian
 
 let vlan_none = 0xffff
 
@@ -60,12 +80,42 @@ let parse_arp (bits:Cstruct.buf) : arp option =
        Some (ARPReply(sha,spa,tha,tpa))
     | _ -> None
 
-let parse_nw (eth_typ:eth_typ option) (typ_or_tag:int) (bits:Cstruct.buf) : nw = match eth_typ with 
+let parse_ip (bits:Cstruct.buf) : ip option = 
+  let vhl = get_ip_vhl bits in 
+  let _ = vhl lsr 4 in (* TODO(jnf): test that version is IPv4! *)
+  let tos = get_ip_tos bits in 
+  let frag = get_ip_frag bits in 
+  let flags = frag lsr 13 in 
+  let frag = frag land 0x1fff in 
+  let ttl = get_ip_ttl bits in 
+  let ident = get_ip_ident bits in 
+  let proto = get_ip_proto bits in 
+  let chksum = get_ip_chksum bits in 
+  let src = get_ip_src bits in 
+  let dst = get_ip_dst bits in 
+  Some { pktIPTos = Word8.from_int tos;
+	 pktIPIdent = Word16.from_int ident;
+	 pktIPFlags = Word8.from_int flags ;
+	 pktFrag = Word16.from_int frag;
+	 pktIPTTL = Word8.from_int ttl;
+	 pktIPProto = Word8.from_int proto;
+	 pktChksum = Word16.from_int chksum;
+	 pktIPSrc = Word32.from_int32 src;
+	 pktIPDst = Word32.from_int32 dst;     
+	 pktTPHeader = TpUnparsable (Word8.from_int proto) }
+    
+let parse_nw (eth_typ:eth_typ option) (typ_or_tag:int) (bits:Cstruct.buf) : nw = 
+  match eth_typ with 
   | Some ETHTYP_ARP -> 
     begin match parse_arp bits with 
-      | Some arp -> NwARP arp
-      | _ -> NwUnparsable typ_or_tag
+    | Some arp -> NwARP arp
+    | _ -> NwUnparsable typ_or_tag
     end 
+  | Some ETHTYP_IP -> 
+    begin match parse_ip bits with 
+    | Some ip -> NwIP ip 
+    | _ -> NwUnparsable typ_or_tag 
+    end
   | _ -> 
     NwUnparsable typ_or_tag
 
