@@ -1,7 +1,6 @@
 (** OpenFlow 1.0 *)
 
 open Printf
-open Word
 open MessagesDef
 
 module Z = PacketParser
@@ -223,7 +222,7 @@ module PacketIn = struct
   let parse bits =
     let bufId = match get_ofp_packet_in_buffer_id bits with
       | -1l -> None
-      | n -> Some (Word32.from_int32 n) in
+      | n -> Some n in
   let total_len = get_ofp_packet_in_total_len bits in
   let in_port = get_ofp_packet_in_in_port bits in
   let reason_code = get_ofp_packet_in_reason bits in
@@ -238,8 +237,8 @@ module PacketIn = struct
     | None -> 
       raise (Unparsable (sprintf "malformed packet in packet_in")) in
   { packetInBufferId = bufId;
-    packetInTotalLen = Word16.from_int total_len;
-    packetInPort = Word16.from_int in_port;
+    packetInTotalLen = total_len;
+    packetInPort = in_port;
     packetInReason_ = reason;
     packetInPacket = pkt }
 
@@ -284,7 +283,7 @@ module Action = struct
           set_ofp_action_output_port bits (PseudoPort.marshal pp);
           set_ofp_action_output_max_len bits
             (match pp with
-              | Controller w -> Word16.to_int w
+              | Controller w -> w
               | _ -> 0)
     end;
     sizeof a
@@ -315,29 +314,59 @@ module FlowModCommand = struct
      
 end
 
+let test_bit n x = 
+  Int32.logand (Int32.shift_right_logical x n) Int32.one = Int32.one
+let clear_bit n x =
+  Int32.logand x (Int32.lognot (Int32.shift_left Int32.one n))
+let set_bit n x = 
+  Int32.logor x (Int32.shift_left Int32.one n)
+let bit (x : int32) (n : int) (v : bool) : int32 = 
+  if v then set_bit n x else clear_bit n x
+
+let mac_of_bytes (str:string) : int64 = 
+  let str = Format.sprintf "\x00\x00%s" str in 
+  if String.length str != 8 then
+    raise (Invalid_argument "mac_of_bytes expected eight-byte string");
+  let n = ref 0L in
+  for i = 0 to 7 do
+    let b = Int64.of_int (Char.code (String.get str i)) in
+    n := Int64.logor !n (Int64.shift_left b (8 * i))
+  done;
+  !n  
+
+let get_byte (n:int64) (i:int) : char = 
+  if i < 0 or i > 5 then
+    raise (Invalid_argument "Int64.get_byte index out of range");
+  Char.chr (Int64.to_int (Int64.logand 0xFFL (Int64.shift_right_logical n (8 * i))))
+
+let bytes_of_mac (x:int64) : string = 
+  Format.sprintf "%c%c%c%c%c%c"
+    (get_byte x 5) (get_byte x 4) (get_byte x 3)
+    (get_byte x 2) (get_byte x 1) (get_byte x 0)
+
 module Capabilities = struct
 
   type t = capabilities
 
   let parse bits =
-    { arp_match_ip = Word32.test_bit 7 bits; 
-      queue_stats = Word32.test_bit 6 bits; 
-      ip_reasm = Word32.test_bit 5 bits; 
-      stp = Word32.test_bit 3 bits; 
-      port_stats = Word32.test_bit 2 bits; 
-      table_stats = Word32.test_bit 1 bits; 
-      flow_stats = Word32.test_bit 0 bits;
+    { arp_match_ip = test_bit 7 bits; 
+      queue_stats = test_bit 6 bits; 
+      ip_reasm = test_bit 5 bits; 
+      stp = test_bit 3 bits; 
+      port_stats = test_bit 2 bits; 
+      table_stats = test_bit 1 bits; 
+      flow_stats = test_bit 0 bits;
     }
 
-  let marshal (c : t) : Word32.t =
-    let bits = Word32.from_int32 0l in
-    let bits = Word32.bit bits 7 c.arp_match_ip in
-    let bits = Word32.bit bits 6 c.queue_stats in
-    let bits = Word32.bit bits 5 c.ip_reasm in
-    let bits = Word32.bit bits 3 c.stp in 
-    let bits = Word32.bit bits 2 c.port_stats in
-    let bits = Word32.bit bits 1 c.table_stats in
-    let bits = Word32.bit bits 0 c.flow_stats in
+  let marshal (c : t) : int32 =
+    let bits = Int32.zero in 
+    let bits = bit bits 7 c.arp_match_ip in
+    let bits = bit bits 6 c.queue_stats in
+    let bits = bit bits 5 c.ip_reasm in
+    let bits = bit bits 3 c.stp in 
+    let bits = bit bits 2 c.port_stats in
+    let bits = bit bits 1 c.table_stats in
+    let bits = bit bits 0 c.flow_stats in
     bits
 
 end
@@ -347,35 +376,35 @@ module Actions = struct
   type t = actions
 
  let parse bits = 
-   { output = Word32.test_bit 0 bits; 
-     set_vlan_id = Word32.test_bit 1 bits; 
-     set_vlan_pcp = Word32.test_bit 2 bits; 
-     strip_vlan = Word32.test_bit 3 bits;
-     set_dl_src = Word32.test_bit 4 bits; 
-     set_dl_dst = Word32.test_bit 5 bits; 
-     set_nw_src = Word32.test_bit 6 bits; 
-     set_nw_dst = Word32.test_bit 7 bits;
-     set_nw_tos = Word32.test_bit 8 bits; 
-     set_tp_src = Word32.test_bit 9 bits; 
-     set_tp_dst = Word32.test_bit 10 bits; 
-     enqueue = Word32.test_bit 11 bits; 
-     vendor = Word32.test_bit 12 bits; }
+   { output = test_bit 0 bits; 
+     set_vlan_id = test_bit 1 bits; 
+     set_vlan_pcp = test_bit 2 bits; 
+     strip_vlan = test_bit 3 bits;
+     set_dl_src = test_bit 4 bits; 
+     set_dl_dst = test_bit 5 bits; 
+     set_nw_src = test_bit 6 bits; 
+     set_nw_dst = test_bit 7 bits;
+     set_nw_tos = test_bit 8 bits; 
+     set_tp_src = test_bit 9 bits; 
+     set_tp_dst = test_bit 10 bits; 
+     enqueue = test_bit 11 bits; 
+     vendor = test_bit 12 bits; }
 
-  let marshal (a : actions) : Word32.t =
-    let bits = Word32.from_int32 0l in
-    let bits = Word32.bit bits 0 a.output in  
-    let bits = Word32.bit bits 1 a.set_vlan_id in  
-    let bits = Word32.bit bits 2 a.set_vlan_pcp in  
-    let bits = Word32.bit bits 3 a.strip_vlan in 
-    let bits = Word32.bit bits 4 a.set_dl_src in  
-    let bits = Word32.bit bits 5 a.set_dl_dst in  
-    let bits = Word32.bit bits 6 a.set_nw_src in  
-    let bits = Word32.bit bits 7 a.set_nw_dst in 
-    let bits = Word32.bit bits 8 a.set_nw_tos in  
-    let bits = Word32.bit bits 9 a.set_tp_src in  
-    let bits = Word32.bit bits 10 a.set_tp_dst in  
-    let bits = Word32.bit bits 11 a.enqueue in  
-    let bits = Word32.bit bits 12 a.vendor in  
+  let marshal (a : actions) : int32 =
+    let bits = Int32.zero in
+    let bits = bit bits 0 a.output in  
+    let bits = bit bits 1 a.set_vlan_id in  
+    let bits = bit bits 2 a.set_vlan_pcp in  
+    let bits = bit bits 3 a.strip_vlan in 
+    let bits = bit bits 4 a.set_dl_src in  
+    let bits = bit bits 5 a.set_dl_dst in  
+    let bits = bit bits 6 a.set_nw_src in  
+    let bits = bit bits 7 a.set_nw_dst in 
+    let bits = bit bits 8 a.set_nw_tos in  
+    let bits = bit bits 9 a.set_tp_src in  
+    let bits = bit bits 10 a.set_tp_dst in  
+    let bits = bit bits 11 a.enqueue in  
+    let bits = bit bits 12 a.vendor in  
     bits
 
 end
@@ -385,25 +414,20 @@ module Features = struct
   type t = features
 
   let parse (buf : Cstruct.buf) : t =
-    let switch_id = Word64.from_int64 
-      (get_ofp_switch_features_datapath_id buf) in 
-    let num_buffers = Word32.from_int32
-      (get_ofp_switch_features_n_buffers buf) in
-    let num_tables = Word8.from_int (get_ofp_switch_features_n_tables buf) in 
+    let switch_id = get_ofp_switch_features_datapath_id buf in 
+    let num_buffers = get_ofp_switch_features_n_buffers buf in
+    let num_tables = get_ofp_switch_features_n_tables buf in 
     let supported_capabilities = Capabilities.parse
-      (Word32.from_int32 (get_ofp_switch_features_capabilities buf)) in
+      (get_ofp_switch_features_capabilities buf) in
     let supported_actions = Actions.parse 
-      (Word32.from_int32 (get_ofp_switch_features_action buf)) in
+      (get_ofp_switch_features_action buf) in
     let buf = Cstruct.shift buf sizeof_ofp_switch_features in
     { switch_id; 
       num_buffers; 
       num_tables; 
       supported_capabilities; 
       supported_actions }
-
-
 end
-
 
 (** Internal module, only used to parse the wildcards bitfield *)
 module Wildcards = struct
@@ -423,30 +447,29 @@ module Wildcards = struct
     nw_tos: bool;
   }
 
-  let set_nw_mask f  (off : int) (v : int) : Word32.t = 
-    let value = Int32.of_int ((0x3f land v) lsl off) in
-    Word32.from_int32 (Int32.logor (Word32.to_int32 f) value)
+  let set_nw_mask (f:int32) (off : int) (v : int) : int32 = 
+    let value = (0x3f land v) lsl off in
+    (Int32.logor f (Int32.of_int value))
 
   (* TODO(arjun): this is different from mirage *)
-  let get_nw_mask (f : Word32.t) (off : int) : int = 
-    let f = Word32.to_int32 f in
+  let get_nw_mask (f : int32) (off : int) : int = 
     (Int32.to_int (Int32.shift_right f off)) land 0x3f
 
   let marshal m = 
-    let ret = Word32.from_int32 0l in 
-    let ret = Word32.bit ret 0 m.in_port in
-    let ret = Word32.bit ret 1 m.dl_vlan in 
-    let ret = Word32.bit ret 2 m.dl_src in
-    let ret = Word32.bit ret 3 m.dl_dst in
-    let ret = Word32.bit ret 4 m.dl_type in
-    let ret = Word32.bit ret 5 m.nw_proto in
-    let ret = Word32.bit ret 6 m.tp_src in
-    let ret = Word32.bit ret 7 m.tp_dst in
+    let ret = Int32.zero in 
+    let ret = bit ret 0 m.in_port in
+    let ret = bit ret 1 m.dl_vlan in 
+    let ret = bit ret 2 m.dl_src in
+    let ret = bit ret 3 m.dl_dst in
+    let ret = bit ret 4 m.dl_type in
+    let ret = bit ret 5 m.nw_proto in
+    let ret = bit ret 6 m.tp_src in
+    let ret = bit ret 7 m.tp_dst in
     let ret = set_nw_mask ret 8 m.nw_src in
     let ret = set_nw_mask ret 14 m.nw_dst in
-    let ret = Word32.bit ret 20 m.dl_vlan_pcp in 
-    let ret = Word32.bit ret 21 m.nw_tos in
-    Word32.to_int32 ret
+    let ret = bit ret 20 m.dl_vlan_pcp in 
+    let ret = bit ret 21 m.nw_tos in
+    ret
 
   let to_string h = 
     Format.sprintf
@@ -462,19 +485,18 @@ module Wildcards = struct
       (string_of_bool h.nw_tos)
       
   let parse bits = 
-    let bits = Word32.from_int32 bits in
-    { nw_tos = Word32.test_bit 21 bits;
-      dl_vlan_pcp = Word32.test_bit 20 bits;
+    { nw_tos = test_bit 21 bits;
+      dl_vlan_pcp = test_bit 20 bits;
       nw_dst = get_nw_mask bits 14; 
       nw_src = get_nw_mask bits 8; 
-      tp_dst = Word32.test_bit 7 bits; 
-      tp_src = Word32.test_bit 6 bits; 
-      nw_proto = Word32.test_bit 5 bits; 
-      dl_type = Word32.test_bit 4 bits; 
-      dl_dst = Word32.test_bit 3 bits; 
-      dl_src = Word32.test_bit 2 bits; 
-      dl_vlan = Word32.test_bit 1 bits; 
-      in_port = Word32.test_bit 0 bits;
+      tp_dst = test_bit 7 bits; 
+      tp_src = test_bit 6 bits; 
+      nw_proto = test_bit 5 bits; 
+      dl_type = test_bit 4 bits; 
+      dl_dst = test_bit 3 bits; 
+      dl_src = test_bit 2 bits; 
+      dl_vlan = test_bit 1 bits; 
+      in_port = test_bit 0 bits;
     }
 end
 
@@ -503,26 +525,26 @@ module Match = struct
   }
 
   let if_some16 x = match x with
-    | Some n -> Word16.to_int n
+    | Some n -> n
     | None -> 0
 
   let if_some8 x = match x with
-    | Some n -> Word8.to_int n
+    | Some n -> n
     | None -> 0
 
   let if_some32 x = match x with
-    | Some n -> Word32.to_int32 n
+    | Some n -> n
     | None -> 0l
 
   let if_word48 x = match x with
-    | Some n -> Word48.to_bytes n
-    | None -> "\x00\x00\x00\x00\x00\x00"
+    | Some n -> n
+    | None -> Int64.zero
 
  let marshal m bits = 
    set_ofp_match_wildcards bits (Wildcards.marshal (wildcards_of_match m));
    set_ofp_match_in_port bits (if_some16 m.matchInPort); 
-   set_ofp_match_dl_src (if_word48 m.matchDlSrc) 0 bits;
-   set_ofp_match_dl_dst (if_word48 m.matchDlDst) 0 bits;
+   set_ofp_match_dl_src (bytes_of_mac (if_word48 m.matchDlSrc)) 0 bits;
+   set_ofp_match_dl_dst (bytes_of_mac (if_word48 m.matchDlDst)) 0 bits;
    set_ofp_match_dl_vlan bits (if_some16 m.matchDlVlan);
    set_ofp_match_dl_vlan_pcp bits (if_some8 m.matchDlVlanPcp);
    set_ofp_match_dl_type bits (if_some16 m.matchDlTyp);
@@ -540,65 +562,64 @@ module Match = struct
         if w.Wildcards.dl_src then 
           None
         else
-          Some (Word48.from_bytes 
+          Some (mac_of_bytes
                   (Cstruct.to_string (get_ofp_match_dl_src bits)));
       matchDlDst = 
         if w.Wildcards.dl_dst then 
           None
         else
-          Some (Word48.from_bytes 
+          Some (mac_of_bytes
                   (Cstruct.to_string (get_ofp_match_dl_dst bits)));
       matchDlVlan =
         if w.Wildcards.dl_vlan then
           None
         else
-          Some (Word16.from_int (get_ofp_match_dl_vlan bits));
+          Some (get_ofp_match_dl_vlan bits);
       matchDlVlanPcp = 
         if w.Wildcards.dl_vlan_pcp then
           None
         else
-          Some (Word8.from_int (get_ofp_match_dl_vlan_pcp bits));
+          Some (get_ofp_match_dl_vlan_pcp bits);
       matchDlTyp =
         if w.Wildcards.dl_type then
           None
         else
-          Some (Word16.from_int (get_ofp_match_dl_type bits));
+          Some (get_ofp_match_dl_type bits);
       matchNwSrc = 
         if w.Wildcards.nw_src = 0x3f then (* TODO(arjun): prefixes *)
           None
         else
-          Some (Word32.from_int32 (get_ofp_match_nw_src bits));
+          Some (get_ofp_match_nw_src bits);
       matchNwDst = 
         if w.Wildcards.nw_dst = 0x3f then (* TODO(arjun): prefixes *)
           None
         else
-          Some (Word32.from_int32 (get_ofp_match_nw_dst bits));
+          Some (get_ofp_match_nw_dst bits);
       matchNwProto =
         if w.Wildcards.nw_proto then
           None
         else
-          Some (Word8.from_int (get_ofp_match_nw_proto bits));
+          Some (get_ofp_match_nw_proto bits);
       matchNwTos = 
         if w.Wildcards.nw_tos then 
           None
         else 
-          Some (Word8.from_int (get_ofp_match_nw_tos bits));
+          Some (get_ofp_match_nw_tos bits);
       matchTpSrc =
         if w.Wildcards.tp_src then
           None
         else
-          Some (Word16.from_int (get_ofp_match_tp_src bits));
+          Some (get_ofp_match_tp_src bits);
       matchTpDst =
         if w.Wildcards.tp_dst then
           None
         else
-          Some (Word16.from_int (get_ofp_match_tp_dst bits));
+          Some (get_ofp_match_tp_dst bits);
       matchInPort =
         if w.Wildcards.in_port then
           None
         else
-          Some (Word16.from_int (get_ofp_match_in_port bits));
-
+          Some (get_ofp_match_in_port bits);
     }
 
 end
@@ -607,7 +628,7 @@ module TimeoutSer = struct
 
   let to_int (x : timeout) = match x with
     | Permanent -> 0
-    | ExpiresAfter w -> Word16.to_int w
+    | ExpiresAfter w -> w
 
 end
 
@@ -621,15 +642,15 @@ module FlowMod = struct
 
   let marshal m bits = 
     let bits = Cstruct.shift bits (Match.marshal m.mfMatch bits) in
-    set_ofp_flow_mod_cookie bits (Word64.to_int64 m.mfCookie);
+    set_ofp_flow_mod_cookie bits (m.mfCookie);
     set_ofp_flow_mod_command bits (FlowModCommand.marshal m.mfModCmd);
     set_ofp_flow_mod_idle_timeout bits (TimeoutSer.to_int m.mfIdleTimeOut);
     set_ofp_flow_mod_hard_timeout bits (TimeoutSer.to_int m.mfHardTimeOut);
-    set_ofp_flow_mod_priority bits (Word16.to_int m.mfPriority);
+    set_ofp_flow_mod_priority bits (m.mfPriority);
     set_ofp_flow_mod_buffer_id bits
       (match m.mfApplyToPacket with
         | None -> -1l
-        | Some bufId -> Word32.to_int32 bufId);
+        | Some bufId -> bufId);
     set_ofp_flow_mod_out_port bits (PseudoPort.marshal_optional m.mfOutPort);
     set_ofp_flow_mod_flags bits
       (flags_to_int m.mfCheckOverlap m.mfNotifyWhenRemoved);
@@ -647,25 +668,24 @@ end
 
 module Header = struct
 
-  let ver : Word8.t = Word8.from_int 0x01
-
+  let ver : int = 0x01
 
   type t = {
-    ver: Word8.t;
+    ver: int;
     typ: msg_code;
     len: int;
-    xid: Word32.t
+    xid: int32
   }
       
   (** [parse buf] assumes that [buf] has size [sizeof_ofp_header] *)
   let parse buf = 
-    { ver = Word8.from_int (get_ofp_header_version buf);
+    { ver = get_ofp_header_version buf;
       typ = begin match int_to_msg_code (get_ofp_header_typ buf) with
         | Some typ -> typ
         | None -> raise (Unparsable "unrecognized message code")
       end;
       len = get_ofp_header_length buf;
-      xid = Word32.from_int32 (get_ofp_header_xid buf)
+      xid = get_ofp_header_xid buf
     }
 
 end
@@ -723,9 +743,8 @@ module Message = struct
     set_ofp_header_version buf 0x1;
     set_ofp_header_typ buf (msg_code_to_int (msg_code_of_message msg));
     set_ofp_header_length buf sizeof_buf;
-    set_ofp_header_xid buf (Word32.to_int32 xid);
+    set_ofp_header_xid buf xid;
     blit_message msg (Cstruct.shift buf sizeof_ofp_header);
     let str = Cstruct.to_string buf in
     str
-
 end

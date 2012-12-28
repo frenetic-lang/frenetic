@@ -1,6 +1,5 @@
 open OUnit
 open Printf
-open Word
 open Openflow1_0
 open Platform 
 open Unix
@@ -17,13 +16,13 @@ module Test1 = struct
   module Controller = Repeater.Make (TestPlatform)
 
   let test_script () = 
-    connect_switch (Word64.from_int64 100L);
-    connect_switch (Word64.from_int64 200L);
+    connect_switch 100L;
+    connect_switch 200L;
     assert_equal
       ~msg:"delete all flows from switch 100"
-      (Word32.from_int32 0l, FlowModMsg NetCoreController.delete_all_flows)
-      (recv_from_controller (Word64.from_int64 100L));
-    let (_, msg) = recv_from_controller (Word64.from_int64 100L) in
+      (0l, FlowModMsg NetCoreController.delete_all_flows)
+      (recv_from_controller 100L);
+    let (_, msg) = recv_from_controller 100L in
     begin
       match msg with
         | FlowModMsg fm ->
@@ -33,9 +32,9 @@ module Test1 = struct
     end;
     assert_equal
       ~msg:"delete all flows from switch 200"
-      (Word32.from_int32 0l, FlowModMsg NetCoreController.delete_all_flows)
-      (recv_from_controller (Word64.from_int64 200L));
-    let (_, msg) = recv_from_controller (Word64.from_int64 200L) in
+      (0l, FlowModMsg NetCoreController.delete_all_flows)
+      (recv_from_controller 200L);
+    let (_, msg) = recv_from_controller 200L in
     begin
       match msg with
         | FlowModMsg fm ->

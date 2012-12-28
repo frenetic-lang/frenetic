@@ -23,13 +23,11 @@ Section Constants.
 
 End Constants.
 
-Extract Constant Const_0x800 => "Word.Word16.from_int 0x800".
-Extract Constant Const_0x806 => "Word.Word16.from_int 0x806".
-Extract Constant Const_0x6 => "Word.Word8.from_int 6".
-Extract Constant Const_0x7 => "Word.Word8.from_int 7".
-Extract Constant Const_0x1 => "Word.Word8.from_int 1".
-
-
+Extract Constant Const_0x800 => "0x800".
+Extract Constant Const_0x806 => "0x806".
+Extract Constant Const_0x6 => "0x6".
+Extract Constant Const_0x7 => "0x7".
+Extract Constant Const_0x1 => "0x1".
 
 Definition portId := Word16.t.
 Definition dlAddr := Word48.t.

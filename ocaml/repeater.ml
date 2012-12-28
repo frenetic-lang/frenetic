@@ -1,5 +1,4 @@
 open Printf
-open Word
 open Openflow1_0
 open Platform 
 open Unix

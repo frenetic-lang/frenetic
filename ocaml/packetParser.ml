@@ -1,5 +1,15 @@
 open Packet
-open Word
+
+let mac_of_bytes (str:string) : int64 = 
+  let str = Format.sprintf "\x00\x00%s" str in 
+  if String.length str != 8 then
+    raise (Invalid_argument "mac_of_bytes expected eight-byte string");
+  let n = ref 0L in
+  for i = 0 to 7 do
+    let b = Int64.of_int (Char.code (String.get str i)) in
+    n := Int64.logor !n (Int64.shift_left b (8 * i))
+  done;
+  !n
 
 (* ----- Data Link Layer Structures ----- *)
 
@@ -110,13 +120,13 @@ let parse_tcp (bits:Cstruct.buf) : tcp option =
   let flags = get_tcp_flags bits in 
   let window = get_tcp_window bits in 
   let payload = Cstruct.shift bits sizeof_tcp in 
-  Some { tcpSrc = Word16.from_int src;
-	 tcpDst = Word16.from_int dst;
-	 tcpSeq = Word32.from_int32 seq;
-	 tcpAck = Word32.from_int32 ack;
-	 tcpOffset = Word8.from_int offset;
-	 tcpFlags = Word16.from_int flags;
-	 tcpWindow = Word16.from_int window;
+  Some { tcpSrc = src;
+	 tcpDst = dst;
+	 tcpSeq = seq;
+	 tcpAck = ack;
+	 tcpOffset =  offset;
+	 tcpFlags = flags;
+	 tcpWindow = window;
 	 tcpPayload = payload }
 
 (* let parse_udp (bits:Cstruct.buf) : udp option =  *)
@@ -124,9 +134,9 @@ let parse_tcp (bits:Cstruct.buf) : tcp option =
 (*   let dst = get_ucp_dst bits in  *)
 (*   let chksum = get_udp_chksum bits in  *)
 (*   let payload = Cstruct.shift bits sizeof_udp in  *)
-(*   Some { udpSrc = Word16.from_int src; *)
-(* 	 udpDst = Word16.from_int dst; *)
-(* 	 udpChksum = Word16.from_int seq; *)
+(*   Some { udpSrc = src; *)
+(* 	 udpDst = dst; *)
+(* 	 udpChksum = seq; *)
 (* 	 udpPayload = payload } *)
 
 let parse_icmp (bits:Cstruct.buf) : icmp option = 
@@ -134,9 +144,9 @@ let parse_icmp (bits:Cstruct.buf) : icmp option =
   let code = get_icmp_code bits in 
   let chksum = get_icmp_chksum bits in 
   let payload = Cstruct.shift bits sizeof_icmp in 
-  Some { icmpType = Word8.from_int typ;
-	 icmpCode = Word8.from_int code;
-	 icmpChksum = Word16.from_int chksum;
+  Some { icmpType = typ;
+	 icmpCode = code;
+	 icmpChksum = chksum;
 	 icmpPayload = payload }
 
 let parse_ip (bits:Cstruct.buf) : ip option = 
@@ -157,36 +167,36 @@ let parse_ip (bits:Cstruct.buf) : ip option =
     | Some IP_ICMP -> 
       begin match parse_icmp (Cstruct.shift bits len) with 
       | Some icmp -> TpICMP icmp 
-      | _ -> TpUnparsable (Word8.from_int proto) 
+      | _ -> TpUnparsable (proto) 
       end
     | Some IP_TCP -> 
       begin match parse_tcp (Cstruct.shift bits len) with 
       | Some tcp -> TpTCP tcp 
-      | _ -> TpUnparsable (Word8.from_int proto) 
+      | _ -> TpUnparsable (proto) 
       end
     | _ -> 
-      TpUnparsable (Word8.from_int proto) in 
-  Some { pktIPTos = Word8.from_int tos;
-	 pktIPIdent = Word16.from_int ident;
-	 pktIPFlags = Word8.from_int flags ;
-	 pktFrag = Word16.from_int frag;
-	 pktIPTTL = Word8.from_int ttl;
-	 pktIPProto = Word8.from_int proto;
-	 pktChksum = Word16.from_int chksum;
-	 pktIPSrc = Word32.from_int32 src;
-	 pktIPDst = Word32.from_int32 dst;     
+      TpUnparsable (proto) in 
+  Some { pktIPTos = tos;
+	 pktIPIdent = ident;
+	 pktIPFlags = flags ;
+	 pktFrag = frag;
+	 pktIPTTL = ttl;
+	 pktIPProto = proto;
+	 pktChksum = chksum;
+	 pktIPSrc = src;
+	 pktIPDst = dst;     
 	 pktTPHeader = tp_header }
 
 let parse_arp (bits:Cstruct.buf) : arp option = 
   let oper = get_arp_oper bits in 
-  let sha = Word48.from_bytes (Cstruct.to_string (get_arp_sha bits)) in 
-  let spa = Word32.from_int32 (get_arp_spa bits) in 
-  let tpa = Word32.from_int32 (get_arp_tpa bits) in 
+  let sha = mac_of_bytes (Cstruct.to_string (get_arp_sha bits)) in 
+  let spa = (get_arp_spa bits) in 
+  let tpa = (get_arp_tpa bits) in 
   match int_to_arp_oper oper with 
     | Some ARP_REQUEST -> 
        Some (ARPQuery(sha,spa,tpa))
     | Some ARP_REPLY -> 
-       let tha = Word48.from_bytes (Cstruct.to_string (get_arp_tha bits)) in 
+       let tha = mac_of_bytes (Cstruct.to_string (get_arp_tha bits)) in 
        Some (ARPReply(sha,spa,tha,tpa))
     | _ -> None
     
@@ -221,11 +231,11 @@ let parse_eth (bits:Cstruct.buf) : packet option =
       end
     | _ -> 
       NwUnparsable typ in 
-  Some { pktDlSrc = Word48.from_bytes src;
-	 pktDlDst = Word48.from_bytes dst;
-	 pktDlTyp = Word16.from_int typ;
-	 pktDlVlan = Word16.from_int vlan_tag;
-	 pktDlVlanPcp = Word8.from_int vlan_pcp;
+  Some { pktDlSrc = mac_of_bytes src;
+	 pktDlDst = mac_of_bytes dst;
+	 pktDlTyp = typ;
+	 pktDlVlan = vlan_tag;
+	 pktDlVlanPcp = vlan_pcp;
 	 pktNwHeader = nw_header }
 
 let parse_packet = parse_eth

@@ -1,10 +1,9 @@
-open Word
 open MessagesDef
 open Unix
 open Printf
 open Openflow1_0
 
-type switchId = Word64.t
+type switchId = int64
 
 module type PLATFORM = sig
 
@@ -36,7 +35,6 @@ module TestPlatform = struct
   exception SwitchDisconnected of switchId
 
   let destroy_switch (id : switchId) (sw : switch) : unit = 
-    let id = Word64.to_int64 id in
     let rec drain_to_controller () = 
       match Event.poll (Event.receive sw.to_controller) with
         | Some (xid,msg) -> 
@@ -82,8 +80,8 @@ module TestPlatform = struct
     sw.status <- Connected;
     Hashtbl.add switches sw_id sw;
     { switch_id = sw_id;
-      num_buffers = Word32.from_int32 100l;
-      num_tables = Word8.from_int 1;
+      num_buffers = 100l;
+      num_tables = 1;
       (* This is an amazing switch! *)
       supported_capabilities = 
         { flow_stats = true;
@@ -246,20 +244,19 @@ module OpenFlowPlatform = struct
       raise (UnknownSwitch sw_id)
 
   let switch_handshake (fd : file_descr) : features = 
-    send_to_switch_fd fd (Word32.from_int32 0l) (Hello (ba_of_string ""));
+    send_to_switch_fd fd 0l (Hello (ba_of_string ""));
     let (xid, msg) = recv_from_switch_fd fd in
     begin 
       match msg with
         | Hello _ -> ()
         | _ -> raise (Internal "expected Hello")
     end;
-    send_to_switch_fd fd (Word32.from_int32 0l) FeaturesRequest;
+    send_to_switch_fd fd 0l FeaturesRequest;
     let (_, msg) = recv_from_switch_fd fd in
     match msg with
       | FeaturesReply feats ->
         Hashtbl.add switch_fds feats.switch_id fd;
-        eprintf "[platform] switch %Ld connected\n%!" 
-          (Word64.to_int64 feats.switch_id);
+        eprintf "[platform] switch %Ld connected\n%!" feats.switch_id;
         feats
       | _ -> raise (Internal "expected FEATURES_REPLY")
 

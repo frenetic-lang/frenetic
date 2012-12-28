@@ -1,4 +1,3 @@
-open Word
 open Wildcard
 open Pattern
 open MessagesDef
@@ -20,7 +19,7 @@ type predicate =
   (* TODO(arjun): fill in others *)
 
 type action =
-  | To of Word16.t
+  | To of int
   | ToAll
   | GetPacket of get_packet_handler
 
@@ -61,10 +60,10 @@ module Make (Platform : PLATFORM) = struct
     | All -> PrAll
     | None -> PrNone
     | DlSrc n -> PrHdr { 
-      Pattern.all with ptrnDlSrc = WildcardExact (Word48.from_int64 n)
+      Pattern.all with ptrnDlSrc = WildcardExact n
     }
     | DlDst n -> PrHdr { 
-      Pattern.all with ptrnDlDst = WildcardExact (Word48.from_int64 n)
+      Pattern.all with ptrnDlDst = WildcardExact n
     }
 
   let rec desugar_pol pol = match pol with
