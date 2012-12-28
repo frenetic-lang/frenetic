@@ -30,58 +30,71 @@ module Make
 
   type state = State.state
       
-  type 'x m = state -> 'x * state
+  type 'x m = state -> ('x * state) Lwt.t
 
   let bind (m : 'a m) (k : 'a -> 'b m) : 'b m = fun s ->
-    let (a, s') = m s in k a s'
+    Lwt.bind (m s) (fun (a, s') -> k a s')
 
-  let ret (a : 'a) : 'a m = fun (s : state) -> (a,s)
+  let ret (a : 'a) : 'a m = fun (s : state) -> Lwt.return (a,s)
 
-  let get : state m = fun s -> (s,s)
+  let get : state m = fun s -> Lwt.return (s,s)
 
-  let put (s : state) : unit m = fun _ -> ((), s)
+  let put (s : state) : unit m = fun _ -> Lwt.return ((), s)
 
   let rec forever (m : unit m) = bind m (fun _ -> forever m)
 
-  let events : event Event.channel = Event.new_channel ()
+  (** Channel of events for a single-threaded controller. *)
+  let events : event Lwt_channel.t = Lwt_channel.create ()
 
   let send (sw_id : switchId) (xid : xid) (msg : message) = fun (s : state) ->
-    begin
-      try 
-        Platform.send_to_switch sw_id xid msg        
-      with Platform.SwitchDisconnected sw_id' ->
-        Event.sync (Event.send events (SwitchDisconnected sw_id'))
-    end;
-    ((), s)
+    Lwt.catch
+      (fun () ->
+        Lwt.bind (Platform.send_to_switch sw_id xid msg)
+          (fun () -> Lwt.return ((), s)))
+      (fun exn ->
+        match exn with
+          | Platform.SwitchDisconnected sw_id' ->
+            Lwt.bind (Lwt_channel.send (SwitchDisconnected sw_id') events)
+              (fun () -> Lwt.return ((), s))
+          | _ -> Lwt.fail exn)
 
   let recv : event m = fun (s : state) ->
-    (Event.sync (Event.receive events), s)
+    Lwt.bind (Lwt_channel.recv events) (fun ev -> Lwt.return (ev, s))
 
-  let recv_from_switch_thread sw_id = 
-    try
-      let rec loop () = 
-        let (xid, msg) = Platform.recv_from_switch sw_id in
-        Event.sync (Event.send events (SwitchMessage (sw_id, xid, msg)));
-        loop () in
-      loop ()
-    with Platform.SwitchDisconnected sw_id' ->
-      Event.sync (Event.send events (SwitchDisconnected sw_id'))
+  let recv_from_switch_thread sw_id () = 
+    Lwt.catch
+      (fun () ->
+        let rec loop () = 
+          Lwt.bind (Platform.recv_from_switch sw_id )
+            (fun (xid,msg) ->
+              Lwt.bind
+                (Lwt_channel.send (SwitchMessage (sw_id, xid, msg)) events)
+                (fun () -> loop ())) in
+        loop ())
+      (fun exn ->
+        match exn with
+          | Platform.SwitchDisconnected sw_id' ->
+            Lwt_channel.send (SwitchDisconnected sw_id') events
+          | _ -> Lwt.fail exn)
 
   let rec accept_switch_thread () = 
-    let feats = Platform.accept_switch () in
-    eprintf "[netcore-monad] SwitchConnected event queued.\n%!";
-    Event.sync (Event.send events (SwitchConnected feats.switch_id));
-    eprintf "[netcore-monad] SwitchConnected event consumed.\n%!";
-    let _ = Thread.create recv_from_switch_thread feats.switch_id in
-    accept_switch_thread ()
+    Lwt.bind (Platform.accept_switch ())
+      (fun feats -> 
+        eprintf "[netcore-monad] SwitchConnected event queued.\n%!";
+        Lwt.bind (Lwt_channel.send (SwitchConnected feats.switch_id) events)
+          (fun () ->
+            eprintf "[netcore-monad] SwitchConnected event consumed.\n%!";
+            Lwt.async 
+              (recv_from_switch_thread feats.switch_id);
+            accept_switch_thread ()))
 
   let handle_get_packet id switchId portId pkt : unit m = fun state ->
-    (Handlers.get_packet_handler id switchId portId pkt, state)
+    Lwt.return (Handlers.get_packet_handler id switchId portId pkt, state)
 
   let run (init : state) (action : 'a m) : 'a = 
     (** TODO(arjun): kill threads etc. *)
-    let _ = Thread.create accept_switch_thread () in
-    let (result, _) = action init in
+    Lwt.async accept_switch_thread;
+    let (result, _) = Lwt_main.run (action init) in
     result
 
 end
