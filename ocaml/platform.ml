@@ -60,7 +60,7 @@ module OpenFlowPlatform = struct
       
   (** Receives an OpenFlow message from a raw file. Does not update
       any controller state. *)
-  let recv_from_switch_fd (fd : file_descr) : (xid * message) Lwt.t = 
+  let rec recv_from_switch_fd (fd : file_descr) : (xid * message) Lwt.t = 
     lwt _ = eprintf "creating header \n%!" in
     let ofhdr_str = String.create (2 * sizeof_ofp_header) in
     lwt n = read fd ofhdr_str 0 sizeof_ofp_header in
@@ -74,7 +74,12 @@ module OpenFlowPlatform = struct
       if n <> sizeof_body then
         raise_lwt (Internal "not enough bytes read from body")
       else
-        return (Message.parse hdr (ba_of_string body_str))
+        match Message.parse hdr (ba_of_string body_str) with
+          | Some v -> return v
+          | None ->
+            eprintf "[platform] ignoring message with code %d\n%!"
+              (msg_code_to_int hdr.Header.typ) >>
+            recv_from_switch_fd fd 
 
   let send_to_switch_fd (fd : file_descr) (xid : xid) (msg : message) = 
     let out = Message.marshal xid msg in

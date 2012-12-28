@@ -4,24 +4,26 @@ Building from Source
 Prerequisites
 -------------
 
-- OCaml 4 or higher <http://caml.inria.fr/download.en.html>
-
 - Coq 8.4 <http://coq.inria.fr/download>
 
   Newer versions of Coq often have changes that break older
   programs. We recommend using exactly this version.
 
+- OCaml 4 or higher <http://caml.inria.fr/download.en.html>
+
 - OPAM <http://opam.ocamlpro.com>
 
-- The cstruct library (version 0.5.3), which you can install using opam:
+- The following OCaml libraries:
+
+  - lwt
+  - cstruct version 0.5.3
+  - oUnit
+
+  These are available on OPAM:
 
   ```
   $ opam install cstruct.0.5.3
-  ```
-
-- The oUnit library, which you can install using opam:
-
-  ```
+  $ opam install lwt
   $ opam install oUnit
   ```
 

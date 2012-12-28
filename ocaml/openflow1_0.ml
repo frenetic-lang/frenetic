@@ -663,18 +663,19 @@ module Message = struct
 
   type t = message
   
-  let parse (hdr : Header.t) (buf : Cstruct.buf) : xid * t =
-    let msg =  match hdr.Header.typ with
-      | HELLO -> Hello buf
-      | ECHO_REQ -> EchoRequest buf
-      | ECHO_RESP -> EchoReply buf
-      | FEATURES_REQ -> FeaturesRequest
-      | FEATURES_RESP -> FeaturesReply (Features.parse buf)
-      | PACKET_IN -> PacketInMsg (PacketIn.parse buf)
-      | _ -> failwith "expected msg"
+  let parse (hdr : Header.t) (buf : Cstruct.buf) : (xid * t) option =
+    let msg = match hdr.Header.typ with
+      | HELLO -> Some (Hello buf)
+      | ECHO_REQ -> Some (EchoRequest buf)
+      | ECHO_RESP -> Some (EchoReply buf)
+      | FEATURES_REQ -> Some (FeaturesRequest)
+      | FEATURES_RESP -> Some (FeaturesReply (Features.parse buf))
+      | PACKET_IN -> Some (PacketInMsg (PacketIn.parse buf))
+      | code -> None
     in
-    let xid = hdr.Header.xid in
-    (xid, msg)
+    match msg with
+      | Some v -> Some (hdr.Header.xid, v)
+      | None -> None
 
   let msg_code_of_message (msg : t) : msg_code = match msg with
     | Hello _ -> HELLO
