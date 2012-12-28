@@ -1,15 +1,5 @@
 open Packet
-
-let mac_of_bytes (str:string) : int64 = 
-  let str = Format.sprintf "\x00\x00%s" str in 
-  if String.length str != 8 then
-    raise (Invalid_argument "mac_of_bytes expected eight-byte string");
-  let n = ref 0L in
-  for i = 0 to 7 do
-    let b = Int64.of_int (Char.code (String.get str i)) in
-    n := Int64.logor !n (Int64.shift_left b (8 * i))
-  done;
-  !n
+open Util
 
 (* ----- Data Link Layer Structures ----- *)
 
