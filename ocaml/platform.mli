@@ -3,7 +3,6 @@
     The platform manages connections to switches for the controller. It
     provides functions to send and receive OpenFlow messages that do the
     necessary low-level serialization themselves. *)
-open Word
 open Unix
 open MessagesDef
 

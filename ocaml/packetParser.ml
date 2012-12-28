@@ -3,7 +3,6 @@ open Word
 
 (* ----- Data Link Layer Structures ----- *)
 
-(* TODO(jnf): 7-octet preamble and 1 octet frame delimeter? *)
 cstruct eth {
   uint8_t dst[6];
   uint8_t src[6];
