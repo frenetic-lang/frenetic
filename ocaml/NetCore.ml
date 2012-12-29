@@ -14,6 +14,8 @@ type predicate =
   | Not of predicate
   | All
   | None
+  | Switch of switchId
+  | InPort of portId
   | DlSrc of Int64.t
   | DlDst of Int64.t
   (* TODO(arjun): fill in others *)
@@ -59,6 +61,10 @@ module Make (Platform : PLATFORM) = struct
     | Not p -> PrNot (desugar_pred p)
     | All -> PrAll
     | None -> PrNone
+    | Switch swId -> PrOnSwitch swId
+    | InPort pt -> PrHdr {
+      Pattern.all with ptrnInPort = WildcardExact pt
+    }
     | DlSrc n -> PrHdr { 
       Pattern.all with ptrnDlSrc = WildcardExact n
     }

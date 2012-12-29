@@ -14,6 +14,8 @@ type predicate =
   | Not of predicate
   | All
   | None
+  | Switch of switchId
+  | InPort of portId
   | DlSrc of Int64.t  (** Match Ethernet source address (48-bits) *)
   | DlDst of Int64.t (** Match Ethernet destination address (48-bits) *)
 
