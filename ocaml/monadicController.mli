@@ -3,10 +3,6 @@ open ControllerInterface
 open Packet
 open MessagesDef
 
-module type STATE = sig
-  type state
-end
-
 module type HANDLERS = sig
 
   val get_packet_handler : 
@@ -16,15 +12,8 @@ end
 
 module EmptyHandlers : HANDLERS
 
-module Make : 
-  functor (Platform : PLATFORM) ->
-    functor (State : STATE) ->
-      functor (Handlers : HANDLERS) -> sig
-        include CONTROLLER_MONAD
-        val run : State.state -> 'a m -> 'a
-      end
-
-module MakeNetCoreController :
+(** * A NetCore controller that does not desugar. *)
+module Make :
   functor (Platform : PLATFORM) -> 
     functor (Handlers : HANDLERS) -> sig
       val set_policy : NetCoreSemantics.coq_Pol -> unit

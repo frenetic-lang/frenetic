@@ -4,12 +4,6 @@ open Packet
 open MessagesDef
 open ControllerInterface
 
-module type STATE = sig
-
-  type state
-
-end
-
 module type HANDLERS = sig
 
   val get_packet_handler : 
@@ -23,12 +17,11 @@ module EmptyHandlers : HANDLERS = struct
 
 end
 
-module Make 
+module MakeNetCoreMonad
   (Platform : PLATFORM) 
-  (State : STATE)
   (Handlers : HANDLERS) = struct
 
-  type state = State.state
+  type state = NetCoreController.ncstate
       
   type 'x m = state -> ('x * state) Lwt.t
 
@@ -99,20 +92,15 @@ module Make
 
 end
 
-module NetCoreState = struct
-
-  type state = NetCoreController.ncstate
-
-end
-
-module MakeNetCoreController 
+module Make
   (Platform : PLATFORM)
   (Handlers : HANDLERS) = struct
 
   (* The monad is written in OCaml *)
-  module NetCoreMonad = Make (Platform) (NetCoreState) (Handlers)
+  module NetCoreMonad = MakeNetCoreMonad (Platform) (Handlers)
   (* The controller is written in Coq *)
   module Controller = NetCoreController.Make (NetCoreMonad)
+
 
   let start_controller pol =
     let init_state = { 

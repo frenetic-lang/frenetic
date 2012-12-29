@@ -72,7 +72,7 @@ module Make (Platform : PLATFORM) = struct
     | Par (pol1, pol2) ->
       PoUnion (desugar_pol pol1, desugar_pol pol2)
 
-  module Controller = MakeNetCoreController (Platform) (Handlers)
+  module Controller = Make (Platform) (Handlers)
 
   let clear_handlers () : unit = 
     Hashtbl.clear get_pkt_handlers;
