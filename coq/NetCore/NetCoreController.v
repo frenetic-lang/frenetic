@@ -176,10 +176,8 @@ Module Make (Import Monad : NETCORE_MONAD).
     st <- get;
     let outs := classify (policy st) (packetIn_to_in swId pk) in
     sequence (List.map send_output outs).
-    
 
-  Definition body :=
-    evt <- recv;
+  Definition handle_event evt := 
     match evt with
       | SwitchDisconnected swId => handle_switch_disconnected swId
       | SwitchConnected swId => handle_switch_connected swId
@@ -188,6 +186,6 @@ Module Make (Import Monad : NETCORE_MONAD).
       | SwitchMessage swId xid msg => ret tt
     end.
 
-  Definition main := forever body.
+  Definition main := forever (evt <- recv; handle_event evt).
 
 End Make.

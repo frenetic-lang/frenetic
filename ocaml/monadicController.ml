@@ -109,8 +109,39 @@ module Make
     } in
     NetCoreMonad.run init_state Controller.main
 
-  (** We'll do this by comingling OCaml and Coq functions in the monad instead
-      of simply calling Controller.main *)
-  let set_policy _ = failwith "NYI"
+end
+
+let drop_all_packets = NetCoreSemantics.PoAtom (NetCoreSemantics.PrAll, [])
+
+type eventOrPolicy = 
+  | Event of ControllerInterface.event
+  | Policy of NetCoreSemantics.coq_Pol
+
+module MakeDynamic
+  (Platform : PLATFORM)
+  (Handlers : HANDLERS) = struct
+
+  (* The monad is written in OCaml *)
+  module NetCoreMonad = MakeNetCoreMonad (Platform) (Handlers)
+  (* The controller is written in Coq *)
+  module Controller = NetCoreController.Make (NetCoreMonad)
+
+  let start_controller policy_stream =
+    let init_state = { 
+      NetCoreController.policy = drop_all_packets; 
+      NetCoreController.switches = []
+    } in
+    let event_or_policy_stream = 
+      Lwt_stream.choose 
+        [Lwt_stream.map (fun v -> Event v)
+            (Lwt_channel.to_stream NetCoreMonad.events);
+         Lwt_stream.map (fun v -> Policy v) policy_stream] in
+    let body = fun state ->
+      Lwt.bind (Lwt_stream.next event_or_policy_stream)
+        (fun v -> match v with
+          | Event ev -> Controller.handle_event ev state
+          | Policy pol -> Controller.set_policy pol state) in
+    let main = NetCoreMonad.forever body in
+    NetCoreMonad.run init_state main
 
 end

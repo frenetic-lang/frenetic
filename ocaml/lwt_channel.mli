@@ -13,3 +13,4 @@ val send : 'a -> 'a t -> unit Lwt.t
 
 val recv : 'a t -> 'a Lwt.t
 
+val to_stream : 'a t -> 'a Lwt_stream.t

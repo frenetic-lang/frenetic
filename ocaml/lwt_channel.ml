@@ -13,3 +13,4 @@ let send (v : 'a) (chan : 'a t) = Lwt.return (chan.push (Some v))
 
 let recv (chan : 'a t) = Lwt_stream.next chan.stream
 
+let to_stream (chan : 'a t) = chan.stream

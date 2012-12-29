@@ -72,18 +72,16 @@ module Make (Platform : PLATFORM) = struct
     | Par (pol1, pol2) ->
       PoUnion (desugar_pol pol1, desugar_pol pol2)
 
-  module Controller = Make (Platform) (Handlers)
+  module Controller = MakeDynamic (Platform) (Handlers)
 
   let clear_handlers () : unit = 
     Hashtbl.clear get_pkt_handlers;
     next_id := 0
 
-  let start_controller (pol : policy) : unit = 
-    clear_handlers ();
-    Controller.start_controller (desugar_pol pol)
-
-  let set_policy (pol : policy) : unit = 
-    clear_handlers ();
-    Controller.set_policy (desugar_pol pol)
+  let start_controller (pol : policy Lwt_stream.t) : unit = 
+    Controller.start_controller
+      (Lwt_stream.map 
+         (fun pol -> clear_handlers (); desugar_pol pol)
+         pol)
 
 end

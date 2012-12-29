@@ -28,7 +28,6 @@ type policy =
 
 
 module Make : functor (Platform : PLATFORM) -> sig
-  val set_policy : policy -> unit
-  val start_controller : policy -> unit
+  val start_controller : policy Lwt_stream.t -> unit
 end
 
