@@ -26,6 +26,7 @@ module Learning = struct
          [GetPacket learn_host])
 
   and learn_host sw pt pk : unit = 
+    Printf.printf "Got packet from %Ld on %d" sw pt;
     Hashtbl.replace learned_hosts (sw, pk.pktDlSrc) pt;
     push (Some (make_learning_policy ()))
   
@@ -57,9 +58,11 @@ end
 
 module Make (Platform : PLATFORM) = struct
 
-  module Controller = Make (Platform)
+  module Controller = NetCore.Make (Platform)
 
-  let start () = Controller.start_controller Routing.policy
+  let start () = 
+    Printf.printf "started maclearning...\n%!";
+    Controller.start_controller Routing.policy
 
 end
 

@@ -5,6 +5,7 @@ type switchId = int64
 open Lwt_io
 open Lwt
 open Lwt_unix
+open Lwt_list
 
 let sprintf = Format.sprintf
 
@@ -61,7 +62,7 @@ module OpenFlowPlatform = struct
   (** Receives an OpenFlow message from a raw file. Does not update
       any controller state. *)
   let rec recv_from_switch_fd (fd : file_descr) : (xid * message) Lwt.t = 
-    lwt _ = eprintf "creating header \n%!" in
+    lwt _ = eprintf "creating header\n%!" in
     let ofhdr_str = String.create (2 * sizeof_ofp_header) in
     lwt n = read fd ofhdr_str 0 sizeof_ofp_header in
     if n <> sizeof_ofp_header then
@@ -75,10 +76,13 @@ module OpenFlowPlatform = struct
         raise_lwt (Internal "not enough bytes read from body")
       else
         match Message.parse hdr (ba_of_string body_str) with
-          | Some v -> return v
+          | Some v -> 
+            lwt _ = eprintf "[platform] processing message with code %d\n%!"
+	      (msg_code_to_int hdr.Header.typ) in
+	    return v
           | None ->
-            eprintf "[platform] ignoring message with code %d\n%!"
-              (msg_code_to_int hdr.Header.typ) >>
+            lwt _ = eprintf "[platform] ignoring message with code %d\n%!"
+              (msg_code_to_int hdr.Header.typ) in
             recv_from_switch_fd fd 
 
   let send_to_switch_fd (fd : file_descr) (xid : xid) (msg : message) = 
@@ -115,6 +119,17 @@ module OpenFlowPlatform = struct
     with Not_found ->
       lwt _ = eprintf "[disconnect_switch] switch not found\n%!" in
       raise_lwt (UnknownSwitch sw_id)
+
+  let shutdown () : unit = match !server_fd with 
+    | Some fd -> 
+      ignore_result 
+	begin 
+	  lwt _ = iter_p (fun fd -> close fd)
+            (Hashtbl.fold (fun _ fd l -> fd::l) switch_fds []) in 
+	  return ()
+	end
+    | None -> 
+       ()
 
   let switch_handshake (fd : file_descr) : features Lwt.t = 
     lwt _ = send_to_switch_fd fd 0l (Hello (ba_of_string "")) in

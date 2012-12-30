@@ -52,4 +52,7 @@ module OpenFlowPlatform : sig
   (** [init_with_port fd] accepts connections from switches on [fd]. *)
   val init_with_fd : file_descr -> unit
 
+  (** [shutdown] gracefully shuts down the server *) 
+  val shutdown : unit -> unit 
+
 end

@@ -101,14 +101,12 @@ module Make
   (* The controller is written in Coq *)
   module Controller = NetCoreController.Make (NetCoreMonad)
 
-
   let start_controller pol =
     let init_state = { 
       NetCoreController.policy = pol; 
       NetCoreController.switches = []
     } in
     NetCoreMonad.run init_state Controller.main
-
 end
 
 let drop_all_packets = NetCoreSemantics.PoAtom (NetCoreSemantics.PrAll, [])

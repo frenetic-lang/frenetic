@@ -5,10 +5,19 @@ open Unix
 open MonadicController
 open MessagesDef
 
-module Z = Maclearning
+module Controller = Maclearning.Make (OpenFlowPlatform)
 
-let _ = OpenFlowPlatform.init_with_port 6633
-    
-module Controller = Repeater.Make (OpenFlowPlatform)
-
-let _ = Controller.start ()
+let main () = 
+  Sys.catch_break true;
+  try 
+    begin try
+      OpenFlowPlatform.init_with_port 6633;
+      Controller.start ()
+    with exn -> 
+      OpenFlowPlatform.shutdown ();
+      raise exn
+    end
+  with Sys.Break -> 
+    exit 1
+      
+let _ = main ()

@@ -40,6 +40,7 @@ module Make (Platform : PLATFORM) = struct
   module Handlers : HANDLERS = struct
       
     let get_packet_handler queryId switchId portId packet = 
+      Printf.printf "Got packet from %Ld\n" switchId;
       (Hashtbl.find get_pkt_handlers queryId) switchId portId packet
 
   end
