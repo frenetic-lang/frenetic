@@ -12,7 +12,7 @@ let main () =
   try 
     begin try
       OpenFlowPlatform.init_with_port 6633;
-      Controller.start ()
+      Lwt_main.run (Controller.start ())
     with exn -> 
       Printf.eprintf "[main] exception\n%!";
       OpenFlowPlatform.shutdown ();

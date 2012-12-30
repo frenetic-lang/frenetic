@@ -21,7 +21,7 @@ end
 
 module Make : functor (Platform : PLATFORM) -> sig
     
-  val start : unit -> unit
+  val start : unit -> unit Lwt.t
     
 end
 

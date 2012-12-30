@@ -16,11 +16,11 @@ module EmptyHandlers : HANDLERS
 module Make :
   functor (Platform : PLATFORM) -> 
     functor (Handlers : HANDLERS) -> sig
-      val start_controller : NetCoreSemantics.coq_Pol -> unit
+      val start_controller : NetCoreSemantics.coq_Pol -> unit Lwt.t
     end
 
 module MakeDynamic :
   functor (Platform : PLATFORM) ->
     functor (Handlers : HANDLERS) -> sig
-      val start_controller : NetCoreSemantics.coq_Pol Lwt_stream.t -> unit
+      val start_controller : NetCoreSemantics.coq_Pol Lwt_stream.t -> unit Lwt.t
     end

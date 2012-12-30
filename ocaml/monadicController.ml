@@ -84,11 +84,10 @@ module MakeNetCoreMonad
   let handle_get_packet id switchId portId pkt : unit m = fun state ->
     Lwt.return (Handlers.get_packet_handler id switchId portId pkt, state)
 
-  let run (init : state) (action : 'a m) : 'a = 
+  let run (init : state) (action : 'a m) : 'a Lwt.t = 
     (** TODO(arjun): kill threads etc. *)
     Lwt.async accept_switch_thread;
-    let (result, _) = Lwt_main.run (action init) in
-    result
+    Lwt.bind (action init) (fun (result, _) -> Lwt.return result)
 
 end
 

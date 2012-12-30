@@ -85,7 +85,7 @@ module Make (Platform : PLATFORM) = struct
     Hashtbl.clear get_pkt_handlers;
     next_id := 0
 
-  let start_controller (pol : policy Lwt_stream.t) : unit = 
+  let start_controller (pol : policy Lwt_stream.t) : unit Lwt.t = 
     Controller.start_controller
       (Lwt_stream.map 
          (fun pol -> clear_handlers (); desugar_pol pol)
