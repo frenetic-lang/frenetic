@@ -60,9 +60,7 @@ module Make (Platform : PLATFORM) = struct
 
   module Controller = NetCore.Make (Platform)
 
-  let start () = 
-    Printf.printf "started maclearning...\n%!";
-    Controller.start_controller Routing.policy
+  let start () = Controller.start_controller Routing.policy
 
 end
 

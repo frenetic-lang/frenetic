@@ -62,23 +62,28 @@ module OpenFlowPlatform = struct
   (** Receives an OpenFlow message from a raw file. Does not update
       any controller state. *)
   let rec recv_from_switch_fd (fd : file_descr) : (xid * message) Lwt.t = 
-    lwt _ = eprintf "creating header\n%!" in
+    lwt _ = eprintf "[platform] recv_from_switch_fd\n%!" in
     let ofhdr_str = String.create (2 * sizeof_ofp_header) in
-    lwt n = read fd ofhdr_str 0 sizeof_ofp_header in
+    lwt _ = eprintf "[platform] (1)\n%!" in
+    lwt _ = eprintf "[platform] state: %s\n%!" (match state fd with Opened -> "OK" | _ -> "Not OK") in 
+    lwt n = read fd ofhdr_str 0 sizeof_ofp_header in 
+    lwt _ = eprintf "[platform] (2)\n%!" in
     if n <> sizeof_ofp_header then
-      raise_lwt (Internal "not enough bytes read from header")
+      raise_lwt (Internal "not enough bytes read from header")  
     else 
       let hdr = Header.parse (ba_of_string ofhdr_str) in
       let sizeof_body = hdr.Header.len - sizeof_ofp_header in
       let body_str = String.create sizeof_body in
+      lwt _ = eprintf "[platform] (3)\n%!" in
       lwt n = read fd body_str 0 sizeof_body in
+      lwt _ = eprintf "[platform] (4)\n%!" in
       if n <> sizeof_body then
         raise_lwt (Internal "not enough bytes read from body")
       else
+        lwt _ = eprintf "[platform] about to handle code %d\n%!" 
+	    (msg_code_to_int hdr.Header.typ) in 
         match Message.parse hdr (ba_of_string body_str) with
           | Some v -> 
-            lwt _ = eprintf "[platform] processing message with code %d\n%!"
-	      (msg_code_to_int hdr.Header.typ) in
 	    return v
           | None ->
             lwt _ = eprintf "[platform] ignoring message with code %d\n%!"
@@ -86,6 +91,7 @@ module OpenFlowPlatform = struct
             recv_from_switch_fd fd 
 
   let send_to_switch_fd (fd : file_descr) (xid : xid) (msg : message) = 
+    lwt _ = eprintf "[platform] send_to_switch_fd\n%!" in
     let out = Message.marshal xid msg in
     let len = String.length out in
     lwt _ = eprintf "[platform] sending a message of length %d, code %d\n" len
@@ -111,6 +117,7 @@ module OpenFlowPlatform = struct
     with Not_found -> raise (UnknownSwitch switch_id)
 
   let disconnect_switch (sw_id : switchId) = 
+    lwt _ = eprintf "[platform] disconnect_switch\n%!" in
     try_lwt
       let fd = Hashtbl.find switch_fds sw_id in
       lwt _ = close fd in
@@ -120,7 +127,9 @@ module OpenFlowPlatform = struct
       lwt _ = eprintf "[disconnect_switch] switch not found\n%!" in
       raise_lwt (UnknownSwitch sw_id)
 
-  let shutdown () : unit = match !server_fd with 
+  let shutdown () : unit = 
+    let _ = eprintf "[platform] shutdown\n%!" in
+    match !server_fd with 
     | Some fd -> 
       ignore_result 
 	begin 
@@ -132,6 +141,7 @@ module OpenFlowPlatform = struct
        ()
 
   let switch_handshake (fd : file_descr) : features Lwt.t = 
+    lwt _ = eprintf "[platform] switch_handshake\n%!" in
     lwt _ = send_to_switch_fd fd 0l (Hello (ba_of_string "")) in
     lwt (xid, msg) = recv_from_switch_fd fd in
     match msg with
@@ -150,8 +160,10 @@ module OpenFlowPlatform = struct
       | _ -> raise_lwt (Internal "expected Hello")
 
   let send_to_switch (sw_id : switchId) (xid : xid) (msg : message) : unit t = 
+    lwt _ = eprintf "[platform] send_to_switch\n%!" in
     let fd = fd_of_switch_id sw_id in
-    try_lwt send_to_switch_fd fd xid msg
+    try_lwt 
+      send_to_switch_fd fd xid msg
     with Internal s ->
       lwt _ = disconnect_switch sw_id in
       raise_lwt (SwitchDisconnected sw_id)
@@ -159,15 +171,21 @@ module OpenFlowPlatform = struct
   (* By handling echoes here, we do not respond to echoes during the
      handshake. *)
   let rec recv_from_switch (sw_id : switchId) : (xid * message) t = 
+    lwt _ = eprintf "[platform] recv_from_switch\n%!" in
     let switch_fd = fd_of_switch_id sw_id in
     lwt (xid, msg) = 
       try_lwt
+	lwt _ = eprintf "[platform] process next message\n%!" in 
         recv_from_switch_fd switch_fd
       with Internal s ->
         begin
+	  lwt _ = eprintf "[platform] disconnecting switch\n%!" in 
           lwt _ = disconnect_switch sw_id in
           raise_lwt (SwitchDisconnected sw_id)
-        end in
+        end 
+        | exn -> 
+	  lwt _ = eprintf "[platform] other error\n%!" in 
+          raise_lwt exn in 
     match msg with
       | EchoRequest bytes -> 
         send_to_switch sw_id xid (EchoReply bytes) >>
@@ -175,6 +193,7 @@ module OpenFlowPlatform = struct
       | _ -> return (xid, msg)
 
   let accept_switch () = 
+    lwt _ = eprintf "[platform] accept_switch\n%!" in
     lwt (fd, sa) = accept (get_fd ()) in
     lwt _ = eprintf "[platform] : %s connected, handshaking...\n%!" 
       (string_of_sockaddr sa) in

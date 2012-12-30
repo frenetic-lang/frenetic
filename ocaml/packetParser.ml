@@ -1,6 +1,6 @@
 open Packet
 open Util
-
+open Printf
 (* ----- Data Link Layer Structures ----- *)
 
 cstruct eth {
@@ -100,6 +100,7 @@ cstruct icmp {
 (* ----- Parsers ----- *)
 
 let parse_tcp (bits:Cstruct.buf) : tcp option =
+  let _ = eprintf "[PacketParser] parse_tcp\n%!" in 
   let src = get_tcp_src bits in 
   let dst = get_tcp_dst bits in 
   let seq = get_tcp_seq bits in 
@@ -140,10 +141,12 @@ let parse_icmp (bits:Cstruct.buf) : icmp option =
 	 icmpPayload = payload }
 
 let parse_ip (bits:Cstruct.buf) : ip option = 
+  let _ = eprintf "[PacketParser] parse_ip\n%!" in 
   let vhl = get_ip_vhl bits in 
   let _ = vhl lsr 4 in (* TODO(jnf): test for IPv4? *)
+  let ihl = vhl land 0x0f in 
   let tos = get_ip_tos bits in 
-  let len = get_ip_len bits in 
+  let _ = get_ip_len bits in 
   let frag = get_ip_frag bits in 
   let flags = frag lsr 13 in 
   let frag = frag land 0x1fff in 
@@ -155,12 +158,12 @@ let parse_ip (bits:Cstruct.buf) : ip option =
   let dst = get_ip_dst bits in 
   let tp_header = match int_to_ip_proto proto with 
     | Some IP_ICMP -> 
-      begin match parse_icmp (Cstruct.shift bits len) with 
+      begin match parse_icmp (Cstruct.shift bits ihl) with 
       | Some icmp -> TpICMP icmp 
       | _ -> TpUnparsable (proto) 
       end
     | Some IP_TCP -> 
-      begin match parse_tcp (Cstruct.shift bits len) with 
+      begin match parse_tcp (Cstruct.shift bits ihl) with 
       | Some tcp -> TpTCP tcp 
       | _ -> TpUnparsable (proto) 
       end
@@ -178,6 +181,7 @@ let parse_ip (bits:Cstruct.buf) : ip option =
 	 pktTPHeader = tp_header }
 
 let parse_arp (bits:Cstruct.buf) : arp option = 
+  let _ = eprintf "[PacketParser] parse_arp\n%!" in 
   let oper = get_arp_oper bits in 
   let sha = mac_of_bytes (Cstruct.to_string (get_arp_sha bits)) in 
   let spa = (get_arp_spa bits) in 
@@ -191,6 +195,7 @@ let parse_arp (bits:Cstruct.buf) : arp option =
     | _ -> None
     
 let parse_vlan (bits:Cstruct.buf) : int * int * int * int = 
+  let _ = eprintf "[PacketParser] parse_vlan\n%!" in 
   let typ = get_eth_typ bits in 
   match int_to_eth_typ typ with 
   | Some ETHTYP_VLAN -> 
@@ -203,6 +208,7 @@ let parse_vlan (bits:Cstruct.buf) : int * int * int * int =
     (vlan_none, 0x0, typ, sizeof_eth)
 
 let parse_eth (bits:Cstruct.buf) : packet option = 
+  let _ = eprintf "[PacketParser] parse_eth\n%!" in 
   let dst = Cstruct.to_string (get_eth_dst bits) in
   let src = Cstruct.to_string (get_eth_src bits) in
   let (vlan_tag, vlan_pcp, typ, offset) = parse_vlan bits in 
