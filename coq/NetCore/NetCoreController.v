@@ -46,7 +46,7 @@ Section ToFlowMod.
   Definition to_flow_mod prio (pat : pattern) (act : list Action)
              (isfls : Pattern.is_empty pat = false) :=
     FlowMod AddFlow
-            (Pattern.to_match pat isfls)
+            (Pattern.to_match isfls)
             prio
             (List.map translate_action act)
             Word64.zero
@@ -66,23 +66,18 @@ Section ToFlowMod.
              (match (Pattern.is_empty pat) as b
                     return (Pattern.is_empty pat = b -> list flowMod) with
                 | true => fun _ => lst
-                | false => fun H => (to_flow_mod prio pat act H) :: lst
+                | false => fun H => (to_flow_mod prio act H) :: lst
               end) eq_refl
          end)
       nil
       (prioritize lst).
 
-  Lemma Pattern_all_not_empty : Pattern.is_empty Pattern.all = false.
-  Proof.
-    unfold Pattern.is_empty.
-    reflexivity.
-  Qed.
 
   Definition delete_all_flows := 
     FlowMod DeleteFlow
             (* This should make reasoning easier, since we have so many
                theorems about patterns. *)
-            (Pattern.to_match Pattern.all Pattern_all_not_empty)
+            (Pattern.to_match Pattern.all_is_not_empty)
             Word16.zero
             nil
             Word64.zero
@@ -92,7 +87,6 @@ Section ToFlowMod.
             None
             None
             false.
-
 
 End ToFlowMod.
 

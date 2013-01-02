@@ -47,7 +47,7 @@ Fixpoint elim_shadowed_helper {A : Type} (prefix : Classifier A)
       match existsb 
         (fun (entry : pattern * A) =>
           let (pat', act) := entry in
-            if Pattern.eq_dec pat pat' then true else false)
+            if Pattern.beq pat pat' then true else false)
         prefix with
         | true => elim_shadowed_helper prefix cf'
         | false => elim_shadowed_helper (prefix ++ [(pat,act)]) cf'

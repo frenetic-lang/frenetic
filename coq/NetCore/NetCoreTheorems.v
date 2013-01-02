@@ -11,7 +11,6 @@ Require Import Classifier.Classifier.
 Require Import Classifier.Theory.
 Require Import Network.Packet.
 Require Import Pattern.Pattern.
-Require Import Pattern.Theory.
 Require Import OpenFlow.MessagesDef.
 Require Import NetCore.NetCoreSemantics.
 
@@ -50,8 +49,8 @@ Instance bool_as_Action : ClassifierAction bool := {
     simpl.
     remember (Word64.eq_dec sw s) as b.
     destruct b.
-    simpl...
-    simpl...
+    simpl. rewrite -> Pattern.all_spec...
+    simpl. rewrite -> Pattern.all_spec...
     (* PrOr *)
     simpl.
     assert (false = action_unit) as J...
@@ -77,16 +76,20 @@ Instance bool_as_Action : ClassifierAction bool := {
     rewrite -> H0 in IHpr.
     rewrite -> IHpr.
     rewrite -> elim_scan_head...
+    simpl.
+    rewrite -> Pattern.all_spec...
     destruct H as [cf2 [cf3 [pat [a [H [H0 [H1 H2]]]]]]].
     rewrite -> H.
     rewrite <- app_assoc.
     rewrite <- app_comm_cons.
     rewrite -> elim_scan_tail...
+    unfold pattern in *.
     rewrite <- H.
     f_equal...
     apply total_tail...
     (* PrAll *)
-    simpl...
+    simpl.
+    rewrite -> Pattern.all_spec...
     (* PrNone *)
     simpl...
   Qed.
@@ -174,15 +177,15 @@ Instance bool_as_Action : ClassifierAction bool := {
     rewrite H0.
     apply H.
   Qed.
-  
+
   Lemma scan_pat_none : forall A (def : A) cf pt pk a pat,
     Pattern.is_empty pat = true ->
     scan def ((pat, a) :: cf) pt pk = scan def cf pt pk.
   Proof with auto.
     intros.
     simpl.
-    unfold Pattern.match_packet.
-    rewrite -> PatMatchable.is_empty_true_r...
+    rewrite -> Pattern.match_packet_spec.
+    rewrite -> Pattern.is_empty_true_r...
   Qed.
 
   Lemma Equiv_Preserving_strip_empty : Equiv_Preserving strip_empty_rules.
@@ -194,8 +197,8 @@ Instance bool_as_Action : ClassifierAction bool := {
     simpl. 
     remember (Pattern.is_empty p) as b.
     destruct b.
-    unfold Pattern.match_packet.
-    rewrite -> PatMatchable.is_empty_true_r...
+    rewrite -> Pattern.match_packet_spec.
+    rewrite -> Pattern.is_empty_true_r...
     simpl.
     destruct (Pattern.match_packet pt pk p)...
   Qed.

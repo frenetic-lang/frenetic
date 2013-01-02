@@ -126,4 +126,11 @@ Module Type PATTERN.
     match_packet pt pk pat2 = true ->
     match_packet pt pk (inter pat1 pat2) = true.
 
+  Axiom match_packet_spec : forall pt pk pat,
+    match_packet pt pk pat = 
+    negb (is_empty (inter (exact_pattern pk pt) pat)).
+
+  Axiom all_is_not_empty : is_empty all = false.
+
+
 End PATTERN.

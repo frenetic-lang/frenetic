@@ -398,6 +398,11 @@ Section Lemmas.
     exact all_spec.
   Qed.
 
+  Lemma all_is_not_empty : is_empty all = false.
+  Proof.
+    reflexivity.
+  Qed.
+
   Lemma exact_match_is_exact : forall pk pt,
     is_exact (exact_pattern pk pt) = true.
   Proof with auto.
@@ -448,6 +453,20 @@ Section Lemmas.
     inversion H.
   Qed.
 
+  Lemma match_packet_spec : forall pt pk pat,
+    match_packet pt pk pat = 
+    negb (is_empty (inter (exact_pattern pk pt) pat)).
+  Proof.
+    intros.
+    destruct pat0.
+    unfold match_packet.
+    unfold is_empty.
+    unfold inter.
+    unfold exact_pattern.
+    unfold PatternImplDef.match_packet.
+    unfold raw.
+    reflexivity.
+  Qed.
 
 End Lemmas.
 

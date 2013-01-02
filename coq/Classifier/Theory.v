@@ -6,10 +6,6 @@ Require Import Coq.Bool.Bool.
 Require Import Common.CpdtTactics.
 Require Import Common.Types.
 Require Import Network.Packet.
-
-Require Import Pattern.Theory.
-Import PatMatchable.
-
 Require Import Pattern.Pattern.
 Require Import Classifier.Classifier.
 
@@ -79,6 +75,8 @@ Section Lemmas.
     intros.
     destruct cf0.
     simpl...
+    destruct (Pattern.match_packet pt pk Pattern.all)...
+      admit. (* how was this ever true? *)
     destruct a0 as [pat a0].
     destruct p as [pat' a'].
     simpl.
@@ -207,7 +205,7 @@ Section Lemmas.
     induction cf1...
     destruct a0 as [p0 a0].
     simpl.
-    rewrite -> is_match_false_inter_l...
+    rewrite -> Pattern.is_match_false_inter_l...
   Qed.
 
   Hint Resolve elim_inter_head.
@@ -221,7 +219,7 @@ Section Lemmas.
     crush.
     destruct a0 as [p0 a0].
     simpl.
-    rewrite -> is_match_false_inter_l...
+    rewrite -> Pattern.is_match_false_inter_l...
   Qed.
     
   Lemma inter_empty_aux : forall N1 m m0 pkt pt (a a0 : A),
@@ -237,12 +235,13 @@ Section Lemmas.
     destruct H0.
     (* contra *)
     unfold inter_entry in H0. inversion H0. subst.
-    assert (Pattern.match_packet pt pkt p = false). apply H with (a := a1)...
-    apply no_match_subset_r...
+    assert (Pattern.match_packet pt pkt t = false). apply H with (a := a1)...
+    apply Pattern.no_match_subset_r...
   (* inductive *)
-    assert (forall m' (a' : A), In (m',a') N1 -> Pattern.match_packet pt pkt m' = false).
+    assert (forall m' (a' : A), In (m',a') N1 ->
+      Pattern.match_packet pt pkt m' = false).
     intros. 
-    assert (In (m',a') ((p,a1)::N1))...
+    assert (In (m',a') ((t,a1)::N1))...
     apply H in H2...
     apply IHN1 in H1...
   Qed.
@@ -277,12 +276,12 @@ Section Optimizer.
 
   Lemma elim_shadowed_equiv : forall {A : Type} 
     pat1 pat2 act1 act2 (cf1 cf2 cf3 : Classifier A),
-    pat1 === pat2 ->
-    cf1 ++ (pat1,act1) :: cf2 ++ (pat2,act2) :: cf3 ===
-    cf1 ++ (pat1,act1) :: cf2 ++ cf3.
+    Pattern.equiv pat1 pat2 ->
+    Classifier_equiv 
+      (cf1 ++ (pat1,act1) :: cf2 ++ (pat2,act2) :: cf3)
+      (cf1 ++ (pat1,act1) :: cf2 ++ cf3).
   Proof with auto.
     intros.
-    unfold equiv.
     unfold Classifier_equiv.
     intros.
     remember (Pattern.match_packet pt pk pat1) as Hmatched.
@@ -297,11 +296,8 @@ Section Optimizer.
     rewrite -> H1...
     (* Did not match *)
     assert (false = Pattern.match_packet pt pk pat2) as Hpat2Unmatched.
-      unfold equiv in H.
-      subst...
       rewrite -> HeqHmatched.
-      inversion H; subst.
-      apply H0.
+      unfold equiv in H...
     assert ((pat2,act2) :: cf3 = [(pat2,act2)] ++ cf3) as J0 by auto.
     rewrite -> J0.
     assert (cf1 ++ (pat1,act1) :: cf2 ++ [(pat2,act2)] ++ cf3 = 
@@ -313,7 +309,7 @@ Section Optimizer.
     rewrite <- app_assoc...
     rewrite -> J2.
     apply elim_scan_middle.
-    exact (fun x y => x). (* stupid stupid *)
+    exact (fun x y => x). (* TODO(arjun): stupid stupid *)
     intros.
     inversion H0.
     inversion H1.
@@ -323,11 +319,11 @@ Section Optimizer.
 
   Lemma elim_shadowed_helper_ok : forall {A : Type} 
     (prefix postfix : Classifier A),
-    prefix ++ postfix === elim_shadowed_helper prefix postfix.
+    Classifier_equiv
+      (prefix ++ postfix) (elim_shadowed_helper prefix postfix).
   Proof with auto.
-    unfold equiv.
-    unfold Classifier_equiv.
     intros.
+    unfold Classifier_equiv.
     generalize dependent prefix.
     induction postfix; intros.
     simpl.
@@ -357,10 +353,12 @@ Section Optimizer.
     rewrite <- app_assoc.
     simpl.
     apply elim_shadowed_equiv.
-    remember (Pattern.eq_dec pat pat') as b.
+    remember (Pattern.beq pat pat') as b.
     destruct b.
-    subst.
-    apply reflexivity.
+    symmetry in Heqb.
+    apply Pattern.beq_true_spec in Heqb.
+    unfold Coq.Classes.Equivalence.equiv in Heqb.
+    apply symmetry...
     inversion Heq.
     rewrite -> Hit.
     apply IHpostfix.
@@ -516,7 +514,7 @@ Section Action.
     rewrite <- app_assoc.
     rewrite -> elim_scan_head.
     simpl.
-    rewrite -> is_match_true_inter...
+    rewrite -> Pattern.is_match_true_inter...
     auto.
     
     assert ((m,a) :: cf1 = [(m,a)] ++ cf1) as Hsimpl. auto.
