@@ -63,15 +63,9 @@ module Make (Platform : PLATFORM) = struct
     | All -> PrAll
     | NoPackets -> PrNone
     | Switch swId -> PrOnSwitch swId
-    | InPort pt -> PrHdr {
-      Pattern.all with ptrnInPort = WildcardExact pt
-    }
-    | DlSrc n -> PrHdr { 
-      Pattern.all with ptrnDlSrc = WildcardExact n
-    }
-    | DlDst n -> PrHdr { 
-      Pattern.all with ptrnDlDst = WildcardExact n
-    }
+    | InPort pt -> PrHdr (Pattern.inPort pt)
+    | DlSrc n -> PrHdr (Pattern.dlSrc n)
+    | DlDst n -> PrHdr (Pattern.dlDst n)
 
   let rec desugar_pol pol = match pol with
     | Pol (pred, acts) -> 
