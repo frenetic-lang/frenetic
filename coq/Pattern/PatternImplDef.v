@@ -88,6 +88,187 @@ Definition is_empty pat : bool :=
                             Wildcard.is_empty tpDst
   end.
 
+Lemma is_empty_neq_None : forall {A : Type} (w : Wildcard A),
+  Wildcard.is_empty w = false -> w <> WildcardNone.
+Proof.
+  unfold not.
+  intros.
+  destruct w.
+
+  inversion H0.
+  inversion H0.
+  simpl in H.
+  inversion H.
+Qed.
+
+Hint Resolve is_empty_neq_None.
+
+Lemma is_empty_dlSrc : forall dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+  nwProto nwTos tpSrc tpDst inPort,
+  is_empty (Pattern dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+                    nwProto nwTos tpSrc tpDst inPort) = false ->
+  dlSrc <> WildcardNone.
+Proof with auto.
+  intros.
+  simpl in H.
+  repeat rewrite -> orb_false_iff in H.
+  do 11 (destruct H)...
+Qed.
+
+Lemma is_empty_dlDst : forall dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+  nwProto nwTos tpSrc tpDst inPort,
+  is_empty (Pattern dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+                    nwProto nwTos tpSrc tpDst inPort) = false ->
+  dlDst <> WildcardNone.
+Proof with auto.
+  intros.
+  simpl in H.
+  repeat rewrite -> orb_false_iff in H.
+  do 11 (destruct H)...
+Qed.
+
+Lemma is_empty_dlTyp : forall dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+  nwProto nwTos tpSrc tpDst inPort,
+  is_empty (Pattern dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+                    nwProto nwTos tpSrc tpDst inPort) = false ->
+  dlTyp <> WildcardNone.
+Proof with auto.
+  intros.
+  simpl in H.
+  repeat rewrite -> orb_false_iff in H.
+  do 11 (destruct H)...
+Qed.
+
+Lemma is_empty_dlVlan : forall dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+  nwProto nwTos tpSrc tpDst inPort,
+  is_empty (Pattern dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+                    nwProto nwTos tpSrc tpDst inPort) = false ->
+  dlVlan <> WildcardNone.
+Proof with auto.
+  intros.
+  simpl in H.
+  repeat rewrite -> orb_false_iff in H.
+  do 11 (destruct H)...
+Qed.
+
+Lemma is_empty_dlVlanPcp : forall dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+  nwProto nwTos tpSrc tpDst inPort,
+  is_empty (Pattern dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+                    nwProto nwTos tpSrc tpDst inPort) = false ->
+  dlVlanPcp <> WildcardNone.
+Proof with auto.
+  intros.
+  simpl in H.
+  repeat rewrite -> orb_false_iff in H.
+  do 11 (destruct H)...
+Qed.
+
+Lemma is_empty_nwSrc : forall dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+  nwProto nwTos tpSrc tpDst inPort,
+  is_empty (Pattern dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+                    nwProto nwTos tpSrc tpDst inPort) = false ->
+  nwSrc <> WildcardNone.
+Proof with auto.
+  intros.
+  simpl in H.
+  repeat rewrite -> orb_false_iff in H.
+  do 11 (destruct H)...
+Qed.
+
+Lemma is_empty_nwDst : forall dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+  nwProto nwTos tpSrc tpDst inPort,
+  is_empty (Pattern dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+                    nwProto nwTos tpSrc tpDst inPort) = false ->
+  nwDst <> WildcardNone.
+Proof with auto.
+  intros.
+  simpl in H.
+  repeat rewrite -> orb_false_iff in H.
+  do 11 (destruct H)...
+Qed.
+
+Lemma is_empty_nwProto : forall dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+  nwProto nwTos tpSrc tpDst inPort,
+  is_empty (Pattern dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+                    nwProto nwTos tpSrc tpDst inPort) = false ->
+  nwProto <> WildcardNone.
+Proof with auto.
+  intros.
+  simpl in H.
+  repeat rewrite -> orb_false_iff in H.
+  do 11 (destruct H)...
+Qed.
+
+Lemma is_empty_nwTos : forall dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+  nwProto nwTos tpSrc tpDst inPort,
+  is_empty (Pattern dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+                    nwProto nwTos tpSrc tpDst inPort) = false ->
+  nwTos <> WildcardNone.
+Proof with auto.
+  intros.
+  simpl in H.
+  repeat rewrite -> orb_false_iff in H.
+  do 11 (destruct H)...
+Qed.
+
+Lemma is_empty_tpSrc : forall dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+  nwProto nwTos tpSrc tpDst inPort,
+  is_empty (Pattern dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+                    nwProto nwTos tpSrc tpDst inPort) = false ->
+  tpSrc <> WildcardNone.
+Proof with auto.
+  intros.
+  simpl in H.
+  repeat rewrite -> orb_false_iff in H.
+  do 11 (destruct H)...
+Qed.
+
+Lemma is_empty_tpDst : forall dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+  nwProto nwTos tpSrc tpDst inPort,
+  is_empty (Pattern dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+                    nwProto nwTos tpSrc tpDst inPort) = false ->
+  tpDst <> WildcardNone.
+Proof with auto.
+  intros.
+  simpl in H.
+  repeat rewrite -> orb_false_iff in H.
+  do 11 (destruct H)...
+Qed.
+
+Lemma is_empty_inPort : forall dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+  nwProto nwTos tpSrc tpDst inPort,
+  is_empty (Pattern dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+                    nwProto nwTos tpSrc tpDst inPort) = false ->
+  inPort <> WildcardNone.
+Proof with auto.
+  intros.
+  simpl in H.
+  repeat rewrite -> orb_false_iff in H.
+  do 11 (destruct H)...
+Qed.
+
+
+
+(** Extracts to shockingly good code. *)
+Lemma to_match : forall pat (H : is_empty pat = false), of_match.
+Proof.
+  intros.
+  destruct pat.
+  exact (Match
+    (Wildcard.to_option (is_empty_dlSrc _ _ _ _ _ _ _ _ _ _ _ H))
+    (Wildcard.to_option (is_empty_dlDst _ _ _ _ _ _ _ _ _ _ _ H))
+    (Wildcard.to_option (is_empty_dlTyp _ _ _ _ _ _ _ _ _ _ _ H))
+    (Wildcard.to_option (is_empty_dlVlan _ _ _ _ _ _ _ _ _ _ _ H))
+    (Wildcard.to_option (is_empty_dlVlanPcp _ _ _ _ _ _ _ _ _ _ _ H))
+    (Wildcard.to_option (is_empty_nwSrc _ _ _ _ _ _ _ _ _ _ _ H))
+    (Wildcard.to_option (is_empty_nwDst _ _ _ _ _ _ _ _ _ _ _ H))
+    (Wildcard.to_option (is_empty_nwProto _ _ _ _ _ _ _ _ _ _ _ H))
+    (Wildcard.to_option (is_empty_nwTos _ _ _ _ _ _ _ _ _ _ _ H))
+    (Wildcard.to_option (is_empty_tpSrc _ _ _ _ _ _ _ _ _ _ _ H))
+    (Wildcard.to_option (is_empty_tpDst _ _ _ _ _ _ _ _ _ _ _ H))
+    (Wildcard.to_option (is_empty_inPort _ _ _ _ _ _ _ _ _ _ _ H))).
+ Defined.
+
 Definition inter p p' :=
   let dlSrc := Wildcard.inter Word48.eq_dec (ptrnDlSrc p) 
     (ptrnDlSrc p') in
@@ -146,48 +327,11 @@ Definition is_exact pat :=
       Wildcard.is_exact tpDst
   end.
 
-
-Lemma is_empty_neq_None : forall {A : Type} (w : Wildcard A),
-  Wildcard.is_empty w = false -> w <> WildcardNone.
-Proof.
-  unfold not.
-  intros.
-  destruct w.
-
-  inversion H0.
-  inversion H0.
-  simpl in H.
-  inversion H.
-Qed.
-
-(** Extracts to shockingly good code. *)
-Lemma to_match : forall pat (H : is_empty pat = false),
-  of_match. 
-Proof.
-  intros.
-  destruct pat.
-  unfold is_empty in H.
-  repeat rewrite -> orb_false_iff in H.
-  do 11 (destruct H).
-  exact (Match
-    (Wildcard.to_option (is_empty_neq_None H10))
-    (Wildcard.to_option (is_empty_neq_None H9))
-    (Wildcard.to_option (is_empty_neq_None H8))
-    (Wildcard.to_option (is_empty_neq_None H6))
-    (Wildcard.to_option (is_empty_neq_None H7))
-    (Wildcard.to_option (is_empty_neq_None H5))
-    (Wildcard.to_option (is_empty_neq_None H4))
-    (Wildcard.to_option (is_empty_neq_None H3))
-    (Wildcard.to_option (is_empty_neq_None H2))
-    (Wildcard.to_option (is_empty_neq_None H1))
-    (Wildcard.to_option (is_empty_neq_None H0))
-    (Wildcard.to_option (is_empty_neq_None H))).
-Defined.
-
+(** TODO(arjun): ICMP is a little strange. Read spec to see how its fields
+    are mapped. *)
 Definition SupportedNwProto := 
   [ Const_0x6; 
-    Const_0x7;
-    Const_0x1 ].
+    Const_0x7 ].
 
 Definition SupportedDlTyp := 
   [ Const_0x800; Const_0x806 ].

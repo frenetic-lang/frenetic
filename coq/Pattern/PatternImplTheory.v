@@ -13,6 +13,7 @@ Require Import Common.Types.
 Require Import Pattern.PatternImplDef.
 Require Import Wildcard.Wildcard.
 Require Import Wildcard.Theory.
+Require Import OpenFlow.OpenFlowMatch.
 
 Open Scope bool_scope.
 Open Scope list_scope.
@@ -633,3 +634,281 @@ Instance Pattern_Equivalance : Equivalence Pattern_equiv.
 apply Pattern_equiv_is_Equivalence.
 Qed.
 
+(*
+Lemma match_opt_wildcard_equiv : forall (A : Type)
+    (eq_dec : Eqdec A) (val : A) (opt : option A),
+  negb (Wildcard.is_empty
+          (Wildcard.inter eq_dec (WildcardExact val) (to_wild opt))) =     
+  match_opt eq_dec val opt.
+Proof with auto.
+  intros.
+  destruct opt...
+  simpl.
+  unfold Wildcard.inter.
+  destruct (eq_dec val a)...
+Qed.
+*)
+
+Lemma match_opt_const_equiv : forall (A : Type)
+    (eq_dec : Eqdec A) (val : A) (opt : A),
+  negb (Wildcard.is_empty
+          (Wildcard.inter eq_dec (WildcardExact val) (WildcardExact opt))) =
+  if eq_dec val opt then true else false.
+Proof with auto.
+  intros.
+  unfold Wildcard.inter.
+  destruct (eq_dec opt val); subst...
+  destruct (eq_dec val val)...
+  destruct (eq_dec val opt); subst...
+Qed.
+
+Lemma trans : forall (A : Type) (eq : Eqdec A) (x : A) 
+  (w : Wildcard A) (H : w <> WildcardNone),
+  match_opt eq x (Wildcard.to_option H) = 
+  negb (Wildcard.is_empty (Wildcard.inter eq (WildcardExact x) w)).
+Proof with auto.
+  intros.
+  destruct w.
+  simpl.
+  remember (eq x a) as b.
+  destruct b.
+  subst...
+  rewrite -> inter_exact_eq.
+  unfold Wildcard.is_empty...
+  rewrite -> inter_exact_neq...
+  simpl...
+  contradiction H...
+Qed.
+
+  Lemma icmp_tpSrc : forall pat,
+    ValidPattern pat ->
+    is_empty pat = false ->
+    ptrnNwProto pat = WildcardExact Const_0x1 ->
+    ptrnTpSrc pat = WildcardAll \/ ptrnTpSrc pat = WildcardExact Word16.zero.
+  Proof with auto.
+    intros.
+    destruct pat.
+    simpl in *.
+    subst.
+    inversion H; subst...
+    unfold SupportedNwProto in H2.
+    destruct H2. inversion H1. destruct H1. inversion H1. inversion H1.
+    simpl in H1.
+    simpl in H0.
+    rewrite -> H0 in H1.
+    inversion H1.
+  Qed.
+
+  Lemma icmp_tpDst : forall pat,
+    ValidPattern pat ->
+    is_empty pat = false ->
+    ptrnNwProto pat = WildcardExact Const_0x1 ->
+    ptrnTpDst pat = WildcardAll \/ ptrnTpDst pat = WildcardExact Word16.zero.
+  Proof with auto.
+    intros.
+    destruct pat.
+    simpl in *.
+    subst.
+    inversion H; subst...
+    unfold SupportedNwProto in H2.
+    destruct H2. inversion H1. destruct H1. inversion H1. inversion H1.
+    simpl in H1.
+    simpl in H0.
+    rewrite -> H0 in H1.
+    inversion H1.
+  Qed.
+
+Theorem match_equiv : forall pt pk pat (Hempty : is_empty pat = false),
+  ValidPattern pat ->
+  match_ethFrame pk pt (to_match pat Hempty) =
+  match_packet pt pk pat.
+Proof with auto.
+  intros.
+  destruct pat.
+  destruct pk.
+  unfold match_packet.
+  inversion H.
+  (* TCP / UDP packet *)
+  subst.
+  simpl.
+  repeat rewrite -> negb_orb.
+  destruct (Word16.eq_dec pktDlTyp Const_0x800).
+  destruct pktNwHeader.
+  destruct i.
+  destruct (Word8.eq_dec pktIPProto nwProto).
+  destruct pktTPHeader.
+  destruct t.
+  subst.
+  repeat rewrite -> trans.
+  repeat rewrite -> andb_assoc.
+  simpl.
+  repeat rewrite -> inter_exact_eq.
+  simpl.
+  rewrite -> andb_true_r.
+  rewrite -> andb_true_r.
+  reflexivity.
+  destruct i.
+  subst.
+  repeat rewrite -> trans.
+  repeat rewrite -> andb_assoc.
+  simpl.
+  repeat rewrite -> inter_exact_eq.
+  simpl.
+  rewrite -> andb_true_r.
+  rewrite -> andb_true_r.
+  rewrite -> andb_true_r.
+  (* Need to show that ptrnTpSrc and ptrnTpDst are zero *)
+  assert (
+   negb
+     (Wildcard.is_empty
+        (Wildcard.inter Word16.eq_dec (WildcardExact Word16.zero) ptrnTpSrc)) =
+     true).
+    destruct (icmp_tpSrc H Hempty)...
+    simpl in H0.
+    rewrite -> H0...
+    simpl in H0.
+    rewrite -> H0...
+    rewrite -> inter_exact_eq...
+  admit. (* TODO(arjun): aliases *)
+  (* next case: unparsable *)
+  admit.
+  (* Case: pattern is for TCP/UDP but packet is not. *)
+  unfold SupportedNwProto in H1.
+  simpl in H1.
+  destruct H1 as [H1 | [ H1 | H1]]; subst.
+  repeat rewrite -> trans.
+  repeat rewrite -> andb_assoc.
+  simpl.
+  destruct pktTPHeader.
+    contradiction n...
+    rewrite -> (inter_exact_neq _ n)...
+    simpl.
+    rewrite -> andb_false_r.
+    rewrite -> andb_false_r.
+    rewrite -> andb_false_l.
+    reflexivity.
+    rewrite -> andb_false_r.
+    rewrite -> (inter_exact_neq _ n)...
+    simpl.
+    rewrite -> andb_false_r.
+    rewrite -> andb_false_l.
+    reflexivity.
+  repeat rewrite -> trans.
+  repeat rewrite -> andb_assoc.
+  simpl.
+  destruct pktTPHeader;
+    rewrite -> (inter_exact_neq _ n); auto;
+    simpl;
+    rewrite -> andb_false_r;
+    rewrite -> andb_false_r;
+    rewrite -> andb_false_l;
+    reflexivity.
+  inversion H1.
+
+  assert (Const_0x806 <> Const_0x800).
+    admit. (* TODO(arjun) isn't this somewhere? *)
+  contradiction e.
+
+  (* Next case: boring, we've seen a symmetric case alraedy. *)
+  admit.
+
+  (* Next case: Not an IP packet, but the pattern is for IP. *)
+  repeat rewrite -> trans.
+  repeat rewrite -> andb_assoc.
+  destruct pktNwHeader.
+  contradiction n...
+  (* got an ARP packet *)
+  destruct a;
+  rewrite -> andb_false_r;
+  rewrite -> (inter_exact_neq _ n); auto;
+  rewrite -> andb_false_r;
+  rewrite -> andb_false_l;
+  reflexivity.
+  (* got a non-ARP, non-IP packet *)
+  rewrite -> andb_false_r.
+  rewrite -> (inter_exact_neq _ n); auto.
+  rewrite -> andb_false_r.
+  rewrite -> andb_false_l.
+  reflexivity.
+
+  (* Next case *)
+  subst.
+  simpl.
+  repeat rewrite -> trans.
+  destruct (Word16.eq_dec pktDlTyp Const_0x806).
+  (* ARP pattern and ARP packet! *)
+  destruct pktNwHeader.
+  admit. (* 800 <> 806 contradiction *)
+  repeat rewrite -> trans.
+  repeat rewrite -> negb_orb.
+  destruct a; repeat rewrite -> trans;
+  repeat rewrite -> inter_exact_eq; auto;
+  simpl;
+  repeat rewrite -> andb_true_r;
+  repeat rewrite -> andb_assoc;
+  reflexivity.
+
+  (* Case: unparsable *)
+  admit.
+
+  (* case: ARP Pattern, but not ARP packet *)
+  repeat rewrite -> andb_assoc.
+  rewrite -> andb_false_r.
+  repeat rewrite -> negb_orb.
+  rewrite -> (inter_exact_neq _ n)...
+  simpl.
+  rewrite -> andb_false_r.
+  rewrite -> andb_false_l.
+  reflexivity.
+
+  (* case: unparsable *)
+  subst.
+  destruct pktNwHeader.
+  destruct i.
+  simpl.
+  destruct (Word16.eq_dec Const_0x800 Const_0x800).
+  repeat rewrite -> trans.
+  destruct ptrnNwProto.
+  subst.
+  simpl.
+  destruct (Word8.eq_dec pktIPProto n).
+  subst.
+  destruct pktTPHeader.
+  destruct t.
+  simpl.
+  repeat rewrite -> negb_orb.
+  repeat rewrite -> andb_assoc.
+  rewrite -> inter_exact_eq...
+  rewrite -> inter_exact_eq...
+  destruct (Word16.eq_dec tcpSrc Word16.zero).
+  destruct (Word16.eq_dec tcpDst Word16.zero).
+  subst.
+  repeat rewrite -> inter_exact_eq...
+  simpl.
+  repeat rewrite -> andb_true_r.
+  reflexivity.
+  rewrite -> andb_false_r.
+  rewrite -> (inter_exact_neq _ n)...
+  simpl.
+  rewrite -> andb_false_r.
+  reflexivity.
+  rewrite -> andb_false_r.
+  rewrite -> (inter_exact_neq _ n)...
+  simpl.
+  rewrite -> andb_false_r.
+  reflexivity.
+  destruct i.
+  repeat rewrite -> negb_orb.
+  repeat rewrite -> andb_assoc.
+  repeat rewrite -> inter_exact_eq...
+  simpl.
+  repeat rewrite -> andb_true_r.
+  reflexivity.
+  repeat rewrite -> negb_orb.
+  repeat rewrite -> andb_assoc.
+  repeat rewrite -> inter_exact_eq...
+  simpl.
+  repeat rewrite -> andb_true_r.
+  reflexivity.
+
+Admitted.

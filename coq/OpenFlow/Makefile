@@ -1,4 +1,4 @@
-MODULES := MessagesDef ControllerInterface
+MODULES := MessagesDef OpenFlowMatch ControllerInterface
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean
