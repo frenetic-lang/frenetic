@@ -1,25 +1,24 @@
 Set Implicit Arguments.
 
 Require Import Coq.Structures.Equalities.
-Require Import PArith.BinPos.
+Require Import NArith.BinNat.
 
-(* Require Import Common.List. *)
 Require Import Common.Types.
 Require Import Word.WordInterface.
 
 Local Open Scope list_scope.
-Local Open Scope positive_scope. 
+Local Open Scope N_scope.
 
 Axiom bytes : Type.
 Extract Constant bytes => "Cstruct.buf".
 
 Section Constants.
-
-  Definition Const_0x800 := Word16.Mk 2048 eq_refl.
-  Definition Const_0x806 := Word16.Mk 2054 eq_refl.
-  Definition Const_0x6 := Word8.Mk 6 eq_refl.
-  Definition Const_0x7 := Word8.Mk 7 eq_refl.
-  Definition Const_0x1 := Word8.Mk 1 eq_refl.
+  
+  Definition Const_0x800 := @Word16.Mk 2048 eq_refl.
+  Definition Const_0x806 := @Word16.Mk 2054 eq_refl.
+  Definition Const_0x6 := @Word8.Mk 6 eq_refl.
+  Definition Const_0x7 := @Word8.Mk 7 eq_refl.
+  Definition Const_0x1 := @Word8.Mk 1 eq_refl.
 
 End Constants.
 

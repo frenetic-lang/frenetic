@@ -32,7 +32,6 @@ Proof with auto.
   trivial.
 Qed.
 
-
 Module PatMatchable.
 
   Definition t := pattern.

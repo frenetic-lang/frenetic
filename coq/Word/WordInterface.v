@@ -23,105 +23,139 @@ End WORD.
 (** Supress generating _rec and _rect for words defined below. *)
 Unset Elimination Schemes.
 
-Module Word8 <: WORD.
+Module Type WIDTH.
 
-  Local Open Scope positive_scope.
+  Parameter width : positive.
 
-  Definition width := 8.
-  
-  Inductive Word : Type := 
-  | Mk : forall (v : nat), Pos.of_nat v < 2 ^ width -> Word.
+End WIDTH.
 
-  Definition t := Word.
+Module MakeWord (Width : WIDTH).
 
   Local Open Scope N_scope.
 
-  Axiom eq_dec : forall (m n : t), { m = n } + { m <> n }.
+  Definition width := Width.width.
+  
+  Inductive Word : Type := 
+  | Mk : forall (v : N), v < 2 ^ N.pos width -> Word.
 
-  Definition zero : t := Mk 0 eq_refl.
+  Definition t := Word.
+
+  Definition zero : t := @Mk 0 eq_refl.
+
+End MakeWord.
+
+
+Module Width8 <: WIDTH.
+
+  Definition width := 8 %positive.
+
+
+End Width8.
+
+Module Width16 <: WIDTH.
+
+  Definition width := 16 %positive.
+
+End Width16.
+
+Module Width32 <: WIDTH.
+
+  Definition width := 32 %positive.
+
+End Width32.
+
+Module Width48 <: WIDTH.
+
+  Definition width := 48 %positive.
+
+End Width48.
+
+Module Width64 <: WIDTH.
+
+  Definition width := 64 %positive.
+
+End Width64.
+
+(** Semantically, this module is equivalent to:
+  
+      Module Word8 := MakeWord (Width8).
+
+    However, the more elaborate definition below allows us to extract
+    words of different widths to different OCaml types. *)
+Module Word8 <: WORD.
+
+  Module M := MakeWord (Width8).
+  Include M.
+
+  (** TODO(arjun): we either introduce proof irrelevant as an axiom or
+     the one below as an axiom. I would like to instead define an
+     equivalence relation on words and use that instead of adding
+     axioms. *)
+  Axiom eq_dec : forall (m n : t), { m = n } + { m <> n }.
 
 End Word8.
 
 Module Word16 <: WORD.
 
-  Local Open Scope positive_scope.
+  Module M := MakeWord (Width16).
 
-  Definition width := 16.
-  
-  Inductive Word : Type := 
-  | Mk : forall (v : nat), Pos.of_nat v < 2 ^ width -> Word.
-
-  Definition t := Word.
-
-  Local Open Scope N_scope.
-
-  Axiom eq_dec : forall (m n : t), { m = n } + { m <> n }.
+  Include M.
 
   Definition to_nat (w : Word) : nat := 
     match w with
-      | Mk n _ => n
+      | Mk n _ => N.to_nat n
     end.
 
-  Definition zero : t := Mk 0 eq_refl.
-
-  Definition max_value : t := Mk 0 eq_refl.
+  Definition max_value : t := @Mk 65535 eq_refl.
 
   (* TODO(arjun): broken now for simplicity *)
   Axiom pred : Word -> Word.
+
+  (** TODO(arjun): we either introduce proof irrelevant as an axiom or
+     the one below as an axiom. I would like to instead define an
+     equivalence relation on words and use that instead of adding
+     axioms. *)
+  Axiom eq_dec : forall (m n : t), { m = n } + { m <> n }.
+
 
 End Word16.
 
 Module Word32 <: WORD.
 
-  Local Open Scope positive_scope.
+  Module M := MakeWord (Width32).
+  Include M.
 
-  Definition width := 32.
-  
-  Inductive Word : Type := 
-  | Mk : forall (v : nat), Pos.of_nat v < 2 ^ width -> Word.
-
-  Definition t := Word.
-
-  Local Open Scope N_scope.
-
+  (** TODO(arjun): we either introduce proof irrelevant as an axiom or
+     the one below as an axiom. I would like to instead define an
+     equivalence relation on words and use that instead of adding
+     axioms. *)
   Axiom eq_dec : forall (m n : t), { m = n } + { m <> n }.
-
-  Definition zero : t := Mk 0 eq_refl.
 
 End Word32.
 
 Module Word48 <: WORD.
 
-  Local Open Scope positive_scope.
+  Module M := MakeWord (Width48).
+  Include M.
 
-  Definition width := 48.
-  
-  Inductive Word : Type := 
-  | Mk : forall (v : nat), Pos.of_nat v < 2 ^ width -> Word.
-
-  Definition t := Word.
-
-  Local Open Scope N_scope.
-
+  (** TODO(arjun): we either introduce proof irrelevant as an axiom or
+     the one below as an axiom. I would like to instead define an
+     equivalence relation on words and use that instead of adding
+     axioms. *)
   Axiom eq_dec : forall (m n : t), { m = n } + { m <> n }.
-  Definition zero : t := Mk 0 eq_refl.
+
 End Word48.
 
 Module Word64 <: WORD.
-
-  Local Open Scope positive_scope.
-
-  Definition width := 64.
   
-  Inductive Word : Type := 
-  | Mk : forall (v : nat), Pos.of_nat v < 2 ^ width -> Word.
+  Module M := MakeWord (Width64).
+  Include M.
 
-  Definition t := Word.
-
-  Local Open Scope N_scope.
-
+  (** TODO(arjun): we either introduce proof irrelevant as an axiom or
+     the one below as an axiom. I would like to instead define an
+     equivalence relation on words and use that instead of adding
+     axioms. *)
   Axiom eq_dec : forall (m n : t), { m = n } + { m <> n }.
-  Definition zero : t := Mk 0 eq_refl.
 
 End Word64.
 
