@@ -13,7 +13,7 @@ type predicate =
   | Or of predicate * predicate
   | Not of predicate
   | All
-  | None
+  | NoPackets
   | Switch of switchId
   | InPort of portId
   | DlSrc of Int64.t  (** Match Ethernet source address (48-bits) *)

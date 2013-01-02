@@ -13,7 +13,7 @@ type predicate =
   | Or of predicate * predicate
   | Not of predicate
   | All
-  | None
+  | NoPackets
   | Switch of switchId
   | InPort of portId
   | DlSrc of Int64.t
@@ -61,7 +61,7 @@ module Make (Platform : PLATFORM) = struct
       PrOr (desugar_pred p1, desugar_pred p2)
     | Not p -> PrNot (desugar_pred p)
     | All -> PrAll
-    | None -> PrNone
+    | NoPackets -> PrNone
     | Switch swId -> PrOnSwitch swId
     | InPort pt -> PrHdr {
       Pattern.all with ptrnInPort = WildcardExact pt

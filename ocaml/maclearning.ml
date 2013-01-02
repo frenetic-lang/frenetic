@@ -19,7 +19,7 @@ module Learning = struct
          (fun (sw,eth) pt pol -> 
            Or (And (And (Switch sw, InPort pt), DlSrc eth), pol))
          learned_hosts
-         None)
+         NoPackets)
 
   let rec make_learning_policy () = 
     Pol (make_unknown_predicate (),
