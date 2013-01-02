@@ -47,11 +47,8 @@ module Test1 = struct
     return ()
 
   let body () = 
-    Lwt.async (fun () -> Lwt_io.eprintf "async is working what\n%!");
     Lwt.async (fun () -> (Controller.start ())); 
-    eprintf "Started controller.%!\n";
-    Lwt.async test_script;
-    return ()
+    test_script ()
       
     
 
@@ -64,8 +61,5 @@ module Test1 = struct
          (fun () -> tear_down ()))
 
 end
-
-let _ = eprintf "Starting test suite ...\n%!"
-let _ = Test1.body ()
 
 let _ = run_test_tt_main Test1.go
