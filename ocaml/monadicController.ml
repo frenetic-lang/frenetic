@@ -76,7 +76,6 @@ module MakeNetCoreMonad
         eprintf "[netcore-monad] SwitchConnected event queued.\n%!";
         Lwt.bind (Lwt_channel.send (SwitchConnected feats.switch_id) events)
           (fun () ->
-            eprintf "[netcore-monad] SwitchConnected event consumed.\n%!";
             Lwt.async 
               (recv_from_switch_thread feats.switch_id);
             accept_switch_thread ()))
@@ -128,16 +127,20 @@ module MakeDynamic
       NetCoreController.policy = drop_all_packets; 
       NetCoreController.switches = []
     } in
-    let event_or_policy_stream = 
-      Lwt_stream.choose 
-        [Lwt_stream.map (fun v -> Event v)
-            (Lwt_channel.to_stream NetCoreMonad.events);
-         Lwt_stream.map (fun v -> Policy v) policy_stream] in
+    let policy_stream = Lwt_stream.map (fun v -> Policy v) policy_stream in
+    let event_stream = Lwt_stream.map (fun v -> Event v)
+      (Lwt_channel.to_stream NetCoreMonad.events) in
+    let event_or_policy_stream = Lwt_stream.choose 
+      [ event_stream ; policy_stream ] in
     let body = fun state ->
       Lwt.bind (Lwt_stream.next event_or_policy_stream)
         (fun v -> match v with
-          | Event ev -> Controller.handle_event ev state
-          | Policy pol -> Controller.set_policy pol state) in
+          | Event ev -> 
+            eprintf "[DynamicController] new event.\n%!";
+            Controller.handle_event ev state
+          | Policy pol ->
+            eprintf "[DynamicController] new policy.\n%!";
+            Controller.set_policy pol state) in
     let main = NetCoreMonad.forever body in
     NetCoreMonad.run init_state main
 

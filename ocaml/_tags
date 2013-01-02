@@ -4,7 +4,7 @@
 "packetParser.ml" :syntax(camlp4o), package(cstruct.syntax)
 "platform.ml" :syntax(camlp4o), package(lwt.syntax)
 "TestPlatform.ml" :syntax(camlp4o), package(lwt.syntax)
+"test.ml" :syntax(camlp4o), package(lwt.syntax)
 "test.ml" : package(oUnit)
 "main.d.byte" : package(cstruct), package(lwt), package(lwt.unix)
-"test.d.byte" : package(cstruct), package(oUnit), package(lwt)
-
+"test.d.byte" : package(cstruct), package(oUnit), package(lwt), package(lwt.unix)

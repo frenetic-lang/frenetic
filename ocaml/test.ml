@@ -1,28 +1,30 @@
 open OUnit
 open Printf
 open Openflow1_0
-open Platform 
 open Unix
 open MonadicController
 open MessagesDef
 open NetCoreSemantics
 open NetCore
 open Packet
-
 open TestPlatform
+open Lwt
+
 
 module Test1 = struct
 
   module Controller = Repeater.Make (TestPlatform)
 
   let test_script () = 
-    connect_switch 100L;
-    connect_switch 200L;
+    eprintf "[test] started test script...\n%!";
+    connect_switch 100L >>
+    connect_switch 200L >>
+    lwt msg = recv_from_controller 100L in
     assert_equal
       ~msg:"delete all flows from switch 100"
       (0l, FlowModMsg NetCoreController.delete_all_flows)
-      (recv_from_controller 100L);
-    let (_, msg) = recv_from_controller 100L in
+      msg;
+    lwt (_, msg) = recv_from_controller 100L in
     begin
       match msg with
         | FlowModMsg fm ->
@@ -30,25 +32,40 @@ module Test1 = struct
 
         | _ -> assert_failure "expected flow mod"
     end;
+    lwt msg = recv_from_controller 200L in
     assert_equal
       ~msg:"delete all flows from switch 200"
       (0l, FlowModMsg NetCoreController.delete_all_flows)
-      (recv_from_controller 200L);
-    let (_, msg) = recv_from_controller 200L in
+      msg;
+    lwt (_, msg) = recv_from_controller 200L in
     begin
       match msg with
         | FlowModMsg fm ->
           assert (fm.mfModCmd = AddFlow)
         | _ -> failwith "expected add from 100"
-    end
+    end;
+    return ()
+
+  let body () = 
+    Lwt.async (fun () -> Lwt_io.eprintf "async is working what\n%!");
+    Lwt.async (fun () -> (Controller.start ())); 
+    eprintf "Started controller.%!\n";
+    Lwt.async test_script;
+    return ()
+      
+    
 
   let go = 
     "repeater test" >::
       (bracket 
-         (fun () -> Thread.create Controller.start ())
-         (fun _ -> test_script ())
-         (fun h -> Thread.kill h; tear_down ()))
-      
+         (fun () -> ())
+         (fun () ->
+           Lwt_main.run (body ()))
+         (fun () -> tear_down ()))
+
 end
+
+let _ = eprintf "Starting test suite ...\n%!"
+let _ = Test1.body ()
 
 let _ = run_test_tt_main Test1.go

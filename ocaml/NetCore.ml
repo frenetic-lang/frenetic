@@ -88,7 +88,10 @@ module Make (Platform : PLATFORM) = struct
   let start_controller (pol : policy Lwt_stream.t) : unit Lwt.t = 
     Controller.start_controller
       (Lwt_stream.map 
-         (fun pol -> clear_handlers (); desugar_pol pol)
+         (fun pol -> 
+           Printf.eprintf "[netcore] got a new policy.%!\n";
+           clear_handlers (); 
+           desugar_pol pol)
          pol)
 
 end
