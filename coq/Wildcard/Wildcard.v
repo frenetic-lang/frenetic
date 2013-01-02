@@ -27,6 +27,12 @@ Module Wildcard.
         if eqdec m n then WildcardExact m else WildcardNone
     end.
 
+  Definition is_all {A : Type} (w : Wildcard A) := 
+    match w with
+      | WildcardAll => true
+      | _ => false
+    end.
+
   Definition is_empty {A : Type} (w : Wildcard A) := 
     match w with
       | WildcardNone => true
