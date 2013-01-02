@@ -1,4 +1,4 @@
-MODULES := PatternInterface PatternImplDef PatternImplTheory PatternImpl Pattern
+MODULES := PatternInterface PatternImplDef PatternImplTheory Pattern
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean
