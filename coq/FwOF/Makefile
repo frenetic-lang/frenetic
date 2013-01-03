@@ -1,4 +1,4 @@
-MODULES := Bag
+MODULES := FwOF
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean
