@@ -81,6 +81,11 @@ Module Type BAG.
       (union (from_list (concat_map f (to_list bag1))) 
              (from_list (concat_map f (to_list bag2)))).
 
+  (** Syntactic equality! May not be equivalence! *)
+  Parameter eq_dec : forall (A : Type) (E : Eq A) (x y : Bag A),
+    { x = y } + { x <> y }.
+   
+
 End BAG.
 
 Module Bag : BAG.
@@ -359,6 +364,15 @@ Module Bag : BAG.
     trivial.
   Qed.
 
+  Lemma eq_dec : forall (A : Type) (E : Eq A) (x y : Bag A),
+    { x = y } + { x <> y }.
+  Proof.
+    intros.
+    idtac.
+    inversion E.
+    decide equality.
+    decide equality.
+  Qed.
 
 End Bag.
 
