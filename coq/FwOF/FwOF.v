@@ -85,6 +85,11 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
     split. apply portId_eq_dec.
   Qed.
 
+  Instance SwitchId_Eq : Eq switchId.
+  Proof.
+    split. apply switchId_eq_dec.
+  Qed.
+
   Instance FromController_Eq : Eq fromController.
   Proof.
     split. apply fromController_eq_dec.

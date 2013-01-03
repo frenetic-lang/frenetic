@@ -370,3 +370,6 @@ Hint Rewrite Bag.concat_map_union Bag.from_list_comm_union Bag.nil_bag
   Bag.to_list_singleton Bag.nil_list Bag.union_empty_r Bag.union_empty_l
   Bag.union_assoc : bag.
 
+Definition bag_unions {A : Type} {E : Eq A} 
+  (bags : list (Bag.Bag A)) : Bag.Bag A :=
+    fold_right (@Bag.union A) Bag.empty bags.
