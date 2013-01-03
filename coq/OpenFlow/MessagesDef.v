@@ -4,6 +4,9 @@ Require Import Coq.Structures.Equalities.
 Require Import Word.WordInterface.
 Require Import Network.Packet.
 
+Definition VLAN_NONE : dlVlan := @Word16.Mk 65535 eq_refl.
+Extract Constant VLAN_NONE => "65535".
+
 Record of_match : Type := Match {
   matchDlSrc : option dlAddr;
   matchDlDst : option dlAddr;

@@ -13,7 +13,7 @@ Require Import Common.Types.
 Require Import Pattern.PatternImplDef.
 Require Import Wildcard.Wildcard.
 Require Import Wildcard.Theory.
-Require Import OpenFlow.OpenFlowMatch.
+Require Import OpenFlow.OpenFlowSemantics.
 
 Open Scope bool_scope.
 Open Scope list_scope.
