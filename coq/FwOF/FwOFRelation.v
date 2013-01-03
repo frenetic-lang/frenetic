@@ -4,7 +4,6 @@ Require Import Coq.Lists.List.
 Require Import Coq.Classes.Equivalence.
 Require Import Coq.Structures.Equalities.
 Require Import Coq.Classes.Morphisms.
-Require Import Coq.Classes.EquivDec.
 Require Import Coq.Setoids.Setoid.
 Require Import Common.Types.
 Require Import Common.Bisimulation.
@@ -15,138 +14,71 @@ Local Open Scope list_scope.
 Local Open Scope equiv_scope.
 Local Open Scope bag_scope.
 
-  Section BagAxioms.
 
-    Import Bag.
-
-    Axiom bag_unions_app : forall (A : Type) (E : Eq A)
-      (lst lst0 : list (Bag.Bag A)),
-      bag_unions (lst ++ lst0) === union (bag_unions lst) (bag_unions lst0).
-
-    Axiom bag_unions_cons : forall (A : Type) (E : Eq A)
-      (elt : Bag.Bag A)
-      (lst : list (Bag.Bag A)),
-      bag_unions (elt :: lst) === union elt (bag_unions lst).
-
-    Axiom bag_map_union : forall {A B : Type} {EA : Eq A} {EB : Eq B}
-      (f : A -> B) (bag1 bag2 : Bag.Bag A),
-      (from_list (List.map f (to_list (union bag1 bag2)))) ===
-      (union (from_list (List.map f (to_list bag1))) 
-             (from_list (List.map f (to_list bag2)))).
-
-    Axiom bag_from_list_singleton : forall (A : Type) (E : Eq A)
-      (elt : A),
-      from_list [elt] = singleton elt.
-    
-    Axiom bag_unions_unlist : forall (A B : Type) (EA : Eq A) (EB : Eq B)
-      (f : A -> Bag.Bag B) (lst : list A) (bag : Bag A),
-      bag_unions (List.map f (to_list (from_list lst <+> bag))) = 
-      bag_unions (List.map f lst) <+> 
-      bag_unions (List.map f (to_list bag)).
-
-    Lemma bag_unions_pop : forall (A : Type) (E : Eq A)
-      (b : Bag.Bag A) (lst lst0 : list (Bag.Bag A)),
-      bag_unions lst === bag_unions lst0 ->
-      bag_unions (b :: lst) === bag_unions (b :: lst0).
-    Proof.
-      intros.
-      simpl.
-      rewrite -> H.
-      apply reflexivity.
-    Qed.
-
-    Lemma bag_unions_rotate : forall (A : Type) (E : Eq A)
-      (b : Bag.Bag A) (lst lst0 : list (Bag.Bag A)),
-      bag_unions (lst ++ [b]) === bag_unions lst0 ->
-      bag_unions (b :: lst) === bag_unions lst0.
-    Proof with auto.
-      intros.
-      generalize dependent lst0.
-      induction lst; intros...
-      simpl in H.
-      rewrite <- (IHlst (lst ++ [b])) in H.
-      simpl in H.
-      simpl.
-      rewrite <- Bag.union_assoc in H.
-      rewrite -> (Bag.union_comm E a b) in H.
-      rewrite -> Bag.union_assoc in H.
-      exact H.
-      apply reflexivity.
-    Qed.
-
-    Lemma make_bag_unions : forall (A : Type) (E : Eq A)
-      (b b0 : Bag.Bag A),
-      b <+> b0 === bag_unions [b; b0].
-    Proof.
-      intros.
-      simpl.
-      rewrite -> union_empty_r.
-      apply reflexivity.
-    Qed.
-
-    Lemma flatten_bag_unions_r : forall (A : Type) (E : Eq A)
-      (b0 b1 b2 : Bag.Bag A),
-      bag_unions [ b0; bag_unions [ b1; b2 ] ] =
-      bag_unions [ b0; b1; b2 ].
-    Proof.
-      intros.
-      simpl.
-    Admitted.
-        
-
-
-  End BagAxioms.
-
-Ltac bag_perm n :=
+Ltac bag_perm n:=
   match goal with
-    | |- (bag_unions ?lst) === (bag_unions ?lst) => 
+    | |- ?bag === ?bag => 
+      idtac "SOLVED.";
       apply reflexivity
-    | |- bag_unions (?b :: ?lst) === bag_unions (?b :: ?lst0) =>
-      let newn := eval compute in (length lst) in
-        apply bag_unions_pop;
+    | |- ?b <+> ?lst === ?b <+> ?lst0 =>
+      let newn := eval compute in (Bag.depth lst) in
+        idtac "popped" b "now solving" lst "and" lst0;
+        apply Bag.pop_union_l;
           bag_perm newn
-    | |- bag_unions (?b :: ?lst1)  === ?lst2 =>
+    | |- ?b <+> ?lst1  === ?lst2 =>
       match eval compute in n with
-        | 1 => fail
-        | _ =>
-          apply bag_unions_rotate; 
-            repeat rewrite <- app_comm_cons;
-              rewrite -> app_nil_l;
-                bag_perm (pred n)
+        | O => idtac "failed"; fail "out of time / not equivalent"
+        | _ => idtac "Rotating: " b "<+>" lst1 "===" lst2;
+          apply Bag.rotate_union;
+            repeat rewrite -> Bag.union_assoc;
+              bag_perm (pred n)
       end
   end.
 
 Ltac solve_bag_permutation :=
-  match goal with
-    | |- bag_unions ?lst0 === bag_unions ?lst1 =>
-      match eval compute in (length lst0 = length lst1) with
-        | (?n = ?n) => bag_perm n
-      end
-  end.
+  bag_perm 100.
 
-Ltac make_big_bag_unions bag := 
-  match goal with
-    | |- context[bag] => 
-      match bag with
-        | ?lhs <+> ?rhs => 
-          make_big_bag_unions rhs;  
-          rewrite -> (make_bag_unions _ lhs)
-        | _ => idtac
-      end
-  end.
+Example solve_bag_perm_example1 : forall (A : Type) (E: Eq A)
+  (b0 b1 b2 : Bag.bag A),
+  b0 <+> b1 <+> b2 === b0 <+> b1 <+> b2.
+Proof.
+  intros.
+  solve_bag_permutation.
+Qed.
 
-Ltac flatten_nested_bag_unions cxt :=
-  match goal with
-    | |- context[cxt] =>
-      match cxt with
-        | bag_unions _
-          (cons ?X (cons (bag_unions _ (cons ?Y (cons ?Z nil))) nil)) =>
-            flatten_nested_bag_unions Z;
-            rewrite -> (flatten_bag_unions_r X Y Z)
-        | _ => idtac
-    end
-  end.
-      
+Example solve_bag_perm_example2 : forall (A : Type) (E: Eq A)
+  (b0 b1 b2 : Bag.bag A),
+  b0 <+> b1 <+> b2 === b1 <+> b2 <+> b0.
+Proof.
+  intros.
+  solve_bag_permutation.
+Qed.
+
+
+Example solve_bag_perm_example3 : forall (A : Type) (E: Eq A)
+  (b0 b1 b2 : Bag.bag A),
+  b0 <+> b1 <+> b2 === b1 <+> b0 <+> b2.
+Proof.
+  intros.
+  solve_bag_permutation.
+Qed.
+
+Example solve_bag_perm_example4 : forall (A : Type) (E: Eq A)
+  (b0 b1 b2 b3 b4 b5 b6: Bag.bag A),
+  b3 <+> b0 <+> b5 <+> b1 <+> b4 <+> b2 <+> b6 === 
+  b1 <+> b4 <+> b5 <+> b6 <+> b3 <+> b0 <+> b2.
+Proof.
+  intros.
+   bag_perm 100.
+Qed.
+
+Example solve_bag_perm_example5 : forall (A : Type) (E: Eq A)
+  (b0 b1 b2 : Bag.bag A),
+  b0 <+> b2 === b1 <+> b2.
+Proof.
+  intros.
+Admitted.
+
 
 Module Make (Import Atoms : ATOMS).
 
@@ -181,20 +113,20 @@ Module Make (Import Atoms : ATOMS).
   Definition select_packet_in (sw : switchId) (msg : fromSwitch) :=
     match msg with
       | PacketIn pt pk => 
-        Bag.from_list (map (affixSwitch sw) (locate_packet_in sw pt pk))
+        Bag.FromList (map (affixSwitch sw) (locate_packet_in sw pt pk))
       | _ => {| |}
     end.
 
-  Definition abst_state := Bag.Bag (switchId * portId * packet).
+  Definition abst_state := Bag.bag (switchId * portId * packet).
 
   Axiom abst_func : switchId -> portId -> packet -> list (portId * packet).
 
   Definition flow_table_safe (sw : switchId) (tbl : flowTable) : Prop :=
     forall pt pk forwardedPkts packetIns,
       process_packet tbl pt pk = (forwardedPkts, packetIns) ->
-      bag_unions (map (transfer sw) forwardedPkts) <+>
-      bag_unions (map (select_packet_in sw) (map (PacketIn pt) packetIns)) ===
-      bag_unions (map (transfer sw) (abst_func sw pt pk)).
+      Bag.unions (map (transfer sw) forwardedPkts) <+>
+      Bag.unions (map (select_packet_in sw) (map (PacketIn pt) packetIns)) ===
+      Bag.unions (map (transfer sw) (abst_func sw pt pk)).
 
   Definition state_switches (st : state) := 
     match st with
@@ -222,29 +154,29 @@ Module Make (Import Atoms : ATOMS).
     abstractStep
       ({| (sw,pt,pk) |} <+> lps)
       (Some (sw,pt,pk))
-      (bag_unions (map (transfer sw) (abst_func sw pt pk)) <+> lps).
+      (Bag.unions (map (transfer sw) (abst_func sw pt pk)) <+> lps).
 
 
   Definition relate_switch (sw : switch) : abst_state :=
     match sw with
       | Switch swId _ tbl inp outp ctrlm switchm =>
-        Bag.from_list (map (affixSwitch swId) (Bag.to_list inp)) <+>
-        bag_unions (map (transfer swId) (Bag.to_list outp)) <+>
-        bag_unions (map (select_packet_out swId) (Bag.to_list ctrlm)) <+>
-        bag_unions (map (select_packet_in swId) (Bag.to_list switchm))
+        Bag.FromList (map (affixSwitch swId) (Bag.to_list inp)) <+>
+        Bag.unions (map (transfer swId) (Bag.to_list outp)) <+>
+        Bag.unions (map (select_packet_out swId) (Bag.to_list ctrlm)) <+>
+        Bag.unions (map (select_packet_in swId) (Bag.to_list switchm))
     end.
 
   Definition relate_dataLink (link : dataLink) : abst_state :=
     match link with
       | DataLink _ pks (sw,pt) =>
-        Bag.from_list (map (fun pk => (sw,pt,pk)) pks)
+        Bag.FromList (map (fun pk => (sw,pt,pk)) pks)
     end.
 
   Definition relate_openFlowLink (link : openFlowLink) : abst_state :=
     match link with
       | OpenFlowLink sw switchm ctrlm =>
-        bag_unions (map (select_packet_out sw) ctrlm) <+>
-        bag_unions (map (select_packet_in sw) switchm)
+        Bag.unions (map (select_packet_out sw) ctrlm) <+>
+        Bag.unions (map (select_packet_in sw) switchm)
     end.
 
   Axiom relate_controller : controller -> abst_state.
@@ -252,9 +184,9 @@ Module Make (Import Atoms : ATOMS).
   Definition relate (st : state) : abst_state :=
     match st with
       | (switches, links, ofLinks, ctrl) =>
-        bag_unions (map relate_switch switches) <+>
-        bag_unions (map relate_dataLink links) <+>
-        bag_unions (map relate_openFlowLink ofLinks) <+>
+        Bag.unions (map relate_switch switches) <+>
+        Bag.unions (map relate_dataLink links) <+>
+        Bag.unions (map relate_openFlowLink ofLinks) <+>
         relate_controller ctrl
     end.
         
@@ -262,8 +194,11 @@ Module Make (Import Atoms : ATOMS).
     fun (st : concreteState) (ast : abst_state) => 
       ast === (relate (concreteState_state st)).
 
-
-
+  Axiom unions_unlist_2 : forall (A B : Type) (EA : Eq A) (EB : Eq B)
+    (f : A -> Bag.bag B) (lst : list A) (bag : Bag.bag A),
+    Bag.unions (map f (lst ++ Bag.to_list bag)) ===
+    (Bag.unions (map f lst)) <+> (Bag.unions (map f (Bag.to_list bag))).
+    
   Theorem weak_sim_1 :
     weak_simulation concreteStep abstractStep bisim_relation.
   Proof with auto with datatypes.
@@ -279,26 +214,23 @@ Module Make (Import Atoms : ATOMS).
     simpl in H.
     rewrite -> map_app in H.
     simpl in H.
-    rewrite -> bag_unions_app in H.
-    rewrite -> bag_unions_cons in H.
-    rewrite -> bag_map_union in H.
-    rewrite -> Bag.to_list_singleton in H.
+    rewrite -> Bag.unions_app in H.
     simpl in H.
+    rewrite -> Bag.from_list_cons in H.
     repeat rewrite -> Bag.union_assoc in H.
     rewrite -> Bag.union_comm in H.
     rewrite -> Bag.union_assoc in H.
-    rewrite -> bag_from_list_singleton in H.
     match goal with
       | [ H : t === ?t0 <+> ?t1 |- _ ] => remember t1
     end.
-    remember(bag_unions (map (transfer swId) (abst_func swId pt pk)) <+> b) as t'.
+    remember (Bag.unions (map (transfer swId) (abst_func swId pt pk)) <+> b) as t'.
     exists t'.
     split.
     Focus 2.
     apply multistep_tau with (a0 := ({|(swId, pt, pk)|}) <+> b).
     apply AbstractStepEquiv...
     apply multistep_obs with
-      (a0 := (bag_unions (map (transfer swId) (abst_func swId pt pk)) <+> b)).
+      (a0 := (Bag.unions (map (transfer swId) (abst_func swId pt pk)) <+> b)).
     apply AbstractStep.
     subst.
     apply multistep_nil.
@@ -306,49 +238,51 @@ Module Make (Import Atoms : ATOMS).
     unfold bisim_relation.
     simpl.
     rewrite -> map_app.
-    rewrite -> bag_unions_app.
+    rewrite -> Bag.unions_app.
     simpl.
     clear H0. clear H1.
-    rewrite -> bag_unions_unlist.
-    rewrite -> bag_unions_unlist.
-    subst.
+    rewrite -> unions_unlist_2.
+    rewrite -> unions_unlist_2.
     repeat rewrite -> Bag.union_assoc.
     unfold state_switches in *.
     assert (flow_table_safe swId tbl) as J.
       refine (concreteState_flowTableSafety1
-        (Switch swId pts tbl inp (Bag.from_list outp' <+> outp) ctrlm
-          (Bag.from_list (map (PacketIn pt) pksToCtrl) <+> switchm)) _)...
-      unfold flow_table_safe in J.
-      pose (J0 := J pt pk outp' pksToCtrl H3).
-      rewrite <- J0.
+        (Switch swId pts tbl inp (Bag.FromList outp' <+> outp) ctrlm
+          (Bag.FromList (map (PacketIn pt) pksToCtrl) <+> switchm)) _)...
+    unfold flow_table_safe in J.
+    pose (J0 := J pt pk outp' pksToCtrl H3).
+    subst.
+    rewrite <- J0.
     repeat rewrite -> Bag.union_assoc.
+    bag_perm 100. (* #winning *)
+    solve_bag_permutation.
     match goal with
-      | |- ?X === ?Y => make_big_bag_unions X; make_big_bag_unions Y
+      | |- ?X === ?Y => make_big_Bag.unions X; make_big_Bag.unions Y
     end.
-    repeat rewrite -> flatten_bag_unions_r.
+    repeat rewrite -> flatten_Bag.unions_r.
 
     match goal with
-      | |- ?X === ?Y => flatten_nested_bag_unions X
+      | |- ?X === ?Y => flatten_nested_Bag.unions X
     end.
 
-    flatten_nested_bag_unions .
+    flatten_nested_Bag.unions .
 
 
-    rw (  bag_unions (map (transfer swId) outp') <+>
-   bag_unions (map (select_packet_in swId) (map (PacketIn pt) pksToCtrl)) <+>
-   Bag.from_list (map (affixSwitch swId) (Bag.to_list inp)) <+>
-   bag_unions (map (transfer swId) (Bag.to_list outp)) <+>
-   bag_unions (map (select_packet_out swId) (Bag.to_list ctrlm)) <+>
-   bag_unions (map (select_packet_in swId) (Bag.to_list switchm)) <+>
-   bag_unions (map relate_switch sws0) <+>
-   bag_unions (map relate_dataLink links) <+>
-   bag_unions (map relate_openFlowLink ofLinks) <+>
-   relate_controller ctrl <+> bag_unions (map relate_switch sws)).
-    rwlhs (bag_unions (map relate_dataLink links)).
+    rw (  Bag.unions (map (transfer swId) outp') <+>
+   Bag.unions (map (select_packet_in swId) (map (PacketIn pt) pksToCtrl)) <+>
+   Bag.FromList (map (affixSwitch swId) (Bag.to_list inp)) <+>
+   Bag.unions (map (transfer swId) (Bag.to_list outp)) <+>
+   Bag.unions (map (select_packet_out swId) (Bag.to_list ctrlm)) <+>
+   Bag.unions (map (select_packet_in swId) (Bag.to_list switchm)) <+>
+   Bag.unions (map relate_switch sws0) <+>
+   Bag.unions (map relate_dataLink links) <+>
+   Bag.unions (map relate_openFlowLink ofLinks) <+>
+   relate_controller ctrl <+> Bag.unions (map relate_switch sws)).
+    rwlhs (Bag.unions (map relate_dataLink links)).
           
-     rewrite -> (make_bag_unions _ ).
-    Check make_bag_unions.
-    Axiom flatten_bag_unions : forall (A : Type) (E : Eq A)
+     rewrite -> (make_Bag.unions _ ).
+    Check make_Bag.unions.
+    Axiom flatten_Bag.unions : forall (A : Type) (E : Eq A)
       
 
     admit. (* gotta bubble sort ... *)

@@ -1,4 +1,4 @@
-MODULES := FwOF
+MODULES := FwOF FwOFRelation
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean

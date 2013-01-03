@@ -5,176 +5,97 @@ Require Import Coq.Classes.Equivalence.
 Require Import Coq.Classes.Morphisms.
 Require Import Coq.Setoids.Setoid.
 Require Import Common.Types.
+Require Import Omega.
 
 Local Open Scope list_scope.
 Local Open Scope signature_scope.
 Local Open Scope equiv_scope.
+
+Create HintDb bag.
 
 (* TODO(arjun): I'm not paying attention to levels and associativity. Fix. *)
 Reserved Notation "{| x |}" (at level 70, no associativity).
 Reserved Notation "{| |}" (at level 70, no associativity).
 Reserved Notation "x <+> y" (at level 69, right associativity).
 
+Module Bag.
 
-Module Type BAG.
+  Inductive bag (A : Type) := 
+  | Empty : bag A
+  | Singleton : A -> bag A
+  | Union : bag A -> bag A -> bag A
+  | FromList : list A -> bag A.
 
-  Parameter Bag : Type -> Type.
+  Implicit Arguments Empty [[A]].
+  Implicit Arguments Singleton [[A]].
+  Implicit Arguments Union [[A]].
+  Implicit Arguments FromList [[A]].
 
-  Parameter empty : forall {A : Type}, Bag A.
-
-  Parameter Bag_equiv : forall {A : Type} {E : Eq A}, Bag A -> Bag A -> Prop.
-
-  Section Methods.
-  
-  Variable A : Type.
-  Variable E : Eq A.
-
-  Parameter singleton : A -> Bag A.
-  Parameter add : A -> Bag A -> Bag A.
-  Parameter Bag_equiv_is_Equivalence : Equivalence Bag_equiv.
-  Parameter map : forall {B : Type} {E' : Eq B}, (A -> B) -> Bag A -> Bag B.
-
-  Parameter union : Bag A -> Bag A -> Bag A.
-  Parameter from_list : list A -> Bag A.
-  Parameter to_list : Bag A -> list A.
-
-  Parameter union_m : Proper (Bag_equiv ==> Bag_equiv ==> Bag_equiv) union.
-
-  Parameter from_list_cons : forall x xs bag,
-    from_list (x :: xs) === bag ->
-    union (singleton x) (from_list xs) === bag.
-
-  Add Morphism union with signature Bag_equiv ++> Bag_equiv ++> Bag_equiv as union_s_m.
-    apply union_m.
-  Qed.
-
-  Parameter union_comm : forall x y, union x y === union y x.
-
-  Parameter union_assoc : forall x y z,  union (union x y) z === union x (union y z).
-
-  Parameter from_list_comm_union : forall l1 l2,
-    from_list (l1 ++ l2) === union (from_list l1) (from_list l2).
-
-  Parameter from_list_nil : from_list nil === empty.
-  Parameter union_empty_l : forall x, union empty x === x.
-  Parameter union_empty_r : forall x, union x empty === x.
-
-  Parameter to_list_singleton : forall x, to_list (singleton x) = [x].
-
-  Parameter nil_list : to_list empty = nil.
-  Parameter nil_bag : from_list nil = empty.
-
-  Parameter size : Bag A -> nat.
-  Parameter size_equiv : forall x y, x === y -> size x = size y.
-  Parameter size_comm_union : forall x y, size (union x y) = size x + size y.
-  Parameter size_to_list : forall x, size x = length (to_list x).
-
-  Parameter in_comm_union : forall x bag1 bag2, 
-    In x (to_list (union bag1 bag2)) ->
-    In x (to_list bag1) \/ In x (to_list bag2).
-
-  End Methods.
-
-  Parameter concat_map_union : forall {A B : Type} {EA : Eq A} {EB : Eq B} (f : A -> list B)
-    (bag1 bag2 : Bag A),
-      (from_list (concat_map f (to_list (union bag1 bag2)))) ===
-      (union (from_list (concat_map f (to_list bag1))) 
-             (from_list (concat_map f (to_list bag2)))).
-
-  (** Syntactic equality! May not be equivalence! *)
-  Parameter eq_dec : forall (A : Type) (E : Eq A) (x y : Bag A),
-    { x = y } + { x <> y }.
-   
-
-End BAG.
-
-Module Bag : BAG.
-
-  Inductive T (A : Type) := 
-    | MkBag : list A -> T A.
-  Definition Bag := T.
-
-  Definition empty {A : Type} := MkBag (@nil A).
+  Definition t := bag.
 
   Section Methods.
 
     Variable A : Type.
     Variable E : Eq A.
+    
+    Fixpoint multiplicity (x : A) (bag : bag A) := 
+      match bag with
+        | Empty => 0
+        | Singleton y => 
+          match eqdec x y with
+            | left _ => 1
+            | right _ => 0
+          end
+        | Union bag1 bag2 => multiplicity x bag1 + multiplicity x bag2
+        | FromList lst =>
+          List.fold_right 
+          (fun y sum =>
+            match eqdec x y with
+              | left _ => S sum
+              | right _ => sum
+            end) 0 lst
+      end.
+    
+    Fixpoint to_list (bag : bag A) :=
+      match bag with
+        | Empty => nil
+        | Singleton x => [x]
+        | Union bag1 bag2 => to_list bag1 ++ to_list bag2
+        | FromList lst => lst
+      end.
 
-    Definition to_list (bag : Bag A) : list A := match bag with
-      | MkBag lst => lst
-    end.
+    Definition Bag_equiv (x y : bag A) := 
+      forall (e : A), multiplicity e x = multiplicity e y.
 
-    Definition multiplicity (x : A) (bag : Bag A) := 
-      List.fold_right (fun y sum =>
-        match eqdec x y with
-          | left _ => S sum
-          | right _ => sum
-        end) 0 (to_list bag).
-
-    Definition Bag_equiv (x y : Bag A) := forall (e : A),
-      multiplicity e x = multiplicity e y.
+    Hint Constructors bag.
 
     Lemma Bag_equiv_is_Equivalence : Equivalence Bag_equiv.
     Proof with auto.
       split.
       unfold Reflexive. unfold Bag_equiv...
       unfold Symmetric. unfold Bag_equiv.
-        intros.
-        remember (H e)...
+      intros.
+      remember (H e)...
       unfold Transitive. unfold Bag_equiv.
-        intros.
-        remember (H e).
-        remember (H0 e).
-        rewrite -> e0...
-    Qed. 
+      intros.
+      remember (H e).
+      remember (H0 e).
+      rewrite -> e0...
+    Qed.
 
     Instance Bag_Equivalence : Equivalence Bag_equiv.
+    Proof.
       exact Bag_equiv_is_Equivalence.
     Qed.
 
-    Definition singleton (x : A) := MkBag [x].
-
-    Fixpoint add (x : A) (bag : Bag A) := match bag with
-      | MkBag lst => MkBag (x :: lst)
-    end.
-
-    Definition from_list (lst : list A) : Bag A := MkBag lst.
-
-    Parameter map : forall {B : Type} {E' : Eq B}, (A -> B) -> Bag A -> Bag B.
-
-    Definition union (b1 b2 : Bag A) : Bag A:= 
-     MkBag (app (to_list b1) (to_list b2)).
-
-    Lemma from_list_cons : forall x xs bag,
-      from_list (x :: xs) === bag ->
-      union (singleton x) (from_list xs) === bag.
-    Proof.
-      intros.
-      simpl.
-      unfold from_list in *.
-      trivial.
-    Qed.
-
-    Lemma union_iff : forall (x : A) (b1 b2 : Bag A),
-      multiplicity x (union b1 b2) = multiplicity x b1 + multiplicity x b2.
+    Lemma union_iff : forall (x : A) (b1 b2 : bag A),
+      multiplicity x (Union b1 b2) = multiplicity x b1 + multiplicity x b2.
     Proof with auto.
-      intros.
-      destruct b1. destruct b2.
-      induction l...
-      unfold union in *.
-      simpl in *.
-      unfold multiplicity.
-      unfold to_list.
-      simpl.
-      remember (eqdec x a) as b.
-      destruct b...
-      unfold multiplicity in IHl.
-      simpl in IHl.
-      rewrite -> IHl...
+      reflexivity.
     Qed.
 
-    Instance union_m : Proper (Bag_equiv ==> Bag_equiv ==> Bag_equiv) union.
+    Instance union_m : 
+      Proper (Bag_equiv ==> Bag_equiv ==> Bag_equiv) Union.
     Proof with auto.
       unfold Proper.
       unfold respectful.
@@ -184,206 +105,160 @@ Module Bag : BAG.
       rewrite union_iff...
     Qed.
 
-    Add Morphism union with signature Bag_equiv ++> Bag_equiv ++> Bag_equiv as union_s_m.
+    Add Morphism Union with signature 
+      Bag_equiv ++> Bag_equiv ++> Bag_equiv as union_s_m.
       apply union_m.
     Qed.
 
-    Lemma union_comm : forall x y, union x y === union y x.
+    Lemma union_comm : forall x y, Union x y === Union y x.
     Proof with auto.
-      intros.
       unfold Equivalence.equiv.
       unfold Bag_equiv.
       intros.
-      unfold union.
-      destruct x; destruct y.
-      generalize dependent l0.
-      induction l; intros.
       simpl.
-      rewrite -> app_nil_r...
-      simpl in *.
-      unfold multiplicity in *.
-      simpl in *.
-      remember (eqdec e a) as b.
-      destruct b.
-      induction l0.
-      simpl.
-      rewrite -> app_nil_r.
-      rewrite <- Heqb...
-      rewrite <- app_comm_cons.
-      simpl.
-      remember (eqdec e a0) as b1.
-      destruct b1.
-      f_equal.
-      rewrite -> IHl.
-      rewrite <- app_comm_cons.
-      simpl.
-      rewrite <- Heqb1.
-      rewrite <- IHl.
-      trivial.
-      rewrite -> IHl.
-      rewrite <- app_comm_cons.
-      simpl.
-      rewrite <- Heqb1.
-      rewrite <- IHl.
-      trivial.
-      rewrite -> fold_right_app.
-      rewrite -> fold_right_app.
-      simpl.
-      rewrite <- Heqb.
-      rewrite <- fold_right_app.
-      rewrite <- fold_right_app.
-      rewrite <- IHl...
+      omega.
     Qed.
 
-    Lemma union_assoc : forall x y z,  union (union x y) z === union x (union y z).
+    Lemma union_assoc : forall x y z,  
+      Union (Union x y) z === Union x (Union y z).
     Proof with auto.
-      intros.
       unfold Equivalence.equiv.
       unfold Bag_equiv.
       intros.
-      unfold union.
       simpl.
-      rewrite -> app_assoc...
+      omega.
+    Qed.
+    
+    Lemma union_empty_l : forall x, Union Empty x === x.
+    Proof with auto.
+      unfold Equivalence.equiv.
+      unfold Bag_equiv.
+      intros.
+      simpl.
+      reflexivity.
     Qed.
 
-  Lemma from_list_comm_union : forall l1 l2,
-    from_list (l1 ++ l2) === union (from_list l1) (from_list l2).
-  Proof with auto.
-    intros.
-    unfold union.
-    unfold from_list.
-    apply reflexivity.
-  Qed.
+    Lemma union_empty_r : forall x, Union x Empty === x.
+    Proof.
+      intros.
+      rewrite union_comm. apply union_empty_l.
+    Qed.
 
-  Lemma from_list_nil : from_list nil === empty.
-  Proof with auto.
-    unfold from_list.
-    unfold empty.
-    apply reflexivity.
-  Qed.
-  
-  Lemma union_empty_l : forall x, union empty x === x.
-  Proof with auto.
-    intros.
-    unfold union.
-    unfold empty.
-    simpl.
-    destruct x.
-    simpl.
-    apply reflexivity.
-  Qed.
+    Definition unions (bags : list (bag A)) : bag A :=
+      fold_right Union Empty bags.
 
-  Lemma union_empty_r : forall x, union x empty === x.
-  Proof.
-    intros.
-    rewrite union_comm. apply union_empty_l.
-  Qed.
+    Lemma bag_unions_app : forall (lst lst0 : list (bag A)),
+      unions (lst ++ lst0) === Union (unions lst) (unions lst0).
+    Proof with auto.
+      unfold Equivalence.equiv.
+      unfold Bag_equiv.
+      intros.
+      induction lst...
+      simpl.
+      simpl in IHlst.
+      omega.
+    Qed.
 
-  Lemma to_list_singleton : forall x, to_list (singleton x) = [x].
-  Proof. intros. simpl. auto. Qed.
+    Lemma pop_union_l : forall (b b0 b1: bag A),
+      b0 === b1 ->
+      Union b b0 === Union b b1.
+    Proof.
+      intros.
+      simpl.
+      rewrite -> H.
+      apply reflexivity.
+    Qed.
 
-  Lemma nil_list : to_list empty = nil.
-  Proof. auto. Qed.
+   Fixpoint depth (b : bag A) :=
+     match b with
+       | Singleton _ => 1
+       | Empty => 1
+       | FromList _ => 1
+       | Union l r => max (depth l) (depth r)
+     end.
 
-  Lemma nil_bag : from_list nil = empty.
-  Proof. auto. Qed.
+    Lemma rotate_union : forall (b b0 b1 : bag A),
+      Union b b0 === b1 ->
+      Union b0 b === b1.
+    Proof with auto.
+      intros.
+      rewrite -> union_comm.
+      exact H.
+    Qed.
 
-  Definition size (bag : Bag A) := match bag with
-    | MkBag lst => List.length lst
-  end.
- 
-  Lemma size_equiv : forall x y, x === y -> size x = size y.
-  Proof with auto.
-    intros.
-    unfold Equivalence.equiv in H.
-    unfold Bag_equiv in H.
-    destruct x; destruct y.
-    induction l.
-    simpl.
-    destruct l0...
-    remember (H a).
-    unfold multiplicity in e.
-    simpl in e.
-    clear Heqe.
-    remember (eqdec a a) as J.
-    destruct J. inversion e. contradiction n...
-    remember (H a). clear Heqe.
-  Admitted.
-     
-  Lemma size_comm_union : forall x y, size (union x y) = size x + size y.
-  Proof with auto.
-    intros.
-    unfold union.
-    unfold size.
-    destruct x.
-    destruct y.
-    unfold to_list.
-    apply app_length.
-  Qed.
+    Lemma unions_app : forall (lst lst0 : list (bag A)),
+      unions (lst ++ lst0) === Union (unions lst) (unions lst0).
+    Proof with auto.
+      unfold Equivalence.equiv.
+      unfold Bag_equiv.
+      intros.
+      simpl.
+      induction lst...
+      simpl in *.
+      omega.
+    Qed.
 
-  Lemma in_comm_union : forall x bag1 bag2, 
-    In x (to_list (union bag1 bag2)) ->
-    In x (to_list bag1) \/ In x (to_list bag2).
-  Proof with auto with datatypes.
-    intros x bag1 bag2 H.
-    destruct bag1; destruct bag2.
-    simpl in *...
-  Qed.
+    Lemma from_list_cons : forall x xs,
+      FromList (x :: xs) === Union (Singleton x) (FromList xs).
+    Proof with auto.
+      unfold Equivalence.equiv.
+      unfold Bag_equiv.
+      intros.
+      simpl.
+      destruct (eqdec e x)...
+    Qed.
 
-  Lemma size_to_list : forall x, size x = length (to_list x).
-  Proof with auto with datatypes.
-    intros x.
-    destruct x...
-  Qed.
   End Methods.
 
-  Lemma concat_map_union : forall {A B : Type} {EA : Eq A} {EB : Eq B} (f : A -> list B)
-    (bag1 bag2 : Bag A),
-    Bag_equiv EB
-      (from_list (concat_map f (to_list (union bag1 bag2))))
-      (union (from_list (concat_map f (to_list bag1))) 
-             (from_list (concat_map f (to_list bag2)))).
+  Lemma map_union : forall (A B : Type) {EA : Eq A} {EB : Eq B}
+      (f : A -> B) (bag1 bag2 : bag A),
+      Bag_equiv EB (FromList (map f (to_list (Union bag1 bag2))))
+      (Union (FromList (map f (to_list bag1))) 
+        (FromList (map f (to_list bag2)))).
   Proof with auto.
     intros.
+  Admitted.
+
+  Lemma unions_unlist : forall (A B : Type) (EA : Eq A) (EB : Eq B)
+    (f : A -> bag B) (lst : list A) (bag : bag A),
+    Bag_equiv EB
+      (unions (map f (to_list (Union (FromList lst) bag))))
+      (Union (unions (List.map f lst))
+        (unions (List.map f (to_list bag)))).
+  Proof with auto.
+    unfold Equivalence.equiv.
     unfold Bag_equiv.
     intros.
-    destruct bag1. destruct bag2.
-    generalize dependent l0.
-    induction l...
-    (* inductive case *)
-    intros.
-    simpl in *.
-    unfold from_list in *.
-    unfold multiplicity in *.
+    induction lst...
     simpl.
-    rewrite <- app_assoc.
-    simpl in IHl.
-    rewrite -> fold_right_app.
-    rewrite -> fold_right_app.
-    rewrite <- IHl.
-    trivial.
-  Qed.
-
-  Lemma eq_dec : forall (A : Type) (E : Eq A) (x y : Bag A),
-    { x = y } + { x <> y }.
-  Proof.
-    intros.
-    idtac.
-    inversion E.
-    decide equality.
-    decide equality.
+    simpl in IHlst.
+    rewrite -> IHlst.
+    omega.
   Qed.
 
 End Bag.
 
-Notation "x <+> y" := (Bag.union x y) : bag_scope.
-Notation "{| x |}" := (Bag.singleton x) : bag_scope.
-Notation "{| |}" := (Bag.empty) : bag_scope.
+Notation "x <+> y" := (Bag.Union x y) : bag_scope.
+Notation "{| x |}" := (Bag.Singleton x) : bag_scope.
+Notation "{| |}" := (Bag.Empty) : bag_scope.
 
-Hint Rewrite Bag.concat_map_union Bag.from_list_comm_union Bag.nil_bag
-  Bag.to_list_singleton Bag.nil_list Bag.union_empty_r Bag.union_empty_l
-  Bag.union_assoc : bag.
+Hint Rewrite 
+  Bag.union_empty_r 
+  Bag.union_empty_l
+  Bag.union_assoc 
+  Bag.unions_app
+  map_app 
+  Bag.from_list_cons : bag.
 
-Definition bag_unions {A : Type} {E : Eq A} 
-  (bags : list (Bag.Bag A)) : Bag.Bag A :=
-    fold_right (@Bag.union A) Bag.empty bags.
+
+Instance Bag_Equivalence `(A : Type, E : Eq A): Equivalence (Bag.Bag_equiv E).
+Proof.
+  exact (Bag.Bag_equiv_is_Equivalence E).
+Qed.
+
+
+Add Parametric Morphism (A : Type) (E : Eq A) : Bag.Union with signature 
+  Bag.Bag_equiv E ++> Bag.Bag_equiv E ++> Bag.Bag_equiv E as union_s_m.
+  apply Bag.union_m.
+Qed.
+

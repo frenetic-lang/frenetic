@@ -105,10 +105,10 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
     switch_swichId : switchId;
     switch_ports : list portId;
     switch_flowTable : flowTable;
-    switch_inputPackets : Bag.Bag (portId * packet);
-    switch_outputPackets :  Bag.Bag (portId * packet);
-    switch_fromController : Bag.Bag fromController;
-    switch_fromSwitch : Bag.Bag fromSwitch
+    switch_inputPackets : Bag.bag (portId * packet);
+    switch_outputPackets :  Bag.bag (portId * packet);
+    switch_fromController : Bag.bag fromController;
+    switch_fromSwitch : Bag.bag fromSwitch
   }.
   
   Record dataLink := DataLink {
@@ -133,8 +133,8 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
       (Some (swId,pt,pk))
       (Switch swId pts tbl ({|(pt,pk)|} <+> inp) outp 
          ctrlm switchm)
-      (Switch swId pts tbl inp (Bag.from_list outp' <+> outp) 
-         ctrlm (Bag.from_list (map (PacketIn pt) pksToCtrl) <+> switchm))
+      (Switch swId pts tbl inp (Bag.FromList outp' <+> outp) 
+         ctrlm (Bag.FromList (map (PacketIn pt) pksToCtrl) <+> switchm))
   | ModifyFlowTable : forall swId pts tbl inp outp fm ctrlm switchm,
     SwitchStep
       None
@@ -200,11 +200,11 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
       xid,
     SwitchOpenFlowStep
       (Switch swId pts tbl inp outp 
-        Bag.empty 
+        Bag.Empty 
         switchm)
       (OpenFlowLink swId fromSwitch (fromCtrl ++ [BarrierRequest xid]))
       (Switch swId pts tbl inp outp 
-         Bag.empty
+         Bag.Empty
          ({| BarrierReply xid |} <+> switchm))
       (OpenFlowLink swId fromSwitch fromCtrl)
   | RecvFromController : forall swId pts tbl inp outp ctrlm switchm
