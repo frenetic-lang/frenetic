@@ -236,6 +236,14 @@ Module Bag.
     omega.
   Qed.
 
+  Axiom unions_unlist_2 : forall (A B : Type) (EA : Eq A) (EB : Eq B)
+    (f : A -> Bag.bag B) (lst : list A) (bag : Bag.bag A),
+    Bag.unions (map f (lst ++ Bag.to_list bag)) ===
+    Bag.Union
+    (Bag.unions (map f lst)) 
+    (Bag.unions (map f (Bag.to_list bag))).
+
+
 End Bag.
 
 Notation "x <+> y" := (Bag.Union x y) : bag_scope.
@@ -243,12 +251,13 @@ Notation "{| x |}" := (Bag.Singleton x) : bag_scope.
 Notation "{| |}" := (Bag.Empty) : bag_scope.
 
 Hint Rewrite 
-  Bag.union_empty_r 
-  Bag.union_empty_l
   Bag.union_assoc 
   Bag.unions_app
   map_app 
-  Bag.from_list_cons : bag.
+  Bag.from_list_cons
+  Bag.union_empty_r 
+  Bag.union_empty_l
+ : bag.
 
 
 Instance Bag_Equivalence `(A : Type, E : Eq A): Equivalence (Bag.Bag_equiv E).

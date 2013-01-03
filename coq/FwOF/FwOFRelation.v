@@ -103,7 +103,7 @@ Module Make (Import Atoms : ATOMS).
 
   Definition select_packet_out (sw : switchId) (msg : fromController) :=
     match msg with
-      | PacketOut pt pk => {| (sw,pt,pk) |}
+      | PacketOut pt pk => transfer sw (pt,pk)
       | _ => {| |}
     end.
 
@@ -194,10 +194,6 @@ Module Make (Import Atoms : ATOMS).
     fun (st : concreteState) (ast : abst_state) => 
       ast === (relate (concreteState_state st)).
 
-  Axiom unions_unlist_2 : forall (A B : Type) (EA : Eq A) (EB : Eq B)
-    (f : A -> Bag.bag B) (lst : list A) (bag : Bag.bag A),
-    Bag.unions (map f (lst ++ Bag.to_list bag)) ===
-    (Bag.unions (map f lst)) <+> (Bag.unions (map f (Bag.to_list bag))).
     
   Theorem weak_sim_1 :
     weak_simulation concreteStep abstractStep bisim_relation.
@@ -212,19 +208,13 @@ Module Make (Import Atoms : ATOMS).
     inversion H0; subst.
     inversion H1; subst.
     simpl in H.
-    rewrite -> map_app in H.
-    simpl in H.
-    rewrite -> Bag.unions_app in H.
-    simpl in H.
-    rewrite -> Bag.from_list_cons in H.
-    repeat rewrite -> Bag.union_assoc in H.
+    autorewrite with bag in H using (simpl in H)...
     rewrite -> Bag.union_comm in H.
     rewrite -> Bag.union_assoc in H.
     match goal with
       | [ H : t === ?t0 <+> ?t1 |- _ ] => remember t1
     end.
-    remember (Bag.unions (map (transfer swId) (abst_func swId pt pk)) <+> b) as t'.
-    exists t'.
+    exists (Bag.unions (map (transfer swId) (abst_func swId pt pk)) <+> b).
     split.
     Focus 2.
     apply multistep_tau with (a0 := ({|(swId, pt, pk)|}) <+> b).
@@ -240,9 +230,8 @@ Module Make (Import Atoms : ATOMS).
     rewrite -> map_app.
     rewrite -> Bag.unions_app.
     simpl.
-    clear H0. clear H1.
-    rewrite -> unions_unlist_2.
-    rewrite -> unions_unlist_2.
+    rewrite -> Bag.unions_unlist_2.
+    rewrite -> Bag.unions_unlist_2.
     repeat rewrite -> Bag.union_assoc.
     unfold state_switches in *.
     assert (flow_table_safe swId tbl) as J.
@@ -255,43 +244,59 @@ Module Make (Import Atoms : ATOMS).
     rewrite <- J0.
     repeat rewrite -> Bag.union_assoc.
     bag_perm 100. (* #winning *)
-    solve_bag_permutation.
-    match goal with
-      | |- ?X === ?Y => make_big_Bag.unions X; make_big_Bag.unions Y
-    end.
-    repeat rewrite -> flatten_Bag.unions_r.
-
-    match goal with
-      | |- ?X === ?Y => flatten_nested_Bag.unions X
-    end.
-
-    flatten_nested_Bag.unions .
-
-
-    rw (  Bag.unions (map (transfer swId) outp') <+>
-   Bag.unions (map (select_packet_in swId) (map (PacketIn pt) pksToCtrl)) <+>
-   Bag.FromList (map (affixSwitch swId) (Bag.to_list inp)) <+>
-   Bag.unions (map (transfer swId) (Bag.to_list outp)) <+>
-   Bag.unions (map (select_packet_out swId) (Bag.to_list ctrlm)) <+>
-   Bag.unions (map (select_packet_in swId) (Bag.to_list switchm)) <+>
-   Bag.unions (map relate_switch sws0) <+>
-   Bag.unions (map relate_dataLink links) <+>
-   Bag.unions (map relate_openFlowLink ofLinks) <+>
-   relate_controller ctrl <+> Bag.unions (map relate_switch sws)).
-    rwlhs (Bag.unions (map relate_dataLink links)).
-          
-     rewrite -> (make_Bag.unions _ ).
-    Check make_Bag.unions.
-    Axiom flatten_Bag.unions : forall (A : Type) (E : Eq A)
-      
-
-    admit. (* gotta bubble sort ... *)
+    (* STUPID TYPE CLASSES WHY *)
+    admit.
     admit.
     admit.
     admit.
     
-    (* No observations *)
+    (* steps with no observations. *)
     intros.
+    unfold bisim_relation in H.
+    destruct s.
+    destruct s'.
+    destruct concreteState_state0 as [ [[switches links] ofLinks]  ctrl ].
+    destruct concreteState_state1 as [ [[switches' links'] ofLinks']  ctrl'].
+    simpl in *.
+    inversion H0; subst.
+    (* Switch steps independently *)
+    inversion H6; subst.
+    (* Switch processes a flow-mod *)
+    simpl in H.
+    autorewrite with bag in H using (simpl in H)...
+    exists t.
+    split.
+    unfold bisim_relation.
+    simpl.
+    autorewrite with bag using simpl.
+    exact H.
+    apply multistep_nil.
+    (* Switch sends a PacketOut message out. *)
+    simpl in H.
+    autorewrite with bag in H using (simpl in H)...
+    exists t.
+    split.
+    unfold bisim_relation.
+    simpl.
+    autorewrite with bag using simpl.
+    rewrite -> H.
+    bag_perm 100. (* #winning *)
+    apply multistep_nil.
+    (* Switch sends/receives packets on the network. *)
+    inversion H2; subst.
+    (* Switch sends a packet out. *)
+    simpl in H.
+    autorewrite with bag in H using (simpl in H)...
+    exists t.
+    split.
+    unfold bisim_relation.
+    simpl.
+    autorewrite with bag using simpl.
+    rewrite -> H.
+    (* TODO(arjun): need to break up dst. Definitions may need tweak. *)
+    fail.
+    bag_perm 100. (* #winning *)
+
 
   Admitted.
     
