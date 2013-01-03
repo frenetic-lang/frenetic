@@ -172,8 +172,8 @@ Module Bag : BAG.
     Instance union_m : Proper (Bag_equiv ==> Bag_equiv ==> Bag_equiv) union.
     Proof with auto.
       unfold Proper.
-      unfold Bag_equiv.
       unfold respectful.
+      unfold Bag_equiv.
       intros.
       rewrite union_iff.
       rewrite union_iff...
