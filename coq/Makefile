@@ -9,7 +9,7 @@ doc:
 	find . -name "*.v" | xargs coqdoc -R . Coqnets -d coqdoc -v
 
 Makefile.coq: Makefile
-	coq_makefile Common Word Network OpenFlow Wildcard Pattern Classifier NetCore Extraction -o Makefile.coq
+	coq_makefile Common Bag Word Network OpenFlow Wildcard Pattern Classifier NetCore Extraction -o Makefile.coq
 
 clean: Makefile.coq
 	$(MAKE) -f Makefile.coq clean
