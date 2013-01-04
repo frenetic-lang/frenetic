@@ -45,11 +45,12 @@ Module Make (Import Atoms : ATOMS).
     unfold bisim_relation.
     unfold relate.
     rewrite -> Heqb.
-    assert (flow_table_safe swId tbl) as J.
+    assert (FlowTableSafe swId tbl) as J.
       refine (concreteState_flowTableSafety1
         (Switch swId pts tbl inp (Bag.FromList outp' <+> outp) ctrlm
           (Bag.FromList (map (PacketIn pt) pksToCtrl) <+> switchm)) _)...
-    unfold flow_table_safe in J.
+      simpl. auto with datatypes.
+    unfold FlowTableSafe in J.
     pose (J0 := J pt pk outp' pksToCtrl H3).
     subst.
     rewrite <- J0.

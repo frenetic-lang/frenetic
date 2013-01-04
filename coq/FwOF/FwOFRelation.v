@@ -57,12 +57,17 @@ Module Make (Import Atoms : ATOMS).
       | _ => {| |}
     end.
 
-  Definition flow_table_safe (sw : switchId) (tbl : flowTable) : Prop :=
+  Definition FlowTableSafe (sw : switchId) (tbl : flowTable) : Prop :=
     forall pt pk forwardedPkts packetIns,
       process_packet tbl pt pk = (forwardedPkts, packetIns) ->
       Bag.unions (map (transfer sw) forwardedPkts) <+>
       Bag.unions (map (select_packet_in sw) (map (PacketIn pt) packetIns)) ===
       Bag.unions (map (transfer sw) (abst_func sw pt pk)).
+
+  Definition FlowTablesSafe (st : state) : Prop :=
+    forall (sw : switch),
+      In sw (state_switches st) ->
+      FlowTableSafe (switch_swichId sw) (switch_flowTable sw).
 
   Definition ConsistentDataLinks (st : state) : Prop :=
     forall (lnk : dataLink),
@@ -86,10 +91,8 @@ Module Make (Import Atoms : ATOMS).
     
   Record concreteState := ConcreteState {
     concreteState_state : state;
-    concreteState_flowTableSafety :
-      forall (sw : switch), 
-        In sw (state_switches concreteState_state) -> 
-        flow_table_safe (switch_swichId sw) (switch_flowTable sw);
+    concreteState_flowTableSafety : 
+      FlowTablesSafe concreteState_state;
     concreteState_consistentDataLinks :
       ConsistentDataLinks concreteState_state
   }.
