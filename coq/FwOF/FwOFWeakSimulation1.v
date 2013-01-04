@@ -33,7 +33,8 @@ Module Make (Import Atoms : ATOMS).
     unfold concreteStep in H0.
     destruct s'. simpl in *.
     inversion H0; subst; simpl in *.
-    (* Switch is processing a packet from the input buffer *)    
+    (* Switch is processing a packet from the input buffer *)
+    idtac "Proving weak_sim_1 (Case 1 of 11) ...".
     autorewrite with bag in H using (simpl in H).
     rewrite -> Bag.union_comm in H.
     rewrite -> Bag.union_assoc in H.
@@ -70,6 +71,7 @@ Module Make (Import Atoms : ATOMS).
     destruct s'. simpl in *.
     inversion H0; subst; simpl in *.
     (* Switch processes a flow-mod *)
+    idtac "Proving weak_sim_1 (Case 2 of 11) ...".
     exists t.
     split.
     unfold bisim_relation.
@@ -79,6 +81,7 @@ Module Make (Import Atoms : ATOMS).
     bag_perm 100.
     apply multistep_nil.
     (* Switch sends/receives packets on the network. *)
+    idtac "Proving weak_sim_1 (Case 3 of 11) ...".
     exists t.
     split.
     unfold bisim_relation.
@@ -88,6 +91,7 @@ Module Make (Import Atoms : ATOMS).
     bag_perm 100.
     apply multistep_nil.
     (* Switch sends a packet out. *)
+    idtac "Proving weak_sim_1 (Case 4 of 11) ...".
     exists t.
     split.
     unfold bisim_relation.
@@ -105,6 +109,7 @@ Module Make (Import Atoms : ATOMS).
     bag_perm 100.
     apply multistep_nil.
     (* Switch reads a packet off a data-link *)
+    idtac "Proving weak_sim_1 (Case 5 of 11) ...".
     exists t.
     split.
     unfold bisim_relation.
@@ -114,6 +119,7 @@ Module Make (Import Atoms : ATOMS).
     bag_perm 100.
     apply multistep_nil.
     (* Controller takes an internal step. *)
+    idtac "Proving weak_sim_1 (Case 6 of 11) ...".
     exists t.
     split.
     unfold bisim_relation.
@@ -124,6 +130,7 @@ Module Make (Import Atoms : ATOMS).
     apply reflexivity.
     apply multistep_nil.
     (* Controller recvs an OpenFlow message. *)
+    idtac "Proving weak_sim_1 (Case 7 of 11) ...".
     exists t.
     split.
     unfold bisim_relation.
@@ -137,6 +144,7 @@ Module Make (Import Atoms : ATOMS).
     bag_perm 100.
     apply multistep_nil.
     (* Controller sends an OpenFlow message. *)
+    idtac "Proving weak_sim_1 (Case 8 of 11) ...".
     exists t.
     split.
     unfold bisim_relation.
@@ -148,6 +156,7 @@ Module Make (Import Atoms : ATOMS).
     bag_perm 100.
     apply multistep_nil.
     (* Switch sends an OpenFlow message. *)
+    idtac "Proving weak_sim_1 (Case 9 of 11) ...".
     exists t.
     split.
     unfold bisim_relation.
@@ -157,6 +166,7 @@ Module Make (Import Atoms : ATOMS).
     bag_perm 100.
     apply multistep_nil.
     (* Switch responds to a barrier. *)
+    idtac "Proving weak_sim_1 (Case 10 of 11) ...".
     exists t.
     split.
     unfold bisim_relation.
@@ -169,6 +179,7 @@ Module Make (Import Atoms : ATOMS).
     bag_perm 100.
     apply multistep_nil.
     (* Switch responds to a non-barrier message. *)
+    idtac "Proving weak_sim_1 (Case 11 of 11) ...".
     exists t.
     split.
     unfold bisim_relation.

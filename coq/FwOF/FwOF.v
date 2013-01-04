@@ -175,6 +175,8 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
     (at level 70, no associativity).
   Reserved Notation "TopoStep[ sw ; link ; obs ; sw0 ; link0 ]"
     (at level 70, no associativity).
+  Reserved Notation "SwitchOpenFlow[ s ; l ; obs ; s0 ; l0 ]"
+    (at level 70, no associativity).
 
   Inductive NotBarrierRequest : fromController -> Prop :=
   | PacketOut_NotBarrierRequest : forall pt pk,
@@ -198,51 +200,54 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
                         pksToCtrl,
     process_packet tbl pt pk = (outp', pksToCtrl) ->
     SwitchStep[
-      (Switch swId pts tbl ({|(pt,pk)|} <+> inp) outp 
-         ctrlm switchm);
-      (Some (swId,pt,pk));
-      (Switch swId pts tbl inp (Bag.FromList outp' <+> outp) 
-         ctrlm (Bag.FromList (map (PacketIn pt) pksToCtrl) <+> switchm))]
+      Switch swId pts tbl ({|(pt,pk)|} <+> inp) outp ctrlm switchm;
+      Some (swId,pt,pk);
+      Switch swId pts tbl inp (Bag.FromList outp' <+> outp) 
+        ctrlm (Bag.FromList (map (PacketIn pt) pksToCtrl) <+> switchm)
+    ]
   | ModifyFlowTable : forall swId pts tbl inp outp fm ctrlm switchm,
     SwitchStep[
-      (Switch swId pts tbl inp outp 
-         ({|FlowMod fm|} <+> ctrlm) switchm);
+      Switch swId pts tbl inp outp ({|FlowMod fm|} <+> ctrlm) switchm;
       None;
-      (Switch swId pts (modify_flow_table fm tbl) inp outp 
-         ctrlm switchm)]
+      Switch swId pts (modify_flow_table fm tbl) inp outp ctrlm switchm
+    ]
   | SendPacketOut : forall pt pts swId tbl inp outp pk ctrlm switchm,
     In pt pts ->
     SwitchStep[
-      (Switch swId pts tbl inp outp  ({|PacketOut pt pk|} <+> ctrlm) switchm);
+      Switch swId pts tbl inp outp  ({|PacketOut pt pk|} <+> ctrlm) switchm;
       None;
-      (Switch swId pts tbl inp ({| (pt,pk) |} <+> outp) ctrlm switchm)]
+      Switch swId pts tbl inp ({| (pt,pk) |} <+> outp) ctrlm switchm
+    ]
   | SendDataLink : forall swId pts tbl inp pt pk outp ctrlm switchm pks dst,
     TopoStep[
-      (Switch swId pts tbl inp ({|(pt,pk)|} <+> outp) ctrlm switchm);
-      (DataLink (swId,pt) pks dst);
+      Switch swId pts tbl inp ({|(pt,pk)|} <+> outp) ctrlm switchm;
+      DataLink (swId,pt) pks dst;
       None;
-      (Switch swId pts tbl inp outp ctrlm switchm);
-      (DataLink (swId,pt) (pk :: pks) dst)]
+      Switch swId pts tbl inp outp ctrlm switchm;
+      DataLink (swId,pt) (pk :: pks) dst
+    ]
   | RecvDataLink : forall swId pts tbl inp outp ctrlm switchm src pks pk pt,
     TopoStep[
-      (Switch swId pts tbl inp outp ctrlm switchm);
-      (DataLink src  (pks ++ [pk]) (swId,pt));
+      Switch swId pts tbl inp outp ctrlm switchm;
+      DataLink src  (pks ++ [pk]) (swId,pt);
       None;
-      (Switch swId pts tbl ({|(pt,pk)|} <+> inp) outp ctrlm switchm);
-      (DataLink src pks (swId,pt))]
+      Switch swId pts tbl ({|(pt,pk)|} <+> inp) outp ctrlm switchm;
+      DataLink src pks (swId,pt)
+    ]
   | Step_controller : forall sws links ofLinks ctrl ctrl',
-      controller_step ctrl ctrl' ->
-      step (State sws links ofLinks ctrl)
-           None
-           (State sws links ofLinks ctrl')
+    controller_step ctrl ctrl' ->
+    step (State sws links ofLinks ctrl)
+         None
+         (State sws links ofLinks ctrl')
   | ControllerRecv : forall ctrl msg ctrl' swId fromSwitch fromCtrl,
     controller_recv ctrl swId msg ctrl' ->
     ControllerOpenFlow[
-      ctrl ;
-      (OpenFlowLink swId (fromSwitch ++ [msg]) fromCtrl) ;
-       None ;
-      ctrl' ;
-      (OpenFlowLink swId fromSwitch fromCtrl) ]
+      ctrl;
+      OpenFlowLink swId (fromSwitch ++ [msg]) fromCtrl;
+      None;
+      ctrl';
+      OpenFlowLink swId fromSwitch fromCtrl
+    ]
   | ControllerSend : forall ctrl msg ctrl' swId fromSwitch fromCtrl,
     controller_send ctrl ctrl' swId msg ->
     ControllerOpenFlow[
@@ -252,57 +257,34 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
       ctrl';
       (OpenFlowLink swId fromSwitch (msg :: fromCtrl)) ]
   | SendToController : forall swId pts tbl inp outp ctrlm msg switchm fromSwitch
-      fromCtrl sws sws0 links ofLinks ofLinks0 ctrl,
-    step
-      (State
-        (sws ++ (Switch swId pts tbl inp outp ctrlm ({| msg |} <+> switchm))
-          :: sws0)
-        links
-        (ofLinks ++ (OpenFlowLink swId fromSwitch fromCtrl) :: ofLinks0)
-        ctrl)
-      None
-      (State
-        (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
-        links
-        (ofLinks ++ (OpenFlowLink swId (msg :: fromSwitch) fromCtrl) 
-          :: ofLinks0)
-        ctrl)
+      fromCtrl,
+    SwitchOpenFlow[
+      Switch swId pts tbl inp outp ctrlm ({| msg |} <+> switchm);
+      OpenFlowLink swId fromSwitch fromCtrl;
+      None;
+      Switch swId pts tbl inp outp ctrlm switchm;
+      OpenFlowLink swId (msg :: fromSwitch) fromCtrl
+    ]
   | RecvBarrier : forall swId pts tbl inp outp switchm fromSwitch fromCtrl
-      xid sws sws0 links ofLinks ofLinks0 ctrl,
-    step
-      (State
-        (sws ++ (Switch swId pts tbl inp outp Bag.Empty switchm) :: sws0)
-        links
-        (ofLinks ++ 
-          (OpenFlowLink swId fromSwitch (fromCtrl ++ [BarrierRequest xid])) ::
-          ofLinks0)
-        ctrl)
-      None
-      (State
-        (sws ++ (Switch swId pts tbl inp outp Bag.Empty
-                        ({| BarrierReply xid |} <+> switchm)) :: sws0)
-        links
-        (ofLinks ++ (OpenFlowLink swId fromSwitch fromCtrl) :: ofLinks0)
-        ctrl)
+      xid,
+    SwitchOpenFlow[
+      Switch swId pts tbl inp outp Bag.Empty switchm;
+      OpenFlowLink swId fromSwitch (fromCtrl ++ [BarrierRequest xid]);
+      None;
+      Switch swId pts tbl inp outp Bag.Empty
+             ({| BarrierReply xid |} <+> switchm);
+      OpenFlowLink swId fromSwitch fromCtrl
+    ]
   | RecvFromController : forall swId pts tbl inp outp ctrlm switchm
-      fromSwitch fromCtrl (msg : fromController) sws sws0 links ofLinks 
-      ofLinks0 ctrl,
+      fromSwitch fromCtrl msg,
     NotBarrierRequest msg ->
-    step
-      (State
-        (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
-        links
-        (ofLinks ++ (OpenFlowLink swId fromSwitch (fromCtrl ++ [msg])) :: 
-           ofLinks0)
-        ctrl)
-      None
-      (State
-        (sws ++ 
-           (Switch swId pts tbl inp outp ({| msg |} <+> ctrlm) switchm) :: sws0)
-        links
-        (ofLinks ++ (OpenFlowLink swId fromSwitch fromCtrl) ::
-           ofLinks0)
-        ctrl)
+    SwitchOpenFlow[
+      Switch swId pts tbl inp outp ctrlm switchm;
+      OpenFlowLink swId fromSwitch (fromCtrl ++ [msg]);
+      None;
+      Switch swId pts tbl inp outp ({| msg |} <+> ctrlm) switchm;
+      OpenFlowLink swId fromSwitch fromCtrl
+    ]
       where
   "ControllerOpenFlow[ c ; l ; obs ; c0 ; l0 ]" := 
     (forall sws links ofLinks ofLinks',
@@ -322,7 +304,14 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
       step 
         (State (sws ++ sw :: sws0) links ofLinks ctrl)
         obs
-        (State (sws ++ sw0 :: sws0) links ofLinks ctrl)).
+        (State (sws ++ sw0 :: sws0) links ofLinks ctrl))
+    and
+  "SwitchOpenFlow[ sw ; of ; obs ; sw0 ; of0 ]" :=
+    (forall sws sws0 links ofLinks ofLinks0 ctrl,
+      step
+        (State (sws ++ sw :: sws0) links (ofLinks ++ of :: ofLinks0) ctrl)
+        obs
+        (State (sws ++ sw0 :: sws0) links (ofLinks ++ of0 :: ofLinks0) ctrl)).
 
 
 

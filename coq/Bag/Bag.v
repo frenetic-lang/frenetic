@@ -148,6 +148,7 @@ Module Bag.
       reflexivity.
     Qed.
 
+
     Instance union_m : 
       Proper (Bag_equiv ==> Bag_equiv ==> Bag_equiv) Union.
     Proof with auto.
@@ -326,8 +327,6 @@ Module Bag.
     omega.
   Qed.
 
-  
-
 End Bag.
 
 Notation "x <+> y" := (Bag.Union x y) : bag_scope.
@@ -361,18 +360,16 @@ Local Open Scope bag_scope.
 
 Ltac bag_perm n :=
   match goal with
-    | |- ?bag === ?bag => 
-      idtac "SOLVED.";
+    | |- ?bag === ?bag =>
       apply reflexivity
     | |- ?b <+> ?lst === ?b <+> ?lst0 =>
       let newn := eval compute in (Bag.depth lst) in
-        idtac "popped" b "now solving" lst "and" lst0;
         apply Bag.pop_union_l;
           bag_perm newn
     | |- ?b <+> ?lst1  === ?lst2 =>
       match eval compute in n with
-        | O => idtac "failed"; fail "out of time / not equivalent"
-        | _ => idtac "Rotating: " b "<+>" lst1 "===" lst2;
+        | O => fail "out of time / not equivalent"
+        | _ =>
           apply Bag.rotate_union;
             repeat rewrite -> Bag.union_assoc;
               bag_perm (pred n)
