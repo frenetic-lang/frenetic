@@ -63,7 +63,6 @@ Module Make (Import Atoms : ATOMS).
     simpl in *...
   Qed.
   
-
   Theorem weak_sim_2 :
     weak_simulation abstractStep concreteStep (inverse_relation bisim_relation).
   Proof with auto.

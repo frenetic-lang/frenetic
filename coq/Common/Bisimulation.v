@@ -1,6 +1,6 @@
 Set Implicit Arguments.
 
-Require Common.Types.
+Require Import Common.Types.
 
 Local Open Scope list_scope.
 
@@ -25,6 +25,12 @@ Inductive multistep (A Ob : Type) (step : step A Ob)
     multistep step a0 obs a1 ->
     multistep step a (ob :: obs) a1.
 
+Definition list_of_option {A : Type} (opt : option A) : list A :=
+  match opt with
+    | Some a => [a]
+    | None => nil
+  end.
+
 Definition weak_simulation
   (S T Ob : Type)
   (step_S : step S Ob)
@@ -32,14 +38,11 @@ Definition weak_simulation
   (R : relation S T) :=
   forall (s : S) (t : T),
     R s t  ->
-    (forall (s' : S) (a : Ob), step_S s (Some a) s' ->
+    forall (s' : S) (obs : option Ob), 
+      step_S s obs s' ->
       exists (t' : T), 
         R s' t' /\
-        multistep step_T t (a :: nil) t') /\
-    (forall (s' : S), step_S s None s' ->
-      exists (t' : T), 
-        R s' t' /\
-        multistep step_T t nil t').
+        multistep step_T t (list_of_option obs) t'.
 
 Definition weak_bisimulation
   (S T A : Type) 
