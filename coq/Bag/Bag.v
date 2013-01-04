@@ -327,7 +327,53 @@ Module Bag.
     omega.
   Qed.
 
+  Lemma FromList_map_iff : forall (A B : Type) (EA : Eq A) (EB : Eq B)
+    (f : A -> B) (bag1 bag2 : Bag.bag A),
+    Bag.Bag_equiv EA bag1 bag2 ->
+    Bag.Bag_equiv EB
+    (Bag.FromList (map f (Bag.to_list bag1)))
+    (Bag.FromList (map f (Bag.to_list bag2))).
+  Proof.
+  Admitted.
+
+  Lemma unions_iff : forall (A B : Type) (EA : Eq A) (EB : Eq B)
+    (f : A -> Bag.bag B) (bag1 bag2 : Bag.bag A),
+    Bag.Bag_equiv EA bag1 bag2 ->
+    Bag.Bag_equiv EB
+    (Bag.unions (map f (Bag.to_list bag1)))
+    (Bag.unions (map f (Bag.to_list bag2))).
+  Proof with auto.
+    intros.
+  unfold Bag.Bag_equiv in *.
+  intros.
+  induction bag1.
+  (* Bag 1 is empty. *)
+  induction bag2...
+    remember (H a).
+    clear Heqe0.
+    simpl in *.
+    destruct (eqdec a a)... inversion e0. contradiction n...
+    simpl in *.
+    assert (forall e, Bag.multiplicity EA e bag2_1 = 0 /\
+            Bag.multiplicity EA e bag2_2 = 0).
+      intros.
+      pose (X := H e0).
+      omega.
+    assert (forall e, 0 = Bag.multiplicity EA e bag2_1).
+      intros.
+      pose (X := H0 e0).
+      destruct X...
+    assert (forall e, 0 = Bag.multiplicity EA e bag2_2 ).
+      intros.
+      pose (X := H0 e0).
+      destruct X...
+    apply IHbag2_1 in H1.
+    apply IHbag2_2 in H2.
+  Admitted.
+
+
 End Bag.
+
 
 Notation "x <+> y" := (Bag.Union x y) : bag_scope.
 Notation "{| x |}" := (Bag.Singleton x) : bag_scope.

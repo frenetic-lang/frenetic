@@ -52,6 +52,18 @@ Module Make (Import Atoms : ATOMS).
     simpl in X...
   Qed.
 
+  Lemma ConsistentDataLinks_untouched : forall 
+    { sws sws' links ofLinks ofLinks' ctrl ctrl' },
+    ConsistentDataLinks (State sws links ofLinks ctrl) ->
+    ConsistentDataLinks (State sws' links ofLinks' ctrl').
+  Proof with auto with datatypes.
+    intros.
+    unfold ConsistentDataLinks in *.
+    intros.
+    simpl in *...
+  Qed.
+  
+
   Theorem weak_sim_2 :
     weak_simulation abstractStep concreteStep (inverse_relation bisim_relation).
   Proof with auto.
@@ -92,7 +104,9 @@ Module Make (Import Atoms : ATOMS).
     destruct Xin as [sws [sws0 Xin]].
     remember (process_packet switch_flowTable0 pt pk) as Y.
     destruct Y as [ newPks pktIns ].
-    pose (state0 :=
+    subst.
+    exists
+      (@ConcreteState
       (State 
         (sws ++ 
           (Switch switch_swichId0 switch_ports0 switch_flowTable0
@@ -103,15 +117,53 @@ Module Make (Import Atoms : ATOMS).
           :: sws0)
         state_dataLinks0
         state_openFlowLinks0
-        state_controller0)).
-    subst.
-    exists
-      (@ConcreteState
-        state0
+        state_controller0)
         (FlowTablesSafe_untouched concreteState_flowTableSafety0)
-        concreteState_consistentDataLinks0).
+         concreteState_consistentDataLinks0).
     simpl in *.
+    destruct ptpk.
+    simpl in XmemEq.
+    inversion XmemEq; subst.
     split.
+    Focus 2.
+    apply multistep_tau with 
+      (a0 := (@ConcreteState (@State (sws ++ (      @Switch sw switch_ports0 switch_flowTable0
+      (({| (pt,pk) |}) <+> (Bag.FromList pks <+> Bag.FromList pks0))
+      switch_outputPackets0
+        switch_fromController0
+        switch_fromSwitch0) :: sws0) state_dataLinks0 
+          state_openFlowLinks0 state_controller0)
+        (FlowTablesSafe_untouched concreteState_flowTableSafety0)
+        concreteState_consistentDataLinks0)).
+    unfold concreteStep.
+    simpl.
+    apply StepEquivSwitch.
+      unfold Equivalence.equiv.
+      apply SwitchEquiv; try apply reflexivity.
+        admit. (* annoying but true *)
+    apply multistep_obs with 
+      (a0 := (@ConcreteState
+      (State 
+        (sws ++ 
+          (Switch sw  switch_ports0 switch_flowTable0
+            ((Bag.FromList pks) <+> (Bag.FromList pks0))
+            (Bag.FromList newPks <+> switch_outputPackets0)
+            switch_fromController0
+            (Bag.FromList (map (PacketIn pt)  pktIns) <+> switch_fromSwitch0))
+          :: sws0)
+        state_dataLinks0
+        state_openFlowLinks0
+        state_controller0)        
+        (FlowTablesSafe_untouched concreteState_flowTableSafety0)
+        concreteState_consistentDataLinks0)).
+    unfold concreteStep.
+    simpl.
+    subst.
+    clear H.
+    simpl.
+    apply PktProcess...
+    apply multistep_nil.
+
     unfold inverse_relation.
     unfold bisim_relation.
     unfold relate.
@@ -122,7 +174,7 @@ Module Make (Import Atoms : ATOMS).
       b0 === b1.
 
     clear concreteState_consistentDataLinks0.
-    pose (switch0 := Switch switch_swichId0 switch_ports0 switch_flowTable0 
+    pose (switch0 := Switch sw switch_ports0 switch_flowTable0 
       switch_inputPackets0
       switch_outputPackets0
       switch_fromController0
@@ -152,26 +204,14 @@ Module Make (Import Atoms : ATOMS).
     rewrite -> Xmem.
     rewrite -> map_app.
     autorewrite with bag using simpl.
-    rewrite -> XmemEq.
     symmetry in HeqY.
     apply Z in HeqY.
     simpl in HeqY.
-    assert (switch_swichId0 = sw) as W.
-      destruct ptpk.
-      simpl in XmemEq.
-      inversion XmemEq...
     clear Z.
     subst.
     rewrite <- HeqY.
     autorewrite with bag using simpl.
     bag_perm 100.
-    apply multistep_obs with 
-      (a0 := (@ConcreteState
-        state0
-        (FlowTablesSafe_untouched concreteState_flowTableSafety0)
-        concreteState_consistentDataLinks0)).
-    unfold concreteStep.
-    simpl in *.
 
     
   Admitted.
