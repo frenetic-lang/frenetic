@@ -88,6 +88,14 @@ Module Bag.
       exact Bag_equiv_is_Equivalence.
     Qed.
 
+    Fixpoint Mem (x : A) (b : bag A) : Prop := 
+      match b with
+        | Empty => False
+        | Singleton y => x = y
+        | Union bag1 bag2 => Mem x bag1 \/ Mem x bag2
+        | FromList lst => In x lst
+      end.
+
     Lemma union_iff : forall (x : A) (b1 b2 : bag A),
       multiplicity x (Union b1 b2) = multiplicity x b1 + multiplicity x b2.
     Proof with auto.
@@ -303,3 +311,68 @@ Add Parametric Morphism (A : Type) (E : Eq A) : Bag.Union with signature
   apply Bag.union_m.
 Qed.
 
+Local Open Scope bag_scope.
+
+Ltac bag_perm n :=
+  match goal with
+    | |- ?bag === ?bag => 
+      idtac "SOLVED.";
+      apply reflexivity
+    | |- ?b <+> ?lst === ?b <+> ?lst0 =>
+      let newn := eval compute in (Bag.depth lst) in
+        idtac "popped" b "now solving" lst "and" lst0;
+        apply Bag.pop_union_l;
+          bag_perm newn
+    | |- ?b <+> ?lst1  === ?lst2 =>
+      match eval compute in n with
+        | O => idtac "failed"; fail "out of time / not equivalent"
+        | _ => idtac "Rotating: " b "<+>" lst1 "===" lst2;
+          apply Bag.rotate_union;
+            repeat rewrite -> Bag.union_assoc;
+              bag_perm (pred n)
+      end
+  end.
+
+Ltac solve_bag_permutation :=
+  bag_perm 100.
+
+Example solve_bag_perm_example1 : forall (A : Type) (E: Eq A)
+  (b0 b1 b2 : Bag.bag A),
+  b0 <+> b1 <+> b2 === b0 <+> b1 <+> b2.
+Proof.
+  intros.
+  solve_bag_permutation.
+Qed.
+
+Example solve_bag_perm_example2 : forall (A : Type) (E: Eq A)
+  (b0 b1 b2 : Bag.bag A),
+  b0 <+> b1 <+> b2 === b1 <+> b2 <+> b0.
+Proof.
+  intros.
+  solve_bag_permutation.
+Qed.
+
+
+Example solve_bag_perm_example3 : forall (A : Type) (E: Eq A)
+  (b0 b1 b2 : Bag.bag A),
+  b0 <+> b1 <+> b2 === b1 <+> b0 <+> b2.
+Proof.
+  intros.
+  solve_bag_permutation.
+Qed.
+
+Example solve_bag_perm_example4 : forall (A : Type) (E: Eq A)
+  (b0 b1 b2 b3 b4 b5 b6: Bag.bag A),
+  b3 <+> b0 <+> b5 <+> b1 <+> b4 <+> b2 <+> b6 === 
+  b1 <+> b4 <+> b5 <+> b6 <+> b3 <+> b0 <+> b2.
+Proof.
+  intros.
+   bag_perm 100.
+Qed.
+
+Example solve_bag_perm_example5 : forall (A : Type) (E: Eq A)
+  (b0 b1 b2 : Bag.bag A),
+  b0 <+> b2 === b1 <+> b2.
+Proof.
+  intros.
+Admitted.

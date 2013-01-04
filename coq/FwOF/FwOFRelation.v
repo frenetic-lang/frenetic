@@ -14,72 +14,6 @@ Local Open Scope list_scope.
 Local Open Scope equiv_scope.
 Local Open Scope bag_scope.
 
-
-Ltac bag_perm n:=
-  match goal with
-    | |- ?bag === ?bag => 
-      idtac "SOLVED.";
-      apply reflexivity
-    | |- ?b <+> ?lst === ?b <+> ?lst0 =>
-      let newn := eval compute in (Bag.depth lst) in
-        idtac "popped" b "now solving" lst "and" lst0;
-        apply Bag.pop_union_l;
-          bag_perm newn
-    | |- ?b <+> ?lst1  === ?lst2 =>
-      match eval compute in n with
-        | O => idtac "failed"; fail "out of time / not equivalent"
-        | _ => idtac "Rotating: " b "<+>" lst1 "===" lst2;
-          apply Bag.rotate_union;
-            repeat rewrite -> Bag.union_assoc;
-              bag_perm (pred n)
-      end
-  end.
-
-Ltac solve_bag_permutation :=
-  bag_perm 100.
-
-Example solve_bag_perm_example1 : forall (A : Type) (E: Eq A)
-  (b0 b1 b2 : Bag.bag A),
-  b0 <+> b1 <+> b2 === b0 <+> b1 <+> b2.
-Proof.
-  intros.
-  solve_bag_permutation.
-Qed.
-
-Example solve_bag_perm_example2 : forall (A : Type) (E: Eq A)
-  (b0 b1 b2 : Bag.bag A),
-  b0 <+> b1 <+> b2 === b1 <+> b2 <+> b0.
-Proof.
-  intros.
-  solve_bag_permutation.
-Qed.
-
-
-Example solve_bag_perm_example3 : forall (A : Type) (E: Eq A)
-  (b0 b1 b2 : Bag.bag A),
-  b0 <+> b1 <+> b2 === b1 <+> b0 <+> b2.
-Proof.
-  intros.
-  solve_bag_permutation.
-Qed.
-
-Example solve_bag_perm_example4 : forall (A : Type) (E: Eq A)
-  (b0 b1 b2 b3 b4 b5 b6: Bag.bag A),
-  b3 <+> b0 <+> b5 <+> b1 <+> b4 <+> b2 <+> b6 === 
-  b1 <+> b4 <+> b5 <+> b6 <+> b3 <+> b0 <+> b2.
-Proof.
-  intros.
-   bag_perm 100.
-Qed.
-
-Example solve_bag_perm_example5 : forall (A : Type) (E: Eq A)
-  (b0 b1 b2 : Bag.bag A),
-  b0 <+> b2 === b1 <+> b2.
-Proof.
-  intros.
-Admitted.
-
-
 Module Make (Import Atoms : ATOMS).
 
   Module Concrete := ConcreteSemantics (Atoms).
@@ -207,6 +141,28 @@ Module Make (Import Atoms : ATOMS).
   Definition bisim_relation : relation concreteState abst_state :=
     fun (st : concreteState) (ast : abst_state) => 
       ast === (relate (concreteState_state st)).
+
+  Theorem weak_sim_2 :
+    weak_simulation abstractStep concreteStep (inverse_relation bisim_relation).
+  Proof with auto.
+    unfold weak_simulation.
+    intros.
+    unfold inverse_relation in H.
+    unfold bisim_relation in H.
+    unfold relate in H.
+    destruct t. simpl in *.
+    split; intros.
+    (* Observation steps. *)
+    inversion H0; subst.
+    destruct concreteState_state0.
+    simpl in *.
+    assert (exists switch, In switch state_switches0 /\ switch_swichId switch = sw).
+      admit. (* seriously *)
+    destruct H1 as [switch [J J0]].
+    apply in_split in J.
+    destruct J as [switches [switches' J]].
+    subst.
+  Admitted.
 
   Theorem weak_sim_1 :
     weak_simulation concreteStep abstractStep bisim_relation.
@@ -402,12 +358,6 @@ Module Make (Import Atoms : ATOMS).
     bag_perm 100. (* #winning *)
     apply multistep_nil.
   Qed.
-
-  Theorem weak_sim_2 :
-    weak_simulation abstractStep concreteStep (inverse_relation bisim_relation).
-  Proof with auto.
-
-  Admitted.
 
 
   Theorem fwof_abst_weak_bisim :
