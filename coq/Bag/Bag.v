@@ -96,6 +96,52 @@ Module Bag.
         | FromList lst => In x lst
       end.
 
+    Lemma Mem_equiv : forall (x : A) (b1 b2 : bag A),
+      b1 === b2 ->
+      Mem x b1 ->
+      Mem x b2.
+    Proof with auto.
+      intros.
+      unfold Equivalence.equiv in H.
+      unfold Bag_equiv in H.
+      assert (multiplicity x b1 = multiplicity x b2) as X...
+      clear H.
+
+      induction b1.
+        inversion H0.
+        simpl in H0.
+        subst.
+      (* b1 is Singleton *)
+      induction b2.
+      simpl in X.
+      destruct (eqdec a a). inversion X. contradiction n...
+      simpl in X.
+      destruct (eqdec a a).
+        destruct (eqdec a a0). subst... inversion X. contradiction n...
+      simpl in *.
+      destruct (eqdec a a).
+      assert (1 = multiplicity a b2_1 \/ 1 = multiplicity a b2_2) as Z.
+        omega.
+      destruct Z...
+      contradiction n...
+      simpl in X.
+      destruct (eqdec a a).
+        induction l.
+        simpl in X. inversion X.
+        simpl in X.
+        destruct (eqdec a a0); subst.
+        simpl...
+        simpl.
+        right.
+        pose (Z := IHl X).
+        simpl in Z...
+        contradiction n...
+      (* b1 is a Union *)
+      induction b2.
+      simpl in X.
+      simpl in H0.
+    Admitted.
+
     Lemma union_iff : forall (x : A) (b1 b2 : bag A),
       multiplicity x (Union b1 b2) = multiplicity x b1 + multiplicity x b2.
     Proof with auto.

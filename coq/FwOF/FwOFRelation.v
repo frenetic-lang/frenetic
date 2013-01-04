@@ -156,11 +156,27 @@ Module Make (Import Atoms : ATOMS).
     inversion H0; subst.
     destruct concreteState_state0.
     simpl in *.
-    assert (exists switch, In switch state_switches0 /\ switch_swichId switch = sw).
-      admit. (* seriously *)
-    destruct H1 as [switch [J J0]].
-    apply in_split in J.
-    destruct J as [switches [switches' J]].
+    assert (Bag.Mem (sw,pt,pk) (({|(sw,pt,pk)|}) <+> lps)) as J.
+      simpl...
+    remember (Bag.Mem_equiv (sw,pt,pk) H J) as X.
+    clear HeqX.
+    simpl in X.
+    destruct X as [X | [X | X]].
+    (* The packet in on a switch. *)
+    induction state_switches0.
+    simpl in X. inversion X.
+    simpl in X. destruct X as [X | X].
+    destruct a.
+    simpl in X.
+    destruct X as [X | [X | X]].
+    (* The packet is in the input buffer *)
+    induction switch_inputPackets0.
+    simpl in X. inversion X.
+    simpl in X.
+    destruct X as [X | X]; (idtac || inversion X).
+    destruct a.
+    simpl in X.
+    inversion X.
     subst.
   Admitted.
 
