@@ -4,6 +4,7 @@ Require Import Arith.Peano_dec.
 Require Import Coq.Lists.List.
 Open Local Scope list_scope.
 
+(* TODO(arjun): try to Require Export ListNotations (submodule of List) instead. *)
 Notation "[ a ; .. ; b ]" := (a :: .. (b :: nil) ..) : list_scope.
 
 Definition Eqdec (A : Type) :=

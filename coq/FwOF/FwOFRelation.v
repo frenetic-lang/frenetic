@@ -161,14 +161,20 @@ Module Make (Import Atoms : ATOMS).
     remember (Bag.Mem_equiv (sw,pt,pk) H J) as X.
     clear HeqX.
     simpl in X.
+    clear J.
     destruct X as [X | [X | X]].
     (* The packet in on a switch. *)
-    induction state_switches0.
-    simpl in X. inversion X.
-    simpl in X. destruct X as [X | X].
-    destruct a.
-    simpl in X.
-    destruct X as [X | [X | X]].
+    Axiom Mem_unions : forall (A : Type) (E : Eq A) (x : A) lst, 
+      Bag.Mem x (Bag.unions lst) ->
+      exists elt, In elt lst /\ Bag.Mem x elt.
+    apply Mem_unions in X.
+    destruct X as [switch_abst [ Xin Xmem ]].
+    rewrite -> in_map_iff in Xin.
+    destruct Xin as [switch [Xrel Xin]].
+    subst.
+    destruct switch.
+    simpl in Xmem.
+    destruct Xmem as [Xmem | [Xmem | Xmem]].
     (* The packet is in the input buffer *)
     induction switch_inputPackets0.
     simpl in X. inversion X.
