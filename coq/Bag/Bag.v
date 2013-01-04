@@ -208,6 +208,26 @@ Module Bag.
       destruct (eqdec e x)...
     Qed.
 
+    Lemma FromList_app : forall lst1 lst2,
+      FromList (lst1 ++ lst2) === Union (FromList lst1) (FromList lst2).
+    Proof with auto.
+      unfold Equivalence.equiv.
+      unfold Bag_equiv.
+      intros.
+      simpl.
+      induction lst1...
+      simpl in *.
+      destruct (eqdec e a); subst...
+      omega.
+    Qed.
+
+    Lemma FromList_nil_is_Empty : FromList nil === Empty.
+    Proof with auto.
+      unfold Equivalence.equiv.
+      unfold Bag_equiv.
+      intros...
+    Qed.
+
   End Methods.
 
   Lemma map_union : forall (A B : Type) {EA : Eq A} {EB : Eq B}
@@ -236,13 +256,23 @@ Module Bag.
     omega.
   Qed.
 
-  Axiom unions_unlist_2 : forall (A B : Type) (EA : Eq A) (EB : Eq B)
+  Lemma unions_unlist_2 : forall (A B : Type) (EA : Eq A) (EB : Eq B)
     (f : A -> Bag.bag B) (lst : list A) (bag : Bag.bag A),
-    Bag.unions (map f (lst ++ Bag.to_list bag)) ===
-    Bag.Union
-    (Bag.unions (map f lst)) 
-    (Bag.unions (map f (Bag.to_list bag))).
+    Bag_equiv EB
+      (unions (map f (lst ++ Bag.to_list bag)))
+      (Union
+        (unions (map f lst)) 
+        (unions (map f (Bag.to_list bag)))).
+  Proof with auto with datatypes.
+    unfold Equivalence.equiv.
+    unfold Bag_equiv.
+    intros.
+    induction lst...
+    simpl in *.
+    omega.
+  Qed.
 
+  
 
 End Bag.
 
@@ -253,10 +283,12 @@ Notation "{| |}" := (Bag.Empty) : bag_scope.
 Hint Rewrite 
   Bag.union_assoc 
   Bag.unions_app
+  Bag.FromList_app
   map_app 
   Bag.from_list_cons
   Bag.union_empty_r 
   Bag.union_empty_l
+  Bag.FromList_nil_is_Empty
  : bag.
 
 
