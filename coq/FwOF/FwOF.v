@@ -138,6 +138,10 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
   | FlowMod_NotBarrierRequest : forall fm,
       NotBarrierRequest (FlowMod fm).
 
+  (** Devices of the same type do not interact in a single
+      step. Therefore, we never have to permute the lists below. If we
+      instead had just one list of all devices, we would have to worry
+      about permuting the list or define symmetric step-rules. *)
   Record state := State {
     state_switches : list switch;
     state_dataLinks : list dataLink;

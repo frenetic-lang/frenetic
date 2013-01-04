@@ -144,45 +144,9 @@ Module Make (Import Atoms : ATOMS).
 
 End Make.
 
+
+
 (*
-  Theorem weak_sim_2 :
-    weak_simulation abstractStep concreteStep (inverse_relation bisim_relation).
-  Proof with auto.
-    unfold weak_simulation.
-    intros.
-    unfold inverse_relation in H.
-    unfold bisim_relation in H.
-    unfold relate in H.
-    destruct t. simpl in *.
-    split; intros.
-    (* Observation steps. *)
-    inversion H0; subst.
-    destruct concreteState_state0.
-    simpl in *.
-    assert (Bag.Mem (sw,pt,pk) (({|(sw,pt,pk)|}) <+> lps)) as J.
-      simpl...
-    remember (Bag.Mem_equiv (sw,pt,pk) H J) as X.
-    clear HeqX.
-    simpl in X.
-    clear J.
-    destruct X as [X | [X | X]].
-    (* The packet in on a switch. *)
-    Axiom Mem_unions : forall (A : Type) (E : Eq A) (x : A) lst, 
-      Bag.Mem x (Bag.unions lst) ->
-      exists elt, In elt lst /\ Bag.Mem x elt.
-    apply Mem_unions in X.
-    destruct X as [switch_abst [ Xin Xmem ]].
-    rewrite -> in_map_iff in Xin.
-    destruct Xin as [switch [Xrel Xin]].
-    subst.
-    destruct switch.
-    simpl in Xmem.
-    destruct Xmem as [Xmem | [Xmem | Xmem]].
-    (* The packet is in the input buffer *)
-  Admitted.
-
-
-
   Theorem fwof_abst_weak_bisim :
     weak_bisimulation concreteStep abstractStep bisim_relation.
   Proof.
@@ -194,5 +158,4 @@ End Make.
 
 End Make.    
   
-
 *)  
