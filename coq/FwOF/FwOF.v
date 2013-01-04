@@ -2,6 +2,7 @@ Set Implicit Arguments.
 
 Require Import Coq.Lists.List.
 Require Import Coq.Structures.Equalities.
+Require Import Coq.Classes.Equivalence.
 Require Import Common.Types.
 Require Import Bag.Bag.
 
@@ -121,6 +122,49 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
     openFlowLink_fromSwitch : list fromSwitch;
     openFlowLink_fromController : list fromController
   }.
+
+  (** Switches contain bags and bags do not have unique representations. In
+      proofs, it is common to replace a bag with an equivalent (but unequal)
+      bag. When we do, we need to replace the switch with an equivalent switch
+      too. *)
+  Section Equivalences.
+
+    Inductive switch_equiv : switch -> switch -> Prop :=
+    | SwitchEquiv : forall swId pts tbl inp inp' outp outp' ctrlm ctrlm'
+                             switchm switchm',
+        inp === inp' ->
+        outp === outp' ->
+        ctrlm  === ctrlm' ->
+        switchm === switchm' ->
+        switch_equiv (Switch swId pts tbl inp outp ctrlm switchm)
+                     (Switch swId pts tbl inp' outp' ctrlm' switchm').
+
+    Hint Constructors switch_equiv.
+
+    Lemma switch_equiv_is_Equivalence : Equivalence switch_equiv.
+    Proof with intros; eauto.
+      split.
+      unfold Reflexive...
+      destruct x.
+      apply SwitchEquiv; apply reflexivity.
+      unfold Symmetric...
+      inversion H.
+      apply SwitchEquiv; apply symmetry...
+      unfold Transitive...
+      destruct x. destruct y. destruct z.
+      inversion H.
+      inversion H0.
+      subst.
+      apply SwitchEquiv; eapply transitivity...
+    Qed.
+
+  End Equivalences.
+    
+  Instance switch_Equivalence : Equivalence switch_equiv.
+  Proof.
+    exact switch_equiv_is_Equivalence.
+  Qed.
+      
 
   Definition observation := (switchId * portId * packet) %type.
 
