@@ -70,6 +70,19 @@ Module Make (Import Atoms : ATOMS).
     unfold concreteStep in H0.
     destruct s'. simpl in *.
     inversion H0; subst; simpl in *.
+    (* Switch replaced with an equivalent switch. *)
+    idtac "Proving weak_sim_1 (Case 3 of 12) ...".
+    exists t.
+    split.
+    unfold bisim_relation.
+    unfold relate.
+    rewrite -> H.
+    autorewrite with bag using simpl.
+    assert (relate_switch switch0 === relate_switch switch') as Hguess.
+      admit.
+    rewrite -> Hguess.
+    apply reflexivity.
+    apply multistep_nil.
     (* Switch processes a flow-mod *)
     idtac "Proving weak_sim_1 (Case 2 of 11) ...".
     exists t.

@@ -196,6 +196,9 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
   }.
     
   Inductive step : state -> option observation -> state -> Prop :=
+  | StepEquivSwitch : forall switch switch',
+    switch === switch' ->
+    SwitchStep[ switch; None; switch' ]
   | PktProcess : forall swId pts tbl pt pk inp outp ctrlm switchm outp'
                         pksToCtrl,
     process_packet tbl pt pk = (outp', pksToCtrl) ->
