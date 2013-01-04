@@ -380,14 +380,14 @@ Notation "{| x |}" := (Bag.Singleton x) : bag_scope.
 Notation "{| |}" := (Bag.Empty) : bag_scope.
 
 Hint Rewrite 
-  Bag.union_assoc 
-  Bag.unions_app
-  Bag.FromList_app
-  map_app 
-  Bag.from_list_cons
   Bag.union_empty_r 
   Bag.union_empty_l
   Bag.FromList_nil_is_Empty
+  Bag.union_assoc 
+  Bag.FromList_app
+  Bag.from_list_cons
+  map_app 
+  Bag.unions_app
  : bag.
 
 
