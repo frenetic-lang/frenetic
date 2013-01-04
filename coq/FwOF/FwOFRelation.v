@@ -142,6 +142,9 @@ Module Make (Import Atoms : ATOMS).
     fun (st : concreteState) (ast : abst_state) => 
       ast === (relate (concreteState_state st)).
 
+End Make.
+
+(*
   Theorem weak_sim_2 :
     weak_simulation abstractStep concreteStep (inverse_relation bisim_relation).
   Proof with auto.
@@ -176,210 +179,8 @@ Module Make (Import Atoms : ATOMS).
     simpl in Xmem.
     destruct Xmem as [Xmem | [Xmem | Xmem]].
     (* The packet is in the input buffer *)
-    induction switch_inputPackets0.
-    simpl in X. inversion X.
-    simpl in X.
-    destruct X as [X | X]; (idtac || inversion X).
-    destruct a.
-    simpl in X.
-    inversion X.
-    subst.
   Admitted.
 
-  Theorem weak_sim_1 :
-    weak_simulation concreteStep abstractStep bisim_relation.
-  Proof with auto with datatypes.
-    unfold weak_simulation.
-    intros.
-    unfold bisim_relation in H.
-    unfold relate in H.
-    destruct s. simpl in *.
-    split; intros.
-    unfold concreteStep in H0.
-    destruct s'. simpl in *.
-    inversion H0; subst.
-    inversion H1; subst.
-    simpl in *.
-    autorewrite with bag in H using (simpl in H)...
-    (* Pick out the observation. *)
-    rewrite -> Bag.union_comm in H.
-    rewrite -> Bag.union_assoc in H.
-    match goal with
-      | [ H : t === ?t0 <+> ?t1 |- _ ] => remember t1
-    end.
-    exists (Bag.unions (map (transfer swId) (abst_func swId pt pk)) <+> b).
-    split.
-    (* Showing the states are bisimilar *)
-    unfold bisim_relation.
-    unfold relate.
-    simpl.
-    rewrite -> map_app.
-    rewrite -> Bag.unions_app.
-    simpl.
-    rewrite -> Bag.unions_unlist_2.
-    rewrite -> Bag.unions_unlist_2.
-    repeat rewrite -> Bag.union_assoc.
-    assert (flow_table_safe swId tbl) as J.
-      refine (concreteState_flowTableSafety1
-        (Switch swId pts tbl inp (Bag.FromList outp' <+> outp) ctrlm
-          (Bag.FromList (map (PacketIn pt) pksToCtrl) <+> switchm)) _)...
-    unfold flow_table_safe in J.
-    pose (J0 := J pt pk outp' pksToCtrl H3).
-    subst.
-    rewrite <- J0.
-    repeat rewrite -> Bag.union_assoc.
-    bag_perm 100. (* #winning *)
-    (* STUPID TYPE CLASSES WHY *)
-    admit.
-    admit.
-    apply multistep_tau with (a0 := ({|(swId, pt, pk)|}) <+> b).
-    apply AbstractStepEquiv...
-    apply multistep_obs with
-      (a0 := (Bag.unions (map (transfer swId) (abst_func swId pt pk)) <+> b)).
-    apply AbstractStep.
-    subst.
-    apply multistep_nil.
-    (* steps with no observations. *)
-    intros.
-    unfold bisim_relation in H.
-    destruct s'.
-    inversion H0; subst; simpl in *.
-    (* Switch steps independently *)
-    inversion H1; subst; simpl in H.
-    (* Switch processes a flow-mod *)
-    autorewrite with bag in H using (simpl in H)...
-    exists t.
-    split.
-    unfold bisim_relation.
-    unfold relate.
-    simpl.
-    autorewrite with bag using simpl.
-    exact H.
-    apply multistep_nil.
-    (* Switch sends a PacketOut message out. *)
-    autorewrite with bag in H using (simpl in H)...
-    exists t.
-    split.
-    unfold bisim_relation.
-    unfold relate.
-    simpl.
-    autorewrite with bag using simpl.
-    rewrite -> H.
-    bag_perm 100. (* #winning *)
-    apply multistep_nil.
-    (* Switch sends/receives packets on the network. *)
-    inversion H1; subst; simpl in H.
-    (* Switch sends a packet out. *)
-    autorewrite with bag in H using (simpl in H)...
-    exists t.
-    split.
-    unfold bisim_relation.
-    unfold relate.
-    simpl.
-    destruct dst.
-    autorewrite with bag using simpl.
-    rewrite -> H.
-    clear H.
-    clear H0.
-    clear concreteState_flowTableSafety1.
-    clear concreteState_flowTableSafety0.
-    unfold ConsistentDataLinks in concreteState_consistentDataLinks0.
-    rename concreteState_consistentDataLinks0 into H.
-    simpl in H.
-    assert (In (DataLink (swId,pt) pks (s,p)) 
-               (links ++ (DataLink (swId,pt) pks (s,p))  :: links0)) as J...
-    apply H in J.
-    simpl in J.
-    rewrite -> J.
-    bag_perm 100. (* #winning *)
-    apply multistep_nil.
-    (* Switch reads a packet off a data-link *)
-    autorewrite with bag in H using (simpl in H)...
-    exists t.
-    split.
-    unfold bisim_relation.
-    unfold relate.
-    simpl.
-    rewrite -> H.
-    autorewrite with bag using simpl.
-    bag_perm 100. (* #winning *)
-    apply multistep_nil.
-    (* Controller takes an internal step. *)
-    subst.
-    simpl in *.
-    exists t.
-    split.
-    unfold bisim_relation.
-    unfold relate.
-    rewrite -> H.
-    simpl.
-    rewrite -> (ControllerRemembersPackets H1).
-    apply reflexivity.
-    apply multistep_nil.
-    (* Controller sends/recvs an OpenFlow message. *)
-    inversion H1; subst; simpl in H.
-    (* Controller recvs an OpenFlow message. *)
-    autorewrite with bag in H using (simpl in H)...
-    (* TODO(arjun): why didn't autorewrite do this? *)
-    rewrite -> (Bag.unions_app _ (map relate_openFlowLink ofLinks)) in H.
-    autorewrite with bag in H using (simpl in H)...
-    exists t.
-    split.
-    unfold bisim_relation.
-    unfold relate.
-    simpl.
-    autorewrite with bag using simpl.
-    rewrite -> H.
-    rewrite -> (ControllerRecvRemembersPackets H3).
-    bag_perm 100. (* #winning *)
-    apply multistep_nil.
-    (* Controller sends an OpenFlow message. *)
-    exists t.
-    split.
-    unfold bisim_relation.
-    unfold relate.
-    rewrite -> H.
-    simpl.
-    autorewrite with bag using simpl.
-    rewrite -> (ControllerSendForgetsPackets H3).
-    bag_perm 100. (* #winning *)
-    apply multistep_nil.
-    (* Switch sends/recvs an OpenFlow message!!! *)
-    inversion H1; subst; simpl in H.
-    (* Switch sends an OpenFlow message. *)
-    exists t.
-    split.
-    unfold bisim_relation.
-    unfold relate.
-    rewrite -> H.
-    autorewrite with bag using simpl.
-    bag_perm 100. (* #winning *)
-    apply multistep_nil.
-    (* Switch responds to a barrier. *)
-    exists t.
-    split.
-    unfold bisim_relation.
-    unfold relate.
-    rewrite -> H.
-    autorewrite with bag using simpl.
-    do 2 (rewrite -> (Bag.unions_app _ (map relate_switch sws))).
-    do 2 (rewrite -> (Bag.unions_app _ (map relate_openFlowLink ofLinks))).
-    autorewrite with bag using simpl.
-    bag_perm 100. (* #winning *)
-    apply multistep_nil.
-    (* Switch responds to a non-barrier message. *)
-    exists t.
-    split.
-    unfold bisim_relation.
-    unfold relate.
-    rewrite -> H.
-    autorewrite with bag using simpl.
-    do 2 (rewrite -> (Bag.unions_app _ (map relate_switch sws))).
-    do 2 (rewrite -> (Bag.unions_app _ (map relate_openFlowLink ofLinks))).
-    autorewrite with bag using simpl.
-    bag_perm 100. (* #winning *)
-    apply multistep_nil.
-  Qed.
 
 
   Theorem fwof_abst_weak_bisim :
@@ -394,4 +195,4 @@ Module Make (Import Atoms : ATOMS).
 End Make.    
   
 
-  
+*)  
