@@ -128,11 +128,6 @@ Module Make (Import Atoms : ATOMS).
       Bag.unions (map (select_packet_in sw) (map (PacketIn pt) packetIns)) ===
       Bag.unions (map (transfer sw) (abst_func sw pt pk)).
 
-  Definition state_switches (st : state) := 
-    match st with
-      | (switches, _, _, _) => switches
-    end.
-
   Record concreteState := ConcreteState {
     concreteState_state : state;
     concreteState_flowTableSafety :
@@ -155,7 +150,6 @@ Module Make (Import Atoms : ATOMS).
       ({| (sw,pt,pk) |} <+> lps)
       (Some (sw,pt,pk))
       (Bag.unions (map (transfer sw) (abst_func sw pt pk)) <+> lps).
-
 
   Definition relate_switch (sw : switch) : abst_state :=
     match sw with
@@ -182,33 +176,31 @@ Module Make (Import Atoms : ATOMS).
   Axiom relate_controller : controller -> abst_state.
 
   Definition relate (st : state) : abst_state :=
-    match st with
-      | (switches, links, ofLinks, ctrl) =>
-        Bag.unions (map relate_switch switches) <+>
-        Bag.unions (map relate_dataLink links) <+>
-        Bag.unions (map relate_openFlowLink ofLinks) <+>
-        relate_controller ctrl
-    end.
-        
+    Bag.unions (map relate_switch (state_switches st)) <+>
+    Bag.unions (map relate_dataLink (state_dataLinks st)) <+>
+    Bag.unions (map relate_openFlowLink (state_openFlowLinks st)) <+>
+    relate_controller (state_controller st).
+
   Definition bisim_relation : relation concreteState abst_state :=
     fun (st : concreteState) (ast : abst_state) => 
       ast === (relate (concreteState_state st)).
 
-    
   Theorem weak_sim_1 :
     weak_simulation concreteStep abstractStep bisim_relation.
   Proof with auto with datatypes.
     unfold weak_simulation.
     intros.
-    split.
-    intros.
     unfold bisim_relation in H.
+    unfold relate in H.
+    destruct s. simpl in *.
+    split; intros.
     unfold concreteStep in H0.
-    destruct s. destruct s'. simpl in *.
+    destruct s'. simpl in *.
     inversion H0; subst.
     inversion H1; subst.
-    simpl in H.
+    simpl in *.
     autorewrite with bag in H using (simpl in H)...
+    (* Pick out the observation. *)
     rewrite -> Bag.union_comm in H.
     rewrite -> Bag.union_assoc in H.
     match goal with
@@ -216,16 +208,9 @@ Module Make (Import Atoms : ATOMS).
     end.
     exists (Bag.unions (map (transfer swId) (abst_func swId pt pk)) <+> b).
     split.
-    Focus 2.
-    apply multistep_tau with (a0 := ({|(swId, pt, pk)|}) <+> b).
-    apply AbstractStepEquiv...
-    apply multistep_obs with
-      (a0 := (Bag.unions (map (transfer swId) (abst_func swId pt pk)) <+> b)).
-    apply AbstractStep.
-    subst.
-    apply multistep_nil.
     (* Showing the states are bisimilar *)
     unfold bisim_relation.
+    unfold relate.
     simpl.
     rewrite -> map_app.
     rewrite -> Bag.unions_app.
@@ -233,7 +218,6 @@ Module Make (Import Atoms : ATOMS).
     rewrite -> Bag.unions_unlist_2.
     rewrite -> Bag.unions_unlist_2.
     repeat rewrite -> Bag.union_assoc.
-    unfold state_switches in *.
     assert (flow_table_safe swId tbl) as J.
       refine (concreteState_flowTableSafety1
         (Switch swId pts tbl inp (Bag.FromList outp' <+> outp) ctrlm
@@ -249,47 +233,49 @@ Module Make (Import Atoms : ATOMS).
     admit.
     admit.
     admit.
-    
+    apply multistep_tau with (a0 := ({|(swId, pt, pk)|}) <+> b).
+    apply AbstractStepEquiv...
+    apply multistep_obs with
+      (a0 := (Bag.unions (map (transfer swId) (abst_func swId pt pk)) <+> b)).
+    apply AbstractStep.
+    subst.
+    apply multistep_nil.
     (* steps with no observations. *)
     intros.
     unfold bisim_relation in H.
-    destruct s.
     destruct s'.
-    destruct concreteState_state0 as [ [[switches links] ofLinks]  ctrl ].
-    destruct concreteState_state1 as [ [[switches' links'] ofLinks']  ctrl'].
-    simpl in *.
-    inversion H0; subst.
+    inversion H0; subst; simpl in *.
     (* Switch steps independently *)
-    inversion H6; subst.
+    inversion H1; subst; simpl in H.
     (* Switch processes a flow-mod *)
-    simpl in H.
     autorewrite with bag in H using (simpl in H)...
     exists t.
     split.
     unfold bisim_relation.
+    unfold relate.
     simpl.
     autorewrite with bag using simpl.
     exact H.
     apply multistep_nil.
     (* Switch sends a PacketOut message out. *)
-    simpl in H.
     autorewrite with bag in H using (simpl in H)...
     exists t.
     split.
     unfold bisim_relation.
+    unfold relate.
     simpl.
     autorewrite with bag using simpl.
     rewrite -> H.
     bag_perm 100. (* #winning *)
     apply multistep_nil.
     (* Switch sends/receives packets on the network. *)
-    inversion H2; subst.
+    inversion H1; subst; simpl in H.
     (* Switch sends a packet out. *)
-    simpl in H.
     autorewrite with bag in H using (simpl in H)...
     exists t.
     split.
     unfold bisim_relation.
+    unfold relate.
     simpl.
     autorewrite with bag using simpl.
     rewrite -> H.

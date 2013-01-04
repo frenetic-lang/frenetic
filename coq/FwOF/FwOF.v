@@ -216,36 +216,45 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
       (Switch swId pts tbl inp outp ({| msg |} <+> ctrlm) switchm)
       (OpenFlowLink swId fromSwitch fromCtrl).
 
-  Definition state := 
-    (list switch * list dataLink * list openFlowLink * controller) %type.
-
+  Record state := State {
+    state_switches : list switch;
+    state_dataLinks : list dataLink;
+    state_openFlowLinks : list openFlowLink;
+    state_controller : controller
+  }.
+    
+  (** TODO(arjun): We're getting very little by separating out
+      SwitchStep, TopoStep, etc.  I think it's actually more annoying
+      this way. *)
   Inductive step : state -> option observation -> state -> Prop :=
   | Step_SwitchStep : forall obs sw sw' sws sws0 links ofLinks ctrl,
       SwitchStep obs sw sw' ->
-      step (sws ++ sw :: sws0, links, ofLinks, ctrl)
+      step (State (sws ++ sw :: sws0) links ofLinks ctrl)
            obs
-           (sws ++ sw' :: sws0, links, ofLinks, ctrl)
+           (State (sws ++ sw' :: sws0) links ofLinks ctrl)
   | Step_TopoStep : forall sws sws0 sw sw' link link' links links0 ofLinks ctrl,
       TopoStep sw link sw' link' ->
-      step (sws ++ sw :: sws0, links ++ link :: links0, ofLinks, ctrl)
+      step (State (sws ++ sw :: sws0) (links ++ link :: links0) ofLinks ctrl)
            None
-           (sws ++ sw' :: sws0, links ++ link' :: links0, ofLinks, ctrl)
+           (State (sws ++ sw' :: sws0) (links ++ link' :: links0) ofLinks ctrl)
   | Step_controller : forall sws links ofLinks ctrl ctrl',
       controller_step ctrl ctrl' ->
-      step (sws, links, ofLinks, ctrl)
+      step (State sws links ofLinks ctrl)
            None
-           (sws, links, ofLinks, ctrl')
+           (State sws links ofLinks ctrl')
   | Step_ControllerOpenFlowStep : forall sws links ofLink ofLink'
       ofLinks ofLinks0 ctrl ctrl',
       ControllerOpenFlowStep ctrl ofLink ctrl' ofLink' ->
-      step (sws, links, ofLinks ++ ofLink :: ofLinks0, ctrl)
+      step (State sws links (ofLinks ++ ofLink :: ofLinks0) ctrl)
            None
-           (sws, links, ofLinks ++ ofLink' :: ofLinks0, ctrl')
+           (State sws links (ofLinks ++ ofLink' :: ofLinks0) ctrl')
   | Step_SwitchOpenFlowStep : forall sw sw' sws sws0 links ofLink ofLink'
       ofLinks ofLinks0 ctrl,
-    SwitchOpenFlowStep sw ofLink sw' ofLink' ->
-    step (sws ++ sw :: sws0, links, ofLinks ++ ofLink :: ofLinks0, ctrl)
-         None
-         (sws ++ sw' :: sws0, links, ofLinks ++ ofLink' :: ofLinks0, ctrl).
+      SwitchOpenFlowStep sw ofLink sw' ofLink' ->
+      step (State (sws ++ sw :: sws0) links (ofLinks ++ ofLink :: ofLinks0) 
+                  ctrl)
+           None
+           (State (sws ++ sw' :: sws0) links (ofLinks ++ ofLink' :: ofLinks0)
+             ctrl).
 
 End ConcreteSemantics.
