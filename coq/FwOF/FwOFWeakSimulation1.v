@@ -53,15 +53,15 @@ Module Make (Import Atoms : ATOMS).
     match goal with
       | [ H : t === ?t0 <+> ?t1 |- _ ] => remember t1
     end.
-    exists (Bag.unions (map (transfer swId) (abst_func swId pt pk)) <+> b).
+    exists (Bag.unions (map (transfer swId0) (abst_func swId0 pt pk)) <+> b).
     split.
     unfold bisim_relation.
     unfold relate.
     rewrite -> Heqb.
-    assert (FlowTableSafe swId tbl) as J.
+    assert (FlowTableSafe swId0 tbl0) as J.
       refine (concreteState_flowTableSafety1
-        swId pts tbl inp (Bag.FromList outp' <+> outp) ctrlm
-          (Bag.FromList (map (PacketIn pt) pksToCtrl) <+> switchm) _)...
+        swId0 pts0 tbl0 inp0 (Bag.FromList outp' <+> outp0) ctrlm0
+          (Bag.FromList (map (PacketIn pt) pksToCtrl) <+> switchm0) _)...
       simpl. auto with datatypes.
     unfold FlowTableSafe in J.
     pose (J0 := J pt pk outp' pksToCtrl H1).
@@ -71,10 +71,10 @@ Module Make (Import Atoms : ATOMS).
     rewrite -> (Bag.unions_app _ (map relate_switch sws)).
     autorewrite with bag using simpl.
     bag_perm 100. (* #winning *)
-    apply multistep_tau with (a0 := ({|(swId, pt, pk)|}) <+> b).
+    apply multistep_tau with (a0 := ({|(swId0, pt, pk)|}) <+> b).
     apply AbstractStepEquiv...
     apply multistep_obs with
-      (a0 := (Bag.unions (map (transfer swId) (abst_func swId pt pk)) <+> b)).
+      (a0 := (Bag.unions (map (transfer swId0) (abst_func swId0 pt pk)) <+> b)).
     apply AbstractStep.
     subst.
     apply multistep_nil.
@@ -105,11 +105,11 @@ Module Make (Import Atoms : ATOMS).
     unfold bisim_relation.
     unfold relate.
     rewrite -> H.
-    destruct dst.
+    destruct dst0.
     rename concreteState_consistentDataLinks0 into X.
     simpl in X.
-    assert (In (DataLink (swId,pt) pks (s,p)) 
-               (links ++ (DataLink (swId,pt) pks (s,p))  :: links0)) as J...
+    assert (In (DataLink (swId0,pt) pks0 (s,p)) 
+               (links0 ++ (DataLink (swId0,pt) pks0 (s,p))  :: links1)) as J...
     apply X in J.
     simpl in J.
     autorewrite with bag using simpl.
@@ -146,7 +146,7 @@ Module Make (Import Atoms : ATOMS).
     rewrite -> H.
     simpl.
     autorewrite with bag using simpl.
-    rewrite -> (Bag.unions_app _ (map relate_openFlowLink ofLinks)).
+    rewrite -> (Bag.unions_app _ (map relate_openFlowLink ofLinks0)).
     autorewrite with bag using simpl.
     rewrite -> (ControllerRecvRemembersPackets H1).
     bag_perm 100.
@@ -182,7 +182,7 @@ Module Make (Import Atoms : ATOMS).
     rewrite -> H.
     autorewrite with bag using simpl.
     do 2 (rewrite -> (Bag.unions_app _ (map relate_switch sws))).
-    do 2 (rewrite -> (Bag.unions_app _ (map relate_openFlowLink ofLinks))).
+    do 2 (rewrite -> (Bag.unions_app _ (map relate_openFlowLink ofLinks0))).
     autorewrite with bag using simpl.
     bag_perm 100.
     apply multistep_nil.
@@ -195,7 +195,7 @@ Module Make (Import Atoms : ATOMS).
     rewrite -> H.
     autorewrite with bag using simpl.
     do 2 (rewrite -> (Bag.unions_app _ (map relate_switch sws))).
-    do 2 (rewrite -> (Bag.unions_app _ (map relate_openFlowLink ofLinks))).
+    do 2 (rewrite -> (Bag.unions_app _ (map relate_openFlowLink ofLinks0))).
     autorewrite with bag using simpl.
     bag_perm 100.
     apply multistep_nil.

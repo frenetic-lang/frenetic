@@ -101,26 +101,29 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
     split. apply fromSwitch_eq_dec.
   Qed.
 
+  (* Field names have two purposes. Coq creates selectors with these names,
+     and also uses them to generate variable names in proofs. We spend
+     more time in FwOF proofs, so we pick short names here. *)
   Record switch := Switch {
-    switch_swichId : switchId;
-    switch_ports : list portId;
-    switch_flowTable : flowTable;
-    switch_inputPackets : Bag.bag (portId * packet);
-    switch_outputPackets :  Bag.bag (portId * packet);
-    switch_fromController : Bag.bag fromController;
-    switch_fromSwitch : Bag.bag fromSwitch
+    swId : switchId;
+    pts : list portId;
+    tbl : flowTable;
+    inp : Bag.bag (portId * packet);
+    outp :  Bag.bag (portId * packet);
+    ctrlm : Bag.bag fromController;
+    switchm : Bag.bag fromSwitch
   }.
   
   Record dataLink := DataLink {
-    dataLink_src : switchId * portId;
-    dataList_packets : list packet;
-    dataLink_dst : switchId * portId
+    src : switchId * portId;
+    pks : list packet;
+    dst : switchId * portId
   }.
   
   Record openFlowLink := OpenFlowLink {
-    openFlowLink_to : switchId;
-    openFlowLink_fromSwitch : list fromSwitch;
-    openFlowLink_fromController : list fromController
+    of_to : switchId;
+    of_switchm : list fromSwitch;
+    of_ctrlm : list fromController
   }.
 
   (** Switches contain bags and bags do not have unique representations. In
@@ -189,10 +192,10 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
       instead had just one list of all devices, we would have to worry
       about permuting the list or define symmetric step-rules. *)
   Record state := State {
-    state_switches : list switch;
-    state_dataLinks : list dataLink;
-    state_openFlowLinks : list openFlowLink;
-    state_controller : controller
+    switches : list switch;
+    links : list dataLink;
+    ofLinks : list openFlowLink;
+    ctrl : controller
   }.
     
   Inductive step : state -> option observation -> state -> Prop :=
@@ -315,8 +318,5 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
         (State (sws ++ sw :: sws0) links (ofLinks ++ of :: ofLinks0) ctrl)
         obs
         (State (sws ++ sw0 :: sws0) links (ofLinks ++ of0 :: ofLinks0) ctrl)).
-
-
-
 
 End ConcreteSemantics.

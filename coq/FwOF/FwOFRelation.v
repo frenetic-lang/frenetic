@@ -66,13 +66,13 @@ Module Make (Import Atoms : ATOMS).
 
   Definition FlowTablesSafe (st : state) : Prop :=
     forall swId pts tbl inp outp ctrlm switchm,
-      In (Switch swId pts tbl inp outp ctrlm switchm) (state_switches st) ->
+      In (Switch swId pts tbl inp outp ctrlm switchm) (switches st) ->
       FlowTableSafe swId tbl.
 
   Definition ConsistentDataLinks (st : state) : Prop :=
     forall (lnk : dataLink),
-      In lnk (state_dataLinks st) ->
-      topo (dataLink_src lnk) = Some (dataLink_dst lnk).
+      In lnk (links st) ->
+      topo (src lnk) = Some (dst lnk).
 
   Axiom ControllerRemembersPackets :
     forall (ctrl ctrl' : controller),
@@ -138,10 +138,10 @@ Module Make (Import Atoms : ATOMS).
 
 
   Definition relate (st : state) : abst_state :=
-    Bag.unions (map relate_switch (state_switches st)) <+>
-    Bag.unions (map relate_dataLink (state_dataLinks st)) <+>
-    Bag.unions (map relate_openFlowLink (state_openFlowLinks st)) <+>
-    relate_controller (state_controller st).
+    Bag.unions (map relate_switch (switches st)) <+>
+    Bag.unions (map relate_dataLink (links st)) <+>
+    Bag.unions (map relate_openFlowLink (ofLinks st)) <+>
+    relate_controller (ctrl st).
 
   Definition bisim_relation : relation concreteState abst_state :=
     fun (st : concreteState) (ast : abst_state) => 
