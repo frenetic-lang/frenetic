@@ -56,6 +56,10 @@ Module Make (Import Atoms : ATOMS).
     simpl in *...
   Qed.
 
+  Axiom mem_split : forall (A : Type) (E : Eq A) (x : A) (b : Bag.bag A),
+    Bag.Mem x b ->
+    exists b1, b === ({| x |}) <+> b1.
+
   Theorem weak_sim_2 :
     weak_simulation abstractStep concreteStep (inverse_relation bisim_relation).
   Proof with simpl;auto.
@@ -201,4 +205,49 @@ Module Make (Import Atoms : ATOMS).
     apply multistep_nil.
 
     (* Case where packet is in the output buffer. *)
+    
+    (* Proof sketch: We can assume that (topo sw pt) is defined, which implies
+       that a data-link exists from this switch to some destination, dst.
+       We reach the final state in two steps: SendDataLink followed by
+       PktProcess.*)
 
+    Axiom mem_unions_map : forall (A B : Type) {EB : Eq B}
+      (b : B) (lst: list A) (f : A -> Bag.bag B),
+      Bag.Mem b (Bag.unions (map f lst)) ->
+      exists (a : A), In a lst /\ Bag.Mem b (f a).
+
+    Axiom mem_in_to_list : forall (A : Type) {E : Eq A}
+      (x : A) (bag : Bag.bag A),
+      In x (Bag.to_list bag) -> Bag.Mem x bag.
+
+    apply mem_unions_map in HMemOutp.
+    destruct HMemOutp as [[pt0 pk0] [HIn HMemOutp]].
+    simpl in HMemOutp.
+    destruct (topo (switch_swichId0, pt0)).
+    Focus 2. simpl in HMemOutp. inversion HMemOutp.
+    destruct p.
+    simpl in HMemOutp. inversion HMemOutp. clear HMemOutp.
+    rewrite <- H2. clear s H2.
+
+    apply mem_in_to_list in HIn.
+    apply (mem_split _) in HIn.
+    destruct HIn as [outp' HIn].
+    rewrite <- H4 in *. clear pk0 H4.
+    
+    (* TODO(arjun): just how did i figure out (sw,pt) goes here *)
+    assert (exists pks, In (DataLink (switch_swichId0,pt0) pks (sw,pt)) state_dataLinks0).
+      admit.
+
+    destruct H1 as [pks  Hlink].
+    apply in_split in Hlink.
+    destruct Hlink as [links [links0 Hlink]].
+
+    remember (SendDataLink switch_swichId0 switch_ports0 switch_flowTable0
+      switch_inputPackets0 pt0 pk outp' switch_fromController0
+      switch_fromSwitch0 pks (sw,pt) sws sws0 links links0) as step1.
+
+    (* Now we need to conclude that the switch with id ws exists! *)
+
+    remember (PktProcess 
+
+      (Se
