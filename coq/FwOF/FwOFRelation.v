@@ -65,9 +65,9 @@ Module Make (Import Atoms : ATOMS).
       Bag.unions (map (transfer sw) (abst_func sw pt pk)).
 
   Definition FlowTablesSafe (st : state) : Prop :=
-    forall (sw : switch),
-      In sw (state_switches st) ->
-      FlowTableSafe (switch_swichId sw) (switch_flowTable sw).
+    forall swId pts tbl inp outp ctrlm switchm,
+      In (Switch swId pts tbl inp outp ctrlm switchm) (state_switches st) ->
+      FlowTableSafe swId tbl.
 
   Definition ConsistentDataLinks (st : state) : Prop :=
     forall (lnk : dataLink),
@@ -96,6 +96,8 @@ Module Make (Import Atoms : ATOMS).
     concreteState_consistentDataLinks :
       ConsistentDataLinks concreteState_state
   }.
+
+  Implicit Arguments ConcreteState [].
 
   Definition concreteStep (st : concreteState) (obs : option observation)
     (st0 : concreteState) :=

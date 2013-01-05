@@ -60,8 +60,8 @@ Module Make (Import Atoms : ATOMS).
     rewrite -> Heqb.
     assert (FlowTableSafe swId tbl) as J.
       refine (concreteState_flowTableSafety1
-        (Switch swId pts tbl inp (Bag.FromList outp' <+> outp) ctrlm
-          (Bag.FromList (map (PacketIn pt) pksToCtrl) <+> switchm)) _)...
+        swId pts tbl inp (Bag.FromList outp' <+> outp) ctrlm
+          (Bag.FromList (map (PacketIn pt) pksToCtrl) <+> switchm) _)...
       simpl. auto with datatypes.
     unfold FlowTableSafe in J.
     pose (J0 := J pt pk outp' pksToCtrl H1).
