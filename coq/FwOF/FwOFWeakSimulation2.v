@@ -156,31 +156,17 @@ Module Make (Import Atoms : ATOMS).
      intros.
      generalize dependent inp0. 
      generalize dependent pks1.
-     apply (rev_ind (fun (pks1 : list packet) =>
-       forall (inp0 : Bag.bag (portId * packet)),
-         exists inp' : Bag.bag (portId * packet),
-     multistep step
-       (State 
-         (sws ++ (Switch swId1 pts0 tbl0 inp0 outp0 ctrlm0 switchm0) :: sws0)
-         (links0 ++ (DataLink src0 (pks0 ++ pks1) (swId1, pt)) :: links1)
-         ofLinks0
-         ctrl0)
-       nil
-       (State 
-         (sws ++ (Switch swId1 pts0 tbl0 inp' outp0 ctrlm0 switchm0) :: sws0)
-         (links0 ++ (DataLink src0 pks0 (swId1, pt)) :: links1)
-         ofLinks0
-         ctrl0))).
+     induction pks1 using rev_ind.
      intros.
      simpl in *.
      exists inp0...
      rewrite -> app_nil_r...
      (* inductive case *)
      intros. 
-     destruct (H ( ({| (pt, x) |}) <+> inp0)) as [inp1 IHstep].
+     destruct (IHpks1 ( ({| (pt, x) |}) <+> inp0)) as [inp1 IHstep].
      exists (inp1). 
      eapply multistep_tau.
-     rewrite -> (app_assoc pks0 l).
+     rewrite -> (app_assoc pks0 pks1).
      apply RecvDataLink.
      apply IHstep.
    Qed.
