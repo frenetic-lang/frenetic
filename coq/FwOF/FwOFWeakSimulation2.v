@@ -21,34 +21,6 @@ Module Make (Import Atoms : ATOMS).
   Import Relation.
   Import Relation.Concrete.
 
-
-  Axiom Mem_unions : forall (A : Type) (E : Eq A) (x : A) lst, 
-    Bag.Mem x (Bag.unions lst) ->
-    exists elt, In elt lst /\ Bag.Mem x elt.
-
-  Axiom unpop_unions : forall (A : Type) (E : Eq A) (b b0 b1 : Bag.bag A),
-    Bag.Union b b0 === Bag.Union b b1 ->
-    b0 === b1.
-
-  Axiom to_list_singleton : forall (A : Type) (E : Eq A) (x : A),
-    Bag.to_list (Bag.Singleton x) === [x].
-  
-  Axiom from_list_singleton : forall (A : Type) (E : Eq A) (x : A),
-    Bag.FromList [x] === Bag.Singleton x.
-
-  Axiom mem_unions_map : forall (A B : Type) {EB : Eq B}
-    (b : B) (lst: list A) (f : A -> Bag.bag B),
-    Bag.Mem b (Bag.unions (map f lst)) ->
-    exists (a : A), In a lst /\ Bag.Mem b (f a).
-
-  Axiom mem_in_to_list : forall (A : Type) {E : Eq A}
-    (x : A) (bag : Bag.bag A),
-    In x (Bag.to_list bag) -> Bag.Mem x bag.
-
-  Axiom mem_split : forall (A : Type) (E : Eq A) (x : A) (b : Bag.bag A),
-    Bag.Mem x b ->
-    exists b1, b === ({| x |}) <+> b1.
-
   Lemma FlowTablesSafe_untouched : forall 
     {swId tbl pts 
     sws sws0 links ofLinks ctrl
@@ -75,18 +47,6 @@ Module Make (Import Atoms : ATOMS).
     simpl in *...
   Qed.
 
-  Lemma LinksHaveSrc_untouched : forall 
-    {swId tbl pts sws sws0 links ofLinks ctrl
-    inp outp ctrlm switchm tbl' inp' outp' ctrlm' switchm' },
-    LinksHaveSrc 
-      (State (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
-             links
-             ofLinks ctrl) ->
-    LinksHaveSrc 
-      (State (sws ++ (Switch swId pts tbl' inp' outp' ctrlm' switchm') :: sws0)
-             links
-             ofLinks ctrl).
-  Admitted.
 
   Lemma DrainWire : forall sws swId pts tbl inp outp ctrlm switchm sws0
                            links src pk pks pt links0 ofLinks ctrl st
