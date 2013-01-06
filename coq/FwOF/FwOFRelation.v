@@ -89,22 +89,23 @@ Module Make (Import Atoms : ATOMS).
     relate_controller ctrl' === select_packet_in sw msg <+> 
     (relate_controller ctrl).
 
-  Definition LinksHaveSrc (st : state) : Prop :=
-    forall src_sw src_pt dst pks,
-      In (DataLink (src_sw,src_pt) pks dst) (links st) ->
-      (exists switch, 
-        In switch (switches st) /\
-        src_sw = swId switch /\
-        In src_pt (pts switch)).
+  Definition LinkHasSrc (sws : list switch) (link : dataLink) : Prop :=
+    exists switch,
+      In switch sws /\
+      fst (src link) = swId switch /\
+      In (snd (src link)) (pts switch).
 
-  Definition LinksHaveDst (st : state) : Prop :=
-    forall dst_sw dst_pt src pks,
-      In (DataLink src pks (dst_sw,dst_pt)) (links st) ->
-      (exists switch, 
-        In switch (switches st) /\
-        dst_sw = swId switch /\
-        In dst_pt (pts switch)).
+  Definition LinkHasDst (sws : list switch) (link : dataLink) : Prop :=
+    exists switch,
+      In switch sws /\
+      fst (dst link) = swId switch /\
+      In (snd (dst link)) (pts switch).
 
+  Definition LinksHaveSrc (sws : list switch) (links : list dataLink) :=
+    forall link, In link links -> LinkHasSrc sws link.
+
+  Definition LinksHaveDst (sws : list switch) (links : list dataLink) :=
+    forall link, In link links -> LinkHasDst sws link.
     
   Record concreteState := ConcreteState {
     devices : state;
@@ -112,8 +113,8 @@ Module Make (Import Atoms : ATOMS).
       FlowTablesSafe devices;
     concreteState_consistentDataLinks :
       ConsistentDataLinks devices;
-    linksHaveSrc : LinksHaveSrc devices;
-    linksHaveDst : LinksHaveDst devices
+    linksHaveSrc : LinksHaveSrc (switches devices) (links devices);
+    linksHaveDst : LinksHaveDst (switches devices) (links devices)
   }.
 
   Implicit Arguments ConcreteState [].
