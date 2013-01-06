@@ -55,6 +55,8 @@ Module Type ATOMS.
 
   End Controller.
 
+  Axiom topo : switchId * portId -> option (switchId * portId).
+
 End ATOMS.
 
 Module ConcreteSemantics (Import Atoms : ATOMS).

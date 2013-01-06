@@ -30,6 +30,25 @@ Module Make (Import Atoms : ATOMS).
     Bag.Union b b0 === Bag.Union b b1 ->
     b0 === b1.
 
+  Axiom to_list_singleton : forall (A : Type) (E : Eq A) (x : A),
+    Bag.to_list (Bag.Singleton x) === [x].
+  
+  Axiom from_list_singleton : forall (A : Type) (E : Eq A) (x : A),
+    Bag.FromList [x] === Bag.Singleton x.
+
+  Axiom mem_unions_map : forall (A B : Type) {EB : Eq B}
+    (b : B) (lst: list A) (f : A -> Bag.bag B),
+    Bag.Mem b (Bag.unions (map f lst)) ->
+    exists (a : A), In a lst /\ Bag.Mem b (f a).
+
+  Axiom mem_in_to_list : forall (A : Type) {E : Eq A}
+    (x : A) (bag : Bag.bag A),
+    In x (Bag.to_list bag) -> Bag.Mem x bag.
+
+  Axiom mem_split : forall (A : Type) (E : Eq A) (x : A) (b : Bag.bag A),
+    Bag.Mem x b ->
+    exists b1, b === ({| x |}) <+> b1.
+
   Lemma FlowTablesSafe_untouched : forall 
     {swId tbl pts 
     sws sws0 links ofLinks ctrl
@@ -56,9 +75,57 @@ Module Make (Import Atoms : ATOMS).
     simpl in *...
   Qed.
 
-  Axiom mem_split : forall (A : Type) (E : Eq A) (x : A) (b : Bag.bag A),
-    Bag.Mem x b ->
-    exists b1, b === ({| x |}) <+> b1.
+  Lemma LinksHaveSrc_untouched : forall 
+    {swId tbl pts sws sws0 links ofLinks ctrl
+    inp outp ctrlm switchm tbl' inp' outp' ctrlm' switchm' },
+    LinksHaveSrc 
+      (State (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
+             links
+             ofLinks ctrl) ->
+    LinksHaveSrc 
+      (State (sws ++ (Switch swId pts tbl' inp' outp' ctrlm' switchm') :: sws0)
+             links
+             ofLinks ctrl).
+  Admitted.
+
+  Lemma DrainWire : forall sws swId pts tbl inp outp ctrlm switchm sws0
+                           links src pk pks pt links0 ofLinks ctrl st
+    (st : State (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
+                (links ++ (DataLink src (pk :: pks) (swId,pt)) :: links0)
+                ofLinks ctrl)
+    tblsOK linkTopoOK linksHaveSrc linksHaveDst,
+    ConcreteState st tblsOK linkTopoOK linksHaveSrc linksHaveDst ->
+    exists 
+      inp'
+      (st' : State (sws ++ (Switch swId pts tbl inp' outp ctrlm switchm):: sws0)
+                   (links ++ (DataLink src [pk] (swId,pt)) :: links0)
+                   ofLinks ctrl)
+      tblsOK' linkTopoOK' linksHaveSrc' linksHaveDst',
+      multistep
+       (ConcreteState st tblsOK linkTopoOK linksHaveSrc linksHaveDst)
+       nil
+       (ConcreteState st' tblsOK' linkTopoOK' linksHaveSrc' linksHaveDst').
+
+    exists (st' : State sws (links ++ (Data
+
+tblsOK' linkT
+      
+      tblsOK 
+             ctrl
+    
+
+  Lemma LinksHaveDst_untouched : forall 
+    {swId tbl pts sws sws0 links ofLinks ctrl
+    inp outp ctrlm switchm tbl' inp' outp' ctrlm' switchm' },
+    LinksHaveDst
+      (State (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
+             links
+             ofLinks ctrl) ->
+    LinksHaveDst 
+      (State (sws ++ (Switch swId pts tbl' inp' outp' ctrlm' switchm') :: sws0)
+             links
+             ofLinks ctrl).
+  Admitted.   
 
   Theorem weak_sim_2 :
     weak_simulation abstractStep concreteStep (inverse_relation bisim_relation).
@@ -105,7 +172,8 @@ Module Make (Import Atoms : ATOMS).
     (* At this point, we've discriminated all but one other major case.
        Packets on OpenFlow links may be on either side. *)
 
-    assert (switch_swichId0 = sw) as J0.
+
+    assert (swId0 = sw) as J0.
       rewrite -> in_map_iff in HMemInp.
       destruct HMemInp as [[pt0 pk0] [Haffix HMemInp]].
       simpl in Haffix.
@@ -117,26 +185,26 @@ Module Make (Import Atoms : ATOMS).
     simpl in Haffix.
     inversion Haffix.
     subst.
-    assert (exists x, switch_inputPackets0 === ({|(pt,pk)|} <+> x)). admit.
+    assert (exists x, inp0 === ({|(pt,pk)|} <+> x)). admit.
     destruct H1 as [inp HEqInp].
 
-    remember (process_packet switch_flowTable0 pt pk) as ToCtrl eqn:Hprocess. 
+    remember (process_packet tbl0 pt pk) as ToCtrl eqn:Hprocess. 
     destruct ToCtrl as [outp' packetIns].
     symmetry in Hprocess.    
 
-    remember (PktProcess sw switch_ports0 
-                 inp  switch_outputPackets0
-                switch_fromController0 switch_fromSwitch0 
+    remember (PktProcess sw pts0 inp outp0 ctrlm0 switchm0
                 Hprocess
-                sws sws0 state_dataLinks0 state_openFlowLinks0
-                state_controller0) as Hstep.
+                sws sws0 links0 ofLinks0
+                ctrl0) as Hstep.
     clear HeqHstep.
     match goal with
       | [ H : step _ _ ?S |- _  ] => 
         exists 
           (ConcreteState S
             (FlowTablesSafe_untouched concreteState_flowTableSafety0)
-            (ConsistentDataLinks_untouched concreteState_consistentDataLinks0))
+            (ConsistentDataLinks_untouched concreteState_consistentDataLinks0)
+            (LinksHaveSrc_untouched linksHaveSrc0)
+            (LinksHaveDst_untouched dstLinksExist0))
     end.
     split.
     unfold inverse_relation.
@@ -146,14 +214,14 @@ Module Make (Import Atoms : ATOMS).
     rewrite -> map_app.
     autorewrite with bag using simpl.
 
-    assert (FlowTableSafe sw switch_flowTable0) as Z.
+    assert (FlowTableSafe sw tbl0) as Z.
       unfold FlowTablesSafe in concreteState_flowTableSafety0.
       apply concreteState_flowTableSafety0 with 
-        (pts := switch_ports0)
-        (inp := switch_inputPackets0)
-        (outp := switch_outputPackets0)
-        (ctrlm := switch_fromController0)
-        (switchm := switch_fromSwitch0).
+        (pts := pts0)
+        (inp := inp0)
+        (outp := outp0)
+        (ctrlm := ctrlm0)
+        (switchm := switchm0).
       simpl.
       auto with datatypes.
     unfold FlowTableSafe in Z.
@@ -165,20 +233,11 @@ Module Make (Import Atoms : ATOMS).
     rewrite -> Bag.union_assoc.
     rewrite -> (Bag.union_comm _ lps).
     rewrite -> H.
-
     rewrite -> (Bag.FromList_map_iff _ _ HEqInp).
     rewrite -> Bag.map_union.
-
-    Axiom to_list_singleton : forall (A : Type) (E : Eq A) (x : A),
-      Bag.to_list (Bag.Singleton x) === [x].
-
-    Axiom from_list_singleton : forall (A : Type) (E : Eq A) (x : A),
-      Bag.FromList [x] === Bag.Singleton x.
-
     rewrite -> to_list_singleton.
     simpl.
     rewrite -> from_list_singleton.
-
     repeat rewrite -> Bag.union_assoc.
 
     bag_perm 100.
@@ -189,7 +248,9 @@ Module Make (Import Atoms : ATOMS).
         apply multistep_tau with 
           (a0 := ConcreteState st
             (FlowTablesSafe_untouched concreteState_flowTableSafety0)
-            (ConsistentDataLinks_untouched concreteState_consistentDataLinks0))
+            (ConsistentDataLinks_untouched concreteState_consistentDataLinks0)
+            (LinksHaveSrc_untouched linksHaveSrc0)
+            (LinksHaveDst_untouched dstLinksExist0))
     end.
     apply StepEquivSwitch.
       unfold Equivalence.equiv.
@@ -199,7 +260,9 @@ Module Make (Import Atoms : ATOMS).
         apply multistep_obs with 
           (a0 := ConcreteState st
             (FlowTablesSafe_untouched concreteState_flowTableSafety0)
-            (ConsistentDataLinks_untouched concreteState_consistentDataLinks0))
+            (ConsistentDataLinks_untouched concreteState_consistentDataLinks0)
+            (LinksHaveSrc_untouched linksHaveSrc0)
+            (LinksHaveDst_untouched dstLinksExist0))
     end.
     exact Hstep.
     apply multistep_nil.
@@ -211,19 +274,10 @@ Module Make (Import Atoms : ATOMS).
        We reach the final state in two steps: SendDataLink followed by
        PktProcess.*)
 
-    Axiom mem_unions_map : forall (A B : Type) {EB : Eq B}
-      (b : B) (lst: list A) (f : A -> Bag.bag B),
-      Bag.Mem b (Bag.unions (map f lst)) ->
-      exists (a : A), In a lst /\ Bag.Mem b (f a).
-
-    Axiom mem_in_to_list : forall (A : Type) {E : Eq A}
-      (x : A) (bag : Bag.bag A),
-      In x (Bag.to_list bag) -> Bag.Mem x bag.
-
     apply mem_unions_map in HMemOutp.
     destruct HMemOutp as [[pt0 pk0] [HIn HMemOutp]].
     simpl in HMemOutp.
-    destruct (topo (switch_swichId0, pt0)).
+    destruct (topo (swId0, pt0)).
     Focus 2. simpl in HMemOutp. inversion HMemOutp.
     destruct p.
     simpl in HMemOutp. inversion HMemOutp. clear HMemOutp.
@@ -235,19 +289,29 @@ Module Make (Import Atoms : ATOMS).
     rewrite <- H4 in *. clear pk0 H4.
     
     (* TODO(arjun): just how did i figure out (sw,pt) goes here *)
-    assert (exists pks, In (DataLink (switch_swichId0,pt0) pks (sw,pt)) state_dataLinks0).
+    assert (exists pks, In (DataLink (swId0,pt0) pks (sw,pt)) links0).
       admit.
 
     destruct H1 as [pks  Hlink].
-    apply in_split in Hlink.
-    destruct Hlink as [links [links0 Hlink]].
+    remember Hlink as Hlink_copy eqn:X.
+    clear X.
+    apply in_split in Hlink_copy.
+    destruct Hlink_copy as [links [links1 Hlink_eq]].
 
-    remember (SendDataLink switch_swichId0 switch_ports0 switch_flowTable0
-      switch_inputPackets0 pt0 pk outp' switch_fromController0
-      switch_fromSwitch0 pks (sw,pt) sws sws0 links links0) as step1.
+    remember (SendDataLink swId0 pts0 tbl0 inp0 pt0 pk outp' ctrlm0
+      switchm0 pks (sw,pt) sws sws0 links links0) as step1.
 
     (* Now we need to conclude that the switch with id ws exists! *)
+    unfold LinksHaveDst in dstLinksExist0.
+    simpl in dstLinksExist0.
+    destruct (dstLinksExist0 sw pt (swId0,pt0) pks Hlink) as 
+      [dst_sw [HDstIn [HDstIdEq HDstPtIn]]].
+    destruct dst_sw.
+    simpl in *.
+    rewrite <- HDstIdEq in *.
+    clear swId1 HDstIdEq.
+Check RecvDataLink.
 
-    remember (PktProcess 
+    remember (PktProcess sw
 
       (Se
