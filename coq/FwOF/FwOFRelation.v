@@ -88,13 +88,32 @@ Module Make (Import Atoms : ATOMS).
     controller_recv ctrl sw msg ctrl' ->
     relate_controller ctrl' === select_packet_in sw msg <+> 
     (relate_controller ctrl).
+
+  Definition LinksHaveSrc (st : state) : Prop :=
+    forall src_sw src_pt dst pks,
+      In (DataLink (src_sw,src_pt) pks dst) (links st) ->
+      (exists switch, 
+        In switch (switches st) /\
+        src_sw = swId switch /\
+        In src_pt (pts switch)).
+
+  Definition LinksHaveDst (st : state) : Prop :=
+    forall dst_sw dst_pt src pks,
+      In (DataLink src pks (dst_sw,dst_pt)) (links st) ->
+      (exists switch, 
+        In switch (switches st) /\
+        dst_sw = swId switch /\
+        In dst_pt (pts switch)).
+
     
   Record concreteState := ConcreteState {
     concreteState_state : state;
     concreteState_flowTableSafety : 
       FlowTablesSafe concreteState_state;
     concreteState_consistentDataLinks :
-      ConsistentDataLinks concreteState_state
+      ConsistentDataLinks concreteState_state;
+    linksHaveSrc : LinksHaveSrc concreteState_state;
+    dstLinksExist : LinksHaveDst concreteState_state
   }.
 
   Implicit Arguments ConcreteState [].
