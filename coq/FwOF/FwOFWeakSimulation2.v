@@ -10,6 +10,7 @@ Require Import Common.Bisimulation.
 Require Import Bag.Bag.
 Require Import FwOF.FwOF.
 Require FwOF.FwOFRelation.
+Require Import Coq.Logic.ProofIrrelevance.
 
 Local Open Scope list_scope.
 Local Open Scope equiv_scope.
@@ -21,6 +22,105 @@ Module Make (Import Atoms : ATOMS).
   Import Relation.
   Import Relation.Concrete.
 
+  Lemma DrainWire : DrainWire_tau.
+  Proof.
+    unfold DrainWire_tau.
+    intros.
+    induction pks0.
+    exists inp0.
+    exists hasSrc0.
+    exists hasDst0.
+    exists tblsOK.
+    assert (ConsistentDataLinks
+      (State (sws ++ (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0) ::
+              sws0)
+             (MapEquivLoc links0 ++
+               linkEquiv (DataLink _ src0 [pk] (swId0,pt) hasSrc0 hasDst0) ::
+               MapEquivLoc links1)
+             ofLinks0
+             ctrl0)) as X. admit.
+    exists X.
+    unfold MapEquivLoc in *.
+    simpl in X.
+    assert (X = linkTopoOK).
+
+    apply multistep_nil.
+    rewrite -> EquivLocExists_idem in *.
+    Check X.
+    simpl.
+    Check linkTopoOK.
+    apply multistep_nil.
+                              src := src0;
+                              pks := [pk];
+                              dst := (swId0, pt);
+                              hasSrc := EquivLocExists hasSrc0;
+                              hasDst := EquivLocExists hasDst0 |}
+                              :: MapEquivLoc links1;
+                     ofLinks := ofLinks0;
+                     ctrl := ctrl0 |}
+    exists linkTopoOK.
+
+    (sws sws0 : list switch)
+    (swId : switchId)
+    (pts : list portId)
+    (tbl : flowTable)
+    (inp outp : Bag.bag (portId * packet))
+    (ctrlm : Bag.bag fromController)
+    (switchm : Bag.bag fromSwitch)
+    (links links0 : list (dataLink
+      (sws ++ 
+        (Switch swId pts tbl inp outp ctrlm switchm) ::
+        sws0)))
+    (ctrl : controller)
+    (ofLinks : list openFlowLink)
+    (src : switchId * portId)
+    (pt : portId)
+    (pk : packet)
+    (pks : list packet)
+    (hasSrc0 : LocExists
+      (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
+      src)
+    (hasDst0 : LocExists
+      (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
+      (swId,pt))
+    tblsOK linkTopoOK,
+    exists 
+      inp' hasSrc' hasDst' tblsOK' linkTopoOK',
+      multistep concreteStep
+      (ConcreteState
+        (State 
+          (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
+          (links ++ 
+            (DataLink
+              (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
+              src (pk :: pks) (swId,pt) hasSrc0 hasDst0) :: 
+            links0)
+          ofLinks 
+          ctrl)
+        tblsOK linkTopoOK)
+       nil
+       (ConcreteState
+         (State 
+           (sws ++ (Switch swId pts tbl inp' outp ctrlm switchm):: sws0)
+           (MapEquivLoc links ++ 
+            (linkEquiv
+              (DataLink
+                (sws ++ (Switch swId pts tbl inp' outp ctrlm switchm):: sws0)
+                src [pk] (swId,pt) hasSrc' hasDst')) :: 
+            (MapEquivLoc links0))
+           ofLinks ctrl)
+         tblsOK' linkTopoOK').
+  Proof.
+  Admitted.
+
+    exists (st' : State sws (links ++ (Data
+
+tblsOK' linkT
+      
+      tblsOK 
+             ctrl
+    
+
   Lemma FlowTablesSafe_untouched : forall 
     {swId tbl pts 
     sws sws0 links ofLinks ctrl
@@ -31,7 +131,7 @@ Module Make (Import Atoms : ATOMS).
              links ofLinks ctrl) ->
     FlowTablesSafe
       (State (sws ++ (Switch swId pts tbl inp' outp' ctrlm' switchm') :: sws0)
-             links ofLinks ctrl).
+        links ofLinks ctrl).
   Proof with auto with datatypes.
     intros.
   Admitted.
@@ -48,31 +148,6 @@ Module Make (Import Atoms : ATOMS).
   Qed.
 
 
-  Lemma DrainWire : forall sws swId pts tbl inp outp ctrlm switchm sws0
-                           links src pk pks pt links0 ofLinks ctrl st
-    (st : State (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
-                (links ++ (DataLink src (pk :: pks) (swId,pt)) :: links0)
-                ofLinks ctrl)
-    tblsOK linkTopoOK linksHaveSrc linksHaveDst,
-    ConcreteState st tblsOK linkTopoOK linksHaveSrc linksHaveDst ->
-    exists 
-      inp'
-      (st' : State (sws ++ (Switch swId pts tbl inp' outp ctrlm switchm):: sws0)
-                   (links ++ (DataLink src [pk] (swId,pt)) :: links0)
-                   ofLinks ctrl)
-      tblsOK' linkTopoOK' linksHaveSrc' linksHaveDst',
-      multistep
-       (ConcreteState st tblsOK linkTopoOK linksHaveSrc linksHaveDst)
-       nil
-       (ConcreteState st' tblsOK' linkTopoOK' linksHaveSrc' linksHaveDst').
-
-    exists (st' : State sws (links ++ (Data
-
-tblsOK' linkT
-      
-      tblsOK 
-             ctrl
-    
 
   Lemma LinksHaveDst_untouched : forall 
     {swId tbl pts sws sws0 links ofLinks ctrl

@@ -1,4 +1,4 @@
-MODULES := FwOF FwOFRelation FwOFWeakSimulation1
+MODULES := FwOF FwOFRelation FwOFWeakSimulation2
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean

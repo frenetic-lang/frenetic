@@ -5,6 +5,7 @@ Require Import Coq.Structures.Equalities.
 Require Import Coq.Classes.Equivalence.
 Require Import Common.Types.
 Require Import Bag.Bag.
+Require Import Logic.ProofIrrelevance.
 
 Local Open Scope list_scope.
 Local Open Scope equiv_scope.
@@ -193,6 +194,18 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
     subst.
     exists (Switch swId0 pts0 tbl' inp' outp' ctrlm' switchm')...
     exists switch0...
+  Defined.
+
+  Lemma EquivLocExists_idem : forall {sws sws0 loc swId pts tbl inp outp ctrlm
+    switchm }
+  (H : LocExists (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
+                 loc),
+   @EquivLocExists 
+      sws sws0 loc swId pts tbl inp outp ctrlm switchm tbl inp outp ctrlm 
+      switchm H = H.
+  Proof with auto.
+    intros.
+    apply proof_irrelevance.
   Qed.
   
   Definition linkEquiv { sws sws0 swId pts tbl inp outp ctrlm switchm 
