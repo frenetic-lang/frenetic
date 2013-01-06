@@ -1,6 +1,7 @@
 Set Implicit Arguments.
 
 Require Import Common.Types.
+Require Import Coq.Lists.List.
 
 Local Open Scope list_scope.
 
@@ -24,6 +25,25 @@ Inductive multistep (A Ob : Type) (step : step A Ob)
     step a (Some ob) a0 ->
     multistep step a0 obs a1 ->
     multistep step a (ob :: obs) a1.
+
+Hint Constructors multistep.
+
+Lemma multistep_app : forall (A Ob : Type)
+  (step : step A Ob)
+  (s1 s2 s3 : A)
+  (obs1 obs2 : list Ob),
+  multistep step s1 obs1 s2 ->
+  multistep step s2 obs2 s3 ->
+  multistep step s1 (obs1 ++ obs2) s3.
+Proof with auto.
+  intros.
+  induction H...
+  apply IHmultistep in H0.
+  exact (@multistep_tau A Ob step0 a a0 s3 (obs ++ obs2) H H0).
+  simpl.
+  apply IHmultistep in H0.
+  exact (@multistep_obs A Ob step0 a a0 s3 ob (obs ++ obs2) H H0).
+Qed.
 
 Definition list_of_option {A : Type} (opt : option A) : list A :=
   match opt with
