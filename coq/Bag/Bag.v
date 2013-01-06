@@ -371,47 +371,13 @@ Module Bag.
     apply IHbag2_2 in H2.
   Admitted.
 
-Notation "x <+> y" := (Bag.Union x y) : bag_scope.
-Notation "{| x |}" := (Bag.Singleton x) : bag_scope.
-Notation "{| |}" := (Bag.Empty) : bag_scope.
-
-Local Open Scope bag_scope.
-
-  Axiom Mem_unions : forall (A : Type) (E : Eq A) (x : A) lst, 
-    Bag.Mem x (Bag.unions lst) ->
-    exists elt, In elt lst /\ Bag.Mem x elt.
-
-  Axiom unpop_unions : forall (A : Type) (E : Eq A) (b b0 b1 : Bag.bag A),
-    Bag.Union b b0 === Bag.Union b b1 ->
-    b0 === b1.
-
-  Axiom to_list_singleton : forall (A : Type) (E : Eq A) (x : A),
-    Bag.to_list (Bag.Singleton x) === [x].
-  
-  Axiom from_list_singleton : forall (A : Type) (E : Eq A) (x : A),
-    Bag.FromList [x] === Bag.Singleton x.
-
-  Axiom mem_unions_map : forall (A B : Type) {EB : Eq B}
-    (b : B) (lst: list A) (f : A -> Bag.bag B),
-    Bag.Mem b (Bag.unions (map f lst)) ->
-    exists (a : A), In a lst /\ Bag.Mem b (f a).
-
-  Axiom mem_in_to_list : forall (A : Type) {E : Eq A}
-    (x : A) (bag : Bag.bag A),
-    In x (Bag.to_list bag) -> Bag.Mem x bag.
-
-  Axiom mem_split : forall (A : Type) (E : Eq A) (x : A) (b : Bag.bag A),
-    Bag.Mem x b ->
-    exists b1, b === ({| x |}) <+> b1.
-
 
 End Bag.
 
+
 Notation "x <+> y" := (Bag.Union x y) : bag_scope.
 Notation "{| x |}" := (Bag.Singleton x) : bag_scope.
 Notation "{| |}" := (Bag.Empty) : bag_scope.
-
-
 
 Hint Rewrite 
   Bag.unions_app

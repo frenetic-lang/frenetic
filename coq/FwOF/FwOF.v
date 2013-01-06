@@ -115,6 +115,18 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
     ctrlm : Bag.bag fromController;
     switchm : Bag.bag fromSwitch
   }.
+  
+  Record dataLink := DataLink {
+    src : switchId * portId;
+    pks : list packet;
+    dst : switchId * portId
+  }.
+  
+  Record openFlowLink := OpenFlowLink {
+    of_to : switchId;
+    of_switchm : list fromSwitch;
+    of_ctrlm : list fromController
+  }.
 
   (** Switches contain bags and bags do not have unique representations. In
       proofs, it is common to replace a bag with an equivalent (but unequal)
@@ -156,68 +168,8 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
   Instance switch_Equivalence : Equivalence switch_equiv.
   Proof.
     exact switch_equiv_is_Equivalence.
-  Qed. 
-
-  
-  Definition LocExists (switches : list switch) (loc : switchId * portId) :=
-    exists switch, 
-      In switch switches /\ fst loc = swId switch /\ In (snd loc) (pts switch).
-
-  Record dataLink (switches : list switch) := DataLink {
-    src : switchId * portId;
-    pks : list packet;
-    dst : switchId * portId;
-    hasSrc : LocExists switches src;
-    hasDst : LocExists switches dst
-  }.
-
-  Implicit Arguments DataLink [].
-
-  Lemma EquivLocExists : forall {sws sws0 loc swId pts tbl inp outp ctrlm
-    switchm tbl' inp' outp' ctrlm' switchm' },
-    LocExists (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0) 
-              loc ->
-    LocExists (sws ++ (Switch swId pts tbl' inp' outp' ctrlm' switchm') :: sws0)
-              loc.
-  Proof with auto with datatypes.
-    intros.
-    unfold LocExists in *.
-    destruct H as [switch0 [HIn [HEqSw HEqPt]]].
-    rewrite -> in_app_iff in HIn.
-    simpl in HIn.
-    destruct HIn as [HIn | [HIn | HIn]].
-    exists switch0...
-    subst.
-    destruct loc.
-    simpl in *.
-    subst.
-    exists (Switch swId0 pts0 tbl' inp' outp' ctrlm' switchm')...
-    exists switch0...
   Qed.
-  
-  Definition linkEquiv { sws sws0 swId pts tbl inp outp ctrlm switchm 
-                         tbl' inp' outp' ctrlm' switchm' }
-    (link : dataLink (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) ::
-                      sws0)) := 
-      match link with
-        | DataLink src pks dst hasSrc hasDst =>
-          DataLink (sws ++ (Switch swId pts tbl' inp' outp' ctrlm' switchm') :: sws0) src pks dst
-            (EquivLocExists hasSrc)
-            (EquivLocExists hasDst)
-      end.
-
-  Definition MapEquivLoc {sws sws0 swId pts tbl inp outp ctrlm
-    switchm tbl' inp' outp' ctrlm' switchm' }
-    (lst : list (dataLink (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)))
-    : list (dataLink (sws ++ (Switch swId pts tbl' inp' outp' ctrlm' switchm') :: sws0)) :=
-    map linkEquiv lst.
-
-
-  Record openFlowLink := OpenFlowLink {
-    of_to : switchId;
-    of_switchm : list fromSwitch;
-    of_ctrlm : list fromController
-  }.
+      
 
   Definition observation := (switchId * portId * packet) %type.
 
@@ -226,8 +178,7 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
     (at level 70, no associativity).
   Reserved Notation "ControllerOpenFlow[ c ; l ; obs ; c0 ; l0 ]"
     (at level 70, no associativity).
-  Reserved Notation 
-    "TopoStep[ sw ; src , pks , dst ; obs ; sw0 ; src0 , pks0 , dst0 ]"
+  Reserved Notation "TopoStep[ sw ; link ; obs ; sw0 ; link0 ]"
     (at level 70, no associativity).
   Reserved Notation "SwitchOpenFlow[ s ; l ; obs ; s0 ; l0 ]"
     (at level 70, no associativity).
@@ -244,17 +195,15 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
       about permuting the list or define symmetric step-rules. *)
   Record state := State {
     switches : list switch;
-    links : list (dataLink switches);
+    links : list dataLink;
     ofLinks : list openFlowLink;
     ctrl : controller
   }.
-
-  Implicit Arguments State [].
-
+    
   Inductive step : state -> option observation -> state -> Prop :=
-(*  | StepEquivSwitch : forall switch switch',
+  | StepEquivSwitch : forall switch switch',
     switch === switch' ->
-    SwitchStep[ switch; None; switch' ] *)
+    SwitchStep[ switch; None; switch' ]
   | PktProcess : forall swId pts tbl pt pk inp outp ctrlm switchm outp'
                         pksToCtrl,
     process_packet tbl pt pk = (outp', pksToCtrl) ->
@@ -280,18 +229,18 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
   | SendDataLink : forall swId pts tbl inp pt pk outp ctrlm switchm pks dst,
     TopoStep[
       Switch swId pts tbl inp ({|(pt,pk)|} <+> outp) ctrlm switchm;
-      (swId,pt), pks, dst;
+      DataLink (swId,pt) pks dst;
       None;
       Switch swId pts tbl inp outp ctrlm switchm;
-      (swId,pt), (pk :: pks), dst
+      DataLink (swId,pt) (pk :: pks) dst
     ]
   | RecvDataLink : forall swId pts tbl inp outp ctrlm switchm src pks pk pt,
     TopoStep[
       Switch swId pts tbl inp outp ctrlm switchm;
-      src,  (pks ++ [pk]), (swId,pt);
+      DataLink src  (pks ++ [pk]) (swId,pt);
       None;
       Switch swId pts tbl ({|(pt,pk)|} <+> inp) outp ctrlm switchm;
-      src, pks, (swId,pt)
+      DataLink src pks (swId,pt)
     ]
   | Step_controller : forall sws links ofLinks ctrl ctrl',
     controller_step ctrl ctrl' ->
@@ -351,33 +300,25 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
            obs 
            (State sws links (ofLinks ++ l0 :: ofLinks') c0))
     and
-  "TopoStep[ sw ; src , pks , dst ; obs ; sw0 ; src0 , pks0 , dst0 ]" :=
-    (forall (sws sws0 : list switch) links links0
-            ofLinks ctrl
-            hasSrc hasDst,
+  "TopoStep[ sw ; link ; obs ; sw0 ; link0 ]" :=
+    (forall sws sws0 links links0 ofLinks ctrl,
       step 
-      (State
-        (sws ++ sw :: sws0) 
-        (links ++ (DataLink (sws ++ sw::sws0) src pks dst hasSrc hasDst) :: links0)
-        ofLinks ctrl)
+      (State (sws ++ sw :: sws0) (links ++ link :: links0) ofLinks ctrl)
       obs
-      (State (sws ++ sw0 :: sws0) 
-        (MapEquivLoc links ++ 
-         (linkEquiv (DataLink (sws ++ sw::sws0) src0 pks0 dst0 hasSrc hasDst)) 
-         :: (MapEquivLoc links0)) ofLinks ctrl))
+      (State (sws ++ sw0 :: sws0) (links ++ link0 :: links0) ofLinks ctrl))
     and
   "SwitchStep[ sw ; obs ; sw0 ]" :=
     (forall sws sws0 links ofLinks ctrl,
       step 
         (State (sws ++ sw :: sws0) links ofLinks ctrl)
         obs
-        (State (sws ++ sw0 :: sws0) (MapEquivLoc links) ofLinks ctrl))
+        (State (sws ++ sw0 :: sws0) links ofLinks ctrl))
     and
   "SwitchOpenFlow[ sw ; of ; obs ; sw0 ; of0 ]" :=
     (forall sws sws0 links ofLinks ofLinks0 ctrl,
       step
         (State (sws ++ sw :: sws0) links (ofLinks ++ of :: ofLinks0) ctrl)
         obs
-        (State (sws ++ sw0 :: sws0) (MapEquivLoc links) (ofLinks ++ of0 :: ofLinks0) ctrl)).
+        (State (sws ++ sw0 :: sws0) links (ofLinks ++ of0 :: ofLinks0) ctrl)).
 
 End ConcreteSemantics.

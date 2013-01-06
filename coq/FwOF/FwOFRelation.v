@@ -27,8 +27,10 @@ Module Make (Import Atoms : ATOMS).
 
   Axiom abst_func : switchId -> portId -> packet -> list (portId * packet).
 
-  Axiom locate_packet_in : switchId -> portId -> packet -> 
-    list (portId * packet).
+  Definition affixSwitch (sw : switchId) (ptpk : portId * packet) :=
+    match ptpk with
+      | (pt,pk) => (sw,pt,pk)
+    end.
 
   Definition transfer (sw : switchId) (ptpk : portId * packet) :=
     match ptpk with
@@ -45,10 +47,8 @@ Module Make (Import Atoms : ATOMS).
       | _ => {| |}
     end.
 
-  Definition affixSwitch (sw : switchId) (ptpk : portId * packet) :=
-    match ptpk with
-      | (pt,pk) => (sw,pt,pk)
-    end.
+  Axiom locate_packet_in : switchId -> portId -> packet -> 
+    list (portId * packet).
 
   Definition select_packet_in (sw : switchId) (msg : fromSwitch) :=
     match msg with
@@ -70,7 +70,7 @@ Module Make (Import Atoms : ATOMS).
       FlowTableSafe swId tbl.
 
   Definition ConsistentDataLinks (st : state) : Prop :=
-    forall (lnk : dataLink (switches st)),
+    forall (lnk : dataLink),
       In lnk (links st) ->
       topo (src lnk) = Some (dst lnk).
 
@@ -89,13 +89,32 @@ Module Make (Import Atoms : ATOMS).
     relate_controller ctrl' === select_packet_in sw msg <+> 
     (relate_controller ctrl).
 
+  Definition LinkHasSrc (sws : list switch) (link : dataLink) : Prop :=
+    exists switch,
+      In switch sws /\
+      fst (src link) = swId switch /\
+      In (snd (src link)) (pts switch).
+
+  Definition LinkHasDst (sws : list switch) (link : dataLink) : Prop :=
+    exists switch,
+      In switch sws /\
+      fst (dst link) = swId switch /\
+      In (snd (dst link)) (pts switch).
+
+  Definition LinksHaveSrc (sws : list switch) (links : list dataLink) :=
+    forall link, In link links -> LinkHasSrc sws link.
+
+  Definition LinksHaveDst (sws : list switch) (links : list dataLink) :=
+    forall link, In link links -> LinkHasDst sws link.
     
   Record concreteState := ConcreteState {
     devices : state;
     concreteState_flowTableSafety : 
       FlowTablesSafe devices;
     concreteState_consistentDataLinks :
-      ConsistentDataLinks devices
+      ConsistentDataLinks devices;
+    linksHaveSrc : LinksHaveSrc (switches devices) (links devices);
+    linksHaveDst : LinksHaveDst (switches devices) (links devices)
   }.
 
   Implicit Arguments ConcreteState [].
@@ -124,10 +143,9 @@ Module Make (Import Atoms : ATOMS).
         Bag.unions (map (select_packet_in swId) (Bag.to_list switchm))
     end.
 
-  Definition relate_dataLink (sws : list switch) 
-    (link : dataLink sws) : abst_state :=
+  Definition relate_dataLink (link : dataLink) : abst_state :=
     match link with
-      | DataLink _ pks (sw,pt) _ _ =>
+      | DataLink _ pks (sw,pt) =>
         Bag.FromList (map (fun pk => (sw,pt,pk)) pks)
     end.
 
@@ -138,9 +156,10 @@ Module Make (Import Atoms : ATOMS).
         Bag.unions (map (select_packet_in sw) switchm)
     end.
 
+
   Definition relate (st : state) : abst_state :=
     Bag.unions (map relate_switch (switches st)) <+>
-    Bag.unions (map (@relate_dataLink (switches st)) (links st)) <+>
+    Bag.unions (map relate_dataLink (links st)) <+>
     Bag.unions (map relate_openFlowLink (ofLinks st)) <+>
     relate_controller (ctrl st).
 
