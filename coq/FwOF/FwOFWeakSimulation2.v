@@ -75,7 +75,7 @@ Module Make (Import Atoms : ATOMS).
     admit.
     (* Real cases here. *)
     simpl.
-    destruct concreteState_state0.
+    destruct devices0.
 (*    remember (State state_switches0 state_dataLinks0 state_openFlowLinks0
                     state_controller0) as state0. *)
     (* The first challenge is to figure out what the cases are. We cannot

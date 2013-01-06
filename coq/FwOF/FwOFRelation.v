@@ -107,20 +107,20 @@ Module Make (Import Atoms : ATOMS).
 
     
   Record concreteState := ConcreteState {
-    concreteState_state : state;
+    devices : state;
     concreteState_flowTableSafety : 
-      FlowTablesSafe concreteState_state;
+      FlowTablesSafe devices;
     concreteState_consistentDataLinks :
-      ConsistentDataLinks concreteState_state;
-    linksHaveSrc : LinksHaveSrc concreteState_state;
-    dstLinksExist : LinksHaveDst concreteState_state
+      ConsistentDataLinks devices;
+    linksHaveSrc : LinksHaveSrc devices;
+    dstLinksExist : LinksHaveDst devices
   }.
 
   Implicit Arguments ConcreteState [].
 
   Definition concreteStep (st : concreteState) (obs : option observation)
     (st0 : concreteState) :=
-    step (concreteState_state st) obs (concreteState_state st0).
+    step (devices st) obs (devices st0).
 
   Inductive abstractStep : abst_state -> option observation -> abst_state -> 
     Prop := 
@@ -164,7 +164,7 @@ Module Make (Import Atoms : ATOMS).
 
   Definition bisim_relation : relation concreteState abst_state :=
     fun (st : concreteState) (ast : abst_state) => 
-      ast === (relate (concreteState_state st)).
+      ast === (relate (devices st)).
 
 End Make.
 
