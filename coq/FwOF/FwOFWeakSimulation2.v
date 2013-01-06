@@ -204,7 +204,7 @@ tblsOK' linkT
             (FlowTablesSafe_untouched concreteState_flowTableSafety0)
             (ConsistentDataLinks_untouched concreteState_consistentDataLinks0)
             (LinksHaveSrc_untouched linksHaveSrc0)
-            (LinksHaveDst_untouched dstLinksExist0))
+            (LinksHaveDst_untouched linksHaveDst0))
     end.
     split.
     unfold inverse_relation.
@@ -250,7 +250,7 @@ tblsOK' linkT
             (FlowTablesSafe_untouched concreteState_flowTableSafety0)
             (ConsistentDataLinks_untouched concreteState_consistentDataLinks0)
             (LinksHaveSrc_untouched linksHaveSrc0)
-            (LinksHaveDst_untouched dstLinksExist0))
+            (LinksHaveDst_untouched linksHaveDst0))
     end.
     apply StepEquivSwitch.
       unfold Equivalence.equiv.
@@ -262,7 +262,7 @@ tblsOK' linkT
             (FlowTablesSafe_untouched concreteState_flowTableSafety0)
             (ConsistentDataLinks_untouched concreteState_consistentDataLinks0)
             (LinksHaveSrc_untouched linksHaveSrc0)
-            (LinksHaveDst_untouched dstLinksExist0))
+            (LinksHaveDst_untouched linksHaveDst0))
     end.
     exact Hstep.
     apply multistep_nil.
@@ -302,9 +302,9 @@ tblsOK' linkT
       switchm0 pks (sw,pt) sws sws0 links links0) as step1.
 
     (* Now we need to conclude that the switch with id ws exists! *)
-    unfold LinksHaveDst in dstLinksExist0.
-    simpl in dstLinksExist0.
-    destruct (dstLinksExist0 sw pt (swId0,pt0) pks Hlink) as 
+    unfold LinksHaveDst in linksHaveDst0.
+    simpl in linksHaveDst0.
+    destruct (linksHaveDst0 sw pt (swId0,pt0) pks Hlink) as 
       [dst_sw [HDstIn [HDstIdEq HDstPtIn]]].
     destruct dst_sw.
     simpl in *.

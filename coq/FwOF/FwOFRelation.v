@@ -113,7 +113,7 @@ Module Make (Import Atoms : ATOMS).
     concreteState_consistentDataLinks :
       ConsistentDataLinks devices;
     linksHaveSrc : LinksHaveSrc devices;
-    dstLinksExist : LinksHaveDst devices
+    linksHaveDst : LinksHaveDst devices
   }.
 
   Implicit Arguments ConcreteState [].
