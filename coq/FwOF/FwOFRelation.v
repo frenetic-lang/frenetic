@@ -148,59 +148,6 @@ Module Make (Import Atoms : ATOMS).
     fun (st : concreteState) (ast : abst_state) => 
       ast === (relate (devices st)).
 
-  Definition DrainWire_tau := forall
-    (sws sws0 : list switch)
-    (swId : switchId)
-    (pts : list portId)
-    (tbl : flowTable)
-    (inp outp : Bag.bag (portId * packet))
-    (ctrlm : Bag.bag fromController)
-    (switchm : Bag.bag fromSwitch)
-    (links links0 : list (dataLink
-      (sws ++ 
-        (Switch swId pts tbl inp outp ctrlm switchm) ::
-        sws0)))
-    (ctrl : controller)
-    (ofLinks : list openFlowLink)
-    (src : switchId * portId)
-    (pt : portId)
-    (pk : packet)
-    (pks : list packet)
-    (hasSrc0 : LocExists
-      (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
-      src)
-    (hasDst0 : LocExists
-      (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
-      (swId,pt))
-    tblsOK linkTopoOK,
-    exists 
-      inp' hasSrc' hasDst' tblsOK' linkTopoOK',
-      multistep concreteStep
-      (ConcreteState
-        (State 
-          (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
-          (links ++ 
-            (DataLink
-              (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
-              src (pk :: pks) (swId,pt) hasSrc0 hasDst0) :: 
-            links0)
-          ofLinks 
-          ctrl)
-        tblsOK linkTopoOK)
-       nil
-       (ConcreteState
-         (State 
-           (sws ++ (Switch swId pts tbl inp' outp ctrlm switchm):: sws0)
-           (MapEquivLoc links ++ 
-            (linkEquiv
-              (DataLink
-                (sws ++ (Switch swId pts tbl inp' outp ctrlm switchm):: sws0)
-                src [pk] (swId,pt) hasSrc' hasDst')) :: 
-            (MapEquivLoc links0))
-           ofLinks ctrl)
-         tblsOK' linkTopoOK').
-
-
 End Make.
 
 
