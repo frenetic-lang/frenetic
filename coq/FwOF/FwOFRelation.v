@@ -64,14 +64,14 @@ Module Make (Import Atoms : ATOMS).
       Bag.unions (map (select_packet_in sw) (map (PacketIn pt) packetIns)) ===
       Bag.unions (map (transfer sw) (abst_func sw pt pk)).
 
-  Definition FlowTablesSafe (st : state) : Prop :=
+  Definition FlowTablesSafe (sws : list switch) : Prop :=
     forall swId pts tbl inp outp ctrlm switchm,
-      In (Switch swId pts tbl inp outp ctrlm switchm) (switches st) ->
+      In (Switch swId pts tbl inp outp ctrlm switchm) sws ->
       FlowTableSafe swId tbl.
 
-  Definition ConsistentDataLinks (st : state) : Prop :=
+  Definition ConsistentDataLinks (links : list dataLink) : Prop :=
     forall (lnk : dataLink),
-      In lnk (links st) ->
+      In lnk links ->
       topo (src lnk) = Some (dst lnk).
 
   Axiom ControllerRemembersPackets :
@@ -109,10 +109,8 @@ Module Make (Import Atoms : ATOMS).
     
   Record concreteState := ConcreteState {
     devices : state;
-    concreteState_flowTableSafety : 
-      FlowTablesSafe devices;
-    concreteState_consistentDataLinks :
-      ConsistentDataLinks devices;
+    concreteState_flowTableSafety : FlowTablesSafe (switches devices);
+    concreteState_consistentDataLinks : ConsistentDataLinks (links devices);
     linksHaveSrc : LinksHaveSrc (switches devices) (links devices);
     linksHaveDst : LinksHaveDst (switches devices) (links devices)
   }.
@@ -166,6 +164,65 @@ Module Make (Import Atoms : ATOMS).
   Definition bisim_relation : relation concreteState abst_state :=
     fun (st : concreteState) (ast : abst_state) => 
       ast === (relate (devices st)).
+
+(*
+      FlowTablesSafe devices;
+    concreteState_consistentDataLinks :
+      ConsistentDataLinks devices;
+    linksHaveSrc : LinksHaveSrc (switches devices) (links devices);
+    linksHaveDst : LinksHaveDst (switches devices) (links devices)
+*)
+  Definition DrainWire_statement : Prop := forall
+    (sws sws0 : list switch)
+    (swId : switchId)
+    (pts : list portId)
+    (tbl : flowTable)
+    (inp outp : Bag.bag (portId * packet))
+    (ctrlm : Bag.bag fromController)
+    (switchm : Bag.bag fromSwitch)
+    (src : switchId * portId)
+    (pk : packet)
+    (pks : list packet)
+    (links links0 : list dataLink)
+    (ofLinks : list openFlowLink)
+    (ctrl : controller)
+    (pt : portId)
+    (tblsOK : FlowTablesSafe
+      (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0))
+    (linkTopoOK : ConsistentDataLinks 
+      (links ++ (DataLink src (pk :: pks) (swId,pt)) :: links0))
+    (linksHaveSrc : LinksHaveSrc
+      (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
+      (links ++ (DataLink src (pk :: pks) (swId,pt)) :: links0))
+    (linksHaveDst : LinksHaveDst
+      (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
+      (links ++ (DataLink src (pk :: pks) (swId,pt)) :: links0)),
+    exists 
+      (inp' : Bag.bag (portId * packet))
+      (tblsOK' : FlowTablesSafe
+        (sws ++ (Switch swId pts tbl inp' outp ctrlm switchm) :: sws0))
+      (linkTopoOK' : ConsistentDataLinks 
+        (links ++ (DataLink src [pk] (swId,pt)) :: links0))
+      (linksHaveSrc' : LinksHaveSrc
+        (sws ++ (Switch swId pts tbl inp' outp ctrlm switchm) :: sws0)
+        (links ++ (DataLink src [pk] (swId,pt)) :: links0))
+      (linksHaveDst' : LinksHaveDst
+        (sws ++ (Switch swId pts tbl inp' outp ctrlm switchm) :: sws0)
+        (links ++ (DataLink src [pk] (swId,pt)) :: links0)),
+      multistep concreteStep
+      (ConcreteState
+        (State 
+          (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
+          (links ++ (DataLink src (pk :: pks) (swId,pt)) :: links0)
+          ofLinks ctrl)
+        tblsOK linkTopoOK linksHaveSrc linksHaveDst)
+      nil
+      (ConcreteState
+        (State 
+          (sws ++ (Switch swId pts tbl inp' outp ctrlm switchm) :: sws0)
+          (links ++ (DataLink src [pk] (swId,pt)) :: links0)
+          ofLinks ctrl)
+        tblsOK' linkTopoOK' linksHaveSrc' linksHaveDst').
 
 End Make.
 
