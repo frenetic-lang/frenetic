@@ -57,15 +57,8 @@ module Routing = struct
        Sends traffic for unknown destinations to ToAll ports. *)
   let make_routing_policy () = 
     Hashtbl.fold
-      (fun (sw, src) _ pol ->
-        Hashtbl.fold
-          (fun (sw', dst) port pol ->
-            if sw = sw' then
-              Par (Pol (And (DlSrc src, DlDst dst), [To port]),  pol)
-            else
-              pol)
-          Learning.learned_hosts
-          pol)
+      (fun (sw, dst) pt pol ->
+        Par (Pol (And (Switch sw, DlDst dst), [To pt]),  pol))
       Learning.learned_hosts
       (Pol (Learning.make_unknown_predicate (), [ToAll]))
 
