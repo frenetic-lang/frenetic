@@ -128,6 +128,35 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
     of_ctrlm : list fromController
   }.
 
+  Definition observation := (switchId * portId * packet) %type.
+
+  (* NOTE(arjun): Ask me in person why exactly I picked these levels. *)
+  Reserved Notation "SwitchStep[ sw ; obs ; sw0 ]"
+    (at level 70, no associativity).
+  Reserved Notation "ControllerOpenFlow[ c ; l ; obs ; c0 ; l0 ]"
+    (at level 70, no associativity).
+  Reserved Notation "TopoStep[ sw ; link ; obs ; sw0 ; link0 ]"
+    (at level 70, no associativity).
+  Reserved Notation "SwitchOpenFlow[ s ; l ; obs ; s0 ; l0 ]"
+    (at level 70, no associativity).
+
+  Inductive NotBarrierRequest : fromController -> Prop :=
+  | PacketOut_NotBarrierRequest : forall pt pk,
+      NotBarrierRequest (PacketOut pt pk)
+  | FlowMod_NotBarrierRequest : forall fm,
+      NotBarrierRequest (FlowMod fm).
+
+  (** Devices of the same type do not interact in a single
+      step. Therefore, we never have to permute the lists below. If we
+      instead had just one list of all devices, we would have to worry
+      about permuting the list or define symmetric step-rules. *)
+  Record state := State {
+    switches : list switch;
+    links : list dataLink;
+    ofLinks : list openFlowLink;
+    ctrl : controller
+  }.
+
   (** Switches contain bags and bags do not have unique representations. In
       proofs, it is common to replace a bag with an equivalent (but unequal)
       bag. When we do, we need to replace the switch with an equivalent switch
@@ -163,47 +192,93 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
       apply SwitchEquiv; eapply transitivity...
     Qed.
 
-  End Equivalences.
+    Instance switch_Equivalence : Equivalence switch_equiv.
+    Proof.
+      exact switch_equiv_is_Equivalence.
+    Qed.
+
+    Fixpoint SwitchesEquiv (sws1 sws2 : list switch) : Prop :=
+      match (sws1, sws2) with
+        | (nil, nil) => True
+        | (sw1 :: sws1', sw2 :: sws2') => 
+          switch_equiv sw1 sw2 /\ SwitchesEquiv sws1' sws2'
+        | _ => False
+      end.
     
-  Instance switch_Equivalence : Equivalence switch_equiv.
-  Proof.
-    exact switch_equiv_is_Equivalence.
+    Lemma SwitchesEquiv_is_Equivalence : Equivalence SwitchesEquiv.
+    Proof with auto with datatypes.
+      split.
+      unfold Reflexive.
+      intros.
+      induction x... simpl... simpl. split; [ apply reflexivity | trivial ].
+      unfold Symmetric.
+      intros.
+      generalize dependent x.
+      induction y; intros... 
+      destruct x...
+      destruct x...
+      inversion H.
+      simpl.
+      apply symmetry in H0.
+      split...
+      unfold Transitive.
+      intros.
+      generalize dependent x.
+      generalize dependent z.
+      induction y; intros...
+      destruct x...
+      inversion H.
+      destruct x...
+      inversion H.
+      destruct z...
+      inversion H.
+      inversion H0.
+      simpl.
+      split.
+      eapply transitivity; eauto.
+      apply IHy...
+    Qed.
+
+    Instance SwitchesEquiv_Equivalence : Equivalence SwitchesEquiv.
+    Proof.
+      exact SwitchesEquiv_is_Equivalence.
+    Qed.
+    
+    Inductive stateEquiv : state -> state -> Prop :=
+    | StateEquiv : forall sws1 sws2 links ofLinks ctrl,
+      sws1 === sws2 ->
+      stateEquiv
+        (State sws1 links ofLinks ctrl) 
+        (State sws2 links ofLinks ctrl).
+
+    Hint Constructors stateEquiv.
+
+    Lemma stateEquiv_is_Equivalence : Equivalence stateEquiv.
+    Proof with eauto.
+      split.
+      unfold Reflexive.
+      intros. destruct x. apply StateEquiv. apply reflexivity.
+      unfold Symmetric.
+      intros. destruct x; destruct y. inversion H. subst. apply StateEquiv.
+      apply symmetry...
+      unfold Transitive.
+      intros. destruct x. destruct y. destruct z. inversion H. inversion H0.
+      subst. apply StateEquiv. eapply transitivity...
+    Qed.
+
+  End Equivalences.
+
+  Existing Instances switch_Equivalence SwitchesEquiv_Equivalence.
+
+  Instance stateEquiv_Equivalence : Equivalence stateEquiv.
+  Proof. 
+    exact stateEquiv_is_Equivalence.
   Qed.
-      
-
-  Definition observation := (switchId * portId * packet) %type.
-
-  (* NOTE(arjun): Ask me in person why exactly I picked these levels. *)
-  Reserved Notation "SwitchStep[ sw ; obs ; sw0 ]"
-    (at level 70, no associativity).
-  Reserved Notation "ControllerOpenFlow[ c ; l ; obs ; c0 ; l0 ]"
-    (at level 70, no associativity).
-  Reserved Notation "TopoStep[ sw ; link ; obs ; sw0 ; link0 ]"
-    (at level 70, no associativity).
-  Reserved Notation "SwitchOpenFlow[ s ; l ; obs ; s0 ; l0 ]"
-    (at level 70, no associativity).
-
-  Inductive NotBarrierRequest : fromController -> Prop :=
-  | PacketOut_NotBarrierRequest : forall pt pk,
-      NotBarrierRequest (PacketOut pt pk)
-  | FlowMod_NotBarrierRequest : forall fm,
-      NotBarrierRequest (FlowMod fm).
-
-  (** Devices of the same type do not interact in a single
-      step. Therefore, we never have to permute the lists below. If we
-      instead had just one list of all devices, we would have to worry
-      about permuting the list or define symmetric step-rules. *)
-  Record state := State {
-    switches : list switch;
-    links : list dataLink;
-    ofLinks : list openFlowLink;
-    ctrl : controller
-  }.
     
   Inductive step : state -> option observation -> state -> Prop :=
-  | StepEquivSwitch : forall switch switch',
-    switch === switch' ->
-    SwitchStep[ switch; None; switch' ]
+  | StepEquivState : forall st1 st2,
+    st1 === st2 ->
+    step st1 None st2
   | PktProcess : forall swId pts tbl pt pk inp outp ctrlm switchm outp'
                         pksToCtrl,
     process_packet tbl pt pk = (outp', pksToCtrl) ->
