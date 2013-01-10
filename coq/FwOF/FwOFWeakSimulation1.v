@@ -34,16 +34,20 @@ Module Make (Import Atoms : ATOMS).
     inversion H0; subst; simpl in *.
     (* Switch replaced with an equivalent switch. *)
     idtac "Proving weak_sim_1 (Case 1 of 12)...".
+    unfold Equivalence.equiv in H1.
+    destruct H1.
+    simpl in *.
+    unfold Equivalence.equiv in H1.
     exists t.
     split.
     unfold bisim_relation.
     unfold relate.
     rewrite -> H.
-    autorewrite with bag using simpl.
-    assert (relate_switch switch0 === relate_switch switch') as Hguess.
-      admit.
-    rewrite -> Hguess.
-    apply reflexivity.
+    simpl.
+    (* Another annoying lemma. Since SwitchesEquiv sws1 sws2 holds, each pair
+       of equivalent switches relate to equivalent abstract states. We have to
+       prove this by induction on sws1 and sws2. *)
+    admit.
     apply multistep_nil.
     (* Switch is processing a packet from the input buffer *)
     idtac "Proving weak_sim_1 (Case 2 of 12) ...".
