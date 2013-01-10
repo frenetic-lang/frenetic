@@ -50,20 +50,6 @@ Module Make (Import Atoms : ATOMS).
     exists b1, b === ({| x |}) <+> b1.
 
 (*
-  Lemma FlowTablesSafe_untouched : forall 
-    {swId tbl pts 
-    sws sws0 links ofLinks ctrl
-    inp outp ctrlm switchm
-    inp' outp' ctrlm' switchm'},
-    FlowTablesSafe
-      (State (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
-             links ofLinks ctrl) ->
-    FlowTablesSafe
-      (State (sws ++ (Switch swId pts tbl inp' outp' ctrlm' switchm') :: sws0)
-             links ofLinks ctrl).
-  Proof with auto with datatypes.
-    intros.
-  Admitted.
 
   Lemma ConsistentDataLinks_untouched : forall 
     { sws sws' links ofLinks ofLinks' ctrl ctrl' },
@@ -77,19 +63,27 @@ Module Make (Import Atoms : ATOMS).
   Qed.
 
 
+*)
+
   Lemma LinksHaveSrc_untouched : forall 
-    {swId tbl pts sws sws0 links ofLinks ctrl
+    {swId tbl pts sws sws0 links
     inp outp ctrlm switchm tbl' inp' outp' ctrlm' switchm' },
     LinksHaveSrc 
-      (State (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
-             links
-             ofLinks ctrl) ->
+      (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)  links ->
     LinksHaveSrc 
-      (State (sws ++ (Switch swId pts tbl' inp' outp' ctrlm' switchm') :: sws0)
-             links
-             ofLinks ctrl).
+      (sws ++ (Switch swId pts tbl' inp' outp' ctrlm' switchm') :: sws0)
+      links.
   Admitted.
-*)
+
+  Lemma LinksHaveDst_untouched : forall 
+    {swId tbl pts sws sws0 links
+    inp outp ctrlm switchm tbl' inp' outp' ctrlm' switchm' },
+    LinksHaveDst
+      (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)  links ->
+    LinksHaveDst 
+      (sws ++ (Switch swId pts tbl' inp' outp' ctrlm' switchm') :: sws0)
+      links.
+  Admitted.
 
    Lemma LinkTopoOK_inv : forall {links links0 src dst} pks pks',
      ConsistentDataLinks (links ++ (DataLink src pks dst) :: links0) ->
@@ -110,36 +104,104 @@ Module Make (Import Atoms : ATOMS).
      simpl...
    Qed.
 
-   Lemma LinksHaveSrc_inv : forall {sws links links0 src dst} pks pks',
-     LinksHaveSrc sws (links ++ (DataLink src pks dst) :: links0) ->
-     LinksHaveSrc sws (links ++ (DataLink src pks' dst) :: links0).
-   Admitted.
+  Lemma FlowTablesSafe_equiv: forall 
+    { sw sw' sws sws0 },
+    sw === sw' ->
+    FlowTablesSafe (sws ++ sw :: sws0) ->
+    FlowTablesSafe (sws ++ sw' :: sws0).
+  Proof with eauto with datatypes.
+    intros.
+    unfold FlowTablesSafe in *.
+    intros.
+    apply in_app_iff in H1.
+    simpl in H1.
+    destruct H1 as [HIn | [HIn | HIn]].
+    eapply H0...
+    (* Detailed case. *)
+    unfold Equivalence.equiv in H.
+    destruct H.
+    inversion HIn.
+    subst.
+    clear HIn.
+    remember (H0 swId0 pts0 tbl0 inp1 outp1 ctrlm1 switchm1) as X.
+    clear HeqX H0.
+    apply X...
+    eapply H0...
+  Qed.
 
-   Lemma LinksHaveDst_inv : forall {sws links links0 src dst} pks pks',
-     LinksHaveDst sws (links ++ (DataLink src pks dst) :: links0) ->
-     LinksHaveDst sws (links ++ (DataLink src pks' dst) :: links0).
-   Admitted.
+  Lemma FlowTablesSafe_untouched : forall {sws sws0 swId pts tbl inp inp'
+    outp outp' ctrlm ctrlm' switchm switchm' },
+    FlowTablesSafe (sws++(Switch swId pts tbl inp outp ctrlm switchm)::sws0) ->
+    FlowTablesSafe 
+      (sws++(Switch swId pts tbl inp' outp' ctrlm' switchm')::sws0).
+  Proof with eauto.
+    intros.
+  Admitted.
 
-   Lemma sum : forall (x y : nat), x * 0 = 0.
-   Proof.
-     intros.
-     induction x. apply eq_refl. apply IHx.
-   Qed.
+  Lemma LinkHasSrc_equiv : forall {sws sws' link},
+    sws === sws' ->
+    LinkHasSrc sws link ->
+    LinkHasSrc sws' link.
+  Proof with auto with datatypes.
+    intros.
+    destruct link.
+    inversion H0.
+    destruct src.
+    simpl in H1.
+    destruct H1 as [HInSw [HSwEq HInPt]].
+    destruct x; simpl in *; subst.
+    unfold Equivalence.equiv in H.
+    unfold LinkHasSrc in *.
+    destruct H0 as [switch0 [HIn [HSwEq HInPt0]]].
+    simpl in *.
+    generalize dependent sws'.
+    induction sws.
+    (* Contradiction *)
+    intros. destruct sws'. inversion HInSw. simpl in H. contradiction.
+    (* Outer inductive case. *)
+    intros. destruct sws'. simpl in H. contradiction.
+    (* Outer + inner induction *)
+    simpl in H.
+    destruct H as [H Hrec].
+    simpl in HInSw.
+    destruct HInSw as [HInSw | HInSw];
+    destruct HIn as [HIn | HIn].
+    (* Case 1 *)
+    subst.
+    rewrite -> HInSw in *.
+    simpl in *.
+    exists s.
+    split...
+    destruct s.
+    unfold Equivalence.equiv in H.
+    inversion H.
+    subst.
+    simpl.
+    split...
+    (* Case 2 *)
+    clear IHsws.
+    admit. (* requires unique IDs *)
+    (* Case 3 *)
+    admit. (* requires unique IDs *)
+    (* Case 4 *)
+    remember (IHsws HIn HInSw sws' Hrec) as J eqn:X.
+    clear IHsws X.
+    destruct J as [theSwitch0 [HIn0 [HSwEq0 HPtsIn0]]].
+    exists theSwitch0...
+  Qed.
 
-   Lemma sum2 : forall (x y : nat), x * y = x * y.
-   Proof.
-     intros.
-     generalize dependent y.
-     induction x.
-     intros. apply eq_refl. intros. 
-     pose (IHx y). apply eq_refl.
-   Qed.
-   Print sum2.
+  Lemma LinksHaveSrc_inv : forall {sws links links0 src dst} pks pks',
+    LinksHaveSrc sws (links ++ (DataLink src pks dst) :: links0) ->
+    LinksHaveSrc sws (links ++ (DataLink src pks' dst) :: links0).
+  Proof with auto with datatypes.
+  Admitted.
 
-   Check nat_ind.
+  Lemma LinksHaveDst_inv : forall {sws links links0 src dst} pks pks',
+    LinksHaveDst sws (links ++ (DataLink src pks dst) :: links0) ->
+    LinksHaveDst sws (links ++ (DataLink src pks' dst) :: links0).
+  Admitted.
      
-
-   Lemma SimpleDraimWire : forall sws (swId : switchId) pts tbl inp outp ctrlm switchm sws0
+  Lemma SimpleDraimWire : forall sws (swId : switchId) pts tbl inp outp ctrlm switchm sws0
      links src pks0 pks swId pt links0 ofLinks ctrl,
      exists inp',
      multistep step
@@ -171,10 +233,17 @@ Module Make (Import Atoms : ATOMS).
      apply IHstep.
    Qed.
 
-  Lemma DrainWire : DrainWire_statement.
-  Proof with auto.
+   Hint Resolve LinksHaveSrc_inv LinksHaveDst_inv LinkTopoOK_inv
+     FlowTablesSafe_untouched LinksHaveSrc_untouched LinksHaveDst_untouched.
+
+  Lemma DrainWire2 : DrainWire_statement.
+  Proof with eauto with datatypes.
     unfold DrainWire_statement.
-    induction pks0.
+    intros.
+    generalize dependent inp0.
+    induction pks0 using rev_ind.
+    (* Base case: no other packets in front of pk, so nothing needs to
+       be drained. *)
     intros.
     exists inp0.
     exists tblsOK.
@@ -184,41 +253,96 @@ Module Make (Import Atoms : ATOMS).
     apply multistep_nil.
     (* inductive case *)
     intros.
-    remember (IHpks0 links0 links1 ofLinks0 ctrl0 pt tblsOK
-           (LinkTopoOK_inv (pk :: a :: pks0) (pk :: pks0) linkTopoOK)
-            (LinksHaveSrc_inv
-              (pk :: a :: pks0) (pk :: pks0) linksHaveSrc0)
-            (LinksHaveDst_inv
-              (pk :: a :: pks0) (pk :: pks0) linksHaveDst0)) as J eqn:X.
+
+
+    (* Conditions for applying the inductive hypothesis. *)
+    assert
+      (ConsistentDataLinks 
+        (links0 ++ (DataLink src0 (pk::pks0) (swId0,pt)) :: links1)) as
+      stepN_linksTopoOK...
+    assert
+      (FlowTablesSafe
+        (sws ++ (Switch swId0 pts0 tbl0 ({|(pt,x)|} <+> inp0) 
+          outp0 ctrlm0 switchm0) :: sws0)) as stepN_tblsOK...
+    assert
+      (LinksHaveSrc
+        (sws ++ (Switch swId0 pts0 tbl0 ({|(pt,x)|} <+> inp0) 
+          outp0 ctrlm0 switchm0) :: sws0)
+        (links0 ++ (DataLink src0 (pk::pks0) (swId0,pt)) :: links1))
+      as stepN_linksHaveSrc...
+    assert
+      (LinksHaveDst
+        (sws ++ (Switch swId0 pts0 tbl0 ({|(pt,x)|} <+> inp0) 
+          outp0 ctrlm0 switchm0) :: sws0)
+        (links0 ++ (DataLink src0 (pk::pks0) (swId0,pt)) :: links1))
+      as stepN_linksHaveDst...    
+    remember 
+      (IHpks0 stepN_linksTopoOK _ stepN_tblsOK stepN_linksHaveSrc
+        stepN_linksHaveDst) as J eqn:X.
     clear X IHpks0.
-    destruct J as [inp1 [tblsOK1 [linkTopoOK1 [linksHaveSrc1 
-      [linksHaveDst1 Hstep1]]]]].
-    exists inp1.
-    exists tblsOK1.
-    exists linkTopoOK1.
-    exists linksHaveSrc1.
-    exists linksHaveDst1.
-    exact Hstep1.
-    
+    destruct J as [inpN [tblsOKN [linkTopoOKN [linksHaveSrcN
+      [linksHaveDstN HstepN]]]]].
+    exists inpN. exists tblsOKN. exists linkTopoOKN. exists linksHaveSrcN.
+    exists linksHaveDstN.
 
-    ).
-    
-    
+    assert
+      (ConsistentDataLinks
+        (links0 ++ (DataLink src0 ((pk :: pks0) ++ [x]) (swId0,pt)) :: links1))
+      as thisLinkTopoOK...
+    assert 
+      (LinksHaveSrc 
+        (sws ++ (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0) :: sws0)
+        (links0 ++ (DataLink src0 ((pk::pks0) ++ [x]) (swId0,pt)) :: links1))
+      as thisLinksHaveSrc...
+    assert 
+      (LinksHaveDst
+        (sws ++ (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0) :: sws0)
+        (links0 ++ (DataLink src0 ((pk::pks0) ++ [x]) (swId0,pt)) :: links1))
+      as thisLinksHaveDst...
+    apply multistep_tau
+      with (a0 := ConcreteState (State _ _ ofLinks0 ctrl0) tblsOK 
+                    thisLinkTopoOK thisLinksHaveSrc thisLinksHaveDst).
+    unfold concreteStep.
+    simpl.
+    apply StepEquivState.
+    unfold Equivalence.equiv.
+    apply  StateEquiv.
+    apply reflexivity.
 
+    (* Now we can RecvLink *)
+    assert
+      (ConsistentDataLinks
+        (links0 ++ (DataLink src0 (pk :: pks0) (swId0,pt)) :: links1))
+      as step2_linkTopoOK...
+    assert 
+      (LinksHaveSrc 
+        (sws ++ 
+          (Switch swId0 pts0 tbl0 ({|(pt,x)|}<+>inp0) outp0 ctrlm0 switchm0) 
+          :: sws0)
+        (links0 ++ (DataLink src0 (pk::pks0) (swId0,pt)) :: links1))
+      as step2_linksHaveSrc...
+    assert 
+      (LinksHaveDst
+        (sws ++ 
+          (Switch swId0 pts0 tbl0 ({|(pt,x)|}<+>inp0) outp0 ctrlm0 switchm0)  ::
+          sws0)
+        (links0 ++ (DataLink src0 (pk::pks0) (swId0,pt)) :: links1))
+      as step2_linksHaveDst...
+    apply multistep_tau
+      with (a0 := ConcreteState (State _ _ ofLinks0 ctrl0) stepN_tblsOK 
+        stepN_linksTopoOK stepN_linksHaveSrc stepN_linksHaveDst).
+    unfold concreteStep.
+    simpl.
+    rewrite -> app_comm_cons.
+    apply RecvDataLink.
 
-
-  Lemma LinksHaveDst_untouched : forall 
-    {swId tbl pts sws sws0 links ofLinks ctrl
-    inp outp ctrlm switchm tbl' inp' outp' ctrlm' switchm' },
-    LinksHaveDst
-      (State (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
-             links
-             ofLinks ctrl) ->
-    LinksHaveDst 
-      (State (sws ++ (Switch swId pts tbl' inp' outp' ctrlm' switchm') :: sws0)
-             links
-             ofLinks ctrl).
-  Admitted.   
+    apply HstepN.
+    Grab Existential Variables.
+    exact nil.
+    exact nil.
+    exact nil.
+    exact nil.
+  Qed.
 
   Theorem weak_sim_2 :
     weak_simulation abstractStep concreteStep (inverse_relation bisim_relation).
