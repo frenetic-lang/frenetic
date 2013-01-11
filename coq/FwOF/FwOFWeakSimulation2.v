@@ -49,22 +49,6 @@ Module Make (Import Atoms : ATOMS).
     Bag.Mem x b ->
     exists b1, b === ({| x |}) <+> b1.
 
-(*
-
-  Lemma ConsistentDataLinks_untouched : forall 
-    { sws sws' links ofLinks ofLinks' ctrl ctrl' },
-    ConsistentDataLinks (State sws links ofLinks ctrl) ->
-    ConsistentDataLinks (State sws' links ofLinks' ctrl').
-  Proof with auto with datatypes.
-    intros.
-    unfold ConsistentDataLinks in *.
-    intros.
-    simpl in *...
-  Qed.
-
-
-*)
-
   Lemma LinksHaveSrc_untouched : forall 
     {swId tbl pts sws sws0 links
     inp outp ctrlm switchm tbl' inp' outp' ctrlm' switchm' },
@@ -419,7 +403,7 @@ Module Make (Import Atoms : ATOMS).
         exists 
           (ConcreteState S
             (FlowTablesSafe_untouched concreteState_flowTableSafety0)
-            (ConsistentDataLinks_untouched concreteState_consistentDataLinks0)
+            concreteState_consistentDataLinks0
             (LinksHaveSrc_untouched linksHaveSrc0)
             (LinksHaveDst_untouched linksHaveDst0))
     end.
@@ -465,13 +449,18 @@ Module Make (Import Atoms : ATOMS).
         apply multistep_tau with 
           (a0 := ConcreteState st
             (FlowTablesSafe_untouched concreteState_flowTableSafety0)
-            (ConsistentDataLinks_untouched concreteState_consistentDataLinks0)
+            concreteState_consistentDataLinks0
             (LinksHaveSrc_untouched linksHaveSrc0)
             (LinksHaveDst_untouched linksHaveDst0))
     end.
-    apply StepEquivSwitch.
-      unfold Equivalence.equiv.
-      apply SwitchEquiv; try solve [ apply reflexivity | auto ].
+    apply StepEquivState.
+    simpl.
+    unfold Equivalence.equiv.
+    apply StateEquiv.
+    unfold Equivalence.equiv.
+    apply SwitchesEquiv_app.
+    Check SwitchesEquiv.
+    apply SwitchEquiv; try solve [ apply reflexivity | auto ].
     match goal with
       | [ H : step _ _ ?st |- _ ] =>
         apply multistep_obs with 
