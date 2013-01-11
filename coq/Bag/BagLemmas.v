@@ -215,7 +215,28 @@ Section Methods.
       intros...
     Qed.
 
-  End Methods.
+  Axiom Mem_unions : forall (x : A) lst, 
+    Mem x (unions lst) ->
+    exists elt, In elt lst /\ Mem x elt.
+
+  Axiom unpop_unions : forall (b b0 b1 : bag A),
+    Union b b0 === Union b b1 ->
+    b0 === b1.
+
+  Axiom to_list_singleton : forall (x : A),
+    to_list (Singleton x) === [x].
+  
+  Axiom from_list_singleton : forall (x : A),
+    FromList [x] === Singleton x.
+
+  Axiom mem_in_to_list : forall  (x : A) (bag : bag A),
+    In x (to_list bag) -> Mem x bag.
+
+  Axiom mem_split : forall (x : A) (b : bag A),
+    Mem x b ->
+    exists b1, b === ({| x |}) <+> b1.
+
+End Methods.
 
 Section BinaryMethods.
 
@@ -306,6 +327,10 @@ Section BinaryMethods.
     apply IHbag2_1 in H1.
     apply IHbag2_2 in H2.
   Admitted.
+
+  Axiom mem_unions_map : forall (b : B) (lst: list A) (f : A -> bag B),
+    Mem b (unions (map f lst)) ->
+    exists (a : A), In a lst /\ Mem b (f a).
 
 End BinaryMethods.
 

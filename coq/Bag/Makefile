@@ -1,4 +1,4 @@
-MODULES := Bag
+MODULES := BagDef BagLemmas BagTactics Bag
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean

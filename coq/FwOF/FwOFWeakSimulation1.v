@@ -11,6 +11,7 @@ Require Import Bag.Bag.
 Require Import FwOF.FwOF.
 Require FwOF.FwOFRelation.
 
+
 Local Open Scope list_scope.
 Local Open Scope equiv_scope.
 Local Open Scope bag_scope.
@@ -64,14 +65,18 @@ Module Make (Import Atoms : ATOMS).
     rewrite -> Heqb.
     assert (FlowTableSafe swId0 tbl0) as J.
       refine (concreteState_flowTableSafety1
-        swId0 pts0 tbl0 inp0 (Bag.FromList outp' <+> outp0) ctrlm0
-          (Bag.FromList (map (PacketIn pt) pksToCtrl) <+> switchm0) _)...
+        swId0 pts0 tbl0 inp0 (FromList outp' <+> outp0) ctrlm0
+          (FromList (map (PacketIn pt) pksToCtrl) <+> switchm0) _)...
       simpl. auto with datatypes.
     unfold FlowTableSafe in J.
     pose (J0 := J pt pk outp' pksToCtrl H1).
     subst.
+    (** Full autorewrite never worked (needed to explicitly call Bag.unions_app)
+        But, this got worse after the bag-refactoring. No idea why. *)
     rewrite <- J0.
-    autorewrite with bag using simpl.
+    simpl.
+    rewrite -> map_app.
+    simpl.
     rewrite -> (Bag.unions_app _ (map relate_switch sws)).
     autorewrite with bag using simpl.
     bag_perm 100. (* #winning *)

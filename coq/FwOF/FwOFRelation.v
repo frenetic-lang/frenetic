@@ -21,7 +21,7 @@ Module Make (Import Atoms : ATOMS).
 
   Axiom topo : switchId * portId -> option (switchId * portId).
 
-  Definition abst_state := Bag.bag (switchId * portId * packet).
+  Definition abst_state := bag (switchId * portId * packet).
 
   Axiom relate_controller : controller -> abst_state.
 
@@ -53,7 +53,7 @@ Module Make (Import Atoms : ATOMS).
   Definition select_packet_in (sw : switchId) (msg : fromSwitch) :=
     match msg with
       | PacketIn pt pk => 
-        Bag.FromList (map (affixSwitch sw) (locate_packet_in sw pt pk))
+        FromList (map (affixSwitch sw) (locate_packet_in sw pt pk))
       | _ => {| |}
     end.
 
@@ -135,7 +135,7 @@ Module Make (Import Atoms : ATOMS).
   Definition relate_switch (sw : switch) : abst_state :=
     match sw with
       | Switch swId _ tbl inp outp ctrlm switchm =>
-        Bag.FromList (map (affixSwitch swId) (Bag.to_list inp)) <+>
+        FromList (map (affixSwitch swId) (Bag.to_list inp)) <+>
         Bag.unions (map (transfer swId) (Bag.to_list outp)) <+>
         Bag.unions (map (select_packet_out swId) (Bag.to_list ctrlm)) <+>
         Bag.unions (map (select_packet_in swId) (Bag.to_list switchm))
@@ -144,7 +144,7 @@ Module Make (Import Atoms : ATOMS).
   Definition relate_dataLink (link : dataLink) : abst_state :=
     match link with
       | DataLink _ pks (sw,pt) =>
-        Bag.FromList (map (fun pk => (sw,pt,pk)) pks)
+        FromList (map (fun pk => (sw,pt,pk)) pks)
     end.
 
   Definition relate_openFlowLink (link : openFlowLink) : abst_state :=
@@ -177,9 +177,9 @@ Module Make (Import Atoms : ATOMS).
     (swId : switchId)
     (pts : list portId)
     (tbl : flowTable)
-    (inp outp : Bag.bag (portId * packet))
-    (ctrlm : Bag.bag fromController)
-    (switchm : Bag.bag fromSwitch)
+    (inp outp : bag (portId * packet))
+    (ctrlm : bag fromController)
+    (switchm : bag fromSwitch)
     (src : switchId * portId)
     (pk : packet)
     (pks : list packet)
@@ -198,7 +198,7 @@ Module Make (Import Atoms : ATOMS).
       (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
       (links ++ (DataLink src (pk :: pks) (swId,pt)) :: links0)),
     exists 
-      (inp' : Bag.bag (portId * packet))
+      (inp' : bag (portId * packet))
       (tblsOK' : FlowTablesSafe
         (sws ++ (Switch swId pts tbl inp' outp ctrlm switchm) :: sws0))
       (linkTopoOK' : ConsistentDataLinks 
