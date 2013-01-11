@@ -294,15 +294,23 @@ Module Make (Import Atoms : ATOMS).
     unfold Equivalence.equiv.
     apply StateEquiv.
     unfold Equivalence.equiv.
+
+    Axiom SwitchesEquiv_app : forall sws11 sws21 sws12 sws22,
+      SwitchesEquiv sws11 sws21 ->
+      SwitchesEquiv sws12 sws22 ->
+      SwitchesEquiv (sws11 ++ sws12) (sws21 ++ sws22).
     apply SwitchesEquiv_app.
-    Check SwitchesEquiv.
+    apply reflexivity.
+    simpl.
+    split.
     apply SwitchEquiv; try solve [ apply reflexivity | auto ].
+    apply reflexivity.
     match goal with
       | [ H : step _ _ ?st |- _ ] =>
         apply multistep_obs with 
           (a0 := ConcreteState st
             (FlowTablesSafe_untouched concreteState_flowTableSafety0)
-            (ConsistentDataLinks_untouched concreteState_consistentDataLinks0)
+            concreteState_consistentDataLinks0
             (LinksHaveSrc_untouched linksHaveSrc0)
             (LinksHaveDst_untouched linksHaveDst0))
     end.
