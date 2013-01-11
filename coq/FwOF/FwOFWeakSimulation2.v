@@ -166,9 +166,13 @@ Module Make (Import Atoms : ATOMS).
     exact nil.
   Qed.
 
+  Arguments DrainWire2 [sws sws0 swId pts tbl inp outp ctrlm switchm src pk
+                        pks links links0] ofLinks ctrl [pt] tblsOK linkTopoOK
+                       linksHaveSrc linksHaveDst.
+
   Theorem weak_sim_2 :
     weak_simulation abstractStep concreteStep (inverse_relation bisim_relation).
-  Proof with simpl;auto.
+  Proof with simpl;eauto.
     unfold weak_simulation.
     intros.
     unfold inverse_relation in H.
@@ -317,51 +321,150 @@ Module Make (Import Atoms : ATOMS).
     exact Hstep.
     apply multistep_nil.
 
-    (* Case where packet is in the output buffer. *)
+    (*
+     * Case where packet is in the output buffer. 
+     *)
     
     (* Proof sketch: We can assume that (topo sw pt) is defined, which implies
        that a data-link exists from this switch to some destination, dst.
        We reach the final state in two steps: SendDataLink followed by
        PktProcess.*)
-
-    apply mem_unions_map in HMemOutp.
+ 
+    (* 1. Rewrite outp0 as a union of (pt,pk) and some other bag.  *)
+    apply Bag.mem_unions_map in HMemOutp.
     destruct HMemOutp as [[pt0 pk0] [HIn HMemOutp]].
     simpl in HMemOutp.
-    destruct (topo (swId0, pt0)).
-    Focus 2. simpl in HMemOutp. inversion HMemOutp.
+    remember (topo (swId0, pt0)) as Htopo.
+    destruct Htopo;
+      [ idtac | simpl in HMemOutp; inversion HMemOutp ].
     destruct p.
-    simpl in HMemOutp. inversion HMemOutp. clear HMemOutp.
-    rewrite <- H2. clear s H2.
-
-    apply mem_in_to_list in HIn.
-    apply (mem_split _) in HIn.
+    simpl in HMemOutp. inversion HMemOutp. subst.
+    rename pk0 into pk.
+    clear HMemOutp.
+    apply Bag.mem_in_to_list in HIn.
+    apply (Bag.mem_split _) in HIn.
     destruct HIn as [outp' HIn].
-    rewrite <- H4 in *. clear pk0 H4.
-    
-    (* TODO(arjun): just how did i figure out (sw,pt) goes here *)
-    assert (exists pks, In (DataLink (swId0,pt0) pks (sw,pt)) links0).
+    Check HIn.
+
+    (* TODO(arjun): The ConsistentDataLink invariants states that a link's
+       source and destination is reflected in the topo function. We need
+       another invariant stating that if the topo function is defined for
+       a pair of locations, then there must exist a link between them. *)
+    assert (exists pks, In (DataLink (swId0,pt0) pks (s,p)) links0) as X.
       admit.
+    destruct X as [pks  Hlink].
 
-    destruct H1 as [pks  Hlink].
-    remember Hlink as Hlink_copy eqn:X.
-    clear X.
-    apply in_split in Hlink_copy.
-    destruct Hlink_copy as [links [links1 Hlink_eq]].
+    (* 2. Rewrite links0 as the union of the link in Hlink and the rest. *)
+    apply in_split in Hlink.
+    destruct Hlink as [links01 [links02 Hlink]].
+    subst.
 
-    remember (SendDataLink swId0 pts0 tbl0 inp0 pt0 pk outp' ctrlm0
-      switchm0 pks (sw,pt) sws sws0 links links0) as step1.
+    eexists.
+    apply and_comm.
+    split.
+    remember (State (sws ++ (Switch swId0 pts0 tbl0 inp0
+                                   (({|(pt0, pk)|}) <+> outp') ctrlm0 switchm0) 
+                         :: sws0)
+                    (links01 ++ (DataLink (swId0, pt0) pks (s, p)) :: links02)
+                    ofLinks0
+                    ctrl0) as dev1.
+    assert (FlowTablesSafe (switches dev1)) as HtblsOK1.
+      subst...
+    assert (LinksHaveSrc (switches dev1) (links dev1)) as HLinksHaveSrc1.
+      subst...
+    assert (LinksHaveDst (switches dev1) (links dev1)) as HLinksHaveDst1.
+      subst...
+    subst.
+    apply multistep_tau with 
+      (a0 := ConcreteState _ HtblsOK1 concreteState_consistentDataLinks0
+                           HLinksHaveSrc1 HLinksHaveDst1).
+    apply StepEquivState.
+    simpl.
+    unfold Equivalence.equiv.
+    apply StateEquiv.
+    apply SwitchesEquiv_app.
+    apply reflexivity.
+    simpl.
+    split.
+    apply SwitchEquiv; try solve [ apply reflexivity | auto ].
+    apply reflexivity.
+    
+    clear linksHaveDst0 linksHaveSrc0 concreteState_flowTableSafety0.
 
-    (* Now we need to conclude that the switch with id ws exists! *)
-    unfold LinksHaveDst in linksHaveDst0.
-    simpl in linksHaveDst0.
-    destruct (linksHaveDst0 sw pt (swId0,pt0) pks Hlink) as 
-      [dst_sw [HDstIn [HDstIdEq HDstPtIn]]].
-    destruct dst_sw.
+    remember
+      (State (sws ++ (Switch swId0 pts0 tbl0 inp0 outp' ctrlm0 switchm0) :: sws0)
+             (links01 ++ (DataLink (swId0, pt0) (pk::pks) (s, p)) :: links02)
+             ofLinks0
+             ctrl0) as dev2.
+    assert (FlowTablesSafe (switches dev2)) as HtblsOK2.
+      subst...
+    assert (LinksHaveSrc (switches dev2) (links dev2)) as HLinksHaveSrc2.
+      subst...
+    assert (LinksHaveDst (switches dev2) (links dev2)) as HLinksHaveDst2.
+      subst...
+    assert (ConsistentDataLinks (links dev2)) as HLinksOK2.
+      subst...
+    subst.
+    apply multistep_tau with 
+      (a0 := ConcreteState _ HtblsOK2 HLinksOK2 HLinksHaveSrc2 HLinksHaveDst2).
+    unfold concreteStep.
+    apply SendDataLink.
+
+
+    (* Establish that the destination switch exists. *)
+    assert 
+      (LinkHasDst
+         (sws ++ (Switch swId0 pts0 tbl0 inp0 outp' ctrlm0 switchm0) :: sws0)
+         (DataLink (swId0,pt0) (pk::pks) (s,p))) as J0.
+      apply HLinksHaveDst2. simpl. auto with datatypes.
+    unfold LinkHasDst in J0.
+    destruct J0 as [switch2 [HSw2In [HSw2IdEq HSw2PtsIn]]].
+    destruct switch2.
     simpl in *.
-    rewrite <- HDstIdEq in *.
-    clear swId1 HDstIdEq.
-Check RecvDataLink.
+    subst.
+    apply in_split in HSw2In.
+    destruct HSw2In as [sws' [sws0' HSw2In]].
+    remember 
+      (State
+         (sws' ++ (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1) :: sws0')
+         (links01 ++ (DataLink (swId0,pt0) (pk::pks) (swId1,p)) :: links02)
+         ofLinks0
+         ctrl0) as dev3.
+    assert (FlowTablesSafe (switches dev3)) as HtblsOK3.
+      subst.
+      rewrite <- HSw2In...
+    assert (ConsistentDataLinks (links dev3)) as HLinksOK3.
+      subst.
+      rewrite <- HSw2In...
+    assert (LinksHaveSrc (switches dev3) (links dev3)) as HLinksHaveSrc3.
+      subst.
+      rewrite <- HSw2In...
+    assert (LinksHaveDst (switches dev3) (links dev3)) as HLinksHaveDst3.
+      subst.
+      rewrite <- HSw2In...
 
-    remember (PktProcess sw
 
-      (Se
+    apply multistep_tau with 
+      (a0 := ConcreteState _ HtblsOK3 HLinksOK3
+                           HLinksHaveSrc3 HLinksHaveDst3).
+    apply StepEquivState.
+    simpl.
+    unfold  Equivalence.equiv.
+    subst.
+    apply StateEquiv.
+    rewrite -> HSw2In.
+    apply reflexivity.
+
+    subst.
+    remember (DrainWire2 ofLinks0 ctrl0 HtblsOK3 HLinksOK3 HLinksHaveSrc3 HLinksHaveDst3) as Hdrain.
+    clear HeqHdrain.
+    destruct Hdrain as [inp4 [tblsOK4 [linkTopoOK4 [linksSrc4 [linksDst4 Hdrain]]]]].
+    match goal with
+      | |- multistep _ _ ?X _ => remember X
+    end.
+    rewrite <- app_nil_l in Heql.
+    subst.
+    eapply multistep_app.
+    apply Hdrain.
+
+    (* </dance> *)
