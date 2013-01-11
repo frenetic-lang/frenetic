@@ -468,3 +468,50 @@ Module Make (Import Atoms : ATOMS).
     apply Hdrain.
 
     (* </dance> *)
+    clear inp1 HSw2In HtblsOK3 HLinksOK3 HLinksHaveSrc3 HLinksHaveDst3 Hdrain.
+
+    assert ([pk] = nil ++ [pk]) as X. simpl...
+    remember 
+      (State
+         (sws' ++ (Switch swId1 pts1 tbl1 inp4 outp1 ctrlm1 switchm1) :: sws0')
+         (links01 ++ (DataLink (swId0,pt0) (nil ++ [pk])(swId1,p)) :: links02)
+         ofLinks0
+         ctrl0) as dev4.
+    assert (FlowTablesSafe (switches dev4)) as HtblsOK4. subst...
+    assert (ConsistentDataLinks (links dev4)) as HLinksOK4. subst...
+    assert (LinksHaveSrc (switches dev4) (links dev4)) as HLinksSrc4. subst...
+    assert (LinksHaveDst (switches dev4) (links dev4)) as HLinksDst4. subst...
+    apply multistep_tau with 
+      (a0 := ConcreteState _ HtblsOK4 HLinksOK4 HLinksSrc4 HLinksDst4).
+    apply StepEquivState.
+    simpl.
+    unfold  Equivalence.equiv.
+    subst.
+    apply StateEquiv.
+    apply reflexivity.
+
+    remember 
+      (State
+         (sws' ++ (Switch swId1 pts1 tbl1 ({|(p,pk)|} <+> inp4) outp1 ctrlm1 
+                          switchm1) :: sws0')
+         (links01 ++ (DataLink (swId0,pt0) nil (swId1,p)) :: links02)
+         ofLinks0
+         ctrl0) as dev5.
+    assert (FlowTablesSafe (switches dev5)) as HtblsOK5.
+      subst...
+    assert (ConsistentDataLinks (links dev5)) as HLinksOK5.
+      subst...
+    assert (LinksHaveSrc (switches dev5) (links dev5)) as HLinksHaveSrc5.
+      subst...
+    assert (LinksHaveDst (switches dev5) (links dev5)) as HLinksHaveDst5.
+      subst...
+    apply multistep_tau with 
+      (a0 := ConcreteState _ HtblsOK5 HLinksOK5
+                           HLinksHaveSrc5 HLinksHaveDst5).
+    subst.
+    unfold concreteStep.
+    apply RecvDataLink.
+
+    clear dev4 Heqdev4 HtblsOK4 HLinksOK4 HLinksSrc4 HLinksDst4.
+    
+    
