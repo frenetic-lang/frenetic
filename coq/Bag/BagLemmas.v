@@ -219,9 +219,14 @@ Section Methods.
     Mem x (unions lst) ->
     exists elt, In elt lst /\ Mem x elt.
 
-  Axiom unpop_unions : forall (b b0 b1 : bag A),
-    Union b b0 === Union b b1 ->
-    b0 === b1.
+ Lemma unpop_unions : 
+   forall (b b0 b1 : bag A),
+     b <+> b0 === b <+> b1 ->
+     b0 === b1.
+ Proof.
+   intros.
+   unfold Equivalence.equiv in *.
+ Admitted.
 
   Axiom to_list_singleton : forall (x : A),
     to_list (Singleton x) === [x].
