@@ -150,7 +150,13 @@ Module Make (Import Atoms : ATOMS).
     subst.
     unfold relate.
     simpl.
+    idtac "TODO(arjun): skipping critical flowmod case.".
     admit.
+    (* PacketOut case. *)
+    destruct st1. destruct st2. subst. unfold relate. simpl.
+    autorewrite with bag using simpl.
+
+    
   Admitted.
 
   Lemma relate_multistep_simpl_tau : forall st1 st2,
