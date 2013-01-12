@@ -165,65 +165,6 @@ Module Make (Import Atoms : ATOMS).
     fun (st : concreteState) (ast : abst_state) => 
       ast === (relate (devices st)).
 
-(*
-      FlowTablesSafe devices;
-    concreteState_consistentDataLinks :
-      ConsistentDataLinks devices;
-    linksHaveSrc : LinksHaveSrc (switches devices) (links devices);
-    linksHaveDst : LinksHaveDst (switches devices) (links devices)
-*)
-  Definition DrainWire_statement : Prop := forall
-    (sws sws0 : list switch)
-    (swId : switchId)
-    (pts : list portId)
-    (tbl : flowTable)
-    (inp outp : bag (portId * packet))
-    (ctrlm : bag fromController)
-    (switchm : bag fromSwitch)
-    (src : switchId * portId)
-    (pk : packet)
-    (pks : list packet)
-    (links links0 : list dataLink)
-    (ofLinks : list openFlowLink)
-    (ctrl : controller)
-    (pt : portId)
-    (tblsOK : FlowTablesSafe
-      (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0))
-    (linkTopoOK : ConsistentDataLinks 
-      (links ++ (DataLink src (pk :: pks) (swId,pt)) :: links0))
-    (linksHaveSrc : LinksHaveSrc
-      (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
-      (links ++ (DataLink src (pk :: pks) (swId,pt)) :: links0))
-    (linksHaveDst : LinksHaveDst
-      (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
-      (links ++ (DataLink src (pk :: pks) (swId,pt)) :: links0)),
-    exists 
-      (inp' : bag (portId * packet))
-      (tblsOK' : FlowTablesSafe
-        (sws ++ (Switch swId pts tbl inp' outp ctrlm switchm) :: sws0))
-      (linkTopoOK' : ConsistentDataLinks 
-        (links ++ (DataLink src [pk] (swId,pt)) :: links0))
-      (linksHaveSrc' : LinksHaveSrc
-        (sws ++ (Switch swId pts tbl inp' outp ctrlm switchm) :: sws0)
-        (links ++ (DataLink src [pk] (swId,pt)) :: links0))
-      (linksHaveDst' : LinksHaveDst
-        (sws ++ (Switch swId pts tbl inp' outp ctrlm switchm) :: sws0)
-        (links ++ (DataLink src [pk] (swId,pt)) :: links0)),
-      multistep concreteStep
-      (ConcreteState
-        (State 
-          (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
-          (links ++ (DataLink src (pk :: pks) (swId,pt)) :: links0)
-          ofLinks ctrl)
-        tblsOK linkTopoOK linksHaveSrc linksHaveDst)
-      nil
-      (ConcreteState
-        (State 
-          (sws ++ (Switch swId pts tbl inp' outp ctrlm switchm) :: sws0)
-          (links ++ (DataLink src [pk] (swId,pt)) :: links0)
-          ofLinks ctrl)
-        tblsOK' linkTopoOK' linksHaveSrc' linksHaveDst').
-
 End Make.
 
 
