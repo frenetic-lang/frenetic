@@ -244,7 +244,8 @@ Module Make (Import Atoms : ATOMS).
     eapply Bag.mem_split with (ED := swPtPk_eqdec) in HMemOutp.
     destruct HMemOutp as [HEmpty HSingleton].
     simpl in HSingleton.
-    destruct (topo (swId0, pt0)).
+    remember (topo (swId0,pt0)) as Htopo.
+    destruct Htopo.
     destruct p.
     apply Bag.singleton_equiv in HSingleton.
     destruct HSingleton as [HSingleton HEmpty'].
@@ -327,53 +328,13 @@ Module Make (Import Atoms : ATOMS).
       apply Bag.equiv_singleton.
       apply symmetry...
       apply reflexivity.
-    
-    eapply multistep_tau.
-    apply SendDataLink.
 
-    apply multistep_tau with
-    (a0 := State (({|Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1|}) <+>
-                  ({|Switch swId0 pts0 tbl0 inp0 outp' ctrlm0 switchm0|}) <+>
-                  sws0)
-                 (links01 ++ (DataLink (swId0,pt0) ([pk]++pks) (swId1,pt)) :: links02)
-                 ofLinks0
-                 ctrl0).
-      apply StepEquivState.
-      apply StateEquiv.
-      rewrite <- Bag.union_assoc.
-      rewrite -> 
-        (Bag.union_comm _ ({|Switch swId0 pts0 tbl0 inp0 outp' ctrlm0 switchm0|})).
-      rewrite -> Bag.union_assoc.
-      apply Bag.pop_union; apply reflexivity.
-      
-
-    destruct (SimpleDraimWire 
-      (({|Switch swId0 pts0 tbl0 inp0 outp' ctrlm0 switchm0|}) <+> sws0)
-      swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1 
-      links01 (swId0,pt0) [pk] pks swId1 pt links02 ofLinks0 ctrl0)
-    as [inp4 step].
-    eapply multistep_app with (obs2 := [(swId1,pt,pk)]).
-    exact step.
-    
-    assert ([pk] = nil ++ [pk]) as X... rewrite -> X. clear X.
-
-    eapply multistep_tau.
-    apply RecvDataLink.
-
-    eapply multistep_obs.
-    apply PktProcess.
-    instantiate (1 := pktIns).
-    instantiate (1 := outp1').
-    symmetry...
-
-    admit. (* simpledrainwire needs to tell more. *)
-    simpl...
+    eapply ObserveFromOutp... (* #winning *)
     rewrite -> H.
     unfold relate.
     simpl.
     apply reflexivity.
-    exact H0.
-    
+    trivial.
     (* idiotic contradiction in HSingleton. Below we match the stupid goal directly
        so that we don't accidentally admit something else if the goal is discharged
        earlier due to refactoring. *)
