@@ -31,18 +31,23 @@ Hint Constructors multistep.
 Lemma multistep_app : forall (A Ob : Type)
   (step : step A Ob)
   (s1 s2 s3 : A)
-  (obs1 obs2 : list Ob),
+  (obs1 obs2 obs3: list Ob),
   multistep step s1 obs1 s2 ->
   multistep step s2 obs2 s3 ->
-  multistep step s1 (obs1 ++ obs2) s3.
+  obs3 = obs1 ++ obs2 ->
+  multistep step s1 obs3 s3.
 Proof with auto.
   intros.
-  induction H...
-  apply IHmultistep in H0.
-  exact (@multistep_tau A Ob step0 a a0 s3 (obs ++ obs2) H H0).
-  simpl.
-  apply IHmultistep in H0.
-  exact (@multistep_obs A Ob step0 a a0 s3 ob (obs ++ obs2) H H0).
+  generalize dependent obs3.
+  induction H; intros...
+  simpl in H1. subst...
+  apply IHmultistep  with (obs3 := obs3) in H0.
+  apply multistep_tau with (a0 := a0)...
+  trivial.
+
+  simpl in H2.
+  rewrite -> H2.
+  apply multistep_obs with (a0 := a0)...
 Qed.
 
 Definition list_of_option {A : Type} (opt : option A) : list A :=

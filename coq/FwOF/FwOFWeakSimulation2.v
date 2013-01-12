@@ -22,6 +22,266 @@ Module Make (Import Atoms : ATOMS).
   Import RelationLemmas.Relation.
   Import RelationLemmas.Concrete.
 
+  Lemma simpl_step : forall (st1 st2 : state) obs
+    (tblsOk1 : FlowTablesSafe (switches st1))
+    (linksTopoOk1 : ConsistentDataLinks (links st1))
+    (haveSrc1 : LinksHaveSrc (switches st1) (links st1))
+    (haveDst1 : LinksHaveDst (switches st1) (links st1)),
+    step st1 obs st2 ->
+    exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2,
+      concreteStep
+        (ConcreteState st1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1)
+        obs
+        (ConcreteState st2 tblsOk2 linksTopoOk2 haveSrc2 haveDst2).
+  Proof with eauto with datatypes.
+    intros.
+    unfold concreteStep.
+    simpl.
+    inversion H; subst.
+    (* Case 1. *)
+    (* idiotic case. *)
+    admit.
+    (* Case 2. *)
+    exists (FlowTablesSafe_untouched tblsOk1).
+    exists linksTopoOk1.
+    exists (LinksHaveSrc_untouched haveSrc1).
+    exists (LinksHaveDst_untouched haveDst1).
+    trivial.
+    (* Case 3. *)
+    idtac "TODO(arjun): critical case skipping -- flowmod".
+    admit.
+    (* Case 4. *)
+    exists (FlowTablesSafe_untouched tblsOk1).
+    exists linksTopoOk1.
+    exists (LinksHaveSrc_untouched haveSrc1).
+    exists (LinksHaveDst_untouched haveDst1)...
+    (* Case 5. *)
+    exists (FlowTablesSafe_untouched tblsOk1).
+    exists (LinkTopoOK_inv pks0 (pk::pks0) linksTopoOk1).
+    exists (LinksHaveSrc_inv pks0 (pk::pks0) (LinksHaveSrc_untouched haveSrc1)).
+    exists (LinksHaveDst_inv pks0 (pk::pks0) (LinksHaveDst_untouched haveDst1)).
+    trivial.
+    (* Case 6. *)
+    exists (FlowTablesSafe_untouched tblsOk1).
+    exists (LinkTopoOK_inv (pks0 ++ [pk]) pks0 linksTopoOk1).
+    exists 
+      (LinksHaveSrc_inv (pks0 ++ [pk]) pks0 (LinksHaveSrc_untouched haveSrc1)).
+    exists 
+      (LinksHaveDst_inv (pks0 ++ [pk]) pks0 (LinksHaveDst_untouched haveDst1)).
+    trivial.
+    (* Case 7. *)
+    eauto.
+    (* Case 8. *)
+    eauto.
+    (* Case 9. *)
+    eauto.
+    (* Case 10. *)
+    exists (FlowTablesSafe_untouched tblsOk1).
+    exists linksTopoOk1.
+    exists (LinksHaveSrc_untouched haveSrc1).
+    exists (LinksHaveDst_untouched haveDst1).
+    trivial.
+    (* Case 11. *)
+    exists (FlowTablesSafe_untouched tblsOk1).
+    exists linksTopoOk1.
+    exists (LinksHaveSrc_untouched haveSrc1).
+    exists (LinksHaveDst_untouched haveDst1).
+    trivial.
+    (* Case 12. *)
+    exists (FlowTablesSafe_untouched tblsOk1).
+    exists linksTopoOk1.
+    exists (LinksHaveSrc_untouched haveSrc1).
+    exists (LinksHaveDst_untouched haveDst1).
+    trivial.
+  Qed.
+
+  Lemma simpl_multistep : forall (st1 st2 : state) obs
+    (tblsOk1 : FlowTablesSafe (switches st1))
+    (linksTopoOk1 : ConsistentDataLinks (links st1))
+    (haveSrc1 : LinksHaveSrc (switches st1) (links st1))
+    (haveDst1 : LinksHaveDst (switches st1) (links st1)),
+    multistep step st1 obs st2 ->
+    exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2,
+      multistep concreteStep
+                (ConcreteState st1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1)
+                obs
+                (ConcreteState st2 tblsOk2 linksTopoOk2 haveSrc2 haveDst2).
+  Proof with eauto with datatypes.
+    intros.
+    induction H.
+    (* zero steps. *)
+    eauto.
+    destruct (simpl_step tblsOk1 linksTopoOk1 haveSrc1 haveDst1 H)
+             as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 step]]]].
+    destruct (IHmultistep tblsOk2 linksTopoOk2 haveSrc2 haveDst2)
+             as [tblsOk3 [linksTopoOk3 [haveSrc3 [haveDst3 stepN]]]].
+    exists tblsOk3. 
+    exists linksTopoOk3.
+    exists haveSrc3.
+    exists haveDst3.
+    eapply multistep_tau...
+    destruct (simpl_step tblsOk1 linksTopoOk1 haveSrc1 haveDst1 H)
+      as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 step]]]].
+    destruct (IHmultistep tblsOk2 linksTopoOk2 haveSrc2 haveDst2)
+             as [tblsOk3 [linksTopoOk3 [haveSrc3 [haveDst3 stepN]]]].
+    exists tblsOk3. 
+    exists linksTopoOk3.
+    exists haveSrc3.
+    exists haveDst3.
+    eapply multistep_obs...
+  Qed.
+
+  Lemma relate_step_simpl_tau : forall st1 st2,
+    concreteStep st1 None st2 ->
+    relate (devices st1) === relate (devices st2).
+  Proof with eauto with datatypes.
+    intros.
+    inversion H; subst.
+    (* Case 1. *)
+    unfold Equivalence.equiv in H0.
+    destruct H0.
+    unfold relate.
+    simpl.
+    unfold Equivalence.equiv in H0.
+    admit. (* TODO(arjun): dumb lemma needed. *)
+    (* Case 2. *)
+    destruct st1.
+    destruct st2.
+    subst.
+    unfold relate.
+    simpl.
+    admit.
+  Admitted.
+
+  Lemma relate_multistep_simpl_tau : forall st1 st2,
+    multistep concreteStep st1 nil st2 ->
+    relate (devices st1) === relate (devices st2).
+  Proof with eauto.
+    intros.
+    remember nil.
+    induction H...
+    apply reflexivity.
+    apply relate_step_simpl_tau in H. 
+    eapply transitivity...
+    inversion Heql.
+  Qed.
+
+  Lemma relate_step_simpl_obs : forall  sw pt pk lps st1 st2,
+    relate (devices st1) === ({| (sw,pt,pk) |} <+> lps) ->
+    concreteStep st1 (Some (sw,pt,pk)) st2 ->
+    relate (devices st2) === 
+      (Bag.unions (map (transfer sw) (abst_func sw pt pk)) <+> lps).
+  Proof with eauto with datatypes.
+    intros.
+    inversion H0.
+    destruct st1.
+    destruct st2.
+    destruct devices0.
+    destruct devices1.
+    subst.
+    simpl in *.
+    inversion H1. subst. clear H1.
+    inversion H6. subst. clear H6.
+
+    assert (FlowTableSafe sw tbl0) as Z.
+      unfold FlowTablesSafe in concreteState_flowTableSafety0.
+      eapply concreteState_flowTableSafety0...
+    unfold FlowTableSafe in Z.
+    remember (Z pt pk outp' pksToCtrl H3) as Y eqn:X. clear X Z.
+    rewrite <- Y. clear Y.
+
+    unfold relate in *.
+    simpl in *.
+    rewrite -> map_app.
+    simpl.
+    rewrite -> Bag.bag_unions_app.
+    repeat rewrite -> Bag.union_assoc.
+    simpl.
+    repeat rewrite -> Bag.union_assoc.
+    repeat rewrite -> map_app.
+    repeat rewrite -> Bag.bag_unions_app.
+    repeat rewrite -> Bag.union_assoc.
+    apply Bag.unpop_unions with (b := ({|(sw,pt,pk)|})).
+    apply symmetry.
+    rewrite -> Bag.union_comm.
+    repeat rewrite -> Bag.union_assoc.
+    rewrite -> (Bag.union_comm _ lps).
+    rewrite <- H.
+    rewrite -> map_app.
+    simpl.
+    rewrite -> Bag.bag_unions_app.
+    simpl.
+    rewrite -> Bag.from_list_cons.
+    repeat rewrite -> Bag.union_assoc.
+    bag_perm 100.
+  Qed.
+
+
+  Lemma relate_multistep_simpl_obs : forall  sw pt pk lps st1 st2,
+    relate (devices st1) === ({| (sw,pt,pk) |} <+> lps) ->
+    multistep concreteStep st1 [(sw,pt,pk)] st2 ->
+    relate (devices st2) === 
+      (Bag.unions (map (transfer sw) (abst_func sw pt pk)) <+> lps).
+  Proof with eauto.
+    intros.
+    remember [(sw,pt,pk)] as obs.
+    induction H0; subst.
+    inversion Heqobs.
+    apply IHmultistep...
+    apply relate_step_simpl_tau in H0.
+    apply symmetry in H0.
+    eapply transitivity...
+    destruct obs; inversion Heqobs.
+    subst.
+    clear Heqobs.
+    apply relate_multistep_simpl_tau in H1.
+    apply relate_step_simpl_obs with (lps := lps) in H0 .
+    rewrite <- H0.
+    apply symmetry.
+    trivial.
+    trivial.
+  Qed.
+
+
+  Lemma simpl_weak_sim : forall devs1 devs2 sw pt pk lps
+    (tblsOk1 : FlowTablesSafe (switches devs1))
+    (linksTopoOk1 : ConsistentDataLinks (links devs1))
+    (haveSrc1 : LinksHaveSrc (switches devs1) (links devs1))
+    (haveDst1 : LinksHaveDst (switches devs1) (links devs1)),
+    multistep step devs1 [(sw,pt,pk)] devs2 ->
+    relate devs1 === ({| (sw,pt,pk) |} <+> lps) ->
+    abstractStep
+      ({| (sw,pt,pk) |} <+> lps)
+      (Some (sw,pt,pk))
+      (Bag.unions (map (transfer sw) (abst_func sw pt pk)) <+> lps) ->
+   exists t : concreteState,
+     inverse_relation 
+       bisim_relation
+       (Bag.unions (map (transfer sw) (abst_func sw pt pk)) <+> lps)
+       t /\
+     multistep concreteStep
+               (ConcreteState devs1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1)
+               [(sw,pt,pk)]
+               t.
+  Proof with eauto.
+    intros.
+    Check simpl_multistep.
+    destruct (simpl_multistep tblsOk1 linksTopoOk1 haveSrc1 haveDst1 H)
+             as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 Hmultistep]]]].
+    match goal with
+      | [ _ : multistep _ ?s1 _ ?s2 |- _ ] =>
+        remember s1 as st1; remember s2 as st2
+    end.
+    assert (relate (devices st1) === ({| (sw,pt,pk) |} <+> lps)) as Hrel.
+      subst. simpl...
+    exists st2.
+    split.
+    unfold inverse_relation.
+    unfold bisim_relation.
+    apply symmetry.
+    exact (relate_multistep_simpl_obs Hrel Hmultistep).
+    trivial.
+  Qed.
      
   Lemma SimpleDraimWire : forall sws (swId : switchId) pts tbl inp outp 
     ctrlm switchm sws0  links src pks0 pks swId pt links0 ofLinks ctrl,
@@ -56,8 +316,8 @@ Module Make (Import Atoms : ATOMS).
    Qed.
 
    Hint Resolve LinksHaveSrc_inv LinksHaveDst_inv LinkTopoOK_inv
-     FlowTablesSafe_untouched LinksHaveSrc_untouched LinksHaveDst_untouched.
-
+        FlowTablesSafe_untouched LinksHaveSrc_untouched LinksHaveDst_untouched.
+ 
   Lemma DrainWire2 : DrainWire_statement.
   Proof with eauto with datatypes.
     unfold DrainWire_statement.
@@ -231,8 +491,7 @@ Module Make (Import Atoms : ATOMS).
            linksTopoOK0
            haveSrc0
            haveDst0) /\
-      multistep 
-        concreteStep
+      concreteStep
         (ConcreteState
            (State
               (sws ++
@@ -245,7 +504,7 @@ Module Make (Import Atoms : ATOMS).
            linksTopoOK
            haveSrc
            haveDst)
-        [(swId,pt,pk)]
+        (Some (swId,pt,pk))
         (ConcreteState
            (State
               (sws ++
@@ -293,20 +552,38 @@ Module Make (Import Atoms : ATOMS).
     rewrite -> rel.
     autorewrite with bag using simpl.
     bag_perm 100.
-    match goal with
-      | |- multistep _ _ _ ?S => remember S as a0
-    end.
-    apply multistep_obs with (a0 := a0).
+    (* Case 2. *)
     subst.
     unfold concreteStep.
     simpl.
     trivial.
-    apply multistep_nil.
   Qed.   
+
+
+  Lemma step_exists :
+    forall obs3 s1 sw pt pk lps obs1 obs2 s2 s3,
+      multistep concreteStep s1 obs1 s2 ->
+      multistep concreteStep s2 obs2 s3 ->
+      inverse_relation 
+        bisim_relation
+        (Bag.unions (map (transfer sw) (abst_func sw pt pk)) <+> lps) s3 ->
+      obs1 ++ obs2 = obs3 ->
+      exists t : concreteState,
+       inverse_relation 
+         bisim_relation
+         (Bag.unions (map (transfer sw) (abst_func sw pt pk)) <+> lps) t /\
+       multistep concreteStep s1 obs3 t.
+    Proof with eauto.
+      intros.
+      exists s3.
+      split...
+      rewrite <- H2.
+      eapply multistep_app...
+    Qed.
 
   Theorem weak_sim_2 :
     weak_simulation abstractStep concreteStep (inverse_relation bisim_relation).
-  Proof with simpl;eauto.
+  Proof with simpl;eauto with datatypes.
     unfold weak_simulation.
     intros.
     unfold inverse_relation in H.
@@ -389,7 +666,7 @@ Module Make (Import Atoms : ATOMS).
     destruct X as [outp1 [switchm1 [tblsOK1 [linksTopoOK1 [haveSrc1 [haveDst1 
                   [Hrel Hstep]]]]]]].
     match goal with
-      | [ _ : multistep _ ?s1 _ ?s2 |- _ ] => 
+      | [ _ : concreteStep ?s1 _ ?s2 |- _ ] => 
         remember s1 as S1; remember s2 as S2
     end.
     exists S2.
@@ -408,7 +685,7 @@ Module Make (Import Atoms : ATOMS).
     split.
     apply SwitchEquiv; try solve [ auto | apply reflexivity ].
     apply reflexivity.
-    exact Hstep.
+    apply multistep_obs with (a0 := S2)...
 
     (*
      * Case where packet is in the output buffer. 
@@ -447,6 +724,193 @@ Module Make (Import Atoms : ATOMS).
     apply in_split in Hlink.
     destruct Hlink as [links01 [links02 Hlink]].
     subst.
+
+
+    (* 3. Establish that the destination switch exists. *)
+    assert 
+      (LinkHasDst
+         (sws ++ (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0) :: sws0)
+         (DataLink (swId0,pt0) pks (s,p))) as J0.
+      apply linksHaveDst0...
+    unfold LinkHasDst in J0.
+    destruct J0 as [switch2 [HSw2In [HSw2IdEq HSw2PtsIn]]].
+    destruct switch2.
+    simpl in *.
+    subst.
+    apply in_split in HSw2In.
+    destruct HSw2In as [sws' [sws0' HSw2In]].
+    subst.
+    remember (process_packet tbl1 p pk) as X eqn:Hprocess.
+    destruct X as [outp1' pktIns].
+
+
+    (* First step rewrites outp0 to outp0' <+> (pt0,pk) *)
+    remember
+      (State (sws ++ (Switch swId0 pts0 tbl0 inp0
+                             (({|(pt0, pk)|}) <+> outp') ctrlm0 switchm0) 
+                  :: sws0)
+             (links01 ++ (DataLink (swId0, pt0) pks (swId1, p)) :: links02)
+             ofLinks0
+             ctrl0) as dev1.
+    assert (FlowTablesSafe (switches dev1)) as HtblsOK1.
+      subst...
+    assert (LinksHaveSrc (switches dev1) (links dev1)) as HLinksHaveSrc1.
+      subst...
+    assert (LinksHaveDst (switches dev1) (links dev1)) as HLinksHaveDst1.
+      subst...
+    subst.
+    remember 
+      (ConcreteState _ HtblsOK1 concreteState_consistentDataLinks0
+                     HLinksHaveSrc1 HLinksHaveDst1) as state1.
+    match goal with
+      | |- exists _, _ /\ multistep _ ?s _ _ => remember s as state0
+    end.
+    assert (concreteStep state0 None state1) as step0.
+      apply StepEquivState.
+      simpl.
+      unfold Equivalence.equiv.
+      subst.
+      apply StateEquiv.
+      apply SwitchesEquiv_app.
+      apply reflexivity.
+      simpl.
+      split.
+      apply SwitchEquiv; try solve [ apply reflexivity | auto ].
+      apply reflexivity.
+
+    (* Step 2 is to emit the packet on the wire. *)
+    remember
+      (State (sws ++ (Switch swId0 pts0 tbl0 inp0 outp' ctrlm0 switchm0) :: sws0)
+             (links01 ++ (DataLink (swId0, pt0) (pk::pks) (swId1, p)) :: links02)
+             ofLinks0
+             ctrl0) as dev2.
+    assert (FlowTablesSafe (switches dev2)) as HtblsOK2.
+      subst...
+    assert (LinksHaveSrc (switches dev2) (links dev2)) as HLinksHaveSrc2.
+      subst...
+    assert (LinksHaveDst (switches dev2) (links dev2)) as HLinksHaveDst2.
+      subst...
+    assert (ConsistentDataLinks (links dev2)) as HLinksOK2.
+      subst...
+    remember
+      (ConcreteState _ HtblsOK2 HLinksOK2 HLinksHaveSrc2 HLinksHaveDst2) 
+      as state2.
+    assert (concreteStep state1 None state2) as step1.
+      unfold concreteStep.
+      subst.
+      apply SendDataLink.
+
+   (* Step 3. drain the other packets (pk) in front on the wire. *)
+    remember
+      (sws' ++ (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1) :: sws0') as
+        switches2.
+    assert (FlowTablesSafe switches2) as tblsOK3.
+      rewrite <- HSw2In...
+    assert (LinksHaveSrc switches2
+             (links01 ++ (DataLink (swId0,pt0) (pk::pks) (swId1,p)) :: links02))
+             as linksSrc3.
+      rewrite <- HSw2In...
+    assert (LinksHaveDst switches2
+             (links01 ++ (DataLink (swId0,pt0) (pk::pks) (swId1,p)) :: links02))
+             as linksDst3.
+      rewrite <- HSw2In...
+    
+    subst.
+    simpl in *.
+    remember (DrainWire2 ofLinks0 ctrl0 tblsOK3 HLinksOK2 linksSrc3 linksDst3)
+             as step2 eqn:X; clear X.
+    destruct step2 as
+        [inp4 [tblsOK4 [linkTopoOK4 [linksSrc4 [linksDst4 step2]]]]].
+    match goal with
+      | [ step2 : multistep _ ?s2 _ ?s3 |- _ ] =>
+        remember s2 as state2; remember s3 as state3
+    end.
+
+    (* Step 4. prime to pull off the wire. *)
+    remember 
+      (State
+         (sws' ++ (Switch swId1 pts1 tbl1 inp4 outp1 ctrlm1 switchm1) :: sws0')
+         (links01 ++ (DataLink (swId0,pt0) (nil ++ [pk])(swId1,p)) :: links02)
+         ofLinks0
+         ctrl0) as dev4.
+    assert (FlowTablesSafe (switches dev4)) as tblsOK5. subst...
+    assert (ConsistentDataLinks (links dev4)) as linksTopoOK5. subst...
+    assert (LinksHaveSrc (switches dev4) (links dev4)) as linksSrc5. subst...
+    assert (LinksHaveDst (switches dev4) (links dev4)) as linksDst5. subst...
+    assert
+      (concreteStep state3 None
+                    (ConcreteState _ tblsOK5 linksTopoOK5 linksSrc5 linksDst5))
+      as step3.
+      apply StepEquivState.
+      simpl.
+      unfold Equivalence.equiv.
+      subst.
+      apply StateEquiv.
+      apply reflexivity.
+    match goal with
+      | [ step2 : concreteStep state3 None ?s4 |- _ ] =>  remember s4 as state4
+    end.
+    
+    
+    (* Step 5. Actually pull off the wire. *)
+    remember 
+      (State
+         (sws' ++ (Switch swId1 pts1 tbl1 ({|(p,pk)|} <+> inp4) outp1 ctrlm1 
+                          switchm1) :: sws0')
+         (links01 ++ (DataLink (swId0,pt0) nil (swId1,p)) :: links02)
+         ofLinks0
+         ctrl0) as dev5.
+    assert (FlowTablesSafe (switches dev5)) as tblsOK6. subst...
+    assert (ConsistentDataLinks (links dev5)) as linksOK6. subst...
+    assert (LinksHaveSrc (switches dev5) (links dev5)) as haveSrc6. subst...
+    assert (LinksHaveDst (switches dev5) (links dev5)) as haveDst6. subst...
+    remember (ConcreteState _ tblsOK6 linksOK6 haveSrc6 haveDst6) as state5.
+    assert (concreteStep state4 None state5) as step4.
+      subst.
+      apply RecvDataLink.
+    
+    (* Step 6. do pktprocess. *)
+    assert 
+      (lps ===
+           Bag.unions (map relate_switch sws') <+>
+           FromList (map (affixSwitch swId1) (Bag.to_list inp4)) <+>
+           Bag.unions (map (transfer swId1) (Bag.to_list outp1)) <+>
+           Bag.unions (map (select_packet_out swId1) (Bag.to_list ctrlm1)) <+>
+           Bag.unions (map (select_packet_in swId1) (Bag.to_list switchm1)) <+>
+           Bag.unions (map relate_switch sws0') <+>
+           Bag.unions (map relate_dataLink 
+                         (links01 ++ (DataLink (swId0,pt0) nil (swId1, p)) ::
+                                  links02)) <+>
+           Bag.unions (map relate_openFlowLink ofLinks0) <+>
+           relate_controller ctrl0) as cheat. admit.
+    
+    simpl in *. subst.
+    remember (pkt_process p pk cheat tblsOK6 linksOK6 haveSrc6 haveDst6) 
+      as W eqn:X; clear X.
+    destruct W as [outp6 [switchm6 [tblsOK7 [linksTopoOK7 [haveSrc7 [haveDst7 
+                  [Hrel step5]]]]]]].
+    match goal with
+      | [ _ : concreteStep ?s1 _ ?s2 |- _ ] => 
+        remember s1 as state5; remember s2 as state6
+    end.
+
+    exists state6.
+    apply and_comm.
+    split.
+    Check state1.
+    apply multistep_app with (s2 := state6
+    apply multistep_tau.
+    .
+
+    apply multistep_obs with (a0 := S2)...
+    subst.
+    eapply multistep_nil.
+    assert (multistep concreteStep S2 nil S2).
+
+
+
+
+
 
     eexists.
     apply and_comm.
@@ -604,4 +1068,71 @@ Module Make (Import Atoms : ATOMS).
     clear dev4 Heqdev4 HtblsOK4 HLinksOK4 HLinksSrc4 HLinksDst4.
     
     subst.
+    assert 
+      (lps ===
+           Bag.unions (map relate_switch sws') <+>
+           FromList (map (affixSwitch swId1) (Bag.to_list inp4)) <+>
+           Bag.unions (map (transfer swId1) (Bag.to_list outp1)) <+>
+           Bag.unions (map (select_packet_out swId1) (Bag.to_list ctrlm1)) <+>
+           Bag.unions (map (select_packet_in swId1) (Bag.to_list switchm1)) <+>
+           Bag.unions (map relate_switch sws0') <+>
+           Bag.unions (map relate_dataLink 
+                         (links01 ++ (DataLink (swId0,pt0) nil (swId1, p)) ::
+                                  links02)) <+>
+           Bag.unions (map relate_openFlowLink ofLinks0) <+>
+           relate_controller ctrl0) as cheat. admit.
     
+clear X.
+    remember (pkt_process p pk cheat HtblsOK5 HLinksOK5 HLinksHaveSrc5 
+                       HLinksHaveDst5) as W eqn:X.
+    clear X.
+
+    destruct W as [outp6 [switchm6 [tblsOK6 [linksTopoOK6 [haveSrc6 [haveDst6 
+                  [Hrel Hstep]]]]]]].
+    match goal with
+      | [ _ : concreteStep ?s1 _ ?s2 |- _ ] => 
+        remember s1 as S1; remember s2 as S2
+    end.
+    apply multistep_obs with (a0 := S2)...
+    subst.
+    eapply multistep_nil.
+    assert (multistep concreteStep S2 nil S2).
+      apply multistep_nil.
+      Show Existentials.
+instantiate (2 := S1).
+      subst.
+    instantiate.
+    instantiate 
+      (1 := 
+    Check (ConcreteState
+           (State (sws' ++ (Switch swId1 pts1 tbl1 (({|(p, pk)|}) <+> inp4)
+                                   outp1 ctrlm1 switchm1) :: sws0')
+                  (links01 ++ (DataLink (swId0, pt0) nil (swId1,p)) :: links02)
+                  ofLinks0
+                  ctrl0)
+           HtblsOK5 HLinksOK5 HLinksHaveSrc5 HLinksHaveDst5).
+
+    eapply multistep_nil.
+
+
+    assert ([(swId1,p,pk)] = nil ++ [(swId1,p,pk)]) as X...
+    rewrite -> X.
+    rewrite <- (@app_nil_l (switchId*portId*packet)).
+    apply multistep_app.
+
+    
+
+ : ({|(swId1, p, pk)|}) <+> lps ===
+      Bag.unions (map relate_switch sws) <+>
+      FromList (map (affixSwitch swId0) (Bag.to_list inp0)) <+>
+      Bag.unions (map (transfer swId0) (Bag.to_list outp0)) <+>
+      Bag.unions (map (select_packet_out swId0) (Bag.to_list ctrlm0)) <+>
+      Bag.unions (map (select_packet_in swId0) (Bag.to_list switchm0)) <+>
+      Bag.unions (map relate_switch sws0) <+>
+      Bag.unions
+        (map relate_dataLink
+           (links01 ++
+            {| src := (swId0, pt0); pks := pks; dst := (swId1, p) |}
+            :: links02)) <+>
+      Bag.unions (map relate_openFlowLink ofLinks0) <+>
+      relate_controller ctrl0
