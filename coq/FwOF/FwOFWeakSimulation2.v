@@ -55,6 +55,76 @@ Module Make (Import Atoms : ATOMS).
      apply IHstep.
    Qed.
 
+  Lemma ObserveFromOutp : forall pktOuts pktIns pk pt0 pt1
+    swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0
+    swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1
+    sws pks links0 links1 ofLinks0 ctrl0,
+    (pktOuts, pktIns) = process_packet tbl1 pt1 pk ->
+    Some (swId1,pt1) = topo (swId0,pt0) ->
+    multistep step
+      (State 
+        (({|Switch swId0 pts0 tbl0 inp0 ({|(pt0,pk)|} <+> outp0) 
+                  ctrlm0 switchm0|}) <+>
+         ({|Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1|}) <+>
+         sws)
+        (links0 ++ (DataLink (swId0,pt0) pks (swId1,pt1)) :: links1)
+        ofLinks0 ctrl0)
+      [(swId1,pt1,pk)]
+      (State 
+        (({|Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0|}) <+>
+         ({|Switch swId1 pts1 tbl1
+                  (FromList (map (fun pk => (pt1,pk)) pks) <+> inp1) 
+                  (FromList pktOuts <+> outp1)
+                  ctrlm1
+                  (FromList (map (PacketIn pt1) pktIns) <+> switchm1)|}) <+>
+         sws)
+        (links0 ++ (DataLink (swId0,pt0) nil (swId1,pt1)) :: links1)
+        ofLinks0 ctrl0).
+  Proof with simpl;eauto with datatypes.
+    intros.
+
+    eapply multistep_tau.
+    apply SendDataLink.
+    apply multistep_tau with
+    (a0 := State
+             (({|Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1|}) <+>
+              ({|Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0|}) <+>
+              sws)
+             (links0 ++ (DataLink (swId0,pt0) ([pk]++pks0) (swId1,pt1))::links1)
+             ofLinks0
+             ctrl0).
+      apply StepEquivState.
+      apply StateEquiv.
+      rewrite <- Bag.union_assoc.
+      rewrite -> (Bag.union_comm _ ({|Switch swId0 pts0 tbl0 inp0 outp0 
+                                             ctrlm0 switchm0|})).
+      rewrite -> Bag.union_assoc.
+      apply Bag.pop_union; apply reflexivity.
+      
+
+    destruct (SimpleDraimWire 
+      (({|Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0|}) <+> sws)
+      swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1 
+      links0 (swId0,pt0) [pk] pks0 swId1 pt1 links1 ofLinks0 ctrl0)
+    as [inp4 step].
+    eapply multistep_app with (obs2 := [(swId1,pt1,pk)]).
+    exact step.
+    
+    assert ([pk] = nil ++ [pk]) as X... rewrite -> X. clear X.
+
+    eapply multistep_tau.
+    apply RecvDataLink.
+
+    eapply multistep_obs.
+    apply PktProcess.
+    instantiate (1 := pktIns).
+    instantiate (1 := pktOuts).
+    symmetry...
+
+    idtac "TODO(arjun): SimpleDrainWire needs to describe its output.".
+    admit.
+    simpl...
+  Qed.
    
   Hint Resolve switch_equiv_is_Equivalence.
   Hint Constructors eq.
@@ -358,7 +428,7 @@ Module Make (Import Atoms : ATOMS).
     destruct switch2.
     simpl in *.
     subst.
-    remember (process_packet tbl1 p pk) as X eqn:Hprocess.
+    remember (process_packet tbl1 pt pk) as X eqn:Hprocess.
     destruct X as [outp1' pktIns].
 
     eapply Bag.mem_equiv with (ED := switch_eqdec) in HSw2In.
@@ -385,6 +455,35 @@ Module Make (Import Atoms : ATOMS).
               (links01 ++ (DataLink (swId0,p) nil (swId1,pt)) :: links02)
               ofLinks0
               ctrl0).
+    apply multistep_tau with
+      (a0 :=
+         (State (({|Switch swId0 pts0 tbl0 inp0 outp0 
+                           (({|PacketOut p pk|}) <+> ctrlm0')
+                           switchm0|}) <+>
+                 ({|Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1|}) <+>
+                 sws0)
+                (links01 ++ (DataLink (swId0,p) pks (swId1,pt)) :: links02)
+                ofLinks0
+                ctrl0)).
+    apply StepEquivState.
+    apply StateEquiv.
+    rewrite -> Xrel.
+    apply Bag.pop_union.
+    apply Bag.equiv_singleton.
+    apply SwitchEquiv; try solve [ apply reflexivity | auto ].
+    apply Bag.pop_union.
+    apply Bag.equiv_singleton.
+    apply symmetry...
+    apply reflexivity.
 
-    (* TODO(arjun): Lemma needed. This looks exactly the same as the case above now! *)
-
+    eapply multistep_tau.
+    apply SendPacketOut.
+    idtac "TODO(arjun): port exists".
+    admit.
+    eapply ObserveFromOutp... (* #winning *)
+    
+    unfold relate.
+    simpl.
+    rewrite -> H.
+    apply reflexivity.
+    trivial.
