@@ -625,6 +625,56 @@ Module Make (Import Atoms : ATOMS).
        Packets on OpenFlow links may be on either side. *)
 
 
+    rewrite -> in_map_iff in HMemInp.
+    destruct HMemInp as [[pt0 pk0] [Haffix HMemInp]].
+    simpl in Haffix.
+    inversion Haffix.
+    subst.
+    apply Bag.mem_in_to_list in HMemInp.
+    clear Haffix.
+    eapply Bag.mem_split in HMemInp.
+    destruct HMemInp as [inp HEqInp].
+
+    remember (process_packet tbl0 pt pk) as ToCtrl eqn:Hprocess. 
+    destruct ToCtrl as (outp',inPkts).
+
+    eapply simpl_weak_sim...
+    apply multistep_tau with
+    (a0 := (State (sws ++ (Switch sw pts0 tbl0 (({|(pt,pk)|}) <+> inp) outp0
+                                 ctrlm0 switchm0) :: sws0)
+                  links0
+                  ofLinks0
+                  ctrl0)).
+    apply StepEquivState.
+    unfold Equivalence.equiv.
+    apply StateEquiv.
+    unfold Equivalence.equiv.
+    apply SwitchesEquiv_app.
+    apply reflexivity.
+    simpl.
+    split.
+    apply SwitchEquiv; try solve [ eauto | apply reflexivity ].
+    apply reflexivity.
+    eapply multistep_obs.
+    apply PktProcess. 
+    instantiate (1 := inPkts).
+    instantiate (1 := outp').
+    symmetry. exact Hprocess.
+    eapply multistep_nil.
+    rewrite -> H.
+    unfold relate.
+    simpl.
+    rewrite -> map_app.
+    simpl.
+    rewrite -> Bag.unions_app.
+    simpl.
+    repeat rewrite -> Bag.union_assoc.
+    apply reflexivity.
+
+    apply Swit
+    simpl.
+    simpl.
+    Focus 3.
     assert (swId0 = sw) as J0.
       rewrite -> in_map_iff in HMemInp.
       destruct HMemInp as [[pt0 pk0] [Haffix HMemInp]].
