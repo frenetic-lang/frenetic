@@ -67,38 +67,12 @@ Module Make (Import Atoms : ATOMS).
     unfold Symmetric...
     unfold Transitive. intros. subst...
   Qed.
-(*
-  Definition prod_equiv
-    (A B : Type) 
-    (RA : A -> A -> Prop) (RB : B -> B -> Prop)
-    (EA : Equivalence RA) (EB : Equivalence RB)
-    (x y : A * B)  : Prop :=
-    match (x, y) with
-      | ((a1,b1), (a2, b2)) => a1 === a2 /\ b1 === b2
-    end.
-
-  Instance Equivalence_prod 
-    `(A : Type, B : Type, 
-      RA : A -> A -> Prop, RB : B -> B -> Prop,
-      EA : Equivalence A RA, EB : Equivalence B RB) :
-    Equivalence (prod_equiv EA EB).
-  Proof with auto.
-    intros.
-    unfold prod_equiv.
-    destruct EA.
-    destruct EB.
-    split.
-    unfold Reflexive. intros. destruct x. split; apply reflexivity.
-    unfold Symmetric. intros. destruct x. destruct y. destruct H.
-      split; apply symmetry; trivial.
-    unfold Transitive. intros. destruct x. destruct y. destruct z.
-    destruct H. destruct H0.
-    split; eapply transitivity; eauto.
-  Qed.
-  *)
  
   Instance ptPkt_eqdec : EqDec (portId * packet) eq := 
     prod_eqdec portId_eqdec packet_eqdec.
+
+  Instance swPtPk_eqdec : EqDec (switchId * portId * packet) eq :=
+    prod_eqdec (prod_eqdec switchId_eqdec portId_eqdec) packet_eqdec.
 
   Theorem weak_sim_2 :
     weak_simulation abstractStep concreteStep (inverse_relation bisim_relation).
@@ -196,26 +170,29 @@ Module Make (Import Atoms : ATOMS).
  
     (* 1. Rewrite outp0 as a union of (pt,pk) and some other bag.  *)
     apply Bag.mem_unions_map in HMemOutp.
-    destruct HMemOutp as [[pt0 pk0] [HIn HMemOutp]].
-    simpl in HMemOutp.
-    remember (topo (swId0, pt0)) as Htopo.
-    destruct Htopo.
-    2: solve [ simpl in HMemOutp; inversion HMemOutp ].
+    destruct HMemOutp as [[pt0 pk0] [HIn HMemOutp]]. 
+    eapply Bag.mem_split with (ED := swPtPk_eqdec) in HMemOutp.
+    destruct HMemOutp as [HEmpty HSingleton].
+    simpl in HSingleton.
+    destruct (topo (swId0, pt0)).
     destruct p.
-    simpl in HMemOutp. inversion HMemOutp. subst.
-    rename pk0 into pk.
-    clear HMemOutp.
-    apply Bag.mem_in_to_list in HIn.
-    apply (Bag.mem_split _) in HIn.
+    apply Bag.singleton_equiv in HSingleton.
+    destruct HSingleton as [HSingleton HEmpty'].
+    clear HEmpty HEmpty'.
+    inversion HSingleton. subst. clear HSingleton.
+    apply Bag.mem_in_to_list 
+      with 
+        (R := eq) (E := Equivalence_eq) in HIn.
+    apply Bag.mem_split with (ED := ptPkt_eqdec) in HIn.
     destruct HIn as [outp' HIn].
 
     (* TODO(arjun): The ConsistentDataLink invariants states that a link's
        source and destination is reflected in the topo function. We need
        another invariant stating that if the topo function is defined for
        a pair of locations, then there must exist a link between them. *)
-    assert (exists pks, In (DataLink (swId0,pt0) pks (s,p)) links0) as X.
+    assert (exists pks, In (DataLink (swId0,pt0) pks (sw,pt)) links0) as X.
       admit.
-    destruct X as [pks  Hlink].
+    destruct X as [pks Hlink].
 
     (* 2. Rewrite links0 as the union of the link in Hlink and the rest. *)
     apply in_split in Hlink.
@@ -225,77 +202,91 @@ Module Make (Import Atoms : ATOMS).
     (* 3. Establish that the destination switch exists. *)
     assert 
       (LinkHasDst
-         (sws ++ (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0) :: sws0)
-         (DataLink (swId0,pt0) pks (s,p))) as J0.
+         switches0
+         (DataLink (swId0,pt0) pks (sw,pt))) as J0.
       apply linksHaveDst0...
     unfold LinkHasDst in J0.
     destruct J0 as [switch2 [HSw2In [HSw2IdEq HSw2PtsIn]]].
     destruct switch2.
     simpl in *.
     subst.
-    apply in_split in HSw2In.
-    destruct HSw2In as [sws' [sws0' HSw2In]].
-    subst.
-    remember (process_packet tbl1 p pk) as X eqn:Hprocess.
+    remember (process_packet tbl1 pt pk) as X eqn:Hprocess.
     destruct X as [outp1' pktIns].
 
-    eapply simpl_weak_sim...
+    eapply Bag.mem_equiv with (ED := switch_eqdec) in HSw2In.
+    2: exact Xrel.
+    destruct HSw2In as [switch1 [HMem2 Hswitch2]].
+    apply Bag.mem_union in HMem2.
+    destruct HMem2. 
+
+    idtac "TODO(arjun): src and dst switches are the same".
+    admit.
+
+    apply Bag.mem_split with (ED := switch_eqdec) in H1.
+    destruct H1 as [sws0 H1].
+    rewrite -> H1 in Xrel.
+
+    apply simpl_weak_sim with
+      (devs2 := 
+        State ({| Switch swId0 pts0 tbl0 inp0 outp' ctrlm0 switchm0 |} <+>
+               ({| Switch swId1 pts1 tbl1 
+                          ((FromList (map (fun pk => (pt,pk)) pks)) <+> inp1) 
+                          (FromList outp1' <+> outp1)
+                        ctrlm1 (FromList (map (PacketIn pt) pktIns) <+> switchm1)|}) <+>
+               sws0)
+              (links01 ++ (DataLink (swId0,pt0) nil (swId1,pt)) :: links02)
+              ofLinks0
+              ctrl0).
     (* First step rewrites outp0 to outp' <+> (pt0,pk) *)
     apply multistep_tau with
-    (a0 := State (sws ++ (Switch swId0 pts0 tbl0 inp0 (({|(pt0,pk)|}) <+> outp')
-                                 ctrlm0 switchm0) :: sws0)
-                 (links01 ++ (DataLink (swId0,pt0) pks (swId1,p)) :: links02)
+    (a0 := State (({|Switch swId0 pts0 tbl0 inp0 (({|(pt0,pk)|}) <+> outp')
+                            ctrlm0 switchm0|}) <+>
+                  ({|Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1|}) <+>
+                  sws0)
+                 (links01 ++ (DataLink (swId0,pt0) pks (swId1,pt)) :: links02)
                  ofLinks0
                  ctrl0).
-    apply StepEquivState.
-    unfold Equivalence.equiv.
-    apply StateEquiv.
-    unfold Equivalence.equiv.
-    apply SwitchesEquiv_app.
-    apply reflexivity.
-    simpl.
-    split.
-    apply SwitchEquiv; try solve [ eauto | apply reflexivity ].
-    apply reflexivity.
-
-    apply multistep_tau with
-    (a0 := State (sws ++ (Switch swId0 pts0 tbl0 inp0 outp'
-                                 ctrlm0 switchm0) :: sws0)
-                 (links01 ++ (DataLink (swId0,pt0) (pk::pks) (swId1,p)) :: links02)
-                 ofLinks0
-                 ctrl0).
+      apply StepEquivState.
+      apply StateEquiv.
+      rewrite -> Xrel.
+      apply Bag.pop_union.
+      apply Bag.equiv_singleton.
+      apply SwitchEquiv; try solve [ apply reflexivity ].
+      exact HIn.
+      apply Bag.pop_union.
+      apply Bag.equiv_singleton.
+      apply symmetry...
+      apply reflexivity.
+    
+    eapply multistep_tau.
     apply SendDataLink.
 
-    assert 
-      (LinkHasDst
-         (sws ++ (Switch swId0 pts0 tbl0 inp0 outp' ctrlm0 switchm0) :: sws0)
-         (DataLink (swId0,pt0) (pk::pks) (swId1,p))) as J0.
-      remember  (LinksHaveDst_untouched (switchm' := switchm0) (ctrlm' := ctrlm0) 
-        (outp' := outp')(inp' := inp0) (tbl' := tbl0)
-        (LinksHaveDst_inv pks (pk::pks) linksHaveDst0)) as X.
-      unfold LinksHaveDst in X.
-      apply X...
-    unfold LinkHasDst in J0.
-    destruct J0 as [switch3 [HSw3In [HSw3IdEq HSw3PtsIn]]].
-    destruct switch3.
-    simpl in *.
-    subst.
-    apply in_split in HSw3In.
-    destruct HSw3In as [sws'' [sws0'' HSw3In]].
-    subst.
-    rewrite -> HSw3In.
-    Check (SimpleDraimWire sws'' swId2 pts2 tbl2 inp2 outp2 ctrlm2 switchm2 sws0''
-                           links01 (swId0,pt0) [pk] pks swId2 p links02 ofLinks0 ctrl0).
+    apply multistep_tau with
+    (a0 := State (({|Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1|}) <+>
+                  ({|Switch swId0 pts0 tbl0 inp0 outp' ctrlm0 switchm0|}) <+>
+                  sws0)
+                 (links01 ++ (DataLink (swId0,pt0) ([pk]++pks) (swId1,pt)) :: links02)
+                 ofLinks0
+                 ctrl0).
+      apply StepEquivState.
+      apply StateEquiv.
+      rewrite <- Bag.union_assoc.
+      rewrite -> 
+        (Bag.union_comm _ ({|Switch swId0 pts0 tbl0 inp0 outp' ctrlm0 switchm0|})).
+      rewrite -> Bag.union_assoc.
+      apply Bag.pop_union; apply reflexivity.
+      
 
-    destruct (SimpleDraimWire sws'' swId2 pts2 tbl2 inp2 outp2 ctrlm2 switchm2 sws0''
-      links01 (swId0,pt0) [pk] pks swId2 p links02 ofLinks0 ctrl0) as
-    [inp4 step].
-    eapply multistep_app with (obs2 := [(swId2,p,pk)]).
-      exact step.
+    destruct (SimpleDraimWire 
+      (({|Switch swId0 pts0 tbl0 inp0 outp' ctrlm0 switchm0|}) <+> sws0)
+      swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1 
+      links01 (swId0,pt0) [pk] pks swId1 pt links02 ofLinks0 ctrl0)
+    as [inp4 step].
+    eapply multistep_app with (obs2 := [(swId1,pt,pk)]).
+    exact step.
+    
+    assert ([pk] = nil ++ [pk]) as X... rewrite -> X. clear X.
 
-    assert ([pk] = nil ++ [pk]) as X...
-    rewrite -> X.
-    clear X.
     eapply multistep_tau.
     apply RecvDataLink.
 
@@ -303,8 +294,23 @@ Module Make (Import Atoms : ATOMS).
     apply PktProcess.
     instantiate (1 := pktIns).
     instantiate (1 := outp1').
-    symmetry.
-    assert (tbl1 = tbl2) as X. admit. (* TODO(arjun): need unique ids *)
-    subst.
-    trivial.
-    (* TODO(arjun): crap about instantiating in right environment GG *)
+    symmetry...
+
+    admit. (* simpledrainwire needs to tell more. *)
+    simpl...
+    rewrite -> H.
+    unfold relate.
+    simpl.
+    apply reflexivity.
+    exact H0.
+    
+    (* idiotic contradiction in HSingleton. Below we match the stupid goal directly
+       so that we don't accidentally admit something else if the goal is discharged
+       earlier due to refactoring. *)
+    match goal with
+      | [ H : ({||}) === ({|(sw, pt, pk)|}) <+> HEmpty |- _] => admit
+    end.
+
+    (* ********************************************************************** *)
+    (* Case 3 : Packet is in a PacketOut message                              *)
+    (* ********************************************************************** *)

@@ -109,7 +109,12 @@ Section Methods.
     simpl in IHlst.
     omega.
   Qed.
-  
+
+  Axiom pop_union : forall (b11 b12 b21 b22 : bag A),
+    b11 === b21 ->
+    b12 === b22 ->
+    b11 <+> b12 === b21 <+> b22.
+
   Lemma pop_union_l : forall (b b0 b1: bag A),
     b0 === b1 ->
     Union b b0 === Union b b1.
@@ -218,6 +223,10 @@ Section Methods.
     intros.
     unfold Equivalence.equiv in *.
   Admitted.
+
+  Axiom singleton_equiv : forall (x y: A) (b : bag A),
+    ({|x|}) === ({|y|}) <+> b ->
+     x === y /\ b = ({| |}).
   
   Axiom to_list_singleton : forall (x : A),
     to_list (Singleton x) === [x].
