@@ -512,7 +512,10 @@ Module Make (Import Atoms : ATOMS).
             sws0 links0 
             (ofLinks0 ++ (OpenFlowLink sw switchm0 ctrlm0) :: ofLinks1)
             ctrl1)) /\
-       exists lps, (select_packet_in sw m) <+> lps === relate_controller ctrl1.
+       exists (lps : bag (switchId * portId * packet)),
+         (Bag_equiv swPtPk_eqdec 
+                    ((select_packet_in sw m) <+> lps)
+                    (relate_controller ctrl1)).
 
   Lemma DrainToController : forall sws0 links0 ofLinks00 swId0 switchm0
     switchm1 ctrlm0 ofLinks01 ctrl0,
@@ -1030,10 +1033,59 @@ Module Make (Import Atoms : ATOMS).
     destruct (ControllerRecvLiveness sws1 links1 ofLinks10 of_to0 switchm0
                                      (PacketIn p p0)
                                      of_ctrlm0 ofLinks11 ctrl1)
-             as [ctrl2 [Hstep2 [lps' HInCtrl]]].
-    simpl in HInCtrl. Check locate_packet_in.
-
-    admit.
+             as [ctrl2 [Hstep2 [lps' HInCtrl]]]. 
+    assert (exists y, Mem y (relate_controller ctrl2) /\ (sw,pt,pk) === y)
+      as HMem2.
+      simpl in HInCtrl.
+      apply Bag.mem_split with (ED := swPtPk_eqdec) in HPk.
+      destruct HPk as [lps1 HPk].
+      rewrite -> HPk in HInCtrl.
+      eapply Bag.mem_equiv.
+      2: exact HInCtrl.
+      simpl. left. left. apply reflexivity.
+    destruct HMem2 as [y [HMem2 HEqy]].
+    destruct y. destruct p1.
+    unfold Equivalence.equiv in HEqy.
+    symmetry in HEqy. inversion HEqy. subst. clear HEqy.
+    Check ControllerLiveness.
+    destruct (ControllerLiveness
+             sw pt pk ctrl2 sws1 links1
+             (ofLinks10 ++ (OpenFlowLink of_to0 switchm0 of_ctrlm0) :: ofLinks11)
+             HMem2)
+      as [ofLinks20 [ofLinks21 [ctrl3 [swTo [ptTo [switchmLst [ctrlmLst
+          [Hstep3 HPktEq]]]]]]]].
+    simpl in HPktEq.
+    remember (topo (swTo, ptTo)) as X eqn:Htopo.
+    destruct X.
+    destruct p1. inversion HPktEq. subst. clear HPktEq.
+    Check EasyObservePacketOut.
+    destruct (@EasyObservePacketOut sw pt swTo ptTo sws1 links1 ofLinks20
+                                   switchmLst nil pk ctrlmLst
+                                   ofLinks21 ctrl3) as [stateN stepN]...
+    apply simpl_weak_sim with (devs2 := stateN).
+    eapply multistep_app with (obs2 := [(sw,pt,pk)]).
+    assert (switchm0 ++ PacketIn p p0 :: switchm1 =
+             (switchm0 ++ [PacketIn p p0]) ++ switchm1) as X.
+       rewrite <- app_assoc...
+    rewrite -> X. clear X.
+    apply Hstep1. clear Hstep1.
+    eapply multistep_app with (obs2 := [(sw,pt,pk)]).
+    apply Hstep2. clear Hstep2.
+    eapply multistep_app with (obs2 := [(sw,pt,pk)]).
+    apply Hstep3.
+    apply stepN.
+    reflexivity.
+    reflexivity.
+    reflexivity.
+    rewrite -> H.
+    unfold relate.
+    simpl.
+    apply reflexivity.
+    trivial.
+    (* idiotic contradiction. Below we match the stupid
+       goal directly so that we don't accidentally admit something
+       else if the goal is discharged earlier due to refactoring. *)
+    is_var HPktEq. admit.
 
     (* ************************************************************************)
     (* Case 8 : Packet is at the controller                                   *)
@@ -1059,7 +1111,7 @@ Module Make (Import Atoms : ATOMS).
     simpl.
     apply reflexivity.
     trivial.
-    (* idiotic contradiction in HSingleton. Below we match the stupid
+    (* idiotic contradiction. Below we match the stupid
        goal directly so that we don't accidentally admit something
        else if the goal is discharged earlier due to refactoring. *)
     is_var Hrel. admit.
