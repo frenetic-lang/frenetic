@@ -25,22 +25,22 @@ Module Make (Import Atoms : ATOMS).
   Import Relation.Concrete.
 
   Lemma LinksHaveSrc_untouched : forall 
-    {swId tbl pts sws sws0 links
+    {swId tbl pts sws links
     inp outp ctrlm switchm tbl' inp' outp' ctrlm' switchm' },
     LinksHaveSrc 
-      (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)  links ->
+      ({| Switch swId pts tbl inp outp ctrlm switchm |} <+> sws)  links ->
     LinksHaveSrc 
-      (sws ++ (Switch swId pts tbl' inp' outp' ctrlm' switchm') :: sws0)
+      ({| Switch swId pts tbl' inp' outp' ctrlm' switchm' |} <+> sws)
       links.
   Admitted.
 
   Lemma LinksHaveDst_untouched : forall 
-    {swId tbl pts sws sws0 links
+    {swId tbl pts sws links
     inp outp ctrlm switchm tbl' inp' outp' ctrlm' switchm' },
     LinksHaveDst
-      (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)  links ->
+      ({| Switch swId pts tbl inp outp ctrlm switchm |} <+>  sws)  links ->
     LinksHaveDst 
-      (sws ++ (Switch swId pts tbl' inp' outp' ctrlm' switchm') :: sws0)
+      ({| Switch swId pts tbl' inp' outp' ctrlm' switchm' |} <+> sws)
       links.
   Admitted.
 
@@ -64,35 +64,37 @@ Module Make (Import Atoms : ATOMS).
    Qed.
 
   Lemma FlowTablesSafe_equiv: forall 
-    { sw sw' sws sws0 },
+    { sw sw' sws },
     sw === sw' ->
-    FlowTablesSafe (sws ++ sw :: sws0) ->
-    FlowTablesSafe (sws ++ sw' :: sws0).
+    FlowTablesSafe ({| sw |} <+> sws) ->
+    FlowTablesSafe ({| sw' |} <+> sws).
   Proof with eauto with datatypes.
     intros.
     unfold FlowTablesSafe in *.
     intros.
-    apply in_app_iff in H1.
+    apply Bag.mem_union in H1.
     simpl in H1.
-    destruct H1 as [HIn | [HIn | HIn]].
-    eapply H0...
+    destruct H1 as [HIn | HIn].
+    apply H0 with (pts := pts0) (inp := inp0) (outp := outp0) (ctrlm := ctrlm0)
+      (switchm := switchm0).
+    apply Bag.mem_union.
+    left.
+    simpl.
+    eapply transitivity. apply HIn. apply symmetry. exact H.
     (* Detailed case. *)
-    unfold Equivalence.equiv in H.
-    destruct H.
-    inversion HIn.
-    subst.
-    clear HIn.
-    remember (H0 swId0 pts0 tbl0 inp1 outp1 ctrlm1 switchm1) as X.
+    remember (H0 swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0) as X.
     clear HeqX H0.
-    apply X...
-    eapply H0...
+    apply X.
+    apply Bag.mem_union.
+    right...
   Qed.
 
-  Lemma FlowTablesSafe_untouched : forall {sws sws0 swId pts tbl inp inp'
+  Lemma FlowTablesSafe_untouched : forall {sws swId pts tbl inp inp'
     outp outp' ctrlm ctrlm' switchm switchm' },
-    FlowTablesSafe (sws++(Switch swId pts tbl inp outp ctrlm switchm)::sws0) ->
+    FlowTablesSafe
+      ({|Switch swId pts tbl inp outp ctrlm switchm|} <+> sws) ->
     FlowTablesSafe 
-      (sws++(Switch swId pts tbl inp' outp' ctrlm' switchm')::sws0).
+      ({|Switch swId pts tbl inp' outp' ctrlm' switchm'|} <+> sws).
   Proof with eauto.
     intros.
   Admitted.
@@ -101,52 +103,15 @@ Module Make (Import Atoms : ATOMS).
     sws === sws' ->
     LinkHasSrc sws link ->
     LinkHasSrc sws' link.
-  Proof with auto with datatypes.
+  Proof with eauto.
     intros.
-    destruct link.
-    inversion H0.
-    destruct src.
-    simpl in H1.
-    destruct H1 as [HInSw [HSwEq HInPt]].
-    destruct x; simpl in *; subst.
-    unfold Equivalence.equiv in H.
-    unfold LinkHasSrc in *.
-    destruct H0 as [switch0 [HIn [HSwEq HInPt0]]].
-    simpl in *.
-    generalize dependent sws'.
-    induction sws.
-    (* Contradiction *)
-    intros. destruct sws'. inversion HInSw. simpl in H. contradiction.
-    (* Outer inductive case. *)
-    intros. destruct sws'. simpl in H. contradiction.
-    (* Outer + inner induction *)
-    simpl in H.
-    destruct H as [H Hrec].
-    simpl in HInSw.
-    destruct HInSw as [HInSw | HInSw];
-    destruct HIn as [HIn | HIn].
-    (* Case 1 *)
-    subst.
-    rewrite -> HInSw in *.
-    simpl in *.
-    exists s.
-    split...
-    destruct s.
-    unfold Equivalence.equiv in H.
-    inversion H.
-    subst.
-    simpl.
-    split...
-    (* Case 2 *)
-    clear IHsws.
-    admit. (* requires unique IDs *)
-    (* Case 3 *)
-    admit. (* requires unique IDs *)
-    (* Case 4 *)
-    remember (IHsws HIn HInSw sws' Hrec) as J eqn:X.
-    clear IHsws X.
-    destruct J as [theSwitch0 [HIn0 [HSwEq0 HPtsIn0]]].
-    exists theSwitch0...
+    unfold LinkHasSrc in H0.
+    destruct H0 as [sw0 [HMem [HSwEq HInPts]]].
+    apply Bag.mem_equiv with (x := sw0) in H.
+    destruct H as [sw1 [HMem1 HEquiv]].
+    unfold LinkHasSrc.
+    destruct HEquiv...
+    trivial.
   Qed.
 
   Lemma LinksHaveSrc_inv : forall {sws links links0 src dst} pks pks',
@@ -160,41 +125,25 @@ Module Make (Import Atoms : ATOMS).
     LinksHaveDst sws (links ++ (DataLink src pks' dst) :: links0).
   Admitted.
 
-  Lemma UniqSwIds_map_swId_eq : forall {sws0 sws1 swId0 pts tbl inp outp ctrlm switchm
+  Lemma UniqSwIds_pres : forall {sws swId pts tbl inp outp ctrlm switchm
     pts' tbl' inp' outp' ctrlm' switchm'},
-    map swId (sws0 ++ (Switch swId0 pts tbl inp outp ctrlm switchm) :: sws1) =
-    map swId (sws0 ++ (Switch swId0 pts' tbl' inp' outp' ctrlm' switchm') :: sws1).
-  Proof with auto with datatypes.
-    intros.
-    repeat rewrite -> map_app.
-    simpl.
-    trivial.
-  Qed.
-
-
-  Lemma UniqSwIds_pres : forall {sws0 sws1 swId pts tbl inp outp ctrlm switchm
-    pts' tbl' inp' outp' ctrlm' switchm'},
-    UniqSwIds (sws0 ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws1) ->
-    UniqSwIds (sws0 ++ (Switch swId pts' tbl' inp' outp' ctrlm' switchm') :: sws1).
+    UniqSwIds ({|Switch swId pts tbl inp outp ctrlm switchm|} <+> sws) ->
+    UniqSwIds ({|Switch swId pts' tbl' inp' outp' ctrlm' switchm'|} <+> sws).
   Proof with auto with datatypes.
     intros.
     unfold UniqSwIds in *.
-    eapply AllDiff_preservation.
-    exact H.
-    apply UniqSwIds_map_swId_eq.
+    simpl in *...
   Qed.
 
-  Lemma SwId_eq_Switch : forall (sw1 sw2 : switch) (sws : list switch),
+  Lemma SwId_eq_Switch : forall (sw1 sw2 : switch) (sws : bag switch),
     UniqSwIds sws ->
-    In sw1 sws ->
-    In sw2 sws ->
+    Mem sw1 sws ->
+    Mem  sw2 sws ->
     swId sw1 = swId sw2 ->
-    sw1 = sw2.
+    sw1 === sw2.
   Proof with eauto.
-    intros.
-    unfold UniqSwIds in H.
-    eapply AllDiff_uniq...
-  Qed.
+    idtac "TODO(arjun): skipped infrastructure lemma swId_eq_Switch".
+  Admitted.
 
   Hint Unfold UniqSwIds.
 
@@ -455,6 +404,10 @@ Module Make (Import Atoms : ATOMS).
     assert (FlowTableSafe sw tbl0) as Z.
       unfold FlowTablesSafe in concreteState_flowTableSafety0.
       eapply concreteState_flowTableSafety0...
+      apply Bag.mem_union.
+      left.
+      simpl.
+      apply reflexivity.
     unfold FlowTableSafe in Z.
     remember (Z pt pk outp' pksToCtrl H3) as Y eqn:X. clear X Z.
     rewrite <- Y. clear Y.
@@ -476,12 +429,8 @@ Module Make (Import Atoms : ATOMS).
     repeat rewrite -> Bag.union_assoc.
     rewrite -> (Bag.union_comm _ lps).
     rewrite <- H.
-    rewrite -> map_app.
     simpl.
-    rewrite -> Bag.bag_unions_app.
-    simpl.
-    rewrite -> Bag.from_list_cons.
-    repeat rewrite -> Bag.union_assoc.
+    autorewrite with bag using simpl.
     bag_perm 100.
   Qed.
 
