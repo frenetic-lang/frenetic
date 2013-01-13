@@ -218,12 +218,15 @@ Module Make (Import Atoms : ATOMS).
     (* ********************************************************************** *)
     (* Case 1 : Packet is in an input buffer                                  *)
     (* ********************************************************************** *)
+
     rewrite -> in_map_iff in HMemInp.
     destruct HMemInp as [[pt0 pk0] [Haffix HMemInp]].
     simpl in Haffix.
     inversion Haffix.
     subst.
-    apply Bag.mem_in_to_list with (R := eq) (E := Equivalence_eq) in HMemInp.
+    apply Bag.mem_in_to_list with 
+      (R := eq) (E := @Equivalence_eq (portId * packet))
+      in HMemInp.
     clear Haffix.
     eapply Bag.mem_split with (ED := ptPkt_eqdec) in HMemInp.
     destruct HMemInp as [inp HEqInp].
@@ -280,7 +283,7 @@ Module Make (Import Atoms : ATOMS).
     inversion HSingleton. subst. clear HSingleton.
     apply Bag.mem_in_to_list 
       with 
-        (R := eq) (E := Equivalence_eq) in HIn.
+        (R := eq) (E := @Equivalence_eq (portId * packet)) in HIn.
     apply Bag.mem_split with (ED := ptPkt_eqdec) in HIn.
     destruct HIn as [outp' HIn].
 
@@ -372,7 +375,6 @@ Module Make (Import Atoms : ATOMS).
     (* ********************************************************************** *)
     (* Case 3 : Packet is in a PacketOut message                              *)
     (* ********************************************************************** *)
-
     apply Bag.mem_unions_map in HMemCtrlm.
     destruct HMemCtrlm as [msg [HIn HMemCtrlm]].
     destruct msg.
@@ -381,7 +383,8 @@ Module Make (Import Atoms : ATOMS).
     simpl in HMemCtrlm.
     remember (topo (swId0,p)) as Htopo.
     destruct Htopo.
-    2: solve [ simpl in HMemCtrlm; inversion HMemCtrlm ]. (* packet does not go poof *)
+    (* packet does not go poof *)
+    2: solve [ simpl in HMemCtrlm; inversion HMemCtrlm ].
     destruct p1.
     simpl in HMemCtrlm.
     unfold Equivalence.equiv in HMemCtrlm.
@@ -391,7 +394,8 @@ Module Make (Import Atoms : ATOMS).
     clear HMemCtrlm.
     subst.
 
-    apply Bag.mem_in_to_list with (R:=eq) (E:=Equivalence_eq) in HIn.
+    apply Bag.mem_in_to_list with 
+      (R:=eq) (E:=@Equivalence_eq fromController) in HIn.
     apply Bag.mem_split with (ED:=fromController_eqdec) in HIn.
     destruct HIn as [ctrlm0' HIn].
 
@@ -486,7 +490,6 @@ Module Make (Import Atoms : ATOMS).
     (* ********************************************************************** *)
     (* Case 5 : Packet is on a data link                                      *)
     (* ********************************************************************** *)
-    
     apply Bag.mem_unions_map in HMemLink.
     destruct HMemLink as [link [HIn HMemLink]].
     simpl in HIn.
@@ -564,7 +567,6 @@ Module Make (Import Atoms : ATOMS).
     (* ********************************************************************** *)
     (* Cases 6 and 7 : Packet is on an OpenFlow link                          *)
     (* ********************************************************************** *)
-    
     simpl in HMemOFLink.
     simpl in *.
     apply Bag.mem_unions_map in HMemOFLink.
