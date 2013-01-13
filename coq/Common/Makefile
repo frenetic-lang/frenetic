@@ -1,4 +1,4 @@
-MODULES := CpdtTactics Types Monad Bisimulation
+MODULES := CpdtTactics Types Monad Bisimulation AllDiff
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean
