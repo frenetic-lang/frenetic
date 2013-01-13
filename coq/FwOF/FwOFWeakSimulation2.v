@@ -387,8 +387,6 @@ Module Make (Import Atoms : ATOMS).
   Qed.
    
   Hint Resolve switch_equiv_is_Equivalence.
-  Hint Constructors eq.
-  Existing Instances switch_Equivalence switch_eqdec packet_eqdec portId_eqdec.
 
   Instance Equivalence_eq `(A : Type) : Equivalence (@eq A).
   Proof with auto.
@@ -399,10 +397,10 @@ Module Make (Import Atoms : ATOMS).
   Qed.
  
   Instance ptPkt_eqdec : EqDec (portId * packet) eq := 
-    prod_eqdec portId_eqdec packet_eqdec.
+    prod_eqdec EqDec_portId EqDec_packet.
 
   Instance swPtPk_eqdec : EqDec (switchId * portId * packet) eq :=
-    prod_eqdec (prod_eqdec switchId_eqdec portId_eqdec) packet_eqdec.
+    prod_eqdec (prod_eqdec EqDec_switchId EqDec_portId) EqDec_packet.
 
   Lemma EasyObservePacketOut : forall sw pt srcSw p switches0 links0 ofLinks01
     of_switchm0 lstCtrlm0 pk lstCtrlm1 ofLinks02 ctrl0

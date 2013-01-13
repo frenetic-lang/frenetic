@@ -25,30 +25,6 @@ Module Make (Import Atoms : ATOMS).
       | (pt,pk) => (sw,pt,pk)
     end.
 
-  Definition transfer (sw : switchId) (ptpk : portId * packet) :=
-    match ptpk with
-      | (pt,pk) =>
-        match topo (sw,pt) with
-          | Some (sw',pt') => {| (sw',pt',pk) |}
-          | None => {| |}
-        end
-    end.
-
-  Definition select_packet_out (sw : switchId) (msg : fromController) :=
-    match msg with
-      | PacketOut pt pk => transfer sw (pt,pk)
-      | _ => {| |}
-    end.
-
-  Axiom locate_packet_in : switchId -> portId -> packet -> 
-    bag (switchId * portId * packet).
-
-  Definition select_packet_in (sw : switchId) (msg : fromSwitch) :=
-    match msg with
-      | PacketIn pt pk => locate_packet_in sw pt pk
-      | _ => {| |}
-    end.
-
   Definition FlowTableSafe (sw : switchId) (tbl : flowTable) : Prop :=
     forall pt pk forwardedPkts packetIns,
       process_packet tbl pt pk = (forwardedPkts, packetIns) ->
@@ -65,21 +41,6 @@ Module Make (Import Atoms : ATOMS).
     forall (lnk : dataLink),
       In lnk links ->
       topo (src lnk) = Some (dst lnk).
-
-  Axiom ControllerRemembersPackets :
-    forall (ctrl ctrl' : controller),
-      controller_step ctrl ctrl' ->
-      relate_controller ctrl = relate_controller ctrl'.
-
-  Axiom ControllerSendForgetsPackets : forall ctrl ctrl' sw msg,
-    controller_send ctrl ctrl' sw msg ->
-    relate_controller ctrl === select_packet_out sw msg <+>
-    relate_controller ctrl'.
-
-  Axiom ControllerRecvRemembersPackets : forall ctrl ctrl' sw msg,
-    controller_recv ctrl sw msg ctrl' ->
-    relate_controller ctrl' === select_packet_in sw msg <+> 
-    (relate_controller ctrl).
 
   (* Slightly annoying since it is defined over the entire system state.
      Stronger than needed, because it holds the other devices static.

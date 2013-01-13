@@ -64,6 +64,52 @@ Module Type ATOMS.
 
   Axiom abst_func : switchId -> portId -> packet -> list (portId * packet).
 
+  Declare Instance Eq_switchId : Eq switchId.
+  Declare Instance Eq_portId : Eq portId.
+  Declare Instance Eq_packet : Eq packet.
+
+  Instance EqDec_switchId : EqDec switchId eq := eqdec.
+  Instance EqDec_portId : EqDec portId eq := eqdec.
+  Instance EqDec_packet : EqDec packet eq := eqdec. 
+
+  Axiom locate_packet_in : switchId -> portId -> packet -> 
+    bag (switchId * portId * packet).
+
+  Axiom ControllerRemembersPackets :
+    forall (ctrl ctrl' : controller),
+      controller_step ctrl ctrl' ->
+      relate_controller ctrl = relate_controller ctrl'.
+
+  Definition transfer (sw : switchId) (ptpk : portId * packet) :=
+    match ptpk with
+      | (pt,pk) =>
+        match topo (sw,pt) with
+          | Some (sw',pt') => {| (sw',pt',pk) |}
+          | None => {| |}
+        end
+    end.
+
+  Definition select_packet_out (sw : switchId) (msg : fromController) :=
+    match msg with
+      | PacketOut pt pk => transfer sw (pt,pk)
+      | _ => {| |}
+    end.
+
+  Axiom ControllerSendForgetsPackets : forall ctrl ctrl' sw msg,
+    controller_send ctrl ctrl' sw msg ->
+    relate_controller ctrl === select_packet_out sw msg <+>
+    relate_controller ctrl'.
+
+  Definition select_packet_in (sw : switchId) (msg : fromSwitch) :=
+    match msg with
+      | PacketIn pt pk => locate_packet_in sw pt pk
+      | _ => {| |}
+    end.
+
+  Axiom ControllerRecvRemembersPackets : forall ctrl ctrl' sw msg,
+    controller_recv ctrl sw msg ctrl' ->
+    relate_controller ctrl' === select_packet_in sw msg <+> 
+    (relate_controller ctrl).
 
 End ATOMS.
 
@@ -85,21 +131,9 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
     Qed.
 
   End DecidableEqualities.
-
-  Instance Packet_Eq : Eq packet.
-  Proof.
-    split. apply packet_eq_dec.
-  Qed.
-
-  Instance PortId_Eq : Eq portId.
-  Proof.
-    split. apply portId_eq_dec.
-  Qed.
-
-  Instance SwitchId_Eq : Eq switchId.
-  Proof.
-    split. apply switchId_eq_dec.
-  Qed.
+  
+  Existing Instances  Eq_switchId Eq_portId Eq_packet EqDec_switchId
+     EqDec_portId EqDec_packet.
 
   Instance FromController_Eq : Eq fromController.
   Proof.
@@ -115,9 +149,6 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
     eqdec := flowTable_eq_dec
   }.
 
-  Instance switchId_eqdec : EqDec switchId eq := eqdec.
-  Instance portId_eqdec : EqDec portId eq := eqdec.
-  Instance packet_eqdec : EqDec packet eq := eqdec. 
   Instance fromController_eqdec : EqDec fromController eq := eqdec.
   Instance fromSwitch_eqdec : EqDec fromSwitch eq := eqdec.
 
@@ -145,7 +176,6 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
     of_switchm : list fromSwitch;
     of_ctrlm : list fromController
   }.
-
 
   Definition observation := (switchId * portId * packet) %type.
 
