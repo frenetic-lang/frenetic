@@ -125,6 +125,33 @@ Module Make (Import Atoms : ATOMS).
     admit.
     simpl...
   Qed.
+
+  (** This lemma relies on the following property: we can pick a
+      packet located anywhere (e.g., a packet at the controller or in
+      a PacketIn/PacketOut message) and construct a trace that
+      observes *only* that packet. This is not obvious, because
+      barriers may force other messages to be processed first.
+      However, barriers cannot force a switch to emit a packet.
+
+      Consider [PacketOut pt pk] sent to switch [sw1], followed by a 
+      [BarrierRequest n]. Even if the controller waits for [BarrierReply n],
+      that does not force pk to be transfered to its destination.
+
+      Now, consider a controller that waits for a [PacketIn pk] at the
+      destination, thereby forcing a different observation. We have to
+      rule out such controllers with our liveness property. *)
+(*
+  Lemma ObserveFromController : forall dstSw dstPt pk src
+    In (PacketOut srcPt pk) ctrlm0 ->
+    Some (dstSw,dstPt) = topo srcSw dstPt ->
+    relate (State sws0 links0 ofLinks0 ctrl0) === ({|dstSw,dstPt,pk|}) <+> lps ->
+    exists sws1 links1,
+      multistep (State sws0 links0 ofLinks0 ctrl0)
+                [(dstSw,dstPt,pk)]
+                (State sws1 links1 ofLinks1 ctrl0).
+    Bag.Mem (Switch 
+*)
+  
    
   Hint Resolve switch_equiv_is_Equivalence.
   Hint Constructors eq.
@@ -538,3 +565,32 @@ Module Make (Import Atoms : ATOMS).
     (* Cases 6 and 7 : Packet is on an OpenFlow link                          *)
     (* ********************************************************************** *)
     
+    simpl in HMemOFLink.
+    simpl in *.
+    apply Bag.mem_unions_map in HMemOFLink.
+    destruct HMemOFLink as [link0 [HIn HMem]].
+    destruct link0.
+    simpl in HMem.
+    destruct HMem as [HMemCtrlm | HMemSwitchm].
+
+    (* ************************************************************************)
+    (* Case 6 : Packet is in a PacketOut message from the controller          *)
+    (* ************************************************************************)
+
+    admit.
+
+    (* ************************************************************************)
+    (* Case 7 : Packet is in a PacketIn message from a switch                 *)
+    (* ************************************************************************)
+
+    admit.
+
+    (* ************************************************************************)
+    (* Case 8 : Packet is at the controller                                   *)
+    (* ************************************************************************)
+
+    admit.
+
+Qed.
+
+
