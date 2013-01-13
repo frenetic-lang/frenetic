@@ -90,7 +90,9 @@ Module Make (Import Atoms : ATOMS).
     relate_controller ctrl' === select_packet_in sw msg <+> 
     (relate_controller ctrl).
 
-  (* Slightly annoying since it is defined over the entire system state. *)
+  (* Slightly annoying since it is defined over the entire system state.
+     Stronger than needed, because it holds the other devices static.
+     But, this is easy to weaken! Use simpl_multistep lemma! *)
   Axiom ControllerLiveness : forall sw pt pk ctrl0 sws0 links0 ofLinks0,
     Mem (sw,pt,pk) (relate_controller ctrl0) ->
     exists  ofLinks10 ofLinks11 ctrl1 swTo ptTo switchmLst ctrlmLst,

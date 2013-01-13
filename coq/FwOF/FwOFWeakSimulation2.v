@@ -498,6 +498,63 @@ Module Make (Import Atoms : ATOMS).
     apply Hstep.
   Qed.
 
+  Axiom ControllerRecvLiveness : forall sws0 links0 ofLinks0 sw switchm0 m 
+    ctrlm0 ofLinks1 ctrl0,
+     exists ctrl1,
+      (multistep 
+         step
+         (State 
+            sws0 links0 
+            (ofLinks0 ++ (OpenFlowLink sw (switchm0 ++ [m]) ctrlm0) :: ofLinks1)
+            ctrl0)
+         nil
+         (State 
+            sws0 links0 
+            (ofLinks0 ++ (OpenFlowLink sw switchm0 ctrlm0) :: ofLinks1)
+            ctrl1)) /\
+       exists lps, (select_packet_in sw m) <+> lps === relate_controller ctrl1.
+
+  Lemma DrainToController : forall sws0 links0 ofLinks00 swId0 switchm0
+    switchm1 ctrlm0 ofLinks01 ctrl0,
+    exists sws1 links1 ofLinks10 ofLinks11 ctrl1,
+      multistep step
+        (State 
+           sws0
+           links0
+           (ofLinks00 ++ 
+            (OpenFlowLink swId0 (switchm0 ++ switchm1) ctrlm0) ::
+            ofLinks01)
+           ctrl0)
+        nil
+        (State
+           sws1
+           links1
+           (ofLinks10 ++ 
+            (OpenFlowLink swId0 switchm0 ctrlm0) ::
+            ofLinks11)
+           ctrl1).
+  Proof with simpl;eauto with datatypes.
+    intros.
+    generalize dependent ctrl0.
+    induction switchm1 using rev_ind; intros.
+    exists sws0. exists links0. exists ofLinks00. exists ofLinks01.
+    exists ctrl0. rewrite -> app_nil_r. apply multistep_nil.
+    destruct (ControllerRecvLiveness sws0 links0 ofLinks00 swId0 
+                                     (switchm0 ++ switchm1) x
+                                     ctrlm0 ofLinks01 ctrl0)
+             as [ctrl1 [Hstep1 _]].
+    destruct (IHswitchm1 ctrl1) as
+        [sws1 [links1 [ofLinks10 [ofLinks11 [ctrl2 Hstep2]]]]].
+    exists sws1. exists links1. exists ofLinks10. exists ofLinks11.
+    exists ctrl2. 
+    eapply multistep_app.
+      rewrite -> app_assoc.
+      apply Hstep1.
+      apply Hstep2.
+    trivial.
+  Qed.
+    
+
   Theorem weak_sim_2 :
     weak_simulation abstractStep concreteStep (inverse_relation bisim_relation).
   Proof with simpl;eauto with datatypes.
@@ -942,27 +999,56 @@ Module Make (Import Atoms : ATOMS).
     (* Case 7 : Packet is in a PacketIn message from a switch                 *)
     (* ************************************************************************)
 
+    apply in_split in HIn.
+    destruct HIn as [ofLinks00 [ofLinks01 HIn]]. subst.
+
+    apply Bag.mem_unions_map in HMemSwitchm.
+    destruct HMemSwitchm as [msg [HmsgIn HPk]].
+    apply in_split in HmsgIn.
+    destruct HmsgIn as [switchm0 [switchm1 HmsgIn]]. subst.
+    destruct msg.
+    2: solve [ simpl in HPk; inversion HPk ]. (* not a barrier *)
+
+    destruct (DrainToController switches0 links0 ofLinks00 of_to0 
+                                (switchm0 ++ [PacketIn p p0]) switchm1 of_ctrlm0
+                                ofLinks01 ctrl0)
+      as [sws1 [links1 [ofLinks10 [ofLinks11 [ctrl1 Hstep1]]]]].
+    match goal with
+      | [ H : multistep step ?s1 nil ?s2 |- _ ] =>
+        remember s1 as S1; remember s2 as S2
+    end.
+    assert (FlowTablesSafe (switches S1)) as tblsOk0. subst...
+    assert (ConsistentDataLinks (links S1)) as linksTopoOk0. subst...
+    assert (LinksHaveSrc (switches S1) (links S1)) as haveSrc0. subst...
+    assert (LinksHaveDst (switches S1) (links S1)) as haveDst0. subst...
+    assert (UniqSwIds (switches S1)) as uniqSwIds0'. subst...
+    destruct (simpl_multistep tblsOk0 linksTopoOk0 haveSrc0 haveDst0 
+                              uniqSwIds0' Hstep1)
+             as [tblsOk1 [linksTopoOk1 [haveSrc1 [haveDst1 [uniqSwIds1 _]]]]].
+    subst.
+    simpl in *.
+    destruct (ControllerRecvLiveness sws1 links1 ofLinks10 of_to0 switchm0
+                                     (PacketIn p p0)
+                                     of_ctrlm0 ofLinks11 ctrl1)
+             as [ctrl2 [Hstep2 [lps' HInCtrl]]].
+    simpl in HInCtrl. Check locate_packet_in.
+
     admit.
 
     (* ************************************************************************)
     (* Case 8 : Packet is at the controller                                   *)
     (* ************************************************************************)
-
     simpl in *.
-
     destruct 
       (ControllerLiveness sw pt pk ctrl0 switches0 links0 ofLinks0 HMemCtrl)
       as [ofLinks10 [ofLinks11 [ctrl1 [swTo [ptTo [switchmLst
            [ctrlmLst [Hstep Hrel]]]]]]]].
-
     simpl in Hrel.
     remember (topo (swTo,ptTo)) as X eqn:Htopo.
     destruct X.
     destruct p.
     inversion Hrel. subst. clear Hrel.
     rename swTo into srcSw. rename ptTo into p.
-
-
     destruct (@EasyObservePacketOut sw pt srcSw p switches0 links0 ofLinks10
                                    switchmLst nil pk ctrlmLst
                                    ofLinks11 ctrl1) as [stateN stepN]...

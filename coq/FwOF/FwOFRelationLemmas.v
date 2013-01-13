@@ -484,7 +484,6 @@ Module Make (Import Atoms : ATOMS).
                t.
   Proof with eauto.
     intros.
-    Check simpl_multistep.
     destruct (simpl_multistep tblsOk1 linksTopoOk1 haveSrc1 haveDst1 uniqSwIds1 H)
              as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 [uniqSwIds2 Hmultistep]]]]].
     match goal with
