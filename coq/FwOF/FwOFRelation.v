@@ -20,8 +20,6 @@ Module Make (Import Atoms : ATOMS).
   Module Concrete := ConcreteSemantics (Atoms).
   Import Concrete.
 
-  Axiom topo : switchId * portId -> option (switchId * portId).
-
   Definition abst_state := bag (switchId * portId * packet).
 
   Axiom relate_controller : controller -> abst_state.
