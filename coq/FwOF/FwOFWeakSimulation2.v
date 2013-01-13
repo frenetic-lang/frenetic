@@ -950,20 +950,6 @@ Module Make (Import Atoms : ATOMS).
 
     simpl in *.
 
-    Axiom ControllerLiveness : forall sw pt pk ctrl0 sws0 links0 
-      ofLinks0,
-      Mem (sw,pt,pk) (relate_controller ctrl0) ->
-      exists  ofLinks10 ofLinks11 ctrl1 swTo ptTo switchmLst ctrlmLst,
-        (multistep 
-           step (State sws0 links0 ofLinks0 ctrl0) nil
-           (State sws0 links0
-                  (ofLinks10 ++ 
-                   (OpenFlowLink swTo switchmLst
-                                 (PacketOut ptTo pk :: ctrlmLst)) ::
-                   ofLinks11) 
-                  ctrl1)) /\
-        select_packet_out swTo (PacketOut ptTo pk) = ({|(sw,pt,pk)|}).
-
     destruct 
       (ControllerLiveness sw pt pk ctrl0 switches0 links0 ofLinks0 HMemCtrl)
       as [ofLinks10 [ofLinks11 [ctrl1 [swTo [ptTo [switchmLst

@@ -90,6 +90,21 @@ Module Make (Import Atoms : ATOMS).
     relate_controller ctrl' === select_packet_in sw msg <+> 
     (relate_controller ctrl).
 
+  (* Slightly annoying since it is defined over the entire system state. *)
+  Axiom ControllerLiveness : forall sw pt pk ctrl0 sws0 links0 ofLinks0,
+    Mem (sw,pt,pk) (relate_controller ctrl0) ->
+    exists  ofLinks10 ofLinks11 ctrl1 swTo ptTo switchmLst ctrlmLst,
+      (multistep 
+         step (State sws0 links0 ofLinks0 ctrl0) nil
+         (State sws0 links0
+                (ofLinks10 ++ 
+                 (OpenFlowLink swTo switchmLst 
+                  (PacketOut ptTo pk :: ctrlmLst)) ::
+                 ofLinks11) 
+                ctrl1)) /\
+      select_packet_out swTo (PacketOut ptTo pk) = ({|(sw,pt,pk)|}).
+
+
   Definition LinkHasSrc (sws : bag switch) (link : dataLink) : Prop :=
     exists switch,
       Mem switch sws /\
