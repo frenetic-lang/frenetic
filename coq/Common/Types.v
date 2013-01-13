@@ -50,6 +50,18 @@ Instance Eq_pair `(A : Type, B : Type, EA : Eq A, EB : Eq B) : Eq (A * B) := {
   eqdec := pair_eq
 }. 
 
+Lemma list_eq : forall (A : Type) (E : Eq A) (lst1 lst2 : list A),
+  { lst1 = lst2 } + { lst1 <> lst2 }.
+Proof with auto.
+  intros.
+  decide equality.
+  apply eqdec.
+Qed.
+
+Instance Eq_list `(A : Type, E : Eq A) : Eq (list A) := {
+  eqdec := list_eq E
+}.
+
 Reserved Notation "x == y" (at level 70, no associativity).
 
 Notation "x == y" := (beqdec x y) : of_scope.
