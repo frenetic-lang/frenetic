@@ -26,7 +26,7 @@ Module Make (Import Atoms : ATOMS).
   Module WeakSim1 := FwOF.FwOFWeakSimulation1.Make (Atoms).
   Import WeakSim1.RelationLemmas.
   Import WeakSim1.RelationLemmas.Relation.
-  Import WeakSem1.RelationLemmas.Concrete.
+  Import WeakSim1.RelationLemmas.Concrete.
 
   Lemma SimpleDraimWire : forall sws (swId : switchId) pts tbl inp outp 
     ctrlm switchm links src pks0 pks swId pt links0 ofLinks ctrl,
