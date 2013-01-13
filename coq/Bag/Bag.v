@@ -30,3 +30,5 @@ Hint Rewrite
   Bag.union_empty_l
   Bag.FromList_nil_is_Empty
  : bag.
+
+Existing Instances Bag_Equivalence Bag_EqDec.
