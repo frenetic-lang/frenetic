@@ -74,6 +74,12 @@ Section Definitions.
     exact Bag_equiv_is_Equivalence.
   Qed.
 
+  Instance Bag_EqDec : EqDec (bag A) Bag_equiv.
+  Proof.
+    unfold EqDec.
+    intros.
+  Admitted.
+
   Fixpoint Mem (x : A) (b : bag A) : Prop := 
     match b with
       | Empty => False
