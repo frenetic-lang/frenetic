@@ -3,6 +3,7 @@ Set Implicit Arguments.
 Require Import Coq.Lists.List.
 Require Import Coq.Classes.Equivalence.
 Require Import Coq.Classes.Morphisms.
+Require Import Coq.Classes.EquivDec.
 Require Import Coq.Setoids.Setoid.
 Require Import Common.Types.
 Require Import Omega.
@@ -41,7 +42,9 @@ Ltac solve_bag_permutation :=
 Module Examples.
 
   Variable A : Type.
-  Variable E : Eq A.
+  Variable R : relation A.
+  Variable E : Equivalence R.
+  Variable ED : EqDec A R.
 
   Variable b0 b1 b2 b3 b4 b5 b6 b7 b8 b9 : bag A.
 

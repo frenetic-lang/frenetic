@@ -2,6 +2,7 @@ Set Implicit Arguments.
 
 Require Import Coq.Lists.List.
 Require Import Coq.Classes.Equivalence.
+Require Import Coq.Classes.EquivDec.
 Require Import Coq.Classes.Morphisms.
 Require Import Coq.Setoids.Setoid.
 Require Import Common.Types.
@@ -12,7 +13,6 @@ Local Open Scope signature_scope.
 Local Open Scope equiv_scope.
 
 Create HintDb bag.
-
 
 Inductive bag (A : Type) := 
 | Empty : bag A
@@ -28,13 +28,15 @@ Implicit Arguments FromList [[A]].
 Section Definitions.
 
   Variable A : Type.
-  Variable E : Eq A.
+  Variable R : relation A.
+  Variable E : Equivalence R.
+  Variable ED : EqDec A R.
 
   Fixpoint multiplicity (x : A) (bag : bag A) := 
     match bag with
       | Empty => 0
       | Singleton y => 
-        match eqdec x y with
+        match equiv_dec x y with
           | left _ => 1
           | right _ => 0
         end
@@ -42,7 +44,7 @@ Section Definitions.
       | FromList lst =>
         List.fold_right 
         (fun y sum =>
-          match eqdec x y with
+          match equiv_dec x y with
             | left _ => S sum
             | right _ => sum
           end) 0 lst
@@ -75,7 +77,7 @@ Section Definitions.
   Fixpoint Mem (x : A) (b : bag A) : Prop := 
     match b with
       | Empty => False
-      | Singleton y => x = y
+      | Singleton y => x === y
       | Union bag1 bag2 => Mem x bag1 \/ Mem x bag2
       | FromList lst => In x lst
     end.
@@ -84,5 +86,5 @@ Section Definitions.
 
 End Definitions.
 
-Arguments multiplicity [A E] x bag.
-Arguments Mem [A] x b.
+Arguments multiplicity [A R E ED] x bag.
+Arguments Mem [A R E] x b.
