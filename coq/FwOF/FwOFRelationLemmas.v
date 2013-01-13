@@ -10,6 +10,7 @@ Require Import Common.Bisimulation.
 Require Import Bag.Bag.
 Require Import FwOF.FwOF.
 Require FwOF.FwOFRelation.
+Require Import Common.AllDiff.
 
 Local Open Scope list_scope.
 Local Open Scope equiv_scope.
@@ -159,18 +160,56 @@ Module Make (Import Atoms : ATOMS).
     LinksHaveDst sws (links ++ (DataLink src pks' dst) :: links0).
   Admitted.
 
+  Lemma UniqSwIds_map_swId_eq : forall {sws0 sws1 swId0 pts tbl inp outp ctrlm switchm
+    pts' tbl' inp' outp' ctrlm' switchm'},
+    map swId (sws0 ++ (Switch swId0 pts tbl inp outp ctrlm switchm) :: sws1) =
+    map swId (sws0 ++ (Switch swId0 pts' tbl' inp' outp' ctrlm' switchm') :: sws1).
+  Proof with auto with datatypes.
+    intros.
+    repeat rewrite -> map_app.
+    simpl.
+    trivial.
+  Qed.
+
+
+  Lemma UniqSwIds_pres : forall {sws0 sws1 swId pts tbl inp outp ctrlm switchm
+    pts' tbl' inp' outp' ctrlm' switchm'},
+    UniqSwIds (sws0 ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws1) ->
+    UniqSwIds (sws0 ++ (Switch swId pts' tbl' inp' outp' ctrlm' switchm') :: sws1).
+  Proof with auto with datatypes.
+    intros.
+    unfold UniqSwIds in *.
+    eapply AllDiff_preservation.
+    exact H.
+    apply UniqSwIds_map_swId_eq.
+  Qed.
+
+  Lemma SwId_eq_Switch : forall (sw1 sw2 : switch) (sws : list switch),
+    UniqSwIds sws ->
+    In sw1 sws ->
+    In sw2 sws ->
+    swId sw1 = swId sw2 ->
+    sw1 = sw2.
+  Proof with eauto.
+    intros.
+    unfold UniqSwIds in H.
+    eapply AllDiff_uniq...
+  Qed.
+
+  Hint Unfold UniqSwIds.
 
   Lemma simpl_step : forall (st1 st2 : state) obs
     (tblsOk1 : FlowTablesSafe (switches st1))
     (linksTopoOk1 : ConsistentDataLinks (links st1))
     (haveSrc1 : LinksHaveSrc (switches st1) (links st1))
-    (haveDst1 : LinksHaveDst (switches st1) (links st1)),
+    (haveDst1 : LinksHaveDst (switches st1) (links st1))
+    (uniqSwIds1 : UniqSwIds (switches st1)),
     step st1 obs st2 ->
-    exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2,
+    exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2,
       concreteStep
-        (ConcreteState st1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1)
+        (ConcreteState st1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1 uniqSwIds1)
         obs
-        (ConcreteState st2 tblsOk2 linksTopoOk2 haveSrc2 haveDst2).
+        (ConcreteState st2 tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2).
   Proof with eauto with datatypes.
     intros.
     unfold concreteStep.
@@ -184,6 +223,7 @@ Module Make (Import Atoms : ATOMS).
     exists linksTopoOk1.
     exists (LinksHaveSrc_untouched haveSrc1).
     exists (LinksHaveDst_untouched haveDst1).
+    exists (UniqSwIds_pres uniqSwIds1).
     trivial.
     (* Case 3. *)
     idtac "TODO(arjun): critical case skipping -- flowmod".
@@ -192,12 +232,14 @@ Module Make (Import Atoms : ATOMS).
     exists (FlowTablesSafe_untouched tblsOk1).
     exists linksTopoOk1.
     exists (LinksHaveSrc_untouched haveSrc1).
-    exists (LinksHaveDst_untouched haveDst1)...
+    exists (LinksHaveDst_untouched haveDst1).
+    exists (UniqSwIds_pres uniqSwIds1)...
     (* Case 5. *)
     exists (FlowTablesSafe_untouched tblsOk1).
     exists (LinkTopoOK_inv pks0 (pk::pks0) linksTopoOk1).
     exists (LinksHaveSrc_inv pks0 (pk::pks0) (LinksHaveSrc_untouched haveSrc1)).
     exists (LinksHaveDst_inv pks0 (pk::pks0) (LinksHaveDst_untouched haveDst1)).
+    exists (UniqSwIds_pres uniqSwIds1).
     trivial.
     (* Case 6. *)
     exists (FlowTablesSafe_untouched tblsOk1).
@@ -206,30 +248,49 @@ Module Make (Import Atoms : ATOMS).
       (LinksHaveSrc_inv (pks0 ++ [pk]) pks0 (LinksHaveSrc_untouched haveSrc1)).
     exists 
       (LinksHaveDst_inv (pks0 ++ [pk]) pks0 (LinksHaveDst_untouched haveDst1)).
+    exists (UniqSwIds_pres uniqSwIds1).
     trivial.
     (* Case 7. *)
-    eauto.
+    exists tblsOk1.
+    exists linksTopoOk1.
+    exists haveSrc1.
+    exists haveDst1.
+    exists uniqSwIds1.
+    trivial.
     (* Case 8. *)
-    eauto.
+    exists tblsOk1.
+    exists linksTopoOk1.
+    exists haveSrc1.
+    exists haveDst1.
+    exists uniqSwIds1.
+    trivial.
     (* Case 9. *)
-    eauto.
+    exists tblsOk1.
+    exists linksTopoOk1.
+    exists haveSrc1.
+    exists haveDst1.
+    exists uniqSwIds1.
+    trivial.
     (* Case 10. *)
     exists (FlowTablesSafe_untouched tblsOk1).
     exists linksTopoOk1.
     exists (LinksHaveSrc_untouched haveSrc1).
     exists (LinksHaveDst_untouched haveDst1).
+    exists (UniqSwIds_pres uniqSwIds1).
     trivial.
     (* Case 11. *)
     exists (FlowTablesSafe_untouched tblsOk1).
     exists linksTopoOk1.
     exists (LinksHaveSrc_untouched haveSrc1).
     exists (LinksHaveDst_untouched haveDst1).
+    exists (UniqSwIds_pres uniqSwIds1).
     trivial.
     (* Case 12. *)
     exists (FlowTablesSafe_untouched tblsOk1).
     exists linksTopoOk1.
     exists (LinksHaveSrc_untouched haveSrc1).
     exists (LinksHaveDst_untouched haveDst1).
+    exists (UniqSwIds_pres uniqSwIds1).
     trivial.
   Qed.
 
@@ -237,36 +298,44 @@ Module Make (Import Atoms : ATOMS).
     (tblsOk1 : FlowTablesSafe (switches st1))
     (linksTopoOk1 : ConsistentDataLinks (links st1))
     (haveSrc1 : LinksHaveSrc (switches st1) (links st1))
-    (haveDst1 : LinksHaveDst (switches st1) (links st1)),
+    (haveDst1 : LinksHaveDst (switches st1) (links st1))
+    (uniqSwIds1 : UniqSwIds (switches st1)),
     multistep step st1 obs st2 ->
-    exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2,
+    exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2,
       multistep concreteStep
-                (ConcreteState st1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1)
+                (ConcreteState st1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1 uniqSwIds1)
                 obs
-                (ConcreteState st2 tblsOk2 linksTopoOk2 haveSrc2 haveDst2).
+                (ConcreteState st2 tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2).
   Proof with eauto with datatypes.
     intros.
     induction H.
     (* zero steps. *)
-    eauto.
-    destruct (simpl_step tblsOk1 linksTopoOk1 haveSrc1 haveDst1 H)
-             as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 step]]]].
-    destruct (IHmultistep tblsOk2 linksTopoOk2 haveSrc2 haveDst2)
-             as [tblsOk3 [linksTopoOk3 [haveSrc3 [haveDst3 stepN]]]].
+    exists tblsOk1.
+    exists linksTopoOk1.
+    exists haveSrc1.
+    exists haveDst1.
+    exists uniqSwIds1.
+    auto.
+    (* tau step *)
+    destruct (simpl_step tblsOk1 linksTopoOk1 haveSrc1 haveDst1 uniqSwIds1 H)
+             as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 [uniqSwIds2 step]]]]].
+    destruct (IHmultistep tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2)
+             as [tblsOk3 [linksTopoOk3 [haveSrc3 [haveDst3 [uniqSwIds3 stepN]]]]].
     exists tblsOk3. 
     exists linksTopoOk3.
     exists haveSrc3.
     exists haveDst3.
+    exists uniqSwIds3.
     eapply multistep_tau...
-    destruct (simpl_step tblsOk1 linksTopoOk1 haveSrc1 haveDst1 H)
-      as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 step]]]].
-    destruct (IHmultistep tblsOk2 linksTopoOk2 haveSrc2 haveDst2)
-             as [tblsOk3 [linksTopoOk3 [haveSrc3 [haveDst3 stepN]]]].
+    destruct (simpl_step tblsOk1 linksTopoOk1 haveSrc1 haveDst1 uniqSwIds1 H)
+             as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 [uniqSwIds2 step]]]]].
+    destruct (IHmultistep tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2)
+             as [tblsOk3 [linksTopoOk3 [haveSrc3 [haveDst3 [uniqSwIds3 stepN]]]]].
     exists tblsOk3. 
     exists linksTopoOk3.
     exists haveSrc3.
     exists haveDst3.
-    eapply multistep_obs...
+    exists uniqSwIds3...
   Qed.
 
   Lemma relate_step_simpl_tau : forall st1 st2,
@@ -447,7 +516,8 @@ Module Make (Import Atoms : ATOMS).
     (tblsOk1 : FlowTablesSafe (switches devs1))
     (linksTopoOk1 : ConsistentDataLinks (links devs1))
     (haveSrc1 : LinksHaveSrc (switches devs1) (links devs1))
-    (haveDst1 : LinksHaveDst (switches devs1) (links devs1)),
+    (haveDst1 : LinksHaveDst (switches devs1) (links devs1))
+    (uniqSwIds1 : UniqSwIds (switches devs1)),
     multistep step devs1 [(sw,pt,pk)] devs2 ->
     relate devs1 === ({| (sw,pt,pk) |} <+> lps) ->
     abstractStep
@@ -460,14 +530,14 @@ Module Make (Import Atoms : ATOMS).
        (Bag.unions (map (transfer sw) (abst_func sw pt pk)) <+> lps)
        t /\
      multistep concreteStep
-               (ConcreteState devs1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1)
+               (ConcreteState devs1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1 uniqSwIds1)
                [(sw,pt,pk)]
                t.
   Proof with eauto.
     intros.
     Check simpl_multistep.
-    destruct (simpl_multistep tblsOk1 linksTopoOk1 haveSrc1 haveDst1 H)
-             as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 Hmultistep]]]].
+    destruct (simpl_multistep tblsOk1 linksTopoOk1 haveSrc1 haveDst1 uniqSwIds1 H)
+             as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 [uniqSwIds2 Hmultistep]]]]].
     match goal with
       | [ _ : multistep _ ?s1 _ ?s2 |- _ ] =>
         remember s1 as st1; remember s2 as st2

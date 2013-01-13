@@ -7,6 +7,7 @@ Require Import Coq.Classes.Morphisms.
 Require Import Coq.Setoids.Setoid.
 Require Import Common.Types.
 Require Import Common.Bisimulation.
+Require Import Common.AllDiff.
 Require Import Bag.Bag.
 Require Import FwOF.FwOF.
 
@@ -106,13 +107,16 @@ Module Make (Import Atoms : ATOMS).
 
   Definition LinksHaveDst (sws : list switch) (links : list dataLink) :=
     forall link, In link links -> LinkHasDst sws link.
+
+  Definition UniqSwIds (sws : list switch) := AllDiff swId sws.
     
   Record concreteState := ConcreteState {
     devices : state;
     concreteState_flowTableSafety : FlowTablesSafe (switches devices);
     concreteState_consistentDataLinks : ConsistentDataLinks (links devices);
     linksHaveSrc : LinksHaveSrc (switches devices) (links devices);
-    linksHaveDst : LinksHaveDst (switches devices) (links devices)
+    linksHaveDst : LinksHaveDst (switches devices) (links devices);
+    uniqSwIds : UniqSwIds (switches devices)
   }.
 
   Implicit Arguments ConcreteState [].

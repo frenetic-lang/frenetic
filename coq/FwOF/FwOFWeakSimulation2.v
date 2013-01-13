@@ -103,7 +103,9 @@ Module Make (Import Atoms : ATOMS).
     (* At this point, we've discriminated all but one other major case.
        Packets on OpenFlow links may be on either side. *)
 
-
+    (* ********************************************************************** *)
+    (* Case 1 : Packet is in an input buffer                                  *)
+    (* ********************************************************************** *)
     rewrite -> in_map_iff in HMemInp.
     destruct HMemInp as [[pt0 pk0] [Haffix HMemInp]].
     simpl in Haffix.
@@ -150,10 +152,10 @@ Module Make (Import Atoms : ATOMS).
     repeat rewrite -> Bag.union_assoc.
     apply reflexivity.
 
-    (*
-     * Case where packet is in the output buffer. 
-     *)
-    
+    (* ********************************************************************** *)
+    (* Case 2 : Packet is in an output buffer                                 *)
+    (* ********************************************************************** *)
+
     (* Proof sketch: We can assume that (topo sw pt) is defined, which implies
        that a data-link exists from this switch to some destination, dst.
        We reach the final state in two steps: SendDataLink followed by
