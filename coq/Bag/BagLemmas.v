@@ -119,6 +119,33 @@ Section Methods.
     rewrite -> H.
     apply reflexivity.
   Qed.
+
+  Lemma pop_union_r : forall (b b0 b1: bag A),
+    b0 === b1 ->
+    Union b0 b === Union b1 b.
+  Proof.
+    intros.
+    do 2 rewrite -> (union_comm _ b).
+    apply pop_union_l.
+    trivial.
+  Qed.
+
+  Lemma equiv_singleton : forall (x y : A),
+    x === y ->
+    Singleton x === Singleton y.
+  Proof with auto.
+    intros.
+    unfold Equivalence.equiv.
+    unfold Bag_equiv.
+    intros.
+    simpl.
+    destruct (equiv_dec e x); destruct (equiv_dec e y)...
+    rewrite <- e0 in H.
+    contradiction.
+    rewrite <- e0 in H.
+    apply symmetry in H.
+    contradiction.
+  Qed.
   
   Fixpoint depth (b : bag A) :=
     match b with
@@ -212,6 +239,10 @@ Section Methods.
     Mem x b1 ->
     b1 === b2 ->
     exists (y : A), Mem y b2 /\ x === y.
+
+  Axiom in_map_mem : forall (B : Type) (f : A -> B) (y : B) (b : bag A),
+    In y (map f (to_list b)) ->
+    exists (x : A), Mem x b /\ y = f x.
 
 End Methods.
 

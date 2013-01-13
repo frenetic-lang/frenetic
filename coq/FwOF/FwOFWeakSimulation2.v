@@ -2,6 +2,7 @@ Set Implicit Arguments.
 
 Require Import Coq.Lists.List.
 Require Import Coq.Classes.Equivalence.
+Require Import Coq.Classes.EquivDec.
 Require Import Coq.Structures.Equalities.
 Require Import Coq.Classes.Morphisms.
 Require Import Coq.Setoids.Setoid.
@@ -23,16 +24,16 @@ Module Make (Import Atoms : ATOMS).
   Import RelationLemmas.Concrete.
 
   Lemma SimpleDraimWire : forall sws (swId : switchId) pts tbl inp outp 
-    ctrlm switchm sws0  links src pks0 pks swId pt links0 ofLinks ctrl,
+    ctrlm switchm links src pks0 pks swId pt links0 ofLinks ctrl,
      exists inp',
      multistep step
       (State 
-        (sws ++ (Switch swId pts tbl inp outp ctrlm switchm) :: sws0)
+        ({|Switch swId pts tbl inp outp ctrlm switchm|} <+> sws)
         (links ++ (DataLink src (pks0 ++ pks) (swId,pt)) :: links0)
         ofLinks ctrl)
       nil
       (State 
-        (sws ++ (Switch swId pts tbl inp' outp ctrlm switchm) :: sws0)
+        ({|Switch swId pts tbl inp' outp ctrlm switchm|} <+> sws)
         (links ++ (DataLink src pks0 (swId,pt)) :: links0)
         ofLinks ctrl).
    Proof with auto.
@@ -54,11 +55,50 @@ Module Make (Import Atoms : ATOMS).
      apply IHstep.
    Qed.
 
-  Axiom SwitchesEquiv_app :
-    forall sws11 sws21 sws12 sws22,
-      SwitchesEquiv sws11 sws21 ->
-      SwitchesEquiv sws12 sws22 ->
-      SwitchesEquiv (sws11 ++ sws12) (sws21 ++ sws22).
+   
+  Hint Resolve switch_equiv_is_Equivalence.
+  Hint Constructors eq.
+  Existing Instances switch_Equivalence switch_eqdec packet_eqdec portId_eqdec.
+
+  Instance Equivalence_eq `(A : Type) : Equivalence (@eq A).
+  Proof with auto.
+    split.
+    unfold Reflexive...
+    unfold Symmetric...
+    unfold Transitive. intros. subst...
+  Qed.
+(*
+  Definition prod_equiv
+    (A B : Type) 
+    (RA : A -> A -> Prop) (RB : B -> B -> Prop)
+    (EA : Equivalence RA) (EB : Equivalence RB)
+    (x y : A * B)  : Prop :=
+    match (x, y) with
+      | ((a1,b1), (a2, b2)) => a1 === a2 /\ b1 === b2
+    end.
+
+  Instance Equivalence_prod 
+    `(A : Type, B : Type, 
+      RA : A -> A -> Prop, RB : B -> B -> Prop,
+      EA : Equivalence A RA, EB : Equivalence B RB) :
+    Equivalence (prod_equiv EA EB).
+  Proof with auto.
+    intros.
+    unfold prod_equiv.
+    destruct EA.
+    destruct EB.
+    split.
+    unfold Reflexive. intros. destruct x. split; apply reflexivity.
+    unfold Symmetric. intros. destruct x. destruct y. destruct H.
+      split; apply symmetry; trivial.
+    unfold Transitive. intros. destruct x. destruct y. destruct z.
+    destruct H. destruct H0.
+    split; eapply transitivity; eauto.
+  Qed.
+  *)
+ 
+  Instance ptPkt_eqdec : EqDec (portId * packet) eq := 
+    prod_eqdec portId_eqdec packet_eqdec.
 
   Theorem weak_sim_2 :
     weak_simulation abstractStep concreteStep (inverse_relation bisim_relation).
@@ -80,7 +120,8 @@ Module Make (Import Atoms : ATOMS).
        proceed by inversion or induction. Instead, hypothesis H entails
        that (sw,pt,pk) is in one of the concrete components. Mem defines
        how this may be. *)
-    assert (Mem (sw,pt,pk) (({|(sw,pt,pk)|}) <+> lps)) as J...
+    assert (Mem (sw,pt,pk) (({|(sw,pt,pk)|}) <+> lps)) as J.
+      apply Bag.mem_union. left. simpl. apply reflexivity.
     (* By J, (sw,pt,pk) is in the left-hand side of H. By Mem_equiv,
        (sw,pt,pk) is also on the right-hand side too. *)
     destruct (Bag.Mem_equiv (sw,pt,pk) H J) as 
@@ -88,16 +129,16 @@ Module Make (Import Atoms : ATOMS).
     (* The packet in on a switch. *)
     apply Bag.Mem_unions in HMemSwitch.
     destruct HMemSwitch as [switch_abst [ Xin Xmem ]].
-    rewrite -> in_map_iff in Xin.
-    destruct Xin as [switch [Xrel Xin]].
-    apply in_split in Xin.
-    destruct Xin as [sws [sws0 Xin]].
     simpl in Xin.
+    simpl in H.
+    apply Bag.in_map_mem  with 
+      (E := switch_equiv_is_Equivalence) in Xin.
+    destruct Xin as [switch [Xrel Xin]].
     subst.
+    apply Bag.mem_split with (ED := switch_eqdec) in Xrel.
+    destruct Xrel as [sws Xrel].
     destruct switch.
     simpl in Xmem.
-    simpl in H.
-    autorewrite with bag in H using (simpl in H).
     destruct Xmem as [HMemInp | [HMemOutp | [HMemCtrlm | HMemSwitchm]]].
 
     (* At this point, we've discriminated all but one other major case.
@@ -111,9 +152,9 @@ Module Make (Import Atoms : ATOMS).
     simpl in Haffix.
     inversion Haffix.
     subst.
-    apply Bag.mem_in_to_list in HMemInp.
+    apply Bag.mem_in_to_list with (R := eq) (E := Equivalence_eq) in HMemInp.
     clear Haffix.
-    eapply Bag.mem_split in HMemInp.
+    eapply Bag.mem_split with (ED := ptPkt_eqdec) in HMemInp.
     destruct HMemInp as [inp HEqInp].
 
     remember (process_packet tbl0 pt pk) as ToCtrl eqn:Hprocess. 
@@ -121,21 +162,18 @@ Module Make (Import Atoms : ATOMS).
 
     eapply simpl_weak_sim...
     apply multistep_tau with
-    (a0 := (State (sws ++ (Switch sw pts0 tbl0 (({|(pt,pk)|}) <+> inp) outp0
-                                 ctrlm0 switchm0) :: sws0)
+    (a0 := (State ({|Switch sw pts0 tbl0 (({|(pt,pk)|}) <+> inp) outp0
+                                 ctrlm0 switchm0|} <+> sws)
                   links0
                   ofLinks0
                   ctrl0)).
     apply StepEquivState.
-    unfold Equivalence.equiv.
     apply StateEquiv.
-    unfold Equivalence.equiv.
-    apply SwitchesEquiv_app.
-    apply reflexivity.
-    simpl.
-    split.
+    rewrite -> Xrel.
+    do 2 rewrite -> (Bag.union_comm _ _ sws).
+    apply Bag.pop_union_l.
+    apply Bag.equiv_singleton.
     apply SwitchEquiv; try solve [ eauto | apply reflexivity ].
-    apply reflexivity.
     eapply multistep_obs.
     apply PktProcess. 
     instantiate (1 := inPkts).
@@ -145,11 +183,6 @@ Module Make (Import Atoms : ATOMS).
     rewrite -> H.
     unfold relate.
     simpl.
-    rewrite -> map_app.
-    simpl.
-    rewrite -> Bag.unions_app.
-    simpl.
-    repeat rewrite -> Bag.union_assoc.
     apply reflexivity.
 
     (* ********************************************************************** *)
