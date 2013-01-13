@@ -12,16 +12,21 @@ Require Import Bag.Bag.
 Require Import FwOF.FwOF.
 Require FwOF.FwOFRelationLemmas.
 
+(* TODO(arjun): This is a stupid dependency. But, without it, we need signatures
+   for FwOF.Concrete and FwOF.FwOFRelations and make the weak bisimulation a
+   functor over modules with those signatures. *)
+Require FwOF.FwOFWeakSimulation1.
+
 Local Open Scope list_scope.
 Local Open Scope equiv_scope.
 Local Open Scope bag_scope.
 
 Module Make (Import Atoms : ATOMS).
 
-  Module RelationLemmas := FwOF.FwOFRelationLemmas.Make (Atoms).
-  Import RelationLemmas.
-  Import RelationLemmas.Relation.
-  Import RelationLemmas.Concrete.
+  Module WeakSim1 := FwOF.FwOFWeakSimulation1.Make (Atoms).
+  Import WeakSim1.RelationLemmas.
+  Import WeakSim1.RelationLemmas.Relation.
+  Import WeakSem1.RelationLemmas.Concrete.
 
   Lemma SimpleDraimWire : forall sws (swId : switchId) pts tbl inp outp 
     ctrlm switchm links src pks0 pks swId pt links0 ofLinks ctrl,

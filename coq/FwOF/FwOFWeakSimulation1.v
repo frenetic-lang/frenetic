@@ -9,7 +9,7 @@ Require Import Common.Types.
 Require Import Common.Bisimulation.
 Require Import Bag.Bag.
 Require Import FwOF.FwOF.
-Require FwOF.FwOFRelation.
+Require FwOF.FwOFRelationLemmas.
 
 
 Local Open Scope list_scope.
@@ -18,8 +18,9 @@ Local Open Scope bag_scope.
 
 Module Make (Import Atoms : ATOMS).
 
-  Module Relation := FwOF.FwOFRelation.Make (Atoms).
-  Import Relation.
+  Module RelationLemmas := FwOF.FwOFRelationLemmas.Make (Atoms).
+  Import RelationLemmas.
+  Import RelationLemmas.Relation.
   Import Relation.Concrete.
 
   Theorem weak_sim_1 :

@@ -187,18 +187,3 @@ Module Make (Import Atoms : ATOMS).
 
 End Make.
 
-
-
-(*
-  Theorem fwof_abst_weak_bisim :
-    weak_bisimulation concreteStep abstractStep bisim_relation.
-  Proof.
-    unfold weak_bisimulation.
-    split.
-    exact weak_sim_1.
-    exact weak_sim_2.
-  Qed.
-
-End Make.    
-  
-*)  
