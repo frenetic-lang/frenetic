@@ -49,12 +49,11 @@ Module Make (Import Atoms : ATOMS).
     end.
 
   Axiom locate_packet_in : switchId -> portId -> packet -> 
-    list (portId * packet).
+    bag (switchId * portId * packet).
 
   Definition select_packet_in (sw : switchId) (msg : fromSwitch) :=
     match msg with
-      | PacketIn pt pk => 
-        FromList (map (affixSwitch sw) (locate_packet_in sw pt pk))
+      | PacketIn pt pk => locate_packet_in sw pt pk
       | _ => {| |}
     end.
 
