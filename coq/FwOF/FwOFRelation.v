@@ -65,9 +65,9 @@ Module Make (Import Atoms : ATOMS).
       Bag.unions (map (select_packet_in sw) (map (PacketIn pt) packetIns)) ===
       Bag.unions (map (transfer sw) (abst_func sw pt pk)).
 
-  Definition FlowTablesSafe (sws : list switch) : Prop :=
+  Definition FlowTablesSafe (sws : bag switch) : Prop :=
     forall swId pts tbl inp outp ctrlm switchm,
-      In (Switch swId pts tbl inp outp ctrlm switchm) sws ->
+      Mem (Switch swId pts tbl inp outp ctrlm switchm) sws ->
       FlowTableSafe swId tbl.
 
   Definition ConsistentDataLinks (links : list dataLink) : Prop :=
@@ -90,25 +90,25 @@ Module Make (Import Atoms : ATOMS).
     relate_controller ctrl' === select_packet_in sw msg <+> 
     (relate_controller ctrl).
 
-  Definition LinkHasSrc (sws : list switch) (link : dataLink) : Prop :=
+  Definition LinkHasSrc (sws : bag switch) (link : dataLink) : Prop :=
     exists switch,
-      In switch sws /\
+      Mem switch sws /\
       fst (src link) = swId switch /\
       In (snd (src link)) (pts switch).
 
-  Definition LinkHasDst (sws : list switch) (link : dataLink) : Prop :=
+  Definition LinkHasDst (sws : bag switch) (link : dataLink) : Prop :=
     exists switch,
-      In switch sws /\
+      Mem switch sws /\
       fst (dst link) = swId switch /\
       In (snd (dst link)) (pts switch).
 
-  Definition LinksHaveSrc (sws : list switch) (links : list dataLink) :=
+  Definition LinksHaveSrc (sws : bag switch) (links : list dataLink) :=
     forall link, In link links -> LinkHasSrc sws link.
 
-  Definition LinksHaveDst (sws : list switch) (links : list dataLink) :=
+  Definition LinksHaveDst (sws : bag switch) (links : list dataLink) :=
     forall link, In link links -> LinkHasDst sws link.
 
-  Definition UniqSwIds (sws : list switch) := AllDiff swId sws.
+  Definition UniqSwIds (sws : bag switch) := AllDiff swId (Bag.to_list sws).
     
   Record concreteState := ConcreteState {
     devices : state;
@@ -160,7 +160,7 @@ Module Make (Import Atoms : ATOMS).
 
 
   Definition relate (st : state) : abst_state :=
-    Bag.unions (map relate_switch (switches st)) <+>
+    Bag.unions (map relate_switch (Bag.to_list (switches st))) <+>
     Bag.unions (map relate_dataLink (links st)) <+>
     Bag.unions (map relate_openFlowLink (ofLinks st)) <+>
     relate_controller (ctrl st).

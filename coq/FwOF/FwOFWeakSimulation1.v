@@ -53,10 +53,8 @@ Module Make (Import Atoms : ATOMS).
     (* Switch is processing a packet from the input buffer *)
     idtac "Proving weak_sim_1 (Case 2 of 12) ...".
     autorewrite with bag in H using (simpl in H).
-    rewrite -> Bag.union_comm in H.
-    rewrite -> Bag.union_assoc in H.
     match goal with
-      | [ H : t === ?t0 <+> ?t1 |- _ ] => remember t1
+      | [ H : t === ({|(swId0,pt,pk)|}) <+> ?t1 |- _ ] => remember t1
     end.
     exists (Bag.unions (map (transfer swId0) (abst_func swId0 pt pk)) <+> b).
     split.
@@ -67,17 +65,13 @@ Module Make (Import Atoms : ATOMS).
       refine (concreteState_flowTableSafety1
         swId0 pts0 tbl0 inp0 (FromList outp' <+> outp0) ctrlm0
           (FromList (map (PacketIn pt) pksToCtrl) <+> switchm0) _)...
-      simpl. auto with datatypes.
+      simpl. left. apply reflexivity.
     unfold FlowTableSafe in J.
     pose (J0 := J pt pk outp' pksToCtrl H1).
     subst.
     (** Full autorewrite never worked (needed to explicitly call Bag.unions_app)
         But, this got worse after the bag-refactoring. No idea why. *)
     rewrite <- J0.
-    simpl.
-    rewrite -> map_app.
-    simpl.
-    rewrite -> (Bag.unions_app _ (map relate_switch sws)).
     autorewrite with bag using simpl.
     bag_perm 100. (* #winning *)
     apply multistep_tau with (a0 := ({|(swId0, pt, pk)|}) <+> b).
@@ -190,7 +184,6 @@ Module Make (Import Atoms : ATOMS).
     unfold relate.
     rewrite -> H.
     autorewrite with bag using simpl.
-    do 2 (rewrite -> (Bag.unions_app _ (map relate_switch sws))).
     do 2 (rewrite -> (Bag.unions_app _ (map relate_openFlowLink ofLinks0))).
     autorewrite with bag using simpl.
     bag_perm 100.
@@ -203,7 +196,6 @@ Module Make (Import Atoms : ATOMS).
     unfold relate.
     rewrite -> H.
     autorewrite with bag using simpl.
-    do 2 (rewrite -> (Bag.unions_app _ (map relate_switch sws))).
     do 2 (rewrite -> (Bag.unions_app _ (map relate_openFlowLink ofLinks0))).
     autorewrite with bag using simpl.
     bag_perm 100.

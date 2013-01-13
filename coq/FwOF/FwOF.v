@@ -3,6 +3,7 @@ Set Implicit Arguments.
 Require Import Coq.Lists.List.
 Require Import Coq.Structures.Equalities.
 Require Import Coq.Classes.Equivalence.
+Require Import Coq.Classes.EquivDec.
 Require Import Common.Types.
 Require Import Bag.Bag.
 
@@ -103,6 +104,16 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
     split. apply fromSwitch_eq_dec.
   Qed.
 
+  Instance FlowTable_Eq : Eq flowTable := {
+    eqdec := flowTable_eq_dec
+  }.
+
+  Instance switchId_eqdec : EqDec switchId eq := eqdec.
+  Instance portId_eqdec : EqDec portId eq := eqdec.
+  Instance packet_eqdec : EqDec packet eq := eqdec. 
+  Instance fromController_eqdec : EqDec fromController eq := eqdec.
+  Instance fromSwitch_eqdec : EqDec fromSwitch eq := eqdec.
+
   (* Field names have two purposes. Coq creates selectors with these names,
      and also uses them to generate variable names in proofs. We spend
      more time in FwOF proofs, so we pick short names here. *)
@@ -128,6 +139,7 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
     of_ctrlm : list fromController
   }.
 
+
   Definition observation := (switchId * portId * packet) %type.
 
   (* NOTE(arjun): Ask me in person why exactly I picked these levels. *)
@@ -151,17 +163,18 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
       instead had just one list of all devices, we would have to worry
       about permuting the list or define symmetric step-rules. *)
   Record state := State {
-    switches : list switch;
+    switches : bag switch;
     links : list dataLink;
     ofLinks : list openFlowLink;
     ctrl : controller
   }.
 
+  Section Equivalences.
+
   (** Switches contain bags and bags do not have unique representations. In
       proofs, it is common to replace a bag with an equivalent (but unequal)
       bag. When we do, we need to replace the switch with an equivalent switch
       too. *)
-  Section Equivalences.
 
     Inductive switch_equiv : switch -> switch -> Prop :=
     | SwitchEquiv : forall swId pts tbl inp inp' outp outp' ctrlm ctrlm'
@@ -197,53 +210,34 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
       exact switch_equiv_is_Equivalence.
     Qed.
 
-    Fixpoint SwitchesEquiv (sws1 sws2 : list switch) : Prop :=
-      match (sws1, sws2) with
-        | (nil, nil) => True
-        | (sw1 :: sws1', sw2 :: sws2') => 
-          switch_equiv sw1 sw2 /\ SwitchesEquiv sws1' sws2'
-        | _ => False
-      end.
-    
-    Lemma SwitchesEquiv_is_Equivalence : Equivalence SwitchesEquiv.
-    Proof with auto with datatypes.
-      split.
-      unfold Reflexive.
+    Instance switch_eqdec : EqDec switch switch_equiv.
+    Proof with subst.
+      unfold EqDec.
+      unfold complement.
       intros.
-      induction x... simpl... simpl. split; [ apply reflexivity | trivial ].
-      unfold Symmetric.
-      intros.
-      generalize dependent x.
-      induction y; intros... 
-      destruct x...
-      destruct x...
-      inversion H.
-      simpl.
-      apply symmetry in H0.
-      split...
-      unfold Transitive.
-      intros.
-      generalize dependent x.
-      generalize dependent z.
-      induction y; intros...
-      destruct x...
-      inversion H.
-      destruct x...
-      inversion H.
-      destruct z...
-      inversion H.
-      inversion H0.
-      simpl.
-      split.
-      eapply transitivity; eauto.
-      apply IHy...
+      destruct x.
+      destruct y.
+      destruct (eqdec swId0 swId1).
+      2: right; intros; inversion H; subst; contradiction n; reflexivity.
+      subst.
+      destruct (eqdec pts0 pts1).
+      2: right; intros; inversion H; subst; contradiction n; reflexivity.
+      subst.
+      destruct (eqdec tbl0 tbl1).
+      2: right; intros; inversion H; subst; contradiction n; reflexivity.
+      subst.
+      destruct (equiv_dec inp0 inp1).
+      2: right; intros; inversion H; subst; contradiction c.
+      destruct (equiv_dec outp0 outp1).
+      2: right; intros; inversion H; subst; contradiction c.
+      destruct (equiv_dec ctrlm0 ctrlm1).
+      2: right; intros; inversion H; subst; contradiction c.
+      destruct (equiv_dec switchm0 switchm1).
+      2: right; intros; inversion H; subst; contradiction c.
+      left.
+      apply SwitchEquiv; trivial.
     Qed.
 
-    Instance SwitchesEquiv_Equivalence : Equivalence SwitchesEquiv.
-    Proof.
-      exact SwitchesEquiv_is_Equivalence.
-    Qed.
-    
     Inductive stateEquiv : state -> state -> Prop :=
     | StateEquiv : forall sws1 sws2 links ofLinks ctrl,
       sws1 === sws2 ->
@@ -268,7 +262,7 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
 
   End Equivalences.
 
-  Existing Instances switch_Equivalence SwitchesEquiv_Equivalence.
+  Existing Instances switch_Equivalence switch_eqdec.
 
   Instance stateEquiv_Equivalence : Equivalence stateEquiv.
   Proof. 
@@ -376,24 +370,24 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
            (State sws links (ofLinks ++ l0 :: ofLinks') c0))
     and
   "TopoStep[ sw ; link ; obs ; sw0 ; link0 ]" :=
-    (forall sws sws0 links links0 ofLinks ctrl,
+    (forall sws links links0 ofLinks ctrl,
       step 
-      (State (sws ++ sw :: sws0) (links ++ link :: links0) ofLinks ctrl)
+      (State (({|sw|}) <+> sws) (links ++ link :: links0) ofLinks ctrl)
       obs
-      (State (sws ++ sw0 :: sws0) (links ++ link0 :: links0) ofLinks ctrl))
+      (State (({|sw0|}) <+> sws) (links ++ link0 :: links0) ofLinks ctrl))
     and
   "SwitchStep[ sw ; obs ; sw0 ]" :=
-    (forall sws sws0 links ofLinks ctrl,
+    (forall sws links ofLinks ctrl,
       step 
-        (State (sws ++ sw :: sws0) links ofLinks ctrl)
+        (State (({|sw|}) <+> sws) links ofLinks ctrl)
         obs
-        (State (sws ++ sw0 :: sws0) links ofLinks ctrl))
+        (State (({|sw0|}) <+> sws) links ofLinks ctrl))
     and
   "SwitchOpenFlow[ sw ; of ; obs ; sw0 ; of0 ]" :=
-    (forall sws sws0 links ofLinks ofLinks0 ctrl,
+    (forall sws links ofLinks ofLinks0 ctrl,
       step
-        (State (sws ++ sw :: sws0) links (ofLinks ++ of :: ofLinks0) ctrl)
+        (State (({|sw|}) <+> sws) links (ofLinks ++ of :: ofLinks0) ctrl)
         obs
-        (State (sws ++ sw0 :: sws0) links (ofLinks ++ of0 :: ofLinks0) ctrl)).
+        (State (({|sw0|}) <+> sws) links (ofLinks ++ of0 :: ofLinks0) ctrl)).
 
 End ConcreteSemantics.
