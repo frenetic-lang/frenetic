@@ -126,7 +126,9 @@ Module Make (Import Atoms : ATOMS).
     simpl...
   Qed.
 
-  (** This lemma relies on the following property: we can pick a
+  (** Remark is for another lemma, not ObserveFromController!
+
+     This lemma relies on the following property: we can pick a
       packet located anywhere (e.g., a packet at the controller or in
       a PacketIn/PacketOut message) and construct a trace that
       observes *only* that packet. This is not obvious, because
@@ -140,18 +142,244 @@ Module Make (Import Atoms : ATOMS).
       Now, consider a controller that waits for a [PacketIn pk] at the
       destination, thereby forcing a different observation. We have to
       rule out such controllers with our liveness property. *)
-(*
-  Lemma ObserveFromController : forall dstSw dstPt pk src
-    In (PacketOut srcPt pk) ctrlm0 ->
-    Some (dstSw,dstPt) = topo srcSw dstPt ->
-    relate (State sws0 links0 ofLinks0 ctrl0) === ({|dstSw,dstPt,pk|}) <+> lps ->
-    exists sws1 links1,
-      multistep (State sws0 links0 ofLinks0 ctrl0)
-                [(dstSw,dstPt,pk)]
-                (State sws1 links1 ofLinks1 ctrl0).
-    Bag.Mem (Switch 
-*)
-  
+
+
+  Definition lifted_modify_flow_table (msg : fromController) (ft : flowTable) :=
+    match msg with
+      | FlowMod mod => modify_flow_table mod ft
+      |  _ => ft
+    end.
+
+
+  Lemma DrainFromControllerBag : forall swId0 pts0 tbl0 inp0 outp0 ctrlm0
+    switchm0  sws0 links0 ofLinks0 ctrl0,
+    exists tbl1 outp1,
+      multistep step
+        (State 
+           (({|Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0|}) <+>
+            sws0)
+           links0 ofLinks0 ctrl0)
+        nil
+        (State 
+           (({|Switch swId0 pts0 tbl1 inp0 outp1 ({||}) switchm0|}) <+>
+            sws0)
+           links0 ofLinks0 ctrl0).
+  Proof with simpl;eauto with datatypes.
+    intros.
+    remember (Bag.to_list ctrlm0) as lst.
+    generalize dependent ctrlm0.
+    generalize dependent tbl0.
+    generalize dependent outp0.
+    induction lst; intros.
+    assert (ctrlm0 = Empty) as X. admit.
+    subst.
+    eauto.
+    (* Inductive case *)
+    assert (ctrlm0 === ({|a|}) <+> (FromList lst)) as X. admit.
+    destruct a.
+    (* PacketOut case *)
+    destruct (IHlst ({|(p,p0)|} <+> outp0) tbl0 (FromList lst))
+      as [tbl1 [outp1 Hstep]].
+    trivial.
+    exists tbl1. exists outp1.
+    eapply multistep_tau with
+      (a0 := (State 
+           (({|Switch swId0 pts0 tbl0 inp0 outp0
+                      (({|PacketOut p p0|}) <+> FromList lst) switchm0|}) <+>
+            sws0)
+           links0 ofLinks0 ctrl0)).
+      apply StepEquivState.
+      apply StateEquiv.
+      apply Bag.pop_union_r.
+      apply Bag.equiv_singleton.
+      apply SwitchEquiv; try solve [apply reflexivity | auto].
+    eapply multistep_tau.
+      apply SendPacketOut.
+      idtac "TODO(arjun): p in pts0 in ctrlm link". admit.
+      exact Hstep.
+    (* BarrierRequest case, on the switch buffer, which cannot happen *)
+    idtac "TODO(arjun): must disallow barriers in the ctrlm on switch!".
+    (* TODO(arjun): could add a bogus transition ... *)
+    admit.
+    (* FlowMod case *)
+    destruct (IHlst outp0 (modify_flow_table f tbl0) (FromList lst))
+      as [tbl1 [outp1 Hstep]].
+    trivial.
+    exists tbl1. exists outp1.
+    eapply multistep_tau with
+      (a0 := (State 
+           (({|Switch swId0 pts0 tbl0 inp0 outp0
+                      (({|FlowMod f|}) <+> FromList lst) switchm0|}) <+>
+            sws0)
+           links0 ofLinks0 ctrl0)).
+      apply StepEquivState.
+      apply StateEquiv.
+      apply Bag.pop_union_r.
+      apply Bag.equiv_singleton.
+      apply SwitchEquiv; try solve [apply reflexivity | auto].
+    eapply multistep_tau.
+      apply ModifyFlowTable.
+      exact Hstep.
+  Qed.
+    
+  (* In ObserveFromController, flow table and flow mod safety are irrelevant,
+     since [PacketOut] messages are not processed by flow tables. *)
+  Lemma DrainFromController : forall swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0
+    sws0 links0 ofLinks0 lstSwitchm0 lstCtrlm0 lstCtrlm1 ofLinks1 ctrl0,
+    exists tbl0' ctrlm0' outp0' switchm1,
+      multistep step
+        (State 
+           (({|Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0|}) <+>
+            sws0)
+           links0
+           (ofLinks0 ++ 
+            (OpenFlowLink swId0 lstSwitchm0 (lstCtrlm0 ++ lstCtrlm1)) ::
+            ofLinks1)
+           ctrl0)
+        nil
+        (State 
+           (({|Switch swId0 pts0 tbl0' inp0 outp0' ctrlm0' switchm1|}) <+>
+            sws0)
+           links0
+           (ofLinks0 ++ (OpenFlowLink swId0 lstSwitchm0 lstCtrlm0) ::
+            ofLinks1)
+           ctrl0).
+  Proof with simpl;eauto with datatypes.
+    intros.
+    generalize dependent tbl0.
+    generalize dependent ctrlm0.
+    generalize dependent outp0.
+    generalize dependent switchm0.
+    induction lstCtrlm1 using rev_ind; intros.
+    exists tbl0.
+    exists ctrlm0.
+    exists outp0.
+    exists switchm0.
+    rewrite -> app_nil_r.
+    apply multistep_nil.
+    (* Inductive case *)
+    destruct x.
+    (* PacketOut *)
+    destruct (IHlstCtrlm1 switchm0 outp0 (({|PacketOut p p0|}) <+> ctrlm0) tbl0)
+      as [tbl1 [ctrlm1 [outp1 [switchm1 Hstep]]]].
+    exists tbl1.
+    exists ctrlm1.
+    exists outp1.
+    exists switchm1.
+    eapply multistep_tau.
+    rewrite -> app_assoc.
+    apply RecvFromController.
+    apply PacketOut_NotBarrierRequest.
+    exact Hstep.
+    (* BarrierRequest *)
+    destruct
+      (DrainFromControllerBag swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0 sws0
+                                  links0
+           (ofLinks0 ++ 
+            (OpenFlowLink swId0 lstSwitchm0
+                          (lstCtrlm0 ++ lstCtrlm1 ++ [BarrierRequest n])) ::
+            ofLinks1)
+           ctrl0)
+      as [tbl1 [outp1 Hdrain]].
+    destruct (IHlstCtrlm1 (({|BarrierReply n|}) <+> switchm0) outp1 Empty tbl1)
+      as [tbl2 [ctrlm2 [outp2 [switchm2 Hstep2]]]].
+    exists tbl2.
+    exists ctrlm2.
+    exists outp2.
+    exists switchm2.
+    eapply multistep_app.
+    apply Hdrain.
+    eapply multistep_tau.
+    rewrite -> app_assoc.
+    apply RecvBarrier.
+    apply Hstep2.
+    trivial.
+    (* FlowMod case *)
+    destruct (IHlstCtrlm1 switchm0 outp0  (({|FlowMod f|}) <+> ctrlm0) tbl0)
+      as [tbl1 [ctrlm1 [outp1 [switchm1 Hstep]]]].
+    exists tbl1.
+    exists ctrlm1.
+    exists outp1.
+    exists switchm1.
+    eapply multistep_tau.
+    rewrite -> app_assoc.
+    apply RecvFromController.
+    apply FlowMod_NotBarrierRequest.
+    exact Hstep.
+  Qed.
+      
+  (* In ObserveFromController, flow table and flow mod safety are irrelevant,
+     since [PacketOut] messages are not processed by flow tables. *)
+  Lemma ObserveFromController : forall 
+    (srcSw dstSw : switchId)
+    dstPt pk pktOuts pktIns srcPt
+    pts0 tbl0 inp0 outp0 ctrlm0 switchm0
+    pts1 tbl1 inp1 outp1 ctrlm1 switchm1
+    sws0 links0 pks0 links1
+    ofLinks0 lstSwitchm0 lstCtrlm0 lstCtrlm1 ofLinks1
+    ctrl0,
+    (pktOuts, pktIns) = process_packet tbl1 dstPt pk ->
+    Some (dstSw,dstPt) = topo (srcSw, srcPt) ->
+    exists tbl0' switchm0' ctrlm0' outp0',
+      multistep step
+        (State 
+           (({|Switch srcSw pts0 tbl0 inp0 outp0 ctrlm0 switchm0|}) <+>
+            ({|Switch dstSw pts1 tbl1 inp1 outp1 ctrlm1 switchm1|}) <+>
+            sws0)
+           (links0 ++ (DataLink (srcSw,srcPt) pks0 (dstSw,dstPt)) :: links1)
+           (ofLinks0 ++ 
+            (OpenFlowLink srcSw lstSwitchm0 
+                          (lstCtrlm0 ++ (PacketOut srcPt pk)  :: lstCtrlm1)) ::
+            ofLinks1)
+           ctrl0)
+        [(dstSw,dstPt,pk)]
+        (State 
+           (({|Switch srcSw pts0 tbl0' inp0 outp0' 
+                      ctrlm0' switchm0'|}) <+>
+            ({|Switch dstSw pts1 tbl1 
+                      (FromList (map (fun pk => (dstPt,pk)) pks0) <+> inp1)
+                      (FromList pktOuts <+> outp1)
+                      ctrlm1
+                      (FromList (map (PacketIn dstPt) pktIns) <+> 
+                       switchm1)|}) <+>
+            sws0)
+           (links0 ++ (DataLink (srcSw,srcPt) nil (dstSw,dstPt)) :: links1)
+           (ofLinks0 ++ 
+            (OpenFlowLink srcSw lstSwitchm0 lstCtrlm0) ::
+            ofLinks1)
+           ctrl0).
+  Proof with simpl;eauto with datatypes.
+    intros.
+    destruct (DrainFromController srcSw pts0 tbl0 inp0 outp0 ctrlm0 switchm0
+                (({|Switch dstSw pts1 tbl1 inp1 outp1 ctrlm1 switchm1|}) <+>
+                 sws0)
+                (links0 ++ (DataLink (srcSw,srcPt) pks0 (dstSw,dstPt)) :: links1)
+                ofLinks0
+                lstSwitchm0
+                (lstCtrlm0 ++ [PacketOut srcPt pk])
+                lstCtrlm1
+                ofLinks1
+                ctrl0) as [tbl01 [ctrlm01 [outp01 [switchm01 Hdrain]]]].
+    exists tbl01.
+    exists switchm01.
+    exists ctrlm01.
+    exists outp01.
+    eapply multistep_app.
+    assert (lstCtrlm0 ++ PacketOut srcPt pk :: lstCtrlm1 = 
+            (lstCtrlm0 ++ [PacketOut srcPt pk]) ++ lstCtrlm1) as X.
+      rewrite <- app_assoc...
+     rewrite -> X. clear X.
+    exact Hdrain.
+    clear Hdrain.
+    eapply multistep_tau.
+    apply RecvFromController.
+    apply PacketOut_NotBarrierRequest.
+    eapply multistep_tau.
+    apply SendPacketOut.
+    admit. (* TODO(arjun): pt in pts *)
+    eapply ObserveFromOutp...
+    trivial.
+  Qed.
    
   Hint Resolve switch_equiv_is_Equivalence.
   Hint Constructors eq.
