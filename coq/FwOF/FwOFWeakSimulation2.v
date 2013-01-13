@@ -314,3 +314,77 @@ Module Make (Import Atoms : ATOMS).
     (* ********************************************************************** *)
     (* Case 3 : Packet is in a PacketOut message                              *)
     (* ********************************************************************** *)
+
+    apply Bag.mem_unions_map in HMemCtrlm.
+    destruct HMemCtrlm as [msg [HIn HMemCtrlm]].
+    destruct msg.
+    2: solve [ simpl in HMemCtrlm; inversion HMemCtrlm ]. (* not a barrier *)
+    2: solve [ simpl in HMemCtrlm; inversion HMemCtrlm ]. (* not a flowmod *)
+    simpl in HMemCtrlm.
+    remember (topo (swId0,p)) as Htopo.
+    destruct Htopo.
+    2: solve [ simpl in HMemCtrlm; inversion HMemCtrlm ]. (* packet does not go poof *)
+    destruct p1.
+    simpl in HMemCtrlm.
+    unfold Equivalence.equiv in HMemCtrlm.
+    symmetry in HMemCtrlm. (* Prefer the names on the left *)
+    inversion HMemCtrlm.
+    subst.
+    clear HMemCtrlm.
+    subst.
+
+    apply Bag.mem_in_to_list with (R:=eq) (E:=Equivalence_eq) in HIn.
+    apply Bag.mem_split with (ED:=fromController_eqdec) in HIn.
+    destruct HIn as [ctrlm0' HIn].
+
+    (* TODO(arjun): The ConsistentDataLink invariants states that a link's
+       source and destination is reflected in the topo function. We need
+       another invariant stating that if the topo function is defined for
+       a pair of locations, then there must exist a link between them. *)
+    assert (exists pks, In (DataLink (swId0,p) pks (sw,pt)) links0) as X.
+      admit.
+    destruct X as [pks Hlink].
+    apply in_split in Hlink.
+    destruct Hlink as [links01 [links02 Hlink]].
+    subst.
+
+    assert 
+      (LinkHasDst
+         switches0
+         (DataLink (swId0,p) pks (sw,pt))) as J0.
+      apply linksHaveDst0...
+    unfold LinkHasDst in J0.
+    destruct J0 as [switch2 [HSw2In [HSw2IdEq HSw2PtsIn]]].
+    destruct switch2.
+    simpl in *.
+    subst.
+    remember (process_packet tbl1 p pk) as X eqn:Hprocess.
+    destruct X as [outp1' pktIns].
+
+    eapply Bag.mem_equiv with (ED := switch_eqdec) in HSw2In.
+    2: exact Xrel.
+    destruct HSw2In as [switch1 [HMem2 Hswitch2]].
+    apply Bag.mem_union in HMem2.
+    destruct HMem2. 
+
+    idtac "TODO(arjun): src and dst switches are the same".
+    admit.
+
+    apply Bag.mem_split with (ED := switch_eqdec) in H1.
+    destruct H1 as [sws0 H1].
+    rewrite -> H1 in Xrel.
+
+    apply simpl_weak_sim with
+      (devs2 := 
+        State ({| Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0' switchm0 |} <+>
+               ({| Switch swId1 pts1 tbl1 
+                          ((FromList (map (fun pk => (pt,pk)) pks)) <+> inp1) 
+                          (FromList outp1' <+> outp1)
+                        ctrlm1 (FromList (map (PacketIn pt) pktIns) <+> switchm1)|}) <+>
+               sws0)
+              (links01 ++ (DataLink (swId0,p) nil (swId1,pt)) :: links02)
+              ofLinks0
+              ctrl0).
+
+    (* TODO(arjun): Lemma needed. This looks exactly the same as the case above now! *)
+
