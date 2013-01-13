@@ -58,6 +58,13 @@ Module Type ATOMS.
 
   Axiom topo : switchId * portId -> option (switchId * portId).
 
+  Definition abst_state := bag (switchId * portId * packet).
+
+  Axiom relate_controller : controller -> abst_state.
+
+  Axiom abst_func : switchId -> portId -> packet -> list (portId * packet).
+
+
 End ATOMS.
 
 Module ConcreteSemantics (Import Atoms : ATOMS).
