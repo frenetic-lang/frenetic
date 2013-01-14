@@ -72,9 +72,6 @@ Module Type ATOMS.
   Instance EqDec_portId : EqDec portId eq := eqdec.
   Instance EqDec_packet : EqDec packet eq := eqdec. 
 
-  Axiom locate_packet_in : switchId -> portId -> packet -> 
-    bag (switchId * portId * packet).
-
   Axiom ControllerRemembersPackets :
     forall (ctrl ctrl' : controller),
       controller_step ctrl ctrl' ->
@@ -102,7 +99,7 @@ Module Type ATOMS.
 
   Definition select_packet_in (sw : switchId) (msg : fromSwitch) :=
     match msg with
-      | PacketIn pt pk => locate_packet_in sw pt pk
+      | PacketIn pt pk => Bag.unions (map (transfer sw) (abst_func sw pt pk))
       | _ => {| |}
     end.
 
