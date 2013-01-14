@@ -931,9 +931,11 @@ Module Make (Import Atoms : ATOMS).
     assert (LinksHaveSrc (switches S1) (links S1)) as haveSrc0. subst... admit.
     assert (LinksHaveDst (switches S1) (links S1)) as haveDst0. subst... admit.
     assert (UniqSwIds (switches S1)) as uniqSwIds0'. subst... admit.
+    assert (AllFMS (switches S1) (ofLinks S1)) as allFMS0'. subst... admit.
     destruct (simpl_multistep tblsOk0 linksTopoOk0 haveSrc0 haveDst0 
-                              uniqSwIds0' Hstep2)
-             as [tblsOk1 [linksTopoOk1 [haveSrc1 [haveDst1 [uniqSwIds1 _]]]]].
+                              uniqSwIds0' allFMS0' Hstep2)
+             as [tblsOk1 [linksTopoOk1 [haveSrc1 [haveDst1 
+                  [uniqSwIds1 [allFMS1 _]]]]]].
     subst.
     simpl in *.
     destruct (ControllerRecvLiveness sws1 links1 ofLinks10 swId0 nil
@@ -1144,9 +1146,11 @@ Module Make (Import Atoms : ATOMS).
     assert (LinksHaveSrc (switches S1) (links S1)) as haveSrc0. subst...
     assert (LinksHaveDst (switches S1) (links S1)) as haveDst0. subst...
     assert (UniqSwIds (switches S1)) as uniqSwIds0'. subst...
+    assert (AllFMS (switches S1) (ofLinks S1)) as allFMS0'. subst. admit...
     destruct (simpl_multistep tblsOk0 linksTopoOk0 haveSrc0 haveDst0 
-                              uniqSwIds0' Hstep1)
-             as [tblsOk1 [linksTopoOk1 [haveSrc1 [haveDst1 [uniqSwIds1 _]]]]].
+                              uniqSwIds0' allFMS0' Hstep1)
+             as [tblsOk1 [linksTopoOk1 [haveSrc1 [haveDst1 
+                   [uniqSwIds1 [allFMS1 _]]]]]].
     subst.
     simpl in *.
     destruct (ControllerRecvLiveness sws1 links1 ofLinks10 of_to0 switchm0

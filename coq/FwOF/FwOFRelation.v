@@ -78,6 +78,73 @@ Module Make (Import Atoms : ATOMS).
     forall link, In link links -> LinkHasDst sws link.
 
   Definition UniqSwIds (sws : bag switch) := AllDiff swId (Bag.to_list sws).
+
+  Section FlowModSafety.
+
+    Inductive Endpoint : Type :=
+    | Endpoint_NoBarrier : flowTable -> Endpoint
+    | Endpoint_Barrier : flowTable -> Endpoint.
+
+    Definition table_at_endpoint (ep : Endpoint) :=
+      match ep with
+        | Endpoint_NoBarrier tbl => tbl
+        | Endpoint_Barrier tbl => tbl
+      end.
+
+    Inductive SafeWire : switchId -> 
+                    Endpoint -> 
+                    list fromController ->
+                    Endpoint -> Prop :=
+    | SafeWire_nil : forall swId tbl,
+      FlowTableSafe swId tbl ->
+      SafeWire swId (Endpoint_NoBarrier tbl) nil (Endpoint_NoBarrier tbl)
+    | SafeWire_PktOut : forall swId pt pk ctrlEp ctrlm swEp,
+      SafeWire swId ctrlEp ctrlm swEp ->
+      SafeWire swId ctrlEp (PacketOut pt pk :: ctrlm) swEp
+    | SafeWire_BarrierRequest : forall swId n ctrlEp ctrlm swEp,
+      SafeWire swId ctrlEp ctrlm swEp ->
+      SafeWire swId (Endpoint_Barrier (table_at_endpoint ctrlEp))
+                    (BarrierRequest n :: ctrlm)
+                    swEp
+    | SafeWire_FlowMod : forall swId f tbl ctrlm swEp,
+      FlowTableSafe swId (modify_flow_table f tbl) ->
+      SafeWire swId (Endpoint_Barrier tbl) ctrlm swEp ->
+      SafeWire swId (Endpoint_NoBarrier (modify_flow_table f tbl))
+          (FlowMod f :: ctrlm) swEp.
+
+    Inductive NotFlowMod : fromController -> Prop :=
+    | NotFlowMod_BarrierRequest : forall n, NotFlowMod (BarrierRequest n)
+    | NotFlowMod_PacketOut : forall pt pk, NotFlowMod (PacketOut pt pk).
+
+    (** "FMS" is short for "flow mod safety". *)
+    Inductive FMS : switch -> openFlowLink -> Prop := 
+    | NoFlowModsInBuffer : forall swId pts tbl inp outp ctrlm switchm
+                                  ctrlmList switchmList,
+      (forall msg, Mem msg ctrlm -> NotFlowMod msg) ->
+      (exists ctrlEp, SafeWire swId ctrlEp ctrlmList (Endpoint_Barrier tbl)) ->
+      FMS (Switch swId pts tbl inp outp ctrlm switchm)
+          (OpenFlowLink swId switchmList ctrlmList)
+    | OneFlowModInBuffer : forall swId pts tbl inp outp ctrlm ctrlm0 switchm 
+                                  ctrlmList switchmList f,
+      (forall msg, Mem msg ctrlm0 -> NotFlowMod msg) ->
+      (exists ctrlEp, SafeWire swId ctrlEp ctrlmList 
+                               (Endpoint_NoBarrier (modify_flow_table f tbl))) ->
+
+      ctrlm === ({|FlowMod f|} <+> ctrlm0) ->
+      FlowTableSafe swId (modify_flow_table f tbl) ->
+      FMS (Switch swId pts tbl inp outp ctrlm switchm)
+          (OpenFlowLink swId switchmList ctrlmList).
+
+    Definition AllFMS (sws : bag switch) (ofLinks : list openFlowLink) :=
+      forall sw,
+        Mem sw sws ->
+        exists lnk, 
+          In lnk ofLinks /\
+          of_to lnk = swId sw /\
+          FMS sw lnk.
+    
+    End FlowModSafety.
+
     
   Record concreteState := ConcreteState {
     devices : state;
@@ -85,7 +152,8 @@ Module Make (Import Atoms : ATOMS).
     concreteState_consistentDataLinks : ConsistentDataLinks (links devices);
     linksHaveSrc : LinksHaveSrc (switches devices) (links devices);
     linksHaveDst : LinksHaveDst (switches devices) (links devices);
-    uniqSwIds : UniqSwIds (switches devices)
+    uniqSwIds : UniqSwIds (switches devices);
+    allFMS : AllFMS (switches devices) (ofLinks devices)
   }.
 
   Implicit Arguments ConcreteState [].

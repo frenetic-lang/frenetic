@@ -135,6 +135,66 @@ Module Make (Import Atoms : ATOMS).
     simpl in *...
   Qed.
 
+  Section FMS.
+
+    Hint Constructors FMS SafeWire.
+    
+    Lemma FMS_untouched : forall swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0
+      switchmLst0 ctrlmLst0 inp1 outp1 switchm1 switchmLst1,
+      FMS (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0)
+          (OpenFlowLink swId0 switchmLst0 ctrlmLst0) ->
+      FMS (Switch swId0 pts0 tbl0 inp1 outp1 ctrlm0 switchm1)
+          (OpenFlowLink swId0 switchmLst1 ctrlmLst0).
+    Proof.
+      intros.
+      inversion H; eauto.
+    Qed.
+
+    Lemma AllFMS_untouched1 : forall swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0
+      inp1 outp1 switchm1 sws ofLinks0,
+      AllFMS ({|Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0|} <+> sws)
+             ofLinks0 ->
+      AllFMS ({|Switch swId0 pts0 tbl0 inp1 outp1 ctrlm0 switchm1|} <+> sws)
+             ofLinks0.
+    Proof with simpl;eauto.
+      intros.
+      unfold AllFMS.
+      intros.
+      simpl in H0.
+      destruct H0 as [H0 | H0].
+      destruct sw.
+      inversion H0.
+      subst. clear H0.
+      assert (Mem (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0)
+                  ({|(Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0)|} <+>
+                   sws)) as J.
+        simpl. left. apply reflexivity.
+      apply H in J.
+      simpl in J.
+      destruct J as [lnk [HIn [HEq FMSsw0]]].
+      simpl.
+      exists lnk.
+      split...
+      split...
+      remember FMSsw0 as FMSorig eqn:X; clear X.
+      inversion FMSsw0.
+      apply NoFlowModsInBuffer...
+      intros.
+      apply H9.
+      assert (exists msg', Mem msg' ctrlm0 /\ msg === msg') as X.
+        apply Bag.mem_equiv with (ED := fromController_eqdec) (b1 := ctrlm1)...
+      destruct X as [msg' [Hfrom Heq]].
+      unfold Equivalence.equiv in Heq.
+      rewrite -> Heq...
+      eapply OneFlowModInBuffer with (f := f) ...
+      clear HEq. subst. eapply transitivity; eauto.
+      assert (Mem sw
+             ({|Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0|} <+> sws))
+             as X...
+    Qed.
+
+  End FMS.
+
   Lemma SwId_eq_Switch : forall (sw1 sw2 : switch) (sws : bag switch),
     UniqSwIds sws ->
     Mem sw1 sws ->
@@ -152,13 +212,16 @@ Module Make (Import Atoms : ATOMS).
     (linksTopoOk1 : ConsistentDataLinks (links st1))
     (haveSrc1 : LinksHaveSrc (switches st1) (links st1))
     (haveDst1 : LinksHaveDst (switches st1) (links st1))
-    (uniqSwIds1 : UniqSwIds (switches st1)),
+    (uniqSwIds1 : UniqSwIds (switches st1))
+    (allFMS1 : AllFMS (switches st1) (ofLinks st1)),
     step st1 obs st2 ->
-    exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2,
+    exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2 allFMS2,
       concreteStep
-        (ConcreteState st1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1 uniqSwIds1)
+        (ConcreteState st1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1 uniqSwIds1
+                       allFMS1)
         obs
-        (ConcreteState st2 tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2).
+        (ConcreteState st2 tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2
+                       allFMS2).
   Proof with eauto with datatypes.
     intros.
     unfold concreteStep.
@@ -173,6 +236,7 @@ Module Make (Import Atoms : ATOMS).
     exists (LinksHaveSrc_untouched haveSrc1).
     exists (LinksHaveDst_untouched haveDst1).
     exists (UniqSwIds_pres uniqSwIds1).
+    exists (AllFMS_untouched1 allFMS1).
     trivial.
     (* Case 3. *)
     idtac "TODO(arjun): critical case skipping -- flowmod".
@@ -182,13 +246,16 @@ Module Make (Import Atoms : ATOMS).
     exists linksTopoOk1.
     exists (LinksHaveSrc_untouched haveSrc1).
     exists (LinksHaveDst_untouched haveDst1).
-    exists (UniqSwIds_pres uniqSwIds1)...
+    exists (UniqSwIds_pres uniqSwIds1).
+    idtac "TODO(arjun): FMS for SendPacketOut -- trivial case.".
+    admit.
     (* Case 5. *)
     exists (FlowTablesSafe_untouched tblsOk1).
     exists (LinkTopoOK_inv pks0 (pk::pks0) linksTopoOk1).
     exists (LinksHaveSrc_inv pks0 (pk::pks0) (LinksHaveSrc_untouched haveSrc1)).
     exists (LinksHaveDst_inv pks0 (pk::pks0) (LinksHaveDst_untouched haveDst1)).
     exists (UniqSwIds_pres uniqSwIds1).
+    exists (AllFMS_untouched1 allFMS1).
     trivial.
     (* Case 6. *)
     exists (FlowTablesSafe_untouched tblsOk1).
@@ -198,6 +265,7 @@ Module Make (Import Atoms : ATOMS).
     exists 
       (LinksHaveDst_inv (pks0 ++ [pk]) pks0 (LinksHaveDst_untouched haveDst1)).
     exists (UniqSwIds_pres uniqSwIds1).
+    exists (AllFMS_untouched1 allFMS1).
     trivial.
     (* Case 7. *)
     exists tblsOk1.
@@ -205,6 +273,7 @@ Module Make (Import Atoms : ATOMS).
     exists haveSrc1.
     exists haveDst1.
     exists uniqSwIds1.
+    exists allFMS1.
     trivial.
     (* Case 8. *)
     exists tblsOk1.
@@ -212,35 +281,40 @@ Module Make (Import Atoms : ATOMS).
     exists haveSrc1.
     exists haveDst1.
     exists uniqSwIds1.
-    trivial.
+    idtac "TODO(arjun): FMS for ControllerRecv -- trivial case.".
+    admit.
     (* Case 9. *)
     exists tblsOk1.
     exists linksTopoOk1.
     exists haveSrc1.
     exists haveDst1.
     exists uniqSwIds1.
-    trivial.
+    idtac "TODO(arjun): FMS for ControllerSend (axiom needed)".
+    admit.
     (* Case 10. *)
     exists (FlowTablesSafe_untouched tblsOk1).
     exists linksTopoOk1.
     exists (LinksHaveSrc_untouched haveSrc1).
     exists (LinksHaveDst_untouched haveDst1).
     exists (UniqSwIds_pres uniqSwIds1).
-    trivial.
+    idtac "TODO(arjun): FMS for SwitchSend -- trivial case.".
+    admit.
     (* Case 11. *)
     exists (FlowTablesSafe_untouched tblsOk1).
     exists linksTopoOk1.
     exists (LinksHaveSrc_untouched haveSrc1).
     exists (LinksHaveDst_untouched haveDst1).
     exists (UniqSwIds_pres uniqSwIds1).
-    trivial.
+    idtac "TODO(arjun): FMS for BarrierRecv -- important case".
+    admit.
     (* Case 12. *)
     exists (FlowTablesSafe_untouched tblsOk1).
     exists linksTopoOk1.
     exists (LinksHaveSrc_untouched haveSrc1).
     exists (LinksHaveDst_untouched haveDst1).
     exists (UniqSwIds_pres uniqSwIds1).
-    trivial.
+    idtac "TODO(arjun): FMS for NotBarrierRecv -- important case".
+    admit.
   Qed.
 
   Lemma simpl_multistep : forall (st1 st2 : state) obs
@@ -248,43 +322,40 @@ Module Make (Import Atoms : ATOMS).
     (linksTopoOk1 : ConsistentDataLinks (links st1))
     (haveSrc1 : LinksHaveSrc (switches st1) (links st1))
     (haveDst1 : LinksHaveDst (switches st1) (links st1))
-    (uniqSwIds1 : UniqSwIds (switches st1)),
+    (uniqSwIds1 : UniqSwIds (switches st1))
+    (allFMS1 : AllFMS (switches st1) (ofLinks st1)),
     multistep step st1 obs st2 ->
-    exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2,
+    exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2 allFMS2,
       multistep concreteStep
-                (ConcreteState st1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1 uniqSwIds1)
+                (ConcreteState st1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1 
+                               uniqSwIds1 allFMS1)
                 obs
-                (ConcreteState st2 tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2).
+                (ConcreteState st2 tblsOk2 linksTopoOk2 haveSrc2 haveDst2 
+                               uniqSwIds2 allFMS2).
   Proof with eauto with datatypes.
     intros.
     induction H.
     (* zero steps. *)
-    exists tblsOk1.
-    exists linksTopoOk1.
-    exists haveSrc1.
-    exists haveDst1.
-    exists uniqSwIds1.
-    auto.
+    solve [ eauto 8 ].
     (* tau step *)
-    destruct (simpl_step tblsOk1 linksTopoOk1 haveSrc1 haveDst1 uniqSwIds1 H)
-             as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 [uniqSwIds2 step]]]]].
-    destruct (IHmultistep tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2)
-             as [tblsOk3 [linksTopoOk3 [haveSrc3 [haveDst3 [uniqSwIds3 stepN]]]]].
-    exists tblsOk3. 
-    exists linksTopoOk3.
-    exists haveSrc3.
-    exists haveDst3.
-    exists uniqSwIds3.
-    eapply multistep_tau...
-    destruct (simpl_step tblsOk1 linksTopoOk1 haveSrc1 haveDst1 uniqSwIds1 H)
-             as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 [uniqSwIds2 step]]]]].
-    destruct (IHmultistep tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2)
-             as [tblsOk3 [linksTopoOk3 [haveSrc3 [haveDst3 [uniqSwIds3 stepN]]]]].
-    exists tblsOk3. 
-    exists linksTopoOk3.
-    exists haveSrc3.
-    exists haveDst3.
-    exists uniqSwIds3...
+    destruct (simpl_step tblsOk1 linksTopoOk1 haveSrc1 haveDst1 
+                         uniqSwIds1 allFMS1 H)
+             as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 [uniqSwIds2 
+                [allFMS2 step]]]]]].
+    destruct (IHmultistep tblsOk2 linksTopoOk2 haveSrc2 haveDst2 
+                          uniqSwIds2 allFMS2)
+             as [tblsOk3 [linksTopoOk3 [haveSrc3 [haveDst3
+                [uniqSwIds3 [allFMS3 stepN]]]]]].
+    solve [ eauto 8 ].
+    destruct (simpl_step tblsOk1 linksTopoOk1 haveSrc1 haveDst1 
+                         uniqSwIds1 allFMS1 H)
+             as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 [uniqSwIds2 
+                [allFMS2 step]]]]]].
+    destruct (IHmultistep tblsOk2 linksTopoOk2 haveSrc2 haveDst2 
+                          uniqSwIds2 allFMS2)
+             as [tblsOk3 [linksTopoOk3 [haveSrc3 [haveDst3
+                [uniqSwIds3 [allFMS3 stepN]]]]]].
+    solve [ eauto 8 ].
   Qed.
 
   Lemma relate_step_simpl_tau : forall st1 st2,
@@ -301,33 +372,35 @@ Module Make (Import Atoms : ATOMS).
     unfold Equivalence.equiv in H0.
     admit. (* TODO(arjun): dumb lemma needed. *)
     (* Case 2. *)
-    destruct st1.
-    destruct st2.
-    subst.
-    unfold relate.
-    simpl.
-    idtac "TODO(arjun): skipping critical flowmod case.".
-    admit.
-    (* PacketOut case. *)
+    idtac "Proving relate_step_simpl_tau (Case 2 of 11)...".
     destruct st1. destruct st2. subst. unfold relate. simpl.
     autorewrite with bag using simpl.
     bag_perm 100.
-    (* SendDataLink case. *)
+    (* 3. PacketOut case. *)
+    idtac "Proving relate_step_simpl_tau (Case 3 of 11)...".
+    destruct st1. destruct st2. subst. unfold relate. simpl.
+    autorewrite with bag using simpl.
+    bag_perm 100.
+    (* 4. SendDataLink case. *)
+    idtac "Proving relate_step_simpl_tau (Case 4 of 11)...".
     destruct st1. destruct st2. subst. unfold relate. simpl.
     autorewrite with bag using simpl.
     destruct dst0.
     rewrite -> Bag.from_list_cons.
-    (* relies on linkTopo consistency *)
+    idtac "TODO(arjun): trivial use of linkTopo consistency needed.".
     admit.
-    (* RecvDataLink case. *)
-    (* relies on linkTopo consistency *)
+    (* 5. RecvDataLink case. *)
+    idtac "Proving relate_step_simpl_tau (Case 5 of 11)...".
+    idtac "TODO(arjun): trivial use of linkTopo consistency needed.".
     admit.
-    (* Controller steps *)
+    (* 6. Controller steps *)
+    idtac "Proving relate_step_simpl_tau (Case 6 of 11)...".
     unfold relate.
     simpl.
     rewrite -> (ControllerRemembersPackets H2).
     apply reflexivity.
-    (* Controller receives. *)
+    (* 7. Controller receives. *)
+    idtac "Proving relate_step_simpl_tau (Case 7 of 11)...".
     unfold relate.
     simpl.
     repeat rewrite -> map_app.
@@ -336,7 +409,8 @@ Module Make (Import Atoms : ATOMS).
     autorewrite with bag using simpl.
     rewrite -> (ControllerRecvRemembersPackets H2).
     bag_perm 100.
-    (* Controller sends *)
+    (* 8. Controller sends *)
+    idtac "Proving relate_step_simpl_tau (Case 8 of 11)...".
     unfold relate.
     simpl.
     repeat rewrite -> map_app.
@@ -345,7 +419,8 @@ Module Make (Import Atoms : ATOMS).
     autorewrite with bag using simpl.
     rewrite -> (ControllerSendForgetsPackets H2).
     bag_perm 100.
-    (* Switch sends to controller *)
+    (* 9. Switch sends to controller *)
+    idtac "Proving relate_step_simpl_tau (Case 9 of 11)...".
     unfold relate.
     simpl.
     repeat rewrite -> map_app.
@@ -353,7 +428,8 @@ Module Make (Import Atoms : ATOMS).
     repeat rewrite -> Bag.unions_app.
     autorewrite with bag using simpl.
     bag_perm 100.
-    (* Switch receives a barrier. *)
+    (* 10. Switch receives a barrier. *)
+    idtac "Proving relate_step_simpl_tau (Case 10 of 11)...".
     unfold relate.
     simpl.
     repeat rewrite -> map_app.
@@ -361,7 +437,8 @@ Module Make (Import Atoms : ATOMS).
     repeat rewrite -> Bag.unions_app.
     autorewrite with bag using simpl.
     bag_perm 100.
-    (* Switch receives a non-barrier. *)
+    (* 11. Switch receives a non-barrier. *)
+    idtac "Proving relate_step_simpl_tau (Case 11 of 11)...".
     unfold relate.
     simpl.
     repeat rewrite -> map_app.
@@ -460,13 +537,13 @@ Module Make (Import Atoms : ATOMS).
     trivial.
   Qed.
 
-
   Lemma simpl_weak_sim : forall devs1 devs2 sw pt pk lps
     (tblsOk1 : FlowTablesSafe (switches devs1))
     (linksTopoOk1 : ConsistentDataLinks (links devs1))
     (haveSrc1 : LinksHaveSrc (switches devs1) (links devs1))
     (haveDst1 : LinksHaveDst (switches devs1) (links devs1))
-    (uniqSwIds1 : UniqSwIds (switches devs1)),
+    (uniqSwIds1 : UniqSwIds (switches devs1))
+    (allFMS1 : AllFMS (switches devs1) (ofLinks devs1)),
     multistep step devs1 [(sw,pt,pk)] devs2 ->
     relate devs1 === ({| (sw,pt,pk) |} <+> lps) ->
     abstractStep
@@ -479,13 +556,16 @@ Module Make (Import Atoms : ATOMS).
        (Bag.unions (map (transfer sw) (abst_func sw pt pk)) <+> lps)
        t /\
      multistep concreteStep
-               (ConcreteState devs1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1 uniqSwIds1)
+               (ConcreteState devs1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1
+                              uniqSwIds1 allFMS1)
                [(sw,pt,pk)]
                t.
   Proof with eauto.
     intros.
-    destruct (simpl_multistep tblsOk1 linksTopoOk1 haveSrc1 haveDst1 uniqSwIds1 H)
-             as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 [uniqSwIds2 Hmultistep]]]]].
+    destruct (simpl_multistep tblsOk1 linksTopoOk1 haveSrc1 haveDst1 
+                              uniqSwIds1 allFMS1 H)
+             as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 
+                [uniqSwIds2 [allFMS2 Hmultistep]]]]]].
     match goal with
       | [ _ : multistep _ ?s1 _ ?s2 |- _ ] =>
         remember s1 as st1; remember s2 as st2
