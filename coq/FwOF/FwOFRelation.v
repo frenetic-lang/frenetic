@@ -15,10 +15,9 @@ Local Open Scope list_scope.
 Local Open Scope equiv_scope.
 Local Open Scope bag_scope.
 
-Module Make (Import Atoms : ATOMS).
+Module Make (Import Atoms : ATOMS) (MakeControllerLemmas : CONTROLLER_LEMMAS).
 
-  Module Concrete := ConcreteSemantics (Atoms).
-  Import Concrete.
+  Module Export ControllerLemmas := MakeControllerLemmas (Atoms).
 
   Definition affixSwitch (sw : switchId) (ptpk : portId * packet) :=
     match ptpk with

@@ -16,12 +16,10 @@ Local Open Scope list_scope.
 Local Open Scope equiv_scope.
 Local Open Scope bag_scope.
 
-Module Make (Import Atoms : ATOMS).
+Module Make (Import Atoms : ATOMS) (MakeControllerLemmas : CONTROLLER_LEMMAS).
 
-  Module RelationLemmas := FwOF.FwOFRelationLemmas.Make (Atoms).
-  Import RelationLemmas.
-  Import RelationLemmas.Relation.
-  Import Relation.Concrete.
+  Module Export RelationLemmas := 
+    FwOF.FwOFRelationLemmas.Make (Atoms) (MakeControllerLemmas).
 
   Theorem weak_sim_1 :
     weak_simulation concreteStep abstractStep bisim_relation.

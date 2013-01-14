@@ -8,9 +8,10 @@ Require FwOF.FwOFWeakSimulation2.
 
 Local Open Scope equiv_scope.
 
-Module Make (Import Atoms : ATOMS).
+Module Make (Import Atoms : ATOMS) (MakeControllerLemmas : CONTROLLER_LEMMAS).
 
-  Module WeakSim2 := FwOF.FwOFWeakSimulation2.Make (Atoms).
+  Module WeakSim2 := 
+    FwOF.FwOFWeakSimulation2.Make (Atoms) (MakeControllerLemmas).
   Module WeakSim1 := WeakSim2.WeakSim1. 
 
   Import WeakSim1.RelationLemmas.Relation.

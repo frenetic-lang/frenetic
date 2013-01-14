@@ -16,13 +16,10 @@ Local Open Scope list_scope.
 Local Open Scope equiv_scope.
 Local Open Scope bag_scope.
 
-Module Make (Import Atoms : ATOMS).
+Module Make (Import Atoms : ATOMS) (MakeControllerLemmas : CONTROLLER_LEMMAS).
 
-  Module Relation := FwOF.FwOFRelation.Make (Atoms).
-  Module Concrete := Relation.Concrete.
-
-  Import Relation.
-  Import Relation.Concrete.
+  Module Export Relation := 
+    FwOF.FwOFRelation.Make (Atoms) (MakeControllerLemmas).
 
   Lemma LinksHaveSrc_untouched : forall 
     {swId tbl pts sws links

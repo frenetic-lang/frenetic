@@ -41,29 +41,6 @@ Module Type ATOMS.
   Parameter portId_eq_dec : Eqdec portId.
   Parameter flowTable_eq_dec : Eqdec flowTable.
   Parameter flowMod_eq_dec : Eqdec flowMod.
-
-  Section Controller.
-
-    Parameter controller : Type.
-
-    Parameter controller_recv : controller -> switchId -> fromSwitch -> 
-      controller -> Prop.
-
-    Parameter controller_step : controller -> controller -> Prop.
-
-    Parameter controller_send : controller ->  controller -> switchId -> 
-      fromController -> Prop.
-
-  End Controller.
-
-  Axiom topo : switchId * portId -> option (switchId * portId).
-
-  Definition abst_state := bag (switchId * portId * packet).
-
-  Axiom relate_controller : controller -> abst_state.
-
-  Axiom abst_func : switchId -> portId -> packet -> list (portId * packet).
-
   Declare Instance Eq_switchId : Eq switchId.
   Declare Instance Eq_portId : Eq portId.
   Declare Instance Eq_packet : Eq packet.
@@ -72,41 +49,19 @@ Module Type ATOMS.
   Instance EqDec_portId : EqDec portId eq := eqdec.
   Instance EqDec_packet : EqDec packet eq := eqdec. 
 
-  Axiom ControllerRemembersPackets :
-    forall (ctrl ctrl' : controller),
-      controller_step ctrl ctrl' ->
-      relate_controller ctrl = relate_controller ctrl'.
+  Parameter controller : Type.
 
-  Definition transfer (sw : switchId) (ptpk : portId * packet) :=
-    match ptpk with
-      | (pt,pk) =>
-        match topo (sw,pt) with
-          | Some (sw',pt') => {| (sw',pt',pk) |}
-          | None => {| |}
-        end
-    end.
+  Parameter controller_recv : controller -> switchId -> fromSwitch -> 
+    controller -> Prop.
 
-  Definition select_packet_out (sw : switchId) (msg : fromController) :=
-    match msg with
-      | PacketOut pt pk => transfer sw (pt,pk)
-      | _ => {| |}
-    end.
+  Parameter controller_step : controller -> controller -> Prop.
 
-  Axiom ControllerSendForgetsPackets : forall ctrl ctrl' sw msg,
-    controller_send ctrl ctrl' sw msg ->
-    relate_controller ctrl === select_packet_out sw msg <+>
-    relate_controller ctrl'.
+  Parameter controller_send : controller ->  controller -> switchId -> 
+    fromController -> Prop.
 
-  Definition select_packet_in (sw : switchId) (msg : fromSwitch) :=
-    match msg with
-      | PacketIn pt pk => Bag.unions (map (transfer sw) (abst_func sw pt pk))
-      | _ => {| |}
-    end.
-
-  Axiom ControllerRecvRemembersPackets : forall ctrl ctrl' sw msg,
-    controller_recv ctrl sw msg ctrl' ->
-    relate_controller ctrl' === select_packet_in sw msg <+> 
-    (relate_controller ctrl).
+  Axiom topo : switchId * portId -> option (switchId * portId).
+  Axiom relate_controller : controller -> bag (switchId * portId * packet).
+  Axiom abst_func : switchId -> portId -> packet -> list (portId * packet).
 
 End ATOMS.
 
@@ -425,3 +380,55 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
         (State (({|sw0|}) <+> sws) links (ofLinks ++ of0 :: ofLinks0) ctrl)).
 
 End ConcreteSemantics.
+
+Module MakeRelationDefs (Import Atoms : ATOMS).
+
+  Module Export Concrete := ConcreteSemantics (Atoms).
+
+  Definition abst_state := bag (switchId * portId * packet).
+
+  Definition transfer (sw : switchId) (ptpk : portId * packet) :=
+    match ptpk with
+      | (pt,pk) =>
+        match topo (sw,pt) with
+          | Some (sw',pt') => {| (sw',pt',pk) |}
+          | None => {| |}
+        end
+    end.
+
+  Definition select_packet_out (sw : switchId) (msg : fromController) :=
+    match msg with
+      | PacketOut pt pk => transfer sw (pt,pk)
+      | _ => {| |}
+    end.
+
+  Definition select_packet_in (sw : switchId) (msg : fromSwitch) :=
+    match msg with
+      | PacketIn pt pk => Bag.unions (map (transfer sw) (abst_func sw pt pk))
+      | _ => {| |}
+    end.
+
+End MakeRelationDefs.
+
+Module Type CONTROLLER_LEMMAS (Import Atoms : ATOMS).
+
+  Module Export RelationDefs := MakeRelationDefs (Atoms).
+
+  Axiom ControllerRemembersPackets :
+    forall (ctrl ctrl' : controller),
+      controller_step ctrl ctrl' ->
+      relate_controller ctrl = relate_controller ctrl'.
+
+
+  Axiom ControllerSendForgetsPackets : forall ctrl ctrl' sw msg,
+    controller_send ctrl ctrl' sw msg ->
+    relate_controller ctrl === select_packet_out sw msg <+>
+    relate_controller ctrl'.
+
+
+  Axiom ControllerRecvRemembersPackets : forall ctrl ctrl' sw msg,
+    controller_recv ctrl sw msg ctrl' ->
+    relate_controller ctrl' === select_packet_in sw msg <+> 
+    (relate_controller ctrl).
+
+End CONTROLLER_LEMMAS.
