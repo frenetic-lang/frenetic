@@ -29,6 +29,7 @@ Module Make (Import Atoms : ATOMS) (MakeControllerLemmas : CONTROLLER_LEMMAS).
     LinksHaveSrc 
       ({| Switch swId pts tbl' inp' outp' ctrlm' switchm' |} <+> sws)
       links.
+  Proof with auto.
   Admitted.
 
   Lemma LinksHaveDst_untouched : forall 
@@ -68,6 +69,7 @@ Module Make (Import Atoms : ATOMS) (MakeControllerLemmas : CONTROLLER_LEMMAS).
   Proof with eauto with datatypes.
     intros.
     unfold FlowTablesSafe in *.
+    intros.
     intros.
     apply Bag.mem_union in H1.
     simpl in H1.
@@ -236,8 +238,54 @@ Module Make (Import Atoms : ATOMS) (MakeControllerLemmas : CONTROLLER_LEMMAS).
     exists (AllFMS_untouched1 allFMS1).
     trivial.
     (* Case 3. *)
-    idtac "TODO(arjun): critical case skipping -- flowmod".
+    simpl in *.
+    eexists.
+    unfold FlowTablesSafe.
+    intros.
+    simpl in H0. destruct H0 as [HIn | HIn].
+    2: solve [ unfold FlowTablesSafe in tblsOk1; eapply tblsOk1; simpl; eauto ].
+    inversion HIn. subst. clear HIn.
+    unfold AllFMS in allFMS1.
+    apply Bag.mem_prop in allFMS1.
+    destruct allFMS1 as [lnk0 [HLnkIn [HEq HFMS]]].
+    inversion HFMS; subst.
+    apply Bag.mem_prop in H9. inversion H9.
+    clear HEq HFMS HLnkIn.
+    apply Bag.unify_union_singleton in H11.
+    destruct H11 as [HEq | HContra].
+    inversion HEq. subst...
+    apply H9 in HContra.
+    inversion HContra.
+    exists linksTopoOk1.
+    exists (LinksHaveSrc_untouched haveSrc1).
+    exists (LinksHaveDst_untouched haveDst1).
+    exists (UniqSwIds_pres uniqSwIds1).
+    eexists.
+    unfold AllFMS.
+    intros.
+    simpl in H0.
+    destruct H0.
+    2: solve [ unfold AllFMS in allFMS1; apply allFMS1; right; auto ].
+    unfold AllFMS in allFMS1.
+    apply Bag.mem_prop in allFMS1.
+    destruct allFMS1 as [lnk0 [HLnkIn [HEq HFMS]]].
+    simpl in HEq.
+    destruct sw.
+    inversion H0; subst. clear H0.
+    exists lnk0.
+    simpl. split... split...
+    destruct lnk0; subst.
+    apply NoFlowModsInBuffer.
+    intros.
+    inversion HFMS; subst.
+    apply Bag.mem_prop in H3. inversion H3.
+    idtac "TODO(arjun): finish flowmod safety case".
+    (* Obvious now -- need to the other half of Bag.unify_union_singleton.
+       Also, if SafeWire ends with a nobarrier at switchEp, we can always
+       construct one that requires a barrier. *)
     admit.
+    admit.
+    auto.
     (* Case 4. *)
     exists (FlowTablesSafe_untouched tblsOk1).
     exists linksTopoOk1.

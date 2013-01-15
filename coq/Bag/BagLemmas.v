@@ -253,6 +253,53 @@ Section Methods.
     In y (map f (to_list b)) ->
     exists (x : A), Mem x b /\ y = f x.
 
+  Lemma prop_union : forall (P : A -> Prop) (b1 b2 : bag A),
+    (forall (x : A), Mem x b1 -> P x) ->
+    (forall (x : A), Mem x b2 -> P x) ->
+    (forall (x : A), Mem x (b1 <+> b2) -> P x).
+  Proof with auto.
+    intros.
+    simpl in H1.
+    destruct H1...
+  Qed.
+
+  Lemma mem_prop : forall (P : A -> Prop) (x : A) (b : bag A),
+    (forall (e : A), Mem e ({|x|} <+> b) -> P e) ->
+    P x.
+  Proof with auto.
+    intros.
+    apply H.
+    simpl.
+    left.
+    apply reflexivity.
+  Qed.
+
+  Lemma unify_union_singleton : forall (x y : A) (b1 b2 : bag A),
+    ({|x|} <+> b1) === ({|y|} <+> b2) ->
+    x === y \/ Mem x b2.
+  Proof with auto.
+    intros.
+    generalize dependent b1.
+    induction b2; intros.
+    rewrite -> union_empty_r in H.
+    apply symmetry in H.
+    apply singleton_equiv in H.
+    destruct H.
+    left. apply symmetry...
+    (* case *)
+    simpl.
+    unfold Equivalence.equiv in H.
+    unfold Bag_equiv in H.
+    remember (H x) as X eqn:D. clear D.
+    simpl in X.
+    destruct (equiv_dec x x).
+    destruct (equiv_dec x y)...
+    destruct (equiv_dec x a)...
+    omega.
+    contradiction c. apply reflexivity.
+    (* case *)
+  Admitted.
+
 End Methods.
 
 Section BinaryMethods.

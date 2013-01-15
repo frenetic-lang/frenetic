@@ -408,9 +408,84 @@ Module MakeRelationDefs (Import Atoms : ATOMS).
       | _ => {| |}
     end.
 
+  Definition FlowTableSafe (sw : switchId) (tbl : flowTable) : Prop :=
+    forall pt pk forwardedPkts packetIns,
+      process_packet tbl pt pk = (forwardedPkts, packetIns) ->
+      Bag.unions (map (transfer sw) forwardedPkts) <+>
+      Bag.unions (map (select_packet_in sw) (map (PacketIn pt) packetIns)) ===
+      Bag.unions (map (transfer sw) (abst_func sw pt pk)).
+
+  Section FlowModSafety.
+
+    Inductive Endpoint : Type :=
+    | Endpoint_NoBarrier : flowTable -> Endpoint
+    | Endpoint_Barrier : flowTable -> Endpoint.
+
+    Definition table_at_endpoint (ep : Endpoint) :=
+      match ep with
+        | Endpoint_NoBarrier tbl => tbl
+        | Endpoint_Barrier tbl => tbl
+      end.
+
+    Inductive SafeWire : switchId -> 
+                    Endpoint -> 
+                    list fromController ->
+                    Endpoint -> Prop :=
+    | SafeWire_nil : forall swId tbl,
+      FlowTableSafe swId tbl ->
+      SafeWire swId (Endpoint_NoBarrier tbl) nil (Endpoint_NoBarrier tbl)
+    | SafeWire_PktOut : forall swId pt pk ctrlEp ctrlm swEp,
+      SafeWire swId ctrlEp ctrlm swEp ->
+      SafeWire swId ctrlEp (PacketOut pt pk :: ctrlm) swEp
+    | SafeWire_BarrierRequest : forall swId n ctrlEp ctrlm swEp,
+      SafeWire swId ctrlEp ctrlm swEp ->
+      SafeWire swId (Endpoint_Barrier (table_at_endpoint ctrlEp))
+                    (BarrierRequest n :: ctrlm)
+                    swEp
+    | SafeWire_FlowMod : forall swId f tbl ctrlm swEp,
+      FlowTableSafe swId (modify_flow_table f tbl) ->
+      SafeWire swId (Endpoint_Barrier tbl) ctrlm swEp ->
+      SafeWire swId (Endpoint_NoBarrier (modify_flow_table f tbl))
+          (FlowMod f :: ctrlm) swEp.
+
+    Inductive NotFlowMod : fromController -> Prop :=
+    | NotFlowMod_BarrierRequest : forall n, NotFlowMod (BarrierRequest n)
+    | NotFlowMod_PacketOut : forall pt pk, NotFlowMod (PacketOut pt pk).
+
+    (** "FMS" is short for "flow mod safety". *)
+    Inductive FMS : switch -> openFlowLink -> Prop := 
+    | NoFlowModsInBuffer : forall swId pts tbl inp outp ctrlm switchm
+                                  ctrlmList switchmList,
+      (forall msg, Mem msg ctrlm -> NotFlowMod msg) ->
+      (exists ctrlEp, SafeWire swId ctrlEp ctrlmList (Endpoint_Barrier tbl)) ->
+      FMS (Switch swId pts tbl inp outp ctrlm switchm)
+          (OpenFlowLink swId switchmList ctrlmList)
+    | OneFlowModInBuffer : forall swId pts tbl inp outp ctrlm ctrlm0 switchm 
+                                  ctrlmList switchmList f,
+      (forall msg, Mem msg ctrlm0 -> NotFlowMod msg) ->
+      (exists ctrlEp, SafeWire swId ctrlEp ctrlmList 
+                               (Endpoint_NoBarrier (modify_flow_table f tbl))) ->
+
+      ctrlm === ({|FlowMod f|} <+> ctrlm0) ->
+      FlowTableSafe swId (modify_flow_table f tbl) ->
+      FMS (Switch swId pts tbl inp outp ctrlm switchm)
+          (OpenFlowLink swId switchmList ctrlmList).
+
+    Definition AllFMS (sws : bag switch) (ofLinks : list openFlowLink) :=
+      forall sw,
+        Mem sw sws ->
+        exists lnk, 
+          In lnk ofLinks /\
+          of_to lnk = swId sw /\
+          FMS sw lnk.
+    
+    End FlowModSafety.
+
 End MakeRelationDefs.
 
 Module Type CONTROLLER_LEMMAS (Import Atoms : ATOMS).
+
+  Require Import Common.Bisimulation.
 
   Module Export RelationDefs := MakeRelationDefs (Atoms).
 
@@ -419,16 +494,39 @@ Module Type CONTROLLER_LEMMAS (Import Atoms : ATOMS).
       controller_step ctrl ctrl' ->
       relate_controller ctrl = relate_controller ctrl'.
 
-
   Axiom ControllerSendForgetsPackets : forall ctrl ctrl' sw msg,
     controller_send ctrl ctrl' sw msg ->
     relate_controller ctrl === select_packet_out sw msg <+>
     relate_controller ctrl'.
 
-
   Axiom ControllerRecvRemembersPackets : forall ctrl ctrl' sw msg,
     controller_recv ctrl sw msg ctrl' ->
     relate_controller ctrl' === select_packet_in sw msg <+> 
     (relate_controller ctrl).
+
+  (* Slightly annoying since it is defined over the entire system state.
+     Stronger than needed, because it holds the other devices static.
+     But, this is easy to weaken! Use simpl_multistep lemma! *)
+  Axiom ControllerLiveness : forall sw pt pk ctrl0 sws0 links0 ofLinks0,
+    Mem (sw,pt,pk) (relate_controller ctrl0) ->
+    exists  ofLinks10 ofLinks11 ctrl1 swTo ptTo switchmLst ctrlmLst,
+      (multistep 
+         step (State sws0 links0 ofLinks0 ctrl0) nil
+         (State sws0 links0
+                (ofLinks10 ++ 
+                 (OpenFlowLink swTo switchmLst 
+                  (PacketOut ptTo pk :: ctrlmLst)) ::
+                 ofLinks11) 
+                ctrl1)) /\
+      select_packet_out swTo (PacketOut ptTo pk) = ({|(sw,pt,pk)|}).
+
+(*
+  Axiom ControllerFlowModSafety : 
+    In (OpenFlowLink sw0 switchmLst ctrlmLst) (ofLinks state) ->
+    Mem (Switch sw0 tbl0 tbl0 inp0 outp0 ctrlm0 switchm0) (switches state) ->
+    FMS (Switch sw0 tbl0 tbl0 inp0 outp0 ctrlm0 switchm0)
+        (OpenFlowLink sw0 switchmLst ctrlmLst) ->
+    controller_send (ctrl state) ctrl1 
+*)
 
 End CONTROLLER_LEMMAS.
