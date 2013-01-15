@@ -11,8 +11,7 @@ Local Open Scope list_scope.
 Local Open Scope equiv_scope.
 Local Open Scope bag_scope.
 
-(** Elements of a Featherweight OpenFlow model. *)
-Module Type ATOMS.
+Module Type NETWORK_ATOMS.
 
   Parameter packet : Type.
   Parameter switchId : Type.
@@ -49,6 +48,23 @@ Module Type ATOMS.
   Instance EqDec_portId : EqDec portId eq := eqdec.
   Instance EqDec_packet : EqDec packet eq := eqdec. 
 
+End NETWORK_ATOMS.
+
+Module Type NETWORK_AND_POLICY <: NETWORK_ATOMS.
+
+  Include NETWORK_ATOMS.
+
+  Axiom topo : switchId * portId -> option (switchId * portId).
+  Axiom abst_func : switchId -> portId -> packet -> list (portId * packet).
+
+End NETWORK_AND_POLICY.
+
+
+(** Elements of a Featherweight OpenFlow model. *)
+Module Type ATOMS <: NETWORK_AND_POLICY.
+
+  Include NETWORK_AND_POLICY.
+
   Parameter controller : Type.
 
   Parameter controller_recv : controller -> switchId -> fromSwitch -> 
@@ -59,9 +75,7 @@ Module Type ATOMS.
   Parameter controller_send : controller ->  controller -> switchId -> 
     fromController -> Prop.
 
-  Axiom topo : switchId * portId -> option (switchId * portId).
   Axiom relate_controller : controller -> bag (switchId * portId * packet).
-  Axiom abst_func : switchId -> portId -> packet -> list (portId * packet).
 
 End ATOMS.
 
