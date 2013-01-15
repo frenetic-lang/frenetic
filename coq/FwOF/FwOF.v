@@ -75,8 +75,6 @@ Module Type ATOMS <: NETWORK_AND_POLICY.
   Parameter controller_send : controller ->  controller -> switchId -> 
     fromController -> Prop.
 
-  Axiom relate_controller : controller -> bag (switchId * portId * packet).
-
 End ATOMS.
 
 Module ConcreteSemantics (Import Atoms : ATOMS).
@@ -393,11 +391,6 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
         obs
         (State (({|sw0|}) <+> sws) links (ofLinks ++ of0 :: ofLinks0) ctrl)).
 
-End ConcreteSemantics.
-
-Module MakeRelationDefs (Import Atoms : ATOMS).
-
-  Module Export Concrete := ConcreteSemantics (Atoms).
 
   Definition abst_state := bag (switchId * portId * packet).
 
@@ -466,42 +459,23 @@ Module MakeRelationDefs (Import Atoms : ATOMS).
     | NotFlowMod_BarrierRequest : forall n, NotFlowMod (BarrierRequest n)
     | NotFlowMod_PacketOut : forall pt pk, NotFlowMod (PacketOut pt pk).
 
-    (** "FMS" is short for "flow mod safety". *)
-    Inductive FMS : switch -> openFlowLink -> Prop := 
-    | NoFlowModsInBuffer : forall swId pts tbl inp outp ctrlm switchm
-                                  ctrlmList switchmList,
-      (forall msg, Mem msg ctrlm -> NotFlowMod msg) ->
-      (exists ctrlEp, SafeWire swId ctrlEp ctrlmList (Endpoint_Barrier tbl)) ->
-      FMS (Switch swId pts tbl inp outp ctrlm switchm)
-          (OpenFlowLink swId switchmList ctrlmList)
-    | OneFlowModInBuffer : forall swId pts tbl inp outp ctrlm ctrlm0 switchm 
-                                  ctrlmList switchmList f,
-      (forall msg, Mem msg ctrlm0 -> NotFlowMod msg) ->
-      (exists ctrlEp, SafeWire swId ctrlEp ctrlmList 
-                               (Endpoint_NoBarrier (modify_flow_table f tbl))) ->
+  End FlowModSafety.
 
-      ctrlm === ({|FlowMod f|} <+> ctrlm0) ->
-      FlowTableSafe swId (modify_flow_table f tbl) ->
-      FMS (Switch swId pts tbl inp outp ctrlm switchm)
-          (OpenFlowLink swId switchmList ctrlmList).
+End ConcreteSemantics.
 
-    Definition AllFMS (sws : bag switch) (ofLinks : list openFlowLink) :=
-      forall sw,
-        Mem sw sws ->
-        exists lnk, 
-          In lnk ofLinks /\
-          of_to lnk = swId sw /\
-          FMS sw lnk.
-    
-    End FlowModSafety.
+Module Type ATOMS_AND_CONTROLLER.
 
-End MakeRelationDefs.
+  Module Atoms : ATOMS.
+    Include ATOMS.
+  End Atoms.
 
-Module Type CONTROLLER_LEMMAS (Import Atoms : ATOMS).
+  Export Atoms.
 
   Require Import Common.Bisimulation.
 
-  Module Export RelationDefs := MakeRelationDefs (Atoms).
+  Module Export RelationDefs := ConcreteSemantics (Atoms).
+
+  Axiom relate_controller : controller -> bag (switchId * portId * packet).
 
   Axiom ControllerRemembersPackets :
     forall (ctrl ctrl' : controller),
@@ -543,4 +517,4 @@ Module Type CONTROLLER_LEMMAS (Import Atoms : ATOMS).
     controller_send (ctrl state) ctrl1 
 *)
 
-End CONTROLLER_LEMMAS.
+End ATOMS_AND_CONTROLLER.

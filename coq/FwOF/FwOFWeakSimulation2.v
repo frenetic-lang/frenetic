@@ -21,10 +21,10 @@ Local Open Scope list_scope.
 Local Open Scope equiv_scope.
 Local Open Scope bag_scope.
 
-Module Make (Import Atoms : ATOMS) (MakeControllerLemmas : CONTROLLER_LEMMAS).
+Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
 
   Module WeakSim1 := 
-    FwOF.FwOFWeakSimulation1.Make (Atoms) (MakeControllerLemmas).
+    FwOF.FwOFWeakSimulation1.Make (AtomsAndController).
   Import WeakSim1.
 
   Lemma SimpleDraimWire : forall sws (swId : switchId) pts tbl inp outp 
