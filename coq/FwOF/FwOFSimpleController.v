@@ -43,13 +43,14 @@ Module Make (NetAndPol : NETWORK_AND_POLICY) <: ATOMS.
     pktsToSend : list srcDst;
     switchStates : list switchState
   }.
+  
+  Definition mkPktOuts_body sw srcPt srcPk ptpk :=
+    match ptpk with
+      | (dstPt,dstPk) => SrcDst sw srcPt srcPk dstPt dstPk
+    end.
 
   Definition mkPktOuts (sw : switchId) (srcPt : portId) (srcPk : packet) :=
-    map 
-      (fun ptpk =>
-         match ptpk with
-           | (dstPt,dstPk) => SrcDst sw srcPt srcPk dstPt dstPk
-         end)
+    map (mkPktOuts_body sw srcPt srcPk)
       (abst_func sw srcPt srcPk).
 
   Definition controller := state.
@@ -148,6 +149,36 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY). (* <: ATOMS_AND_CONTROLL
     apply reflexivity.
   Qed.
 
+  Check map_map.
+
+  Check transfer.
+  Lemma like_transfer : forall srcPt srcPk sw ptpk,
+    relate_helper (mkPktOuts_body sw srcPt srcPk ptpk) =
+    transfer sw ptpk.
+  Proof with auto.
+    intros.
+    unfold mkPktOuts_body.
+    unfold relate_helper.
+    unfold transfer.
+    destruct ptpk.
+    simpl.
+    reflexivity.
+  Qed.
+
+  Lemma like_transfer_abs : forall sw pt pk lst,
+    map
+      (fun x : portId * packet => relate_helper (mkPktOuts_body sw pt pk x))
+      lst =
+    map (transfer sw) lst.
+  Proof with auto.
+    intros.
+    induction lst...
+    simpl.
+    rewrite -> like_transfer.
+    rewrite -> IHlst.
+    reflexivity.
+  Qed.
+
   Lemma ControllerRecvRemembersPackets : forall ctrl ctrl' sw msg,
     controller_recv ctrl sw msg ctrl' ->
     relate_controller ctrl' === select_packet_in sw msg <+> 
@@ -167,63 +198,10 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY). (* <: ATOMS_AND_CONTROLL
     rewrite -> Bag.bag_unions_app.
     apply Bag.pop_union_r.
     unfold mkPktOuts.
-    unfold relate_helper.
     rewrite -> map_map.
-    simpl.
-    rewrite -> fold_right_app.
-    simpl.
-    simpl.
-    rewrite -> map_app.
-    rewrite -> Bag.bag_unions_app.
-    rewrite -> like_transfer.
+    rewrite -> like_transfer_abs.
     apply reflexivity.
   Qed.
-
-
-    unfold affixSw.
-    rewrite -> map_map.
-    simpl.
-    simpl.
-    simpl.
-    induction pksToSend.
-    simpl.
-    rewrite -> app_nil_r.
-    rewrite -> Bag.FromList_nil_is_Empty.
-    rewrite -> Bag.union_empty_r.
-    remember (abst_func sw pt pk) as pks.
-    induction pks.
-    simpl.
-    rewrite -> Bag.FromList_nil_is_Empty.
-    apply reflexivity.
-    
-
-
-    simpl.
-    rewrite -> fold_right_app.
-    Check fold_right_app.
-
-    destruct (topo (sw,pt)).
-    destruct p.
-    rewrite -> Bag.from_list_cons.
-    apply reflexivity.
-    rewrite -> Bag.union_empty_l.
-    apply reflexivity.
-    (* case 2*)
-    unfold relate_controller.
-    simpl.
-    rewrite -> Bag.union_empty_l.
-    apply reflexivity.
-    (* case 3 *)
-    unfold relate_controller.
-    simpl.
-    rewrite -> Bag.union_empty_l.
-    apply reflexivity.
-
-
-
-
-
-    
 
   Lemma ControllerLiveness : forall sw pt pk ctrl0 sws0 links0 ofLinks0,
     Mem (sw,pt,pk) (relate_controller ctrl0) ->
@@ -242,8 +220,4 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY). (* <: ATOMS_AND_CONTROLL
   Qed.
   Admitted.
 
-
-Print ControllerLiveness.
 End MakeController.
-
-Print MakeController.
