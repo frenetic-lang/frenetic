@@ -166,6 +166,10 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY). (* <: ATOMS_AND_CONTROLL
     rewrite -> map_app.
     rewrite -> Bag.bag_unions_app.
     apply Bag.pop_union_r.
+    unfold mkPktOuts.
+    unfold relate_helper.
+    rewrite -> map_map.
+    simpl.
     rewrite -> fold_right_app.
     simpl.
     simpl.
