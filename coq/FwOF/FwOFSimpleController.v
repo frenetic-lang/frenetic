@@ -203,6 +203,44 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY). (* <: ATOMS_AND_CONTROLL
     apply reflexivity.
   Qed.
 
+  Lemma ControllerFMS : forall swId ctrl0 ctrl1 ctrlEp0 switchEp msg ctrlm
+    switchm sws links ofLinks0 ofLinks1,
+    SafeWire swId ctrlEp0 ctrlm switchEp ->
+    step
+      (State
+        sws links
+        (ofLinks0 ++ (OpenFlowLink swId switchm ctrlm) :: ofLinks1)
+        ctrl0)
+      None
+      (State
+        sws links
+        (ofLinks0 ++ (OpenFlowLink swId switchm (msg :: ctrlm)) :: ofLinks1)
+        ctrl1) ->
+      exists ctrlEp1,
+        SafeWire swId ctrlEp1 (msg :: ctrlm) switchEp.
+  Proof with auto with datatypes.
+    intros.
+    inversion H0.
+    (* idiotic case of equivalent states *)
+    admit.
+    admit.
+    admit.
+    admit.
+    admit.
+    admit.
+    admit.
+    2: admit.
+    2: admit.
+    2: admit.
+    subst.
+    destruct msg0; inversion H2; subst.
+    inversion H2; subst. (* consider the types of messages the controller may send. *)
+    
+    4: admit.
+    subst.
+    subst.
+
+
   Lemma ControllerLiveness : forall sw pt pk ctrl0 sws0 links0 ofLinks0,
     Mem (sw,pt,pk) (relate_controller ctrl0) ->
     exists  ofLinks10 ofLinks11 ctrl1 swTo ptTo switchmLst ctrlmLst,
