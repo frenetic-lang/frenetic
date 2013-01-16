@@ -492,9 +492,6 @@ Module Type ATOMS_AND_CONTROLLER.
     relate_controller ctrl' === select_packet_in sw msg <+> 
     (relate_controller ctrl).
 
-  (* Slightly annoying since it is defined over the entire system state.
-     Stronger than needed, because it holds the other devices static.
-     But, this is easy to weaken! Use simpl_multistep lemma! *)
   Axiom ControllerLiveness : forall sw pt pk ctrl0 sws0 links0 ofLinks0,
     Mem (sw,pt,pk) (relate_controller ctrl0) ->
     exists  ofLinks10 ofLinks11 ctrl1 swTo ptTo switchmLst ctrlmLst,
@@ -523,14 +520,5 @@ Module Type ATOMS_AND_CONTROLLER.
         ctrl1) ->
       exists ctrlEp1,
         SafeWire swId ctrlEp1 (msg :: ctrlm) switchEp.
-
-(*
-  Axiom ControllerFlowModSafety : 
-    In (OpenFlowLink sw0 switchmLst ctrlmLst) (ofLinks state) ->
-    Mem (Switch sw0 tbl0 tbl0 inp0 outp0 ctrlm0 switchm0) (switches state) ->
-    FMS (Switch sw0 tbl0 tbl0 inp0 outp0 ctrlm0 switchm0)
-        (OpenFlowLink sw0 switchmLst ctrlmLst) ->
-    controller_send (ctrl state) ctrl1 
-*)
 
 End ATOMS_AND_CONTROLLER.
