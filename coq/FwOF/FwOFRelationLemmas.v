@@ -333,8 +333,33 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     exists haveSrc1.
     exists haveDst1.
     exists uniqSwIds1.
-    idtac "TODO(arjun): FMS for ControllerSend (axiom needed)".
-    admit.
+    eexists.
+    unfold AllFMS.
+    simpl in *.
+    intros.
+    unfold AllFMS in allFMS1. apply allFMS1 in H1.
+    destruct H1 as [lnk [HIn [HLnkIdEq HFMS]]].
+    apply in_app_iff in HIn; simpl in HIn.
+    destruct HIn as [HIn | [HIn | HIn]].
+    solve [ exists lnk; auto with datatypes ].
+    2: solve [ exists lnk; auto with datatypes ].
+    exists (OpenFlowLink swId0 fromSwitch0 (msg :: fromCtrl)).
+    split.
+    solve [ auto with datatypes ].
+    subst. simpl in *.
+    split. solve [ trivial ].
+    (* hard part here *)
+    clear HLnkIdEq.
+    inversion HFMS; subst.
+    apply NoFlowModsInBuffer...
+    destruct H6 as [ctrlEp0 HSafeWire].
+    destruct (ControllerFMS _ _ _ _ HSafeWire H) as [ctrlEp1 HSafeWire1].
+    solve [ exists ctrlEp1; trivial ].
+    apply OneFlowModInBuffer with (f := f) (ctrlm0 := ctrlm1)...
+    destruct H6 as [ctrlEp0 HSafeWire].
+    destruct (ControllerFMS _ _ _ _ HSafeWire H) as [ctrlEp1 HSafeWire1].
+    solve [ exists ctrlEp1; trivial ].
+    exact H.
     (* Case 10. *)
     exists (FlowTablesSafe_untouched tblsOk1).
     exists linksTopoOk1.

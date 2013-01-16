@@ -508,6 +508,22 @@ Module Type ATOMS_AND_CONTROLLER.
                 ctrl1)) /\
       select_packet_out swTo (PacketOut ptTo pk) = ({|(sw,pt,pk)|}).
 
+  Axiom ControllerFMS : forall swId ctrl0 ctrl1 ctrlEp0 switchEp msg ctrlm
+    switchm sws links ofLinks0 ofLinks1,
+    SafeWire swId ctrlEp0 ctrlm switchEp ->
+    step
+      (State
+        sws links
+        (ofLinks0 ++ (OpenFlowLink swId switchm ctrlm) :: ofLinks1)
+        ctrl0)
+      None
+      (State
+        sws links
+        (ofLinks0 ++ (OpenFlowLink swId switchm (msg :: ctrlm)) :: ofLinks1)
+        ctrl1) ->
+      exists ctrlEp1,
+        SafeWire swId ctrlEp1 (msg :: ctrlm) switchEp.
+
 (*
   Axiom ControllerFlowModSafety : 
     In (OpenFlowLink sw0 switchmLst ctrlmLst) (ofLinks state) ->
