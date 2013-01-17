@@ -20,10 +20,9 @@ Local Open Scope bag_scope.
  
 Module MakeController (NetAndPol : NETWORK_AND_POLICY).
 
-  Module Atoms := Make (NetAndPol).
-  Export Atoms.
-  Module Export RelationDefs := ConcreteSemantics (Atoms).
-
+  Module Import Atoms := Make (NetAndPol).
+  Module Import Controller := FwOF.FwOFSimpleController.Make (Atoms).
+  Module Import ConcreteSemantics := ConcreteSemantics (Atoms).
 
   Definition relate_helper (sd : srcDst) :=
     match topo (pkSw sd,dstPt sd) with
@@ -122,36 +121,19 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY).
     CompleteFMS
       (Switch swId pts tbl inp outp ctrlm switchm)
       (OpenFlowLink swId switchmList ctrlmList)
-      (SwitchState swId ctrlFms (Endpoint_Barrier ctrlTbl)).
+      (SwitchState swId (Controller.Endpoint_Barrier ctrlTbl) ctrlFms).
   
-  Inductive P : bag switch -> list openFlowLink -> controller -> Prop :=
-  | MkP : forall (switches : bag switch) (links : list openFlowLink),
-            forall (sw : switch),
-              Mem sw switches ->
-              forall (link : openFlowLink),
-                ... in links and a link for sw ... ->
-                 
-
-forall (sw : Switch),
-      Mem sw 
-    
-  Inductive CompleteFMS : switch -> openFlowLink -> controller -> Prop :=
-  | CFMS_NoFlowModsInBuffer : forall swId pts tbl inp outp ctrlm switchm
-                                     ctrlmList switchmList,
-    (forall msg, Mem msg ctrlm -> NotFlowMod msg) ->
-    (exists ctrlEp, SafeWire swId ctrlEp ctrlmList (Endpoint_Barrier tbl)) ->
-      FMS (Switch swId pts tbl inp outp ctrlm switchm)
-          (OpenFlowLink swId switchmList ctrlmList)
-    | OneFlowModInBuffer : forall swId pts tbl inp outp ctrlm ctrlm0 switchm 
-                                  ctrlmList switchmList f,
-      (forall msg, Mem msg ctrlm0 -> NotFlowMod msg) ->
-      (exists ctrlEp, SafeWire swId ctrlEp ctrlmList 
-                               (Endpoint_NoBarrier (modify_flow_table f tbl))) ->
-
-      ctrlm === ({|FlowMod f|} <+> ctrlm0) ->
-      FlowTableSafe swId (modify_flow_table f tbl) ->
-      FMS (Switch swId pts tbl inp outp ctrlm switchm)
-          (OpenFlowLink swId switchmList ctrlmList).
+  Inductive P : bag switch ->  list openFlowLink -> controller -> Prop :=
+  | MkP : forall sws ofLinks swsts pktOuts swId ctrlEp ctrlFlowMods,
+      In (SwitchState swId ctrlEp ctrlFlowMods) swsts ->
+      (exists pts tbl inp outp ctrlm switchm switchmLst ctrlmLst,
+         Mem (Switch swId pts tbl inp outp ctrlm switchm) sws /\
+         In (OpenFlowLink swId switchmLst ctrlmLst) ofLinks /\
+         CompleteFMS 
+           (Switch swId pts tbl inp outp ctrlm switchm)
+           (OpenFlowLink swId switchmLst ctrlmLst)
+           (SwitchState swId ctrlEp ctrlFlowMods)) ->
+        P sws ofLinks (Controller.State pktOuts swsts).
   
   Lemma ControllerFMS : forall swId ctrl0 ctrl1 ctrlEp0 switchEp msg ctrlm
     switchm sws links ofLinks0 ofLinks1,
