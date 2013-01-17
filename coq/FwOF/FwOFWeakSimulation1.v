@@ -18,8 +18,12 @@ Local Open Scope bag_scope.
 
 Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
 
-  Module Export RelationLemmas := 
+  Import AtomsAndController.
+  Import Atoms.
+  Import FwOF.
+  Module Import RelationLemmas := 
     FwOF.FwOFRelationLemmas.Make (AtomsAndController).
+  Import Relation.
 
   Theorem weak_sim_1 :
     weak_simulation concreteStep abstractStep bisim_relation.

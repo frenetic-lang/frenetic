@@ -10,7 +10,7 @@ Require Import Common.Bisimulation.
 Require Import Bag.Bag.
 Require Import FwOF.FwOF.
 Require Import Common.Bisimulation.
-(*Require FwOF.FwOFRelation.*)
+Require FwOF.FwOFRelation.
 Require Import Common.AllDiff.
 Require Import FwOF.FwOFSimpleController.
 
@@ -18,12 +18,12 @@ Local Open Scope list_scope.
 Local Open Scope equiv_scope.
 Local Open Scope bag_scope.
  
-Module MakeController (NetAndPol : NETWORK_AND_POLICY). (* <: ATOMS_AND_CONTROLLER. *)
+Module MakeController (NetAndPol : NETWORK_AND_POLICY).
 
   Module Atoms := Make (NetAndPol).
   Export Atoms.
-
   Module Export RelationDefs := ConcreteSemantics (Atoms).
+
 
   Definition relate_helper (sd : srcDst) :=
     match topo (pkSw sd,dstPt sd) with
@@ -62,9 +62,6 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY). (* <: ATOMS_AND_CONTROLL
     apply reflexivity.
   Qed.
 
-  Check map_map.
-
-  Check transfer.
   Lemma like_transfer : forall srcPt srcPk sw ptpk,
     relate_helper (mkPktOuts_body sw srcPt srcPk ptpk) =
     transfer sw ptpk.
@@ -116,6 +113,46 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY). (* <: ATOMS_AND_CONTROLL
     apply reflexivity.
   Qed.
 
+  Inductive CompleteFMS : switch -> openFlowLink -> switchState -> Prop :=
+  | BarrierCFMS : forall swId pts tbl inp outp ctrlm switchm
+                    ctrlmList switchmList swEp ctrlEp
+                    ctrlFms ctrlTbl,
+    SwitchEP (Switch swId pts tbl inp outp ctrlm switchm) swEp ->
+    SafeWire swId ctrlEp ctrlmList (Endpoint_Barrier ctrlTbl) ->
+    CompleteFMS
+      (Switch swId pts tbl inp outp ctrlm switchm)
+      (OpenFlowLink swId switchmList ctrlmList)
+      (SwitchState swId ctrlFms (Endpoint_Barrier ctrlTbl)).
+  
+  Inductive P : bag switch -> list openFlowLink -> controller -> Prop :=
+  | MkP : forall (switches : bag switch) (links : list openFlowLink),
+            forall (sw : switch),
+              Mem sw switches ->
+              forall (link : openFlowLink),
+                ... in links and a link for sw ... ->
+                 
+
+forall (sw : Switch),
+      Mem sw 
+    
+  Inductive CompleteFMS : switch -> openFlowLink -> controller -> Prop :=
+  | CFMS_NoFlowModsInBuffer : forall swId pts tbl inp outp ctrlm switchm
+                                     ctrlmList switchmList,
+    (forall msg, Mem msg ctrlm -> NotFlowMod msg) ->
+    (exists ctrlEp, SafeWire swId ctrlEp ctrlmList (Endpoint_Barrier tbl)) ->
+      FMS (Switch swId pts tbl inp outp ctrlm switchm)
+          (OpenFlowLink swId switchmList ctrlmList)
+    | OneFlowModInBuffer : forall swId pts tbl inp outp ctrlm ctrlm0 switchm 
+                                  ctrlmList switchmList f,
+      (forall msg, Mem msg ctrlm0 -> NotFlowMod msg) ->
+      (exists ctrlEp, SafeWire swId ctrlEp ctrlmList 
+                               (Endpoint_NoBarrier (modify_flow_table f tbl))) ->
+
+      ctrlm === ({|FlowMod f|} <+> ctrlm0) ->
+      FlowTableSafe swId (modify_flow_table f tbl) ->
+      FMS (Switch swId pts tbl inp outp ctrlm switchm)
+          (OpenFlowLink swId switchmList ctrlmList).
+  
   Lemma ControllerFMS : forall swId ctrl0 ctrl1 ctrlEp0 switchEp msg ctrlm
     switchm sws links ofLinks0 ofLinks1,
     SafeWire swId ctrlEp0 ctrlm switchEp ->

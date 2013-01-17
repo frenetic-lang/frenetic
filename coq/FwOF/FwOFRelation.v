@@ -16,35 +16,11 @@ Local Open Scope equiv_scope.
 Local Open Scope bag_scope.
 
 Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
-  Export AtomsAndController.
 
-    (** "FMS" is short for "flow mod safety". *)
-    Inductive FMS : switch -> openFlowLink -> Prop := 
-    | NoFlowModsInBuffer : forall swId pts tbl inp outp ctrlm switchm
-                                  ctrlmList switchmList,
-      (forall msg, Mem msg ctrlm -> NotFlowMod msg) ->
-      (exists ctrlEp, SafeWire swId ctrlEp ctrlmList (Endpoint_Barrier tbl)) ->
-      FMS (Switch swId pts tbl inp outp ctrlm switchm)
-          (OpenFlowLink swId switchmList ctrlmList)
-    | OneFlowModInBuffer : forall swId pts tbl inp outp ctrlm ctrlm0 switchm 
-                                  ctrlmList switchmList f,
-      (forall msg, Mem msg ctrlm0 -> NotFlowMod msg) ->
-      (exists ctrlEp, SafeWire swId ctrlEp ctrlmList 
-                               (Endpoint_NoBarrier (modify_flow_table f tbl))) ->
+  Import AtomsAndController.
+  Import Atoms.
+  Import FwOF.
 
-      ctrlm === ({|FlowMod f|} <+> ctrlm0) ->
-      FlowTableSafe swId (modify_flow_table f tbl) ->
-      FMS (Switch swId pts tbl inp outp ctrlm switchm)
-          (OpenFlowLink swId switchmList ctrlmList).
-
-    Definition AllFMS (sws : bag switch) (ofLinks : list openFlowLink) :=
-      forall sw,
-        Mem sw sws ->
-        exists lnk, 
-          In lnk ofLinks /\
-          of_to lnk = swId sw /\
-          FMS sw lnk.
-    
   Definition affixSwitch (sw : switchId) (ptpk : portId * packet) :=
     match ptpk with
       | (pt,pk) => (sw,pt,pk)

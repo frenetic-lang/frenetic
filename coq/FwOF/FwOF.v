@@ -459,21 +459,50 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
     | NotFlowMod_BarrierRequest : forall n, NotFlowMod (BarrierRequest n)
     | NotFlowMod_PacketOut : forall pt pk, NotFlowMod (PacketOut pt pk).
 
+    Inductive SwitchEP : switch -> Endpoint -> Prop :=
+    | NoFlowModsInBuffer : forall swId pts tbl inp outp ctrlm switchm,
+      (forall msg, Mem msg ctrlm -> NotFlowMod msg) ->
+      SwitchEP
+        (Switch swId pts tbl inp outp ctrlm switchm)
+        (Endpoint_Barrier tbl)
+    | OneFlowModInBuffer : forall swId pts tbl inp outp ctrlm ctrlm0 switchm f,
+      (forall msg, Mem msg ctrlm0 -> NotFlowMod msg) ->
+      ctrlm === ({|FlowMod f|} <+> ctrlm0) ->
+      FlowTableSafe swId (modify_flow_table f tbl) ->
+      SwitchEP (Switch swId pts tbl inp outp ctrlm switchm)
+               (Endpoint_NoBarrier (modify_flow_table f tbl)).
+
+    (** "FMS" is short for "flow mod safety". *)
+    Inductive FMS : switch -> openFlowLink -> Prop := 
+    | MkFMS : forall swId pts tbl inp outp ctrlm switchm ctrlmList switchmList
+                     switchEp,
+      SwitchEP (Switch swId pts tbl inp outp ctrlm switchm) switchEp ->
+      (exists ctrlEp, SafeWire swId ctrlEp ctrlmList switchEp) ->
+      FMS 
+        (Switch swId pts tbl inp outp ctrlm switchm)
+        (OpenFlowLink swId switchmList ctrlmList).
+
+    Definition AllFMS (sws : bag switch) (ofLinks : list openFlowLink) :=
+      forall sw,
+        Mem sw sws ->
+        exists lnk, 
+          In lnk ofLinks /\
+          of_to lnk = swId sw /\
+          FMS sw lnk.
+
   End FlowModSafety.
 
 End ConcreteSemantics.
 
 Module Type ATOMS_AND_CONTROLLER.
 
-  Module Atoms : ATOMS.
+  Require Import Common.Bisimulation.
+
+  Module Import Atoms : ATOMS.
     Include ATOMS.
   End Atoms.
 
-  Export Atoms.
-
-  Require Import Common.Bisimulation.
-
-  Module Export RelationDefs := ConcreteSemantics (Atoms).
+  Module Import FwOF := ConcreteSemantics (Atoms).
 
   Axiom relate_controller : controller -> bag (switchId * portId * packet).
 

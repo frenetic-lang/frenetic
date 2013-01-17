@@ -18,7 +18,10 @@ Local Open Scope bag_scope.
 
 Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
 
-  Module Export Relation :=  FwOF.FwOFRelation.Make (AtomsAndController).
+  Import AtomsAndController.
+  Import Atoms.
+  Import FwOF.
+  Module Import Relation := FwOF.FwOFRelation.Make (AtomsAndController).
 
   Lemma LinksHaveSrc_untouched : forall 
     {swId tbl pts sws links
@@ -135,8 +138,22 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
 
   Section FMS.
 
-    Hint Constructors FMS SafeWire.
-    
+    Hint Constructors FMS SafeWire SwitchEP.
+
+    Lemma SwitchEP_equiv : forall swId pts tbl inp0 inp1 outp0 outp1
+      ctrlm0 ctrlm1 switchm0 switchm1 ep,
+      ctrlm0 === ctrlm1 ->
+      SwitchEP (Switch swId pts tbl inp0 outp0 ctrlm0 switchm0) ep ->
+      SwitchEP (Switch swId pts tbl inp1 outp1 ctrlm1 switchm1) ep.
+    Proof with eauto.
+      intros.
+      inversion H0; subst.
+      apply NoFlowModsInBuffer.
+      intros. apply H9. eapply Bag.Mem_equiv... apply symmetry...
+      eapply OneFlowModInBuffer...
+      eapply transitivity... apply symmetry...
+    Qed.
+
     Lemma FMS_untouched : forall swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0
       switchmLst0 ctrlmLst0 inp1 outp1 switchm1 switchmLst1,
       FMS (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0)
@@ -145,8 +162,10 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
           (OpenFlowLink swId0 switchmLst1 ctrlmLst0).
     Proof.
       intros.
-      inversion H; eauto.
+      inversion H; inversion H2; subst; eauto.
     Qed.
+
+    Hint Resolve FMS_untouched SwitchEP_equiv.
 
     Lemma AllFMS_untouched1 : forall swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0
       inp1 outp1 switchm1 sws ofLinks0,
@@ -175,17 +194,12 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
       split...
       split...
       remember FMSsw0 as FMSorig eqn:X; clear X.
-      inversion FMSsw0.
-      apply NoFlowModsInBuffer...
-      intros.
-      apply H9.
-      assert (exists msg', Mem msg' ctrlm0 /\ msg === msg') as X.
-        apply Bag.mem_equiv with (ED := fromController_eqdec) (b1 := ctrlm1)...
-      destruct X as [msg' [Hfrom Heq]].
-      unfold Equivalence.equiv in Heq.
-      rewrite -> Heq...
-      eapply OneFlowModInBuffer with (f := f) ...
-      clear HEq. subst. eapply transitivity; eauto.
+      inversion FMSsw0. 
+      clear HEq.
+      subst.
+      eapply MkFMS...
+      eapply SwitchEP_equiv...
+      apply symmetry...
       assert (Mem sw
              ({|Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0|} <+> sws))
              as X...
@@ -248,12 +262,13 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     apply Bag.mem_prop in allFMS1.
     destruct allFMS1 as [lnk0 [HLnkIn [HEq HFMS]]].
     inversion HFMS; subst.
-    apply Bag.mem_prop in H9. inversion H9.
+    inversion H9; subst.
+    apply Bag.mem_prop in H11. inversion H11.
     clear HEq HFMS HLnkIn.
-    apply Bag.unify_union_singleton in H11.
-    destruct H11 as [HEq | HContra].
+    apply Bag.unify_union_singleton in H12.
+    destruct H12 as [HEq | HContra].
     inversion HEq. subst...
-    apply H9 in HContra.
+    apply H11 in HContra.
     inversion HContra.
     exists linksTopoOk1.
     exists (LinksHaveSrc_untouched haveSrc1).
@@ -274,10 +289,10 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     exists lnk0.
     simpl. split... split...
     destruct lnk0; subst.
+    eapply MkFMS.
     apply NoFlowModsInBuffer.
     intros.
     inversion HFMS; subst.
-    apply Bag.mem_prop in H3. inversion H3.
     idtac "TODO(arjun): finish flowmod safety case".
     (* Obvious now -- need to the other half of Bag.unify_union_singleton.
        Also, if SafeWire ends with a nobarrier at switchEp, we can always
@@ -351,11 +366,12 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     (* hard part here *)
     clear HLnkIdEq.
     inversion HFMS; subst.
-    apply NoFlowModsInBuffer...
+    inversion H4; subst.
+    eapply MkFMS...
     destruct H6 as [ctrlEp0 HSafeWire].
     destruct (ControllerFMS _ _ _ _ HSafeWire H) as [ctrlEp1 HSafeWire1].
     solve [ exists ctrlEp1; trivial ].
-    apply OneFlowModInBuffer with (f := f) (ctrlm0 := ctrlm1)...
+    eapply MkFMS...
     destruct H6 as [ctrlEp0 HSafeWire].
     destruct (ControllerFMS _ _ _ _ HSafeWire H) as [ctrlEp1 HSafeWire1].
     solve [ exists ctrlEp1; trivial ].

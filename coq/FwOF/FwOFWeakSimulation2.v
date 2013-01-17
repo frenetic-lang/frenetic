@@ -23,9 +23,13 @@ Local Open Scope bag_scope.
 
 Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
 
-  Module WeakSim1 := 
-    FwOF.FwOFWeakSimulation1.Make (AtomsAndController).
+  Import AtomsAndController.
+  Import Atoms.
+  Import FwOF.
+  Module WeakSim1 := FwOF.FwOFWeakSimulation1.Make (AtomsAndController).
   Import WeakSim1.
+  Import RelationLemmas.
+  Import Relation.
 
   Lemma SimpleDraimWire : forall sws (swId : switchId) pts tbl inp outp 
     ctrlm switchm links src pks0 pks swId pt links0 ofLinks ctrl,
