@@ -19,9 +19,8 @@ Local Open Scope equiv_scope.
 Local Open Scope bag_scope.
  
 Module MakeController (NetAndPol : NETWORK_AND_POLICY).
-
   Module Import Atoms := Make (NetAndPol).
-  Module Import Controller := FwOF.FwOFSimpleController.Make (Atoms).
+  (* Module Import Controller := FwOF.FwOFSimpleController.Make (Atoms). *)
   Module Import ConcreteSemantics := ConcreteSemantics (Atoms).
 
   Definition relate_helper (sd : srcDst) :=
@@ -111,32 +110,110 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY).
     rewrite -> like_transfer_abs.
     apply reflexivity.
   Qed.
+  
+  Fixpoint FlowTableSafe_iter (sw : switchId) (tbl : flowTable) 
+           (fms : list flowMod) :=
+    match fms with
+      | nil => True
+      | fm :: fms' =>
+        FlowTableSafe sw (modify_flow_table fm tbl) /\
+        FlowTableSafe_iter sw  (modify_flow_table fm tbl) fms'
+    end.
 
   Inductive CompleteFMS : switch -> openFlowLink -> switchState -> Prop :=
   | BarrierCFMS : forall swId pts tbl inp outp ctrlm switchm
-                    ctrlmList switchmList swEp ctrlEp
+                    ctrlmList switchmList swEp
                     ctrlFms ctrlTbl,
     SwitchEP (Switch swId pts tbl inp outp ctrlm switchm) swEp ->
-    SafeWire swId ctrlEp ctrlmList (Endpoint_Barrier ctrlTbl) ->
+    SafeWire swId (Endpoint_Barrier ctrlTbl) ctrlmList swEp ->
+    FlowTableSafe_iter swId ctrlTbl ctrlFms ->
     CompleteFMS
       (Switch swId pts tbl inp outp ctrlm switchm)
       (OpenFlowLink swId switchmList ctrlmList)
-      (SwitchState swId (Controller.Endpoint_Barrier ctrlTbl) ctrlFms).
+      (SwitchState swId (Atoms.Endpoint_Barrier ctrlTbl) ctrlFms)
+  | NoBarrierCFMS : forall swId pts tbl inp outp ctrlm switchm
+                    ctrlmList switchmList swEp
+                    ctrlFms ctrlTbl,
+    SwitchEP (Switch swId pts tbl inp outp ctrlm switchm) swEp ->
+    SafeWire swId (Endpoint_NoBarrier ctrlTbl) ctrlmList swEp  ->
+    FlowTableSafe_iter swId ctrlTbl ctrlFms ->
+    CompleteFMS
+      (Switch swId pts tbl inp outp ctrlm switchm)
+      (OpenFlowLink swId switchmList ctrlmList)
+      (SwitchState swId (Atoms.Endpoint_NoBarrier ctrlTbl) ctrlFms).
   
   Inductive P : bag switch ->  list openFlowLink -> controller -> Prop :=
-  | MkP : forall sws ofLinks swsts pktOuts swId ctrlEp ctrlFlowMods,
-      In (SwitchState swId ctrlEp ctrlFlowMods) swsts ->
-      (exists pts tbl inp outp ctrlm switchm switchmLst ctrlmLst,
-         Mem (Switch swId pts tbl inp outp ctrlm switchm) sws /\
-         In (OpenFlowLink swId switchmLst ctrlmLst) ofLinks /\
-         CompleteFMS 
-           (Switch swId pts tbl inp outp ctrlm switchm)
-           (OpenFlowLink swId switchmLst ctrlmLst)
-           (SwitchState swId ctrlEp ctrlFlowMods)) ->
-        P sws ofLinks (Controller.State pktOuts swsts).
-  
+  | MkP : forall sws ofLinks swsts pktOuts,
+      (forall swId ctrlEp ctrlFlowMods,
+         In (SwitchState swId ctrlEp ctrlFlowMods) swsts ->
+         
+         (exists pts tbl inp outp ctrlm switchm switchmLst ctrlmLst,
+            Mem (Switch swId pts tbl inp outp ctrlm switchm) sws /\
+            In (OpenFlowLink swId switchmLst ctrlmLst) ofLinks /\
+            CompleteFMS 
+              (Switch swId pts tbl inp outp ctrlm switchm)
+              (OpenFlowLink swId switchmLst ctrlmLst)
+              (SwitchState swId ctrlEp ctrlFlowMods))) ->
+        P sws ofLinks (Atoms.State pktOuts swsts).
+
+  Hint Constructors P CompleteFMS.
+
+  Lemma step_preserves_P : forall sws0 sws1 links0 links1 ofLinks0 ofLinks1 
+    ctrl0 ctrl1 obs,
+    step (State sws0 links0 ofLinks0 ctrl0)
+         obs
+         (State sws1 links1 ofLinks1 ctrl1) ->
+    P sws0 ofLinks0 ctrl0 ->
+    P sws1 ofLinks1 ctrl1.
+  Proof with eauto with datatypes.
+    intros.
+    destruct H0; subst.
+    inversion H; subst.
+    admit.
+    admit.
+    admit.
+    admit.
+    admit.
+    admit.
+    (* controller step *)
+    solve [inversion H6].
+    (* controller recv *)
+(*    assert (exists tbl pts inp outp ctrlm switchm,
+              Mem (Switch swId0 pts tbl inp outp ctrlm switchm) sws1) as X.
+    admit.
+    destruct X as [tbl [pts [inp [outp [ctrlm [switchm HMem]]]]]].
+*)
+    inversion H6; subst.
+    (* recv BarrierReply *)
+    apply MkP; intros.
+    destruct (H0 swId1 ctrlEp ctrlFlowMods H1) as
+      [pts [tbl [inp [outp [ctrlm [switchm [switchmLst [ctrlmLst 
+      [HSwMem [HOFLinkMem HCFMS]]]]]]]]]].
+    apply in_app_iff in HOFLinkMem. simpl in HOFLinkMem.
+    destruct HOFLinkMem as [W | [W | W]].
+
+    exists pts. exists tbl. exists inp. exists outp. exists ctrlm.
+    exists switchm. exists fromSwitch0. exists ctrlmLst.
+    split...
+    split...
+    apply in_app_iff.
+    left...
+    assert (
+
+
+
+    exists pts. exists tbl. exists inp. exists outp. exists ctrlm.
+    exists switchm. exists fromSwitch0. exists ctrlmLst.
+    split...
+    split...
+
+    exists 
+
+
+
   Lemma ControllerFMS : forall swId ctrl0 ctrl1 ctrlEp0 switchEp msg ctrlm
     switchm sws links ofLinks0 ofLinks1,
+    P sws (ofLinks0 ++ (OpenFlowLink swId switchm ctrlm) :: ofLinks1) ctrl0 ->
     SafeWire swId ctrlEp0 ctrlm switchEp ->
     step
       (State
@@ -152,7 +229,7 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY).
         SafeWire swId ctrlEp1 (msg :: ctrlm) switchEp.
   Proof with auto with datatypes.
     intros.
-    inversion H0.
+    inversion H1.
     (* idiotic case of equivalent states *)
     admit.
     admit.
@@ -172,21 +249,26 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY).
     assert (ofLinks2 = ofLinks0) by admit.
     assert (ofLinks' = ofLinks1) by admit.
     subst.
-    inversion H2; subst. (* consider the types of messages the controller may send. *)
+    inversion H3; subst. (* consider the types of messages the controller may send. *)
     exists ctrlEp0. (* PacketOut *)
     solve [ apply SafeWire_PktOut; auto ].
     exists (Endpoint_Barrier (table_at_endpoint ctrlEp0)). (* BarrierRequest *)
     solve [ apply SafeWire_BarrierRequest; auto ].
-    destruct ctrlEp0. (* FlowMod *)
-    (* TODO(arjun): must eliminate this impossible case *)
-    admit.
+    clear H5 H7.
+    inversion H; subst.
+    destruct (H6 swId1 (Atoms.Endpoint_Barrier tbl0) (fm::fms)) as
+         [pts [tbl [inp [outp [ctrlm [switchm [switchmLst [ctrlmLst
+                     [HMemSw [HInOfLnk HCompleteFMS]]]]]]]]]]...
+    clear H6 H.
+    assert (ctrlmLst = ctrlm0) as X by admit.
+    subst.
+    inversion HCompleteFMS; subst.
+    assert (swEp0 = switchEp) as X by admit.
+    subst.
     exists (Endpoint_NoBarrier (modify_flow_table fm tbl0)).
-    apply SafeWire_FlowMod.
-    (* TODO(arjun): must show that the flow table is safe *)
-    admit.
-    (* TODO(arjun): must show that the flow table in the EP is what the controller
-       thinks there is too. *)
-    admit.
+    apply SafeWire_FlowMod...
+    simpl in H15.
+    destruct H15...
   Qed.
 
   Lemma ControllerLiveness : forall sw pt pk ctrl0 sws0 links0 ofLinks0,
