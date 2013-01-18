@@ -178,43 +178,78 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY).
     (* controller step *)
     solve [inversion H6].
     (* controller recv *)
-(*    assert (exists tbl pts inp outp ctrlm switchm,
-              Mem (Switch swId0 pts tbl inp outp ctrlm switchm) sws1) as X.
-    admit.
-    destruct X as [tbl [pts [inp [outp [ctrlm [switchm HMem]]]]]].
-*)
-    inversion H6; subst.
-    (* recv BarrierReply *)
-    apply MkP; intros.
-    destruct (H0 swId1 ctrlEp ctrlFlowMods H1) as
-      [pts [tbl [inp [outp [ctrlm [switchm [switchmLst [ctrlmLst 
-      [HSwMem [HOFLinkMem HCFMS]]]]]]]]]].
-    apply in_app_iff in HOFLinkMem. simpl in HOFLinkMem.
-    destruct HOFLinkMem as [W | [W | W]].
-
-    exists pts. exists tbl. exists inp. exists outp. exists ctrlm.
-    exists switchm. exists fromSwitch0. exists ctrlmLst.
-    split...
-    split...
-    apply in_app_iff.
-    left...
+   inversion H6; subst. 
+   (* barrier received *)
+   apply MkP.
+   intros.
+   apply H0 in H1...
+   destruct H1 as [pts [tbl [inp [outp [ctrlm [switchm [switchmLst [ctrlmLst
+     [HSwMem [HOfLinkIn HFMS]]]]]]]]]].
+   exists pts. exists tbl. exists inp. exists outp. exists ctrlm.
+   exists switchm. exists switchmLst. exists ctrlmLst.
+   split...
+   split...
+   admit. (* it is not removed *)
+   (* packet in received *)
+   apply MkP.
+   intros.
+   apply H0 in H1...
+   destruct H1 as [pts [tbl [inp [outp [ctrlm [switchm [switchmLst [ctrlmLst
+     [HSwMem [HOfLinkIn HFMS]]]]]]]]]].
+   exists pts. exists tbl. exists inp. exists outp. exists ctrlm.
+   exists switchm. exists switchmLst. exists ctrlmLst.
+   split...
+   split...
+   admit. (* it is not removed *)
+   (* controller sends *)
+   inversion H6; subst. 
+   (* PacketOut *)
+   apply MkP.
+   intros.
+   apply H0 in H1...
+   destruct H1 as [pts [tbl [inp [outp [ctrlm [switchm [switchmLst [ctrlmLst
+     [HSwMem [HOfLinkIn HFMS]]]]]]]]]].
+   exists pts. exists tbl. exists inp. exists outp. exists ctrlm.
+   exists switchm. exists switchmLst. exists ctrlmLst.
+   split...
+   split...
+   admit. (* not removed *)
+   (* Barrier *)
+   intros.
+   apply MkP.
+   intros.
+   apply in_app_iff in H1. simpl in H1. destruct H1 as [H1 | [H1 | H1]].
+   assert (In (SwitchState swId1 ctrlEp ctrlFlowMods)
+              (stsws ++ 
+               (SwitchState swId0 (Atoms.Endpoint_NoBarrier tbl0) flowMods) :: 
+               stsws')) as X... 
+   apply H0 in X.
+   clear H0.
+   destruct X as [pts [tbl [inp [outp [ctrlm [switchm [switchmLst [ctrlmLst
+     [HSwMem [HOfLinkIn HFMS]]]]]]]]]].
+   exists pts. exists tbl. exists inp. exists outp. exists ctrlm.
+   exists switchm. exists switchmLst. exists ctrlmLst.
+   split...
+   split...
+   admit. (* not removed *)
+   inversion H1; subst.
+   assert (In (SwitchState swId1 (Atoms.Endpoint_NoBarrier tbl0) ctrlFlowMods)
+              (stsws ++ 
+               (SwitchState swId1 (Atoms.Endpoint_NoBarrier tbl0) ctrlFlowMods) :: 
+               stsws')) as X... 
+   apply H0 in X.
+   clear H0.
+   destruct X as [pts [tbl [inp [outp [ctrlm [switchm [switchmLst [ctrlmLst
+     [HSwMem [HOfLinkIn HFMS]]]]]]]]]].
+   intros.
+   exists pts. exists tbl. exists inp. exists outp. exists ctrlm.
+   exists switchm. exists fromSwitch0. exists (BarrierRequest 0 :: ctrlmLst).
+   split...
+   split...
+   admit.
+   admit. (* not removed *)
+   admit. (* boring *)
   Admitted.
-
-  Lemma ControllerSend_changes_state : forall swId ctrl0 ctrl1 msg,
-    controller_send ctrl0 ctrl1 swId msg ->
-    ctrl0 <> ctrl1.
-  Proof with auto.
-    unfold not.
-    intros.
-    inversion H; subst; inversion H2.
-    assert (length lps = length (SrcDst swId0 srcPt0 srcPk0 dstPt0 dstPk0::lps)).
-    rewrite <- H1...
-    simpl in H0. omega.
-    apply app_inv_head in H1.
-    inversion H1.
-    apply app_inv_head in H1.
-    inversion H1.
-  Qed.
 
   Lemma ControllerFMS : forall swId ctrl0 ctrl1 msg ctrlm
     switchm sws links ofLinks0 ofLinks1 switchEp
