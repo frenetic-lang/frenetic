@@ -63,7 +63,8 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     linksHaveSrc : LinksHaveSrc (switches devices) (links devices);
     linksHaveDst : LinksHaveDst (switches devices) (links devices);
     uniqSwIds : UniqSwIds (switches devices);
-    allFMS : AllFMS (switches devices) (ofLinks devices)
+    allFMS : AllFMS (switches devices) (ofLinks devices);
+    ctrlP : P (switches devices) (ofLinks devices) (ctrl devices)
   }.
 
   Implicit Arguments ConcreteState [].

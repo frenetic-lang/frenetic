@@ -59,7 +59,6 @@ Module Type NETWORK_AND_POLICY <: NETWORK_ATOMS.
 
 End NETWORK_AND_POLICY.
 
-
 (** Elements of a Featherweight OpenFlow model. *)
 Module Type ATOMS <: NETWORK_AND_POLICY.
 
@@ -460,11 +459,12 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
     | NotFlowMod_PacketOut : forall pt pk, NotFlowMod (PacketOut pt pk).
 
     Inductive SwitchEP : switch -> Endpoint -> Prop :=
-    | NoFlowModsInBuffer : forall swId pts tbl inp outp ctrlm switchm,
+    | NoFlowModsInBuffer : forall swId pts tbl inp outp ctrlm switchm swEp,
       (forall msg, Mem msg ctrlm -> NotFlowMod msg) ->
+      table_at_endpoint swEp = tbl ->
       SwitchEP
         (Switch swId pts tbl inp outp ctrlm switchm)
-        (Endpoint_Barrier tbl)
+        swEp
     | OneFlowModInBuffer : forall swId pts tbl inp outp ctrlm ctrlm0 switchm f,
       (forall msg, Mem msg ctrlm0 -> NotFlowMod msg) ->
       ctrlm === ({|FlowMod f|} <+> ctrlm0) ->
@@ -511,6 +511,16 @@ Module Type ATOMS_AND_CONTROLLER.
       controller_step ctrl ctrl' ->
       relate_controller ctrl = relate_controller ctrl'.
 
+  Parameter P : bag switch -> list openFlowLink -> controller -> Prop.
+  
+  Axiom step_preserves_P : forall sws0 sws1 links0 links1 ofLinks0 ofLinks1 
+    ctrl0 ctrl1 obs,
+    step (State sws0 links0 ofLinks0 ctrl0)
+         obs
+         (State sws1 links1 ofLinks1 ctrl1) ->
+    P sws0 ofLinks0 ctrl0 ->
+    P sws1 ofLinks1 ctrl1.
+
   Axiom ControllerSendForgetsPackets : forall ctrl ctrl' sw msg,
     controller_send ctrl ctrl' sw msg ->
     relate_controller ctrl === select_packet_out sw msg <+>
@@ -534,19 +544,27 @@ Module Type ATOMS_AND_CONTROLLER.
                 ctrl1)) /\
       select_packet_out swTo (PacketOut ptTo pk) = ({|(sw,pt,pk)|}).
 
-  Axiom ControllerFMS : forall swId ctrl0 ctrl1 ctrlEp0 switchEp msg ctrlm
-    switchm sws links ofLinks0 ofLinks1,
-    SafeWire swId ctrlEp0 ctrlm switchEp ->
+  Axiom ControllerFMS : forall swId ctrl0 ctrl1 msg ctrlm
+    switchm sws links ofLinks0 ofLinks1 switchEp
+    pts tbl inp outp swCtrlm swSwitchm,
+    P sws
+      (ofLinks0 ++ (OpenFlowLink swId switchm ctrlm) :: ofLinks1)
+      ctrl0 ->
+    controller_send ctrl0 ctrl1 swId msg ->
     step
       (State
-        sws links
+        sws
+        links
         (ofLinks0 ++ (OpenFlowLink swId switchm ctrlm) :: ofLinks1)
         ctrl0)
       None
       (State
-        sws links
-        (ofLinks0 ++ (OpenFlowLink swId switchm (msg :: ctrlm)) :: ofLinks1)
-        ctrl1) ->
+         sws
+         links
+         (ofLinks0 ++ (OpenFlowLink swId switchm (msg :: ctrlm)) :: ofLinks1)
+         ctrl1) ->
+     Mem (Switch swId pts tbl inp outp swCtrlm swSwitchm) sws ->
+     SwitchEP (Switch swId pts tbl inp outp swCtrlm swSwitchm) switchEp ->
       exists ctrlEp1,
         SafeWire swId ctrlEp1 (msg :: ctrlm) switchEp.
 

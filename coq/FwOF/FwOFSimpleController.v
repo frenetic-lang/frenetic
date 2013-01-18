@@ -19,7 +19,6 @@ Local Open Scope bag_scope.
 
 Module Make (NetAndPol : NETWORK_AND_POLICY) <: ATOMS.
   Include NetAndPol.
-  Export NetAndPol.
 
   Inductive Endpoint : Type :=
   | Endpoint_NoBarrier : flowTable -> Endpoint

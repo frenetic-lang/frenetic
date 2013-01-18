@@ -150,6 +150,7 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
       inversion H0; subst.
       apply NoFlowModsInBuffer.
       intros. apply H9. eapply Bag.Mem_equiv... apply symmetry...
+      reflexivity.
       eapply OneFlowModInBuffer...
       eapply transitivity... apply symmetry...
     Qed.
@@ -218,6 +219,7 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
   Admitted.
 
   Hint Unfold UniqSwIds.
+  Hint Resolve step_preserves_P.
 
   Lemma simpl_step : forall (st1 st2 : state) obs
     (tblsOk1 : FlowTablesSafe (switches st1))
@@ -225,15 +227,16 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     (haveSrc1 : LinksHaveSrc (switches st1) (links st1))
     (haveDst1 : LinksHaveDst (switches st1) (links st1))
     (uniqSwIds1 : UniqSwIds (switches st1))
-    (allFMS1 : AllFMS (switches st1) (ofLinks st1)),
+    (allFMS1 : AllFMS (switches st1) (ofLinks st1))
+    (P0 : P (switches st1) (ofLinks st1) (ctrl st1)),
     step st1 obs st2 ->
-    exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2 allFMS2,
+    exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2 allFMS2 P1,
       concreteStep
         (ConcreteState st1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1 uniqSwIds1
-                       allFMS1)
+                       allFMS1 P0)
         obs
         (ConcreteState st2 tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2
-                       allFMS2).
+                       allFMS2 P1).
   Proof with eauto with datatypes.
     intros.
     unfold concreteStep.
@@ -249,8 +252,8 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     exists (LinksHaveDst_untouched haveDst1).
     exists (UniqSwIds_pres uniqSwIds1).
     exists (AllFMS_untouched1 allFMS1).
-    trivial.
-    (* Case 3. *)
+    solve[eauto].
+    (* Case 3: processed a buffered FlowMod *)
     simpl in *.
     eexists.
     unfold FlowTablesSafe.
@@ -289,17 +292,24 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     exists lnk0.
     simpl. split... split...
     destruct lnk0; subst.
-    eapply MkFMS.
-    apply NoFlowModsInBuffer.
-    intros.
+    simpl in *.
+
     inversion HFMS; subst.
-    idtac "TODO(arjun): finish flowmod safety case".
-    (* Obvious now -- need to the other half of Bag.unify_union_singleton.
-       Also, if SafeWire ends with a nobarrier at switchEp, we can always
-       construct one that requires a barrier. *)
-    admit.
-    admit.
-    auto.
+    inversion H2; subst.
+    apply Bag.mem_prop in H10; solve[inversion H10].
+    apply Bag.unify_union_singleton in H12. 
+    destruct H12 as [HEq | HEq].
+    2: solve[apply H10 in HEq; inversion HEq]. 
+    assert (ctrlm1 === ctrlm3) by admit. (* TODO(arjun) should be frmo unify *)
+    apply MkFMS with 
+      (switchEp := Endpoint_NoBarrier (modify_flow_table f tbl0))...
+    apply NoFlowModsInBuffer...
+      intros.
+      apply H10. 
+      apply Bag.Mem_equiv with (ED := fromController_eqdec) (b1 := ctrlm1)...
+      inversion HEq.
+      subst...
+    solve[eauto].
     (* Case 4. *)
     exists (FlowTablesSafe_untouched tblsOk1).
     exists linksTopoOk1.
@@ -315,7 +325,7 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     exists (LinksHaveDst_inv pks0 (pk::pks0) (LinksHaveDst_untouched haveDst1)).
     exists (UniqSwIds_pres uniqSwIds1).
     exists (AllFMS_untouched1 allFMS1).
-    trivial.
+    solve[eauto].
     (* Case 6. *)
     exists (FlowTablesSafe_untouched tblsOk1).
     exists (LinkTopoOK_inv (pks0 ++ [pk]) pks0 linksTopoOk1).
@@ -325,7 +335,7 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
       (LinksHaveDst_inv (pks0 ++ [pk]) pks0 (LinksHaveDst_untouched haveDst1)).
     exists (UniqSwIds_pres uniqSwIds1).
     exists (AllFMS_untouched1 allFMS1).
-    trivial.
+    solve[eauto].
     (* Case 7. *)
     exists tblsOk1.
     exists linksTopoOk1.
@@ -333,7 +343,7 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     exists haveDst1.
     exists uniqSwIds1.
     exists allFMS1.
-    trivial.
+    solve[eauto].
     (* Case 8. *)
     exists tblsOk1.
     exists linksTopoOk1.
@@ -369,13 +379,19 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     inversion H4; subst.
     eapply MkFMS...
     destruct H6 as [ctrlEp0 HSafeWire].
-    destruct (ControllerFMS _ _ _ _ HSafeWire H) as [ctrlEp1 HSafeWire1].
+    assert (Mem (Switch swId0 pts0 (table_at_endpoint switchEp)
+                        inp0 outp0 ctrlm0 switchm0) sws) as HSwMem by admit.
+    destruct (ControllerFMS fromCtrl _ _ _ P0 H0 H HSwMem H4) 
+      as [ctrlEp1 HSafeWire1].
     solve [ exists ctrlEp1; trivial ].
     eapply MkFMS...
     destruct H6 as [ctrlEp0 HSafeWire].
-    destruct (ControllerFMS _ _ _ _ HSafeWire H) as [ctrlEp1 HSafeWire1].
+    assert (Mem (Switch swId0 pts0 tbl0
+                        inp0 outp0 ctrlm0 switchm0) sws) as HSwMem by admit.
+    destruct (ControllerFMS fromCtrl _ _ _ P0 H0 H HSwMem H4) 
+      as [ctrlEp1 HSafeWire1].
     solve [ exists ctrlEp1; trivial ].
-    exact H.
+    solve[eauto].
     (* Case 10. *)
     exists (FlowTablesSafe_untouched tblsOk1).
     exists linksTopoOk1.
@@ -408,15 +424,16 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     (haveSrc1 : LinksHaveSrc (switches st1) (links st1))
     (haveDst1 : LinksHaveDst (switches st1) (links st1))
     (uniqSwIds1 : UniqSwIds (switches st1))
-    (allFMS1 : AllFMS (switches st1) (ofLinks st1)),
+    (allFMS1 : AllFMS (switches st1) (ofLinks st1))
+    (P1 : P (switches st1) (ofLinks st1) (ctrl st1)),
     multistep step st1 obs st2 ->
-    exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2 allFMS2,
+    exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2 allFMS2 P2,
       multistep concreteStep
                 (ConcreteState st1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1 
-                               uniqSwIds1 allFMS1)
+                               uniqSwIds1 allFMS1 P1)
                 obs
                 (ConcreteState st2 tblsOk2 linksTopoOk2 haveSrc2 haveDst2 
-                               uniqSwIds2 allFMS2).
+                               uniqSwIds2 allFMS2 P2).
   Proof with eauto with datatypes.
     intros.
     induction H.
@@ -424,23 +441,23 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     solve [ eauto 8 ].
     (* tau step *)
     destruct (simpl_step tblsOk1 linksTopoOk1 haveSrc1 haveDst1 
-                         uniqSwIds1 allFMS1 H)
+                         uniqSwIds1 allFMS1 P1 H)
              as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 [uniqSwIds2 
-                [allFMS2 step]]]]]].
+                [allFMS2 [P2 step]]]]]]].
     destruct (IHmultistep tblsOk2 linksTopoOk2 haveSrc2 haveDst2 
-                          uniqSwIds2 allFMS2)
+                          uniqSwIds2 allFMS2 P2)
              as [tblsOk3 [linksTopoOk3 [haveSrc3 [haveDst3
-                [uniqSwIds3 [allFMS3 stepN]]]]]].
-    solve [ eauto 8 ].
+                [uniqSwIds3 [allFMS3 [PN stepN]]]]]]].
+    solve [ eauto 9 ].
     destruct (simpl_step tblsOk1 linksTopoOk1 haveSrc1 haveDst1 
-                         uniqSwIds1 allFMS1 H)
+                         uniqSwIds1 allFMS1 P1 H)
              as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 [uniqSwIds2 
-                [allFMS2 step]]]]]].
+                [allFMS2 [P2 step]]]]]]].
     destruct (IHmultistep tblsOk2 linksTopoOk2 haveSrc2 haveDst2 
-                          uniqSwIds2 allFMS2)
+                          uniqSwIds2 allFMS2 P2)
              as [tblsOk3 [linksTopoOk3 [haveSrc3 [haveDst3
-                [uniqSwIds3 [allFMS3 stepN]]]]]].
-    solve [ eauto 8 ].
+                [uniqSwIds3 [allFMS3 [PN stepN]]]]]]].
+    solve [ eauto 9 ].
   Qed.
 
   Lemma relate_step_simpl_tau : forall st1 st2,
@@ -628,7 +645,8 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     (haveSrc1 : LinksHaveSrc (switches devs1) (links devs1))
     (haveDst1 : LinksHaveDst (switches devs1) (links devs1))
     (uniqSwIds1 : UniqSwIds (switches devs1))
-    (allFMS1 : AllFMS (switches devs1) (ofLinks devs1)),
+    (allFMS1 : AllFMS (switches devs1) (ofLinks devs1))
+    (P1 : P (switches devs1) (ofLinks devs1) (ctrl devs1)),    
     multistep step devs1 [(sw,pt,pk)] devs2 ->
     relate devs1 === ({| (sw,pt,pk) |} <+> lps) ->
     abstractStep
@@ -642,15 +660,15 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
        t /\
      multistep concreteStep
                (ConcreteState devs1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1
-                              uniqSwIds1 allFMS1)
+                              uniqSwIds1 allFMS1 P1)
                [(sw,pt,pk)]
                t.
   Proof with eauto.
     intros.
     destruct (simpl_multistep tblsOk1 linksTopoOk1 haveSrc1 haveDst1 
-                              uniqSwIds1 allFMS1 H)
+                              uniqSwIds1 allFMS1 P1 H)
              as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 
-                [uniqSwIds2 [allFMS2 Hmultistep]]]]]].
+                [uniqSwIds2 [allFMS2 [P2 Hmultistep]]]]]]].
     match goal with
       | [ _ : multistep _ ?s1 _ ?s2 |- _ ] =>
         remember s1 as st1; remember s2 as st2

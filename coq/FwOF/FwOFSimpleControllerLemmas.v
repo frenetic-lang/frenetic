@@ -198,77 +198,65 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY).
     split...
     apply in_app_iff.
     left...
-    assert (
+  Admitted.
 
+  Lemma ControllerSend_changes_state : forall swId ctrl0 ctrl1 msg,
+    controller_send ctrl0 ctrl1 swId msg ->
+    ctrl0 <> ctrl1.
+  Proof with auto.
+    unfold not.
+    intros.
+    inversion H; subst; inversion H2.
+    assert (length lps = length (SrcDst swId0 srcPt0 srcPk0 dstPt0 dstPk0::lps)).
+    rewrite <- H1...
+    simpl in H0. omega.
+    apply app_inv_head in H1.
+    inversion H1.
+    apply app_inv_head in H1.
+    inversion H1.
+  Qed.
 
-
-    exists pts. exists tbl. exists inp. exists outp. exists ctrlm.
-    exists switchm. exists fromSwitch0. exists ctrlmLst.
-    split...
-    split...
-
-    exists 
-
-
-
-  Lemma ControllerFMS : forall swId ctrl0 ctrl1 ctrlEp0 switchEp msg ctrlm
-    switchm sws links ofLinks0 ofLinks1,
-    P sws (ofLinks0 ++ (OpenFlowLink swId switchm ctrlm) :: ofLinks1) ctrl0 ->
-    SafeWire swId ctrlEp0 ctrlm switchEp ->
+  Lemma ControllerFMS : forall swId ctrl0 ctrl1 msg ctrlm
+    switchm sws links ofLinks0 ofLinks1 switchEp
+    pts tbl inp outp swCtrlm swSwitchm,
+    P sws
+      (ofLinks0 ++ (OpenFlowLink swId switchm ctrlm) :: ofLinks1)
+      ctrl0 ->
+    controller_send ctrl0 ctrl1 swId msg ->
     step
       (State
-        sws links
+        sws
+        links
         (ofLinks0 ++ (OpenFlowLink swId switchm ctrlm) :: ofLinks1)
         ctrl0)
       None
       (State
-        sws links
-        (ofLinks0 ++ (OpenFlowLink swId switchm (msg :: ctrlm)) :: ofLinks1)
-        ctrl1) ->
+         sws
+         links
+         (ofLinks0 ++ (OpenFlowLink swId switchm (msg :: ctrlm)) :: ofLinks1)
+         ctrl1) ->
+     Mem (Switch swId pts tbl inp outp swCtrlm swSwitchm) sws ->
+     SwitchEP (Switch swId pts tbl inp outp swCtrlm swSwitchm) switchEp ->
       exists ctrlEp1,
         SafeWire swId ctrlEp1 (msg :: ctrlm) switchEp.
   Proof with auto with datatypes.
     intros.
-    inversion H1.
-    (* idiotic case of equivalent states *)
+    (* consider the types of messages the controller may send. *)
+    inversion H0; subst. 
     admit.
     admit.
-    admit.
-    admit.
-    admit.
-    admit.
-    admit.
-    2: admit.
-    2: admit.
-    2: admit.
-    subst.
-    assert (msg = msg0) as X by admit.
-    assert (swId0 = swId1) by admit.
-    assert (fromSwitch0 = switchm0) by admit.
-    assert (fromCtrl = ctrlm0) by admit.
-    assert (ofLinks2 = ofLinks0) by admit.
-    assert (ofLinks' = ofLinks1) by admit.
-    subst.
-    inversion H3; subst. (* consider the types of messages the controller may send. *)
-    exists ctrlEp0. (* PacketOut *)
-    solve [ apply SafeWire_PktOut; auto ].
-    exists (Endpoint_Barrier (table_at_endpoint ctrlEp0)). (* BarrierRequest *)
-    solve [ apply SafeWire_BarrierRequest; auto ].
-    clear H5 H7.
     inversion H; subst.
-    destruct (H6 swId1 (Atoms.Endpoint_Barrier tbl0) (fm::fms)) as
+    destruct (H7 swId0 (Atoms.Endpoint_Barrier tbl1) (fm::fms)) as
          [pts [tbl [inp [outp [ctrlm [switchm [switchmLst [ctrlmLst
                      [HMemSw [HInOfLnk HCompleteFMS]]]]]]]]]]...
-    clear H6 H.
-    assert (ctrlmLst = ctrlm0) as X by admit.
-    subst.
+    clear H7 H.
+    assert (ctrlmLst = ctrlm0) as X by admit; subst. (* uniq OFlinks *)
     inversion HCompleteFMS; subst.
-    assert (swEp0 = switchEp) as X by admit.
-    subst.
-    exists (Endpoint_NoBarrier (modify_flow_table fm tbl0)).
+    exists (Endpoint_NoBarrier (modify_flow_table fm tbl1)).
+    assert (switchEp = swEp0) as X by admit; subst. (* EP of same switch *)
     apply SafeWire_FlowMod...
-    simpl in H15.
-    destruct H15...
+    simpl in H16.
+    destruct H16...
   Qed.
 
   Lemma ControllerLiveness : forall sw pt pk ctrl0 sws0 links0 ofLinks0,
@@ -286,6 +274,6 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY).
   Proof.
     admit.
   Qed.
-  Admitted.
+
 
 End MakeController.
