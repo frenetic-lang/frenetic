@@ -23,8 +23,12 @@ let mac_of_bytes (str:string) : int64 =
 let get_byte (n:int64) (i:int) : char = 
   if i < 0 or i > 5 then
     raise (Invalid_argument "Int64.get_byte index out of range");
-  Char.chr (Int64.to_int (Int64.logand 0xFFL (Int64.shift_right_logical n (8 * i))))
+  Printf.printf "GET_BYTE: %s[%d]\n" (Int64.to_string n) i;
+  let n = Int64.to_int (Int64.logand 0xFFL (Int64.shift_right_logical n (8 * i))) in 
+  Printf.printf "CHR[%d]\n" n;
+  '0' (* Char.chr n *)
 
+    
 let bytes_of_mac (x:int64) : string = 
   Format.sprintf "%c%c%c%c%c%c"
     (get_byte x 5) (get_byte x 4) (get_byte x 3)

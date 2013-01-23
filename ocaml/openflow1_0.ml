@@ -235,6 +235,7 @@ module PacketIn = struct
     | Some pkt -> pkt 
     | None -> 
       raise (Unparsable (sprintf "malformed packet in packet_in")) in
+  let _ = eprintf "[PacketIn] okay \n%!" in 
   { packetInBufferId = bufId;
     packetInTotalLen = total_len;
     packetInPort = in_port;

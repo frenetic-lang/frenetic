@@ -56,7 +56,7 @@ Fixpoint match_pred (pr : Pred) (sw : switchId) (pt : portId) (pk : packet) :=
 
 Axiom marshal_pkt : packet -> bytes.
 
-Extract Constant marshal_pkt => "fun _ -> failwith ""marshal_pkt missing""".
+Extract Constant marshal_pkt => "PacketParser.marshal_packet".
 
 Definition eval_action (inp : In) (act : Action) : Out := 
   match (act, inp)  with

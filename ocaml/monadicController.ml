@@ -87,7 +87,6 @@ module MakeNetCoreMonad
     (** TODO(arjun): kill threads etc. *)
     Lwt.async accept_switch_thread;
     Lwt.bind (action init) (fun (result, _) -> Lwt.return result)
-
 end
 
 module Make

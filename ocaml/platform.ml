@@ -66,6 +66,8 @@ module OpenFlowPlatform = struct
     let ofhdr_str = String.create (2 * sizeof_ofp_header) in
     lwt _ = eprintf "[platform] (1)\n%!" in
     lwt _ = eprintf "[platform] state: %s\n%!" (match state fd with Opened -> "OK" | _ -> "Not OK") in 
+    lwt _ = return (check_descriptor fd) in 
+    lwt _ = eprintf "[platform] okay...\n%!" in 
     lwt n = read fd ofhdr_str 0 sizeof_ofp_header in 
     lwt _ = eprintf "[platform] (2)\n%!" in
     if n <> sizeof_ofp_header then
@@ -84,6 +86,8 @@ module OpenFlowPlatform = struct
 	    (msg_code_to_int hdr.Header.typ) in 
         match Message.parse hdr (ba_of_string body_str) with
           | Some v -> 
+	    lwt _ = eprintf "[platform] returning message with code %d\n%!" 
+		(msg_code_to_int hdr.Header.typ) in 
 	    return v
           | None ->
             lwt _ = eprintf "[platform] ignoring message with code %d\n%!"
@@ -175,7 +179,6 @@ module OpenFlowPlatform = struct
     let switch_fd = fd_of_switch_id sw_id in
     lwt (xid, msg) = 
       try_lwt
-	lwt _ = eprintf "[platform] process next message\n%!" in 
         recv_from_switch_fd switch_fd
       with Internal s ->
         begin
