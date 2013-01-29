@@ -294,6 +294,7 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY).
     destruct H16...
   Qed.
 
+Check P.
   Lemma ControllerLiveness : forall sw pt pk ctrl0 sws0 links0 ofLinks0,
     Mem (sw,pt,pk) (relate_controller ctrl0) ->
     exists  ofLinks10 ofLinks11 ctrl1 swTo ptTo switchmLst ctrlmLst,
@@ -306,9 +307,30 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY).
                  ofLinks11) 
                 ctrl1)) /\
       select_packet_out swTo (PacketOut ptTo pk) = ({|(sw,pt,pk)|}).
-  Proof.
-    admit.
-  Qed.
+  Proof with auto with datatypes.
+    intros.
+    destruct ctrl0.
+    induction pktsToSend0; intros.
+    simpl in H. inversion H.
+    simpl in *.
+    destruct H.
+    clear IHpktsToSend0.
+    destruct a.
+    unfold relate_helper in H.
+    simpl in H.
+    remember (topo (pkSw0, dstPt0)) as Htopo.
+    destruct Htopo.
+    destruct p.
+    simpl in H.
+    inversion H. subst. clear H.
+    admit. (* important *)
+    simpl in H. inversion H.
+    (* inductive *)
+    apply IHpktsToSend0 in H.
+    clear IHpktsToSend0.
+    (* straightforward: first emit the packet a to get controller into
+       the right state. Then induction. *)
+  Admitted.
 
 
 End MakeController.
