@@ -26,7 +26,7 @@ Prerequisites
   ```
   $ opam install cstruct.0.5.3
   $ opam install lwt
-  $ opam install oUnit
+  $ opam install ounit
   ```
 
 Building
