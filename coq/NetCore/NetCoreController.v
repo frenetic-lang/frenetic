@@ -8,6 +8,7 @@ Require Import OpenFlow.MessagesDef.
 Require Import Pattern.Pattern.
 Require Import Classifier.Classifier.
 Require Import NetCore.NetCoreSemantics.
+Require Import NetCore.NetCoreCompiler.
 Require Import OpenFlow.ControllerInterface.
 
 Local Open Scope list_scope.

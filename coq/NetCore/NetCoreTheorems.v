@@ -13,6 +13,7 @@ Require Import Network.Packet.
 Require Import Pattern.Pattern.
 Require Import OpenFlow.MessagesDef.
 Require Import NetCore.NetCoreSemantics.
+Require Import NetCore.NetCoreCompiler.
 
 Local Open Scope list_scope.
 
