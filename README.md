@@ -11,6 +11,8 @@ Prerequisites
 
 - OCaml 4 or higher <http://caml.inria.fr/download.en.html>
 
+- OCamlFind <http://projects.camlcity.org/projects/findlib.html>
+
 - OPAM <http://opam.ocamlpro.com>
 
 - The following OCaml libraries:
