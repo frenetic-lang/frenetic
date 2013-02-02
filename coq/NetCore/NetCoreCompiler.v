@@ -5,11 +5,31 @@ Require Import Common.Types.
 Require Import Classifier.Classifier.
 Require Import Word.WordInterface.
 Require Import Pattern.Pattern.
+(* TODO: MJR Move 'switchId' from messagesDef so that we don't have to include this whole thing *)
 Require Import OpenFlow.MessagesDef.
+(* Require Import NetCore.NetCoreTypes. *)
 
 Set Implicit Arguments.
 
 Local Open Scope list_scope.
+
+(* Fixpoint desugar_pred (p : predicate) := match p with *)
+(*   | DlSrc eth => PrHdr (Pattern.dlSrc eth) *)
+(*   | DlDst eth => PrHdr (Pattern.dlDst eth) *)
+(*   (* | DlTyp typ => PrHdr (Pattern.dlType typ) *) *)
+(*   (* | DlVlan (Some vlan) => PrHdr (Pattern.dlVlan vlan) *) *)
+(*   (* | DlVlan None => PrHdr (Pattern.dlVlan VLAN_NONE) *) *)
+(*   (* | NwProto proto => PrHdr (Pattern.nwProto proto) *) *)
+(*   | Switch sw => PrOnSwitch sw *)
+(*   | InPort pt => PrHdr (Pattern.inPort pt) *)
+(*   | And p1 p2 =>  *)
+(*       (* de Morgan's law *) *)
+(*       PrNot (PrOr (PrNot (desugar_pred p1)) (PrNot (desugar_pred p2))) *)
+(*   | Or p1 p2 => PrOr (desugar_pred p1) (desugar_pred p2) *)
+(*   | Not p => PrNot (desugar_pred p) *)
+(*   | All => PrAll *)
+(*   | NoPackets => PrNone *)
+(* end. *)
 
 Fixpoint compile_pred (opt : Classifier bool -> Classifier bool) 
          (pr : Pred) (sw : switchId) : Classifier bool := 
