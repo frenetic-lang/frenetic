@@ -58,6 +58,8 @@ Proof with auto.
   apply eqdec.
 Qed.
 
+Extract Constant list_eq => "(fun _ x y -> x = y)".
+
 Instance Eq_list `(A : Type, E : Eq A) : Eq (list A) := {
   eqdec := list_eq E
 }.
