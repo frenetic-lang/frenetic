@@ -241,181 +241,202 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     intros.
     unfold concreteStep.
     simpl.
-    inversion H; subst.
-    (* Case 1. *)
-    (* idiotic case. *)
-    admit.
-    (* Case 2. *)
-    exists (FlowTablesSafe_untouched tblsOk1).
-    exists linksTopoOk1.
-    exists (LinksHaveSrc_untouched haveSrc1).
-    exists (LinksHaveDst_untouched haveDst1).
-    exists (UniqSwIds_pres uniqSwIds1).
-    exists (AllFMS_untouched1 allFMS1).
-    solve[eauto].
-    (* Case 3: processed a buffered FlowMod *)
-    simpl in *.
-    eexists.
-    unfold FlowTablesSafe.
-    intros.
-    simpl in H0. destruct H0 as [HIn | HIn].
-    2: solve [ unfold FlowTablesSafe in tblsOk1; eapply tblsOk1; simpl; eauto ].
-    inversion HIn. subst. clear HIn.
-    unfold AllFMS in allFMS1.
-    apply Bag.mem_prop in allFMS1.
-    destruct allFMS1 as [lnk0 [HLnkIn [HEq HFMS]]].
-    inversion HFMS; subst.
-    inversion H9; subst.
-    apply Bag.mem_prop in H11. inversion H11.
-    clear HEq HFMS HLnkIn.
-    apply Bag.unify_union_singleton in H12.
-    destruct H12 as [HEq | HContra].
-    inversion HEq. subst...
-    apply H11 in HContra.
-    inversion HContra.
-    exists linksTopoOk1.
-    exists (LinksHaveSrc_untouched haveSrc1).
-    exists (LinksHaveDst_untouched haveDst1).
-    exists (UniqSwIds_pres uniqSwIds1).
-    eexists.
-    unfold AllFMS.
-    intros.
-    simpl in H0.
-    destruct H0.
-    2: solve [ unfold AllFMS in allFMS1; apply allFMS1; right; auto ].
-    unfold AllFMS in allFMS1.
-    apply Bag.mem_prop in allFMS1.
-    destruct allFMS1 as [lnk0 [HLnkIn [HEq HFMS]]].
-    simpl in HEq.
-    destruct sw.
-    inversion H0; subst. clear H0.
-    exists lnk0.
-    simpl. split... split...
-    destruct lnk0; subst.
-    simpl in *.
-
-    inversion HFMS; subst.
-    inversion H2; subst.
-    apply Bag.mem_prop in H10; solve[inversion H10].
-    apply Bag.unify_union_singleton in H12. 
-    destruct H12 as [HEq | HEq].
-    2: solve[apply H10 in HEq; inversion HEq]. 
-    assert (ctrlm1 === ctrlm3) by admit. (* TODO(arjun) should be frmo unify *)
-    apply MkFMS with 
-      (switchEp := Endpoint_NoBarrier (modify_flow_table f tbl0))...
-    apply NoFlowModsInBuffer...
-      intros.
-      apply H10. 
-      apply Bag.Mem_equiv with (ED := fromController_eqdec) (b1 := ctrlm1)...
-      inversion HEq.
-      subst...
-    solve[eauto].
-    (* Case 4. *)
-    exists (FlowTablesSafe_untouched tblsOk1).
-    exists linksTopoOk1.
-    exists (LinksHaveSrc_untouched haveSrc1).
-    exists (LinksHaveDst_untouched haveDst1).
-    exists (UniqSwIds_pres uniqSwIds1).
-    idtac "TODO(arjun): FMS for SendPacketOut -- trivial case.".
-    admit.
-    (* Case 5. *)
-    exists (FlowTablesSafe_untouched tblsOk1).
-    exists (LinkTopoOK_inv pks0 (pk::pks0) linksTopoOk1).
-    exists (LinksHaveSrc_inv pks0 (pk::pks0) (LinksHaveSrc_untouched haveSrc1)).
-    exists (LinksHaveDst_inv pks0 (pk::pks0) (LinksHaveDst_untouched haveDst1)).
-    exists (UniqSwIds_pres uniqSwIds1).
-    exists (AllFMS_untouched1 allFMS1).
-    solve[eauto].
-    (* Case 6. *)
-    exists (FlowTablesSafe_untouched tblsOk1).
-    exists (LinkTopoOK_inv (pks0 ++ [pk]) pks0 linksTopoOk1).
-    exists 
-      (LinksHaveSrc_inv (pks0 ++ [pk]) pks0 (LinksHaveSrc_untouched haveSrc1)).
-    exists 
-      (LinksHaveDst_inv (pks0 ++ [pk]) pks0 (LinksHaveDst_untouched haveDst1)).
-    exists (UniqSwIds_pres uniqSwIds1).
-    exists (AllFMS_untouched1 allFMS1).
-    solve[eauto].
-    (* Case 7. *)
-    exists tblsOk1.
-    exists linksTopoOk1.
-    exists haveSrc1.
-    exists haveDst1.
-    exists uniqSwIds1.
-    exists allFMS1.
-    solve[eauto].
-    (* Case 8. *)
-    exists tblsOk1.
-    exists linksTopoOk1.
-    exists haveSrc1.
-    exists haveDst1.
-    exists uniqSwIds1.
-    idtac "TODO(arjun): FMS for ControllerRecv -- trivial case.".
-    admit.
-    (* Case 9. *)
-    exists tblsOk1.
-    exists linksTopoOk1.
-    exists haveSrc1.
-    exists haveDst1.
-    exists uniqSwIds1.
-    eexists.
-    unfold AllFMS.
-    simpl in *.
-    intros.
-    unfold AllFMS in allFMS1. apply allFMS1 in H1.
-    destruct H1 as [lnk [HIn [HLnkIdEq HFMS]]].
-    apply in_app_iff in HIn; simpl in HIn.
-    destruct HIn as [HIn | [HIn | HIn]].
-    solve [ exists lnk; auto with datatypes ].
-    2: solve [ exists lnk; auto with datatypes ].
-    exists (OpenFlowLink swId0 fromSwitch0 (msg :: fromCtrl)).
-    split.
-    solve [ auto with datatypes ].
-    subst. simpl in *.
-    split. solve [ trivial ].
-    (* hard part here *)
-    clear HLnkIdEq.
-    inversion HFMS; subst.
-    inversion H4; subst.
-    eapply MkFMS...
-    destruct H6 as [ctrlEp0 HSafeWire].
-    assert (Mem (Switch swId0 pts0 (table_at_endpoint switchEp)
-                        inp0 outp0 ctrlm0 switchm0) sws) as HSwMem by admit.
-    destruct (ControllerFMS fromCtrl _ _ _ P0 H0 H HSwMem H4) 
-      as [ctrlEp1 HSafeWire1].
-    solve [ exists ctrlEp1; trivial ].
-    eapply MkFMS...
-    destruct H6 as [ctrlEp0 HSafeWire].
-    assert (Mem (Switch swId0 pts0 tbl0
-                        inp0 outp0 ctrlm0 switchm0) sws) as HSwMem by admit.
-    destruct (ControllerFMS fromCtrl _ _ _ P0 H0 H HSwMem H4) 
-      as [ctrlEp1 HSafeWire1].
-    solve [ exists ctrlEp1; trivial ].
-    solve[eauto].
-    (* Case 10. *)
-    exists (FlowTablesSafe_untouched tblsOk1).
-    exists linksTopoOk1.
-    exists (LinksHaveSrc_untouched haveSrc1).
-    exists (LinksHaveDst_untouched haveDst1).
-    exists (UniqSwIds_pres uniqSwIds1).
-    idtac "TODO(arjun): FMS for SwitchSend -- trivial case.".
-    admit.
-    (* Case 11. *)
-    exists (FlowTablesSafe_untouched tblsOk1).
-    exists linksTopoOk1.
-    exists (LinksHaveSrc_untouched haveSrc1).
-    exists (LinksHaveDst_untouched haveDst1).
-    exists (UniqSwIds_pres uniqSwIds1).
-    idtac "TODO(arjun): FMS for BarrierRecv -- important case".
-    admit.
-    (* Case 12. *)
-    exists (FlowTablesSafe_untouched tblsOk1).
-    exists linksTopoOk1.
-    exists (LinksHaveSrc_untouched haveSrc1).
-    exists (LinksHaveDst_untouched haveDst1).
-    exists (UniqSwIds_pres uniqSwIds1).
-    idtac "TODO(arjun): FMS for NotBarrierRecv -- important case".
-    admit.
+    { inversion H; subst.
+      (* Case 1. *)
+      (* idiotic case. *)
+      + admit.
+      (* Case 2. *)
+      + exists (FlowTablesSafe_untouched tblsOk1).
+        exists linksTopoOk1.
+        exists (LinksHaveSrc_untouched haveSrc1).
+        exists (LinksHaveDst_untouched haveDst1).
+        exists (UniqSwIds_pres uniqSwIds1).
+        exists (AllFMS_untouched1 allFMS1).
+        eauto.
+      (* Case 3: processed a buffered FlowMod *)
+      + simpl in *.
+        eexists.
+        unfold FlowTablesSafe.
+        intros.
+        simpl in H0. destruct H0 as [HIn | HIn].
+        2: solve [ unfold FlowTablesSafe in tblsOk1; eapply tblsOk1; simpl; eauto ].
+        inversion HIn. subst. clear HIn.
+        unfold AllFMS in allFMS1.
+        apply Bag.mem_prop in allFMS1.
+        destruct allFMS1 as [lnk0 [HLnkIn [HEq HFMS]]].
+        inversion HFMS; subst.
+        inversion H9; subst.
+        apply Bag.mem_prop in H11. inversion H11.
+        clear HEq HFMS HLnkIn.
+        apply Bag.unify_union_singleton in H12.
+        destruct H12 as [[HEq HCtrlEq] | HContra].
+        inversion HEq. subst...
+        apply H11 in HContra.
+        inversion HContra.
+        exists linksTopoOk1.
+        exists (LinksHaveSrc_untouched haveSrc1).
+        exists (LinksHaveDst_untouched haveDst1).
+        exists (UniqSwIds_pres uniqSwIds1).
+        eexists.
+        unfold AllFMS.
+        intros.
+        simpl in H0.
+        destruct H0.
+        2: solve [ unfold AllFMS in allFMS1; apply allFMS1; right; auto ].
+        unfold AllFMS in allFMS1.
+        apply Bag.mem_prop in allFMS1.
+        destruct allFMS1 as [lnk0 [HLnkIn [HEq HFMS]]].
+        simpl in HEq.
+        destruct sw.
+        inversion H0; subst. clear H0.
+        exists lnk0.
+        simpl. split... split...
+        destruct lnk0; subst.
+        simpl in *. 
+        inversion HFMS; subst.
+        inversion H2; subst.
+        apply Bag.mem_prop in H10; solve [inversion H10].
+        apply Bag.unify_union_singleton in H12. 
+        destruct H12 as [[HEq H12] | HEq].
+        2: solve[apply H10 in HEq; inversion HEq]. 
+        apply MkFMS with 
+        (switchEp := Endpoint_NoBarrier (modify_flow_table f tbl0))...
+        apply NoFlowModsInBuffer...
+        intros.
+        apply H10. 
+        apply Bag.Mem_equiv with (ED := fromController_eqdec) (b1 := ctrlm1)...
+        inversion HEq.
+        subst...
+        eapply transitivity...
+        inversion HEq...
+        solve[eauto].
+      (* Case 4. *)
+      + exists (FlowTablesSafe_untouched tblsOk1).
+        exists linksTopoOk1.
+        exists (LinksHaveSrc_untouched haveSrc1).
+        exists (LinksHaveDst_untouched haveDst1).
+        exists (UniqSwIds_pres uniqSwIds1).
+        eexists.
+        unfold AllFMS.
+        intros.
+        simpl in *.
+        unfold AllFMS in allFMS1.
+        apply Bag.mem_prop in allFMS1.
+        destruct allFMS1 as [lnk0 [HLnkIn [HEq HFMS]]].
+        simpl in HEq.
+        destruct sw.
+        inversion H1; subst. clear H1.
+        exists lnk0.
+        simpl. split... split...
+        destruct lnk0; subst.
+        simpl in *. 
+        inversion HFMS; subst.
+        inversion H2...
+        idtac "TODO(arjun): FMS for SendPacketOut -- trivial case.".
+        admit.
+        admit.
+        eexists.
+        admit.
+        admit.
+      (* Case 5. *)
+      + exists (FlowTablesSafe_untouched tblsOk1).
+        exists (LinkTopoOK_inv pks0 (pk::pks0) linksTopoOk1).
+        exists (LinksHaveSrc_inv pks0 (pk::pks0) (LinksHaveSrc_untouched haveSrc1)).
+        exists (LinksHaveDst_inv pks0 (pk::pks0) (LinksHaveDst_untouched haveDst1)).
+        exists (UniqSwIds_pres uniqSwIds1).
+        exists (AllFMS_untouched1 allFMS1).
+        solve[eauto].
+      (* Case 6. *)
+      + exists (FlowTablesSafe_untouched tblsOk1).
+        exists (LinkTopoOK_inv (pks0 ++ [pk]) pks0 linksTopoOk1).
+        exists 
+          (LinksHaveSrc_inv (pks0 ++ [pk]) pks0 (LinksHaveSrc_untouched haveSrc1)).
+        exists 
+          (LinksHaveDst_inv (pks0 ++ [pk]) pks0 (LinksHaveDst_untouched haveDst1)).
+        exists (UniqSwIds_pres uniqSwIds1).
+        exists (AllFMS_untouched1 allFMS1).
+        solve[eauto].
+      (* Case 7. *)
+      + exists tblsOk1.
+        exists linksTopoOk1.
+        exists haveSrc1.
+        exists haveDst1.
+        exists uniqSwIds1.
+        exists allFMS1.
+        solve[eauto].
+      (* Case 8. *)
+      + exists tblsOk1.
+        exists linksTopoOk1.
+        exists haveSrc1.
+        exists haveDst1.
+        exists uniqSwIds1.
+        idtac "TODO(arjun): FMS for ControllerRecv -- trivial case.".
+        admit.
+      (* Case 9. *)
+      + exists tblsOk1.
+        exists linksTopoOk1.
+        exists haveSrc1.
+        exists haveDst1.
+        exists uniqSwIds1.
+        eexists.
+        unfold AllFMS.
+        simpl in *.
+        intros.
+        unfold AllFMS in allFMS1. apply allFMS1 in H1.
+        destruct H1 as [lnk [HIn [HLnkIdEq HFMS]]].
+        apply in_app_iff in HIn; simpl in HIn.
+        destruct HIn as [HIn | [HIn | HIn]].
+        solve [ exists lnk; auto with datatypes ].
+        2: solve [ exists lnk; auto with datatypes ].
+        exists (OpenFlowLink swId0 fromSwitch0 (msg :: fromCtrl)).
+        split.
+        solve [ auto with datatypes ].
+        subst. simpl in *.
+        split. solve [ trivial ].
+        (* hard part here *)
+        clear HLnkIdEq.
+        inversion HFMS; subst.
+        inversion H4; subst.
+        eapply MkFMS...
+        destruct H6 as [ctrlEp0 HSafeWire].
+        assert (Mem (Switch swId0 pts0 (table_at_endpoint switchEp)
+                            inp0 outp0 ctrlm0 switchm0) sws) as HSwMem by admit.
+        destruct (ControllerFMS fromCtrl _ _ _ P0 H0 H HSwMem H4) 
+          as [ctrlEp1 HSafeWire1].
+        solve [ exists ctrlEp1; trivial ].
+        eapply MkFMS...
+        destruct H6 as [ctrlEp0 HSafeWire].
+        assert (Mem (Switch swId0 pts0 tbl0
+                            inp0 outp0 ctrlm0 switchm0) sws) as HSwMem by admit.
+        destruct (ControllerFMS fromCtrl _ _ _ P0 H0 H HSwMem H4) 
+          as [ctrlEp1 HSafeWire1].
+        solve [ exists ctrlEp1; trivial ].
+        solve[eauto].
+      (* Case 10. *)
+      + exists (FlowTablesSafe_untouched tblsOk1).
+        exists linksTopoOk1.
+        exists (LinksHaveSrc_untouched haveSrc1).
+        exists (LinksHaveDst_untouched haveDst1).
+        exists (UniqSwIds_pres uniqSwIds1).
+        idtac "TODO(arjun): FMS for SwitchSend -- trivial case.".
+        admit.
+      (* Case 11. *)
+      + exists (FlowTablesSafe_untouched tblsOk1).
+        exists linksTopoOk1.
+        exists (LinksHaveSrc_untouched haveSrc1).
+        exists (LinksHaveDst_untouched haveDst1).
+        exists (UniqSwIds_pres uniqSwIds1).
+        idtac "TODO(arjun): FMS for BarrierRecv -- important case".
+        admit.
+      (* Case 12. *)
+      + exists (FlowTablesSafe_untouched tblsOk1).
+        exists linksTopoOk1.
+        exists (LinksHaveSrc_untouched haveSrc1).
+        exists (LinksHaveDst_untouched haveDst1).
+        exists (UniqSwIds_pres uniqSwIds1).
+        idtac "TODO(arjun): FMS for NotBarrierRecv -- important case".
+        admit.
+    }
   Qed.
 
   Lemma simpl_multistep : forall (st1 st2 : state) obs
