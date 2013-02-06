@@ -23,7 +23,7 @@ Prerequisites
   These are available on OPAM:
 
   ```
-  $ opam install findlib
+  $ opam install ocamlfind
   $ opam install cstruct.0.5.3
   $ opam install lwt
   $ opam install ounit

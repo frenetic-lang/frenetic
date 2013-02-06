@@ -3,6 +3,7 @@ Extraction Language Ocaml.
 Require Import Coq.Lists.List.
 Require Import PArith.BinPos.
 Require Import NArith.BinNat.
+Require Import Common.Types.
 
 Extraction Blacklist String List.
 

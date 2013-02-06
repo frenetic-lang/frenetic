@@ -274,31 +274,9 @@ Section Methods.
     apply reflexivity.
   Qed.
 
-  Lemma unify_union_singleton : forall (x y : A) (b1 b2 : bag A),
+  Axiom unify_union_singleton : forall (x y : A) (b1 b2 : bag A),
     ({|x|} <+> b1) === ({|y|} <+> b2) ->
-    x === y \/ Mem x b2.
-  Proof with auto.
-    intros.
-    generalize dependent b1.
-    induction b2; intros.
-    rewrite -> union_empty_r in H.
-    apply symmetry in H.
-    apply singleton_equiv in H.
-    destruct H.
-    left. apply symmetry...
-    (* case *)
-    simpl.
-    unfold Equivalence.equiv in H.
-    unfold Bag_equiv in H.
-    remember (H x) as X eqn:D. clear D.
-    simpl in X.
-    destruct (equiv_dec x x).
-    destruct (equiv_dec x y)...
-    destruct (equiv_dec x a)...
-    omega.
-    contradiction c. apply reflexivity.
-    (* case *)
-  Admitted.
+    (x === y /\ b1 === b2) \/ Mem x b2.
 
 End Methods.
 
