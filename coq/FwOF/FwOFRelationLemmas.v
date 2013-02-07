@@ -390,25 +390,32 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
         exists haveDst1.
         exists uniqSwIds1.
         eexists.
-        unfold AllFMS in *.
-        intros.
-        simpl in *.
-        apply allFMS1 in H1.
-        destruct H1 as [lnk [HLnkIn [HEq HFMS]]].
-        apply in_app_iff in HLnkIn.
-        simpl in HLnkIn.
-        { destruct HLnkIn as [HLnkIn | [HLnkIn | HLnkIn]].
-          + exists lnk...
-          + destruct sw.
-            subst.
-            simpl in HEq.
-            subst.
-            exists (OpenFlowLink swId1 fromSwitch0 fromCtrl).
+        unfold AllFMS in *. intros. destruct sw. subst.
+        assert ({swId0 = swId1 } + { swId0 <> swId1 }) as HIdEq by apply eqdec.
+        { destruct HIdEq; subst.
+          + exists (OpenFlowLink swId1 fromSwitch0 fromCtrl).
             split...
             split...
-            admit.
-          + exists lnk...
-            split... }
+            destruct (allFMS1 (Switch swId1 pts0 tbl0 inp0 outp0 ctrlm0 switchm0)) as [lnk [HLnkIn [HId HFMS]]].
+            { auto. }
+            destruct lnk.
+            simpl in *.
+            subst.
+            idtac "TODO(arjun): Need to know that linkIDs are unique.".
+            assert (of_switchm0 = fromSwitch0 ++ [msg]) as X. admit. subst.
+            assert (of_ctrlm0 = fromCtrl) as X. admit. subst.
+            apply FMS_untouched with (inp0 := inp0) (outp0 := outp0) (switchm0 := switchm0)
+                                                    (switchmLst0 := fromSwitch0 ++ [msg]).
+            exact HFMS.
+          + destruct (allFMS1 (Switch swId1 pts0 tbl0 inp0 outp0 ctrlm0 switchm0)) as [lnk [HLnkIn [HId HFMS]]].
+            { simpl. exact H1. }
+            exists lnk.
+            apply in_app_iff in HLnkIn.
+            simpl in HLnkIn.
+            { destruct HLnkIn as [HLnkIn | [HLnkIn | HLnkIn]].
+              + split...
+              + destruct lnk. inversion HLnkIn. contradiction n. subst...
+              + split... } }
         solve[eauto].
       (* Case 9. *)
       + exists tblsOk1.
