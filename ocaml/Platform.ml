@@ -96,7 +96,7 @@ module OpenFlowPlatform = struct
 
   let send_to_switch_fd (fd : file_descr) (xid : xid) (msg : message) = 
     lwt _ = eprintf "[platform] send_to_switch_fd\n%!" in
-    lwt out = Lwt.wrap (fun () -> Message.marshal xid msg) in
+    lwt out = Lwt.wrap2 Message.marshal xid msg in
     let len = String.length out in
     lwt _ = eprintf "[platform] sending a message of length %d, code %d\n" len
         (msg_code_to_int (Message.msg_code_of_message msg)) in
