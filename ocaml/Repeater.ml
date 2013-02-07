@@ -1,4 +1,3 @@
-open Openflow1_0
 open Platform 
 open Unix
 open MessagesDef

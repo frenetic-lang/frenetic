@@ -2,8 +2,8 @@
 OCAMLBUILD = ocamlbuild -use-ocamlfind -tag debug -ocamlc '-syntax camlp4o -package lwt.syntax -ppopt -lwt-debug'
 
 all: extracted doc
-	$(OCAMLBUILD) main.d.byte
-	$(OCAMLBUILD) test.d.byte
+	$(OCAMLBUILD) Main.d.byte
+	$(OCAMLBUILD) Test.d.byte
 
 doc:
 	$(OCAMLBUILD) doc.docdir/index.html

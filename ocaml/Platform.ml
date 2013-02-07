@@ -1,5 +1,5 @@
 open MessagesDef
-open Openflow1_0
+open OpenFlow1_0
 
 type switchId = int64
 open Lwt_io

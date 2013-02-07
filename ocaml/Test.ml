@@ -1,9 +1,7 @@
 open OUnit
 open Printf
-open Openflow1_0
 open Unix
 open MessagesDef
-open NetCoreSemantics
 open NetCore
 open Packet
 open TestPlatform

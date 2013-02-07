@@ -1,10 +1,10 @@
 open Printf
-open Openflow1_0
+open OpenFlow1_0
 open Platform 
 open Unix
 open MessagesDef
 
-module Controller = Maclearning.Make (OpenFlowPlatform)
+module Controller = MacLearning.Make (OpenFlowPlatform)
 
 let main () = 
   Sys.catch_break true;
