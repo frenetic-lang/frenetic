@@ -2,7 +2,6 @@ open Printf
 open Openflow1_0
 open Platform 
 open Unix
-open MonadicController
 open MessagesDef
 
 module Controller = Maclearning.Make (OpenFlowPlatform)
