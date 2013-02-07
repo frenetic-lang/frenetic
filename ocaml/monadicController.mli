@@ -12,13 +12,6 @@ end
 
 module EmptyHandlers : HANDLERS
 
-(** * A NetCore controller that does not desugar. *)
-module Make :
-  functor (Platform : PLATFORM) -> 
-    functor (Handlers : HANDLERS) -> sig
-      val start_controller : NetCoreSemantics.coq_Pol -> unit Lwt.t
-    end
-
 module MakeDynamic :
   functor (Platform : PLATFORM) ->
     functor (Handlers : HANDLERS) -> sig

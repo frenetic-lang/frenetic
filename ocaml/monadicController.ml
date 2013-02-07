@@ -89,23 +89,6 @@ module MakeNetCoreMonad
     Lwt.bind (action init) (fun (result, _) -> Lwt.return result)
 end
 
-module Make
-  (Platform : PLATFORM)
-  (Handlers : HANDLERS) = struct
-
-  (* The monad is written in OCaml *)
-  module NetCoreMonad = MakeNetCoreMonad (Platform) (Handlers)
-  (* The controller is written in Coq *)
-  module Controller = NetCoreController.Make (NetCoreMonad)
-
-  let start_controller pol =
-    let init_state = { 
-      NetCoreController.policy = pol; 
-      NetCoreController.switches = []
-    } in
-    NetCoreMonad.run init_state Controller.main
-end
-
 let drop_all_packets = NetCoreSemantics.PoAtom (NetCoreSemantics.PrAll, [])
 
 type eventOrPolicy = 
