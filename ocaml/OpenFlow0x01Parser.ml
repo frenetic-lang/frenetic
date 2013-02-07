@@ -1,4 +1,4 @@
-(** OpenFlow 1.0 *)
+(** OpenFlow 1.0 (protocol version 0x01) *)
 
 open Printf
 open MessagesDef
