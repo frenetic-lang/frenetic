@@ -140,50 +140,6 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
 
     Hint Constructors FMS SafeWire SwitchEP.
 
-    Lemma SwitchEP_equiv : forall swId pts tbl inp0 inp1 outp0 outp1
-      ctrlm0 ctrlm1 switchm0 switchm1 ep,
-      ctrlm0 === ctrlm1 ->
-      SwitchEP (Switch swId pts tbl inp0 outp0 ctrlm0 switchm0) ep ->
-      SwitchEP (Switch swId pts tbl inp1 outp1 ctrlm1 switchm1) ep.
-    Proof with eauto.
-      intros.
-      inversion H0; subst.
-      apply NoFlowModsInBuffer.
-      intros. apply H9. eapply Bag.Mem_equiv... apply symmetry...
-      reflexivity.
-      eapply OneFlowModInBuffer...
-      eapply transitivity... apply symmetry...
-    Qed.
-
-    Lemma FMS_untouched : forall swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0
-      switchmLst0 ctrlmLst0 inp1 outp1 switchm1 switchmLst1,
-      FMS (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0)
-          (OpenFlowLink swId0 switchmLst0 ctrlmLst0) ->
-      FMS (Switch swId0 pts0 tbl0 inp1 outp1 ctrlm0 switchm1)
-          (OpenFlowLink swId0 switchmLst1 ctrlmLst0).
-    Proof.
-      intros.
-      inversion H; inversion H2; subst; eauto.
-    Qed.
-
-    Lemma FMS_equiv : forall sw1 sw2 lnk,
-      sw1 === sw2 ->
-      FMS sw1 lnk ->
-      FMS sw2 lnk.
-    Proof with eauto.
-      intros.
-      destruct sw1.
-      destruct sw2.
-      inversion H.
-      subst.
-      inversion H0.
-      subst.
-      destruct H11 as [ctrlEp HSafeWire].
-      eapply MkFMS.
-      eapply SwitchEP_equiv...
-      exists ctrlEp...
-    Qed.
-
     Hint Resolve FMS_untouched SwitchEP_equiv.
 
     Lemma AllFMS_untouched1 : forall swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0
@@ -351,7 +307,11 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
             exists lnk0.
             split...
             split...
-            admit.
+            destruct lnk0.
+            simpl.
+            simpl in *.
+            eapply FMS_equiv. apply symmetry. exact H1.
+            apply FMS_dequeue_pktOut...
           + unfold AllFMS in allFMS1.
             simpl in allFMS1.
             apply (allFMS1 (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1))... }

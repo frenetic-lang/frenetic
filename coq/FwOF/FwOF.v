@@ -437,9 +437,9 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
                     Endpoint -> 
                     list fromController ->
                     Endpoint -> Prop :=
-    | SafeWire_nil : forall swId tbl,
-      FlowTableSafe swId tbl ->
-      SafeWire swId (Endpoint_NoBarrier tbl) nil (Endpoint_NoBarrier tbl)
+    | SafeWire_nil : forall swId ep,
+      FlowTableSafe swId (table_at_endpoint ep) ->
+      SafeWire swId ep nil ep
     | SafeWire_PktOut : forall swId pt pk ctrlEp ctrlm swEp,
       SafeWire swId ctrlEp ctrlm swEp ->
       SafeWire swId ctrlEp (PacketOut pt pk :: ctrlm) swEp
@@ -489,6 +489,204 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
           In lnk ofLinks /\
           of_to lnk = swId sw /\
           FMS sw lnk.
+
+    Hint Constructors Endpoint SafeWire NotFlowMod SwitchEP FMS.
+
+    Lemma SwitchEP_equiv : forall swId pts tbl inp0 inp1 outp0 outp1
+      ctrlm0 ctrlm1 switchm0 switchm1 ep,
+      ctrlm0 === ctrlm1 ->
+      SwitchEP (Switch swId pts tbl inp0 outp0 ctrlm0 switchm0) ep ->
+      SwitchEP (Switch swId pts tbl inp1 outp1 ctrlm1 switchm1) ep.
+    Proof with eauto.
+      intros.
+      inversion H0; subst.
+      apply NoFlowModsInBuffer.
+      intros. apply H9. eapply Bag.Mem_equiv... apply symmetry...
+      reflexivity.
+      eapply OneFlowModInBuffer...
+      eapply transitivity... apply symmetry...
+    Qed.
+
+    Lemma FMS_untouched : forall swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0
+      switchmLst0 ctrlmLst0 inp1 outp1 switchm1 switchmLst1,
+      FMS (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0)
+          (OpenFlowLink swId0 switchmLst0 ctrlmLst0) ->
+      FMS (Switch swId0 pts0 tbl0 inp1 outp1 ctrlm0 switchm1)
+          (OpenFlowLink swId0 switchmLst1 ctrlmLst0).
+    Proof.
+      intros.
+      inversion H; inversion H2; subst; eauto.
+    Qed.
+
+    Lemma FMS_equiv : forall sw1 sw2 lnk,
+      sw1 === sw2 ->
+      FMS sw1 lnk ->
+      FMS sw2 lnk.
+    Proof with eauto.
+      intros.
+      destruct sw1.
+      destruct sw2.
+      inversion H.
+      subst.
+      inversion H0.
+      subst.
+      destruct H11 as [ctrlEp HSafeWire].
+      eapply MkFMS.
+      eapply SwitchEP_equiv...
+      exists ctrlEp...
+    Qed.
+
+
+    Lemma SafeWire_dequeue_PacketOut : forall sw ctrlEp ctrlLst pt pk switchEp,
+      SafeWire sw ctrlEp (ctrlLst ++ [PacketOut pt pk]) switchEp ->
+      SafeWire sw ctrlEp (ctrlLst) switchEp.
+    Proof with auto.
+      intros.
+      generalize dependent ctrlEp.
+      induction ctrlLst; intros.
+      + simpl in H. inversion H. subst...
+      + inversion H; subst...
+    Qed.
+
+
+    Lemma SafeWire_dequeue_safe : forall sw ctrlEp ctrlLst f switchEp,
+       SafeWire sw ctrlEp (ctrlLst ++ [FlowMod f]) switchEp ->
+       FlowTableSafe sw (modify_flow_table f (table_at_endpoint switchEp)).
+    Proof with auto.
+      intros.
+      generalize dependent ctrlEp.
+      { induction ctrlLst; intros.
+        + destruct switchEp.
+          simpl in H.
+          inversion H.
+          subst.
+          inversion H6.
+          simpl in H.
+          inversion H.
+          subst.
+          inversion H6.
+          subst.
+          simpl...
+        + simpl in *.
+          inversion H; subst.
+          - apply IHctrlLst in H5...
+          - apply IHctrlLst in H5...
+          - apply IHctrlLst in H6... }
+    Qed.
+
+    Lemma SafeWire_dequeue_FlowMod : forall sw ctrlEp ctrlLst f switchEp,
+       SafeWire sw ctrlEp (ctrlLst ++ [FlowMod f]) switchEp ->
+       SafeWire sw ctrlEp ctrlLst (Endpoint_NoBarrier (modify_flow_table f (table_at_endpoint switchEp))).
+    Proof with auto.
+      intros.
+      generalize dependent ctrlEp.
+      { induction ctrlLst; intros.
+        + destruct switchEp.
+          simpl in H.
+          inversion H.
+          subst.
+          inversion H6.
+          simpl in H.
+          inversion H.
+          subst.
+          inversion H6.
+          subst.
+          simpl...
+        + simpl in *.
+          inversion H; subst.
+          - apply IHctrlLst in H5...
+          - apply IHctrlLst in H5...
+          - apply IHctrlLst in H6... }
+    Qed.
+
+    Lemma SafeWire_fm_nb_false : forall sw ctrlEp ctrlLst f tbl,
+      SafeWire sw ctrlEp (ctrlLst ++ [FlowMod f]) (Endpoint_NoBarrier tbl) ->
+      False.
+    Proof with auto.
+      intros.
+      generalize dependent ctrlEp.
+      induction ctrlLst; intros.
+      + simpl in H. inversion H. subst. inversion H6.
+      + simpl in H.
+        inversion H; subst.
+        - apply IHctrlLst in H5...
+          - apply IHctrlLst in H5...
+          - apply IHctrlLst in H6...
+    Qed.
+
+    Lemma FMS_pop : forall sw pts tbl inp outp ctrlm switchm switchLst ctrlLst msg,
+      FMS  (Switch sw pts tbl inp outp ctrlm switchm) (OpenFlowLink sw switchLst (ctrlLst ++ [msg])) ->
+      FMS  (Switch sw pts tbl inp outp ({|msg|} <+> ctrlm) switchm) (OpenFlowLink sw switchLst ctrlLst).
+    Proof with eauto.
+      intros.
+      inversion H.
+      subst.
+      destruct H10 as [ctrlEp HSafeWire].
+      { destruct msg.
+        + apply MkFMS with (switchEp := switchEp).
+          * inversion H2; subst.
+            - apply NoFlowModsInBuffer...
+              intros. simpl in H0. destruct H0... destruct msg... 
+              inversion H0.
+            - apply OneFlowModInBuffer with (ctrlm0 := ({|PacketOut p p0|} <+> ctrlm2))...
+              intros. simpl in H0. destruct H0... destruct msg... inversion H0.
+              rewrite -> H10.
+              bag_perm 10.
+          * exists ctrlEp.
+            eapply SafeWire_dequeue_PacketOut.
+            exact HSafeWire.
+        + admit. (* strange case where barrier is added to switch. *)
+        + inversion H2; subst.
+          * apply MkFMS with (switchEp := (Endpoint_NoBarrier (modify_flow_table f (table_at_endpoint switchEp)))).
+            apply OneFlowModInBuffer with (ctrlm0 := ctrlm0)...
+            apply reflexivity.
+            eapply SafeWire_dequeue_safe.
+            exact HSafeWire.
+            exists ctrlEp.
+            apply SafeWire_dequeue_FlowMod...
+         * contradiction (SafeWire_fm_nb_false _ _ HSafeWire).
+      }
+    Qed.
+
+    Lemma FMS_dequeue_pktOut : forall sw pts tbl inp outp ctrlm switchm switchLst ctrlLst pt pk,
+      FMS  (Switch sw pts tbl inp outp ({|PacketOut pt pk|} <+> ctrlm) switchm) (OpenFlowLink sw switchLst ctrlLst) ->
+      FMS  (Switch sw pts tbl inp ({|(pt,pk)|} <+> outp) ctrlm switchm) (OpenFlowLink sw switchLst ctrlLst).
+    Proof with eauto.
+      intros.
+      inversion H.
+      subst.
+      destruct H10 as [ctrlEp HSafeWire].
+      apply MkFMS with (switchEp := switchEp).
+      inversion H2; subst.
+      - apply NoFlowModsInBuffer...
+        intros.
+        apply H9.
+        simpl...
+      - assert (exists y, Mem y ({|PacketOut pt pk|} <+> ctrlm0) /\ FlowMod f === y).
+        { apply Bag.mem_equiv with (ED := eqdec) (b1 := {|FlowMod f|} <+> ctrlm2).
+          simpl. left. apply reflexivity. apply symmetry... }
+        destruct H0 as [y [HMem HEq]].
+        destruct y; inversion HEq; subst.
+        simpl in HMem.
+        destruct HMem.
+        inversion H0.
+        apply Bag.mem_split with (ED := eqdec) in H0.
+        destruct H0 as [ctrlm0' H0].
+        apply OneFlowModInBuffer with (ctrlm0 := ctrlm0')...
+        intros.
+        simpl in H1.
+        destruct msg... 
+        rewrite -> H0 in H10.
+        rewrite -> Bag.union_comm in H10.
+        rewrite -> Bag.union_assoc in H10.
+        apply Bag.unpop_unions in H10.
+        apply H9.
+        eapply Bag.Mem_equiv with (ED:=eqdec).
+        exact H10.
+        simpl.
+        left...
+      - exists ctrlEp...
+    Qed.
 
   End FlowModSafety.
 
