@@ -66,71 +66,71 @@ Module Type PATTERN.
     forall pt pk, 
       match_packet pt pk pat1 = match_packet pt pk pat2.
 
-  Axiom equiv_is_Equivalence : Equivalence equiv.
+  Parameter equiv_is_Equivalence : Equivalence equiv.
 
   Instance Pattern_Equivalence : Equivalence equiv.
     apply equiv_is_Equivalence.
   Qed.
 
-  Axiom beq_true_spec : forall p p',
+  Parameter beq_true_spec : forall p p',
     beq p p' = true ->
     p === p'.
 
-  Axiom inter_comm : forall p p', inter p p' === inter p' p.
+  Parameter inter_comm : forall p p', inter p p' === inter p' p.
 
-  Axiom inter_assoc : forall p p' p'',
+  Parameter inter_assoc : forall p p' p'',
     inter p (inter p' p'') === inter (inter p p') p''.
 
-  Axiom is_empty_false_distr_l : forall x y,
+  Parameter is_empty_false_distr_l : forall x y,
     is_empty (inter x y) = false -> 
     is_empty x = false .
 
-  Axiom is_empty_false_distr_r : forall x y,
+  Parameter is_empty_false_distr_r : forall x y,
     is_empty (inter x y) = false -> 
     is_empty y = false .
 
-  Axiom is_empty_true_l : forall x y,
+  Parameter is_empty_true_l : forall x y,
     is_empty x = true ->
     is_empty (inter x y) = true.
 
-  Axiom is_empty_true_r : forall x y,
+  Parameter is_empty_true_r : forall x y,
     is_empty y = true ->
     is_empty (inter x y) = true.
 
-  Axiom is_match_false_inter_l :
+  Parameter is_match_false_inter_l :
     forall (pt : portId) (pkt : packet) pat1 pat2,
       match_packet pt pkt pat1 = false ->
       match_packet pt pkt (inter pat1 pat2) = false.
 
-  Axiom no_match_subset_r : forall k n t t',
+  Parameter no_match_subset_r : forall k n t t',
     match_packet n k t' = false -> 
     match_packet n k (inter t t') = false.
 
-  Axiom exact_match_inter : forall x y,
+  Parameter exact_match_inter : forall x y,
     is_exact x = true ->
     is_empty (inter x y) = false ->
     inter x y === x.
 
-  Axiom all_spec : forall pt pk,
+  Parameter all_spec : forall pt pk,
     match_packet pt pk all = true.
 
-  Axiom exact_match_is_exact : forall pk pt,
+  Parameter exact_match_is_exact : forall pk pt,
     is_exact (exact_pattern pk pt) = true.
 
-  Axiom exact_intersect : forall k n t,
+  Parameter exact_intersect : forall k n t,
     match_packet k n t = true ->
     inter (exact_pattern n k) t === exact_pattern n k.
 
-  Axiom is_match_true_inter : forall pat1 pat2 pt pk,
+  Parameter is_match_true_inter : forall pat1 pat2 pt pk,
     match_packet pt pk pat1 = true ->
     match_packet pt pk pat2 = true ->
     match_packet pt pk (inter pat1 pat2) = true.
 
-  Axiom match_packet_spec : forall pt pk pat,
+  Parameter match_packet_spec : forall pt pk pat,
     match_packet pt pk pat = 
     negb (is_empty (inter (exact_pattern pk pt) pat)).
 
-  Axiom all_is_not_empty : is_empty all = false.
+  Parameter all_is_not_empty : is_empty all = false.
 
 
 End PATTERN.

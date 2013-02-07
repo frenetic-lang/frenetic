@@ -54,8 +54,8 @@ Module Type NETWORK_AND_POLICY <: NETWORK_ATOMS.
 
   Include NETWORK_ATOMS.
 
-  Axiom topo : switchId * portId -> option (switchId * portId).
-  Axiom abst_func : switchId -> portId -> packet -> list (portId * packet).
+  Parameter topo : switchId * portId -> option (switchId * portId).
+  Parameter abst_func : switchId -> portId -> packet -> list (portId * packet).
 
 End NETWORK_AND_POLICY.
 
@@ -702,16 +702,16 @@ Module Type ATOMS_AND_CONTROLLER.
 
   Module Import FwOF := ConcreteSemantics (Atoms).
 
-  Axiom relate_controller : controller -> bag (switchId * portId * packet).
+  Parameter relate_controller : controller -> bag (switchId * portId * packet).
 
-  Axiom ControllerRemembersPackets :
+  Parameter ControllerRemembersPackets :
     forall (ctrl ctrl' : controller),
       controller_step ctrl ctrl' ->
       relate_controller ctrl = relate_controller ctrl'.
 
   Parameter P : bag switch -> list openFlowLink -> controller -> Prop.
   
-  Axiom step_preserves_P : forall sws0 sws1 links0 links1 ofLinks0 ofLinks1 
+  Parameter step_preserves_P : forall sws0 sws1 links0 links1 ofLinks0 ofLinks1 
     ctrl0 ctrl1 obs,
     step (State sws0 links0 ofLinks0 ctrl0)
          obs
@@ -719,17 +719,17 @@ Module Type ATOMS_AND_CONTROLLER.
     P sws0 ofLinks0 ctrl0 ->
     P sws1 ofLinks1 ctrl1.
 
-  Axiom ControllerSendForgetsPackets : forall ctrl ctrl' sw msg,
+  Parameter ControllerSendForgetsPackets : forall ctrl ctrl' sw msg,
     controller_send ctrl ctrl' sw msg ->
     relate_controller ctrl === select_packet_out sw msg <+>
     relate_controller ctrl'.
 
-  Axiom ControllerRecvRemembersPackets : forall ctrl ctrl' sw msg,
+  Parameter ControllerRecvRemembersPackets : forall ctrl ctrl' sw msg,
     controller_recv ctrl sw msg ctrl' ->
     relate_controller ctrl' === select_packet_in sw msg <+> 
     (relate_controller ctrl).
 
-  Axiom ControllerLiveness : forall sw pt pk ctrl0 sws0 links0 ofLinks0,
+  Parameter ControllerLiveness : forall sw pt pk ctrl0 sws0 links0 ofLinks0,
     Mem (sw,pt,pk) (relate_controller ctrl0) ->
     exists  ofLinks10 ofLinks11 ctrl1 swTo ptTo switchmLst ctrlmLst,
       (multistep 
@@ -742,7 +742,7 @@ Module Type ATOMS_AND_CONTROLLER.
                 ctrl1)) /\
       select_packet_out swTo (PacketOut ptTo pk) = ({|(sw,pt,pk)|}).
 
-  Axiom ControllerFMS : forall swId ctrl0 ctrl1 msg ctrlm
+  Parameter ControllerFMS : forall swId ctrl0 ctrl1 msg ctrlm
     switchm sws links ofLinks0 ofLinks1 switchEp
     pts tbl inp outp swCtrlm swSwitchm,
     P sws
