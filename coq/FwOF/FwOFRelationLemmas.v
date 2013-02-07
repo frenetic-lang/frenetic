@@ -460,52 +460,146 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
         eexists.
         unfold AllFMS in *.
         intros.
-        simpl in *.
-        { destruct H0 as [H0 | H0].
-          * destruct (allFMS1 (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 ({|msg|} <+> switchm0))) as [lnk J].
-            left. apply reflexivity.
+        destruct sw.
+        subst.
+        assert ({swId0 = swId1 } + { swId0 <> swId1 }) as HIdEq by apply eqdec.
+        { destruct HIdEq; subst.
+          + unfold UniqSwIds in uniqSwIds1. (* Not what we want, since it has {|msg|} *)
+            assert (AllDiff swId (Bag.to_list 
+                                    (({|Switch swId1 pts0 tbl0 inp0 outp0 ctrlm0 switchm0|}) <+> sws))) as uniqSwIds2.
+            { eapply AllDiff_preservation.
+              exact uniqSwIds1.
+              solve[simpl;auto]. }
+            assert (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1 = Switch swId1 pts0 tbl0 inp0 outp0 ctrlm0 switchm0).
+            { eapply AllDiff_uniq.
+              apply uniqSwIds2.
+              rewrite <- Bag.mem_in_to_list in H0.
+              exact H0.
+              simpl...
+              simpl... }
+            inversion H1; subst; clear H1.
+            exists (OpenFlowLink swId1 (msg :: fromSwitch0) fromCtrl).
+            split...
+            split...
+            destruct (allFMS1 (Switch swId1 pts0 tbl0 inp0 outp0 ctrlm0 ({|msg|} <+> switchm0))) as [lnk J].
+            { simpl. left. apply reflexivity. }
             destruct J as [HLnkIn [HId HFMS]].
             simpl in HId.
             destruct lnk.
             subst.
             simpl in *.
-            exists (OpenFlowLink of_to0 (msg :: fromSwitch0) fromCtrl).
-            split...
-            destruct sw.
-            inversion H0.
-            subst.
-            split...
             idtac "TODO(arjun): Need to know that linkIDs are unique.".
             assert (of_switchm0 = fromSwitch0) as X. admit. subst.
             assert (of_ctrlm0 = fromCtrl) as X. admit. subst.
             apply FMS_untouched with (inp0 := inp0) (outp0 := outp0) (switchm0 := ({|msg|} <+> switchm0))
-              (switchmLst0 := fromSwitch0).
+                                                    (switchmLst0 := fromSwitch0).
             apply FMS_equiv with (sw1 := Switch of_to0 pts0 tbl0 inp0 outp0 ctrlm0 ({|msg|} <+> switchm0)).
             apply SwitchEquiv; try solve [ apply reflexivity ].
-            apply symmetry...
             exact HFMS.
-          * destruct (allFMS1 sw) as [lnk J].
-            right...
-            admit. }
+          + destruct (allFMS1 (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1)) as [lnk J].
+            { simpl. right. simpl in H0. destruct H0. inversion H0. subst. contradiction n...  exact H0. }
+            destruct J as [HLnkIn [HId HFMS]].
+            exists lnk.
+            apply in_app_iff in HLnkIn.
+            simpl in HLnkIn.
+            { destruct HLnkIn as [HLnkIn | [HLnkIn | HLnkIn]].
+              + split...
+              + destruct lnk. inversion HLnkIn. contradiction n. subst...
+              + split... } }
       solve[eauto].
       (* Case 11. *)
-      + exists (FlowTablesSafe_untouched tblsOk1).
+      + simpl in *.
+        exists (FlowTablesSafe_untouched tblsOk1).
         exists linksTopoOk1.
         exists (LinksHaveSrc_untouched haveSrc1).
         exists (LinksHaveDst_untouched haveDst1).
         exists (UniqSwIds_pres uniqSwIds1).
-        idtac "TODO(arjun): FMS for BarrierRecv -- important case".
         eexists.
-        admit.
-        solve[eauto].
+        unfold AllFMS in *. intros. destruct sw. subst.
+        assert ({swId0 = swId1 } + { swId0 <> swId1 }) as HIdEq by apply eqdec.
+        { destruct HIdEq; subst.
+          + exists (OpenFlowLink swId1 fromSwitch0 fromCtrl).
+            split...
+            split...
+            assert (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm0 switchm1 = Switch swId1 pts0 tbl0 inp0 outp0 ({||}) ({|BarrierReply xid|} <+> switchm0)).
+            { unfold UniqSwIds in uniqSwIds1.
+              assert (AllDiff swId (Bag.to_list ({|Switch swId1 pts0 tbl0 inp0 outp0 ({||}) ({|BarrierReply xid|} <+> switchm0)|} <+> sws))).
+              eapply AllDiff_preservation.
+              exact uniqSwIds1.
+              simpl...
+              eapply AllDiff_uniq.
+              exact H1.
+              rewrite <- Bag.mem_in_to_list in H0.
+              exact H0.
+              simpl...
+              reflexivity. }
+            inversion H1. subst. clear H1.
+            destruct (allFMS1 (Switch swId1 pts0 tbl0 inp0 outp0 ({||}) switchm0)) as [lnk [HLnkIn [HId HFMS]]].
+            { simpl... left. apply reflexivity. }
+            destruct lnk.
+            simpl in *.
+            idtac "TODO(arjun): Need to know that linkIDs are unique.".
+            assert (of_switchm0 = fromSwitch0) as X. admit. subst.
+            assert (of_ctrlm0 = fromCtrl) as X. admit. subst.
+            apply FMS_untouched with (inp0 := inp0) (outp0 := outp0) (switchm0 := switchm0)
+                                                    (switchmLst0 := fromSwitch0).
+            exact HFMS.
+          + destruct (allFMS1 (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm0 switchm1)) as [lnk [HLnkIn [HId HFMS]]].
+            { simpl. right. simpl in H0. destruct H0. inversion H0. subst. contradiction n...  exact H0. }
+            exists lnk.
+            apply in_app_iff in HLnkIn.
+            simpl in HLnkIn.
+            { destruct HLnkIn as [HLnkIn | [HLnkIn | HLnkIn]].
+              + split...
+              + destruct lnk. inversion HLnkIn. contradiction n. subst...
+              + split... } }
+      solve[eauto].
       (* Case 12. *)
-      + exists (FlowTablesSafe_untouched tblsOk1).
+      + simpl in *.
+        exists (FlowTablesSafe_untouched tblsOk1).
         exists linksTopoOk1.
         exists (LinksHaveSrc_untouched haveSrc1).
         exists (LinksHaveDst_untouched haveDst1).
         exists (UniqSwIds_pres uniqSwIds1).
         idtac "TODO(arjun): FMS for NotBarrierRecv -- important case".
-        eexists. admit.
+        eexists.
+        unfold AllFMS in *. intros. destruct sw. subst.
+        assert ({swId0 = swId1 } + { swId0 <> swId1 }) as HIdEq by apply eqdec.
+        { destruct HIdEq; subst.
+          + exists (OpenFlowLink swId1 fromSwitch0 fromCtrl).
+            split...
+            split...
+            assert (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1 = Switch swId1 pts0 tbl0 inp0 outp0 ({|msg|}<+>ctrlm0) switchm0).
+            { unfold UniqSwIds in uniqSwIds1.
+              assert (AllDiff swId (Bag.to_list ({|Switch swId1 pts0 tbl0 inp0 outp0 ({|msg|}<+>ctrlm0) switchm0|} <+> sws))).
+              eapply AllDiff_preservation.
+              exact uniqSwIds1.
+              simpl...
+              eapply AllDiff_uniq.
+              exact H2.
+              rewrite <- Bag.mem_in_to_list in H1.
+              exact H1.
+              simpl...
+              reflexivity. }
+            inversion H2. subst. clear H2.
+            destruct (allFMS1 (Switch swId1 pts0 tbl0 inp0 outp0 ctrlm0 switchm0)) as [lnk [HLnkIn [HId HFMS]]].
+            { simpl... left. apply reflexivity. }
+            destruct lnk.
+            simpl in *.
+            idtac "TODO(arjun): Need to know that linkIDs are unique.".
+            assert (of_switchm0 = fromSwitch0) as X. admit. subst.
+            assert (of_ctrlm0 = fromCtrl ++ [msg]) as X. admit. subst.
+            idtac "TODO(arjun): FMS when removing an item".
+            admit.
+          + destruct (allFMS1 (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1)) as [lnk [HLnkIn [HId HFMS]]].
+            { simpl. right. simpl in H1. destruct H1. inversion H1. subst. contradiction n...  exact H1. }
+            exists lnk.
+            apply in_app_iff in HLnkIn.
+            simpl in HLnkIn.
+            { destruct HLnkIn as [HLnkIn | [HLnkIn | HLnkIn]].
+              + split...
+              + destruct lnk. inversion HLnkIn. contradiction n. subst...
+              + split... } }
         solve[eauto].
     }
   Qed.
