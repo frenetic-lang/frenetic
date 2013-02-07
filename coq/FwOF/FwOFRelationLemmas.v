@@ -556,8 +556,7 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
             idtac "TODO(arjun): Need to know that linkIDs are unique.".
             assert (of_switchm0 = fromSwitch0) as X. admit. subst.
             assert (of_ctrlm0 = fromCtrl ++ [msg]) as X. admit. subst.
-            idtac "TODO(arjun): FMS when removing an item".
-            admit.
+            apply FMS_pop...
           + destruct (allFMS1 (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1)) as [lnk [HLnkIn [HId HFMS]]].
             { simpl. right. simpl in H1. destruct H1. inversion H1. subst. contradiction n...  exact H1. }
             exists lnk.
