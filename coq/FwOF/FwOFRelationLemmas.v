@@ -32,7 +32,25 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
       ({| Switch swId pts tbl' inp' outp' ctrlm' switchm' |} <+> sws)
       links.
   Proof with auto.
-  Admitted.
+    intros.
+    unfold LinksHaveSrc in *.
+    intros.
+    apply H in H0. clear H.
+    unfold LinkHasSrc in *.
+    destruct H0 as [sw [HMem [HEq HIn]]].
+    simpl in HMem.
+    destruct HMem.
+    + destruct sw.
+      simpl in *.
+      inversion H.
+      subst.
+      eexists.
+      split. left. apply reflexivity.
+      split...
+    + exists sw.
+      split...
+      simpl...
+  Qed.
 
   Lemma LinksHaveDst_untouched : forall 
     {swId tbl pts sws links
@@ -42,7 +60,26 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     LinksHaveDst 
       ({| Switch swId pts tbl' inp' outp' ctrlm' switchm' |} <+> sws)
       links.
-  Admitted.
+  Proof with auto.
+    intros.
+    unfold LinksHaveDst in *.
+    intros.
+    apply H in H0. clear H.
+    unfold LinkHasDst in *.
+    destruct H0 as [sw [HMem [HEq HIn]]].
+    simpl in HMem.
+    destruct HMem.
+    + destruct sw.
+      simpl in *.
+      inversion H.
+      subst.
+      eexists.
+      split. left. apply reflexivity.
+      split...
+    + exists sw.
+      split...
+      simpl...
+  Qed.
 
    Lemma LinkTopoOK_inv : forall {links links0 src dst} pks pks',
      ConsistentDataLinks (links ++ (DataLink src pks dst) :: links0) ->
@@ -98,7 +135,15 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
       ({|Switch swId pts tbl inp' outp' ctrlm' switchm'|} <+> sws).
   Proof with eauto.
     intros.
-  Admitted.
+    unfold FlowTablesSafe in *.
+    intros.
+    simpl in H0.
+    destruct H0.
+    + inversion H0.
+      subst.
+      eapply H. simpl. left. apply reflexivity.
+    + eapply H. simpl. right. exact H0.
+  Qed.
 
   Lemma LinkHasSrc_equiv : forall {sws sws' link},
     sws === sws' ->
@@ -119,12 +164,35 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     LinksHaveSrc sws (links ++ (DataLink src pks dst) :: links0) ->
     LinksHaveSrc sws (links ++ (DataLink src pks' dst) :: links0).
   Proof with auto with datatypes.
-  Admitted.
+    intros.
+    unfold LinksHaveSrc in *.
+    intros.
+    apply in_app_iff in H0.
+    simpl in H0.
+    destruct H0 as [H0 | [H0 | H0]]; subst...
+    destruct (H (DataLink src0 pks0 dst0))...
+    destruct H0 as [HMem [HEq HIn]].
+    simpl in *.
+    unfold LinkHasSrc.
+    exists x...
+  Qed.
 
   Lemma LinksHaveDst_inv : forall {sws links links0 src dst} pks pks',
     LinksHaveDst sws (links ++ (DataLink src pks dst) :: links0) ->
     LinksHaveDst sws (links ++ (DataLink src pks' dst) :: links0).
-  Admitted.
+  Proof with auto with datatypes.
+    intros.
+    unfold LinksHaveDst in *.
+    intros.
+    apply in_app_iff in H0.
+    simpl in H0.
+    destruct H0 as [H0 | [H0 | H0]]; subst...
+    destruct (H (DataLink src0 pks0 dst0))...
+    destruct H0 as [HMem [HEq HIn]].
+    simpl in *.
+    unfold LinkHasDst.
+    exists x...
+  Qed.
 
   Lemma UniqSwIds_pres : forall {sws swId pts tbl inp outp ctrlm switchm
     pts' tbl' inp' outp' ctrlm' switchm'},
@@ -189,7 +257,7 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     swId sw1 = swId sw2 ->
     sw1 === sw2.
   Proof with eauto.
-    idtac "TODO(arjun): skipped infrastructure lemma swId_eq_Switch".
+    idtac "TODO(arjun): skipped infrastructure lemma swId_eq_Switch (is this even used?)".
   Admitted.
 
   Hint Unfold UniqSwIds.
