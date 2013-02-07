@@ -235,7 +235,7 @@ Section Methods.
     FromList [x] === Singleton x.
 
   Axiom mem_in_to_list : forall  (x : A) (bag : bag A),
-    In x (to_list bag) -> Mem x bag.
+    In x (to_list bag) <-> Mem x bag.
 
   Axiom mem_split : forall (x : A) (b : bag A),
     Mem x b ->
