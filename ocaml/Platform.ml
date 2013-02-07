@@ -73,7 +73,7 @@ module OpenFlowPlatform = struct
     if n <> sizeof_ofp_header then
       raise_lwt (Internal "not enough bytes read from header")  
     else 
-      let hdr = Header.parse (ba_of_string ofhdr_str) in
+      lwt hdr = Lwt.wrap (fun () -> Header.parse (ba_of_string ofhdr_str)) in
       let sizeof_body = hdr.Header.len - sizeof_ofp_header in
       let body_str = String.create sizeof_body in
       lwt _ = eprintf "[platform] (3)\n%!" in
@@ -96,7 +96,7 @@ module OpenFlowPlatform = struct
 
   let send_to_switch_fd (fd : file_descr) (xid : xid) (msg : message) = 
     lwt _ = eprintf "[platform] send_to_switch_fd\n%!" in
-    let out = Message.marshal xid msg in
+    lwt out = Lwt.wrap (fun () -> Message.marshal xid msg) in
     let len = String.length out in
     lwt _ = eprintf "[platform] sending a message of length %d, code %d\n" len
         (msg_code_to_int (Message.msg_code_of_message msg)) in
