@@ -19,33 +19,33 @@ Require Import Bag.BagNotation.
 
 Local Open Scope list_scope.
 
-Inductive Id : Type := MkId : nat -> Id.
+Inductive id : Type := MkId : nat -> id.
 
-Inductive Action : Type :=
-| Forward : pseudoPort -> Action
-| ActGetPkt : Id -> Action.
+Inductive act : Type :=
+| Forward : pseudoPort -> act
+| ActGetPkt : id -> act.
 
-Inductive Pred : Type := 
-| PrHdr : pattern ->  Pred
-| PrOnSwitch : switchId -> Pred
-| PrOr : Pred -> Pred -> Pred
-| PrNot : Pred -> Pred
-| PrAll : Pred
-| PrNone : Pred.
+Inductive pred : Type := 
+| PrHdr : pattern ->  pred
+| PrOnSwitch : switchId -> pred
+| PrOr : pred -> pred -> pred
+| PrNot : pred -> pred
+| PrAll : pred
+| PrNone : pred.
 
-Inductive Pol : Type :=
-| PoAtom : Pred -> list Action -> Pol
-| PoUnion : Pol -> Pol -> Pol.
+Inductive pol : Type :=
+| PoAtom : pred -> list act -> pol
+| PoUnion : pol -> pol -> pol.
 
-Inductive In : Type :=
-| InPkt : switchId -> portId -> packet -> option bufferId -> In.
+Inductive input : Type :=
+| InPkt : switchId -> portId -> packet -> option bufferId -> input.
 
-Inductive Out : Type :=
-| OutPkt : switchId -> pseudoPort -> packet -> bufferId + bytes -> Out
-| OutGetPkt : Id -> switchId -> portId -> packet -> Out
-| OutNothing : Out.
+Inductive output : Type :=
+| OutPkt : switchId -> pseudoPort -> packet -> bufferId + bytes -> output
+| OutGetPkt : id -> switchId -> portId -> packet -> output
+| OutNothing : output.
 
-Fixpoint match_pred (pr : Pred) (sw : switchId) (pt : portId) (pk : packet) := 
+Fixpoint match_pred (pr : pred) (sw : switchId) (pt : portId) (pk : packet) := 
   match pr with
     | PrHdr pat => Pattern.match_packet pt pk pat
     | PrOnSwitch sw' => match Word64.eq_dec sw sw' with
@@ -62,7 +62,7 @@ Axiom marshal_pkt : packet -> bytes.
 
 Extract Constant marshal_pkt => "PacketParser.marshal_packet".
 
-Definition eval_action (inp : In) (act : Action) : Out := 
+Definition eval_action (inp : input) (act : act) : output := 
   match (act, inp)  with
     | (Forward pp, InPkt sw _ pk buf) => OutPkt sw pp pk 
         (match buf with
@@ -72,7 +72,7 @@ Definition eval_action (inp : In) (act : Action) : Out :=
     | (ActGetPkt x, InPkt sw pt pk buf) => OutGetPkt x sw pt pk
   end.
 
-Fixpoint classify (p : Pol) (inp : In) := 
+Fixpoint classify (p : pol) (inp : input) := 
   match p with
     | PoAtom pr actions => 
       match inp with

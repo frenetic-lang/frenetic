@@ -38,13 +38,13 @@ End PacketIn.
 
 Section ToFlowMod.
 
-  Definition translate_action (act : Action) :=
+  Definition translate_action (act : act) :=
     match act with
       | Forward pp => Output pp
       | ActGetPkt x => Output (Controller Word16.max_value)
     end.
 
-  Definition to_flow_mod prio (pat : pattern) (act : list Action)
+  Definition to_flow_mod prio (pat : pattern) (act : list act)
              (isfls : Pattern.is_empty pat = false) :=
     FlowMod AddFlow
             (Pattern.to_match isfls)
@@ -60,7 +60,7 @@ Section ToFlowMod.
 
   Definition flow_mods_of_classifier lst :=
     List.fold_right
-      (fun (ppa : priority * pattern * list Action)
+      (fun (ppa : priority * pattern * list act)
            (lst : list flowMod) => 
          match ppa with
            | (prio,pat,act) => 
@@ -92,7 +92,7 @@ Section ToFlowMod.
 End ToFlowMod.
 
 Record ncstate := State {
-  policy : Pol;
+  policy : pol;
   switches : list switchId
 }.
 
@@ -110,7 +110,7 @@ Module Type NETCORE_MONAD <: CONTROLLER_MONAD.
   Parameter forever : m unit -> m unit.
 
   (** These functions are NetCore-specific. *)
-  Parameter handle_get_packet : Id -> switchId -> portId -> packet -> m unit.
+  Parameter handle_get_packet : id -> switchId -> portId -> packet -> m unit.
 
 End NETCORE_MONAD.
 
@@ -125,14 +125,14 @@ Module Make (Import Monad : NETCORE_MONAD).
         bind cmd (fun _ => sequence lst')
     end.
   
-  Definition config_commands (pol: Pol) (swId : switchId) :=
+  Definition config_commands (pol: pol) (swId : switchId) :=
     sequence
       (List.map
          (fun fm => send swId Word32.zero (FlowModMsg fm))
          (delete_all_flows 
             :: (flow_mods_of_classifier (compile_opt pol swId)))).
 
-  Definition set_policy (pol : Pol) := 
+  Definition set_policy (pol : pol) := 
     st <- get;
     let switch_list := switches st in
     _ <- put (State pol switch_list);
@@ -159,7 +159,7 @@ Module Make (Import Monad : NETCORE_MONAD).
     _ <- config_commands (policy st) swId;
     ret tt.
 
-  Definition send_output (out : Out) := 
+  Definition send_output (out : output) := 
     match out with
       | OutNothing => ret tt
       | OutPkt _ _ _ _ => ret tt (* TODO(arjun): fill *)

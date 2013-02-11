@@ -95,11 +95,11 @@ Instance bool_as_Action : ClassifierAction bool := {
     simpl...
   Qed.
 
-  Lemma A_eqdec : forall (a1 a2 : list Action), { a1 = a2 } + { a1 <> a2 }.
+  Lemma A_eqdec : forall (a1 a2 : list act), { a1 = a2 } + { a1 <> a2 }.
   Proof. repeat decide equality.  Defined.
 
-  Instance A_as_Action : ClassifierAction (list Action) := {
-  action_unit := @nil Action;
+  Instance A_as_Action : ClassifierAction (list act) := {
+  action_unit := @nil act;
   action_eqdec := A_eqdec
 }.
 
@@ -115,7 +115,7 @@ Instance bool_as_Action : ClassifierAction bool := {
     induction po.
 
     simpl.
-    assert (forall cf pt pk, scan nil (opt (list Action) cf) pt pk = scan nil cf pt pk) as J0...
+    assert (forall cf pt pk, scan nil (opt (list act) cf) pt pk = scan nil cf pt pk) as J0...
       intros.
       unfold Equiv_Preserving in Heqp.
       assert (nil = action_unit)...
@@ -162,7 +162,7 @@ Instance bool_as_Action : ClassifierAction bool := {
   Proof.
     unfold Equiv_Preserving.
     intros.
-    unfold id.
+    unfold Datatypes.id.
     reflexivity.
   Qed.
 
