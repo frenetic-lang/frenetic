@@ -49,6 +49,7 @@ let rec flatten_reg pol = match pol with
 let rec collapse_star pol = match pol with
   | Star :: Star :: pol -> collapse_star (Star :: pol)
   | a :: pol -> a :: collapse_star pol
+  | [] -> []
 
   (* Naive compilation: does not guarantee loop-free semantics
      Possible issues:
@@ -77,6 +78,7 @@ let rec get_ports acts = match acts with
   | (To p) :: acts -> Some p :: get_ports acts
   | ToAll :: acts -> None :: get_ports acts
   | _ :: acts -> get_ports acts
+  | [] -> []
 
 let get_nodes topo = SwSet.empty
 
