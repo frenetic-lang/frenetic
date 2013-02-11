@@ -36,7 +36,7 @@ module SwSet = Set.Make(
   end)
 
 
-let get_hop topo s1 s2 = Hashtbl.find (Hashtbl.find (snd topo) s1) s2
+let get_hop topo s1 s2 = try Some (Hashtbl.find (Hashtbl.find (snd topo) s1) s2) with _ -> None
 
 let get_path topo s1 s2 = List.map (fun x -> Hop x) (shortest_path (fst topo) s1 s2)
 

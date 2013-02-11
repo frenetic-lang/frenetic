@@ -4,6 +4,7 @@ open Platform
 open Unix
 open MessagesDef
 
+module RegexController = RegexTest.Make (OpenFlowPlatform)
 module Controller = MacLearning.Make (OpenFlowPlatform)
 
 let main () = 
