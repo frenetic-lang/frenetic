@@ -23,5 +23,5 @@ Inductive action :=
   | GetPacket : get_packet_handler -> action.
 
 Inductive policy :=
-  | Pol : predicate -> list action -> policy
+  | Policy : predicate -> list action -> policy
   | Par : policy -> policy -> policy. (** parallel composition *)
