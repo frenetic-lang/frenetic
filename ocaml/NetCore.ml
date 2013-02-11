@@ -10,7 +10,7 @@ open Printf
 module type HANDLERS = sig
 
   val get_packet_handler : 
-    NetCoreSemantics.coq_Id -> switchId -> portId -> packet -> unit
+    NetCoreSemantics.id -> switchId -> portId -> packet -> unit
 
 end
 
@@ -90,7 +90,7 @@ let drop_all_packets = NetCoreSemantics.PoAtom (NetCoreSemantics.PrAll, [])
 
 type eventOrPolicy = 
   | Event of ControllerInterface.event
-  | Policy of NetCoreSemantics.coq_Pol
+  | Policy of NetCoreSemantics.pol
 
 module MakeDynamic
   (Platform : PLATFORM)
