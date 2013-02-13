@@ -1,6 +1,6 @@
 Require Import Coq.Lists.List.
 Require Import Coq.Bool.Bool.
-Require Import NetCore.NetCoreSemantics.
+Require Import NetCore.NetCoreEval.
 Require Import Common.Types.
 Require Import Classifier.Classifier.
 Require Import Word.WordInterface.

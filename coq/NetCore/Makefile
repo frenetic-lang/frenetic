@@ -1,4 +1,4 @@
-MODULES := NetCoreTypes NetCoreSemantics NetCoreCompiler NetCoreTheorems NetCoreController
+MODULES := NetCoreTypes NetCoreEval NetCoreCompiler NetCoreTheorems NetCoreController NetCoreSemantics
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean

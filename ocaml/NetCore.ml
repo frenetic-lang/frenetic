@@ -4,13 +4,13 @@ open ControllerInterface
 open MessagesDef
 open Packet
 open Platform
-open NetCoreSemantics
+open NetCoreEval
 open Printf
 
 module type HANDLERS = sig
 
   val get_packet_handler : 
-    NetCoreSemantics.id -> switchId -> portId -> packet -> unit
+    NetCoreEval.id -> switchId -> portId -> packet -> unit
 
 end
 
@@ -86,11 +86,11 @@ module MakeNetCoreMonad
     Lwt.bind (action init) (fun (result, _) -> Lwt.return result)
 end
 
-let drop_all_packets = NetCoreSemantics.PoAtom (NetCoreSemantics.PrAll, [])
+let drop_all_packets = NetCoreEval.PoAtom (NetCoreEval.PrAll, [])
 
 type eventOrPolicy = 
   | Event of ControllerInterface.event
-  | Policy of NetCoreSemantics.pol
+  | Policy of NetCoreEval.pol
 
 module MakeDynamic
   (Platform : PLATFORM)

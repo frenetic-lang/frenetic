@@ -7,7 +7,7 @@ Require Import Network.Packet.
 Require Import OpenFlow.MessagesDef.
 Require Import Pattern.Pattern.
 Require Import Classifier.Classifier.
-Require Import NetCore.NetCoreSemantics.
+Require Import NetCore.NetCoreEval.
 Require Import NetCore.NetCoreCompiler.
 Require Import OpenFlow.ControllerInterface.
 
