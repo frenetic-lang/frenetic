@@ -40,3 +40,19 @@ Building
 
   Make compiles the Coq code first, extracts it to OCaml, and then compiles
   the OCaml shim.
+
+Hacking
+=======
+
+Coq Wisdom
+----------
+
+Do not use type-classes in Coq code that is meant to be extracted to OCaml.
+Type-classes aren't expressible in OCaml's type system, and Coq happily
+extracts it to use `Obj.magic` and other nonsense.
+
+However, type-classes can help structure proofs. So, very carefully split
+factor the Coq into code and proof.
+
+
+

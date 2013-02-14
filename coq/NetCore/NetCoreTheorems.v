@@ -12,7 +12,7 @@ Require Import Classifier.Theory.
 Require Import Network.Packet.
 Require Import Pattern.Pattern.
 Require Import OpenFlow.MessagesDef.
-Require Import NetCore.NetCoreSemantics.
+Require Import NetCore.NetCoreEval.
 Require Import NetCore.NetCoreCompiler.
 
 Local Open Scope list_scope.
