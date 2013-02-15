@@ -28,6 +28,7 @@ type policy =
   | Pol of predicate * action list
   | Par of policy * policy (** parallel composition *)
 
+val policy_to_string : policy -> string
 
 module Make : functor (Platform : PLATFORM) -> sig
   val start_controller : policy Lwt_stream.t -> unit Lwt.t
