@@ -32,6 +32,7 @@ type regex =
 
 type regex_policy = 
   | RegPol of predicate * regex
+  | RegPar of regex_policy * regex_policy
 
 module SwSet = Set.Make(
   struct
@@ -64,6 +65,9 @@ let rec collapse_star pol = match pol with
      1) Second compilation phase that detects repeated nodes and tags packets inbetween such repeats
   *)
 
+(*
+  Semantic issues: we should compile to use 'port' predicates. Otherwise we screw up the directionality of the rules. Also, this allows us to have paths connecting across a node without allowing hosts on that nodes to communicate w/ the path endpoints.
+*)
 let bad_hop_handler s1 s2 sw pt pk =
   Printf.printf "Can not forward pkt from %Ld to %Ld\n" s1 s2
 
@@ -75,8 +79,9 @@ let rec compile1 pred reg topo = match reg with
   | Hop s1 :: Star :: Hop s2 :: reg -> compile1 pred (get_path topo s1 s2) topo
   | _ -> Pol (pred, [])
 
-let compile_regex pol topo = match pol with
+let rec compile_regex pol topo = match pol with
   | RegPol (pred, reg) -> compile1 pred (collapse_star (flatten_reg reg)) topo
+  | RegPar (pol1, pol2) -> Par (compile_regex pol1 topo, compile_regex pol2 topo)
 
 let rec get_ports acts = match acts with
   | (To p) :: acts -> Some p :: get_ports acts

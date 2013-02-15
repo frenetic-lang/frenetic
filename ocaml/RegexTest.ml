@@ -9,9 +9,9 @@ module H = Hashtbl
 
 module Routing = struct
 
-  let s101 = Int64.of_int 101
-  let s102 = Int64.of_int 102
-  let s103 = Int64.of_int 103
+  let s101 = Int64.of_int 1
+  let s102 = Int64.of_int 2
+  let s103 = Int64.of_int 3
   open Regex
     (* Simple linear topo 101 <-> 102 <-> 103 *)
   let make_topo () = 
@@ -34,7 +34,8 @@ module Routing = struct
 
   let (policy, push) = Lwt_stream.create ()
     
-  let test_regex = RegPol (All, Sequence (Hop (Int64.of_int 101), Sequence (Star, Hop (Int64.of_int 103))))
+  let test_regex = RegPar (RegPol (All, Sequence (Hop s101, Sequence (Star, Hop s103))),
+			   RegPol (All, Sequence (Hop s103, Sequence (Star, Hop s101))))
 
   (** Composes learning and routing policies, which together form
       mac-learning. *)      
