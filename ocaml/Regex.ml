@@ -1,5 +1,5 @@
-open NetCore
 open MessagesDef
+open NetCore
 
 (* type graph = (switchId * switchId * int) list *)
 
@@ -26,6 +26,7 @@ let shortest_path = bfs
 
 type regex =
   | Hop of switchId
+  | Host of switchId
   | Star
   | Option of regex * regex
   | Sequence of regex * regex
@@ -41,12 +42,17 @@ module SwSet = Set.Make(
   end)
 
 
-let get_hop topo s1 s2 = try Some (Hashtbl.find (Hashtbl.find (snd topo) s1) s2) with _ -> None
+let get_hop topo s1 s2 = let () = Printf.printf "get_hop %Ld %Ld\n" s1 s2 in
+			 try Some (Hashtbl.find (Hashtbl.find (snd topo) s1) s2) with _ -> None
+
+let get_host_port topo host = try (match (Hashtbl.find (fst topo) host) with
+  | [sw] ->   get_hop topo sw host) with _ -> None
 
 let get_path topo s1 s2 = List.map (fun x -> Hop x) (shortest_path (fst topo) s1 s2)
 
 let rec flatten_reg pol = match pol with
   | Hop sw -> [Hop sw]
+  | Host sw -> [Host sw]
   | Star -> [Star]
   (* | Option reg1 reg2 -> [Option reg1 reg2] *)
   | Sequence (reg1, reg2) -> (flatten_reg reg1) @ (flatten_reg reg2)
@@ -70,17 +76,22 @@ let rec collapse_star pol = match pol with
 *)
 let bad_hop_handler s1 s2 sw pt pk =
   Printf.printf "Can not forward pkt from %Ld to %Ld\n" s1 s2
-
-let rec compile1 pred reg topo = match reg with
+ 
+let rec compile1 pred reg topo port = match reg with
   | Hop s1 :: Hop s2 :: reg -> 
-    (match get_hop topo s1 s1 with
-      | Some p ->  Par ((Pol ((And (pred, (Switch s1))), [To p])), ((compile1 pred ((Hop s2) :: reg) topo)))
-      | None -> Par ((Pol ((And (pred, (Switch s1))), [GetPacket (bad_hop_handler s1 s2)])), ((compile1 pred ((Hop s2) :: reg) topo))))
-  | Hop s1 :: Star :: Hop s2 :: reg -> compile1 pred (get_path topo s1 s2) topo
+    (match get_hop topo s1 s2 with
+      | Some p ->  Par ((Pol ((And (pred, (And (InPort port,Switch s1)))), [To p])), ((compile1 pred ((Hop s2) :: reg) topo port)))
+      | None -> Par ((Pol ((And (pred, (And (InPort port,Switch s1)))), [GetPacket (bad_hop_handler s1 s2)])), ((compile1 pred ((Hop s2) :: reg) topo port))))
+  | Hop s1 :: Star :: Hop s2 :: reg -> compile1 pred (get_path topo s1 s2) topo port
+  | Hop s1 :: [Host h] -> (match get_hop topo s1 h with
+      | Some p ->  Pol ((And (pred, (And (InPort port,Switch s1)))), [To p])
+      | None -> Pol (((And (pred, (And (InPort port,Switch s1))))), [GetPacket (bad_hop_handler s1 h)]))
   | _ -> Pol (pred, [])
 
 let rec compile_regex pol topo = match pol with
-  | RegPol (pred, reg) -> compile1 pred (collapse_star (flatten_reg reg)) topo
+  | RegPol (pred, reg) -> (match (collapse_star (flatten_reg reg)) with
+      | Host h :: reg -> (match get_host_port topo h with
+	  | Some p -> compile1 pred reg topo p))
   | RegPar (pol1, pol2) -> Par (compile_regex pol1 topo, compile_regex pol2 topo)
 
 let rec get_ports acts = match acts with
