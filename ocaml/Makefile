@@ -3,10 +3,10 @@ OCAMLBUILD = ocamlbuild -use-ocamlfind -tag debug -ocamlc '-syntax camlp4o -pack
 
 all: extracted doc Test.d.byte Main.d.byte
 
-Test.d.byte:
+Test.d.byte: Test.ml
 	$(OCAMLBUILD) Test.d.byte
 
-Main.d.byte:
+Main.d.byte: Main.ml
 	$(OCAMLBUILD) Main.d.byte
 
 doc:
