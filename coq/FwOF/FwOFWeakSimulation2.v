@@ -33,9 +33,8 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER)
   Import RelationLemmas.
   Import Relation.
 
-  Lemma SimpleDraimWire : forall sws (swId : switchId) pts tbl inp outp 
+  Lemma DrainWire : forall sws (swId : switchId) pts tbl inp outp 
     ctrlm switchm links src pks0 pks swId pt links0 ofLinks ctrl,
-     exists inp',
      multistep step
       (State 
         ({|Switch swId pts tbl inp outp ctrlm switchm|} <+> sws)
@@ -43,7 +42,7 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER)
         ofLinks ctrl)
       nil
       (State 
-        ({|Switch swId pts tbl inp' outp ctrlm switchm|} <+> sws)
+        ({|Switch swId pts tbl (FromList (map (fun pk => (pt,pk)) pks) <+> inp) outp ctrlm switchm|} <+> sws)
         (links ++ (DataLink src pks0 (swId,pt)) :: links0)
         ofLinks ctrl).
    Proof with auto.
@@ -51,19 +50,54 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER)
      generalize dependent inp0. 
      generalize dependent pks1.
      induction pks1 using rev_ind.
-     intros.
-     simpl in *.
-     exists inp0...
-     rewrite -> app_nil_r...
+     + intros.
+       simpl in *.
+       rewrite -> app_nil_r.
+       apply multistep_tau with 
+       (a0 := State ({|Switch swId1 pts0 tbl0 (FromList nil <+> inp0) outp0 ctrlm0 switchm0|} <+> sws)
+                    (links0 ++ DataLink src0 pks0 (swId1,pt) :: links1)
+                    ofLinks0
+                    ctrl0).
+       apply StepEquivState.
+       apply StateEquiv.
+       apply Bag.pop_union_r.
+       apply Bag.equiv_singleton.
+       apply SwitchEquiv; try solve [apply reflexivity].
+       rewrite -> Bag.FromList_nil_is_Empty.
+       rewrite -> Bag.union_empty_l.
+       apply reflexivity.
+       apply multistep_nil.
      (* inductive case *)
-     intros. 
-     destruct (IHpks1 ( ({| (pt, x) |}) <+> inp0)) as [inp1 IHstep].
-     exists (inp1). 
-     eapply multistep_tau.
-     rewrite -> (app_assoc pks0 pks1).
-     apply RecvDataLink.
-     apply IHstep.
+     + intros. 
+       eapply multistep_tau.
+       rewrite -> (app_assoc pks0 pks1).
+       apply RecvDataLink.
+       rewrite -> map_app.
+       eapply multistep_app with
+       (s2 := State ({|Switch swId1 pts0 tbl0 (FromList (map (fun pk => (pt,pk)) pks1) <+> (({|(pt,x)|}) <+> inp0)) outp0 ctrlm0 switchm0|} <+> sws)
+                    (links0 ++ DataLink src0 pks0 (swId1,pt) :: links1)
+                    ofLinks0
+                    ctrl0).
+       apply (IHpks1 ( ({| (pt, x) |}) <+> inp0)).
+       apply multistep_tau with
+        (a0 := State ({|Switch swId1 pts0 tbl0 (FromList (map (fun pk => (pt,pk)) pks1 ++ map (fun pk => (pt,pk)) [x]) <+> inp0) outp0 ctrlm0 switchm0|} <+> sws)
+                    (links0 ++ DataLink src0 pks0 (swId1,pt) :: links1)
+                    ofLinks0
+                    ctrl0).
+       apply StepEquivState.
+       apply StateEquiv.
+       apply Bag.pop_union_r.
+       apply Bag.equiv_singleton.
+       apply SwitchEquiv; try solve [apply reflexivity].
+       simpl.
+       rewrite -> Bag.FromList_app.
+       rewrite -> Bag.from_list_singleton.
+       rewrite -> Bag.union_assoc.
+       apply reflexivity.
+       apply multistep_nil.
+       simpl...
    Qed.
+
 
   Lemma ObserveFromOutp : forall pktOuts pktIns pk pt0 pt1
     swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0
@@ -110,30 +144,30 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER)
                                              ctrlm0 switchm0|})).
       rewrite -> Bag.union_assoc.
       apply Bag.pop_union; apply reflexivity.
-      
 
-    destruct (SimpleDraimWire 
+    eapply multistep_app with (obs2 := [(swId1,pt1,pk)]).
+    apply (DrainWire 
       (({|Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0|}) <+> sws)
       swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1 
-      links0 (swId0,pt0) [pk] pks0 swId1 pt1 links1 ofLinks0 ctrl0)
-    as [inp4 step].
-    eapply multistep_app with (obs2 := [(swId1,pt1,pk)]).
-    exact step.
-    
+      links0 (swId0,pt0) [pk] pks0 swId1 pt1 links1 ofLinks0 ctrl0).
     assert ([pk] = nil ++ [pk]) as X... rewrite -> X. clear X.
-
     eapply multistep_tau.
     apply RecvDataLink.
-
     eapply multistep_obs.
     apply PktProcess.
     instantiate (1 := pktIns).
     instantiate (1 := pktOuts).
     symmetry...
-
-    idtac "TODO(arjun): SimpleDrainWire needs to describe its output.".
-    admit.
-    simpl...
+    match goal with
+    | [ |- multistep step _ nil ?Y ] => remember Y as S2
+    end.
+    eapply multistep_tau with (a0 := S2).
+    subst.
+    apply StepEquivState.
+    apply StateEquiv.
+    bag_perm 100.
+    apply multistep_nil.
+    trivial.
   Qed.
 
   (** Remark is for another lemma, not ObserveFromController!
@@ -1067,19 +1101,17 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER)
     assert ((pks01 ++ [pk]) ++ pks02 = pks01 ++ pk :: pks02) as X.
       rewrite <- app_assoc...
     rewrite <- X. clear X.
-    destruct (SimpleDraimWire sws
-      swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0
-      links01 src0 (pks01 ++ [pk]) pks02 swId0 pt links02 ofLinks0 ctrl0)
-    as [inp4 step].
     eapply multistep_app with (obs2 := [(swId0,pt,pk)]).
-    exact step.
+    apply (DrainWire sws
+      swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0
+      links01 src0 (pks01 ++ [pk]) pks02 swId0 pt links02 ofLinks0 ctrl0).
     eapply multistep_tau.
     apply RecvDataLink.
     eapply multistep_obs.
     apply PktProcess.
       symmetry. exact Hprocess.
-    admit. (* TODO(arjun): requires touchup to RecvDataLink. *)
-    auto.
+    apply multistep_nil.
+    trivial.
     rewrite -> H. apply reflexivity.
     trivial.
 
