@@ -1,5 +1,5 @@
 MODULES := FwOF FwOFRelation FwOFSimpleController FwOFSimpleControllerLemmas \
-	FwOFRelationLemmas FwOFWeakSimulation1 FwOFWeakSimulation2 FwOFBisimulation 
+	FwOFWeakSimulation1 FwOFWeakSimulation2 FwOFRelationLemmas FwOFBisimulation 
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean

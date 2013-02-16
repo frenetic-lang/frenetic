@@ -42,6 +42,10 @@ Section Methods.
     Mem x b ->
     Mem y b.
 
+  Axiom to_list_nil : forall (b : bag A),
+    to_list b = nil ->
+    b === Empty.
+
   Lemma union_iff : forall (x : A) (b1 b2 : bag A),
     multiplicity x (Union b1 b2) = multiplicity x b1 + multiplicity x b2.
   Proof with auto.

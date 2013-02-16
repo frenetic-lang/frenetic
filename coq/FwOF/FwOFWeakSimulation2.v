@@ -215,11 +215,22 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER)
     generalize dependent tbl0.
     generalize dependent outp0.
     induction lst; intros.
-    assert (ctrlm0 = Empty) as X. admit.
-    subst.
-    eauto.
+    + exists tbl0.
+      exists outp0.
+      apply multistep_tau with
+        (a0 := State ({|Switch swId0 pts0 tbl0 inp0 outp0 Empty switchm0|} <+> sws0)
+                     links0
+                     ofLinks0
+                     ctrl0).
+      apply StepEquivState.
+      apply StateEquiv.
+      apply Bag.pop_union_r.
+      apply Bag.equiv_singleton.
+      apply SwitchEquiv; try solve [apply reflexivity].
+      apply Bag.to_list_nil...
+      apply multistep_nil.
     (* Inductive case *)
-    assert (ctrlm0 === ({|a|}) <+> (FromList lst)) as X. admit.
+    + assert (ctrlm0 === ({|a|}) <+> (FromList lst)) as X. admit.
     destruct a.
     (* PacketOut case *)
     destruct (IHlst ({|(p,p0)|} <+> outp0) tbl0 (FromList lst))
