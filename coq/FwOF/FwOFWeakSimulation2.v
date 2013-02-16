@@ -10,7 +10,7 @@ Require Import Common.Types.
 Require Import Common.Bisimulation.
 Require Import Bag.Bag.
 Require Import FwOF.FwOF.
-Require FwOF.FwOFRelationLemmas.
+Require FwOF.FwOFRelation.
 
 (* TODO(arjun): This is a stupid dependency. But, without it, we need signatures
    for FwOF.Concrete and FwOF.FwOFRelations and make the weak bisimulation a
@@ -21,12 +21,13 @@ Local Open Scope list_scope.
 Local Open Scope equiv_scope.
 Local Open Scope bag_scope.
 
-Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
+Module Make (AtomsAndController : ATOMS_AND_CONTROLLER)
+            (Lemmas : FwOF.FwOFRelation.LEMMAS).
 
   Import AtomsAndController.
   Import Atoms.
   Import FwOF.
-  Module WeakSim1 := FwOF.FwOFWeakSimulation1.Make (AtomsAndController).
+  Module WeakSim1 := FwOF.FwOFWeakSimulation1.Make (AtomsAndController) (Lemmas).
   Import WeakSim1.
   Import RelationLemmas.
   Import Relation.

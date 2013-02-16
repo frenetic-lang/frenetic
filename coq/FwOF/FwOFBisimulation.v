@@ -3,6 +3,7 @@ Set Implicit Arguments.
 Require Import Coq.Classes.Equivalence.
 Require Import Common.Bisimulation.
 Require Import FwOF.FwOF.
+Require FwOF.FwOFRelationLemmas.
 Require FwOF.FwOFWeakSimulation1.
 Require FwOF.FwOFWeakSimulation2.
 
@@ -10,7 +11,9 @@ Local Open Scope equiv_scope.
 
 Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
 
-  Module WeakSim2 := FwOF.FwOFWeakSimulation2.Make (AtomsAndController).
+  Module WeakSim2 := FwOF.FwOFWeakSimulation2.Make 
+                       (AtomsAndController) 
+                       (FwOF.FwOFRelationLemmas.Make).
   Module WeakSim1 := WeakSim2.WeakSim1. 
 
   Import WeakSim1.RelationLemmas.Relation.
