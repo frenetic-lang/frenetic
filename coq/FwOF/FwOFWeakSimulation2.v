@@ -794,12 +794,15 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER)
     simpl.
     apply reflexivity.
     trivial.
-    (* idiotic contradiction in HSingleton. Below we match the stupid goal directly
-       so that we don't accidentally admit something else if the goal is discharged
-       earlier due to refactoring. *)
-    match goal with
-      | [ H : ({||}) === ({|(sw, pt, pk)|}) <+> HEmpty |- _] => admit
-    end.
+    assert (Mem (sw,pt,pk) Empty) as Hcontra.
+    { eapply Bag.Mem_equiv.
+      apply symmetry.
+      exact HSingleton.
+      simpl.
+      left...
+      apply reflexivity. }
+    simpl in Hcontra.
+    inversion Hcontra.
 
     (* ********************************************************************** *)
     (* Case 3 : Packet is in a PacketOut message                              *)
@@ -1034,12 +1037,16 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER)
     unfold relate.
     simpl.
     apply reflexivity.
-    trivial.  
-    (* idiotic contradiction. Below we match the stupid
-       goal directly so that we don't accidentally admit something
-       else if the goal is discharged earlier due to refactoring. *)
-    is_var HPktEq. admit.
-
+    trivial.
+    assert (Mem (sw,pt,pk) Empty) as Hcontra.
+    { eapply Bag.Mem_equiv.
+      apply symmetry.
+      apply reflexivity.
+      rewrite -> HPktEq.
+      simpl.
+      apply reflexivity. }
+    inversion Hcontra.
+  
     (* ********************************************************************** *)
     (* Case 5 : Packet is on a data link                                      *)
     (* ********************************************************************** *)
@@ -1249,10 +1256,14 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER)
     simpl.
     apply reflexivity.
     trivial.
-    (* idiotic contradiction. Below we match the stupid
-       goal directly so that we don't accidentally admit something
-       else if the goal is discharged earlier due to refactoring. *)
-    is_var HPktEq. admit.
+    assert (Mem (sw,pt,pk) Empty) as Hcontra.
+    { eapply Bag.Mem_equiv.
+      apply reflexivity.
+      rewrite -> HPktEq.
+      simpl.
+      apply reflexivity. }
+    simpl in Hcontra.
+    inversion Hcontra.
 
     (* ************************************************************************)
     (* Case 8 : Packet is at the controller                                   *)
@@ -1278,10 +1289,15 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER)
     simpl.
     apply reflexivity.
     trivial.
-    (* idiotic contradiction. Below we match the stupid
-       goal directly so that we don't accidentally admit something
-       else if the goal is discharged earlier due to refactoring. *)
-    is_var Hrel. admit.
+    assert (Mem (sw,pt,pk) Empty) as Hcontra.
+    { eapply Bag.Mem_equiv.
+      apply symmetry.
+      apply reflexivity.
+      rewrite -> Hrel.
+      simpl.
+      apply reflexivity. }
+    simpl in Hcontra.
+    inversion Hcontra.
 Qed.
 
 End Make.
