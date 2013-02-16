@@ -555,7 +555,8 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
         exists (OfLinksHaveSrc_pres3 ofLinksHaveSw1).
         eauto.
       (* Case 9. *)
-      + exists tblsOk1.
+      + simpl in *.
+        exists tblsOk1.
         exists linksTopoOk1.
         exists haveSrc1.
         exists haveDst1.
@@ -564,36 +565,27 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
         unfold AllFMS.
         simpl in *.
         intros.
-        unfold AllFMS in allFMS1. apply allFMS1 in H1.
-        destruct H1 as [lnk [HIn [HLnkIdEq HFMS]]].
+        unfold AllFMS in allFMS1.
+        destruct (allFMS1 _ H1) as [lnk [HIn [HLnkIdEq HFMS]]].
         apply in_app_iff in HIn; simpl in HIn.
-        destruct HIn as [HIn | [HIn | HIn]].
-        solve [ exists lnk; auto with datatypes ].
-        2: solve [ exists lnk; auto with datatypes ].
-        exists (OpenFlowLink swId0 fromSwitch0 (msg :: fromCtrl)).
-        split.
-        solve [ auto with datatypes ].
-        subst. simpl in *.
-        split. solve [ trivial ].
-        (* hard part here *)
-        clear HLnkIdEq.
-        inversion HFMS; subst.
-        inversion H4; subst.
-        eapply MkFMS...
-        destruct H6 as [ctrlEp0 HSafeWire].
-        assert (Mem (Switch swId0 pts0 (table_at_endpoint switchEp)
-                            inp0 outp0 ctrlm0 switchm0) sws) as HSwMem.
-          admit.
-         destruct (ControllerFMS fromCtrl _ _ _ P0 H0 H HSwMem H4) 
-          as [ctrlEp1 HSafeWire1].
-        solve [ exists ctrlEp1; trivial ].
-        eapply MkFMS...
-        destruct H6 as [ctrlEp0 HSafeWire].
-        assert (Mem (Switch swId0 pts0 tbl0
-                            inp0 outp0 ctrlm0 switchm0) sws) as HSwMem by admit.
-        destruct (ControllerFMS fromCtrl _ _ _ P0 H0 H HSwMem H4) 
-          as [ctrlEp1 HSafeWire1].
-        solve [ exists ctrlEp1; trivial ].
+        { destruct HIn as [HIn | [HIn | HIn]].
+        * exists lnk; auto with datatypes.
+        * exists (OpenFlowLink swId0 fromSwitch0 (msg :: fromCtrl)).
+          split...
+          split; subst...
+          simpl in *.
+          destruct sw.
+          subst.
+          inversion HFMS; subst.
+          inversion H4; subst.
+          simpl in *.
+          - eapply MkFMS...
+            destruct H12 as [ctrlEp0 HSafeWire].
+            destruct (ControllerFMS fromCtrl _ _ _ P0 H0 H H1 H4) as [ctrlEp1 HSafeWire1]...
+          - eapply MkFMS...
+            destruct H12 as [ctrlEp0 HSafeWire].
+            destruct (ControllerFMS fromCtrl _ _ _ P0 H0 H H1 H4) as [ctrlEp1 HSafeWire1]...
+        * exists lnk; auto with datatypes. }
         exists...
         exists. eapply AllDiff_preservation. exact uniqOfLinkIds1.
           simpl. do 2 rewrite -> map_app...
