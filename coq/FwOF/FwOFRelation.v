@@ -56,6 +56,14 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
 
   Definition UniqSwIds (sws : bag switch) := AllDiff swId (Bag.to_list sws).
 
+  Definition ofLinkHasSw (sws : bag switch) (ofLink : openFlowLink) :=
+    exists sw,
+      Mem sw sws /\
+      of_to ofLink = swId sw.
+
+  Definition OFLinksHaveSw (sws : bag switch) (ofLinks : list openFlowLink) :=
+    forall ofLink, In ofLink ofLinks -> ofLinkHasSw sws ofLink.
+
   Record concreteState := ConcreteState {
     devices : state;
     concreteState_flowTableSafety : FlowTablesSafe (switches devices);
@@ -64,7 +72,9 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     linksHaveDst : LinksHaveDst (switches devices) (links devices);
     uniqSwIds : UniqSwIds (switches devices);
     allFMS : AllFMS (switches devices) (ofLinks devices);
-    ctrlP : P (switches devices) (ofLinks devices) (ctrl devices)
+    ctrlP : P (switches devices) (ofLinks devices) (ctrl devices);
+    uniqOfLinkIds : AllDiff of_to (ofLinks devices);
+    ofLinksHaveSw : OFLinksHaveSw (switches devices) (ofLinks devices)
   }.
 
   Implicit Arguments ConcreteState [].
@@ -134,15 +144,20 @@ Module Type LEMMAS (AtomsAndController : ATOMS_AND_CONTROLLER).
     (haveDst1 : LinksHaveDst (switches st1) (links st1))
     (uniqSwIds1 : UniqSwIds (switches st1))
     (allFMS1 : AllFMS (switches st1) (ofLinks st1))
-    (P1 : P (switches st1) (ofLinks st1) (ctrl st1)),
+    (P1 : P (switches st1) (ofLinks st1) (ctrl st1))
+    (uniqOfLinkIds1 : AllDiff of_to (ofLinks st1))
+    (ofLinksHaveSw1 : OFLinksHaveSw (switches st1) (ofLinks st1)),
     multistep step st1 obs st2 ->
-    exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2 allFMS2 P2,
+    exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2 allFMS2 P2
+           uniqOfLinkIds2 ofLinksHaveSw2,
       multistep concreteStep
                 (ConcreteState st1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1 
-                               uniqSwIds1 allFMS1 P1)
+                               uniqSwIds1 allFMS1 P1 uniqOfLinkIds1
+                               ofLinksHaveSw1)
                 obs
                 (ConcreteState st2 tblsOk2 linksTopoOk2 haveSrc2 haveDst2 
-                               uniqSwIds2 allFMS2 P2).
+                               uniqSwIds2 allFMS2 P2 uniqOfLinkIds2
+                               ofLinksHaveSw2).
 
 
   Parameter simpl_weak_sim : forall devs1 devs2 sw pt pk lps
@@ -152,7 +167,9 @@ Module Type LEMMAS (AtomsAndController : ATOMS_AND_CONTROLLER).
     (haveDst1 : LinksHaveDst (switches devs1) (links devs1))
     (uniqSwIds1 : UniqSwIds (switches devs1))
     (allFMS1 : AllFMS (switches devs1) (ofLinks devs1))
-    (P1 : P (switches devs1) (ofLinks devs1) (ctrl devs1)),    
+    (P1 : P (switches devs1) (ofLinks devs1) (ctrl devs1))
+    (uniqOfLinkIds1 : AllDiff of_to (ofLinks devs1))
+    (ofLinksHaveSw1 : OFLinksHaveSw (switches devs1) (ofLinks devs1)),
     multistep step devs1 [(sw,pt,pk)] devs2 ->
     relate devs1 === ({| (sw,pt,pk) |} <+> lps) ->
     abstractStep
@@ -166,7 +183,8 @@ Module Type LEMMAS (AtomsAndController : ATOMS_AND_CONTROLLER).
        t /\
      multistep concreteStep
                (ConcreteState devs1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1
-                              uniqSwIds1 allFMS1 P1)
+                              uniqSwIds1 allFMS1 P1 uniqOfLinkIds1
+                              ofLinksHaveSw1)
                [(sw,pt,pk)]
                t.
 

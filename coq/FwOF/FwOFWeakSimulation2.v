@@ -8,6 +8,7 @@ Require Import Coq.Classes.Morphisms.
 Require Import Coq.Setoids.Setoid.
 Require Import Common.Types.
 Require Import Common.Bisimulation.
+Require Import Common.AllDiff.
 Require Import Bag.Bag.
 Require Import FwOF.FwOF.
 Require FwOF.FwOFRelation.
@@ -930,6 +931,7 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER)
       | [ H : multistep step ?s1 nil ?s2 |- _ ] =>
         remember s1 as S1; remember s2 as S2
     end.
+    idtac "TODO(arjun): have to show these are preserved under equivalence.".
     assert (FlowTablesSafe (switches S1)) as tblsOk0. admit.
     assert (ConsistentDataLinks (links S1)) as linksTopoOk0. subst...
     assert (LinksHaveSrc (switches S1) (links S1)) as haveSrc0. subst... admit.
@@ -937,12 +939,13 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER)
     assert (UniqSwIds (switches S1)) as uniqSwIds0'. subst... admit.
     assert (AllFMS (switches S1) (ofLinks S1)) as allFMS0'. subst... admit.
     assert (P (switches S1) (ofLinks S1) (ctrl S1)) as ctrlP1'. admit.
-
+    assert (AllDiff of_to (ofLinks S1)) as uniqOfLinkIds0'. admit.
+    assert (OFLinksHaveSw (switches S1) (ofLinks S1)) as ofLinksHaveSw0'. admit.
     destruct (simpl_multistep tblsOk0 linksTopoOk0 haveSrc0 haveDst0 
                               uniqSwIds0' allFMS0' 
-                              ctrlP1' Hstep2)
+                              ctrlP1' uniqOfLinkIds0' ofLinksHaveSw0' Hstep2)
              as [tblsOk1 [linksTopoOk1 [haveSrc1 [haveDst1 
-                  [uniqSwIds1 [allFMS1 [ctrlP1 _]]]]]]].
+                  [uniqSwIds1 [allFMS1 [ctrlP1 [uniqOfLinkIds1 [ofLinksHaveSrc1 _]]]]]]]]].
     subst.
     simpl in *.
     destruct (ControllerRecvLiveness sws1 links1 ofLinks10 swId0 nil
@@ -1155,10 +1158,13 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER)
     assert (UniqSwIds (switches S1)) as uniqSwIds0'. subst...
     assert (AllFMS (switches S1) (ofLinks S1)) as allFMS0'. subst. admit...
     assert (P (switches S1) (ofLinks S1) (ctrl S1)) as ctrlP1'. admit.
+    assert (AllDiff of_to (ofLinks S1)) as uniqOfLinkIds0'. admit.
+    assert (OFLinksHaveSw (switches S1) (ofLinks S1)) as ofLinksHaveSw0'. admit.
     destruct (simpl_multistep tblsOk0 linksTopoOk0 haveSrc0 haveDst0 
-                              uniqSwIds0' allFMS0' ctrlP1' Hstep1)
+                              uniqSwIds0' allFMS0' ctrlP1' uniqOfLinkIds0'
+                              ofLinksHaveSw0' Hstep1)
              as [tblsOk1 [linksTopoOk1 [haveSrc1 [haveDst1 
-                   [uniqSwIds1 [allFMS1 [ctrlP1 _]]]]]]].
+                   [uniqSwIds1 [allFMS1 [ctrlP1 [uniqOfLinkIds1 [ofLinksHaveSw1 _]]]]]]]]].
     subst.
     simpl in *.
     destruct (ControllerRecvLiveness sws1 links1 ofLinks10 of_to0 switchm0
