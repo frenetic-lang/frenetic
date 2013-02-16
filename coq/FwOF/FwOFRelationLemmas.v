@@ -250,16 +250,6 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
 
   End FMS.
 
-  Lemma SwId_eq_Switch : forall (sw1 sw2 : switch) (sws : bag switch),
-    UniqSwIds sws ->
-    Mem sw1 sws ->
-    Mem  sw2 sws ->
-    swId sw1 = swId sw2 ->
-    sw1 === sw2.
-  Proof with eauto.
-    idtac "TODO(arjun): skipped infrastructure lemma swId_eq_Switch (is this even used?)".
-  Admitted.
-
   Hint Unfold UniqSwIds.
   Hint Resolve step_preserves_P.
 
@@ -709,10 +699,36 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     autorewrite with bag using simpl.
     destruct dst0.
     rewrite -> Bag.from_list_cons.
-    idtac "TODO(arjun): trivial use of linkTopo consistency needed.".
-    admit.
+    assert (topo (src (DataLink (swId0, pt) pks0 (s,p))) =
+            Some (dst (DataLink (swId0, pt) pks0 (s,p)))) as Jtopo.
+    {
+      unfold ConsistentDataLinks in concreteState_consistentDataLinks0.
+      apply concreteState_consistentDataLinks0.
+        simpl in H1.
+        rewrite <- H1.
+        simpl... }
+    simpl in Jtopo.
+    rewrite -> Jtopo.
+    bag_perm 100.
     (* 5. RecvDataLink case. *)
     idtac "Proving relate_step_simpl_tau (Case 5 of 11)...".
+    destruct st1. destruct st2. subst. unfold relate. simpl.
+    autorewrite with bag using simpl.
+    bag_perm 100.
+    rewrite -> Bag.from_list_cons.
+
+    assert (topo (src (DataLink (swId0, pt) pks0 (s,p))) =
+            Some (dst (DataLink (swId0, pt) pks0 (s,p)))) as Jtopo.
+    {
+      unfold ConsistentDataLinks in concreteState_consistentDataLinks0.
+      apply concreteState_consistentDataLinks0.
+        simpl in H1.
+        rewrite <- H1.
+        simpl... }
+    simpl in Jtopo.
+    rewrite -> Jtopo.
+    bag_perm 100.
+
     idtac "TODO(arjun): trivial use of linkTopo consistency needed.".
     admit.
     (* 6. Controller steps *)
