@@ -536,7 +536,6 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
       exists ctrlEp...
     Qed.
 
-
     Lemma SafeWire_dequeue_PacketOut : forall sw ctrlEp ctrlLst pt pk switchEp,
       SafeWire sw ctrlEp (ctrlLst ++ [PacketOut pt pk]) switchEp ->
       SafeWire sw ctrlEp (ctrlLst) switchEp.
@@ -548,6 +547,37 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
       + inversion H; subst...
     Qed.
 
+    Lemma SafeWire_dequeue_BarrierRequest : forall sw ctrlEp ctrlLst xid 
+      switchEp1,
+      SafeWire sw ctrlEp (ctrlLst ++ [BarrierRequest xid]) switchEp1 ->
+      exists switchEp2, SafeWire sw ctrlEp (ctrlLst) switchEp2 /\
+        table_at_endpoint switchEp2 = table_at_endpoint switchEp1.
+    Proof with eauto.
+      intros.
+      generalize dependent ctrlEp.
+      induction ctrlLst; intros.
+      + inversion H; subst.
+        inversion H5. subst.
+        exists (Endpoint_Barrier (table_at_endpoint switchEp1)).
+        split.
+        apply SafeWire_nil.
+        simpl...
+        simpl...
+      + simpl in H.
+        inversion H; subst.
+        * apply IHctrlLst in H5.
+          destruct H5 as [switchEp2 [HSafeWire HEpEq]].
+          exists switchEp2.
+          split; simpl...
+        * apply IHctrlLst in H5.
+          destruct H5 as [switchEp2 [HSafeWire HEpEq]].
+          exists switchEp2.
+          split; simpl...
+        * apply IHctrlLst in H6.
+          destruct H6 as [switchEp2 [HSafeWire HEpEq]].
+          exists switchEp2.
+          split; simpl...
+    Qed.
 
     Lemma SafeWire_dequeue_safe : forall sw ctrlEp ctrlLst f switchEp,
        SafeWire sw ctrlEp (ctrlLst ++ [FlowMod f]) switchEp ->

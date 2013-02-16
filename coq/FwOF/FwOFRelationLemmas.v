@@ -582,8 +582,9 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
         eapply MkFMS...
         destruct H6 as [ctrlEp0 HSafeWire].
         assert (Mem (Switch swId0 pts0 (table_at_endpoint switchEp)
-                            inp0 outp0 ctrlm0 switchm0) sws) as HSwMem by admit.
-        destruct (ControllerFMS fromCtrl _ _ _ P0 H0 H HSwMem H4) 
+                            inp0 outp0 ctrlm0 switchm0) sws) as HSwMem.
+          admit.
+         destruct (ControllerFMS fromCtrl _ _ _ P0 H0 H HSwMem H4) 
           as [ctrlEp1 HSafeWire1].
         solve [ exists ctrlEp1; trivial ].
         eapply MkFMS...
@@ -696,8 +697,18 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
                     OpenFlowLink swId1 fromSwitch0 (fromCtrl ++ [BarrierRequest xid])) as HEqOf.
             { eapply AllDiff_uniq... }
             inversion HEqOf; subst; clear HEqOf.
-            idtac "TODO(arjun): case not complete.".
-            admit.
+            inversion HFMS; subst.
+            destruct H11 as [ctrlEp HSafeWire].
+            destruct (SafeWire_dequeue_BarrierRequest _ _ HSafeWire) as [switchEp2 [HSafeWire2 HEpEq]].
+            inversion H3; subst.
+            * apply MkFMS with (switchEp := switchEp2)...
+              apply NoFlowModsInBuffer. intros. simpl in H1. inversion H1.
+              auto.
+            * assert (Mem (FlowMod f) Empty) as X.
+                eapply Bag.Mem_equiv with (ED := eqdec).
+                apply symmetry. exact H11. simpl. left... apply reflexivity.
+              simpl in X.
+              inversion X.
           + destruct (allFMS1 (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm0 switchm1)) as [lnk [HLnkIn [HId HFMS]]].
             { simpl. right. simpl in H0. destruct H0. inversion H0. subst. contradiction n...  exact H0. }
             exists lnk.
@@ -719,7 +730,6 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
         exists (LinksHaveSrc_untouched haveSrc1).
         exists (LinksHaveDst_untouched haveDst1).
         exists (UniqSwIds_pres uniqSwIds1).
-        idtac "TODO(arjun): FMS for NotBarrierRecv -- important case".
         eexists.
         unfold AllFMS in *. intros. destruct sw. subst.
         assert ({swId0 = swId1 } + { swId0 <> swId1 }) as HIdEq by apply eqdec.
