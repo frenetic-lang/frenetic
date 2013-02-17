@@ -127,6 +127,17 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     right...
   Qed.
 
+  Lemma TblsOK_sws_equiv : forall sws1 sws2,
+    sws1 === sws2 ->
+    FlowTablesSafe sws2 ->
+    FlowTablesSafe sws2.
+  Proof with eauto with datatypes.
+    unfold FlowTablesSafe.
+    intros.
+    apply H0 in H1...
+  Qed.
+
+
   Lemma FlowTablesSafe_untouched : forall {sws swId pts tbl inp inp'
     outp outp' ctrlm ctrlm' switchm switchm' },
     FlowTablesSafe

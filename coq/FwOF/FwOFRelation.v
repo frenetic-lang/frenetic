@@ -188,5 +188,13 @@ Module Type LEMMAS (AtomsAndController : ATOMS_AND_CONTROLLER).
                [(sw,pt,pk)]
                t.
 
+  Parameter FlowTablesSafe_untouched : forall {sws swId pts tbl inp inp'
+    outp outp' ctrlm ctrlm' switchm switchm' },
+    FlowTablesSafe
+      ({|Switch swId pts tbl inp outp ctrlm switchm|} <+> sws) ->
+    FlowTablesSafe 
+      ({|Switch swId pts tbl inp' outp' ctrlm' switchm'|} <+> sws).
+
+
 End LEMMAS.
 

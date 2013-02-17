@@ -979,9 +979,19 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER)
       | [ H : multistep step ?s1 nil ?s2 |- _ ] =>
         remember s1 as S1; remember s2 as S2
     end.
-    idtac "TODO(arjun): have to show these are preserved under equivalence.".
-    assert (FlowTablesSafe (switches S1)) as tblsOk0. admit.
+    assert (FlowTablesSafe (switches S1)) as tblsOk0.
+    { subst.
+      unfold switches in *.
+      eapply FlowTablesSafe_untouched.
+      unfold FlowTablesSafe in *. 
+      intros.
+      eapply concreteState_flowTableSafety0...
+      eapply Bag.Mem_equiv.
+      apply symmetry.
+      exact Xrel.
+      exact H1. }
     assert (ConsistentDataLinks (links S1)) as linksTopoOk0. subst...
+    idtac "TODO(arjun): have to show these are preserved under equivalence.".
     assert (LinksHaveSrc (switches S1) (links S1)) as haveSrc0. subst... admit.
     assert (LinksHaveDst (switches S1) (links S1)) as haveDst0. subst... admit.
     assert (UniqSwIds (switches S1)) as uniqSwIds0'. subst... admit.
