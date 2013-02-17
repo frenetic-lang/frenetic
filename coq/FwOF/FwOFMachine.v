@@ -6,77 +6,16 @@ Require Import Coq.Classes.Equivalence.
 Require Import Coq.Classes.EquivDec.
 Require Import Common.Types.
 Require Import Bag.Bag.
+Require Import FwOF.FwOFSignatures.
 
 Local Open Scope list_scope.
 Local Open Scope equiv_scope.
 Local Open Scope bag_scope.
 
-Module Type NETWORK_ATOMS.
+Module Make (Atoms_ : ATOMS) <: MACHINE.
 
-  Parameter packet : Type.
-  Parameter switchId : Type.
-  Parameter portId : Type.
-  Parameter flowTable : Type.
-  Parameter flowMod : Type.
-
-  Inductive fromController : Type :=
-  | PacketOut : portId -> packet -> fromController
-  | BarrierRequest : nat -> fromController
-  | FlowMod : flowMod -> fromController.
-
-  Inductive fromSwitch : Type :=
-  | PacketIn : portId -> packet -> fromSwitch
-  | BarrierReply : nat -> fromSwitch.
-
-  (** Produces a list of packets to forward out of ports, and a list of packets
-      to send to the controller. *)
-  Parameter process_packet : flowTable -> portId -> packet -> 
-    list (portId * packet) * list packet.
-
-  Parameter modify_flow_table : flowMod -> flowTable -> flowTable.
-
-  Parameter packet_eq_dec : Eqdec packet.
-  Parameter switchId_eq_dec : Eqdec switchId.
-  Parameter portId_eq_dec : Eqdec portId.
-  Parameter flowTable_eq_dec : Eqdec flowTable.
-  Parameter flowMod_eq_dec : Eqdec flowMod.
-  Declare Instance Eq_switchId : Eq switchId.
-  Declare Instance Eq_portId : Eq portId.
-  Declare Instance Eq_packet : Eq packet.
-
-  Instance EqDec_switchId : EqDec switchId eq := eqdec.
-  Instance EqDec_portId : EqDec portId eq := eqdec.
-  Instance EqDec_packet : EqDec packet eq := eqdec. 
-
-End NETWORK_ATOMS.
-
-Module Type NETWORK_AND_POLICY <: NETWORK_ATOMS.
-
-  Include NETWORK_ATOMS.
-
-  Parameter topo : switchId * portId -> option (switchId * portId).
-  Parameter abst_func : switchId -> portId -> packet -> list (portId * packet).
-
-End NETWORK_AND_POLICY.
-
-(** Elements of a Featherweight OpenFlow model. *)
-Module Type ATOMS <: NETWORK_AND_POLICY.
-
-  Include NETWORK_AND_POLICY.
-
-  Parameter controller : Type.
-
-  Parameter controller_recv : controller -> switchId -> fromSwitch -> 
-    controller -> Prop.
-
-  Parameter controller_step : controller -> controller -> Prop.
-
-  Parameter controller_send : controller ->  controller -> switchId -> 
-    fromController -> Prop.
-
-End ATOMS.
-
-Module ConcreteSemantics (Import Atoms : ATOMS).
+  Module Atoms := Atoms_.
+  Import Atoms.
 
   Section DecidableEqualities.
 
@@ -205,10 +144,7 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
       apply SwitchEquiv; eapply transitivity...
     Qed.
 
-    Instance switch_Equivalence : Equivalence switch_equiv.
-    Proof.
-      exact switch_equiv_is_Equivalence.
-    Qed.
+    Instance switch_Equivalence : Equivalence switch_equiv := switch_equiv_is_Equivalence.
 
     Instance switch_eqdec : EqDec switch switch_equiv.
     Proof with subst.
@@ -264,10 +200,8 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
 
   Existing Instances switch_Equivalence switch_eqdec.
 
-  Instance stateEquiv_Equivalence : Equivalence stateEquiv.
-  Proof. 
-    exact stateEquiv_is_Equivalence.
-  Qed.
+  Instance stateEquiv_Equivalence : Equivalence stateEquiv :=
+    stateEquiv_is_Equivalence.
     
   Inductive step : state -> option observation -> state -> Prop :=
   | StepEquivState : forall st1 st2,
@@ -720,80 +654,4 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
 
   End FlowModSafety.
 
-End ConcreteSemantics.
-
-Module Type ATOMS_AND_CONTROLLER.
-
-  Require Import Common.Bisimulation.
-
-  Module Import Atoms : ATOMS.
-    Include ATOMS.
-  End Atoms.
-
-  Module Import FwOF := ConcreteSemantics (Atoms).
-
-  Parameter relate_controller : controller -> bag (switchId * portId * packet).
-
-  Parameter ControllerRemembersPackets :
-    forall (ctrl ctrl' : controller),
-      controller_step ctrl ctrl' ->
-      relate_controller ctrl = relate_controller ctrl'.
-
-  Parameter P : bag switch -> list openFlowLink -> controller -> Prop.
-  
-  Parameter step_preserves_P : forall sws0 sws1 links0 links1 ofLinks0 ofLinks1 
-    ctrl0 ctrl1 obs,
-    step (State sws0 links0 ofLinks0 ctrl0)
-         obs
-         (State sws1 links1 ofLinks1 ctrl1) ->
-    P sws0 ofLinks0 ctrl0 ->
-    P sws1 ofLinks1 ctrl1.
-
-  Parameter ControllerSendForgetsPackets : forall ctrl ctrl' sw msg,
-    controller_send ctrl ctrl' sw msg ->
-    relate_controller ctrl === select_packet_out sw msg <+>
-    relate_controller ctrl'.
-
-  Parameter ControllerRecvRemembersPackets : forall ctrl ctrl' sw msg,
-    controller_recv ctrl sw msg ctrl' ->
-    relate_controller ctrl' === select_packet_in sw msg <+> 
-    (relate_controller ctrl).
-
-  Parameter ControllerLiveness : forall sw pt pk ctrl0 sws0 links0 ofLinks0,
-    Mem (sw,pt,pk) (relate_controller ctrl0) ->
-    exists  ofLinks10 ofLinks11 ctrl1 swTo ptTo switchmLst ctrlmLst,
-      (multistep 
-         step (State sws0 links0 ofLinks0 ctrl0) nil
-         (State sws0 links0
-                (ofLinks10 ++ 
-                 (OpenFlowLink swTo switchmLst 
-                  (PacketOut ptTo pk :: ctrlmLst)) ::
-                 ofLinks11) 
-                ctrl1)) /\
-      select_packet_out swTo (PacketOut ptTo pk) = ({|(sw,pt,pk)|}).
-
-  Parameter ControllerFMS : forall swId ctrl0 ctrl1 msg ctrlm
-    switchm sws links ofLinks0 ofLinks1 switchEp
-    pts tbl inp outp swCtrlm swSwitchm,
-    P sws
-      (ofLinks0 ++ (OpenFlowLink swId switchm ctrlm) :: ofLinks1)
-      ctrl0 ->
-    controller_send ctrl0 ctrl1 swId msg ->
-    step
-      (State
-        sws
-        links
-        (ofLinks0 ++ (OpenFlowLink swId switchm ctrlm) :: ofLinks1)
-        ctrl0)
-      None
-      (State
-         sws
-         links
-         (ofLinks0 ++ (OpenFlowLink swId switchm (msg :: ctrlm)) :: ofLinks1)
-         ctrl1) ->
-     Mem (Switch swId pts tbl inp outp swCtrlm swSwitchm) sws ->
-     SwitchEP (Switch swId pts tbl inp outp swCtrlm swSwitchm) switchEp ->
-      exists ctrlEp1,
-        SafeWire swId ctrlEp1 (msg :: ctrlm) switchEp.
-
-End ATOMS_AND_CONTROLLER.
+End Make.

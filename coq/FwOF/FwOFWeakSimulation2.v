@@ -10,28 +10,13 @@ Require Import Common.Types.
 Require Import Common.Bisimulation.
 Require Import Common.AllDiff.
 Require Import Bag.Bag.
-Require Import FwOF.FwOF.
-Require FwOF.FwOFRelation.
-
-(* TODO(arjun): This is a stupid dependency. But, without it, we need signatures
-   for FwOF.Concrete and FwOF.FwOFRelations and make the weak bisimulation a
-   functor over modules with those signatures. *)
-Require FwOF.FwOFWeakSimulation1.
+Require Import FwOF.FwOFSignatures.
 
 Local Open Scope list_scope.
 Local Open Scope equiv_scope.
 Local Open Scope bag_scope.
 
-Module Make (AtomsAndController : ATOMS_AND_CONTROLLER)
-            (Lemmas : FwOF.FwOFRelation.LEMMAS).
-
-  Import AtomsAndController.
-  Import Atoms.
-  Import FwOF.
-  Module WeakSim1 := FwOF.FwOFWeakSimulation1.Make (AtomsAndController) (Lemmas).
-  Import WeakSim1.
-  Import RelationLemmas.
-  Import Relation.
+Module Make (Import Relation : RELATION).
 
   Lemma DrainWire : forall sws (swId : switchId) pts tbl inp outp 
     ctrlm switchm links src pks0 pks swId pt links0 ofLinks ctrl,

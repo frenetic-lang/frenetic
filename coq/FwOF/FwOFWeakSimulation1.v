@@ -8,20 +8,13 @@ Require Import Coq.Setoids.Setoid.
 Require Import Common.Types.
 Require Import Common.Bisimulation.
 Require Import Bag.Bag.
-Require Import FwOF.FwOF.
-Require Import FwOF.FwOFRelation.
+Require Import FwOF.FwOFSignatures.
 
 Local Open Scope list_scope.
 Local Open Scope equiv_scope.
 Local Open Scope bag_scope.
 
-Module Make (AtomsAndController : ATOMS_AND_CONTROLLER) (Lemmas : LEMMAS).
-
-  Import AtomsAndController.
-  Import Atoms.
-  Import FwOF.
-  Module Import RelationLemmas := Lemmas (AtomsAndController).
-  Import Relation.
+Module Make (Import Relation : RELATION).
 
   Theorem weak_sim_1 :
     weak_simulation concreteStep abstractStep bisim_relation.

@@ -8,20 +8,20 @@ Require Import Coq.Setoids.Setoid.
 Require Import Common.Types.
 Require Import Common.Bisimulation.
 Require Import Bag.Bag.
-Require Import FwOF.FwOF.
+Require Import FwOF.FwOFSignatures.
 Require Import Common.Bisimulation.
-Require FwOF.FwOFRelation.
 Require Import Common.AllDiff.
-Require Import FwOF.FwOFSimpleController.
+Require FwOF.FwOFMachine.
+Require FwOF.FwOFSimpleController.
 
 Local Open Scope list_scope.
 Local Open Scope equiv_scope.
 Local Open Scope bag_scope.
  
-Module MakeController (NetAndPol : NETWORK_AND_POLICY).
-  Module Import Atoms := Make (NetAndPol).
-  (* Module Import Controller := FwOF.FwOFSimpleController.Make (Atoms). *)
-  Module Import ConcreteSemantics := ConcreteSemantics (Atoms).
+Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
+  Module Import Atoms := FwOF.FwOFSimpleController.Make (NetAndPol).
+  Module Machine := FwOF.FwOFMachine.Make (Atoms).
+  Import Machine.
 
   Definition relate_helper (sd : srcDst) :=
     match topo (pkSw sd,dstPt sd) with
@@ -142,7 +142,7 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY).
       (OpenFlowLink swId switchmList ctrlmList)
       (SwitchState swId (Atoms.Endpoint_NoBarrier ctrlTbl) ctrlFms).
   
-  Inductive P : bag switch ->  list openFlowLink -> controller -> Prop :=
+  Inductive Invariant : bag switch ->  list openFlowLink -> controller -> Prop :=
   | MkP : forall sws ofLinks swsts pktOuts,
       (forall swId ctrlEp ctrlFlowMods,
          In (SwitchState swId ctrlEp ctrlFlowMods) swsts ->
@@ -154,17 +154,17 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY).
               (Switch swId pts tbl inp outp ctrlm switchm)
               (OpenFlowLink swId switchmLst ctrlmLst)
               (SwitchState swId ctrlEp ctrlFlowMods))) ->
-        P sws ofLinks (Atoms.State pktOuts swsts).
+        Invariant sws ofLinks (Atoms.State pktOuts swsts).
 
-  Hint Constructors P CompleteFMS.
+  Hint Constructors Invariant CompleteFMS.
 
   Lemma step_preserves_P : forall sws0 sws1 links0 links1 ofLinks0 ofLinks1 
     ctrl0 ctrl1 obs,
     step (State sws0 links0 ofLinks0 ctrl0)
          obs
          (State sws1 links1 ofLinks1 ctrl1) ->
-    P sws0 ofLinks0 ctrl0 ->
-    P sws1 ofLinks1 ctrl1.
+    Invariant sws0 ofLinks0 ctrl0 ->
+    Invariant sws1 ofLinks1 ctrl1.
   Proof with eauto with datatypes.
     intros.
     destruct H0; subst.
@@ -254,7 +254,7 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY).
   Lemma ControllerFMS : forall swId ctrl0 ctrl1 msg ctrlm
     switchm sws links ofLinks0 ofLinks1 switchEp
     pts tbl inp outp swCtrlm swSwitchm,
-    P sws
+    Invariant sws
       (ofLinks0 ++ (OpenFlowLink swId switchm ctrlm) :: ofLinks1)
       ctrl0 ->
     controller_send ctrl0 ctrl1 swId msg ->
@@ -294,7 +294,6 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY).
     destruct H16...
   Qed.
 
-Check P.
   Lemma ControllerLiveness : forall sw pt pk ctrl0 sws0 links0 ofLinks0,
     Mem (sw,pt,pk) (relate_controller ctrl0) ->
     exists  ofLinks10 ofLinks11 ctrl1 swTo ptTo switchmLst ctrlmLst,
@@ -332,5 +331,6 @@ Check P.
        the right state. Then induction. *)
   Admitted.
 
+  Definition P := Invariant.
 
 End MakeController.
