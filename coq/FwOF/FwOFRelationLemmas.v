@@ -171,6 +171,21 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     trivial.
   Qed.
 
+  Lemma LinkHasDst_equiv : forall {sws sws' link},
+    sws === sws' ->
+    LinkHasDst sws link ->
+    LinkHasDst sws' link.
+  Proof with eauto.
+    intros.
+    unfold LinkHasDst in H0.
+    destruct H0 as [sw0 [HMem [HSwEq HInPts]]].
+    apply Bag.mem_equiv with (x := sw0) in H.
+    destruct H as [sw1 [HMem1 HEquiv]].
+    unfold LinkHasDst.
+    destruct HEquiv...
+    trivial.
+  Qed.
+
   Lemma LinksHaveSrc_inv : forall {sws links links0 src dst} pks pks',
     LinksHaveSrc sws (links ++ (DataLink src pks dst) :: links0) ->
     LinksHaveSrc sws (links ++ (DataLink src pks' dst) :: links0).

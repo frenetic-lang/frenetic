@@ -991,9 +991,27 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER)
       exact Xrel.
       exact H1. }
     assert (ConsistentDataLinks (links S1)) as linksTopoOk0. subst...
+    assert (LinksHaveSrc (switches S1) (links S1)) as haveSrc0.
+    { subst.
+      unfold switches in *.
+      simpl.
+      eapply LinksHaveSrc_untouched.
+      unfold LinksHaveSrc in *.
+      intros.
+      eapply LinkHasSrc_equiv.
+      exact Xrel.
+      eapply linksHaveSrc0... }
+    assert (LinksHaveDst (switches S1) (links S1)) as haveDst0.
+    { subst.
+      unfold switches in *.
+      simpl.
+      eapply LinksHaveDst_untouched.
+      unfold LinksHaveDst in *.
+      intros.
+      eapply LinkHasDst_equiv.
+      exact Xrel.
+      eapply linksHaveDst0... }
     idtac "TODO(arjun): have to show these are preserved under equivalence.".
-    assert (LinksHaveSrc (switches S1) (links S1)) as haveSrc0. subst... admit.
-    assert (LinksHaveDst (switches S1) (links S1)) as haveDst0. subst... admit.
     assert (UniqSwIds (switches S1)) as uniqSwIds0'. subst... admit.
     assert (AllFMS (switches S1) (ofLinks S1)) as allFMS0'. subst... admit.
     assert (P (switches S1) (ofLinks S1) (ctrl S1)) as ctrlP1'. admit.
