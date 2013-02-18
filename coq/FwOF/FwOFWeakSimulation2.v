@@ -215,7 +215,8 @@ Module Make (Import Relation : RELATION).
       apply Bag.to_list_nil...
       apply multistep_nil.
     (* Inductive case *)
-    + assert (ctrlm0 === ({|a|}) <+> (FromList lst)) as X. admit.
+    + assert (ctrlm0 === ({|a|}) <+> (FromList lst)) as X.
+      { apply Bag.to_list_equiv. rewrite <- Heqlst. simpl... }
     destruct a.
     (* PacketOut case *)
     destruct (IHlst ({|(p,p0)|} <+> outp0) tbl0 (FromList lst))
