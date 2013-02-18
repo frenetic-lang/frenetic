@@ -95,12 +95,12 @@ module OpenFlowPlatform = struct
             recv_from_switch_fd fd 
 
   let send_to_switch_fd (fd : file_descr) (xid : xid) (msg : message) = 
-    lwt _ = eprintf "[platform] send_to_switch_fd\n%!" in
-    lwt out = Lwt.wrap2 Message.marshal xid msg in
-    let len = String.length out in
-    lwt _ = eprintf "[platform] sending a message of length %d, code %d\n" len
-        (msg_code_to_int (Message.msg_code_of_message msg)) in
+    lwt _ = eprintf "[platform] send_to_switch_fd: %s\n%!" (Message.to_string msg) in 
     try_lwt
+      lwt out = Lwt.wrap2 Message.marshal xid msg in
+      let len = String.length out in
+      lwt _ = eprintf "[platform] sending a message of length %d, code %d\n" len
+          (msg_code_to_int (Message.msg_code_of_message msg)) in
       lwt n = write fd out 0 len in
       if n <> len then
         raise_lwt (Internal "[send_to_switch] not enough bytes written")

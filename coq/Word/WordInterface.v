@@ -159,7 +159,7 @@ Module Word64 <: WORD.
 
 End Word64.
 
-Extract Constant Word16.pred => "(fun n -> n + 1)". (* TODO(jnf): fix this! *)
+Extract Constant Word16.pred => "(fun n -> if n = 0 then 0 else n - 1)". (* TODO: really fix this (JNF) *)
 Extract Constant Word16.max_value => "65535".
 
 Extract Inductive Word8.Word => "int" [ "" ].
