@@ -997,12 +997,37 @@ Module Make (Import Relation : RELATION).
       eapply LinkHasDst_equiv.
       exact Xrel.
       eapply linksHaveDst0... }
-    idtac "TODO(arjun): have to show these are preserved under equivalence.".
-    assert (UniqSwIds (switches S1)) as uniqSwIds0'. subst... admit.
-    assert (AllFMS (switches S1) (ofLinks S1)) as allFMS0'. subst... admit.
-    assert (P (switches S1) (ofLinks S1) (ctrl S1)) as ctrlP1'. admit.
-    assert (AllDiff of_to (ofLinks S1)) as uniqOfLinkIds0'. admit.
-    assert (OFLinksHaveSw (switches S1) (ofLinks S1)) as ofLinksHaveSw0'. admit.
+    assert (UniqSwIds (switches S1)) as uniqSwIds0'.
+    { subst.
+      unfold switches in *.
+      idtac "TODO(arjun): UniqSwIds preserved under equivalence.".
+      admit.
+    }
+    assert (AllFMS (switches S1) (ofLinks S1)) as allFMS0'.
+    { subst.
+      unfold switches in *.
+      unfold ofLinks in *.
+      idtac "TODO(arjun): AllFMS preserved under equivalence.".
+      admit.
+    }
+    assert (P (switches S1) (ofLinks S1) (ctrl S1)) as ctrlP1'.
+    { subst.
+      unfold switches in *.
+      unfold ofLinks in *.
+      idtac "TODO(arjun): P preserved under equivalence; provided by controller".
+      admit.
+    }
+    assert (AllDiff of_to (ofLinks S1)) as uniqOfLinkIds0'.
+    { subst.
+      unfold ofLinks in *.
+      eapply AllDiff_preservation...
+      do 2 rewrite -> map_app... }
+    assert (OFLinksHaveSw (switches S1) (ofLinks S1)) as ofLinksHaveSw0'.
+    { subst.
+      unfold switches in *.
+      unfold ofLinks in *.
+      idtac "TODO(arjun): OFLinksHaveSw preserved under changes.".
+      admit. }
     destruct (simpl_multistep tblsOk0 linksTopoOk0 haveSrc0 haveDst0 
                               uniqSwIds0' allFMS0' 
                               ctrlP1' uniqOfLinkIds0' ofLinksHaveSw0' Hstep2)
@@ -1222,7 +1247,11 @@ Module Make (Import Relation : RELATION).
     assert (UniqSwIds (switches S1)) as uniqSwIds0'. subst...
     assert (AllFMS (switches S1) (ofLinks S1)) as allFMS0'. subst. admit...
     assert (P (switches S1) (ofLinks S1) (ctrl S1)) as ctrlP1'. admit.
-    assert (AllDiff of_to (ofLinks S1)) as uniqOfLinkIds0'. admit.
+    assert (AllDiff of_to (ofLinks S1)) as uniqOfLinkIds0'.
+    { subst.
+      unfold ofLinks in *.
+      eapply AllDiff_preservation...
+      do 2 rewrite -> map_app... }
     assert (OFLinksHaveSw (switches S1) (ofLinks S1)) as ofLinksHaveSw0'. admit.
     destruct (simpl_multistep tblsOk0 linksTopoOk0 haveSrc0 haveDst0 
                               uniqSwIds0' allFMS0' ctrlP1' uniqOfLinkIds0'
