@@ -256,6 +256,10 @@ Section Methods.
     b1 === b2 ->
     exists (y : A), Mem y b2 /\ x === y.
 
+  Axiom to_list_equiv : forall (b1 b2 : bag A),
+    to_list b1 = to_list b2 ->
+    b1 === b2.
+
   Axiom in_map_mem : forall (B : Type) (f : A -> B) (y : B) (b : bag A),
     In y (map f (to_list b)) ->
     exists (x : A), Mem x b /\ y = f x.

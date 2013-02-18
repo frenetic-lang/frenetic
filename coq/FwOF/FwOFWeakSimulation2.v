@@ -215,7 +215,8 @@ Module Make (Import Relation : RELATION).
       apply Bag.to_list_nil...
       apply multistep_nil.
     (* Inductive case *)
-    + assert (ctrlm0 === ({|a|}) <+> (FromList lst)) as X. admit.
+    + assert (ctrlm0 === ({|a|}) <+> (FromList lst)) as X.
+      { apply Bag.to_list_equiv. rewrite <- Heqlst. simpl... }
     destruct a.
     (* PacketOut case *)
     destruct (IHlst ({|(p,p0)|} <+> outp0) tbl0 (FromList lst))
@@ -535,25 +536,6 @@ Module Make (Import Relation : RELATION).
     apply reflexivity.
     apply Hstep.
   Qed.
-
-  Axiom ControllerRecvLiveness : forall sws0 links0 ofLinks0 sw switchm0 m 
-    ctrlm0 ofLinks1 ctrl0,
-     exists ctrl1,
-      (multistep 
-         step
-         (State 
-            sws0 links0 
-            (ofLinks0 ++ (OpenFlowLink sw (switchm0 ++ [m]) ctrlm0) :: ofLinks1)
-            ctrl0)
-         nil
-         (State 
-            sws0 links0 
-            (ofLinks0 ++ (OpenFlowLink sw switchm0 ctrlm0) :: ofLinks1)
-            ctrl1)) /\
-       exists (lps : bag (switchId * portId * packet)),
-         (Bag_equiv swPtPk_eqdec 
-                    ((select_packet_in sw m) <+> lps)
-                    (relate_controller ctrl1)).
 
   Lemma DrainToController : forall sws0 links0 ofLinks00 swId0 switchm0
     switchm1 ctrlm0 ofLinks01 ctrl0,
@@ -996,12 +978,37 @@ Module Make (Import Relation : RELATION).
       eapply LinkHasDst_equiv.
       exact Xrel.
       eapply linksHaveDst0... }
-    idtac "TODO(arjun): have to show these are preserved under equivalence.".
-    assert (UniqSwIds (switches S1)) as uniqSwIds0'. subst... admit.
-    assert (AllFMS (switches S1) (ofLinks S1)) as allFMS0'. subst... admit.
-    assert (P (switches S1) (ofLinks S1) (ctrl S1)) as ctrlP1'. admit.
-    assert (AllDiff of_to (ofLinks S1)) as uniqOfLinkIds0'. admit.
-    assert (OFLinksHaveSw (switches S1) (ofLinks S1)) as ofLinksHaveSw0'. admit.
+    assert (UniqSwIds (switches S1)) as uniqSwIds0'.
+    { subst.
+      unfold switches in *.
+      idtac "TODO(arjun): UniqSwIds preserved under equivalence.".
+      admit.
+    }
+    assert (AllFMS (switches S1) (ofLinks S1)) as allFMS0'.
+    { subst.
+      unfold switches in *.
+      unfold ofLinks in *.
+      idtac "TODO(arjun): AllFMS preserved under equivalence.".
+      admit.
+    }
+    assert (P (switches S1) (ofLinks S1) (ctrl S1)) as ctrlP1'.
+    { subst.
+      unfold switches in *.
+      unfold ofLinks in *.
+      idtac "TODO(arjun): P preserved under equivalence; provided by controller".
+      admit.
+    }
+    assert (AllDiff of_to (ofLinks S1)) as uniqOfLinkIds0'.
+    { subst.
+      unfold ofLinks in *.
+      eapply AllDiff_preservation...
+      do 2 rewrite -> map_app... }
+    assert (OFLinksHaveSw (switches S1) (ofLinks S1)) as ofLinksHaveSw0'.
+    { subst.
+      unfold switches in *.
+      unfold ofLinks in *.
+      idtac "TODO(arjun): OFLinksHaveSw preserved under changes.".
+      admit. }
     destruct (simpl_multistep tblsOk0 linksTopoOk0 haveSrc0 haveDst0 
                               uniqSwIds0' allFMS0' 
                               ctrlP1' uniqOfLinkIds0' ofLinksHaveSw0' Hstep2)
@@ -1012,15 +1019,14 @@ Module Make (Import Relation : RELATION).
     destruct (ControllerRecvLiveness sws1 links1 ofLinks10 swId0 nil
                                      (PacketIn p p0)
                                      ctrlm0l ofLinks11 ctrl1)
-             as [ctrl2 [Hstep3 [lps' HInCtrl]]]. 
+             as [ctrl2 [Hstep3 [lps' HInCtrl]]].
     assert (exists y, Mem y (relate_controller ctrl2) /\ (sw,pt,pk) === y)
       as HMem2.
       simpl in HInCtrl.
       apply Bag.mem_split with (ED := swPtPk_eqdec) in HMem.
       destruct HMem as [lps1 HPk].
       rewrite -> HPk in HInCtrl.
-      eapply Bag.mem_equiv.
-      2: exact HInCtrl.
+      apply Bag.mem_equiv with (ED := swPtPk_eqdec) (b1 :=  (({|(sw, pt, pk)|}) <+> lps1) <+> lps')...
       simpl. left. left. apply reflexivity.
     destruct HMem2 as [y [HMem2 HEqy]].
     destruct y. destruct p1.
@@ -1221,7 +1227,11 @@ Module Make (Import Relation : RELATION).
     assert (UniqSwIds (switches S1)) as uniqSwIds0'. subst...
     assert (AllFMS (switches S1) (ofLinks S1)) as allFMS0'. subst. admit...
     assert (P (switches S1) (ofLinks S1) (ctrl S1)) as ctrlP1'. admit.
-    assert (AllDiff of_to (ofLinks S1)) as uniqOfLinkIds0'. admit.
+    assert (AllDiff of_to (ofLinks S1)) as uniqOfLinkIds0'.
+    { subst.
+      unfold ofLinks in *.
+      eapply AllDiff_preservation...
+      do 2 rewrite -> map_app... }
     assert (OFLinksHaveSw (switches S1) (ofLinks S1)) as ofLinksHaveSw0'. admit.
     destruct (simpl_multistep tblsOk0 linksTopoOk0 haveSrc0 haveDst0 
                               uniqSwIds0' allFMS0' ctrlP1' uniqOfLinkIds0'
@@ -1240,8 +1250,7 @@ Module Make (Import Relation : RELATION).
       apply Bag.mem_split with (ED := swPtPk_eqdec) in HPk.
       destruct HPk as [lps1 HPk].
       rewrite -> HPk in HInCtrl.
-      eapply Bag.mem_equiv.
-      2: exact HInCtrl.
+      apply Bag.mem_equiv with (ED := swPtPk_eqdec) (b1 := (({|(sw, pt, pk)|}) <+> lps1) <+> lps')...
       simpl. left. left. apply reflexivity.
     destruct HMem2 as [y [HMem2 HEqy]].
     destruct y. destruct p1.
