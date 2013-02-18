@@ -294,6 +294,25 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
     destruct H16...
   Qed.
 
+  Lemma ControllerRecvLiveness : forall sws0 links0 ofLinks0 sw switchm0 m 
+    ctrlm0 ofLinks1 ctrl0,
+     exists ctrl1,
+      (multistep 
+         step
+         (State 
+            sws0 links0 
+            (ofLinks0 ++ (OpenFlowLink sw (switchm0 ++ [m]) ctrlm0) :: ofLinks1)
+            ctrl0)
+         nil
+         (State 
+            sws0 links0 
+            (ofLinks0 ++ (OpenFlowLink sw switchm0 ctrlm0) :: ofLinks1)
+            ctrl1)) /\
+       exists (lps : bag (switchId * portId * packet)),
+         ((select_packet_in sw m) <+> lps) ===  relate_controller ctrl1.
+  Admitted.
+
+
   Lemma ControllerLiveness : forall sw pt pk ctrl0 sws0 links0 ofLinks0,
     Mem (sw,pt,pk) (relate_controller ctrl0) ->
     exists  ofLinks10 ofLinks11 ctrl1 swTo ptTo switchmLst ctrlmLst,
