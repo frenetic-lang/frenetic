@@ -1,6 +1,12 @@
 module H = Hashtbl
 module Q = Queue
 
+module SwSet = Set.Make(
+  struct
+    let compare = Pervasives.compare
+    type t = MessagesDef.switchId
+  end)
+
 exception NoPath of string*string
 
 
@@ -21,6 +27,8 @@ let shortest_path = bfs
 
 let get_hop topo s1 s2 = let () = Printf.printf "get_hop %Ld %Ld\n" s1 s2 in
 			 try Some (Hashtbl.find (Hashtbl.find (snd topo) s1) s2) with _ -> None
+
+let get_nodes topo = H.fold (fun sw sw' acc -> SwSet.union (SwSet.singleton sw) acc) (fst topo) SwSet.empty
 
 let get_host_port topo host = try (match (Hashtbl.find (fst topo) host) with
   | [sw] ->   get_hop topo sw host) with _ -> None

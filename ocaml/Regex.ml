@@ -1,5 +1,6 @@
 open MessagesDef
 open NetCore
+open Graph
 
 (* type graph = (switchId * switchId * int) list *)
 
@@ -15,12 +16,6 @@ type regex_policy =
   | RegPol of predicate * regex
   | RegPar of regex_policy * regex_policy
 
-module SwSet = Set.Make(
-  struct
-    let compare = Pervasives.compare
-    type t = MessagesDef.switchId
-  end)
-
 
 
 let rec flatten_reg pol = match pol with
@@ -35,7 +30,7 @@ let rec collapse_star pol = match pol with
   | a :: pol -> a :: collapse_star pol
   | [] -> []
 
-let get_path topo s1 s2 = List.map (fun x -> Hop x) (Graph.shortest_path (fst topo) s1 s2)
+let get_path topo s1 s2 = List.map (fun x -> Hop x) (shortest_path (fst topo) s1 s2)
 
   (* Naive compilation: does not guarantee loop-free semantics
      Possible issues:
@@ -55,18 +50,18 @@ let bad_hop_handler s1 s2 sw pt pk =
  
 let rec compile1 pred reg topo port = match reg with
   | Hop s1 :: Hop s2 :: reg -> 
-    (match Graph.get_hop topo s1 s2 with
+    (match get_hop topo s1 s2 with
       | Some p ->  Par ((Pol ((And (pred, (And (InPort port,Switch s1)))), [To p])), ((compile1 pred ((Hop s2) :: reg) topo port)))
       | None -> Par ((Pol ((And (pred, (And (InPort port,Switch s1)))), [GetPacket (bad_hop_handler s1 s2)])), ((compile1 pred ((Hop s2) :: reg) topo port))))
   | Hop s1 :: Star :: Hop s2 :: reg -> compile1 pred (get_path topo s1 s2) topo port
-  | Hop s1 :: [Host h] -> (match Graph.get_hop topo s1 h with
+  | Hop s1 :: [Host h] -> (match get_hop topo s1 h with
       | Some p ->  Pol ((And (pred, (And (InPort port,Switch s1)))), [To p])
       | None -> Pol (((And (pred, (And (InPort port,Switch s1))))), [GetPacket (bad_hop_handler s1 h)]))
   | _ -> Pol (pred, [])
 
 let rec compile_regex pol topo = match pol with
   | RegPol (pred, reg) -> (match (collapse_star (flatten_reg reg)) with
-      | Host h :: reg -> (match Graph.get_host_port topo h with
+      | Host h :: reg -> (match get_host_port topo h with
 	  | Some p -> compile1 pred reg topo p))
   | RegPar (pol1, pol2) -> Par (compile_regex pol1 topo, compile_regex pol2 topo)
 
@@ -76,8 +71,6 @@ let rec get_ports acts = match acts with
   | _ :: acts -> get_ports acts
   | [] -> []
 
-let get_nodes topo = SwSet.empty
-
 let rec get_switches pred topo switches = match pred with
   | And (p1,p2) -> SwSet.inter (get_switches p1 topo switches) (get_switches p2 topo switches)
   | Or (p1,p2) -> SwSet.union (get_switches p1 topo switches) (get_switches p2 topo switches)
@@ -86,12 +79,13 @@ let rec get_switches pred topo switches = match pred with
   | Switch sw -> SwSet.singleton sw
   | _ -> SwSet.empty
 
-(* let rec get_links switches ports = match switches with *)
-(*   | sw :: switches  *)
+let rec get_links switches ports = match switches with
+  | [] -> []
+  | sw :: switches -> (List.map (fun p -> (sw,p)) ports) @ get_links switches ports
 
-(* (\* Given a netcore policy and a topology, we can compute the *)
-(*    edges/switches that policy 'depends' upon. When a needed link goes *)
-(*    down, the policy has failed *\) *)
-(* let rec dependent_links pol topo = match pol with *)
-(*   | Par (p1, p2) -> (dependent_links p1 topo) @ (dependent_links p2 topo) *)
-(*   | Policy (pred, acts) -> get_links (get_switches pred topo (get_nodes topo)) (get_ports acts) *)
+(* Given a netcore policy and a topology, we can compute the
+   edges/switches that policy 'depends' upon. When a needed link goes
+   down, the policy has failed *)
+let rec dependent_links pol topo = match pol with
+  | Par (p1, p2) -> (dependent_links p1 topo) @ (dependent_links p2 topo)
+  | Pol (pred, acts) -> get_links (SwSet.elements (get_switches pred topo (get_nodes topo))) (get_ports acts)
