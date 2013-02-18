@@ -7,28 +7,58 @@ module SwSet = Set.Make(
     type t = MessagesDef.switchId
   end)
 
+(* module type GRAPH = *)
+(* sig *)
+(*   type a = MessagesDef.switchId *)
+(*   type b = MessagesDef.portId *)
+(*   type graph *)
+(*   val create : () -> graph *)
+(*   val add_node : graph -> 'a -> unit *)
+(*   val add_edge : graph -> 'a -> 'b -> 'a -> 'b -> unit *)
+(*   val shortest_path : graph -> 'a -> 'a -> 'a list *)
+(*   val get_port : graph -> 'a -> 'a -> 'b option *)
+(*   val get_ports : graph -> a' -> b list *)
+(*   val nodes : graph -> 'a list *)
+(*   val get_other_port : graph -> 'a -> 'b -> '(a*b) option *)
+(*   val get_nbrs : graph -> 'a -> 'a list *)
+(*   exception NoPath *)
+(* end *)
+
+(* module Graph = *)
+(*   struct *)
+(*     type graph = ((MessagesDef.switchId*MessagesDef.portId) H.t) * ( *)
+
 exception NoPath of string*string
 
+(* topo = (G, ports) *)
+(* G = { sw -> {pt} -> (sw, pt) } *)
+
+let add_node graph sw = H.add graph sw (H.create 5)
+let add_edge graph sw1 pt1 sw2 pt2 = H.add (H.find graph sw1) pt1 (sw2, pt2)
+let create () = H.create 5
+let get_nbrs graph sw = try (H.fold (fun pt1 (sw2, pt2) acc -> sw2 :: acc) (H.find graph sw) []) with _ -> []
+let copy graph = H.copy graph
 
 let rec bfs' target graph queue =
   let (sw, path) = (Q.take queue) in
   match sw = target with
     | true -> path
-    | false -> let () = List.iter (fun x -> Q.add (x, x :: path) queue) (try (H.find graph sw) with _ -> []); H.remove graph sw in
+    | false -> let () = List.iter (fun x -> Q.add (x, x :: path) queue) (get_nbrs graph sw); H.remove graph sw in
 	       bfs' target graph queue
 
 let bfs graph src dst = 
   let q = Queue.create () in
   let () = Q.add (src, [src]) q in
-  try (bfs' dst (Hashtbl.copy graph) q) 
+  try (bfs' dst (copy graph) q) 
   with Queue.Empty -> raise (NoPath(Int64.to_string src, Int64.to_string dst))
 
 let shortest_path = bfs
 
-let get_hop topo s1 s2 = let () = Printf.printf "get_hop %Ld %Ld\n" s1 s2 in
-			 try Some (Hashtbl.find (Hashtbl.find (snd topo) s1) s2) with _ -> None
+let get_port topo s1 s2 = let () = Printf.printf "get_hop %Ld %Ld\n" s1 s2 in
+			 try (H.fold (fun pt (sw, pt') acc -> if sw = s2 then (Some pt) else acc) (H.find topo s1) None) with _ -> None
 
-let get_nodes topo = H.fold (fun sw sw' acc -> SwSet.union (SwSet.singleton sw) acc) (fst topo) SwSet.empty
 
-let get_host_port topo host = try (match (Hashtbl.find (fst topo) host) with
-  | [sw] ->   get_hop topo sw host) with _ -> None
+(* let get_other_port topo sw p = try (Some (Hashtbl.find (Hashtbl.find (snd topo) s1) s2) *)
+let nodes topo = H.fold (fun sw sw' acc -> SwSet.union (SwSet.singleton sw) acc) (fst topo) SwSet.empty
+
+let get_host_port topo host = try (H.fold (fun pt (sw, pt') acc -> Some pt') (Hashtbl.find topo host) None) with _ -> None

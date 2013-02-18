@@ -30,7 +30,7 @@ let rec collapse_star pol = match pol with
   | a :: pol -> a :: collapse_star pol
   | [] -> []
 
-let get_path topo s1 s2 = List.map (fun x -> Hop x) (shortest_path (fst topo) s1 s2)
+let get_path topo s1 s2 = List.map (fun x -> Hop x) (shortest_path topo s1 s2)
 
   (* Naive compilation: does not guarantee loop-free semantics
      Possible issues:
@@ -50,11 +50,11 @@ let bad_hop_handler s1 s2 sw pt pk =
  
 let rec compile1 pred reg topo port = match reg with
   | Hop s1 :: Hop s2 :: reg -> 
-    (match get_hop topo s1 s2 with
+    (match get_port topo s1 s2 with
       | Some p ->  Par ((Pol ((And (pred, (And (InPort port,Switch s1)))), [To p])), ((compile1 pred ((Hop s2) :: reg) topo port)))
       | None -> Par ((Pol ((And (pred, (And (InPort port,Switch s1)))), [GetPacket (bad_hop_handler s1 s2)])), ((compile1 pred ((Hop s2) :: reg) topo port))))
   | Hop s1 :: Star :: Hop s2 :: reg -> compile1 pred (get_path topo s1 s2) topo port
-  | Hop s1 :: [Host h] -> (match get_hop topo s1 h with
+  | Hop s1 :: [Host h] -> (match get_port topo s1 h with
       | Some p ->  Pol ((And (pred, (And (InPort port,Switch s1)))), [To p])
       | None -> Pol (((And (pred, (And (InPort port,Switch s1))))), [GetPacket (bad_hop_handler s1 h)]))
   | _ -> Pol (pred, [])
