@@ -611,12 +611,15 @@ module FlowMod = struct
       (if notify_when_removed then 1 lsl 0 else 0)
 
   let marshal m bits = 
+    try 
     let bits = Cstruct.shift bits (Match.marshal m.mfMatch bits) in
     set_ofp_flow_mod_cookie bits (m.mfCookie);
     set_ofp_flow_mod_command bits (FlowModCommand.marshal m.mfModCmd);
     set_ofp_flow_mod_idle_timeout bits (TimeoutSer.to_int m.mfIdleTimeOut);
     set_ofp_flow_mod_hard_timeout bits (TimeoutSer.to_int m.mfHardTimeOut);
+    Printf.eprintf "Trying to print priority %d...\n%!" m.mfPriority;
     set_ofp_flow_mod_priority bits (m.mfPriority);
+    Printf.eprintf "Printed priority\n%!";
     set_ofp_flow_mod_buffer_id bits
       (match m.mfApplyToPacket with
         | None -> -1l
@@ -632,7 +635,11 @@ module FlowMod = struct
       m.mfActions
     in
     ()
-
+    with exn -> 
+      begin
+	Printf.eprintf "@@@ GOT IT @@@\n%s\n%!" (Printexc.get_backtrace ());
+	raise exn
+      end
 end
   
 
@@ -685,6 +692,15 @@ module Message = struct
     | FeaturesRequest -> FEATURES_REQ
     | FeaturesReply _ -> FEATURES_RESP
     | FlowModMsg _ -> FLOW_MOD
+
+  let to_string (msg : t) : string = match msg with 
+    | Hello _ -> "Hello"
+    | EchoRequest _ -> "EchoRequest"
+    | EchoReply _ -> "EchoReply"
+    | FeaturesRequest -> "FeaturesRequest"
+    | FeaturesReply _ -> "FeaturesReply"
+    | FlowModMsg _ -> "FlowMod"
+    | PacketInMsg _ -> "PacketIn"
 
   open Bigarray
 
