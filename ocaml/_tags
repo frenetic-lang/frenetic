@@ -1,6 +1,7 @@
 <extracted> : include
 <**/*.ml{,i}> :  package(cstruct), package(lwt)
 "OpenFlow0x01Parser.ml" : syntax(camlp4o), package(cstruct.syntax)
+"OpenFlow0x04Parser.ml" : syntax(camlp4o), package(cstruct.syntax)
 "PacketParser.ml" :syntax(camlp4o), package(cstruct.syntax)
 "Platform.ml" :syntax(camlp4o), package(lwt.syntax)
 "TestPlatform.ml" :syntax(camlp4o), package(lwt.syntax)

@@ -1,9 +1,15 @@
 open Cstruct
 open OpenFlow0x04Types
 
+cenum ofp_oxm_class {
+  OFPXMC_NXM_0 = 0x0000; (* Backward compatibility with NXM *)
+  OFPXMC_NXM_1 = 0x0001; (* Backward compatibility with NXM *)
+  OFPXMC_OPENFLOW_BASIC = 0x8000; (* Basic class for OpenFlow *)
+  OFPXMC_EXPERIMENTER = 0xFFFF (* Experimenter class *)
+} as uint16_t
+
 module type PARSER = sig
 
-  
   type t
 
   val parse : Cstruct.buf -> t
@@ -17,6 +23,8 @@ module type PARSER = sig
   val sizeof : t -> int
 
 end
+
+
 
 module Oxm : PARSER with type t = oxm = struct
 
