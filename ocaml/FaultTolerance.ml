@@ -94,4 +94,4 @@ let fault_tolerance topo policies =
   let switches = (Graph.SwSet.elements (G.nodes topo)) in
   let arr1 = min_failures topo policies (Q.create ()) (H.create 5) in
   let arr2 = min_port_failures switches policies (H.create 5) in
-  List.fold_left (fun acc sw -> Pervasives.min (H.find arr1 sw) (H.find arr2 sw)) Pervasives.max_int switches
+  List.fold_left (fun acc sw -> Pervasives.min acc ((H.find arr1 sw) + (H.find arr2 sw))) Pervasives.max_int switches
