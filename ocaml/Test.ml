@@ -6,7 +6,7 @@ open NetCore
 open Packet
 open TestPlatform
 open Lwt
-module Z = OpenFlow0x04Parser
+module Z = OpenFlow0x04Types
 
 module Test1 = struct
 
