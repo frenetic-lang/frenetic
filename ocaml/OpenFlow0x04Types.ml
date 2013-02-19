@@ -54,18 +54,19 @@ type instruction =
   | GotoTable of int
   | WriteActions of action list
 
-type groupType =
-  | All
-  | Select
-  | Indirect
-  | FF
-
 type bucket = {
   weight : uint16;
   watch_port : portId;
   watch_group : groupId;
   actions : action list
 }
+
+cenum groupType {
+  All = 0; (* All (multicast/broadcast) group. *)
+  Select = 1; (* Select group. *)
+  Indirect = 2; (* Indirect group. *)
+  FF = 3 (* Fast failover group. *)
+} as uint16_t
 
 type groupMod =
   | AddGroup of groupType * groupId * bucket list
@@ -130,3 +131,4 @@ type message =
   | FeaturesRequest
   | FeaturesReply of features
   | FlowMod of flowMod
+  | GroupMod of groupMod

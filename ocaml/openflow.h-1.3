@@ -1002,13 +1002,6 @@ struct ofp_action_pop_mpls {
 };
 OFP_ASSERT(sizeof(struct ofp_action_pop_mpls) == 8);
 
-/* Action structure for OFPAT_GROUP. */
-struct ofp_action_group {
-    uint16_t type;                  /* OFPAT_GROUP. */
-    uint16_t len;                   /* Length is 8. */
-    uint32_t group_id;              /* Group identifier. */
-};
-OFP_ASSERT(sizeof(struct ofp_action_group) == 8);
 
 /* Action structure for OFPAT_SET_NW_TTL. */
 struct ofp_action_nw_ttl {
@@ -1197,54 +1190,6 @@ enum ofp_group {
                                       requests. Selects all flows regardless of
                                       group (including flows with no group).
                                       */
-};
-
-/* Group commands */
-enum ofp_group_mod_command {
-    OFPGC_ADD    = 0,       /* New group. */
-    OFPGC_MODIFY = 1,       /* Modify all matching groups. */
-    OFPGC_DELETE = 2,       /* Delete all matching groups. */
-};
-
-/* Bucket for use in groups. */
-struct ofp_bucket {
-    uint16_t len;                   /* Length the bucket in bytes, including
-                                       this header and any padding to make it
-                                       64-bit aligned. */
-    uint16_t weight;                /* Relative weight of bucket.  Only
-                                       defined for select groups. */
-    uint32_t watch_port;            /* Port whose state affects whether this
-                                       bucket is live.  Only required for fast
-                                       failover groups. */
-    uint32_t watch_group;           /* Group whose state affects whether this
-                                       bucket is live.  Only required for fast
-                                       failover groups. */
-    uint8_t pad[4];
-    struct ofp_action_header actions[0]; /* The action length is inferred
-                                           from the length field in the
-                                           header. */
-};
-OFP_ASSERT(sizeof(struct ofp_bucket) == 16);
-
-/* Group setup and teardown (controller -> datapath). */
-struct ofp_group_mod {
-    struct ofp_header header;
-    uint16_t command;             /* One of OFPGC_*. */
-    uint8_t type;                 /* One of OFPGT_*. */
-    uint8_t pad;                  /* Pad to 64 bits. */
-    uint32_t group_id;            /* Group identifier. */
-    struct ofp_bucket buckets[0]; /* The length of the bucket array is inferred
-                                     from the length field in the header. */
-};
-OFP_ASSERT(sizeof(struct ofp_group_mod) == 16);
-
-/* Group types.  Values in the range [128, 255] are reserved for experimental
- * use. */
-enum ofp_group_type {
-    OFPGT_ALL      = 0, /* All (multicast/broadcast) group.  */
-    OFPGT_SELECT   = 1, /* Select group. */
-    OFPGT_INDIRECT = 2, /* Indirect group. */
-    OFPGT_FF       = 3, /* Fast failover group. */
 };
 
 /* Special buffer-id to indicate 'no buffer' */

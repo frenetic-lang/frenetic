@@ -1,8 +1,11 @@
 (** OpenFlow 1.3 (protocol version 0x04) *)
 
 open Printf
+open Cstruct
+open Cstruct.BE
 open OpenFlow0x04Types
 open Util
+open List
 
 exception Unparsable of string
 
@@ -51,7 +54,7 @@ cenum msg_code {
 
 cstruct ofp_match {
   uint16_t typ;          
-  uint16_t length;          
+  uint16_t length
 } as big_endian
 
 (* OKAY *)
@@ -115,7 +118,7 @@ cenum oxm_ofb_match_fields {
 cenum ofp_vlan_id {
   OFPVID_PRESENT = 0x1000; (* Bit that indicate that a VLAN id is set *)
   OFPVID_NONE    = 0x0000  (* No VLAN id was set. *)
-}
+} as uint16_t
 
 cstruct ofp_switch_features {
   uint64_t datapath_id; 
@@ -137,51 +140,30 @@ cenum ofp_flow_mod_command {
 } as uint16_t
 
 (* OKAY *)
+(*
 cenum ofp_port_no {
   (* Maximum number of physical and logical switch ports. *)
-  OFPP_MAX        = 0xffffff00;
+  OFPP_MAX        = 0xffffff00L;
   (* Reserved OpenFlow Port (fake output "ports"). *)
-  OFPP_IN_PORT    = 0xfffffff8;  (* Send the packet out the input port.  This
+  OFPP_IN_PORT    = 0xfffffff8L;  (* Send the packet out the input port.  This
                                     reserved port must be explicitly used
                                     in order to send back out of the input
                                     port. *)
-  OFPP_TABLE      = 0xfffffff9;  (* Submit the packet to the first flow table
+  OFPP_TABLE      = 0xfffffff9L;  (* Submit the packet to the first flow table
                                     NB: This destination port can only be
                                     used in packet-out messages. *)
-  OFPP_NORMAL     = 0xfffffffa;  (* Process with normal L2/L3 switching. *)
-  OFPP_FLOOD      = 0xfffffffb;  (* All physical ports in VLAN, except input
+  OFPP_NORMAL     = 0xfffffffaL;  (* Process with normal L2/L3 switching. *)
+  OFPP_FLOOD      = 0xfffffffbL;  (* All physical ports in VLAN, except input
                                     port and those blocked or link down. *)
-  OFPP_ALL        = 0xfffffffc;  (* All physical ports except input port. *)
-  OFPP_CONTROLLER = 0xfffffffd;  (* Send to controller. *)
-  OFPP_LOCAL      = 0xfffffffe;  (* Local openflow "port". *)
-  OFPP_ANY        = 0xffffffff   (* Wildcard port used only for flow mod
+  OFPP_ALL        = 0xfffffffcL;  (* All physical ports except input port. *)
+  OFPP_CONTROLLER = 0xfffffffdL;  (* Send to controller. *)
+  OFPP_LOCAL      = 0xfffffffeL;  (* Local openflow "port". *)
+  OFPP_ANY        = 0xffffffffL   (* Wildcard port used only for flow mod
                                     (delete) and flow stats requests. Selects
                                     all flows regardless of output port
                                     (including flows with no output port). *)
 } as uint32_t
-
-(* OKAY *)
-cstruct ofp_port {
-    uint32_t port_no;
-    uint8_t pad[4];
-    uint8_t hw_addr[OFP_ETH_ALEN];
-    uint8_t pad2[2];                  (* Align to 64 bits. *)
-    char name[OFP_MAX_PORT_NAME_LEN]; (* Null-terminated *)
-
-    uint32_t config;        (* Bitmap of OFPPC_* flags. *)
-    uint32_t state;         (* Bitmap of OFPPS_* flags. *)
-
-    (* Bitmaps of OFPPF_* that describe features.  All bits zeroed if
-     * unsupported or unavailable. *)
-    uint32_t curr;          (* Current features. *)
-    uint32_t advertised;    (* Features being advertised by the port. *)
-    uint32_t supported;     (* Features supported by the port. *)
-    uint32_t peer;          (* Features advertised by peer. *)
-
-    uint32_t curr_speed;    (* Current port bitrate in kbps. *)
-    uint32_t max_speed      (* Max port bitrate in kbps *)
-} as big_endian
-
+  *)
 (* MISSING: ofp_port_config *)
 (* MISSING: ofp_port_state *)
 (* MISSING: ofp_port_features *)
@@ -189,7 +171,6 @@ cstruct ofp_port {
 (* MISSING: ofp_ queues *)
 
 cstruct ofp_flow_mod {
-  struct ofp_header header;
   uint64_t cookie;             (* Opaque controller-issued identifier. *)
   uint64_t cookie_mask;        (* Mask used to restrict the cookie bits
                                   that must match when the command is
@@ -217,9 +198,7 @@ cstruct ofp_flow_mod {
                                    output group.  A value of OFPG_ANY
                                    indicates no restriction. *)
   uint16_t flags;               (* One of OFPFF_*. *)
-  uint8_t pad[2];
-  struct ofp_match match_       (* Fields to match. Variable size. *)
-  //struct ofp_instruction instructions[0]; (* Instruction set *)
+  uint8_t pad[2]
 } as big_endian
 
 cstruct ofp_action_header {
@@ -380,18 +359,18 @@ cstruct ofp_action_experimenter_header {
 } as big_endian
 
 cenum ofp_instruction_type {
-    OFPIT_GOTO_TABLE = 1,       (* Setup the next table in the lookup
+    OFPIT_GOTO_TABLE = 1;       (* Setup the next table in the lookup
                                    pipeline *)
-    OFPIT_WRITE_METADATA = 2,   (* Setup the metadata field for use later in
+    OFPIT_WRITE_METADATA = 2;   (* Setup the metadata field for use later in
                                    pipeline *)
-    OFPIT_WRITE_ACTIONS = 3,    (* Write the action(s) onto the datapath action
+    OFPIT_WRITE_ACTIONS = 3;    (* Write the action(s) onto the datapath action
                                    set *)
-    OFPIT_APPLY_ACTIONS = 4,    (* Applies the action(s) immediately *)
-    OFPIT_CLEAR_ACTIONS = 5,    (* Clears all actions from the datapath
+    OFPIT_APPLY_ACTIONS = 4;    (* Applies the action(s) immediately *)
+    OFPIT_CLEAR_ACTIONS = 5;    (* Clears all actions from the datapath
                                    action set *)
-    OFPIT_METER = 6,            (* Apply meter (rate limiter) *)
+    OFPIT_METER = 6;            (* Apply meter (rate limiter) *)
     OFPIT_EXPERIMENTER = 0xFFFF (* Experimenter instruction *)
-} as 
+} as uint16_t
 
 (* Instruction header that is common to all instructions.  The length includes
  * the header and any padding used to make the instruction 64-bit aligned.
@@ -422,10 +401,7 @@ cstruct ofp_instruction_write_metadata {
 cstruct ofp_instruction_actions {
     uint16_t typ;               (* One of OFPIT_*_ACTIONS *)
     uint16_t len;               (* Length of this struct in bytes. *)
-    uint8_t pad[4];             (* Align to 64-bits *)
-    struct ofp_action_header actions[0]   (* Actions associated with
-                                             OFPIT_WRITE_ACTIONS and
-                                             OFPIT_APPLY_ACTIONS *)
+    uint8_t pad[4]             (* Align to 64-bits *)
 } as big_endian
 
 (* Instruction structure for OFPIT_METER *)
@@ -444,6 +420,105 @@ cstruct ofp_instruction_experimenter {
     (* Experimenter-defined arbitrary additional data. *)
 } as big_endian
 
+cenum ofp_group_type {
+  OFPGT_ALL = 0; (* All (multicast/broadcast) group. *)
+  OFPGT_SELECT = 1; (* Select group. *)
+  OFPGT_INDIRECT = 2; (* Indirect group. *)
+  OFPGT_FF = 3 (* Fast failover group. *)
+} as uint16_t
+
+(* Group commands *)
+cenum ofp_group_mod_command {
+    OFPGC_ADD    = 0;       (* New group. *)
+    OFPGC_MODIFY = 1;       (* Modify all matching groups. *)
+    OFPGC_DELETE = 2        (* Delete all matching groups. *)
+} as uint16_t
+
+(* Group setup and teardown (controller -> datapath). *)
+cstruct ofp_group_mod {
+  uint16_t command;             (* One of OFPGC_*. *)
+  uint8_t typ;                 (* One of OFPGT_*. *)
+  uint8_t pad;                  (* Pad to 64 bits. *)
+  uint32_t group_id            (* Group identifier. *)
+} as big_endian
+
+(* Bucket for use in groups. *)
+cstruct ofp_bucket {
+  uint16_t len;                   (* Length the bucket in bytes, including
+                                     this header and any padding to make it
+                                     64-bit aligned. *)
+  uint16_t weight;                (* Relative weight of bucket.  Only
+                                     defined for select groups. *)
+  uint32_t watch_port;            (* Port whose state affects whether this
+                                     bucket is live.  Only required for fast
+                                     failover groups. *)
+  uint32_t watch_group;           (* Group whose state affects whether this
+                                     bucket is live.  Only required for fast
+                                     failover groups. *)
+  uint8_t pad[4]
+} as big_endian
+
+(* Action structure for OFPAT_GROUP. *)
+cstruct ofp_action_group {
+  uint16_t typ;                  (* OFPAT_GROUP. *)
+  uint16_t len;                   (* Length is 8. *)
+  uint32_t group_id              (* Group identifier. *)
+} as big_endian
+
+
+module Action = struct
+    
+  let sizeof (act : action) : int = match act with
+    | Group _ -> sizeof_ofp_action_group
+
+  let marshal (buf : buf) (act : action) : int = match act with
+    | Group gid ->
+      set_ofp_action_group_typ buf 22; (* OFPAT_GROUP *)
+      set_ofp_action_group_len buf sizeof_ofp_action_group;
+      set_ofp_action_group_group_id buf gid;
+      sizeof_ofp_action_group
+
+end
+
+module Bucket = struct
+
+  let sizeof (bucket : bucket) : int =
+    let n = sizeof_ofp_bucket + sum (map Action.sizeof bucket.actions) in
+    if n land 0x3f <> 0 then
+      (n*8 + 1 + (0x3f - (n*8 land 0x3f))) / 8
+    else
+      n
+
+  let marshal (buf : buf) (bucket : bucket) : int =
+    let size = sizeof bucket in
+    set_ofp_bucket_len buf size;
+    set_ofp_bucket_weight buf bucket.weight;
+    set_ofp_bucket_watch_port buf bucket.watch_port;
+    set_ofp_bucket_watch_group buf bucket.watch_group;
+    map (Action.marshal buf) bucket.actions;
+    size
+
+end
+
+module GroupMod = struct
+
+  let marshal (buf : buf) (gm : groupMod) : int =
+    match gm with
+      | AddGroup (typ, gid, buckets) -> 
+        set_ofp_group_mod_command buf (ofp_group_mod_command_to_int OFPGC_ADD);
+        set_ofp_group_mod_typ buf (groupType_to_int typ);
+        set_ofp_group_mod_pad buf 0;
+        set_ofp_group_mod_group_id buf gid;
+        map (Bucket.marshal buf) buckets;
+        0
+      | DeleteGroup (typ, gid) ->
+        failwith "NYI"
+
+end
+
+
+
+(*
 
 module PseudoPort = struct
 
@@ -702,14 +777,6 @@ module Oxm_Of_EthDst = struct
     Oxm.set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_IN_PORT 0 oxm_length;
     ()
 end
-
-#define OXM_OF_ETH_DST    OXM_HEADER  (0x8000, OFPXMT_OFB_ETH_DST, 6)
-#define OXM_OF_ETH_DST_W  OXM_HEADER_W(0x8000, OFPXMT_OFB_ETH_DST, 6)
-#define OXM_OF_ETH_SRC    OXM_HEADER  (0x8000, OFPXMT_OFB_ETH_SRC, 6)
-#define OXM_OF_ETH_SRC_W  OXM_HEADER_W(0x8000, OFPXMT_OFB_ETH_SRC, 6)
-
-
-
 
 (** Internal module, only used to parse the wildcards bitfield *)
 module Wildcards = struct
@@ -1031,3 +1098,4 @@ module Message = struct
     let str = Cstruct.to_string buf in
     str
 end
+*)
