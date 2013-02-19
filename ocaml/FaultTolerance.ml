@@ -15,13 +15,22 @@ let rec get_switches pred topo switches = match pred with
   | Switch sw -> SwSet.singleton sw
   | _ -> SwSet.empty
 
-let rec get_links switches ports = match switches with
+let rec get_links switches ports topo = match switches with
   | [] -> []
-  | sw :: switches -> (List.map (fun p -> (sw,p)) ports) @ get_links switches ports
+  | sw :: switches -> (List.map (fun p -> (sw,p)) ports) @ get_links switches ports topo
 
-(* Given a netcore policy and a topology, we can compute the
-   edges/switches that policy 'depends' upon. When a needed link goes
-   down, the policy has failed *)
+let normalize_link sw1 p1 sw2 p2 = 
+  if sw1 > sw2 then ((sw1, p1), (sw2, p2))
+  else if sw2 > sw1 then ((sw2, p2), (sw1, p1))
+  else if p1 > p2 then ((sw1, p1), (sw2, p2))
+  else ((sw2, p2), (sw1, p1))
+
+(*
+  Given a netcore policy and a topology, we can compute the
+  edges/switches that policy 'depends' upon. When a needed link goes
+  down, the policy has failed
+*)
+
 let rec dependent_links pol topo = match pol with
   | Par (p1, p2) -> (dependent_links p1 topo) @ (dependent_links p2 topo)
   | Pol (pred, acts) -> get_links (SwSet.elements (get_switches pred topo (get_nodes topo))) (get_ports acts)
