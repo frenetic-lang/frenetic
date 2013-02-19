@@ -74,4 +74,24 @@ let rec min_failures topo policies queue arr =
 
 (* Second pass computes the minimum number of failures at a switch to prevent forwarding *)
 
+module PtSet = Set.Make(
+  struct
+    let compare = Pervasives.compare
+    type t = G.b
+  end)
+
+let list_to_set lst =
+  List.fold_left (fun acc sw -> PtSet.add sw acc) PtSet.empty lst
+
+let rec min_port_failures switches policies arr = 
+  match switches with 
+    | [] -> arr
+    | sw :: switches -> let () = H.add arr sw (PtSet.cardinal (list_to_set (H.find policies sw))) in
+			min_port_failures switches policies arr
+
 (* Third pass computes the sum of pass 1 and 2 and returns the min over all switches *)
+let fault_tolerance topo policies = 
+  let switches = (Graph.SwSet.elements (G.nodes topo)) in
+  let arr1 = min_failures topo policies (Q.create ()) (H.create 5) in
+  let arr2 = min_port_failures switches policies (H.create 5) in
+  List.fold_left (fun acc sw -> Pervasives.min (H.find arr1 sw) (H.find arr2 sw)) Pervasives.max_int switches
