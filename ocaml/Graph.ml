@@ -20,8 +20,9 @@ sig
   val shortest_path : graph -> a -> a -> a list
   val get_port : graph -> a -> a -> b option
   (* val get_ports : graph -> a -> b list *)
-  val nodes : graph -> a list
+  val nodes : graph -> SwSet.t
   (* val get_other_port : graph -> a -> b -> (a*b) option *)
+  val next_hop : graph -> a -> b -> a
   val get_host_port : graph -> a -> b option
   val get_nbrs : graph -> a -> a list
   val has_node : graph -> a -> bool
@@ -64,8 +65,9 @@ module Graph : GRAPH =
       try (H.fold (fun pt (sw, pt') acc -> if sw = s2 then (Some pt) else acc) (H.find topo s1) None) 
       with _ -> None
 
-(* let get_other_port topo sw p = try (Some (Hashtbl.find (Hashtbl.find (snd topo) s1) s2) *)
-    let nodes topo = H.fold (fun sw sw' acc -> sw :: acc) topo []
+    let next_hop topo sw p = fst (Hashtbl.find (Hashtbl.find topo sw) p)
+
+    let nodes topo = H.fold (fun sw sw' acc -> SwSet.add sw acc) topo SwSet.empty
     let get_host_port topo host = 
       try (H.fold (fun pt (sw, pt') acc -> Some pt') (Hashtbl.find topo host) None) with _ -> None
     let has_node  = H.mem
