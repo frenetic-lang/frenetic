@@ -5,7 +5,7 @@ open Platform
 open NetCore
 open Packet
 
-module G = Graph
+module G = Graph.Graph
 
 module Routing = struct
 
