@@ -24,6 +24,7 @@ sig
   (* val get_other_port : graph -> a -> b -> (a*b) option *)
   val get_host_port : graph -> a -> b option
   val get_nbrs : graph -> a -> a list
+  val has_node : graph -> a -> bool
   exception NoPath of string*string
 end
 
@@ -67,5 +68,8 @@ module Graph : GRAPH =
 (* let get_other_port topo sw p = try (Some (Hashtbl.find (Hashtbl.find (snd topo) s1) s2) *)
     let nodes topo = H.fold (fun sw sw' acc -> sw :: acc) topo []
 
-    let get_host_port topo host = try (H.fold (fun pt (sw, pt') acc -> Some pt') (Hashtbl.find topo host) None) with _ -> None
+    let get_host_port topo host = 
+      try (H.fold (fun pt (sw, pt') acc -> Some pt') (Hashtbl.find topo host) None) with _ -> None
+      
+    let has_node  = H.mem
   end
