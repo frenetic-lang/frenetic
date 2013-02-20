@@ -525,6 +525,16 @@ module Oxm = struct
           (* FIXME: How to write a uint32 into buf? *)
           write_uint32 buf pid
           sizeof_ofp_oxm + oxm_length
+        | OxmInPhyPort pid ->
+          set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_IN_PHY_PORT 0 l
+          (* FIXME: How to write a uint32 into buf? *)
+          write_uint32 buf pid
+          sizeof_ofp_oxm + oxm_length
+        | OxmEthType ethtype ->
+          set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_ETH_TYPE 0 l
+          (* FIXME: How to write a uint16 into buf? *)
+          write_uint16 buf ethtype
+          sizeof_ofp_oxm + oxm_length
         | OxmEthDst ethaddr ->
           (* FIXME: here ethaddr is either uint48 or uint48 mask. How to match? *)
           match ethaddr with
@@ -539,8 +549,34 @@ module Oxm = struct
               write_uint48 buf value
               write_uint48 buf mask
               sizeof_ofp_oxm + oxm_length
-
-
+        | OxmEthSrc ethaddr ->
+          (* FIXME: here ethaddr is either uint48 or uint48 mask. How to match? *)
+          match ethaddr with
+            | value ->
+              set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_ETH_SRC 0 l
+              (* FIXME: How to write a uint48 into buf? *)
+              write_uint48 buf value
+              sizeof_ofp_oxm + oxm_length
+            | value, mask ->
+              set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_ETH_SRC 1 l*2
+              (* FIXME: How to write a uint48 into buf? *)
+              write_uint48 buf value
+              write_uint48 buf mask
+              sizeof_ofp_oxm + oxm_length
+        | OxmVlanVId vid ->
+          (* FIXME: here ethaddr is either uint12 or uint12 mask. How to match? *)
+          match vid with
+            | value ->
+              set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_VLAN_VID 0 l
+              (* FIXME: How to write a uint16 into buf? *)
+              write_uint16 buf value
+              sizeof_ofp_oxm + oxm_length
+            | value, mask ->
+              set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_VLAN_VID 1 l*2
+              (* FIXME: How to write a uint16 into buf? *)
+              write_uint16 buf value
+              write_uint16 buf mask
+              sizeof_ofp_oxm + oxm_length
 
 end
 

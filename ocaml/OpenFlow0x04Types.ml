@@ -28,7 +28,6 @@ type bufferId = uint32
 type oxm = 
   | OxmInPort of portId
   | OxmInPhyPort of portId
-  | OxmMetadata of uint64 + (uint64 mask)
   | OxmEthType of uint16
   | OxmEthDst of uint48 + (uint48 mask)
   | OxmEthSrc of uint48 + (uint48 mask)
