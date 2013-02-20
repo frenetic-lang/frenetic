@@ -24,8 +24,6 @@ cenum eth_typ {
 
 let vlan_none = 0xffff
 
-let eth_cutoff = 0x0600
-
 let vlan_mask = 0xfff
 
 let vlan_pcp_mask = 0x7 lsl 9
@@ -70,7 +68,6 @@ cstruct ip {
 } as big_endian
 
 (* ----- Transport Layer Structures ----- *)
-
 cstruct tcp { 
   uint16_t src;
   uint16_t dst;
@@ -294,7 +291,7 @@ let marshal_eth (p:packet) (buf:Cstruct.buf) : unit =
     () 
 
 let marshal_packet (p:packet) : Cstruct.buf = 
+  let _ = Printf.printf "[packetParser] marshal_packet\n%!" in 
   let buf = Bigarray.(Array1.create char c_layout (size_packet p)) in 
   let () = marshal_eth p buf in 
-  let _ = Printf.printf "[packetParser] marshal_packet\n" in 
   buf

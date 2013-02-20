@@ -1,5 +1,7 @@
-MODULES := FwOF FwOFRelation FwOFSimpleController FwOFSimpleControllerLemmas \
-	FwOFRelationLemmas FwOFWeakSimulation1 FwOFWeakSimulation2 FwOFBisimulation 
+MODULES := FwOFSignatures FwOFMachine FwOFWellFormedness FwOFSimpleController \
+  FwOFSimpleControllerLemmas FwOFWeakSimulation1 FwOFWeakSimulation2 \
+  FwOFBisimulation
+
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean

@@ -8,22 +8,13 @@ Require Import Coq.Setoids.Setoid.
 Require Import Common.Types.
 Require Import Common.Bisimulation.
 Require Import Bag.Bag.
-Require Import FwOF.FwOF.
-Require FwOF.FwOFRelationLemmas.
-
+Require Import FwOF.FwOFSignatures.
 
 Local Open Scope list_scope.
 Local Open Scope equiv_scope.
 Local Open Scope bag_scope.
 
-Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
-
-  Import AtomsAndController.
-  Import Atoms.
-  Import FwOF.
-  Module Import RelationLemmas := 
-    FwOF.FwOFRelationLemmas.Make (AtomsAndController).
-  Import Relation.
+Module Make (Import Relation : RELATION).
 
   Theorem weak_sim_1 :
     weak_simulation concreteStep abstractStep bisim_relation.
@@ -51,6 +42,7 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
         (* Another annoying lemma. Since SwitchesEquiv sws1 sws2 holds, each pair
          of equivalent switches relate to equivalent abstract states. We have to
          prove this by induction on sws1 and sws2. *)
+        idtac "TODO(arjun): equivalent switches relate to equivalent abstract states.".
         admit.
         apply multistep_nil.
       (* Switch is processing a packet from the input buffer *)

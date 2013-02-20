@@ -148,6 +148,25 @@ type policy =
   | Pol of predicate * action list
   | Par of policy * policy (** parallel composition *)
 
+let rec predicate_to_string pred = match pred with
+  | And (p1,p2) -> Printf.sprintf "(And %s %s)" (predicate_to_string p1) (predicate_to_string p2)
+  | Or (p1,p2) -> Printf.sprintf "(Or %s %s)" (predicate_to_string p1) (predicate_to_string p2)
+  | Not p1 -> Printf.sprintf "(Not %s)" (predicate_to_string p1)
+  | NoPackets -> "None"
+  | Switch sw -> Printf.sprintf "(Switch %Ld)" sw
+  | InPort pt -> Printf.sprintf "(InPort %d)" pt
+  | DlSrc add -> Printf.sprintf "(DlSrc %Ld)" add
+  | DlDst add -> Printf.sprintf "(DlDst %Ld)" add
+  | All -> "All"
+  
+let action_to_string act = match act with
+  | To pt -> Printf.sprintf "To %d" pt
+  | ToAll -> "ToAll"
+  | GetPacket _ -> "GetPacket"
+
+let rec policy_to_string pol = match pol with
+  | Pol (pred,acts) -> Printf.sprintf "(%s => [%s])" (predicate_to_string pred) (String.concat ";" (List.map action_to_string acts))
+  | Par (p1,p2) -> Printf.sprintf "(Union %s %s)" (policy_to_string p1) (policy_to_string p2)
 
 module Make (Platform : PLATFORM) = struct
 

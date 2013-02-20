@@ -8,9 +8,8 @@ Require Import Coq.Setoids.Setoid.
 Require Import Common.Types.
 Require Import Common.Bisimulation.
 Require Import Bag.Bag.
-Require Import FwOF.FwOF.
+Require Import FwOF.FwOFSignatures.
 Require Import Common.Bisimulation.
-(*Require FwOF.FwOFRelation.*)
 Require Import Common.AllDiff.
 
 Local Open Scope list_scope.

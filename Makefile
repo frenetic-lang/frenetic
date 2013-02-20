@@ -3,7 +3,7 @@ all:
 	cd ocaml && $(MAKE)
 
 test:
-	cd ocaml && $(MAKE)
+	cd ocaml && $(MAKE) test
 
 clean:
 	cd coq && $(MAKE) clean

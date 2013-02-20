@@ -6,6 +6,8 @@ Require Import Coq.Classes.Equivalence.
 Require Import Coq.Classes.EquivDec.
 Require Import Common.Types.
 Require Import Bag.Bag.
+Require Import Common.AllDiff.
+Require Import Common.Bisimulation.
 
 Local Open Scope list_scope.
 Local Open Scope equiv_scope.
@@ -52,7 +54,7 @@ End NETWORK_ATOMS.
 
 Module Type NETWORK_AND_POLICY <: NETWORK_ATOMS.
 
-  Include NETWORK_ATOMS.
+  Include Type NETWORK_ATOMS.
 
   Parameter topo : switchId * portId -> option (switchId * portId).
   Parameter abst_func : switchId -> portId -> packet -> list (portId * packet).
@@ -76,42 +78,19 @@ Module Type ATOMS <: NETWORK_AND_POLICY.
 
 End ATOMS.
 
-Module ConcreteSemantics (Import Atoms : ATOMS).
+Module Type MACHINE.
 
-  Section DecidableEqualities.
+  Declare Module Atoms : ATOMS.
+  Import Atoms.
 
-    Hint Resolve packet_eq_dec switchId_eq_dec portId_eq_dec flowTable_eq_dec
-      flowMod_eq_dec.
-
-    Lemma fromController_eq_dec : Eqdec fromController.
-    Proof.
-      unfold Eqdec. decide equality. apply eqdec.
-    Qed.
-
-    Lemma fromSwitch_eq_dec : Eqdec fromSwitch.
-    Proof.
-      unfold Eqdec. decide equality. apply eqdec.
-    Qed.
-
-  End DecidableEqualities.
-  
   Existing Instances  Eq_switchId Eq_portId Eq_packet EqDec_switchId
      EqDec_portId EqDec_packet.
 
-  Instance FromController_Eq : Eq fromController.
-  Proof.
-    split. apply fromController_eq_dec.
-  Qed.
-
-  Instance FromSwitch_Eq : Eq fromSwitch.
-  Proof.
-    split. apply fromSwitch_eq_dec.
-  Qed.
-
-  Instance FlowTable_Eq : Eq flowTable := {
-    eqdec := flowTable_eq_dec
-  }.
-
+  Parameter fromController_eq_dec : Eqdec fromController.
+  Parameter fromSwitch_eq_dec : Eqdec fromSwitch.
+  Declare Instance FromController_Eq : Eq fromController.
+  Declare Instance FromSwitch_Eq : Eq fromSwitch.
+  Declare Instance FlowTable_Eq : Eq flowTable.
   Instance fromController_eqdec : EqDec fromController eq := eqdec.
   Instance fromSwitch_eqdec : EqDec fromSwitch eq := eqdec.
 
@@ -169,105 +148,39 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
     ctrl : controller
   }.
 
-  Section Equivalences.
-
   (** Switches contain bags and bags do not have unique representations. In
       proofs, it is common to replace a bag with an equivalent (but unequal)
       bag. When we do, we need to replace the switch with an equivalent switch
       too. *)
 
-    Inductive switch_equiv : switch -> switch -> Prop :=
-    | SwitchEquiv : forall swId pts tbl inp inp' outp outp' ctrlm ctrlm'
-                             switchm switchm',
-        inp === inp' ->
-        outp === outp' ->
-        ctrlm  === ctrlm' ->
-        switchm === switchm' ->
-        switch_equiv (Switch swId pts tbl inp outp ctrlm switchm)
-                     (Switch swId pts tbl inp' outp' ctrlm' switchm').
+  Inductive switch_equiv : switch -> switch -> Prop :=
+  | SwitchEquiv : forall swId pts tbl inp inp' outp outp' ctrlm ctrlm'
+                         switchm switchm',
+    inp === inp' ->
+    outp === outp' ->
+    ctrlm  === ctrlm' ->
+    switchm === switchm' ->
+    switch_equiv (Switch swId pts tbl inp outp ctrlm switchm)
+                 (Switch swId pts tbl inp' outp' ctrlm' switchm').
 
-    Hint Constructors switch_equiv.
+  Parameter switch_equiv_is_Equivalence : Equivalence switch_equiv.
+  
+  Instance switch_Equivalence : Equivalence switch_equiv := 
+    switch_equiv_is_Equivalence.
+  
+  Parameter switch_eqdec : EqDec switch switch_equiv.
+  
+  Inductive stateEquiv : state -> state -> Prop :=
+  | StateEquiv : forall sws1 sws2 links ofLinks ctrl,
+    sws1 === sws2 ->
+    stateEquiv
+      (State sws1 links ofLinks ctrl) 
+      (State sws2 links ofLinks ctrl).
+  
+  Parameter stateEquiv_is_Equivalence : Equivalence stateEquiv.
 
-    Lemma switch_equiv_is_Equivalence : Equivalence switch_equiv.
-    Proof with intros; eauto.
-      split.
-      unfold Reflexive...
-      destruct x.
-      apply SwitchEquiv; apply reflexivity.
-      unfold Symmetric...
-      inversion H.
-      apply SwitchEquiv; apply symmetry...
-      unfold Transitive...
-      destruct x. destruct y. destruct z.
-      inversion H.
-      inversion H0.
-      subst.
-      apply SwitchEquiv; eapply transitivity...
-    Qed.
-
-    Instance switch_Equivalence : Equivalence switch_equiv.
-    Proof.
-      exact switch_equiv_is_Equivalence.
-    Qed.
-
-    Instance switch_eqdec : EqDec switch switch_equiv.
-    Proof with subst.
-      unfold EqDec.
-      unfold complement.
-      intros.
-      destruct x.
-      destruct y.
-      destruct (eqdec swId0 swId1).
-      2: right; intros; inversion H; subst; contradiction n; reflexivity.
-      subst.
-      destruct (eqdec pts0 pts1).
-      2: right; intros; inversion H; subst; contradiction n; reflexivity.
-      subst.
-      destruct (eqdec tbl0 tbl1).
-      2: right; intros; inversion H; subst; contradiction n; reflexivity.
-      subst.
-      destruct (equiv_dec inp0 inp1).
-      2: right; intros; inversion H; subst; contradiction c.
-      destruct (equiv_dec outp0 outp1).
-      2: right; intros; inversion H; subst; contradiction c.
-      destruct (equiv_dec ctrlm0 ctrlm1).
-      2: right; intros; inversion H; subst; contradiction c.
-      destruct (equiv_dec switchm0 switchm1).
-      2: right; intros; inversion H; subst; contradiction c.
-      left.
-      apply SwitchEquiv; trivial.
-    Qed.
-
-    Inductive stateEquiv : state -> state -> Prop :=
-    | StateEquiv : forall sws1 sws2 links ofLinks ctrl,
-      sws1 === sws2 ->
-      stateEquiv
-        (State sws1 links ofLinks ctrl) 
-        (State sws2 links ofLinks ctrl).
-
-    Hint Constructors stateEquiv.
-
-    Lemma stateEquiv_is_Equivalence : Equivalence stateEquiv.
-    Proof with eauto.
-      split.
-      unfold Reflexive.
-      intros. destruct x. apply StateEquiv. apply reflexivity.
-      unfold Symmetric.
-      intros. destruct x; destruct y. inversion H. subst. apply StateEquiv.
-      apply symmetry...
-      unfold Transitive.
-      intros. destruct x. destruct y. destruct z. inversion H. inversion H0.
-      subst. apply StateEquiv. eapply transitivity...
-    Qed.
-
-  End Equivalences.
-
-  Existing Instances switch_Equivalence switch_eqdec.
-
-  Instance stateEquiv_Equivalence : Equivalence stateEquiv.
-  Proof. 
-    exact stateEquiv_is_Equivalence.
-  Qed.
+  Instance stateEquiv_Equivalence : Equivalence stateEquiv :=
+    stateEquiv_is_Equivalence.
     
   Inductive step : state -> option observation -> state -> Prop :=
   | StepEquivState : forall st1 st2,
@@ -390,7 +303,6 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
         obs
         (State (({|sw0|}) <+> sws) links (ofLinks ++ of0 :: ofLinks0) ctrl)).
 
-
   Definition abst_state := bag (switchId * portId * packet).
 
   Definition transfer (sw : switchId) (ptpk : portId * packet) :=
@@ -490,217 +402,73 @@ Module ConcreteSemantics (Import Atoms : ATOMS).
           of_to lnk = swId sw /\
           FMS sw lnk.
 
-    Hint Constructors Endpoint SafeWire NotFlowMod SwitchEP FMS.
-
-    Lemma SwitchEP_equiv : forall swId pts tbl inp0 inp1 outp0 outp1
+    Parameter SwitchEP_equiv : forall swId pts tbl inp0 inp1 outp0 outp1
       ctrlm0 ctrlm1 switchm0 switchm1 ep,
       ctrlm0 === ctrlm1 ->
       SwitchEP (Switch swId pts tbl inp0 outp0 ctrlm0 switchm0) ep ->
       SwitchEP (Switch swId pts tbl inp1 outp1 ctrlm1 switchm1) ep.
-    Proof with eauto.
-      intros.
-      inversion H0; subst.
-      apply NoFlowModsInBuffer.
-      intros. apply H9. eapply Bag.Mem_equiv... apply symmetry...
-      reflexivity.
-      eapply OneFlowModInBuffer...
-      eapply transitivity... apply symmetry...
-    Qed.
 
-    Lemma FMS_untouched : forall swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0
+    Parameter FMS_untouched : forall swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0
       switchmLst0 ctrlmLst0 inp1 outp1 switchm1 switchmLst1,
       FMS (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0)
           (OpenFlowLink swId0 switchmLst0 ctrlmLst0) ->
       FMS (Switch swId0 pts0 tbl0 inp1 outp1 ctrlm0 switchm1)
           (OpenFlowLink swId0 switchmLst1 ctrlmLst0).
-    Proof.
-      intros.
-      inversion H; inversion H2; subst; eauto.
-    Qed.
 
-    Lemma FMS_equiv : forall sw1 sw2 lnk,
+    Parameter FMS_equiv : forall sw1 sw2 lnk,
       sw1 === sw2 ->
       FMS sw1 lnk ->
       FMS sw2 lnk.
-    Proof with eauto.
-      intros.
-      destruct sw1.
-      destruct sw2.
-      inversion H.
-      subst.
-      inversion H0.
-      subst.
-      destruct H11 as [ctrlEp HSafeWire].
-      eapply MkFMS.
-      eapply SwitchEP_equiv...
-      exists ctrlEp...
-    Qed.
 
-
-    Lemma SafeWire_dequeue_PacketOut : forall sw ctrlEp ctrlLst pt pk switchEp,
+    Parameter SafeWire_dequeue_PacketOut : forall sw ctrlEp ctrlLst pt pk 
+      switchEp,
       SafeWire sw ctrlEp (ctrlLst ++ [PacketOut pt pk]) switchEp ->
       SafeWire sw ctrlEp (ctrlLst) switchEp.
-    Proof with auto.
-      intros.
-      generalize dependent ctrlEp.
-      induction ctrlLst; intros.
-      + simpl in H. inversion H. subst...
-      + inversion H; subst...
-    Qed.
 
+    Parameter SafeWire_dequeue_BarrierRequest : forall sw ctrlEp ctrlLst xid 
+      switchEp1,
+      SafeWire sw ctrlEp (ctrlLst ++ [BarrierRequest xid]) switchEp1 ->
+      exists switchEp2, SafeWire sw ctrlEp (ctrlLst) switchEp2 /\
+        table_at_endpoint switchEp2 = table_at_endpoint switchEp1.
 
-    Lemma SafeWire_dequeue_safe : forall sw ctrlEp ctrlLst f switchEp,
+    Parameter SafeWire_dequeue_safe : forall sw ctrlEp ctrlLst f switchEp,
        SafeWire sw ctrlEp (ctrlLst ++ [FlowMod f]) switchEp ->
        FlowTableSafe sw (modify_flow_table f (table_at_endpoint switchEp)).
-    Proof with auto.
-      intros.
-      generalize dependent ctrlEp.
-      { induction ctrlLst; intros.
-        + destruct switchEp.
-          simpl in H.
-          inversion H.
-          subst.
-          inversion H6.
-          simpl in H.
-          inversion H.
-          subst.
-          inversion H6.
-          subst.
-          simpl...
-        + simpl in *.
-          inversion H; subst.
-          - apply IHctrlLst in H5...
-          - apply IHctrlLst in H5...
-          - apply IHctrlLst in H6... }
-    Qed.
 
-    Lemma SafeWire_dequeue_FlowMod : forall sw ctrlEp ctrlLst f switchEp,
+    Parameter SafeWire_dequeue_FlowMod : forall sw ctrlEp ctrlLst f switchEp,
        SafeWire sw ctrlEp (ctrlLst ++ [FlowMod f]) switchEp ->
-       SafeWire sw ctrlEp ctrlLst (Endpoint_NoBarrier (modify_flow_table f (table_at_endpoint switchEp))).
-    Proof with auto.
-      intros.
-      generalize dependent ctrlEp.
-      { induction ctrlLst; intros.
-        + destruct switchEp.
-          simpl in H.
-          inversion H.
-          subst.
-          inversion H6.
-          simpl in H.
-          inversion H.
-          subst.
-          inversion H6.
-          subst.
-          simpl...
-        + simpl in *.
-          inversion H; subst.
-          - apply IHctrlLst in H5...
-          - apply IHctrlLst in H5...
-          - apply IHctrlLst in H6... }
-    Qed.
+       SafeWire sw ctrlEp ctrlLst 
+                (Endpoint_NoBarrier 
+                   (modify_flow_table f
+                     (table_at_endpoint switchEp))).
 
-    Lemma SafeWire_fm_nb_false : forall sw ctrlEp ctrlLst f tbl,
+    Parameter SafeWire_fm_nb_false : forall sw ctrlEp ctrlLst f tbl,
       SafeWire sw ctrlEp (ctrlLst ++ [FlowMod f]) (Endpoint_NoBarrier tbl) ->
       False.
-    Proof with auto.
-      intros.
-      generalize dependent ctrlEp.
-      induction ctrlLst; intros.
-      + simpl in H. inversion H. subst. inversion H6.
-      + simpl in H.
-        inversion H; subst.
-        - apply IHctrlLst in H5...
-          - apply IHctrlLst in H5...
-          - apply IHctrlLst in H6...
-    Qed.
 
-    Lemma FMS_pop : forall sw pts tbl inp outp ctrlm switchm switchLst ctrlLst msg,
-      FMS  (Switch sw pts tbl inp outp ctrlm switchm) (OpenFlowLink sw switchLst (ctrlLst ++ [msg])) ->
-      FMS  (Switch sw pts tbl inp outp ({|msg|} <+> ctrlm) switchm) (OpenFlowLink sw switchLst ctrlLst).
-    Proof with eauto.
-      intros.
-      inversion H.
-      subst.
-      destruct H10 as [ctrlEp HSafeWire].
-      { destruct msg.
-        + apply MkFMS with (switchEp := switchEp).
-          * inversion H2; subst.
-            - apply NoFlowModsInBuffer...
-              intros. simpl in H0. destruct H0... destruct msg... 
-              inversion H0.
-            - apply OneFlowModInBuffer with (ctrlm0 := ({|PacketOut p p0|} <+> ctrlm2))...
-              intros. simpl in H0. destruct H0... destruct msg... inversion H0.
-              rewrite -> H10.
-              bag_perm 10.
-          * exists ctrlEp.
-            eapply SafeWire_dequeue_PacketOut.
-            exact HSafeWire.
-        + admit. (* strange case where barrier is added to switch. *)
-        + inversion H2; subst.
-          * apply MkFMS with (switchEp := (Endpoint_NoBarrier (modify_flow_table f (table_at_endpoint switchEp)))).
-            apply OneFlowModInBuffer with (ctrlm0 := ctrlm0)...
-            apply reflexivity.
-            eapply SafeWire_dequeue_safe.
-            exact HSafeWire.
-            exists ctrlEp.
-            apply SafeWire_dequeue_FlowMod...
-         * contradiction (SafeWire_fm_nb_false _ _ HSafeWire).
-      }
-    Qed.
+    Parameter FMS_pop : forall sw pts tbl inp outp ctrlm switchm switchLst 
+                               ctrlLst msg,
+      FMS  (Switch sw pts tbl inp outp ctrlm switchm) 
+           (OpenFlowLink sw switchLst (ctrlLst ++ [msg])) ->
+      FMS  (Switch sw pts tbl inp outp ({|msg|} <+> ctrlm) switchm) 
+           (OpenFlowLink sw switchLst ctrlLst).
 
-    Lemma FMS_dequeue_pktOut : forall sw pts tbl inp outp ctrlm switchm switchLst ctrlLst pt pk,
-      FMS  (Switch sw pts tbl inp outp ({|PacketOut pt pk|} <+> ctrlm) switchm) (OpenFlowLink sw switchLst ctrlLst) ->
-      FMS  (Switch sw pts tbl inp ({|(pt,pk)|} <+> outp) ctrlm switchm) (OpenFlowLink sw switchLst ctrlLst).
-    Proof with eauto.
-      intros.
-      inversion H.
-      subst.
-      destruct H10 as [ctrlEp HSafeWire].
-      apply MkFMS with (switchEp := switchEp).
-      inversion H2; subst.
-      - apply NoFlowModsInBuffer...
-        intros.
-        apply H9.
-        simpl...
-      - assert (exists y, Mem y ({|PacketOut pt pk|} <+> ctrlm0) /\ FlowMod f === y).
-        { apply Bag.mem_equiv with (ED := eqdec) (b1 := {|FlowMod f|} <+> ctrlm2).
-          simpl. left. apply reflexivity. apply symmetry... }
-        destruct H0 as [y [HMem HEq]].
-        destruct y; inversion HEq; subst.
-        simpl in HMem.
-        destruct HMem.
-        inversion H0.
-        apply Bag.mem_split with (ED := eqdec) in H0.
-        destruct H0 as [ctrlm0' H0].
-        apply OneFlowModInBuffer with (ctrlm0 := ctrlm0')...
-        intros.
-        simpl in H1.
-        destruct msg... 
-        rewrite -> H0 in H10.
-        rewrite -> Bag.union_comm in H10.
-        rewrite -> Bag.union_assoc in H10.
-        apply Bag.unpop_unions in H10.
-        apply H9.
-        eapply Bag.Mem_equiv with (ED:=eqdec).
-        exact H10.
-        simpl.
-        left...
-      - exists ctrlEp...
-    Qed.
+    Parameter FMS_dequeue_pktOut : forall sw pts tbl inp outp ctrlm switchm 
+                                      switchLst ctrlLst pt pk,
+      FMS  (Switch sw pts tbl inp outp ({|PacketOut pt pk|} <+> ctrlm) switchm)
+           (OpenFlowLink sw switchLst ctrlLst) ->
+      FMS  (Switch sw pts tbl inp ({|(pt,pk)|} <+> outp) ctrlm switchm) 
+           (OpenFlowLink sw switchLst ctrlLst).
 
   End FlowModSafety.
 
-End ConcreteSemantics.
+End MACHINE.
 
 Module Type ATOMS_AND_CONTROLLER.
 
-  Require Import Common.Bisimulation.
-
-  Module Import Atoms : ATOMS.
-    Include ATOMS.
-  End Atoms.
-
-  Module Import FwOF := ConcreteSemantics (Atoms).
+  Declare Module Machine : MACHINE.
+  Import Machine.
+  Import Atoms.
 
   Parameter relate_controller : controller -> bag (switchId * portId * packet).
 
@@ -729,6 +497,8 @@ Module Type ATOMS_AND_CONTROLLER.
     relate_controller ctrl' === select_packet_in sw msg <+> 
     (relate_controller ctrl).
 
+  (** If [(sw,pt,pk)] is a packet in the controller's abstract state, then the
+      controller will eventually emit the packet. *)
   Parameter ControllerLiveness : forall sw pt pk ctrl0 sws0 links0 ofLinks0,
     Mem (sw,pt,pk) (relate_controller ctrl0) ->
     exists  ofLinks10 ofLinks11 ctrl1 swTo ptTo switchmLst ctrlmLst,
@@ -741,6 +511,25 @@ Module Type ATOMS_AND_CONTROLLER.
                  ofLinks11) 
                 ctrl1)) /\
       select_packet_out swTo (PacketOut ptTo pk) = ({|(sw,pt,pk)|}).
+
+  (** If [m] is a message from the switch to the controller, then the controller
+      will eventually consume [m], adding its packet-content to its state. *)
+  Parameter ControllerRecvLiveness : forall sws0 links0 ofLinks0 sw switchm0 m 
+    ctrlm0 ofLinks1 ctrl0,
+     exists ctrl1,
+      (multistep 
+         step
+         (State 
+            sws0 links0 
+            (ofLinks0 ++ (OpenFlowLink sw (switchm0 ++ [m]) ctrlm0) :: ofLinks1)
+            ctrl0)
+         nil
+         (State 
+            sws0 links0 
+            (ofLinks0 ++ (OpenFlowLink sw switchm0 ctrlm0) :: ofLinks1)
+            ctrl1)) /\
+       exists (lps : bag (switchId * portId * packet)),
+         (select_packet_in sw m) <+> lps === relate_controller ctrl1.
 
   Parameter ControllerFMS : forall swId ctrl0 ctrl1 msg ctrlm
     switchm sws links ofLinks0 ofLinks1 switchEp
@@ -767,3 +556,223 @@ Module Type ATOMS_AND_CONTROLLER.
         SafeWire swId ctrlEp1 (msg :: ctrlm) switchEp.
 
 End ATOMS_AND_CONTROLLER.
+
+Module Type RELATION.
+
+  Declare Module AtomsAndController : ATOMS_AND_CONTROLLER.
+  Export AtomsAndController.
+  Export Machine.
+  Export Atoms.
+
+  Definition affixSwitch (sw : switchId) (ptpk : portId * packet) :=
+    match ptpk with
+      | (pt,pk) => (sw,pt,pk)
+    end.
+
+  Definition FlowTablesSafe (sws : bag switch) : Prop :=
+    forall swId pts tbl inp outp ctrlm switchm,
+      Mem (Switch swId pts tbl inp outp ctrlm switchm) sws ->
+      FlowTableSafe swId tbl.
+
+  Definition ConsistentDataLinks (links : list dataLink) : Prop :=
+    forall (lnk : dataLink),
+      In lnk links ->
+      topo (src lnk) = Some (dst lnk).
+
+  Definition LinkHasSrc (sws : bag switch) (link : dataLink) : Prop :=
+    exists switch,
+      Mem switch sws /\
+      fst (src link) = swId switch /\
+      In (snd (src link)) (pts switch).
+
+  Definition LinkHasDst (sws : bag switch) (link : dataLink) : Prop :=
+    exists switch,
+      Mem switch sws /\
+      fst (dst link) = swId switch /\
+      In (snd (dst link)) (pts switch).
+
+  Definition LinksHaveSrc (sws : bag switch) (links : list dataLink) :=
+    forall link, In link links -> LinkHasSrc sws link.
+
+  Definition LinksHaveDst (sws : bag switch) (links : list dataLink) :=
+    forall link, In link links -> LinkHasDst sws link.
+
+  Definition UniqSwIds (sws : bag switch) := AllDiff swId (Bag.to_list sws).
+
+  Definition ofLinkHasSw (sws : bag switch) (ofLink : openFlowLink) :=
+    exists sw,
+      Mem sw sws /\
+      of_to ofLink = swId sw.
+
+  Definition OFLinksHaveSw (sws : bag switch) (ofLinks : list openFlowLink) :=
+    forall ofLink, In ofLink ofLinks -> ofLinkHasSw sws ofLink.
+
+  Record concreteState := ConcreteState {
+    devices : state;
+    concreteState_flowTableSafety : FlowTablesSafe (switches devices);
+    concreteState_consistentDataLinks : ConsistentDataLinks (links devices);
+    linksHaveSrc : LinksHaveSrc (switches devices) (links devices);
+    linksHaveDst : LinksHaveDst (switches devices) (links devices);
+    uniqSwIds : UniqSwIds (switches devices);
+    allFMS : AllFMS (switches devices) (ofLinks devices);
+    ctrlP : P (switches devices) (ofLinks devices) (ctrl devices);
+    uniqOfLinkIds : AllDiff of_to (ofLinks devices);
+    ofLinksHaveSw : OFLinksHaveSw (switches devices) (ofLinks devices)
+  }.
+
+  Implicit Arguments ConcreteState [].
+
+  Definition concreteStep (st : concreteState) (obs : option observation)
+    (st0 : concreteState) :=
+    step (devices st) obs (devices st0).
+
+  Inductive abstractStep : abst_state -> option observation -> abst_state -> 
+    Prop := 
+  | AbstractStepEquiv : forall st st',
+      st === st' ->
+      abstractStep st None st'
+  | AbstractStep : forall sw pt pk lps,
+    abstractStep
+      ({| (sw,pt,pk) |} <+> lps)
+      (Some (sw,pt,pk))
+      (Bag.unions (map (transfer sw) (abst_func sw pt pk)) <+> lps).
+
+  Definition relate_switch (sw : switch) : abst_state :=
+    match sw with
+      | Switch swId _ tbl inp outp ctrlm switchm =>
+        FromList (map (affixSwitch swId) (Bag.to_list inp)) <+>
+        Bag.unions (map (transfer swId) (Bag.to_list outp)) <+>
+        Bag.unions (map (select_packet_out swId) (Bag.to_list ctrlm)) <+>
+        Bag.unions (map (select_packet_in swId) (Bag.to_list switchm))
+    end.
+
+  Definition relate_dataLink (link : dataLink) : abst_state :=
+    match link with
+      | DataLink _ pks (sw,pt) =>
+        FromList (map (fun pk => (sw,pt,pk)) pks)
+    end.
+
+  Definition relate_openFlowLink (link : openFlowLink) : abst_state :=
+    match link with
+      | OpenFlowLink sw switchm ctrlm =>
+        Bag.unions (map (select_packet_out sw) ctrlm) <+>
+        Bag.unions (map (select_packet_in sw) switchm)
+    end.
+
+
+  Definition relate (st : state) : abst_state :=
+    Bag.unions (map relate_switch (Bag.to_list (switches st))) <+>
+    Bag.unions (map relate_dataLink (links st)) <+>
+    Bag.unions (map relate_openFlowLink (ofLinks st)) <+>
+    relate_controller (ctrl st).
+
+  Definition bisim_relation : relation concreteState abst_state :=
+    fun (st : concreteState) (ast : abst_state) => 
+      ast === (relate (devices st)).
+
+  Parameter simpl_multistep : forall (st1 st2 : state) obs
+    (tblsOk1 : FlowTablesSafe (switches st1))
+    (linksTopoOk1 : ConsistentDataLinks (links st1))
+    (haveSrc1 : LinksHaveSrc (switches st1) (links st1))
+    (haveDst1 : LinksHaveDst (switches st1) (links st1))
+    (uniqSwIds1 : UniqSwIds (switches st1))
+    (allFMS1 : AllFMS (switches st1) (ofLinks st1))
+    (P1 : P (switches st1) (ofLinks st1) (ctrl st1))
+    (uniqOfLinkIds1 : AllDiff of_to (ofLinks st1))
+    (ofLinksHaveSw1 : OFLinksHaveSw (switches st1) (ofLinks st1)),
+    multistep step st1 obs st2 ->
+    exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2 allFMS2 P2
+           uniqOfLinkIds2 ofLinksHaveSw2,
+      multistep concreteStep
+                (ConcreteState st1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1 
+                               uniqSwIds1 allFMS1 P1 uniqOfLinkIds1
+                               ofLinksHaveSw1)
+                obs
+                (ConcreteState st2 tblsOk2 linksTopoOk2 haveSrc2 haveDst2 
+                               uniqSwIds2 allFMS2 P2 uniqOfLinkIds2
+                               ofLinksHaveSw2).
+
+
+  Parameter simpl_weak_sim : forall devs1 devs2 sw pt pk lps
+    (tblsOk1 : FlowTablesSafe (switches devs1))
+    (linksTopoOk1 : ConsistentDataLinks (links devs1))
+    (haveSrc1 : LinksHaveSrc (switches devs1) (links devs1))
+    (haveDst1 : LinksHaveDst (switches devs1) (links devs1))
+    (uniqSwIds1 : UniqSwIds (switches devs1))
+    (allFMS1 : AllFMS (switches devs1) (ofLinks devs1))
+    (P1 : P (switches devs1) (ofLinks devs1) (ctrl devs1))
+    (uniqOfLinkIds1 : AllDiff of_to (ofLinks devs1))
+    (ofLinksHaveSw1 : OFLinksHaveSw (switches devs1) (ofLinks devs1)),
+    multistep step devs1 [(sw,pt,pk)] devs2 ->
+    relate devs1 === ({| (sw,pt,pk) |} <+> lps) ->
+    abstractStep
+      ({| (sw,pt,pk) |} <+> lps)
+      (Some (sw,pt,pk))
+      (Bag.unions (map (transfer sw) (abst_func sw pt pk)) <+> lps) ->
+   exists t : concreteState,
+     inverse_relation 
+       bisim_relation
+       (Bag.unions (map (transfer sw) (abst_func sw pt pk)) <+> lps)
+       t /\
+     multistep concreteStep
+               (ConcreteState devs1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1
+                              uniqSwIds1 allFMS1 P1 uniqOfLinkIds1
+                              ofLinksHaveSw1)
+               [(sw,pt,pk)]
+               t.
+
+  Parameter FlowTablesSafe_untouched : forall {sws swId pts tbl inp inp'
+    outp outp' ctrlm ctrlm' switchm switchm' },
+    FlowTablesSafe
+      ({|Switch swId pts tbl inp outp ctrlm switchm|} <+> sws) ->
+    FlowTablesSafe 
+      ({|Switch swId pts tbl inp' outp' ctrlm' switchm'|} <+> sws).
+
+  Parameter LinksHaveSrc_untouched : forall 
+    {swId tbl pts sws links
+    inp outp ctrlm switchm tbl' inp' outp' ctrlm' switchm' },
+    LinksHaveSrc 
+      ({| Switch swId pts tbl inp outp ctrlm switchm |} <+> sws)  links ->
+    LinksHaveSrc 
+      ({| Switch swId pts tbl' inp' outp' ctrlm' switchm' |} <+> sws)
+      links.
+
+  Parameter LinkHasSrc_equiv : forall {sws sws' link},
+    sws === sws' ->
+    LinkHasSrc sws link ->
+    LinkHasSrc sws' link.
+
+  Parameter LinksHaveDst_untouched : forall 
+    {swId tbl pts sws links
+    inp outp ctrlm switchm tbl' inp' outp' ctrlm' switchm' },
+    LinksHaveDst
+      ({| Switch swId pts tbl inp outp ctrlm switchm |} <+>  sws)  links ->
+    LinksHaveDst 
+      ({| Switch swId pts tbl' inp' outp' ctrlm' switchm' |} <+> sws)
+      links.
+
+  Parameter LinkHasDst_equiv : forall {sws sws' link},
+    sws === sws' ->
+    LinkHasDst sws link ->
+    LinkHasDst sws' link.
+
+End RELATION.
+
+Module Type WEAK_SIM_1.
+
+  Declare Module Relation : RELATION.
+  Import Relation.
+  
+  Parameter weak_sim_1 : weak_simulation concreteStep abstractStep bisim_relation.
+
+End WEAK_SIM_1.
+
+Module Type WEAK_SIM_2.
+
+  Declare Module Relation : RELATION.
+  Import Relation.
+  
+  Parameter weak_sim_2 :
+    weak_simulation abstractStep concreteStep (inverse_relation bisim_relation).
+
+End WEAK_SIM_2.

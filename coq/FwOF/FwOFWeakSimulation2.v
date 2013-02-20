@@ -8,32 +8,18 @@ Require Import Coq.Classes.Morphisms.
 Require Import Coq.Setoids.Setoid.
 Require Import Common.Types.
 Require Import Common.Bisimulation.
+Require Import Common.AllDiff.
 Require Import Bag.Bag.
-Require Import FwOF.FwOF.
-Require FwOF.FwOFRelationLemmas.
-
-(* TODO(arjun): This is a stupid dependency. But, without it, we need signatures
-   for FwOF.Concrete and FwOF.FwOFRelations and make the weak bisimulation a
-   functor over modules with those signatures. *)
-Require FwOF.FwOFWeakSimulation1.
+Require Import FwOF.FwOFSignatures.
 
 Local Open Scope list_scope.
 Local Open Scope equiv_scope.
 Local Open Scope bag_scope.
 
-Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
+Module Make (Import Relation : RELATION).
 
-  Import AtomsAndController.
-  Import Atoms.
-  Import FwOF.
-  Module WeakSim1 := FwOF.FwOFWeakSimulation1.Make (AtomsAndController).
-  Import WeakSim1.
-  Import RelationLemmas.
-  Import Relation.
-
-  Lemma SimpleDraimWire : forall sws (swId : switchId) pts tbl inp outp 
+  Lemma DrainWire : forall sws (swId : switchId) pts tbl inp outp 
     ctrlm switchm links src pks0 pks swId pt links0 ofLinks ctrl,
-     exists inp',
      multistep step
       (State 
         ({|Switch swId pts tbl inp outp ctrlm switchm|} <+> sws)
@@ -41,7 +27,7 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
         ofLinks ctrl)
       nil
       (State 
-        ({|Switch swId pts tbl inp' outp ctrlm switchm|} <+> sws)
+        ({|Switch swId pts tbl (FromList (map (fun pk => (pt,pk)) pks) <+> inp) outp ctrlm switchm|} <+> sws)
         (links ++ (DataLink src pks0 (swId,pt)) :: links0)
         ofLinks ctrl).
    Proof with auto.
@@ -49,19 +35,54 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
      generalize dependent inp0. 
      generalize dependent pks1.
      induction pks1 using rev_ind.
-     intros.
-     simpl in *.
-     exists inp0...
-     rewrite -> app_nil_r...
+     + intros.
+       simpl in *.
+       rewrite -> app_nil_r.
+       apply multistep_tau with 
+       (a0 := State ({|Switch swId1 pts0 tbl0 (FromList nil <+> inp0) outp0 ctrlm0 switchm0|} <+> sws)
+                    (links0 ++ DataLink src0 pks0 (swId1,pt) :: links1)
+                    ofLinks0
+                    ctrl0).
+       apply StepEquivState.
+       apply StateEquiv.
+       apply Bag.pop_union_r.
+       apply Bag.equiv_singleton.
+       apply SwitchEquiv; try solve [apply reflexivity].
+       rewrite -> Bag.FromList_nil_is_Empty.
+       rewrite -> Bag.union_empty_l.
+       apply reflexivity.
+       apply multistep_nil.
      (* inductive case *)
-     intros. 
-     destruct (IHpks1 ( ({| (pt, x) |}) <+> inp0)) as [inp1 IHstep].
-     exists (inp1). 
-     eapply multistep_tau.
-     rewrite -> (app_assoc pks0 pks1).
-     apply RecvDataLink.
-     apply IHstep.
+     + intros. 
+       eapply multistep_tau.
+       rewrite -> (app_assoc pks0 pks1).
+       apply RecvDataLink.
+       rewrite -> map_app.
+       eapply multistep_app with
+       (s2 := State ({|Switch swId1 pts0 tbl0 (FromList (map (fun pk => (pt,pk)) pks1) <+> (({|(pt,x)|}) <+> inp0)) outp0 ctrlm0 switchm0|} <+> sws)
+                    (links0 ++ DataLink src0 pks0 (swId1,pt) :: links1)
+                    ofLinks0
+                    ctrl0).
+       apply (IHpks1 ( ({| (pt, x) |}) <+> inp0)).
+       apply multistep_tau with
+        (a0 := State ({|Switch swId1 pts0 tbl0 (FromList (map (fun pk => (pt,pk)) pks1 ++ map (fun pk => (pt,pk)) [x]) <+> inp0) outp0 ctrlm0 switchm0|} <+> sws)
+                    (links0 ++ DataLink src0 pks0 (swId1,pt) :: links1)
+                    ofLinks0
+                    ctrl0).
+       apply StepEquivState.
+       apply StateEquiv.
+       apply Bag.pop_union_r.
+       apply Bag.equiv_singleton.
+       apply SwitchEquiv; try solve [apply reflexivity].
+       simpl.
+       rewrite -> Bag.FromList_app.
+       rewrite -> Bag.from_list_singleton.
+       rewrite -> Bag.union_assoc.
+       apply reflexivity.
+       apply multistep_nil.
+       simpl...
    Qed.
+
 
   Lemma ObserveFromOutp : forall pktOuts pktIns pk pt0 pt1
     swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0
@@ -108,30 +129,30 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
                                              ctrlm0 switchm0|})).
       rewrite -> Bag.union_assoc.
       apply Bag.pop_union; apply reflexivity.
-      
 
-    destruct (SimpleDraimWire 
+    eapply multistep_app with (obs2 := [(swId1,pt1,pk)]).
+    apply (DrainWire 
       (({|Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0|}) <+> sws)
       swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1 
-      links0 (swId0,pt0) [pk] pks0 swId1 pt1 links1 ofLinks0 ctrl0)
-    as [inp4 step].
-    eapply multistep_app with (obs2 := [(swId1,pt1,pk)]).
-    exact step.
-    
+      links0 (swId0,pt0) [pk] pks0 swId1 pt1 links1 ofLinks0 ctrl0).
     assert ([pk] = nil ++ [pk]) as X... rewrite -> X. clear X.
-
     eapply multistep_tau.
     apply RecvDataLink.
-
     eapply multistep_obs.
     apply PktProcess.
     instantiate (1 := pktIns).
     instantiate (1 := pktOuts).
     symmetry...
-
-    idtac "TODO(arjun): SimpleDrainWire needs to describe its output.".
-    admit.
-    simpl...
+    match goal with
+    | [ |- multistep step _ nil ?Y ] => remember Y as S2
+    end.
+    eapply multistep_tau with (a0 := S2).
+    subst.
+    apply StepEquivState.
+    apply StateEquiv.
+    bag_perm 100.
+    apply multistep_nil.
+    trivial.
   Qed.
 
   (** Remark is for another lemma, not ObserveFromController!
@@ -179,11 +200,23 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     generalize dependent tbl0.
     generalize dependent outp0.
     induction lst; intros.
-    assert (ctrlm0 = Empty) as X. admit.
-    subst.
-    eauto.
+    + exists tbl0.
+      exists outp0.
+      apply multistep_tau with
+        (a0 := State ({|Switch swId0 pts0 tbl0 inp0 outp0 Empty switchm0|} <+> sws0)
+                     links0
+                     ofLinks0
+                     ctrl0).
+      apply StepEquivState.
+      apply StateEquiv.
+      apply Bag.pop_union_r.
+      apply Bag.equiv_singleton.
+      apply SwitchEquiv; try solve [apply reflexivity].
+      apply Bag.to_list_nil...
+      apply multistep_nil.
     (* Inductive case *)
-    assert (ctrlm0 === ({|a|}) <+> (FromList lst)) as X. admit.
+    + assert (ctrlm0 === ({|a|}) <+> (FromList lst)) as X.
+      { apply Bag.to_list_equiv. rewrite <- Heqlst. simpl... }
     destruct a.
     (* PacketOut case *)
     destruct (IHlst ({|(p,p0)|} <+> outp0) tbl0 (FromList lst))
@@ -504,25 +537,6 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     apply Hstep.
   Qed.
 
-  Axiom ControllerRecvLiveness : forall sws0 links0 ofLinks0 sw switchm0 m 
-    ctrlm0 ofLinks1 ctrl0,
-     exists ctrl1,
-      (multistep 
-         step
-         (State 
-            sws0 links0 
-            (ofLinks0 ++ (OpenFlowLink sw (switchm0 ++ [m]) ctrlm0) :: ofLinks1)
-            ctrl0)
-         nil
-         (State 
-            sws0 links0 
-            (ofLinks0 ++ (OpenFlowLink sw switchm0 ctrlm0) :: ofLinks1)
-            ctrl1)) /\
-       exists (lps : bag (switchId * portId * packet)),
-         (Bag_equiv swPtPk_eqdec 
-                    ((select_packet_in sw m) <+> lps)
-                    (relate_controller ctrl1)).
-
   Lemma DrainToController : forall sws0 links0 ofLinks00 swId0 switchm0
     switchm1 ctrlm0 ofLinks01 ctrl0,
     exists sws1 links1 ofLinks10 ofLinks11 ctrl1,
@@ -758,12 +772,15 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     simpl.
     apply reflexivity.
     trivial.
-    (* idiotic contradiction in HSingleton. Below we match the stupid goal directly
-       so that we don't accidentally admit something else if the goal is discharged
-       earlier due to refactoring. *)
-    match goal with
-      | [ H : ({||}) === ({|(sw, pt, pk)|}) <+> HEmpty |- _] => admit
-    end.
+    assert (Mem (sw,pt,pk) Empty) as Hcontra.
+    { eapply Bag.Mem_equiv.
+      apply symmetry.
+      exact HSingleton.
+      simpl.
+      left...
+      apply reflexivity. }
+    simpl in Hcontra.
+    inversion Hcontra.
 
     (* ********************************************************************** *)
     (* Case 3 : Packet is in a PacketOut message                              *)
@@ -929,33 +946,87 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
       | [ H : multistep step ?s1 nil ?s2 |- _ ] =>
         remember s1 as S1; remember s2 as S2
     end.
-    assert (FlowTablesSafe (switches S1)) as tblsOk0. admit.
+    assert (FlowTablesSafe (switches S1)) as tblsOk0.
+    { subst.
+      unfold switches in *.
+      eapply FlowTablesSafe_untouched.
+      unfold FlowTablesSafe in *. 
+      intros.
+      eapply concreteState_flowTableSafety0...
+      eapply Bag.Mem_equiv.
+      apply symmetry.
+      exact Xrel.
+      exact H1. }
     assert (ConsistentDataLinks (links S1)) as linksTopoOk0. subst...
-    assert (LinksHaveSrc (switches S1) (links S1)) as haveSrc0. subst... admit.
-    assert (LinksHaveDst (switches S1) (links S1)) as haveDst0. subst... admit.
-    assert (UniqSwIds (switches S1)) as uniqSwIds0'. subst... admit.
-    assert (AllFMS (switches S1) (ofLinks S1)) as allFMS0'. subst... admit.
-    assert (P (switches S1) (ofLinks S1) (ctrl S1)) as ctrlP1'. admit.
-
+    assert (LinksHaveSrc (switches S1) (links S1)) as haveSrc0.
+    { subst.
+      unfold switches in *.
+      simpl.
+      eapply LinksHaveSrc_untouched.
+      unfold LinksHaveSrc in *.
+      intros.
+      eapply LinkHasSrc_equiv.
+      exact Xrel.
+      eapply linksHaveSrc0... }
+    assert (LinksHaveDst (switches S1) (links S1)) as haveDst0.
+    { subst.
+      unfold switches in *.
+      simpl.
+      eapply LinksHaveDst_untouched.
+      unfold LinksHaveDst in *.
+      intros.
+      eapply LinkHasDst_equiv.
+      exact Xrel.
+      eapply linksHaveDst0... }
+    assert (UniqSwIds (switches S1)) as uniqSwIds0'.
+    { subst.
+      unfold switches in *.
+      idtac "TODO(arjun): UniqSwIds preserved under equivalence.".
+      admit.
+    }
+    assert (AllFMS (switches S1) (ofLinks S1)) as allFMS0'.
+    { subst.
+      unfold switches in *.
+      unfold ofLinks in *.
+      idtac "TODO(arjun): AllFMS preserved under equivalence.".
+      admit.
+    }
+    assert (P (switches S1) (ofLinks S1) (ctrl S1)) as ctrlP1'.
+    { subst.
+      unfold switches in *.
+      unfold ofLinks in *.
+      idtac "TODO(arjun): P preserved under equivalence; provided by controller".
+      admit.
+    }
+    assert (AllDiff of_to (ofLinks S1)) as uniqOfLinkIds0'.
+    { subst.
+      unfold ofLinks in *.
+      eapply AllDiff_preservation...
+      do 2 rewrite -> map_app... }
+    assert (OFLinksHaveSw (switches S1) (ofLinks S1)) as ofLinksHaveSw0'.
+    { subst.
+      unfold switches in *.
+      unfold ofLinks in *.
+      idtac "TODO(arjun): OFLinksHaveSw preserved under changes.".
+      admit. }
     destruct (simpl_multistep tblsOk0 linksTopoOk0 haveSrc0 haveDst0 
                               uniqSwIds0' allFMS0' 
-                              ctrlP1' Hstep2)
+                              ctrlP1' uniqOfLinkIds0' ofLinksHaveSw0' Hstep2)
              as [tblsOk1 [linksTopoOk1 [haveSrc1 [haveDst1 
-                  [uniqSwIds1 [allFMS1 [ctrlP1 _]]]]]]].
+                  [uniqSwIds1 [allFMS1 [ctrlP1 [uniqOfLinkIds1 [ofLinksHaveSrc1 _]]]]]]]]].
     subst.
     simpl in *.
     destruct (ControllerRecvLiveness sws1 links1 ofLinks10 swId0 nil
                                      (PacketIn p p0)
                                      ctrlm0l ofLinks11 ctrl1)
-             as [ctrl2 [Hstep3 [lps' HInCtrl]]]. 
+             as [ctrl2 [Hstep3 [lps' HInCtrl]]].
     assert (exists y, Mem y (relate_controller ctrl2) /\ (sw,pt,pk) === y)
       as HMem2.
       simpl in HInCtrl.
       apply Bag.mem_split with (ED := swPtPk_eqdec) in HMem.
       destruct HMem as [lps1 HPk].
       rewrite -> HPk in HInCtrl.
-      eapply Bag.mem_equiv.
-      2: exact HInCtrl.
+      apply Bag.mem_equiv with (ED := swPtPk_eqdec) (b1 :=  (({|(sw, pt, pk)|}) <+> lps1) <+> lps')...
       simpl. left. left. apply reflexivity.
     destruct HMem2 as [y [HMem2 HEqy]].
     destruct y. destruct p1.
@@ -996,12 +1067,16 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     unfold relate.
     simpl.
     apply reflexivity.
-    trivial.  
-    (* idiotic contradiction. Below we match the stupid
-       goal directly so that we don't accidentally admit something
-       else if the goal is discharged earlier due to refactoring. *)
-    is_var HPktEq. admit.
-
+    trivial.
+    assert (Mem (sw,pt,pk) Empty) as Hcontra.
+    { eapply Bag.Mem_equiv.
+      apply symmetry.
+      apply reflexivity.
+      rewrite -> HPktEq.
+      simpl.
+      apply reflexivity. }
+    inversion Hcontra.
+  
     (* ********************************************************************** *)
     (* Case 5 : Packet is on a data link                                      *)
     (* ********************************************************************** *)
@@ -1063,19 +1138,17 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     assert ((pks01 ++ [pk]) ++ pks02 = pks01 ++ pk :: pks02) as X.
       rewrite <- app_assoc...
     rewrite <- X. clear X.
-    destruct (SimpleDraimWire sws
-      swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0
-      links01 src0 (pks01 ++ [pk]) pks02 swId0 pt links02 ofLinks0 ctrl0)
-    as [inp4 step].
     eapply multistep_app with (obs2 := [(swId0,pt,pk)]).
-    exact step.
+    apply (DrainWire sws
+      swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0
+      links01 src0 (pks01 ++ [pk]) pks02 swId0 pt links02 ofLinks0 ctrl0).
     eapply multistep_tau.
     apply RecvDataLink.
     eapply multistep_obs.
     apply PktProcess.
       symmetry. exact Hprocess.
-    admit. (* TODO(arjun): requires touchup to RecvDataLink. *)
-    auto.
+    apply multistep_nil.
+    trivial.
     rewrite -> H. apply reflexivity.
     trivial.
 
@@ -1154,10 +1227,17 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     assert (UniqSwIds (switches S1)) as uniqSwIds0'. subst...
     assert (AllFMS (switches S1) (ofLinks S1)) as allFMS0'. subst. admit...
     assert (P (switches S1) (ofLinks S1) (ctrl S1)) as ctrlP1'. admit.
+    assert (AllDiff of_to (ofLinks S1)) as uniqOfLinkIds0'.
+    { subst.
+      unfold ofLinks in *.
+      eapply AllDiff_preservation...
+      do 2 rewrite -> map_app... }
+    assert (OFLinksHaveSw (switches S1) (ofLinks S1)) as ofLinksHaveSw0'. admit.
     destruct (simpl_multistep tblsOk0 linksTopoOk0 haveSrc0 haveDst0 
-                              uniqSwIds0' allFMS0' ctrlP1' Hstep1)
+                              uniqSwIds0' allFMS0' ctrlP1' uniqOfLinkIds0'
+                              ofLinksHaveSw0' Hstep1)
              as [tblsOk1 [linksTopoOk1 [haveSrc1 [haveDst1 
-                   [uniqSwIds1 [allFMS1 [ctrlP1 _]]]]]]].
+                   [uniqSwIds1 [allFMS1 [ctrlP1 [uniqOfLinkIds1 [ofLinksHaveSw1 _]]]]]]]]].
     subst.
     simpl in *.
     destruct (ControllerRecvLiveness sws1 links1 ofLinks10 of_to0 switchm0
@@ -1170,8 +1250,7 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
       apply Bag.mem_split with (ED := swPtPk_eqdec) in HPk.
       destruct HPk as [lps1 HPk].
       rewrite -> HPk in HInCtrl.
-      eapply Bag.mem_equiv.
-      2: exact HInCtrl.
+      apply Bag.mem_equiv with (ED := swPtPk_eqdec) (b1 := (({|(sw, pt, pk)|}) <+> lps1) <+> lps')...
       simpl. left. left. apply reflexivity.
     destruct HMem2 as [y [HMem2 HEqy]].
     destruct y. destruct p1.
@@ -1210,10 +1289,14 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     simpl.
     apply reflexivity.
     trivial.
-    (* idiotic contradiction. Below we match the stupid
-       goal directly so that we don't accidentally admit something
-       else if the goal is discharged earlier due to refactoring. *)
-    is_var HPktEq. admit.
+    assert (Mem (sw,pt,pk) Empty) as Hcontra.
+    { eapply Bag.Mem_equiv.
+      apply reflexivity.
+      rewrite -> HPktEq.
+      simpl.
+      apply reflexivity. }
+    simpl in Hcontra.
+    inversion Hcontra.
 
     (* ************************************************************************)
     (* Case 8 : Packet is at the controller                                   *)
@@ -1239,10 +1322,15 @@ Module Make (AtomsAndController : ATOMS_AND_CONTROLLER).
     simpl.
     apply reflexivity.
     trivial.
-    (* idiotic contradiction. Below we match the stupid
-       goal directly so that we don't accidentally admit something
-       else if the goal is discharged earlier due to refactoring. *)
-    is_var Hrel. admit.
+    assert (Mem (sw,pt,pk) Empty) as Hcontra.
+    { eapply Bag.Mem_equiv.
+      apply symmetry.
+      apply reflexivity.
+      rewrite -> Hrel.
+      simpl.
+      apply reflexivity. }
+    simpl in Hcontra.
+    inversion Hcontra.
 Qed.
 
 End Make.

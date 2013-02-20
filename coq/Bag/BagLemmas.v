@@ -32,12 +32,19 @@ Section Methods.
       | FromList lst => lst
     end.
 
-  Lemma Mem_equiv : forall (x : A) (b1 b2 : bag A),
+  Axiom Mem_equiv : forall (x : A) (b1 b2 : bag A),
     b1 === b2 ->
     Mem x b1 ->
     Mem x b2.
-  Proof with auto.
-  Admitted.
+
+  Axiom equiv_mem : forall (x y : A) (b : bag A),
+    x === y ->
+    Mem x b ->
+    Mem y b.
+
+  Axiom to_list_nil : forall (b : bag A),
+    to_list b = nil ->
+    b === Empty.
 
   Lemma union_iff : forall (x : A) (b1 b2 : bag A),
     multiplicity x (Union b1 b2) = multiplicity x b1 + multiplicity x b2.
@@ -248,6 +255,10 @@ Section Methods.
     Mem x b1 ->
     b1 === b2 ->
     exists (y : A), Mem y b2 /\ x === y.
+
+  Axiom to_list_equiv : forall (b1 b2 : bag A),
+    to_list b1 = to_list b2 ->
+    b1 === b2.
 
   Axiom in_map_mem : forall (B : Type) (f : A -> B) (y : B) (b : bag A),
     In y (map f (to_list b)) ->
