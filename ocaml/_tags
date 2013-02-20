@@ -8,3 +8,4 @@
 "Test.ml" : package(oUnit)
 "Main.d.byte" : package(cstruct), package(lwt), package(lwt.unix)
 "Test.d.byte" : package(cstruct), package(oUnit), package(lwt), package(lwt.unix)
+"Verify.d.byte" : package(cstruct), package(lwt), package(lwt.unix)
