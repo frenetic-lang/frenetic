@@ -227,3 +227,26 @@ Instance bool_as_Action : ClassifierAction bool := {
     apply Equiv_Preserving_elim_shadowed.
     apply Equiv_Preserving_strip_empty.
   Qed.
+
+
+  Definition SemanticsPreserving opt := Equiv_Preserving opt.
+
+  Definition netcore_eval pol sw pt pk bufId :=
+    classify pol (InPkt sw pt pk bufId).
+
+  Definition flowtable_eval ft sw pt pk (bufId : option bufferId) :=
+    map (eval_action (InPkt sw pt pk bufId)) (scan nil ft pt pk).
+
+  Definition compile := compile_pol.
+
+  Theorem compile_correct : forall opt pol sw pt pk bufId,
+    SemanticsPreserving opt ->
+    netcore_eval pol sw pt pk bufId =
+    flowtable_eval (compile opt pol sw) sw pt pk bufId.
+  Proof.
+    unfold compile.
+    unfold SemanticsPreserving.
+    unfold netcore_eval.
+    unfold flowtable_eval.
+    apply compile_pol_correct.
+  Qed.
