@@ -28,8 +28,34 @@ let get_byte (n:int64) (i:int) : char =
   Printf.printf "CHR[%d]\n" n;
   '0' (* Char.chr n *)
 
-    
 let bytes_of_mac (x:int64) : string = 
   Format.sprintf "%c%c%c%c%c%c"
     (get_byte x 5) (get_byte x 4) (get_byte x 3)
     (get_byte x 2) (get_byte x 1) (get_byte x 0)
+
+module type SAFESOCKET = sig
+  type t = Lwt_unix.file_descr
+  val create : Lwt_unix.file_descr -> t
+  val recv : t -> string -> int -> int -> bool Lwt.t
+end
+
+module SafeSocket : SAFESOCKET = struct
+  open Lwt
+  open Lwt_unix
+
+  type t = Lwt_unix.file_descr
+
+  let create fd = fd
+
+  let rec recv fd buf off len = 
+    if len = 0 then 
+      return true
+    else 
+      lwt n = Lwt_unix.recv fd buf off len [] in  
+      if n = 0 then 
+	return false
+      else if n = len then 
+	return true
+      else
+	recv fd buf (off + n) (len - n)
+end

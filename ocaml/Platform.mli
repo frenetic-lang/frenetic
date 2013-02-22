@@ -17,7 +17,7 @@ module type PLATFORM = sig
       [recv_from_switch]. This exception is only raised once per switch.
       If the functions are applied to [switch_id] again, they raise 
       [Invalid_argument]. *)
-  exception SwitchDisconnected of switchId
+  exception SwitchDisconnected of switchId 
 
   (** [send_to_switch switch_id xid msg] sends [msg] to the switch,
       blocking until the send completes. *)
