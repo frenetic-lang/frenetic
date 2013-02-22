@@ -60,6 +60,15 @@ let rec from lst n = match (n, lst) with
 
 let min_num_port_failures sw pols = 0
 
+(* Stupid Ubuntu doesn't have OCaml 4, so List.mapi doesn't exist *)
+
+let rec mapi' idx f lst =
+  match lst with
+    | [] -> []
+    | l :: lst -> (f l idx) :: mapi' (idx + 1) f lst
+
+let mapi f lst = mapi' 0 f lst
+
 (* First pass computes the minimum number of failures required to reach each switch *)
 let rec min_failures topo policies queue arr = 
   if Q.is_empty queue then arr
@@ -67,7 +76,7 @@ let rec min_failures topo policies queue arr =
     let (sw, current) = (Q.take queue) in
     let best = try (Pervasives.min (H.find arr sw) current) with _ -> current in
     if current >= best then arr else
-      let nbrs = List.mapi (fun p count -> (G.next_hop topo sw p, count)) (from (H.find policies sw) best) in
+      let nbrs = mapi (fun p count -> (G.next_hop topo sw p, count)) (from (H.find policies sw) best) in
       let () = H.add arr sw best;
 	List.iter (fun (sw', count) -> Q.add (sw', best + count) queue) nbrs in
       min_failures topo policies queue arr
