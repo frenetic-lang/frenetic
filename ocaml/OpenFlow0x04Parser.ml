@@ -469,7 +469,7 @@ cstruct ofp_action_output {
     uint16_t len;                   (* Length is 16. *)
     uint32_t port;                  (* Output port. *)
     uint16_t max_len;               (* Max length to send to controller. *)
-    uint8_t pad[6];                 (* Pad to 64 bits. *)
+    uint8_t pad[6]                  (* Pad to 64 bits. *)
 } as big_endian
 
 (* Action structure for OFPAT_GROUP. *)
@@ -482,7 +482,7 @@ cstruct ofp_action_group {
 (* Action structure for OFPAT_SET_FIELD. *)
 cstruct ofp_action_set_field {
     uint16_t typ;                  (* OFPAT_SET_FIELD. *)
-    uint16_t len;                   (* Length is padded to 64 bits. *)
+    uint16_t len                   (* Length is padded to 64 bits. *)
     (* Followed by:
      *   - Exactly oxm_len bytes containing a single OXM TLV, then
      *   - Exactly ((oxm_len + 4) + 7)/8*8 - (oxm_len + 4) (between 0 and 7)
