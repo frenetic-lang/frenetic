@@ -35,12 +35,12 @@ type boolExp =
   | ZTrue
   | ZFalse 
   | ZNot of boolExp
-  | ZAnd of boolExp * boolExp
-  | ZOr of boolExp * boolExp
-  | Implies of boolExp * boolExp
-  | Equals of intExp * intExp
-  | ForAll of const list * boolExp
-  | Exists of const list * boolExp
+  | ZAnd of boolExp list
+  | ZOr of boolExp list
+  | ZImplies of boolExp * boolExp
+  | ZEquals of intExp * intExp
+  | ZForAll of const list * boolExp
+  | ZExists of const list * boolExp
 
 let write_constList l =
   match l with
@@ -53,12 +53,17 @@ let rec serialize_boolExp b =
     | ZTrue -> "true"
     | ZFalse -> "false"
     | ZNot b1 -> sprintf "(not %s)" (serialize_boolExp b1)
-    | ZAnd(b1,b2) -> sprintf "(and %s %s)" (serialize_boolExp b1) (serialize_boolExp b2)
-    | ZOr (b1, b2) -> sprintf "(or %s %s)" (serialize_boolExp b1) (serialize_boolExp b2)
-    | Implies (b1, b2) -> sprintf "(implies %s %s)" (serialize_boolExp b1) (serialize_boolExp b2)
-    | Equals (i1, i2) -> sprintf "(equals %s %s)" (write_intExp i1) (write_intExp i2)
-    | ForAll (c, b1) -> sprintf "(forall (%s) %s)" (write_constList c) (serialize_boolExp b1)
-    | Exists (c, b1) -> sprintf "(exists (%s) %s)" (write_constList c) (serialize_boolExp b1)
+    | ZAnd [] -> "true"
+    | ZAnd (b1::bList) -> 
+      List.fold_left (fun x y -> sprintf "(and %s %s)" x (serialize_boolExp y))
+	(serialize_boolExp b1) bList
+    | ZOr [] -> "true"
+    | ZOr (b1::bList) ->  List.fold_left (fun x y -> sprintf "(or %s %s)" x (serialize_boolExp y))
+	(serialize_boolExp b1) bList
+    | ZImplies (b1, b2) -> sprintf "(implies %s %s)" (serialize_boolExp b1) (serialize_boolExp b2)
+    | ZEquals (i1, i2) -> sprintf "(equals %s %s)" (write_intExp i1) (write_intExp i2)
+    | ZForAll (c, b1) -> sprintf "(forall (%s) %s)" (write_constList c) (serialize_boolExp b1)
+    | ZExists (c, b1) -> sprintf "(exists (%s) %s)" (write_constList c) (serialize_boolExp b1)
 
 let z3_prelude =
   "(declare-sort Packet)
@@ -82,7 +87,7 @@ let z3_postlude =
 
 let rec constants_of_boolExp b s = 
   match b with
-    | Equals (i1, i2) ->
+    | ZEquals (i1, i2) ->
       let s1 =
 	begin
 	  match i1 with
@@ -97,15 +102,16 @@ let rec constants_of_boolExp b s =
 	  | Variable (Z3Int i) -> S.add (sprintf "%s Int" i) s1
 	  | _ -> s
       end
-    | ForAll (constList, b1) -> 
+    | ZForAll (constList, b1) -> 
       let s1 = List.fold_left (fun x y -> S.add (write_const y) x) s constList in
       constants_of_boolExp b1 s1
-    | Exists (constList, b1) -> 
+    | ZExists (constList, b1) -> 
       let s1 = List.fold_left (fun x y -> S.add (write_const y) x) s constList in
       constants_of_boolExp b1 s1
     | ZNot b1 -> constants_of_boolExp b1 s 
-    | ZAnd (b1, b2) | ZOr (b1, b2) | Implies (b1, b2) -> let s1 = constants_of_boolExp b1 s in
-							 constants_of_boolExp b2 s1
+    | ZAnd bList | ZOr bList -> List.fold_left (fun x y -> constants_of_boolExp y x) s bList
+    | ZImplies (b1, b2) -> let s1 = constants_of_boolExp b1 s in
+			   constants_of_boolExp b2 s1
     | ZTrue | ZFalse -> s
 
 let declare_constants s =
