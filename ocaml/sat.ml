@@ -28,7 +28,7 @@ type intExp =
 let write_intExp i = 
   match i with
     | Primitive i1 -> Int64.to_string i1
-    | PktHeader (h, (Z3Packet p)) -> sprintf "(%s %s)" h p
+    | PktHeader (h, (Z3Packet  p)) -> sprintf "(%s %s)" h p
     | Variable (Z3Int s) -> s
 
 type boolExp = 
@@ -41,8 +41,6 @@ type boolExp =
   | Equals of intExp * intExp
   | ForAll of const list * boolExp
   | Exists of const list * boolExp
-
-(*let rec declare_const c =*)
 
 let write_constList l =
   match l with
@@ -88,14 +86,14 @@ let rec constants_of_boolExp b s =
       let s1 =
 	begin
 	  match i1 with
-	    | PktHeader (str, Z3Packet pkt) -> S.add (sprintf "%s Packet" pkt) s
+	    | PktHeader (str, Z3Packet p) -> S.add (sprintf "%s Packet" p) s
 	    | Variable (Z3Int i) -> S.add (sprintf "%s Int" i) s
 	    | _ -> s
 	end
       in
       begin
         match i2 with
-	  | PktHeader (str, Z3Packet pkt) -> S.add (sprintf "%s Packet" pkt) s1
+	  | PktHeader (str, Z3Packet p) -> S.add (sprintf "%s Packet" p) s1
 	  | Variable (Z3Int i) -> S.add (sprintf "%s Int" i) s1
 	  | _ -> s
       end
@@ -133,7 +131,3 @@ let solve b =
   let r = String.create bs in 
   let _ = really_input ch r 0 bs in 
   r
-
-let () = 
-  Printf.printf "%s\n"
-    (solve (Exists ([ConstInt (Z3Int "x")], (Equals (Variable (Z3Int "y"), (Variable (Z3Int "x")))))))

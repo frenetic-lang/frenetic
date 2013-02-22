@@ -458,25 +458,168 @@ cstruct ofp_bucket {
   uint8_t pad[4]
 } as big_endian
 
-(* Action structure for OFPAT_GROUP. *)
-cstruct ofp_action_group {
-  uint16_t typ;                  (* OFPAT_GROUP. *)
-  uint16_t len;                   (* Length is 8. *)
-  uint32_t group_id              (* Group identifier. *)
+(* Action structure for OFPAT_OUTPUT, which sends packets out 'port'.
+ * When the 'port' is the OFPP_CONTROLLER, 'max_len' indicates the max
+ * number of bytes to send.  A 'max_len' of zero means no bytes of the
+ * packet should be sent. A 'max_len' of OFPCML_NO_BUFFER means that
+ * the packet is not buffered and the complete packet is to be sent to
+ * the controller. *)
+cstruct ofp_action_output {
+    uint16_t typ;                   (* OFPAT_OUTPUT. *)
+    uint16_t len;                   (* Length is 16. *)
+    uint32_t port;                  (* Output port. *)
+    uint16_t max_len;               (* Max length to send to controller. *)
+    uint8_t pad[6];                 (* Pad to 64 bits. *)
 } as big_endian
 
+(* Action structure for OFPAT_GROUP. *)
+cstruct ofp_action_group {
+  uint16_t typ;                   (* OFPAT_GROUP. *)
+  uint16_t len;                   (* Length is 8. *)
+  uint32_t group_id               (* Group identifier. *)
+} as big_endian
+
+(* Action structure for OFPAT_SET_FIELD. *)
+cstruct ofp_action_set_field {
+    uint16_t typ;                  (* OFPAT_SET_FIELD. *)
+    uint16_t len;                   (* Length is padded to 64 bits. *)
+    (* Followed by:
+     *   - Exactly oxm_len bytes containing a single OXM TLV, then
+     *   - Exactly ((oxm_len + 4) + 7)/8*8 - (oxm_len + 4) (between 0 and 7)
+     *     bytes of all-zero bytes
+     *)
+} as big_endian
+
+cstruct ofp_oxm {
+  uint16_t oxm_class;
+  uint8_t oxm_field_and_hashmask;
+  uint8_t oxm_length
+} as big_endian
+
+module Oxm = struct
+
+  let sizeof (oxm : oxm) : int =
+    sizeof_ofp_oxm + Oxm.length oxm
+
+  let length (oxm : oxm) : int = match oxm with
+    | OxmInPort _ -> 4
+    | OxmInPhyPort _ -> 4
+    | OxmMetadata  _ -> 8
+    | OxmEthType  _ -> 2
+    | OxmEthDst  _ -> 6
+    | OxmEthSrc  _ -> 6
+    | OxmVlanVId _ -> 2
+
+  let set_ofp_oxm (buf : buf) (c : int) (f : int) (hm : int) (l : int) : int = 
+    let value = (0x3f land f) lsl 1 in
+    let value = value lor (0x1 land hm) in
+    set_ofp_oxm_oxm_class buf c;
+    set_ofp_oxm_oxm_field_and_hashmask buf value;
+    set_ofp_oxm_oxm_length buf l;
+
+  let marshal (buf : buf) (oxm : oxm) : int = 
+    let l = Oxm.length oxm in
+      match oxm with
+        | OxmInPort pid ->
+          set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_IN_PORT 0 l
+          (* FIXME: How to write a uint32 into buf? *)
+          write_uint32 buf pid
+          sizeof_ofp_oxm + oxm_length
+        | OxmInPhyPort pid ->
+          set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_IN_PHY_PORT 0 l
+          (* FIXME: How to write a uint32 into buf? *)
+          write_uint32 buf pid
+          sizeof_ofp_oxm + oxm_length
+        | OxmEthType ethtype ->
+          set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_ETH_TYPE 0 l
+          (* FIXME: How to write a uint16 into buf? *)
+          write_uint16 buf ethtype
+          sizeof_ofp_oxm + oxm_length
+        | OxmEthDst ethaddr ->
+          (* FIXME: here ethaddr is either uint48 or uint48 mask. How to match? *)
+          match ethaddr with
+            | value ->
+              set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_ETH_DST 0 l
+              (* FIXME: How to write a uint48 into buf? *)
+              write_uint48 buf value
+              sizeof_ofp_oxm + oxm_length
+            | value, mask ->
+              set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_ETH_DST 1 l*2
+              (* FIXME: How to write a uint48 into buf? *)
+              write_uint48 buf value
+              write_uint48 buf mask
+              sizeof_ofp_oxm + oxm_length
+        | OxmEthSrc ethaddr ->
+          (* FIXME: here ethaddr is either uint48 or uint48 mask. How to match? *)
+          match ethaddr with
+            | value ->
+              set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_ETH_SRC 0 l
+              (* FIXME: How to write a uint48 into buf? *)
+              write_uint48 buf value
+              sizeof_ofp_oxm + oxm_length
+            | value, mask ->
+              set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_ETH_SRC 1 l*2
+              (* FIXME: How to write a uint48 into buf? *)
+              write_uint48 buf value
+              write_uint48 buf mask
+              sizeof_ofp_oxm + oxm_length
+        | OxmVlanVId vid ->
+          (* FIXME: here ethaddr is either uint12 or uint12 mask. How to match? *)
+          match vid with
+            | value ->
+              set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_VLAN_VID 0 l
+              (* FIXME: How to write a uint16 into buf? *)
+              write_uint16 buf value
+              sizeof_ofp_oxm + oxm_length
+            | value, mask ->
+              set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_VLAN_VID 1 l*2
+              (* FIXME: How to write a uint16 into buf? *)
+              write_uint16 buf value
+              write_uint16 buf mask
+              sizeof_ofp_oxm + oxm_length
+
+end
 
 module Action = struct
     
   let sizeof (act : action) : int = match act with
+    | Output _ -> sizeof_ofp_action_output
     | Group _ -> sizeof_ofp_action_group
+    | SetField oxm -> sizeof_ofp_action_set_field + sizeof oxm
+
 
   let marshal (buf : buf) (act : action) : int = match act with
+    | Output port ->
+      set_ofp_action_output_typ buf 0; (* OFPAT_OUTPUT *)
+      set_ofp_action_output_len buf sizeof act;
+      let _ = match port with
+        | PhysicalPort pid ->
+          set_ofp_action_output_port buf pid;
+          set_ofp_action_output_max_len buf 0;
+        | InPort ->
+          set_ofp_action_output_port buf 0xfffffff8L;  (* OFPP_IN_PORT *)
+          set_ofp_action_output_max_len buf 0;
+        | Flood ->
+          set_ofp_action_output_port buf 0xfffffffbL;  (* OFPP_FLOOD *)
+          set_ofp_action_output_max_len buf 0;
+        | AllPorts ->
+          set_ofp_action_output_port buf 0xfffffffcL;  (* OFPP_ALL *)
+          set_ofp_action_output_max_len buf 0;
+        | Controller max_len ->
+          set_ofp_action_output_port buf 0xfffffffdL;  (* OFPP_CONTROLLER *)
+          set_ofp_action_output_max_len buf max_len;
+      set_ofp_action_output_pad buf 0;
+      sizeof act
     | Group gid ->
       set_ofp_action_group_typ buf 22; (* OFPAT_GROUP *)
-      set_ofp_action_group_len buf sizeof_ofp_action_group;
+      set_ofp_action_group_len buf sizeof act;
       set_ofp_action_group_group_id buf gid;
-      sizeof_ofp_action_group
+      sizeof act
+    | SetField oxm ->
+      set_ofp_action_set_field_typ buf 25; (* OFPAT_SET_FIELD *)
+      set_ofp_action_set_field_len buf sizeof act;
+      Oxm.marshal buf oxm
+      sizeof act
 
 end
 
