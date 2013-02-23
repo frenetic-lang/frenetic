@@ -87,8 +87,7 @@ module Test3 = struct
 
   let test0  = "get_byte test" >::
     (fun () ->
-      printf "get_byte is %d\n"  (Char.code (get_byte 0x112233445566L 5));
-      assert_equal (get_byte 0x112233445566L 5) '\x11')
+      assert_equal (get_byte 0x112233445566L 5) 11)
 
   let test1 = "manual-check for big-endian encoding" >::
     (fun () ->

@@ -23,16 +23,22 @@ let mac_of_bytes (str:string) : int64 =
              (logor (shift_left (byte 1) (8 * 1))
                 (byte 0)))))
 
-let get_byte (n:int64) (i:int) : char = 
+let get_byte (n:int64) (i:int) : int = 
   if i < 0 or i > 5 then
     raise (Invalid_argument "Int64.get_byte index out of range");
-  let n = Int64.to_int (Int64.logand 0xFFL (Int64.shift_right_logical n (8 * i))) in 
-  Char.chr n
+  Int64.to_int (Int64.logand 0xFFL (Int64.shift_right_logical n (8 * i)))
 
-let bytes_of_mac (x:int64) : string = 
-  Format.sprintf "%c%c%c%c%c%c"
+let string_of_mac (x:int64) : string = 
+  Format.sprintf "%02x:%02x:%02x:%02x:%02x:%02x" 
     (get_byte x 0) (get_byte x 1) (get_byte x 2)
     (get_byte x 3) (get_byte x 4) (get_byte x 5)
+
+
+let bytes_of_mac (x:int64) : string = 
+  let byte n = Char.chr (get_byte x n) in
+  Format.sprintf "%c%c%c%c%c%c"
+    (byte 0) (byte 1) (byte 2)
+    (byte 3) (byte 4) (byte 5)
 
 module type SAFESOCKET = sig
   type t = Lwt_unix.file_descr
