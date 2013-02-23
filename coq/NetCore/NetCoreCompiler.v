@@ -8,6 +8,7 @@ Require Import Pattern.Pattern.
 (* TODO: MJR Move 'switchId' from messagesDef so that we don't have to include this whole thing *)
 Require Import OpenFlow.MessagesDef.
 Require Import NetCore.NetCoreTypes.
+Require Import Network.Packet.
 
 Set Implicit Arguments.
 

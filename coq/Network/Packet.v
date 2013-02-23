@@ -29,6 +29,7 @@ Extract Constant Const_0x7 => "0x7".
 Extract Constant Const_0x1 => "0x1".
 
 Definition portId := Word16.t.
+Definition switchId := Word64.t.
 Definition dlAddr := Word48.t.
 Definition dlTyp := Word16.t.
 Definition dlVlan := Word16.t.
