@@ -18,7 +18,7 @@ sig
   val add_node : graph -> a -> unit
   val add_edge : graph -> a -> b -> a -> b -> unit
   val shortest_path : graph -> a -> a -> a list
-  val get_port : graph -> a -> a -> b option
+  val get_ports : graph -> a -> a -> (b*b) option
   (* val get_ports : graph -> a -> b list *)
   val nodes : graph -> SwSet.t
   (* val get_other_port : graph -> a -> b -> (a*b) option *)
@@ -60,9 +60,9 @@ module Graph : GRAPH =
 
     let shortest_path = bfs
 
-    let get_port topo s1 s2 = 
+    let get_ports topo s1 s2 = 
       let () = Printf.printf "get_hop %Ld %Ld\n" s1 s2 in
-      try (H.fold (fun pt (sw, pt') acc -> if sw = s2 then (Some pt) else acc) (H.find topo s1) None) 
+      try (H.fold (fun pt (sw, pt') acc -> if sw = s2 then Some (pt, pt') else acc) (H.find topo s1) None) 
       with _ -> None
 
     let next_hop topo sw p = fst (Hashtbl.find (Hashtbl.find topo sw) p)

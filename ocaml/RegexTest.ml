@@ -4,6 +4,7 @@ open WordInterface
 open Platform
 open NetCore
 open Packet
+open FaultTolerance
 
 module G = Graph.Graph
 
@@ -25,22 +26,22 @@ module Routing = struct
       G.add_node topo h4;
       G.add_node topo h5;
       G.add_node topo h6;
-      G.add_edge topo s101 0 h4 0;
+      G.add_edge topo s101 1 h4 0;
       G.add_edge topo s101 2 s102 2;
-      G.add_edge topo s102 0 h5 0;
+      G.add_edge topo s102 1 h5 0;
       G.add_edge topo s102 2 s101 2;
       G.add_edge topo s102 3 s103 2;
-      G.add_edge topo s103 0 h6 0;
+      G.add_edge topo s103 1 h6 0;
       G.add_edge topo s103 2 s102 3;
-      G.add_edge topo h4 0 s101 0;
-      G.add_edge topo h5 0 s102 0;
-      G.add_edge topo h6 0 s103 0 in
+      G.add_edge topo h4 0 s101 1;
+      G.add_edge topo h5 0 s102 1;
+      G.add_edge topo h6 0 s103 1 in
     topo
 
   let (policy, push) = Lwt_stream.create ()
     
-  let test_regex = RegPar (RegPol (All, Sequence (Host h4, (Sequence (Hop s101, Sequence (Star, (Sequence (Hop s103, Host h6))))))),
-			   RegPol (All, Sequence (Host h6, Sequence (Hop s103, Sequence (Star, (Sequence (Hop s101, Host h4)))))))
+  let test_regex = RegPar (RegPol (All, Sequence (Host h4, (Sequence (Hop s101, Sequence (Hop s102, (Sequence (Hop s103, Host h6))))))),
+			   RegPol (All, Sequence (Host h6, Sequence (Hop s103, Sequence (Hop s102, (Sequence (Hop s101, Host h4)))))))
 
   (** Composes learning and routing policies, which together form
       mac-learning. *)      
