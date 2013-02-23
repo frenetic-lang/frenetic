@@ -54,8 +54,5 @@ extracts it to use `Obj.magic` and other nonsense.
 However, type-classes can help structure proofs. So, very carefully split
 factor the Coq into code and proof.
 
-OCaml Wisdom
-------------
 
-If you're using the user-mode reference switch, emit CONTROLLER actions last.
 

@@ -239,8 +239,6 @@ Instance bool_as_Action : ClassifierAction bool := {
 
   Definition compile := compile_pol.
 
-  Definition compose {A B C : Type} (f : B -> C) (g : A -> B) x := f (g x).
-
   Theorem compile_correct : forall opt pol sw pt pk bufId,
     SemanticsPreserving opt ->
     netcore_eval pol sw pt pk bufId =
