@@ -129,15 +129,6 @@ cstruct ofp_switch_features {
   uint32_t action
 } as big_endian 
 
-cenum ofp_flow_mod_command {
-  OFPFC_ADD           = 0; (* New flow. *)
-  OFPFC_MODIFY        = 1; (* Modify all matching flows. *)
-  OFPFC_MODIFY_STRICT = 2; (* Modify entry strictly matching wildcards and
-                              priority. *)
-  OFPFC_DELETE        = 3; (* Delete all matching flows. *)
-  OFPFC_DELETE_STRICT = 4  (* Delete entry strictly matching wildcards and
-                              priority. *)
-} as uint16_t
 
 (* OKAY *)
 (*
@@ -420,20 +411,6 @@ cstruct ofp_instruction_experimenter {
     (* Experimenter-defined arbitrary additional data. *)
 } as big_endian
 
-cenum ofp_group_type {
-  OFPGT_ALL = 0; (* All (multicast/broadcast) group. *)
-  OFPGT_SELECT = 1; (* Select group. *)
-  OFPGT_INDIRECT = 2; (* Indirect group. *)
-  OFPGT_FF = 3 (* Fast failover group. *)
-} as uint16_t
-
-(* Group commands *)
-cenum ofp_group_mod_command {
-    OFPGC_ADD    = 0;       (* New group. *)
-    OFPGC_MODIFY = 1;       (* Modify all matching groups. *)
-    OFPGC_DELETE = 2        (* Delete all matching groups. *)
-} as uint16_t
-
 (* Group setup and teardown (controller -> datapath). *)
 cstruct ofp_group_mod {
   uint16_t command;             (* One of OFPGC_*. *)
@@ -496,87 +473,88 @@ cstruct ofp_oxm {
   uint8_t oxm_length
 } as big_endian
 
+cstruct ofp_uint16 {
+  uint16_t value
+} as big_endian
+
+cstruct ofp_uint32 {
+  uint32_t value
+} as big_endian
+
+cstruct ofp_uint48 {
+  uint8_t value[6]
+} as big_endian
+
 module Oxm = struct
 
-  let sizeof (oxm : oxm) : int =
-    sizeof_ofp_oxm + Oxm.length oxm
-
-  let length (oxm : oxm) : int = match oxm with
+  let field_length (oxm : oxm) : int = match oxm with
     | OxmInPort _ -> 4
     | OxmInPhyPort _ -> 4
-    | OxmMetadata  _ -> 8
     | OxmEthType  _ -> 2
     | OxmEthDst  _ -> 6
     | OxmEthSrc  _ -> 6
     | OxmVlanVId _ -> 2
 
-  let set_ofp_oxm (buf : buf) (c : int) (f : int) (hm : int) (l : int) : int = 
-    let value = (0x3f land f) lsl 1 in
+  let sizeof (oxm : oxm) : int =
+    sizeof_ofp_oxm + field_length oxm
+
+  let set_ofp_oxm (buf : buf) (c : ofp_oxm_class) (f : oxm_ofb_match_fields) (hm : int) (l : int) : int = 
+    let value = (0x3f land (oxm_ofb_match_fields_to_int f)) lsl 1 in
     let value = value lor (0x1 land hm) in
-    set_ofp_oxm_oxm_class buf c;
+    set_ofp_oxm_oxm_class buf (ofp_oxm_class_to_int c);
     set_ofp_oxm_oxm_field_and_hashmask buf value;
     set_ofp_oxm_oxm_length buf l;
+    sizeof_ofp_oxm
 
   let marshal (buf : buf) (oxm : oxm) : int = 
-    let l = Oxm.length oxm in
-      match oxm with
-        | OxmInPort pid ->
-          set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_IN_PORT 0 l
-          (* FIXME: How to write a uint32 into buf? *)
-          write_uint32 buf pid
-          sizeof_ofp_oxm + oxm_length
-        | OxmInPhyPort pid ->
-          set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_IN_PHY_PORT 0 l
-          (* FIXME: How to write a uint32 into buf? *)
-          write_uint32 buf pid
-          sizeof_ofp_oxm + oxm_length
-        | OxmEthType ethtype ->
-          set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_ETH_TYPE 0 l
-          (* FIXME: How to write a uint16 into buf? *)
-          write_uint16 buf ethtype
-          sizeof_ofp_oxm + oxm_length
-        | OxmEthDst ethaddr ->
-          (* FIXME: here ethaddr is either uint48 or uint48 mask. How to match? *)
-          match ethaddr with
-            | value ->
-              set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_ETH_DST 0 l
-              (* FIXME: How to write a uint48 into buf? *)
-              write_uint48 buf value
-              sizeof_ofp_oxm + oxm_length
-            | value, mask ->
-              set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_ETH_DST 1 l*2
-              (* FIXME: How to write a uint48 into buf? *)
-              write_uint48 buf value
-              write_uint48 buf mask
-              sizeof_ofp_oxm + oxm_length
-        | OxmEthSrc ethaddr ->
-          (* FIXME: here ethaddr is either uint48 or uint48 mask. How to match? *)
-          match ethaddr with
-            | value ->
-              set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_ETH_SRC 0 l
-              (* FIXME: How to write a uint48 into buf? *)
-              write_uint48 buf value
-              sizeof_ofp_oxm + oxm_length
-            | value, mask ->
-              set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_ETH_SRC 1 l*2
-              (* FIXME: How to write a uint48 into buf? *)
-              write_uint48 buf value
-              write_uint48 buf mask
-              sizeof_ofp_oxm + oxm_length
-        | OxmVlanVId vid ->
-          (* FIXME: here ethaddr is either uint12 or uint12 mask. How to match? *)
-          match vid with
-            | value ->
-              set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_VLAN_VID 0 l
-              (* FIXME: How to write a uint16 into buf? *)
-              write_uint16 buf value
-              sizeof_ofp_oxm + oxm_length
-            | value, mask ->
-              set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_VLAN_VID 1 l*2
-              (* FIXME: How to write a uint16 into buf? *)
-              write_uint16 buf value
-              write_uint16 buf mask
-              sizeof_ofp_oxm + oxm_length
+    let l = field_length oxm in
+      let ofc = OFPXMC_OPENFLOW_BASIC in
+        match oxm with
+          | OxmInPort pid ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IN_PORT 0 l;
+            set_ofp_uint32_value buf pid;
+            sizeof_ofp_oxm + l
+          | OxmInPhyPort pid ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IN_PHY_PORT 0 l;
+            set_ofp_uint32_value buf pid;
+            sizeof_ofp_oxm + l
+          | OxmEthType ethtype ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_ETH_TYPE 0 l;
+            set_ofp_uint16_value buf ethtype;
+            sizeof_ofp_oxm + l
+          | OxmEthDst ethaddr ->
+            match ethaddr with
+              | EthVal value ->
+                set_ofp_oxm buf ofc OFPXMT_OFB_ETH_DST 0 l;
+                set_ofp_uint48_value buf value;
+                sizeof_ofp_oxm + l
+              | EthValMask (value, mask) ->
+                set_ofp_oxm buf ofc OFPXMT_OFB_ETH_DST 1 l*2;
+                set_ofp_uint48_value buf value;
+                set_ofp_uint48_value buf mask;
+                sizeof_ofp_oxm + l
+          | OxmEthSrc ethaddr ->
+            match ethaddr with
+              | EthVal value ->
+                set_ofp_oxm buf ofc OFPXMT_OFB_ETH_SRC 0 l;
+                set_ofp_uint48_value buf value;
+                sizeof_ofp_oxm + l
+              | EthValMask (value, mask) ->
+                set_ofp_oxm buf ofc OFPXMT_OFB_ETH_SRC 1 l*2;
+                set_ofp_uint48_value buf value;
+                set_ofp_uint48_value buf mask;
+                sizeof_ofp_oxm + l
+          | OxmVlanVId vid ->
+            match vid with
+              | VlanVIdVal value ->
+                set_ofp_oxm buf ofc OFPXMT_OFB_VLAN_VID 0 l;
+                set_ofp_uint16_value buf value;
+                sizeof_ofp_oxm + l
+              | VlanVIdValMask (value, mask) ->
+                set_ofp_oxm buf ofc OFPXMT_OFB_VLAN_VID 1 l*2;
+                set_ofp_uint16_value buf value;
+                set_ofp_uint16_value buf mask;
+                sizeof_ofp_oxm + l
 
 end
 
@@ -585,29 +563,24 @@ module Action = struct
   let sizeof (act : action) : int = match act with
     | Output _ -> sizeof_ofp_action_output
     | Group _ -> sizeof_ofp_action_group
-    | SetField oxm -> sizeof_ofp_action_set_field + sizeof oxm
+    | SetField oxm -> sizeof_ofp_action_set_field + Oxm.sizeof oxm
 
 
   let marshal (buf : buf) (act : action) : int = match act with
     | Output port ->
       set_ofp_action_output_typ buf 0; (* OFPAT_OUTPUT *)
       set_ofp_action_output_len buf sizeof act;
-      let _ = match port with
-        | PhysicalPort pid ->
-          set_ofp_action_output_port buf pid;
-          set_ofp_action_output_max_len buf 0;
-        | InPort ->
-          set_ofp_action_output_port buf 0xfffffff8L;  (* OFPP_IN_PORT *)
-          set_ofp_action_output_max_len buf 0;
-        | Flood ->
-          set_ofp_action_output_port buf 0xfffffffbL;  (* OFPP_FLOOD *)
-          set_ofp_action_output_max_len buf 0;
-        | AllPorts ->
-          set_ofp_action_output_port buf 0xfffffffcL;  (* OFPP_ALL *)
-          set_ofp_action_output_max_len buf 0;
-        | Controller max_len ->
-          set_ofp_action_output_port buf 0xfffffffdL;  (* OFPP_CONTROLLER *)
-          set_ofp_action_output_max_len buf max_len;
+      set_ofp_action_output_port buf
+        (match port with
+          | PhysicalPort pid -> pid
+          | InPort -> 0xfffffff8L         (* OFPP_IN_PORT *)
+          | Flood -> 0xfffffffbL          (* OFPP_FLOOD *)
+          | AllPorts -> 0xfffffffcL       (* OFPP_ALL *)
+          | Controller _ -> 0xfffffffdL); (* OFPP_CONTROLLER *)
+      set_ofp_action_output_max_len buf
+        (match port with
+          | Controller max_len -> max_len
+          | _ -> 0);
       set_ofp_action_output_pad buf 0;
       sizeof act
     | Group gid ->
@@ -618,7 +591,7 @@ module Action = struct
     | SetField oxm ->
       set_ofp_action_set_field_typ buf 25; (* OFPAT_SET_FIELD *)
       set_ofp_action_set_field_len buf sizeof act;
-      Oxm.marshal buf oxm
+      Oxm.marshal buf oxm;
       sizeof act
 
 end
@@ -646,6 +619,7 @@ end
 module GroupMod = struct
 
   let marshal (buf : buf) (gm : groupMod) : int =
+    (* TODO: ofp_header *)
     match gm with
       | AddGroup (typ, gid, buckets) -> 
         set_ofp_group_mod_command buf (ofp_group_mod_command_to_int OFPGC_ADD);
@@ -656,6 +630,46 @@ module GroupMod = struct
         0
       | DeleteGroup (typ, gid) ->
         failwith "NYI"
+
+end
+
+module FlowMod = struct
+
+  let flags_to_int (f : flowModFlags) =
+    (if f.send_flow_rem then 1 lsl 0 else 0) lor
+      (if f.check_overlap then 1 lsl 1 else 0) lor
+        (if f.reset_counts then 1 lsl 2 else 0) lor
+          (if f.no_pkt_counts then 1 lsl 3 else 0) lor
+            (if f.no_byt_counts then 1 lsl 4 else 0)
+
+  let marshal (buf : buf) (fm : flowMod) : int =
+    set_ofp_flow_mod_cookie buf fm.cookie;
+    set_ofp_flow_mod_cookie_mask buf 0;
+    set_ofp_flow_mod_table_id buf fm.table_id;
+    set_ofp_flow_mod_command buf fm.command;
+    set_ofp_flow_mod_idle_timeout buf
+      (match fm.idle_timeout with
+        | Permanent -> 0
+        | ExpiresAfter value -> value);
+    set_ofp_flow_mod_hard_timeout buf
+      (match fm.idle_timeout with
+        | Permanent -> 0
+        | ExpiresAfter value -> value);
+    set_ofp_flow_mod_priority buf fm.priority;
+    set_ofp_flow_mod_buffer_id buf fm.buffer_id;
+    set_ofp_flow_mod_out_port buf
+      (match port with
+        | PhysicalPort pid -> pid
+        | InPort -> 0xfffffff8L         (* OFPP_IN_PORT *)
+        | Flood -> 0xfffffffbL          (* OFPP_FLOOD *)
+        | AllPorts -> 0xfffffffcL       (* OFPP_ALL *)
+        | Controller _ -> 0xfffffffdL); (* OFPP_CONTROLLER *)
+    set_ofp_flow_mod_out_group buf fm.group_id;
+    set_ofp_flow_mod_flags buf (flags_to_int fm.flags);
+    set_ofp_flow_mod_pad buf 0;
+    (* TODO: match *)
+    (* TODO: instructions *)
+    sizeof_ofp_flow_mod
 
 end
 
@@ -877,50 +891,6 @@ module Features = struct
       supported_actions }
 end
 
-cstruct ofp_oxm {
-  uint16_t oxm_class;
-  uint8_t oxm_field_and_hashmask;
-  uint8_t oxm_length
-} as big_endian
-
-module Oxm = struct
-
-  open Bigarray
-
-(*   let set_ofp_oxm (buf : int32) (c : int) (f : int) (hm : int) (l : int) : int32 = 
-    let value = (0xffff land c) lsl 16 in
-    let value = value lor ((0x3f land f) lsl 9) in
-    let value = value lor ((0x1 land hm) lsl 8) in
-    let value = value lor (0xff land l) in
-    (Int32.logor buf (Int32.of_int value))
- *)
-
-  let set_ofp_oxm buf (c : int) (f : int) (hm : int) (l : int) : int32 = 
-    let value = (0x3f land f) lsl 1 in
-    let value = value lor (0x1 land hm) in
-    set_ofp_oxm_oxm_class buf c;
-    set_ofp_oxm_oxm_field_and_hashmask buf value;
-    set_ofp_oxm_oxm_length buf l;
-
-end
-
-module Oxm_Of_InPort = struct
-
-  let marshal buf =
-    let oxm_length = 4 in
-    Oxm.set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_IN_PORT 0 oxm_length;
-    (* HERE we need to write the port value into buf *)
-    ()
-end
-
-module Oxm_Of_EthDst = struct
-
-  let marshal buf =
-    let oxm_length = 6 in
-    Oxm.set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_IN_PORT 0 oxm_length;
-    ()
-end
-
 (** Internal module, only used to parse the wildcards bitfield *)
 module Wildcards = struct
 
@@ -1122,41 +1092,7 @@ module TimeoutSer = struct
     | Permanent -> 0
     | ExpiresAfter w -> w
 
-end
-
-module FlowMod = struct
-
-  type t = flowMod
-
-  let flags_to_int (check_overlap : bool) (notify_when_removed : bool) =
-    (if check_overlap then 1 lsl 1 else 0) lor
-      (if notify_when_removed then 1 lsl 0 else 0)
-
-  let marshal m bits = 
-    let bits = Cstruct.shift bits (Match.marshal m.mfMatch bits) in
-    set_ofp_flow_mod_cookie bits (m.mfCookie);
-    set_ofp_flow_mod_command bits (FlowModCommand.marshal m.mfModCmd);
-    set_ofp_flow_mod_idle_timeout bits (TimeoutSer.to_int m.mfIdleTimeOut);
-    set_ofp_flow_mod_hard_timeout bits (TimeoutSer.to_int m.mfHardTimeOut);
-    set_ofp_flow_mod_priority bits (m.mfPriority);
-    set_ofp_flow_mod_buffer_id bits
-      (match m.mfApplyToPacket with
-        | None -> -1l
-        | Some bufId -> bufId);
-    set_ofp_flow_mod_out_port bits (PseudoPort.marshal_optional m.mfOutPort);
-    set_ofp_flow_mod_flags bits
-      (flags_to_int m.mfCheckOverlap m.mfNotifyWhenRemoved);
-    let bits = Cstruct.shift bits sizeof_ofp_flow_mod in
-    let _ = List.fold_left
-      (fun bits act -> 
-        Cstruct.shift bits (Action.marshal act bits))
-      bits
-      m.mfActions
-    in
-    ()
-
-end
-  
+end  
 
 module Header = struct
 
