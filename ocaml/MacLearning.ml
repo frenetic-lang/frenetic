@@ -50,11 +50,12 @@ end
 
 module Routing = struct
 
-  (** Maps over all tuples, (sw, pt, mac) in [learned_hosts], and writes the rule:
-     
-       Switch = sw && DstMac = mac ==> To pt
-       
-       Sends traffic for unknown destinations to ToAll ports. *)
+  (** Maps over all tuples, (sw, pt, mac) in [learned_hosts], and
+      writes the rule:
+      
+      Switch = sw && DstMac = mac ==> To pt
+      
+      Sends traffic for unknown destinations to ToAll ports. *)
   let make_routing_policy () = 
     Hashtbl.fold
       (fun (sw, dst) pt pol ->
@@ -65,8 +66,10 @@ module Routing = struct
   (** Composes learning and routing policies, which together form
       mac-learning. *)      
   let policy = Lwt_stream.map (fun learning_pol ->
-    Par (learning_pol, make_routing_policy ()))
-      Learning.policy
+    let pol = Par (learning_pol, make_routing_policy ()) in
+    Printf.printf "[MacLearning.ml] policy is %s\n%!" (policy_to_string pol);
+    pol)
+    Learning.policy
 end
 
 module Make (Platform : PLATFORM) = struct
