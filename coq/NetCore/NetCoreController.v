@@ -171,7 +171,9 @@ Module Make (Import Monad : NETCORE_MONAD).
   Definition send_output (out : output) := 
     match out with
       | OutNothing => ret tt
-      | OutPkt _ _ _ _ => ret tt (* TODO(arjun): fill *)
+      | OutPkt swId pp pkt bufOrBytes =>
+          send swId Word32.zero
+               (PacketOutMsg (PacketOut bufOrBytes None [Output pp]))
       | OutGetPkt x switchId portId packet => 
         handle_get_packet x switchId portId packet
     end.
