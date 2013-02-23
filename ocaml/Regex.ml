@@ -56,7 +56,7 @@ let rec compile1 pred reg topo port = match reg with
     (match get_ports topo s1 s2 with
       | Some (p1,p2) ->  Par ((Pol ((And (pred, (And (InPort port,Switch s1)))), [To p1])), ((compile1 pred ((Hop s2) :: reg) topo p2)))
       | None -> Par ((Pol ((And (pred, (And (InPort port,Switch s1)))), [GetPacket (bad_hop_handler s1 s2)])), ((compile1 pred ((Hop s2) :: reg) topo port))))
-  | Hop s1 :: Star :: Hop s2 :: reg -> compile1 pred (get_path topo s1 s2) topo port
+  | Hop s1 :: Star :: Hop s2 :: reg -> compile1 pred ((get_path topo s1 s2) @ reg) topo port
   | Hop s1 :: [Host h] -> (match get_ports topo s1 h with
       | Some (p1,_) ->  Pol ((And (pred, (And (InPort port,Switch s1)))), [To p1])
       | None -> Pol (((And (pred, (And (InPort port,Switch s1))))), [GetPacket (bad_hop_handler s1 h)]))
