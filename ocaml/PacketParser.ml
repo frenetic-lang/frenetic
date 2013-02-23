@@ -156,19 +156,20 @@ let parse_ip (bits:Cstruct.buf) : ip option =
   let chksum = get_ip_chksum bits in 
   let src = get_ip_src bits in 
   let dst = get_ip_dst bits in 
+  let bits = Cstruct.shift bits ihl in 
   let tp_header = match int_to_ip_proto proto with 
     | Some IP_ICMP -> 
-      begin match parse_icmp (Cstruct.shift bits ihl) with 
+      begin match parse_icmp bits with 
       | Some icmp -> TpICMP icmp 
-      | _ -> TpUnparsable (proto) 
+      | _ -> TpUnparsable (proto, bits) 
       end
-    | Some IP_TCP -> 
-      begin match parse_tcp (Cstruct.shift bits ihl) with 
+    | Some IP_TCP ->       
+      begin match parse_tcp bits with 
       | Some tcp -> TpTCP tcp 
-      | _ -> TpUnparsable (proto) 
+      | _ -> TpUnparsable (proto, bits) 
       end
     | _ -> 
-      TpUnparsable (proto) in 
+      TpUnparsable (proto, bits) in 
   let _ = eprintf "[PacketParser] ip okay\n%!" in 
   Some { pktIPTos = tos;
 	 pktIPIdent = ident;
@@ -225,15 +226,15 @@ let parse_eth (bits:Cstruct.buf) : packet option =
     | Some ETHTYP_IP -> 
       begin match parse_ip bits with 
       | Some ip -> NwIP ip
-      | _ -> NwUnparsable typ 
+      | _ -> NwUnparsable (typ,bits) 
       end
     | Some ETHTYP_ARP -> 
       begin match parse_arp bits with 
       | Some arp -> NwARP arp 
-      | _ -> NwUnparsable typ 
+      | _ -> NwUnparsable (typ, bits) 
       end
     | _ -> 
-      NwUnparsable typ in 
+      NwUnparsable (typ,bits) in 
   let _ = eprintf "[PacketParser] eth okay\n%!" in 
   Some { pktDlSrc = mac_of_bytes src;
 	 pktDlDst = mac_of_bytes dst;
@@ -250,8 +251,9 @@ let size_tp (p:tpPkt) : int =
     sizeof_tcp - 4 (* JNF: hack! *)
   | TpICMP(icmp) -> 
     sizeof_icmp
-  | TpUnparsable _ -> 
-    assert false
+  | TpUnparsable (_,buf) -> 
+    Cstruct.len buf
+    
 
 let size_nw (p:nw) : int = 
   match p with 
@@ -261,8 +263,8 @@ let size_nw (p:nw) : int =
     n_nw + n_tp
   | NwARP(arp) -> 
     sizeof_arp
-  | NwUnparsable _ -> 
-    assert false
+  | NwUnparsable (_,buf) -> 
+    Cstruct.len buf
   
 let size_dl (p:packet) : int = 
   let n_dl = 
