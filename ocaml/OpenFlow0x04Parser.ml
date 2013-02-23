@@ -523,7 +523,7 @@ module Oxm = struct
             set_ofp_uint16_value buf ethtype;
             sizeof_ofp_oxm + l
           | OxmEthDst ethaddr ->
-            match ethaddr with
+            (match ethaddr with
               | EthVal value ->
                 set_ofp_oxm buf ofc OFPXMT_OFB_ETH_DST 0 l;
                 set_ofp_uint48_value buf value;
@@ -532,9 +532,9 @@ module Oxm = struct
                 set_ofp_oxm buf ofc OFPXMT_OFB_ETH_DST 1 l*2;
                 set_ofp_uint48_value buf value;
                 set_ofp_uint48_value buf mask;
-                sizeof_ofp_oxm + l
+                sizeof_ofp_oxm + l)
           | OxmEthSrc ethaddr ->
-            match ethaddr with
+            begin match ethaddr with
               | EthVal value ->
                 set_ofp_oxm buf ofc OFPXMT_OFB_ETH_SRC 0 l;
                 set_ofp_uint48_value buf value;
@@ -544,6 +544,7 @@ module Oxm = struct
                 set_ofp_uint48_value buf value;
                 set_ofp_uint48_value buf mask;
                 sizeof_ofp_oxm + l
+            end
           | OxmVlanVId vid ->
             match vid with
               | VlanVIdVal value ->

@@ -4,6 +4,7 @@ open Platform
 open Unix
 open MessagesDef
 
+module Z = OpenFlow0x04Parser
 module Controller = MacLearning.Make (OpenFlowPlatform)
 
 (* configuration state *)
