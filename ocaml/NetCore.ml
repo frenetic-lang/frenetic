@@ -155,8 +155,8 @@ let rec predicate_to_string pred = match pred with
   | NoPackets -> "None"
   | Switch sw -> Printf.sprintf "(Switch %Ld)" sw
   | InPort pt -> Printf.sprintf "(InPort %d)" pt
-  | DlSrc add -> Printf.sprintf "(DlSrc %Ld)" add
-  | DlDst add -> Printf.sprintf "(DlDst %Ld)" add
+  | DlSrc add -> Printf.sprintf "(DlSrc %s)" (Util.string_of_mac add)
+  | DlDst add -> Printf.sprintf "(DlDst %s)" (Util.string_of_mac add)
   | All -> "All"
   
 let action_to_string act = match act with
