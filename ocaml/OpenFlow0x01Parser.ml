@@ -287,6 +287,15 @@ module Action = struct
               | _ -> 0)
     end;
     sizeof a
+
+  let is_to_controller (act : action) : bool = match act with
+    | Output (Controller _) -> true
+    | _ -> false
+
+  let move_controller_last (lst : action list) : action list = 
+    let (to_ctrl, not_to_ctrl) = List.partition is_to_controller lst in
+    not_to_ctrl @ to_ctrl
+    
       
         
 end
@@ -632,7 +641,7 @@ module FlowMod = struct
       (fun bits act -> 
         Cstruct.shift bits (Action.marshal act bits))
       bits
-      m.mfActions
+      (Action.move_controller_last m.mfActions)
     in
     ()
     with exn -> 
