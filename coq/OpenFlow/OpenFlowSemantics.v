@@ -44,7 +44,7 @@ Section Actions.
   Definition setIPSrcAddr_nw (ethTyp : dlTyp) (nwSrc : nwAddr)
     (pkt : nw ethTyp) : nw ethTyp := 
     match pkt with
-      | NwUnparsable pf => NwUnparsable pf
+      | NwUnparsable pf data => NwUnparsable pf data
       | NwIP (IP ident flags _ nwDst nwTos _ ttl frag chksum tp) =>
         NwIP (IP ident flags nwSrc nwDst nwTos ttl frag chksum tp)
       | NwARP (ARPQuery dlSrc _ nwDst) =>
@@ -62,7 +62,7 @@ Section Actions.
   Definition setIPDstAddr_nw (ethTyp : dlTyp) (nwDst : nwAddr) 
     (pkt : nw ethTyp) : nw ethTyp := 
     match pkt with
-      | NwUnparsable pf => NwUnparsable pf
+      | NwUnparsable pf data => NwUnparsable pf data
       | NwIP (IP ident flags nwSrc _ nwTos _ ttl frag chksum tp) =>
         NwIP (IP ident flags nwSrc nwDst nwTos ttl frag chksum tp)
       | NwARP (ARPQuery dlSrc nwSrc _) =>
@@ -80,7 +80,7 @@ Section Actions.
   Definition setIPToS_nw (ethTyp : dlTyp) (nwTOS : nwTos)
     (pkt : nw ethTyp) : nw ethTyp := 
     match pkt with
-      | NwUnparsable pf => NwUnparsable pf
+      | NwUnparsable pf data => NwUnparsable pf data
       | NwIP (IP ident flags nwSrc nwDst _ _ ttl frag chksum tp) =>
         NwIP (IP ident flags nwSrc nwDst nwTOS ttl frag chksum tp)
       | NwARP (ARPQuery dlSrc nwSrc nwDst) =>
@@ -101,13 +101,13 @@ Section Actions.
       | TpTCP (Tcp _ dst seq ack off flags win payload) =>
         TpTCP (Tcp tpSrc dst seq ack off flags win payload)
       | TpICMP icmp => TpICMP icmp (* TODO(arjun): should set *)
-      | TpUnparsable proto => TpUnparsable proto
+      | TpUnparsable proto data => TpUnparsable proto data
     end.
 
   Definition setTransportSrcPort_nw (ethTyp : dlTyp) 
     (tpSrc : tpPort) (pkt : nw ethTyp) : nw ethTyp := 
     match pkt with
-      | NwUnparsable pf => NwUnparsable pf
+      | NwUnparsable pf data => NwUnparsable pf data
       | NwIP (IP ident flags nwSrc nwDst nwTos _ ttl frag chksum tp) =>
         NwIP (IP ident flags nwSrc nwDst nwTos ttl frag chksum 
           (setTransportSrcPort_tp tpSrc tp))
@@ -127,13 +127,13 @@ Section Actions.
       | TpTCP (Tcp src _ seq ack off flags win payload) =>
         TpTCP (Tcp src tpDst seq ack off flags win payload)
       | TpICMP icmp => TpICMP icmp (* TODO(arjun): should set *)
-      | TpUnparsable proto => TpUnparsable proto
+      | TpUnparsable proto data => TpUnparsable proto data
     end.
 
   Definition setTransportDstPort_nw (ethTyp : dlTyp)
     (tpDst : tpPort) (pkt : nw ethTyp) : nw ethTyp := 
     match pkt with
-      | NwUnparsable pf => NwUnparsable pf
+      | NwUnparsable pf data => NwUnparsable pf data
       | NwIP (IP ident flags nwSrc nwDst nwTos _ ttl frag chksum tp) =>
         NwIP (IP ident flags nwSrc nwDst nwTos ttl frag chksum 
           (setTransportDstPort_tp tpDst tp))
@@ -196,7 +196,7 @@ Section Match.
             (* TODO(arjun): this is wrong *)
             (* match_opt Word16.eq_dec typ mTpSrc &&
             match_opt Word16.eq_dec code mTpDst *)
-          | TpUnparsable _ => 
+          | TpUnparsable _ _ => 
             true
         end
     end.
@@ -224,7 +224,7 @@ Section Match.
           | NwARP (ARPReply _ nwSrc _ nwDst) => 
             match_opt Word32.eq_dec nwSrc mNwSrc &&
             match_opt Word32.eq_dec nwDst mNwDst
-          | NwUnparsable _ => true (* really? *)
+          | NwUnparsable _ _ => true (* really? *)
         end
     end.
 

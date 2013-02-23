@@ -25,7 +25,6 @@ let usage =
 let () = Arg.parse arg_specs arg_rest usage
 
 let main () = 
-  
   Sys.catch_break true;
   try 
     OpenFlowPlatform.init_with_port 6633;
