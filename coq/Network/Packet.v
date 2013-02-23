@@ -61,7 +61,7 @@ Record icmp : Type := Icmp {
 Inductive tpPkt : nwProto -> Type :=
   | TpTCP : tcp -> tpPkt Const_0x6
   | TpICMP : icmp -> tpPkt Const_0x1
-  | TpUnparsable : forall (proto : nwProto), tpPkt proto.
+  | TpUnparsable : forall (proto : nwProto), bytes -> tpPkt proto.
 
 Record ip : Type := IP {
   pktIPIdent : Word16.t;
@@ -83,7 +83,7 @@ Inductive arp : Type :=
 Inductive nw : dlTyp -> Type :=
   | NwIP : ip -> nw Const_0x800
   | NwARP : arp -> nw Const_0x806
-  | NwUnparsable : forall (typ : dlTyp), nw typ.
+  | NwUnparsable : forall (typ : dlTyp), bytes -> nw typ.
 
 Record packet : Type := Packet {
   pktDlSrc : dlAddr;
@@ -104,7 +104,7 @@ Section Accessors.
           | NwIP ip => pktIPSrc ip
           | NwARP (ARPQuery _ ip _) => ip
           | NwARP (ARPReply _ ip _ _) => ip
-          | NwUnparsable _ => Word32.zero
+          | NwUnparsable _ _ => Word32.zero
         end
     end.
 
@@ -115,7 +115,7 @@ Section Accessors.
           | NwIP ip => pktIPDst ip
           | NwARP (ARPQuery _ _ ip) => ip
           | NwARP (ARPReply _ _ _ ip) => ip
-          | NwUnparsable _ => Word32.zero
+          | NwUnparsable _ _ => Word32.zero
         end
     end.
 
@@ -126,7 +126,7 @@ Section Accessors.
           | NwIP ip => pktIPProto ip
           | NwARP (ARPQuery _ _ _) => Word8.zero
           | NwARP (ARPReply _ _ _ _) => Word8.zero
-          | NwUnparsable _ => Word8.zero
+          | NwUnparsable _ _ => Word8.zero
         end
     end.
 
@@ -137,7 +137,7 @@ Section Accessors.
           | NwIP ip => pktIPTos ip
           | NwARP (ARPQuery _ _ _) => Word8.zero
           | NwARP (ARPReply _ _ _ _) => Word8.zero
-          | NwUnparsable _ => Word8.zero
+          | NwUnparsable _ _ => Word8.zero
         end
     end.
 
@@ -149,11 +149,11 @@ Section Accessors.
             match pktTPHeader ip with
               | TpTCP frag => tcpSrc frag
               | TpICMP _ => Word16.zero
-              | TpUnparsable _ => Word16.zero
+              | TpUnparsable _ _ => Word16.zero
             end
           | NwARP (ARPQuery _ _ _) => Word16.zero
           | NwARP (ARPReply _ _ _ _) => Word16.zero
-          | NwUnparsable _ => Word16.zero
+          | NwUnparsable _ _ => Word16.zero
         end
     end.
 
@@ -165,11 +165,11 @@ Section Accessors.
             match pktTPHeader ip with
               | TpTCP frag => tcpDst frag
               | TpICMP _ => Word16.zero
-              | TpUnparsable _ => Word16.zero
+              | TpUnparsable _ _ => Word16.zero
             end
           | NwARP (ARPQuery _ _ _) => Word16.zero
           | NwARP (ARPReply _ _ _ _) => Word16.zero
-          | NwUnparsable _ => Word16.zero
+          | NwUnparsable _ _ => Word16.zero
         end
     end.
 
