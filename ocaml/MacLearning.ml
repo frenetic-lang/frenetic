@@ -50,6 +50,12 @@ end
 
 module Routing = struct
 
+  let known_hosts () = 
+    Hashtbl.fold 
+      (fun (sw,dst) _ hosts -> Or (And (Switch sw, DlDst dst), hosts))
+      Learning.learned_hosts
+      NoPackets
+
   (** Maps over all tuples, (sw, pt, mac) in [learned_hosts], and
       writes the rule:
       
@@ -61,7 +67,7 @@ module Routing = struct
       (fun (sw, dst) pt pol ->
         Par (Pol (And (Switch sw, DlDst dst), [To pt]),  pol))
       Learning.learned_hosts
-      (Pol (Learning.make_unknown_predicate (), [ToAll]))
+      (Pol (Not (known_hosts ()), [ToAll]))
 
   (** Composes learning and routing policies, which together form
       mac-learning. *)      
