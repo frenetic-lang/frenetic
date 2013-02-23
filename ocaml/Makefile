@@ -1,5 +1,5 @@
 .PHONY: all doc
-OCAMLBUILD = ocamlbuild -use-ocamlfind -tag debug -ocamlc '-syntax camlp4o -package lwt.syntax -ppopt -lwt-debug'
+OCAMLBUILD = ocamlbuild -use-ocamlfind 
 
 all: extracted doc
 	$(OCAMLBUILD) Main.d.byte
@@ -9,8 +9,8 @@ all: extracted doc
 doc:
 	$(OCAMLBUILD) doc.docdir/index.html
 
-test: Test.d.byte
-	./Test.d.byte
+test: _build/Test.d.byte
+	$<
 
 clean:
 	rm -rf _build

@@ -1,8 +1,8 @@
 open Packet
 open Util
 open Printf
-(* ----- Data Link Layer Structures ----- *)
 
+(* ----- Data Link Layer Structures ----- *)
 cstruct eth {
   uint8_t dst[6];
   uint8_t src[6];
@@ -23,13 +23,10 @@ cenum eth_typ {
 } as uint16_t
 
 let vlan_none = 0xffff
-
 let vlan_mask = 0xfff
-
 let vlan_pcp_mask = 0x7 lsl 9
 
 (* ----- Network Layer Structures ----- *)
-
 cstruct arp {
   uint16_t htype;
   uint16_t ptype;
