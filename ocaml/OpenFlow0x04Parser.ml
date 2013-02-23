@@ -469,7 +469,7 @@ cstruct ofp_action_output {
     uint16_t len;                   (* Length is 16. *)
     uint32_t port;                  (* Output port. *)
     uint16_t max_len;               (* Max length to send to controller. *)
-    uint8_t pad[6]                 (* Pad to 64 bits. *)
+    uint8_t pad[6]                  (* Pad to 64 bits. *)
 } as big_endian
 
 (* Action structure for OFPAT_GROUP. *)
