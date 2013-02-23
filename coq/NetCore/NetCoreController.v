@@ -38,18 +38,27 @@ End PacketIn.
 
 Section ToFlowMod.
 
-  Definition translate_action (act : act) :=
+  Definition translate_action (in_port : option portId) (act : act) :=
     match act with
-      | Forward pp => Output pp
+      | Forward (PhysicalPort pp) =>
+        match in_port with
+          | None => Output (PhysicalPort pp)
+          | Some pp' => match Word16.eq_dec pp' pp with
+                          | left _ => Output InPort
+                          | right _ => Output (PhysicalPort pp)
+                        end
+        end
+      | Forward p => Output p
       | ActGetPkt x => Output (Controller Word16.max_value)
     end.
 
   Definition to_flow_mod prio (pat : pattern) (act : list act)
              (isfls : Pattern.is_empty pat = false) :=
+    let ofMatch := Pattern.to_match isfls in
     FlowMod AddFlow
-            (Pattern.to_match isfls)
+            ofMatch
             prio
-            (List.map translate_action act)
+            (List.map (translate_action (matchInPort ofMatch)) act)
             Word64.zero
             Permanent
             Permanent
