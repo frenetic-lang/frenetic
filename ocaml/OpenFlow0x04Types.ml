@@ -15,8 +15,8 @@ type uint12 = uint16
 type bytes = string
 
 type +'a mask = {
-  bits : 'a;
-  mask : 'a
+  value : 'a;
+  mask : 'a option
 }
 
 type groupId = uint32
@@ -25,27 +25,13 @@ type tableId = uint8
 type bufferId = uint32
 
 (** See Table 11 of the specification *)
-type oxmEth =
-  | EthVal of uint48
-  | EthValMask of uint48 * uint48
-
-type oxmVlanVId =
-  | VlanVIdVal of uint12
-  | VlanVIdValMask of uint12 * uint12
-
 type oxm = 
   | OxmInPort of portId
   | OxmInPhyPort of portId
   | OxmEthType of uint16
-  | OxmEthDst of oxmEth
-  | OxmEthSrc of oxmEth
-  | OxmVlanVId of oxmVlanVId
-
-(*
-  | OxmEthDst of uint48 + (uint48 mask)
-  | OxmEthSrc of uint48 + (uint48 mask)
-  | OxmVlanVId of uint12 + (uint12 mask)
-*)
+  | OxmEthDst of uint48 mask
+  | OxmEthSrc of uint48 mask
+  | OxmVlanVId of uint12 mask
 
 (**  Hard-codes OFPMT_OXM as the match type, since OFPMT_STANDARD is deprecated.
 *)
