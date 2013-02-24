@@ -125,6 +125,12 @@ Record packetIn : Type := PacketIn {
 
 Definition xid : Type := Word32.t.
 
+Inductive packetOut : Type := PacketOut {
+  pktOutBufOrBytes : bufferId + bytes;
+  pktOutPortId : option portId;
+  pktOutActions : actionSequence
+}.
+
 Inductive message : Type :=
 | Hello : bytes -> message
 | EchoRequest : bytes -> message
@@ -132,6 +138,7 @@ Inductive message : Type :=
 | FeaturesRequest : message
 | FeaturesReply : features -> message
 | FlowModMsg : flowMod -> message
-| PacketInMsg : packetIn -> message.
+| PacketInMsg : packetIn -> message
+| PacketOutMsg : packetOut -> message.
 
 

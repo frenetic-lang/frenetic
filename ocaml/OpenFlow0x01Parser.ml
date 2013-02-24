@@ -295,10 +295,49 @@ module Action = struct
   let move_controller_last (lst : action list) : action list = 
     let (to_ctrl, not_to_ctrl) = List.partition is_to_controller lst in
     not_to_ctrl @ to_ctrl
-    
-      
         
 end
+
+module PacketOut = struct
+
+  type t = packetOut
+
+  cstruct ofp_packet_out {
+    uint32_t buffer_id;
+    uint16_t in_port;
+    uint16_t actions_len
+  } as big_endian
+
+  let sizeof (pktOut : t) : int = 
+    sizeof_ofp_packet_out + 
+      (sum (List.map Action.sizeof pktOut.pktOutActions)) +
+      (match pktOut.pktOutBufOrBytes with
+        | Datatypes.Coq_inl _ -> 0
+        | Datatypes.Coq_inr bytes -> Cstruct.len bytes)
+
+  let marshal (pktOut : t) (buf : Cstruct.buf) : int =
+    set_ofp_packet_out_buffer_id buf
+      (match pktOut.pktOutBufOrBytes with
+        | Datatypes.Coq_inl n ->  n
+        | Datatypes.Coq_inl _ -> -1l);
+    set_ofp_packet_out_in_port buf
+      (match pktOut.pktOutPortId with
+        | None -> ofp_port_to_int OFPP_NONE
+        | Some n -> n);
+    set_ofp_packet_out_actions_len buf
+      (sum (List.map Action.sizeof pktOut.pktOutActions));
+    let buf = List.fold_left
+      (fun buf act -> Cstruct.shift buf (Action.marshal act buf))
+      buf
+      (Action.move_controller_last pktOut.pktOutActions) in
+    begin match pktOut.pktOutBufOrBytes with
+      | Datatypes.Coq_inl n -> ()
+      | Datatypes.Coq_inl _ -> failwith "NYI synthesized packets"
+    end;
+    sizeof pktOut
+end
+ 
+
 
 module Timeout = struct
 
@@ -701,6 +740,7 @@ module Message = struct
     | FeaturesRequest -> FEATURES_REQ
     | FeaturesReply _ -> FEATURES_RESP
     | FlowModMsg _ -> FLOW_MOD
+    | PacketOutMsg _ -> PACKET_OUT
 
   let to_string (msg : t) : string = match msg with 
     | Hello _ -> "Hello"
@@ -723,6 +763,7 @@ module Message = struct
     | FlowModMsg msg ->
       sizeof_ofp_match + sizeof_ofp_flow_mod + 
         sum (List.map Action.sizeof msg.mfActions)
+    | PacketOutMsg msg -> PacketOut.sizeof msg
     | _ -> failwith "unknowns"
 
   let blit_message (msg : t) (out : Cstruct.buf) = match msg with
@@ -732,6 +773,7 @@ module Message = struct
       Cstruct.blit_buffer buf 0 out 0 (Cstruct.len buf)
     | FeaturesRequest -> ()
     | FlowModMsg flow_mod -> FlowMod.marshal flow_mod out
+    | PacketOutMsg msg -> let _ = PacketOut.marshal msg out in ()
 
   let marshal (xid : xid) (msg : t) : string = 
     let sizeof_buf = sizeof_ofp_header + sizeof_body msg in
