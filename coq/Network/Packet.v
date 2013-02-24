@@ -10,7 +10,7 @@ Local Open Scope list_scope.
 Local Open Scope N_scope.
 
 Axiom bytes : Type.
-Extract Constant bytes => "Cstruct.buf".
+Extract Constant bytes => "Cstruct.t".
 
 Section Constants.
   

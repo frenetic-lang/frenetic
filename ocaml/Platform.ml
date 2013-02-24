@@ -27,12 +27,10 @@ let string_of_sockaddr (sa:sockaddr) : string = match sa with
   | ADDR_INET (addr,port) -> 
     sprintf "%s:%d" (Unix.string_of_inet_addr addr) port
 
-let buf_of_string (str : string) : Cstruct.buf = 
+let buf_of_string (str : string) : Cstruct.t =   
   let len = String.length str in
-  let buf = Bigarray.Array1.create Bigarray.char Bigarray.c_layout len in
-  for i = 0 to len - 1 do
-    Bigarray.Array1.set buf i (String.get str i)
-  done;
+  let buf = Cstruct.create len in
+  Cstruct.blit_from_string str 0 buf 0 len;
   buf
 
 module OpenFlowPlatform = struct
@@ -197,7 +195,7 @@ module OpenFlowPlatform = struct
   let rec accept_switch () = 
     lwt _ = eprintf "[platform] accept_switch\n%!" in
     lwt (fd, sa) = accept (get_fd ()) in
-    lwt _ = eprintf "[platform] : %s connected, handshaking...\n%!" 
+    lwt _ = eprintf "[platform] : %s connected, handshaking...\n%!"
       (string_of_sockaddr sa) in
     (* TODO(arjun): a switch can stall during a handshake, while another
        switch is ready to connect. To be fully robust, this module should

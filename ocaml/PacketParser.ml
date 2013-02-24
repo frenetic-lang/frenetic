@@ -93,7 +93,7 @@ cstruct icmp {
 
 (* ----- Parsers ----- *)
 
-let parse_tcp (bits:Cstruct.buf) : tcp option =
+let parse_tcp (bits:Cstruct.t) : tcp option =
   let _ = eprintf "[PacketParser] parse_tcp\n%!" in 
   let src = get_tcp_src bits in 
   let dst = get_tcp_dst bits in 
@@ -115,7 +115,7 @@ let parse_tcp (bits:Cstruct.buf) : tcp option =
 	 tcpWindow = window;
 	 tcpPayload = payload }
 
-(* let parse_udp (bits:Cstruct.buf) : udp option =  *)
+(* let parse_udp (bits:Cstruct.t) : udp option =  *)
 (*   let src = get_ucp_src bits in  *)
 (*   let dst = get_ucp_dst bits in  *)
 (*   let chksum = get_udp_chksum bits in  *)
@@ -125,7 +125,7 @@ let parse_tcp (bits:Cstruct.buf) : tcp option =
 (* 	 udpChksum = seq; *)
 (* 	 udpPayload = payload } *)
 
-let parse_icmp (bits:Cstruct.buf) : icmp option = 
+let parse_icmp (bits:Cstruct.t) : icmp option = 
   let _ = eprintf "[PacketParser] parse_icmp\n%!" in 
   let typ = get_icmp_typ bits in 
   let code = get_icmp_code bits in 
@@ -137,7 +137,7 @@ let parse_icmp (bits:Cstruct.buf) : icmp option =
 	 icmpChksum = chksum;
 	 icmpPayload = payload }
 
-let parse_ip (bits:Cstruct.buf) : ip option = 
+let parse_ip (bits:Cstruct.t) : ip option = 
   let _ = eprintf "[PacketParser] parse_ip\n%!" in 
   let vhl = get_ip_vhl bits in 
   let _ = vhl lsr 4 in (* TODO(jnf): test for IPv4? *)
@@ -179,7 +179,7 @@ let parse_ip (bits:Cstruct.buf) : ip option =
 	 pktIPDst = dst;     
 	 pktTPHeader = tp_header }
 
-let parse_arp (bits:Cstruct.buf) : arp option = 
+let parse_arp (bits:Cstruct.t) : arp option = 
   let _ = eprintf "[PacketParser] parse_arp\n%!" in 
   let oper = get_arp_oper bits in 
   let sha = mac_of_bytes (Cstruct.to_string (get_arp_sha bits)) in 
@@ -197,7 +197,7 @@ let parse_arp (bits:Cstruct.buf) : arp option =
       let _ = eprintf "[PacketParser] arp okay\n%!" in 
       None
     
-let parse_vlan (bits:Cstruct.buf) : int * int * int * int = 
+let parse_vlan (bits:Cstruct.t) : int * int * int * int = 
   let _ = eprintf "[PacketParser] parse_vlan\n%!" in 
   let typ = get_eth_typ bits in 
   match int_to_eth_typ typ with 
@@ -212,7 +212,7 @@ let parse_vlan (bits:Cstruct.buf) : int * int * int * int =
     let _ = eprintf "[PacketParser] vlan okay\n%!" in 
     (vlan_none, 0x0, typ, sizeof_eth)
 
-let parse_eth (bits:Cstruct.buf) : packet option = 
+let parse_eth (bits:Cstruct.t) : packet option = 
   let _ = eprintf "[PacketParser] parse_eth\n%!" in 
   let dst = Cstruct.to_string (get_eth_dst bits) in
   let src = Cstruct.to_string (get_eth_src bits) in
@@ -273,7 +273,7 @@ let size_dl (p:packet) : int =
 
 let size_packet = size_dl 
 
-let marshal_eth (p:packet) (buf:Cstruct.buf) : unit = 
+let marshal_eth (p:packet) (buf:Cstruct.t) : unit = 
   set_eth_src (bytes_of_mac p.pktDlSrc) 0 buf;
   set_eth_dst (bytes_of_mac p.pktDlDst) 0 buf;
   match p.pktDlVlan with 
@@ -289,8 +289,8 @@ let marshal_eth (p:packet) (buf:Cstruct.buf) : unit =
     set_vlan_typ buf p.pktDlTyp;
     () 
 
-let marshal_packet (p:packet) : Cstruct.buf = 
+let marshal_packet (p:packet) : Cstruct.t = 
   let _ = Printf.printf "[packetParser] marshal_packet\n%!" in 
-  let buf = Bigarray.(Array1.create char c_layout (size_packet p)) in 
+  let buf = Cstruct.create (size_packet p) in 
   let () = marshal_eth p buf in 
   buf
