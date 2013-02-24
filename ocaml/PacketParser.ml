@@ -1,6 +1,5 @@
 open Packet
 open Util
-open Printf
 
 (* ----- Data Link Layer Structures ----- *)
 cstruct eth {
@@ -94,7 +93,6 @@ cstruct icmp {
 (* ----- Parsers ----- *)
 
 let parse_tcp (bits:Cstruct.t) : tcp option =
-  let _ = eprintf "[PacketParser] parse_tcp\n%!" in 
   let src = get_tcp_src bits in 
   let dst = get_tcp_dst bits in 
   let seq = get_tcp_seq bits in 
@@ -105,7 +103,6 @@ let parse_tcp (bits:Cstruct.t) : tcp option =
   let flags = get_tcp_flags bits in 
   let window = get_tcp_window bits in 
   let payload = Cstruct.shift bits sizeof_tcp in 
-  let _ = eprintf "[PacketParser] tcp okay\n%!" in 
   Some { tcpSrc = src;
 	 tcpDst = dst;
 	 tcpSeq = seq;
@@ -126,19 +123,16 @@ let parse_tcp (bits:Cstruct.t) : tcp option =
 (* 	 udpPayload = payload } *)
 
 let parse_icmp (bits:Cstruct.t) : icmp option = 
-  let _ = eprintf "[PacketParser] parse_icmp\n%!" in 
   let typ = get_icmp_typ bits in 
   let code = get_icmp_code bits in 
   let chksum = get_icmp_chksum bits in 
   let payload = Cstruct.shift bits sizeof_icmp in 
-  let _ = eprintf "[PacketParser] icmp okay\n%!" in 
   Some { icmpType = typ;
 	 icmpCode = code;
 	 icmpChksum = chksum;
 	 icmpPayload = payload }
 
 let parse_ip (bits:Cstruct.t) : ip option = 
-  let _ = eprintf "[PacketParser] parse_ip\n%!" in 
   let vhl = get_ip_vhl bits in 
   let _ = vhl lsr 4 in (* TODO(jnf): test for IPv4? *)
   let ihl = vhl land 0x0f in 
@@ -167,7 +161,6 @@ let parse_ip (bits:Cstruct.t) : ip option =
       end
     | _ -> 
       TpUnparsable (proto, bits) in 
-  let _ = eprintf "[PacketParser] ip okay\n%!" in 
   Some { pktIPTos = tos;
 	 pktIPIdent = ident;
 	 pktIPFlags = flags ;
@@ -180,25 +173,20 @@ let parse_ip (bits:Cstruct.t) : ip option =
 	 pktTPHeader = tp_header }
 
 let parse_arp (bits:Cstruct.t) : arp option = 
-  let _ = eprintf "[PacketParser] parse_arp\n%!" in 
   let oper = get_arp_oper bits in 
   let sha = mac_of_bytes (Cstruct.to_string (get_arp_sha bits)) in 
   let spa = (get_arp_spa bits) in 
   let tpa = (get_arp_tpa bits) in 
   match int_to_arp_oper oper with 
     | Some ARP_REQUEST -> 
-      let _ = eprintf "[PacketParser] arp okay\n%!" in 
        Some (ARPQuery(sha,spa,tpa))
     | Some ARP_REPLY -> 
        let tha = mac_of_bytes (Cstruct.to_string (get_arp_tha bits)) in 
-       let _ = eprintf "[PacketParser] arp okay\n%!" in 
        Some (ARPReply(sha,spa,tha,tpa))
     | _ -> 
-      let _ = eprintf "[PacketParser] arp okay\n%!" in 
       None
     
 let parse_vlan (bits:Cstruct.t) : int * int * int * int = 
-  let _ = eprintf "[PacketParser] parse_vlan\n%!" in 
   let typ = get_eth_typ bits in 
   match int_to_eth_typ typ with 
   | Some ETHTYP_VLAN -> 
@@ -206,14 +194,11 @@ let parse_vlan (bits:Cstruct.t) : int * int * int * int =
     let vlan_tag = tag_and_pcp land 0xfff in 
     let vlan_pcp = (tag_and_pcp lsr 9) land 0x7 in 
     let typ = get_vlan_typ bits in 
-    let _ = eprintf "[PacketParser] vlan okay\n%!" in 
     (vlan_tag, vlan_pcp, typ, sizeof_vlan)
   | _ -> 
-    let _ = eprintf "[PacketParser] vlan okay\n%!" in 
     (vlan_none, 0x0, typ, sizeof_eth)
 
 let parse_eth (bits:Cstruct.t) : packet option = 
-  let _ = eprintf "[PacketParser] parse_eth\n%!" in 
   let dst = Cstruct.to_string (get_eth_dst bits) in
   let src = Cstruct.to_string (get_eth_src bits) in
   let (vlan_tag, vlan_pcp, typ, offset) = parse_vlan bits in 
@@ -232,7 +217,6 @@ let parse_eth (bits:Cstruct.t) : packet option =
       end
     | _ -> 
       NwUnparsable (typ,bits) in 
-  let _ = eprintf "[PacketParser] eth okay\n%!" in 
   Some { pktDlSrc = mac_of_bytes src;
 	 pktDlDst = mac_of_bytes dst;
 	 pktDlTyp = typ;
@@ -290,7 +274,6 @@ let marshal_eth (p:packet) (buf:Cstruct.t) : unit =
     () 
 
 let marshal_packet (p:packet) : Cstruct.t = 
-  let _ = Printf.printf "[packetParser] marshal_packet\n%!" in 
   let buf = Cstruct.create (size_packet p) in 
   let () = marshal_eth p buf in 
   buf
