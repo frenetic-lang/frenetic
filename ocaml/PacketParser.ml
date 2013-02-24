@@ -1,7 +1,7 @@
 open Packet
 open Util
 
-(* ----- Data Link Layer Structures ----- *)
+(* Data Link *)
 cstruct eth {
   uint8_t dst[6];
   uint8_t src[6];
@@ -25,7 +25,7 @@ let vlan_none = 0xffff
 let vlan_mask = 0xfff
 let vlan_pcp_mask = 0x7 lsl 9
 
-(* ----- Network Layer Structures ----- *)
+(* Network *)
 cstruct arp {
   uint16_t htype;
   uint16_t ptype;
@@ -63,7 +63,7 @@ cstruct ip {
   uint32_t options (* options and padding *)
 } as big_endian
 
-(* ----- Transport Layer Structures ----- *)
+(* Transport *)
 cstruct tcp { 
   uint16_t src;
   uint16_t dst;
@@ -90,7 +90,7 @@ cstruct icmp {
   uint16_t chksum
 } as big_endian
 
-(* ----- Parsers ----- *)
+(* Parsers *)
 
 let parse_tcp (bits:Cstruct.t) : tcp option =
   let src = get_tcp_src bits in 
@@ -102,7 +102,7 @@ let parse_tcp (bits:Cstruct.t) : tcp option =
   let _ = offset land 0x0f in 
   let flags = get_tcp_flags bits in 
   let window = get_tcp_window bits in 
-  let payload = Cstruct.shift bits sizeof_tcp in 
+  let payload = Cstruct.shift bits sizeof_tcp in (* JNF: FIXME *)
   Some { tcpSrc = src;
 	 tcpDst = dst;
 	 tcpSeq = seq;
@@ -226,6 +226,8 @@ let parse_eth (bits:Cstruct.t) : packet option =
 
 let parse_packet = parse_eth
 
+(* sizes *)
+
 let size_tp (p:tpPkt) : int = 
   match p with 
   | TpTCP(tcp) -> 
@@ -247,33 +249,66 @@ let size_nw (p:nw) : int =
   | NwUnparsable (_,buf) -> 
     Cstruct.len buf
   
-let size_dl (p:packet) : int = 
-  let n_dl = 
+let size_eth (p:packet) : int = 
+  let n_eth = 
     match p.pktDlVlan with
     | 0xffff -> sizeof_eth
     | _ -> sizeof_vlan in 
   let n_nw = size_nw p.pktNwHeader in 
-  n_dl + n_nw
+  n_eth + n_nw
 
-let size_packet = size_dl 
+let size_packet = size_eth 
 
-let marshal_eth (p:packet) (buf:Cstruct.t) : unit = 
-  set_eth_src (bytes_of_mac p.pktDlSrc) 0 buf;
-  set_eth_dst (bytes_of_mac p.pktDlDst) 0 buf;
-  match p.pktDlVlan with 
-  | 0xffff -> 
-    set_eth_typ buf p.pktDlTyp
-  | _ -> 
-    let vlan_tag = p.pktDlVlan in 
-    let vlan_pcp = p.pktDlVlanPcp in 
-    let tag_and_pcp = 
-      (vlan_pcp lsr (31 - 16) + 13) land (* PCP *)
-       vlan_tag lsl 4 land 0xffff in 
-    set_vlan_tag buf tag_and_pcp;
-    set_vlan_typ buf p.pktDlTyp;
-    () 
+(* Marshalling *)
+
+let marshal_ip (p:ip) (bits:Cstruct.t) : unit = 
+  assert false
+
+let marshal_arp (p:arp) (bits:Cstruct.t) : unit = 
+  set_arp_htype bits 1;
+  set_arp_ptype bits 0x800; 
+  set_arp_hlen bits 6;
+  set_arp_plen bits 4;
+  match p with 
+  | ARPQuery(sha,spa,tpa) -> 
+    set_arp_oper bits (arp_oper_to_int ARP_REQUEST);
+    set_arp_sha (bytes_of_mac sha) 0 bits;
+    set_arp_spa bits spa;
+    set_arp_tpa bits tpa;
+  | ARPReply(sha,spa,tha,tpa) -> 
+    set_arp_oper bits (arp_oper_to_int ARP_REPLY);
+    set_arp_sha (bytes_of_mac sha) 0 bits;
+    set_arp_spa bits spa;
+    set_arp_tha (bytes_of_mac tha) 0 bits;
+    set_arp_tpa bits tpa
+
+let marshal_nw (p:nw) (bits:Cstruct.t) : unit = 
+  match p with 
+  | NwIP ip -> marshal_ip ip bits
+  | NwARP arp -> marshal_arp arp bits     
+  | NwUnparsable (_,data) -> 
+    Cstruct.blit bits 0 data 0 (Cstruct.len data) 
+
+let marshal_eth (p:packet) (bits:Cstruct.t) : unit = 
+  set_eth_src (bytes_of_mac p.pktDlSrc) 0 bits;
+  set_eth_dst (bytes_of_mac p.pktDlDst) 0 bits;
+  let bits = 
+    match p.pktDlVlan with 
+    | 0xffff -> 
+      set_eth_typ bits p.pktDlTyp;
+      Cstruct.shift bits sizeof_eth
+    | _ -> 
+      let vlan_tag = p.pktDlVlan in 
+      let vlan_pcp = p.pktDlVlanPcp in 
+      let tag_and_pcp = 
+	(vlan_pcp lsr (31 - 16) + 13) land (* PCP *)
+	  vlan_tag lsl 4 land 0xffff in 
+      set_vlan_tag bits tag_and_pcp;
+      set_vlan_typ bits p.pktDlTyp;
+      Cstruct.shift bits sizeof_vlan in 
+  marshal_nw p.pktNwHeader bits
 
 let marshal_packet (p:packet) : Cstruct.t = 
-  let buf = Cstruct.create (size_packet p) in 
-  let () = marshal_eth p buf in 
-  buf
+  let bits = Cstruct.create (size_packet p) in 
+  let () = marshal_eth p bits in 
+  bits
