@@ -334,7 +334,7 @@ module PacketOut = struct
       (Action.move_controller_last pktOut.pktOutActions) in
     begin match pktOut.pktOutBufOrBytes with
     | Datatypes.Coq_inl n -> ()
-    | _ -> failwith "synthesized packets unimplemented"
+    | Datatypes.Coq_inr _ -> ()
     end;
     sizeof pktOut
 end
