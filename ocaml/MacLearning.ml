@@ -1,6 +1,6 @@
+open Printf
 open MessagesDef
 open WordInterface
-
 open Platform
 open NetCore
 open Packet
@@ -38,8 +38,15 @@ module Learning = struct
 
   (** Stores a new switch * host * port tuple in the table, creates a
       new learning policy, and pushes that policy to the stream. *)
-  and learn_host sw pt pk : unit = 
-    Printf.printf "Got packet from %Ld on %d" sw pt;
+  and learn_host sw pt pk : unit =
+    begin
+      if Hashtbl.mem learned_hosts (sw, pk.pktDlSrc) then
+        printf "[MacLearning.ml] at switch %Ld, host %s at port %d (moved)\n%!"
+          sw (Util.string_of_mac pk.pktDlSrc) pt
+      else
+        printf "[MacLearning.ml] at switch %Ld, host %s at port %d\n%!"
+          sw (Util.string_of_mac pk.pktDlSrc) pt
+    end;
     Hashtbl.replace learned_hosts (sw, pk.pktDlSrc) pt;
     push (Some (make_learning_policy ()))
   
@@ -72,9 +79,7 @@ module Routing = struct
   (** Composes learning and routing policies, which together form
       mac-learning. *)      
   let policy = Lwt_stream.map (fun learning_pol ->
-    let pol = Par (learning_pol, make_routing_policy ()) in
-    Printf.printf "[MacLearning.ml] policy is %s\n%!" (policy_to_string pol);
-    pol)
+    Par (learning_pol, make_routing_policy ()))
     Learning.policy
 end
 
