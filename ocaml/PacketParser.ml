@@ -137,7 +137,7 @@ let parse_ip (bits:Cstruct.t) : ip option =
   let _ = vhl lsr 4 in (* TODO(jnf): test for IPv4? *)
   let ihl = vhl land 0x0f in 
   let tos = get_ip_tos bits in 
-  let _ = get_ip_len bits in 
+  let len = get_ip_len bits in 
   let frag = get_ip_frag bits in 
   let flags = frag lsr 13 in 
   let frag = frag land 0x1fff in 
@@ -161,13 +161,15 @@ let parse_ip (bits:Cstruct.t) : ip option =
       end
     | _ -> 
       TpUnparsable (proto, bits) in 
-  Some { pktIPTos = tos;
+  Some { pktIPVhl = vhl;
+	 pktIPTos = tos;
+	 pktIPLen = len;
 	 pktIPIdent = ident;
 	 pktIPFlags = flags ;
-	 pktFrag = frag;
-	 pktIPTTL = ttl;
+	 pktIPFrag = frag;
+	 pktIPTtl = ttl;
 	 pktIPProto = proto;
-	 pktChksum = chksum;
+	 pktIPChksum = chksum;
 	 pktIPSrc = src;
 	 pktIPDst = dst;     
 	 pktTPHeader = tp_header }
@@ -235,8 +237,7 @@ let size_tp (p:tpPkt) : int =
   | TpICMP(icmp) -> 
     sizeof_icmp
   | TpUnparsable (_,buf) -> 
-    Cstruct.len buf
-    
+    Cstruct.len buf    
 
 let size_nw (p:nw) : int = 
   match p with 
@@ -262,13 +263,13 @@ let size_packet = size_eth
 (* Marshalling *)
 
 let marshal_ip (p:ip) (bits:Cstruct.t) : unit = 
-  assert false
+  ()
 
 let marshal_arp (p:arp) (bits:Cstruct.t) : unit = 
-  set_arp_htype bits 1;
-  set_arp_ptype bits 0x800; 
-  set_arp_hlen bits 6;
-  set_arp_plen bits 4;
+  set_arp_htype bits 1;      (* JNF: baked *)
+  set_arp_ptype bits 0x800;  (* JNF: baked *)
+  set_arp_hlen bits 6;       (* JNF: baked *)
+  set_arp_plen bits 4;       (* JNF: baked *)
   match p with 
   | ARPQuery(sha,spa,tpa) -> 
     set_arp_oper bits (arp_oper_to_int ARP_REQUEST);

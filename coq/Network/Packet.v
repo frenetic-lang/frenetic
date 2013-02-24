@@ -64,15 +64,17 @@ Inductive tpPkt : nwProto -> Type :=
   | TpUnparsable : forall (proto : nwProto), bytes -> tpPkt proto.
 
 Record ip : Type := IP {
+  pktIPVhl : Word8.t;
+  pktIPTos : nwTos;
+  pktIPLen  : Word16.t;
   pktIPIdent : Word16.t;
   pktIPFlags : Word8.t; (* 3 bits *)
+  pktIPFrag : Word16.t; (** 13 bits *)
+  pktIPTtl : Word8.t;
+  pktIPProto : nwProto;
+  pktIPChksum : Word16.t;
   pktIPSrc :  nwAddr;
   pktIPDst : nwAddr;
-  pktIPTos : nwTos;
-  pktIPProto : nwProto;
-  pktIPTTL : Word8.t;
-  pktFrag : Word16.t; (** 13 bits *)
-  pktChksum : Word16.t;
   pktTPHeader : tpPkt pktIPProto
 }.
 
