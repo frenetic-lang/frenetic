@@ -492,7 +492,7 @@ cstruct ofp_uint48 {
   uint16_t low
 } as big_endian
 
-let set_ofp_uint48_value buf (value : uint48) =
+let set_ofp_uint48_value (buf : Cstruct.t) (value : uint48) =
   let high = Int32.of_int ((Int64.to_int value) lsr 16) in
     let low = ((Int64.to_int value) land 0xffff) in
       set_ofp_uint48_high buf high;
@@ -515,7 +515,7 @@ module Oxm = struct
   let sizeof (oxm : oxm) : int =
     sizeof_ofp_oxm + field_length oxm
 
-  let set_ofp_oxm (buf : buf) (c : ofp_oxm_class) (f : oxm_ofb_match_fields) (hm : int) (l : int) : int = 
+  let set_ofp_oxm (buf : Cstruct.t) (c : ofp_oxm_class) (f : oxm_ofb_match_fields) (hm : int) (l : int) : int = 
     let value = (0x3f land (oxm_ofb_match_fields_to_int f)) lsl 1 in
       let value = value lor (0x1 land hm) in
         set_ofp_oxm_oxm_class buf (ofp_oxm_class_to_int c);
@@ -523,7 +523,7 @@ module Oxm = struct
         set_ofp_oxm_oxm_length buf l;
         sizeof_ofp_oxm
 
-  let marshal (buf : buf) (oxm : oxm) : int = 
+  let marshal (buf : Cstruct.t) (oxm : oxm) : int = 
     let l = field_length oxm in
       let ofc = OFPXMC_OPENFLOW_BASIC in
         match oxm with
@@ -595,7 +595,7 @@ module Action = struct
     | SetField oxm -> sizeof_ofp_action_set_field + Oxm.sizeof oxm
 
 
-  let marshal (buf : buf) (act : action) : int = match act with
+  let marshal (buf : Cstruct.t) (act : action) : int = match act with
     | Output port ->
       set_ofp_action_output_typ buf 0; (* OFPAT_OUTPUT *)
       set_ofp_action_output_len buf (sizeof act);
@@ -639,7 +639,7 @@ module Bucket = struct
     else
       n
 
-  let marshal (buf : buf) (bucket : bucket) : int =
+  let marshal (buf : Cstruct.t) (bucket : bucket) : int =
     let size = sizeof bucket in
     set_ofp_bucket_len buf size;
     set_ofp_bucket_weight buf bucket.weight;
@@ -652,7 +652,7 @@ end
 
 module GroupMod = struct
 
-  let marshal (buf : buf) (gm : groupMod) : int =
+  let marshal (buf : Cstruct.t) (gm : groupMod) : int =
     (* TODO: ofp_header *)
     match gm with
       | AddGroup (typ, gid, buckets) -> 
@@ -676,7 +676,7 @@ module FlowMod = struct
           (if f.no_pkt_counts then 1 lsl 3 else 0) lor
             (if f.no_byt_counts then 1 lsl 4 else 0)
 
-  let marshal (buf : buf) (fm : flowMod) : int =
+  let marshal (buf : Cstruct.t) (fm : flowMod) : int =
     set_ofp_flow_mod_cookie buf fm.cookie.value;
     set_ofp_flow_mod_cookie_mask buf (
       match fm.cookie.mask with
