@@ -285,6 +285,8 @@ module Action = struct
             (match pp with
               | Controller w -> w
               | _ -> 0)
+	| _ -> 
+	  failwith "unimplemented" 
     end;
     sizeof a
 
@@ -295,10 +297,49 @@ module Action = struct
   let move_controller_last (lst : action list) : action list = 
     let (to_ctrl, not_to_ctrl) = List.partition is_to_controller lst in
     not_to_ctrl @ to_ctrl
-    
-      
         
 end
+
+module PacketOut = struct
+
+  type t = packetOut
+
+  cstruct ofp_packet_out {
+    uint32_t buffer_id;
+    uint16_t in_port;
+    uint16_t actions_len
+  } as big_endian
+
+  let sizeof (pktOut : t) : int = 
+    sizeof_ofp_packet_out + 
+      (sum (List.map Action.sizeof pktOut.pktOutActions)) +
+      (match pktOut.pktOutBufOrBytes with
+        | Datatypes.Coq_inl _ -> 0
+        | Datatypes.Coq_inr bytes -> Cstruct.len bytes)
+
+  let marshal (pktOut : t) (buf : Cstruct.t) : int =
+    set_ofp_packet_out_buffer_id buf
+      (match pktOut.pktOutBufOrBytes with
+        | Datatypes.Coq_inl n ->  n
+        | _ -> -1l);
+    set_ofp_packet_out_in_port buf
+      (match pktOut.pktOutPortId with
+        | None -> ofp_port_to_int OFPP_NONE
+        | Some n -> n);
+    set_ofp_packet_out_actions_len buf
+      (sum (List.map Action.sizeof pktOut.pktOutActions));
+    let _ = List.fold_left
+      (fun buf act -> Cstruct.shift buf (Action.marshal act buf))
+      buf
+      (Action.move_controller_last pktOut.pktOutActions) in
+    begin match pktOut.pktOutBufOrBytes with
+    | Datatypes.Coq_inl n -> ()
+    | Datatypes.Coq_inr _ -> ()
+    end;
+    sizeof pktOut
+end
+ 
+
 
 module Timeout = struct
 
@@ -392,7 +433,7 @@ module Features = struct
 
   type t = features
 
-  let parse (buf : Cstruct.buf) : t =
+  let parse (buf : Cstruct.t) : t =
     let switch_id = get_ofp_switch_features_datapath_id buf in 
     let num_buffers = get_ofp_switch_features_n_buffers buf in
     let num_tables = get_ofp_switch_features_n_tables buf in 
@@ -400,7 +441,7 @@ module Features = struct
       (get_ofp_switch_features_capabilities buf) in
     let supported_actions = Actions.parse 
       (get_ofp_switch_features_action buf) in
-    let buf = Cstruct.shift buf sizeof_ofp_switch_features in
+    let _ = Cstruct.shift buf sizeof_ofp_switch_features in
     { switch_id; 
       num_buffers; 
       num_tables; 
@@ -680,7 +721,7 @@ module Message = struct
 
   type t = message
   
-  let parse (hdr : Header.t) (buf : Cstruct.buf) : (xid * t) option =
+  let parse (hdr : Header.t) (buf : Cstruct.t) : (xid * t) option =
     let msg = match hdr.Header.typ with
       | HELLO -> Some (Hello buf)
       | ECHO_REQ -> Some (EchoRequest buf)
@@ -701,6 +742,8 @@ module Message = struct
     | FeaturesRequest -> FEATURES_REQ
     | FeaturesReply _ -> FEATURES_RESP
     | FlowModMsg _ -> FLOW_MOD
+    | PacketOutMsg _ -> PACKET_OUT
+    | PacketInMsg _ -> PACKET_IN
 
   let to_string (msg : t) : string = match msg with 
     | Hello _ -> "Hello"
@@ -709,33 +752,38 @@ module Message = struct
     | FeaturesRequest -> "FeaturesRequest"
     | FeaturesReply _ -> "FeaturesReply"
     | FlowModMsg _ -> "FlowMod"
+    | PacketOutMsg _ -> "PacketOut"
     | PacketInMsg _ -> "PacketIn"
 
   open Bigarray
 
   (** Size of the message body, without the header *)
   let sizeof_body (msg : t) : int = match msg with
-    | Hello buf -> Array1.dim buf
-    | EchoRequest buf -> Array1.dim buf
-    | EchoReply buf -> Array1.dim buf
+    | Hello buf -> Cstruct.len buf
+    | EchoRequest buf -> Cstruct.len buf
+    | EchoReply buf -> Cstruct.len buf
     | FeaturesRequest -> 0
     | FeaturesReply _ -> sizeof_ofp_switch_features
     | FlowModMsg msg ->
       sizeof_ofp_match + sizeof_ofp_flow_mod + 
         sum (List.map Action.sizeof msg.mfActions)
+    | PacketOutMsg msg -> PacketOut.sizeof msg
     | _ -> failwith "unknowns"
 
-  let blit_message (msg : t) (out : Cstruct.buf) = match msg with
+  let blit_message (msg : t) (out : Cstruct.t) = match msg with
     | Hello buf
     | EchoRequest buf
     | EchoReply buf ->
-      Cstruct.blit_buffer buf 0 out 0 (Cstruct.len buf)
+      Cstruct.blit buf 0 out 0 (Cstruct.len buf)
     | FeaturesRequest -> ()
     | FlowModMsg flow_mod -> FlowMod.marshal flow_mod out
+    | PacketOutMsg msg -> let _ = PacketOut.marshal msg out in ()
+    | PacketInMsg _ -> ()
+    | FeaturesReply _ -> ()							    
 
   let marshal (xid : xid) (msg : t) : string = 
     let sizeof_buf = sizeof_ofp_header + sizeof_body msg in
-    let buf = Array1.create char c_layout sizeof_buf in
+    let buf = Cstruct.create sizeof_buf in
     set_ofp_header_version buf 0x1;
     set_ofp_header_typ buf (msg_code_to_int (msg_code_of_message msg));
     set_ofp_header_length buf sizeof_buf;

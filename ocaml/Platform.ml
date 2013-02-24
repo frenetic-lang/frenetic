@@ -21,36 +21,38 @@ module type PLATFORM = sig
 
 end
 
-let string_of_sockaddr (sa : sockaddr) : string = match sa with
-  | ADDR_UNIX str -> str
+let string_of_sockaddr (sa:sockaddr) : string = match sa with
+  | ADDR_UNIX str -> 
+    str
   | ADDR_INET (addr,port) -> 
     sprintf "%s:%d" (Unix.string_of_inet_addr addr) port
 
-(* TODO(arjun): awful performance. cstruct HEAD has a higher-performance 
-   function that does exactly this. How do we use it? *)
-let ba_of_string (str : string) : Cstruct.buf = 
-  let open Bigarray in
+let buf_of_string (str : string) : Cstruct.t =   
   let len = String.length str in
-  let ba = Array1.create char c_layout len in
-  for i = 0 to len - 1 do
-    Array1.set ba i (String.get str i)
-  done;
-  ba
+  let buf = Cstruct.create len in
+  Cstruct.blit_from_string str 0 buf 0 len;
+  buf
 
 module OpenFlowPlatform = struct
-
-  exception UnknownSwitchDisconnected 
   exception SwitchDisconnected of switchId 
   exception UnknownSwitch of switchId
+  exception UnknownSwitchDisconnected 
+  exception Internal of string
 
-  let server_fd : file_descr option ref = ref None
+  let server_fd : file_descr option ref = 
+    ref None
 
-  let init_with_fd (fd : file_descr) : unit = match !server_fd with
-    | Some _ -> raise (Invalid_argument "Platform already initialized")
-    | None -> server_fd := Some fd
+  let init_with_fd (fd : file_descr) : unit = 
+    match !server_fd with
+    | Some _ -> 
+      raise (Internal "Platform already initialized")
+    | None -> 
+      server_fd := Some fd
 
-  let init_with_port (p : int) : unit = match !server_fd with
-    | Some _ -> raise (Invalid_argument "Platform already initialized")
+  let init_with_port (p : int) : unit = 
+    match !server_fd with
+    | Some _ -> 
+      raise (Internal "Platform already initialized")
     | None -> 
       let fd = socket PF_INET SOCK_STREAM 0 in
       setsockopt fd SO_REUSEADDR true;
@@ -58,52 +60,43 @@ module OpenFlowPlatform = struct
       listen fd 64; (* JNF: 640K ought to be enough for anybody. *)
       server_fd := Some fd
 
-  let get_fd () = match !server_fd with
-    | Some fd -> fd
-    | None -> raise (Invalid_argument "Platform not initialized")
-
-  exception Internal of string
+  let get_fd () = 
+    match !server_fd with
+    | Some fd -> 
+      fd
+    | None -> 
+      raise (Invalid_argument "Platform not initialized")
 
   (** Receives an OpenFlow message from a raw file. Does not update
       any controller state. *)
-  let rec recv_from_switch_fd (fd : file_descr) : (xid * message) Lwt.t = 
-    lwt _ = eprintf "[platform] recv_from_switch_fd\n%!" in
+  let rec recv_from_switch_fd (sock : file_descr) : (xid * message) Lwt.t = 
     let ofhdr_str = String.create (2 * sizeof_ofp_header) in
-    lwt _ = eprintf "[platform] (1)\n%!" in
-    lwt _ = eprintf "[platform] state: %s\n%!" (match state fd with Opened -> "OK" | _ -> "Not OK") in 
-    lwt b = Util.SafeSocket.recv fd ofhdr_str 0 sizeof_ofp_header in 
-    lwt _ = eprintf "[platform] (2)\n%!" in
-    if not b then
+    lwt b = Util.SafeSocket.recv sock ofhdr_str 0 sizeof_ofp_header in 
+    if not b then 
       raise_lwt UnknownSwitchDisconnected
     else  
-      lwt hdr = Lwt.wrap (fun () -> Header.parse (ba_of_string ofhdr_str)) in
+      lwt hdr = Lwt.wrap (fun () -> Header.parse (buf_of_string ofhdr_str)) in
       let sizeof_body = hdr.Header.len - sizeof_ofp_header in
       let body_str = String.create sizeof_body in
-      lwt _ = eprintf "[platform] (3)\n%!" in
-      lwt b = Util.SafeSocket.recv fd body_str 0 sizeof_body in
-      if not b then
-        raise_lwt UnknownSwitchDisconnected
+      lwt b = Util.SafeSocket.recv sock body_str 0 sizeof_body in 
+      if not b then 
+	raise_lwt UnknownSwitchDisconnected
       else
-        lwt _ = eprintf "[platform] about to handle code %d\n%!" 
-	  (msg_code_to_int hdr.Header.typ) in 
-        match Message.parse hdr (ba_of_string body_str) with
-          | Some v -> 
-	    lwt _ = eprintf "[platform] returning message with code %d\n%!" 
-		(msg_code_to_int hdr.Header.typ) in 
-	    return v
-          | None ->
-            lwt _ = eprintf "[platform] ignoring message with code %d\n%!"
-              (msg_code_to_int hdr.Header.typ) in
-            recv_from_switch_fd fd 
+        match Message.parse hdr (buf_of_string body_str) with
+        | Some v -> 
+	  lwt _ = eprintf "[platform] returning message with code %d\n%!" 
+	    (msg_code_to_int hdr.Header.typ) in 
+	  return v
+        | None ->
+          lwt _ = eprintf "[platform] ignoring message with code %d\n%!"
+	    (msg_code_to_int hdr.Header.typ) in
+          recv_from_switch_fd sock 
 
-  let send_to_switch_fd (fd : file_descr) (xid : xid) (msg : message) = 
-    lwt _ = eprintf "[platform] send_to_switch_fd: %s\n%!" (Message.to_string msg) in 
+  let send_to_switch_fd (sock : file_descr) (xid : xid) (msg : message) = 
     try_lwt
       lwt out = Lwt.wrap2 Message.marshal xid msg in
       let len = String.length out in
-      lwt _ = eprintf "[platform] sending a message of length %d, code %d\n" len
-          (msg_code_to_int (Message.msg_code_of_message msg)) in
-      lwt n = write fd out 0 len in
+      lwt n = write sock out 0 len in
       if n <> len then
         raise_lwt (Internal "[send_to_switch] not enough bytes written")
       else 
@@ -111,13 +104,12 @@ module OpenFlowPlatform = struct
     with Unix.Unix_error (err, fn, arg) ->
       Lwt_io.eprintf "[platform] error sending: %s (in %s)\n%!"
         (Unix.error_message err) fn
-      
 
-  let switch_fds : (switchId, file_descr) Hashtbl.t = Hashtbl.create 100
+  let switch_fds : (switchId, file_descr) Hashtbl.t = 
+    Hashtbl.create 100
 
-  let fd_of_switch_id (switch_id : switchId) : file_descr = 
-    try 
-      Hashtbl.find switch_fds switch_id 
+  let fd_of_switch_id (switch_id:switchId) : file_descr = 
+    try Hashtbl.find switch_fds switch_id 
     with Not_found -> raise (UnknownSwitch switch_id)
 
   let disconnect_switch (sw_id : switchId) = 
@@ -146,7 +138,7 @@ module OpenFlowPlatform = struct
 
   let switch_handshake (fd : file_descr) : features Lwt.t = 
     lwt _ = eprintf "[platform] switch_handshake\n%!" in
-    lwt _ = send_to_switch_fd fd 0l (Hello (ba_of_string "")) in
+    lwt _ = send_to_switch_fd fd 0l (Hello (buf_of_string "")) in
     lwt _ = eprintf "[platform] trying to read Hello\n%!" in
     lwt (xid, msg) = recv_from_switch_fd fd in
     match msg with
@@ -203,7 +195,7 @@ module OpenFlowPlatform = struct
   let rec accept_switch () = 
     lwt _ = eprintf "[platform] accept_switch\n%!" in
     lwt (fd, sa) = accept (get_fd ()) in
-    lwt _ = eprintf "[platform] : %s connected, handshaking...\n%!" 
+    lwt _ = eprintf "[platform] : %s connected, handshaking...\n%!"
       (string_of_sockaddr sa) in
     (* TODO(arjun): a switch can stall during a handshake, while another
        switch is ready to connect. To be fully robust, this module should
