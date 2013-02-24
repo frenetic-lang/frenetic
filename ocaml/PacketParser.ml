@@ -263,6 +263,16 @@ let size_packet = size_eth
 (* Marshalling *)
 
 let marshal_ip (p:ip) (bits:Cstruct.t) : unit = 
+  set_ip_vhl bits p.pktIPVhl;
+  set_ip_tos bits p.pktIPTos;
+  set_ip_ident bits p.pktIPTos;
+  (* JNF: TODO flags frag *)
+  set_ip_ttl bits p.pktIPTtl;
+  set_ip_proto bits p.pktIPProto;
+  set_ip_chksum bits p.pktIPChksum;
+  set_ip_src bits p.pktIPSrc;
+  set_ip_dst bits p.pktIPDst;
+  (* JNF: TODO TCP header *)
   ()
 
 let marshal_arp (p:arp) (bits:Cstruct.t) : unit = 
