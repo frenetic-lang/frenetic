@@ -58,12 +58,6 @@ cstruct ofp_match {
 } as big_endian
 
 (* OKAY *)
-cenum ofp_match_type {
-  OFPMT_STANDARD = 0;       (* Deprecated. *)
-  OFPMT_OXM      = 1        (* OpenFlow Extensible Match *)
-} as uint16_t
-
-(* OKAY *)
 cenum ofp_oxm_class {
   OFPXMC_NXM_0          = 0x0000;    (* Backward compatibility with NXM *)
   OFPXMC_NXM_1          = 0x0001;    (* Backward compatibility with NXM *)
@@ -496,11 +490,13 @@ let set_ofp_uint48_value (buf : Cstruct.t) (value : uint48) =
   let high = Int32.of_int ((Int64.to_int value) lsr 16) in
     let low = ((Int64.to_int value) land 0xffff) in
       set_ofp_uint48_high buf high;
-      set_ofp_uint48_low buf low;
-      sizeof_ofp_uint48
+      set_ofp_uint48_low buf low
 
 
-
+let rec marshal_fields (buf: Cstruct.t) (fields : 'a list) (marshal_func : Cstruct.t -> 'a -> int ): int =
+  if (fields = []) then 0
+  else let size = marshal_func buf (List.hd fields) in
+    size + (marshal_fields (Cstruct.shift buf size) (List.tl fields) marshal_func)
 
 module Oxm = struct
 
@@ -515,75 +511,73 @@ module Oxm = struct
   let sizeof (oxm : oxm) : int =
     sizeof_ofp_oxm + field_length oxm
 
-  let set_ofp_oxm (buf : Cstruct.t) (c : ofp_oxm_class) (f : oxm_ofb_match_fields) (hm : int) (l : int) : int = 
+  let set_ofp_oxm (buf : Cstruct.t) (c : ofp_oxm_class) (f : oxm_ofb_match_fields) (hm : int) (l : int) = 
     let value = (0x3f land (oxm_ofb_match_fields_to_int f)) lsl 1 in
       let value = value lor (0x1 land hm) in
         set_ofp_oxm_oxm_class buf (ofp_oxm_class_to_int c);
         set_ofp_oxm_oxm_field_and_hashmask buf value;
-        set_ofp_oxm_oxm_length buf l;
-        sizeof_ofp_oxm
+        set_ofp_oxm_oxm_length buf l
+
 
   let marshal (buf : Cstruct.t) (oxm : oxm) : int = 
     let l = field_length oxm in
       let ofc = OFPXMC_OPENFLOW_BASIC in
-        match oxm with
-          | OxmInPort pid ->
-            set_ofp_oxm buf ofc OFPXMT_OFB_IN_PORT 0 l;
-            set_ofp_uint32_value buf pid;
-            sizeof_ofp_oxm + l
-          | OxmInPhyPort pid ->
-            set_ofp_oxm buf ofc OFPXMT_OFB_IN_PHY_PORT 0 l;
-            set_ofp_uint32_value buf pid;
-            sizeof_ofp_oxm + l
-          | OxmEthType ethtype ->
-            set_ofp_oxm buf ofc OFPXMT_OFB_ETH_TYPE 0 l;
-            set_ofp_uint16_value buf ethtype;
-            sizeof_ofp_oxm + l
-          | OxmEthDst ethaddr ->
-            set_ofp_oxm buf ofc OFPXMT_OFB_ETH_DST 0 (
-              match ethaddr.mask with
-                | None -> l
-                | Some _ -> 2*l);
-            (* TODO: shift *)
-            set_ofp_uint48_value buf ethaddr.value;
-            begin match ethaddr.mask with
-              | None ->
-                sizeof_ofp_oxm + l
-              | Some mask ->
-                (* TODO: shift *)
-                set_ofp_uint48_value buf mask;
-                sizeof_ofp_oxm + l*2
-            end
-          | OxmEthSrc ethaddr ->
-            set_ofp_oxm buf ofc OFPXMT_OFB_ETH_SRC 0 (
-              match ethaddr.mask with
-                | None -> l
-                | Some _ -> 2*l);
-            (* TODO: shift *)
-            set_ofp_uint48_value buf ethaddr.value;
-            begin match ethaddr.mask with
-              | None ->
-                sizeof_ofp_oxm + l
-              | Some mask ->
-                (* TODO: shift *)
-                set_ofp_uint48_value buf mask;
-                sizeof_ofp_oxm + l*2
-            end
-          | OxmVlanVId vid ->
-            set_ofp_oxm buf ofc OFPXMT_OFB_VLAN_VID 0 (
-              match vid.mask with
-                | None -> l
-                | Some _ -> 2*l);
-            (* TODO: shift *)
-            set_ofp_uint16_value buf vid.value;
-            begin match vid.mask with
-              | None ->
-                sizeof_ofp_oxm + l
-              | Some mask ->
-                (* TODO: shift *)
-                set_ofp_uint16_value buf mask;
-                sizeof_ofp_oxm + l*2
-            end
+        let buf2 = Cstruct.shift buf sizeof_ofp_oxm in
+          match oxm with
+            | OxmInPort pid ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IN_PORT 0 l;
+              set_ofp_uint32_value buf2 pid;
+              sizeof_ofp_oxm + l
+            | OxmInPhyPort pid ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IN_PHY_PORT 0 l;
+              set_ofp_uint32_value buf2 pid;
+              sizeof_ofp_oxm + l
+            | OxmEthType ethtype ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_ETH_TYPE 0 l;
+              set_ofp_uint16_value buf2 ethtype;
+              sizeof_ofp_oxm + l
+            | OxmEthDst ethaddr ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_ETH_DST 0 (
+                match ethaddr.mask with
+                  | None -> l
+                  | Some _ -> 2*l);
+              set_ofp_uint48_value buf2 ethaddr.value;
+              begin match ethaddr.mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 l in
+                    set_ofp_uint48_value buf3 mask;
+                    sizeof_ofp_oxm + l*2
+              end
+            | OxmEthSrc ethaddr ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_ETH_SRC 0 (
+                match ethaddr.mask with
+                  | None -> l
+                  | Some _ -> 2*l);
+              set_ofp_uint48_value buf2 ethaddr.value;
+              begin match ethaddr.mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 l in
+                    set_ofp_uint48_value buf3 mask;
+                    sizeof_ofp_oxm + l*2
+              end
+            | OxmVlanVId vid ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_VLAN_VID 0 (
+                match vid.mask with
+                  | None -> l
+                  | Some _ -> 2*l);
+              set_ofp_uint16_value buf2 vid.value;
+              begin match vid.mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 l in
+                    set_ofp_uint16_value buf3 mask;
+                    sizeof_ofp_oxm + l*2
+              end
 
 end
 
@@ -625,8 +619,7 @@ module Action = struct
     | SetField oxm ->
       set_ofp_action_set_field_typ buf 25; (* OFPAT_SET_FIELD *)
       set_ofp_action_set_field_len buf (sizeof act);
-      Oxm.marshal buf oxm;
-      sizeof act
+      sizeof act + (Oxm.marshal (Cstruct.shift buf sizeof_ofp_action_set_field) oxm)
 
 end
 
@@ -641,16 +634,22 @@ module Bucket = struct
 
   let marshal (buf : Cstruct.t) (bucket : bucket) : int =
     let size = sizeof bucket in
-    set_ofp_bucket_len buf size;
-    set_ofp_bucket_weight buf bucket.weight;
-    set_ofp_bucket_watch_port buf bucket.watch_port;
-    set_ofp_bucket_watch_group buf bucket.watch_group;
-    map (Action.marshal buf) bucket.actions;
-    size
+      set_ofp_bucket_len buf size;
+      set_ofp_bucket_weight buf bucket.weight;
+      set_ofp_bucket_watch_port buf bucket.watch_port;
+      set_ofp_bucket_watch_group buf bucket.watch_group;
+      size + (marshal_fields (Cstruct.shift buf sizeof_ofp_bucket) bucket.actions Action.marshal)
 
 end
 
 module GroupMod = struct
+
+  let sizeof (gm: groupMod) : int =
+    match gm with
+      | AddGroup (typ, gid, buckets) -> 
+        sizeof_ofp_group_mod + sum (map Bucket.sizeof buckets)
+      | DeleteGroup (typ, gid) -> 
+        sizeof_ofp_group_mod
 
   let marshal (buf : Cstruct.t) (gm : groupMod) : int =
     (* TODO: ofp_header *)
@@ -660,10 +659,24 @@ module GroupMod = struct
         set_ofp_group_mod_typ buf (groupType_to_int typ);
         set_ofp_group_mod_pad buf 0;
         set_ofp_group_mod_group_id buf gid;
-        map (Bucket.marshal buf) buckets;
-        0
+        sizeof_ofp_group_mod + (marshal_fields (Cstruct.shift buf sizeof_ofp_group_mod) buckets Bucket.marshal)
       | DeleteGroup (typ, gid) ->
         failwith "NYI"
+
+end
+
+module OfpMatch = struct
+
+  let sizeof (om: oxmMatch) : int =
+    let n = sizeof_ofp_match + sum (map Oxm.sizeof om) in
+    let pad = ((n + 7)/8*8 - n) in
+    n + pad
+
+  let marshal (buf: Cstruct.t) (om : oxmMatch) : int =
+    let size = sizeof om in
+      set_ofp_match_typ buf 1; (* OXPMT_OXM *)
+      set_ofp_match_length buf size;
+      size + (marshal_fields (Cstruct.shift buf sizeof_ofp_match) om Oxm.marshal)
 
 end
 
@@ -715,10 +728,9 @@ module FlowMod = struct
     set_ofp_flow_mod_pad0 buf 0;
     set_ofp_flow_mod_pad1 buf 0;
     (* TODO: pad everywhere *)
-    (* TODO: match *)
-    (* TODO: instructions *)
-    sizeof_ofp_flow_mod
-
+    sizeof_ofp_flow_mod +
+    OfpMatch.marshal (Cstruct.shift buf sizeof_ofp_flow_mod) fm.ofp_match
+    (* + TODO: instructions *)
 end
 
 
