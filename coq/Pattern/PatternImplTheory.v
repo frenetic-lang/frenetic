@@ -241,7 +241,7 @@ Proof with auto with datatypes.
   destruct pk; simpl.
   destruct pktNwHeader; simpl...
   destruct i; simpl.
-  destruct pktTPHeader; simpl...
+  destruct pktTpHeader; simpl...
   apply ValidPat_TCPUDP. unfold SupportedNwProto...
   destruct a...
 Qed.
@@ -736,7 +736,7 @@ Proof with auto.
   destruct pktNwHeader.
   destruct i.
   destruct (Word8.eq_dec pktIPProto nwProto).
-  destruct pktTPHeader.
+  destruct pktTpHeader.
   destruct t.
   subst.
   repeat rewrite -> trans.
@@ -779,7 +779,7 @@ Proof with auto.
   repeat rewrite -> trans.
   repeat rewrite -> andb_assoc.
   simpl.
-  destruct pktTPHeader.
+  destruct pktTpHeader.
     contradiction n...
     rewrite -> (inter_exact_neq _ n)...
     simpl.
@@ -796,7 +796,7 @@ Proof with auto.
   repeat rewrite -> trans.
   repeat rewrite -> andb_assoc.
   simpl.
-  destruct pktTPHeader;
+  destruct pktTpHeader;
     rewrite -> (inter_exact_neq _ n); auto;
     simpl;
     rewrite -> andb_false_r;
@@ -873,7 +873,7 @@ Proof with auto.
   simpl.
   destruct (Word8.eq_dec pktIPProto n).
   subst.
-  destruct pktTPHeader.
+  destruct pktTpHeader.
   destruct t.
   simpl.
   repeat rewrite -> negb_orb.

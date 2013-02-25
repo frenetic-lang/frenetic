@@ -49,14 +49,10 @@ Fixpoint compile_pred (opt : Classifier bool -> Classifier bool)
     | PrNone => []
   end.
 
-Locate pseudoPort.
-
-Locate Forward.
-
   Definition desugar_action (a : action) := 
   match a with
-    | To p => Forward (PhysicalPort p)
-    | ToAll => Forward AllPorts
+    | To p => Forward unmodified (PhysicalPort  p)
+    | ToAll => Forward unmodified AllPorts
     | GetPacket f => ActGetPkt (MkId 0)
   end.
 

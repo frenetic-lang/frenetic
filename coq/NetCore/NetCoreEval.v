@@ -19,8 +19,23 @@ Local Open Scope list_scope.
 
 Inductive id : Type := MkId : nat -> id.
 
+Record modification : Type := Modification {
+  modifyDlSrc : option dlAddr;
+  modifyDlDst : option dlAddr;
+  modifyDlVlan : option (option dlVlan);
+  modifyDlVlanPcp : option dlVlanPcp;
+  modifyNwSrc : option nwAddr;
+  modifyNwDst : option nwAddr;
+  modifyNwTos : option nwTos;
+  modifyTpSrc : option tpPort;
+  modifyTpDst : option tpPort
+}.
+
+Definition unmodified : modification :=
+ Modification None None None None None None None None None.
+
 Inductive act : Type :=
-| Forward : pseudoPort -> act
+| Forward : modification -> pseudoPort -> act
 | ActGetPkt : id -> act.
 
 Inductive pred : Type := 
@@ -60,12 +75,46 @@ Axiom marshal_pkt : packet -> bytes.
 
 Extract Constant marshal_pkt => "PacketParser.marshal_packet".
 
+Definition maybe_modify {A : Type} (newVal : option A) 
+           (modifier : packet -> A -> packet) (pk : packet) : packet :=
+  match newVal with
+    | None => pk
+    | Some v => modifier pk v
+  end.
+
+Definition withVlanNone maybeVlan := 
+  match maybeVlan with
+    | None => None
+    | Some None => Some VLAN_NONE
+    | Some (Some n) => Some n
+  end.
+
+(* Better than Haskell, IMO. $ is not a function. *)
+Notation "f $ x" := (f x) (at level 51, right associativity). 
+  (* ask me in person why I picked this level *)
+
+Definition modify_pkt (mods : modification) (pk : packet) :=
+  match mods with
+    | Modification dlSrc dlDst dlVlan dlVlanPcp 
+                   nwSrc nwDst nwTos
+                   tpSrc tpDst =>
+      maybe_modify dlSrc setDlSrc $
+      maybe_modify dlDst setDlDst $
+      maybe_modify (withVlanNone dlVlan) setDlVlan $
+      maybe_modify dlVlanPcp setDlVlanPcp $
+      maybe_modify nwSrc setNwSrc $
+      maybe_modify nwDst setNwDst $
+      maybe_modify nwTos setNwTos $
+      maybe_modify tpSrc setTpSrc $
+      maybe_modify tpDst setTpDst pk
+  end.
+
 Definition eval_action (inp : input) (act : act) : output := 
   match (act, inp)  with
-    | (Forward pp, InPkt sw _ pk buf) => OutPkt sw pp pk 
+    | (Forward mods pp, InPkt sw _ pk buf) => OutPkt sw pp (modify_pkt mods pk)
         (match buf with
            | Some b => inl b
-           | None => inr (marshal_pkt pk)
+           | None => inr (marshal_pkt (modify_pkt mods pk))
          end)
     | (ActGetPkt x, InPkt sw pt pk buf) => OutGetPkt x sw pt pk
   end.

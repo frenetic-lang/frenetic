@@ -102,7 +102,9 @@ let parse_tcp (bits:Cstruct.t) : tcp option =
   let _ = offset land 0x0f in 
   let flags = get_tcp_flags bits in 
   let window = get_tcp_window bits in 
-  let payload = Cstruct.shift bits sizeof_tcp in (* JNF: FIXME *)
+  let chksum = get_tcp_chksum bits in 
+  let urgent = get_tcp_urgent bits in 
+  let payload = Cstruct.shift bits sizeof_tcp in (* JNF: options fixme *)
   Some { tcpSrc = src;
 	 tcpDst = dst;
 	 tcpSeq = seq;
@@ -110,6 +112,8 @@ let parse_tcp (bits:Cstruct.t) : tcp option =
 	 tcpOffset =  offset;
 	 tcpFlags = flags;
 	 tcpWindow = window;
+	 tcpChksum = chksum;
+	 tcpUrgent = urgent;
 	 tcpPayload = payload }
 
 (* let parse_udp (bits:Cstruct.t) : udp option =  *)
@@ -172,7 +176,7 @@ let parse_ip (bits:Cstruct.t) : ip option =
 	 pktIPChksum = chksum;
 	 pktIPSrc = src;
 	 pktIPDst = dst;     
-	 pktTPHeader = tp_header }
+	 pktTpHeader = tp_header }
 
 let parse_arp (bits:Cstruct.t) : arp option = 
   let oper = get_arp_oper bits in 
@@ -243,7 +247,7 @@ let size_nw (p:nw) : int =
   match p with 
   | NwIP(ip) -> 
     let n_nw = sizeof_ip - 4 in (* JNF: hack! *)
-    let n_tp = size_tp ip.pktTPHeader in 
+    let n_tp = size_tp ip.pktTpHeader in 
     n_nw + n_tp
   | NwARP(arp) -> 
     sizeof_arp
@@ -262,18 +266,44 @@ let size_packet = size_eth
 
 (* Marshalling *)
 
+let marshal_icmp (p:icmp) (bits:Cstruct.t) : unit = 
+  set_icmp_typ bits p.icmpType;
+  set_icmp_code bits p.icmpCode;
+  set_icmp_chksum bits p.icmpChksum;
+  let bits = Cstruct.shift bits sizeof_icmp in 
+  Cstruct.blit bits 0 p.icmpPayload 0 (Cstruct.len p.icmpPayload)
+
+let marshal_tcp (p:tcp) (bits:Cstruct.t) : unit = 
+  set_tcp_src bits p.tcpSrc;
+  set_tcp_dst bits p.tcpDst;
+  set_tcp_seq bits p.tcpSeq;
+  set_tcp_ack bits p.tcpAck;
+  set_tcp_offset bits p.tcpOffset;
+  set_tcp_flags bits p.tcpFlags;
+  set_tcp_window bits p.tcpWindow;
+  set_tcp_window bits p.tcpWindow;
+  let bits = Cstruct.shift bits sizeof_tcp in 
+  Cstruct.blit bits 0 p.tcpPayload 0 (Cstruct.len p.tcpPayload)
+
 let marshal_ip (p:ip) (bits:Cstruct.t) : unit = 
   set_ip_vhl bits p.pktIPVhl;
   set_ip_tos bits p.pktIPTos;
   set_ip_ident bits p.pktIPTos;
-  (* JNF: TODO flags frag *)
+  set_ip_frag bits (p.pktIPFlags lor (p.pktIPFrag lsl 13));
   set_ip_ttl bits p.pktIPTtl;
   set_ip_proto bits p.pktIPProto;
   set_ip_chksum bits p.pktIPChksum;
   set_ip_src bits p.pktIPSrc;
   set_ip_dst bits p.pktIPDst;
-  (* JNF: TODO TCP header *)
-  ()
+  let bits = Cstruct.shift bits sizeof_ip in 
+  match p.pktTpHeader with 
+  | TpTCP tcp -> 
+    marshal_tcp tcp bits
+  | TpICMP icmp -> 
+    marshal_icmp icmp bits
+  | TpUnparsable (_,data) -> 
+    Cstruct.blit bits 0 data 0 (Cstruct.len data) 
+    
 
 let marshal_arp (p:arp) (bits:Cstruct.t) : unit = 
   set_arp_htype bits 1;      (* JNF: baked *)
