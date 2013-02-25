@@ -17,8 +17,13 @@ let rec watchport acts = match acts with
   | _ :: acts -> watchport acts
   | _ -> ofpp_any
 
-(* OFPG_ANY *)
-let insert_groups = List.mapi (fun idx (pat,(a,b)) -> (pat, (Int32.of_int idx, [(0, (watchport a), a); (0, (watchport b), b)])))
+let rec mapi' idx f lst = match lst with
+  | elm :: lst -> f idx elm :: mapi' (idx+1) f lst
+  | [] -> []
+
+let mapi f lst = mapi' 0 f lst
+
+let insert_groups = mapi (fun idx (pat,(a,b)) -> (pat, (Int32.of_int idx, [(0, (watchport a), a); (0, (watchport b), b)])))
 
 let blast_inport' pat : pattern =
     { ptrnDlSrc = pat.ptrnDlSrc; ptrnDlDst = pat.ptrnDlDst;
