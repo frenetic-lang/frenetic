@@ -24,7 +24,7 @@ type predicate =
   | TcpDstPort of int (** 16-bits *)
 
 type action =
-  | To of portId (** [To n] sends matching packets to port [n]. *)
+  | To of portId (** [To mods n] sends matching packets to port [n]. *)
   | ToAll (** Send matching packets out of all ports. *)
   | GetPacket of get_packet_handler
 

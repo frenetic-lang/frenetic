@@ -31,6 +31,9 @@ Record modification : Type := Modification {
   modifyTpDst : option tpPort
 }.
 
+Definition unmodified : modification :=
+ Modification None None None None None None None None None.
+
 Inductive act : Type :=
 | Forward : modification -> pseudoPort -> act
 | ActGetPkt : id -> act.

@@ -194,8 +194,8 @@ module Make (Platform : PLATFORM) = struct
   end
           
   let desugar_act act = match act with
-    | To pt -> Forward (PhysicalPort pt)
-    | ToAll -> Forward AllPorts
+    | To pt -> Forward (unmodified, PhysicalPort pt)
+    | ToAll -> Forward (unmodified, AllPorts)
     | GetPacket handler ->
       let id = !next_id in
       incr next_id;

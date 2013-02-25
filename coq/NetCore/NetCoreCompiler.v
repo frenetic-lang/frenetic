@@ -50,8 +50,8 @@ Fixpoint compile_pred (opt : Classifier bool -> Classifier bool)
 
   Definition desugar_action (a : action) := 
   match a with
-    | To p => Forward (Modification None None None None None None None None None) (PhysicalPort  p)
-    | ToAll => Forward (Modification None None None None None None None None None) AllPorts
+    | To p => Forward unmodified (PhysicalPort  p)
+    | ToAll => Forward unmodified AllPorts
     | GetPacket f => ActGetPkt (MkId 0)
   end.
 
