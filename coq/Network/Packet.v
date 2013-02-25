@@ -250,16 +250,16 @@ Section Setters.
 
   Definition tp_setTpSrc (proto : nwProto) (tp : tpPkt proto) src : tpPkt proto := 
     match tp in (tpPkt proto) return (tpPkt proto) with
-      | TpTCP (Tcp _ dst seq ack off flags win payload) => 
-        TpTCP (Tcp src dst seq ack off flags win payload)
+      | TpTCP (Tcp _ dst seq ack off flags win chksum urgent payload) => 
+        TpTCP (Tcp src dst seq ack off flags win chksum urgent payload)
       | TpICMP icmp => TpICMP icmp
       | TpUnparsable proto payload => TpUnparsable proto payload
     end.
 
   Definition tp_setTpDst (proto : nwProto) (tp : tpPkt proto) dst : tpPkt proto := 
     match tp in (tpPkt proto) return (tpPkt proto) with
-      | TpTCP (Tcp src _ seq ack off flags win payload) => 
-        TpTCP (Tcp src dst seq ack off flags win payload)
+      | TpTCP (Tcp src _ seq ack off flags win chksum urgent payload) => 
+        TpTCP (Tcp src dst seq ack off flags win chksum urgent payload)
       | TpICMP icmp => TpICMP icmp
       | TpUnparsable proto payload => TpUnparsable proto payload
     end.
