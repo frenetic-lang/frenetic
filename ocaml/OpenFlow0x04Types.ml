@@ -19,6 +19,8 @@ type +'a mask = {
   mask : 'a option
 }
 
+type xid = uint32
+
 type groupId = uint32
 type portId = uint32
 type tableId = uint8
@@ -43,6 +45,7 @@ type pseudoPort =
   | Flood
   | AllPorts
   | Controller of uint16 (* number of bytes to send *)
+  | Any
 
 type action =
   | Output of pseudoPort
@@ -50,13 +53,13 @@ type action =
   | SetField of oxm
 
 type instruction =
-  | GotoTable of int
+  | GotoTable of tableId
   | WriteActions of action list
 
 type bucket = {
   weight : uint16;
-  watch_port : portId;
-  watch_group : groupId;
+  watch_port : portId option;
+  watch_group : groupId option;
   actions : action list
 }
 
