@@ -66,7 +66,7 @@ Inductive tpPkt : nwProto -> Type :=
 Record ip : Type := IP {
   pktIPVhl : Word8.t;
   pktIPTos : nwTos;
-  pktIPLen  : Word16.t;
+  pktIPLen : Word16.t;
   pktIPIdent : Word16.t;
   pktIPFlags : Word8.t; (* 3 bits *)
   pktIPFrag : Word16.t; (** 13 bits *)

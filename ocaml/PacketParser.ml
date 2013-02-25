@@ -266,7 +266,7 @@ let marshal_ip (p:ip) (bits:Cstruct.t) : unit =
   set_ip_vhl bits p.pktIPVhl;
   set_ip_tos bits p.pktIPTos;
   set_ip_ident bits p.pktIPTos;
-  (* JNF: TODO flags frag *)
+  set_ip_frag bits (p.pktIPFlags lor (p.pktIPFrag lsl 13));
   set_ip_ttl bits p.pktIPTtl;
   set_ip_proto bits p.pktIPProto;
   set_ip_chksum bits p.pktIPChksum;
