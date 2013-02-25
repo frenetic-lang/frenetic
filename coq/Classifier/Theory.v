@@ -406,7 +406,7 @@ Section Action.
   Hint Constructors total.
   
   
-  Lemma inter_entry_app : forall cf1 cf2 m (a : A) f,
+  Lemma inter_entry_app : forall cf1 cf2 m (a : A) (f : A -> A -> A),
     inter_entry f (cf1 ++ cf2) (m,a) = 
     inter_entry f cf1 (m,a) ++ inter_entry f cf2 (m,a).
   Proof with auto.
