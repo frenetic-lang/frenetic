@@ -19,6 +19,8 @@ type +'a mask = {
   mask : 'a option
 }
 
+type xid = uint32
+
 type groupId = uint32
 type portId = uint32
 type tableId = uint8

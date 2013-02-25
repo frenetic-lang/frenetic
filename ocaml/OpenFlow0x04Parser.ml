@@ -554,7 +554,20 @@ module Instruction = struct
 
 end
 
+module Instructions = struct
+
+  let sizeof (inss : instruction list) : int =
+    sum (map Instruction.sizeof inss)
+
+  let marshal (buf : Cstruct.t) (inss : instruction list) : int =
+    marshal_fields buf inss Instruction.marshal
+
+end
+
 module FlowMod = struct
+
+  let sizeof (fm : flowMod) =
+    sizeof_ofp_flow_mod + (OfpMatch.sizeof fm.ofp_match) + (Instructions.sizeof fm.instructions)
 
   let flags_to_int (f : flowModFlags) =
     (if f.send_flow_rem then 1 lsl 0 else 0) lor
@@ -601,12 +614,58 @@ module FlowMod = struct
     set_ofp_flow_mod_flags buf (flags_to_int fm.flags);
     set_ofp_flow_mod_pad0 buf 0;
     set_ofp_flow_mod_pad1 buf 0;
-    (* TODO: pad everywhere *)
-    sizeof_ofp_flow_mod +
-    OfpMatch.marshal (Cstruct.shift buf sizeof_ofp_flow_mod) fm.ofp_match
-    (* + TODO: instructions *)
+    let size = sizeof_ofp_flow_mod +
+        OfpMatch.marshal (Cstruct.shift buf sizeof_ofp_flow_mod) fm.ofp_match in
+      size + Instructions.marshal (Cstruct.shift buf size) fm.instructions
 end
 
+module Message = struct
+
+  let msg_code_of_message (msg : message) : msg_code = match msg with
+    | Hello -> HELLO
+    | EchoRequest _ -> ECHO_REQ
+    | EchoReply _ -> ECHO_RESP
+    | FeaturesRequest -> FEATURES_REQ
+    | FeaturesReply _ -> FEATURES_RESP
+    | FlowMod _ -> FLOW_MOD
+    | GroupMod _ -> GROUP_MOD
+
+  let sizeof (msg : message) : int = match msg with
+    | Hello -> sizeof_ofp_header
+    | EchoRequest bytes -> sizeof_ofp_header + (String.length bytes)
+    | EchoReply bytes -> sizeof_ofp_header + (String.length bytes)
+    | FeaturesRequest -> sizeof_ofp_header
+    | FeaturesReply _ -> sizeof_ofp_header + sizeof_ofp_switch_features
+    | FlowMod fm -> sizeof_ofp_header + FlowMod.sizeof fm
+    | GroupMod gm -> sizeof_ofp_header + GroupMod.sizeof gm
+
+  let marshal (buf : Cstruct.t) (msg : message) : int =
+    let buf2 = (Cstruct.shift buf sizeof_ofp_header) in
+    set_ofp_header_version buf 0x04;
+    set_ofp_header_typ buf (msg_code_to_int (msg_code_of_message msg));
+    set_ofp_header_length buf (sizeof msg);
+    match msg with
+      | Hello ->
+        sizeof_ofp_header
+      | EchoRequest bytes
+      | EchoReply bytes ->
+        Cstruct.blit_from_string bytes 0 buf2 0 (String.length bytes);
+        sizeof_ofp_header + String.length bytes
+      | FeaturesRequest ->
+        sizeof_ofp_header
+      | FlowMod fm ->
+        FlowMod.marshal buf2 fm
+      | GroupMod gm ->
+        GroupMod.marshal buf2 gm
+      | _ -> failwith "unknowns"
+
+  let serialize (xid : xid) (msg : message) : string = 
+    let buf = Cstruct.create (sizeof msg) in
+    let _ = set_ofp_header_xid buf xid in
+    let _ = marshal buf msg in
+    let str = Cstruct.to_string buf in
+    str
+end
 
 
 (*
