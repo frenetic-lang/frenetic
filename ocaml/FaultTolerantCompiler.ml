@@ -1,7 +1,8 @@
 open MessagesDef
 open OpenFlow0x04Parser
 open OpenFlow0x04Types
-open Pattern
+open PatternImplDef
+
 
 (* Egh. Assuming each action list only has a single port. Otherwise we
    need to use watch groups instead of a watch port and that's just more
@@ -19,13 +20,13 @@ let rec watchport acts = match acts with
 (* OFPG_ANY *)
 let insert_groups = List.mapi (fun idx (pat,(a,b)) -> (pat, (Int32.of_int idx, [(0, (watchport a), a); (0, (watchport b), b)])))
 
-let blast_inport' pat : pattern = pat
-    (* { ptrnDlSrc = pat.ptrnDlSrc; ptrnDlDst = pat.ptrnDlDst; *)
-    (*   ptrnDlType = pat.ptrnDlType; ptrnDlVlan = *)
-    (*   pat.ptrnDlVlan; ptrnDlVlanPcp = pat.ptrnDlVlanPcp; ptrnNwSrc = *)
-    (*   pat.ptrnNwSrc; ptrnNwDst = pat.ptrnNwDst; ptrnNwProto = *)
-    (*   pat.ptrnNwProto; ptrnNwTos = pat.ptrnNwTos; *)
-    (*   ptrnTpSrc = pat.ptrnTpSrc; ptrnTpDst = pat.ptrnTpDst; ptrnInPort = Wildcard.WildcardAll } *)
+let blast_inport' pat : pattern =
+    { ptrnDlSrc = pat.ptrnDlSrc; ptrnDlDst = pat.ptrnDlDst;
+      ptrnDlType = pat.ptrnDlType; ptrnDlVlan =
+      pat.ptrnDlVlan; ptrnDlVlanPcp = pat.ptrnDlVlanPcp; ptrnNwSrc =
+      pat.ptrnNwSrc; ptrnNwDst = pat.ptrnNwDst; ptrnNwProto =
+      pat.ptrnNwProto; ptrnNwTos = pat.ptrnNwTos;
+      ptrnTpSrc = pat.ptrnTpSrc; ptrnTpDst = pat.ptrnTpDst; ptrnInPort = Wildcard.WildcardAll }
 
 let blast_inport = List.map (fun (pat, acts) -> (blast_inport' pat, acts))
 
@@ -36,7 +37,7 @@ let eval_to_eval13 act = match act with
 let rec compile_primary_backup primary backup (sw : switchId) =
     let pr_tbl = NetCoreCompiler.compile_opt primary sw in
     let bk_tbl = NetCoreCompiler.compile_opt backup sw in
-    let merge = fun a b -> (a,b) in
+    let merge (a : pattern) (b : pattern) = (a,b) in
     let overlap = insert_groups (Classifier.inter merge pr_tbl (blast_inport bk_tbl)) in
     let groups = List.map snd overlap in
     let inter = List.map (fun (pat, (a,b)) -> (pat, [NetCoreEval13.Group a])) overlap in
