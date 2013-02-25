@@ -50,7 +50,7 @@ type action =
   | SetField of oxm
 
 type instruction =
-  | GotoTable of int
+  | GotoTable of tableId
   | WriteActions of action list
 
 type bucket = {

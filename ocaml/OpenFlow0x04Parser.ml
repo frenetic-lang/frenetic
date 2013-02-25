@@ -124,31 +124,6 @@ cstruct ofp_switch_features {
 } as big_endian 
 
 
-(* OKAY *)
-(*
-cenum ofp_port_no {
-  (* Maximum number of physical and logical switch ports. *)
-  OFPP_MAX        = 0xffffff00L;
-  (* Reserved OpenFlow Port (fake output "ports"). *)
-  OFPP_IN_PORT    = 0xfffffff8L;  (* Send the packet out the input port.  This
-                                    reserved port must be explicitly used
-                                    in order to send back out of the input
-                                    port. *)
-  OFPP_TABLE      = 0xfffffff9L;  (* Submit the packet to the first flow table
-                                    NB: This destination port can only be
-                                    used in packet-out messages. *)
-  OFPP_NORMAL     = 0xfffffffaL;  (* Process with normal L2/L3 switching. *)
-  OFPP_FLOOD      = 0xfffffffbL;  (* All physical ports in VLAN, except input
-                                    port and those blocked or link down. *)
-  OFPP_ALL        = 0xfffffffcL;  (* All physical ports except input port. *)
-  OFPP_CONTROLLER = 0xfffffffdL;  (* Send to controller. *)
-  OFPP_LOCAL      = 0xfffffffeL;  (* Local openflow "port". *)
-  OFPP_ANY        = 0xffffffffL   (* Wildcard port used only for flow mod
-                                    (delete) and flow stats requests. Selects
-                                    all flows regardless of output port
-                                    (including flows with no output port). *)
-} as uint32_t
-  *)
 (* MISSING: ofp_port_config *)
 (* MISSING: ofp_port_state *)
 (* MISSING: ofp_port_features *)
@@ -187,68 +162,6 @@ cstruct ofp_flow_mod {
   uint8_t pad1
 } as big_endian
 
-cstruct ofp_action_header {
-   uint16_t typ;
-   uint16_t len;
-   uint8_t pad[4]
-} as big_endian
-
-cstruct ofp_action_output {
-  uint16_t typ;
-  uint16_t len;
-  uint16_t port;
-  uint16_t max_len
-} as big_endian 
-
- cstruct ofp_action_vlan_vid {
-   uint16_t typ;          
-   uint16_t len;           
-   uint16_t vlan_vid;      
-   uint8_t pad[2]
- } as big_endian
-
- cstruct ofp_action_vlan_pcp {
-   uint16_t typ;
-   uint16_t len;           
-   uint8_t vlan_pcp;       
-   uint8_t pad[3]
- } as big_endian
-
- cstruct ofp_action_dl_addr {
-   uint16_t typ; 
-   uint16_t len;          
-   uint8_t dl_addr[6];
-   uint8_t pad[6]
- } as big_endian 
-
- cstruct ofp_action_nw_addr {
-   uint16_t typ;
-   uint16_t len; 
-   uint32_t nw_addr
- } as big_endian
-
- cstruct ofp_action_tp_port {
-   uint16_t typ;         
-   uint16_t len;          
-   uint16_t tp_port;      
-   uint8_t pad[2]
- } as big_endian
-
- cstruct ofp_action_nw_tos {
-   uint16_t typ;
-   uint16_t len; 
-   uint8_t nw_tos; 
-   uint8_t pad[3]
- } as big_endian
-
- cstruct ofp_action_enqueue {
-   uint16_t typ;
-   uint16_t len;
-   uint16_t port;
-   uint8_t pad[6]; 
-   uint32_t queue_id
- } as big_endian 
-
 (* OKAY *)
 cenum ofp_action_type {
   OFPAT_OUTPUT       = 0;  (* Output to switch port. *)
@@ -273,90 +186,42 @@ cenum ofp_action_type {
   OFPAT_EXPERIMENTER = 0xffff
 } as uint16_t
 
-(* OKAY *)
-cstruct ofp_action_header {
-    uint16_t typ;                   (* One of OFPAT_*. *)
-    uint16_t len;                   (* Length of action, including this
-                                       header.  This is the length of action,
-                                       including any padding to make it
-                                       64-bit aligned. *)
-    uint8_t pad[4]
-} as big_endian
-
+(* Action structure for OFPAT_OUTPUT, which sends packets out 'port'.
+ * When the 'port' is the OFPP_CONTROLLER, 'max_len' indicates the max
+ * number of bytes to send.  A 'max_len' of zero means no bytes of the
+ * packet should be sent. A 'max_len' of OFPCML_NO_BUFFER means that
+ * the packet is not buffered and the complete packet is to be sent to
+ * the controller. *)
 cstruct ofp_action_output {
     uint16_t typ;                   (* OFPAT_OUTPUT. *)
     uint16_t len;                   (* Length is 16. *)
     uint32_t port;                  (* Output port. *)
     uint16_t max_len;               (* Max length to send to controller. *)
-    uint8_t pad[6]                  (* Pad to 64 bits. *)
+    uint8_t pad0;                   (* Pad to 64 bits. *)
+    uint8_t pad1;                   (* Pad to 64 bits. *)
+    uint8_t pad2;                   (* Pad to 64 bits. *)
+    uint8_t pad3;                   (* Pad to 64 bits. *)
+    uint8_t pad4;                   (* Pad to 64 bits. *)
+    uint8_t pad5                    (* Pad to 64 bits. *)
 } as big_endian
 
-cstruct ofp_action_mpls_ttl {
-    uint16_t typ;                   (* OFPAT_SET_MPLS_TTL. *)
-    uint16_t len;                   (* Length is 8. *)
-    uint8_t mpls_ttl;               (* MPLS TTL *)
-    uint8_t pad[3]
-} as big_endian
-
-cstruct ofp_action_push {
-    uint16_t typ;                   (* OFPAT_PUSH_VLAN/MPLS/PBB. *)
-    uint16_t len;                   (* Length is 8. *)
-    uint16_t ethertype;             (* Ethertype *)
-    uint8_t pad[2]
-} as big_endian
-
-cstruct ofp_action_pop_mpls {
-    uint16_t typ;                   (* OFPAT_POP_MPLS. *)
-    uint16_t len;                   (* Length is 8. *)
-    uint16_t ethertype;             (* Ethertype *)
-    uint8_t pad[2]
-} as big_endian
-
+(* Action structure for OFPAT_GROUP. *)
 cstruct ofp_action_group {
-    uint16_t typ;                   (* OFPAT_GROUP. *)
-    uint16_t len;                   (* Length is 8. *)
-    uint32_t group_id               (* Group identifier. *)
+  uint16_t typ;                   (* OFPAT_GROUP. *)
+  uint16_t len;                   (* Length is 8. *)
+  uint32_t group_id               (* Group identifier. *)
 } as big_endian
 
-cstruct ofp_action_nw_ttl {
-    uint16_t typ;                   (* OFPAT_SET_NW_TTL. *)
-    uint16_t len;                   (* Length is 8. *)
-    uint8_t nw_ttl;                 (* IP TTL *)
-    uint8_t pad[3]
-} as big_endian
-
+(* Action structure for OFPAT_SET_FIELD. *)
 cstruct ofp_action_set_field {
-    uint16_t typ;                   (* OFPAT_SET_FIELD. *)
-    uint16_t len;                   (* Length is padded to 64 bits. *)
+    uint16_t typ;                  (* OFPAT_SET_FIELD. *)
+    uint16_t len                   (* Length is padded to 64 bits. *)
     (* Followed by:
      *   - Exactly oxm_len bytes containing a single OXM TLV, then
      *   - Exactly ((oxm_len + 4) + 7)/8*8 - (oxm_len + 4) (between 0 and 7)
      *     bytes of all-zero bytes
      *)
-    uint8_t field[4]               (* OXM TLV - Make compiler happy *)
 } as big_endian
-
-cstruct ofp_action_experimenter_header {
-    uint16_t typ;                   (* OFPAT_EXPERIMENTER. *)
-    uint16_t len;                   (* Length is a multiple of 8. *)
-    uint32_t experimenter           (* Experimenter ID which takes the same
-                                       form as in struct
-                                       ofp_experimenter_header. *)
-} as big_endian
-
-cenum ofp_instruction_type {
-    OFPIT_GOTO_TABLE = 1;       (* Setup the next table in the lookup
-                                   pipeline *)
-    OFPIT_WRITE_METADATA = 2;   (* Setup the metadata field for use later in
-                                   pipeline *)
-    OFPIT_WRITE_ACTIONS = 3;    (* Write the action(s) onto the datapath action
-                                   set *)
-    OFPIT_APPLY_ACTIONS = 4;    (* Applies the action(s) immediately *)
-    OFPIT_CLEAR_ACTIONS = 5;    (* Clears all actions from the datapath
-                                   action set *)
-    OFPIT_METER = 6;            (* Apply meter (rate limiter) *)
-    OFPIT_EXPERIMENTER = 0xFFFF (* Experimenter instruction *)
-} as uint16_t
 
 (* Instruction header that is common to all instructions.  The length includes
  * the header and any padding used to make the instruction 64-bit aligned.
@@ -371,14 +236,19 @@ cstruct ofp_instruction_goto_table {
     uint16_t typ;                 (* OFPIT_GOTO_TABLE *)
     uint16_t len;                 (* Length of this struct in bytes. *)
     uint8_t table_id;             (* Set next table in the lookup pipeline *)
-    uint8_t pad[3]                (* Pad to 64 bits. *)
+    uint8_t pad0;                 (* Pad to 64 bits. *)
+    uint8_t pad1;
+    uint8_t pad2
 } as big_endian
 
 (* Instruction structure for OFPIT_WRITE_METADATA *)
 cstruct ofp_instruction_write_metadata {
     uint16_t typ;                 (* OFPIT_WRITE_METADATA *)
     uint16_t len;                 (* Length of this struct in bytes. *)
-    uint8_t pad[4];               (* Align to 64-bits *)
+    uint8_t pad0;                 (* Align to 64-bits *)
+    uint8_t pad1;
+    uint8_t pad2;
+    uint8_t pad3;
     uint64_t metadata;            (* Metadata value to write *)
     uint64_t metadata_mask        (* Metadata write bitmask *)
 } as big_endian
@@ -387,7 +257,10 @@ cstruct ofp_instruction_write_metadata {
 cstruct ofp_instruction_actions {
     uint16_t typ;               (* One of OFPIT_*_ACTIONS *)
     uint16_t len;               (* Length of this struct in bytes. *)
-    uint8_t pad[4]             (* Align to 64-bits *)
+    uint8_t pad0;               (* Align to 64-bits *)
+    uint8_t pad1;
+    uint8_t pad2;
+    uint8_t pad3
 } as big_endian
 
 (* Instruction structure for OFPIT_METER *)
@@ -427,44 +300,10 @@ cstruct ofp_bucket {
   uint32_t watch_group;           (* Group whose state affects whether this
                                      bucket is live.  Only required for fast
                                      failover groups. *)
-  uint8_t pad[4]
-} as big_endian
-
-(* Action structure for OFPAT_OUTPUT, which sends packets out 'port'.
- * When the 'port' is the OFPP_CONTROLLER, 'max_len' indicates the max
- * number of bytes to send.  A 'max_len' of zero means no bytes of the
- * packet should be sent. A 'max_len' of OFPCML_NO_BUFFER means that
- * the packet is not buffered and the complete packet is to be sent to
- * the controller. *)
-cstruct ofp_action_output {
-    uint16_t typ;                   (* OFPAT_OUTPUT. *)
-    uint16_t len;                   (* Length is 16. *)
-    uint32_t port;                  (* Output port. *)
-    uint16_t max_len;               (* Max length to send to controller. *)
-    uint8_t pad0;                   (* Pad to 64 bits. *)
-    uint8_t pad1;                   (* Pad to 64 bits. *)
-    uint8_t pad2;                   (* Pad to 64 bits. *)
-    uint8_t pad3;                   (* Pad to 64 bits. *)
-    uint8_t pad4;                   (* Pad to 64 bits. *)
-    uint8_t pad5                    (* Pad to 64 bits. *)
-} as big_endian
-
-(* Action structure for OFPAT_GROUP. *)
-cstruct ofp_action_group {
-  uint16_t typ;                   (* OFPAT_GROUP. *)
-  uint16_t len;                   (* Length is 8. *)
-  uint32_t group_id               (* Group identifier. *)
-} as big_endian
-
-(* Action structure for OFPAT_SET_FIELD. *)
-cstruct ofp_action_set_field {
-    uint16_t typ;                  (* OFPAT_SET_FIELD. *)
-    uint16_t len                   (* Length is padded to 64 bits. *)
-    (* Followed by:
-     *   - Exactly oxm_len bytes containing a single OXM TLV, then
-     *   - Exactly ((oxm_len + 4) + 7)/8*8 - (oxm_len + 4) (between 0 and 7)
-     *     bytes of all-zero bytes
-     *)
+  uint8_t pad0;
+  uint8_t pad1;
+  uint8_t pad2;
+  uint8_t pad3
 } as big_endian
 
 cstruct ofp_oxm {
@@ -638,6 +477,10 @@ module Bucket = struct
       set_ofp_bucket_weight buf bucket.weight;
       set_ofp_bucket_watch_port buf bucket.watch_port;
       set_ofp_bucket_watch_group buf bucket.watch_group;
+      set_ofp_bucket_pad0 buf 0;
+      set_ofp_bucket_pad1 buf 0;
+      set_ofp_bucket_pad2 buf 0;
+      set_ofp_bucket_pad3 buf 0;
       size + (marshal_fields (Cstruct.shift buf sizeof_ofp_bucket) bucket.actions Action.marshal)
 
 end
@@ -667,16 +510,47 @@ end
 
 module OfpMatch = struct
 
-  let sizeof (om: oxmMatch) : int =
+  let sizeof (om : oxmMatch) : int =
     let n = sizeof_ofp_match + sum (map Oxm.sizeof om) in
     let pad = ((n + 7)/8*8 - n) in
     n + pad
 
-  let marshal (buf: Cstruct.t) (om : oxmMatch) : int =
+  let marshal (buf : Cstruct.t) (om : oxmMatch) : int =
     let size = sizeof om in
       set_ofp_match_typ buf 1; (* OXPMT_OXM *)
       set_ofp_match_length buf size;
       size + (marshal_fields (Cstruct.shift buf sizeof_ofp_match) om Oxm.marshal)
+
+end
+
+module Instruction = struct
+
+  let sizeof (ins : instruction) : int =
+    match ins with
+      | GotoTable _ ->
+        sizeof_ofp_instruction_goto_table
+      | WriteActions actions ->
+        sizeof_ofp_instruction_actions + sum (map Action.sizeof actions)
+
+  let marshal (buf : Cstruct.t) (ins : instruction) : int =
+    let size = sizeof ins in
+      match ins with
+        | GotoTable table_id ->
+          set_ofp_instruction_goto_table_typ buf 1; (* OFPIT_GOTO_TABLE *)
+          set_ofp_instruction_goto_table_len buf size;
+          set_ofp_instruction_goto_table_table_id buf table_id;
+          set_ofp_instruction_goto_table_pad0 buf 0;
+          set_ofp_instruction_goto_table_pad1 buf 0;
+          set_ofp_instruction_goto_table_pad2 buf 0;
+          size
+        | WriteActions actions ->
+          set_ofp_instruction_actions_typ buf 3; (* OFPIT_WRITE_ACTIONS *)
+          set_ofp_instruction_actions_len buf size;
+          set_ofp_instruction_actions_pad0 buf 0;
+          set_ofp_instruction_actions_pad1 buf 0;
+          set_ofp_instruction_actions_pad2 buf 0;
+          set_ofp_instruction_actions_pad3 buf 0;
+          size + (marshal_fields (Cstruct.shift buf sizeof_ofp_instruction_actions) actions Action.marshal)
 
 end
 
