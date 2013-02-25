@@ -64,6 +64,7 @@ Inductive flowModCommand : Type :=
 | DeleteFlow : flowModCommand
 | DeleteStrictFlow : flowModCommand.
 
+Definition switchId := Word64.t.
 Definition priority := Word16.t.
 Definition bufferId := Word32.t.
 

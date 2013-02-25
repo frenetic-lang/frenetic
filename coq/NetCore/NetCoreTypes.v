@@ -1,6 +1,7 @@
 Require Import Word.WordInterface.
 Require Import Common.Types.
 Require Import Network.Packet.
+Require Import OpenFlow.MessagesDef.
 
 Definition get_packet_handler := switchId -> portId -> packet -> unit.
 

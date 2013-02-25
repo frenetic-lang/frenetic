@@ -27,6 +27,7 @@ type action =
 type policy =
   | Pol of predicate * action list
   | Par of policy * policy (** parallel composition *)
+  | Restrict of policy * predicate
 
 val policy_to_string : policy -> string
 

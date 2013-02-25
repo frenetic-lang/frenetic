@@ -1,7 +1,6 @@
 open MessagesDef
 open OpenFlow0x01Parser
 
-type switchId = int64
 open Lwt_io
 open Lwt
 open Lwt_unix

@@ -147,6 +147,7 @@ type action =
 type policy =
   | Pol of predicate * action list
   | Par of policy * policy (** parallel composition *)
+  | Restrict of policy * predicate
 
 let rec predicate_to_string pred = match pred with
   | And (p1,p2) -> Printf.sprintf "(And %s %s)" (predicate_to_string p1) (predicate_to_string p2)
@@ -167,6 +168,7 @@ let action_to_string act = match act with
 let rec policy_to_string pol = match pol with
   | Pol (pred,acts) -> Printf.sprintf "(%s => [%s])" (predicate_to_string pred) (String.concat ";" (List.map action_to_string acts))
   | Par (p1,p2) -> Printf.sprintf "(Union %s %s)" (policy_to_string p1) (policy_to_string p2)
+  | Restrict (p1,p2) -> Printf.sprintf "(restrict %s %s)" (policy_to_string p1) (predicate_to_string p2)
 
 module Make (Platform : PLATFORM) = struct
 
@@ -204,11 +206,15 @@ module Make (Platform : PLATFORM) = struct
     | DlSrc n -> PrHdr (Pattern.dlSrc n)
     | DlDst n -> PrHdr (Pattern.dlDst n)
 
-  let rec desugar_pol pol = match pol with
-    | Pol (pred, acts) -> 
-      PoAtom (desugar_pred pred, List.map desugar_act acts)
+  let rec desugar_pol1 pol pred = match pol with
+    | Pol (pred', acts) -> 
+      PoAtom (desugar_pred (And (pred', pred)), List.map desugar_act acts)
     | Par (pol1, pol2) ->
-      PoUnion (desugar_pol pol1, desugar_pol pol2)
+      PoUnion (desugar_pol1 pol1 pred, desugar_pol1 pol2 pred)
+    | Restrict (p1, pr1) ->
+      desugar_pol1 p1 (And (pred, pr1))
+
+  let rec desugar_pol pol = desugar_pol1 pol All
 
   module Controller = MakeDynamic (Platform) (Handlers)
 
