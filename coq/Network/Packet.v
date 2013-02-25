@@ -48,6 +48,8 @@ Record tcp : Type := Tcp {
   tcpOffset : Word8.t;
   tcpFlags : Word16.t; (** nine lower bits *)
   tcpWindow : Word16.t;
+  tcpChksum : Word8.t;
+  tcpUrgent : Word8.t;
   tcpPayload : bytes
 }.
 
@@ -75,7 +77,7 @@ Record ip : Type := IP {
   pktIPChksum : Word16.t;
   pktIPSrc :  nwAddr;
   pktIPDst : nwAddr;
-  pktTPHeader : tpPkt pktIPProto
+  pktTpHeader : tpPkt pktIPProto
 }.
 
 Inductive arp : Type :=
@@ -148,7 +150,7 @@ Section Accessors.
       | {| pktNwHeader := hdr |} => 
         match hdr with
           | NwIP ip => 
-            match pktTPHeader ip with
+            match pktTpHeader ip with
               | TpTCP frag => tcpSrc frag
               | TpICMP _ => Word16.zero
               | TpUnparsable _ _ => Word16.zero
@@ -164,7 +166,7 @@ Section Accessors.
       | {| pktNwHeader := hdr |} => 
         match hdr with
           | NwIP ip => 
-            match pktTPHeader ip with
+            match pktTpHeader ip with
               | TpTCP frag => tcpDst frag
               | TpICMP _ => Word16.zero
               | TpUnparsable _ _ => Word16.zero

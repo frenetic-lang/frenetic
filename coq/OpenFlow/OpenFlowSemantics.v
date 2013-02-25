@@ -101,8 +101,8 @@ Section Actions.
   Definition setTransportSrcPort_tp (proto : nwProto)
     (tpSrc : tpPort) (pkt : tpPkt proto) : tpPkt proto :=
     match pkt with
-      | TpTCP (Tcp _ dst seq ack off flags win payload) =>
-        TpTCP (Tcp tpSrc dst seq ack off flags win payload)
+      | TpTCP (Tcp _ dst seq ack off flags win chksum urgent payload) =>
+        TpTCP (Tcp tpSrc dst seq ack off flags win chksum urgent payload)
       | TpICMP icmp => TpICMP icmp (* TODO(arjun): should set *)
       | TpUnparsable proto data => TpUnparsable proto data
     end.
@@ -129,8 +129,8 @@ Section Actions.
   Definition setTransportDstPort_tp (proto : nwProto)
     (tpDst : tpPort) (pkt : tpPkt proto) : tpPkt proto :=
     match pkt with
-      | TpTCP (Tcp src _ seq ack off flags win payload) =>
-        TpTCP (Tcp src tpDst seq ack off flags win payload)
+      | TpTCP (Tcp src _ seq ack off flags win chksum urgent payload) =>
+        TpTCP (Tcp src tpDst seq ack off flags win chksum urgent payload)
       | TpICMP icmp => TpICMP icmp (* TODO(arjun): should set *)
       | TpUnparsable proto data => TpUnparsable proto data
     end.
@@ -193,7 +193,7 @@ Section Match.
     match mat with
       | Match _ _ _ _ _ _ _ _ _ mTpSrc mTpDst _ =>
         match pk with
-          | TpTCP (Tcp tpSrc tpDst _ _ _ _ _ _) => 
+          | TpTCP (Tcp tpSrc tpDst _ _ _ _ _ _ _ _) => 
             match_opt Word16.eq_dec tpSrc mTpSrc &&
             match_opt Word16.eq_dec tpDst mTpDst
           | TpICMP (Icmp typ code _ _) => 
