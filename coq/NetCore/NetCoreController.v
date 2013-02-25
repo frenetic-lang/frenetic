@@ -37,19 +37,45 @@ Section PacketIn.
 End PacketIn.
 
 Section ToFlowMod.
+  
+  Definition maybe_openflow0x01_modification {A : Type} (newVal : option A)
+             (mkModify : A -> MessagesDef.action) : actionSequence :=
+    match newVal with
+      | None => nil
+      | Some v => [mkModify v]
+    end.
+  
+  Definition modification_to_openflow0x01 (mods : modification) : actionSequence :=
+    match mods with
+      | Modification dlSrc dlDst dlVlan dlVlanPcp 
+                     nwSrc nwDst nwTos
+                     tpSrc tpDst =>
+        maybe_openflow0x01_modification dlSrc SetDlSrc ++
+        maybe_openflow0x01_modification dlDst SetDlDst ++
+        maybe_openflow0x01_modification (withVlanNone dlVlan) SetDlVlan ++
+        maybe_openflow0x01_modification dlVlanPcp SetDlVlanPcp ++
+        maybe_openflow0x01_modification nwSrc SetNwSrc ++
+        maybe_openflow0x01_modification nwDst SetNwDst ++
+        maybe_openflow0x01_modification nwTos SetNwTos ++
+        maybe_openflow0x01_modification tpSrc SetTpSrc ++
+        maybe_openflow0x01_modification tpDst SetTpDst
+    end.
 
-  Definition translate_action (in_port : option portId) (act : act) :=
+  (** TODO(arjun): This is *wrong*. You can't trivially compile modifications like this.
+   It only works b/c this controller (which we extract for dynamic policies) is unverified. *)
+  Definition translate_action (in_port : option portId) (act : act) : actionSequence :=
     match act with
-      | Forward (PhysicalPort pp) =>
-        match in_port with
-          | None => Output (PhysicalPort pp)
-          | Some pp' => match Word16.eq_dec pp' pp with
-                          | left _ => Output InPort
-                          | right _ => Output (PhysicalPort pp)
-                        end
-        end
-      | Forward p => Output p
-      | ActGetPkt x => Output (Controller Word16.max_value)
+      | Forward mods (PhysicalPort pp) =>
+        modification_to_openflow0x01 mods ++
+        [match in_port with
+           | None => Output (PhysicalPort pp)
+           | Some pp' => match Word16.eq_dec pp' pp with
+                           | left _ => Output InPort
+                           | right _ => Output (PhysicalPort pp)
+                         end
+         end]
+      | Forward mods p => modification_to_openflow0x01 mods ++ [Output p]
+      | ActGetPkt x => [Output (Controller Word16.max_value)]
     end.
 
   Definition to_flow_mod prio (pat : pattern) (act : list act)
@@ -58,7 +84,7 @@ Section ToFlowMod.
     FlowMod AddFlow
             ofMatch
             prio
-            (List.map (translate_action (matchInPort ofMatch)) act)
+            (concat_map (translate_action (matchInPort ofMatch)) act)
             Word64.zero
             Permanent
             Permanent
