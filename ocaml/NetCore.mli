@@ -18,6 +18,10 @@ type predicate =
   | InPort of portId
   | DlSrc of Int64.t  (** Match Ethernet source address (48-bits) *)
   | DlDst of Int64.t (** Match Ethernet destination address (48-bits) *)
+  | SrcIP of Int32.t
+  | DstIP of Int32.t
+  | TcpSrcPort of int (** 16-bits *)
+  | TcpDstPort of int (** 16-bits *)
 
 type action =
   | To of portId (** [To n] sends matching packets to port [n]. *)
