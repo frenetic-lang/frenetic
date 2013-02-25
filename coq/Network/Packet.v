@@ -289,7 +289,7 @@ Section Setters.
   Definition setTpDst pk nwDst :=
     match pk with
       | Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp nw =>
-        @Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp (nw_setNwDst nw nwDst)
+        @Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp (nw_setTpDst nw nwDst)
     end.
 
 End Setters.
