@@ -8,6 +8,8 @@ open TestPlatform
 open Lwt
 (* module Z = OpenFlow0x04Parser *)
 
+module Z = FaultTolerantCompiler
+
 module Test1 = struct
 
   module Controller = Repeater.Make (TestPlatform)
