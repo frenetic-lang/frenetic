@@ -67,8 +67,8 @@ module Test2 = struct
   let pt1 = 1
   let pt2 = 2
 
-  let pol1 = PoUnion (PoAtom (PrAll, [Forward (PhysicalPort pt1)]),
-                      PoAtom (PrAll, [Forward (PhysicalPort pt2)]))
+  let pol1 = PoUnion (PoAtom (PrAll, [Forward (unmodified, PhysicalPort pt1)]),
+                      PoAtom (PrAll, [Forward (unmodified, PhysicalPort pt2)]))
 
   let go = 
     TestList [ (*
