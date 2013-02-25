@@ -6,7 +6,6 @@ open NetCore
 open Packet
 open TestPlatform
 open Lwt
-(* module Z = OpenFlow0x04Parser *)
 
 module Z = FaultTolerantCompiler
 
@@ -108,8 +107,42 @@ module Test3 = struct
 
 end
 
+module Test4 = struct
+  open OpenFlow0x04Parser
+  open OpenFlow0x04Types
+  open Cstruct
+
+  let test_script () =
+    let oc = open_out "test-msg-1.3" in
+    let msg1 = Hello in
+    let msg2 = FlowMod {
+      cookie = ({value = 0xaabbccL; mask = None} : uint64 mask);
+      table_id = (0x12 : tableId);
+      command = AddFlow;
+      idle_timeout = Permanent;
+      hard_timeout = Permanent;
+      priority = (0x3456 : uint16);
+      buffer_id = None;
+      out_port = Some (PhysicalPort (0x7890l));
+      out_group = None;
+      flags = {send_flow_rem = false; check_overlap = false; reset_counts = false; no_pkt_counts = false; no_byt_counts = false};
+      ofp_match = [OxmInPort (0x7891l)];
+      instructions = [WriteActions ([Output (PhysicalPort (0x7890l))])]
+    } in
+    let str1 = Message.serialize 0l msg1 in
+    let str2 = Message.serialize 0l msg2 in
+    printf "test serialization";
+    fprintf oc "%s" str1;
+    close_out oc;
+    ()
+
+  let go =
+    "serialize test" >::
+      (fun () -> test_script())
+end
 
 let _ = run_test_tt_main 
   (TestList [ Test1.go; 
               Test2.go;
-              Test3.go ])
+              Test3.go;
+              Test4.go ])
