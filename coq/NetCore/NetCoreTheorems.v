@@ -50,12 +50,15 @@ Instance bool_as_Action : ClassifierAction bool := {
     simpl.
     remember (Word64.eq_dec sw s) as b.
     destruct b.
-    simpl. rewrite -> Pattern.all_spec...
-    simpl. rewrite -> Pattern.all_spec...
-    (* PrOr *)
+    simpl. reflexivity. 
+    (* rewrite -> Pattern.all_spec... *)
+    (* simpl. rewrite -> Pattern.all_spec... *)
     simpl.
+    reflexivity.
+    (* PrOr *)
     assert (false = action_unit) as J...
     rewrite -> J in *.
+    simpl.
     rewrite -> Heqp.
     rewrite -> union_scan_comm.
     rewrite -> IHpr1.
@@ -77,20 +80,20 @@ Instance bool_as_Action : ClassifierAction bool := {
     rewrite -> H0 in IHpr.
     rewrite -> IHpr.
     rewrite -> elim_scan_head...
-    simpl.
-    rewrite -> Pattern.all_spec...
+    (* rewrite -> Pattern.all_spec... *)
     destruct H as [cf2 [cf3 [pat [a [H [H0 [H1 H2]]]]]]].
     rewrite -> H.
     rewrite <- app_assoc.
     rewrite <- app_comm_cons.
     rewrite -> elim_scan_tail...
     unfold pattern in *.
+    unfold Pattern.t in *.
     rewrite <- H.
     f_equal...
     apply total_tail...
     (* PrAll *)
     simpl.
-    rewrite -> Pattern.all_spec...
+    reflexivity.
     (* PrNone *)
     simpl...
   Qed.

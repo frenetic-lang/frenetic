@@ -40,6 +40,8 @@ module Learning = struct
       new learning policy, and pushes that policy to the stream. *)
   and learn_host sw pt pk : unit =
     begin
+      printf "[MacLearning] at switch %Ld host %s at port %d\n%!"
+	sw (Util.string_of_mac pk.pktDlSrc) pt;
       if Hashtbl.mem learned_hosts (sw, pk.pktDlSrc) then
         printf "[MacLearning.ml] at switch %Ld, host %s at port %d (moved)\n%!"
           sw (Util.string_of_mac pk.pktDlSrc) pt

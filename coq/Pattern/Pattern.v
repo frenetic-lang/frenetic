@@ -10,7 +10,7 @@ Require Import Coq.Classes.Equivalence.
 
 Local Open Scope equiv_scope.
 
-Module Pattern : PATTERN.
+Module Pattern <: PATTERN.
 
   Record pat := Pat {
     raw : pattern;
