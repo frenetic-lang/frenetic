@@ -29,10 +29,6 @@ let blast_inport' pat : pattern = pat
 
 let blast_inport = List.map (fun (pat, acts) -> (blast_inport' pat, acts))
 
-let eval_to_eval13 act = match act with
-  | NetCoreEval.Forward (a,b) -> NetCoreEval13.Forward (a,b)
-  | NetCoreEval.ActGetPkt a -> NetCoreEval13.ActGetPkt a
-
 let rec compile_primary_backup primary backup (sw : switchId) =
     let pr_tbl = NetCoreCompiler.compile_opt primary sw in
     let bk_tbl = NetCoreCompiler.compile_opt backup sw in
@@ -40,6 +36,6 @@ let rec compile_primary_backup primary backup (sw : switchId) =
     let overlap = insert_groups (Classifier.inter merge pr_tbl (blast_inport bk_tbl)) in
     let groups = List.map snd overlap in
     let inter = List.map (fun (pat, (a,b)) -> (pat, [NetCoreEval13.Group a])) overlap in
-    let foo = List.map (fun (pat, acts) -> (pat, List.map eval_to_eval13 acts)) (NetCoreCompiler.compile_opt (NetCoreEval.PoUnion (primary, backup)) sw) in
+    let foo = (NetCoreCompiler.compile_opt (NetCoreEval.PoUnion (primary, backup)) sw) in
     (inter @ foo, groups)
     

@@ -2,9 +2,9 @@ open Classifier
 open ControllerInterface
 open Datatypes
 open List0
+open NetCoreEval13
 open MessagesDef
-open NetCoreCompiler
-open NetCoreEval
+open NetCoreCompiler13
 open Packet
 open Types
 open WordInterface
@@ -109,16 +109,6 @@ let delete_all_flows =
     None; mfOutPort = None; mfCheckOverlap = false }
 
 type ncstate = { policy : pol; switches : switchId list }
-
-(** val ncstate_rect : (pol -> switchId list -> 'a1) -> ncstate -> 'a1 **)
-
-let ncstate_rect f n =
-  let { policy = x; switches = x0 } = n in f x x0
-
-(** val ncstate_rec : (pol -> switchId list -> 'a1) -> ncstate -> 'a1 **)
-
-let ncstate_rec f n =
-  let { policy = x; switches = x0 } = n in f x x0
 
 (** val policy : ncstate -> pol **)
 

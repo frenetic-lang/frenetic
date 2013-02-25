@@ -3,8 +3,8 @@ open ControllerInterface
 open Datatypes
 open List0
 open MessagesDef
-open NetCoreCompiler
-open NetCoreEval
+open NetCoreCompiler13
+open NetCoreEval13
 open Packet
 open Types
 open WordInterface
@@ -30,10 +30,6 @@ val flow_mods_of_classifier : act list coq_Classifier -> flowMod list
 val delete_all_flows : flowMod
 
 type ncstate = { policy : pol; switches : switchId list }
-
-val ncstate_rect : (pol -> switchId list -> 'a1) -> ncstate -> 'a1
-
-val ncstate_rec : (pol -> switchId list -> 'a1) -> ncstate -> 'a1
 
 val policy : ncstate -> pol
 
