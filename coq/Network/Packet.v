@@ -176,3 +176,120 @@ Section Accessors.
     end.
 
 End Accessors.
+
+Section Setters.
+  (** These fail silently if the field does not exist. *)
+
+  Definition setDlSrc pk dlSrc :=
+    match pk with
+      | Packet _ dlDst dlTyp dlVlan dlVlanPcp nw =>
+        @Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp nw
+    end.
+
+  Definition setDlDst pk dlDst :=
+    match pk with
+      | Packet dlSrc _ dlTyp dlVlan dlVlanPcp nw =>
+        @Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp nw
+    end.
+
+  Definition setDlVlan pk dlVlan :=
+    match pk with
+      | Packet dlSrc dlDst dlTyp _ dlVlanPcp nw =>
+        @Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp nw
+    end.
+
+  Definition setDlVlanPcp pk dlVlanPcp :=
+    match pk with
+      | Packet dlSrc dlDst dlTyp dlVlan _ nw =>
+        @Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp nw
+    end.
+
+  Definition nw_setNwSrc (typ : dlTyp) (nwPkt : nw typ) src : nw typ :=
+    match nwPkt in nw typ return nw typ with
+      | NwIP (IP vhl tos len ident flags frag ttl proto chksum _ dst tp) =>
+        NwIP (@IP vhl tos len ident flags frag ttl proto chksum src dst tp)
+      | NwARP arp => NwARP arp
+      | NwUnparsable typ b => NwUnparsable typ b
+    end.
+
+  Definition nw_setNwDst (typ : dlTyp)(nwPkt : nw typ) dst : nw typ :=
+    match nwPkt in nw typ return nw typ with
+      | NwIP (IP vhl tos len ident flags frag ttl proto chksum src _ tp) =>
+        NwIP (@IP vhl tos len ident flags frag ttl proto chksum src dst tp)
+      | NwARP arp => NwARP arp
+      | NwUnparsable typ b => NwUnparsable typ b
+    end.
+
+  Definition nw_setNwTos (typ : dlTyp) (nwPkt : nw typ) tos : nw typ :=
+    match nwPkt in nw typ return nw typ with
+      | NwIP (IP vhl _ len ident flags frag ttl proto chksum src dst tp) =>
+        NwIP (@IP vhl tos len ident flags frag ttl proto chksum src dst tp)
+      | NwARP arp => NwARP arp
+      | NwUnparsable typ b => NwUnparsable typ b
+    end.
+
+  Definition setNwSrc pk nwSrc :=
+    match pk with
+      | Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp nw =>
+        @Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp (nw_setNwSrc nw nwSrc)
+    end.
+
+  Definition setNwDst pk nwDst :=
+    match pk with
+      | Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp nw =>
+        @Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp (nw_setNwDst nw nwDst)
+    end.
+
+  Definition setNwTos pk nwTos :=
+    match pk with
+      | Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp nw =>
+        @Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp (nw_setNwTos nw nwTos)
+    end.
+
+  Definition tp_setTpSrc (proto : nwProto) (tp : tpPkt proto) src : tpPkt proto := 
+    match tp in (tpPkt proto) return (tpPkt proto) with
+      | TpTCP (Tcp _ dst seq ack off flags win payload) => 
+        TpTCP (Tcp src dst seq ack off flags win payload)
+      | TpICMP icmp => TpICMP icmp
+      | TpUnparsable proto payload => TpUnparsable proto payload
+    end.
+
+  Definition tp_setTpDst (proto : nwProto) (tp : tpPkt proto) dst : tpPkt proto := 
+    match tp in (tpPkt proto) return (tpPkt proto) with
+      | TpTCP (Tcp src _ seq ack off flags win payload) => 
+        TpTCP (Tcp src dst seq ack off flags win payload)
+      | TpICMP icmp => TpICMP icmp
+      | TpUnparsable proto payload => TpUnparsable proto payload
+    end.
+
+  Definition nw_setTpSrc (typ : dlTyp) (nwPkt : nw typ) tpSrc : nw typ :=
+    match nwPkt in nw typ return nw typ with
+      | NwIP (IP vhl tos len ident flags frag ttl proto chksum src dst tp) =>
+        NwIP (@IP vhl tos len ident flags frag ttl proto chksum src dst 
+                  (tp_setTpSrc tp tpSrc))
+      | NwARP arp => NwARP arp
+      | NwUnparsable typ b => NwUnparsable typ b
+    end.
+
+  Definition nw_setTpDst (typ : dlTyp) (nwPkt : nw typ) tpDst : nw typ :=
+    match nwPkt in nw typ return nw typ with
+      | NwIP (IP vhl tos len ident flags frag ttl proto chksum src dst tp) =>
+        NwIP (@IP vhl tos len ident flags frag ttl proto chksum src dst 
+                  (tp_setTpDst tp tpDst))
+      | NwARP arp => NwARP arp
+      | NwUnparsable typ b => NwUnparsable typ b
+    end.
+
+  Definition setTpSrc pk tpSrc :=
+    match pk with
+      | Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp nw =>
+        @Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp (nw_setTpSrc nw tpSrc)
+    end.
+
+  Definition setTpDst pk nwDst :=
+    match pk with
+      | Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp nw =>
+        @Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp (nw_setNwDst nw nwDst)
+    end.
+
+End Setters.
