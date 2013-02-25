@@ -438,7 +438,8 @@ module Action = struct
           | InPort -> Int32.of_int (Int64.to_int 0xfffffff8L)         (* OFPP_IN_PORT *)
           | Flood -> Int32.of_int (Int64.to_int 0xfffffffbL)          (* OFPP_FLOOD *)
           | AllPorts -> Int32.of_int (Int64.to_int 0xfffffffcL)       (* OFPP_ALL *)
-          | Controller _ -> Int32.of_int (Int64.to_int 0xfffffffdL)); (* OFPP_CONTROLLER *)
+          | Controller _ -> Int32.of_int (Int64.to_int 0xfffffffdL)   (* OFPP_CONTROLLER *)
+          | Any -> Int32.of_int (Int64.to_int 0xffffffffL));          (* OFPP_ANY *)
       set_ofp_action_output_max_len buf
         (match port with
           | Controller max_len -> max_len
@@ -475,8 +476,14 @@ module Bucket = struct
     let size = sizeof bucket in
       set_ofp_bucket_len buf size;
       set_ofp_bucket_weight buf bucket.weight;
-      set_ofp_bucket_watch_port buf bucket.watch_port;
-      set_ofp_bucket_watch_group buf bucket.watch_group;
+      set_ofp_bucket_watch_port buf
+        (match bucket.watch_port with
+          | None -> Int32.of_int (Int64.to_int 0xffffffffL) (* OFPP_ANY *)
+          | Some port -> port);
+      set_ofp_bucket_watch_group buf
+        (match bucket.watch_group with
+          | None -> Int32.of_int (Int64.to_int 0xffffffffL) (* OFPG_ANY *)
+          | Some group_id -> group_id);
       set_ofp_bucket_pad0 buf 0;
       set_ofp_bucket_pad1 buf 0;
       set_ofp_bucket_pad2 buf 0;
@@ -606,7 +613,8 @@ module FlowMod = struct
             | InPort -> Int32.of_int (Int64.to_int 0xfffffff8L)         (* OFPP_IN_PORT *)
             | Flood -> Int32.of_int (Int64.to_int 0xfffffffbL)          (* OFPP_FLOOD *)
             | AllPorts -> Int32.of_int (Int64.to_int 0xfffffffcL)       (* OFPP_ALL *)
-            | Controller _ -> Int32.of_int (Int64.to_int 0xfffffffdL))); (* OFPP_CONTROLLER *)
+            | Controller _ -> Int32.of_int (Int64.to_int 0xfffffffdL);  (* OFPP_CONTROLLER *)
+            | Any -> Int32.of_int (Int64.to_int 0xffffffffL)));         (* OFPP_ANY *)
     set_ofp_flow_mod_out_group buf
       (match fm.out_group with
         | None -> Int32.of_int 0

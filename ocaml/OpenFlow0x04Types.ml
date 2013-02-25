@@ -45,6 +45,7 @@ type pseudoPort =
   | Flood
   | AllPorts
   | Controller of uint16 (* number of bytes to send *)
+  | Any
 
 type action =
   | Output of pseudoPort
@@ -57,8 +58,8 @@ type instruction =
 
 type bucket = {
   weight : uint16;
-  watch_port : portId;
-  watch_group : groupId;
+  watch_port : portId option;
+  watch_group : groupId option;
   actions : action list
 }
 
