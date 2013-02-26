@@ -21,12 +21,6 @@ let string_of_sockaddr (sa:sockaddr) : string = match sa with
   | ADDR_INET (addr,port) -> 
     sprintf "%s:%d" (Unix.string_of_inet_addr addr) port
 
-let buf_of_string (str : string) : Cstruct.t =   
-  let len = String.length str in
-  let buf = Cstruct.create len in
-  Cstruct.blit_from_string str 0 buf 0 len;
-  buf
-
 module OpenFlowPlatform = struct
   exception SwitchDisconnected of switchId 
   exception UnknownSwitch of switchId
