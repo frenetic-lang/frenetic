@@ -141,8 +141,44 @@ module Test4 = struct
       (fun () -> test_script())
 end
 
+module PacketParser = struct
+  open PacketParser
+  open Packet
+  let eth : packet = 
+    { pktDlSrc = Util.mac_of_bytes "ABCDEF";
+      pktDlDst = Util.mac_of_bytes "123456";
+      pktDlTyp = 0x999; 
+      pktDlVlan = 0;
+      pktDlVlanPcp = 0;
+      pktNwHeader = NwUnparsable (0x999, Cstruct.of_string "") }
+
+  let string_of_eth pkt = 
+    sprintf "\n{ pktDlSrc = %s;\n  pktDlDst = %s\n  pktDlTyp : %d\n  pktDlVlan : %d\n  pktDlVlanPcp : %d }" 
+      (Util.string_of_mac pkt.pktDlSrc)
+      (Util.string_of_mac pkt.pktDlDst)
+      (pkt.pktDlTyp)
+      (pkt.pktDlVlan)
+      (pkt.pktDlVlanPcp)
+    
+  let test1 = "Ethernet parser test" >::
+    (fun () -> 
+      let etho = Some eth in 
+      let etho' = parse_packet (marshal_packet eth) in 
+      match etho, etho' with 
+      | Some e, Some e' -> 
+	Printf.printf "\nETH  : %s\nETH' : %s\n" 
+	  (string_of_eth e) (string_of_eth e')
+      | _ -> 
+	Printf.sprintf "OOPS\n";
+      assert_equal etho' etho)
+  
+  let go = TestList [test1]
+
+end 
+
 let _ = run_test_tt_main 
   (TestList [ Test1.go; 
               Test2.go;
               Test3.go;
-              Test4.go ])
+              Test4.go;
+	      PacketParser.go])
