@@ -1,23 +1,18 @@
 open MessagesDef
 open OpenFlow0x01Parser
 
-open Lwt_io
 open Lwt
+open Lwt_io
 open Lwt_unix
 open Lwt_list
 
 let sprintf = Format.sprintf
 
 module type PLATFORM = sig
-
   exception SwitchDisconnected of switchId 
-
   val send_to_switch : switchId -> xid -> message -> unit t
-
   val recv_from_switch : switchId -> (xid * message) t
-
   val accept_switch : unit -> features t
-
 end
 
 let string_of_sockaddr (sa:sockaddr) : string = match sa with
@@ -74,14 +69,14 @@ module OpenFlowPlatform = struct
     if not b then 
       raise_lwt UnknownSwitchDisconnected
     else  
-      lwt hdr = Lwt.wrap (fun () -> Header.parse (buf_of_string ofhdr_str)) in
+      lwt hdr = Lwt.wrap (fun () -> Header.parse (Cstruct.of_string ofhdr_str)) in
       let sizeof_body = hdr.Header.len - sizeof_ofp_header in
       let body_str = String.create sizeof_body in
       lwt b = Util.SafeSocket.recv sock body_str 0 sizeof_body in 
       if not b then 
 	raise_lwt UnknownSwitchDisconnected
       else
-        match Message.parse hdr (buf_of_string body_str) with
+        match Message.parse hdr (Cstruct.of_string body_str) with
         | Some v -> 
 	  lwt _ = eprintf "[platform] returning message with code %d\n%!" 
 	    (msg_code_to_int hdr.Header.typ) in 
@@ -137,7 +132,7 @@ module OpenFlowPlatform = struct
 
   let switch_handshake (fd : file_descr) : features Lwt.t = 
     lwt _ = eprintf "[platform] switch_handshake\n%!" in
-    lwt _ = send_to_switch_fd fd 0l (Hello (buf_of_string "")) in
+    lwt _ = send_to_switch_fd fd 0l (Hello (Cstruct.of_string "")) in
     lwt _ = eprintf "[platform] trying to read Hello\n%!" in
     lwt (xid, msg) = recv_from_switch_fd fd in
     match msg with
