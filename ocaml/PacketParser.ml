@@ -90,31 +90,253 @@ cstruct icmp {
   uint16_t chksum
 } as big_endian
 
-(* Parsers *)
+(* Types for parsers *)
+type 'a desc = 
+  { parse : Cstruct.t -> 'a option;
+    len : 'a -> int;
+    serialize : Cstruct.t -> 'a -> unit 
+  }
 
-let parse_tcp (bits:Cstruct.t) : tcp option =
-  let src = get_tcp_src bits in 
-  let dst = get_tcp_dst bits in 
-  let seq = get_tcp_seq bits in 
-  let ack = get_tcp_ack bits in 
-  let offset = get_tcp_offset bits in 
-  let offset = offset lsr 4 in 
-  let _ = offset land 0x0f in 
-  let flags = get_tcp_flags bits in 
-  let window = get_tcp_window bits in 
-  let chksum = get_tcp_chksum bits in 
-  let urgent = get_tcp_urgent bits in 
-  let payload = Cstruct.shift bits sizeof_tcp in (* JNF: options fixme *)
-  Some { tcpSrc = src;
-	 tcpDst = dst;
-	 tcpSeq = seq;
-	 tcpAck = ack;
-	 tcpOffset =  offset;
-	 tcpFlags = flags;
-	 tcpWindow = window;
-	 tcpChksum = chksum;
-	 tcpUrgent = urgent;
-	 tcpPayload = payload }
+(* Parsers *)
+(* type format = FEth | FIp | FTcp | FArp | FEnd *)
+(* let rec desc_of_format f = match f with  *)
+(*   | FEther -> Some eth_desc *)
+(*   | FIp -> Some ip_desc *)
+(*   | FTcp -> Some tcp_desc *)
+(*   | FArp -> Some arp_desc  *)
+(*   | FEnd -> None *)
+
+let rec eth_desc = 
+  { parse = (fun (bits:Cstruct.t) -> 
+    let dst = Cstruct.to_string (get_eth_dst bits) in
+    let src = Cstruct.to_string (get_eth_src bits) in
+    let typ = get_eth_typ bits in 
+    let (vlan_tag, vlan_pcp, typ, offset) = 
+      match int_to_eth_typ typ with 
+      | Some ETHTYP_VLAN -> 
+	let tag_and_pcp = get_vlan_tag bits in 
+	let vlan_tag = tag_and_pcp land 0xfff in 
+	let vlan_pcp = (tag_and_pcp lsr 9) land 0x7 in 
+	let typ = get_vlan_typ bits in 
+	(vlan_tag, vlan_pcp, typ, sizeof_vlan)
+      | _ -> 
+	(vlan_none, 0x0, typ, sizeof_eth) in 
+    let bits = Cstruct.shift bits offset in
+    let nw_header = match int_to_eth_typ typ with 
+      | Some ETHTYP_IP -> 
+        begin match ip_desc.parse bits with 
+	| Some ip -> NwIP ip
+	| None -> NwUnparsable (typ,bits)
+	end
+      | Some ETHTYP_ARP -> 
+	begin match arp_desc.parse bits with 
+	| Some arp -> NwARP arp 
+	| _ -> NwUnparsable (typ, bits) 
+	end
+      | _ -> 
+	NwUnparsable (typ,bits) in 
+    Some { pktDlSrc = mac_of_bytes src;
+	   pktDlDst = mac_of_bytes dst;
+	   pktDlTyp = typ;
+	   pktDlVlan = vlan_tag;
+	   pktDlVlanPcp = vlan_pcp;
+	   pktNwHeader = nw_header });
+    len = (fun (pkt:packet) ->
+      let eth_len = match int_to_eth_typ pkt.pktDlTyp with
+	| Some ETHTYP_VLAN -> sizeof_vlan  
+	| _ -> sizeof_eth in 
+      let nw_len = match pkt.pktNwHeader with 
+	| NwIP ip -> ip_desc.len ip
+	| NwARP arp -> arp_desc.len arp 
+	| NwUnparsable(_,data) -> Cstruct.len data in 
+      eth_len + nw_len);
+    serialize = (fun (bits:Cstruct.t) (pkt:packet) -> 
+      set_eth_src (bytes_of_mac pkt.pktDlSrc) 0 bits;
+      set_eth_dst (bytes_of_mac pkt.pktDlDst) 0 bits;
+      let bits =       
+	if pkt.pktDlVlan <> vlan_none then 
+	  begin 
+	    let tag_and_pcp = 
+	      (pkt.pktDlVlan lsr (31 - 16) + 13) land
+	       pkt.pktDlVlanPcp lsl 4 land 0xffff in 
+	    set_vlan_tag bits tag_and_pcp;
+	    set_vlan_typ bits pkt.pktDlTyp;
+	    Cstruct.shift bits sizeof_vlan 
+	  end
+	else
+	  begin 
+	    set_eth_typ bits pkt.pktDlTyp;
+	    Cstruct.shift bits sizeof_eth 
+	  end in 
+      match pkt.pktNwHeader with 
+      | NwIP ip -> 
+	ip_desc.serialize bits ip
+      | NwARP arp -> 
+	arp_desc.serialize bits arp
+      | NwUnparsable(_,data) -> 
+	Cstruct.blit bits 0 data 0 (Cstruct.len data))
+  }
+
+and ip_desc = 
+  { parse = (fun (bits:Cstruct.t) -> 
+    let vhl = get_ip_vhl bits in 
+    let _ = vhl lsr 4 in (* TODO(jnf): test for IPv4? *)
+    let ihl = vhl land 0x0f in 
+    let tos = get_ip_tos bits in 
+    let len = get_ip_len bits in 
+    let frag = get_ip_frag bits in 
+    let flags = frag lsr 13 in 
+    let frag = frag land 0x1fff in 
+    let ttl = get_ip_ttl bits in 
+    let ident = get_ip_ident bits in 
+    let proto = get_ip_proto bits in 
+    let chksum = get_ip_chksum bits in 
+    let src = get_ip_src bits in 
+    let dst = get_ip_dst bits in 
+    let bits = Cstruct.shift bits ihl in 
+    let tp_header = match int_to_ip_proto proto with 
+      | Some IP_ICMP -> 
+	begin match icmp_desc.parse bits with 
+	| Some icmp -> TpICMP icmp 
+	| _ -> TpUnparsable (proto, bits) 
+	end
+      | Some IP_TCP ->       
+	begin match tcp_desc.parse bits with 
+	| Some tcp -> TpTCP tcp 
+	| _ -> TpUnparsable (proto, bits) 
+	end
+      | _ -> 
+	TpUnparsable (proto, bits) in 
+    Some { pktIPVhl = vhl;
+	   pktIPTos = tos;
+	   pktIPLen = len;
+	   pktIPIdent = ident;
+	   pktIPFlags = flags ;
+	   pktIPFrag = frag;
+	   pktIPTtl = ttl;
+	   pktIPProto = proto;
+	   pktIPChksum = chksum;
+	   pktIPSrc = src;
+	   pktIPDst = dst;     
+	   pktTpHeader = tp_header });
+    len = (fun (pkt:ip) -> 
+      let ip_len = sizeof_ip - 4 in (* JNF: hack! *)
+      let tp_len = match pkt.pktTpHeader with 
+      | TpTCP tcp -> 
+	tcp_desc.len tcp
+      | TpICMP icmp -> 
+	icmp_desc.len icmp
+      | TpUnparsable(_,data) -> 
+	Cstruct.len data in 
+      ip_len + tp_len);
+    serialize = (fun (bits:Cstruct.t) (pkt:ip) -> 
+      set_ip_vhl bits pkt.pktIPVhl;
+      set_ip_tos bits pkt.pktIPTos;
+      set_ip_ident bits pkt.pktIPTos;
+      set_ip_frag bits (pkt.pktIPFlags lor (pkt.pktIPFrag lsl 13));
+      set_ip_ttl bits pkt.pktIPTtl;
+      set_ip_proto bits pkt.pktIPProto;
+      set_ip_chksum bits pkt.pktIPChksum;
+      set_ip_src bits pkt.pktIPSrc;
+      set_ip_dst bits pkt.pktIPDst;
+      let bits = Cstruct.shift bits sizeof_ip in 
+      match pkt.pktTpHeader with 
+      | TpTCP tcp -> 
+	tcp_desc.serialize bits tcp
+      | TpICMP icmp -> 
+	icmp_desc.serialize bits icmp
+      | TpUnparsable (_,data) -> 
+	Cstruct.blit bits 0 data 0 (Cstruct.len data)) }
+
+and arp_desc = 
+  { parse = (fun (bits:Cstruct.t) -> 
+      let oper = get_arp_oper bits in 
+      let sha = mac_of_bytes (Cstruct.to_string (get_arp_sha bits)) in 
+      let spa = (get_arp_spa bits) in 
+      let tpa = (get_arp_tpa bits) in 
+      match int_to_arp_oper oper with 
+      | Some ARP_REQUEST -> 
+	Some (ARPQuery(sha,spa,tpa))
+      | Some ARP_REPLY -> 
+	let tha = mac_of_bytes (Cstruct.to_string (get_arp_tha bits)) in 
+	Some (ARPReply(sha,spa,tha,tpa))
+      | _ -> 
+	None);
+    len = (fun (pkt:arp) -> 
+      sizeof_arp);
+    serialize = (fun (bits:Cstruct.t) (pkt:arp) -> 
+      set_arp_htype bits 1;      (* JNF: baked *)
+      set_arp_ptype bits 0x800;  (* JNF: baked *)
+      set_arp_hlen bits 6;       (* JNF: baked *)
+      set_arp_plen bits 4;       (* JNF: baked *)
+      match pkt with 
+      | ARPQuery(sha,spa,tpa) -> 
+	set_arp_oper bits (arp_oper_to_int ARP_REQUEST);
+	set_arp_sha (bytes_of_mac sha) 0 bits;
+	set_arp_spa bits spa;
+	set_arp_tpa bits tpa;
+      | ARPReply(sha,spa,tha,tpa) -> 
+	set_arp_oper bits (arp_oper_to_int ARP_REPLY);
+	set_arp_sha (bytes_of_mac sha) 0 bits;
+	set_arp_spa bits spa;
+	set_arp_tha (bytes_of_mac tha) 0 bits;
+	set_arp_tpa bits tpa) }
+
+and tcp_desc = 
+  { parse = (fun (bits:Cstruct.t) -> 
+      let src = get_tcp_src bits in 
+      let dst = get_tcp_dst bits in 
+      let seq = get_tcp_seq bits in 
+      let ack = get_tcp_ack bits in 
+      let offset = get_tcp_offset bits in 
+      let offset = offset lsr 4 in 
+      let _ = offset land 0x0f in 
+      let flags = get_tcp_flags bits in 
+      let window = get_tcp_window bits in 
+      let chksum = get_tcp_chksum bits in 
+      let urgent = get_tcp_urgent bits in 
+      let payload = Cstruct.shift bits sizeof_tcp in (* JNF: options fixme *)
+      Some { tcpSrc = src;
+	     tcpDst = dst;
+	     tcpSeq = seq;
+	     tcpAck = ack;
+	     tcpOffset =  offset;
+	     tcpFlags = flags;
+	     tcpWindow = window;
+	     tcpChksum = chksum;
+	     tcpUrgent = urgent;
+	     tcpPayload = payload });
+    len = (fun (pkt:tcp) -> sizeof_tcp);
+    serialize = (fun (bits:Cstruct.t) (pkt:tcp) -> 
+      set_tcp_src bits pkt.tcpSrc;
+      set_tcp_dst bits pkt.tcpDst;
+      set_tcp_seq bits pkt.tcpSeq;
+      set_tcp_ack bits pkt.tcpAck;
+      set_tcp_offset bits pkt.tcpOffset;
+      set_tcp_flags bits pkt.tcpFlags;
+      set_tcp_window bits pkt.tcpWindow;
+      set_tcp_window bits pkt.tcpWindow;
+      let bits = Cstruct.shift bits sizeof_tcp in 
+      Cstruct.blit bits 0 pkt.tcpPayload 0 (Cstruct.len pkt.tcpPayload)) }
+
+and icmp_desc = 
+  { parse = (fun (bits:Cstruct.t) ->
+      let typ = get_icmp_typ bits in
+      let code = get_icmp_code bits in
+      let chksum = get_icmp_chksum bits in
+      let payload = Cstruct.shift bits sizeof_icmp in
+      Some { icmpType = typ;
+  	     icmpCode = code;
+  	     icmpChksum = chksum;
+  	     icmpPayload = payload });
+    len = (fun (pkt:icmp) -> sizeof_icmp);
+    serialize = (fun (bits:Cstruct.t) (pkt:icmp) ->
+      set_icmp_typ bits pkt.icmpType;
+      set_icmp_code bits pkt.icmpCode;
+      set_icmp_chksum bits pkt.icmpChksum;
+      let bits = Cstruct.shift bits sizeof_icmp in
+      Cstruct.blit bits 0 pkt.icmpPayload 0 (Cstruct.len pkt.icmpPayload))
+  }
 
 (* let parse_udp (bits:Cstruct.t) : udp option =  *)
 (*   let src = get_ucp_src bits in  *)
@@ -126,230 +348,24 @@ let parse_tcp (bits:Cstruct.t) : tcp option =
 (* 	 udpChksum = seq; *)
 (* 	 udpPayload = payload } *)
 
-let parse_icmp (bits:Cstruct.t) : icmp option = 
-  let typ = get_icmp_typ bits in 
-  let code = get_icmp_code bits in 
-  let chksum = get_icmp_chksum bits in 
-  let payload = Cstruct.shift bits sizeof_icmp in 
-  Some { icmpType = typ;
-	 icmpCode = code;
-	 icmpChksum = chksum;
-	 icmpPayload = payload }
+(* Pretty Printing *)
+let string_of_eth pkt = 
+  Printf.sprintf 
+    "\n{ pktDlSrc = %s; 
+  pktDlDst = %s  
+  pktDlTyp : %d  
+  pktDlVlan : %d  
+  pktDlVlanPcp : %d }" 
+      (Util.string_of_mac pkt.pktDlSrc)
+      (Util.string_of_mac pkt.pktDlDst)
+      (pkt.pktDlTyp)
+      (pkt.pktDlVlan)
+      (pkt.pktDlVlanPcp)
 
-let parse_ip (bits:Cstruct.t) : ip option = 
-  let vhl = get_ip_vhl bits in 
-  let _ = vhl lsr 4 in (* TODO(jnf): test for IPv4? *)
-  let ihl = vhl land 0x0f in 
-  let tos = get_ip_tos bits in 
-  let len = get_ip_len bits in 
-  let frag = get_ip_frag bits in 
-  let flags = frag lsr 13 in 
-  let frag = frag land 0x1fff in 
-  let ttl = get_ip_ttl bits in 
-  let ident = get_ip_ident bits in 
-  let proto = get_ip_proto bits in 
-  let chksum = get_ip_chksum bits in 
-  let src = get_ip_src bits in 
-  let dst = get_ip_dst bits in 
-  let bits = Cstruct.shift bits ihl in 
-  let tp_header = match int_to_ip_proto proto with 
-    | Some IP_ICMP -> 
-      begin match parse_icmp bits with 
-      | Some icmp -> TpICMP icmp 
-      | _ -> TpUnparsable (proto, bits) 
-      end
-    | Some IP_TCP ->       
-      begin match parse_tcp bits with 
-      | Some tcp -> TpTCP tcp 
-      | _ -> TpUnparsable (proto, bits) 
-      end
-    | _ -> 
-      TpUnparsable (proto, bits) in 
-  Some { pktIPVhl = vhl;
-	 pktIPTos = tos;
-	 pktIPLen = len;
-	 pktIPIdent = ident;
-	 pktIPFlags = flags ;
-	 pktIPFrag = frag;
-	 pktIPTtl = ttl;
-	 pktIPProto = proto;
-	 pktIPChksum = chksum;
-	 pktIPSrc = src;
-	 pktIPDst = dst;     
-	 pktTpHeader = tp_header }
-
-let parse_arp (bits:Cstruct.t) : arp option = 
-  let oper = get_arp_oper bits in 
-  let sha = mac_of_bytes (Cstruct.to_string (get_arp_sha bits)) in 
-  let spa = (get_arp_spa bits) in 
-  let tpa = (get_arp_tpa bits) in 
-  match int_to_arp_oper oper with 
-    | Some ARP_REQUEST -> 
-       Some (ARPQuery(sha,spa,tpa))
-    | Some ARP_REPLY -> 
-       let tha = mac_of_bytes (Cstruct.to_string (get_arp_tha bits)) in 
-       Some (ARPReply(sha,spa,tha,tpa))
-    | _ -> 
-      None
-    
-let parse_vlan (bits:Cstruct.t) : int * int * int * int = 
-  let typ = get_eth_typ bits in 
-  match int_to_eth_typ typ with 
-  | Some ETHTYP_VLAN -> 
-    let tag_and_pcp = get_vlan_tag bits in 
-    let vlan_tag = tag_and_pcp land 0xfff in 
-    let vlan_pcp = (tag_and_pcp lsr 9) land 0x7 in 
-    let typ = get_vlan_typ bits in 
-    (vlan_tag, vlan_pcp, typ, sizeof_vlan)
-  | _ -> 
-    (vlan_none, 0x0, typ, sizeof_eth)
-
-let parse_eth (bits:Cstruct.t) : packet option = 
-  let dst = Cstruct.to_string (get_eth_dst bits) in
-  let src = Cstruct.to_string (get_eth_src bits) in
-  let (vlan_tag, vlan_pcp, typ, offset) = parse_vlan bits in 
-  let bits = Cstruct.shift bits offset in 
-  let nw_header = 
-    match int_to_eth_typ typ with 
-    | Some ETHTYP_IP -> 
-      begin match parse_ip bits with 
-      | Some ip -> NwIP ip
-      | _ -> NwUnparsable (typ,bits) 
-      end
-    | Some ETHTYP_ARP -> 
-      begin match parse_arp bits with 
-      | Some arp -> NwARP arp 
-      | _ -> NwUnparsable (typ, bits) 
-      end
-    | _ -> 
-      NwUnparsable (typ,bits) in 
-  Some { pktDlSrc = mac_of_bytes src;
-	 pktDlDst = mac_of_bytes dst;
-	 pktDlTyp = typ;
-	 pktDlVlan = vlan_tag;
-	 pktDlVlanPcp = vlan_pcp;
-	 pktNwHeader = nw_header }
-
-let parse_packet = parse_eth
-
-(* sizes *)
-
-let size_tp (p:tpPkt) : int = 
-  match p with 
-  | TpTCP(tcp) -> 
-    sizeof_tcp - 4 (* JNF: hack! *)
-  | TpICMP(icmp) -> 
-    sizeof_icmp
-  | TpUnparsable (_,buf) -> 
-    Cstruct.len buf    
-
-let size_nw (p:nw) : int = 
-  match p with 
-  | NwIP(ip) -> 
-    let n_nw = sizeof_ip - 4 in (* JNF: hack! *)
-    let n_tp = size_tp ip.pktTpHeader in 
-    n_nw + n_tp
-  | NwARP(arp) -> 
-    sizeof_arp
-  | NwUnparsable (_,buf) -> 
-    Cstruct.len buf
+let parse_packet = eth_desc.parse
   
-let size_eth (p:packet) : int = 
-  let n_eth = 
-    match p.pktDlVlan with
-    | 0xffff -> sizeof_eth
-    | _ -> sizeof_vlan in 
-  let n_nw = size_nw p.pktNwHeader in 
-  n_eth + n_nw
 
-let size_packet = size_eth 
-
-(* Marshalling *)
-
-let marshal_icmp (p:icmp) (bits:Cstruct.t) : unit = 
-  set_icmp_typ bits p.icmpType;
-  set_icmp_code bits p.icmpCode;
-  set_icmp_chksum bits p.icmpChksum;
-  let bits = Cstruct.shift bits sizeof_icmp in 
-  Cstruct.blit bits 0 p.icmpPayload 0 (Cstruct.len p.icmpPayload)
-
-let marshal_tcp (p:tcp) (bits:Cstruct.t) : unit = 
-  set_tcp_src bits p.tcpSrc;
-  set_tcp_dst bits p.tcpDst;
-  set_tcp_seq bits p.tcpSeq;
-  set_tcp_ack bits p.tcpAck;
-  set_tcp_offset bits p.tcpOffset;
-  set_tcp_flags bits p.tcpFlags;
-  set_tcp_window bits p.tcpWindow;
-  set_tcp_window bits p.tcpWindow;
-  let bits = Cstruct.shift bits sizeof_tcp in 
-  Cstruct.blit bits 0 p.tcpPayload 0 (Cstruct.len p.tcpPayload)
-
-let marshal_ip (p:ip) (bits:Cstruct.t) : unit = 
-  set_ip_vhl bits p.pktIPVhl;
-  set_ip_tos bits p.pktIPTos;
-  set_ip_ident bits p.pktIPTos;
-  set_ip_frag bits (p.pktIPFlags lor (p.pktIPFrag lsl 13));
-  set_ip_ttl bits p.pktIPTtl;
-  set_ip_proto bits p.pktIPProto;
-  set_ip_chksum bits p.pktIPChksum;
-  set_ip_src bits p.pktIPSrc;
-  set_ip_dst bits p.pktIPDst;
-  let bits = Cstruct.shift bits sizeof_ip in 
-  match p.pktTpHeader with 
-  | TpTCP tcp -> 
-    marshal_tcp tcp bits
-  | TpICMP icmp -> 
-    marshal_icmp icmp bits
-  | TpUnparsable (_,data) -> 
-    Cstruct.blit bits 0 data 0 (Cstruct.len data) 
-    
-
-let marshal_arp (p:arp) (bits:Cstruct.t) : unit = 
-  set_arp_htype bits 1;      (* JNF: baked *)
-  set_arp_ptype bits 0x800;  (* JNF: baked *)
-  set_arp_hlen bits 6;       (* JNF: baked *)
-  set_arp_plen bits 4;       (* JNF: baked *)
-  match p with 
-  | ARPQuery(sha,spa,tpa) -> 
-    set_arp_oper bits (arp_oper_to_int ARP_REQUEST);
-    set_arp_sha (bytes_of_mac sha) 0 bits;
-    set_arp_spa bits spa;
-    set_arp_tpa bits tpa;
-  | ARPReply(sha,spa,tha,tpa) -> 
-    set_arp_oper bits (arp_oper_to_int ARP_REPLY);
-    set_arp_sha (bytes_of_mac sha) 0 bits;
-    set_arp_spa bits spa;
-    set_arp_tha (bytes_of_mac tha) 0 bits;
-    set_arp_tpa bits tpa
-
-let marshal_nw (p:nw) (bits:Cstruct.t) : unit = 
-  match p with 
-  | NwIP ip -> marshal_ip ip bits
-  | NwARP arp -> marshal_arp arp bits     
-  | NwUnparsable (_,data) -> 
-    Cstruct.blit bits 0 data 0 (Cstruct.len data) 
-
-let marshal_eth (p:packet) (bits:Cstruct.t) : unit = 
-  set_eth_src (bytes_of_mac p.pktDlSrc) 0 bits;
-  set_eth_dst (bytes_of_mac p.pktDlDst) 0 bits;
-  let bits = 
-    match p.pktDlVlan with 
-    | 0xffff -> 
-      set_eth_typ bits p.pktDlTyp;
-      Cstruct.shift bits sizeof_eth
-    | _ -> 
-      let vlan_tag = p.pktDlVlan in 
-      let vlan_pcp = p.pktDlVlanPcp in 
-      let tag_and_pcp = 
-	(vlan_pcp lsr (31 - 16) + 13) land (* PCP *)
-	  vlan_tag lsl 4 land 0xffff in 
-      set_vlan_tag bits tag_and_pcp;
-      set_vlan_typ bits p.pktDlTyp;
-      Cstruct.shift bits sizeof_vlan in 
-  marshal_nw p.pktNwHeader bits
-
-let marshal_packet (p:packet) : Cstruct.t = 
-  let bits = Cstruct.create (size_packet p) in 
-  let () = marshal_eth p bits in 
+let serialize_packet (pkt:packet) : Cstruct.t = 
+  let bits = Cstruct.create (eth_desc.len pkt) in 
+  let () = eth_desc.serialize bits pkt in 
   bits

@@ -144,33 +144,27 @@ end
 module PacketParser = struct
   open PacketParser
   open Packet
-  let eth : packet = 
+  let eth1 : packet = 
     { pktDlSrc = Util.mac_of_bytes "ABCDEF";
       pktDlDst = Util.mac_of_bytes "123456";
-      pktDlTyp = 0x999; 
-      pktDlVlan = 0;
+      pktDlTyp = 0; 
+      pktDlVlan = 0xffff;
       pktDlVlanPcp = 0;
-      pktNwHeader = NwUnparsable (0x999, Cstruct.of_string "") }
-
-  let string_of_eth pkt = 
-    sprintf "\n{ pktDlSrc = %s;\n  pktDlDst = %s\n  pktDlTyp : %d\n  pktDlVlan : %d\n  pktDlVlanPcp : %d }" 
-      (Util.string_of_mac pkt.pktDlSrc)
-      (Util.string_of_mac pkt.pktDlDst)
-      (pkt.pktDlTyp)
-      (pkt.pktDlVlan)
-      (pkt.pktDlVlanPcp)
+      pktNwHeader = NwUnparsable (0, Cstruct.of_string "") }
     
-  let test1 = "Ethernet parser test" >::
-    (fun () -> 
+  let f eth = 
       let etho = Some eth in 
-      let etho' = parse_packet (marshal_packet eth) in 
+      let etho' = parse_packet (serialize_packet eth) in 
       match etho, etho' with 
       | Some e, Some e' -> 
 	Printf.printf "\nETH  : %s\nETH' : %s\n" 
 	  (string_of_eth e) (string_of_eth e')
       | _ -> 
 	Printf.sprintf "OOPS\n";
-      assert_equal etho' etho)
+      assert_equal etho' etho
+
+  let test1 = "Ethernet parser test" >::
+    (fun () -> f eth1)
   
   let go = TestList [test1]
 
