@@ -2,6 +2,8 @@ open MessagesDef
 open OpenFlow0x04Parser
 open OpenFlow0x04Types
 open PatternImplDef
+open NetCoreEval13
+open NetCoreCompiler13
 
 (* Egh. Assuming each action list only has a single port. Otherwise we
    need to use watch groups instead of a watch port and that's just more
@@ -24,18 +26,15 @@ let mapi f lst = mapi' 0 f lst
 
 let insert_groups = mapi (fun idx (pat,(a,b)) -> (pat, (Int32.of_int idx, [(0, (watchport a), a); (0, (watchport b), b)])))
 
-let blast_inport' pat : pattern = 
-  { pat with ptrnInPort = Wildcard.WildcardAll }
+let blast_inport = List.map (fun (pat, acts) -> (  { pat with ptrnInPort = Wildcard.WildcardAll }, acts))
 
-let blast_inport = List.map (fun (pat, acts) -> (blast_inport' pat, acts))
-
-let rec compile_primary_backup primary backup (sw : switchId) =
-    let pr_tbl = NetCoreCompiler13.compile_opt primary sw in
-    let bk_tbl = NetCoreCompiler13.compile_opt backup sw in
+let rec compile_primary_backup pri bak sw =
+    let pri_tbl = compile_opt pri sw in
+    let bak_tbl = compile_opt bak sw in
     let merge  = fun a b -> (a,b) in
-    let overlap = insert_groups (Classifier.inter merge pr_tbl (blast_inport bk_tbl)) in
+    let overlap = insert_groups (Classifier.inter merge pri_tbl (blast_inport bak_tbl)) in
     let groups = List.map snd overlap in
-    let inter = List.map (fun (pat, (a,b)) -> (pat, [NetCoreEval13.Group a])) overlap in
-    let foo = (NetCoreCompiler13.compile_opt (NetCoreEval13.PoUnion (primary, backup)) sw) in
+    let inter = List.map (fun (pat, (a,b)) -> (pat, [Group a])) overlap in
+    let foo = (compile_opt (PoUnion (pri, bak)) sw) in
     (inter @ foo, groups)
     
