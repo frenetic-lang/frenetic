@@ -28,7 +28,7 @@ let rec mapi' idx f lst = match lst with
 
 let mapi f lst = mapi' 0 f lst
 
-let insert_groups = mapi (fun idx (pat,(a,b)) -> (pat, (Int32.of_int idx, [(0, (watchport a), a); (0, (watchport b), b)])))
+(* let insert_groups = mapi (fun idx (pat,(a,b)) -> (pat, (Int32.of_int idx, [(0, (watchport a), a); (0, (watchport b), b)]))) *)
 
 let remove_inport = map (fun (pat, acts) -> (  { pat with ptrnInPort = W.WildcardAll }, acts))
 
@@ -37,8 +37,9 @@ let compile_nc = compile_opt
 let rec compile_pb pri bak sw =
     let pri_tbl = compile_nc pri sw in
     let bak_tbl = compile_nc bak sw in
-    let merge = fun a b -> (a,b) in
-    let overlap = insert_groups (inter merge pri_tbl (remove_inport bak_tbl)) in
+    let merge a b = [(0, (watchport a), a); (0, (watchport b), b)] in
+    let insert_group_id id (pat, acts) = (pat, ((Int32.of_int id), acts)) in
+    let overlap = mapi insert_group_id (inter merge pri_tbl (remove_inport bak_tbl)) in
     let ft_tbl = map (fun (pat, (a,b)) -> (pat, [Group a])) overlap in
     (ft_tbl @ pri_tbl @ bak_tbl, map snd overlap)
     
