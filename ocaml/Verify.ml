@@ -12,6 +12,10 @@ let fresh () =
   let () = incr fresh_cell in
   Z3Packet (Printf.sprintf "p%d" n)
 
+let reverse_edge (sp1, sp2) = (sp2, sp1)
+
+let bidirectionalize topo = List.fold_left (fun acc edge = edge::(reverse_edge edge)::acc) [] topo
+
 let rec encode_predicate pred pkt =
   match pred with
     | All ->
@@ -51,18 +55,6 @@ let forwards act pkt1 pkt2 =
     | GetPacket gph -> 
       ZFalse
 
-(*let topo_forwards topo pkt1 pkt2 =
-  ZAnd [ equals ["DlSrc"; "DlDst"] pkt1 pkt2
-       ; ZOr (List.fold_left (fun acc (Link(s1, p1), Link(s2, p2)) -> 
-	 ZOr [ ZAnd [ ZEquals (PktHeader ("Switch", pkt1), Primitive s1)
-		    ; ZEquals (PktHeader ("InPort", pkt1), Primitive (Int64.of_int p1))
-		    ; ZEquals (PktHeader ("Switch", pkt2), Primitive s2)
-		    ; ZEquals (PktHeader ("InPort", pkt2), Primitive (Int64.of_int p2)) ]
-	     ; ZAnd [ ZEquals (PktHeader ("Switch", pkt1), Primitive s2)
-		    ; ZEquals (PktHeader ("InPort", pkt1), Primitive (Int64.of_int p2))
-		    ; ZEquals (PktHeader ("Switch", pkt2), Primitive s1)
-		    ; ZEquals (PktHeader ("InPort", pkt2), Primitive (Int64.of_int p1)) ]]::acc) [] topo) ]*)
-
 let topo_forwards topo pkt1 pkt2 =
   ZAnd [ equals ["DlSrc"; "DlDst"] pkt1 pkt2
        ; ZOr (List.fold_left (fun acc (Link(s1, p1), Link(s2, p2)) -> 
@@ -96,8 +88,10 @@ let () =
   let s1 = Int64.of_int 1 in
   let s2 = Int64.of_int 2 in
   let s3 = Int64.of_int 3 in
-  let topo = [ (Link (s1, 4), Link (s3, 1)); (Link (s1,3), Link (s2, 1)); (Link (s3, 3), Link (s2, 2))
-	     ; (Link (s3, 1), Link (s1, 4)); (Link (s2,1), Link (s1, 3)); (Link (s2, 2), Link (s3, 3))] in
+  let topo = 
+    [ (Link (s1, 4), Link (s3, 1)); (Link (s1,3), Link (s2, 1)); 
+      (Link (s3, 3), Link (s2, 2)) ] in
+  let bidirectTopo = bidirectionalize topo in
   let pol = Pol (All, [ToAll]) in
   let pkt1 = fresh () in
   let pkt2 = fresh () in
