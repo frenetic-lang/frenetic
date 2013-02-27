@@ -50,7 +50,7 @@ let rec compile_pb pri bak sw =
   let groups = ref [] in
   let merge a b = 
     (let gid = Gensym.next () in
-     let () = add_group groups gid a b in
+     add_group groups gid a b;
      [Group gid ]) in
   let ft_tbl = inter merge pri_tbl (rm_inport bak_tbl) in
   (ft_tbl @ pri_tbl @ bak_tbl, !groups)
