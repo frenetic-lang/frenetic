@@ -11,6 +11,7 @@ cstruct eth {
 cstruct vlan {
   uint8_t dst[6];
   uint8_t src[6];
+  uint16_t hdr; (* 0x8100 *)
   uint16_t tag; (* tag and pcp *)
   uint16_t typ
 } as big_endian
@@ -116,7 +117,7 @@ let rec eth_desc =
       | Some ETHTYP_VLAN -> 
 	let tag_and_pcp = get_vlan_tag bits in 
 	let vlan_tag = tag_and_pcp land 0xfff in 
-	let vlan_pcp = (tag_and_pcp lsr 9) land 0x7 in 
+	let vlan_pcp = tag_and_pcp lsr 13 in 
 	let typ = get_vlan_typ bits in 
 	(vlan_tag, vlan_pcp, typ, sizeof_vlan)
       | _ -> 
@@ -126,15 +127,15 @@ let rec eth_desc =
       | Some ETHTYP_IP -> 
         begin match ip_desc.parse bits with 
 	| Some ip -> NwIP ip
-	| None -> NwUnparsable (typ,bits)
+	| None -> NwUnparsable (typ,Cstruct.of_string (Cstruct.to_string bits))
 	end
       | Some ETHTYP_ARP -> 
 	begin match arp_desc.parse bits with 
 	| Some arp -> NwARP arp 
-	| _ -> NwUnparsable (typ, bits) 
+	| _ -> NwUnparsable (typ, Cstruct.of_string (Cstruct.to_string bits))
 	end
       | _ -> 
-	NwUnparsable (typ,bits) in 
+	NwUnparsable (typ,Cstruct.of_string (Cstruct.to_string bits)) in 
     Some { pktDlSrc = mac_of_bytes src;
 	   pktDlDst = mac_of_bytes dst;
 	   pktDlTyp = typ;
@@ -142,13 +143,16 @@ let rec eth_desc =
 	   pktDlVlanPcp = vlan_pcp;
 	   pktNwHeader = nw_header });
     len = (fun (pkt:packet) ->
-      let eth_len = match int_to_eth_typ pkt.pktDlTyp with
-	| Some ETHTYP_VLAN -> sizeof_vlan  
-	| _ -> sizeof_eth in 
+      let eth_len = 
+	if pkt.pktDlVlan <> vlan_none then sizeof_vlan 
+	else sizeof_eth in 
       let nw_len = match pkt.pktNwHeader with 
-	| NwIP ip -> ip_desc.len ip
-	| NwARP arp -> arp_desc.len arp 
-	| NwUnparsable(_,data) -> Cstruct.len data in 
+	| NwIP ip -> 
+	  ip_desc.len ip
+	| NwARP arp -> 
+	  arp_desc.len arp 
+	| NwUnparsable(_,data) -> 
+	  Cstruct.len data in 
       eth_len + nw_len);
     serialize = (fun (bits:Cstruct.t) (pkt:packet) -> 
       set_eth_src (bytes_of_mac pkt.pktDlSrc) 0 bits;
@@ -156,11 +160,10 @@ let rec eth_desc =
       let bits =       
 	if pkt.pktDlVlan <> vlan_none then 
 	  begin 
-	    let tag_and_pcp = 
-	      (pkt.pktDlVlan lsr (31 - 16) + 13) land
-	       pkt.pktDlVlanPcp lsl 4 land 0xffff in 
+	    set_vlan_hdr bits 0x8100;
+	    let tag_and_pcp = (pkt.pktDlVlanPcp lsl 4) lor pkt.pktDlVlan in 
 	    set_vlan_tag bits tag_and_pcp;
-	    set_vlan_typ bits pkt.pktDlTyp;
+	    set_vlan_typ bits pkt.pktDlTyp;	    	    
 	    Cstruct.shift bits sizeof_vlan 
 	  end
 	else
@@ -349,22 +352,35 @@ and icmp_desc =
 (* 	 udpPayload = payload } *)
 
 (* Pretty Printing *)
+let string_of_nw pkt = 
+  match pkt with 
+    | NwUnparsable(typ,data) -> 
+      Printf.sprintf "%d %s [%d:%d%d%d]\n\n" typ 
+	(Cstruct.debug data) 
+	(Cstruct.len data)
+      	(Char.code (Cstruct.get_char data 0))
+      	(Char.code (Cstruct.get_char data 1))
+      	(Char.code (Cstruct.get_char data 2))
+    | _ ->
+      assert false
+
 let string_of_eth pkt = 
   Printf.sprintf 
     "\n{ pktDlSrc = %s; 
   pktDlDst = %s  
   pktDlTyp : %d  
   pktDlVlan : %d  
-  pktDlVlanPcp : %d }" 
+  pktDlVlanPcp : %d
+  pktNwHeader: %s }" 
       (Util.string_of_mac pkt.pktDlSrc)
       (Util.string_of_mac pkt.pktDlDst)
       (pkt.pktDlTyp)
       (pkt.pktDlVlan)
       (pkt.pktDlVlanPcp)
+      (string_of_nw pkt.pktNwHeader)
 
 let parse_packet = eth_desc.parse
   
-
 let serialize_packet (pkt:packet) : Cstruct.t = 
   let bits = Cstruct.create (eth_desc.len pkt) in 
   let () = eth_desc.serialize bits pkt in 

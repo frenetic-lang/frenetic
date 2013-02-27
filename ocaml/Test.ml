@@ -14,7 +14,6 @@ module Test1 = struct
   module Controller = Repeater.Make (TestPlatform)
 
   let test_script () = 
-    eprintf "[test] started test script...\n%!";
     connect_switch 100L >>
     connect_switch 200L >>
     lwt msg = recv_from_controller 100L in
@@ -98,7 +97,6 @@ module Test3 = struct
   let test2 = "mac address parsing test" >::
       (fun () ->
         let k = 0x1234567890abL in
-        printf "bytes is %s, str is %Lx\n" (bytes_of_mac k) (mac_of_bytes (bytes_of_mac k));
         assert_equal (mac_of_bytes (bytes_of_mac k)) k)
     
   let go = 
@@ -136,7 +134,7 @@ module Test4 = struct
     close_out oc;
     ()
 
-  let go =
+  let go = 
     "serialize test" >::
       (fun () -> test_script())
 end
@@ -147,24 +145,14 @@ module PacketParser = struct
   let eth1 : packet = 
     { pktDlSrc = Util.mac_of_bytes "ABCDEF";
       pktDlDst = Util.mac_of_bytes "123456";
-      pktDlTyp = 0; 
-      pktDlVlan = 0xffff;
+      pktDlTyp = 0x0042; 
+      pktDlVlan = 0x7;
       pktDlVlanPcp = 0;
-      pktNwHeader = NwUnparsable (0, Cstruct.of_string "") }
+      pktNwHeader = NwUnparsable (0x0042, Cstruct.of_string "XYZ") }
     
-  let f eth = 
-      let etho = Some eth in 
-      let etho' = parse_packet (serialize_packet eth) in 
-      match etho, etho' with 
-      | Some e, Some e' -> 
-	Printf.printf "\nETH  : %s\nETH' : %s\n" 
-	  (string_of_eth e) (string_of_eth e')
-      | _ -> 
-	Printf.sprintf "OOPS\n";
-      assert_equal etho' etho
+  let f eth = assert_equal (Some eth) (parse_packet (serialize_packet eth))
 
-  let test1 = "Ethernet parser test" >::
-    (fun () -> f eth1)
+  let test1 = "Ethernet parser test" >:: (fun () -> f eth1)
   
   let go = TestList [test1]
 
@@ -174,5 +162,5 @@ let _ = run_test_tt_main
   (TestList [ Test1.go; 
               Test2.go;
               Test3.go;
-              Test4.go;
+              (* Test4.go; *)
 	      PacketParser.go])
