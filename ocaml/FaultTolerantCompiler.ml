@@ -41,11 +41,15 @@ struct
   let next () = count := Int32.succ !count; !count
 end
 
+let add_buckets group a b =
+  group := [a;b] :: !group
+
 let rec compile_pb pri bak sw =
   let pri_tbl = compile_nc pri sw in
   let bak_tbl = compile_nc bak sw in
-  let merge a b = ((Gensym.next ()), [a; b]) in
-  let overlap = inter merge pri_tbl (rm_inport bak_tbl) in
-  let ft_tbl = map (fun (pat, (gid,buckets)) -> (pat, [Group gid])) overlap in
-  (ft_tbl @ pri_tbl @ bak_tbl, map snd overlap)
+  let groups = ref [] in
+  let merge a b = (let () = add_buckets groups a b in
+		   [Group (Gensym.next ())]) in
+  let ft_tbl = inter merge pri_tbl (rm_inport bak_tbl) in
+  (ft_tbl @ pri_tbl @ bak_tbl, !groups)
     
