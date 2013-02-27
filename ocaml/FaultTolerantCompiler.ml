@@ -13,10 +13,6 @@ module W = Wildcard
    need to use watch groups instead of a watch port and that's just more
    messy crap *)
 
-let ofpp_any = Int32.of_int (-1)
-(* Not even specified in OF 1.3. It's like they're not even trying... *)
-let ofpg_any = Int32.of_int (-1)
-
 (* let rec watchport acts = match acts with *)
 (*   | NetCoreEval.Forward (modif, MessagesDef.PhysicalPort pid) :: acts -> (Int32.of_int pid) *)
 (*   | _ :: acts -> watchport acts *)
@@ -48,10 +44,11 @@ let rec compile_pb pri bak sw =
   let pri_tbl = compile_nc pri sw in
   let bak_tbl = compile_nc bak sw in
   let groups = ref [] in
-  let merge a b = 
+  let merge pri_acts bak_acts = 
     (let gid = Gensym.next () in
-     add_group groups gid a b;
+     add_group groups gid pri_acts bak_acts;
      [Group gid ]) in
-  let ft_tbl = inter merge pri_tbl (rm_inport bak_tbl) in
+  let bak_tbl' = (rm_inport bak_tbl) in
+  let ft_tbl = inter merge pri_tbl bak_tbl' in
   (ft_tbl @ pri_tbl @ bak_tbl, !groups)
     
