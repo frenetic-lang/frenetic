@@ -4,6 +4,9 @@ open OpenFlow0x04Types
 open PatternImplDef
 open NetCoreEval13
 open NetCoreCompiler13
+open List
+
+module W = Wildcard
 
 (* Egh. Assuming each action list only has a single port. Otherwise we
    need to use watch groups instead of a watch port and that's just more
@@ -26,15 +29,16 @@ let mapi f lst = mapi' 0 f lst
 
 let insert_groups = mapi (fun idx (pat,(a,b)) -> (pat, (Int32.of_int idx, [(0, (watchport a), a); (0, (watchport b), b)])))
 
-let blast_inport = List.map (fun (pat, acts) -> (  { pat with ptrnInPort = Wildcard.WildcardAll }, acts))
+let remove_inport = map (fun (pat, acts) -> (  { pat with ptrnInPort = W.WildcardAll }, acts))
 
-let rec compile_primary_backup pri bak sw =
-    let pri_tbl = compile_opt pri sw in
-    let bak_tbl = compile_opt bak sw in
-    let merge  = fun a b -> (a,b) in
-    let overlap = insert_groups (Classifier.inter merge pri_tbl (blast_inport bak_tbl)) in
-    let groups = List.map snd overlap in
-    let inter = List.map (fun (pat, (a,b)) -> (pat, [Group a])) overlap in
-    let foo = (compile_opt (PoUnion (pri, bak)) sw) in
-    (inter @ foo, groups)
+let compile_nc = compile_opt
+
+open Classifier
+let rec compile_pb pri bak sw =
+    let pri_tbl = compile_nc pri sw in
+    let bak_tbl = compile_nc bak sw in
+    let merge = fun a b -> (a,b) in
+    let overlap = insert_groups (inter merge pri_tbl (remove_inport bak_tbl)) in
+    let ft_tbl = map (fun (pat, (a,b)) -> (pat, [Group a])) overlap in
+    (ft_tbl @ pri_tbl @ bak_tbl, map snd overlap)
     
