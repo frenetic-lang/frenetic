@@ -10,6 +10,10 @@ Local Open Scope list_scope.
 Local Open Scope N_scope.
 
 Axiom bytes : Type.
+
+(* JNF: I wonder if we should extract this to something
+else. Cstruct.t has funny equalities due to the behavior of
+shift. Maybe just a string? *)
 Extract Constant bytes => "Cstruct.t".
 
 Section Constants.
