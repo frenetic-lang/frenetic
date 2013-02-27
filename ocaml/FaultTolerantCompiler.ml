@@ -34,12 +34,18 @@ let remove_inport = map (fun (pat, acts) -> (  { pat with ptrnInPort = W.Wildcar
 
 let compile_nc = compile_opt
 
+module Gensym =
+struct
+  let count = ref 0
+  let next () = incr count; !count
+end
+
 let rec compile_pb pri bak sw =
     let pri_tbl = compile_nc pri sw in
     let bak_tbl = compile_nc bak sw in
-    let merge a b = [(0, (watchport a), a); (0, (watchport b), b)] in
-    let insert_group_id id (pat, acts) = (pat, ((Int32.of_int id), acts)) in
-    let overlap = mapi insert_group_id (inter merge pri_tbl (remove_inport bak_tbl)) in
+    let merge a b = (let idx = Int32.of_int (Gensym.next ()) in
+		     (idx, [(0, (watchport a), a); (0, (watchport b), b)])) in
+    let overlap = (inter merge pri_tbl (remove_inport bak_tbl)) in
     let ft_tbl = map (fun (pat, (a,b)) -> (pat, [Group a])) overlap in
     (ft_tbl @ pri_tbl @ bak_tbl, map snd overlap)
     
