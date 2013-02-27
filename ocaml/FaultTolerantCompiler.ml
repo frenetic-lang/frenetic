@@ -41,15 +41,17 @@ struct
   let next () = count := Int32.succ !count; !count
 end
 
-let add_buckets group a b =
-  group := [a;b] :: !group
+let add_group groups gid a b =
+  groups := (gid, [a;b]) :: !groups
 
 let rec compile_pb pri bak sw =
   let pri_tbl = compile_nc pri sw in
   let bak_tbl = compile_nc bak sw in
   let groups = ref [] in
-  let merge a b = (let () = add_buckets groups a b in
-		   [Group (Gensym.next ())]) in
+  let merge a b = 
+    (let gid = Gensym.next () in
+     let () = add_group groups gid a b in
+     [Group gid ]) in
   let ft_tbl = inter merge pri_tbl (rm_inport bak_tbl) in
   (ft_tbl @ pri_tbl @ bak_tbl, !groups)
     
