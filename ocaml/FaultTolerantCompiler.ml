@@ -4,6 +4,7 @@ open OpenFlow0x04Types
 open PatternImplDef
 open NetCoreEval13
 open NetCoreCompiler13
+open Classifier
 open List
 
 module W = Wildcard
@@ -33,7 +34,6 @@ let remove_inport = map (fun (pat, acts) -> (  { pat with ptrnInPort = W.Wildcar
 
 let compile_nc = compile_opt
 
-open Classifier
 let rec compile_pb pri bak sw =
     let pri_tbl = compile_nc pri sw in
     let bak_tbl = compile_nc bak sw in
