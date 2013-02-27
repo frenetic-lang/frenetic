@@ -17,14 +17,14 @@ Prerequisites
 
   - findlib
   - lwt
-  - cstruct version 0.5.3
+  - cstruct 
   - oUnit
 
   These are available on OPAM:
 
   ```
   $ opam install ocamlfind
-  $ opam install cstruct.0.5.3
+  $ opam install cstruct
   $ opam install lwt
   $ opam install ounit
   ```
@@ -58,4 +58,3 @@ OCaml Wisdom
 ------------
 
 If you're using the user-mode reference switch, emit CONTROLLER actions last.
-

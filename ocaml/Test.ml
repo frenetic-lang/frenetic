@@ -14,7 +14,6 @@ module Test1 = struct
   module Controller = Repeater.Make (TestPlatform)
 
   let test_script () = 
-    eprintf "[test] started test script...\n%!";
     connect_switch 100L >>
     connect_switch 200L >>
     lwt msg = recv_from_controller 100L in
@@ -98,7 +97,6 @@ module Test3 = struct
   let test2 = "mac address parsing test" >::
       (fun () ->
         let k = 0x1234567890abL in
-        printf "bytes is %s, str is %Lx\n" (bytes_of_mac k) (mac_of_bytes (bytes_of_mac k));
         assert_equal (mac_of_bytes (bytes_of_mac k)) k)
     
   let go = 
@@ -132,17 +130,37 @@ module Test4 = struct
     let str1 = Message.serialize 0l msg1 in
     let str2 = Message.serialize 0l msg2 in
     printf "test serialization";
-    fprintf oc "%s" str1;
+    fprintf oc "%s\n%s" str1 str2;
     close_out oc;
     ()
 
-  let go =
+  let go = 
     "serialize test" >::
       (fun () -> test_script())
 end
+
+module PacketParser = struct
+  open PacketParser
+  open Packet
+  let eth1 : packet = 
+    { pktDlSrc = Util.mac_of_bytes "ABCDEF";
+      pktDlDst = Util.mac_of_bytes "123456";
+      pktDlTyp = 0x0042; 
+      pktDlVlan = 0x7;
+      pktDlVlanPcp = 0;
+      pktNwHeader = NwUnparsable (0x0042, Cstruct.of_string "XYZ") }
+    
+  let f eth = assert_equal (Some eth) (parse_packet (serialize_packet eth))
+
+  let test1 = "Ethernet parser test" >:: (fun () -> f eth1)
+  
+  let go = TestList [test1]
+
+end 
 
 let _ = run_test_tt_main 
   (TestList [ Test1.go; 
               Test2.go;
               Test3.go;
-              Test4.go ])
+              (* Test4.go; *)
+	      PacketParser.go])

@@ -71,9 +71,9 @@ Fixpoint match_pred (pr : pred) (sw : switchId) (pt : portId) (pk : packet) :=
     | PrNone => false
   end.
 
-Axiom marshal_pkt : packet -> bytes.
+Axiom serialize_pkt : packet -> bytes.
 
-Extract Constant marshal_pkt => "PacketParser.marshal_packet".
+Extract Constant serialize_pkt => "PacketParser.serialize_packet".
 
 Definition maybe_modify {A : Type} (newVal : option A) 
            (modifier : packet -> A -> packet) (pk : packet) : packet :=
@@ -114,7 +114,7 @@ Definition eval_action (inp : input) (act : act) : output :=
     | (Forward mods pp, InPkt sw _ pk buf) => OutPkt sw pp (modify_pkt mods pk)
         (match buf with
            | Some b => inl b
-           | None => inr (marshal_pkt (modify_pkt mods pk))
+           | None => inr (serialize_pkt (modify_pkt mods pk))
          end)
     | (ActGetPkt x, InPkt sw pt pk buf) => OutGetPkt x sw pt pk
   end.
