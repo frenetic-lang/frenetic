@@ -130,7 +130,7 @@ module Test4 = struct
     let str1 = Message.serialize 0l msg1 in
     let str2 = Message.serialize 0l msg2 in
     printf "test serialization";
-    fprintf oc "%s" str1;
+    fprintf oc "%s\n%s" str1 str2;
     close_out oc;
     ()
 
