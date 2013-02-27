@@ -17,14 +17,14 @@ Prerequisites
 
   - findlib
   - lwt
-  - cstruct version 0.5.3
+  - cstruct 
   - oUnit
 
   These are available on OPAM:
 
   ```
   $ opam install ocamlfind
-  $ opam install cstruct.0.5.3
+  $ opam install cstruct
   $ opam install lwt
   $ opam install ounit
   ```
@@ -54,5 +54,7 @@ extracts it to use `Obj.magic` and other nonsense.
 However, type-classes can help structure proofs. So, very carefully split
 factor the Coq into code and proof.
 
+OCaml Wisdom
+------------
 
-
+If you're using the user-mode reference switch, emit CONTROLLER actions last.

@@ -37,19 +37,54 @@ Section PacketIn.
 End PacketIn.
 
 Section ToFlowMod.
-
-  Definition translate_action (act : act) :=
-    match act with
-      | Forward pp => Output pp
-      | ActGetPkt x => Output (Controller Word16.max_value)
+  
+  Definition maybe_openflow0x01_modification {A : Type} (newVal : option A)
+             (mkModify : A -> MessagesDef.action) : actionSequence :=
+    match newVal with
+      | None => nil
+      | Some v => [mkModify v]
+    end.
+  
+  Definition modification_to_openflow0x01 (mods : modification) : actionSequence :=
+    match mods with
+      | Modification dlSrc dlDst dlVlan dlVlanPcp 
+                     nwSrc nwDst nwTos
+                     tpSrc tpDst =>
+        maybe_openflow0x01_modification dlSrc SetDlSrc ++
+        maybe_openflow0x01_modification dlDst SetDlDst ++
+        maybe_openflow0x01_modification (withVlanNone dlVlan) SetDlVlan ++
+        maybe_openflow0x01_modification dlVlanPcp SetDlVlanPcp ++
+        maybe_openflow0x01_modification nwSrc SetNwSrc ++
+        maybe_openflow0x01_modification nwDst SetNwDst ++
+        maybe_openflow0x01_modification nwTos SetNwTos ++
+        maybe_openflow0x01_modification tpSrc SetTpSrc ++
+        maybe_openflow0x01_modification tpDst SetTpDst
     end.
 
-  Definition to_flow_mod prio (pat : pattern) (act : list act)
+  (** TODO(arjun): This is *wrong*. You can't trivially compile modifications like this.
+   It only works b/c this controller (which we extract for dynamic policies) is unverified. *)
+  Definition translate_action (in_port : option portId) (act : act) : actionSequence :=
+    match act with
+      | Forward mods (PhysicalPort pp) =>
+        modification_to_openflow0x01 mods ++
+        [match in_port with
+           | None => Output (PhysicalPort pp)
+           | Some pp' => match Word16.eq_dec pp' pp with
+                           | left _ => Output InPort
+                           | right _ => Output (PhysicalPort pp)
+                         end
+         end]
+      | Forward mods p => modification_to_openflow0x01 mods ++ [Output p]
+      | ActGetPkt x => [Output (Controller Word16.max_value)]
+    end.
+
+  Definition to_flow_mod (prio : priority) (pat : pattern) (act : list act)
              (isfls : Pattern.is_empty pat = false) :=
+    let ofMatch := Pattern.to_match pat isfls in
     FlowMod AddFlow
-            (Pattern.to_match isfls)
+            ofMatch
             prio
-            (List.map translate_action act)
+            (concat_map (translate_action (matchInPort ofMatch)) act)
             Word64.zero
             Permanent
             Permanent
@@ -67,18 +102,17 @@ Section ToFlowMod.
              (match (Pattern.is_empty pat) as b
                     return (Pattern.is_empty pat = b -> list flowMod) with
                 | true => fun _ => lst
-                | false => fun H => (to_flow_mod prio act H) :: lst
+                | false => fun H => (to_flow_mod prio pat act H) :: lst
               end) eq_refl
          end)
       nil
       (prioritize lst).
 
-
   Definition delete_all_flows := 
     FlowMod DeleteFlow
             (* This should make reasoning easier, since we have so many
                theorems about patterns. *)
-            (Pattern.to_match Pattern.all_is_not_empty)
+            (Pattern.to_match _ Pattern.all_is_not_empty)
             Word16.zero
             nil
             Word64.zero
@@ -88,7 +122,6 @@ Section ToFlowMod.
             None
             None
             false.
-
 End ToFlowMod.
 
 Record ncstate := State {
@@ -162,7 +195,9 @@ Module Make (Import Monad : NETCORE_MONAD).
   Definition send_output (out : output) := 
     match out with
       | OutNothing => ret tt
-      | OutPkt _ _ _ _ => ret tt (* TODO(arjun): fill *)
+      | OutPkt swId pp pkt bufOrBytes =>
+          send swId Word32.zero
+               (PacketOutMsg (PacketOut bufOrBytes None [Output pp]))
       | OutGetPkt x switchId portId packet => 
         handle_get_packet x switchId portId packet
     end.

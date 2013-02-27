@@ -10,7 +10,7 @@ Require Import Coq.Classes.Equivalence.
 
 Local Open Scope equiv_scope.
 
-Module Pattern : PATTERN.
+Module Pattern <: PATTERN.
 
   Record pat := Pat {
     raw : pattern;
@@ -350,7 +350,7 @@ Section Lemmas.
   Qed.
 
   Lemma is_match_false_inter_l :
-    forall (pt : portId) (pkt : packet) pat1 pat2,
+    forall pt (pkt : packet) pat1 pat2,
       match_packet pt pkt pat1 = false ->
       match_packet pt pkt (inter pat1 pat2) = false.
   Proof with eauto.

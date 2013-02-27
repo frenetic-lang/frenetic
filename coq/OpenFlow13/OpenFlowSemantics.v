@@ -3,7 +3,7 @@ Set Implicit Arguments.
 Require Import Common.Types.
 Require Import Word.WordInterface.
 Require Import Network.Packet.
-Require Import OpenFlow.MessagesDef.
+Require Import OpenFlow13.MessagesDef.
 
 Local Open Scope list_scope.
 Local Open Scope bool_scope.
@@ -101,8 +101,8 @@ Section Actions.
   Definition setTransportSrcPort_tp (proto : nwProto)
     (tpSrc : tpPort) (pkt : tpPkt proto) : tpPkt proto :=
     match pkt with
-      | TpTCP (Tcp _ dst seq ack off flags win chksum urgent payload) =>
-        TpTCP (Tcp tpSrc dst seq ack off flags win chksum urgent payload)
+      | TpTCP (Tcp _ dst seq ack off flags win payload) =>
+        TpTCP (Tcp tpSrc dst seq ack off flags win payload)
       | TpICMP icmp => TpICMP icmp (* TODO(arjun): should set *)
       | TpUnparsable proto data => TpUnparsable proto data
     end.
@@ -129,8 +129,8 @@ Section Actions.
   Definition setTransportDstPort_tp (proto : nwProto)
     (tpDst : tpPort) (pkt : tpPkt proto) : tpPkt proto :=
     match pkt with
-      | TpTCP (Tcp src _ seq ack off flags win chksum urgent payload) =>
-        TpTCP (Tcp src tpDst seq ack off flags win chksum urgent payload)
+      | TpTCP (Tcp src _ seq ack off flags win payload) =>
+        TpTCP (Tcp src tpDst seq ack off flags win payload)
       | TpICMP icmp => TpICMP icmp (* TODO(arjun): should set *)
       | TpUnparsable proto data => TpUnparsable proto data
     end.
@@ -152,29 +152,36 @@ Section Actions.
         (setTransportSrcPort_nw tpDst nw)
     end.
 
+  Inductive action_result : Type :=
+  | arPort : pseudoPort -> action_result
+  | arPkt : packet -> action_result
+  | arGroup : groupId -> action_result.
+
   Definition apply_action (pt : portId) (pk : packet) (act : action) :=
     match act with
-      | Output pp => inl pp
-      | SetDlVlan vlan => inr (setVlan vlan pk)
-      | StripVlan => inr (stripVlanHeader pk)
-      | SetDlVlanPcp prio => inr (setVlanPriority prio pk)
-      | SetDlSrc addr => inr (setEthSrcAddr addr pk)
-      | SetDlDst addr => inr (setEthDstAddr addr pk)
-      | SetNwSrc ip => inr (setIPSrcAddr ip pk)
-      | SetNwDst ip => inr (setIPDstAddr ip pk)
-      | SetNwTos tos => inr (setIPToS tos pk)
-      | SetTpSrc pt => inr (setTransportSrcPort pt pk)
-      | SetTpDst pt => inr (setTransportDstPort pt pk)
+      | Output pp => arPort pp
+      | Group gid => arGroup gid
+      | SetDlVlan vlan => arPkt (setVlan vlan pk)
+      | StripVlan => arPkt (stripVlanHeader pk)
+      | SetDlVlanPcp prio => arPkt (setVlanPriority prio pk)
+      | SetDlSrc addr => arPkt (setEthSrcAddr addr pk)
+      | SetDlDst addr => arPkt (setEthDstAddr addr pk)
+      | SetNwSrc ip => arPkt (setIPSrcAddr ip pk)
+      | SetNwDst ip => arPkt (setIPDstAddr ip pk)
+      | SetNwTos tos => arPkt (setIPToS tos pk)
+      | SetTpSrc pt => arPkt (setTransportSrcPort pt pk)
+      | SetTpDst pt => arPkt (setTransportDstPort pt pk)
     end.
 
   Fixpoint apply_actionSequence (pt : portId) (pk : packet) 
-    (acts : actionSequence) : list (pseudoPort * packet) :=
+    (acts : actionSequence) :  list ((pseudoPort + groupId) * packet) :=
     match acts with
       | nil => nil
       | act :: acts' =>
         match apply_action pt pk act with
-          | inl pp => (pp,pk) :: apply_actionSequence pt pk acts'
-          | inr pk' => apply_actionSequence pt pk' acts'
+          | arPort pp => (inl pp,pk) :: apply_actionSequence pt pk acts'
+          | arGroup gid => (inr gid,pk) :: apply_actionSequence pt pk acts'
+          | arPkt pk' => apply_actionSequence pt pk' acts'
         end
     end.
 
@@ -193,7 +200,7 @@ Section Match.
     match mat with
       | Match _ _ _ _ _ _ _ _ _ mTpSrc mTpDst _ =>
         match pk with
-          | TpTCP (Tcp tpSrc tpDst _ _ _ _ _ _ _ _) => 
+          | TpTCP (Tcp tpSrc tpDst _ _ _ _ _ _) => 
             match_opt Word16.eq_dec tpSrc mTpSrc &&
             match_opt Word16.eq_dec tpDst mTpDst
           | TpICMP (Icmp typ code _ _) => 

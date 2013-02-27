@@ -58,12 +58,6 @@ cstruct ofp_match {
 } as big_endian
 
 (* OKAY *)
-cenum ofp_match_type {
-  OFPMT_STANDARD = 0;       (* Deprecated. *)
-  OFPMT_OXM      = 1        (* OpenFlow Extensible Match *)
-} as uint16_t
-
-(* OKAY *)
 cenum ofp_oxm_class {
   OFPXMC_NXM_0          = 0x0000;    (* Backward compatibility with NXM *)
   OFPXMC_NXM_1          = 0x0001;    (* Backward compatibility with NXM *)
@@ -129,41 +123,7 @@ cstruct ofp_switch_features {
   uint32_t action
 } as big_endian 
 
-cenum ofp_flow_mod_command {
-  OFPFC_ADD           = 0; (* New flow. *)
-  OFPFC_MODIFY        = 1; (* Modify all matching flows. *)
-  OFPFC_MODIFY_STRICT = 2; (* Modify entry strictly matching wildcards and
-                              priority. *)
-  OFPFC_DELETE        = 3; (* Delete all matching flows. *)
-  OFPFC_DELETE_STRICT = 4  (* Delete entry strictly matching wildcards and
-                              priority. *)
-} as uint16_t
 
-(* OKAY *)
-(*
-cenum ofp_port_no {
-  (* Maximum number of physical and logical switch ports. *)
-  OFPP_MAX        = 0xffffff00L;
-  (* Reserved OpenFlow Port (fake output "ports"). *)
-  OFPP_IN_PORT    = 0xfffffff8L;  (* Send the packet out the input port.  This
-                                    reserved port must be explicitly used
-                                    in order to send back out of the input
-                                    port. *)
-  OFPP_TABLE      = 0xfffffff9L;  (* Submit the packet to the first flow table
-                                    NB: This destination port can only be
-                                    used in packet-out messages. *)
-  OFPP_NORMAL     = 0xfffffffaL;  (* Process with normal L2/L3 switching. *)
-  OFPP_FLOOD      = 0xfffffffbL;  (* All physical ports in VLAN, except input
-                                    port and those blocked or link down. *)
-  OFPP_ALL        = 0xfffffffcL;  (* All physical ports except input port. *)
-  OFPP_CONTROLLER = 0xfffffffdL;  (* Send to controller. *)
-  OFPP_LOCAL      = 0xfffffffeL;  (* Local openflow "port". *)
-  OFPP_ANY        = 0xffffffffL   (* Wildcard port used only for flow mod
-                                    (delete) and flow stats requests. Selects
-                                    all flows regardless of output port
-                                    (including flows with no output port). *)
-} as uint32_t
-  *)
 (* MISSING: ofp_port_config *)
 (* MISSING: ofp_port_state *)
 (* MISSING: ofp_port_features *)
@@ -198,70 +158,9 @@ cstruct ofp_flow_mod {
                                    output group.  A value of OFPG_ANY
                                    indicates no restriction. *)
   uint16_t flags;               (* One of OFPFF_*. *)
-  uint8_t pad[2]
+  uint8_t pad0;
+  uint8_t pad1
 } as big_endian
-
-cstruct ofp_action_header {
-   uint16_t typ;
-   uint16_t len;
-   uint8_t pad[4]
-} as big_endian
-
-cstruct ofp_action_output {
-  uint16_t typ;
-  uint16_t len;
-  uint16_t port;
-  uint16_t max_len
-} as big_endian 
-
- cstruct ofp_action_vlan_vid {
-   uint16_t typ;          
-   uint16_t len;           
-   uint16_t vlan_vid;      
-   uint8_t pad[2]
- } as big_endian
-
- cstruct ofp_action_vlan_pcp {
-   uint16_t typ;
-   uint16_t len;           
-   uint8_t vlan_pcp;       
-   uint8_t pad[3]
- } as big_endian
-
- cstruct ofp_action_dl_addr {
-   uint16_t typ; 
-   uint16_t len;          
-   uint8_t dl_addr[6];
-   uint8_t pad[6]
- } as big_endian 
-
- cstruct ofp_action_nw_addr {
-   uint16_t typ;
-   uint16_t len; 
-   uint32_t nw_addr
- } as big_endian
-
- cstruct ofp_action_tp_port {
-   uint16_t typ;         
-   uint16_t len;          
-   uint16_t tp_port;      
-   uint8_t pad[2]
- } as big_endian
-
- cstruct ofp_action_nw_tos {
-   uint16_t typ;
-   uint16_t len; 
-   uint8_t nw_tos; 
-   uint8_t pad[3]
- } as big_endian
-
- cstruct ofp_action_enqueue {
-   uint16_t typ;
-   uint16_t len;
-   uint16_t port;
-   uint8_t pad[6]; 
-   uint32_t queue_id
- } as big_endian 
 
 (* OKAY *)
 cenum ofp_action_type {
@@ -287,90 +186,42 @@ cenum ofp_action_type {
   OFPAT_EXPERIMENTER = 0xffff
 } as uint16_t
 
-(* OKAY *)
-cstruct ofp_action_header {
-    uint16_t typ;                   (* One of OFPAT_*. *)
-    uint16_t len;                   (* Length of action, including this
-                                       header.  This is the length of action,
-                                       including any padding to make it
-                                       64-bit aligned. *)
-    uint8_t pad[4]
-} as big_endian
-
+(* Action structure for OFPAT_OUTPUT, which sends packets out 'port'.
+ * When the 'port' is the OFPP_CONTROLLER, 'max_len' indicates the max
+ * number of bytes to send.  A 'max_len' of zero means no bytes of the
+ * packet should be sent. A 'max_len' of OFPCML_NO_BUFFER means that
+ * the packet is not buffered and the complete packet is to be sent to
+ * the controller. *)
 cstruct ofp_action_output {
     uint16_t typ;                   (* OFPAT_OUTPUT. *)
     uint16_t len;                   (* Length is 16. *)
     uint32_t port;                  (* Output port. *)
     uint16_t max_len;               (* Max length to send to controller. *)
-    uint8_t pad[6]                  (* Pad to 64 bits. *)
+    uint8_t pad0;                   (* Pad to 64 bits. *)
+    uint8_t pad1;                   (* Pad to 64 bits. *)
+    uint8_t pad2;                   (* Pad to 64 bits. *)
+    uint8_t pad3;                   (* Pad to 64 bits. *)
+    uint8_t pad4;                   (* Pad to 64 bits. *)
+    uint8_t pad5                    (* Pad to 64 bits. *)
 } as big_endian
 
-cstruct ofp_action_mpls_ttl {
-    uint16_t typ;                   (* OFPAT_SET_MPLS_TTL. *)
-    uint16_t len;                   (* Length is 8. *)
-    uint8_t mpls_ttl;               (* MPLS TTL *)
-    uint8_t pad[3]
-} as big_endian
-
-cstruct ofp_action_push {
-    uint16_t typ;                   (* OFPAT_PUSH_VLAN/MPLS/PBB. *)
-    uint16_t len;                   (* Length is 8. *)
-    uint16_t ethertype;             (* Ethertype *)
-    uint8_t pad[2]
-} as big_endian
-
-cstruct ofp_action_pop_mpls {
-    uint16_t typ;                   (* OFPAT_POP_MPLS. *)
-    uint16_t len;                   (* Length is 8. *)
-    uint16_t ethertype;             (* Ethertype *)
-    uint8_t pad[2]
-} as big_endian
-
+(* Action structure for OFPAT_GROUP. *)
 cstruct ofp_action_group {
-    uint16_t typ;                   (* OFPAT_GROUP. *)
-    uint16_t len;                   (* Length is 8. *)
-    uint32_t group_id               (* Group identifier. *)
+  uint16_t typ;                   (* OFPAT_GROUP. *)
+  uint16_t len;                   (* Length is 8. *)
+  uint32_t group_id               (* Group identifier. *)
 } as big_endian
 
-cstruct ofp_action_nw_ttl {
-    uint16_t typ;                   (* OFPAT_SET_NW_TTL. *)
-    uint16_t len;                   (* Length is 8. *)
-    uint8_t nw_ttl;                 (* IP TTL *)
-    uint8_t pad[3]
-} as big_endian
-
+(* Action structure for OFPAT_SET_FIELD. *)
 cstruct ofp_action_set_field {
-    uint16_t typ;                   (* OFPAT_SET_FIELD. *)
-    uint16_t len;                   (* Length is padded to 64 bits. *)
+    uint16_t typ;                  (* OFPAT_SET_FIELD. *)
+    uint16_t len                   (* Length is padded to 64 bits. *)
     (* Followed by:
      *   - Exactly oxm_len bytes containing a single OXM TLV, then
      *   - Exactly ((oxm_len + 4) + 7)/8*8 - (oxm_len + 4) (between 0 and 7)
      *     bytes of all-zero bytes
      *)
-    uint8_t field[4]               (* OXM TLV - Make compiler happy *)
 } as big_endian
-
-cstruct ofp_action_experimenter_header {
-    uint16_t typ;                   (* OFPAT_EXPERIMENTER. *)
-    uint16_t len;                   (* Length is a multiple of 8. *)
-    uint32_t experimenter           (* Experimenter ID which takes the same
-                                       form as in struct
-                                       ofp_experimenter_header. *)
-} as big_endian
-
-cenum ofp_instruction_type {
-    OFPIT_GOTO_TABLE = 1;       (* Setup the next table in the lookup
-                                   pipeline *)
-    OFPIT_WRITE_METADATA = 2;   (* Setup the metadata field for use later in
-                                   pipeline *)
-    OFPIT_WRITE_ACTIONS = 3;    (* Write the action(s) onto the datapath action
-                                   set *)
-    OFPIT_APPLY_ACTIONS = 4;    (* Applies the action(s) immediately *)
-    OFPIT_CLEAR_ACTIONS = 5;    (* Clears all actions from the datapath
-                                   action set *)
-    OFPIT_METER = 6;            (* Apply meter (rate limiter) *)
-    OFPIT_EXPERIMENTER = 0xFFFF (* Experimenter instruction *)
-} as uint16_t
 
 (* Instruction header that is common to all instructions.  The length includes
  * the header and any padding used to make the instruction 64-bit aligned.
@@ -385,14 +236,19 @@ cstruct ofp_instruction_goto_table {
     uint16_t typ;                 (* OFPIT_GOTO_TABLE *)
     uint16_t len;                 (* Length of this struct in bytes. *)
     uint8_t table_id;             (* Set next table in the lookup pipeline *)
-    uint8_t pad[3]                (* Pad to 64 bits. *)
+    uint8_t pad0;                 (* Pad to 64 bits. *)
+    uint8_t pad1;
+    uint8_t pad2
 } as big_endian
 
 (* Instruction structure for OFPIT_WRITE_METADATA *)
 cstruct ofp_instruction_write_metadata {
     uint16_t typ;                 (* OFPIT_WRITE_METADATA *)
     uint16_t len;                 (* Length of this struct in bytes. *)
-    uint8_t pad[4];               (* Align to 64-bits *)
+    uint8_t pad0;                 (* Align to 64-bits *)
+    uint8_t pad1;
+    uint8_t pad2;
+    uint8_t pad3;
     uint64_t metadata;            (* Metadata value to write *)
     uint64_t metadata_mask        (* Metadata write bitmask *)
 } as big_endian
@@ -401,7 +257,10 @@ cstruct ofp_instruction_write_metadata {
 cstruct ofp_instruction_actions {
     uint16_t typ;               (* One of OFPIT_*_ACTIONS *)
     uint16_t len;               (* Length of this struct in bytes. *)
-    uint8_t pad[4]             (* Align to 64-bits *)
+    uint8_t pad0;               (* Align to 64-bits *)
+    uint8_t pad1;
+    uint8_t pad2;
+    uint8_t pad3
 } as big_endian
 
 (* Instruction structure for OFPIT_METER *)
@@ -419,20 +278,6 @@ cstruct ofp_instruction_experimenter {
                                    as in struct ofp_experimenter_header. *)
     (* Experimenter-defined arbitrary additional data. *)
 } as big_endian
-
-cenum ofp_group_type {
-  OFPGT_ALL = 0; (* All (multicast/broadcast) group. *)
-  OFPGT_SELECT = 1; (* Select group. *)
-  OFPGT_INDIRECT = 2; (* Indirect group. *)
-  OFPGT_FF = 3 (* Fast failover group. *)
-} as uint16_t
-
-(* Group commands *)
-cenum ofp_group_mod_command {
-    OFPGC_ADD    = 0;       (* New group. *)
-    OFPGC_MODIFY = 1;       (* Modify all matching groups. *)
-    OFPGC_DELETE = 2        (* Delete all matching groups. *)
-} as uint16_t
 
 (* Group setup and teardown (controller -> datapath). *)
 cstruct ofp_group_mod {
@@ -455,39 +300,10 @@ cstruct ofp_bucket {
   uint32_t watch_group;           (* Group whose state affects whether this
                                      bucket is live.  Only required for fast
                                      failover groups. *)
-  uint8_t pad[4]
-} as big_endian
-
-(* Action structure for OFPAT_OUTPUT, which sends packets out 'port'.
- * When the 'port' is the OFPP_CONTROLLER, 'max_len' indicates the max
- * number of bytes to send.  A 'max_len' of zero means no bytes of the
- * packet should be sent. A 'max_len' of OFPCML_NO_BUFFER means that
- * the packet is not buffered and the complete packet is to be sent to
- * the controller. *)
-cstruct ofp_action_output {
-    uint16_t typ;                   (* OFPAT_OUTPUT. *)
-    uint16_t len;                   (* Length is 16. *)
-    uint32_t port;                  (* Output port. *)
-    uint16_t max_len;               (* Max length to send to controller. *)
-    uint8_t pad[6]                  (* Pad to 64 bits. *)
-} as big_endian
-
-(* Action structure for OFPAT_GROUP. *)
-cstruct ofp_action_group {
-  uint16_t typ;                   (* OFPAT_GROUP. *)
-  uint16_t len;                   (* Length is 8. *)
-  uint32_t group_id               (* Group identifier. *)
-} as big_endian
-
-(* Action structure for OFPAT_SET_FIELD. *)
-cstruct ofp_action_set_field {
-    uint16_t typ;                  (* OFPAT_SET_FIELD. *)
-    uint16_t len                   (* Length is padded to 64 bits. *)
-    (* Followed by:
-     *   - Exactly oxm_len bytes containing a single OXM TLV, then
-     *   - Exactly ((oxm_len + 4) + 7)/8*8 - (oxm_len + 4) (between 0 and 7)
-     *     bytes of all-zero bytes
-     *)
+  uint8_t pad0;
+  uint8_t pad1;
+  uint8_t pad2;
+  uint8_t pad3
 } as big_endian
 
 cstruct ofp_oxm {
@@ -496,87 +312,111 @@ cstruct ofp_oxm {
   uint8_t oxm_length
 } as big_endian
 
+cstruct ofp_uint16 {
+  uint16_t value
+} as big_endian
+
+cstruct ofp_uint32 {
+  uint32_t value
+} as big_endian
+
+cstruct ofp_uint48 {
+  uint32_t high;
+  uint16_t low
+} as big_endian
+
+let set_ofp_uint48_value (buf : Cstruct.t) (value : uint48) =
+  let high = Int32.of_int ((Int64.to_int value) lsr 16) in
+    let low = ((Int64.to_int value) land 0xffff) in
+      set_ofp_uint48_high buf high;
+      set_ofp_uint48_low buf low
+
+
+let rec marshal_fields (buf: Cstruct.t) (fields : 'a list) (marshal_func : Cstruct.t -> 'a -> int ): int =
+  if (fields = []) then 0
+  else let size = marshal_func buf (List.hd fields) in
+    size + (marshal_fields (Cstruct.shift buf size) (List.tl fields) marshal_func)
+
 module Oxm = struct
 
-  let sizeof (oxm : oxm) : int =
-    sizeof_ofp_oxm + Oxm.length oxm
-
-  let length (oxm : oxm) : int = match oxm with
+  let field_length (oxm : oxm) : int = match oxm with
     | OxmInPort _ -> 4
     | OxmInPhyPort _ -> 4
-    | OxmMetadata  _ -> 8
     | OxmEthType  _ -> 2
     | OxmEthDst  _ -> 6
     | OxmEthSrc  _ -> 6
     | OxmVlanVId _ -> 2
 
-  let set_ofp_oxm (buf : buf) (c : int) (f : int) (hm : int) (l : int) : int = 
-    let value = (0x3f land f) lsl 1 in
-    let value = value lor (0x1 land hm) in
-    set_ofp_oxm_oxm_class buf c;
-    set_ofp_oxm_oxm_field_and_hashmask buf value;
-    set_ofp_oxm_oxm_length buf l;
+  let sizeof (oxm : oxm) : int =
+    sizeof_ofp_oxm + field_length oxm
 
-  let marshal (buf : buf) (oxm : oxm) : int = 
-    let l = Oxm.length oxm in
-      match oxm with
-        | OxmInPort pid ->
-          set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_IN_PORT 0 l
-          (* FIXME: How to write a uint32 into buf? *)
-          write_uint32 buf pid
-          sizeof_ofp_oxm + oxm_length
-        | OxmInPhyPort pid ->
-          set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_IN_PHY_PORT 0 l
-          (* FIXME: How to write a uint32 into buf? *)
-          write_uint32 buf pid
-          sizeof_ofp_oxm + oxm_length
-        | OxmEthType ethtype ->
-          set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_ETH_TYPE 0 l
-          (* FIXME: How to write a uint16 into buf? *)
-          write_uint16 buf ethtype
-          sizeof_ofp_oxm + oxm_length
-        | OxmEthDst ethaddr ->
-          (* FIXME: here ethaddr is either uint48 or uint48 mask. How to match? *)
-          match ethaddr with
-            | value ->
-              set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_ETH_DST 0 l
-              (* FIXME: How to write a uint48 into buf? *)
-              write_uint48 buf value
-              sizeof_ofp_oxm + oxm_length
-            | value, mask ->
-              set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_ETH_DST 1 l*2
-              (* FIXME: How to write a uint48 into buf? *)
-              write_uint48 buf value
-              write_uint48 buf mask
-              sizeof_ofp_oxm + oxm_length
-        | OxmEthSrc ethaddr ->
-          (* FIXME: here ethaddr is either uint48 or uint48 mask. How to match? *)
-          match ethaddr with
-            | value ->
-              set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_ETH_SRC 0 l
-              (* FIXME: How to write a uint48 into buf? *)
-              write_uint48 buf value
-              sizeof_ofp_oxm + oxm_length
-            | value, mask ->
-              set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_ETH_SRC 1 l*2
-              (* FIXME: How to write a uint48 into buf? *)
-              write_uint48 buf value
-              write_uint48 buf mask
-              sizeof_ofp_oxm + oxm_length
-        | OxmVlanVId vid ->
-          (* FIXME: here ethaddr is either uint12 or uint12 mask. How to match? *)
-          match vid with
-            | value ->
-              set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_VLAN_VID 0 l
-              (* FIXME: How to write a uint16 into buf? *)
-              write_uint16 buf value
-              sizeof_ofp_oxm + oxm_length
-            | value, mask ->
-              set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_VLAN_VID 1 l*2
-              (* FIXME: How to write a uint16 into buf? *)
-              write_uint16 buf value
-              write_uint16 buf mask
-              sizeof_ofp_oxm + oxm_length
+  let set_ofp_oxm (buf : Cstruct.t) (c : ofp_oxm_class) (f : oxm_ofb_match_fields) (hm : int) (l : int) = 
+    let value = (0x3f land (oxm_ofb_match_fields_to_int f)) lsl 1 in
+      let value = value lor (0x1 land hm) in
+        set_ofp_oxm_oxm_class buf (ofp_oxm_class_to_int c);
+        set_ofp_oxm_oxm_field_and_hashmask buf value;
+        set_ofp_oxm_oxm_length buf l
+
+
+  let marshal (buf : Cstruct.t) (oxm : oxm) : int = 
+    let l = field_length oxm in
+      let ofc = OFPXMC_OPENFLOW_BASIC in
+        let buf2 = Cstruct.shift buf sizeof_ofp_oxm in
+          match oxm with
+            | OxmInPort pid ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IN_PORT 0 l;
+              set_ofp_uint32_value buf2 pid;
+              sizeof_ofp_oxm + l
+            | OxmInPhyPort pid ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IN_PHY_PORT 0 l;
+              set_ofp_uint32_value buf2 pid;
+              sizeof_ofp_oxm + l
+            | OxmEthType ethtype ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_ETH_TYPE 0 l;
+              set_ofp_uint16_value buf2 ethtype;
+              sizeof_ofp_oxm + l
+            | OxmEthDst ethaddr ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_ETH_DST 0 (
+                match ethaddr.mask with
+                  | None -> l
+                  | Some _ -> 2*l);
+              set_ofp_uint48_value buf2 ethaddr.value;
+              begin match ethaddr.mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 l in
+                    set_ofp_uint48_value buf3 mask;
+                    sizeof_ofp_oxm + l*2
+              end
+            | OxmEthSrc ethaddr ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_ETH_SRC 0 (
+                match ethaddr.mask with
+                  | None -> l
+                  | Some _ -> 2*l);
+              set_ofp_uint48_value buf2 ethaddr.value;
+              begin match ethaddr.mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 l in
+                    set_ofp_uint48_value buf3 mask;
+                    sizeof_ofp_oxm + l*2
+              end
+            | OxmVlanVId vid ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_VLAN_VID 0 (
+                match vid.mask with
+                  | None -> l
+                  | Some _ -> 2*l);
+              set_ofp_uint16_value buf2 vid.value;
+              begin match vid.mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 l in
+                    set_ofp_uint16_value buf3 mask;
+                    sizeof_ofp_oxm + l*2
+              end
 
 end
 
@@ -585,41 +425,41 @@ module Action = struct
   let sizeof (act : action) : int = match act with
     | Output _ -> sizeof_ofp_action_output
     | Group _ -> sizeof_ofp_action_group
-    | SetField oxm -> sizeof_ofp_action_set_field + sizeof oxm
+    | SetField oxm -> sizeof_ofp_action_set_field + Oxm.sizeof oxm
 
 
-  let marshal (buf : buf) (act : action) : int = match act with
+  let marshal (buf : Cstruct.t) (act : action) : int = match act with
     | Output port ->
       set_ofp_action_output_typ buf 0; (* OFPAT_OUTPUT *)
-      set_ofp_action_output_len buf sizeof act;
-      let _ = match port with
-        | PhysicalPort pid ->
-          set_ofp_action_output_port buf pid;
-          set_ofp_action_output_max_len buf 0;
-        | InPort ->
-          set_ofp_action_output_port buf 0xfffffff8L;  (* OFPP_IN_PORT *)
-          set_ofp_action_output_max_len buf 0;
-        | Flood ->
-          set_ofp_action_output_port buf 0xfffffffbL;  (* OFPP_FLOOD *)
-          set_ofp_action_output_max_len buf 0;
-        | AllPorts ->
-          set_ofp_action_output_port buf 0xfffffffcL;  (* OFPP_ALL *)
-          set_ofp_action_output_max_len buf 0;
-        | Controller max_len ->
-          set_ofp_action_output_port buf 0xfffffffdL;  (* OFPP_CONTROLLER *)
-          set_ofp_action_output_max_len buf max_len;
-      set_ofp_action_output_pad buf 0;
+      set_ofp_action_output_len buf (sizeof act);
+      set_ofp_action_output_port buf
+        (match port with
+          | PhysicalPort pid -> pid
+          | InPort -> Int32.of_int (Int64.to_int 0xfffffff8L)         (* OFPP_IN_PORT *)
+          | Flood -> Int32.of_int (Int64.to_int 0xfffffffbL)          (* OFPP_FLOOD *)
+          | AllPorts -> Int32.of_int (Int64.to_int 0xfffffffcL)       (* OFPP_ALL *)
+          | Controller _ -> Int32.of_int (Int64.to_int 0xfffffffdL)   (* OFPP_CONTROLLER *)
+          | Any -> Int32.of_int (Int64.to_int 0xffffffffL));          (* OFPP_ANY *)
+      set_ofp_action_output_max_len buf
+        (match port with
+          | Controller max_len -> max_len
+          | _ -> 0);
+      set_ofp_action_output_pad0 buf 0;
+      set_ofp_action_output_pad1 buf 0;
+      set_ofp_action_output_pad2 buf 0;
+      set_ofp_action_output_pad3 buf 0;
+      set_ofp_action_output_pad4 buf 0;
+      set_ofp_action_output_pad5 buf 0;
       sizeof act
     | Group gid ->
       set_ofp_action_group_typ buf 22; (* OFPAT_GROUP *)
-      set_ofp_action_group_len buf sizeof act;
+      set_ofp_action_group_len buf (sizeof act);
       set_ofp_action_group_group_id buf gid;
       sizeof act
     | SetField oxm ->
       set_ofp_action_set_field_typ buf 25; (* OFPAT_SET_FIELD *)
-      set_ofp_action_set_field_len buf sizeof act;
-      Oxm.marshal buf oxm
-      sizeof act
+      set_ofp_action_set_field_len buf (sizeof act);
+      sizeof act + (Oxm.marshal (Cstruct.shift buf sizeof_ofp_action_set_field) oxm)
 
 end
 
@@ -632,33 +472,208 @@ module Bucket = struct
     else
       n
 
-  let marshal (buf : buf) (bucket : bucket) : int =
+  let marshal (buf : Cstruct.t) (bucket : bucket) : int =
     let size = sizeof bucket in
-    set_ofp_bucket_len buf size;
-    set_ofp_bucket_weight buf bucket.weight;
-    set_ofp_bucket_watch_port buf bucket.watch_port;
-    set_ofp_bucket_watch_group buf bucket.watch_group;
-    map (Action.marshal buf) bucket.actions;
-    size
+      set_ofp_bucket_len buf size;
+      set_ofp_bucket_weight buf bucket.weight;
+      set_ofp_bucket_watch_port buf
+        (match bucket.watch_port with
+          | None -> Int32.of_int (Int64.to_int 0xffffffffL) (* OFPP_ANY *)
+          | Some port -> port);
+      set_ofp_bucket_watch_group buf
+        (match bucket.watch_group with
+          | None -> Int32.of_int (Int64.to_int 0xffffffffL) (* OFPG_ANY *)
+          | Some group_id -> group_id);
+      set_ofp_bucket_pad0 buf 0;
+      set_ofp_bucket_pad1 buf 0;
+      set_ofp_bucket_pad2 buf 0;
+      set_ofp_bucket_pad3 buf 0;
+      size + (marshal_fields (Cstruct.shift buf sizeof_ofp_bucket) bucket.actions Action.marshal)
 
 end
 
 module GroupMod = struct
 
-  let marshal (buf : buf) (gm : groupMod) : int =
+  let sizeof (gm: groupMod) : int =
     match gm with
       | AddGroup (typ, gid, buckets) -> 
-        set_ofp_group_mod_command buf (ofp_group_mod_command_to_int OFPGC_ADD);
+        sizeof_ofp_group_mod + sum (map Bucket.sizeof buckets)
+      | DeleteGroup (typ, gid) -> 
+        sizeof_ofp_group_mod
+
+  let marshal (buf : Cstruct.t) (gm : groupMod) : int =
+    (* TODO: ofp_header *)
+    match gm with
+      | AddGroup (typ, gid, buckets) -> 
+        set_ofp_group_mod_command buf 0; (* OFPGC_ADD *)
         set_ofp_group_mod_typ buf (groupType_to_int typ);
         set_ofp_group_mod_pad buf 0;
         set_ofp_group_mod_group_id buf gid;
-        map (Bucket.marshal buf) buckets;
-        0
+        sizeof_ofp_group_mod + (marshal_fields (Cstruct.shift buf sizeof_ofp_group_mod) buckets Bucket.marshal)
       | DeleteGroup (typ, gid) ->
         failwith "NYI"
 
 end
 
+module OfpMatch = struct
+
+  let sizeof (om : oxmMatch) : int =
+    let n = sizeof_ofp_match + sum (map Oxm.sizeof om) in
+    let pad = ((n + 7)/8*8 - n) in
+    n + pad
+
+  let marshal (buf : Cstruct.t) (om : oxmMatch) : int =
+    let size = sizeof om in
+      set_ofp_match_typ buf 1; (* OXPMT_OXM *)
+      set_ofp_match_length buf size;
+      size + (marshal_fields (Cstruct.shift buf sizeof_ofp_match) om Oxm.marshal)
+
+end
+
+module Instruction = struct
+
+  let sizeof (ins : instruction) : int =
+    match ins with
+      | GotoTable _ ->
+        sizeof_ofp_instruction_goto_table
+      | WriteActions actions ->
+        sizeof_ofp_instruction_actions + sum (map Action.sizeof actions)
+
+  let marshal (buf : Cstruct.t) (ins : instruction) : int =
+    let size = sizeof ins in
+      match ins with
+        | GotoTable table_id ->
+          set_ofp_instruction_goto_table_typ buf 1; (* OFPIT_GOTO_TABLE *)
+          set_ofp_instruction_goto_table_len buf size;
+          set_ofp_instruction_goto_table_table_id buf table_id;
+          set_ofp_instruction_goto_table_pad0 buf 0;
+          set_ofp_instruction_goto_table_pad1 buf 0;
+          set_ofp_instruction_goto_table_pad2 buf 0;
+          size
+        | WriteActions actions ->
+          set_ofp_instruction_actions_typ buf 3; (* OFPIT_WRITE_ACTIONS *)
+          set_ofp_instruction_actions_len buf size;
+          set_ofp_instruction_actions_pad0 buf 0;
+          set_ofp_instruction_actions_pad1 buf 0;
+          set_ofp_instruction_actions_pad2 buf 0;
+          set_ofp_instruction_actions_pad3 buf 0;
+          size + (marshal_fields (Cstruct.shift buf sizeof_ofp_instruction_actions) actions Action.marshal)
+
+end
+
+module Instructions = struct
+
+  let sizeof (inss : instruction list) : int =
+    sum (map Instruction.sizeof inss)
+
+  let marshal (buf : Cstruct.t) (inss : instruction list) : int =
+    marshal_fields buf inss Instruction.marshal
+
+end
+
+module FlowMod = struct
+
+  let sizeof (fm : flowMod) =
+    sizeof_ofp_flow_mod + (OfpMatch.sizeof fm.ofp_match) + (Instructions.sizeof fm.instructions)
+
+  let flags_to_int (f : flowModFlags) =
+    (if f.send_flow_rem then 1 lsl 0 else 0) lor
+      (if f.check_overlap then 1 lsl 1 else 0) lor
+        (if f.reset_counts then 1 lsl 2 else 0) lor
+          (if f.no_pkt_counts then 1 lsl 3 else 0) lor
+            (if f.no_byt_counts then 1 lsl 4 else 0)
+
+  let marshal (buf : Cstruct.t) (fm : flowMod) : int =
+    set_ofp_flow_mod_cookie buf fm.cookie.value;
+    set_ofp_flow_mod_cookie_mask buf (
+      match fm.cookie.mask with
+        | None -> 0L
+        | Some mask -> mask);
+    set_ofp_flow_mod_table_id buf fm.table_id;
+    set_ofp_flow_mod_command buf (flowModCommand_to_int fm.command);
+    set_ofp_flow_mod_idle_timeout buf
+      (match fm.idle_timeout with
+        | Permanent -> 0
+        | ExpiresAfter value -> value);
+    set_ofp_flow_mod_hard_timeout buf
+      (match fm.idle_timeout with
+        | Permanent -> 0
+        | ExpiresAfter value -> value);
+    set_ofp_flow_mod_priority buf fm.priority;
+    set_ofp_flow_mod_buffer_id buf
+      (match fm.buffer_id with
+        | None -> Int32.of_int 0
+        | Some bid -> bid);
+    set_ofp_flow_mod_out_port buf
+      (match fm.out_port with
+        | None -> Int32.of_int 0
+        | Some port ->
+          (match port with
+            | PhysicalPort pid -> pid
+            | InPort -> Int32.of_int (Int64.to_int 0xfffffff8L)         (* OFPP_IN_PORT *)
+            | Flood -> Int32.of_int (Int64.to_int 0xfffffffbL)          (* OFPP_FLOOD *)
+            | AllPorts -> Int32.of_int (Int64.to_int 0xfffffffcL)       (* OFPP_ALL *)
+            | Controller _ -> Int32.of_int (Int64.to_int 0xfffffffdL);  (* OFPP_CONTROLLER *)
+            | Any -> Int32.of_int (Int64.to_int 0xffffffffL)));         (* OFPP_ANY *)
+    set_ofp_flow_mod_out_group buf
+      (match fm.out_group with
+        | None -> Int32.of_int 0
+        | Some gid -> gid);
+    set_ofp_flow_mod_flags buf (flags_to_int fm.flags);
+    set_ofp_flow_mod_pad0 buf 0;
+    set_ofp_flow_mod_pad1 buf 0;
+    let size = sizeof_ofp_flow_mod +
+        OfpMatch.marshal (Cstruct.shift buf sizeof_ofp_flow_mod) fm.ofp_match in
+      size + Instructions.marshal (Cstruct.shift buf size) fm.instructions
+end
+
+module Message = struct
+
+  let msg_code_of_message (msg : message) : msg_code = match msg with
+    | Hello -> HELLO
+    | EchoRequest _ -> ECHO_REQ
+    | EchoReply _ -> ECHO_RESP
+    | FeaturesRequest -> FEATURES_REQ
+    | FeaturesReply _ -> FEATURES_RESP
+    | FlowMod _ -> FLOW_MOD
+    | GroupMod _ -> GROUP_MOD
+
+  let sizeof (msg : message) : int = match msg with
+    | Hello -> sizeof_ofp_header
+    | EchoRequest bytes -> sizeof_ofp_header + (String.length bytes)
+    | EchoReply bytes -> sizeof_ofp_header + (String.length bytes)
+    | FeaturesRequest -> sizeof_ofp_header
+    | FeaturesReply _ -> sizeof_ofp_header + sizeof_ofp_switch_features
+    | FlowMod fm -> sizeof_ofp_header + FlowMod.sizeof fm
+    | GroupMod gm -> sizeof_ofp_header + GroupMod.sizeof gm
+
+  let marshal (buf : Cstruct.t) (msg : message) : int =
+    let buf2 = (Cstruct.shift buf sizeof_ofp_header) in
+    set_ofp_header_version buf 0x04;
+    set_ofp_header_typ buf (msg_code_to_int (msg_code_of_message msg));
+    set_ofp_header_length buf (sizeof msg);
+    match msg with
+      | Hello ->
+        sizeof_ofp_header
+      | EchoRequest bytes
+      | EchoReply bytes ->
+        Cstruct.blit_from_string bytes 0 buf2 0 (String.length bytes);
+        sizeof_ofp_header + String.length bytes
+      | FeaturesRequest ->
+        sizeof_ofp_header
+      | FlowMod fm ->
+        FlowMod.marshal buf2 fm
+      | GroupMod gm ->
+        GroupMod.marshal buf2 gm
+      | _ -> failwith "unknowns"
+
+  let serialize (xid : xid) (msg : message) : string = 
+    let buf = Cstruct.create (sizeof msg) in
+    let _ = set_ofp_header_xid buf xid in
+    let _ = marshal buf msg in
+    let str = Cstruct.to_string buf in
+    str
+end
 
 
 (*
@@ -877,50 +892,6 @@ module Features = struct
       supported_actions }
 end
 
-cstruct ofp_oxm {
-  uint16_t oxm_class;
-  uint8_t oxm_field_and_hashmask;
-  uint8_t oxm_length
-} as big_endian
-
-module Oxm = struct
-
-  open Bigarray
-
-(*   let set_ofp_oxm (buf : int32) (c : int) (f : int) (hm : int) (l : int) : int32 = 
-    let value = (0xffff land c) lsl 16 in
-    let value = value lor ((0x3f land f) lsl 9) in
-    let value = value lor ((0x1 land hm) lsl 8) in
-    let value = value lor (0xff land l) in
-    (Int32.logor buf (Int32.of_int value))
- *)
-
-  let set_ofp_oxm buf (c : int) (f : int) (hm : int) (l : int) : int32 = 
-    let value = (0x3f land f) lsl 1 in
-    let value = value lor (0x1 land hm) in
-    set_ofp_oxm_oxm_class buf c;
-    set_ofp_oxm_oxm_field_and_hashmask buf value;
-    set_ofp_oxm_oxm_length buf l;
-
-end
-
-module Oxm_Of_InPort = struct
-
-  let marshal buf =
-    let oxm_length = 4 in
-    Oxm.set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_IN_PORT 0 oxm_length;
-    (* HERE we need to write the port value into buf *)
-    ()
-end
-
-module Oxm_Of_EthDst = struct
-
-  let marshal buf =
-    let oxm_length = 6 in
-    Oxm.set_ofp_oxm buf OFPXMC_OPENFLOW_BASIC OFPXMT_OFB_IN_PORT 0 oxm_length;
-    ()
-end
-
 (** Internal module, only used to parse the wildcards bitfield *)
 module Wildcards = struct
 
@@ -1122,41 +1093,7 @@ module TimeoutSer = struct
     | Permanent -> 0
     | ExpiresAfter w -> w
 
-end
-
-module FlowMod = struct
-
-  type t = flowMod
-
-  let flags_to_int (check_overlap : bool) (notify_when_removed : bool) =
-    (if check_overlap then 1 lsl 1 else 0) lor
-      (if notify_when_removed then 1 lsl 0 else 0)
-
-  let marshal m bits = 
-    let bits = Cstruct.shift bits (Match.marshal m.mfMatch bits) in
-    set_ofp_flow_mod_cookie bits (m.mfCookie);
-    set_ofp_flow_mod_command bits (FlowModCommand.marshal m.mfModCmd);
-    set_ofp_flow_mod_idle_timeout bits (TimeoutSer.to_int m.mfIdleTimeOut);
-    set_ofp_flow_mod_hard_timeout bits (TimeoutSer.to_int m.mfHardTimeOut);
-    set_ofp_flow_mod_priority bits (m.mfPriority);
-    set_ofp_flow_mod_buffer_id bits
-      (match m.mfApplyToPacket with
-        | None -> -1l
-        | Some bufId -> bufId);
-    set_ofp_flow_mod_out_port bits (PseudoPort.marshal_optional m.mfOutPort);
-    set_ofp_flow_mod_flags bits
-      (flags_to_int m.mfCheckOverlap m.mfNotifyWhenRemoved);
-    let bits = Cstruct.shift bits sizeof_ofp_flow_mod in
-    let _ = List.fold_left
-      (fun bits act -> 
-        Cstruct.shift bits (Action.marshal act bits))
-      bits
-      m.mfActions
-    in
-    ()
-
-end
-  
+end  
 
 module Header = struct
 

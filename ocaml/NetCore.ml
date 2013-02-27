@@ -70,7 +70,7 @@ module MakeNetCoreMonad
   let rec accept_switch_thread () = 
     Lwt.bind (Platform.accept_switch ())
       (fun feats -> 
-        eprintf "[netcore-monad] SwitchConnected event queued.\n%!";
+        printf "[NetCore.ml] SwitchConnected event queued\n%!";
         Lwt.bind (Lwt_channel.send (SwitchConnected feats.switch_id) events)
           (fun () ->
             Lwt.async 
@@ -115,10 +115,10 @@ module MakeDynamic
       Lwt.bind (Lwt_stream.next event_or_policy_stream)
         (fun v -> match v with
           | Event ev -> 
-            eprintf "[DynamicController] new event.\n%!";
+            printf "[NetCore.ml] new event, calling handler\n%!";
             Controller.handle_event ev state
           | Policy pol ->
-            eprintf "[DynamicController] new policy.\n%!";
+            printf "[NetCore.ml] new policy\n%!";
             Controller.set_policy pol state) in
     let main = NetCoreMonad.forever body in
     NetCoreMonad.run init_state main
@@ -137,7 +137,10 @@ type predicate =
   | InPort of portId
   | DlSrc of Int64.t
   | DlDst of Int64.t
-  (* TODO(arjun): fill in others *)
+  | SrcIP of Int32.t
+  | DstIP of Int32.t
+  | TcpSrcPort of int (** 16-bits, implicitly IP *)
+  | TcpDstPort of int (** 16-bits, implicitly IP *)
 
 type action =
   | To of int
@@ -147,6 +150,7 @@ type action =
 type policy =
   | Pol of predicate * action list
   | Par of policy * policy (** parallel composition *)
+  | Restrict of policy * predicate
 
 let rec predicate_to_string pred = match pred with
   | And (p1,p2) -> Printf.sprintf "(And %s %s)" (predicate_to_string p1) (predicate_to_string p2)
@@ -155,9 +159,17 @@ let rec predicate_to_string pred = match pred with
   | NoPackets -> "None"
   | Switch sw -> Printf.sprintf "(Switch %Ld)" sw
   | InPort pt -> Printf.sprintf "(InPort %d)" pt
-  | DlSrc add -> Printf.sprintf "(DlSrc %Ld)" add
-  | DlDst add -> Printf.sprintf "(DlDst %Ld)" add
+  | DlSrc add -> Printf.sprintf "(DlSrc %s)" (Util.string_of_mac add)
+  | DlDst add -> Printf.sprintf "(DlDst %s)" (Util.string_of_mac add)
   | All -> "All"
+  | TcpSrcPort n ->
+    Printf.sprintf "(TcpSrcPort %d)" n
+  | TcpDstPort n ->
+    Printf.sprintf "(TcpDstPort %d)" n
+  | SrcIP n ->
+    Printf.sprintf "(SrcIP %ld)" n
+  | DstIP n ->
+    Printf.sprintf "(DstIP %ld)" n
   
 let action_to_string act = match act with
   | To pt -> Printf.sprintf "To %d" pt
@@ -167,6 +179,7 @@ let action_to_string act = match act with
 let rec policy_to_string pol = match pol with
   | Pol (pred,acts) -> Printf.sprintf "(%s => [%s])" (predicate_to_string pred) (String.concat ";" (List.map action_to_string acts))
   | Par (p1,p2) -> Printf.sprintf "(Union %s %s)" (policy_to_string p1) (policy_to_string p2)
+  | Restrict (p1,p2) -> Printf.sprintf "(restrict %s %s)" (policy_to_string p1) (predicate_to_string p2)
 
 module Make (Platform : PLATFORM) = struct
 
@@ -178,13 +191,13 @@ module Make (Platform : PLATFORM) = struct
   module Handlers : HANDLERS = struct
       
     let get_packet_handler queryId switchId portId packet = 
-      Printf.printf "[platform] Got packet from %Ld\n" switchId;
-      (Hashtbl.find get_pkt_handlers queryId) switchId portId packet
+      printf "[NetCore.ml] Got packet from %Ld\n" switchId;
+        (Hashtbl.find get_pkt_handlers queryId) switchId portId packet
   end
           
   let desugar_act act = match act with
-    | To pt -> Forward (PhysicalPort pt)
-    | ToAll -> Forward AllPorts
+    | To pt -> Forward (unmodified, PhysicalPort pt)
+    | ToAll -> Forward (unmodified, AllPorts)
     | GetPacket handler ->
       let id = !next_id in
       incr next_id;
@@ -203,12 +216,20 @@ module Make (Platform : PLATFORM) = struct
     | InPort pt -> PrHdr (Pattern.inPort pt)
     | DlSrc n -> PrHdr (Pattern.dlSrc n)
     | DlDst n -> PrHdr (Pattern.dlDst n)
+    | SrcIP n -> PrHdr (Pattern.ipSrc n)
+    | DstIP n -> PrHdr (Pattern.ipDst n)
+    | TcpSrcPort n -> PrHdr (Pattern.tcpSrcPort n)
+    | TcpDstPort n -> PrHdr (Pattern.tcpDstPort n)
 
-  let rec desugar_pol pol = match pol with
-    | Pol (pred, acts) -> 
-      PoAtom (desugar_pred pred, List.map desugar_act acts)
+  let rec desugar_pol1 pol pred = match pol with
+    | Pol (pred', acts) -> 
+      PoAtom (desugar_pred (And (pred', pred)), List.map desugar_act acts)
     | Par (pol1, pol2) ->
-      PoUnion (desugar_pol pol1, desugar_pol pol2)
+      PoUnion (desugar_pol1 pol1 pred, desugar_pol1 pol2 pred)
+    | Restrict (p1, pr1) ->
+      desugar_pol1 p1 (And (pred, pr1))
+
+  let rec desugar_pol pol = desugar_pol1 pol All
 
   module Controller = MakeDynamic (Platform) (Handlers)
 
@@ -220,9 +241,9 @@ module Make (Platform : PLATFORM) = struct
     Controller.start_controller
       (Lwt_stream.map 
          (fun pol -> 
-           Printf.eprintf "[netcore] got a new policy.%!\n";
-           clear_handlers (); 
-           desugar_pol pol)
+            printf "[NetCore.ml] got a new policy%!\n";
+            clear_handlers (); 
+            desugar_pol pol)
          pol)
 
 end

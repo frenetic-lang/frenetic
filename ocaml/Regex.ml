@@ -30,7 +30,10 @@ let rec collapse_star pol = match pol with
   | a :: pol -> a :: collapse_star pol
   | [] -> []
 
-let get_path topo s1 s2 = List.map (fun x -> Hop x) (shortest_path topo s1 s2)
+let get_path topo s1 s2 = let path = shortest_path topo s1 s2 in
+			  let () = Printf.printf "[regex] get_path %Ld %Ld:\n" s1 s2 in
+			  let () =  List.iter (fun x -> Printf.printf "\t%Ld\n" x ) path in
+			  List.map (fun x -> Hop x) path
 
   (* Naive compilation: does not guarantee loop-free semantics
      Possible issues:
@@ -50,12 +53,12 @@ let bad_hop_handler s1 s2 sw pt pk =
  
 let rec compile1 pred reg topo port = match reg with
   | Hop s1 :: Hop s2 :: reg -> 
-    (match get_port topo s1 s2 with
-      | Some p ->  Par ((Pol ((And (pred, (And (InPort port,Switch s1)))), [To p])), ((compile1 pred ((Hop s2) :: reg) topo port)))
+    (match get_ports topo s1 s2 with
+      | Some (p1,p2) ->  Par ((Pol ((And (pred, (And (InPort port,Switch s1)))), [To p1])), ((compile1 pred ((Hop s2) :: reg) topo p2)))
       | None -> Par ((Pol ((And (pred, (And (InPort port,Switch s1)))), [GetPacket (bad_hop_handler s1 s2)])), ((compile1 pred ((Hop s2) :: reg) topo port))))
-  | Hop s1 :: Star :: Hop s2 :: reg -> compile1 pred (get_path topo s1 s2) topo port
-  | Hop s1 :: [Host h] -> (match get_port topo s1 h with
-      | Some p ->  Pol ((And (pred, (And (InPort port,Switch s1)))), [To p])
+  | Hop s1 :: Star :: Hop s2 :: reg -> compile1 pred ((get_path topo s1 s2) @ reg) topo port
+  | Hop s1 :: [Host h] -> (match get_ports topo s1 h with
+      | Some (p1,_) ->  Pol ((And (pred, (And (InPort port,Switch s1)))), [To p1])
       | None -> Pol (((And (pred, (And (InPort port,Switch s1))))), [GetPacket (bad_hop_handler s1 h)]))
   | _ -> Pol (pred, [])
 
@@ -64,3 +67,6 @@ let rec compile_regex pol topo = match pol with
       | Host h :: reg -> (match get_host_port topo h with
 	  | Some p -> compile1 pred reg topo p))
   | RegPar (pol1, pol2) -> Par (compile_regex pol1 topo, compile_regex pol2 topo)
+
+(* TODO: Figure out how to compile regex to a given fault tolerance level *)
+

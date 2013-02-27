@@ -21,7 +21,7 @@ Fixpoint scan {A : Type} (default : A) (classifier : Classifier A)  (pt : portId
       end
   end. 
 
-Definition inter_entry {A : Type} (f : A -> A -> A) 
+Definition inter_entry {A : Type} {B : Type} (f : A -> A -> B) 
   (cl : Classifier A) (v : pattern * A) :=
   let (pat, act) := v in
     fold_right (fun (v' : pattern * A) acc =>
@@ -29,7 +29,7 @@ Definition inter_entry {A : Type} (f : A -> A -> A)
         (Pattern.inter pat pat', f act act') :: acc)
     nil cl.
 
-Definition inter {A : Type} (f : A -> A -> A) (cl1 cl2 : Classifier A) :=
+Definition inter {A : Type} {B : Type} (f : A -> A -> B) (cl1 cl2 : Classifier A) :=
   fold_right (fun v acc => inter_entry f cl2 v ++ acc)
   nil cl1.
 

@@ -1,6 +1,6 @@
+open Printf
 open MessagesDef
 open WordInterface
-
 open Platform
 open NetCore
 open Packet
@@ -38,8 +38,17 @@ module Learning = struct
 
   (** Stores a new switch * host * port tuple in the table, creates a
       new learning policy, and pushes that policy to the stream. *)
-  and learn_host sw pt pk : unit = 
-    Printf.printf "Got packet from %Ld on %d" sw pt;
+  and learn_host sw pt pk : unit =
+    begin
+      printf "[MacLearning] at switch %Ld host %s at port %d\n%!"
+	sw (Util.string_of_mac pk.pktDlSrc) pt;
+      if Hashtbl.mem learned_hosts (sw, pk.pktDlSrc) then
+        printf "[MacLearning.ml] at switch %Ld, host %s at port %d (moved)\n%!"
+          sw (Util.string_of_mac pk.pktDlSrc) pt
+      else
+        printf "[MacLearning.ml] at switch %Ld, host %s at port %d\n%!"
+          sw (Util.string_of_mac pk.pktDlSrc) pt
+    end;
     Hashtbl.replace learned_hosts (sw, pk.pktDlSrc) pt;
     push (Some (make_learning_policy ()))
   
@@ -50,23 +59,30 @@ end
 
 module Routing = struct
 
-  (** Maps over all tuples, (sw, pt, mac) in [learned_hosts], and writes the rule:
-     
-       Switch = sw && DstMac = mac ==> To pt
-       
-       Sends traffic for unknown destinations to ToAll ports. *)
+  let known_hosts () = 
+    Hashtbl.fold 
+      (fun (sw,dst) _ hosts -> Or (And (Switch sw, DlDst dst), hosts))
+      Learning.learned_hosts
+      NoPackets
+
+  (** Maps over all tuples, (sw, pt, mac) in [learned_hosts], and
+      writes the rule:
+      
+      Switch = sw && DstMac = mac ==> To pt
+      
+      Sends traffic for unknown destinations to ToAll ports. *)
   let make_routing_policy () = 
     Hashtbl.fold
       (fun (sw, dst) pt pol ->
         Par (Pol (And (Switch sw, DlDst dst), [To pt]),  pol))
       Learning.learned_hosts
-      (Pol (Learning.make_unknown_predicate (), [ToAll]))
+      (Pol (Not (known_hosts ()), [ToAll]))
 
   (** Composes learning and routing policies, which together form
       mac-learning. *)      
   let policy = Lwt_stream.map (fun learning_pol ->
     Par (learning_pol, make_routing_policy ()))
-      Learning.policy
+    Learning.policy
 end
 
 module Make (Platform : PLATFORM) = struct

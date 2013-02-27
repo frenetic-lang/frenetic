@@ -4,7 +4,7 @@ open Platform
 open Unix
 open MessagesDef
 
-module RegexController = RegexTest.Make (OpenFlowPlatform)
+(* module Controller = RegexTest.Make (OpenFlowPlatform) *)
 module Controller = MacLearning.Make (OpenFlowPlatform)
 
 (* configuration state *)
@@ -25,7 +25,6 @@ let usage =
 let () = Arg.parse arg_specs arg_rest usage
 
 let main () = 
-  
   Sys.catch_break true;
   try 
     OpenFlowPlatform.init_with_port 6633;

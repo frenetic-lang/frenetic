@@ -15,9 +15,11 @@ type uint12 = uint16
 type bytes = string
 
 type +'a mask = {
-  bits : 'a;
-  mask : 'a
+  value : 'a;
+  mask : 'a option
 }
+
+type xid = uint32
 
 type groupId = uint32
 type portId = uint32
@@ -29,9 +31,9 @@ type oxm =
   | OxmInPort of portId
   | OxmInPhyPort of portId
   | OxmEthType of uint16
-  | OxmEthDst of uint48 + (uint48 mask)
-  | OxmEthSrc of uint48 + (uint48 mask)
-  | OxmVlanVId of uint12 + (uint12 mask)
+  | OxmEthDst of uint48 mask
+  | OxmEthSrc of uint48 mask
+  | OxmVlanVId of uint12 mask
 
 (**  Hard-codes OFPMT_OXM as the match type, since OFPMT_STANDARD is deprecated.
 *)
@@ -43,6 +45,7 @@ type pseudoPort =
   | Flood
   | AllPorts
   | Controller of uint16 (* number of bytes to send *)
+  | Any
 
 type action =
   | Output of pseudoPort
@@ -50,13 +53,13 @@ type action =
   | SetField of oxm
 
 type instruction =
-  | GotoTable of int
+  | GotoTable of tableId
   | WriteActions of action list
 
 type bucket = {
   weight : uint16;
-  watch_port : portId;
-  watch_group : groupId;
+  watch_port : portId option;
+  watch_group : groupId option;
   actions : action list
 }
 
@@ -75,12 +78,15 @@ type timeout =
 | Permanent
 | ExpiresAfter of uint16
 
-type flowModCommand =
-  | AddFlow
-  | ModFlow
-  | ModStrictFlow
-  | DeleteFlow
-  | DeleteStrictFlow
+cenum flowModCommand {
+  AddFlow           = 0; (* New flow. *)
+  ModFlow           = 1; (* Modify all matching flows. *)
+  ModStrictFlow     = 2; (* Modify entry strictly matching wildcards and
+                              priority. *)
+  DeleteFlow        = 3; (* Delete all matching flows. *)
+  DeleteStrictFlow  = 4  (* Delete entry strictly matching wildcards and
+                              priority. *)
+} as uint8_t
 
 type flowModFlags = {
   send_flow_rem : bool;

@@ -64,9 +64,9 @@ Inductive flowModCommand : Type :=
 | DeleteFlow : flowModCommand
 | DeleteStrictFlow : flowModCommand.
 
-Definition switchId := Word64.t.
 Definition priority := Word16.t.
 Definition bufferId := Word32.t.
+Definition groupId := Word32.t.
 
 Inductive pseudoPort : Type :=
 | PhysicalPort : portId -> pseudoPort
@@ -77,6 +77,7 @@ Inductive pseudoPort : Type :=
 
 Inductive action : Type :=
 | Output : pseudoPort -> action
+| Group : groupId -> action
 | SetDlVlan : dlVlan -> action
 | SetDlVlanPcp : dlVlanPcp -> action
 | StripVlan : action
@@ -89,6 +90,32 @@ Inductive action : Type :=
 | SetTpDst : tpPort -> action.
 
 Definition actionSequence := list action.
+
+Record bucket := Bucket {
+  weight : Word16.t;
+  watch_port : portId;
+  watch_group : groupId;
+  bucket_actions : list action
+}.
+
+Definition bucketSequence := list bucket.
+
+Inductive groupType : Type :=
+| All : groupType
+| Select : groupType
+| Indirect : groupType
+| FastFailover : groupType.
+
+Inductive groupModCommand : Type :=
+| AddGroup : groupModCommand
+| DelGroup : groupModCommand.
+
+Record groupMod := GroupMod {
+  mgModCmd : groupModCommand;
+  mgType : groupType;
+  mgId : groupId;
+  mgBuckets : bucketSequence
+}.
 
 Inductive timeout : Type :=
 | Permanent : timeout
@@ -108,6 +135,7 @@ Record flowMod := FlowMod {
   mfNotifyWhenRemoved : bool;
   mfApplyToPacket : option bufferId;
   mfOutPort : option pseudoPort;
+  mfOutGroup : option groupId;
   mfCheckOverlap : bool
 }.
 
@@ -125,12 +153,6 @@ Record packetIn : Type := PacketIn {
 
 Definition xid : Type := Word32.t.
 
-Inductive packetOut : Type := PacketOut {
-  pktOutBufOrBytes : bufferId + bytes;
-  pktOutPortId : option portId;
-  pktOutActions : actionSequence
-}.
-
 Inductive message : Type :=
 | Hello : bytes -> message
 | EchoRequest : bytes -> message
@@ -138,7 +160,5 @@ Inductive message : Type :=
 | FeaturesRequest : message
 | FeaturesReply : features -> message
 | FlowModMsg : flowMod -> message
-| PacketInMsg : packetIn -> message
-| PacketOutMsg : packetOut -> message.
-
-
+| GroupModMsg : groupMod -> message
+| PacketInMsg : packetIn -> message.

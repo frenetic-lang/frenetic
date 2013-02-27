@@ -8,6 +8,7 @@ Require Import Pattern.Pattern.
 (* TODO: MJR Move 'switchId' from messagesDef so that we don't have to include this whole thing *)
 Require Import OpenFlow.MessagesDef.
 Require Import NetCore.NetCoreTypes.
+Require Import Network.Packet.
 
 Set Implicit Arguments.
 
@@ -48,14 +49,10 @@ Fixpoint compile_pred (opt : Classifier bool -> Classifier bool)
     | PrNone => []
   end.
 
-Locate pseudoPort.
-
-Locate Forward.
-
   Definition desugar_action (a : action) := 
   match a with
-    | To p => Forward (PhysicalPort p)
-    | ToAll => Forward AllPorts
+    | To p => Forward unmodified (PhysicalPort  p)
+    | ToAll => Forward unmodified AllPorts
     | GetPacket f => ActGetPkt (MkId 0)
   end.
 
