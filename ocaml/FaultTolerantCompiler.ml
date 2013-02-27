@@ -30,7 +30,7 @@ let mapi f lst = mapi' 0 f lst
 
 (* let insert_groups = mapi (fun idx (pat,(a,b)) -> (pat, (Int32.of_int idx, [(0, (watchport a), a); (0, (watchport b), b)]))) *)
 
-let remove_inport = let project ((pat, acts) : Pattern.pattern * actions list) = ({ pat with ptrnInPort = W.WildcardAll }, acts) in
+let rm_inport = let project ((pat, acts) : Pattern.pattern * actions list) = ({ pat with ptrnInPort = W.WildcardAll }, acts) in
 		      map project
 
 let compile_nc = compile_opt
@@ -42,10 +42,10 @@ struct
 end
 
 let rec compile_pb pri bak sw =
-    let pri_tbl = compile_nc pri sw in
-    let bak_tbl = compile_nc bak sw in
-    let merge a b = ((Gensym.next ()), [a; b]) in
-    let overlap = (inter merge pri_tbl (remove_inport bak_tbl)) in
-    let ft_tbl = map (fun (pat, (gid,buckets)) -> (pat, [Group gid])) overlap in
-    (ft_tbl @ pri_tbl @ bak_tbl, map snd overlap)
+  let pri_tbl = compile_nc pri sw in
+  let bak_tbl = compile_nc bak sw in
+  let merge a b = ((Gensym.next ()), [a; b]) in
+  let overlap = inter merge pri_tbl (rm_inport bak_tbl) in
+  let ft_tbl = map (fun (pat, (gid,buckets)) -> (pat, [Group gid])) overlap in
+  (ft_tbl @ pri_tbl @ bak_tbl, map snd overlap)
     
