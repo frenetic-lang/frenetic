@@ -40,15 +40,14 @@ end
 let add_group groups gid a b =
   groups := (gid, [a;b]) :: !groups
 
-let rec compile_pb pri bak sw =
+let rec compile_pb pri crsovr bak sw =
   let pri_tbl = compile_nc pri sw in
   let bak_tbl = compile_nc bak sw in
+  let crsovr_tbl = compile_nc crsovr sw in
   let groups = ref [] in
   let merge pri_acts bak_acts = 
     (let gid = Gensym.next () in
      add_group groups gid pri_acts bak_acts;
      [Group gid ]) in
-  let bak_tbl' = (rm_inport bak_tbl) in
-  let ft_tbl = inter merge pri_tbl bak_tbl' in
+  let ft_tbl = inter merge pri_tbl crsovr_tbl in
   (ft_tbl @ pri_tbl @ bak_tbl, !groups)
-    
