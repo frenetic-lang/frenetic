@@ -337,15 +337,30 @@ let rec marshal_fields (buf: Cstruct.t) (fields : 'a list) (marshal_func : Cstru
   else let size = marshal_func buf (List.hd fields) in
     size + (marshal_fields (Cstruct.shift buf size) (List.tl fields) marshal_func)
 
+let pad_to_64bits (n : int) : int =
+  if n land 0x7 <> 0 then
+    n + (8 - (n land 0x7))
+  else
+    n
+
 module Oxm = struct
 
   let field_length (oxm : oxm) : int = match oxm with
     | OxmInPort _ -> 4
     | OxmInPhyPort _ -> 4
     | OxmEthType  _ -> 2
-    | OxmEthDst  _ -> 6
-    | OxmEthSrc  _ -> 6
-    | OxmVlanVId _ -> 2
+    | OxmEthDst ethaddr ->
+      (match ethaddr.mask with
+        | None -> 6
+        | Some _ -> 12)
+    | OxmEthSrc ethaddr ->
+      (match ethaddr.mask with
+        | None -> 6
+        | Some _ -> 12)
+    | OxmVlanVId vid ->
+      (match vid.mask with
+        | None -> 2
+        | Some _ -> 4)
 
   let sizeof (oxm : oxm) : int =
     sizeof_ofp_oxm + field_length oxm
@@ -376,46 +391,37 @@ module Oxm = struct
               set_ofp_uint16_value buf2 ethtype;
               sizeof_ofp_oxm + l
             | OxmEthDst ethaddr ->
-              set_ofp_oxm buf ofc OFPXMT_OFB_ETH_DST 0 (
-                match ethaddr.mask with
-                  | None -> l
-                  | Some _ -> 2*l);
+              set_ofp_oxm buf ofc OFPXMT_OFB_ETH_DST 0 l;
               set_ofp_uint48_value buf2 ethaddr.value;
               begin match ethaddr.mask with
                 | None ->
                   sizeof_ofp_oxm + l
                 | Some mask ->
-                  let buf3 = Cstruct.shift buf2 l in
+                  let buf3 = Cstruct.shift buf2 (l/2) in
                     set_ofp_uint48_value buf3 mask;
-                    sizeof_ofp_oxm + l*2
+                    sizeof_ofp_oxm + l
               end
             | OxmEthSrc ethaddr ->
-              set_ofp_oxm buf ofc OFPXMT_OFB_ETH_SRC 0 (
-                match ethaddr.mask with
-                  | None -> l
-                  | Some _ -> 2*l);
+              set_ofp_oxm buf ofc OFPXMT_OFB_ETH_SRC 0 l;
               set_ofp_uint48_value buf2 ethaddr.value;
               begin match ethaddr.mask with
                 | None ->
                   sizeof_ofp_oxm + l
                 | Some mask ->
-                  let buf3 = Cstruct.shift buf2 l in
+                  let buf3 = Cstruct.shift buf2 (l/2) in
                     set_ofp_uint48_value buf3 mask;
-                    sizeof_ofp_oxm + l*2
+                    sizeof_ofp_oxm + l
               end
             | OxmVlanVId vid ->
-              set_ofp_oxm buf ofc OFPXMT_OFB_VLAN_VID 0 (
-                match vid.mask with
-                  | None -> l
-                  | Some _ -> 2*l);
+              set_ofp_oxm buf ofc OFPXMT_OFB_VLAN_VID 0 l;
               set_ofp_uint16_value buf2 vid.value;
               begin match vid.mask with
                 | None ->
                   sizeof_ofp_oxm + l
                 | Some mask ->
-                  let buf3 = Cstruct.shift buf2 l in
+                  let buf3 = Cstruct.shift buf2 (l/2) in
                     set_ofp_uint16_value buf3 mask;
-                    sizeof_ofp_oxm + l*2
+                    sizeof_ofp_oxm + l
               end
 
 end
@@ -459,7 +465,7 @@ module Action = struct
     | SetField oxm ->
       set_ofp_action_set_field_typ buf 25; (* OFPAT_SET_FIELD *)
       set_ofp_action_set_field_len buf (sizeof act);
-      sizeof act + (Oxm.marshal (Cstruct.shift buf sizeof_ofp_action_set_field) oxm)
+      sizeof_ofp_action_set_field + (Oxm.marshal (Cstruct.shift buf sizeof_ofp_action_set_field) oxm)
 
 end
 
@@ -467,10 +473,7 @@ module Bucket = struct
 
   let sizeof (bucket : bucket) : int =
     let n = sizeof_ofp_bucket + sum (map Action.sizeof bucket.actions) in
-    if n land 0x3f <> 0 then
-      (n*8 + 1 + (0x3f - (n*8 land 0x3f))) / 8
-    else
-      n
+    pad_to_64bits n
 
   let marshal (buf : Cstruct.t) (bucket : bucket) : int =
     let size = sizeof bucket in
@@ -488,7 +491,7 @@ module Bucket = struct
       set_ofp_bucket_pad1 buf 0;
       set_ofp_bucket_pad2 buf 0;
       set_ofp_bucket_pad3 buf 0;
-      size + (marshal_fields (Cstruct.shift buf sizeof_ofp_bucket) bucket.actions Action.marshal)
+      sizeof_ofp_bucket + (marshal_fields (Cstruct.shift buf sizeof_ofp_bucket) bucket.actions Action.marshal)
 
 end
 
@@ -519,14 +522,12 @@ module OfpMatch = struct
 
   let sizeof (om : oxmMatch) : int =
     let n = sizeof_ofp_match + sum (map Oxm.sizeof om) in
-    let pad = ((n + 7)/8*8 - n) in
-    n + pad
+    pad_to_64bits n
 
   let marshal (buf : Cstruct.t) (om : oxmMatch) : int =
-    let size = sizeof om in
-      set_ofp_match_typ buf 1; (* OXPMT_OXM *)
-      set_ofp_match_length buf size;
-      size + (marshal_fields (Cstruct.shift buf sizeof_ofp_match) om Oxm.marshal)
+    set_ofp_match_typ buf 1; (* OXPMT_OXM *)
+    set_ofp_match_length buf (sizeof_ofp_match + sum (map Oxm.sizeof om)); (* Length of ofp_match (excluding padding) *)
+    sizeof_ofp_match + (marshal_fields (Cstruct.shift buf sizeof_ofp_match) om Oxm.marshal)
 
 end
 
@@ -557,7 +558,7 @@ module Instruction = struct
           set_ofp_instruction_actions_pad1 buf 0;
           set_ofp_instruction_actions_pad2 buf 0;
           set_ofp_instruction_actions_pad3 buf 0;
-          size + (marshal_fields (Cstruct.shift buf sizeof_ofp_instruction_actions) actions Action.marshal)
+          sizeof_ofp_instruction_actions + (marshal_fields (Cstruct.shift buf sizeof_ofp_instruction_actions) actions Action.marshal)
 
 end
 
