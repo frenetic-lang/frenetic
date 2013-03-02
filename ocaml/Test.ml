@@ -105,6 +105,40 @@ module Test3 = struct
 
 end
 
+module OpenFlow0x04SizeTest = struct
+  open OpenFlow0x04Parser
+  open OpenFlow0x04Types
+  open Util
+
+  let test_ofp_header  = "sizeof_ofp_header" >::
+    (fun () ->
+      assert_equal sizeof_ofp_header 8)
+
+  let test_ofp_flow_mod  = "sizeof_ofp_flow_mod" >::
+    (fun () ->
+      assert_equal sizeof_ofp_flow_mod 40)
+
+  let test_ofp_match  = "sizeof_ofp_match" >::
+    (fun () ->
+      assert_equal sizeof_ofp_match 4)
+
+  let test_ofp_instruction_actions  = "sizeof_ofp_instruction_actions" >::
+    (fun () ->
+      assert_equal sizeof_ofp_instruction_actions 8)
+
+  let test_ofp_action_output  = "sizeof_ofp_action_output" >::
+    (fun () ->
+      assert_equal sizeof_ofp_action_output 16)
+
+  let go =
+    TestList [
+      test_ofp_header;
+      test_ofp_flow_mod;
+      test_ofp_match;
+      test_ofp_instruction_actions;
+      test_ofp_action_output]
+end
+
 module Test4 = struct
   open OpenFlow0x04Parser
   open OpenFlow0x04Types
@@ -127,9 +161,10 @@ module Test4 = struct
       ofp_match = [OxmInPort (0x7891l)];
       instructions = [WriteActions ([Output (PhysicalPort (0x7890l))])]
     } in
+    printf "test serialization\n";
+    printf "msg2 size %d\n" (Message.sizeof msg2);
     let str1 = Message.serialize 0l msg1 in
     let str2 = Message.serialize 0l msg2 in
-    printf "test serialization";
     fprintf oc "%s\n%s" str1 str2;
     close_out oc;
     ()
@@ -159,8 +194,9 @@ module PacketParser = struct
 end 
 
 let _ = run_test_tt_main 
-  (TestList [ Test1.go; 
+  (TestList [ OpenFlow0x04SizeTest.go;
+              Test1.go; 
               Test2.go;
               Test3.go;
-              (* Test4.go; *)
+              Test4.go;
 	      PacketParser.go])
