@@ -1,69 +1,66 @@
 let sprintf = Printf.sprintf
 
-type z3Packet = Z3Packet of string
+type z3Packet = string
 
-type z3Int = Z3Int of string
+type zVar = string
 
-type const = 
-  | ConstPacket of z3Packet
-  | ConstInt of z3Int
+type zTerm = 
+  | Var of zVar
+  | Packet of z3Packet
+  | Int of int
+  | Func of string * zTerm list
 
-module Constants = struct
-  type t = string
-  let compare = Pervasives.compare
-end
+type zRelName = string
 
-module S = Set.Make(Constants)
-
-let write_const c =
-  match c with
-    | ConstPacket (Z3Packet p) -> sprintf "%s Packet" p
-    | ConstInt (Z3Int i) -> sprintf "%s Int" i
-
-type intExp = 
-  | Primitive of Int64.t
-  | PktHeader of string * z3Packet
-  | Variable of z3Int
-
-let write_intExp i = 
-  match i with
-    | Primitive i1 -> Int64.to_string i1
-    | PktHeader (h, (Z3Packet  p)) -> sprintf "(%s %s)" h p
-    | Variable (Z3Int s) -> s
-
-type boolExp = 
+type zAtom =
   | ZTrue
   | ZFalse 
-  | ZNot of boolExp
-  | ZAnd of boolExp list
-  | ZOr of boolExp list
-  | ZImplies of boolExp * boolExp
-  | ZEquals of intExp * intExp
-  | ZForAll of const list * boolExp
-  | ZExists of const list * boolExp
+  | ZNot of zAtom
+  | ZEquals of zTerm * zTerm
+  | ZRel of zRelName * zTerm list
 
-let write_constList l =
+type zRule =
+  ZRule of zRelName * zVar list * zAtom list
+
+type zProgram = 
+   ZProgram of zRule list * zRelName
+
+let intercalate l s f =
   match l with
-    | [] -> "";
-    | _ -> List.fold_left (fun constList const -> (sprintf "(%s) " (write_const const)) ^ constList) 
-      ("(" ^ write_const (List.hd l) ^ ")") (List.tl l)
+    | [] -> ""
+    | h::t -> List.fold_right (fun x acc -> acc ^ s ^ f x) t (f h)
 
-let rec serialize_boolExp b = 
-  match b with 
+let rec serialize_term t = 
+  match t with
+    | Var v -> v
+    | Packet p -> p
+    | Int i -> sprintf "%d" i
+    | Func (s, tList) -> sprintf "(%s %s)" s (intercalate tList " " serialize_term)
+
+let rec serialize_atom a = 
+  match a with 
     | ZTrue -> "true"
     | ZFalse -> "false"
-    | ZNot b1 -> sprintf "(not %s)" (serialize_boolExp b1)
-    | ZAnd [] -> "true"
-    | ZAnd (b1::bList) -> 
-      List.fold_left (fun x y -> sprintf "(and %s %s)" x (serialize_boolExp y))
-	(serialize_boolExp b1) bList
-    | ZOr [] -> "true"
-    | ZOr (b1::bList) ->  List.fold_left (fun x y -> sprintf "(or %s %s)" x (serialize_boolExp y))
-	(serialize_boolExp b1) bList
-    | ZImplies (b1, b2) -> sprintf "(implies %s %s)" (serialize_boolExp b1) (serialize_boolExp b2)
-    | ZEquals (i1, i2) -> sprintf "(equals %s %s)" (write_intExp i1) (write_intExp i2)
-    | ZForAll (c, b1) -> sprintf "(forall (%s) %s)" (write_constList c) (serialize_boolExp b1)
-    | ZExists (c, b1) -> sprintf "(exists (%s) %s)" (write_constList c) (serialize_boolExp b1)
+    | ZNot a1 -> sprintf "(not %s)" (serialize_atom a1)
+    | ZEquals (t1, t2) -> sprintf "(equals %s %s)" (serialize_term t1) (serialize_term t2)
+    | ZRel (name, tList) -> sprintf "(%s %s)" name (intercalate tList " " serialize_term)
+
+let datalogStuff =
+  ":default-relation smt_relation2\n:engine datalog\n:print-answer true"
+
+let andAtoms aList =
+match aList with 
+  | [] -> "true"
+  | h::[] -> serialize_atom h
+  | h::t -> List.fold_right (fun a acc -> sprintf "(and %s %s)" acc (serialize_atom a)) t (serialize_atom h)
+
+let serialize_rule (ZRule (r, xList, aList)) =
+  sprintf "(rule (=> %s (%s %s)))" (andAtoms aList) r (intercalate xList " " (fun x -> x))
+
+let serialize_program (ZProgram (rList, name)) =
+  sprintf "%s\n(query %s\n%s)" 
+    (intercalate rList "\n" serialize_rule) name (datalogStuff)
+  
 
 let z3_prelude =
   "(declare-sort Packet)
@@ -81,51 +78,16 @@ let z3_prelude =
    (declare-fun InPort (Packet) Int)
    (declare-fun Switch (Packet) Int)"
 
-let z3_postlude = 
-  "(check-sat)
-   (get-model)"
-
-let rec constants_of_boolExp b s = 
-  match b with
-    | ZEquals (i1, i2) ->
-      let s1 =
-	begin
-	  match i1 with
-	    | PktHeader (str, Z3Packet p) -> S.add (sprintf "%s Packet" p) s
-	    | Variable (Z3Int i) -> S.add (sprintf "%s Int" i) s
-	    | _ -> s
-	end
-      in
-      begin
-        match i2 with
-	  | PktHeader (str, Z3Packet p) -> S.add (sprintf "%s Packet" p) s1
-	  | Variable (Z3Int i) -> S.add (sprintf "%s Int" i) s1
-	  | _ -> s
-      end
-    | ZForAll (constList, b1) -> 
-      let s1 = List.fold_left (fun x y -> S.add (write_const y) x) s constList in
-      constants_of_boolExp b1 s1
-    | ZExists (constList, b1) -> 
-      let s1 = List.fold_left (fun x y -> S.add (write_const y) x) s constList in
-      constants_of_boolExp b1 s1
-    | ZNot b1 -> constants_of_boolExp b1 s 
-    | ZAnd bList | ZOr bList -> List.fold_left (fun x y -> constants_of_boolExp y x) s bList
-    | ZImplies (b1, b2) -> let s1 = constants_of_boolExp b1 s in
-			   constants_of_boolExp b2 s1
-    | ZTrue | ZFalse -> s
-
-let declare_constants s =
-  S.fold (fun x y -> (sprintf "(declare-const %s)\n" x) ^ y) s ""
+(* Print variables, packets *)
+let serialize_declarations  (ZProgram (rList, name)) = ""
 
 
-let solve b = 
-  let c = constants_of_boolExp b S.empty in
+let solve prog = 
   let s = 
-    sprintf "%s\n%s\n(assert %s)\n%s"
+    sprintf "%s\n%s\n%s"
       z3_prelude
-      (declare_constants c)
-      (serialize_boolExp b)
-      z3_postlude in 
+      (serialize_declarations prog)
+      (serialize_program prog) in 
   let _ = Printf.eprintf "--- DEBUG ---\n%s\n%!" s in 
   let ch = open_out ".z3.in" in 
   let _ = output_string ch s in 
