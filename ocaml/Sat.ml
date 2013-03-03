@@ -40,14 +40,20 @@ let init_decls : zDeclaration list =
   ; ZDeclare("TcpSrcPort", SFunction(SPacket,SInt))
   ; ZDeclare("TcpDstPort", SFunction(SPacket,SInt))
   ; ZDeclare("InPort", SFunction(SPacket,SInt))
-  ; ZDeclare("Switch", SFunction(SPacket,SInt)) ]
+  ; ZDeclare("Switch", SFunction(SPacket,SInt))
+  ; ZDeclare("Forwards", SRelation([SPacket; SPacket])) ]
 
 (* Variables *)
 let fresh_cell = ref []
 
 let fresh sort = 
-  let l = !fresh_cell in
-  let x = Printf.sprintf "_x%d" (List.length l) in 
+  let l = !fresh_cell in  
+  let n = List.length l in 
+  let x = match sort with
+    | SPacket -> Printf.sprintf "_pkt%d" n 
+    | SInt -> Printf.sprintf "_n%d" n
+    | SFunction _ -> Printf.sprintf "_f%d" n
+    | SRelation _ -> Printf.sprintf "_R%d" n in 
   fresh_cell := ZDeclare(x,sort)::l;
   x
 
@@ -64,9 +70,10 @@ let rec serialize_sort sort = match sort with
   | SInt -> 
     "Int"
   | SFunction(sort1,sort2) -> 
-    Printf.sprintf "%s %s" (serialize_sort sort1) (serialize_sort sort2)
+    Printf.sprintf "(%s) %s" (serialize_sort sort1) (serialize_sort sort2)
   | SRelation(sorts) -> 
-    intercalate serialize_sort " " sorts 
+    Printf.sprintf "(%s)"
+      (intercalate serialize_sort " " sorts)
     
 let rec serialize_term term = match term with
   | TVar v -> v
@@ -98,9 +105,9 @@ let serialize_atoms atoms = match atoms with
       (fun atom acc -> Printf.sprintf "(and %s %s)" acc (serialize_atom atom))
       rest (serialize_atom atom)
 
-let serialize_rule (ZRule (r, vars, atoms)) =
+let serialize_rule (ZRule (rel, vars, atoms)) =
   Printf.sprintf "(rule (=> %s (%s %s)))" 
-    (serialize_atoms atoms) r (intercalate (fun x -> x) " " vars)
+    (serialize_atoms atoms) rel (intercalate (fun x -> x) " " vars)
 
 let serialize_declaration (ZDeclare (x,sort)) = 
   let decl = match sort with 
@@ -117,8 +124,9 @@ let serialize_program (ZProgram (rules, query)) =
     ":engine datalog\n" ^
     ":print-answer true" in 
   Printf.sprintf 
-    "%s\n%s\n%s\n(query %s\n%s" 
+    "%s\n%s\n%s\n%s\n(query %s\n%s)" 
     preamble
+    (intercalate serialize_declaration "\n" init_decls)
     (intercalate serialize_declaration "\n" (!fresh_cell))
     (intercalate serialize_rule "\n" rules) 
     query
