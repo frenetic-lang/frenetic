@@ -31,7 +31,23 @@ type zDeclaration =
 
 type zProgram = 
 | ZProgram of zDeclaration list * zRule list * zVar
-       
+    
+let init_decls : zDeclaration list = 
+  [ ZDeclare("DlSrc", SFunction(SPacket,SInt))
+  ; ZDeclare("DlDst", SFunction(SPacket,SInt))
+  ; ZDeclare("DlTyp", SFunction(SPacket,SInt))
+  ; ZDeclare("DlVlan", SFunction(SPacket,SInt))
+  ; ZDeclare("DlVlanPcp", SFunction(SPacket,SInt))
+  ; ZDeclare("NwSrc", SFunction(SPacket,SInt))
+  ; ZDeclare("NwDst", SFunction(SPacket,SInt))
+  ; ZDeclare("NwProto", SFunction(SPacket,SInt))
+  ; ZDeclare("NwTos", SFunction(SPacket,SInt))
+  ; ZDeclare("TpSrc", SFunction(SPacket,SInt))
+  ; ZDeclare("TpDst", SFunction(SPacket,SInt))
+  ; ZDeclare("InPort", SFunction(SPacket,SInt))
+  ; ZDeclare("Switch", SFunction(SPacket,SInt)) ]
+
+(* Serialization *)
 let intercalate f s l = match l with 
   | [] -> 
     ""
@@ -89,15 +105,20 @@ let serialize_declaration (ZDeclare (x,sort)) =
     | _ -> "var" in 
   Printf.sprintf "(declare-%s %s %s)" decl x (serialize_sort sort)
 
-let serialize_program (ZProgram (decls, rules, q)) =
-  let datalog = 
+let serialize_program (ZProgram (decls, rules, query)) =
+  let preamble = 
+    "(declare-sort Packet)" in 
+  let postamble =      
     ":default-relation smt_relation2\n" ^ 
-    ":engine datalog\n" ^ 
+    ":engine datalog\n" ^
     ":print-answer true" in 
-  Printf.sprintf "%s\n%s\n(query %s\n%s)" 
+  Printf.sprintf 
+    "%s\n%s\n%s\n(query %s\n%s" 
+    preamble
     (intercalate serialize_declaration "\n" decls)
     (intercalate serialize_rule "\n" rules) 
-    q datalog
+    query
+    postamble
 
 let solve prog = 
   let s = serialize_program prog in 
