@@ -1,4 +1,4 @@
-open NetCore
+ open NetCore
 open Sat
 
 type link = Link of MessagesDef.switchId * Packet.portId
@@ -10,78 +10,86 @@ let fresh_cell = ref 0
 let fresh () = 
   let n = !fresh_cell in
   let () = incr fresh_cell in
-  Z3Packet (Printf.sprintf "p%d" n)
+  Printf.sprintf "_pkt%d" n
 
-let reverse_edge (sp1, sp2) = (sp2, sp1)
+let reverse_edge (sp1, sp2) = 
+  (sp2, sp1)
 
-let bidirectionalize topo = List.fold_left (fun acc edge = edge::(reverse_edge edge)::acc) [] topo
+let bidirectionalize topo = 
+  List.fold_left (fun acc edge -> edge::(reverse_edge edge)::acc) [] topo
 
 let rec encode_predicate pred pkt =
-  match pred with
-    | All ->
-      ZTrue
-    | NoPackets -> 
-      ZFalse
-    | Not p1 -> 
-      ZNot (encode_predicate p1 pkt)
-    | And (p1, p2) ->
-      ZAnd [encode_predicate p1 pkt; encode_predicate p2 pkt]
-    | Or (p1, p2) -> 
-      ZOr [encode_predicate p1 pkt; encode_predicate p2 pkt]
-    | Switch sId -> 
-      ZEquals (PktHeader ("Switch", pkt), Primitive sId)
-    | InPort portId -> 
-      ZEquals (PktHeader ("InPort", pkt), Primitive (Int64.of_int portId))
-    | DlSrc n -> 
-      ZEquals (PktHeader ("DlSrc", pkt), Primitive n)
-    | DlDst n -> 
-      ZEquals (PktHeader ("DlDst", pkt), Primitive n)
+  assert false
+  (* match pred with *)
+  (*   | All -> *)
+  (*     ZTrue *)
+  (*   | NoPackets ->  *)
+  (*     ZFalse *)
+  (*   | Not p1 ->  *)
+  (*     ZNot (encode_predicate p1 pkt) *)
+  (*   | And (p1, p2) -> *)
+  (*     ZAnd [encode_predicate p1 pkt; encode_predicate p2 pkt] *)
+  (*   | Or (p1, p2) ->  *)
+  (*     ZOr [encode_predicate p1 pkt; encode_predicate p2 pkt] *)
+  (*   | Switch sId ->  *)
+  (*     ZEquals (PktHeader ("Switch", pkt), Primitive sId) *)
+  (*   | InPort portId ->  *)
+  (*     ZEquals (PktHeader ("InPort", pkt), Primitive (Int64.of_int portId)) *)
+  (*   | DlSrc n ->  *)
+  (*     ZEquals (PktHeader ("DlSrc", pkt), Primitive n) *)
+  (*   | DlDst n ->  *)
+  (*     ZEquals (PktHeader ("DlDst", pkt), Primitive n) *)
 
 let equals fList pkt1 pkt2 = 
-  let zList = 
-    List.fold_left 
-      (fun acc f -> ZEquals (PktHeader (f, pkt1), (PktHeader (f, pkt2))) :: acc)
-      [] fList in 
-  ZAnd zList
+  assert false
+  (* let zList =  *)
+  (*   List.fold_left  *)
+  (*     (fun acc f -> ZEquals (PktHeader (f, pkt1), (PktHeader (f, pkt2))) :: acc) *)
+  (*     [] fList in  *)
+  (* ZAnd zList *)
 
 let forwards act pkt1 pkt2 =
-  match act with
-    | To pId ->
-      ZAnd [ equals [ "Switch"; "DlSrc"; "DlDst" ] pkt1 pkt2
-	   ; ZEquals (PktHeader ("InPort", pkt2), Primitive (Int64.of_int pId)) ]
-    | ToAll -> 
-      ZAnd [ equals [ "Switch"; "DlSrc"; "DlDst" ] pkt1 pkt2
-	   ; ZNot (ZEquals (PktHeader ("InPort", pkt1), PktHeader ("InPort", pkt2))) ]
-    | GetPacket gph -> 
-      ZFalse
+  assert false
+  (* match act with *)
+  (*   | To pId -> *)
+  (*     ZAnd [ equals [ "Switch"; "DlSrc"; "DlDst" ] pkt1 pkt2 *)
+  (* 	   ; ZEquals (PktHeader ("InPort", pkt2), Primitive (Int64.of_int pId)) ] *)
+  (*   | ToAll ->  *)
+  (*     ZAnd [ equals [ "Switch"; "DlSrc"; "DlDst" ] pkt1 pkt2 *)
+  (* 	   ; ZNot (ZEquals (PktHeader ("InPort", pkt1), PktHeader ("InPort", pkt2))) ] *)
+  (*   | GetPacket gph ->  *)
+  (*     ZFalse *)
 
 let topo_forwards topo pkt1 pkt2 =
-  ZAnd [ equals ["DlSrc"; "DlDst"] pkt1 pkt2
-       ; ZOr (List.fold_left (fun acc (Link(s1, p1), Link(s2, p2)) -> 
-	 ZAnd [ ZEquals (PktHeader ("Switch", pkt1), Primitive s1)
-	      ; ZEquals (PktHeader ("InPort", pkt1), Primitive (Int64.of_int p1))
-              ; ZEquals (PktHeader ("Switch", pkt2), Primitive s2)
-	      ; ZEquals (PktHeader ("InPort", pkt2), Primitive (Int64.of_int p2)) ]::acc) [] topo) ]
+  assert false
+  (* ZAnd [ equals ["DlSrc"; "DlDst"] pkt1 pkt2 *)
+  (*      ; ZOr (List.fold_left (fun acc (Link(s1, p1), Link(s2, p2)) ->  *)
+  (* 	 ZAnd [ ZEquals (PktHeader ("Switch", pkt1), Primitive s1) *)
+  (* 	      ; ZEquals (PktHeader ("InPort", pkt1), Primitive (Int64.of_int p1)) *)
+  (*             ; ZEquals (PktHeader ("Switch", pkt2), Primitive s2) *)
+  (* 	      ; ZEquals (PktHeader ("InPort", pkt2), Primitive (Int64.of_int p2)) ]::acc) [] topo) ] *)
 
 let rec encode_policy pol pkt1 pkt2 =
-  match pol with
-    | Pol (pred, actList) -> 
-      ZAnd [encode_predicate pred pkt1
-	   ; ZOr (List.fold_left (fun z act -> (forwards act pkt1 pkt2)::z) [] actList)]
-    | Par (pol1, pol2) -> 
-      ZOr [encode_policy pol1 pkt1 pkt2
-	  ; encode_policy pol2 pkt1 pkt2]
+  assert false
+  (* match pol with *)
+  (*   | Pol (pred, actList) ->  *)
+  (*     ZAnd [encode_predicate pred pkt1 *)
+  (* 	   ; ZOr (List.fold_left (fun z act -> (forwards act pkt1 pkt2)::z) [] actList)] *)
+  (*   | Par (pol1, pol2) ->  *)
+  (*     ZOr [encode_policy pol1 pkt1 pkt2 *)
+  (* 	  ; encode_policy pol2 pkt1 pkt2] *)
 
 let rec n_forwards n topo pol pkt1 pkt2 =
-  match n with
-    | 0 -> equals ["Switch"; "InPort"; "DlDst"; "DlSrc"] pkt1 pkt2
-    | 1 -> ZOr [encode_policy pol pkt1 pkt2
-	       ; equals ["Switch"; "InPort"; "DlDst"; "DlSrc"] pkt1 pkt2 ]
-    | _ -> let pkt1' = fresh () in
-	   let pkt1'' = fresh () in
-	   ZAnd [ encode_policy pol pkt1 pkt1'
-		;  topo_forwards topo pkt1' pkt1''
-		; n_forwards (n-1) topo pol pkt1'' pkt2]
+  assert false
+  (* match n with *)
+  (*   | 0 -> equals ["Switch"; "InPort"; "DlDst"; "DlSrc"] pkt1 pkt2 *)
+  (*   | 1 -> ZOr [encode_policy pol pkt1 pkt2 *)
+  (* 	       ; equals ["Switch"; "InPort"; "DlDst"; "DlSrc"] pkt1 pkt2 ] *)
+  (*   | _ -> let pkt1' = fresh () in *)
+  (* 	   let pkt1'' = fresh () in *)
+  (* 	   ZAnd [ encode_policy pol pkt1 pkt1' *)
+  (* 		;  topo_forwards topo pkt1' pkt1'' *)
+  (* 		; n_forwards (n-1) topo pol pkt1'' pkt2] *)
       
 (* temporary front-end for verification stuff *)
 let () = 
@@ -95,9 +103,10 @@ let () =
   let pol = Pol (All, [ToAll]) in
   let pkt1 = fresh () in
   let pkt2 = fresh () in
-  let phi = ZAnd [ ZEquals (PktHeader ("Switch", pkt1), Primitive s1)
-		 ; ZEquals (PktHeader ("InPort", pkt1), Primitive (Int64.of_int 1))
-		 ; ZEquals (PktHeader ("Switch", pkt2), Primitive s3)
-		 ; ZEquals (PktHeader ("InPort", pkt2), Primitive (Int64.of_int 2)) 
-		 ; n_forwards 3 topo pol pkt1 pkt2] in
-  Printf.printf "%s\n" (solve phi)
+  (* let phi = ZAnd [ ZEquals (PktHeader ("Switch", pkt1), Primitive s1) *)
+  (* 		 ; ZEquals (PktHeader ("InPort", pkt1), Primitive (Int64.of_int 1)) *)
+  (* 		 ; ZEquals (PktHeader ("Switch", pkt2), Primitive s3) *)
+  (* 		 ; ZEquals (PktHeader ("InPort", pkt2), Primitive (Int64.of_int 2))  *)
+  (* 		 ; n_forwards 3 topo pol pkt1 pkt2] in *)
+  (* Printf.printf "%s\n" (solve phi) *)
+  assert false
