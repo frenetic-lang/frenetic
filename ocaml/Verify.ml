@@ -31,21 +31,21 @@ let rec encode_predicate (pred:predicate) (pkt:zVar) : zAtom * zRule list =
       let rules = rule1::rule2::rules1@rules2 in 
       (atom, rules)
     | DlSrc mac -> 
-      (ZEquals (TFunction("DlSrc", [TPacket pkt]), TInt (Int64.to_int mac)),[])
+      (ZEquals (TFunction("DlSrc", [TPacket pkt]), TInt mac),[])
     | DlDst mac -> 
-      (ZEquals (TFunction("DlDst", [TPacket pkt]), TInt (Int64.to_int mac)),[])
+      (ZEquals (TFunction("DlDst", [TPacket pkt]), TInt mac),[])
     | SrcIP ip -> 
-      (ZEquals (TFunction("DstIP", [TPacket pkt]), TInt (Int32.to_int ip)),[])
+      (ZEquals (TFunction("DstIP", [TPacket pkt]), TInt (Int64.of_int32 ip)),[])
     | DstIP ip -> 
-      (ZEquals (TFunction("SrcIP", [TPacket pkt]), TInt (Int32.to_int ip)),[])
+      (ZEquals (TFunction("SrcIP", [TPacket pkt]), TInt (Int64.of_int32 ip)),[])
     | TcpSrcPort port -> 
-      (ZEquals (TFunction("TcpSrcPort", [TPacket pkt]), TInt port),[])
+      (ZEquals (TFunction("TcpSrcPort", [TPacket pkt]), TInt (Int64.of_int port)),[])
     | TcpDstPort port -> 
-      (ZEquals (TFunction("TcpDstPort", [TPacket pkt]), TInt port),[])
+      (ZEquals (TFunction("TcpDstPort", [TPacket pkt]), TInt (Int64.of_int port)),[])
     | InPort portId -> 
-      (ZEquals (TFunction("InPort", [TPacket pkt]), TInt portId), [])
+      (ZEquals (TFunction("InPort", [TPacket pkt]), TInt (Int64.of_int portId)), [])
     | Switch switchId -> 
-      (ZEquals (TFunction("Switch", [TPacket pkt]), TInt (Int64.to_int switchId)), [])
+      (ZEquals (TFunction("Switch", [TPacket pkt]), TInt switchId), [])
 
 let equals fList pkt1 pkt2 = 
   assert false
@@ -103,17 +103,24 @@ let () =
   let s1 = Int64.of_int 1 in
   let s2 = Int64.of_int 2 in
   let s3 = Int64.of_int 3 in
+  let p1 = Int64.of_int 1 in 
+  let p2 = Int64.of_int 2 in 
   let topo = 
     [ (Link (s1, 4), Link (s3, 1)); (Link (s1,3), Link (s2, 1)); 
       (Link (s3, 3), Link (s2, 2)) ] in
   let bidirectTopo = bidirectionalize topo in
   let pol = Pol (All, [ToAll]) in
   let pkt1 = fresh SPacket in
+  let term1 = TPacket pkt1 in 
   let pkt2 = fresh SPacket in
-  (* let phi = ZAnd [ ZEquals (PktHeader ("Switch", pkt1), Primitive s1) *)
-  (* 		 ; ZEquals (PktHeader ("InPort", pkt1), Primitive (Int64.of_int 1)) *)
-  (* 		 ; ZEquals (PktHeader ("Switch", pkt2), Primitive s3) *)
-  (* 		 ; ZEquals (PktHeader ("InPort", pkt2), Primitive (Int64.of_int 2))  *)
-  (* 		 ; n_forwards 3 topo pol pkt1 pkt2] in *)
-  (* Printf.printf "%s\n" (solve phi) *)
-  assert false
+  let term2 = TPacket pkt2 in
+  let query = fresh (SRelation []) in 
+  let rule = 
+    ZRule (query, [],
+	   [ ZEquals (TFunction ("Switch", [term1]), TInt s1)
+	   ; ZEquals (TFunction ("InPort", [term1]), TInt p1)
+	   ; ZEquals (TFunction ("Switch", [term2]), TInt s3)
+	   ; ZEquals (TFunction ("InPort", [term2]), TInt p2)
+	   ; ZRelation ("Forwards", [term1; term2]) ]) in 
+  let program = ZProgram([rule], query) in 
+  Printf.printf "%s\n" (solve program)

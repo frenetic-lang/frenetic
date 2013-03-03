@@ -13,7 +13,7 @@ type zSort =
 type zTerm = 
 | TVar of zVar
 | TPacket of z3Packet
-| TInt of int
+| TInt of Int64.t
 | TFunction of zVar * zTerm list
 
 type zAtom =
@@ -30,7 +30,7 @@ type zDeclaration =
 | ZDeclare of zVar * zSort 
 
 type zProgram = 
-| ZProgram of zDeclaration list * zRule list * zVar
+| ZProgram of zRule list * zVar
     
 let init_decls : zDeclaration list = 
   [ ZDeclare("DlSrc", SFunction(SPacket,SInt))
@@ -72,7 +72,7 @@ let rec serialize_term term = match term with
   | TVar v -> v
   | TPacket pkt -> pkt
   | TInt n -> 
-    Printf.sprintf "%d" n
+    Printf.sprintf "%s" (Int64.to_string n)
   | TFunction (f, terms) -> 
     Printf.sprintf "(%s %s)" f (intercalate serialize_term " " terms)
 
@@ -109,7 +109,7 @@ let serialize_declaration (ZDeclare (x,sort)) =
     | _ -> "var" in 
   Printf.sprintf "(declare-%s %s %s)" decl x (serialize_sort sort)
 
-let serialize_program (ZProgram (decls, rules, query)) =
+let serialize_program (ZProgram (rules, query)) =
   let preamble = 
     "(declare-sort Packet)" in 
   let postamble =      
@@ -119,7 +119,7 @@ let serialize_program (ZProgram (decls, rules, query)) =
   Printf.sprintf 
     "%s\n%s\n%s\n(query %s\n%s" 
     preamble
-    (intercalate serialize_declaration "\n" decls)
+    (intercalate serialize_declaration "\n" (!fresh_cell))
     (intercalate serialize_rule "\n" rules) 
     query
     postamble
