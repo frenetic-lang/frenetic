@@ -1,93 +1,108 @@
 let sprintf = Printf.sprintf
 
-type z3Packet = string
+type z3Packet = 
+  string
 
-type zVar = string
+type zVar = 
+  string
+
+type zSort = 
+| SPacket
+| SInt
+| SFunction of zSort * zSort
+| SRelation of zSort list
 
 type zTerm = 
-  | Var of zVar
-  | Packet of z3Packet
-  | Int of int
-  | Func of string * zTerm list
-
-type zRelName = string
+| TVar of zVar
+| TPacket of z3Packet
+| TInt of int
+| TFunction of zVar * zTerm list
 
 type zAtom =
-  | ZTrue
-  | ZFalse 
-  | ZNot of zAtom
-  | ZEquals of zTerm * zTerm
-  | ZRel of zRelName * zTerm list
-
+| ZTrue
+| ZFalse 
+| ZNot of zAtom
+| ZEquals of zTerm * zTerm
+| ZRelation of zVar * zTerm list
+      
 type zRule =
-  ZRule of zRelName * zVar list * zAtom list
+| ZRule of zVar * zVar list * zAtom list
+
+type zDeclaration = 
+| ZDeclare of zVar * zSort 
 
 type zProgram = 
-   ZProgram of zRule list * zRelName
+| ZProgram of zDeclaration list * zRule list * zVar
+       
+let intercalate f s l = match l with 
+  | [] -> 
+    ""
+  | h::t -> 
+    List.fold_right (fun x acc -> acc ^ s ^ f x) t (f h)
 
-let intercalate l s f =
-  match l with
-    | [] -> ""
-    | h::t -> List.fold_right (fun x acc -> acc ^ s ^ f x) t (f h)
+let rec serialize_sort sort = match sort with 
+  | SPacket -> 
+    "Packet"
+  | SInt -> 
+    "Int"
+  | SFunction(sort1,sort2) -> 
+    sprintf "%s %s" (serialize_sort sort1) (serialize_sort sort2)
+  | SRelation(sorts) -> 
+    intercalate serialize_sort " " sorts 
+    
+let rec serialize_term term = match term with
+  | TVar v -> v
+  | TPacket pkt -> pkt
+  | TInt n -> 
+    sprintf "%d" n
+  | TFunction (f, terms) -> 
+    sprintf "(%s %s)" f (intercalate serialize_term " " terms)
 
-let rec serialize_term t = 
-  match t with
-    | Var v -> v
-    | Packet p -> p
-    | Int i -> sprintf "%d" i
-    | Func (s, tList) -> sprintf "(%s %s)" s (intercalate tList " " serialize_term)
+let rec serialize_atom atom = match atom with 
+  | ZTrue -> 
+    "true"
+  | ZFalse -> 
+    "false"
+  | ZNot a1 -> 
+    sprintf "(not %s)" (serialize_atom a1)
+  | ZEquals (t1, t2) -> 
+    sprintf "(equals %s %s)" (serialize_term t1) (serialize_term t2)
+  | ZRelation (r, terms) -> 
+    sprintf "(%s %s)" r (intercalate serialize_term " " terms)
 
-let rec serialize_atom a = 
-  match a with 
-    | ZTrue -> "true"
-    | ZFalse -> "false"
-    | ZNot a1 -> sprintf "(not %s)" (serialize_atom a1)
-    | ZEquals (t1, t2) -> sprintf "(equals %s %s)" (serialize_term t1) (serialize_term t2)
-    | ZRel (name, tList) -> sprintf "(%s %s)" name (intercalate tList " " serialize_term)
+let serialize_atoms atoms = match atoms with 
+  | [] -> 
+    "true"
+  | [atom] -> 
+    serialize_atom atom
+  | atom::rest -> 
+    List.fold_right 
+      (fun atom acc -> sprintf "(and %s %s)" acc (serialize_atom atom))
+      rest (serialize_atom atom)
 
-let datalogStuff =
-  ":default-relation smt_relation2\n:engine datalog\n:print-answer true"
+let serialize_rule (ZRule (r, vars, atoms)) =
+  sprintf "(rule (=> %s (%s %s)))" 
+    (serialize_atoms atoms) r (intercalate (fun x -> x) " " vars)
 
-let andAtoms aList =
-match aList with 
-  | [] -> "true"
-  | h::[] -> serialize_atom h
-  | h::t -> List.fold_right (fun a acc -> sprintf "(and %s %s)" acc (serialize_atom a)) t (serialize_atom h)
+let serialize_declaration (ZDeclare (x,sort)) = 
+  let decl = match sort with 
+    | SFunction _ -> "fun"
+    | SRelation _ -> "rel"
+    | _ -> "var" in 
+  sprintf "(declare-%s %s %s)" decl x (serialize_sort sort)
 
-let serialize_rule (ZRule (r, xList, aList)) =
-  sprintf "(rule (=> %s (%s %s)))" (andAtoms aList) r (intercalate xList " " (fun x -> x))
-
-let serialize_program (ZProgram (rList, name)) =
-  sprintf "%s\n(query %s\n%s)" 
-    (intercalate rList "\n" serialize_rule) name (datalogStuff)
-  
-
-let z3_prelude =
-  "(declare-sort Packet)
-   (declare-fun DlSrc (Packet) Int)
-   (declare-fun DlDst (Packet) Int)
-   (declare-fun DlTyp (Packet) Int)
-   (declare-fun DlVlan (Packet) Int)
-   (declare-fun DlVlanPcp (Packet) Int)
-   (declare-fun NwSrc (Packet) Int)
-   (declare-fun NwDst (Packet) Int)
-   (declare-fun NwProto (Packet) Int)
-   (declare-fun NwTos (Packet) Int)
-   (declare-fun TpSrc (Packet) Int)
-   (declare-fun TpDst (Packet) Int)
-   (declare-fun InPort (Packet) Int)
-   (declare-fun Switch (Packet) Int)"
-
-(* Print variables, packets *)
-let serialize_declarations  (ZProgram (rList, name)) = ""
-
+let serialize_program (ZProgram (decls, rules, q)) =
+  let datalog = 
+    ":default-relation smt_relation2\n" ^ 
+    ":engine datalog\n" ^ 
+    ":print-answer true" in 
+  sprintf "%s\n%s\n(query %s\n%s)" 
+    (intercalate serialize_declaration "\n" decls)
+    (intercalate serialize_rule "\n" rules) 
+    q datalog
 
 let solve prog = 
-  let s = 
-    sprintf "%s\n%s\n%s"
-      z3_prelude
-      (serialize_declarations prog)
-      (serialize_program prog) in 
+  let s = serialize_program prog in 
   let _ = Printf.eprintf "--- DEBUG ---\n%s\n%!" s in 
   let ch = open_out ".z3.in" in 
   let _ = output_string ch s in 
