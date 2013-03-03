@@ -11,27 +11,49 @@ let reverse_edge (sp1, sp2) =
 let bidirectionalize topo = 
   List.fold_left (fun acc edge -> edge::(reverse_edge edge)::acc) [] topo
 
-let rec encode_predicate pred pkt =
-  assert false
-  (* match pred with *)
-  (*   | All -> *)
-  (*     ZTrue *)
-  (*   | NoPackets ->  *)
-  (*     ZFalse *)
-  (*   | Not p1 ->  *)
-  (*     ZNot (encode_predicate p1 pkt) *)
-  (*   | And (p1, p2) -> *)
-  (*     ZAnd [encode_predicate p1 pkt; encode_predicate p2 pkt] *)
-  (*   | Or (p1, p2) ->  *)
-  (*     ZOr [encode_predicate p1 pkt; encode_predicate p2 pkt] *)
-  (*   | Switch sId ->  *)
-  (*     ZEquals (PktHeader ("Switch", pkt), Primitive sId) *)
-  (*   | InPort portId ->  *)
-  (*     ZEquals (PktHeader ("InPort", pkt), Primitive (Int64.of_int portId)) *)
-  (*   | DlSrc n ->  *)
-  (*     ZEquals (PktHeader ("DlSrc", pkt), Primitive n) *)
-  (*   | DlDst n ->  *)
-  (*     ZEquals (PktHeader ("DlDst", pkt), Primitive n) *)
+(* JNF: note the to_int conversions may fail!
+   Perhaps TInt should take an Int64? *)
+let rec encode_predicate (pred:predicate) (pkt:zVar) : zAtom * zRule list =
+  match pred with
+    | All ->
+      (ZTrue,[])
+    | NoPackets ->
+      (ZFalse,[])
+    | Not pred1 ->
+      let atom, rules = encode_predicate pred1 pkt in 
+      (ZNot (atom), rules)  
+    | And (pred1, pred2) ->
+      let atom1, rules1 = encode_predicate pred1 pkt in 
+      let atom2, rules2 = encode_predicate pred1 pkt in 
+      let rel = fresh (SRelation [SPacket]) in 
+      let atom = ZRelation(rel,[TPacket pkt]) in 
+      let rules = ZRule(rel,[pkt],[atom1; atom2])::rules1@rules2 in 
+      (atom, rules)
+    | Or(pred1, pred2) -> 
+      let atom1, rules1 = encode_predicate pred1 pkt in 
+      let atom2, rules2 = encode_predicate pred1 pkt in 
+      let rel = fresh (SRelation [SPacket]) in 
+      let atom = ZRelation(rel, [TPacket pkt]) in
+      let rule1 = ZRule(rel,[pkt],[atom1]) in 
+      let rule2 = ZRule(rel,[pkt],[atom2]) in 
+      let rules = rule1::rule2::rules1@rules2 in 
+      (atom, rules)
+    | DlSrc mac -> 
+      (ZEquals (TFunction("DlSrc", [TPacket pkt]), TInt (Int64.to_int mac)),[])
+    | DlDst mac -> 
+      (ZEquals (TFunction("DlDst", [TPacket pkt]), TInt (Int64.to_int mac)),[])
+    | SrcIP ip -> 
+      (ZEquals (TFunction("DstIP", [TPacket pkt]), TInt (Int32.to_int ip)),[])
+    | DstIP ip -> 
+      (ZEquals (TFunction("SrcIP", [TPacket pkt]), TInt (Int32.to_int ip)),[])
+    | TcpSrcPort port -> 
+      (ZEquals (TFunction("TcpSrcPort", [TPacket pkt]), TInt port),[])
+    | TcpDstPort port -> 
+      (ZEquals (TFunction("TcpDstPort", [TPacket pkt]), TInt port),[])
+    | InPort portId -> 
+      (ZEquals (TFunction("InPort", [TPacket pkt]), TInt portId), [])
+    | Switch switchId -> 
+      (ZEquals (TFunction("Switch", [TPacket pkt]), TInt (Int64.to_int switchId)), [])
 
 let equals fList pkt1 pkt2 = 
   assert false

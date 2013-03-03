@@ -35,15 +35,10 @@ type zProgram =
 let init_decls : zDeclaration list = 
   [ ZDeclare("DlSrc", SFunction(SPacket,SInt))
   ; ZDeclare("DlDst", SFunction(SPacket,SInt))
-  ; ZDeclare("DlTyp", SFunction(SPacket,SInt))
-  ; ZDeclare("DlVlan", SFunction(SPacket,SInt))
-  ; ZDeclare("DlVlanPcp", SFunction(SPacket,SInt))
-  ; ZDeclare("NwSrc", SFunction(SPacket,SInt))
-  ; ZDeclare("NwDst", SFunction(SPacket,SInt))
-  ; ZDeclare("NwProto", SFunction(SPacket,SInt))
-  ; ZDeclare("NwTos", SFunction(SPacket,SInt))
-  ; ZDeclare("TpSrc", SFunction(SPacket,SInt))
-  ; ZDeclare("TpDst", SFunction(SPacket,SInt))
+  ; ZDeclare("SrcIP", SFunction(SPacket,SInt))
+  ; ZDeclare("DstIP", SFunction(SPacket,SInt))
+  ; ZDeclare("TcpSrcPort", SFunction(SPacket,SInt))
+  ; ZDeclare("TcpDstPort", SFunction(SPacket,SInt))
   ; ZDeclare("InPort", SFunction(SPacket,SInt))
   ; ZDeclare("Switch", SFunction(SPacket,SInt)) ]
 
