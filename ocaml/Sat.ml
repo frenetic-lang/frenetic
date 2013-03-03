@@ -1,5 +1,3 @@
-let sprintf = Printf.sprintf
-
 type z3Packet = 
   string
 
@@ -46,7 +44,7 @@ let rec serialize_sort sort = match sort with
   | SInt -> 
     "Int"
   | SFunction(sort1,sort2) -> 
-    sprintf "%s %s" (serialize_sort sort1) (serialize_sort sort2)
+    Printf.sprintf "%s %s" (serialize_sort sort1) (serialize_sort sort2)
   | SRelation(sorts) -> 
     intercalate serialize_sort " " sorts 
     
@@ -54,9 +52,9 @@ let rec serialize_term term = match term with
   | TVar v -> v
   | TPacket pkt -> pkt
   | TInt n -> 
-    sprintf "%d" n
+    Printf.sprintf "%d" n
   | TFunction (f, terms) -> 
-    sprintf "(%s %s)" f (intercalate serialize_term " " terms)
+    Printf.sprintf "(%s %s)" f (intercalate serialize_term " " terms)
 
 let rec serialize_atom atom = match atom with 
   | ZTrue -> 
@@ -64,11 +62,11 @@ let rec serialize_atom atom = match atom with
   | ZFalse -> 
     "false"
   | ZNot a1 -> 
-    sprintf "(not %s)" (serialize_atom a1)
+    Printf.sprintf "(not %s)" (serialize_atom a1)
   | ZEquals (t1, t2) -> 
-    sprintf "(equals %s %s)" (serialize_term t1) (serialize_term t2)
+    Printf.sprintf "(equals %s %s)" (serialize_term t1) (serialize_term t2)
   | ZRelation (r, terms) -> 
-    sprintf "(%s %s)" r (intercalate serialize_term " " terms)
+    Printf.sprintf "(%s %s)" r (intercalate serialize_term " " terms)
 
 let serialize_atoms atoms = match atoms with 
   | [] -> 
@@ -77,11 +75,11 @@ let serialize_atoms atoms = match atoms with
     serialize_atom atom
   | atom::rest -> 
     List.fold_right 
-      (fun atom acc -> sprintf "(and %s %s)" acc (serialize_atom atom))
+      (fun atom acc -> Printf.sprintf "(and %s %s)" acc (serialize_atom atom))
       rest (serialize_atom atom)
 
 let serialize_rule (ZRule (r, vars, atoms)) =
-  sprintf "(rule (=> %s (%s %s)))" 
+  Printf.sprintf "(rule (=> %s (%s %s)))" 
     (serialize_atoms atoms) r (intercalate (fun x -> x) " " vars)
 
 let serialize_declaration (ZDeclare (x,sort)) = 
@@ -89,14 +87,14 @@ let serialize_declaration (ZDeclare (x,sort)) =
     | SFunction _ -> "fun"
     | SRelation _ -> "rel"
     | _ -> "var" in 
-  sprintf "(declare-%s %s %s)" decl x (serialize_sort sort)
+  Printf.sprintf "(declare-%s %s %s)" decl x (serialize_sort sort)
 
 let serialize_program (ZProgram (decls, rules, q)) =
   let datalog = 
     ":default-relation smt_relation2\n" ^ 
     ":engine datalog\n" ^ 
     ":print-answer true" in 
-  sprintf "%s\n%s\n(query %s\n%s)" 
+  Printf.sprintf "%s\n%s\n(query %s\n%s)" 
     (intercalate serialize_declaration "\n" decls)
     (intercalate serialize_rule "\n" rules) 
     q datalog
