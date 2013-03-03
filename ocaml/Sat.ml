@@ -47,6 +47,15 @@ let init_decls : zDeclaration list =
   ; ZDeclare("InPort", SFunction(SPacket,SInt))
   ; ZDeclare("Switch", SFunction(SPacket,SInt)) ]
 
+(* Variables *)
+let fresh_cell = ref []
+
+let fresh sort = 
+  let l = !fresh_cell in
+  let x = Printf.sprintf "_x%d" (List.length l) in 
+  fresh_cell := ZDeclare(x,sort)::l;
+  x
+
 (* Serialization *)
 let intercalate f s l = match l with 
   | [] -> 

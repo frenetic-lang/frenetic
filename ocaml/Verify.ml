@@ -1,16 +1,9 @@
- open NetCore
+open NetCore
 open Sat
 
 type link = Link of MessagesDef.switchId * Packet.portId
 
 type topo = Topo of (link * link) list
-
-let fresh_cell = ref 0
-
-let fresh () = 
-  let n = !fresh_cell in
-  let () = incr fresh_cell in
-  Printf.sprintf "_pkt%d" n
 
 let reverse_edge (sp1, sp2) = 
   (sp2, sp1)
@@ -101,8 +94,8 @@ let () =
       (Link (s3, 3), Link (s2, 2)) ] in
   let bidirectTopo = bidirectionalize topo in
   let pol = Pol (All, [ToAll]) in
-  let pkt1 = fresh () in
-  let pkt2 = fresh () in
+  let pkt1 = fresh SPacket in
+  let pkt2 = fresh SPacket in
   (* let phi = ZAnd [ ZEquals (PktHeader ("Switch", pkt1), Primitive s1) *)
   (* 		 ; ZEquals (PktHeader ("InPort", pkt1), Primitive (Int64.of_int 1)) *)
   (* 		 ; ZEquals (PktHeader ("Switch", pkt2), Primitive s3) *)
