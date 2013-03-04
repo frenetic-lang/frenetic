@@ -9,6 +9,7 @@
 *)
 
 open Cstruct
+open Packet
 
 type uint48 = uint64
 type uint12 = uint16
@@ -111,6 +112,23 @@ type flowMod = {
   instructions : instruction list
 }
 
+cenum reasonType {
+  NoMatch = 0;
+  Action = 1
+} as uint8_t
+
+(*
+type packetIn = {
+  buffer_id : uint32 option;
+  total_len : uint16;
+  reason : reasonType;
+  table_id : tableId;
+  cookie : uint64;
+  ofp_match : oxmMatch;
+  pkt : packet
+}
+*)
+
 type capabilities = {
   flow_stats : bool;
   table_stats : bool;
@@ -137,3 +155,4 @@ type message =
   | FeaturesReply of features
   | FlowMod of flowMod
   | GroupMod of groupMod
+  (*| PacketIn of packetIn*)

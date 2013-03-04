@@ -115,12 +115,15 @@ cenum ofp_vlan_id {
 } as uint16_t
 
 cstruct ofp_switch_features {
-  uint64_t datapath_id; 
-  uint32_t n_buffers; 
-  uint8_t n_tables; 
-  uint8_t pad[3]; 
+  uint64_t datapath_id;
+  uint32_t n_buffers;
+  uint8_t n_tables;
+  uint8_t auxiliary_id;
+  uint8_t pad0;
+  uint8_t pad1;
+  uint8_t pad2;
   uint32_t capabilities; 
-  uint32_t action
+  uint32_t reserved
 } as big_endian 
 
 
@@ -505,7 +508,6 @@ module GroupMod = struct
         sizeof_ofp_group_mod
 
   let marshal (buf : Cstruct.t) (gm : groupMod) : int =
-    (* TODO: ofp_header *)
     match gm with
       | AddGroup (typ, gid, buckets) -> 
         set_ofp_group_mod_command buf 0; (* OFPGC_ADD *)
@@ -528,6 +530,14 @@ module OfpMatch = struct
     set_ofp_match_typ buf 1; (* OXPMT_OXM *)
     set_ofp_match_length buf (sizeof_ofp_match + sum (map Oxm.sizeof om)); (* Length of ofp_match (excluding padding) *)
     sizeof_ofp_match + (marshal_fields (Cstruct.shift buf sizeof_ofp_match) om Oxm.marshal)
+
+(*
+  let parse (bits : Cstruct.t) : oxmMatch =
+    let typ = get_ofp_match_typ bits in
+    let length = get_ofp_match_length in
+    (* TODO *)
+    [OxmInPort (1l)]
+*)
 
 end
 
@@ -628,6 +638,77 @@ module FlowMod = struct
       size + Instructions.marshal (Cstruct.shift buf size) fm.instructions
 end
 
+module Capabilities = struct
+
+  let parse (bits : int32) : capabilities =
+    { port_blocked = test_bit 7 bits; 
+      queue_stats = test_bit 6 bits; 
+      ip_reasm = test_bit 5 bits; 
+      group_stats = test_bit 3 bits; 
+      port_stats = test_bit 2 bits; 
+      table_stats = test_bit 1 bits; 
+      flow_stats = test_bit 0 bits;
+    }
+
+end
+
+module Features = struct
+
+  let parse (bits : Cstruct.t) : features =
+    let datapath_id = get_ofp_switch_features_datapath_id bits in 
+    let num_buffers = get_ofp_switch_features_n_buffers bits in
+    let num_tables = get_ofp_switch_features_n_tables bits in
+    let aux_id = get_ofp_switch_features_auxiliary_id bits in
+    let supported_capabilities = Capabilities.parse
+      (get_ofp_switch_features_capabilities bits) in
+    let bits = Cstruct.shift bits sizeof_ofp_switch_features in
+    { datapath_id; 
+      num_buffers; 
+      num_tables;
+      aux_id; 
+      supported_capabilities }
+
+end
+
+(*
+module PacketIn = struct
+
+ cstruct ofp_packet_in {
+   uint32_t buffer_id;     
+   uint16_t total_len;     
+   uint8_t reason;         
+   uint8_t table_id;
+   uint64_t cookie
+  } as big_endian
+
+  let parse (bits : Cstruct.t)  =
+    let bufId = match get_ofp_packet_in_buffer_id bits with
+      | -1l -> None
+      | n -> Some n in
+    let total_len = get_ofp_packet_in_total_len bits in
+    let reason = int_to_reasonType (get_ofp_packet_in_reason bits) in
+    let table_id = get_ofp_packet_in_table_id bits in
+    let cookie = get_ofp_packet_in_cookie bits in
+    let ofp_match_bits = Cstruct.shift bits sizeof_ofp_packet_in in
+    let ofp_match = OfpMatch.parse ofp_match_bits in
+    let pkt_bits = Cstruct.shift ofp_match_bits ((OfpMatch.sizeof ofp_match) + 2 (* pad bytes *)) in
+    let pkt = match PacketParser.parse_packet pkt_bits with 
+      | Some pkt -> pkt 
+      | None -> 
+        raise (Unparsable (sprintf "malformed packet in packet_in")) in
+    let _ = eprintf "[PacketIn] okay \n%!" in 
+    { buffer_id = bufId;
+      total_len = total_len;
+      reason = reason;
+      table_id = table_id;
+      cookie = cookie;
+      ofp_match = ofp_match;
+      pkt = pkt
+    }
+
+end
+*)
+
 module Message = struct
 
   let msg_code_of_message (msg : message) : msg_code = match msg with
@@ -674,6 +755,20 @@ module Message = struct
     let _ = marshal buf msg in
     let str = Cstruct.to_string buf in
     str
+
+  let parse (bits : Cstruct.t) =
+    let ver = get_ofp_header_version bits in
+    let typ = get_ofp_header_typ bits in
+    let len = get_ofp_header_length bits in
+    let xid = get_ofp_header_xid bits in
+    let bits = Cstruct.shift bits sizeof_ofp_header in
+    match int_to_msg_code typ with
+        | Some HELLO -> Hello
+        | Some ECHO_RESP -> EchoReply (Cstruct.to_string bits)
+        | Some FEATURES_RESP -> FeaturesReply (Features.parse bits)
+        (* | Some PACKET_IN -> PacketIn (PacketIn.parse bits) *)
+        | _ -> raise (Unparsable "unrecognized message code")
+
 end
 
 
