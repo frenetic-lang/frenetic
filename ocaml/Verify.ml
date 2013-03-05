@@ -44,57 +44,66 @@ let rec encode_predicate (pred:predicate) (pkt:zVar) : zAtom * zRule list =
   | Switch switchId -> 
     (ZEquals (TFunction("Switch", [TPacket pkt]), TInt switchId), [])
       
-let equals fList pkt1 pkt2 = 
-  assert false
-  (* let zList =  *)
-  (*   List.fold_left  *)
-  (*     (fun acc f -> ZEquals (PktHeader (f, pkt1), (PktHeader (f, pkt2))) :: acc) *)
-  (*     [] fList in  *)
-  (* ZAnd zList *)
+let equals (fields:string list) (pkt1:zPacket) (pkt2:zPacket) : zAtom list = 
+  let mk f = ZEquals (TFunction(f, [TPacket pkt1]), TFunction(f, [TPacket pkt2])) in 
+  List.map mk fields 
 
-let forwards (act:action) (pkt1:zPacket) (pkt2:zPacket) : (zAtom * zRule list) =
-  assert false
-  (* match act with *)
-  (*   | To pId -> *)
-  (*     ZAnd [ equals [ "Switch"; "DlSrc"; "DlDst" ] pkt1 pkt2 *)
-  (* 	   ; ZEquals (PktHeader ("InPort", pkt2), Primitive (Int64.of_int pId)) ] *)
-  (*   | ToAll ->  *)
-  (*     ZAnd [ equals [ "Switch"; "DlSrc"; "DlDst" ] pkt1 pkt2 *)
-  (* 	   ; ZNot (ZEquals (PktHeader ("InPort", pkt1), PktHeader ("InPort", pkt2))) ] *)
-  (*   | GetPacket gph ->  *)
-  (*     ZFalse *)
+let action_forwards (act:action) (pkt1:zPacket) (pkt2:zPacket) : zAtom list = 
+  match act with 
+  | To pId ->
+      equals [ "Switch"; "DlSrc"; "DlDst" ] pkt1 pkt2 @ 
+      [ZEquals (TFunction ("InPort", [TPacket pkt2]), TInt (Int64.of_int pId))]
+  | ToAll ->
+    equals [ "Switch"; "DlSrc"; "DlDst" ] pkt1 pkt2 @
+      [ ZNot (ZEquals (TFunction ("InPort", [TPacket pkt1]), 
+		       TFunction ("InPort", [TPacket pkt2])))]
+  | GetPacket gph ->
+    [ZFalse]
 
-let topo_forwards topo pkt1 pkt2 =
-  assert false
-  (* ZAnd [ equals ["DlSrc"; "DlDst"] pkt1 pkt2 *)
-  (*      ; ZOr (List.fold_left (fun acc (Link(s1, p1), Link(s2, p2)) ->  *)
-  (* 	 ZAnd [ ZEquals (PktHeader ("Switch", pkt1), Primitive s1) *)
-  (* 	      ; ZEquals (PktHeader ("InPort", pkt1), Primitive (Int64.of_int p1)) *)
-  (*             ; ZEquals (PktHeader ("Switch", pkt2), Primitive s2) *)
-  (* 	      ; ZEquals (PktHeader ("InPort", pkt2), Primitive (Int64.of_int p2)) ]::acc) [] topo) ] *)
+let topology_forwards (Topology topo:topology) (rel:zVar) (pkt1:zPacket) (pkt2:zPacket) : zRule list = 
+  let eq = equals ["DlSrc"; "DlDst"] pkt1 pkt2 in 
+  List.map 
+    (fun (Link(s1, p1), Link(s2, p2)) ->   
+      let body = 
+	eq @ 
+	  [ ZEquals (TFunction("Switch",[TPacket pkt1]), TInt s1)
+	  ; ZEquals (TFunction("InPort",[TPacket pkt1]), TInt (Int64.of_int p1))
+	  ; ZEquals (TFunction("Switch",[TPacket pkt2]), TInt s2)
+	  ; ZEquals (TFunction("InPort",[TPacket pkt2]), TInt (Int64.of_int p2)) ] in 
+      ZRule(rel,[pkt1;pkt2], body))
+    topo  
 
-let rec encode_policy pol pkt1 pkt2 =
-  assert false
-  (* match pol with *)
-  (*   | Pol (pred, actList) ->  *)
-  (*     ZAnd [encode_predicate pred pkt1 *)
-  (* 	   ; ZOr (List.fold_left (fun z act -> (forwards act pkt1 pkt2)::z) [] actList)] *)
-  (*   | Par (pol1, pol2) ->  *)
-  (*     ZOr [encode_policy pol1 pkt1 pkt2 *)
-  (* 	  ; encode_policy pol2 pkt1 pkt2] *)
+let rec policy_forwards (pol:policy) (rel:zVar) (pkt1:zPacket) (pkt2:zPacket) : zRule list = 
+  match pol with
+  | Pol (pred, actions) ->
+    let pred_atom, pred_rules = encode_predicate pred pkt1 in 
+    List.fold_left  
+      (fun acc action -> 
+	let atoms = pred_atom :: action_forwards action pkt1 pkt2 in 
+	let rule = ZRule(rel,[pkt1;pkt2], atoms) in 
+	let acc' = rule::acc in 
+	acc')
+      pred_rules actions 
+  | Par (pol1, pol2) ->
+    policy_forwards pol1 rel pkt1 pkt2 @ policy_forwards pol2 rel pkt1 pkt2 
+  | _ -> 
+    assert false
 
-let rec n_forwards n topo pol pkt1 pkt2 =
-  assert false
-  (* match n with *)
-  (*   | 0 -> equals ["Switch"; "InPort"; "DlDst"; "DlSrc"] pkt1 pkt2 *)
-  (*   | 1 -> ZOr [encode_policy pol pkt1 pkt2 *)
-  (* 	       ; equals ["Switch"; "InPort"; "DlDst"; "DlSrc"] pkt1 pkt2 ] *)
-  (*   | _ -> let pkt1' = fresh () in *)
-  (* 	   let pkt1'' = fresh () in *)
-  (* 	   ZAnd [ encode_policy pol pkt1 pkt1' *)
-  (* 		;  topo_forwards topo pkt1' pkt1'' *)
-  (* 		; n_forwards (n-1) topo pol pkt1'' pkt2] *)
-      
+let forwards (pol:policy) (topo:topology) : zVar * zRule list = 
+  let p = fresh (SRelation [SPacket; SPacket]) in 
+  let t = fresh (SRelation [SPacket; SPacket]) in 
+  let f = fresh (SRelation [SPacket; SPacket]) in 
+  let pkt1 = fresh SPacket in 
+  let pkt2 = fresh SPacket in 
+  let policy_rules = policy_forwards pol p pkt1 pkt2 in 
+  let topology_rules = topology_forwards topo t pkt1 pkt2 in 
+  let forwards_rules = 
+    [ ZRule(f,[pkt1;pkt2],[ZRelation(p,[TPacket pkt1; TPacket pkt2])])
+    ; ZRule(f,[pkt1;pkt2],[ ZRelation(p,[TPacket pkt1; TPacket pkt2])
+			  ; ZRelation(t,[TPacket pkt1; TPacket pkt2])
+			  ; ZRelation(f,[TPacket pkt1; TPacket pkt2])]) ] in 
+  (f, policy_rules @ topology_rules @ forwards_rules)
+
 (* temporary front-end for verification stuff *)
 let () = 
   let s1 = Int64.of_int 1 in
@@ -103,21 +112,22 @@ let () =
   let p1 = Int64.of_int 1 in 
   let p2 = Int64.of_int 2 in 
   let topo = 
-    [ (Link (s1, 4), Link (s3, 1)); (Link (s1,3), Link (s2, 1)); 
-      (Link (s3, 3), Link (s2, 2)) ] in
-  let bidirectTopo = bidirectionalize topo in
+    bidirectionalize 
+      (Topology 
+	 [ (Link (s1, 4), Link (s3, 1)); (Link (s1,3), Link (s2, 1)); 
+	   (Link (s3, 3), Link (s2, 2)) ]) in 
   let pol = Pol (All, [ToAll]) in
   let pkt1 = fresh SPacket in
-  let term1 = TPacket pkt1 in 
   let pkt2 = fresh SPacket in
-  let term2 = TPacket pkt2 in
   let query = fresh (SRelation []) in 
-  let rule = 
-    ZRule (query, [],
-	   [ ZEquals (TFunction ("Switch", [term1]), TInt s1)
-	   ; ZEquals (TFunction ("InPort", [term1]), TInt p1)
-	   ; ZEquals (TFunction ("Switch", [term2]), TInt s3)
-	   ; ZEquals (TFunction ("InPort", [term2]), TInt p2)
-	   ; ZRelation ("Forwards", [term1; term2]) ]) in 
-  let program = ZProgram([rule], query) in 
+  let fwds, rules = forwards pol topo in 
+  let program = 
+    ZProgram
+      (ZRule (query, [],
+	      [ ZEquals (TFunction ("Switch", [TPacket pkt1]), TInt s1)
+	      ; ZEquals (TFunction ("InPort", [TPacket pkt1]), TInt p1)
+	      ; ZEquals (TFunction ("Switch", [TPacket pkt2]), TInt s3)
+	      ; ZEquals (TFunction ("InPort", [TPacket pkt2]), TInt p2)
+	      ; ZRelation (fwds, [TPacket pkt1; TPacket pkt2])]) :: rules, 
+       query) in 
   Printf.printf "%s\n" (solve program)
