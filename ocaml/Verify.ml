@@ -45,8 +45,8 @@ let rec encode_predicate (pred:predicate) (pkt:zVar) : zAtom * zRule list =
     (ZEquals (TFunction("Switch", [TPacket pkt]), TInt switchId), [])
       
 let equals (fields:string list) (pkt1:zPacket) (pkt2:zPacket) : zAtom list = 
-  let mk f = ZEquals (TFunction(f, [TPacket pkt1]), TFunction(f, [TPacket pkt2])) in 
-  List.map mk fields 
+  List.map (fun field -> ZEquals (TFunction(field, [TPacket pkt1]), 
+				  TFunction(field, [TPacket pkt2]))) fields
 
 let action_forwards (act:action) (pkt1:zPacket) (pkt2:zPacket) : zAtom list = 
   match act with 
