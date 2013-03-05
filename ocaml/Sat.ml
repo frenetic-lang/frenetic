@@ -1,4 +1,4 @@
-type z3Packet = 
+type zPacket = 
   string
 
 type zVar = 
@@ -12,7 +12,7 @@ type zSort =
 
 type zTerm = 
 | TVar of zVar
-| TPacket of z3Packet
+| TPacket of zPacket
 | TInt of Int64.t
 | TFunction of zVar * zTerm list
 
@@ -117,14 +117,13 @@ let serialize_declaration (ZDeclare (x,sort)) =
   Printf.sprintf "(declare-%s %s %s)" decl x (serialize_sort sort)
 
 let serialize_program (ZProgram (rules, query)) =
-  let preamble = 
-    "(declare-sort Packet)" in 
+  let preamble =  "(declare-sort Packet)" in 
   let postamble =      
     ":default-relation smt_relation2\n" ^ 
     ":engine datalog\n" ^
     ":print-answer true" in 
   Printf.sprintf 
-    "%s\n%s\n%s\n%s\n(query %s\n%s)" 
+    "%s\n%s\n%s\n%s\n(query (%s)\n%s)" 
     preamble
     (intercalate serialize_declaration "\n" init_decls)
     (intercalate serialize_declaration "\n" (!fresh_cell))

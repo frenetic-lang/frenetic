@@ -2,51 +2,48 @@ open NetCore
 open Topology
 open Sat
 
-
-(* JNF: note the to_int conversions may fail!
-   Perhaps TInt should take an Int64? *)
 let rec encode_predicate (pred:predicate) (pkt:zVar) : zAtom * zRule list =
   match pred with
-    | All ->
-      (ZTrue,[])
-    | NoPackets ->
-      (ZFalse,[])
-    | Not pred1 ->
-      let atom, rules = encode_predicate pred1 pkt in 
-      (ZNot (atom), rules)  
-    | And (pred1, pred2) ->
-      let atom1, rules1 = encode_predicate pred1 pkt in 
-      let atom2, rules2 = encode_predicate pred1 pkt in 
-      let rel = fresh (SRelation [SPacket]) in 
-      let atom = ZRelation(rel,[TPacket pkt]) in 
-      let rules = ZRule(rel,[pkt],[atom1; atom2])::rules1@rules2 in 
-      (atom, rules)
-    | Or(pred1, pred2) -> 
-      let atom1, rules1 = encode_predicate pred1 pkt in 
-      let atom2, rules2 = encode_predicate pred1 pkt in 
-      let rel = fresh (SRelation [SPacket]) in 
-      let atom = ZRelation(rel, [TPacket pkt]) in
-      let rule1 = ZRule(rel,[pkt],[atom1]) in 
-      let rule2 = ZRule(rel,[pkt],[atom2]) in 
-      let rules = rule1::rule2::rules1@rules2 in 
-      (atom, rules)
-    | DlSrc mac -> 
-      (ZEquals (TFunction("DlSrc", [TPacket pkt]), TInt mac),[])
-    | DlDst mac -> 
-      (ZEquals (TFunction("DlDst", [TPacket pkt]), TInt mac),[])
-    | SrcIP ip -> 
-      (ZEquals (TFunction("DstIP", [TPacket pkt]), TInt (Int64.of_int32 ip)),[])
-    | DstIP ip -> 
-      (ZEquals (TFunction("SrcIP", [TPacket pkt]), TInt (Int64.of_int32 ip)),[])
-    | TcpSrcPort port -> 
-      (ZEquals (TFunction("TcpSrcPort", [TPacket pkt]), TInt (Int64.of_int port)),[])
-    | TcpDstPort port -> 
-      (ZEquals (TFunction("TcpDstPort", [TPacket pkt]), TInt (Int64.of_int port)),[])
-    | InPort portId -> 
-      (ZEquals (TFunction("InPort", [TPacket pkt]), TInt (Int64.of_int portId)), [])
-    | Switch switchId -> 
-      (ZEquals (TFunction("Switch", [TPacket pkt]), TInt switchId), [])
-
+  | All ->
+    (ZTrue,[])
+  | NoPackets ->
+    (ZFalse,[])
+  | Not pred1 ->
+    let atom, rules = encode_predicate pred1 pkt in 
+    (ZNot (atom), rules)  
+  | And (pred1, pred2) ->
+    let atom1, rules1 = encode_predicate pred1 pkt in 
+    let atom2, rules2 = encode_predicate pred1 pkt in 
+    let rel = fresh (SRelation [SPacket]) in 
+    let atom = ZRelation(rel,[TPacket pkt]) in 
+    let rules = ZRule(rel,[pkt],[atom1; atom2])::rules1@rules2 in 
+    (atom, rules)
+  | Or(pred1, pred2) -> 
+    let atom1, rules1 = encode_predicate pred1 pkt in 
+    let atom2, rules2 = encode_predicate pred1 pkt in 
+    let rel = fresh (SRelation [SPacket]) in 
+    let atom = ZRelation(rel, [TPacket pkt]) in
+    let rule1 = ZRule(rel,[pkt],[atom1]) in 
+    let rule2 = ZRule(rel,[pkt],[atom2]) in 
+    let rules = rule1::rule2::rules1@rules2 in 
+    (atom, rules)
+  | DlSrc mac -> 
+    (ZEquals (TFunction("DlSrc", [TPacket pkt]), TInt mac),[])
+  | DlDst mac -> 
+    (ZEquals (TFunction("DlDst", [TPacket pkt]), TInt mac),[])
+  | SrcIP ip -> 
+    (ZEquals (TFunction("DstIP", [TPacket pkt]), TInt (Int64.of_int32 ip)),[])
+  | DstIP ip -> 
+    (ZEquals (TFunction("SrcIP", [TPacket pkt]), TInt (Int64.of_int32 ip)),[])
+  | TcpSrcPort port -> 
+    (ZEquals (TFunction("TcpSrcPort", [TPacket pkt]), TInt (Int64.of_int port)),[])
+  | TcpDstPort port -> 
+    (ZEquals (TFunction("TcpDstPort", [TPacket pkt]), TInt (Int64.of_int port)),[])
+  | InPort portId -> 
+    (ZEquals (TFunction("InPort", [TPacket pkt]), TInt (Int64.of_int portId)), [])
+  | Switch switchId -> 
+    (ZEquals (TFunction("Switch", [TPacket pkt]), TInt switchId), [])
+      
 let equals fList pkt1 pkt2 = 
   assert false
   (* let zList =  *)
@@ -55,7 +52,7 @@ let equals fList pkt1 pkt2 =
   (*     [] fList in  *)
   (* ZAnd zList *)
 
-let forwards act pkt1 pkt2 =
+let forwards (act:action) (pkt1:zPacket) (pkt2:zPacket) : (zAtom * zRule list) =
   assert false
   (* match act with *)
   (*   | To pId -> *)
