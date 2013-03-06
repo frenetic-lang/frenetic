@@ -15,65 +15,65 @@ let rec encode_predicate (pred:predicate) (pkt:zVar) : zAtom * zRule list =
     let atom1, rules1 = encode_predicate pred1 pkt in 
     let atom2, rules2 = encode_predicate pred1 pkt in 
     let rel = fresh (SRelation [SPacket]) in 
-    let atom = ZRelation(rel,[TPacket pkt]) in 
+    let atom = ZRelation(rel,[TVar pkt]) in 
     let rules = ZRule(rel,[pkt],[atom1; atom2])::rules1@rules2 in 
     (atom, rules)
   | Or(pred1, pred2) -> 
     let atom1, rules1 = encode_predicate pred1 pkt in 
     let atom2, rules2 = encode_predicate pred1 pkt in 
     let rel = fresh (SRelation [SPacket]) in 
-    let atom = ZRelation(rel, [TPacket pkt]) in
+    let atom = ZRelation(rel, [TVar pkt]) in
     let rule1 = ZRule(rel,[pkt],[atom1]) in 
     let rule2 = ZRule(rel,[pkt],[atom2]) in 
     let rules = rule1::rule2::rules1@rules2 in 
     (atom, rules)
   | DlSrc mac -> 
-    (ZEquals (TFunction("DlSrc", [TPacket pkt]), TInt mac),[])
+    (ZEquals (TFunction("DlSrc", [TVar pkt]), TInt mac),[])
   | DlDst mac -> 
-    (ZEquals (TFunction("DlDst", [TPacket pkt]), TInt mac),[])
+    (ZEquals (TFunction("DlDst", [TVar pkt]), TInt mac),[])
   | SrcIP ip -> 
-    (ZEquals (TFunction("DstIP", [TPacket pkt]), TInt (Int64.of_int32 ip)),[])
+    (ZEquals (TFunction("DstIP", [TVar pkt]), TInt (Int64.of_int32 ip)),[])
   | DstIP ip -> 
-    (ZEquals (TFunction("SrcIP", [TPacket pkt]), TInt (Int64.of_int32 ip)),[])
+    (ZEquals (TFunction("SrcIP", [TVar pkt]), TInt (Int64.of_int32 ip)),[])
   | TcpSrcPort port -> 
-    (ZEquals (TFunction("TcpSrcPort", [TPacket pkt]), TInt (Int64.of_int port)),[])
+    (ZEquals (TFunction("TcpSrcPort", [TVar pkt]), TInt (Int64.of_int port)),[])
   | TcpDstPort port -> 
-    (ZEquals (TFunction("TcpDstPort", [TPacket pkt]), TInt (Int64.of_int port)),[])
+    (ZEquals (TFunction("TcpDstPort", [TVar pkt]), TInt (Int64.of_int port)),[])
   | InPort portId -> 
-    (ZEquals (TFunction("InPort", [TPacket pkt]), TInt (Int64.of_int portId)), [])
+    (ZEquals (TFunction("InPort", [TVar pkt]), TInt (Int64.of_int portId)), [])
   | Switch switchId -> 
-    (ZEquals (TFunction("Switch", [TPacket pkt]), TInt switchId), [])
+    (ZEquals (TFunction("Switch", [TVar pkt]), TInt switchId), [])
       
-let equals (fields:string list) (pkt1:zPacket) (pkt2:zPacket) : zAtom list = 
-  List.map (fun field -> ZEquals (TFunction(field, [TPacket pkt1]), 
-				  TFunction(field, [TPacket pkt2]))) fields
+let equals (fields:string list) (pkt1:zVar) (pkt2:zVar) : zAtom list = 
+  List.map (fun field -> ZEquals (TFunction(field, [TVar pkt1]), 
+				  TFunction(field, [TVar pkt2]))) fields
 
-let action_forwards (act:action) (pkt1:zPacket) (pkt2:zPacket) : zAtom list = 
+let action_forwards (act:action) (pkt1:zVar) (pkt2:zVar) : zAtom list = 
   match act with 
   | To pId ->
       equals [ "Switch"; "DlSrc"; "DlDst" ] pkt1 pkt2 @ 
-      [ZEquals (TFunction ("InPort", [TPacket pkt2]), TInt (Int64.of_int pId))]
+      [ZEquals (TFunction ("InPort", [TVar pkt2]), TInt (Int64.of_int pId))]
   | ToAll ->
     equals [ "Switch"; "DlSrc"; "DlDst" ] pkt1 pkt2 @
-      [ ZNot (ZEquals (TFunction ("InPort", [TPacket pkt1]), 
-		       TFunction ("InPort", [TPacket pkt2])))]
+      [ ZNot (ZEquals (TFunction ("InPort", [TVar pkt1]), 
+		       TFunction ("InPort", [TVar pkt2])))]
   | GetPacket gph ->
     [ZFalse]
 
-let topology_forwards (Topology topo:topology) (rel:zVar) (pkt1:zPacket) (pkt2:zPacket) : zRule list = 
+let topology_forwards (Topology topo:topology) (rel:zVar) (pkt1:zVar) (pkt2:zVar) : zRule list = 
   let eq = equals ["DlSrc"; "DlDst"] pkt1 pkt2 in 
   List.map 
     (fun (Link(s1, p1), Link(s2, p2)) ->   
       let body = 
 	eq @ 
-	  [ ZEquals (TFunction("Switch",[TPacket pkt1]), TInt s1)
-	  ; ZEquals (TFunction("InPort",[TPacket pkt1]), TInt (Int64.of_int p1))
-	  ; ZEquals (TFunction("Switch",[TPacket pkt2]), TInt s2)
-	  ; ZEquals (TFunction("InPort",[TPacket pkt2]), TInt (Int64.of_int p2)) ] in 
+	  [ ZEquals (TFunction("Switch",[TVar pkt1]), TInt s1)
+	  ; ZEquals (TFunction("InPort",[TVar pkt1]), TInt (Int64.of_int p1))
+	  ; ZEquals (TFunction("Switch",[TVar pkt2]), TInt s2)
+	  ; ZEquals (TFunction("InPort",[TVar pkt2]), TInt (Int64.of_int p2)) ] in 
       ZRule(rel,[pkt1;pkt2], body))
     topo  
 
-let rec policy_forwards (pol:policy) (rel:zVar) (pkt1:zPacket) (pkt2:zPacket) : zRule list = 
+let rec policy_forwards (pol:policy) (rel:zVar) (pkt1:zVar) (pkt2:zVar) : zRule list = 
   match pol with
   | Pol (pred, actions) ->
     let pred_atom, pred_rules = encode_predicate pred pkt1 in 
@@ -98,10 +98,10 @@ let forwards (pol:policy) (topo:topology) : zVar * zRule list =
   let policy_rules = policy_forwards pol p pkt1 pkt2 in 
   let topology_rules = topology_forwards topo t pkt1 pkt2 in 
   let forwards_rules = 
-    [ ZRule(f,[pkt1;pkt2],[ZRelation(p,[TPacket pkt1; TPacket pkt2])])
-    ; ZRule(f,[pkt1;pkt2],[ ZRelation(p,[TPacket pkt1; TPacket pkt2])
-			  ; ZRelation(t,[TPacket pkt1; TPacket pkt2])
-			  ; ZRelation(f,[TPacket pkt1; TPacket pkt2])]) ] in 
+    [ ZRule(f,[pkt1;pkt2],[ZRelation(p,[TVar pkt1; TVar pkt2])])
+    ; ZRule(f,[pkt1;pkt2],[ ZRelation(p,[TVar pkt1; TVar pkt2])
+			  ; ZRelation(t,[TVar pkt1; TVar pkt2])
+			  ; ZRelation(f,[TVar pkt1; TVar pkt2])]) ] in 
   (f, policy_rules @ topology_rules @ forwards_rules)
 
 (* temporary front-end for verification stuff *)
@@ -124,10 +124,10 @@ let () =
   let program = 
     ZProgram
       (ZRule (query, [],
-	      [ ZEquals (TFunction ("Switch", [TPacket pkt1]), TInt s1)
-	      ; ZEquals (TFunction ("InPort", [TPacket pkt1]), TInt p1)
-	      ; ZEquals (TFunction ("Switch", [TPacket pkt2]), TInt s3)
-	      ; ZEquals (TFunction ("InPort", [TPacket pkt2]), TInt p2)
-	      ; ZRelation (fwds, [TPacket pkt1; TPacket pkt2])]) :: rules, 
+	      [ ZEquals (TFunction ("Switch", [TVar pkt1]), TInt s1)
+	      ; ZEquals (TFunction ("InPort", [TVar pkt1]), TInt p1)
+	      ; ZEquals (TFunction ("Switch", [TVar pkt2]), TInt s3)
+	      ; ZEquals (TFunction ("InPort", [TVar pkt2]), TInt p2)
+	      ; ZRelation (fwds, [TVar pkt1; TVar pkt2])]) :: rules, 
        query) in 
   Printf.printf "%s\n" (solve program)

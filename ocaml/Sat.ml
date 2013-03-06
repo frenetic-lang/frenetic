@@ -1,5 +1,6 @@
+(* Switch, Port, DlDst, DlSrc *)
 type zPacket = 
-  string
+  ZPacket of Int64.t * int * Int64.t * Int64.t
 
 type zVar = 
   string
@@ -27,22 +28,18 @@ type zRule =
 | ZRule of zVar * zVar list * zAtom list
 
 type zDeclaration = 
-| ZDeclare of zVar * zSort 
+| ZVarDeclare of zVar * zSort
+| ZSortDeclare of zVar * (zVar * (zVar * zSort) list) list 
+| ZFunDeclare of zVar * zVar * zSort * zSort * string
 
 type zProgram = 
 | ZProgram of zRule list * zVar
     
 let init_decls : zDeclaration list = 
-  [ ZDeclare("DlSrc", SFunction(SPacket,SInt))
-  ; ZDeclare("DlDst", SFunction(SPacket,SInt))
-  ; ZDeclare("SrcIP", SFunction(SPacket,SInt))
-  ; ZDeclare("DstIP", SFunction(SPacket,SInt))
-  ; ZDeclare("TcpSrcPort", SFunction(SPacket,SInt))
-  ; ZDeclare("TcpDstPort", SFunction(SPacket,SInt))
-  ; ZDeclare("InPort", SFunction(SPacket,SInt))
-  ; ZDeclare("Switch", SFunction(SPacket,SInt))
-  ; ZDeclare("Forwards", SRelation([SPacket; SPacket])) ]
-
+  [ ZSortDeclare("Packet", [("packet", [ ("Switch", SInt)
+				       ; ("InPort", SInt)
+				       ; ("DlSrc", SInt)
+				       ; ("DlDst", SInt) ])])]
 (* Variables *)
 let fresh_cell = ref []
 
@@ -54,7 +51,7 @@ let fresh sort =
     | SInt -> Printf.sprintf "_n%d" n
     | SFunction _ -> Printf.sprintf "_f%d" n
     | SRelation _ -> Printf.sprintf "_R%d" n in 
-  fresh_cell := ZDeclare(x,sort)::l;
+  fresh_cell := ZVarDeclare(x,sort)::l;
   x
 
 (* Serialization *)
@@ -63,6 +60,9 @@ let intercalate f s l = match l with
     ""
   | h::t -> 
     List.fold_right (fun x acc -> acc ^ s ^ f x) t (f h)
+
+let serialize_packet (ZPacket (sw, pt, src, dst)) =
+  Printf.sprintf "(Packet %s %d %s %s)" (Int64.to_string sw) pt (Int64.to_string src) (Int64.to_string dst)
 
 let rec serialize_sort sort = match sort with 
   | SPacket -> 
@@ -77,7 +77,7 @@ let rec serialize_sort sort = match sort with
     
 let rec serialize_term term = match term with
   | TVar v -> v
-  | TPacket pkt -> pkt
+  | TPacket pkt -> serialize_packet pkt
   | TInt n -> 
     Printf.sprintf "%s" (Int64.to_string n)
   | TFunction (f, terms) -> 
@@ -109,22 +109,30 @@ let serialize_rule (ZRule (rel, vars, atoms)) =
   Printf.sprintf "(rule (=> %s (%s %s)))" 
     (serialize_atoms atoms) rel (intercalate (fun x -> x) " " vars)
 
-let serialize_declaration (ZDeclare (x,sort)) = 
-  let decl = match sort with 
-    | SFunction _ -> "fun"
-    | SRelation _ -> "rel"
-    | _ -> "var" in 
-  Printf.sprintf "(declare-%s %s %s)" decl x (serialize_sort sort)
+let serialize_declaration declare = 
+  match declare with
+    | ZVarDeclare (x, sort) ->
+      let decl = match sort with 
+	| SFunction _ -> "fun"
+	| SRelation _ -> "rel"
+	| _ -> "var" in 
+      Printf.sprintf "(declare-%s %s %s)" decl x (serialize_sort sort)
+    | ZSortDeclare (name, constructorList) ->
+      let serialize_field =  fun (field, sort) -> Printf.sprintf "(%s %s)" field (serialize_sort sort) in
+      let serialize_constructor (name, fields) = 
+	Printf.sprintf "(%s %s)" name (intercalate serialize_field " " fields)
+	in
+      Printf.sprintf "(declare-datatypes () ((%s %s)))" name (intercalate serialize_constructor " " constructorList)
+    | ZFunDeclare (name, var, sort1, sort2, body) ->
+      Printf.sprintf "(define-fun %s ((%s %s)) %s %s)" name var (serialize_sort sort1) (serialize_sort sort2) body
 
-let serialize_program (ZProgram (rules, query)) =
-  let preamble =  "(declare-sort Packet)" in 
+let serialize_program (ZProgram (rules, query)) = 
   let postamble =      
     ":default-relation smt_relation2\n" ^ 
     ":engine datalog\n" ^
     ":print-answer true" in 
   Printf.sprintf 
-    "%s\n%s\n%s\n%s\n(query (%s)\n%s)" 
-    preamble
+    "%s\n%s\n%s\n(query (%s)\n%s)" 
     (intercalate serialize_declaration "\n" init_decls)
     (intercalate serialize_declaration "\n" (!fresh_cell))
     (intercalate serialize_rule "\n" rules) 
