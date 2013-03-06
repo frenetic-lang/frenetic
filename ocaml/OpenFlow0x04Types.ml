@@ -117,17 +117,15 @@ cenum reasonType {
   Action = 1
 } as uint8_t
 
-(*
 type packetIn = {
-  buffer_id : uint32 option;
-  total_len : uint16;
-  reason : reasonType;
-  table_id : tableId;
-  cookie : uint64;
-  ofp_match : oxmMatch;
-  pkt : packet
+  pi_buffer_id : uint32 option;
+  pi_total_len : uint16;
+  pi_reason : reasonType;
+  pi_table_id : tableId;
+  pi_cookie : uint64;
+  pi_ofp_match : oxmMatch;
+  pi_pkt : packet
 }
-*)
 
 type capabilities = {
   flow_stats : bool;
@@ -155,4 +153,4 @@ type message =
   | FeaturesReply of features
   | FlowMod of flowMod
   | GroupMod of groupMod
-  (*| PacketIn of packetIn*)
+  | PacketIn of packetIn
