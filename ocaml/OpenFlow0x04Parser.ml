@@ -534,8 +534,17 @@ module OfpMatch = struct
   let parse (bits : Cstruct.t) : oxmMatch =
     let typ = get_ofp_match_typ bits in
     let length = get_ofp_match_length in
-    (* TODO *)
-    [OxmInPort (1l)]
+    let ret = [] in
+    (* need to cast length from Cstruct.uint16 to int. how to do it? *)
+    let l = ref length in
+    let off = ref 0 in
+    while !l > 0 do
+      let bits = Cstruct.shift bits !off in
+      (*let x = Oxm.parse bits in*)
+      let x = OxmInPort 1l in
+      List.append ret [x]
+    done;
+    ret
 
 end
 
