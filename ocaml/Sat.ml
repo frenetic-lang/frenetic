@@ -123,16 +123,22 @@ let serialize_declaration (ZDeclare (x,sort)) =
   Printf.sprintf "(declare-%s %s %s)" decl x (serialize_sort sort)
 
 let serialize_program (ZProgram (rules, query)) =
+  let pkt = fresh SPacket in 
+  let n = fresh SInt in 
   let preamble =  "(declare-sort Packet)" in 
   let postamble =      
     ":default-relation smt_relation2\n" ^ 
     ":engine datalog\n" ^
     ":print-answer true" in 
   Printf.sprintf 
-    "%s\n%s\n%s\n%s\n(query %s\n%s)" 
+    "%s\n%s\n%s\n%s\n%s\n(query %s\n%s)" 
     preamble
     (intercalate serialize_declaration "\n" init_decls)
     (intercalate serialize_declaration "\n" (!fresh_cell))
+    (* JNF HACK! *)
+    (Printf.sprintf 
+       "(rule (=> true ((Switch %s) %s)))" pkt n
+    )
     (intercalate serialize_rule "\n" rules) 
     query
     postamble
