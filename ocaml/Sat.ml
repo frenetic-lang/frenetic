@@ -92,7 +92,9 @@ let rec serialize_atom atom = match atom with
     Printf.sprintf "(not %s)" (serialize_atom a1)
   | ZEquals (t1, t2) -> 
     Printf.sprintf "(equals %s %s)" (serialize_term t1) (serialize_term t2)
-  | ZRelation (r, terms) -> 
+  | ZRelation(r, []) -> 
+    Printf.sprintf "%s" r
+  | ZRelation(r, terms) -> 
     Printf.sprintf "(%s %s)" r (intercalate serialize_term " " terms)
 
 let serialize_atoms atoms = match atoms with 
@@ -105,9 +107,13 @@ let serialize_atoms atoms = match atoms with
       (fun atom acc -> Printf.sprintf "(and %s %s)" acc (serialize_atom atom))
       rest (serialize_atom atom)
 
-let serialize_rule (ZRule (rel, vars, atoms)) =
-  Printf.sprintf "(rule (=> %s (%s %s)))" 
-    (serialize_atoms atoms) rel (intercalate (fun x -> x) " " vars)
+let serialize_rule rule = match rule with
+  | ZRule(rel, [], atoms) -> 
+    Printf.sprintf "(rule (=> %s %s))" 
+      (serialize_atoms atoms) rel 
+  | ZRule (rel, vars, atoms) -> 
+    Printf.sprintf "(rule (=> %s (%s %s)))" 
+      (serialize_atoms atoms) rel (intercalate (fun x -> x) " " vars)
 
 let serialize_declaration (ZDeclare (x,sort)) = 
   let decl = match sort with 
@@ -123,7 +129,7 @@ let serialize_program (ZProgram (rules, query)) =
     ":engine datalog\n" ^
     ":print-answer true" in 
   Printf.sprintf 
-    "%s\n%s\n%s\n%s\n(query (%s)\n%s)" 
+    "%s\n%s\n%s\n%s\n(query %s\n%s)" 
     preamble
     (intercalate serialize_declaration "\n" init_decls)
     (intercalate serialize_declaration "\n" (!fresh_cell))
