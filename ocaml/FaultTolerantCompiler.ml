@@ -9,25 +9,11 @@ open List
 
 module W = Wildcard
 
-(* Egh. Assuming each action list only has a single port. Otherwise we
-   need to use watch groups instead of a watch port and that's just more
-   messy crap *)
-
-(* let rec watchport acts = match acts with *)
-(*   | NetCoreEval.Forward (modif, MessagesDef.PhysicalPort pid) :: acts -> (Int32.of_int pid) *)
-(*   | _ :: acts -> watchport acts *)
-(*   | _ -> ofpp_any *)
-
 let rec mapi' idx f lst = match lst with
   | elm :: lst -> f idx elm :: mapi' (idx+1) f lst
   | [] -> []
 
 let mapi f lst = mapi' 0 f lst
-
-(* let insert_groups = mapi (fun idx (pat,(a,b)) -> (pat, (Int32.of_int idx, [(0, (watchport a), a); (0, (watchport b), b)]))) *)
-
-let rm_inport = let project ((pat, acts) : Pattern.pattern * actions list) = ({ pat with ptrnInPort = W.WildcardAll }, acts) in
-		      map project
 
 let compile_nc = compile_opt
 
