@@ -26,6 +26,8 @@ sig
   val get_host_port : graph -> a -> b option
   val get_nbrs : graph -> a -> a list
   val has_node : graph -> a -> bool
+  val del_edge : graph -> a -> b -> unit
+  val del_edges : graph -> (a*b) list -> unit
   exception NoPath of string*string
 end
 
@@ -38,6 +40,9 @@ module Graph : GRAPH =
 	
     let add_node (graph : graph) (sw : a) = H.add graph sw (H.create 5)
     let add_edge graph sw1 pt1 sw2 pt2 = H.add (H.find graph sw1) pt1 (sw2, pt2)
+    let del_edge graph sw1 pt1 = H.remove (H.find graph sw1) pt1
+    let del_edges graph edges = List.iter (fun (a,b) -> del_edge graph a b) edges
+
     let create () = H.create 5
     let get_nbrs graph sw = 
       try (H.fold (fun pt1 (sw2, pt2) acc -> sw2 :: acc) (H.find graph sw) []) 

@@ -68,5 +68,13 @@ let rec compile_regex pol topo = match pol with
 	  | Some p -> compile1 pred reg topo p))
   | RegPar (pol1, pol2) -> Par (compile_regex pol1 topo, compile_regex pol2 topo)
 
+let get_links pol topo = []
+
 (* TODO: Figure out how to compile regex to a given fault tolerance level *)
 
+let rec compile_regex_ft pol topo k = match pol with
+  | RegPol (pred, reg) -> let pol' = compile_regex pol topo in
+			  if k > 0 then let () = del_edges topo (get_links pol' topo) in
+					(Par (pol', (compile_regex_ft pol topo (k - 1))))
+			  else pol'
+  | RegPar (pol1, pol2) -> Par (compile_regex_ft pol1 topo k, compile_regex_ft pol2 topo k)
