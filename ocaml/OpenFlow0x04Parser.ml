@@ -531,13 +531,11 @@ module OfpMatch = struct
     set_ofp_match_length buf (sizeof_ofp_match + sum (map Oxm.sizeof om)); (* Length of ofp_match (excluding padding) *)
     sizeof_ofp_match + (marshal_fields (Cstruct.shift buf sizeof_ofp_match) om Oxm.marshal)
 
-(*
   let parse (bits : Cstruct.t) : oxmMatch =
     let typ = get_ofp_match_typ bits in
     let length = get_ofp_match_length in
     (* TODO *)
     [OxmInPort (1l)]
-*)
 
 end
 
@@ -670,7 +668,6 @@ module Features = struct
 
 end
 
-(*
 module PacketIn = struct
 
  cstruct ofp_packet_in {
@@ -681,12 +678,15 @@ module PacketIn = struct
    uint64_t cookie
   } as big_endian
 
-  let parse (bits : Cstruct.t)  =
+  let parse (bits : Cstruct.t) : packetIn =
     let bufId = match get_ofp_packet_in_buffer_id bits with
       | -1l -> None
       | n -> Some n in
     let total_len = get_ofp_packet_in_total_len bits in
-    let reason = int_to_reasonType (get_ofp_packet_in_reason bits) in
+    let reason = match int_to_reasonType (get_ofp_packet_in_reason bits) with
+      | Some n -> n
+      | None -> 
+        raise (Unparsable (sprintf "malformed packet in packet_in")) in
     let table_id = get_ofp_packet_in_table_id bits in
     let cookie = get_ofp_packet_in_cookie bits in
     let ofp_match_bits = Cstruct.shift bits sizeof_ofp_packet_in in
@@ -697,17 +697,16 @@ module PacketIn = struct
       | None -> 
         raise (Unparsable (sprintf "malformed packet in packet_in")) in
     let _ = eprintf "[PacketIn] okay \n%!" in 
-    { buffer_id = bufId;
-      total_len = total_len;
-      reason = reason;
-      table_id = table_id;
-      cookie = cookie;
-      ofp_match = ofp_match;
-      pkt = pkt
+    { pi_buffer_id = bufId;
+      pi_total_len = total_len;
+      pi_reason = reason;
+      pi_table_id = table_id;
+      pi_cookie = cookie;
+      pi_ofp_match = ofp_match;
+      pi_pkt = pkt
     }
 
 end
-*)
 
 module Message = struct
 
@@ -719,6 +718,7 @@ module Message = struct
     | FeaturesReply _ -> FEATURES_RESP
     | FlowMod _ -> FLOW_MOD
     | GroupMod _ -> GROUP_MOD
+    | PacketIn _ -> PACKET_IN
 
   let sizeof (msg : message) : int = match msg with
     | Hello -> sizeof_ofp_header
@@ -728,6 +728,7 @@ module Message = struct
     | FeaturesReply _ -> sizeof_ofp_header + sizeof_ofp_switch_features
     | FlowMod fm -> sizeof_ofp_header + FlowMod.sizeof fm
     | GroupMod gm -> sizeof_ofp_header + GroupMod.sizeof gm
+    | _ -> failwith "unknowns"
 
   let marshal (buf : Cstruct.t) (msg : message) : int =
     let buf2 = (Cstruct.shift buf sizeof_ofp_header) in
@@ -766,7 +767,7 @@ module Message = struct
         | Some HELLO -> Hello
         | Some ECHO_RESP -> EchoReply (Cstruct.to_string bits)
         | Some FEATURES_RESP -> FeaturesReply (Features.parse bits)
-        (* | Some PACKET_IN -> PacketIn (PacketIn.parse bits) *)
+        | Some PACKET_IN -> PacketIn (PacketIn.parse bits)
         | _ -> raise (Unparsable "unrecognized message code")
 
 end
