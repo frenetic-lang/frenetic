@@ -40,7 +40,7 @@ let init_decls : zDeclaration list =
   ; ZDeclare("TcpSrcPort", SFunction(SPacket,SInt))
   ; ZDeclare("TcpDstPort", SFunction(SPacket,SInt))
   ; ZDeclare("InPort", SFunction(SPacket,SInt))
-  ; ZDeclare("Switch", SFunction(SPacket,SInt))
+  ; ZDeclare("Switch", SRelation [SPacket; SInt])
   ; ZDeclare("Forwards", SRelation([SPacket; SPacket])) ]
 
 (* Variables *)
@@ -137,7 +137,7 @@ let serialize_program (ZProgram (rules, query)) =
     (intercalate serialize_declaration "\n" (!fresh_cell))
     (* JNF HACK! *)
     (Printf.sprintf 
-       "(rule (=> true ((Switch %s) %s)))" pkt n
+       "(rule (=> true (Switch %s %s)))" pkt n
     )
     (intercalate serialize_rule "\n" rules) 
     query
