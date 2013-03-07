@@ -61,8 +61,10 @@ let intercalate f s l = match l with
   | h::t -> 
     List.fold_left (fun acc x -> acc ^ s ^ f x) (f h) t
 
-let serialize_packet (ZPacket (sw, pt, src, dst)) =
-  Printf.sprintf "(Packet %s %d %s %s)" (Int64.to_string sw) pt (Int64.to_string src) (Int64.to_string dst)
+let serialize_packet (ZPacket (switch, port, src, dst)) =
+  Printf.sprintf "(Packet %s %d %s %s)" 
+    (Int64.to_string switch) port 
+    (Int64.to_string src) (Int64.to_string dst)
 
 let rec serialize_sort sort = match sort with 
   | SPacket -> 
@@ -124,13 +126,15 @@ let serialize_declaration declare =
 	| _ -> "var" in 
       Printf.sprintf "(declare-%s %s %s)" decl x (serialize_sort sort)
     | ZSortDeclare (name, constructorList) ->
-      let serialize_field =  fun (field, sort) -> Printf.sprintf "(%s %s)" field (serialize_sort sort) in
+      let serialize_field (field,sort) = 
+	Printf.sprintf "(%s %s)" field (serialize_sort sort) in
       let serialize_constructor (name, fields) = 
-	Printf.sprintf "(%s %s)" name (intercalate serialize_field " " fields)
-	in
-      Printf.sprintf "(declare-datatypes () ((%s %s)))" name (intercalate serialize_constructor " " constructorList)
+	Printf.sprintf "(%s %s)" name (intercalate serialize_field " " fields) in 
+      Printf.sprintf "(declare-datatypes () ((%s %s)))" 
+	name (intercalate serialize_constructor " " constructorList)
     | ZFunDeclare (name, var, sort1, sort2, body) ->
-      Printf.sprintf "(define-fun %s ((%s %s)) %s %s)" name var (serialize_sort sort1) (serialize_sort sort2) body
+      Printf.sprintf "(define-fun %s ((%s %s)) %s %s)" 
+	name var (serialize_sort sort1) (serialize_sort sort2) body
 
 let serialize_program (ZProgram (rules, query)) = 
   let postamble =      
