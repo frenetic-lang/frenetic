@@ -56,12 +56,11 @@ let equals (fields:string list) (pkt1:zVar) (pkt2:zVar) : zAtom list =
 let action_forwards (act:action) (pkt1:zVar) (pkt2:zVar) : zAtom list = 
   match act with 
   | To pId ->
-      equals [ "Switch"; "DlSrc"; "DlDst" ] pkt1 pkt2 @ 
-      [ZEquals (TFunction ("InPort", [TVar pkt2]), TInt (Int64.of_int pId))]
+    equals [ "Switch"; "DlSrc"; "DlDst" ] pkt1 pkt2 @ 
+    [ZEquals (packet_field "InPort" pkt2, TInt (Int64.of_int pId))]
   | ToAll ->
     equals [ "Switch"; "DlSrc"; "DlDst" ] pkt1 pkt2 @
-      [ ZNot (ZEquals (TFunction ("InPort", [TVar pkt1]), 
-		       TFunction ("InPort", [TVar pkt2])))]
+    [ZNot (equal_field "InPort" pkt1 pkt2) ]
   | GetPacket gph ->
     [ZFalse]
 
@@ -71,10 +70,10 @@ let topology_forwards (Topology topo:topology) (rel:zVar) (pkt1:zVar) (pkt2:zVar
     (fun (Link(s1, p1), Link(s2, p2)) ->   
       let body = 
 	eq @ 
-	  [ ZEquals (TFunction("Switch",[TVar pkt1]), TInt s1)
-	  ; ZEquals (TFunction("InPort",[TVar pkt1]), TInt (Int64.of_int p1))
-	  ; ZEquals (TFunction("Switch",[TVar pkt2]), TInt s2)
-	  ; ZEquals (TFunction("InPort",[TVar pkt2]), TInt (Int64.of_int p2)) ] in 
+	  [ ZEquals (packet_field "Switch" pkt1, TInt s1)
+	  ; ZEquals (packet_field "InPort" pkt1, TInt (Int64.of_int p1))
+	  ; ZEquals (packet_field "Switch" pkt2, TInt s2)
+	  ; ZEquals (packet_field "InPort" pkt2, TInt (Int64.of_int p2)) ] in 
       ZRule(rel,[pkt1;pkt2], body))
     topo  
 
@@ -90,9 +89,14 @@ let rec policy_forwards (pol:policy) (rel:zVar) (pkt1:zVar) (pkt2:zVar) : zRule 
 	acc')
       pred_rules actions 
   | Par (pol1, pol2) ->
-    policy_forwards pol1 rel pkt1 pkt2 @ policy_forwards pol2 rel pkt1 pkt2 
-  | _ -> 
-    assert false
+    policy_forwards pol1 rel pkt1 pkt2 @ 
+    policy_forwards pol2 rel pkt1 pkt2 
+  | Restrict(pol1,pred2) -> 
+    let pred_atom, pred_rules = encode_predicate pred2 pkt1 in 
+    let rel1 = fresh (SRelation [SPacket;SPacket]) in 
+    let rules1 = policy_forwards pol1 rel1 pkt1 pkt2 in 
+    let rule = ZRule(rel,[pkt1;pkt2], [pred_atom; ZRelation(rel1,[TVar pkt1;TVar pkt2])]) in 
+    rule::pred_rules @ rules1
 
 let forwards (pol:policy) (topo:topology) : zVar * zRule list = 
   let p = fresh (SRelation [SPacket; SPacket]) in 
