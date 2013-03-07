@@ -31,10 +31,12 @@ type bufferId = uint32
 type oxm = 
   | OxmInPort of portId
   | OxmInPhyPort of portId
+  | OxmMetadata of uint64 mask
   | OxmEthType of uint16
   | OxmEthDst of uint48 mask
   | OxmEthSrc of uint48 mask
   | OxmVlanVId of uint12 mask
+  | OxmTunnelId of uint64 mask
 
 (**  Hard-codes OFPMT_OXM as the match type, since OFPMT_STANDARD is deprecated.
 *)

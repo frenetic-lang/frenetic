@@ -15,65 +15,69 @@ let rec encode_predicate (pred:predicate) (pkt:zVar) : zAtom * zRule list =
     let atom1, rules1 = encode_predicate pred1 pkt in 
     let atom2, rules2 = encode_predicate pred1 pkt in 
     let rel = fresh (SRelation [SPacket]) in 
-    let atom = ZRelation(rel,[TPacket pkt]) in 
+    let atom = ZRelation(rel,[TVar pkt]) in 
     let rules = ZRule(rel,[pkt],[atom1; atom2])::rules1@rules2 in 
     (atom, rules)
   | Or(pred1, pred2) -> 
     let atom1, rules1 = encode_predicate pred1 pkt in 
     let atom2, rules2 = encode_predicate pred1 pkt in 
     let rel = fresh (SRelation [SPacket]) in 
-    let atom = ZRelation(rel, [TPacket pkt]) in
+    let atom = ZRelation(rel, [TVar pkt]) in
     let rule1 = ZRule(rel,[pkt],[atom1]) in 
     let rule2 = ZRule(rel,[pkt],[atom2]) in 
     let rules = rule1::rule2::rules1@rules2 in 
     (atom, rules)
   | DlSrc mac -> 
-    (ZEquals (TFunction("DlSrc", [TPacket pkt]), TInt mac),[])
+    (ZEquals (TFunction("DlSrc", [TVar pkt]), TInt mac),[])
   | DlDst mac -> 
-    (ZEquals (TFunction("DlDst", [TPacket pkt]), TInt mac),[])
+    (ZEquals (TFunction("DlDst", [TVar pkt]), TInt mac),[])
   | SrcIP ip -> 
-    (ZEquals (TFunction("DstIP", [TPacket pkt]), TInt (Int64.of_int32 ip)),[])
+    (ZEquals (TFunction("DstIP", [TVar pkt]), TInt (Int64.of_int32 ip)),[])
   | DstIP ip -> 
-    (ZEquals (TFunction("SrcIP", [TPacket pkt]), TInt (Int64.of_int32 ip)),[])
+    (ZEquals (TFunction("SrcIP", [TVar pkt]), TInt (Int64.of_int32 ip)),[])
   | TcpSrcPort port -> 
-    (ZEquals (TFunction("TcpSrcPort", [TPacket pkt]), TInt (Int64.of_int port)),[])
+    (ZEquals (TFunction("TcpSrcPort", [TVar pkt]), TInt (Int64.of_int port)),[])
   | TcpDstPort port -> 
-    (ZEquals (TFunction("TcpDstPort", [TPacket pkt]), TInt (Int64.of_int port)),[])
+    (ZEquals (TFunction("TcpDstPort", [TVar pkt]), TInt (Int64.of_int port)),[])
   | InPort portId -> 
-    (ZEquals (TFunction("InPort", [TPacket pkt]), TInt (Int64.of_int portId)), [])
+    (ZEquals (TFunction("InPort", [TVar pkt]), TInt (Int64.of_int portId)), [])
   | Switch switchId -> 
-    (ZEquals (TFunction("Switch", [TPacket pkt]), TInt switchId), [])
+    (ZEquals (TFunction("Switch", [TVar pkt]), TInt switchId), [])
       
-let equals (fields:string list) (pkt1:zPacket) (pkt2:zPacket) : zAtom list = 
-  List.map (fun field -> ZEquals (TFunction(field, [TPacket pkt1]), 
-				  TFunction(field, [TPacket pkt2]))) fields
+let packet_field (field:string) (pkt:zVar) : zTerm = 
+  TFunction(field, [TVar pkt])
 
-let action_forwards (act:action) (pkt1:zPacket) (pkt2:zPacket) : zAtom list = 
+let equal_field (field:string) (pkt1:zVar) (pkt2:zVar) : zAtom = 
+  ZEquals (packet_field field pkt1, packet_field field pkt2)
+
+let equals (fields:string list) (pkt1:zVar) (pkt2:zVar) : zAtom list = 
+  List.map (fun field -> equal_field field pkt1 pkt2) fields 
+
+let action_forwards (act:action) (pkt1:zVar) (pkt2:zVar) : zAtom list = 
   match act with 
   | To pId ->
-      equals [ "Switch"; "DlSrc"; "DlDst" ] pkt1 pkt2 @ 
-      [ZEquals (TFunction ("InPort", [TPacket pkt2]), TInt (Int64.of_int pId))]
+    equals [ "Switch"; "DlSrc"; "DlDst" ] pkt1 pkt2 @ 
+    [ZEquals (packet_field "InPort" pkt2, TInt (Int64.of_int pId))]
   | ToAll ->
     equals [ "Switch"; "DlSrc"; "DlDst" ] pkt1 pkt2 @
-      [ ZNot (ZEquals (TFunction ("InPort", [TPacket pkt1]), 
-		       TFunction ("InPort", [TPacket pkt2])))]
+    [ZNot (equal_field "InPort" pkt1 pkt2) ]
   | GetPacket gph ->
     [ZFalse]
 
-let topology_forwards (Topology topo:topology) (rel:zVar) (pkt1:zPacket) (pkt2:zPacket) : zRule list = 
+let topology_forwards (Topology topo:topology) (rel:zVar) (pkt1:zVar) (pkt2:zVar) : zRule list = 
   let eq = equals ["DlSrc"; "DlDst"] pkt1 pkt2 in 
   List.map 
     (fun (Link(s1, p1), Link(s2, p2)) ->   
       let body = 
 	eq @ 
-	  [ ZEquals (TFunction("Switch",[TPacket pkt1]), TInt s1)
-	  ; ZEquals (TFunction("InPort",[TPacket pkt1]), TInt (Int64.of_int p1))
-	  ; ZEquals (TFunction("Switch",[TPacket pkt2]), TInt s2)
-	  ; ZEquals (TFunction("InPort",[TPacket pkt2]), TInt (Int64.of_int p2)) ] in 
+	  [ ZEquals (packet_field "Switch" pkt1, TInt s1)
+	  ; ZEquals (packet_field "InPort" pkt1, TInt (Int64.of_int p1))
+	  ; ZEquals (packet_field "Switch" pkt2, TInt s2)
+	  ; ZEquals (packet_field "InPort" pkt2, TInt (Int64.of_int p2)) ] in 
       ZRule(rel,[pkt1;pkt2], body))
     topo  
 
-let rec policy_forwards (pol:policy) (rel:zVar) (pkt1:zPacket) (pkt2:zPacket) : zRule list = 
+let rec policy_forwards (pol:policy) (rel:zVar) (pkt1:zVar) (pkt2:zVar) : zRule list = 
   match pol with
   | Pol (pred, actions) ->
     let pred_atom, pred_rules = encode_predicate pred pkt1 in 
@@ -85,9 +89,14 @@ let rec policy_forwards (pol:policy) (rel:zVar) (pkt1:zPacket) (pkt2:zPacket) : 
 	acc')
       pred_rules actions 
   | Par (pol1, pol2) ->
-    policy_forwards pol1 rel pkt1 pkt2 @ policy_forwards pol2 rel pkt1 pkt2 
-  | _ -> 
-    assert false
+    policy_forwards pol1 rel pkt1 pkt2 @ 
+    policy_forwards pol2 rel pkt1 pkt2 
+  | Restrict(pol1,pred2) -> 
+    let pred_atom, pred_rules = encode_predicate pred2 pkt1 in 
+    let rel1 = fresh (SRelation [SPacket;SPacket]) in 
+    let rules1 = policy_forwards pol1 rel1 pkt1 pkt2 in 
+    let rule = ZRule(rel,[pkt1;pkt2], [pred_atom; ZRelation(rel1,[TVar pkt1;TVar pkt2])]) in 
+    rule::pred_rules @ rules1
 
 let forwards (pol:policy) (topo:topology) : zVar * zRule list = 
   let p = fresh (SRelation [SPacket; SPacket]) in 
@@ -95,13 +104,15 @@ let forwards (pol:policy) (topo:topology) : zVar * zRule list =
   let f = fresh (SRelation [SPacket; SPacket]) in 
   let pkt1 = fresh SPacket in 
   let pkt2 = fresh SPacket in 
+  let pkt3 = fresh SPacket in
+  let pkt4 = fresh SPacket in
   let policy_rules = policy_forwards pol p pkt1 pkt2 in 
   let topology_rules = topology_forwards topo t pkt1 pkt2 in 
   let forwards_rules = 
-    [ ZRule(f,[pkt1;pkt2],[ZRelation(p,[TPacket pkt1; TPacket pkt2])])
-    ; ZRule(f,[pkt1;pkt2],[ ZRelation(p,[TPacket pkt1; TPacket pkt2])
-			  ; ZRelation(t,[TPacket pkt1; TPacket pkt2])
-			  ; ZRelation(f,[TPacket pkt1; TPacket pkt2])]) ] in 
+    [ ZRule(f,[pkt1;pkt2],[ZRelation(p,[TVar pkt1; TVar pkt2])])
+    ; ZRule(f,[pkt1;pkt2],[ ZRelation(p,[TVar pkt1; TVar pkt3])
+			  ; ZRelation(t,[TVar pkt3; TVar pkt4])
+			  ; ZRelation(f,[TVar pkt4; TVar pkt2])]) ] in 
   (f, policy_rules @ topology_rules @ forwards_rules)
 
 (* temporary front-end for verification stuff *)
@@ -124,10 +135,10 @@ let () =
   let program = 
     ZProgram
       (ZRule (query, [],
-	      [ ZEquals (TFunction ("Switch", [TPacket pkt1]), TInt s1)
-	      ; ZEquals (TFunction ("InPort", [TPacket pkt1]), TInt p1)
-	      ; ZEquals (TFunction ("Switch", [TPacket pkt2]), TInt s3)
-	      ; ZEquals (TFunction ("InPort", [TPacket pkt2]), TInt p2)
-	      ; ZRelation (fwds, [TPacket pkt1; TPacket pkt2])]) :: rules, 
+	      [ ZEquals (TFunction ("Switch", [TVar pkt1]), TInt s1)
+	      ; ZEquals (TFunction ("InPort", [TVar pkt1]), TInt p1)
+	      ; ZEquals (TFunction ("Switch", [TVar pkt2]), TInt s3)
+	      ; ZEquals (TFunction ("InPort", [TVar pkt2]), TInt p2)
+	      ; ZRelation (fwds, [TVar pkt1; TVar pkt2])]) :: rules, 
        query) in 
   Printf.printf "%s\n" (solve program)

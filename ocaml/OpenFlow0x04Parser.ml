@@ -328,6 +328,10 @@ cstruct ofp_uint48 {
   uint16_t low
 } as big_endian
 
+cstruct ofp_uint64 {
+  uint64_t value
+} as big_endian
+
 let set_ofp_uint48_value (buf : Cstruct.t) (value : uint48) =
   let high = Int32.of_int ((Int64.to_int value) lsr 16) in
     let low = ((Int64.to_int value) land 0xffff) in
@@ -426,6 +430,47 @@ module Oxm = struct
                     set_ofp_uint16_value buf3 mask;
                     sizeof_ofp_oxm + l
               end
+
+  let parse (bits : Cstruct.t) : oxm * Cstruct.t =
+    let c = match int_to_ofp_oxm_class (get_ofp_oxm_oxm_class bits) with
+      | Some n -> n
+      | None -> 
+        raise (Unparsable (sprintf "malformed packet in oxm")) in
+    (* TODO: assert c is OFPXMC_OPENFLOW_BASIC *)
+    let value = get_ofp_oxm_oxm_field_and_hashmask bits in
+    let f = match int_to_oxm_ofb_match_fields (value lsr 1) with
+      | Some n -> n
+      | None -> 
+        raise (Unparsable (sprintf "malformed packet in oxm")) in
+    let hm = value land 0x1 in
+    let oxm_length = get_ofp_oxm_oxm_length bits in
+    let bits = Cstruct.shift bits sizeof_ofp_oxm in
+    let bits2 = Cstruct.shift bits oxm_length in
+    match f with
+      | OFPXMT_OFB_IN_PORT ->
+        let pid = get_ofp_uint32_value bits in
+        (OxmInPort pid, bits2)
+      | OFPXMT_OFB_IN_PHY_PORT ->
+        let pid = get_ofp_uint32_value bits in
+        (OxmInPhyPort pid, bits2)
+      | OFPXMT_OFB_METADATA ->
+        let value = get_ofp_uint64_value bits in
+        if hm = 1 then
+          let bits = Cstruct.shift bits 8 in
+          let mask = get_ofp_uint64_value bits in
+          (OxmMetadata {value = value; mask = (Some mask)}, bits2)
+        else
+          (OxmMetadata {value = value; mask = None}, bits2)
+      | OFPXMT_OFB_TUNNEL_ID ->
+        let value = get_ofp_uint64_value bits in
+        if hm = 1 then
+          let bits = Cstruct.shift bits 8 in
+          let mask = get_ofp_uint64_value bits in
+          (OxmTunnelId {value = value; mask = (Some mask)}, bits2)
+        else
+          (OxmTunnelId {value = value; mask = None}, bits2)
+      | _ -> 
+        raise (Unparsable (sprintf "malformed packet in oxm"))
 
 end
 
@@ -531,20 +576,17 @@ module OfpMatch = struct
     set_ofp_match_length buf (sizeof_ofp_match + sum (map Oxm.sizeof om)); (* Length of ofp_match (excluding padding) *)
     sizeof_ofp_match + (marshal_fields (Cstruct.shift buf sizeof_ofp_match) om Oxm.marshal)
 
-  let parse (bits : Cstruct.t) : oxmMatch =
+  let rec parse_fields (bits : Cstruct.t) : oxmMatch * Cstruct.t =
+    if Cstruct.len bits <= sizeof_ofp_oxm then ([], bits)
+    else let field, bits2 = Oxm.parse bits in
+    let fields, bits3 = parse_fields bits2 in
+    (List.append [field] fields, bits3)
+
+  let parse (bits : Cstruct.t) : oxmMatch * Cstruct.t =
     let typ = get_ofp_match_typ bits in
     let length = get_ofp_match_length bits in
-    let ret = [] in
-    (* need to cast length from Cstruct.uint16 to int. how to do it? *)
-    let l = ref length in
-    let off = ref 0 in
-    while !l > 0 do
-      let bits = Cstruct.shift bits !off in
-      (*let x = Oxm.parse bits in*)
-      let x = OxmInPort 1l in
-      List.append ret [x]
-    done;
-    ret
+    let bits = Cstruct.shift bits sizeof_ofp_match in
+    parse_fields bits
 
 end
 
@@ -699,8 +741,8 @@ module PacketIn = struct
     let table_id = get_ofp_packet_in_table_id bits in
     let cookie = get_ofp_packet_in_cookie bits in
     let ofp_match_bits = Cstruct.shift bits sizeof_ofp_packet_in in
-    let ofp_match = OfpMatch.parse ofp_match_bits in
-    let pkt_bits = Cstruct.shift ofp_match_bits ((OfpMatch.sizeof ofp_match) + 2 (* pad bytes *)) in
+    let ofp_match, pkt_bits = OfpMatch.parse ofp_match_bits in
+    let pkt_bits = Cstruct.shift pkt_bits 2 in (* pad bytes *)
     let pkt = match PacketParser.parse_packet pkt_bits with 
       | Some pkt -> pkt 
       | None -> 
