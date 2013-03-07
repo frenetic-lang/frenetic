@@ -59,7 +59,7 @@ let intercalate f s l = match l with
   | [] -> 
     ""
   | h::t -> 
-    List.fold_right (fun x acc -> acc ^ s ^ f x) t (f h)
+    List.fold_left (fun acc x -> acc ^ s ^ f x) (f h) t
 
 let serialize_packet (ZPacket (sw, pt, src, dst)) =
   Printf.sprintf "(Packet %s %d %s %s)" (Int64.to_string sw) pt (Int64.to_string src) (Int64.to_string dst)
