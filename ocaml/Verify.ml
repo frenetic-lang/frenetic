@@ -95,13 +95,15 @@ let forwards (pol:policy) (topo:topology) : zVar * zRule list =
   let f = fresh (SRelation [SPacket; SPacket]) in 
   let pkt1 = fresh SPacket in 
   let pkt2 = fresh SPacket in 
+  let pkt3 = fresh SPacket in
+  let pkt4 = fresh SPacket in
   let policy_rules = policy_forwards pol p pkt1 pkt2 in 
   let topology_rules = topology_forwards topo t pkt1 pkt2 in 
   let forwards_rules = 
     [ ZRule(f,[pkt1;pkt2],[ZRelation(p,[TVar pkt1; TVar pkt2])])
-    ; ZRule(f,[pkt1;pkt2],[ ZRelation(p,[TVar pkt1; TVar pkt2])
-			  ; ZRelation(t,[TVar pkt1; TVar pkt2])
-			  ; ZRelation(f,[TVar pkt1; TVar pkt2])]) ] in 
+    ; ZRule(f,[pkt1;pkt2],[ ZRelation(p,[TVar pkt1; TVar pkt3])
+			  ; ZRelation(t,[TVar pkt3; TVar pkt4])
+			  ; ZRelation(f,[TVar pkt4; TVar pkt2])]) ] in 
   (f, policy_rules @ topology_rules @ forwards_rules)
 
 (* temporary front-end for verification stuff *)

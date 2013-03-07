@@ -135,10 +135,10 @@ let serialize_declaration declare =
 let serialize_program (ZProgram (rules, query)) = 
   let postamble =      
     ":default-relation smt_relation2\n" ^ 
-    ":engine datalog\n" ^
+    ":engine pdr\n" ^
     ":print-answer true" in 
   Printf.sprintf 
-    "%s\n%s\n%s\n(query (%s)\n%s)" 
+    "%s\n%s\n%s\n(query %s\n%s)" 
     (intercalate serialize_declaration "\n" init_decls)
     (intercalate serialize_declaration "\n" (!fresh_cell))
     (intercalate serialize_rule "\n" rules) 
