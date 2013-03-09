@@ -315,6 +315,10 @@ cstruct ofp_oxm {
   uint8_t oxm_length
 } as big_endian
 
+cstruct ofp_uint8 {
+  uint8_t value
+} as big_endian
+
 cstruct ofp_uint16 {
   uint16_t value
 } as big_endian
@@ -349,6 +353,11 @@ let pad_to_64bits (n : int) : int =
     n + (8 - (n land 0x7))
   else
     n
+
+let rec pad_with_zeros (buf : Cstruct.t) (pad : int) : int =
+  if pad = 0 then 0
+  else begin set_ofp_uint8_value buf 0;
+    1 + pad_with_zeros (Cstruct.shift buf 1) (pad - 1) end
 
 module Oxm = struct
 
@@ -479,41 +488,51 @@ module Action = struct
   let sizeof (act : action) : int = match act with
     | Output _ -> sizeof_ofp_action_output
     | Group _ -> sizeof_ofp_action_group
-    | SetField oxm -> sizeof_ofp_action_set_field + Oxm.sizeof oxm
+    | SetField oxm -> pad_to_64bits (sizeof_ofp_action_set_field + Oxm.sizeof oxm)
 
 
-  let marshal (buf : Cstruct.t) (act : action) : int = match act with
-    | Output port ->
-      set_ofp_action_output_typ buf 0; (* OFPAT_OUTPUT *)
-      set_ofp_action_output_len buf (sizeof act);
-      set_ofp_action_output_port buf
-        (match port with
-          | PhysicalPort pid -> pid
-          | InPort -> Int32.of_int (Int64.to_int 0xfffffff8L)         (* OFPP_IN_PORT *)
-          | Flood -> Int32.of_int (Int64.to_int 0xfffffffbL)          (* OFPP_FLOOD *)
-          | AllPorts -> Int32.of_int (Int64.to_int 0xfffffffcL)       (* OFPP_ALL *)
-          | Controller _ -> Int32.of_int (Int64.to_int 0xfffffffdL)   (* OFPP_CONTROLLER *)
-          | Any -> Int32.of_int (Int64.to_int 0xffffffffL));          (* OFPP_ANY *)
-      set_ofp_action_output_max_len buf
-        (match port with
-          | Controller max_len -> max_len
-          | _ -> 0);
-      set_ofp_action_output_pad0 buf 0;
-      set_ofp_action_output_pad1 buf 0;
-      set_ofp_action_output_pad2 buf 0;
-      set_ofp_action_output_pad3 buf 0;
-      set_ofp_action_output_pad4 buf 0;
-      set_ofp_action_output_pad5 buf 0;
-      sizeof act
-    | Group gid ->
-      set_ofp_action_group_typ buf 22; (* OFPAT_GROUP *)
-      set_ofp_action_group_len buf (sizeof act);
-      set_ofp_action_group_group_id buf gid;
-      sizeof act
-    | SetField oxm ->
-      set_ofp_action_set_field_typ buf 25; (* OFPAT_SET_FIELD *)
-      set_ofp_action_set_field_len buf (sizeof act);
-      sizeof_ofp_action_set_field + (Oxm.marshal (Cstruct.shift buf sizeof_ofp_action_set_field) oxm)
+  let marshal (buf : Cstruct.t) (act : action) : int =
+    let size = sizeof act in
+    match act with
+      | Output port ->
+        set_ofp_action_output_typ buf 0; (* OFPAT_OUTPUT *)
+        set_ofp_action_output_len buf size;
+        set_ofp_action_output_port buf
+          (match port with
+            | PhysicalPort pid -> pid
+            | InPort -> 0xfffffff8l         (* OFPP_IN_PORT *)
+            | Flood -> 0xfffffffbl          (* OFPP_FLOOD *)
+            | AllPorts -> 0xfffffffcl       (* OFPP_ALL *)
+            | Controller _ -> 0xfffffffdl   (* OFPP_CONTROLLER *)
+            | Any -> 0xffffffffl);          (* OFPP_ANY *)
+        set_ofp_action_output_max_len buf
+          (match port with
+            | Controller max_len -> max_len
+            | _ -> 0);
+        set_ofp_action_output_pad0 buf 0;
+        set_ofp_action_output_pad1 buf 0;
+        set_ofp_action_output_pad2 buf 0;
+        set_ofp_action_output_pad3 buf 0;
+        set_ofp_action_output_pad4 buf 0;
+        set_ofp_action_output_pad5 buf 0;
+        size
+      | Group gid ->
+        set_ofp_action_group_typ buf 22; (* OFPAT_GROUP *)
+        set_ofp_action_group_len buf size;
+        set_ofp_action_group_group_id buf gid;
+        size
+      | SetField oxm ->
+        set_ofp_action_set_field_typ buf 25; (* OFPAT_SET_FIELD *)
+        set_ofp_action_set_field_len buf size;
+        let buf = Cstruct.shift buf sizeof_ofp_action_set_field in
+        let oxm_size = Oxm.marshal buf oxm in
+        let pad = size - (sizeof_ofp_action_set_field + oxm_size) in
+        printf "pad = %d\n" pad;
+        if pad > 0 then
+          let buf = Cstruct.shift buf oxm_size in
+          pad_with_zeros buf pad;
+          size
+        else size
 
 end
 
@@ -529,11 +548,11 @@ module Bucket = struct
       set_ofp_bucket_weight buf bucket.weight;
       set_ofp_bucket_watch_port buf
         (match bucket.watch_port with
-          | None -> Int32.of_int (Int64.to_int 0xffffffffL) (* OFPP_ANY *)
+          | None -> 0xffffffffl (* OFPP_ANY *)
           | Some port -> port);
       set_ofp_bucket_watch_group buf
         (match bucket.watch_group with
-          | None -> Int32.of_int (Int64.to_int 0xffffffffL) (* OFPG_ANY *)
+          | None -> 0xffffffffl (* OFPG_ANY *)
           | Some group_id -> group_id);
       set_ofp_bucket_pad0 buf 0;
       set_ofp_bucket_pad1 buf 0;
@@ -572,9 +591,17 @@ module OfpMatch = struct
     pad_to_64bits n
 
   let marshal (buf : Cstruct.t) (om : oxmMatch) : int =
+    let size = sizeof om in
     set_ofp_match_typ buf 1; (* OXPMT_OXM *)
     set_ofp_match_length buf (sizeof_ofp_match + sum (map Oxm.sizeof om)); (* Length of ofp_match (excluding padding) *)
-    sizeof_ofp_match + (marshal_fields (Cstruct.shift buf sizeof_ofp_match) om Oxm.marshal)
+    let buf = Cstruct.shift buf sizeof_ofp_match in
+    let oxm_size = marshal_fields buf om Oxm.marshal in
+    let pad = size - (sizeof_ofp_match + oxm_size) in
+    if pad > 0 then
+      let buf = Cstruct.shift buf oxm_size in
+      pad_with_zeros buf pad;
+      size
+    else size
 
   let rec parse_fields (bits : Cstruct.t) : oxmMatch * Cstruct.t =
     if Cstruct.len bits <= sizeof_ofp_oxm then ([], bits)
@@ -662,7 +689,7 @@ module FlowMod = struct
     set_ofp_flow_mod_priority buf fm.priority;
     set_ofp_flow_mod_buffer_id buf
       (match fm.buffer_id with
-        | None -> Int32.of_int 0
+        | None -> 0xffffffffl
         | Some bid -> bid);
     set_ofp_flow_mod_out_port buf
       (match fm.out_port with

@@ -169,6 +169,15 @@ module Test4 = struct
     let str = Message.serialize 0l msg2 in
     fprintf oc "%s" str;
     close_out oc;
+    let oc = open_out "test-msg-1.3-msg3" in
+    let action1 : action = SetField (OxmVlanVId ({value = 0x1234; mask = None})) in
+    let action2 : action = Output (PhysicalPort (0x2345l)) in
+    let bucket1 : bucket = {weight = 0; watch_port = Some (0x67l); watch_group = None; actions = [action1; action2]} in
+    let msg3 = GroupMod (AddGroup (FF, 0x12l,
+      [bucket1])) in
+    let str = Message.serialize 0l msg3 in
+    fprintf oc "%s" str;
+    close_out oc;
     ()
 
   let go = 

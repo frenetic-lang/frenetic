@@ -29,7 +29,7 @@ int main(int argc, char **argv)
 	uint8_t *buf;
 	size_t buf_len = 0;
 	ofl_err err;
-	struct ofl_msg_header *msg;
+	struct ofl_msg_header *msg = NULL;
 	uint32_t xid;
 
 	if (argc < 2) {
@@ -58,6 +58,7 @@ int main(int argc, char **argv)
 	} else {
 		printf("Failed :-( error type: %d code %d\n", ofl_error_type(err), ofl_error_code(err));
 	}
+	ofl_msg_free(msg, NULL);
 
 	return 0;
 }
