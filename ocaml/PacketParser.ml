@@ -380,7 +380,9 @@ let string_of_eth pkt =
       (string_of_nw pkt.pktNwHeader)
 
 let parse_packet = eth_desc.parse
-  
+
+let sizeof_packet = eth_desc.len
+
 let serialize_packet (pkt:packet) : Cstruct.t = 
   let bits = Cstruct.create (eth_desc.len pkt) in 
   let () = eth_desc.serialize bits pkt in 

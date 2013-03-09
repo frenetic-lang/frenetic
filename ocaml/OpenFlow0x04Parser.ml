@@ -6,6 +6,7 @@ open Cstruct.BE
 open OpenFlow0x04Types
 open Util
 open List
+open PacketParser
 
 exception Unparsable of string
 
@@ -377,6 +378,7 @@ module Oxm = struct
       (match vid.mask with
         | None -> 2
         | Some _ -> 4)
+    | _ -> failwith "Invalid"
 
   let sizeof (oxm : oxm) : int =
     sizeof_ofp_oxm + field_length oxm
@@ -439,6 +441,7 @@ module Oxm = struct
                     set_ofp_uint16_value buf3 mask;
                     sizeof_ofp_oxm + l
               end
+            | _ -> failwith "Invalid"
 
   let parse (bits : Cstruct.t) : oxm * Cstruct.t =
     let c = match int_to_ofp_oxm_class (get_ofp_oxm_oxm_class bits) with
@@ -530,7 +533,7 @@ module Action = struct
         printf "pad = %d\n" pad;
         if pad > 0 then
           let buf = Cstruct.shift buf oxm_size in
-          pad_with_zeros buf pad;
+          let _ = pad_with_zeros buf pad in
           size
         else size
 
@@ -599,7 +602,7 @@ module OfpMatch = struct
     let pad = size - (sizeof_ofp_match + oxm_size) in
     if pad > 0 then
       let buf = Cstruct.shift buf oxm_size in
-      pad_with_zeros buf pad;
+      let _ = pad_with_zeros buf pad in
       size
     else size
 
@@ -786,6 +789,60 @@ module PacketIn = struct
 
 end
 
+module PacketOut = struct
+
+  cstruct ofp_packet_out {
+      uint32_t buffer_id;           (* ID assigned by datapath (OFP_NO_BUFFER
+                                       if none). *)
+      uint32_t in_port;             (* Packet's input port or OFPP_CONTROLLER. *)
+      uint16_t actions_len;         (* Size of action array in bytes. *)
+      uint8_t pad0;
+      uint8_t pad1;
+      uint8_t pad2;
+      uint8_t pad3;
+      uint8_t pad4;
+      uint8_t pad5
+      (* struct ofp_action_header actions[0]; *) (* Action list. *)
+      (* uint8_t data[0]; *)        (* Packet data.  The length is inferred
+                                       from the length field in the header.
+                                       (Only meaningful if buffer_id == -1.) *)
+  } as big_endian
+
+  let sizeof (po : packetOut) =
+    sizeof_ofp_packet_out + sum (map Action.sizeof po.po_actions) +
+    (match po.po_pkt with
+      | None -> 0
+      | Some pkt -> sizeof_packet pkt)
+
+  let marshal (buf : Cstruct.t) (po : packetOut) : int =
+    let size = sizeof po in
+    set_ofp_packet_out_buffer_id buf (
+      match po.po_buffer_id with
+        | None -> 0xffffffffl
+        | Some buffer_id -> buffer_id);
+    set_ofp_packet_out_in_port buf
+      (match po.po_in_port with
+        | PhysicalPort pid -> pid
+        | Controller _ -> 0xfffffffdl   (* OFPP_CONTROLLER *)
+        | _ -> failwith "Invalid");
+    set_ofp_packet_out_actions_len buf (sum (map Action.sizeof po.po_actions));
+    set_ofp_packet_out_pad0 buf 0;
+    set_ofp_packet_out_pad1 buf 0;
+    set_ofp_packet_out_pad2 buf 0;
+    set_ofp_packet_out_pad3 buf 0;
+    set_ofp_packet_out_pad4 buf 0;
+    set_ofp_packet_out_pad5 buf 0;
+    let buf = Cstruct.shift buf sizeof_ofp_packet_out in
+    let act_size = marshal_fields buf po.po_actions Action.marshal in
+    match po.po_pkt with
+      | None -> size
+      | Some pkt ->
+        let pkt_buf = serialize_packet pkt in
+        Cstruct.blit pkt_buf 0 buf act_size (Cstruct.len pkt_buf);
+        size
+
+end
+
 module Message = struct
 
   let msg_code_of_message (msg : message) : msg_code = match msg with
@@ -797,6 +854,7 @@ module Message = struct
     | FlowMod _ -> FLOW_MOD
     | GroupMod _ -> GROUP_MOD
     | PacketIn _ -> PACKET_IN
+    | PacketOut _ -> PACKET_OUT
 
   let sizeof (msg : message) : int = match msg with
     | Hello -> sizeof_ofp_header
@@ -806,6 +864,7 @@ module Message = struct
     | FeaturesReply _ -> sizeof_ofp_header + sizeof_ofp_switch_features
     | FlowMod fm -> sizeof_ofp_header + FlowMod.sizeof fm
     | GroupMod gm -> sizeof_ofp_header + GroupMod.sizeof gm
+    | PacketOut po -> sizeof_ofp_header + PacketOut.sizeof po
     | _ -> failwith "unknowns"
 
   let marshal (buf : Cstruct.t) (msg : message) : int =
@@ -826,6 +885,8 @@ module Message = struct
         FlowMod.marshal buf2 fm
       | GroupMod gm ->
         GroupMod.marshal buf2 gm
+      | PacketOut po ->
+        PacketOut.marshal buf2 po
       | _ -> failwith "unknowns"
 
   let serialize (xid : xid) (msg : message) : string = 

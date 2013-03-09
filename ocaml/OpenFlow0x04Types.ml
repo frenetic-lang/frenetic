@@ -154,6 +154,13 @@ type features = {
   supported_capabilities : capabilities
 }
 
+type packetOut = {
+  po_buffer_id : bufferId option;
+  po_in_port : pseudoPort;
+  po_actions : action list;
+  po_pkt : packet option
+}
+
 type message =
   | Hello
   | EchoRequest of bytes
@@ -163,5 +170,6 @@ type message =
   | FlowMod of flowMod
   | GroupMod of groupMod
   | PacketIn of packetIn
+  | PacketOut of packetOut
 
 type actionSequence = action list
