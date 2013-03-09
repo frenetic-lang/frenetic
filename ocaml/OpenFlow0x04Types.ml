@@ -22,6 +22,7 @@ type +'a mask = {
 
 type xid = uint32
 
+type switchId = uint64
 type groupId = uint32
 type portId = uint32
 type tableId = uint8
