@@ -22,6 +22,8 @@ type +'a mask = {
 
 type xid = uint32
 
+let val_to_mask v = { value = v; mask = None }
+
 type switchId = uint64
 type groupId = uint32
 type portId = uint32
@@ -37,6 +39,10 @@ type oxm =
   | OxmEthDst of uint48 mask
   | OxmEthSrc of uint48 mask
   | OxmVlanVId of uint12 mask
+  | OxmIP4Src of uint32 mask
+  | OxmIP4Dst of uint32 mask
+  | OxmTCPSrc of uint16 mask
+  | OxmTCPDst of uint16 mask
   | OxmTunnelId of uint64 mask
 
 (**  Hard-codes OFPMT_OXM as the match type, since OFPMT_STANDARD is deprecated.
@@ -157,3 +163,5 @@ type message =
   | FlowMod of flowMod
   | GroupMod of groupMod
   | PacketIn of packetIn
+
+type actionSequence = action list

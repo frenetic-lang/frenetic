@@ -1,9 +1,8 @@
 open Datatypes
 open List0
 open WordInterface
-open OpenFlow0x04Types
 open Packet
-open MessagesDef
+open OpenFlow0x04Types
 open NetCoreEval
 
 type modification = NetCoreEval.modification
@@ -28,3 +27,12 @@ type pol =
 | PoUnion of pol * pol
 
 val convert_from_eval10 : NetCoreEval.pol -> pol
+
+type id = int
+
+type input =
+| InPkt of switchId * portId * packet * bufferId option
+
+type output =
+| OutAct of switchId * act list * packet * (bufferId, bytes) sum
+| OutNothing
