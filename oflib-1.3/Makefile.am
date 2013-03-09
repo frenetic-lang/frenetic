@@ -4,7 +4,7 @@ AUTOMAKE_OPTIONS = foreign -Wno-syntax subdir-objects
 ACLOCAL_AMFLAGS = -I m4
 SUBDIRS =
 
-AM_CPPFLAGS = -DHAVE_STRLCPY -D_GNU_SOURCE
+AM_CPPFLAGS = -g -O0 -DHAVE_STRLCPY -D_GNU_SOURCE
 AM_CPPFLAGS += -I $(top_srcdir)/include
 AM_CPPFLAGS += -I $(top_srcdir)/lib
 

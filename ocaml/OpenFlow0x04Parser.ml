@@ -315,6 +315,10 @@ cstruct ofp_oxm {
   uint8_t oxm_length
 } as big_endian
 
+cstruct ofp_uint8 {
+  uint8_t value
+} as big_endian
+
 cstruct ofp_uint16 {
   uint16_t value
 } as big_endian
@@ -565,6 +569,11 @@ module GroupMod = struct
 
 end
 
+let rec pad_with_zeros (buf : Cstruct.t) (pad : int) : int =
+  if pad = 0 then 0
+  else begin set_ofp_uint8_value buf 0;
+    1 + pad_with_zeros (Cstruct.shift buf 1) (pad - 1) end
+
 module OfpMatch = struct
 
   let sizeof (om : oxmMatch) : int =
@@ -572,9 +581,17 @@ module OfpMatch = struct
     pad_to_64bits n
 
   let marshal (buf : Cstruct.t) (om : oxmMatch) : int =
+    let size = sizeof om in
     set_ofp_match_typ buf 1; (* OXPMT_OXM *)
     set_ofp_match_length buf (sizeof_ofp_match + sum (map Oxm.sizeof om)); (* Length of ofp_match (excluding padding) *)
-    sizeof_ofp_match + (marshal_fields (Cstruct.shift buf sizeof_ofp_match) om Oxm.marshal)
+    let buf = Cstruct.shift buf sizeof_ofp_match in
+    let oxm_size = marshal_fields buf om Oxm.marshal in
+    let pad = size - sizeof_ofp_match + oxm_size in
+    if pad > 0 then
+      let buf = Cstruct.shift buf oxm_size in
+      pad_with_zeros buf pad;
+      size
+    else size
 
   let rec parse_fields (bits : Cstruct.t) : oxmMatch * Cstruct.t =
     if Cstruct.len bits <= sizeof_ofp_oxm then ([], bits)
@@ -662,7 +679,7 @@ module FlowMod = struct
     set_ofp_flow_mod_priority buf fm.priority;
     set_ofp_flow_mod_buffer_id buf
       (match fm.buffer_id with
-        | None -> Int32.of_int 0
+        | None -> 0xffffffffl
         | Some bid -> bid);
     set_ofp_flow_mod_out_port buf
       (match fm.out_port with
