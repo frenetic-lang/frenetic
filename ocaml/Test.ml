@@ -145,8 +145,13 @@ module Test4 = struct
   open Cstruct
 
   let test_script () =
-    let oc = open_out "test-msg-1.3" in
+    printf "test serialization\n";
+    let oc = open_out "test-msg-1.3-msg1" in
     let msg1 = Hello in
+    let str = Message.serialize 0l msg1 in
+    fprintf oc "%s" str;
+    close_out oc;
+    let oc = open_out "test-msg-1.3-msg2" in
     let msg2 = FlowMod {
       cookie = ({value = 0xaabbccL; mask = None} : uint64 mask);
       table_id = (0x12 : tableId);
@@ -161,11 +166,8 @@ module Test4 = struct
       ofp_match = [OxmInPort (0x7891l)];
       instructions = [WriteActions ([Output (PhysicalPort (0x7890l))])]
     } in
-    printf "test serialization\n";
-    printf "msg2 size %d\n" (Message.sizeof msg2);
-    let str1 = Message.serialize 0l msg1 in
-    let str2 = Message.serialize 0l msg2 in
-    fprintf oc "%s\n%s" str1 str2;
+    let str = Message.serialize 0l msg2 in
+    fprintf oc "%s" str;
     close_out oc;
     ()
 
