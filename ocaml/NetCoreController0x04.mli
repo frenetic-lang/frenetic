@@ -23,11 +23,11 @@ val modification_to_openflow0x01 : modification -> actionSequence
 
 val translate_action : portId option -> act -> actionSequence
 
-val to_flow_mod : Word16.t -> Pattern.pattern -> act list -> flowMod
+val to_flow_mod : Word16.t -> Pattern.pattern -> act list -> tableId -> flowMod
 
-val flow_mods_of_classifier : act list coq_Classifier -> flowMod list
+val flow_mods_of_classifier : act list coq_Classifier -> tableId -> flowMod list
 
-val delete_all_flows : flowMod
+val delete_all_flows : tableId -> flowMod 
 
 type ncstate = { policy : pol; switches : switchId list }
 
@@ -63,7 +63,7 @@ module Make :
  sig 
   val sequence : unit Monad.m list -> unit Monad.m
   
-  val config_commands : pol -> switchId -> unit Monad.m
+  val config_commands : pol -> switchId -> tableId -> unit Monad.m
   
   val set_policy : pol -> unit Monad.m
   

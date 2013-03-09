@@ -143,7 +143,7 @@ type predicate =
   | TcpDstPort of int (** 16-bits, implicitly IP *)
 
 type action =
-  | To of int
+  | To of portId
   | ToAll
   | GetPacket of get_packet_handler
 
@@ -158,7 +158,7 @@ let rec predicate_to_string pred = match pred with
   | Not p1 -> Printf.sprintf "(Not %s)" (predicate_to_string p1)
   | NoPackets -> "None"
   | Switch sw -> Printf.sprintf "(Switch %Ld)" sw
-  | InPort pt -> Printf.sprintf "(InPort %d)" pt
+  | InPort pt -> Printf.sprintf "(InPort %ld)" pt
   | DlSrc add -> Printf.sprintf "(DlSrc %s)" (Util.string_of_mac add)
   | DlDst add -> Printf.sprintf "(DlDst %s)" (Util.string_of_mac add)
   | All -> "All"
@@ -172,7 +172,7 @@ let rec predicate_to_string pred = match pred with
     Printf.sprintf "(DstIP %ld)" n
   
 let action_to_string act = match act with
-  | To pt -> Printf.sprintf "To %d" pt
+  | To pt -> Printf.sprintf "To %ld" pt
   | ToAll -> "ToAll"
   | GetPacket _ -> "GetPacket"
 
@@ -196,7 +196,7 @@ module Make (Platform : PLATFORM) = struct
   end
           
   let desugar_act act = match act with
-    | To pt -> Forward (unmodified, PhysicalPort (Int32.of_int pt))
+    | To pt -> Forward (unmodified, PhysicalPort pt)
     | ToAll -> Forward (unmodified, AllPorts)
     | GetPacket handler ->
       let id = !next_id in
@@ -213,7 +213,7 @@ module Make (Platform : PLATFORM) = struct
     | All -> NetCoreEval.PrAll
     | NoPackets -> NetCoreEval.PrNone
     | Switch swId -> NetCoreEval.PrOnSwitch swId
-    | InPort pt -> NetCoreEval.PrHdr (Pattern.inPort pt)
+    | InPort pt -> NetCoreEval.PrHdr (Pattern.inPort (Int32.to_int pt))
     | DlSrc n -> NetCoreEval.PrHdr (Pattern.dlSrc n)
     | DlDst n -> NetCoreEval.PrHdr (Pattern.dlDst n)
     | SrcIP n -> NetCoreEval.PrHdr (Pattern.ipSrc n)
