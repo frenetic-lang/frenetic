@@ -23,10 +23,7 @@ Prerequisites
   These are available on OPAM:
 
   ```
-  $ opam install ocamlfind
-  $ opam install cstruct
-  $ opam install lwt
-  $ opam install ounit
+  $ opam install ocamlfind cstruct lwt ounit
   ```
 
 Building
