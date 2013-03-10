@@ -221,16 +221,14 @@ module Make =
   
   (** val send_output : output -> unit Monad.m **)
 
-  (* FIXME: no packet_out yet! *)
-  let send_output out = Monad.ret ()
-  
-  (* let send_output = function *)
-  (* | OutAct (swId, acts, pkt, bufOrBytes) -> *)
-  (*   Monad.send swId Word32.zero (PacketOut { pktOutBufOrBytes = *)
-  (*     bufOrBytes; pktOutPortId = None; pktOutActions = acts }) *)
-  (* (\* | OutGetPkt (x, switchId0, portId0, packet0) -> *\) *)
-  (* (\*   Monad.handle_get_packet x switchId0 portId0 packet0 *\) *)
-  (* (\* | OutNothing -> Monad.ret () *\) *)
+  let send_output = function
+  | OutAct (swId, acts, pkt, bufOrBytes) ->
+    let buf = (match bufOrBytes with Coq_inl buf -> Some buf | _ -> None) in
+    Monad.send swId Word32.zero (PacketOut { po_buffer_id =
+      buf; po_in_port = Controller 0; po_pkt = (Some pkt); po_actions = concat_map (translate_action None) acts })
+  (* | OutGetPkt (x, switchId0, portId0, packet0) -> *)
+  (*   Monad.handle_get_packet x switchId0 portId0 packet0 *)
+  (* | OutNothing -> Monad.ret () *)
   
   (** val handle_packet_in : switchId -> packetIn -> unit Monad.m **)
   
