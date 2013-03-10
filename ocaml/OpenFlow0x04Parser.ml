@@ -9,6 +9,7 @@ open List
 open PacketParser
 
 exception Unparsable of string
+let sym_num = ref 0
 
 let sum (lst : int list) = List.fold_left (fun x y -> x + y) 0 lst
 
@@ -378,7 +379,11 @@ module Oxm = struct
       (match vid.mask with
         | None -> 2
         | Some _ -> 4)
-    | _ -> failwith "Invalid"
+    | OxmIP4Src _ -> failwith "Invalid field_length IP4Src"
+    | OxmIP4Dst _ -> failwith "Invalid field_length IP4Dst"
+    | OxmTCPSrc _ -> failwith "Invalid field_length TCPSrc"
+    | OxmTCPDst _ -> failwith "Invalid field_length TCPDst"
+    | _ -> failwith "Invalid field_length"
 
   let sizeof (oxm : oxm) : int =
     sizeof_ofp_oxm + field_length oxm
@@ -409,7 +414,7 @@ module Oxm = struct
               set_ofp_uint16_value buf2 ethtype;
               sizeof_ofp_oxm + l
             | OxmEthDst ethaddr ->
-              set_ofp_oxm buf ofc OFPXMT_OFB_ETH_DST 0 l;
+              set_ofp_oxm buf ofc OFPXMT_OFB_ETH_DST (match ethaddr.mask with None -> 0 | _ -> 1) l;
               set_ofp_uint48_value buf2 ethaddr.value;
               begin match ethaddr.mask with
                 | None ->
@@ -420,7 +425,7 @@ module Oxm = struct
                     sizeof_ofp_oxm + l
               end
             | OxmEthSrc ethaddr ->
-              set_ofp_oxm buf ofc OFPXMT_OFB_ETH_SRC 0 l;
+              set_ofp_oxm buf ofc OFPXMT_OFB_ETH_SRC (match ethaddr.mask with None -> 0 | _ -> 1) l;
               set_ofp_uint48_value buf2 ethaddr.value;
               begin match ethaddr.mask with
                 | None ->
@@ -431,7 +436,7 @@ module Oxm = struct
                     sizeof_ofp_oxm + l
               end
             | OxmVlanVId vid ->
-              set_ofp_oxm buf ofc OFPXMT_OFB_VLAN_VID 0 l;
+              set_ofp_oxm buf ofc OFPXMT_OFB_VLAN_VID (match vid.mask with None -> 0 | _ -> 1) l;
               set_ofp_uint16_value buf2 vid.value;
               begin match vid.mask with
                 | None ->
@@ -441,7 +446,7 @@ module Oxm = struct
                     set_ofp_uint16_value buf3 mask;
                     sizeof_ofp_oxm + l
               end
-            | _ -> failwith "Invalid"
+            | _ -> failwith "Invalid marshal of oxm"
 
   let parse (bits : Cstruct.t) : oxm * Cstruct.t =
     (* printf "class= %d\n" (get_ofp_oxm_oxm_class bits); *)
@@ -830,7 +835,7 @@ module PacketOut = struct
       (match po.po_in_port with
         | PhysicalPort pid -> pid
         | Controller _ -> 0xfffffffdl   (* OFPP_CONTROLLER *)
-        | _ -> failwith "Invalid");
+        | _ -> failwith "Invalid marshal of packetOut");
     set_ofp_packet_out_actions_len buf (sum (map Action.sizeof po.po_actions));
     set_ofp_packet_out_pad0 buf 0;
     set_ofp_packet_out_pad1 buf 0;
@@ -881,18 +886,18 @@ module Message = struct
     match msg with
       | Hello ->
         sizeof_ofp_header
-      | EchoRequest bytes
+      | EchoRequest bytes 
       | EchoReply bytes ->
         Cstruct.blit_from_string bytes 0 buf2 0 (String.length bytes);
         sizeof_ofp_header + String.length bytes
       | FeaturesRequest ->
         sizeof_ofp_header
       | FlowMod fm ->
-        FlowMod.marshal buf2 fm
+	sizeof_ofp_header + FlowMod.marshal buf2 fm
       | GroupMod gm ->
-        GroupMod.marshal buf2 gm
+        sizeof_ofp_header + GroupMod.marshal buf2 gm
       | PacketOut po ->
-        PacketOut.marshal buf2 po
+        sizeof_ofp_header + PacketOut.marshal buf2 po
       | _ -> failwith "unknowns"
 
   let serialize (xid : xid) (msg : message) : string = 
@@ -904,7 +909,6 @@ module Message = struct
 
   let parse (bits : Cstruct.t) =
     let ver = get_ofp_header_version bits in
-    (* printf "ver = %d\n" ver; *)
     let typ = get_ofp_header_typ bits in
     let len = get_ofp_header_length bits in
     let xid = get_ofp_header_xid bits in
@@ -914,6 +918,7 @@ module Message = struct
         | Some ECHO_RESP -> EchoReply (Cstruct.to_string bits)
         | Some FEATURES_RESP -> FeaturesReply (Features.parse bits)
         | Some PACKET_IN -> PacketIn (PacketIn.parse bits)
+	| Some ECHO_REQ -> EchoRequest (Cstruct.to_string bits)
         | _ -> raise (Unparsable "unrecognized message code")
 
 end

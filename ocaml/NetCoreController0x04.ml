@@ -93,11 +93,11 @@ let pattern_to_oxm_match pat =
         ptrnTpDst = tpDst;
         ptrnInPort = inPort } = pat in
   (* Is 1 the all wildcard or 0? *)
-  ([ OxmEthSrc (wildcard_to_mask dlSrc (Int64.of_int 0));
-     OxmEthDst (wildcard_to_mask dlDst (Int64.of_int 0));
-     OxmVlanVId (wildcard_to_mask dlVlan 0);
-     OxmIP4Src (wildcard_to_mask nwSrc (Int32.of_int 0));
-     OxmIP4Dst (wildcard_to_mask nwDst (Int32.of_int 0))]
+  ([ OxmEthSrc (wildcard_to_mask dlSrc (Int64.of_int (0 - 1)));
+     OxmEthDst (wildcard_to_mask dlDst (Int64.of_int (0 - 1)))]
+     (* OxmVlanVId (wildcard_to_mask dlVlan 0)] *)
+   (*   OxmIP4Src (wildcard_to_mask nwSrc (Int32.of_int 0)); *)
+   (*   OxmIP4Dst (wildcard_to_mask nwDst (Int32.of_int 0))] *)
    @ (match inPort with Wildcard.WildcardExact p -> [OxmInPort (Int32.of_int p)] | _ -> [])
    @ (match dlTyp with Wildcard.WildcardExact t -> [OxmEthType t] | _ -> []),
    match inPort with

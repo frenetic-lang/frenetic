@@ -64,7 +64,6 @@ module OpenFlowPlatform = struct
       raise_lwt UnknownSwitchDisconnected
     else  
       let bits = (Cstruct.of_string ofhdr_str) in
-      lwt msg = Lwt.wrap (fun () -> Message.parse bits ) in
       let sizeof_body = (get_ofp_header_length bits) - sizeof_ofp_header in
       let body_str = String.create sizeof_body in
       lwt b = Util.SafeSocket.recv sock body_str 0 sizeof_body in 
@@ -72,14 +71,16 @@ module OpenFlowPlatform = struct
 	raise_lwt UnknownSwitchDisconnected
       else
 	lwt _ = eprintf "[platform] returning message with code %d\n%!" 
-	  (get_ofp_header_typ bits) in 
+	  (get_ofp_header_typ bits) in
+        let bits = Cstruct.of_string (String.concat "" [ofhdr_str; body_str]) in
+	lwt msg = Lwt.wrap (fun () -> Message.parse bits) in
   return (get_ofp_header_xid bits, msg)
   
   let send_to_switch_fd (sock : file_descr) (xid : xid) (msg : message) = 
     try_lwt
       let buf = Cstruct.create (Message.sizeof msg) in
-      let out = Cstruct.to_string buf in
       lwt len = Lwt.wrap2 Message.marshal buf msg in
+      let out = Cstruct.to_string buf in
       lwt n = write sock out 0 len in
       if n <> len then
         raise_lwt (Internal "[send_to_switch] not enough bytes written")
