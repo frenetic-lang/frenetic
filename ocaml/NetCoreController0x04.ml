@@ -30,7 +30,9 @@ let packetIn_to_in sw pktIn =
   let inport = List.fold_left (fun acc x -> (match x with 
     | OxmInPort p -> p 
     | _ -> acc)) (Int32.of_int 0) pktIn.pi_ofp_match in
-  InPkt (sw, inport, pktIn.pi_pkt, pktIn.pi_buffer_id)
+  let pkt = (match pktIn.pi_pkt with
+    | Some pkt -> pkt) in
+  InPkt (sw, inport, pkt, pktIn.pi_buffer_id)
 
 (** val maybe_openflow0x01_modification :
     'a1 option -> ('a1 -> action) -> actionSequence **)
