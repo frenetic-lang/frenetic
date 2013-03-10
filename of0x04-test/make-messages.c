@@ -159,6 +159,50 @@ void make_msg3()
 
 }
 
+static
+void make_msg4()
+{
+	uint32_t port = 0x7891;
+	struct ofl_match_tlv oxm1;
+	oxm1.hmap_node.hash = 0;
+	oxm1.hmap_node.next = HMAP_NODE_NULL;
+	oxm1.header = OXM_OF_IN_PORT;
+	oxm1.value = (uint8_t *) &port;
+
+	struct ofl_match match;
+	match.header.type = OFPMT_OXM;
+	match.header.length = 8;
+	hmap_init(&match.match_fields);
+	hmap_insert(&match.match_fields, (struct hmap_node *) &oxm1, hash_int(OXM_OF_IN_PORT, 0));
+
+	struct ofl_msg_packet_in pi;
+	pi.header.type = OFPT_PACKET_IN;
+	pi.buffer_id = 0x2345;
+	pi.total_len = 160;
+	pi.reason = OFPR_NO_MATCH;
+	pi.table_id = 0x5;
+	pi.cookie = 0xaabbcc;
+	pi.match = (struct ofl_match_header *) &match;
+	pi.data_length = 0;
+	pi.data = NULL;
+
+	uint8_t *buf;
+	size_t buf_len;
+	struct ofl_msg_header *msg = (struct ofl_msg_header *) &pi;
+	int err = ofl_msg_pack(msg, 0, &buf, &buf_len, NULL);
+	if (err == 0) {
+		printf("Success!\n");
+		ofl_msg_print(stdout, msg, NULL);
+		printf("\n");
+
+		FILE *file = fopen("test-msg-1.3-msg4", "w");
+		fwrite(buf, buf_len, 1, file);
+		fclose(file);
+	} else {
+		printf("Failed :-(\n");
+	}
+}
+
 int main(int argc, char **argv)
 {
 
@@ -168,5 +212,6 @@ int main(int argc, char **argv)
 
 	make_msg2();
 	make_msg3();
+	make_msg4();
 	return 0;
 }

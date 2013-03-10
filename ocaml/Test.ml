@@ -185,6 +185,23 @@ module Test4 = struct
       (fun () -> test_script())
 end
 
+module Test5 = struct
+  open OpenFlow0x04Parser
+  open OpenFlow0x04Types
+  open Cstruct
+
+  let test_script () =
+    printf "test OF parser\n";
+    let str = "\x04\x0a\x00\x2a\x00\x00\x00\x00\x00\x00\x23\x45\x00\xa0\x00\x05\xcc\xbb\xaa\x00\x00\x00\x00\x00\x00\x01\x00\x0c\x80\x00\x00\x04\x91\x78\x00\x00\x01\x00\x00\x00\x00\x00" in
+    let buf = Cstruct.of_string str in
+    let msg5 = Message.parse buf in
+    ()
+
+  let go = 
+    "parse test" >::
+      (fun () -> test_script())
+end
+
 module PacketParser = struct
   open PacketParser
   open Packet
@@ -210,4 +227,5 @@ let _ = run_test_tt_main
               Test2.go;
               Test3.go;
               Test4.go;
+              Test5.go;
 	      PacketParser.go])

@@ -444,16 +444,17 @@ module Oxm = struct
             | _ -> failwith "Invalid"
 
   let parse (bits : Cstruct.t) : oxm * Cstruct.t =
+    (* printf "class= %d\n" (get_ofp_oxm_oxm_class bits); *)
     let c = match int_to_ofp_oxm_class (get_ofp_oxm_oxm_class bits) with
       | Some n -> n
       | None -> 
-        raise (Unparsable (sprintf "malformed packet in oxm")) in
+        raise (Unparsable (sprintf "malformed class in oxm")) in
     (* TODO: assert c is OFPXMC_OPENFLOW_BASIC *)
     let value = get_ofp_oxm_oxm_field_and_hashmask bits in
     let f = match int_to_oxm_ofb_match_fields (value lsr 1) with
       | Some n -> n
       | None -> 
-        raise (Unparsable (sprintf "malformed packet in oxm")) in
+        raise (Unparsable (sprintf "malformed field in oxm")) in
     let hm = value land 0x1 in
     let oxm_length = get_ofp_oxm_oxm_length bits in
     let bits = Cstruct.shift bits sizeof_ofp_oxm in
@@ -530,7 +531,7 @@ module Action = struct
         let buf = Cstruct.shift buf sizeof_ofp_action_set_field in
         let oxm_size = Oxm.marshal buf oxm in
         let pad = size - (sizeof_ofp_action_set_field + oxm_size) in
-        printf "pad = %d\n" pad;
+        (* printf "pad = %d\n" pad; *)
         if pad > 0 then
           let buf = Cstruct.shift buf oxm_size in
           let _ = pad_with_zeros buf pad in
@@ -615,8 +616,10 @@ module OfpMatch = struct
   let parse (bits : Cstruct.t) : oxmMatch * Cstruct.t =
     let typ = get_ofp_match_typ bits in
     let length = get_ofp_match_length bits in
-    let bits = Cstruct.shift bits sizeof_ofp_match in
-    parse_fields bits
+    let oxm_bits = Cstruct.sub bits sizeof_ofp_match (length - sizeof_ofp_match) in
+    let fields, _ = parse_fields oxm_bits in
+    let bits = Cstruct.shift bits (pad_to_64bits length) in
+    (fields, bits)
 
 end
 
@@ -773,10 +776,13 @@ module PacketIn = struct
     let ofp_match_bits = Cstruct.shift bits sizeof_ofp_packet_in in
     let ofp_match, pkt_bits = OfpMatch.parse ofp_match_bits in
     let pkt_bits = Cstruct.shift pkt_bits 2 in (* pad bytes *)
-    let pkt = match PacketParser.parse_packet pkt_bits with 
-      | Some pkt -> pkt 
-      | None -> 
-        raise (Unparsable (sprintf "malformed packet in packet_in")) in
+    (* printf "len = %d\n" (Cstruct.len pkt_bits); *)
+    let pkt = match Cstruct.len pkt_bits with
+      | 0 -> None
+      | _ -> begin match PacketParser.parse_packet pkt_bits with 
+        | Some pkt -> Some pkt 
+        | None -> 
+          raise (Unparsable (sprintf "malformed packet in packet_in")) end in
     let _ = eprintf "[PacketIn] okay \n%!" in 
     { pi_buffer_id = bufId;
       pi_total_len = total_len;
@@ -898,6 +904,7 @@ module Message = struct
 
   let parse (bits : Cstruct.t) =
     let ver = get_ofp_header_version bits in
+    (* printf "ver = %d\n" ver; *)
     let typ = get_ofp_header_typ bits in
     let len = get_ofp_header_length bits in
     let xid = get_ofp_header_xid bits in

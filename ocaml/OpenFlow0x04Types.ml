@@ -133,7 +133,7 @@ type packetIn = {
   pi_table_id : tableId;
   pi_cookie : uint64;
   pi_ofp_match : oxmMatch;
-  pi_pkt : packet
+  pi_pkt : packet option
 }
 
 type capabilities = {
