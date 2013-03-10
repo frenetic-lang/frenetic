@@ -226,17 +226,14 @@ module Make =
     let buf = (match bufOrBytes with Coq_inl buf -> Some buf | _ -> None) in
     Monad.send swId Word32.zero (PacketOut { po_buffer_id =
       buf; po_in_port = Controller 0; po_pkt = (Some pkt); po_actions = concat_map (translate_action None) acts })
-  (* | OutGetPkt (x, switchId0, portId0, packet0) -> *)
-  (*   Monad.handle_get_packet x switchId0 portId0 packet0 *)
-  (* | OutNothing -> Monad.ret () *)
+  | OutNothing -> Monad.ret ()
   
   (** val handle_packet_in : switchId -> packetIn -> unit Monad.m **)
   
-    (* FIXME: No classify for 1.3 yet, can't handle packetins! *)
-  let handle_packet_in swId pk = Monad.ret ()
-    (* Monad.bind Monad.get (fun st -> *)
-    (*   let outs = classify st.policy (packetIn_to_in swId pk) in *)
-    (*   sequence (map send_output outs)) *)
+  let handle_packet_in swId pk = 
+    Monad.bind Monad.get (fun st ->
+      let outs = classify st.policy (packetIn_to_in swId pk) in
+      sequence (map send_output outs))
   
   (** val handle_event : event -> unit Monad.m **)
   
@@ -245,8 +242,7 @@ module Make =
   | SwitchDisconnected swId -> handle_switch_disconnected swId
   | SwitchMessage (swId, xid0, msg) ->
     (match msg with
-     (* FIXME! *)
-     (* | PacketInMsg pktIn -> handle_packet_in swId pktIn *)
+     | PacketIn pktIn -> handle_packet_in swId pktIn
      | _ -> Monad.ret ())
   
   (** val main : unit Monad.m **)
