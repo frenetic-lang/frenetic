@@ -88,11 +88,21 @@ let modify_pkt mods pk =
 
 (** val classify : pol -> input -> output list **)
 
+(* Need to strip out the controller actions so that we don't cycle packets between the switch and controller *)
+
+let rec strip_controller acts = match acts with
+  | Forward (a, (Controller x)) :: acts -> strip_controller acts
+  | ActGetPkt x :: acts -> strip_controller acts
+  | a :: acts -> a :: strip_controller acts
+  | [] -> []
+
 let rec classify p inp =
   match p with
+  | PoAtom (pr, []) ->
+    []
   | PoAtom (pr, actions) ->
     let InPkt (sw, pt, pk, buf) = inp in
-    if match_pred pr sw (Int32.to_int pt) pk then [OutAct (sw, actions, pk, match buf with
+    if match_pred pr sw (Int32.to_int pt) pk then [OutAct (sw, (strip_controller actions), pk, match buf with
       | Some b -> Coq_inl b
       | None -> Coq_inr (Cstruct.to_string (serialize_pkt pk)))] else []
   | PoUnion (p1, p2) -> app (classify p1 inp) (classify p2 inp)
