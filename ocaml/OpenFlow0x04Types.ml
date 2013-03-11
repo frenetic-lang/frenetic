@@ -43,6 +43,11 @@ type oxm =
   | OxmIP4Dst of uint32 mask
   | OxmTCPSrc of uint16 mask
   | OxmTCPDst of uint16 mask
+  | OxmARPOp of uint16
+  | OxmARPSpa of uint32 mask
+  | OxmARPTpa of uint32 mask
+  | OxmARPSha of uint48 mask
+  | OxmARPTha of uint48 mask
   | OxmTunnelId of uint64 mask
 
 (**  Hard-codes OFPMT_OXM as the match type, since OFPMT_STANDARD is deprecated.

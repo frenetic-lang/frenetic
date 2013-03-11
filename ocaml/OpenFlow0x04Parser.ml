@@ -459,7 +459,7 @@ module Oxm = struct
     let f = match int_to_oxm_ofb_match_fields (value lsr 1) with
       | Some n -> n
       | None -> 
-        raise (Unparsable (sprintf "malformed field in oxm")) in
+        raise (Unparsable (sprintf "malformed field in oxm %d" (value lsr 1))) in
     let hm = value land 0x1 in
     let oxm_length = get_ofp_oxm_oxm_length bits in
     let bits = Cstruct.shift bits sizeof_ofp_oxm in
@@ -487,6 +487,68 @@ module Oxm = struct
           (OxmTunnelId {value = value; mask = (Some mask)}, bits2)
         else
           (OxmTunnelId {value = value; mask = None}, bits2)
+      (* Ethernet destination address. *)
+      | OFPXMT_OFB_ETH_DST ->
+	let value = get_ofp_uint64_value bits in
+	if hm = 1 then
+	  let bits = Cstruct.shift bits 6 in
+	  let mask = get_ofp_uint64_value bits in
+	  (OxmEthDst {value = value; mask = (Some mask)}, bits2)
+	else
+	  (OxmEthDst {value = value; mask = None}, bits2)
+      (* Ethernet source address. *)
+      | OFPXMT_OFB_ETH_SRC ->
+	let value = get_ofp_uint64_value bits in
+	if hm = 1 then
+	  let bits = Cstruct.shift bits 6 in
+	  let mask = get_ofp_uint64_value bits in
+	  (OxmEthSrc {value = value; mask = (Some mask)}, bits2)
+	else
+	  (OxmEthSrc {value = value; mask = None}, bits2)
+      (* Ethernet frame type. *)
+      | OFPXMT_OFB_ETH_TYPE ->
+	let value = get_ofp_uint16_value bits in
+	  (OxmEthType value, bits2)
+      (* ARP opcode. *)
+      | OFPXMT_OFB_ARP_OP ->
+	let value = get_ofp_uint16_value bits in
+	  (OxmARPOp value, bits2)
+      (* ARP source IPv4 address. *)
+      | OFPXMT_OFB_ARP_SPA ->
+	let value = get_ofp_uint32_value bits in
+	if hm = 1 then
+	  let bits = Cstruct.shift bits 4 in
+	  let mask = get_ofp_uint32_value bits in
+	  (OxmARPSpa {value = value; mask = (Some mask)}, bits2)
+	else
+	  (OxmARPSpa {value = value; mask = None}, bits2)
+      (* ARP target IPv4 address. *)
+      | OFPXMT_OFB_ARP_TPA ->
+	let value = get_ofp_uint32_value bits in
+	if hm = 1 then
+	  let bits = Cstruct.shift bits 4 in
+	  let mask = get_ofp_uint32_value bits in
+	  (OxmARPTpa {value = value; mask = (Some mask)}, bits2)
+	else
+	  (OxmARPTpa {value = value; mask = None}, bits2)
+      (* ARP source hardware address. *)
+      | OFPXMT_OFB_ARP_SHA ->
+	let value = get_ofp_uint64_value bits in
+	if hm = 1 then
+	  let bits = Cstruct.shift bits 6 in
+	  let mask = get_ofp_uint64_value bits in
+	  (OxmARPSha {value = value; mask = (Some mask)}, bits2)
+	else
+	  (OxmARPSha {value = value; mask = None}, bits2)
+      (* ARP target hardware address. *)
+      | OFPXMT_OFB_ARP_THA ->
+	let value = get_ofp_uint64_value bits in
+	if hm = 1 then
+	  let bits = Cstruct.shift bits 6 in
+	  let mask = get_ofp_uint64_value bits in
+	  (OxmARPTha {value = value; mask = (Some mask)}, bits2)
+	else
+	  (OxmARPTha {value = value; mask = None}, bits2)
       | _ -> 
         raise (Unparsable (sprintf "malformed packet in oxm"))
 
@@ -768,6 +830,10 @@ module PacketIn = struct
   } as big_endian
 
   let parse (bits : Cstruct.t) : packetIn =
+    (* let oc = open_out "test-msg-1.3-msg3-bits" in *)
+    (* let str = Cstruct.to_string bits in *)
+    (* fprintf oc "%s" str; *)
+    (* close_out oc; *)
     let bufId = match get_ofp_packet_in_buffer_id bits with
       | -1l -> None
       | n -> Some n in
@@ -908,17 +974,25 @@ module Message = struct
     str
 
   let parse (bits : Cstruct.t) =
+    (* let oc = open_out "test-msg-1.3-msg3-prebodybits" in *)
+    (* let str = Cstruct.to_string bits in *)
+    (* fprintf oc "%s" str; *)
+    (* close_out oc; *)
     let ver = get_ofp_header_version bits in
     let typ = get_ofp_header_typ bits in
     let len = get_ofp_header_length bits in
     let xid = get_ofp_header_xid bits in
-    let bits = Cstruct.shift bits sizeof_ofp_header in
+    let body_bits = Cstruct.shift bits sizeof_ofp_header in
+    (* let oc2 = open_out "test-msg-1.3-msg3-bodybits" in *)
+    (* let str = Cstruct.to_string body_bits in *)
+    (* fprintf oc2 "%s" str; *)
+    (* close_out oc2; *)
     match int_to_msg_code typ with
         | Some HELLO -> Hello
-        | Some ECHO_RESP -> EchoReply (Cstruct.to_string bits)
-        | Some FEATURES_RESP -> FeaturesReply (Features.parse bits)
-        | Some PACKET_IN -> PacketIn (PacketIn.parse bits)
-	| Some ECHO_REQ -> EchoRequest (Cstruct.to_string bits)
+        | Some ECHO_RESP -> EchoReply (Cstruct.to_string body_bits)
+        | Some FEATURES_RESP -> FeaturesReply (Features.parse body_bits)
+        | Some PACKET_IN -> PacketIn (PacketIn.parse body_bits)
+	| Some ECHO_REQ -> EchoRequest (Cstruct.to_string body_bits)
         | _ -> raise (Unparsable "unrecognized message code")
 
 end

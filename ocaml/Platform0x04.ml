@@ -58,7 +58,7 @@ module OpenFlowPlatform = struct
   (** Receives an OpenFlow message from a raw file. Does not update
       any controller state. *)
   let rec recv_from_switch_fd (sock : file_descr) : (xid * message) Lwt.t = 
-    let ofhdr_str = String.create (2 * sizeof_ofp_header) in
+    let ofhdr_str = String.create sizeof_ofp_header in
     lwt b = Util.SafeSocket.recv sock ofhdr_str 0 sizeof_ofp_header in 
     if not b then 
       raise_lwt UnknownSwitchDisconnected
