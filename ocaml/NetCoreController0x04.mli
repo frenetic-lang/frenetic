@@ -27,6 +27,10 @@ val to_flow_mod : Word16.t -> Pattern.pattern -> act list -> tableId -> flowMod
 
 val flow_mods_of_classifier : act list coq_Classifier -> tableId -> flowMod list
 
+val to_group_mod : groupId -> groupType -> act list list -> groupMod
+
+val group_mods_of_classifier : (groupId*groupType*(act list list)) list -> groupMod list
+
 val delete_all_flows : tableId -> flowMod 
 
 type ncstate = { policy : pol; switches : switchId list }
