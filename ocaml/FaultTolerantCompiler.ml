@@ -15,7 +15,7 @@ let rec mapi' idx f lst = match lst with
 
 let mapi f lst = mapi' 0 f lst
 
-let compile_nc = compile_opt
+let compile_nc = fun p sw -> fst (compile_opt p sw)
 
 module Gensym =
 struct
@@ -24,7 +24,7 @@ struct
 end
 
 let add_group groups gid a b =
-  groups := (gid, [a;b]) :: !groups
+  groups := (gid, FF, [a;b]) :: !groups
 
 let rec compile_pb pri crsovr bak sw =
   let pri_tbl = compile_nc pri sw in

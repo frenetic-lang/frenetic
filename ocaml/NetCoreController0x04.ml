@@ -127,6 +127,23 @@ let flow_mods_of_classifier lst tblId =
     then lst0
     else (to_flow_mod prio pat act0 tblId)::lst0) [] (prioritize lst)
 
+let rec get_watch_port acts = match acts with
+  | Forward (_, PhysicalPort pp) :: acts -> Some pp
+  | a :: acts -> get_watch_port acts
+  | [] -> None
+
+let to_group_mod gid gtype bkts =
+  AddGroup (gtype, gid, map (fun acts -> {weight = 0;
+					  watch_port = get_watch_port acts;
+					  watch_group = None;
+					  actions = (concat_map (translate_action None) acts)}) 
+    bkts)
+
+(** val flow_mods_of_classifier : act list coq_Classifier -> flowMod list **)
+
+let group_mods_of_classifier lst =
+  map (fun (x1,x2,x3) -> to_group_mod x1 x2 x3) lst
+
 (** val delete_all_flows : flowMod **)
 
 let delete_all_flows tableId =
@@ -186,9 +203,13 @@ module Make =
   (** val config_commands : pol -> switchId -> unit Monad.m **)
   
   let config_commands pol0 swId tblId =
+    let fm_cls, gm_cls = compile_opt pol0 swId in
     sequence
+      ((map (fun fm -> Monad.send swId Word32.zero (GroupMod fm))
+	  (* Should we delete existing groups? No single wildcard cmd available *)
+	  (group_mods_of_classifier gm_cls)) @
       (map (fun fm -> Monad.send swId Word32.zero (FlowMod fm))
-        (delete_all_flows tblId::(flow_mods_of_classifier (compile_opt pol0 swId) tblId)))
+        (delete_all_flows tblId::(flow_mods_of_classifier fm_cls tblId))))
   
   (** val set_policy : pol -> unit Monad.m **)
   

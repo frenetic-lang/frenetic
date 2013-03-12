@@ -46,6 +46,6 @@ let compile_no_opt =
 
 (** val compile_opt : pol -> switchId -> act list coq_Classifier **)
 
-let compile_opt =
-  compile_pol (fun _ x -> strip_empty_rules (elim_shadowed x))
+let compile_opt pol swid =
+  (compile_pol (fun _ x -> strip_empty_rules (elim_shadowed x)) pol swid, [])
 
