@@ -4,13 +4,13 @@ open Packet
 open ControllerInterface0x04
 open OpenFlow0x04Types
 open Platform0x04
-open NetCoreEval13
+open NetCoreEval0x04
 open Printf
 
 module type HANDLERS = sig
 
   val get_packet_handler : 
-    NetCoreEval13.id -> switchId -> portId -> packet -> unit
+    NetCoreEval0x04.id -> switchId -> portId -> packet -> unit
 
 end
 
@@ -86,11 +86,11 @@ module MakeNetCoreMonad
     Lwt.bind (action init) (fun (result, _) -> Lwt.return result)
 end
 
-let drop_all_packets = NetCoreEval13.PoAtom (NetCoreEval.PrAll, [])
+let drop_all_packets = NetCoreEval0x04.PoAtom (NetCoreEval.PrAll, [])
 
 type eventOrPolicy = 
   | Event of ControllerInterface0x04.event
-  | Policy of NetCoreEval13.pol
+  | Policy of NetCoreEval0x04.pol
 
 module MakeDynamic
   (Platform : PLATFORM)

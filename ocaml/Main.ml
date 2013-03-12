@@ -1,11 +1,11 @@
 open Printf
-open OpenFlow0x01Parser
-open Platform 
+open OpenFlow0x04Parser
+open Platform0x04
 open Unix
-open MessagesDef
+open OpenFlow0x04Types
 
 (* module Controller = RegexTest.Make (OpenFlowPlatform) *)
-module Controller = MacLearning.Make (OpenFlowPlatform)
+module Controller = MacLearning0x04.Make (OpenFlowPlatform)
 
 (* configuration state *)
 let controller = ref "learn"
@@ -28,6 +28,7 @@ let main () =
   Sys.catch_break true;
   try 
     OpenFlowPlatform.init_with_port 6633;
+    (* Printexc.record_backtrace (); *)
     Lwt_main.run (Controller.start ())
   with exn -> 
     Printf.eprintf "[main] exception: %s\n%s\n%!" 

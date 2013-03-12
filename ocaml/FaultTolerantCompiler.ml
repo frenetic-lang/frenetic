@@ -2,8 +2,8 @@ open MessagesDef
 open OpenFlow0x04Parser
 open OpenFlow0x04Types
 open PatternImplDef
-open NetCoreEval13
-open NetCoreCompiler13
+open NetCoreEval0x04
+open NetCoreCompiler0x04
 open Classifier
 open List
 

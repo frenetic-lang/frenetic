@@ -4,8 +4,8 @@ open ControllerInterface0x04
 open Datatypes
 open List0
 open OpenFlow0x04Types
-open NetCoreCompiler13
-open NetCoreEval13
+open NetCoreCompiler0x04
+open NetCoreEval0x04
 open Types
 open WordInterface
 
