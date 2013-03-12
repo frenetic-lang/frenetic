@@ -81,7 +81,7 @@ module Routing = struct
   (** Composes learning and routing policies, which together form
       mac-learning. *)      
   let policy = Lwt_stream.map (fun learning_pol ->
-    Par (make_routing_policy (), learning_pol))
+    (Par (make_routing_policy (), learning_pol), NetCoreFT.Pol (All, []), NetCoreFT.Pol (All, [])))
     Learning.policy
 end
 

@@ -36,6 +36,6 @@ type policy =
 val policy_to_string : policy -> string
 
 module Make : functor (Platform : PLATFORM) -> sig
-  val start_controller : policy Lwt_stream.t -> unit Lwt.t
+  val start_controller : (policy*policy*policy) Lwt_stream.t -> unit Lwt.t
 end
 

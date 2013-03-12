@@ -168,11 +168,11 @@ module type NETCORE_MONAD =
   
   val ret : 'a1 -> 'a1 m
 
-  type state = { policy : pol; switches : switchId list }
+  type state = { policy : pol*pol*pol; switches : switchId list }
 
   (** val policy : ncstate -> pol **)
 
-  val policy : state -> pol
+  val policy : state -> pol*pol*pol
 
   (** val switches : ncstate -> switchId list **)
 
@@ -202,7 +202,7 @@ module Make =
   
   (** val config_commands : pol -> switchId -> unit Monad.m **)
   
-  let config_commands pol0 swId tblId =
+  let config_commands (pol0, _, _) swId tblId =
     let fm_cls, gm_cls = nc_compiler pol0 swId in
     sequence
       ((map (fun fm -> Monad.send swId Word32.zero (GroupMod fm))
@@ -258,7 +258,8 @@ module Make =
   
   let handle_packet_in swId pk = 
     Monad.bind Monad.get (fun st ->
-      let outs = classify st.Monad.policy (packetIn_to_in swId pk) in
+      let (policy, _, _) = st.Monad.policy in
+      let outs = classify policy (packetIn_to_in swId pk) in
       sequence (map send_output outs))
   
   (** val handle_event : event -> unit Monad.m **)

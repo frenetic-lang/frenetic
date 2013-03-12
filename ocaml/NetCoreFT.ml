@@ -18,7 +18,7 @@ module MakeNetCoreMonad
   (Platform : PLATFORM) 
   (Handlers : HANDLERS) = struct
 
-  type state = { policy : pol; switches : switchId list }
+  type state = { policy : pol*pol*pol; switches : switchId list }
 
   let policy x = x.policy
     
@@ -94,7 +94,7 @@ let drop_all_packets = NetCoreEval0x04.PoAtom (NetCoreEval.PrAll, [])
 
 type eventOrPolicy = 
   | Event of ControllerInterface0x04.event
-  | Policy of NetCoreEval0x04.pol
+  | Policy of (NetCoreEval0x04.pol*NetCoreEval0x04.pol*NetCoreEval0x04.pol)
 
 module MakeDynamic
   (Platform : PLATFORM)
@@ -107,7 +107,7 @@ module MakeDynamic
 
   let start_controller policy_stream =
     let init_state = { 
-      NetCoreMonad.policy = drop_all_packets; 
+      NetCoreMonad.policy = (drop_all_packets, drop_all_packets, drop_all_packets); 
       NetCoreMonad.switches = []
     } in
     let policy_stream = Lwt_stream.map (fun v -> Policy v) policy_stream in
@@ -241,13 +241,13 @@ module Make (Platform : PLATFORM) = struct
     Hashtbl.clear get_pkt_handlers;
     next_id := 0
 
-  let start_controller (pol : policy Lwt_stream.t) : unit Lwt.t = 
+  let start_controller (pol : (policy*policy*policy) Lwt_stream.t) : unit Lwt.t = 
     Controller.start_controller
       (Lwt_stream.map 
-         (fun pol -> 
+         (fun (pol1,pol2,pol3) -> 
             printf "[NetCore.ml] got a new policy%!\n";
             clear_handlers (); 
-            desugar_pol pol)
+            (desugar_pol pol1, desugar_pol pol2, desugar_pol pol3))
          pol)
 
 end

@@ -41,9 +41,9 @@ module type NETCORE_MONAD =
   
   val ret : 'a1 -> 'a1 m
 
-  type state = { policy : pol; switches : switchId list }
+  type state = { policy : pol*pol*pol; switches : switchId list }
 
-  val policy : state -> pol
+  val policy : state -> pol*pol*pol
 
   val switches : state -> switchId list
   
@@ -65,9 +65,9 @@ module Make :
  sig 
   val sequence : unit Monad.m list -> unit Monad.m
   
-  val config_commands : pol -> switchId -> tableId -> unit Monad.m
+  val config_commands : pol*pol*pol -> switchId -> tableId -> unit Monad.m
   
-  val set_policy : pol -> unit Monad.m
+  val set_policy : pol*pol*pol -> unit Monad.m
   
   val handle_switch_disconnected : switchId -> unit Monad.m
   

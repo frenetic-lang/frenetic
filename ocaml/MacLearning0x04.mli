@@ -15,7 +15,7 @@ end
 
 module Routing : sig
 
-  val policy : policy Lwt_stream.t
+  val policy : (policy*policy*policy) Lwt_stream.t
     
 end
 
