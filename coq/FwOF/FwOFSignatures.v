@@ -607,6 +607,25 @@ Module Type RELATION.
   Definition OFLinksHaveSw (sws : bag switch) (ofLinks : list openFlowLink) :=
     forall ofLink, In ofLink ofLinks -> ofLinkHasSw sws ofLink.
 
+  Definition DevicesFromTopo (devs : state) :=
+    forall swId0 swId1 pt0 pt1,
+      Some (swId0,pt0) = topo (swId1,pt1) ->
+      exists sw0 sw1 lnk,
+        Mem sw0 (switches devs) /\
+        Mem sw1 (switches devs) /\
+        In lnk (links devs) /\
+        swId sw0 = swId0 /\
+        swId sw1 = swId1 /\
+        src lnk = (swId1,pt1) /\
+        dst lnk = (swId0, pt0).
+
+  Definition SwitchesHaveOpenFlowLinks (devs : state) :=
+    forall sw,
+      Mem sw (switches devs) ->
+      exists ofLink,
+        In ofLink (ofLinks devs) /\
+        swId sw = of_to ofLink.
+
   Record concreteState := ConcreteState {
     devices : state;
     concreteState_flowTableSafety : FlowTablesSafe (switches devices);
@@ -617,7 +636,9 @@ Module Type RELATION.
     allFMS : AllFMS (switches devices) (ofLinks devices);
     ctrlP : P (switches devices) (ofLinks devices) (ctrl devices);
     uniqOfLinkIds : AllDiff of_to (ofLinks devices);
-    ofLinksHaveSw : OFLinksHaveSw (switches devices) (ofLinks devices)
+    ofLinksHaveSw : OFLinksHaveSw (switches devices) (ofLinks devices);
+    devicesFromTopo : DevicesFromTopo devices;
+    swsHaveOFLinks : SwitchesHaveOpenFlowLinks devices
   }.
 
   Implicit Arguments ConcreteState [].
@@ -679,18 +700,20 @@ Module Type RELATION.
     (allFMS1 : AllFMS (switches st1) (ofLinks st1))
     (P1 : P (switches st1) (ofLinks st1) (ctrl st1))
     (uniqOfLinkIds1 : AllDiff of_to (ofLinks st1))
-    (ofLinksHaveSw1 : OFLinksHaveSw (switches st1) (ofLinks st1)),
+    (ofLinksHaveSw1 : OFLinksHaveSw (switches st1) (ofLinks st1))
+    (devsFromTopo1 : DevicesFromTopo st1)
+    (swsHaveOFLinks1 : SwitchesHaveOpenFlowLinks st1),
     multistep step st1 obs st2 ->
     exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2 allFMS2 P2
-           uniqOfLinkIds2 ofLinksHaveSw2,
+           uniqOfLinkIds2 ofLinksHaveSw2 devsFromTopo2 swsHaveOFLinks2,
       multistep concreteStep
                 (ConcreteState st1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1 
                                uniqSwIds1 allFMS1 P1 uniqOfLinkIds1
-                               ofLinksHaveSw1)
+                               ofLinksHaveSw1 devsFromTopo1 swsHaveOFLinks1)
                 obs
                 (ConcreteState st2 tblsOk2 linksTopoOk2 haveSrc2 haveDst2 
                                uniqSwIds2 allFMS2 P2 uniqOfLinkIds2
-                               ofLinksHaveSw2).
+                               ofLinksHaveSw2 devsFromTopo2 swsHaveOFLinks2).
 
 
   Parameter simpl_weak_sim : forall devs1 devs2 sw pt pk lps
@@ -702,7 +725,9 @@ Module Type RELATION.
     (allFMS1 : AllFMS (switches devs1) (ofLinks devs1))
     (P1 : P (switches devs1) (ofLinks devs1) (ctrl devs1))
     (uniqOfLinkIds1 : AllDiff of_to (ofLinks devs1))
-    (ofLinksHaveSw1 : OFLinksHaveSw (switches devs1) (ofLinks devs1)),
+    (ofLinksHaveSw1 : OFLinksHaveSw (switches devs1) (ofLinks devs1))
+    (devsFromTopo1 : DevicesFromTopo devs1)
+    (swsHaveOFLinks1 : SwitchesHaveOpenFlowLinks devs1),
     multistep step devs1 [(sw,pt,pk)] devs2 ->
     relate devs1 === ({| (sw,pt,pk) |} <+> lps) ->
     abstractStep
@@ -717,7 +742,7 @@ Module Type RELATION.
      multistep concreteStep
                (ConcreteState devs1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1
                               uniqSwIds1 allFMS1 P1 uniqOfLinkIds1
-                              ofLinksHaveSw1)
+                              ofLinksHaveSw1 devsFromTopo1 swsHaveOFLinks1)
                [(sw,pt,pk)]
                t.
 
