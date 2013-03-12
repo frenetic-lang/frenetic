@@ -1,6 +1,7 @@
 #!/bin/bash
 
-echo "admit :" `find . -name "*.v" | xargs cat | grep -c "admit\\."`
+echo "admit:"
+find . -name "*.v" | xargs grep -c "admit\\." | grep -v ":0$"
 echo "Admitted:"
 find . -name "*.v" | xargs grep -c "Admitted\\." | grep -v ":0$"
 echo "Axioms:"
