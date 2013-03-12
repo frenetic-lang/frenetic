@@ -600,14 +600,16 @@ Module Make (Import Relation : RELATION).
     unfold inverse_relation in H.
     unfold bisim_relation in H.
     unfold relate in H.
-    destruct t.
-    simpl in *.
+(*    destruct t.
+    simpl in *. *)
     inversion H0; subst.
     (* Idiotic case, where the two abstract states are equivalent. *)
     admit.
     (* Real cases here. *)
     simpl.
+    remember (devices t) as devices0.
     destruct devices0.
+    simpl in *.
     (* The first challenge is to figure out what the cases are. We cannot
        proceed by inversion or induction. Instead, hypothesis H entails
        that (sw,pt,pk) is in one of the concrete components. Mem defines
@@ -663,6 +665,7 @@ Module Make (Import Relation : RELATION).
                   ofLinks0
                   ctrl0)).
     apply StepEquivState.
+    rewrite <- Heqdevices0.
     apply StateEquiv.
     rewrite -> Xrel.
     do 2 rewrite -> (Bag.union_comm _ _ sws).
@@ -677,6 +680,8 @@ Module Make (Import Relation : RELATION).
     eapply multistep_nil.
     rewrite -> H.
     unfold relate.
+    simpl.
+    rewrite <- Heqdevices0.
     simpl.
     apply reflexivity.
 
@@ -710,6 +715,7 @@ Module Make (Import Relation : RELATION).
 
     assert (exists pks, In (DataLink (swId0,pt0) pks (sw,pt)) links0) as X.
     {
+      destruct t.
       unfold DevicesFromTopo in devicesFromTopo0.
       apply devicesFromTopo0 in HeqHtopo.
       destruct HeqHtopo as [sw0 [sw1 [lnk [_ [_ [Hlnk [_ [_ [HIdEq0 HIdEq1]]]]]]]]].
@@ -719,7 +725,9 @@ Module Make (Import Relation : RELATION).
       simpl in *.
       rewrite -> HIdEq0 in Hlnk.
       rewrite -> HIdEq1 in Hlnk.
-      exists pks0... }
+      exists pks0...
+      rewrite <- Heqdevices0 in Hlnk.
+      simpl in Hlnk... }
     destruct X as [pks Hlink].
 
     (* 2. Rewrite links0 as the union of the link in Hlink and the rest. *)
@@ -732,7 +740,10 @@ Module Make (Import Relation : RELATION).
       (LinkHasDst
          switches0
          (DataLink (swId0,pt0) pks (sw,pt))) as J0.
-      apply linksHaveDst0...
+    { destruct t.
+      simpl in Heqdevices0.
+      rewrite <- Heqdevices0 in *.
+      apply linksHaveDst0... }
     unfold LinkHasDst in J0.
     destruct J0 as [switch2 [HSw2In [HSw2IdEq HSw2PtsIn]]].
     destruct switch2.
@@ -775,6 +786,7 @@ Module Make (Import Relation : RELATION).
                  ofLinks0
                  ctrl0).
       apply StepEquivState.
+      rewrite <- Heqdevices0.
       apply StateEquiv.
       rewrite -> Xrel.
       apply Bag.pop_union.
@@ -786,9 +798,10 @@ Module Make (Import Relation : RELATION).
       apply symmetry...
       apply reflexivity.
 
-    eapply ObserveFromOutp... (* #winning *)
+    eapply ObserveFromOutp...
     rewrite -> H.
     unfold relate.
+    rewrite <- Heqdevices0.
     simpl.
     apply reflexivity.
     trivial.
@@ -831,6 +844,7 @@ Module Make (Import Relation : RELATION).
 
     assert (exists pks, In (DataLink (swId0,p) pks (sw,pt)) links0) as X.
     { 
+      destruct t.
       unfold DevicesFromTopo in devicesFromTopo0.
       apply devicesFromTopo0 in HeqHtopo.
       destruct HeqHtopo as [sw0 [sw1 [lnk [_ [_ [Hlnk [_ [_ [HIdEq0 HIdEq1]]]]]]]]].
@@ -840,6 +854,8 @@ Module Make (Import Relation : RELATION).
       simpl in *.
       rewrite -> HIdEq0 in Hlnk.
       rewrite -> HIdEq1 in Hlnk.
+      rewrite <- Heqdevices0 in *.
+      simpl in *.
       exists pks0... }
     destruct X as [pks Hlink].
     apply in_split in Hlink.
@@ -850,7 +866,10 @@ Module Make (Import Relation : RELATION).
       (LinkHasDst
          switches0
          (DataLink (swId0,p) pks (sw,pt))) as J0.
-      apply linksHaveDst0...
+    { destruct t.
+      simpl in *.
+      rewrite <- Heqdevices0 in *.
+      apply linksHaveDst0... }
     unfold LinkHasDst in J0.
     destruct J0 as [switch2 [HSw2In [HSw2IdEq HSw2PtsIn]]].
     destruct switch2.
@@ -894,6 +913,7 @@ Module Make (Import Relation : RELATION).
                 ofLinks0
                 ctrl0)).
     apply StepEquivState.
+    rewrite <- Heqdevices0.
     apply StateEquiv.
     rewrite -> Xrel.
     apply Bag.pop_union.
@@ -913,6 +933,7 @@ Module Make (Import Relation : RELATION).
     unfold relate.
     simpl.
     rewrite -> H.
+    rewrite <- Heqdevices0.
     apply reflexivity.
     trivial.
 
@@ -932,7 +953,8 @@ Module Make (Import Relation : RELATION).
 
     assert (exists switchm0l ctrlm0l, 
               In (OpenFlowLink swId0 switchm0l ctrlm0l) ofLinks0) as X.
-    { unfold SwitchesHaveOpenFlowLinks in swsHaveOFLinks0.
+    { destruct t.
+      unfold SwitchesHaveOpenFlowLinks in swsHaveOFLinks0.
       simpl in swsHaveOFLinks0.
       assert (@Mem _ _  switch_Equivalence (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0) 
                   ({| (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0)|} <+> sws)).
@@ -942,6 +964,8 @@ Module Make (Import Relation : RELATION).
       destruct sw'.
       inversion HEq.
       subst. clear HEq.
+      simpl in *.
+      rewrite <- Heqdevices0 in *.
       apply swsHaveOFLinks0 in HMemSw.
       destruct HMemSw as [ofLink [HOFLinkIn HIdEq]].
       destruct ofLink.
@@ -977,6 +1001,10 @@ Module Make (Import Relation : RELATION).
       apply Bag.equiv_singleton.
       apply SwitchEquiv; try solve [ apply reflexivity | auto ].
       apply reflexivity.
+    match goal with
+      | [ H : step ?s1 None ?s2 |- _ ] =>
+        remember s1 as S0; remember s2 as S0'
+    end.
 
     destruct (DrainToController
                 (({|Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm1|}) <+> sws)
@@ -987,87 +1015,18 @@ Module Make (Import Relation : RELATION).
       | [ H : multistep step ?s1 nil ?s2 |- _ ] =>
         remember s1 as S1; remember s2 as S2
     end.
-    assert (FlowTablesSafe (switches S1)) as tblsOk0.
+    move Hstep1 before Hstep2.
+    assert (step S0' None S1) as Hstep1'.
     { subst.
-      unfold switches in *.
-      eapply FlowTablesSafe_untouched.
-      unfold FlowTablesSafe in *. 
-      intros.
-      eapply concreteState_flowTableSafety0...
-      eapply Bag.Mem_equiv.
-      apply symmetry.
-      exact Xrel.
-      exact H1. }
-    assert (ConsistentDataLinks (links S1)) as linksTopoOk0. subst...
-    assert (LinksHaveSrc (switches S1) (links S1)) as haveSrc0.
-    { subst.
-      unfold switches in *.
-      simpl.
-      eapply LinksHaveSrc_untouched.
-      unfold LinksHaveSrc in *.
-      intros.
-      eapply LinkHasSrc_equiv.
-      exact Xrel.
-      eapply linksHaveSrc0... }
-    assert (LinksHaveDst (switches S1) (links S1)) as haveDst0.
-    { subst.
-      unfold switches in *.
-      simpl.
-      eapply LinksHaveDst_untouched.
-      unfold LinksHaveDst in *.
-      intros.
-      eapply LinkHasDst_equiv.
-      exact Xrel.
-      eapply linksHaveDst0... }
-    assert (UniqSwIds (switches S1)) as uniqSwIds0'.
-    { subst.
-      unfold switches in *.
-      idtac "TODO(arjun): UniqSwIds preserved under equivalence.".
-      admit.
-    }
-    assert (AllFMS (switches S1) (ofLinks S1)) as allFMS0'.
-    { subst.
-      unfold switches in *.
-      unfold ofLinks in *.
-      idtac "TODO(arjun): AllFMS preserved under equivalence.".
-      admit.
-    }
-    assert (P (switches S1) (ofLinks S1) (ctrl S1)) as ctrlP1'.
-    { subst.
-      unfold switches in *.
-      unfold ofLinks in *.
-      idtac "TODO(arjun): P preserved under equivalence; provided by controller".
-      admit.
-    }
-    assert (AllDiff of_to (ofLinks S1)) as uniqOfLinkIds0'.
-    { subst.
-      unfold ofLinks in *.
-      eapply AllDiff_preservation...
-      do 2 rewrite -> map_app... }
-    assert (OFLinksHaveSw (switches S1) (ofLinks S1)) as ofLinksHaveSw0'.
-    { subst.
-      unfold switches in *.
-      unfold ofLinks in *.
-      idtac "TODO(arjun): OFLinksHaveSw preserved under changes.".
-      admit. }
-    assert (DevicesFromTopo S1) as devicesFromTopo0'.
-    { subst.
-      idtac "TODO(arjun): DevicesFromTopo preserved under changes.".
-      admit. }
-    assert (SwitchesHaveOpenFlowLinks S1) as swsHaveOFLinks0'.
-    { subst.
-      idtac "TODO(arjun): SwitchesHaveOpenFlowLinks preserved under changes.".
-      admit. }
-    destruct (simpl_multistep tblsOk0 linksTopoOk0 haveSrc0 haveDst0 
-                              uniqSwIds0' allFMS0' 
-                              ctrlP1' uniqOfLinkIds0' ofLinksHaveSw0' 
-                              devicesFromTopo0' 
-                              swsHaveOFLinks0' Hstep2)
-             as [tblsOk1 [linksTopoOk1 [haveSrc1 [haveDst1 
-                  [uniqSwIds1 [allFMS1 [ctrlP1 [uniqOfLinkIds1 [ofLinksHaveSrc1
-                  [devicesFromTopo1 [swsHaveOFLinks1 _]]]]]]]]]]].
-    subst.
-    simpl in *.
+      apply SendToController. }
+    assert (multistep step S0 nil S1) as Hstep1''...
+    rewrite -> Heqdevices0 in Hstep1''.
+    remember Hstep1'' as Hstep1'''. clear HeqHstep1'''.
+    apply simpl_multistep in Hstep1''.
+    destruct Hstep1'' as [st1 [Heqdevices1 Hstep1'']].
+    assert (multistep step (devices st1) nil S2) as Hstep2'.
+    { rewrite -> Heqdevices1... }
+    destruct (simpl_multistep st1 Hstep2') as [S3 [devs3 _]].
     destruct (ControllerRecvLiveness sws1 links1 ofLinks10 swId0 nil
                                      (PacketIn p p0)
                                      ctrlm0l ofLinks11 ctrl1)
@@ -1097,8 +1056,18 @@ Module Make (Import Relation : RELATION).
     destruct (@EasyObservePacketOut sw pt swTo ptTo sws1 links1 ofLinks20
                                    switchmLst nil pk ctrlmLst
                                    ofLinks21 ctrl3) as [stateN stepN]...
+    { destruct S3. simpl in devs3.
+      rewrite -> devs3 in *.
+      auto. }
+    { destruct S3. simpl in devs3.
+      rewrite -> devs3 in *.
+      auto. }
+    { destruct S3. simpl in devs3.
+      rewrite -> devs3 in *.
+      auto. }
     apply simpl_weak_sim with (devs2 := stateN).
     eapply multistep_tau.
+    rewrite <- Heqdevices0.
     apply Hstep1.
     eapply multistep_tau.
     eapply SendToController.
@@ -1118,6 +1087,7 @@ Module Make (Import Relation : RELATION).
     rewrite -> H.
     unfold relate.
     simpl.
+    rewrite <- Heqdevices0.
     apply reflexivity.
     trivial.
     assert (Mem (sw,pt,pk) Empty) as Hcontra.
@@ -1148,7 +1118,10 @@ Module Make (Import Relation : RELATION).
     assert
       (LinkHasDst 
          switches0 (DataLink src0 (pks01 ++ pk :: pks02) (sw,pt))) as J0.
-      apply linksHaveDst0...
+    { destruct t.
+      simpl in *.
+      rewrite <- Heqdevices0 in *.
+      apply linksHaveDst0... }
     unfold LinkHasDst in J0.
     destruct J0 as [switch2 [HSw2In [HSw2IdEq HSw2PtsIn]]].
     destruct switch2.
@@ -1183,6 +1156,7 @@ Module Make (Import Relation : RELATION).
               ofLinks0
               ctrl0).
     apply StepEquivState.
+    rewrite <- Heqdevices0 in *.
     apply StateEquiv.
     rewrite -> HSw2In.
     apply Bag.pop_union_l.
@@ -1201,7 +1175,9 @@ Module Make (Import Relation : RELATION).
       symmetry. exact Hprocess.
     apply multistep_nil.
     trivial.
-    rewrite -> H. apply reflexivity.
+    rewrite -> H.
+    rewrite <- Heqdevices0 in *.
+    apply reflexivity.
     trivial.
 
     (* ********************************************************************** *)
@@ -1244,10 +1220,15 @@ Module Make (Import Relation : RELATION).
     destruct (@EasyObservePacketOut sw pt srcSw p switches0 links0 ofLinks01
                                    of_switchm0 lstCtrlm0 pk lstCtrlm1
                                    ofLinks02 ctrl0) as [stateN stepN]...
+    { destruct t. simpl in *. rewrite <- Heqdevices0 in *. auto. }
+    { destruct t. simpl in *. rewrite <- Heqdevices0 in *. auto. }
+    { destruct t. simpl in *. rewrite <- Heqdevices0 in *. auto. }
     apply simpl_weak_sim with (devs2 := stateN)...
+    rewrite <- Heqdevices0...
     rewrite -> H.
     unfold relate.
     simpl.
+    rewrite <- Heqdevices0...
     apply reflexivity.
     trivial.
 
@@ -1272,29 +1253,16 @@ Module Make (Import Relation : RELATION).
       | [ H : multistep step ?s1 nil ?s2 |- _ ] =>
         remember s1 as S1; remember s2 as S2
     end.
-    assert (FlowTablesSafe (switches S1)) as tblsOk0. subst...
-    assert (ConsistentDataLinks (links S1)) as linksTopoOk0. subst...
-    assert (LinksHaveSrc (switches S1) (links S1)) as haveSrc0. subst...
-    assert (LinksHaveDst (switches S1) (links S1)) as haveDst0. subst...
-    assert (UniqSwIds (switches S1)) as uniqSwIds0'. subst...
-    assert (AllFMS (switches S1) (ofLinks S1)) as allFMS0'. subst. admit...
-    assert (P (switches S1) (ofLinks S1) (ctrl S1)) as ctrlP1'. admit.
-    assert (AllDiff of_to (ofLinks S1)) as uniqOfLinkIds0'.
-    { subst.
-      unfold ofLinks in *.
-      eapply AllDiff_preservation...
-      do 2 rewrite -> map_app... }
-    assert (OFLinksHaveSw (switches S1) (ofLinks S1)) as ofLinksHaveSw0'. admit.
-    assert (DevicesFromTopo S1) as devicesFromTopo0'. admit.
-    assert (SwitchesHaveOpenFlowLinks S1) as swsHaveOFLinks0'. admit.
-    destruct (simpl_multistep tblsOk0 linksTopoOk0 haveSrc0 haveDst0 
-                              uniqSwIds0' allFMS0' ctrlP1' uniqOfLinkIds0'
-                              ofLinksHaveSw0' devicesFromTopo0' swsHaveOFLinks0' Hstep1)
-             as [tblsOk1 [linksTopoOk1 [haveSrc1 [haveDst1 
-                [uniqSwIds1 [allFMS1 [ctrlP1 [uniqOfLinkIds1 
-                [ofLinksHaveSw1 [devicesFromTopo1 [swsHaveOFLinks1 _]]]]]]]]]]].
-    subst.
-    simpl in *.
+
+    assert (switchm0 ++ PacketIn p p0 :: switchm1 =
+             (switchm0 ++ [PacketIn p p0]) ++ switchm1) as X.
+       rewrite <- app_assoc...
+    rewrite -> X in *. clear X.
+    rewrite <- HeqS1 in Heqdevices0.
+    assert (multistep step (devices t) nil S2) as X...
+    { rewrite <- Heqdevices0... }
+    apply simpl_multistep in X.
+    destruct X as [st2 [Heqdevices2 HconcreteStep1]].
     destruct (ControllerRecvLiveness sws1 links1 ofLinks10 of_to0 switchm0
                                      (PacketIn p p0)
                                      of_ctrlm0 ofLinks11 ctrl1)
@@ -1324,12 +1292,11 @@ Module Make (Import Relation : RELATION).
     destruct (@EasyObservePacketOut sw pt swTo ptTo sws1 links1 ofLinks20
                                    switchmLst nil pk ctrlmLst
                                    ofLinks21 ctrl3) as [stateN stepN]...
+    { destruct st2. simpl in *. subst. simpl in *. auto. }
+    { destruct st2. simpl in *. subst. simpl in *. auto. }
+    { destruct st2. simpl in *. subst. simpl in *. auto. }
     apply simpl_weak_sim with (devs2 := stateN).
     eapply multistep_app with (obs2 := [(sw,pt,pk)]).
-    assert (switchm0 ++ PacketIn p p0 :: switchm1 =
-             (switchm0 ++ [PacketIn p p0]) ++ switchm1) as X.
-       rewrite <- app_assoc...
-    rewrite -> X. clear X.
     apply Hstep1. clear Hstep1.
     eapply multistep_app with (obs2 := [(sw,pt,pk)]).
     apply Hstep2. clear Hstep2.
@@ -1341,7 +1308,7 @@ Module Make (Import Relation : RELATION).
     reflexivity.
     rewrite -> H.
     unfold relate.
-    simpl.
+    rewrite -> HeqS1.
     apply reflexivity.
     trivial.
     assert (Mem (sw,pt,pk) Empty) as Hcontra.
@@ -1370,9 +1337,14 @@ Module Make (Import Relation : RELATION).
     destruct (@EasyObservePacketOut sw pt srcSw p switches0 links0 ofLinks10
                                    switchmLst nil pk ctrlmLst
                                    ofLinks11 ctrl1) as [stateN stepN]...
+    { destruct t. simpl in *. subst. simpl in *. auto. }
+    { destruct t. simpl in *. subst. simpl in *. auto. }
+    { destruct t. simpl in *. subst. simpl in *. auto. }
     apply simpl_weak_sim with (devs2 := stateN)...
+    rewrite <- Heqdevices0.
     eapply multistep_app...
     rewrite -> H.
+    rewrite <- Heqdevices0.
     unfold relate.
     simpl.
     apply reflexivity.
