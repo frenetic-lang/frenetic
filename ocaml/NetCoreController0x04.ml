@@ -13,7 +13,7 @@ open WordInterface
 (** val prio_rec :
     Word16.t -> 'a1 coq_Classifier -> ((Word16.t*Pattern.pattern)*'a1) list **)
 
-let nc_compiler = compile_opt
+let nc_compiler = FaultTolerantCompiler.compile_pb
 
 let rec prio_rec prio = function
 | [] -> []
@@ -71,6 +71,7 @@ let translate_action in_port = function
            else Output (PhysicalPort pp)
          | None -> Output (PhysicalPort pp))::[])
    | _ -> app (modification_to_openflow0x01 mods) ((Output p)::[]))
+| NetCoreEval0x04.Group gid -> [Group gid]
 | ActGetPkt x -> (Output (Controller Word16.max_value))::[]
 
 (** val to_flow_mod : priority -> Pattern.pattern -> act list -> flowMod **)
@@ -147,6 +148,8 @@ let group_mods_of_classifier lst =
   map (fun (x1,x2,x3) -> to_group_mod x1 x2 x3) lst
 
 (** val delete_all_flows : flowMod **)
+let delete_all_groups = 
+  DeleteGroup (All,OpenFlow0x04Parser.ofpg_all)
 
 let delete_all_flows tableId =
   { command = DeleteFlow; ofp_match = []; priority = 0;
@@ -202,12 +205,11 @@ module Make =
   
   (** val config_commands : pol -> switchId -> unit Monad.m **)
   
-  let config_commands (pol0, _, _) swId tblId =
-    let fm_cls, gm_cls = nc_compiler pol0 swId in
+  let config_commands (pol0, pol1, pol2) swId tblId =
+    let fm_cls, gm_cls = nc_compiler pol0 pol1 pol2 swId in
     sequence
       ((map (fun fm -> Monad.send swId Word32.zero (GroupMod fm))
-	  (* Should we delete existing groups? No single wildcard cmd available *)
-	  (group_mods_of_classifier gm_cls)) @
+	  (delete_all_groups :: (group_mods_of_classifier gm_cls))) @
       (map (fun fm -> Monad.send swId Word32.zero (FlowMod fm))
         (delete_all_flows tblId::(flow_mods_of_classifier fm_cls tblId))))
   

@@ -59,6 +59,15 @@ cstruct ofp_match {
   uint16_t length
 } as big_endian
 
+let ofpp_in_port = 0xfffffff8l
+let ofpp_flood = 0xfffffffbl
+let ofpp_all = 0xfffffffcl
+let ofpp_controller = 0xfffffffdl
+let ofpp_any = 0xffffffffl
+
+(* Not in the spec, comes from C headers. :rolleyes: *)
+let ofpg_all = 0xfffffffcl
+
 (* OKAY *)
 cenum ofp_oxm_class {
   OFPXMC_NXM_0          = 0x0000;    (* Backward compatibility with NXM *)
@@ -609,11 +618,11 @@ module Action = struct
         set_ofp_action_output_port buf
           (match port with
             | PhysicalPort pid -> pid
-            | InPort -> 0xfffffff8l         (* OFPP_IN_PORT *)
-            | Flood -> 0xfffffffbl          (* OFPP_FLOOD *)
-            | AllPorts -> 0xfffffffcl       (* OFPP_ALL *)
-            | Controller _ -> 0xfffffffdl   (* OFPP_CONTROLLER *)
-            | Any -> 0xffffffffl);          (* OFPP_ANY *)
+            | InPort -> ofpp_in_port         (* OFPP_IN_PORT *)
+            | Flood -> ofpp_flood          (* OFPP_FLOOD *)
+            | AllPorts -> ofpp_all       (* OFPP_ALL *)
+            | Controller _ -> ofpp_controller   (* OFPP_CONTROLLER *)
+            | Any -> ofpp_any);          (* OFPP_ANY *)
         set_ofp_action_output_max_len buf
           (match port with
             | Controller max_len -> max_len
