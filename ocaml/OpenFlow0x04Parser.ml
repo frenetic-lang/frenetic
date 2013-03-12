@@ -698,8 +698,11 @@ module GroupMod = struct
         set_ofp_group_mod_group_id buf gid;
         sizeof_ofp_group_mod + (marshal_fields (Cstruct.shift buf sizeof_ofp_group_mod) buckets Bucket.marshal)
       | DeleteGroup (typ, gid) ->
-        failwith "NYI"
-
+        set_ofp_group_mod_command buf 2; (* OFPGC_DEL *)
+        set_ofp_group_mod_typ buf (groupType_to_int typ);
+        set_ofp_group_mod_pad buf 0;
+        set_ofp_group_mod_group_id buf gid;
+        sizeof_ofp_group_mod
 end
 
 module OfpMatch = struct
