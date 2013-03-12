@@ -224,6 +224,7 @@ module Make =
   (** val send_output : output -> unit Monad.m **)
 
   let send_output = function
+  | OutAct (swId, [], pkt, bufOrBytes) -> Monad.ret ()
   | OutAct (swId, acts, pkt, bufOrBytes) ->
     let (buf, pkt) = (match bufOrBytes with Coq_inl buf -> (Some buf, None) | _ -> (None, Some pkt)) in
     Monad.send swId Word32.zero (PacketOut { po_buffer_id =
