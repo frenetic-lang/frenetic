@@ -229,6 +229,8 @@ module Make =
     let (buf, pkt) = (match bufOrBytes with Coq_inl buf -> (Some buf, None) | _ -> (None, Some pkt)) in
     Monad.send swId Word32.zero (PacketOut { po_buffer_id =
       buf; po_in_port = Controller 0; po_pkt = pkt; po_actions = concat_map (translate_action None) acts })
+  | OutGetPkt (x, switchId0, portId0, packet0) ->
+    Monad.handle_get_packet x switchId0 portId0 packet0
   | OutNothing -> Monad.ret ()
   
   (** val handle_packet_in : switchId -> packetIn -> unit Monad.m **)

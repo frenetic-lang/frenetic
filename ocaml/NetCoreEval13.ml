@@ -35,6 +35,7 @@ type input =
 
 type output =
 | OutAct of switchId * act list * packet * (bufferId, bytes) sum
+| OutGetPkt of id * switchId * portId * packet
 | OutNothing
 
 let pp_to_13pp pp = match pp with
@@ -96,13 +97,23 @@ let rec strip_controller acts = match acts with
   | a :: acts -> a :: strip_controller acts
   | [] -> []
 
+let eval_action inp = function
+| Forward (mods, pp) ->
+  let InPkt (sw, p, pk, buf) = inp in
+  OutAct (sw, [Forward (mods, pp)], pk,
+	  (match buf with
+	    | Some b -> Coq_inl b
+	    | None -> Coq_inr (Cstruct.to_string (serialize_pkt pk))))
+| ActGetPkt x ->
+  let InPkt (sw, pt, pk, buf) = inp in OutGetPkt (x, sw, pt, pk)
+
+(* [OutAct (sw, (strip_controller actions), pk, match buf with *)
+(*       | Some b -> Coq_inl b *)
+(*       | None -> Coq_inr (Cstruct.to_string (serialize_pkt pk)))] else [] *)
+
 let rec classify p inp =
   match p with
-  | PoAtom (pr, []) ->
-    []
   | PoAtom (pr, actions) ->
     let InPkt (sw, pt, pk, buf) = inp in
-    if match_pred pr sw (Int32.to_int pt) pk then [OutAct (sw, (strip_controller actions), pk, match buf with
-      | Some b -> Coq_inl b
-      | None -> Coq_inr (Cstruct.to_string (serialize_pkt pk)))] else []
+    if match_pred pr sw (Int32.to_int pt) pk then map (eval_action inp) actions else []
   | PoUnion (p1, p2) -> app (classify p1 inp) (classify p2 inp)

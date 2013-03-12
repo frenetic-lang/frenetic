@@ -35,6 +35,7 @@ type input =
 
 type output =
 | OutAct of switchId * act list * packet * (bufferId, bytes) sum
+| OutGetPkt of id * switchId * portId * packet
 | OutNothing
 
 val classify : pol -> input -> output list
