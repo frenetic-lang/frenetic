@@ -442,6 +442,12 @@ Module Make (Import Relation : RELATION).
     of_switchm0 lstCtrlm0 pk lstCtrlm1 ofLinks02 ctrl0
     (linksHaveSrc0 : LinksHaveSrc switches0 links0)
     (linksHaveDst0 : LinksHaveDst switches0 links0)
+    (devicesFromTopo0 : DevicesFromTopo (State switches0 links0
+               (ofLinks01 ++ 
+                (OpenFlowLink srcSw of_switchm0 
+                              (lstCtrlm0 ++ PacketOut p pk :: lstCtrlm1)) ::
+                ofLinks02)
+               ctrl0))
     (Htopo : Some (sw,pt) = topo (srcSw,p)),
     exists state1,
       multistep
@@ -456,10 +462,18 @@ Module Make (Import Relation : RELATION).
         state1.
   Proof with simpl;eauto with datatypes.
     intros.
-    (* TODO(arjun): damnit need these invariants: Htopo implies that endpoints
-       and the link exist! *)
     assert (exists pks, In (DataLink (srcSw,p) pks (sw,pt)) links0) as X.
-      admit.
+    { 
+      unfold DevicesFromTopo in devicesFromTopo0.
+      apply devicesFromTopo0 in Htopo.
+      destruct Htopo as [sw0 [sw1 [lnk [_ [_ [Hlnk [_ [_ [HIdEq0 HIdEq1]]]]]]]]].
+      simpl in Hlnk.
+      destruct lnk.
+      subst.
+      simpl in *.
+      rewrite -> HIdEq0 in Hlnk.
+      rewrite -> HIdEq1 in Hlnk.
+      exists pks0... }
     destruct X as [pks Hlink].  apply in_split in Hlink.
     destruct Hlink as [links01 [links02 Hlink]]. subst.
 
@@ -694,12 +708,18 @@ Module Make (Import Relation : RELATION).
     apply Bag.mem_split with (ED := ptPkt_eqdec) in HIn.
     destruct HIn as [outp' HIn].
 
-    (* TODO(arjun): The ConsistentDataLink invariants states that a link's
-       source and destination is reflected in the topo function. We need
-       another invariant stating that if the topo function is defined for
-       a pair of locations, then there must exist a link between them. *)
     assert (exists pks, In (DataLink (swId0,pt0) pks (sw,pt)) links0) as X.
-      admit.
+    {
+      unfold DevicesFromTopo in devicesFromTopo0.
+      apply devicesFromTopo0 in HeqHtopo.
+      destruct HeqHtopo as [sw0 [sw1 [lnk [_ [_ [Hlnk [_ [_ [HIdEq0 HIdEq1]]]]]]]]].
+      simpl in Hlnk.
+      destruct lnk.
+      subst.
+      simpl in *.
+      rewrite -> HIdEq0 in Hlnk.
+      rewrite -> HIdEq1 in Hlnk.
+      exists pks0... }
     destruct X as [pks Hlink].
 
     (* 2. Rewrite links0 as the union of the link in Hlink and the rest. *)
@@ -809,12 +829,18 @@ Module Make (Import Relation : RELATION).
     apply Bag.mem_split with (ED:=fromController_eqdec) in HIn.
     destruct HIn as [ctrlm0' HIn].
 
-    (* TODO(arjun): The ConsistentDataLink invariants states that a link's
-       source and destination is reflected in the topo function. We need
-       another invariant stating that if the topo function is defined for
-       a pair of locations, then there must exist a link between them. *)
     assert (exists pks, In (DataLink (swId0,p) pks (sw,pt)) links0) as X.
-      admit.
+    { 
+      unfold DevicesFromTopo in devicesFromTopo0.
+      apply devicesFromTopo0 in HeqHtopo.
+      destruct HeqHtopo as [sw0 [sw1 [lnk [_ [_ [Hlnk [_ [_ [HIdEq0 HIdEq1]]]]]]]]].
+      simpl in Hlnk.
+      destruct lnk.
+      subst.
+      simpl in *.
+      rewrite -> HIdEq0 in Hlnk.
+      rewrite -> HIdEq1 in Hlnk.
+      exists pks0... }
     destruct X as [pks Hlink].
     apply in_split in Hlink.
     destruct Hlink as [links01 [links02 Hlink]].
@@ -904,10 +930,25 @@ Module Make (Import Relation : RELATION).
     apply Bag.mem_split with (ED := fromSwitch_eqdec) in HIn.
     destruct HIn as [switchm1 HIn].
 
-    (* TODO(arjun): req'd invariant. *)
     assert (exists switchm0l ctrlm0l, 
               In (OpenFlowLink swId0 switchm0l ctrlm0l) ofLinks0) as X.
-      admit.
+    { unfold SwitchesHaveOpenFlowLinks in swsHaveOFLinks0.
+      simpl in swsHaveOFLinks0.
+      assert (@Mem _ _  switch_Equivalence (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0) 
+                  ({| (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0)|} <+> sws)).
+      { simpl. left. apply reflexivity. }
+      apply Bag.mem_equiv with  (b2 := switches0) (ED := switch_eqdec) in H1.
+      destruct H1 as [sw' [HMemSw HEq]].
+      destruct sw'.
+      inversion HEq.
+      subst. clear HEq.
+      apply swsHaveOFLinks0 in HMemSw.
+      destruct HMemSw as [ofLink [HOFLinkIn HIdEq]].
+      destruct ofLink.
+      simpl in HIdEq.
+      subst.
+      eexists...
+      apply symmetry... }
 
     destruct X as [switchm0l [ctrlm0l HOfLink]].
     apply in_split in HOfLink.
@@ -1009,11 +1050,22 @@ Module Make (Import Relation : RELATION).
       unfold ofLinks in *.
       idtac "TODO(arjun): OFLinksHaveSw preserved under changes.".
       admit. }
+    assert (DevicesFromTopo S1) as devicesFromTopo0'.
+    { subst.
+      idtac "TODO(arjun): DevicesFromTopo preserved under changes.".
+      admit. }
+    assert (SwitchesHaveOpenFlowLinks S1) as swsHaveOFLinks0'.
+    { subst.
+      idtac "TODO(arjun): SwitchesHaveOpenFlowLinks preserved under changes.".
+      admit. }
     destruct (simpl_multistep tblsOk0 linksTopoOk0 haveSrc0 haveDst0 
                               uniqSwIds0' allFMS0' 
-                              ctrlP1' uniqOfLinkIds0' ofLinksHaveSw0' Hstep2)
+                              ctrlP1' uniqOfLinkIds0' ofLinksHaveSw0' 
+                              devicesFromTopo0' 
+                              swsHaveOFLinks0' Hstep2)
              as [tblsOk1 [linksTopoOk1 [haveSrc1 [haveDst1 
-                  [uniqSwIds1 [allFMS1 [ctrlP1 [uniqOfLinkIds1 [ofLinksHaveSrc1 _]]]]]]]]].
+                  [uniqSwIds1 [allFMS1 [ctrlP1 [uniqOfLinkIds1 [ofLinksHaveSrc1
+                  [devicesFromTopo1 [swsHaveOFLinks1 _]]]]]]]]]]].
     subst.
     simpl in *.
     destruct (ControllerRecvLiveness sws1 links1 ofLinks10 swId0 nil
@@ -1233,11 +1285,14 @@ Module Make (Import Relation : RELATION).
       eapply AllDiff_preservation...
       do 2 rewrite -> map_app... }
     assert (OFLinksHaveSw (switches S1) (ofLinks S1)) as ofLinksHaveSw0'. admit.
+    assert (DevicesFromTopo S1) as devicesFromTopo0'. admit.
+    assert (SwitchesHaveOpenFlowLinks S1) as swsHaveOFLinks0'. admit.
     destruct (simpl_multistep tblsOk0 linksTopoOk0 haveSrc0 haveDst0 
                               uniqSwIds0' allFMS0' ctrlP1' uniqOfLinkIds0'
-                              ofLinksHaveSw0' Hstep1)
+                              ofLinksHaveSw0' devicesFromTopo0' swsHaveOFLinks0' Hstep1)
              as [tblsOk1 [linksTopoOk1 [haveSrc1 [haveDst1 
-                   [uniqSwIds1 [allFMS1 [ctrlP1 [uniqOfLinkIds1 [ofLinksHaveSw1 _]]]]]]]]].
+                [uniqSwIds1 [allFMS1 [ctrlP1 [uniqOfLinkIds1 
+                [ofLinksHaveSw1 [devicesFromTopo1 [swsHaveOFLinks1 _]]]]]]]]]]].
     subst.
     simpl in *.
     destruct (ControllerRecvLiveness sws1 links1 ofLinks10 of_to0 switchm0

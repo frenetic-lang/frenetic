@@ -65,6 +65,25 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
   Definition OFLinksHaveSw (sws : bag switch) (ofLinks : list openFlowLink) :=
     forall ofLink, In ofLink ofLinks -> ofLinkHasSw sws ofLink.
 
+  Definition DevicesFromTopo (devs : state) :=
+    forall swId0 swId1 pt0 pt1,
+      Some (swId0,pt0) = topo (swId1,pt1) ->
+      exists sw0 sw1 lnk,
+        Mem sw0 (switches devs) /\
+        Mem sw1 (switches devs) /\
+        In lnk (links devs) /\
+        swId sw0 = swId0 /\
+        swId sw1 = swId1 /\
+        src lnk = (swId1,pt1) /\
+        dst lnk = (swId0, pt0).
+
+  Definition SwitchesHaveOpenFlowLinks (devs : state) :=
+    forall sw,
+      Mem sw (switches devs) ->
+      exists ofLink,
+        In ofLink (ofLinks devs) /\
+        swId sw = of_to ofLink.
+
   Record concreteState := ConcreteState {
     devices : state;
     concreteState_flowTableSafety : FlowTablesSafe (switches devices);
@@ -75,7 +94,9 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
     allFMS : AllFMS (switches devices) (ofLinks devices);
     ctrlP : P (switches devices) (ofLinks devices) (ctrl devices);
     uniqOfLinkIds : AllDiff of_to (ofLinks devices);
-    ofLinksHaveSw : OFLinksHaveSw (switches devices) (ofLinks devices)
+    ofLinksHaveSw : OFLinksHaveSw (switches devices) (ofLinks devices);
+    devicesFromTopo : DevicesFromTopo devices;
+    swsHaveOFLinks : SwitchesHaveOpenFlowLinks devices
   }.
 
   Implicit Arguments ConcreteState [].
@@ -116,7 +137,6 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
         Bag.unions (map (select_packet_out sw) ctrlm) <+>
         Bag.unions (map (select_packet_in sw) switchm)
     end.
-
 
   Definition relate (st : state) : abst_state :=
     Bag.unions (map relate_switch (Bag.to_list (switches st))) <+>
@@ -486,6 +506,208 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
   Hint Unfold UniqSwIds.
   Hint Resolve step_preserves_P.
 
+  Section DevicesFromTopo.
+    
+    Hint Unfold DevicesFromTopo.
+
+    Lemma DevicesFromTopo_pres0 : forall swId0 pts0 tbl0 inp0 outp0 ctrlm0
+      switchm0 pts1 tbl1 inp1 outp1 ctrlm1 switchm1 sws links0 ofLinks0
+      ctrl0,
+      DevicesFromTopo
+        (State ({|Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0|} <+> sws)
+               links0
+               ofLinks0
+               ctrl0) ->
+      DevicesFromTopo
+        (State ({|Switch swId0 pts1 tbl1 inp1 outp1 ctrlm1 switchm1|} <+> sws)
+               links0
+               ofLinks0
+               ctrl0).
+    Proof with simpl; eauto.
+      intros.
+      unfold DevicesFromTopo in *.
+      intros.
+      apply H in H0.
+      clear H.
+      destruct H0 as [sw0 [sw1 [lnk [HMemSw0 [HMemSw1 [HInLnk [HSw0Eq [HSw1Eq
+                     [HLnkSrcEq HLnkDstEq]]]]]]]]].
+      destruct lnk.
+      simpl in *.
+      destruct sw0.
+      destruct sw1.
+      simpl in *.
+      subst.
+      destruct HMemSw0; destruct HMemSw1.
+      + repeat eexists. 
+        left. apply reflexivity.
+        left. apply reflexivity.
+        exact HInLnk.
+        inversion H. subst...
+        inversion H0. subst...
+        simpl...
+        simpl...
+      + repeat eexists.
+        left. apply reflexivity.
+        right. exact H0.
+        exact HInLnk.
+        inversion H. subst...
+        simpl...
+        auto.
+        auto.
+      + repeat eexists.
+        right. exact H.
+        left. apply reflexivity.
+        exact HInLnk.
+        simpl...
+        inversion H0. subst...
+        simpl...
+        simpl...
+      + repeat eexists.
+        right. exact H.
+        right. exact H0.
+        exact HInLnk.
+        simpl...
+        simpl...
+        simpl...
+        simpl...
+    Qed.
+
+    Lemma DevicesFromTopo_pres1 : forall sws0 links0 links1 src
+      dst pks0 pks1 ofLinks0 ctrl0,
+      DevicesFromTopo
+        (State sws0
+               (links0 ++ DataLink src pks0 dst :: links1)
+               ofLinks0
+               ctrl0) ->
+      DevicesFromTopo
+        (State sws0
+               (links0 ++ DataLink src pks1 dst :: links1)
+               ofLinks0
+               ctrl0).
+    Proof with simpl; eauto with datatypes.
+      intros.
+      unfold DevicesFromTopo in *.
+      intros.
+      apply H in H0.
+      clear H.
+      destruct H0 as [sw0 [sw1 [lnk [HMemSw0 [HMemSw1 [HInLnk [HSw0Eq [HSw1Eq
+                     [HLnkSrcEq HLnkDstEq]]]]]]]]].
+      destruct lnk.
+      simpl in *.
+      destruct sw0.
+      destruct sw1.
+      simpl in *.
+      subst.
+      rewrite -> in_app_iff in HInLnk. simpl in HInLnk.
+      destruct HInLnk as [HInLnk | [HInLnk | HInLnk]].
+      + repeat eexists.
+        exact HMemSw0.
+        exact HMemSw1.
+        instantiate (1 := DataLink (swId1,pt1) pks2 (swId0,pt0)).
+        auto with datatypes.
+        simpl...
+        simpl...
+        simpl...
+        simpl...
+      + repeat eexists.
+        exact HMemSw0.
+        exact HMemSw1.
+        instantiate (1 := DataLink (swId1,pt1) pks1 (swId0,pt0)).
+        inversion HInLnk. subst.
+        auto with datatypes.
+        simpl...
+        simpl...
+        simpl...
+        simpl...
+      + repeat eexists.
+        exact HMemSw0.
+        exact HMemSw1.
+        instantiate (1 := DataLink (swId1,pt1) pks2 (swId0,pt0)).
+        auto with datatypes.
+        simpl...
+        simpl...
+        simpl...
+        simpl...
+    Qed.
+        
+  End DevicesFromTopo.
+
+  Section SwitchesHaveOpenFlowLinks.
+    
+    Hint Unfold SwitchesHaveOpenFlowLinks.
+
+    Lemma SwitchesHaveOpenFlowLinks_pres0 : forall swId0 pts0 tbl0 inp0 outp0 
+      ctrlm0 switchm0 pts1 tbl1 inp1 outp1 ctrlm1 switchm1 sws links0 ofLinks0
+      ctrl0,
+      SwitchesHaveOpenFlowLinks
+        (State ({|Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0|} <+> sws)
+               links0
+               ofLinks0
+               ctrl0) ->
+      SwitchesHaveOpenFlowLinks
+        (State ({|Switch swId0 pts1 tbl1 inp1 outp1 ctrlm1 switchm1|} <+> sws)
+               links0
+               ofLinks0
+               ctrl0).
+    Proof with simpl; eauto.
+      intros.
+      unfold SwitchesHaveOpenFlowLinks in *.
+      intros.
+      simpl in *.
+      destruct H0.
+      + assert ( (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0)  === (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0) \/ Mem (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0) sws).
+        left. apply reflexivity.
+        apply H in H1. clear H.
+        destruct H1 as [ofLink [HIn HSwEq]].
+        destruct ofLink.
+        simpl in *.
+        subst.
+        inversion H0; subst.
+        eexists...
+      + destruct (H sw (or_intror H0)) as [ofLink [HIn HSwEq]].
+        destruct ofLink.
+        simpl in *.
+        subst.
+        destruct sw.
+        simpl in *.
+        subst.
+        eexists...
+    Qed.
+
+    Lemma SwitchesHaveOpenFlowLinks_pres1 : forall sws0 links0 ofLinks0
+      ofLinks1 swId switchm0 ctrlm0 switchm1 ctrlm1
+      ctrl0,
+      SwitchesHaveOpenFlowLinks
+        (State sws0 links0
+               (ofLinks0 ++ OpenFlowLink swId switchm0 ctrlm0 :: ofLinks1)
+               ctrl0) ->
+      SwitchesHaveOpenFlowLinks
+        (State sws0 links0
+               (ofLinks0 ++ OpenFlowLink swId switchm1 ctrlm1 :: ofLinks1)
+               ctrl0).
+      Proof with eauto with datatypes.
+        unfold SwitchesHaveOpenFlowLinks.
+        intros.
+        simpl in *.
+        apply H in H0.
+        clear H.
+        destruct H0 as [ofLink [HIn HIdEq]].
+        apply in_app_iff in HIn.
+        simpl in HIn.
+        destruct HIn as [HIn | [HIn | HIn]].
+        + eexists...
+        + exists (OpenFlowLink swId0 switchm1 ctrlm1).
+          split...
+          subst.
+          simpl in *...
+        + eexists...
+      Qed.
+        
+  End SwitchesHaveOpenFlowLinks.
+
+  Hint Resolve DevicesFromTopo_pres0 DevicesFromTopo_pres1 SwitchesHaveOpenFlowLinks_pres0
+       SwitchesHaveOpenFlowLinks_pres1.
+
   Lemma simpl_step : forall (st1 st2 : state) obs
     (tblsOk1 : FlowTablesSafe (switches st1))
     (linksTopoOk1 : ConsistentDataLinks (links st1))
@@ -495,16 +717,20 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
     (allFMS1 : AllFMS (switches st1) (ofLinks st1))
     (P0 : P (switches st1) (ofLinks st1) (ctrl st1))
     (uniqOfLinkIds1 : AllDiff of_to (ofLinks st1))
-    (ofLinksHaveSw1 : OFLinksHaveSw (switches st1) (ofLinks st1)),
+    (ofLinksHaveSw1 : OFLinksHaveSw (switches st1) (ofLinks st1))
+    (devsFromTopo1 : DevicesFromTopo st1)
+    (swsHaveOFLinks1 : SwitchesHaveOpenFlowLinks st1),
     step st1 obs st2 ->
     exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2 allFMS2 P1
-           uniqOfLinkIds2 ofLinksHaveSw2,
+           uniqOfLinkIds2 ofLinksHaveSw2 devsFromTopo2 swsHaveOFLinks2,
       concreteStep
         (ConcreteState st1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1 uniqSwIds1
-                       allFMS1 P0 uniqOfLinkIds1 ofLinksHaveSw1)
+                       allFMS1 P0 uniqOfLinkIds1 ofLinksHaveSw1 devsFromTopo1
+                       swsHaveOFLinks1)
         obs
         (ConcreteState st2 tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2
-                       allFMS2 P1 uniqOfLinkIds2 ofLinksHaveSw2).
+                       allFMS2 P1 uniqOfLinkIds2 ofLinksHaveSw2 devsFromTopo2
+                       swsHaveOFLinks2).
   Proof with eauto with datatypes.
     intros.
     unfold concreteStep.
@@ -520,10 +746,10 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
         exists (LinksHaveDst_untouched haveDst1).
         exists (UniqSwIds_pres uniqSwIds1).
         exists (AllFMS_untouched1 allFMS1).
-        eexists...
+        eexists. simpl...
         eexists. simpl...
         exists (OfLinksHaveSrc_pres2 ofLinksHaveSw1).
-        eauto.
+        eexists...
       (* Case 3: processed a buffered FlowMod *)
       + simpl in *.
         eexists.
@@ -581,6 +807,8 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
         eapply transitivity...
         inversion HEq...
         eexists...
+        eexists...
+        eexists...
       (* Case 4. *)
       + exists (FlowTablesSafe_untouched tblsOk1).
         exists linksTopoOk1.
@@ -613,6 +841,8 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
             simpl in allFMS1.
             apply (allFMS1 (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1))... }
         eexists...
+        eexists...
+        eexists...
       (* Case 5. *)
       + exists (FlowTablesSafe_untouched tblsOk1).
         exists (LinkTopoOK_inv pks0 (pk::pks0) linksTopoOk1).
@@ -623,7 +853,7 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
         eexists. eauto.
         eexists. eauto.
         eexists. simpl. eauto.
-        eauto.
+        eexists...
       (* Case 6. *)
       + exists (FlowTablesSafe_untouched tblsOk1).
         exists (LinkTopoOK_inv (pks0 ++ [pk]) pks0 linksTopoOk1).
@@ -637,6 +867,7 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
         exists. simpl...
         exists. simpl...
         eauto.
+        eexists...
       (* Case 7. *)
       + exists tblsOk1.
         exists linksTopoOk1.
@@ -644,7 +875,7 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
         exists haveDst1.
         exists uniqSwIds1.
         exists allFMS1.
-        solve[eauto].
+        eexists...
       (* Case 8. *)
       + simpl in *.
         exists tblsOk1.
@@ -784,6 +1015,8 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
           simpl. do 2 rewrite -> map_app...
         eexists. simpl. eauto.
         eauto.
+        eauto.
+        eexists...
       (* Case 11. *)
       + simpl in *.
         exists (FlowTablesSafe_untouched tblsOk1).
@@ -846,6 +1079,7 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
           simpl. do 2 rewrite -> map_app...
         exists. simpl. eauto.
         eauto.
+        eexists...
       (* Case 12. *)
       + simpl in *.
         exists (FlowTablesSafe_untouched tblsOk1).
@@ -897,10 +1131,11 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
           simpl. do 2 rewrite -> map_app...
         eexists. simpl. eauto.
         eauto.
-
+        eexists...
     } 
     (* epic fail of a proof script *)
-    Grab Existential Variables. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. 
+    Grab Existential Variables. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto.
+    eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto.
   Qed.
 
   Lemma simpl_multistep : forall (st1 st2 : state) obs
@@ -912,42 +1147,53 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
     (allFMS1 : AllFMS (switches st1) (ofLinks st1))
     (P1 : P (switches st1) (ofLinks st1) (ctrl st1))
     (uniqOfLinkIds1 : AllDiff of_to (ofLinks st1))
-    (ofLinksHaveSw1 : OFLinksHaveSw (switches st1) (ofLinks st1)),
+    (ofLinksHaveSw1 : OFLinksHaveSw (switches st1) (ofLinks st1))
+    (devsFromTopo1 : DevicesFromTopo st1)
+    (swsHaveOFLinks1 : SwitchesHaveOpenFlowLinks st1),
     multistep step st1 obs st2 ->
     exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2 allFMS2 P2
-           uniqOfLinkIds2 ofLinksHaveSw2,
+           uniqOfLinkIds2 ofLinksHaveSw2 devsFromTopo2 swsHaveOFLinks2,
       multistep concreteStep
                 (ConcreteState st1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1 
                                uniqSwIds1 allFMS1 P1 uniqOfLinkIds1
-                               ofLinksHaveSw1)
+                               ofLinksHaveSw1 devsFromTopo1 swsHaveOFLinks1)
                 obs
                 (ConcreteState st2 tblsOk2 linksTopoOk2 haveSrc2 haveDst2 
                                uniqSwIds2 allFMS2 P2 uniqOfLinkIds2
-                               ofLinksHaveSw2).
+                               ofLinksHaveSw2 devsFromTopo2 swsHaveOFLinks2).
   Proof with eauto with datatypes.
     intros.
     induction H.
     (* zero steps. *)
-    + solve [ eauto 10 ].
+    + solve [ eauto 12 ].
     (* tau step *)
     + destruct (simpl_step tblsOk1 linksTopoOk1 haveSrc1 haveDst1 
-                           uniqSwIds1 allFMS1 P1 uniqOfLinkIds1 ofLinksHaveSw1 H)
+                           uniqSwIds1 allFMS1 P1 uniqOfLinkIds1 ofLinksHaveSw1
+                           devsFromTopo1 swsHaveOFLinks1 H)
         as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 [uniqSwIds2 
-                [allFMS2 [P2 [uniqOfLinkIds2 [ofLinksHaveSw2 step]]]]]]]]].
+                [allFMS2 [P2 [uniqOfLinkIds2 [ofLinksHaveSw2 
+           [devsFromTopo2 [swsHaveOFLinks2 step]]]]]]]]]]].
       destruct (IHmultistep tblsOk2 linksTopoOk2 haveSrc2 haveDst2 
-                            uniqSwIds2 allFMS2 P2 uniqOfLinkIds2 ofLinksHaveSw2)
+                            uniqSwIds2 allFMS2 P2 uniqOfLinkIds2 ofLinksHaveSw2
+                            devsFromTopo2 swsHaveOFLinks2)
         as [tblsOk3 [linksTopoOk3 [haveSrc3 [haveDst3
-                [uniqSwIds3 [allFMS3 [PN [uniqOfLinkIdsN [ofLinksHaveSwN stepN]]]]]]]]].
-      solve [ eauto 11 ].
+                [uniqSwIds3 [allFMS3 [PN [uniqOfLinkIdsN [ofLinksHaveSwN 
+           [devsFromTopoN [swsHaveOFLinksN stepN]]]]]]]]]]].
+      solve [ eauto 13 ].
+    (* The script below is an identical copy of the case above. *)
     + destruct (simpl_step tblsOk1 linksTopoOk1 haveSrc1 haveDst1 
-                         uniqSwIds1 allFMS1 P1 uniqOfLinkIds1 ofLinksHaveSw1 H)
-             as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 [uniqSwIds2 
-                [allFMS2 [P2 [uniqOfLinkIds2 [ofLinksHaveSw2 step]]]]]]]]].
+                           uniqSwIds1 allFMS1 P1 uniqOfLinkIds1 ofLinksHaveSw1
+                           devsFromTopo1 swsHaveOFLinks1 H)
+        as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 [uniqSwIds2 
+                [allFMS2 [P2 [uniqOfLinkIds2 [ofLinksHaveSw2 
+           [devsFromTopo2 [swsHaveOFLinks2 step]]]]]]]]]]].
       destruct (IHmultistep tblsOk2 linksTopoOk2 haveSrc2 haveDst2 
-                          uniqSwIds2 allFMS2 P2 uniqOfLinkIds2 ofLinksHaveSw2)
-             as [tblsOk3 [linksTopoOk3 [haveSrc3 [haveDst3
-                [uniqSwIds3 [allFMS3 [PN [uniqOfLinkIdsN [ofLinksHaveSwN stepN]]]]]]]]].
-      solve [ eauto 11 ].
+                            uniqSwIds2 allFMS2 P2 uniqOfLinkIds2 ofLinksHaveSw2
+                            devsFromTopo2 swsHaveOFLinks2)
+        as [tblsOk3 [linksTopoOk3 [haveSrc3 [haveDst3
+                [uniqSwIds3 [allFMS3 [PN [uniqOfLinkIdsN [ofLinksHaveSwN 
+           [devsFromTopoN [swsHaveOFLinksN stepN]]]]]]]]]]].
+      solve [ eauto 13 ].
   Qed.
 
   Lemma relate_step_simpl_tau : forall st1 st2,
@@ -1148,7 +1394,9 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
     (allFMS1 : AllFMS (switches devs1) (ofLinks devs1))
     (P1 : P (switches devs1) (ofLinks devs1) (ctrl devs1))
     (uniqOfLinkIds1 : AllDiff of_to (ofLinks devs1))
-    (ofLinksHaveSw1 : OFLinksHaveSw (switches devs1) (ofLinks devs1)),
+    (ofLinksHaveSw1 : OFLinksHaveSw (switches devs1) (ofLinks devs1))
+    (devsFromTopo1 : DevicesFromTopo devs1)
+    (swsHaveOFLinks1 : SwitchesHaveOpenFlowLinks devs1),
     multistep step devs1 [(sw,pt,pk)] devs2 ->
     relate devs1 === ({| (sw,pt,pk) |} <+> lps) ->
     abstractStep
@@ -1163,15 +1411,17 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
      multistep concreteStep
                (ConcreteState devs1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1
                               uniqSwIds1 allFMS1 P1 uniqOfLinkIds1
-                              ofLinksHaveSw1)
+                              ofLinksHaveSw1 devsFromTopo1 swsHaveOFLinks1)
                [(sw,pt,pk)]
                t.
   Proof with eauto.
     intros.
     destruct (simpl_multistep tblsOk1 linksTopoOk1 haveSrc1 haveDst1 
-                              uniqSwIds1 allFMS1 P1 uniqOfLinkIds1 ofLinksHaveSw1 H)
+                              uniqSwIds1 allFMS1 P1 uniqOfLinkIds1 ofLinksHaveSw1 
+                              devsFromTopo1 swsHaveOFLinks1 H)
              as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 
-                [uniqSwIds2 [allFMS2 [P2 [uniqOfLinkIds2 [ofLinksHaveSw2 Hmultistep]]]]]]]]].
+                [uniqSwIds2 [allFMS2 [P2 [uniqOfLinkIds2 [ofLinksHaveSw2 
+                [devsFromTopo2 [swsHaveOFLinks2 Hmultistep]]]]]]]]]]].
     match goal with
       | [ _ : multistep _ ?s1 _ ?s2 |- _ ] =>
         remember s1 as st1; remember s2 as st2

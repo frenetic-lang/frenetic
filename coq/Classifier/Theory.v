@@ -75,8 +75,6 @@ Section Lemmas.
     intros.
     destruct cf0.
     simpl...
-    destruct (Pattern.match_packet pt pk Pattern.all)...
-      admit. (* how was this ever true? *)
     destruct a0 as [pat a0].
     destruct p as [pat' a'].
     simpl.
