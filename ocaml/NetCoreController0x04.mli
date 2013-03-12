@@ -33,12 +33,6 @@ val group_mods_of_classifier : (groupId*groupType*(act list list)) list -> group
 
 val delete_all_flows : tableId -> flowMod 
 
-type ncstate = { policy : pol; switches : switchId list }
-
-val policy : ncstate -> pol
-
-val switches : ncstate -> switchId list
-
 module type NETCORE_MONAD = 
  sig 
   type 'x m 
@@ -46,8 +40,12 @@ module type NETCORE_MONAD =
   val bind : 'a1 m -> ('a1 -> 'a2 m) -> 'a2 m
   
   val ret : 'a1 -> 'a1 m
-  
-  type state = ncstate
+
+  type state = { policy : pol; switches : switchId list }
+
+  val policy : state -> pol
+
+  val switches : state -> switchId list
   
   val get : state m
   

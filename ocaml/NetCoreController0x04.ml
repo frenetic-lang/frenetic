@@ -13,6 +13,8 @@ open WordInterface
 (** val prio_rec :
     Word16.t -> 'a1 coq_Classifier -> ((Word16.t*Pattern.pattern)*'a1) list **)
 
+let nc_compiler = compile_opt
+
 let rec prio_rec prio = function
 | [] -> []
 | p::rest ->
@@ -158,16 +160,6 @@ let delete_all_flows tableId =
 	     no_pkt_counts = false;
 	     no_byt_counts = false }}
 
-type ncstate = { policy : pol; switches : switchId list }
-
-(** val policy : ncstate -> pol **)
-
-let policy x = x.policy
-
-(** val switches : ncstate -> switchId list **)
-
-let switches x = x.switches
-
 module type NETCORE_MONAD = 
  sig 
   type 'x m 
@@ -175,8 +167,16 @@ module type NETCORE_MONAD =
   val bind : 'a1 m -> ('a1 -> 'a2 m) -> 'a2 m
   
   val ret : 'a1 -> 'a1 m
-  
-  type state = ncstate
+
+  type state = { policy : pol; switches : switchId list }
+
+  (** val policy : ncstate -> pol **)
+
+  val policy : state -> pol
+
+  (** val switches : ncstate -> switchId list **)
+
+  val switches : state -> switchId list
   
   val get : state m
   
@@ -203,7 +203,7 @@ module Make =
   (** val config_commands : pol -> switchId -> unit Monad.m **)
   
   let config_commands pol0 swId tblId =
-    let fm_cls, gm_cls = compile_opt pol0 swId in
+    let fm_cls, gm_cls = nc_compiler pol0 swId in
     sequence
       ((map (fun fm -> Monad.send swId Word32.zero (GroupMod fm))
 	  (* Should we delete existing groups? No single wildcard cmd available *)
@@ -216,8 +216,8 @@ module Make =
   (* FIXME: Default tableId of 0 *)
   let set_policy pol0 =
     Monad.bind Monad.get (fun st ->
-      let switch_list = st.switches in
-      Monad.bind (Monad.put { policy = pol0; switches = switch_list })
+      let switch_list = st.Monad.switches in
+      Monad.bind (Monad.put { Monad.policy = pol0; Monad.switches = switch_list })
         (fun x ->
         Monad.bind (sequence (map (fun sw -> config_commands pol0 sw 0) switch_list))
           (fun x0 -> Monad.ret ())))
@@ -228,9 +228,9 @@ module Make =
     Monad.bind Monad.get (fun st ->
       let switch_list =
         filter (fun swId' ->
-          if Word64.eq_dec swId swId' then false else true) st.switches
+          if Word64.eq_dec swId swId' then false else true) st.Monad.switches
       in
-      Monad.bind (Monad.put { policy = st.policy; switches = switch_list })
+      Monad.bind (Monad.put { Monad.policy = st.Monad.policy; Monad.switches = switch_list })
         (fun x -> Monad.ret ()))
   
   (** val handle_switch_connected : switchId -> unit Monad.m **)
@@ -238,9 +238,9 @@ module Make =
   let handle_switch_connected swId =
     Monad.bind Monad.get (fun st ->
       Monad.bind
-        (Monad.put { policy = st.policy; switches = (swId::st.switches) })
+        (Monad.put { Monad.policy = st.Monad.policy; Monad.switches = (swId::st.Monad.switches) })
         (fun x ->
-        Monad.bind (config_commands st.policy swId 0) (fun x0 -> Monad.ret ())))
+        Monad.bind (config_commands st.Monad.policy swId 0) (fun x0 -> Monad.ret ())))
   
   (** val send_output : output -> unit Monad.m **)
 
@@ -258,7 +258,7 @@ module Make =
   
   let handle_packet_in swId pk = 
     Monad.bind Monad.get (fun st ->
-      let outs = classify st.policy (packetIn_to_in swId pk) in
+      let outs = classify st.Monad.policy (packetIn_to_in swId pk) in
       sequence (map send_output outs))
   
   (** val handle_event : event -> unit Monad.m **)

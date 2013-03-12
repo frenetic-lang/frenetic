@@ -18,7 +18,11 @@ module MakeNetCoreMonad
   (Platform : PLATFORM) 
   (Handlers : HANDLERS) = struct
 
-  type state = NetCoreController0x04.ncstate
+  type state = { policy : pol; switches : switchId list }
+
+  let policy x = x.policy
+    
+  let switches x = x.switches
       
   type 'x m = state -> ('x * state) Lwt.t
 
@@ -103,8 +107,8 @@ module MakeDynamic
 
   let start_controller policy_stream =
     let init_state = { 
-      NetCoreController0x04.policy = drop_all_packets; 
-      NetCoreController0x04.switches = []
+      NetCoreMonad.policy = drop_all_packets; 
+      NetCoreMonad.switches = []
     } in
     let policy_stream = Lwt_stream.map (fun v -> Policy v) policy_stream in
     let event_stream = Lwt_stream.map (fun v -> Event v)
