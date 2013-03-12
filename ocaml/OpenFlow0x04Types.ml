@@ -39,6 +39,9 @@ type oxm =
   | OxmEthDst of uint48 mask
   | OxmEthSrc of uint48 mask
   | OxmVlanVId of uint12 mask
+  | OxmIPProto of uint8
+  | OxmIPDscp of uint8 (* 6 bits *)
+  | OxmIPEcn of uint8 (* 2 bits *)
   | OxmIP4Src of uint32 mask
   | OxmIP4Dst of uint32 mask
   | OxmTCPSrc of uint16 mask
@@ -48,6 +51,8 @@ type oxm =
   | OxmARPTpa of uint32 mask
   | OxmARPSha of uint48 mask
   | OxmARPTha of uint48 mask
+  | OxmICMPType of uint8
+  | OxmICMPCode of uint8
   | OxmTunnelId of uint64 mask
 
 (**  Hard-codes OFPMT_OXM as the match type, since OFPMT_STANDARD is deprecated.

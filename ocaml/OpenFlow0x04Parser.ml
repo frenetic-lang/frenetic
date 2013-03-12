@@ -509,6 +509,36 @@ module Oxm = struct
       | OFPXMT_OFB_ETH_TYPE ->
 	let value = get_ofp_uint16_value bits in
 	  (OxmEthType value, bits2)
+      (* IP protocol. *)
+      | OFPXMT_OFB_IP_PROTO ->
+	let value = get_ofp_uint8_value bits in
+	  (OxmIPProto value, bits2)
+      (* IP DSCP (6 bits in ToS field). *)
+      | OFPXMT_OFB_IP_DSCP ->
+	let value = get_ofp_uint8_value bits in
+	  (OxmIPDscp (value land 252), bits2)
+      (* IP ECN (2 bits in ToS field). *)
+      |  OFPXMT_OFB_IP_ECN ->
+	let value = get_ofp_uint8_value bits in
+	  (OxmIPEcn (value land 3), bits2)
+      (* IPv4 source address. *)
+      | OFPXMT_OFB_IPV4_SRC ->
+	let value = get_ofp_uint32_value bits in
+	if hm = 1 then
+	  let bits = Cstruct.shift bits 4 in
+	  let mask = get_ofp_uint32_value bits in
+	  (OxmIP4Src {value = value; mask = (Some mask)}, bits2)
+	else
+	  (OxmIP4Src {value = value; mask = None}, bits2)
+      (* IPv4 destination address. *)
+      | OFPXMT_OFB_IPV4_DST ->
+	let value = get_ofp_uint32_value bits in
+	if hm = 1 then
+	  let bits = Cstruct.shift bits 4 in
+	  let mask = get_ofp_uint32_value bits in
+	  (OxmIP4Dst {value = value; mask = (Some mask)}, bits2)
+	else
+	  (OxmIP4Dst {value = value; mask = None}, bits2)
       (* ARP opcode. *)
       | OFPXMT_OFB_ARP_OP ->
 	let value = get_ofp_uint16_value bits in
@@ -549,8 +579,16 @@ module Oxm = struct
 	  (OxmARPTha {value = value; mask = (Some mask)}, bits2)
 	else
 	  (OxmARPTha {value = value; mask = None}, bits2)
+      (* ICMP Type *)
+      | OFPXMT_OFB_ICMPV4_TYPE ->
+	let value = get_ofp_uint8_value bits in
+	  (OxmICMPType value, bits2)
+      (* ICMP code. *)
+      |   OFPXMT_OFB_ICMPV4_CODE ->
+	let value = get_ofp_uint8_value bits in
+	  (OxmICMPCode value, bits2)
       | _ -> 
-        raise (Unparsable (sprintf "malformed packet in oxm"))
+        raise (Unparsable (sprintf "malformed packet in oxm %d\n" (value lsr 1)))
 
 end
 
