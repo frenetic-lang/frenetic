@@ -67,6 +67,7 @@ let ofpp_any = 0xffffffffl
 
 (* Not in the spec, comes from C headers. :rolleyes: *)
 let ofpg_all = 0xfffffffcl
+let ofpg_any = 0xffffffffl
 
 (* OKAY *)
 cenum ofp_oxm_class {
@@ -666,11 +667,11 @@ module Bucket = struct
       set_ofp_bucket_weight buf bucket.weight;
       set_ofp_bucket_watch_port buf
         (match bucket.watch_port with
-          | None -> 0xffffffffl (* OFPP_ANY *)
+          | None -> ofpg_any
           | Some port -> port);
       set_ofp_bucket_watch_group buf
         (match bucket.watch_group with
-          | None -> 0xffffffffl (* OFPG_ANY *)
+          | None -> ofpg_any
           | Some group_id -> group_id);
       set_ofp_bucket_pad0 buf 0;
       set_ofp_bucket_pad1 buf 0;
