@@ -16,6 +16,7 @@ type predicate =
   | NoPackets
   | Switch of switchId
   | InPort of portId
+  | DlType of int (** 8 bits **)
   | DlSrc of Int64.t  (** Match Ethernet source address (48-bits) *)
   | DlDst of Int64.t (** Match Ethernet destination address (48-bits) *)
   | SrcIP of Int32.t

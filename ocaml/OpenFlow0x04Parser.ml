@@ -389,8 +389,14 @@ module Oxm = struct
       (match vid.mask with
         | None -> 2
         | Some _ -> 4)
-    | OxmIP4Src _ -> failwith "Invalid field_length IP4Src"
-    | OxmIP4Dst _ -> failwith "Invalid field_length IP4Dst"
+    | OxmIP4Src ipaddr -> 
+      (match ipaddr.mask with
+        | None -> 4
+        | Some _ -> 8)
+    | OxmIP4Dst ipaddr ->       
+      (match ipaddr.mask with
+        | None -> 4
+        | Some _ -> 8)
     | OxmTCPSrc _ -> failwith "Invalid field_length TCPSrc"
     | OxmTCPDst _ -> failwith "Invalid field_length TCPDst"
     | _ -> failwith "Invalid field_length"
@@ -443,6 +449,28 @@ module Oxm = struct
                 | Some mask ->
                   let buf3 = Cstruct.shift buf2 (l/2) in
                     set_ofp_uint48_value buf3 mask;
+                    sizeof_ofp_oxm + l
+              end
+            | OxmIP4Src ipaddr ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IPV4_SRC (match ipaddr.mask with None -> 0 | _ -> 1) l;
+              set_ofp_uint32_value buf2 ipaddr.value;
+              begin match ipaddr.mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 (l/2) in
+                    set_ofp_uint32_value buf3 mask;
+                    sizeof_ofp_oxm + l
+              end
+            | OxmIP4Dst ipaddr ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IPV4_DST (match ipaddr.mask with None -> 0 | _ -> 1) l;
+              set_ofp_uint32_value buf2 ipaddr.value;
+              begin match ipaddr.mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 (l/2) in
+                    set_ofp_uint32_value buf3 mask;
                     sizeof_ofp_oxm + l
               end
             | OxmVlanVId vid ->

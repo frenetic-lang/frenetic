@@ -139,6 +139,7 @@ type predicate =
   | NoPackets
   | Switch of switchId
   | InPort of portId
+  | DlType of int (** 8 bits **)
   | DlSrc of Int64.t
   | DlDst of Int64.t
   | SrcIP of Int32.t
