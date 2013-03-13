@@ -711,41 +711,6 @@ Module Type RELATION.
        st2 /\
      multistep concreteStep st1 [(sw,pt,pk)] st2.
 
-  Parameter FlowTablesSafe_untouched : forall {sws swId pts tbl inp inp'
-    outp outp' ctrlm ctrlm' switchm switchm' },
-    FlowTablesSafe
-      ({|Switch swId pts tbl inp outp ctrlm switchm|} <+> sws) ->
-    FlowTablesSafe 
-      ({|Switch swId pts tbl inp' outp' ctrlm' switchm'|} <+> sws).
-
-  Parameter LinksHaveSrc_untouched : forall 
-    {swId tbl pts sws links
-    inp outp ctrlm switchm tbl' inp' outp' ctrlm' switchm' },
-    LinksHaveSrc 
-      ({| Switch swId pts tbl inp outp ctrlm switchm |} <+> sws)  links ->
-    LinksHaveSrc 
-      ({| Switch swId pts tbl' inp' outp' ctrlm' switchm' |} <+> sws)
-      links.
-
-  Parameter LinkHasSrc_equiv : forall {sws sws' link},
-    sws === sws' ->
-    LinkHasSrc sws link ->
-    LinkHasSrc sws' link.
-
-  Parameter LinksHaveDst_untouched : forall 
-    {swId tbl pts sws links
-    inp outp ctrlm switchm tbl' inp' outp' ctrlm' switchm' },
-    LinksHaveDst
-      ({| Switch swId pts tbl inp outp ctrlm switchm |} <+>  sws)  links ->
-    LinksHaveDst 
-      ({| Switch swId pts tbl' inp' outp' ctrlm' switchm' |} <+> sws)
-      links.
-
-  Parameter LinkHasDst_equiv : forall {sws sws' link},
-    sws === sws' ->
-    LinkHasDst sws link ->
-    LinkHasDst sws' link.
-
 End RELATION.
 
 Module Type WEAK_SIM_1.
