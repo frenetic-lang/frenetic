@@ -97,12 +97,17 @@ let pattern_to_oxm_match pat =
         ptrnInPort = inPort } = pat in
   (* Is 1 the all wildcard or 0? *)
   ((match dlSrc with Wildcard.WildcardExact a -> [OxmEthSrc (val_to_mask a)] | _ -> [])
+   @ (match dlTyp with Wildcard.WildcardExact t -> [OxmEthType t] | _ -> [])
    @ (match dlDst with Wildcard.WildcardExact a -> [ OxmEthDst (val_to_mask a)] | _ -> [])
    @ (match dlVlan with Wildcard.WildcardExact a -> [ OxmVlanVId (val_to_mask a)] | _ -> [])
    @ (match nwSrc with Wildcard.WildcardExact a -> [ OxmIP4Src (val_to_mask a)] | _ -> [])
    @ (match nwDst with Wildcard.WildcardExact a -> [ OxmIP4Dst (val_to_mask a)] | _ -> [])
-   @ (match inPort with Wildcard.WildcardExact p -> [OxmInPort (Int32.of_int p)] | _ -> [])
-   @ (match dlTyp with Wildcard.WildcardExact t -> [OxmEthType t] | _ -> []),
+   @ (match inPort with Wildcard.WildcardExact p -> [OxmInPort (Int32.of_int p)] | _ -> []),
+  (* If IP addrs are set, must be IP EthType. Predicate not currently in compiler *)
+   (* @ (match (nwSrc, nwDst) with  *)
+   (*   | (Wildcard.WildcardExact t, _) *)
+   (*   | (_, Wildcard.WildcardExact t) -> [OxmEthType 0x800]  *)
+   (*   | (_,_) -> []) *)
    match inPort with
      | Wildcard.WildcardExact p -> Some (Int32.of_int p)
      | _ -> None)
