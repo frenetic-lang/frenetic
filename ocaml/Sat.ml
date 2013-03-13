@@ -36,10 +36,10 @@ type zProgram =
 | ZProgram of zRule list * zVar
     
 let init_decls : zDeclaration list = 
-  [ ZSortDeclare("Packet", [("packet", [ ("Switch", SInt)
-				       ; ("InPort", SInt)
-				       ; ("DlSrc", SInt)
-				       ; ("DlDst", SInt) ])])]
+  [ ZSortDeclare("Packet", [("packet", [ ("PSwitch", SInt)
+				       ; ("PInPort", SInt)
+				       ; ("PDlSrc", SInt)
+				       ; ("PDlDst", SInt) ])])]
 (* Variables *)
 let fresh_cell = ref []
 
@@ -136,15 +136,29 @@ let serialize_declaration declare =
       Printf.sprintf "(define-fun %s ((%s %s)) %s %s)" 
 	name var (serialize_sort sort1) (serialize_sort sort2) body
 
+let preamble =
+  "(declare-rel Switch (Packet Int))
+   (declare-rel InPort (Packet Int))
+   (declare-rel DlSrc (Packet Int))
+   (declare-rel DlDst (Packet Int))
+   (declare-var p Packet)
+   (declare-var n Int)
+
+   (rule (=> (and (= (PSwitch p) n) (>= n 0)) (Switch p n)))
+   (rule (=> (and (= (PInPort p) n) (>= n 0)) (InPort p n)))
+   (rule (=> (and (= (PDlSrc p) n) (>= n 0)) (DlSrc p n)))
+   (rule (=> (and (= (PDlDst p) n) (>= n 0)) (DlDst p n)))"
+
 let serialize_program (ZProgram (rules, query)) = 
   let postamble =      
     ":default-relation smt_relation2\n" ^ 
     ":engine pdr\n" ^
     ":print-answer true" in 
   Printf.sprintf 
-    "%s\n%s\n%s\n(query %s\n%s)" 
+    "%s\n%s\n%s\n%s\n(query %s\n%s)" 
     (intercalate serialize_declaration "\n" init_decls)
     (intercalate serialize_declaration "\n" (!fresh_cell))
+    preamble
     (intercalate serialize_rule "\n" rules) 
     query
     postamble
