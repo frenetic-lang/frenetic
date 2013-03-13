@@ -1138,7 +1138,7 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
     eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto. eauto.
   Qed.
 
-  Lemma simpl_multistep : forall (st1 st2 : state) obs
+  Lemma simpl_multistep' : forall (st1 st2 : state) obs
     (tblsOk1 : FlowTablesSafe (switches st1))
     (linksTopoOk1 : ConsistentDataLinks (links st1))
     (haveSrc1 : LinksHaveSrc (switches st1) (links st1))
@@ -1194,6 +1194,21 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
                 [uniqSwIds3 [allFMS3 [PN [uniqOfLinkIdsN [ofLinksHaveSwN 
            [devsFromTopoN [swsHaveOFLinksN stepN]]]]]]]]]]].
       solve [ eauto 13 ].
+  Qed.
+
+  Lemma simpl_multistep : forall (st1 : concreteState) (devs2 : state) obs,
+    multistep step (devices st1) obs devs2 ->
+    exists (st2 : concreteState),
+      devices st2 = devs2 /\
+      multistep concreteStep st1 obs st2.
+  Proof with simpl;auto.
+    intros.
+    destruct st1.
+    destruct (simpl_multistep' concreteState_flowTableSafety0
+      concreteState_consistentDataLinks0 linksHaveSrc0 linksHaveDst0
+      uniqSwIds0 allFMS0 ctrlP0 uniqOfLinkIds0 ofLinksHaveSw0 devicesFromTopo0
+      swsHaveOFLinks0 H) as [v0 [v1 [v2 [v3 [v4 [v5 [v6 [v7 [v8 [v9 [v10 Hstep]]]]]]]]]]].
+    exists (ConcreteState devs2 v0 v1 v2 v3 v4 v5 v6 v7 v8 v9 v10)...
   Qed.
 
   Lemma relate_step_simpl_tau : forall st1 st2,
@@ -1359,7 +1374,6 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
     bag_perm 100.
   Qed.
 
-
   Lemma relate_multistep_simpl_obs : forall  sw pt pk lps st1 st2,
     relate (devices st1) === ({| (sw,pt,pk) |} <+> lps) ->
     multistep concreteStep st1 [(sw,pt,pk)] st2 ->
@@ -1385,47 +1399,22 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
     trivial.
   Qed.
 
-  Lemma simpl_weak_sim : forall devs1 devs2 sw pt pk lps
-    (tblsOk1 : FlowTablesSafe (switches devs1))
-    (linksTopoOk1 : ConsistentDataLinks (links devs1))
-    (haveSrc1 : LinksHaveSrc (switches devs1) (links devs1))
-    (haveDst1 : LinksHaveDst (switches devs1) (links devs1))
-    (uniqSwIds1 : UniqSwIds (switches devs1))
-    (allFMS1 : AllFMS (switches devs1) (ofLinks devs1))
-    (P1 : P (switches devs1) (ofLinks devs1) (ctrl devs1))
-    (uniqOfLinkIds1 : AllDiff of_to (ofLinks devs1))
-    (ofLinksHaveSw1 : OFLinksHaveSw (switches devs1) (ofLinks devs1))
-    (devsFromTopo1 : DevicesFromTopo devs1)
-    (swsHaveOFLinks1 : SwitchesHaveOpenFlowLinks devs1),
-    multistep step devs1 [(sw,pt,pk)] devs2 ->
-    relate devs1 === ({| (sw,pt,pk) |} <+> lps) ->
+  Lemma simpl_weak_sim : forall st1 devs2 sw pt pk lps,
+    multistep step (devices st1) [(sw,pt,pk)] devs2 ->
+    relate (devices st1) === ({| (sw,pt,pk) |} <+> lps) ->
     abstractStep
       ({| (sw,pt,pk) |} <+> lps)
       (Some (sw,pt,pk))
       (Bag.unions (map (transfer sw) (abst_func sw pt pk)) <+> lps) ->
-   exists t : concreteState,
+   exists st2 : concreteState,
      inverse_relation 
        bisim_relation
        (Bag.unions (map (transfer sw) (abst_func sw pt pk)) <+> lps)
-       t /\
-     multistep concreteStep
-               (ConcreteState devs1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1
-                              uniqSwIds1 allFMS1 P1 uniqOfLinkIds1
-                              ofLinksHaveSw1 devsFromTopo1 swsHaveOFLinks1)
-               [(sw,pt,pk)]
-               t.
+       st2 /\
+     multistep concreteStep st1 [(sw,pt,pk)] st2.
   Proof with eauto.
     intros.
-    destruct (simpl_multistep tblsOk1 linksTopoOk1 haveSrc1 haveDst1 
-                              uniqSwIds1 allFMS1 P1 uniqOfLinkIds1 ofLinksHaveSw1 
-                              devsFromTopo1 swsHaveOFLinks1 H)
-             as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 
-                [uniqSwIds2 [allFMS2 [P2 [uniqOfLinkIds2 [ofLinksHaveSw2 
-                [devsFromTopo2 [swsHaveOFLinks2 Hmultistep]]]]]]]]]]].
-    match goal with
-      | [ _ : multistep _ ?s1 _ ?s2 |- _ ] =>
-        remember s1 as st1; remember s2 as st2
-    end.
+    destruct (simpl_multistep st1 H) as [st2 [Heq Hmultistep]]. 
     assert (relate (devices st1) === ({| (sw,pt,pk) |} <+> lps)) as Hrel.
       subst. simpl...
     exists st2.

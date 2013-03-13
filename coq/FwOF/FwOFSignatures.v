@@ -691,60 +691,25 @@ Module Type RELATION.
     fun (st : concreteState) (ast : abst_state) => 
       ast === (relate (devices st)).
 
-  Parameter simpl_multistep : forall (st1 st2 : state) obs
-    (tblsOk1 : FlowTablesSafe (switches st1))
-    (linksTopoOk1 : ConsistentDataLinks (links st1))
-    (haveSrc1 : LinksHaveSrc (switches st1) (links st1))
-    (haveDst1 : LinksHaveDst (switches st1) (links st1))
-    (uniqSwIds1 : UniqSwIds (switches st1))
-    (allFMS1 : AllFMS (switches st1) (ofLinks st1))
-    (P1 : P (switches st1) (ofLinks st1) (ctrl st1))
-    (uniqOfLinkIds1 : AllDiff of_to (ofLinks st1))
-    (ofLinksHaveSw1 : OFLinksHaveSw (switches st1) (ofLinks st1))
-    (devsFromTopo1 : DevicesFromTopo st1)
-    (swsHaveOFLinks1 : SwitchesHaveOpenFlowLinks st1),
-    multistep step st1 obs st2 ->
-    exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2 allFMS2 P2
-           uniqOfLinkIds2 ofLinksHaveSw2 devsFromTopo2 swsHaveOFLinks2,
-      multistep concreteStep
-                (ConcreteState st1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1 
-                               uniqSwIds1 allFMS1 P1 uniqOfLinkIds1
-                               ofLinksHaveSw1 devsFromTopo1 swsHaveOFLinks1)
-                obs
-                (ConcreteState st2 tblsOk2 linksTopoOk2 haveSrc2 haveDst2 
-                               uniqSwIds2 allFMS2 P2 uniqOfLinkIds2
-                               ofLinksHaveSw2 devsFromTopo2 swsHaveOFLinks2).
+  Parameter simpl_multistep : forall (st1 : concreteState) (devs2 : state) obs,
+    multistep step (devices st1) obs devs2 ->
+    exists (st2 : concreteState),
+      devices st2 = devs2 /\
+      multistep concreteStep st1 obs st2.
 
-
-  Parameter simpl_weak_sim : forall devs1 devs2 sw pt pk lps
-    (tblsOk1 : FlowTablesSafe (switches devs1))
-    (linksTopoOk1 : ConsistentDataLinks (links devs1))
-    (haveSrc1 : LinksHaveSrc (switches devs1) (links devs1))
-    (haveDst1 : LinksHaveDst (switches devs1) (links devs1))
-    (uniqSwIds1 : UniqSwIds (switches devs1))
-    (allFMS1 : AllFMS (switches devs1) (ofLinks devs1))
-    (P1 : P (switches devs1) (ofLinks devs1) (ctrl devs1))
-    (uniqOfLinkIds1 : AllDiff of_to (ofLinks devs1))
-    (ofLinksHaveSw1 : OFLinksHaveSw (switches devs1) (ofLinks devs1))
-    (devsFromTopo1 : DevicesFromTopo devs1)
-    (swsHaveOFLinks1 : SwitchesHaveOpenFlowLinks devs1),
-    multistep step devs1 [(sw,pt,pk)] devs2 ->
-    relate devs1 === ({| (sw,pt,pk) |} <+> lps) ->
+  Parameter simpl_weak_sim : forall st1 devs2 sw pt pk lps,
+    multistep step (devices st1) [(sw,pt,pk)] devs2 ->
+    relate (devices st1) === ({| (sw,pt,pk) |} <+> lps) ->
     abstractStep
       ({| (sw,pt,pk) |} <+> lps)
       (Some (sw,pt,pk))
       (Bag.unions (map (transfer sw) (abst_func sw pt pk)) <+> lps) ->
-   exists t : concreteState,
+   exists st2 : concreteState,
      inverse_relation 
        bisim_relation
        (Bag.unions (map (transfer sw) (abst_func sw pt pk)) <+> lps)
-       t /\
-     multistep concreteStep
-               (ConcreteState devs1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1
-                              uniqSwIds1 allFMS1 P1 uniqOfLinkIds1
-                              ofLinksHaveSw1 devsFromTopo1 swsHaveOFLinks1)
-               [(sw,pt,pk)]
-               t.
+       st2 /\
+     multistep concreteStep st1 [(sw,pt,pk)] st2.
 
   Parameter FlowTablesSafe_untouched : forall {sws swId pts tbl inp inp'
     outp outp' ctrlm ctrlm' switchm switchm' },
