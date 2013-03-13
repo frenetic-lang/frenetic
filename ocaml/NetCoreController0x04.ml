@@ -13,7 +13,7 @@ open WordInterface
 (** val prio_rec :
     Word16.t -> 'a1 coq_Classifier -> ((Word16.t*Pattern.pattern)*'a1) list **)
 
-let nc_compiler = FaultTolerantCompiler.compile_pb
+let nc_compiler a b c = NetCoreCompiler0x04.compile_opt a
 
 let rec prio_rec prio = function
 | [] -> []
