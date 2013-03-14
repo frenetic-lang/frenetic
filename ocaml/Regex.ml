@@ -1,5 +1,5 @@
 open MessagesDef
-open NetCore
+open NetCoreFT
 open Graph.Graph
 
 (* type graph = (switchId * switchId * int) list *)

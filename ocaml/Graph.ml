@@ -1,7 +1,7 @@
 module H = Hashtbl
 module Q = Queue
-module M = MessagesDef
-module P = Packet
+module M = OpenFlow0x04Types
+module P = OpenFlow0x04Types
 
 module SwSet = Set.Make(
   struct
