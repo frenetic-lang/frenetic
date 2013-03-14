@@ -390,7 +390,7 @@ Section Lemmas.
 
   Hint Resolve from_list_order.
 
-  Lemma bag_unions_app : forall (lst lst0 : list (list A)),
+  Lemma unions_app : forall (lst lst0 : list (list A)),
     (forall (b : list A), In b lst -> Ordered R b) ->
     (forall (b : list A), In b lst0 -> Ordered R b) ->
     unions (lst ++ lst0) = union (unions lst) (unions lst0).
@@ -451,7 +451,94 @@ Section Lemmas.
     apply H...
   Qed.
 
+  Lemma from_list_cons : forall x xs,
+    insert x (from_list xs) = union [x] (from_list xs).
+  Proof with auto with datatypes.
+    intros.
+    simpl...
+    rewrite -> union_comm...
+    apply Ordered_cons...
+    intros.
+    simpl in H.
+    inversion H.
+  Qed.
+
 End Lemmas.
+
+Section BinaryLemmas.
+
+  Variable A : Type.
+  Variable R : relation A.
+  Variable Order : TotalOrder R.
+
+  Variable B: Type.
+  Variable S : relation B.
+  Variable P : TotalOrder S.
+
+  Lemma from_list_map_cons : forall (f : A -> B) x xs,
+    Ordered R xs ->
+    from_list (map f (insert x xs)) =
+    from_list (map f (x :: xs)).
+  Proof with auto with datatypes.
+    intros.
+    induction xs...
+    simpl.
+    destruct (compare x a)...
+    simpl.
+    rewrite -> insert_comm.
+    2: apply from_list_order.
+    inversion H; subst.
+    apply IHxs in H3; clear IHxs.
+    rewrite -> H3.
+    simpl...
+  Qed.
+
+  Lemma map_union : forall (f : A -> B) (xs ys : list A),
+    Ordered R xs ->
+    Ordered R ys ->
+    from_list (map f (union xs ys)) =
+    union (from_list (map f xs)) (from_list (map f ys)).
+  Proof with auto with datatypes.
+    intros.
+    induction ys...
+    simpl.
+    inversion H0.
+    subst.
+    apply IHys in H4; clear IHys.
+    rewrite -> union_insert_r_comm.
+    rewrite <- H4.
+    rewrite -> from_list_map_cons.
+    reflexivity.
+    apply union_order_pres...
+    inversion H0...
+    apply from_list_order.
+    apply from_list_order.
+  Qed.
+
+  Lemma in_unions_map : forall (b : B) (lst: list A) (f : A -> list B),
+    (forall x, Ordered S (f x)) ->
+    In b (unions (map f lst)) ->
+    exists (a : A), In a lst /\ In b (f a).
+  Proof with eauto with datatypes.
+    intros.
+    induction lst...
+    simpl in H0.
+    inversion H0.
+    simpl in H0.
+    apply In_union in H0...
+    destruct H0...
+    apply IHlst in H0; clear IHlst.
+    destruct H0 as [a0 [HIna HInb]]...
+    apply unions_order_pres.
+    intros.
+    rewrite -> in_map_iff in H1.
+    destruct H1 as [a0 [HEq HIn]].
+    remember (H a0); clear Heqo.
+    rewrite -> HEq in o...
+  Qed.
+
+End BinaryLemmas.
+
   
     
     
