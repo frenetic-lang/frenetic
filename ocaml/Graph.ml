@@ -25,7 +25,7 @@ sig
   val nodes : graph -> SwSet.t
   (* val get_other_port : graph -> a -> b -> (a*b) option *)
   val next_hop : graph -> a -> b -> a
-  val get_host_port : graph -> h -> b option
+  val get_host_port : graph -> h -> (a*b) option
   val get_nbrs : graph -> a -> a list
   val has_node : graph -> a -> bool
   val del_edge : graph -> a -> b -> unit
@@ -84,6 +84,6 @@ module Graph : GRAPH =
 
     let nodes (topo,_) = H.fold (fun sw sw' acc -> SwSet.add sw acc) topo SwSet.empty
     let get_host_port (_,topo) host = 
-      try Some (snd (H.find topo host)) with _ -> None
+      try Some (H.find topo host) with _ -> None
     let has_node (graph,_) = H.mem graph
   end

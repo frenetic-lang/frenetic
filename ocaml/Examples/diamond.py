@@ -56,8 +56,9 @@ class DiamondTopology(Topo):
         # Add switch links
         self.addLink("s1","s2", 2, 1)
         self.addLink("s1","s3", 3, 1)
-        self.addLink("s2","s4", 2, 2)
-        self.addLink("s3","s4", 2, 3)
+        self.addLink("s2","s3", 2, 2)        
+        self.addLink("s2","s4", 3, 2)
+        self.addLink("s3","s4", 3, 3)
 
 Topology = DiamondTopology
 topos = { 'diamond_topo': ( lambda: Topology() ) }

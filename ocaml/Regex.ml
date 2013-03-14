@@ -58,14 +58,19 @@ let rec compile1 pred reg topo port = match reg with
       | None -> Par ((Pol ((And (pred, (And (InPort port,Switch s1)))), [GetPacket (bad_hop_handler s1 s2)])), ((compile1 pred ((Hop s2) :: reg) topo port))))
   | Hop s1 :: Star :: Hop s2 :: reg -> compile1 pred ((get_path topo s1 s2) @ reg) topo port
   | Hop s1 :: [Host h] -> (match get_host_port topo h with
-      | Some p1 ->  Pol ((And (pred, (And (InPort port,Switch s1)))), [To p1])
+      | Some (_,p1) ->  Pol ((And (pred, (And (InPort port,Switch s1)))), [To p1])
       | None -> Pol (((And (pred, (And (InPort port,Switch s1))))), [GetPacket (bad_hop_handler s1 (Int64.of_int h))]))
   | _ -> Pol (pred, [])
 
 let rec compile_regex pol topo = match pol with
   | RegPol (pred, reg) -> (match (collapse_star (flatten_reg reg)) with
-      | Host h :: reg -> (match get_host_port topo h with
-	  | Some p -> compile1 pred reg topo p))
+      | Host h :: Hop s :: reg -> (match get_host_port topo h with
+	  (* assert s1 = 1 *)
+	  | Some (s1,p) -> compile1 pred (Hop s :: reg) topo p)
+      | Host h1 :: Star :: [Host h2] -> (match (get_host_port topo h1, get_host_port topo h2) with
+	  | (Some (s1,p1), Some (s2,p2)) -> compile1 pred (Hop s1 :: Star :: Hop s2 :: [Host h2]) topo p1)
+      | Host h :: Star :: reg -> (match get_host_port topo h with
+	  | Some (s,p) -> compile1 pred (Hop s :: Star :: reg) topo p))
   | RegPar (pol1, pol2) -> Par (compile_regex pol1 topo, compile_regex pol2 topo)
 
 let get_links pol topo = []
