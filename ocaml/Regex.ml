@@ -35,6 +35,33 @@ let get_path topo s1 s2 = let path = shortest_path topo s1 s2 in
 			  let () =  List.iter (fun x -> Printf.printf "\t%Ld\n" x ) path in
 			  List.map (fun x -> Hop x) path
 
+let get_path1 topo src dst = List.tl (get_path topo src dst)
+
+let rec expand_path1 path hop topo = match path with
+  | Star :: Hop s :: path -> get_path1 topo hop s @ expand_path1 path s topo
+  | Hop s1 :: path -> Hop s1 :: expand_path1 path s1 topo
+  | _ -> path
+
+(* Input: path starting and ending with hosts
+   Output: path starting and ending with hosts with no (Star, Host) (Host,Star) transitions 
+*)
+let rec install_hosts path topo = match path with
+  | Host h1 :: Star :: [Host h2] -> 
+    (match (get_host_port topo h1, get_host_port topo h2) with
+      | (Some (s1,_), Some (s2,_)) -> if s1 = s2 then
+	  Host h1 :: Hop s1 :: [Host h2]
+	else
+	  Host h1 :: Hop s1 :: Star :: Hop s2 :: [Host h2])
+  | Host h1 :: Star :: path -> (match get_host_port topo h1 with
+      | Some (s1,_) -> Host h1 :: Hop s1 ::  install_hosts (Star :: path) topo)
+  | Star :: [Host h1] -> (match get_host_port topo h1 with
+      | Some (s1,_) -> Hop s1 ::  [Host h1])
+  | h :: path -> h :: install_hosts path topo
+  | [] -> []
+
+let rec expand_path path topo = match install_hosts path topo with
+  | Host h1 :: Hop s1 :: path -> Host h1 :: Hop s1 :: expand_path1 path s1 topo
+
   (* Naive compilation: does not guarantee loop-free semantics
      Possible issues:
      1) reg contains an explicit loop
@@ -56,21 +83,16 @@ let rec compile1 pred reg topo port = match reg with
     (match get_ports topo s1 s2 with
       | Some (p1,p2) ->  Par ((Pol ((And (pred, (And (InPort port,Switch s1)))), [To p1])), ((compile1 pred ((Hop s2) :: reg) topo p2)))
       | None -> Par ((Pol ((And (pred, (And (InPort port,Switch s1)))), [GetPacket (bad_hop_handler s1 s2)])), ((compile1 pred ((Hop s2) :: reg) topo port))))
-  | Hop s1 :: Star :: Hop s2 :: reg -> compile1 pred ((get_path topo s1 s2) @ reg) topo port
   | Hop s1 :: [Host h] -> (match get_host_port topo h with
       | Some (_,p1) ->  Pol ((And (pred, (And (InPort port,Switch s1)))), [To p1])
       | None -> Pol (((And (pred, (And (InPort port,Switch s1))))), [GetPacket (bad_hop_handler s1 (Int64.of_int h))]))
   | _ -> Pol (pred, [])
 
 let rec compile_regex pol topo = match pol with
-  | RegPol (pred, reg) -> (match (collapse_star (flatten_reg reg)) with
+  | RegPol (pred, reg) -> (match (expand_path (collapse_star (flatten_reg reg)) topo) with
       | Host h :: Hop s :: reg -> (match get_host_port topo h with
 	  (* assert s1 = 1 *)
-	  | Some (s1,p) -> compile1 pred (Hop s :: reg) topo p)
-      | Host h1 :: Star :: [Host h2] -> (match (get_host_port topo h1, get_host_port topo h2) with
-	  | (Some (s1,p1), Some (s2,p2)) -> compile1 pred (Hop s1 :: Star :: Hop s2 :: [Host h2]) topo p1)
-      | Host h :: Star :: reg -> (match get_host_port topo h with
-	  | Some (s,p) -> compile1 pred (Hop s :: Star :: reg) topo p))
+	  | Some (s1,p) -> compile1 pred (Hop s :: reg) topo p))
   | RegPar (pol1, pol2) -> Par (compile_regex pol1 topo, compile_regex pol2 topo)
 
 let get_links pol topo = []
