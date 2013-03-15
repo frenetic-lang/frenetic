@@ -13,7 +13,7 @@ type regex =
   | Sequence of regex * regex
 
 type regex_policy = 
-  | RegPol of predicate * regex
+  | RegPol of predicate * regex * int
   | RegPar of regex_policy * regex_policy
 
 
@@ -71,10 +71,6 @@ let rec expand_path path topo = match install_hosts path topo with
      1) Second compilation phase that detects repeated nodes and tags packets inbetween such repeats
   *)
 
-(*
-  Semantic issues: we should compile to use 'port' predicates. Otherwise we screw up the directionality of the rules. Also, this allows us to have paths connecting across a node without allowing hosts on that nodes to communicate w/ the path endpoints.
-*)
-
 let bad_hop_handler s1 s2 sw pt pk =
   Printf.printf "Can not forward pkt from %Ld to %Ld\n" s1 s2
  
@@ -89,7 +85,7 @@ let rec compile1 pred reg topo port = match reg with
   | _ -> Pol (pred, [])
 
 let rec compile_regex pol topo = match pol with
-  | RegPol (pred, reg) -> (match (expand_path (collapse_star (flatten_reg reg)) topo) with
+  | RegPol (pred, reg, _) -> (match (expand_path (collapse_star (flatten_reg reg)) topo) with
       | Host h :: Hop s :: reg -> (match get_host_port topo h with
 	  (* assert s1 = 1 *)
 	  | Some (s1,p) -> compile1 pred (Hop s :: reg) topo p))
@@ -100,7 +96,7 @@ let get_links pol topo = []
 (* TODO: Figure out how to compile regex to a given fault tolerance level *)
 
 let rec compile_regex_ft pol topo k = match pol with
-  | RegPol (pred, reg) -> let pol' = compile_regex pol topo in
+  | RegPol (pred, reg, k) -> let pol' = compile_regex pol topo in
 			  if k > 0 then let () = del_edges topo (get_links pol' topo) in
 					(Par (pol', (compile_regex_ft pol topo (k - 1))))
 			  else pol'
