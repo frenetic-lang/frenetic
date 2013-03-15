@@ -164,6 +164,121 @@ Section Methods.
       destruct b2...
   Qed.
 
+  Lemma unions_nil : unions nil = empty.
+  Proof with auto.
+    intros.
+    apply ordered_irr...
+  Qed.
+
+  Lemma to_list_nil : forall (b : bag R), to_list b = nil -> b = empty.
+  Proof with auto.
+    intros.
+    apply ordered_irr...
+  Qed.
+
+  Lemma in_split : forall x bag,
+    In x (to_list bag) ->
+    exists rest,
+      bag = (union (singleton x) rest).
+  Proof with auto with datatypes.
+    intros.
+    destruct bag.
+    simpl in H.
+    rename to_list into lst.
+    induction lst...
+    + simpl in H. inversion H.
+    + simpl in H.
+      inversion order; subst.
+      destruct H.
+      - subst...
+        exists (Bag lst H3).
+        apply ordered_irr.
+        simpl.
+        symmetry.
+        apply union_cons...
+      - apply IHlst with (order := H3) in H.
+        destruct H as [rest H].
+        exists (({|a|}) <+> rest).
+        apply ordered_irr.
+        simpl.
+        assert (Ordered R [x]). { apply Ordered_cons... intros. simpl in H0... inversion H0. apply Ordered_nil. }
+        assert (Ordered R [a]). { apply Ordered_cons... intros. simpl in H1... inversion H1. apply Ordered_nil. }
+        rewrite -> OL.union_assoc...
+        rewrite -> (OL.union_comm Order H0 H1).
+        rewrite <- OL.union_assoc...
+        unfold union in H.
+        simpl in H.
+        inversion H.
+        rewrite <- H5.
+        symmetry.
+        apply union_cons...
+        destruct rest...
+        destruct rest...
+  Qed.
+
+  Lemma in_unions : forall (x : A) (lst : list (bag R)),
+    In x (to_list (unions lst)) ->
+    exists bag, 
+      In bag lst /\ In x (to_list bag).
+  Proof with eauto with datatypes.
+    intros.
+    induction lst...
+    simpl in H.
+    apply OL.In_union in H.
+    + destruct H.
+      - destruct a.
+        simpl in H...
+      - apply IHlst in H.
+        destruct H as [bag HIn].
+        destruct HIn...
+    + destruct a...
+    + apply unions_order_pres.
+  Qed.
+
+  Lemma in_to_from_list : forall x lst,
+    In x (to_list (from_list lst)) ->
+    In x lst.
+  Proof with auto with datatypes.
+    intros.
+    induction lst...
+    simpl in H.
+    apply In_insert in H.
+    destruct H...
+    subst...
+  Qed.
+
+  Lemma singleton_eq_singleton : forall x y lst,
+    ({|x|}) = ({|y|}) <+> lst -> lst = empty /\ x = y.
+  Proof with auto with datatypes.
+    intros.
+    inversion H.
+    rewrite -> OL.union_comm in H1.
+    simpl in H1.
+    destruct lst.
+    rename to_list into lst.
+    simpl in H1.
+    destruct lst...
+    + simpl in H1.
+      inversion H1.
+      subst.
+      split...
+      apply ordered_irr...
+    + simpl in H1.
+      destruct (compare y a).
+      - inversion H1.
+      - inversion H1.
+        subst.
+        destruct lst...
+        simpl in H3...
+        inversion H3.
+        simpl in H3.
+        destruct (compare y a0)...
+        inversion H3.
+        inversion H3.
+   + apply Ordered_cons. intros. inversion H0. apply Ordered_nil.
+   + destruct lst...
+  Qed.
+
 End Methods.
 
 Section BinaryMethods.
@@ -259,7 +374,7 @@ Section BinaryMethods.
   Qed.
 
 
-  Lemma unions_map_union_comm2 : forall (x : A) (lst0 lst1 : bag RA)
+  Lemma unions_map_union_comm2 : forall (lst0 lst1 : bag RA)
     (f : A -> bag RB),
     unions (map f (to_list (lst0 <+> lst1))) =
     unions (map f (to_list lst0)) <+> unions (map f (to_list lst1)).
@@ -282,10 +397,6 @@ Section BinaryMethods.
     destruct lst0...
     inversion order...
   Qed.
-
-  Variable C : Type.
-  Variable RC : relation C.
-  Variable COrder : TotalOrder RC.
 
   Lemma unions_map_bag : forall (lst : list A) (f : A -> bag RB),
     unions (map f (to_list (from_list lst))) = unions (map f lst).
