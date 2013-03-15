@@ -5,7 +5,7 @@ open Unix
 open OpenFlow0x04Types
 
 (* module Controller = RegexTest.Make (OpenFlowPlatform) *)
-module Controller = MacLearning0x04.Make (OpenFlowPlatform)
+module Controller = RegexFTTest.Make (OpenFlowPlatform)
 
 (* configuration state *)
 let controller = ref "learn"
