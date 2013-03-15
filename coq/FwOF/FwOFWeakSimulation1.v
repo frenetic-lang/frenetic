@@ -7,12 +7,14 @@ Require Import Coq.Classes.Morphisms.
 Require Import Coq.Setoids.Setoid.
 Require Import Common.Types.
 Require Import Common.Bisimulation.
-Require Import Bag.Bag.
+Require Import Bag.Bag2.
 Require Import FwOF.FwOFSignatures.
 
 Local Open Scope list_scope.
 Local Open Scope equiv_scope.
 Local Open Scope bag_scope.
+
+Arguments to_list _ _ _ : simpl never.
 
 Module Make (Import Relation : RELATION).
 
@@ -25,42 +27,27 @@ Module Make (Import Relation : RELATION).
     unfold relate in H.
     destruct s. simpl in *.
     unfold concreteStep in H0.
-    destruct s'. simpl in *.
-    { inversion H0; subst; simpl in *.
-      (* Switch replaced with an equivalent switch. *)
-      + idtac "Proving weak_sim_1 (Case 1 of 12)...".
-        unfold Equivalence.equiv in H1.
-        destruct H1.
-        simpl in *.
-        unfold Equivalence.equiv in H1.
-        exists t.
-        split.
-        unfold bisim_relation.
-        unfold relate.
-        rewrite -> H.
-        simpl.
-        (* Another annoying lemma. Since SwitchesEquiv sws1 sws2 holds, each pair
-         of equivalent switches relate to equivalent abstract states. We have to
-         prove this by induction on sws1 and sws2. *)
-        idtac "TODO(arjun): equivalent switches relate to equivalent abstract states.".
-        admit.
-        apply multistep_nil.
-      (* Switch is processing a packet from the input buffer *)
+    destruct s'.
+    { inversion H0; subst; simpl in *; subst; simpl in *.
       + idtac "Proving weak_sim_1 (Case 2 of 12) ...".
-        autorewrite with bag in H using (simpl in H).
+        rewrite -> Bag.unions_map_union_comm.
+        autorewrite with bag using simpl.
+        rewrite -> Bag.map_union.
+        autorewrite with bag using simpl.
         match goal with
-          | [ H : t === ({|(swId0,pt,pk)|}) <+> ?t1 |- _ ] => remember t1
+          | [ |- context[({|(swId0,pt,pk)|}) <+> ?t1] ] => remember t1
         end.
-        exists (Bag.unions (map (transfer swId0) (abst_func swId0 pt pk)) <+> b).
+        exists (unions (map (transfer swId0) (abst_func swId0 pt pk)) <+> b).
         split.
         unfold bisim_relation.
         unfold relate.
         rewrite -> Heqb.
         assert (FlowTableSafe swId0 tbl0) as J.
         refine (concreteState_flowTableSafety1
-                  swId0 pts0 tbl0 inp0 (FromList outp' <+> outp0) ctrlm0
-                  (FromList (map (PacketIn pt) pksToCtrl) <+> switchm0) _)...
-        simpl. left. apply reflexivity.
+                  swId0 pts0 tbl0 inp0 (from_list outp' <+> outp0) ctrlm0
+                  (from_list (map (PacketIn pt) pksToCtrl) <+> switchm0) _)...
+         rewrite -> Bag.in_union.
+         left. simpl. left. reflexivity.
         unfold FlowTableSafe in J.
         pose (J0 := J pt pk outp' pksToCtrl H1).
         subst.
@@ -68,11 +55,19 @@ Module Make (Import Relation : RELATION).
         But, this got worse after the bag-refactoring. No idea why. *)
         rewrite <- J0.
         autorewrite with bag using simpl.
-        bag_perm 100. (* #winning *)
-        apply multistep_tau with (a0 := ({|(swId0, pt, pk)|}) <+> b).
-        apply AbstractStepEquiv...
+        rewrite -> Bag.unions_map_union_comm.
+        simpl.
+        autorewrite with bag using simpl.
+        rewrite -> Bag.unions_map_union_comm2.
+        rewrite -> Bag.unions_map_union_comm2.
+        autorewrite with bag using simpl.
+        rewrite -> Bag.unions_map_bag.
+        rewrite -> Bag.unions_map_bag.
+        bag_perm 100.
+        admit. (* omg wtf *)
+        admit. (* TODO(arjun): parameter implicit blah blah BS again *)
         apply multistep_obs with
-        (a0 := (Bag.unions (map (transfer swId0) (abst_func swId0 pt pk)) <+> b)).
+        (a0 := (unions (map (transfer swId0) (abst_func swId0 pt pk)) <+> b)).
         apply AbstractStep.
         subst.
         apply multistep_nil.
