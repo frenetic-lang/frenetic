@@ -74,30 +74,32 @@ let rec expand_path path topo = match install_hosts path topo with
 let bad_hop_handler s1 s2 sw pt pk =
   Printf.printf "Can not forward pkt from %Ld to %Ld\n" s1 s2
  
-let rec compile1 pred reg topo port = match reg with
-  | Hop s1 :: Hop s2 :: reg -> 
+let rec compile_path1 pred path topo port = match path with
+  | Hop s1 :: Hop s2 :: path -> 
     (match get_ports topo s1 s2 with
-      | Some (p1,p2) ->  Par ((Pol ((And (pred, (And (InPort port,Switch s1)))), [To p1])), ((compile1 pred ((Hop s2) :: reg) topo p2)))
-      | None -> Par ((Pol ((And (pred, (And (InPort port,Switch s1)))), [GetPacket (bad_hop_handler s1 s2)])), ((compile1 pred ((Hop s2) :: reg) topo port))))
+      | Some (p1,p2) ->  Par ((Pol ((And (pred, (And (InPort port,Switch s1)))), [To p1])), ((compile_path1 pred ((Hop s2) :: path) topo p2)))
+      | None -> Par ((Pol ((And (pred, (And (InPort port,Switch s1)))), [GetPacket (bad_hop_handler s1 s2)])), ((compile_path1 pred ((Hop s2) :: path) topo port))))
   | Hop s1 :: [Host h] -> (match get_host_port topo h with
       | Some (_,p1) ->  Pol ((And (pred, (And (InPort port,Switch s1)))), [To p1])
       | None -> Pol (((And (pred, (And (InPort port,Switch s1))))), [GetPacket (bad_hop_handler s1 (Int64.of_int h))]))
   | _ -> Pol (pred, [])
 
-let rec compile_regex pol topo = match pol with
-  | RegPol (pred, reg, _) -> (match (expand_path (collapse_star (flatten_reg reg)) topo) with
-      | Host h :: Hop s :: reg -> (match get_host_port topo h with
+let compile_path pred path topo = match path with
+  | Host h :: Hop s :: path -> (match get_host_port topo h with
 	  (* assert s1 = 1 *)
-	  | Some (s1,p) -> compile1 pred (Hop s :: reg) topo p))
+	  | Some (s1,p) -> compile_path1 pred (Hop s :: path) topo p)
+
+let rec compile_regex pol topo = match pol with
+  | RegPol (pred, reg, _) -> compile_path pred (expand_path (collapse_star (flatten_reg reg)) topo) topo
   | RegPar (pol1, pol2) -> Par (compile_regex pol1 topo, compile_regex pol2 topo)
 
-let get_links pol topo = []
+let get_links path topo = []
 
 (* TODO: Figure out how to compile regex to a given fault tolerance level *)
 
-let rec compile_regex_ft pol topo k = match pol with
+let rec compile_regex_ft pol topo = match pol with
   | RegPol (pred, reg, k) -> let pol' = compile_regex pol topo in
 			  if k > 0 then let () = del_edges topo (get_links pol' topo) in
-					(Par (pol', (compile_regex_ft pol topo (k - 1))))
+					(Par (pol', (compile_regex_ft pol topo)))
 			  else pol'
-  | RegPar (pol1, pol2) -> Par (compile_regex_ft pol1 topo k, compile_regex_ft pol2 topo k)
+  | RegPar (pol1, pol2) -> Par (compile_regex_ft pol1 topo, compile_regex_ft pol2 topo)
