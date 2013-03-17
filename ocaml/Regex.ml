@@ -93,13 +93,20 @@ let rec compile_regex pol topo = match pol with
   | RegPol (pred, reg, _) -> compile_path pred (expand_path (collapse_star (flatten_reg reg)) topo) topo
   | RegPar (pol1, pol2) -> Par (compile_regex pol1 topo, compile_regex pol2 topo)
 
-let get_links path topo = []
+let rec del_links path topo = match path with
+  | Host h :: path -> del_links path topo
+  | Hop s1 :: Hop s2 :: path -> (match get_ports topo s1 s2 with
+      | Some (p1,p2) -> del_edge topo s1 p1; del_edge topo s2 p2; del_links path topo)
+  | Hop s :: [Host h] -> ()
+
+let get_links _ _ = []
 
 (* TODO: Figure out how to compile regex to a given fault tolerance level *)
 
 let rec compile_regex_ft pol topo = match pol with
-  | RegPol (pred, reg, k) -> let pol' = compile_regex pol topo in
-			  if k > 0 then let () = del_edges topo (get_links pol' topo) in
-					(Par (pol', (compile_regex_ft pol topo)))
+  | RegPol (pred, reg, k) -> let path = expand_path (collapse_star (flatten_reg reg)) topo in
+			     let pol' = compile_path pred path topo in
+			  if k > 0 then let () = del_links path topo in
+					(Par (pol', (compile_regex_ft (RegPol (pred, reg, k - 1)) topo)))
 			  else pol'
   | RegPar (pol1, pol2) -> Par (compile_regex_ft pol1 topo, compile_regex_ft pol2 topo)
