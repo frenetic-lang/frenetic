@@ -30,6 +30,7 @@ sig
   val has_node : graph -> a -> bool
   val del_edge : graph -> a -> b -> unit
   val del_edges : graph -> (a*b) list -> unit
+  val copy : graph -> graph
   exception NoPath of string*string
 end
 

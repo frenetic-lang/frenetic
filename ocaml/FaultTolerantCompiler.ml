@@ -41,7 +41,7 @@ let rec compile_pb pri crsovr bak sw =
 (* Given an ordered k-resilient DAG, convert it into a k-resilient forwarding policy *)
 
 module G = Graph.Graph
-
+module H = Hashtbl
 (* dag = rooted dag. 
    n = maximum resilience
    k = number of current active policy (0 = primary, 1 = secondary, etc)
@@ -52,8 +52,6 @@ let rec from n lst = match lst with
   | l :: lst -> if n <= 0 then l::lst
     else from (n - 1) lst
 
-(* pol = { sw |-> {n |-> (port, [port])} } *)
-      
 (* Naive algorithm. Computes a shortest path p. Deletes the links in p, then recurses down p, computing another shortest path from there. *)
 
 (* let rec get_legal_path regex src dst topo *)
@@ -71,8 +69,27 @@ module Dag =
 	  H.add portTbl k p1;
 	  H.add d sw portTbl
     let create () : dag = (H.create 5, G.create ())
+    let rec insert i b lst = match lst with
+      | (j, c) :: lst -> if j < i then
+	  (j,c) :: insert i b lst
+	else (i,b) :: (j,c) :: lst
+      | [] -> [(i,b)]
+
+    let next_hops (d,_) sw = 
+      snd (List.split (H.fold (fun idx port acc -> insert idx port acc) (H.find d sw) []))
+    let next_hop (_,g) sw p =
+      let sw' = G.next_hop g sw p in
+      match G.get_ports g sw sw' with
+	| Some (_,p') -> (sw',p')
   end
 
+(* pol = { sw |-> {n |-> (port, [port])} } *)
+let rec dag_to_policy dag pol root inport pred k =
+  let sw_pol = H.find pol root in
+  let children = from k (Dag.next_hops dag root) in
+  let () = H.add sw_pol k (inport, children) in
+  let next_hops = List.map (fun hop -> Dag.next_hop dag root hop) children in
+  List.iteri (fun idx (sw, port) -> dag_to_policy dag pol sw port pred (k - idx)) next_hops
 
 let del_link topo sw sw' =
   match G.get_ports topo sw sw' with
