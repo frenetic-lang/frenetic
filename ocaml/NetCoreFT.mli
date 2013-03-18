@@ -21,12 +21,14 @@ type predicate =
   | DlDst of Int64.t (** Match Ethernet destination address (48-bits) *)
   | SrcIP of Int32.t
   | DstIP of Int32.t
+  | MPLS of int
   | TcpSrcPort of int (** 16-bits *)
   | TcpDstPort of int (** 16-bits *)
 
 type action =
   | To of portId (** [To mods n] sends matching packets to port [n]. *)
   | ToAll (** Send matching packets out of all ports. *)
+  | Group of groupId
   | GetPacket of get_packet_handler
 
 type policy =

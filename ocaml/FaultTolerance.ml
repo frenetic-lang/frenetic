@@ -1,4 +1,5 @@
-open NetCore
+open OpenFlow0x04Types
+open NetCoreFT
 
 module G = Graph.Graph
 module Q = Queue
@@ -106,3 +107,117 @@ let fault_tolerance topo policies =
   List.fold_left (fun acc sw -> Pervasives.min acc ((H.find arr1 sw) + (H.find arr2 sw))) Pervasives.max_int switches
 
 (* Fault tolerance analysis implemented over a directed, rooted DAG *)
+
+module Gensym =
+struct
+  let count = ref (Int32.of_int 0)
+  let next () = count := Int32.succ !count; !count
+end
+
+let add_group groups gid acts =
+  groups := (gid, FF, acts) :: !groups
+
+let compile_ft_dict_to_nc1 pred swPol sw = 
+  let groups = ref [] in
+  (H.fold (fun k acts acc -> 
+    let gid = Gensym.next () in
+    add_group groups gid acts;
+    Par (Pol (And (pred, (And (MPLS k, Switch sw))), [NetCoreFT.Group gid]), acc)) swPol (Pol(All, [])), groups)
+
+let compile_ft_dict_to_nc pred polTbl = 
+  let groupTbl = H.create 10 in
+  H.fold (fun sw swPol acc -> 
+    let swPolNc, groups = compile_ft_dict_to_nc1 pred swPol sw in
+    H.add groupTbl sw groups; Par (swPolNc, acc)) polTbl (Pol (All,[]))
+
+let rec from n lst = match lst with
+  | [] -> [] (* Throw error? *)
+  | l :: lst -> if n <= 0 then l::lst
+    else from (n - 1) lst
+
+module Dag =
+  struct
+    type a = switchId
+    type b = portId
+    type dag = ((a, (int, b) H.t) H.t) * G.graph
+    let install_link (d, g) topo sw sw' k =
+      match (G.get_ports topo sw sw') with
+	| Some (p1, p2) -> G.add_edge g sw p1 sw' p2;
+	  let portTbl = (try H.find d sw with _ -> H.create 5) in
+	  H.add portTbl k p1;
+	  H.add d sw portTbl
+    let create () : dag = (H.create 5, G.create ())
+    let rec insert i b lst = match lst with
+      | (j, c) :: lst -> if j < i then
+	  (j,c) :: insert i b lst
+	else (i,b) :: (j,c) :: lst
+      | [] -> [(i,b)]
+
+    let next_hops (d,_) sw = 
+      snd (List.split (H.fold (fun idx port acc -> insert idx port acc) (H.find d sw) []))
+    let next_hop (_,g) sw p =
+      let sw' = G.next_hop g sw p in
+      match G.get_ports g sw sw' with
+	| Some (_,p') -> (sw',p')
+  end
+
+(* Given an ordered k-resilient DAG, convert it into a k-resilient forwarding policy *)
+(* pol = { sw |-> {n |-> (port, [port])} } *)
+
+(* dag = rooted dag. 
+   n = maximum resilience
+   k = number of current active policy (0 = primary, 1 = secondary, etc)
+*)
+
+let rec dag_to_policy dag pol root inport pred k =
+  let sw_pol = H.find pol root in
+  let children = from k (Dag.next_hops dag root) in
+  let () = H.add sw_pol k (inport, children) in
+  let next_hops = List.map (fun hop -> Dag.next_hop dag root hop) children in
+  List.iteri (fun idx (sw, port) -> dag_to_policy dag pol sw port pred (k - idx)) next_hops
+
+let del_link topo sw sw' =
+  match G.get_ports topo sw sw' with
+  | Some (p1,p2) -> G.del_edge topo sw p1;
+    G.del_edge topo sw' p2
+
+let rec k_dag_from_path path dst n k topo dag = match path with
+  | [sw] -> ()
+  | sw :: sw' :: path -> 
+    Dag.install_link dag topo sw sw' k;
+    k_dag_from_path path dst n k topo dag;
+    del_link topo sw sw';
+    for i = k + 1 to n do
+      (* path should not include current node *)
+      let path = List.tl (G.shortest_path topo sw dst) in
+      k_dag_from_path path dst n i topo dag;
+      del_link topo sw (List.hd path)
+    done
+
+let rec build_dag src dst n topo = 
+  let dag = Dag.create() in
+  let path = G.shortest_path topo src dst in
+  k_dag_from_path path dst n 0 topo dag;
+  dag
+
+let first = List.hd
+let rec last lst = 
+  match lst with
+    | [l] -> l
+    | a :: lst -> last lst
+
+let rec compile_ft_regex pred regex k topo = 
+  let Regex.Host srcHost = first regex in
+  let Regex.Host dstHost = last regex in
+  let srcSw,srcPort = (match G.get_host_port topo srcHost with Some (sw,p) -> (sw,p)) in
+  let dstSw,dstPort = (match G.get_host_port topo dstHost with Some (sw,p) -> (sw,p)) in
+  let dag = build_dag srcSw dstSw k topo in
+  let dag_pol = H.create 10 in
+  dag_to_policy dag dag_pol srcSw srcPort;
+  compile_ft_dict_to_nc pred dag_pol
+    
+  
+let rec compile_ft regex topo =
+  match regex with
+    | Regex.RegPar (p1,p2) -> Par (compile_ft p1 topo, compile_ft p2 topo)
+    | Regex.RegPol (pred, path, k) -> compile_ft_regex pred (Regex.flatten_reg path) k topo

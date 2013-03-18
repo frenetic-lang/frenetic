@@ -144,12 +144,14 @@ type predicate =
   | DlDst of Int64.t
   | SrcIP of Int32.t
   | DstIP of Int32.t
+  | MPLS of int (* 20 bit *)
   | TcpSrcPort of int (** 16-bits, implicitly IP *)
   | TcpDstPort of int (** 16-bits, implicitly IP *)
 
 type action =
   | To of portId
   | ToAll
+  | Group of groupId
   | GetPacket of get_packet_handler
 
 type policy =
