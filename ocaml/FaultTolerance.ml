@@ -114,8 +114,11 @@ struct
   let next () = count := Int32.succ !count; !count
 end
 
+let groups_to_string groups =
+  String.concat ";\n" (List.map (fun (gid,_,acts) -> Printf.sprintf "\t%ld" gid) groups)
+
 let add_group groups gid acts =
-  groups := (gid, FF, (List.map (fun x -> [To x]) acts)) :: !groups
+  groups := (gid, FF, (List.map (fun x -> [To x]) acts)) :: !groups;
 
 open NetCoreEval0x04
 module NCE = NetCoreEval
@@ -124,14 +127,14 @@ let compile_ft_dict_to_nc1 pred swPol sw =
   let groups = ref [] in
   (H.fold (fun k (inport,acts) acc -> 
     let gid = Gensym.next () in
-    add_group groups gid acts;
-    Par (Pol (And (pred, (And (DlVlanPcp k, And (InPort inport, Switch sw)))), [NetCoreFT.Group gid]), acc)) swPol (Pol(All, [])), !groups)
+    let () = add_group groups gid acts in
+    Par (Pol (And (pred, (And (DlVlanPcp k, And (InPort inport, Switch sw)))), [NetCoreFT.Group gid]), acc)) swPol (Pol(All, [])), groups)
 
 let compile_ft_dict_to_nc pred polTbl = 
   let groupTbl = H.create 10 in
   (H.fold (fun sw swPol acc -> 
     let swPolNc, groups = compile_ft_dict_to_nc1 pred swPol sw in
-    H.add groupTbl sw groups; Par (swPolNc, acc)) polTbl (Pol (All,[])),
+    H.add groupTbl sw !groups; Par (swPolNc, acc)) polTbl (Pol (All,[])),
    groupTbl)
 
 let rec from n lst = match lst with
@@ -246,7 +249,7 @@ let rec compile_ft_regex pred regex k topo =
     
 let join_htbls h1 h2 op =
   let newHtbl = H.create (H.length h1) in
-  let keys = (H.fold (fun a b acc -> a :: acc) h1 []) @ (H.fold (fun a b acc -> a :: acc) h1 []) in
+  let keys = (H.fold (fun a b acc -> a :: acc) h1 []) @ (H.fold (fun a b acc -> a :: acc) h2 []) in
   List.iter (fun a -> (match (H.mem h1 a, H.mem h2 a) with 
     | true,true -> H.replace newHtbl a (op (H.find h1 a) (H.find h2 a))
     | false,true -> H.replace newHtbl a (H.find h2 a)
@@ -254,10 +257,16 @@ let join_htbls h1 h2 op =
     | false,false -> () (* Impossible *))) keys;
   newHtbl
   
+let group_htbl_to_str ghtbl =
+    String.concat "" (H.fold (fun sw groups acc -> (Printf.sprintf "%Ld -> [\n%s]\n" sw (groups_to_string groups)):: acc) ghtbl [])
+
 let rec compile_ft_to_nc regpol topo =
   match regpol with
     | Regex.RegPar (p1,p2) -> let nc1,group1 = compile_ft_to_nc p1 topo in
+			      Printf.printf "Group1: %s" (group_htbl_to_str group1);
 			      let nc2, group2 = compile_ft_to_nc p2 topo in
+			      Printf.printf "Group2: %s" (group_htbl_to_str group2);
 			      let groups = join_htbls group1 group2 List.append in
+			      Printf.printf "Groups: %s" (group_htbl_to_str groups);
 			      (Par (nc1, nc2), groups)
     | Regex.RegPol (pred, path, k) -> compile_ft_regex pred (Regex.flatten_reg path) k topo

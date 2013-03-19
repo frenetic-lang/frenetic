@@ -211,11 +211,18 @@ module Make =
   | cmd::lst' -> Monad.bind cmd (fun x -> sequence lst')
   
   (** val config_commands : pol -> switchId -> unit Monad.m **)
+
+  let groups_to_string groups =
+    String.concat ";\n" (List.map (fun (gid,_,acts) -> Printf.sprintf "\t%ld" gid) groups)
+
+  let group_htbl_to_str ghtbl =
+    String.concat "" (Hashtbl.fold (fun sw groups acc -> (Printf.sprintf "%Ld -> [\n%s]\n" sw (groups_to_string groups)):: acc) ghtbl [])
   
   let config_commands (pol0 :pol*group_htbl) swId tblId =
     let pol,groups = pol0 in
+    Printf.printf "config_commands groups: %s\n" (group_htbl_to_str groups);
     let fm_cls = fst (nc_compiler pol swId) in
-    let gm_cls = (try Hashtbl.find groups swId with _ -> []) in
+    let gm_cls = (try Hashtbl.find groups swId with _ -> Printf.printf "no groups for switch %Ld\n" swId; []) in
     sequence
       ((map (fun fm -> Monad.send swId Word32.zero (GroupMod fm))
 	  (delete_all_groups :: (group_mods_of_classifier gm_cls))) @
