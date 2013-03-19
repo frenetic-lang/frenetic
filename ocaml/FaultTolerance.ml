@@ -145,11 +145,11 @@ module Dag =
     type b = portId
     type dag = ((a, (int, b) H.t) H.t) * G.graph
     let install_link (d, g) topo sw sw' k =
-      match (G.get_ports topo sw sw') with
-	| Some (p1, p2) -> G.add_edge g sw p1 sw' p2;
-	  let portTbl = (try H.find d sw with _ -> H.create 5) in
-	  H.add portTbl k p1;
-	  H.add d sw portTbl
+      let p1,p2 = G.get_ports topo sw sw' in
+      G.add_edge g sw p1 sw' p2;
+      let portTbl = (try H.find d sw with _ -> H.create 5) in
+      H.add portTbl k p1;
+      H.add d sw portTbl
     let create () : dag = (H.create 5, G.create ())
     let rec insert i b lst = match lst with
       | (j, c) :: lst -> if j < i then
@@ -161,8 +161,8 @@ module Dag =
       snd (List.split (H.fold (fun idx port acc -> insert idx port acc) (H.find d sw) []))
     let next_hop (_,g) sw p =
       let sw' = G.next_hop g sw p in
-      match G.get_ports g sw sw' with
-	| Some (_,p') -> (sw',p')
+      let _,p' = G.get_ports g sw sw' in
+      (sw',p')
   end
 
 (* Given an ordered k-resilient DAG, convert it into a k-resilient forwarding policy *)
@@ -181,9 +181,9 @@ let rec dag_to_policy dag pol root inport pred k =
   List.iteri (fun idx (sw, port) -> dag_to_policy dag pol sw port pred (k - idx)) next_hops
 
 let del_link topo sw sw' =
-  match G.get_ports topo sw sw' with
-  | Some (p1,p2) -> G.del_edge topo sw p1;
-    G.del_edge topo sw' p2
+  let p1,p2 = G.get_ports topo sw sw' in
+  G.del_edge topo sw p1;
+  G.del_edge topo sw' p2
 
 let rec k_dag_from_path path dst n k topo dag = match path with
   | [sw] -> ()

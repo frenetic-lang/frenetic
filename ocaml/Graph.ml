@@ -20,7 +20,7 @@ sig
   val add_edge : graph -> a -> b -> a -> b -> unit
   val add_host_edge : graph -> h -> a -> b -> unit
   val shortest_path : graph -> a -> a -> a list
-  val get_ports : graph -> a -> a -> (b*b) option
+  val get_ports : graph -> a -> a -> (b*b)
   (* val get_ports : graph -> a -> b list *)
   val nodes : graph -> SwSet.t
   (* val get_other_port : graph -> a -> b -> (a*b) option *)
@@ -32,6 +32,7 @@ sig
   val del_edges : graph -> (a*b) list -> unit
   val copy : graph -> graph
   exception NoPath of string*string
+  exception NotFound of string
 end
 
 module Graph : GRAPH =
@@ -41,11 +42,17 @@ module Graph : GRAPH =
     type h = int
     type graph = ((a,(b, (a*b)) H.t) H.t) * ((h, (a*b)) H.t)
     exception NoPath of string*string
+    exception NotFound of string
 	
     let add_switch ((graph, _) : graph) (sw : a) = H.add graph sw (H.create 5)
-    let add_edge (graph, _) sw1 pt1 sw2 pt2 = H.add (H.find graph sw1) pt1 (sw2, pt2)
+    let add_edge (graph, _) sw1 pt1 sw2 pt2 = 
+      let swTbl = (try (H.find graph sw1) with 
+	  Not_found -> let foo = H.create 5 in
+		       H.add graph sw1 foo;
+		       foo) in
+      H.add swTbl pt1 (sw2, pt2) 
     let add_host_edge (_, hgraph) h sw pt = H.add hgraph h (sw,pt)
-    let del_edge (graph, _) sw1 pt1 = H.remove (H.find graph sw1) pt1
+    let del_edge (graph, _) sw1 pt1 = try H.remove (H.find graph sw1) pt1 with _ -> raise (NotFound(Printf.sprintf "Can't find %Ld to del_edge %ld\n" sw1 pt1))
     let del_edges graph edges = List.iter (fun (a,b) -> del_edge graph a b) edges
 
     let create () = (H.create 5, H.create 5)
@@ -77,11 +84,17 @@ module Graph : GRAPH =
     let shortest_path (graph, _) src dst = List.rev (bfs graph src dst)
 
     let get_ports (topo,_) s1 s2 = 
-      let () = Printf.printf "get_hop %Ld %Ld\n" s1 s2 in
-      try (H.fold (fun pt (sw, pt') acc -> if sw = s2 then Some (pt, pt') else acc) (H.find topo s1) None) 
-      with _ -> None
+      let () = Printf.printf "get_ports %Ld %Ld\n" s1 s2 in
+      let s1Tbl = try (H.find topo s1) with Not_found -> raise (NotFound(Printf.sprintf "Can't find switch %Ld to get_ports to %Ld\n" s1 s2)) in
+      let unwrap (Some foo) = foo in
+      try unwrap (H.fold (fun pt (sw, pt') acc -> if sw = s2 then Some (pt, pt') else acc) s1Tbl None) 
+      with _ -> raise (NotFound(Printf.sprintf "Can't find ports to switch %Ld from %Ld\n" s2 s1))
 
-    let next_hop (topo,_) sw p = fst (Hashtbl.find (Hashtbl.find topo sw) p)
+    let next_hop (topo,_) sw p = 
+      let swTbl = try (Hashtbl.find topo sw) 
+	with Not_found -> raise (NotFound(Printf.sprintf "Can't find %Ld to get next_hop\n" sw)) in
+      try fst (Hashtbl.find swTbl p) 
+      with Not_found -> raise (NotFound(Printf.sprintf "Can't find port %ld to get next_hop\n" p))
 
     let nodes (topo,_) = H.fold (fun sw sw' acc -> SwSet.add sw acc) topo SwSet.empty
     let get_host_port (_,topo) host = 
