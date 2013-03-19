@@ -101,7 +101,7 @@ let pattern_to_oxm_match pat =
    @ (match dlDst with Wildcard.WildcardExact a -> [ OxmEthDst (val_to_mask a)] | _ -> [])
    @ (match dlVlan with 
      | Wildcard.WildcardExact a -> [ OxmVlanVId (val_to_mask a)] 
-     | Wildcard.WildcardAll -> [OxmVlanVId {value=1; mask=None}])
+     | Wildcard.WildcardAll -> [OxmVlanVId {value=0; mask=Some 0}])
    @ (match dlVlanPcp with Wildcard.WildcardExact a -> [ OxmVlanPcp a] | _ -> [])
    @ (match nwSrc with Wildcard.WildcardExact a -> [ OxmIP4Src (val_to_mask a)] | _ -> [])
    @ (match nwDst with Wildcard.WildcardExact a -> [ OxmIP4Dst (val_to_mask a)] | _ -> [])

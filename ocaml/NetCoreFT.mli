@@ -19,7 +19,7 @@ type predicate =
   | DlType of int (** 8 bits **)
   | DlSrc of Int64.t  (** Match Ethernet source address (48-bits) *)
   | DlDst of Int64.t (** Match Ethernet destination address (48-bits) *)
-  | DlVlan of int (** 12 bits **)
+  | DlVlan of int option (** 12 bits **)
   | DlVlanPcp of int (** 3 bit **)
   | SrcIP of Int32.t
   | DstIP of Int32.t

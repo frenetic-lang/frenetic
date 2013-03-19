@@ -144,7 +144,7 @@ type predicate =
   | DlType of int (** 8 bits **)
   | DlSrc of Int64.t
   | DlDst of Int64.t
-  | DlVlan of int (** 12 bits **)
+  | DlVlan of int option (** 12 bits **)
   | DlVlanPcp of int (** 3 bit **)
   | SrcIP of Int32.t
   | DstIP of Int32.t
@@ -191,7 +191,8 @@ let rec predicate_to_string pred = match pred with
   | InPort pt -> Printf.sprintf "(InPort %ld)" pt
   | DlSrc add -> Printf.sprintf "(DlSrc %s)" (Util.string_of_mac add)
   | DlDst add -> Printf.sprintf "(DlDst %s)" (Util.string_of_mac add)
-  | DlVlan vlan -> Printf.sprintf "(DlVlan %d)" vlan
+  | DlVlan (Some vlan) -> Printf.sprintf "(DlVlan %d)" vlan
+  | DlVlan None -> Printf.sprintf "(DlVlan NONE)"
   | DlVlanPcp vlanPcp -> Printf.sprintf "(DlVlanPcp %d)" vlanPcp
   | All -> "All"
   | TcpSrcPort n ->
@@ -236,7 +237,8 @@ let rec desugar_pred pred = match pred with
   | InPort pt -> NetCoreEval.PrHdr (Pattern.inPort (Int32.to_int pt))
   | DlSrc n -> NetCoreEval.PrHdr (Pattern.dlSrc n)
   | DlDst n -> NetCoreEval.PrHdr (Pattern.dlDst n)
-  | DlVlan vlan -> NetCoreEval.PrHdr (Pattern.dlVlan vlan)
+  | DlVlan (Some vlan) -> NetCoreEval.PrHdr (Pattern.dlVlan vlan)
+  | DlVlan None -> NetCoreEval.PrHdr ({Pattern.dlVlan 0 with PatternImplDef.ptrnDlVlan = WildcardNone})
   | DlVlanPcp vlanPcp -> NetCoreEval.PrHdr (Pattern.dlVlanPcp vlanPcp)
   | SrcIP n -> NetCoreEval.PrHdr (Pattern.ipSrc n)
   | DstIP n -> NetCoreEval.PrHdr (Pattern.ipDst n)

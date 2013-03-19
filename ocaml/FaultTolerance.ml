@@ -123,21 +123,6 @@ let add_group groups gid acts =
 open NetCoreEval0x04
 module NCE = NetCoreEval
 
-let compile_ft_dict_to_nc1 pred swPol sw = 
-  let groups = ref [] in
-  (H.fold (fun k (inport,acts) acc -> 
-    let gid = Gensym.next () in
-    let acts' = List.mapi (fun i pt -> [To ({unmodified with NCE.modifyDlVlanPcp=Some(k+i)},pt)]) acts in
-    let () = add_group groups gid acts' in
-    Par (Pol (And (pred, (And (DlVlanPcp k, And (InPort inport, Switch sw)))), [NetCoreFT.Group gid]), acc)) swPol (Pol(All, [])), groups)
-
-let compile_ft_dict_to_nc pred polTbl = 
-  let groupTbl = H.create 10 in
-  (H.fold (fun sw swPol acc -> 
-    let swPolNc, groups = compile_ft_dict_to_nc1 pred swPol sw in
-    H.add groupTbl sw !groups; Par (swPolNc, acc)) polTbl (Pol (All,[])),
-   groupTbl)
-
 let rec from n lst = match lst with
   | [] -> [] (* Throw error? *)
   | l :: lst -> if n <= 0 then l::lst
@@ -231,13 +216,30 @@ let rec build_dag src dst dstPort n topo =
   k_dag_from_path path dst dstPort n 0 (G.copy topo) dag;
   dag
 
+let compile_ft_dict_to_nc1 pred swPol sw modif = 
+  let groups = ref [] in
+  (H.fold (fun k (inport,acts) acc -> 
+    let gid = Gensym.next () in
+    let acts' = List.mapi (fun i pt -> [To ({modif with NCE.modifyDlVlanPcp=Some(k+i)},pt)]) acts in
+    let () = add_group groups gid acts' in
+    Par (Pol (And (pred, (And (DlVlanPcp k, And (InPort inport, Switch sw)))), [NetCoreFT.Group gid]), acc)) swPol (Pol(All, [])), groups)
+
+let compile_ft_dict_to_nc pred polTbl src dst vid = 
+  let groupTbl = H.create 10 in
+  (H.fold (fun sw swPol acc -> 
+    let pred' = if sw = src then And (pred, DlVlan None) else And (pred, DlVlan (Some vid)) in
+    let modif = if sw = dst then {unmodified with NCE.modifyDlVlan = (Some None)} else unmodified in
+    let swPolNc, groups = compile_ft_dict_to_nc1 pred' swPol sw modif in
+    H.add groupTbl sw !groups; Par (swPolNc, acc)) polTbl (Pol (All,[])),
+   groupTbl)
+
 let first = List.hd
 let rec last lst = 
   match lst with
     | [l] -> l
     | a :: lst -> last lst
 
-let rec compile_ft_regex pred regex k topo = 
+let rec compile_ft_regex pred vid regex k topo = 
   let Regex.Host srcHost = first regex in
   let Regex.Host dstHost = last regex in
   let srcSw,srcPort = (match G.get_host_port topo srcHost with Some (sw,p) -> (sw,p)) in
@@ -247,7 +249,7 @@ let rec compile_ft_regex pred regex k topo =
   let dag_pol = H.create 10 in
   let () = dag_to_policy dag dag_pol srcSw srcPort pred k in
   let () = Printf.printf "DAG Policy: %s\n" (dag_pol_to_string dag_pol) in
-  compile_ft_dict_to_nc pred dag_pol
+  compile_ft_dict_to_nc pred dag_pol srcSw dstSw vid
     
 let join_htbls h1 h2 op =
   let newHtbl = H.create (H.length h1) in
@@ -271,4 +273,5 @@ let rec compile_ft_to_nc regpol topo =
 			      let groups = join_htbls group1 group2 List.append in
 			      Printf.printf "Groups: %s" (group_htbl_to_str groups);
 			      (Par (nc1, nc2), groups)
-    | Regex.RegPol (pred, path, k) -> compile_ft_regex pred (Regex.flatten_reg path) k topo
+    | Regex.RegPol (pred, path, k) -> let vid = Int32.to_int (Gensym.next ()) in
+				      compile_ft_regex pred vid (Regex.flatten_reg path) k topo
