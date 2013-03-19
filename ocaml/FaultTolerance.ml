@@ -150,6 +150,12 @@ module Dag =
       let portTbl = (try H.find d sw with _ -> H.create 5) in
       H.add portTbl k p1;
       H.add d sw portTbl
+
+    let install_host_link (d, g) sw port k =
+      let portTbl = (try H.find d sw with _ -> H.create 5) in
+      H.add portTbl k port;
+      H.add d sw portTbl
+
     let create () : dag = (H.create 5, G.create ())
     let rec insert i b lst = match lst with
       | (j, c) :: lst -> if j < i then
@@ -158,7 +164,7 @@ module Dag =
       | [] -> [(i,b)]
 
     let next_hops (d,_) sw = 
-      snd (List.split (H.fold (fun idx port acc -> insert idx port acc) (H.find d sw) []))
+      try snd (List.split (H.fold (fun idx port acc -> insert idx port acc) (H.find d sw) [])) with _ -> []
     let next_hop (_,g) sw p =
       let sw' = G.next_hop g sw p in
       let _,p' = G.get_ports g sw sw' in
@@ -176,11 +182,24 @@ module Dag =
    k = number of current active policy (0 = primary, 1 = secondary, etc)
 *)
 
+let sw_pol_to_string swPol = 
+  String.concat "" (H.fold (fun k (inport, ports) acc -> (Printf.sprintf "\t%d -> (%ld, [%s])\n" k inport (String.concat ";\n" (List.map (Printf.sprintf "\t\t%ld") ports ))):: acc) swPol [])
+
+let dag_pol_to_string pol =
+  String.concat "" (H.fold (fun sw swPol acc -> (Printf.sprintf "%Ld -> \n%s\n" sw (sw_pol_to_string swPol)):: acc) pol [])
+
 let rec dag_to_policy dag pol root inport pred k =
-  let sw_pol = H.find pol root in
+  (* Printf.printf "Entering dag_to_policy %s %s %Ld %ld\n"  *)
+  (*   (Dag.dag_to_string dag)  *)
+  (*   (dag_pol_to_string pol) *)
+  (*   root *)
+  (*   inport; *)
+  let sw_pol = (try H.find pol root with 
+      Not_found -> let foo = H.create 5 in H.add pol root foo; foo) in
   let children = from k (Dag.next_hops dag root) in
   let () = H.add sw_pol k (inport, children) in
-  let next_hops = List.map (fun hop -> Dag.next_hop dag root hop) children in
+  (* FIXME: Too coarse. Should just skip over elements causing exception *)
+  let next_hops = try List.map (Dag.next_hop dag root) children with _ -> [] in
   List.iteri (fun idx (sw, port) -> dag_to_policy dag pol sw port pred (k - idx)) next_hops
 
 let del_link topo sw sw' =
@@ -188,23 +207,23 @@ let del_link topo sw sw' =
   G.del_edge topo sw p1;
   G.del_edge topo sw' p2
 
-let rec k_dag_from_path path dst n k topo dag = match path with
-  | [sw] -> ()
+let rec k_dag_from_path path dst dstHostPort n k topo dag = match path with
+  | [sw] -> assert (sw = dst); Dag.install_host_link dag sw dstHostPort k
   | sw :: sw' :: path -> 
     Dag.install_link dag topo sw sw' k;
-    k_dag_from_path (sw' :: path) dst n k topo dag;
+    k_dag_from_path (sw' :: path) dst dstHostPort n k topo dag;
     del_link topo sw sw';
     for i = k + 1 to n do
       (* path should not include current node *)
       let path = List.tl (G.shortest_path topo sw dst) in
-      k_dag_from_path path dst n i topo dag;
+      k_dag_from_path path dst dstHostPort n i topo dag;
       del_link topo sw (List.hd path)
     done
 
-let rec build_dag src dst n topo = 
+let rec build_dag src dst dstPort n topo = 
   let dag = Dag.create() in
   let path = G.shortest_path topo src dst in
-  k_dag_from_path path dst n 0 topo dag;
+  k_dag_from_path path dst dstPort n 0 topo dag;
   dag
 
 let first = List.hd
@@ -218,10 +237,11 @@ let rec compile_ft_regex pred regex k topo =
   let Regex.Host dstHost = last regex in
   let srcSw,srcPort = (match G.get_host_port topo srcHost with Some (sw,p) -> (sw,p)) in
   let dstSw,dstPort = (match G.get_host_port topo dstHost with Some (sw,p) -> (sw,p)) in
-  let dag = build_dag srcSw dstSw k topo in
+  let dag = build_dag srcSw dstSw dstPort k topo in
   let () = Printf.printf "DAG: %s" (Dag.dag_to_string dag) in
   let dag_pol = H.create 10 in
-  dag_to_policy dag dag_pol srcSw srcPort;
+  let () = dag_to_policy dag dag_pol srcSw srcPort pred k in
+  let () = Printf.printf "DAG Policy: %s\n" (dag_pol_to_string dag_pol) in
   compile_ft_dict_to_nc pred dag_pol
     
 let join_htbls h1 h2 op =
