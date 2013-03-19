@@ -206,6 +206,7 @@ let rec dag_to_policy dag pol root inport pred k =
   List.iteri (fun idx (sw, port) -> dag_to_policy dag pol sw port pred (k - idx)) next_hops
 
 let del_link topo sw sw' =
+  let () = Printf.printf "Deleting link between %Ld and %Ld\n" sw sw' in
   let p1,p2 = G.get_ports topo sw sw' in
   G.del_edge topo sw p1;
   G.del_edge topo sw' p2
@@ -214,19 +215,19 @@ let rec k_dag_from_path path dst dstHostPort n k topo dag = match path with
   | [sw] -> assert (sw = dst); Dag.install_host_link dag sw dstHostPort k
   | sw :: sw' :: path -> 
     Dag.install_link dag topo sw sw' k;
-    k_dag_from_path (sw' :: path) dst dstHostPort n k topo dag;
+    k_dag_from_path (sw' :: path) dst dstHostPort n k (G.copy topo) dag;
     del_link topo sw sw';
     for i = k + 1 to n do
       (* path should not include current node *)
-      let path = List.tl (G.shortest_path topo sw dst) in
-      k_dag_from_path path dst dstHostPort n i topo dag;
-      del_link topo sw (List.hd path)
+      let path = G.shortest_path topo sw dst in
+      k_dag_from_path path dst dstHostPort n i (G.copy topo) dag;
+      del_link topo sw (List.hd (List.tl path))
     done
 
 let rec build_dag src dst dstPort n topo = 
   let dag = Dag.create() in
   let path = G.shortest_path topo src dst in
-  k_dag_from_path path dst dstPort n 0 topo dag;
+  k_dag_from_path path dst dstPort n 0 (G.copy topo) dag;
   dag
 
 let first = List.hd

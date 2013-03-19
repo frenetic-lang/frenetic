@@ -69,7 +69,9 @@ module Graph : GRAPH =
 
     let get_nbrs (graph, _) sw = get_nbrs' graph sw
 
-    let copy (graph1, graph2) = (H.copy graph1, H.copy graph2)
+    let copy (graph1, graph2) = let newgraph1 = H.create (H.length graph1) in
+				let () = H.iter (fun k v -> H.add newgraph1 k (H.copy v)) graph1 in
+				(newgraph1, H.copy graph2)
 
     let copy' graph = H.copy graph
 
