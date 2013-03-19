@@ -81,7 +81,9 @@ module Graph : GRAPH =
       try (bfs' dst (copy' graph) q) 
       with Queue.Empty -> raise (NoPath(Int64.to_string src, Int64.to_string dst))
 
-    let shortest_path (graph, _) src dst = List.rev (bfs graph src dst)
+    let shortest_path (graph, _) src dst = 
+      Printf.printf "shortest_path %Ld %Ld\n" src dst;
+      List.rev (bfs graph src dst)
 
     let get_ports (topo,_) s1 s2 = 
       let () = Printf.printf "get_ports %Ld %Ld\n" s1 s2 in

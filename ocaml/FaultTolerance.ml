@@ -163,6 +163,9 @@ module Dag =
       let sw' = G.next_hop g sw p in
       let _,p' = G.get_ports g sw sw' in
       (sw',p')
+    let intTbl_to_string intTbl =
+      String.concat "" (H.fold (fun k p acc -> (Printf.sprintf "\t\t%d -> %ld\n" k p):: acc) intTbl [])
+    let dag_to_string (d,_) = String.concat "" (H.fold (fun sw intTbl acc -> (Printf.sprintf "\t%Ld -> \n%s\n" sw (intTbl_to_string intTbl)):: acc) d [])
   end
 
 (* Given an ordered k-resilient DAG, convert it into a k-resilient forwarding policy *)
@@ -189,7 +192,7 @@ let rec k_dag_from_path path dst n k topo dag = match path with
   | [sw] -> ()
   | sw :: sw' :: path -> 
     Dag.install_link dag topo sw sw' k;
-    k_dag_from_path path dst n k topo dag;
+    k_dag_from_path (sw' :: path) dst n k topo dag;
     del_link topo sw sw';
     for i = k + 1 to n do
       (* path should not include current node *)
@@ -216,6 +219,7 @@ let rec compile_ft_regex pred regex k topo =
   let srcSw,srcPort = (match G.get_host_port topo srcHost with Some (sw,p) -> (sw,p)) in
   let dstSw,dstPort = (match G.get_host_port topo dstHost with Some (sw,p) -> (sw,p)) in
   let dag = build_dag srcSw dstSw k topo in
+  let () = Printf.printf "DAG: %s" (Dag.dag_to_string dag) in
   let dag_pol = H.create 10 in
   dag_to_policy dag dag_pol srcSw srcPort;
   compile_ft_dict_to_nc pred dag_pol
