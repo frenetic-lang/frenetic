@@ -77,9 +77,9 @@ let bad_hop_handler s1 s2 sw pt pk =
 let rec compile_path1 pred path topo port = match path with
   | Hop s1 :: Hop s2 :: path -> 
     let p1,p2 = get_ports topo s1 s2 in
-    Par ((Pol ((And (pred, (And (InPort port,Switch s1)))), [To p1])), ((compile_path1 pred ((Hop s2) :: path) topo p2)))
+    Par ((Pol ((And (pred, (And (InPort port,Switch s1)))), [To ({unmodified with NetCoreEval.modifyDlVlan=None}, p1)])), ((compile_path1 pred ((Hop s2) :: path) topo p2)))
   | Hop s1 :: [Host h] -> (match get_host_port topo h with
-      | Some (_,p1) ->  Pol ((And (pred, (And (InPort port,Switch s1)))), [To p1])
+      | Some (_,p1) ->  Pol ((And (pred, (And (InPort port,Switch s1)))), [To ({unmodified with NetCoreEval.modifyDlVlan=None}, p1)])
       | None -> Pol (((And (pred, (And (InPort port,Switch s1))))), [GetPacket (bad_hop_handler s1 (Int64.of_int h))]))
   | _ -> Pol (pred, [])
 

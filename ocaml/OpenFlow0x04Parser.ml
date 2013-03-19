@@ -389,6 +389,7 @@ module Oxm = struct
       (match vid.mask with
         | None -> 2
         | Some _ -> 4)
+    | OxmVlanPcp vid -> 1
     | OxmIP4Src ipaddr -> 
       (match ipaddr.mask with
         | None -> 4
@@ -484,6 +485,10 @@ module Oxm = struct
                     set_ofp_uint16_value buf3 mask;
                     sizeof_ofp_oxm + l
               end
+            | OxmVlanPcp vid ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_VLAN_PCP 0 l;
+              set_ofp_uint8_value buf2 vid;
+              sizeof_ofp_oxm + l
             | _ -> failwith "Invalid marshal of oxm"
 
   let parse (bits : Cstruct.t) : oxm * Cstruct.t =

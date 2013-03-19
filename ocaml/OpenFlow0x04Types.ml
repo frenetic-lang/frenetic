@@ -39,6 +39,7 @@ type oxm =
   | OxmEthDst of uint48 mask
   | OxmEthSrc of uint48 mask
   | OxmVlanVId of uint12 mask
+  | OxmVlanPcp of uint8
   | OxmIPProto of uint8
   | OxmIPDscp of uint8 (* 6 bits *)
   | OxmIPEcn of uint8 (* 2 bits *)

@@ -152,9 +152,23 @@ type predicate =
   | TcpSrcPort of int (** 16-bits, implicitly IP *)
   | TcpDstPort of int (** 16-bits, implicitly IP *)
 
+type modification = NetCoreEval.modification
+let modifyTpDst = NetCoreEval.modifyTpDst
+let modifyTpSrc = NetCoreEval.modifyTpSrc
+let modifyNwTos = NetCoreEval.modifyNwTos
+let modifyNwDst = NetCoreEval.modifyNwDst
+let modifyNwSrc = NetCoreEval.modifyNwSrc
+let modifyDlVlanPcp = NetCoreEval.modifyDlVlanPcp
+let modifyDlVlan = NetCoreEval.modifyDlVlan
+let modifyDlDst = NetCoreEval.modifyDlDst
+let modifyDlSrc = NetCoreEval.modifyDlSrc
+let modification_rec = NetCoreEval.modification_rec
+let modification_rect = NetCoreEval.modification_rect
+let unmodified = NetCoreEval.unmodified
+
 type action =
-  | To of portId
-  | ToAll
+  | To of modification*portId
+  | ToAll of modification
   | Group of groupId
   | GetPacket of get_packet_handler
 
@@ -190,8 +204,8 @@ let rec predicate_to_string pred = match pred with
     Printf.sprintf "(DstIP %ld)" n
   
 let action_to_string act = match act with
-  | To pt -> Printf.sprintf "To %ld" pt
-  | ToAll -> "ToAll"
+  | To (modify,pt) -> Printf.sprintf "To %ld" pt
+  | ToAll _ -> "ToAll"
   | Group gid -> Printf.sprintf "Group %ld" gid
   | GetPacket _ -> "GetPacket"
 
@@ -201,8 +215,8 @@ let rec policy_to_string pol = match pol with
   | Restrict (p1,p2) -> Printf.sprintf "(restrict %s %s)" (policy_to_string p1) (predicate_to_string p2)
 
 let desugar_act act = match act with
-  | To pt -> Forward (unmodified, PhysicalPort pt)
-  | ToAll -> Forward (unmodified, AllPorts)
+  | To (modify, pt) -> Forward (modify, PhysicalPort pt)
+  | ToAll modify -> Forward (modify, AllPorts)
   | Group gid -> NetCoreEval0x04.Group gid
   | GetPacket handler ->
     let id = !next_id in

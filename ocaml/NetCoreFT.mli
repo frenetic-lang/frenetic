@@ -27,9 +27,21 @@ type predicate =
   | TcpSrcPort of int (** 16-bits *)
   | TcpDstPort of int (** 16-bits *)
 
+type modification = NetCoreEval.modification
+val modifyDlSrc : modification -> dlAddr option
+val modifyDlDst : modification -> dlAddr option
+val modifyDlVlan : modification -> dlVlan option option
+val modifyDlVlanPcp : modification -> dlVlanPcp option
+val modifyNwSrc : modification -> nwAddr option
+val modifyNwDst : modification -> nwAddr option
+val modifyNwTos : modification -> nwTos option
+val modifyTpSrc : modification -> tpPort option
+val modifyTpDst : modification -> tpPort option
+val unmodified : modification
+
 type action =
-  | To of portId (** [To mods n] sends matching packets to port [n]. *)
-  | ToAll (** Send matching packets out of all ports. *)
+  | To of modification*portId (** [To mods n] sends matching packets to port [n]. *)
+  | ToAll of modification (** Send matching packets out of all ports. *)
   | Group of groupId
   | GetPacket of get_packet_handler
 

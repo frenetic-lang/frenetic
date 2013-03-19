@@ -6,8 +6,8 @@ module Q = Queue
 module H = Hashtbl
 
 let rec get_ports acts = match acts with
-  | (To p) :: acts -> Some p :: get_ports acts
-  | ToAll :: acts -> None :: get_ports acts
+  | (To (_,p)) :: acts -> Some p :: get_ports acts
+  | ToAll _ :: acts -> None :: get_ports acts
   | _ :: acts -> get_ports acts
   | [] -> []
 
@@ -118,7 +118,7 @@ let groups_to_string groups =
   String.concat ";\n" (List.map (fun (gid,_,acts) -> Printf.sprintf "\t%ld" gid) groups)
 
 let add_group groups gid acts =
-  groups := (gid, FF, (List.map (fun x -> [To x]) acts)) :: !groups;
+  groups := (gid, FF, acts) :: !groups
 
 open NetCoreEval0x04
 module NCE = NetCoreEval
@@ -127,7 +127,8 @@ let compile_ft_dict_to_nc1 pred swPol sw =
   let groups = ref [] in
   (H.fold (fun k (inport,acts) acc -> 
     let gid = Gensym.next () in
-    let () = add_group groups gid acts in
+    let acts' = List.mapi (fun i pt -> [To ({unmodified with NCE.modifyDlVlanPcp=Some(k+i)},pt)]) acts in
+    let () = add_group groups gid acts' in
     Par (Pol (And (pred, (And (DlVlanPcp k, And (InPort inport, Switch sw)))), [NetCoreFT.Group gid]), acc)) swPol (Pol(All, [])), groups)
 
 let compile_ft_dict_to_nc pred polTbl = 
