@@ -31,6 +31,7 @@ sig
   val del_edge : graph -> a -> b -> unit
   val del_edges : graph -> (a*b) list -> unit
   val copy : graph -> graph
+  val to_string : graph -> string
   exception NoPath of string*string
   exception NotFound of string
 end
@@ -44,6 +45,11 @@ module Graph : GRAPH =
     exception NoPath of string*string
     exception NotFound of string
 	
+    let port_tbl_to_string portTbl =
+      String.concat ";\n\t\t" (H.fold (fun port (sw',port') acc -> (Printf.sprintf "%ld -> (%Ld,%ld)" port sw' port') :: acc) portTbl [])
+
+    let to_string (graph,_) =
+      String.concat ";\n\t" (H.fold (fun sw portTbl acc -> (Printf.sprintf "%Ld -> {%s}" sw (port_tbl_to_string portTbl)) :: acc) graph [])
     let add_switch ((graph, _) : graph) (sw : a) = H.add graph sw (H.create 5)
     let add_edge (graph, _) sw1 pt1 sw2 pt2 = 
       let swTbl = (try (H.find graph sw1) with 
@@ -81,9 +87,12 @@ module Graph : GRAPH =
       try (bfs' dst (copy' graph) q) 
       with Queue.Empty -> raise (NoPath(Int64.to_string src, Int64.to_string dst))
 
-    let shortest_path (graph, _) src dst = 
+    let shortest_path topo src dst = 
+      let graph,_ = topo in
       Printf.printf "shortest_path %Ld %Ld\n" src dst;
-      List.rev (bfs graph src dst)
+      try List.rev (bfs graph src dst) with 
+	| NoPath(s1,s2) -> Printf.printf "Couldn't find path in graph %s\n" (to_string topo);
+	  raise (NoPath(s1,s2))
 
     let get_ports (topo,_) s1 s2 = 
       let () = Printf.printf "get_ports %Ld %Ld\n" s1 s2 in
