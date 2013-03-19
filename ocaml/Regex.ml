@@ -77,19 +77,30 @@ let bad_hop_handler s1 s2 sw pt pk =
 let rec compile_path1 pred path topo port = match path with
   | Hop s1 :: Hop s2 :: path -> 
     let p1,p2 = get_ports topo s1 s2 in
-    Par ((Pol ((And (pred, (And (InPort port,Switch s1)))), [To ({unmodified with NetCoreEval.modifyDlVlan=None}, p1)])), ((compile_path1 pred ((Hop s2) :: path) topo p2)))
+    Par ((Pol ((And (pred, (And (InPort port,Switch s1)))), [To (unmodified, p1)])), ((compile_path1 pred ((Hop s2) :: path) topo p2)))
   | Hop s1 :: [Host h] -> (match get_host_port topo h with
       | Some (_,p1) ->  Pol ((And (pred, (And (InPort port,Switch s1)))), [To ({unmodified with NetCoreEval.modifyDlVlan=None}, p1)])
       | None -> Pol (((And (pred, (And (InPort port,Switch s1))))), [GetPacket (bad_hop_handler s1 (Int64.of_int h))]))
   | _ -> Pol (pred, [])
 
-let compile_path pred path topo = match path with
-  | Host h :: Hop s :: path -> (match get_host_port topo h with
+let compile_path pred path topo vid = match path with
+  | Host h1 :: Hop s :: [Host h2] -> (match (get_host_port topo h1, get_host_port topo h2) with
 	  (* assert s1 = s *)
-	  | Some (s1,p) -> compile_path1 pred (Hop s :: path) topo p)
+      | (Some (s1,p1), Some (s2,p2)) -> Pol ((And (pred, (And (InPort p1,Switch s)))), [To (unmodified, p2)]))
+  | Host h :: Hop s1 :: Hop s2 :: path -> (match get_host_port topo h with
+	  (* assert s1 = s *)
+	  | Some (s1,inport) -> let p1,p2 = get_ports topo s1 s2 in
+			    let pol = Pol (And (And (pred, DlVlan None), (And (InPort inport,Switch s1))), [To ({unmodified with NetCoreEval.modifyDlVlan=(Some (Some vid))}, p1)]) in
+			    Par (pol, compile_path1 (And (DlVlan (Some vid), pred)) (Hop s2 :: path) topo p2))
+
+module Gensym =
+struct
+  let count = ref 0
+  let next () = incr count; !count
+end
 
 let rec compile_regex pol topo = match pol with
-  | RegPol (pred, reg, _) -> compile_path pred (expand_path (collapse_star (flatten_reg reg)) topo) topo
+  | RegPol (pred, reg, _) -> compile_path pred (expand_path (collapse_star (flatten_reg reg)) topo) topo (Gensym.next ())
   | RegPar (pol1, pol2) -> Par (compile_regex pol1 topo, compile_regex pol2 topo)
 
 let rec del_links path topo = match path with
