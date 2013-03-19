@@ -177,6 +177,8 @@ let rec predicate_to_string pred = match pred with
   | InPort pt -> Printf.sprintf "(InPort %ld)" pt
   | DlSrc add -> Printf.sprintf "(DlSrc %s)" (Util.string_of_mac add)
   | DlDst add -> Printf.sprintf "(DlDst %s)" (Util.string_of_mac add)
+  | DlVlan vlan -> Printf.sprintf "(DlVlan %d)" vlan
+  | DlVlanPcp vlanPcp -> Printf.sprintf "(DlVlanPcp %d)" vlanPcp
   | All -> "All"
   | TcpSrcPort n ->
     Printf.sprintf "(TcpSrcPort %d)" n
@@ -190,6 +192,7 @@ let rec predicate_to_string pred = match pred with
 let action_to_string act = match act with
   | To pt -> Printf.sprintf "To %ld" pt
   | ToAll -> "ToAll"
+  | Group gid -> Printf.sprintf "Group %ld" gid
   | GetPacket _ -> "GetPacket"
 
 let rec policy_to_string pol = match pol with
@@ -200,6 +203,7 @@ let rec policy_to_string pol = match pol with
 let desugar_act act = match act with
   | To pt -> Forward (unmodified, PhysicalPort pt)
   | ToAll -> Forward (unmodified, AllPorts)
+  | Group gid -> NetCoreEval0x04.Group gid
   | GetPacket handler ->
     let id = !next_id in
     incr next_id;
