@@ -19,6 +19,8 @@ type predicate =
   | DlType of int (** 8 bits **)
   | DlSrc of Int64.t  (** Match Ethernet source address (48-bits) *)
   | DlDst of Int64.t (** Match Ethernet destination address (48-bits) *)
+  | DlVlan of int (** 12 bits **)
+  | DlVlanPcp of int (** 3 bit **)
   | SrcIP of Int32.t
   | DstIP of Int32.t
   | MPLS of int
@@ -37,8 +39,15 @@ type policy =
   | Restrict of policy * predicate
 
 val policy_to_string : policy -> string
+type group_htbl = (OpenFlow0x04Types.switchId, (int32 * OpenFlow0x04Types.groupType * NetCoreEval0x04.act list list) list) Hashtbl.t
+
+val desugar_act : action -> NetCoreEval0x04.act
+
+val desugar_pred : predicate -> NetCoreEval.pred
+
+val desugar_pol : policy -> NetCoreEval0x04.pol
 
 module Make : functor (Platform : PLATFORM) -> sig
-  val start_controller : (policy*policy*policy) Lwt_stream.t -> unit Lwt.t
+  val start_controller : (policy*group_htbl) Lwt_stream.t -> unit Lwt.t
 end
 

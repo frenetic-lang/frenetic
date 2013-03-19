@@ -14,11 +14,13 @@ module type HANDLERS = sig
 
 end
 
+type group_htbl = (OpenFlow0x04Types.switchId, (int32 * OpenFlow0x04Types.groupType * NetCoreEval0x04.act list list) list) Hashtbl.t
+
 module MakeNetCoreMonad
   (Platform : PLATFORM) 
   (Handlers : HANDLERS) = struct
 
-  type state = { policy : pol*pol*pol; switches : switchId list }
+  type state = { policy : pol*group_htbl; switches : switchId list }
 
   let policy x = x.policy
     
@@ -94,7 +96,7 @@ let drop_all_packets = NetCoreEval0x04.PoAtom (NetCoreEval.PrAll, [])
 
 type eventOrPolicy = 
   | Event of ControllerInterface0x04.event
-  | Policy of (NetCoreEval0x04.pol*NetCoreEval0x04.pol*NetCoreEval0x04.pol)
+  | Policy of (NetCoreEval0x04.pol*group_htbl)
 
 module MakeDynamic
   (Platform : PLATFORM)
@@ -107,7 +109,7 @@ module MakeDynamic
 
   let start_controller policy_stream =
     let init_state = { 
-      NetCoreMonad.policy = (drop_all_packets, drop_all_packets, drop_all_packets); 
+      NetCoreMonad.policy = (drop_all_packets, Hashtbl.create 0); 
       NetCoreMonad.switches = []
     } in
     let policy_stream = Lwt_stream.map (fun v -> Policy v) policy_stream in
@@ -142,9 +144,11 @@ type predicate =
   | DlType of int (** 8 bits **)
   | DlSrc of Int64.t
   | DlDst of Int64.t
+  | DlVlan of int (** 12 bits **)
+  | DlVlanPcp of int (** 3 bit **)
   | SrcIP of Int32.t
   | DstIP of Int32.t
-  | MPLS of int (* 20 bit *)
+  | MPLS of int (** 20 bits **)
   | TcpSrcPort of int (** 16-bits, implicitly IP *)
   | TcpDstPort of int (** 16-bits, implicitly IP *)
 
@@ -158,6 +162,11 @@ type policy =
   | Pol of predicate * action list
   | Par of policy * policy (** parallel composition *)
   | Restrict of policy * predicate
+
+let next_id : int ref = ref 0
+
+let get_pkt_handlers : (int, get_packet_handler) Hashtbl.t = 
+  Hashtbl.create 200
 
 let rec predicate_to_string pred = match pred with
   | And (p1,p2) -> Printf.sprintf "(And %s %s)" (predicate_to_string p1) (predicate_to_string p2)
@@ -188,12 +197,43 @@ let rec policy_to_string pol = match pol with
   | Par (p1,p2) -> Printf.sprintf "(Union %s %s)" (policy_to_string p1) (policy_to_string p2)
   | Restrict (p1,p2) -> Printf.sprintf "(restrict %s %s)" (policy_to_string p1) (predicate_to_string p2)
 
+let desugar_act act = match act with
+  | To pt -> Forward (unmodified, PhysicalPort pt)
+  | ToAll -> Forward (unmodified, AllPorts)
+  | GetPacket handler ->
+    let id = !next_id in
+    incr next_id;
+    Hashtbl.add get_pkt_handlers id handler;
+    ActGetPkt id
+
+let rec desugar_pred pred = match pred with
+  | And (p1, p2) -> 
+    NetCoreEval.PrNot (NetCoreEval.PrOr (NetCoreEval.PrNot (desugar_pred p1), NetCoreEval.PrNot (desugar_pred p2)))
+  | Or (p1, p2) ->
+    NetCoreEval.PrOr (desugar_pred p1, desugar_pred p2)
+  | Not p -> NetCoreEval.PrNot (desugar_pred p)
+  | All -> NetCoreEval.PrAll
+  | NoPackets -> NetCoreEval.PrNone
+  | Switch swId -> NetCoreEval.PrOnSwitch swId
+  | InPort pt -> NetCoreEval.PrHdr (Pattern.inPort (Int32.to_int pt))
+  | DlSrc n -> NetCoreEval.PrHdr (Pattern.dlSrc n)
+  | DlDst n -> NetCoreEval.PrHdr (Pattern.dlDst n)
+  | SrcIP n -> NetCoreEval.PrHdr (Pattern.ipSrc n)
+  | DstIP n -> NetCoreEval.PrHdr (Pattern.ipDst n)
+  | TcpSrcPort n -> NetCoreEval.PrHdr (Pattern.tcpSrcPort n)
+  | TcpDstPort n -> NetCoreEval.PrHdr (Pattern.tcpDstPort n)
+
+let rec desugar_pol1 pol pred = match pol with
+  | Pol (pred', acts) -> 
+    PoAtom (desugar_pred (And (pred', pred)), List.map desugar_act acts)
+  | Par (pol1, pol2) ->
+    PoUnion (desugar_pol1 pol1 pred, desugar_pol1 pol2 pred)
+  | Restrict (p1, pr1) ->
+    desugar_pol1 p1 (And (pred, pr1))
+
+let rec desugar_pol pol = desugar_pol1 pol All
+
 module Make (Platform : PLATFORM) = struct
-
-  let next_id : int ref = ref 0
-
-  let get_pkt_handlers : (int, get_packet_handler) Hashtbl.t = 
-    Hashtbl.create 200
 
   module Handlers : HANDLERS = struct
       
@@ -202,55 +242,19 @@ module Make (Platform : PLATFORM) = struct
         (Hashtbl.find get_pkt_handlers queryId) switchId portId packet
   end
           
-  let desugar_act act = match act with
-    | To pt -> Forward (unmodified, PhysicalPort pt)
-    | ToAll -> Forward (unmodified, AllPorts)
-    | GetPacket handler ->
-      let id = !next_id in
-      incr next_id;
-      Hashtbl.add get_pkt_handlers id handler;
-      ActGetPkt id
-
-  let rec desugar_pred pred = match pred with
-    | And (p1, p2) -> 
-      NetCoreEval.PrNot (NetCoreEval.PrOr (NetCoreEval.PrNot (desugar_pred p1), NetCoreEval.PrNot (desugar_pred p2)))
-    | Or (p1, p2) ->
-      NetCoreEval.PrOr (desugar_pred p1, desugar_pred p2)
-    | Not p -> NetCoreEval.PrNot (desugar_pred p)
-    | All -> NetCoreEval.PrAll
-    | NoPackets -> NetCoreEval.PrNone
-    | Switch swId -> NetCoreEval.PrOnSwitch swId
-    | InPort pt -> NetCoreEval.PrHdr (Pattern.inPort (Int32.to_int pt))
-    | DlSrc n -> NetCoreEval.PrHdr (Pattern.dlSrc n)
-    | DlDst n -> NetCoreEval.PrHdr (Pattern.dlDst n)
-    | SrcIP n -> NetCoreEval.PrHdr (Pattern.ipSrc n)
-    | DstIP n -> NetCoreEval.PrHdr (Pattern.ipDst n)
-    | TcpSrcPort n -> NetCoreEval.PrHdr (Pattern.tcpSrcPort n)
-    | TcpDstPort n -> NetCoreEval.PrHdr (Pattern.tcpDstPort n)
-
-  let rec desugar_pol1 pol pred = match pol with
-    | Pol (pred', acts) -> 
-      PoAtom (desugar_pred (And (pred', pred)), List.map desugar_act acts)
-    | Par (pol1, pol2) ->
-      PoUnion (desugar_pol1 pol1 pred, desugar_pol1 pol2 pred)
-    | Restrict (p1, pr1) ->
-      desugar_pol1 p1 (And (pred, pr1))
-
-  let rec desugar_pol pol = desugar_pol1 pol All
-
   module Controller = MakeDynamic (Platform) (Handlers)
 
   let clear_handlers () : unit = 
     Hashtbl.clear get_pkt_handlers;
     next_id := 0
 
-  let start_controller (pol : (policy*policy*policy) Lwt_stream.t) : unit Lwt.t = 
+  let start_controller (pol : (policy*group_htbl) Lwt_stream.t) : unit Lwt.t = 
     Controller.start_controller
       (Lwt_stream.map 
-         (fun (pol1,pol2,pol3) -> 
+         (fun (pol1,group_tbl) -> 
             printf "[NetCore.ml] got a new policy%!\n";
             clear_handlers (); 
-            (desugar_pol pol1, desugar_pol pol2, desugar_pol pol3))
+            (desugar_pol pol1, group_tbl))
          pol)
 
 end

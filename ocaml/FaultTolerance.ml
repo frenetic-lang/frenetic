@@ -115,20 +115,24 @@ struct
 end
 
 let add_group groups gid acts =
-  groups := (gid, FF, acts) :: !groups
+  groups := (gid, FF, (List.map (fun x -> [To x]) acts)) :: !groups
+
+open NetCoreEval0x04
+module NCE = NetCoreEval
 
 let compile_ft_dict_to_nc1 pred swPol sw = 
   let groups = ref [] in
-  (H.fold (fun k acts acc -> 
+  (H.fold (fun k (inport,acts) acc -> 
     let gid = Gensym.next () in
     add_group groups gid acts;
-    Par (Pol (And (pred, (And (MPLS k, Switch sw))), [NetCoreFT.Group gid]), acc)) swPol (Pol(All, [])), groups)
+    Par (Pol (And (pred, (And (DlVlanPcp k, And (InPort inport, Switch sw)))), [NetCoreFT.Group gid]), acc)) swPol (Pol(All, [])), !groups)
 
 let compile_ft_dict_to_nc pred polTbl = 
   let groupTbl = H.create 10 in
-  H.fold (fun sw swPol acc -> 
+  (H.fold (fun sw swPol acc -> 
     let swPolNc, groups = compile_ft_dict_to_nc1 pred swPol sw in
-    H.add groupTbl sw groups; Par (swPolNc, acc)) polTbl (Pol (All,[]))
+    H.add groupTbl sw groups; Par (swPolNc, acc)) polTbl (Pol (All,[])),
+   groupTbl)
 
 let rec from n lst = match lst with
   | [] -> [] (* Throw error? *)
@@ -216,8 +220,20 @@ let rec compile_ft_regex pred regex k topo =
   dag_to_policy dag dag_pol srcSw srcPort;
   compile_ft_dict_to_nc pred dag_pol
     
+let join_htbls h1 h2 op =
+  let newHtbl = H.create (H.length h1) in
+  let keys = (H.fold (fun a b acc -> a :: acc) h1 []) @ (H.fold (fun a b acc -> a :: acc) h1 []) in
+  List.iter (fun a -> (match (H.mem h1 a, H.mem h2 a) with 
+    | true,true -> H.replace newHtbl a (op (H.find h1 a) (H.find h2 a))
+    | false,true -> H.replace newHtbl a (H.find h2 a)
+    | true,false -> H.replace newHtbl a (H.find h1 a)
+    | false,false -> () (* Impossible *))) keys;
+  newHtbl
   
-let rec compile_ft regex topo =
-  match regex with
-    | Regex.RegPar (p1,p2) -> Par (compile_ft p1 topo, compile_ft p2 topo)
+let rec compile_ft_to_nc regpol topo =
+  match regpol with
+    | Regex.RegPar (p1,p2) -> let nc1,group1 = compile_ft_to_nc p1 topo in
+			      let nc2, group2 = compile_ft_to_nc p2 topo in
+			      let groups = join_htbls group1 group2 List.append in
+			      (Par (nc1, nc2), groups)
     | Regex.RegPol (pred, path, k) -> compile_ft_regex pred (Regex.flatten_reg path) k topo

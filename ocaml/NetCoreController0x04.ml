@@ -13,7 +13,7 @@ open WordInterface
 (** val prio_rec :
     Word16.t -> 'a1 coq_Classifier -> ((Word16.t*Pattern.pattern)*'a1) list **)
 
-let nc_compiler = FaultTolerantCompiler.compile_pb
+let nc_compiler = NetCoreCompiler0x04.compile_opt
 
 let rec prio_rec prio = function
 | [] -> []
@@ -168,6 +168,8 @@ let delete_all_flows tableId =
 	     no_pkt_counts = false;
 	     no_byt_counts = false }}
 
+type group_htbl = (OpenFlow0x04Types.switchId, (int32 * OpenFlow0x04Types.groupType * NetCoreEval0x04.act list list) list) Hashtbl.t
+
 module type NETCORE_MONAD = 
  sig 
   type 'x m 
@@ -176,11 +178,11 @@ module type NETCORE_MONAD =
   
   val ret : 'a1 -> 'a1 m
 
-  type state = { policy : pol*pol*pol; switches : switchId list }
+  type state = { policy : pol*group_htbl; switches : switchId list }
 
   (** val policy : ncstate -> pol **)
 
-  val policy : state -> pol*pol*pol
+  val policy : state -> pol*group_htbl
 
   (** val switches : ncstate -> switchId list **)
 
@@ -210,8 +212,10 @@ module Make =
   
   (** val config_commands : pol -> switchId -> unit Monad.m **)
   
-  let config_commands (pol0, pol1, pol2) swId tblId =
-    let fm_cls, gm_cls = nc_compiler pol0 pol1 pol2 swId in
+  let config_commands (pol0 :pol*group_htbl) swId tblId =
+    let pol,groups = pol0 in
+    let fm_cls = fst (nc_compiler pol swId) in
+    let gm_cls = (try Hashtbl.find groups swId with _ -> []) in
     sequence
       ((map (fun fm -> Monad.send swId Word32.zero (GroupMod fm))
 	  (delete_all_groups :: (group_mods_of_classifier gm_cls))) @
@@ -221,7 +225,7 @@ module Make =
   (** val set_policy : pol -> unit Monad.m **)
   
   (* FIXME: Default tableId of 0 *)
-  let set_policy pol0 =
+  let set_policy (pol0 : pol*group_htbl) =
     Monad.bind Monad.get (fun st ->
       let switch_list = st.Monad.switches in
       Monad.bind (Monad.put { Monad.policy = pol0; Monad.switches = switch_list })
@@ -265,7 +269,7 @@ module Make =
   
   let handle_packet_in swId pk = 
     Monad.bind Monad.get (fun st ->
-      let (policy, _, _) = st.Monad.policy in
+      let (policy, _) = st.Monad.policy in
       let outs = classify policy (packetIn_to_in swId pk) in
       sequence (map send_output outs))
   
