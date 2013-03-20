@@ -181,8 +181,11 @@ Module Make (Import Relation : RELATION).
         rewrite -> H.
         apply SendPacketOut.
         idtac "TODO(arjun): p in pts0 in ctrlm link". admit.
-        assert (Bag ctrlm0 H2 = from_list ctrlm0). apply Bag.ordered_irr...
-          unfold to_list. admit.
+         assert (Bag ctrlm0 H2 = from_list ctrlm0). 
+          apply Bag.ordered_irr...
+          unfold to_list.
+          symmetry.
+          apply OrderedLists.from_list_id...
         rewrite -> H0 in *.
         apply Hstep.
       - inversion order; subst.
@@ -842,11 +845,27 @@ Module Make (Import Relation : RELATION).
         destruct X.
         destruct p1.
         inversion HPktEq. subst. clear HPktEq.
+        assert (multistep step (devices t) nil (State sws1 links1 (ofLinks20 ++ (OpenFlowLink swTo switchmLst (PacketOut ptTo pk :: ctrlmLst)) :: ofLinks21) ctrl3)).
+        {  eapply multistep_tau.
+          rewrite <- Heqdevices0.
+          eapply SendToController.
+          eapply multistep_app.
+          simpl in Hstep2.
+          eapply Hstep2.
+          eapply multistep_app.
+          eapply Hstep3.
+          eapply Hstep4.
+          instantiate (1 := nil)...
+          reflexivity. }
+        remember H as H' eqn:X; clear X.
+        apply simpl_multistep in H'.
+        destruct H' as [st1 [Hdevices1 HPreStep]].
         destruct (@EasyObservePacketOut sw pt swTo ptTo sws1 links1 ofLinks20
                                         switchmLst nil pk ctrlmLst
                                         ofLinks21 ctrl3) as [stateN stepN]...
-        admit. admit. admit.
-
+        { destruct st1. simpl in *. subst. simpl in *... }
+        { destruct st1. simpl in *. subst. simpl in *... }
+        { destruct st1. simpl in *. subst. simpl in *... }
         eapply simpl_weak_sim.
         eapply multistep_tau.
         rewrite <- Heqdevices0.
@@ -1056,41 +1075,34 @@ Module Make (Import Relation : RELATION).
     (* ************************************************************************)
     (* Case 8 : Packet is at the controller                                   *)
     (* ************************************************************************)
-    simpl in *.
-    destruct 
-      (ControllerLiveness sw pt pk ctrl0 switches0 links0 ofLinks0 HMemCtrl)
-      as [ofLinks10 [ofLinks11 [ctrl1 [swTo [ptTo [switchmLst
-           [ctrlmLst [Hstep Hrel]]]]]]]].
-    simpl in Hrel.
-    remember (topo (swTo,ptTo)) as X eqn:Htopo.
-    destruct X.
-    destruct p.
-    inversion Hrel. subst. clear Hrel.
-    rename swTo into srcSw. rename ptTo into p.
-    destruct (@EasyObservePacketOut sw pt srcSw p switches0 links0 ofLinks10
-                                   switchmLst nil pk ctrlmLst
-                                   ofLinks11 ctrl1) as [stateN stepN]...
-    { destruct t. simpl in *. subst. simpl in *. auto. }
-    { destruct t. simpl in *. subst. simpl in *. auto. }
-    { destruct t. simpl in *. subst. simpl in *. auto. }
-    apply simpl_weak_sim with (devs2 := stateN)...
-    rewrite <- Heqdevices0.
-    eapply multistep_app...
-    rewrite -> H.
-    rewrite <- Heqdevices0.
-    unfold relate.
-    simpl.
-    apply reflexivity.
-    trivial.
-    assert (Mem (sw,pt,pk) Empty) as Hcontra.
-    { eapply Bag.Mem_equiv.
-      apply symmetry.
-      apply reflexivity.
-      rewrite -> Hrel.
-      simpl.
-      apply reflexivity. }
-    simpl in Hcontra.
-    inversion Hcontra.
+    { simpl in *.
+      destruct 
+        (ControllerLiveness sw pt pk ctrl0 switches0 links0 ofLinks0 HMemCtrl)
+        as [ofLinks10 [ofLinks11 [ctrl1 [swTo [ptTo [switchmLst
+              [ctrlmLst [Hstep Hrel]]]]]]]].
+      simpl in Hrel.
+      remember (topo (swTo,ptTo)) as X eqn:Htopo.
+      destruct X.
+      destruct p.
+      inversion Hrel. subst. clear Hrel.
+      rename swTo into srcSw. rename ptTo into p.
+      destruct (@EasyObservePacketOut sw pt srcSw p switches0 links0 ofLinks10
+                                      switchmLst nil pk ctrlmLst
+                                      ofLinks11 ctrl1) as [stateN stepN]...
+        { destruct t. simpl in *. subst. simpl in *. auto. }
+        { destruct t. simpl in *. subst. simpl in *. auto. }
+        { destruct t. simpl in *. subst. simpl in *. auto. }
+        apply simpl_weak_sim with (devs2 := stateN)...
+        rewrite <- Heqdevices0.
+        eapply multistep_app...
+        rewrite -> H1.
+        rewrite <- Heqdevices0.
+        unfold relate.
+        simpl.
+        autorewrite with bag using simpl.
+        trivial.
+        apply AbstractStep.
+        inversion Hrel. }
 Qed.
 
 End Make.
