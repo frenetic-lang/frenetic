@@ -237,6 +237,15 @@ cstruct ofp_action_header {
   uint8_t pad3                   (* Pad to 64 bits. *)
 } as big_endian
 
+(* Action structure for POP_MPLS *)
+cstruct ofp_action_pop_mpls {
+  uint16_t typ;                   (* POP_VLAN. *)
+  uint16_t len;                   (* Length is 8. *)
+  uint16_t ethertype;
+  uint8_t pad0;                   (* Pad to 64 bits. *)
+  uint8_t pad1                    (* Pad to 64 bits. *)
+} as big_endian
+
 (* Action structure for *_PUSH *)
 cstruct ofp_action_push {
   uint16_t typ;                   (* OFPAT_PUSH_VLAN/MPLS/PBB *)
@@ -419,6 +428,8 @@ module Oxm = struct
         | Some _ -> 8)
     | OxmTCPSrc _ -> failwith "Invalid field_length TCPSrc"
     | OxmTCPDst _ -> failwith "Invalid field_length TCPDst"
+    | OxmMPLSLabel _ -> 4
+    | OxmMPLSTc _ -> 1
     | _ -> failwith "Invalid field_length"
 
   let sizeof (oxm : oxm) : int =
@@ -506,6 +517,14 @@ module Oxm = struct
               end
             | OxmVlanPcp vid ->
               set_ofp_oxm buf ofc OFPXMT_OFB_VLAN_PCP 0 l;
+              set_ofp_uint8_value buf2 vid;
+              sizeof_ofp_oxm + l
+            | OxmMPLSLabel vid ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_MPLS_LABEL 0 l;
+              set_ofp_uint32_value buf2 vid;
+              sizeof_ofp_oxm + l
+            | OxmMPLSTc vid ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_MPLS_TC 0 l;
               set_ofp_uint8_value buf2 vid;
               sizeof_ofp_oxm + l
             | _ -> failwith "Invalid marshal of oxm"
@@ -661,6 +680,8 @@ module Action = struct
     | Group _ -> sizeof_ofp_action_group
     | PopVlan -> sizeof_ofp_action_header
     | PushVlan -> sizeof_ofp_action_push
+    | PopMpls -> sizeof_ofp_action_pop_mpls
+    | PushMpls -> sizeof_ofp_action_push
     | SetField oxm -> pad_to_64bits (sizeof_ofp_action_set_field + Oxm.sizeof oxm)
 
 
@@ -697,6 +718,16 @@ module Action = struct
       | PopVlan ->
 	set_ofp_action_header_typ buf 18; (* POP_VLAN *)
 	set_ofp_action_header_len buf size;
+	size
+      | PushMpls ->
+	set_ofp_action_push_typ buf 19; (* PUSH_MPLS *)
+	set_ofp_action_push_len buf size;
+	set_ofp_action_push_ethertype buf 0x8847;
+	size
+      | PopMpls ->
+	set_ofp_action_pop_mpls_typ buf 20; (* POP_MPLS *)
+	set_ofp_action_pop_mpls_len buf size;
+	set_ofp_action_pop_mpls_ethertype buf 0x800;
 	size
       | Group gid ->
         set_ofp_action_group_typ buf 22; (* OFPAT_GROUP *)
