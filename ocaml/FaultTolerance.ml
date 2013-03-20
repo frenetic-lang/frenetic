@@ -1,3 +1,4 @@
+open Regex
 open OpenFlow0x04Types
 open NetCoreFT
 
@@ -197,23 +198,25 @@ let del_link topo sw sw' =
   G.del_edge topo sw p1;
   G.del_edge topo sw' p2
 
-let rec k_dag_from_path path dst dstHostPort n k topo dag = match path with
-  | [sw] -> assert (sw = dst); Dag.install_host_link dag sw dstHostPort k
-  | sw :: sw' :: path -> 
+let rec k_dag_from_path path n k topo dag = match path with
+  | (Hop sw, _) :: [(Host h1,_)] -> (match G.get_host_port topo h1 with
+      | Some (s1,p1) -> assert (s1 = sw); Dag.install_host_link dag sw p1 k)
+  | (Hop sw, a) :: (Hop sw', b) :: path -> 
     Dag.install_link dag topo sw sw' k;
-    k_dag_from_path (sw' :: path) dst dstHostPort n k (G.copy topo) dag;
+    k_dag_from_path ((Hop sw',b) :: path) n k (G.copy topo) dag;
     del_link topo sw sw';
     for i = k + 1 to n do
-      (* path should not include current node *)
-      let path = G.shortest_path topo sw dst in
-      k_dag_from_path path dst dstHostPort n i (G.copy topo) dag;
-      del_link topo sw (List.hd (List.tl path))
+      let path = expand_regex_with_match (snd (List.split path)) sw topo in
+      k_dag_from_path path n i (G.copy topo) dag;
+      let new_sw' = (match (List.hd (List.tl (fst (List.split path)))) with
+	| Hop sw' -> sw) in
+      del_link topo sw new_sw'
     done
 
-let rec build_dag src dst dstPort n topo = 
+let rec build_dag n topo regex = 
   let dag = Dag.create() in
-  let path = G.shortest_path topo src dst in
-  k_dag_from_path path dst dstPort n 0 (G.copy topo) dag;
+  let path = Regex.expand_path_with_match regex topo in
+  k_dag_from_path path n 0 (G.copy topo) dag;
   dag
 
 let compile_ft_dict_to_nc1 pred swPol sw modif = 
@@ -242,9 +245,10 @@ let rec last lst =
 let rec compile_ft_regex pred vid regex k topo = 
   let Regex.Host srcHost = first regex in
   let Regex.Host dstHost = last regex in
+  let host_expanded_regex = Regex.install_hosts regex topo in
   let srcSw,srcPort = (match G.get_host_port topo srcHost with Some (sw,p) -> (sw,p)) in
   let dstSw,dstPort = (match G.get_host_port topo dstHost with Some (sw,p) -> (sw,p)) in
-  let dag = build_dag srcSw dstSw dstPort k topo in
+  let dag = build_dag k topo regex in
   let () = Printf.printf "DAG: %s" (Dag.dag_to_string dag) in
   let dag_pol = H.create 10 in
   let () = dag_to_policy dag dag_pol srcSw srcPort pred k in

@@ -42,6 +42,10 @@ let rec expand_path1 path hop topo = match path with
   | Hop s1 :: path -> Hop s1 :: expand_path1 path s1 topo
   | _ -> path
 
+let rec star_out_path path last = match path with
+  | [a] -> [(a, last)]
+  | a :: path -> (a, Star) :: star_out_path path last
+  
 (* Input: path starting and ending with hosts
    Output: path starting and ending with hosts with no (Star, Host) (Host,Star) transitions 
 *)
@@ -49,18 +53,34 @@ let rec install_hosts path topo = match path with
   | Host h1 :: Star :: [Host h2] -> 
     (match (get_host_port topo h1, get_host_port topo h2) with
       | (Some (s1,_), Some (s2,_)) -> if s1 = s2 then
-	  Host h1 :: Hop s1 :: [Host h2]
+	  (Host h1, Host h1) :: (Hop s1, Star) :: [(Host h2, Host h2)]
 	else
-	  Host h1 :: Hop s1 :: Star :: Hop s2 :: [Host h2])
+	  (Host h1, Host h1) :: (Hop s1, Star) :: (Star, Star) :: (Hop s2, Star) :: [(Host h2, Host h2)])
   | Host h1 :: Star :: path -> (match get_host_port topo h1 with
-      | Some (s1,_) -> Host h1 :: Hop s1 ::  install_hosts (Star :: path) topo)
+      | Some (s1,_) -> (Host h1, Host h1) :: (Hop s1, Star) ::  install_hosts (Star :: path) topo)
   | Star :: [Host h1] -> (match get_host_port topo h1 with
-      | Some (s1,_) -> Hop s1 ::  [Host h1])
-  | h :: path -> h :: install_hosts path topo
+      | Some (s1,_) -> (Hop s1, Star) ::  [(Host h1, Host h1)])
+  | h :: path -> (h, h) :: install_hosts path topo
   | [] -> []
 
-let rec expand_path path topo = match install_hosts path topo with
+let rec star_out_regex regex = match regex with
+  | [a] -> [(a, a)]
+  | a :: regex -> (a, Star) :: star_out_regex regex
+
+let rec expand_path path topo = match fst (List.split (install_hosts path topo)) with
   | Host h1 :: Hop s1 :: path -> Host h1 :: Hop s1 :: expand_path1 path s1 topo
+
+let rec expand_regex_with_match regex hop topo = match regex with
+  | Star :: Hop s :: path -> star_out_regex (get_path1 topo hop s) @ expand_regex_with_match regex s topo
+  | Hop s1 :: path -> (Hop s1, Hop s1) :: expand_regex_with_match path s1 topo
+
+(* Expands a regex into an explicit path starting at hop, storing the "match expansion" along the way *)
+let rec expand_path_with_match1 path hop topo = match path with
+  | (Star,_) :: (Hop s, a) :: path -> (star_out_path (get_path1 topo hop s) a) @ expand_path_with_match1 path s topo
+  | (Hop s1, a) :: path -> (Hop s1, a) :: expand_path_with_match1 path s1 topo
+
+let rec expand_path_with_match path topo = match install_hosts path topo with
+  | (Host h1, a) :: (Hop s1, b) :: path -> (Host h1, a) :: (Hop s1, b) :: expand_path_with_match1 path s1 topo
 
   (* Naive compilation: does not guarantee loop-free semantics
      Possible issues:
