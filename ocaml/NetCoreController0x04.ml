@@ -123,7 +123,7 @@ let pattern_to_oxm_match pat =
 let to_flow_mod prio pat act0 tableId =
   let ofMatch,inport = pattern_to_oxm_match pat in
   { table_id = tableId; command = AddFlow; ofp_match = ofMatch; priority = prio; 
-    instructions = [WriteActions (concat_map (translate_action inport) act0)]; 
+    instructions = [ApplyActions (concat_map (translate_action inport) act0)]; 
     cookie = val_to_mask (Int64.of_int 0); idle_timeout = Permanent; 
     hard_timeout = Permanent; out_group = None;
   flags = {  send_flow_rem = false; 

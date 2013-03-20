@@ -795,6 +795,8 @@ module Instruction = struct
     match ins with
       | GotoTable _ ->
         sizeof_ofp_instruction_goto_table
+      | ApplyActions actions ->
+        sizeof_ofp_instruction_actions + sum (map Action.sizeof actions)
       | WriteActions actions ->
         sizeof_ofp_instruction_actions + sum (map Action.sizeof actions)
 
@@ -811,6 +813,14 @@ module Instruction = struct
           size
         | WriteActions actions ->
           set_ofp_instruction_actions_typ buf 3; (* OFPIT_WRITE_ACTIONS *)
+          set_ofp_instruction_actions_len buf size;
+          set_ofp_instruction_actions_pad0 buf 0;
+          set_ofp_instruction_actions_pad1 buf 0;
+          set_ofp_instruction_actions_pad2 buf 0;
+          set_ofp_instruction_actions_pad3 buf 0;
+          sizeof_ofp_instruction_actions + (marshal_fields (Cstruct.shift buf sizeof_ofp_instruction_actions) actions Action.marshal)
+        | ApplyActions actions ->
+          set_ofp_instruction_actions_typ buf 4; (* OFPIT_APPLY_ACTIONS *)
           set_ofp_instruction_actions_len buf size;
           set_ofp_instruction_actions_pad0 buf 0;
           set_ofp_instruction_actions_pad1 buf 0;

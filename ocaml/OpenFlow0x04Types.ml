@@ -76,6 +76,7 @@ type action =
 
 type instruction =
   | GotoTable of tableId
+  | ApplyActions of action list
   | WriteActions of action list
 
 type bucket = {
