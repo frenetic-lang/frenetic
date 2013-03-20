@@ -99,18 +99,32 @@ Section Methods.
     apply unions_order_pres...
   Qed.
 
-  Lemma pop_union_l : forall (b b0 b1: bag R),
-    b0 = b1 ->
-    b <+> b0 = b <+> b1.
-  Proof.
-    intros. subst. reflexivity.
+  Lemma pop_union_r : forall (b b0 b1: bag R),
+    b0 = b1 <->
+    b0 <+> b = b1 <+> b.
+  Proof with simpl; auto with datatypes.
+    split; intros.
+    + subst. reflexivity.
+    + destruct b,b0,b1.
+      rename to_list into lst,to_list0 into lst0,to_list1 into lst1.
+      inversion H.
+      induction lst...
+      simpl in H1.
+      inversion order; subst.
+      apply insert_eq in H1...
+      apply IHlst with (order:=H4) in H1...
+      apply ordered_irr. simpl...
+      apply union_order_pres...
+      apply union_order_pres...
   Qed.
 
-  Lemma pop_union_r : forall (b b0 b1: bag R),
-    b0 = b1 ->
-    b0 <+> b = b1 <+> b.
-  Proof.
-    intros. subst. reflexivity.
+  Lemma pop_union_l : forall (b b0 b1: bag R),
+    b0 = b1 <->
+    b <+> b0 = b <+> b1.
+  Proof with auto.
+    intros.
+    do 2 rewrite -> (union_comm b).
+    apply pop_union_r...
   Qed.
 
   Lemma rotate_union : forall (b b0 b1 : bag R),

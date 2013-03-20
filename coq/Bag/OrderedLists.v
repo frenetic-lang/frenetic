@@ -252,6 +252,70 @@ Section Lemmas.
     rewrite -> IHb2...
   Qed.
 
+  Lemma insert_nonempty : forall x xs,
+    insert x xs = nil -> False.
+  Proof with auto with datatypes.
+    intros.
+    destruct xs...
+    simpl in H.
+    inversion H.
+    simpl in H.
+    destruct (compare x a).
+    inversion H.
+    inversion H.
+  Qed.
+
+  Lemma insert_eq : forall x lst0 lst1,
+    Ordered R lst0 ->
+    Ordered R lst1 ->
+    insert x lst0 = insert x lst1 -> lst0 = lst1.
+  Proof with auto with datatypes.
+    intros.
+    generalize dependent lst0.
+    induction lst1; intros.
+    + simpl in H1.
+      destruct lst0...
+      simpl in H1.
+      destruct (compare x a).
+      inversion H1.
+      inversion H1.
+      apply insert_nonempty in H4.
+      inversion H4.
+    + destruct lst0.
+      simpl in H1.
+      destruct (compare x a).
+      inversion H1.
+      inversion H1.
+      symmetry in H4. apply insert_nonempty in H4. inversion H4.
+      simpl in H1.
+      { destruct (compare x a), (compare x a0).
+        + inversion H1...
+        + inversion H1; subst.
+          inversion H1; subst.
+          assert (R a x).
+          { destruct lst0. 
+            simpl in H4. inversion H4; subst...
+            simpl in H4.
+            destruct (compare x a0).
+            inversion H4... apply reflexivity.
+            inversion H4; subst... }
+          assert (a = x).
+          { apply antisymmetry... }
+          subst.
+          symmetry.
+          inversion H; subst.
+          apply insert_eq_head...
+        + inversion H1; subst; clear H1.
+          rewrite -> H4.
+          inversion H0; subst.
+          apply insert_eq_head...
+        + inversion H1; subst; clear H1.
+          f_equal.
+          inversion H0; inversion H; subst.
+          apply IHlst1...
+      }
+  Qed.
+
   Hint Resolve union_cons_insert.
 
   Lemma In_insert : forall x y b,
@@ -479,16 +543,25 @@ Section Lemmas.
     apply H...
   Qed.
 
-  Lemma from_list_cons : forall x xs,
-    insert x (from_list xs) = union [x] (from_list xs).
+  Lemma union_singleton_l : forall x xs,
+    Ordered R xs ->
+    insert x xs = union [x] xs.
   Proof with auto with datatypes.
     intros.
     simpl...
     rewrite -> union_comm...
     apply Ordered_cons...
     intros.
-    simpl in H.
-    inversion H.
+    simpl in H0.
+    inversion H0.
+  Qed.
+
+  Lemma from_list_cons : forall x xs,
+    insert x (from_list xs) = union [x] (from_list xs).
+  Proof with auto with datatypes.
+    intros.
+    apply union_singleton_l.
+    apply from_list_order.
   Qed.
 
   Lemma in_from_list_iff : forall x lst, In x lst <-> In x (from_list lst).

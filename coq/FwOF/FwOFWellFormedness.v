@@ -13,7 +13,7 @@ Local Open Scope bag_scope.
 Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
 
   Module AtomsAndController := AtomsAndController_.
-  Import AtomsAndController.
+  Import AtomsAndController_.
   Import Machine.
   Import Atoms.
 
@@ -746,7 +746,7 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
     unfold concreteStep.
     simpl.
     { inversion H; subst.
-      (* Case 2. *)
+      (* Case 1. *)
       + exists (FlowTablesSafe_untouched tblsOk1).
         exists linksTopoOk1.
         exists (LinksHaveSrc_untouched haveSrc1).
@@ -757,18 +757,33 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
         eexists. simpl...
         exists (OfLinksHaveSrc_pres2 ofLinksHaveSw1).
         eexists...
-      (* Case 3: processed a buffered FlowMod *)
+      (* Case 2: processed a buffered FlowMod *)
       + simpl in *.
         eexists.
         unfold FlowTablesSafe.
         intros.
-        apply Bag.in_union in H0.
-        { destruct H0 as [HIn | HIn].
-          - simpl in HIn.
-            destruct HIn as [HIn | Hcontra]. 2: solve[inversion Hcontra].
-            inversion HIn; subst; clear HIn.
+        apply Bag.in_union in H0. simpl in H0.
+        { destruct H0 as [[HIn | HContra] | HIn]; 
+          [idtac | solve[inversion HContra] | idtac].
+          (* interesting case, where the flow table has been modified *)
+          - inversion HIn; subst; clear HIn.
             unfold AllFMS in allFMS1.
-            admit. (* TODO(arjun): FIX *)
+            edestruct allFMS1 as [lnk0 [HLnkIn [HEq HFMS]]].
+            { apply Bag.in_union. left. simpl. left. reflexivity. }
+            destruct lnk0; simpl in *; subst.
+            inversion HFMS; subst.
+            inversion H2; subst.
+            * assert (NotFlowMod (FlowMod fm)) as Hcontra.
+              { apply H9. apply Bag.in_union. left. simpl... }
+              inversion Hcontra.
+            * assert (In (FlowMod fm) (to_list (({|FlowMod f|}) <+> ctrlm2))) 
+                as X.
+              { rewrite <- H11. apply Bag.in_union. left. simpl... }
+              apply Bag.in_union in X. simpl in X.
+              { destruct X as [[X | X] | X].
+                + inversion X; subst...
+                + inversion X.
+                + apply H9 in X. inversion X. }
           - unfold FlowTablesSafe in tblsOk1.
             eapply tblsOk1.
             apply Bag.in_union. right. exact HIn. }
@@ -777,46 +792,49 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
         exists (LinksHaveDst_untouched haveDst1).
         exists (UniqSwIds_pres uniqSwIds1).
         eexists.
-        unfold AllFMS.
-        intros.
-        apply Bag.in_union in H0. simpl in H0.
-        destruct H0 as [[H0 | H0] | H0].
-        - subst.
-          unfold AllFMS in allFMS1.
-          edestruct allFMS1 as [lnk0 [HLnkIn [HEq HFMS]]].
-          apply Bag.in_union. left. simpl. left. reflexivity.
-          simpl in HEq.
-          exists lnk0.
-          simpl. split... split...
-          destruct lnk0; subst.
-          simpl in *. 
-          inversion HFMS; subst.
-          inversion H2; subst.
-          destruct switchEp.
-          simpl in *.
-          apply MkFMS with 
-            (switchEp := Endpoint_NoBarrier (modify_flow_table fm f))...
-          apply NoFlowModsInBuffer...
+        { unfold AllFMS.
           intros.
-          inversion H2. 
-          * assert (NotFlowMod (FlowMod fm)) as Hcontra.
-            { apply H12.
-              apply Bag.in_union. left. simpl... }
-            inversion Hcontra.
-          * apply H5.
-            
-remember (H12 (FlowMod fm)).
-            
-            apply n.
-            
-          apply H10. 
-        apply Bag.Mem_equiv with (ED := fromController_eqdec) (b1 := ctrlm1)...
-        inversion HEq.
-        subst...
-        eapply transitivity...
-        inversion HEq...
-        eexists...
-        eexists...
+        apply Bag.in_union in H0; simpl in H0.
+        { destruct H0 as [[HIn | HContra] | HIn]; 
+          [idtac | solve[inversion HContra] | idtac].
+          (* interesting case, where the flow table has been modified *)
+          - subst.
+            unfold AllFMS in allFMS1.
+            edestruct allFMS1 as [lnk0 [HLnkIn [HEq HFMS]]].
+            { apply Bag.in_union. left. simpl. left. reflexivity. }
+            exists lnk0.
+            destruct lnk0; simpl in *; subst.
+            repeat split...
+            inversion HFMS; subst.
+            inversion H2; subst.
+            * assert (NotFlowMod (FlowMod fm)) as Hcontra.
+              { apply H9. apply Bag.in_union. left. simpl... }
+              inversion Hcontra.
+            * assert (In (FlowMod fm) (to_list (({|FlowMod f|}) <+> ctrlm2))) 
+                as X.
+              { rewrite <- H11. apply Bag.in_union. left. simpl... }
+              apply Bag.in_union in X. simpl in X.
+              { destruct X as [[X | X] | X].
+                + inversion X; subst.
+                  rewrite <- Bag.pop_union_l in H11.
+                  destruct H10 as [ctrlEp Hsafewire].
+                  eapply MkFMS. 
+                  eapply NoFlowModsInBuffer.
+                  intros...
+                  apply H9.
+                  rewrite <- H11...
+                  instantiate (1:= (Endpoint_NoBarrier (modify_flow_table fm tbl0)))...
+                  exists ctrlEp...
+                + inversion X.
+                + apply H9 in X. inversion X. }
+          - subst.
+            unfold AllFMS in allFMS1.
+            edestruct allFMS1 as [lnk0 [HLnkIn [HEq HFMS]]].
+            { apply Bag.in_union. right. exact HIn. }
+            exists lnk0... } }
+        eexists. simpl...
+        eexists. simpl...
+        exists (OfLinksHaveSrc_pres2 ofLinksHaveSw1).
         eexists...
       (* Case 4. *)
       + exists (FlowTablesSafe_untouched tblsOk1).
@@ -830,12 +848,14 @@ remember (H12 (FlowMod fm)).
         intros.
         destruct sw.
         simpl in *.
-        { destruct H1.
+        { apply Bag.in_union in H1. simpl in H1.
+          { destruct H1 as [[H1 | HContra] | H1]; 
+            [idtac | solve[inversion HContra] | idtac].
           + inversion H1.
             subst.
             unfold AllFMS in allFMS1.
-            apply Bag.mem_prop in allFMS1.
-            destruct allFMS1 as [lnk0 [HLnkIn [HEq HFMS]]].
+            edestruct allFMS1 as [lnk0 [HLnkIn [HEq HFMS]]].
+            apply Bag.in_union. left. simpl. left. reflexivity.
             simpl in HEq.
             subst.
             exists lnk0.
@@ -844,11 +864,13 @@ remember (H12 (FlowMod fm)).
             destruct lnk0.
             simpl.
             simpl in *.
-            eapply FMS_equiv. apply symmetry. exact H1.
             apply FMS_dequeue_pktOut...
           + unfold AllFMS in allFMS1.
             simpl in allFMS1.
-            apply (allFMS1 (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1))... }
+            apply (allFMS1 (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 
+                                   switchm1))...
+            apply Bag.in_union.
+            right... } }
         eexists...
         eexists...
         eexists...
@@ -858,7 +880,7 @@ remember (H12 (FlowMod fm)).
         exists (LinksHaveSrc_inv pks0 (pk::pks0) (LinksHaveSrc_untouched haveSrc1)).
         exists (LinksHaveDst_inv pks0 (pk::pks0) (LinksHaveDst_untouched haveDst1)).
         exists (UniqSwIds_pres uniqSwIds1).
-        exists (AllFMS_untouched1 allFMS1).
+        exists (AllFMS_untouched1 _ _ _ allFMS1).
         eexists. eauto.
         eexists. eauto.
         eexists. simpl. eauto.
@@ -871,7 +893,7 @@ remember (H12 (FlowMod fm)).
         exists 
           (LinksHaveDst_inv (pks0 ++ [pk]) pks0 (LinksHaveDst_untouched haveDst1)).
         exists (UniqSwIds_pres uniqSwIds1).
-        exists (AllFMS_untouched1 allFMS1).
+        exists (AllFMS_untouched1 _ _ _ allFMS1).
         eexists...
         exists. simpl...
         exists. simpl...
@@ -894,7 +916,8 @@ remember (H12 (FlowMod fm)).
         exists uniqSwIds1.
         eexists.
         unfold AllFMS in *. intros. destruct sw. subst.
-        assert ({swId0 = swId1 } + { swId0 <> swId1 }) as HIdEq by apply eqdec.
+        assert ({swId0 = swId1 } + { swId0 <> swId1 }) as HIdEq.
+        { apply TotalOrder.eqdec. }
         { destruct HIdEq; subst.
           + exists (OpenFlowLink swId1 fromSwitch0 fromCtrl).
             split...
@@ -974,27 +997,21 @@ remember (H12 (FlowMod fm)).
         intros.
         destruct sw.
         subst.
-        assert ({swId0 = swId1 } + { swId0 <> swId1 }) as HIdEq by apply eqdec.
+        assert ({swId0 = swId1 } + { swId0 <> swId1 }) as HIdEq.
+        { apply TotalOrder.eqdec. }
         { destruct HIdEq; subst.
           + unfold UniqSwIds in uniqSwIds1. (* Not what we want, since it has {|msg|} *)
             assert (AllDiff swId (to_list 
                                     (({|Switch swId1 pts0 tbl0 inp0 outp0 ctrlm0 switchm0|}) <+> sws))) as uniqSwIds2.
             { eapply AllDiff_preservation.
               exact uniqSwIds1.
-              solve[simpl;auto]. }
-            assert (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1 = Switch swId1 pts0 tbl0 inp0 outp0 ctrlm0 switchm0).
-            { eapply AllDiff_uniq.
-              apply uniqSwIds2.
-              rewrite <- Bag.mem_in_to_list in H0.
-              exact H0.
-              simpl...
-              simpl... }
-            inversion H1; subst; clear H1.
+              idtac "TODO(arjun): stupid new problem here.".
+              admit. }
             exists (OpenFlowLink swId1 (msg :: fromSwitch0) fromCtrl).
             split...
             split...
             destruct (allFMS1 (Switch swId1 pts0 tbl0 inp0 outp0 ctrlm0 ({|msg|} <+> switchm0))) as [lnk J].
-            { simpl. left. apply reflexivity. }
+            { simpl. apply Bag.in_union. left. simpl. left. trivial. }
             destruct J as [HLnkIn [HId HFMS]].
             simpl in HId.
             destruct lnk.
@@ -1004,21 +1021,37 @@ remember (H12 (FlowMod fm)).
                     OpenFlowLink of_to0 fromSwitch0 fromCtrl) as HEqOf.
             { eapply AllDiff_uniq... }
             inversion HEqOf; subst; clear HEqOf.
-            apply FMS_untouched with (inp0 := inp0) (outp0 := outp0) (switchm0 := ({|msg|} <+> switchm0))
-                                                    (switchmLst0 := fromSwitch0).
-            apply FMS_equiv with (sw1 := Switch of_to0 pts0 tbl0 inp0 outp0 ctrlm0 ({|msg|} <+> switchm0)).
-            apply SwitchEquiv; try solve [ apply reflexivity ].
-            exact HFMS.
-          + destruct (allFMS1 (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1)) as [lnk J].
-            { simpl. right. simpl in H0. destruct H0. inversion H0. subst. contradiction n...  exact H0. }
-            destruct J as [HLnkIn [HId HFMS]].
-            exists lnk.
-            apply in_app_iff in HLnkIn.
-            simpl in HLnkIn.
-            { destruct HLnkIn as [HLnkIn | [HLnkIn | HLnkIn]].
-              + split...
-              + destruct lnk. inversion HLnkIn. contradiction n. subst...
-              + split... } }
+            apply FMS_untouched 
+              with (inp0 := inp0) (outp0 := outp0) 
+                   (switchm0 := ({|msg|} <+> switchm0))
+                   (switchmLst0 := fromSwitch0).
+            apply Bag.in_union in H0.
+            simpl in H0.
+            inversion HFMS; subst.
+            { destruct H0 as [[H0 | H0] | H0]; 
+              [idtac | solve[inversion H0] | idtac].
+              + inversion H0; subst.
+                eapply MkFMS...
+              + idtac "TODO(arjun): stupid new problem here.".
+                admit. } 
+          + apply Bag.in_union in H0. simpl in H0.
+            destruct H0 as [[H0 | H0] | H0].
+            inversion H0; subst.
+            contradiction n...
+            inversion H0.
+            destruct (allFMS1 (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1
+                                      switchm1)) as [lnk [J [J0 J1]]]...
+            { apply Bag.in_union. right... }
+            exists lnk...
+            split...
+            apply in_app_iff in J. simpl in J.
+            destruct J as [J | [J | J]]...
+            simpl in J0.
+            destruct lnk.
+            simpl in J0.
+            subst.
+            inversion J; subst.
+            contradiction n... }
         eexists...
         eexists. eapply AllDiff_preservation. exact uniqOfLinkIds1.
           simpl. do 2 rewrite -> map_app...
@@ -1035,7 +1068,8 @@ remember (H12 (FlowMod fm)).
         exists (UniqSwIds_pres uniqSwIds1).
         eexists.
         unfold AllFMS in *. intros. destruct sw. subst.
-        assert ({swId0 = swId1 } + { swId0 <> swId1 }) as HIdEq by apply eqdec.
+        assert ({swId0 = swId1 } + { swId0 <> swId1 }) as HIdEq.
+        { apply TotalOrder.eqdec. }
         { destruct HIdEq; subst.
           + exists (OpenFlowLink swId1 fromSwitch0 fromCtrl).
             split...
@@ -1045,16 +1079,19 @@ remember (H12 (FlowMod fm)).
               assert (AllDiff swId (to_list ({|Switch swId1 pts0 tbl0 inp0 outp0 ({||}) ({|BarrierReply xid|} <+> switchm0)|} <+> sws))).
               eapply AllDiff_preservation.
               exact uniqSwIds1.
-              simpl...
+              idtac "TODO(arjun): stupid problem with AllDif and bags".
+              admit.
+              admit.
+              (* simpl...
               eapply AllDiff_uniq.
               exact H1.
               rewrite <- Bag.mem_in_to_list in H0.
               exact H0.
               simpl...
-              reflexivity. }
+              reflexivity. *) }
             inversion H1. subst. clear H1.
             destruct (allFMS1 (Switch swId1 pts0 tbl0 inp0 outp0 ({||}) switchm0)) as [lnk [HLnkIn [HId HFMS]]].
-            { simpl... left. apply reflexivity. }
+            { apply Bag.in_union. left. simpl. left. trivial. }
             destruct lnk.
             simpl in *.
             subst.
@@ -1069,13 +1106,24 @@ remember (H12 (FlowMod fm)).
             * apply MkFMS with (switchEp := switchEp2)...
               apply NoFlowModsInBuffer. intros. simpl in H1. inversion H1.
               auto.
-            * assert (Mem (FlowMod f) Empty) as X.
-                eapply Bag.Mem_equiv with (ED := eqdec).
-                apply symmetry. exact H11. simpl. left... apply reflexivity.
-              simpl in X.
-              inversion X.
-          + destruct (allFMS1 (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm0 switchm1)) as [lnk [HLnkIn [HId HFMS]]].
-            { simpl. right. simpl in H0. destruct H0. inversion H0. subst. contradiction n...  exact H0. }
+            *  inversion H11.
+               destruct ctrlm1.
+               rename to_list into lst.
+               unfold to_list in H2.
+               simpl in H2. 
+               rewrite <- OrderedLists.union_singleton_l in H2...
+               symmetry in H2.
+               apply OrderedLists.insert_nonempty in H2...
+               inversion H2.
+          + apply Bag.in_union in H0.
+            destruct H0.
+            simpl in H0.
+            destruct H0.
+            inversion H0; subst. contradiction n... inversion H0.
+            destruct (allFMS1 (Switch swId1 pts1 tbl1 inp1 outp1 
+                                      ctrlm0 switchm1)) 
+              as [lnk [HLnkIn [HId HFMS]]].
+            { apply Bag.in_union. right... }
             exists lnk.
             apply in_app_iff in HLnkIn.
             simpl in HLnkIn.
@@ -1098,7 +1146,8 @@ remember (H12 (FlowMod fm)).
         exists (UniqSwIds_pres uniqSwIds1).
         eexists.
         unfold AllFMS in *. intros. destruct sw. subst.
-        assert ({swId0 = swId1 } + { swId0 <> swId1 }) as HIdEq by apply eqdec.
+        assert ({swId0 = swId1 } + { swId0 <> swId1 }) as HIdEq.
+        { apply TotalOrder.eqdec. }
         { destruct HIdEq; subst.
           + exists (OpenFlowLink swId1 fromSwitch0 fromCtrl).
             split...
@@ -1108,16 +1157,20 @@ remember (H12 (FlowMod fm)).
               assert (AllDiff swId (to_list ({|Switch swId1 pts0 tbl0 inp0 outp0 ({|msg|}<+>ctrlm0) switchm0|} <+> sws))).
               eapply AllDiff_preservation.
               exact uniqSwIds1.
+              idtac "TODO(arjun): stupid problem with AllDif and bags".
+              admit.
+              admit.
+(*
               simpl...
               eapply AllDiff_uniq.
               exact H2.
               rewrite <- Bag.mem_in_to_list in H1.
               exact H1.
               simpl...
-              reflexivity. }
+              reflexivity. *) }
             inversion H2. subst. clear H2.
             destruct (allFMS1 (Switch swId1 pts0 tbl0 inp0 outp0 ctrlm0 switchm0)) as [lnk [HLnkIn [HId HFMS]]].
-            { simpl... left. apply reflexivity. }
+            { apply Bag.in_union. left. simpl... }
             destruct lnk.
             simpl in *.
             subst.
@@ -1126,8 +1179,13 @@ remember (H12 (FlowMod fm)).
             { eapply AllDiff_uniq... }
             inversion HEqOf; subst; clear HEqOf.
             apply FMS_pop...
-          + destruct (allFMS1 (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1)) as [lnk [HLnkIn [HId HFMS]]].
-            { simpl. right. simpl in H1. destruct H1. inversion H1. subst. contradiction n...  exact H1. }
+          + apply Bag.in_union in H1.
+            destruct H1.
+            simpl in H1. destruct H1. inversion H1; subst; contradiction n...
+            inversion H1.
+            destruct (allFMS1 (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 
+                                      switchm1)) as [lnk [HLnkIn [HId HFMS]]].
+            { apply Bag.in_union. right... }
             exists lnk.
             apply in_app_iff in HLnkIn.
             simpl in HLnkIn.
@@ -1222,17 +1280,10 @@ remember (H12 (FlowMod fm)).
 
   Lemma relate_step_simpl_tau : forall st1 st2,
     concreteStep st1 None st2 ->
-    relate (devices st1) === relate (devices st2).
+    relate (devices st1) = relate (devices st2).
   Proof with eauto with datatypes.
     intros.
     inversion H; subst.
-    (* Case 1. *)
-    unfold Equivalence.equiv in H0.
-    destruct H0.
-    unfold relate.
-    simpl.
-    unfold Equivalence.equiv in H0.
-    admit. (* TODO(arjun): dumb lemma needed. *)
     (* Case 2. *)
     idtac "Proving relate_step_simpl_tau (Case 2 of 11)...".
     destruct st1. destruct st2. subst. unfold relate. simpl.
@@ -1270,7 +1321,7 @@ remember (H12 (FlowMod fm)).
     unfold relate.
     simpl.
     rewrite -> (ControllerRemembersPackets H2).
-    apply reflexivity.
+    reflexivity.
     (* 7. Controller receives. *)
     idtac "Proving relate_step_simpl_tau (Case 7 of 11)...".
     unfold relate.
@@ -1322,21 +1373,20 @@ remember (H12 (FlowMod fm)).
 
   Lemma relate_multistep_simpl_tau : forall st1 st2,
     multistep concreteStep st1 nil st2 ->
-    relate (devices st1) === relate (devices st2).
+    relate (devices st1) = relate (devices st2).
   Proof with eauto.
     intros.
     remember nil.
     induction H...
-    apply reflexivity.
-    apply relate_step_simpl_tau in H. 
-    eapply transitivity...
-    inversion Heql.
+    + apply relate_step_simpl_tau in H.
+      rewrite -> H...
+    + inversion Heql.
   Qed.
 
   Lemma relate_step_simpl_obs : forall  sw pt pk lps st1 st2,
-    relate (devices st1) === ({| (sw,pt,pk) |} <+> lps) ->
+    relate (devices st1) = ({| (sw,pt,pk) |} <+> lps) ->
     concreteStep st1 (Some (sw,pt,pk)) st2 ->
-    relate (devices st2) === 
+    relate (devices st2) = 
       (unions (map (transfer sw) (abst_func sw pt pk)) <+> lps).
   Proof with eauto with datatypes.
     intros.
@@ -1353,28 +1403,17 @@ remember (H12 (FlowMod fm)).
     assert (FlowTableSafe sw tbl0) as Z.
       unfold FlowTablesSafe in concreteState_flowTableSafety0.
       eapply concreteState_flowTableSafety0...
-      apply Bag.mem_union.
+      apply Bag.in_union.
       left.
-      simpl.
-      apply reflexivity.
+      simpl...
     unfold FlowTableSafe in Z.
     remember (Z pt pk outp' pksToCtrl H3) as Y eqn:X. clear X Z.
     rewrite <- Y. clear Y.
 
     unfold relate in *.
     simpl in *.
-    rewrite -> map_app.
-    simpl.
-    rewrite -> Bag.bag_unions_app.
-    repeat rewrite -> Bag.union_assoc.
-    simpl.
-    repeat rewrite -> Bag.union_assoc.
-    repeat rewrite -> map_app.
-    repeat rewrite -> Bag.bag_unions_app.
-    repeat rewrite -> Bag.union_assoc.
-    apply Bag.unpop_unions with (b := ({|(sw,pt,pk)|})).
-    apply symmetry.
-    rewrite -> Bag.union_comm.
+    autorewrite with bag using simpl.
+    apply (Bag.pop_union_r _ ({|(sw,pt,pk)|})).
     repeat rewrite -> Bag.union_assoc.
     rewrite -> (Bag.union_comm _ lps).
     rewrite <- H.
@@ -1384,9 +1423,9 @@ remember (H12 (FlowMod fm)).
   Qed.
 
   Lemma relate_multistep_simpl_obs : forall  sw pt pk lps st1 st2,
-    relate (devices st1) === ({| (sw,pt,pk) |} <+> lps) ->
+    relate (devices st1) = ({| (sw,pt,pk) |} <+> lps) ->
     multistep concreteStep st1 [(sw,pt,pk)] st2 ->
-    relate (devices st2) === 
+    relate (devices st2) = 
       (unions (map (transfer sw) (abst_func sw pt pk)) <+> lps).
   Proof with eauto.
     intros.
@@ -1395,22 +1434,21 @@ remember (H12 (FlowMod fm)).
     inversion Heqobs.
     apply IHmultistep...
     apply relate_step_simpl_tau in H0.
-    apply symmetry in H0.
-    eapply transitivity...
+    symmetry in H0.
+    rewrite -> H0...
     destruct obs; inversion Heqobs.
     subst.
     clear Heqobs.
     apply relate_multistep_simpl_tau in H1.
     apply relate_step_simpl_obs with (lps := lps) in H0 .
     rewrite <- H0.
-    apply symmetry.
-    trivial.
+    symmetry...
     trivial.
   Qed.
 
   Lemma simpl_weak_sim : forall st1 devs2 sw pt pk lps,
     multistep step (devices st1) [(sw,pt,pk)] devs2 ->
-    relate (devices st1) === ({| (sw,pt,pk) |} <+> lps) ->
+    relate (devices st1) = ({| (sw,pt,pk) |} <+> lps) ->
     abstractStep
       ({| (sw,pt,pk) |} <+> lps)
       (Some (sw,pt,pk))
@@ -1424,13 +1462,13 @@ remember (H12 (FlowMod fm)).
   Proof with eauto.
     intros.
     destruct (simpl_multistep st1 H) as [st2 [Heq Hmultistep]]. 
-    assert (relate (devices st1) === ({| (sw,pt,pk) |} <+> lps)) as Hrel.
+    assert (relate (devices st1) = ({| (sw,pt,pk) |} <+> lps)) as Hrel.
       subst. simpl...
     exists st2.
     split.
     unfold inverse_relation.
     unfold bisim_relation.
-    apply symmetry.
+    symmetry...
     exact (relate_multistep_simpl_obs Hrel Hmultistep).
     trivial.
   Qed.
