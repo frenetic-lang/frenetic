@@ -4,6 +4,8 @@ Require Import Coq.Relations.Relations.
 Require Import Coq.Lists.List.
 Require Import Bag.TotalOrder.
 
+(* TODO(arjun): Need a lemma about Ordered (singleton x) to shorten some
+   proofs. *)
 Import ListNotations.
 Local Open Scope list_scope.
 
@@ -624,6 +626,30 @@ Section Lemmas.
     + f_equal...
   Qed.
 
+  Lemma in_inserted : forall x lst, In x (insert x lst).
+  Proof with auto with datatypes.
+    intros.
+    induction lst...
+    simpl...
+    simpl.
+    destruct (compare x a)...
+  Qed.
+
+  Lemma in_inserted_tail : forall x y lst,
+    In x lst ->
+    In x (insert y lst).
+  Proof with auto with datatypes.
+    intros.
+    induction lst...
+    inversion H.
+    simpl in H.
+    destruct H; subst.
+    + simpl.
+      destruct (compare y x)...
+    + simpl.
+      destruct (compare y a)...
+  Qed.
+
 End Lemmas.
 
 Section BinaryLemmas.
@@ -703,6 +729,61 @@ Section BinaryLemmas.
     
     Require Import Common.AllDiff.
 
+
+    Lemma AllDiff_insert : forall (f : A -> B) x lst,
+      Ordered R lst ->
+      AllDiff f (insert x lst) ->
+      AllDiff f (x :: lst).
+    Proof with auto.
+      intros.
+      induction lst...
+      simpl in H0.
+      destruct (compare x a)...
+      simpl in H0.
+      destruct H0 as [H0 H1].
+      apply IHlst in H1.
+      2: solve [inversion H;trivial].
+      simpl in H1.
+      destruct H1 as [H1 H2].
+      simpl.
+      repeat split; intros...
+      + destruct H3...
+        subst.
+        assert (f y <> f x).
+        { apply H0. apply in_inserted. }
+        unfold not; intros.
+        unfold not in H3.
+        apply H3...
+      + apply H0.
+        apply in_inserted_tail...
+    Qed.
+
+    Lemma AllDiff_insert_2 : forall (f : A -> B) x lst,
+      AllDiff f (x :: lst) ->
+      AllDiff f (insert x lst).
+    Proof with auto.
+      intros.
+      induction lst...
+      simpl...
+      destruct (compare x a)...
+      simpl.
+      split.
+      + intros.
+        simpl in H.
+        destruct H as [J [J0 J1]]...
+        apply In_insert in H0.
+        destruct H0; subst.
+        - assert (f x <> f a).
+          apply J...
+          unfold not. unfold not in H. intros. symmetry in H0. 
+          apply H in H0...
+        - apply J0...
+      + apply IHlst...
+        simpl in H.
+        destruct H as [J [J0 J1]]...
+        simpl...
+    Qed.
+
     Lemma AllDiff_preservation : forall (f : A -> B) x y lst,
       Ordered R lst ->
       Ordered R lst ->
@@ -710,7 +791,33 @@ Section BinaryLemmas.
       f x = f y ->
       AllDiff f (union [y] lst).
     Proof with auto with datatypes.
-    Admitted.
+      intros.
+      induction lst...
+      + simpl...
+      + simpl in H1.
+        simpl.
+        inversion H; subst.
+        remember H1 as X eqn:Y; clear Y.
+        apply AllDiff_insert in H1.
+        inversion H1; subst...
+        apply IHlst in H4...
+        clear IHlst.
+        rewrite <- union_singleton_l in *...
+        apply AllDiff_insert_2.
+        simpl. split...
+        intros.
+        apply In_insert in H7.
+        { destruct H7.
+          - subst...
+            rewrite <- H2.
+            apply H3.
+            apply in_inserted.
+          - apply H3...
+            apply in_inserted_tail... }
+        apply union_order_pres...
+        apply Ordered_cons... intros. simpl in H3. inversion H3.
+        apply Ordered_nil.
+    Qed.
 
   End AllDiff.
 End BinaryLemmas.
