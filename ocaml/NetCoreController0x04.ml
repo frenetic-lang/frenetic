@@ -56,7 +56,7 @@ let modification_to_openflow0x01 mods =
     (app (maybe_openflow0x01_modification dlDst (fun x -> SetField (OxmEthDst (val_to_mask x))))
         (match dlVlan with
 	  | Some None -> [PopVlan]
-	  | Some (Some n) -> [SetField (OxmVlanVId (val_to_mask n))]
+	  | Some (Some n) -> [PushVlan;SetField (OxmVlanVId (val_to_mask n))]
 	  | None -> []))
 
 (** val translate_action : portId option -> act -> actionSequence **)
