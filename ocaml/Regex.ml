@@ -91,7 +91,7 @@ let compile_path pred path topo vid = match path with
 	  (* assert s1 = s *)
 	  | Some (s1,inport) -> let p1,p2 = get_ports topo s1 s2 in
 				let pol = Pol (And (pred, (And (InPort inport,Switch s1))), [To ({unmodified with NetCoreEval.modifyDlVlan=(Some (Some vid))}, p1)]) in
-				Par (pol, compile_path1 (And (DlVlan (Some vid), pred)) (Hop s2 :: path) topo p2))
+				Par (pol, compile_path1 (And (DlVlan (Some vid), And (pred, DlVlanPcp 0))) (Hop s2 :: path) topo p2))
 
 
 

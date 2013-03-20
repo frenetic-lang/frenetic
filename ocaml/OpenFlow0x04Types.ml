@@ -54,6 +54,8 @@ type oxm =
   | OxmARPTha of uint48 mask
   | OxmICMPType of uint8
   | OxmICMPCode of uint8
+  | OxmMPLSLabel of uint32 (* 20 bits *)
+  | OxmMPLSTc of uint8 (* 3 bits *)
   | OxmTunnelId of uint64 mask
 
 (**  Hard-codes OFPMT_OXM as the match type, since OFPMT_STANDARD is deprecated.
@@ -73,6 +75,8 @@ type action =
   | Group of groupId
   | PopVlan
   | PushVlan
+  | PopMpls
+  | PushMpls
   | SetField of oxm
 
 type instruction =
