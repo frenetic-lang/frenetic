@@ -777,247 +777,100 @@ Module Make (Import Relation : RELATION).
         destruct HInTransfer.
         2: inversion H.
         inversion H; subst; clear H.
-    assert (exists switchm0l ctrlm0l, 
-              In (OpenFlowLink swId0 switchm0l ctrlm0l) ofLinks0) as X.
-    { destruct t.
-      unfold SwitchesHaveOpenFlowLinks in swsHaveOFLinks0.
-      simpl in swsHaveOFLinks0.
-      simpl in Heqdevices0.
-      assert (switches0 = switches devices0). 
-      { rewrite <- Heqdevices0... }
-      rewrite <- H in swsHaveOFLinks0.
-      apply swsHaveOFLinks0 in XIn.
-      destruct XIn as [ofLink [HOFLinkIn HIdEq]].
-      clear H.
-      destruct ofLink.
-      simpl in HIdEq...
-      subst... }
-    destruct X as [switchm0l [ctrlm0l HOfLink]].
-    apply in_split in HOfLink.
-    destruct HOfLink as [ofLinks00 [ofLinks01 HOFLink]].
-    subst.
-    apply Bag.in_split with (Order:=TotalOrder_switch) in XIn.
-    destruct XIn as [sws XX].
-    apply Bag.in_split with (Order:=TotalOrder_fromSwitch) in HIn.
-    destruct HIn as [switchm0' XX'].
-    subst.
-    rename switchm0' into switchm0.
+        assert (exists switchm0l ctrlm0l, 
+                  In (OpenFlowLink swId0 switchm0l ctrlm0l) ofLinks0) as X.
+        { destruct t.
+          unfold SwitchesHaveOpenFlowLinks in swsHaveOFLinks0.
+          simpl in swsHaveOFLinks0.
+          simpl in Heqdevices0.
+          assert (switches0 = switches devices0). 
+          { rewrite <- Heqdevices0... }
+          rewrite <- H in swsHaveOFLinks0.
+          apply swsHaveOFLinks0 in XIn.
+          destruct XIn as [ofLink [HOFLinkIn HIdEq]].
+          clear H.
+          destruct ofLink.
+          simpl in HIdEq...
+          subst... }
+        destruct X as [switchm0l [ctrlm0l HOfLink]].
+        apply in_split in HOfLink.
+        destruct HOfLink as [ofLinks00 [ofLinks01 HOFLink]].
+        subst.
+        apply Bag.in_split with (Order:=TotalOrder_switch) in XIn.
+        destruct XIn as [sws XX].
+        apply Bag.in_split with (Order:=TotalOrder_fromSwitch) in HIn.
+        destruct HIn as [switchm0' XX'].
+        subst.
+        rename switchm0' into switchm0.
 
-    destruct (DrainToController
-                (({|Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0|}) <+> sws)
-                links0 ofLinks00 swId0 [PacketIn p p0] switchm0l ctrlm0l
-                ofLinks01 ctrl0)
-      as [sws1 [links1 [ofLinks10 [ofLinks11 [ctrl1 Hstep2]]]]].
+        destruct (DrainToController
+                    (({|Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0|}) <+> sws)
+                    links0 ofLinks00 swId0 [PacketIn p p0] switchm0l ctrlm0l
+                    ofLinks01 ctrl0)
+          as [sws1 [links1 [ofLinks10 [ofLinks11 [ctrl1 Hstep2]]]]].
+        
+        destruct (ControllerRecvLiveness sws1 links1 ofLinks10 swId0 nil
+                                         (PacketIn p p0)
+                                         ctrlm0l ofLinks11 ctrl1)
+          as [ctrl2 [Hstep3 [lps' HInCtrl]]].
+        simpl in HInCtrl.
+        apply in_split in HInAbst.
+        destruct HInAbst as [pre [post HInAbst]].
+        rewrite -> HInAbst in HInCtrl.
+        rewrite -> map_app in HInCtrl.
+        rewrite -> Bag.unions_app in HInCtrl.
+        simpl in HInCtrl.
+        rewrite -> Bag.unions_cons in HInCtrl.
+        rewrite <- HeqHtopo in HInCtrl.
+        assert (In (sw,pt,pk) (to_list (relate_controller ctrl2))) as HIn.
+        { rewrite <- HInCtrl.
+          apply Bag.in_union.
+          left.
+          apply Bag.in_union.
+          right.
+          apply Bag.in_union.
+          left.
+          simpl... }
+        destruct (ControllerLiveness
+                    sw pt pk ctrl2 sws1 links1
+                    (ofLinks10 ++ (OpenFlowLink swId0 nil ctrlm0l) :: ofLinks11)
+                    HIn)
+          as [ofLinks20 [ofLinks21 [ctrl3 [swTo [ptTo [switchmLst [ctrlmLst
+             [Hstep4 HPktEq]]]]]]]].
+        simpl in HPktEq.
+        remember (topo (swTo,ptTo)) as X.
+        destruct X.
+        destruct p1.
+        inversion HPktEq. subst. clear HPktEq.
+        destruct (@EasyObservePacketOut sw pt swTo ptTo sws1 links1 ofLinks20
+                                        switchmLst nil pk ctrlmLst
+                                        ofLinks21 ctrl3) as [stateN stepN]...
+        admit. admit. admit.
 
-    destruct (ControllerRecvLiveness sws1 links1 ofLinks10 swId0 nil
-                                     (PacketIn p p0)
-                                     ctrlm0l ofLinks11 ctrl1)
-             as [ctrl2 [Hstep3 [lps' HInCtrl]]].
-
-    simpl in HInCtrl.
-    simpl in 
-
-    
-Check ControllerLiveness.
-    destruct (ControllerLiveness
-             sw pt pk ctrl2 sws1 links1
-             (ofLinks10 ++ (OpenFlowLink swId0 nil ctrlm0l) :: ofLinks11)
-             HMem2)
-      as [ofLinks20 [ofLinks21 [ctrl3 [swTo [ptTo [switchmLst [ctrlmLst
-          [Hstep4 HPktEq]]]]]]]].
-
-    
-    eapply simpl_weak_sim.
-    eapply multistep_tau.
-    rewrite <- Heqdevices0.
-    eapply SendToController.
-    eapply multistep_app.
-    simpl in Hstep2.
-    eapply Hstep2.
-    eapply multistep_app.
-    eapply Hstep3.
-
-
-    simpl in HPktEq.
-    remember (topo (swTo, ptTo)) as X eqn:Htopo.
-    destruct X.
-    destruct p1. inversion HPktEq. subst. clear HPktEq.
-    destruct (@EasyObservePacketOut sw pt swTo ptTo sws1 links1 ofLinks20
-                                   switchmLst nil pk ctrlmLst
-                                   ofLinks21 ctrl3) as [stateN stepN]...
-    { destruct S3. simpl in devs3.
-      rewrite -> devs3 in *.
-      auto. }
-    { destruct S3. simpl in devs3.
-      rewrite -> devs3 in *.
-      auto. }
-    { destruct S3. simpl in devs3.
-      rewrite -> devs3 in *.
-      auto. }
-    apply simpl_weak_sim with (devs2 := stateN).
-    eapply multistep_tau.
-    rewrite <- Heqdevices0.
-    apply Hstep1.
-    eapply multistep_tau.
-    eapply SendToController.
-    eapply multistep_app with (obs2 := [(sw,pt,pk)]).
-    assert (PacketIn p p0 :: switchm0l = [PacketIn p p0] ++ switchm0l) as X.
-      auto.
-    rewrite -> X. clear X.
-    apply Hstep2.
-    eapply multistep_app with (obs2 := [(sw,pt,pk)]).
-    apply Hstep3.
-    eapply multistep_app with (obs2 := [(sw,pt,pk)]).
-    apply Hstep4.
-    apply stepN.
-    reflexivity.
-    reflexivity.
-    reflexivity.
-    rewrite -> H.
-    unfold relate.
-    simpl.
-    rewrite <- Heqdevices0.
-    apply reflexivity.
-    trivial.
-    assert (Mem (sw,pt,pk) Empty) as Hcontra.
-    { eapply Bag.Mem_equiv.
-      apply symmetry.
-      apply reflexivity.
-      rewrite -> HPktEq.
-      simpl.
-      apply reflexivity. }
-    inversion Hcontra.
-
-
-
-    eapply Hstep3.
-
-    eapply DrainToController.
-    
-    eapply multistep_app.
-    rewrite <- Heqdevices0.
-    eapply Drain
-
-
-    assert (step
-              (State
-                 switches0
-                 links0
-                 (ofLinks00 ++ 
-                  (OpenFlowLink swId0 switchm0l ctrlm0l) :: ofLinks01)
-                 ctrl0)
-              None
-              (State
-                 (({|Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 
-                             (({|PacketIn p p0|}) <+> switchm1)|}) <+> sws)
-                 links0
-                 (ofLinks00 ++ 
-                  (OpenFlowLink swId0 switchm0l ctrlm0l) :: ofLinks01)
-                 ctrl0)) as Hstep1.
-      apply StepEquivState.
-      apply StateEquiv.
-      rewrite -> Xrel.
-      apply Bag.pop_union.
-      apply Bag.equiv_singleton.
-      apply SwitchEquiv; try solve [ apply reflexivity | auto ].
-      apply reflexivity.
-    match goal with
-      | [ H : step ?s1 None ?s2 |- _ ] =>
-        remember s1 as S0; remember s2 as S0'
-    end.
-
-    destruct (DrainToController
-                (({|Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm1|}) <+> sws)
-                links0 ofLinks00 swId0 [PacketIn p p0] switchm0l ctrlm0l
-                ofLinks01 ctrl0)
-      as [sws1 [links1 [ofLinks10 [ofLinks11 [ctrl1 Hstep2]]]]].
-    match goal with
-      | [ H : multistep step ?s1 nil ?s2 |- _ ] =>
-        remember s1 as S1; remember s2 as S2
-    end.
-    move Hstep1 before Hstep2.
-    assert (step S0' None S1) as Hstep1'.
-    { subst.
-      apply SendToController. }
-    assert (multistep step S0 nil S1) as Hstep1''...
-    rewrite -> Heqdevices0 in Hstep1''.
-    remember Hstep1'' as Hstep1'''. clear HeqHstep1'''.
-    apply simpl_multistep in Hstep1''.
-    destruct Hstep1'' as [st1 [Heqdevices1 Hstep1'']].
-    assert (multistep step (devices st1) nil S2) as Hstep2'.
-    { rewrite -> Heqdevices1... }
-    destruct (simpl_multistep st1 Hstep2') as [S3 [devs3 _]].
-    destruct (ControllerRecvLiveness sws1 links1 ofLinks10 swId0 nil
-                                     (PacketIn p p0)
-                                     ctrlm0l ofLinks11 ctrl1)
-             as [ctrl2 [Hstep3 [lps' HInCtrl]]].
-    assert (exists y, Mem y (relate_controller ctrl2) /\ (sw,pt,pk) === y)
-      as HMem2.
-      simpl in HInCtrl.
-      apply Bag.mem_split with (ED := swPtPk_eqdec) in HMem.
-      destruct HMem as [lps1 HPk].
-      rewrite -> HPk in HInCtrl.
-      apply Bag.mem_equiv with (ED := swPtPk_eqdec) (b1 :=  (({|(sw, pt, pk)|}) <+> lps1) <+> lps')...
-      simpl. left. left. apply reflexivity.
-    destruct HMem2 as [y [HMem2 HEqy]].
-    destruct y. destruct p1.
-    unfold Equivalence.equiv in HEqy.
-    symmetry in HEqy. inversion HEqy. subst. clear HEqy.
-    destruct (ControllerLiveness
-             sw pt pk ctrl2 sws1 links1
-             (ofLinks10 ++ (OpenFlowLink swId0 nil ctrlm0l) :: ofLinks11)
-             HMem2)
-      as [ofLinks20 [ofLinks21 [ctrl3 [swTo [ptTo [switchmLst [ctrlmLst
-          [Hstep4 HPktEq]]]]]]]].
-    simpl in HPktEq.
-    remember (topo (swTo, ptTo)) as X eqn:Htopo.
-    destruct X.
-    destruct p1. inversion HPktEq. subst. clear HPktEq.
-    destruct (@EasyObservePacketOut sw pt swTo ptTo sws1 links1 ofLinks20
-                                   switchmLst nil pk ctrlmLst
-                                   ofLinks21 ctrl3) as [stateN stepN]...
-    { destruct S3. simpl in devs3.
-      rewrite -> devs3 in *.
-      auto. }
-    { destruct S3. simpl in devs3.
-      rewrite -> devs3 in *.
-      auto. }
-    { destruct S3. simpl in devs3.
-      rewrite -> devs3 in *.
-      auto. }
-    apply simpl_weak_sim with (devs2 := stateN).
-    eapply multistep_tau.
-    rewrite <- Heqdevices0.
-    apply Hstep1.
-    eapply multistep_tau.
-    eapply SendToController.
-    eapply multistep_app with (obs2 := [(sw,pt,pk)]).
-    assert (PacketIn p p0 :: switchm0l = [PacketIn p p0] ++ switchm0l) as X.
-      auto.
-    rewrite -> X. clear X.
-    apply Hstep2.
-    eapply multistep_app with (obs2 := [(sw,pt,pk)]).
-    apply Hstep3.
-    eapply multistep_app with (obs2 := [(sw,pt,pk)]).
-    apply Hstep4.
-    apply stepN.
-    reflexivity.
-    reflexivity.
-    reflexivity.
-    rewrite -> H.
-    unfold relate.
-    simpl.
-    rewrite <- Heqdevices0.
-    apply reflexivity.
-    trivial.
-    assert (Mem (sw,pt,pk) Empty) as Hcontra.
-    { eapply Bag.Mem_equiv.
-      apply symmetry.
-      apply reflexivity.
-      rewrite -> HPktEq.
-      simpl.
-      apply reflexivity. }
-    inversion Hcontra.
+        eapply simpl_weak_sim.
+        eapply multistep_tau.
+        rewrite <- Heqdevices0.
+        eapply SendToController.
+        eapply multistep_app.
+        simpl in Hstep2.
+        eapply Hstep2.
+        eapply multistep_app.
+        eapply Hstep3.
+        eapply multistep_app.
+        eapply Hstep4.
+        exact stepN.
+        instantiate (1 := [(sw,pt,pk)])...
+        instantiate (1 := [(sw,pt,pk)])...
+        reflexivity.
+        rewrite <- Heqdevices0.
+        rewrite -> H1.
+        unfold relate.
+        autorewrite with bag using simpl.
+        reflexivity.
+        apply AbstractStep... 
+        inversion HPktEq. 
+      + simpl in HInTransfer.
+        inversion HInTransfer. }
   
     (* ********************************************************************** *)
     (* Case 5 : Packet is on a data link                                      *)
