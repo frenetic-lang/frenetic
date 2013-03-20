@@ -14,11 +14,11 @@ Require Import Network.Packet.
 Require Import Pattern.Pattern.
 Require Import OpenFlow.MessagesDef.
 Require Import NetCore.NetCoreTypes.
-Require Import Bag.Bag.
-Require Import Bag.BagNotation.
+Require Import Bag.Bag2.
 Require Import NetCore.NetCoreEval.
 
 Local Open Scope list_scope.
+Local Open Scope bag_scope.
 
 Ltac destruct_eq_dec :=
   match goal with
@@ -72,28 +72,44 @@ Fixpoint matches pred sw p pk :=
     | (PredNone, _) => false
   end.
 
-Definition apply_action act (sw : switchId) (pkt : packet) :=
+(* This stuff comes with FwOF.FwOFSignatures.FwOFMachine (i.e., functorize) *)
+
+Require Import Bag.TotalOrder.
+Parameter packet_le : Relation_Definitions.relation packet.
+Parameter switchId_le : Relation_Definitions.relation switchId.
+Parameter portId_le : Relation_Definitions.relation portId.
+
+Definition swPtPks : Type :=
+  bag (PairOrdering (PairOrdering switchId_le portId_le)
+                    packet_le).
+Parameter Instance TotalOrder_swPtPks : TotalOrder
+(PairOrdering (PairOrdering switchId_le portId_le)
+                    packet_le).
+
+(* *** end FwOF stuff needed for total-order on located packets *** *)
+
+Definition apply_action act (sw : switchId) (pkt : packet) : swPtPks :=
   match act with
-    | To p => Singleton (sw, p, pkt)
+    | To p => singleton (sw, p, pkt)
     (* TODO: make ToAll, GetPacket work *)
-    | _ => Empty (* (sw, p, pkt) *)
+    | _ => {| |} (* (sw, p, pkt) *)
   end.
 
 Fixpoint apply_actions acts (sw : switchId) (pkt : packet) :=
   match acts with
-    | [] => Empty
-    | (a :: acts) => Union (apply_action a sw pkt) (apply_actions acts sw pkt)
+    | [] => empty
+    | (a :: acts) => union (apply_action a sw pkt) (apply_actions acts sw pkt)
   end.
       
 
 (* Generalize semantics over a base predicate language *)
-Inductive produces : policy -> switchId -> portId -> packet -> bag (switchId * portId * packet) -> Prop :=
+Inductive produces : policy -> switchId -> portId -> packet -> swPtPks -> Prop :=
 | AtomicProduces :
     forall pred acts sw p pkt,
       matches pred sw p pkt = true -> produces (Policy pred acts) sw p pkt (apply_actions acts sw pkt)
 | AtomicEmptyProduces :
     forall pred acts sw p pkt,
-      matches pred sw p pkt = false -> produces (Policy pred acts) sw p pkt Empty
+      matches pred sw p pkt = false -> produces (Policy pred acts) sw p pkt empty
 (* | RestrictProduces : *)
 (*     forall pol pred sw p pkt pkts, *)
 (*       matches pred sw p pkt = true ->  *)
@@ -107,7 +123,7 @@ Inductive produces : policy -> switchId -> portId -> packet -> bag (switchId * p
     forall pol1 pol2 sw p pkt pkts1 pkts2,
       produces pol1 sw p pkt pkts1 -> 
       produces pol2 sw p pkt pkts2 -> 
-      produces (Par pol1 pol2) sw p pkt (Union pkts1 pkts2).
+      produces (Par pol1 pol2) sw p pkt (union pkts1 pkts2).
 
 Hint Constructors produces.
 
@@ -116,13 +132,13 @@ Fixpoint produce p sw pt pkt :=
     | Policy pred acts => 
       match matches pred sw pt pkt with
         | true => apply_actions acts sw pkt
-        | false => Empty
+        | false => empty
       end
     (* | Restrict p' pred => match matches pred sw pt pkt with *)
     (*                         | true => produce p' sw pt pkt *)
     (*                         | false => Bag.empty *)
     (*                       end *)
-    | Par p1 p2 => Union (produce p1 sw pt pkt) (produce p2 sw pt pkt)
+    | Par p1 p2 => union (produce p1 sw pt pkt) (produce p2 sw pt pkt)
   end.
 
 Lemma produce_is_produces : forall p sw pt pkt,

@@ -1,7 +1,5 @@
 MODULES := TotalOrder OrderedLists Bag2Defs Bag2Notations Bag2Lemmas \
-  Bag2Tactics Bag2 \
-  Bag3 \
-	BagDef BagNotation BagLemmas BagTactics Bag
+  Bag2Tactics Bag2
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean

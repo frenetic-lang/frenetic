@@ -1,13 +1,10 @@
 Set Implicit Arguments.
 
 Require Import Coq.Lists.List.
-Require Import Coq.Classes.Equivalence.
-Require Import Coq.Structures.Equalities.
-Require Import Coq.Classes.Morphisms.
-Require Import Coq.Setoids.Setoid.
 Require Import Common.Types.
 Require Import Common.Bisimulation.
-Require Import Bag.Bag.
+Require Import Bag.TotalOrder.
+Require Import Bag.Bag2.
 Require Import FwOF.FwOFSignatures.
 Require Import Common.Bisimulation.
 Require Import Common.AllDiff.
@@ -15,7 +12,6 @@ Require FwOF.FwOFMachine.
 Require FwOF.FwOFSimpleController.
 
 Local Open Scope list_scope.
-Local Open Scope equiv_scope.
 Local Open Scope bag_scope.
  
 Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
@@ -23,14 +19,14 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
   Module Machine := FwOF.FwOFMachine.Make (Atoms).
   Import Machine.
 
-  Definition relate_helper (sd : srcDst) :=
+  Definition relate_helper (sd : srcDst) : swPtPks :=
     match topo (pkSw sd,dstPt sd) with
       | None => {| |}
       | Some (sw',pt') => {| (sw',pt',dstPk sd) |}
     end.
 
   Definition relate_controller (st : controller) := 
-    Bag.unions (map relate_helper (pktsToSend st)).
+    unions (map relate_helper (pktsToSend st)).
 
   Lemma ControllerRemembersPackets :
     forall (ctrl ctrl' : controller),
@@ -42,22 +38,21 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
 
   Lemma ControllerSendForgetsPackets : forall ctrl ctrl' sw msg,
     controller_send ctrl ctrl' sw msg ->
-    relate_controller ctrl === select_packet_out sw msg <+>
+    relate_controller ctrl = select_packet_out sw msg <+>
     relate_controller ctrl'.
   Proof with auto.
     intros.
     inversion H; subst.
-    unfold relate_controller.
-    simpl.
-    apply Bag.pop_union_r.
-    unfold relate_helper.
-    simpl.
-    apply reflexivity.
-    simpl.
-    rewrite -> Bag.union_empty_l.
-    apply reflexivity.
-    rewrite -> Bag.union_empty_l.
-    apply reflexivity.
+    + unfold relate_controller.
+      simpl.
+      unfold relate_helper.
+      simpl.
+      rewrite -> Bag.unions_cons.
+      reflexivity.
+    + simpl.
+      rewrite -> Bag.union_empty_l...
+    + simpl.
+      rewrite -> Bag.union_empty_l...
   Qed.
 
   Lemma like_transfer : forall srcPt srcPk sw ptpk,
@@ -89,26 +84,24 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
 
   Lemma ControllerRecvRemembersPackets : forall ctrl ctrl' sw msg,
     controller_recv ctrl sw msg ctrl' ->
-    relate_controller ctrl' === select_packet_in sw msg <+> 
+    relate_controller ctrl' = select_packet_in sw msg <+> 
     (relate_controller ctrl).
   Proof with auto.
     intros.
     inversion H; subst.
     (* receive barrierreply *)
     unfold relate_controller.
-    simpl.
-    rewrite -> Bag.union_empty_l.
-    apply reflexivity.
+    simpl. 
+    rewrite -> Bag.union_empty_l...
     (* case packetin *)
     unfold relate_controller.
     simpl.
     rewrite -> map_app.
-    rewrite -> Bag.bag_unions_app.
+    rewrite -> Bag.unions_app.
     apply Bag.pop_union_r.
     unfold mkPktOuts.
     rewrite -> map_map.
-    rewrite -> like_transfer_abs.
-    apply reflexivity.
+    rewrite -> like_transfer_abs...
   Qed.
   
   Fixpoint FlowTableSafe_iter (sw : switchId) (tbl : flowTable) 
@@ -142,13 +135,13 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
       (OpenFlowLink swId switchmList ctrlmList)
       (SwitchState swId (Atoms.Endpoint_NoBarrier ctrlTbl) ctrlFms).
   
-  Inductive Invariant : bag switch ->  list openFlowLink -> controller -> Prop :=
+  Inductive Invariant : bag switch_le ->  list openFlowLink -> controller -> Prop :=
   | MkP : forall sws ofLinks swsts pktOuts,
       (forall swId ctrlEp ctrlFlowMods,
          In (SwitchState swId ctrlEp ctrlFlowMods) swsts ->
          
          (exists pts tbl inp outp ctrlm switchm switchmLst ctrlmLst,
-            Mem (Switch swId pts tbl inp outp ctrlm switchm) sws /\
+            In (Switch swId pts tbl inp outp ctrlm switchm) (to_list sws) /\
             In (OpenFlowLink swId switchmLst ctrlmLst) ofLinks /\
             CompleteFMS 
               (Switch swId pts tbl inp outp ctrlm switchm)
@@ -169,6 +162,8 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
     intros.
     destruct H0; subst.
     inversion H; subst.
+  Admitted.
+(*
     admit.
     admit.
     admit.
@@ -176,6 +171,7 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
     admit.
     admit.
     (* controller step *)
+Admitt
     solve [inversion H6].
     (* controller recv *)
    inversion H6; subst. 
@@ -250,6 +246,7 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
    admit. (* not removed *)
    admit. (* boring *)
   Admitted.
+*)
 
   Lemma ControllerFMS : forall swId ctrl0 ctrl1 msg ctrlm
     switchm sws links ofLinks0 ofLinks1 switchEp
@@ -270,11 +267,13 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
          links
          (ofLinks0 ++ (OpenFlowLink swId switchm (msg :: ctrlm)) :: ofLinks1)
          ctrl1) ->
-     Mem (Switch swId pts tbl inp outp swCtrlm swSwitchm) sws ->
+     In (Switch swId pts tbl inp outp swCtrlm swSwitchm) (to_list sws) ->
      SwitchEP (Switch swId pts tbl inp outp swCtrlm swSwitchm) switchEp ->
       exists ctrlEp1,
         SafeWire swId ctrlEp1 (msg :: ctrlm) switchEp.
   Proof with auto with datatypes.
+  Admitted.
+(*
     intros.
     (* consider the types of messages the controller may send. *)
     inversion H0; subst. 
@@ -292,7 +291,7 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
     apply SafeWire_FlowMod...
     simpl in H16.
     destruct H16...
-  Qed.
+  Qed. *)
 
   Lemma ControllerRecvLiveness : forall sws0 links0 ofLinks0 sw switchm0 m 
     ctrlm0 ofLinks1 ctrl0,
@@ -308,13 +307,13 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
             sws0 links0 
             (ofLinks0 ++ (OpenFlowLink sw switchm0 ctrlm0) :: ofLinks1)
             ctrl1)) /\
-       exists (lps : bag (switchId * portId * packet)),
-         ((select_packet_in sw m) <+> lps) ===  relate_controller ctrl1.
+       exists (lps : swPtPks),
+         ((select_packet_in sw m) <+> lps) =  relate_controller ctrl1.
   Admitted.
 
 
   Lemma ControllerLiveness : forall sw pt pk ctrl0 sws0 links0 ofLinks0,
-    Mem (sw,pt,pk) (relate_controller ctrl0) ->
+    In (sw,pt,pk) (to_list (relate_controller ctrl0)) ->
     exists  ofLinks10 ofLinks11 ctrl1 swTo ptTo switchmLst ctrlmLst,
       (multistep 
          step (State sws0 links0 ofLinks0 ctrl0) nil
@@ -326,6 +325,8 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
                 ctrl1)) /\
       select_packet_out swTo (PacketOut ptTo pk) = ({|(sw,pt,pk)|}).
   Proof with auto with datatypes.
+  Admitted.
+(*
     intros.
     destruct ctrl0.
     induction pktsToSend0; intros.
@@ -349,7 +350,7 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
     (* straightforward: first emit the packet a to get controller into
        the right state. Then induction. *)
   Admitted.
-
+*)
   Definition P := Invariant.
 
 End MakeController.
