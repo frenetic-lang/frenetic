@@ -1,11 +1,9 @@
 Set Implicit Arguments.
 
 Require Import Coq.Lists.List.
-Require Import Coq.Structures.Equalities.
-Require Import Coq.Classes.Equivalence.
-Require Import Coq.Classes.EquivDec.
+Require Import Bag.TotalOrder.
+Require Import Bag.Bag2.
 Require Import Common.Types.
-Require Import Bag.Bag.
 Require Import FwOF.FwOFSignatures.
 
 Local Open Scope list_scope.
@@ -17,42 +15,9 @@ Module Make (Atoms_ : ATOMS) <: MACHINE.
   Module Atoms := Atoms_.
   Import Atoms.
 
-  Section DecidableEqualities.
-
-    Hint Resolve packet_eq_dec switchId_eq_dec portId_eq_dec flowTable_eq_dec
-      flowMod_eq_dec.
-
-    Lemma fromController_eq_dec : Eqdec fromController.
-    Proof.
-      unfold Eqdec. decide equality. apply eqdec.
-    Qed.
-
-    Lemma fromSwitch_eq_dec : Eqdec fromSwitch.
-    Proof.
-      unfold Eqdec. decide equality. apply eqdec.
-    Qed.
-
-  End DecidableEqualities.
-  
-  Existing Instances  Eq_switchId Eq_portId Eq_packet EqDec_switchId
-     EqDec_portId EqDec_packet.
-
-  Instance FromController_Eq : Eq fromController.
-  Proof.
-    split. apply fromController_eq_dec.
-  Qed.
-
-  Instance FromSwitch_Eq : Eq fromSwitch.
-  Proof.
-    split. apply fromSwitch_eq_dec.
-  Qed.
-
-  Instance FlowTable_Eq : Eq flowTable := {
-    eqdec := flowTable_eq_dec
-  }.
-
-  Instance fromController_eqdec : EqDec fromController eq := eqdec.
-  Instance fromSwitch_eqdec : EqDec fromSwitch eq := eqdec.
+  Existing Instances TotalOrder_packet TotalOrder_switchId TotalOrder_portId
+    TotalOrder_flowTable TotalOrder_flowMod TotalOrder_fromSwitch
+    TotalOrder_fromController.
 
   (* Field names have two purposes. Coq creates selectors with these names,
      and also uses them to generate variable names in proofs. We spend
@@ -61,11 +26,22 @@ Module Make (Atoms_ : ATOMS) <: MACHINE.
     swId : switchId;
     pts : list portId;
     tbl : flowTable;
-    inp : bag (portId * packet);
-    outp :  bag (portId * packet);
-    ctrlm : bag fromController;
-    switchm : bag fromSwitch
+    inp : bag (PairOrdering portId_le packet_le);
+    outp :  bag (PairOrdering portId_le packet_le);
+    ctrlm : bag fromController_le;
+    switchm : bag fromSwitch_le
   }.
+
+  (* TODO(arjun): fix *)
+  Inductive switch_le : switch -> switch -> Prop :=
+  | SwitchLe : forall sw1 sw2,
+      switchId_le (swId sw1) (swId sw2) ->
+      switch_le sw1 sw2.
+
+  Instance TotalOrder_switch : TotalOrder switch_le.
+  Proof with auto.
+    split.
+  Admitted.
   
   Record dataLink := DataLink {
     src : switchId * portId;
@@ -102,119 +78,21 @@ Module Make (Atoms_ : ATOMS) <: MACHINE.
       instead had just one list of all devices, we would have to worry
       about permuting the list or define symmetric step-rules. *)
   Record state := State {
-    switches : bag switch;
+    switches : bag switch_le;
     links : list dataLink;
     ofLinks : list openFlowLink;
     ctrl : controller
   }.
 
-  Section Equivalences.
-
-  (** Switches contain bags and bags do not have unique representations. In
-      proofs, it is common to replace a bag with an equivalent (but unequal)
-      bag. When we do, we need to replace the switch with an equivalent switch
-      too. *)
-
-    Inductive switch_equiv : switch -> switch -> Prop :=
-    | SwitchEquiv : forall swId pts tbl inp inp' outp outp' ctrlm ctrlm'
-                             switchm switchm',
-        inp === inp' ->
-        outp === outp' ->
-        ctrlm  === ctrlm' ->
-        switchm === switchm' ->
-        switch_equiv (Switch swId pts tbl inp outp ctrlm switchm)
-                     (Switch swId pts tbl inp' outp' ctrlm' switchm').
-
-    Hint Constructors switch_equiv.
-
-    Lemma switch_equiv_is_Equivalence : Equivalence switch_equiv.
-    Proof with intros; eauto.
-      split.
-      unfold Reflexive...
-      destruct x.
-      apply SwitchEquiv; apply reflexivity.
-      unfold Symmetric...
-      inversion H.
-      apply SwitchEquiv; apply symmetry...
-      unfold Transitive...
-      destruct x. destruct y. destruct z.
-      inversion H.
-      inversion H0.
-      subst.
-      apply SwitchEquiv; eapply transitivity...
-    Qed.
-
-    Instance switch_Equivalence : Equivalence switch_equiv := switch_equiv_is_Equivalence.
-
-    Instance switch_eqdec : EqDec switch switch_equiv.
-    Proof with subst.
-      unfold EqDec.
-      unfold complement.
-      intros.
-      destruct x.
-      destruct y.
-      destruct (eqdec swId0 swId1).
-      2: right; intros; inversion H; subst; contradiction n; reflexivity.
-      subst.
-      destruct (eqdec pts0 pts1).
-      2: right; intros; inversion H; subst; contradiction n; reflexivity.
-      subst.
-      destruct (eqdec tbl0 tbl1).
-      2: right; intros; inversion H; subst; contradiction n; reflexivity.
-      subst.
-      destruct (equiv_dec inp0 inp1).
-      2: right; intros; inversion H; subst; contradiction c.
-      destruct (equiv_dec outp0 outp1).
-      2: right; intros; inversion H; subst; contradiction c.
-      destruct (equiv_dec ctrlm0 ctrlm1).
-      2: right; intros; inversion H; subst; contradiction c.
-      destruct (equiv_dec switchm0 switchm1).
-      2: right; intros; inversion H; subst; contradiction c.
-      left.
-      apply SwitchEquiv; trivial.
-    Qed.
-
-    Inductive stateEquiv : state -> state -> Prop :=
-    | StateEquiv : forall sws1 sws2 links ofLinks ctrl,
-      sws1 === sws2 ->
-      stateEquiv
-        (State sws1 links ofLinks ctrl) 
-        (State sws2 links ofLinks ctrl).
-
-    Hint Constructors stateEquiv.
-
-    Lemma stateEquiv_is_Equivalence : Equivalence stateEquiv.
-    Proof with eauto.
-      split.
-      unfold Reflexive.
-      intros. destruct x. apply StateEquiv. apply reflexivity.
-      unfold Symmetric.
-      intros. destruct x; destruct y. inversion H. subst. apply StateEquiv.
-      apply symmetry...
-      unfold Transitive.
-      intros. destruct x. destruct y. destruct z. inversion H. inversion H0.
-      subst. apply StateEquiv. eapply transitivity...
-    Qed.
-
-  End Equivalences.
-
-  Existing Instances switch_Equivalence switch_eqdec.
-
-  Instance stateEquiv_Equivalence : Equivalence stateEquiv :=
-    stateEquiv_is_Equivalence.
-    
   Inductive step : state -> option observation -> state -> Prop :=
-  | StepEquivState : forall st1 st2,
-    st1 === st2 ->
-    step st1 None st2
   | PktProcess : forall swId pts tbl pt pk inp outp ctrlm switchm outp'
                         pksToCtrl,
     process_packet tbl pt pk = (outp', pksToCtrl) ->
     SwitchStep[
       Switch swId pts tbl ({|(pt,pk)|} <+> inp) outp ctrlm switchm;
       Some (swId,pt,pk);
-      Switch swId pts tbl inp (FromList outp' <+> outp) 
-        ctrlm (FromList (map (PacketIn pt) pksToCtrl) <+> switchm)
+      Switch swId pts tbl inp (from_list outp' <+> outp) 
+        ctrlm (from_list (map (PacketIn pt) pksToCtrl) <+> switchm)
     ]
   | ModifyFlowTable : forall swId pts tbl inp outp fm ctrlm switchm,
     SwitchStep[
@@ -279,10 +157,10 @@ Module Make (Atoms_ : ATOMS) <: MACHINE.
   | RecvBarrier : forall swId pts tbl inp outp switchm fromSwitch fromCtrl
       xid,
     SwitchOpenFlow[
-      Switch swId pts tbl inp outp Empty switchm;
+      Switch swId pts tbl inp outp empty switchm;
       OpenFlowLink swId fromSwitch (fromCtrl ++ [BarrierRequest xid]);
       None;
-      Switch swId pts tbl inp outp Empty
+      Switch swId pts tbl inp outp empty
              ({| BarrierReply xid |} <+> switchm);
       OpenFlowLink swId fromSwitch fromCtrl
     ]
@@ -324,14 +202,21 @@ Module Make (Atoms_ : ATOMS) <: MACHINE.
         obs
         (State (({|sw0|}) <+> sws) links (ofLinks ++ of0 :: ofLinks0) ctrl)).
 
+  Definition swPtPks : Type :=
+    bag (PairOrdering (PairOrdering switchId_le portId_le)
+                      packet_le).
 
-  Definition abst_state := bag (switchId * portId * packet).
+  Definition abst_state := swPtPks.
 
   Definition transfer (sw : switchId) (ptpk : portId * packet) :=
     match ptpk with
       | (pt,pk) =>
         match topo (sw,pt) with
-          | Some (sw',pt') => {| (sw',pt',pk) |}
+          | Some (sw',pt') => 
+            @singleton _ 
+               (PairOrdering 
+                  (PairOrdering switchId_le portId_le) packet_le)
+               (sw',pt',pk) 
           | None => {| |}
         end
     end.
@@ -344,16 +229,16 @@ Module Make (Atoms_ : ATOMS) <: MACHINE.
 
   Definition select_packet_in (sw : switchId) (msg : fromSwitch) :=
     match msg with
-      | PacketIn pt pk => Bag.unions (map (transfer sw) (abst_func sw pt pk))
+      | PacketIn pt pk => unions (map (transfer sw) (abst_func sw pt pk))
       | _ => {| |}
     end.
 
   Definition FlowTableSafe (sw : switchId) (tbl : flowTable) : Prop :=
     forall pt pk forwardedPkts packetIns,
       process_packet tbl pt pk = (forwardedPkts, packetIns) ->
-      Bag.unions (map (transfer sw) forwardedPkts) <+>
-      Bag.unions (map (select_packet_in sw) (map (PacketIn pt) packetIns)) ===
-      Bag.unions (map (transfer sw) (abst_func sw pt pk)).
+      unions (map (transfer sw) forwardedPkts) <+>
+      unions (map (select_packet_in sw) (map (PacketIn pt) packetIns)) =
+      unions (map (transfer sw) (abst_func sw pt pk)).
 
   Section FlowModSafety.
 
@@ -394,21 +279,22 @@ Module Make (Atoms_ : ATOMS) <: MACHINE.
 
     Inductive SwitchEP : switch -> Endpoint -> Prop :=
     | NoFlowModsInBuffer : forall swId pts tbl inp outp ctrlm switchm swEp,
-      (forall msg, Mem msg ctrlm -> NotFlowMod msg) ->
+      (forall msg, In msg (to_list ctrlm) -> NotFlowMod msg) ->
       table_at_endpoint swEp = tbl ->
       SwitchEP
         (Switch swId pts tbl inp outp ctrlm switchm)
         swEp
     | OneFlowModInBuffer : forall swId pts tbl inp outp ctrlm ctrlm0 switchm f,
-      (forall msg, Mem msg ctrlm0 -> NotFlowMod msg) ->
-      ctrlm === ({|FlowMod f|} <+> ctrlm0) ->
+      (forall msg, In msg (to_list ctrlm0) -> NotFlowMod msg) ->
+      ctrlm = ({|FlowMod f|} <+> ctrlm0) ->
       FlowTableSafe swId (modify_flow_table f tbl) ->
       SwitchEP (Switch swId pts tbl inp outp ctrlm switchm)
                (Endpoint_NoBarrier (modify_flow_table f tbl)).
 
     (** "FMS" is short for "flow mod safety". *)
     Inductive FMS : switch -> openFlowLink -> Prop := 
-    | MkFMS : forall swId pts tbl inp outp ctrlm switchm ctrlmList switchmList
+    | MkFMS : forall swId pts tbl inp outp ctrlm switchm ctrlmList 
+                     switchmList
                      switchEp,
       SwitchEP (Switch swId pts tbl inp outp ctrlm switchm) switchEp ->
       (exists ctrlEp, SafeWire swId ctrlEp ctrlmList switchEp) ->
@@ -416,30 +302,18 @@ Module Make (Atoms_ : ATOMS) <: MACHINE.
         (Switch swId pts tbl inp outp ctrlm switchm)
         (OpenFlowLink swId switchmList ctrlmList).
 
-    Definition AllFMS (sws : bag switch) (ofLinks : list openFlowLink) :=
+    Definition AllFMS (sws : bag switch_le) 
+                      (ofLinks : list openFlowLink) :=
       forall sw,
-        Mem sw sws ->
+        In sw (to_list sws) ->
         exists lnk, 
           In lnk ofLinks /\
           of_to lnk = swId sw /\
           FMS sw lnk.
 
+
     Hint Constructors Endpoint SafeWire NotFlowMod SwitchEP FMS.
 
-    Lemma SwitchEP_equiv : forall swId pts tbl inp0 inp1 outp0 outp1
-      ctrlm0 ctrlm1 switchm0 switchm1 ep,
-      ctrlm0 === ctrlm1 ->
-      SwitchEP (Switch swId pts tbl inp0 outp0 ctrlm0 switchm0) ep ->
-      SwitchEP (Switch swId pts tbl inp1 outp1 ctrlm1 switchm1) ep.
-    Proof with eauto.
-      intros.
-      inversion H0; subst.
-      apply NoFlowModsInBuffer.
-      intros. apply H9. eapply Bag.Mem_equiv... apply symmetry...
-      reflexivity.
-      eapply OneFlowModInBuffer...
-      eapply transitivity... apply symmetry...
-    Qed.
 
     Lemma FMS_untouched : forall swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0
       switchmLst0 ctrlmLst0 inp1 outp1 switchm1 switchmLst1,
@@ -452,23 +326,6 @@ Module Make (Atoms_ : ATOMS) <: MACHINE.
       inversion H; inversion H2; subst; eauto.
     Qed.
 
-    Lemma FMS_equiv : forall sw1 sw2 lnk,
-      sw1 === sw2 ->
-      FMS sw1 lnk ->
-      FMS sw2 lnk.
-    Proof with eauto.
-      intros.
-      destruct sw1.
-      destruct sw2.
-      inversion H.
-      subst.
-      inversion H0.
-      subst.
-      destruct H11 as [ctrlEp HSafeWire].
-      eapply MkFMS.
-      eapply SwitchEP_equiv...
-      exists ctrlEp...
-    Qed.
 
     Lemma SafeWire_dequeue_PacketOut : forall sw ctrlEp ctrlLst pt pk switchEp,
       SafeWire sw ctrlEp (ctrlLst ++ [PacketOut pt pk]) switchEp ->
@@ -590,11 +447,22 @@ Module Make (Atoms_ : ATOMS) <: MACHINE.
         + apply MkFMS with (switchEp := switchEp).
           * inversion H2; subst.
             - apply NoFlowModsInBuffer...
-              intros. simpl in H0. destruct H0... destruct msg... 
+              intros.
+              apply Bag.in_union in H0.
+              simpl in H0.
+              destruct H0 as [[H0 | H0] | H0]...
+              destruct msg...
               inversion H0.
-            - apply OneFlowModInBuffer with (ctrlm0 := ({|PacketOut p p0|} <+> ctrlm2))...
-              intros. simpl in H0. destruct H0... destruct msg... inversion H0.
-              rewrite -> H10.
+              inversion H0.
+            - apply OneFlowModInBuffer 
+                with (ctrlm0 := ({|PacketOut p p0|} <+> ctrlm2))...
+              intros.
+              apply Bag.in_union in H0.
+              simpl in H0.
+              destruct H0 as [[H0 | H0] | H0]...
+              destruct msg...
+              inversion H0.
+              inversion H0.
               bag_perm 10.
           * exists ctrlEp.
             eapply SafeWire_dequeue_PacketOut.
@@ -603,7 +471,6 @@ Module Make (Atoms_ : ATOMS) <: MACHINE.
         + inversion H2; subst.
           * apply MkFMS with (switchEp := (Endpoint_NoBarrier (modify_flow_table f (table_at_endpoint switchEp)))).
             apply OneFlowModInBuffer with (ctrlm0 := ctrlm0)...
-            apply reflexivity.
             eapply SafeWire_dequeue_safe.
             exact HSafeWire.
             exists ctrlEp.
@@ -625,30 +492,26 @@ Module Make (Atoms_ : ATOMS) <: MACHINE.
       - apply NoFlowModsInBuffer...
         intros.
         apply H9.
-        simpl...
-      - assert (exists y, Mem y ({|PacketOut pt pk|} <+> ctrlm0) /\ FlowMod f === y).
-        { apply Bag.mem_equiv with (ED := eqdec) (b1 := {|FlowMod f|} <+> ctrlm2).
-          simpl. left. apply reflexivity. apply symmetry... }
-        destruct H0 as [y [HMem HEq]].
-        destruct y; inversion HEq; subst.
-        simpl in HMem.
-        destruct HMem.
-        inversion H0.
-        apply Bag.mem_split with (ED := eqdec) in H0.
-        destruct H0 as [ctrlm0' H0].
-        apply OneFlowModInBuffer with (ctrlm0 := ctrlm0')...
+        apply Bag.in_union...
+      - assert (In (PacketOut pt pk) (to_list ctrlm2)) as J.
+        {      
+          assert (In (PacketOut pt pk) (to_list ({|FlowMod f|} <+> ctrlm2))).
+          { rewrite <- H10. apply Bag.in_union. left. simpl... }
+          apply Bag.in_union in H0.
+          destruct H0 as [[H0 | H0] | H0]...
+          inversion H0.
+          inversion H0. } 
+        apply Bag.in_split with (Order:=TotalOrder_fromController) in J.
+        destruct J as [ctrlm1 Heq].
+        subst.
+        apply OneFlowModInBuffer with
+          (ctrlm0 := ctrlm1)...
         intros.
-        simpl in H1.
-        destruct msg... 
-        rewrite -> H0 in H10.
-        rewrite -> Bag.union_comm in H10.
-        rewrite -> Bag.union_assoc in H10.
-        apply Bag.unpop_unions in H10.
         apply H9.
-        eapply Bag.Mem_equiv with (ED:=eqdec).
-        exact H10.
-        simpl.
-        left...
+        apply Bag.in_union. right...
+        apply (Bag.pop_union_l _ ({|PacketOut pt pk|})).
+        rewrite -> H10.
+        bag_perm 100. 
       - exists ctrlEp...
     Qed.
 

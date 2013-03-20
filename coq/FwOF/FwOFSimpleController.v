@@ -1,20 +1,13 @@
 Set Implicit Arguments.
 
 Require Import Coq.Lists.List.
-Require Import Coq.Classes.Equivalence.
-Require Import Coq.Structures.Equalities.
-Require Import Coq.Classes.Morphisms.
-Require Import Coq.Setoids.Setoid.
 Require Import Common.Types.
 Require Import Common.Bisimulation.
-Require Import Bag.Bag.
 Require Import FwOF.FwOFSignatures.
 Require Import Common.Bisimulation.
 Require Import Common.AllDiff.
 
 Local Open Scope list_scope.
-Local Open Scope equiv_scope.
-Local Open Scope bag_scope.
 
 Module Make (NetAndPol : NETWORK_AND_POLICY) <: ATOMS.
   Include NetAndPol.
