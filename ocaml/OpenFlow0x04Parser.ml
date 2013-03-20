@@ -227,6 +227,16 @@ cstruct ofp_action_group {
   uint32_t group_id               (* Group identifier. *)
 } as big_endian
 
+(* Generic action header. Used for POP_VLAN *)
+cstruct ofp_action_header {
+  uint16_t typ;                   (* POP_VLAN. *)
+  uint16_t len;                   (* Length is 8. *)
+  uint8_t pad0;                   (* Pad to 64 bits. *)
+  uint8_t pad1;                   (* Pad to 64 bits. *)
+  uint8_t pad2;                   (* Pad to 64 bits. *)
+  uint8_t pad3                   (* Pad to 64 bits. *)
+} as big_endian
+
 (* Action structure for OFPAT_SET_FIELD. *)
 cstruct ofp_action_set_field {
     uint16_t typ;                  (* OFPAT_SET_FIELD. *)
@@ -640,6 +650,7 @@ module Action = struct
   let sizeof (act : action) : int = match act with
     | Output _ -> sizeof_ofp_action_output
     | Group _ -> sizeof_ofp_action_group
+    | PopVlan -> sizeof_ofp_action_header
     | SetField oxm -> pad_to_64bits (sizeof_ofp_action_set_field + Oxm.sizeof oxm)
 
 
@@ -673,6 +684,10 @@ module Action = struct
         set_ofp_action_group_len buf size;
         set_ofp_action_group_group_id buf gid;
         size
+      | PopVlan ->
+	set_ofp_action_header_typ buf 18;
+	set_ofp_action_header_len buf size;
+	size
       | SetField oxm ->
         set_ofp_action_set_field_typ buf 25; (* OFPAT_SET_FIELD *)
         set_ofp_action_set_field_len buf size;

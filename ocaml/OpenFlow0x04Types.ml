@@ -71,6 +71,7 @@ type pseudoPort =
 type action =
   | Output of pseudoPort
   | Group of groupId
+  | PopVlan
   | SetField of oxm
 
 type instruction =

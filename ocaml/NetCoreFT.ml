@@ -225,6 +225,16 @@ let desugar_act act = match act with
     Hashtbl.add get_pkt_handlers id handler;
     ActGetPkt id
 
+module PID = PatternImplDef
+
+let dlVlanNone = { PID.ptrnDlSrc = WildcardAll; PID.ptrnDlDst = WildcardAll;
+      PID.ptrnDlType = WildcardAll; PID.ptrnDlVlan = WildcardExact 0;
+      PID.ptrnDlVlanPcp = WildcardAll; PID.ptrnNwSrc =
+      WildcardAll; PID.ptrnNwDst = WildcardAll; PID.ptrnNwProto =
+      WildcardAll; PID.ptrnNwTos = WildcardAll; PID.ptrnTpSrc =
+      WildcardAll; PID.ptrnTpDst = WildcardAll; PID.ptrnInPort =
+      WildcardAll }
+
 let rec desugar_pred pred = match pred with
   | And (p1, p2) -> 
     NetCoreEval.PrNot (NetCoreEval.PrOr (NetCoreEval.PrNot (desugar_pred p1), NetCoreEval.PrNot (desugar_pred p2)))
@@ -238,7 +248,7 @@ let rec desugar_pred pred = match pred with
   | DlSrc n -> NetCoreEval.PrHdr (Pattern.dlSrc n)
   | DlDst n -> NetCoreEval.PrHdr (Pattern.dlDst n)
   | DlVlan (Some vlan) -> NetCoreEval.PrHdr (Pattern.dlVlan vlan)
-  | DlVlan None -> NetCoreEval.PrHdr ({Pattern.dlVlan 0 with PatternImplDef.ptrnDlVlan = WildcardNone})
+  | DlVlan None -> NetCoreEval.PrHdr dlVlanNone
   | DlVlanPcp vlanPcp -> NetCoreEval.PrHdr (Pattern.dlVlanPcp vlanPcp)
   | SrcIP n -> NetCoreEval.PrHdr (Pattern.ipSrc n)
   | DstIP n -> NetCoreEval.PrHdr (Pattern.ipDst n)

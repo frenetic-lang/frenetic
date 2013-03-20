@@ -54,8 +54,10 @@ let modification_to_openflow0x01 mods =
   in
   app (maybe_openflow0x01_modification dlSrc (fun x -> SetField (OxmEthSrc (val_to_mask x))))
     (app (maybe_openflow0x01_modification dlDst (fun x -> SetField (OxmEthDst (val_to_mask x))))
-        (maybe_openflow0x01_modification (withVlanNone dlVlan) (fun x ->
-          SetField (OxmVlanVId (val_to_mask x)))))
+        (match dlVlan with
+	  | Some None -> [PopVlan]
+	  | Some (Some n) -> [SetField (OxmVlanVId (val_to_mask n))]
+	  | None -> []))
 
 (** val translate_action : portId option -> act -> actionSequence **)
 
@@ -101,7 +103,9 @@ let pattern_to_oxm_match pat =
    @ (match dlDst with Wildcard.WildcardExact a -> [ OxmEthDst (val_to_mask a)] | _ -> [])
    @ (match dlVlan with 
      | Wildcard.WildcardExact a -> [ OxmVlanVId (val_to_mask a)] 
-     | Wildcard.WildcardAll -> [OxmVlanVId {value=0; mask=Some 0}])
+     (* Must be empty list. Trying to get cute and use a wildcard mask confuses the switch *)
+     | Wildcard.WildcardAll -> []
+     | Wildcard.WildcardNone -> [OxmVlanVId {value=0; mask=None}])
    (* VlanPCP requires exact non-VLAN_NONE match on Vlan *)
    @ (match (dlVlanPcp, dlVlan) with (Wildcard.WildcardExact a, Wildcard.WildcardExact _) -> [ OxmVlanPcp a] | _ -> [])
    @ (match nwSrc with Wildcard.WildcardExact a -> [ OxmIP4Src (val_to_mask a)] | _ -> [])
