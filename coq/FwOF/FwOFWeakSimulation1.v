@@ -14,6 +14,8 @@ Local Open Scope list_scope.
 Local Open Scope equiv_scope.
 Local Open Scope bag_scope.
 
+Arguments to_list _ _ _ : simpl never.
+
 Module Make (Import Relation : RELATION).
 
   Theorem weak_sim_1 :
