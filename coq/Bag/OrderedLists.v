@@ -698,6 +698,21 @@ Section BinaryLemmas.
     rewrite -> HEq in o...
   Qed.
 
+
+  Section AllDiff.
+    
+    Require Import Common.AllDiff.
+
+    Lemma AllDiff_preservation : forall (f : A -> B) x y lst,
+      Ordered R lst ->
+      Ordered R lst ->
+      AllDiff f (union [x] lst) ->
+      f x = f y ->
+      AllDiff f (union [y] lst).
+    Proof with auto with datatypes.
+    Admitted.
+
+  End AllDiff.
 End BinaryLemmas.
 
   

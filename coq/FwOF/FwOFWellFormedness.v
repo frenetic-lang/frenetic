@@ -1003,10 +1003,7 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
           + unfold UniqSwIds in uniqSwIds1. (* Not what we want, since it has {|msg|} *)
             assert (AllDiff swId (to_list 
                                     (({|Switch swId1 pts0 tbl0 inp0 outp0 ctrlm0 switchm0|}) <+> sws))) as uniqSwIds2.
-            { eapply AllDiff_preservation.
-              exact uniqSwIds1.
-              idtac "TODO(arjun): stupid new problem here.".
-              admit. }
+            { eapply Bag.AllDiff_preservation... }
             exists (OpenFlowLink swId1 (msg :: fromSwitch0) fromCtrl).
             split...
             split...
@@ -1032,8 +1029,17 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
               [idtac | solve[inversion H0] | idtac].
               + inversion H0; subst.
                 eapply MkFMS...
-              + idtac "TODO(arjun): stupid new problem here.".
-                admit. } 
+              + destruct (allFMS1 (Switch of_to0 pts1 tbl1 inp1 outp1 ctrlm1 switchm1)) as  [lnk [J [J0 J1]]]...
+                { apply Bag.in_union. right... }
+                destruct lnk; subst.
+                simpl in *.
+                subst.
+                assert (OpenFlowLink of_to0 fromSwitch0 fromCtrl = 
+                        OpenFlowLink of_to0 of_switchm0 of_ctrlm0) as X.
+                { eapply AllDiff_uniq... }
+                inversion X; subst; clear X.
+                
+                eapply FMS_untouched... }
           + apply Bag.in_union in H0. simpl in H0.
             destruct H0 as [[H0 | H0] | H0].
             inversion H0; subst.
@@ -1074,23 +1080,18 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
           + exists (OpenFlowLink swId1 fromSwitch0 fromCtrl).
             split...
             split...
-            assert (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm0 switchm1 = Switch swId1 pts0 tbl0 inp0 outp0 ({||}) ({|BarrierReply xid|} <+> switchm0)).
-            { unfold UniqSwIds in uniqSwIds1.
-              assert (AllDiff swId (to_list ({|Switch swId1 pts0 tbl0 inp0 outp0 ({||}) ({|BarrierReply xid|} <+> switchm0)|} <+> sws))).
-              eapply AllDiff_preservation.
-              exact uniqSwIds1.
-              idtac "TODO(arjun): stupid problem with AllDif and bags".
-              admit.
-              admit.
-              (* simpl...
-              eapply AllDiff_uniq.
-              exact H1.
-              rewrite <- Bag.mem_in_to_list in H0.
-              exact H0.
-              simpl...
-              reflexivity. *) }
-            inversion H1. subst. clear H1.
-            destruct (allFMS1 (Switch swId1 pts0 tbl0 inp0 outp0 ({||}) switchm0)) as [lnk [HLnkIn [HId HFMS]]].
+            unfold UniqSwIds in uniqSwIds1.
+            assert (AllDiff swId (to_list 
+                                    (({| Switch swId1 pts0 tbl0 inp0 outp0 ({||}) 
+                                                ({|BarrierReply xid|} <+> switchm0)|}) <+> sws))) as uniqSwIds2.
+            { eapply Bag.AllDiff_preservation... }
+            assert (Switch swId1 pts0 tbl0 inp0 outp0 ({||}) ({|BarrierReply xid|} <+> switchm0) =
+                    Switch swId1 pts1 tbl1 inp1 outp1 ctrlm0 switchm1).
+            { eapply AllDiff_uniq. exact uniqSwIds2.
+              apply Bag.in_union.  left. simpl...
+              exact H0. simpl... }
+            inversion H1; subst; clear H1.
+            destruct (allFMS1 (Switch swId1 pts1 tbl1 inp1 outp1 ({||}) switchm0)) as [lnk [HLnkIn [HId HFMS]]].
             { apply Bag.in_union. left. simpl. left. trivial. }
             destruct lnk.
             simpl in *.
@@ -1152,32 +1153,28 @@ Module Make (AtomsAndController_ : ATOMS_AND_CONTROLLER) <: RELATION.
           + exists (OpenFlowLink swId1 fromSwitch0 fromCtrl).
             split...
             split...
-            assert (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1 = Switch swId1 pts0 tbl0 inp0 outp0 ({|msg|}<+>ctrlm0) switchm0).
-            { unfold UniqSwIds in uniqSwIds1.
-              assert (AllDiff swId (to_list ({|Switch swId1 pts0 tbl0 inp0 outp0 ({|msg|}<+>ctrlm0) switchm0|} <+> sws))).
-              eapply AllDiff_preservation.
-              exact uniqSwIds1.
-              idtac "TODO(arjun): stupid problem with AllDif and bags".
-              admit.
-              admit.
-(*
-              simpl...
-              eapply AllDiff_uniq.
-              exact H2.
-              rewrite <- Bag.mem_in_to_list in H1.
-              exact H1.
-              simpl...
-              reflexivity. *) }
-            inversion H2. subst. clear H2.
+            unfold UniqSwIds in uniqSwIds1.
             destruct (allFMS1 (Switch swId1 pts0 tbl0 inp0 outp0 ctrlm0 switchm0)) as [lnk [HLnkIn [HId HFMS]]].
             { apply Bag.in_union. left. simpl... }
+            simpl in *.
             destruct lnk.
             simpl in *.
             subst.
             assert (OpenFlowLink swId1 of_switchm0 of_ctrlm0 =
-                    OpenFlowLink swId1 fromSwitch0 (fromCtrl ++ [msg])) as HEqOf.
+                    OpenFlowLink swId1 fromSwitch0 (fromCtrl ++ [msg])) as HOfEq.
             { eapply AllDiff_uniq... }
-            inversion HEqOf; subst; clear HEqOf.
+            inversion HOfEq; subst; clear HOfEq.
+            assert (AllDiff swId 
+                      (to_list (({|Switch swId1 pts0 tbl0 inp0 outp0 ({|msg|}<+>ctrlm0) switchm0|}) <+> sws))).
+            { eapply Bag.AllDiff_preservation. exact uniqSwIds1. simpl... }
+            assert (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1 = 
+                    Switch swId1 pts0 tbl0 inp0 outp0 ({|msg|}<+>ctrlm0) switchm0).
+            { 
+              eapply AllDiff_uniq.
+              exact H2. exact H1.
+              apply Bag.in_union. left. simpl...
+              simpl... }
+            inversion H3; subst; clear H3.
             apply FMS_pop...
           + apply Bag.in_union in H1.
             destruct H1.
