@@ -13,11 +13,465 @@ Require FwOF.FwOFSimpleController.
 
 Local Open Scope list_scope.
 Local Open Scope bag_scope.
- 
+
 Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
   Module Import Atoms := FwOF.FwOFSimpleController.Make (NetAndPol).
   Module Machine := FwOF.FwOFMachine.Make (Atoms).
   Import Machine.
+
+  Require Import Bag.Bag2.
+
+  Inductive NotPacketOut : fromController -> Prop :=
+  | BarrierRequest_NotPacketOut : forall xid,
+      NotPacketOut (BarrierRequest xid)
+  | FlowMod_NotPacketOut : forall fm,
+      NotPacketOut (FlowMod fm).
+
+  Hint Constructors NotPacketOut.
+
+  Inductive Invariant : bag switch_le ->  list openFlowLink -> controller -> Prop :=
+  | MkP : forall sws ofLinks swsts pktOuts,
+      (forall sw swId0 pendingMsgs switchmLst ctrlmLst,
+         In (SwitchState swId0 pendingMsgs) swsts ->
+         In sw (to_list sws) ->
+         In (OpenFlowLink swId0 switchmLst ctrlmLst) ofLinks ->
+         swId sw = swId0 ->
+         (forall msg, In msg pendingMsgs -> NotPacketOut msg) /\
+         exists ctrlEp switchEp,
+           SwitchEP sw switchEp /\
+           SafeWire swId0 ctrlEp (pendingMsgs ++ ctrlmLst) switchEp) ->
+      Invariant sws ofLinks (Atoms.State pktOuts swsts).
+
+  Hint Constructors Invariant.
+
+  Lemma controller_recv_pres_P : forall sws ofLinks0 ofLinks1
+    ctrl0 ctrl1 swId msg switchm ctrlm,
+    Recv ctrl0 swId msg ctrl1 ->
+    Invariant sws
+              (ofLinks0 ++ (OpenFlowLink swId (switchm ++ [msg]) ctrlm) :: ofLinks1)
+              ctrl0 ->
+    Invariant sws 
+              (ofLinks0 ++ (OpenFlowLink swId switchm ctrlm) :: ofLinks1)
+              ctrl1.
+  Proof with eauto with datatypes.
+    intros.
+    inversion H; subst.
+    + inversion H0; subst.
+      eapply MkP.
+      intros.
+      apply in_app_iff in H4. simpl in H4.
+      destruct H4 as [H4 | [H4 | H4]]...
+      inversion H4; subst; clear H4.
+      edestruct H1 as [ctrlEp [switchEp [tbl Hsafewire]]]...
+    + inversion H0; subst.
+      eapply MkP...
+      intros.
+      eapply in_app_iff in H3; simpl in H3.
+      destruct H3 as [H3 | [H3 | H3]]...
+      inversion H3; subst; clear H3...
+  Qed.
+
+  Lemma controller_send_pres_P : forall sws ofLinks0 ofLinks1
+    ctrl0 ctrl1 swId msg switchm ctrlm,
+    Send ctrl0 ctrl1 swId msg  ->
+    Invariant sws
+              (ofLinks0 ++ (OpenFlowLink swId switchm ctrlm) :: ofLinks1)
+              ctrl0 ->
+    Invariant sws 
+              (ofLinks0 ++ (OpenFlowLink swId switchm (msg :: ctrlm)) :: ofLinks1)
+              ctrl1.
+  Proof with eauto with datatypes.
+    intros.
+    inversion H; subst.
+    + inversion H0; subst.
+      eapply MkP.
+      intros.
+      apply in_app_iff in H3; simpl in H3.
+      destruct H3 as [H3 | [H3 | H3]]...
+      inversion H3; subst.
+      edestruct H4 as [HNotPktOuts [ctrlEp [switchEp [tbl Hsafewire]]]]...
+      split...
+      exists ctrlEp.
+      exists switchEp.
+      split...
+      idtac "TODO(arjun): need a lemma that you can always remove a PacketOut and 
+             preserve Safewire with dependencies intact.".
+      admit.
+    + inversion H0; subst.
+      eapply MkP.
+      intros.
+      destruct sw.
+      simpl in *; subst.
+      destruct (TotalOrder.eqdec swId1 swId0)...
+      - subst.
+        assert (OpenFlowLink swId0 switchmLst ctrlmLst = 
+                OpenFlowLink swId0 switchm0 (msg::ctrlm0)) as X.
+        { idtac "TODO(arjun): need to know that all OF link ids are unique".
+          admit. } 
+        inversion X; clear H3; subst; clear X.
+        assert (SwitchState swId0 pendingMsgs = SwitchState swId0 msgs) as X.
+        { idtac "TODO(arjun): need to know that all state ids are unique".
+          admit. }
+        inversion X; clear H1; subst; clear X.
+        edestruct H4 with (sw := Switch swId0 pts0 tbl0 inp0 outp0 ctrlm1 switchm1) 
+                          (swId1:=swId0)
+          as [HNotPktOuts [ctrlEp [switchEp [tbl Hsafewire]]]]...
+        split...
+        rewrite <- app_assoc in Hsafewire.
+        simpl in Hsafewire...
+      - edestruct H4 with (sw := Switch swId1 pts0 tbl0 inp0 outp0 ctrlm1 switchm1) 
+                            (swId1:=swId1) as [ctrlEp [switchEp [tbl Hsafewire]]]...
+        { apply in_app_iff in H1; simpl in H1.
+          destruct H1 as [H1 | [H1 | H1]]...
+          inversion H1; subst. contradiction n... }
+        { apply in_app_iff in H3; simpl in H3.
+          destruct H3 as [H3 | [H3 | H3]]...
+          inversion H3; subst. contradiction n... }
+  Qed.
+
+  Lemma controller_step_pres_P : forall sws ofLinks ctrl0 ctrl1,
+    Step ctrl0 ctrl1 ->
+    Invariant sws ofLinks ctrl0 ->
+    Invariant sws ofLinks ctrl1.
+  Proof.
+    intros.
+    inversion H.
+  Qed.
+
+  Local Open Scope bag_scope.
+  Hint Constructors NotFlowMod.
+
+  Lemma SwitchEP_vary : forall swId0 pts0 tbl0 inp0 outp0 cms0 sms0 ep
+                               inp1 outp1 sms1,
+    SwitchEP (Switch swId0 pts0 tbl0 inp0 outp0 cms0 sms0) ep ->
+    SwitchEP (Switch swId0 pts0 tbl0 inp1 outp1 cms0 sms1) ep.
+  Proof with auto with datatypes.
+    intros.
+    inversion H; subst...
+    + eapply NoFlowModsInBuffer...
+    + eapply OneFlowModInBuffer...
+      intros.
+      apply H8...
+  Qed.
+
+  Lemma SwitchEP_packetOut : forall swId0 pts0 tbl0 inp0 outp0 cms0 sms0 ep
+                               pt pk,
+    SwitchEP (Switch swId0 pts0 tbl0 inp0 outp0 (({|PacketOut pt pk|}) <+> cms0) sms0) ep <->
+    SwitchEP (Switch swId0 pts0 tbl0 inp0 outp0 cms0 sms0) ep.
+  Proof with auto with datatypes.
+    split.
+    { intros.
+    inversion H; subst...
+    + eapply NoFlowModsInBuffer...
+      intros.
+      apply H8.
+      apply Bag.in_union...
+    + assert (In (PacketOut pt pk) (to_list (({|FlowMod f|}) <+> ctrlm1))).
+      { rewrite <- H9. apply Bag.in_union; simpl... }
+      apply Bag.in_union in H0. simpl in H0.
+      destruct H0 as [[H0 | H0] | H0]; try solve[inversion H0].
+      destruct (Bag.in_split TotalOrder_fromController _ _ H0) as [rest Heq].
+      subst.
+      rewrite <- Bag.union_assoc in H9.
+      rewrite -> (Bag.union_comm _ ({|FlowMod f|})) in H9.
+      rewrite -> Bag.union_assoc in H9.
+      apply Bag.pop_union_l in H9.
+      subst.
+      eapply OneFlowModInBuffer...
+      intros.
+      apply H8.
+      apply Bag.in_union... }
+    intros.
+    inversion H; subst...
+    + apply NoFlowModsInBuffer...
+      intros.
+      apply Bag.in_union in H0; simpl in H0.
+      destruct H0 as [[H0|H0]|H0]...
+      subst...
+      inversion H0.
+    + rewrite <- Bag.union_assoc.
+      rewrite <-(Bag.union_comm _ ({|FlowMod f|})).
+      rewrite -> Bag.union_assoc.
+      apply OneFlowModInBuffer with (ctrlm0 := (({|PacketOut pt pk|}) <+> ctrlm1))... 
+      intros.
+      apply Bag.in_union in H0; simpl in H0.
+      destruct H0 as [[H0|H0]|H0]...
+      subst... inversion H0.
+  Qed.
+
+  Lemma Invariant_ofLink_vary : forall sws swId switchm0 switchm1 ctrlm 
+                                   ofLinks0 ofLinks1 ctrl,
+    Invariant sws 
+              (ofLinks0 ++ OpenFlowLink swId switchm0 ctrlm :: ofLinks1)
+              ctrl ->
+    Invariant sws 
+              (ofLinks0 ++ OpenFlowLink swId switchm1 ctrlm :: ofLinks1)
+              ctrl.
+  Proof with eauto with datatypes.
+    intros.
+    inversion H; subst.
+    eapply MkP.
+    intros.
+    apply in_app_iff in H3; simpl in H3.
+    destruct H3 as [H3 | [H3 | H3]]...
+    destruct sw. simpl in *. subst.
+    inversion H3; clear H3; subst...
+  Qed.
+
+  Lemma Invariant_sw_vary : forall swId pts tbl inp outp cms sms sws
+                                   ofLinks ctrl inp' outp' sms',
+    Invariant (({|Switch swId pts tbl inp outp cms sms|}) <+> sws)
+              ofLinks
+              ctrl ->
+    Invariant (({|Switch swId pts tbl inp' outp' cms sms'|}) <+> sws)
+              ofLinks
+              ctrl.
+  Proof with eauto with datatypes.
+    intros.
+    inversion H; subst.
+    eapply MkP.
+    intros.
+    apply Bag.in_union in H2; simpl in H2.
+    destruct H2 as [[H2 | H2] | H2]...
+    - subst. simpl in *.
+      remember (Switch swId0 pts0 tbl0 inp0 outp0 cms sms) as sw.
+      assert (swId0 = swId sw) as X.
+      { subst. simpl... }
+      edestruct H0 as [HNotPktOuts [ctrlEp [switchEp [Hep Hsafewire]]]]...
+      { apply Bag.in_union. left. simpl... }
+      split...
+      exists ctrlEp.
+      exists switchEp.
+      split...
+      eapply SwitchEP_vary... rewrite -> Heqsw in Hep. exact Hep.
+    - inversion H2.
+    - destruct sw. simpl in *.
+      rewrite -> H4 in *; clear swId2 H4.
+      assert (swId1 = swId (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm0 switchm0)) as X.
+      { simpl... }
+      edestruct H0 as [HNotPktOuts [ctrlEp [switchEp [Hep Hsafewire]]]]...
+      { apply Bag.in_union. right... }
+  Qed.
+  
+  Lemma SafeWire_switchEp_safe : forall swId ctrlEp lst switchEp,
+    SafeWire swId ctrlEp lst switchEp ->
+    FlowTableSafe swId (table_at_endpoint switchEp).
+  Proof with eauto with datatypes.
+    intros.
+    generalize dependent ctrlEp.
+    induction lst; intros.
+    inversion H; subst...
+    inversion H; subst...
+  Qed.
+
+
+  Lemma step_preserves_P : forall sws0 sws1 links0 links1 ofLinks0 ofLinks1 
+    ctrl0 ctrl1 obs,
+    step (State sws0 links0 ofLinks0 ctrl0)
+         obs
+         (State sws1 links1 ofLinks1 ctrl1) ->
+    Invariant sws0 ofLinks0 ctrl0 ->
+    Invariant sws1 ofLinks1 ctrl1.
+  Proof with eauto with datatypes.
+    intros.
+    destruct ctrl1.
+    inversion H0; subst.
+    inversion H; subst.
+    - eapply Invariant_sw_vary...
+    - eapply MkP.
+      intros.
+      apply Bag.in_union in H3; simpl in H3.
+      destruct H3 as [[H3 | H3] | H3]...
+      + subst. simpl in *.
+        remember (Switch swId0 pts0 tbl0 inp0 outp0 (({|Atoms.FlowMod fm|}) <+> ctrlm0) switchm0) as swInit.
+        destruct H1 with 
+          (sw := swInit)
+          (pendingMsgs:=pendingMsgs)
+          (swId0:=swId0)
+          (switchmLst:=switchmLst)
+          (ctrlmLst:=ctrlmLst) as [HNotPktOuts [ctrlEp [swEp [Hep Hsafewire]]]]...
+        { apply Bag.in_union. simpl... }
+        { rewrite -> HeqswInit... }
+        split...
+        exists ctrlEp.
+        { inversion Hep; subst.
+          + inversion H6; subst.
+            assert (NotFlowMod (FlowMod fm)) as Hcontra.
+            { apply H3. apply Bag.in_union. simpl... }
+            inversion Hcontra.
+          + inversion H7; subst; clear H7.
+            assert (({|FlowMod f|}) <+> ctrlm2 = ({|FlowMod fm|}) <+> ctrlm0) as Heq.
+            { apply Bag.ordered_irr. unfold to_list. simpl. exact H13.  }
+            clear H13.
+            assert (In (FlowMod f) (to_list (({|FlowMod fm|}) <+> ctrlm0))) as X.
+            { 
+              rewrite <- Heq.
+              apply Bag.in_union. simpl... }
+            apply Bag.in_union in X; simpl in X.
+            destruct X as [[X | X] | X].
+            inversion X; subst; clear X.
+            assert (ctrlm2 = ctrlm0) as X.
+            { rewrite -> Bag.pop_union_l. exact Heq. }
+            subst; clear Heq.
+            eexists.
+            split...
+            eapply NoFlowModsInBuffer...
+            inversion X.
+            assert (In (FlowMod fm) (to_list (({|FlowMod f|}) <+> ctrlm2))) as Y.
+            { rewrite -> Heq. apply Bag.in_union; simpl... }
+            apply Bag.in_union in Y; simpl in Y.
+            destruct Y as [[Y | Y] | Y].
+            inversion Y; subst.
+            rewrite <- Bag.pop_union_l in Heq.
+            subst.
+            assert (NotFlowMod (FlowMod fm)) as Hcontra...
+            inversion Hcontra.
+            inversion Y.
+            apply H3 in Y. inversion Y. }
+      + inversion H3.
+      + edestruct H1...
+        { apply Bag.in_union. right... }
+    - eapply MkP.
+      intros.
+      apply Bag.in_union in H3; simpl in H3.
+      destruct H3 as [[H3 | H3] | H3]...
+      + subst. simpl in *.
+        remember (Switch swId0 pts0 tbl0 inp0 outp0 (({|PacketOut pt pk|}) <+> ctrlm0) switchm0) as swInit.
+        destruct H1 with 
+          (sw := swInit)
+          (pendingMsgs:=pendingMsgs)
+          (swId0:=swId0)
+          (switchmLst:=switchmLst)
+          (ctrlmLst:=ctrlmLst) as [HNotPktOuts [ctrlEp [swEp [Hep Hsafewire]]]]...
+        { apply Bag.in_union. simpl... }
+        { rewrite -> HeqswInit... }
+        split...
+        exists ctrlEp.
+        rewrite -> HeqswInit in Hep.
+        apply SwitchEP_packetOut in Hep.
+        apply SwitchEP_vary with (inp1:=inp0) (outp1:=({|(pt,pk)|}) <+> outp0) (sms1:=switchm0) in Hep.
+        exists swEp.
+        split...
+      + inversion H3.
+      + edestruct H1...
+        { apply Bag.in_union... }
+    - eapply Invariant_sw_vary...
+    - eapply Invariant_sw_vary...
+    - eapply controller_step_pres_P...
+    - eapply controller_recv_pres_P...
+    - eapply controller_send_pres_P...
+    - eapply Invariant_sw_vary...
+      eapply Invariant_ofLink_vary...
+    - eapply MkP.
+      intros.
+      destruct sw; subst; simpl in *.
+      destruct (TotalOrder.eqdec swId0 swId2).
+      + subst.
+        assert (OpenFlowLink swId2 switchmLst ctrlmLst = 
+                OpenFlowLink swId2 fromSwitch0 fromCtrl) as X.
+        { idtac "TODO(arjun): need to know that all OF link ids are unique".
+          admit. } 
+        inversion X; clear H4; subst; clear X.
+        assert (Switch swId2 pts1 tbl1 inp1 outp1 ctrlm0 switchm1 =
+                Switch swId2 pts0 tbl0 inp0 outp0 ({||}) (({|BarrierReply xid|})<+>switchm0)) as X.
+        { idtac "TODO(arjun): need to know that all switch  ids are unique".
+          admit. } 
+        inversion X; clear H3; subst; clear X.
+        edestruct H1 as [HPktOuts [ctrlEp [switchEp [J J0]]]]...
+        { apply Bag.in_union. left. simpl. left. reflexivity. }
+        { simpl... }
+        split...
+        rewrite -> app_assoc in J0.
+        remember (pendingMsgs ++ fromCtrl) as lst.
+        destruct lst.
+        * simpl in J0.
+          inversion J0; subst.
+          inversion H8; subst.
+          apply SwitchEP_vary with (inp1:=inp0) (outp1:=outp0) (sms1:=({|BarrierReply xid|})<+>switchm0) in J.
+          exists switchEp.
+          exists switchEp.
+          split...
+        * apply SwitchEP_vary with (inp1:=inp0) (outp1:=outp0) (sms1:=({|BarrierReply xid|})<+>switchm0) in J.
+          apply SafeWire_dequeue_BarrierRequest in J0.
+          destruct J0 as [switchEp' [Hsafewire Htbl]].
+          exists ctrlEp, switchEp'.
+          split...
+          apply NoFlowModsInBuffer...
+          intros. simpl in H3. inversion H3.
+          inversion J; subst...
+          idtac "TODO(arjun): stupid contradiction in H12 that is easy to discharge.".
+          admit. 
+      + assert (In (Switch swId2 pts1 tbl1 inp1 outp1 ctrlm0 switchm1) (to_list sws)) as J.
+        { apply Bag.in_union in H3; simpl in H3.
+          destruct H3 as [[H3 | H3] | H3]...
+          inversion H3; subst. contradiction n...
+          inversion H3. }
+        clear H3.
+        eapply H1...
+        { apply Bag.in_union... }
+        { instantiate (1:=switchmLst).
+          assert (In (OpenFlowLink swId2 switchmLst ctrlmLst) (ofLinks2 ++ ofLinks3)).
+          { apply in_app_iff in H4; simpl in H4. 
+            destruct H4 as [H4 | [H4 | H4]]...
+            inversion H4; subst; contradiction n... }
+          apply in_app_iff in H3.
+          destruct H3... }
+    - eapply MkP.
+      intros.
+      destruct sw; subst; simpl in *.
+      destruct (TotalOrder.eqdec swId0 swId2).
+      + subst.
+        assert (OpenFlowLink swId2 switchmLst ctrlmLst = 
+                OpenFlowLink swId2 fromSwitch0 fromCtrl) as X.
+        { idtac "TODO(arjun): need to know that all OF link ids are unique".
+          admit. } 
+        inversion X; clear H4; subst; clear X.
+        assert (Switch swId2 pts1 tbl1 inp1 outp1 ctrlm1 switchm1 =
+                Switch swId2 pts0 tbl0 inp0 outp0 (({|msg|}) <+> ctrlm0) switchm0) as X.
+        { idtac "TODO(arjun): need to know that all switch  ids are unique".
+          admit. } 
+        inversion X; clear H3; subst; clear X.
+        edestruct H1 as [HPktOuts [ctrlEp [switchEp [J J0]]]]...
+        { apply Bag.in_union. left. simpl. left. reflexivity. }
+        { simpl... }
+        split...
+        rewrite -> app_assoc in J0.
+        { destruct msg.
+          + apply SafeWire_dequeue_PacketOut in J0.
+            exists ctrlEp, switchEp.
+            split...
+            apply SwitchEP_packetOut...
+          + idtac "TODO(arjun): barriers on bags again ffs".
+            admit.
+          + remember J0 as J1 eqn:Z; clear Z.
+            apply SafeWire_dequeue_FlowMod in J0.
+            exists ctrlEp, (Endpoint_NoBarrier (modify_flow_table f (table_at_endpoint switchEp))).
+            split...
+            { inversion J; subst.
+              + simpl in *.
+                destruct switchEp.
+                simpl in *.
+                apply SafeWire_fm_nb_false in J1. inversion J1. 
+                eapply OneFlowModInBuffer...
+                simpl in *.
+                apply SafeWire_switchEp_safe in J0...
+              + apply SafeWire_fm_nb_false in J1. inversion J1.  } }
+      + assert (In (Switch swId2 pts1 tbl1 inp1 outp1 ctrlm1 switchm1) (to_list sws)) as J.
+        { apply Bag.in_union in H3; simpl in H3.
+          destruct H3 as [[H3 | H3] | H3]...
+          inversion H3; subst. contradiction n...
+          inversion H3. }
+        clear H3.
+        eapply H1...
+        { apply Bag.in_union... }
+        { instantiate (1:=switchmLst).
+          assert (In (OpenFlowLink swId2 switchmLst ctrlmLst) (ofLinks2 ++ ofLinks3)).
+          { apply in_app_iff in H4; simpl in H4. 
+            destruct H4 as [H4 | [H4 | H4]]...
+            inversion H4; subst; contradiction n... }
+          apply in_app_iff in H3.
+          destruct H3... }
+  Qed.
 
   Definition relate_helper (sd : srcDst) : swPtPks :=
     match topo (pkSw sd,dstPt sd) with
@@ -50,9 +504,13 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
       rewrite -> Bag.unions_cons.
       reflexivity.
     + simpl.
-      rewrite -> Bag.union_empty_l...
-    + simpl.
-      rewrite -> Bag.union_empty_l...
+      unfold relate_controller.
+      simpl.
+      { destruct msg.
+        - idtac "TODO(arjun): Cannot pre-emit packetouts (need P here).".
+          admit.
+        - simpl. rewrite -> Bag.union_empty_l...
+        - simpl. rewrite -> Bag.union_empty_l... }
   Qed.
 
   Lemma like_transfer : forall srcPt srcPk sw ptpk,
@@ -104,154 +562,69 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
     rewrite -> like_transfer_abs...
   Qed.
   
-  Fixpoint FlowTableSafe_iter (sw : switchId) (tbl : flowTable) 
-           (fms : list flowMod) :=
-    match fms with
-      | nil => True
-      | fm :: fms' =>
-        FlowTableSafe sw (modify_flow_table fm tbl) /\
-        FlowTableSafe_iter sw  (modify_flow_table fm tbl) fms'
-    end.
+  Definition P := Invariant.
 
-  Inductive CompleteFMS : switch -> openFlowLink -> switchState -> Prop :=
-  | BarrierCFMS : forall swId pts tbl inp outp ctrlm switchm
-                    ctrlmList switchmList swEp
-                    ctrlFms ctrlTbl,
-    SwitchEP (Switch swId pts tbl inp outp ctrlm switchm) swEp ->
-    SafeWire swId (Endpoint_Barrier ctrlTbl) ctrlmList swEp ->
-    FlowTableSafe_iter swId ctrlTbl ctrlFms ->
-    CompleteFMS
-      (Switch swId pts tbl inp outp ctrlm switchm)
-      (OpenFlowLink swId switchmList ctrlmList)
-      (SwitchState swId (Atoms.Endpoint_Barrier ctrlTbl) ctrlFms)
-  | NoBarrierCFMS : forall swId pts tbl inp outp ctrlm switchm
-                    ctrlmList switchmList swEp
-                    ctrlFms ctrlTbl,
-    SwitchEP (Switch swId pts tbl inp outp ctrlm switchm) swEp ->
-    SafeWire swId (Endpoint_NoBarrier ctrlTbl) ctrlmList swEp  ->
-    FlowTableSafe_iter swId ctrlTbl ctrlFms ->
-    CompleteFMS
-      (Switch swId pts tbl inp outp ctrlm switchm)
-      (OpenFlowLink swId switchmList ctrlmList)
-      (SwitchState swId (Atoms.Endpoint_NoBarrier ctrlTbl) ctrlFms).
-  
-  Inductive Invariant : bag switch_le ->  list openFlowLink -> controller -> Prop :=
-  | MkP : forall sws ofLinks swsts pktOuts,
-      (forall swId ctrlEp ctrlFlowMods,
-         In (SwitchState swId ctrlEp ctrlFlowMods) swsts ->
-         
-         (exists pts tbl inp outp ctrlm switchm switchmLst ctrlmLst,
-            In (Switch swId pts tbl inp outp ctrlm switchm) (to_list sws) /\
-            In (OpenFlowLink swId switchmLst ctrlmLst) ofLinks /\
-            CompleteFMS 
-              (Switch swId pts tbl inp outp ctrlm switchm)
-              (OpenFlowLink swId switchmLst ctrlmLst)
-              (SwitchState swId ctrlEp ctrlFlowMods))) ->
-        Invariant sws ofLinks (Atoms.State pktOuts swsts).
+  Axiom ControllerLiveness : forall sw pt pk ctrl0 sws0 links0 
+                                        ofLinks0,
+    In (sw,pt,pk) (to_list (relate_controller ctrl0)) ->
+    exists  ofLinks10 ofLinks11 ctrl1 swTo ptTo switchmLst ctrlmLst,
+      (multistep 
+         step (State sws0 links0 ofLinks0 ctrl0) nil
+         (State sws0 links0
+                (ofLinks10 ++ 
+                 (OpenFlowLink swTo switchmLst 
+                  (PacketOut ptTo pk :: ctrlmLst)) ::
+                 ofLinks11) 
+                ctrl1)) /\
+      select_packet_out swTo (PacketOut ptTo pk) = ({|(sw,pt,pk)|}).
+  (* Idiotic pre-conditions needed. 
+    Proof with auto with datatypes.
+      intros.
+      destruct ctrl0.
+      unfold relate_controller in H.
+      simpl in H.
+      apply Bag.in_unions in H.
+      destruct H as [b [HBagIn HpkIn]].
+      apply in_map_iff in HBagIn.
+      destruct HBagIn as [srcDst0 [Hhelper HtoSend]].
+      destruct srcDst0.
+      unfold relate_helper in Hhelper.
+      simpl in Hhelper.
+      destruct (topo
+      *)
 
-  Hint Constructors Invariant CompleteFMS.
+  Axiom ControllerRecvLiveness : forall sws0 links0 ofLinks0 sw switchm0 m 
+    ctrlm0 ofLinks1 ctrl0,
+     exists ctrl1,
+      (multistep 
+         step
+         (State 
+            sws0 links0 
+            (ofLinks0 ++ (OpenFlowLink sw (switchm0 ++ [m]) ctrlm0) :: ofLinks1)
+            ctrl0)
+         nil
+         (State 
+            sws0 links0 
+            (ofLinks0 ++ (OpenFlowLink sw switchm0 ctrlm0) :: ofLinks1)
+            ctrl1)) /\
+       exists (lps : swPtPks),
+         (select_packet_in sw m) <+> lps = relate_controller ctrl1.
 
-  Lemma step_preserves_P : forall sws0 sws1 links0 links1 ofLinks0 ofLinks1 
-    ctrl0 ctrl1 obs,
-    step (State sws0 links0 ofLinks0 ctrl0)
-         obs
-         (State sws1 links1 ofLinks1 ctrl1) ->
-    Invariant sws0 ofLinks0 ctrl0 ->
-    Invariant sws1 ofLinks1 ctrl1.
+  Lemma SafeWire_app : forall swId ep0 ep1 lst lst0,
+    SafeWire swId ep0 (lst ++ lst0) ep1 ->
+    exists ep, SafeWire swId ep lst0 ep1.
   Proof with eauto with datatypes.
     intros.
-    destruct H0; subst.
-    inversion H; subst.
-  Admitted.
-(*
-    admit.
-    admit.
-    admit.
-    admit.
-    admit.
-    admit.
-    (* controller step *)
-Admitt
-    solve [inversion H6].
-    (* controller recv *)
-   inversion H6; subst. 
-   (* barrier received *)
-   apply MkP.
-   intros.
-   apply H0 in H1...
-   destruct H1 as [pts [tbl [inp [outp [ctrlm [switchm [switchmLst [ctrlmLst
-     [HSwMem [HOfLinkIn HFMS]]]]]]]]]].
-   exists pts. exists tbl. exists inp. exists outp. exists ctrlm.
-   exists switchm. exists switchmLst. exists ctrlmLst.
-   split...
-   split...
-   admit. (* it is not removed *)
-   (* packet in received *)
-   apply MkP.
-   intros.
-   apply H0 in H1...
-   destruct H1 as [pts [tbl [inp [outp [ctrlm [switchm [switchmLst [ctrlmLst
-     [HSwMem [HOfLinkIn HFMS]]]]]]]]]].
-   exists pts. exists tbl. exists inp. exists outp. exists ctrlm.
-   exists switchm. exists switchmLst. exists ctrlmLst.
-   split...
-   split...
-   admit. (* it is not removed *)
-   (* controller sends *)
-   inversion H6; subst. 
-   (* PacketOut *)
-   apply MkP.
-   intros.
-   apply H0 in H1...
-   destruct H1 as [pts [tbl [inp [outp [ctrlm [switchm [switchmLst [ctrlmLst
-     [HSwMem [HOfLinkIn HFMS]]]]]]]]]].
-   exists pts. exists tbl. exists inp. exists outp. exists ctrlm.
-   exists switchm. exists switchmLst. exists ctrlmLst.
-   split...
-   split...
-   admit. (* not removed *)
-   (* Barrier *)
-   intros.
-   apply MkP.
-   intros.
-   apply in_app_iff in H1. simpl in H1. destruct H1 as [H1 | [H1 | H1]].
-   assert (In (SwitchState swId1 ctrlEp ctrlFlowMods)
-              (stsws ++ 
-               (SwitchState swId0 (Atoms.Endpoint_NoBarrier tbl0) flowMods) :: 
-               stsws')) as X... 
-   apply H0 in X.
-   clear H0.
-   destruct X as [pts [tbl [inp [outp [ctrlm [switchm [switchmLst [ctrlmLst
-     [HSwMem [HOfLinkIn HFMS]]]]]]]]]].
-   exists pts. exists tbl. exists inp. exists outp. exists ctrlm.
-   exists switchm. exists switchmLst. exists ctrlmLst.
-   split...
-   split...
-   admit. (* not removed *)
-   inversion H1; subst.
-   assert (In (SwitchState swId1 (Atoms.Endpoint_NoBarrier tbl0) ctrlFlowMods)
-              (stsws ++ 
-               (SwitchState swId1 (Atoms.Endpoint_NoBarrier tbl0) ctrlFlowMods) :: 
-               stsws')) as X... 
-   apply H0 in X.
-   clear H0.
-   destruct X as [pts [tbl [inp [outp [ctrlm [switchm [switchmLst [ctrlmLst
-     [HSwMem [HOfLinkIn HFMS]]]]]]]]]].
-   intros.
-   exists pts. exists tbl. exists inp. exists outp. exists ctrlm.
-   exists switchm. exists fromSwitch0. exists (BarrierRequest 0 :: ctrlmLst).
-   split...
-   split...
-   admit.
-   admit. (* not removed *)
-   admit. (* boring *)
-  Admitted.
-*)
+    generalize dependent ep0.
+    induction lst; intros...
+    simpl in H.
+    inversion H; subst...
+  Qed.
 
   Lemma ControllerFMS : forall swId ctrl0 ctrl1 msg ctrlm
     switchm sws links ofLinks0 ofLinks1 switchEp
     pts tbl inp outp swCtrlm swSwitchm,
-    Invariant sws
+    P sws
       (ofLinks0 ++ (OpenFlowLink swId switchm ctrlm) :: ofLinks1)
       ctrl0 ->
     controller_send ctrl0 ctrl1 swId msg ->
@@ -271,86 +644,20 @@ Admitt
      SwitchEP (Switch swId pts tbl inp outp swCtrlm swSwitchm) switchEp ->
       exists ctrlEp1,
         SafeWire swId ctrlEp1 (msg :: ctrlm) switchEp.
-  Proof with auto with datatypes.
-  Admitted.
-(*
-    intros.
-    (* consider the types of messages the controller may send. *)
-    inversion H0; subst. 
-    admit.
-    admit.
-    inversion H; subst.
-    destruct (H7 swId0 (Atoms.Endpoint_Barrier tbl1) (fm::fms)) as
-         [pts [tbl [inp [outp [ctrlm [switchm [switchmLst [ctrlmLst
-                     [HMemSw [HInOfLnk HCompleteFMS]]]]]]]]]]...
-    clear H7 H.
-    assert (ctrlmLst = ctrlm0) as X by admit; subst. (* uniq OFlinks *)
-    inversion HCompleteFMS; subst.
-    exists (Endpoint_NoBarrier (modify_flow_table fm tbl1)).
-    assert (switchEp = swEp0) as X by admit; subst. (* EP of same switch *)
-    apply SafeWire_FlowMod...
-    simpl in H16.
-    destruct H16...
-  Qed. *)
-
-  Lemma ControllerRecvLiveness : forall sws0 links0 ofLinks0 sw switchm0 m 
-    ctrlm0 ofLinks1 ctrl0,
-     exists ctrl1,
-      (multistep 
-         step
-         (State 
-            sws0 links0 
-            (ofLinks0 ++ (OpenFlowLink sw (switchm0 ++ [m]) ctrlm0) :: ofLinks1)
-            ctrl0)
-         nil
-         (State 
-            sws0 links0 
-            (ofLinks0 ++ (OpenFlowLink sw switchm0 ctrlm0) :: ofLinks1)
-            ctrl1)) /\
-       exists (lps : swPtPks),
-         ((select_packet_in sw m) <+> lps) =  relate_controller ctrl1.
-  Admitted.
-
-
-  Lemma ControllerLiveness : forall sw pt pk ctrl0 sws0 links0 ofLinks0,
-    In (sw,pt,pk) (to_list (relate_controller ctrl0)) ->
-    exists  ofLinks10 ofLinks11 ctrl1 swTo ptTo switchmLst ctrlmLst,
-      (multistep 
-         step (State sws0 links0 ofLinks0 ctrl0) nil
-         (State sws0 links0
-                (ofLinks10 ++ 
-                 (OpenFlowLink swTo switchmLst 
-                  (PacketOut ptTo pk :: ctrlmLst)) ::
-                 ofLinks11) 
-                ctrl1)) /\
-      select_packet_out swTo (PacketOut ptTo pk) = ({|(sw,pt,pk)|}).
-  Proof with auto with datatypes.
-  Admitted.
-(*
-    intros.
-    destruct ctrl0.
-    induction pktsToSend0; intros.
-    simpl in H. inversion H.
-    simpl in *.
-    destruct H.
-    clear IHpktsToSend0.
-    destruct a.
-    unfold relate_helper in H.
-    simpl in H.
-    remember (topo (pkSw0, dstPt0)) as Htopo.
-    destruct Htopo.
-    destruct p.
-    simpl in H.
-    inversion H. subst. clear H.
-    admit. (* important *)
-    simpl in H. inversion H.
-    (* inductive *)
-    apply IHpktsToSend0 in H.
-    clear IHpktsToSend0.
-    (* straightforward: first emit the packet a to get controller into
-       the right state. Then induction. *)
-  Admitted.
-*)
-  Definition P := Invariant.
+    Proof with eauto with datatypes.
+      intros.
+      inversion H0; subst.
+      + idtac "TODO(arjun): Can't i get an FMS for the tail here?".
+        admit.
+      + remember H1 as J eqn:X; clear X.
+        apply step_preserves_P in H1...
+        clear H.
+        inversion H1; subst.
+        edestruct H6 as [HNotPktOuts [ctrlEp0 [switchEp0 [Hep Hsafewire]]]]...
+        (* TODO(arjun): The usual crap about SwitchEP. If there is a 
+           flowmod in swCtrlm0, then Endpoint_NoBarrier. If there is not
+           it could be either. *)
+        admit.
+    Qed.
 
 End MakeController.

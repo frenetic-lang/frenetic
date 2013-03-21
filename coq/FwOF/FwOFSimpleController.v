@@ -9,17 +9,62 @@ Require Import Common.AllDiff.
 
 Local Open Scope list_scope.
 
+(*
+
+Need to reason about traces for Controller_FMS:
+
+Do not try to prove Controller_FMS from a random state, but from a trace of states:
+
+i.e., let the controller state be a history of all states it has been in, along
+with the relationship between successive states.
+
+- Need to know flow tables at switches on all states.
+- Need to know that when history is empty, all switches have empty flow tables
+
+LIVENESS:
+  - Liveness is easy, I think!
+
+SAFETY:
+
+Informally:
+
+If controller_send sends msg onto an OpenFlow link and INVARIANT holds and the
+SafeWire holds for that link, then SafeWire holds after the msg is sent.
+
+
+CHANGE: ControllerFMS should be able to assume that SafeWire holds over the
+existing wire.
+
+
+BAD:: step_preserves_P is very difficult to work with. Instead, show that
+the INVARIANT holds if messages are dequeued by the switch.
+
+
+NEW INVARIANT:
+
+For all switches, sw consider the list of messages to be sent and the list of
+messages on the wire (lst0 and lst1):
+- SafeWire swId nil (lst0 ++ lst1) switchEp1 holds
+
+If lst is the list of messages to be sent, an
+
+
+THOUGHT:
+
+If the controller is in a FwOF system, then P holds (I already have this!!!)
+
+Proof:
+
+
+*)
+
+
 Module Make (NetAndPol : NETWORK_AND_POLICY) <: ATOMS.
   Include NetAndPol.
 
-  Inductive Endpoint : Type :=
-  | Endpoint_NoBarrier : flowTable -> Endpoint
-  | Endpoint_Barrier : flowTable -> Endpoint.
-
   Record switchState := SwitchState {
     theSwId : switchId;
-    swEp : Endpoint;
-    flowModsForSw : list flowMod
+    pendingCtrlMsgs : list fromController
   }.
 
   Record srcDst := SrcDst {
@@ -60,38 +105,19 @@ Module Make (NetAndPol : NETWORK_AND_POLICY) <: ATOMS.
          (State lps swsts)
          sw
          (PacketOut dstPt dstPk)
-  | SendBarrier : forall sw tbl flowMods stsws stsws',
+  | SendMessage : forall sw stsws stsws' msg msgs,
       Send 
         (State nil 
-               (stsws ++ 
-                (SwitchState sw (Endpoint_NoBarrier tbl) flowMods) ::
-                stsws'))
+               (stsws ++ (SwitchState sw (msgs ++ [msg])) :: stsws'))
         (State nil 
-               (stsws ++
-                (SwitchState sw (Endpoint_Barrier tbl) flowMods) ::
-                stsws'))
+               (stsws ++ (SwitchState sw msgs) :: stsws'))
         sw
-        (BarrierRequest 0)
-  | SendFlowMod : forall sw tbl fm fms stsws stsws',
-      Send
-        (State nil 
-               (stsws ++ 
-                (SwitchState sw (Endpoint_Barrier tbl) (fm::fms)) :: 
-                stsws'))
-        (State nil 
-               (stsws ++
-                (SwitchState sw (Endpoint_NoBarrier (modify_flow_table fm tbl))
-                             fms) :: 
-                stsws'))
-        sw
-        (FlowMod fm).
+        msg.
 
-  Inductive Step : state -> state -> Prop :=
-  .
+  Inductive Step : state -> state -> Prop := .
            
   Definition controller_recv := Recv.
   Definition controller_step := Step.
   Definition controller_send := Send.
-
 
 End Make.
