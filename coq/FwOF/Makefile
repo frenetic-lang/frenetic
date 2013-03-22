@@ -1,5 +1,5 @@
 MODULES := FwOFSignatures FwOFWeakSimulation1 FwOFWeakSimulation2 \
-  FwOFMachine FwOFWellFormedness FwOFSimpleController \
+  FwOFWellFormedness FwOFMachine FwOFSimpleController \
   FwOFSimpleControllerLemmas FwOFBisimulation
 
 VS := $(MODULES:%=%.v)

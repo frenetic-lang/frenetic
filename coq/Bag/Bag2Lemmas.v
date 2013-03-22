@@ -425,6 +425,22 @@ Section BinaryMethods.
     apply from_list_order.
   Qed.
 
+  Require Import Common.AllDiff.
+
+  Lemma AllDiff_preservation : forall (f : A -> B) x y lst,
+      AllDiff f (to_list (({|x|}) <+> lst)) ->
+      f x = f y ->
+      AllDiff f (to_list (({|y|}) <+> lst)).
+  Proof with auto with datatypes.
+    intros.
+    destruct lst.
+    rename to_list into lst.
+    unfold singleton in *.
+    unfold to_list in *.
+    simpl in *.
+    apply OrderedLists.AllDiff_preservation with (x:=x)...
+  Qed.
+
 End BinaryMethods.
 
 
