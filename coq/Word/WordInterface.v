@@ -1,5 +1,6 @@
 Set Implicit Arguments.
 
+Require Import Coq.Logic.ProofIrrelevance.
 Require Import Coq.Structures.Equalities.
 Require Import PArith.BinPos.
 Require Import NArith.BinNat.
@@ -29,7 +30,7 @@ Module Type WIDTH.
 
 End WIDTH.
 
-Module MakeWord (Width : WIDTH).
+Module MakeWord (Width : WIDTH) <: WORD.
 
   Local Open Scope N_scope.
 
@@ -41,6 +42,24 @@ Module MakeWord (Width : WIDTH).
   Definition t := Word.
 
   Definition zero : t := @Mk 0 eq_refl.
+
+  Lemma eq_dec : forall (m n : t), { m = n } + { m <> n }.
+  Proof.
+    intros.
+    destruct m, n.
+    assert ({v = v0} + {v <> v0}) as J.
+    { apply N.eq_dec. }
+    destruct J; subst.
+    + left.
+      f_equal.
+      apply proof_irrelevance.
+    + right.
+      unfold not.
+      intros.
+      inversion H; subst.
+      contradiction n.
+      reflexivity.
+  Qed.
 
 End MakeWord.
 
@@ -87,12 +106,6 @@ Module Word8 <: WORD.
   Module M := MakeWord (Width8).
   Include M.
 
-  (** TODO(arjun): we either introduce proof irrelevant as an axiom or
-     the one below as an axiom. I would like to instead define an
-     equivalence relation on words and use that instead of adding
-     axioms. *)
-  Axiom eq_dec : forall (m n : t), { m = n } + { m <> n }.
-
 End Word8.
 
 Module Word16 <: WORD.
@@ -111,25 +124,12 @@ Module Word16 <: WORD.
   (* TODO(arjun): broken now for simplicity *)
   Axiom pred : Word -> Word.
 
-  (** TODO(arjun): we either introduce proof irrelevant as an axiom or
-     the one below as an axiom. I would like to instead define an
-     equivalence relation on words and use that instead of adding
-     axioms. *)
-  Axiom eq_dec : forall (m n : t), { m = n } + { m <> n }.
-
-
 End Word16.
 
 Module Word32 <: WORD.
 
   Module M := MakeWord (Width32).
   Include M.
-
-  (** TODO(arjun): we either introduce proof irrelevant as an axiom or
-     the one below as an axiom. I would like to instead define an
-     equivalence relation on words and use that instead of adding
-     axioms. *)
-  Axiom eq_dec : forall (m n : t), { m = n } + { m <> n }.
 
 End Word32.
 
@@ -138,24 +138,12 @@ Module Word48 <: WORD.
   Module M := MakeWord (Width48).
   Include M.
 
-  (** TODO(arjun): we either introduce proof irrelevant as an axiom or
-     the one below as an axiom. I would like to instead define an
-     equivalence relation on words and use that instead of adding
-     axioms. *)
-  Axiom eq_dec : forall (m n : t), { m = n } + { m <> n }.
-
 End Word48.
 
 Module Word64 <: WORD.
   
   Module M := MakeWord (Width64).
   Include M.
-
-  (** TODO(arjun): we either introduce proof irrelevant as an axiom or
-     the one below as an axiom. I would like to instead define an
-     equivalence relation on words and use that instead of adding
-     axioms. *)
-  Axiom eq_dec : forall (m n : t), { m = n } + { m <> n }.
 
 End Word64.
 

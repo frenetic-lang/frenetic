@@ -621,9 +621,110 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
     inversion H; subst...
   Qed.
 
+
+  Lemma SwitchEP_injective : forall sw ep0 ep1,
+    SwitchEP sw ep0 ->
+    SwitchEP sw ep1 ->
+    table_at_endpoint ep0 = table_at_endpoint ep1.
+  Proof with eauto with datatypes.
+    intros.
+    destruct sw.
+    inversion H; inversion H0; subst...
+    + assert (NotFlowMod (FlowMod f)).
+      apply H9.
+      apply Bag.in_union; simpl...
+      inversion H1.
+    + assert (NotFlowMod (FlowMod f)) as X; subst...
+      apply H20.
+      apply Bag.in_union; simpl...
+      inversion X.
+    + assert (f = f0) as X.
+      { assert (In (FlowMod f) (to_list (({|FlowMod f0|}) <+> ctrlm4))) as X.
+        rewrite <- H21.
+        apply Bag.in_union; simpl...
+        apply Bag.in_union in X.
+        simpl in X; destruct X as [[X|X]|X].
+        inversion X...
+        inversion X.
+        assert (NotFlowMod (FlowMod f)) as Y.
+        apply H20...
+        inversion Y. }
+      subst...
+  Qed.
+
+  Lemma SafeWire_injective_lhs : forall swId ep0 ep1 lst tbl,
+    SafeWire swId ep0 lst (Endpoint_NoBarrier tbl) ->
+    SafeWire swId ep1 lst (Endpoint_Barrier tbl) ->
+    table_at_endpoint ep0 = table_at_endpoint ep1.
+  Proof with eauto with datatypes.
+    intros.
+    generalize dependent ep0.
+    generalize dependent ep1.
+    induction lst; intros.
+    + inversion H; inversion H0; subst...
+    + destruct a.
+      - inversion H; inversion H0; subst...
+      - inversion H; inversion H0; subst...
+        destruct (IHlst _ H12 _ H6)...
+      - inversion H; inversion H0; subst...
+        remember (IHlst (Endpoint_Barrier tbl2) H14 (Endpoint_Barrier tbl1) H7) as X.
+        simpl in X.
+        rewrite -> X.
+        reflexivity.
+  Qed.
+
+  Lemma SafeWire_insane_1 : forall swId ctrlEp0 lst tbl tbl0,
+    SafeWire swId ctrlEp0 lst (Endpoint_Barrier tbl) ->
+    SafeWire swId (Endpoint_Barrier tbl0) lst (Endpoint_NoBarrier tbl) ->
+    SafeWire swId (Endpoint_Barrier tbl0) lst (Endpoint_Barrier tbl).
+  Proof with eauto with datatypes.
+    intros.
+    generalize dependent ctrlEp0.
+    induction lst; intros...
+    + inversion H0.
+    + destruct a.
+      - eapply SafeWire_PktOut. 
+        inversion H0; subst.
+        eapply IHlst...
+        inversion H...
+      - assert (table_at_endpoint (Endpoint_Barrier tbl1) = table_at_endpoint ctrlEp0) as X.
+        { eapply SafeWire_injective_lhs... }
+        destruct ctrlEp0. 
+        inversion H.
+        simpl in X.
+        subst.
+        exact H.
+      - inversion H0.
+  Qed.
+
+  Lemma SafeWire_insane_2 : forall swId ctrlEp0 lst tbl tbl0,
+    SafeWire swId ctrlEp0 lst (Endpoint_NoBarrier tbl) ->
+    SafeWire swId (Endpoint_Barrier tbl0) lst (Endpoint_Barrier tbl) ->
+    SafeWire swId (Endpoint_Barrier tbl0) lst (Endpoint_NoBarrier tbl).
+  Proof with eauto with datatypes.
+    intros.
+    generalize dependent ctrlEp0.
+    induction lst; intros...
+    + admit. (* need to relax SafeWire_nil. *)
+    + destruct a.
+      - eapply SafeWire_PktOut. 
+        inversion H0; subst.
+        eapply IHlst...
+        inversion H...
+      - assert (table_at_endpoint ctrlEp0 =  table_at_endpoint (Endpoint_Barrier tbl1)) as X.
+        { eapply SafeWire_injective_lhs... }
+        destruct ctrlEp0. 
+        inversion H.
+        simpl in X.
+        subst.
+        exact H.
+      - inversion H0.
+  Qed.
+
   Lemma ControllerFMS : forall swId ctrl0 ctrl1 msg ctrlm
-    switchm sws links ofLinks0 ofLinks1 switchEp
+    switchm sws links ofLinks0 ofLinks1 switchEp ctrlEp0
     pts tbl inp outp swCtrlm swSwitchm,
+    SafeWire swId ctrlEp0 ctrlm switchEp ->
     P sws
       (ofLinks0 ++ (OpenFlowLink swId switchm ctrlm) :: ofLinks1)
       ctrl0 ->
@@ -646,18 +747,44 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
         SafeWire swId ctrlEp1 (msg :: ctrlm) switchEp.
     Proof with eauto with datatypes.
       intros.
-      inversion H0; subst.
-      + idtac "TODO(arjun): Can't i get an FMS for the tail here?".
-        admit.
-      + remember H1 as J eqn:X; clear X.
-        apply step_preserves_P in H1...
-        clear H.
-        inversion H1; subst.
-        edestruct H6 as [HNotPktOuts [ctrlEp0 [switchEp0 [Hep Hsafewire]]]]...
-        (* TODO(arjun): The usual crap about SwitchEP. If there is a 
-           flowmod in swCtrlm0, then Endpoint_NoBarrier. If there is not
-           it could be either. *)
-        admit.
+      inversion H1; subst.
+      + exists ctrlEp0.
+        apply SafeWire_PktOut...
+      + remember H2 as J eqn:X; clear X.
+        apply step_preserves_P in H2...
+        clear H1.
+        inversion H2; subst.
+        edestruct H7 as [HNotPktOuts [ctrlEp2 [switchEp0 [Hep Hsafewire]]]]...
+        destruct msg.
+        - exists ctrlEp0.
+          apply SafeWire_PktOut...
+        - exists (Endpoint_Barrier (table_at_endpoint ctrlEp0)).
+          apply SafeWire_BarrierRequest...
+        - assert (table_at_endpoint switchEp = table_at_endpoint switchEp0) as X.
+          { eapply SwitchEP_injective... }
+          destruct switchEp, switchEp0; simpl in X; subst.
+          * apply SafeWire_app in Hsafewire.
+            destruct Hsafewire as [ctrlEp3 Hsafewire].
+            inversion Hsafewire; subst.
+            exists (Endpoint_NoBarrier (modify_flow_table f tbl1)).
+            eapply SafeWire_FlowMod...
+          * apply SafeWire_app in Hsafewire.
+            destruct Hsafewire as [ctrlEp3 Hsafewire].
+            inversion Hsafewire; subst.
+            exists (Endpoint_NoBarrier (modify_flow_table f tbl1)).
+            eapply SafeWire_FlowMod...
+            eapply SafeWire_insane_2...
+          * apply SafeWire_app in Hsafewire.
+            destruct Hsafewire as [ctrlEp3 Hsafewire].
+            inversion Hsafewire; subst.
+            exists (Endpoint_NoBarrier (modify_flow_table f tbl1)).
+            eapply SafeWire_FlowMod...
+            eapply SafeWire_insane_1...
+          * apply SafeWire_app in Hsafewire.
+            destruct Hsafewire as [ctrlEp3 Hsafewire].
+            inversion Hsafewire; subst.
+            exists (Endpoint_NoBarrier (modify_flow_table f tbl1)).
+            eapply SafeWire_FlowMod...
     Qed.
 
 End MakeController.

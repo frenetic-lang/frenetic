@@ -504,8 +504,9 @@ Module Type ATOMS_AND_CONTROLLER.
          (select_packet_in sw m) <+> lps = relate_controller ctrl1.
 
   Parameter ControllerFMS : forall swId ctrl0 ctrl1 msg ctrlm
-    switchm sws links ofLinks0 ofLinks1 switchEp
+    switchm sws links ofLinks0 ofLinks1 switchEp ctrlEp0
     pts tbl inp outp swCtrlm swSwitchm,
+    SafeWire swId ctrlEp0 ctrlm switchEp ->
     P sws
       (ofLinks0 ++ (OpenFlowLink swId switchm ctrlm) :: ofLinks1)
       ctrl0 ->
