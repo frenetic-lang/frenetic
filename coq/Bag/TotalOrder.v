@@ -88,3 +88,12 @@ Proof with eauto.
     apply eqdec. 
     apply eqdec.
 Qed.
+
+Extract Constant TotalOrder_nat =>
+"{ compare = (fun x y -> x <= y);
+   eqdec = (fun x y -> x = y) }".
+
+Extract Constant TotalOrder_pair =>
+"fun _ _ -> { compare = (fun x y -> x <= y);
+              eqdec = (fun x y -> x = y) }".
+
