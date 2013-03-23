@@ -17,6 +17,7 @@ Require Import OpenFlow.MessagesDef.
 Require Import NetCore.NetCoreTypes.
 Require Import Bag.Bag2.
 Require Import NetCore.NetCoreEval.
+Require Import NetCore.NetCoreDesugar.
 
 Local Open Scope list_scope.
 Local Open Scope bag_scope.
