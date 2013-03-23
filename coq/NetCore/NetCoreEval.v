@@ -111,11 +111,12 @@ Definition modify_pkt (mods : modification) (pk : packet) :=
 
 Definition eval_action (inp : input) (act : act) : output := 
   match (act, inp)  with
-    | (Forward mods pp, InPkt sw _ pk buf) => OutPkt sw pp (modify_pkt mods pk)
-        (match buf with
-           | Some b => inl b
-           | None => inr (serialize_pkt (modify_pkt mods pk))
-         end)
+    | (Forward mods pp, InPkt sw _ pk buf) => 
+      OutPkt sw pp (modify_pkt mods pk)
+             (match buf with
+                | Some b => inl b
+                | None => inr (serialize_pkt (modify_pkt mods pk))
+              end)
     | (ActGetPkt x, InPkt sw pt pk buf) => OutGetPkt x sw pt pk
   end.
 

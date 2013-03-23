@@ -1,5 +1,6 @@
-(** The module NetCore is defined in OCaml, which is why this is called 
-    NetCore semantics. *)
+(** An in-progress surface semantics for NetCore. The rest of the Coq
+    development uses NetCore's primitive syntax and relies on desugaring
+    in OCaml. *)
 Set Implicit Arguments.
 
 Require Import Coq.Classes.Equivalence.

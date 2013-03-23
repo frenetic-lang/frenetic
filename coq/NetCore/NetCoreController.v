@@ -15,7 +15,7 @@ Local Open Scope list_scope.
 
 Section Prioritize.
 
-  (** TODO(arjun): deal with priority overflowing 16 bits *)
+  (** TODO(arjun): deal with priority underflowing 16 bits *)
   Fixpoint prio_rec {A : Type} (prio : Word16.t) (lst : Classifier A) :=
     match lst with
       | nil => nil
