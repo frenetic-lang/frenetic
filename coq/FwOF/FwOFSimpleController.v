@@ -108,7 +108,7 @@ Module Make (NetAndPol : NETWORK_AND_POLICY) <: ATOMS.
   | SendMessage : forall sw stsws stsws' msg msgs,
       Send 
         (State nil 
-               (stsws ++ (SwitchState sw (msgs ++ [msg])) :: stsws'))
+               (stsws ++ (SwitchState sw (msg::msgs)) :: stsws'))
         (State nil 
                (stsws ++ (SwitchState sw msgs) :: stsws'))
         sw
@@ -119,5 +119,14 @@ Module Make (NetAndPol : NETWORK_AND_POLICY) <: ATOMS.
   Definition controller_recv := Recv.
   Definition controller_step := Step.
   Definition controller_send := Send.
+(*
 
+  Fixpoint send (st : state) -> option (st * switchId * fromController) :=
+    match st with
+      | State ((SrcDst sw _ _ pt pk) :: pks) sws =>
+        (State pks sws, sw, PacketOut pt pk)
+      | State nil ((SwitchState sw (msg :: msgs)) :: sws) =>
+        (State nil ((SwitchState sw msgs) :: sws), sw, msg)
+      | State nil (SwitchState 
+*)
 End Make.

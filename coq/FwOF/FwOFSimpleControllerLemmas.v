@@ -39,7 +39,8 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
          (forall msg, In msg pendingMsgs -> NotPacketOut msg) /\
          exists ctrlEp switchEp,
            SwitchEP sw switchEp /\
-           SafeWire swId0 ctrlEp (pendingMsgs ++ ctrlmLst) switchEp) ->
+           SafeWire swId0 ctrlEp (rev pendingMsgs ++ ctrlmLst) 
+                                  switchEp) ->
       Invariant sws ofLinks (Atoms.State pktOuts swsts).
 
   Hint Constructors Invariant.
@@ -113,10 +114,14 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
         { idtac "TODO(arjun): need to know that all state ids are unique".
           admit. }
         inversion X; clear H1; subst; clear X.
-        edestruct H4 with (sw := Switch swId0 pts0 tbl0 inp0 outp0 ctrlm1 switchm1) 
-                          (swId1:=swId0)
+        edestruct H4 with 
+          (sw := Switch swId0 pts0 tbl0 inp0 outp0 ctrlm1 switchm1) 
+          (swId1 := swId0)
           as [HNotPktOuts [ctrlEp [switchEp [tbl Hsafewire]]]]...
         split...
+        assert (msg::msgs = [msg] ++ msgs) as X...
+        rewrite -> X in Hsafewire; clear X.
+        rewrite -> rev_app_distr in Hsafewire.
         rewrite <- app_assoc in Hsafewire.
         simpl in Hsafewire...
       - edestruct H4 with (sw := Switch swId1 pts0 tbl0 inp0 outp0 ctrlm1 switchm1) 
@@ -382,7 +387,7 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
         { simpl... }
         split...
         rewrite -> app_assoc in J0.
-        remember (pendingMsgs ++ fromCtrl) as lst.
+        remember (rev pendingMsgs ++ fromCtrl) as lst.
         destruct lst.
         * simpl in J0.
           inversion J0; subst.
