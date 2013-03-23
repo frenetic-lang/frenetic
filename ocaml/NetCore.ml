@@ -1,10 +1,7 @@
-open Wildcard
-open Pattern
 open ControllerInterface
 open MessagesDef
 open Packet
 open Platform
-open NetCoreEval
 open Printf
 open NetCoreSyntax
 
@@ -128,8 +125,6 @@ end
 
 module Make (Platform : PLATFORM) = struct
 
-  let next_id : int ref = ref 0
-
   let get_pkt_handlers : (int, get_packet_handler) Hashtbl.t = 
     Hashtbl.create 200
 
@@ -139,56 +134,15 @@ module Make (Platform : PLATFORM) = struct
       printf "[NetCore.ml] Got packet from %Ld\n" switchId;
         (Hashtbl.find get_pkt_handlers queryId) switchId portId packet
   end
-          
-  let desugar_act act = match act with
-    | To pt -> Forward (unmodified, PhysicalPort pt)
-    | ToAll -> Forward (unmodified, AllPorts)
-    | GetPacket handler ->
-      let id = !next_id in
-      incr next_id;
-      Hashtbl.add get_pkt_handlers id handler;
-      ActGetPkt id
-
-  let rec desugar_pred pred = match pred with
-    | And (p1, p2) -> 
-      PrNot (PrOr (PrNot (desugar_pred p1), PrNot (desugar_pred p2)))
-    | Or (p1, p2) ->
-      PrOr (desugar_pred p1, desugar_pred p2)
-    | Not p -> PrNot (desugar_pred p)
-    | All -> PrAll
-    | NoPackets -> PrNone
-    | Switch swId -> PrOnSwitch swId
-    | InPort pt -> PrHdr (Pattern.inPort pt)
-    | DlSrc n -> PrHdr (Pattern.dlSrc n)
-    | DlDst n -> PrHdr (Pattern.dlDst n)
-    | SrcIP n -> PrHdr (Pattern.ipSrc n)
-    | DstIP n -> PrHdr (Pattern.ipDst n)
-    | TcpSrcPort n -> PrHdr (Pattern.tcpSrcPort n)
-    | TcpDstPort n -> PrHdr (Pattern.tcpDstPort n)
-
-  let rec desugar_pol1 pol pred = match pol with
-    | Pol (pred', acts) -> 
-      PoAtom (desugar_pred (And (pred', pred)), List.map desugar_act acts)
-    | Par (pol1, pol2) ->
-      PoUnion (desugar_pol1 pol1 pred, desugar_pol1 pol2 pred)
-    | Restrict (p1, pr1) ->
-      desugar_pol1 p1 (And (pred, pr1))
-
-  let rec desugar_pol pol = desugar_pol1 pol All
 
   module Controller = MakeDynamic (Platform) (Handlers)
-
-  let clear_handlers () : unit = 
-    Hashtbl.clear get_pkt_handlers;
-    next_id := 0
 
   let start_controller (pol : policy Lwt_stream.t) : unit Lwt.t = 
     Controller.start_controller
       (Lwt_stream.map 
          (fun pol -> 
-            printf "[NetCore.ml] got a new policy%!\n";
-            clear_handlers (); 
-            desugar_pol pol)
+           printf "[NetCore.ml] got a new policy%!\n";
+           NetCoreSyntax.desugar_policy pol get_pkt_handlers)
          pol)
 
 end
