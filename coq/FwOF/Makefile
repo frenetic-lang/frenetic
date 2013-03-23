@@ -3,8 +3,12 @@ MODULES := \
   FwOFMachine \
   FwOFSimpleController \
   FwOFWellFormedness \
-  FwOFWeakSimulation1 FwOFWeakSimulation2 \
-  FwOFSimpleControllerLemmas FwOFBisimulation
+  FwOFWeakSimulation1 \
+	FwOFWeakSimulation2 \
+  FwOFSimpleControllerLemmas \
+  FwOFBisimulation \
+  FwOFNetworkAtoms \
+  FwOFSimpleExtractableController
 
 VS := $(MODULES:%=%.v)
 
