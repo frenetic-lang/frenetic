@@ -4,9 +4,10 @@ Require Import Bag.TotalOrder.
 Require Import Coq.Lists.List.
 Require Import Coq.Relations.Relations.
 Require Import FwOF.FwOFSignatures.
+Require Import Classifier.Classifier.
 Require OpenFlow.MessagesDef.
 Require Network.Packet.
-Require NetCore.NetCoreEval.
+Require Import NetCore.NetCoreEval.
 Require Import Pattern.Pattern.
 
 Import ListNotations.
@@ -34,12 +35,33 @@ Module NetworkAtoms <: NETWORK_ATOMS.
   | PacketIn : portId -> packet -> fromSwitch
   | BarrierReply : nat -> fromSwitch.
 
+  Definition strip_prio (x : nat * pattern * list (NetCore.NetCoreEval.act)) :=
+    match x with
+      | (prio,pat,act) => (pat,Some act)
+    end.
+  Require Import Common.Types.
+
+  Definition eval_act (pt : portId) (pk : packet) (act : act) := 
+    match act with
+      | Forward _ (OpenFlow.MessagesDef.PhysicalPort pt') => [(pt',pk)]
+      | _ => nil
+    end.
+
   (** Produces a list of packets to forward out of ports, and a list of packets
       to send to the controller. *)
-  Parameter process_packet : flowTable -> portId -> packet -> 
-    list (portId * packet) * list packet.
-
-  Parameter modify_flow_table : flowMod -> flowTable -> flowTable.
+  Definition process_packet (tbl : flowTable) (pt : portId) (pk : packet) :=
+    match scan None (map strip_prio tbl) pt pk with
+      | None => (nil, [pk])
+      | Some acts => (concat_map (eval_act pt pk) acts, nil)
+    end.
+    
+  Definition modify_flow_table (fm : flowMod) (ft : flowTable) :=
+    match fm with
+      | AddFlow prio pat act => 
+        (* Need to bring in LE for fixnums, without running afoul of 
+           extraction. *)
+        (prio,pat,act) :: ft
+    end.
 
   Parameter packet_le : Relation_Definitions.relation packet.
   Parameter switchId_le : Relation_Definitions.relation switchId.
@@ -63,5 +85,27 @@ Module NetworkAtoms <: NETWORK_ATOMS.
   Admitted.
   Instance TotalOrder_fromController : TotalOrder fromController_le.
   Admitted.
+
+  Extract Constant TotalOrder_packet =>
+    "{ TotalOrder.compare = (fun x y -> x <= y);
+       TotalOrder.eqdec = (fun x y -> x = y) }".
+  Extract Constant TotalOrder_switchId =>
+    "{ TotalOrder.compare = (fun x y -> x <= y);
+       TotalOrder.eqdec = (fun x y -> x = y) }".
+  Extract Constant TotalOrder_portId =>
+    "{ TotalOrder.compare = (fun x y -> x <= y);
+       TotalOrder.eqdec = (fun x y -> x = y) }".
+  Extract Constant TotalOrder_flowMod =>
+    "{ TotalOrder.compare = (fun x y -> x <= y);
+       TotalOrder.eqdec = (fun x y -> x = y) }".
+  Extract Constant TotalOrder_flowTable =>
+    "{ TotalOrder.compare = (fun x y -> x <= y);
+       TotalOrder.eqdec = (fun x y -> x = y) }".
+  Extract Constant TotalOrder_fromSwitch =>
+    "{ TotalOrder.compare = (fun x y -> x <= y);
+       TotalOrder.eqdec = (fun x y -> x = y) }".
+  Extract Constant TotalOrder_fromController =>
+    "{ TotalOrder.compare = (fun x y -> x <= y);
+       TotalOrder.eqdec = (fun x y -> x = y) }".
 
 End NetworkAtoms.
