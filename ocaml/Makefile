@@ -5,6 +5,7 @@ all: extracted doc
 	$(OCAMLBUILD) Main.d.byte
 	$(OCAMLBUILD) Test.d.byte
 	$(OCAMLBUILD) Verify.d.byte
+	$(OCAMLBUILD) Main_OpenFlow0x01.d.byte
 
 doc:
 	$(OCAMLBUILD) doc.docdir/index.html

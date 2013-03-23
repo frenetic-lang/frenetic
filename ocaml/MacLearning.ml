@@ -4,6 +4,7 @@ open WordInterface
 open Platform
 open NetCore
 open Packet
+open NetCoreSyntax
 
 module Learning = struct
     

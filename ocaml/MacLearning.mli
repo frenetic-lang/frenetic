@@ -1,6 +1,6 @@
 open MessagesDef
 open WordInterface
-
+open NetCoreSyntax
 open Platform
 open NetCore
 open Packet
