@@ -1,6 +1,7 @@
 open Platform 
 open Unix
 open MessagesDef
+open NetCoreSyntax
 open NetCore
 
 

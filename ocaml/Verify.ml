@@ -1,3 +1,4 @@
+open NetCoreSyntax
 open NetCore
 open Topology
 open Sat
