@@ -30,7 +30,7 @@ Module Type WIDTH.
 
 End WIDTH.
 
-Module MakeWord (Width : WIDTH) <: WORD.
+Module MakeWord (Width : WIDTH).
 
   Local Open Scope N_scope.
 
@@ -42,24 +42,6 @@ Module MakeWord (Width : WIDTH) <: WORD.
   Definition t := Word.
 
   Definition zero : t := @Mk 0 eq_refl.
-
-  Lemma eq_dec : forall (m n : t), { m = n } + { m <> n }.
-  Proof.
-    intros.
-    destruct m, n.
-    assert ({v = v0} + {v <> v0}) as J.
-    { apply N.eq_dec. }
-    destruct J; subst.
-    + left.
-      f_equal.
-      apply proof_irrelevance.
-    + right.
-      unfold not.
-      intros.
-      inversion H; subst.
-      contradiction n.
-      reflexivity.
-  Qed.
 
 End MakeWord.
 
@@ -106,6 +88,8 @@ Module Word8 <: WORD.
   Module M := MakeWord (Width8).
   Include M.
 
+  Parameter eq_dec : forall (m n : t), { m = n } + { m <> n }.
+
 End Word8.
 
 Module Word16 <: WORD.
@@ -124,12 +108,16 @@ Module Word16 <: WORD.
   (* TODO(arjun): broken now for simplicity *)
   Axiom pred : Word -> Word.
 
+  Parameter eq_dec : forall (m n : t), { m = n } + { m <> n }.
+
 End Word16.
 
 Module Word32 <: WORD.
 
   Module M := MakeWord (Width32).
   Include M.
+
+  Parameter eq_dec : forall (m n : t), { m = n } + { m <> n }.
 
 End Word32.
 
@@ -138,12 +126,16 @@ Module Word48 <: WORD.
   Module M := MakeWord (Width48).
   Include M.
 
+  Parameter eq_dec : forall (m n : t), { m = n } + { m <> n }.
+
 End Word48.
 
 Module Word64 <: WORD.
   
   Module M := MakeWord (Width64).
   Include M.
+
+  Parameter eq_dec : forall (m n : t), { m = n } + { m <> n }.
 
 End Word64.
 
