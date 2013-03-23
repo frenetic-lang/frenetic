@@ -5,7 +5,7 @@ open Unix
 open MessagesDef
 open OpenFlow0x04Types
 
-module Controller = MacLearning.Make (OpenFlowPlatform)
+module Controller = Repeater.Make (OpenFlowPlatform)
 
 (* configuration state *)
 let controller = ref "learn"

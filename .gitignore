@@ -4,6 +4,7 @@
 Makefile.coq
 _build
 *.d.byte
+*.native
 *.out
 *.cmi
 ocaml/extracted

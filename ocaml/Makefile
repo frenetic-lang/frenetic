@@ -7,6 +7,9 @@ all: extracted doc
 	$(OCAMLBUILD) Verify.d.byte
 	$(OCAMLBUILD) Main_OpenFlow0x01.d.byte
 
+native:
+	$(OCAMLBUILD) Main_OpenFlow0x01.native
+
 doc:
 	$(OCAMLBUILD) doc.docdir/index.html
 
