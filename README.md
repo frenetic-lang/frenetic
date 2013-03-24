@@ -19,11 +19,12 @@ Prerequisites
   - lwt
   - cstruct 
   - oUnit
+  - menhir
 
   These are available on OPAM:
 
   ```
-  $ opam install ocamlfind cstruct lwt ounit
+  $ opam install ocamlfind cstruct lwt ounit menhir
   ```
 
 Building

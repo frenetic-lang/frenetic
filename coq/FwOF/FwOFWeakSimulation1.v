@@ -16,7 +16,11 @@ Local Open Scope bag_scope.
 
 Arguments to_list _ _ _ : simpl never.
 
-Module Make (Import Relation : RELATION).
+Module Make (Import RelationDefinitions : RELATION_DEFINITIONS).
+
+  Import AtomsAndController.
+  Import Machine.
+  Import Atoms.
 
   Theorem weak_sim_1 :
     weak_simulation concreteStep abstractStep bisim_relation.
@@ -40,16 +44,15 @@ Module Make (Import Relation : RELATION).
         unfold relate.
         rewrite -> Heqb.
         assert (FlowTableSafe swId0 tbl0) as J.
-        refine (concreteState_flowTableSafety1
-                  swId0 pts0 tbl0 inp0 (from_list outp' <+> outp0) ctrlm0
-                  (from_list (map (PacketIn pt) pksToCtrl) <+> switchm0) _)...
-         rewrite -> Bag.in_union.
-         left. simpl. left. reflexivity.
+        { assert (FlowModSafe swId0 tbl0 ctrlm0) as J.
+          refine (concreteState_flowTableSafety1
+                    swId0 pts0 tbl0 inp0 (from_list outp' <+> outp0) ctrlm0
+                    (from_list (map (PacketIn pt) pksToCtrl) <+> switchm0) _)...
+          rewrite -> Bag.in_union; simpl...
+          inversion J... }
         unfold FlowTableSafe in J.
         pose (J0 := J pt pk outp' pksToCtrl H1).
         subst.
-        (** Full autorewrite never worked (needed to explicitly call Bag.unions_app)
-        But, this got worse after the bag-refactoring. No idea why. *)
         rewrite <- J0.
         autorewrite with bag using simpl.
         bag_perm 100.

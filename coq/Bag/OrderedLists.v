@@ -109,6 +109,13 @@ Section Lemmas.
 
   Hint Resolve insert_order_pres.
 
+  Lemma singleton_order : forall (x : A),
+    Ordered R [x].
+  Proof.
+    intros. apply Ordered_cons. intros. simpl in H; inversion H.
+    apply Ordered_nil.
+  Qed.
+
   Lemma union_order_pres : forall (b1 b2 : list A),
     Ordered R b1 ->
     Ordered R b2 ->
@@ -648,6 +655,42 @@ Section Lemmas.
       destruct (compare y x)...
     + simpl.
       destruct (compare y a)...
+  Qed.
+
+  Lemma in_split : forall x lst,
+    Ordered R lst ->
+    In x lst ->
+    exists rest,
+      Ordered R rest /\
+      lst = union [x] rest.
+  Proof with auto with datatypes.
+    intros.
+    induction lst...
+    simpl in H0.
+    inversion H0.
+    simpl in H0.
+    destruct H0; subst...
+    + exists lst.
+      inversion H; subst.
+      rewrite <- union_singleton_l...
+      simpl.
+      split...
+      symmetry.
+      apply insert_eq_head...
+    + inversion H; subst.
+      apply IHlst in H0...
+      destruct H0 as [rest [HOrderedRest Heq]].
+      exists (union [a] rest).
+      split...
+      - apply union_order_pres...
+        apply Ordered_cons... intros. simpl in H0. inversion H0.
+      - rewrite <- insert_eq_head...
+        rewrite -> Heq.
+        rewrite <- union_singleton_l...
+        rewrite <- union_singleton_l...
+        rewrite <- union_singleton_l...
+        apply union_order_pres...
+        apply Ordered_cons... intros. simpl in H0. inversion H0.
   Qed.
 
 End Lemmas.

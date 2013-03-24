@@ -13,6 +13,11 @@ Local Open Scope bag_scope.
 
 Module Make (Import Relation : RELATION).
 
+  Import RelationDefinitions.
+  Import AtomsAndController.
+  Import Machine.
+  Import Atoms.
+
   Lemma DrainWire : forall sws (swId : switchId) pts tbl inp outp 
     ctrlm switchm links src pks0 pks swId pt links0 ofLinks ctrl,
      multistep step
@@ -52,7 +57,6 @@ Module Make (Import Relation : RELATION).
        apply multistep_nil.
        simpl...
    Qed.
-
 
   Lemma ObserveFromOutp : forall pktOuts pktIns pk pt0 pt1
     swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0
@@ -111,6 +115,9 @@ Module Make (Import Relation : RELATION).
     trivial.
   Qed.
 
+
+
+
   (** Remark is for another lemma, not ObserveFromController!
 
      This lemma relies on the following property: we can pick a
@@ -127,13 +134,6 @@ Module Make (Import Relation : RELATION).
       Now, consider a controller that waits for a [PacketIn pk] at the
       destination, thereby forcing a different observation. We have to
       rule out such controllers with our liveness property. *)
-
-
-  Definition lifted_modify_flow_table (msg : fromController) (ft : flowTable) :=
-    match msg with
-      | FlowMod mod => modify_flow_table mod ft
-      |  _ => ft
-    end.
 
 
   Lemma DrainFromControllerBag : forall swId0 pts0 tbl0 inp0 outp0 ctrlm0
@@ -429,50 +429,84 @@ Module Make (Import Relation : RELATION).
     apply Bag.in_split with (Order := TotalOrder_switch) in HMemSw1.
     destruct HMemSw1 as [sws1 HMemSw0].
     subst.
+    
+    destruct (TotalOrder.eqdec swId0 swId1) as [HEq | HNeq].
+    + subst.
+      destruct (DrainFromController swId1 pts0 tbl0 inp0 outp0 ctrlm0 switchm0 sws0
+                                    (links01 ++ DataLink (swId1,p) pks (swId1,pt) :: links02)
+                                    ofLinks01 of_switchm0 (lstCtrlm0 ++ [PacketOut p pk]) 
+                                    lstCtrlm1 ofLinks02 ctrl0) as
+          [tbl2 [ctrlm2 [outp2 [switchm2 Hstep1]]]].
+      rewrite <- app_assoc in Hstep1.
+      simpl in Hstep1.
+      remember (process_packet tbl2 pt pk) as J.
+      destruct J.
+      symmetry in HeqJ.
+      eexists.
+      eapply multistep_app.
+      exact Hstep1.
+      eapply multistep_tau.
+      apply RecvFromController.
+      { apply PacketOut_NotBarrierRequest. }
+      eapply multistep_tau.
+      apply SendPacketOut.
+      admit. (* TODO(arjun): pt in pts. *)
+      eapply multistep_tau.
+      apply SendDataLink.
+      eapply multistep_app.
+      { assert (pk :: pks = [pk] ++ pks) as J. auto.
+        rewrite -> J.
+        apply DrainWire... }
+      eapply multistep_tau.
+      { assert ([pk] = nil ++ [pk]) as J. 
+        { auto. }
+        rewrite -> J.
+        apply RecvDataLink. }
+      eapply multistep_obs.
+      eapply PktProcess...
+      eapply multistep_nil.
+      reflexivity.
+      reflexivity.
+    + assert (In (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0) (to_list sws1)) as J.
+      { assert (In (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0) 
+                   (to_list (({|Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1|}) <+> sws1))).
+        { rewrite <- HMemSw0. apply Bag.in_union; simpl... }
+        apply Bag.in_union in H. simpl in H.
+        destruct H as [[H|H]|H]...
+        + inversion H. subst. contradiction HNeq...
+        + inversion H. }
+      apply Bag.in_split with (Order:=TotalOrder_switch) in J.
+      destruct J as [otherSws Heq].
+      rewrite -> Heq in HMemSw0.
+      assert (In (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1) (to_list sws0)) as J.
+      { assert (In (Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1) 
+                   (to_list (({|Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0|}) <+> sws0))).
+        { rewrite -> HMemSw0. apply Bag.in_union; simpl... }
+        apply Bag.in_union in H. simpl in H.
+        destruct H as [[H|H]|H]...
+        + inversion H. subst. contradiction HNeq...
+        + inversion H. }
+      apply Bag.in_split with (Order:=TotalOrder_switch) in J.
+      destruct J as [otherSws0 Heq0].
+      rewrite -> Heq0 in HMemSw0.
+      move HMemSw0 after Heq0.
+      do 2 rewrite <- Bag.union_assoc in HMemSw0.
+      rewrite <- (Bag.union_comm _ ({|Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0|})) in HMemSw0.
+      do 2 rewrite -> Bag.union_assoc in HMemSw0.
+      apply Bag.pop_union_l in HMemSw0.
+      apply Bag.pop_union_l in HMemSw0.
+      subst.
+
     destruct (@ObserveFromController swId0 swId1 pt pk  pktOuts pktIns p
              pts0 tbl0 inp0 outp0 ctrlm0 switchm0
              pts1 tbl1 inp1 outp1 ctrlm1 switchm1
-             sws1 links01 pks links02
+             otherSws
+             links01 pks links02
              ofLinks01 of_switchm0 lstCtrlm0 lstCtrlm1 ofLinks02
              ctrl0 Hprocess Htopo) as
         [ tbl2 [switchm2 [ctrlm2 [outp2 Hstep]]]].
-    
-
-    (* Goal is to rewrite switches0 as switch0 <+> switch1 <+> ?? *)
-
-    exists
-      (State (({|Switch swId0 pts0 tbl2 inp0 outp2 ctrlm2 switchm2|}) <+> 
-                ({|Switch swId1 pts1 tbl1 
-                          (from_list (map (fun pk : packet => (pt, pk)) pks) <+>
-                                  inp1)
-                          (from_list pktOuts <+> outp1)
-                          ctrlm1
-                          (from_list (map (PacketIn pt) pktIns)<+>switchm1)|}) <+>
-                          sws1)
-               (links01 ++ (DataLink (swId0,p) nil (swId1,pt)) :: links02)
-               (ofLinks01 ++ (OpenFlowLink swId0 of_switchm0 lstCtrlm0) ::
-                ofLinks02)
-               ctrl0).
-(*
-    subst.
-    apply Hstep.
-    apply multistep_tau with
-      (a0 :=
-         State (({|Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0|}) <+> 
-                ({|Switch swId1 pts1 tbl1 inp1 outp1 ctrlm1 switchm1|}) <+>
-                sws1)
-               (links01 ++ (DataLink (swId0,p) pks (swId1,pt)) :: links02)
-               (ofLinks01 ++
-                (OpenFlowLink swId0 of_switchm0
-                              (lstCtrlm0 ++ PacketOut p pk :: lstCtrlm1)) ::
-                ofLinks02)
-               ctrl0).
-    apply StepEquivState.
-    apply StateEquiv.
-    rewrite -> HMemSw0.
-    apply reflexivity.
-    apply Hstep.*)
-  Admitted.
+    eexists. exact Hstep.
+  Qed.
 
   Lemma DrainToController : forall sws0 links0 ofLinks00 swId0 switchm0
     switchm1 ctrlm0 ofLinks01 ctrl0,
@@ -590,6 +624,8 @@ Module Make (Import Relation : RELATION).
        We reach the final state in two steps: SendDataLink followed by
        PktProcess.*)
 
+    (* Train-wreck proof script: type classes are beyond my comprehension ATM. If you move
+       this to the top, everything breaks. :( *)
   Instance SwPtPk_TotalOrder : TotalOrder (PairOrdering (PairOrdering switchId_le portId_le) packet_le).
   Proof. 
     apply TotalOrder_pair.

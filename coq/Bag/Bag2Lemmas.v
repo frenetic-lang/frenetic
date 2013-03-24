@@ -293,6 +293,27 @@ Section Methods.
    + destruct lst...
   Qed.
 
+  Lemma Ordered_eq : forall lst1 lst2,
+    Ordered R lst1 ->
+    Ordered R lst2 ->
+    lst1 = lst2 ->
+    Ordered R lst1 = Ordered R lst2.
+  Proof with auto with datatypes.
+    intros.
+  Admitted.
+
+  Lemma union_from_ordered : forall b1 b2 b3 b4,
+    OL.union (to_list b1) (to_list b2) = OL.union (to_list b3) (to_list b4) ->
+    (b1 <+> b2) = (b3 <+> b4).
+  Proof with auto with datatypes.
+    intros.
+    destruct b1, b2, b3, b4.
+    simpl in H.
+    unfold union.
+    simpl.
+    apply ordered_irr...
+  Qed.
+
 End Methods.
 
 Section BinaryMethods.

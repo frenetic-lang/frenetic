@@ -4,6 +4,31 @@ open Platform
 open Unix
 open MessagesDef
 
+open VerifiedNetCore
+open PolicyGenerator
+module Z = Mininet
+
+let rec n_switches n = 
+  if n = 0L then []
+  else n :: (n_switches (Int64.pred n))
+
+module Repeater : POLICY = struct
+
+  open NetCoreSyntax
+
+  let switches = n_switches 16L
+
+  let policy = Pol (All, [])
+
+end
+
+let parsed = Mininet.parse_from_chan (open_in "test.topo") "test.topo"
+
+let _ = printf "OMG IT WORKED.\n"
+
+
+(*
+module Z = VerifiedNetCore
 module Controller = Repeater.Make (OpenFlowPlatform)
 
 (* configuration state *)
@@ -36,3 +61,4 @@ let main () =
     exit 1
       
 let _ = main ()
+*)

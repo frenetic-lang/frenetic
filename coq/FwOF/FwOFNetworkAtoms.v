@@ -16,7 +16,7 @@ Local Open Scope list_scope.
 
 Module NetworkAtoms <: NETWORK_ATOMS.
 
-  Definition packet := Network.Packet.packet.
+  Definition packet  := (Network.Packet.packet * OpenFlow.MessagesDef.bufferId) % type.
   Definition switchId := OpenFlow.MessagesDef.switchId.
   Definition portId := Network.Packet.portId.
   Definition flowTable := 
@@ -43,16 +43,21 @@ Module NetworkAtoms <: NETWORK_ATOMS.
 
   Definition eval_act (pt : portId) (pk : packet) (act : act) := 
     match act with
+      (* We ignore modifications. *)
       | Forward _ (OpenFlow.MessagesDef.PhysicalPort pt') => [(pt',pk)]
+      (* And queries. *)
       | _ => nil
     end.
 
   (** Produces a list of packets to forward out of ports, and a list of packets
       to send to the controller. *)
   Definition process_packet (tbl : flowTable) (pt : portId) (pk : packet) :=
-    match scan None (map strip_prio tbl) pt pk with
-      | None => (nil, [pk])
-      | Some acts => (concat_map (eval_act pt pk) acts, nil)
+    match pk with
+      | (actualPk, buf) =>
+        match scan None (map strip_prio tbl) pt actualPk with
+          | None => (nil, [pk])
+          | Some acts => (concat_map (eval_act pt pk) acts, nil)
+        end
     end.
     
   Definition modify_flow_table (fm : flowMod) (ft : flowTable) :=

@@ -307,131 +307,32 @@ Module Type MACHINE.
       unions (map (select_packet_in sw) (map (PacketIn pt) packetIns)) =
       unions (map (transfer sw) (abst_func sw pt pk)).
 
-  Section FlowModSafety.
+  Inductive NotFlowMod : fromController -> Prop :=
+  | NotFlowMod_BarrierRequest : forall n, NotFlowMod (BarrierRequest n)
+  | NotFlowMod_PacketOut : forall pt pk, NotFlowMod (PacketOut pt pk).
 
-    Inductive Endpoint : Type :=
-    | Endpoint_NoBarrier : flowTable -> Endpoint
-    | Endpoint_Barrier : flowTable -> Endpoint.
-
-    Definition table_at_endpoint (ep : Endpoint) :=
-      match ep with
-        | Endpoint_NoBarrier tbl => tbl
-        | Endpoint_Barrier tbl => tbl
-      end.
-
-    Inductive SafeWire : switchId -> 
-                    Endpoint -> 
-                    list fromController ->
-                    Endpoint -> Prop :=
-    | SafeWire_nil : forall swId ep,
-      FlowTableSafe swId (table_at_endpoint ep) ->
-      SafeWire swId ep nil ep
-    | SafeWire_PktOut : forall swId pt pk ctrlEp ctrlm swEp,
-      SafeWire swId ctrlEp ctrlm swEp ->
-      SafeWire swId ctrlEp (PacketOut pt pk :: ctrlm) swEp
-    | SafeWire_BarrierRequest : forall swId n ctrlEp ctrlm swEp,
-      SafeWire swId ctrlEp ctrlm swEp ->
-      SafeWire swId (Endpoint_Barrier (table_at_endpoint ctrlEp))
-                    (BarrierRequest n :: ctrlm)
-                    swEp
-    | SafeWire_FlowMod : forall swId f tbl ctrlm swEp,
-      FlowTableSafe swId (modify_flow_table f tbl) ->
-      SafeWire swId (Endpoint_Barrier tbl) ctrlm swEp ->
-      SafeWire swId (Endpoint_NoBarrier (modify_flow_table f tbl))
-          (FlowMod f :: ctrlm) swEp.
-
-    Inductive NotFlowMod : fromController -> Prop :=
-    | NotFlowMod_BarrierRequest : forall n, NotFlowMod (BarrierRequest n)
-    | NotFlowMod_PacketOut : forall pt pk, NotFlowMod (PacketOut pt pk).
-
-    Inductive SwitchEP : switch -> Endpoint -> Prop :=
-    | NoFlowModsInBuffer : forall swId pts tbl inp outp ctrlm switchm swEp,
+  Inductive FlowModSafe : switchId -> flowTable -> bag fromController_le -> Prop :=
+  | NoFlowModsInBuffer : forall swId tbl ctrlm,
       (forall msg, In msg (to_list ctrlm) -> NotFlowMod msg) ->
-      table_at_endpoint swEp = tbl ->
-      SwitchEP
-        (Switch swId pts tbl inp outp ctrlm switchm)
-        swEp
-    | OneFlowModInBuffer : forall swId pts tbl inp outp ctrlm ctrlm0 switchm f,
-      (forall msg, In msg (to_list ctrlm0) -> NotFlowMod msg) ->
-      ctrlm = ({|FlowMod f|} <+> ctrlm0) ->
+      FlowTableSafe swId tbl ->
+      FlowModSafe swId tbl ctrlm
+  | OneFlowModsInBuffer : forall swId tbl ctrlm f,
+      (forall msg, In msg (to_list ctrlm) -> NotFlowMod msg) ->
+      FlowTableSafe swId tbl ->
       FlowTableSafe swId (modify_flow_table f tbl) ->
-      SwitchEP (Switch swId pts tbl inp outp ctrlm switchm)
-               (Endpoint_NoBarrier (modify_flow_table f tbl)).
+      FlowModSafe swId tbl (({|FlowMod f|}) <+> ctrlm).
+ 
+  Definition FlowTablesSafe (sws : bag switch_le) : Prop :=
+    forall swId pts tbl inp outp ctrlm switchm,
+      In (Switch swId pts tbl inp outp ctrlm switchm) (to_list sws) ->
+      FlowModSafe swId tbl ctrlm.
 
-    (** "FMS" is short for "flow mod safety". *)
-    Inductive FMS : switch -> openFlowLink -> Prop := 
-    | MkFMS : forall swId pts tbl inp outp ctrlm switchm ctrlmList 
-                     switchmList
-                     switchEp,
-      SwitchEP (Switch swId pts tbl inp outp ctrlm switchm) switchEp ->
-      (exists ctrlEp, SafeWire swId ctrlEp ctrlmList switchEp) ->
-      FMS 
-        (Switch swId pts tbl inp outp ctrlm switchm)
-        (OpenFlowLink swId switchmList ctrlmList).
-
-    Definition AllFMS (sws : bag switch_le) 
-                      (ofLinks : list openFlowLink) :=
-      forall sw,
-        In sw (to_list sws) ->
-        exists lnk, 
-          In lnk ofLinks /\
-          of_to lnk = swId sw /\
-          FMS sw lnk.
-
-    Parameter FMS_untouched : forall swId0 pts0 tbl0 inp0 outp0 ctrlm0 
-                              switchm0
-      switchmLst0 ctrlmLst0 inp1 outp1 switchm1 switchmLst1,
-      FMS (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0)
-          (OpenFlowLink swId0 switchmLst0 ctrlmLst0) ->
-      FMS (Switch swId0 pts0 tbl0 inp1 outp1 ctrlm0 switchm1)
-          (OpenFlowLink swId0 switchmLst1 ctrlmLst0).
-
-    Parameter SafeWire_dequeue_PacketOut : forall sw ctrlEp ctrlLst pt pk 
-      switchEp,
-      SafeWire sw ctrlEp (ctrlLst ++ [PacketOut pt pk]) switchEp ->
-      SafeWire sw ctrlEp (ctrlLst) switchEp.
-
-    Parameter SafeWire_dequeue_BarrierRequest : 
-      forall sw ctrlEp ctrlLst xid 
-      switchEp1,
-      SafeWire sw ctrlEp (ctrlLst ++ [BarrierRequest xid]) switchEp1 ->
-      exists switchEp2, SafeWire sw ctrlEp (ctrlLst) switchEp2 /\
-        table_at_endpoint switchEp2 = table_at_endpoint switchEp1.
-
-    Parameter SafeWire_dequeue_safe : forall sw ctrlEp ctrlLst f switchEp,
-       SafeWire sw ctrlEp (ctrlLst ++ [FlowMod f]) switchEp ->
-       FlowTableSafe sw 
-                     (modify_flow_table f (table_at_endpoint switchEp)).
-
-    Parameter SafeWire_dequeue_FlowMod : forall sw ctrlEp ctrlLst f 
-                                                switchEp,
-       SafeWire sw ctrlEp (ctrlLst ++ [FlowMod f]) switchEp ->
-       SafeWire sw ctrlEp ctrlLst 
-                (Endpoint_NoBarrier 
-                   (modify_flow_table f
-                     (table_at_endpoint switchEp))).
-
-    Parameter SafeWire_fm_nb_false : forall sw ctrlEp ctrlLst f tbl,
-      SafeWire sw ctrlEp (ctrlLst ++ [FlowMod f]) 
-               (Endpoint_NoBarrier tbl) ->
-      False.
-
-    Parameter FMS_pop : forall sw pts tbl inp outp ctrlm switchm switchLst
-                               ctrlLst msg,
-      FMS  (Switch sw pts tbl inp outp ctrlm switchm) 
-           (OpenFlowLink sw switchLst (ctrlLst ++ [msg])) ->
-      FMS  (Switch sw pts tbl inp outp ({|msg|} <+> ctrlm) switchm) 
-           (OpenFlowLink sw switchLst ctrlLst).
-
-    Parameter FMS_dequeue_pktOut : forall sw pts tbl inp outp ctrlm 
-                                          switchm switchLst ctrlLst pt pk,
-      FMS  (Switch sw pts tbl inp outp
-                   ({|PacketOut pt pk|} <+> ctrlm) switchm)
-           (OpenFlowLink sw switchLst ctrlLst) ->
-      FMS  (Switch sw pts tbl inp ({|(pt,pk)|} <+> outp) ctrlm switchm) 
-           (OpenFlowLink sw switchLst ctrlLst).
-
-  End FlowModSafety.
+  Definition SwitchesHaveOpenFlowLinks (sws : bag switch_le) ofLinks :=
+    forall sw,
+      In sw (to_list sws) ->
+      exists ofLink,
+        In ofLink ofLinks /\
+        swId sw = of_to ofLink.
 
 End MACHINE.
 
@@ -450,8 +351,13 @@ Module Type ATOMS_AND_CONTROLLER.
 
   Parameter P : bag switch_le -> list openFlowLink -> controller -> Prop.
   
-  Parameter step_preserves_P : forall sws0 sws1 links0 links1 ofLinks0 
-                                      ofLinks1 ctrl0 ctrl1 obs,
+  Parameter P_entails_FlowTablesSafe : forall sws ofLinks ctrl,
+    P sws ofLinks ctrl ->
+    SwitchesHaveOpenFlowLinks sws ofLinks ->
+    FlowTablesSafe sws.
+  
+  Parameter step_preserves_P : forall sws0 sws1 links0 links1 ofLinks0 ofLinks1 
+    ctrl0 ctrl1 obs,
     step (State sws0 links0 ofLinks0 ctrl0)
          obs
          (State sws1 links1 ofLinks1 ctrl1) ->
@@ -503,49 +409,20 @@ Module Type ATOMS_AND_CONTROLLER.
        exists (lps : swPtPks),
          (select_packet_in sw m) <+> lps = relate_controller ctrl1.
 
-  Parameter ControllerFMS : forall swId ctrl0 ctrl1 msg ctrlm
-    switchm sws links ofLinks0 ofLinks1 switchEp ctrlEp0
-    pts tbl inp outp swCtrlm swSwitchm,
-    SafeWire swId ctrlEp0 ctrlm switchEp ->
-    P sws
-      (ofLinks0 ++ (OpenFlowLink swId switchm ctrlm) :: ofLinks1)
-      ctrl0 ->
-    controller_send ctrl0 ctrl1 swId msg ->
-    step
-      (State
-        sws
-        links
-        (ofLinks0 ++ (OpenFlowLink swId switchm ctrlm) :: ofLinks1)
-        ctrl0)
-      None
-      (State
-         sws
-         links
-         (ofLinks0 ++ (OpenFlowLink swId switchm (msg :: ctrlm)) :: ofLinks1)
-         ctrl1) ->
-     In (Switch swId pts tbl inp outp swCtrlm swSwitchm) (to_list sws) ->
-     SwitchEP (Switch swId pts tbl inp outp swCtrlm swSwitchm) switchEp ->
-      exists ctrlEp1,
-        SafeWire swId ctrlEp1 (msg :: ctrlm) switchEp.
 
 End ATOMS_AND_CONTROLLER.
 
-Module Type RELATION.
+Module Type RELATION_DEFINITIONS.
 
   Declare Module AtomsAndController : ATOMS_AND_CONTROLLER.
-  Export AtomsAndController.
-  Export Machine.
-  Export Atoms.
+  Import AtomsAndController.
+  Import Machine.
+  Import Atoms.
 
   Definition affixSwitch (sw : switchId) (ptpk : portId * packet) :=
     match ptpk with
       | (pt,pk) => (sw,pt,pk)
     end.
-
-  Definition FlowTablesSafe (sws : bag switch_le) : Prop :=
-    forall swId pts tbl inp outp ctrlm switchm,
-      In (Switch swId pts tbl inp outp ctrlm switchm) (to_list sws) ->
-      FlowTableSafe swId tbl.
 
   Definition ConsistentDataLinks (links : list dataLink) : Prop :=
     forall (lnk : dataLink),
@@ -593,12 +470,6 @@ Module Type RELATION.
         src lnk = (swId1,pt1) /\
         dst lnk = (swId0, pt0).
 
-  Definition SwitchesHaveOpenFlowLinks (devs : state) :=
-    forall sw,
-      In sw (to_list (switches devs)) ->
-      exists ofLink,
-        In ofLink (ofLinks devs) /\
-        swId sw = of_to ofLink.
 
   Record concreteState := ConcreteState {
     devices : state;
@@ -607,12 +478,11 @@ Module Type RELATION.
     linksHaveSrc : LinksHaveSrc (switches devices) (links devices);
     linksHaveDst : LinksHaveDst (switches devices) (links devices);
     uniqSwIds : UniqSwIds (switches devices);
-    allFMS : AllFMS (switches devices) (ofLinks devices);
     ctrlP : P (switches devices) (ofLinks devices) (ctrl devices);
     uniqOfLinkIds : AllDiff of_to (ofLinks devices);
     ofLinksHaveSw : OFLinksHaveSw (switches devices) (ofLinks devices);
     devicesFromTopo : DevicesFromTopo devices;
-    swsHaveOFLinks : SwitchesHaveOpenFlowLinks devices
+    swsHaveOFLinks : SwitchesHaveOpenFlowLinks (switches devices) (ofLinks devices)
   }.
 
   Implicit Arguments ConcreteState [].
@@ -661,6 +531,16 @@ Module Type RELATION.
     fun (st : concreteState) (ast : abst_state) => 
       ast = (relate (devices st)).
 
+End RELATION_DEFINITIONS.
+
+Module Type RELATION.
+
+  Declare Module RelationDefinitions : RELATION_DEFINITIONS.
+  Import RelationDefinitions.
+  Import AtomsAndController.
+  Import Machine.
+  Import Atoms.
+
   Parameter simpl_multistep : forall (st1 : concreteState) (devs2 : state) obs,
     multistep step (devices st1) obs devs2 ->
     exists (st2 : concreteState),
@@ -687,7 +567,11 @@ Module Type WEAK_SIM_1.
 
   Declare Module Relation : RELATION.
   Import Relation.
-  
+  Import RelationDefinitions.
+  Import AtomsAndController.
+  Import Machine.
+  Import Atoms.
+
   Parameter weak_sim_1 : weak_simulation concreteStep abstractStep bisim_relation.
 
 End WEAK_SIM_1.
@@ -696,6 +580,10 @@ Module Type WEAK_SIM_2.
 
   Declare Module Relation : RELATION.
   Import Relation.
+  Import RelationDefinitions.
+  Import AtomsAndController.
+  Import Machine.
+  Import Atoms.
   
   Parameter weak_sim_2 :
     weak_simulation abstractStep concreteStep (inverse_relation bisim_relation).
