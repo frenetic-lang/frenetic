@@ -1,0 +1,4 @@
+s5 <-> s6-eth3 s7-eth3
+s6 <-> h1-eth0 h2-eth0 s5-eth1
+s7 <-> h3-eth0 h4-eth0 s5-eth2
+

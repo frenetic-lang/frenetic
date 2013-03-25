@@ -7,11 +7,12 @@
    | ToHost of Int64.t 
    | ToSwitch of Int64.t * int
 
- let make_edge (sw : Int64.t) (pt : int) dest = 
+ let make_edge (sw : Int64.t) (pred_pt : int) dest = 
    match dest with
-     | ToHost mac -> [(Host mac, 0, Switch sw); (Switch sw, pt, Host mac)]
+     | ToHost mac -> [(Host mac, 0, Switch sw); 
+                      (Switch sw, pred_pt + 1, Host mac)]
      (* there will be symmetric entry for this switch *)
-     | ToSwitch (dst, _) -> [(Switch sw, pt, Switch dst)]
+     | ToSwitch (dst, _) -> [(Switch sw, pred_pt + 1, Switch dst)]
  
 %}
 
@@ -24,8 +25,8 @@
 
 %start program
 
-%type <(PolicyGenerator.Params.node * PolicyGenerator.Params.edge_label 
-        * PolicyGenerator.Params.node) list> program
+%type <(MininetTypes.node * MininetTypes.portId * MininetTypes.node) list>
+       program
 
 %%
 

@@ -3,6 +3,7 @@ OCAMLBUILD = ocamlbuild -use-ocamlfind
 
 all: extracted doc
 	$(OCAMLBUILD) Main_OpenFlow0x04.d.byte
+	$(OCAMLBUILD) Main_OpenFlow0x01.d.byte
 	$(OCAMLBUILD) Test.d.byte
 	$(OCAMLBUILD) Verify.d.byte
 	$(OCAMLBUILD) Main_Verified.d.byte

@@ -3,9 +3,10 @@ open OpenFlow0x01Parser
 open Platform
 open Unix
 open MessagesDef
-
+open NetCoreSyntax
 open VerifiedNetCore
-open PolicyGenerator
+
+module PolGen = NetCorePolicyGen
 module Z = Mininet
 
 let rec n_switches n = 
@@ -16,15 +17,20 @@ module Repeater : POLICY = struct
 
   open NetCoreSyntax
 
-  let switches = n_switches 16L
+  let g = PolGen.from_mininet "tree_2_2.topo"
 
-  let policy = Pol (All, [])
+  let switches = PolGen.switches g
+
+  let policy = PolGen.all_pairs_shortest_paths g
 
 end
 
-let parsed = Mininet.parse_from_chan (open_in "test.topo") "test.topo"
+let _ = printf "%s\n%!" (policy_to_string Repeater.policy)
 
-let _ = printf "OMG IT WORKED.\n"
+module Controller = VerifiedNetCore.Make (OpenFlowPlatform) (Repeater)
+
+let _ = OpenFlowPlatform.init_with_port 6633
+let _ = Lwt_main.run (Controller.start (Controller.init_packet_out ()))
 
 
 (*

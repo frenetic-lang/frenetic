@@ -1,8 +1,12 @@
+open Printf
+
 module type PARAM = sig
 
   type node
   type edge_label
 
+  val string_of_node : node -> string
+  val string_of_edge_label : edge_label -> string
 end
 
 module type DIRECTED_GRAPH = sig
@@ -18,7 +22,10 @@ module type DIRECTED_GRAPH = sig
 
   val all_nodes : t -> node list
 
-  val shortest_path : t -> node -> node -> node list
+  val floyd_warshall : t -> (node * node list * node) list
+  val path_with_edges : t -> node list -> (node * edge_label * node) list
+
+  val to_string : t -> string
 
 end 
 
@@ -28,7 +35,9 @@ let singleton_hashtbl k v =
   Hashtbl.add h k v;
   h
 
-module Make (Param : PARAM) : DIRECTED_GRAPH = struct
+module Make (Param : PARAM) : DIRECTED_GRAPH
+  with type node = Param.node
+  and type edge_label = Param.edge_label = struct
 
   type node = Param.node
 
@@ -39,6 +48,22 @@ module Make (Param : PARAM) : DIRECTED_GRAPH = struct
     graph : (node, (node, edge_label) Hashtbl.t) Hashtbl.t;
     nodes : (node, unit) Hashtbl.t
   }
+
+  let to_string (g : t) : string = 
+    let buf = Buffer.create 200 in
+    Hashtbl.iter
+      (fun src succs ->
+        Hashtbl.iter 
+          (fun dst edge ->
+            Buffer.add_string buf (Param.string_of_node src);
+            Buffer.add_string buf " -- ";
+            Buffer.add_string buf (Param.string_of_edge_label edge);
+            Buffer.add_string buf " --> ";
+            Buffer.add_string buf (Param.string_of_node dst);
+            Buffer.add_string buf "\n")
+          succs)
+      g.graph;
+    Buffer.contents buf
 
   let empty () : t = 
     { graph = Hashtbl.create 100; nodes = Hashtbl.create 10 }
@@ -63,6 +88,8 @@ module Make (Param : PARAM) : DIRECTED_GRAPH = struct
   let all_nodes g =
     Hashtbl.fold (fun n _ lst -> n :: lst) g.nodes []
 
+  let num_nodes (g : t) : int = Hashtbl.length g.nodes
+
   let succs g s =
     try
       let succ_tbl = Hashtbl.find g.graph s in
@@ -70,37 +97,64 @@ module Make (Param : PARAM) : DIRECTED_GRAPH = struct
     with
         Not_found -> failwith "node does not exist in succs"
 
-  let shortest_path g s d = 
-    let rec loop fringe = 
-      match fringe with
-        | [] -> []
-        | [] :: _ -> failwith "impossible case during BFS"
-        | (x :: xs) :: rest ->
-          let nexts = succs g x in
-          if List.mem s nexts then
-            loop rest (* avoid silly cycles *)
-          else if List.mem d nexts then
-            (d :: x :: xs)
-          else
-            loop (fringe @ List.map (fun y -> y :: x :: xs) nexts) in
-    if s = d then
-      [s]
-    else
-      loop (List.map (fun x -> [x]) (succs g s))
+  let get_edge_label g s t = 
+    try
+      Some (Hashtbl.find (Hashtbl.find g.graph s) t)
+    with Not_found -> None
 
+  let neighbor_matrix (g : t) : (int * node list) array array =
+    let n = num_nodes g in
+    let vxs = Array.of_list (all_nodes g) in
+    Array.init n
+      (fun i ->
+        Array.init n
+          (fun j ->
+            if i = j then
+              (0, [vxs.(i)])
+            else match get_edge_label g vxs.(i) vxs.(j) with
+              | Some _  -> (1, [vxs.(i); vxs.(j)])
+              | None -> (n + 1, [])))
+
+  let floyd_warshall (g : t) : (node * node list * node) list = 
+    let matrix = neighbor_matrix g in
+    let n = num_nodes g in
+    let dist i j = match matrix.(i).(j) with
+      | (d, _) -> d in
+    let path i j = match matrix.(i).(j) with
+      | (_, p) -> p in
+    for k = 0 to n - 1 do
+      for i = 0 to n - 1 do
+        for j = 0 to n - 1 do
+          if dist i k + dist k j < dist i j then
+            matrix.(i).(j) <- (dist i k + dist k j, 
+                               path i k @ List.tl (path k j))
+        done
+      done
+    done;
+    let paths = ref [] in
+    let vxs = Array.of_list (all_nodes g) in
+    Array.iteri
+      (fun i array -> 
+        printf "%10s " (Param.string_of_node vxs.(i));
+        Array.iteri 
+          (fun j elt -> 
+            let (_, p) = elt in
+            printf "%d " (List.length p);
+            paths := (vxs.(i), p, vxs.(j)) :: !paths)
+          array;
+        printf "\n";
+      )
+      matrix;
+  !paths
+
+  let rec path_with_edges (g : t) (lst : node list) = match lst with
+    | [] -> []
+    | [_] -> []
+    | (x::y::rest) ->
+      match get_edge_label g x y with
+        | None -> failwith "not a path"
+        | Some w -> (x,w,y) :: (path_with_edges g (y::rest))
 
 end
 
-
-
-
-module Params = struct
-
-  type node = MininetTypes.node
-
-  type edge_label = int (* egress port, bogus for hosts *)
-
-end
-
-module PolicyGraph = Make (Params)
 

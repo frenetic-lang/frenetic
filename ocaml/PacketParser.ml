@@ -361,8 +361,7 @@ let string_of_nw pkt =
       	(Char.code (Cstruct.get_char data 0))
       	(Char.code (Cstruct.get_char data 1))
       	(Char.code (Cstruct.get_char data 2))
-    | _ ->
-      assert false
+    | _ -> ""
 
 let string_of_eth pkt = 
   Printf.sprintf 

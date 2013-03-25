@@ -320,17 +320,18 @@ module PacketOut = struct
   let marshal (pktOut : t) (buf : Cstruct.t) : int =
     set_ofp_packet_out_buffer_id buf
       (match pktOut.pktOutBufOrBytes with
-        | Datatypes.Coq_inl n ->  n
+        | Datatypes.Coq_inl n -> n
         | _ -> -1l);
     set_ofp_packet_out_in_port buf
       (match pktOut.pktOutPortId with
         | None -> ofp_port_to_int OFPP_NONE
         | Some n -> n);
+      (sum (List.map Action.sizeof pktOut.pktOutActions));
     set_ofp_packet_out_actions_len buf
       (sum (List.map Action.sizeof pktOut.pktOutActions));
     let _ = List.fold_left
       (fun buf act -> Cstruct.shift buf (Action.marshal act buf))
-      buf
+      (Cstruct.shift buf sizeof_ofp_packet_out)
       (Action.move_controller_last pktOut.pktOutActions) in
     begin match pktOut.pktOutBufOrBytes with
     | Datatypes.Coq_inl n -> ()
@@ -777,7 +778,10 @@ module Message = struct
       Cstruct.blit buf 0 out 0 (Cstruct.len buf)
     | FeaturesRequest -> ()
     | FlowModMsg flow_mod -> FlowMod.marshal flow_mod out
-    | PacketOutMsg msg -> let _ = PacketOut.marshal msg out in ()
+    | PacketOutMsg msg -> 
+      let n = PacketOut.marshal msg out in
+      eprintf "PacketOut body had size %d\n%!" n;
+      ()
     | PacketInMsg _ -> ()
     | FeaturesReply _ -> ()							    
 

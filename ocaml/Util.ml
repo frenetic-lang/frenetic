@@ -16,12 +16,12 @@ let mac_of_bytes (str:string) : int64 =
                               bytes" (String.length str)));
   let byte n = Int64.of_int (Char.code (String.get str n)) in
   let open Int64 in
-  logor (shift_left (byte 5) (8 * 5))
-    (logor (shift_left (byte 4) (8 * 4))
-       (logor (shift_left (byte 3) (8 * 3))
-          (logor (shift_left (byte 2) (8 * 2))
-             (logor (shift_left (byte 1) (8 * 1))
-                (byte 0)))))
+  logor (shift_left (byte 0) (8 * 5))
+    (logor (shift_left (byte 1) (8 * 4))
+       (logor (shift_left (byte 2) (8 * 3))
+          (logor (shift_left (byte 3) (8 * 2))
+             (logor (shift_left (byte 4) (8 * 1))
+                (byte 5)))))
 
 let get_byte (n:int64) (i:int) : int = 
   if i < 0 or i > 5 then
@@ -30,15 +30,15 @@ let get_byte (n:int64) (i:int) : int =
 
 let string_of_mac (x:int64) : string = 
   Format.sprintf "%02x:%02x:%02x:%02x:%02x:%02x" 
-    (get_byte x 0) (get_byte x 1) (get_byte x 2)
-    (get_byte x 3) (get_byte x 4) (get_byte x 5)
+    (get_byte x 5) (get_byte x 4) (get_byte x 3)
+    (get_byte x 2) (get_byte x 1) (get_byte x 0)
 
 
 let bytes_of_mac (x:int64) : string = 
   let byte n = Char.chr (get_byte x n) in
   Format.sprintf "%c%c%c%c%c%c"
-    (byte 0) (byte 1) (byte 2)
-    (byte 3) (byte 4) (byte 5)
+    (byte 5) (byte 4) (byte 3)
+    (byte 2) (byte 1) (byte 0)
 
 module type SAFESOCKET = sig
   type t = Lwt_unix.file_descr

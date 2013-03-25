@@ -1,0 +1,7 @@
+s101 <-> h1-eth0 h2-eth0 h3-eth0 h4-eth0 s105-eth1 h99-eth0
+s102 <-> h5-eth0 h6-eth0 h7-eth0 h8-eth0 s105-eth2 h99-eth1
+s103 <-> h9-eth0 h10-eth0 h11-eth0 h12-eth0 s106-eth1 h99-eth2
+s104 <-> h13-eth0 h14-eth0 h15-eth0 h16-eth0 s106-eth2 h99-eth3
+s105 <-> s101-eth5 s102-eth5 s106-eth3
+s106 <-> s103-eth5 s104-eth5 s105-eth3
+
