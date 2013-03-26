@@ -1,0 +1,6 @@
+You might need to copy some .so files for LWT and cstruct into system 
+directories.
+
+Run `opam config env` and see the value of CAML_LD_LIBRARY_PATH. It
+will have two paths, one in $HOME and the other in /usr. Copy files from 
+the directory in $HOME into the /usr directory.
