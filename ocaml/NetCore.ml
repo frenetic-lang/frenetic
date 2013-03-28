@@ -113,10 +113,8 @@ module MakeDynamic
       Lwt.bind (Lwt_stream.next event_or_policy_stream)
         (fun v -> match v with
           | Event ev -> 
-            printf "[NetCore.ml] new event, calling handler\n%!";
             Controller.handle_event ev state
           | Policy pol ->
-            printf "[NetCore.ml] new policy\n%!";
             Controller.set_policy pol state) in
     let main = NetCoreMonad.forever body in
     NetCoreMonad.run init_state main
@@ -141,7 +139,6 @@ module Make (Platform : PLATFORM) = struct
     Controller.start_controller
       (Lwt_stream.map 
          (fun pol -> 
-           printf "[NetCore.ml] got a new policy%!\n";
            NetCoreSyntax.desugar_policy pol get_pkt_handlers)
          pol)
 

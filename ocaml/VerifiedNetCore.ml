@@ -44,13 +44,7 @@ module MakePolTopo (Policy : POLICY)  = struct
   let abst_func sw pt (pk,buf) = 
     let open NetCoreEval in
     let full = (classify pol (InPkt (sw,pt,pk, Some buf))) in
-    let outs = 
-      Types.filter_map get_pkt full in
-    eprintf "sw=%Ld,inpk = %s\n#abst %d -> %d\n%!"
-      sw
-      (PacketParser.string_of_eth pk) (List.length full) (List.length outs);
-    outs
-
+    Types.filter_map get_pkt full
 end
 
 
@@ -120,10 +114,9 @@ module Make (Platform : PLATFORM) (Policy : POLICY) = struct
         loop ())
 
   let rec send_loop st = 
-    eprintf "#PktsToSend: %d... %!" (List.length (Controller.pktsToSend st));
     match Controller.send st with
       | None -> 
-        eprintf "Nothing sent.\n%!"; Lwt.return st
+        Lwt.return st
       | Some ((st', sw), msg) ->
         let (xid, ofMsg) = match msg with
           | Controller.FlowMod (Atoms.AddFlow (prio, pat, act)) ->
@@ -137,7 +130,6 @@ module Make (Platform : PLATFORM) (Policy : POLICY) = struct
           | Controller.BarrierRequest xid ->
             (Int32.of_int xid, BarrierRequest)
         in
-        eprintf "sent ONE packet.\n%!";
         Lwt.bind (Platform.send_to_switch sw xid ofMsg)
           (fun () -> send_loop st')
 
@@ -147,7 +139,6 @@ module Make (Platform : PLATFORM) (Policy : POLICY) = struct
         (Lwt_stream.next msgs_in)
         (fun (swId,msg) ->
           let st' = Controller.recv st swId msg in
-          eprintf "[VerifiedNetCore.ml] got message from %Ld\n%!" swId;
           Lwt.bind (send_loop st') loop) in
     loop st
 

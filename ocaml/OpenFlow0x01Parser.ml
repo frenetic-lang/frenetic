@@ -235,7 +235,6 @@ module PacketIn = struct
     | Some pkt -> pkt 
     | None -> 
       raise (Unparsable (sprintf "malformed packet in packet_in")) in
-  let _ = eprintf "[PacketIn] okay \n%!" in 
   { packetInBufferId = bufId;
     packetInTotalLen = total_len;
     packetInPort = in_port;
@@ -667,9 +666,7 @@ module FlowMod = struct
     set_ofp_flow_mod_command bits (FlowModCommand.marshal m.mfModCmd);
     set_ofp_flow_mod_idle_timeout bits (TimeoutSer.to_int m.mfIdleTimeOut);
     set_ofp_flow_mod_hard_timeout bits (TimeoutSer.to_int m.mfHardTimeOut);
-    Printf.eprintf "Trying to print priority %d...\n%!" m.mfPriority;
     set_ofp_flow_mod_priority bits (m.mfPriority);
-    Printf.eprintf "Printed priority\n%!";
     set_ofp_flow_mod_buffer_id bits
       (match m.mfApplyToPacket with
         | None -> -1l
@@ -784,8 +781,7 @@ module Message = struct
     | FeaturesRequest -> ()
     | FlowModMsg flow_mod -> FlowMod.marshal flow_mod out
     | PacketOutMsg msg -> 
-      let n = PacketOut.marshal msg out in
-      eprintf "PacketOut body had size %d\n%!" n;
+      let _ = PacketOut.marshal msg out in
       ()
     | PacketInMsg _ -> () (* TODO(arjun): wtf? *)
     | FeaturesReply _ -> () (* TODO(arjun): wtf? *)

@@ -46,6 +46,7 @@ module OpenFlowPlatform = struct
       setsockopt fd SO_REUSEADDR true;
       bind fd (ADDR_INET (Unix.inet_addr_any, p));
       listen fd 64; (* JNF: 640K ought to be enough for anybody. *)
+                    (* AG: ROFLCOPTER *)
       server_fd := Some fd
 
   let get_fd () = 
@@ -72,8 +73,6 @@ module OpenFlowPlatform = struct
       else
         match Message.parse hdr (Cstruct.of_string body_str) with
         | Some v -> 
-	  lwt _ = eprintf "[platform] returning message with code %d\n%!" 
-	    (msg_code_to_int hdr.Header.typ) in 
 	  return v
         | None ->
           lwt _ = eprintf "[platform] ignoring message with code %d\n%!"
@@ -125,13 +124,10 @@ module OpenFlowPlatform = struct
        ()
 
   let switch_handshake (fd : file_descr) : features Lwt.t = 
-    lwt _ = eprintf "[platform] switch_handshake\n%!" in
     lwt _ = send_to_switch_fd fd 0l (Hello (Cstruct.of_string "")) in
-    lwt _ = eprintf "[platform] trying to read Hello\n%!" in
     lwt (xid, msg) = recv_from_switch_fd fd in
     match msg with
       | Hello _ -> 
-	lwt _ = eprintf "[platform] sending Features Request\n%!" in 
         lwt _ = send_to_switch_fd fd 0l FeaturesRequest in
         lwt (_, msg) = recv_from_switch_fd fd in
         begin
@@ -146,7 +142,6 @@ module OpenFlowPlatform = struct
       | _ -> raise_lwt (Internal "expected Hello")
 
   let send_to_switch (sw_id : switchId) (xid : xid) (msg : message) : unit t = 
-    lwt _ = eprintf "[platform] send_to_switch\n%!" in
     let fd = fd_of_switch_id sw_id in
     try_lwt 
       send_to_switch_fd fd xid msg
@@ -157,7 +152,6 @@ module OpenFlowPlatform = struct
   (* By handling echoes here, we do not respond to echoes during the
      handshake. *)
   let rec recv_from_switch (sw_id : switchId) : (xid * message) t = 
-    lwt _ = eprintf "[platform] recv_from_switch\n%!" in
     let switch_fd = fd_of_switch_id sw_id in
     lwt (xid, msg) = 
       try_lwt
@@ -181,7 +175,6 @@ module OpenFlowPlatform = struct
       | _ -> return (xid, msg)
 
   let rec accept_switch () = 
-    lwt _ = eprintf "[platform] accept_switch\n%!" in
     lwt (fd, sa) = accept (get_fd ()) in
     lwt _ = eprintf "[platform] : %s connected, handshaking...\n%!"
       (string_of_sockaddr sa) in

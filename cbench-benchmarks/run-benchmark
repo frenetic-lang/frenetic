@@ -1,0 +1,36 @@
+#!/bin/sh
+
+export PYTHONPATH=`pwd`
+
+bench() {
+  sleep 2
+  ./cbench
+  echo "*** Finished benchmark ***"
+}
+
+echo "*** Benchmarking POX ***"
+./pox.py poxhub &
+bench $!
+killall python2.7
+
+echo "*** Benchmarking unverified NetCore controller ***"
+sleep 5
+
+./unverified-netcore --repeater &
+CTRL=$!
+bench
+kill $CTRL
+
+echo "*** Benchmarking FlowMod controller ***"
+sleep 5
+../ocaml/Main_Verified.native -throughput -flowmod &
+CTRL=$!
+bench
+kill $CTRL
+
+echo "*** Benchmarking PktOut controller ***"
+sleep 5
+../ocaml/Main_Verified.native -throughput &> pktout.log &
+CTRL=$!
+bench
+kill $CTRL

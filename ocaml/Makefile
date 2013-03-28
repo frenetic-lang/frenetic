@@ -10,6 +10,7 @@ all: extracted doc
 
 native:
 	$(OCAMLBUILD) Main_OpenFlow0x01.native
+	$(OCAMLBUILD) Main_Verified.native
 
 doc:
 	$(OCAMLBUILD) doc.docdir/index.html

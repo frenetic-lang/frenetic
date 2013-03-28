@@ -17,6 +17,7 @@ module Make (Platform : PLATFORM) (Policy : POLICY) : sig
   type state
 
   val init_packet_out : unit -> state
+  val init_flow_mod : unit -> state
   val start : state -> unit Lwt.t
 
 end
