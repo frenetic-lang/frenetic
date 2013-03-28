@@ -3,7 +3,7 @@ Set Implicit Arguments.
 Require Import Common.Types.
 Require Import Word.WordInterface.
 Require Import Network.Packet.
-Require Import OpenFlow13.MessagesDef.
+Require Import OpenFlow13.OpenFlow0x01Types.
 
 Local Open Scope list_scope.
 Local Open Scope bool_scope.

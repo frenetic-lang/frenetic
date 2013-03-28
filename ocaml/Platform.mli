@@ -8,7 +8,7 @@
     [PLATFORM]. But, see [NetCore] for a higher-level abstraction.
 *)
 open Lwt_unix
-open MessagesDef
+open OpenFlow0x01Types
 
 (** Interface for all platforms. *)
 module type PLATFORM = sig

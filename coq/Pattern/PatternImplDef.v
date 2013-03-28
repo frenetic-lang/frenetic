@@ -10,7 +10,7 @@ Require Import Bool.Bool.
 Require Import Coq.Classes.Equivalence.
 Require Import Coq.Lists.List.
 
-Require Import OpenFlow.MessagesDef.
+Require Import OpenFlow.OpenFlow0x01Types.
 Require Import Common.Types.
 Require Import Word.WordInterface.
 Require Import Network.Packet.

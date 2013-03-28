@@ -4,7 +4,7 @@ Require Import Common.Types.
 Require Import Common.Monad.
 Require Import Word.WordInterface.
 Require Import Network.Packet.
-Require Import OpenFlow.MessagesDef.
+Require Import OpenFlow.OpenFlow0x01Types.
 Require Import Pattern.Pattern.
 Require Import Classifier.Classifier.
 Require Import NetCore.NetCoreEval.
@@ -39,7 +39,7 @@ End PacketIn.
 Section ToFlowMod.
   
   Definition maybe_openflow0x01_modification {A : Type} (newVal : option A)
-             (mkModify : A -> MessagesDef.action) : actionSequence :=
+             (mkModify : A -> OpenFlow0x01Types.action) : actionSequence :=
     match newVal with
       | None => nil
       | Some v => [mkModify v]

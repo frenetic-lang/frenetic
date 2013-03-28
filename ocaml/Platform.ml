@@ -1,4 +1,4 @@
-open MessagesDef
+open OpenFlow0x01Types
 open OpenFlow0x01Parser
 
 open Lwt

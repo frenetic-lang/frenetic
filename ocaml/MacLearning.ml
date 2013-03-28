@@ -1,5 +1,5 @@
 open Printf
-open MessagesDef
+open OpenFlow0x01Types
 open WordInterface
 open Platform
 open NetCore

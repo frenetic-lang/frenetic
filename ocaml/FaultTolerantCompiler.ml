@@ -1,4 +1,4 @@
-open MessagesDef
+open OpenFlow0x01Types
 open OpenFlow0x04Parser
 open OpenFlow0x04Types
 open PatternImplDef

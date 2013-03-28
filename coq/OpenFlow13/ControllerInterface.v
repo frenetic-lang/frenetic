@@ -2,7 +2,7 @@ Set Implicit Arguments.
 
 Require Import Common.Types.
 Require Import Common.Monad.
-Require Import OpenFlow13.MessagesDef.
+Require Import OpenFlow13.OpenFlow0x01Types.
 Require Import Network.Packet.
 
 Inductive event : Type :=

@@ -1,5 +1,5 @@
 open Lwt
-open MessagesDef
+open OpenFlow0x01Types
 
 exception SwitchDisconnected of switchId
 

@@ -1,4 +1,4 @@
-open MessagesDef
+open OpenFlow0x01Types
 open WordInterface
 open NetCoreSyntax
 open Platform

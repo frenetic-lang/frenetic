@@ -2,7 +2,7 @@ open Printf
 open OpenFlow0x01Parser
 open Platform
 open Unix
-open MessagesDef
+open OpenFlow0x01Types
 
 module Controller = MacLearning.Make (OpenFlowPlatform)
 

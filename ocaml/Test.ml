@@ -1,7 +1,7 @@
 open OUnit
 open Printf
 open Unix
-open MessagesDef
+open OpenFlow0x01Types
 open NetCore
 open Packet
 open TestPlatform

@@ -1,7 +1,7 @@
 Require Import PArith.BinPos.
 Require Import NArith.BinNat.
 
-Require Import OpenFlow.MessagesDef.
+Require Import OpenFlow.OpenFlow0x01Types.
 Require Import NetCore.NetCoreController.
 Require Import Pattern.PatternInterface.
 Require Import FwOF.FwOFSimpleExtractableController.

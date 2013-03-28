@@ -1,5 +1,5 @@
 (** The NetCore policy language *)
-open MessagesDef
+open OpenFlow0x01Types
 open Packet
 open Platform
 

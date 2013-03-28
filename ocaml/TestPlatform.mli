@@ -1,4 +1,4 @@
-open MessagesDef
+open OpenFlow0x01Types
 
 include Platform.PLATFORM
 

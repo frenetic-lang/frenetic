@@ -1,7 +1,7 @@
 (** OpenFlow 1.0 (protocol version 0x01) *)
 
 open Printf
-open MessagesDef
+open OpenFlow0x01Types
 open Util
 
 exception Unparsable of string

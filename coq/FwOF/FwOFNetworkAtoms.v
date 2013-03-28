@@ -5,7 +5,7 @@ Require Import Coq.Lists.List.
 Require Import Coq.Relations.Relations.
 Require Import FwOF.FwOFSignatures.
 Require Import Classifier.Classifier.
-Require OpenFlow.MessagesDef.
+Require OpenFlow.OpenFlow0x01Types.
 Require Network.Packet.
 Require Import NetCore.NetCoreEval.
 Require Import Pattern.Pattern.
@@ -16,8 +16,8 @@ Local Open Scope list_scope.
 
 Module NetworkAtoms <: NETWORK_ATOMS.
 
-  Definition packet  := (Network.Packet.packet * OpenFlow.MessagesDef.bufferId) % type.
-  Definition switchId := OpenFlow.MessagesDef.switchId.
+  Definition packet  := (Network.Packet.packet * OpenFlow.OpenFlow0x01Types.bufferId) % type.
+  Definition switchId := OpenFlow.OpenFlow0x01Types.switchId.
   Definition portId := Network.Packet.portId.
   Definition flowTable := 
     list (nat * pattern * list (NetCore.NetCoreEval.act)).
@@ -44,7 +44,7 @@ Module NetworkAtoms <: NETWORK_ATOMS.
   Definition eval_act (pt : portId) (pk : packet) (act : act) := 
     match act with
       (* We ignore modifications. *)
-      | Forward _ (OpenFlow.MessagesDef.PhysicalPort pt') => [(pt',pk)]
+      | Forward _ (OpenFlow.OpenFlow0x01Types.PhysicalPort pt') => [(pt',pk)]
       (* And queries. *)
       | _ => nil
     end.

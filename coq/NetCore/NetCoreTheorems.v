@@ -11,7 +11,7 @@ Require Import Classifier.Classifier.
 Require Import Classifier.Theory.
 Require Import Network.Packet.
 Require Import Pattern.Pattern.
-Require Import OpenFlow.MessagesDef.
+Require Import OpenFlow.OpenFlow0x01Types.
 Require Import NetCore.NetCoreEval.
 Require Import NetCore.NetCoreCompiler.
 

@@ -1,4 +1,4 @@
-open MessagesDef
+open OpenFlow0x01Types
 open Packet
 
 type get_packet_handler = switchId -> portId -> packet -> unit

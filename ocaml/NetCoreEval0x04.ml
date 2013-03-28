@@ -39,11 +39,11 @@ type output =
 | OutNothing
 
 let pp_to_13pp pp = match pp with
-  | MessagesDef.PhysicalPort p -> PhysicalPort (Int32.of_int p)
-  | MessagesDef.InPort -> InPort
-  | MessagesDef.Flood -> Flood
-  | MessagesDef.AllPorts -> AllPorts
-  | MessagesDef.Controller x -> Controller x
+  | OpenFlow0x01Types.PhysicalPort p -> PhysicalPort (Int32.of_int p)
+  | OpenFlow0x01Types.InPort -> InPort
+  | OpenFlow0x01Types.Flood -> Flood
+  | OpenFlow0x01Types.AllPorts -> AllPorts
+  | OpenFlow0x01Types.Controller x -> Controller x
 
 let eval_to_eval13 act = match act with
   | NetCoreEval.Forward (a,b) -> Forward (a,pp_to_13pp b)
@@ -66,7 +66,7 @@ let withVlanNone = function
 | Some y ->
   (match y with
    | Some n -> Some n
-   | None -> Some MessagesDef.coq_VLAN_NONE)
+   | None -> Some OpenFlow0x01Types.coq_VLAN_NONE)
 | None -> None
 
 (** val modify_pkt : modification -> packet -> packet **)

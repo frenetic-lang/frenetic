@@ -1,6 +1,6 @@
 open Platform 
 open Unix
-open MessagesDef
+open OpenFlow0x01Types
 open NetCoreSyntax
 open NetCore
 
