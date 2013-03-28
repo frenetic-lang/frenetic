@@ -326,7 +326,6 @@ module PacketOut = struct
       (match pktOut.pktOutPortId with
         | None -> ofp_port_to_int OFPP_NONE
         | Some n -> n);
-      (sum (List.map Action.sizeof pktOut.pktOutActions));
     set_ofp_packet_out_actions_len buf
       (sum (List.map Action.sizeof pktOut.pktOutActions));
     let _ = List.fold_left
@@ -692,7 +691,6 @@ module FlowMod = struct
 	raise exn
       end
 end
-  
 
 module Header = struct
 
@@ -730,6 +728,8 @@ module Message = struct
       | FEATURES_REQ -> Some (FeaturesRequest)
       | FEATURES_RESP -> Some (FeaturesReply (Features.parse buf))
       | PACKET_IN -> Some (PacketInMsg (PacketIn.parse buf))
+      | BARRIER_REQ -> Some BarrierRequest
+      | BARRIER_RESP -> Some BarrierReply
       | code -> None
     in
     match msg with
@@ -745,6 +745,8 @@ module Message = struct
     | FlowModMsg _ -> FLOW_MOD
     | PacketOutMsg _ -> PACKET_OUT
     | PacketInMsg _ -> PACKET_IN
+    | BarrierRequest -> BARRIER_REQ
+    | BarrierReply -> BARRIER_RESP
 
   let to_string (msg : t) : string = match msg with 
     | Hello _ -> "Hello"
@@ -755,6 +757,8 @@ module Message = struct
     | FlowModMsg _ -> "FlowMod"
     | PacketOutMsg _ -> "PacketOut"
     | PacketInMsg _ -> "PacketIn"
+    | BarrierRequest -> "BarrierRequest"
+    | BarrierReply -> "BarrierReply"
 
   open Bigarray
 
@@ -769,7 +773,8 @@ module Message = struct
       sizeof_ofp_match + sizeof_ofp_flow_mod + 
         sum (List.map Action.sizeof msg.mfActions)
     | PacketOutMsg msg -> PacketOut.sizeof msg
-    | _ -> failwith "unknowns"
+    | BarrierRequest -> 0
+    | BarrierReply -> 0
 
   let blit_message (msg : t) (out : Cstruct.t) = match msg with
     | Hello buf
@@ -782,8 +787,10 @@ module Message = struct
       let n = PacketOut.marshal msg out in
       eprintf "PacketOut body had size %d\n%!" n;
       ()
-    | PacketInMsg _ -> ()
-    | FeaturesReply _ -> ()							    
+    | PacketInMsg _ -> () (* TODO(arjun): wtf? *)
+    | FeaturesReply _ -> () (* TODO(arjun): wtf? *)
+    | BarrierRequest -> ()
+    | BarrierReply -> ()
 
   let marshal (xid : xid) (msg : t) : string = 
     let sizeof_buf = sizeof_ofp_header + sizeof_body msg in

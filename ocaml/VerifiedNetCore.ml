@@ -6,6 +6,7 @@ open Printf
 open NetCoreSyntax
 
 module CoqCtrl = FwOFSimpleExtractableController
+module Atoms = FwOFNetworkAtoms.NetworkAtoms
 
 module type POLICY = sig
   val policy : policy
@@ -31,6 +32,12 @@ module MakePolTopo (Policy : POLICY) : CoqCtrl.POLICY_AND_TOPOLOGY = struct
     match out with
       | OutPkt (sw,PhysicalPort pt, pk, Datatypes.Coq_inl buf) ->
         Some (pt, (pk, buf))
+      | OutPkt _ ->
+        failwith "The verified controller requires policies that output to \
+                  physical ports."
+      | OutGetPkt _ -> 
+        failwith "The verified controller cannot be run with a NetCore policy \
+                  that queries the network."
       | OutNothing -> None
         
 
@@ -102,15 +109,20 @@ module Make (Platform : PLATFORM) (Policy : POLICY) = struct
       | None -> 
         eprintf "Nothing sent.\n%!"; Lwt.return st
       | Some ((st', sw), msg) ->
-        let ofMsg = match msg with
+        let (xid, ofMsg) = match msg with
+          | Controller.FlowMod (Atoms.AddFlow (prio, pat, act)) ->
+            (0l, FlowModMsg (NetCoreController.to_flow_mod prio pat act))
           | Controller.PacketOut (pt,(pk,bufId)) ->
-            PacketOutMsg { 
+            (0l, PacketOutMsg { 
               pktOutBufOrBytes = Datatypes.Coq_inl bufId;
               pktOutPortId = None;
               pktOutActions = [Output (PhysicalPort pt)] 
-            } in
+            })
+          | Controller.BarrierRequest xid ->
+            (Int32.of_int xid, BarrierRequest)
+        in
         eprintf "sent ONE packet.\n%!";
-        Lwt.bind (Platform.send_to_switch sw 0l ofMsg)
+        Lwt.bind (Platform.send_to_switch sw xid ofMsg)
           (fun () -> send_loop st')
 
   let main_loop st msgs_in = 
@@ -134,63 +146,3 @@ module Make (Platform : PLATFORM) (Policy : POLICY) = struct
         
 
 end
-
-(*
-  (Handlers : HANDLERS) = struct
-
-  (* The monad is written in OCaml *)
-  module NetCoreMonad = MakeNetCoreMonad (Platform) (Handlers)
-  (* The controller is written in Coq *)
-  module Controller = NetCoreController.Make (NetCoreMonad)
-
-  let start_controller policy_stream =
-    let init_state = { 
-      NetCoreController.policy = drop_all_packets; 
-      NetCoreController.switches = []
-    } in
-    let policy_stream = Lwt_stream.map (fun v -> Policy v) policy_stream in
-    let event_stream = Lwt_stream.map (fun v -> Event v)
-      (Lwt_channel.to_stream NetCoreMonad.events) in
-    let event_or_policy_stream = Lwt_stream.choose 
-      [ event_stream ; policy_stream ] in
-    let body = fun state ->
-      Lwt.bind (Lwt_stream.next event_or_policy_stream)
-        (fun v -> match v with
-          | Event ev -> 
-            printf "[NetCore.ml] new event, calling handler\n%!";
-            Controller.handle_event ev state
-          | Policy pol ->
-            printf "[NetCore.ml] new policy\n%!";
-            Controller.set_policy pol state) in
-    let main = NetCoreMonad.forever body in
-    NetCoreMonad.run init_state main
-
-end
-
-module Make (Policy : POLICY) (Platform : PLATFORM) = struct
-
-  let get_pkt_handlers : (int, get_packet_handler) Hashtbl.t = Hashtbl.create 0
-
-  let start () 
-
-    Hashtbl.create 200
-
-  module Handlers : HANDLERS = struct
-      
-    let get_packet_handler queryId switchId portId packet = 
-      printf "[NetCore.ml] Got packet from %Ld\n" switchId;
-        (Hashtbl.find get_pkt_handlers queryId) switchId portId packet
-  end
-
-  module Controller = MakeDynamic (Platform) (Handlers)
-
-  let start_controller (pol : policy Lwt_stream.t) : unit Lwt.t = 
-    Controller.start_controller
-      (Lwt_stream.map 
-         (fun pol -> 
-           printf "[NetCore.ml] got a new policy%!\n";
-           NetCoreSyntax.desugar_policy pol get_pkt_handlers)
-         pol)
-
-end
-*)

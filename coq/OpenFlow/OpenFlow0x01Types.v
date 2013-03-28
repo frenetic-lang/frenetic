@@ -139,6 +139,8 @@ Inductive message : Type :=
 | FeaturesReply : features -> message
 | FlowModMsg : flowMod -> message
 | PacketInMsg : packetIn -> message
-| PacketOutMsg : packetOut -> message.
+| PacketOutMsg : packetOut -> message
+| BarrierRequest : message
+| BarrierReply : message.
 
 
