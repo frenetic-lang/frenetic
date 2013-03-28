@@ -16,7 +16,7 @@ end
 
 (* Topology is not relevant for execution, only the proof. See the note below.
 *)
-module MakePolTopo (Policy : POLICY) : CoqCtrl.POLICY_AND_TOPOLOGY = struct
+module MakePolTopo (Policy : POLICY)  = struct
 
   (* Note: this is not relevant for execution. It is only needed for
      verification. The signatures in Coq (FwOFSignatures.v) should be better
@@ -56,13 +56,29 @@ end
 
 module Make (Platform : PLATFORM) (Policy : POLICY) = struct
 
-  module Controller = CoqCtrl.Make (MakePolTopo (Policy))
+  module PolTopo = MakePolTopo (Policy)
+  module Controller = CoqCtrl.Make (PolTopo)
 
   type state = Controller.state
 
   let init_packet_out () = {
     Controller.pktsToSend = []; 
     Controller.switchStates = []
+  }
+
+  let compile_pol swId = 
+    let f ((prio,pat),act) =  
+      Controller.FlowMod (Atoms.AddFlow (prio, pat, act)) in
+    let lst = Classifier.prioritize 65535
+       (NetCoreCompiler.compile_opt PolTopo.pol swId) in
+    { Controller.theSwId = swId;
+      Controller.pendingCtrlMsgs = 
+        Types.intersperse (Controller.BarrierRequest 0) (List.map f lst)
+    }
+
+  let init_flow_mod () = {
+    Controller.pktsToSend = []; 
+    Controller.switchStates = List.map compile_pol Policy.switches
   }
 
   let pending_switches : (switchId, bool) Hashtbl.t = Hashtbl.create 100

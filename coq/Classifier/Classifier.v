@@ -56,3 +56,13 @@ Fixpoint elim_shadowed_helper {A : Type} (prefix : Classifier A)
 
 Definition elim_shadowed {A : Type} (cf : Classifier A) :=
   elim_shadowed_helper nil cf.
+
+Fixpoint prioritize
+  {A : Type} 
+  (prio : nat) 
+  (lst : Classifier A) : list (nat * pattern *A) :=
+  match lst with
+    | nil => nil
+    | (pat, act) :: lst' => (prio, pat, act) :: (prioritize (pred prio) lst')
+  end.
+  
