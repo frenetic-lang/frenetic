@@ -76,6 +76,13 @@ module Make (Param : PARAM) : DIRECTED_GRAPH
   let empty () : t = 
     { graph = Hashtbl.create 100; nodes = Hashtbl.create 10 }
 
+  let add_node (g : t) (s : node) = 
+    if not (Hashtbl.mem g.nodes s) then
+      begin
+        Hashtbl.add g.nodes s ();
+        Hashtbl.add g.graph s (Hashtbl.create 100)
+      end
+
   let add_edge (g : t) (s : node) (x : edge_label) (d : node) =
     begin
       try 
@@ -128,14 +135,18 @@ module Make (Param : PARAM) : DIRECTED_GRAPH
     match all_nodes g with
       | [] -> tree
       | (vx :: _) -> (* gg  *)
+        add_node g vx;
+        let edges = undirected_edges g in
+        eprintf "%d edges.\n%!" (List.length edges);
          List.iter
            (fun (vx1, edge, vx2) ->
-             if Hashtbl.mem tree.nodes vx1 <> Hashtbl.mem tree.nodes vx2 then
+             if not (Hashtbl.mem tree.nodes vx1 &&
+                       Hashtbl.mem tree.nodes vx2) then
                begin
                  add_edge tree vx1 edge vx2;
                  add_edge tree vx2 edge vx1
                end)
-           (undirected_edges g);
+           edges;
         tree
 
   let neighbor_matrix (g : t) : (int * node list) array array =
@@ -182,9 +193,6 @@ module Make (Param : PARAM) : DIRECTED_GRAPH
       )
       matrix;
   !paths
-
-
-  type tre
 
   let rec path_with_edges (g : t) (lst : node list) = match lst with
     | [] -> []
