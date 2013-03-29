@@ -1,4 +1,5 @@
 open Printf
+open Lwt
 module PolGen = NetCorePolicyGen
 
 (* Add new policies here. Nothing else should need to change. *)
@@ -30,25 +31,25 @@ let _ =
     (fun str -> failwith ("invalid argument " ^ str))
     "Usage: Main_Verified.native -topo <filename> -policy <policy-name>"
 
-let mn = Mininet.create_mininet_process (?custom:!custom) !topo
-let graph = PolGen.from_mininet_raw (Mininet.net mn)
+let main = 
+  lwt mn = Mininet.create_mininet_process (?custom:!custom) !topo in
+  lwt net = Mininet.net mn in
+  let graph = PolGen.from_mininet_raw net in
+  let module Policy : VerifiedNetCore.POLICY = struct
+    let switches = PolGen.switches graph
+    let policy = select_policy graph !policy_name
+  end in
+  let module Controller = 
+        VerifiedNetCore.Make (Platform.OpenFlowPlatform) (Policy) in
+  let init = match !use_flow_mod with
+    | true -> Controller.init_flow_mod ()
+    | false -> Controller.init_packet_out () in
+  let _ = Platform.OpenFlowPlatform.init_with_port 6633 in
+  lwt _ = Controller.start init in
+  lwt _ = Mininet.ping_all mn in
+  return ()
 
-module Policy : VerifiedNetCore.POLICY = struct
-  let switches = PolGen.switches graph
-  let policy = select_policy graph !policy_name
-end
-  
-module Controller = VerifiedNetCore.Make (Platform.OpenFlowPlatform) (Policy)
-  
-let init = match !use_flow_mod with
-  | true -> Controller.init_flow_mod ()
-  | false -> Controller.init_packet_out ()
-    
-let _ = 
-  Platform.OpenFlowPlatform.init_with_port 6633;
-  Lwt_main.run 
-    (Lwt.bind (Controller.start init)
-       (fun () -> Mininet.ping_all mn; Lwt.return ()))
+let _ = Lwt_main.run main in ()
                   
 
     
