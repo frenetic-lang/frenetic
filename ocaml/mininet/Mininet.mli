@@ -12,6 +12,8 @@ val net : mininet -> (node * portId * node) list Lwt.t
 
 val ping_all : mininet -> bool Lwt.t
 
-val broadcast_ping : mininet -> hostAddr -> unit Lwt.t
+val broadcast_ping : mininet -> int -> hostAddr -> unit Lwt.t
 
 val interact : mininet -> string -> string Lwt.t
+
+val dump_tables : mininet -> switchId -> unit Lwt.t

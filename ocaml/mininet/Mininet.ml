@@ -103,6 +103,10 @@ let create_mininet_process ?custom:custom (topo:string) : mininet Lwt.t =
   lwt _ = input_upto_prompt "*** Starting CLI:" mn.mn_stderr in
   return mn
 
-let broadcast_ping (mn : mininet) (src : hostAddr) : unit Lwt.t =
-  lwt _ = interact mn (sprintf "h%Ld ping -c 1 -b 10.255.255.255" src) in
+let dump_tables (mn : mininet) (sw : switchId) : unit Lwt.t =
+  lwt _ = interact mn (sprintf "s%Ld dpctl dump-flows unix:/tmp/s%Ld" sw sw) in
+  return ()
+
+let broadcast_ping (mn : mininet) (count : int) (src : hostAddr) : unit Lwt.t =
+  lwt _ = interact mn (sprintf "h%Ld ping -c %d -b 10.255.255.255" src count) in
   return ()

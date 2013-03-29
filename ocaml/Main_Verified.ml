@@ -25,14 +25,17 @@ let select_policy mn graph (name : string) =
           Mininet.interact mn 
             (sprintf "h%Ld echo 0 > \
                      /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts" host) >>
-          return ())
-          hosts >>
-        Lwt_list.iter_s (fun host -> 
           Mininet.interact mn 
             (sprintf "h%Ld arp -s 10.255.255.255 ff:ff:ff:ff:ff:ff" host) >>
-          Mininet.broadcast_ping mn host)
-          hosts in
-      (pol, exp)
+            return ())
+          hosts >>
+        Lwt_list.iter_s 
+          (fun host ->  Mininet.broadcast_ping mn 10 host)
+          hosts >> 
+        Lwt_list.iter_s
+          (fun sw -> Mininet.dump_tables mn sw)
+          (switches graph)
+      in (pol, exp)
     | str -> failwith ("invalid policy: " ^ str)
 
 

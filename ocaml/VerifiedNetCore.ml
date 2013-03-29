@@ -132,22 +132,22 @@ module Make (Platform : PLATFORM) (Policy : POLICY) = struct
           (Int32.of_int xid, BarrierRequest)
       in
       let (st, rest) = send_loop st in
-      (st, (xid, ofMsg) :: rest)
+      (st, (sw, xid, ofMsg) :: rest)
 
   let rec consolidate_pkt_out lst = match lst with
     | x :: y :: rest ->
       begin match (x,y) with
-        | ((xid1, PacketOutMsg { pktOutBufOrBytes = bufId1;
+        | ((sw1, xid1, PacketOutMsg { pktOutBufOrBytes = bufId1;
                                  pktOutPortId = None;
                                  pktOutActions = pts1 }),
-           (xid2, PacketOutMsg { pktOutBufOrBytes = bufId2;
+           (sw2, xid2, PacketOutMsg { pktOutBufOrBytes = bufId2;
                                  pktOutPortId = None;
                                  pktOutActions = pts2})) ->
-          if bufId1 = bufId2 then
+          if sw1 = sw2 && bufId1 = bufId2 then
             consolidate_pkt_out 
-              ((xid1, PacketOutMsg { pktOutBufOrBytes = bufId1;
-                                     pktOutPortId = None;
-                                     pktOutActions = pts1 @ pts2 })
+              ((sw1, xid1, PacketOutMsg { pktOutBufOrBytes = bufId1;
+                                          pktOutPortId = None;
+                                          pktOutActions = pts1 @ pts2 })
                :: rest)
           else
             (x :: consolidate_pkt_out (y::rest))
@@ -167,7 +167,7 @@ module Make (Platform : PLATFORM) (Policy : POLICY) = struct
           let (st, to_send) = send_loop st in
           let to_send = consolidate_pkt_out to_send in
           Lwt_list.iter_s
-            (fun (xid,msg) -> Platform.send_to_switch swId xid msg)
+            (fun (sw, xid,msg) -> Platform.send_to_switch sw xid msg)
             to_send >>
           loop st) in
     loop st
