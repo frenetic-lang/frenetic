@@ -19,12 +19,19 @@ let select_policy mn graph (name : string) =
                      all_broadcast_trees graph) in
       eprintf "Policy is %s\n%!" (policy_to_string pol);
       let exp () =
+        let hosts = hosts graph in
         Lwt_unix.sleep 2.0 >>
-        Lwt_list.iter_s (fun sw -> 
+        Lwt_list.iter_s (fun host ->
           Mininet.interact mn 
-            (sprintf "h%Ld arp -s 10.255.255.255 ff:ff:ff:ff:ff:ff" sw) >>
-          Mininet.broadcast_ping mn sw)
-          (hosts graph) in
+            (sprintf "h%Ld echo 0 > \
+                     /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts" host) >>
+          return ())
+          hosts >>
+        Lwt_list.iter_s (fun host -> 
+          Mininet.interact mn 
+            (sprintf "h%Ld arp -s 10.255.255.255 ff:ff:ff:ff:ff:ff" host) >>
+          Mininet.broadcast_ping mn host)
+          hosts in
       (pol, exp)
     | str -> failwith ("invalid policy: " ^ str)
 
@@ -61,7 +68,7 @@ let start_tcpdump (pcap_file : string) : unit =
     Unix.create_process "sudo"
       [| "sudo"; "tcpdump"; "-w"; pcap_file; "-i"; "any"; 
          "-B"; string_of_int (1024 * 50);
-         "tcp port 6633 or port 1" |]
+         "(tcp port 6633) or icmp" |]
       Unix.stdin Unix.stdout Unix.stderr in
   let sigint_tcpdump () = 
     Unix.kill pid Sys.sigint;
