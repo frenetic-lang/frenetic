@@ -27,6 +27,8 @@ module type DIRECTED_GRAPH = sig
   val all_nodes : t -> node list
 
   val floyd_warshall : t -> (node * node list * node) list
+  val prim : t -> t
+
   val path_with_edges : t -> node list -> (node * edge_label * node) list
 
   val to_string : t -> string
@@ -92,6 +94,18 @@ module Make (Param : PARAM) : DIRECTED_GRAPH
   let all_nodes g =
     Hashtbl.fold (fun n _ lst -> n :: lst) g.nodes []
 
+  let undirected_edges g : (node * edge_label * node) list = 
+    Hashtbl.fold 
+      (fun vx1 tbl lst ->
+        Hashtbl.fold
+          (fun vx2 edge lst ->
+            if Param.node_compare vx1 vx2 < 0 then
+              (vx1, edge, vx2) :: lst
+            else
+              lst)
+          tbl lst)
+      g.graph []
+
   let num_nodes (g : t) : int = Hashtbl.length g.nodes
 
   let succs g s =
@@ -105,6 +119,19 @@ module Make (Param : PARAM) : DIRECTED_GRAPH
     try
       Some (Hashtbl.find (Hashtbl.find g.graph s) t)
     with Not_found -> None
+
+   (* assumes all edges have weight 1, kills singles *)
+  let prim (g : t) : t =
+    let tree = empty () in
+    match all_nodes g with
+      | [] -> tree
+      | (vx :: _) -> (* gg  *)
+        List.iter
+          (fun (vx1, edge, vx2) ->
+            if Hashtbl.mem tree.nodes vx1 <> Hashtbl.mem tree.nodes vx2 then
+              add_edge tree vx1 edge vx2)
+          (undirected_edges g);
+        tree
 
   let neighbor_matrix (g : t) : (int * node list) array array =
     let n = num_nodes g in
