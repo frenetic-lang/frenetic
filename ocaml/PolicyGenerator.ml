@@ -122,7 +122,9 @@ module Make (Param : PARAM) : DIRECTED_GRAPH
       let succ_tbl = Hashtbl.find g.graph s in
       Hashtbl.fold (fun vx edge lst -> ((vx, edge) :: lst))  succ_tbl []
     with
-        Not_found -> failwith "node does not exist in succs"
+        Not_found -> 
+          failwith (sprintf "node %s does not exist in the graph"
+                      (Param.string_of_node s))
 
   let get_edge_label g s t = 
     try
@@ -137,14 +139,15 @@ module Make (Param : PARAM) : DIRECTED_GRAPH
       | (vx :: _) -> (* gg  *)
         add_node g vx;
         let edges = undirected_edges g in
-        eprintf "%d edges.\n%!" (List.length edges);
          List.iter
            (fun (vx1, edge, vx2) ->
              if not (Hashtbl.mem tree.nodes vx1 &&
                        Hashtbl.mem tree.nodes vx2) then
                begin
                  add_edge tree vx1 edge vx2;
-                 add_edge tree vx2 edge vx1
+                 match get_edge_label g vx2 vx1 with
+                   | Some edge' -> add_edge tree vx2 edge' vx1
+                   | None -> failwith "prim: undirected graph needed"
                end)
            edges;
         tree
@@ -182,7 +185,6 @@ module Make (Param : PARAM) : DIRECTED_GRAPH
     let vxs = Array.of_list (all_nodes g) in
     Array.iteri
       (fun i array -> 
-        printf "%10s " (Param.string_of_node vxs.(i));
         Array.iteri 
           (fun j elt -> 
             let (_, p) = elt in

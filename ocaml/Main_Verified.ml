@@ -10,20 +10,21 @@ let select_policy mn graph (name : string) =
     | "sp" -> 
       let pol = all_pairs_shortest_paths graph in
       let exp () = 
-        Lwt_unix.sleep 3.0 >>
+        Lwt_unix.sleep 2.0 >>
         Lwt_list.iter_s (fun _ -> Mininet.ping_all mn >> return ())
         [1;2;3;4;5;6] in
       (pol, exp)
     | "bc" ->
       let pol = Par (all_pairs_shortest_paths graph, 
                      all_broadcast_trees graph) in
+      eprintf "Policy is %s\n%!" (policy_to_string pol);
       let exp () =
         Lwt_unix.sleep 2.0 >>
         Lwt_list.iter_s (fun sw -> 
           Mininet.interact mn 
             (sprintf "h%Ld arp -s 10.255.255.255 ff:ff:ff:ff:ff:ff" sw) >>
           Mininet.broadcast_ping mn sw)
-          [(List.hd (hosts graph))] in
+          (hosts graph) in
       (pol, exp)
     | str -> failwith ("invalid policy: " ^ str)
 

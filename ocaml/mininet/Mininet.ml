@@ -47,19 +47,24 @@ let rec input_upto_prompt (prompt : string) (chan : input channel)
         else
           loop (n + 1)
       | false ->
-        Buffer.add_substring buf prompt 0 n; (* prefix of prompt parsed *)
-        Buffer.add_char buf ch; (* this char, which diverges from the prompt *)
-        lwt line = read_line chan in
-        Buffer.add_string buf line;
-        Buffer.add_char buf '\n';
-        lwt _ = eprintf "mn> %s%c%s\n%!" (String.sub prompt 0 n) ch line in
-        loop 0 (* search for prompt again *) in
+        if ch = '\n' then
+          loop 0
+        else
+          begin
+            Buffer.add_substring buf prompt 0 n; (* prefix of prompt parsed *)
+            Buffer.add_char buf ch; (* this char, which diverges from prompt *)
+            lwt line = read_line chan in
+            Buffer.add_string buf line;
+            Buffer.add_char buf '\n';
+            lwt _ = eprintf "mn> %s%c%s\n%!" (String.sub prompt 0 n) ch line in
+            loop 0 (* search for prompt again *) 
+           end in
   loop 0 >>
   return (Buffer.contents buf)
 
 let interact (mn : mininet) (cmd : string) : string Lwt.t = 
   Lwt_io.eprintf "mininet> %s\n%!" cmd >>
-  Lwt_io.fprintf mn.mn_stdin "%s\nsh echo Done.1>&2\n%!" cmd >>
+  Lwt_io.fprintf mn.mn_stdin "%s\nsh echo Done. 1>&2\n%!" cmd >>
   input_upto_prompt "Done." mn.mn_stderr
 
 let net (mn : mininet) =
@@ -81,7 +86,7 @@ let create_mininet_process ?custom:custom (topo:string) : mininet Lwt.t =
         | Some py_file -> ["--custom"; py_file]) @
       ["--topo"; topo; "--arp"; "--mac"] in
   let mn_pid = Unix.create_process "sudo" (Array.of_list argv)
-    stdin_r Unix.stdout stderr_w in
+    stdin_r stdin_w stderr_w in
   Lwt_main.at_exit
     (fun () ->
      (* TODO(arjun): I'm bad at unix. How do kill gracefully?? *)
@@ -99,6 +104,5 @@ let create_mininet_process ?custom:custom (topo:string) : mininet Lwt.t =
   return mn
 
 let broadcast_ping (mn : mininet) (src : hostAddr) : unit Lwt.t =
-  lwt str = interact mn (sprintf "h%Ld ping -b 10.255.255.255" src) in
-  lwt _ = eprintf "response: %s\n%!" str in
+  lwt _ = interact mn (sprintf "h%Ld ping -c 1 -b 10.255.255.255" src) in
   return ()

@@ -43,8 +43,10 @@ module MakePolTopo (Policy : POLICY)  = struct
 
   let abst_func sw pt (pk,buf) = 
     let open NetCoreEval in
+     
     let full = (classify pol (InPkt (sw,pt,pk, Some buf))) in
-    Types.filter_map get_pkt full
+    let pks = Types.filter_map get_pkt full in
+    pks
 end
 
 
@@ -113,37 +115,61 @@ module Make (Platform : PLATFORM) (Policy : POLICY) = struct
                 | _ -> loop ()) in
         loop ())
 
-  let rec send_loop st = 
-    
-    match Controller.send st with
-      | None -> 
-        Lwt.return st
-      | Some ((st', sw), msg) ->
-        let (xid, ofMsg) = match msg with
-          | Controller.FlowMod (Atoms.AddFlow (prio, pat, act)) ->
-            Printf.eprintf "sending flow_mod.\n%!";
-            (0l, FlowModMsg (NetCoreController.to_flow_mod prio pat act))
-          | Controller.PacketOut (pt,(pk,bufId)) ->
-            (0l, PacketOutMsg { 
-              pktOutBufOrBytes = Datatypes.Coq_inl bufId;
-              pktOutPortId = None;
-              pktOutActions = [Output (PhysicalPort pt)] 
-            })
-          | Controller.BarrierRequest xid ->
-            (Int32.of_int xid, BarrierRequest)
-        in
-        Lwt.bind (Platform.send_to_switch sw xid ofMsg)
-          (fun () -> send_loop st')
+  let rec send_loop st = match Controller.send st with
+    | None -> (st, [])
+    | Some ((st, sw), msg) ->
+      let (xid, ofMsg) = match msg with
+        | Controller.FlowMod (Atoms.AddFlow (prio, pat, act)) ->
+          Printf.eprintf "sending flow_mod.\n%!";
+          (0l, FlowModMsg (NetCoreController.to_flow_mod prio pat act))
+        | Controller.PacketOut (pt,(pk,bufId)) ->
+          (0l, PacketOutMsg { 
+            pktOutBufOrBytes = Datatypes.Coq_inl bufId;
+            pktOutPortId = None;
+            pktOutActions = [Output (PhysicalPort pt)] 
+          })
+        | Controller.BarrierRequest xid ->
+          (Int32.of_int xid, BarrierRequest)
+      in
+      let (st, rest) = send_loop st in
+      (st, (xid, ofMsg) :: rest)
+
+  let rec consolidate_pkt_out lst = match lst with
+    | x :: y :: rest ->
+      begin match (x,y) with
+        | ((xid1, PacketOutMsg { pktOutBufOrBytes = bufId1;
+                                 pktOutPortId = None;
+                                 pktOutActions = pts1 }),
+           (xid2, PacketOutMsg { pktOutBufOrBytes = bufId2;
+                                 pktOutPortId = None;
+                                 pktOutActions = pts2})) ->
+          if bufId1 = bufId2 then
+            consolidate_pkt_out 
+              ((xid1, PacketOutMsg { pktOutBufOrBytes = bufId1;
+                                     pktOutPortId = None;
+                                     pktOutActions = pts1 @ pts2 })
+               :: rest)
+          else
+            (x :: consolidate_pkt_out (y::rest))
+        | _ -> x :: (consolidate_pkt_out (y::rest))
+      end
+    | x :: rest ->
+      x :: (consolidate_pkt_out rest)
+    | [] -> []
+        
 
   let main_loop st msgs_in = 
     let rec loop st =
       Lwt.bind
         (Lwt_stream.next msgs_in)
         (fun (swId,msg) ->
-          Printf.eprintf "[VerifiedNetCore.ml] waiting to recv.\n%!";
-          let st' = Controller.recv st swId msg in
-          Printf.eprintf "[VerifiedNetCore.ml] trying to send.\n%!";
-          Lwt.bind (send_loop st') loop) in
+          let st = Controller.recv st swId msg in
+          let (st, to_send) = send_loop st in
+          let to_send = consolidate_pkt_out to_send in
+          Lwt_list.iter_s
+            (fun (xid,msg) -> Platform.send_to_switch swId xid msg)
+            to_send >>
+          loop st) in
     loop st
 
   let main_loop_thread init_state = 

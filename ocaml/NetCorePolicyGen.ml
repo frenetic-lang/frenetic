@@ -47,20 +47,20 @@ let all_pairs_shortest_paths (g : G.t) =
     all_paths
     Empty
 
-
 (** [g] must be a tree or this will freeze. *)
-let broadcast (g : G.t) (src : switchId) : policy = 
-          let pred = And (DlSrc src, DlDst 0xFFFFFFFFFFFFL) in
+let broadcast (g : G.t) (src : hostAddr) : policy = 
+  let pred = And (DlSrc src, DlDst 0xFFFFFFFFFFFFL) in
   let rec loop parent vx = match vx with
     | Host _ -> Empty
     | MininetTypes.Switch swId -> 
-      let succs = List.filter (fun (ch, _) -> ch != parent) (G.succs g vx) in
-      let ports = List.map (fun (_, pt) -> To pt) succs in
+      let succs = List.filter (fun (ch, _) -> ch <> parent) (G.succs g vx) in
+      let ports =  List.map (fun (_, pt) -> To pt) succs in
       let hop_pol = Pol (And (pred, Switch swId), ports) in
       par (hop_pol :: List.map (fun (succ_vx, _) ->  loop vx succ_vx) succs) in
   (* Host 0L is a dummy value, but does not affect the policy *)
-  loop (Host 0L) (MininetTypes.Switch src)
+  let host = Host src in
+  par (List.map (fun (vx, _) -> loop host vx) (G.succs g host))
 
 let all_broadcast_trees (g : G.t) : policy = 
   let spanning_tree = G.prim g in
-  par (List.map (broadcast spanning_tree) (switches g))
+  par (List.map (broadcast spanning_tree) (hosts g))
