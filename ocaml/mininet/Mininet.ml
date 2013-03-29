@@ -99,5 +99,6 @@ let create_mininet_process ?custom:custom (topo:string) : mininet Lwt.t =
   return mn
 
 let broadcast_ping (mn : mininet) (src : hostAddr) : unit Lwt.t =
-  let _ = interact mn (sprintf "h%Ld ping -b 255.255.255.255" src) in
+  lwt str = interact mn (sprintf "h%Ld ping -b 10.255.255.255" src) in
+  lwt _ = eprintf "response: %s\n%!" str in
   return ()

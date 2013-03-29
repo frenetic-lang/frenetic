@@ -114,12 +114,14 @@ module Make (Platform : PLATFORM) (Policy : POLICY) = struct
         loop ())
 
   let rec send_loop st = 
+    
     match Controller.send st with
       | None -> 
         Lwt.return st
       | Some ((st', sw), msg) ->
         let (xid, ofMsg) = match msg with
           | Controller.FlowMod (Atoms.AddFlow (prio, pat, act)) ->
+            Printf.eprintf "sending flow_mod.\n%!";
             (0l, FlowModMsg (NetCoreController.to_flow_mod prio pat act))
           | Controller.PacketOut (pt,(pk,bufId)) ->
             (0l, PacketOutMsg { 
@@ -138,7 +140,9 @@ module Make (Platform : PLATFORM) (Policy : POLICY) = struct
       Lwt.bind
         (Lwt_stream.next msgs_in)
         (fun (swId,msg) ->
+          Printf.eprintf "[VerifiedNetCore.ml] waiting to recv.\n%!";
           let st' = Controller.recv st swId msg in
+          Printf.eprintf "[VerifiedNetCore.ml] trying to send.\n%!";
           Lwt.bind (send_loop st') loop) in
     loop st
 

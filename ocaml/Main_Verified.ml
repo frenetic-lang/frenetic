@@ -9,14 +9,20 @@ let select_policy mn graph (name : string) =
   match name with
     | "sp" -> 
       let pol = all_pairs_shortest_paths graph in
-      let exp () = Lwt_list.iter_s (fun _ -> Mininet.ping_all mn >> return ())
+      let exp () = 
+        Lwt_unix.sleep 3.0 >>
+        Lwt_list.iter_s (fun _ -> Mininet.ping_all mn >> return ())
         [1;2;3;4;5;6] in
       (pol, exp)
     | "bc" ->
       let pol = Par (all_pairs_shortest_paths graph, 
                      all_broadcast_trees graph) in
       let exp () =
-        Lwt_list.iter_s (fun sw -> Mininet.broadcast_ping mn sw)
+        Lwt_unix.sleep 2.0 >>
+        Lwt_list.iter_s (fun sw -> 
+          Mininet.interact mn 
+            (sprintf "h%Ld arp -s 10.255.255.255 ff:ff:ff:ff:ff:ff" sw) >>
+          Mininet.broadcast_ping mn sw)
           [(List.hd (hosts graph))] in
       (pol, exp)
     | str -> failwith ("invalid policy: " ^ str)
@@ -54,7 +60,7 @@ let start_tcpdump (pcap_file : string) : unit =
     Unix.create_process "sudo"
       [| "sudo"; "tcpdump"; "-w"; pcap_file; "-i"; "any"; 
          "-B"; string_of_int (1024 * 50);
-         "tcp port 6633" |]
+         "tcp port 6633 or port 1" |]
       Unix.stdin Unix.stdout Unix.stderr in
   let sigint_tcpdump () = 
     Unix.kill pid Sys.sigint;
@@ -83,7 +89,6 @@ let main =
     | Some fname -> start_tcpdump fname in
   let _ = Platform.OpenFlowPlatform.init_with_port 6633 in
   lwt _ = Controller.start init in
-  Lwt_unix.sleep 3.0 >>
   lwt _ = Policy.experiment () in
   return ()
 
