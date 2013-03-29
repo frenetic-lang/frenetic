@@ -120,7 +120,6 @@ module Make (Platform : PLATFORM) (Policy : POLICY) = struct
     | Some ((st, sw), msg) ->
       let (xid, ofMsg) = match msg with
         | Controller.FlowMod (Atoms.AddFlow (prio, pat, act)) ->
-          Printf.eprintf "sending flow_mod.\n%!";
           (0l, FlowModMsg (NetCoreController.to_flow_mod prio pat act))
         | Controller.PacketOut (pt,(pk,bufId)) ->
           (0l, PacketOutMsg { 
