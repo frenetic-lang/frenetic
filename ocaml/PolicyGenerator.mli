@@ -1,3 +1,6 @@
+
+type +'a tree = Tree of 'a * 'a tree list
+
 module type DIRECTED_GRAPH = sig
   type node
   type edge_label
@@ -19,6 +22,7 @@ module type PARAM = sig
   type edge_label
   val string_of_node : node -> string
   val string_of_edge_label : edge_label -> string
+  val node_compare : node -> node -> int
 end
 
 

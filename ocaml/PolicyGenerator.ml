@@ -1,5 +1,7 @@
 open Printf
 
+type +'a tree = Tree of 'a * 'a tree list
+
 module type PARAM = sig
 
   type node
@@ -7,6 +9,8 @@ module type PARAM = sig
 
   val string_of_node : node -> string
   val string_of_edge_label : edge_label -> string
+
+  val node_compare : node -> node -> int
 end
 
 module type DIRECTED_GRAPH = sig
@@ -146,6 +150,9 @@ module Make (Param : PARAM) : DIRECTED_GRAPH
       )
       matrix;
   !paths
+
+
+  type tre
 
   let rec path_with_edges (g : t) (lst : node list) = match lst with
     | [] -> []
