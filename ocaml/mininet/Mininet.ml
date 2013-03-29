@@ -58,6 +58,7 @@ let rec input_upto_prompt (prompt : string) (chan : input channel)
   return (Buffer.contents buf)
 
 let interact (mn : mininet) (cmd : string) : string Lwt.t = 
+  Lwt_io.eprintf "mininet> %s\n%!" cmd >>
   Lwt_io.fprintf mn.mn_stdin "%s\nsh echo Done.1>&2\n%!" cmd >>
   input_upto_prompt "Done." mn.mn_stderr
 
@@ -98,5 +99,5 @@ let create_mininet_process ?custom:custom (topo:string) : mininet Lwt.t =
   return mn
 
 let broadcast_ping (mn : mininet) (src : hostAddr) : unit Lwt.t =
-  let _ = interact mn (sprintf "h%Ld -b 255.255.255.255" src) in
+  let _ = interact mn (sprintf "h%Ld ping -b 255.255.255.255" src) in
   return ()
