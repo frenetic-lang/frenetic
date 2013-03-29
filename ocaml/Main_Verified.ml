@@ -3,9 +3,22 @@ open Lwt
 module PolGen = NetCorePolicyGen
 
 (* Add new policies here. Nothing else should need to change. *)
-let select_policy graph (name : string) = 
+let select_policy mn graph (name : string) = 
+  let open NetCoreSyntax in
+  let open NetCorePolicyGen in
   match name with
-    | "sp" -> PolGen.all_pairs_shortest_paths graph
+    | "sp" -> 
+      let pol = all_pairs_shortest_paths graph in
+      let exp = Lwt_list.iter_s (fun _ -> Mininet.ping_all mn >> return ())
+        [1;2;3;4;5;6] in
+      (pol, exp)
+    | "bc" ->
+      let pol = Par (all_pairs_shortest_paths graph, 
+                     all_broadcast_trees graph) in
+      let exp =
+        Lwt_list.iter_s (fun sw -> Mininet.broadcast_ping mn sw)
+          (hosts graph) in
+      (pol, exp)
     | str -> failwith ("invalid policy: " ^ str)
 
 
@@ -48,14 +61,14 @@ let start_tcpdump (pcap_file : string) : unit =
     let _ = Unix.system ("capinfos " ^ pcap_file) in
     () in
   at_exit sigint_tcpdump
-    
+
 let main = 
   lwt mn = Mininet.create_mininet_process (?custom:!custom) !topo in
   lwt net = Mininet.net mn in
   let graph = PolGen.from_mininet_raw net in
-  let module Policy : VerifiedNetCore.POLICY = struct
+  let module Policy = struct
     let switches = PolGen.switches graph
-    let policy = select_policy graph !policy_name
+    let (policy, experiment) = select_policy mn graph !policy_name
   end in
   let module Controller = 
         VerifiedNetCore.Make (Platform.OpenFlowPlatform) (Policy) in
@@ -68,8 +81,7 @@ let main =
     | Some fname -> start_tcpdump fname in
   let _ = Platform.OpenFlowPlatform.init_with_port 6633 in
   lwt _ = Controller.start init in
-  lwt _ = Lwt_list.map_s (fun _ -> Mininet.ping_all mn) [1;2;3;4;5;6] in
-  lwt _= Lwt_io.printf "done?\n%!" in
+  lwt _ = Policy.experiment in
   return ()
 
 let _ = Lwt_main.run main in ()

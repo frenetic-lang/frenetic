@@ -11,3 +11,5 @@ val create_mininet_process : ?custom:string -> string -> mininet Lwt.t
 val net : mininet -> (node * portId * node) list Lwt.t
 
 val ping_all : mininet -> bool Lwt.t
+
+val broadcast_ping : mininet -> hostAddr -> unit Lwt.t

@@ -1,6 +1,7 @@
 open Printf
 open Lwt
 open Lwt_io
+open MininetTypes
 
 let string_of_position p =
   let open Lexing in
@@ -95,3 +96,7 @@ let create_mininet_process ?custom:custom (topo:string) : mininet Lwt.t =
              mn_stderr = stderr_chan } in
   lwt _ = input_upto_prompt "*** Starting CLI:" mn.mn_stderr in
   return mn
+
+let broadcast_ping (mn : mininet) (src : hostAddr) : unit Lwt.t =
+  let _ = interact mn (sprintf "h%Ld -b 255.255.255.255" src) in
+  return ()
