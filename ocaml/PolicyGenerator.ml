@@ -33,6 +33,8 @@ module type DIRECTED_GRAPH = sig
 
   val to_string : t -> string
 
+  val succs : t -> node -> (node * edge_label) list
+
 end 
 
 
@@ -111,7 +113,7 @@ module Make (Param : PARAM) : DIRECTED_GRAPH
   let succs g s =
     try
       let succ_tbl = Hashtbl.find g.graph s in
-      Hashtbl.fold (fun vx edge lst -> (vx :: lst))  succ_tbl []
+      Hashtbl.fold (fun vx edge lst -> ((vx, edge) :: lst))  succ_tbl []
     with
         Not_found -> failwith "node does not exist in succs"
 

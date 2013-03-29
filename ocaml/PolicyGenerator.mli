@@ -16,6 +16,8 @@ module type DIRECTED_GRAPH = sig
   val path_with_edges : t -> node list -> (node * edge_label * node) list
 
   val to_string : t -> string
+
+  val succs : t -> node -> (node * edge_label) list
 end 
 
 module type PARAM = sig
