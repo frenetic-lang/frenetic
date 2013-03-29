@@ -126,11 +126,14 @@ module Make (Param : PARAM) : DIRECTED_GRAPH
     match all_nodes g with
       | [] -> tree
       | (vx :: _) -> (* gg  *)
-        List.iter
-          (fun (vx1, edge, vx2) ->
-            if Hashtbl.mem tree.nodes vx1 <> Hashtbl.mem tree.nodes vx2 then
-              add_edge tree vx1 edge vx2)
-          (undirected_edges g);
+         List.iter
+           (fun (vx1, edge, vx2) ->
+             if Hashtbl.mem tree.nodes vx1 <> Hashtbl.mem tree.nodes vx2 then
+               begin
+                 add_edge tree vx1 edge vx2;
+                 add_edge tree vx2 edge vx1
+               end)
+           (undirected_edges g);
         tree
 
   let neighbor_matrix (g : t) : (int * node list) array array =
