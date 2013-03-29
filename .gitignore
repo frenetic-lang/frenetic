@@ -7,4 +7,6 @@ _build
 *.native
 *.out
 *.cmi
+*.pyo
+*.pyc
 ocaml/extracted
