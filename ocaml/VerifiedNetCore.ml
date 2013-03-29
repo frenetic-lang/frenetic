@@ -142,14 +142,17 @@ module Make (Platform : PLATFORM) (Policy : POLICY) = struct
           Lwt.bind (send_loop st') loop) in
     loop st
 
+  let main_loop_thread init_state = 
+    let (msgs_in, send_msg_in) = Lwt_stream.create () in
+    List.iter (create_recv_thread send_msg_in) Policy.switches;
+    Lwt.async (fun () -> main_loop init_state msgs_in)
+
   let start (init_state : state) = 
     List.iter (fun sw -> Hashtbl.add pending_switches sw true) Policy.switches;
     Lwt.bind (accept_switches ())
       (fun () -> 
         eprintf "[VerifiedNetCore.ml]: Got all switches, proceeding.\n%!";
-        let (msgs_in, send_msg_in) = Lwt_stream.create () in
-        List.iter (create_recv_thread send_msg_in) Policy.switches;
-        main_loop init_state msgs_in)
-        
+        main_loop_thread init_state;
+        Lwt.return ())        
 
 end

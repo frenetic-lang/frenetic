@@ -18,6 +18,9 @@ module Make (Platform : PLATFORM) (Policy : POLICY) : sig
 
   val init_packet_out : unit -> state
   val init_flow_mod : unit -> state
+  
+  (* Returns after expected switches connect, but still processes messages
+     in an asynchronous thread. *)
   val start : state -> unit Lwt.t
 
 end
