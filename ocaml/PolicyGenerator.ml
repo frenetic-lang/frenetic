@@ -188,7 +188,6 @@ module Make (Param : PARAM) : DIRECTED_GRAPH
         Array.iteri 
           (fun j elt -> 
             let (_, p) = elt in
-            printf "%d " (List.length p);
             paths := (vxs.(i), p, vxs.(j)) :: !paths)
           array;
         printf "\n";
