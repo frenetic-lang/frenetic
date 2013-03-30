@@ -5,7 +5,7 @@ all:
 	$(OCAMLBUILD) debug.otarget
 
 native:
-	$(OCAMLBUILD native.otarget
+	$(OCAMLBUILD) native.otarget
 
 doc:
 	$(OCAMLBUILD) doc.docdir/index.html

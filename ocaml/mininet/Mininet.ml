@@ -71,9 +71,23 @@ let net (mn : mininet) =
   lwt str = interact mn "net" in
   return (parse_from_string str)
 
-let ping_all (mn : mininet) : bool Lwt.t = 
-  lwt str = interact mn "pingall" in
+let ping (mn : mininet) (count : int) (src : hostAddr) (dst : hostAddr) 
+  : bool Lwt.t =
+  lwt _ = interact mn (sprintf "h%Ld ping -c %d h%Ld" src count dst) in
   return true
+
+let ping_all (mn : mininet) (hosts : hostAddr list) : bool Lwt.t = 
+  Lwt_list.iter_s
+    (fun src ->
+      Lwt_list.iter_s
+        (fun dst ->
+          if src <> dst then
+            ping mn 1 src dst >> return ()
+          else
+            return ())
+        hosts)
+    hosts >>
+    return true
 
 let create_mininet_process ?custom:custom (topo:string) : mininet Lwt.t = 
   let (stdin_r, stdin_w) = Unix.pipe () in
@@ -91,7 +105,7 @@ let create_mininet_process ?custom:custom (topo:string) : mininet Lwt.t =
     (fun () ->
      (* TODO(arjun): I'm bad at unix. How do kill gracefully?? *)
       Unix.kill mn_pid Sys.sighup; 
-      let _ = Unix.system "sudo mn -c" in
+      let _ = Unix.system "sudo mn -c 2> /dev/null" in
       return ());
   let stdin_chan = of_unix_fd output stdin_w in
   let stdout_chan = of_unix_fd input stdout_r in
