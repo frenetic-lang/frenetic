@@ -1,17 +1,12 @@
 <extracted> : include
 <mininet> : include
+true : use_menhir
+<*.d.byte> : package(cstruct), package(lwt), package(lwt.unix)
+<*.native> : package(cstruct), package(lwt), package(lwt.unix)
 <**/*.ml{,i}> : package(cstruct),package(lwt),syntax(camlp4o),package(lwt.syntax)
 "OpenFlow0x01Parser.ml" : package(cstruct.syntax)
 "OpenFlow0x04Parser.ml" : package(cstruct.syntax)
 "OpenFlow0x04Types.ml" : package(cstruct.syntax)
 "PacketParser.ml" : package(cstruct.syntax)
-"Test.ml" :syntax(camlp4o), package(lwt.syntax)
 "Test.ml" : package(oUnit)
-"Main_OpenFlow0x04.d.byte" : package(cstruct), package(lwt), package(lwt.unix)
-"Main_OpenFlow0x01.d.byte" : package(cstruct), package(lwt), package(lwt.unix)
-"Main_Verified.d.byte" : package(cstruct), package(lwt), package(lwt.unix)
-"Test.d.byte" : package(cstruct), package(oUnit), package(lwt), package(lwt.unix)
-"Verify.d.byte" : package(cstruct), package(lwt), package(lwt.unix)
-"Main_OpenFlow0x01.native" : package(cstruct), package(lwt), package(lwt.unix)
-"Main_Verified.native" : package(cstruct), package(lwt), package(lwt.unix)
-true : use_menhir
+"Test.d.byte" : package(oUnit)
