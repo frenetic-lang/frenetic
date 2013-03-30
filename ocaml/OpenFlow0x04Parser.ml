@@ -1009,7 +1009,7 @@ module PacketIn = struct
         | Some pkt -> Some pkt 
         | None -> 
           raise (Unparsable (sprintf "malformed packet in packet_in")) end in
-    let _ = eprintf "[PacketIn] okay \n%!" in 
+    let _ = Misc.Log.printf "[PacketIn] okay \n%!" in 
     { pi_buffer_id = bufId;
       pi_total_len = total_len;
       pi_reason = reason;
@@ -1205,7 +1205,7 @@ module PacketIn = struct
     | Some pkt -> pkt 
     | None -> 
       raise (Unparsable (sprintf "malformed packet in packet_in")) in
-  let _ = eprintf "[PacketIn] okay \n%!" in 
+  let _ = Misc.Log.printf "[PacketIn] okay \n%!" in 
   { packetInBufferId = bufId;
     packetInTotalLen = total_len;
     packetInPort = in_port;

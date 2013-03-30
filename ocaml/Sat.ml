@@ -165,7 +165,7 @@ let serialize_program (ZProgram (rules, query)) =
 
 let solve prog = 
   let s = serialize_program prog in 
-  let _ = Printf.eprintf "--- DEBUG ---\n%s\n%!" s in 
+  let _ = Misc.Log.printf "--- DEBUG ---\n%s\n%!" s in 
   let ch = open_out ".z3.in" in 
   let _ = output_string ch s in 
   let _ = flush ch in 

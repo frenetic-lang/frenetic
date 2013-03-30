@@ -1,7 +1,8 @@
 open Printf
 open Lwt
-open Lwt_io
 open MininetTypes
+open Lwt_io
+open Misc
 
 let string_of_position p =
   let open Lexing in
@@ -36,14 +37,14 @@ type mininet = {
 }
 
 let rec input_upto_prompt (prompt : string) (chan : input channel) 
-  : string Lwt.t =
+  : string list Lwt.t =
   let buf = Buffer.create 100 in
   let rec loop n =
     lwt ch = read_char chan in
     match ch = String.get prompt n with
       | true -> 
         if n = String.length prompt - 1 then
-          return ()
+          return []
         else
           loop (n + 1)
       | false ->
@@ -55,26 +56,38 @@ let rec input_upto_prompt (prompt : string) (chan : input channel)
             Buffer.add_char buf ch; (* this char, which diverges from prompt *)
             lwt line = read_line chan in
             Buffer.add_string buf line;
-            Buffer.add_char buf '\n';
-            lwt _ = eprintf "mn> %s%c%s\n%!" (String.sub prompt 0 n) ch line in
-            loop 0 (* search for prompt again *) 
+            let line = Buffer.contents buf in
+            Log.printf "mn> %s\n%!" line;
+            Buffer.clear buf;
+            lwt rest = loop 0 in  (* search for prompt again *) 
+            return (line :: rest)
            end in
-  loop 0 >>
-  return (Buffer.contents buf)
+  loop 0
 
-let interact (mn : mininet) (cmd : string) : string Lwt.t = 
-  Lwt_io.eprintf "mininet> %s\n%!" cmd >>
+let interact (mn : mininet) (cmd : string) : string list Lwt.t = 
+  Log.printf "mininet> %s\n%!" cmd;
   Lwt_io.fprintf mn.mn_stdin "%s\nsh echo Done. 1>&2\n%!" cmd >>
   input_upto_prompt "Done." mn.mn_stderr
 
 let net (mn : mininet) =
-  lwt str = interact mn "net" in
-  return (parse_from_string str)
+  lwt lines = interact mn "net" in
+  return (parse_from_string (String.concat "\n" lines))
 
 let ping (mn : mininet) (count : int) (src : hostAddr) (dst : hostAddr) 
   : bool Lwt.t =
-  lwt str = interact mn (sprintf "h%Ld ping -c %d h%Ld" src count dst) in
-  return (Str.string_match (Str.regexp "0% packet loss") str 0)
+  lwt lines = interact mn (sprintf "h%Ld ping -q -c %d h%Ld" src count dst) in
+  let num_lines = List.length lines in
+  let b = 
+    num_lines >= 2 && 
+    Str.string_match (Str.regexp ".*0% packet loss")
+      (List.nth lines (num_lines - 2)) 0 in
+  if b then
+    return true
+  else
+    begin
+      Log.printf "[Mininet.ml] ERROR packets lost during ping.\n%!";
+      return false
+    end
 
 let ping_all (mn : mininet) (hosts : hostAddr list) : bool Lwt.t = 
   let result = ref true in

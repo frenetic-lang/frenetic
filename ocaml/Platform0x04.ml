@@ -70,11 +70,13 @@ module OpenFlowPlatform = struct
       if not b then 
 	raise_lwt UnknownSwitchDisconnected
       else
-	lwt _ = eprintf "[platform] returning message with code %d\n%!" 
-	  (get_ofp_header_typ bits) in
-        let bits = Cstruct.of_string (String.concat "" [ofhdr_str; body_str]) in
-	lwt msg = Lwt.wrap (fun () -> Message.parse bits) in
-  return (get_ofp_header_xid bits, msg)
+        begin
+          Misc.Log.printf "[platform] returning message with code %d\n%!" 
+	        (get_ofp_header_typ bits);
+          let bits = Cstruct.of_string (String.concat "" [ofhdr_str; body_str]) in
+	        lwt msg = Lwt.wrap (fun () -> Message.parse bits) in
+        return (get_ofp_header_xid bits, msg)
+        end
   
   let send_to_switch_fd (sock : file_descr) (xid : xid) (msg : message) = 
     try_lwt
@@ -87,8 +89,9 @@ module OpenFlowPlatform = struct
       else 
         return ()
     with Unix.Unix_error (err, fn, arg) ->
-      Lwt_io.eprintf "[platform] error sending: %s (in %s)\n%!"
-        (Unix.error_message err) fn
+      Misc.Log.printf "[platform] error sending: %s (in %s)\n%!"
+        (Unix.error_message err) fn;
+      return ()
 
   let switch_fds : (switchId, file_descr) Hashtbl.t = 
     Hashtbl.create 100
@@ -98,18 +101,20 @@ module OpenFlowPlatform = struct
     with Not_found -> raise (UnknownSwitch switch_id)
 
   let disconnect_switch (sw_id : switchId) = 
-    lwt _ = eprintf "[platform] disconnect_switch\n%!" in
+    Misc.Log.printf "[platform] disconnect_switch\n%!";
     try_lwt
       let fd = Hashtbl.find switch_fds sw_id in
       lwt _ = close fd in
       Hashtbl.remove switch_fds sw_id;
       return ()
     with Not_found ->
-      lwt _ = eprintf "[disconnect_switch] switch not found\n%!" in
-      raise_lwt (UnknownSwitch sw_id)
+      begin
+        Misc.Log.printf "[disconnect_switch] switch not found\n%!";
+        raise_lwt (UnknownSwitch sw_id)
+      end
 
   let shutdown () : unit = 
-    let _ = eprintf "[platform] shutdown\n%!" in
+    Misc.Log.printf "[platform] shutdown\n%!";
     match !server_fd with 
     | Some fd -> 
       ignore_result 
@@ -122,28 +127,28 @@ module OpenFlowPlatform = struct
        ()
 
   let switch_handshake (fd : file_descr) : features Lwt.t = 
-    lwt _ = eprintf "[platform] switch_handshake\n%!" in
+    Misc.Log.printf "[platform] switch_handshake\n%!";
     lwt _ = send_to_switch_fd fd 0l Hello in
-    lwt _ = eprintf "[platform] trying to read Hello\n%!" in
+    Misc.Log.printf "[platform] trying to read Hello\n%!";
     lwt (xid, msg) = recv_from_switch_fd fd in
     match msg with
       | Hello _ -> 
-	lwt _ = eprintf "[platform] sending Features Request\n%!" in 
+        Misc.Log.printf "[platform] sending Features Request\n%!";
         lwt _ = send_to_switch_fd fd 0l FeaturesRequest in
         lwt (_, msg) = recv_from_switch_fd fd in
         begin
           match msg with
             | FeaturesReply feats ->
               Hashtbl.add switch_fds feats.datapath_id fd;
-              lwt _ = eprintf "[platform] switch %Ld connected\n%!"
-                        feats.datapath_id in
+              Misc.Log.printf "[platform] switch %Ld connected\n%!"
+                        feats.datapath_id;
               return feats
             | _ -> raise_lwt (Internal "expected FEATURES_REPLY")
         end 
       | _ -> raise_lwt (Internal "expected Hello")
 
   let send_to_switch (sw_id : switchId) (xid : xid) (msg : message) : unit t = 
-    lwt _ = eprintf "[platform] send_to_switch\n%!" in
+    Misc.Log.printf "[platform] send_to_switch\n%!";
     let fd = fd_of_switch_id sw_id in
     try_lwt 
       send_to_switch_fd fd xid msg
@@ -154,7 +159,7 @@ module OpenFlowPlatform = struct
   (* By handling echoes here, we do not respond to echoes during the
      handshake. *)
   let rec recv_from_switch (sw_id : switchId) : (xid * message) t = 
-    lwt _ = eprintf "[platform] recv_from_switch\n%!" in
+    Misc.Log.printf "[platform] recv_from_switch\n%!";
     let switch_fd = fd_of_switch_id sw_id in
     lwt (xid, msg) = 
       try_lwt
@@ -162,14 +167,14 @@ module OpenFlowPlatform = struct
       with 
       | Internal s ->
         begin
-	  lwt _ = eprintf "[platform] disconnecting switch\n%!" in 
+          Misc.Log.printf "[platform] disconnecting switch\n%!";
           lwt _ = disconnect_switch sw_id in
           raise_lwt (SwitchDisconnected sw_id)
         end 
       | UnknownSwitchDisconnected -> 
 	  raise_lwt (SwitchDisconnected sw_id)
       | exn -> 
-	  lwt _ = eprintf "[platform] other error\n%!" in 
+        Misc.Log.printf "[platform] other error\n%!";
           raise_lwt exn in 
     match msg with
       | EchoRequest bytes -> 
@@ -178,10 +183,10 @@ module OpenFlowPlatform = struct
       | _ -> return (xid, msg)
 
   let rec accept_switch () = 
-    lwt _ = eprintf "[platform] accept_switch\n%!" in
+    Misc.Log.printf "[platform] accept_switch\n%!";
     lwt (fd, sa) = accept (get_fd ()) in
-    lwt _ = eprintf "[platform] : %s connected, handshaking...\n%!"
-      (string_of_sockaddr sa) in
+    Misc.Log.printf "[platform] : %s connected, handshaking...\n%!"
+      (string_of_sockaddr sa);
     (* TODO(arjun): a switch can stall during a handshake, while another
        switch is ready to connect. To be fully robust, this module should
        have a dedicated thread to accept TCP connections, a thread per new
@@ -193,9 +198,9 @@ module OpenFlowPlatform = struct
      with UnknownSwitchDisconnected -> 
        begin
 	 lwt _ = close fd in 
-         lwt _ = eprintf "[platform] : %s disconnected, trying again...\n%!"
-	   (string_of_sockaddr sa) in
-         accept_switch ()
+   Misc.Log.printf "[platform] : %s disconnected, trying again...\n%!"
+	   (string_of_sockaddr sa);
+   accept_switch ()
        end
       
 end

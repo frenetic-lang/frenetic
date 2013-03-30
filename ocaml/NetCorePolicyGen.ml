@@ -46,7 +46,7 @@ let hop_to_pol (pred : predicate) (hop : node * int * portId * node) : policy =
 
 let all_pairs_shortest_paths (g : G.t) = 
   let all_paths = G.floyd_warshall g in
-  eprintf "[NetCorePolicyGen.ml] building SP policy.\n%!";
+  Misc.Log.printf "[NetCorePolicyGen.ml] building SP policy.\n%!";
   let pol = List.fold_right
     (fun p pol ->
       match p with
@@ -55,11 +55,11 @@ let all_pairs_shortest_paths (g : G.t) =
           let labelled_path = G.path_with_edges g path in
           let path_pol = par (List.map (hop_to_pol pred) labelled_path) in
           (*
-          eprintf "Path from %Ld to %Ld is: %s\n%!"
+          Misc.Log.printf "Path from %Ld to %Ld is: %s\n%!"
             src dst (policy_to_string path_pol);
-          eprintf "Path is:\n";
+          Misc.Log.printf "Path is:\n";
           List.iter (fun (src,w,edge,dst) ->
-            eprintf "%s --%s--> %s (weight %d)\n%!"
+            Misc.Log.printf "%s --%s--> %s (weight %d)\n%!"
               (string_of_node src)
               (string_of_edge_label edge)
               (string_of_node dst)
@@ -70,7 +70,7 @@ let all_pairs_shortest_paths (g : G.t) =
         | _ -> pol)
     all_paths
     Empty in
-  eprintf "[NetCorePolicyGen.ml] done building SP policy.\n%!";
+  Misc.Log.printf "[NetCorePolicyGen.ml] done building SP policy.\n%!";
   pol
 
 (** [g] must be a tree or this will freeze. *)

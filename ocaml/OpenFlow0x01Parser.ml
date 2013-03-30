@@ -684,7 +684,7 @@ module FlowMod = struct
     ()
     with exn -> 
       begin
-	Printf.eprintf "@@@ GOT IT @@@\n%s\n%!" (Printexc.get_backtrace ());
+	      Misc.Log.printf "@@@ GOT IT @@@\n%s\n%!" (Printexc.get_backtrace ());
 	raise exn
       end
 end

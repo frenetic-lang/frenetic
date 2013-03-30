@@ -1,6 +1,7 @@
 open Printf
 open Lwt
 module PolGen = NetCorePolicyGen
+open Misc
 
 (* Add new policies here. Nothing else should need to change. *)
 let select_policy mn graph (name : string) = 
@@ -36,6 +37,10 @@ let make_default_pcap_filename () =
     let ctrl = if !use_flow_mod then "flowmod" else "pktout" in
     sprintf "%s-%s-%s.pcap" ctrl !policy_name !topo
 
+let make_default_log_filename () =
+    let ctrl = if !use_flow_mod then "flowmod" else "pktout" in
+    sprintf "%s-%s-%s.log" ctrl !policy_name !topo
+
 
 let _ =
   Arg.parse
@@ -56,7 +61,14 @@ let _ =
       "Save tcpdump of 6633 and icmp");
      ("-autopcap",
       Arg.Unit (fun () -> pcap_file := Some (make_default_pcap_filename ())),
-      "Save tcpdump of 6633 and icmp")
+      "Save tcpdump of 6633 and icmp");
+     ("-log",
+      Arg.String (fun str -> Log.set_log_file true str),
+      "Save logs to here");
+     ("-autolog",
+      Arg.Unit (fun () -> 
+        Log.set_log_file false (make_default_log_filename ())),
+      "Save logs to here")
     ]
     (fun str -> failwith ("invalid argument " ^ str))
     "Usage: Main_Verified.native -topo <filename> -policy <policy-name>"
@@ -69,11 +81,7 @@ let start_tcpdump (pcap_file : string) : unit =
          "(tcp port 6633) or icmp" |]
       Unix.stdin Unix.stdout Unix.stderr in
   let sigint_tcpdump () = 
-    Unix.kill pid Sys.sigint;
-    (* Let tcpdump finish and close the pcap file before we read it back. *)
-    let _ = Unix.waitpid [] pid in
-    let _ = Unix.system ("capinfos " ^ pcap_file) in
-    () in
+    Unix.kill pid Sys.sigint in
   at_exit sigint_tcpdump
 
 let main = 
@@ -84,25 +92,25 @@ let main =
     let switches = PolGen.switches graph
     let (policy, experiment) = select_policy mn graph !policy_name
   end in
-  eprintf "[VerifiedBenchmark.ml] Linking controller to policy\n%!";
+  Misc.Log.printf "[VerifiedBenchmark.ml] Linking controller to policy\n%!";
   let module Controller = 
         VerifiedNetCore.Make (Platform.OpenFlowPlatform) (Policy) in
-  eprintf "[VerifiedBenchmark.ml] Building initial controller state\n%!";
+  Misc.Log.printf "[VerifiedBenchmark.ml] Building initial controller state\n%!";
   let init = match !use_flow_mod with
     | true -> Controller.init_flow_mod ()
     | false -> Controller.init_packet_out () in
-  eprintf "[VerifiedBenchmark.ml] Launching tcpdump (if -pcap set)\n%!";
+  Misc.Log.printf "[VerifiedBenchmark.ml] Launching tcpdump (if -pcap set)\n%!";
   let _ = match !pcap_file with
     | None -> ()
     | Some fname -> start_tcpdump fname in
   let _ = Platform.OpenFlowPlatform.init_with_port 6633 in
-  Lwt_io.eprintf "[VerifiedBenchmarks.ml] Starting controller.\n" >>
+  Misc.Log.printf "[VerifiedBenchmarks.ml] Starting controller.\n";
   lwt _ = Controller.start init in
-  Lwt_io.eprintf "[VerifiedBenchmarks.ml] Invoking experiment.\n" >>
+  Misc.Log.printf "[VerifiedBenchmarks.ml] Invoking experiment.\n";
   lwt _ = Policy.experiment () in
+  Misc.Log.printf "[VerifiedBenchmarks.ml] Graceful shutdown.\n%!";
   return ()
 
 let _ = Lwt_main.run main in ()
                   
 
-    

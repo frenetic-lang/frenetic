@@ -31,7 +31,7 @@ let main () =
     (* Printexc.record_backtrace (); *)
     Lwt_main.run (Controller.start ())
   with exn -> 
-    Printf.eprintf "[main] exception: %s\n%s\n%!" 
+    Misc.Log.printf "[main] exception: %s\n%s\n%!" 
       (Printexc.to_string exn) (Printexc.get_backtrace ());
     OpenFlowPlatform.shutdown ();
     exit 1

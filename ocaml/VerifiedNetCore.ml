@@ -84,16 +84,16 @@ module Make (Platform : PLATFORM) (Policy : POLICY) = struct
       (fun feats -> 
         (if Hashtbl.mem pending_switches feats.switch_id then
             begin
-              eprintf "[VerifiedNetCore.ml] got switch %Ld.\n%!" 
+              Misc.Log.printf "[VerifiedNetCore.ml] got switch %Ld.\n%!" 
                 feats.switch_id;
               Hashtbl.remove pending_switches feats.switch_id
             end
         else
-          eprintf "[VerifiedNetCore.ml]: unexpected connection from %Ld\n%!"
+          Misc.Log.printf "[VerifiedNetCore.ml]: unexpected connection from %Ld\n%!"
             feats.switch_id);
         if Hashtbl.length pending_switches > 0 then
           begin
-            eprintf "[VerifiedNetCore.ml]: waiting for next switch.\n%!";
+            Misc.Log.printf "[VerifiedNetCore.ml]: waiting for next switch.\n%!";
             accept_switches ()
           end
         else
@@ -180,7 +180,7 @@ module Make (Platform : PLATFORM) (Policy : POLICY) = struct
     List.iter (fun sw -> Hashtbl.add pending_switches sw true) Policy.switches;
     Lwt.bind (accept_switches ())
       (fun () -> 
-        eprintf "[VerifiedNetCore.ml]: Got all switches, proceeding.\n%!";
+        Misc.Log.printf "[VerifiedNetCore.ml]: Got all switches, proceeding.\n%!";
         main_loop_thread init_state;
         Lwt.return ())        
 

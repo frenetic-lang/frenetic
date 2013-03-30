@@ -76,7 +76,7 @@ module Test2 = struct
 "optimizer test" >::
     (fun () -> 
       let ft = compile_opt pol1 0L in
-      Printf.eprintf "length is %d\n" (List.length ft);
+      Printf.Misc.Log.printf "length is %d\n" (List.length ft);
       assert_equal (List.length ft) 2)
                *) ]
 
