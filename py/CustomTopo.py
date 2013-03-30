@@ -188,11 +188,11 @@ def waxman_graph(n, alpha=0.8, beta=0.1, L=None, domain=(0,0,1,1)):
                     G.add_edge(u,v)
     return G
 
-class WaxmanTopology(NXTopo):
+class WaxmanTopology(Topo):
 
     def __init__(self, num_switches=None):
 
-        super(Topology, self).__init__()
+        super(WaxManTopology, self).__init__()
         
         num_hosts_per_switch = 4
         # Needed so that subsequent calls will generate the same graph
@@ -205,7 +205,7 @@ class WaxmanTopology(NXTopo):
 
         # Add switches
         for s in wax:
-            self.add_switch(s)
+            self.node(s, Node(is_switch=True))
 
         # Add edges
         for s1, s2 in wax.edges():
@@ -217,7 +217,7 @@ class WaxmanTopology(NXTopo):
             # Add host
             host_base = num_hosts_per_switch*s + hostoffset
             for host in range(0, num_hosts_per_switch):
-                self.add_host(host_base + host)
+                self.add_node(host_base + host)
                 self.add_link(host_base + host, s)
                 
         # # Globally connected host
@@ -230,10 +230,10 @@ class WaxmanTopology(NXTopo):
         # f.write('hosts: %d\n' % len(self.hosts()))
         # f.close()
         # assert(False)
-        self.finalize()
+        self.enable_all()
 
 topos = { 
-  'wattsstrogatz': ( lambda: WattsStrogatzTopology() ),
-  'fattree': ( lambda: FattreeTopology() ),
-  'waxman': ( lambda: WaxmanTopology().mininet_topo() )
+  'wattsstrogatz': ( WattsStrogatzTopology ),
+  'fattree': ( FattreeTopology ),
+  'waxman': ( WaxmanTopology )
 }
