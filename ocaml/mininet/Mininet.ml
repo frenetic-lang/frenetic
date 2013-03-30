@@ -73,21 +73,24 @@ let net (mn : mininet) =
 
 let ping (mn : mininet) (count : int) (src : hostAddr) (dst : hostAddr) 
   : bool Lwt.t =
-  lwt _ = interact mn (sprintf "h%Ld ping -c %d h%Ld" src count dst) in
-  return true
+  lwt str = interact mn (sprintf "h%Ld ping -c %d h%Ld" src count dst) in
+  return (Str.string_match (Str.regexp "0% packet loss") str 0)
 
 let ping_all (mn : mininet) (hosts : hostAddr list) : bool Lwt.t = 
+  let result = ref true in
   Lwt_list.iter_s
     (fun src ->
       Lwt_list.iter_s
         (fun dst ->
           if src <> dst then
-            ping mn 1 src dst >> return ()
+            lwt r = ping mn 1 src dst in
+            result := !result && r;
+            return ()            
           else
             return ())
         hosts)
     hosts >>
-    return true
+    return !result
 
 let create_mininet_process ?custom:custom (topo:string) : mininet Lwt.t = 
   let (stdin_r, stdin_w) = Unix.pipe () in
@@ -124,3 +127,11 @@ let dump_tables (mn : mininet) (sw : switchId) : unit Lwt.t =
 let broadcast_ping (mn : mininet) (count : int) (src : hostAddr) : unit Lwt.t =
   lwt _ = interact mn (sprintf "h%Ld ping -c %d -b 10.255.255.255" src count) in
   return ()
+
+let enable_broadcast_ping (mn : mininet) (host : hostAddr) : unit Lwt.t =
+  interact mn 
+    (sprintf "h%Ld echo 0 >  /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts" 
+       host) >>
+  interact mn 
+    (sprintf "h%Ld arp -s 10.255.255.255 ff:ff:ff:ff:ff:ff" host) >>
+    return ()

@@ -1,6 +1,7 @@
 <extracted> : include
 <mininet> : include
 true : use_menhir
+true : use_str
 <*.d.byte> : package(cstruct), package(lwt), package(lwt.unix)
 <*.native> : package(cstruct), package(lwt), package(lwt.unix)
 <**/*.ml{,i}> : package(cstruct),package(lwt),syntax(camlp4o),package(lwt.syntax)

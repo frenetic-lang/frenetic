@@ -17,24 +17,11 @@ let select_policy mn graph (name : string) =
     | "bc" ->
       let pol = Par (all_pairs_shortest_paths graph, 
                      all_broadcast_trees graph) in
-      eprintf "Policy is %s\n%!" (policy_to_string pol);
       let exp () =
         let hosts = hosts graph in
         Lwt_unix.sleep 2.0 >>
-        Lwt_list.iter_s (fun host ->
-          Mininet.interact mn 
-            (sprintf "h%Ld echo 0 > \
-                     /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts" host) >>
-          Mininet.interact mn 
-            (sprintf "h%Ld arp -s 10.255.255.255 ff:ff:ff:ff:ff:ff" host) >>
-            return ())
-          hosts >>
-        Lwt_list.iter_s 
-          (fun host ->  Mininet.broadcast_ping mn 10 host)
-          hosts >> 
-        Lwt_list.iter_s
-          (fun sw -> Mininet.dump_tables mn sw)
-          (switches graph)
+        Lwt_list.iter_s (Mininet.enable_broadcast_ping mn) hosts >>
+        Lwt_list.iter_s (Mininet.broadcast_ping mn 10) hosts
       in (pol, exp)
     | str -> failwith ("invalid policy: " ^ str)
 
@@ -44,6 +31,11 @@ let topo = ref "tree,2,2"
 let policy_name = ref "sp"
 let use_flow_mod = ref false
 let pcap_file = ref None
+
+let make_default_pcap_filename () =
+    let ctrl = if !use_flow_mod then "flowmod" else "pktout" in
+    sprintf "%s-%s-%s.pcap" ctrl !policy_name !topo
+
 
 let _ =
   Arg.parse
@@ -61,7 +53,10 @@ let _ =
       "sp (all pairs shortest paths)");
      ("-pcap",
       Arg.String (fun str -> pcap_file := Some str),
-      "Save tcpdump of 6633")
+      "Save tcpdump of 6633 and icmp");
+     ("-autopcap",
+      Arg.Unit (fun () -> pcap_file := Some (make_default_pcap_filename ())),
+      "Save tcpdump of 6633 and icmp")
     ]
     (fun str -> failwith ("invalid argument " ^ str))
     "Usage: Main_Verified.native -topo <filename> -policy <policy-name>"
