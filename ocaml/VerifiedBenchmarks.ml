@@ -11,7 +11,7 @@ let select_policy mn graph (name : string) =
       let pol = all_pairs_shortest_paths graph in
       let exp () = 
         Lwt_unix.sleep 2.0 >>
-        Lwt_list.iter_s (fun _ -> Mininet.ping_all mn >> return ())
+        Lwt_list.iter_s (fun _ -> Mininet.ping_all mn (hosts graph) >> return ())
         [1;2;3;4;5;6] in
       (pol, exp)
     | "bc" ->
@@ -89,17 +89,21 @@ let main =
     let switches = PolGen.switches graph
     let (policy, experiment) = select_policy mn graph !policy_name
   end in
+  eprintf "[VerifiedBenchmark.ml] Linking controller to policy\n%!";
   let module Controller = 
         VerifiedNetCore.Make (Platform.OpenFlowPlatform) (Policy) in
+  eprintf "[VerifiedBenchmark.ml] Building initial controller state\n%!";
   let init = match !use_flow_mod with
     | true -> Controller.init_flow_mod ()
     | false -> Controller.init_packet_out () in
-
+  eprintf "[VerifiedBenchmark.ml] Launching tcpdump (if -pcap set)\n%!";
   let _ = match !pcap_file with
     | None -> ()
     | Some fname -> start_tcpdump fname in
   let _ = Platform.OpenFlowPlatform.init_with_port 6633 in
+  Lwt_io.eprintf "[VerifiedBenchmarks.ml] Starting controller.\n" >>
   lwt _ = Controller.start init in
+  Lwt_io.eprintf "[VerifiedBenchmarks.ml] Invoking experiment.\n" >>
   lwt _ = Policy.experiment () in
   return ()
 

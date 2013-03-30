@@ -7,13 +7,13 @@ module type DIRECTED_GRAPH = sig
   type t
  
   val empty : unit -> t
-  val add_edge : t -> node -> edge_label -> node -> unit
+  val add_edge : t -> node -> edge_label -> int -> node -> unit
   val all_nodes : t -> node list
 
   val floyd_warshall : t -> (node * node list * node) list
   val prim : t -> t
 
-  val path_with_edges : t -> node list -> (node * edge_label * node) list
+  val path_with_edges : t -> node list -> (node * int * edge_label * node) list
 
   val to_string : t -> string
 
