@@ -38,10 +38,10 @@ class WattsStrogatzTopology(Topo):
         self.add_edge(102, 105)
         
         # Add monitoring host
-        self.add_node(99, Node(is_switch=False))
+        # self.add_node(99, Node(is_switch=False))
 
-        for s in switches:
-            self.add_edge(s, 99)
+        # for s in switches:
+        #     self.add_edge(s, 99)
         
         self.enable_all()
                 
@@ -87,7 +87,7 @@ class FattreeTopology(Topo):
                 self.add_edge(h, firstSwitch + 3)
                 
         # Add monitoring host
-        self.add_node(99, Node(is_switch=False))
+        # self.add_node(99, Node(is_switch=False))
         
         for s1 in edgeSwitches:
             if (s1 - firstSwitch) < numEdgeSwitches / 2:
@@ -95,7 +95,7 @@ class FattreeTopology(Topo):
             else:
                 self.add_edge(s1, coreSwitches[1])
             # connect monitor to every edge switch
-            self.add_edge(99, s1)            
+            # self.add_edge(99, s1)            
 
         self.add_edge(coreSwitches[0], coreSwitches[1])
       

@@ -54,6 +54,7 @@ let all_pairs_shortest_paths (g : G.t) =
           let pred = And (DlSrc src, DlDst dst) in
           let labelled_path = G.path_with_edges g path in
           let path_pol = par (List.map (hop_to_pol pred) labelled_path) in
+          (*
           eprintf "Path from %Ld to %Ld is: %s\n%!"
             src dst (policy_to_string path_pol);
           eprintf "Path is:\n";
@@ -64,6 +65,7 @@ let all_pairs_shortest_paths (g : G.t) =
               (string_of_node dst)
               w)
             labelled_path;
+          *)
           Par (path_pol,pol)
         | _ -> pol)
     all_paths
