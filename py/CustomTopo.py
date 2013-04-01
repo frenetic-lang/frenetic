@@ -208,11 +208,11 @@ class WaxmanTopology(Topo):
 
         # Add switches
         for s in wax:
-            self.node(s, Node(is_switch=True))
+            self.add_node(s, Node(is_switch=True))
 
         # Add edges
         for s1, s2 in wax.edges():
-            self.add_link(s1, s2)
+            self.add_edge(s1, s2)
                          
         # Add hosts
         hostoffset = num_switches+2
@@ -220,8 +220,8 @@ class WaxmanTopology(Topo):
             # Add host
             host_base = num_hosts_per_switch*s + hostoffset
             for host in range(0, num_hosts_per_switch):
-                self.add_node(host_base + host)
-                self.add_link(host_base + host, s)
+                self.add_node(host_base + host, Node(is_switch=False))
+                self.add_edge(host_base + host, s)
                 
         # # Globally connected host
         # self.add_host(9999)
