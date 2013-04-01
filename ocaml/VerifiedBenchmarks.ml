@@ -67,7 +67,9 @@ let _ =
       "Save logs to here");
      ("-autolog",
       Arg.Unit (fun () -> 
-        Log.set_log_file false (make_default_log_filename ())),
+        let fn = make_default_log_filename () in
+        printf "Logging to:\n%s\n%!" fn;
+        Log.set_log_file false fn),
       "Save logs to here")
     ]
     (fun str -> failwith ("invalid argument " ^ str))

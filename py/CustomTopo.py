@@ -1,4 +1,7 @@
 from mininet.topo import Topo, Node
+import random
+import networkx as nx
+import math
 
 class WattsStrogatzTopology(Topo):
 
@@ -192,7 +195,7 @@ class WaxmanTopology(Topo):
 
     def __init__(self, num_switches=None):
 
-        super(WaxManTopology, self).__init__()
+        super(WaxmanTopology, self).__init__()
         
         num_hosts_per_switch = 4
         # Needed so that subsequent calls will generate the same graph
