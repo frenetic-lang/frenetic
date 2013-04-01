@@ -1,0 +1,4 @@
+*.log
+*.pcap
+*.pcap.of
+*.pcap.icmp
