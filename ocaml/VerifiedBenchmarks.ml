@@ -18,9 +18,12 @@ let select_policy mn graph (name : string) =
     | "bc" ->
       let pol = Par (all_pairs_shortest_paths graph, 
                      all_broadcast_trees graph) in
+      Log.printf "Policy is:%s\n%!" (policy_to_string pol);
       let exp () =
         let hosts = hosts graph in
+        let sws = switches graph in
         Lwt_unix.sleep 2.0 >>
+        Lwt_list.iter_s (Mininet.dump_tables mn) [List.hd sws] >>
         Lwt_list.iter_s (Mininet.enable_broadcast_ping mn) hosts >>
         Lwt_list.iter_s (Mininet.broadcast_ping mn 10) hosts
       in (pol, exp)
@@ -31,16 +34,24 @@ let custom = ref None
 let topo = ref "tree,2,2"
 let policy_name = ref "sp"
 let use_flow_mod = ref false
+let use_haskell = ref false
 let pcap_file = ref None
 
+let default_filename_prefix () = 
+    let ctrl = 
+      if !use_haskell then
+        "haskell"
+      else if !use_flow_mod then 
+        "flowmod" 
+      else 
+        "pktout" in
+    sprintf "%s-%s-%s" ctrl !policy_name !topo
+
 let make_default_pcap_filename () =
-    let ctrl = if !use_flow_mod then "flowmod" else "pktout" in
-    sprintf "%s-%s-%s.pcap" ctrl !policy_name !topo
+   (default_filename_prefix ()) ^ ".pcap"
 
 let make_default_log_filename () =
-    let ctrl = if !use_flow_mod then "flowmod" else "pktout" in
-    sprintf "%s-%s-%s.log" ctrl !policy_name !topo
-
+   (default_filename_prefix ()) ^ ".log"
 
 let _ =
   Arg.parse
@@ -65,6 +76,9 @@ let _ =
      ("-log",
       Arg.String (fun str -> Log.set_log_file true str),
       "Save logs to here");
+     ("-haskell",
+       Arg.Unit (fun () -> use_haskell := true), 
+      "only for Waxman,6,42");
      ("-autolog",
       Arg.Unit (fun () -> 
         let fn = make_default_log_filename () in
@@ -78,7 +92,7 @@ let _ =
 let start_tcpdump (pcap_file : string) : unit = 
   let pid = 
     Unix.create_process "sudo"
-      [| "sudo"; "tcpdump"; "-w"; pcap_file; "-i"; "any"; 
+      [| "sudo"; "tcpdump"; "-w"; pcap_file; "-i"; "any"; "-tt";
          "-B"; string_of_int (1024 * 50);
          "(tcp port 6633) or icmp" |]
       Unix.stdin Unix.stdout Unix.stderr in
@@ -105,14 +119,22 @@ let main =
   let _ = match !pcap_file with
     | None -> ()
     | Some fname -> start_tcpdump fname in
-  let _ = Platform.OpenFlowPlatform.init_with_port 6633 in
-  Misc.Log.printf "[VerifiedBenchmarks.ml] Starting controller.\n";
-  lwt _ = Controller.start init in
-  Misc.Log.printf "[VerifiedBenchmarks.ml] Invoking experiment.\n";
-  lwt _ = Policy.experiment () in
-  Misc.Log.printf "[VerifiedBenchmarks.ml] Graceful shutdown.\n%!";
-  return ()
+  match !use_haskell with
+    | true -> 
+      Misc.Log.printf "[VerifiedBenchmarks.ml] starting haskell\n%!";
+      let pid = Unix.create_process "./netcore-haskell" [| "netcore-haskell"; "--vvv" |]
+        Unix.stdin Unix.stdout Unix.stderr in
+      at_exit (fun () -> Unix.kill pid Sys.sigint);
+      lwt _ = Policy.experiment () in
+      Misc.Log.printf "[VerifiedBenchmarks.ml] Graceful shutdown.\n%!";
+      return ()
+    | false ->
+      let _ = Platform.OpenFlowPlatform.init_with_port 6633 in
+      Misc.Log.printf "[VerifiedBenchmarks.ml] Starting controller.\n";
+      lwt _ = Controller.start init in
+      Misc.Log.printf "[VerifiedBenchmarks.ml] Invoking experiment.\n";
+      lwt _ = Policy.experiment () in
+      Misc.Log.printf "[VerifiedBenchmarks.ml] Graceful shutdown.\n%!";
+      return ()
 
 let _ = Lwt_main.run main in ()
-                  
-

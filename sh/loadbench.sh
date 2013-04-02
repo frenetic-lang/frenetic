@@ -1,10 +1,10 @@
 #!/bin/bash
 
-topos=("wattsstrogatz,6" "wattsstrogatz,8" "wattsstrogatz,10" "fattree,4"  "fattree,6"  "fattree,8" "waxman")
+topos=("waxman,6,42")
 
-pols=("sp" "bc")
+pols=("bc")
 
-ctrls=("" "-flowmod")
+ctrls=("" "-haskell" "-flowmod")
 
 for topo in "${topos[@]}"
 do

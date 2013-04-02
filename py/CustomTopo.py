@@ -104,115 +104,28 @@ class FattreeTopology(Topo):
       
         self.enable_all()
 
-def waxman_graph(n, alpha=0.8, beta=0.1, L=None, domain=(0,0,1,1)):
-    r"""Return a Waxman random graph.
-
-    The Waxman random graph models place n nodes uniformly at random
-    in a rectangular domain. Two nodes u,v are connected with an edge
-    with probability
-
-    .. math::
-            p = \alpha*exp(d/(\beta*L)).
-
-    This function implements both Waxman models.            
-
-    Waxman-1:  `L` not specified
-       The distance `d` is the Euclidean distance between the nodes u and v.
-       `L` is the maximum distance between all nodes in the graph.
-
-    Waxman-2: `L` specified
-       The distance `d` is chosen randomly in `[0,L]`.
-
-    Parameters
-    ----------
-    n : int
-        Number of nodes
-    alpha: float
-        Model parameter
-    beta: float
-        Model parameter
-    L : float, optional
-        Maximum distance between nodes.  If not specified the actual distance
-        is calculated.
-    domain : tuple of numbers, optional
-         Domain size (xmin, ymin, xmax, ymax)
-
-    Returns
-    -------
-    G: Graph
-
-    References
-    ----------
-    .. [1]  B. M. Waxman, Routing of multipoint connections. 
-       IEEE J. Select. Areas Commun. 6(9),(1988) 1617-1622. 
-    """
-    # build graph of n nodes with random positions in the unit square
-    G = nx.Graph()
-    G.add_nodes_from(range(1,n+1))
-    (xmin,ymin,xmax,ymax)=domain
-    for n in G:
-        G.node[n]['pos']=((xmin + (xmax-xmin))*random.random(),
-                          (ymin + (ymax-ymin))*random.random())
-    if L is None:
-        # find maximum distance L between two nodes
-        l = 0
-        pos = [G.node[node]['pos'] for node in G]
-        while pos:
-            x1,y1 = pos.pop()
-            for x2,y2 in pos:
-                r2 = (x1-x2)**2 + (y1-y2)**2
-                if r2 > l:
-                    l = r2
-        l=math.sqrt(l)
-    else: 
-        # user specified maximum distance
-        l = L
-
-    nodes=G.nodes()
-    if L is None:
-        # Waxman-1 model
-        # try all pairs, connect randomly based on euclidean distance
-        while nodes:
-            u = nodes.pop()
-            x1,y1 = G.node[u]['pos']
-            for v in nodes:
-                x2,y2 = G.node[v]['pos']
-                r = math.sqrt((x1-x2)**2 + (y1-y2)**2)
-                if random.random() < alpha*math.exp(-r/(beta*l)):
-                    G.add_edge(u,v)
-    else:
-        # Waxman-2 model
-        # try all pairs, connect randomly based on randomly chosen l
-        while nodes:
-            u = nodes.pop()
-            for v in nodes:
-                r = random.random()*l
-                if random.random() < alpha*math.exp(-r/(beta*l)):
-                    G.add_edge(u,v)
-    return G
-
 class WaxmanTopology(Topo):
 
-    def __init__(self, num_switches=None):
+    def __init__(self, num_switches=5,seed=100):
 
         super(WaxmanTopology, self).__init__()
         
-        num_hosts_per_switch = 4
+        num_hosts_per_switch = 2
         # Needed so that subsequent calls will generate the same graph
-        random.seed(100)
-        if not num_switches:
-            num_switches = 5
+        random.seed(seed)
         num_hosts = num_switches*num_hosts_per_switch
         # build waxman graph
-        wax = waxman_graph(num_switches)
+        wax = nx.waxman_graph(num_switches,.9,.9)
 
         # Add switches
-        for s in wax:
-            self.add_node(s, Node(is_switch=True))
+        for s in wax.nodes():
+            self.add_node(s+1, Node(is_switch=True))
 
+            
         # Add edges
         for s1, s2 in wax.edges():
-            self.add_edge(s1, s2)
+            print "new edge"
+            self.add_edge(s1+1, s2+1)
                          
         # Add hosts
         hostoffset = num_switches+2
@@ -221,7 +134,7 @@ class WaxmanTopology(Topo):
             host_base = num_hosts_per_switch*s + hostoffset
             for host in range(0, num_hosts_per_switch):
                 self.add_node(host_base + host, Node(is_switch=False))
-                self.add_edge(host_base + host, s)
+                self.add_edge(host_base + host, s+1)
                 
         # # Globally connected host
         # self.add_host(9999)
