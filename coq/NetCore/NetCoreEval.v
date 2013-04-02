@@ -42,6 +42,7 @@ Inductive pred : Type :=
 | PrHdr : pattern ->  pred
 | PrOnSwitch : switchId -> pred
 | PrOr : pred -> pred -> pred
+| PrAnd : pred -> pred -> pred
 | PrNot : pred -> pred
 | PrAll : pred
 | PrNone : pred.
@@ -66,6 +67,7 @@ Fixpoint match_pred (pr : pred) (sw : switchId) (pt : portId) (pk : packet) :=
                           | right _ => false
                         end
     | PrOr p1 p2 => orb (match_pred p1 sw pt pk) (match_pred p2 sw pt pk)
+    | PrAnd p1 p2 => orb (match_pred p1 sw pt pk) (match_pred p2 sw pt pk)
     | PrNot p' => negb (match_pred p' sw pt pk)
     | PrAll => true
     | PrNone => false
@@ -89,8 +91,10 @@ Definition withVlanNone maybeVlan :=
     | Some (Some n) => Some n
   end.
 
+Section Modification.
+
 (* Better than Haskell, IMO. $ is not a function. *)
-Notation "f $ x" := (f x) (at level 51, right associativity). 
+Local Notation "f $ x" := (f x) (at level 51, right associativity).
   (* ask me in person why I picked this level *)
 
 Definition modify_pkt (mods : modification) (pk : packet) :=
@@ -108,6 +112,8 @@ Definition modify_pkt (mods : modification) (pk : packet) :=
       maybe_modify tpSrc setTpSrc $
       maybe_modify tpDst setTpDst pk
   end.
+
+End Modification.
 
 Definition eval_action (inp : input) (act : act) : output := 
   match (act, inp)  with

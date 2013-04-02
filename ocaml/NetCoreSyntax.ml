@@ -82,7 +82,7 @@ let desugar_policy
       ActGetPkt id in
   let rec desugar_pred pred = match pred with
     | And (p1, p2) -> 
-      PrNot (PrOr (PrNot (desugar_pred p1), PrNot (desugar_pred p2)))
+      PrAnd (desugar_pred p1, desugar_pred p2)
     | Or (p1, p2) ->
       PrOr (desugar_pred p1, desugar_pred p2)
     | Not p -> PrNot (desugar_pred p)

@@ -25,6 +25,8 @@ Fixpoint compile_pred (opt : Classifier bool -> Classifier bool)
       end
     | PrOr pr1 pr2 => opt (union orb (compile_pred opt pr1 sw) 
                                  (compile_pred opt pr2 sw))
+    | PrAnd pr1 pr2 => opt (inter andb (compile_pred opt pr1 sw)
+                                  (compile_pred opt pr2 sw))
     | PrNot pr' => 
       opt (map (second negb) 
                (compile_pred opt pr' sw ++ [(Pattern.all, false)]))
