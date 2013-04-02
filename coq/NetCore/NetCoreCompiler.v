@@ -21,7 +21,7 @@ Fixpoint compile_pred (opt : Classifier bool -> Classifier bool)
     | PrOnSwitch sw' => 
       match Word64.eq_dec sw sw' with
         | left _ => [(Pattern.all, true)]
-        | right _ => [(Pattern.all, false)]
+        | right _ => []
       end
     | PrOr pr1 pr2 => opt (union orb (compile_pred opt pr1 sw) 
                                  (compile_pred opt pr2 sw))

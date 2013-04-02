@@ -169,6 +169,11 @@ module Make (Platform : PLATFORM) (Policy : POLICY) = struct
             (fun (sw, xid,msg) -> Platform.send_to_switch sw xid msg)
             to_send >>
           loop st) in
+    let (st, to_send) = send_loop st in
+    let to_send = consolidate_pkt_out to_send in
+    Lwt_list.iter_s
+      (fun (sw, xid,msg) -> Platform.send_to_switch sw xid msg)
+      to_send >>
     loop st
 
   let main_loop_thread init_state = 
