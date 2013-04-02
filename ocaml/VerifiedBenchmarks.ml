@@ -23,7 +23,7 @@ let select_policy mn graph (name : string) =
         let hosts = hosts graph in
         let sws = switches graph in
         Lwt_unix.sleep 2.0 >>
-        Lwt_list.iter_s (Mininet.dump_tables mn) [List.hd sws] >>
+        Lwt_list.iter_s (Mininet.dump_tables mn) sws >>
         Lwt_list.iter_s (Mininet.enable_broadcast_ping mn) hosts >>
         Lwt_list.iter_s (Mininet.broadcast_ping mn 10) hosts
       in (pol, exp)
