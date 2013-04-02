@@ -67,7 +67,7 @@ Fixpoint match_pred (pr : pred) (sw : switchId) (pt : portId) (pk : packet) :=
                           | right _ => false
                         end
     | PrOr p1 p2 => orb (match_pred p1 sw pt pk) (match_pred p2 sw pt pk)
-    | PrAnd p1 p2 => orb (match_pred p1 sw pt pk) (match_pred p2 sw pt pk)
+    | PrAnd p1 p2 => andb (match_pred p1 sw pt pk) (match_pred p2 sw pt pk)
     | PrNot p' => negb (match_pred p' sw pt pk)
     | PrAll => true
     | PrNone => false
