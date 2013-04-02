@@ -359,6 +359,16 @@ Section Lemmas.
     eapply is_match_false_inter_l...
   Qed.
 
+  Lemma is_match_false_inter_r :
+    forall pt (pkt : packet) pat1 pat2,
+      match_packet pt pkt pat2 = false ->
+      match_packet pt pkt (inter pat1 pat2) = false.
+  Proof with eauto.
+    intros.
+    autounfold in *.
+    eapply is_match_false_inter_r...
+  Qed.
+
   Lemma no_match_subset_r : forall k n t t',
     match_packet n k t' = false -> 
     match_packet n k (inter t t') = false.
