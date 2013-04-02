@@ -547,3 +547,180 @@ Section Action.
   Qed.
 
 End Action.
+
+Section BoolHack.
+
+  Variable A_as_Action : ClassifierAction bool.
+  
+
+  Lemma is_match_true_inter : forall pat1 pat2 pt pk,
+    Pattern.match_packet pt pk pat1 = true ->
+    Pattern.match_packet pt pk (Pattern.inter pat1 pat2) = Pattern.match_packet pt pk pat2.
+  Proof with auto.
+    intros.
+    case_eq (Pattern.match_packet pt pk pat2); crush.
+    rewrite Pattern.is_match_true_inter; crush.
+    rewrite Pattern.is_match_false_inter_r; crush.
+  Qed.
+
+  Lemma scan_false_inter_andb_match : forall m a cf1 cf2 pt pk,
+    Pattern.match_packet pt pk m = true ->
+    scan false (inter andb ((m, a) :: cf1) cf2) pt pk = a && scan false (inter andb cf1 cf2) pt pk.
+  Proof.
+    intros.
+    unfold inter.
+    unfold fold_right.
+    fold (fold_right (fun (v : pattern * bool) (acc : list (Pattern.pat * bool)) =>
+         inter_entry andb cf2 v ++ acc) nil cf1).
+    fold (inter andb cf1 cf2).
+    case_eq a.
+    intro. rewrite andb_true_l. 
+    induction cf2; crush.
+    rewrite is_match_true_inter; crush.
+    case_eq (Pattern.match_packet pt pk a1); crush.
+    (* MJR: Stuck here, can't get to the induction hyp *)
+
+    Admitted.
+
+  Lemma inter_scan_comm : forall pt pk cf1 cf2,
+    scan false (inter andb cf1 cf2) pt pk =
+    andb (scan false cf1 pt pk) (scan false cf2 pt pk).
+  Proof with simpl; eauto with datatypes.
+    intros pt pk cf1 cf2.
+    induction cf1.
+      (* Base case *)
+    rewrite inter_nil_l.
+    crush.
+    exact true.
+    (* Inductive case *)
+    destruct a as [m a].
+    remember (Pattern.match_packet pt pk m).
+    (* remember (scan_inv action_unit pk pt (inter f ((m, a) :: cf1) cf2 ++ ((m, a) :: cf1) ++ cf2)) as H1. clear HeqH1. *)
+    (* destruct H1. *)
+    (* destruct H1 as [H1 H2]. *)
+    (* (* Case: scan falls off the table. *) *)
+    (* rewrite -> H2. *)
+
+    (* MJR: Stuck here *)
+    case_eq b.
+    intro.
+    rewrite H in Heqb.
+    symmetry in Heqb.
+    rewrite scan_false_inter_andb_match.
+    simpl.
+    rewrite Heqb.
+    case_eq a. intro.
+  Admitted.
+    
+  (*   fold (inter andb [(m,a)] cf1). *)
+  (*   Check elim_inter_head.  in H2... *)
+  (*   rewrite <- app_assoc in H2. *)
+  (*   rewrite -> elim_inter_head in H2... *)
+  (*   assert ((m,a) :: cf1 ++ cf2 = [(m,a)] ++ cf1 ++ cf2) as Hcf. auto. *)
+  (*   rewrite -> Hcf in H2. *)
+  (*   rewrite -> elim_scan_middle in H2. *)
+  (*   rewrite -> HnotA. *)
+  (*   rewrite <- IHcf1. *)
+  (*   unfold union... *)
+  (*   exact f. *)
+  (*   intros. inversion H3. inversion H4. subst... inversion H4. *)
+  (*   (* Case: scan does not fall off. *) *)
+  (*   destruct H1 as [cf3 [cf4 [m0 [a0 [H1 [H2 [H3 H4]]]]]]]. *)
+  (*   destruct b. *)
+  (*   clear IHcf1. *)
+  (*   rewrite <- app_comm_cons. *)
+  (*   (* Case where pkt is in m *) *)
+  (*   remember (scan_inv action_unit pk pt cf2) as Hinv. clear HeqHinv. *)
+  (*   destruct Hinv as [[H5 H6]|Hinv]. *)
+  (*   rewrite -> H6. *)
+  (*   assert (forall m'  (a' : A), In (m',a') (inter f ((m, a) :: cf1) cf2) -> *)
+  (*     Pattern.match_packet pt pk m' = false) as H7. *)
+  (*   apply inter_empty; auto. *)
+  (*   assert (scan action_unit (inter f ((m, a) :: cf1) cf2 ++ *)
+  (*     (m, a) :: cf1 ++ cf2) pt pk = *)
+  (*   scan action_unit ((m,a) :: cf1 ++ cf2) pt pk) as HelimHd. *)
+  (*   apply elim_scan_head; auto. *)
+  (*   rewrite -> HelimHd. *)
+  (*   assert ((m,a) :: cf1 ++ cf2 = *)
+  (*     nil ++ (m,a) :: cf1 ++ cf2) as HNilHd by auto. *)
+  (*   rewrite -> HNilHd. *)
+  (*   rewrite -> elim_scan_tail. *)
+  (*   rewrite -> app_nil_l. *)
+  (*   rewrite -> H. *)
+  (*   reflexivity. *)
+  (*   auto. *)
+  (*   destruct Hinv as [N2' [N3' [m' [a' [Heq' [Hlap' [Hscan' Hlap2']]]]]]]. *)
+  (*   match goal with *)
+  (*     | [ |- ?X = ?Y ] => remember Y as RHS end. *)
+  (*   assert (RHS = f a a') as HRHS. *)
+  (*   rewrite -> HeqRHS. *)
+  (*   simpl. *)
+  (*   rewrite <- Heqb. *)
+  (*   rewrite -> Hscan'... *)
+  (*   simpl. *)
+  (*   match goal with *)
+  (*     | [ |- context[fold_right ?f ?acc ?lst]] => remember (fold_right f acc lst) as F *)
+  (*   end. *)
+  (*   rewrite <- app_assoc. *)
+  (*   remember (inter f cf1 cf2 ++ (m,a) :: cf1 ++ cf2) as Trash. *)
+  (*   assert (forall m5 (a5 : A), *)
+  (*     In (m5,a5) (fold_right *)
+  (*       (fun (v' : pattern * A) (acc : list (pattern * A)) => *)
+  (*         let (pat', act') := v' in (Pattern.inter m pat', f a act') :: acc) *)
+  (*       nil N2')  -> *)
+  (*     Pattern.match_packet pt pk m5  = false) as HOMG. *)
+  (*   match goal with *)
+  (*     | [ |- context[fold_right ?f ?acc ?lst]] => remember (fold_right f acc lst) as F1 *)
+  (*   end. *)
+  (*   assert (F1 = inter f [(m,a)] N2') as HF1. *)
+  (*   simpl. rewrite -> app_nil_r. rewrite -> HeqF1... *)
+  (*   rewrite -> HF1. *)
+  (*   apply inter_empty; auto. *)
+  (*   rewrite -> Heq' in HeqF. *)
+  (*   assert (F = inter_entry f (N2' ++ (m',a') :: N3') (m,a)). *)
+  (*   rewrite -> HeqF. simpl. auto. *)
+  (*   assert ( (fold_right *)
+  (*     (fun (v' : pattern * A) (acc : list (pattern * A)) => *)
+  (*       let (pat', act') := v' in (Pattern.inter m pat', f a act') :: acc) *)
+  (*     nil N2') = inter_entry f N2' (m,a)). simpl. auto. *)
+  (*   rewrite -> H6 in HOMG. *)
+  (*   rewrite -> H5. *)
+  (*   rewrite -> inter_entry_app. *)
+  (*   rewrite <- app_assoc. *)
+  (*   rewrite -> elim_scan_head. *)
+  (*   simpl. *)
+  (*   rewrite -> Pattern.is_match_true_inter... *)
+  (*   auto. *)
+    
+  (*   assert ((m,a) :: cf1 = [(m,a)] ++ cf1) as Hsimpl. auto. *)
+  (*   rewrite -> Hsimpl. *)
+  (*   rewrite <- app_assoc. *)
+  (*   rewrite -> elim_scan_middle with (cf2 := [(m,a)]). *)
+  (*   rewrite <- Hsimpl. clear Hsimpl. *)
+  (*   simpl. *)
+  (*   rewrite <- app_assoc. *)
+  (*   rewrite -> elim_inter_head. *)
+  (*   rewrite <- Heqb. *)
+  (*   unfold union in IHcf1. *)
+  (*   trivial. *)
+  (*   auto. *)
+  (*   exact f. *)
+  (*   intros. inversion H5. inversion H6. subst... inversion H6. *)
+  (* Qed. *)
+
+  (* Lemma prefix_equivalence : forall cf1 cf2 pt pk, *)
+  (*   scan unit cf1 pt pk = scan unit (cf1 ++ cf2) pt pk \/ *)
+  (*   scan unit cf1 pt pk = unit. *)
+  (* Proof with auto. *)
+  (*   intros cf1 cf2 pt pk. *)
+  (*   induction cf1. *)
+  (*   right... *)
+  (*   destruct a as [pat a]. *)
+  (*   simpl. *)
+  (*   remember (Pattern.match_packet pt pk pat) as b. *)
+  (*   destruct b. *)
+  (*   left... *)
+  (*   exact IHcf1. *)
+  (* Qed. *)
+
+End BoolHack.
