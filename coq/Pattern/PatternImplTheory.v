@@ -142,6 +142,20 @@ Proof with auto.
   apply is_empty_true_l...
 Qed.
 
+Lemma is_match_false_inter_r :
+  forall (pt : portId) (pkt : packet) pat1 pat2,
+    match_packet pt pkt pat2 = false ->
+    match_packet pt pkt (inter pat1 pat2) = false.
+Proof with auto.
+  intros.
+  unfold match_packet in *.
+  rewrite -> negb_false_iff in H.
+  rewrite -> negb_false_iff.
+  rewrite inter_comm with (p := pat1). 
+  rewrite -> inter_assoc.
+  apply is_empty_true_l...
+Qed.
+
 Lemma no_match_subset_r : forall k n t t',
   match_packet n k t' = false -> 
   match_packet n k (inter t t') = false.
