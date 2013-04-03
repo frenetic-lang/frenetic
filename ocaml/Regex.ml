@@ -18,6 +18,13 @@ type regex_policy =
   | RegUnion of regex_policy * regex_policy
   | RegInter of regex_policy * regex_policy
 
+let (<+>) a b = RegUnion(a,b)
+let (<*>) a b = RegInter(a,b)
+
+let (&&) a b = Intersection(a,b)
+let (||) a b = Union(a,b)
+let (<.>) a b = Sequence(a,b)
+
 (* Normalization algorithm:
    1) Push intersections till they're over atomic policies or other intersection (DNF)
    2) Eliminate intersections
