@@ -33,7 +33,7 @@ module Routing = struct
 
   let (policy, push) = Lwt_stream.create ()
     
-  let test_regex = RegPar (RegPol (All, Sequence (Host h1, (Sequence (Hop s101, Sequence (Star, (Sequence (Hop s104, Host h2)))))), 0),
+  let test_regex = RegUnion (RegPol (All, Sequence (Host h1, (Sequence (Hop s101, Sequence (Star, (Sequence (Hop s104, Host h2)))))), 0),
 			   RegPol (All, Sequence (Host h2, Sequence (Hop s104, Sequence (Star, (Sequence (Hop s101, Host h1))))), 0))
 
   (** Composes learning and routing policies, which together form

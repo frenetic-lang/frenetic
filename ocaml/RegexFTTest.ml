@@ -41,7 +41,7 @@ module Routing = struct
 
   let from_to i j = And (SrcIP (make_host_ip i), DstIP (make_host_ip j))
 			   (* (DlType 0x800)) *)
-  let make_policy = RegPar (RegPol (from_to 1 2, (Sequence (Host h1, Sequence (Star, Host h2))), 1),
+  let make_policy = RegUnion (RegPol (from_to 1 2, (Sequence (Host h1, Sequence (Star, Host h2))), 1),
 			    RegPol (from_to 2 1, (Sequence (Host h2, Sequence (Star, Host h1))), 1))
 
   let desugar_group_htbl tbl =

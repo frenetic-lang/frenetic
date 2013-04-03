@@ -270,7 +270,7 @@ let group_htbl_to_str ghtbl =
 
 let rec compile_ft_to_nc regpol topo =
   match regpol with
-    | Regex.RegPar (p1,p2) -> let nc1,group1 = compile_ft_to_nc p1 topo in
+    | Regex.RegUnion (p1,p2) -> let nc1,group1 = compile_ft_to_nc p1 topo in
 			      Printf.printf "Group1: %s" (group_htbl_to_str group1);
 			      let nc2, group2 = compile_ft_to_nc p2 topo in
 			      Printf.printf "Group2: %s" (group_htbl_to_str group2);

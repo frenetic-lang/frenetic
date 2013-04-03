@@ -9,13 +9,20 @@ type regex =
   | Hop of switchId
   | Host of int
   | Star
-  | Option of regex * regex
   | Sequence of regex * regex
+  | Union of regex * regex
+  | Intersection of regex * regex
 
 type regex_policy = 
   | RegPol of predicate * regex * int
-  | RegPar of regex_policy * regex_policy
+  | RegUnion of regex_policy * regex_policy
+  | RegInter of regex_policy * regex_policy
 
+(* Normalization algorithm:
+   1) Push intersections till they're over atomic policies or other intersection (DNF)
+   2) Eliminate intersections
+   3) Find a minimal independent covering set
+*)
 
 
 let rec flatten_reg pol = match pol with
@@ -123,7 +130,7 @@ end
 
 let rec compile_regex pol topo = match pol with
   | RegPol (pred, reg, _) -> compile_path pred (expand_path (collapse_star (flatten_reg reg)) topo) topo (Gensym.next ())
-  | RegPar (pol1, pol2) -> Par (compile_regex pol1 topo, compile_regex pol2 topo)
+  | RegUnion (pol1, pol2) -> Par (compile_regex pol1 topo, compile_regex pol2 topo)
 
 let rec del_links path topo = match path with
   | Host h :: path -> del_links path topo
