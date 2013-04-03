@@ -3,9 +3,10 @@ open OpenFlow0x04Parser
 open Platform0x04
 open Unix
 open OpenFlow0x04Types
+module Test = RegexTest
 
 (* module Controller = RegexTest.Make (OpenFlowPlatform) *)
-module Controller = RegexTest.Make (OpenFlowPlatform)
+module Controller = Test.Make (OpenFlowPlatform)
 
 (* configuration state *)
 let controller = ref "learn"

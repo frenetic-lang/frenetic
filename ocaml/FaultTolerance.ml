@@ -215,7 +215,7 @@ let rec k_dag_from_path path n k topo dag = match path with
 
 let rec build_dag n topo regex = 
   let dag = Dag.create() in
-  let path = Regex.expand_path_with_match regex topo in
+  let path = expand_path_with_match regex topo in
   k_dag_from_path path n 0 (G.copy topo) dag;
   dag
 
@@ -243,9 +243,9 @@ let rec last lst =
     | a :: lst -> last lst
 
 let rec compile_ft_regex pred vid regex k topo = 
-  let Regex.Host srcHost = first regex in
-  let Regex.Host dstHost = last regex in
-  let host_expanded_regex = Regex.install_hosts regex topo in
+  let Host srcHost = first regex in
+  let Host dstHost = last regex in
+  let host_expanded_regex = install_hosts regex topo in
   let srcSw,srcPort = (match G.get_host_port topo srcHost with Some (sw,p) -> (sw,p)) in
   let dstSw,dstPort = (match G.get_host_port topo dstHost with Some (sw,p) -> (sw,p)) in
   let dag = build_dag k topo regex in
@@ -270,12 +270,12 @@ let group_htbl_to_str ghtbl =
 
 let rec compile_ft_to_nc regpol topo =
   match regpol with
-    | Regex.RegUnion (p1,p2) -> let nc1,group1 = compile_ft_to_nc p1 topo in
+    | RegUnion (p1,p2) -> let nc1,group1 = compile_ft_to_nc p1 topo in
 			      Printf.printf "Group1: %s" (group_htbl_to_str group1);
 			      let nc2, group2 = compile_ft_to_nc p2 topo in
 			      Printf.printf "Group2: %s" (group_htbl_to_str group2);
 			      let groups = join_htbls group1 group2 List.append in
 			      Printf.printf "Groups: %s" (group_htbl_to_str groups);
 			      (Par (nc1, nc2), groups)
-    | Regex.RegPol (pred, path, k) -> let vid = Int32.to_int (Gensym.next ()) in
-				      compile_ft_regex pred vid (Regex.flatten_reg path) k topo
+    | RegPol (pred, path, k) -> let vid = Int32.to_int (Gensym.next ()) in
+				      compile_ft_regex pred vid (flatten_reg path) k topo
