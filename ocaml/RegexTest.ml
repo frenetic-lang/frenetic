@@ -14,7 +14,7 @@ module Routing = struct
   let s104 = Int64.of_int 4
   let h1 = 1
   let h2 = 2
-  open Regex
+  open Pathetic.Regex
     (* Simple linear topo 101 <-> 102 <-> 103 *)
   (* let make_topo () =  *)
   (*   let topo = G.create () in *)

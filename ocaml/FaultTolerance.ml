@@ -1,4 +1,4 @@
-open Regex
+open Pathetic.Regex
 open OpenFlow0x04Types
 open NetCoreFT
 
