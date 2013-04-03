@@ -3,7 +3,7 @@ open WordInterface
 open Platform0x04
 open FaultTolerance
 open NetCoreFT
-open Regex.Regex
+open Regex
 
 module G = Graph.Graph
 
