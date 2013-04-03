@@ -3,9 +3,6 @@
 <Misc> : include
 <Misc/Log.cmx> : for-pack(Misc)
 <Pathetic> : include
-<Pathetic/Regex.cmx> : for-pack(Pathetic)
-<Pathetic/RegexTest.cmx> : for-pack(Pathetic)
-<Pathetic/RegexFTTest.cmx> : for-pack(Pathetic)
 true : use_menhir
 true : use_str
 <*.d.byte> : package(cstruct), package(lwt), package(lwt.unix)
