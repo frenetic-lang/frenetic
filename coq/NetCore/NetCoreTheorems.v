@@ -30,10 +30,6 @@ Instance bool_as_Action : ClassifierAction bool := {
 
   Hint Unfold Equiv_Preserving.
 
-  Axiom inter_comm_bool_range : forall (cf1 cf2 : Classifier bool)
-    (pt : portId) (pk : packet),
-    @scan bool false (inter andb cf1 cf2) pt pk = orb (scan false cf1 pt pk) (scan false cf2 pt pk).
-
   Theorem compile_pred_correct : forall pr sw pt pk opt,
     Equiv_Preserving opt ->
     match_pred pr sw pt pk = scan false (compile_pred (opt bool) pr sw) pt pk.

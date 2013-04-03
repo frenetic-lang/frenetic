@@ -414,6 +414,132 @@ Section Action.
     simpl. f_equal...
   Qed.
 
+(*
+ Heqmatched : true = Pattern.match_packet pt pk p
+  ============================
+   scan (scan false cf1 pt pk && scan false cf2 pt pk)
+     (inter_entry andb cf2 (p, true)) pt pk = true && scan false cf2 pt pk
+
+*)
+  Lemma inter_entry_andb_true : forall cf pat pt pk b, 
+    true = Pattern.match_packet pt pk pat ->
+    scan b (inter_entry andb cf (pat, true)) pt pk = scan b cf pt pk.
+  Proof with auto with datatypes.
+    intros.
+    induction cf...
+    destruct a.
+    simpl...
+    remember (Pattern.match_packet pt pk p) as b1.
+    destruct b1...
+    + rewrite -> Pattern.is_match_true_inter...
+    + rewrite -> Pattern.no_match_subset_r...
+  Qed.
+
+
+  Lemma scan_app_compose : forall pt pk lst1 lst2,
+    scan false (lst1 ++ lst2) pt pk = scan (scan false lst2 pt pk) lst1 pt pk.
+  Proof with auto with datatypes.
+    intros.
+    induction lst1...
+    destruct a.
+    simpl.
+    rewrite -> IHlst1...
+  Qed.
+
+  Lemma scan_full_false : forall lst pat pt pk,
+    scan false (inter_entry andb lst (pat, false)) pt pk = false.
+  Proof with auto with datatypes.
+    intros.
+    induction lst...
+    destruct a.
+    simpl.
+    clear b.
+    remember (Pattern.match_packet pt pk (Pattern.inter pat p)) as b.
+    destruct b...
+  Qed.
+
+   Lemma scan_bool_flatten : forall b cf2 pt pk,
+    scan (b && scan false cf2 pt pk) cf2 pt pk  = scan false cf2 pt pk.
+   Proof with auto with datatypes.
+     intros.
+     destruct b...
+     simpl.
+     rewrite <- scan_app_compose.
+     induction cf2...
+     destruct a.
+     simpl.
+     remember (Pattern.match_packet pt pk p) as b0.
+     destruct b0...
+     assert (cf2 ++ (p,b) :: cf2 = cf2 ++ [(p,b)] ++ cf2) as X...
+     rewrite -> X.
+     rewrite -> elim_scan_middle...
+     intros.
+     simpl in H.
+     destruct H.
+     + inversion H; subst; clear H...
+     + inversion H.
+   Qed.
+
+   Lemma inter_entry_andb_false : forall lst pat b pt pk,
+     scan false lst pt pk = true ->
+     Pattern.match_packet pt pk pat = true ->
+     scan b (inter_entry andb lst (pat, false)) pt pk = false.
+   Proof with auto with datatypes.
+     intros.
+     induction lst...
+     simpl in H.
+     inversion H.
+     destruct a.
+     simpl.
+     remember (Pattern.match_packet pt pk p) as b1.
+     destruct b1.
+     rewrite -> Pattern.is_match_true_inter...
+     rewrite -> Pattern.no_match_subset_r...
+     assert (fold_right
+               (fun (v' : pattern * bool) (acc : list (Pattern.pat * bool)) =>
+                  let (pat', _) := v' in (Pattern.inter pat pat', false) :: acc) nil
+               lst = inter_entry andb lst (pat, false)) as X...
+     rewrite -> X; clear X.
+     apply IHlst.
+     simpl in H.
+     rewrite <- Heqb1 in H...
+   Qed.
+  
+  Lemma inter_comm_bool_range : forall (cf1 cf2 : Classifier bool)
+    (pt : portId) (pk : packet),
+    @scan bool false (inter andb cf1 cf2) pt pk = andb (scan false cf1 pt pk) (scan false cf2 pt pk).
+  Proof with auto with datatypes.
+    intros.
+    induction cf1.
+    + simpl...
+    + destruct a.
+      simpl.
+      remember (Pattern.match_packet pt pk p) as matched.
+      destruct matched.
+      - { assert (fold_right
+        (fun (v' : pattern * bool) (acc : list (Pattern.pat * bool)) =>
+         let (pat', act') := v' in (Pattern.inter p pat', b && act') :: acc)
+        nil cf2 = inter_entry andb cf2 (p,b)) as X.
+        { simpl. reflexivity. }
+        rewrite -> X. clear X.
+        rewrite -> scan_app_compose.
+        rewrite -> IHcf1.
+        destruct b.
+        + rewrite -> inter_entry_andb_true.
+          simpl.
+          apply scan_bool_flatten.
+          symmetry...
+        + rewrite -> andb_false_l.
+          remember (scan false cf1 pt pk && scan false cf2 pt pk) as b.
+          destruct b.
+          - symmetry in Heqb. 
+            rewrite -> andb_true_iff in Heqb.
+            destruct Heqb.
+            rewrite -> inter_entry_andb_false...
+          - apply scan_full_false. }
+      - rewrite -> elim_inter_head...
+  Qed.
+
   Lemma union_scan_comm : forall (f : A -> A -> A) pt pk cf1 cf2,
     has_unit f ->
     scan action_unit (union f cf1 cf2) pt pk = 
