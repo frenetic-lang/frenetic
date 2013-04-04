@@ -1,4 +1,4 @@
-MODULES := OpenFlow0x01Types OpenFlowSemantics ControllerInterface
+MODULES := OpenFlowTypes #OpenFlowSemantics ControllerInterface
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean

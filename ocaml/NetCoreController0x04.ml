@@ -6,7 +6,7 @@ open NetCoreEval
 open NetCoreEval0x04
 open NetCoreCompiler0x04
 open Packet
-open OpenFlow0x04Types
+open OpenFlowTypes
 open Types
 open WordInterface
 
@@ -81,8 +81,8 @@ let translate_action in_port = function
 let wildcard_to_mask wc def =
   match wc with
     | Wildcard.WildcardExact a -> val_to_mask a
-    | Wildcard.WildcardAll -> {value = def; mask = Some def}
-    | Wildcard.WildcardNone -> {value = def; mask = Some def}
+    | Wildcard.WildcardAll -> {m_value = def; m_mask = Some def}
+    | Wildcard.WildcardNone -> {m_value = def; m_mask = Some def}
 
 let pattern_to_oxm_match pat = 
   let { PatternImplDef.ptrnDlSrc = dlSrc;
@@ -122,16 +122,16 @@ let pattern_to_oxm_match pat =
 
 let to_flow_mod prio pat act0 tableId =
   let ofMatch,inport = pattern_to_oxm_match pat in
-  { table_id = tableId; command = AddFlow; ofp_match = ofMatch; priority = prio; 
-    instructions = [ApplyActions (concat_map (translate_action inport) act0)]; 
-    cookie = val_to_mask (Int64.of_int 0); idle_timeout = Permanent; 
-    hard_timeout = Permanent; out_group = None;
-  flags = {  send_flow_rem = false; 
-	     check_overlap = false; 
-	     reset_counts = false; 
-	     no_pkt_counts = false;
-	     no_byt_counts = false }; 
-  buffer_id = None; out_port = None}
+  { mfTable_id = tableId; mfCommand = AddFlow; mfOfp_match = ofMatch; mfPriority = prio; 
+    mfInstructions = [ApplyActions (concat_map (translate_action inport) act0)]; 
+    mfCookie = val_to_mask (Int64.of_int 0); mfIdle_timeout = Permanent; 
+    mfHard_timeout = Permanent; mfOut_group = None;
+  mfFlags = {  fmf_send_flow_rem = false; 
+	     fmf_check_overlap = false; 
+	     fmf_reset_counts = false; 
+	     fmf_no_pkt_counts = false;
+	     fmf_no_byt_counts = false }; 
+  mfBuffer_id = None; mfOut_port = None}
 
 (** val flow_mods_of_classifier : act list coq_Classifier -> flowMod list **)
 
@@ -149,10 +149,10 @@ let rec get_watch_port acts = match acts with
   | [] -> None
 
 let to_group_mod gid gtype bkts =
-  AddGroup (gtype, gid, map (fun acts -> {weight = 0;
-					  watch_port = get_watch_port acts;
-					  watch_group = None;
-					  actions = (concat_map (translate_action None) acts)}) 
+  AddGroup (gtype, gid, map (fun acts -> {bu_weight = 0;
+					  bu_watch_port = get_watch_port acts;
+					  bu_watch_group = None;
+					  bu_actions = (concat_map (translate_action None) acts)}) 
     bkts)
 
 (** val flow_mods_of_classifier : act list coq_Classifier -> flowMod list **)
@@ -165,18 +165,18 @@ let delete_all_groups =
   DeleteGroup (All,OpenFlow0x04Parser.ofpg_all)
 
 let delete_all_flows tableId =
-  { command = DeleteFlow; ofp_match = []; priority = 0;
-    table_id = tableId; buffer_id = None; out_port = None;
-    out_group = None; instructions = []; 
-    cookie = val_to_mask (Int64.of_int 0); idle_timeout = Permanent;
-    hard_timeout = Permanent;
-  flags = {  send_flow_rem = false; 
-	     check_overlap = false; 
-	     reset_counts = false; 
-	     no_pkt_counts = false;
-	     no_byt_counts = false }}
+  { mfCommand = DeleteFlow; mfOfp_match = []; mfPriority = 0;
+    mfTable_id = tableId; mfBuffer_id = None; mfOut_port = None;
+    mfOut_group = None; mfInstructions = []; 
+    mfCookie = val_to_mask (Int64.of_int 0); mfIdle_timeout = Permanent;
+    mfHard_timeout = Permanent;
+  mfFlags = {  fmf_send_flow_rem = false; 
+	     fmf_check_overlap = false; 
+	     fmf_reset_counts = false; 
+	     fmf_no_pkt_counts = false;
+	     fmf_no_byt_counts = false }}
 
-type group_htbl = (OpenFlow0x04Types.switchId, (int32 * OpenFlow0x04Types.groupType * NetCoreEval0x04.act list list) list) Hashtbl.t
+type group_htbl = (OpenFlowTypes.switchId, (int32 * OpenFlowTypes.groupType * NetCoreEval0x04.act list list) list) Hashtbl.t
 
 module type NETCORE_MONAD = 
  sig 
@@ -232,9 +232,9 @@ module Make =
     let fm_cls = fst (nc_compiler pol swId) in
     let gm_cls = (try Hashtbl.find groups swId with _ -> Printf.printf "no groups for switch %Ld\n" swId; []) in
     sequence
-      ((map (fun fm -> Monad.send swId Word32.zero (GroupMod fm))
+      ((map (fun fm -> Monad.send swId Word32.zero (GroupModMsg fm))
 	  (delete_all_groups :: (group_mods_of_classifier gm_cls))) @
-      (map (fun fm -> Monad.send swId Word32.zero (FlowMod fm))
+      (map (fun fm -> Monad.send swId Word32.zero (FlowModMsg fm))
         (delete_all_flows tblId::(flow_mods_of_classifier fm_cls tblId))))
   
   (** val set_policy : pol -> unit Monad.m **)
@@ -274,7 +274,7 @@ module Make =
   | OutAct (swId, [], pkt, bufOrBytes) -> Monad.ret ()
   | OutAct (swId, acts, pkt, bufOrBytes) ->
     let (buf, pkt) = (match bufOrBytes with Coq_inl buf -> (Some buf, None) | _ -> (None, Some pkt)) in
-    Monad.send swId Word32.zero (PacketOut { po_buffer_id =
+    Monad.send swId Word32.zero (PacketOutMsg { po_buffer_id =
       buf; po_in_port = Controller 0; po_pkt = pkt; po_actions = concat_map (translate_action None) acts })
   | OutGetPkt (x, switchId0, portId0, packet0) ->
     Monad.handle_get_packet x switchId0 portId0 packet0
@@ -295,7 +295,7 @@ module Make =
   | SwitchDisconnected swId -> handle_switch_disconnected swId
   | SwitchMessage (swId, xid0, msg) ->
     (match msg with
-     | PacketIn pktIn -> handle_packet_in swId pktIn
+     | PacketInMsg pktIn -> handle_packet_in swId pktIn
      | _ -> Monad.ret ())
   
   (** val main : unit Monad.m **)

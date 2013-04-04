@@ -50,8 +50,13 @@ Module Width8 <: WIDTH.
 
   Definition width := 8 %positive.
 
-
 End Width8.
+
+Module Width12 <: WIDTH.
+
+  Definition width := 12 %positive.
+
+End Width12.
 
 Module Width16 <: WIDTH.
 
@@ -91,6 +96,15 @@ Module Word8 <: WORD.
   Parameter eq_dec : forall (m n : t), { m = n } + { m <> n }.
 
 End Word8.
+
+Module Word12 <: WORD.
+
+  Module M := MakeWord (Width12).
+  Include M.
+
+  Parameter eq_dec : forall (m n : t), { m = n } + { m <> n }.
+
+End Word12.
 
 Module Word16 <: WORD.
 
@@ -143,18 +157,21 @@ Extract Constant Word16.pred => "(fun n -> if n = 0 then 0 else n - 1)". (* TODO
 Extract Constant Word16.max_value => "65535".
 
 Extract Inductive Word8.Word => "int" [ "" ].
+Extract Inductive Word12.Word => "int" [ "" ].
 Extract Inductive Word16.Word => "int" [ "" ].
 Extract Inductive Word32.Word => "int32" [ "" ].
 Extract Inductive Word48.Word => "int64" [ "" ].
 Extract Inductive Word64.Word => "int64" [ "" ].
 
 Extract Constant Word8.eq_dec => "(=)".
+Extract Constant Word12.eq_dec => "(=)".
 Extract Constant Word16.eq_dec => "(=)".
 Extract Constant Word32.eq_dec => "(=)".
 Extract Constant Word48.eq_dec => "(=)".
 Extract Constant Word64.eq_dec => "(=)".
 
 Extract Constant Word8.zero => "0".
+Extract Constant Word12.zero => "0".
 Extract Constant Word16.zero => "0".
 Extract Constant Word32.zero => "Int32.zero".
 Extract Constant Word48.zero => "Int64.zero".

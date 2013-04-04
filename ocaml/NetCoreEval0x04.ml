@@ -1,7 +1,7 @@
 open Datatypes
 open List0
 open Packet
-open OpenFlow0x04Types
+open OpenFlowTypes
 open WordInterface
 open NetCoreEval
 
@@ -103,7 +103,7 @@ let eval_action inp = function
   OutAct (sw, [Forward (mods, pp)], pk,
 	  (match buf with
 	    | Some b -> Coq_inl b
-	    | None -> Coq_inr (Cstruct.to_string (serialize_pkt pk))))
+	    | None -> Coq_inr (serialize_pkt pk)))
 | ActGetPkt x ->
   let InPkt (sw, pt, pk, buf) = inp in OutGetPkt (x, sw, pt, pk)
 

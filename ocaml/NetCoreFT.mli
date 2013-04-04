@@ -1,6 +1,6 @@
 (** The NetCore policy language *)
 open Packet
-open OpenFlow0x04Types
+open OpenFlowTypes
 open Platform0x04
 
 type get_packet_handler = switchId -> portId -> packet -> unit
@@ -51,7 +51,7 @@ type policy =
   | Restrict of policy * predicate
 
 val policy_to_string : policy -> string
-type group_htbl = (OpenFlow0x04Types.switchId, (int32 * OpenFlow0x04Types.groupType * NetCoreEval0x04.act list list) list) Hashtbl.t
+type group_htbl = (OpenFlowTypes.switchId, (int32 * OpenFlowTypes.groupType * NetCoreEval0x04.act list list) list) Hashtbl.t
 
 val desugar_act : action -> NetCoreEval0x04.act
 

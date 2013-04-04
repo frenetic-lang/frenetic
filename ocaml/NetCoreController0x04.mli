@@ -3,7 +3,7 @@ open Packet
 open ControllerInterface0x04
 open Datatypes
 open List0
-open OpenFlow0x04Types
+open OpenFlowTypes
 open NetCoreCompiler0x04
 open NetCoreEval0x04
 open Types
@@ -33,7 +33,7 @@ val group_mods_of_classifier : (groupId*groupType*(act list list)) list -> group
 
 val delete_all_flows : tableId -> flowMod 
 
-type group_htbl = (OpenFlow0x04Types.switchId, (int32 * OpenFlow0x04Types.groupType * NetCoreEval0x04.act list list) list) Hashtbl.t
+type group_htbl = (OpenFlowTypes.switchId, (int32 * OpenFlowTypes.groupType * NetCoreEval0x04.act list list) list) Hashtbl.t
 
 module type NETCORE_MONAD = 
  sig 

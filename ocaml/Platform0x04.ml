@@ -1,4 +1,4 @@
-open OpenFlow0x04Types
+open OpenFlowTypes
 open OpenFlow0x04Parser
 
 open Lwt

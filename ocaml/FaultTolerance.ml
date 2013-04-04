@@ -1,5 +1,5 @@
 open Pathetic.Regex
-open OpenFlow0x04Types
+open OpenFlowTypes
 open NetCoreFT
 
 module G = Graph.Graph

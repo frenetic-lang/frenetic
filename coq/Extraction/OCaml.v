@@ -5,6 +5,8 @@ Require Import PArith.BinPos.
 Require Import NArith.BinNat.
 Require Import Common.Types.
 
+Require Import ExtrOcamlString.
+
 Extraction Blacklist String List.
 
 (** Without this hack, these are "extracted as axioms":

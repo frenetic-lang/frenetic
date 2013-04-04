@@ -2,7 +2,7 @@ open Printf
 open OpenFlow0x04Parser
 open Platform0x04
 open Unix
-open OpenFlow0x04Types
+open OpenFlowTypes
 module Test = RegexTest
 
 (* module Controller = RegexTest.Make (OpenFlowPlatform) *)

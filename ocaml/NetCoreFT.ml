@@ -2,7 +2,7 @@ open Wildcard
 open Pattern
 open Packet
 open ControllerInterface0x04
-open OpenFlow0x04Types
+open OpenFlowTypes
 open Platform0x04
 open NetCoreEval0x04
 open Printf
@@ -14,7 +14,7 @@ module type HANDLERS = sig
 
 end
 
-type group_htbl = (OpenFlow0x04Types.switchId, (int32 * OpenFlow0x04Types.groupType * NetCoreEval0x04.act list list) list) Hashtbl.t
+type group_htbl = (OpenFlowTypes.switchId, (int32 * OpenFlowTypes.groupType * NetCoreEval0x04.act list list) list) Hashtbl.t
 
 module MakeNetCoreMonad
   (Platform : PLATFORM) 

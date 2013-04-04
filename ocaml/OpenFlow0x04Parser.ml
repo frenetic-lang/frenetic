@@ -3,7 +3,7 @@
 open Printf
 open Cstruct
 open Cstruct.BE
-open OpenFlow0x04Types
+open OpenFlowTypes
 open Util
 open List
 open PacketParser
@@ -12,6 +12,10 @@ exception Unparsable of string
 let sym_num = ref 0
 
 let sum (lst : int list) = List.fold_left (fun x y -> x + y) 0 lst
+
+type uint48 = uint64
+type uint12 = uint16
+
 
 (* OKAY *)
 cstruct ofp_header {
@@ -144,6 +148,16 @@ cstruct ofp_switch_features {
 (* MISSING: ofp_port_features *)
 
 (* MISSING: ofp_ queues *)
+
+cenum ofp_flow_mod_command {
+  OFPFC_ADD            = 0; (* New flow. *)
+  OFPFC_MODIFY         = 1; (* Modify all matching flows. *)
+  OFPFC_MODIFY_STRICT  = 2; (* Modify entry strictly matching wildcards and
+                              priority. *)
+  OFPFC_DELETE         = 3; (* Delete all matching flows. *)
+  OFPFC_DELETE_STRICT  = 4  (* Delete entry strictly matching wildcards and
+                              priority. *)
+} as uint8_t
 
 cstruct ofp_flow_mod {
   uint64_t cookie;             (* Opaque controller-issued identifier. *)
@@ -322,6 +336,13 @@ cstruct ofp_instruction_experimenter {
     (* Experimenter-defined arbitrary additional data. *)
 } as big_endian
 
+cenum ofp_group_type {
+  OFPGC_ALL = 0; (* All (multicast/broadcast) group. *)
+  OFPGC_SELECT = 1; (* Select group. *)
+  OFPGC_INDIRECT = 2; (* Indirect group. *)
+  OFPGC_FF = 3 (* Fast failover group. *)
+} as uint16_t
+
 (* Group setup and teardown (controller -> datapath). *)
 cstruct ofp_group_mod {
   uint16_t command;             (* One of OFPGC_*. *)
@@ -406,24 +427,24 @@ module Oxm = struct
     | OxmInPhyPort _ -> 4
     | OxmEthType  _ -> 2
     | OxmEthDst ethaddr ->
-      (match ethaddr.mask with
+      (match ethaddr.m_mask with
         | None -> 6
         | Some _ -> 12)
     | OxmEthSrc ethaddr ->
-      (match ethaddr.mask with
+      (match ethaddr.m_mask with
         | None -> 6
         | Some _ -> 12)
     | OxmVlanVId vid ->
-      (match vid.mask with
+      (match vid.m_mask with
         | None -> 2
         | Some _ -> 4)
     | OxmVlanPcp vid -> 1
     | OxmIP4Src ipaddr -> 
-      (match ipaddr.mask with
+      (match ipaddr.m_mask with
         | None -> 4
         | Some _ -> 8)
     | OxmIP4Dst ipaddr ->       
-      (match ipaddr.mask with
+      (match ipaddr.m_mask with
         | None -> 4
         | Some _ -> 8)
     | OxmTCPSrc _ -> failwith "Invalid field_length TCPSrc"
@@ -461,9 +482,9 @@ module Oxm = struct
               set_ofp_uint16_value buf2 ethtype;
               sizeof_ofp_oxm + l
             | OxmEthDst ethaddr ->
-              set_ofp_oxm buf ofc OFPXMT_OFB_ETH_DST (match ethaddr.mask with None -> 0 | _ -> 1) l;
-              set_ofp_uint48_value buf2 ethaddr.value;
-              begin match ethaddr.mask with
+              set_ofp_oxm buf ofc OFPXMT_OFB_ETH_DST (match ethaddr.m_mask with None -> 0 | _ -> 1) l;
+              set_ofp_uint48_value buf2 ethaddr.m_value;
+              begin match ethaddr.m_mask with
                 | None ->
                   sizeof_ofp_oxm + l
                 | Some mask ->
@@ -472,9 +493,9 @@ module Oxm = struct
                     sizeof_ofp_oxm + l
               end
             | OxmEthSrc ethaddr ->
-              set_ofp_oxm buf ofc OFPXMT_OFB_ETH_SRC (match ethaddr.mask with None -> 0 | _ -> 1) l;
-              set_ofp_uint48_value buf2 ethaddr.value;
-              begin match ethaddr.mask with
+              set_ofp_oxm buf ofc OFPXMT_OFB_ETH_SRC (match ethaddr.m_mask with None -> 0 | _ -> 1) l;
+              set_ofp_uint48_value buf2 ethaddr.m_value;
+              begin match ethaddr.m_mask with
                 | None ->
                   sizeof_ofp_oxm + l
                 | Some mask ->
@@ -483,9 +504,9 @@ module Oxm = struct
                     sizeof_ofp_oxm + l
               end
             | OxmIP4Src ipaddr ->
-              set_ofp_oxm buf ofc OFPXMT_OFB_IPV4_SRC (match ipaddr.mask with None -> 0 | _ -> 1) l;
-              set_ofp_uint32_value buf2 ipaddr.value;
-              begin match ipaddr.mask with
+              set_ofp_oxm buf ofc OFPXMT_OFB_IPV4_SRC (match ipaddr.m_mask with None -> 0 | _ -> 1) l;
+              set_ofp_uint32_value buf2 ipaddr.m_value;
+              begin match ipaddr.m_mask with
                 | None ->
                   sizeof_ofp_oxm + l
                 | Some mask ->
@@ -494,9 +515,9 @@ module Oxm = struct
                     sizeof_ofp_oxm + l
               end
             | OxmIP4Dst ipaddr ->
-              set_ofp_oxm buf ofc OFPXMT_OFB_IPV4_DST (match ipaddr.mask with None -> 0 | _ -> 1) l;
-              set_ofp_uint32_value buf2 ipaddr.value;
-              begin match ipaddr.mask with
+              set_ofp_oxm buf ofc OFPXMT_OFB_IPV4_DST (match ipaddr.m_mask with None -> 0 | _ -> 1) l;
+              set_ofp_uint32_value buf2 ipaddr.m_value;
+              begin match ipaddr.m_mask with
                 | None ->
                   sizeof_ofp_oxm + l
                 | Some mask ->
@@ -505,9 +526,9 @@ module Oxm = struct
                     sizeof_ofp_oxm + l
               end
             | OxmVlanVId vid ->
-              set_ofp_oxm buf ofc OFPXMT_OFB_VLAN_VID (match vid.mask with None -> 0 | _ -> 1) l;
-              set_ofp_uint16_value buf2 vid.value;
-              begin match vid.mask with
+              set_ofp_oxm buf ofc OFPXMT_OFB_VLAN_VID (match vid.m_mask with None -> 0 | _ -> 1) l;
+              set_ofp_uint16_value buf2 vid.m_value;
+              begin match vid.m_mask with
                 | None ->
                   sizeof_ofp_oxm + l
                 | Some mask ->
@@ -557,35 +578,35 @@ module Oxm = struct
         if hm = 1 then
           let bits = Cstruct.shift bits 8 in
           let mask = get_ofp_uint64_value bits in
-          (OxmMetadata {value = value; mask = (Some mask)}, bits2)
+          (OxmMetadata {m_value = value; m_mask = (Some mask)}, bits2)
         else
-          (OxmMetadata {value = value; mask = None}, bits2)
+          (OxmMetadata {m_value = value; m_mask = None}, bits2)
       | OFPXMT_OFB_TUNNEL_ID ->
         let value = get_ofp_uint64_value bits in
         if hm = 1 then
           let bits = Cstruct.shift bits 8 in
           let mask = get_ofp_uint64_value bits in
-          (OxmTunnelId {value = value; mask = (Some mask)}, bits2)
+          (OxmTunnelId {m_value = value; m_mask = (Some mask)}, bits2)
         else
-          (OxmTunnelId {value = value; mask = None}, bits2)
+          (OxmTunnelId {m_value = value; m_mask = None}, bits2)
       (* Ethernet destination address. *)
       | OFPXMT_OFB_ETH_DST ->
 	let value = get_ofp_uint64_value bits in
 	if hm = 1 then
 	  let bits = Cstruct.shift bits 6 in
 	  let mask = get_ofp_uint64_value bits in
-	  (OxmEthDst {value = value; mask = (Some mask)}, bits2)
+	  (OxmEthDst {m_value = value; m_mask = (Some mask)}, bits2)
 	else
-	  (OxmEthDst {value = value; mask = None}, bits2)
+	  (OxmEthDst {m_value = value; m_mask = None}, bits2)
       (* Ethernet source address. *)
       | OFPXMT_OFB_ETH_SRC ->
 	let value = get_ofp_uint64_value bits in
 	if hm = 1 then
 	  let bits = Cstruct.shift bits 6 in
 	  let mask = get_ofp_uint64_value bits in
-	  (OxmEthSrc {value = value; mask = (Some mask)}, bits2)
+	  (OxmEthSrc {m_value = value; m_mask = (Some mask)}, bits2)
 	else
-	  (OxmEthSrc {value = value; mask = None}, bits2)
+	  (OxmEthSrc {m_value = value; m_mask = None}, bits2)
       (* Ethernet frame type. *)
       | OFPXMT_OFB_ETH_TYPE ->
 	let value = get_ofp_uint16_value bits in
@@ -608,18 +629,18 @@ module Oxm = struct
 	if hm = 1 then
 	  let bits = Cstruct.shift bits 4 in
 	  let mask = get_ofp_uint32_value bits in
-	  (OxmIP4Src {value = value; mask = (Some mask)}, bits2)
+	  (OxmIP4Src {m_value = value; m_mask = (Some mask)}, bits2)
 	else
-	  (OxmIP4Src {value = value; mask = None}, bits2)
+	  (OxmIP4Src {m_value = value; m_mask = None}, bits2)
       (* IPv4 destination address. *)
       | OFPXMT_OFB_IPV4_DST ->
 	let value = get_ofp_uint32_value bits in
 	if hm = 1 then
 	  let bits = Cstruct.shift bits 4 in
 	  let mask = get_ofp_uint32_value bits in
-	  (OxmIP4Dst {value = value; mask = (Some mask)}, bits2)
+	  (OxmIP4Dst {m_value = value; m_mask = (Some mask)}, bits2)
 	else
-	  (OxmIP4Dst {value = value; mask = None}, bits2)
+	  (OxmIP4Dst {m_value = value; m_mask = None}, bits2)
       (* ARP opcode. *)
       | OFPXMT_OFB_ARP_OP ->
 	let value = get_ofp_uint16_value bits in
@@ -630,36 +651,36 @@ module Oxm = struct
 	if hm = 1 then
 	  let bits = Cstruct.shift bits 4 in
 	  let mask = get_ofp_uint32_value bits in
-	  (OxmARPSpa {value = value; mask = (Some mask)}, bits2)
+	  (OxmARPSpa {m_value = value; m_mask = (Some mask)}, bits2)
 	else
-	  (OxmARPSpa {value = value; mask = None}, bits2)
+	  (OxmARPSpa {m_value = value; m_mask = None}, bits2)
       (* ARP target IPv4 address. *)
       | OFPXMT_OFB_ARP_TPA ->
 	let value = get_ofp_uint32_value bits in
 	if hm = 1 then
 	  let bits = Cstruct.shift bits 4 in
 	  let mask = get_ofp_uint32_value bits in
-	  (OxmARPTpa {value = value; mask = (Some mask)}, bits2)
+	  (OxmARPTpa {m_value = value; m_mask = (Some mask)}, bits2)
 	else
-	  (OxmARPTpa {value = value; mask = None}, bits2)
+	  (OxmARPTpa {m_value = value; m_mask = None}, bits2)
       (* ARP source hardware address. *)
       | OFPXMT_OFB_ARP_SHA ->
 	let value = get_ofp_uint64_value bits in
 	if hm = 1 then
 	  let bits = Cstruct.shift bits 6 in
 	  let mask = get_ofp_uint64_value bits in
-	  (OxmARPSha {value = value; mask = (Some mask)}, bits2)
+	  (OxmARPSha {m_value = value; m_mask = (Some mask)}, bits2)
 	else
-	  (OxmARPSha {value = value; mask = None}, bits2)
+	  (OxmARPSha {m_value = value; m_mask = None}, bits2)
       (* ARP target hardware address. *)
       | OFPXMT_OFB_ARP_THA ->
 	let value = get_ofp_uint64_value bits in
 	if hm = 1 then
 	  let bits = Cstruct.shift bits 6 in
 	  let mask = get_ofp_uint64_value bits in
-	  (OxmARPTha {value = value; mask = (Some mask)}, bits2)
+	  (OxmARPTha {m_value = value; m_mask = (Some mask)}, bits2)
 	else
-	  (OxmARPTha {value = value; mask = None}, bits2)
+	  (OxmARPTha {m_value = value; m_mask = None}, bits2)
       (* ICMP Type *)
       | OFPXMT_OFB_ICMPV4_TYPE ->
 	let value = get_ofp_uint8_value bits in
@@ -752,27 +773,56 @@ end
 module Bucket = struct
 
   let sizeof (bucket : bucket) : int =
-    let n = sizeof_ofp_bucket + sum (map Action.sizeof bucket.actions) in
+    let n = sizeof_ofp_bucket + sum (map Action.sizeof bucket.bu_actions) in
     pad_to_64bits n
 
   let marshal (buf : Cstruct.t) (bucket : bucket) : int =
     let size = sizeof bucket in
       set_ofp_bucket_len buf size;
-      set_ofp_bucket_weight buf bucket.weight;
+      set_ofp_bucket_weight buf bucket.bu_weight;
       set_ofp_bucket_watch_port buf
-        (match bucket.watch_port with
+        (match bucket.bu_watch_port with
           | None -> ofpg_any
           | Some port -> port);
       set_ofp_bucket_watch_group buf
-        (match bucket.watch_group with
+        (match bucket.bu_watch_group with
           | None -> ofpg_any
           | Some group_id -> group_id);
       set_ofp_bucket_pad0 buf 0;
       set_ofp_bucket_pad1 buf 0;
       set_ofp_bucket_pad2 buf 0;
       set_ofp_bucket_pad3 buf 0;
-      sizeof_ofp_bucket + (marshal_fields (Cstruct.shift buf sizeof_ofp_bucket) bucket.actions Action.marshal)
+      sizeof_ofp_bucket + (marshal_fields (Cstruct.shift buf sizeof_ofp_bucket) bucket.bu_actions Action.marshal)
 
+end
+
+module FlowModCommand = struct
+    
+  type t = flowModCommand
+
+  let n = ref 0L
+
+  let marshal (t : t) : int = match t with
+    | AddFlow -> n := Int64.succ !n; Misc.Log.printf "created %Ld flow table entries.\n%!" !n;  ofp_flow_mod_command_to_int OFPFC_ADD
+    | ModFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY
+    | ModStrictFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY_STRICT
+    | DeleteFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE
+    | DeleteStrictFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE_STRICT
+     
+end
+
+module GroupType = struct
+    
+  type t = groupType
+
+  let n = ref 0L
+
+  let marshal (t : t) : int = match t with
+    | All -> ofp_group_type_to_int OFPGC_ALL
+    | Select -> ofp_group_type_to_int OFPGC_SELECT
+    | Indirect -> ofp_group_type_to_int OFPGC_INDIRECT
+    | FF -> ofp_group_type_to_int OFPGC_FF
+     
 end
 
 module GroupMod = struct
@@ -788,13 +838,13 @@ module GroupMod = struct
     match gm with
       | AddGroup (typ, gid, buckets) -> 
         set_ofp_group_mod_command buf 0; (* OFPGC_ADD *)
-        set_ofp_group_mod_typ buf (groupType_to_int typ);
+        set_ofp_group_mod_typ buf (GroupType.marshal typ);
         set_ofp_group_mod_pad buf 0;
         set_ofp_group_mod_group_id buf gid;
         sizeof_ofp_group_mod + (marshal_fields (Cstruct.shift buf sizeof_ofp_group_mod) buckets Bucket.marshal)
       | DeleteGroup (typ, gid) ->
         set_ofp_group_mod_command buf 2; (* OFPGC_DEL *)
-        set_ofp_group_mod_typ buf (groupType_to_int typ);
+        set_ofp_group_mod_typ buf (GroupType.marshal typ);
         set_ofp_group_mod_pad buf 0;
         set_ofp_group_mod_group_id buf gid;
         sizeof_ofp_group_mod
@@ -889,38 +939,38 @@ end
 module FlowMod = struct
 
   let sizeof (fm : flowMod) =
-    sizeof_ofp_flow_mod + (OfpMatch.sizeof fm.ofp_match) + (Instructions.sizeof fm.instructions)
+    sizeof_ofp_flow_mod + (OfpMatch.sizeof fm.mfOfp_match) + (Instructions.sizeof fm.mfInstructions)
 
   let flags_to_int (f : flowModFlags) =
-    (if f.send_flow_rem then 1 lsl 0 else 0) lor
-      (if f.check_overlap then 1 lsl 1 else 0) lor
-        (if f.reset_counts then 1 lsl 2 else 0) lor
-          (if f.no_pkt_counts then 1 lsl 3 else 0) lor
-            (if f.no_byt_counts then 1 lsl 4 else 0)
+    (if f.fmf_send_flow_rem then 1 lsl 0 else 0) lor
+      (if f.fmf_check_overlap then 1 lsl 1 else 0) lor
+        (if f.fmf_reset_counts then 1 lsl 2 else 0) lor
+          (if f.fmf_no_pkt_counts then 1 lsl 3 else 0) lor
+            (if f.fmf_no_byt_counts then 1 lsl 4 else 0)
 
   let marshal (buf : Cstruct.t) (fm : flowMod) : int =
-    set_ofp_flow_mod_cookie buf fm.cookie.value;
+    set_ofp_flow_mod_cookie buf fm.mfCookie.m_value;
     set_ofp_flow_mod_cookie_mask buf (
-      match fm.cookie.mask with
+      match fm.mfCookie.m_mask with
         | None -> 0L
         | Some mask -> mask);
-    set_ofp_flow_mod_table_id buf fm.table_id;
-    set_ofp_flow_mod_command buf (flowModCommand_to_int fm.command);
+    set_ofp_flow_mod_table_id buf fm.mfTable_id;
+    set_ofp_flow_mod_command buf (FlowModCommand.marshal fm.mfCommand);
     set_ofp_flow_mod_idle_timeout buf
-      (match fm.idle_timeout with
+      (match fm.mfIdle_timeout with
         | Permanent -> 0
         | ExpiresAfter value -> value);
     set_ofp_flow_mod_hard_timeout buf
-      (match fm.idle_timeout with
+      (match fm.mfIdle_timeout with
         | Permanent -> 0
         | ExpiresAfter value -> value);
-    set_ofp_flow_mod_priority buf fm.priority;
+    set_ofp_flow_mod_priority buf fm.mfPriority;
     set_ofp_flow_mod_buffer_id buf
-      (match fm.buffer_id with
+      (match fm.mfBuffer_id with
         | None -> 0xffffffffl
         | Some bid -> bid);
     set_ofp_flow_mod_out_port buf
-      (match fm.out_port with
+      (match fm.mfOut_port with
         | None -> Int32.of_int 0
         | Some port ->
           (match port with
@@ -931,15 +981,15 @@ module FlowMod = struct
             | Controller _ -> Int32.of_int (Int64.to_int 0xfffffffdL);  (* OFPP_CONTROLLER *)
             | Any -> Int32.of_int (Int64.to_int 0xffffffffL)));         (* OFPP_ANY *)
     set_ofp_flow_mod_out_group buf
-      (match fm.out_group with
+      (match fm.mfOut_group with
         | None -> Int32.of_int 0
         | Some gid -> gid);
-    set_ofp_flow_mod_flags buf (flags_to_int fm.flags);
+    set_ofp_flow_mod_flags buf (flags_to_int fm.mfFlags);
     set_ofp_flow_mod_pad0 buf 0;
     set_ofp_flow_mod_pad1 buf 0;
     let size = sizeof_ofp_flow_mod +
-        OfpMatch.marshal (Cstruct.shift buf sizeof_ofp_flow_mod) fm.ofp_match in
-      size + Instructions.marshal (Cstruct.shift buf size) fm.instructions
+        OfpMatch.marshal (Cstruct.shift buf sizeof_ofp_flow_mod) fm.mfOfp_match in
+      size + Instructions.marshal (Cstruct.shift buf size) fm.mfInstructions
 end
 
 module Capabilities = struct
@@ -976,6 +1026,11 @@ end
 
 module PacketIn = struct
 
+ cenum reasonType {
+   NO_MATCH = 0;
+   ACTION = 1
+ } as uint8_t
+
  cstruct ofp_packet_in {
    uint32_t buffer_id;     
    uint16_t total_len;     
@@ -993,10 +1048,12 @@ module PacketIn = struct
       | -1l -> None
       | n -> Some n in
     let total_len = get_ofp_packet_in_total_len bits in
-    let reason = match int_to_reasonType (get_ofp_packet_in_reason bits) with
-      | Some n -> n
-      | None -> 
-        raise (Unparsable (sprintf "malformed packet in packet_in")) in
+    let reason_code = get_ofp_packet_in_reason bits in
+    let reason = match int_to_reasonType reason_code with
+      | Some NO_MATCH -> NoMatch
+      | Some ACTION -> ExplicitSend
+      | None ->
+	raise (Unparsable (sprintf "bad reason in packet_in (%d)" reason_code)) in
     let table_id = get_ofp_packet_in_table_id bits in
     let cookie = get_ofp_packet_in_cookie bits in
     let ofp_match_bits = Cstruct.shift bits sizeof_ofp_packet_in in
@@ -1083,20 +1140,20 @@ module Message = struct
     | EchoReply _ -> ECHO_RESP
     | FeaturesRequest -> FEATURES_REQ
     | FeaturesReply _ -> FEATURES_RESP
-    | FlowMod _ -> FLOW_MOD
-    | GroupMod _ -> GROUP_MOD
-    | PacketIn _ -> PACKET_IN
-    | PacketOut _ -> PACKET_OUT
+    | FlowModMsg _ -> FLOW_MOD
+    | GroupModMsg _ -> GROUP_MOD
+    | PacketInMsg _ -> PACKET_IN
+    | PacketOutMsg _ -> PACKET_OUT
 
   let sizeof (msg : message) : int = match msg with
     | Hello -> sizeof_ofp_header
-    | EchoRequest bytes -> sizeof_ofp_header + (String.length bytes)
-    | EchoReply bytes -> sizeof_ofp_header + (String.length bytes)
+    | EchoRequest bytes -> sizeof_ofp_header + (String.length (Cstruct.to_string bytes))
+    | EchoReply bytes -> sizeof_ofp_header + (String.length (Cstruct.to_string bytes))
     | FeaturesRequest -> sizeof_ofp_header
     | FeaturesReply _ -> sizeof_ofp_header + sizeof_ofp_switch_features
-    | FlowMod fm -> sizeof_ofp_header + FlowMod.sizeof fm
-    | GroupMod gm -> sizeof_ofp_header + GroupMod.sizeof gm
-    | PacketOut po -> sizeof_ofp_header + PacketOut.sizeof po
+    | FlowModMsg fm -> sizeof_ofp_header + FlowMod.sizeof fm
+    | GroupModMsg gm -> sizeof_ofp_header + GroupMod.sizeof gm
+    | PacketOutMsg po -> sizeof_ofp_header + PacketOut.sizeof po
     | _ -> failwith "unknowns"
 
   let marshal (buf : Cstruct.t) (msg : message) : int =
@@ -1109,15 +1166,15 @@ module Message = struct
         sizeof_ofp_header
       | EchoRequest bytes 
       | EchoReply bytes ->
-        Cstruct.blit_from_string bytes 0 buf2 0 (String.length bytes);
-        sizeof_ofp_header + String.length bytes
+        Cstruct.blit_from_string (Cstruct.to_string bytes) 0 buf2 0 (String.length (Cstruct.to_string bytes));
+        sizeof_ofp_header + String.length (Cstruct.to_string bytes)
       | FeaturesRequest ->
         sizeof_ofp_header
-      | FlowMod fm ->
+      | FlowModMsg fm ->
 	sizeof_ofp_header + FlowMod.marshal buf2 fm
-      | GroupMod gm ->
+      | GroupModMsg gm ->
         sizeof_ofp_header + GroupMod.marshal buf2 gm
-      | PacketOut po ->
+      | PacketOutMsg po ->
         sizeof_ofp_header + PacketOut.marshal buf2 po
       | _ -> failwith "unknowns"
 
@@ -1144,10 +1201,10 @@ module Message = struct
     (* close_out oc2; *)
     match int_to_msg_code typ with
         | Some HELLO -> Hello
-        | Some ECHO_RESP -> EchoReply (Cstruct.to_string body_bits)
+        | Some ECHO_RESP -> EchoReply body_bits
         | Some FEATURES_RESP -> FeaturesReply (Features.parse body_bits)
-        | Some PACKET_IN -> PacketIn (PacketIn.parse body_bits)
-	| Some ECHO_REQ -> EchoRequest (Cstruct.to_string body_bits)
+        | Some PACKET_IN -> PacketInMsg (PacketIn.parse body_bits)
+	| Some ECHO_REQ -> EchoRequest body_bits
         | _ -> raise (Unparsable "unrecognized message code")
 
 end

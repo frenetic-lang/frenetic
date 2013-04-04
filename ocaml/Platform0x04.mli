@@ -8,7 +8,7 @@
     [PLATFORM]. But, see [NetCore] for a higher-level abstraction.
 *)
 open Lwt_unix
-open OpenFlow0x04Types
+open OpenFlowTypes
 open OpenFlow0x04Parser
 
 (** Interface for all platforms. *)
