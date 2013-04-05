@@ -96,6 +96,20 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
       inversion H...
     Qed.
 
+    Lemma alternating_fm_fm_false : forall b lst f f0,
+      Alternating b ((lst ++ [FlowMod f]) ++ [FlowMod f0]) ->
+      False.
+    Proof with eauto with datatypes.
+      intros b lst f f0 H.
+      generalize dependent b.
+      induction lst; intros...
+      + simpl in H.
+        inversion H; subst...
+        inversion H2.
+      + simpl in H.
+        inversion H; subst...
+    Qed.
+
     Lemma approximating_pop_FlowMod : forall sw tbl lst f,
       Approximating sw tbl (lst ++ [FlowMod f]) ->
       Approximating sw (modify_flow_table f tbl) lst.
@@ -204,17 +218,12 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
       + rewrite -> app_nil_r...
       + rewrite -> app_comm_cons in H.
         rewrite -> app_assoc in H.
+        rewrite -> app_assoc.
         destruct x...
-        - apply approximating_pop_PacketOut in H...
-          apply IHlst2 in H.
-          admit.
-        - apply approximating_pop_BarrierRequest in H...
-          apply IHlst2 in H.
-          admit.
-        - apply approximating_pop_FlowMod in H...
-          apply IHlst2 in H.
-          admit.
-          Grab Existential Variables. exact 0.
+        assert (FlowTableSafe sw (modify_flow_table f tbl0)).
+        { eapply approximating_pop_FlowMod_safe... }
+        eauto.
+      Grab Existential Variables. exact 0.
     Qed.
 
     Lemma barriered_pop_PacketOut : forall sw pt pk lst tbl ctrlm,
@@ -243,6 +252,19 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
           simpl in H2.
           apply approximating_splice_PacketOut in H2...
           Grab Existential Variables. exact 0.
+    Qed.
+
+    Lemma barriered_pop_FlowMod : forall sw f tbl lst ctrlm,
+      (forall x, In x (to_list ctrlm) -> NotFlowMod x) ->
+      Barriered sw (lst ++ [FlowMod f]) tbl ctrlm ->
+      Barriered sw lst tbl (({|FlowMod f|}) <+> ctrlm).
+    Proof with eauto with datatypes.
+      intros sw f tbl lst ctrlm H H0.
+      inversion H0; subst.
+      + apply Barriered_OneFlowMod...
+      + assert (NotFlowMod (FlowMod f0)) as X.
+        apply H. apply Bag.in_union; simpl...
+        inversion X.
     Qed.
 
   End Lemmas.
@@ -540,10 +562,12 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
           rewrite -> app_assoc in HBarriered...
         * inversion H6.
         * { inversion HBarriered; subst.
-            + admit. (* eapply barriered_pop_FlowMod...
-              rewrite <- app_assoc... *)
+            + eapply barriered_pop_FlowMod...
+              rewrite <- app_assoc...
             + clear H HInvariant H1.  move H2 after HBarriered.
-              admit. (* evidently an Alternating violation !!!!! *)
+              rewrite -> app_assoc in H2.
+              apply alternating_fm_fm_false in H2.
+              inversion H2.
           }
       - intros.
         apply Bag.in_union in H0; simpl in H0.
