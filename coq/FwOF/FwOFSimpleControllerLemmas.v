@@ -38,6 +38,28 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
       | Endpoint_Barrier tbl => tbl
     end.
 
+  Inductive FlowModTerminated : list fromController -> Prop :=
+  | FlowModTerminated_nil : FlowModTerminated nil
+  | FlowModTerminated_PktOut : forall pt pk lst,
+    FlowModTerminated lst ->
+    FlowModTerminated (PacketOut pt pk :: lst)
+  | ee
+
+  with BarrierTerminated : list fromController -> Prop :=
+  | BarrierTerminated_nil : BarrierTerminated nil
+  | BarrierTerminated_PktOut : forall pt pk lst,
+    BarrierTerminated lst ->
+    BarrierTerminated (PacketOut pt pk :: lst)
+
+.
+                                 
+
+  Scheme FlowModTerminatedLink_ind_2 := 
+    Minimality for FlowModTerminated Sort Prop
+  with BarrierTerminatedLink_ind_2  := 
+    Minimality for BarrierTerminated Sort Prop.
+
+
 
   Inductive SafeWire : switchId -> 
                     Endpoint -> 
@@ -61,7 +83,8 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
           (FlowMod f :: ctrlm) swEp.  
 
 
-  Inductive Barriered : switchId -> list fromController -> flowTable -> bag fromController_le -> Prop :=
+  Inductive Barriered : switchId -> list fromController -> flowTable 
+    -> bag fromController_le -> Prop :=
   | Barriered_NoFlowMods : forall swId lst ep ctrlm ctrlEp,
     (forall msg, In msg (to_list ctrlm) -> NotFlowMod msg) ->
     SafeWire swId ctrlEp lst ep ->
