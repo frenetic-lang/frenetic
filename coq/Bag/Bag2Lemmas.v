@@ -293,14 +293,23 @@ Section Methods.
    + destruct lst...
   Qed.
 
-  Lemma Ordered_eq : forall lst1 lst2,
-    Ordered R lst1 ->
-    Ordered R lst2 ->
-    lst1 = lst2 ->
-    Ordered R lst1 = Ordered R lst2.
+  (* This pattern keeps showing up. Typically x and y are FlowMods and we have 
+     hypotheses stating that b1 and b2 do not contain FlowMod messages. *)
+  Lemma singleton_union_disjoint : forall x y b1 b2,
+    ({|x|} <+> b1) = ({|y|} <+> b2) ->
+    (In x (to_list b2) -> False) ->
+    x = y /\ b1 = b2.
   Proof with auto with datatypes.
     intros.
-  Admitted.
+    assert (In x (to_list ({|y|} <+> b2))) as J.
+    { rewrite <- H. apply in_union; simpl... }
+    apply in_union in J; simpl in J.
+    destruct J as [[J | J] | J].
+    + subst.
+      apply pop_union_l in H...
+    + inversion J.
+    + contradiction J.
+  Qed.
 
   Lemma union_from_ordered : forall b1 b2 b3 b4,
     OL.union (to_list b1) (to_list b2) = OL.union (to_list b3) (to_list b4) ->
