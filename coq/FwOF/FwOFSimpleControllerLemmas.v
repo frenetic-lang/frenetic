@@ -748,7 +748,7 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
       destruct (topo
       *)
 
-  Axiom ControllerRecvLiveness : forall sws0 links0 ofLinks0 sw switchm0 m 
+  Lemma ControllerRecvLiveness : forall sws0 links0 ofLinks0 sw switchm0 m 
     ctrlm0 ofLinks1 ctrl0,
      exists ctrl1,
       (multistep 
@@ -764,50 +764,34 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
             ctrl1)) /\
        exists (lps : swPtPks),
          (select_packet_in sw m) <+> lps = relate_controller ctrl1.
-
-  Lemma SafeWire_injective_lhs : forall swId ep0 ep1 lst tbl,
-    SafeWire swId ep0 lst (Endpoint_FlowMod tbl) ->
-    SafeWire swId ep1 lst (Endpoint_Barrier tbl) ->
-    table_at_endpoint ep0 = table_at_endpoint ep1.
   Proof with eauto with datatypes.
     intros.
-    generalize dependent ep0.
-    generalize dependent ep1.
-    induction lst; intros.
-    + inversion H; inversion H0; subst...
-    + destruct a.
-      - inversion H; inversion H0; subst...
-      - inversion H; inversion H0; subst...
-        destruct (IHlst _ H12 _ H6)...
-      - inversion H; inversion H0; subst...
-        remember (IHlst (Endpoint_Barrier tbl2) H14 (Endpoint_Barrier tbl1) H7) as X.
-        simpl in X.
-        rewrite -> X.
-        reflexivity.
-  Qed.
-
-  Lemma SafeWire_insane_1 : forall swId ctrlEp0 lst tbl tbl0,
-    SafeWire swId ctrlEp0 lst (Endpoint_Barrier tbl) ->
-    SafeWire swId (Endpoint_Barrier tbl0) lst (Endpoint_FlowMod tbl) ->
-    SafeWire swId (Endpoint_Barrier tbl0) lst (Endpoint_Barrier tbl).
-  Proof with eauto with datatypes.
-    intros.
-    generalize dependent ctrlEp0.
-    induction lst; intros...
-    + inversion H0.
-    + destruct a.
-      - eapply SafeWire_PktOut. 
-        inversion H0; subst.
-        eapply IHlst...
-        inversion H...
-      - assert (table_at_endpoint (Endpoint_Barrier tbl1) = table_at_endpoint ctrlEp0) as X.
-        { eapply SafeWire_injective_lhs... }
-        destruct ctrlEp0. 
-        inversion H.
-        simpl in X.
-        subst.
-        exact H.
-      - inversion H0.
+    destruct ctrl0.
+    destruct m.
+    + eexists.
+      split.
+      eapply multistep_tau.
+      apply ControllerRecv.
+      apply RecvPacketIn.
+      apply multistep_nil.
+      exists (relate_controller (Atoms.State pktsToSend0 switchStates0)).
+      simpl.
+      unfold relate_controller.
+      simpl.
+      autorewrite with bag using simpl.
+      unfold mkPktOuts.
+      rewrite -> map_map.
+      rewrite -> like_transfer_abs...
+    + eexists.
+      split.
+      eapply multistep_tau.
+      apply ControllerRecv.
+      apply RecvBarrierReply.
+      apply multistep_nil.
+      simpl.
+      eexists.
+      rewrite -> Bag.union_empty_l.
+      reflexivity.
   Qed.
 
 End MakeController.
