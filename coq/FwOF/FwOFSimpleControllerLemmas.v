@@ -80,7 +80,6 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
 
   Hint Constructors Invariant.
 
-
   Section Lemmas.
 
     Hint Constructors Alternating Approximating.
@@ -197,34 +196,57 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
     Qed.
 
     Lemma alternating_splice_PacketOut : forall b lst1 pt pk lst2,
-      Alternating b (lst1 ++ PacketOut pt pk :: lst2) ->
+      Alternating b (lst1 ++ PacketOut pt pk :: lst2) <->
       Alternating b (lst1 ++ lst2).
     Proof with auto with datatypes.
-      intros b lst1 pt pk lst2 H.
-      generalize dependent b.
-      induction lst1; intros; simpl in *; inversion H...
+      intros b lst1 pt pk lst2.
+      split.
+      + intros H.
+        generalize dependent b.
+        induction lst1; intros; simpl in *; inversion H...
+      + intros H.
+        generalize dependent b.
+        induction lst1; intros...
+        - simpl in *...
+        - simpl in *.
+          inversion H; subst...
     Qed.
 
     Hint Resolve alternating_pop approximating_pop_PacketOut approximating_pop_FlowMod
          approximating_pop_BarrierRequest.
 
     Lemma approximating_splice_PacketOut : forall sw tbl lst1 pt pk lst2,
-      Approximating sw tbl (lst1 ++ PacketOut pt pk :: lst2) ->
+      Approximating sw tbl (lst1 ++ PacketOut pt pk :: lst2) <->
       Approximating sw tbl (lst1 ++ lst2).
     Proof with eauto with datatypes.
-      intros sw tbl lst1 pt pk lst2 H.
-      generalize dependent tbl.
-      induction lst2 using rev_ind; intros.
-      + rewrite -> app_nil_r...
-      + rewrite -> app_comm_cons in H.
-        rewrite -> app_assoc in H.
-        rewrite -> app_assoc.
-        destruct x...
-        assert (FlowTableSafe sw (modify_flow_table f tbl0)).
-        { eapply approximating_pop_FlowMod_safe... }
-        eauto.
-      Grab Existential Variables. exact 0.
+      intros sw tbl lst1 pt pk lst2.
+      split.
+      + intros H.
+        generalize dependent tbl.
+        induction lst2 using rev_ind; intros.
+        - rewrite -> app_nil_r...
+        - rewrite -> app_comm_cons in H.
+          rewrite -> app_assoc in H.
+          rewrite -> app_assoc.
+          destruct x...
+          assert (FlowTableSafe sw (modify_flow_table f tbl0)).
+          { eapply approximating_pop_FlowMod_safe... }
+          eauto.
+      + intros H.
+        generalize dependent tbl.
+        induction lst2 using rev_ind; intros.
+        - rewrite -> app_nil_r in H...
+        - rewrite -> app_comm_cons.
+          rewrite -> app_assoc.
+          rewrite -> app_assoc in H.
+          destruct x...
+          assert (FlowTableSafe sw (modify_flow_table f tbl0)) as X...
+          { eapply approximating_pop_FlowMod_safe... }
+      Grab Existential Variables.
+      exact 0.
     Qed.
+
+    Hint Resolve alternating_splice_PacketOut approximating_splice_PacketOut.
 
     Lemma barriered_pop_PacketOut : forall sw pt pk lst tbl ctrlm,
       Barriered sw (lst ++ [PacketOut pt pk]) tbl ctrlm ->
@@ -252,6 +274,26 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
           simpl in H2.
           apply approximating_splice_PacketOut in H2...
           Grab Existential Variables. exact 0.
+    Qed.
+
+    Lemma barriered_splice_PacketOut : forall sw lst1 pt pk lst2 tbl ctrlm,
+      Barriered sw (lst1 ++ lst2) tbl ctrlm ->
+      Barriered sw (lst1 ++ PacketOut pt pk :: lst2) tbl ctrlm.
+    Proof with eauto with datatypes.
+      intros sw lst1 pt pk lst2 tbl ctrlm H.
+      inversion H; subst.
+      + eapply Barriered_NoFlowMods...
+        - eapply alternating_splice_PacketOut...
+        - eapply approximating_splice_PacketOut...
+      + eapply Barriered_OneFlowMod...
+        - rewrite <- app_assoc.
+          rewrite <- app_comm_cons.
+          apply alternating_splice_PacketOut...
+          rewrite -> app_assoc...
+        - rewrite <- app_assoc.
+          rewrite <- app_comm_cons.
+          apply approximating_splice_PacketOut...
+          rewrite -> app_assoc...
     Qed.
 
     Lemma barriered_pop_FlowMod : forall sw f tbl lst ctrlm,
@@ -338,8 +380,7 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
       exists pendingMsgs.
       split...
       split...
-      (* sticking a PacketOut in the middle is safe *)
-      admit.
+      apply barriered_splice_PacketOut...
     + inversion H0; subst.
       eapply MkP.
       intros.
