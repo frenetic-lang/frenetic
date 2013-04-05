@@ -5,7 +5,9 @@ Require Import PArith.BinPos.
 Require Import NArith.BinNat.
 Require Import Common.Types.
 
+Require Import ExtrOcamlBasic.
 Require Import ExtrOcamlString.
+Require Import ExtrOcamlNatInt.
 
 Extraction Blacklist String List.
 
@@ -25,9 +27,6 @@ Extract Constant exists_last =>
 Extract Constant nth_in_or_default => 
   "fun _ _ _ -> failwith ""nth_in_or_default axiom""".
 
-Extract Inductive nat => "int" [ "0" "succ" ]
-  "(fun f0 fS n -> if n = 0 then f0 () else fS (n - 1))".
-
 (** WARNING: risk of overflow, which will generate garbage. *)
 Extract Inductive positive => "int" 
   [ "(fun n -> 1 + n lsl 1)"
@@ -46,20 +45,6 @@ Extract Inductive N => "int"
     (* Npos : positive -> N extracts to positive, which also extracts to int,
        thus the OCaml code is typable. *)
     "" ].
-
-(* All this is in Datatypes.ml *)
-
-Extract Inductive sumbool => "bool" [ "true" "false" ].
-
-Extract Inductive bool => "bool" [ "true" "false" ].
-
-Extract Inductive option => "option" [ "Some" "None" ].
-
-Extract Inductive unit => "unit" [ "()" ].
-
-Extract Inductive prod => "(*)" [ "(,)" ].
-
-Extract Inductive list => "list" [ "[]" "(::)" ].
 
 (* The generated comparison_rect is a partial function that explodes on
    inputs other than 0, -1, and +1. *)
