@@ -219,16 +219,8 @@ Module Make (Import RelationDefinitions : RELATION_DEFINITIONS).
   Proof with auto with datatypes.
     intros.
     unfold UniqSwIds in *.
-    unfold union in H.
-    unfold to_list in H.
-    simpl in H.
-    destruct sws.
-    rename to_list into swsLst.
-    unfold union.
-    unfold to_list.
-    simpl.
-    (* might need induction (shouldn't since swId is the same *)
-  Admitted.
+    apply Bag.AllDiff_preservation with (x := Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0)...
+  Qed.
 
   Lemma OfLinksHaveSrc_pres1 : forall { sws swId pts1 tbl1 inp1 outp1 ctrlm1 
     switchm1 pts2 tbl2 inp2 outp2 ctrlm2 switchm2 switchmLst1 ctrlmLst1
@@ -524,27 +516,16 @@ Module Make (Import RelationDefinitions : RELATION_DEFINITIONS).
       destruct H0 as [[H0 | H0] | H0].
       + destruct sw.
         inversion H0; subst; clear H0.
-        apply H.
-        apply Bag.in_union.
-        (*
-      + assert ( (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0)  === (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0) \/ Mem (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0) sws).
-        left. apply reflexivity.
-        apply H in H1. clear H.
-        destruct H1 as [ofLink [HIn HSwEq]].
-        destruct ofLink.
+        edestruct H as [lnk [HIn HEq]]...
+        apply Bag.in_union. simpl. left. left. reflexivity.
+        destruct lnk.
         simpl in *.
         subst.
-        inversion H0; subst.
         eexists...
-      + destruct (H sw (or_intror H0)) as [ofLink [HIn HSwEq]].
-        destruct ofLink.
-        simpl in *.
-        subst.
-        destruct sw.
-        simpl in *.
-        subst.
-        eexists... *)
-    Admitted.
+      + inversion H0.
+      + edestruct H as [lnk [HIn HEq]]...
+        apply Bag.in_union. right...
+    Qed.
 
     Lemma SwitchesHaveOpenFlowLinks_pres1 : forall sws0 ofLinks0
       ofLinks1 swId switchm0 ctrlm0 switchm1 ctrlm1,

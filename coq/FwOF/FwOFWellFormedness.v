@@ -86,9 +86,14 @@ Module Make (Import RelationDefinitions : RELATION_DEFINITIONS) <: RELATION.
             * assert (NotFlowMod (FlowMod fm)) as Hcontra.
               { apply H0. apply Bag.in_union; simpl... }
               inversion Hcontra.
-            * assert (f = fm /\ ctrlm0 = ctrlm1) as HEq.
-              admit. (* obvious *)
-              destruct HEq; subst...
+            * assert (FlowMod fm = FlowMod f /\ ctrlm1 = ctrlm0) as HEq.
+              { eapply Bag.singleton_union_disjoint.
+                apply Bag.union_from_ordered in H0...
+                intros.
+                assert (NotFlowMod (FlowMod fm)) as X...
+                inversion X. }
+              destruct HEq as [HEq HEq0].
+              inversion HEq; subst...
               apply NoFlowModsInBuffer...
           - unfold FlowTablesSafe in tblsOk1.
             eapply tblsOk1.
