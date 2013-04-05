@@ -27,270 +27,44 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
 
   Hint Constructors NotPacketOut NotFlowMod.
 
+  Inductive Alternating : bool -> list fromController -> Prop :=
+  | Alternating_Nil : forall b, Alternating b nil
+  | Alternating_PacketOut : forall b pt pk lst,
+      Alternating b lst ->
+      Alternating b (PacketOut pt pk :: lst)
+  | Alternating_FlowMod : forall f lst,
+      Alternating true lst ->
+      Alternating false (FlowMod f :: lst)
+  | Alternating_BarrierRequest : forall b n lst,
+      Alternating false lst ->
+      Alternating b (BarrierRequest n :: lst).
 
-  Inductive Endpoint : Type :=
-  | Endpoint_FlowMod : flowTable -> Endpoint
-  | Endpoint_Barrier : flowTable -> Endpoint.
+  Inductive Approximating : switchId -> flowTable -> list fromController -> Prop :=
+  | Approximating_Nil : forall sw tbl, Approximating sw tbl nil
+  | Approximating_FlowMod : forall sw f tbl lst,
+     FlowTableSafe sw (modify_flow_table f tbl) ->
+     Approximating sw (modify_flow_table f tbl) lst ->
+     Approximating sw tbl (lst ++ [FlowMod f])
+  | Approximating_PacketOut : forall sw pt pk tbl lst,
+     Approximating sw tbl lst ->
+     Approximating sw tbl (lst ++ [PacketOut pt pk])
+  | Approximating_BarrierRequest : forall sw n tbl lst,
+     Approximating sw tbl lst ->
+     Approximating sw tbl (lst ++ [BarrierRequest n]).
 
-  Definition table_at_endpoint (ep : Endpoint) :=
-    match ep with
-      | Endpoint_FlowMod tbl => tbl
-      | Endpoint_Barrier tbl => tbl
-    end.
-
-  Inductive FlowModTerminated : list fromController -> Prop :=
-  | FlowModTerminated_nil : FlowModTerminated nil
-  | FlowModTerminated_PktOut : forall pt pk lst,
-    FlowModTerminated lst ->
-    FlowModTerminated (PacketOut pt pk :: lst)
-  | ee
-
-  with BarrierTerminated : list fromController -> Prop :=
-  | BarrierTerminated_nil : BarrierTerminated nil
-  | BarrierTerminated_PktOut : forall pt pk lst,
-    BarrierTerminated lst ->
-    BarrierTerminated (PacketOut pt pk :: lst)
-
-.
-                                 
-
-  Scheme FlowModTerminatedLink_ind_2 := 
-    Minimality for FlowModTerminated Sort Prop
-  with BarrierTerminatedLink_ind_2  := 
-    Minimality for BarrierTerminated Sort Prop.
-
-
-
-  Inductive SafeWire : switchId -> 
-                    Endpoint -> 
-                    list fromController ->
-                    Endpoint -> Prop :=
-    | SafeWire_nil : forall swId ep,
-      FlowTableSafe swId (table_at_endpoint ep) ->
-      SafeWire swId ep nil ep
-    | SafeWire_PktOut : forall swId pt pk ctrlEp ctrlm swEp,
-      SafeWire swId ctrlEp ctrlm swEp ->
-      SafeWire swId ctrlEp (PacketOut pt pk :: ctrlm) swEp
-    | SafeWire_BarrierRequest : forall swId n ctrlEp ctrlm swEp,
-      SafeWire swId ctrlEp ctrlm swEp ->
-      SafeWire swId (Endpoint_Barrier (table_at_endpoint ctrlEp))
-                    (BarrierRequest n :: ctrlm)
-                    swEp
-    | SafeWire_FlowMod : forall swId f tbl ctrlm swEp,
-      FlowTableSafe swId (modify_flow_table f tbl) ->
-      SafeWire swId (Endpoint_Barrier tbl) ctrlm swEp ->
-      SafeWire swId (Endpoint_FlowMod (modify_flow_table f tbl))
-          (FlowMod f :: ctrlm) swEp.  
-
-
-  Inductive Barriered : switchId -> list fromController -> flowTable 
-    -> bag fromController_le -> Prop :=
-  | Barriered_NoFlowMods : forall swId lst ep ctrlm ctrlEp,
+  Inductive Barriered : switchId -> list fromController -> flowTable  -> bag fromController_le -> Prop :=
+  | Barriered_NoFlowMods : forall swId lst ctrlm tbl,
     (forall msg, In msg (to_list ctrlm) -> NotFlowMod msg) ->
-    SafeWire swId ctrlEp lst ep ->
-    FlowTableSafe swId (table_at_endpoint ep) ->
-    Barriered swId lst (table_at_endpoint ep) ctrlm
-  | Barriered_OneFlowMod  : forall swId lst ctrlm f tbl ctrlEp,
+    Alternating false lst ->
+    Approximating swId tbl lst ->
+    FlowTableSafe swId tbl ->
+    Barriered swId lst tbl ctrlm
+  | Barriered_OneFlowMod  : forall swId lst ctrlm f tbl,
     (forall msg, In msg (to_list ctrlm) -> NotFlowMod msg) ->
-    SafeWire swId ctrlEp lst (Endpoint_Barrier (modify_flow_table f tbl)) ->
-    FlowTableSafe swId (modify_flow_table f tbl) ->
+    Alternating false (lst ++ [FlowMod f]) ->
+    Approximating swId tbl (lst ++ [FlowMod f]) ->
     FlowTableSafe swId tbl ->
     Barriered swId lst tbl (({|FlowMod f|}) <+> ctrlm).
-
-  Section Barriered.
-
-    Hint Constructors Barriered SafeWire Endpoint.
-
-    Lemma SafeWire_fm_nb_false : forall sw ctrlEp ctrlLst f tbl,
-      SafeWire sw ctrlEp (ctrlLst ++ [FlowMod f]) (Endpoint_FlowMod tbl) ->
-      False.
-    Proof with auto.
-      intros.
-      generalize dependent ctrlEp.
-      induction ctrlLst; intros.
-      + simpl in H. inversion H. subst. inversion H6.
-      + simpl in H.
-        inversion H; subst.
-        - apply IHctrlLst in H5...
-          - apply IHctrlLst in H5...
-          - apply IHctrlLst in H6...
-    Qed.
-
-    Lemma SafeWire_dequeue_PacketOut : forall sw ctrlEp ctrlLst pt pk switchEp,
-      SafeWire sw ctrlEp (ctrlLst ++ [PacketOut pt pk]) switchEp ->
-      SafeWire sw ctrlEp (ctrlLst) switchEp.
-    Proof with auto.
-      intros.
-      generalize dependent ctrlEp.
-      induction ctrlLst; intros.
-      + simpl in H. inversion H. subst...
-      + inversion H; subst...
-    Qed.
-
-
-    Lemma SafeWire_dequeue_BarrierRequest : forall sw ctrlEp ctrlLst xid 
-      switchEp1,
-      SafeWire sw ctrlEp (ctrlLst ++ [BarrierRequest xid]) switchEp1 ->
-      exists switchEp2, SafeWire sw ctrlEp (ctrlLst) switchEp2 /\
-        table_at_endpoint switchEp2 = table_at_endpoint switchEp1.
-    Proof with eauto.
-      intros.
-      generalize dependent ctrlEp.
-      induction ctrlLst; intros.
-      + inversion H; subst.
-        inversion H5. subst.
-        exists (Endpoint_Barrier (table_at_endpoint switchEp1)).
-        split.
-        apply SafeWire_nil.
-        simpl...
-        simpl...
-      + simpl in H.
-        inversion H; subst.
-        * apply IHctrlLst in H5.
-          destruct H5 as [switchEp2 [HSafeWire HEpEq]].
-          exists switchEp2.
-          split; simpl...
-        * apply IHctrlLst in H5.
-          destruct H5 as [switchEp2 [HSafeWire HEpEq]].
-          exists switchEp2.
-          split; simpl...
-        * apply IHctrlLst in H6.
-          destruct H6 as [switchEp2 [HSafeWire HEpEq]].
-          exists switchEp2.
-          split; simpl...
-    Qed.
-
-
-    Lemma SafeWire_dequeue_FlowMod : forall sw ctrlEp ctrlLst f switchEp,
-       SafeWire sw ctrlEp (ctrlLst ++ [FlowMod f]) switchEp ->
-       SafeWire sw ctrlEp ctrlLst (Endpoint_FlowMod (modify_flow_table f (table_at_endpoint switchEp))).
-    Proof with auto.
-      intros.
-      generalize dependent ctrlEp.
-      { induction ctrlLst; intros.
-        + destruct switchEp.
-          simpl in H.
-          inversion H.
-          subst.
-          inversion H6.
-          simpl in H.
-          inversion H.
-          subst.
-          inversion H6.
-          subst.
-          simpl...
-        + simpl in *.
-          inversion H; subst.
-          - apply IHctrlLst in H5...
-          - apply IHctrlLst in H5...
-          - apply IHctrlLst in H6... }
-    Qed.
-
-    Lemma SafeWire_lhs_FlowTableSafe : forall swId lst ep0 ep1,
-      SafeWire swId ep0 lst ep1 ->
-      FlowTableSafe swId (table_at_endpoint ep0).
-    Proof with eauto with datatypes.
-      intros.
-      generalize dependent ep0.
-      generalize dependent ep1.
-      induction lst; intros...
-      + inversion H; subst...
-      + inversion H; subst...
-        apply IHlst in H5...
-    Qed.
-    
-    Lemma SafeWire_app : forall swId ep0 ep1 lst lst0,
-      SafeWire swId ep0 (lst ++ lst0) ep1 ->
-      exists ep01 ep11, 
-        SafeWire swId ep0 lst ep01 /\
-        SafeWire swId ep11 lst0 ep1 /\
-        table_at_endpoint ep01 = table_at_endpoint ep11.
-    Proof with eauto with datatypes.
-      intros.
-      generalize dependent ep0.
-      induction lst; intros...
-      + simpl in H...
-        exists ep0.
-        exists ep0...
-        split...
-        apply SafeWire_nil...
-        eapply SafeWire_lhs_FlowTableSafe...
-      + simpl in H.
-        inversion H; subst...
-        - apply IHlst in H5...
-          destruct H5 as [ep01 [ep11 [H5 [H6 H7]]]]...
-          exists ep01...
-        - apply IHlst in H5...
-          destruct H5 as [ep01 [ep11 [H5 [H6 H7]]]]...
-          exists ep01...
-        - apply IHlst in H6...
-          destruct H6 as [ep01 [ep11 [H6 [H7 H8]]]]...
-          exists ep01...
-    Qed.
-
-    Hint Resolve SafeWire_dequeue_PacketOut SafeWire_dequeue_BarrierRequest SafeWire_dequeue_FlowMod.
-
-    Lemma barriered_pop_FlowMod : forall swId f lst tbl ctrlm,
-      (forall msg, In msg (to_list ctrlm) -> NotFlowMod msg) ->
-      Barriered swId (lst ++ [FlowMod f]) tbl ctrlm ->
-      Barriered swId lst tbl (({|FlowMod f|}) <+> ctrlm).
-    Proof with eauto with datatypes.
-    Admitted.
-
-    Lemma barriered_pop_PacketOut : forall swId pt pk lst tbl ctrlm,
-      Barriered swId (lst ++ [PacketOut pt pk]) tbl ctrlm ->
-      Barriered swId lst tbl (({|PacketOut pt pk|}) <+> ctrlm).
-    Proof with eauto with datatypes.
-      intros.
-      inversion H; subst.
-      + eapply Barriered_NoFlowMods...
-        intros.
-        apply Bag.in_union in H3; simpl in H3.
-        destruct H3 as [[H3|H3]|H3]; subst...
-        inversion H3.
-      + rewrite <- Bag.union_assoc.
-        rewrite <- (Bag.union_comm _ ({|FlowMod f|})).
-        rewrite -> Bag.union_assoc.
-        eapply Barriered_OneFlowMod...
-        intros.
-        apply Bag.in_union in H4; simpl in H4.
-        destruct H4 as [[H4|H4]|H4]; subst...
-        inversion H4.
-    Qed.
-
-    Lemma barriered_pop_BarrierRequest : forall swId xid lst tbl ctrlm,
-      Barriered swId (lst ++ [BarrierRequest xid]) tbl ctrlm ->
-      (forall msg, In msg (to_list ctrlm) -> NotFlowMod msg) ->
-      Barriered swId lst tbl (ctrlm).
-    Proof with eauto with datatypes.
-      intros.
-      rename H0 into X.
-      inversion H; subst.
-      + apply SafeWire_app in H1.
-        destruct H1 as [ep01 [ep11 [J [J0 J1]]]]...
-        assert (table_at_endpoint ep01 = table_at_endpoint ep).
-        { inversion J0; subst... inversion H7; subst... }
-        rewrite <- H1.
-        refine (@Barriered_NoFlowMods swId0 lst ep01 (ctrlm0) ctrlEp _ 
-                 J _)...
-        rewrite -> H1...
-      + assert (NotFlowMod (FlowMod f)).
-        apply X.
-        apply Bag.in_union; simpl...
-        inversion H4.
-    Qed.
-    
-    Lemma Barriered_entails_FlowModSafe : forall swId lst tbl ctrlm,
-      Barriered swId lst tbl ctrlm ->
-      FlowModSafe swId tbl ctrlm.
-    Proof with eauto with datatypes.
-      intros.
-      inversion H; subst...
-      + eapply NoFlowModsInBuffer...
-      + eapply OneFlowModsInBuffer...
-    Qed.
-
-  End Barriered.  
 
   Inductive Invariant : bag switch_le ->  list openFlowLink -> controller -> Prop :=
   | MkP : forall sws ofLinks swsts pktOuts,
@@ -305,6 +79,175 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
       Invariant sws ofLinks (Atoms.State pktOuts swsts).
 
   Hint Constructors Invariant.
+
+
+  Section Lemmas.
+
+    Hint Constructors Alternating Approximating.
+
+    (* We don't need alternating_push, if we precompute the sequence! *)
+    Lemma alternating_pop : forall b x xs,
+      Alternating b (xs ++ [x]) -> Alternating b xs.
+    Proof with auto with datatypes.
+      intros b x xs H.
+      generalize dependent b.
+      induction xs; intros...
+      simpl in H.
+      inversion H...
+    Qed.
+
+    Lemma approximating_pop_FlowMod : forall sw tbl lst f,
+      Approximating sw tbl (lst ++ [FlowMod f]) ->
+      Approximating sw (modify_flow_table f tbl) lst.
+    Proof with auto with datatypes.
+      intros.
+      inversion H; subst.
+      + destruct lst; simpl in H3; inversion H3.
+      + apply cons_tail in H0. destruct H0. inversion H2; subst...
+      + apply cons_tail in H0. destruct H0. inversion H1...
+      + apply cons_tail in H0. destruct H0. inversion H1...
+    Qed.
+
+    Lemma approximating_pop_BarrierRequest : forall sw tbl lst n,
+      Approximating sw tbl (lst ++ [BarrierRequest n]) ->
+      Approximating sw tbl lst.
+    Proof with auto with datatypes.
+      intros.
+      inversion H; subst.
+      + destruct lst; simpl in H3; inversion H3.
+      + apply cons_tail in H0. destruct H0. inversion H2.
+      + apply cons_tail in H0. destruct H0. inversion H1.
+      + apply cons_tail in H0. destruct H0. inversion H1; subst...
+    Qed.
+
+    Lemma approximating_pop_PacketOut : forall sw tbl lst pt pk,
+      Approximating sw tbl (lst ++ [PacketOut pt pk]) ->
+      Approximating sw tbl lst.
+    Proof with auto with datatypes.
+      intros.
+      inversion H; subst.
+      + destruct lst; simpl in H3; inversion H3.
+      + apply cons_tail in H0. destruct H0. inversion H2.
+      + apply cons_tail in H0. destruct H0. inversion H1; subst...
+      + apply cons_tail in H0. destruct H0. inversion H1.
+    Qed.
+
+    Lemma approximating_pop_FlowMod_safe : forall sw tbl lst f,
+      Approximating sw tbl (lst ++ [FlowMod f]) ->
+      FlowTableSafe sw (modify_flow_table f tbl).
+    Proof with auto with datatypes.
+      intros sw tbl lst f H.
+      inversion H; subst.
+      + destruct lst; simpl in H3; inversion H3.
+      + apply cons_tail in H0. destruct H0. inversion H2; subst...
+      + apply cons_tail in H0. destruct H0. inversion H1...
+      + apply cons_tail in H0. destruct H0. inversion H1...
+    Qed.
+
+    Lemma Barriered_entails_FlowModSafe : forall swId lst tbl ctrlm,
+      Barriered swId lst tbl ctrlm ->
+      FlowModSafe swId tbl ctrlm.
+    Proof with eauto with datatypes.
+      intros.
+      inversion H; subst... Print FlowModSafe.
+      + eapply NoFlowModsInBuffer...
+      + eapply OneFlowModsInBuffer...
+        inversion H2; subst...
+        - destruct lst; simpl in H7; inversion H7.
+        - apply cons_tail in H4.
+          destruct H4; subst.
+          inversion H6; subst...
+        - apply cons_tail in H4.
+          destruct H4.
+          inversion H5.
+        - apply cons_tail in H4.
+          destruct H4.
+          inversion H5.
+    Qed.
+
+    Lemma barriered_pop_BarrierRequest : forall swId xid lst tbl ctrlm,
+      Barriered swId (lst ++ [BarrierRequest xid]) tbl ctrlm ->
+      (forall msg, In msg (to_list ctrlm) -> NotFlowMod msg) ->
+      Barriered swId lst tbl ctrlm.
+    Proof with eauto with datatypes.
+      intros.
+      rename H0 into X.
+      inversion H; subst.
+      + apply Barriered_NoFlowMods...
+        apply alternating_pop in H1...
+        apply approximating_pop_BarrierRequest in H2...
+      + assert (NotFlowMod (FlowMod f)).
+        apply X.
+        apply Bag.in_union; simpl...
+        inversion H4.
+    Qed.
+
+    Lemma alternating_splice_PacketOut : forall b lst1 pt pk lst2,
+      Alternating b (lst1 ++ PacketOut pt pk :: lst2) ->
+      Alternating b (lst1 ++ lst2).
+    Proof with auto with datatypes.
+      intros b lst1 pt pk lst2 H.
+      generalize dependent b.
+      induction lst1; intros; simpl in *; inversion H...
+    Qed.
+
+    Hint Resolve alternating_pop approximating_pop_PacketOut approximating_pop_FlowMod
+         approximating_pop_BarrierRequest.
+
+    Lemma approximating_splice_PacketOut : forall sw tbl lst1 pt pk lst2,
+      Approximating sw tbl (lst1 ++ PacketOut pt pk :: lst2) ->
+      Approximating sw tbl (lst1 ++ lst2).
+    Proof with eauto with datatypes.
+      intros sw tbl lst1 pt pk lst2 H.
+      generalize dependent tbl.
+      induction lst2 using rev_ind; intros.
+      + rewrite -> app_nil_r...
+      + rewrite -> app_comm_cons in H.
+        rewrite -> app_assoc in H.
+        destruct x...
+        - apply approximating_pop_PacketOut in H...
+          apply IHlst2 in H.
+          admit.
+        - apply approximating_pop_BarrierRequest in H...
+          apply IHlst2 in H.
+          admit.
+        - apply approximating_pop_FlowMod in H...
+          apply IHlst2 in H.
+          admit.
+          Grab Existential Variables. exact 0.
+    Qed.
+
+    Lemma barriered_pop_PacketOut : forall sw pt pk lst tbl ctrlm,
+      Barriered sw (lst ++ [PacketOut pt pk]) tbl ctrlm ->
+      Barriered sw lst tbl (({|Atoms.PacketOut pt pk|}) <+> ctrlm).
+    Proof with eauto with datatypes.
+      intros sw pt pk lst tbl ctrlm H.
+      inversion H; subst.
+      + apply Barriered_NoFlowMods...
+        - intros.
+          apply Bag.in_union in H4; simpl in H4.
+          destruct H4 as [[H4 | H4] | H4]; subst...
+          inversion H4.
+      + rewrite <-  Bag.union_assoc.
+        rewrite <- (Bag.union_comm _ ({|FlowMod f|})).
+        rewrite -> Bag.union_assoc.
+        apply Barriered_OneFlowMod...
+        - intros.
+          apply Bag.in_union in H4; simpl in H4.
+          destruct H4 as [[H4 | H4] | H4]; subst...
+          inversion H4.
+        - rewrite <- app_assoc in H1.
+          simpl in H1.
+          apply alternating_splice_PacketOut in H1...
+        - rewrite <- app_assoc in H2.
+          simpl in H2.
+          apply approximating_splice_PacketOut in H2...
+          Grab Existential Variables. exact 0.
+    Qed.
+
+  End Lemmas.
+
+  Hint Resolve alternating_pop Barriered_entails_FlowModSafe approximating_pop_FlowMod.
 
   (* Also need to show that messages can be popped off. *)
   Lemma P_entails_FlowTablesSafe : forall sws ofLinks ctrl,
@@ -322,10 +265,7 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
     simpl in HIdEq. subst...
     rename of_to0 into swId0.
     edestruct H2 as [pendingMsgs [J [J0 J1]]]...
-    simpl in *.
-    eapply Barriered_entails_FlowModSafe...
   Qed.
-
 
   Lemma controller_recv_pres_P : forall sws ofLinks0 ofLinks1
     ctrl0 ctrl1 swId msg switchm ctrlm,
@@ -431,7 +371,6 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
   Local Open Scope bag_scope.
   Hint Constructors NotFlowMod.
 
-
   Lemma Invariant_ofLink_vary : forall sws swId switchm0 switchm1 ctrlm 
                                    ofLinks0 ofLinks1 ctrl,
     Invariant sws 
@@ -521,11 +460,8 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
           assert (ctrlm1 = ctrlm0).
           { admit. (* trivial by H0 *) }
           subst.
-          assert (table_at_endpoint (Endpoint_Barrier (modify_flow_table f tbl0)) = 
-                  modify_flow_table f tbl0) as J.
-          { simpl... }
-          rewrite <- J.
           eapply Barriered_NoFlowMods...
+          apply approximating_pop_FlowMod_safe in H5...
       - inversion H0.
       - subst; simpl in *.
         edestruct H1 as [msgs [HIn [HNotPktOuts HBarriered]]]...
@@ -604,10 +540,11 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
           rewrite -> app_assoc in HBarriered...
         * inversion H6.
         * { inversion HBarriered; subst.
-            + eapply barriered_pop_FlowMod...
-              rewrite <- app_assoc...
+            + admit. (* eapply barriered_pop_FlowMod...
+              rewrite <- app_assoc... *)
             + clear H HInvariant H1.  move H2 after HBarriered.
-              admit. }
+              admit. (* evidently an Alternating violation !!!!! *)
+          }
       - intros.
         apply Bag.in_union in H0; simpl in H0.
         destruct H0 as [[H0|H0]|H0].
