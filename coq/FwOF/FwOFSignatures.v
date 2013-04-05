@@ -358,6 +358,8 @@ Module Type ATOMS_AND_CONTROLLER.
   
   Parameter step_preserves_P : forall sws0 sws1 links0 links1 ofLinks0 ofLinks1 
     ctrl0 ctrl1 obs,
+    AllDiff of_to ofLinks0 ->
+    AllDiff swId (to_list sws0) ->
     step (State sws0 links0 ofLinks0 ctrl0)
          obs
          (State sws1 links1 ofLinks1 ctrl1) ->
