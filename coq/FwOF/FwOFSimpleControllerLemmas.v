@@ -43,7 +43,6 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
   | FlowModTerminated_PktOut : forall pt pk lst,
     FlowModTerminated lst ->
     FlowModTerminated (PacketOut pt pk :: lst)
-  | ee
 
   with BarrierTerminated : list fromController -> Prop :=
   | BarrierTerminated_nil : BarrierTerminated nil
