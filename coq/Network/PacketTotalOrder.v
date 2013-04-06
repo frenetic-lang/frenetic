@@ -60,27 +60,15 @@ Proof.
   + unfold inverse. destruct x; auto.
 Qed.
 
-Definition proj_tpPkt (proto : nwProto) (r : tpPkt proto) := 
+Definition proj_tpPkt r :=
   match r with
     | TpTCP tcp => inl (proj_tcp tcp)
     | TpICMP icmp => inr (inl (proj_icmp icmp))
     | TpUnparsable proto bytes => inr (inr (proto,bytes))
   end.
 
-Definition tcpTup :=
-  (Word16.Word.t * Word16.Word.t * Word32.Word.t * Word32.Word.t * Word8.Word.t * 
-   Word16.Word.t * Word16.Word.t * Word8.Word.t * Word8.Word.t *  bytes) %type.
-
-Definition icmpTup :=
-  (Word8.Word.t * Word8.Word.t * Word16.Word.t * bytes) %type.
-
 Definition inj_tpPkt tup := 
-  match tup in sum _ _ return
-        match tup with 
-          | inl _ => tpPkt Const_0x6 
-          | inr (inl _) => tpPkt Const_0x1
-          | inr (inr (proto, _)) => tpPkt proto
-        end with
+  match tup with
     | inl tcp => TpTCP (inj_tcp tcp)
     | inr (inl icmp) => TpICMP (inj_icmp icmp)
     | inr (inr (proto,bytes)) => TpUnparsable proto bytes
@@ -88,11 +76,16 @@ Definition inj_tpPkt tup :=
 
 Definition tpPkt_le := tcp_le +++ icmp_le +++ (Word8.le ** bytes_le).
   
-
-(* This is getting stupid. Why are these dependent types? *)
-Instance TotalOrder_tpPkt `(proto : Word8.Word.t) : TotalOrder (ProjectOrdering (@proj_tpPkt proto) tpPkt_le).
+Instance TotalOrder_tpPkt : TotalOrder (ProjectOrdering proj_tpPkt tpPkt_le).
 Proof.
-Abort.
+  apply TotalOrder_Project with (g:=inj_tpPkt).
+  + unfold tpPkt_le. unfold tcp_le. unfold icmp_le.
+    auto 20.
+  + unfold inverse. 
+    destruct x; auto.
+    destruct t; auto.
+    destruct i; auto.
+Qed.
 
 (*
 Record ip : Type := IP {

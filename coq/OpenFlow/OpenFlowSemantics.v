@@ -10,44 +10,42 @@ Local Open Scope bool_scope.
 
 Section Actions.
 
-(** Note that dlTyp is an implicit argument (determined by the index of nw. *)
   Definition setVlan dlVlan pkt := 
     match pkt with
-      | Packet dlSrc dlDst _ _ dlVlanPcp nw =>
-        Packet dlSrc dlDst dlVlan dlVlanPcp nw
+      | Packet dlSrc dlDst dlTyp _ dlVlanPcp nw =>
+        Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp nw
     end.
 
   Definition setVlanPriority dlVlanPcp pkt := 
     match pkt with
-      | Packet dlSrc dlDst _ dlVlan _ nw =>
-        Packet dlSrc dlDst dlVlan dlVlanPcp nw
+      | Packet dlSrc dlDst dlTyp dlVlan _ nw =>
+        Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp nw
     end.
 
   Definition stripVlanHeader pkt :=
     match pkt with
-      | Packet dlSrc dlDst _ dlVlan _ nw =>
-        Packet dlSrc dlDst VLAN_NONE Word8.zero nw
+      | Packet dlSrc dlDst dlTyp dlVlan _ nw =>
+        Packet dlSrc dlDst dlTyp VLAN_NONE Word8.zero nw
     end.
 
   Definition setEthSrcAddr dlSrc pkt := 
     match pkt with
-      | Packet _ dlDst _ dlVlan dlVlanPcp nw =>
-        Packet dlSrc dlDst dlVlan dlVlanPcp nw
+      | Packet _ dlDst dlTyp dlVlan dlVlanPcp nw =>
+        Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp nw
     end.
 
   Definition setEthDstAddr dlDst pkt := 
     match pkt with
-      | Packet dlSrc _ _ dlVlan dlVlanPcp nw =>
-        Packet dlSrc dlDst dlVlan dlVlanPcp nw
+      | Packet dlSrc _ dlTyp dlVlan dlVlanPcp nw =>
+        Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp nw
     end.
 
-  Definition setIPSrcAddr_nw (ethTyp : dlTyp) (src : nwAddr)
-    (pkt : nw ethTyp) : nw ethTyp := 
+  Definition setIPSrcAddr_nw src pkt :=
     match pkt with
       | NwUnparsable pf data => 
         NwUnparsable pf data
-      | NwIP (IP vhl tos len ident flags frag ttl _ chksum _ dst tp) =>
-        NwIP (IP vhl tos len ident flags frag ttl chksum src dst tp)
+      | NwIP (IP vhl tos len ident flags frag ttl proto chksum _ dst tp) =>
+        NwIP (IP vhl tos len ident flags frag ttl proto chksum src dst tp)
       | NwARP (ARPQuery sha _ tpa) =>
         NwARP (ARPQuery sha src tpa)
       | NwARP (ARPReply sha _ tha tpa) =>
@@ -56,17 +54,16 @@ Section Actions.
 
   Definition setIPSrcAddr nwSrc pkt := 
     match pkt with
-      | Packet dlSrc dlDst _ dlVlan dlVlanPcp nw =>
-        Packet dlSrc dlDst dlVlan dlVlanPcp  (setIPSrcAddr_nw nwSrc nw)
+      | Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp nw =>
+        Packet dlSrc dlDst dlVlan dlTyp dlVlanPcp  (setIPSrcAddr_nw nwSrc nw)
     end.
 
-  Definition setIPDstAddr_nw (ethTyp : dlTyp) (dst : nwAddr) 
-    (pkt : nw ethTyp) : nw ethTyp := 
+  Definition setIPDstAddr_nw dst pkt :=
     match pkt with
       | NwUnparsable pf data => 
         NwUnparsable pf data
-      | NwIP (IP vhl tos len ident flags frag ttl _ chksum src _ tp) =>
-        NwIP (IP vhl tos len ident flags frag ttl chksum src dst tp)
+      | NwIP (IP vhl tos len ident flags frag ttl proto chksum src _ tp) =>
+        NwIP (IP vhl tos len ident flags frag ttl proto chksum src dst tp)
       | NwARP (ARPQuery sha spa _) =>
         NwARP (ARPQuery sha spa dst)
       | NwARP (ARPReply sha spa tha _) =>
@@ -75,17 +72,16 @@ Section Actions.
 
   Definition setIPDstAddr nwDst pkt := 
     match pkt with
-      | Packet dlSrc dlDst _ dlVlan dlVlanPcp nw =>
-        Packet dlSrc dlDst dlVlan dlVlanPcp  (setIPDstAddr_nw nwDst nw)
+      | Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp nw =>
+        Packet dlSrc dlDst dlVlan dlTyp dlVlanPcp  (setIPDstAddr_nw nwDst nw)
     end.
 
-  Definition setIPToS_nw (ethTyp : dlTyp) (tos : nwTos)
-    (pkt : nw ethTyp) : nw ethTyp := 
+  Definition setIPToS_nw tos pkt :=
     match pkt with
       | NwUnparsable pf data => 
         NwUnparsable pf data
-      | NwIP (IP vhl _ len ident flags frag ttl _ chksum src dst tp) =>
-        NwIP (IP vhl tos len ident flags frag ttl chksum src dst tp)
+      | NwIP (IP vhl _ len ident flags frag ttl proto chksum src dst tp) =>
+        NwIP (IP vhl tos len ident flags frag ttl proto chksum src dst tp)
       | NwARP (ARPQuery dlSrc nwSrc nwDst) =>
         NwARP (ARPQuery dlSrc nwSrc nwDst)
       | NwARP (ARPReply dlSrc nwSrc dlDst nwDst) =>
@@ -94,26 +90,24 @@ Section Actions.
 
   Definition setIPToS nwToS pkt := 
     match pkt with
-      | Packet dlSrc dlDst _ dlVlan dlVlanPcp nw =>
-        Packet dlSrc dlDst dlVlan dlVlanPcp  (setIPToS_nw nwToS nw)
+      | Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp nw =>
+        Packet dlSrc dlDst dlTyp dlVlan dlVlanPcp  (setIPToS_nw nwToS nw)
     end.
 
-  Definition setTransportSrcPort_tp (proto : nwProto)
-    (tpSrc : tpPort) (pkt : tpPkt proto) : tpPkt proto :=
+  Definition setTransportSrcPort_tp tpSrc pkt := 
     match pkt with
       | TpTCP (Tcp _ dst seq ack off flags win chksum urgent payload) =>
         TpTCP (Tcp tpSrc dst seq ack off flags win chksum urgent payload)
-      | TpICMP icmp => TpICMP icmp (* TODO(arjun): should set *)
+      | TpICMP icmp => TpICMP icmp (* TODO(arjun): fill in setting these fields *)
       | TpUnparsable proto data => TpUnparsable proto data
     end.
 
-  Definition setTransportSrcPort_nw (ethTyp : dlTyp) 
-    (tpSrc : tpPort) (pkt : nw ethTyp) : nw ethTyp := 
+  Definition setTransportSrcPort_nw tpSrc pkt :=
     match pkt with
       | NwUnparsable pf data => 
         NwUnparsable pf data
-      | NwIP (IP vhl tos len ident flags frag ttl _ chksum src dst tp) =>
-        NwIP (IP vhl tos len ident flags frag ttl chksum src dst 
+      | NwIP (IP vhl tos len ident flags frag ttl proto chksum src dst tp) =>
+        NwIP (IP vhl tos len ident flags frag ttl proto chksum src dst 
 	         (setTransportSrcPort_tp tpSrc tp))
       | NwARP arp => 
         NwARP arp
@@ -121,13 +115,12 @@ Section Actions.
 
   Definition setTransportSrcPort tpSrc pkt := 
     match pkt with
-      | Packet dlSrc dlDst _ dlVlan dlVlanPcp nw =>
-        Packet dlSrc dlDst dlVlan dlVlanPcp  
+      | Packet dlSrc dlDst typ dlVlan dlVlanPcp nw =>
+        Packet dlSrc dlDst typ dlVlan dlVlanPcp  
         (setTransportSrcPort_nw tpSrc nw)
     end.
 
-  Definition setTransportDstPort_tp (proto : nwProto)
-    (tpDst : tpPort) (pkt : tpPkt proto) : tpPkt proto :=
+  Definition setTransportDstPort_tp tpDst pkt :=
     match pkt with
       | TpTCP (Tcp src _ seq ack off flags win chksum urgent payload) =>
         TpTCP (Tcp src tpDst seq ack off flags win chksum urgent payload)
@@ -135,20 +128,19 @@ Section Actions.
       | TpUnparsable proto data => TpUnparsable proto data
     end.
 
-  Definition setTransportDstPort_nw (ethTyp : dlTyp)
-    (tpDst : tpPort) (pkt : nw ethTyp) : nw ethTyp := 
+  Definition setTransportDstPort_nw tpDst pkt :=
     match pkt with
       | NwUnparsable pf data => NwUnparsable pf data
-      | NwIP (IP vhl tos len ident flags frag ttl _ chksum src dst tp) =>
-        NwIP (IP vhl tos len ident flags frag ttl chksum src dst 
+      | NwIP (IP vhl tos len ident flags frag ttl proto chksum src dst tp) =>
+        NwIP (IP vhl tos len ident flags frag ttl proto chksum src dst 
 	         (setTransportDstPort_tp tpDst tp))
       | NwARP arp => NwARP arp
     end.
 
   Definition setTransportDstPort tpDst pkt := 
     match pkt with
-      | Packet dlSrc dlDst _ dlVlan dlVlanPcp nw =>
-        Packet dlSrc dlDst dlVlan dlVlanPcp  
+      | Packet dlSrc dlDst proto dlVlan dlVlanPcp nw =>
+        Packet dlSrc dlDst proto dlVlan dlVlanPcp  
         (setTransportSrcPort_nw tpDst nw)
     end.
 
@@ -188,8 +180,7 @@ Section Match.
       | Some y => if eq_dec x y then true else false
     end.
 
-  Definition match_tp (nwProto : nwProto) (pk : tpPkt nwProto)
-    (mat : of_match) :=
+  Definition match_tp pk (mat : of_match) :=
     match mat with
       | Match _ _ _ _ _ _ _ _ _ mTpSrc mTpDst _ =>
         match pk with
@@ -206,8 +197,7 @@ Section Match.
         end
     end.
 
-  Definition match_nw (ethTyp : dlTyp) (pk : nw ethTyp) 
-    (mat : of_match) :=
+  Definition match_nw pk (mat : of_match) :=
     match mat with
       | Match _ _ _ _ _ mNwSrc mNwDst mNwProto mNwTos _ _ _ =>
         match pk with
