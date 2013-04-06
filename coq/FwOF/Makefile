@@ -10,6 +10,7 @@ MODULES := \
   FwOFBisimulation \
   FwOFNetworkAtoms \
   FwOFSimpleExtractableController \
+	FwOFSafeWire \
   FwOFSimpleControllerLemmas \
 
 VS := $(MODULES:%=%.v)
