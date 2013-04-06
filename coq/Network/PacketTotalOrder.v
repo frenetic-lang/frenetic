@@ -10,6 +10,66 @@ Local Open Scope N_scope.
 
 Axiom bytes_le : bytes -> bytes -> Prop.
 
+
+Record tcp : Type := Tcp {
+  tcpSrc : tpPort;
+  tcpDst : tpPort;
+  tcpSeq : Word32.t;
+  tcpAck : Word32.t;
+  tcpOffset : Word8.t;
+  tcpFlags : Word16.t; (** nine lower bits *)
+  tcpWindow : Word16.t;
+  tcpChksum : Word8.t;
+  tcpUrgent : Word8.t;
+  tcpPayload : bytes
+}.
+
+Record icmp : Type := Icmp {
+  icmpType : Word8.t;
+  icmpCode : Word8.t;
+  icmpChksum : Word16.t;
+  icmpPayload : bytes
+}.
+
+Inductive tpPkt : nwProto -> Type :=
+  | TpTCP : tcp -> tpPkt Const_0x6
+  | TpICMP : icmp -> tpPkt Const_0x1
+  | TpUnparsable : forall (proto : nwProto), bytes -> tpPkt proto.
+
+Record ip : Type := IP {
+  pktIPVhl : Word8.t;
+  pktIPTos : nwTos;
+  pktIPLen : Word16.t;
+  pktIPIdent : Word16.t;
+  pktIPFlags : Word8.t; (* 3 bits *)
+  pktIPFrag : Word16.t; (** 13 bits *)
+  pktIPTtl : Word8.t;
+  pktIPProto : nwProto;
+  pktIPChksum : Word16.t;
+  pktIPSrc :  nwAddr;
+  pktIPDst : nwAddr;
+  pktTpHeader : tpPkt pktIPProto
+}.
+
+Inductive arp : Type :=
+  | ARPQuery : dlAddr -> nwAddr -> nwAddr -> arp
+  | ARPReply : dlAddr -> nwAddr -> dlAddr -> nwAddr -> arp.
+
+Inductive nw : dlTyp -> Type :=
+  | NwIP : ip -> nw Const_0x800
+  | NwARP : arp -> nw Const_0x806
+  | NwUnparsable : forall (typ : dlTyp), bytes -> nw typ.
+
+Record packet : Type := Packet {
+  pktDlSrc : dlAddr;
+  pktDlDst : dlAddr;
+  pktDlTyp : dlTyp;
+  pktDlVlan : dlVlan;
+  pktDlVlanPcp : dlVlanPcp;
+  pktNwHeader : nw pktDlTyp
+}.
+
+
 Inductive tcp_le : tcp -> tcp -> Prop :=
   | 
 

@@ -1,4 +1,4 @@
-MODULES := WordInterface
+MODULES := WordInterface WordTheory
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean
