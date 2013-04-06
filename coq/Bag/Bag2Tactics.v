@@ -20,7 +20,7 @@ Ltac bag_perm n :=
     | |- ?b <+> ?lst1  = ?lst2 =>
       match eval compute in n with
         | O => fail "out of time / not equivalent"
-        | _ =>
+        | S _ =>
           apply rotate_union;
             repeat rewrite -> union_assoc;
               bag_perm (pred n)
@@ -38,39 +38,41 @@ Module Examples.
 
   Variable b0 b1 b2 b3 b4 b5 b6 b7 b8 b9 : bag R.
 
-  Example solve_bag_perm_example1 : b0 <+> b1 <+> b2 = b0 <+> b1 <+> b2.
+  Example test_identity : b0 <+> b1 <+> b2 = b0 <+> b1 <+> b2.
   Proof.
-    intros.
     solve_bag_permutation.
   Qed.
 
-  Example solve_bag_perm_example2 :
-    b0 <+> b1 <+> b2 = b1 <+> b2 <+> b0.
+  Example test_rotate : b0 <+> b1 <+> b2 = b1 <+> b2 <+> b0.
   Proof.
-    intros.
     solve_bag_permutation.
   Qed.
 
-  Example solve_bag_perm_example3 : b0 <+> b1 <+> b2 = b1 <+> b0 <+> b2.
+  Example test3 : b0 <+> b1 <+> b2 = b1 <+> b0 <+> b2.
   Proof.
-    intros.
     solve_bag_permutation.
   Qed.
 
-  Example solve_bag_perm_example4 : 
+  Example test4 : 
     b3 <+> b0 <+> b5 <+> b1 <+> b4 <+> b2 <+> b6 =
     b1 <+> b4 <+> b5 <+> b6 <+> b3 <+> b0 <+> b2.
   Proof.
-    intros.
-    bag_perm 100.
+    bag_perm 20.
   Qed.
 
-  (** TODO(arjun): tactic doesn't terminate if they are not permutations :( *)
-  Example solve_bag_perm_example5 :
-    b0 <+> b2 = b1 <+> b2.
+  Example test_termination1 : False -> b0 <+> b2 = b1 <+> b2.
   Proof.
     intros.
-    (* bag_perm 10. *)
-  Admitted.
+    try solve [clear H; bag_perm 10].
+    inversion H. (* "Error: No such unproven subgoal" if the line above succeeds. *)
+  Qed.
+
+  Example test_termination2 :
+    b3 <+> b0 <+> b5 <+> b1 <+> b4 <+> b2 <+> b6 =
+    b1 <+> b4 <+> b5 <+> b6 <+> b3 <+> b0 <+> b2.
+  Proof.
+    try solve [bag_perm 10].
+    bag_perm 20. (* "Error: No such unproven subgoal" if the line above succeeds. *)
+  Qed.
 
 End Examples.
