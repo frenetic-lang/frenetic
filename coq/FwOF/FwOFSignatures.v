@@ -167,8 +167,12 @@ Module Type MACHINE.
       None;
       Switch swId pts (modify_flow_table fm tbl) inp outp ctrlm switchm
     ]
+  (** We add the packet to the output-buffer, even if its port is invalid.
+      Packets with invalid ports will simply accumulate in the output buffer,
+      since the SendDataLink rule only pulls out packets with valid ports.
+      This is reasonable for now. The right fix is to add support for OpenFlow
+      errors. *)
   | SendPacketOut : forall pt pts swId tbl inp outp pk ctrlm switchm,
-    In pt pts ->
     SwitchStep[
       Switch swId pts tbl inp outp  ({|PacketOut pt pk|} <+> ctrlm) switchm;
       None;

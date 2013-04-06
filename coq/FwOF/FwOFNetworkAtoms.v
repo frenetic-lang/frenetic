@@ -68,13 +68,48 @@ Module NetworkAtoms <: NETWORK_ATOMS.
         (prio,pat,act) :: ft
     end.
 
+
+  Section TotalOrderings.
+    
+    Definition proj_fromController msg := 
+      match msg with
+        | PacketOut pt pk => inl (pt, pk)
+        | BarrierRequest n => inr (inl n)
+        | FlowMod f => inr (inr f)
+      end.
+
+    Definition inj_fromController sum :=
+      match sum with
+        | inl (pt, pk) => PacketOut pt pk
+        | inr  (inl n ) => BarrierRequest n
+        | inr (inr f) => FlowMod f
+      end.
+
+    Definition proj_fromSwitch msg :=
+      match msg with
+        | PacketIn pt pk => inl (pt, pk)
+        | BarrierReply n => inr n
+      end.
+    
+    Definition inj_fromSwitch sum :=
+      match sum with
+        | inl (pt, pk) => PacketIn pt pk
+        | inr n => BarrierReply n
+      end.
+
+  End TotalOrderings.
+
   Parameter packet_le : Relation_Definitions.relation packet.
   Parameter switchId_le : Relation_Definitions.relation switchId.
   Parameter portId_le : Relation_Definitions.relation portId.
   Parameter flowTable_le : Relation_Definitions.relation flowTable.
   Parameter flowMod_le : Relation_Definitions.relation flowMod.
-  Parameter fromSwitch_le : Relation_Definitions.relation fromSwitch.
-  Parameter fromController_le : Relation_Definitions.relation fromController.
+
+  Definition fromSwitch_le :=
+    ProjectOrdering proj_fromSwitch (SumOrdering (PairOrdering portId_le packet_le) le).
+
+  Definition fromController_le :=
+    ProjectOrdering proj_fromController (SumOrdering (PairOrdering portId_le packet_le) (SumOrdering le flowMod_le)).
 
   Instance TotalOrder_packet : TotalOrder packet_le.
   Admitted.
@@ -82,14 +117,38 @@ Module NetworkAtoms <: NETWORK_ATOMS.
   Admitted.
   Instance TotalOrder_portId : TotalOrder portId_le.
   Admitted.
-  Instance TotalOrder_flowTable : TotalOrder flowTable_le.
-  Admitted.
   Instance TotalOrder_flowMod : TotalOrder flowMod_le.
   Admitted.
-  Instance TotalOrder_fromSwitch : TotalOrder fromSwitch_le.
+  Instance TotalOrder_flowTable : TotalOrder flowTable_le.
   Admitted.
+
   Instance TotalOrder_fromController : TotalOrder fromController_le.
-  Admitted.
+  Proof with auto.
+    apply TotalOrder_Project with (g := inj_fromController)...
+    + apply TotalOrder_sum.
+      apply TotalOrder_pair.
+      apply TotalOrder_portId.
+      apply TotalOrder_packet.
+      apply TotalOrder_sum.
+      apply TotalOrder_nat.
+      apply TotalOrder_flowMod.
+    + unfold inverse.
+      intros.
+      destruct x...
+  Qed.
+
+  Instance TotalOrder_fromSwitch : TotalOrder fromSwitch_le.
+  Proof with auto.
+    apply TotalOrder_Project with (g := inj_fromSwitch)...
+    + apply TotalOrder_sum.
+      apply TotalOrder_pair.
+      apply TotalOrder_portId.
+      apply TotalOrder_packet.
+      apply TotalOrder_nat.
+    + unfold inverse.
+      intros.
+      destruct x...
+  Qed.
 
   Extract Constant TotalOrder_packet =>
     "{ TotalOrder.compare = (fun x y -> x <= y);

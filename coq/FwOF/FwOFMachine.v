@@ -98,7 +98,6 @@ Module Make (Atoms_ : ATOMS) <: MACHINE.
       Switch swId pts (modify_flow_table fm tbl) inp outp ctrlm switchm
     ]
   | SendPacketOut : forall pt pts swId tbl inp outp pk ctrlm switchm,
-    In pt pts ->
     SwitchStep[
       Switch swId pts tbl inp outp  ({|PacketOut pt pk|} <+> ctrlm) switchm;
       None;

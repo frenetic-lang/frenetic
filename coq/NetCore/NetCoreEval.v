@@ -73,7 +73,7 @@ Fixpoint match_pred (pr : pred) (sw : switchId) (pt : portId) (pk : packet) :=
     | PrNone => false
   end.
 
-Axiom serialize_pkt : packet -> bytes.
+Parameter serialize_pkt : packet -> bytes.
 
 Extract Constant serialize_pkt => "PacketParser.serialize_packet".
 

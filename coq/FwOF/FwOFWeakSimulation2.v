@@ -180,12 +180,11 @@ Module Make (Import Relation : RELATION).
         eapply multistep_tau.
         rewrite -> H.
         apply SendPacketOut.
-        idtac "TODO(arjun): p in pts0 in ctrlm link". admit.
-         assert (Bag ctrlm0 H2 = from_list ctrlm0). 
-          apply Bag.ordered_irr...
+        assert (Bag ctrlm0 H2 = from_list ctrlm0). 
+        { apply Bag.ordered_irr...
           unfold to_list.
           symmetry.
-          apply OrderedLists.from_list_id...
+          apply OrderedLists.from_list_id... }
         rewrite -> H0 in *.
         apply Hstep.
       - inversion order; subst.
@@ -360,7 +359,6 @@ Module Make (Import Relation : RELATION).
     apply PacketOut_NotBarrierRequest.
     eapply multistep_tau.
     apply SendPacketOut.
-    admit. (* TODO(arjun): pt in pts *)
     eapply ObserveFromOutp...
     trivial.
   Qed.
@@ -450,7 +448,6 @@ Module Make (Import Relation : RELATION).
       { apply PacketOut_NotBarrierRequest. }
       eapply multistep_tau.
       apply SendPacketOut.
-      admit. (* TODO(arjun): pt in pts. *)
       eapply multistep_tau.
       apply SendDataLink.
       eapply multistep_app.
@@ -788,8 +785,6 @@ Module Make (Import Relation : RELATION).
         rewrite <- Heqdevices0.
         eapply multistep_tau.
         apply SendPacketOut.
-        idtac "TODO(arjun): port exists".
-        admit.
         eapply ObserveFromOutp...
         rewrite <- Heqdevices0...
         apply AbstractStep... }
