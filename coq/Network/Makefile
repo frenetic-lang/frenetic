@@ -1,4 +1,4 @@
-MODULES := Packet
+MODULES := Packet PacketTotalOrder
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean
