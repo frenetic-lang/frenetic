@@ -176,3 +176,5 @@ Extract Constant Word16.zero => "0".
 Extract Constant Word32.zero => "Int32.zero".
 Extract Constant Word48.zero => "Int64.zero".
 Extract Constant Word64.zero => "Int64.zero".
+
+Extract Constant Word16.to_nat => "(fun x -> x)".
