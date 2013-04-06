@@ -7,8 +7,10 @@ Require Import FwOF.FwOFSignatures.
 Require Import Classifier.Classifier.
 Require OpenFlow.OpenFlow0x01Types.
 Require Network.Packet.
+Require Network.PacketTotalOrder.
 Require Import NetCore.NetCoreEval.
 Require Import Pattern.Pattern.
+Require Import Word.WordTheory.
 
 Import ListNotations.
 
@@ -99,7 +101,8 @@ Module NetworkAtoms <: NETWORK_ATOMS.
 
   End TotalOrderings.
 
-  Parameter packet_le : Relation_Definitions.relation packet.
+  Definition packet_le := PairOrdering Network.PacketTotalOrder.packet_le Word32.le.
+
   Parameter switchId_le : Relation_Definitions.relation switchId.
   Parameter portId_le : Relation_Definitions.relation portId.
   Parameter flowTable_le : Relation_Definitions.relation flowTable.
@@ -112,7 +115,8 @@ Module NetworkAtoms <: NETWORK_ATOMS.
     ProjectOrdering proj_fromController (SumOrdering (PairOrdering portId_le packet_le) (SumOrdering le flowMod_le)).
 
   Instance TotalOrder_packet : TotalOrder packet_le.
-  Admitted.
+  Proof. apply TotalOrder_pair; auto. exact Network.PacketTotalOrder.TotalOrder_packet. Qed.
+
   Instance TotalOrder_switchId : TotalOrder switchId_le.
   Admitted.
   Instance TotalOrder_portId : TotalOrder portId_le.

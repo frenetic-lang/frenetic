@@ -9,8 +9,9 @@ Require Import Network.Packet.
 Local Open Scope list_scope.
 Local Open Scope N_scope.
 
-Axiom bytes_le : bytes -> bytes -> Prop.
-Axiom Instance TotalOrder_bytes : TotalOrder bytes_le.
+(* "TODO(arjun): br more organized about byte-buffer axioms?". *)
+Parameter bytes_le : bytes -> bytes -> Prop.
+Parameter Instance TotalOrder_bytes : TotalOrder bytes_le.
 
 Definition proj_tcp r := 
   match r with
@@ -32,7 +33,7 @@ Definition tcp_le :=
      Word16.le ** Word16.le ** Word8.le ** Word8.le **  bytes_le).
 
 Hint Resolve TotalOrder_sum TotalOrder_pair TotalOrder_bytes 
-  Word16.TotalOrder Word32.TotalOrder Word8.TotalOrder.
+  Word16.TotalOrder Word32.TotalOrder Word8.TotalOrder Word48.TotalOrder.
 
 Instance TotalOrder_tcp : TotalOrder (ProjectOrdering proj_tcp tcp_le).
 Proof.
@@ -87,38 +88,110 @@ Proof.
     destruct i; auto.
 Qed.
 
-(*
-Record ip : Type := IP {
-  pktIPVhl : Word8.t;
-  pktIPTos : nwTos;
-  pktIPLen : Word16.t;
-  pktIPIdent : Word16.t;
-  pktIPFlags : Word8.t; (* 3 bits *)
-  pktIPFrag : Word16.t; (** 13 bits *)
-  pktIPTtl : Word8.t;
-  pktIPProto : nwProto;
-  pktIPChksum : Word16.t;
-  pktIPSrc :  nwAddr;
-  pktIPDst : nwAddr;
-  pktTpHeader : tpPkt pktIPProto
-}.
+Definition proj_ip r :=
+  match r with
+    | IP vhl tos len ident flags frag ttl proto chksum src dst tp =>
+      (vhl, tos, len, ident, flags, frag, ttl, proto, chksum, src, dst, proj_tpPkt tp)
+  end.
 
-Inductive arp : Type :=
-  | ARPQuery : dlAddr -> nwAddr -> nwAddr -> arp
-  | ARPReply : dlAddr -> nwAddr -> dlAddr -> nwAddr -> arp.
+Definition inj_ip tup :=
+  match tup with
+    | (vhl, tos, len, ident, flags, frag, ttl, proto, chksum, src, dst, tp) =>
+      IP vhl tos len ident flags frag ttl proto chksum src dst (inj_tpPkt tp)
+  end.
 
-Inductive nw : dlTyp -> Type :=
-  | NwIP : ip -> nw Const_0x800
-  | NwARP : arp -> nw Const_0x806
-  | NwUnparsable : forall (typ : dlTyp), bytes -> nw typ.
+Definition ip_le :=
+  Word8.le ** Word8.le ** Word16.le ** Word16.le ** Word8.le ** Word16.le ** Word8.le ** Word8.le **
+  Word16.le ** Word32.le ** Word32.le ** tpPkt_le.
 
-Record packet : Type := Packet {
-  pktDlSrc : dlAddr;
-  pktDlDst : dlAddr;
-  pktDlTyp : dlTyp;
-  pktDlVlan : dlVlan;
-  pktDlVlanPcp : dlVlanPcp;
-  pktNwHeader : nw pktDlTyp
-}.
-*)
+Lemma inverse_ip : inverse proj_ip inj_ip.
+Proof with auto.
+  unfold inverse.
+    destruct x; auto.
+    simpl.
+    destruct pktTpHeader; auto. (* TODO(arjun): repeating this proof unnecessarily *)
+    destruct t; auto.
+    destruct i; auto.
+Qed.
 
+Instance TotalOrder_ip : TotalOrder (ProjectOrdering proj_ip ip_le).
+Proof.
+  apply TotalOrder_Project with (g:=inj_ip).
+  + unfold ip_le. unfold tpPkt_le. unfold tcp_le. unfold icmp_le.
+    auto 20.
+  + exact inverse_ip.
+Qed.
+
+Definition proj_arp x :=
+  match x with
+    | ARPQuery x y z => inl (x,y,z)
+    | ARPReply w x y z => inr (w,x,y,z)
+  end.
+
+Definition inj_arp x :=
+  match x with
+    | inl (x,y,z) => ARPQuery x y z
+    | inr (w,x,y,z) => ARPReply w x y z
+  end.
+
+Definition arp_le := (Word48.le ** Word32.le ** Word32.le) +++  (Word48.le ** Word32.le ** Word48.le ** Word32.le).
+
+Lemma inverse_arp : inverse proj_arp inj_arp.
+Proof.  unfold inverse. destruct x; auto. Qed.
+
+Instance TotalOrder_arp : TotalOrder (ProjectOrdering proj_arp arp_le).
+Proof.
+  apply TotalOrder_Project with (g:=inj_arp).
+  + unfold arp_le. auto 20.
+  + exact inverse_arp.
+Qed.
+
+Definition proj_nw x :=
+  match x with
+    | NwIP ip => inl ip
+    | NwARP arp => inr (inl arp)
+    | NwUnparsable typ bytes => inr (inr (typ, bytes))
+  end.
+
+Definition inj_nw x :=
+  match x with
+    | inl ip => NwIP ip 
+    | inr (inl arp) => NwARP arp
+    | inr (inr (typ, bytes)) => NwUnparsable typ bytes
+  end.
+
+Definition nw_le := ProjectOrdering proj_ip ip_le +++ (ProjectOrdering proj_arp arp_le +++ (Word16.le ** bytes_le)).
+
+Definition inverse_nw : inverse proj_nw inj_nw.
+Proof. unfold inverse. destruct x; auto. Qed.
+
+Instance TotalOrder_nw : TotalOrder (ProjectOrdering proj_nw nw_le).
+Proof.
+  apply TotalOrder_Project with (g:=inj_nw).
+  + unfold nw_le. repeat apply TotalOrder_sum. apply TotalOrder_ip. apply TotalOrder_arp. auto.
+  + exact inverse_nw.
+Qed.
+
+Definition proj_packet x :=
+  match x with
+    | Packet src dst typ vlan pcp nw => 
+      (src,dst,typ,vlan,pcp,nw)
+  end.
+
+Definition inj_packet x :=
+  match x with
+    | (src,dst,typ,vlan,pcp,nw) =>
+      Packet src dst typ vlan pcp nw
+  end.
+
+Lemma inverse_packet : inverse proj_packet inj_packet.
+Proof. unfold inverse. destruct x; auto. Qed.
+
+Definition packet_le :=  ProjectOrdering proj_packet (Word48.le ** Word48.le ** Word16.le ** Word16.le ** Word8.le ** (ProjectOrdering proj_nw nw_le)).
+
+Instance TotalOrder_packet : TotalOrder packet_le.
+Proof.
+  apply TotalOrder_Project with (g:=inj_packet).
+  + unfold packet_le.  repeat apply TotalOrder_pair; auto. apply TotalOrder_nw.
+  + exact inverse_packet.
+Qed.
