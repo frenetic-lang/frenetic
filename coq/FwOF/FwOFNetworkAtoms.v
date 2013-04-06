@@ -103,8 +103,8 @@ Module NetworkAtoms <: NETWORK_ATOMS.
 
   Definition packet_le := PairOrdering Network.PacketTotalOrder.packet_le Word32.le.
 
-  Parameter switchId_le : Relation_Definitions.relation switchId.
-  Parameter portId_le : Relation_Definitions.relation portId.
+  Definition switchId_le := Word64.le.
+  Definition portId_le := Word16.le.
   Parameter flowTable_le : Relation_Definitions.relation flowTable.
   Parameter flowMod_le : Relation_Definitions.relation flowMod.
 
@@ -117,10 +117,9 @@ Module NetworkAtoms <: NETWORK_ATOMS.
   Instance TotalOrder_packet : TotalOrder packet_le.
   Proof. apply TotalOrder_pair; auto. exact Network.PacketTotalOrder.TotalOrder_packet. Qed.
 
-  Instance TotalOrder_switchId : TotalOrder switchId_le.
-  Admitted.
-  Instance TotalOrder_portId : TotalOrder portId_le.
-  Admitted.
+  Definition TotalOrder_switchId := Word64.TotalOrder.
+  Definition TotalOrder_portId := Word16.TotalOrder.
+
   Instance TotalOrder_flowMod : TotalOrder flowMod_le.
   Admitted.
   Instance TotalOrder_flowTable : TotalOrder flowTable_le.
