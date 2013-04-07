@@ -42,7 +42,7 @@ Module Type MAKEWORD.
 
 End MAKEWORD.
 
-Module MakeWord (Width : WIDTH) <: MAKEWORD.
+Module MakeWord (Width : WIDTH).
 
   Local Open Scope N_scope.
 
@@ -54,8 +54,6 @@ Module MakeWord (Width : WIDTH) <: MAKEWORD.
   Definition t := Word.
 
   Definition zero : t := @Mk 0 eq_refl.
-
-  Parameter eq_dec : forall (m n : t), { m = n } + { m <> n }.
 
 End MakeWord.
 
@@ -105,6 +103,7 @@ Module Word8 <: WORD.
 
   Module M := MakeWord (Width8).
   Include M.
+  Parameter eq_dec : forall (m n : t), { m = n } + { m <> n }.
 
 End Word8.
 
@@ -112,6 +111,7 @@ Module Word12 <: WORD.
 
   Module M := MakeWord (Width12).
   Include M.
+  Parameter eq_dec : forall (m n : t), { m = n } + { m <> n }.
 
 End Word12.
 
@@ -120,6 +120,7 @@ Module Word16 <: WORD.
   Module M := MakeWord (Width16).
 
   Include M.
+  Parameter eq_dec : forall (m n : t), { m = n } + { m <> n }.
 
   Definition to_nat (w : Word) : nat := 
     match w with
@@ -137,12 +138,14 @@ Module Word32 <: WORD.
 
   Module M := MakeWord (Width32).
   Include M.
+  Parameter eq_dec : forall (m n : t), { m = n } + { m <> n }.
 End Word32.
 
 Module Word48 <: WORD.
 
   Module M := MakeWord (Width48).
   Include M.
+  Parameter eq_dec : forall (m n : t), { m = n } + { m <> n }.
 
 End Word48.
 
@@ -150,6 +153,7 @@ Module Word64 <: WORD.
   
   Module M := MakeWord (Width64).
   Include M.
+  Parameter eq_dec : forall (m n : t), { m = n } + { m <> n }.
 
 End Word64.
 

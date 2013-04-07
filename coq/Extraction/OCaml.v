@@ -30,4 +30,3 @@ Extract Constant nth_in_or_default =>
 (* The generated comparison_rect is a partial function that explodes on
    inputs other than 0, -1, and +1. *)
 Extract Inductive comparison => "int" [ "0" "(-1)" "1" ].
-
