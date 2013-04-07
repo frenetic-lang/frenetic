@@ -1,17 +1,18 @@
 MODULES := \
+  FwOFExtractableSignatures \
+  FwOFExtractableController \
   FwOFSignatures \
+  FwOFSimpleController \
+  FwOFMachine \
+	FwOFSafeWire \
+  FwOFSimpleControllerLemmas \
   FwOFWellFormednessLemmas \
   FwOFWellFormedness \
   FwOFWeakSimulation1 \
 	FwOFWeakSimulation2 \
-  FwOFMachine \
-  FwOFSimpleController \
   FwOFRelationDefinitions \
   FwOFBisimulation \
   FwOFNetworkAtoms \
-  FwOFSimpleExtractableController \
-	FwOFSafeWire \
-  FwOFSimpleControllerLemmas \
 
 VS := $(MODULES:%=%.v)
 

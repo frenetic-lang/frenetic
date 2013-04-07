@@ -20,6 +20,7 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
   Module Import Machine := FwOF.FwOFMachine.Make (Atoms).
   
   Module Import SafeWire := FwOF.FwOFSafeWire.Make (Machine).
+  Import ExtractableController.
 
   Hint Resolve alternating_pop Barriered_entails_FlowModSafe approximating_pop_FlowMod.
 
@@ -34,7 +35,7 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
            In (SwitchState swId0 pendingMsgs) swsts /\
            (forall msg, In msg pendingMsgs -> NotPacketOut msg) /\
            Barriered swId0 (rev pendingMsgs ++ ctrlmLst) (tbl sw) (ctrlm sw)) ->
-      Invariant sws ofLinks (Atoms.State pktOuts swsts).
+      Invariant sws ofLinks (State pktOuts swsts).
 
   Hint Constructors Invariant.
 
@@ -223,13 +224,14 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
       exists msgs...
   Qed.
 
+
   Lemma step_preserves_P : forall sws0 sws1 links0 links1 ofLinks0 ofLinks1 
     ctrl0 ctrl1 obs,
     AllDiff of_to ofLinks0 ->
     AllDiff swId (to_list sws0) ->
-    step (State sws0 links0 ofLinks0 ctrl0)
+    step (Machine.State sws0 links0 ofLinks0 ctrl0)
          obs
-         (State sws1 links1 ofLinks1 ctrl1) ->
+         (Machine.State sws1 links1 ofLinks1 ctrl1) ->
     Invariant sws0 ofLinks0 ctrl0 ->
     Invariant sws1 ofLinks1 ctrl1.
   Proof with eauto with datatypes.
@@ -495,8 +497,8 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
     In (sw,pt,pk) (to_list (relate_controller ctrl0)) ->
     exists  ofLinks10 ofLinks11 ctrl1 swTo ptTo switchmLst ctrlmLst,
       (multistep 
-         step (State sws0 links0 ofLinks0 ctrl0) nil
-         (State sws0 links0
+         step (Machine.State sws0 links0 ofLinks0 ctrl0) nil
+         (Machine.State sws0 links0
                 (ofLinks10 ++ 
                  (OpenFlowLink swTo switchmLst 
                   (PacketOut ptTo pk :: ctrlmLst)) ::
@@ -524,12 +526,12 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
      exists ctrl1,
       (multistep 
          step
-         (State 
+         (Machine.State 
             sws0 links0 
             (ofLinks0 ++ (OpenFlowLink sw (switchm0 ++ [m]) ctrlm0) :: ofLinks1)
             ctrl0)
          nil
-         (State 
+         (Machine.State 
             sws0 links0 
             (ofLinks0 ++ (OpenFlowLink sw switchm0 ctrlm0) :: ofLinks1)
             ctrl1)) /\
@@ -545,7 +547,7 @@ Module MakeController (NetAndPol : NETWORK_AND_POLICY) <: ATOMS_AND_CONTROLLER.
       apply ControllerRecv.
       apply RecvPacketIn.
       apply multistep_nil.
-      exists (relate_controller (Atoms.State pktsToSend0 switchStates0)).
+      exists (relate_controller (State pktsToSend0 switchStates0)).
       simpl.
       unfold relate_controller.
       simpl.

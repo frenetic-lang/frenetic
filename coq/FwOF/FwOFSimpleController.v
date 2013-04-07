@@ -6,40 +6,15 @@ Require Import Common.Bisimulation.
 Require Import FwOF.FwOFSignatures.
 Require Import Common.Bisimulation.
 Require Import Common.AllDiff.
-
+Require FwOF.FwOFExtractableController.
 Local Open Scope list_scope.
 
 Module Make (NetAndPol : NETWORK_AND_POLICY) <: ATOMS.
   Include NetAndPol.
 
-  Record switchState := SwitchState {
-    theSwId : switchId;
-    pendingCtrlMsgs : list fromController
-  }.
+  Module Import ExtractableController := FwOF.FwOFExtractableController.MakeController (NetAndPol).
+  Definition controller := controller.
 
-  Record srcDst := SrcDst {
-    pkSw : switchId;
-    srcPt : portId;
-    srcPk : packet;
-    dstPt : portId;
-    dstPk : packet
-  }.
-
-  Record state := State {
-    pktsToSend : list srcDst;
-    switchStates : list switchState
-  }.
-  
-  Definition mkPktOuts_body sw srcPt srcPk ptpk :=
-    match ptpk with
-      | (dstPt,dstPk) => SrcDst sw srcPt srcPk dstPt dstPk
-    end.
-
-  Definition mkPktOuts (sw : switchId) (srcPt : portId) (srcPk : packet) :=
-    map (mkPktOuts_body sw srcPt srcPk)
-      (abst_func sw srcPt srcPk).
-
-  Definition controller := state.
 
   Inductive Recv : controller -> switchId -> fromSwitch -> controller -> Prop :=
   | RecvBarrierReply : forall st swId n,
@@ -70,39 +45,6 @@ Module Make (NetAndPol : NETWORK_AND_POLICY) <: ATOMS.
   Definition controller_step := Step.
   Definition controller_send := Send.
 
-  Fixpoint send_queued (swsts : list switchState) :=
-    match swsts with
-      | nil => None
-      | (SwitchState sw (msg :: msgs)) :: ss =>
-        Some (SwitchState sw msgs :: ss, sw, msg)
-      | (SwitchState sw nil) :: ss =>
-        match send_queued ss with
-          | None => None
-          | Some (ss', sw',msg) => Some (SwitchState sw nil :: ss', sw', msg)
-        end
-    end.
-
-  Fixpoint send (st : state) :=
-    match st with
-      | State ((SrcDst sw _ _ pt pk) :: pks) sws =>
-        Some (State pks sws, sw, PacketOut pt pk)
-      | State nil ss => 
-        match send_queued ss with
-          | None => None
-          | Some (ss', sw, msg) => Some (State nil ss', sw, msg)
-        end
-    end.
-
-  Fixpoint recv (st : state) (sw : switchId) (msg : fromSwitch) :=
-    match msg with
-      | BarrierReply _ => st
-      | PacketIn pt pk =>
-        match st with
-          | State pktOuts ss =>
-            State (mkPktOuts sw pt pk ++ pktOuts) ss
-        end
-    end.
-  
   Hint Constructors Send Recv.
 
   Lemma Send_cons : forall s ss1 ss2 sw msg,

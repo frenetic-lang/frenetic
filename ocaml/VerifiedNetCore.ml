@@ -5,23 +5,13 @@ open Platform
 open Printf
 open NetCoreSyntax
 
-module CoqCtrl = FwOFSimpleExtractableController
-module Atoms = FwOFNetworkAtoms.NetworkAtoms
-
 module type POLICY = sig
   val policy : policy
   (* Necessary due to static compilation in FwOF. *)
   val switches : switchId list
 end
 
-(* Topology is not relevant for execution, only the proof. See the note below.
-*)
-module MakePolTopo (Policy : POLICY)  = struct
-
-  (* Note: this is not relevant for execution. It is only needed for
-     verification. The signatures in Coq (FwOFSignatures.v) should be better
-     factored so that this cruft is not neeeded. *)
-  let topo _ = None  
+module MakePol (Policy : POLICY)  = struct
 
   let handlers = Hashtbl.create 0
 
@@ -49,11 +39,11 @@ module MakePolTopo (Policy : POLICY)  = struct
     pks
 end
 
-
 module Make (Platform : PLATFORM) (Policy : POLICY) = struct
 
-  module PolTopo = MakePolTopo (Policy)
-  module Controller = CoqCtrl.Make (PolTopo)
+  module Pol = MakePol (Policy)
+  module Atoms = FwOFExtractableController.MakeAtoms (Pol)
+  module Controller = FwOFExtractableController.MakeController (Atoms)
 
   type state = Controller.state
 
@@ -64,12 +54,12 @@ module Make (Platform : PLATFORM) (Policy : POLICY) = struct
 
   let compile_pol swId = 
     let f ((prio,pat),act) =  
-      Controller.FlowMod (Atoms.AddFlow (prio, pat, act)) in
+      Atoms.FlowMod (Atoms.AddFlow (prio, pat, act)) in
     let lst = Classifier.prioritize 65535
-       (NetCoreCompiler.compile_opt PolTopo.pol swId) in
+       (NetCoreCompiler.compile_opt Pol.pol swId) in
     { Controller.theSwId = swId;
       Controller.pendingCtrlMsgs = 
-        Types.intersperse (Controller.BarrierRequest 0) (List.map f lst)
+        Types.intersperse (Atoms.BarrierRequest 0) (List.map f lst)
     }
 
   let init_flow_mod () = {
@@ -99,7 +89,7 @@ module Make (Platform : PLATFORM) (Policy : POLICY) = struct
         else
           Lwt.return ())
 
-  let create_recv_thread (send_msg_in: (switchId * Controller.fromSwitch) option -> unit) (swId : switchId) =
+  let create_recv_thread (send_msg_in: (switchId * Atoms.fromSwitch) option -> unit) (swId : switchId) =
     Lwt.async
       (fun () ->
         let rec loop () = 
@@ -110,7 +100,7 @@ module Make (Platform : PLATFORM) (Policy : POLICY) = struct
                                 packetInPort = pt; 
                                 packetInPacket = pk } ->
                   send_msg_in
-                    (Some (swId, Controller.PacketIn (pt, (pk, bufId))));
+                    (Some (swId, Atoms.PacketIn (pt, (pk, bufId))));
                   loop ()
                 | _ -> loop ()) in
         loop ())
@@ -119,15 +109,15 @@ module Make (Platform : PLATFORM) (Policy : POLICY) = struct
     | None -> (st, [])
     | Some ((st, sw), msg) ->
       let (xid, ofMsg) = match msg with
-        | Controller.FlowMod (Atoms.AddFlow (prio, pat, act)) ->
+        | Atoms.FlowMod (Atoms.AddFlow (prio, pat, act)) ->
           (0l, FlowModMsg (NetCoreController.to_flow_mod prio pat act))
-        | Controller.PacketOut (pt,(pk,bufId)) ->
+        | Atoms.PacketOut (pt,(pk,bufId)) ->
           (0l, PacketOutMsg { 
             pktOutBufOrBytes = Datatypes.Coq_inl bufId;
             pktOutPortId = None;
             pktOutActions = [Output (PhysicalPort pt)] 
           })
-        | Controller.BarrierRequest xid ->
+        | Atoms.BarrierRequest xid ->
           (Int32.of_int xid, BarrierRequest)
       in
       let (st, rest) = send_loop st in
