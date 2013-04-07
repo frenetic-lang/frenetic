@@ -476,6 +476,12 @@ Module Type RELATION_DEFINITIONS.
         src lnk = (swId1,pt1) /\
         dst lnk = (swId0, pt0).
 
+  Definition NoBarriersInCtrlm (sws : bag switch_le) :=
+    forall sw,
+      In sw (to_list sws) ->
+      forall m,
+        In m (to_list (ctrlm sw)) ->
+        NotBarrierRequest m.
 
   Record concreteState := ConcreteState {
     devices : state;
@@ -488,7 +494,8 @@ Module Type RELATION_DEFINITIONS.
     uniqOfLinkIds : AllDiff of_to (ofLinks devices);
     ofLinksHaveSw : OFLinksHaveSw (switches devices) (ofLinks devices);
     devicesFromTopo : DevicesFromTopo devices;
-    swsHaveOFLinks : SwitchesHaveOpenFlowLinks (switches devices) (ofLinks devices)
+    swsHaveOFLinks : SwitchesHaveOpenFlowLinks (switches devices) (ofLinks devices);
+    noBarriersInCtrlm : NoBarriersInCtrlm (switches devices)
   }.
 
   Implicit Arguments ConcreteState [].

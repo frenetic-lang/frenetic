@@ -555,4 +555,25 @@ Module Make (Import RelationDefinitions : RELATION_DEFINITIONS).
         
   End SwitchesHaveOpenFlowLinks.
 
+  Section NoBarriersInCtrlm.
+
+  Lemma NoBarriersInCtrlm_preservation : forall swId0 pts0 tbl0 inp0 outp0
+      ctrlm0 switchm0 tbl1 inp1 outp1 switchm1 sws,
+    NoBarriersInCtrlm ({|Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0|} <+> sws) ->
+    NoBarriersInCtrlm ({|Switch swId0 pts0 tbl1 inp1 outp1 ctrlm0 switchm1|} <+> sws).
+  Proof with eauto with datatypes.
+    unfold NoBarriersInCtrlm.
+    intros.
+    apply Bag.in_union in H0; simpl in H0.
+    destruct H0 as [[H0|H0]|H0].
+    + subst.
+      refine (H (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0) _ m _)...
+      apply Bag.in_union. simpl...
+    + inversion H0.
+    + refine (H sw _ m _)...
+      apply Bag.in_union...
+  Qed.
+
+  End NoBarriersInCtrlm.
+
 End Make.

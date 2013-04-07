@@ -30,6 +30,7 @@ Module Make (Import RelationDefinitions : RELATION_DEFINITIONS) <: RELATION.
   Hint Resolve UniqSwIds_pres.
   Hint Resolve FlowTablesSafe_PacketOut.
   Hint Resolve AllDiff_preservation.
+  Hint Resolve NoBarriersInCtrlm_preservation.
 
   Ltac sauto := solve[eauto with datatypes].
 
@@ -43,32 +44,38 @@ Module Make (Import RelationDefinitions : RELATION_DEFINITIONS) <: RELATION.
     (uniqOfLinkIds1 : AllDiff of_to (ofLinks st1))
     (ofLinksHaveSw1 : OFLinksHaveSw (switches st1) (ofLinks st1))
     (devsFromTopo1 : DevicesFromTopo st1)
-    (swsHaveOFLinks1 : SwitchesHaveOpenFlowLinks (switches st1) (ofLinks st1)),
+    (swsHaveOFLinks1 : SwitchesHaveOpenFlowLinks (switches st1) (ofLinks st1))
+    (noBarriersInCtrlm1 : NoBarriersInCtrlm (switches st1)),
     step st1 obs st2 ->
     exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2 P1
-           uniqOfLinkIds2 ofLinksHaveSw2 devsFromTopo2 swsHaveOFLinks2,
+           uniqOfLinkIds2 ofLinksHaveSw2 devsFromTopo2 swsHaveOFLinks2
+           noBarriersInCtrlm2,
       concreteStep
         (ConcreteState st1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1 uniqSwIds1
                        P0 uniqOfLinkIds1 ofLinksHaveSw1 devsFromTopo1
-                       swsHaveOFLinks1)
+                       swsHaveOFLinks1 noBarriersInCtrlm1)
         obs
         (ConcreteState st2 tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2
                        P1 uniqOfLinkIds2 ofLinksHaveSw2 devsFromTopo2
-                       swsHaveOFLinks2).
+                       swsHaveOFLinks2 noBarriersInCtrlm2).
   Proof with simpl;eauto with datatypes.
     intros.
     unfold concreteStep.
     simpl.
     { inversion H; subst; simpl in *.
       (* Case 1. *)
-      + eexists...
-        eexists...
-        eexists...
-        eexists...
-        eexists...
-        eexists...
-        eexists...
-        eexists...
+      + eexists. sauto.
+        eexists. sauto.
+        eexists. sauto.
+        eexists. sauto.
+        eexists. sauto.
+        eexists. sauto.
+        eexists. sauto.
+        eexists. sauto.
+        eexists. sauto.
+        eexists. sauto.
+        eexists. sauto.
+        sauto.
       (* Case 2: processed a buffered FlowMod *)
       + eexists.
         unfold FlowTablesSafe.
@@ -105,6 +112,23 @@ Module Make (Import RelationDefinitions : RELATION_DEFINITIONS) <: RELATION.
         eexists...
         eexists...
         eexists...
+        eexists. sauto.
+        eexists. sauto.
+        eexists.
+        { unfold NoBarriersInCtrlm in *.
+          intros.
+          apply Bag.in_union in H0; simpl in H0.
+          destruct H0 as [[H0|H0]|H0].
+          + refine (noBarriersInCtrlm1 (Switch swId0 pts0 tbl0 inp0 outp0 (({|FlowMod fm|}) <+> ctrlm0) switchm0) _ _ _).
+            - apply Bag.in_union. simpl...
+            - apply Bag.in_union.
+              rewrite <- H0 in H1.
+              simpl in H1.
+              right...
+          + inversion H0.
+          + refine (noBarriersInCtrlm1 sw _ _ _)...
+            apply Bag.in_union... }
+        sauto.
       (* Case 4. *)
       + eexists. sauto.
         eexists. sauto.
@@ -116,12 +140,27 @@ Module Make (Import RelationDefinitions : RELATION_DEFINITIONS) <: RELATION.
         eexists. sauto.
         eexists. sauto.
         eexists. sauto.
+        eexists. 
+        { unfold NoBarriersInCtrlm in *.
+          intros.
+          apply Bag.in_union in H0; simpl in H0.
+          destruct H0 as [[H0|H0]|H0].
+          + refine (noBarriersInCtrlm1 (Switch swId0 pts0 tbl0 inp0 outp0 (({|PacketOut pt pk|}) <+> ctrlm0) switchm0) _ _ _).
+            - apply Bag.in_union. simpl...
+            - apply Bag.in_union.
+              rewrite <- H0 in H1.
+              simpl in H1.
+              right...
+          + inversion H0.
+          + refine (noBarriersInCtrlm1 sw _ _ _)...
+            apply Bag.in_union... }
         sauto.
       (* Case 5. *)
       + eexists. sauto.
         exists (LinkTopoOK_inv pks0 (pk::pks0) linksTopoOk1).
         exists (LinksHaveSrc_inv pks0 (pk::pks0) (LinksHaveSrc_untouched haveSrc1)).
         exists (LinksHaveDst_inv pks0 (pk::pks0) (LinksHaveDst_untouched haveDst1)).
+        eexists. sauto.
         eexists. sauto.
         eexists. sauto.
         eexists. sauto.
@@ -142,9 +181,11 @@ Module Make (Import RelationDefinitions : RELATION_DEFINITIONS) <: RELATION.
         eexists. sauto.
         eexists. sauto.
         eexists. sauto.
+        eexists. sauto.
         sauto.
       (* Case 7. *)
       + eexists. sauto.
+        eexists. sauto.
         eexists. sauto.
         eexists. sauto.
         eexists. sauto.
@@ -169,6 +210,7 @@ Module Make (Import RelationDefinitions : RELATION_DEFINITIONS) <: RELATION.
         eexists. sauto.
         eexists. sauto.
         eexists. sauto.
+        eexists. sauto.
         sauto.
       (* Case 9. *)
       + eexists. sauto.
@@ -181,6 +223,7 @@ Module Make (Import RelationDefinitions : RELATION_DEFINITIONS) <: RELATION.
         { eapply AllDiff_preservation.
           exact uniqOfLinkIds1.
           do 2 rewrite -> map_app... }
+        eexists. sauto.
         eexists. sauto.
         eexists. sauto.
         eexists. sauto.
@@ -199,6 +242,7 @@ Module Make (Import RelationDefinitions : RELATION_DEFINITIONS) <: RELATION.
         eexists. sauto.
         eexists. sauto.
         eexists. sauto.
+        eexists. sauto.
         sauto.
       (* Case 11. *)
       + eexists. sauto.
@@ -214,6 +258,7 @@ Module Make (Import RelationDefinitions : RELATION_DEFINITIONS) <: RELATION.
         eexists. sauto.
         eexists. sauto.
         eexists. sauto.
+        eexists. sauto.
         sauto.
       + eexists. sauto.
         eexists. sauto.
@@ -228,6 +273,23 @@ Module Make (Import RelationDefinitions : RELATION_DEFINITIONS) <: RELATION.
         eexists. sauto.
         eexists. sauto.
         eexists. sauto.
+        eexists. 
+        { unfold NoBarriersInCtrlm in *.
+          intros.
+          apply Bag.in_union in H1; simpl in H1.
+          destruct H1 as [[H1|H1]|H1].
+          + rewrite <- H1 in H2.
+            simpl in H2.
+            apply Bag.in_union in H2. simpl in H2.
+            destruct H2 as [[H2|H2]|H2].
+            * subst. exact H0.
+            * inversion H2.
+            * refine (noBarriersInCtrlm1 (Switch swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0) _ _ _).
+              apply Bag.in_union. simpl...
+              simpl... 
+          + inversion H1.
+          + refine (noBarriersInCtrlm1 sw _ _ _)...
+            apply Bag.in_union... }
         sauto.
     (* epic fail of a proof script *)
     Grab Existential Variables. 
@@ -250,51 +312,61 @@ Module Make (Import RelationDefinitions : RELATION_DEFINITIONS) <: RELATION.
     (uniqOfLinkIds1 : AllDiff of_to (ofLinks st1))
     (ofLinksHaveSw1 : OFLinksHaveSw (switches st1) (ofLinks st1))
     (devsFromTopo1 : DevicesFromTopo st1)
-    (swsHaveOFLinks1 : SwitchesHaveOpenFlowLinks (switches st1) (ofLinks st1)),
+    (swsHaveOFLinks1 : SwitchesHaveOpenFlowLinks (switches st1) (ofLinks st1))
+    (noBarriersInCtrlm1 : NoBarriersInCtrlm (switches st1)),
     multistep step st1 obs st2 ->
     exists tblsOk2 linksTopoOk2 haveSrc2 haveDst2 uniqSwIds2 P2
-           uniqOfLinkIds2 ofLinksHaveSw2 devsFromTopo2 swsHaveOFLinks2,
+           uniqOfLinkIds2 ofLinksHaveSw2 devsFromTopo2 swsHaveOFLinks2
+           noBarriersInCtrlm2,
       multistep concreteStep
                 (ConcreteState st1 tblsOk1 linksTopoOk1 haveSrc1 haveDst1 
                                uniqSwIds1 P1 uniqOfLinkIds1
-                               ofLinksHaveSw1 devsFromTopo1 swsHaveOFLinks1)
+                               ofLinksHaveSw1 devsFromTopo1 swsHaveOFLinks1
+                               noBarriersInCtrlm1)
                 obs
                 (ConcreteState st2 tblsOk2 linksTopoOk2 haveSrc2 haveDst2 
                                uniqSwIds2 P2 uniqOfLinkIds2
-                               ofLinksHaveSw2 devsFromTopo2 swsHaveOFLinks2).
+                               ofLinksHaveSw2 devsFromTopo2 swsHaveOFLinks2
+                               noBarriersInCtrlm2).
   Proof with eauto with datatypes.
     intros.
     induction H.
     (* zero steps. *)
-    + solve [ eauto 12 ].
+    + solve [ eauto 13 ].
     (* tau step *)
     + destruct (simpl_step tblsOk1 linksTopoOk1 haveSrc1 haveDst1 
                            uniqSwIds1 P1 uniqOfLinkIds1 ofLinksHaveSw1
-                           devsFromTopo1 swsHaveOFLinks1 H)
+                           devsFromTopo1 swsHaveOFLinks1
+                           noBarriersInCtrlm1
+                           H)
         as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 [uniqSwIds2 
            [P2 [uniqOfLinkIds2 [ofLinksHaveSw2 
-           [devsFromTopo2 [swsHaveOFLinks2 step]]]]]]]]]].
+           [devsFromTopo2 [swsHaveOFLinks2 
+           [noBarriersInCtrlm2 step]]]]]]]]]]].
       destruct (IHmultistep tblsOk2 linksTopoOk2 haveSrc2 haveDst2 
                             uniqSwIds2 P2 uniqOfLinkIds2 ofLinksHaveSw2
-                            devsFromTopo2 swsHaveOFLinks2)
+                            devsFromTopo2 swsHaveOFLinks2 noBarriersInCtrlm2)
         as [tblsOk3 [linksTopoOk3 [haveSrc3 [haveDst3
                 [uniqSwIds3 [PN [uniqOfLinkIdsN [ofLinksHaveSwN 
-           [devsFromTopoN [swsHaveOFLinksN stepN]]]]]]]]]].
-      solve [ eauto 12 ].
+           [devsFromTopoN [swsHaveOFLinksN [noBarriersInCtrlmN stepN]]]]]]]]]]].
+      solve [ eauto 13 ].
     (* The script below is an identical copy of the case above. *)
     + destruct (simpl_step tblsOk1 linksTopoOk1 haveSrc1 haveDst1 
                            uniqSwIds1 P1 uniqOfLinkIds1 ofLinksHaveSw1
-                           devsFromTopo1 swsHaveOFLinks1 H)
+                           devsFromTopo1 swsHaveOFLinks1
+                           noBarriersInCtrlm1
+                           H)
         as [tblsOk2 [linksTopoOk2 [haveSrc2 [haveDst2 [uniqSwIds2 
            [P2 [uniqOfLinkIds2 [ofLinksHaveSw2 
-           [devsFromTopo2 [swsHaveOFLinks2 step]]]]]]]]]].
+           [devsFromTopo2 [swsHaveOFLinks2 
+           [noBarriersInCtrlm2 step]]]]]]]]]]].
       destruct (IHmultistep tblsOk2 linksTopoOk2 haveSrc2 haveDst2 
                             uniqSwIds2 P2 uniqOfLinkIds2 ofLinksHaveSw2
-                            devsFromTopo2 swsHaveOFLinks2)
+                            devsFromTopo2 swsHaveOFLinks2 noBarriersInCtrlm2)
         as [tblsOk3 [linksTopoOk3 [haveSrc3 [haveDst3
                 [uniqSwIds3 [PN [uniqOfLinkIdsN [ofLinksHaveSwN 
-           [devsFromTopoN [swsHaveOFLinksN stepN]]]]]]]]]].
-      solve [ eauto 12 ].
+           [devsFromTopoN [swsHaveOFLinksN [noBarriersInCtrlmN stepN]]]]]]]]]]].
+      solve [ eauto 13 ].
   Qed.
 
   Lemma simpl_multistep : forall (st1 : concreteState) (devs2 : state) obs,
@@ -308,8 +380,8 @@ Module Make (Import RelationDefinitions : RELATION_DEFINITIONS) <: RELATION.
     destruct (simpl_multistep' concreteState_flowTableSafety0
       concreteState_consistentDataLinks0 linksHaveSrc0 linksHaveDst0
       uniqSwIds0 ctrlP0 uniqOfLinkIds0 ofLinksHaveSw0 devicesFromTopo0
-      swsHaveOFLinks0 H) as [v0 [v1 [v2 [v3 [v4 [v5 [v6 [v7 [v8 [v9 Hstep]]]]]]]]]].
-    exists (ConcreteState devs2 v0 v1 v2 v3 v4 v5 v6 v7 v8 v9)...
+      swsHaveOFLinks0 noBarriersInCtrlm0 H) as [v0 [v1 [v2 [v3 [v4 [v5 [v6 [v7 [v8 [v9 [v10 Hstep]]]]]]]]]]].
+    exists (ConcreteState devs2 v0 v1 v2 v3 v4 v5 v6 v7 v8 v9 v10)...
   Qed.
 
   Lemma relate_step_simpl_tau : forall st1 st2,
