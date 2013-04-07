@@ -286,19 +286,3 @@ Proof with eauto.
       apply n.
       reflexivity.
 Qed.
-
-Extract Constant TotalOrder_nat =>
-"{ compare = (fun x y -> x <= y);
-   eqdec = (fun x y -> x = y) }".
-
-Extract Constant TotalOrder_pair =>
-"fun _ _ -> { compare = (fun x y -> x <= y);
-              eqdec = (fun x y -> x = y) }".
-
-Extract Constant TotalOrder_Project =>
-"fun _ _ -> { compare = (fun x y -> x <= y);
-              eqdec = (fun x y -> x = y) }".
-
-Extract Constant TotalOrder_sum =>
-"fun _ _ -> { compare = (fun x y -> x <= y);
-              eqdec = (fun x y -> x = y) }".

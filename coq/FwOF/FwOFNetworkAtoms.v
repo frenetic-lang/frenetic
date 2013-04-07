@@ -153,26 +153,4 @@ Module NetworkAtoms <: NETWORK_ATOMS.
       destruct x...
   Qed.
 
-  Extract Constant TotalOrder_packet =>
-    "{ TotalOrder.compare = (fun x y -> x <= y);
-       TotalOrder.eqdec = (fun x y -> x = y) }".
-  Extract Constant TotalOrder_switchId =>
-    "{ TotalOrder.compare = (fun x y -> x <= y);
-       TotalOrder.eqdec = (fun x y -> x = y) }".
-  Extract Constant TotalOrder_portId =>
-    "{ TotalOrder.compare = (fun x y -> x <= y);
-       TotalOrder.eqdec = (fun x y -> x = y) }".
-  Extract Constant TotalOrder_flowMod =>
-    "{ TotalOrder.compare = (fun x y -> x <= y);
-       TotalOrder.eqdec = (fun x y -> x = y) }".
-  Extract Constant TotalOrder_flowTable =>
-    "{ TotalOrder.compare = (fun x y -> x <= y);
-       TotalOrder.eqdec = (fun x y -> x = y) }".
-  Extract Constant TotalOrder_fromSwitch =>
-    "{ TotalOrder.compare = (fun x y -> x <= y);
-       TotalOrder.eqdec = (fun x y -> x = y) }".
-  Extract Constant TotalOrder_fromController =>
-    "{ TotalOrder.compare = (fun x y -> x <= y);
-       TotalOrder.eqdec = (fun x y -> x = y) }".
-
 End NetworkAtoms.
