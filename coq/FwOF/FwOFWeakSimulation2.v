@@ -157,6 +157,7 @@ Module Make (Import Relation : RELATION).
 
   Lemma DrainFromControllerBag : forall swId0 pts0 tbl0 inp0 outp0 ctrlm0
     switchm0  sws0 links0 ofLinks0 ctrl0,
+    (forall x, In x (to_list ctrlm0) -> NotBarrierRequest x) ->
     exists tbl1 outp1,
       multistep step
         (State 
@@ -169,7 +170,8 @@ Module Make (Import Relation : RELATION).
             sws0)
            links0 ofLinks0 ctrl0).
   Proof with simpl;eauto with datatypes.
-    intros.
+    intros swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0 sws0 links0 ofLinks0
+           ctrl0 HNotBarrier.
     destruct ctrlm0.
     rename to_list into ctrlm0.
     generalize dependent tbl0.
@@ -186,7 +188,9 @@ Module Make (Import Relation : RELATION).
     (* Inductive case *)
     + destruct a.
       - inversion order; subst.
-        destruct (IHctrlm0 H2 ({|(p, p0)|} <+> outp0) tbl0)
+        assert (forall x, In x (to_list (Bag ctrlm0 H2)) -> NotBarrierRequest x) as Y.
+        { intros. apply HNotBarrier. simpl. right... }
+        destruct (IHctrlm0 H2 Y ({|(p, p0)|} <+> outp0) tbl0)
           as [tbl1 [outp1 Hstep]].
         exists tbl1. exists outp1.
         assert (Bag (PacketOut p p0 :: ctrlm0) order = from_list  (PacketOut p p0 :: ctrlm0)).
@@ -206,12 +210,13 @@ Module Make (Import Relation : RELATION).
           apply OrderedLists.from_list_id... }
         rewrite -> H0 in *.
         apply Hstep.
+      - assert (NotBarrierRequest (BarrierRequest n)) as contra.
+        { apply HNotBarrier... }
+        inversion contra.
       - inversion order; subst.
-        idtac "TODO(arjun): must disallow barriers in the ctrlm on switch!".
-        (* TODO(arjun): could add a bogus transition ... *)
-        admit.
-      - inversion order; subst.
-        destruct (IHctrlm0  H2 outp0 (modify_flow_table f tbl0)) as [tbl1 [outp1 Hstep]].
+        assert (forall x, In x (to_list (Bag ctrlm0 H2)) -> NotBarrierRequest x) as Y.
+        { intros. apply HNotBarrier. simpl. right... }
+        destruct (IHctrlm0 H2 Y outp0 (modify_flow_table f tbl0)) as [tbl1 [outp1 Hstep]].
         exists tbl1.
         exists outp1.
         assert (Bag (FlowMod f :: ctrlm0) order = (({|FlowMod f|}) <+> (Bag ctrlm0 H2))).
@@ -228,6 +233,7 @@ Module Make (Import Relation : RELATION).
      since [PacketOut] messages are not processed by flow tables. *)
   Lemma DrainFromController : forall swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0
     sws0 links0 ofLinks0 lstSwitchm0 lstCtrlm0 lstCtrlm1 ofLinks1 ctrl0,
+    (forall x, In x (to_list ctrlm0) -> NotBarrierRequest x) ->                                
     exists tbl0' ctrlm0' outp0' switchm1,
       multistep step
         (State 
@@ -247,7 +253,8 @@ Module Make (Import Relation : RELATION).
             ofLinks1)
            ctrl0).
   Proof with simpl;eauto with datatypes.
-    intros.
+    intros  swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0 sws0 links0 ofLinks0 
+            lstSwitchm0 lstCtrlm0 lstCtrlm1 ofLinks1 ctrl0 HNotBarrier.
     generalize dependent tbl0.
     generalize dependent ctrlm0.
     generalize dependent outp0.
@@ -262,52 +269,64 @@ Module Make (Import Relation : RELATION).
     (* Inductive case *)
     destruct x.
     (* PacketOut *)
-    destruct (IHlstCtrlm1 switchm0 outp0 (({|PacketOut p p0|}) <+> ctrlm0) tbl0)
-      as [tbl1 [ctrlm1 [outp1 [switchm1 Hstep]]]].
-    exists tbl1.
-    exists ctrlm1.
-    exists outp1.
-    exists switchm1.
-    eapply multistep_tau.
-    rewrite -> app_assoc.
-    apply RecvFromController.
-    apply PacketOut_NotBarrierRequest.
-    exact Hstep.
+    +  assert (forall x, In x (to_list ({|PacketOut p p0|} <+> ctrlm0)) -> NotBarrierRequest x) as Y.
+       { intros.
+         apply Bag.in_union in H; simpl in H.
+         destruct H...
+         destruct H. subst; apply PacketOut_NotBarrierRequest. inversion H. }
+       destruct (IHlstCtrlm1 switchm0 outp0 (({|PacketOut p p0|}) <+> ctrlm0) Y tbl0)
+         as [tbl1 [ctrlm1 [outp1 [switchm1 Hstep]]]].
+       exists tbl1.
+       exists ctrlm1.
+       exists outp1.
+       exists switchm1.
+       eapply multistep_tau.
+       rewrite -> app_assoc.
+       apply RecvFromController.
+       apply PacketOut_NotBarrierRequest.
+       exact Hstep.
     (* BarrierRequest *)
-    destruct
-      (DrainFromControllerBag swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0 sws0
+    + destruct
+        (DrainFromControllerBag swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0 sws0
                                   links0
            (ofLinks0 ++ 
             (OpenFlowLink swId0 lstSwitchm0
                           (lstCtrlm0 ++ lstCtrlm1 ++ [BarrierRequest n])) ::
             ofLinks1)
            ctrl0)
-      as [tbl1 [outp1 Hdrain]].
-    destruct (IHlstCtrlm1 (({|BarrierReply n|}) <+> switchm0) outp1 empty tbl1)
-      as [tbl2 [ctrlm2 [outp2 [switchm2 Hstep2]]]].
-    exists tbl2.
-    exists ctrlm2.
-    exists outp2.
-    exists switchm2.
-    eapply multistep_app.
-    apply Hdrain.
-    eapply multistep_tau.
-    rewrite -> app_assoc.
-    apply RecvBarrier.
-    apply Hstep2.
-    trivial.
+      as [tbl1 [outp1 Hdrain]]...
+      assert (forall x, In x (to_list (@empty fromController fromController_le)) -> NotBarrierRequest x) as Y.
+      { intros. simpl in H. inversion H. }
+      destruct (IHlstCtrlm1 (({|BarrierReply n|}) <+> switchm0) outp1 empty Y tbl1)
+        as [tbl2 [ctrlm2 [outp2 [switchm2 Hstep2]]]].
+      exists tbl2.
+      exists ctrlm2.
+      exists outp2.
+      exists switchm2.
+      eapply multistep_app.
+      apply Hdrain.
+      eapply multistep_tau.
+      rewrite -> app_assoc.
+      apply RecvBarrier.
+      apply Hstep2.
+      trivial.
     (* FlowMod case *)
-    destruct (IHlstCtrlm1 switchm0 outp0  (({|FlowMod f|}) <+> ctrlm0) tbl0)
-      as [tbl1 [ctrlm1 [outp1 [switchm1 Hstep]]]].
-    exists tbl1.
-    exists ctrlm1.
-    exists outp1.
-    exists switchm1.
-    eapply multistep_tau.
-    rewrite -> app_assoc.
-    apply RecvFromController.
-    apply FlowMod_NotBarrierRequest.
-    exact Hstep.
+   +  assert (forall x, In x (to_list ({|FlowMod f|} <+> ctrlm0)) -> NotBarrierRequest x) as Y.
+       { intros.
+         apply Bag.in_union in H; simpl in H.
+         destruct H...
+         destruct H. subst; apply FlowMod_NotBarrierRequest. inversion H. }
+      destruct (IHlstCtrlm1 switchm0 outp0  (({|FlowMod f|}) <+> ctrlm0) Y tbl0)
+        as [tbl1 [ctrlm1 [outp1 [switchm1 Hstep]]]].
+       exists tbl1.
+       exists ctrlm1.
+       exists outp1.
+       exists switchm1.
+       eapply multistep_tau.
+       rewrite -> app_assoc.
+       apply RecvFromController.
+       apply FlowMod_NotBarrierRequest.
+       exact Hstep.
   Qed.
       
   (* In ObserveFromController, flow table and flow mod safety are irrelevant,
@@ -322,6 +341,7 @@ Module Make (Import Relation : RELATION).
     ctrl0,
     (pktOuts, pktIns) = process_packet tbl1 dstPt pk ->
     Some (dstSw,dstPt) = topo (srcSw, srcPt) ->
+    (forall x, In x (to_list ctrlm0) -> NotBarrierRequest x) ->                                
     exists tbl0' switchm0' ctrlm0' outp0',
       multistep step
         (State 
@@ -361,7 +381,7 @@ Module Make (Import Relation : RELATION).
                 (lstCtrlm0 ++ [PacketOut srcPt pk])
                 lstCtrlm1
                 ofLinks1
-                ctrl0) as [tbl01 [ctrlm01 [outp01 [switchm01 Hdrain]]]].
+                ctrl0) as [tbl01 [ctrlm01 [outp01 [switchm01 Hdrain]]]]...
     exists tbl01.
     exists switchm01.
     exists ctrlm01.
@@ -393,6 +413,7 @@ Module Make (Import Relation : RELATION).
                 ofLinks02)
                ctrl0))
     (Htopo : Some (sw,pt) = topo (srcSw,p)),
+    NoBarriersInCtrlm switches0 ->
     exists state1,
       multistep
         step
@@ -406,6 +427,7 @@ Module Make (Import Relation : RELATION).
         state1.
   Proof with simpl;eauto with datatypes.
     intros.
+    rename H into HNoBarriers.
     assert (exists pks, In (DataLink (srcSw,p) pks (sw,pt)) links0) as X.
     { 
       unfold DevicesFromTopo in devicesFromTopo0.
@@ -454,6 +476,13 @@ Module Make (Import Relation : RELATION).
                                     ofLinks01 of_switchm0 (lstCtrlm0 ++ [PacketOut p pk]) 
                                     lstCtrlm1 ofLinks02 ctrl0) as
           [tbl2 [ctrlm2 [outp2 [switchm2 Hstep1]]]].
+      { unfold NoBarriersInCtrlm in HNoBarriers.
+        remember (Switch swId1 pts0 tbl0 inp0 outp0 ctrlm0 switchm0) as sw.
+        assert (ctrlm0 = ctrlm sw) as HEq. 
+        { subst... }
+        rewrite -> HEq.
+        refine (HNoBarriers _ _).
+        apply Bag.in_union; simpl... }
       rewrite <- app_assoc in Hstep1.
       simpl in Hstep1.
       remember (process_packet tbl2 pt pk) as J.
@@ -521,6 +550,11 @@ Module Make (Import Relation : RELATION).
              ofLinks01 of_switchm0 lstCtrlm0 lstCtrlm1 ofLinks02
              ctrl0 Hprocess Htopo) as
         [ tbl2 [switchm2 [ctrlm2 [outp2 Hstep]]]].
+    { intros.
+      unfold NoBarriersInCtrlm in HNoBarriers.
+      eapply HNoBarriers.
+      apply Bag.in_union. left. simpl. left. reflexivity.
+      simpl... }
     eexists. exact Hstep.
   Qed.
 
@@ -934,6 +968,7 @@ Module Make (Import Relation : RELATION).
         { destruct st1. simpl in *. subst. simpl in *... }
         { destruct st1. simpl in *. subst. simpl in *... }
         { destruct st1. simpl in *. subst. simpl in *... }
+        { destruct st1. simpl in *. subst. simpl in *... }
         eapply simpl_weak_sim.
         eapply multistep_tau.
         rewrite <- Heqdevices0.
@@ -1056,6 +1091,7 @@ Module Make (Import Relation : RELATION).
     { destruct t. simpl in *. rewrite <- Heqdevices0 in *. auto. }
     { destruct t. simpl in *. rewrite <- Heqdevices0 in *. auto. }
     { destruct t. simpl in *. rewrite <- Heqdevices0 in *. auto. }
+    { destruct t. simpl in *. rewrite <- Heqdevices0 in *. auto. }
     apply simpl_weak_sim with (devs2 := stateN)...
     rewrite <- Heqdevices0...
     rewrite -> H1.
@@ -1120,6 +1156,7 @@ Module Make (Import Relation : RELATION).
     { destruct st2. simpl in *. subst. simpl in *. auto. }
     { destruct st2. simpl in *. subst. simpl in *. auto. }
     { destruct st2. simpl in *. subst. simpl in *. auto. }
+    { destruct st2. simpl in *. subst. simpl in *. auto. }
     apply simpl_weak_sim with (devs2 := stateN).
     eapply multistep_app with (obs2 := [(sw,pt,pk)]).
     apply Hstep1. clear Hstep1.
@@ -1157,6 +1194,7 @@ Module Make (Import Relation : RELATION).
       destruct (@EasyObservePacketOut sw pt srcSw p switches0 links0 ofLinks10
                                       switchmLst nil pk ctrlmLst
                                       ofLinks11 ctrl1) as [stateN stepN]...
+        { destruct t. simpl in *. subst. simpl in *. auto. }
         { destruct t. simpl in *. subst. simpl in *. auto. }
         { destruct t. simpl in *. subst. simpl in *. auto. }
         { destruct t. simpl in *. subst. simpl in *. auto. }
