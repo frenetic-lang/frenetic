@@ -115,8 +115,45 @@ Module Make (Import Relation : RELATION).
     trivial.
   Qed.
 
-
-
+  Lemma ObserveFromOutp_same_switch : forall pktOuts pktIns pk pt0 pt1
+    swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0
+    sws pks links0 links1 ofLinks0 ctrl0,
+    (pktOuts, pktIns) = process_packet tbl0 pt1 pk ->
+    Some (swId0,pt1) = topo (swId0,pt0) ->
+    multistep step
+      (State 
+        (({|Switch swId0 pts0 tbl0 inp0 ({|(pt0,pk)|} <+> outp0) 
+                  ctrlm0 switchm0|}) <+>
+         sws)
+        (links0 ++ (DataLink (swId0,pt0) pks (swId0,pt1)) :: links1)
+        ofLinks0 ctrl0)
+      [(swId0,pt1,pk)]
+      (State 
+        (({|Switch swId0 pts0 tbl0 
+                  (from_list (map (fun pk => (pt1,pk)) pks) <+> inp0)
+                  (from_list pktOuts <+> outp0)
+                  ctrlm0
+                  (from_list (map (PacketIn pt1) pktIns) <+> switchm0)|}) <+>
+         sws)
+        (links0 ++ (DataLink (swId0,pt0) nil (swId0,pt1)) :: links1)
+        ofLinks0 ctrl0).
+  Proof with simpl;eauto with datatypes.
+    intros.
+    eapply multistep_tau.
+    apply SendDataLink.
+    eapply multistep_app with (obs2 := [(swId0,pt1,pk)]).
+    apply (DrainWire 
+             sws
+             swId0 pts0 tbl0 inp0 outp0 ctrlm0 switchm0 
+             links0 (swId0,pt0) [pk] pks0 swId0 pt1 links1 ofLinks0 ctrl0).
+    rewrite <- (app_nil_l [pk]).
+    eapply multistep_tau.
+    apply RecvDataLink.
+    eapply multistep_obs.
+    eapply PktProcess...
+    apply multistep_nil.
+    trivial.
+  Qed.
 
   (** Remark is for another lemma, not ObserveFromController!
 
@@ -687,26 +724,37 @@ Module Make (Import Relation : RELATION).
         subst.
         apply Bag.in_union with (Order:=TotalOrder_switch) in HSw2In.
         destruct HSw2In.
-        - idtac "TODO(arjun): src and dst switches are the same".
-          admit.
-        - apply Bag.in_split with (Order := TotalOrder_switch) in H.
-        destruct H as [sws0 XXX].
-        subst.
-        apply Bag.in_split with (Order:=PtPk_TotalOrder) in HIn.
-        destruct HIn as [outp0' HEq0].
-        subst.
-        rename outp0' into outp0.
-        remember (process_packet tbl1 dstPt pk) as X eqn:Hprocess.
-        destruct X as [outp1' pktIns].
-        eapply simpl_weak_sim.
-        rewrite <- Heqdevices0.
-        eapply ObserveFromOutp...
-        rewrite <- Heqdevices0.
-        unfold relate.
-        rewrite -> H1.
-        autorewrite with bag using simpl.
-        reflexivity.
-        apply AbstractStep.
+        - simpl in H.
+          destruct H; inversion H.
+          subst; clear H.
+          apply Bag.in_split with (Order:=PtPk_TotalOrder) in HIn.
+          destruct HIn as [outp0' HEq0].
+          subst.
+          remember (process_packet tbl1 dstPt pk) as X eqn:Hprocess.
+          destruct X as [outp1' pktIns].
+          eapply simpl_weak_sim.
+          rewrite <- Heqdevices0...
+          eapply ObserveFromOutp_same_switch...
+          rewrite <- Heqdevices0...
+          apply AbstractStep.
+        - { apply Bag.in_split with (Order := TotalOrder_switch) in H.
+            destruct H as [sws0 XXX].
+            subst.
+            apply Bag.in_split with (Order:=PtPk_TotalOrder) in HIn.
+            destruct HIn as [outp0' HEq0].
+            subst.
+            rename outp0' into outp0.
+            remember (process_packet tbl1 dstPt pk) as X eqn:Hprocess.
+            destruct X as [outp1' pktIns].
+            eapply simpl_weak_sim.
+            rewrite <- Heqdevices0.
+            eapply ObserveFromOutp...
+            rewrite <- Heqdevices0.
+            unfold relate.
+            rewrite -> H1.
+            autorewrite with bag using simpl.
+            reflexivity.
+            apply AbstractStep. }
       + subst. 
         unfold to_list in HMemOutp.
         simpl in HMemOutp.
