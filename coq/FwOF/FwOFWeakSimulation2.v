@@ -820,15 +820,22 @@ Module Make (Import Relation : RELATION).
       subst.
       apply Bag.in_union in HSw2In.
       destruct HSw2In.
-      + idtac "TODO(arjun): src and dst switches are the same".
-        admit.
+      + simpl in H.
+        destruct H; inversion H; subst; clear H.
+        remember (process_packet tbl1 pt pk) as X eqn:Hprocess.
+        destruct X as [outp1' pktIns].
+        eapply simpl_weak_sim.
+        rewrite <- Heqdevices0.
+        eapply multistep_tau.
+        apply SendPacketOut.
+        eapply ObserveFromOutp_same_switch...
+        rewrite <- Heqdevices0...
+        apply AbstractStep.
       + apply Bag.in_split with (Order:=TotalOrder_switch) in H.
         destruct H as [sws XXX].
         subst.
-
         remember (process_packet tbl1 pt pk) as X eqn:Hprocess.
         destruct X as [outp1' pktIns].
-
         eapply simpl_weak_sim.
         rewrite <- Heqdevices0.
         eapply multistep_tau.
