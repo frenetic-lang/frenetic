@@ -470,14 +470,6 @@ Proof with auto with bool.
   unfold is_empty...
 Qed.
 
-Axiom wildcard_is_exact_split_l : forall (A : Type) f (x : A) (y : Wildcard A),
-  Wildcard.inter f (WildcardExact x) y = WildcardExact x 
-  \/ Wildcard.inter f (WildcardExact x) y = WildcardNone.
-
-Axiom wildcard_is_exact_split_r : forall (A : Type) f  (y : Wildcard A) (x : A),
-  Wildcard.inter f y (WildcardExact x)  = WildcardExact x 
-  \/ Wildcard.inter f y (WildcardExact x)  = WildcardNone.
-
 Hint Immediate dlTyp_None_Valid nwProto_None_Valid tpSrc_None_Valid 
   tpDst_None_Valid.
 
@@ -516,7 +508,7 @@ Lemma dlTyp_inter_exact_r : forall dlSrc dlDst dlTyp k dlVlan dlVlanPcp
       dlVlan dlVlanPcp nwSrc nwDst nwProto nwTos tpSrc tpDst inPort).
 Proof with auto.
   intros.
-  destruct (wildcard_is_exact_split_r Word16.eq_dec dlTyp k).
+  destruct (is_exact_split_r Word16.eq_dec dlTyp k).
   assert (Wildcard.inter Word16.eq_dec dlTyp (WildcardExact k) = 
          WildcardExact k) as J...
   rewrite -> J...
@@ -539,7 +531,7 @@ Lemma dlTyp_inter_exact_l : forall dlSrc dlDst dlTyp k dlVlan dlVlanPcp
       dlVlan dlVlanPcp nwSrc nwDst nwProto nwTos tpSrc tpDst inPort).
 Proof with auto.
   intros.
-  destruct (wildcard_is_exact_split_l Word16.eq_dec k dlTyp).
+  destruct (is_exact_split_l Word16.eq_dec k dlTyp).
   assert (Wildcard.inter Word16.eq_dec (WildcardExact k) dlTyp = 
          WildcardExact k) as J...
   rewrite -> J...
@@ -568,8 +560,8 @@ Proof with auto.
   pose (X := Word8.eq_dec nwProto nwProto0);  destruct X; subst; inter_solve.
 
   inter_solve.
-  pose (J0 := wildcard_is_exact_split_r Word16.eq_dec tpSrc Word16.zero).
-  pose (J1 := wildcard_is_exact_split_r Word16.eq_dec tpDst Word16.zero).
+  pose (J0 := is_exact_split_r Word16.eq_dec tpSrc Word16.zero).
+  pose (J1 := is_exact_split_r Word16.eq_dec tpDst Word16.zero).
   destruct J0. destruct J1.
   rewrite -> H0.
   rewrite -> H1...
@@ -582,7 +574,7 @@ Proof with auto.
   destruct J0; subst...
 
   inter_solve.
-  destruct (wildcard_is_exact_split_l Word8.eq_dec nwProto nwProto0).
+  destruct (is_exact_split_l Word8.eq_dec nwProto nwProto0).
   assert (Wildcard.inter Word8.eq_dec (WildcardExact nwProto)
     nwProto0 = WildcardExact nwProto)...
   rewrite -> H1...
@@ -591,14 +583,14 @@ Proof with auto.
   rewrite -> H1...
 
   inter_solve.
-  pose (J := wildcard_is_exact_split_r Word8.eq_dec nwProto nwProto0).
+  pose (J := is_exact_split_r Word8.eq_dec nwProto nwProto0).
   destruct J.
   inter_solve.
   assert (Wildcard.inter Word8.eq_dec nwProto
                       (WildcardExact nwProto0) = WildcardExact nwProto0)...
   rewrite -> H1.
-  pose (J0 := wildcard_is_exact_split_l Word16.eq_dec Word16.zero tpSrc).
-  pose (J1 := wildcard_is_exact_split_l Word16.eq_dec Word16.zero tpDst).
+  pose (J0 := is_exact_split_l Word16.eq_dec Word16.zero tpSrc).
+  pose (J1 := is_exact_split_l Word16.eq_dec Word16.zero tpDst).
   destruct J0.
   destruct J1.
   rewrite -> H2.
@@ -616,7 +608,7 @@ Proof with auto.
   destruct J0; subst...
 
   inter_solve.
-  destruct (wildcard_is_exact_split_r Word8.eq_dec nwProto nwProto0).
+  destruct (is_exact_split_r Word8.eq_dec nwProto nwProto0).
   assert (Wildcard.inter Word8.eq_dec nwProto (WildcardExact nwProto0)
     = WildcardExact nwProto0)...
   rewrite -> H1...

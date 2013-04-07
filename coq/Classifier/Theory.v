@@ -68,24 +68,27 @@ Section Lemmas.
     inversion H.
     generalize dependent cf0.
     induction cf; intros.
-    simpl.
-    destruct cf0. simpl in H0. inversion H0.
-    rewrite <- app_comm_cons in H0. inversion H0.
+    + simpl.
+      destruct cf0. simpl in H0. inversion H0.
+      rewrite <- app_comm_cons in H0. inversion H0.
     (* Inductive case *)
-    intros.
-    destruct cf0.
-    simpl...
-    destruct a0 as [pat a0].
-    destruct p as [pat' a'].
-    simpl.
-    remember (Pattern.match_packet pt pk pat') as Hm.
-    destruct Hm...
-    rewrite <- app_comm_cons in H0.
-    inversion H0.
-    apply IHcf...
-    rewrite <- H4...
+    + intros.
+      destruct cf0.
+      - simpl...
+      - simpl.
+        destruct p.
+        simpl.
+        destruct (Pattern.match_packet pt pk t)...
+        rewrite <- app_comm_cons in H0.
+        inversion H0.
+        apply IHcf...
+        destruct cf0...
+        simpl in H3.
+        subst.
+        rewrite <- app_nil_l...
+        subst...
   Qed.
-  
+
   Lemma scan_elim_unit_tail : forall (def : A) pk pt cf pat,
     scan def (cf ++ [(pat, def)]) pt pk = scan def cf pt pk.
   Proof with auto.

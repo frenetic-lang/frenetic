@@ -154,6 +154,29 @@ Section Lemmas.
     apply is_empty_true_l...
   Qed.
 
+ Lemma is_exact_split_l : 
+    forall f  (x : A) (y : Wildcard A),
+      inter f (WildcardExact x) y = WildcardExact x \/
+      inter f (WildcardExact x) y = WildcardNone.
+  Proof with auto.
+    intros.
+    destruct y...
+    unfold inter.
+    destruct (f x a)...
+  Qed.
+
+  Lemma is_exact_split_r : 
+    forall f (y : Wildcard A) (x : A),
+      inter f y (WildcardExact x)  = WildcardExact x \/ 
+      inter f y (WildcardExact x)  = WildcardNone.
+  Proof with auto.
+    intros.
+    destruct y...
+    unfold inter.
+    destruct (f a x)...
+    subst...
+  Qed.
+
 End Lemmas.
 
 Hint Rewrite inter_all_l inter_all_r : wildcard.
