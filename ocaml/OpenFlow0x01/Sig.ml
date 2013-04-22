@@ -1,14 +1,5 @@
 open OpenFlow0x01Types
 open Lwt_unix
-(** Low-level OpenFlow API.
-
-    The platform manages connections to switches for the controller. It
-    provides functions to send and receive OpenFlow messages that do the
-    necessary low-level serialization themselves.
-
-    It is possible and instructive to build a controller directly atop
-    [PLATFORM]. But, see [NetCore] for a higher-level abstraction.
-*)
 
 (** Interface for all platforms. *)
 module type PLATFORM = sig
