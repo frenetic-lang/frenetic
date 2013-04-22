@@ -1,10 +1,9 @@
-MODULES := NetCoreTypes \
+MODULES := \
   NetCoreEval \
   NetCoreCompiler \
   NetCoreTheorems \
-  NetCoreController \
-  NetCoreDesugar \
-  NetCoreSemantics
+  NetCoreController
+
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean
