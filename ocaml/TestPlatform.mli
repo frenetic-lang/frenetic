@@ -1,6 +1,6 @@
 open OpenFlow0x01Types
 
-include Platform.PLATFORM
+include OpenFlow0x01.Sig.PLATFORM
 
 val send_to_controller : switchId -> xid -> message -> unit Lwt.t
 
