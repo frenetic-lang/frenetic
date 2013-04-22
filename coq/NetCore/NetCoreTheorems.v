@@ -14,6 +14,7 @@ Require Import Pattern.Pattern.
 Require Import OpenFlow.OpenFlow0x01Types.
 Require Import NetCore.NetCoreEval.
 Require Import NetCore.NetCoreCompiler.
+Require Import NetCore.Verifiable.
 
 Local Open Scope list_scope.
 
@@ -118,13 +119,15 @@ Instance A_as_Action : ClassifierAction (list act) :=
 
 Lemma compile_pol_correct :
   forall opt po sw pt pk bufid,
+    Vf_pol po ->
     Equiv_Preserving opt ->
     classify po (InPkt sw pt pk bufid) = 
     map (eval_action (InPkt sw pt pk bufid)) 
         (scan nil (compile_pol opt po sw) pt pk).
 Proof with auto.
   intros.
-  rename H into Heqp.
+  rename H into HVfPol.
+  rename H0 into Heqp.
   induction po.
 
   simpl.
@@ -152,6 +155,8 @@ Proof with auto.
   rewrite -> IHpo2.
   rewrite -> map_app.
   trivial.
+  inversion HVfPol...
+  inversion HVfPol...
   (* Shows that app respects unit (nil) *)
   split... intros. rewrite <- J.  apply app_nil_r.
 Qed.
@@ -221,6 +226,7 @@ Qed.
 
 Lemma compile_no_opt_ok :
   forall po sw pt pk bufid,
+    Vf_pol po ->
     classify po (InPkt sw pt pk bufid) = 
     map (eval_action (InPkt sw pt pk bufid)) 
         (scan nil (compile_no_opt po sw) pt pk).
@@ -228,11 +234,13 @@ Proof.
   intros.
   unfold compile_no_opt.
   apply compile_pol_correct.
+  trivial.
   apply Equiv_Preserving_id.
 Qed.
 
 Lemma compile_opt_ok : 
   forall po sw pt pk bufid,
+    Vf_pol po ->
     classify po (InPkt sw pt pk bufid) = 
     map (eval_action (InPkt sw pt pk bufid)) 
         (scan nil (compile_opt po sw) pt pk).
@@ -240,11 +248,11 @@ Proof.
   intros.
   unfold compile_no_opt.
   apply compile_pol_correct.
+  trivial.
   apply Equiv_Preserving_composes.
   apply Equiv_Preserving_elim_shadowed.
   apply Equiv_Preserving_strip_empty.
 Qed.
-
 
 Definition SemanticsPreserving opt := Equiv_Preserving opt.
 
@@ -259,14 +267,19 @@ Definition compile := compile_pol.
 Definition compose {A B C : Type} (f : B -> C) (g : A -> B) x := f (g x).
 
 Theorem compile_correct : 
-  forall opt pol sw pt pk bufId,
-    SemanticsPreserving opt ->
+  forall pol sw pt pk bufId,
+    Vf_pol pol ->
     netcore_eval pol sw pt pk bufId =
-    flowtable_eval (compile opt pol sw) sw pt pk bufId.
+    flowtable_eval (compile_opt pol sw) sw pt pk bufId.
 Proof.
   unfold compile.
   unfold SemanticsPreserving.
   unfold netcore_eval.
   unfold flowtable_eval.
+  intros.
   apply compile_pol_correct.
+  trivial.
+  apply Equiv_Preserving_composes.
+  apply Equiv_Preserving_elim_shadowed.
+  apply Equiv_Preserving_strip_empty.
 Qed.

@@ -1,6 +1,7 @@
 MODULES := \
   NetCoreEval \
   NetCoreCompiler \
+	Verifiable \
   NetCoreTheorems \
   NetCoreController
 
