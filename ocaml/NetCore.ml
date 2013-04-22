@@ -5,6 +5,8 @@ open Platform
 open Printf
 open NetCoreSyntax
 
+module Lwt_channel = Misc.Lwt_channel
+
 module type HANDLERS = sig
 
   val get_packet_handler : 

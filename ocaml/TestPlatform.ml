@@ -1,6 +1,8 @@
 open Lwt
 open OpenFlow0x01Types
 
+module Lwt_channel = Misc.Lwt_channel
+
 exception SwitchDisconnected of switchId
 
 type status = Connecting | Connected | Disconnected
