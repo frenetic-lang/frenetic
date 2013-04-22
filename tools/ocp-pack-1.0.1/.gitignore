@@ -1,0 +1,4 @@
+*.o
+*.cmx
+ocp-pack
+ocp-split
