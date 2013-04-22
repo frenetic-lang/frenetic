@@ -110,7 +110,7 @@ let main =
   end in
   Misc.Log.printf "[VerifiedBenchmark.ml] Linking controller to policy\n%!";
   let module Controller = 
-        VerifiedNetCore.Make (Platform.OpenFlowPlatform) (Policy) in
+        VerifiedNetCore.Make (OpenFlow0x01.Platform.OpenFlowPlatform) (Policy) in
   Misc.Log.printf "[VerifiedBenchmark.ml] Building initial controller state\n%!";
   let init = match !use_flow_mod with
     | true -> Controller.init_flow_mod ()
@@ -129,7 +129,7 @@ let main =
       Misc.Log.printf "[VerifiedBenchmarks.ml] Graceful shutdown.\n%!";
       return ()
     | false ->
-      let _ = Platform.OpenFlowPlatform.init_with_port 6633 in
+      let _ = OpenFlow0x01.Platform.OpenFlowPlatform.init_with_port 6633 in
       Misc.Log.printf "[VerifiedBenchmarks.ml] Starting controller.\n";
       lwt _ = Controller.start init in
       Misc.Log.printf "[VerifiedBenchmarks.ml] Invoking experiment.\n";

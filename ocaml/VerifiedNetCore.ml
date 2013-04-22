@@ -1,7 +1,6 @@
 open ControllerInterface
 open OpenFlow0x01Types
 open Packet
-open Platform
 open Printf
 open NetCoreSyntax
 
@@ -39,7 +38,7 @@ module MakePol (Policy : POLICY)  = struct
     pks
 end
 
-module Make (Platform : PLATFORM) (Policy : POLICY) = struct
+module Make (Platform : OpenFlow0x01.Platform.PLATFORM) (Policy : POLICY) = struct
 
   module Pol = MakePol (Policy)
   module Atoms = FwOFExtractableController.MakeAtoms (Pol)

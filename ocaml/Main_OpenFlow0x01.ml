@@ -1,9 +1,8 @@
 open Printf
-open OpenFlow0x01Parser
-open Platform
 open Unix
 open OpenFlow0x01Types
 
+module OpenFlowPlatform = OpenFlow0x01.Platform.OpenFlowPlatform
 module Controller = Modules.Repeater.Make (OpenFlowPlatform)
 
 (* configuration state *)

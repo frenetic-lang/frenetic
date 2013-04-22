@@ -1,5 +1,5 @@
 open OpenFlow0x01Types
-open OpenFlow0x01Parser
+open Parser
 
 open Lwt
 open Lwt_io
