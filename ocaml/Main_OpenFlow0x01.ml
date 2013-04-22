@@ -4,7 +4,7 @@ open Platform
 open Unix
 open OpenFlow0x01Types
 
-module Controller = Repeater.Make (OpenFlowPlatform)
+module Controller = Modules.Repeater.Make (OpenFlowPlatform)
 
 (* configuration state *)
 let controller = ref "learn"

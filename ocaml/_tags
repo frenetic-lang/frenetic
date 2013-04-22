@@ -1,6 +1,7 @@
 <extracted> : include
 <mininet> : include
 <Misc/*.cmx> : for-pack(Misc)
+<Modules/*.cmx> : for-pack(Modules)
 <Pathetic/Regex.cmx> : for-pack(Pathetic)
 true : use_menhir
 true : use_str
