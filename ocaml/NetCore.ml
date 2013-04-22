@@ -14,7 +14,7 @@ module type HANDLERS = sig
 end
 
 module MakeNetCoreMonad
-  (Platform : OpenFlow0x01.Platform.PLATFORM) 
+  (Platform : OpenFlow0x01.Sig.PLATFORM) 
   (Handlers : HANDLERS) = struct
 
   type state = NetCoreController.ncstate
@@ -92,7 +92,7 @@ type eventOrPolicy =
   | Policy of NetCoreEval.pol
 
 module MakeDynamic
-  (Platform : OpenFlow0x01.Platform.PLATFORM)
+  (Platform : OpenFlow0x01.Sig.PLATFORM)
   (Handlers : HANDLERS) = struct
 
   (* The monad is written in OCaml *)
@@ -122,7 +122,7 @@ module MakeDynamic
 
 end
 
-module Make (Platform : OpenFlow0x01.Platform.PLATFORM) = struct
+module Make (Platform : OpenFlow0x01.Sig.PLATFORM) = struct
 
   let get_pkt_handlers : (int, get_packet_handler) Hashtbl.t = 
     Hashtbl.create 200

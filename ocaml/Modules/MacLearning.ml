@@ -85,7 +85,7 @@ module Routing = struct
     Learning.policy
 end
 
-module Make (Platform : OpenFlow0x01.Platform.PLATFORM) = struct
+module Make (Platform : OpenFlow0x01.Sig.PLATFORM) = struct
 
   module Controller = NetCore.Make (Platform)
 

@@ -18,7 +18,7 @@ module Routing : sig
     
 end
 
-module Make : functor (Platform : OpenFlow0x01.Platform.PLATFORM) -> sig
+module Make : functor (Platform : OpenFlow0x01.Sig.PLATFORM) -> sig
     
   val start : unit -> unit Lwt.t
     

@@ -5,7 +5,7 @@ open NetCore
 
 let policy = Pol (All, [ToAll])
 
-module Make (Platform : OpenFlow0x01.Platform.PLATFORM) = struct
+module Make (Platform : OpenFlow0x01.Sig.PLATFORM) = struct
   module Controller = Make (Platform)
 
   let start () = 

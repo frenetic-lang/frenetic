@@ -11,7 +11,7 @@ module type POLICY = sig
 end
 
 
-module Make (Platform : OpenFlow0x01.Platform.PLATFORM) 
+module Make (Platform : OpenFlow0x01.Sig.PLATFORM) 
             (Policy : POLICY) : sig
 
   type state

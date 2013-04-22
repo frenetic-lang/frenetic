@@ -8,20 +8,12 @@ open Lwt_list
 
 let sprintf = Format.sprintf
 
-module type PLATFORM = sig
-  exception SwitchDisconnected of switchId 
-  val send_to_switch : switchId -> xid -> message -> unit t
-  val recv_from_switch : switchId -> (xid * message) t
-  val accept_switch : unit -> features t
-end
-
 let string_of_sockaddr (sa:sockaddr) : string = match sa with
   | ADDR_UNIX str -> 
     str
   | ADDR_INET (addr,port) -> 
     sprintf "%s:%d" (Unix.string_of_inet_addr addr) port
 
-module OpenFlowPlatform = struct
   exception SwitchDisconnected of switchId 
   exception UnknownSwitch of switchId
   exception UnknownSwitchDisconnected 
@@ -194,5 +186,3 @@ module OpenFlowPlatform = struct
 	         (string_of_sockaddr sa);
          accept_switch ()
        end
-      
-end
