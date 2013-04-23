@@ -38,7 +38,7 @@ module MakePol (Policy : POLICY)  = struct
     pks
 end
 
-module Make (Platform : OpenFlow0x01.Sig.PLATFORM) (Policy : POLICY) = struct
+module Make (Platform : OpenFlow0x01.PLATFORM) (Policy : POLICY) = struct
 
   module Pol = MakePol (Policy)
   module Atoms = FwOFExtractableController.MakeAtoms (Pol)

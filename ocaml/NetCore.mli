@@ -1,6 +1,5 @@
 (** The NetCore policy language *)
 open OpenFlow0x01Types
-open OpenFlow0x01.Sig
 open Packet
 
 module Syntax : sig
@@ -48,7 +47,7 @@ module Syntax : sig
 
 end
 
-module Make : functor (Platform : OpenFlow0x01.Sig.PLATFORM) -> sig
+module Make : functor (Platform : OpenFlow0x01.PLATFORM) -> sig
   val start_controller : Syntax.policy Lwt_stream.t -> unit Lwt.t
 end
 
@@ -79,7 +78,7 @@ module Featherweight : sig
   end
 
 
-  module Make (Platform : OpenFlow0x01.Sig.PLATFORM) 
+  module Make (Platform : OpenFlow0x01.PLATFORM) 
     (Policy : POLICY) : sig
 
       type state
