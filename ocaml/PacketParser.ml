@@ -1,5 +1,5 @@
 open Packet
-open Util
+open Misc
 
 (* Data Link *)
 cstruct eth {
@@ -371,8 +371,8 @@ let string_of_eth pkt =
   pktDlVlan : %d  
   pktDlVlanPcp : %d
   pktNwHeader: %s }" 
-      (Util.string_of_mac pkt.pktDlSrc)
-      (Util.string_of_mac pkt.pktDlDst)
+      (string_of_mac pkt.pktDlSrc)
+      (string_of_mac pkt.pktDlDst)
       (pkt.pktDlTyp)
       (pkt.pktDlVlan)
       (pkt.pktDlVlanPcp)

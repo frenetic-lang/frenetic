@@ -2,7 +2,7 @@
 
 open Printf
 open OpenFlow0x01Types
-open Util
+open Misc
 
 exception Unparsable of string
 

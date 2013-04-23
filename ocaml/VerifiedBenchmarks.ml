@@ -5,7 +5,7 @@ open Misc
 
 (* Add new policies here. Nothing else should need to change. *)
 let select_policy mn graph (name : string) = 
-  let open NetCoreSyntax in
+  let open NetCore.Syntax in
   let open NetCorePolicyGen in
   match name with
     | "sp" -> 
@@ -110,7 +110,7 @@ let main =
   end in
   Misc.Log.printf "[VerifiedBenchmark.ml] Linking controller to policy\n%!";
   let module Controller = 
-        VerifiedNetCore.Make (OpenFlow0x01.Platform) (Policy) in
+        NetCore.Featherweight.Make (OpenFlow0x01.Platform) (Policy) in
   Misc.Log.printf "[VerifiedBenchmark.ml] Building initial controller state\n%!";
   let init = match !use_flow_mod with
     | true -> Controller.init_flow_mod ()

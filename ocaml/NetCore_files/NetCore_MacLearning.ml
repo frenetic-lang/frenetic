@@ -1,9 +1,9 @@
 open Printf
 open OpenFlow0x01Types
 open WordInterface
-open NetCore
 open Packet
-open NetCoreSyntax
+open NetCore_Syntax
+open Misc
 
 module Learning = struct
     
@@ -41,13 +41,13 @@ module Learning = struct
   and learn_host sw pt pk : unit =
     begin
       printf "[MacLearning] at switch %Ld host %s at port %d\n%!"
-	sw (Util.string_of_mac pk.pktDlSrc) pt;
+	sw (string_of_mac pk.pktDlSrc) pt;
       if Hashtbl.mem learned_hosts (sw, pk.pktDlSrc) then
         printf "[MacLearning.ml] at switch %Ld, host %s at port %d (moved)\n%!"
-          sw (Util.string_of_mac pk.pktDlSrc) pt
+          sw (string_of_mac pk.pktDlSrc) pt
       else
         printf "[MacLearning.ml] at switch %Ld, host %s at port %d\n%!"
-          sw (Util.string_of_mac pk.pktDlSrc) pt
+          sw (string_of_mac pk.pktDlSrc) pt
     end;
     Hashtbl.replace learned_hosts (sw, pk.pktDlSrc) pt;
     push (Some (make_learning_policy ()))
@@ -84,12 +84,3 @@ module Routing = struct
     Par (learning_pol, make_routing_policy ()))
     Learning.policy
 end
-
-module Make (Platform : OpenFlow0x01.Sig.PLATFORM) = struct
-
-  module Controller = NetCore.Make (Platform)
-
-  let start () = Controller.start_controller Routing.policy
-
-end
-

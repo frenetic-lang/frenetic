@@ -1,9 +1,7 @@
 <extracted> : include
 <mininet> : include
-<OpenFlow0x01_files> : include
-<Misc/*.cmx> : for-pack(Misc)
-<Modules/*.cmx> : for-pack(Modules)
-<Pathetic/Regex.cmx> : for-pack(Pathetic)
+<*_files> : include
+
 true : use_menhir
 true : use_str
 <*.d.byte> : package(cstruct), package(lwt), package(lwt.unix)

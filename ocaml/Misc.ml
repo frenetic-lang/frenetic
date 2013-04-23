@@ -1,4 +1,5 @@
-(* utilities *)
+module Log = Misc_Log
+module Lwt_channel = Misc_Lwt_channel
 
 let test_bit n x = 
   Int32.logand (Int32.shift_right_logical x n) Int32.one = Int32.one

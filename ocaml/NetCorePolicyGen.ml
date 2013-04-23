@@ -36,7 +36,7 @@ let switches (g : G.t) : switchId list =
       | Host addr -> lst) 
     (G.all_nodes g) []
 
-open NetCoreSyntax
+open NetCore.Syntax
 
 let hop_to_pol (pred : predicate) (hop : node * int * portId * node) : policy =
   match hop with

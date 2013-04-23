@@ -1,5 +1,5 @@
-open NetCoreSyntax
-open NetCore
+open NetCore.Syntax
+(* open NetCore *)
 open Topology
 open Sat
 

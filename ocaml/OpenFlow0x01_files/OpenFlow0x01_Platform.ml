@@ -9,6 +9,7 @@
 *)
 open OpenFlow0x01Types
 open OpenFlow0x01_Parser
+open Misc
 
 open Lwt
 open Lwt_io
@@ -61,14 +62,14 @@ let string_of_sockaddr (sa:sockaddr) : string = match sa with
       any controller state. *)
   let rec recv_from_switch_fd (sock : file_descr) : (xid * message) Lwt.t = 
     let ofhdr_str = String.create (2 * sizeof_ofp_header) in
-    lwt b = Util.SafeSocket.recv sock ofhdr_str 0 sizeof_ofp_header in 
+    lwt b = SafeSocket.recv sock ofhdr_str 0 sizeof_ofp_header in 
     if not b then 
       raise_lwt UnknownSwitchDisconnected
     else  
       lwt hdr = Lwt.wrap (fun () -> Header.parse (Cstruct.of_string ofhdr_str)) in
       let sizeof_body = hdr.Header.len - sizeof_ofp_header in
       let body_str = String.create sizeof_body in
-      lwt b = Util.SafeSocket.recv sock body_str 0 sizeof_body in 
+      lwt b = SafeSocket.recv sock body_str 0 sizeof_body in 
       if not b then 
 	raise_lwt UnknownSwitchDisconnected
       else

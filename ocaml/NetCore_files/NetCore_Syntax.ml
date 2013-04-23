@@ -1,4 +1,5 @@
 open OpenFlow0x01Types
+open Misc
 open Packet
 
 type get_packet_handler = switchId -> portId -> packet -> unit
@@ -41,8 +42,8 @@ let rec predicate_to_string pred = match pred with
   | NoPackets -> "None"
   | Switch sw -> Printf.sprintf "(Switch %Ld)" sw
   | InPort pt -> Printf.sprintf "(InPort %d)" pt
-  | DlSrc add -> Printf.sprintf "(DlSrc %s)" (Util.string_of_mac add)
-  | DlDst add -> Printf.sprintf "(DlDst %s)" (Util.string_of_mac add)
+  | DlSrc add -> Printf.sprintf "(DlSrc %s)" (string_of_mac add)
+  | DlDst add -> Printf.sprintf "(DlDst %s)" (string_of_mac add)
   | All -> "All"
   | TcpSrcPort n ->
     Printf.sprintf "(TcpSrcPort %d)" n
