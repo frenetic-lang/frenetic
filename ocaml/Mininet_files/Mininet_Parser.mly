@@ -25,7 +25,7 @@
 
 %start program
 
-%type <(MininetTypes.node * MininetTypes.portId * MininetTypes.node) list>
+%type <(Mininet_Types.node * Mininet_Types.portId * Mininet_Types.node) list>
        program
 
 %%

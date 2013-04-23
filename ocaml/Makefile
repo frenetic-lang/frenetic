@@ -2,7 +2,10 @@
 
 OCAMLBUILD = ocamlbuild -use-ocamlfind 
 
-all: debug doc
+MLIFILES = $(shell find _build -name "*.mli")
+CMIFILES = $(MLIFILES:.mli=.cmi)
+
+all: debug doc library
 
 debug:
 	$(OCAMLBUILD) debug.otarget
@@ -23,8 +26,15 @@ clean:
 library: 
 	$(OCAMLBUILD) library.otarget
 
-install: library
-	ocamlfind install desmoines META *.cmi *.cma
+newinstall:
+	ocamlfind install Sample \
+		META $(MLIFILES) $(CMIFILES) _build/NetCore.a NetCore.cma NetCore.cmxa
+
+newuninstall:
+	ocamlfind remove NetCore
+
+install: library debug native
+	ocamlfind install desmoines META *.cmi *.cma 
 
 uninstall:
 	ocamlfind remove desmoines

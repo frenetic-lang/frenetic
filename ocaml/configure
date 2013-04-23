@@ -1,0 +1,14 @@
+#!/bin/sh
+
+pack () {
+  ls $1/*.ml | cut -f 2 -d "/" | cut -f 1 -d "." >> NetCore.mllib
+}
+
+echo "(* Auto-generated below *)" >> Netcore.mllib
+pack extracted
+pack .
+pack Misc_files
+pack Mininet_files
+pack NetCore_files
+pack OpenFlow0x01_files
+pack Packet_files

@@ -7,9 +7,6 @@ open Packet
 open TestPlatform
 open Lwt
 
-module Z = FaultTolerantCompiler
-module ZZ = FwOFSimpleExtractableController
-
 module Test1 = struct
 
   module Controller = Modules.Repeater.Make (TestPlatform)
