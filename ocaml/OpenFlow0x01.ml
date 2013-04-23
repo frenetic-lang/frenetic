@@ -12,3 +12,5 @@ end
 
 module Platform = OpenFlow0x01_Platform
 
+module TestPlatform = OpenFlow0x01_TestPlatform
+
