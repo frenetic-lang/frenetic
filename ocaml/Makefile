@@ -31,4 +31,4 @@ uninstall:
 
 reinstall: library
 	ocamlfind remove desmoines
-	ocamlfind install desmoines META *.cmi *.cma
+	ocamlfind install desmoines META _build/*/*.cmi _build/*/*.cma _build/*.cmi _build/*.cma

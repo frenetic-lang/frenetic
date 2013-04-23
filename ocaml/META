@@ -1,2 +1,2 @@
 requires = "lwt lwt.unix"
-archive(byte) = "Util.cma Pattern.cma Lwt_channel.cma NetCoreController0x04.cma Graph.cma Platform0x04.cma"
+archive(byte) = "Util.cma Pattern.cma Lwt_channel.cma Graph.cma PacketParser.cma Misc.cma NetCoreEval.cma NetCoreCompiler.cma"
