@@ -7,3 +7,5 @@ module Modules = struct
   module Routing = NetCore_MacLearning.Routing
 
 end
+
+module Featherweight = NetCore_Featherweight

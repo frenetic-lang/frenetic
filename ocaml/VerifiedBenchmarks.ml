@@ -110,7 +110,7 @@ let main =
   end in
   Misc.Log.printf "[VerifiedBenchmark.ml] Linking controller to policy\n%!";
   let module Controller = 
-        VerifiedNetCore.Make (OpenFlow0x01.Platform) (Policy) in
+        NetCore.Featherweight.Make (OpenFlow0x01.Platform) (Policy) in
   Misc.Log.printf "[VerifiedBenchmark.ml] Building initial controller state\n%!";
   let init = match !use_flow_mod with
     | true -> Controller.init_flow_mod ()
