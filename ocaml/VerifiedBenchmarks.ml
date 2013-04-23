@@ -5,7 +5,7 @@ open Misc
 
 (* Add new policies here. Nothing else should need to change. *)
 let select_policy mn graph (name : string) = 
-  let open NetCoreSyntax in
+  let open NetCore.Syntax in
   let open NetCorePolicyGen in
   match name with
     | "sp" -> 

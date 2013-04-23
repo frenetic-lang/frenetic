@@ -1,8 +1,8 @@
 <extracted> : include
 <mininet> : include
 <OpenFlow0x01_files> : include
+<NetCore_files> : include
 <Misc/*.cmx> : for-pack(Misc)
-<Modules/*.cmx> : for-pack(Modules)
 <Pathetic/Regex.cmx> : for-pack(Pathetic)
 true : use_menhir
 true : use_str

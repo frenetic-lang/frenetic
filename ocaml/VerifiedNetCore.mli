@@ -2,7 +2,7 @@ open ControllerInterface
 open OpenFlow0x01Types
 open Packet
 open Printf
-open NetCoreSyntax
+open NetCore.Syntax
 
 module type POLICY = sig
   val policy : policy
