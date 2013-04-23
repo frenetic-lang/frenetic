@@ -4,7 +4,7 @@ Require Import Coq.Lists.List.
 Require Import Common.Types.
 Require Import FwOF.FwOFExtractableSignatures.
 Require OpenFlow.OpenFlow0x01Types.
-Require Network.Packet.
+Require Network.NetworkPacket.
 Require NetCore.NetCoreEval.
 Require Import Pattern.Pattern.
 
@@ -12,7 +12,7 @@ Local Open Scope list_scope.
 
 Module Type POLICY.
   Require Import OpenFlow.OpenFlow0x01Types.
-  Require Import Network.Packet.
+  Require Import Network.NetworkPacket.
 
   Parameter abst_func : switchId -> portId -> (packet * bufferId) -> list (portId * (packet * bufferId)).
 
@@ -20,8 +20,8 @@ End POLICY.
 
 Module MakeAtoms (Policy : POLICY) <: EXTRACTABLE_ATOMS.
   Definition switchId := OpenFlow.OpenFlow0x01Types.switchId.
-  Definition portId := Network.Packet.portId.
-  Definition packet := (Network.Packet.packet * OpenFlow.OpenFlow0x01Types.bufferId) %type.
+  Definition portId := Network.NetworkPacket.portId.
+  Definition packet := (Network.NetworkPacket.packet * OpenFlow.OpenFlow0x01Types.bufferId) %type.
   Definition flowTable := 
     list (nat * pattern * list (NetCore.NetCoreEval.act)).
   Inductive fm : Type :=

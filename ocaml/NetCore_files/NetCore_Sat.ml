@@ -176,3 +176,5 @@ let solve prog =
   let r = String.create bs in 
   let _ = really_input ch r 0 bs in 
   r
+
+module Topology = NetCore_Sat_Topology

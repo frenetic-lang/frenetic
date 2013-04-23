@@ -38,6 +38,9 @@ val get_byte : Int64.t -> int -> int
 val string_of_mac : Int64.t -> string
 val bytes_of_mac : Int64.t -> string
 
+val filter_map : ('a -> 'b option) -> 'a list -> 'b list
+val intersperse : 'a -> 'a list -> 'a list
+
 module type SAFESOCKET = sig
   type t = Lwt_unix.file_descr
   val create : Lwt_unix.file_descr -> t

@@ -10,7 +10,7 @@ Require Import Common.Utilities.
 Require Import Common.Types.
 Require Import Word.WordInterface.
 Require Import Classifier.Classifier.
-Require Import Network.Packet.
+Require Import Network.NetworkPacket.
 Require Import Pattern.Pattern.
 Require Import OpenFlow.OpenFlow0x01Types.
 
@@ -74,7 +74,7 @@ Fixpoint match_pred (pr : pred) (sw : switchId) (pt : portId) (pk : packet) :=
 
 Parameter serialize_pkt : packet -> bytes.
 
-Extract Constant serialize_pkt => "PacketParser.serialize_packet".
+Extract Constant serialize_pkt => "Packet_Parser.serialize_packet".
 
 Definition maybe_modify {A : Type} (newVal : option A) 
            (modifier : packet -> A -> packet) (pk : packet) : packet :=

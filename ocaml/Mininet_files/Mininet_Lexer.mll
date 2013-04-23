@@ -1,6 +1,6 @@
 {
   open Lexing
-  open MininetParser
+  open Mininet_Parser
 }
 
 let blank = [ ' ' '\t'  ]

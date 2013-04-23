@@ -1,4 +1,24 @@
-open MininetTypes
+module Types : sig
+
+type switchId = Int64.t
+type hostAddr = Int64.t
+type portId = int
+
+type node =
+  | Host of hostAddr
+  | Switch of switchId
+
+type edge_label = portId
+
+val string_of_node : node -> string
+val string_of_portId : portId -> string
+val string_of_edge_label : edge_label -> string
+
+val node_compare : node -> node -> int
+
+end
+
+open Types
 
 (** Parses the output of Mininet's net command. *)      
 val parse_from_chan : in_channel -> string -> (node * portId * node) list

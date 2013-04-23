@@ -2,7 +2,7 @@ Set Implicit Arguments.
 
 Require Import Coq.Structures.Equalities.
 Require Import Word.WordInterface.
-Require Import Network.Packet.
+Require Import Network.NetworkPacket.
 
 Definition VLAN_NONE : dlVlan := @Word16.Mk 65535 eq_refl.
 Extract Constant VLAN_NONE => "65535".

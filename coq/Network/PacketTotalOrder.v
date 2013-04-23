@@ -4,7 +4,7 @@ Require Import Coq.Structures.Equalities.
 Require Import NArith.BinNat.
 Require Import Bag.TotalOrder.
 Require Import Word.WordTheory.
-Require Import Network.Packet.
+Require Import Network.NetworkPacket.
 
 Local Open Scope list_scope.
 Local Open Scope N_scope.

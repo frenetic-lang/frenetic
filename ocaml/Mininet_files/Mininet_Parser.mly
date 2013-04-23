@@ -1,7 +1,7 @@
 %{
 (** A JavaScript parser that does not do semicolon insertion. *)
 
- open MininetTypes
+ open Mininet_Types
 
  type mnDest = 
    | ToHost of Int64.t 

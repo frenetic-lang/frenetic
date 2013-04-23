@@ -41,6 +41,16 @@ let bytes_of_mac (x:int64) : string =
     (byte 5) (byte 4) (byte 3)
     (byte 2) (byte 1) (byte 0)
 
+let rec filter_map f xs = match xs with
+  | [] -> []
+  | x :: xs' -> match f x with
+      | Some y -> y :: (filter_map f xs')
+      | None -> filter_map f xs'
+
+let intersperse v lst =
+  List.fold_right (fun x xs -> x :: (v :: xs)) [] lst
+
+
 module type SAFESOCKET = sig
   type t = Lwt_unix.file_descr
   val create : Lwt_unix.file_descr -> t

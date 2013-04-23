@@ -2,7 +2,7 @@ Set Implicit Arguments.
 
 Require Import Coq.Classes.Equivalence.
 Require Import WordInterface.
-Require Import Network.Packet.
+Require Import Network.NetworkPacket.
 Require Import OpenFlow.OpenFlow0x01Types.
 
 Local Open Scope equiv_scope.

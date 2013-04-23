@@ -8,7 +8,7 @@ Require Import Coq.Classes.Equivalence.
 Require Import Lists.List.
 
 Require Import Word.WordInterface.
-Require Import Network.Packet.
+Require Import Network.NetworkPacket.
 Require Import Common.Types.
 Require Import Pattern.PatternImplDef.
 Require Import Wildcard.Wildcard.

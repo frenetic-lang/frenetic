@@ -9,3 +9,5 @@ module Modules = struct
 end
 
 module Featherweight = NetCore_Featherweight
+
+module Z3 = NetCore_Sat

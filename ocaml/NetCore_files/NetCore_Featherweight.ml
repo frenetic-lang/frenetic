@@ -3,6 +3,7 @@ open OpenFlow0x01Types
 open Packet
 open Printf
 open NetCore_Syntax
+open Misc
 
 module type POLICY = sig
   val policy : policy
@@ -34,11 +35,11 @@ module MakePol (Policy : POLICY)  = struct
     let open NetCoreEval in
      
     let full = (classify pol (InPkt (sw,pt,pk, Some buf))) in
-    let pks = Types.filter_map get_pkt full in
+    let pks = filter_map get_pkt full in
     pks
 end
 
-module Make (Platform : OpenFlow0x01.Sig.PLATFORM) (Policy : POLICY) = struct
+module Make (Platform : OpenFlow0x01.PLATFORM) (Policy : POLICY) = struct
 
   module Pol = MakePol (Policy)
   module Atoms = FwOFExtractableController.MakeAtoms (Pol)
@@ -58,7 +59,7 @@ module Make (Platform : OpenFlow0x01.Sig.PLATFORM) (Policy : POLICY) = struct
        (NetCoreCompiler.compile_opt Pol.pol swId) in
     { Controller.theSwId = swId;
       Controller.pendingCtrlMsgs = 
-        Types.intersperse (Atoms.BarrierRequest 0) (List.map f lst)
+        intersperse (Atoms.BarrierRequest 0) (List.map f lst)
     }
 
   let init_flow_mod () = {

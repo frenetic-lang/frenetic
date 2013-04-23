@@ -7,7 +7,7 @@ Require Import Word.WordInterface.
 Require Import Pattern.Pattern.
 (* TODO: MJR Move 'switchId' from messagesDef so that we don't have to include this whole thing *)
 Require Import OpenFlow.OpenFlow0x01Types.
-Require Import Network.Packet.
+Require Import Network.NetworkPacket.
 
 Set Implicit Arguments.
 

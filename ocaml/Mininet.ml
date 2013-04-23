@@ -1,8 +1,10 @@
 open Printf
 open Lwt
-open MininetTypes
 open Lwt_io
 open Misc
+
+module Types = Mininet_Types
+open Types
 
 let string_of_position p =
   let open Lexing in
@@ -12,12 +14,12 @@ let parse_from_lexbuf lexbuf name =
   let open Lexing in
     try
       lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = name };
-      MininetParser.program MininetLexer.token lexbuf
+      Mininet_Parser.program Mininet_Lexer.token lexbuf
     with
       |  Failure "lexing: empty token" ->
            failwith (sprintf "lexical error at %s"
                        (string_of_position lexbuf.lex_curr_p))
-      | MininetParser.Error ->
+      | Mininet_Parser.Error ->
            failwith (sprintf "parse error at %s; unexpected token %s"
                        (string_of_position lexbuf.lex_curr_p)
                        (lexeme lexbuf))
