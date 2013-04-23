@@ -1,10 +1,14 @@
 #!/bin/sh
+# This script finds .ml files and appends them to NetCore.mllib, for inclusion
+# in the NetCore library implementation. If there are other stray files such
+# as tests lying around, you may want to manually exclude them. Since this
+# process isn't fully automated, NetCore.mllib is still part of the repository.
 
 pack () {
   ls $1/*.ml | cut -f 2 -d "/" | cut -f 1 -d "." >> NetCore.mllib
 }
 
-echo "(* Auto-generated below *)" >> Netcore.mllib
+echo "(* Auto-generated below *)" >> NetCore.mllib
 pack extracted
 pack .
 pack Misc_files
