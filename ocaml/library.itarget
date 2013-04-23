@@ -10,6 +10,8 @@ extracted/NetCoreEval.cma
 extracted/NetCoreEval.cmi
 NetCoreEval0x04.cma
 NetCoreEval0x04.cmi
+ControllerInterface0x04.cma
+ControllerInterface0x04.cmi
 extracted/OpenFlow0x01Types.cma
 extracted/OpenFlow0x01Types.cmi
 extracted/OpenFlowTypes.cma
@@ -23,6 +25,16 @@ OpenFlow0x04Parser.cmi
 NetCoreCompiler0x04.cma
 NetCoreCompiler0x04.cmi
 Platform0x04.cma
-Platform0x04.cmi
 extracted/NetCoreCompiler.cma
 extracted/NetCoreCompiler.cmi
+extracted/WordInterface.cmi
+extracted/WordInterface.cma
+extracted/Wildcard.cmi
+extracted/Wildcard.cma
+extracted/Pattern.cma
+lwt_channel.cma
+NetCoreController0x04.cma
+Util.cmi
+Util.cma
+extracted/PatternImplDef.cmi
+extracted/PatternImplDef.cma

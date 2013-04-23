@@ -1,4 +1,4 @@
-.PHONY: all doc library install
+.PHONY: all doc library install reinstall
 OCAMLBUILD = ocamlbuild -use-ocamlfind 
 
 all:
@@ -25,3 +25,7 @@ install: library
 
 uninstall:
 	ocamlfind remove desmoines
+
+reinstall: library
+	ocamlfind remove desmoines
+	ocamlfind install desmoines META *.cmi *.cma

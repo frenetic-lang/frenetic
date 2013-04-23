@@ -1,0 +1,2 @@
+requires = "lwt lwt.unix"
+archive(byte) = "Util.cma Pattern.cma lwt_channel.cma NetCoreController0x04.cma Graph.cma Platform0x04.cma"
