@@ -3,6 +3,7 @@ open OpenFlow0x01Types
 open WordInterface
 open Packet
 open NetCore_Syntax
+open Misc
 
 module Learning = struct
     
@@ -40,13 +41,13 @@ module Learning = struct
   and learn_host sw pt pk : unit =
     begin
       printf "[MacLearning] at switch %Ld host %s at port %d\n%!"
-	sw (Util.string_of_mac pk.pktDlSrc) pt;
+	sw (string_of_mac pk.pktDlSrc) pt;
       if Hashtbl.mem learned_hosts (sw, pk.pktDlSrc) then
         printf "[MacLearning.ml] at switch %Ld, host %s at port %d (moved)\n%!"
-          sw (Util.string_of_mac pk.pktDlSrc) pt
+          sw (string_of_mac pk.pktDlSrc) pt
       else
         printf "[MacLearning.ml] at switch %Ld, host %s at port %d\n%!"
-          sw (Util.string_of_mac pk.pktDlSrc) pt
+          sw (string_of_mac pk.pktDlSrc) pt
     end;
     Hashtbl.replace learned_hosts (sw, pk.pktDlSrc) pt;
     push (Some (make_learning_policy ()))
