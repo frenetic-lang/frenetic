@@ -33,7 +33,7 @@ newinstall:
 newuninstall:
 	ocamlfind remove NetCore
 
-install: library debug native
+install: library 
 	ocamlfind install desmoines META *.cmi *.cma 
 
 uninstall:
