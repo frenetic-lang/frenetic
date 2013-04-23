@@ -24,6 +24,7 @@ OpenFlow0x04Parser.cma
 OpenFlow0x04Parser.cmi
 NetCoreCompiler0x04.cma
 NetCoreCompiler0x04.cmi
+Platform0x04.cmi
 Platform0x04.cma
 extracted/NetCoreCompiler.cma
 extracted/NetCoreCompiler.cmi
@@ -31,8 +32,11 @@ extracted/WordInterface.cmi
 extracted/WordInterface.cma
 extracted/Wildcard.cmi
 extracted/Wildcard.cma
+extracted/Pattern.cmi
 extracted/Pattern.cma
-lwt_channel.cma
+Misc/Lwt_channel.cmi
+Misc/Lwt_channel.cma
+NetCoreController0x04.cmi
 NetCoreController0x04.cma
 Util.cmi
 Util.cma
