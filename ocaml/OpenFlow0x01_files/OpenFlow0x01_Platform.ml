@@ -8,7 +8,7 @@
     [PLATFORM]. But, see [NetCore] for a higher-level abstraction.
 *)
 open OpenFlow0x01Types
-open Parser
+open OpenFlow0x01_Parser
 
 open Lwt
 open Lwt_io
