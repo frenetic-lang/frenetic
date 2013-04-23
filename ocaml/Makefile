@@ -1,7 +1,9 @@
-.PHONY: all doc library install
+.PHONY: all debug native doc library install uninstall clean
 OCAMLBUILD = ocamlbuild -use-ocamlfind 
 
-all:
+all: debug doc
+
+debug:
 	$(OCAMLBUILD) debug.otarget
 
 native:
