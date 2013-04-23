@@ -1,10 +1,8 @@
 open Printf
-open OpenFlow0x01Parser
-open Platform
 open Unix
 open OpenFlow0x01Types
 
-module Controller = Repeater.Make (OpenFlowPlatform)
+module Controller = Modules.Repeater.Make (OpenFlow0x01.Platform)
 
 (* configuration state *)
 let controller = ref "learn"
@@ -24,15 +22,11 @@ let usage =
 let () = Arg.parse arg_specs arg_rest usage
 
 let main () = 
-  Sys.catch_break true;
-  try 
-    OpenFlowPlatform.init_with_port 6633;
-    (* Printexc.record_backtrace (); *)
-    Lwt_main.run (Controller.start ())
-  with exn -> 
-    Misc.Log.printf "[main] exception: %s\n%s\n%!" 
-      (Printexc.to_string exn) (Printexc.get_backtrace ());
-    OpenFlowPlatform.shutdown ();
-    exit 1
+  let pol = Marshal.from_channel (open_in "out") in
+  let handlers = Hashtbl.create 100 in
+  let core_pol = NetCoreSyntax.desugar_policy pol handlers in
+  printf "%s\n%!" (NetCoreSyntax.policy_to_string pol);
+  let tbl = NetCoreCompiler.compile_opt core_pol 1L in
+  printf "Classifier length:%d\n%!" (List.length tbl)
       
 let _ = main ()

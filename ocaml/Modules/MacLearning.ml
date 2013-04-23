@@ -1,7 +1,6 @@
 open Printf
 open OpenFlow0x01Types
 open WordInterface
-open Platform
 open NetCore
 open Packet
 open NetCoreSyntax
@@ -86,7 +85,7 @@ module Routing = struct
     Learning.policy
 end
 
-module Make (Platform : PLATFORM) = struct
+module Make (Platform : OpenFlow0x01.Sig.PLATFORM) = struct
 
   module Controller = NetCore.Make (Platform)
 

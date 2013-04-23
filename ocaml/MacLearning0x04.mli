@@ -1,5 +1,5 @@
 open Packet
-open OpenFlow0x04Types
+open OpenFlowTypes
 open WordInterface
 
 open Platform0x04

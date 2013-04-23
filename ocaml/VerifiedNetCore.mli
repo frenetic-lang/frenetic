@@ -1,7 +1,6 @@
 open ControllerInterface
 open OpenFlow0x01Types
 open Packet
-open Platform
 open Printf
 open NetCoreSyntax
 
@@ -12,7 +11,8 @@ module type POLICY = sig
 end
 
 
-module Make (Platform : PLATFORM) (Policy : POLICY) : sig
+module Make (Platform : OpenFlow0x01.Sig.PLATFORM) 
+            (Policy : POLICY) : sig
 
   type state
 

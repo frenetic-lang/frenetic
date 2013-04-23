@@ -1,7 +1,6 @@
 open OpenFlow0x01Types
 open WordInterface
 open NetCoreSyntax
-open Platform
 open NetCore
 open Packet
 
@@ -19,7 +18,7 @@ module Routing : sig
     
 end
 
-module Make : functor (Platform : PLATFORM) -> sig
+module Make : functor (Platform : OpenFlow0x01.Sig.PLATFORM) -> sig
     
   val start : unit -> unit Lwt.t
     

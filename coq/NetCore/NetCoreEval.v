@@ -13,7 +13,6 @@ Require Import Classifier.Classifier.
 Require Import Network.Packet.
 Require Import Pattern.Pattern.
 Require Import OpenFlow.OpenFlow0x01Types.
-Require Import NetCore.NetCoreTypes.
 
 Local Open Scope list_scope.
 

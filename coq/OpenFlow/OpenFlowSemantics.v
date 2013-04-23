@@ -1,9 +1,13 @@
 Set Implicit Arguments.
 
+Require Import Coq.Lists.List.
 Require Import Common.Types.
 Require Import Word.WordInterface.
 Require Import Network.Packet.
 Require Import OpenFlow.OpenFlow0x01Types.
+Require Import OpenFlow.FlowTable.
+
+Import ListNotations.
 
 Local Open Scope list_scope.
 Local Open Scope bool_scope.
@@ -246,3 +250,25 @@ Section Match.
     end.
 
 End Match.
+
+Section FlowTable.
+  Require Import Word.WordTheory.
+
+  Definition gt16 (x y : Word16.Word.t) : Prop :=
+    Word16.le x y -> False.
+  
+  Inductive Match : flowTable -> packet -> portId -> option actionSequence -> Prop :=
+  | Matched : forall tbl1 prio pat act tbl2 pt pk,
+    match_ethFrame pk pt pat = true ->
+    (forall rule, 
+       In rule (tbl1 ++ tbl2) ->
+       gt16 (priority rule) prio -> 
+       match_ethFrame pk pt (pattern rule) = false) ->
+    Match (tbl1 ++ Rule prio pat act :: tbl2) pk pt (Some act)
+  | Unmatched : forall tbl pt pk,
+    (forall rule, 
+       In rule tbl ->
+       match_ethFrame pk pt (pattern rule) = false) ->
+    Match tbl pk pt None.
+
+End FlowTable.

@@ -7,6 +7,8 @@ open Platform0x04
 open NetCoreEval0x04
 open Printf
 
+module Lwt_channel = Misc.Lwt_channel
+
 module type HANDLERS = sig
 
   val get_packet_handler : 

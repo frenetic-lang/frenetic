@@ -1,13 +1,15 @@
 <extracted> : include
 <mininet> : include
-<Misc/Log.cmx> : for-pack(Misc)
+<Misc/*.cmx> : for-pack(Misc)
+<Modules/*.cmx> : for-pack(Modules)
+<OpenFlow0x01/*.cmx> : for-pack(OpenFlow0x01)
 <Pathetic/Regex.cmx> : for-pack(Pathetic)
 true : use_menhir
 true : use_str
 <*.d.byte> : package(cstruct), package(lwt), package(lwt.unix)
 <*.native> : package(cstruct), package(lwt), package(lwt.unix)
 <**/*.ml{,i}> : package(cstruct),package(lwt),syntax(camlp4o),package(lwt.syntax)
-"OpenFlow0x01Parser.ml" : package(cstruct.syntax)
+"OpenFlow0x01/Parser.ml" : package(cstruct.syntax)
 "OpenFlow0x04Parser.ml" : package(cstruct.syntax)
 "OpenFlow0x04Types.ml" : package(cstruct.syntax)
 "PacketParser.ml" : package(cstruct.syntax)

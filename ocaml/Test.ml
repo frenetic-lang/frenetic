@@ -12,7 +12,7 @@ module ZZ = FwOFSimpleExtractableController
 
 module Test1 = struct
 
-  module Controller = Repeater.Make (TestPlatform)
+  module Controller = Modules.Repeater.Make (TestPlatform)
 
   let test_script () = 
     connect_switch 100L >>
