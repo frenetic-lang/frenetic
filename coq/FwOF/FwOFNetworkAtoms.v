@@ -6,7 +6,7 @@ Require Import Coq.Relations.Relations.
 Require Import FwOF.FwOFSignatures.
 Require Import Classifier.Classifier.
 Require OpenFlow.OpenFlow0x01Types.
-Require Network.Packet.
+Require Network.NetworkPacket.
 Require Network.PacketTotalOrder.
 Require Import NetCore.NetCoreEval.
 Require Import Pattern.Pattern.
@@ -18,9 +18,9 @@ Local Open Scope list_scope.
 
 Module NetworkAtoms <: NETWORK_ATOMS.
 
-  Definition packet  := (Network.Packet.packet * OpenFlow.OpenFlow0x01Types.bufferId) % type.
+  Definition packet  := (Network.NetworkPacket.packet * OpenFlow.OpenFlow0x01Types.bufferId) % type.
   Definition switchId := OpenFlow.OpenFlow0x01Types.switchId.
-  Definition portId := Network.Packet.portId.
+  Definition portId := Network.NetworkPacket.portId.
   Definition flowTable := 
     list (nat * pattern * list (NetCore.NetCoreEval.act)).
   Inductive fm : Type :=

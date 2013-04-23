@@ -10,6 +10,6 @@ true : use_str
 "OpenFlow0x01_files/OpenFlow0x01_Parser.ml" : package(cstruct.syntax)
 "OpenFlow0x04Parser.ml" : package(cstruct.syntax)
 "OpenFlow0x04Types.ml" : package(cstruct.syntax)
-"PacketParser.ml" : package(cstruct.syntax)
+"Packet_files/Packet_Parser.ml" : package(cstruct.syntax)
 "Test.ml" : package(oUnit)
 "Test.d.byte" : package(oUnit)

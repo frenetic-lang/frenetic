@@ -9,7 +9,7 @@ Require Import Common.CpdtTactics.
 Require Import Word.WordInterface.
 Require Import Classifier.Classifier.
 Require Import Classifier.Theory.
-Require Import Network.Packet.
+Require Import Network.NetworkPacket.
 Require Import Pattern.Pattern.
 Require Import OpenFlow.OpenFlow0x01Types.
 Require Import NetCore.NetCoreEval.

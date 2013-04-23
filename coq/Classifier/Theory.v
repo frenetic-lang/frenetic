@@ -5,7 +5,7 @@ Require Import Coq.Lists.List.
 Require Import Coq.Bool.Bool.
 Require Import Common.CpdtTactics.
 Require Import Common.Types.
-Require Import Network.Packet.
+Require Import Network.NetworkPacket.
 Require Import Pattern.Pattern.
 Require Import Classifier.Classifier.
 

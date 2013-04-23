@@ -11,7 +11,7 @@ Require Import Common.Utilities.
 Require Import Common.Types.
 Require Import Word.WordInterface.
 Require Import Classifier.Classifier.
-Require Import Network.Packet.
+Require Import Network.NetworkPacket.
 Require Import Pattern.Pattern.
 Require Import OpenFlow.OpenFlow0x01Types.
 Require Import NetCore.NetCoreTypes.

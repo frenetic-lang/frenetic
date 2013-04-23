@@ -1,4 +1,4 @@
-type link = Link of OpenFlow0x01Types.switchId * Packet.portId
+type link = Link of OpenFlow0x01.Types.switchId * Packet.Types.portId
 
 type topology = Topology of (link * link) list
 

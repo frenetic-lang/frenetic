@@ -1,6 +1,6 @@
 open OpenFlow0x01Types
 open Misc
-open Packet
+open Packet.Types
 
 type get_packet_handler = switchId -> portId -> packet -> unit
 

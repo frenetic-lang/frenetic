@@ -1,6 +1,6 @@
 module Types : sig
 
-  open Packet
+  open Packet.Types
   open WordInterface
 
   type of_match = {

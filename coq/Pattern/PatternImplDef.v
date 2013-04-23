@@ -13,7 +13,7 @@ Require Import Coq.Lists.List.
 Require Import OpenFlow.OpenFlow0x01Types.
 Require Import Common.Types.
 Require Import Word.WordInterface.
-Require Import Network.Packet.
+Require Import Network.NetworkPacket.
 Require Import Wildcard.Wildcard.
 
 Local Open Scope bool_scope.

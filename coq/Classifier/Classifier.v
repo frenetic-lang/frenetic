@@ -2,7 +2,7 @@ Set Implicit Arguments.
 
 Require Import Common.Types.
 Require Import Coq.Lists.List.
-Require Import Network.Packet.
+Require Import Network.NetworkPacket.
 Require Import Word.WordInterface.
 Require Import Pattern.Pattern.
 

@@ -3,7 +3,7 @@ Set Implicit Arguments.
 Require Import Common.Types.
 Require Import Common.Monad.
 Require Import Word.WordInterface.
-Require Import Network.Packet.
+Require Import Network.NetworkPacket.
 Require Import OpenFlow.OpenFlow0x01Types.
 Require Import Pattern.Pattern.
 Require Import Classifier.Classifier.

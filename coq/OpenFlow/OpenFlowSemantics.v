@@ -3,7 +3,7 @@ Set Implicit Arguments.
 Require Import Coq.Lists.List.
 Require Import Common.Types.
 Require Import Word.WordInterface.
-Require Import Network.Packet.
+Require Import Network.NetworkPacket.
 Require Import OpenFlow.OpenFlow0x01Types.
 Require Import OpenFlow.FlowTable.
 

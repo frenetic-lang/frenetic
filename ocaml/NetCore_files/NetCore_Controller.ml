@@ -1,6 +1,6 @@
 open ControllerInterface
 open OpenFlow0x01.Types
-open Packet
+open Packet.Types
 open Printf
 open NetCore_Syntax
 

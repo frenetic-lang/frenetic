@@ -5,7 +5,7 @@ Require Import Pattern.PatternImplTheory.
 Require Import Pattern.PatternInterface.
 Require Import Coq.Lists.List.
 Require Import Wildcard.Wildcard.
-Require Import Network.Packet.
+Require Import Network.NetworkPacket.
 Require Import Coq.Classes.Equivalence.
 
 Local Open Scope equiv_scope.

@@ -1,6 +1,6 @@
 (** The NetCore policy language *)
 open OpenFlow0x01Types
-open Packet
+open Packet.Types
 
 module Syntax : sig
 
@@ -138,7 +138,7 @@ module Z3 : sig
 
   module Topology : sig
 
-    type link = Link of OpenFlow0x01.Types.switchId * Packet.portId
+    type link = Link of OpenFlow0x01.Types.switchId * Packet.Types.portId
 
     type topology = Topology of (link * link) list
 

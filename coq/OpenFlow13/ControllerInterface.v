@@ -3,7 +3,7 @@ Set Implicit Arguments.
 Require Import Common.Types.
 Require Import Common.Monad.
 Require Import OpenFlow13.OpenFlow0x01Types.
-Require Import Network.Packet.
+Require Import Network.NetworkPacket.
 
 Inductive event : Type :=
   | SwitchConnected : switchId -> event

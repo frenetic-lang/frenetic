@@ -2,7 +2,7 @@ Set Implicit Arguments.
 
 Require Import Coq.Lists.List.
 Require Import OpenFlow.OpenFlow0x01Types.
-Require Import Network.Packet.
+Require Import Network.NetworkPacket.
 Require Import Word.WordInterface.
 
 Import ListNotations.
