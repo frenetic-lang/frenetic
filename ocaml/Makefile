@@ -5,7 +5,6 @@ OCAMLBUILD = ocamlbuild -use-ocamlfind
 # Note that these are only the .mli files at the top-level.
 MLIFILES = $(shell ls _build/*.mli)
 CMIFILES = $(MLIFILES:.mli=.cmi)
-CMAFILES = $(shell find _build -name "*.cma")
 
 all: debug doc library
 
@@ -30,7 +29,7 @@ library:
 
 newinstall:
 	ocamlfind install NetCoreLib \
-		META $(MLIFILES) $(CMIFILES) $(CMAFILES) NetCoreLib.cma
+		META $(MLIFILES) $(CMIFILES) NetCoreLib.cma
 
 newuninstall:
 	ocamlfind remove NetCoreLib
