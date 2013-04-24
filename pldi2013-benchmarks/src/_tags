@@ -1,2 +1,2 @@
-<*.ml{,i}> : package(lwt), package(lwt.unix), package(NetCoreLib), syntax(camlp4o), package(lwt.syntax)
-"VerifiedBenchmarks.d.byte" : package(lwt), package(lwt.unix), package(NetCoreLib)
+<*.ml{,i}> : package(lwt), package(NetCoreLib), syntax(camlp4o), package(lwt.syntax)
+"VerifiedBenchmarks.d.byte" : package(lwt), package(NetCoreLib)
