@@ -1,7 +1,7 @@
 open Printf
-open MininetTypes
+open Mininet.Types
 
-module G = PolicyGenerator.Make (MininetTypes)
+module G = PolicyGenerator.Make (Mininet.Types)
 
 type t = G.t
 
@@ -40,7 +40,7 @@ open NetCore.Syntax
 
 let hop_to_pol (pred : predicate) (hop : node * int * portId * node) : policy =
   match hop with
-    | (MininetTypes.Switch swId, _, pt, _) ->
+    | (Mininet.Types.Switch swId, _, pt, _) ->
       Pol (And (pred, Switch swId), [To pt])
     | _ -> Empty
 
@@ -78,7 +78,7 @@ let broadcast (g : G.t) (src : hostAddr) : policy =
   let pred = And (DlSrc src, DlDst 0xFFFFFFFFFFFFL) in
   let rec loop parent vx = match vx with
     | Host _ -> Empty
-    | MininetTypes.Switch swId -> 
+    | Mininet.Types.Switch swId -> 
       let succs = List.filter (fun (ch, _) -> ch <> parent) (G.succs g vx) in
       let ports =  List.map (fun (_, pt) -> To pt) succs in
       let hop_pol = Pol (And (pred, Switch swId), ports) in

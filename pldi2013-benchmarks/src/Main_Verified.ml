@@ -1,3 +1,4 @@
+(* TODO: Bit-rotted file, see VerifiedBenchmarks for everythiing but throughput. *)
 open Printf
 module PolGen = NetCorePolicyGen
 
@@ -9,7 +10,7 @@ let select_policy graph (name : string) =
 
 
 let graph = ref (PolGen.G.empty ())
-let policy = ref NetCoreSyntax.Empty
+let policy = ref NetCore.Syntax.Empty
 let use_flow_mod = ref false
 
 let _ =
@@ -17,8 +18,8 @@ let _ =
     [("-throughput",
       Arg.Unit (fun () ->
         let open PolGen.G in
-        let open NetCoreSyntax in
-        let open MininetTypes in
+        let open NetCore.Syntax in
+        let open Mininet.Types in
         for i = 1 to 16 do
           add_edge !graph (Switch 1L) i (Switch (Int64.of_int i))
         done;

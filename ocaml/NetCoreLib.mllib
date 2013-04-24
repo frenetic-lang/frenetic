@@ -35,6 +35,8 @@ Verify
 Misc_Log
 Misc_Lwt_channel
 Mininet_Types
+Mininet_Parser
+Mininet_Lexer
 NetCore_Controller
 NetCore_Featherweight
 NetCore_MacLearning

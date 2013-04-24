@@ -1,5 +1,5 @@
 (** The NetCore policy language *)
-open OpenFlow0x01Types
+open OpenFlow0x01.Types
 open Packet.Types
 
 module Syntax : sig
