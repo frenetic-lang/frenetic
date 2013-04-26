@@ -7,7 +7,8 @@ Prerequisites
 - Coq 8.4 <http://coq.inria.fr/download>
 
   Newer versions of Coq often have changes that break older
-  programs. We recommend using exactly this version.
+  programs. We recommend using exactly this version:
+  <http://coq.inria.fr/distrib/V8.4/files/coq-8.4.tar.gz>.
 
 - OCaml 4 or higher <http://caml.inria.fr/download.en.html>
 
