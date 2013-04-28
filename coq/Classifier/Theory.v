@@ -42,12 +42,12 @@ Qed.
 
 Class ClassifierAction `(A : Type) := {
   action_eqdec : forall (x y : A), { x = y } + { x <> y };
-  action_unit : A
+  zero : A
 }.
 
 Definition has_unit {A : Type} {Act : ClassifierAction A} 
   (f : A -> A -> A) : Prop :=
-  (forall a, f a action_unit = a) /\ forall a, f action_unit a = a.
+  (forall a, f a zero = a) /\ forall a, f zero a = a.
 
 
 Inductive total (A : Type) : Classifier A -> Prop :=
@@ -386,7 +386,7 @@ Section Action.
   Implicit Arguments A_as_Action.
   
   Definition left_biased (a b : A) := 
-    match action_eqdec a action_unit with
+    match action_eqdec a zero with
       | left _ => b
       | right _ => a
     end.
@@ -395,9 +395,9 @@ Section Action.
   Proof with auto.
     unfold left_biased.
     split; intros.
-    remember (action_eqdec a action_unit) as b.
+    remember (action_eqdec a zero) as b.
     destruct b...
-    remember (action_eqdec action_unit action_unit) as b.
+    remember (action_eqdec zero zero) as b.
     destruct b...
     contradiction n...
   Qed.
@@ -538,8 +538,8 @@ Section Action.
 
   Lemma union_scan_comm : forall (f : A -> A -> A) pt pk cf1 cf2,
     has_unit f ->
-    scan action_unit (union f cf1 cf2) pt pk = 
-    f (scan action_unit cf1 pt pk) (scan action_unit cf2 pt pk).
+    scan zero (union f cf1 cf2) pt pk = 
+    f (scan zero cf1 pt pk) (scan zero cf2 pt pk).
   Proof with simpl; eauto with datatypes.
     intros f pt pk cf1 cf2 H.
     remember H as Hwb.
@@ -551,7 +551,7 @@ Section Action.
     unfold union.
     destruct a as [m a].
     remember (Pattern.match_packet pt pk m).
-    remember (scan_inv action_unit pk pt (inter f ((m, a) :: cf1) cf2 ++ ((m, a) :: cf1) ++ cf2)) as H1. clear HeqH1.
+    remember (scan_inv zero pk pt (inter f ((m, a) :: cf1) cf2 ++ ((m, a) :: cf1) ++ cf2)) as H1. clear HeqH1.
     destruct H1.
     destruct H1 as [H1 H2].
     (* Case: scan falls off the table. *)
@@ -575,15 +575,15 @@ Section Action.
     clear IHcf1.
     rewrite <- app_comm_cons.
     (* Case where pkt is in m *)
-    remember (scan_inv action_unit pk pt cf2) as Hinv. clear HeqHinv.
+    remember (scan_inv zero pk pt cf2) as Hinv. clear HeqHinv.
     destruct Hinv as [[H5 H6]|Hinv].
     rewrite -> H6.
     assert (forall m'  (a' : A), In (m',a') (inter f ((m, a) :: cf1) cf2) ->
       Pattern.match_packet pt pk m' = false) as H7.
     apply inter_empty; auto.
-    assert (scan action_unit (inter f ((m, a) :: cf1) cf2 ++ 
+    assert (scan zero (inter f ((m, a) :: cf1) cf2 ++ 
       (m, a) :: cf1 ++ cf2) pt pk =
-    scan action_unit ((m,a) :: cf1 ++ cf2) pt pk) as HelimHd.
+    scan zero ((m,a) :: cf1 ++ cf2) pt pk) as HelimHd.
     apply elim_scan_head; auto.
     rewrite -> HelimHd.
     assert ((m,a) :: cf1 ++ cf2 = 
