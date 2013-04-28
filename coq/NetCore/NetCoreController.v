@@ -80,7 +80,7 @@ Section ToFlowMod.
 
   Definition to_flow_mod (prio : priority) (pat : pattern) (act : list act)
              (isfls : Pattern.is_empty pat = false) :=
-    let ofMatch := Pattern.to_match pat isfls in
+    let ofMatch := Pattern.to_match isfls in
     FlowMod AddFlow
             ofMatch
             prio
@@ -102,7 +102,7 @@ Section ToFlowMod.
              (match (Pattern.is_empty pat) as b
                     return (Pattern.is_empty pat = b -> list flowMod) with
                 | true => fun _ => lst
-                | false => fun H => (to_flow_mod prio pat act H) :: lst
+                | false => fun H => (to_flow_mod prio act H) :: lst
               end) eq_refl
          end)
       nil
@@ -112,7 +112,7 @@ Section ToFlowMod.
     FlowMod DeleteFlow
             (* This should make reasoning easier, since we have so many
                theorems about patterns. *)
-            (Pattern.to_match _ Pattern.all_is_not_empty)
+            (Pattern.to_match Pattern.all_is_not_empty)
             Word16.zero
             nil
             Word64.zero
