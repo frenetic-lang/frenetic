@@ -13,6 +13,10 @@ Module Type PATTERN.
 
   Parameter inter : t -> t -> t.
 
+  (** [mask pat1 pat2] is the same as pat1, but wildcards any fields that pat2
+      matches exactly. *)
+  Parameter mask : t -> t -> t.
+
   Parameter all : t.
 
   Parameter empty : t.

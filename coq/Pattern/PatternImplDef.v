@@ -336,6 +336,73 @@ Definition SupportedNwProto :=
 Definition SupportedDlTyp := 
   [ Const_0x800; Const_0x806 ].
 
+Definition to_valid (pat : pattern) : pattern :=
+  match pat with
+    | Pattern dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+              nwProto nwTos tpSrc tpDst inPort =>
+      let validDlTyp :=
+          match dlTyp with
+            | WildcardExact n => 
+              match Word16.eq_dec n Const_0x800 with
+                | left _ => true
+                | right _ =>
+                  match Word16.eq_dec n Const_0x806 with
+                    | left _ => true
+                    | right _ => false
+                  end
+              end
+            | _ => false
+          end in
+      let validNwProto :=
+          match nwProto with
+            | WildcardExact n => match Word8.eq_dec n Const_0x6 with
+                | left _ => true
+                | right _ =>
+                  match Word8.eq_dec n Const_0x7 with
+                    | left _ => true
+                    | right _ => false
+                  end
+              end
+        | _ => false 
+          end in
+      Pattern dlSrc dlDst dlTyp dlVlan dlVlanPcp 
+              (if validDlTyp then nwSrc else WildcardAll)
+              (if validDlTyp then nwDst else WildcardAll)
+              (if validDlTyp then nwProto else WildcardAll)
+              (if validDlTyp then nwTos else WildcardAll)
+              (if validNwProto then tpSrc else WildcardAll)
+              (if validNwProto then tpDst else WildcardAll)
+              inPort
+  end.
+
+Definition to_all {A : Type} (w : Wildcard A) (b : bool) :=
+  match b with
+    | true => WildcardAll
+    | false => w
+  end.          
+
+Definition mask (pat1 pat2 : pattern) : pattern :=
+  match (pat1, pat2) with
+    | (Pattern dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+               nwProto nwTos tpSrc tpDst inPort,
+       Pattern dlSrc' dlDst' dlTyp' dlVlan' dlVlanPcp' nwSrc' nwDst'
+               nwProto' nwTos' tpSrc' tpDst' inPort') =>
+      to_valid
+        (Pattern 
+           (to_all dlSrc (Wildcard.is_exact dlSrc'))
+           (to_all dlDst (Wildcard.is_exact dlDst'))
+           (to_all dlTyp (Wildcard.is_exact dlTyp'))
+           (to_all dlVlan (Wildcard.is_exact dlVlan'))
+           (to_all dlVlanPcp (Wildcard.is_exact dlVlanPcp'))
+           (to_all nwSrc (Wildcard.is_exact nwSrc'))
+           (to_all nwDst (Wildcard.is_exact nwDst'))
+           (to_all nwProto (Wildcard.is_exact nwProto'))
+           (to_all nwTos (Wildcard.is_exact nwTos'))
+           (to_all tpSrc (Wildcard.is_exact tpSrc'))
+           (to_all tpDst (Wildcard.is_exact tpDst'))
+           (to_all inPort (Wildcard.is_exact inPort')))
+  end.
+
   (** Based on the flow chart on Page 8 of OpenFlow 1.0 specification. In
       a ValidPattern, all exact-match fields are used to match packets. *)
 
