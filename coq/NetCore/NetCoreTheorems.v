@@ -20,15 +20,15 @@ Local Open Scope list_scope.
 
 Instance bool_as_Action : ClassifierAction bool := 
   {
-    action_unit := false;
+    zero := false;
     action_eqdec := bool_dec
   }.
 
-Hint Resolve action_unit.
+Hint Resolve zero.
 
 Definition Equiv_Preserving (f : forall A, Classifier A -> Classifier A) :=
   forall (A : Type) (EA : ClassifierAction A) (pt : portId) (pk : packet) (cf : Classifier A),  
-    scan action_unit (f A cf) pt pk = scan action_unit cf pt pk.
+    scan zero (f A cf) pt pk = scan zero cf pt pk.
 
 Hint Unfold Equiv_Preserving.
 
@@ -41,7 +41,7 @@ Proof with auto.
   assert (forall cf pt pk, scan false (opt bool cf) pt pk = scan false cf pt pk) as Heqp.
   unfold Equiv_Preserving in H.
   intros.
-  assert (false = action_unit)...
+  assert (false = zero)...
   rewrite -> H0.
   rewrite -> H...
   clear H.
@@ -59,7 +59,7 @@ Proof with auto.
   simpl.
   reflexivity.
   (* PrOr *)
-  assert (false = action_unit) as J...
+  assert (false = zero) as J...
   rewrite -> J in *.
   simpl.
   rewrite -> Heqp.
@@ -112,7 +112,7 @@ Proof. repeat decide equality.  Defined.
 
 Instance A_as_Action : ClassifierAction (list act) :=
   {
-    action_unit := @nil act;
+    zero := @nil act;
     action_eqdec := A_eqdec
   }.
 
@@ -134,7 +134,7 @@ Proof with auto.
   assert (forall cf pt pk, scan nil (opt (list act) cf) pt pk = scan nil cf pt pk) as J0...
   intros.
   unfold Equiv_Preserving in Heqp.
-  assert (nil = action_unit)...
+  assert (nil = zero)...
   rewrite -> H.
   rewrite -> Heqp...
   rewrite -> J0.
@@ -147,7 +147,7 @@ Proof with auto.
   apply total_tail. 
 
   simpl.
-  assert (nil = action_unit) as J...
+  assert (nil = zero) as J...
   rewrite -> J in *.
   rewrite -> Heqp.
   rewrite -> union_scan_comm.
