@@ -27,6 +27,7 @@ type action =
 type policy =
   | Pol of predicate * action list
   | Par of policy * policy (** parallel composition *)
+  | Seq of policy * policy
   | Restrict of policy * predicate
   | Empty
 
@@ -62,6 +63,7 @@ let action_to_string act = match act with
 let rec policy_to_string pol = match pol with
   | Pol (pred,acts) -> Printf.sprintf "(%s => [%s])" (predicate_to_string pred) (String.concat ";" (List.map action_to_string acts))
   | Par (p1,p2) -> Printf.sprintf "(Union %s %s)" (policy_to_string p1) (policy_to_string p2)
+  | Seq (p1,p2) -> Printf.sprintf "(Seq %s %s)" (policy_to_string p1) (policy_to_string p2)
   | Restrict (p1,p2) -> Printf.sprintf "(restrict %s %s)" (policy_to_string p1) (predicate_to_string p2)
   | Empty -> "Empty"
 
@@ -74,13 +76,13 @@ let desugar_policy
   let open NetCoreEval in
   let next_id = ref 0 in
   let desugar_act act = match act with
-    | To pt -> Forward (unmodified, PhysicalPort pt)
-    | ToAll -> Forward (unmodified, AllPorts)
+    | To pt -> { modifications = unmodified; toPorts = [PhysicalPort pt]; queries = [] }
+    | ToAll -> { modifications = unmodified; toPorts = [AllPorts]; queries = [] }
     | GetPacket handler ->
       let id = !next_id in
       incr next_id;
       Hashtbl.add get_pkt_handlers id handler;
-      ActGetPkt id in
+      { modifications = unmodified; toPorts = []; queries = [id] } in
   let rec desugar_pred pred = match pred with
     | And (p1, p2) -> 
       PrAnd (desugar_pred p1, desugar_pred p2)
@@ -99,11 +101,14 @@ let desugar_policy
     | TcpDstPort n -> PrHdr (Pattern.tcpDstPort n) in
   let rec desugar_pol pol pred = match pol with
     | Pol (pred', acts) -> 
-      PoAtom (desugar_pred (And (pred', pred)), List.map desugar_act acts)
+      PoAtom (desugar_pred (And (pred', pred)),
+              List.fold_right par_action (List.map desugar_act acts) empty_action)
     | Par (pol1, pol2) ->
       PoUnion (desugar_pol pol1 pred, desugar_pol pol2 pred)
+    | Seq (pol1, pol2) ->
+      PoSeq (desugar_pol pol1 pred, desugar_pol pol2 pred)
     | Restrict (p1, pr1) ->
       desugar_pol p1 (And (pred, pr1)) 
-    | Empty -> PoAtom (PrNone, []) in
+    | Empty -> PoAtom (PrNone, empty_action) in
   Hashtbl.clear get_pkt_handlers;
   desugar_pol pol All

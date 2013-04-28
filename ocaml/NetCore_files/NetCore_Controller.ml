@@ -85,7 +85,7 @@ module MakeNetCoreMonad
     Lwt.bind (action init) (fun (result, _) -> Lwt.return result)
 end
 
-let drop_all_packets = NetCoreEval.PoAtom (NetCoreEval.PrAll, [])
+let drop_all_packets = NetCoreEval.PoAtom (NetCoreEval.PrAll, NetCoreEval.empty_action)
 
 type eventOrPolicy = 
   | Event of ControllerInterface.event

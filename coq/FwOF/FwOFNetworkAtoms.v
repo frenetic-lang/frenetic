@@ -22,9 +22,9 @@ Module NetworkAtoms <: NETWORK_ATOMS.
   Definition switchId := OpenFlow.OpenFlow0x01Types.switchId.
   Definition portId := Network.NetworkPacket.portId.
   Definition flowTable := 
-    list (nat * pattern * list (NetCore.NetCoreEval.act)).
+    list (nat * pattern * NetCore.NetCoreEval.act).
   Inductive fm : Type :=
-    | AddFlow : nat -> pattern -> list (NetCore.NetCoreEval.act) -> fm.
+    | AddFlow : nat -> pattern -> NetCore.NetCoreEval.act -> fm.
 
   Definition flowMod := fm.
 
@@ -37,7 +37,7 @@ Module NetworkAtoms <: NETWORK_ATOMS.
   | PacketIn : portId -> packet -> fromSwitch
   | BarrierReply : nat -> fromSwitch.
 
-  Definition strip_prio (x : nat * pattern * list (NetCore.NetCoreEval.act)) :=
+  Definition strip_prio (x : nat * pattern * NetCore.NetCoreEval.act) :=
     match x with
       | (prio,pat,act) => (pat,Some act)
     end.
@@ -45,10 +45,15 @@ Module NetworkAtoms <: NETWORK_ATOMS.
 
   Definition eval_act (pt : portId) (pk : packet) (act : act) := 
     match act with
-      (* We ignore modifications. *)
-      | Forward _ (OpenFlow.OpenFlow0x01Types.PhysicalPort pt') => [(pt',pk)]
-      (* And queries. *)
-      | _ => nil
+      (* We ignore modifications and queries. *)
+      | Act _ pts _ =>
+        filter_map
+          (fun pp =>
+             match pp with
+               | OpenFlow.OpenFlow0x01Types.PhysicalPort pt' => Some (pt',pk)
+               | _ => None
+             end)
+          pts
     end.
 
   (** Produces a list of packets to forward out of ports, and a list of packets
@@ -58,7 +63,7 @@ Module NetworkAtoms <: NETWORK_ATOMS.
       | (actualPk, buf) =>
         match scan None (map strip_prio tbl) pt actualPk with
           | None => (nil, [pk])
-          | Some acts => (concat_map (eval_act pt pk) acts, nil)
+          | Some acts => (eval_act pt pk acts, nil)
         end
     end.
     

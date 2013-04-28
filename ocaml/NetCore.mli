@@ -29,6 +29,7 @@ module Syntax : sig
   type policy =
     | Pol of predicate * action list
     | Par of policy * policy (** parallel composition *)
+    | Seq of policy * policy (** sequential composition *)
     | Restrict of policy * predicate
     | Empty
 
