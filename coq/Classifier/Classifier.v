@@ -57,8 +57,6 @@ Fixpoint elim_shadowed_helper {A : Type} (prefix : Classifier A)
 Definition elim_shadowed {A : Type} (cf : Classifier A) :=
   elim_shadowed_helper nil cf.
 
-  
-
 Fixpoint prioritize
   {A : Type} 
   (prio : nat) 
@@ -68,3 +66,36 @@ Fixpoint prioritize
     | (pat, act) :: lst' => (prio, pat, act) :: (prioritize (pred prio) lst')
   end.
   
+Section Sequencing.
+
+  Variable A : Type.
+
+  (** Returns a pattern that exactly matches all fields that the action affects. *)
+  Variable mask : A -> pattern.
+
+  (** Applies the two actions in turn (left first) *)
+  Variable seq_action : A -> A -> A.
+
+  Definition sequence_atom (p1 : pattern) (a1 : A) (p2 : pattern) (a2 : A) :=
+    (Pattern.inter p1 (Pattern.mask (Pattern.inter p1 (mask a2)) (mask a2)),
+     seq_action a1 a2).
+
+  Definition sequence_helper (p1 : pattern) (a1 : A) (tbl2 : Classifier A) :=
+     fold_right 
+       (fun x acc => 
+          match x with
+            | (p2, a2) => sequence_atom p1 a1 p2 a2 :: acc
+          end)
+       nil
+       tbl2.
+       
+  Definition sequence (tbl1 tbl2 : Classifier A) :=
+    fold_right
+      (fun x acc =>
+         match x with
+           | (p1, a1) => sequence_helper p1 a1 tbl2 ++ acc
+         end)
+      nil
+      tbl1.
+
+End Sequencing.
