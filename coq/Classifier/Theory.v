@@ -417,13 +417,6 @@ Section Action.
     simpl. f_equal...
   Qed.
 
-(*
- Heqmatched : true = Pattern.match_packet pt pk p
-  ============================
-   scan (scan false cf1 pt pk && scan false cf2 pt pk)
-     (inter_entry andb cf2 (p, true)) pt pk = true && scan false cf2 pt pk
-
-*)
   Lemma inter_entry_andb_true : forall cf pat pt pk b, 
     true = Pattern.match_packet pt pk pat ->
     scan b (inter_entry andb cf (pat, true)) pt pk = scan b cf pt pk.
