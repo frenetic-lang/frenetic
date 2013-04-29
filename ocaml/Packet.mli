@@ -4,33 +4,33 @@ module Types : sig
 
   type bytes = Cstruct.t
 
-  type portId = Word16.t
-  type dlAddr = Word48.t
-  type dlTyp = Word16.t
-  type dlVlan = Word16.t
-  type dlVlanPcp = Word8.t
-  type nwAddr = Word32.t
-  type nwProto = Word8.t
-  type nwTos = Word8.t
-  type tpPort = Word16.t
+  type portId = int
+  type dlAddr = Int64.t
+  type dlTyp = int
+  type dlVlan = int
+  type dlVlanPcp = int
+  type nwAddr = Int32.t
+  type nwProto = int
+  type nwTos = int
+  type tpPort = int
 
   type tcp = { 
     tcpSrc : tpPort; 
     tcpDst : tpPort;
-    tcpSeq : Word32.t;
-    tcpAck : Word32.t; 
-    tcpOffset : Word8.t;
-    tcpFlags : Word16.t;
-    tcpWindow : Word16.t; 
-    tcpChksum : Word8.t;
-    tcpUrgent : Word8.t;
+    tcpSeq : Int32.t;
+    tcpAck : Int32.t; 
+    tcpOffset : int;
+    tcpFlags : int;
+    tcpWindow : int; 
+    tcpChksum : int;
+    tcpUrgent : int;
     tcpPayload : bytes 
   }
 
   type icmp = { 
-    icmpType : Word8.t; 
-    icmpCode : Word8.t;
-    icmpChksum : Word16.t;
+    icmpType : int; 
+    icmpCode : int;
+    icmpChksum : int;
     icmpPayload : bytes }
 
   type tpPkt =
@@ -39,15 +39,15 @@ module Types : sig
     | TpUnparsable of nwProto * bytes
 
   type ip = { 
-    pktIPVhl : Word8.t;
+    pktIPVhl : int;
     pktIPTos : nwTos;
-    pktIPLen : Word16.t;
-    pktIPIdent : Word16.t; 
-    pktIPFlags : Word8.t;
-    pktIPFrag : Word16.t;
-    pktIPTtl : Word8.t;
+    pktIPLen : int;
+    pktIPIdent : int; 
+    pktIPFlags : int;
+    pktIPFrag : int;
+    pktIPTtl : int;
     pktIPProto : nwProto;
-    pktIPChksum : Word16.t;
+    pktIPChksum : int;
     pktIPSrc : nwAddr;
     pktIPDst : nwAddr;
     pktTpHeader : tpPkt 
@@ -72,6 +72,7 @@ module Types : sig
   }
 end
   with type packet = NetworkPacket.packet
+  and type portId = int
 
 module Parser : sig
 
