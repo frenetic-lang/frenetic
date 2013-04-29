@@ -38,29 +38,32 @@ Module Type ACTION.
   Definition apply_action (action : t) (ptpk : portId * packet) :=
     filter_map (fun a => apply_atom a ptpk) (atoms action).
 
-  (** [mask_pat atom pat] transforms [pat] to account for how [atom]
-       modifies packets. If [pat] matches an input packet [(pt,pk)],
-       then the transformed pattern matches the output [apply_atom
-       atom (pt,pk)], and vice versa.
-
-       Therefore, in a flow table, if [pat] is the pattern in a rule
-       and [atom] is an action, [mask_pat] can be used to match the
-       packets that [atom] produces. *)
-  Parameter mask_pat : e -> pattern -> pattern.
-
   (** Parallel composition with [drop] as the identify. *)
   Parameter par_action : t -> t -> t.
 
   (** Sequential composition with [drop] as its annihilator. *)
   Parameter seq_action : t -> t -> t.
 
+
+
+  (** [restrict_range atom pat] transforms [pat] to account for how [atom]
+       modifies packets. If [pat] matches an input packet [(pt,pk)],
+       then the transformed pattern matches the output [apply_atom
+       atom (pt,pk)], and vice versa.
+
+       Therefore, in a flow table, if [pat] is the pattern in a rule
+       and [atom] is an action, [restrict_range] can be used to match the
+       packets that [atom] produces. *)
+  Parameter restrict_range : e -> pattern -> pattern.
+
+
   (** Some atomic actions, such as modifications, only apply to
       certain packets. Such conditional actions can only be realized
-      in OpenFlow using flow tables. The compile function produces a
+      in OpenFlow using flow tables. The [domain] function produces a
       classifier with the same semantics as the given action. However,
       each rule in the classifier is predicated so that they can
       safely apply unconditionally when the predicate holds. *)
-  Parameter guard : e -> pattern.
+  Parameter domain : e -> pattern.
 
 End ACTION.
 
@@ -76,17 +79,27 @@ Module Type MAKE_ACTION_SPEC (Action_ : ACTION).
   
       The idea is that after being transformed to pk0, the packet matches the pattern.
       However, we can use the mask to instead match the pre-image of the action. *)
-  Parameter mask_pat_spec : 
+  Parameter restrict_range_spec : 
     forall (a : e) (pat : pattern) pt pk pt0 pk0,
       Some (pt0,pk0) = apply_atom a (pt,pk) ->
-      Pattern.match_packet pt pk (mask_pat a pat) = 
+      Pattern.match_packet pt pk (restrict_range a pat) = 
       Pattern.match_packet pt0 pk0 pat.
 
   (** If pk is not in the domain of the pattern, then mask excludes it entirely. *)
-  Parameter mask_pat_spec2 : 
+  Parameter restrict_range_spec2 : 
     forall (a : e) (pat : pattern) pt pk,
       None = apply_atom a (pt,pk) ->
-      Pattern.match_packet pt pk (mask_pat a pat) = false.
+      Pattern.match_packet pt pk (restrict_range a pat) = false.
+
+  Parameter restrict_domain_spec1 :
+    forall e pt pk pk',
+      Some pk' = apply_atom e (pt, pk) <->
+      Pattern.match_packet pt pk (domain e) = true.
+
+  Parameter restrict_domain_spec2 : forall e pt pk,
+      None = apply_atom e (pt, pk) <->
+      Pattern.match_packet pt pk (domain e) = false.
+
 
   Parameter seq_distr : 
     forall a0 a1 a2, 

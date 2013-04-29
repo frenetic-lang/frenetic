@@ -91,7 +91,7 @@ Module Make (Action_ : ACTION) <: CLASSIFIER.
     match tbl with
       | nil => nil
       | ((p,a) :: tbl') => 
-        (Pattern.inter p1 (Action.mask_pat atom p),
+        (Pattern.inter p1 (Pattern.inter (Action.domain atom) (Action.restrict_range atom p)),
          a1; a) 
           :: (Pick p1 a1 atom tbl')
     end.

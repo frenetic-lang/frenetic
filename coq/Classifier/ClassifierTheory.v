@@ -641,7 +641,8 @@ Module Make
       destruct a as [p a].
       unfold scan.
       simpl.
-      apply mask_pat_spec2  with (pat:=p) in H.
+      apply restrict_range_spec2  with (pat:=p) in H.
+      rewrite -> Pattern.no_match_subset_r...
       rewrite -> Pattern.no_match_subset_r...
     Qed.
 
@@ -679,15 +680,18 @@ Module Make
             unfold scan.
             simpl.
             rewrite <- IHtbl.
-            remember (Pattern.match_packet pt pk (mask_pat a pat0))
+            remember (Pattern.match_packet pt pk (restrict_range a pat0))
               as b eqn:Hb.
             destruct b.
             * rewrite -> Pattern.is_match_true_inter...
-              erewrite -> mask_pat_spec in Hb; eauto.
+              erewrite -> restrict_range_spec in Hb; eauto.
               rewrite <- Hb...
+              rewrite -> Pattern.is_match_true_inter...
+              apply restrict_domain_spec1 in Heqr...
             * rewrite -> Pattern.no_match_subset_r...
-              erewrite -> mask_pat_spec in Hb; eauto.
-              rewrite <- Hb... }
+              erewrite -> restrict_range_spec in Hb; eauto.
+              rewrite <- Hb...
+              rewrite -> Pattern.no_match_subset_r... }
       + rewrite -> pick_unmasked...
         rewrite -> par_drop_l...
     Qed.
@@ -698,6 +702,7 @@ Module Make
 
     Axiom union_comm : forall tbl1 tbl2, union tbl1 tbl2 = union tbl2 tbl1.
 
+(*
     Lemma pick_in :
       forall pt pk pat act atom tbl,
         true = Pattern.match_packet pt pk pat ->
@@ -717,10 +722,12 @@ Module Make
           eexists. eexists.
           split. left. reflexivity. 
           rewrite -> Pattern.is_match_true_inter...
+          symmetry in H.
+          rewrite <- restrict_domain_spec1 in H.
           admit. (* check *)
         * apply total_pop in H0.
           destruct p as [p1 a1].
-          remember (Pattern.match_packet pt pk (mask_pat atom pat1)) as b.
+          remember (Pattern.match_packet pt pk (restrict_range atom pat1)) as b.
           { destruct b.
             + do 2 eexists.
               split. left. reflexivity. rewrite -> Pattern.is_match_true_inter...
@@ -731,6 +738,7 @@ Module Make
               * simpl. right. simpl in HIn. exact HIn.
               * trivial. }
     Qed.
+*)
 
     Lemma union_nil_r : forall tbl, union tbl nil = tbl.
     Proof with auto with datatypes.
