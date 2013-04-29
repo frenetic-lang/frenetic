@@ -372,6 +372,18 @@ Section Optimizer.
 
 End Optimizer.
 
+
+Lemma scan_app_compose : 
+  forall (A : Type) pt pk (z : A) lst1 lst2,
+    scan z (lst1 ++ lst2) pt pk = scan (scan z lst2 pt pk) lst1 pt pk.
+Proof with auto with datatypes.
+  intros.
+  induction lst1...
+  destruct a.
+  simpl.
+  rewrite -> IHlst1...
+Qed.
+
 Section Action.
   
   Variable A : Type.
@@ -427,15 +439,6 @@ Section Action.
   Qed.
 
 
-  Lemma scan_app_compose : forall pt pk lst1 lst2,
-    scan false (lst1 ++ lst2) pt pk = scan (scan false lst2 pt pk) lst1 pt pk.
-  Proof with auto with datatypes.
-    intros.
-    induction lst1...
-    destruct a.
-    simpl.
-    rewrite -> IHlst1...
-  Qed.
 
   Lemma scan_full_false : forall lst pat pt pk,
     scan false (inter_entry andb lst (pat, false)) pt pk = false.
@@ -455,7 +458,7 @@ Section Action.
      intros.
      destruct b...
      simpl.
-     rewrite <- scan_app_compose.
+     rewrite <- (scan_app_compose pt pk false).
      induction cf2...
      destruct a.
      simpl.

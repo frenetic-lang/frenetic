@@ -77,7 +77,7 @@ Section Sequencing.
   Variable seq_action : A -> A -> A.
 
   Definition sequence_atom (p1 : pattern) (a1 : A) (p2 : pattern) (a2 : A) :=
-    (Pattern.inter p1 (Pattern.mask (Pattern.inter p1 (mask a2)) (mask a2)),
+    (Pattern.inter p1 (Pattern.mask (Pattern.inter p2 (mask a2)) (mask a2)),
      seq_action a1 a2).
 
   Definition sequence_helper (p1 : pattern) (a1 : A) (tbl2 : Classifier A) :=
