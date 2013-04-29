@@ -12,27 +12,41 @@ Require Import Classifier.Classifier.
 Local Open Scope list_scope.
 Local Open Scope equiv_scope.
 
-Section Equivalence.
+Class Action `(A : Type) := {
+  action_eqdec : forall (x y : A), { x = y } + { x <> y };
+  zero : A;
+  par_action : A -> A -> A;
+  seq_action : A -> A -> A;
+  par_zero_l : forall a, par_action zero a = a;
+  par_zero_r : forall a, par_action a zero = a;
+  seq_zero_l : forall a, seq_action zero a = zero;
+  seq_zero_r : forall a, seq_action a zero = zero;
+  interp_action : A -> portId -> packet -> list (portId * packet)
+}.
 
-  Definition Classifier_equiv {A : Type} (cf1 cf2 : Classifier A) :=
-    forall pt pk def, scan def cf1 pt pk = scan def cf2 pt pk.
+(* TODO(arjun): need the action to be zero too. *)
+Inductive total (A : Type) : Classifier A -> Prop :=
+| total_tail : forall a cf,
+  total (cf ++ [(Pattern.all, a)]).
 
-  Lemma Classifier_equiv_is_Equivalence : forall {A : Type},
+Definition Classifier_equiv {A : Type} (cf1 cf2 : Classifier A) :=
+  forall pt pk def, scan def cf1 pt pk = scan def cf2 pt pk.
+
+Lemma Classifier_equiv_is_Equivalence : 
+  forall {A : Type},
     Equivalence (@Classifier_equiv A).
-  Proof with auto.
-    intros.
-    split.
-    unfold Reflexive.
-    unfold Classifier_equiv...
-    unfold Symmetric.
-    unfold Classifier_equiv...
-    unfold Transitive.
-    unfold Classifier_equiv.
-    intros.
-    rewrite -> H...
-  Qed.
-
-End Equivalence.
+Proof with auto.
+  intros.
+  split.
+  unfold Reflexive.
+  unfold Classifier_equiv...
+  unfold Symmetric.
+  unfold Classifier_equiv...
+  unfold Transitive.
+  unfold Classifier_equiv.
+  intros.
+  rewrite -> H...
+Qed.
 
 Instance Classifier_Equivalance `(A : Type) : 
   Equivalence (@Classifier_equiv A).
@@ -40,19 +54,6 @@ Proof.
   apply Classifier_equiv_is_Equivalence.
 Qed.
 
-Class ClassifierAction `(A : Type) := {
-  action_eqdec : forall (x y : A), { x = y } + { x <> y };
-  zero : A
-}.
-
-Definition has_unit {A : Type} {Act : ClassifierAction A} 
-  (f : A -> A -> A) : Prop :=
-  (forall a, f a zero = a) /\ forall a, f zero a = a.
-
-
-Inductive total (A : Type) : Classifier A -> Prop :=
-| total_tail : forall a cf,
-  total (cf ++ [(Pattern.all, a)]).
 
 Section Lemmas.
 
@@ -387,32 +388,12 @@ Qed.
 Section Action.
   
   Variable A : Type.
-  Variable A_as_Action : ClassifierAction A.
+  Variable A_as_Action : Action A.
   
   Implicit Arguments A.
   Implicit Arguments A_as_Action.
   
-  Definition left_biased (a b : A) := 
-    match action_eqdec a zero with
-      | left _ => b
-      | right _ => a
-    end.
-  
-  Lemma left_biased_has_unit : has_unit left_biased.
-  Proof with auto.
-    unfold left_biased.
-    split; intros.
-    remember (action_eqdec a zero) as b.
-    destruct b...
-    remember (action_eqdec zero zero) as b.
-    destruct b...
-    contradiction n...
-  Qed.
-
-  Hint Resolve left_biased_has_unit.
-  
   Hint Constructors total.
-  
   
   Lemma inter_entry_app : forall cf1 cf2 m (a : A) (f : A -> A -> A),
     inter_entry f (cf1 ++ cf2) (m,a) = 
@@ -437,7 +418,6 @@ Section Action.
     + rewrite -> Pattern.is_match_true_inter...
     + rewrite -> Pattern.no_match_subset_r...
   Qed.
-
 
 
   Lemma scan_full_false : forall lst pat pt pk,
@@ -502,7 +482,8 @@ Section Action.
   
   Lemma inter_comm_bool_range : forall (cf1 cf2 : Classifier bool)
     (pt : portId) (pk : packet),
-    @scan bool false (inter andb cf1 cf2) pt pk = andb (scan false cf1 pt pk) (scan false cf2 pt pk).
+    @scan bool false (inter andb cf1 cf2) pt pk = 
+    andb (scan false cf1 pt pk) (scan false cf2 pt pk).
   Proof with auto with datatypes.
     intros.
     induction cf1.
@@ -535,121 +516,126 @@ Section Action.
       - rewrite -> elim_inter_head...
   Qed.
 
-  Lemma union_scan_comm : forall (f : A -> A -> A) pt pk cf1 cf2,
-    has_unit f ->
-    scan zero (union f cf1 cf2) pt pk = 
-    f (scan zero cf1 pt pk) (scan zero cf2 pt pk).
+  Lemma union_scan_comm : forall pt pk cf1 cf2,
+    scan zero (union par_action cf1 cf2) pt pk = 
+    par_action (scan zero cf1 pt pk) (scan zero cf2 pt pk).
   Proof with simpl; eauto with datatypes.
-    intros f pt pk cf1 cf2 H.
-    remember H as Hwb.
-    destruct H as [H H0].
+    intros pt pk cf1 cf2.
     induction cf1.
-      (* Base case *)
-    rewrite -> H0... 
+    (* Base case *)
+    simpl.
+    rewrite -> par_zero_l...
     (* Inductive case *)
     unfold union.
     destruct a as [m a].
     remember (Pattern.match_packet pt pk m).
-    remember (scan_inv zero pk pt (inter f ((m, a) :: cf1) cf2 ++ ((m, a) :: cf1) ++ cf2)) as H1. clear HeqH1.
-    destruct H1.
-    destruct H1 as [H1 H2].
-    (* Case: scan falls off the table. *)
-    rewrite -> H2.
-    assert (Pattern.match_packet pt pk m = false) as HnotA.
-    apply H1 with (a0 := a)...
-    simpl in H2.
-    rewrite <- app_assoc in H2.
-    rewrite -> elim_inter_head in H2...
-    assert ((m,a) :: cf1 ++ cf2 = [(m,a)] ++ cf1 ++ cf2) as Hcf. auto.
-    rewrite -> Hcf in H2.
-    rewrite -> elim_scan_middle in H2.
-    rewrite -> HnotA.
-    rewrite <- IHcf1.
-    unfold union...
-    exact f.
-    intros. inversion H3. inversion H4. subst... inversion H4.
+    remember 
+      (scan_inv 
+         zero pk pt 
+         (inter par_action ((m, a) :: cf1) cf2 ++ ((m, a) :: cf1) ++ cf2)) as H1; clear HeqH1.
+    destruct H1 as [H1| H1].
+    + destruct H1 as [H1 H2].
+      (* Case: scan falls off the table. *)
+      rewrite -> H2.
+      assert (Pattern.match_packet pt pk m = false) as HnotA.
+      apply H1 with (a0 := a)...
+      simpl in H2.
+      rewrite <- app_assoc in H2.
+      rewrite -> elim_inter_head in H2...
+      assert ((m,a) :: cf1 ++ cf2 = [(m,a)] ++ cf1 ++ cf2) as Hcf. auto.
+      rewrite -> Hcf in H2.
+      rewrite -> elim_scan_middle in H2.
+      rewrite -> HnotA.
+      rewrite <- IHcf1.
+      unfold union...
+      exact par_action.
+      intros.
+      simpl in H. inversion H. inversion H0; subst... inversion H0.
     (* Case: scan does not fall off. *)
-    destruct H1 as [cf3 [cf4 [m0 [a0 [H1 [H2 [H3 H4]]]]]]]. 
-    destruct b.
-    clear IHcf1.
-    rewrite <- app_comm_cons.
-    (* Case where pkt is in m *)
-    remember (scan_inv zero pk pt cf2) as Hinv. clear HeqHinv.
-    destruct Hinv as [[H5 H6]|Hinv].
-    rewrite -> H6.
-    assert (forall m'  (a' : A), In (m',a') (inter f ((m, a) :: cf1) cf2) ->
-      Pattern.match_packet pt pk m' = false) as H7.
-    apply inter_empty; auto.
-    assert (scan zero (inter f ((m, a) :: cf1) cf2 ++ 
-      (m, a) :: cf1 ++ cf2) pt pk =
-    scan zero ((m,a) :: cf1 ++ cf2) pt pk) as HelimHd.
-    apply elim_scan_head; auto.
-    rewrite -> HelimHd.
-    assert ((m,a) :: cf1 ++ cf2 = 
-      nil ++ (m,a) :: cf1 ++ cf2) as HNilHd by auto.
-    rewrite -> HNilHd.
-    rewrite -> elim_scan_tail.
-    rewrite -> app_nil_l.
-    rewrite -> H.
-    reflexivity.
-    auto.
-    destruct Hinv as [N2' [N3' [m' [a' [Heq' [Hlap' [Hscan' Hlap2']]]]]]].
-    match goal with
-      | [ |- ?X = ?Y ] => remember Y as RHS end.
-    assert (RHS = f a a') as HRHS.
-    rewrite -> HeqRHS.
-    simpl.
-    rewrite <- Heqb.
-    rewrite -> Hscan'...
-    simpl.
-    match goal with
-      | [ |- context[fold_right ?f ?acc ?lst]] => remember (fold_right f acc lst) as F
-    end.
-    rewrite <- app_assoc.
-    remember (inter f cf1 cf2 ++ (m,a) :: cf1 ++ cf2) as Trash.
-    assert (forall m5 (a5 : A), 
-      In (m5,a5) (fold_right
-        (fun (v' : pattern * A) (acc : list (pattern * A)) =>
-          let (pat', act') := v' in (Pattern.inter m pat', f a act') :: acc) 
-        nil N2')  ->
-      Pattern.match_packet pt pk m5  = false) as HOMG.
-    match goal with
-      | [ |- context[fold_right ?f ?acc ?lst]] => remember (fold_right f acc lst) as F1
-    end.
-    assert (F1 = inter f [(m,a)] N2') as HF1.
-    simpl. rewrite -> app_nil_r. rewrite -> HeqF1...
-    rewrite -> HF1.
-    apply inter_empty; auto.
-    rewrite -> Heq' in HeqF.
-    assert (F = inter_entry f (N2' ++ (m',a') :: N3') (m,a)).
-    rewrite -> HeqF. simpl. auto.
-    assert ( (fold_right
-      (fun (v' : pattern * A) (acc : list (pattern * A)) =>
-        let (pat', act') := v' in (Pattern.inter m pat', f a act') :: acc)
-      nil N2') = inter_entry f N2' (m,a)). simpl. auto.
-    rewrite -> H6 in HOMG.
-    rewrite -> H5.
-    rewrite -> inter_entry_app.
-    rewrite <- app_assoc.
-    rewrite -> elim_scan_head.
-    simpl.
-    rewrite -> Pattern.is_match_true_inter...
-    auto.
-    
-    assert ((m,a) :: cf1 = [(m,a)] ++ cf1) as Hsimpl. auto.
-    rewrite -> Hsimpl. 
-    rewrite <- app_assoc.  
-    rewrite -> elim_scan_middle with (cf2 := [(m,a)]).
-    rewrite <- Hsimpl. clear Hsimpl.
-    simpl.
-    rewrite <- app_assoc.  
-    rewrite -> elim_inter_head.
-    rewrite <- Heqb.
-    unfold union in IHcf1.
-    trivial.
-    auto.
-    exact f.
-    intros. inversion H5. inversion H6. subst... inversion H6.
+    + destruct H1 as [cf3 [cf4 [m0 [a0 [H1 [H2 [H3 H4]]]]]]]. 
+      destruct b.
+      clear IHcf1.
+      rewrite <- app_comm_cons.
+      (* Case where pkt is in m *)
+      remember (scan_inv zero pk pt cf2) as Hinv eqn:X; clear X.
+      destruct Hinv as [[H5 H6]|Hinv].
+      rewrite -> H6.
+      assert (forall m'  (a' : A),
+                In (m',a') (inter par_action ((m, a) :: cf1) cf2) ->
+                Pattern.match_packet pt pk m' = false) as H7.
+      apply inter_empty; auto.
+      assert (scan zero (inter par_action ((m, a) :: cf1) cf2 ++ 
+                               (m, a) :: cf1 ++ cf2) pt pk =
+              scan zero ((m,a) :: cf1 ++ cf2) pt pk) as HelimHd.
+      apply elim_scan_head; auto.
+      rewrite -> HelimHd.
+      assert ((m,a) :: cf1 ++ cf2 = 
+              nil ++ (m,a) :: cf1 ++ cf2) as HNilHd by auto.
+      rewrite -> HNilHd.
+      rewrite -> elim_scan_tail.
+      rewrite -> app_nil_l.
+      rewrite -> par_zero_r...
+      auto.
+      destruct Hinv as [N2' [N3' [m' [a' [Heq' [Hlap' [Hscan' Hlap2']]]]]]].
+      match goal with
+        | [ |- ?X = ?Y ] => remember Y as RHS end.
+      assert (RHS = par_action a a') as HRHS.
+      rewrite -> HeqRHS.
+      simpl.
+      rewrite <- Heqb.
+      rewrite -> Hscan'...
+      simpl.
+      match goal with
+        | [ |- context[fold_right ?f ?acc ?lst]] => remember (fold_right f acc lst) as F
+      end.
+      rewrite <- app_assoc.
+      remember (inter par_action cf1 cf2 ++ (m,a) :: cf1 ++ cf2) as Trash.
+      assert
+        (forall m5 (a5 : A), 
+           In (m5,a5) (fold_right
+                         (fun (v' : pattern * A) (acc : list (pattern * A)) =>
+                            let (pat', act') := v' in (Pattern.inter m pat', 
+                                                       par_action a act') :: acc) 
+                         nil N2')  ->
+           Pattern.match_packet pt pk m5  = false) as HOMG.
+      match goal with
+        | [ |- context[fold_right ?f ?acc ?lst]] => remember (fold_right f acc lst) as F1
+      end.
+      assert (F1 = inter par_action [(m,a)] N2') as HF1.
+      simpl. rewrite -> app_nil_r. rewrite -> HeqF1...
+      rewrite -> HF1.
+      apply inter_empty; auto.
+      rewrite -> Heq' in HeqF.
+      assert (F = inter_entry par_action (N2' ++ (m',a') :: N3') (m,a)).
+      rewrite -> HeqF. simpl. auto.
+      assert ( (fold_right
+                  (fun (v' : pattern * A) (acc : list (pattern * A)) =>
+                     let (pat', act') := v' in (Pattern.inter m pat', par_action a act') :: acc)
+                  nil N2') = inter_entry par_action N2' (m,a)).
+      { simpl. auto. }
+      rewrite -> H0 in HOMG.
+      rewrite -> H.
+      rewrite -> inter_entry_app.
+      rewrite <- app_assoc.
+      rewrite -> elim_scan_head.
+      simpl.
+      rewrite -> Pattern.is_match_true_inter...
+      auto.
+      assert ((m,a) :: cf1 = [(m,a)] ++ cf1) as Hsimpl. auto.
+      rewrite -> Hsimpl. 
+      rewrite <- app_assoc.  
+      rewrite -> elim_scan_middle with (cf2 := [(m,a)]).
+      rewrite <- Hsimpl. clear Hsimpl.
+      simpl.
+      rewrite <- app_assoc.  
+      rewrite -> elim_inter_head.
+      rewrite <- Heqb.
+      unfold union in IHcf1.
+      trivial.
+      auto.
+      exact par_action. 
+      { intros.
+        simpl in H. inversion H. inversion H0. subst... inversion H0. }
   Qed.
 
   Lemma prefix_equivalence : forall cf1 cf2 pt pk,
