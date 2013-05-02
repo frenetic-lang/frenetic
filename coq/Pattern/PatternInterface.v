@@ -13,10 +13,6 @@ Module Type PATTERN.
 
   Parameter inter : t -> t -> t.
 
-  (** [mask pat1 pat2] is the same as pat1, but wildcards any fields that pat2
-      matches exactly. *)
-  Parameter mask : t -> t -> t.
-
   Parameter all : t.
 
   Parameter empty : t.
@@ -63,6 +59,23 @@ Module Type PATTERN.
   Parameter udpSrcPort : tpPort -> t.
 
   Parameter udpDstPort : tpPort -> t.
+
+  (** The [set*] functions update fields in the pattern if the update respects
+      dependencies. If not, the pattern is unmodified. E.g., [setNwSrc] will
+      update a pattern only if its frame-type is IP. *)
+  Section Setters.
+
+    Parameter setDlSrc : dlAddr -> t -> t.
+    Parameter setDlDst : dlAddr -> t -> t.
+(*    Parameter setDlVlan : NetworkPacket.dlVlan -> t -> t.
+    Parameter setDlVlanPcp : NetworkPacket.dlVlanPcp -> t -> t.
+    Parameter setNwSrc : nwAddr -> t -> t.
+    Parameter setNwDst : nwAddr -> t -> t.
+    Parameter setNwTos : nwTos -> t -> t.
+    Parameter setTpSrc : tpPort -> t -> t.
+    Parameter setTpDst : tpPort -> t -> t. *)
+
+  End Setters.
 
   (** Pattern equivalence *)
 

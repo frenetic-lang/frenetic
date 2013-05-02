@@ -381,31 +381,31 @@ Definition to_all {A : Type} (w : Wildcard A) (b : bool) :=
     | false => w
   end.          
 
-Definition mask (pat1 pat2 : pattern) : pattern :=
-  match (pat1, pat2) with
-    | (Pattern dlSrc dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
-               nwProto nwTos tpSrc tpDst inPort,
-       Pattern dlSrc' dlDst' dlTyp' dlVlan' dlVlanPcp' nwSrc' nwDst'
-               nwProto' nwTos' tpSrc' tpDst' inPort') =>
-      to_valid
-        (Pattern 
-           (to_all dlSrc (Wildcard.is_exact dlSrc'))
-           (to_all dlDst (Wildcard.is_exact dlDst'))
-           (to_all dlTyp (Wildcard.is_exact dlTyp'))
-           (to_all dlVlan (Wildcard.is_exact dlVlan'))
-           (to_all dlVlanPcp (Wildcard.is_exact dlVlanPcp'))
-           (to_all nwSrc (Wildcard.is_exact nwSrc'))
-           (to_all nwDst (Wildcard.is_exact nwDst'))
-           (to_all nwProto (Wildcard.is_exact nwProto'))
-           (to_all nwTos (Wildcard.is_exact nwTos'))
-           (to_all tpSrc (Wildcard.is_exact tpSrc'))
-           (to_all tpDst (Wildcard.is_exact tpDst'))
-           (to_all inPort (Wildcard.is_exact inPort')))
-  end.
+Section Setters.
 
-  (** Based on the flow chart on Page 8 of OpenFlow 1.0 specification. In
+  Definition setDlSrc dlSrc pat := 
+    match pat with
+    | (Pattern _ dlDst dlTyp dlVlan dlVlanPcp nwSrc nwDst
+               nwProto nwTos tpSrc tpDst inPort) =>
+      to_valid (Pattern (WildcardExact dlSrc)   dlDst dlTyp dlVlan dlVlanPcp 
+                        nwSrc nwDst nwProto nwTos 
+                        tpSrc tpDst inPort)
+    end.
+
+  Definition setDlDst dlDst pat := 
+    match pat with
+    | (Pattern dlSrc _ dlTyp dlVlan dlVlanPcp nwSrc nwDst
+               nwProto nwTos tpSrc tpDst inPort) =>
+      to_valid (Pattern dlSrc (WildcardExact dlDst) dlTyp dlVlan dlVlanPcp
+                        nwSrc nwDst
+                        nwProto nwTos 
+                        tpSrc tpDst inPort)
+    end.
+
+End Setters.
+
+(** Based on the flow chart on Page 8 of OpenFlow 1.0 specification. In
       a ValidPattern, all exact-match fields are used to match packets. *)
-
 Inductive ValidPattern : pattern -> Prop :=
 | ValidPat_TCPUDP : forall dlSrc dlDst dlVlan dlVlanPcp nwSrc nwDst 
     nwTos tpSrc tpDst inPort nwProto,

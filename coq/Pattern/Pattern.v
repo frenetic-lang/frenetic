@@ -5,7 +5,7 @@ Require Import Pattern.PatternImplTheory.
 Require Import Pattern.PatternInterface.
 Require Import Coq.Lists.List.
 Require Import Wildcard.Wildcard.
-Require Import Network.NetworkPacket.
+Require  Network.NetworkPacket.
 Require Import Coq.Classes.Equivalence.
 
 Local Open Scope equiv_scope.
@@ -30,16 +30,15 @@ Module Pattern : PATTERN.
 
   Axiom to_valid_is_Valid : forall p, ValidPattern (to_valid p).
 
-  Lemma mask_is_valid : forall p1 p2, ValidPattern (mask p1 p2).
-  Proof with auto.
-    intros.
-    unfold mask.
-    destruct p1.
-    destruct p2.
-    apply to_valid_is_Valid...
-  Qed.
+  Section Setters.
 
-  Definition mask (p1 p2 : t) : t := Pat (mask_is_valid (raw p1) (raw p2)).
+    Definition setDlSrc x p := 
+      Pat (to_valid_is_Valid (to_valid (setDlSrc x (raw p)))).
+
+    Definition setDlDst x p := 
+      Pat (to_valid_is_Valid (to_valid (setDlDst x (raw p)))).
+
+  End Setters.
 
   Lemma all_is_Valid : ValidPattern all.
   Proof.
@@ -178,7 +177,7 @@ Module Pattern : PATTERN.
         (Pattern
           WildcardAll
           WildcardAll
-          (WildcardExact Const_0x800)
+          (WildcardExact NetworkPacket.Const_0x800)
           WildcardAll
           WildcardAll
           (WildcardExact addr)
@@ -195,7 +194,7 @@ Module Pattern : PATTERN.
         (Pattern
           WildcardAll
           WildcardAll
-          (WildcardExact Const_0x800)
+          (WildcardExact NetworkPacket.Const_0x800)
           WildcardAll
           WildcardAll
           WildcardAll
@@ -212,7 +211,7 @@ Module Pattern : PATTERN.
         (Pattern
           WildcardAll
           WildcardAll
-          (WildcardExact Const_0x800)
+          (WildcardExact NetworkPacket.Const_0x800)
           WildcardAll
           WildcardAll
           WildcardAll
@@ -229,7 +228,7 @@ Module Pattern : PATTERN.
         (Pattern
           WildcardAll
           WildcardAll
-          (WildcardExact Const_0x800)
+          (WildcardExact NetworkPacket.Const_0x800)
           WildcardAll
           WildcardAll
           WildcardAll
@@ -246,7 +245,7 @@ Module Pattern : PATTERN.
         (Pattern
           WildcardAll
           WildcardAll
-          (WildcardExact Const_0x800)
+          (WildcardExact NetworkPacket.Const_0x800)
           WildcardAll
           WildcardAll
           WildcardAll
@@ -258,12 +257,12 @@ Module Pattern : PATTERN.
           WildcardAll)
         (@ValidPat_TCPUDP _ _ _ _ _ _ _ _ (WildcardExact tpPort) _ _ H).
 
-    Lemma TCP_is_supported : In Const_0x6 SupportedNwProto.
+    Lemma TCP_is_supported : In NetworkPacket.Const_0x6 SupportedNwProto.
     Proof with auto with datatypes.
       unfold SupportedNwProto...
     Qed.
 
-    Lemma UDP_is_supported : In Const_0x7 SupportedNwProto.
+    Lemma UDP_is_supported : In NetworkPacket.Const_0x7 SupportedNwProto.
     Proof with auto with datatypes.
       unfold SupportedNwProto...
     Qed.
@@ -362,7 +361,7 @@ Section Lemmas.
   Qed.
 
   Lemma is_match_false_inter_l :
-    forall pt (pkt : packet) pat1 pat2,
+    forall pt (pkt : NetworkPacket.packet) pat1 pat2,
       match_packet pt pkt pat1 = false ->
       match_packet pt pkt (inter pat1 pat2) = false.
   Proof with eauto.
@@ -372,7 +371,7 @@ Section Lemmas.
   Qed.
 
   Lemma is_match_false_inter_r :
-    forall pt (pkt : packet) pat1 pat2,
+    forall pt (pkt : NetworkPacket.packet) pat1 pat2,
       match_packet pt pkt pat2 = false ->
       match_packet pt pkt (inter pat1 pat2) = false.
   Proof with eauto.
