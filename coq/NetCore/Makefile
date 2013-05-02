@@ -2,8 +2,6 @@ MODULES := \
   NetCoreAction \
   NetCoreEval \
   NetCoreCompiler \
-	Verifiable \
-  NetCoreTheorems \
   NetCoreController
 
 VS := $(MODULES:%=%.v)

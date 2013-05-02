@@ -8,6 +8,7 @@ Require Import Pattern.Pattern.
 (* TODO: MJR Move 'switchId' from messagesDef so that we don't have to include this whole thing *)
 Require Import OpenFlow.OpenFlow0x01Types.
 Require Import Network.NetworkPacket.
+Require Import NetCore.NetCoreAction.
 
 Set Implicit Arguments.
 
@@ -33,28 +34,33 @@ Fixpoint compile_pred (opt : Classifier bool -> Classifier bool)
     | PrNone => []
   end.
 
-Definition apply_act (a : act) (b : bool) := 
+Definition maybe_action (a : NetCoreAction.t) (b : bool) := 
   match b with
     | true => a
-    | false => empty_action
+    | false => NetCoreAction.zero
   end.
 
 (** TODO(arjun): rank-2 polymorphism. The extracted code makes me nervous. *)
 Fixpoint compile_pol 
   (opt : forall (A : Type), Classifier A -> Classifier A) 
-  (p : pol) (sw : switchId) : Classifier act :=
+  (p : pol) (sw : switchId) : Classifier NetCoreAction.t :=
   match p with
     | PoAtom pr act => 
-      opt _ (map (second (apply_act act)) 
+      opt _ (map (second (maybe_action act)) 
                  (compile_pred (opt bool) pr sw ++ [(Pattern.all, false)]))
     | PoUnion pol1 pol2 => 
-      opt _ (union par_action
+      opt _ (union NetCoreAction.par_action
                    (compile_pol opt pol1 sw) 
                    (compile_pol opt pol2 sw))
     | PoSeq pol1 pol2 =>
-      opt _ (sequence action_mask seq_action 
-                   (compile_pol opt pol1 sw) 
-                   (compile_pol opt pol2 sw))
+      opt _ (sequence 
+               NetCoreAction.zero
+               NetCoreAction.par_action
+               NetCoreAction.seq_action 
+               NetCoreAction.mask_pat
+               NetCoreAction.atoms
+               (compile_pol opt pol1 sw) 
+               (compile_pol opt pol2 sw))
   end.
 
 Fixpoint strip_empty_rules (A : Type) (cf : Classifier A) : Classifier A :=
