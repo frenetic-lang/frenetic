@@ -1,4 +1,5 @@
 MODULES := \
+  NetCoreAction \
   NetCoreEval \
   NetCoreCompiler \
 	Verifiable \
