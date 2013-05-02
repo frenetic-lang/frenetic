@@ -70,30 +70,21 @@ Section Sequencing.
 
   Variable A : Type.
 
-  (** [mask action] returns a pattern for each packet produced by [action]. 
-      See [mask_spec]. *)
-  Variable mask : A -> list pattern.
-  Variable zero : A.
+  (** Returns a pattern that exactly matches all fields that the action affects. *)
+  Variable mask : A -> pattern.
 
+  (** Applies the two actions in turn (left first) *)
   Variable seq_action : A -> A -> A.
-  Variable par_action : A -> A -> A.
 
   Definition sequence_atom (p1 : pattern) (a1 : A) (p2 : pattern) (a2 : A) :=
-    fold_right
-      (fun pkt_mask tbl =>
-         union par_action
-               [(Pattern.inter p1 (Pattern.mask (Pattern.inter p2 pkt_mask) pkt_mask),
-                 seq_action a1 a2)]
-               tbl)
-      [(Pattern.all, zero)]
-      (mask a1).
-
+    (Pattern.inter p1 (Pattern.mask (Pattern.inter p2 (mask a2)) (mask a2)),
+     seq_action a1 a2).
 
   Definition sequence_helper (p1 : pattern) (a1 : A) (tbl2 : Classifier A) :=
      fold_right 
        (fun x acc => 
           match x with
-            | (p2, a2) => sequence_atom p1 a1 p2 a2 ++ acc
+            | (p2, a2) => sequence_atom p1 a1 p2 a2 :: acc
           end)
        nil
        tbl2.

@@ -18,78 +18,11 @@ Require Import NetCore.Verifiable.
 
 Local Open Scope list_scope.
 
-Instance bool_as_Action : Action bool :=  
+Instance bool_as_Action : ClassifierAction bool := 
   {
     zero := false;
-    action_eqdec := bool_dec;
-    par_action := orb;
-    seq_action := andb
+    action_eqdec := bool_dec
   }.
-Proof with auto.
-  + auto.
-  + intros. rewrite -> orb_false_r...
-  + auto.
-  + intros. rewrite -> andb_false_r...
-Qed.
-
-Lemma A_eqdec : forall (a1 a2 : act), { a1 = a2 } + { a1 <> a2 }.
-Proof. repeat decide equality. Qed.
-
-Instance A_as_Action : Action act :=
-  {
-    zero := empty_action;
-    action_eqdec := A_eqdec;
-    par_action := par_action;
-    seq_action := seq_action
-  }.
-Proof with auto.
-  + intros. destruct a. unfold par_action. unfold empty_action. simpl...
-    admit. (* modifications are silly *)
-  + intros. 
-    destruct a. unfold par_action. unfold empty_action. simpl.
-    do 2 rewrite -> app_nil_r...
-  + intros.
-    destruct a. unfold empty_action. unfold seq_action. simpl.
-    admit. (* wrong!!! *)
-  + admit. (* also wrong *)
-Qed.
-
-Lemma eval_par_action : 
-  forall sw pt pk bufId act1 act2, 
-    eval_action (InPkt sw pt pk bufId) (par_action act1 act2) =
-    eval_action (InPkt sw pt pk bufId) act1 ++
-                eval_action (InPkt sw pt pk bufId) act2.
-Proof with auto with datatypes.
-  intros.
-  destruct act1, act2.
-  unfold eval_action.
-  simpl.
-  simpl.
-  (* Requires semantics to produce a bag of outputs. *)
-Admitted.
-
-Lemma par_action_zero_l : forall a, par_action empty_action a = a.
-Proof with auto.
-  intros.
-  destruct a.
-  unfold par_action.
-  unfold empty_action.
-  simpl...
-(* modifications are stupid *)
-Admitted.
-
-Lemma par_action_zero_r : forall a, par_action a empty_action = a.
-Proof with auto.
-  intros.
-  destruct a.
-  unfold par_action.
-  unfold empty_action.
-  simpl...
-  do 2 rewrite -> app_nil_r...
-Qed.
-
-
-
 
 Hint Resolve zero.
 
@@ -172,43 +105,47 @@ Proof with auto.
   simpl...
 Qed.
 
+Lemma A_eqdec : forall (a1 a2 : act), { a1 = a2 } + { a1 <> a2 }.
+Proof. repeat decide equality.  Defined.
 
-Lemma partition_nil_l : 
-  forall (A : Type) (pred : A -> bool) lst lst0, 
-    partition pred lst = (nil, lst0) -> lst = lst0.
+Instance A_as_Action : ClassifierAction act :=
+  {
+    zero := empty_action;
+    action_eqdec := A_eqdec
+  }.
+
+Lemma eval_par_action : 
+  forall sw pt pk bufId act1 act2, 
+    eval_action (InPkt sw pt pk bufId) (par_action act1 act2) =
+    eval_action (InPkt sw pt pk bufId) act1 ++
+                eval_action (InPkt sw pt pk bufId) act2.
 Proof with auto with datatypes.
   intros.
-  generalize dependent lst0.
-  induction lst; intros.
-  + simpl in H.
-    inversion H...
-  + simpl in H.
-    destruct (partition pred lst).
-    destruct (pred a).
-    inversion H.
-    inversion H.
-    subst.
-    erewrite -> IHlst...
-Qed.
+  destruct act1, act2.
+  unfold eval_action.
+  simpl.
+  simpl.
+  (* Requires semantics to produce a bag of outputs. *)
+Admitted.
 
-Lemma partition_nil_r : 
-  forall (A : Type) (pred : A -> bool) lst lst0, 
-    partition pred lst = (lst0, nil) -> lst = lst0.
-Proof with auto with datatypes.
+Lemma par_action_zero_l : forall a, par_action empty_action a = a.
+Proof with auto.
   intros.
-  generalize dependent lst0.
-  induction lst; intros.
-  + simpl in H.
-    inversion H...
-  + simpl in H.
-    destruct (partition pred lst).
-    destruct (pred a).
-    - destruct lst0.
-      * inversion H.
-      * inversion H.
-        subst.
-        f_equal...
-    - inversion H.
+  destruct a.
+  unfold par_action.
+  unfold empty_action.
+  simpl...
+(* modifications are stupid *)
+Admitted.
+
+Lemma par_action_zero_r : forall a, par_action a empty_action = a.
+Proof with auto.
+  intros.
+  destruct a.
+  unfold par_action.
+  unfold empty_action.
+  simpl...
+  do 2 rewrite -> app_nil_r...
 Qed.
 
 Lemma compile_pol_correct :
@@ -222,11 +159,7 @@ Proof with auto.
   intros.
   rename H into HVfPol.
   rename H0 into Heqp.
-  generalize dependent sw.
-  generalize dependent pt.
-  generalize dependent pk.
-  generalize dependent bufid.
-  induction po; intros.
+  induction po.
   + simpl.
     assert (forall cf pt pk, scan empty_action (opt act cf) pt pk = scan empty_action cf pt pk) as J0...
     intros.
@@ -256,42 +189,7 @@ Proof with auto.
     split; intros; rewrite <- J.
     apply par_action_zero_r.
     apply par_action_zero_l.
-  + simpl.
-    assert (empty_action = zero) as J...
-    rewrite -> J in *; clear J.
-    rewrite -> Heqp.
-    rewrite -> IHpo1.
-    2: admit.
-    clear IHpo1.
-    match goal with
-      | [ |- context[partition is_OutPkt ?e] ] => remember (partition is_OutPkt e) as pktQ eqn:Heq
-    end.
-    destruct pktQ as [outPkts1 queries1].
-    assert (queries1 = nil). admit.
-    subst.
-    symmetry in Heq.
-    apply  partition_nil_r in Heq.
-    subst.
-    simpl.
-    match goal with
-      | [ |- context[filter_map ?f ?lst] ] => remember (filter_map f lst) as lst0 eqn:Hlst
-    end.
-    induction lst0.
-    - subst.
-
-
-      (* lots of crap here. But, basically saying that evaluating the action produces nil. *)
-      admit.
-    - 
-
-        inversion H.
-      
-      subst...
-    
-
-    assert (partition is_
-    assert (queries1 = nil). admit.
-    
+  + inversion HVfPol.
 Qed.
 
 Local Open Scope equiv_scope.
