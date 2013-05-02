@@ -10,6 +10,7 @@ Require Import Classifier.Classifier.
 Require Import NetCore.NetCoreEval.
 Require Import NetCore.NetCoreCompiler.
 Require Import OpenFlow.ControllerInterface.
+Require Import NetCore.NetCoreAction.
 
 Local Open Scope list_scope.
 
@@ -38,57 +39,14 @@ End PacketIn.
 
 Section ToFlowMod.
   
-  Definition maybe_openflow0x01_modification {A : Type} (newVal : option A)
-             (mkModify : A -> OpenFlow0x01Types.action) : actionSequence :=
-    match newVal with
-      | None => nil
-      | Some v => [mkModify v]
-    end.
-  
-  Definition modification_to_openflow0x01 (mods : modification) : actionSequence :=
-    match mods with
-      | Modification dlSrc dlDst dlVlan dlVlanPcp 
-                     nwSrc nwDst nwTos
-                     tpSrc tpDst =>
-        maybe_openflow0x01_modification dlSrc SetDlSrc ++
-        maybe_openflow0x01_modification dlDst SetDlDst ++
-        maybe_openflow0x01_modification (withVlanNone dlVlan) SetDlVlan ++
-        maybe_openflow0x01_modification dlVlanPcp SetDlVlanPcp ++
-        maybe_openflow0x01_modification nwSrc SetNwSrc ++
-        maybe_openflow0x01_modification nwDst SetNwDst ++
-        maybe_openflow0x01_modification nwTos SetNwTos ++
-        maybe_openflow0x01_modification tpSrc SetTpSrc ++
-        maybe_openflow0x01_modification tpDst SetTpDst
-    end.
-
-  (** TODO(arjun): This is *wrong*. You can't trivially compile modifications like this.
-   It only works b/c this controller (which we extract for dynamic policies) is unverified. *)
-  Definition translate_action (in_port : option portId) (act : act) : actionSequence :=
-    match act with
-      | Act mods ports queries =>
-        modification_to_openflow0x01 mods ++
-        (List.map 
-           (fun pp =>
-              match pp with
-                | PhysicalPort pt =>
-                  match in_port with
-                    | None => Output (PhysicalPort pt)
-                    | Some pt' => match Word16.eq_dec pt' pt with
-                                    | left _ => Output InPort
-                                    | right _ => Output (PhysicalPort pt)
-                                  end
-                  end
-                | pp => Output pp
-              end) ports)
-    end.
-
-  Definition to_flow_mod (prio : priority) (pat : pattern) (act : act)
+  Definition to_flow_mod (prio : priority) (pat : pattern) 
+             (act : NetCoreAction.t)
              (isfls : Pattern.is_empty pat = false) :=
     let ofMatch := Pattern.to_match isfls in
     FlowMod AddFlow
             ofMatch
             prio
-            (translate_action (matchInPort ofMatch) act)
+            (NetCoreAction.as_actionSequence (matchInPort ofMatch) act)
             Word64.zero
             Permanent
             Permanent
@@ -99,7 +57,7 @@ Section ToFlowMod.
 
   Definition flow_mods_of_classifier lst :=
     List.fold_right
-      (fun (ppa : priority * pattern *  act)
+      (fun (ppa : priority * pattern * NetCoreAction.t)
            (lst : list flowMod) => 
          match ppa with
            | (prio,pat,act) => 
@@ -147,7 +105,7 @@ Module Type NETCORE_MONAD <: CONTROLLER_MONAD.
   Parameter forever : m unit -> m unit.
 
   (** These functions are NetCore-specific. *)
-  Parameter handle_get_packet : id -> switchId -> portId -> packet -> m unit.
+  Parameter handle_get_packet : NetCoreAction.id -> switchId -> portId -> packet -> m unit.
 
 End NETCORE_MONAD.
 

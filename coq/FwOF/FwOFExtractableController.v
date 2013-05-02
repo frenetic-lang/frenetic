@@ -6,6 +6,7 @@ Require Import FwOF.FwOFExtractableSignatures.
 Require OpenFlow.OpenFlow0x01Types.
 Require Network.NetworkPacket.
 Require NetCore.NetCoreEval.
+Require Import NetCore.NetCoreAction.
 Require Import Pattern.Pattern.
 
 Local Open Scope list_scope.
@@ -22,10 +23,9 @@ Module MakeAtoms (Policy : POLICY) <: EXTRACTABLE_ATOMS.
   Definition switchId := OpenFlow.OpenFlow0x01Types.switchId.
   Definition portId := Network.NetworkPacket.portId.
   Definition packet := (Network.NetworkPacket.packet * OpenFlow.OpenFlow0x01Types.bufferId) %type.
-  Definition flowTable := 
-    list (nat * pattern * NetCore.NetCoreEval.act).
+  Definition flowTable := list (nat * pattern * NetCoreAction.t).
   Inductive fm : Type :=
-  | AddFlow : nat -> pattern -> NetCore.NetCoreEval.act -> fm.
+  | AddFlow : nat -> pattern -> NetCoreAction.t -> fm.
   
   Definition flowMod := fm.
   

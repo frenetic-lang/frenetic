@@ -11,7 +11,7 @@ Require Network.PacketTotalOrder.
 Require Import NetCore.NetCoreEval.
 Require Import Pattern.Pattern.
 Require Import Word.WordTheory.
-
+Require Import NetCore.NetCoreAction.
 Import ListNotations.
 
 Local Open Scope list_scope.
@@ -22,9 +22,9 @@ Module NetworkAtoms <: NETWORK_ATOMS.
   Definition switchId := OpenFlow.OpenFlow0x01Types.switchId.
   Definition portId := Network.NetworkPacket.portId.
   Definition flowTable := 
-    list (nat * pattern * NetCore.NetCoreEval.act).
+    list (nat * pattern * NetCoreAction.t).
   Inductive fm : Type :=
-    | AddFlow : nat -> pattern -> NetCore.NetCoreEval.act -> fm.
+    | AddFlow : nat -> pattern -> NetCoreAction.t -> fm.
 
   Definition flowMod := fm.
 
@@ -37,24 +37,11 @@ Module NetworkAtoms <: NETWORK_ATOMS.
   | PacketIn : portId -> packet -> fromSwitch
   | BarrierReply : nat -> fromSwitch.
 
-  Definition strip_prio (x : nat * pattern * NetCore.NetCoreEval.act) :=
+  Definition strip_prio (x : nat * pattern * NetCoreAction.t) :=
     match x with
       | (prio,pat,act) => (pat,Some act)
     end.
   Require Import Common.Types.
-
-  Definition eval_act (pt : portId) (pk : packet) (act : act) := 
-    match act with
-      (* We ignore modifications and queries. *)
-      | Act _ pts _ =>
-        filter_map
-          (fun pp =>
-             match pp with
-               | OpenFlow.OpenFlow0x01Types.PhysicalPort pt' => Some (pt',pk)
-               | _ => None
-             end)
-          pts
-    end.
 
   (** Produces a list of packets to forward out of ports, and a list of packets
       to send to the controller. *)
@@ -63,7 +50,15 @@ Module NetworkAtoms <: NETWORK_ATOMS.
       | (actualPk, buf) =>
         match scan None (map strip_prio tbl) pt actualPk with
           | None => (nil, [pk])
-          | Some acts => (eval_act pt pk acts, nil)
+          | Some acts => 
+            match pk with
+              | (pk, bufId) =>
+                (map 
+                   (fun ptpk =>
+                      match ptpk with | (pt, pk) => (pt, (pk, bufId)) end)
+                   (NetCoreAction.apply_action acts pt pk),
+                 nil)
+            end
         end
     end.
     
