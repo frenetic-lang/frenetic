@@ -1,4 +1,8 @@
-MODULES := Classifier Theory
+MODULES := \
+  Classifier \
+  ClassifierAction \
+	Theory
+
 VS := $(MODULES:%=%.v)
 
 .PHONY: all clean
