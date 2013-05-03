@@ -6,6 +6,7 @@ Require Import Word.WordInterface.
 Require Import Pattern.Pattern.
 Require Import Network.NetworkPacket.
 Require Import OpenFlow.OpenFlow0x01Types.
+Require Import Classifier.Classifier.
 
 Import ListNotations.
 Local Open Scope list_scope.
@@ -28,6 +29,8 @@ Module Type ACTION_DEF.
   (** An action that drops packets. i.e., [atoms zero = nil]. *)
   Parameter zero : t.
 
+  Parameter one : t.
+
   (** Determines how an atomic action forwards packets. *)
   Parameter apply_atom : e -> portId * packet -> portId * packet.
 
@@ -47,12 +50,13 @@ Module Type ACTION_DEF.
   (** Sequential composition with [zero] as its annihilator. *)
   Parameter seq_action : t -> t -> t.
 
-  (** TODO(arjun): This is basically a semi-ring. Need to also define 1. *)
-
-  (** Some actions, such as modifications, are only applicable to
-      certain packets. This pattern matches those packets. For simple
-      forwarding actions, the pattern will be [Pattern.all]. *)
-  Parameter pat : t -> pattern.
+  (** Some atomic actions, such as modifications, only apply to
+      certain packets. Such conditional actions can only be realized
+      in OpenFlow using flow tables. The compile function produces a
+      classifier with the same semantics as the given action. However,
+      each rule in the classifier is predicated so that they can
+      safely apply unconditionally when the predicate holds. *)
+  Parameter compile : t -> Classifier t.
 
 End ACTION_DEF.
 
@@ -78,5 +82,6 @@ Module Type ACTION_SPEC (Import Action : ACTION_DEF).
   Parameter seq_zero_l : forall a, seq_action zero a = zero.
 
   Parameter seq_zero_r : forall a, seq_action a zero = zero.
+
 
 End ACTION_SPEC.

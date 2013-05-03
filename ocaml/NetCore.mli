@@ -30,8 +30,10 @@ module Syntax : sig
     | Pol of predicate * action list
     | Par of policy * policy (** parallel composition *)
     | Seq of policy * policy (** sequential composition *)
-    | Restrict of policy * predicate
-    | Empty
+    | Restrict of predicate * policy
+    | Forward of portId
+    | UpdateDlSrc of Int64.t * Int64.t
+    | Drop
 
   val par : policy list -> policy
 

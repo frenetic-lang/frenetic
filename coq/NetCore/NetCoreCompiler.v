@@ -1,3 +1,5 @@
+Set Implicit Arguments.
+
 Require Import Coq.Lists.List.
 Require Import Coq.Bool.Bool.
 Require Import NetCore.NetCoreEval.
@@ -10,9 +12,8 @@ Require Import OpenFlow.OpenFlow0x01Types.
 Require Import Network.NetworkPacket.
 Require Import NetCore.NetCoreAction.
 
-Set Implicit Arguments.
-
 Import ListNotations.
+Local Open Scope list_scope.
 
 Fixpoint compile_pred (opt : Classifier bool -> Classifier bool) 
          (pr : pred) (sw : switchId) : Classifier bool := 
@@ -31,7 +32,7 @@ Fixpoint compile_pred (opt : Classifier bool -> Classifier bool)
       opt (map (second negb) 
                (compile_pred opt pr' sw ++ [(Pattern.all, false)]))
     | PrAll => [(Pattern.all, true)]
-    | PrNone => []
+    | PrNone => [(Pattern.all, false)]
   end.
 
 Definition maybe_action (a : NetCoreAction.t) (b : bool) := 
@@ -40,14 +41,17 @@ Definition maybe_action (a : NetCoreAction.t) (b : bool) :=
     | false => NetCoreAction.zero
   end.
 
+
 (** TODO(arjun): rank-2 polymorphism. The extracted code makes me nervous. *)
 Fixpoint compile_pol 
   (opt : forall (A : Type), Classifier A -> Classifier A) 
   (p : pol) (sw : switchId) : Classifier NetCoreAction.t :=
   match p with
-    | PoAtom pr act => 
-      opt _ (map (second (maybe_action act)) 
-                 (compile_pred (opt bool) pr sw ++ [(Pattern.all, false)]))
+    | PoAction action =>
+      opt _ (NetCoreAction.compile action)
+    | PoFilter pred =>
+      opt _ (map (second (maybe_action NetCoreAction.one)) 
+                 (compile_pred (opt bool) pred sw ++ [(Pattern.all, false)]))
     | PoUnion pol1 pol2 => 
       opt _ (union NetCoreAction.par_action
                    (compile_pol opt pol1 sw) 
