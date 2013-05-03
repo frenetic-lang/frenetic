@@ -75,7 +75,6 @@ Section Lemmas.
     + intros.
       destruct cf0.
       - simpl...
-        rewrite -> Pattern.all_spec...
       - simpl.
         destruct p.
         simpl.
@@ -231,15 +230,21 @@ Section Lemmas.
   Proof with auto with datatypes.
     intros.
     induction N1.
-    + crush.
-    + destruct a1.
-      simpl in H0.
-      destruct H0.
-      - inversion H0; subst; clear H0.
-        apply Pattern.no_match_subset_r...
-        eapply H...
-      - apply IHN1...
-        intros. eapply H... simpl. right. exact H1.
+    crush.
+    destruct a1.
+    simpl in H0.
+    destruct H0.
+    (* contra *)
+    unfold inter_entry in H0. inversion H0. subst.
+    assert (Pattern.match_packet pt pkt p = false). apply H with (a := a1)...
+    apply Pattern.no_match_subset_r...
+  (* inductive *)
+    assert (forall m' (a' : A), In (m',a') N1 ->
+      Pattern.match_packet pt pkt m' = false).
+    intros. 
+    assert (In (m',a') ((p,a1)::N1))...
+    apply H in H2...
+    apply IHN1 in H1...
   Qed.
 
   Lemma inter_empty : forall N2 pkt pt,
@@ -489,9 +494,8 @@ Section Action.
      destruct b1.
      rewrite -> Pattern.is_match_true_inter...
      rewrite -> Pattern.no_match_subset_r...
-     
      assert (fold_right
-               (fun (v' : pattern * bool) (acc : list (Pattern.t * bool)) =>
+               (fun (v' : pattern * bool) (acc : list (Pattern.pat * bool)) =>
                   let (pat', _) := v' in (Pattern.inter pat pat', false) :: acc) nil
                lst = inter_entry andb lst (pat, false)) as X...
      rewrite -> X; clear X.
@@ -512,7 +516,7 @@ Section Action.
       remember (Pattern.match_packet pt pk p) as matched.
       destruct matched.
       - { assert (fold_right
-        (fun (v' : pattern * bool) (acc : list (Pattern.t * bool)) =>
+        (fun (v' : pattern * bool) (acc : list (Pattern.pat * bool)) =>
          let (pat', act') := v' in (Pattern.inter p pat', b && act') :: acc)
         nil cf2 = inter_entry andb cf2 (p,b)) as X.
         { simpl. reflexivity. }

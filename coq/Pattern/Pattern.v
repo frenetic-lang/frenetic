@@ -10,7 +10,12 @@ Require Import Coq.Classes.Equivalence.
 
 Local Open Scope equiv_scope.
 
-Module Pattern : PATTERN.
+(* MJR: Need this transparent so that Pathetic code can convert to OXM
+        format. Alternative is to add export function to the interface, but
+        that would mix OF 1.0 and 1.3 features into the same code base. Viable
+        option
+ *) 
+Module Pattern <: PATTERN.
 
   Record pat := Pat {
     raw : pattern;
