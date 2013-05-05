@@ -1,8 +1,7 @@
 Set Implicit Arguments.
 
 Require Import Coq.Lists.List.
-Require Import Classifier.ClassifierAction.
-Require Import Classifier.Classifier.
+Require Import Classifier.ClassifierSignatures.
 Require Import Common.Types.
 Require Import Word.WordInterface.
 Require Import Pattern.Pattern.
@@ -16,7 +15,7 @@ Module Type NETCORE_ACTION.
 
   Inductive id : Type := MkId : nat -> id.
 
-  Include ACTION_DEF.
+  Include ACTION.
 
   (* An action that forwards out of a given port *)
   Parameter forward : portId -> t.
@@ -25,7 +24,6 @@ Module Type NETCORE_ACTION.
      a packet to [newDlSrc], only if its current value is [oldDlSrc]. *)
   Parameter updateDlSrc : dlAddr -> dlAddr -> t.
 
-  Parameter apply_action : t -> portId -> packet -> list (portId * packet).
   Parameter queries : t -> list id.
 
   (** Returns an OpenFlow 1.0 action sequence that corresponds to this
@@ -69,9 +67,9 @@ Module NetCoreAction : NETCORE_ACTION.
         queries : list id
       }.
 
-  Definition zero := Act nil nil.
+  Definition drop := Act nil nil.
 
-  Definition one : act :=
+  Definition pass : act :=
     Act [Output None None None None None None None None None None]
         nil.
 
@@ -88,12 +86,15 @@ Module NetCoreAction : NETCORE_ACTION.
       | (Act outs1 q1, Act outs2 q2) => Act (outs1 ++ outs2) (q1 ++ q2)
     end.
 
-  Definition seq_mod {A : Type} (m1 m2 : match_modify A) :=
+  Definition seq_mod {A : Type} (beq : A -> A -> bool) (m1 m2 : match_modify A) :=
     match (m1, m2) with
-      | (None, _) => m2
-      | (Some (old_value, _), Some (_, new_value)) => Some (old_value, new_value)
-      (* TODO(arjun): how is this ok??? *)
-      | (Some (x, y), None) => m1
+      | (None, _) => Some m2
+      | (Some (v1, v2), Some (v3, v4)) => 
+         match beq v2 v3 with
+           | true => Some (Some (v1, v4))
+           | false => None
+         end
+      | (Some (x, y), None) => Some m1
     end.
 
   Definition seq_port (pt1 pt2 : option portId) :=
@@ -103,28 +104,90 @@ Module NetCoreAction : NETCORE_ACTION.
       | (None, None) => None
     end.
 
+  Definition word64beq w1 w2 :=
+    match Word64.eq_dec w1 w2 with
+      | left _ => true
+      | right _ => false
+    end.
+
+  Definition word48beq w1 w2 :=
+    match Word48.eq_dec w1 w2 with
+      | left _ => true
+      | right _ => false
+    end.
+
+  Definition word16beq w1 w2 :=
+    match Word16.eq_dec w1 w2 with
+      | left _ => true
+      | right _ => false
+    end.
+
+  Definition word8beq w1 w2 :=
+    match Word8.eq_dec w1 w2 with
+      | left _ => true
+      | right _ => false
+    end.
+
+  Definition optword16beq w1 w2 :=
+    match (w1, w2) with
+      | (None, None) => true
+      | (Some w1, Some w2) =>
+        match Word16.eq_dec w1 w2 with
+          | left _ => true
+          | right _ => false
+        end
+      | _ => false
+    end.
+
+  Definition word32beq w1 w2 :=
+    match Word32.eq_dec w1 w2 with
+      | left _ => true
+      | right _ => false
+    end.
+
   Definition seq_output (out1 out2 : output) :=
     match (out1, out2) with
       | (Output dlSrc1 dlDst1 dlVlan1 dlVlanPcp1 
                 nwSrc1 nwDst1 nwTos1 tpSrc1 tpDst1 pt1,
          Output dlSrc2 dlDst2 dlVlan2 dlVlanPcp2
                 nwSrc2 nwDst2 nwTos2 tpSrc2 tpDst2 pt2) =>
-        Output (seq_mod dlSrc1 dlSrc2)
-               (seq_mod dlDst1 dlDst2)
-               (seq_mod dlVlan1 dlVlan2)
-               (seq_mod dlVlanPcp1 dlVlanPcp2)
-               (seq_mod nwSrc1 nwSrc2)
-               (seq_mod nwDst1 nwDst2)
-               (seq_mod nwTos1 nwTos2)
-               (seq_mod tpSrc1 tpSrc2)
-               (seq_mod tpDst1 tpDst2)
-               (seq_port pt1 pt2)
+        match (seq_mod word48beq dlSrc1 dlSrc2,
+               seq_mod word48beq dlDst1 dlDst2,
+               seq_mod optword16beq dlVlan1 dlVlan2,
+               seq_mod word8beq dlVlanPcp1 dlVlanPcp2,
+               seq_mod word32beq nwSrc1 nwSrc2,
+               seq_mod word32beq nwDst1 nwDst2,
+               seq_mod word8beq nwTos1 nwTos2,
+               seq_mod word16beq tpSrc1 tpSrc2,
+               seq_mod word16beq tpDst1 tpDst2) with
+          | (Some dlSrc,
+             Some dlDst,
+             Some dlVlan,
+             Some dlVlanPcp,
+             Some nwSrc,
+             Some nwDst,
+             Some nwTos,
+             Some tpSrc,
+             Some tpDst) =>
+            Some (Output dlSrc dlDst dlVlan dlVlanPcp nwSrc nwDst nwTos tpSrc tpDst
+                         (seq_port pt1 pt2))
+          | _ => None
+        end
     end.
+
+  Definition cross {A B : Type} (lst1 : list A) (lst2 : list B) : list (A * B) :=
+    concat_map
+      (fun a => map (fun b => (a, b)) lst2)
+      lst1.
 
   Definition seq_action (act1 act2 : act) : act :=
     match (act1, act2) with
       | (Act outs1 q1, Act outs2 q2) => 
-        Act (outs1 ++ outs2) (q1 ++ q2)
+        Act
+          (filter_map 
+             (fun (o1o2 : output * output) => let (o1,o2) := o1o2 in seq_output o1 o2)
+             (cross outs1 outs2))
+          (q1 ++ q2)
     end.
   
   Section MaskPat.

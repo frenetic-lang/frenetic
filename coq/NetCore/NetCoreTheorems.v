@@ -14,7 +14,7 @@ Require Import Pattern.Pattern.
 Require Import OpenFlow.OpenFlow0x01Types.
 Require Import NetCore.NetCoreEval.
 Require Import NetCore.NetCoreCompiler.
-Require Import NetCore.Verifiable.
+Require Import NetCore.NetCoreAction.
 
 Local Open Scope list_scope.
 
@@ -38,7 +38,8 @@ Theorem compile_pred_correct :
     match_pred pr sw pt pk = scan false (compile_pred (opt bool) pr sw) pt pk.
 Proof with auto.
   intros.
-  assert (forall cf pt pk, scan false (opt bool cf) pt pk = scan false cf pt pk) as Heqp.
+  assert (forall cf pt pk, scan false (opt bool cf) pt pk = 
+                           scan false cf pt pk) as Heqp.
   unfold Equiv_Preserving in H.
   intros.
   assert (false = zero)...
@@ -102,66 +103,31 @@ Proof with auto.
   simpl.
   rewrite -> Pattern.all_spec...
   (* PrNone *)
-  simpl...
-Qed.
-
-Lemma A_eqdec : forall (a1 a2 : act), { a1 = a2 } + { a1 <> a2 }.
-Proof. repeat decide equality.  Defined.
-
-Instance A_as_Action : ClassifierAction act :=
-  {
-    zero := empty_action;
-    action_eqdec := A_eqdec
-  }.
-
-Lemma eval_par_action : 
-  forall sw pt pk bufId act1 act2, 
-    eval_action (InPkt sw pt pk bufId) (par_action act1 act2) =
-    eval_action (InPkt sw pt pk bufId) act1 ++
-                eval_action (InPkt sw pt pk bufId) act2.
-Proof with auto with datatypes.
-  intros.
-  destruct act1, act2.
-  unfold eval_action.
   simpl.
-  simpl.
-  (* Requires semantics to produce a bag of outputs. *)
-Admitted.
-
-Lemma par_action_zero_l : forall a, par_action empty_action a = a.
-Proof with auto.
-  intros.
-  destruct a.
-  unfold par_action.
-  unfold empty_action.
-  simpl...
-(* modifications are stupid *)
-Admitted.
-
-Lemma par_action_zero_r : forall a, par_action a empty_action = a.
-Proof with auto.
-  intros.
-  destruct a.
-  unfold par_action.
-  unfold empty_action.
-  simpl...
-  do 2 rewrite -> app_nil_r...
+  rewrite -> Pattern.all_spec...
 Qed.
 
 Lemma compile_pol_correct :
   forall opt po sw pt pk bufid,
-    Vf_pol po ->
     Equiv_Preserving opt ->
-    classify po (InPkt sw pt pk bufid) = 
-    eval_action (InPkt sw pt pk bufid)
-                (scan empty_action (compile_pol opt po sw) pt pk).
+    classify po (ValPkt sw pt pk bufid) = 
+    eval_action (ValPkt sw pt pk bufid)
+                (scan NetCoreAction.zero (compile_pol opt po sw) pt pk).
 Proof with auto.
   intros.
-  rename H into HVfPol.
-  rename H0 into Heqp.
+  rename H into Heqp.
   induction po.
+  + unfold compile_pol.
+    unfold classify.
+  + assert (forall cf pt pk, scan NetCoreAction.zero (opt NetCoreAction.t cf) pt pk = 
+                             scan NetCoreAction.zero cf pt pk) as J0...
+    intros.
+    unfold Equiv_Preserving in Heqp.
+    assert (empty_action = zero)...
+
   + simpl.
-    assert (forall cf pt pk, scan empty_action (opt act cf) pt pk = scan empty_action cf pt pk) as J0...
+    assert (forall cf pt pk, scan empty_action (opt act cf) pt pk = 
+                             scan empty_action cf pt pk) as J0...
     intros.
     unfold Equiv_Preserving in Heqp.
     assert (empty_action = zero)...
