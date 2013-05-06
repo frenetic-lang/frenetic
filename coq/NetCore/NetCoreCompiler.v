@@ -35,21 +35,21 @@ Fixpoint compile_pred (pr : pred) (sw : switchId) : BoolClassifier.t :=
     | PrNone => [(Pattern.all, false)]
   end.
 
-Definition maybe_action (a : NetCoreAction.t) (b : bool) := 
+Definition maybe_action (a : Classifier.Action.t) (b : bool) := 
   match b with
     | true => a
-    | false => NetCoreAction.drop
+    | false => Classifier.Action.drop
   end.
 
 Fixpoint compile_pol  (p : pol) (sw : switchId) : Classifier.t :=
   match p with
     | PoAction action => 
       List.fold_right
-        (fun e tbl => Classifier.union [(NetCoreAction.domain e, [e])] tbl)
-        [(Pattern.all, NetCoreAction.drop)]
-        (NetCoreAction.atoms action)
+        (fun e tbl => Classifier.union [(Classifier.Action.domain e, [e])] tbl)
+        [(Pattern.all, Classifier.Action.drop)]
+        (Classifier.Action.atoms action)
     | PoFilter pred =>
-      map (second (maybe_action NetCoreAction.pass)) (compile_pred pred sw)
+      map (second (maybe_action Classifier.Action.pass)) (compile_pred pred sw)
     | PoUnion pol1 pol2 => 
       Classifier.union (compile_pol pol1 sw) (compile_pol pol2 sw)
     | PoSeq pol1 pol2 =>
