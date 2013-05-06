@@ -55,3 +55,19 @@ Fixpoint compile_pol  (p : pol) (sw : switchId) : Classifier.t :=
     | PoSeq pol1 pol2 =>
       Classifier.sequence (compile_pol pol1 sw) (compile_pol pol2 sw)
   end.
+
+Definition to_rule (v : Classifier.pattern * Classifier.action) :=
+  match v with
+    | (pattern, action) =>
+      match Classifier.Pattern.to_match pattern with
+        | None => None
+        | Some match_ =>
+          Some (match_, 
+                NetCoreAction.as_actionSequence (matchInPort match_) action)
+      end
+  end.
+
+Definition flow_table_of_policy 
+           (sw : switchId)
+           (pol : pol) : list (of_match * actionSequence) := 
+  filter_map to_rule (compile_pol pol sw).

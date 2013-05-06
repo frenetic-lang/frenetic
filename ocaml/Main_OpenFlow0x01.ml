@@ -1,29 +1,18 @@
-open Printf
-open Unix
-open OpenFlow0x01Types
+let rec pull_stream n stream =
+  lwt v = Lwt_stream.get stream in
+  match v with
+    | Some x -> Lwt_io.printf "%s%d" n x >> pull_stream n stream
+    | None -> Lwt_io.printf "%s: stream closed.\n" n
 
-let controller = ref "learn"
-
-(* command-line arguments *)
-let arg_specs = 
-  [ ("-c", 
-     Arg.Set_string controller, 
-     "<controller> run a specific controller")
-  ]
- 
-let arg_rest rest = ()
-
-let usage = 
-  "desmoines [options]"
-
-let () = Arg.parse arg_specs arg_rest usage
-
-let main () = 
-  let pol = Marshal.from_channel (open_in "out") in
-  let handlers = Hashtbl.create 100 in
-  let core_pol = NetCore.Syntax.desugar_policy pol handlers in
-  printf "%s\n%!" (NetCore.Syntax.policy_to_string pol);
-  let tbl = NetCoreCompiler.compile_pol core_pol 1L in
-  printf "Classifier length:%d\n%!" (List.length tbl)
+let main = 
+  Lwt_io.printf "in main\n" >>
+  let (stream1, push) = Lwt_stream.create () in
+  let stream2 = Lwt_stream.clone stream1 in
+  let rec pusher n = 
+    match n with
+      | 0 -> push None; Lwt.return ()
+      | n -> (push (Some n); Lwt_main.yield ()) >>
+             pusher (n - 1) in
+  Lwt.join [pull_stream "*" stream1; pull_stream " " stream2; pusher 200]
       
-let _ = main ()
+let _ = Lwt_main.run main
