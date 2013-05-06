@@ -23,7 +23,7 @@ let main () =
   let handlers = Hashtbl.create 100 in
   let core_pol = NetCore.Syntax.desugar_policy pol handlers in
   printf "%s\n%!" (NetCore.Syntax.policy_to_string pol);
-  let tbl = NetCoreCompiler.compile_opt core_pol 1L in
+  let tbl = NetCoreCompiler.compile_pol core_pol 1L in
   printf "Classifier length:%d\n%!" (List.length tbl)
       
 let _ = main ()
