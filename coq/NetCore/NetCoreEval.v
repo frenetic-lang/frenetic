@@ -5,13 +5,15 @@ Require Import Coq.Bool.Bool.
 Require Import Common.Types.
 Require Import Word.WordInterface.
 Require Import Network.NetworkPacket.
-Require Import Pattern.Pattern.
 Require Import OpenFlow.OpenFlow0x01Types.
 Require Import NetCore.NetCoreAction.
 
 Import ListNotations.
 Local Open Scope list_scope.
 Local Open Scope bool_scope.
+
+Module Pattern := NetCoreAction.Pattern.
+Definition pattern := Pattern.pattern.
   
 Inductive pred : Type := 
 | PrHdr : pattern ->  pred
@@ -29,11 +31,9 @@ Inductive pol : Type :=
 | PoSeq : pol -> pol -> pol.
 
 Inductive value : Type :=
-| ValPkt : switchId -> portId -> packet -> bufferId + bytes -> value
-| ValGetPkt : NetCoreAction.id -> switchId -> portId -> packet -> value
-| ValNothing : value.
+| Pkt : switchId -> NetCoreAction.port -> packet -> bufferId + bytes -> value.
 
-Fixpoint match_pred (pr : pred) (sw : switchId) (pt : portId) (pk : packet) := 
+Fixpoint match_pred (pr : pred) (sw : switchId) (pt : Pattern.port) (pk : packet) := 
   match pr with
     | PrHdr pat => Pattern.match_packet pt pk pat
     | PrOnSwitch sw' =>
@@ -54,13 +54,11 @@ Extract Constant serialize_pkt => "Packet_Parser.serialize_packet".
 
 Definition eval_action (inp : value) (act : NetCoreAction.t) : list value :=
   match inp with
-    | ValPkt sw pt pk buf => 
+    | Pkt sw pt pk buf => 
       map 
         (fun ptpk =>
-           match ptpk with | (pt', pk') => ValPkt sw pt' pk' buf end)
-        (NetCoreAction.apply_action act pt pk) ++
-        map (fun qid => ValGetPkt qid sw pt pk) (NetCoreAction.queries act)
-    | _ => [inp]
+           match ptpk with | (pt', pk') => Pkt sw pt' pk' buf end)
+        (NetCoreAction.apply_action act (pt,pk))
   end.
 
 Fixpoint classify (p : pol) (inp : value) := 
@@ -68,8 +66,7 @@ Fixpoint classify (p : pol) (inp : value) :=
     | PoAction action => eval_action inp action
     | PoFilter pred =>
       match inp with
-        | ValPkt sw pt pk buf => if match_pred pred sw pt pk then [inp] else nil
-        | _ => [inp]
+        | Pkt sw pt pk buf => if match_pred pred sw pt pk then [inp] else nil
       end
     | PoUnion p1 p2 => classify p1 inp ++ classify p2 inp
     | PoSeq p1 p2 => concat_map (classify p2) (classify p1 inp)
