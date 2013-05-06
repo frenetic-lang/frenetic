@@ -20,7 +20,7 @@ Open Scope bool_scope.
 Open Scope list_scope.
 Open Scope equiv_scope.
 
-Module Make (Import Port : PORT).
+Module Make (Import Port : PORT) : PATTERN_SPEC.
 
   Module Pattern := Pattern2.PatternImpl.Make (Port).
   Import Pattern.
@@ -37,7 +37,6 @@ Module Make (Import Port : PORT).
     inversion e.
     trivial.
   Qed.
-
 
   Hint Unfold inter empty is_empty.
   Hint Resolve Word8.eq_dec Word16.eq_dec Word32.eq_dec Word48.eq_dec.
@@ -254,5 +253,54 @@ Module Make (Import Port : PORT).
   Hint Resolve is_match_true_inter : pattern.
 
   Hint Resolve is_empty_true_l is_empty_true_r.
+
+  Definition equiv (pat1 pat2 : pattern) : Prop :=
+    forall pt pk, 
+      match_packet pt pk pat1 = match_packet pt pk pat2.
+  
+  Lemma equiv_is_Equivalence : Equivalence equiv.
+  Proof with auto.
+    unfold equiv.
+    unfold match_packet.
+    split.
+    unfold Reflexive...
+    unfold Symmetric...
+    unfold Transitive...
+    intros.
+    rewrite -> H...
+  Qed.
+  
+  Instance Pattern_Equivalence : Equivalence equiv := equiv_is_Equivalence.
+
+  Lemma beq_true_spec : forall p p',
+    beq p p' = true ->
+    equiv p p'.
+  Proof with auto.
+    intros.
+    unfold equiv.
+    unfold match_packet.
+    intros.
+    unfold beq in H.
+    destruct (eq_dec p p'); subst...
+    inversion H.
+  Qed.
+
+  Lemma match_packet_spec : forall pt pk pat,
+    match_packet pt pk pat = 
+    negb (is_empty (inter (exact_pattern pk pt) pat)).
+  Proof.
+    intros.
+    unfold match_packet.
+    unfold is_empty.
+    unfold inter.
+    unfold exact_pattern.
+    unfold match_packet.
+    reflexivity.
+  Qed.
+
+  Lemma all_is_not_empty : is_empty all = false.
+  Proof.
+    reflexivity.
+  Qed.
 
 End Make.

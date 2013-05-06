@@ -113,10 +113,10 @@ Module Type PATTERN_SPEC.
     beq p p' = true ->
     p === p'.
 
-  Parameter inter_comm : forall p p', inter p p' === inter p' p.
+  Parameter inter_comm : forall p p', inter p p' = inter p' p.
 
   Parameter inter_assoc : forall p p' p'',
-    inter p (inter p' p'') === inter (inter p p') p''.
+    inter p (inter p' p'') = inter (inter p p') p''.
 
   Parameter is_empty_false_distr_l : forall x y,
     is_empty (inter x y) = false -> 
@@ -146,7 +146,7 @@ Module Type PATTERN_SPEC.
   Parameter exact_match_inter : forall x y,
     is_exact x = true ->
     is_empty (inter x y) = false ->
-    inter x y === x.
+    inter x y = x.
 
   Parameter all_spec : forall pt pk,
     match_packet pt pk all = true.
@@ -156,7 +156,7 @@ Module Type PATTERN_SPEC.
 
   Parameter exact_intersect : forall k n t,
     match_packet k n t = true ->
-    inter (exact_pattern n k) t === exact_pattern n k.
+    inter (exact_pattern n k) t = exact_pattern n k.
 
   Parameter is_match_true_inter : forall pat1 pat2 pt pk,
     match_packet pt pk pat1 = true ->
