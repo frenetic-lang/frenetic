@@ -23,7 +23,7 @@ Module Port <: PORT.
   Lemma eqdec : forall (x y : port), { x = y } + { x <> y }.
   Proof.
     decide equality. apply Word16.eq_dec. apply eqdec.
-  Qed.
+  Defined.
 
   Definition opt_portId x :=
     match x with
