@@ -1,7 +1,8 @@
 MODULES := \
   ClassifierSignatures \
   ClassifierImpl \
-  ClassifierTheory
+  ClassifierTheory \
+  BoolAction
 
 VS := $(MODULES:%=%.v)
 

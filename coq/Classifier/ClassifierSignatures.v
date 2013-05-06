@@ -5,7 +5,6 @@ Require Import Common.Types.
 Require Import Word.WordInterface.
 Require Import Pattern2.PatternSignatures.
 Require Import Network.NetworkPacket.
-Require Import OpenFlow.OpenFlow0x01Types.
 
 Import ListNotations.
 Local Open Scope list_scope.
@@ -42,7 +41,7 @@ Module Type ACTION.
   Definition apply_action (action : t) (ptpk : port * packet) :=
     filter_map (fun a => apply_atom a ptpk) (atoms action).
 
-  (** Parallel composition with [drop] as the identify. *)
+  (** Parallel composition with [drop] as the identity. *)
   Parameter par_action : t -> t -> t.
 
   (** Sequential composition with [drop] as its annihilator. *)

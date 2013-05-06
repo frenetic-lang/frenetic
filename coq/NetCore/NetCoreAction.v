@@ -65,7 +65,7 @@ Module Type NETCORE_ACTION.
 
 End NETCORE_ACTION.
 
-Module NetCoreAction : NETCORE_ACTION.
+Module NetCoreAction <: NETCORE_ACTION.
 
   Module PatternSpec := Pattern2.PatternTheory.Make (Port).
   Module Pattern := PatternSpec.Pattern.
