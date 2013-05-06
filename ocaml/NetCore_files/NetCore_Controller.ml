@@ -78,7 +78,9 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
   let configure_switches push_pol sugared_pol_stream =
     Lwt_stream.iter
       (fun pol ->
-        push_pol (NetCore_Syntax.desugar_policy pol get_pkt_handlers))
+        let p = NetCore_Syntax.desugar_policy pol get_pkt_handlers in
+        pol_now := p;
+        push_pol (Some p))
       sugared_pol_stream
 
   let start_controller (pol : policy Lwt_stream.t) : unit Lwt.t = 

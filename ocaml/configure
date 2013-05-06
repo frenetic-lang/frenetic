@@ -5,10 +5,10 @@
 # process isn't fully automated, NetCore.mllib is still part of the repository.
 
 pack () {
-  ls $1/*.ml | cut -f 2 -d "/" | cut -f 1 -d "." >> NetCore.mllib
+  ls $1/*.ml | cut -f 2 -d "/" | cut -f 1 -d "." >> NetCoreLib.mllib
 }
 
-echo "(* Auto-generated below *)" >> NetCore.mllib
+echo "(* Auto-generated below *)" >> NetCoreLib.mllib
 pack extracted
 pack .
 pack Misc_files
