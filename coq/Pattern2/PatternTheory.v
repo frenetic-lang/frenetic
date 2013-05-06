@@ -20,7 +20,7 @@ Open Scope bool_scope.
 Open Scope list_scope.
 Open Scope equiv_scope.
 
-Module Make (Import Port : PORT) : PATTERN_SPEC.
+Module Make (Import Port : PORT) <: PATTERN_SPEC.
 
   Module Pattern := Pattern2.PatternImpl.Make (Port).
   Import Pattern.

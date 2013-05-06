@@ -4,27 +4,51 @@ Require Import Coq.Lists.List.
 Require Import Classifier.ClassifierSignatures.
 Require Import Common.Types.
 Require Import Word.WordInterface.
-Require Import Pattern.Pattern.
+Require Import Pattern2.PatternSignatures.
+Require Pattern2.PatternImpl.
+Require Pattern2.PatternTheory.
 Require Import Network.NetworkPacket.
 Require Import OpenFlow.OpenFlow0x01Types.
 
 Import ListNotations.
 Local Open Scope list_scope.
 
-Module Type NETCORE_ACTION.
+Module Port <: PORT.
 
-  Inductive id : Type := MkId : nat -> id.
+  Inductive port : Type :=
+    | Physical : portId -> port
+    | Here : port
+    | Bucket : nat-> port.
+  
+  Lemma eqdec : forall (x y : port), { x = y } + { x <> y }.
+  Proof.
+    decide equality. apply Word16.eq_dec. apply eqdec.
+  Qed.
+
+  Definition opt_portId x :=
+    match x with
+      | Physical pt => Some pt
+      | Here => None
+      | Bucket _ => None
+    end.
+
+  Definition t := port.
+
+End Port.
+
+Module Type NETCORE_ACTION.
 
   Include ACTION.
 
   (* An action that forwards out of a given port *)
   Parameter forward : portId -> t.
 
+  (* An action that sends the packet to the indicated bucket *)
+  Parameter bucket : nat -> t.
+
   (* [updateDlSrc oldDlSrc newDlSrc] updates the source MAC address of
      a packet to [newDlSrc], only if its current value is [oldDlSrc]. *)
   Parameter updateDlSrc : dlAddr -> dlAddr -> t.
-
-  Parameter queries : t -> list id.
 
   (** Returns an OpenFlow 1.0 action sequence that corresponds to this
       NetCore action. This action sequence can then be used in a flow table.
@@ -43,7 +67,8 @@ End NETCORE_ACTION.
 
 Module NetCoreAction : NETCORE_ACTION.
 
-  Inductive id : Type := MkId : nat -> id.
+  Module PatternSpec := Pattern2.PatternTheory.Make (Port).
+  Module Pattern := PatternSpec.Pattern.
 
   Definition match_modify (A : Type) := option (A * A).
 
@@ -58,33 +83,25 @@ Module NetCoreAction : NETCORE_ACTION.
         outNwTos : match_modify nwTos;
         outTpSrc : match_modify tpPort;
         outTpDst : match_modify tpPort;
-        outPort : option portId (* TODO(arjun): refactor later to support flood *)
+        outPort : Pattern.port
       }.
 
-  Record act : Type := 
-    Act {
-        outputs : list output;
-        queries : list id
-      }.
+  Definition act := list output.
 
-  Definition drop := Act nil nil.
+  Definition drop : act := nil.
 
-  Definition pass : act :=
-    Act [Output None None None None None None None None None None]
-        nil.
+  Definition pass := [Output None None None None None None None None None Port.Here].
 
   Definition forward (pt : portId) :=
-    Act [Output None None None None None None None None None (Some pt)]
-        nil.
+    [Output None None None None None None None None None (Port.Physical pt)].
+
+  Definition bucket (n : nat) :=
+    [Output None None None None None None None None None (Port.Bucket n)].
 
   Definition updateDlSrc (old new : dlAddr) :=
-    Act [Output (Some (old, new)) None None None None None None None None None]
-        nil.
+    [Output (Some (old, new)) None None None None None None None None Port.Here].
 
-  Definition par_action (act1 act2 : act) : act :=
-    match (act1, act2) with
-      | (Act outs1 q1, Act outs2 q2) => Act (outs1 ++ outs2) (q1 ++ q2)
-    end.
+  Definition par_action (act1 act2 : act) : act := act1 ++ act2.
 
   Definition seq_mod {A : Type} (beq : A -> A -> bool) (m1 m2 : match_modify A) :=
     match (m1, m2) with
@@ -97,11 +114,11 @@ Module NetCoreAction : NETCORE_ACTION.
       | (Some (x, y), None) => Some m1
     end.
 
-  Definition seq_port (pt1 pt2 : option portId) :=
+  Definition seq_port (pt1 pt2 : Pattern.port) := 
     match (pt1, pt2) with
-      | (_, Some pt) => Some pt
-      | (Some pt, None) => Some pt
-      | (None, None) => None
+      | (Port.Here, _) => pt2
+      | (_, Port.Here) => pt1
+      | _ => pt2
     end.
 
   Definition optword16beq w1 w2 :=
@@ -110,7 +127,6 @@ Module NetCoreAction : NETCORE_ACTION.
       | (Some w1, Some w2) => Word16.beqdec w1 w2
       | _ => false
     end.
-
 
   Definition seq_output (out1 out2 : output) :=
     match (out1, out2) with
@@ -148,14 +164,9 @@ Module NetCoreAction : NETCORE_ACTION.
       lst1.
 
   Definition seq_action (act1 act2 : act) : act :=
-    match (act1, act2) with
-      | (Act outs1 q1, Act outs2 q2) => 
-        Act
-          (filter_map 
-             (fun (o1o2 : output * output) => let (o1,o2) := o1o2 in seq_output o1 o2)
-             (cross outs1 outs2))
-          (q1 ++ q2)
-    end.
+    filter_map 
+      (fun (o1o2 : output * output) => let (o1,o2) := o1o2 in seq_output o1 o2)
+      (cross act1 act2).
   
   Section ApplyAtom.
 
@@ -179,10 +190,10 @@ Module NetCoreAction : NETCORE_ACTION.
     Local Notation "f $ x" := (f x) (at level 51, right associativity).
 
     (** TODO(arjun): this is wrong, IMO. *)
-    Definition apply_atom (out : output) (ptpk : portId * packet) :=
+    Definition apply_atom (out : output) (ptpk : Pattern.port * packet) :=
       match (out, ptpk) with
         | (Output dlSrc dlDst dlVlan dlVlanPcp nwSrc nwDst nwTos 
-                  tpSrc tpDst (Some outPort),
+                  tpSrc tpDst outPort,
            (_, pk)) =>
           Some (outPort,
            maybe_modify dlSrc setDlSrc $
@@ -194,7 +205,6 @@ Module NetCoreAction : NETCORE_ACTION.
            maybe_modify nwTos setNwTos $
            maybe_modify tpSrc setTpSrc $
            maybe_modify tpDst setTpDst pk)
-        | (_, (pt, pk)) => Some (pt, pk)
       end.
 
   End ApplyAtom.
@@ -202,14 +212,14 @@ Module NetCoreAction : NETCORE_ACTION.
   Section Compile.
 
     Definition trans {A : Type} 
-               (x : match_modify A) (f : A -> pattern -> pattern)
-               (pat : pattern) :=
+               (x : match_modify A) (f : A -> Pattern.t -> Pattern.t)
+               (pat : Pattern.t) :=
       match x with
         | None => pat
         | Some (_, new) => f new pat
       end.
 
-    Definition sel {A : Type} (f : A -> pattern) (x : match_modify A) :=
+    Definition sel {A : Type} (f : A -> Pattern.t) (x : match_modify A) :=
       match x with
         | None => Pattern.all
         | Some (old, _) => f old
@@ -217,7 +227,7 @@ Module NetCoreAction : NETCORE_ACTION.
 
     Local Notation "f $ x" := (f x) (at level 51, right associativity).
 
-    Definition restrict_range (out : output) (pat : pattern) : pattern :=
+    Definition restrict_range (out : output) pat :=
       match out with
         | (Output dlSrc dlDst dlVlan dlVlanPcp nwSrc nwDst nwTos tpSrc tpDst
                   outPort) =>
@@ -225,7 +235,7 @@ Module NetCoreAction : NETCORE_ACTION.
            trans dlDst Pattern.setDlDst pat
       end.
 
-    Definition domain (out : output) : pattern :=
+    Definition domain (out : output) :=
       match out with
         | (Output dlSrc dlDst dlVlan dlVlanPcp 
                   nwSrc nwDst nwTos tpSrc tpDst pt) =>
@@ -300,37 +310,35 @@ Module NetCoreAction : NETCORE_ACTION.
     Definition output_to_of (inp : option portId) (out : output) : 
       actionSequence :=
       match outPort out with
-        | None => [] (* TODO(arjun): this is wrong, IMO. *)
-        | Some pt =>
+        | Port.Physical pt =>
           modify out ++
           match inp with
             | None => OpenFlow0x01Types.Output (PhysicalPort pt)
             | Some pt' =>
               match Word16.eq_dec pt' pt with
-                | left _ => OpenFlow0x01Types.Output InPort
-                | right _ => OpenFlow0x01Types.Output (PhysicalPort pt)
+                   | left _ => OpenFlow0x01Types.Output InPort
+                   | right _ => OpenFlow0x01Types.Output (PhysicalPort pt)
               end
           end ::
           unmodify out
-      end.
-
-    Definition as_actionSequence (inp : option portId) 
-               (action : act) : actionSequence :=
-      match action with
-        | Act outs nil => concat_map (output_to_of inp) outs
-        | Act outs (_ :: _) => 
-          concat_map (output_to_of inp) outs ++ 
+        | Port.Here => [] (* omg drop *)
+        | Port.Bucket _ =>
           [OpenFlow0x01Types.Output (Controller Word16.max_value)]
       end.
+
+    Definition as_actionSequence (inp : option portId) (action : act) :=
+      concat_map (output_to_of inp) action.
 
   End OpenFlow0x01.          
 
   Definition t := act.
   Definition e := output.
+  Definition pattern := Pattern.t.
+  Definition port := Port.t.
 
-  Definition atoms := outputs.
+  Definition atoms (action : t) : list e := action.
 
-  Definition apply_action (action : t) (ptpk : portId * packet) :=
-    filter_map (fun a => apply_atom a ptpk) (atoms action).
+  Definition apply_action (action : t) (ptpk : Port.t * packet) :=
+    filter_map (fun a => apply_atom a ptpk) action.
 
 End NetCoreAction.
