@@ -7,6 +7,8 @@ open NetCore_Syntax
 (* Internal policy type *)
 type pol = NetCoreEval.pol
 
+let (<&>) = Lwt.(<&>)
+
 let init_pol : pol = NetCoreEval.PoFilter NetCoreEval.PrNone
 
 let for_bucket (in_port : portId) (pkt : NetCoreEval.value) =
@@ -30,14 +32,14 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
 
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
     let flow_table = NetCoreCompiler.flow_table_of_policy sw pol in
-    Platform.send_to_switch sw 0l delete_all_flows;
+    Platform.send_to_switch sw 0l delete_all_flows >>
     Lwt_list.iter_s
       (fun (match_, actions) ->
           Platform.send_to_switch sw 0l (add_flow match_ actions))
       flow_table
 
   let install_new_policies sw pol_stream =
-    Lwt.iter_s (configure_switch sw) pol_stream
+    Lwt_stream.iter_s (configure_switch sw) pol_stream
       
   let handle_packet_in sw pkt_in = 
     let open NetCoreEval in
@@ -46,14 +48,15 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       | Some bufferId ->
         let inp = Pkt (sw, Port.Physical pkt_in.packetInPort,
                        pkt_in.packetInPacket, Datatypes.Coq_inl bufferId ) in
-        let outs = classify sw inp in
+        let outs = classify !pol_now inp in
         let for_buckets = filter_map (for_bucket pkt_in.packetInPort) outs in
-        List.iter apply_bucket for_buckets
+        List.iter apply_bucket for_buckets;
+        Lwt.return ()
 
   let rec handle_switch_messages sw = 
     lwt v = Platform.recv_from_switch sw in
     match v with
-      | PacketInMsg pktIn ->
+      | (_, PacketInMsg pktIn) ->
         handle_packet_in sw pktIn >> handle_switch_messages sw
       | _ -> handle_switch_messages sw
 
@@ -62,12 +65,11 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       (init_pol : pol)
       (pol_stream : pol Lwt_stream.t) = 
     configure_switch sw init_pol >>
-    install_new_policies pol_stream <&> handle_switch_messages sw
+    install_new_policies sw pol_stream <&> handle_switch_messages sw
 
-
-  let accept_switches pol_stream = 
+  let rec accept_switches pol_stream = 
     lwt features = Platform.accept_switch () in
-    Log.printf "[NetCore_Controller.ml]: switch %d connected\n"
+    Log.printf "[NetCore_Controller.ml]: switch %Ld connected\n"
       features.switch_id;
     let switch = switch_thread features.switch_id 
       !pol_now (Lwt_stream.clone pol_stream) in

@@ -145,6 +145,8 @@ end
   (* Ugliness only needed for the bonkers unverified Coq controller *)
   with type message = OpenFlow0x01Types.message
   and type features = OpenFlow0x01Types.features
+  and type of_match = OpenFlow0x01Types.of_match
+  and type action = OpenFlow0x01Types.action
   and type switchId = Int64.t
 
 
