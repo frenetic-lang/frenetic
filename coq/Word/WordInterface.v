@@ -105,6 +105,12 @@ Module Word8 <: WORD.
   Include M.
   Parameter eq_dec : forall (m n : t), { m = n } + { m <> n }.
 
+  Definition beqdec (m n : t) :=
+    match eq_dec m n with
+      | left _ => true
+      | right _ => false
+    end.
+
 End Word8.
 
 Module Word12 <: WORD.
@@ -112,6 +118,12 @@ Module Word12 <: WORD.
   Module M := MakeWord (Width12).
   Include M.
   Parameter eq_dec : forall (m n : t), { m = n } + { m <> n }.
+
+  Definition beqdec (m n : t) :=
+    match eq_dec m n with
+      | left _ => true
+      | right _ => false
+    end.
 
 End Word12.
 
@@ -132,6 +144,13 @@ Module Word16 <: WORD.
   (* TODO(arjun): broken now for simplicity *)
   Axiom pred : Word -> Word.
 
+  Definition beqdec (m n : t) :=
+    match eq_dec m n with
+      | left _ => true
+      | right _ => false
+    end.
+
+
 End Word16.
 
 Module Word32 <: WORD.
@@ -139,6 +158,14 @@ Module Word32 <: WORD.
   Module M := MakeWord (Width32).
   Include M.
   Parameter eq_dec : forall (m n : t), { m = n } + { m <> n }.
+
+  Definition beqdec (m n : t) :=
+    match eq_dec m n with
+      | left _ => true
+      | right _ => false
+    end.
+
+
 End Word32.
 
 Module Word48 <: WORD.
@@ -147,6 +174,12 @@ Module Word48 <: WORD.
   Include M.
   Parameter eq_dec : forall (m n : t), { m = n } + { m <> n }.
 
+  Definition beqdec (m n : t) :=
+    match eq_dec m n with
+      | left _ => true
+      | right _ => false
+    end.
+
 End Word48.
 
 Module Word64 <: WORD.
@@ -154,6 +187,12 @@ Module Word64 <: WORD.
   Module M := MakeWord (Width64).
   Include M.
   Parameter eq_dec : forall (m n : t), { m = n } + { m <> n }.
+
+  Definition beqdec (m n : t) :=
+    match eq_dec m n with
+      | left _ => true
+      | right _ => false
+    end.
 
 End Word64.
 

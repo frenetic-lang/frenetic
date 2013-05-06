@@ -104,46 +104,13 @@ Module NetCoreAction : NETCORE_ACTION.
       | (None, None) => None
     end.
 
-  Definition word64beq w1 w2 :=
-    match Word64.eq_dec w1 w2 with
-      | left _ => true
-      | right _ => false
-    end.
-
-  Definition word48beq w1 w2 :=
-    match Word48.eq_dec w1 w2 with
-      | left _ => true
-      | right _ => false
-    end.
-
-  Definition word16beq w1 w2 :=
-    match Word16.eq_dec w1 w2 with
-      | left _ => true
-      | right _ => false
-    end.
-
-  Definition word8beq w1 w2 :=
-    match Word8.eq_dec w1 w2 with
-      | left _ => true
-      | right _ => false
-    end.
-
   Definition optword16beq w1 w2 :=
     match (w1, w2) with
       | (None, None) => true
-      | (Some w1, Some w2) =>
-        match Word16.eq_dec w1 w2 with
-          | left _ => true
-          | right _ => false
-        end
+      | (Some w1, Some w2) => Word16.beqdec w1 w2
       | _ => false
     end.
 
-  Definition word32beq w1 w2 :=
-    match Word32.eq_dec w1 w2 with
-      | left _ => true
-      | right _ => false
-    end.
 
   Definition seq_output (out1 out2 : output) :=
     match (out1, out2) with
@@ -151,15 +118,15 @@ Module NetCoreAction : NETCORE_ACTION.
                 nwSrc1 nwDst1 nwTos1 tpSrc1 tpDst1 pt1,
          Output dlSrc2 dlDst2 dlVlan2 dlVlanPcp2
                 nwSrc2 nwDst2 nwTos2 tpSrc2 tpDst2 pt2) =>
-        match (seq_mod word48beq dlSrc1 dlSrc2,
-               seq_mod word48beq dlDst1 dlDst2,
+        match (seq_mod Word48.beqdec dlSrc1 dlSrc2,
+               seq_mod Word48.beqdec dlDst1 dlDst2,
                seq_mod optword16beq dlVlan1 dlVlan2,
-               seq_mod word8beq dlVlanPcp1 dlVlanPcp2,
-               seq_mod word32beq nwSrc1 nwSrc2,
-               seq_mod word32beq nwDst1 nwDst2,
-               seq_mod word8beq nwTos1 nwTos2,
-               seq_mod word16beq tpSrc1 tpSrc2,
-               seq_mod word16beq tpDst1 tpDst2) with
+               seq_mod Word8.beqdec dlVlanPcp1 dlVlanPcp2,
+               seq_mod Word32.beqdec nwSrc1 nwSrc2,
+               seq_mod Word32.beqdec nwDst1 nwDst2,
+               seq_mod Word8.beqdec nwTos1 nwTos2,
+               seq_mod Word16.beqdec tpSrc1 tpSrc2,
+               seq_mod Word16.beqdec tpDst1 tpDst2) with
           | (Some dlSrc,
              Some dlDst,
              Some dlVlan,
@@ -190,36 +157,6 @@ Module NetCoreAction : NETCORE_ACTION.
           (q1 ++ q2)
     end.
   
-  Section MaskPat.
-
-    Definition trans {A : Type} 
-               (x : match_modify A) (f : A -> pattern -> pattern)
-               (pat : pattern) :=
-      match x with
-        | None => pat
-        | Some (_, new) => f new pat
-      end.
-    
-    Local Notation "f $ x" := (f x) (at level 51, right associativity).
-
-    (** [mask_pat atom pat] transforms [pat] to account for how [atom]
-         modifies packets. If [pat] matches an input packet [(pt,pk)],
-         then the transformed pattern matches the output [apply_atom
-         atom (pt,pk)], and vice versa.
-
-         Therefore, in a flow table, if [pat] is the pattern in a rule
-         and [atom] is an action, [mask_pat] can be used to match the
-         packets that [atom] produces. *)
-    Definition mask_pat (out : output) (pat : pattern) : pattern :=
-      match out with
-        | (Output dlSrc dlDst dlVlan dlVlanPcp nwSrc nwDst nwTos tpSrc tpDst
-                  outPort) =>
-           trans dlSrc Pattern.setDlSrc $
-           trans dlDst Pattern.setDlDst pat
-      end.
-
-  End MaskPat.
-
   Section ApplyAtom.
 
     Definition maybe_modify {A : Type} (newVal : match_modify A) 
@@ -241,12 +178,13 @@ Module NetCoreAction : NETCORE_ACTION.
     (* Unlike Haskell, $ is not a function. *)
     Local Notation "f $ x" := (f x) (at level 51, right associativity).
 
+    (** TODO(arjun): this is wrong, IMO. *)
     Definition apply_atom (out : output) (ptpk : portId * packet) :=
       match (out, ptpk) with
         | (Output dlSrc dlDst dlVlan dlVlanPcp nwSrc nwDst nwTos 
                   tpSrc tpDst (Some outPort),
            (_, pk)) =>
-          (outPort,
+          Some (outPort,
            maybe_modify dlSrc setDlSrc $
            maybe_modify dlDst setDlDst $
            maybe_modify (withVlanNone dlVlan) setDlVlan $
@@ -256,15 +194,20 @@ Module NetCoreAction : NETCORE_ACTION.
            maybe_modify nwTos setNwTos $
            maybe_modify tpSrc setTpSrc $
            maybe_modify tpDst setTpDst pk)
-        | (_, (pt, pk)) => (pt, pk)
+        | (_, (pt, pk)) => Some (pt, pk)
       end.
 
   End ApplyAtom.
 
-  Definition apply_action action pt pk :=
-    List.map (fun out => apply_atom out (pt,pk)) (outputs action).
-
   Section Compile.
+
+    Definition trans {A : Type} 
+               (x : match_modify A) (f : A -> pattern -> pattern)
+               (pat : pattern) :=
+      match x with
+        | None => pat
+        | Some (_, new) => f new pat
+      end.
 
     Definition sel {A : Type} (f : A -> pattern) (x : match_modify A) :=
       match x with
@@ -272,26 +215,25 @@ Module NetCoreAction : NETCORE_ACTION.
         | Some (old, _) => f old
       end.
 
-    (* TODO(arjun): restrict other fields. Need to be fancy for TCP/IP fields. *)
-    Definition compile_out (out : output) :=
+    Local Notation "f $ x" := (f x) (at level 51, right associativity).
+
+    Definition restrict_range (out : output) (pat : pattern) : pattern :=
+      match out with
+        | (Output dlSrc dlDst dlVlan dlVlanPcp nwSrc nwDst nwTos tpSrc tpDst
+                  outPort) =>
+           trans dlSrc Pattern.setDlSrc $
+           trans dlDst Pattern.setDlDst pat
+      end.
+
+    Definition domain (out : output) : pattern :=
       match out with
         | (Output dlSrc dlDst dlVlan dlVlanPcp 
                   nwSrc nwDst nwTos tpSrc tpDst pt) =>
-          [(List.fold_right 
-              Pattern.inter 
-              Pattern.all
-              [sel Pattern.dlSrc dlSrc; 
-                sel Pattern.dlDst dlDst],
-            Act [out] nil)]
-      end.
-
-    Definition compile (action : act) :=
-      match action with
-        | Act outs nil =>
-          unions par_action (map compile_out outs)
-        | Act outs qs =>
-          union par_action [(Pattern.all, Act nil qs)]
-                (unions par_action (map compile_out outs))
+          List.fold_right 
+            Pattern.inter 
+            Pattern.all
+            [sel Pattern.dlSrc dlSrc; 
+              sel Pattern.dlDst dlDst]
       end.
 
   End Compile.
@@ -358,7 +300,7 @@ Module NetCoreAction : NETCORE_ACTION.
     Definition output_to_of (inp : option portId) (out : output) : 
       actionSequence :=
       match outPort out with
-        | None => []
+        | None => [] (* TODO(arjun): this is wrong, IMO. *)
         | Some pt =>
           modify out ++
           match inp with
@@ -386,14 +328,9 @@ Module NetCoreAction : NETCORE_ACTION.
   Definition t := act.
   Definition e := output.
 
+  Definition atoms := outputs.
 
-  Definition is_emit_output out :=
-    match outPort out with
-      | None => false
-      | Some _ => true
-    end.
-
-  Definition atoms action := 
-    filter is_emit_output (outputs action).
+  Definition apply_action (action : t) (ptpk : portId * packet) :=
+    filter_map (fun a => apply_atom a ptpk) (atoms action).
 
 End NetCoreAction.

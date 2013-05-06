@@ -44,8 +44,6 @@ Module Type ACTION.
   (** Sequential composition with [drop] as its annihilator. *)
   Parameter seq_action : t -> t -> t.
 
-
-
   (** [restrict_range atom pat] transforms [pat] to account for how [atom]
        modifies packets. If [pat] matches an input packet [(pt,pk)],
        then the transformed pattern matches the output [apply_atom
