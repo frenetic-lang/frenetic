@@ -3,7 +3,7 @@ Set Implicit Arguments.
 Require Import Coq.Lists.List.
 Require Import Common.Types.
 Require Import Word.WordInterface.
-Require Import Pattern.Pattern.
+Require Import Pattern2.PatternSignatures.
 Require Import Network.NetworkPacket.
 Require Import OpenFlow.OpenFlow0x01Types.
 
@@ -11,6 +11,10 @@ Import ListNotations.
 Local Open Scope list_scope.
 
 Module Type ACTION.
+  Declare Module PatternSpec : PATTERN_SPEC.
+  Module Pattern := PatternSpec.Pattern.
+  Definition pattern := Pattern.t.
+  Definition port := Pattern.port.
 
   (** An action, which has type [t], when applied to an input packet
      produces (possibly several) output packets. In constrast, an
@@ -33,9 +37,9 @@ Module Type ACTION.
   Parameter pass : t.
 
   (** Determines how an atomic action forwards packets. *)
-  Parameter apply_atom : e -> portId * packet -> option (portId * packet).
+  Parameter apply_atom : e -> port * packet -> option (port * packet).
 
-  Definition apply_action (action : t) (ptpk : portId * packet) :=
+  Definition apply_action (action : t) (ptpk : port * packet) :=
     filter_map (fun a => apply_atom a ptpk) (atoms action).
 
   (** Parallel composition with [drop] as the identify. *)
@@ -117,12 +121,13 @@ End MAKE_ACTION_SPEC.
 Module Type CLASSIFIER.
 
   Declare Module Action : ACTION.
-
+  Definition pattern := Action.pattern.
+  Definition port := Action.port.
   Definition action := Action.t.
 
   Definition t := list (pattern * action).
 
-  Parameter scan : t -> portId -> packet -> action.
+  Parameter scan : t -> port -> packet -> action.
 
   Parameter inter : t -> t -> t.
 
@@ -137,30 +142,6 @@ Module Type CLASSIFIER.
     end.
 
 End CLASSIFIER.
-
-Module Type MAKE_CLASSIFIER (Import Action_ : ACTION).
-
-  Module Action := Action_.
-  Import Action.
-
-  Definition action := Action.t.
-
-  Definition t := list (pattern * action).
-
-  Parameter scan : t -> portId -> packet -> action.
-
-  Parameter union : t -> t -> t.
-
-  Parameter sequence : t -> t -> t.
-
-  Fixpoint par_actions (lst : list action) :=
-    match lst with
-      | nil => Action.drop
-      | act :: lst' => Action.par_action act (par_actions lst')
-    end.
-
-End MAKE_CLASSIFIER.
-  
 
 Module Type CLASSIFIER_SPEC.
 
@@ -180,7 +161,7 @@ Module Type CLASSIFIER_SPEC.
         Action.seq_action
           (scan tbl1 pt pk)
           (Classifier.par_actions 
-             (map (fun (ptpk : portId * packet) => let (pt,pk) := ptpk in scan tbl2 pt pk)
+             (map (fun (ptpk : port * packet) => let (pt,pk) := ptpk in scan tbl2 pt pk)
                   (Action.apply_action (scan tbl1 pt pk) (pt,pk)))).
 
-End CLASSIFIER_SPEC.  
+End CLASSIFIER_SPEC.

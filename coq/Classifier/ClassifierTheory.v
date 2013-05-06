@@ -6,7 +6,7 @@ Require Import Coq.Bool.Bool.
 Require Import Common.CpdtTactics.
 Require Import Common.Types.
 Require Import Network.NetworkPacket.
-Require Import Pattern.Pattern.
+Require Import Pattern2.PatternSignatures.
 Require Import Classifier.ClassifierSignatures.
 Require Classifier.ClassifierImpl.
 
@@ -19,6 +19,8 @@ Module Make
        (MakeActionSpec : MAKE_ACTION_SPEC) : CLASSIFIER_SPEC.
 
   Module Action := Action_.
+  Module Pattern := Action.Pattern.
+  Module PatternSpec := Action.PatternSpec.
   Module ActionSpec := MakeActionSpec (Action).
   Module Classifier := Classifier.ClassifierImpl.Make (Action).
 
@@ -81,6 +83,7 @@ Module Make
                   Pattern.match_packet port pkt  m' = false)).
     Proof with intros; simpl; auto with datatypes.
       intros.
+      rename port0 into port.
       induction N1.
       (* Base case *)
       intros.
@@ -177,7 +180,7 @@ Module Make
       induction cf1...
       destruct a0 as [p0 a0].
       simpl.
-      rewrite -> Pattern.is_match_false_inter_l...
+      rewrite -> PatternSpec.is_match_false_inter_l...
     Qed.
 
     Hint Resolve elim_inter_head.
@@ -192,7 +195,7 @@ Module Make
       crush.
       destruct a0 as [p0 a0].
       simpl.
-      rewrite -> Pattern.is_match_false_inter_l...
+      rewrite -> PatternSpec.is_match_false_inter_l...
     Qed.
     
     Lemma inter_empty_aux :
@@ -208,7 +211,7 @@ Module Make
         simpl in H0.
         destruct H0.
       - inversion H0; subst; clear H0.
-        apply Pattern.no_match_subset_r...
+        apply PatternSpec.no_match_subset_r...
         eapply H...
       - apply IHN1...
         intros. eapply H... simpl. right. exact H1.
@@ -242,7 +245,7 @@ Module Make
 
     Lemma elim_shadowed_equiv : 
       forall pat1 pat2 act1 act2 (cf1 cf2 cf3 : t),
-        Pattern.equiv pat1 pat2 ->
+        PatternSpec.equiv pat1 pat2 ->
         Classifier_equiv 
           (cf1 ++ (pat1,act1) :: cf2 ++ (pat2,act2) :: cf3)
           (cf1 ++ (pat1,act1) :: cf2 ++ cf3).
@@ -315,7 +318,7 @@ Module Make
         remember (Pattern.beq pat pat') as b.
         destruct b.
         symmetry in Heqb.
-        apply Pattern.beq_true_spec in Heqb.
+        apply PatternSpec.beq_true_spec in Heqb.
         unfold Coq.Classes.Equivalence.equiv in Heqb.
         apply symmetry...
         inversion Heq.
@@ -477,7 +480,7 @@ Module Make
       rewrite <- app_assoc.
       rewrite -> elim_scan_head.
       simpl.
-      rewrite -> Pattern.is_match_true_inter...
+      rewrite -> PatternSpec.is_match_true_inter...
       auto.
       assert ((m,a) :: cf1 = [(m,a)] ++ cf1) as Hsimpl. auto.
       rewrite -> Hsimpl. 
@@ -549,7 +552,7 @@ Module Make
           simpl in H1.
           { destruct H1.
             + inversion H1; subst; clear H1.
-              rewrite -> Pattern.no_match_subset_r...
+              rewrite -> PatternSpec.no_match_subset_r...
               eapply H0.
               simpl.
               left...
@@ -610,7 +613,7 @@ Module Make
         simpl in H0.
         destruct H0 as [H0|H0]...
         inversion H0; subst; clear H0.
-        rewrite -> Pattern.is_match_false_inter_l...
+        rewrite -> PatternSpec.is_match_false_inter_l...
     Qed.
 
     Lemma total_singleton : forall pat act, total [(pat,act)] -> pat = Pattern.all.
@@ -661,8 +664,8 @@ Module Make
       unfold scan.
       simpl.
       apply restrict_range_spec2  with (pat:=p) in H.
-      rewrite -> Pattern.no_match_subset_r...
-      rewrite -> Pattern.no_match_subset_r...
+      rewrite -> PatternSpec.no_match_subset_r...
+      rewrite -> PatternSpec.no_match_subset_r...
     Qed.
 
     Lemma unions_Pick_ok : 
@@ -670,7 +673,7 @@ Module Make
         Pattern.match_packet pt pk pat = true ->
         act; (par_actions
                 (map
-                   (fun ptpk : portId * packet =>
+                   (fun ptpk : port * packet =>
                    let (pt0, pk0) := ptpk in scan tbl pt0 pk0)
                    (apply_action act (pt, pk))))=
          scan
@@ -702,15 +705,15 @@ Module Make
             remember (Pattern.match_packet pt pk (restrict_range a pat0))
               as b eqn:Hb.
             destruct b.
-            * rewrite -> Pattern.is_match_true_inter...
+            * rewrite -> PatternSpec.is_match_true_inter...
               erewrite -> restrict_range_spec in Hb; eauto.
               rewrite <- Hb...
-              rewrite -> Pattern.is_match_true_inter...
+              rewrite -> PatternSpec.is_match_true_inter...
               apply restrict_domain_spec1 in Heqr...
-            * rewrite -> Pattern.no_match_subset_r...
+            * rewrite -> PatternSpec.no_match_subset_r...
               erewrite -> restrict_range_spec in Hb; eauto.
               rewrite <- Hb...
-              rewrite -> Pattern.no_match_subset_r... }
+              rewrite -> PatternSpec.no_match_subset_r... }
       + rewrite -> pick_unmasked...
         rewrite -> par_drop_l...
     Qed.
@@ -788,7 +791,7 @@ Module Make
                 simpl in H. destruct a1 as [p1 a1]. simpl in H.
                 { destruct H.
                   + inversion H; subst; clear H.
-                    rewrite -> Pattern.is_match_false_inter_l...
+                    rewrite -> PatternSpec.is_match_false_inter_l...
                   + apply IHtbl2... }
               - simpl in H.
                 rewrite -> union_assoc in H.
@@ -810,7 +813,7 @@ Module Make
         Action.seq_action
           (scan tbl1 pt pk)
           (Classifier.par_actions 
-             (map (fun (ptpk : portId * packet) => let (pt,pk) := ptpk in scan tbl2 pt pk)
+             (map (fun (ptpk : port * packet) => let (pt,pk) := ptpk in scan tbl2 pt pk)
                   (Action.apply_action (scan tbl1 pt pk) (pt,pk)))).
   Proof with auto.
     intros.

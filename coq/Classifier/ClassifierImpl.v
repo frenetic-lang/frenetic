@@ -2,19 +2,20 @@ Set Implicit Arguments.
 
 Require Import Coq.Lists.List.
 Require Import Common.Types.
-Require Import Pattern.Pattern.
+Require Import Pattern2.PatternSignatures.
 Require Import Network.NetworkPacket.
 Require Import Classifier.ClassifierSignatures.
 
 Module Make (Action_ : ACTION) <: CLASSIFIER.
 
   Module Action := Action_.
-
+  Module Pattern := Action.Pattern.
+  Definition pattern := Action.pattern.
+  Definition port := Action.port.
   Definition action := Action.t.
-
   Definition t := list (pattern * action).
 
-  Fixpoint scan' (default : action) (classifier : t)  (pt : portId) (pk : packet) := 
+  Fixpoint scan' (default : action) (classifier : t)  (pt : port) (pk : packet) := 
   match classifier with
     | nil => default
     | (pat,a) :: rest => 
@@ -80,7 +81,7 @@ Module Make (Action_ : ACTION) <: CLASSIFIER.
     Action.seq_action
       (scan tbl1 pt pk)
       (par_actions 
-         (map (fun (ptpk : portId * packet) => 
+         (map (fun (ptpk : port * packet) => 
                  let (pt,pk) := ptpk in scan tbl2 pt pk) 
               (Action.apply_action (scan tbl1 pt pk) (pt,pk)))).
 
