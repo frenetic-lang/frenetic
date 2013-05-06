@@ -1,8 +1,7 @@
 MODULES := \
   NetCoreAction \
   NetCoreEval \
-  NetCoreCompiler \
-  NetCoreController
+  NetCoreCompiler
 
 VS := $(MODULES:%=%.v)
 

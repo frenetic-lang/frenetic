@@ -6,15 +6,17 @@ Require Import Common.Types.
 Require Import Word.WordInterface.
 Require Import Pattern2.PatternSignatures.
 Require Import Network.NetworkPacket.
+Require Import Classifier.ClassifierSignatures.
 
 Import ListNotations.
 Local Open Scope list_scope.
 Local Open Scope bool_scope.
 
-Module Make (PatternSpec_ : PATTERN_SPEC).
+Module Make (PatternSpec_ : PATTERN_SPEC) <: ACTION.
 
   Module PatternSpec := PatternSpec_.
   Import PatternSpec.
+  Module Pattern := PatternSpec.Pattern.
   Definition pattern := Pattern.t.
   Definition port := Pattern.port.
 

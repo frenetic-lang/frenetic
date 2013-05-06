@@ -46,8 +46,16 @@ Module Make (Action_ : ACTION) <: CLASSIFIER.
 
   Definition elim_shadowed (cf : t) := elim_shadowed_helper nil cf.
 
-  Definition opt := elim_shadowed.
+  Fixpoint strip_empty_rules (cf : t) : t :=
+    match cf with
+      | nil => nil
+      | (pat, acts) :: cf => 
+        if Pattern.is_empty pat
+        then strip_empty_rules cf
+        else (pat, acts) :: strip_empty_rules cf
+    end.
 
+  Definition opt tbl := elim_shadowed (strip_empty_rules tbl).
 
   Definition inter_entry (cl : t) (v : pattern * action) :=
     let (pat, act) := v in

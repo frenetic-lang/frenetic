@@ -340,11 +340,35 @@ Module Make
       apply elim_shadowed_helper_ok.
     Qed.
 
+    Lemma strip_empty_rules_ok : forall tbl, tbl === strip_empty_rules tbl.
+    Proof with auto.
+      unfold equiv.
+      unfold Classifier_equiv.
+      intros.
+      induction tbl...
+      destruct a as [p a].
+      simpl.
+      remember (Pattern.is_empty p) as b eqn:J.
+      destruct b.
+      + rewrite -> PatternSpec.match_packet_spec.
+        rewrite -> PatternSpec.is_empty_true_r...
+      + simpl.
+        rewrite <- IHtbl...
+    Qed.
+
     Lemma opt_spec : forall tbl pt pk, scan (opt tbl) pt pk = scan tbl pt pk.
     Proof with auto.
       intros.
       unfold opt.
-      remember (elim_shadowed_ok tbl) as H eqn:X; clear X.
+      assert (elim_shadowed (strip_empty_rules tbl) === tbl) as H.
+      { eapply transitivity.
+        + instantiate (1 := strip_empty_rules tbl).
+          unfold equiv; unfold Classifier_equiv.
+          intros.
+          rewrite <- elim_shadowed_ok...
+        + unfold equiv; unfold Classifier_equiv.
+          intros.
+          rewrite <- strip_empty_rules_ok... }
       unfold equiv in H.
       unfold Classifier_equiv in H.
       unfold scan...

@@ -2,21 +2,25 @@ Set Implicit Arguments.
 
 Require Import Coq.Lists.List.
 Require Import Coq.Bool.Bool.
-Require Import NetCore.NetCoreEval.
 Require Import Common.Types.
-Require Import Classifier.Classifier.
+Require Classifier.ClassifierImpl.
+Require Classifier.BoolAction.
 Require Import Word.WordInterface.
-Require Import Pattern.Pattern.
-(* TODO: MJR Move 'switchId' from messagesDef so that we don't have to include this whole thing *)
 Require Import OpenFlow.OpenFlow0x01Types.
 Require Import Network.NetworkPacket.
 Require Import NetCore.NetCoreAction.
+Require Import NetCore.NetCoreEval.
 
 Import ListNotations.
 Local Open Scope list_scope.
 
-Fixpoint compile_pred (opt : Classifier bool -> Classifier bool) 
-         (pr : pred) (sw : switchId) : Classifier bool := 
+Module Classifier := Classifier.ClassifierImpl.Make (NetCoreAction).
+Module BoolAction := Classifier.BoolAction.Make (NetCoreAction.PatternSpec).
+Module BoolClassifier := Classifier.ClassifierImpl.Make (BoolAction).
+
+(** Tempting to use NetCoreAction.drop and NetCoreAction.pass as actions instead. But,
+    those would create duplicate packets during parallel composition. *)
+Fixpoint compile_pred (pr : pred) (sw : switchId) : BoolClassifier.t :=
   match pr with
     | PrHdr pat => [(pat, true)]
     | PrOnSwitch sw' => 
@@ -24,13 +28,9 @@ Fixpoint compile_pred (opt : Classifier bool -> Classifier bool)
         | left _ => [(Pattern.all, true)]
         | right _ => []
       end
-    | PrOr pr1 pr2 => opt (union orb (compile_pred opt pr1 sw) 
-                                 (compile_pred opt pr2 sw))
-    | PrAnd pr1 pr2 => opt (inter andb (compile_pred opt pr1 sw)
-                                  (compile_pred opt pr2 sw))
-    | PrNot pr' => 
-      opt (map (second negb) 
-               (compile_pred opt pr' sw ++ [(Pattern.all, false)]))
+    | PrOr pr1 pr2 => BoolClassifier.union (compile_pred pr1 sw) (compile_pred pr2 sw)
+    | PrAnd pr1 pr2 => BoolClassifier.sequence (compile_pred pr1 sw) (compile_pred pr2 sw)
+    | PrNot pr' => map (second negb) (compile_pred pr' sw ++ [(Pattern.all, false)])
     | PrAll => [(Pattern.all, true)]
     | PrNone => [(Pattern.all, false)]
   end.
@@ -38,47 +38,20 @@ Fixpoint compile_pred (opt : Classifier bool -> Classifier bool)
 Definition maybe_action (a : NetCoreAction.t) (b : bool) := 
   match b with
     | true => a
-    | false => NetCoreAction.zero
+    | false => NetCoreAction.drop
   end.
 
-
-(** TODO(arjun): rank-2 polymorphism. The extracted code makes me nervous. *)
-Fixpoint compile_pol 
-  (opt : forall (A : Type), Classifier A -> Classifier A) 
-  (p : pol) (sw : switchId) : Classifier NetCoreAction.t :=
+Fixpoint compile_pol  (p : pol) (sw : switchId) : Classifier.t :=
   match p with
-    | PoAction action =>
-      opt _ (NetCoreAction.compile action)
+    | PoAction action => 
+      List.fold_right
+        (fun e tbl => Classifier.union [(NetCoreAction.domain e, [e])] tbl)
+        [(Pattern.all, NetCoreAction.drop)]
+        (NetCoreAction.atoms action)
     | PoFilter pred =>
-      opt _ (map (second (maybe_action NetCoreAction.one)) 
-                 (compile_pred (opt bool) pred sw ++ [(Pattern.all, false)]))
+      map (second (maybe_action NetCoreAction.pass)) (compile_pred pred sw)
     | PoUnion pol1 pol2 => 
-      opt _ (union NetCoreAction.par_action
-                   (compile_pol opt pol1 sw) 
-                   (compile_pol opt pol2 sw))
+      Classifier.union (compile_pol pol1 sw) (compile_pol pol2 sw)
     | PoSeq pol1 pol2 =>
-      opt _ (sequence 
-               NetCoreAction.zero
-               NetCoreAction.par_action
-               NetCoreAction.seq_action 
-               NetCoreAction.mask_pat
-               NetCoreAction.atoms
-               (compile_pol opt pol1 sw) 
-               (compile_pol opt pol2 sw))
+      Classifier.sequence (compile_pol pol1 sw) (compile_pol pol2 sw)
   end.
-
-Fixpoint strip_empty_rules (A : Type) (cf : Classifier A) : Classifier A :=
-  match cf with
-    | nil => nil
-    | (pat, acts) :: cf => 
-      if Pattern.is_empty pat
-      then strip_empty_rules cf
-      else (pat, acts) :: strip_empty_rules cf
-  end.
-
-Definition no_opt (A : Type) := @Datatypes.id (Classifier A).
-
-Definition compile_no_opt := compile_pol no_opt.
-
-Definition compile_opt := 
-  compile_pol ((fun A x  => @strip_empty_rules A (@elim_shadowed A x))).
