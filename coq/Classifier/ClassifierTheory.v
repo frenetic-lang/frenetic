@@ -104,15 +104,15 @@ Module Make
       crush. rewrite <- Heqb... apply H in H1. crush.
     Qed.
 
-    Hint Unfold union inter inter_entry.
+    Hint Unfold union_no_opt inter_no_opt inter_entry.
 
     Variable def : action.
     Variable cf : t.
 
-    Lemma inter_nil_l : inter nil cf = nil.
+    Lemma inter_nil_l : inter_no_opt nil cf = nil.
     Proof. intros. induction cf; crush. Qed.
 
-    Lemma inter_nil_r : inter cf nil = nil.
+    Lemma inter_nil_r : inter_no_opt cf nil = nil.
     Proof. intros. induction cf; crush. Qed.
     
     Hint Resolve inter_nil_l inter_nil_r.
@@ -217,7 +217,7 @@ Module Make
     Lemma inter_empty : 
       forall N2 pkt pt,
         (forall m (a : action), In (m,a) N2 -> Pattern.match_packet pt pkt m = false) ->
-        (forall N1 m (a : action), In (m,a) (inter N1 N2) -> 
+        (forall N1 m (a : action), In (m,a) (inter_no_opt N1 N2) -> 
                                    Pattern.match_packet pt pkt m = false).
     Proof with auto with datatypes.
       intros N2 pkt pt.
@@ -337,6 +337,16 @@ Module Make
       apply elim_shadowed_helper_ok.
     Qed.
 
+    Lemma opt_spec : forall tbl pt pk, scan (opt tbl) pt pk = scan tbl pt pk.
+    Proof with auto.
+      intros.
+      unfold opt.
+      remember (elim_shadowed_ok tbl) as H eqn:X; clear X.
+      unfold equiv in H.
+      unfold Classifier_equiv in H.
+      unfold scan...
+    Qed.
+
   End Optimizer.
 
   Lemma scan_app_compose : 
@@ -352,7 +362,6 @@ Module Make
 
   Hint Constructors total.
   
-  
   Lemma inter_entry_app : 
     forall cf1 cf2 m (a : action) ,
       inter_entry (cf1 ++ cf2) (m,a) = 
@@ -364,10 +373,9 @@ Module Make
     simpl. f_equal...
   Qed.
 
-
-  Lemma union_spec : 
+  Lemma union_no_opt_spec : 
     forall pt pk cf1 cf2,
-      scan (union cf1 cf2) pt pk = 
+      scan (union_no_opt cf1 cf2) pt pk = 
       Action.par_action (scan cf1 pt pk) (scan cf2 pt pk).
   Proof with simpl; eauto with datatypes.
     intros pt pk cf1 cf2.
@@ -377,13 +385,13 @@ Module Make
     simpl.
     rewrite -> ActionSpec.par_drop_l...
     (* Inductive case *)
-    unfold union.
+    unfold union_no_opt.
     destruct a as [m a].
     remember (Pattern.match_packet pt pk m).
     remember 
       (scan_inv 
          Action.drop pk pt 
-         (inter ((m, a) :: cf1) cf2 ++ ((m, a) :: cf1) ++ cf2)) as H1; clear HeqH1.
+         (inter_no_opt ((m, a) :: cf1) cf2 ++ ((m, a) :: cf1) ++ cf2)) as H1; clear HeqH1.
     destruct H1 as [H1| H1].
     + destruct H1 as [H1 H2].
       (* Case: scan falls off the table. *)
@@ -411,10 +419,10 @@ Module Make
       destruct Hinv as [[H5 H6]|Hinv].
       rewrite -> H6.
       assert (forall m'  (a' : action),
-                In (m',a') (inter ((m, a) :: cf1) cf2) ->
+                In (m',a') (inter_no_opt ((m, a) :: cf1) cf2) ->
                 Pattern.match_packet pt pk m' = false) as H7.
       apply inter_empty; auto.
-      assert (scan' Action.drop (inter ((m, a) :: cf1) cf2 ++ 
+      assert (scan' Action.drop (inter_no_opt ((m, a) :: cf1) cf2 ++ 
                                        (m, a) :: cf1 ++ cf2) pt pk =
               scan' Action.drop ((m,a) :: cf1 ++ cf2) pt pk) as HelimHd.
       apply elim_scan_head; auto.
@@ -439,7 +447,7 @@ Module Make
         | [ |- context[fold_right ?f ?acc ?lst]] => remember (fold_right f acc lst) as F
       end.
       rewrite <- app_assoc.
-      remember (inter cf1 cf2 ++ (m,a) :: cf1 ++ cf2) as Trash.
+      remember (inter_no_opt cf1 cf2 ++ (m,a) :: cf1 ++ cf2) as Trash.
       assert
         (forall m5 (a5 : action), 
            In (m5,a5) (fold_right
@@ -451,7 +459,7 @@ Module Make
       match goal with
         | [ |- context[fold_right ?f ?acc ?lst]] => remember (fold_right f acc lst) as F1
       end.
-      assert (F1 = inter [(m,a)] N2') as HF1.
+      assert (F1 = inter_no_opt [(m,a)] N2') as HF1.
       simpl. rewrite -> app_nil_r. rewrite -> HeqF1...
       rewrite -> HF1.
       apply inter_empty; auto.
@@ -487,6 +495,17 @@ Module Make
         simpl in H. inversion H. inversion H0. subst... inversion H0. }
   Qed.
 
+  Lemma union_spec : 
+    forall pt pk cf1 cf2,
+      scan (union cf1 cf2) pt pk = 
+      Action.par_action (scan cf1 pt pk) (scan cf2 pt pk).
+  Proof.
+    intros.
+    unfold union.
+    rewrite -> opt_spec.
+    apply union_no_opt_spec.
+  Qed.
+
   Lemma prefix_equivalence : 
     forall cf1 cf2 pt pk,
       scan' Action.drop cf1 pt pk = scan' Action.drop (cf1 ++ cf2) pt pk \/
@@ -512,7 +531,7 @@ Module Make
       forall pt pk tbl1 tbl2,
         (forall pat act, In (pat,act) tbl1 -> Pattern.match_packet pt pk pat = false) ->
         (forall pat act, In (pat,act) tbl2 -> Pattern.match_packet pt pk pat = false) ->
-        forall pat act, In (pat,act) (inter tbl1 tbl2) -> Pattern.match_packet pt pk pat = false.
+        forall pat act, In (pat,act) (inter_no_opt tbl1 tbl2) -> Pattern.match_packet pt pk pat = false.
     Proof with auto with datatypes.
       intros.
       simpl in H1.
@@ -549,10 +568,10 @@ Module Make
       forall pt pk tbl1 tbl2,
         (forall pat act, In (pat,act) tbl1 -> Pattern.match_packet pt pk pat = false) ->
         (forall pat act, In (pat,act) tbl2 -> Pattern.match_packet pt pk pat = false) ->
-        forall pat act, In (pat,act) (union tbl1 tbl2) -> Pattern.match_packet pt pk pat = false.
+        forall pat act, In (pat,act) (union_no_opt tbl1 tbl2) -> Pattern.match_packet pt pk pat = false.
     Proof with eauto with datatypes.
       intros.
-      unfold union in H1.
+      unfold union_no_opt in H1.
       rewrite -> in_app_iff in H1.
       rewrite -> in_app_iff in H1.
       destruct H1 as [H1 | [H1 | H1]]...
@@ -664,7 +683,7 @@ Module Make
       induction (atoms act).
       simpl. rewrite -> seq_drop_r...
       simpl.
-      rewrite -> union_spec.
+      rewrite -> union_no_opt_spec.
       rewrite <- IHl; clear IHl.
       unfold filter_map_body.
       remember (apply_atom a (pt,pk)) as r.
@@ -698,59 +717,21 @@ Module Make
 
     Axiom union_assoc : 
       forall tbl1 tbl2 tbl3, 
-        union tbl1 (union tbl2 tbl3) = union (union tbl1 tbl2) tbl3.
+        union_no_opt tbl1 (union_no_opt tbl2 tbl3) = union_no_opt (union_no_opt tbl1 tbl2) tbl3.
 
-    Axiom union_comm : forall tbl1 tbl2, union tbl1 tbl2 = union tbl2 tbl1.
+    Axiom union_comm : forall tbl1 tbl2, union_no_opt tbl1 tbl2 = union_no_opt tbl2 tbl1.
 
-(*
-    Lemma pick_in :
-      forall pt pk pat act atom tbl,
-        true = Pattern.match_packet pt pk pat ->
-        total tbl ->
-        exists pat' act',
-          In (pat', act') (Pick pat act atom tbl) /\
-          true = Pattern.match_packet pt pk pat'.
-    Proof with eauto with datatypes.
-      intros.
-      induction tbl...
-      + inversion H0.
-        destruct cf; simpl in H2; inversion H2.
-      + destruct a as [pat1 act1].
-        destruct tbl.
-        * apply total_singleton in H0; subst.
-          simpl.
-          eexists. eexists.
-          split. left. reflexivity. 
-          rewrite -> Pattern.is_match_true_inter...
-          symmetry in H.
-          rewrite <- restrict_domain_spec1 in H.
-          admit. (* check *)
-        * apply total_pop in H0.
-          destruct p as [p1 a1].
-          remember (Pattern.match_packet pt pk (restrict_range atom pat1)) as b.
-          { destruct b.
-            + do 2 eexists.
-              split. left. reflexivity. rewrite -> Pattern.is_match_true_inter...
-            + apply IHtbl in H0.
-              destruct H0 as [pat' [act' [HIn Hmatch]]].
-              do 2 eexists.
-              split.
-              * simpl. right. simpl in HIn. exact HIn.
-              * trivial. }
-    Qed.
-*)
-
-    Lemma union_nil_r : forall tbl, union tbl nil = tbl.
+    Lemma union_nil_r : forall tbl, union_no_opt tbl nil = tbl.
     Proof with auto with datatypes.
       intros.
-      unfold union.
+      unfold union_no_opt.
       rewrite -> inter_nil_r.
       simpl...
     Qed.
 
-    Lemma sequence_correctness_theorem :
+    Lemma sequence_no_opt_spec :
       forall pt pk tbl1 tbl2,
-        seq tbl1 tbl2 pt pk = scan (sequence tbl1 tbl2) pt pk.
+        seq tbl1 tbl2 pt pk = scan (sequence_no_opt tbl1 tbl2) pt pk.
     Proof with auto with datatypes.
       intros.
       induction tbl1...
@@ -766,19 +747,19 @@ Module Make
             * simpl. 
               assert (atoms a = nil -> a = drop) as X. admit.
               assert (a = drop)... subst.
-              clear X.
+              clear X. 
               rewrite <- Hb.
               rewrite -> seq_drop_l...
             * fold scan.
               assert (unions (map (fun atom => Pick p a atom tbl2) (e0 :: ats)) =
-                      union (Pick p a e0 tbl2)
+                      union_no_opt (Pick p a e0 tbl2)
                             (unions (map (fun atom => Pick p a atom tbl2) ats))) as J...
               rewrite <- J; clear J.
               assert
                 (scan
                    (unions
                       (map (fun atom : Classifier.Action.e => Pick p a atom tbl2)
-                           (e0 :: ats)) ++ sequence tbl1 tbl2) pt pk =
+                           (e0 :: ats)) ++ sequence_no_opt tbl1 tbl2) pt pk =
                  scan
                    (unions
                       (map (fun atom : Classifier.Action.e => Pick p a atom tbl2)
@@ -815,12 +796,13 @@ Module Make
                 rewrite <- union_assoc in H.
                 refine (@match_union_false 
                           pt pk (Pick p a a0 tbl2)
-                          (union (Pick p a e0 tbl2)
+                          (union_no_opt (Pick p a e0 tbl2)
                                  (unions (map (fun atom => Pick p a atom tbl2) ats))) _ _ m a1 _);
                   eauto.
                 intros. symmetry. eapply Pick_false; eauto. }
     Qed.
 
   End Sequencing.
+
 End Make.
 
