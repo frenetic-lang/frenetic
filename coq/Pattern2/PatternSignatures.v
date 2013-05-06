@@ -7,7 +7,18 @@ Require Import OpenFlow.OpenFlow0x01Types.
 
 Local Open Scope equiv_scope.
 
+Module Type PORT.
+
+  Parameter t : Type.
+  Parameter eqdec : forall (x y : t), { x = y } + { x <> y }.
+  Parameter opt_portId : t -> option portId.
+  
+
+End PORT.
+
 Module Type PATTERN.
+
+  Parameter port : Type.
 
   Parameter t : Type.
 
@@ -17,15 +28,17 @@ Module Type PATTERN.
 
   Parameter empty : t.
 
-  Parameter exact_pattern : packet -> portId -> t.
+  Parameter exact_pattern : packet -> port -> t.
 
   Parameter is_empty : t -> bool.
 
-  Parameter match_packet : portId -> packet -> t -> bool.
+  Parameter match_packet : port -> packet -> t -> bool.
 
   Parameter is_exact : t -> bool.
 
-  Parameter to_match : forall x, is_empty x = false -> of_match.
+  (** Empty patterns and patterns that match on ports that are not switch ports
+      cannot be translated to OpenFlow matches. *)
+  Parameter to_match : t -> option of_match.
 
   Parameter beq : t -> t -> bool.
 
@@ -50,7 +63,7 @@ Module Type PATTERN.
 
   Parameter ipProto : nwProto -> t.
 
-  Parameter inPort : portId -> t.
+  Parameter inPort : port -> t.
 
   Parameter tcpSrcPort : tpPort -> t.
 
@@ -115,7 +128,7 @@ Module Type PATTERN.
     is_empty (inter x y) = true.
 
   Parameter is_match_false_inter_l :
-    forall (pt : portId) (pkt : packet) pat1 pat2,
+    forall (pt : port) (pkt : packet) pat1 pat2,
       match_packet pt pkt pat1 = false ->
       match_packet pt pkt (inter pat1 pat2) = false.
 

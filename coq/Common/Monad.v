@@ -12,3 +12,17 @@ Module Type MONAD.
 
 End MONAD.
 
+Module Maybe <: MONAD.
+
+  Definition m (A : Type) := option A.
+
+  Definition bind {A B : Type} (m : option A) (f : A -> option B) : option B :=
+    match m with
+      | None => None
+      | Some a => f a
+    end.
+
+  Definition ret {A : Type} (x : A) := Some x.
+
+End Maybe.
+                    
