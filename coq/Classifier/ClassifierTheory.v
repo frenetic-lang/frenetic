@@ -16,7 +16,7 @@ Local Open Scope equiv_scope.
 
 Module Make 
        (Action_ : ACTION) 
-       (MakeActionSpec : MAKE_ACTION_SPEC).
+       (MakeActionSpec : MAKE_ACTION_SPEC) : CLASSIFIER_SPEC.
 
   Module Action := Action_.
   Module ActionSpec := MakeActionSpec (Action).
@@ -496,7 +496,7 @@ Module Make
   Qed.
 
   Lemma union_spec : 
-    forall pt pk cf1 cf2,
+    forall cf1 cf2 pt pk,
       scan (union cf1 cf2) pt pk = 
       Action.par_action (scan cf1 pt pk) (scan cf2 pt pk).
   Proof.
@@ -803,6 +803,23 @@ Module Make
     Qed.
 
   End Sequencing.
+
+  Lemma sequence_spec :
+      forall tbl1 tbl2 pt pk, 
+        scan (sequence tbl1 tbl2) pt pk =
+        Action.seq_action
+          (scan tbl1 pt pk)
+          (Classifier.par_actions 
+             (map (fun (ptpk : portId * packet) => let (pt,pk) := ptpk in scan tbl2 pt pk)
+                  (Action.apply_action (scan tbl1 pt pk) (pt,pk)))).
+  Proof with auto.
+    intros.
+    unfold sequence.
+    rewrite -> opt_spec.
+    fold (seq tbl1 tbl2 pt pk).
+    symmetry.
+    apply sequence_no_opt_spec.
+  Qed.
 
 End Make.
 

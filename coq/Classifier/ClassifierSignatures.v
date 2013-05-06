@@ -130,6 +130,12 @@ Module Type CLASSIFIER.
 
   Parameter sequence : t -> t -> t.
 
+  Fixpoint par_actions (lst : list action) :=
+    match lst with
+      | nil => Action.drop
+      | act :: lst' => Action.par_action act (par_actions lst')
+    end.
+
 End CLASSIFIER.
 
 Module Type MAKE_CLASSIFIER (Import Action_ : ACTION).
@@ -143,11 +149,15 @@ Module Type MAKE_CLASSIFIER (Import Action_ : ACTION).
 
   Parameter scan : t -> portId -> packet -> action.
 
-  Parameter inter : t -> t -> t.
-
   Parameter union : t -> t -> t.
 
   Parameter sequence : t -> t -> t.
+
+  Fixpoint par_actions (lst : list action) :=
+    match lst with
+      | nil => Action.drop
+      | act :: lst' => Action.par_action act (par_actions lst')
+    end.
 
 End MAKE_CLASSIFIER.
   
@@ -163,5 +173,14 @@ Module Type CLASSIFIER_SPEC.
       scan (union tbl1 tbl2) pt pk =
       Action.par_action (scan tbl1 pt pk)
                         (scan tbl2 pt pk).
+
+  Parameter sequence_spec :
+      forall tbl1 tbl2 pt pk, 
+        scan (sequence tbl1 tbl2) pt pk =
+        Action.seq_action
+          (scan tbl1 pt pk)
+          (Classifier.par_actions 
+             (map (fun (ptpk : portId * packet) => let (pt,pk) := ptpk in scan tbl2 pt pk)
+                  (Action.apply_action (scan tbl1 pt pk) (pt,pk)))).
 
 End CLASSIFIER_SPEC.  
