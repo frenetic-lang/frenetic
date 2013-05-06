@@ -14,14 +14,11 @@ Import ListNotations.
 Local Open Scope list_scope.
 Local Open Scope equiv_scope.
 
-Module Make 
-       (Action_ : ACTION) 
-       (MakeActionSpec : MAKE_ACTION_SPEC) : CLASSIFIER_SPEC.
-
-  Module Action := Action_.
+Module Make (ActionSpec : ACTION_SPEC) : CLASSIFIER_SPEC.
+  
+  Module Action := ActionSpec.Action.
   Module Pattern := Action.Pattern.
-  Module PatternSpec := Action.PatternSpec.
-  Module ActionSpec := MakeActionSpec (Action).
+  Module PatternSpec := ActionSpec.PatternSpec.
   Module Classifier := Classifier.ClassifierImpl.Make (Action).
 
   Import Classifier.

@@ -15,7 +15,7 @@ Import ListNotations.
 Local Open Scope list_scope.
 
 Module Classifier := Classifier.ClassifierImpl.Make (NetCoreAction).
-Module BoolAction := Classifier.BoolAction.Make (NetCoreAction.PatternSpec).
+Module BoolAction := Classifier.BoolAction.Make (NetCoreAction.Pattern).
 Module BoolClassifier := Classifier.ClassifierImpl.Make (BoolAction).
 
 (** Tempting to use NetCoreAction.drop and NetCoreAction.pass as actions instead. But,

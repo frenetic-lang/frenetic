@@ -10,8 +10,7 @@ Import ListNotations.
 Local Open Scope list_scope.
 
 Module Type ACTION.
-  Declare Module PatternSpec : PATTERN_SPEC.
-  Module Pattern := PatternSpec.Pattern.
+  Declare Module Pattern : PATTERN.
   Definition pattern := Pattern.t.
   Definition port := Pattern.port.
 
@@ -68,9 +67,10 @@ Module Type ACTION.
 
 End ACTION.
 
-Module Type MAKE_ACTION_SPEC (Action_ : ACTION).
-  
-  Module Action := Action_.
+Module Type ACTION_SPEC.
+
+  Declare Module PatternSpec : PATTERN_SPEC.  
+  Declare Module Action : ACTION with Module Pattern := PatternSpec.Pattern.
   Import Action.
 
   Parameter atoms_drop : atoms drop = nil.
@@ -115,10 +115,10 @@ Module Type MAKE_ACTION_SPEC (Action_ : ACTION).
 
   Parameter seq_drop_r : forall a, seq_action a drop = drop.
 
-End MAKE_ACTION_SPEC.
+End ACTION_SPEC.
 
 Module Type CLASSIFIER.
-
+ 
   Declare Module Action : ACTION.
   Definition pattern := Action.pattern.
   Definition port := Action.port.

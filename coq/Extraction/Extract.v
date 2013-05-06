@@ -1,6 +1,3 @@
-Require Import PArith.BinPos.
-Require Import NArith.BinNat.
-
 Require Import OpenFlow13.OpenFlowTypes.
 Require Import NetCore.NetCoreCompiler.
 Require Import Pattern.PatternInterface.

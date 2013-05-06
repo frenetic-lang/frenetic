@@ -2,8 +2,11 @@
 Mininet_Parser
 Mininet_Lexer
 
+(* Auto-generated below *)
 BinNat
 BinNums
+BinPosDef
+BinPos
 BoolAction
 Bool
 ClassifierImpl
@@ -24,7 +27,6 @@ OrdersTac
 PatternImpl
 PatternInterface
 PatternSignatures
-PatternTheory
 Peano_dec
 Peano
 Specif

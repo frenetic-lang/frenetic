@@ -67,8 +67,7 @@ End NETCORE_ACTION.
 
 Module NetCoreAction <: NETCORE_ACTION.
 
-  Module PatternSpec := Pattern2.PatternTheory.Make (Port).
-  Module Pattern := PatternSpec.Pattern.
+  Module Pattern := Pattern2.PatternImpl.Make (Port).
 
   Definition match_modify (A : Type) := option (A * A).
 

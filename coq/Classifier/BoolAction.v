@@ -12,11 +12,9 @@ Import ListNotations.
 Local Open Scope list_scope.
 Local Open Scope bool_scope.
 
-Module Make (PatternSpec_ : PATTERN_SPEC) <: ACTION.
+Module Make (Pattern_ : PATTERN) <: ACTION.
 
-  Module PatternSpec := PatternSpec_.
-  Import PatternSpec.
-  Module Pattern := PatternSpec.Pattern.
+  Module Pattern := Pattern_.
   Definition pattern := Pattern.t.
   Definition port := Pattern.port.
 
