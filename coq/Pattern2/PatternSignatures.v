@@ -90,6 +90,13 @@ Module Type PATTERN.
 
   End Setters.
 
+End PATTERN.
+
+Module Type PATTERN_SPEC.
+
+  Declare Module Pattern : PATTERN.
+  Import Pattern.
+
   (** Pattern equivalence *)
 
   Definition equiv (pat1 pat2 : t) : Prop :=
@@ -163,4 +170,5 @@ Module Type PATTERN.
   Parameter all_is_not_empty : is_empty all = false.
 
 
-End PATTERN.
+End PATTERN_SPEC.
+

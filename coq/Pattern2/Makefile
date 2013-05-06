@@ -1,8 +1,7 @@
 MODULES := \
   PatternSignatures \
   PatternImpl \
-  PatternTheory \
-  Pattern
+  PatternTheory
 
 VS := $(MODULES:%=%.v)
 
