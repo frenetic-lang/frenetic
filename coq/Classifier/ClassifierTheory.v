@@ -14,7 +14,7 @@ Import ListNotations.
 Local Open Scope list_scope.
 Local Open Scope equiv_scope.
 
-Module Make (ActionSpec : ACTION_SPEC) : CLASSIFIER_SPEC.
+Module Make (ActionSpec : ACTION_SPEC).
   
   Module Action := ActionSpec.Action.
   Module Pattern := Action.Pattern.
@@ -782,11 +782,11 @@ Module Make (ActionSpec : ACTION_SPEC) : CLASSIFIER_SPEC.
               assert
                 (scan
                    (unions
-                      (map (fun atom : Classifier.Action.e => Pick p a atom tbl2)
+                      (map (fun atom : Action.e => Pick p a atom tbl2)
                            (e0 :: ats)) ++ sequence_no_opt tbl1 tbl2) pt pk =
                  scan
                    (unions
-                      (map (fun atom : Classifier.Action.e => Pick p a atom tbl2)
+                      (map (fun atom : Action.e => Pick p a atom tbl2)
                            (e0 :: ats))) pt pk) as X. admit.
               (* Use pick_in with something about unions to remove the admit above. *)
               rewrite -> X; clear X.

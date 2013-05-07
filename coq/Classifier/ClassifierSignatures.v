@@ -164,3 +164,7 @@ Module Type CLASSIFIER_SPEC.
                   (Action.apply_action (scan tbl1 pt pk) (pt,pk)))).
 
 End CLASSIFIER_SPEC.
+
+Module Type MAKE (Action_ : ACTION) :=
+  CLASSIFIER
+    with Module Action := Action_.

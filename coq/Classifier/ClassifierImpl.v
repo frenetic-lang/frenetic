@@ -6,9 +6,8 @@ Require Import Pattern2.PatternSignatures.
 Require Import Network.NetworkPacket.
 Require Import Classifier.ClassifierSignatures.
 
-Module Make (Action_ : ACTION) <: CLASSIFIER.
+Module Make (Action : ACTION).
 
-  Module Action := Action_.
   Module Pattern := Action.Pattern.
   Definition pattern := Action.pattern.
   Definition port := Action.port.
