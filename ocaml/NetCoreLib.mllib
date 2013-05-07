@@ -1,8 +1,5 @@
-(* Generated modules *)
 Mininet_Parser
 Mininet_Lexer
-
-(* Auto-generated below *)
 BinNat
 BinNums
 BinPosDef
