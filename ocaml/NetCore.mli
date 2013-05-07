@@ -27,13 +27,11 @@ module Syntax : sig
     | GetPacket of get_packet_handler
 
   type policy =
-    | Pol of predicate * action list
+    | Pol of action
     | Par of policy * policy (** parallel composition *)
-    | Seq of policy * policy (** sequential composition *)
-    | Restrict of predicate * policy
-    | Forward of portId
-    | UpdateDlSrc of Int64.t * Int64.t
-    | Drop
+    | Seq of policy * policy
+    | Filter of predicate
+    | Empty
 
   val par : policy list -> policy
 
@@ -50,25 +48,25 @@ module Syntax : sig
 
 end
 (*
-module Make : functor (Platform : OpenFlow0x01.PLATFORM) -> sig
+  module Make : functor (Platform : OpenFlow0x01.PLATFORM) -> sig
   val start_controller : Syntax.policy Lwt_stream.t -> unit Lwt.t
-end
+  end
 
-module Modules : sig
+  module Modules : sig
 
   module Learning : sig
-      
-    val learned_hosts : (switchId * WordInterface.Word48.t, portId) Hashtbl.t
+  
+  val learned_hosts : (switchId * WordInterface.Word48.t, portId) Hashtbl.t
 
-    val policy : Syntax.policy Lwt_stream.t
+  val policy : Syntax.policy Lwt_stream.t
 
   end 
 
   module Routing : sig
-      
-    val policy : Syntax.policy Lwt_stream.t
-      
+  
+  val policy : Syntax.policy Lwt_stream.t
+  
   end
 
-end
-  *)
+  end
+*)
