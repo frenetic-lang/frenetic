@@ -6,7 +6,7 @@ OCAMLBUILD = ocamlbuild -use-ocamlfind
 MLIFILES = $(shell ls _build/*.mli)
 CMIFILES = $(MLIFILES:.mli=.cmi)
 
-all: debug doc
+all: debug doc newuninstall newinstall
 
 debug:
 	$(OCAMLBUILD) debug.otarget
@@ -16,9 +16,6 @@ native:
 
 doc:
 	$(OCAMLBUILD) doc.docdir/index.html
-
-test: _build/Test.d.byte
-	$<
 
 clean:
 	rm -rf _build

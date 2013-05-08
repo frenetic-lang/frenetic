@@ -48,7 +48,6 @@ module Syntax : sig
 
 end
 
-
 (** [start_controller port policy] *)
 val start_controller : int -> Syntax.policy Lwt_stream.t -> unit
 
@@ -56,24 +55,3 @@ val start_controller : int -> Syntax.policy Lwt_stream.t -> unit
  module Make : functor (Platform : OpenFlow0x01.PLATFORM) -> sig
   val start_controller : Syntax.policy Lwt_stream.t -> unit Lwt.t
  end
-
-(*
-
-  module Modules : sig
-
-  module Learning : sig
-  
-  val learned_hosts : (switchId * WordInterface.Word48.t, portId) Hashtbl.t
-
-  val policy : Syntax.policy Lwt_stream.t
-
-  end 
-
-  module Routing : sig
-  
-  val policy : Syntax.policy Lwt_stream.t
-  
-  end
-
-  end
-*)
