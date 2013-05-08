@@ -22,7 +22,6 @@ OpenFlow0x01Types
 Orders
 OrdersTac
 PatternImpl
-PatternInterface
 PatternSignatures
 Peano_dec
 Peano
