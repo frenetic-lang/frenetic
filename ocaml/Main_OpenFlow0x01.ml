@@ -1,18 +1,38 @@
-let rec pull_stream n stream =
-  lwt v = Lwt_stream.get stream in
-  match v with
-    | Some x -> Lwt_io.printf "%s%d" n x >> pull_stream n stream
-    | None -> Lwt_io.printf "%s: stream closed.\n" n
+open Lwt
+open Printf
+open Unix
+open NetCore
 
-let main = 
-  Lwt_io.printf "in main\n" >>
-  let (stream1, push) = Lwt_stream.create () in
-  let stream2 = Lwt_stream.clone stream1 in
-  let rec pusher n = 
-    match n with
-      | 0 -> push None; Lwt.return ()
-      | n -> (push (Some n); Lwt_main.yield ()) >>
-             pusher (n - 1) in
-  Lwt.join [pull_stream "*" stream1; pull_stream " " stream2; pusher 200]
+module Controller = NetCore.Make(OpenFlow0x01.Platform)
+
+(* configuration state *)
+let controller = ref "learn"
+
+(* command-line arguments *)
+let arg_specs = 
+  [ ("-c", 
+     Arg.Set_string controller, 
+     "<controller> run a specific controller")
+  ]
+ 
+let arg_rest rest = ()
+
+let usage = "desmoines [options]"
+
+let () = Arg.parse arg_specs arg_rest usage
+
+let main () = 
+  Sys.catch_break true;
+  try 
+    let stream,_ = Lwt_stream.create() in  
+    Misc.Log.printf "--- Welcome to NetCore ---\n%!";
+    OpenFlow0x01.Platform.init_with_port 6633;
+    lwt () = Controller.start_controller stream in 
+    return (Misc.Log.printf "--- Done ---\n%!")
+  with exn -> 
+    Misc.Log.printf "[main] exception: %s\n%s\n%!" 
+      (Printexc.to_string exn) 
+      (Printexc.get_backtrace ());
+    exit 1
       
-let _ = Lwt_main.run main
+let _ = main ()
