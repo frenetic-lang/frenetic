@@ -23,9 +23,9 @@ Module MakeAtoms (Policy : POLICY) <: EXTRACTABLE_ATOMS.
   Definition portId := Network.NetworkPacket.portId.
   Definition packet := (Network.NetworkPacket.packet * OpenFlow.OpenFlow0x01Types.bufferId) %type.
   Definition flowTable := 
-    list (nat * pattern * list (NetCore.NetCoreEval.act)).
+    list (nat * pattern * NetCore.NetCoreEval.act).
   Inductive fm : Type :=
-  | AddFlow : nat -> pattern -> list (NetCore.NetCoreEval.act) -> fm.
+  | AddFlow : nat -> pattern -> NetCore.NetCoreEval.act -> fm.
   
   Definition flowMod := fm.
   

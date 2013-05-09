@@ -65,26 +65,30 @@ Section ToFlowMod.
    It only works b/c this controller (which we extract for dynamic policies) is unverified. *)
   Definition translate_action (in_port : option portId) (act : act) : actionSequence :=
     match act with
-      | Forward mods (PhysicalPort pp) =>
+      | Act mods ports queries =>
         modification_to_openflow0x01 mods ++
-        [match in_port with
-           | None => Output (PhysicalPort pp)
-           | Some pp' => match Word16.eq_dec pp' pp with
-                           | left _ => Output InPort
-                           | right _ => Output (PhysicalPort pp)
-                         end
-         end]
-      | Forward mods p => modification_to_openflow0x01 mods ++ [Output p]
-      | ActGetPkt x => [Output (Controller Word16.max_value)]
+        (List.map 
+           (fun pp =>
+              match pp with
+                | PhysicalPort pt =>
+                  match in_port with
+                    | None => Output (PhysicalPort pt)
+                    | Some pt' => match Word16.eq_dec pt' pt with
+                                    | left _ => Output InPort
+                                    | right _ => Output (PhysicalPort pt)
+                                  end
+                  end
+                | pp => Output pp
+              end) ports)
     end.
 
-  Definition to_flow_mod (prio : priority) (pat : pattern) (act : list act)
+  Definition to_flow_mod (prio : priority) (pat : pattern) (act : act)
              (isfls : Pattern.is_empty pat = false) :=
     let ofMatch := Pattern.to_match pat isfls in
     FlowMod AddFlow
             ofMatch
             prio
-            (concat_map (translate_action (matchInPort ofMatch)) act)
+            (translate_action (matchInPort ofMatch) act)
             Word64.zero
             Permanent
             Permanent
@@ -95,7 +99,7 @@ Section ToFlowMod.
 
   Definition flow_mods_of_classifier lst :=
     List.fold_right
-      (fun (ppa : priority * pattern * list act)
+      (fun (ppa : priority * pattern *  act)
            (lst : list flowMod) => 
          match ppa with
            | (prio,pat,act) => 

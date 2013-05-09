@@ -6,6 +6,8 @@ OCAMLBUILD = ocamlbuild -use-ocamlfind
 MLIFILES = $(shell ls _build/*.mli)
 CMIFILES = $(MLIFILES:.mli=.cmi)
 
+HACK = _build/Pathetic_files/Graph.mli _build/Pathetic_files/Graph.cmi
+
 all: debug doc library
 
 debug:
@@ -29,17 +31,17 @@ library:
 
 newinstall:
 	ocamlfind install NetCoreLib \
-		META $(MLIFILES) $(CMIFILES) NetCoreLib.cma
+		META $(MLIFILES) $(HACK) $(CMIFILES) NetCoreLib.cma
 
 newuninstall:
 	ocamlfind remove NetCoreLib
 
 install: library 
-	ocamlfind install desmoines META *.cmi *.cma 
+	ocamlfind install desmoines desmoines_lib/META *.cmi *.cma 
 
 uninstall:
 	ocamlfind remove desmoines
 
 reinstall: library
 	ocamlfind remove desmoines
-	ocamlfind install desmoines META _build/*/*.cmi _build/*/*.cma _build/*.cmi _build/*.cma
+	ocamlfind install desmoines desmoines_lib/META _build/*/*.cmi _build/*/*.cma _build/*.cmi _build/*.cma

@@ -33,22 +33,26 @@ Fixpoint compile_pred (opt : Classifier bool -> Classifier bool)
     | PrNone => []
   end.
 
-Definition apply_act (a : list act) (b : bool) := 
+Definition apply_act (a : act) (b : bool) := 
   match b with
     | true => a
-    | false => nil
+    | false => empty_action
   end.
 
 (** TODO(arjun): rank-2 polymorphism. The extracted code makes me nervous. *)
 Fixpoint compile_pol 
   (opt : forall (A : Type), Classifier A -> Classifier A) 
-  (p : pol) (sw : switchId) : Classifier (list act) :=
+  (p : pol) (sw : switchId) : Classifier act :=
   match p with
     | PoAtom pr act => 
       opt _ (map (second (apply_act act)) 
                  (compile_pred (opt bool) pr sw ++ [(Pattern.all, false)]))
     | PoUnion pol1 pol2 => 
-      opt _ (union (@app act) 
+      opt _ (union par_action
+                   (compile_pol opt pol1 sw) 
+                   (compile_pol opt pol2 sw))
+    | PoSeq pol1 pol2 =>
+      opt _ (sequence action_mask seq_action 
                    (compile_pol opt pol1 sw) 
                    (compile_pol opt pol2 sw))
   end.

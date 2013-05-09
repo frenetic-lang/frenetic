@@ -10,6 +10,11 @@ Require Import Coq.Classes.Equivalence.
 
 Local Open Scope equiv_scope.
 
+(* MJR: Need this transparent so that Pathetic code can convert to OXM
+        format. Alternative is to add export function to the interface, but
+        that would mix OF 1.0 and 1.3 features into the same code base. Viable
+        option
+ *) 
 Module Pattern <: PATTERN.
 
   Record pat := Pat {
@@ -28,6 +33,18 @@ Module Pattern <: PATTERN.
   Definition inter (p1 p2 : t) := 
     Pat (inter_preserves_valid (valid p1) (valid p2)).
 
+  Axiom to_valid_is_Valid : forall p, ValidPattern (to_valid p).
+
+  Lemma mask_is_valid : forall p1 p2, ValidPattern (mask p1 p2).
+  Proof with auto.
+    intros.
+    unfold mask.
+    destruct p1.
+    destruct p2.
+    apply to_valid_is_Valid...
+  Qed.
+
+  Definition mask (p1 p2 : t) : t := Pat (mask_is_valid (raw p1) (raw p2)).
 
   Lemma all_is_Valid : ValidPattern all.
   Proof.
