@@ -22,17 +22,18 @@ let usage = "desmoines [options]"
 let () = Arg.parse arg_specs arg_rest usage
 
 let main () = 
+  let stream,_ = Lwt_stream.create() in  
+  Misc.Log.printf "--- Welcome to NetCore ---\n%!";
+  OpenFlow0x01.Platform.init_with_port 6633;
+  lwt () = Controller.start_controller stream in 
+  return (Misc.Log.printf "--- Done ---\n%!")
+      
+let _ =
   Sys.catch_break true;
   try 
-    let stream,_ = Lwt_stream.create() in  
-    Misc.Log.printf "--- Welcome to NetCore ---\n%!";
-    OpenFlow0x01.Platform.init_with_port 6633;
-    lwt () = Controller.start_controller stream in 
-    return (Misc.Log.printf "--- Done ---\n%!")
+    Lwt_main.run (main ())
   with exn -> 
     Misc.Log.printf "[main] exception: %s\n%s\n%!" 
       (Printexc.to_string exn) 
       (Printexc.get_backtrace ());
     exit 1
-      
-let _ = main ()
