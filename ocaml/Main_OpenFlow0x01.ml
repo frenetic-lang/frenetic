@@ -6,7 +6,7 @@ open NetCore
 module Controller = NetCore.Make(OpenFlow0x01.Platform)
 
 (* configuration state *)
-let controller = ref "learn"
+let controller = ref ""
 
 (* command-line arguments *)
 let arg_specs = 
@@ -23,10 +23,9 @@ let () = Arg.parse arg_specs arg_rest usage
 
 let main () = 
   let stream,_ = Lwt_stream.create() in  
-  Misc.Log.printf "--- Welcome to NetCore ---\n%!";
-  OpenFlow0x01.Platform.init_with_port 6633;
-  lwt () = Controller.start_controller stream in 
-  return (Misc.Log.printf "--- Done ---\n%!")
+  (* JNF: kind of a hack that we have to call this function :-( *)
+  OpenFlow0x01.Platform.init_with_port 6633; 
+  Controller.start_controller stream  
       
 let _ =
   Sys.catch_break true;

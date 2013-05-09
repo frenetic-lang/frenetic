@@ -180,7 +180,6 @@ let string_of_sockaddr (sa:sockaddr) : string = match sa with
       | _ -> return (xid, msg)
 
   let rec accept_switch () = 
-    Misc.Log.printf "[platform] : accept_switch...\n%!";
     lwt (fd, sa) = accept (get_fd ()) in
     Misc.Log.printf "[platform] : %s connected, handshaking...\n%!"
       (string_of_sockaddr sa);

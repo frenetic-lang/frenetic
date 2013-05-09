@@ -68,7 +68,6 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     install_new_policies sw pol_stream <&> handle_switch_messages sw
 
   let rec accept_switches pol_stream = 
-    Log.printf "[NetCore_Controller.ml]: accept switch\n";
     lwt features = Platform.accept_switch () in
     Log.printf "[NetCore_Controller.ml]: switch %Ld connected\n"
       features.switch_id;
