@@ -1,2 +1,2 @@
 requires = "lwt lwt.unix cstruct"
-archive(byte) = "Misc_Lwt_channel.cma Graph.cma Packet_Parser.cma Misc.cma NetCoreLib.cma"
+archive(byte) = "NetCoreLib.cma"

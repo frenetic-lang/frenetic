@@ -44,7 +44,7 @@ let hop_to_pol (pred : predicate) (hop : node * int * portId * node) : policy =
       Seq (Filter (And (pred, Switch swId)), Pol (To pt))
     | _ -> Empty
 
-let all_pairs_shortest_paths (g : G.t) = 
+let all_pairs_shortest_paths (g : G.t) : policy = 
   let all_paths = G.floyd_warshall g in
   Misc.Log.printf "[NetCorePolicyGen.ml] building SP policy.\n%!";
   let pol = List.fold_right
