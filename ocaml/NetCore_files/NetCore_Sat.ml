@@ -8,12 +8,14 @@ type zVar =
 type zSort = 
 | SPacket
 | SInt
+| SPath
 | SFunction of zSort * zSort
 | SRelation of zSort list
 
 type zTerm = 
 | TVar of zVar
 | TPacket of zPacket
+| TPath of zVar * zVar list
 | TInt of Int64.t
 | TFunction of zVar * zTerm list
 
@@ -49,6 +51,7 @@ let fresh sort =
   let x = match sort with
     | SPacket -> Printf.sprintf "_pkt%d" n 
     | SInt -> Printf.sprintf "_n%d" n
+    | SPath -> Printf.sprintf "_path%d" n
     | SFunction _ -> Printf.sprintf "_f%d" n
     | SRelation _ -> Printf.sprintf "_R%d" n in 
   fresh_cell := ZVarDeclare(x,sort)::l;
@@ -71,6 +74,8 @@ let rec serialize_sort sort = match sort with
     "Packet"
   | SInt -> 
     "Int"
+  | SPath ->
+    "Path"
   | SFunction(sort1,sort2) -> 
     Printf.sprintf "(%s) %s" (serialize_sort sort1) (serialize_sort sort2)
   | SRelation(sorts) -> 
@@ -80,6 +85,13 @@ let rec serialize_sort sort = match sort with
 let rec serialize_term term = match term with
   | TVar v -> v
   | TPacket pkt -> serialize_packet pkt
+  | TPath (path, []) -> "nil"
+  | TPath (path, pkts) ->
+    List.fold_left
+      (fun acc pkt ->
+        let acc' = Printf.sprintf "(cons %s %s)" pkt acc in
+        acc')
+      path pkts
   | TInt n -> 
     Printf.sprintf "%s" (Int64.to_string n)
   | TFunction (f, terms) -> 
@@ -137,7 +149,9 @@ let serialize_declaration declare =
 	name var (serialize_sort sort1) (serialize_sort sort2) body
 
 let preamble =
-  "(declare-rel Switch (Packet Int))
+  "(declare-datatypes () ((Link (mk-pair (sw Int) (pt Int)))))
+   (declare-datatypes () ((Path (nil) (cons (hd Link) (tl Path)))))
+   (declare-rel Switch (Packet Int))
    (declare-rel InPort (Packet Int))
    (declare-rel DlSrc (Packet Int))
    (declare-rel DlDst (Packet Int))
@@ -150,7 +164,7 @@ let preamble =
    (rule (=> (and (= (PDlDst p) n) (>= n 0)) (DlDst p n)))"
 
 let serialize_program (ZProgram (rules, query)) = 
-  let postamble =      
+(*  let postamble =      
     ":default-relation smt_relation2\n" ^ 
     ":engine pdr\n" ^
     ":print-answer true" in 
@@ -162,6 +176,55 @@ let serialize_program (ZProgram (rules, query)) =
     (intercalate serialize_rule "\n" rules) 
     query
     postamble
+*)
+"(declare-datatypes () ((Packet (packet (PSwitch Int) (PInPort Int) (PDlSrc Int) (PDlDst Int)))))
+(declare-datatypes () ((Path (nil) (cons (head Packet) (tail Path)))))
+(declare-var _n16 Int)
+(declare-var _n15 Int)
+(declare-var _n14 Int)
+(declare-var _n13 Int)
+(declare-var _n12 Int)
+(declare-var _n11 Int)
+(declare-var _n10 Int)
+(declare-var _pkt9 Packet)
+(declare-var _pkt8 Packet)
+(declare-var _pkt7 Packet)
+(declare-var _pkt6 Packet)
+(declare-rel _R5 (Packet Packet Path))
+(declare-rel _R4 (Packet Packet))
+(declare-rel _R3 (Packet Packet))
+(declare-rel _R2 ())
+(declare-var _pkt1 Packet)
+(declare-var _pkt0 Packet)
+(declare-datatypes () ((Link (mk-pair (sw Int) (pt Int)))))
+   (declare-rel Switch (Packet Int))
+   (declare-rel InPort (Packet Int))
+   (declare-rel DlSrc (Packet Int))
+   (declare-rel DlDst (Packet Int))
+   (declare-var p Packet)
+   (declare-var n Int)
+   (declare-var path Path)
+
+   (rule (=> (and (= (PSwitch p) n) (>= n 0)) (Switch p n)))
+   (rule (=> (and (= (PInPort p) n) (>= n 0)) (InPort p n)))
+   (rule (=> (and (= (PDlSrc p) n) (>= n 0)) (DlSrc p n)))
+   (rule (=> (and (= (PDlDst p) n) (>= n 0)) (DlDst p n)))
+(rule (=> (and (and (and (and (Switch _pkt0 1) (_R5 _pkt0 _pkt1 nil)) (InPort _pkt1 2)) (Switch _pkt1 3)) (InPort _pkt0 1)) _R2))
+(rule (=> (and (and (and (and (and (and (and (and (and true (not (equals _n10 _n11))) (InPort _pkt7 _n11)) (InPort _pkt6 _n10)) (Switch _pkt7 _n12)) (Switch _pkt6 _n12)) (DlSrc _pkt7 _n13)) (DlSrc _pkt6 _n13)) (DlDst _pkt7 _n14)) (DlDst _pkt6 _n14)) (_R3 _pkt6 _pkt7)))
+(rule (=> (and (and (and (and (and (and (and (DlDst _pkt6 _n16) (InPort _pkt7 2)) (Switch _pkt7 2)) (InPort _pkt6 3)) (Switch _pkt6 3)) (DlSrc _pkt7 _n15)) (DlSrc _pkt6 _n15)) (DlDst _pkt7 _n16)) (_R4 _pkt6 _pkt7)))
+(rule (=> (and (and (and (and (and (and (and (DlDst _pkt6 _n16) (InPort _pkt7 3)) (Switch _pkt7 3)) (InPort _pkt6 2)) (Switch _pkt6 2)) (DlSrc _pkt7 _n15)) (DlSrc _pkt6 _n15)) (DlDst _pkt7 _n16)) (_R4 _pkt6 _pkt7)))
+(rule (=> (and (and (and (and (and (and (and (DlDst _pkt6 _n16) (InPort _pkt7 1)) (Switch _pkt7 2)) (InPort _pkt6 3)) (Switch _pkt6 1)) (DlSrc _pkt7 _n15)) (DlSrc _pkt6 _n15)) (DlDst _pkt7 _n16)) (_R4 _pkt6 _pkt7)))
+(rule (=> (and (and (and (and (and (and (and (DlDst _pkt6 _n16) (InPort _pkt7 3)) (Switch _pkt7 1)) (InPort _pkt6 1)) (Switch _pkt6 2)) (DlSrc _pkt7 _n15)) (DlSrc _pkt6 _n15)) (DlDst _pkt7 _n16)) (_R4 _pkt6 _pkt7)))
+(rule (=> (and (and (and (and (and (and (and (DlDst _pkt6 _n16) (InPort _pkt7 1)) (Switch _pkt7 3)) (InPort _pkt6 4)) (Switch _pkt6 1)) (DlSrc _pkt7 _n15)) (DlSrc _pkt6 _n15)) (DlDst _pkt7 _n16)) (_R4 _pkt6 _pkt7)))
+(rule (=> (and (and (and (and (and (and (and (DlDst _pkt6 _n16) (InPort _pkt7 4)) (Switch _pkt7 1)) (InPort _pkt6 1)) (Switch _pkt6 3)) (DlSrc _pkt7 _n15)) (DlSrc _pkt6 _n15)) (DlDst _pkt7 _n16)) (_R4 _pkt6 _pkt7)))
+(rule (=> (_R3 _pkt6 _pkt7) (_R5 _pkt6 _pkt7 path)))
+(rule (=> (and (and (_R3 _pkt6 _pkt8) (_R5 _pkt9 _pkt7 (cons _pkt7 (cons _pkt9 (cons _pkt8 (cons _pkt6 path)))))) (_R4 _pkt8 _pkt9)) (_R5 _pkt6 _pkt7 path)))
+(query _R2
+:default-relation smt_relation2
+:engine pdr
+:print-answer true)"
+
+
 
 let solve prog = 
   let s = serialize_program prog in 
