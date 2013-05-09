@@ -41,7 +41,7 @@ open NetCore.Syntax
 let hop_to_pol (pred : predicate) (hop : node * int * portId * node) : policy =
   match hop with
     | (Mininet.Types.Switch swId, _, pt, _) ->
-      Pol (And (pred, Switch swId), [To pt])
+      Seq (Filter (And (pred, Switch swId)), Pol (To pt))
     | _ -> Empty
 
 let all_pairs_shortest_paths (g : G.t) = 
@@ -80,8 +80,8 @@ let broadcast (g : G.t) (src : hostAddr) : policy =
     | Host _ -> Empty
     | Mininet.Types.Switch swId -> 
       let succs = List.filter (fun (ch, _) -> ch <> parent) (G.succs g vx) in
-      let ports =  List.map (fun (_, pt) -> To pt) succs in
-      let hop_pol = Pol (And (pred, Switch swId), ports) in
+      let ports =  List.map (fun (_, pt) -> Pol (To pt)) succs in
+      let hop_pol = Seq (Filter (And (pred, Switch swId)), par ports) in
       par (hop_pol :: List.map (fun (succ_vx, _) ->  loop vx succ_vx) succs) in
   (* Host 0L is a dummy value, but does not affect the policy *)
   let host = Host src in
