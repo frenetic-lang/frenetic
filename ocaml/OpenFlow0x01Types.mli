@@ -296,6 +296,101 @@ val pktOutPortId : packetOut -> portId option
 
 val pktOutActions : packetOut -> actionSequence
 
+(* Component types of stats_request messages. *)
+
+type table_id = Word8.t
+
+module IndividualFlowRequest : sig
+    type t = { of_match : of_match
+             ; table_id : table_id
+             ; port : pseudoPort
+             }
+end
+
+module AggregateFlowRequest : sig
+    type t = { of_match : of_match
+             ; table_id : table_id
+             ; port : pseudoPort
+             }
+end
+
+(* Component types of stats_reply messages. *)
+
+module DescriptionStats : sig
+  type t = { manufacturer : string
+           ; hardware : string
+           ; software : string
+           ; serial_number : string
+           ; datapath : string
+           }
+end
+
+module IndividualFlowStats : sig
+    type t = { table_id : table_id
+             ; of_match : of_match
+             ; duration_sec : int
+             ; duration_msec : int
+             ; priority : int
+             ; idle_timeout : int
+             ; hard_timeout : int
+             ; cookie : int
+             ; byte_count : int
+             ; actions : actionSequence
+             }
+end
+
+module AggregateFlowStats : sig
+    type t = { packet_count : int
+             ; byte_count : int
+             ; flow_count : int
+             }
+end
+
+module TableStats : sig
+    type t = { table_id : table_id
+             ; name : string
+             ; wildcards : Word32.t
+             ; max_entries : int
+             ; active_count : int
+             ; lookup_count : int
+             ; matched_count : int
+             }
+end
+
+module PortStats : sig
+    type t = { port_no : pseudoPort
+             ; rx_packets : int
+             ; tx_packets : int
+             ; rx_bytes : int
+             ; tx_bytes : int
+             ; rx_dropped : int
+             ; tx_dropped : int
+             ; rx_errors : int
+             ; tx_errors : int
+             ; rx_frame_err : int
+             ; rx_over_err : int
+             ; rx_crc_err : int
+             ; collisions : int
+             }
+end
+
+type statsRequest =
+| DescriptionReq
+| IndividualFlowReq of IndividualFlowRequest.t
+| AggregateFlowReq of AggregateFlowRequest.t
+| TableReq
+| PortReq of pseudoPort
+(* TODO(cole): queue and vendor stats requests. *)
+
+type statsReply =
+| DescriptionRep of DescriptionStats.t
+| IndividualFlowRep of IndividualFlowStats.t
+| AggregateFlowRep of AggregateFlowStats.t
+| TableRep of TableStats.t
+| PortRep of PortStats.t
+
+(* A subset of the OpenFlow 1.0 messages defined in Section 5.1 of the spec. *)
+
 type message =
 | Hello of bytes
 | EchoRequest of bytes
@@ -307,14 +402,16 @@ type message =
 | PacketOutMsg of packetOut
 | BarrierRequest
 | BarrierReply
+| StatsRequestMsg of statsRequest
+| StatsReplyMsg of statsReply
 
 val message_rect :
   (bytes -> 'a1) -> (bytes -> 'a1) -> (bytes -> 'a1) -> 'a1 -> (features ->
   'a1) -> (flowMod -> 'a1) -> (packetIn -> 'a1) -> (packetOut -> 'a1) -> 'a1
-  -> 'a1 -> message -> 'a1
+  -> 'a1 -> (statsRequest -> 'a1) -> (statsReply -> 'a1) -> message -> 'a1
 
 val message_rec :
   (bytes -> 'a1) -> (bytes -> 'a1) -> (bytes -> 'a1) -> 'a1 -> (features ->
   'a1) -> (flowMod -> 'a1) -> (packetIn -> 'a1) -> (packetOut -> 'a1) -> 'a1
-  -> 'a1 -> message -> 'a1
+  -> 'a1 -> (statsRequest -> 'a1) -> (statsReply -> 'a1) -> message -> 'a1
 
