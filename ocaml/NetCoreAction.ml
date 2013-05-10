@@ -248,7 +248,7 @@ module NetCoreAction =
     match w1 with
     | Some w3 ->
       (match w2 with
-       | Some w4 -> Word16.beqdec w3 w4
+       | Some w4 -> Word16.eq_dec w3 w4
        | None -> false)
     | None ->
       (match w2 with
@@ -268,16 +268,16 @@ module NetCoreAction =
       outNwTos = nwTos2; outTpSrc = tpSrc2; outTpDst = tpDst2; outPort =
       pt2 } = out2
     in
-    let p = ((((((((seq_mod Word48.beqdec dlSrc1 dlSrc2),
-      (seq_mod Word48.beqdec dlDst1 dlDst2)),
+    let p = ((((((((seq_mod Word48.eq_dec dlSrc1 dlSrc2),
+      (seq_mod Word48.eq_dec dlDst1 dlDst2)),
       (seq_mod optword16beq dlVlan1 dlVlan2)),
-      (seq_mod Word8.beqdec dlVlanPcp1 dlVlanPcp2)),
-      (seq_mod Word32.beqdec nwSrc1 nwSrc2)),
-      (seq_mod Word32.beqdec nwDst1 nwDst2)),
-      (seq_mod Word8.beqdec nwTos1 nwTos2)),
-      (seq_mod Word16.beqdec tpSrc1 tpSrc2))
+      (seq_mod Word8.eq_dec dlVlanPcp1 dlVlanPcp2)),
+      (seq_mod Word32.eq_dec nwSrc1 nwSrc2)),
+      (seq_mod Word32.eq_dec nwDst1 nwDst2)),
+      (seq_mod Word8.eq_dec nwTos1 nwTos2)),
+      (seq_mod Word16.eq_dec tpSrc1 tpSrc2))
     in
-    let o = seq_mod Word16.beqdec tpDst1 tpDst2 in
+    let o = seq_mod Word16.eq_dec tpDst1 tpDst2 in
     let (p0, o0) = p in
     let (p1, o1) = p0 in
     let (p2, o2) = p1 in
