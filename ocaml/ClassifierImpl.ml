@@ -6,6 +6,7 @@ open OpenFlow0x01Types
 module Make = 
  functor (Action:ACTION) ->
  struct 
+  module Action = Action
   module Pattern = Action.Pattern
   
   type pattern = Action.pattern
