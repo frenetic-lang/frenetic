@@ -1,7 +1,7 @@
 open NetworkPacket
 open OpenFlow0x01Types
 open PatternSignatures
-open Types
+(* open Types *)
 
 module Make : 
  functor (Pattern_:PATTERN) ->

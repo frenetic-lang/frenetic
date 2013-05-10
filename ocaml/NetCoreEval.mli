@@ -1,8 +1,7 @@
 open Datatypes
-open List0
+open List
 open NetworkPacket
 open OpenFlow0x01Types
-open Types
 open WordInterface
 
 module Pattern : 

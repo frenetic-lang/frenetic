@@ -1,4 +1,4 @@
-open Types
+(* open Types *)
 
 type 'a coq_Wildcard =
 | WildcardExact of 'a
@@ -26,13 +26,28 @@ module Wildcard =
   (** val inter :
       'a1 coq_Eqdec -> 'a1 coq_Wildcard -> 'a1 coq_Wildcard -> 'a1
       coq_Wildcard **)
-  
-  let inter eqdec x y =
+
+  let eq_dec eqdec x y =
+    match x with
+    | WildcardExact x0 ->
+      (match y with
+       | WildcardExact a0 -> eqdec x0 a0
+       | _ -> false)
+    | WildcardAll ->
+      (match y with
+       | WildcardAll -> true
+       | _ -> false)
+    | WildcardNone ->
+      (match y with
+       | WildcardNone -> true
+       | _ -> false)  
+
+  let inter x y =
     match x with
     | WildcardExact m ->
       (match y with
        | WildcardExact n ->
-         if eqdec m n then WildcardExact m else WildcardNone
+         if eq_dec m n then WildcardExact m else WildcardNone
        | WildcardAll -> x
        | WildcardNone -> WildcardNone)
     | WildcardAll ->
@@ -58,25 +73,7 @@ module Wildcard =
   let is_exact = function
   | WildcardExact a -> true
   | _ -> false
-  
-  (** val eq_dec :
-      'a1 coq_Eqdec -> 'a1 coq_Wildcard -> 'a1 coq_Wildcard -> bool **)
-  
-  let eq_dec eqdec x y =
-    match x with
-    | WildcardExact x0 ->
-      (match y with
-       | WildcardExact a0 -> eqdec x0 a0
-       | _ -> false)
-    | WildcardAll ->
-      (match y with
-       | WildcardAll -> true
-       | _ -> false)
-    | WildcardNone ->
-      (match y with
-       | WildcardNone -> true
-       | _ -> false)
-  
+    
   (** val to_option : 'a1 coq_Wildcard -> 'a1 option **)
   
   let to_option = function
