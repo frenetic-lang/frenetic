@@ -185,6 +185,16 @@ cenum ofp_action_type {
   OFPAT_ENQUEUE
 } as uint16_t
 
+cenum ofp_stats_types {
+  OFPST_DESC;
+  OFPST_FLOW;
+  OFPST_AGGREGATE;
+  OFPST_TABLE;
+  OFPST_PORT;
+  OFPST_QUEUE;
+  OFPST_VENDOR = 0xffff
+} as uint16_t
+
 module PseudoPort = struct
 
   type t = pseudoPort
@@ -715,6 +725,26 @@ module Header = struct
 
 end
 
+module StatsRequest = struct
+    
+    type t = statsRequest
+
+    let sizeof = failwith "NYI: StatsRequest.sizeof"
+
+    let marshal = failwith "NYI: StatsRequest.marshal"
+
+end
+
+module StatsReply = struct
+    
+    type t = statsReply
+
+    let sizeof = failwith "NYI: StatsReply.sizeof"
+
+    let parse = failwith "NYI: StatsReply.parse"
+
+end
+
 module Message = struct
 
   type t = message
@@ -729,6 +759,7 @@ module Message = struct
       | PACKET_IN -> Some (PacketInMsg (PacketIn.parse buf))
       | BARRIER_REQ -> Some BarrierRequest
       | BARRIER_RESP -> Some BarrierReply
+      | STATS_RESP -> Some (StatsReplyMsg (StatsReply.parse buf))
       | code -> None
     in
     match msg with
@@ -746,6 +777,8 @@ module Message = struct
     | PacketInMsg _ -> PACKET_IN
     | BarrierRequest -> BARRIER_REQ
     | BarrierReply -> BARRIER_RESP
+    | StatsRequestMsg _ -> STATS_REQ
+    | StatsReplyMsg _ -> STATS_RESP
 
   let to_string (msg : t) : string = match msg with 
     | Hello _ -> "Hello"
@@ -758,6 +791,8 @@ module Message = struct
     | PacketInMsg _ -> "PacketIn"
     | BarrierRequest -> "BarrierRequest"
     | BarrierReply -> "BarrierReply"
+    | StatsRequestMsg _ -> "StatsRequest"
+    | StatsReplyMsg _ -> "StatsReply"
 
   open Bigarray
 
@@ -774,6 +809,8 @@ module Message = struct
     | PacketOutMsg msg -> PacketOut.sizeof msg
     | BarrierRequest -> 0
     | BarrierReply -> 0
+    | StatsRequestMsg msg -> StatsRequest.sizeof msg
+    | StatsReplyMsg msg -> StatsReply.sizeof msg
 
   let blit_message (msg : t) (out : Cstruct.t) = match msg with
     | Hello buf
@@ -789,6 +826,10 @@ module Message = struct
     | FeaturesReply _ -> () (* TODO(arjun): wtf? *)
     | BarrierRequest -> ()
     | BarrierReply -> ()
+    | StatsRequestMsg msg -> 
+      let _ = StatsRequest.marshal msg out in
+      ()
+    | StatsReplyMsg _ -> ()
 
   let marshal (xid : xid) (msg : t) : string = 
     let sizeof_buf = sizeof_ofp_header + sizeof_body msg in
@@ -801,3 +842,5 @@ module Message = struct
     let str = Cstruct.to_string buf in
     str
 end
+
+
