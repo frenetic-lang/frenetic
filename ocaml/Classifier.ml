@@ -1,7 +1,6 @@
 open Datatypes
 open List0
 open NetworkPacket
-open Peano
 
 type 'a coq_Classifier = (Pattern.pattern * 'a) list
 
