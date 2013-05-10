@@ -6,9 +6,7 @@ OCAMLBUILD = ocamlbuild -use-ocamlfind
 MLIFILES = $(shell ls _build/*.mli)
 CMIFILES = $(MLIFILES:.mli=.cmi)
 
-HACK = _build/Pathetic_files/Graph.mli _build/Pathetic_files/Graph.cmi
-
-all: debug doc library
+all: debug doc newuninstall newinstall
 
 debug:
 	$(OCAMLBUILD) debug.otarget
@@ -19,9 +17,6 @@ native:
 doc:
 	$(OCAMLBUILD) doc.docdir/index.html
 
-test: _build/Test.d.byte
-	$<
-
 clean:
 	rm -rf _build
 
@@ -30,7 +25,7 @@ library:
 
 newinstall:
 	ocamlfind install NetCoreLib \
-		META $(MLIFILES) $(HACK) $(CMIFILES) NetCoreLib.cma
+		META $(MLIFILES) $(CMIFILES) NetCoreLib.d.cma
 
 newuninstall:
 	ocamlfind remove NetCoreLib

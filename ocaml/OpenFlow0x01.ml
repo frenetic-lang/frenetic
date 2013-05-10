@@ -33,6 +33,21 @@ module Types = struct
       mfCheckOverlap = false
     }
 
+  let add_flow match_ actions = 
+    FlowModMsg {
+      mfModCmd = AddFlow;
+      mfMatch = match_;
+      mfPriority = 0;
+      mfActions = actions;
+      mfCookie = 0L;
+      mfIdleTimeOut = Permanent;
+      mfHardTimeOut = Permanent;
+      mfNotifyWhenRemoved = false;
+      mfApplyToPacket = None;
+      mfOutPort = None;
+      mfCheckOverlap = false
+    }
+
 end
 
 module type PLATFORM = sig

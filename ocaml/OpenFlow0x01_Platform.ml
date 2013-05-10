@@ -44,12 +44,14 @@ let string_of_sockaddr (sa:sockaddr) : string = match sa with
     | Some _ -> 
       raise (Internal "Platform already initialized")
     | None -> 
+      Printf.printf "Here\n";
       let fd = socket PF_INET SOCK_STREAM 0 in
       setsockopt fd SO_REUSEADDR true;
       bind fd (ADDR_INET (Unix.inet_addr_any, p));
       listen fd 64; (* JNF: 640K ought to be enough for anybody. *)
                     (* AG: ROFLCOPTER *)
-      server_fd := Some fd
+      server_fd := Some fd;
+      Printf.printf "Done\n"
 
   let get_fd () = 
     match !server_fd with
@@ -191,8 +193,8 @@ let string_of_sockaddr (sa:sockaddr) : string = match sa with
        switch_handshake fd
      with UnknownSwitchDisconnected -> 
        begin
-	       lwt _ = close fd in 
+	 lwt _ = close fd in 
          Misc.Log.printf "[platform] : %s disconnected, trying again...\n%!"
-	         (string_of_sockaddr sa);
+	   (string_of_sockaddr sa);
          accept_switch ()
        end

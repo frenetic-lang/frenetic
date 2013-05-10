@@ -2,6 +2,11 @@ open OpenFlow0x01Types
 open Misc
 open Packet.Types
 
+module Action = NetCoreAction.NetCoreAction
+module Pattern = Action.Pattern
+module Port = NetCoreAction.Port
+
+
 type get_packet_handler = switchId -> portId -> packet -> unit
 
 type predicate =
@@ -25,10 +30,10 @@ type action =
   | GetPacket of get_packet_handler
 
 type policy =
-  | Pol of predicate * action list
+  | Pol of action
   | Par of policy * policy (** parallel composition *)
   | Seq of policy * policy
-  | Restrict of policy * predicate
+  | Filter of predicate
   | Empty
 
 let par (pols : policy list) : policy = 
@@ -37,8 +42,10 @@ let par (pols : policy list) : policy =
     | [] -> Empty
 
 let rec predicate_to_string pred = match pred with
-  | And (p1,p2) -> Printf.sprintf "(And %s %s)" (predicate_to_string p1) (predicate_to_string p2)
-  | Or (p1,p2) -> Printf.sprintf "(Or %s %s)" (predicate_to_string p1) (predicate_to_string p2)
+  | And (p1,p2) -> 
+    Printf.sprintf "(And %s %s)" (predicate_to_string p1) (predicate_to_string p2)
+  | Or (p1,p2) -> 
+    Printf.sprintf "(Or %s %s)" (predicate_to_string p1) (predicate_to_string p2)
   | Not p1 -> Printf.sprintf "(Not %s)" (predicate_to_string p1)
   | NoPackets -> "None"
   | Switch sw -> Printf.sprintf "(Switch %Ld)" sw
@@ -60,29 +67,28 @@ let action_to_string act = match act with
   | ToAll -> "ToAll"
   | GetPacket _ -> "GetPacket"
 
-let rec policy_to_string pol = match pol with
+let rec policy_to_string pol = "POLICY"
+(*
+  | 
   | Pol (pred,acts) -> Printf.sprintf "(%s => [%s])" (predicate_to_string pred) (String.concat ";" (List.map action_to_string acts))
   | Par (p1,p2) -> Printf.sprintf "(Union %s %s)" (policy_to_string p1) (policy_to_string p2)
   | Seq (p1,p2) -> Printf.sprintf "(Seq %s %s)" (policy_to_string p1) (policy_to_string p2)
   | Restrict (p1,p2) -> Printf.sprintf "(restrict %s %s)" (policy_to_string p1) (predicate_to_string p2)
   | Empty -> "Empty"
-
+*)
 
 let desugar_policy 
   (pol : policy) 
   (get_pkt_handlers : (int, get_packet_handler) Hashtbl.t) =
-  let open Wildcard in
-  let open Pattern in
   let open NetCoreEval in
   let next_id = ref 0 in
   let desugar_act act = match act with
-    | To pt -> { modifications = unmodified; toPorts = [PhysicalPort pt]; queries = [] }
-    | ToAll -> { modifications = unmodified; toPorts = [AllPorts]; queries = [] }
+    | To pt -> Action.forward pt
     | GetPacket handler ->
       let id = !next_id in
       incr next_id;
       Hashtbl.add get_pkt_handlers id handler;
-      { modifications = unmodified; toPorts = []; queries = [id] } in
+      Action.bucket id in
   let rec desugar_pred pred = match pred with
     | And (p1, p2) -> 
       PrAnd (desugar_pred p1, desugar_pred p2)
@@ -92,7 +98,7 @@ let desugar_policy
     | All -> PrAll
     | NoPackets -> PrNone
     | Switch swId -> PrOnSwitch swId
-    | InPort pt -> PrHdr (Pattern.inPort pt)
+    | InPort pt -> PrHdr (Pattern.inPort (Port.Physical pt))
     | DlSrc n -> PrHdr (Pattern.dlSrc n)
     | DlDst n -> PrHdr (Pattern.dlDst n)
     | SrcIP n -> PrHdr (Pattern.ipSrc n)
@@ -100,15 +106,12 @@ let desugar_policy
     | TcpSrcPort n -> PrHdr (Pattern.tcpSrcPort n)
     | TcpDstPort n -> PrHdr (Pattern.tcpDstPort n) in
   let rec desugar_pol pol pred = match pol with
-    | Pol (pred', acts) -> 
-      PoAtom (desugar_pred (And (pred', pred)),
-              List.fold_right par_action (List.map desugar_act acts) empty_action)
+    | Pol action -> PoAction (desugar_act action)
+    | Filter pred -> PoFilter (desugar_pred pred)
     | Par (pol1, pol2) ->
       PoUnion (desugar_pol pol1 pred, desugar_pol pol2 pred)
     | Seq (pol1, pol2) ->
       PoSeq (desugar_pol pol1 pred, desugar_pol pol2 pred)
-    | Restrict (p1, pr1) ->
-      desugar_pol p1 (And (pred, pr1)) 
-    | Empty -> PoAtom (PrNone, empty_action) in
+    | Empty -> PoFilter PrNone in
   Hashtbl.clear get_pkt_handlers;
   desugar_pol pol All

@@ -27,10 +27,10 @@ module Syntax : sig
     | GetPacket of get_packet_handler
 
   type policy =
-    | Pol of predicate * action list
+    | Pol of action
     | Par of policy * policy (** parallel composition *)
-    | Seq of policy * policy (** sequential composition *)
-    | Restrict of policy * predicate
+    | Seq of policy * policy
+    | Filter of predicate
     | Empty
 
   val par : policy list -> policy
@@ -48,103 +48,10 @@ module Syntax : sig
 
 end
 
-module Make : functor (Platform : OpenFlow0x01.PLATFORM) -> sig
+(** [start_controller port policy] *)
+val start_controller : int -> Syntax.policy Lwt_stream.t -> unit
+
+(** The NetCore controller. *)
+ module Make : functor (Platform : OpenFlow0x01.PLATFORM) -> sig
   val start_controller : Syntax.policy Lwt_stream.t -> unit Lwt.t
-end
-
-module Modules : sig
-
-  module Learning : sig
-      
-    val learned_hosts : (switchId * WordInterface.Word48.t, portId) Hashtbl.t
-
-    val policy : Syntax.policy Lwt_stream.t
-
-  end 
-
-  module Routing : sig
-      
-    val policy : Syntax.policy Lwt_stream.t
-      
-  end
-
-end
-
-module Featherweight : sig
-
-  module type POLICY = sig
-    val policy : Syntax.policy
-    (* Necessary due to static compilation in FwOF. *)
-    val switches : switchId list
-  end
-
-
-  module Make (Platform : OpenFlow0x01.PLATFORM) 
-    (Policy : POLICY) : sig
-
-      type state
-
-      val init_packet_out : unit -> state
-      val init_flow_mod : unit -> state
-        
-      (* Returns after expected switches connect, but still processes messages
-         in an asynchronous thread. *)
-      val start : state -> unit Lwt.t
-    end
-
-end
-
-module Z3 : sig
-
-(* Switch, Port, DlDst, DlSrc *)
-  type zPacket = 
-      ZPacket of Int64.t * int * Int64.t * Int64.t
-
-  type zVar = 
-      string
-
-  type zSort = 
-    | SPacket
-    | SInt
-    | SFunction of zSort * zSort
-    | SRelation of zSort list
-
-  type zTerm = 
-    | TVar of zVar
-    | TPacket of zPacket
-    | TInt of Int64.t
-    | TFunction of zVar * zTerm list
-
-  type zAtom =
-    | ZTrue
-    | ZFalse 
-    | ZNot of zAtom
-    | ZEquals of zTerm * zTerm
-    | ZRelation of zVar * zTerm list
-        
-  type zRule =
-    | ZRule of zVar * zVar list * zAtom list
-
-  type zDeclaration = 
-    | ZVarDeclare of zVar * zSort
-    | ZSortDeclare of zVar * (zVar * (zVar * zSort) list) list 
-    | ZFunDeclare of zVar * zVar * zSort * zSort * string
-
-  type zProgram = 
-    | ZProgram of zRule list * zVar
-
-
-  val fresh : zSort -> zVar
-  val solve : zProgram -> string
-
-  module Topology : sig
-
-    type link = Link of OpenFlow0x01.Types.switchId * Packet.Types.portId
-
-    type topology = Topology of (link * link) list
-
-    val bidirectionalize : topology -> topology
-
-  end
-
-end
+ end

@@ -138,10 +138,15 @@ module Types : sig
   (** A message ([FlowModMsg]) that deletes all flows. *)
   val delete_all_flows : message
 
+  (** A permanent [FlowModMsg] adding a rule. *)
+  val add_flow : of_match -> actionSequence -> message
+
 end
   (* Ugliness only needed for the bonkers unverified Coq controller *)
   with type message = OpenFlow0x01Types.message
   and type features = OpenFlow0x01Types.features
+  and type of_match = OpenFlow0x01Types.of_match
+  and type action = OpenFlow0x01Types.action
   and type switchId = Int64.t
 
 
