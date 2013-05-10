@@ -21,8 +21,7 @@ Misc
 NetCore
 OpenFlow0x01
 Packet
-Misc_Log
-Misc_Lwt_channel
+Misc
 Mininet_Types
 NetCore_Controller
 NetCore_Syntax
