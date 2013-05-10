@@ -4,6 +4,7 @@ BoolAction
 Bool
 ClassifierImpl
 ClassifierSignatures
+Controller
 Monad
 NetCoreAction
 NetCoreCompiler
@@ -21,7 +22,6 @@ OpenFlow0x01
 Packet
 Misc
 Mininet_Types
-NetCore_Controller
 NetCore_Syntax
 OpenFlow0x01_Parser
 OpenFlow0x01_Platform

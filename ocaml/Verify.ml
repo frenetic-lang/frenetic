@@ -1,7 +1,5 @@
 open NetCore.Syntax
-
-open NetCore.Z3
-open NetCore.Z3.Topology
+open Sat
 
 let rec encode_predicate (pred:predicate) (pkt:zVar) : zAtom * zRule list =
   match pred with

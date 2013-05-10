@@ -1,4 +1,4 @@
-module Make = NetCore_Controller.Make
+module Make = Controller.Make
 module Syntax = NetCore_Syntax
 
 module NetCoreOpenFlow = Make (OpenFlow0x01.Platform)
