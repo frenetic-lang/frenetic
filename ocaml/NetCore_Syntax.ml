@@ -82,8 +82,10 @@ let desugar_policy
   (get_pkt_handlers : (int, get_packet_handler) Hashtbl.t) =
   let open NetCoreEval in
   let next_id = ref 0 in
-  let desugar_act act = match act with
-    | To pt -> Action.forward pt
+  let desugar_act act = 
+    match act with
+    | To pt -> 
+      Action.forward pt
     | GetPacket handler ->
       let id = !next_id in
       incr next_id;

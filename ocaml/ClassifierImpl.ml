@@ -1,9 +1,5 @@
 open ClassifierSignatures
 open Datatypes
-<<<<<<< HEAD
-open List
-=======
->>>>>>> f33ed44fefbb7d080352c957366931a99767ac44
 open NetworkPacket
 open OpenFlow0x01Types
 

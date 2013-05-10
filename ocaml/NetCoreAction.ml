@@ -5,6 +5,7 @@ open OpenFlow0x01Types
 open PatternImpl
 open PatternSignatures
 open WordInterface
+open Misc
 
 module Port = 
  struct 
@@ -43,7 +44,7 @@ module Port =
        | _ -> false)
     | Bucket x0 ->
       (match y with
-       | Bucket n0 -> eqdec coq_Eq_nat x0 n0
+       | Bucket n0 -> x0 = n0
        | _ -> false)
   
   (** val opt_portId : port -> portId option **)
@@ -408,9 +409,9 @@ module NetCoreAction =
       outNwTos = nwTos0; outTpSrc = tpSrc; outTpDst = tpDst; outPort = pt } =
       out
     in
-    fold_right Pattern.inter Pattern.all
+    fold_right Pattern.inter 
       ((sel Pattern.dlSrc dlSrc0) :: ((sel Pattern.dlDst dlDst0) :: []))
-  
+      Pattern.all  
   (** val set :
       'a1 match_modify -> ('a1 -> action) -> actionSequence -> action list **)
   

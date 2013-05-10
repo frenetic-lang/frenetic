@@ -47,9 +47,11 @@ let rec filter_map f xs = match xs with
       | Some y -> y :: (filter_map f xs')
       | None -> filter_map f xs'
 
+let concat_map f lst =
+  List.fold_right (fun a bs -> List.append (f a) bs) lst []
+
 let intersperse v lst =
   List.fold_right (fun x xs -> x :: (v :: xs)) [] lst
-
 
 module type SAFESOCKET = sig
   type t = Lwt_unix.file_descr

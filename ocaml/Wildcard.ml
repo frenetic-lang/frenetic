@@ -42,12 +42,12 @@ module Wildcard =
        | WildcardNone -> true
        | _ -> false)  
 
-  let inter x y =
+  let inter eqdec x y =
     match x with
     | WildcardExact m ->
       (match y with
        | WildcardExact n ->
-         if eq_dec m n then WildcardExact m else WildcardNone
+         if eqdec m n then WildcardExact m else WildcardNone
        | WildcardAll -> x
        | WildcardNone -> WildcardNone)
     | WildcardAll ->

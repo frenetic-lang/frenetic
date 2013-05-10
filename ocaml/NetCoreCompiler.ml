@@ -2,6 +2,7 @@ open BoolAction
 open ClassifierImpl
 open Datatypes
 open List
+open Misc
 open NetCoreEval
 open NetworkPacket
 open OpenFlow0x01Types
@@ -27,7 +28,7 @@ let rec compile_pred pr sw =
   | PrAnd (pr1, pr2) ->
     BoolClassifier.sequence (compile_pred pr1 sw) (compile_pred pr2 sw)
   | PrNot pr' ->
-    map (Obj.magic (second negb))
+    map (Obj.magic ((fun (a,b) -> (a, negb b))))
       (app (Obj.magic (compile_pred pr' sw)) ((Pattern.all, false) :: []))
   | PrAll -> ((Obj.magic Pattern.all), true) :: []
   | PrNone -> ((Obj.magic Pattern.all), false) :: []
@@ -46,11 +47,11 @@ let rec compile_pol p sw =
   | PoAction action0 ->
     fold_right (fun e0 tbl ->
       Classifier.union (((NetCoreAction.NetCoreAction.domain e0),
-        (e0 :: [])) :: []) tbl) (((Obj.magic Pattern.all),
-      NetCoreAction.NetCoreAction.drop) :: [])
+        (e0 :: [])) :: []) tbl) 
       (NetCoreAction.NetCoreAction.atoms action0)
+      (((Obj.magic Pattern.all), NetCoreAction.NetCoreAction.drop) :: [])
   | PoFilter pred0 ->
-    map (second (maybe_action NetCoreAction.NetCoreAction.pass))
+    map (fun (a,b) -> (a, maybe_action NetCoreAction.NetCoreAction.pass b))
       (compile_pred pred0 sw)
   | PoUnion (pol1, pol2) ->
     Classifier.union (compile_pol pol1 sw) (compile_pol pol2 sw)

@@ -11,7 +11,9 @@ val coq_Wildcard_rec : ('a1 -> 'a2) -> 'a2 -> 'a2 -> 'a1 coq_Wildcard -> 'a2
 
 module Wildcard : 
  sig 
-  val inter : 'a1 coq_Wildcard -> 'a1 coq_Wildcard -> 'a1 coq_Wildcard
+  val eq_dec : ('a1 -> 'a1 -> bool) -> 'a1 coq_Wildcard -> 'a1 coq_Wildcard -> bool
+
+  val inter : ('a1 -> 'a1 -> bool) -> 'a1 coq_Wildcard -> 'a1 coq_Wildcard -> 'a1 coq_Wildcard
   
   val is_all : 'a1 coq_Wildcard -> bool
   
