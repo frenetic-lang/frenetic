@@ -30,11 +30,11 @@ type action =
   | GetPacket of get_packet_handler
 
 type policy =
-  | Pol of action
+  | Empty
+  | Act of action
   | Par of policy * policy (** parallel composition *)
   | Seq of policy * policy
   | Filter of predicate
-  | Empty
   | Slice of predicate * policy * predicate
 
 let par (pols : policy list) : policy = 
@@ -79,7 +79,7 @@ let action_to_string act = match act with
 let rec policy_to_string pol = "POLICY"
 (*
   | 
-  | Pol (pred,acts) -> Printf.sprintf "(%s => [%s])" (predicate_to_string pred) (String.concat ";" (List.map action_to_string acts))
+  | Act (pred,acts) -> Printf.sprintf "(%s => [%s])" (predicate_to_string pred) (String.concat ";" (List.map action_to_string acts))
   | Par (p1,p2) -> Printf.sprintf "(Union %s %s)" (policy_to_string p1) (policy_to_string p2)
   | Seq (p1,p2) -> Printf.sprintf "(Seq %s %s)" (policy_to_string p1) (policy_to_string p2)
   | Restrict (p1,p2) -> Printf.sprintf "(restrict %s %s)" (policy_to_string p1) (predicate_to_string p2)
@@ -117,7 +117,7 @@ let check_policy_vlans (pol : policy) : unit =
     | TcpDstPort _ -> false in 
   let rec check_pol (pol : policy) = 
     match pol with
-    | Pol act -> check_act act
+    | Act act -> check_act act
     | Par (p1, p2) -> 
       let sliceB, vlanB = check_pol p1 in
       let sliceB', vlanB' = check_pol p2 in
@@ -175,7 +175,7 @@ let desugar
     | TcpDstPort n -> PrHdr (Pattern.tcpDstPort n) in
   let rec desugar_pol curr pol = 
     match pol with
-    | Pol action -> 
+    | Act action -> 
       let pol' = PoAction (desugar_act action) in 
       let slice' = [] in 
       (pol', slice')

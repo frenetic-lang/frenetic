@@ -28,11 +28,11 @@ module Syntax : sig
     | GetPacket of get_packet_handler
 
   type policy =
-    | Pol of action
+    | Empty
+    | Act of action
     | Par of policy * policy (** parallel composition *)
     | Seq of policy * policy
     | Filter of predicate
-    | Empty
     | Slice of predicate * policy * predicate
 
   val par : policy list -> policy

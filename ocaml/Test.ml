@@ -13,7 +13,7 @@ module Test1 = struct
 
   let body = 
     Lwt.join 
-      [ Controller.start_controller (Lwt_stream.of_list [Pol (To 0)]);
+      [ Controller.start_controller (Lwt_stream.of_list [Act (To 0)]);
         test_script ]
   let go = 
     "repeater test" >::

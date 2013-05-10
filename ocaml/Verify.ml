@@ -75,7 +75,7 @@ let topology_forwards (Topology topo:topology) (rel:zVar) (pkt1:zVar) (pkt2:zVar
 
 let rec policy_forwards (pol:policy) (rel:zVar) (pkt1:zVar) (pkt2:zVar) : zRule list = 
   match pol with
-  | Pol (action) -> 
+  | Act (action) -> 
     let rel = fresh (SRelation [SPacket;SPacket]) in 
     [ZRule(rel,[pkt1;pkt2], action_forwards action pkt1 pkt2)]
   | Par (pol1, pol2) ->
@@ -111,7 +111,7 @@ let () =
       (Topology 
 	 [ (Link (s1, 4), Link (s3, 1)); (Link (s1,3), Link (s2, 1)); 
 	   (Link (s3, 3), Link (s2, 2)) ]) in 
-  let pol = Pol (ToAll) in
+  let pol = Act (ToAll) in
   let pkt1 = fresh SPacket in
   let pkt2 = fresh SPacket in
   let query = fresh (SRelation []) in 
