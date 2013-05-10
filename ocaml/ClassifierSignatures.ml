@@ -33,15 +33,6 @@ module type ACTION =
   val domain : e -> pattern
  end
 
-module type ACTION_SPEC = 
- sig 
-  module PatternSpec : 
-   PATTERN_SPEC
-  
-  module Action : 
-   ACTION with module Pattern = PatternSpec.Pattern
- end
-
 module type CLASSIFIER = 
  sig 
   module Action : 
@@ -64,12 +55,6 @@ module type CLASSIFIER =
   val sequence : t -> t -> t
   
   val par_actions : action list -> Action.t
- end
-
-module type CLASSIFIER_SPEC = 
- sig 
-  module Classifier : 
-   CLASSIFIER
  end
 
 module type MAKE = 
