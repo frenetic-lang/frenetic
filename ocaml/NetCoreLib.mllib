@@ -4,7 +4,6 @@ BoolAction
 Bool
 ClassifierImpl
 ClassifierSignatures
-Datatypes
 Monad
 NetCoreAction
 NetCoreCompiler

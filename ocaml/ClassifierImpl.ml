@@ -1,5 +1,5 @@
 open ClassifierSignatures
-open Datatypes
+open Misc
 open NetworkPacket
 open OpenFlow0x01Types
 
@@ -40,7 +40,7 @@ module Make =
     if List.exists (fun entry ->
          let (pat', act0) = entry in Pattern.beq pat pat') prefix
     then elim_shadowed_helper prefix cf'
-    else elim_shadowed_helper (app prefix ((pat, act) :: [])) cf'
+    else elim_shadowed_helper (prefix @ ((pat, act) :: [])) cf'
   
   (** val elim_shadowed : t -> t **)
   
@@ -74,12 +74,12 @@ module Make =
   (** val inter_no_opt : t -> t -> (Pattern.t * Action.t) list **)
   
   let inter_no_opt cl1 cl2 =
-    List.fold_right (fun v acc -> app (inter_entry cl2 v) acc) [] cl1
+    List.fold_right (fun v acc -> (inter_entry cl2 v) @ acc) [] cl1
   
   (** val union_no_opt : t -> t -> (Pattern.t * Action.t) list **)
   
   let union_no_opt cl1 cl2 =
-    app (inter_no_opt cl1 cl2) (app cl1 cl2)
+    (inter_no_opt cl1 cl2) @ cl1 @ cl2
   
   (** val par_actions : action list -> Action.t **)
   
@@ -133,8 +133,8 @@ module Make =
       (match Action.atoms a with
        | [] -> (p, Action.drop) :: (sequence_no_opt tbl1' tbl2)
        | e0 :: l ->
-         app (unions (List.map (fun atom -> coq_Pick p a atom tbl2) (e0 :: l)))
-           (sequence_no_opt tbl1' tbl2))
+         (unions (List.map (fun atom -> coq_Pick p a atom tbl2) (e0 :: l)))
+         @ (sequence_no_opt tbl1' tbl2))
   
   (** val sequence : t -> t -> t **)
   

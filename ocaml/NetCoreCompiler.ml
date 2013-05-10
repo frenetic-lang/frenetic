@@ -1,6 +1,6 @@
 open BoolAction
 open ClassifierImpl
-open Datatypes
+open Misc
 open List
 open Misc
 open NetCoreEval
@@ -28,8 +28,8 @@ let rec compile_pred pr sw =
   | PrAnd (pr1, pr2) ->
     BoolClassifier.sequence (compile_pred pr1 sw) (compile_pred pr2 sw)
   | PrNot pr' ->
-    map (Obj.magic ((fun (a,b) -> (a, negb b))))
-      (app (Obj.magic (compile_pred pr' sw)) ((Pattern.all, false) :: []))
+    map (Obj.magic ((fun (a,b) -> (a, not b))))
+      ((Obj.magic (compile_pred pr' sw)) @ ((Pattern.all, false) :: []))
   | PrAll -> ((Obj.magic Pattern.all), true) :: []
   | PrNone -> ((Obj.magic Pattern.all), false) :: []
 

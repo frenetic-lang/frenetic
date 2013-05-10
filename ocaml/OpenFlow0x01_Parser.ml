@@ -313,13 +313,13 @@ module PacketOut = struct
     sizeof_ofp_packet_out + 
       (sum (List.map Action.sizeof pktOut.pktOutActions)) +
       (match pktOut.pktOutBufOrBytes with
-        | Datatypes.Coq_inl _ -> 0
-        | Datatypes.Coq_inr bytes -> Cstruct.len bytes)
+        | Misc.Inl _ -> 0
+        | Misc.Inr bytes -> Cstruct.len bytes)
 
   let marshal (pktOut : t) (buf : Cstruct.t) : int =
     set_ofp_packet_out_buffer_id buf
       (match pktOut.pktOutBufOrBytes with
-        | Datatypes.Coq_inl n -> n
+        | Misc.Inl n -> n
         | _ -> -1l);
     set_ofp_packet_out_in_port buf
       (match pktOut.pktOutPortId with
@@ -332,8 +332,8 @@ module PacketOut = struct
       (Cstruct.shift buf sizeof_ofp_packet_out)
       (Action.move_controller_last pktOut.pktOutActions) in
     begin match pktOut.pktOutBufOrBytes with
-    | Datatypes.Coq_inl n -> ()
-    | Datatypes.Coq_inr _ -> ()
+    | Misc.Inl n -> ()
+    | _ -> ()
     end;
     sizeof pktOut
 end

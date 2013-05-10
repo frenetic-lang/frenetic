@@ -1,3 +1,7 @@
+type ('a,'b) sum = 
+  | Inl of 'a
+  | Inr of 'b
+
 module Log : sig
 
   val set_log_file : bool -> string -> unit

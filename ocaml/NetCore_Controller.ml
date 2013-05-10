@@ -47,7 +47,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       | None -> Lwt.return ()
       | Some bufferId ->
         let inp = Pkt (sw, Port.Physical pkt_in.packetInPort,
-                       pkt_in.packetInPacket, Datatypes.Coq_inl bufferId ) in
+                       pkt_in.packetInPacket, Misc.Inl bufferId ) in
         let outs = classify !pol_now inp in
         let for_buckets = filter_map (for_bucket pkt_in.packetInPort) outs in
         List.iter apply_bucket for_buckets;

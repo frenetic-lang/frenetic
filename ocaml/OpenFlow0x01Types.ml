@@ -1,4 +1,3 @@
-open Datatypes
 open NetworkPacket
 open WordInterface
 
@@ -541,7 +540,7 @@ let packetInPacket x = x.packetInPacket
 
 type xid = Word32.t
 
-type packetOut = { pktOutBufOrBytes : (bufferId, bytes) sum;
+type packetOut = { pktOutBufOrBytes : (bufferId, bytes) Misc.sum;
                    pktOutPortId : portId option;
                    pktOutActions : actionSequence }
 

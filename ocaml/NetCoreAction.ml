@@ -1,4 +1,4 @@
-open Datatypes
+open Misc
 open List
 open NetworkPacket
 open OpenFlow0x01Types
@@ -216,7 +216,7 @@ module NetCoreAction =
   (** val par_action : act -> act -> act **)
   
   let par_action act1 act2 =
-    app act1 act2
+     act1 @ act2
   
   (** val seq_mod :
       ('a1 -> 'a1 -> bool) -> 'a1 match_modify -> 'a1 match_modify ->
@@ -475,7 +475,7 @@ module NetCoreAction =
   let output_to_of inp out =
     match out.outPort with
     | Port.Physical pt ->
-      app (modify out)
+       (modify out) @
         ((match inp with
           | Some pt' ->
             if Word16.eq_dec pt' pt

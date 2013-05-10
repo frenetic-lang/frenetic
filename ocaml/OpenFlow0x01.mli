@@ -115,7 +115,7 @@ module Types : sig
   type xid = Word32.t
 
   type packetOut = { 
-    pktOutBufOrBytes : (bufferId, bytes) Datatypes.sum;
+    pktOutBufOrBytes : (bufferId, bytes) Misc.sum;
     pktOutPortId : portId option;
     pktOutActions : actionSequence 
   }

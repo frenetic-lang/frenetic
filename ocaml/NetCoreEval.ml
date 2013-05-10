@@ -1,4 +1,3 @@
-open Datatypes
 open List
 open Misc
 open NetworkPacket
@@ -109,7 +108,7 @@ let rec match_pred pr sw pt pk =
   | PrOnSwitch sw' -> if Word64.eq_dec sw sw' then true else false
   | PrOr (p1, p2) -> (||) (match_pred p1 sw pt pk) (match_pred p2 sw pt pk)
   | PrAnd (p1, p2) -> (&&) (match_pred p1 sw pt pk) (match_pred p2 sw pt pk)
-  | PrNot p' -> negb (match_pred p' sw pt pk)
+  | PrNot p' -> not (match_pred p' sw pt pk)
   | PrAll -> true
   | PrNone -> false
 
@@ -133,6 +132,6 @@ let rec classify p inp =
   | PoFilter pred0 ->
     let Pkt (sw, pt, pk, buf) = inp in
     if match_pred pred0 sw pt pk then inp :: [] else []
-  | PoUnion (p1, p2) -> app (classify p1 inp) (classify p2 inp)
+  | PoUnion (p1, p2) -> (classify p1 inp) @ (classify p2 inp)
   | PoSeq (p1, p2) -> concat_map (classify p2) (classify p1 inp)
 

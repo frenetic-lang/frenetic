@@ -1,4 +1,3 @@
-open Datatypes
 open Monad
 open NetworkPacket
 open OpenFlow0x01Types
