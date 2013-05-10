@@ -17,70 +17,11 @@ type pred =
 | PrAll
 | PrNone
 
-(** val pred_rect :
-    (pattern -> 'a1) -> (switchId -> 'a1) -> (pred -> 'a1 -> pred -> 'a1 ->
-    'a1) -> (pred -> 'a1 -> pred -> 'a1 -> 'a1) -> (pred -> 'a1 -> 'a1) ->
-    'a1 -> 'a1 -> pred -> 'a1 **)
-
-let rec pred_rect f f0 f1 f2 f3 f4 f5 = function
-| PrHdr p0 -> f p0
-| PrOnSwitch s -> f0 s
-| PrOr (p0, p1) ->
-  f1 p0 (pred_rect f f0 f1 f2 f3 f4 f5 p0) p1
-    (pred_rect f f0 f1 f2 f3 f4 f5 p1)
-| PrAnd (p0, p1) ->
-  f2 p0 (pred_rect f f0 f1 f2 f3 f4 f5 p0) p1
-    (pred_rect f f0 f1 f2 f3 f4 f5 p1)
-| PrNot p0 -> f3 p0 (pred_rect f f0 f1 f2 f3 f4 f5 p0)
-| PrAll -> f4
-| PrNone -> f5
-
-(** val pred_rec :
-    (pattern -> 'a1) -> (switchId -> 'a1) -> (pred -> 'a1 -> pred -> 'a1 ->
-    'a1) -> (pred -> 'a1 -> pred -> 'a1 -> 'a1) -> (pred -> 'a1 -> 'a1) ->
-    'a1 -> 'a1 -> pred -> 'a1 **)
-
-let rec pred_rec f f0 f1 f2 f3 f4 f5 = function
-| PrHdr p0 -> f p0
-| PrOnSwitch s -> f0 s
-| PrOr (p0, p1) ->
-  f1 p0 (pred_rec f f0 f1 f2 f3 f4 f5 p0) p1
-    (pred_rec f f0 f1 f2 f3 f4 f5 p1)
-| PrAnd (p0, p1) ->
-  f2 p0 (pred_rec f f0 f1 f2 f3 f4 f5 p0) p1
-    (pred_rec f f0 f1 f2 f3 f4 f5 p1)
-| PrNot p0 -> f3 p0 (pred_rec f f0 f1 f2 f3 f4 f5 p0)
-| PrAll -> f4
-| PrNone -> f5
-
 type pol =
 | PoAction of NetCoreAction.NetCoreAction.t
 | PoFilter of pred
 | PoUnion of pol * pol
 | PoSeq of pol * pol
-
-(** val pol_rect :
-    (NetCoreAction.NetCoreAction.t -> 'a1) -> (pred -> 'a1) -> (pol -> 'a1 ->
-    pol -> 'a1 -> 'a1) -> (pol -> 'a1 -> pol -> 'a1 -> 'a1) -> pol -> 'a1 **)
-
-let rec pol_rect f f0 f1 f2 = function
-| PoAction t0 -> f t0
-| PoFilter p0 -> f0 p0
-| PoUnion (p0, p1) ->
-  f1 p0 (pol_rect f f0 f1 f2 p0) p1 (pol_rect f f0 f1 f2 p1)
-| PoSeq (p0, p1) ->
-  f2 p0 (pol_rect f f0 f1 f2 p0) p1 (pol_rect f f0 f1 f2 p1)
-
-(** val pol_rec :
-    (NetCoreAction.NetCoreAction.t -> 'a1) -> (pred -> 'a1) -> (pol -> 'a1 ->
-    pol -> 'a1 -> 'a1) -> (pol -> 'a1 -> pol -> 'a1 -> 'a1) -> pol -> 'a1 **)
-
-let rec pol_rec f f0 f1 f2 = function
-| PoAction t0 -> f t0
-| PoFilter p0 -> f0 p0
-| PoUnion (p0, p1) ->
-  f1 p0 (pol_rec f f0 f1 f2 p0) p1 (pol_rec f f0 f1 f2 p1)
-| PoSeq (p0, p1) -> f2 p0 (pol_rec f f0 f1 f2 p0) p1 (pol_rec f f0 f1 f2 p1)
 
 type value =
 | Pkt of switchId * NetCoreAction.NetCoreAction.port * packet
@@ -89,16 +30,6 @@ type value =
 (** val value_rect :
     (switchId -> NetCoreAction.NetCoreAction.port -> packet -> (bufferId,
     bytes) sum -> 'a1) -> value -> 'a1 **)
-
-let value_rect f = function
-| Pkt (x, x0, x1, x2) -> f x x0 x1 x2
-
-(** val value_rec :
-    (switchId -> NetCoreAction.NetCoreAction.port -> packet -> (bufferId,
-    bytes) sum -> 'a1) -> value -> 'a1 **)
-
-let value_rec f = function
-| Pkt (x, x0, x1, x2) -> f x x0 x1 x2
 
 (** val match_pred : pred -> switchId -> Pattern.port -> packet -> bool **)
 

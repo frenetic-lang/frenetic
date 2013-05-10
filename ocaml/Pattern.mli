@@ -1,17 +1,15 @@
+open Monad
 open NetworkPacket
 open OpenFlow0x01Types
+open WordInterface
 
-module type PORT = 
- sig 
+module type PORT = sig
   type t 
-  
-  val eqdec : t -> t -> bool
   
   val opt_portId : t -> portId option
  end
 
-module type PATTERN = 
- sig 
+module type PATTERN = sig
   type port 
   
   type t 
@@ -64,3 +62,11 @@ module type PATTERN =
   
   val setDlDst : dlAddr -> t -> t
  end
+
+module type MAKE = functor (Port:PORT) -> sig
+  include PATTERN
+end
+  with type port = Port.t
+
+module Make : MAKE
+

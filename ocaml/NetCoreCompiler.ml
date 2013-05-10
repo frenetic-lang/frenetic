@@ -13,67 +13,58 @@ module BoolAction = BoolAction.Make(NetCoreAction.NetCoreAction.Pattern)
 
 module BoolClassifier = Classifier.Make(BoolAction)
 
-(** val compile_pred : pred -> switchId -> BoolClassifier.t **)
-
 let rec compile_pred pr sw : BoolClassifier.t = 
   match pr with
   | PrHdr pat -> 
-    assert false
-(*    [(pat,true)] *)
+   [(pat,true)]
   | PrOnSwitch sw' ->
-    if Word64.eq_dec sw sw'
-    then ((Obj.magic Pattern.all), true) :: []
-    else []
+    if Word64.eq_dec sw sw' then
+      [(Pattern.all, true)] 
+    else 
+      [(Pattern.all, false)]
   | PrOr (pr1, pr2) ->
     BoolClassifier.union (compile_pred pr1 sw) (compile_pred pr2 sw)
   | PrAnd (pr1, pr2) ->
     BoolClassifier.sequence (compile_pred pr1 sw) (compile_pred pr2 sw)
-  | PrNot pr' ->
-    map (Obj.magic ((fun (a,b) -> (a, not b))))
-      ((Obj.magic (compile_pred pr' sw)) @ ((Pattern.all, false) :: []))
-  | PrAll -> ((Obj.magic Pattern.all), true) :: []
-  | PrNone -> ((Obj.magic Pattern.all), false) :: []
-
-(** val maybe_action :
-    NetCoreAction.NetCoreAction.t -> bool -> NetCoreAction.NetCoreAction.t **)
+  | PrNot pr' ->    
+    map (fun (a,b) -> (a, not b)) 
+      (compile_pred pr' sw @ [(Pattern.all,false)])
+  | PrAll -> 
+    [Pattern.all,true]
+  | PrNone -> 
+    [Pattern.all,false]
 
 let maybe_action a = function
 | true -> a
 | false -> NetCoreAction.NetCoreAction.drop
 
-(** val compile_pol : pol -> switchId -> Classifier.t **)
-
 let rec compile_pol p sw =
   match p with
-  | PoAction action0 ->
-    fold_right (fun e0 tbl ->
-      NetCoreClassifier.union (((NetCoreAction.NetCoreAction.domain e0),
-        (e0 :: [])) :: []) tbl) 
-      (NetCoreAction.NetCoreAction.atoms action0)
-      (((Obj.magic Pattern.all), NetCoreAction.NetCoreAction.drop) :: [])
-  | PoFilter pred0 ->
+  | PoAction action ->
+    fold_right 
+      (fun e0 tbl -> NetCoreClassifier.union [(NetCoreAction.NetCoreAction.domain e0, [e0])] tbl)
+      (NetCoreAction.NetCoreAction.atoms action)
+      [(Pattern.all, NetCoreAction.NetCoreAction.drop)]
+  | PoFilter pred ->
     map (fun (a,b) -> (a, maybe_action NetCoreAction.NetCoreAction.pass b))
-      (compile_pred pred0 sw)
+      (compile_pred pred sw)
   | PoUnion (pol1, pol2) ->
-    NetCoreClassifier.union (compile_pol pol1 sw) (compile_pol pol2 sw)
+    NetCoreClassifier.union 
+      (compile_pol pol1 sw) 
+      (compile_pol pol2 sw)
   | PoSeq (pol1, pol2) ->
-    NetCoreClassifier.sequence (compile_pol pol1 sw) (compile_pol pol2 sw)
-
-(** val to_rule :
-    (Classifier.pattern * Classifier.action) -> (of_match * action list)
-    option **)
+    NetCoreClassifier.sequence 
+      (compile_pol pol1 sw) 
+      (compile_pol pol2 sw)
 
 let to_rule = function
-| (pattern0, action0) ->
-  (match NetCoreClassifier.Pattern.to_match pattern0 with
+| (pattern, action) ->
+  (match NetCoreClassifier.Pattern.to_match pattern with
    | Some match_ ->
      Some (match_,
-       (NetCoreAction.NetCoreAction.as_actionSequence match_.matchInPort
-         action0))
+           (NetCoreAction.NetCoreAction.as_actionSequence match_.matchInPort
+              action))
    | None -> None)
-
-(** val flow_table_of_policy :
-    switchId -> pol -> (of_match * actionSequence) list **)
 
 let flow_table_of_policy sw pol0 =
   filter_map to_rule (compile_pol pol0 sw)

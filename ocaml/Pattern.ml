@@ -1,8 +1,72 @@
 open Monad
 open NetworkPacket
 open OpenFlow0x01Types
-open PatternSignatures
 open WordInterface
+
+module type PORT = sig
+  type t 
+  
+  val opt_portId : t -> portId option
+ end
+
+module type PATTERN = sig
+  type port 
+  
+  type t 
+  
+  val inter : t -> t -> t
+  
+  val all : t
+  
+  val empty : t
+  
+  val exact_pattern : packet -> port -> t
+  
+  val is_empty : t -> bool
+  
+  val match_packet : port -> packet -> t -> bool
+  
+  val is_exact : t -> bool
+  
+  val to_match : t -> of_match option
+  
+  val beq : t -> t -> bool
+  
+  val dlSrc : dlAddr -> t
+  
+  val dlDst : dlAddr -> t
+  
+  val dlTyp : dlTyp -> t
+  
+  val dlVlan : dlVlan -> t
+  
+  val dlVlanPcp : dlVlanPcp -> t
+  
+  val ipSrc : nwAddr -> t
+  
+  val ipDst : nwAddr -> t
+  
+  val ipProto : nwProto -> t
+  
+  val inPort : port -> t
+  
+  val tcpSrcPort : tpPort -> t
+  
+  val tcpDstPort : tpPort -> t
+  
+  val udpSrcPort : tpPort -> t
+  
+  val udpDstPort : tpPort -> t
+  
+  val setDlSrc : dlAddr -> t -> t
+  
+  val setDlDst : dlAddr -> t -> t
+ end
+
+module type MAKE = functor (Port:PORT) -> sig
+  include PATTERN
+end
+  with type port = Port.t
 
 module Make = 
  functor (Port:PORT) ->
@@ -114,7 +178,7 @@ module Make =
   let ptrnInPort p =
     p.ptrnInPort
   
-  (** val eq_dec : pattern -> pattern -> bool **)
+  (* (\** val eq_dec : pattern -> pattern -> bool **\) *)
   
   let eq_dec x y =
     let { ptrnDlSrc = x0; ptrnDlDst = x1; ptrnDlType = x2; ptrnDlVlan = x3;
@@ -148,7 +212,7 @@ module Make =
                                                            Word16.eq_dec x10
                                                            ptrnTpDst1
                                                       then Wildcard.Wildcard.eq_dec
-                                                             Port.eqdec x11
+                                                             (=) x11
                                                              ptrnInPort1
                                                       else false
                                                  else false
@@ -294,7 +358,7 @@ module Make =
       Wildcard.Wildcard.inter Word16.eq_dec (ptrnTpDst p) (ptrnTpDst p')
     in
     let inPort0 =
-      Wildcard.Wildcard.inter Port.eqdec (ptrnInPort p) (ptrnInPort p')
+      Wildcard.Wildcard.inter (=) (ptrnInPort p) (ptrnInPort p')
     in
     { ptrnDlSrc = dlSrc0; ptrnDlDst = dlDst0; ptrnDlType = dlType;
     ptrnDlVlan = dlVlan0; ptrnDlVlanPcp = dlVlanPcp0; ptrnNwSrc = nwSrc;

@@ -1,6 +1,6 @@
 open NetworkPacket
 open OpenFlow0x01Types
-open PatternSignatures
+open Pattern
 open Misc
 
 module Make = 

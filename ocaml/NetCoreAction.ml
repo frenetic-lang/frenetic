@@ -2,53 +2,16 @@ open Misc
 open List
 open NetworkPacket
 open OpenFlow0x01Types
-open PatternImpl
-open PatternSignatures
+open Pattern
 open WordInterface
 open Misc
 
-module Port = 
- struct 
+module Port = struct
   type port =
-  | Physical of portId
   | Here
+  | Physical of portId
   | Bucket of int
-  
-  (** val port_rect :
-      (portId -> 'a1) -> 'a1 -> (int -> 'a1) -> port -> 'a1 **)
-  
-  let port_rect f f0 f1 = function
-  | Physical x -> f x
-  | Here -> f0
-  | Bucket x -> f1 x
-  
-  (** val port_rec :
-      (portId -> 'a1) -> 'a1 -> (int -> 'a1) -> port -> 'a1 **)
-  
-  let port_rec f f0 f1 = function
-  | Physical x -> f x
-  | Here -> f0
-  | Bucket x -> f1 x
-  
-  (** val eqdec : port -> port -> bool **)
-  
-  let eqdec x y =
-    match x with
-    | Physical x0 ->
-      (match y with
-       | Physical p0 -> Word16.eq_dec x0 p0
-       | _ -> false)
-    | Here ->
-      (match y with
-       | Here -> true
-       | _ -> false)
-    | Bucket x0 ->
-      (match y with
-       | Bucket n0 -> x0 = n0
-       | _ -> false)
-  
-  (** val opt_portId : port -> portId option **)
-  
+     
   let opt_portId = function
   | Physical pt -> Some pt
   | _ -> None
@@ -56,10 +19,8 @@ module Port =
   type t = port
  end
 
-module type NETCORE_ACTION = 
- sig 
-  module Pattern : 
-   PATTERN
+module type NETCORE_ACTION = sig 
+  module Pattern : PATTERN
   
   type pattern = Pattern.t
   
@@ -96,9 +57,8 @@ module type NETCORE_ACTION =
   val as_actionSequence : portId option -> t -> actionSequence
  end
 
-module NetCoreAction = 
- struct 
-  module Pattern = Make(Port)
+module NetCoreAction = struct
+  module Pattern = Pattern.Make(Port)
   
   type 'a match_modify = ('a * 'a) option
   
@@ -111,33 +71,7 @@ module NetCoreAction =
                   outNwTos : nwTos match_modify;
                   outTpSrc : tpPort match_modify;
                   outTpDst : tpPort match_modify; outPort : Pattern.port }
-  
-  (** val output_rect :
-      (dlAddr match_modify -> dlAddr match_modify -> dlVlan option
-      match_modify -> dlVlanPcp match_modify -> nwAddr match_modify -> nwAddr
-      match_modify -> nwTos match_modify -> tpPort match_modify -> tpPort
-      match_modify -> Pattern.port -> 'a1) -> output -> 'a1 **)
-  
-  let output_rect f o =
-    let { outDlSrc = x; outDlDst = x0; outDlVlan = x1; outDlVlanPcp = x2;
-      outNwSrc = x3; outNwDst = x4; outNwTos = x5; outTpSrc = x6; outTpDst =
-      x7; outPort = x8 } = o
-    in
-    f x x0 x1 x2 x3 x4 x5 x6 x7 x8
-  
-  (** val output_rec :
-      (dlAddr match_modify -> dlAddr match_modify -> dlVlan option
-      match_modify -> dlVlanPcp match_modify -> nwAddr match_modify -> nwAddr
-      match_modify -> nwTos match_modify -> tpPort match_modify -> tpPort
-      match_modify -> Pattern.port -> 'a1) -> output -> 'a1 **)
-  
-  let output_rec f o =
-    let { outDlSrc = x; outDlDst = x0; outDlVlan = x1; outDlVlanPcp = x2;
-      outNwSrc = x3; outNwDst = x4; outNwTos = x5; outTpSrc = x6; outTpDst =
-      x7; outPort = x8 } = o
-    in
-    f x x0 x1 x2 x3 x4 x5 x6 x7 x8
-  
+    
   (** val outDlSrc : output -> dlAddr match_modify **)
   
   let outDlSrc x = x.outDlSrc

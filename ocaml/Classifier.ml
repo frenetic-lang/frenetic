@@ -1,10 +1,9 @@
 open Misc
 open NetworkPacket
 open OpenFlow0x01Types
-open PatternSignatures
+open Pattern
 
-module type ACTION = 
- sig 
+module type ACTION = sig 
   module Pattern : PATTERN
   
   type pattern = Pattern.t
@@ -34,8 +33,7 @@ module type ACTION =
   val domain : e -> pattern
  end
 
-module type CLASSIFIER = 
- sig 
+module type CLASSIFIER = sig 
   module Action : ACTION
 
   type pattern = Action.pattern
@@ -60,7 +58,7 @@ module type CLASSIFIER =
 module type MAKE  = functor (Action : ACTION) -> 
 sig 
   include CLASSIFIER
-  module Pattern : PATTERN
+  module Pattern : PATTERN 
 end
   with module Action = Action
   and module Pattern = Action.Pattern
