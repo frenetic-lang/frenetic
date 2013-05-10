@@ -7,7 +7,7 @@ open WordInterface
 
 module Pattern = NetCoreAction.NetCoreAction.Pattern
 
-type pattern = Pattern.pattern
+type pattern = Pattern.t
 
 type pred =
 | PrHdr of pattern

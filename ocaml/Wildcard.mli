@@ -5,10 +5,6 @@ type 'a coq_Wildcard =
 | WildcardAll
 | WildcardNone
 
-val coq_Wildcard_rect : ('a1 -> 'a2) -> 'a2 -> 'a2 -> 'a1 coq_Wildcard -> 'a2
-
-val coq_Wildcard_rec : ('a1 -> 'a2) -> 'a2 -> 'a2 -> 'a1 coq_Wildcard -> 'a2
-
 module Wildcard : 
  sig 
   val eq_dec : ('a1 -> 'a1 -> bool) -> 'a1 coq_Wildcard -> 'a1 coq_Wildcard -> bool
