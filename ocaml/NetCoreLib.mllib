@@ -12,8 +12,6 @@ NetCoreCompiler
 NetCoreEval
 NetworkPacket
 OpenFlow0x01Types
-Orders
-OrdersTac
 PatternImpl
 PatternSignatures
 Wildcard
