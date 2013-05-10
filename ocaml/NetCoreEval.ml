@@ -4,7 +4,7 @@ open NetworkPacket
 open OpenFlow0x01Types
 open WordInterface
 
-module Pattern = NetCoreAction.NetCoreAction.Pattern
+module Pattern = NetCoreAction.Action.Pattern
 
 type pattern = Pattern.t
 
@@ -18,20 +18,14 @@ type pred =
 | PrNone
 
 type pol =
-| PoAction of NetCoreAction.NetCoreAction.t
+| PoAction of NetCoreAction.Action.t
 | PoFilter of pred
 | PoUnion of pol * pol
 | PoSeq of pol * pol
 
 type value =
-| Pkt of switchId * NetCoreAction.NetCoreAction.port * packet
+| Pkt of switchId * NetCoreAction.Action.port * packet
    * (bufferId, bytes) sum
-
-(** val value_rect :
-    (switchId -> NetCoreAction.NetCoreAction.port -> packet -> (bufferId,
-    bytes) sum -> 'a1) -> value -> 'a1 **)
-
-(** val match_pred : pred -> switchId -> Pattern.port -> packet -> bool **)
 
 let rec match_pred pr sw pt pk =
   match pr with
@@ -43,19 +37,12 @@ let rec match_pred pr sw pt pk =
   | PrAll -> true
   | PrNone -> false
 
-(** val serialize_pkt : packet -> bytes **)
-
 let serialize_pkt = Packet_Parser.serialize_packet
-
-(** val eval_action :
-    value -> NetCoreAction.NetCoreAction.t -> value list **)
 
 let eval_action inp act =
   let Pkt (sw, pt, pk, buf) = inp in
   map (fun ptpk -> let (pt', pk') = ptpk in Pkt (sw, pt', pk', buf))
-    (NetCoreAction.NetCoreAction.apply_action act (pt, pk))
-
-(** val classify : pol -> value -> value list **)
+    (NetCoreAction.Action.apply_action act (pt, pk))
 
 let rec classify p inp =
   match p with

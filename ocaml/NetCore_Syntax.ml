@@ -2,7 +2,7 @@ open OpenFlow0x01Types
 open Misc
 open Packet.Types
 
-module Action = NetCoreAction.NetCoreAction
+module Action = NetCoreAction.Action
 module Pattern = Action.Pattern
 module Port = NetCoreAction.Port
 
@@ -27,6 +27,9 @@ type predicate =
 type action =
   | To of int
   | ToAll
+  | UpdateDlSrc of Int64.t * Int64.t
+  | UpdateDlDst of Int64.t * Int64.t
+  | UpdateDlVlan of int * int
   | GetPacket of get_packet_handler
 
 type policy =
@@ -74,7 +77,14 @@ let rec predicate_to_string pred = match pred with
 let action_to_string act = match act with
   | To pt -> Printf.sprintf "To %d" pt
   | ToAll -> "ToAll"
-  | GetPacket _ -> "GetPacket"
+  | UpdateDlSrc(old,new0) -> 
+    Printf.sprintf "UpdateDlSrc(%Ld,%Ld)" old new0
+  | UpdateDlDst(old,new0) -> 
+    Printf.sprintf "UpdateDlSrc(%Ld,%Ld)" old new0
+  | UpdateDlVlan(old,new0) -> 
+    Printf.sprintf "UpdateDlSrc(%d,%d)" old new0
+  | GetPacket _ -> 
+    Printf.sprintf "GetPacket <fun>"
 
 let rec policy_to_string pol = "POLICY"
 (*
@@ -95,10 +105,14 @@ let check_policy_vlans (pol : policy) : unit =
       (false, false)
     | ToAll -> 
       (false, false)
+    | UpdateDlSrc _ -> 
+      (false,false)
+    | UpdateDlDst _ -> 
+      (false,false)
+    | UpdateDlVlan _ -> 
+      (false,true)
     | GetPacket _ -> 
       (false, false) in 
-  (* And we don't have VLANs yet, so this whole check is pretty useless 
-   * right now. *)
   let rec check_pred (pred : predicate) =
     match pred with
     | And (pr1, pr2) -> check_pred pr1 || check_pred pr2
@@ -152,6 +166,12 @@ let desugar
       Action.forward pt
     | ToAll ->
       failwith "NYI"
+    | UpdateDlSrc(old,new0) -> 
+      Action.updateDlSrc old new0
+    | UpdateDlDst(old,new0) -> 
+      Action.updateDlDst old new0
+    | UpdateDlVlan(old,new0) -> 
+      Action.updateDlVlan old new0
     | GetPacket handler ->
       let id = genbucket () in 
       Hashtbl.add get_pkt_handlers id handler;

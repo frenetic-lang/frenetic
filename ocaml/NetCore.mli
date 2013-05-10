@@ -25,6 +25,9 @@ module Syntax : sig
   type action =
     | To of int
     | ToAll
+    | UpdateDlSrc of Int64.t * Int64.t
+    | UpdateDlDst of Int64.t * Int64.t
+    | UpdateDlVlan of int * int
     | GetPacket of get_packet_handler
 
   type policy =

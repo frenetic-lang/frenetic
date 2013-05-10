@@ -7,9 +7,9 @@ open NetworkPacket
 open OpenFlow0x01Types
 open WordInterface
 
-module NetCoreClassifier = Classifier.Make(NetCoreAction.NetCoreAction)
+module NetCoreClassifier = Classifier.Make(NetCoreAction.Action)
 
-module BoolAction = BoolAction.Make(NetCoreAction.NetCoreAction.Pattern)
+module BoolAction = BoolAction.Make(NetCoreAction.Action.Pattern)
 
 module BoolClassifier = Classifier.Make(BoolAction)
 
@@ -34,19 +34,18 @@ let rec compile_pred pr sw : BoolClassifier.t =
   | PrNone -> 
     [Pattern.all,false]
 
-let maybe_action a = function
-| true -> a
-| false -> NetCoreAction.NetCoreAction.drop
-
 let rec compile_pol p sw =
   match p with
   | PoAction action ->
     fold_right 
-      (fun e0 tbl -> NetCoreClassifier.union [(NetCoreAction.NetCoreAction.domain e0, [e0])] tbl)
-      (NetCoreAction.NetCoreAction.atoms action)
-      [(Pattern.all, NetCoreAction.NetCoreAction.drop)]
+      (fun e0 tbl -> NetCoreClassifier.union [(NetCoreAction.Action.domain e0, [e0])] tbl)
+      (NetCoreAction.Action.atoms action)
+      [(Pattern.all, NetCoreAction.Action.drop)]
   | PoFilter pred ->
-    map (fun (a,b) -> (a, maybe_action NetCoreAction.NetCoreAction.pass b))
+    map 
+      (fun (a,b) -> match b with
+      | true -> (a, NetCoreAction.Action.pass)
+      | false -> (a, NetCoreAction.Action.drop))
       (compile_pred pred sw)
   | PoUnion (pol1, pol2) ->
     NetCoreClassifier.union 
@@ -62,7 +61,7 @@ let to_rule = function
   (match NetCoreClassifier.Pattern.to_match pattern with
    | Some match_ ->
      Some (match_,
-           (NetCoreAction.NetCoreAction.as_actionSequence match_.matchInPort
+           (NetCoreAction.Action.as_actionSequence match_.matchInPort
               action))
    | None -> None)
 
