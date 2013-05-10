@@ -64,10 +64,3 @@ module type PATTERN =
   
   val setDlDst : dlAddr -> t -> t
  end
-
-module type PATTERN_SPEC = 
- sig 
-  module Pattern : 
-   PATTERN
- end
-
