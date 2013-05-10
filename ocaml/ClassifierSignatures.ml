@@ -37,7 +37,7 @@ module type CLASSIFIER =
  sig 
   module Action : 
    ACTION
-  
+
   type pattern = Action.pattern
   
   type port = Action.port
@@ -57,28 +57,11 @@ module type CLASSIFIER =
   val par_actions : action list -> Action.t
  end
 
-module type MAKE = 
- functor (Action_:ACTION) ->
- sig 
-  module Action : 
-   ACTION
-  
-  type pattern = Action.pattern
-  
-  type port = Action.port
-  
-  type action = Action.t
-  
-  type t = (pattern * action) list
-  
-  val scan : t -> port -> packet -> action
-  
-  val inter : t -> t -> t
-  
-  val union : t -> t -> t
-  
-  val sequence : t -> t -> t
-  
-  val par_actions : action list -> Action.t
- end
+module type MAKE  = functor (Action : ACTION) -> 
+sig 
+  include CLASSIFIER
+  module Pattern : PATTERN
+end
+  with module Action = Action
+  and module Pattern = Action.Pattern
 
