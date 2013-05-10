@@ -6,7 +6,6 @@ ClassifierImpl
 ClassifierSignatures
 Datatypes
 Equalities
-GenericMinMax
 Logic
 Monad
 NetCoreAction
