@@ -35,6 +35,7 @@ type policy =
   | Seq of policy * policy
   | Filter of predicate
   | Empty
+  | Slice of predicate * policy * predicate
 
 let par (pols : policy list) : policy = 
   match pols with
@@ -76,6 +77,60 @@ let rec policy_to_string pol = "POLICY"
   | Restrict (p1,p2) -> Printf.sprintf "(restrict %s %s)" (policy_to_string p1) (predicate_to_string p2)
   | Empty -> "Empty"
 *)
+
+(* Fail if a policy contains slices and also matches or sets VLANs. *)
+let check_policy_vlans (pol : policy) : unit = 
+  (* Apparently we don't have modifications yet, so this will always succeed. *)
+  let check_act (act : action) = 
+    match act with
+    | To _ -> (false, false)
+    | ToAll -> (false, false)
+    | GetPacket _ -> (false, false)
+    | _ -> failwith "NYI: check_act."
+    in
+  (* And we don't have VLANs yet, so this whole check is pretty useless 
+   * right now. *)
+  let rec check_pred (pred : predicate) =
+    match pred with
+    | And (pr1, pr2) -> check_pred pr1 || check_pred pr2
+    | Or (pr1, pr2) -> check_pred pr1 || check_pred pr2
+    | Not pr -> check_pred pr
+    | All -> false
+    | NoPackets -> false
+    | Switch _ -> false
+    | InPort _ -> false
+    | DlSrc _ -> false
+    | DlDst _ -> false
+    | SrcIP _ -> false
+    | DstIP _ -> false
+    | TcpSrcPort _ -> false
+    | TcpDstPort _ -> false
+    | _ -> failwith "NYI: check_pred."
+    in
+  let rec check_pol (pol : policy) = 
+    match pol with
+    | Pol act -> check_act act
+    | Par (p1, p2) -> 
+      let sliceB, vlanB = check_pol p1 in
+      let sliceB', vlanB' = check_pol p2 in
+      (sliceB || sliceB', vlanB || vlanB')
+    | Seq (p1, p2) ->
+      let sliceB, vlanB = check_pol p1 in
+      let sliceB', vlanB' = check_pol p2 in
+      (sliceB || sliceB', vlanB || vlanB')
+    | Filter pred -> (false, check_pred pred)
+    | Empty -> (false, false)
+    | Slice (ingress, pol', egress) ->
+      let vlanB = check_pred ingress in
+      let _, vlanB' = check_pol pol' in
+      let vlanB'' = check_pred egress in
+      (true, vlanB || vlanB' || vlanB'')
+    in
+  let sliceB, vlanB = check_pol pol in
+  if sliceB && vlanB 
+  then failwith ("Error: policy contains slices and also matches on or " ^
+                "modifies VLANs.")
+  else ()
 
 let desugar_policy 
   (pol : policy) 
