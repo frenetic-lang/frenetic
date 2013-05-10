@@ -2,8 +2,7 @@ Mininet_Parser
 Mininet_Lexer
 BoolAction
 Bool
-ClassifierImpl
-ClassifierSignatures
+Classifier
 Controller
 Monad
 NetCoreAction

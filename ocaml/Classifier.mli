@@ -1,10 +1,10 @@
 open NetworkPacket
+open OpenFlow0x01Types
 open PatternSignatures
 
 module type ACTION = 
  sig 
-  module Pattern : 
-   PATTERN
+  module Pattern : PATTERN
   
   type pattern = Pattern.t
   
@@ -35,8 +35,7 @@ module type ACTION =
 
 module type CLASSIFIER = 
  sig 
-  module Action : 
-   ACTION
+  module Action : ACTION
 
   type pattern = Action.pattern
   
@@ -65,3 +64,4 @@ end
   with module Action = Action
   and module Pattern = Action.Pattern
 
+module Make : MAKE

@@ -1,5 +1,4 @@
 open BoolAction
-open ClassifierImpl
 open Misc
 open List
 open Misc
@@ -8,17 +7,19 @@ open NetworkPacket
 open OpenFlow0x01Types
 open WordInterface
 
-module Classifier = Make(NetCoreAction.NetCoreAction)
+module NetCoreClassifier = Classifier.Make(NetCoreAction.NetCoreAction)
 
 module BoolAction = BoolAction.Make(NetCoreAction.NetCoreAction.Pattern)
 
-module BoolClassifier = Make(BoolAction)
+module BoolClassifier = Classifier.Make(BoolAction)
 
 (** val compile_pred : pred -> switchId -> BoolClassifier.t **)
 
-let rec compile_pred pr sw =
+let rec compile_pred pr sw : BoolClassifier.t = 
   match pr with
-  | PrHdr pat -> ((Obj.magic pat), true) :: []
+  | PrHdr pat -> 
+    assert false
+(*    [(pat,true)] *)
   | PrOnSwitch sw' ->
     if Word64.eq_dec sw sw'
     then ((Obj.magic Pattern.all), true) :: []
@@ -46,7 +47,7 @@ let rec compile_pol p sw =
   match p with
   | PoAction action0 ->
     fold_right (fun e0 tbl ->
-      Classifier.union (((NetCoreAction.NetCoreAction.domain e0),
+      NetCoreClassifier.union (((NetCoreAction.NetCoreAction.domain e0),
         (e0 :: [])) :: []) tbl) 
       (NetCoreAction.NetCoreAction.atoms action0)
       (((Obj.magic Pattern.all), NetCoreAction.NetCoreAction.drop) :: [])
@@ -54,9 +55,9 @@ let rec compile_pol p sw =
     map (fun (a,b) -> (a, maybe_action NetCoreAction.NetCoreAction.pass b))
       (compile_pred pred0 sw)
   | PoUnion (pol1, pol2) ->
-    Classifier.union (compile_pol pol1 sw) (compile_pol pol2 sw)
+    NetCoreClassifier.union (compile_pol pol1 sw) (compile_pol pol2 sw)
   | PoSeq (pol1, pol2) ->
-    Classifier.sequence (compile_pol pol1 sw) (compile_pol pol2 sw)
+    NetCoreClassifier.sequence (compile_pol pol1 sw) (compile_pol pol2 sw)
 
 (** val to_rule :
     (Classifier.pattern * Classifier.action) -> (of_match * action list)
@@ -64,7 +65,7 @@ let rec compile_pol p sw =
 
 let to_rule = function
 | (pattern0, action0) ->
-  (match Classifier.Pattern.to_match pattern0 with
+  (match NetCoreClassifier.Pattern.to_match pattern0 with
    | Some match_ ->
      Some (match_,
        (NetCoreAction.NetCoreAction.as_actionSequence match_.matchInPort
