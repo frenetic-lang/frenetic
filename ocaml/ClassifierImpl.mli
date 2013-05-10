@@ -1,6 +1,5 @@
 open ClassifierSignatures
 open Datatypes
-open List
 open NetworkPacket
 open OpenFlow0x01Types
 

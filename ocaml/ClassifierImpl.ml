@@ -1,6 +1,9 @@
 open ClassifierSignatures
 open Datatypes
+<<<<<<< HEAD
 open List
+=======
+>>>>>>> f33ed44fefbb7d080352c957366931a99767ac44
 open NetworkPacket
 open OpenFlow0x01Types
 
@@ -37,7 +40,7 @@ module Make =
   | [] -> prefix
   | p :: cf' ->
     let (pat, act) = p in
-    if existsb (fun entry ->
+    if List.exists (fun entry ->
          let (pat', act0) = entry in Pattern.beq pat pat') prefix
     then elim_shadowed_helper prefix cf'
     else elim_shadowed_helper (app prefix ((pat, act) :: [])) cf'
@@ -67,14 +70,14 @@ module Make =
   
   let inter_entry cl = function
   | (pat, act) ->
-    fold_right (fun v' acc ->
+    List.fold_right (fun v' acc ->
       let (pat', act') = v' in
       ((Pattern.inter pat pat'), (Action.par_action act act')) :: acc) [] cl
   
   (** val inter_no_opt : t -> t -> (Pattern.t * Action.t) list **)
   
   let inter_no_opt cl1 cl2 =
-    fold_right (fun v acc -> app (inter_entry cl2 v) acc) [] cl1
+    List.fold_right (fun v acc -> app (inter_entry cl2 v) acc) [] cl1
   
   (** val union_no_opt : t -> t -> (Pattern.t * Action.t) list **)
   
@@ -92,7 +95,7 @@ module Make =
   let seq tbl1 tbl2 pt pk =
     Action.seq_action (scan tbl1 pt pk)
       (par_actions
-        (map (fun ptpk -> let (pt0, pk0) = ptpk in scan tbl2 pt0 pk0)
+        (List.map (fun ptpk -> let (pt0, pk0) = ptpk in scan tbl2 pt0 pk0)
           (Action.apply_action (scan tbl1 pt pk) (pt, pk))))
   
   (** val union : t -> t -> t **)
@@ -133,7 +136,7 @@ module Make =
       (match Action.atoms a with
        | [] -> (p, Action.drop) :: (sequence_no_opt tbl1' tbl2)
        | e0 :: l ->
-         app (unions (map (fun atom -> coq_Pick p a atom tbl2) (e0 :: l)))
+         app (unions (List.map (fun atom -> coq_Pick p a atom tbl2) (e0 :: l)))
            (sequence_no_opt tbl1' tbl2))
   
   (** val sequence : t -> t -> t **)
