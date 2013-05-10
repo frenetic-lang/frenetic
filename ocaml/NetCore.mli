@@ -16,6 +16,7 @@ module Syntax : sig
     | InPort of portId
     | DlSrc of Int64.t
     | DlDst of Int64.t
+    | DlVlan of int
     | SrcIP of Int32.t
     | DstIP of Int32.t
     | TcpSrcPort of int (** 16-bits, implicitly IP *)
@@ -42,7 +43,9 @@ module Syntax : sig
 
   (** Desugars the surface syntax policy to the internal (Coq-extracted) policy
       and a hashtable of handlers. *)
-  val desugar_policy : 
+  val desugar : 
+    (unit -> int) -> 
+    (unit -> int) -> 
     policy 
     -> (int, get_packet_handler) Hashtbl.t 
     -> NetCoreEval.pol

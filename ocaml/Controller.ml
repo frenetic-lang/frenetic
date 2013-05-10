@@ -75,10 +75,19 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       !pol_now (Lwt_stream.clone pol_stream) in
     switch <&> accept_switches pol_stream
 
+  let bucket_cell = ref 0 
+  let vlan_cell = ref 0 
+  let genbucket () = 
+    incr bucket_cell;
+    !bucket_cell
+  let genvlan () = 
+    incr vlan_cell;
+    !vlan_cell
+
   let configure_switches push_pol sugared_pol_stream =
     Lwt_stream.iter
       (fun pol ->
-        let p = NetCore_Syntax.desugar_policy pol get_pkt_handlers in
+        let p = NetCore_Syntax.desugar genbucket genvlan pol get_pkt_handlers in
         pol_now := p;
         push_pol (Some p))
       sugared_pol_stream

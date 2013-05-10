@@ -6,7 +6,6 @@ module Action = NetCoreAction.NetCoreAction
 module Pattern = Action.Pattern
 module Port = NetCoreAction.Port
 
-
 type get_packet_handler = switchId -> portId -> packet -> unit
 
 type predicate =
@@ -19,6 +18,7 @@ type predicate =
   | InPort of portId
   | DlSrc of Int64.t
   | DlDst of Int64.t
+  | DlVlan of int (** 16-bits *)
   | SrcIP of Int32.t
   | DstIP of Int32.t
   | TcpSrcPort of int (** 16-bits, implicitly IP *)
@@ -47,12 +47,20 @@ let rec predicate_to_string pred = match pred with
     Printf.sprintf "(And %s %s)" (predicate_to_string p1) (predicate_to_string p2)
   | Or (p1,p2) -> 
     Printf.sprintf "(Or %s %s)" (predicate_to_string p1) (predicate_to_string p2)
-  | Not p1 -> Printf.sprintf "(Not %s)" (predicate_to_string p1)
-  | NoPackets -> "None"
-  | Switch sw -> Printf.sprintf "(Switch %Ld)" sw
-  | InPort pt -> Printf.sprintf "(InPort %d)" pt
-  | DlSrc add -> Printf.sprintf "(DlSrc %s)" (string_of_mac add)
-  | DlDst add -> Printf.sprintf "(DlDst %s)" (string_of_mac add)
+  | Not p1 -> 
+    Printf.sprintf "(Not %s)" (predicate_to_string p1)
+  | NoPackets -> 
+    Printf.sprintf "None"
+  | Switch sw -> 
+    Printf.sprintf "(Switch %Ld)" sw
+  | InPort pt -> 
+    Printf.sprintf "(InPort %d)" pt
+  | DlSrc add -> 
+    Printf.sprintf "(DlSrc %s)" (string_of_mac add)
+  | DlDst add -> 
+    Printf.sprintf "(DlDst %s)" (string_of_mac add)
+  | DlVlan n -> 
+    Printf.sprintf "(DlVlan %d)" n
   | All -> "All"
   | TcpSrcPort n ->
     Printf.sprintf "(TcpSrcPort %d)" n
@@ -83,11 +91,12 @@ let check_policy_vlans (pol : policy) : unit =
   (* Apparently we don't have modifications yet, so this will always succeed. *)
   let check_act (act : action) = 
     match act with
-    | To _ -> (false, false)
-    | ToAll -> (false, false)
-    | GetPacket _ -> (false, false)
-    | _ -> failwith "NYI: check_act."
-    in
+    | To _ -> 
+      (false, false)
+    | ToAll -> 
+      (false, false)
+    | GetPacket _ -> 
+      (false, false) in 
   (* And we don't have VLANs yet, so this whole check is pretty useless 
    * right now. *)
   let rec check_pred (pred : predicate) =
@@ -101,12 +110,11 @@ let check_policy_vlans (pol : policy) : unit =
     | InPort _ -> false
     | DlSrc _ -> false
     | DlDst _ -> false
+    | DlVlan _ -> true
     | SrcIP _ -> false
     | DstIP _ -> false
     | TcpSrcPort _ -> false
-    | TcpDstPort _ -> false
-    | _ -> failwith "NYI: check_pred."
-    in
+    | TcpDstPort _ -> false in 
   let rec check_pol (pol : policy) = 
     match pol with
     | Pol act -> check_act act
@@ -132,18 +140,20 @@ let check_policy_vlans (pol : policy) : unit =
                 "modifies VLANs.")
   else ()
 
-let desugar_policy 
+let desugar 
+  (genbucket : unit -> int)
+  (genvlan : unit -> int)
   (pol : policy) 
   (get_pkt_handlers : (int, get_packet_handler) Hashtbl.t) =
-  let open NetCoreEval in
-  let next_id = ref 0 in
+  let open NetCoreEval in 
   let desugar_act act = 
     match act with
     | To pt -> 
       Action.forward pt
+    | ToAll ->
+      failwith "NYI"
     | GetPacket handler ->
-      let id = !next_id in
-      incr next_id;
+      let id = genbucket () in 
       Hashtbl.add get_pkt_handlers id handler;
       Action.bucket id in
   let rec desugar_pred pred = match pred with
@@ -158,17 +168,57 @@ let desugar_policy
     | InPort pt -> PrHdr (Pattern.inPort (Port.Physical pt))
     | DlSrc n -> PrHdr (Pattern.dlSrc n)
     | DlDst n -> PrHdr (Pattern.dlDst n)
+    | DlVlan n -> PrHdr (Pattern.dlVlan n)
     | SrcIP n -> PrHdr (Pattern.ipSrc n)
     | DstIP n -> PrHdr (Pattern.ipDst n)
     | TcpSrcPort n -> PrHdr (Pattern.tcpSrcPort n)
     | TcpDstPort n -> PrHdr (Pattern.tcpDstPort n) in
-  let rec desugar_pol pol pred = match pol with
-    | Pol action -> PoAction (desugar_act action)
-    | Filter pred -> PoFilter (desugar_pred pred)
+  let rec desugar_pol curr pol = 
+    match pol with
+    | Pol action -> 
+      let pol' = PoAction (desugar_act action) in 
+      let slice' = [] in 
+      (pol', slice')
+    | Filter pred -> 
+      let pol' = PoFilter (desugar_pred pred) in 
+      let slice' = [] in
+      (pol', slice')
     | Par (pol1, pol2) ->
-      PoUnion (desugar_pol pol1 pred, desugar_pol pol2 pred)
+      let pol1',slice1 = desugar_pol curr pol1 in  
+      let pol2',slice2 = desugar_pol curr pol2 in  
+      let pol' = PoUnion (pol1', pol2') in 
+      let slice' = slice1 @ slice2 in 
+      (pol', slice')
     | Seq (pol1, pol2) ->
-      PoSeq (desugar_pol pol1 pred, desugar_pol pol2 pred)
-    | Empty -> PoFilter PrNone in
+      let pol1',slice1 = desugar_pol curr pol1 in  
+      let pol2',slice2 = desugar_pol curr pol2 in  
+      let pol' = PoSeq (pol1', pol2') in 
+      let slice' = slice1 @ slice2 in 
+      (pol', slice')
+    | Empty -> 
+      let pol' = PoFilter PrNone in 
+      let slice' = [] in 
+      (pol', slice') 
+    | Slice(sin, spol, sout) -> 
+      let next = genvlan () in 
+      let sin' = desugar_pred sin in 
+      let sout' = desugar_pred sout in 
+      let spol',sslice' = desugar_pol next pol in 
+      let pred_rec = 
+        List.fold_left 
+          (fun acc s -> PrAnd(acc, PrHdr(Pattern.dlVlan s)))
+          PrAll sslice' in 
+      let pred_curr = PrHdr(Pattern.dlVlan(curr)) in 
+      let pred_next = PrHdr(Pattern.dlVlan(next)) in 
+      let pol1' = 
+        PoUnion(PoSeq(PoFilter(PrAnd(pred_curr, sin')), failwith "tag with next slice"),
+                PoFilter(PrOr(pred_next, pred_rec))) in 
+      let pol2' = spol' in 
+      let pol3' = 
+        PoUnion(PoSeq(PoFilter(PrAnd(pred_next, sout')), failwith "tag with curr slice"),
+                PoFilter(PrNot(PrAnd(pred_next, sout')))) in 
+      let pol' = PoSeq(pol1', PoSeq(pol2', pol3')) in 
+      let slice' = next::sslice' in 
+      (pol', slice') in 
   Hashtbl.clear get_pkt_handlers;
-  desugar_pol pol All
+  fst (desugar_pol 0 pol) 
