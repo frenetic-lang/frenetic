@@ -32,6 +32,7 @@ module Syntax : sig
     | Seq of policy * policy
     | Filter of predicate
     | Empty
+    | Slice of predicate * policy * predicate
 
   val par : policy list -> policy
 
