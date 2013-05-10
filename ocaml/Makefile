@@ -14,6 +14,9 @@ debug:
 native:
 	$(OCAMLBUILD) native.otarget
 
+verify:
+	$(OCAMLBUILD) verify.otarget
+
 doc:
 	$(OCAMLBUILD) doc.docdir/index.html
 
