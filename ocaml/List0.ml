@@ -126,7 +126,8 @@ let rec count_occ eq_dec l x =
   match l with
   | [] -> 0
   | y :: tl0 ->
-    let n = count_occ eq_dec tl0 x in if eq_dec y x then succ n else n
+    let n = count_occ eq_dec tl0 x in
+    if eq_dec y x then Pervasives.succ n else n
 
 (** val rev : 'a1 list -> 'a1 list **)
 
@@ -280,7 +281,7 @@ let rec seq start len =
     (fun _ ->
     [])
     (fun len0 ->
-    start :: (seq (succ start) len0))
+    start :: (seq (Pervasives.succ start) len0))
     len
 
 (** val coq_Forall_rect :

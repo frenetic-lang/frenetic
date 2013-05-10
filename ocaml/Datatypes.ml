@@ -173,7 +173,7 @@ let rec list_rec f f0 = function
 
 let rec length = function
 | [] -> 0
-| y :: l' -> succ (length l')
+| y :: l' -> Pervasives.succ (length l')
 
 (** val app : 'a1 list -> 'a1 list -> 'a1 list **)
 
