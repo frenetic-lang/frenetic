@@ -1,7 +1,7 @@
 open Monad
 open NetworkPacket
 open OpenFlow0x01Types
-open WordInterface
+open Word
 
 module type PORT = sig
   type t 

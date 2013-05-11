@@ -1,5 +1,5 @@
 open NetworkPacket
-open WordInterface
+open Word
 open Misc
 
 type __ = Obj.t
