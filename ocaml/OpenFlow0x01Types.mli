@@ -405,13 +405,3 @@ type message =
 | StatsRequestMsg of statsRequest
 | StatsReplyMsg of statsReply
 
-val message_rect :
-  (bytes -> 'a1) -> (bytes -> 'a1) -> (bytes -> 'a1) -> 'a1 -> (features ->
-  'a1) -> (flowMod -> 'a1) -> (packetIn -> 'a1) -> (packetOut -> 'a1) -> 'a1
-  -> 'a1 -> (statsRequest -> 'a1) -> (statsReply -> 'a1) -> message -> 'a1
-
-val message_rec :
-  (bytes -> 'a1) -> (bytes -> 'a1) -> (bytes -> 'a1) -> 'a1 -> (features ->
-  'a1) -> (flowMod -> 'a1) -> (packetIn -> 'a1) -> (packetOut -> 'a1) -> 'a1
-  -> 'a1 -> (statsRequest -> 'a1) -> (statsReply -> 'a1) -> message -> 'a1
-

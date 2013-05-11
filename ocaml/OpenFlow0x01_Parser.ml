@@ -729,9 +729,9 @@ module StatsRequest = struct
     
     type t = statsRequest
 
-    let sizeof = failwith "NYI: StatsRequest.sizeof"
+    let sizeof buf = failwith "NYI: StatsRequest.sizeof"
 
-    let marshal = failwith "NYI: StatsRequest.marshal"
+    let marshal msg = failwith "NYI: StatsRequest.marshal"
 
 end
 
@@ -739,9 +739,9 @@ module StatsReply = struct
     
     type t = statsReply
 
-    let sizeof = failwith "NYI: StatsReply.sizeof"
+    let sizeof msg = failwith "NYI: StatsReply.sizeof"
 
-    let parse = failwith "NYI: StatsReply.parse"
+    let parse buf = failwith "NYI: StatsReply.parse"
 
 end
 
