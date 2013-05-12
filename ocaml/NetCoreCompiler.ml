@@ -5,7 +5,7 @@ open Misc
 open NetCoreEval
 open NetworkPacket
 open OpenFlow0x01Types
-open WordInterface
+open Word
 
 module NetCoreClassifier = Classifier.Make(NetCoreAction.Action)
 

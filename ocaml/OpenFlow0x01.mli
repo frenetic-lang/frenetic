@@ -1,7 +1,7 @@
 module Types : sig
 
   open Packet.Types
-  open WordInterface
+  open Word
 
   type of_match = {
     matchDlSrc : dlAddr option;

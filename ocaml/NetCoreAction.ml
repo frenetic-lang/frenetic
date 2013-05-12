@@ -3,7 +3,7 @@ open List
 open NetworkPacket
 open OpenFlow0x01Types
 open Pattern
-open WordInterface
+open Word
 open Misc
 
 module Port = struct

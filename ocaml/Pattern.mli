@@ -1,11 +1,10 @@
 open Monad
 open NetworkPacket
 open OpenFlow0x01Types
-open WordInterface
+open Word
 
 module type PORT = sig
   type t 
-  
   val opt_portId : t -> portId option
  end
 

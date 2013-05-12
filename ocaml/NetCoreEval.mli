@@ -2,7 +2,7 @@ open Misc
 open List
 open NetworkPacket
 open OpenFlow0x01Types
-open WordInterface
+open Word
 
 module Pattern : Pattern.PATTERN
   with type t = NetCoreAction.Action.Pattern.t
