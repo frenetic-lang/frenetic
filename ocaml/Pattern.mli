@@ -61,6 +61,9 @@ module type PATTERN = sig
   val setDlSrc : dlAddr -> t -> t
   
   val setDlDst : dlAddr -> t -> t
+
+  val to_string : t -> string
+
  end
 
 module type MAKE = functor (Port:PORT) -> sig

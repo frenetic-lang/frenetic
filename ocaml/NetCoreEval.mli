@@ -37,3 +37,7 @@ val eval_action : value -> NetCoreAction.Action.t -> value list
 
 val classify : pol -> value -> value list
 
+val pol_to_string : pol -> string
+
+val pred_to_string : pred -> string
+

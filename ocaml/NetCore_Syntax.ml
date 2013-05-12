@@ -250,4 +250,6 @@ let desugar
       let slice' = next::sslice' in 
       (pol', slice') in 
   Hashtbl.clear get_pkt_handlers;
-  fst (desugar_pol 0 pol) 
+  let dsPol = fst (desugar_pol 0 pol) in
+  (* Misc.Log.printf "[desugar] %s\n" (pol_to_string dsPol); *)
+  dsPol
