@@ -53,3 +53,7 @@ let rec classify p inp =
   | PoUnion (p1, p2) -> (classify p1 inp) @ (classify p2 inp)
   | PoSeq (p1, p2) -> concat_map (classify p2) (classify p1 inp)
 
+let pred_to_string pred = failwith "TODO: pred_to_string."
+
+let pol_to_string pol = failwith "TODO: pol_to_string."
+

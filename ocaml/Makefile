@@ -1,6 +1,6 @@
 .PHONY: all debug native doc library install uninstall clean reinstall
 
-OCAMLBUILD = ocamlbuild -use-ocamlfind 
+OCAMLBUILD = ocamlbuild -use-ocamlfind
 
 # Note that these are only the .mli files at the top-level.
 MLIFILES = $(shell ls _build/*.mli)
@@ -9,7 +9,7 @@ CMIFILES = $(MLIFILES:.mli=.cmi)
 all: debug doc newuninstall newinstall
 
 debug:
-	$(OCAMLBUILD) debug.otarget
+	$(OCAMLBUILD) -cflag -ppopt -cflag -lwt-debug debug.otarget
 
 native:
 	$(OCAMLBUILD) native.otarget

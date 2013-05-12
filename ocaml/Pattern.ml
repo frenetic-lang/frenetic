@@ -37,6 +37,9 @@ module type PATTERN = sig
   val udpDstPort : tpPort -> t
   val setDlSrc : dlAddr -> t -> t
   val setDlDst : dlAddr -> t -> t
+
+  val to_string : t -> string
+  
  end
 
 module type MAKE = functor (Port:PORT) -> sig
@@ -62,99 +65,30 @@ module Make =
                    ptrnTpDst : tpPort Wildcard.coq_Wildcard;
                    ptrnInPort : port Wildcard.coq_Wildcard }
   
-  (** val pattern_rect :
-      (dlAddr Wildcard.coq_Wildcard -> dlAddr Wildcard.coq_Wildcard -> dlTyp
-      Wildcard.coq_Wildcard -> dlVlan Wildcard.coq_Wildcard -> dlVlanPcp
-      Wildcard.coq_Wildcard -> nwAddr Wildcard.coq_Wildcard -> nwAddr
-      Wildcard.coq_Wildcard -> nwProto Wildcard.coq_Wildcard -> nwTos
-      Wildcard.coq_Wildcard -> tpPort Wildcard.coq_Wildcard -> tpPort
-      Wildcard.coq_Wildcard -> port Wildcard.coq_Wildcard -> 'a1) -> pattern
-      -> 'a1 **)
+ 
+  let ptrnDlSrc p = p.ptrnDlSrc
   
-  let pattern_rect f p =
-    let { ptrnDlSrc = x; ptrnDlDst = x0; ptrnDlType = x1; ptrnDlVlan = x2;
-      ptrnDlVlanPcp = x3; ptrnNwSrc = x4; ptrnNwDst = x5; ptrnNwProto = x6;
-      ptrnNwTos = x7; ptrnTpSrc = x8; ptrnTpDst = x9; ptrnInPort = x10 } = p
-    in
-    f x x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10
+  let ptrnDlDst p = p.ptrnDlDst
   
-  (** val pattern_rec :
-      (dlAddr Wildcard.coq_Wildcard -> dlAddr Wildcard.coq_Wildcard -> dlTyp
-      Wildcard.coq_Wildcard -> dlVlan Wildcard.coq_Wildcard -> dlVlanPcp
-      Wildcard.coq_Wildcard -> nwAddr Wildcard.coq_Wildcard -> nwAddr
-      Wildcard.coq_Wildcard -> nwProto Wildcard.coq_Wildcard -> nwTos
-      Wildcard.coq_Wildcard -> tpPort Wildcard.coq_Wildcard -> tpPort
-      Wildcard.coq_Wildcard -> port Wildcard.coq_Wildcard -> 'a1) -> pattern
-      -> 'a1 **)
+  let ptrnDlType p = p.ptrnDlType
   
-  let pattern_rec f p =
-    let { ptrnDlSrc = x; ptrnDlDst = x0; ptrnDlType = x1; ptrnDlVlan = x2;
-      ptrnDlVlanPcp = x3; ptrnNwSrc = x4; ptrnNwDst = x5; ptrnNwProto = x6;
-      ptrnNwTos = x7; ptrnTpSrc = x8; ptrnTpDst = x9; ptrnInPort = x10 } = p
-    in
-    f x x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10
+  let ptrnDlVlan p = p.ptrnDlVlan
   
-  (** val ptrnDlSrc : pattern -> dlAddr Wildcard.coq_Wildcard **)
+  let ptrnDlVlanPcp p = p.ptrnDlVlanPcp
   
-  let ptrnDlSrc p =
-    p.ptrnDlSrc
+  let ptrnNwSrc p = p.ptrnNwSrc
   
-  (** val ptrnDlDst : pattern -> dlAddr Wildcard.coq_Wildcard **)
+  let ptrnNwDst p = p.ptrnNwDst
   
-  let ptrnDlDst p =
-    p.ptrnDlDst
+  let ptrnNwProto p = p.ptrnNwProto
   
-  (** val ptrnDlType : pattern -> dlTyp Wildcard.coq_Wildcard **)
+  let ptrnNwTos p = p.ptrnNwTos
   
-  let ptrnDlType p =
-    p.ptrnDlType
+  let ptrnTpSrc p = p.ptrnTpSrc
   
-  (** val ptrnDlVlan : pattern -> dlVlan Wildcard.coq_Wildcard **)
+  let ptrnTpDst p = p.ptrnTpDst
   
-  let ptrnDlVlan p =
-    p.ptrnDlVlan
-  
-  (** val ptrnDlVlanPcp : pattern -> dlVlanPcp Wildcard.coq_Wildcard **)
-  
-  let ptrnDlVlanPcp p =
-    p.ptrnDlVlanPcp
-  
-  (** val ptrnNwSrc : pattern -> nwAddr Wildcard.coq_Wildcard **)
-  
-  let ptrnNwSrc p =
-    p.ptrnNwSrc
-  
-  (** val ptrnNwDst : pattern -> nwAddr Wildcard.coq_Wildcard **)
-  
-  let ptrnNwDst p =
-    p.ptrnNwDst
-  
-  (** val ptrnNwProto : pattern -> nwProto Wildcard.coq_Wildcard **)
-  
-  let ptrnNwProto p =
-    p.ptrnNwProto
-  
-  (** val ptrnNwTos : pattern -> nwTos Wildcard.coq_Wildcard **)
-  
-  let ptrnNwTos p =
-    p.ptrnNwTos
-  
-  (** val ptrnTpSrc : pattern -> tpPort Wildcard.coq_Wildcard **)
-  
-  let ptrnTpSrc p =
-    p.ptrnTpSrc
-  
-  (** val ptrnTpDst : pattern -> tpPort Wildcard.coq_Wildcard **)
-  
-  let ptrnTpDst p =
-    p.ptrnTpDst
-  
-  (** val ptrnInPort : pattern -> port Wildcard.coq_Wildcard **)
-  
-  let ptrnInPort p =
-    p.ptrnInPort
-  
-  (* (\** val eq_dec : pattern -> pattern -> bool **\) *)
+  let ptrnInPort p = p.ptrnInPort
   
   let eq_dec x y =
     let { ptrnDlSrc = x0; ptrnDlDst = x1; ptrnDlType = x2; ptrnDlVlan = x3;
@@ -202,8 +136,6 @@ module Make =
          else false
     else false
   
-  (** val all : pattern **)
-  
   let all =
     { ptrnDlSrc = Wildcard.WildcardAll; ptrnDlDst = Wildcard.WildcardAll;
       ptrnDlType = Wildcard.WildcardAll; ptrnDlVlan = Wildcard.WildcardAll;
@@ -211,8 +143,6 @@ module Make =
       ptrnNwDst = Wildcard.WildcardAll; ptrnNwProto = Wildcard.WildcardAll;
       ptrnNwTos = Wildcard.WildcardAll; ptrnTpSrc = Wildcard.WildcardAll;
       ptrnTpDst = Wildcard.WildcardAll; ptrnInPort = Wildcard.WildcardAll }
-  
-  (** val empty : pattern **)
   
   let empty =
     { ptrnDlSrc = Wildcard.WildcardNone; ptrnDlDst = Wildcard.WildcardNone;
@@ -222,8 +152,6 @@ module Make =
       Wildcard.WildcardNone; ptrnNwTos = Wildcard.WildcardNone; ptrnTpSrc =
       Wildcard.WildcardNone; ptrnTpDst = Wildcard.WildcardNone; ptrnInPort =
       Wildcard.WildcardNone }
-  
-  (** val is_empty : pattern -> bool **)
   
   let is_empty pat =
     let { ptrnDlSrc = dlSrc0; ptrnDlDst = dlDst0; ptrnDlType = typ;
@@ -254,14 +182,10 @@ module Make =
         (Wildcard.Wildcard.is_empty tpSrc))
       (Wildcard.Wildcard.is_empty tpDst)
   
-  (** val wild_to_opt : 'a1 Wildcard.coq_Wildcard -> 'a1 option option **)
-  
   let wild_to_opt = function
   | Wildcard.WildcardExact x -> Some (Some x)
   | Wildcard.WildcardAll -> Some None
   | Wildcard.WildcardNone -> None
-  
-  (** val to_match : pattern -> of_match option **)
   
   let to_match pat =
     let { ptrnDlSrc = dlSrc0; ptrnDlDst = dlDst0; ptrnDlType = typ;
@@ -295,10 +219,8 @@ module Make =
                                 nwProto1; matchNwTos = nwTos1; matchTpSrc =
                                 tpSrc0; matchTpDst = tpDst0; matchInPort =
                                 pt1 })))))))))))))
-  
-  (** val inter : pattern -> pattern -> pattern **)
-  
-  let inter p p' =
+
+    let inter p p' =
     let dlSrc0 =
       Wildcard.Wildcard.inter Word48.eq_dec (ptrnDlSrc p) (ptrnDlSrc p')
     in
@@ -341,8 +263,6 @@ module Make =
     ptrnNwDst = nwDst; ptrnNwProto = nwProto0; ptrnNwTos = nwTos0;
     ptrnTpSrc = tpSrc; ptrnTpDst = tpDst; ptrnInPort = inPort0 }
   
-  (** val exact_pattern : packet -> port -> pattern **)
-  
   let exact_pattern pk pt =
     { ptrnDlSrc = (Wildcard.WildcardExact pk.pktDlSrc); ptrnDlDst =
       (Wildcard.WildcardExact pk.pktDlDst); ptrnDlType =
@@ -357,12 +277,8 @@ module Make =
       (Wildcard.WildcardExact (pktTpDst pk)); ptrnInPort =
       (Wildcard.WildcardExact pt) }
   
-  (** val match_packet : port -> packet -> pattern -> bool **)
-  
   let match_packet pt pk pat =
     not (is_empty (inter (exact_pattern pk pt) pat))
-  
-  (** val is_exact : pattern -> bool **)
   
   let is_exact pat =
     let { ptrnDlSrc = dlSrc0; ptrnDlDst = dlDst0; ptrnDlType = typ;
@@ -393,17 +309,11 @@ module Make =
         (Wildcard.Wildcard.is_exact tpSrc))
       (Wildcard.Wildcard.is_exact tpDst)
   
-  (** val coq_SupportedNwProto : int list **)
-  
   let coq_SupportedNwProto =
     coq_Const_0x6 :: (coq_Const_0x7 :: [])
   
-  (** val coq_SupportedDlTyp : int list **)
-  
   let coq_SupportedDlTyp =
     coq_Const_0x800 :: (coq_Const_0x806 :: [])
-  
-  (** val to_valid : pattern -> pattern **)
   
   let to_valid pat =
     let { ptrnDlSrc = dlSrc0; ptrnDlDst = dlDst0; ptrnDlType = dlTyp0;
@@ -437,14 +347,9 @@ module Make =
     (if validNwProto then tpDst else Wildcard.WildcardAll); ptrnInPort =
     inPort0 }
   
-  (** val to_all :
-      'a1 Wildcard.coq_Wildcard -> bool -> 'a1 Wildcard.coq_Wildcard **)
-  
   let to_all w = function
   | true -> Wildcard.WildcardAll
   | false -> w
-  
-  (** val setDlSrc : dlAddr -> pattern -> pattern **)
   
   let setDlSrc dlSrc0 pat =
     let { ptrnDlSrc = ptrnDlSrc0; ptrnDlDst = dlDst0; ptrnDlType = dlTyp0;
@@ -457,8 +362,6 @@ module Make =
       dlVlanPcp0; ptrnNwSrc = nwSrc; ptrnNwDst = nwDst; ptrnNwProto =
       nwProto0; ptrnNwTos = nwTos0; ptrnTpSrc = tpSrc; ptrnTpDst = tpDst;
       ptrnInPort = inPort0 }
-  
-  (** val setDlDst : dlAddr -> pattern -> pattern **)
   
   let setDlDst dlDst0 pat =
     let { ptrnDlSrc = dlSrc0; ptrnDlDst = ptrnDlDst0; ptrnDlType = dlTyp0;
@@ -474,12 +377,8 @@ module Make =
   
   type t = pattern
   
-  (** val beq : pattern -> pattern -> bool **)
-  
   let beq p1 p2 =
     if eq_dec p1 p2 then true else false
-  
-  (** val inPort : port -> t **)
   
   let inPort pt =
     { ptrnDlSrc = Wildcard.WildcardAll; ptrnDlDst = Wildcard.WildcardAll;
@@ -490,8 +389,6 @@ module Make =
       ptrnTpDst = Wildcard.WildcardAll; ptrnInPort = (Wildcard.WildcardExact
       pt) }
   
-  (** val dlSrc : dlAddr -> t **)
-  
   let dlSrc dlAddr0 =
     { ptrnDlSrc = (Wildcard.WildcardExact dlAddr0); ptrnDlDst =
       Wildcard.WildcardAll; ptrnDlType = Wildcard.WildcardAll; ptrnDlVlan =
@@ -500,8 +397,6 @@ module Make =
       Wildcard.WildcardAll; ptrnNwTos = Wildcard.WildcardAll; ptrnTpSrc =
       Wildcard.WildcardAll; ptrnTpDst = Wildcard.WildcardAll; ptrnInPort =
       Wildcard.WildcardAll }
-  
-  (** val dlDst : dlAddr -> t **)
   
   let dlDst dlAddr0 =
     { ptrnDlSrc = Wildcard.WildcardAll; ptrnDlDst = (Wildcard.WildcardExact
@@ -512,8 +407,6 @@ module Make =
       Wildcard.WildcardAll; ptrnTpDst = Wildcard.WildcardAll; ptrnInPort =
       Wildcard.WildcardAll }
   
-  (** val dlTyp : dlTyp -> t **)
-  
   let dlTyp typ =
     { ptrnDlSrc = Wildcard.WildcardAll; ptrnDlDst = Wildcard.WildcardAll;
       ptrnDlType = (Wildcard.WildcardExact typ); ptrnDlVlan =
@@ -522,8 +415,6 @@ module Make =
       Wildcard.WildcardAll; ptrnNwTos = Wildcard.WildcardAll; ptrnTpSrc =
       Wildcard.WildcardAll; ptrnTpDst = Wildcard.WildcardAll; ptrnInPort =
       Wildcard.WildcardAll }
-  
-  (** val dlVlan : dlVlan -> t **)
   
   let dlVlan vlan =
     { ptrnDlSrc = Wildcard.WildcardAll; ptrnDlDst = Wildcard.WildcardAll;
@@ -534,8 +425,6 @@ module Make =
       Wildcard.WildcardAll; ptrnTpDst = Wildcard.WildcardAll; ptrnInPort =
       Wildcard.WildcardAll }
   
-  (** val dlVlanPcp : dlVlanPcp -> t **)
-  
   let dlVlanPcp pcp =
     { ptrnDlSrc = Wildcard.WildcardAll; ptrnDlDst = Wildcard.WildcardAll;
       ptrnDlType = Wildcard.WildcardAll; ptrnDlVlan = Wildcard.WildcardAll;
@@ -544,8 +433,6 @@ module Make =
       Wildcard.WildcardAll; ptrnNwTos = Wildcard.WildcardAll; ptrnTpSrc =
       Wildcard.WildcardAll; ptrnTpDst = Wildcard.WildcardAll; ptrnInPort =
       Wildcard.WildcardAll }
-  
-  (** val ipSrc : nwAddr -> t **)
   
   let ipSrc addr =
     { ptrnDlSrc = Wildcard.WildcardAll; ptrnDlDst = Wildcard.WildcardAll;
@@ -556,8 +443,6 @@ module Make =
       ptrnTpSrc = Wildcard.WildcardAll; ptrnTpDst = Wildcard.WildcardAll;
       ptrnInPort = Wildcard.WildcardAll }
   
-  (** val ipDst : nwAddr -> t **)
-  
   let ipDst addr =
     { ptrnDlSrc = Wildcard.WildcardAll; ptrnDlDst = Wildcard.WildcardAll;
       ptrnDlType = (Wildcard.WildcardExact coq_Const_0x800); ptrnDlVlan =
@@ -566,8 +451,6 @@ module Make =
       ptrnNwProto = Wildcard.WildcardAll; ptrnNwTos = Wildcard.WildcardAll;
       ptrnTpSrc = Wildcard.WildcardAll; ptrnTpDst = Wildcard.WildcardAll;
       ptrnInPort = Wildcard.WildcardAll }
-  
-  (** val ipProto : nwProto -> t **)
   
   let ipProto proto =
     { ptrnDlSrc = Wildcard.WildcardAll; ptrnDlDst = Wildcard.WildcardAll;
@@ -578,8 +461,6 @@ module Make =
       ptrnTpSrc = Wildcard.WildcardAll; ptrnTpDst = Wildcard.WildcardAll;
       ptrnInPort = Wildcard.WildcardAll }
   
-  (** val tpSrcPort : nwProto -> tpPort -> t **)
-  
   let tpSrcPort proto tpPort0 =
     { ptrnDlSrc = Wildcard.WildcardAll; ptrnDlDst = Wildcard.WildcardAll;
       ptrnDlType = (Wildcard.WildcardExact coq_Const_0x800); ptrnDlVlan =
@@ -588,8 +469,6 @@ module Make =
       (Wildcard.WildcardExact proto); ptrnNwTos = Wildcard.WildcardAll;
       ptrnTpSrc = (Wildcard.WildcardExact tpPort0); ptrnTpDst =
       Wildcard.WildcardAll; ptrnInPort = Wildcard.WildcardAll }
-  
-  (** val tpDstPort : nwProto -> tpPort -> t **)
   
   let tpDstPort proto tpPort0 =
     { ptrnDlSrc = Wildcard.WildcardAll; ptrnDlDst = Wildcard.WildcardAll;
@@ -600,24 +479,15 @@ module Make =
       ptrnTpSrc = Wildcard.WildcardAll; ptrnTpDst = (Wildcard.WildcardExact
       tpPort0); ptrnInPort = Wildcard.WildcardAll }
   
-  (** val tcpSrcPort : tpPort -> t **)
+  let tcpSrcPort = tpSrcPort coq_Const_0x6
   
-  let tcpSrcPort =
-    tpSrcPort coq_Const_0x6
+  let tcpDstPort = tpDstPort coq_Const_0x6
   
-  (** val tcpDstPort : tpPort -> t **)
+  let udpSrcPort = tpSrcPort coq_Const_0x7
   
-  let tcpDstPort =
-    tpDstPort coq_Const_0x6
-  
-  (** val udpSrcPort : tpPort -> t **)
-  
-  let udpSrcPort =
-    tpSrcPort coq_Const_0x7
-  
-  (** val udpDstPort : tpPort -> t **)
-  
-  let udpDstPort =
-    tpDstPort coq_Const_0x7
+  let udpDstPort = tpDstPort coq_Const_0x7
+
+  let to_string p = failwith "NYI: Pattern.to_string."
+
  end
 

@@ -86,15 +86,24 @@ let action_to_string act = match act with
   | GetPacket _ -> 
     Printf.sprintf "GetPacket <fun>"
 
-let rec policy_to_string pol = "POLICY"
-(*
-  | 
-  | Act (pred,acts) -> Printf.sprintf "(%s => [%s])" (predicate_to_string pred) (String.concat ";" (List.map action_to_string acts))
-  | Par (p1,p2) -> Printf.sprintf "(Union %s %s)" (policy_to_string p1) (policy_to_string p2)
-  | Seq (p1,p2) -> Printf.sprintf "(Seq %s %s)" (policy_to_string p1) (policy_to_string p2)
-  | Restrict (p1,p2) -> Printf.sprintf "(restrict %s %s)" (policy_to_string p1) (predicate_to_string p2)
+let rec policy_to_string pol =
+  match pol with
   | Empty -> "Empty"
-*)
+  | Act act -> Printf.sprintf "%s" (action_to_string act)
+  | Par (p1,p2) -> 
+    Printf.sprintf "(%s) U (%s)" 
+      (policy_to_string p1) 
+      (policy_to_string p2)
+  | Seq (p1,p2) -> 
+    Printf.sprintf "(%s) >> (%s)" 
+      (policy_to_string p1) 
+      (policy_to_string p2)
+  | Filter pr -> predicate_to_string pr
+  | Slice (ingress,pol',egress) -> 
+    Printf.sprintf "{%s} %s {%s}" 
+      (predicate_to_string ingress) 
+      (policy_to_string pol') 
+      (predicate_to_string egress)
 
 (* Fail if a policy contains slices and also matches or sets VLANs. *)
 let check_policy_vlans (pol : policy) : unit = 
@@ -223,7 +232,7 @@ let desugar
       let next = genvlan () in 
       let sin' = desugar_pred sin in 
       let sout' = desugar_pred sout in 
-      let spol',sslice' = desugar_pol next pol in 
+      let spol',sslice' = desugar_pol next spol in 
       let pred_rec = 
         List.fold_left 
           (fun acc s -> PrAnd(acc, PrHdr(Pattern.dlVlan s)))
@@ -231,14 +240,16 @@ let desugar
       let pred_curr = PrHdr(Pattern.dlVlan(curr)) in 
       let pred_next = PrHdr(Pattern.dlVlan(next)) in 
       let pol1' = 
-        PoUnion(PoSeq(PoFilter(PrAnd(pred_curr, sin')), failwith "tag with next slice"),
+        PoUnion(PoSeq(PoFilter(PrAnd(pred_curr, sin')), PoAction (Action.updateDlVlan curr next)),
                 PoFilter(PrOr(pred_next, pred_rec))) in 
       let pol2' = spol' in 
       let pol3' = 
-        PoUnion(PoSeq(PoFilter(PrAnd(pred_next, sout')), failwith "tag with curr slice"),
+        PoUnion(PoSeq(PoFilter(PrAnd(pred_next, sout')), PoAction (Action.updateDlVlan next curr)),
                 PoFilter(PrNot(PrAnd(pred_next, sout')))) in 
       let pol' = PoSeq(pol1', PoSeq(pol2', pol3')) in 
       let slice' = next::sslice' in 
       (pol', slice') in 
   Hashtbl.clear get_pkt_handlers;
-  fst (desugar_pol 0 pol) 
+  let dsPol = fst (desugar_pol 0 pol) in
+  (* Misc.Log.printf "[desugar] %s\n" (pol_to_string dsPol); *)
+  dsPol
