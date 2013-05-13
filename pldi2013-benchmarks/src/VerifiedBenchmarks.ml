@@ -33,7 +33,6 @@ let select_policy mn graph (name : string) =
 let custom = ref None
 let topo = ref "tree,2,2"
 let policy_name = ref "sp"
-let use_flow_mod = ref false
 let use_haskell = ref false
 let pcap_file = ref None
 
@@ -41,8 +40,6 @@ let default_filename_prefix () =
     let ctrl = 
       if !use_haskell then
         "haskell"
-      else if !use_flow_mod then 
-        "flowmod" 
       else 
         "pktout" in
     sprintf "%s-%s-%s" ctrl !policy_name !topo
@@ -55,10 +52,7 @@ let make_default_log_filename () =
 
 let _ =
   Arg.parse
-    [("-flowmod",
-      Arg.Unit (fun () -> use_flow_mod := true),
-      "send FlowMod messages (defaults to PktOut)");
-     ("-custom",
+    [("-custom",
       Arg.String (fun str -> custom := Some str),
       "custom topology file for Mininet");
      ("-topo", 
@@ -110,11 +104,7 @@ let main =
   end in
   Misc.Log.printf "[VerifiedBenchmark.ml] Linking controller to policy\n%!";
   let module Controller = 
-        NetCore.Featherweight.Make (OpenFlow0x01.Platform) (Policy) in
-  Misc.Log.printf "[VerifiedBenchmark.ml] Building initial controller state\n%!";
-  let init = match !use_flow_mod with
-    | true -> Controller.init_flow_mod ()
-    | false -> Controller.init_packet_out () in
+        NetCore.Make (OpenFlow0x01.Platform) in
   Misc.Log.printf "[VerifiedBenchmark.ml] Launching tcpdump (if -pcap set)\n%!";
   let _ = match !pcap_file with
     | None -> ()
@@ -130,8 +120,10 @@ let main =
       return ()
     | false ->
       let _ = OpenFlow0x01.Platform.init_with_port 6633 in
+      let pol_stream, push = Lwt_stream.create() in
+      let _ = push (Some Policy.policy) in
       Misc.Log.printf "[VerifiedBenchmarks.ml] Starting controller.\n";
-      lwt _ = Controller.start init in
+      lwt _ = Controller.start_controller pol_stream in
       Misc.Log.printf "[VerifiedBenchmarks.ml] Invoking experiment.\n";
       lwt _ = Policy.experiment () in
       Misc.Log.printf "[VerifiedBenchmarks.ml] Graceful shutdown.\n%!";

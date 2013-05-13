@@ -1,62 +1,36 @@
+open NetCore.Syntax
 open OUnit
-open Printf
-open Unix
-open OpenFlow0x01Types
-open NetCore
-open Packet
-open TestPlatform
-open Lwt
 
 module Test1 = struct
-
-  module Controller = Modules.Repeater.Make (TestPlatform)
-
-  let test_script () = 
-    connect_switch 100L >>
-    connect_switch 200L >>
-    lwt msg = recv_from_controller 100L in
-    assert_equal
-      ~msg:"delete all flows from switch 100"
-      (0l, FlowModMsg NetCoreController.delete_all_flows)
-      msg;
-    lwt (_, msg) = recv_from_controller 100L in
-    begin
-      match msg with
-        | FlowModMsg fm ->
-          assert_equal ~msg:"add flow" AddFlow fm.mfModCmd
-
-        | _ -> assert_failure "expected flow mod"
-    end;
-    lwt msg = recv_from_controller 200L in
-    assert_equal
-      ~msg:"delete all flows from switch 200"
-      (0l, FlowModMsg NetCoreController.delete_all_flows)
-      msg;
-    lwt (_, msg) = recv_from_controller 200L in
-    begin
-      match msg with
-        | FlowModMsg fm ->
-          assert (fm.mfModCmd = AddFlow)
-        | _ -> failwith "expected add from 100"
-    end;
-    return ()
-
-  let body () = 
-    Lwt.async (fun () -> (Controller.start ())); 
-    test_script ()
-      
     
+  module Platform = OpenFlow0x01.TestPlatform
+  module Controller = NetCore.Make (Platform)
 
+  let test_script = 
+    Platform.connect_switch 100L >>
+    lwt msg = Platform.recv_from_controller 100L in
+    Lwt.return ()
+
+  let body = 
+    Lwt.join 
+      [ Controller.start_controller (Lwt_stream.of_list [Act (To 0)]);
+        test_script ]
   let go = 
     "repeater test" >::
       (bracket 
          (fun () -> ())
-         (fun () ->
-           Lwt_main.run (body ()))
-         (fun () -> tear_down ()))
+         (fun () -> Lwt_main.run body)
+         (fun () -> Platform.tear_down ()))
 
 end 
 
+let tests =
+  TestList [ Test1.go 
+           ]
+
+let _ = run_test_tt_main tests
+
+(*
 module Test2 = struct
 
   open NetCoreEval
@@ -227,3 +201,4 @@ let _ = run_test_tt_main
               Test4.go;
               Test5.go;
 	      PacketParser.go])
+*)

@@ -1,3 +1,7 @@
+type ('a,'b) sum = 
+  | Inl of 'a
+  | Inr of 'b
+
 module Log : sig
 
   val set_log_file : bool -> string -> unit
@@ -39,6 +43,7 @@ val string_of_mac : Int64.t -> string
 val bytes_of_mac : Int64.t -> string
 
 val filter_map : ('a -> 'b option) -> 'a list -> 'b list
+val concat_map : ('a -> 'b list) -> 'a list -> 'b list
 val intersperse : 'a -> 'a list -> 'a list
 
 module type SAFESOCKET = sig
