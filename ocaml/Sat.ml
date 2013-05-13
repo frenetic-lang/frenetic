@@ -23,12 +23,14 @@ type zVar =
 type zSort = 
 | SPacket
 | SInt
+| SPath
 | SFunction of zSort * zSort
 | SRelation of zSort list
 
 type zTerm = 
 | TVar of zVar
 | TPacket of zPacket
+| TPath of zVar * zVar list
 | TInt of Int64.t
 | TFunction of zVar * zTerm list
 
@@ -64,6 +66,7 @@ let fresh sort =
   let x = match sort with
     | SPacket -> Printf.sprintf "_pkt%d" n 
     | SInt -> Printf.sprintf "_n%d" n
+    | SPath -> Printf.sprintf "_path%d" n
     | SFunction _ -> Printf.sprintf "_f%d" n
     | SRelation _ -> Printf.sprintf "_R%d" n in 
   fresh_cell := ZVarDeclare(x,sort)::l;
@@ -86,6 +89,8 @@ let rec serialize_sort sort = match sort with
     "Packet"
   | SInt -> 
     "Int"
+  | SPath ->
+    "Path"
   | SFunction(sort1,sort2) -> 
     Printf.sprintf "(%s) %s" (serialize_sort sort1) (serialize_sort sort2)
   | SRelation(sorts) -> 
@@ -95,6 +100,13 @@ let rec serialize_sort sort = match sort with
 let rec serialize_term term = match term with
   | TVar v -> v
   | TPacket pkt -> serialize_packet pkt
+  | TPath (path, []) -> path
+  | TPath (path, pkts) ->
+    List.fold_left
+      (fun acc pkt ->
+        let acc' = Printf.sprintf "(cons (mk-pair (PSwitch %s) (PInPort %s)) %s)" pkt pkt acc in
+       acc')
+       path pkts
   | TInt n -> 
     Printf.sprintf "%s" (Int64.to_string n)
   | TFunction (f, terms) -> 
@@ -152,7 +164,7 @@ let serialize_declaration declare =
 	name var (serialize_sort sort1) (serialize_sort sort2) body
 
 let preamble =
-  "(declare-rel Switch (Packet Int))
+   "(declare-rel Switch (Packet Int))
    (declare-rel InPort (Packet Int))
    (declare-rel DlSrc (Packet Int))
    (declare-rel DlDst (Packet Int))
@@ -169,9 +181,13 @@ let serialize_program (ZProgram (rules, query)) =
     ":default-relation smt_relation2\n" ^ 
     ":engine pdr\n" ^
     ":print-answer true" in 
+  let path_decl = 
+    "(declare-datatypes () ((Pair (mk-pair (first Int) (second Int)))))
+     (declare-datatypes () ((Path (nil) (cons (head Pair) (tail Path)))))" in
   Printf.sprintf 
-    "%s\n%s\n%s\n%s\n(query %s\n%s)" 
+    "%s\n%s\n%s\n%s\n%s\n(query %s\n%s)" 
     (intercalate serialize_declaration "\n" init_decls)
+    path_decl
     (intercalate serialize_declaration "\n" (!fresh_cell))
     preamble
     (intercalate serialize_rule "\n" rules) 
@@ -191,4 +207,3 @@ let solve prog =
   let r = String.create bs in 
   let _ = really_input ch r 0 bs in 
   r
-
