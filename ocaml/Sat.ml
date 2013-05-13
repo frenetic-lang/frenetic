@@ -100,13 +100,13 @@ let rec serialize_sort sort = match sort with
 let rec serialize_term term = match term with
   | TVar v -> v
   | TPacket pkt -> serialize_packet pkt
-  | TPath (path, []) -> "nil"
+  | TPath (path, []) -> path
   | TPath (path, pkts) ->
     List.fold_left
       (fun acc pkt ->
-        let acc' = Printf.sprintf "(cons %s %s)" pkt acc in
-        acc')
-      path pkts
+        let acc' = Printf.sprintf "(cons (mk-pair (PSwitch %s) (PInPort %s)) %s)" pkt pkt acc in
+       acc')
+       path pkts
   | TInt n -> 
     Printf.sprintf "%s" (Int64.to_string n)
   | TFunction (f, terms) -> 
@@ -180,9 +180,10 @@ let serialize_program (ZProgram (rules, query)) =
   let postamble =      
     ":default-relation smt_relation2\n" ^ 
     ":engine pdr\n" ^
-    ":print-answer true" in
+    ":print-answer true" in 
   let path_decl = 
-    "(declare-datatypes () ((Path (nil) (cons (head Packet) (tail Path)))))" 
+    "(declare-datatypes () ((Pair (mk-pair (first Int) (second Int)))))
+     (declare-datatypes () ((Path (nil) (cons (head Pair) (tail Path)))))" in
   Printf.sprintf 
     "%s\n%s\n%s\n%s\n%s\n(query %s\n%s)" 
     (intercalate serialize_declaration "\n" init_decls)
@@ -192,8 +193,6 @@ let serialize_program (ZProgram (rules, query)) =
     (intercalate serialize_rule "\n" rules) 
     query
     postamble
-
-
 
 let solve prog = 
   let s = serialize_program prog in 
@@ -208,4 +207,3 @@ let solve prog =
   let r = String.create bs in 
   let _ = really_input ch r 0 bs in 
   r
-
