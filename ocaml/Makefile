@@ -29,7 +29,7 @@ library:
 
 newinstall:
 	ocamlfind install NetCoreLib \
-		META $(MLIFILES) $(CMIFILES) NetCoreLib.cma
+		META $(MLIFILES) $(CMIFILES) NetCoreLib.d.cma
 
 newuninstall:
 	ocamlfind remove NetCoreLib
