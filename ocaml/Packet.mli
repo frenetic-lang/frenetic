@@ -1,6 +1,6 @@
 module Types : sig
 
-  open WordInterface
+  open Word
 
   type bytes = Cstruct.t
 

@@ -1,8 +1,12 @@
+open Lwt
 open Printf
 open Unix
-open OpenFlow0x01Types
+open NetCore
 
-let controller = ref "learn"
+module Controller = NetCore.Make(OpenFlow0x01.Platform)
+
+(* configuration state *)
+let controller = ref ""
 
 (* command-line arguments *)
 let arg_specs = 
@@ -13,17 +17,22 @@ let arg_specs =
  
 let arg_rest rest = ()
 
-let usage = 
-  "desmoines [options]"
+let usage = "desmoines [options]"
 
 let () = Arg.parse arg_specs arg_rest usage
 
 let main () = 
-  let pol = Marshal.from_channel (open_in "out") in
-  let handlers = Hashtbl.create 100 in
-  let core_pol = NetCore.Syntax.desugar_policy pol handlers in
-  printf "%s\n%!" (NetCore.Syntax.policy_to_string pol);
-  let tbl = NetCoreCompiler.compile_opt core_pol 1L in
-  printf "Classifier length:%d\n%!" (List.length tbl)
+  let stream,_ = Lwt_stream.create() in  
+  (* JNF: kind of a hack that we have to call this function :-( *)
+  OpenFlow0x01.Platform.init_with_port 6633; 
+  Controller.start_controller stream  
       
-let _ = main ()
+let _ =
+  Sys.catch_break true;
+  try 
+    Lwt_main.run (main ())
+  with exn -> 
+    Misc.Log.printf "[main] exception: %s\n%s\n%!" 
+      (Printexc.to_string exn) 
+      (Printexc.get_backtrace ());
+    exit 1

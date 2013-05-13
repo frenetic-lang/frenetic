@@ -1,7 +1,5 @@
 open NetCore.Syntax
-
-open NetCore.Z3
-open NetCore.Z3.Topology
+open Sat
 
 let rec encode_predicate (pred:predicate) (pkt:zVar) : zAtom * zRule list =
   match pred with
@@ -77,24 +75,12 @@ let topology_forwards (Topology topo:topology) (rel:zVar) (pkt1:zVar) (pkt2:zVar
 
 let rec policy_forwards (pol:policy) (rel:zVar) (pkt1:zVar) (pkt2:zVar) : zRule list = 
   match pol with
-  | Pol (pred, actions) ->
-    let pred_atom, pred_rules = encode_predicate pred pkt1 in 
-    List.fold_left  
-      (fun acc action -> 
-	let atoms = pred_atom :: action_forwards action pkt1 pkt2 in 
-	let rule = ZRule(rel,[pkt1;pkt2], atoms) in 
-	let acc' = rule::acc in 
-	acc')
-      pred_rules actions 
+  | Act (action) -> 
+    let rel = fresh (SRelation [SPacket;SPacket]) in 
+    [ZRule(rel,[pkt1;pkt2], action_forwards action pkt1 pkt2)]
   | Par (pol1, pol2) ->
     policy_forwards pol1 rel pkt1 pkt2 @ 
     policy_forwards pol2 rel pkt1 pkt2 
-  | Restrict(pol1,pred2) -> 
-    let pred_atom, pred_rules = encode_predicate pred2 pkt1 in 
-    let rel1 = fresh (SRelation [SPacket;SPacket]) in 
-    let rules1 = policy_forwards pol1 rel1 pkt1 pkt2 in 
-    let rule = ZRule(rel,[pkt1;pkt2], [pred_atom; ZRelation(rel1,[TVar pkt1;TVar pkt2])]) in 
-    rule::pred_rules @ rules1
 
 let forwards (pol:policy) (topo:topology) : zVar * zRule list = 
   let p = fresh (SRelation [SPacket; SPacket]) in 
@@ -127,7 +113,7 @@ let () =
       (Topology 
 	 [ (Link (s1, 2), Link (s3, 1)); (Link (s1,3), Link (s2, 1)); 
 	   (Link (s3, 3), Link (s2, 2)) ]) in 
-  let pol = Pol (All, [ToAll]) in
+  let pol = Act (ToAll) in
   let pkt1 = fresh SPacket in
   let pkt2 = fresh SPacket in
   let path = fresh SPath in

@@ -1,37 +1,34 @@
 .PHONY: all debug native doc library install uninstall clean reinstall
 
-OCAMLBUILD = ocamlbuild -use-ocamlfind 
+OCAMLBUILD = ocamlbuild -use-ocamlfind
 
 # Note that these are only the .mli files at the top-level.
 MLIFILES = $(shell ls _build/*.mli)
 CMIFILES = $(MLIFILES:.mli=.cmi)
 
-HACK = _build/Pathetic_files/Graph.mli _build/Pathetic_files/Graph.cmi
-
-all: debug doc library
+all: debug doc newuninstall newinstall
 
 debug:
-	$(OCAMLBUILD) debug.otarget
+	$(OCAMLBUILD) -cflag -ppopt -cflag -lwt-debug debug.otarget
 
 native:
 	$(OCAMLBUILD) native.otarget
 
+verify:
+	$(OCAMLBUILD) verify.otarget
+
 doc:
 	$(OCAMLBUILD) doc.docdir/index.html
 
-test: _build/Test.d.byte
-	$<
-
 clean:
 	rm -rf _build
-	rm -rf extracted
 
 library: 
 	$(OCAMLBUILD) library.otarget
 
 newinstall:
 	ocamlfind install NetCoreLib \
-		META $(MLIFILES) $(HACK) $(CMIFILES) NetCoreLib.cma
+		META $(MLIFILES) $(CMIFILES) NetCoreLib.d.cma
 
 newuninstall:
 	ocamlfind remove NetCoreLib
