@@ -154,6 +154,8 @@ val flowModCommand_rec :
 
 type switchId = Word64.t
 
+val string_of_switchId : switchId -> string
+
 type priority = Word16.t
 
 type bufferId = Word32.t

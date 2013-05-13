@@ -300,6 +300,8 @@ let flowModCommand_rec f f0 f1 f2 f3 = function
 
 type switchId = Word64.t
 
+let string_of_switchId = Word64.to_string
+
 type priority = Word16.t
 
 type bufferId = Word32.t

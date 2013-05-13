@@ -46,6 +46,9 @@ val filter_map : ('a -> 'b option) -> 'a list -> 'b list
 val concat_map : ('a -> 'b list) -> 'a list -> 'b list
 val intersperse : 'a -> 'a list -> 'a list
 
+val string_of_pair : ('a -> string) -> ('a * 'a) -> string
+val string_of_option : ('a -> string) -> 'a option -> string
+
 module type SAFESOCKET = sig
   type t = Lwt_unix.file_descr
   val create : Lwt_unix.file_descr -> t

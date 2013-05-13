@@ -121,3 +121,12 @@ module SafeSocket : SAFESOCKET = struct
       else
 	recv fd buf (off + n) (len - n)
 end
+
+let string_of_pair to_string (p1,p2) =
+  Printf.sprintf "(%s, %s)" (to_string p1) (to_string p2)
+
+let string_of_option to_string opt =
+  match opt with
+  | Some v -> "Some " ^ to_string v
+  | None -> "None"
+

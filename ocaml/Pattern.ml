@@ -522,8 +522,8 @@ module Make =
       ; ("TpDst", wildcard_to_string tpPort_to_string ptrnTpDst)
       ; ("InPort", wildcard_to_string Port.to_string ptrnInPort)
       ] in
-    let non_top = List.filter (fun (field, wild) -> wild == "*") reflections in
-    let rvs = List.map (fun (f,v) -> Printf.sprintf "%s: %s" f v) non_top in
+    let non_top = List.filter (fun (field, wild) -> wild <> "*") reflections in
+    let rvs = List.map (fun (f,v) -> Printf.sprintf "%s %s" f v) non_top in
     if List.length rvs > 0 then
       "{" ^ (String.concat ", " rvs) ^ "}"
     else
