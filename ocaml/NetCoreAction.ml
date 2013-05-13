@@ -15,6 +15,12 @@ module Port = struct
   let opt_portId = function
   | Physical pt -> Some pt
   | _ -> None
+
+  let to_string p =
+    match p with
+    | Here -> "Here"
+    | Physical pid -> "P " ^ (portId_to_string pid)
+    | Bucket n -> "B " ^ (string_of_int n)
   
   type t = port
  end

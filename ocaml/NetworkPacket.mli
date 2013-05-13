@@ -170,3 +170,21 @@ val setTpSrc : packet -> tpPort -> packet
 
 val setTpDst : packet -> tpPort -> packet
 
+val portId_to_string : Word16.t -> string
+
+val dlAddr_to_string : Word48.t -> string
+
+val dlTyp_to_string : Word16.t -> string
+
+val dlVlan_to_string : Word16.t -> string
+
+val dlVlanPcp_to_string : Word8.t -> string
+
+val nwAddr_to_string : Word32.t -> string
+
+val nwProto_to_string : Word8.t -> string
+
+val nwTos_to_string : Word8.t -> string
+
+val tpPort_to_string : Word16.t -> string
+

@@ -472,3 +472,21 @@ let setTpDst pk nwDst =
   { pktDlSrc = dlSrc; pktDlDst = dlDst; pktDlTyp = dlTyp0; pktDlVlan =
   dlVlan0; pktDlVlanPcp = dlVlanPcp0; pktNwHeader = (nw_setTpDst nw0 nwDst) }
 
+let portId_to_string = Word16.to_string
+
+let dlAddr_to_string = Word48.to_string
+
+let dlTyp_to_string = Word16.to_string
+
+let dlVlan_to_string = Word16.to_string
+
+let dlVlanPcp_to_string = Word8.to_string
+
+let nwAddr_to_string = Word32.to_string
+
+let nwProto_to_string = Word8.to_string
+
+let nwTos_to_string = Word8.to_string
+
+let tpPort_to_string = Word16.to_string
+
