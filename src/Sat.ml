@@ -104,7 +104,7 @@ let rec serialize_term term = match term with
   | TPath (path, pkts) ->
     List.fold_left
       (fun acc pkt ->
-        let acc' = Printf.sprintf "(cons (mk-pair (PSwitch %s) (PInPort %s)) %s)" pkt pkt acc in
+        let acc' = Printf.sprintf "(cons (loc (PSwitch %s) (PInPort %s)) %s)" pkt pkt acc in
        acc')
        path pkts
   | TInt n -> 
@@ -182,7 +182,7 @@ let serialize_program (ZProgram (rules, query)) =
     ":engine pdr\n" ^
     ":print-answer true" in 
   let path_decl = 
-    "(declare-datatypes () ((Pair (mk-pair (first Int) (second Int)))))
+    "(declare-datatypes () ((Pair (loc (first Int) (second Int)))))
      (declare-datatypes () ((Path (nil) (cons (head Pair) (tail Path)))))" in
   Printf.sprintf 
     "%s\n%s\n%s\n%s\n%s\n(query %s\n%s)" 
