@@ -3,12 +3,13 @@ open OUnit
 
 module Test1 = struct
     
+  module Network = OpenFlow0x01.TestPlatform.Network
   module Platform = OpenFlow0x01.TestPlatform
   module Controller = NetCore.Make (Platform)
 
   let test_script = 
-    Platform.connect_switch 100L >>
-    lwt msg = Platform.recv_from_controller 100L in
+    Network.connect_switch 100L >>
+    lwt msg = Network.recv_from_controller 100L in
     Lwt.return ()
 
   let body = 
@@ -20,7 +21,7 @@ module Test1 = struct
       (bracket 
          (fun () -> ())
          (fun () -> Lwt_main.run body)
-         (fun () -> Platform.tear_down ()))
+         (fun () -> Network.tear_down ()))
 
 end 
 
