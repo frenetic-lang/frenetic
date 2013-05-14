@@ -6,7 +6,7 @@ OCAMLBUILD = ocamlbuild -use-ocamlfind
 MLIFILES = $(shell ls _build/*.mli)
 CMIFILES = $(MLIFILES:.mli=.cmi)
 
-all: debug doc newuninstall newinstall
+all: debug doc newuninstall newinstall ctags
 
 debug:
 	$(OCAMLBUILD) -cflag -ppopt -cflag -lwt-debug debug.otarget
@@ -42,3 +42,7 @@ uninstall:
 reinstall: library
 	ocamlfind remove desmoines
 	ocamlfind install desmoines desmoines_lib/META _build/*/*.cmi _build/*/*.cma _build/*.cmi _build/*.cma
+
+ctags: $(shell ls *.mli) $(shell ls *.ml)
+	ctags test 2>/dev/null >/dev/null && rm -f tags && ctags $(shell ls *.mli) $(shell ls *.ml)
+
