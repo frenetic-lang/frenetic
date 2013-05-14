@@ -1,31 +1,11 @@
-(* open Types *)
 
 type 'a coq_Wildcard =
 | WildcardExact of 'a
 | WildcardAll
 | WildcardNone
 
-(** val coq_Wildcard_rect :
-    ('a1 -> 'a2) -> 'a2 -> 'a2 -> 'a1 coq_Wildcard -> 'a2 **)
-
-let coq_Wildcard_rect f f0 f1 = function
-| WildcardExact x -> f x
-| WildcardAll -> f0
-| WildcardNone -> f1
-
-(** val coq_Wildcard_rec :
-    ('a1 -> 'a2) -> 'a2 -> 'a2 -> 'a1 coq_Wildcard -> 'a2 **)
-
-let coq_Wildcard_rec f f0 f1 = function
-| WildcardExact x -> f x
-| WildcardAll -> f0
-| WildcardNone -> f1
-
 module Wildcard = 
  struct 
-  (** val inter :
-      'a1 coq_Eqdec -> 'a1 coq_Wildcard -> 'a1 coq_Wildcard -> 'a1
-      coq_Wildcard **)
 
   let eq_dec eqdec x y =
     match x with

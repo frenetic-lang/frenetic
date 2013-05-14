@@ -6,6 +6,7 @@ open Word
 module type PORT = sig
   type t 
   val opt_portId : t -> portId option
+  val to_string : t -> string
  end
 
 module type PATTERN = sig
@@ -487,7 +488,46 @@ module Make =
   
   let udpDstPort = tpDstPort coq_Const_0x7
 
-  let to_string p = failwith "NYI: Pattern.to_string."
+  let wildcard_to_string to_string w =
+    let open Wildcard in
+    match w with
+    | WildcardExact a -> to_string a
+    | WildcardAll -> "*"
+    | WildcardNone -> "None"
+
+  let to_string { ptrnDlSrc=ptrnDlSrc
+                ; ptrnDlDst=ptrnDlDst
+                ; ptrnDlType=ptrnDlType
+                ; ptrnDlVlan=ptrnDlVlan
+                ; ptrnDlVlanPcp=ptrnDlVlanPcp
+                ; ptrnNwSrc=ptrnNwSrc
+                ; ptrnNwDst=ptrnNwDst
+                ; ptrnNwProto=ptrnNwProto
+                ; ptrnNwTos=ptrnNwTos
+                ; ptrnTpSrc=ptrnTpSrc
+                ; ptrnTpDst=ptrnTpDst
+                ; ptrnInPort=ptrnInPort
+                } = 
+    let reflections = 
+      [ ("DlSrc", wildcard_to_string dlAddr_to_string ptrnDlSrc)
+      ; ("DlDst", wildcard_to_string dlAddr_to_string ptrnDlDst)
+      ; ("DlType", wildcard_to_string dlTyp_to_string ptrnDlType)
+      ; ("DlVlan", wildcard_to_string dlVlan_to_string ptrnDlVlan)
+      ; ("DlVlanPcp", wildcard_to_string dlVlanPcp_to_string ptrnDlVlanPcp)
+      ; ("NwSrc", wildcard_to_string nwAddr_to_string ptrnNwSrc)
+      ; ("NwDst", wildcard_to_string nwAddr_to_string ptrnNwDst)
+      ; ("NwProto", wildcard_to_string nwProto_to_string ptrnNwProto)
+      ; ("NwTos", wildcard_to_string nwTos_to_string ptrnNwTos)
+      ; ("TpSrc", wildcard_to_string tpPort_to_string ptrnTpSrc)
+      ; ("TpDst", wildcard_to_string tpPort_to_string ptrnTpDst)
+      ; ("InPort", wildcard_to_string Port.to_string ptrnInPort)
+      ] in
+    let non_top = List.filter (fun (field, wild) -> wild <> "*") reflections in
+    let rvs = List.map (fun (f,v) -> Printf.sprintf "%s %s" f v) non_top in
+    if List.length rvs > 0 then
+      "{" ^ (String.concat ", " rvs) ^ "}"
+    else
+      "{*}"
 
  end
 

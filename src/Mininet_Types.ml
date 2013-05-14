@@ -23,3 +23,7 @@ let node_compare (x : node) (y : node) = match (x, y) with
   | Switch _, Host _ -> 1
   | Host m, Host n -> Int64.compare m n
   | Switch m, Switch n -> Int64.compare m n
+
+let string_of_switchId = Int64.to_string
+let string_of_hostAddr = Int64.to_string
+

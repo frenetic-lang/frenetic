@@ -6,6 +6,7 @@ open Word
 module type PORT = sig
   type t 
   val opt_portId : t -> portId option
+  val to_string : t -> string
  end
 
 module type PATTERN = sig

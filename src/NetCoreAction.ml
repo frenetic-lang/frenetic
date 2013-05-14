@@ -15,6 +15,12 @@ module Port = struct
   let opt_portId = function
   | Physical pt -> Some pt
   | _ -> None
+
+  let to_string p =
+    match p with
+    | Here -> "Here"
+    | Physical pid -> "P" ^ (portId_to_string pid)
+    | Bucket n -> "B" ^ (string_of_int n)
   
   type t = port
  end
@@ -34,6 +40,45 @@ module Action = struct
                   outTpSrc : tpPort match_modify;
                   outTpDst : tpPort match_modify; 
                   outPort : Pattern.port }
+
+  let output_to_string 
+    { outDlSrc=outDlSrc
+    ; outDlDst=outDlDst
+    ; outDlVlan=outDlVlan
+    ; outDlVlanPcp=outDlVlanPcp
+    ; outNwSrc=outNwSrc
+    ; outNwDst=outNwDst
+    ; outNwTos=outNwTos
+    ; outTpSrc=outTpSrc
+    ; outTpDst=outTpDst
+    ; outPort=outPort
+    } =
+    let opt_to_string to_string opt =
+      match opt with
+      | Some v -> to_string v
+      | None -> ""
+      in
+    let reflections : (string * string) list = 
+      [ ("DlSrc", opt_to_string (string_of_pair dlAddr_to_string) outDlSrc)
+      ; ("DlDst", opt_to_string (string_of_pair dlAddr_to_string) outDlDst)
+      ; ("DlVlan", opt_to_string (string_of_pair dlVlan_to_string) outDlVlan)
+      ; ("DlVlanPcp", opt_to_string
+         (string_of_pair dlVlanPcp_to_string) outDlVlanPcp)
+      ; ("NwSrc", opt_to_string (string_of_pair nwAddr_to_string) outNwSrc)
+      ; ("NwDst", opt_to_string (string_of_pair nwAddr_to_string) outNwDst)
+      ; ("NwTos", opt_to_string (string_of_pair nwTos_to_string) outNwTos)
+      ; ("TpSrc", opt_to_string (string_of_pair tpPort_to_string) outTpSrc)
+      ; ("TpDst", opt_to_string (string_of_pair tpPort_to_string) outTpDst)
+      ; ("Fwd", Port.to_string outPort)
+      ] in
+    let nonempty = List.filter (fun (f,v) -> v <> "") reflections in
+    let rvs = List.map (fun (f,v) -> Printf.sprintf "%s %s" f v) nonempty in
+    "{" ^ (String.concat ", " rvs) ^ "}"
+
+  let to_string output_list =
+    "[" ^ 
+      (String.concat ", " (List.map output_to_string output_list)) ^ 
+      "]"
   
   let outDlSrc x = x.outDlSrc
     

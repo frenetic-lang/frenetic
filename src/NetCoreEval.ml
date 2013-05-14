@@ -53,7 +53,27 @@ let rec classify p inp =
   | PoUnion (p1, p2) -> (classify p1 inp) @ (classify p2 inp)
   | PoSeq (p1, p2) -> concat_map (classify p2) (classify p1 inp)
 
-let pred_to_string pred = failwith "TODO: pred_to_string."
+let rec pred_to_string pred =
+  match pred with
+  | PrHdr pat -> Pattern.to_string pat
+  | PrOnSwitch sw -> "Switch " ^ (string_of_switchId sw)
+  | PrOr (p1,p2) -> (pred_to_string p1) ^ " || " ^ (pred_to_string p2)
+  | PrAnd (p1,p2) -> (pred_to_string p1) ^ " && " ^ (pred_to_string p2)
+  | PrNot p -> "Not " ^ (pred_to_string p)
+  | PrAll -> "*"
+  | PrNone -> "None"
 
-let pol_to_string pol = failwith "TODO: pol_to_string."
+let rec pol_to_string pol =
+  let wrap s = "(" ^ s ^ ")" in
+  match pol with
+  | PoAction a -> NetCoreAction.Action.to_string a
+  | PoFilter pr -> pred_to_string pr
+  | PoUnion (p1,p2) -> 
+    (wrap (pol_to_string p1)) 
+    ^ " U " 
+    ^ (wrap (pol_to_string p2))
+  | PoSeq (p1,p2) -> 
+    (wrap (pol_to_string p1)) 
+    ^ " >> " 
+    ^ (wrap (pol_to_string p2))
 

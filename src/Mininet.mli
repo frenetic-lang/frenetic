@@ -13,6 +13,8 @@ type edge_label = portId
 val string_of_node : node -> string
 val string_of_portId : portId -> string
 val string_of_edge_label : edge_label -> string
+val string_of_switchId : switchId -> string
+val string_of_hostAddr : hostAddr -> string
 
 val node_compare : node -> node -> int
 
