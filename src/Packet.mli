@@ -7,7 +7,7 @@ module Types : sig
   type portId = int
   type dlAddr = Int64.t
   type dlTyp = int
-  type dlVlan = int
+  type dlVlan = int option
   type dlVlanPcp = int
   type nwAddr = Int32.t
   type nwProto = int

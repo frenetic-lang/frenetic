@@ -16,7 +16,7 @@ module Syntax : sig
     | InPort of portId
     | DlSrc of Int64.t
     | DlDst of Int64.t
-    | DlVlan of int
+    | DlVlan of int option
     | SrcIP of Int32.t
     | DstIP of Int32.t
     | TcpSrcPort of int (** 16-bits, implicitly IP *)
@@ -27,7 +27,7 @@ module Syntax : sig
     | ToAll
     | UpdateDlSrc of Int64.t * Int64.t
     | UpdateDlDst of Int64.t * Int64.t
-    | UpdateDlVlan of int * int
+    | UpdateDlVlan of int option * int option
     | GetPacket of get_packet_handler
 
   type policy =
@@ -48,7 +48,7 @@ module Syntax : sig
       and a hashtable of handlers. *)
   val desugar : 
     (unit -> int) -> 
-    (unit -> int) -> 
+    (unit -> int option) -> 
     policy 
     -> (int, get_packet_handler) Hashtbl.t 
     -> NetCoreEval.pol

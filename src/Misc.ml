@@ -130,3 +130,10 @@ let string_of_option to_string opt =
   | Some v -> "Some " ^ to_string v
   | None -> "None"
 
+let is_some opt =
+  match opt with
+  | Some _ -> true
+  | None -> false
+
+let is_none opt = not (is_some opt)
+

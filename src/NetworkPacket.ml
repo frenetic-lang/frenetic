@@ -28,7 +28,7 @@ type dlAddr = Word48.t
 
 type dlTyp = Word16.t
 
-type dlVlan = Word16.t
+type dlVlan = Word16.t option
 
 type dlVlanPcp = Word8.t
 
@@ -478,7 +478,7 @@ let dlAddr_to_string = Word48.to_string
 
 let dlTyp_to_string = Word16.to_string
 
-let dlVlan_to_string = Word16.to_string
+let dlVlan_to_string = Misc.string_of_option Word16.to_string
 
 let dlVlanPcp_to_string = Word8.to_string
 

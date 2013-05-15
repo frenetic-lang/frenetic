@@ -142,7 +142,8 @@ module Action = struct
       let (x, y) = p in
       (match m2 with
        | Some p0 ->
-         let (v3, v4) = p0 in if beq0 y v3 then Some (Some (x, v4)) else None
+         let (v3, v4) = p0 in 
+         if beq0 y v3 then Some (Some (x, v4)) else None
        | None -> Some m1)
     | None -> Some m2
   
@@ -176,9 +177,15 @@ module Action = struct
       outNwTos = nwTos2; outTpSrc = tpSrc2; outTpDst = tpDst2; outPort =
       pt2 } = out2
     in
+    let beq_vlan v1 v2 = 
+      match (v1, v2) with
+      | Some w1, Some w2 -> Word16.eq_dec w1 w2
+      | None, None -> true
+      | _,_ -> false 
+    in
     let p = ((((((((seq_mod Word48.eq_dec dlSrc1 dlSrc2),
       (seq_mod Word48.eq_dec dlDst1 dlDst2)),
-      (seq_mod Word16.eq_dec dlVlan1 dlVlan2)),
+      (seq_mod beq_vlan dlVlan1 dlVlan2)),
       (seq_mod Word8.eq_dec dlVlanPcp1 dlVlanPcp2)),
       (seq_mod Word32.eq_dec nwSrc1 nwSrc2)),
       (seq_mod Word32.eq_dec nwDst1 nwDst2)),
@@ -245,11 +252,11 @@ module Action = struct
      | Some old ->
        (match o0 with
         | Some new0 -> Some (old, new0)
-        | None -> Some (old, coq_VLAN_NONE))
+        | None -> Some (old, None))
      | None ->
        (match o0 with
-        | Some new0 -> Some (coq_VLAN_NONE, new0)
-        | None -> Some (coq_VLAN_NONE, coq_VLAN_NONE)))
+        | Some new0 -> Some (None, new0)
+        | None -> Some (None, None)))
   | None -> None
 
   let apply_atom out ptpk =

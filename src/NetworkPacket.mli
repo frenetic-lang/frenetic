@@ -18,7 +18,7 @@ type dlAddr = Word48.t
 
 type dlTyp = Word16.t
 
-type dlVlan = Word16.t
+type dlVlan = Word16.t option
 
 type dlVlanPcp = Word8.t
 
@@ -176,7 +176,7 @@ val dlAddr_to_string : Word48.t -> string
 
 val dlTyp_to_string : Word16.t -> string
 
-val dlVlan_to_string : Word16.t -> string
+val dlVlan_to_string : Word16.t option -> string
 
 val dlVlanPcp_to_string : Word8.t -> string
 

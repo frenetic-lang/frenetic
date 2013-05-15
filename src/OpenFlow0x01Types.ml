@@ -4,10 +4,6 @@ open Word
 type __ = Obj.t
 let __ = let rec f _ = Obj.repr f in Obj.repr f
 
-(** val coq_VLAN_NONE : dlVlan **)
-
-let coq_VLAN_NONE = 65535
-
 type of_match = { matchDlSrc : dlAddr option; matchDlDst : dlAddr option;
                   matchDlTyp : dlTyp option; matchDlVlan : dlVlan option;
                   matchDlVlanPcp : dlVlanPcp option;
