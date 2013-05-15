@@ -10,13 +10,12 @@ type status = Connecting | Connected | Disconnected
 type switch = {
   mutable status : status;
   to_controller : (xid * message) Lwt_channel.t;
-  to_switch : (xid * message) Lwt_channel.t;
-  connected : unit Lwt_mvar.t
+  to_switch : (xid * message) Lwt_channel.t
 }
 
 type state = {
   switches : (switchId, switch) Hashtbl.t;
-  pending_switches : (switchId * switch) Lwt_channel.t
+  pending_switches : (switchId) Lwt_channel.t
 }
 
 let current_state = ref {
@@ -25,10 +24,10 @@ let current_state = ref {
 }
 
 let accept_switch () =
-  lwt (sw_id, sw) = Lwt_channel.recv !current_state.pending_switches in
-  lwt _ = Lwt_mvar.put sw.connected () in
+  lwt sw_id = Lwt_channel.recv !current_state.pending_switches in
+  let sw = Hashtbl.find !current_state.switches sw_id in
   sw.status <- Connected;
-  Hashtbl.add !current_state.switches sw_id sw;
+  Hashtbl.replace !current_state.switches sw_id sw;
   return {
     switch_id = sw_id;
     num_buffers = 100l;
@@ -82,13 +81,13 @@ module Network = struct
   let connect_switch sw_id =
     let sw = { status = Connecting;
                to_controller = Lwt_channel.create ();
-               to_switch = Lwt_channel.create ();
-               connected = Lwt_mvar.create_empty () } in
+               to_switch = Lwt_channel.create () } in
     if Hashtbl.mem !current_state.switches sw_id then
       Lwt.fail (Failure "already connected")
-    else
-      Lwt_channel.send (sw_id, sw) !current_state.pending_switches >>
-      Lwt_mvar.take sw.connected
+    else begin
+      Hashtbl.add !current_state.switches sw_id sw;
+      Lwt_channel.send sw_id !current_state.pending_switches
+    end
   
   let disconnect_switch sw_id =
     let sw = Hashtbl.find !current_state.switches sw_id in
@@ -105,14 +104,20 @@ module Network = struct
       return ()
   
   let send_to_controller sw_id xid msg =
-    let sw = Hashtbl.find !current_state.switches sw_id in
-    fail_if_disconnected sw_id sw >>
-      Lwt_channel.send (xid, msg) sw.to_controller
+    if not (Hashtbl.mem !current_state.switches sw_id) then
+      Lwt.fail (Failure (Printf.sprintf "switch %Ld not connected" sw_id))
+    else
+      let sw = Hashtbl.find !current_state.switches sw_id in
+      fail_if_disconnected sw_id sw >>
+        Lwt_channel.send (xid, msg) sw.to_controller
   
   let recv_from_controller sw_id =
-    let sw = Hashtbl.find !current_state.switches sw_id in
-    exn_if_disconnected sw_id sw >>
-      Lwt_channel.recv sw.to_switch
+    if not (Hashtbl.mem !current_state.switches sw_id) then
+      Lwt.fail (Failure (Printf.sprintf "switch %Ld not connected" sw_id))
+    else
+      let sw = Hashtbl.find !current_state.switches sw_id in
+      exn_if_disconnected sw_id sw >>
+        Lwt_channel.recv sw.to_switch
  
   let tear_down () =
     current_state := {
