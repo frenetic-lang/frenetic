@@ -107,30 +107,49 @@ let rec policy_forwards (pol:policy) (pkt1:zVar) (pkt2:zVar) : zFormula =
   | _ -> 
     failwith "policy_forwards: not yet implemented"
 
-let rec forwards (pol:policy) (topo:topology) (k:int) (pkt1:zVar) (pkt2:zVar) : zFormula = 
+let rec forwards (k:int) (topo:topology) (pol:policy) (pkt1:zVar) (pkt2:zVar) : zFormula = 
   if k = 0 then 
     ZAnd(equals ["Switch"; "InPort"; "DlSrc"; "DlDst"] pkt1 pkt2)
   else
     let pkt' = fresh SPacket in 
     let pkt'' = fresh SPacket in 
-    ZAnd([ policy_forwards pol pkt1 pkt'
-         ; topology_forwards topo pkt' pkt''
-         ; forwards pol topo (k-1) pkt'' pkt2])
+    ZOr [ ZAnd [ policy_forwards pol pkt1 pkt'
+               ; topology_forwards topo pkt' pkt''
+               ; forwards (k-1) topo pol pkt'' pkt2 ]
+        ; forwards (k-1) topo pol pkt1 pkt2 ]
 
-(* temporary front-end for verification stuff *)
-let () = 
-  let s1 = Int64.of_int 1 in
-  let s2 = Int64.of_int 2 in
-  let s3 = Int64.of_int 3 in
-  let topo = 
+type example = { name:string;
+                 topology:topology;
+                 policy:policy;
+                 formula:topology -> policy -> zVar -> zVar -> zFormula;
+                 expected:bool }
+
+let check ex = 
+  let pkt1 = fresh SPacket in 
+  let pkt2 = fresh SPacket in 
+  let f = ex.formula ex.topology ex.policy pkt1 pkt2 in 
+  let p = ZProgram [ZAssertDeclare f] in 
+  if solve p = ex.expected then 
+    Printf.eprintf "%s [[32mpassed[0m]\n" ex.name
+  else 
+    Printf.eprintf "%s [[31mfailed[0m]\n" ex.name
+
+let ex1 : example = 
+  let topology = 
+    let s1 = Int64.of_int 1 in
+    let s2 = Int64.of_int 2 in
+    let s3 = Int64.of_int 3 in
     bidirectionalize 
-      (Topology
-         [ (Link (s1, 2), Link (s3, 1)) 
-         ; (Link (s1,3), Link (s2, 1))
-	 ; (Link (s3, 3), Link (s2, 2)) ]) in 
-  let pol = Seq (Filter All, Act ToAll) in
-  let pkt1 = fresh SPacket in
-  let pkt2 = fresh SPacket in
-  let fwds = forwards pol topo 1 pkt1 pkt2 in 
-  let program = ZProgram [ZAssertDeclare(fwds)] in 
-  Printf.printf "%s\n" (solve program)
+      (Topology [ (Link (s1, 2), Link (s2, 1)) 
+                ; (Link (s2, 2), Link (s3, 1)) ]) in 
+  let policy = Act ToAll in
+  let formula = forwards 2 in 
+  { name="Linear";
+    topology=topology;
+    policy=policy;
+    formula=formula;
+    expected=true }
+
+let examples = [ex1]
+    
+let () = List.iter check examples

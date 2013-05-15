@@ -169,7 +169,7 @@ let serialize_program (ZProgram (decls)) =
 
 let solve prog = 
   let s = serialize_program prog in 
-  let _ = Misc.Log.printf "--- DEBUG ---\n%s\n%!" s in 
+  (* let _ = Misc.Log.printf "--- DEBUG ---\n%s\n%!" s in  *)
   let ch = open_out ".z3.in" in 
   let _ = output_string ch s in 
   let _ = flush ch in 
@@ -179,4 +179,4 @@ let solve prog =
   let bs = in_channel_length ch in 
   let r = String.create bs in 
   let _ = really_input ch r 0 bs in 
-  r
+  r = "sat\n"
