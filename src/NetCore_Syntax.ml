@@ -174,7 +174,7 @@ let desugar
     | To pt -> 
       Action.forward pt
     | ToAll ->
-      failwith "NYI"
+      failwith "NYI: ToAll"
     | UpdateDlSrc(old,new0) -> 
       Action.updateDlSrc old new0
     | UpdateDlDst(old,new0) -> 
