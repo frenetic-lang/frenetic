@@ -78,6 +78,6 @@ let value_to_string v =
   | Pkt (sid, port, pkt, payload) ->
     Printf.sprintf "(%s, %s, %s, _)" 
       (string_of_switchId sid) 
-      (NetCoreAction.Port.to_string port) 
+      (Pattern.string_of_port port) 
       (packet_to_string pkt)
 

@@ -45,7 +45,7 @@ module TestMods = struct
   let test1 () =
     let in_pkt = 
       Pkt ( Int64.one
-          , (NetCoreAction.Port.Physical 1) 
+          , (Pattern.Physical 1) 
           , { pktDlSrc = Int64.zero
             ; pktDlDst = Int64.zero
             ; pktDlTyp = 0x90
@@ -57,7 +57,7 @@ module TestMods = struct
           ) in
     let expected_pkt = 
       Pkt ( Int64.one
-          , (NetCoreAction.Port.Here) 
+          , (Pattern.Here) 
           , { pktDlSrc = Int64.zero
             ; pktDlDst = Int64.zero
             ; pktDlTyp = 0x90
