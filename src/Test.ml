@@ -1,4 +1,4 @@
-open NetCore.Syntax
+open Syntax
 open OUnit
 
 module Test1 = struct
