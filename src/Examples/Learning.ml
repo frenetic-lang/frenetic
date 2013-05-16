@@ -1,8 +1,9 @@
 open Printf
 open OpenFlow0x01Types
-open WordInterface
 open Packet.Types
-open NetCore_Syntax
+open NetCore
+open NetCore.Syntax
+open Word
 open Misc
 
 module Learning = struct
@@ -20,28 +21,28 @@ module Learning = struct
   let make_unknown_predicate () = 
     Not
       (Hashtbl.fold 
-         (fun (sw,eth) pt pol -> 
-           Or (And (And (Switch sw, InPort pt), DlSrc eth), pol))
-         learned_hosts
-         NoPackets)
+        (fun (sw,eth) pt pol -> 
+          Or (And (And (Switch sw, InPort pt), DlSrc eth), pol))
+        learned_hosts
+        NoPackets)
 
   (** We're using the Lwt library to create streams. Policy is a stream
       we can read. The push function sends a value into the policy 
       stream. *)
   let (policy, push) = Lwt_stream.create ()
 
-  (** Create a policy that directs all unkown packets to the controller. These
+  (** Create a policy that directs all unknown packets to the controller. These
       packets are sent to the [learn_host] function below. *)
   let rec make_learning_policy () = 
-    Pol (make_unknown_predicate (),
-         [GetPacket learn_host])
+    Seq (Filter (make_unknown_predicate ()),
+         Act (GetPacket learn_host))
 
   (** Stores a new switch * host * port tuple in the table, creates a
       new learning policy, and pushes that policy to the stream. *)
   and learn_host sw pt pk : unit =
     begin
       printf "[MacLearning] at switch %Ld host %s at port %d\n%!"
-	sw (string_of_mac pk.pktDlSrc) pt;
+	    sw (string_of_mac pk.pktDlSrc) pt;
       if Hashtbl.mem learned_hosts (sw, pk.pktDlSrc) then
         printf "[MacLearning.ml] at switch %Ld, host %s at port %d (moved)\n%!"
           sw (string_of_mac pk.pktDlSrc) pt
@@ -53,7 +54,7 @@ module Learning = struct
     push (Some (make_learning_policy ()))
   
   (** The initial value of the policy is to receives packets from all hosts. *)
-  let _ = push (Some (Pol (All, [GetPacket learn_host])))
+  let _ = push (Some (Seq (Filter All, Act (GetPacket learn_host))))
 
 end 
 
@@ -74,9 +75,9 @@ module Routing = struct
   let make_routing_policy () = 
     Hashtbl.fold
       (fun (sw, dst) pt pol ->
-        Par (Pol (And (Switch sw, DlDst dst), [To pt]),  pol))
+        Par (Seq (Filter (And (Switch sw, DlDst dst)), Act (To pt)),  pol))
       Learning.learned_hosts
-      (Pol (Not (known_hosts ()), [ToAll]))
+      (Seq (Filter (Not (known_hosts ())), Act ToAll))
 
   (** Composes learning and routing policies, which together form
       mac-learning. *)      

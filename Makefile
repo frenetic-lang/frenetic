@@ -1,8 +1,8 @@
 all:
-	cd ocaml && $(MAKE)
+	cd src && $(MAKE)
 
 test:
-	cd ocaml && $(MAKE) test
+	cd src && $(MAKE) test
 
 clean:
-	cd ocaml && $(MAKE) clean
+	cd src && $(MAKE) clean

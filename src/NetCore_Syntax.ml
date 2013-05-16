@@ -18,7 +18,7 @@ type predicate =
   | InPort of portId
   | DlSrc of Int64.t
   | DlDst of Int64.t
-  | DlVlan of int (** 16-bits *)
+  | DlVlan of int option (** 12-bits *)
   | SrcIP of Int32.t
   | DstIP of Int32.t
   | TcpSrcPort of int (** 16-bits, implicitly IP *)
@@ -29,7 +29,7 @@ type action =
   | ToAll
   | UpdateDlSrc of Int64.t * Int64.t
   | UpdateDlDst of Int64.t * Int64.t
-  | UpdateDlVlan of int * int
+  | UpdateDlVlan of int option * int option (** 12-bits *)
   | GetPacket of get_packet_handler
 
 type policy =
@@ -63,7 +63,7 @@ let rec predicate_to_string pred = match pred with
   | DlDst add -> 
     Printf.sprintf "(DlDst %s)" (string_of_mac add)
   | DlVlan n -> 
-    Printf.sprintf "(DlVlan %d)" n
+    Printf.sprintf "(DlVlan %s)" (string_of_option string_of_int n)
   | All -> "All"
   | TcpSrcPort n ->
     Printf.sprintf "(TcpSrcPort %d)" n
@@ -82,7 +82,7 @@ let action_to_string act = match act with
   | UpdateDlDst(old,new0) -> 
     Printf.sprintf "UpdateDlSrc(%Ld,%Ld)" old new0
   | UpdateDlVlan(old,new0) -> 
-    Printf.sprintf "UpdateDlSrc(%d,%d)" old new0
+    Printf.sprintf "UpdateDlSrc %s" (string_of_pair NetworkPacket.dlVlan_to_string (old, new0))
   | GetPacket _ -> 
     Printf.sprintf "GetPacket <fun>"
 
@@ -165,7 +165,7 @@ let check_policy_vlans (pol : policy) : unit =
 
 let desugar 
   (genbucket : unit -> int)
-  (genvlan : unit -> int)
+  (genvlan : unit -> int option)
   (pol : policy) 
   (get_pkt_handlers : (int, get_packet_handler) Hashtbl.t) =
   let open NetCoreEval in 
@@ -174,7 +174,7 @@ let desugar
     | To pt -> 
       Action.forward pt
     | ToAll ->
-      failwith "NYI"
+      failwith "NYI: ToAll"
     | UpdateDlSrc(old,new0) -> 
       Action.updateDlSrc old new0
     | UpdateDlDst(old,new0) -> 
@@ -250,6 +250,6 @@ let desugar
       let slice' = next::sslice' in 
       (pol', slice') in 
   Hashtbl.clear get_pkt_handlers;
-  let dsPol = fst (desugar_pol 0 pol) in
+  let dsPol = fst (desugar_pol None pol) in
   (* Misc.Log.printf "[desugar] %s\n" (pol_to_string dsPol); *)
   dsPol

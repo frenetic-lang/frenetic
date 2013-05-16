@@ -7,15 +7,16 @@ module Test1 = struct
   module Platform = OpenFlow0x01.TestPlatform
   module Controller = NetCore.Make (Platform)
 
-  let test_script = 
+  let network_script = 
     Network.connect_switch 100L >>
     lwt msg = Network.recv_from_controller 100L in
     Lwt.return ()
 
-  let body = 
-    Lwt.join 
-      [ Controller.start_controller (Lwt_stream.of_list [Act (To 0)]);
-        test_script ]
+  let controller_script = 
+    Controller.start_controller (Lwt_stream.of_list [Act (To 0)])
+
+  let body = Lwt.pick [controller_script; network_script]
+
   let go = 
     "repeater test" >::
       (bracket 

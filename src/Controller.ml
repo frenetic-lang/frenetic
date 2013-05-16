@@ -82,7 +82,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     !bucket_cell
   let genvlan () = 
     incr vlan_cell;
-    !vlan_cell
+    Some !vlan_cell
 
   let configure_switches push_pol sugared_pol_stream =
     Lwt_stream.iter

@@ -49,6 +49,9 @@ val intersperse : 'a -> 'a list -> 'a list
 val string_of_pair : ('a -> string) -> ('a * 'a) -> string
 val string_of_option : ('a -> string) -> 'a option -> string
 
+val is_some : 'a option -> bool
+val is_none : 'a option -> bool
+
 module type SAFESOCKET = sig
   type t = Lwt_unix.file_descr
   val create : Lwt_unix.file_descr -> t

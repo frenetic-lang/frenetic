@@ -576,7 +576,12 @@ module Match = struct
    set_ofp_match_in_port bits (if_some16 m.matchInPort); 
    set_ofp_match_dl_src (bytes_of_mac (if_word48 m.matchDlSrc)) 0 bits;
    set_ofp_match_dl_dst (bytes_of_mac (if_word48 m.matchDlDst)) 0 bits;
-   set_ofp_match_dl_vlan bits (if_some16 m.matchDlVlan);
+   let vlan = 
+     match m.matchDlVlan with
+     | Some (Some v) -> v
+     | Some None -> Packet_Parser.vlan_none
+     | None -> 0 in
+   set_ofp_match_dl_vlan bits (vlan);
    set_ofp_match_dl_vlan_pcp bits (if_some8 m.matchDlVlanPcp);
    set_ofp_match_dl_type bits (if_some16 m.matchDlTyp);
    set_ofp_match_nw_tos bits (if_some8 m.matchNwTos);
@@ -605,7 +610,13 @@ module Match = struct
         if w.Wildcards.dl_vlan then
           None
         else
-          Some (get_ofp_match_dl_vlan bits);
+          begin
+            let vlan = get_ofp_match_dl_vlan bits in
+            if vlan = Packet_Parser.vlan_none then 
+              Some None 
+            else 
+              Some (Some vlan)
+          end;
       matchDlVlanPcp = 
         if w.Wildcards.dl_vlan_pcp then
           None
