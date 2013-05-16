@@ -2,7 +2,7 @@ open Misc
 open OpenFlow0x01.Types
 open Packet.Types
 open Printf
-open NetCore_Syntax
+open Syntax
 
 (* Internal policy type *)
 type pol = NetCoreEval.pol
@@ -14,7 +14,7 @@ let init_pol : pol = NetCoreEval.PoFilter NetCoreEval.PrNone
 let for_bucket (in_port : portId) (pkt : NetCoreEval.value) =
   let open NetCoreEval in
   match pkt with
-  | Pkt (swId, Port.Bucket n, pkt, _) -> Some (n, swId, in_port, pkt)
+  | Pkt (swId, Pattern.Bucket n, pkt, _) -> Some (n, swId, in_port, pkt)
   | _ -> None
 
 module Make (Platform : OpenFlow0x01.PLATFORM) = struct
@@ -46,7 +46,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     match pkt_in.packetInBufferId with
       | None -> Lwt.return ()
       | Some bufferId ->
-        let inp = Pkt (sw, Port.Physical pkt_in.packetInPort,
+        let inp = Pkt (sw, Pattern.Physical pkt_in.packetInPort,
                        pkt_in.packetInPacket, Misc.Inl bufferId ) in
         let outs = classify !pol_now inp in
         let for_buckets = filter_map (for_bucket pkt_in.packetInPort) outs in
@@ -87,7 +87,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
   let configure_switches push_pol sugared_pol_stream =
     Lwt_stream.iter
       (fun pol ->
-        let p = NetCore_Syntax.desugar genbucket genvlan pol get_pkt_handlers in
+        let p = Syntax.desugar genbucket genvlan pol get_pkt_handlers in
         pol_now := p;
         push_pol (Some p))
       sugared_pol_stream
