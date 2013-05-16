@@ -26,8 +26,62 @@ module Test1 = struct
 
 end 
 
+module TestMods = struct
+
+  let policy = Act (UpdateDlVlan (None, Some 1))
+
+  let bucket_cell = ref 0
+  let vlan_cell = ref 0
+  let genbucket () = incr bucket_cell; !bucket_cell
+  let genvlan () = incr vlan_cell; Some !vlan_cell
+  let get_pkt_handlers : (int, get_packet_handler) Hashtbl.t = 
+    Hashtbl.create 200
+
+  let ds_pol = desugar genbucket genvlan policy get_pkt_handlers
+
+  open NetCoreEval
+  open NetworkPacket
+
+  let test1 () =
+    let in_pkt = 
+      Pkt ( Int64.one
+          , (NetCoreAction.Port.Physical 1) 
+          , { pktDlSrc = Int64.zero
+            ; pktDlDst = Int64.zero
+            ; pktDlTyp = 0x90
+            ; pktDlVlan = None
+            ; pktDlVlanPcp = 0
+            ; pktNwHeader = NwUnparsable (0x90, Cstruct.create 8)
+            } 
+          , (Misc.Inl Int32.zero)
+          ) in
+    let expected_pkt = 
+      Pkt ( Int64.one
+          , (NetCoreAction.Port.Here) 
+          , { pktDlSrc = Int64.zero
+            ; pktDlDst = Int64.zero
+            ; pktDlTyp = 0x90
+            ; pktDlVlan = None
+            ; pktDlVlanPcp = 0
+            ; pktNwHeader = NwUnparsable (0x90, Cstruct.create 8)
+            }
+          , (Misc.Inl Int32.zero)
+          ) in
+    let res = classify ds_pol in_pkt in
+    match res with
+    | [] -> assert_failure "packet dropped"
+    | pkt::pkts -> 
+      assert_equal ~printer:value_to_string pkt expected_pkt;
+      assert_equal pkts []
+
+  let go = 
+    "mod test" >:: test1
+
+end
+
 let tests =
   TestList [ Test1.go 
+           ; TestMods.go
            ]
 
 let _ = run_test_tt_main tests
