@@ -1,7 +1,3 @@
-<extracted> : include
-<mininet> : include
-<*_files> : include
-
 true : use_menhir
 true : use_str
 <*.d.byte> : package(cstruct), package(lwt), package(lwt.unix)
