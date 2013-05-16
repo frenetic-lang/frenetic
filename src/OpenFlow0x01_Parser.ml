@@ -822,6 +822,8 @@ module Message = struct
     | BarrierReply -> 0
     | StatsRequestMsg msg -> StatsRequest.sizeof msg
     | StatsReplyMsg msg -> StatsReply.sizeof msg
+    | _ -> 
+      failwith "Not yet implemented"
 
   let blit_message (msg : t) (out : Cstruct.t) = match msg with
     | Hello buf
@@ -838,7 +840,7 @@ module Message = struct
     | BarrierRequest -> ()
     | BarrierReply -> ()
     | StatsRequestMsg msg -> 
-      let _ = StatsRequest.marshal msg out in
+      let _ = StatsRequest.marshal msg in
       ()
     | StatsReplyMsg _ -> ()
 

@@ -2,10 +2,6 @@ open OpenFlow0x01Types
 open Misc
 open Packet.Types
 
-module Action = NetCoreAction.Action
-module Pattern = Action.Pattern
-module Port = NetCoreAction.Port
-
 type get_packet_handler = switchId -> portId -> packet -> unit
 
 type predicate =
@@ -172,19 +168,19 @@ let desugar
   let desugar_act act = 
     match act with
     | To pt -> 
-      Action.forward pt
+      Action.Output.forward pt
     | ToAll ->
       failwith "NYI: ToAll"
     | UpdateDlSrc(old,new0) -> 
-      Action.updateDlSrc old new0
+      Action.Output.updateDlSrc old new0
     | UpdateDlDst(old,new0) -> 
-      Action.updateDlDst old new0
+      Action.Output.updateDlDst old new0
     | UpdateDlVlan(old,new0) -> 
-      Action.updateDlVlan old new0
+      Action.Output.updateDlVlan old new0
     | GetPacket handler ->
       let id = genbucket () in 
       Hashtbl.add get_pkt_handlers id handler;
-      Action.bucket id in
+      Action.Output.bucket id in
   let rec desugar_pred pred = match pred with
     | And (p1, p2) -> 
       PrAnd (desugar_pred p1, desugar_pred p2)
@@ -194,7 +190,7 @@ let desugar
     | All -> PrAll
     | NoPackets -> PrNone
     | Switch swId -> PrOnSwitch swId
-    | InPort pt -> PrHdr (Pattern.inPort (Port.Physical pt))
+    | InPort pt -> PrHdr (Pattern.inPort (Pattern.Physical pt))
     | DlSrc n -> PrHdr (Pattern.dlSrc n)
     | DlDst n -> PrHdr (Pattern.dlDst n)
     | DlVlan n -> PrHdr (Pattern.dlVlan n)
@@ -240,11 +236,11 @@ let desugar
       let pred_curr = PrHdr(Pattern.dlVlan(curr)) in 
       let pred_next = PrHdr(Pattern.dlVlan(next)) in 
       let pol1' = 
-        PoUnion(PoSeq(PoFilter(PrAnd(pred_curr, sin')), PoAction (Action.updateDlVlan curr next)),
+        PoUnion(PoSeq(PoFilter(PrAnd(pred_curr, sin')), PoAction (Action.Output.updateDlVlan curr next)),
                 PoFilter(PrOr(pred_next, pred_rec))) in 
       let pol2' = spol' in 
       let pol3' = 
-        PoUnion(PoSeq(PoFilter(PrAnd(pred_next, sout')), PoAction (Action.updateDlVlan next curr)),
+        PoUnion(PoSeq(PoFilter(PrAnd(pred_next, sout')), PoAction (Action.Output.updateDlVlan next curr)),
                 PoFilter(PrNot(PrAnd(pred_next, sout')))) in 
       let pol' = PoSeq(pol1', PoSeq(pol2', pol3')) in 
       let slice' = next::sslice' in 

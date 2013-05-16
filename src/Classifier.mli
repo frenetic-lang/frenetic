@@ -4,12 +4,6 @@ open Pattern
 
 module type ACTION = 
  sig 
-  module Pattern : PATTERN
-  
-  type pattern = Pattern.t
-  
-  type port = Pattern.port
-  
   type t 
   
   type e 
@@ -28,24 +22,18 @@ module type ACTION =
   
   val seq_action : t -> t -> t
   
-  val restrict_range : e -> pattern -> pattern
+  val restrict_range : e -> Pattern.t -> Pattern.t
   
-  val domain : e -> pattern
+  val domain : e -> Pattern.t
  end
 
 module type CLASSIFIER = 
  sig 
   module Action : ACTION
-
-  type pattern = Action.pattern
   
-  type port = Action.port
+  type t = (Pattern.t * Action.t) list
   
-  type action = Action.t
-  
-  type t = (pattern * action) list
-  
-  val scan : t -> port -> packet -> action
+  val scan : t -> Pattern.port -> packet -> Action.t
   
   val inter : t -> t -> t
   
@@ -53,15 +41,11 @@ module type CLASSIFIER =
   
   val sequence : t -> t -> t
   
-  val par_actions : action list -> Action.t
+  val par_actions : Action.t list -> Action.t
  end
 
 module type MAKE  = functor (Action : ACTION) -> 
-sig 
-  include CLASSIFIER
-  module Pattern : PATTERN
-end
+  sig include CLASSIFIER end
   with module Action = Action
-  and module Pattern = Action.Pattern
 
 module Make : MAKE

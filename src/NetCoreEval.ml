@@ -4,12 +4,8 @@ open NetworkPacket
 open OpenFlow0x01Types
 open Word
 
-module Pattern = NetCoreAction.Action.Pattern
-
-type pattern = Pattern.t
-
 type pred =
-| PrHdr of pattern
+| PrHdr of Pattern.t
 | PrOnSwitch of switchId
 | PrOr of pred * pred
 | PrAnd of pred * pred
@@ -18,13 +14,13 @@ type pred =
 | PrNone
 
 type pol =
-| PoAction of NetCoreAction.Action.t
+| PoAction of Action.Output.t
 | PoFilter of pred
 | PoUnion of pol * pol
 | PoSeq of pol * pol
 
 type value =
-| Pkt of switchId * NetCoreAction.Action.port * packet
+| Pkt of switchId * Pattern.port * packet
    * (bufferId, bytes) sum
 
 let rec match_pred pr sw pt pk =
@@ -42,7 +38,7 @@ let serialize_pkt = Packet_Parser.serialize_packet
 let eval_action inp act =
   let Pkt (sw, pt, pk, buf) = inp in
   map (fun ptpk -> let (pt', pk') = ptpk in Pkt (sw, pt', pk', buf))
-    (NetCoreAction.Action.apply_action act (pt, pk))
+    (Action.Output.apply_action act (pt, pk))
 
 let rec classify p inp =
   match p with
@@ -66,7 +62,7 @@ let rec pred_to_string pred =
 let rec pol_to_string pol =
   let wrap s = "(" ^ s ^ ")" in
   match pol with
-  | PoAction a -> NetCoreAction.Action.to_string a
+  | PoAction a -> Action.Output.to_string a
   | PoFilter pr -> pred_to_string pr
   | PoUnion (p1,p2) -> 
     (wrap (pol_to_string p1)) 

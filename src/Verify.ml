@@ -1,6 +1,5 @@
-open NetCore.Syntax
+open Syntax
 open Sat
-
 
 (* Topology *)
 type link = Link of OpenFlow0x01.Types.switchId * Packet.Types.portId
@@ -37,8 +36,10 @@ let rec encode_predicate (pred:predicate) (pkt:zVar) : zFormula =
     packet_field "DlSrc" pkt (TInt mac)
   | DlDst mac -> 
     packet_field "DlSrc" pkt (TInt mac)
-  | DlVlan vlan -> 
+  | DlVlan (Some vlan) -> 
     packet_field "DlVlan" pkt (TInt (Int64.of_int vlan))
+  | DlVlan None -> 
+    failwith "Not yet implemented"
   | SrcIP ip -> 
     packet_field "SrcIP" pkt (TInt (Int64.of_int32 ip))
   | DstIP ip -> 

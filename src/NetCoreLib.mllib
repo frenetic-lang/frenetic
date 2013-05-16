@@ -1,6 +1,6 @@
 Mininet_Parser
 Mininet_Lexer
-BoolAction
+Action
 Classifier
 Controller
 Mininet
@@ -8,10 +8,8 @@ Mininet_Types
 Misc
 Monad
 NetCore
-NetCoreAction
 NetCoreCompiler
 NetCoreEval
-NetCore_Syntax
 NetworkPacket
 OpenFlow0x01
 OpenFlow0x01Types
@@ -21,5 +19,6 @@ OpenFlow0x01_TestPlatform
 Packet
 Packet_Parser
 Pattern
+Syntax
 Wildcard
 Word
