@@ -77,3 +77,11 @@ let rec pol_to_string pol =
     ^ " >> " 
     ^ (wrap (pol_to_string p2))
 
+let value_to_string v =
+  match v with
+  | Pkt (sid, port, pkt, payload) ->
+    Printf.sprintf "(%s, %s, %s, _)" 
+      (string_of_switchId sid) 
+      (NetCoreAction.Port.to_string port) 
+      (packet_to_string pkt)
+

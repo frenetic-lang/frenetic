@@ -41,3 +41,5 @@ val pol_to_string : pol -> string
 
 val pred_to_string : pred -> string
 
+val value_to_string : value -> string
+

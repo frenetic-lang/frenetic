@@ -188,3 +188,7 @@ val nwTos_to_string : Word8.t -> string
 
 val tpPort_to_string : Word16.t -> string
 
+val nw_to_string : nw -> string
+
+val packet_to_string : packet -> string
+

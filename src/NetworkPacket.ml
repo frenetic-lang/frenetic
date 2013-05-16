@@ -490,3 +490,21 @@ let nwTos_to_string = Word8.to_string
 
 let tpPort_to_string = Word16.to_string
 
+let nw_to_string nw = "NYI"
+
+let packet_to_string 
+  { pktDlSrc = pktDlSrc
+  ; pktDlDst = pktDlDst
+  ; pktDlTyp = pktDlTyp
+  ; pktDlVlan = pktDlVlan
+  ; pktDlVlanPcp = pktDlVlanPcp
+  ; pktNwHeader = pktNwHeader
+  } =
+  Printf.sprintf "(%s, %s, %s, %s, %s, %s)"
+    (dlAddr_to_string pktDlSrc)
+    (dlAddr_to_string pktDlDst)
+    (dlTyp_to_string pktDlTyp)
+    (dlVlan_to_string pktDlVlan)
+    (dlVlanPcp_to_string pktDlVlanPcp)
+    (nw_to_string pktNwHeader)
+
