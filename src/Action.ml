@@ -34,7 +34,8 @@ module Output = struct
   
   type 'a match_modify = ('a * 'a) option
   
-  (* JNF: why can't we modify DlType, NwProto? Worried about validity of patterns? *)
+  (** OpenFlow does not allow the [dlType] and [nwProto] fields to be 
+      modified. *)
   type output = { outDlSrc : dlAddr match_modify;
                   outDlDst : dlAddr match_modify;
                   outDlVlan : dlVlan match_modify;
