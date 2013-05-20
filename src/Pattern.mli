@@ -4,7 +4,6 @@ open OpenFlow0x01.Types
 open Word
 
 type port =
-  | Here
   | Physical of portId
   | All
   | Bucket of int
