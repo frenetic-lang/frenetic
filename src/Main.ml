@@ -1,10 +1,9 @@
 open Lwt
 open Printf
 open Unix
-open NetCore
 open Syntax.External
 
-module Controller = NetCore.Make(OpenFlow0x01.Platform)
+module Controller = Controller.Make(OpenFlow0x01.Platform)
 
 (* configuration state *)
 let controller = ref ""

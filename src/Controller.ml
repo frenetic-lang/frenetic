@@ -18,6 +18,11 @@ let for_bucket (in_port : portId) (pkt : Internal.value) =
   | Pkt (swId, Pattern.Bucket n, pkt, _) -> Some (n, swId, in_port, pkt)
   | _ -> None
 
+module type MAKE  = functor (Platform : OpenFlow0x01.PLATFORM) -> 
+  sig
+    val start_controller : policy Lwt_stream.t -> unit Lwt.t
+  end
+
 module Make (Platform : OpenFlow0x01.PLATFORM) = struct
 
   let get_pkt_handlers : (int, get_packet_handler) Hashtbl.t = 

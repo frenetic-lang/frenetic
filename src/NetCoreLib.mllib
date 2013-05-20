@@ -7,7 +7,6 @@ Mininet_Lexer
 Mininet_Types
 Misc
 Monad
-NetCore
 NetCoreCompiler
 NetworkPacket
 OpenFlow0x01
