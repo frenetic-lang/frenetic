@@ -29,7 +29,7 @@ let parse_from_lexbuf lexbuf name =
 let parse_from_chan cin name =
   parse_from_lexbuf (Lexing.from_channel cin) name
 
-let policy = ref Empty
+let policy = ref (Lwt_behavior.return Empty)
 
 let () =
   Arg.parse
@@ -38,11 +38,9 @@ let () =
     "Usage: netcore FILENAME"
 
 let main () = 
-  let stream, push = Lwt_stream.create () in  
-  push (Some !policy);
   (* JNF: kind of a hack that we have to call this function :-( *)
   Platform.init_with_port 6633; 
-  Controller.start_controller stream  
+  Controller.start_controller (Lwt_behavior.to_stream !policy)
       
 let _ =
   Sys.catch_break true;

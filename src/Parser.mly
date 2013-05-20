@@ -43,11 +43,12 @@
 %token THEN
 %token SEMI
 %token BAR
+%token LEARNING
 %token EOF
 
 %start program
 
-%type <Syntax.External.policy> program
+%type <Syntax.External.policy Lwt_behavior.t> program
 
 %%
 
@@ -86,25 +87,35 @@ pred :
 
 pol_atom :
   | LPAREN pol RPAREN { $2 }
-  | INT64 { Act (To (int16_of_int64 $1)) }
-  | ALL { Act ToAll }
+  | INT64 { Lwt_behavior.return (Act (To (int16_of_int64 $1))) }
+  | ALL { Lwt_behavior.return (Act ToAll) }
+  | LEARNING 
+    { Lwt_behavior.from_stream 
+      MacLearning.Learning.init
+      MacLearning.Routing.policy }
 
 pol_pred :  
   | pol_atom { $1 }
-  | IF pred THEN pol_pred { Seq (Filter $2, $4) }
+  | IF pred THEN pol_pred 
+    { Lwt_behavior.map (fun pol -> Seq (Filter $2, pol)) $4 }
 
 pol_seq_list :
   | pol_pred { $1 }
-  | pol_pred SEMI pol_seq_list { Seq ($1, $3) }
+  | pol_pred SEMI pol_seq_list 
+    { Lwt_behavior.map2 (fun pol1 pol2 -> Seq (pol1, pol2)) $1 $3 }
 
 pol_par_list :
   | pol_pred { $1 }
-  | pol_pred BAR pol_par_list { Par ($1, $3) }
+  | pol_pred BAR pol_par_list
+    { Lwt_behavior.map2 (fun pol1 pol2 -> Par (pol1, pol2)) $1 $3 }
+
 
 pol :
   | pol_pred { $1 }
-  | pol_pred BAR pol_par_list { Par ($1,$3) }
-  | pol_pred SEMI pol_seq_list { Seq ($1,$3) }
+  | pol_pred BAR pol_par_list
+    { Lwt_behavior.map2 (fun pol1 pol2 -> Par (pol1, pol2)) $1 $3 }
+  | pol_pred SEMI pol_seq_list
+    { Lwt_behavior.map2 (fun pol1 pol2 -> Seq (pol1, pol2)) $1 $3 }
 
 
 program

@@ -53,7 +53,11 @@ module Learning = struct
     push (Some (make_learning_policy ()))
   
   (** The initial value of the policy is to receives packets from all hosts. *)
-  let _ = push (Some (Seq (Filter All, Act (GetPacket learn_host))))
+
+  let init = 
+    Seq (Filter All, Act (GetPacket learn_host))
+
+  let _ = push (Some init)
 
 end 
 
@@ -84,3 +88,5 @@ module Routing = struct
     Par (learning_pol, make_routing_policy ()))
     Learning.policy
 end
+
+
