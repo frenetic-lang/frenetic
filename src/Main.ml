@@ -27,7 +27,6 @@ let parse_from_lexbuf lexbuf name =
 let parse_from_chan cin name =
   parse_from_lexbuf (Lexing.from_channel cin) name
 
-
 let policy = ref Empty
 
 let () =
@@ -40,7 +39,7 @@ let main () =
   let stream, push = Lwt_stream.create () in  
   push (Some !policy);
   (* JNF: kind of a hack that we have to call this function :-( *)
-  OpenFlow0x01_Platform.init_with_port 6633; 
+  Platform.init_with_port 6633; 
   Controller.start_controller stream  
       
 let _ =
