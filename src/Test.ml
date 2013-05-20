@@ -131,63 +131,140 @@ module Test1 = struct
 
 end 
 
-module TestMods = struct
+module SampleTestInput = struct
 
-  let policy = Act (UpdateDlVlan (None, Some 1))
-
-  let bucket_cell = ref 0
-  let vlan_cell = ref 0
-  let genbucket () = incr bucket_cell; !bucket_cell
-  let genvlan () = incr vlan_cell; Some !vlan_cell
-  let get_pkt_handlers : (int, get_packet_handler) Hashtbl.t = 
-    Hashtbl.create 200
-
-  let ds_pol = desugar genbucket genvlan policy get_pkt_handlers
+  let desugar_policy pol = 
+    let bucket_cell = ref 0 in
+    let vlan_cell = ref 0 in
+    let genbucket () = incr bucket_cell; !bucket_cell in
+    let genvlan () = incr vlan_cell; Some !vlan_cell in
+    let get_pkt_handlers : (int, get_packet_handler) Hashtbl.t = 
+      Hashtbl.create 200 in
+    desugar genbucket genvlan pol get_pkt_handlers
 
   open NetCoreEval
   open NetworkPacket
 
-  let test1 () =
-    let unparsable = NwUnparsable (0x90, Cstruct.create 8) in
-    let in_pkt = 
-      Pkt ( Int64.one
-          , (Pattern.Physical 1) 
-          , { pktDlSrc = Int64.zero
-            ; pktDlDst = Int64.zero
-            ; pktDlTyp = 0x90
-            ; pktDlVlan = None
-            ; pktDlVlanPcp = 0
-            ; pktNwHeader = unparsable
-            } 
-          , (Misc.Inl Int32.zero)
-          ) in
-    let expected_pkt = 
-      Pkt ( Int64.one
-          , (Pattern.Here) 
-          , { pktDlSrc = Int64.zero
-            ; pktDlDst = Int64.zero
-            ; pktDlTyp = 0x90
-            ; pktDlVlan = Some 1
-            ; pktDlVlanPcp = 0
-            ; pktNwHeader = unparsable
-            }
-          , (Misc.Inl Int32.zero)
-          ) in
-    let res = classify ds_pol in_pkt in
-    match res with
-    | [] -> assert_failure "packet dropped"
-    | pkt::pkts -> 
-      assert_equal ~printer:value_to_string expected_pkt pkt;
-      assert_equal pkts []
-
-  let go = 
-    "mod test" >:: test1
+  let in_pkt = 
+    { pktDlSrc = Int64.zero
+    ; pktDlDst = Int64.zero
+    ; pktDlTyp = 0x90
+    ; pktDlVlan = None
+    ; pktDlVlanPcp = 0
+    ; pktNwHeader = NwUnparsable (0x90, Cstruct.create 8) }
+  let in_val = 
+    Pkt ( Int64.one
+        , (Pattern.Physical 1) 
+        , in_pkt
+        , (Misc.Inl Int32.zero))
 
 end
+
+module TestMods = struct
+
+  module C = Classifier.Make (Classifier.Output)
+  open NetCoreEval
+  open NetworkPacket
+  open SampleTestInput
+
+  let test1 = "mod vlan test" >:: fun () ->
+    let policy = Act (UpdateDlVlan (None, Some 1)) in
+    let ds_pol = desugar_policy policy in
+    let Pkt ( sid
+            , port
+            , { pktDlSrc = pktDlSrc
+              ; pktDlDst = pktDlDst
+              ; pktDlTyp = pktDlTyp
+              ; pktDlVlan = pktDlVlan
+              ; pktDlVlanPcp = pktDlVlanPcp
+              ; pktNwHeader = pktNwHeader }
+            , payload ) = in_val in
+    let expected_pkt = 
+      { pktDlSrc = pktDlSrc
+      ; pktDlDst = pktDlDst
+      ; pktDlTyp = pktDlTyp
+      ; pktDlVlan = Some 1
+      ; pktDlVlanPcp = pktDlVlanPcp
+      ; pktNwHeader = pktNwHeader } in
+    let expected_val = Pkt ( sid, (Pattern.Here), expected_pkt, payload) in
+
+    (* Test the semantic interpretation. *)
+    let _ = match classify ds_pol in_val with
+    | [] -> assert_failure "semantic interpretation dropped packet"
+    | out_val::vals-> 
+      assert_equal ~printer:value_to_string expected_val out_val;
+      assert_equal vals [] in
+
+    (* Test the classifier interpretation. *)
+    let classifier = NetCoreCompiler.compile_pol ds_pol sid in
+    let act = C.scan classifier port in_pkt in
+    match Classifier.Output.apply_action act (port, in_pkt) with
+    | [] -> assert_failure "classifier scan dropped packet"
+    | (port', pkt')::pkts ->
+      assert_equal ~printer:NetworkPacket.packet_to_string 
+        expected_pkt pkt';
+      assert_equal pkts []
+
+
+  let go = TestList [ test1 ]
+
+end
+
+module TestSlices = struct
+
+  module C = Classifier.Make (Classifier.Output)
+  open NetCoreEval
+  open NetworkPacket
+  open SampleTestInput
+
+  let test1 = "slice repeater test" >:: fun () ->
+    let policy = Slice (All, Act ToAll, All) in
+    let ds_pol = desugar_policy policy in
+    let Pkt ( sid
+            , port
+            , { pktDlSrc = pktDlSrc
+              ; pktDlDst = pktDlDst
+              ; pktDlTyp = pktDlTyp
+              ; pktDlVlan = pktDlVlan
+              ; pktDlVlanPcp = pktDlVlanPcp
+              ; pktNwHeader = pktNwHeader }
+            , payload ) = in_val in
+    let expected_pkt = 
+      { pktDlSrc = pktDlSrc
+      ; pktDlDst = pktDlDst
+      ; pktDlTyp = pktDlTyp
+      ; pktDlVlan = pktDlVlan
+      ; pktDlVlanPcp = pktDlVlanPcp
+      ; pktNwHeader = pktNwHeader } in
+    let expected_val = Pkt ( sid, (Pattern.All), expected_pkt, payload) in
+
+    (* Test the semantic interpretation. *)
+    let _ = match classify ds_pol in_val with
+    | [] -> assert_failure "semantic interpretation dropped packet"
+    | out_val::vals-> 
+      assert_equal ~printer:value_to_string expected_val out_val;
+      assert_equal vals [] in
+
+    (* Test the classifier interpretation. *)
+    let classifier = NetCoreCompiler.compile_pol ds_pol sid in
+    let act = C.scan classifier port in_pkt in
+    match Classifier.Output.apply_action act (port, in_pkt) with
+    | [] -> assert_failure "classifier scan dropped packet"
+    | (port', pkt')::pkts ->
+      assert_equal ~printer:NetworkPacket.packet_to_string 
+        expected_pkt pkt';
+      assert_equal pkts []
+
+
+  let go = TestList [ test1 ]
+
+end
+
 
 let tests =
   TestList [ Test1.go 
            ; TestMods.go
+           ; TestSlices.go
            ; TestClassifier.go
            ]
 
