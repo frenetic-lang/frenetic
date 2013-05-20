@@ -3,7 +3,7 @@ open Printf
 open Unix
 open Syntax.External
 
-module Controller = Controller.Make(OpenFlow0x01.Platform)
+module Controller = Controller.Make(OpenFlow0x01_Platform)
 
 (* configuration state *)
 let controller = ref ""
@@ -25,7 +25,7 @@ let main () =
   let stream, push = Lwt_stream.create() in  
   (* JNF: kind of a hack that we have to call this function :-( *)
   push (Some (Act ToAll));
-  OpenFlow0x01.Platform.init_with_port 6633; 
+  OpenFlow0x01_Platform.init_with_port 6633; 
   Controller.start_controller stream  
       
 let _ =

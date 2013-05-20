@@ -1,5 +1,5 @@
 open Lwt
-open OpenFlow0x01Types
+open OpenFlow0x01.Types
 
 module Lwt_channel = Misc.Lwt_channel
 

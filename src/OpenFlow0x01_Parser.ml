@@ -1,7 +1,7 @@
 (** OpenFlow 1.0 (protocol version 0x01) *)
 
 open Printf
-open OpenFlow0x01Types
+open OpenFlow0x01.Types
 open Misc
 
 exception Unparsable of string

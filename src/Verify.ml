@@ -1,4 +1,4 @@
-open Syntax
+open Syntax.External
 open Sat
 
 (* Topology *)

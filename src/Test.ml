@@ -108,8 +108,8 @@ end
 
 module Test1 = struct
     
-  module Network = OpenFlow0x01.TestPlatform.Network
-  module Platform = OpenFlow0x01.TestPlatform
+  module Network = OpenFlow0x01_TestPlatform.Network
+  module Platform = OpenFlow0x01_TestPlatform
   module Controller = Controller.Make (Platform)
 
   let network_script = 
