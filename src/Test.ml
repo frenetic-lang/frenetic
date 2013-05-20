@@ -160,26 +160,37 @@ module Helper = struct
         , in_pkt
         , (Buf Int32.zero))
 
-  let mkEvalTest pol in_val expected_vals = fun () ->
+  let mkEvalTest name ?debug:(dbg=false) pol in_val expected_vals = 
     let ds_pol = desugar_policy pol in
+
+    if dbg then
+      Misc.Log.printf "%s\n" (pol_to_string ds_pol)
+    else
+      ();
+
     let Pkt (in_sid, in_port, _, _) = in_val in
     let expected_pkts =
       List.map (fun (Pkt (_, pr, p, _)) -> (pr, p)) expected_vals in
 
     (* Test the semantic interpretation. *)
     let vals = classify ds_pol in_val in
-    assert_equal
-      ~printer:(Misc.string_of_list value_to_string)
-      expected_vals vals;
+    let sem_test = 
+      (name ^ " (semantic) test") >:: fun () ->
+        assert_equal
+          ~printer:(Misc.string_of_list value_to_string)
+          expected_vals vals in
 
     (* Test the classifier interpretation. *)
     let classifier = Compiler.compile_pol ds_pol in_sid in
     let act = C.scan classifier in_port in_pkt in
     let pkts = Action.Output.apply_action act (in_port, in_pkt) in
-    assert_equal
-      ~printer:(Misc.string_of_list
-        (Misc.string_of_pair Pattern.string_of_port packet_to_string))
-      expected_pkts pkts
+    let classifier_test =
+      (name ^ " (classifier) test") >:: fun () ->
+        assert_equal
+          ~printer:(Misc.string_of_list
+            (Misc.string_of_pair Pattern.string_of_port packet_to_string))
+          expected_pkts pkts in
+    TestList [ sem_test; classifier_test ]
 
 end
 
@@ -190,11 +201,11 @@ module TestFilters = struct
 
   let test1 =
     let policy = Filter All in
-    "filter true test" >:: mkEvalTest policy in_val [in_val]
+    mkEvalTest "filter true" policy in_val [in_val]
 
   let test2 =
     let policy = Filter NoPackets in
-    "filter true test" >:: mkEvalTest policy in_val []
+    mkEvalTest "filter false" policy in_val []
 
   let go = TestList [ test1; test2 ]
 
@@ -225,12 +236,12 @@ module TestMods = struct
       ; pktDlVlanPcp = pktDlVlanPcp
       ; pktNwHeader = pktNwHeader } in
     let expected_val = Pkt ( sid, port, expected_pkt, payload) in
-    "mod vlan test" >:: mkEvalTest policy in_val [expected_val]
+    mkEvalTest "mod vlan" policy in_val [expected_val]
 
   let test2 =
     let policy = Seq ( Act (UpdateDlVlan (None, (Some 1)))
                      , Act (UpdateDlVlan ((Some 1), None))) in
-    "mod no effect test" >:: mkEvalTest policy in_val [in_val]
+    mkEvalTest "mod no effect" policy in_val [in_val]
 
   let test3 =
     let policy =
@@ -239,9 +250,39 @@ module TestMods = struct
                 , Act (UpdateDlVlan ((Some 1), None)))) in
     let Pkt (sid, port, pkt, payload) = in_val in
     let expected_vals = [Pkt (sid, Pattern.All, pkt, payload)] in
-    "mod no effect test" >:: mkEvalTest policy in_val expected_vals
+    mkEvalTest "mod no effect 2" policy in_val expected_vals
 
-  let go = TestList [ test1; test2; test3 ]
+  let test4 = 
+    let policy = 
+      Seq ( Act (UpdateDlVlan (None, Some 1))
+          , Filter (DlVlan (Some 1))) in
+    let Pkt ( sid
+            , port
+            , { pktDlSrc = pktDlSrc
+              ; pktDlDst = pktDlDst
+              ; pktDlTyp = pktDlTyp
+              ; pktDlVlan = pktDlVlan
+              ; pktDlVlanPcp = pktDlVlanPcp
+              ; pktNwHeader = pktNwHeader }
+            , payload ) = in_val in
+    let expected_pkt =
+      { pktDlSrc = pktDlSrc
+      ; pktDlDst = pktDlDst
+      ; pktDlTyp = pktDlTyp
+      ; pktDlVlan = Some 1
+      ; pktDlVlanPcp = pktDlVlanPcp
+      ; pktNwHeader = pktNwHeader } in
+    let expected_vals = [Pkt ( sid, port, expected_pkt, payload)] in
+    mkEvalTest "seq mod filter" policy in_val expected_vals
+
+  let test5 = 
+    let policy =
+      Seq ( Act (UpdateDlVlan (None, Some 1))
+          , Seq ( Filter (DlVlan (Some 1))
+                      , Act (UpdateDlVlan (Some 1, None)))) in
+    mkEvalTest "seq mod seq" policy in_val [in_val]
+
+  let go = TestList [ test1; test2; test3; test4; test5 ]
 
 end
 
@@ -270,9 +311,58 @@ module TestSlices = struct
       ; pktDlVlanPcp = pktDlVlanPcp
       ; pktNwHeader = pktNwHeader } in
     let expected_val = Pkt ( sid, (Pattern.All), expected_pkt, payload) in
-    "slice repeater test" >:: mkEvalTest policy in_val [expected_val]
+    mkEvalTest "slice repeater" policy in_val [expected_val]
 
-  let go = TestList [ test1 ]
+  let test1' =
+    let policy =
+      Seq ( Seq (Filter (DlVlan None), Act (UpdateDlVlan (None, Some 1))),
+      Seq ( Act ToAll
+          , Par ( Seq (Filter (DlVlan (Some 1)), Act (UpdateDlVlan (Some 1, None)))
+                , Filter (Not (DlVlan (Some 1)))))) in
+    let Pkt ( sid
+            , port
+            , { pktDlSrc = pktDlSrc
+              ; pktDlDst = pktDlDst
+              ; pktDlTyp = pktDlTyp
+              ; pktDlVlan = pktDlVlan
+              ; pktDlVlanPcp = pktDlVlanPcp
+              ; pktNwHeader = pktNwHeader }
+            , payload ) = in_val in
+    let expected_pkt =
+      { pktDlSrc = pktDlSrc
+      ; pktDlDst = pktDlDst
+      ; pktDlTyp = pktDlTyp
+      ; pktDlVlan = pktDlVlan
+      ; pktDlVlanPcp = pktDlVlanPcp
+      ; pktNwHeader = pktNwHeader } in
+    let expected_val = Pkt ( sid, (Pattern.All), expected_pkt, payload) in
+    mkEvalTest "slice' repeater" policy in_val [expected_val]
+
+  let test1'' =
+    let policy =
+      Seq (Seq (Filter (DlVlan None), Act (UpdateDlVlan (None, Some 1))),
+      Seq (Act ToAll,
+      Seq (Filter (DlVlan (Some 1)), Act (UpdateDlVlan (Some 1, None))))) in
+    let Pkt ( sid
+            , port
+            , { pktDlSrc = pktDlSrc
+              ; pktDlDst = pktDlDst
+              ; pktDlTyp = pktDlTyp
+              ; pktDlVlan = pktDlVlan
+              ; pktDlVlanPcp = pktDlVlanPcp
+              ; pktNwHeader = pktNwHeader }
+            , payload ) = in_val in
+    let expected_pkt =
+      { pktDlSrc = pktDlSrc
+      ; pktDlDst = pktDlDst
+      ; pktDlTyp = pktDlTyp
+      ; pktDlVlan = pktDlVlan
+      ; pktDlVlanPcp = pktDlVlanPcp
+      ; pktNwHeader = pktNwHeader } in
+    let expected_val = Pkt ( sid, (Pattern.All), expected_pkt, payload) in
+    mkEvalTest "slice'' repeater" policy in_val [expected_val]
+
+  let go = TestList [ test1; test1' ]
 
 end
 
