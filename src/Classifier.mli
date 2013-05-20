@@ -48,11 +48,11 @@ module Bool : ACTION
 
 module type CLASSIFIER = 
  sig 
-  module Action : ACTION
+  type action
   
-  type t = (Pattern.t * Action.t) list
+  type t = (Pattern.t * action) list
   
-  val scan : t -> Pattern.port -> packet -> Action.t
+  val scan : t -> Pattern.port -> packet -> action
   
   val inter : t -> t -> t
   
@@ -60,13 +60,13 @@ module type CLASSIFIER =
   
   val sequence : t -> t -> t
   
-  val par_actions : Action.t list -> Action.t
+  val par_actions : action list -> action
 
   val to_string : t -> string
  end
 
 module type MAKE  = functor (Action : ACTION) -> 
   sig include CLASSIFIER end
-  with module Action = Action
+  with type action = Action.t
 
 module Make : MAKE

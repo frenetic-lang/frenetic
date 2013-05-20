@@ -31,11 +31,11 @@ module type ACTION = sig
  end
 
 module type CLASSIFIER = sig 
-  module Action : ACTION
+  type action
 
-  type t = (Pattern.t * Action.t) list
+  type t = (Pattern.t * action) list
   
-  val scan : t -> Pattern.port -> packet -> Action.t
+  val scan : t -> Pattern.port -> packet -> action
   
   val inter : t -> t -> t
   
@@ -43,7 +43,7 @@ module type CLASSIFIER = sig
   
   val sequence : t -> t -> t
   
-  val par_actions : Action.t list -> Action.t
+  val par_actions : action list -> action
 
   val to_string : t -> string
 end
@@ -51,36 +51,32 @@ end
 module Bool = struct
   type t = bool
   type e = bool
+
   let atoms b = [b]
     
   let drop = false
+
   let pass = true
 
   let to_action b = b
     
   let apply_atom b ptpk = if b then Some ptpk else None
   
-  let apply_action action ptpk =
-    filter_map (fun a -> apply_atom a ptpk) (atoms action)
+  let apply_action action ptpk = filter_map (fun a -> apply_atom a ptpk) (atoms action)
   
-  let par_action b1 b2 =
-    (||) b1 b2
+  let par_action b1 b2 = b1 || b2
   
-  let seq_action b1 b2 =
-    (&&) b1 b2
+  let seq_action b1 b2 = b1 && b2
   
   let restrict_range b p = p
   
   let domain b = Pattern.all
 
-  let to_string b = match b with
-    | true -> "true"
-    | false -> "false"
+  let to_string b = if b then "true" else "false"
 
 end
 
 module Output = struct
-
   open Word
   open Misc
   open List
@@ -91,45 +87,41 @@ module Output = struct
   
   type 'a match_modify = ('a * 'a) option
   
-  (** OpenFlow does not allow the [dlType] and [nwProto] fields to be 
-      modified. *)
-  type output = { outDlSrc : dlAddr match_modify;
-                  outDlDst : dlAddr match_modify;
-                  outDlVlan : dlVlan match_modify;
-                  outDlVlanPcp : dlVlanPcp match_modify;
-                  outNwSrc : nwAddr match_modify;
-                  outNwDst : nwAddr match_modify;
-                  outNwTos : nwTos match_modify;
-                  outTpSrc : tpPort match_modify;
-                  outTpDst : tpPort match_modify; 
-                  outPort : Pattern.port }
+  (** Note that OpenFlow does not allow the [dlType] and [nwProto]
+      fields to be modified. *)
+  type output = 
+    { outDlSrc : dlAddr match_modify;
+      outDlDst : dlAddr match_modify;
+      outDlVlan : dlVlan match_modify;
+      outDlVlanPcp : dlVlanPcp match_modify;
+      outNwSrc : nwAddr match_modify;
+      outNwDst : nwAddr match_modify;
+      outNwTos : nwTos match_modify;
+      outTpSrc : tpPort match_modify;
+      outTpDst : tpPort match_modify; 
+      outPort : Pattern.port }
 
   (* JNF: does this belong in Misc? *)
   let string_of_output out = 
-    let opt_to_string to_string = function
-      | Some v -> to_string v
-      | None -> "" in 
     let reflections = 
-      [ ("DlSrc", opt_to_string (string_of_pair dlAddr_to_string) out.outDlSrc)
-      ; ("DlDst", opt_to_string (string_of_pair dlAddr_to_string) out.outDlDst)
-      ; ("DlVlan", opt_to_string (string_of_pair dlVlan_to_string) out.outDlVlan)
-      ; ("DlVlanPcp", opt_to_string (string_of_pair dlVlanPcp_to_string) out.outDlVlanPcp)
-      ; ("NwSrc", opt_to_string (string_of_pair nwAddr_to_string) out.outNwSrc)
-      ; ("NwDst", opt_to_string (string_of_pair nwAddr_to_string) out.outNwDst)
-      ; ("NwTos", opt_to_string (string_of_pair nwTos_to_string) out.outNwTos)
-      ; ("TpSrc", opt_to_string (string_of_pair tpPort_to_string) out.outTpSrc)
-      ; ("TpDst", opt_to_string (string_of_pair tpPort_to_string) out.outTpDst)
+      [ ("DlSrc", string_of_option (string_of_pair dlAddr_to_string) out.outDlSrc)
+      ; ("DlDst", string_of_option (string_of_pair dlAddr_to_string) out.outDlDst)
+      ; ("DlVlan", string_of_option (string_of_pair dlVlan_to_string) out.outDlVlan)
+      ; ("DlVlanPcp", string_of_option (string_of_pair dlVlanPcp_to_string) out.outDlVlanPcp)
+      ; ("NwSrc", string_of_option (string_of_pair nwAddr_to_string) out.outNwSrc)
+      ; ("NwDst", string_of_option (string_of_pair nwAddr_to_string) out.outNwDst)
+      ; ("NwTos", string_of_option (string_of_pair nwTos_to_string) out.outNwTos)
+      ; ("TpSrc", string_of_option (string_of_pair tpPort_to_string) out.outTpSrc)
+      ; ("TpDst", string_of_option (string_of_pair tpPort_to_string) out.outTpDst)
       ; ("Fwd", Pattern.string_of_port out.outPort) ] in 
     let nonempty = List.filter (fun (f,v) -> v <> "") reflections in
     let rvs = List.map (fun (f,v) -> Printf.sprintf "%s %s" f v) nonempty in
-    Printf.sprintf "{%s}"
-      (String.concat ", " rvs)
+    Printf.sprintf "{%s}" (String.concat ", " rvs)
 
   let to_string output_list =
     Printf.sprintf "[%s]" 
       (String.concat ", " (List.map string_of_output output_list)) 
-  
-  
+    
   type e = output
 
   type t = output list
@@ -140,7 +132,7 @@ module Output = struct
   
   let drop = []
   
-  let id =
+  let unmodified =
     { outDlSrc = None; 
       outDlDst = None; 
       outDlVlan = None; 
@@ -152,36 +144,35 @@ module Output = struct
       outTpDst = None; 
       outPort = Pattern.Here } 
       
-  let pass = [id]
+  let pass = [unmodified]
     
   let forward pt =
-    [ { id with outPort = Pattern.Physical pt } ]
+    [ { unmodified with outPort = Pattern.Physical pt } ]
 
-  let to_all = [ { id with outPort = Pattern.All } ]
+  let to_all = [ { unmodified with outPort = Pattern.All } ]
   
   let bucket n =
-    [ { id with outPort = Pattern.Bucket n } ] 
+    [ { unmodified with outPort = Pattern.Bucket n } ] 
   
   let updateDlSrc od nw =
-    [ { id with outDlSrc = Some (od, nw) } ]
+    [ { unmodified with outDlSrc = Some (od, nw) } ]
 
   let updateDlDst od nw =
-    [ { id with outDlDst = Some (od, nw) } ]
+    [ { unmodified with outDlDst = Some (od, nw) } ]
   
   let updateDlVlan od nw = 
-    [ { id with outDlVlan = Some (od,nw) } ]
+    [ { unmodified with outDlVlan = Some (od,nw) } ]
 
-  let par_action act1 act2 = 
-    act1 @ act2
+  let par_action act1 act2 = act1 @ act2
   
   let seq_mod beq m1 m2 =
-    match m1 with
-    | Some (a,b) ->
-      (match m2 with
-       | Some (c,d) ->
-         if beq b c then Some (Some (a, d)) else None
-       | None -> Some m1)
-    | None -> Some m2
+    match m1,m2 with
+    | Some (a,b),Some(c,d) ->
+      if beq b c then Some (Some (a, d)) else None
+    | _,None -> 
+      Some m1
+    | None,_ -> 
+      Some m2
   
   let seq_port pt1 pt2 =
     match pt1,pt2 with
@@ -190,63 +181,53 @@ module Output = struct
     | _ -> pt2
   
   let optword16beq w1 w2 =
-    match w1 with
-    | Some w3 ->
-      (match w2 with
-       | Some w4 -> Word16.eq_dec w3 w4
-       | None -> false)
-    | None ->
-      (match w2 with
-       | Some y -> false
-       | None -> true)
+    match w1,w2 with
+    | Some w3,Some w4 ->
+      Word16.eq_dec w3 w4
+    | None,None -> 
+      true
+    | _ -> 
+      false
   
-  let seq_output out1 out2 =
-    let beq_vlan v1 v2 = 
-      match (v1, v2) with
-      | Some w1, Some w2 -> Word16.eq_dec w1 w2
-      | None, None -> true
-      | _,_ -> false in 
-    match 
+  let seq_output out1 out2 = match
       (seq_mod Word48.eq_dec out1.outDlSrc out2.outDlSrc,
        seq_mod Word48.eq_dec out1.outDlDst out2.outDlDst,
-       seq_mod beq_vlan out1.outDlVlan out2.outDlVlan,
+       seq_mod optword16beq out1.outDlVlan out2.outDlVlan,
        seq_mod Word8.eq_dec out1.outDlVlanPcp out2.outDlVlanPcp,
        seq_mod Word32.eq_dec out1.outNwSrc out2.outNwSrc, 
        seq_mod Word32.eq_dec out1.outNwDst out2.outNwDst, 
        seq_mod Word8.eq_dec out1.outNwTos out2.outNwTos, 
        seq_mod Word16.eq_dec out1.outTpSrc out2.outTpSrc,
        seq_mod Word16.eq_dec out1.outTpDst out2.outTpDst) with 
-      | ( Some dlSrc, 
-          Some dlDst, 
-          Some dlVlan,
-          Some dlVlanPcp,
-          Some nwSrc,
-          Some nwDst,
-          Some nwTos,
-          Some tpSrc,
-          Some tpDst ) -> 
-        Some { outDlSrc = dlSrc; 
-               outDlDst = dlDst;
-               outDlVlan = dlVlan; 
-               outDlVlanPcp = dlVlanPcp; 
-               outNwSrc = nwSrc; 
-               outNwDst = nwDst; 
-               outNwTos = nwTos; 
-               outTpSrc = tpSrc;
-               outTpDst = tpDst; 
-               outPort = seq_port out1.outPort out2.outPort }
-      | _ -> None
-  
-  let cross lst1 lst2 =
-    concat_map (fun a -> map (fun b -> (a, b)) lst2) lst1
+    | ( Some dlSrc, 
+        Some dlDst, 
+        Some dlVlan,
+        Some dlVlanPcp,
+        Some nwSrc,
+        Some nwDst,
+        Some nwTos,
+        Some tpSrc,
+        Some tpDst ) -> 
+      Some { outDlSrc = dlSrc; 
+             outDlDst = dlDst;
+             outDlVlan = dlVlan; 
+             outDlVlanPcp = dlVlanPcp; 
+             outNwSrc = nwSrc; 
+             outNwDst = nwDst; 
+             outNwTos = nwTos; 
+             outTpSrc = tpSrc;
+             outTpDst = tpDst; 
+             outPort = seq_port out1.outPort out2.outPort }
+    | _ -> None
+      
+  let cross lst1 lst2 = concat_map (fun a -> map (fun b -> (a, b)) lst2) lst1
   
   let seq_action act1 act2 =
     filter_map 
       (fun (o1,o2) -> seq_output o1 o2)
       (cross act1 act2)
   
-  let maybe_modify nw modifier pk =
-    match nw with
+  let maybe_modify nw modifier pk = match nw with 
     | Some (a,v) -> 
       modifier pk v
     | None -> 
@@ -275,7 +256,7 @@ module Output = struct
                             (maybe_modify out.outNwTos NetworkPacket.setNwTos
                                (maybe_modify out.outTpSrc NetworkPacket.setTpSrc
                                   (maybe_modify out.outTpDst NetworkPacket.setTpDst pkt))))))))))
-  
+      
   let trans x f pat = match x with 
   | Some (a,nw) -> f nw pat
   | None -> pat
@@ -284,20 +265,19 @@ module Output = struct
   | Some p -> let (old, y) = p in f old
   | None -> Pattern.all
   
-  let restrict_port port1 pat2 = 
-    match port1 with
-      | Here -> pat2
-      | _ ->
-        if Pattern.is_empty (Pattern.inter (Pattern.inPort port1) pat2) then
-          Pattern.empty
-        else
-          Pattern.wildcardPort pat2
-
+  let restrict_port port1 pat2 = match port1 with
+    | Here -> pat2
+    | _ ->
+      if Pattern.is_empty (Pattern.inter (Pattern.inPort port1) pat2) then
+        Pattern.empty
+      else
+        Pattern.wildcardPort pat2
+          
   let restrict_range out pat =
     restrict_port out.outPort
       (trans out.outDlSrc Pattern.setDlSrc 
          (trans out.outDlDst Pattern.setDlDst pat))
-  
+      
   let domain out =
     fold_right 
       Pattern.inter 
@@ -367,19 +347,13 @@ module Output = struct
     filter_map (fun a -> apply_atom a ptpk) act
 end
 
-
-
-module type MAKE  = functor (Action : ACTION) -> 
+module type MAKE = functor (Action : ACTION) -> 
   sig include CLASSIFIER end
-  with module Action = Action
+  with type action = Action.t
 
-module Make : MAKE = 
- functor (Action:ACTION) ->
- struct 
-  module Action = Action
-    
+module Make : MAKE = functor (Action:ACTION) -> struct 
   type action = Action.t
-  
+    
   type t = (Pattern.t * action) list
     
   let rec scan' default classifier pt pk = match classifier with
@@ -388,8 +362,7 @@ module Make : MAKE =
       let (pat, a) = p in
       if Pattern.match_packet pt pk pat then a else scan' default rest pt pk
   
-  let scan =
-    scan' Action.drop
+  let scan = scan' Action.drop
   
   let rec elim_shadowed_helper prefix = function
   | [] -> prefix
