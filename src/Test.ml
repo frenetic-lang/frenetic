@@ -196,7 +196,7 @@ module TestMods = struct
       assert_equal vals [] in
 
     (* Test the classifier interpretation. *)
-    let classifier = NetCoreCompiler.compile_pol ds_pol sid in
+    let classifier = Compiler.compile_pol ds_pol sid in
     let act = C.scan classifier port in_pkt in
     match Action.Output.apply_action act (port, in_pkt) with
     | [] -> assert_failure "classifier scan dropped packet"
@@ -245,7 +245,7 @@ module TestSlices = struct
       assert_equal vals [] in
 
     (* Test the classifier interpretation. *)
-    let classifier = NetCoreCompiler.compile_pol ds_pol sid in
+    let classifier = Compiler.compile_pol ds_pol sid in
     let act = C.scan classifier port in_pkt in
     match Action.Output.apply_action act (port, in_pkt) with
     | [] -> assert_failure "classifier scan dropped packet"
