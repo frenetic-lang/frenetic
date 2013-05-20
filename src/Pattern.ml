@@ -221,6 +221,10 @@ let all =
   
   let setDlDst dlDst pat =
     to_valid { pat with ptrnDlDst = Wildcard.WildcardExact dlDst }
+
+  let setPort port pat = { pat with ptrnInPort = Wildcard.WildcardExact port }
+
+  let wildcardPort pat = { pat with ptrnInPort = Wildcard.WildcardAll }
   
   let inPort pt =
     { all with ptrnInPort = Wildcard.WildcardExact pt }

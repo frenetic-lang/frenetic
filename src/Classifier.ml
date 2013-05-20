@@ -282,8 +282,16 @@ module Output = struct
   | Some p -> let (old, y) = p in f old
   | None -> Pattern.all
   
+  let restrict_port port1 pat2 = 
+    if Pattern.is_empty (Pattern.inter (Pattern.inPort port1) pat2) then
+      Pattern.empty
+    else
+      Pattern.wildcardPort pat2
+
   let restrict_range out pat =
-    trans out.outDlSrc Pattern.setDlSrc (trans out.outDlDst Pattern.setDlDst pat)
+    restrict_port out.outPort
+      (trans out.outDlSrc Pattern.setDlSrc 
+         (trans out.outDlDst Pattern.setDlDst pat))
   
   let domain out =
     fold_right 
@@ -432,24 +440,33 @@ module Make : MAKE =
   | [] -> []
   | tbl :: lst' -> union_no_opt tbl (unions lst')
   
-  let rec coq_Pick p1 a1 atom = function
+  (* [p1] is the domain restriction from the first table in the sequence.
+     [a1] is ??? 
+     [atom] is the first action that was applied.
+  *)
+  let rec pick p1 atom = function
   | [] -> []
-  | p0 :: tbl' ->
-    let (p, a) = p0 in
-    ((Pattern.inter p1
-       (Pattern.inter (Action.domain atom) (Action.restrict_range atom p))),
-    (Action.seq_action a1 a)) :: (coq_Pick p1 a1 atom tbl')
+  | (p2,a) :: tbl2' ->
+    Format.printf "doing %s %s %s\n%!"
+      (Pattern.to_string p1)
+      (Pattern.to_string (Action.domain atom))
+      (Pattern.to_string (Action.restrict_range atom p2));
+    (Pattern.inter
+       p1 
+       (Pattern.inter 
+          (Action.domain atom) 
+          (Action.restrict_range atom p2)),
+     Action.seq_action (Action.to_action atom) a) :: (pick p1 atom tbl2')
   
   let rec sequence_no_opt tbl1 tbl2 =
     match tbl1 with
     | [] -> []
-    | p0 :: tbl1' ->
-      let (p, a) = p0 in
-      (match Action.atoms a with
-       | [] -> (p, Action.drop) :: (sequence_no_opt tbl1' tbl2)
-       | e0 :: l ->
-         (unions (List.map (fun atom -> coq_Pick p a atom tbl2) (e0 :: l)))
-         @ (sequence_no_opt tbl1' tbl2))
+    | (p,a) :: tbl1' ->
+      match Action.atoms a with
+        | [] -> (p, Action.drop) :: (sequence_no_opt tbl1' tbl2)
+        | lst ->
+          (unions (List.map (fun atom -> pick p atom tbl2) lst))
+          @ (sequence_no_opt tbl1' tbl2)
   
   let sequence tbl1 tbl2 =
     opt (sequence_no_opt tbl1 tbl2)

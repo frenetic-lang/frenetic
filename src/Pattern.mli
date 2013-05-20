@@ -57,6 +57,10 @@ val udpDstPort : tpPort -> t
 val setDlSrc : dlAddr -> t -> t
   
 val setDlDst : dlAddr -> t -> t
+
+val setPort : port -> t -> t
+
+val wildcardPort : t -> t
   
 val to_string : t -> string
 

@@ -1,6 +1,56 @@
 open Syntax
 open OUnit
 
+module TestClassifier = struct
+    
+  module C = Classifier.Make (Classifier.Output)
+  open C
+  open Classifier.Output
+  open Pattern
+
+  let test0 =
+    "action sequence test" >::
+      fun () -> 
+        assert_equal ~printer:Classifier.Output.to_string
+          (forward 5)
+          (seq_action (forward 3) (forward 5))
+
+  let test1 =
+    "forward action domain should be Pattern.all" >:: 
+      fun () ->
+        assert_equal ~printer:Pattern.to_string
+          (domain (List.hd (atoms (forward 1)))) Pattern.all
+
+  let test2 =
+    "pattern restriction test" >:: 
+      fun () ->
+        assert_equal ~printer:Pattern.to_string
+          (restrict_range
+             (List.hd (atoms (forward 1)))
+             (Pattern.inPort (Physical 1)))
+          Pattern.all
+
+  let test3 = 
+    "classifier composition test 1" >::
+      fun () ->
+        let tbl1 = 
+          [(Pattern.inter (dlDst 0xdeadbeefL) (inPort (Physical 5)), 
+            forward 1);
+           (Pattern.all, drop)] in
+        let tbl2 = 
+          [(inPort (Physical 1), forward 2);
+           (Pattern.all, drop)] in
+        assert_equal ~printer:C.to_string 
+          (sequence tbl1 tbl2)
+          [(Pattern.inter (dlDst 0xdeadbeefL) (inPort (Physical 5)), 
+            forward 2);
+           (Pattern.all, drop)]
+
+  let go =
+    TestList [test0; test1; test2; test3]
+
+end
+
 module Test1 = struct
     
   module Network = OpenFlow0x01.TestPlatform.Network
@@ -82,6 +132,7 @@ end
 let tests =
   TestList [ Test1.go 
            ; TestMods.go
+           ; TestClassifier.go
            ]
 
 let _ = run_test_tt_main tests
