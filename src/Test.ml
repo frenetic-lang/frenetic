@@ -148,6 +148,7 @@ module TestMods = struct
   open NetworkPacket
 
   let test1 () =
+    let unparsable = NwUnparsable (0x90, Cstruct.create 8) in
     let in_pkt = 
       Pkt ( Int64.one
           , (Pattern.Physical 1) 
@@ -156,7 +157,7 @@ module TestMods = struct
             ; pktDlTyp = 0x90
             ; pktDlVlan = None
             ; pktDlVlanPcp = 0
-            ; pktNwHeader = NwUnparsable (0x90, Cstruct.create 8)
+            ; pktNwHeader = unparsable
             } 
           , (Misc.Inl Int32.zero)
           ) in
@@ -166,9 +167,9 @@ module TestMods = struct
           , { pktDlSrc = Int64.zero
             ; pktDlDst = Int64.zero
             ; pktDlTyp = 0x90
-            ; pktDlVlan = None
+            ; pktDlVlan = Some 1
             ; pktDlVlanPcp = 0
-            ; pktNwHeader = NwUnparsable (0x90, Cstruct.create 8)
+            ; pktNwHeader = unparsable
             }
           , (Misc.Inl Int32.zero)
           ) in
@@ -176,7 +177,7 @@ module TestMods = struct
     match res with
     | [] -> assert_failure "packet dropped"
     | pkt::pkts -> 
-      assert_equal ~printer:value_to_string pkt expected_pkt;
+      assert_equal ~printer:value_to_string expected_pkt pkt;
       assert_equal pkts []
 
   let go = 
