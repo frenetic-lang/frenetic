@@ -363,10 +363,8 @@ module FlowModCommand = struct
     
   type t = flowModCommand
 
-  let n = ref 0L
-
   let marshal (t : t) : int = match t with
-    | AddFlow -> n := Int64.succ !n; Misc.Log.printf "created %Ld flow table entries.\n%!" !n;  ofp_flow_mod_command_to_int OFPFC_ADD
+    | AddFlow -> ofp_flow_mod_command_to_int OFPFC_ADD
     | ModFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY
     | ModStrictFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY_STRICT
     | DeleteFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE
