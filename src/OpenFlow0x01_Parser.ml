@@ -248,9 +248,8 @@ module PacketIn = struct
   { packetInBufferId = bufId;
     packetInTotalLen = total_len;
     packetInPort = in_port;
-    packetInReason_ = reason;
+    packetInReason = reason;
     packetInPacket = pkt }
-
 end
 
 module Action = struct

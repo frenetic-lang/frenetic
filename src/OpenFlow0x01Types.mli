@@ -197,7 +197,7 @@ val mfOutPort : flowMod -> pseudoPort option
 
 val mfCheckOverlap : flowMod -> bool
 
-type packetInReason =
+type reason =
 | NoMatch
 | ExplicitSend
 
@@ -205,7 +205,7 @@ type packetIn =
   { packetInBufferId : bufferId option;
     packetInTotalLen : Word16.t; 
     packetInPort : portId;
-    packetInReason_ : packetInReason; 
+    packetInReason : reason; 
     packetInPacket : packet }
     
 val packetInBufferId : packetIn -> bufferId option
@@ -214,7 +214,7 @@ val packetInTotalLen : packetIn -> Word16.t
 
 val packetInPort : packetIn -> portId
 
-val packetInReason_ : packetIn -> packetInReason
+val packetInReason : packetIn -> reason
 
 val packetInPacket : packetIn -> packet
 

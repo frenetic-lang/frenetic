@@ -177,7 +177,7 @@ let mfOutPort x = x.mfOutPort
 
 let mfCheckOverlap x = x.mfCheckOverlap
 
-type packetInReason =
+type reason = 
 | NoMatch
 | ExplicitSend
 
@@ -185,7 +185,7 @@ type packetIn =
   { packetInBufferId : bufferId option;
     packetInTotalLen : Word16.t; 
     packetInPort : portId;
-    packetInReason_ : packetInReason; 
+    packetInReason : reason; 
     packetInPacket : packet }
 
 let packetInBufferId x = x.packetInBufferId
@@ -194,7 +194,7 @@ let packetInTotalLen x = x.packetInTotalLen
 
 let packetInPort x = x.packetInPort
 
-let packetInReason_ x = x.packetInReason_
+let packetInReason x = x.packetInReason
 
 let packetInPacket x = x.packetInPacket
 
