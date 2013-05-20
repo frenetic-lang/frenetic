@@ -72,25 +72,6 @@ module Output = struct
     Printf.sprintf "[%s]" 
       (String.concat ", " (List.map string_of_output output_list)) 
   
-  let outDlSrc out = out.outDlSrc
-    
-  let outDlDst out = out.outDlDst
-  
-  let outDlVlan out = out.outDlVlan
-  
-  let outDlVlanPcp out = out.outDlVlanPcp
-  
-  let outNwSrc out = out.outNwSrc
-  
-  let outNwDst out = out.outNwDst
-  
-  let outNwTos out = out.outNwTos
-  
-  let outTpSrc out = out.outTpSrc
-  
-  let outTpDst out = out.outTpDst
-  
-  let outPort out = out.outPort
   
   type e = output
 
@@ -210,7 +191,6 @@ module Output = struct
     | None -> 
       pk
   
-
   (* JNF: seriously? *)
   let withVlanNone = function
   | Some (Some od,Some nw) ->
