@@ -61,11 +61,48 @@ module TestClassifier = struct
            (dlSrc 0xFFFFL, drop); (* redundant, but our optimizer sucks *)
            (all, drop)]
 
-(* Next test should have a wider tbl2 *)
-(* 3 cases for sequencing inPorts *)
-          
+  let test5 = 
+    "classifier composition test 3" >::
+      fun () ->
+        assert_equal ~printer:C.to_string 
+          (sequence
+             [(dlSrc 0xDDDDL, forward 1);
+              (all, drop)]
+             [(dlDst 0xEEEEL, forward 2);
+              (all, drop)])
+          [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), forward 2);
+           (dlSrc 0xDDDDL, drop); (* redundant *)
+           (all, drop)]
+
+  let test6 = 
+    "classifier sequencing test 4" >::
+      fun () ->
+        assert_equal ~printer:C.to_string 
+          (sequence
+             [(dlSrc 0xDDDDL, pass);
+              (all, drop)]
+             [(dlDst 0xEEEEL, forward 2);
+              (all, drop)])
+          [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), forward 2);
+           (dlSrc 0xDDDDL, drop); (* redundant *)
+           (all, drop)]
+
+
+  let test7 = 
+    "classifier sequencing test 5" >::
+      fun () ->
+        assert_equal ~printer:C.to_string 
+          (sequence
+             [(dlSrc 0xDDDDL, forward 2);
+              (all, drop)]
+             [(dlDst 0xEEEEL, pass);
+              (all, drop)])
+          [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), forward 2);
+           (dlSrc 0xDDDDL, drop); (* redundant *)
+           (all, drop)]
+
   let go =
-    TestList [test0; test1; test2; test3; test4]
+    TestList [test0; test1; test2; test3; test4; test5; test6; test7]
 
 end
 
