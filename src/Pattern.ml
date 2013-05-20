@@ -4,7 +4,6 @@ open OpenFlow0x01Types
 open Word
 
 type port = 
-| Here
 | Physical of portId
 | All
 | Bucket of int
@@ -14,7 +13,6 @@ let opt_portId = function
   | _ -> None
     
 let string_of_port = function
-  | Here -> "Here"
   | Physical pid -> "P" ^ (portId_to_string pid)
   | All -> "All"
   | Bucket n -> "B" ^ (string_of_int n)

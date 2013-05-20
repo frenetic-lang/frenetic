@@ -187,7 +187,7 @@ module TestMods = struct
       ; pktDlVlan = Some 1
       ; pktDlVlanPcp = pktDlVlanPcp
       ; pktNwHeader = pktNwHeader } in
-    let expected_val = Pkt ( sid, (Pattern.Here), expected_pkt, payload) in
+    let expected_val = Pkt ( sid, port, expected_pkt, payload) in
 
     (* Test the semantic interpretation. *)
     let _ = match classify ds_pol in_val with
