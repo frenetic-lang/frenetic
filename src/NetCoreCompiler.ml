@@ -1,7 +1,7 @@
 open Misc
 open List
 open Misc
-open NetCoreEval
+open Syntax.Internal
 open NetworkPacket
 open OpenFlow0x01Types
 open Word

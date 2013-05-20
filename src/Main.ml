@@ -2,7 +2,7 @@ open Lwt
 open Printf
 open Unix
 open NetCore
-open Syntax
+open Syntax.External
 
 module Controller = NetCore.Make(OpenFlow0x01.Platform)
 

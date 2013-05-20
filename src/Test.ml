@@ -1,4 +1,4 @@
-open Syntax
+open Syntax.External
 open OUnit
 
 module TestClassifier = struct
@@ -142,9 +142,9 @@ module TestMods = struct
   let get_pkt_handlers : (int, get_packet_handler) Hashtbl.t = 
     Hashtbl.create 200
 
-  let ds_pol = desugar genbucket genvlan policy get_pkt_handlers
+  let ds_pol = Syntax.desugar genbucket genvlan policy get_pkt_handlers
 
-  open NetCoreEval
+  open Syntax.Internal
   open NetworkPacket
 
   let test1 () =
@@ -158,7 +158,7 @@ module TestMods = struct
             ; pktDlVlanPcp = 0
             ; pktNwHeader = NwUnparsable (0x90, Cstruct.create 8)
             } 
-          , (Misc.Inl Int32.zero)
+          , (Buf Int32.zero)
           ) in
     let expected_pkt = 
       Pkt ( Int64.one
@@ -170,7 +170,7 @@ module TestMods = struct
             ; pktDlVlanPcp = 0
             ; pktNwHeader = NwUnparsable (0x90, Cstruct.create 8)
             }
-          , (Misc.Inl Int32.zero)
+          , (Buf Int32.zero)
           ) in
     let res = classify ds_pol in_pkt in
     match res with

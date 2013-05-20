@@ -3,16 +3,17 @@ open OpenFlow0x01.Types
 open Packet.Types
 open Printf
 open Syntax
+open External
 
 (* Internal policy type *)
-type pol = NetCoreEval.pol
+type pol = Internal.pol
 
 let (<&>) = Lwt.(<&>)
 
-let init_pol : pol = NetCoreEval.PoFilter NetCoreEval.PrNone
+let init_pol : pol = Internal.PoFilter Internal.PrNone
 
-let for_bucket (in_port : portId) (pkt : NetCoreEval.value) =
-  let open NetCoreEval in
+let for_bucket (in_port : portId) (pkt : Internal.value) =
+  let open Internal in
   match pkt with
   | Pkt (swId, Pattern.Bucket n, pkt, _) -> Some (n, swId, in_port, pkt)
   | _ -> None
@@ -42,12 +43,12 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     Lwt_stream.iter_s (configure_switch sw) pol_stream
       
   let handle_packet_in sw pkt_in = 
-    let open NetCoreEval in
+    let open Internal in
     match pkt_in.packetInBufferId with
       | None -> Lwt.return ()
       | Some bufferId ->
         let inp = Pkt (sw, Pattern.Physical pkt_in.packetInPort,
-                       pkt_in.packetInPacket, Misc.Inl bufferId ) in
+                       pkt_in.packetInPacket, Buf bufferId ) in
         let outs = classify !pol_now inp in
         let for_buckets = filter_map (for_bucket pkt_in.packetInPort) outs in
         List.iter apply_bucket for_buckets;
