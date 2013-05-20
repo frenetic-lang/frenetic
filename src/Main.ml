@@ -3,7 +3,7 @@ open Printf
 open Unix
 open Syntax.External
 
-module Controller = Controller.Make(OpenFlow0x01_Platform)
+module Controller = Controller.Make(Platform)
 
 (* configuration state *)
 let controller = ref ""
