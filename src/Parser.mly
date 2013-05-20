@@ -1,6 +1,6 @@
 %{
 
-  open Syntax
+ open Syntax.External
 
  let int12_of_int64 (n : Int64.t) : int =
    if Int64.compare n Int64.zero >= 0 && 
@@ -46,7 +46,7 @@
 
 %start program
 
-%type <Syntax.policy> program
+%type <Syntax.External.policy> program
 
 %%
 
