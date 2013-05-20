@@ -1,4 +1,4 @@
-open OpenFlow0x01Types
+open OpenFlow0x01.Types
 open NetworkPacket
 open Packet.Types
 open Misc

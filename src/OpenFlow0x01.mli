@@ -60,6 +60,8 @@ module Types : sig
     | DeleteStrictFlow
 
   type switchId = Word64.t
+
+  val string_of_switchId : switchId -> string
       
   type priority = Word16.t
       
@@ -101,7 +103,7 @@ module Types : sig
     mfApplyToPacket : bufferId option;
     mfOutPort : pseudoPort option; mfCheckOverlap : bool }
 
-  type packetInReason =
+  type reason =
     | NoMatch
     | ExplicitSend
 
@@ -109,7 +111,7 @@ module Types : sig
     packetInBufferId : bufferId option;
     packetInTotalLen : Word16.t; 
     packetInPort : portId;
-    packetInReason_ : packetInReason; 
+    packetInReason : reason; 
     packetInPacket :  packet }
 
   type xid = Word32.t
@@ -154,6 +156,7 @@ module Types : sig
                ; of_match : of_match
                ; duration_sec : int
                ; duration_msec : int
+
                ; priority : int
                ; idle_timeout : int
                ; hard_timeout : int
@@ -240,34 +243,7 @@ module Types : sig
 
 end
   (* Ugliness only needed for the bonkers unverified Coq controller *)
-  with type message = OpenFlow0x01Types.message
-  and type features = OpenFlow0x01Types.features
-  and type of_match = OpenFlow0x01Types.of_match
-  and type action = OpenFlow0x01Types.action
-  and type switchId = Int64.t
-
-
-module Parser : sig
-
-  module Header : sig
-
-    type t
-
-  end
-
-  module Message : sig
-
-    open Types
-
-    type t = message
-        
-    val parse : Header.t -> Cstruct.t -> (xid * t) option
-    val to_string : t -> string
-    val marshal : xid -> t -> string
-
-  end
-
-end
+  with type switchId = Int64.t
 
 (** Interface for all platforms. *)
 module type PLATFORM = sig
@@ -297,65 +273,6 @@ module type PLATFORM = sig
       OpenFlow handshake, and returns after the switch sends a
       [FEATURES_REPLY] message. *)
   val accept_switch : unit -> features Lwt.t 
-end
-
-module Platform : sig
-
-  (** An implementation of [PLATFORM]. The documentation for
-      [PLATFORM] describes its features. *)
-
-  open Lwt_unix
-  open Types
-    
-  include PLATFORM
-    
-  (** [init_with_port p] accepts connections from switches on port [p], which
-      is usually [6633]. *)
-  val init_with_port : int -> unit
-
-  (** [init_with_port fd] accepts connections from switches on [fd]. *)
-  val init_with_fd : file_descr -> unit
-
-  (** [shutdown] gracefully shuts down the server *) 
-  val shutdown : unit -> unit 
-
-end
-
-module TestPlatform : sig
-
-  (** An implementation of [PLATFORM] for testing purposes.  The
-      [Network] submodule enables basic network simulation. *)
-
-  open Types
-
-  include PLATFORM
-
-  module Network : sig
-  
-    (* [connect_switch] simulates the connection of a switch with ID [switchId]
-       to the controller, blocking until [accept_switch] accepts the 
-       connection.  No messages are sent or received. *)
-    val connect_switch : switchId -> unit Lwt.t
-
-    (* [disconnect_switch] simulates a switch with ID [switchId] disconnecting
-       from the controller. *)
-    val disconnect_switch : switchId -> unit Lwt.t
-
-    (* [send_to_controller] sends a message [message] to the controller with
-       transaction ID [xid] from switch [switchId].  The switch should have 
-       been connected with [connect_switch] first. *)
-    val send_to_controller : switchId -> xid -> message -> unit Lwt.t
-  
-    (* [recv_from_controller] blocks until switch [switchId] receives a message
-       [message] with transaction ID [xid] from the controller.  The switch 
-       should have been connected with [connect_switch] first. *)
-    val recv_from_controller : switchId -> (xid * message) Lwt.t
-  
-    (* [tear_down] disconnects any connected switches, discarding any pending
-       messages. *)
-    val tear_down : unit -> unit
-
-  end
 
 end
 

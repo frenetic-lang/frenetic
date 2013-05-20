@@ -1,10 +1,9 @@
 open Monad
 open NetworkPacket
-open OpenFlow0x01Types
+open OpenFlow0x01.Types
 open Word
 
 type port =
-  | Here
   | Physical of portId
   | All
   | Bucket of int

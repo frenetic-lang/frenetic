@@ -1,10 +1,9 @@
 open Lwt
 open Printf
 open Unix
-open NetCore
 open Syntax.External
 
-module Controller = NetCore.Make(OpenFlow0x01.Platform)
+module Controller = Controller.Make(OpenFlow0x01_Platform)
 
 let string_of_position p =
   let open Lexing in
@@ -41,7 +40,7 @@ let main () =
   let stream, push = Lwt_stream.create () in  
   push (Some !policy);
   (* JNF: kind of a hack that we have to call this function :-( *)
-  OpenFlow0x01.Platform.init_with_port 6633; 
+  OpenFlow0x01_Platform.init_with_port 6633; 
   Controller.start_controller stream  
       
 let _ =
