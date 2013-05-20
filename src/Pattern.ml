@@ -6,6 +6,7 @@ open Word
 type port = 
 | Here
 | Physical of portId
+| All
 | Bucket of int
     
 let opt_portId = function
@@ -15,10 +16,9 @@ let opt_portId = function
 let string_of_port = function
   | Here -> "Here"
   | Physical pid -> "P" ^ (portId_to_string pid)
+  | All -> "All"
   | Bucket n -> "B" ^ (string_of_int n)
 
-
-  
 type t = 
   { ptrnDlSrc : dlAddr Wildcard.coq_Wildcard;
     ptrnDlDst : dlAddr Wildcard.coq_Wildcard;

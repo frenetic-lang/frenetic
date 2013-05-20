@@ -4,9 +4,10 @@ open OpenFlow0x01Types
 open Word
 
 type port =
-| Here
-| Physical of portId
-| Bucket of int
+  | Here
+  | Physical of portId
+  | All
+  | Bucket of int
 
 val string_of_port : port -> string
 

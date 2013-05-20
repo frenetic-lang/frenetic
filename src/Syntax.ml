@@ -169,8 +169,7 @@ let desugar
     match act with
     | To pt -> 
       Classifier.Output.forward pt
-    | ToAll ->
-      failwith "NYI: ToAll"
+    | ToAll -> Classifier.Output.to_all
     | UpdateDlSrc(old,new0) -> 
       Classifier.Output.updateDlSrc old new0
     | UpdateDlDst(old,new0) -> 

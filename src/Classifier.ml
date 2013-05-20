@@ -156,6 +156,8 @@ module Output = struct
     
   let forward pt =
     [ { id with outPort = Pattern.Physical pt } ]
+
+  let to_all = [ { id with outPort = Pattern.All } ]
   
   let bucket n =
     [ { id with outPort = Pattern.Bucket n } ] 
@@ -344,6 +346,7 @@ module Output = struct
                     (unset out.outTpDst (fun x -> SetTpDst x) []))))))))
   
   let output_to_of inp out = match out.outPort with
+    | Pattern.All -> modify out @ (Output AllPorts) :: unmodify out
     | Pattern.Physical pt ->
       modify out @ 
         (( match inp with 

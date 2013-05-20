@@ -2,6 +2,7 @@ open Lwt
 open Printf
 open Unix
 open NetCore
+open Syntax
 
 module Controller = NetCore.Make(OpenFlow0x01.Platform)
 
@@ -22,8 +23,9 @@ let usage = "desmoines [options]"
 let () = Arg.parse arg_specs arg_rest usage
 
 let main () = 
-  let stream,_ = Lwt_stream.create() in  
+  let stream, push = Lwt_stream.create() in  
   (* JNF: kind of a hack that we have to call this function :-( *)
+  push (Some (Act ToAll));
   OpenFlow0x01.Platform.init_with_port 6633; 
   Controller.start_controller stream  
       

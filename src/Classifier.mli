@@ -35,6 +35,7 @@ module type ACTION =
 module Output : sig
   include ACTION
   val forward : portId -> t
+  val to_all : t
   val updateDlSrc : Int64.t -> Int64.t -> t
   val updateDlDst : Int64.t -> Int64.t -> t
   val updateDlVlan : int option -> int option -> t
