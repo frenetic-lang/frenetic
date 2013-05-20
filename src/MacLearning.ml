@@ -1,8 +1,7 @@
 open Printf
-open OpenFlow0x01Types
-open Packet.Types
-open NetCore
-open NetCore.Syntax
+open OpenFlow0x01.Types
+open Packet
+open Syntax.External
 open Word
 open Misc
 
@@ -54,7 +53,11 @@ module Learning = struct
     push (Some (make_learning_policy ()))
   
   (** The initial value of the policy is to receives packets from all hosts. *)
-  let _ = push (Some (Seq (Filter All, Act (GetPacket learn_host))))
+
+  let init = 
+    Seq (Filter All, Act (GetPacket learn_host))
+
+  let _ = push (Some init)
 
 end 
 
@@ -85,3 +88,5 @@ module Routing = struct
     Par (learning_pol, make_routing_policy ()))
     Learning.policy
 end
+
+

@@ -130,12 +130,12 @@ module Test1 = struct
 
 end
 
-module SampleTestInput = struct
+module Helper = struct
 
   module C = Classifier.Make (Action.Output)
   open Syntax
   open Syntax.Internal
-  open NetworkPacket
+  open Packet
 
   let desugar_policy pol =
     let bucket_cell = ref 0 in
@@ -173,7 +173,7 @@ module SampleTestInput = struct
       expected_vals vals;
 
     (* Test the classifier interpretation. *)
-    let classifier = NetCoreCompiler.compile_pol ds_pol in_sid in
+    let classifier = Compiler.compile_pol ds_pol in_sid in
     let act = C.scan classifier in_port in_pkt in
     let pkts = Action.Output.apply_action act (in_port, in_pkt) in
     assert_equal
@@ -186,8 +186,7 @@ end
 module TestFilters = struct
 
   open Syntax.Internal
-  open NetworkPacket
-  open SampleTestInput
+  open Helper
 
   let test1 =
     let policy = Filter All in
@@ -204,8 +203,8 @@ end
 module TestMods = struct
 
   open Syntax.Internal
-  open NetworkPacket
-  open SampleTestInput
+  open Packet
+  open Helper
 
   let test1 =
     let policy = Act (UpdateDlVlan (None, Some 1)) in
@@ -249,8 +248,8 @@ end
 module TestSlices = struct
 
   open Syntax.Internal
-  open NetworkPacket
-  open SampleTestInput
+  open Packet
+  open Helper
 
   let test1 =
     let policy = Slice (All, Act ToAll, All) in

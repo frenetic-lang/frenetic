@@ -2,7 +2,7 @@ open Misc
 open List
 open Misc
 open Syntax.Internal
-open NetworkPacket
+open Packet
 open OpenFlow0x01.Types
 open Word
 

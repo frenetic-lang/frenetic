@@ -1,4 +1,4 @@
-open NetworkPacket
+open Packet
 open Word
 
 module Types = struct

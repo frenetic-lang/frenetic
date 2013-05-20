@@ -1,5 +1,5 @@
 open Action
-open NetworkPacket
+open Packet
 open OpenFlow0x01.Types
 open Pattern
 

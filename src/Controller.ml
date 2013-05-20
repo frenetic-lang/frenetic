@@ -1,6 +1,6 @@
 open Misc
 open OpenFlow0x01.Types
-open Packet.Types
+open Packet
 open Printf
 open Syntax
 open External
@@ -37,7 +37,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
   let pol_now : pol ref = ref init_pol
 
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
-    let flow_table = NetCoreCompiler.flow_table_of_policy sw pol in
+    let flow_table = Compiler.flow_table_of_policy sw pol in
     Platform.send_to_switch sw 0l delete_all_flows >>
     Lwt_list.iter_s
       (fun (match_, actions) ->
