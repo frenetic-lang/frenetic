@@ -288,23 +288,28 @@ let all =
     | WildcardNone -> "None"
 
   let to_string pat = 
-    let reflections = 
-      [ ("DlSrc", wildcard_to_string dlAddr_to_string pat.ptrnDlSrc)
-      ; ("DlDst", wildcard_to_string dlAddr_to_string pat.ptrnDlDst)
-      ; ("DlType", wildcard_to_string dlTyp_to_string pat.ptrnDlType)
-      ; ("DlVlan", wildcard_to_string dlVlan_to_string pat.ptrnDlVlan)
-      ; ("DlVlanPcp", wildcard_to_string dlVlanPcp_to_string pat.ptrnDlVlanPcp)
-      ; ("NwSrc", wildcard_to_string nwAddr_to_string pat.ptrnNwSrc)
-      ; ("NwDst", wildcard_to_string nwAddr_to_string pat.ptrnNwDst)
-      ; ("NwProto", wildcard_to_string nwProto_to_string pat.ptrnNwProto)
-      ; ("NwTos", wildcard_to_string nwTos_to_string pat.ptrnNwTos)
-      ; ("TpSrc", wildcard_to_string tpPort_to_string pat.ptrnTpSrc)
-      ; ("TpDst", wildcard_to_string tpPort_to_string pat.ptrnTpDst)
-      ; ("InPort", wildcard_to_string string_of_port pat.ptrnInPort)
-      ] in
-    let non_top = List.filter (fun (field, wild) -> wild <> "*") reflections in
-    let rvs = List.map (fun (f,v) -> Printf.sprintf "%s %s" f v) non_top in
-    if List.length rvs > 0 then 
-      "{" ^ (String.concat ", " rvs) ^ "}"
-    else 
-      "{*}"
+    if is_empty pat then
+      "<empty>"
+    else
+      let reflections = 
+        [ ("DlSrc", wildcard_to_string dlAddr_to_string pat.ptrnDlSrc)
+        ; ("DlDst", wildcard_to_string dlAddr_to_string pat.ptrnDlDst)
+        ; ("DlType", wildcard_to_string dlTyp_to_string pat.ptrnDlType)
+        ; ("DlVlan", wildcard_to_string dlVlan_to_string pat.ptrnDlVlan)
+        ; ("DlVlanPcp",
+           wildcard_to_string dlVlanPcp_to_string pat.ptrnDlVlanPcp)
+        ; ("NwSrc", wildcard_to_string nwAddr_to_string pat.ptrnNwSrc)
+        ; ("NwDst", wildcard_to_string nwAddr_to_string pat.ptrnNwDst)
+        ; ("NwProto", wildcard_to_string nwProto_to_string pat.ptrnNwProto)
+        ; ("NwTos", wildcard_to_string nwTos_to_string pat.ptrnNwTos)
+        ; ("TpSrc", wildcard_to_string tpPort_to_string pat.ptrnTpSrc)
+        ; ("TpDst", wildcard_to_string tpPort_to_string pat.ptrnTpDst)
+        ; ("InPort", wildcard_to_string string_of_port pat.ptrnInPort)
+        ] in
+      let non_top =
+        List.filter (fun (field, wild) -> wild <> "*") reflections in
+      let rvs = List.map (fun (f,v) -> Printf.sprintf "%s %s" f v) non_top in
+      if List.length rvs > 0 then 
+        "{" ^ (String.concat ", " rvs) ^ "}"
+      else 
+        "{*}"

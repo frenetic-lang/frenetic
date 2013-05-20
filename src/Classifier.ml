@@ -283,10 +283,13 @@ module Output = struct
   | None -> Pattern.all
   
   let restrict_port port1 pat2 = 
-    if Pattern.is_empty (Pattern.inter (Pattern.inPort port1) pat2) then
-      Pattern.empty
-    else
-      Pattern.wildcardPort pat2
+    match port1 with
+      | Here -> pat2
+      | _ ->
+        if Pattern.is_empty (Pattern.inter (Pattern.inPort port1) pat2) then
+          Pattern.empty
+        else
+          Pattern.wildcardPort pat2
 
   let restrict_range out pat =
     restrict_port out.outPort
@@ -447,8 +450,11 @@ module Make : MAKE =
   let rec pick p1 atom = function
   | [] -> []
   | (p2,a) :: tbl2' ->
-    Format.printf "doing %s %s %s\n%!"
+    Format.printf
+      "doing:\n p1=%s, p2=%s\n atom=%s\n domain=%s\n restrict_range=%s\n%!"
       (Pattern.to_string p1)
+      (Pattern.to_string p2)
+      (Action.to_string (Action.to_action atom))
       (Pattern.to_string (Action.domain atom))
       (Pattern.to_string (Action.restrict_range atom p2));
     (Pattern.inter

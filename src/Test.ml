@@ -46,8 +46,26 @@ module TestClassifier = struct
             forward 2);
            (Pattern.all, drop)]
 
+  let test4 = 
+    "classifier composition test 2" >::
+      fun () ->
+        assert_equal ~printer:C.to_string 
+          (sequence
+             [(dlSrc 0xFFFFL, pass);
+              (all, drop)]
+             [(inPort (Physical 10), forward 20);
+              (inPort (Physical 300), forward 400);
+              (all, drop)])
+          [(inter (dlSrc 0xFFFFL) (inPort (Physical 10)), forward 20);
+           (inter (dlSrc 0xFFFFL) (inPort (Physical 300)), forward 400);
+           (dlSrc 0xFFFFL, drop); (* redundant, but our optimizer sucks *)
+           (all, drop)]
+
+(* Next test should have a wider tbl2 *)
+(* 3 cases for sequencing inPorts *)
+          
   let go =
-    TestList [test0; test1; test2; test3]
+    TestList [test0; test1; test2; test3; test4]
 
 end
 
