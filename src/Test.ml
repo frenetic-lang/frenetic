@@ -3,15 +3,15 @@ open OUnit
 
 module TestClassifier = struct
     
-  module C = Classifier.Make (Classifier.Output)
+  module C = Classifier.Make (Action.Output)
   open C
-  open Classifier.Output
+  open Action.Output
   open Pattern
 
   let test0 =
     "action sequence test" >::
       fun () -> 
-        assert_equal ~printer:Classifier.Output.to_string
+        assert_equal ~printer:Action.Output.to_string
           (forward 5)
           (seq_action (forward 3) (forward 5))
 
