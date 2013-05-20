@@ -21,7 +21,7 @@ doc:
 	$(OCAMLBUILD) doc.docdir/index.html
 
 clean:
-	rm -rf _build
+	rm -rf _build *.d.byte *.native
 
 library: 
 	$(OCAMLBUILD) library.otarget
