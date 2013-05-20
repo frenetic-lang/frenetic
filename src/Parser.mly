@@ -22,6 +22,7 @@
 %token RPAREN
 %token NOT
 %token ALL
+%token STAR
 %token NONE
 %token EQUALS
 %token SWITCH
@@ -54,7 +55,7 @@ pred_atom :
   | LPAREN pred RPAREN { $2 }
   (* TODO(arjun): Support infix NOT too *)
   | NOT pred_atom { Not $2 } (* Most useful for writing "!( ... )" *)
-  | ALL { All }
+  | STAR { All }
   | NONE { NoPackets }
   | SWITCH EQUALS INT64 { Switch $3 }
   (* ARJUN: I do not want the lexer to distinguish integers of different sizes.
@@ -101,9 +102,9 @@ pol_par_list :
   | pol_pred BAR pol_par_list { Par ($1, $3) }
 
 pol :
-  | pol_atom { $1 }
-  | pol_atom BAR pol_par_list { Par ($1,$3) }
-  | pol_atom SEMI pol_seq_list { Seq ($1,$3) }
+  | pol_pred { $1 }
+  | pol_pred BAR pol_par_list { Par ($1,$3) }
+  | pol_pred SEMI pol_seq_list { Seq ($1,$3) }
 
 
 program

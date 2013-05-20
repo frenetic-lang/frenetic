@@ -10,7 +10,7 @@
 let blank = [ ' ' '\t'  ]
 
 let decimal = ['0'-'9']+
-let hex = ['0'-'9' 'a'-'f' 'A'-'F']+
+let hex = "0x" ['0'-'9' 'a'-'f' 'A'-'F']+
 let byte = ['0'-'9' 'a'-'f' 'A'-'F']  ['0'-'9' 'a'-'f' 'A'-'F']
 let decbyte = ['0'-'9'] ['0'-'9'] ['0'-'9']
 
@@ -23,7 +23,8 @@ rule token = parse
   | "(" { LPAREN }
   | ")" { RPAREN }
   | "!" { NOT }
-  | "*" { ALL }
+  | "*" { STAR }
+  | "all" { ALL }
   | "<none>" { NONE }
   | "=" { EQUALS }
   | "switch" { SWITCH }
