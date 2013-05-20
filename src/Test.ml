@@ -2,7 +2,7 @@ open Syntax.External
 open OUnit
 
 module TestClassifier = struct
-    
+
   module C = Classifier.Make (Action.Output)
   open C
   open Action.Output
@@ -10,19 +10,19 @@ module TestClassifier = struct
 
   let test0 =
     "action sequence test" >::
-      fun () -> 
+      fun () ->
         assert_equal ~printer:Action.Output.to_string
           (forward 5)
           (seq_action (forward 3) (forward 5))
 
   let test1 =
-    "forward action domain should be Pattern.all" >:: 
+    "forward action domain should be Pattern.all" >::
       fun () ->
         assert_equal ~printer:Pattern.to_string
           (domain (List.hd (atoms (forward 1)))) Pattern.all
 
   let test2 =
-    "pattern restriction test" >:: 
+    "pattern restriction test" >::
       fun () ->
         assert_equal ~printer:Pattern.to_string
           (restrict_range
@@ -30,26 +30,26 @@ module TestClassifier = struct
              (Pattern.inPort (Physical 1)))
           Pattern.all
 
-  let test3 = 
+  let test3 =
     "classifier composition test 1" >::
       fun () ->
-        let tbl1 = 
-          [(Pattern.inter (dlDst 0xdeadbeefL) (inPort (Physical 5)), 
+        let tbl1 =
+          [(Pattern.inter (dlDst 0xdeadbeefL) (inPort (Physical 5)),
             forward 1);
            (Pattern.all, drop)] in
-        let tbl2 = 
+        let tbl2 =
           [(inPort (Physical 1), forward 2);
            (Pattern.all, drop)] in
-        assert_equal ~printer:C.to_string 
+        assert_equal ~printer:C.to_string
           (sequence tbl1 tbl2)
-          [(Pattern.inter (dlDst 0xdeadbeefL) (inPort (Physical 5)), 
+          [(Pattern.inter (dlDst 0xdeadbeefL) (inPort (Physical 5)),
             forward 2);
            (Pattern.all, drop)]
 
-  let test4 = 
+  let test4 =
     "classifier composition test 2" >::
       fun () ->
-        assert_equal ~printer:C.to_string 
+        assert_equal ~printer:C.to_string
           (sequence
              [(dlSrc 0xFFFFL, pass);
               (all, drop)]
@@ -61,10 +61,10 @@ module TestClassifier = struct
            (dlSrc 0xFFFFL, drop); (* redundant, but our optimizer sucks *)
            (all, drop)]
 
-  let test5 = 
+  let test5 =
     "classifier composition test 3" >::
       fun () ->
-        assert_equal ~printer:C.to_string 
+        assert_equal ~printer:C.to_string
           (sequence
              [(dlSrc 0xDDDDL, forward 1);
               (all, drop)]
@@ -74,10 +74,10 @@ module TestClassifier = struct
            (dlSrc 0xDDDDL, drop); (* redundant *)
            (all, drop)]
 
-  let test6 = 
+  let test6 =
     "classifier sequencing test 4" >::
       fun () ->
-        assert_equal ~printer:C.to_string 
+        assert_equal ~printer:C.to_string
           (sequence
              [(dlSrc 0xDDDDL, pass);
               (all, drop)]
@@ -88,10 +88,10 @@ module TestClassifier = struct
            (all, drop)]
 
 
-  let test7 = 
+  let test7 =
     "classifier sequencing test 5" >::
       fun () ->
-        assert_equal ~printer:C.to_string 
+        assert_equal ~printer:C.to_string
           (sequence
              [(dlSrc 0xDDDDL, forward 2);
               (all, drop)]
@@ -107,69 +107,107 @@ module TestClassifier = struct
 end
 
 module Test1 = struct
-    
+
   module Network = TestPlatform.Network
   module Controller = Controller.Make (TestPlatform)
 
-  let network_script = 
+  let network_script =
     Network.connect_switch 100L >>
     lwt msg = Network.recv_from_controller 100L in
     Lwt.return ()
 
-  let controller_script = 
+  let controller_script =
     Controller.start_controller (Lwt_stream.of_list [Act (To 0)])
 
   let body = Lwt.pick [controller_script; network_script]
 
-  let go = 
+  let go =
     "repeater test" >::
-      (bracket 
+      (bracket
          (fun () -> ())
          (fun () -> Lwt_main.run body)
          (fun () -> Network.tear_down ()))
 
-end 
+end
 
-module SampleTestInput = struct
+module Helper = struct
 
+  module C = Classifier.Make (Action.Output)
   open Syntax
   open Syntax.Internal
   open Packet
 
-  let desugar_policy pol = 
+  let desugar_policy pol =
     let bucket_cell = ref 0 in
     let vlan_cell = ref 0 in
     let genbucket () = incr bucket_cell; !bucket_cell in
     let genvlan () = incr vlan_cell; Some !vlan_cell in
-    let get_pkt_handlers : (int, get_packet_handler) Hashtbl.t = 
+    let get_pkt_handlers : (int, get_packet_handler) Hashtbl.t =
       Hashtbl.create 200 in
     desugar genbucket genvlan pol get_pkt_handlers
 
-  let in_pkt = 
+  let in_pkt =
     { pktDlSrc = Int64.zero
     ; pktDlDst = Int64.zero
     ; pktDlTyp = 0x90
     ; pktDlVlan = None
     ; pktDlVlanPcp = 0
     ; pktNwHeader = NwUnparsable (0x90, Cstruct.create 8) }
-  let in_val = 
+
+  let in_val =
     Pkt ( Int64.one
-        , (Pattern.Physical 1) 
+        , (Pattern.Physical 1)
         , in_pkt
         , (Buf Int32.zero))
+
+  let mkEvalTest pol in_val expected_vals = fun () ->
+    let ds_pol = desugar_policy pol in
+    let Pkt (in_sid, in_port, _, _) = in_val in
+    let expected_pkts =
+      List.map (fun (Pkt (_, pr, p, _)) -> (pr, p)) expected_vals in
+
+    (* Test the semantic interpretation. *)
+    let vals = classify ds_pol in_val in
+    assert_equal
+      ~printer:(Misc.string_of_list value_to_string)
+      expected_vals vals;
+
+    (* Test the classifier interpretation. *)
+    let classifier = Compiler.compile_pol ds_pol in_sid in
+    let act = C.scan classifier in_port in_pkt in
+    let pkts = Action.Output.apply_action act (in_port, in_pkt) in
+    assert_equal
+      ~printer:(Misc.string_of_list
+        (Misc.string_of_pair Pattern.string_of_port packet_to_string))
+      expected_pkts pkts
+
+end
+
+module TestFilters = struct
+
+  open Syntax.Internal
+  open Helper
+
+  let test1 =
+    let policy = Filter All in
+    "filter true test" >:: mkEvalTest policy in_val [in_val]
+
+  let test2 =
+    let policy = Filter NoPackets in
+    "filter true test" >:: mkEvalTest policy in_val []
+
+  let go = TestList [ test1; test2 ]
 
 end
 
 module TestMods = struct
 
-  module C = Classifier.Make (Action.Output)
   open Syntax.Internal
   open Packet
-  open SampleTestInput
+  open Helper
 
-  let test1 = "mod vlan test" >:: fun () ->
+  let test1 =
     let policy = Act (UpdateDlVlan (None, Some 1)) in
-    let ds_pol = desugar_policy policy in
     let Pkt ( sid
             , port
             , { pktDlSrc = pktDlSrc
@@ -179,7 +217,7 @@ module TestMods = struct
               ; pktDlVlanPcp = pktDlVlanPcp
               ; pktNwHeader = pktNwHeader }
             , payload ) = in_val in
-    let expected_pkt = 
+    let expected_pkt =
       { pktDlSrc = pktDlSrc
       ; pktDlDst = pktDlDst
       ; pktDlTyp = pktDlTyp
@@ -187,38 +225,34 @@ module TestMods = struct
       ; pktDlVlanPcp = pktDlVlanPcp
       ; pktNwHeader = pktNwHeader } in
     let expected_val = Pkt ( sid, port, expected_pkt, payload) in
+    "mod vlan test" >:: mkEvalTest policy in_val [expected_val]
 
-    (* Test the semantic interpretation. *)
-    let _ = match classify ds_pol in_val with
-    | [] -> assert_failure "semantic interpretation dropped packet"
-    | out_val::vals-> 
-      assert_equal ~printer:value_to_string expected_val out_val;
-      assert_equal vals [] in
+  let test2 =
+    let policy = Seq ( Act (UpdateDlVlan (None, (Some 1)))
+                     , Act (UpdateDlVlan ((Some 1), None))) in
+    "mod no effect test" >:: mkEvalTest policy in_val [in_val]
 
-    (* Test the classifier interpretation. *)
-    let classifier = Compiler.compile_pol ds_pol sid in
-    let act = C.scan classifier port in_pkt in
-    match Action.Output.apply_action act (port, in_pkt) with
-    | [] -> assert_failure "classifier scan dropped packet"
-    | (port', pkt')::pkts ->
-      assert_equal ~printer:Packet.packet_to_string 
-        expected_pkt pkt';
-      assert_equal pkts []
+  let test3 =
+    let policy =
+      Seq ( Act (UpdateDlVlan (None, (Some 1)))
+          , Seq ( Act ToAll
+                , Act (UpdateDlVlan ((Some 1), None)))) in
+    let Pkt (sid, port, pkt, payload) = in_val in
+    let expected_vals = [Pkt (sid, Pattern.All, pkt, payload)] in
+    "mod no effect test" >:: mkEvalTest policy in_val expected_vals
 
-  let go = TestList [ test1 ]
+  let go = TestList [ test1; test2; test3 ]
 
 end
 
 module TestSlices = struct
 
-  module C = Classifier.Make (Action.Output)
   open Syntax.Internal
   open Packet
-  open SampleTestInput
+  open Helper
 
-  let test1 = "slice repeater test" >:: fun () ->
+  let test1 =
     let policy = Slice (All, Act ToAll, All) in
-    let ds_pol = desugar_policy policy in
     let Pkt ( sid
             , port
             , { pktDlSrc = pktDlSrc
@@ -228,7 +262,7 @@ module TestSlices = struct
               ; pktDlVlanPcp = pktDlVlanPcp
               ; pktNwHeader = pktNwHeader }
             , payload ) = in_val in
-    let expected_pkt = 
+    let expected_pkt =
       { pktDlSrc = pktDlSrc
       ; pktDlDst = pktDlDst
       ; pktDlTyp = pktDlTyp
@@ -236,24 +270,7 @@ module TestSlices = struct
       ; pktDlVlanPcp = pktDlVlanPcp
       ; pktNwHeader = pktNwHeader } in
     let expected_val = Pkt ( sid, (Pattern.All), expected_pkt, payload) in
-
-    (* Test the semantic interpretation. *)
-    let _ = match classify ds_pol in_val with
-    | [] -> assert_failure "semantic interpretation dropped packet"
-    | out_val::vals-> 
-      assert_equal ~printer:value_to_string expected_val out_val;
-      assert_equal vals [] in
-
-    (* Test the classifier interpretation. *)
-    let classifier = Compiler.compile_pol ds_pol sid in
-    let act = C.scan classifier port in_pkt in
-    match Action.Output.apply_action act (port, in_pkt) with
-    | [] -> assert_failure "classifier scan dropped packet"
-    | (port', pkt')::pkts ->
-      assert_equal ~printer:Packet.packet_to_string 
-        expected_pkt pkt';
-      assert_equal pkts []
-
+    "slice repeater test" >:: mkEvalTest policy in_val [expected_val]
 
   let go = TestList [ test1 ]
 
@@ -261,7 +278,8 @@ end
 
 
 let tests =
-  TestList [ Test1.go 
+  TestList [ Test1.go
+           ; TestFilters.go
            ; TestMods.go
            ; TestSlices.go
            ; TestClassifier.go
@@ -281,10 +299,10 @@ module Test2 = struct
   let pol1 = PoUnion (PoAtom (PrAll, [Forward (unmodified, PhysicalPort pt1)]),
                       PoAtom (PrAll, [Forward (unmodified, PhysicalPort pt2)]))
 
-  let go = 
+  let go =
     TestList [ (*
 "optimizer test" >::
-    (fun () -> 
+    (fun () ->
       let ft = compile_opt pol1 0L in
       Printf.Misc.Log.printf "length is %d\n" (List.length ft);
       assert_equal (List.length ft) 2)
@@ -309,8 +327,8 @@ module Test3 = struct
       (fun () ->
         let k = 0x1234567890abL in
         assert_equal (mac_of_bytes (bytes_of_mac k)) k)
-    
-  let go = 
+
+  let go =
     TestList [test0; test1; test2]
 
 
@@ -391,7 +409,7 @@ module Test4 = struct
     close_out oc;
     ()
 
-  let go = 
+  let go =
     "serialize test" >::
       (fun () -> test_script())
 end
@@ -408,7 +426,7 @@ module Test5 = struct
     let msg5 = Message.parse buf in
     ()
 
-  let go = 
+  let go =
     "parse test" >::
       (fun () -> test_script())
 end
@@ -416,25 +434,25 @@ end
 module PacketParser = struct
   open PacketParser
   open Packet
-  let eth1 : packet = 
+  let eth1 : packet =
     { pktDlSrc = Util.mac_of_bytes "ABCDEF";
       pktDlDst = Util.mac_of_bytes "123456";
-      pktDlTyp = 0x0042; 
+      pktDlTyp = 0x0042;
       pktDlVlan = 0x7;
       pktDlVlanPcp = 0;
       pktNwHeader = NwUnparsable (0x0042, Cstruct.of_string "XYZ") }
-    
+
   let f eth = assert_equal (Some eth) (parse_packet (serialize_packet eth))
 
   let test1 = "Ethernet parser test" >:: (fun () -> f eth1)
-  
+
   let go = TestList [test1]
 
-end 
+end
 
-let _ = run_test_tt_main 
+let _ = run_test_tt_main
   (TestList [ OpenFlow0x04SizeTest.go;
-              Test1.go; 
+              Test1.go;
               Test2.go;
               Test3.go;
               Test4.go;

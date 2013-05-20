@@ -1,4 +1,4 @@
-type ('a,'b) sum = 
+type ('a,'b) sum =
   | Inl of 'a
   | Inr of 'b
 
@@ -25,13 +25,13 @@ module Lwt_channel : sig
   val create : unit -> 'a t
 
   val send : 'a -> 'a t -> unit Lwt.t
-    
+
   val recv : 'a t -> 'a Lwt.t
-    
+
   val to_stream : 'a t -> 'a Lwt_stream.t
 
 end
-  
+
 
 val test_bit : int -> Int32.t -> bool
 val clear_bit : int -> Int32.t -> Int32.t
@@ -46,8 +46,9 @@ val filter_map : ('a -> 'b option) -> 'a list -> 'b list
 val concat_map : ('a -> 'b list) -> 'a list -> 'b list
 val intersperse : 'a -> 'a list -> 'a list
 
-val string_of_pair : ('a -> string) -> ('a * 'a) -> string
+val string_of_list : ('a -> string) -> 'a list -> string
 val string_of_option : ('a -> string) -> 'a option -> string
+val string_of_pair : ('a -> string) -> ('b -> string) -> ('a * 'b) -> string
 
 val is_some : 'a option -> bool
 val is_none : 'a option -> bool
