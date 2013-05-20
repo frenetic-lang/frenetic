@@ -1,6 +1,5 @@
 open OpenFlow0x01.Types
-open NetworkPacket
-open Packet.Types
+open Packet
 open Misc
 open List
 open Word
@@ -181,7 +180,7 @@ module External = struct
     | UpdateDlDst(old,new0) -> 
       Printf.sprintf "UpdateDlSrc(%Ld,%Ld)" old new0
     | UpdateDlVlan(old,new0) -> 
-      Printf.sprintf "UpdateDlSrc %s" (string_of_pair NetworkPacket.dlVlan_to_string (old, new0))
+      Printf.sprintf "UpdateDlSrc %s" (string_of_pair Packet.dlVlan_to_string (old, new0))
     | GetPacket _ -> 
       Printf.sprintf "GetPacket <fun>"
         

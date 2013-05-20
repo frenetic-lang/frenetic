@@ -1,6 +1,5 @@
 open OpenFlow0x01.Types
-open NetworkPacket
-open Packet.Types
+open Packet
 open Misc
 open List
 open Word

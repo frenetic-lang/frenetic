@@ -1,4 +1,4 @@
-open NetworkPacket
+open Packet
 open Misc
 
 (* Data Link *)

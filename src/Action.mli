@@ -1,5 +1,5 @@
 open OpenFlow0x01.Types 
-open NetworkPacket
+open Packet
 open Pattern
 
 module type ACTION = 

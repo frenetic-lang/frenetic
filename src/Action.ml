@@ -1,5 +1,5 @@
 open Misc
-open NetworkPacket
+open Packet
 open OpenFlow0x01.Types
 
 module type ACTION = sig
@@ -62,7 +62,7 @@ module Output = struct
   open Word
   open Misc
   open List
-  open NetworkPacket
+  open Packet
   open OpenFlow0x01.Types
   open Pattern
   open Misc
@@ -233,15 +233,15 @@ module Output = struct
       | Some pt' -> pt'
       | None -> pt in
     Some (pt',
-         (maybe_modify out.outDlSrc NetworkPacket.setDlSrc
-         (maybe_modify out.outDlDst NetworkPacket.setDlDst
-         (maybe_modify out.outDlVlan NetworkPacket.setDlVlan
-         (maybe_modify out.outDlVlanPcp NetworkPacket.setDlVlanPcp
-         (maybe_modify out.outNwSrc NetworkPacket.setNwSrc
-         (maybe_modify out.outNwDst NetworkPacket.setNwDst
-         (maybe_modify out.outNwTos NetworkPacket.setNwTos
-         (maybe_modify out.outTpSrc NetworkPacket.setTpSrc
-         (maybe_modify out.outTpDst NetworkPacket.setTpDst pkt))))))))))
+         (maybe_modify out.outDlSrc Packet.setDlSrc
+         (maybe_modify out.outDlDst Packet.setDlDst
+         (maybe_modify out.outDlVlan Packet.setDlVlan
+         (maybe_modify out.outDlVlanPcp Packet.setDlVlanPcp
+         (maybe_modify out.outNwSrc Packet.setNwSrc
+         (maybe_modify out.outNwDst Packet.setNwDst
+         (maybe_modify out.outNwTos Packet.setNwTos
+         (maybe_modify out.outTpSrc Packet.setTpSrc
+         (maybe_modify out.outTpDst Packet.setTpDst pkt))))))))))
 
   let trans x f pat = match x with
   | Some (a,nw) -> f nw pat

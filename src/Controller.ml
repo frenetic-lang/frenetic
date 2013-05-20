@@ -1,6 +1,6 @@
 open Misc
 open OpenFlow0x01.Types
-open Packet.Types
+open Packet
 open Printf
 open Syntax
 open External
