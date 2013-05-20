@@ -1,8 +1,7 @@
 open Printf
-open OpenFlow0x01Types
-open Packet.Types
-open NetCore
-open NetCore.Syntax
+open OpenFlow0x01.Types
+open Packet
+open Syntax.External
 open Word
 open Misc
 

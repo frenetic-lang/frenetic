@@ -3,6 +3,8 @@ open Printf
 open Unix
 open Syntax.External
 
+module M = MacLearning
+
 module Controller = Controller.Make(Platform)
 
 let string_of_position p =
