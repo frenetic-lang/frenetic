@@ -134,7 +134,7 @@ module SampleTestInput = struct
 
   open Syntax
   open Syntax.Internal
-  open NetworkPacket
+  open Packet
 
   let desugar_policy pol = 
     let bucket_cell = ref 0 in
@@ -164,7 +164,7 @@ module TestMods = struct
 
   module C = Classifier.Make (Action.Output)
   open Syntax.Internal
-  open NetworkPacket
+  open Packet
   open SampleTestInput
 
   let test1 = "mod vlan test" >:: fun () ->
@@ -201,7 +201,7 @@ module TestMods = struct
     match Action.Output.apply_action act (port, in_pkt) with
     | [] -> assert_failure "classifier scan dropped packet"
     | (port', pkt')::pkts ->
-      assert_equal ~printer:NetworkPacket.packet_to_string 
+      assert_equal ~printer:Packet.packet_to_string 
         expected_pkt pkt';
       assert_equal pkts []
 
@@ -213,7 +213,7 @@ module TestSlices = struct
 
   module C = Classifier.Make (Action.Output)
   open Syntax.Internal
-  open NetworkPacket
+  open Packet
   open SampleTestInput
 
   let test1 = "slice repeater test" >:: fun () ->
@@ -250,7 +250,7 @@ module TestSlices = struct
     match Action.Output.apply_action act (port, in_pkt) with
     | [] -> assert_failure "classifier scan dropped packet"
     | (port', pkt')::pkts ->
-      assert_equal ~printer:NetworkPacket.packet_to_string 
+      assert_equal ~printer:Packet.packet_to_string 
         expected_pkt pkt';
       assert_equal pkts []
 
