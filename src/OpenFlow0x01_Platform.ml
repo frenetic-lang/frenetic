@@ -7,7 +7,7 @@
     It is possible and instructive to build a controller directly atop
     [PLATFORM]. But, see [NetCore] for a higher-level abstraction.
 *)
-open OpenFlow0x01Types
+open OpenFlow0x01.Types
 open OpenFlow0x01_Parser
 open Misc
 
