@@ -164,7 +164,7 @@ module Helper = struct
     let ds_pol = desugar_policy pol in
 
     if dbg then
-      Misc.Log.printf "%s\n" (pol_to_string ds_pol)
+      Misc.Log.printf "Internal policy:\n%s\n" (pol_to_string ds_pol)
     else
       ();
 
@@ -182,6 +182,12 @@ module Helper = struct
 
     (* Test the classifier interpretation. *)
     let classifier = Compiler.compile_pol ds_pol in_sid in
+
+    if dbg then
+      Misc.Log.printf "Classifier:\n%s\n" (C.to_string classifier)
+    else
+      ();
+
     let act = C.scan classifier in_port in_pkt in
     let pkts = Action.Output.apply_action act (in_port, in_pkt) in
     let classifier_test =
@@ -273,7 +279,7 @@ module TestMods = struct
       ; pktDlVlanPcp = pktDlVlanPcp
       ; pktNwHeader = pktNwHeader } in
     let expected_vals = [Pkt ( sid, port, expected_pkt, payload)] in
-    mkEvalTest "seq mod filter" policy in_val expected_vals
+    mkEvalTest "seq mod filter" ~debug:true policy in_val expected_vals
 
   let test5 = 
     let policy =
