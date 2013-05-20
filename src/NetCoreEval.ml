@@ -14,7 +14,7 @@ type pred =
 | PrNone
 
 type pol =
-| PoAction of Action.Output.t
+| PoAction of Classifier.Output.t
 | PoFilter of pred
 | PoUnion of pol * pol
 | PoSeq of pol * pol
@@ -38,7 +38,7 @@ let serialize_pkt = Packet_Parser.serialize_packet
 let eval_action inp act =
   let Pkt (sw, pt, pk, buf) = inp in
   map (fun ptpk -> let (pt', pk') = ptpk in Pkt (sw, pt', pk', buf))
-    (Action.Output.apply_action act (pt, pk))
+    (Classifier.Output.apply_action act (pt, pk))
 
 let rec classify p inp =
   match p with
@@ -62,7 +62,7 @@ let rec pred_to_string pred =
 let rec pol_to_string pol =
   let wrap s = "(" ^ s ^ ")" in
   match pol with
-  | PoAction a -> Action.Output.to_string a
+  | PoAction a -> Classifier.Output.to_string a
   | PoFilter pr -> pred_to_string pr
   | PoUnion (p1,p2) -> 
     (wrap (pol_to_string p1)) 

@@ -14,7 +14,7 @@ type pred =
 | PrNone
 
 type pol =
-| PoAction of Action.Output.t
+| PoAction of Classifier.Output.t
 | PoFilter of pred
 | PoUnion of pol * pol
 | PoSeq of pol * pol
@@ -26,7 +26,7 @@ val match_pred : pred -> switchId -> Pattern.port -> packet -> bool
 
 val serialize_pkt : packet -> bytes
 
-val eval_action : value -> Action.Output.t -> value list
+val eval_action : value -> Classifier.Output.t -> value list
 
 val classify : pol -> value -> value list
 

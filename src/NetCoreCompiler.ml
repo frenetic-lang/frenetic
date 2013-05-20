@@ -6,9 +6,9 @@ open NetworkPacket
 open OpenFlow0x01Types
 open Word
 
-module OutputClassifier = Classifier.Make(Action.Output)
+module OutputClassifier = Classifier.Make(Classifier.Output)
 
-module BoolClassifier = Classifier.Make(Action.Bool)
+module BoolClassifier = Classifier.Make(Classifier.Bool)
 
 let rec compile_pred pr sw : BoolClassifier.t = 
   match pr with
@@ -35,14 +35,17 @@ let rec compile_pol p sw =
   match p with
   | PoAction action ->
     fold_right 
-      (fun e0 tbl -> OutputClassifier.union [(Action.Output.domain e0, [e0])] tbl)
-      (Action.Output.atoms action)
-      [(Pattern.all, Action.Output.drop)]
+      (fun e0 tbl -> 
+        OutputClassifier.union 
+          [(Classifier.Output.domain e0, Classifier.Output.to_action e0)]
+          tbl)
+      (Classifier.Output.atoms action)
+      [(Pattern.all, Classifier.Output.drop)]
   | PoFilter pred ->
     map 
       (fun (a,b) -> match b with
-      | true -> (a, Action.Output.pass)
-      | false -> (a, Action.Output.drop))
+      | true -> (a, Classifier.Output.pass)
+      | false -> (a, Classifier.Output.drop))
       (compile_pred pred sw)
   | PoUnion (pol1, pol2) ->
     OutputClassifier.union 
@@ -58,7 +61,7 @@ let to_rule = function
   (match Pattern.to_match pattern with
    | Some match_ ->
      Some (match_,
-           (Action.Output.as_actionSequence match_.matchInPort
+           (Classifier.Output.as_actionSequence match_.matchInPort
               action))
    | None -> None)
 

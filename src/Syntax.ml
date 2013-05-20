@@ -168,19 +168,19 @@ let desugar
   let desugar_act act = 
     match act with
     | To pt -> 
-      Action.Output.forward pt
+      Classifier.Output.forward pt
     | ToAll ->
       failwith "NYI: ToAll"
     | UpdateDlSrc(old,new0) -> 
-      Action.Output.updateDlSrc old new0
+      Classifier.Output.updateDlSrc old new0
     | UpdateDlDst(old,new0) -> 
-      Action.Output.updateDlDst old new0
+      Classifier.Output.updateDlDst old new0
     | UpdateDlVlan(old,new0) -> 
-      Action.Output.updateDlVlan old new0
+      Classifier.Output.updateDlVlan old new0
     | GetPacket handler ->
       let id = genbucket () in 
       Hashtbl.add get_pkt_handlers id handler;
-      Action.Output.bucket id in
+      Classifier.Output.bucket id in
   let rec desugar_pred pred = match pred with
     | And (p1, p2) -> 
       PrAnd (desugar_pred p1, desugar_pred p2)
@@ -236,11 +236,11 @@ let desugar
       let pred_curr = PrHdr(Pattern.dlVlan(curr)) in 
       let pred_next = PrHdr(Pattern.dlVlan(next)) in 
       let pol1' = 
-        PoUnion(PoSeq(PoFilter(PrAnd(pred_curr, sin')), PoAction (Action.Output.updateDlVlan curr next)),
+        PoUnion(PoSeq(PoFilter(PrAnd(pred_curr, sin')), PoAction (Classifier.Output.updateDlVlan curr next)),
                 PoFilter(PrOr(pred_next, pred_rec))) in 
       let pol2' = spol' in 
       let pol3' = 
-        PoUnion(PoSeq(PoFilter(PrAnd(pred_next, sout')), PoAction (Action.Output.updateDlVlan next curr)),
+        PoUnion(PoSeq(PoFilter(PrAnd(pred_next, sout')), PoAction (Classifier.Output.updateDlVlan next curr)),
                 PoFilter(PrNot(PrAnd(pred_next, sout')))) in 
       let pol' = PoSeq(pol1', PoSeq(pol2', pol3')) in 
       let slice' = next::sslice' in 

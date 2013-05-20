@@ -9,6 +9,8 @@ module type ACTION =
   type e 
   
   val atoms : t -> e list
+
+  val to_action : e -> t
   
   val drop : t
   
@@ -25,7 +27,23 @@ module type ACTION =
   val restrict_range : e -> Pattern.t -> Pattern.t
   
   val domain : e -> Pattern.t
+
+  val to_string : t -> string
+
  end
+
+module Output : sig
+  include ACTION
+  val forward : portId -> t
+  val updateDlSrc : Int64.t -> Int64.t -> t
+  val updateDlDst : Int64.t -> Int64.t -> t
+  val updateDlVlan : int option -> int option -> t
+  val bucket : int -> t
+  val as_actionSequence : portId option -> t -> actionSequence
+end
+
+module Bool : ACTION
+  with type t = bool
 
 module type CLASSIFIER = 
  sig 
@@ -42,6 +60,8 @@ module type CLASSIFIER =
   val sequence : t -> t -> t
   
   val par_actions : Action.t list -> Action.t
+
+  val to_string : t -> string
  end
 
 module type MAKE  = functor (Action : ACTION) -> 
