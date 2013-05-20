@@ -181,7 +181,8 @@ module External = struct
     | UpdateDlDst(old,new0) -> 
       Printf.sprintf "UpdateDlSrc(%Ld,%Ld)" old new0
     | UpdateDlVlan(old,new0) -> 
-      Printf.sprintf "UpdateDlSrc %s" (string_of_pair NetworkPacket.dlVlan_to_string (old, new0))
+      Printf.sprintf "UpdateDlSrc %s" 
+        (string_of_pair dlVlan_to_string dlVlan_to_string (old, new0))
     | GetPacket _ -> 
       Printf.sprintf "GetPacket <fun>"
         
@@ -342,23 +343,38 @@ let desugar
       let slice' = [] in 
       (pol', slice') 
     | Slice(sin, spol, sout) -> 
+
+      (* Informal slicing strategy:
+       *
+       *     {in} P {out} -->
+       *
+       *     (curr && in; set vlan := next) | next || rec; 
+       *     P;
+       *     (next && out; set vlan := curr) | -(next && out)
+       *)
+
       let next = genvlan () in 
       let sin' = desugar_pred sin in 
       let sout' = desugar_pred sout in 
       let spol',sslice' = desugar_pol next spol in 
       let pred_rec = 
-        List.fold_left 
-          (fun acc s -> PrAnd(acc, PrHdr(Pattern.dlVlan s)))
-          PrAll sslice' in 
+        if List.length sslice' > 0 then
+          List.fold_left 
+            (fun acc s -> PrAnd(acc, PrHdr(Pattern.dlVlan s)))
+            PrAll sslice'
+        else 
+          PrNone in
       let pred_curr = PrHdr(Pattern.dlVlan(curr)) in 
       let pred_next = PrHdr(Pattern.dlVlan(next)) in 
       let pol1' = 
-        PoUnion(PoSeq(PoFilter(PrAnd(pred_curr, sin')), PoAction (Action.Output.updateDlVlan curr next)),
-                PoFilter(PrOr(pred_next, pred_rec))) in 
+        PoUnion ( PoSeq ( PoFilter(PrAnd(pred_curr, sin'))
+                        , PoAction (Action.Output.updateDlVlan curr next))
+                , PoFilter (PrOr (pred_next, pred_rec))) in 
       let pol2' = spol' in 
       let pol3' = 
-        PoUnion(PoSeq(PoFilter(PrAnd(pred_next, sout')), PoAction (Action.Output.updateDlVlan next curr)),
-                PoFilter(PrNot(PrAnd(pred_next, sout')))) in 
+        PoUnion ( PoSeq ( PoFilter(PrAnd(pred_next, sout'))
+                        , PoAction (Action.Output.updateDlVlan next curr))
+                , PoFilter(PrNot(PrAnd(pred_next, sout')))) in 
       let pol' = PoSeq(pol1', PoSeq(pol2', pol3')) in 
       let slice' = next::sslice' in 
       (pol', slice') in 

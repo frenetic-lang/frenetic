@@ -85,6 +85,7 @@ module Output = struct
 
   (* JNF: does this belong in Misc? *)
   let string_of_output out =
+    let string_of_pair f = Misc.string_of_pair f f in
     let reflections =
       [ ("DlSrc", string_of_option (string_of_pair dlAddr_to_string) out.outDlSrc)
       ; ("DlDst", string_of_option (string_of_pair dlAddr_to_string) out.outDlDst)
