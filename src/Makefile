@@ -1,12 +1,12 @@
-.PHONY: all debug native doc library install uninstall clean reinstall
+.PHONY: all debug native uninstall install doc clean
 
 OCAMLBUILD = ocamlbuild -use-ocamlfind
 
-MLFILES = $(shell ls _build/*.ml)
-MLIFILES = $(shell ls _build/*.mli)
-CMIFILES = $(shell ls _build/*.cmi)
+MLIFILES = _build/Syntax.mli 
 
-all: debug doc newuninstall newinstall ctags
+CMIFILES = $(MLIFILES:.mli=.cmi)
+
+all: debug native uninstall install doc
 
 debug:
 	$(OCAMLBUILD) -cflag -ppopt -cflag -lwt-debug debug.otarget
@@ -17,41 +17,17 @@ native:
 verify:
 	$(OCAMLBUILD) verify.otarget
 
+uninstall:
+	ocamlfind remove NetCoreLib
+
+install:
+	ocamlfind install NetCoreLib META $(MLIFILES) $(CMIFILES) NetCoreLib.d.cma NetCoreLib.cmxa
+
 doc:
 	$(OCAMLBUILD) doc.docdir/index.html
 
 clean:
-	rm -rf _build *.d.byte *.native
-
-library: 
-	$(OCAMLBUILD) library.otarget
-
-newinstall: debuginstall
-
-debuginstall:
-	@cp META_debug META
-	ocamlfind install NetCoreLib \
-		META $(MLIFILES) $(CMIFILES) NetCoreLib.d.cma
-	@rm META
-
-nativeinstall:
-	@cp META_native META
-	ocamlfind install NetCoreLib \
-		META $(MLIFILES) $(CMIFILES) NetCoreLib.cma
-	@rm META
-
-newuninstall:
-	ocamlfind remove NetCoreLib
-
-install: library 
-	ocamlfind install desmoines desmoines_lib/META *.cmi *.cma 
-
-uninstall:
-	ocamlfind remove desmoines
-
-reinstall: library
-	ocamlfind remove desmoines
-	ocamlfind install desmoines desmoines_lib/META _build/*/*.cmi _build/*/*.cma _build/*.cmi _build/*.cma
+	rm -rf _build *.d.byte *.native *.d.cma *.cmxa
 
 ctags: $(MLFILES)
 	rm -f tags && ctags $(MLFILES)
