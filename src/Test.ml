@@ -1,17 +1,17 @@
-open Syntax
+open Syntax.External
 open OUnit
 
 module TestClassifier = struct
     
-  module C = Classifier.Make (Classifier.Output)
+  module C = Classifier.Make (Action.Output)
   open C
-  open Classifier.Output
+  open Action.Output
   open Pattern
 
   let test0 =
     "action sequence test" >::
       fun () -> 
-        assert_equal ~printer:Classifier.Output.to_string
+        assert_equal ~printer:Action.Output.to_string
           (forward 5)
           (seq_action (forward 3) (forward 5))
 
@@ -133,6 +133,10 @@ end
 
 module SampleTestInput = struct
 
+  open Syntax
+  open Syntax.Internal
+  open NetworkPacket
+
   let desugar_policy pol = 
     let bucket_cell = ref 0 in
     let vlan_cell = ref 0 in
@@ -141,9 +145,6 @@ module SampleTestInput = struct
     let get_pkt_handlers : (int, get_packet_handler) Hashtbl.t = 
       Hashtbl.create 200 in
     desugar genbucket genvlan pol get_pkt_handlers
-
-  open NetCoreEval
-  open NetworkPacket
 
   let in_pkt = 
     { pktDlSrc = Int64.zero
@@ -156,14 +157,14 @@ module SampleTestInput = struct
     Pkt ( Int64.one
         , (Pattern.Physical 1) 
         , in_pkt
-        , (Misc.Inl Int32.zero))
+        , (Buf Int32.zero))
 
 end
 
 module TestMods = struct
 
-  module C = Classifier.Make (Classifier.Output)
-  open NetCoreEval
+  module C = Classifier.Make (Action.Output)
+  open Syntax.Internal
   open NetworkPacket
   open SampleTestInput
 
@@ -198,13 +199,12 @@ module TestMods = struct
     (* Test the classifier interpretation. *)
     let classifier = NetCoreCompiler.compile_pol ds_pol sid in
     let act = C.scan classifier port in_pkt in
-    match Classifier.Output.apply_action act (port, in_pkt) with
+    match Action.Output.apply_action act (port, in_pkt) with
     | [] -> assert_failure "classifier scan dropped packet"
     | (port', pkt')::pkts ->
       assert_equal ~printer:NetworkPacket.packet_to_string 
         expected_pkt pkt';
       assert_equal pkts []
-
 
   let go = TestList [ test1 ]
 
@@ -212,8 +212,8 @@ end
 
 module TestSlices = struct
 
-  module C = Classifier.Make (Classifier.Output)
-  open NetCoreEval
+  module C = Classifier.Make (Action.Output)
+  open Syntax.Internal
   open NetworkPacket
   open SampleTestInput
 
@@ -248,7 +248,7 @@ module TestSlices = struct
     (* Test the classifier interpretation. *)
     let classifier = NetCoreCompiler.compile_pol ds_pol sid in
     let act = C.scan classifier port in_pkt in
-    match Classifier.Output.apply_action act (port, in_pkt) with
+    match Action.Output.apply_action act (port, in_pkt) with
     | [] -> assert_failure "classifier scan dropped packet"
     | (port', pkt')::pkts ->
       assert_equal ~printer:NetworkPacket.packet_to_string 
@@ -273,7 +273,7 @@ let _ = run_test_tt_main tests
 (*
 module Test2 = struct
 
-  open NetCoreEval
+  open Syntax.Internal
   open NetCoreCompiler
 
   let pt1 = 1
