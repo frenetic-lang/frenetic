@@ -17,30 +17,6 @@ type of_match =
     matchTpDst : tpPort option;
     matchInPort : portId option }
 
-let matchDlSrc x = x.matchDlSrc
-
-let matchDlDst x = x.matchDlDst
-
-let matchDlTyp x = x.matchDlTyp
-
-let matchDlVlan x = x.matchDlVlan
-
-let matchDlVlanPcp x = x.matchDlVlanPcp
-
-let matchNwSrc x = x.matchNwSrc
-
-let matchNwDst x = x.matchNwDst
-
-let matchNwProto x = x.matchNwProto
-
-let matchNwTos x = x.matchNwTos
-
-let matchTpSrc x = x.matchTpSrc
-
-let matchTpDst x = x.matchTpDst
-
-let matchInPort x = x.matchInPort
-
 type capabilities = 
   { flow_stats : bool; 
     table_stats : bool;
@@ -49,20 +25,6 @@ type capabilities =
     ip_reasm : bool;
     queue_stats : bool; 
     arp_match_ip : bool }
-
-let flow_stats x = x.flow_stats
-
-let table_stats x = x.table_stats
-
-let port_stats x = x.port_stats
-
-let stp x = x.stp
-
-let ip_reasm x = x.ip_reasm
-
-let queue_stats x = x.queue_stats
-
-let arp_match_ip x = x.arp_match_ip
 
 type actions = { output : bool; 
                  set_vlan_id : bool; 
@@ -78,48 +40,12 @@ type actions = { output : bool;
                  enqueue : bool;
                  vendor : bool }
 
-let output x = x.output
-
-let set_vlan_id x = x.set_vlan_id
-
-let set_vlan_pcp x = x.set_vlan_pcp
-
-let strip_vlan x = x.strip_vlan
-
-let set_dl_src x = x.set_dl_src
-
-let set_dl_dst x = x.set_dl_dst
-
-let set_nw_src x = x.set_nw_src
-
-let set_nw_dst x = x.set_nw_dst
-
-let set_nw_tos x = x.set_nw_tos
-
-let set_tp_src x = x.set_tp_src
-
-let set_tp_dst x = x.set_tp_dst
-
-let enqueue x = x.enqueue
-
-let vendor x = x.vendor
-
 type features = 
   { switch_id : Word64.t; 
     num_buffers : Word32.t;
     num_tables : Word8.t;
     supported_capabilities : capabilities;
     supported_actions : actions }
-
-let switch_id x = x.switch_id
-
-let num_buffers x = x.num_buffers
-
-let num_tables x = x.num_tables
-
-let supported_capabilities x = x.supported_capabilities
-
-let supported_actions x = x.supported_actions
 
 type flowModCommand =
 | AddFlow
@@ -175,28 +101,6 @@ type flowMod =
     mfOutPort : pseudoPort option; 
     mfCheckOverlap : bool }
 
-let mfModCmd x = x.mfModCmd
-
-let mfMatch x = x.mfMatch
-
-let mfPriority x = x.mfPriority
-
-let mfActions x = x.mfActions
-
-let mfCookie x = x.mfCookie
-
-let mfIdleTimeOut x = x.mfIdleTimeOut
-
-let mfHardTimeOut x = x.mfHardTimeOut
-
-let mfNotifyWhenRemoved x = x.mfNotifyWhenRemoved
-
-let mfApplyToPacket x = x.mfApplyToPacket
-
-let mfOutPort x = x.mfOutPort
-
-let mfCheckOverlap x = x.mfCheckOverlap
-
 type reason = 
 | NoMatch
 | ExplicitSend
@@ -208,28 +112,12 @@ type packetIn =
     packetInReason : reason; 
     packetInPacket : packet }
 
-let packetInBufferId x = x.packetInBufferId
-
-let packetInTotalLen x = x.packetInTotalLen
-
-let packetInPort x = x.packetInPort
-
-let packetInReason x = x.packetInReason
-
-let packetInPacket x = x.packetInPacket
-
 type xid = Word32.t
 
 type packetOut = 
   { pktOutBufOrBytes : (bufferId, bytes) Misc.sum;
     pktOutPortId : portId option;
     pktOutActions : actionSequence }
-
-let pktOutBufOrBytes x = x.pktOutBufOrBytes
-
-let pktOutPortId x = x.pktOutPortId
-
-let pktOutActions x = x.pktOutActions
 
 (* Component types of stats_request messages. *)
 
