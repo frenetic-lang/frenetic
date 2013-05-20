@@ -474,7 +474,7 @@ let setTpDst pk nwDst =
 
 let portId_to_string = Word16.to_string
 
-let dlAddr_to_string = Word48.to_string
+let dlAddr_to_string = Misc.string_of_mac
 
 let dlTyp_to_string = Word16.to_string
 
