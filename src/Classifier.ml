@@ -450,13 +450,6 @@ module Make : MAKE =
   let rec pick p1 atom = function
   | [] -> []
   | (p2,a) :: tbl2' ->
-    Format.printf
-      "doing:\n p1=%s, p2=%s\n atom=%s\n domain=%s\n restrict_range=%s\n%!"
-      (Pattern.to_string p1)
-      (Pattern.to_string p2)
-      (Action.to_string (Action.to_action atom))
-      (Pattern.to_string (Action.domain atom))
-      (Pattern.to_string (Action.restrict_range atom p2));
     (Pattern.inter
        p1 
        (Pattern.inter 
