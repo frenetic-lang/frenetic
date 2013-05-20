@@ -2,7 +2,7 @@
 
 OCAMLBUILD = ocamlbuild -use-ocamlfind
 
-MLFILES = $(shell ls _build/*.ml)
+CTAGSFILES = $(shell ls *.ml) $(shell ls *.mli)
 MLIFILES = $(shell ls _build/*.mli)
 CMIFILES = $(shell ls _build/*.cmi)
 
@@ -53,5 +53,5 @@ reinstall: library
 	ocamlfind remove desmoines
 	ocamlfind install desmoines desmoines_lib/META _build/*/*.cmi _build/*/*.cma _build/*.cmi _build/*.cma
 
-ctags: $(MLFILES)
-	rm -f tags && ctags $(MLFILES)
+ctags: $(CTAGSFILES)
+	rm -f tags && ctags $(CTAGSFILES)
