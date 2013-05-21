@@ -25,7 +25,7 @@ uninstall:
 	ocamlfind remove $(LIBNAME)
 
 install:
-	ocamlfind install $(LIBNAME) META $(MLIFILES) $(CMIFILES) $(LIBNAME).d.cma $(LIBNAME).cmxa
+	ocamlfind install $(LIBNAME) META $(MLIFILES) $(CMIFILES) $(LIBNAME).d.cma $(LIBNAME).cmxa $(LIBNAME).a
 
 doc:
 	$(OCAMLBUILD) doc.docdir/index.html
