@@ -12,7 +12,7 @@ module BoolClassifier = Classifier.Make(Action.Bool)
 let rec compile_pred pr sw : BoolClassifier.t = 
   match pr with
   | PrHdr pat -> 
-   [(pat,true)]
+   [(pat,true); (Pattern.all, false)]
   | PrOnSwitch sw' ->
     if Word64.eq_dec sw sw' then
       [(Pattern.all, true)] 
