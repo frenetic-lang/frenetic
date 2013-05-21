@@ -1,11 +1,13 @@
 .PHONY: all debug native uninstall install doc clean
 
-OCAMLBUILD = ocamlbuild -use-ocamlfind
+LIBNAME = PacketLib
 
 MLIFILES = _build/Packet.mli \
            _build/Packet_Parser.mli
 
 CMIFILES = $(MLIFILES:.mli=.cmi)
+
+OCAMLBUILD = ocamlbuild -use-ocamlfind
 
 all: debug native uninstall install 
 
@@ -16,10 +18,10 @@ native:
 	$(OCAMLBUILD) native.otarget
 
 uninstall:
-	ocamlfind remove PacketLib
+	ocamlfind remove $(LIBNAME)
 
 install:
-	ocamlfind install PacketLib META $(MLIFILES) $(CMIFILES) PacketLib.d.cma PacketLib.cmxa
+	ocamlfind install $(LIBNAME) META $(MLIFILES) $(CMIFILES) $(LIBNAME).d.cma $(LIBNAME).cmxa
 
 doc:
 	$(OCAMLBUILD) doc.docdir/index.html

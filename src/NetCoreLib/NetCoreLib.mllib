@@ -3,7 +3,9 @@ NetCore_Classifier
 NetCore_Compiler
 NetCore_Controller
 NetCore_Lexer
+NetCore_MacLearning
 NetCore_Parser
+NetCore_Pattern
+NetCore_Stream
 NetCore_Types
 NetCore_Wildcard
-NetCore_Stream
