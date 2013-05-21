@@ -1,0 +1,3 @@
+requires = "lwt lwt.unix cstruct"
+archive(byte) = "NetCoreLib.d.cma"
+archive(native) = "NetCoreLib.cma"
