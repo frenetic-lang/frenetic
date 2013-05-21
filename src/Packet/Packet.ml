@@ -192,6 +192,36 @@ let string_of_mac (x:int64) : string =
     (get_byte x 5) (get_byte x 4) (get_byte x 3)
     (get_byte x 2) (get_byte x 1) (get_byte x 0)
 
+let bytes_of_mac (x:int64) : string =
+  let byte n = Char.chr (get_byte x n) in
+  Format.sprintf "%c%c%c%c%c%c"
+    (byte 5) (byte 4) (byte 3)
+    (byte 2) (byte 1) (byte 0)
+
+let mac_of_bytes (str:string) : int64 =
+  if String.length str != 6 then
+    raise (Invalid_argument
+             (Format.sprintf "mac_of_bytes expected six-byte string, got %d
+                              bytes" (String.length str)));
+  let byte n = Int64.of_int (Char.code (String.get str n)) in
+  let open Int64 in
+  logor (shift_left (byte 0) (8 * 5))
+    (logor (shift_left (byte 1) (8 * 4))
+       (logor (shift_left (byte 2) (8 * 3))
+          (logor (shift_left (byte 3) (8 * 2))
+             (logor (shift_left (byte 4) (8 * 1))
+                (byte 5)))))
+
+let get_byte32 (n : Int32.t) (i : int) : int = 
+  let open Int32 in
+  if i < 0 or i > 3 then
+    raise (Invalid_argument "get_byte32 index out of range");
+  to_int (logand 0xFFl (shift_right_logical n (8 * i)))
+
+let string_of_ip (ip : Int32.t) : string = 
+  Format.sprintf "%d.%d.%d.%d" (get_byte32 ip 3) (get_byte32 ip 2) 
+    (get_byte32 ip 1) (get_byte32 ip 0)
+
 let portId_to_string = string_of_int
 
 let dlAddr_to_string = string_of_mac

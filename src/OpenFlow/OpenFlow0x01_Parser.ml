@@ -2,7 +2,6 @@
 
 open Printf
 open OpenFlow0x01
-open Misc
 
 exception Unparsable of string
 
@@ -133,13 +132,13 @@ module PacketOut = struct
     sizeof_ofp_packet_out + 
       (sum (List.map Action.sizeof pktOut.pktOutActions)) +
       (match pktOut.pktOutBufOrBytes with
-        | Misc.Inl _ -> 0
-        | Misc.Inr bytes -> Cstruct.len bytes)
+        | Buffer _ -> 0
+        | Packet bytes -> Cstruct.len bytes)
 
   let marshal (pktOut : t) (buf : Cstruct.t) : int =
     set_ofp_packet_out_buffer_id buf
       (match pktOut.pktOutBufOrBytes with
-        | Misc.Inl n -> n
+        | Buffer n -> n
         | _ -> -1l);
     set_ofp_packet_out_in_port buf
       (match pktOut.pktOutPortId with
@@ -152,7 +151,7 @@ module PacketOut = struct
       (Cstruct.shift buf sizeof_ofp_packet_out)
       (Action.move_controller_last pktOut.pktOutActions) in
     begin match pktOut.pktOutBufOrBytes with
-    | Misc.Inl n -> ()
+    | Buffer n -> ()
     | _ -> ()
     end;
     sizeof pktOut
@@ -180,7 +179,6 @@ module FlowModCommand = struct
     | ModStrictFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY_STRICT
     | DeleteFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE
     | DeleteStrictFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE_STRICT
-     
 end
 
 module Capabilities = struct
@@ -285,7 +283,6 @@ module FlowMod = struct
       (if notify_when_removed then 1 lsl 0 else 0)
 
   let marshal m bits = 
-    try 
     let bits = Cstruct.shift bits (Match.marshal m.mfMatch bits) in
     set_ofp_flow_mod_cookie bits (m.mfCookie);
     set_ofp_flow_mod_command bits (FlowModCommand.marshal m.mfModCmd);
@@ -304,14 +301,8 @@ module FlowMod = struct
       (fun bits act -> 
         Cstruct.shift bits (Action.marshal act bits))
       bits
-      (Action.move_controller_last m.mfActions)
-    in
+      (Action.move_controller_last m.mfActions) in 
     ()
-    with exn -> 
-      begin
-	      Misc.Log.printf "@@@ GOT IT @@@\n%s\n%!" (Printexc.get_backtrace ());
-	raise exn
-      end
 end
 
 module Header = struct

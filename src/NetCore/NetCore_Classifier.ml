@@ -1,4 +1,3 @@
-open Misc
 open Packet
 open OpenFlow0x01
 
@@ -15,17 +14,17 @@ module type ACTION = sig
 
   val pass : t
 
-  val apply_atom : e -> (Pattern.port * packet) -> (Pattern.port * packet) option
+  val apply_atom : e -> (NetCore_Pattern.port * packet) -> (NetCore_Pattern.port * packet) option
 
-  val apply_action : t -> (Pattern.port * packet) -> (Pattern.port * packet) list
+  val apply_action : t -> (NetCore_Pattern.port * packet) -> (NetCore_Pattern.port * packet) list
 
   val par_action : t -> t -> t
 
   val seq_action : t -> t -> t
 
-  val restrict_range : e -> Pattern.t -> Pattern.t
+  val restrict_range : e -> NetCore_Pattern.t -> NetCore_Pattern.t
 
-  val domain : e -> Pattern.t
+  val domain : e -> NetCore_Pattern.t
 
   val to_string : t -> string
  end
@@ -33,9 +32,9 @@ module type ACTION = sig
 module type CLASSIFIER = sig
   type action
 
-  type t = (Pattern.t * action) list
+  type t = (NetCore_Pattern.t * action) list
 
-  val scan : t -> Pattern.port -> packet -> action
+  val scan : t -> NetCore_Pattern.port -> packet -> action
 
   val union : t -> t -> t
 
@@ -53,13 +52,13 @@ module type MAKE = functor (Action : ACTION) ->
 module Make : MAKE = functor (Action:ACTION) -> struct
   type action = Action.t
 
-  type t = (Pattern.t * action) list
+  type t = (NetCore_Pattern.t * action) list
 
   let rec scan' default classifier pt pk = match classifier with
     | [] -> default
     | p :: rest ->
       let (pat, a) = p in
-      if Pattern.match_packet pt pk pat then a else scan' default rest pt pk
+      if NetCore_Pattern.match_packet pt pk pat then a else scan' default rest pt pk
 
   let scan = scan' Action.drop
 
@@ -79,7 +78,7 @@ module Make : MAKE = functor (Action:ACTION) -> struct
   | [] -> []
   | p :: cf0 ->
     let (pat, acts) = p in
-    if Pattern.is_empty pat
+    if NetCore_Pattern.is_empty pat
     then strip_empty_rules cf0
     else (pat, acts) :: (strip_empty_rules cf0)
 
@@ -89,7 +88,7 @@ module Make : MAKE = functor (Action:ACTION) -> struct
   let inter_entry cl (pat, act) = 
     List.fold_right 
       (fun (pat',act') acc ->
-        (Pattern.inter pat pat', Action.par_action act act') :: acc) cl []
+        (NetCore_Pattern.inter pat pat', Action.par_action act act') :: acc) cl []
 
   let inter_no_opt cl1 cl2 =
     List.fold_right (fun v acc -> (inter_entry cl2 v) @ acc) cl1 []
@@ -124,9 +123,9 @@ module Make : MAKE = functor (Action:ACTION) -> struct
   let rec pick p1 atom = function
   | [] -> []
   | (p2,a) :: tbl2' ->
-    (Pattern.inter
+    (NetCore_Pattern.inter
        p1
-       (Pattern.inter
+       (NetCore_Pattern.inter
           (Action.domain atom)
           (Action.restrict_range atom p2)),
      Action.seq_action (Action.to_action atom) a) :: (pick p1 atom tbl2')
@@ -148,7 +147,7 @@ module Make : MAKE = functor (Action:ACTION) -> struct
     let buf = Buffer.create 100 in
     List.iter
       (fun (pat,act) ->
-        Buffer.add_string buf (Pattern.to_string pat);
+        Buffer.add_string buf (NetCore_Pattern.to_string pat);
         Buffer.add_string buf " => ";
         Buffer.add_string buf (Action.to_string act);
         Buffer.add_string buf "\n")

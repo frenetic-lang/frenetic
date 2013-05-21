@@ -23,26 +23,6 @@ module Log = struct
     Printf.fprintf !log fmt
 end
 
-module Lwt_channel = struct
-  type 'a t = {
-    stream : 'a Lwt_stream.t;
-    push : 'a option -> unit
-  }
-
-  let of_pushed_stream stream push = { stream; push }
-
-  let create () =
-    let (stream, push) = Lwt_stream.create () in
-    of_pushed_stream stream push
-
-  let send (v : 'a) (chan : 'a t) = Lwt.return (chan.push (Some v))
-
-  let recv (chan : 'a t) = Lwt_stream.next chan.stream
-
-  let to_stream (chan : 'a t) = chan.stream
-
-end
-
 let test_bit n x =
   Int32.logand (Int32.shift_right_logical x n) Int32.one = Int32.one
 let clear_bit n x =
@@ -88,48 +68,10 @@ let bytes_of_mac (x:int64) : string =
     (byte 5) (byte 4) (byte 3)
     (byte 2) (byte 1) (byte 0)
 
-let string_of_ip (ip : Int32.t) : string = 
-  Format.sprintf "%d.%d.%d.%d" (get_byte32 ip 3) (get_byte32 ip 2) 
-    (get_byte32 ip 1) (get_byte32 ip 0)
-
-let rec filter_map f xs = match xs with
-  | [] -> []
-  | x :: xs' -> match f x with
-      | Some y -> y :: (filter_map f xs')
-      | None -> filter_map f xs'
-
-let concat_map f lst =
-  List.fold_right (fun a bs -> List.append (f a) bs) lst []
 
 let intersperse v lst =
   List.fold_right (fun x xs -> x :: (v :: xs)) [] lst
 
-module type SAFESOCKET = sig
-  type t = Lwt_unix.file_descr
-  val create : Lwt_unix.file_descr -> t
-  val recv : t -> string -> int -> int -> bool Lwt.t
-end
-
-module SafeSocket : SAFESOCKET = struct
-  open Lwt
-  open Lwt_unix
-
-  type t = Lwt_unix.file_descr
-
-  let create fd = fd
-
-  let rec recv fd buf off len =
-    if len = 0 then
-      return true
-    else
-      lwt n = Lwt_unix.recv fd buf off len [] in
-      if n = 0 then
-	return false
-      else if n = len then
-	return true
-      else
-	recv fd buf (off + n) (len - n)
-end
 
 let string_of_list to_string l =
   let strs = List.map to_string l in

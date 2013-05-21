@@ -1,6 +1,10 @@
 open OpenFlow0x01
 open Packet
-open Pattern
+open NetCore_Pattern
+
+val concat_map : ('a -> 'b list) -> 'a list -> 'b list
+
+val filter_map : ('a -> 'b option) -> 'a list -> 'b list
 
 module type ACTION = 
  sig 
@@ -24,9 +28,9 @@ module type ACTION =
   
   val seq_action : t -> t -> t
   
-  val restrict_range : e -> Pattern.t -> Pattern.t
+  val restrict_range : e -> NetCore_Pattern.t -> NetCore_Pattern.t
   
-  val domain : e -> Pattern.t
+  val domain : e -> NetCore_Pattern.t
 
   val to_string : t -> string
 

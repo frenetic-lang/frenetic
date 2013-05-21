@@ -9,7 +9,6 @@
 *)
 open OpenFlow0x01
 open OpenFlow0x01_Parser
-open Misc
 
 open Lwt
 open Lwt_io
@@ -17,6 +16,33 @@ open Lwt_unix
 open Lwt_list
 
 let sprintf = Format.sprintf
+
+module type SAFESOCKET = sig
+  type t = Lwt_unix.file_descr
+  val create : Lwt_unix.file_descr -> t
+  val recv : t -> string -> int -> int -> bool Lwt.t
+end
+
+module SafeSocket : SAFESOCKET = struct
+  open Lwt
+  open Lwt_unix
+
+  type t = Lwt_unix.file_descr
+
+  let create fd = fd
+
+  let rec recv fd buf off len =
+    if len = 0 then
+      return true
+    else
+      lwt n = Lwt_unix.recv fd buf off len [] in
+      if n = 0 then
+	return false
+      else if n = len then
+	return true
+      else
+	recv fd buf (off + n) (len - n)
+end
 
 let string_of_sockaddr (sa:sockaddr) : string =
   match sa with
@@ -79,7 +105,7 @@ let rec recv_from_switch_fd (sock : file_descr) : (xid * message) Lwt.t =
       match Message.parse hdr (Cstruct.of_string body_str) with
       | Some v -> return v
       | None ->
-        Misc.Log.printf "[platform] ignoring message with code %d\n%!"
+        Printf.eprintf "[platform] ignoring message with code %d\n%!"
           (msg_code_to_int hdr.Header.typ);
         recv_from_switch_fd sock
 
@@ -93,7 +119,7 @@ let send_to_switch_fd (sock : file_descr) (xid : xid) (msg : message) =
     else
       return ()
   with Unix.Unix_error (err, fn, arg) ->
-    Misc.Log.printf "[platform] error sending: %s\n%!"
+    Printf.eprintf "[platform] error sending: %s\n%!"
       (Unix.error_message err);
     return ()
 
@@ -105,18 +131,18 @@ let fd_of_switch_id (switch_id:switchId) : file_descr =
   with Not_found -> raise (UnknownSwitch switch_id)
 
 let disconnect_switch (sw_id : switchId) =
-  Misc.Log.printf "[platform] disconnect_switch\n%!";
+  Printf.eprintf "[platform] disconnect_switch\n%!";
   try_lwt
     let fd = Hashtbl.find switch_fds sw_id in
     lwt _ = close fd in
     Hashtbl.remove switch_fds sw_id;
     return ()
   with Not_found ->
-    Misc.Log.printf "[disconnect_switch] switch not found\n%!";
+    Printf.eprintf "[disconnect_switch] switch not found\n%!";
     raise_lwt (UnknownSwitch sw_id)
 
 let shutdown () : unit =
-  Misc.Log.printf "[platform] shutdown\n%!";
+  Printf.eprintf "[platform] shutdown\n%!";
   match !server_fd with
   | Some fd -> ignore_result
     begin
@@ -137,7 +163,7 @@ let switch_handshake (fd : file_descr) : features Lwt.t =
         match msg with
           | FeaturesReply feats ->
             Hashtbl.add switch_fds feats.switch_id fd;
-            Misc.Log.printf "[platform] switch %Ld connected\n%!"
+            Printf.eprintf "[platform] switch %Ld connected\n%!"
               feats.switch_id;
             return feats
           | _ -> raise_lwt (Internal "expected FEATURES_REPLY")
@@ -162,14 +188,14 @@ let rec recv_from_switch (sw_id : switchId) : (xid * message) t =
     with
     | Internal s ->
       begin
-        Misc.Log.printf "[platform] disconnecting switch\n%!";
+        Printf.eprintf "[platform] disconnecting switch\n%!";
         lwt _ = disconnect_switch sw_id in
         raise_lwt (SwitchDisconnected sw_id)
       end
     | UnknownSwitchDisconnected ->
     raise_lwt (SwitchDisconnected sw_id)
     | exn ->
-      Misc.Log.printf "[platform] other error\n%!";
+      Printf.eprintf "[platform] other error\n%!";
       raise_lwt exn in
   match msg with
     | EchoRequest bytes ->
@@ -179,7 +205,7 @@ let rec recv_from_switch (sw_id : switchId) : (xid * message) t =
 
 let rec accept_switch () =
   lwt (fd, sa) = accept (get_fd ()) in
-  Misc.Log.printf "[platform] : %s connected, handshaking...\n%!"
+  Printf.eprintf "[platform] : %s connected, handshaking...\n%!"
     (string_of_sockaddr sa);
   (* TODO(arjun): a switch can stall during a handshake, while another
      switch is ready to connect. To be fully robust, this module should
@@ -192,7 +218,7 @@ let rec accept_switch () =
    with UnknownSwitchDisconnected ->
      begin
        lwt _ = close fd in
-       Misc.Log.printf "[platform] : %s disconnected, trying again...\n%!"
+       Printf.eprintf "[platform] : %s disconnected, trying again...\n%!"
          (string_of_sockaddr sa);
        accept_switch ()
      end

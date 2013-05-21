@@ -1,10 +1,15 @@
 .PHONY: all debug native uninstall install doc clean
 
-OCAMLBUILD = ocamlbuild -use-ocamlfind
+LIBNAME = OpenFlowLib
 
-MLIFILES = _build/Packet.mli 
+MLIFILES = _build/OpenFlow0x01.mli \
+           _build/OpenFlow0x01_Parser.mli \
+           _build/OpenFlow0x01_Platform.mli \
+           _build/OpenFlow0x01_TestPlatform.mli
 
 CMIFILES = $(MLIFILES:.mli=.cmi)
+
+OCAMLBUILD = ocamlbuild -use-ocamlfind
 
 all: debug native uninstall install 
 
@@ -15,10 +20,10 @@ native:
 	$(OCAMLBUILD) native.otarget
 
 uninstall:
-	ocamlfind remove PacketLib
+	ocamlfind remove $(LIBNAME)
 
 install:
-	ocamlfind install PacketLib META $(MLIFILES) $(CMIFILES) PacketLib.d.cma PacketLib.cmxa
+	ocamlfind install $(LIBNAME) META $(MLIFILES) $(CMIFILES) $(LIBNAME).d.cma $(LIBNAME).cmxa
 
 doc:
 	$(OCAMLBUILD) doc.docdir/index.html

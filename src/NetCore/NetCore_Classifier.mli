@@ -1,15 +1,15 @@
-open Action
 open Packet
 open OpenFlow0x01
-open Pattern
+open NetCore_Action
+open NetCore_Pattern
 
 module type CLASSIFIER = 
  sig 
   type action
   
-  type t = (Pattern.t * action) list
+  type t = (NetCore_Pattern.t * action) list
   
-  val scan : t -> Pattern.port -> packet -> action
+  val scan : t -> NetCore_Pattern.port -> packet -> action
   
   val union : t -> t -> t
   

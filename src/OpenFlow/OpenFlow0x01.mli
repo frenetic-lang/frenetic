@@ -1,5 +1,12 @@
 open Packet
-open Word
+
+type int8 = int
+
+type int16 = int
+
+val bit : int32 -> int -> bool -> int32 
+
+val test_bit : int -> int32 -> bool
 
 module Match : sig
 
@@ -100,9 +107,9 @@ end
   }
 
   type features = { 
-    switch_id : Word64.t;
-    num_buffers : Word32.t;
-    num_tables : Word8.t;
+    switch_id : int64;
+    num_buffers : int32;
+    num_tables : int8;
     supported_capabilities : capabilities;
     supported_actions : actions 
   }
@@ -114,27 +121,30 @@ end
     | DeleteFlow
     | DeleteStrictFlow
 
-  type switchId = Word64.t
+  type switchId = int64
 
   val string_of_switchId : switchId -> string
       
-  type priority = Word16.t
+  type priority = int16
       
-  type bufferId = Word32.t
+  type bufferId = int32
 
   type timeout =
     | Permanent
-    | ExpiresAfter of Word16.t
+    | ExpiresAfter of int16
 
   type flowMod = {
     mfModCmd : flowModCommand; 
     mfMatch : Match.t;
     mfPriority : priority; 
     mfActions : Action.sequence;
-    mfCookie : Word64.t; mfIdleTimeOut : timeout;
-    mfHardTimeOut : timeout; mfNotifyWhenRemoved : bool;
+    mfCookie : int64; 
+    mfIdleTimeOut : timeout;
+    mfHardTimeOut : timeout; 
+    mfNotifyWhenRemoved : bool;
     mfApplyToPacket : bufferId option;
-    mfOutPort : PseudoPort.t option; mfCheckOverlap : bool }
+    mfOutPort : PseudoPort.t option; 
+    mfCheckOverlap : bool }
 
   type reason =
     | NoMatch
@@ -142,22 +152,26 @@ end
 
   type packetIn = {
     packetInBufferId : bufferId option;
-    packetInTotalLen : Word16.t; 
+    packetInTotalLen : int16; 
     packetInPort : portId;
     packetInReason : reason; 
     packetInPacket :  packet }
 
-  type xid = Word32.t
+  type xid = int32
+
+  type payload = 
+  | Buffer of bufferId
+  | Packet of bytes
 
   type packetOut = { 
-    pktOutBufOrBytes : (bufferId, bytes) Misc.sum;
+    pktOutBufOrBytes : payload;
     pktOutPortId : portId option;
     pktOutActions : Action.sequence 
   }
 
   (* Component types of stats_request messages. *)
   
-  type table_id = Word8.t
+  type table_id = int8
   
   module IndividualFlowRequest : sig
       type t = { of_match : Match.t
@@ -209,7 +223,7 @@ end
   module TableStats : sig
       type t = { table_id : table_id
                ; name : string
-               ; wildcards : Word32.t
+               ; wildcards : int32
                ; max_entries : int
                ; active_count : int
                ; lookup_count : int

@@ -1,7 +1,22 @@
 open Packet
-open Word
-open Misc
 open Format
+
+(* copied code *)
+type int8 = int
+
+type int16 = int
+
+let test_bit n x =
+  Int32.logand (Int32.shift_right_logical x n) Int32.one = Int32.one
+let clear_bit n x =
+  Int32.logand x (Int32.lognot (Int32.shift_left Int32.one n))
+let set_bit n x =
+  Int32.logor x (Int32.shift_left Int32.one n)
+let bit (x : int32) (n : int) (v : bool) : int32 =
+  if v then set_bit n x else clear_bit n x
+
+
+
 
 (** Internal module, only used to parse the wildcards bitfield *)
 module Wildcards = struct
@@ -278,7 +293,10 @@ module Match = struct
         fld_str "tpSrc" string_of_int x.tpSrc;
         fld_str "tpDst" string_of_int x.tpDst;
         fld_str "inPort" string_of_int x.inPort ] in
-    let set_fields = filter_map (fun x -> x) all_fields in
+    let set_fields = 
+      List.fold_right 
+        (fun fo acc -> match fo with None -> acc | Some f -> f :: acc) 
+        all_fields [] in
     match set_fields with
       | [] -> "{*}"
       | _ ->  "{" ^ (String.concat ", " set_fields) ^ "}"
@@ -526,9 +544,9 @@ type actions = { output : bool;
                  vendor : bool }
 
 type features = 
-  { switch_id : Word64.t; 
-    num_buffers : Word32.t;
-    num_tables : Word8.t;
+  { switch_id : int64; 
+    num_buffers : int32;
+    num_tables : int8;
     supported_capabilities : capabilities;
     supported_actions : actions }
 
@@ -539,24 +557,24 @@ type flowModCommand =
 | DeleteFlow
 | DeleteStrictFlow
 
-type switchId = Word64.t
+type switchId = int64
 
-let string_of_switchId = Word64.to_string
+let string_of_switchId = Int64.to_string
 
-type priority = Word16.t
+type priority = int16
 
-type bufferId = Word32.t
+type bufferId = int32
 
 type timeout =
 | Permanent
-| ExpiresAfter of Word16.t
+| ExpiresAfter of int16
 
 type flowMod = 
   { mfModCmd : flowModCommand; 
     mfMatch : Match.t;
     mfPriority : priority; 
     mfActions : Action.sequence;
-    mfCookie : Word64.t; 
+    mfCookie : int64;
     mfIdleTimeOut : timeout;
     mfHardTimeOut : timeout; 
     mfNotifyWhenRemoved : bool;
@@ -570,21 +588,25 @@ type reason =
 
 type packetIn = 
   { packetInBufferId : bufferId option;
-    packetInTotalLen : Word16.t; 
+    packetInTotalLen : int16;
     packetInPort : portId;
     packetInReason : reason; 
     packetInPacket : packet }
 
-type xid = Word32.t
+type xid = int32
+
+type payload = 
+| Buffer of bufferId
+| Packet of bytes
 
 type packetOut = 
-  { pktOutBufOrBytes : (bufferId, bytes) Misc.sum;
+  { pktOutBufOrBytes : payload;
     pktOutPortId : portId option;
     pktOutActions : Action.sequence }
 
 (* Component types of stats_request messages. *)
 
-type table_id = Word8.t
+type table_id = int8
 
 module IndividualFlowRequest = struct
   type t = { of_match : Match.t;
@@ -630,7 +652,7 @@ end
 module TableStats = struct
   type t = { table_id : table_id;
              name : string;
-             wildcards : Word32.t;
+             wildcards : int32;
              max_entries : int;
              active_count : int;
              lookup_count : int;

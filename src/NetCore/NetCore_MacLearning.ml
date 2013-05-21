@@ -1,18 +1,18 @@
 open Printf
-open OpenFlow0x01
 open Packet
-open Syntax.External
-open Word
-open Misc
+open OpenFlow0x01
+open NetCore_Types.External
 
 module Learning = struct
     
+  type int48 = int64 
+
   (** The objective is to learn the port on which a host is connected on all
       switches. Word48.t is the type of MAC-addresses. This hashtable stores
       switch * host * port tuples. The reason it is keyed-by (switch * host)
       is to acount for host-mobility. When a host moves to a different port 
       on a switch, updating its entry removes the old entry too. *)
-  let learned_hosts : (switchId * Word48.t, portId) Hashtbl.t = 
+  let learned_hosts : (switchId * int48, portId) Hashtbl.t = 
     Hashtbl.create 100
 
   (** Create a predicate that matches all unknown 

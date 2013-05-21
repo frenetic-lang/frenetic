@@ -134,3 +134,10 @@ val nw_to_string : nw -> string
 
 val packet_to_string : packet -> string
 
+val string_of_mac : int48 -> string
+
+val bytes_of_mac : int48 -> string
+
+val mac_of_bytes : string -> int48
+
+val string_of_ip : int32 -> string

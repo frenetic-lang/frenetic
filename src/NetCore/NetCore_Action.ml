@@ -1,7 +1,15 @@
-open Misc
-open Packet
 open OpenFlow0x01
 open OpenFlow0x01.Action
+open Packet
+
+let concat_map f lst =
+  List.fold_right (fun a bs -> List.append (f a) bs) lst []
+    
+let rec filter_map f xs = match xs with
+  | [] -> []
+  | x :: xs' -> match f x with
+    | Some y -> y :: (filter_map f xs')
+    | None -> filter_map f xs'
 
 module type ACTION = sig
   type t
@@ -16,17 +24,17 @@ module type ACTION = sig
 
   val pass : t
 
-  val apply_atom : e -> (Pattern.port * packet) -> (Pattern.port * packet) option
+  val apply_atom : e -> (NetCore_Pattern.port * packet) -> (NetCore_Pattern.port * packet) option
 
-  val apply_action : t -> (Pattern.port * packet) -> (Pattern.port * packet) list
+  val apply_action : t -> (NetCore_Pattern.port * packet) -> (NetCore_Pattern.port * packet) list
 
   val par_action : t -> t -> t
 
   val seq_action : t -> t -> t
 
-  val restrict_range : e -> Pattern.t -> Pattern.t
+  val restrict_range : e -> NetCore_Pattern.t -> NetCore_Pattern.t
 
-  val domain : e -> Pattern.t
+  val domain : e -> NetCore_Pattern.t
 
   val to_string : t -> string
  end
@@ -45,7 +53,7 @@ module Bool = struct
 
   let apply_atom b ptpk = if b then Some ptpk else None
 
-  let apply_action action ptpk = filter_map (fun a -> apply_atom a ptpk) (atoms action)
+  let apply_action action ptpk = List.fold_right (fun a acc -> match apply_atom a ptpk with None -> acc | Some a' -> a'::acc) (atoms action) []
 
   let par_action b1 b2 = b1 || b2
 
@@ -53,19 +61,16 @@ module Bool = struct
 
   let restrict_range b p = p
 
-  let domain b = Pattern.all
+  let domain b = NetCore_Pattern.all
 
   let to_string b = if b then "true" else "false"
 
 end
 
 module Output = struct
-  open Word
-  open Misc
   open List
   open Packet
-  open Pattern
-  open Misc
+  open NetCore_Pattern
 
   type 'a match_modify = ('a * 'a) option
 
@@ -81,7 +86,7 @@ module Output = struct
       outNwTos : nwTos match_modify;
       outTpSrc : tpPort match_modify;
       outTpDst : tpPort match_modify;
-      outPort : Pattern.port option }
+      outPort : NetCore_Pattern.port option }
 
   let match_modify_to_string
       (pr : 'a -> string) (lbl : string) (v : 'a match_modify) : string option =
@@ -101,13 +106,13 @@ module Output = struct
         match_modify_to_string nwTos_to_string "NwTos" out.outNwTos;
         match_modify_to_string string_of_int "TpSrc" out.outTpSrc;
         match_modify_to_string string_of_int "TpDst" out.outTpDst ] in
-    let mods = String.concat ", " (filter_map (fun x -> x) mods) in
+    let mods = String.concat ", " (List.fold_right (fun xo acc -> match xo with None -> acc | Some x -> x::acc) mods []) in
     if mods = "" then
       Format.sprintf "Fwd %s"
-        (string_of_option Pattern.string_of_port out.outPort)
+        (match out.outPort with None -> "None" | Some p -> "Some " ^ NetCore_Pattern.string_of_port p)
     else 
       Format.sprintf "Fwd %s<%s>"
-        (string_of_option Pattern.string_of_port out.outPort)
+        (match out.outPort with None -> "None" | Some p -> "Some " ^ NetCore_Pattern.string_of_port p)
         mods
 
   let to_string output_list =
@@ -139,12 +144,12 @@ module Output = struct
   let pass = [unmodified]
 
   let forward pt =
-    [ { unmodified with outPort = Some (Pattern.Physical pt) } ]
+    [ { unmodified with outPort = Some (NetCore_Pattern.Physical pt) } ]
 
-  let to_all = [ { unmodified with outPort = Some Pattern.All } ]
+  let to_all = [ { unmodified with outPort = Some NetCore_Pattern.All } ]
 
   let bucket n =
-    [ { unmodified with outPort = Some (Pattern.Bucket n) } ]
+    [ { unmodified with outPort = Some (NetCore_Pattern.Bucket n) } ]
 
   let updateDlSrc od nw =
     [ { unmodified with outDlSrc = Some (od, nw) } ]
@@ -172,25 +177,16 @@ module Output = struct
     | _, None -> pt1
     | _ -> pt2
 
-  let optword16beq w1 w2 =
-    match w1,w2 with
-    | Some w3,Some w4 ->
-      Word16.eq_dec w3 w4
-    | None,None ->
-      true
-    | _ ->
-      false
-
   let seq_output out1 out2 = match
-      (seq_mod Word48.eq_dec out1.outDlSrc out2.outDlSrc,
-       seq_mod Word48.eq_dec out1.outDlDst out2.outDlDst,
-       seq_mod optword16beq out1.outDlVlan out2.outDlVlan,
-       seq_mod Word8.eq_dec out1.outDlVlanPcp out2.outDlVlanPcp,
-       seq_mod Word32.eq_dec out1.outNwSrc out2.outNwSrc,
-       seq_mod Word32.eq_dec out1.outNwDst out2.outNwDst,
-       seq_mod Word8.eq_dec out1.outNwTos out2.outNwTos,
-       seq_mod Word16.eq_dec out1.outTpSrc out2.outTpSrc,
-       seq_mod Word16.eq_dec out1.outTpDst out2.outTpDst) with
+      (seq_mod (=) out1.outDlSrc out2.outDlSrc,
+       seq_mod (=) out1.outDlDst out2.outDlDst,
+       seq_mod (=) out1.outDlVlan out2.outDlVlan,
+       seq_mod (=) out1.outDlVlanPcp out2.outDlVlanPcp,
+       seq_mod (=) out1.outNwSrc out2.outNwSrc,
+       seq_mod (=) out1.outNwDst out2.outNwDst,
+       seq_mod (=) out1.outNwTos out2.outNwTos,
+       seq_mod (=) out1.outTpSrc out2.outTpSrc,
+       seq_mod (=) out1.outTpDst out2.outTpDst) with
     | ( Some dlSrc,
         Some dlDst,
         Some dlVlan,
@@ -212,7 +208,8 @@ module Output = struct
              outPort = seq_port out1.outPort out2.outPort }
     | _ -> None
 
-  let cross lst1 lst2 = concat_map (fun a -> map (fun b -> (a, b)) lst2) lst1
+  let cross lst1 lst2 = 
+    concat_map (fun a -> map (fun b -> (a, b)) lst2) lst1
 
   let seq_action act1 act2 =
     filter_map
@@ -256,22 +253,22 @@ module Output = struct
   let trans maybe_mod build_singleton set_wild pat =
     match maybe_mod with
     | Some (old, nw) ->
-      if Pattern.is_empty (Pattern.inter (build_singleton nw) pat) then
-        Pattern.empty
+      if NetCore_Pattern.is_empty (NetCore_Pattern.inter (build_singleton nw) pat) then
+        NetCore_Pattern.empty
       else
         set_wild pat
     | None -> pat
 
   let sel f = function
   | Some p -> let (old, y) = p in f old
-  | None -> Pattern.all
+  | None -> NetCore_Pattern.all
 
   let restrict_port portMod pat2 = match portMod with
     | Some port ->
-      if Pattern.is_empty (Pattern.inter (Pattern.inPort port) pat2) then
-        Pattern.empty
+      if NetCore_Pattern.is_empty (NetCore_Pattern.inter (NetCore_Pattern.inPort port) pat2) then
+        NetCore_Pattern.empty
       else
-        Pattern.wildcardPort pat2
+        NetCore_Pattern.wildcardPort pat2
     | None -> pat2
 
   (* Restrict range: for each field f,
@@ -283,7 +280,7 @@ module Output = struct
    *    - if out does not update f, leave pat unchanged w.r.t. f.
    *)
   let restrict_range out pat =
-    let open Pattern in
+    let open NetCore_Pattern in
     restrict_port out.outPort
       (trans out.outDlSrc dlSrc wildcardDlSrc
         (trans out.outDlDst dlDst wildcardDlDst
@@ -291,11 +288,11 @@ module Output = struct
 
   let domain out =
     fold_right
-      Pattern.inter
-      [ sel Pattern.dlSrc out.outDlSrc
-      ; sel Pattern.dlDst out.outDlDst
-      ; sel Pattern.dlVlan out.outDlVlan ]
-      Pattern.all
+      NetCore_Pattern.inter
+      [ sel NetCore_Pattern.dlSrc out.outDlSrc
+      ; sel NetCore_Pattern.dlDst out.outDlDst
+      ; sel NetCore_Pattern.dlVlan out.outDlVlan ]
+      NetCore_Pattern.all
 
   let set upd mk lst = match upd with
     | Some (_,nw) ->
@@ -338,18 +335,18 @@ module Output = struct
                     (unset out.outTpDst (fun x -> SetTpDst x) []))))))))
 
   let output_to_of inp out = match out.outPort with
-    | Some Pattern.All -> modify out @ (Output PseudoPort.AllPorts)
+    | Some NetCore_Pattern.All -> modify out @ (Output PseudoPort.AllPorts)
       :: unmodify out
-    | Some (Pattern.Physical pt) ->
+    | Some (NetCore_Pattern.Physical pt) ->
       modify out @
         (( match inp with
-         | Some pt' when Word16.eq_dec pt' pt ->
+         | Some pt' when (=) pt' pt ->
              Output PseudoPort.InPort
          | _ ->
            Output (PseudoPort.PhysicalPort pt)) ::
           (unmodify out))
-    | Some (Pattern.Bucket n) ->
-      [ Output (PseudoPort.Controller Word16.max_value) ]
+    | Some (NetCore_Pattern.Bucket n) ->
+      [ Output (PseudoPort.Controller 65535) ]
     | None ->
       []
 

@@ -1,34 +1,31 @@
-open Misc
 open List
-open Misc
-open Syntax.Internal
 open Packet
-open Word
+open NetCore_Types.Internal
 
-module OutputClassifier = Classifier.Make(Action.Output)
+module OutputClassifier = NetCore_Classifier.Make(NetCore_Action.Output)
 
-module BoolClassifier = Classifier.Make(Action.Bool)
+module BoolClassifier = NetCore_Classifier.Make(NetCore_Action.Bool)
 
 let rec compile_pred pr sw : BoolClassifier.t = 
   match pr with
   | PrHdr pat -> 
-   [(pat,true); (Pattern.all, false)]
+   [(pat,true); (NetCore_Pattern.all, false)]
   | PrOnSwitch sw' ->
-    if Word64.eq_dec sw sw' then
-      [(Pattern.all, true)] 
+    if sw = sw' then
+      [(NetCore_Pattern.all, true)] 
     else 
-      [(Pattern.all, false)]
+      [(NetCore_Pattern.all, false)]
   | PrOr (pr1, pr2) ->
     BoolClassifier.union (compile_pred pr1 sw) (compile_pred pr2 sw)
   | PrAnd (pr1, pr2) ->
     BoolClassifier.sequence (compile_pred pr1 sw) (compile_pred pr2 sw)
   | PrNot pr' ->    
     map (fun (a,b) -> (a, not b)) 
-      (compile_pred pr' sw @ [(Pattern.all,false)])
+      (compile_pred pr' sw @ [(NetCore_Pattern.all,false)])
   | PrAll -> 
-    [Pattern.all,true]
+    [NetCore_Pattern.all,true]
   | PrNone -> 
-    [Pattern.all,false]
+    [NetCore_Pattern.all,false]
 
 let rec compile_pol p sw =
   match p with
@@ -36,15 +33,15 @@ let rec compile_pol p sw =
     fold_right 
       (fun e0 tbl -> 
         OutputClassifier.union 
-          [(Action.Output.domain e0, Action.Output.to_action e0)]
+          [(NetCore_Action.Output.domain e0, NetCore_Action.Output.to_action e0)]
           tbl)
-      (Action.Output.atoms action)
-      [(Pattern.all, Action.Output.drop)]
+      (NetCore_Action.Output.atoms action)
+      [(NetCore_Pattern.all, NetCore_Action.Output.drop)]
   | PoFilter pred ->
     map 
       (fun (a,b) -> match b with
-      | true -> (a, Action.Output.pass)
-      | false -> (a, Action.Output.drop))
+      | true -> (a, NetCore_Action.Output.pass)
+      | false -> (a, NetCore_Action.Output.drop))
       (compile_pred pred sw)
   | PoUnion (pol1, pol2) ->
     OutputClassifier.union 
@@ -56,13 +53,13 @@ let rec compile_pol p sw =
       (compile_pol pol2 sw)
 
 let to_rule (pattern, action) = 
-  match Pattern.to_match pattern with
+  match NetCore_Pattern.to_match pattern with
     | Some match_ ->
       Some (match_,
-            Action.Output.as_actionSequence match_.OpenFlow0x01.Match.inPort
+            NetCore_Action.Output.as_actionSequence match_.OpenFlow0x01.Match.inPort
               action)
     | None -> None
 
 let flow_table_of_policy sw pol0 =
-  filter_map to_rule (compile_pol pol0 sw)
+  List.fold_right (fun p acc -> match to_rule p with None -> acc | Some r -> r::acc) (compile_pol pol0 sw) []
 

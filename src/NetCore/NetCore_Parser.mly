@@ -1,6 +1,5 @@
 %{
-
- open Syntax.External
+ open NetCore_Types.External
 
  let int12_of_int64 (n : Int64.t) : int =
    if Int64.compare n Int64.zero >= 0 && 
@@ -48,21 +47,21 @@
 
 %start program
 
-%type <Syntax.External.policy Lwt_behavior.t> program
+%type <NetCore_Types.External.policy NetCore_Stream.t> program
 
 %%
 
 pred_atom :
   | LPAREN pred RPAREN { $2 }
-  (* TODO(arjun): Support infix NOT too *)
-  | NOT pred_atom { Not $2 } (* Most useful for writing "!( ... )" *)
+  /* TODO(arjun): Support infix NOT too */
+  | NOT pred_atom { Not $2 } /* Most useful for writing "!( ... )" */
   | STAR { All }
   | NONE { NoPackets }
   | SWITCH EQUALS INT64 { Switch $3 }
-  (* ARJUN: I do not want the lexer to distinguish integers of different sizes.
+  /* ARJUN: I do not want the lexer to distinguish integers of different sizes.
      (i.e., I do not want users to have to write suffixed integers such as
      0xbeefbeefbeefbeefL for large integers. So, I'm lexing everything to 
-     Int64, then having checked-casts down to the right size. *)
+     Int64, then having checked-casts down to the right size. */
   | INPORT EQUALS INT64 { InPort (int16_of_int64 $3) }
   | SRCMAC EQUALS MACADDR { DlSrc $3 }
   | DSTMAC EQUALS MACADDR { DlDst $3 }
@@ -87,35 +86,35 @@ pred :
 
 pol_atom :
   | LPAREN pol RPAREN { $2 }
-  | INT64 { Lwt_behavior.return (Act (To (int16_of_int64 $1))) }
-  | ALL { Lwt_behavior.return (Act ToAll) }
+  | INT64 { NetCore_Stream.return (Act (To (int16_of_int64 $1))) }
+  | ALL { NetCore_Stream.return (Act ToAll) }
   | LEARNING 
-    { Lwt_behavior.from_stream 
-      MacLearning.Learning.init
-      MacLearning.Routing.policy }
+    { NetCore_Stream.from_stream 
+      NetCore_MacLearning.Learning.init
+      NetCore_MacLearning.Routing.policy }
 
 pol_pred :  
   | pol_atom { $1 }
   | IF pred THEN pol_pred 
-    { Lwt_behavior.map (fun pol -> Seq (Filter $2, pol)) $4 }
+    { NetCore_Stream.map (fun pol -> Seq (Filter $2, pol)) $4 }
 
 pol_seq_list :
   | pol_pred { $1 }
   | pol_pred SEMI pol_seq_list 
-    { Lwt_behavior.map2 (fun pol1 pol2 -> Seq (pol1, pol2)) $1 $3 }
+    { NetCore_Stream.map2 (fun pol1 pol2 -> Seq (pol1, pol2)) $1 $3 }
 
 pol_par_list :
   | pol_pred { $1 }
   | pol_pred BAR pol_par_list
-    { Lwt_behavior.map2 (fun pol1 pol2 -> Par (pol1, pol2)) $1 $3 }
+    { NetCore_Stream.map2 (fun pol1 pol2 -> Par (pol1, pol2)) $1 $3 }
 
 
 pol :
   | pol_pred { $1 }
   | pol_pred BAR pol_par_list
-    { Lwt_behavior.map2 (fun pol1 pol2 -> Par (pol1, pol2)) $1 $3 }
+    { NetCore_Stream.map2 (fun pol1 pol2 -> Par (pol1, pol2)) $1 $3 }
   | pol_pred SEMI pol_seq_list
-    { Lwt_behavior.map2 (fun pol1 pol2 -> Seq (pol1, pol2)) $1 $3 }
+    { NetCore_Stream.map2 (fun pol1 pol2 -> Seq (pol1, pol2)) $1 $3 }
 
 
 program

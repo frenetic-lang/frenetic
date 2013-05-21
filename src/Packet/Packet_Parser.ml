@@ -1,25 +1,5 @@
 open Packet
 
-let mac_of_bytes (str:string) : int64 =
-  if String.length str != 6 then
-    raise (Invalid_argument
-             (Format.sprintf "mac_of_bytes expected six-byte string, got %d
-                              bytes" (String.length str)));
-  let byte n = Int64.of_int (Char.code (String.get str n)) in
-  let open Int64 in
-  logor (shift_left (byte 0) (8 * 5))
-    (logor (shift_left (byte 1) (8 * 4))
-       (logor (shift_left (byte 2) (8 * 3))
-          (logor (shift_left (byte 3) (8 * 2))
-             (logor (shift_left (byte 4) (8 * 1))
-                (byte 5)))))
-
-let bytes_of_mac (x:int64) : string =
-  let byte n = Char.chr (get_byte x n) in
-  Format.sprintf "%c%c%c%c%c%c"
-    (byte 5) (byte 4) (byte 3)
-    (byte 2) (byte 1) (byte 0)
-
 (* Data Link *)
 cstruct eth {
   uint8_t dst[6];

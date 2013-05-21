@@ -1,11 +1,9 @@
 open Packet
-open Misc
 open List
-open Word
 
 module Internal : sig
   type pred =
-  | PrHdr of Pattern.t
+  | PrHdr of NetCore_Pattern.t
   | PrOnSwitch of OpenFlow0x01.switchId
   | PrOr of pred * pred
   | PrAnd of pred * pred
@@ -14,7 +12,7 @@ module Internal : sig
   | PrNone
 
   type pol =
-  | PoAction of Action.Output.t
+  | PoAction of NetCore_Action.Output.t
   | PoFilter of pred
   | PoUnion of pol * pol
   | PoSeq of pol * pol
@@ -24,10 +22,9 @@ module Internal : sig
   | Data of bytes 
 
   type value =
-  | Pkt of OpenFlow0x01.switchId * Pattern.port * packet * payload
+  | Pkt of OpenFlow0x01.switchId * NetCore_Pattern.port * packet * payload
 
-  val match_pred : pred -> OpenFlow0x01.switchId 
-    -> Pattern.port -> packet -> bool
+  val match_pred : pred -> OpenFlow0x01.switchId -> NetCore_Pattern.port -> packet -> bool
 
   val classify : pol -> value -> value list
 

@@ -2,7 +2,8 @@
 
 OCAMLBUILD = ocamlbuild -use-ocamlfind
 
-MLIFILES = _build/Packet.mli 
+MLIFILES = _build/Packet.mli \
+           _build/Packet_Parser.mli
 
 CMIFILES = $(MLIFILES:.mli=.cmi)
 
