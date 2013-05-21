@@ -61,39 +61,51 @@ module Internal = struct
     | PoSeq (p1, p2) -> 
       concat_map (classify p2) (classify p1 inp)
 
+  let rec format_pred fmt pred = match pred with 
+    | PrHdr pat -> 
+      fprintf fmt "@[PrHdr@;<1 2>@[%s@]@]" (Pattern.to_string pat)
+    | PrOnSwitch sw ->
+      fprintf fmt "@[PrOnSwitch %Lx@]" sw
+    | PrOr (p1,p2) ->
+      fprintf fmt "@[PrOr@;<1 2>@[(@[%a@],@ @[%a@])@]@]"
+        format_pred p1 format_pred p2
+    | PrAnd (p1,p2) -> 
+      fprintf fmt "@[PrAnd@;<1 2>@[(@[%a@],@ @[%a@])@]@]" 
+        format_pred p1 format_pred p2
+    | PrNot p -> 
+      fprintf fmt "@[PrNot@;<1 2>(@[%a@])@]" format_pred p
+    | PrAll -> 
+      pp_print_string fmt "PrAll"
+    | PrNone -> 
+      pp_print_string fmt "PrNone"
+
   let rec pred_to_string pred = 
     let buf = Buffer.create 100 in
     let fmt = formatter_of_buffer buf in
-    let rec loop fmt pred = match pred with 
-      | PrHdr pat -> 
-        fprintf fmt "PrHdr @[%s@]" (Pattern.to_string pat)
-      | PrOnSwitch sw ->
-        fprintf fmt "PrOnSwitch %Lx" sw
-      | PrOr (p1,p2) ->
-        fprintf fmt "PrOr (@[<v 2>%a@], @[<v 2>%a@])" loop p1 loop p2
-      | PrAnd (p1,p2) -> 
-        fprintf fmt "PrAnd (@[<v 2>%a@], @[<v 2>%a@])" loop p1 loop p2
-      | PrNot p -> 
-        fprintf fmt "PrNot (@[%a@])" loop p
-      | PrAll -> 
-        pp_print_string fmt "PrAll"
-      | PrNone -> 
-        pp_print_string fmt "PrNone" in
     pp_set_margin fmt 80;
-    loop fmt pred;
+    format_pred fmt pred;
     fprintf fmt "@?";
     Buffer.contents buf
 
-  let rec pol_to_string pol =
-    match pol with
+  let rec format_pol fmt pol = match pol with
     | PoAction a -> 
-      Format.sprintf "PoAction %s" (Action.Output.to_string a)
+      fprintf fmt "@[PoAction@;<1 2>@[%s@]@]" (Action.Output.to_string a)
     | PoFilter pr -> 
-      Format.sprintf "PoFilter (%s)" (pred_to_string pr)
+      fprintf fmt "@[PoFilter@;<1 2>(@[%a@])@]" format_pred pr
     | PoUnion (p1,p2) -> 
-      Format.sprintf "PoUnion (%s, %s)" (pol_to_string p1) (pol_to_string p2)
+      fprintf fmt "@[PoUnion@;<1 2>@[(@[%a@],@ @[%a@])@]@]" format_pol p1
+        format_pol p2
     | PoSeq (p1,p2) -> 
-      Format.sprintf "PoSeq (%s, %s)" (pol_to_string p1) (pol_to_string p2)
+      fprintf fmt "@[PoSeq@;<1 2>@[(@[%a@],@ @[%a@])@]@]" format_pol p1
+        format_pol p2
+
+  let rec pol_to_string pred = 
+    let buf = Buffer.create 100 in
+    let fmt = formatter_of_buffer buf in
+    pp_set_margin fmt 80;
+    format_pol fmt pred;
+    fprintf fmt "@?";
+    Buffer.contents buf
 
   let value_to_string = function 
     | Pkt (sid, port, pkt, pay) ->

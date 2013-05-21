@@ -38,6 +38,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
 
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
     Log.printf "[Controller.ml] compiling new policy for switch %Ld\n" sw;
+    Log.printf "[Controller.ml] policy is:\n%s\n" (Internal.pol_to_string pol);
     let flow_table = Compiler.flow_table_of_policy sw pol in
     Log.printf "[Controller.ml] done compiling policy for switch %Ld\n" sw;
     Log.printf "[Controller.ml] flow table is:\n";
