@@ -20,10 +20,12 @@ module Match : sig
 
   (** A pattern that matches all packets. (All fields wildcarded.) *)
   val all : t
+
   val size : int
   val parse : Cstruct.t -> t
   val marshal : t -> Cstruct.t -> int
   val to_string : t -> string
+
 end
 
   type capabilities = {
