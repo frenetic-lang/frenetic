@@ -1,35 +1,19 @@
-.PHONY: all debug native uninstall install doc clean
+.PHONY: all clean ctags
 
-OCAMLBUILD = ocamlbuild -use-ocamlfind
+LIBS = PacketLib \
+       OpenFlowLib \
+       NetCoreLib 
 
-CTAGSFILES = $(shell ls *.ml) $(shell ls *.mli)
+APPS = NetCore
 
-MLIFILES = _build/Syntax.mli 
-
-CMIFILES = $(MLIFILES:.mli=.cmi)
-
-all: debug native uninstall install doc
-
-debug:
-	$(OCAMLBUILD) -cflag -ppopt -cflag -lwt-debug debug.otarget
-
-native:
-	$(OCAMLBUILD) native.otarget
-
-verify:
-	$(OCAMLBUILD) verify.otarget
-
-uninstall:
-	ocamlfind remove NetCoreLib
-
-install:
-	ocamlfind install NetCoreLib META $(MLIFILES) $(CMIFILES) NetCoreLib.d.cma NetCoreLib.cmxa
-
-doc:
-	$(OCAMLBUILD) doc.docdir/index.html
+all: 
+	$(foreach LIB,$(LIBS),make -C $(LIB);)
+	$(foreach APP,$(APPS),make -C $(APP);)
 
 clean:
-	rm -rf _build *.d.byte *.native *.d.cma *.cmxa
+	$(foreach LIB,$(LIBS),make -C $(LIB) clean;)
+	$(foreach APP,$(APPS),make -C $(APP) clean;)
 
 ctags: $(CTAGSFILES)
+	@echo "[5m[31m[1m*** Making ctags is broken! ***[0m"
 	rm -f tags && ctags $(CTAGSFILES)
