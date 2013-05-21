@@ -3,7 +3,7 @@ open List
 open Misc
 open Syntax.Internal
 open Packet
-open OpenFlow0x01.Types
+open OpenFlow0x01
 open Word
 
 module OutputClassifier = Classifier.Make(Action.Output)
@@ -61,7 +61,7 @@ let to_rule = function
   (match Pattern.to_match pattern with
    | Some match_ ->
      Some (match_,
-           (Action.Output.as_actionSequence match_.matchInPort
+           (Action.Output.as_actionSequence match_.Match.inPort
               action))
    | None -> None)
 

@@ -1,6 +1,6 @@
 open Misc
 open Packet
-open OpenFlow0x01.Types
+open OpenFlow0x01
 
 module type ACTION = sig
   type t
@@ -63,7 +63,6 @@ module Output = struct
   open Misc
   open List
   open Packet
-  open OpenFlow0x01.Types
   open Pattern
   open Misc
 
@@ -313,17 +312,18 @@ module Output = struct
                     (unset out.outTpDst (fun x -> SetTpDst x) []))))))))
 
   let output_to_of inp out = match out.outPort with
-    | Some Pattern.All -> modify out @ (Output AllPorts) :: unmodify out
+    | Some Pattern.All -> modify out @ (Output PseudoPort.AllPorts) 
+      :: unmodify out
     | Some (Pattern.Physical pt) ->
       modify out @
         (( match inp with
          | Some pt' when Word16.eq_dec pt' pt ->
-             Output InPort
+             Output PseudoPort.InPort
          | _ ->
-           Output (PhysicalPort pt)) ::
+           Output (PseudoPort.PhysicalPort pt)) ::
           (unmodify out))
     | Some (Pattern.Bucket n) ->
-      [ Output (Controller Word16.max_value) ]
+      [ Output (PseudoPort.Controller Word16.max_value) ]
     | None ->
       []
 

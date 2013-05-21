@@ -1,22 +1,51 @@
-module Types : sig
+open Packet
+open Word
 
-  open Packet
-  open Word
+module Match : sig
 
-  type of_match = {
-    matchDlSrc : dlAddr option;
-    matchDlDst : dlAddr option;
-    matchDlTyp : dlTyp option;
-    matchDlVlan : dlVlan option;
-    matchDlVlanPcp : dlVlanPcp option;
-    matchNwSrc : nwAddr option; 
-    matchNwDst : nwAddr option;
-    matchNwProto : nwProto option;
-    matchNwTos : nwTos option;
-    matchTpSrc : tpPort option;
-    matchTpDst : tpPort option;
-    matchInPort : portId option 
+  type t = {
+    dlSrc : dlAddr option; 
+    dlDst : dlAddr option;
+    dlTyp : dlTyp option; 
+    dlVlan : dlVlan option;
+    dlVlanPcp : dlVlanPcp option;
+    nwSrc : nwAddr option; 
+    nwDst : nwAddr option;
+    nwProto : nwProto option; 
+    nwTos : nwTos option;
+    tpSrc : tpPort option; 
+    tpDst : tpPort option;
+    inPort : portId option 
   }
+
+  (** A pattern that matches all packets. (All fields wildcarded.) *)
+  val all : t
+
+  val size : int
+  val parse : Cstruct.t -> t
+  val marshal : t -> Cstruct.t -> int
+  val to_string : t -> string
+
+end
+
+module PseudoPort : sig
+
+  type t =
+    | PhysicalPort of portId
+    | InPort
+    | Flood
+    | AllPorts
+    | Controller of int
+
+  val marshal : t -> int
+  val marshal_optional : t option -> int
+
+  val to_string : t -> string
+
+  val none : int
+
+end
+
 
   type capabilities = {
     flow_stats : bool;
@@ -67,15 +96,9 @@ module Types : sig
       
   type bufferId = Word32.t
 
-  type pseudoPort =
-    | PhysicalPort of portId
-    | InPort
-    | Flood
-    | AllPorts
-    | Controller of Word16.t
 
   type action =
-    | Output of pseudoPort
+    | Output of PseudoPort.t
     | SetDlVlan of dlVlan
     | SetDlVlanPcp of dlVlanPcp
     | StripVlan
@@ -95,13 +118,13 @@ module Types : sig
 
   type flowMod = {
     mfModCmd : flowModCommand; 
-    mfMatch : of_match;
+    mfMatch : Match.t;
     mfPriority : priority; 
     mfActions : actionSequence;
     mfCookie : Word64.t; mfIdleTimeOut : timeout;
     mfHardTimeOut : timeout; mfNotifyWhenRemoved : bool;
     mfApplyToPacket : bufferId option;
-    mfOutPort : pseudoPort option; mfCheckOverlap : bool }
+    mfOutPort : PseudoPort.t option; mfCheckOverlap : bool }
 
   type reason =
     | NoMatch
@@ -127,16 +150,16 @@ module Types : sig
   type table_id = Word8.t
   
   module IndividualFlowRequest : sig
-      type t = { of_match : of_match
+      type t = { of_match : Match.t
                ; table_id : table_id
-               ; port : pseudoPort
+               ; port : PseudoPort.t
                }
   end
   
   module AggregateFlowRequest : sig
-      type t = { of_match : of_match
+      type t = { of_match : Match.t
                ; table_id : table_id
-               ; port : pseudoPort
+               ; port : PseudoPort.t
                }
   end
   
@@ -153,7 +176,7 @@ module Types : sig
   
   module IndividualFlowStats : sig
       type t = { table_id : table_id
-               ; of_match : of_match
+               ; of_match : Match.t
                ; duration_sec : int
                ; duration_msec : int
 
@@ -185,7 +208,7 @@ module Types : sig
   end
   
   module PortStats : sig
-      type t = { port_no : pseudoPort
+      type t = { port_no : PseudoPort.t
                ; rx_packets : int
                ; tx_packets : int
                ; rx_bytes : int
@@ -206,7 +229,7 @@ module Types : sig
   | IndividualFlowReq of IndividualFlowRequest.t
   | AggregateFlowReq of AggregateFlowRequest.t
   | TableReq
-  | PortReq of pseudoPort
+  | PortReq of PseudoPort.t
   (* TODO(cole): queue and vendor stats requests. *)
   
   type statsReply =
@@ -232,24 +255,15 @@ module Types : sig
     | StatsRequestMsg of statsRequest
     | StatsReplyMsg of statsReply
 
-  (** A pattern that matches all packets. (All fields wildcarded.) *)
-  val match_all : of_match
-
   (** A message ([FlowModMsg]) that deletes all flows. *)
   val delete_all_flows : message
 
   (** A permanent [FlowModMsg] adding a rule. *)
-  val add_flow : of_match -> actionSequence -> message
+  val add_flow : Match.t -> actionSequence -> message
 
-end
-  (* Ugliness only needed for the bonkers unverified Coq controller *)
-  with type switchId = Int64.t
 
 (** Interface for all platforms. *)
 module type PLATFORM = sig
-
-  open Types
-
 
   (** [SwitchDisconnected switch_id] is raised by [send_to_switch] and
       [recv_from_switch]. This exception is only raised once per switch.

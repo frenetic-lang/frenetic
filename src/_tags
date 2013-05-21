@@ -1,11 +1,10 @@
 true : use_menhir
-true : use_str
 <*.d.byte> : package(cstruct), package(lwt), package(lwt.unix)
 <*.native> : package(cstruct), package(lwt), package(lwt.unix)
 <**/*.ml{,i}> : package(cstruct),package(lwt),syntax(camlp4o),package(lwt.syntax)
+"OpenFlow0x01.ml" : package(cstruct.syntax)
 "OpenFlow0x01_Parser.ml" : package(cstruct.syntax)
-"OpenFlow0x04Parser.ml" : package(cstruct.syntax)
-"OpenFlow0x04Types.ml" : package(cstruct.syntax)
 "Packet_Parser.ml" : package(cstruct.syntax)
 "Test.ml" : package(oUnit)
 "Test.d.byte" : package(oUnit)
+"Test.native" : package(oUnit)

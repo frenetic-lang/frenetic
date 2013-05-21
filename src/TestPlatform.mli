@@ -1,7 +1,7 @@
 (** An implementation of [PLATFORM] for testing purposes.  The
     [Network] submodule enables basic network simulation. *)
 
-open OpenFlow0x01.Types
+open OpenFlow0x01
   
 include OpenFlow0x01.PLATFORM
 

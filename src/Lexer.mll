@@ -62,3 +62,4 @@ rule token = parse
            (logor (shift_left (parse_decbyte b3) 16)
               (logor (shift_left (parse_decbyte b2) 8)
                  (parse_decbyte b1)))) }
+  | "learn" { LEARNING }

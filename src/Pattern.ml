@@ -1,6 +1,6 @@
 open Monad
 open Packet
-open OpenFlow0x01.Types
+open OpenFlow0x01
 open Word
 
 type port = 
@@ -126,18 +126,19 @@ let all =
                                  | Some phys -> Some (Some phys)
                                  | None -> None)
                                | None -> Some None) (fun pt'' ->
-                              Maybe.ret { matchDlSrc = dlSrc; 
-                                          matchDlDst = dlDst; 
-                                          matchDlTyp = typ; 
-                                          matchDlVlan = vlan; 
-                                          matchDlVlanPcp = pcp; 
-                                          matchNwSrc = nwSrc; 
-                                          matchNwDst = nwDst; 
-                                          matchNwProto = nwProto; 
-                                          matchNwTos = nwTos; 
-                                          matchTpSrc = tpSrc; 
-                                          matchTpDst = tpDst; 
-                                          matchInPort = pt'' })))))))))))))
+                                 let open Match in
+                              Maybe.ret { dlSrc = dlSrc; 
+                                          dlDst = dlDst; 
+                                          dlTyp = typ; 
+                                          dlVlan = vlan; 
+                                          dlVlanPcp = pcp; 
+                                          nwSrc = nwSrc; 
+                                          nwDst = nwDst; 
+                                          nwProto = nwProto; 
+                                          nwTos = nwTos; 
+                                          tpSrc = tpSrc; 
+                                          tpDst = tpDst; 
+                                          inPort = pt'' })))))))))))))
 
     let inter pat pat' =
       { ptrnDlSrc = Wildcard.Wildcard.inter Word48.eq_dec pat.ptrnDlSrc pat'.ptrnDlSrc;
