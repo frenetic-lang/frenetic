@@ -1,20 +1,29 @@
-  open Packet
-  open Word
+open Packet
+open Word
 
-  type of_match = {
-    matchDlSrc : dlAddr option;
-    matchDlDst : dlAddr option;
-    matchDlTyp : dlTyp option;
-    matchDlVlan : dlVlan option;
-    matchDlVlanPcp : dlVlanPcp option;
-    matchNwSrc : nwAddr option; 
-    matchNwDst : nwAddr option;
-    matchNwProto : nwProto option;
-    matchNwTos : nwTos option;
-    matchTpSrc : tpPort option;
-    matchTpDst : tpPort option;
-    matchInPort : portId option 
+module Match : sig
+
+  type t = {
+    dlSrc : dlAddr option; 
+    dlDst : dlAddr option;
+    dlTyp : dlTyp option; 
+    dlVlan : dlVlan option;
+    dlVlanPcp : dlVlanPcp option;
+    nwSrc : nwAddr option; 
+    nwDst : nwAddr option;
+    nwProto : nwProto option; 
+    nwTos : nwTos option;
+    tpSrc : tpPort option; 
+    tpDst : tpPort option;
+    inPort : portId option 
   }
+
+  (** A pattern that matches all packets. (All fields wildcarded.) *)
+  val all : t
+  val size : int
+  val parse : Cstruct.t -> t
+  val marshal : t -> Cstruct.t -> int
+end
 
   type capabilities = {
     flow_stats : bool;
@@ -93,7 +102,7 @@
 
   type flowMod = {
     mfModCmd : flowModCommand; 
-    mfMatch : of_match;
+    mfMatch : Match.t;
     mfPriority : priority; 
     mfActions : actionSequence;
     mfCookie : Word64.t; mfIdleTimeOut : timeout;
@@ -125,14 +134,14 @@
   type table_id = Word8.t
   
   module IndividualFlowRequest : sig
-      type t = { of_match : of_match
+      type t = { of_match : Match.t
                ; table_id : table_id
                ; port : pseudoPort
                }
   end
   
   module AggregateFlowRequest : sig
-      type t = { of_match : of_match
+      type t = { of_match : Match.t
                ; table_id : table_id
                ; port : pseudoPort
                }
@@ -151,7 +160,7 @@
   
   module IndividualFlowStats : sig
       type t = { table_id : table_id
-               ; of_match : of_match
+               ; of_match : Match.t
                ; duration_sec : int
                ; duration_msec : int
 
@@ -230,14 +239,11 @@
     | StatsRequestMsg of statsRequest
     | StatsReplyMsg of statsReply
 
-  (** A pattern that matches all packets. (All fields wildcarded.) *)
-  val match_all : of_match
-
   (** A message ([FlowModMsg]) that deletes all flows. *)
   val delete_all_flows : message
 
   (** A permanent [FlowModMsg] adding a rule. *)
-  val add_flow : of_match -> actionSequence -> message
+  val add_flow : Match.t -> actionSequence -> message
 
 
 (** Interface for all platforms. *)

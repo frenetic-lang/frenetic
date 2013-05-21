@@ -61,7 +61,7 @@ let to_rule = function
   (match Pattern.to_match pattern with
    | Some match_ ->
      Some (match_,
-           (Action.Output.as_actionSequence match_.matchInPort
+           (Action.Output.as_actionSequence match_.Match.inPort
               action))
    | None -> None)
 

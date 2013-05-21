@@ -26,7 +26,7 @@ val match_packet : port -> packet -> t -> bool
   
 val is_exact : t -> bool
   
-val to_match : t -> of_match option
+val to_match : t -> Match.t option
   
 val dlSrc : dlAddr -> t
   
