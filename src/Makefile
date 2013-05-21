@@ -3,6 +3,7 @@
 OCAMLBUILD = ocamlbuild -use-ocamlfind
 
 CTAGSFILES = $(shell ls *.ml) $(shell ls *.mli)
+
 MLIFILES = _build/Syntax.mli 
 
 CMIFILES = $(MLIFILES:.mli=.cmi)
