@@ -101,10 +101,112 @@ module TestClassifier = struct
            (dlSrc 0xDDDDL, drop); (* redundant *)
            (all, drop)]
 
+  let test8 =
+    "classifier union regression 1" >::
+      fun () ->
+        assert_equal ~printer:C.to_string
+          (union
+             [(dlSrc 0xDDDDL, forward 2);
+              (all, drop)]
+             [(dlDst 0xEEEEL, forward 30);
+              (all, drop)])
+          [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), 
+            par_action (forward 2) (forward 30));
+           (dlSrc 0xDDDDL, forward 2);
+           (dlDst 0xEEEEL, forward 30);
+           (all, drop)]
+
   let go =
-    TestList [test0; test1; test2; test3; test4; test5; test6; test7]
+    TestList [test0; test1; test2; test3; test4; test5; test6; test7; test8]
 
 end
+
+module TestNetCore = struct
+
+  open Syntax.Internal
+  open Action.Output
+  open Pattern
+  module C = Classifier.Make (Action.Output)
+
+  let test1_pol1 =
+    PoSeq 
+      (PoFilter 
+         (PrNot 
+            (PrOr (PrAnd 
+                     (PrAnd (PrOnSwitch 1L, 
+                             PrHdr (Pattern.inPort (Physical 1))), 
+                      PrHdr (Pattern.dlSrc 0x0ab75f2211d4L)), PrNone))),
+       PoAction (forward 3))
+
+  let test1_pol2 = 
+    PoSeq 
+      (PoFilter
+         (PrAnd 
+            (PrOnSwitch 1L, PrHdr (Pattern.dlDst 0x0ab75f2211d4L))), 
+       PoAction (forward 1))
+
+  let test1_pol3 =
+    PoSeq 
+      (PoFilter 
+         (PrNot 
+            (PrOr (PrAnd (PrOnSwitch 1L,
+                          PrHdr (Pattern.dlDst 0x0ab75f2211d4L)),
+                   PrNone))), PoAction to_all)
+
+  let test1 = 
+      "maclearning regression 1" >::
+        fun () ->
+          assert_equal  ~printer:C.to_string
+            (Compiler.compile_pol test1_pol1 1L) []
+
+  let test2 = 
+      "maclearning regression 2" >::
+        fun () ->
+          assert_equal  ~printer:C.to_string
+            (Compiler.compile_pol test1_pol2 1L) []
+
+  let test3 = 
+      "maclearning regression 3" >::
+        fun () ->
+          assert_equal  ~printer:C.to_string
+            (Compiler.compile_pol test1_pol3 1L) []
+
+  let test4 = 
+      "maclearning regression 2 || 3" >::
+        fun () ->
+          assert_equal  ~printer:C.to_string
+            (Compiler.compile_pol
+               (PoUnion (test1_pol2, test1_pol3))
+            1L)
+            []
+
+  let test5 = 
+      "maclearning regression 1 || 2 || 3" >::
+        fun () ->
+          assert_equal  ~printer:C.to_string
+            (Compiler.compile_pol
+               (PoUnion (test1_pol1, PoUnion (test1_pol2, test1_pol3)))
+            1L)
+            []
+
+  let test6 =
+    "sequencing regression 1" >::
+      fun () ->
+        assert_equal ~printer:C.to_string
+          (Compiler.compile_pol 
+             (PoFilter
+                (PrAnd 
+                   (PrOnSwitch 1L, PrHdr (dlDst 0x0ab75f2211d4L))))
+             1L)
+          [(dlDst 0x0ab75f2211d4L, pass); 
+           (all, drop)]
+
+  let go = TestList [test6; test5; test4; test3; test2; test1]
+
+end
+
+        
+        
 
 module Test1 = struct
 
@@ -379,6 +481,7 @@ let tests =
            ; TestMods.go
            ; TestSlices.go
            ; TestClassifier.go
+           ; TestNetCore.go
            ]
 
 let _ = run_test_tt_main tests
