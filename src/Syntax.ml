@@ -2,6 +2,7 @@ open Packet
 open Misc
 open List
 open Word
+open Format
 
 module Internal = struct
   type pred =
@@ -60,21 +61,28 @@ module Internal = struct
     | PoSeq (p1, p2) -> 
       concat_map (classify p2) (classify p1 inp)
 
-  let rec pred_to_string pred = match pred with 
-    | PrHdr pat -> 
-      Format.sprintf "PrHdr %s" (Pattern.to_string pat)
-    | PrOnSwitch sw ->
-      Format.sprintf "PrOnSwitch %Lx" sw
-    | PrOr (p1,p2) ->
-      Format.sprintf "PrOr (%s, %s)" (pred_to_string p1) (pred_to_string p2)
-    | PrAnd (p1,p2) -> 
-      Format.sprintf "PrAnd (%s, %s)" (pred_to_string p1) (pred_to_string p2)
-    | PrNot p -> 
-      Format.sprintf "PrNot (%s)" (pred_to_string p)
-    | PrAll -> 
-      "PrAll"
-    | PrNone -> 
-      "PrNone"
+  let rec pred_to_string pred = 
+    let buf = Buffer.create 100 in
+    let fmt = formatter_of_buffer buf in
+    let rec loop fmt pred = match pred with 
+      | PrHdr pat -> 
+        fprintf fmt "PrHdr @[%s@]" (Pattern.to_string pat)
+      | PrOnSwitch sw ->
+        fprintf fmt "PrOnSwitch %Lx" sw
+      | PrOr (p1,p2) ->
+        fprintf fmt "PrOr (@[<v 2>%a@], @[<v 2>%a@])" loop p1 loop p2
+      | PrAnd (p1,p2) -> 
+        fprintf fmt "PrAnd (@[<v 2>%a@], @[<v 2>%a@])" loop p1 loop p2
+      | PrNot p -> 
+        fprintf fmt "PrNot (@[%a@])" loop p
+      | PrAll -> 
+        pp_print_string fmt "PrAll"
+      | PrNone -> 
+        pp_print_string fmt "PrNone" in
+    pp_set_margin fmt 80;
+    loop fmt pred;
+    fprintf fmt "@?";
+    Buffer.contents buf
 
   let rec pol_to_string pol =
     match pol with
