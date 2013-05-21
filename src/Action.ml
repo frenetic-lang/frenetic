@@ -1,6 +1,7 @@
 open Misc
 open Packet
 open OpenFlow0x01
+open OpenFlow0x01.Action
 
 module type ACTION = sig
   type t
@@ -82,23 +83,32 @@ module Output = struct
       outTpDst : tpPort match_modify;
       outPort : Pattern.port option }
 
-  (* JNF: does this belong in Misc? *)
-  let string_of_output out =
-    let string_of_pair f = Misc.string_of_pair f f in
-    let reflections =
-      [ ("DlSrc", string_of_option (string_of_pair dlAddr_to_string) out.outDlSrc)
-      ; ("DlDst", string_of_option (string_of_pair dlAddr_to_string) out.outDlDst)
-      ; ("DlVlan", string_of_option (string_of_pair dlVlan_to_string) out.outDlVlan)
-      ; ("DlVlanPcp", string_of_option (string_of_pair dlVlanPcp_to_string) out.outDlVlanPcp)
-      ; ("NwSrc", string_of_option (string_of_pair nwAddr_to_string) out.outNwSrc)
-      ; ("NwDst", string_of_option (string_of_pair nwAddr_to_string) out.outNwDst)
-      ; ("NwTos", string_of_option (string_of_pair nwTos_to_string) out.outNwTos)
-      ; ("TpSrc", string_of_option (string_of_pair tpPort_to_string) out.outTpSrc)
-      ; ("TpDst", string_of_option (string_of_pair tpPort_to_string) out.outTpDst)
-      ; ("Fwd", string_of_option Pattern.string_of_port out.outPort) ] in
-    let nonempty = List.filter (fun (f,v) -> v <> "") reflections in
-    let rvs = List.map (fun (f,v) -> Printf.sprintf "%s %s" f v) nonempty in
-    Printf.sprintf "{%s}" (String.concat ", " rvs)
+  let match_modify_to_string
+      (pr : 'a -> string) (lbl : string) (v : 'a match_modify) : string option =
+    match v with
+      | None -> None
+      | Some (old, new_) -> 
+        Some (Format.sprintf "%s:%s->%s" lbl (pr old) (pr new_))
+
+  let string_of_output (out : output) : string = 
+    let mods =
+      [ match_modify_to_string dlAddr_to_string "DlSrc" out.outDlSrc;
+        match_modify_to_string dlAddr_to_string "DlDst" out.outDlDst;
+        match_modify_to_string dlVlan_to_string "DlVlan" out.outDlVlan;
+        match_modify_to_string dlVlanPcp_to_string "DlVlanPcp" out.outDlVlanPcp;
+        match_modify_to_string string_of_ip "NwSrc" out.outNwSrc;
+        match_modify_to_string string_of_ip "NwDst" out.outNwDst;
+        match_modify_to_string nwTos_to_string "NwTos" out.outNwTos;
+        match_modify_to_string string_of_int "TpSrc" out.outTpSrc;
+        match_modify_to_string string_of_int "TpDst" out.outTpDst ] in
+    let mods = String.concat ", " (filter_map (fun x -> x) mods) in
+    if mods = "" then
+      Format.sprintf "Fwd %s"
+        (string_of_option Pattern.string_of_port out.outPort)
+    else 
+      Format.sprintf "Fwd %s<%s>"
+        (string_of_option Pattern.string_of_port out.outPort)
+        mods
 
   let to_string output_list =
     Printf.sprintf "[%s]"

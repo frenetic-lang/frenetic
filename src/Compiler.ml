@@ -3,7 +3,6 @@ open List
 open Misc
 open Syntax.Internal
 open Packet
-open OpenFlow0x01
 open Word
 
 module OutputClassifier = Classifier.Make(Action.Output)
@@ -56,14 +55,13 @@ let rec compile_pol p sw =
       (compile_pol pol1 sw) 
       (compile_pol pol2 sw)
 
-let to_rule = function
-| (pattern, action) ->
-  (match Pattern.to_match pattern with
-   | Some match_ ->
-     Some (match_,
-           (Action.Output.as_actionSequence match_.Match.inPort
-              action))
-   | None -> None)
+let to_rule (pattern, action) = 
+  match Pattern.to_match pattern with
+    | Some match_ ->
+      Some (match_,
+            Action.Output.as_actionSequence match_.OpenFlow0x01.Match.inPort
+              action)
+    | None -> None
 
 let flow_table_of_policy sw pol0 =
   filter_map to_rule (compile_pol pol0 sw)

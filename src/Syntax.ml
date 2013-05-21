@@ -1,4 +1,3 @@
-open OpenFlow0x01
 open Packet
 open Misc
 open List
@@ -7,7 +6,7 @@ open Word
 module Internal = struct
   type pred =
   | PrHdr of Pattern.t
-  | PrOnSwitch of switchId
+  | PrOnSwitch of OpenFlow0x01.switchId
   | PrOr of pred * pred
   | PrAnd of pred * pred
   | PrNot of pred
@@ -21,11 +20,11 @@ module Internal = struct
   | PoSeq of pol * pol
 
   type payload = 
-  | Buf of bufferId
+  | Buf of OpenFlow0x01.bufferId
   | Data of bytes 
 
   type value =
-  | Pkt of switchId * Pattern.port * packet * payload
+  | Pkt of OpenFlow0x01.switchId * Pattern.port * packet * payload
 
   let rec match_pred pr sw pt pk =
     match pr with
@@ -64,8 +63,7 @@ module Internal = struct
   let rec pred_to_string pred = match pred with 
     | PrHdr pat -> 
       Pattern.to_string pat
-    | PrOnSwitch sw -> 
-      "Switch " ^ (string_of_switchId sw)
+    | PrOnSwitch sw -> "Switch " ^ (Int64.to_string sw)
     | PrOr (p1,p2) -> 
       (pred_to_string p1) ^ " || " ^ (pred_to_string p2)
     | PrAnd (p1,p2) -> 
@@ -95,14 +93,12 @@ module Internal = struct
 
   let value_to_string = function 
     | Pkt (sid, port, pkt, pay) ->
-      Printf.sprintf "(%s, %s, %s, _)" 
-        (string_of_switchId sid) 
-        (Pattern.string_of_port port) 
-        (packet_to_string pkt)
+      Printf.sprintf "(%Ld, %s, %s, _)" 
+        sid (Pattern.string_of_port port) (packet_to_string pkt)
 end
 
 module External = struct
-  type get_packet_handler = switchId -> portId -> packet -> unit
+  type get_packet_handler = OpenFlow0x01.switchId -> portId -> packet -> unit
 
   type predicate =
   | And of predicate * predicate
@@ -110,7 +106,7 @@ module External = struct
   | Not of predicate
   | All
   | NoPackets
-  | Switch of switchId
+  | Switch of OpenFlow0x01.switchId
   | InPort of portId
   | DlSrc of Int64.t
   | DlDst of Int64.t
