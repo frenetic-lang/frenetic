@@ -11,8 +11,6 @@ module type CLASSIFIER =
   
   val scan : t -> Pattern.port -> packet -> action
   
-  val inter : t -> t -> t
-  
   val union : t -> t -> t
   
   val sequence : t -> t -> t

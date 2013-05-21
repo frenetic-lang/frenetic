@@ -37,8 +37,6 @@ module type CLASSIFIER = sig
 
   val scan : t -> Pattern.port -> packet -> action
 
-  val inter : t -> t -> t
-
   val union : t -> t -> t
 
   val sequence : t -> t -> t
@@ -88,17 +86,16 @@ module Make : MAKE = functor (Action:ACTION) -> struct
   let opt tbl =
     elim_shadowed (strip_empty_rules tbl)
 
-  let inter_entry cl = function
-  | (pat, act) ->
-    List.fold_right (fun v' acc ->
-      let (pat', act') = v' in
-      ((Pattern.inter pat pat'), (Action.par_action act act')) :: acc) [] cl
+  let inter_entry cl (pat, act) = 
+    List.fold_right 
+      (fun (pat',act') acc ->
+        (Pattern.inter pat pat', Action.par_action act act') :: acc) cl []
 
   let inter_no_opt cl1 cl2 =
-    List.fold_right (fun v acc -> (inter_entry cl2 v) @ acc) [] cl1
+    List.fold_right (fun v acc -> (inter_entry cl2 v) @ acc) cl1 []
 
   let union_no_opt cl1 cl2 =
-    (inter_no_opt cl1 cl2) @ cl1 @ cl2
+    opt ((inter_no_opt cl1 cl2) @ cl1 @ cl2)
 
   let rec par_actions = function
   | [] -> Action.drop
@@ -111,7 +108,7 @@ module Make : MAKE = functor (Action:ACTION) -> struct
           (Action.apply_action (scan tbl1 pt pk) (pt, pk))))
 
   let union tbl1 tbl2 =
-    opt (union_no_opt tbl1 tbl2)
+    union_no_opt tbl1 tbl2
 
   let inter tbl1 tbl2 =
     opt (inter_no_opt tbl1 tbl2)
