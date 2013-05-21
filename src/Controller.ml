@@ -40,13 +40,19 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     Log.printf "[Controller.ml] compiling new policy for switch %Ld\n" sw;
     let flow_table = Compiler.flow_table_of_policy sw pol in
     Log.printf "[Controller.ml] done compiling policy for switch %Ld\n" sw;
+    Log.printf "[Controller.ml] flow table is:\n";
+    List.iter
+      (fun (m,a) -> Log.printf "[Controller.ml] %s => %s\n"
+        (OpenFlow0x01.Match.to_string m)
+        (OpenFlow0x01.Action.sequence_to_string a))
+      flow_table;
     Platform.send_to_switch sw 0l delete_all_flows >>
     Lwt_list.iter_s
       (fun (match_, actions) ->
           Platform.send_to_switch sw 0l (add_flow match_ actions))
-      flow_table;
-    Log.printf "[Controller.ml] initialized switch %Ld\n" sw;
-    Lwt.return ()
+      flow_table >>
+    (Log.printf "[Controller.ml] initialized switch %Ld\n" sw;
+     Lwt.return ())
 
   let install_new_policies sw pol_stream =
     Lwt_stream.iter_s (configure_switch sw) pol_stream
