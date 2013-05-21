@@ -201,7 +201,80 @@ module TestNetCore = struct
           [(dlDst 0x0ab75f2211d4L, pass); 
            (all, drop)]
 
-  let go = TestList [test6; test5; test4; test3; test2; test1]
+  let pol2_query =
+    PoSeq
+      (PoFilter
+         (PrNot
+            (PrOr
+               (PrAnd
+                  (PrAnd (PrOnSwitch 1L, PrHdr (inPort (Physical 1))),
+                   PrHdr (dlSrc 0x92f0fea53b3fL)),
+                PrOr
+                  (PrAnd
+                     (PrAnd (PrOnSwitch 1L, PrHdr (inPort (Physical 2))),
+                      PrHdr (dlSrc 0x1274ccafe0eaL)),
+                   PrNone)))),
+       PoAction (forward 5000))
+
+  let pol2_fwd1 = 
+    PoSeq
+      (PoFilter (PrAnd (PrOnSwitch 1L, PrHdr (dlDst 0x92f0fea53b3fL))),
+       PoAction (forward 1))
+
+  let pol2_fwd2 = 
+    PoSeq
+      (PoFilter (PrAnd (PrOnSwitch 1L, PrHdr (dlDst 0x1274ccafe0eaL))),
+       PoAction (forward 2))
+
+  let pol2_fwd_rest =
+    PoSeq
+      (PoFilter
+         (PrNot
+            (PrOr
+               (PrAnd (PrOnSwitch 1L, PrHdr (dlDst 0x92f0fea53b3fL)),
+                PrOr
+                  (PrAnd (PrOnSwitch 1L, PrHdr (dlDst 0x1274ccafe0eaL)),
+                   PrNone)))),
+       PoAction to_all)
+
+  let pol2 = 
+    PoUnion
+      (pol2_query,
+       PoUnion
+         (pol2_fwd1,
+          PoUnion
+            (pol2_fwd2, pol2_fwd_rest)))
+
+  let test7 =
+    "maclearning regression pol2_query" >::
+      fun () ->
+        assert_equal ~printer:C.to_string
+          (Compiler.compile_pol pol2_query 1L)
+          []
+
+  let test8 =
+    "maclearning regression pol2_fwd1" >::
+      fun () ->
+        assert_equal ~printer:C.to_string
+          (Compiler.compile_pol pol2_fwd1 1L)
+          []
+
+  let test9 =
+    "maclearning regression pol2_fwd_rest" >::
+      fun () ->
+        assert_equal ~printer:C.to_string
+          (Compiler.compile_pol pol2_fwd_rest 1L)
+          []
+
+  let test10 =
+    "maclearning regression pol2" >::
+      fun () ->
+        assert_equal ~printer:C.to_string
+          (Compiler.compile_pol pol2 1L)
+          []
+
+  let go = TestList [test10; test9; test8; test7; test6; test5;
+                     test4; test3; test2; test1]
 
 end
 

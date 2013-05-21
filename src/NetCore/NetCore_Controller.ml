@@ -37,6 +37,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
 
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
     Printf.eprintf "[Controller.ml] compiling new policy for switch %Ld\n" sw;
+    Printf.eprintf "[Controller.ml] policy is:\n%s\n" (Internal.pol_to_string pol);
     let flow_table = NetCore_Compiler.flow_table_of_policy sw pol in
     Printf.eprintf "[Controller.ml] done compiling policy for switch %Ld\n" sw;
     Printf.eprintf "[Controller.ml] flow table is:\n";
