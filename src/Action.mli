@@ -40,7 +40,7 @@ module Output : sig
   val updateDlDst : Int64.t -> Int64.t -> t
   val updateDlVlan : int option -> int option -> t
   val bucket : int -> t
-  val as_actionSequence : portId option -> t -> actionSequence
+  val as_actionSequence : portId option -> t -> OpenFlow0x01.Action.sequence
 end
 
 module Bool : ACTION 

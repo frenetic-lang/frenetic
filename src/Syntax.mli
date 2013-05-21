@@ -1,4 +1,3 @@
-open OpenFlow0x01
 open Packet
 open Misc
 open List
@@ -7,7 +6,7 @@ open Word
 module Internal : sig
   type pred =
   | PrHdr of Pattern.t
-  | PrOnSwitch of switchId
+  | PrOnSwitch of OpenFlow0x01.switchId
   | PrOr of pred * pred
   | PrAnd of pred * pred
   | PrNot of pred
@@ -21,13 +20,14 @@ module Internal : sig
   | PoSeq of pol * pol
 
   type payload = 
-  | Buf of bufferId
+  | Buf of OpenFlow0x01.bufferId
   | Data of bytes 
 
   type value =
-  | Pkt of switchId * Pattern.port * packet * payload
+  | Pkt of OpenFlow0x01.switchId * Pattern.port * packet * payload
 
-  val match_pred : pred -> switchId -> Pattern.port -> packet -> bool
+  val match_pred : pred -> OpenFlow0x01.switchId 
+    -> Pattern.port -> packet -> bool
 
   val classify : pol -> value -> value list
 
@@ -41,7 +41,7 @@ end
 module External : sig
 
   type get_packet_handler = 
-    switchId -> portId -> packet -> unit
+    OpenFlow0x01.switchId -> portId -> packet -> unit
 
   type predicate =
   | And of predicate * predicate
@@ -49,7 +49,7 @@ module External : sig
   | Not of predicate
   | All
   | NoPackets
-  | Switch of switchId
+  | Switch of OpenFlow0x01.switchId
   | InPort of portId
   | DlSrc of Int64.t
   | DlDst of Int64.t

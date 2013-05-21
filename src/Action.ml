@@ -1,6 +1,7 @@
 open Misc
 open Packet
 open OpenFlow0x01
+open OpenFlow0x01.Action
 
 module type ACTION = sig
   type t

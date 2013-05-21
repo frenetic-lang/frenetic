@@ -37,15 +37,38 @@ module PseudoPort : sig
     | AllPorts
     | Controller of int
 
+  val none : int (* TODO(arjun): wtf? *)
+
   val marshal : t -> int
   val marshal_optional : t option -> int
-
   val to_string : t -> string
 
-  val none : int
 
 end
 
+module Action : sig
+
+  type t =
+    | Output of PseudoPort.t
+    | SetDlVlan of dlVlan
+    | SetDlVlanPcp of dlVlanPcp
+    | StripVlan
+    | SetDlSrc of dlAddr
+    | SetDlDst of dlAddr
+    | SetNwSrc of nwAddr
+    | SetNwDst of nwAddr
+    | SetNwTos of nwTos
+    | SetTpSrc of tpPort
+    | SetTpDst of tpPort
+        
+  type sequence = t list
+
+  val sizeof : t -> int
+  val marshal : t -> Cstruct.t -> int
+  val move_controller_last : sequence -> sequence
+    
+
+end
 
   type capabilities = {
     flow_stats : bool;
@@ -96,22 +119,6 @@ end
       
   type bufferId = Word32.t
 
-
-  type action =
-    | Output of PseudoPort.t
-    | SetDlVlan of dlVlan
-    | SetDlVlanPcp of dlVlanPcp
-    | StripVlan
-    | SetDlSrc of dlAddr
-    | SetDlDst of dlAddr
-    | SetNwSrc of nwAddr
-    | SetNwDst of nwAddr
-    | SetNwTos of nwTos
-    | SetTpSrc of tpPort
-    | SetTpDst of tpPort
-
-  type actionSequence = action list
-
   type timeout =
     | Permanent
     | ExpiresAfter of Word16.t
@@ -120,7 +127,7 @@ end
     mfModCmd : flowModCommand; 
     mfMatch : Match.t;
     mfPriority : priority; 
-    mfActions : actionSequence;
+    mfActions : Action.sequence;
     mfCookie : Word64.t; mfIdleTimeOut : timeout;
     mfHardTimeOut : timeout; mfNotifyWhenRemoved : bool;
     mfApplyToPacket : bufferId option;
@@ -142,7 +149,7 @@ end
   type packetOut = { 
     pktOutBufOrBytes : (bufferId, bytes) Misc.sum;
     pktOutPortId : portId option;
-    pktOutActions : actionSequence 
+    pktOutActions : Action.sequence 
   }
 
   (* Component types of stats_request messages. *)
@@ -185,7 +192,7 @@ end
                ; hard_timeout : int
                ; cookie : int
                ; byte_count : int
-               ; actions : actionSequence
+               ; actions : Action.sequence
                }
   end
   
@@ -259,7 +266,7 @@ end
   val delete_all_flows : message
 
   (** A permanent [FlowModMsg] adding a rule. *)
-  val add_flow : Match.t -> actionSequence -> message
+  val add_flow : Match.t -> Action.sequence -> message
 
 
 (** Interface for all platforms. *)

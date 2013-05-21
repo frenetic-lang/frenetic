@@ -339,6 +339,151 @@ module PseudoPort = struct
 
 end
 
+module Action = struct
+
+  type t =
+    | Output of PseudoPort.t
+    | SetDlVlan of dlVlan
+    | SetDlVlanPcp of dlVlanPcp
+    | StripVlan
+    | SetDlSrc of dlAddr
+    | SetDlDst of dlAddr
+    | SetNwSrc of nwAddr
+    | SetNwDst of nwAddr
+    | SetNwTos of nwTos
+    | SetTpSrc of tpPort
+    | SetTpDst of tpPort
+        
+  type sequence = t list
+
+  cstruct ofp_action_header {
+    uint16_t typ;
+    uint16_t len;
+    uint8_t pad[4]
+  } as big_endian
+
+  cstruct ofp_action_output {
+    uint16_t typ;
+    uint16_t len;
+    uint16_t port;
+    uint16_t max_len
+  } as big_endian 
+  
+  cstruct ofp_action_vlan_vid {
+    uint16_t typ;          
+    uint16_t len;           
+    uint16_t vlan_vid;      
+    uint8_t pad[2]
+  } as big_endian
+
+  cstruct ofp_action_vlan_pcp {
+    uint16_t typ;
+    uint16_t len;           
+    uint8_t vlan_pcp;       
+    uint8_t pad[3]
+  } as big_endian
+
+  cstruct ofp_action_dl_addr {
+    uint16_t typ; 
+    uint16_t len;          
+    uint8_t dl_addr[6];
+    uint8_t pad[6]
+  } as big_endian 
+  
+  cstruct ofp_action_nw_addr {
+    uint16_t typ;
+    uint16_t len; 
+    uint32_t nw_addr
+  } as big_endian
+
+  cstruct ofp_action_tp_port {
+    uint16_t typ;         
+    uint16_t len;          
+    uint16_t tp_port;      
+    uint8_t pad[2]
+  } as big_endian
+
+  cstruct ofp_action_nw_tos {
+    uint16_t typ;
+    uint16_t len; 
+    uint8_t nw_tos; 
+    uint8_t pad[3]
+  } as big_endian
+
+  cstruct ofp_action_enqueue {
+    uint16_t typ;
+    uint16_t len;
+    uint16_t port;
+    uint8_t pad[6]; 
+    uint32_t queue_id
+  } as big_endian 
+  
+  cenum ofp_action_type {
+    OFPAT_OUTPUT;
+    OFPAT_SET_VLAN_VID;
+    OFPAT_SET_VLAN_PCP;
+    OFPAT_STRIP_VLAN;
+    OFPAT_SET_DL_SRC;
+    OFPAT_SET_DL_DST;
+    OFPAT_SET_NW_SRC;
+    OFPAT_SET_NW_DST;
+    OFPAT_SET_NW_TOS;
+    OFPAT_SET_TP_SRC;
+    OFPAT_SET_TP_DST;
+    OFPAT_ENQUEUE
+  } as uint16_t
+
+  let type_code (a : t) = match a with
+    | Output _ -> OFPAT_OUTPUT
+    | SetDlVlan _ -> OFPAT_SET_VLAN_VID
+    | SetDlVlanPcp _ -> OFPAT_SET_VLAN_PCP
+    | StripVlan -> OFPAT_STRIP_VLAN
+    | SetDlSrc _ -> OFPAT_SET_DL_SRC
+    | SetDlDst _ -> OFPAT_SET_DL_DST
+    | SetNwSrc _ -> OFPAT_SET_NW_SRC
+    | SetNwDst _ -> OFPAT_SET_NW_DST
+    | SetNwTos _ -> OFPAT_SET_NW_TOS
+    | SetTpSrc _ -> OFPAT_SET_TP_SRC
+    | SetTpDst _ -> OFPAT_SET_TP_DST
+
+  let sizeof (a : t) = match a with
+    | Output _ -> sizeof_ofp_action_output
+    | SetDlVlan _ -> sizeof_ofp_action_vlan_vid
+    | SetDlVlanPcp _ -> sizeof_ofp_action_vlan_pcp
+    | StripVlan -> sizeof_ofp_action_header
+    | SetDlSrc _
+    | SetDlDst _ -> sizeof_ofp_action_dl_addr
+    | SetNwSrc _
+    | SetNwDst _ -> sizeof_ofp_action_nw_addr
+    | SetNwTos _ -> sizeof_ofp_action_nw_tos
+    | SetTpSrc _
+    | SetTpDst _ -> sizeof_ofp_action_tp_port
+
+  let marshal a bits = 
+    set_ofp_action_header_typ bits (ofp_action_type_to_int (type_code a));
+    set_ofp_action_header_len bits (sizeof a);
+    begin
+      match a with
+        | Output pp ->
+          set_ofp_action_output_port bits (PseudoPort.marshal pp);
+          set_ofp_action_output_max_len bits
+            (match pp with
+              | PseudoPort.Controller w -> w
+              | _ -> 0)
+	| _ -> 
+	  failwith "unimplemented" 
+    end;
+    sizeof a
+
+  let is_to_controller (act : t) : bool = match act with
+    | Output (PseudoPort.Controller _) -> true
+    | _ -> false
+
+  let move_controller_last (lst : sequence) : sequence = 
+    let (to_ctrl, not_to_ctrl) = List.partition is_to_controller lst in
+    not_to_ctrl @ to_ctrl
+        
+end
 
 type capabilities = 
   { flow_stats : bool; 
@@ -385,22 +530,6 @@ type priority = Word16.t
 
 type bufferId = Word32.t
 
-
-type action =
-| Output of PseudoPort.t
-| SetDlVlan of dlVlan
-| SetDlVlanPcp of dlVlanPcp
-| StripVlan
-| SetDlSrc of dlAddr
-| SetDlDst of dlAddr
-| SetNwSrc of nwAddr
-| SetNwDst of nwAddr
-| SetNwTos of nwTos
-| SetTpSrc of tpPort
-| SetTpDst of tpPort
-
-type actionSequence = action list
-
 type timeout =
 | Permanent
 | ExpiresAfter of Word16.t
@@ -409,7 +538,7 @@ type flowMod =
   { mfModCmd : flowModCommand; 
     mfMatch : Match.t;
     mfPriority : priority; 
-    mfActions : actionSequence;
+    mfActions : Action.sequence;
     mfCookie : Word64.t; 
     mfIdleTimeOut : timeout;
     mfHardTimeOut : timeout; 
@@ -434,7 +563,7 @@ type xid = Word32.t
 type packetOut = 
   { pktOutBufOrBytes : (bufferId, bytes) Misc.sum;
     pktOutPortId : portId option;
-    pktOutActions : actionSequence }
+    pktOutActions : Action.sequence }
 
 (* Component types of stats_request messages. *)
 
@@ -472,7 +601,7 @@ module IndividualFlowStats = struct
              hard_timeout : int;
              cookie : int;
              byte_count : int;
-             actions : actionSequence }
+             actions : Action.sequence }
 end
   
 module AggregateFlowStats = struct
