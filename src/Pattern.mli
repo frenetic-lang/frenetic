@@ -58,9 +58,17 @@ val setDlSrc : dlAddr -> t -> t
   
 val setDlDst : dlAddr -> t -> t
 
+val setDlVlan : dlVlan -> t -> t
+
 val setPort : port -> t -> t
 
-val wildcardPort : t -> t
+val wildcardDlSrc : t -> t
   
+val wildcardDlDst : t -> t
+  
+val wildcardDlVlan : t -> t
+
+val wildcardPort : t -> t
+
 val to_string : t -> string
 
