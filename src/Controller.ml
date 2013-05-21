@@ -1,5 +1,5 @@
 open Misc
-open OpenFlow0x01.Types
+open OpenFlow0x01
 open Packet
 open Printf
 open Syntax
@@ -37,12 +37,16 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
   let pol_now : pol ref = ref init_pol
 
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
+    Log.printf "[Controller.ml] compiling new policy for switch %Ld\n" sw;
     let flow_table = Compiler.flow_table_of_policy sw pol in
+    Log.printf "[Controller.ml] done compiling policy for switch %Ld\n" sw;
     Platform.send_to_switch sw 0l delete_all_flows >>
     Lwt_list.iter_s
       (fun (match_, actions) ->
           Platform.send_to_switch sw 0l (add_flow match_ actions))
-      flow_table
+      flow_table;
+    Log.printf "[Controller.ml] initialized switch %Ld\n" sw;
+    Lwt.return ()
 
   let install_new_policies sw pol_stream =
     Lwt_stream.iter_s (configure_switch sw) pol_stream
@@ -71,7 +75,9 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       (init_pol : pol)
       (pol_stream : pol Lwt_stream.t) = 
     configure_switch sw init_pol >>
-    install_new_policies sw pol_stream <&> handle_switch_messages sw
+    install_new_policies sw pol_stream <&> handle_switch_messages sw >>
+    (Log.printf "[Controller.ml] thread for switch %Ld terminated.\n" sw;
+     Lwt.return ())
 
   let rec accept_switches pol_stream = 
     lwt features = Platform.accept_switch () in

@@ -1,5 +1,5 @@
 open Printf
-open OpenFlow0x01.Types
+open OpenFlow0x01
 open Packet
 open Syntax.External
 open Word

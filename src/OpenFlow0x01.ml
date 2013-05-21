@@ -1,8 +1,6 @@
 open Packet
 open Word
 
-module Types = struct
-
 type of_match = 
   { matchDlSrc : dlAddr option; 
     matchDlDst : dlAddr option;
@@ -266,11 +264,8 @@ let add_flow match_ actions =
     mfOutPort = None;
     mfCheckOverlap = false
   }
-    
-end
   
 module type PLATFORM = sig
-  open Types
   exception SwitchDisconnected of switchId 
   val send_to_switch : switchId -> xid -> message -> unit Lwt.t
   val recv_from_switch : switchId -> (xid * message) Lwt.t

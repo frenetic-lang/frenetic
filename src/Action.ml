@@ -1,6 +1,6 @@
 open Misc
 open Packet
-open OpenFlow0x01.Types
+open OpenFlow0x01
 
 module type ACTION = sig
   type t
@@ -63,7 +63,6 @@ module Output = struct
   open Misc
   open List
   open Packet
-  open OpenFlow0x01.Types
   open Pattern
   open Misc
 

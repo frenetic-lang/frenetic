@@ -1,6 +1,6 @@
 open Monad
 open Packet
-open OpenFlow0x01.Types
+open OpenFlow0x01
 open Word
 
 type port = 

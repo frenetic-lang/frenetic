@@ -1,7 +1,7 @@
 (** An implementation of [PLATFORM]. The documentation for [PLATFORM] describes its features. *)
 
 open Lwt_unix
-open OpenFlow0x01.Types
+open OpenFlow0x01
 
 include OpenFlow0x01.PLATFORM
 

@@ -3,7 +3,7 @@ open List
 open Misc
 open Syntax.Internal
 open Packet
-open OpenFlow0x01.Types
+open OpenFlow0x01
 open Word
 
 module OutputClassifier = Classifier.Make(Action.Output)

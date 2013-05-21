@@ -1,5 +1,3 @@
-module Types : sig
-
   open Packet
   open Word
 
@@ -241,15 +239,9 @@ module Types : sig
   (** A permanent [FlowModMsg] adding a rule. *)
   val add_flow : of_match -> actionSequence -> message
 
-end
-  (* Ugliness only needed for the bonkers unverified Coq controller *)
-  with type switchId = Int64.t
 
 (** Interface for all platforms. *)
 module type PLATFORM = sig
-
-  open Types
-
 
   (** [SwitchDisconnected switch_id] is raised by [send_to_switch] and
       [recv_from_switch]. This exception is only raised once per switch.
