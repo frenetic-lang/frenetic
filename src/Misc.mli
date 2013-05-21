@@ -41,6 +41,7 @@ val mac_of_bytes : string -> Int64.t
 val get_byte : Int64.t -> int -> int
 val string_of_mac : Int64.t -> string
 val bytes_of_mac : Int64.t -> string
+val string_of_ip : Int32.t -> string
 
 val filter_map : ('a -> 'b option) -> 'a list -> 'b list
 val concat_map : ('a -> 'b list) -> 'a list -> 'b list

@@ -71,17 +71,26 @@ let get_byte (n:int64) (i:int) : int =
     raise (Invalid_argument "Int64.get_byte index out of range");
   Int64.to_int (Int64.logand 0xFFL (Int64.shift_right_logical n (8 * i)))
 
+let get_byte32 (n : Int32.t) (i : int) : int = 
+  let open Int32 in
+  if i < 0 or i > 3 then
+    raise (Invalid_argument "get_byte32 index out of range");
+  to_int (logand 0xFFl (shift_right_logical n (8 * i)))
+
 let string_of_mac (x:int64) : string =
   Format.sprintf "%02x:%02x:%02x:%02x:%02x:%02x"
     (get_byte x 5) (get_byte x 4) (get_byte x 3)
     (get_byte x 2) (get_byte x 1) (get_byte x 0)
-
 
 let bytes_of_mac (x:int64) : string =
   let byte n = Char.chr (get_byte x n) in
   Format.sprintf "%c%c%c%c%c%c"
     (byte 5) (byte 4) (byte 3)
     (byte 2) (byte 1) (byte 0)
+
+let string_of_ip (ip : Int32.t) : string = 
+  Format.sprintf "%d.%d.%d.%d" (get_byte32 ip 3) (get_byte32 ip 2) 
+    (get_byte32 ip 1) (get_byte32 ip 0)
 
 let rec filter_map f xs = match xs with
   | [] -> []
