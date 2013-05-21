@@ -1,0 +1,3 @@
+<*.d.byte> : package(lwt), package(lwt.unix), package(cstruct), package(PacketLib), package(OpenFlowLib), package(NetCoreLib)
+<*.native> : package(lwt), package(lwt.unix), package(cstruct), package(PacketLib), package(OpenFlowLib), package(NetCoreLib)
+<**/*.ml{,i}> : package(lwt), package(lwt.syntax), syntax(camlp4o), package(PacketLib), package(OpenFlowLib), package(NetCoreLib)
