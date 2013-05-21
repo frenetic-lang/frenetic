@@ -1,6 +1,7 @@
 open Packet
 open Word
 open Misc
+open Format
 
 (** Internal module, only used to parse the wildcards bitfield *)
 module Wildcards = struct
@@ -252,6 +253,35 @@ module Match = struct
         else
           Some (get_ofp_match_in_port bits);
     }
+
+  (* Helper for to_string *)
+  let fld_str (lbl : string) (pr : 'a -> string) (v : 'a option) 
+      : string option =
+    match v with
+      | None -> None
+      | Some a -> Some (sprintf "%s = %s" lbl (pr a))
+
+  let to_string (x : t) : string =
+    let all_fields =
+      [ fld_str "dlSrc" string_of_mac x.dlSrc;
+        fld_str "dlDst" string_of_mac x.dlDst;
+        fld_str "dlTyp" string_of_int x.dlTyp;
+        (match x.dlVlan with
+          | None -> None
+          | Some None -> Some "dlVlan = none"
+          | Some (Some vlan) -> fld_str "dlVlan" string_of_int (Some vlan));
+        fld_str "dlVlanPcp" string_of_int x.dlVlanPcp;
+        fld_str "nwSrc" Int32.to_string x.nwSrc;
+        fld_str "nwDst" Int32.to_string x.nwDst;
+        fld_str "nwProto" string_of_int x.nwProto;
+        fld_str "nwTos" string_of_int x.nwTos;
+        fld_str "tpSrc" string_of_int x.tpSrc;
+        fld_str "tpDst" string_of_int x.tpDst;
+        fld_str "inPort" string_of_int x.inPort ] in
+    let set_fields = filter_map (fun x -> x) all_fields in
+    match set_fields with
+      | [] -> "{*}"
+      | _ ->  "{" ^ (String.concat ", " set_fields) ^ "}"
 
 end
 
