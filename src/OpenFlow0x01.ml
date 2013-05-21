@@ -285,6 +285,61 @@ module Match = struct
 
 end
 
+module PseudoPort = struct
+
+  type t =
+    | PhysicalPort of portId
+    | InPort
+    | Flood
+    | AllPorts
+    | Controller of int
+        
+  cenum ofp_port {
+    (* Maximum number of physical switch ports. *)
+    OFPP_MAX = 0xff00;
+
+    (*Fake output "ports". *)
+    OFPP_IN_PORT = 0xfff8;  (* Send the packet out the input port.  This
+                             virtual port must be explicitly used
+                             in order to send back out of the input
+                             port. *)
+
+    OFPP_TABLE = 0xfff9; (* Perform actions in flow table.
+                          NB: This can only be the destination
+                          port for packet-out messages. *)
+    OFPP_NORMAL = 0xfffa; (* Process with normal L2/L3 switching. *)
+    OFPP_FLOOD = 0xfffb; (* All physical porbts except input port and
+                            those disabled by STP. *)
+    OFPP_ALL = 0xfffc; (* All physical ports except input port. *)
+    OFPP_CONTROLLER = 0xfffd; (* Send to controller. *)
+    OFPP_LOCAL = 0xfffe; (* Local openflow "port". *)
+    OFPP_NONE = 0xffff  (* Not associated with a physical port. *)
+  } as uint16_t
+
+  let marshal (t : t) : int = match t with
+    | PhysicalPort p -> p
+    | InPort -> ofp_port_to_int OFPP_IN_PORT
+    | Flood -> ofp_port_to_int OFPP_FLOOD
+    | AllPorts -> ofp_port_to_int OFPP_ALL
+    (* TODO(arjun): what happened to the byte count? *)
+    | Controller _ -> ofp_port_to_int OFPP_CONTROLLER
+
+  let marshal_optional (t : t option) : int = match t with
+    | None -> ofp_port_to_int OFPP_NONE
+    | Some x -> marshal x
+
+  let none = ofp_port_to_int OFPP_NONE
+
+  let to_string (t : t) : string = match t with
+    | PhysicalPort p -> string_of_int p
+    | InPort -> "InPort"
+    | Flood -> "Flood"
+    | AllPorts -> "AllPorts"
+    | Controller n -> sprintf "Controller<%d bytes>" n
+
+end
+
+
 type capabilities = 
   { flow_stats : bool; 
     table_stats : bool;
@@ -330,15 +385,9 @@ type priority = Word16.t
 
 type bufferId = Word32.t
 
-type pseudoPort =
-| PhysicalPort of portId
-| InPort
-| Flood
-| AllPorts
-| Controller of Word16.t
 
 type action =
-| Output of pseudoPort
+| Output of PseudoPort.t
 | SetDlVlan of dlVlan
 | SetDlVlanPcp of dlVlanPcp
 | StripVlan
@@ -366,7 +415,7 @@ type flowMod =
     mfHardTimeOut : timeout; 
     mfNotifyWhenRemoved : bool;
     mfApplyToPacket : bufferId option;
-    mfOutPort : pseudoPort option; 
+    mfOutPort : PseudoPort.t option; 
     mfCheckOverlap : bool }
 
 type reason = 
@@ -394,13 +443,13 @@ type table_id = Word8.t
 module IndividualFlowRequest = struct
   type t = { of_match : Match.t;
              table_id : table_id;
-             port : pseudoPort }
+             port : PseudoPort.t }
 end
 
 module AggregateFlowRequest = struct
   type t = { of_match : Match.t;
              table_id : table_id;
-             port : pseudoPort }
+             port : PseudoPort.t }
 end
   
 (* Component types of stats_reply messages. *)
@@ -443,7 +492,7 @@ module TableStats = struct
 end
   
 module PortStats = struct
-  type t = { port_no : pseudoPort;
+  type t = { port_no : PseudoPort.t;
              rx_packets : int;
              tx_packets : int;
              rx_bytes : int;
@@ -463,7 +512,7 @@ type statsRequest =
 | IndividualFlowReq of IndividualFlowRequest.t
 | AggregateFlowReq of AggregateFlowRequest.t
 | TableReq
-| PortReq of pseudoPort
+| PortReq of PseudoPort.t
 (* TODO(cole): queue and vendor stats requests. *)
     
 type statsReply =

@@ -57,27 +57,6 @@ cenum ofp_flow_mod_command {
   OFPFC_DELETE_STRICT
 } as uint16_t
 
-cenum ofp_port {
-  (* Maximum number of physical switch ports. *)
-  OFPP_MAX = 0xff00;
-
-  (*Fake output "ports". *)
-  OFPP_IN_PORT = 0xfff8;  (* Send the packet out the input port.  This
-                             virtual port must be explicitly used
-                             in order to send back out of the input
-                             port. *)
-
-  OFPP_TABLE = 0xfff9; (* Perform actions in flow table.
-                          NB: This can only be the destination
-                          port for packet-out messages. *)
-  OFPP_NORMAL = 0xfffa; (* Process with normal L2/L3 switching. *)
-  OFPP_FLOOD = 0xfffb; (* All physical porbts except input port and
-                          those disabled by STP. *)
-  OFPP_ALL = 0xfffc; (* All physical ports except input port. *)
-  OFPP_CONTROLLER = 0xfffd; (* Send to controller. *)
-  OFPP_LOCAL = 0xfffe; (* Local openflow "port". *)
-  OFPP_NONE = 0xffff  (* Not associated with a physical port. *)
-} as uint16_t
 
 cstruct ofp_flow_mod {
   uint64_t cookie;         
@@ -177,23 +156,6 @@ cenum ofp_stats_types {
   OFPST_VENDOR = 0xffff
 } as uint16_t
 
-module PseudoPort = struct
-
-  type t = pseudoPort
-
-  let marshal (t : t) : int = match t with
-    | PhysicalPort p -> p
-    | InPort -> ofp_port_to_int OFPP_IN_PORT
-    | Flood -> ofp_port_to_int OFPP_FLOOD
-    | AllPorts -> ofp_port_to_int OFPP_ALL
-    (* TODO(arjun): what happened to the byte count? *)
-    | Controller _ -> ofp_port_to_int OFPP_CONTROLLER
-
-  let marshal_optional (t : t option) : int = match t with
-    | None -> ofp_port_to_int OFPP_NONE
-    | Some x -> marshal x
-
-end
 
 module PacketIn = struct
 
@@ -273,7 +235,7 @@ module Action = struct
           set_ofp_action_output_port bits (PseudoPort.marshal pp);
           set_ofp_action_output_max_len bits
             (match pp with
-              | Controller w -> w
+              | PseudoPort.Controller w -> w
               | _ -> 0)
 	| _ -> 
 	  failwith "unimplemented" 
@@ -281,7 +243,7 @@ module Action = struct
     sizeof a
 
   let is_to_controller (act : action) : bool = match act with
-    | Output (Controller _) -> true
+    | Output (PseudoPort.Controller _) -> true
     | _ -> false
 
   let move_controller_last (lst : action list) : action list = 
@@ -314,7 +276,7 @@ module PacketOut = struct
         | _ -> -1l);
     set_ofp_packet_out_in_port buf
       (match pktOut.pktOutPortId with
-        | None -> ofp_port_to_int OFPP_NONE
+        | None -> PseudoPort.none
         | Some n -> n);
     set_ofp_packet_out_actions_len buf
       (sum (List.map Action.sizeof pktOut.pktOutActions));

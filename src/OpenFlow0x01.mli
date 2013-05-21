@@ -28,6 +28,25 @@ module Match : sig
 
 end
 
+module PseudoPort : sig
+
+  type t =
+    | PhysicalPort of portId
+    | InPort
+    | Flood
+    | AllPorts
+    | Controller of int
+
+  val marshal : t -> int
+  val marshal_optional : t option -> int
+
+  val to_string : t -> string
+
+  val none : int
+
+end
+
+
   type capabilities = {
     flow_stats : bool;
     table_stats : bool;
@@ -77,15 +96,9 @@ end
       
   type bufferId = Word32.t
 
-  type pseudoPort =
-    | PhysicalPort of portId
-    | InPort
-    | Flood
-    | AllPorts
-    | Controller of Word16.t
 
   type action =
-    | Output of pseudoPort
+    | Output of PseudoPort.t
     | SetDlVlan of dlVlan
     | SetDlVlanPcp of dlVlanPcp
     | StripVlan
@@ -111,7 +124,7 @@ end
     mfCookie : Word64.t; mfIdleTimeOut : timeout;
     mfHardTimeOut : timeout; mfNotifyWhenRemoved : bool;
     mfApplyToPacket : bufferId option;
-    mfOutPort : pseudoPort option; mfCheckOverlap : bool }
+    mfOutPort : PseudoPort.t option; mfCheckOverlap : bool }
 
   type reason =
     | NoMatch
@@ -139,14 +152,14 @@ end
   module IndividualFlowRequest : sig
       type t = { of_match : Match.t
                ; table_id : table_id
-               ; port : pseudoPort
+               ; port : PseudoPort.t
                }
   end
   
   module AggregateFlowRequest : sig
       type t = { of_match : Match.t
                ; table_id : table_id
-               ; port : pseudoPort
+               ; port : PseudoPort.t
                }
   end
   
@@ -195,7 +208,7 @@ end
   end
   
   module PortStats : sig
-      type t = { port_no : pseudoPort
+      type t = { port_no : PseudoPort.t
                ; rx_packets : int
                ; tx_packets : int
                ; rx_bytes : int
@@ -216,7 +229,7 @@ end
   | IndividualFlowReq of IndividualFlowRequest.t
   | AggregateFlowReq of AggregateFlowRequest.t
   | TableReq
-  | PortReq of pseudoPort
+  | PortReq of PseudoPort.t
   (* TODO(cole): queue and vendor stats requests. *)
   
   type statsReply =
