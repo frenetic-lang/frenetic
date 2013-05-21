@@ -238,7 +238,7 @@ module Output = struct
   | None -> None
 
   let apply_atom out (pt,pkt) =
-    let pt' = 
+    let pt' =
       match out.outPort with
       | Some pt' -> pt'
       | None -> pt in
@@ -253,9 +253,14 @@ module Output = struct
          (maybe_modify out.outTpSrc Packet.setTpSrc
          (maybe_modify out.outTpDst Packet.setTpDst pkt))))))))))
 
-  let trans x f pat = match x with
-  | Some (a,nw) -> f nw pat
-  | None -> pat
+  let trans maybe_mod build_singleton set_wild pat =
+    match maybe_mod with
+    | Some (old, nw) ->
+      if Pattern.is_empty (Pattern.inter (build_singleton nw) pat) then
+        Pattern.empty
+      else
+        set_wild pat
+    | None -> pat
 
   let sel f = function
   | Some p -> let (old, y) = p in f old
@@ -269,16 +274,27 @@ module Output = struct
         Pattern.wildcardPort pat2
     | None -> pat2
 
+  (* Restrict range: for each field f,
+   *
+   *    - if out updates f to v, and pat matches v, then replace v with
+   *      wildcard in pat.
+   *    - if out updates f to v, and pat does not match v, then replace
+   *      v with None in pat.
+   *    - if out does not update f, leave pat unchanged w.r.t. f.
+   *)
   let restrict_range out pat =
+    let open Pattern in
     restrict_port out.outPort
-      (trans out.outDlSrc Pattern.setDlSrc
-         (trans out.outDlDst Pattern.setDlDst pat))
+      (trans out.outDlSrc dlSrc wildcardDlSrc
+        (trans out.outDlDst dlDst wildcardDlDst
+          (trans out.outDlVlan dlVlan wildcardDlVlan pat)))
 
   let domain out =
     fold_right
       Pattern.inter
       [ sel Pattern.dlSrc out.outDlSrc
-      ; sel Pattern.dlDst out.outDlDst ]
+      ; sel Pattern.dlDst out.outDlDst
+      ; sel Pattern.dlVlan out.outDlVlan ]
       Pattern.all
 
   let set upd mk lst = match upd with
@@ -322,7 +338,7 @@ module Output = struct
                     (unset out.outTpDst (fun x -> SetTpDst x) []))))))))
 
   let output_to_of inp out = match out.outPort with
-    | Some Pattern.All -> modify out @ (Output PseudoPort.AllPorts) 
+    | Some Pattern.All -> modify out @ (Output PseudoPort.AllPorts)
       :: unmodify out
     | Some (Pattern.Physical pt) ->
       modify out @

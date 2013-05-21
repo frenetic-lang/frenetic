@@ -279,7 +279,7 @@ module TestMods = struct
       ; pktDlVlanPcp = pktDlVlanPcp
       ; pktNwHeader = pktNwHeader } in
     let expected_vals = [Pkt ( sid, port, expected_pkt, payload)] in
-    mkEvalTest "seq mod filter" ~debug:true policy in_val expected_vals
+    mkEvalTest "seq mod filter" policy in_val expected_vals
 
   let test5 = 
     let policy =

@@ -30,10 +30,7 @@ module Wildcard =
          if eqdec m n then WildcardExact m else WildcardNone
        | WildcardAll -> x
        | WildcardNone -> WildcardNone)
-    | WildcardAll ->
-      (match y with
-       | WildcardNone -> WildcardNone
-       | _ -> y)
+    | WildcardAll -> y
     | WildcardNone -> WildcardNone
   
   (** val is_all : 'a1 coq_Wildcard -> bool **)

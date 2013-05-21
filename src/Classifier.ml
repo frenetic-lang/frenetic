@@ -2,69 +2,69 @@ open Misc
 open Packet
 open OpenFlow0x01
 
-module type ACTION = sig 
-  type t 
-  
-  type e 
-  
+module type ACTION = sig
+  type t
+
+  type e
+
   val atoms : t -> e list
 
   val to_action : e -> t
-  
+
   val drop : t
-  
+
   val pass : t
-  
+
   val apply_atom : e -> (Pattern.port * packet) -> (Pattern.port * packet) option
-  
+
   val apply_action : t -> (Pattern.port * packet) -> (Pattern.port * packet) list
-  
+
   val par_action : t -> t -> t
-  
+
   val seq_action : t -> t -> t
-  
+
   val restrict_range : e -> Pattern.t -> Pattern.t
-  
+
   val domain : e -> Pattern.t
 
   val to_string : t -> string
  end
 
-module type CLASSIFIER = sig 
+module type CLASSIFIER = sig
   type action
 
   type t = (Pattern.t * action) list
-  
+
   val scan : t -> Pattern.port -> packet -> action
-  
+
   val inter : t -> t -> t
-  
+
   val union : t -> t -> t
-  
+
   val sequence : t -> t -> t
-  
+
   val par_actions : action list -> action
 
   val to_string : t -> string
 end
 
-module type MAKE = functor (Action : ACTION) -> 
+module type MAKE = functor (Action : ACTION) ->
   sig include CLASSIFIER end
   with type action = Action.t
 
-module Make : MAKE = functor (Action:ACTION) -> struct 
+module Make : MAKE = functor (Action:ACTION) -> struct
   type action = Action.t
-    
+
   type t = (Pattern.t * action) list
-    
+
   let rec scan' default classifier pt pk = match classifier with
     | [] -> default
     | p :: rest ->
       let (pat, a) = p in
       if Pattern.match_packet pt pk pat then a else scan' default rest pt pk
-  
+
   let scan = scan' Action.drop
-  
+
   let rec elim_shadowed_helper prefix = function
   | [] -> prefix
   | p :: cf' ->
@@ -73,10 +73,10 @@ module Make : MAKE = functor (Action:ACTION) -> struct
          let (pat', act0) = entry in pat = pat') prefix
     then elim_shadowed_helper prefix cf'
     else elim_shadowed_helper (prefix @ ((pat, act) :: [])) cf'
-  
+
   let elim_shadowed cf =
     elim_shadowed_helper [] cf
-  
+
   let rec strip_empty_rules = function
   | [] -> []
   | p :: cf0 ->
@@ -84,70 +84,70 @@ module Make : MAKE = functor (Action:ACTION) -> struct
     if Pattern.is_empty pat
     then strip_empty_rules cf0
     else (pat, acts) :: (strip_empty_rules cf0)
-  
+
   let opt tbl =
     elim_shadowed (strip_empty_rules tbl)
-  
+
   let inter_entry cl = function
   | (pat, act) ->
     List.fold_right (fun v' acc ->
       let (pat', act') = v' in
       ((Pattern.inter pat pat'), (Action.par_action act act')) :: acc) [] cl
-  
+
   let inter_no_opt cl1 cl2 =
     List.fold_right (fun v acc -> (inter_entry cl2 v) @ acc) [] cl1
-  
+
   let union_no_opt cl1 cl2 =
     (inter_no_opt cl1 cl2) @ cl1 @ cl2
-  
+
   let rec par_actions = function
   | [] -> Action.drop
   | act :: lst' -> Action.par_action act (par_actions lst')
-  
+
   let seq tbl1 tbl2 pt pk =
     Action.seq_action (scan tbl1 pt pk)
       (par_actions
         (List.map (fun ptpk -> let (pt0, pk0) = ptpk in scan tbl2 pt0 pk0)
           (Action.apply_action (scan tbl1 pt pk) (pt, pk))))
-  
+
   let union tbl1 tbl2 =
     opt (union_no_opt tbl1 tbl2)
-  
+
   let inter tbl1 tbl2 =
     opt (inter_no_opt tbl1 tbl2)
-    
+
   let rec unions = function
   | [] -> []
   | tbl :: lst' -> union_no_opt tbl (unions lst')
-  
+
   (* [p1] is the domain restriction from the first table in the sequence.
-     [a1] is ??? 
+     [a1] is ???
      [atom] is the first action that was applied.
   *)
   let rec pick p1 atom = function
   | [] -> []
   | (p2,a) :: tbl2' ->
     (Pattern.inter
-       p1 
-       (Pattern.inter 
-          (Action.domain atom) 
+       p1
+       (Pattern.inter
+          (Action.domain atom)
           (Action.restrict_range atom p2)),
      Action.seq_action (Action.to_action atom) a) :: (pick p1 atom tbl2')
-  
+
   let rec sequence_no_opt tbl1 tbl2 =
     match tbl1 with
     | [] -> []
     | (p,a) :: tbl1' ->
       match Action.atoms a with
         | [] -> (p, Action.drop) :: (sequence_no_opt tbl1' tbl2)
-        | lst ->
-          (unions (List.map (fun atom -> pick p atom tbl2) lst))
+        | atoms ->
+          (unions (List.map (fun atom -> pick p atom tbl2) atoms))
           @ (sequence_no_opt tbl1' tbl2)
-  
+
   let sequence tbl1 tbl2 =
     opt (sequence_no_opt tbl1 tbl2)
 
-  let to_string tbl = 
+  let to_string tbl =
     let buf = Buffer.create 100 in
     List.iter
       (fun (pat,act) ->
