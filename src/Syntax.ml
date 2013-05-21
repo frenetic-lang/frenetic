@@ -62,34 +62,30 @@ module Internal = struct
 
   let rec pred_to_string pred = match pred with 
     | PrHdr pat -> 
-      Pattern.to_string pat
-    | PrOnSwitch sw -> "Switch " ^ (Int64.to_string sw)
-    | PrOr (p1,p2) -> 
-      (pred_to_string p1) ^ " || " ^ (pred_to_string p2)
+      Format.sprintf "PrHdr %s" (Pattern.to_string pat)
+    | PrOnSwitch sw ->
+      Format.sprintf "PrOnSwitch %Lx" sw
+    | PrOr (p1,p2) ->
+      Format.sprintf "PrOr (%s, %s)" (pred_to_string p1) (pred_to_string p2)
     | PrAnd (p1,p2) -> 
-      (pred_to_string p1) ^ " && " ^ (pred_to_string p2)
+      Format.sprintf "PrAnd (%s, %s)" (pred_to_string p1) (pred_to_string p2)
     | PrNot p -> 
-      "Not " ^ (pred_to_string p)
+      Format.sprintf "PrNot (%s)" (pred_to_string p)
     | PrAll -> 
-      "*"
+      "PrAll"
     | PrNone -> 
-      "None"
+      "PrNone"
 
   let rec pol_to_string pol =
-    let wrap s = "(" ^ s ^ ")" in
     match pol with
     | PoAction a -> 
-      Action.Output.to_string a
+      Format.sprintf "PoAction %s" (Action.Output.to_string a)
     | PoFilter pr -> 
-      pred_to_string pr
+      Format.sprintf "PoFilter (%s)" (pred_to_string pr)
     | PoUnion (p1,p2) -> 
-      (wrap (pol_to_string p1)) 
-      ^ " | " 
-      ^ (wrap (pol_to_string p2))
+      Format.sprintf "PoUnion (%s, %s)" (pol_to_string p1) (pol_to_string p2)
     | PoSeq (p1,p2) -> 
-      (wrap (pol_to_string p1)) 
-      ^ "; " 
-      ^ (wrap (pol_to_string p2))
+      Format.sprintf "PoSeq (%s, %s)" (pol_to_string p1) (pol_to_string p2)
 
   let value_to_string = function 
     | Pkt (sid, port, pkt, pay) ->
