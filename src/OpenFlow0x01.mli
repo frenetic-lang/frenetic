@@ -66,6 +66,9 @@ module Action : sig
   val sizeof : t -> int
   val marshal : t -> Cstruct.t -> int
   val move_controller_last : sequence -> sequence
+
+  val to_string : t -> string
+  val sequence_to_string : sequence -> string
     
 
 end

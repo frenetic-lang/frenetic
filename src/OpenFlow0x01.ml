@@ -482,6 +482,23 @@ module Action = struct
   let move_controller_last (lst : sequence) : sequence = 
     let (to_ctrl, not_to_ctrl) = List.partition is_to_controller lst in
     not_to_ctrl @ to_ctrl
+
+  let to_string (t : t) : string = match t with
+    | Output p -> "Output " ^ PseudoPort.to_string p
+    | SetDlVlan None -> "SetDlVlan None"
+    | SetDlVlan (Some n) -> sprintf "SetDlVlan %d" n
+    | SetDlVlanPcp n -> sprintf "SetDlVlanPcp n"
+    | StripVlan -> "StripDlVlan"
+    | SetDlSrc mac -> "SetDlSrc " ^ string_of_mac mac
+    | SetDlDst mac -> "SetDlDst " ^ string_of_mac mac
+    | SetNwSrc ip -> "SetNwSrc " ^ string_of_ip ip
+    | SetNwDst ip -> "SetNwDst " ^ string_of_ip ip
+    | SetNwTos d -> sprintf "SetNwTos %x" d
+    | SetTpSrc n -> sprintf "SetTpSrc %d" n
+    | SetTpDst n -> sprintf "SetTpDst %d" n
+
+  let sequence_to_string (lst : sequence) : string = 
+    String.concat "; " (List.map to_string lst)
         
 end
 
