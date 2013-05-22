@@ -59,7 +59,6 @@ module TestClassifier = struct
               (all, drop)])
           [(inter (dlSrc 0xFFFFL) (inPort (Physical 10)), forward 20);
            (inter (dlSrc 0xFFFFL) (inPort (Physical 300)), forward 400);
-           (dlSrc 0xFFFFL, drop); (* redundant, but our optimizer sucks *)
            (all, drop)]
 
   let test5 =
@@ -72,7 +71,6 @@ module TestClassifier = struct
              [(dlDst 0xEEEEL, forward 2);
               (all, drop)])
           [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), forward 2);
-           (dlSrc 0xDDDDL, drop); (* redundant *)
            (all, drop)]
 
   let test6 =
@@ -85,7 +83,6 @@ module TestClassifier = struct
              [(dlDst 0xEEEEL, forward 2);
               (all, drop)])
           [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), forward 2);
-           (dlSrc 0xDDDDL, drop); (* redundant *)
            (all, drop)]
 
 
@@ -99,7 +96,6 @@ module TestClassifier = struct
              [(dlDst 0xEEEEL, pass);
               (all, drop)])
           [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), forward 2);
-           (dlSrc 0xDDDDL, drop); (* redundant *)
            (all, drop)]
 
   let test8 =
@@ -117,8 +113,30 @@ module TestClassifier = struct
            (dlDst 0xEEEEL, forward 30);
            (all, drop)]
 
+  let test9 =
+    "classifier union overlap 1" >::
+      fun () ->
+        assert_equal ~printer:C.to_string
+          (union
+             [(dlSrc 0xDDDDL, forward 2);
+              (all, drop)]
+             [(all, forward 30)])
+          [(dlSrc 0xDDDDL, par_action (forward 2) (forward 30));
+           (all, forward 30)]
+
+  let test10 =
+    "classifier union overlap 2" >::
+      fun () ->
+        assert_equal ~printer:C.to_string
+          (union
+             [(dlSrc 0xDDDDL, forward 2);
+              (all, drop)]
+             [(all, forward 2)])
+          [(dlSrc 0xDDDDL, par_action (forward 2) (forward 2));
+           (all, forward 2)]
+
   let go =
-    TestList [test0; test1; test2; test3; test4; test5; test6; test7; test8]
+    TestList [test0; test1; test2; test3; test4; test5; test6; test7; test8; test9; test10]
 
 end
 
@@ -512,7 +530,7 @@ let tests =
            ; TestMods.go
            ; TestSlices.go
            ; TestClassifier.go
-           ; TestNetCore.go
+(*           ; TestNetCore.go *)
            ]
 
 let _ = run_test_tt_main tests
