@@ -37,6 +37,9 @@ module type ACTION = sig
   val domain : e -> NetCore_Pattern.t
 
   val to_string : t -> string
+
+  val is_equal : t -> t -> bool
+
  end
 
 module Bool = struct
@@ -65,6 +68,7 @@ module Bool = struct
 
   let to_string b = if b then "true" else "false"
 
+  let is_equal x y = x = y
 end
 
 module Output = struct
@@ -355,4 +359,7 @@ module Output = struct
 
   let apply_action act ptpk =
     filter_map (fun a -> apply_atom a ptpk) act
+
+  (* TODO(arjun): What if they are permutations? *)
+  let is_equal x y = x = y
 end

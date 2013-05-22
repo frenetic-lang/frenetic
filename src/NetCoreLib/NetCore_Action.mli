@@ -34,6 +34,8 @@ module type ACTION =
 
   val to_string : t -> string
 
+  val is_equal : t -> t -> bool
+
  end
 
 module Output : sig

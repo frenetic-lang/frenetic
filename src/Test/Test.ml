@@ -274,7 +274,25 @@ module TestNetCore = struct
           (NetCore_Compiler.compile_pol pol2 1L)
           []
 
-  let go = TestList [test10; test9; test8; test7; test6; test5;
+  let pol3_1 = 
+    PrAnd (PrHdr (inPort (Physical 1)), PrHdr (dlSrc 0x92f0fea53b3fL))
+
+  let pol3_2 =
+    PrAnd
+      (PrHdr (inPort (Physical 2)),
+       PrHdr (dlSrc 0x1274ccafe0eaL))
+
+  let pol3 =
+    PoFilter pol3_2
+
+  let test11 =
+    "predicate compilation regression" >::
+      fun () ->
+        assert_equal ~printer:C.to_string
+          (NetCore_Compiler.compile_pol pol3 1L)
+          []
+
+  let go = TestList [test11; test10; test9; test8; test7; test6; test5;
                      test4; test3; test2; test1]
 
 end
