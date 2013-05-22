@@ -1,4 +1,4 @@
-.PHONY: all clean libs apps ctags
+.PHONY: all clean libs apps doc ctags
 
 LIBS = FreneticLib \
        PacketLib \
@@ -20,6 +20,9 @@ $(LIBS):
 
 $(APPS): 
 	$(MAKE) -C $@
+
+doc:
+	$(OCAMLBUILD) doc.docdir/index.html
 
 clean:
 	$(foreach LIB,$(LIBS),make -C $(LIB) clean;)

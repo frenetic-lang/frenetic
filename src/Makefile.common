@@ -4,7 +4,7 @@ CMIFILES = $(MLIFILES:.mli=.cmi)
 
 OCAMLBUILD = ocamlbuild -use-ocamlfind 
 
-OCAMLFILD = ocamlfind
+OCAMLFIND = ocamlfind
 
 all: debug native uninstall install 
 
@@ -19,9 +19,6 @@ install:
 
 uninstall:
 	$(OCAMLFIND) remove $(LIBNAME)
-
-doc:
-	$(OCAMLBUILD) doc.docdir/index.html
 
 clean:
 	$(OCAMLBUILD) -clean
