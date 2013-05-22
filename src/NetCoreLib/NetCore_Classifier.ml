@@ -56,8 +56,19 @@ module Make : MAKE = functor (Action:ACTION) -> struct
     then strip_empty_rules cf0
     else (pat, acts) :: (strip_empty_rules cf0)
 
+  let rec condense_contained tbl = match tbl with
+    | [] -> []
+    | (pat1, act1) :: lst -> 
+      match condense_contained lst with
+        | [] -> (pat1, act1) :: []
+        | (pat2, act2) :: rest -> 
+          if NetCore_Pattern.contains pat1 pat2 && Action.is_equal act1 act2 then
+            (pat2, act2) :: rest
+          else
+            (pat1, act1) :: (pat2, act2) :: rest
+
   let opt tbl =
-    elim_shadowed (strip_empty_rules tbl)
+    condense_contained (elim_shadowed (strip_empty_rules tbl))
 
   let inter_entry cl (pat, act) = 
     List.fold_right 

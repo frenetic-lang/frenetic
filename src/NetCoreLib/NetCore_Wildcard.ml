@@ -1,61 +1,82 @@
+module type Wildcard = sig
 
-type 'a coq_Wildcard =
-| WildcardExact of 'a
-| WildcardAll
-| WildcardNone
+  type a
 
-module Wildcard = 
- struct 
+  type t = 
+    | WildcardExact of a
+    | WildcardAll
+    | WildcardNone
 
-  let eq_dec eqdec x y =
-    match x with
-    | WildcardExact x0 ->
-      (match y with
-       | WildcardExact a0 -> eqdec x0 a0
-       | _ -> false)
-    | WildcardAll ->
-      (match y with
-       | WildcardAll -> true
-       | _ -> false)
-    | WildcardNone ->
-      (match y with
-       | WildcardNone -> true
-       | _ -> false)  
+  val is_equal : t -> t -> bool
+  val contains : t -> t -> bool
+  val inter : t -> t -> t
+  val is_all : t -> bool
+  val is_empty : t -> bool
+  val is_exact : t -> bool
+  val to_option : t -> a option option
+  val to_string : t -> string
+end
 
-  let inter eqdec x y =
-    match x with
-    | WildcardExact m ->
-      (match y with
-       | WildcardExact n ->
-         if eqdec m n then WildcardExact m else WildcardNone
-       | WildcardAll -> x
-       | WildcardNone -> WildcardNone)
-    | WildcardAll -> y
-    | WildcardNone -> WildcardNone
-  
-  (** val is_all : 'a1 coq_Wildcard -> bool **)
-  
-  let is_all = function
-  | WildcardAll -> true
-  | _ -> false
-  
-  (** val is_empty : 'a1 coq_Wildcard -> bool **)
-  
-  let is_empty = function
-  | WildcardNone -> true
-  | _ -> false
-  
-  (** val is_exact : 'a1 coq_Wildcard -> bool **)
-  
-  let is_exact = function
-  | WildcardExact a -> true
-  | _ -> false
-    
-  (** val to_option : 'a1 coq_Wildcard -> 'a1 option **)
-  
-  let to_option = function
-  | WildcardExact a -> Some a
-  | WildcardAll -> None
-  | WildcardNone -> assert false (* absurd case *)
- end
+module type OrderedType = sig
+  type t 
+  val compare : t -> t -> int
+  val to_string : t -> string
+end
 
+module Make (Ord : OrderedType) = struct
+
+  type a = Ord.t
+
+  type t = 
+    | WildcardExact of a
+    | WildcardAll
+    | WildcardNone
+
+  let is_equal x y = match (x, y) with
+    | WildcardExact a, WildcardExact b -> Ord.compare a b = 0
+    | WildcardAll, WildcardAll -> true
+    | WildcardNone, WildcardNone -> true
+    | _ -> false
+
+  let contains x y = match (x, y) with
+    | WildcardNone, _ -> true
+    | _, WildcardAll -> true
+    | WildcardExact a, WildcardExact b -> Ord.compare a b = 0
+    | _ -> false
+
+  let inter x y = match (x, y) with
+    | WildcardNone, _ -> WildcardNone
+    | _, WildcardNone -> WildcardNone
+    | WildcardAll, y -> y
+    | x, WildcardAll -> x
+    | WildcardExact a, WildcardExact b -> 
+      if Ord.compare a b = 0 then
+        WildcardExact b
+      else 
+        WildcardNone
+
+  let is_all x = match x with
+    | WildcardAll -> true
+    | _ -> false
+
+  let is_empty x = match x with
+    | WildcardNone -> true
+    | _ -> false
+
+
+  let is_exact x = match x with
+    | WildcardExact _ -> true
+    | _ -> false
+
+  let to_option x = match x with
+    | WildcardAll -> Some None
+    | WildcardExact a -> Some (Some a)
+    | WildcardNone -> None
+
+
+  let to_string x = match x with
+    | WildcardExact a -> "WildcardExact " ^ Ord.to_string a
+    | WildcardNone -> "WildcardNone"
+    | WildcardAll -> "WildcardAll"
+
+end

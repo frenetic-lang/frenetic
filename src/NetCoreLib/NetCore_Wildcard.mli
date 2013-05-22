@@ -1,22 +1,30 @@
-(* open Types *)
+module type Wildcard = sig
 
-type 'a coq_Wildcard =
-| WildcardExact of 'a
-| WildcardAll
-| WildcardNone
+  type a
 
-module Wildcard : 
- sig 
-  val eq_dec : ('a1 -> 'a1 -> bool) -> 'a1 coq_Wildcard -> 'a1 coq_Wildcard -> bool
+  type t = 
+    | WildcardExact of a
+    | WildcardAll
+    | WildcardNone
 
-  val inter : ('a1 -> 'a1 -> bool) -> 'a1 coq_Wildcard -> 'a1 coq_Wildcard -> 'a1 coq_Wildcard
-  
-  val is_all : 'a1 coq_Wildcard -> bool
-  
-  val is_empty : 'a1 coq_Wildcard -> bool
-  
-  val is_exact : 'a1 coq_Wildcard -> bool
-  
-  val to_option : 'a1 coq_Wildcard -> 'a1 option
- end
+  val is_equal : t -> t -> bool
 
+  (** [contains x y] returns [true] iff [x] contains [y]. *)
+  val contains : t -> t -> bool
+
+  val inter : t -> t -> t
+  val is_all : t -> bool
+  val is_empty : t -> bool
+  val is_exact : t -> bool
+  val to_option : t -> a option option
+  val to_string : t -> string
+end
+
+module type OrderedType = sig
+  type t 
+  val compare : t -> t -> int
+  val to_string : t -> string
+end
+
+module Make : functor (Ord : OrderedType) -> Wildcard 
+  with type a = Ord.t

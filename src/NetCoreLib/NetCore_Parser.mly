@@ -86,8 +86,8 @@ pred :
 
 pol_atom :
   | LPAREN pol RPAREN { $2 }
-  | INT64 { NetCore_Stream.return (Act (To (int16_of_int64 $1))) }
-  | ALL { NetCore_Stream.return (Act ToAll) }
+  | INT64 { NetCore_Stream.constant (Act (To (int16_of_int64 $1))) }
+  | ALL { NetCore_Stream.constant (Act ToAll) }
   | LEARNING 
     { NetCore_Stream.from_stream 
       NetCore_MacLearning.Learning.init
