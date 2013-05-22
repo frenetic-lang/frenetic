@@ -86,36 +86,37 @@ module PacketIn = struct
     ACTION = 1
   } as uint8_t
 
- cstruct ofp_packet_in {
-   uint32_t buffer_id;     
-   uint16_t total_len;     
-   uint16_t in_port;       
-   uint8_t reason;         
-   uint8_t pad
+  cstruct ofp_packet_in {
+    uint32_t buffer_id;     
+    uint16_t total_len;     
+    uint16_t in_port;       
+    uint8_t reason;         
+    uint8_t pad
   } as big_endian
 
   let parse bits =
     let bufId = match get_ofp_packet_in_buffer_id bits with
       | -1l -> None
       | n -> Some n in
-  let total_len = get_ofp_packet_in_total_len bits in
-  let in_port = get_ofp_packet_in_in_port bits in
-  let reason_code = get_ofp_packet_in_reason bits in
-  let reason = match int_to_reason reason_code with
-    | Some NO_MATCH -> NoMatch
-    | Some ACTION -> ExplicitSend
-    | None ->
-      raise (Unparsable (sprintf "bad reason in packet_in (%d)" reason_code)) in
-  let pkt_bits = Cstruct.shift bits sizeof_ofp_packet_in in
-  let pkt = match Packet_Parser.parse_packet pkt_bits with 
-    | Some pkt -> pkt 
-    | None -> 
-      raise (Unparsable (sprintf "malformed packet in packet_in")) in
-  { packetInBufferId = bufId;
-    packetInTotalLen = total_len;
-    packetInPort = in_port;
-    packetInReason = reason;
-    packetInPacket = pkt }
+    let total_len = get_ofp_packet_in_total_len bits in
+    let in_port = get_ofp_packet_in_in_port bits in
+    let reason_code = get_ofp_packet_in_reason bits in
+    let reason = match int_to_reason reason_code with
+      | Some NO_MATCH -> NoMatch
+      | Some ACTION -> ExplicitSend
+      | None ->
+        raise (Unparsable (sprintf "bad reason in packet_in (%d)" reason_code)) in
+    let pkt_bits = Cstruct.shift bits sizeof_ofp_packet_in in
+    let pkt = match Packet_Parser.parse_packet pkt_bits with 
+      | Some pkt -> pkt 
+      | None -> 
+        raise (Unparsable (sprintf "malformed packet in packet_in")) in
+    { packetInBufferId = bufId;
+      packetInTotalLen = total_len;
+      packetInPort = in_port;
+      packetInReason = reason;
+      packetInPacket = pkt }
+
 end
 
 module PacketOut = struct
@@ -331,21 +332,107 @@ end
 
 module StatsRequest = struct
     
-    type t = statsRequest
+  type t = statsRequest
 
-    let sizeof buf = failwith "NYI: StatsRequest.sizeof"
+  let sizeof buf = failwith "NYI: StatsRequest.sizeof"
 
-    let marshal msg = failwith "NYI: StatsRequest.marshal"
+  let marshal msg = failwith "NYI: StatsRequest.marshal"
 
 end
 
 module StatsReply = struct
     
-    type t = statsReply
+  type t = statsReply
 
-    let sizeof msg = failwith "NYI: StatsReply.sizeof"
+  cstruct ofp_stats_reply {
+    uint16_t stats_type;
+    uint16_t flags
+  } as big_endian
 
-    let parse buf = failwith "NYI: StatsReply.parse"
+  let sizeof msg = failwith "NYI: StatsReply.sizeof"
+
+  module Description = struct
+
+    type t = DescriptionStats.t
+
+    let desc_str_len = 256
+    let serial_num_len = 32
+  
+    cstruct ofp_desc_stats {
+      uint8_t mfr_desc[256];
+      uint8_t hw_desc[256];
+      uint8_t sw_desc[256];
+      uint8_t serial_num[32];
+      uint8_t dp_desc[256]
+    } as big_endian
+  
+    let mkString bits size =
+      let new_string = String.create size in
+      Cstruct.blit_to_string bits 0 new_string 0 size;
+      new_string
+  
+    let parse bits =
+      let mfr_desc = mkString (get_ofp_desc_stats_mfr_desc bits) desc_str_len in
+      let hw_desc = mkString (get_ofp_desc_stats_hw_desc bits) desc_str_len in
+      let sw_desc = mkString (get_ofp_desc_stats_sw_desc bits) desc_str_len in
+      let serial_num = 
+        mkString (get_ofp_desc_stats_serial_num bits) serial_num_len in
+      let dp_desc = mkString (get_ofp_desc_stats_dp_desc bits) desc_str_len in
+      { DescriptionStats.manufacturer = mfr_desc
+      ; DescriptionStats.hardware = hw_desc
+      ; DescriptionStats.software = sw_desc
+      ; DescriptionStats.serial_number = serial_num
+      ; DescriptionStats.datapath = dp_desc }
+
+  end
+
+  module Flow = struct
+
+    type t = IndividualFlowStats.t
+    let parse bits = failwith "NYI"
+
+  end
+
+  module Aggregate = struct
+
+    type t = AggregateFlowStats.t
+    let parse bits = failwith "NYI"
+
+  end
+
+  module Table = struct
+
+    type t = TableStats.t
+    let parse bits = failwith "NYI"
+
+  end
+
+  module Port = struct
+
+    type t = PortStats.t
+    let parse bits = failwith "NYI"
+
+  end
+
+  let parse bits =
+    let stats_type_code = get_ofp_stats_reply_stats_type bits in
+    let body = Cstruct.shift bits sizeof_ofp_stats_reply in
+    match int_to_ofp_stats_types stats_type_code with
+    | Some OFPST_DESC -> DescriptionRep (Description.parse body)
+    | Some OFPST_FLOW -> IndividualFlowRep (Flow.parse body)
+    | Some OFPST_AGGREGATE -> AggregateFlowRep (Aggregate.parse body)
+    | Some OFPST_TABLE -> TableRep (Table.parse body)
+    | Some OFPST_PORT -> PortRep (Port.parse body)
+    | Some OFPST_QUEUE -> 
+      let msg = "NYI: OFPST_QUEUE ofp_stats_type in stats_reply" in
+      raise (Unparsable msg)
+    | Some OFPST_VENDOR -> 
+      let msg = "NYI: OFPST_VENDOR ofp_stats_type in stats_reply" in
+      raise (Unparsable msg)
+    | None -> 
+      let msg = 
+        sprintf "bad ofp_stats_type in stats_reply (%d)" stats_type_code in
+      raise (Unparsable msg)
 
 end
 

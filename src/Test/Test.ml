@@ -400,22 +400,8 @@ module TestMods = struct
 
   let test1 =
     let policy = Act (UpdateDlVlan (None, Some 1)) in
-    let Pkt ( sid
-            , port
-            , { pktDlSrc = pktDlSrc
-              ; pktDlDst = pktDlDst
-              ; pktDlTyp = pktDlTyp
-              ; pktDlVlan = pktDlVlan
-              ; pktDlVlanPcp = pktDlVlanPcp
-              ; pktNwHeader = pktNwHeader }
-            , payload ) = in_val in
-    let expected_pkt =
-      { pktDlSrc = pktDlSrc
-      ; pktDlDst = pktDlDst
-      ; pktDlTyp = pktDlTyp
-      ; pktDlVlan = Some 1
-      ; pktDlVlanPcp = pktDlVlanPcp
-      ; pktNwHeader = pktNwHeader } in
+    let Pkt (sid, port, pkt, payload) = in_val in
+    let expected_pkt = {pkt with pktDlVlan = Some 1} in
     let expected_val = Pkt ( sid, port, expected_pkt, payload) in
     mkEvalTest "mod vlan" policy in_val [expected_val]
 
@@ -437,24 +423,10 @@ module TestMods = struct
     let policy = 
       Seq ( Act (UpdateDlVlan (None, Some 1))
           , Filter (DlVlan (Some 1))) in
-    let Pkt ( sid
-            , port
-            , { pktDlSrc = pktDlSrc
-              ; pktDlDst = pktDlDst
-              ; pktDlTyp = pktDlTyp
-              ; pktDlVlan = pktDlVlan
-              ; pktDlVlanPcp = pktDlVlanPcp
-              ; pktNwHeader = pktNwHeader }
-            , payload ) = in_val in
-    let expected_pkt =
-      { pktDlSrc = pktDlSrc
-      ; pktDlDst = pktDlDst
-      ; pktDlTyp = pktDlTyp
-      ; pktDlVlan = Some 1
-      ; pktDlVlanPcp = pktDlVlanPcp
-      ; pktNwHeader = pktNwHeader } in
-    let expected_vals = [Pkt ( sid, port, expected_pkt, payload)] in
-    mkEvalTest "seq mod filter" policy in_val expected_vals
+    let Pkt (sid, port, pkt, payload) = in_val in
+    let expected_pkt = {pkt with pktDlVlan = Some 1} in
+    let expected_val = Pkt ( sid, port, expected_pkt, payload) in
+    mkEvalTest "seq mod filter" policy in_val [expected_val]
 
   let test5 = 
     let policy =
@@ -475,22 +447,7 @@ module TestSlices = struct
 
   let test1 =
     let policy = Slice (All, Act ToAll, All) in
-    let Pkt ( sid
-            , port
-            , { pktDlSrc = pktDlSrc
-              ; pktDlDst = pktDlDst
-              ; pktDlTyp = pktDlTyp
-              ; pktDlVlan = pktDlVlan
-              ; pktDlVlanPcp = pktDlVlanPcp
-              ; pktNwHeader = pktNwHeader }
-            , payload ) = in_val in
-    let expected_pkt =
-      { pktDlSrc = pktDlSrc
-      ; pktDlDst = pktDlDst
-      ; pktDlTyp = pktDlTyp
-      ; pktDlVlan = pktDlVlan
-      ; pktDlVlanPcp = pktDlVlanPcp
-      ; pktNwHeader = pktNwHeader } in
+    let Pkt (sid, port, expected_pkt, payload) = in_val in
     let expected_val = Pkt ( sid, (Pattern.All), expected_pkt, payload) in
     mkEvalTest "slice repeater" policy in_val [expected_val]
 
@@ -500,22 +457,7 @@ module TestSlices = struct
       Seq ( Act ToAll
           , Par ( Seq (Filter (DlVlan (Some 1)), Act (UpdateDlVlan (Some 1, None)))
                 , Filter (Not (DlVlan (Some 1)))))) in
-    let Pkt ( sid
-            , port
-            , { pktDlSrc = pktDlSrc
-              ; pktDlDst = pktDlDst
-              ; pktDlTyp = pktDlTyp
-              ; pktDlVlan = pktDlVlan
-              ; pktDlVlanPcp = pktDlVlanPcp
-              ; pktNwHeader = pktNwHeader }
-            , payload ) = in_val in
-    let expected_pkt =
-      { pktDlSrc = pktDlSrc
-      ; pktDlDst = pktDlDst
-      ; pktDlTyp = pktDlTyp
-      ; pktDlVlan = pktDlVlan
-      ; pktDlVlanPcp = pktDlVlanPcp
-      ; pktNwHeader = pktNwHeader } in
+    let Pkt (sid, port, expected_pkt, payload) = in_val in
     let expected_val = Pkt ( sid, (Pattern.All), expected_pkt, payload) in
     mkEvalTest "slice' repeater" policy in_val [expected_val]
 
@@ -524,26 +466,23 @@ module TestSlices = struct
       Seq (Seq (Filter (DlVlan None), Act (UpdateDlVlan (None, Some 1))),
       Seq (Act ToAll,
       Seq (Filter (DlVlan (Some 1)), Act (UpdateDlVlan (Some 1, None))))) in
-    let Pkt ( sid
-            , port
-            , { pktDlSrc = pktDlSrc
-              ; pktDlDst = pktDlDst
-              ; pktDlTyp = pktDlTyp
-              ; pktDlVlan = pktDlVlan
-              ; pktDlVlanPcp = pktDlVlanPcp
-              ; pktNwHeader = pktNwHeader }
-            , payload ) = in_val in
-    let expected_pkt =
-      { pktDlSrc = pktDlSrc
-      ; pktDlDst = pktDlDst
-      ; pktDlTyp = pktDlTyp
-      ; pktDlVlan = pktDlVlan
-      ; pktDlVlanPcp = pktDlVlanPcp
-      ; pktNwHeader = pktNwHeader } in
+    let Pkt (sid, port, expected_pkt, payload) = in_val in
     let expected_val = Pkt ( sid, (Pattern.All), expected_pkt, payload) in
     mkEvalTest "slice'' repeater" policy in_val [expected_val]
 
-  let go = TestList [ test1; test1' ]
+  let go = TestList [ test1; test1'; test1'' ]
+
+end
+
+module TestParser = struct
+
+  open OpenFlow0x01
+  open OpenFlow0x01_Parser
+
+  (* For each parsable type, test that parse(marshal(v)) == v for some value v.
+   *)
+
+  let go = TestList [ ]
 
 end
 
