@@ -1,3 +1,0 @@
-<*.d.byte> : package(lwt), package(lwt.unix), package(cstruct), package(FreneticLib), package(PacketLib)
-<*.native> : package(lwt), package(lwt.unix), package(cstruct), package(FreneticLib), package(PacketLib)
-<**/*.ml{,i}> : package(lwt), package(lwt.syntax), package(FreneticLib), package(PacketLib), package(cstruct), package(cstruct.syntax), syntax(camlp4o)
