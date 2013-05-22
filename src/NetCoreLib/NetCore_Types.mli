@@ -16,6 +16,7 @@ module Internal : sig
   | PoFilter of pred
   | PoUnion of pol * pol
   | PoSeq of pol * pol
+  | PoITE of pred * pol * pol
 
   type payload = 
   | Buf of OpenFlow0x01.bufferId
@@ -71,6 +72,7 @@ module External : sig
   | Seq of policy * policy
   | Filter of predicate
   | Slice of predicate * policy * predicate
+  | ITE of predicate * policy * policy
 
   val par : policy list -> policy
       

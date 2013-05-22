@@ -17,6 +17,7 @@ module Internal = struct
   | PoFilter of pred
   | PoUnion of pol * pol
   | PoSeq of pol * pol
+  | PoITE of pred * pol * pol
 
   type payload = 
   | Buf of OpenFlow0x01.bufferId
@@ -58,6 +59,12 @@ module Internal = struct
       classify p1 inp @ classify p2 inp
     | PoSeq (p1, p2) -> 
       NetCore_Action.concat_map (classify p2) (classify p1 inp)
+    | PoITE (pred, then_pol, else_pol) ->
+      let Pkt (sw, pt, pk, buf) = inp in
+      if match_pred pred sw pt pk then
+        classify then_pol inp
+      else
+        classify else_pol inp
 
   let rec format_pred fmt pred = match pred with 
     | PrHdr pat -> 
@@ -96,6 +103,9 @@ module Internal = struct
     | PoSeq (p1,p2) -> 
       fprintf fmt "@[PoSeq@;<1 2>@[(@[%a@],@ @[%a@])@]@]" format_pol p1
         format_pol p2
+    | PoITE (pred, then_pol, else_pol) ->
+      fprintf fmt "@[PoITE@;<1 2>@[(@[%a@],@ @[%a@],@ @[%a@])@]@]"
+        format_pred pred format_pol then_pol format_pol else_pol
 
   let rec pol_to_string pred = 
     let buf = Buffer.create 100 in
@@ -145,6 +155,7 @@ module External = struct
   | Seq of policy * policy
   | Filter of predicate
   | Slice of predicate * policy * predicate
+  | ITE of predicate * policy * policy
 
   let par (pols : policy list) : policy = match pols with 
     | x :: xs -> 
@@ -210,6 +221,11 @@ module External = struct
         (policy_to_string p2)
     | Filter pr -> 
       predicate_to_string pr
+    | ITE (pred, then_pol, else_pol) ->
+      Printf.sprintf "ITE (%s, %s, %s)"
+        (predicate_to_string pred)
+        (policy_to_string then_pol)
+        (policy_to_string else_pol)
     | Slice (ingress,pol',egress) -> 
       Printf.sprintf "{%s} %s {%s}" 
         (predicate_to_string ingress) 
@@ -347,6 +363,11 @@ let desugar
       let pol' = PoSeq (pol1', pol2') in 
       let slice' = slice1 @ slice2 in 
       (pol', slice')
+    | ITE (pred, then_pol, else_pol) ->
+      let (then_po, slice1) = desugar_pol curr then_pol in
+      let (else_po, slice2) = desugar_pol curr else_pol in
+      (PoITE (desugar_pred pred, then_po, else_po), 
+       slice1 @ slice2)
     | Empty -> 
       let pol' = PoFilter PrNone in 
       let slice' = [] in 

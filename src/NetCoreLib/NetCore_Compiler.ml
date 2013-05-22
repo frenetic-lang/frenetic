@@ -51,6 +51,17 @@ let rec compile_pol p sw =
     OutputClassifier.sequence 
       (compile_pol pol1 sw) 
       (compile_pol pol2 sw)
+  | PoITE (pred, then_pol, else_pol) ->
+    let then_tbl = compile_pol then_pol sw in
+    let else_tbl = compile_pol else_pol sw in
+    let seq_then_else (pat, b) = match b with
+      | true ->
+        OutputClassifier.sequence
+          [(pat, NetCore_Action.Output.pass)] then_tbl
+      | false ->
+        OutputClassifier.sequence
+          [(pat, NetCore_Action.Output.pass)] else_tbl in
+    NetCore_Action.concat_map seq_then_else (compile_pred pred sw)
 
 let to_rule (pattern, action) = 
   match NetCore_Pattern.to_match pattern with
