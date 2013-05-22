@@ -1,3 +1,0 @@
-<*.d.byte> : package(lwt), package(lwt.unix)
-<*.native> : package(lwt), package(lwt.unix)
-<**/*.ml{,i}> : package(lwt), package(lwt.syntax), syntax(camlp4o)
