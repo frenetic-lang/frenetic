@@ -31,112 +31,79 @@ module TestClassifier = struct
              (NetCore_Pattern.inPort (Physical 1)))
           NetCore_Pattern.all
 
-  let test3 =
-    "classifier composition test 1" >::
-      fun () ->
-        let tbl1 =
-          [(NetCore_Pattern.inter (dlDst 0xdeadbeefL) (inPort (Physical 5)),
-            forward 1);
-           (NetCore_Pattern.all, drop)] in
-        let tbl2 =
-          [(inPort (Physical 1), forward 2);
-           (NetCore_Pattern.all, drop)] in
-        assert_equal ~printer:C.to_string
-          (sequence tbl1 tbl2)
-          [(NetCore_Pattern.inter (dlDst 0xdeadbeefL) (inPort (Physical 5)),
-            forward 2);
-           (NetCore_Pattern.all, drop)]
+  let classifier_tests group_label lst =
+    group_label >::: 
+      (List.map 
+         (fun (label, expected, calculated) ->
+           label >:: fun () -> 
+             assert_equal ~printer:C.to_string expected calculated)
+         lst)
 
-  let test4 =
-    "classifier composition test 2" >::
-      fun () ->
-        assert_equal ~printer:C.to_string
-          (sequence
-             [(dlSrc 0xFFFFL, pass);
-              (all, drop)]
-             [(inPort (Physical 10), forward 20);
-              (inPort (Physical 300), forward 400);
-              (all, drop)])
-          [(inter (dlSrc 0xFFFFL) (inPort (Physical 10)), forward 20);
-           (inter (dlSrc 0xFFFFL) (inPort (Physical 300)), forward 400);
-           (all, drop)]
-
-  let test5 =
-    "classifier composition test 3" >::
-      fun () ->
-        assert_equal ~printer:C.to_string
-          (sequence
-             [(dlSrc 0xDDDDL, forward 1);
-              (all, drop)]
-             [(dlDst 0xEEEEL, forward 2);
-              (all, drop)])
-          [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), forward 2);
-           (all, drop)]
-
-  let test6 =
-    "classifier sequencing test 4" >::
-      fun () ->
-        assert_equal ~printer:C.to_string
-          (sequence
-             [(dlSrc 0xDDDDL, pass);
-              (all, drop)]
-             [(dlDst 0xEEEEL, forward 2);
-              (all, drop)])
-          [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), forward 2);
-           (all, drop)]
-
-
-  let test7 =
-    "classifier sequencing test 5" >::
-      fun () ->
-        assert_equal ~printer:C.to_string
-          (sequence
-             [(dlSrc 0xDDDDL, forward 2);
-              (all, drop)]
-             [(dlDst 0xEEEEL, pass);
-              (all, drop)])
-          [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), forward 2);
-           (all, drop)]
-
-  let test8 =
-    "classifier union regression 1" >::
-      fun () ->
-        assert_equal ~printer:C.to_string
-          (union
-             [(dlSrc 0xDDDDL, forward 2);
-              (all, drop)]
-             [(dlDst 0xEEEEL, forward 30);
-              (all, drop)])
-          [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), 
-            par_action (forward 2) (forward 30));
-           (dlSrc 0xDDDDL, forward 2);
-           (dlDst 0xEEEEL, forward 30);
-           (all, drop)]
-
-  let test9 =
-    "classifier union overlap 1" >::
-      fun () ->
-        assert_equal ~printer:C.to_string
-          (union
-             [(dlSrc 0xDDDDL, forward 2);
-              (all, drop)]
-             [(all, forward 30)])
-          [(dlSrc 0xDDDDL, par_action (forward 2) (forward 30));
-           (all, forward 30)]
-
-  let test10 =
-    "classifier union overlap 2" >::
-      fun () ->
-        assert_equal ~printer:C.to_string
-          (union
-             [(dlSrc 0xDDDDL, forward 2);
-              (all, drop)]
-             [(all, forward 2)])
-          [(dlSrc 0xDDDDL, par_action (forward 2) (forward 2));
-           (all, forward 2)]
+  let lst = 
+    [("composition test 1",
+      [(NetCore_Pattern.inter (dlDst 0xdeadbeefL) (inPort (Physical 5)),
+        forward 2);
+       (NetCore_Pattern.all, drop)],
+      let tbl1 =
+        [(NetCore_Pattern.inter (dlDst 0xdeadbeefL) (inPort (Physical 5)),
+          forward 1);
+         (NetCore_Pattern.all, drop)] in
+      let tbl2 =
+        [(inPort (Physical 1), forward 2);
+         (NetCore_Pattern.all, drop)] in
+      (sequence tbl1 tbl2));
+     ("composition test 2",
+      [(inter (dlSrc 0xFFFFL) (inPort (Physical 10)), forward 20);
+       (inter (dlSrc 0xFFFFL) (inPort (Physical 300)), forward 400);
+       (all, drop)],
+      sequence
+        [(dlSrc 0xFFFFL, pass); (all, drop)]
+        [(inPort (Physical 10), forward 20);
+         (inPort (Physical 300), forward 400);
+         (all, drop)]);
+     ("composition test 3",
+      [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), forward 2);
+       (all, drop)],
+      sequence
+        [(dlSrc 0xDDDDL, forward 1); (all, drop)]
+        [(dlDst 0xEEEEL, forward 2); (all, drop)]);
+     ("sequencing test 4",
+      [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), forward 2);
+       (all, drop)],
+      sequence
+        [(dlSrc 0xDDDDL, pass); (all, drop)]
+        [(dlDst 0xEEEEL, forward 2); (all, drop)]);
+     ("sequencing test 5",
+      [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), forward 2);
+       (all, drop)],
+      sequence
+        [(dlSrc 0xDDDDL, forward 2); (all, drop)]
+        [(dlDst 0xEEEEL, pass); (all, drop)]);
+     ("union regression 1",
+      [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), par_action (forward 2) (forward 30));
+       (dlSrc 0xDDDDL, forward 2);
+       (dlDst 0xEEEEL, forward 30);
+       (all, drop)],
+      union
+        [(dlSrc 0xDDDDL, forward 2);
+         (all, drop)]
+        [(dlDst 0xEEEEL, forward 30);
+         (all, drop)]);
+     ("union overlap 1",
+      [(dlSrc 0xDDDDL, par_action (forward 2) (forward 30));
+       (all, forward 30)],
+      union
+        [(dlSrc 0xDDDDL, forward 2); (all, drop)]
+        [(all, forward 30)]);
+     ("union overlap 2",
+      [(dlSrc 0xDDDDL, par_action (forward 2) (forward 2));
+       (all, forward 2)],
+      union
+        [(dlSrc 0xDDDDL, forward 2); (all, drop)]
+        [(all, forward 2)])]
 
   let go =
-    TestList [test0; test1; test2; test3; test4; test5; test6; test7; test8; test9; test10]
+    TestList [test0; test1; test2; classifier_tests "classifier tests" lst]
 
 end
 
