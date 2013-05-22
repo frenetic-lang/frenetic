@@ -1,33 +1,7 @@
 open Packet
 open OpenFlow0x01
 
-module type ACTION = sig
-  type t
-
-  type e
-
-  val atoms : t -> e list
-
-  val to_action : e -> t
-
-  val drop : t
-
-  val pass : t
-
-  val apply_atom : e -> (NetCore_Pattern.port * packet) -> (NetCore_Pattern.port * packet) option
-
-  val apply_action : t -> (NetCore_Pattern.port * packet) -> (NetCore_Pattern.port * packet) list
-
-  val par_action : t -> t -> t
-
-  val seq_action : t -> t -> t
-
-  val restrict_range : e -> NetCore_Pattern.t -> NetCore_Pattern.t
-
-  val domain : e -> NetCore_Pattern.t
-
-  val to_string : t -> string
- end
+module type ACTION = NetCore_Action.ACTION
 
 module type CLASSIFIER = sig
   type action
