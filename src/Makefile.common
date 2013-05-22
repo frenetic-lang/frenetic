@@ -2,7 +2,7 @@
 
 CMIFILES = $(MLIFILES:.mli=.cmi)
 
-OCAMLBUILD = ocamlbuild -use-ocamlfind 
+OCAMLBUILD = ocamlbuild -no-links -use-ocamlfind
 
 OCAMLFIND = ocamlfind
 
@@ -15,7 +15,8 @@ native:
 	$(OCAMLBUILD) native.otarget
 
 install:
-	$(OCAMLFIND) install $(LIBNAME) META $(MLIFILES) $(CMIFILES) $(LIBNAME).d.cma $(LIBNAME).cmxa $(LIBNAME).a
+	$(OCAMLFIND) install $(LIBNAME) META $(MLIFILES) $(CMIFILES) \
+    _build/$(LIBNAME).d.cma _build/$(LIBNAME).cmxa _build/$(LIBNAME).a
 
 uninstall:
 	$(OCAMLFIND) remove $(LIBNAME)
