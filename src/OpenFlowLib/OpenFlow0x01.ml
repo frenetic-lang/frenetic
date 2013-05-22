@@ -1,6 +1,8 @@
 open Packet
 open Format
 
+exception Unparsable of string
+
 (* copied code *)
 type int8 = int
 
@@ -17,37 +19,36 @@ let bit (x : int32) (n : int) (v : bool) : int32 =
 
 
 
-
 (** Internal module, only used to parse the wildcards bitfield *)
 module Wildcards = struct
 
   type t = {
-    in_port: bool; 
+    in_port: bool;
     dl_vlan: bool;
-    dl_src: bool; 
-    dl_dst: bool; 
-    dl_type: bool; 
-    nw_proto: bool; 
-    tp_src: bool; 
-    tp_dst: bool; 
+    dl_src: bool;
+    dl_dst: bool;
+    dl_type: bool;
+    nw_proto: bool;
+    tp_src: bool;
+    tp_dst: bool;
     nw_src: int; (* XXX *)
     nw_dst: int; (* XXX *)
     dl_vlan_pcp: bool;
     nw_tos: bool;
   }
 
-  let set_nw_mask (f:int32) (off : int) (v : int) : int32 = 
+  let set_nw_mask (f:int32) (off : int) (v : int) : int32 =
     let value = (0x3f land v) lsl off in
     (Int32.logor f (Int32.of_int value))
 
   (* TODO(arjun): this is different from mirage *)
-  let get_nw_mask (f : int32) (off : int) : int = 
+  let get_nw_mask (f : int32) (off : int) : int =
     (Int32.to_int (Int32.shift_right f off)) land 0x3f
 
-  let marshal m = 
-    let ret = Int32.zero in 
+  let marshal m =
+    let ret = Int32.zero in
     let ret = bit ret 0 m.in_port in
-    let ret = bit ret 1 m.dl_vlan in 
+    let ret = bit ret 1 m.dl_vlan in
     let ret = bit ret 2 m.dl_src in
     let ret = bit ret 3 m.dl_dst in
     let ret = bit ret 4 m.dl_type in
@@ -56,35 +57,35 @@ module Wildcards = struct
     let ret = bit ret 7 m.tp_dst in
     let ret = set_nw_mask ret 8 m.nw_src in
     let ret = set_nw_mask ret 14 m.nw_dst in
-    let ret = bit ret 20 m.dl_vlan_pcp in 
+    let ret = bit ret 20 m.dl_vlan_pcp in
     let ret = bit ret 21 m.nw_tos in
     ret
 
-  let to_string h = 
+  let to_string h =
     Format.sprintf
       "in_port:%s,dl_vlan:%s,dl_src:%s,dl_dst:%s,dl_type:%s,\
        nw_proto:%s,tp_src:%s,tp_dst:%s,nw_src:%d,nw_dst:%d,\
-       dl_vlan_pcp:%s,nw_tos:%s" 
-      (string_of_bool h.in_port) 
+       dl_vlan_pcp:%s,nw_tos:%s"
+      (string_of_bool h.in_port)
       (string_of_bool h.dl_vlan) (string_of_bool h.dl_src)
       (string_of_bool h.dl_dst) (string_of_bool h.dl_type)
       (string_of_bool h.nw_proto) (string_of_bool h.tp_src)
       (string_of_bool h.tp_dst) h.nw_src
-      h.nw_dst (string_of_bool h.dl_vlan_pcp) 
+      h.nw_dst (string_of_bool h.dl_vlan_pcp)
       (string_of_bool h.nw_tos)
-      
-  let parse bits = 
+
+  let parse bits =
     { nw_tos = test_bit 21 bits;
       dl_vlan_pcp = test_bit 20 bits;
-      nw_dst = get_nw_mask bits 14; 
-      nw_src = get_nw_mask bits 8; 
-      tp_dst = test_bit 7 bits; 
-      tp_src = test_bit 6 bits; 
-      nw_proto = test_bit 5 bits; 
-      dl_type = test_bit 4 bits; 
-      dl_dst = test_bit 3 bits; 
-      dl_src = test_bit 2 bits; 
-      dl_vlan = test_bit 1 bits; 
+      nw_dst = get_nw_mask bits 14;
+      nw_src = get_nw_mask bits 8;
+      tp_dst = test_bit 7 bits;
+      tp_src = test_bit 6 bits;
+      nw_proto = test_bit 5 bits;
+      dl_type = test_bit 4 bits;
+      dl_dst = test_bit 3 bits;
+      dl_src = test_bit 2 bits;
+      dl_vlan = test_bit 1 bits;
       in_port = test_bit 0 bits;
     }
 end
@@ -92,35 +93,35 @@ end
 module Match = struct
 
   type t = {
-    dlSrc : dlAddr option; 
+    dlSrc : dlAddr option;
     dlDst : dlAddr option;
-    dlTyp : dlTyp option; 
+    dlTyp : dlTyp option;
     dlVlan : dlVlan option;
     dlVlanPcp : dlVlanPcp option;
-    nwSrc : nwAddr option; 
+    nwSrc : nwAddr option;
     nwDst : nwAddr option;
-    nwProto : nwProto option; 
+    nwProto : nwProto option;
     nwTos : nwTos option;
-    tpSrc : tpPort option; 
+    tpSrc : tpPort option;
     tpDst : tpPort option;
-    inPort : portId option 
+    inPort : portId option
   }
 
   cstruct ofp_match {
-    uint32_t wildcards;        
-    uint16_t in_port;          
+    uint32_t wildcards;
+    uint16_t in_port;
     uint8_t dl_src[6];
     uint8_t dl_dst[6];
-    uint16_t dl_vlan;          
-    uint8_t dl_vlan_pcp;       
-    uint8_t pad1[1];           
-    uint16_t dl_type;          
-    uint8_t nw_tos;            
-    uint8_t nw_proto;          
-    uint8_t pad2[2];           
-    uint32_t nw_src;           
-    uint32_t nw_dst;           
-    uint16_t tp_src;           
+    uint16_t dl_vlan;
+    uint8_t dl_vlan_pcp;
+    uint8_t pad1[1];
+    uint16_t dl_type;
+    uint8_t nw_tos;
+    uint8_t nw_proto;
+    uint8_t pad2[2];
+    uint32_t nw_src;
+    uint32_t nw_dst;
+    uint16_t tp_src;
     uint16_t tp_dst
   } as big_endian
 
@@ -132,7 +133,7 @@ module Match = struct
     dlTyp = None;
     dlVlan = None;
     dlVlanPcp = None;
-    nwSrc = None; 
+    nwSrc = None;
     nwDst = None;
     nwProto = None;
     nwTos = None;
@@ -176,12 +177,12 @@ module Match = struct
     | Some n -> n
     | None -> Int64.zero
 
- let marshal m bits = 
+ let marshal m bits =
    set_ofp_match_wildcards bits (Wildcards.marshal (wildcards_of_match m));
-   set_ofp_match_in_port bits (if_some16 m.inPort); 
+   set_ofp_match_in_port bits (if_some16 m.inPort);
    set_ofp_match_dl_src (bytes_of_mac (if_word48 m.dlSrc)) 0 bits;
    set_ofp_match_dl_dst (bytes_of_mac (if_word48 m.dlDst)) 0 bits;
-   let vlan = 
+   let vlan =
      match m.dlVlan with
      | Some (Some v) -> v
      | Some None -> Packet_Parser.vlan_none
@@ -194,19 +195,19 @@ module Match = struct
    set_ofp_match_nw_src bits (if_some32 m.nwSrc);
    set_ofp_match_nw_dst bits (if_some32 m.nwDst);
    set_ofp_match_tp_src bits (if_some16 m.tpSrc);
-   set_ofp_match_tp_dst bits (if_some16 m.tpDst); 
-   sizeof_ofp_match 
+   set_ofp_match_tp_dst bits (if_some16 m.tpDst);
+   sizeof_ofp_match
 
-  let parse bits = 
+  let parse bits =
     let w = Wildcards.parse (get_ofp_match_wildcards bits) in
-    { dlSrc = 
-        if w.Wildcards.dl_src then 
+    { dlSrc =
+        if w.Wildcards.dl_src then
           None
         else
           Some (mac_of_bytes
                   (Cstruct.to_string (get_ofp_match_dl_src bits)));
-      dlDst = 
-        if w.Wildcards.dl_dst then 
+      dlDst =
+        if w.Wildcards.dl_dst then
           None
         else
           Some (mac_of_bytes
@@ -217,12 +218,12 @@ module Match = struct
         else
           begin
             let vlan = get_ofp_match_dl_vlan bits in
-            if vlan = Packet_Parser.vlan_none then 
-              Some None 
-            else 
+            if vlan = Packet_Parser.vlan_none then
+              Some None
+            else
               Some (Some vlan)
           end;
-      dlVlanPcp = 
+      dlVlanPcp =
         if w.Wildcards.dl_vlan_pcp then
           None
         else
@@ -232,12 +233,12 @@ module Match = struct
           None
         else
           Some (get_ofp_match_dl_type bits);
-      nwSrc = 
+      nwSrc =
         if w.Wildcards.nw_src = 0x3f then (* TODO(arjun): prefixes *)
           None
         else
           Some (get_ofp_match_nw_src bits);
-      nwDst = 
+      nwDst =
         if w.Wildcards.nw_dst = 0x3f then (* TODO(arjun): prefixes *)
           None
         else
@@ -247,10 +248,10 @@ module Match = struct
           None
         else
           Some (get_ofp_match_nw_proto bits);
-      nwTos = 
-        if w.Wildcards.nw_tos then 
+      nwTos =
+        if w.Wildcards.nw_tos then
           None
-        else 
+        else
           Some (get_ofp_match_nw_tos bits);
       tpSrc =
         if w.Wildcards.tp_src then
@@ -270,7 +271,7 @@ module Match = struct
     }
 
   (* Helper for to_string *)
-  let fld_str (lbl : string) (pr : 'a -> string) (v : 'a option) 
+  let fld_str (lbl : string) (pr : 'a -> string) (v : 'a option)
       : string option =
     match v with
       | None -> None
@@ -293,9 +294,9 @@ module Match = struct
         fld_str "tpSrc" string_of_int x.tpSrc;
         fld_str "tpDst" string_of_int x.tpDst;
         fld_str "inPort" string_of_int x.inPort ] in
-    let set_fields = 
-      List.fold_right 
-        (fun fo acc -> match fo with None -> acc | Some f -> f :: acc) 
+    let set_fields =
+      List.fold_right
+        (fun fo acc -> match fo with None -> acc | Some f -> f :: acc)
         all_fields [] in
     match set_fields with
       | [] -> "{*}"
@@ -311,7 +312,7 @@ module PseudoPort = struct
     | Flood
     | AllPorts
     | Controller of int
-        
+
   cenum ofp_port {
     (* Maximum number of physical switch ports. *)
     OFPP_MAX = 0xff00;
@@ -355,6 +356,19 @@ module PseudoPort = struct
     | AllPorts -> "AllPorts"
     | Controller n -> sprintf "Controller<%d bytes>" n
 
+  let make ofp_port_code len =
+    match int_to_ofp_port ofp_port_code with
+    | Some OFPP_IN_PORT -> InPort
+    | Some OFPP_FLOOD -> Flood
+    | Some OFPP_ALL -> AllPorts
+    | Some OFPP_CONTROLLER -> Controller len
+    | _ -> 
+      if ofp_port_code <= (ofp_port_to_int OFPP_MAX) then
+        PhysicalPort ofp_port_code
+      else
+        raise 
+          (Unparsable (sprintf "unsupported port number (%d)" ofp_port_code))
+
 end
 
 module Action = struct
@@ -371,71 +385,58 @@ module Action = struct
     | SetNwTos of nwTos
     | SetTpSrc of tpPort
     | SetTpDst of tpPort
-        
+
   type sequence = t list
 
   cstruct ofp_action_header {
     uint16_t typ;
-    uint16_t len;
-    uint8_t pad[4]
+    uint16_t len
   } as big_endian
 
   cstruct ofp_action_output {
-    uint16_t typ;
-    uint16_t len;
     uint16_t port;
     uint16_t max_len
-  } as big_endian 
-  
+  } as big_endian
+
   cstruct ofp_action_vlan_vid {
-    uint16_t typ;          
-    uint16_t len;           
-    uint16_t vlan_vid;      
+    uint16_t vlan_vid;
     uint8_t pad[2]
   } as big_endian
 
   cstruct ofp_action_vlan_pcp {
-    uint16_t typ;
-    uint16_t len;           
-    uint8_t vlan_pcp;       
+    uint8_t vlan_pcp;
     uint8_t pad[3]
   } as big_endian
 
+  cstruct ofp_action_strip_vlan {
+    uint8_t pad[2]
+  } as big_endian
+
   cstruct ofp_action_dl_addr {
-    uint16_t typ; 
-    uint16_t len;          
     uint8_t dl_addr[6];
     uint8_t pad[6]
-  } as big_endian 
-  
+  } as big_endian
+
   cstruct ofp_action_nw_addr {
-    uint16_t typ;
-    uint16_t len; 
     uint32_t nw_addr
   } as big_endian
 
   cstruct ofp_action_tp_port {
-    uint16_t typ;         
-    uint16_t len;          
-    uint16_t tp_port;      
+    uint16_t tp_port;
     uint8_t pad[2]
   } as big_endian
 
   cstruct ofp_action_nw_tos {
-    uint16_t typ;
-    uint16_t len; 
-    uint8_t nw_tos; 
+    uint8_t nw_tos;
     uint8_t pad[3]
   } as big_endian
 
   cstruct ofp_action_enqueue {
-    uint16_t typ;
-    uint16_t len;
     uint16_t port;
-    uint8_t pad[6]; 
+    uint8_t pad[6];
     uint32_t queue_id
-  } as big_endian 
-  
+  } as big_endian
+
   cenum ofp_action_type {
     OFPAT_OUTPUT;
     OFPAT_SET_VLAN_VID;
@@ -464,32 +465,35 @@ module Action = struct
     | SetTpSrc _ -> OFPAT_SET_TP_SRC
     | SetTpDst _ -> OFPAT_SET_TP_DST
 
-  let sizeof (a : t) = match a with
-    | Output _ -> sizeof_ofp_action_output
-    | SetDlVlan _ -> sizeof_ofp_action_vlan_vid
-    | SetDlVlanPcp _ -> sizeof_ofp_action_vlan_pcp
-    | StripVlan -> sizeof_ofp_action_header
+  let sizeof (a : t) =
+    let h = sizeof_ofp_action_header in
+    match a with
+    | Output _ -> h + sizeof_ofp_action_output
+    | SetDlVlan _ -> h + sizeof_ofp_action_vlan_vid
+    | SetDlVlanPcp _ -> h + sizeof_ofp_action_vlan_pcp
+    | StripVlan -> h + sizeof_ofp_action_strip_vlan
     | SetDlSrc _
-    | SetDlDst _ -> sizeof_ofp_action_dl_addr
+    | SetDlDst _ -> h + sizeof_ofp_action_dl_addr
     | SetNwSrc _
-    | SetNwDst _ -> sizeof_ofp_action_nw_addr
-    | SetNwTos _ -> sizeof_ofp_action_nw_tos
+    | SetNwDst _ -> h + sizeof_ofp_action_nw_addr
+    | SetNwTos _ -> h + sizeof_ofp_action_nw_tos
     | SetTpSrc _
-    | SetTpDst _ -> sizeof_ofp_action_tp_port
+    | SetTpDst _ -> h + sizeof_ofp_action_tp_port
 
-  let marshal a bits = 
+  let marshal a bits =
     set_ofp_action_header_typ bits (ofp_action_type_to_int (type_code a));
     set_ofp_action_header_len bits (sizeof a);
+    let bits' = Cstruct.shift bits sizeof_ofp_action_header in
     begin
       match a with
         | Output pp ->
-          set_ofp_action_output_port bits (PseudoPort.marshal pp);
-          set_ofp_action_output_max_len bits
+          set_ofp_action_output_port bits' (PseudoPort.marshal pp);
+          set_ofp_action_output_max_len bits'
             (match pp with
               | PseudoPort.Controller w -> w
               | _ -> 0)
-	| _ -> 
-	  failwith "unimplemented" 
+	| _ ->
+	  failwith "NYI: Action.marshal"
     end;
     sizeof a
 
@@ -497,7 +501,7 @@ module Action = struct
     | Output (PseudoPort.Controller _) -> true
     | _ -> false
 
-  let move_controller_last (lst : sequence) : sequence = 
+  let move_controller_last (lst : sequence) : sequence =
     let (to_ctrl, not_to_ctrl) = List.partition is_to_controller lst in
     not_to_ctrl @ to_ctrl
 
@@ -515,36 +519,90 @@ module Action = struct
     | SetTpSrc n -> sprintf "SetTpSrc %d" n
     | SetTpDst n -> sprintf "SetTpDst %d" n
 
-  let sequence_to_string (lst : sequence) : string = 
+  let sequence_to_string (lst : sequence) : string =
     String.concat "; " (List.map to_string lst)
-        
+
+  let _parse bits =
+    let length = get_ofp_action_header_len bits in
+    let ofp_action_code = get_ofp_action_header_typ bits in
+    let bits' = Cstruct.shift bits sizeof_ofp_action_header in
+    let act = match int_to_ofp_action_type ofp_action_code with
+    | Some OFPAT_OUTPUT -> 
+      let ofp_port_code = get_ofp_action_output_port bits' in
+      let len = get_ofp_action_output_max_len bits' in
+      Output (PseudoPort.make ofp_port_code len)
+    | Some OFPAT_SET_VLAN_VID ->
+      let vid = get_ofp_action_vlan_vid_vlan_vid bits' in
+      if vid = Packet_Parser.vlan_none then
+        StripVlan
+      else
+        SetDlVlan (Some vid)
+    | Some OFPAT_SET_VLAN_PCP ->
+      SetDlVlanPcp (get_ofp_action_vlan_pcp_vlan_pcp bits')
+    | Some OFPAT_STRIP_VLAN -> StripVlan
+    | Some OFPAT_SET_DL_SRC ->
+      let dl = 
+        mac_of_bytes 
+          (Cstruct.to_string (get_ofp_action_dl_addr_dl_addr bits')) in
+      SetDlSrc dl
+    | Some OFPAT_SET_DL_DST ->
+      let dl = 
+        mac_of_bytes 
+          (Cstruct.to_string (get_ofp_action_dl_addr_dl_addr bits')) in
+      SetDlDst dl
+    | Some OFPAT_SET_NW_SRC ->
+      SetNwSrc (get_ofp_action_nw_addr_nw_addr bits')
+    | Some OFPAT_SET_NW_DST ->
+      SetNwDst (get_ofp_action_nw_addr_nw_addr bits')
+    | Some OFPAT_SET_NW_TOS ->
+      SetNwTos (get_ofp_action_nw_tos_nw_tos bits')
+    | Some OFPAT_SET_TP_SRC ->
+      SetTpSrc (get_ofp_action_tp_port_tp_port bits')
+    | Some OFPAT_SET_TP_DST ->
+      SetTpDst (get_ofp_action_tp_port_tp_port bits')
+    | Some OFPAT_ENQUEUE
+    | None ->
+      raise (Unparsable 
+        (sprintf "unrecognized ofpat_action_type (%d)" ofp_action_code))
+    in
+    (Cstruct.shift bits length, act)
+
+  let parse bits = snd (_parse bits)
+
+  let rec parse_sequence bits : sequence =
+    if Cstruct.len bits = 0 then
+      []
+    else
+      let bits', act = _parse bits in
+      act::(parse_sequence bits')
+
 end
 
-type capabilities = 
-  { flow_stats : bool; 
+type capabilities =
+  { flow_stats : bool;
     table_stats : bool;
-    port_stats : bool; 
-    stp : bool; 
+    port_stats : bool;
+    stp : bool;
     ip_reasm : bool;
-    queue_stats : bool; 
+    queue_stats : bool;
     arp_match_ip : bool }
 
-type actions = { output : bool; 
-                 set_vlan_id : bool; 
+type actions = { output : bool;
+                 set_vlan_id : bool;
                  set_vlan_pcp : bool;
-                 strip_vlan : bool; 
-                 set_dl_src : bool; 
+                 strip_vlan : bool;
+                 set_dl_src : bool;
                  set_dl_dst : bool;
-                 set_nw_src : bool; 
-                 set_nw_dst : bool; 
+                 set_nw_src : bool;
+                 set_nw_dst : bool;
                  set_nw_tos : bool;
-                 set_tp_src : bool; 
-                 set_tp_dst : bool; 
+                 set_tp_src : bool;
+                 set_tp_dst : bool;
                  enqueue : bool;
                  vendor : bool }
 
-type features = 
-  { switch_id : int64; 
+type features =
+  { switch_id : int64;
     num_buffers : int32;
     num_tables : int8;
     supported_capabilities : capabilities;
@@ -569,37 +627,37 @@ type timeout =
 | Permanent
 | ExpiresAfter of int16
 
-type flowMod = 
-  { mfModCmd : flowModCommand; 
+type flowMod =
+  { mfModCmd : flowModCommand;
     mfMatch : Match.t;
-    mfPriority : priority; 
+    mfPriority : priority;
     mfActions : Action.sequence;
     mfCookie : int64;
     mfIdleTimeOut : timeout;
-    mfHardTimeOut : timeout; 
+    mfHardTimeOut : timeout;
     mfNotifyWhenRemoved : bool;
     mfApplyToPacket : bufferId option;
-    mfOutPort : PseudoPort.t option; 
+    mfOutPort : PseudoPort.t option;
     mfCheckOverlap : bool }
 
-type reason = 
+type reason =
 | NoMatch
 | ExplicitSend
 
-type packetIn = 
+type packetIn =
   { packetInBufferId : bufferId option;
     packetInTotalLen : int16;
     packetInPort : portId;
-    packetInReason : reason; 
+    packetInReason : reason;
     packetInPacket : packet }
 
 type xid = int32
 
-type payload = 
+type payload =
 | Buffer of bufferId
 | Packet of bytes
 
-type packetOut = 
+type packetOut =
   { pktOutBufOrBytes : payload;
     pktOutPortId : portId option;
     pktOutActions : Action.sequence }
@@ -619,7 +677,7 @@ module AggregateFlowRequest = struct
              table_id : table_id;
              port : PseudoPort.t }
 end
-  
+
 (* Component types of stats_reply messages. *)
 
 module DescriptionStats = struct
@@ -629,26 +687,27 @@ module DescriptionStats = struct
              serial_number : string;
              datapath : string }
 end
-  
+
 module IndividualFlowStats = struct
   type t = { table_id : table_id;
              of_match : Match.t;
              duration_sec : int;
-             duration_msec : int;
+             duration_nsec : int;
              priority : int;
              idle_timeout : int;
              hard_timeout : int;
-             cookie : int;
-             byte_count : int;
+             cookie : Int64.t;
+             packet_count : Int64.t;
+             byte_count : Int64.t;
              actions : Action.sequence }
 end
-  
+
 module AggregateFlowStats = struct
   type t = { packet_count : int;
              byte_count : int;
              flow_count : int }
 end
-  
+
 module TableStats = struct
   type t = { table_id : table_id;
              name : string;
@@ -658,7 +717,7 @@ module TableStats = struct
              lookup_count : int;
              matched_count : int }
 end
-  
+
 module PortStats = struct
   type t = { port_no : PseudoPort.t;
              rx_packets : int;
@@ -682,16 +741,16 @@ type statsRequest =
 | TableReq
 | PortReq of PseudoPort.t
 (* TODO(cole): queue and vendor stats requests. *)
-    
+
 type statsReply =
 | DescriptionRep of DescriptionStats.t
 | IndividualFlowRep of IndividualFlowStats.t
 | AggregateFlowRep of AggregateFlowStats.t
 | TableRep of TableStats.t
 | PortRep of PortStats.t
-    
+
 (* A subset of the OpenFlow 1.0 messages defined in Section 5.1 of the spec. *)
-    
+
 type message =
 | Hello of bytes
 | EchoRequest of bytes
@@ -705,8 +764,8 @@ type message =
 | BarrierReply
 | StatsRequestMsg of statsRequest
 | StatsReplyMsg of statsReply
-  
-let delete_all_flows = 
+
+let delete_all_flows =
   FlowModMsg {
     mfModCmd = DeleteFlow;
     mfMatch = Match.all;
@@ -720,8 +779,8 @@ let delete_all_flows =
     mfOutPort = None;
     mfCheckOverlap = false
   }
-    
-let add_flow match_ actions = 
+
+let add_flow match_ actions =
   FlowModMsg {
     mfModCmd = AddFlow;
     mfMatch = match_;
@@ -735,9 +794,9 @@ let add_flow match_ actions =
     mfOutPort = None;
     mfCheckOverlap = false
   }
-  
+
 module type PLATFORM = sig
-  exception SwitchDisconnected of switchId 
+  exception SwitchDisconnected of switchId
   val send_to_switch : switchId -> xid -> message -> unit Lwt.t
   val recv_from_switch : switchId -> (xid * message) Lwt.t
   val accept_switch : unit -> features Lwt.t

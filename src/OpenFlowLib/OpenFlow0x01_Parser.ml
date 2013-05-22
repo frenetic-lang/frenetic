@@ -3,8 +3,6 @@
 open Printf
 open OpenFlow0x01
 
-exception Unparsable of string
-
 let sum (lst : int list) = List.fold_left (fun x y -> x + y) 0 lst
 
 cstruct ofp_header {
@@ -157,8 +155,6 @@ module PacketOut = struct
     end;
     sizeof pktOut
 end
- 
-
 
 module Timeout = struct
 
@@ -213,20 +209,20 @@ module Actions = struct
 
   type t = actions
 
- let parse bits = 
-   { output = test_bit 0 bits; 
-     set_vlan_id = test_bit 1 bits; 
-     set_vlan_pcp = test_bit 2 bits; 
-     strip_vlan = test_bit 3 bits;
-     set_dl_src = test_bit 4 bits; 
-     set_dl_dst = test_bit 5 bits; 
-     set_nw_src = test_bit 6 bits; 
-     set_nw_dst = test_bit 7 bits;
-     set_nw_tos = test_bit 8 bits; 
-     set_tp_src = test_bit 9 bits; 
-     set_tp_dst = test_bit 10 bits; 
-     enqueue = test_bit 11 bits; 
-     vendor = test_bit 12 bits; }
+  let parse bits = 
+    { output = test_bit 0 bits; 
+      set_vlan_id = test_bit 1 bits; 
+      set_vlan_pcp = test_bit 2 bits; 
+      strip_vlan = test_bit 3 bits;
+      set_dl_src = test_bit 4 bits; 
+      set_dl_dst = test_bit 5 bits; 
+      set_nw_src = test_bit 6 bits; 
+      set_nw_dst = test_bit 7 bits;
+      set_nw_tos = test_bit 8 bits; 
+      set_tp_src = test_bit 9 bits; 
+      set_tp_dst = test_bit 10 bits; 
+      enqueue = test_bit 11 bits; 
+      vendor = test_bit 12 bits; }
 
   let marshal (a : actions) : int32 =
     let bits = Int32.zero in
@@ -388,8 +384,48 @@ module StatsReply = struct
 
   module Flow = struct
 
+    cstruct ofp_flow_stats {
+      uint16_t length;
+      uint8_t table_id;
+      uint8_t pad;
+      uint8_t of_match[40]; (* Size of struct ofp_match. *)
+      uint32_t duration_sec;
+      uint32_t duration_nsec;
+      uint16_t priority;
+      uint16_t idle_timeout;
+      uint16_t hard_timeout;
+      uint8_t pad2[6];
+      uint64_t cookie;
+      uint64_t packet_count;
+      uint64_t byte_count
+    } as big_endian
+
     type t = IndividualFlowStats.t
-    let parse bits = failwith "NYI"
+    let parse bits =
+      let table_id = get_ofp_flow_stats_table_id bits in
+      let of_match = Match.parse (get_ofp_flow_stats_of_match bits) in
+      let duration_sec = get_ofp_flow_stats_duration_sec bits in
+      let duration_nsec = get_ofp_flow_stats_duration_nsec bits in
+      let priority = get_ofp_flow_stats_priority bits in
+      let idle_timeout = get_ofp_flow_stats_idle_timeout bits in
+      let hard_timeout = get_ofp_flow_stats_hard_timeout bits in
+      let cookie = get_ofp_flow_stats_cookie bits in
+      let packet_count = get_ofp_flow_stats_packet_count bits in
+      let byte_count = get_ofp_flow_stats_byte_count bits in
+      let actions = 
+        Action.parse_sequence (Cstruct.shift bits sizeof_ofp_flow_stats) in
+      let open IndividualFlowStats in
+      { table_id = table_id
+      ; of_match = of_match
+      ; duration_sec = Int32.to_int duration_sec
+      ; duration_nsec = Int32.to_int duration_nsec
+      ; priority = priority
+      ; idle_timeout = idle_timeout
+      ; hard_timeout = hard_timeout
+      ; cookie = cookie
+      ; packet_count = packet_count
+      ; byte_count = byte_count
+      ; actions = actions }
 
   end
 
