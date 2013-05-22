@@ -11,7 +11,7 @@ val string_of_port : port -> string
 type t 
 
 val inter : t -> t -> t
-  
+
 val all : t
   
 val empty : t
@@ -21,8 +21,6 @@ val exact_pattern : packet -> port -> t
 val is_empty : t -> bool
   
 val match_packet : port -> packet -> t -> bool
-  
-val is_exact : t -> bool
   
 val to_match : t -> Match.t option
   
