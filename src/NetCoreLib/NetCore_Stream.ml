@@ -1,69 +1,82 @@
 type 'a t = {
   now : unit -> 'a;
-  values : 'a Lwt_stream.t
+  (* attach_listener adds a callback that reads new values, and returns
+     a thunk that removes the callback. *)
+  attach_listener : ('a -> unit) -> (unit -> unit)
 }
+
+module Listeners : sig
+  type 'a t
+  val empty : unit -> 'a t
+  val attach : 'a t -> ('a -> unit) -> (unit -> unit)
+  val invoke_all : 'a t -> 'a -> unit
+end = struct
+
+  module Gensym = NetCore_Gensym
+
+  type 'a t = (Gensym.t * ('a -> unit)) list ref
+
+  let empty () = ref []
+
+  let attach lst listener =
+    let key = Gensym.gensym () in
+    lst := (key, listener) :: !lst;
+    (fun () -> lst := List.remove_assq key !lst)
+
+  let invoke_all lst v = 
+    List.iter (fun (_, listener) -> listener v) !lst
+end
 
 let map (f : 'a -> 'b) (src : 'a t) : 'b t =
   let now = ref (f (src.now ())) in
-  let g a =
+  let listeners = Listeners.empty () in
+  let updater a =
     now := f a;
-    !now in
-  let values = Lwt_stream.map g src.values in
-  { now = (fun () -> !now); values = values }
+    Listeners.invoke_all listeners !now in
+  let _ = src.attach_listener updater in
+  { 
+    now = (fun () -> !now);
+    attach_listener = Listeners.attach listeners
+  }
 
-let map2 f a_src b_src =
+let map2 (f : 'a -> 'b -> 'c) (a_src : 'a t) (b_src : 'b t) : 'c t =
   let now = ref (f (a_src.now ()) (b_src.now ())) in
-  let (stream, push) = Lwt_stream.create () in
-  let recv_a = 
-    Lwt_stream.iter 
-      (fun a -> now := f a (b_src.now ()); push (Some !now)) a_src.values in
-  let recv_b =
-    Lwt_stream.iter
-      (fun b -> now := f (a_src.now ()) b; push (Some !now)) b_src.values in
-  Lwt.async (fun () -> Lwt.join [recv_a; recv_b]);
-  { now = (fun () -> !now); values = stream }
+  let listeners = Listeners.empty () in
+  let a_updater a =
+    now := f a (b_src.now ());
+    Listeners.invoke_all listeners !now in
+  let b_updater b =
+    now := f (a_src.now ()) b;
+    Listeners.invoke_all listeners !now in
+  let _ = a_src.attach_listener a_updater in
+  let _ = b_src.attach_listener b_updater in
+  {
+    now = (fun () -> !now);
+    attach_listener = Listeners.attach listeners
+  }
 
-let return (x : 'a) = 
-  let (stream, _) = Lwt_stream.create () in
-  { now = (fun () -> x); values = stream }
+let constant (x : 'a) = {
+  now = (fun () -> x);
+  attach_listener = (fun _ -> fun () -> ())
+}
 
-let bind (f : 'a -> 'b t) (src : 'a t) : 'b t =
-  let (stream, push) = Lwt_stream.create () in
-  let now_src = ref (f (src.now ())) in
-  let now  = ref (!now_src.now ()) in
-  let get_next_b () = 
-    lwt x = Lwt_stream.get !now_src.values in
-    match x with
-      | None -> failwith "should not close stream"
-      | Some b ->
-        begin 
-          now := b;
-          push (Some b);
-          Lwt.return ()
-        end in
-  let get_next_stream () =
-    lwt a = Lwt_stream.get src.values in
-    match a with
-      | None -> failwith "should not close stream"
-      | Some a ->
-        now_src := f a;
-        now := !now_src.now ();
-        push (Some !now);
-        Lwt.return () in
-  let rec loop () =
-    Lwt.bind
-      (Lwt.pick [get_next_b (); get_next_stream ()])
-      (fun () -> loop ()) in
-  Lwt.async loop;
-  { now = (fun () -> !now); values = stream }
 
 let from_stream (init : 'a) (stream : 'a Lwt_stream.t) : 'a t =
   let now = ref init in
-  { now = (fun () -> !now); 
-    values = Lwt_stream.map (fun a -> now := a; a) stream }
+  let listeners = Listeners.empty () in
+  Lwt.async
+    (fun () -> 
+      Lwt_stream.iter
+        (fun a ->
+          now := a;
+          Listeners.invoke_all listeners !now)
+        stream);
+  {
+    now = (fun () -> !now); 
+    attach_listener = Listeners.attach listeners
+  }
 
 let to_stream (x : 'a t) : 'a Lwt_stream.t =
   let (stream, push) = Lwt_stream.create () in
-  push (Some (x.now ()));
-  Lwt.async (fun () -> Lwt_stream.iter (fun x -> push (Some x)) x.values);
+  let _ = x.attach_listener (fun a -> push (Some a)) in
   stream
