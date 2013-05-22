@@ -1,0 +1,25 @@
+.PHONY: all debug native install uninstall doc clean
+
+CMIFILES = $(MLIFILES:.mli=.cmi)
+
+OCAMLBUILD = ocamlbuild -use-ocamlfind
+
+all: debug native uninstall install 
+
+debug:
+	$(OCAMLBUILD) -cflag -ppopt -cflag -lwt-debug debug.otarget
+
+native:
+	$(OCAMLBUILD) native.otarget
+
+install:
+	ocamlfind install $(LIBNAME) META $(MLIFILES) $(CMIFILES) $(LIBNAME).d.cma $(LIBNAME).cmxa $(LIBNAME).a
+
+uninstall:
+	ocamlfind remove $(LIBNAME)
+
+doc:
+	$(OCAMLBUILD) doc.docdir/index.html
+
+clean:
+	$(OCAMLBUILD) -clean
