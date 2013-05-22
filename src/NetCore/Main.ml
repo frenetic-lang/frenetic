@@ -7,7 +7,7 @@ module M = NetCore_MacLearning
 
 module Controller = NetCore_Controller.Make(OpenFlow0x01_Platform)
 
-let policy = ref (NetCore_Stream.return Empty)
+let policy = ref (NetCore_Stream.constant Empty)
 
 let () =
   Arg.parse
