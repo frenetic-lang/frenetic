@@ -174,6 +174,20 @@ let inter pat pat' = {
   ptrnTpDst = TpPortWildcard.inter pat.ptrnTpDst pat'.ptrnTpDst;
   ptrnInPort = PortWildcard.inter pat.ptrnInPort pat'.ptrnInPort 
 }
+
+let contains pat1 pat2 =
+  DlAddrWildcard.contains pat1.ptrnDlSrc pat2.ptrnDlSrc &&
+  DlAddrWildcard.contains pat1.ptrnDlDst pat2.ptrnDlDst &&
+  DlTypWildcard.contains pat1.ptrnDlType pat2.ptrnDlType &&
+  DlVlanWildcard.contains pat1.ptrnDlVlan pat2.ptrnDlVlan &&
+  DlVlanPcpWildcard.contains pat1.ptrnDlVlanPcp pat2.ptrnDlVlanPcp &&
+  NwAddrWildcard.contains pat1.ptrnNwSrc pat2.ptrnNwSrc &&
+  NwAddrWildcard.contains pat1.ptrnNwDst pat2.ptrnNwDst &&
+  NwProtoWildcard.contains pat1.ptrnNwProto pat2.ptrnNwProto &&
+  NwTosWildcard.contains pat1.ptrnNwTos pat2.ptrnNwTos &&
+  TpPortWildcard.contains pat1.ptrnTpSrc pat2.ptrnTpSrc &&
+  TpPortWildcard.contains pat1.ptrnTpDst pat2.ptrnTpDst &&
+  PortWildcard.contains pat1.ptrnInPort pat2.ptrnInPort
   
 let exact_pattern pk pt = {
   ptrnDlSrc = DlAddrWildcard.WildcardExact pk.pktDlSrc;

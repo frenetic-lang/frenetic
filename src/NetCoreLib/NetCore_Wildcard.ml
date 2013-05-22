@@ -8,6 +8,7 @@ module type Wildcard = sig
     | WildcardNone
 
   val is_equal : t -> t -> bool
+  val contains : t -> t -> bool
   val inter : t -> t -> t
   val is_all : t -> bool
   val is_empty : t -> bool
@@ -35,6 +36,12 @@ module Make (Ord : OrderedType) = struct
     | WildcardExact a, WildcardExact b -> Ord.compare a b = 0
     | WildcardAll, WildcardAll -> true
     | WildcardNone, WildcardNone -> true
+    | _ -> false
+
+  let contains x y = match (x, y) with
+    | WildcardNone, _ -> true
+    | _, WildcardAll -> true
+    | WildcardExact a, WildcardExact b -> Ord.compare a b = 0
     | _ -> false
 
   let inter x y = match (x, y) with

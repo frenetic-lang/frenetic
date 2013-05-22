@@ -12,6 +12,9 @@ type t
 
 val inter : t -> t -> t
 
+(** [contains x y] returns [true] if the pattern [x] is a sub-pattern of [y]. *)
+val contains : t -> t -> bool
+
 val all : t
   
 val empty : t
