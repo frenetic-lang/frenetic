@@ -24,7 +24,7 @@ $(APPS):
 	$(MAKE) -C $@
 
 doc:
-	$(OCAMLBUILD) -no-hygiene doc.docdir/index.html
+	$(OCAMLBUILD) doc.docdir/index.html
 
 clean:
 	$(foreach LIB,$(LIBS),make -C $(LIB) clean;)
