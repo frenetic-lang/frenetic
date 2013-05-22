@@ -1,0 +1,4 @@
+<PacketLib> or <NetCoreLib> or <OpenFlowLib> or <FreneticLib>: include
+<*.d.byte> : package(lwt), package(lwt.unix), package(cstruct), package(oUnit), package(cstruct)
+<**/*.ml{,i}> : package(lwt), package(lwt.syntax), syntax(camlp4o), package(oUnit), package(cstruct), package(cstruct.syntax)
+
