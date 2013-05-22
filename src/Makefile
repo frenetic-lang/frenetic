@@ -1,18 +1,28 @@
-.PHONY: all clean ctags
+.PHONY: all clean libs apps ctags
 
-LIBS = PacketLib \
+LIBS = FreneticLib \
+       PacketLib \
        OpenFlowLib \
        NetCoreLib 
 
 APPS = NetCore
 
-all: 
-	$(foreach LIB,$(LIBS),make -C $(LIB);)
-	$(foreach APP,$(APPS),make -C $(APP);)
+.PHONY: $(LIBS) $(APPS)
+
+all: libs apps
+
+libs: $(LIBS)
+
+apps: $(APPS)
+
+$(LIBS):
+	$(MAKE) -C $@
+
+$(APPS): 
+	$(MAKE) -C $@
 
 clean:
 	$(foreach LIB,$(LIBS),make -C $(LIB) clean;)
-	$(foreach APP,$(APPS),make -C $(APP) clean;)
 
 ctags: $(CTAGSFILES)
 	@echo "[5m[31m[1m*** Making ctags is broken! ***[0m"

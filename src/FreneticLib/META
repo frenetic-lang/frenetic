@@ -1,0 +1,3 @@
+requires = "lwt lwt.unix cstruct"
+archive(byte) = "FreneticLib.d.cma"
+archive(native) = "FreneticLib.cmxa FreneticLib.a"

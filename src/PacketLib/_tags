@@ -1,4 +1,3 @@
-<*.d.byte> : package(lwt), package(lwt.unix), package(cstruct)
-<*.native> : package(lwt), package(lwt.unix), package(cstruct)
-<**/*.ml{,i}> : package(lwt),package(lwt.syntax), package(cstruct), syntax(camlp4o)
-"Packet_Parser.ml" : package(cstruct.syntax)
+<*.d.byte> : package(lwt), package(lwt.unix), package(cstruct), package(FreneticLib)
+<*.native> : package(lwt), package(lwt.unix), package(cstruct), package(FreneticLib)
+<**/*.ml{,i}> : package(lwt),package(lwt.syntax), package(cstruct), package(cstruct.syntax), syntax(camlp4o), package(FreneticLib)
