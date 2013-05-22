@@ -1,50 +1,51 @@
-open Syntax.External
+open Printf
+open NetCore_Types.External
 open OUnit
 
 module TestClassifier = struct
 
-  module C = Classifier.Make (Action.Output)
+  module C = NetCore_Classifier.Make (NetCore_Action.Output)
   open C
-  open Action.Output
-  open Pattern
+  open NetCore_Action.Output
+  open NetCore_Pattern
 
   let test0 =
     "action sequence test" >::
       fun () ->
-        assert_equal ~printer:Action.Output.to_string
+        assert_equal ~printer:NetCore_Action.Output.to_string
           (forward 5)
           (seq_action (forward 3) (forward 5))
 
   let test1 =
-    "forward action domain should be Pattern.all" >::
+    "forward action domain should be NetCore_Pattern.all" >::
       fun () ->
-        assert_equal ~printer:Pattern.to_string
-          (domain (List.hd (atoms (forward 1)))) Pattern.all
+        assert_equal ~printer:NetCore_Pattern.to_string
+          (domain (List.hd (atoms (forward 1)))) NetCore_Pattern.all
 
   let test2 =
     "pattern restriction test" >::
       fun () ->
-        assert_equal ~printer:Pattern.to_string
+        assert_equal ~printer:NetCore_Pattern.to_string
           (restrict_range
              (List.hd (atoms (forward 1)))
-             (Pattern.inPort (Physical 1)))
-          Pattern.all
+             (NetCore_Pattern.inPort (Physical 1)))
+          NetCore_Pattern.all
 
   let test3 =
     "classifier composition test 1" >::
       fun () ->
         let tbl1 =
-          [(Pattern.inter (dlDst 0xdeadbeefL) (inPort (Physical 5)),
+          [(NetCore_Pattern.inter (dlDst 0xdeadbeefL) (inPort (Physical 5)),
             forward 1);
-           (Pattern.all, drop)] in
+           (NetCore_Pattern.all, drop)] in
         let tbl2 =
           [(inPort (Physical 1), forward 2);
-           (Pattern.all, drop)] in
+           (NetCore_Pattern.all, drop)] in
         assert_equal ~printer:C.to_string
           (sequence tbl1 tbl2)
-          [(Pattern.inter (dlDst 0xdeadbeefL) (inPort (Physical 5)),
+          [(NetCore_Pattern.inter (dlDst 0xdeadbeefL) (inPort (Physical 5)),
             forward 2);
-           (Pattern.all, drop)]
+           (NetCore_Pattern.all, drop)]
 
   let test4 =
     "classifier composition test 2" >::
@@ -123,10 +124,10 @@ end
 
 module TestNetCore = struct
 
-  open Syntax.Internal
-  open Action.Output
-  open Pattern
-  module C = Classifier.Make (Action.Output)
+  open NetCore_Types.Internal
+  open NetCore_Action.Output
+  open NetCore_Pattern
+  module C = NetCore_Classifier.Make (NetCore_Action.Output)
 
   let test1_pol1 =
     PoSeq 
@@ -134,15 +135,15 @@ module TestNetCore = struct
          (PrNot 
             (PrOr (PrAnd 
                      (PrAnd (PrOnSwitch 1L, 
-                             PrHdr (Pattern.inPort (Physical 1))), 
-                      PrHdr (Pattern.dlSrc 0x0ab75f2211d4L)), PrNone))),
+                             PrHdr (NetCore_Pattern.inPort (Physical 1))), 
+                      PrHdr (NetCore_Pattern.dlSrc 0x0ab75f2211d4L)), PrNone))),
        PoAction (forward 3))
 
   let test1_pol2 = 
     PoSeq 
       (PoFilter
          (PrAnd 
-            (PrOnSwitch 1L, PrHdr (Pattern.dlDst 0x0ab75f2211d4L))), 
+            (PrOnSwitch 1L, PrHdr (NetCore_Pattern.dlDst 0x0ab75f2211d4L))), 
        PoAction (forward 1))
 
   let test1_pol3 =
@@ -150,32 +151,32 @@ module TestNetCore = struct
       (PoFilter 
          (PrNot 
             (PrOr (PrAnd (PrOnSwitch 1L,
-                          PrHdr (Pattern.dlDst 0x0ab75f2211d4L)),
+                          PrHdr (NetCore_Pattern.dlDst 0x0ab75f2211d4L)),
                    PrNone))), PoAction to_all)
 
   let test1 = 
       "maclearning regression 1" >::
         fun () ->
           assert_equal  ~printer:C.to_string
-            (Compiler.compile_pol test1_pol1 1L) []
+            (NetCore_Compiler.compile_pol test1_pol1 1L) []
 
   let test2 = 
       "maclearning regression 2" >::
         fun () ->
           assert_equal  ~printer:C.to_string
-            (Compiler.compile_pol test1_pol2 1L) []
+            (NetCore_Compiler.compile_pol test1_pol2 1L) []
 
   let test3 = 
       "maclearning regression 3" >::
         fun () ->
           assert_equal  ~printer:C.to_string
-            (Compiler.compile_pol test1_pol3 1L) []
+            (NetCore_Compiler.compile_pol test1_pol3 1L) []
 
   let test4 = 
       "maclearning regression 2 || 3" >::
         fun () ->
           assert_equal  ~printer:C.to_string
-            (Compiler.compile_pol
+            (NetCore_Compiler.compile_pol
                (PoUnion (test1_pol2, test1_pol3))
             1L)
             []
@@ -184,7 +185,7 @@ module TestNetCore = struct
       "maclearning regression 1 || 2 || 3" >::
         fun () ->
           assert_equal  ~printer:C.to_string
-            (Compiler.compile_pol
+            (NetCore_Compiler.compile_pol
                (PoUnion (test1_pol1, PoUnion (test1_pol2, test1_pol3)))
             1L)
             []
@@ -193,7 +194,7 @@ module TestNetCore = struct
     "sequencing regression 1" >::
       fun () ->
         assert_equal ~printer:C.to_string
-          (Compiler.compile_pol 
+          (NetCore_Compiler.compile_pol 
              (PoFilter
                 (PrAnd 
                    (PrOnSwitch 1L, PrHdr (dlDst 0x0ab75f2211d4L))))
@@ -249,28 +250,28 @@ module TestNetCore = struct
     "maclearning regression pol2_query" >::
       fun () ->
         assert_equal ~printer:C.to_string
-          (Compiler.compile_pol pol2_query 1L)
+          (NetCore_Compiler.compile_pol pol2_query 1L)
           []
 
   let test8 =
     "maclearning regression pol2_fwd1" >::
       fun () ->
         assert_equal ~printer:C.to_string
-          (Compiler.compile_pol pol2_fwd1 1L)
+          (NetCore_Compiler.compile_pol pol2_fwd1 1L)
           []
 
   let test9 =
     "maclearning regression pol2_fwd_rest" >::
       fun () ->
         assert_equal ~printer:C.to_string
-          (Compiler.compile_pol pol2_fwd_rest 1L)
+          (NetCore_Compiler.compile_pol pol2_fwd_rest 1L)
           []
 
   let test10 =
     "maclearning regression pol2" >::
       fun () ->
         assert_equal ~printer:C.to_string
-          (Compiler.compile_pol pol2 1L)
+          (NetCore_Compiler.compile_pol pol2 1L)
           []
 
   let go = TestList [test10; test9; test8; test7; test6; test5;
@@ -283,8 +284,8 @@ end
 
 module Test1 = struct
 
-  module Network = TestPlatform.Network
-  module Controller = Controller.Make (TestPlatform)
+  module Network = OpenFlow0x01_TestPlatform.Network
+  module Controller = NetCore_Controller.Make (OpenFlow0x01_TestPlatform)
 
   let network_script =
     Network.connect_switch 100L >>
@@ -307,9 +308,9 @@ end
 
 module Helper = struct
 
-  module C = Classifier.Make (Action.Output)
-  open Syntax
-  open Syntax.Internal
+  module C = NetCore_Classifier.Make (NetCore_Action.Output)
+  open NetCore_Types
+  open NetCore_Types.Internal
   open Packet
 
   let desugar_policy pol =
@@ -331,7 +332,7 @@ module Helper = struct
 
   let in_val =
     Pkt ( Int64.one
-        , (Pattern.Physical 1)
+        , (NetCore_Pattern.Physical 1)
         , in_pkt
         , (Buf Int32.zero))
 
@@ -339,7 +340,7 @@ module Helper = struct
     let ds_pol = desugar_policy pol in
 
     if dbg then
-      Misc.Log.printf "Internal policy:\n%s\n" (pol_to_string ds_pol)
+      printf "Internal policy:\n%s\n" (pol_to_string ds_pol)
     else
       ();
 
@@ -352,24 +353,24 @@ module Helper = struct
     let sem_test = 
       (name ^ " (semantic) test") >:: fun () ->
         assert_equal
-          ~printer:(Misc.string_of_list value_to_string)
+          ~printer:(Frenetic_Misc.string_of_list value_to_string)
           expected_vals vals in
 
     (* Test the classifier interpretation. *)
-    let classifier = Compiler.compile_pol ds_pol in_sid in
+    let classifier = NetCore_Compiler.compile_pol ds_pol in_sid in
 
     if dbg then
-      Misc.Log.printf "Classifier:\n%s\n" (C.to_string classifier)
+      printf "Classifier:\n%s\n" (C.to_string classifier)
     else
       ();
 
     let act = C.scan classifier in_port in_pkt in
-    let pkts = Action.Output.apply_action act (in_port, in_pkt) in
+    let pkts = NetCore_Action.Output.apply_action act (in_port, in_pkt) in
     let classifier_test =
       (name ^ " (classifier) test") >:: fun () ->
         assert_equal
-          ~printer:(Misc.string_of_list
-            (Misc.string_of_pair Pattern.string_of_port packet_to_string))
+          ~printer:(Frenetic_Misc.string_of_list
+            (Frenetic_Misc.string_of_pair NetCore_Pattern.string_of_port packet_to_string))
           expected_pkts pkts in
     TestList [ sem_test; classifier_test ]
 
@@ -377,7 +378,7 @@ end
 
 module TestFilters = struct
 
-  open Syntax.Internal
+  open NetCore_Types.Internal
   open Helper
 
   let test1 =
@@ -394,7 +395,7 @@ end
 
 module TestMods = struct
 
-  open Syntax.Internal
+  open NetCore_Types.Internal
   open Packet
   open Helper
 
@@ -416,7 +417,7 @@ module TestMods = struct
           , Seq ( Act ToAll
                 , Act (UpdateDlVlan ((Some 1), None)))) in
     let Pkt (sid, port, pkt, payload) = in_val in
-    let expected_vals = [Pkt (sid, Pattern.All, pkt, payload)] in
+    let expected_vals = [Pkt (sid, NetCore_Pattern.All, pkt, payload)] in
     mkEvalTest "mod no effect 2" policy in_val expected_vals
 
   let test4 = 
@@ -441,14 +442,14 @@ end
 
 module TestSlices = struct
 
-  open Syntax.Internal
+  open NetCore_Types.Internal
   open Packet
   open Helper
 
   let test1 =
     let policy = Slice (All, Act ToAll, All) in
     let Pkt (sid, port, expected_pkt, payload) = in_val in
-    let expected_val = Pkt ( sid, (Pattern.All), expected_pkt, payload) in
+    let expected_val = Pkt ( sid, (NetCore_Pattern.All), expected_pkt, payload) in
     mkEvalTest "slice repeater" policy in_val [expected_val]
 
   let test1' =
@@ -458,7 +459,7 @@ module TestSlices = struct
           , Par ( Seq (Filter (DlVlan (Some 1)), Act (UpdateDlVlan (Some 1, None)))
                 , Filter (Not (DlVlan (Some 1)))))) in
     let Pkt (sid, port, expected_pkt, payload) = in_val in
-    let expected_val = Pkt ( sid, (Pattern.All), expected_pkt, payload) in
+    let expected_val = Pkt ( sid, (NetCore_Pattern.All), expected_pkt, payload) in
     mkEvalTest "slice' repeater" policy in_val [expected_val]
 
   let test1'' =
@@ -467,7 +468,7 @@ module TestSlices = struct
       Seq (Act ToAll,
       Seq (Filter (DlVlan (Some 1)), Act (UpdateDlVlan (Some 1, None))))) in
     let Pkt (sid, port, expected_pkt, payload) = in_val in
-    let expected_val = Pkt ( sid, (Pattern.All), expected_pkt, payload) in
+    let expected_val = Pkt ( sid, (NetCore_Pattern.All), expected_pkt, payload) in
     mkEvalTest "slice'' repeater" policy in_val [expected_val]
 
   let go = TestList [ test1; test1'; test1'' ]
@@ -501,7 +502,7 @@ let _ = run_test_tt_main tests
 (*
 module Test2 = struct
 
-  open Syntax.Internal
+  open NetCore_Types.Internal
   open NetCoreCompiler
 
   let pt1 = 1
@@ -515,7 +516,7 @@ module Test2 = struct
 "optimizer test" >::
     (fun () ->
       let ft = compile_opt pol1 0L in
-      Printf.Misc.Log.printf "length is %d\n" (List.length ft);
+      Printf.printf "length is %d\n" (List.length ft);
       assert_equal (List.length ft) 2)
                *) ]
 
