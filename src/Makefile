@@ -1,23 +1,26 @@
-APPS = NetCore/Main Test/Test
+APPLICATIONS = NetCore/Main \
+               Test/Test
 
-LIBS = FreneticLib \
-       PacketLib \
-       OpenFlowLib \
-       NetCoreLib 
+LIBRARIES = FreneticLib \
+            PacketLib \
+            OpenFlowLib \
+            NetCoreLib 
 
-.PHONY: all native byte debug install uninstall doc clean $(LIBS)
+SUFFIXES = .a .cmxa .cma .d.cma
 
-OCAMLBUILD = ocamlbuild -use-ocamlfind $(addprefix -I ,$(LIBS))
+.PHONY: all native byte debug install uninstall doc clean $(LIBRARIES)
+
+OCAMLBUILD = ocamlbuild -use-ocamlfind $(addprefix -I ,$(LIBRARIES))
 
 OCAMLFIND = ocamlfind
 
-all: native byte debug $(LIBS)
+all: native byte debug $(LIBRARIES)
 
-native: $(addsuffix .native, $(APPS))
+native: $(addsuffix .native, $(APPLICATIONS))
 
-byte: $(addsuffix .byte, $(APPS))
+byte: $(addsuffix .byte, $(APPLICATIONS))
 
-debug: $(addsuffix .d.byte, $(APPS))
+debug: $(addsuffix .d.byte, $(APPLICATIONS))
 
 %.native %.byte:
 	$(OCAMLBUILD) $@
@@ -31,20 +34,20 @@ debug: $(addsuffix .d.byte, $(APPS))
 %.d.cma:
 	$(OCAMLBUILD) -no-links -cflag -ppopt -cflag -lwt-debug $@
 
-$(LIBS):
-	$(OCAMLBUILD) $@/$@.a
-	$(OCAMLBUILD) $@/$@.cmxa
-	$(OCAMLBUILD) $@/$@.cma
-	$(OCAMLBUILD) $@/$@.d.cma
+$(LIBRARIES):
+	$(foreach SUFFIX, $(LIBRARY_SUFFIXES), \
+            $(OCAMLBUILD) $(addsuffix $(SUFFIX), $@/$@))
 
-install: $(LIBS)
-	$(foreach LIB,$(LIBS), \
-            $(OCAMLFIND) install $(LIB) $(LIB)/META \
-            $(foreach FILE,$(shell cat $(LIB)/MANIFEST),_build/$(LIB)/$(FILE).mli _build/$(LIB)/$(FILE).cmi) \
-            $(foreach SUF,.a .cmxa .cma .d.cma, $(addsuffix $(SUF), _build/$(LIB)/$(LIB)));)
+install: $(LIBRARIES)
+	$(foreach LIBRARY,$(LIBRARIES), \
+            $(OCAMLFIND) install $(LIBRARY) $(LIBRARY)/META \
+                $(foreach FILE, $(shell cat $(LIBRARY)/MANIFEST), \
+                    _buildb/$(LIBRARY)/$(FILE).mli _build/$(LIBRARY)/$(FILE).cmi) \
+                $(foreach SUFFIX, $(SUFFIXES), \
+                    $(addsuffix $(SUFFIX), _build/$(LIBRARY)/$(LIBRARY)));)
 
 uninstall: 
-	$(foreach LIB,$(LIBS),$(OCAMLFIND) remove $(LIB);)
+	$(foreach LIBRARY,$(LIBRARIES),$(OCAMLFIND) remove $(LIBRARY);)
 
 doc:
 	$(OCAMLBUILD) doc.docdir/index.html
@@ -55,36 +58,3 @@ clean:
 ctags: $(CTAGSFILES)
 	@echo "[5m[31m[1m*** Making ctags is broken! ***[0m"
 	rm -f tags && ctags $(CTAGSFILES)
-
-
-
-# CMIFILES = $(MLIFILES:.mli=.cmi)
-# 
-# OCAMLBUILD = ocamlbuild -no-links 
-# 
-# OCAMLFIND = ocamlfind
-# 
-# all: debug native uninstall install 
-# 
-# debug:
-# 	$(OCAMLBUILD) -cflag -ppopt -cflag -lwt-debug $(LIBNAME).d.cma
-# 
-# byte:
-# 	$(OCAMLBUILD) $(LIBNAME).cma
-# 
-# native:
-# 	$(OCAMLBUILD) $(LIBNAME).cmxa $(LIBNAME).a
-# 
-# install:
-# 	$(OCAMLFIND) install $(LIBNAME) META \
-#         $(MLIFILES) \
-#         $(CMIFILES) \
-#         _build/$(LIBNAME).d.cma \
-#         _build/$(LIBNAME).cmxa \
-#         _build/$(LIBNAME).a
-# 
-# uninstall:
-# 	$(OCAMLFIND) remove $(LIBNAME)
-# 
-# clean:
-# 	$(OCAMLBUILD) -clean
