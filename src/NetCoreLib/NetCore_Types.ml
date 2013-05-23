@@ -68,7 +68,7 @@ module Internal = struct
 
   let rec format_pred fmt pred = match pred with 
     | PrHdr pat -> 
-      fprintf fmt "@[PrHdr@;<1 2>@[%s@]@]" (NetCore_Pattern.to_string pat)
+      fprintf fmt "@[PrHdr@;<1 2>@[%a@]@]" NetCore_Pattern.to_format pat
     | PrOnSwitch sw ->
       fprintf fmt "@[PrOnSwitch %Lx@]" sw
     | PrOr (p1,p2) ->
