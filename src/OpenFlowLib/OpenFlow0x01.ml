@@ -362,11 +362,11 @@ module PseudoPort = struct
     | Some OFPP_FLOOD -> Flood
     | Some OFPP_ALL -> AllPorts
     | Some OFPP_CONTROLLER -> Controller len
-    | _ -> 
+    | _ ->
       if ofp_port_code <= (ofp_port_to_int OFPP_MAX) then
         PhysicalPort ofp_port_code
       else
-        raise 
+        raise
           (Unparsable (sprintf "unsupported port number (%d)" ofp_port_code))
 
 end
@@ -527,7 +527,7 @@ module Action = struct
     let ofp_action_code = get_ofp_action_header_typ bits in
     let bits' = Cstruct.shift bits sizeof_ofp_action_header in
     let act = match int_to_ofp_action_type ofp_action_code with
-    | Some OFPAT_OUTPUT -> 
+    | Some OFPAT_OUTPUT ->
       let ofp_port_code = get_ofp_action_output_port bits' in
       let len = get_ofp_action_output_max_len bits' in
       Output (PseudoPort.make ofp_port_code len)
@@ -541,13 +541,13 @@ module Action = struct
       SetDlVlanPcp (get_ofp_action_vlan_pcp_vlan_pcp bits')
     | Some OFPAT_STRIP_VLAN -> StripVlan
     | Some OFPAT_SET_DL_SRC ->
-      let dl = 
-        mac_of_bytes 
+      let dl =
+        mac_of_bytes
           (Cstruct.to_string (get_ofp_action_dl_addr_dl_addr bits')) in
       SetDlSrc dl
     | Some OFPAT_SET_DL_DST ->
-      let dl = 
-        mac_of_bytes 
+      let dl =
+        mac_of_bytes
           (Cstruct.to_string (get_ofp_action_dl_addr_dl_addr bits')) in
       SetDlDst dl
     | Some OFPAT_SET_NW_SRC ->
@@ -562,7 +562,7 @@ module Action = struct
       SetTpDst (get_ofp_action_tp_port_tp_port bits')
     | Some OFPAT_ENQUEUE
     | None ->
-      raise (Unparsable 
+      raise (Unparsable
         (sprintf "unrecognized ofpat_action_type (%d)" ofp_action_code))
     in
     (Cstruct.shift bits length, act)
@@ -735,35 +735,35 @@ module PortStats = struct
 end
 
 type statsRequest =
-| DescriptionReq
-| IndividualFlowReq of IndividualFlowRequest.t
-| AggregateFlowReq of AggregateFlowRequest.t
-| TableReq
-| PortReq of PseudoPort.t
-(* TODO(cole): queue and vendor stats requests. *)
+  | DescriptionReq
+  | IndividualFlowReq of IndividualFlowRequest.t
+  | AggregateFlowReq of AggregateFlowRequest.t
+  | TableReq
+  | PortReq of PseudoPort.t
+  (* TODO(cole): queue and vendor stats requests. *)
 
 type statsReply =
-| DescriptionRep of DescriptionStats.t
-| IndividualFlowRep of IndividualFlowStats.t
-| AggregateFlowRep of AggregateFlowStats.t
-| TableRep of TableStats.t
-| PortRep of PortStats.t
+  | DescriptionRep of DescriptionStats.t
+  | IndividualFlowRep of IndividualFlowStats.t
+  | AggregateFlowRep of AggregateFlowStats.t
+  | TableRep of TableStats.t
+  | PortRep of PortStats.t
 
 (* A subset of the OpenFlow 1.0 messages defined in Section 5.1 of the spec. *)
 
 type message =
-| Hello of bytes
-| EchoRequest of bytes
-| EchoReply of bytes
-| FeaturesRequest
-| FeaturesReply of features
-| FlowModMsg of flowMod
-| PacketInMsg of packetIn
-| PacketOutMsg of packetOut
-| BarrierRequest
-| BarrierReply
-| StatsRequestMsg of statsRequest
-| StatsReplyMsg of statsReply
+  | Hello of bytes
+  | EchoRequest of bytes
+  | EchoReply of bytes
+  | FeaturesRequest
+  | FeaturesReply of features
+  | FlowModMsg of flowMod
+  | PacketInMsg of packetIn
+  | PacketOutMsg of packetOut
+  | BarrierRequest
+  | BarrierReply
+  | StatsRequestMsg of statsRequest
+  | StatsReplyMsg of statsReply
 
 let delete_all_flows =
   FlowModMsg {
