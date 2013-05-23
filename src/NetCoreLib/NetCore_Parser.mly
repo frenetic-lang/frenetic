@@ -47,7 +47,8 @@
 
 %start program
 
-%type <NetCore_Types.External.policy NetCore_Stream.t> program
+/* environment -> policy */
+%type <(string * NetCore_Types.External.policy NetCore_Stream.t) list -> NetCore_Types.External.policy NetCore_Stream.t> program
 
 %%
 
@@ -86,36 +87,52 @@ pred :
 
 pol_atom :
   | LPAREN pol RPAREN { $2 }
-  | INT64 { NetCore_Stream.constant (Act (To (int16_of_int64 $1))) }
-  | ALL { NetCore_Stream.constant (Act ToAll) }
+  | INT64 { fun _ -> NetCore_Stream.constant (Act (To (int16_of_int64 $1))) }
+  | ALL { fun _ -> NetCore_Stream.constant (Act ToAll) }
   | LEARNING 
-    { NetCore_Stream.from_stream 
-      NetCore_MacLearning.Learning.init
-      NetCore_MacLearning.Routing.policy }
+    { fun _ -> NetCore_Stream.from_stream
+        NetCore_MacLearning.Learning.init
+        NetCore_MacLearning.Routing.policy }
 
 pol_pred :  
   | pol_atom { $1 }
   | IF pred THEN pol_pred 
-    { NetCore_Stream.map (fun pol -> Seq (Filter $2, pol)) $4 }
+    { fun env ->
+      let then_pol = $4 env in
+      NetCore_Stream.map (fun pol -> Seq (Filter $2, pol)) then_pol }
 
 pol_seq_list :
   | pol_pred { $1 }
   | pol_pred SEMI pol_seq_list 
-    { NetCore_Stream.map2 (fun pol1 pol2 -> Seq (pol1, pol2)) $1 $3 }
+    { fun env -> 
+      let pol1_stream = $1 env in
+      let pol2_stream = $3 env in
+      NetCore_Stream.map2 (fun pol1 pol2 -> Seq (pol1, pol2)) 
+        pol1_stream pol2_stream }
 
 pol_par_list :
   | pol_pred { $1 }
   | pol_pred BAR pol_par_list
-    { NetCore_Stream.map2 (fun pol1 pol2 -> Par (pol1, pol2)) $1 $3 }
-
+    { fun env ->
+      let pol1_stream = $1 env in
+      let pol2_stream = $3 env in
+      NetCore_Stream.map2 (fun pol1 pol2 -> Par (pol1, pol2)) 
+        pol1_stream pol2_stream }
 
 pol :
   | pol_pred { $1 }
   | pol_pred BAR pol_par_list
-    { NetCore_Stream.map2 (fun pol1 pol2 -> Par (pol1, pol2)) $1 $3 }
+    { fun env ->
+      let pol1_stream = $1 env in
+      let pol2_stream = $3 env in
+      NetCore_Stream.map2 (fun pol1 pol2 -> Par (pol1, pol2)) 
+        pol1_stream pol2_stream }
   | pol_pred SEMI pol_seq_list
-    { NetCore_Stream.map2 (fun pol1 pol2 -> Seq (pol1, pol2)) $1 $3 }
-
+    { fun env -> 
+      let pol1_stream = $1 env in
+      let pol2_stream = $3 env in
+      NetCore_Stream.map2 (fun pol1 pol2 -> Seq (pol1, pol2)) 
+        pol1_stream pol2_stream }
 
 program
   : pol EOF { $1 }

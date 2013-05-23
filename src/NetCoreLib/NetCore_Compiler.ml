@@ -82,7 +82,7 @@ let parse_from_lexbuf lexbuf name =
   let open Lexing in
     try
       lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = name };
-      NetCore_Parser.program NetCore_Lexer.token lexbuf
+      NetCore_Parser.program NetCore_Lexer.token lexbuf []
     with
       | Failure "lexing: empty token" ->
         failwith (Printf.sprintf "lexical error at %s"
