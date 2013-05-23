@@ -3,6 +3,7 @@ NetCore_Classifier
 NetCore_Compiler
 NetCore_Controller
 NetCore_MacLearning
+NetCore_NAT
 NetCore_Parser
 NetCore_Pattern
 NetCore_Stream
