@@ -6,6 +6,9 @@ LIBRARIES = FreneticLib \
             OpenFlowLib \
             NetCoreLib 
 
+CTAGS_FILES = $(shell ls $(addsuffix /*.ml,$(LIBRARIES)) \
+                         $(addsuffix /*.ml,$(LIBRARIES)))
+
 SUFFIXES = .a .cmxa .cma .d.cma
 
 .PHONY: all native byte debug install uninstall doc clean $(LIBRARIES)
@@ -56,6 +59,5 @@ doc:
 clean:
 	$(OCAMLBUILD) -clean
 
-ctags: $(CTAGSFILES)
-	@echo "[5m[31m[1m*** Making ctags is broken! ***[0m"
-	rm -f tags && ctags $(CTAGSFILES)
+ctags: $(CTAGS_FILES)
+	@rm -f tags && ctags $(CTAGS_FILES)
