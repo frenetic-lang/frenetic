@@ -1,4 +1,4 @@
-APPS = NetCore/Main
+APPS = NetCore/Main Test/Test
 
 LIBS = FreneticLib \
        PacketLib \
@@ -7,7 +7,7 @@ LIBS = FreneticLib \
 
 .PHONY: all native byte debug install uninstall doc clean $(LIBS)
 
-OCAMLBUILD = ocamlbuild -use-ocamlfind -no-links $(addprefix -I ,$(LIBS))
+OCAMLBUILD = ocamlbuild -use-ocamlfind $(addprefix -I ,$(LIBS))
 
 OCAMLFIND = ocamlfind
 
@@ -19,11 +19,17 @@ byte: $(addsuffix .byte, $(APPS))
 
 debug: $(addsuffix .d.byte, $(APPS))
 
-%.native %.byte %.a %.cmxa %.cma:
+%.native %.byte:
 	$(OCAMLBUILD) $@
 
-%.d.byte %.d.cma:
+%.a %.cmxa %.cma:
+	$(OCAMLBUILD) -no-links $@
+
+%.d.byte:
 	$(OCAMLBUILD) -cflag -ppopt -cflag -lwt-debug $@
+
+%.d.cma:
+	$(OCAMLBUILD) -no-links -cflag -ppopt -cflag -lwt-debug $@
 
 $(LIBS):
 	$(OCAMLBUILD) $@/$@.a
