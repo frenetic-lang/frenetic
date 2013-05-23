@@ -11,7 +11,6 @@ open Frenetic_Log
 open OpenFlow0x01
 open OpenFlow0x01_Parser
 
-open Lwt
 open Lwt_io
 open Lwt_unix
 open Lwt_list
@@ -30,22 +29,18 @@ let init_with_fd (fd : file_descr) : unit Lwt.t = match !server_fd with
     raise_lwt (Internal "Platform already initialized")
   | None ->
     server_fd := Some fd;
-    return ()
+    Lwt.return ()
       
-let init_with_port (p : int) : unit Lwt.t = match !server_fd with
-  | Some _ ->
-    raise_lwt (Internal "Platform already initialized")
-  | None ->
-    let fd = socket PF_INET SOCK_STREAM 0 in
-    setsockopt fd SO_REUSEADDR true;
-    bind fd (ADDR_INET (Unix.inet_addr_any, p));
-    listen fd max_pending; 
-    server_fd := Some fd;
-    return ()
+let init_with_port (p : int) : unit Lwt.t = 
+  let fd = socket PF_INET SOCK_STREAM 0 in
+  setsockopt fd SO_REUSEADDR true;
+  bind fd (ADDR_INET (Unix.inet_addr_any, p));
+  listen fd max_pending;
+  init_with_fd fd
 
 let get_fd () : file_descr Lwt.t = match !server_fd with
   | Some fd ->
-    return fd
+    Lwt.return fd
   | None ->
     raise_lwt (Invalid_argument "Platform not initialized")
 
@@ -53,16 +48,16 @@ let get_fd () : file_descr Lwt.t = match !server_fd with
 let rec recv_from_switch_fd (sock : file_descr) : ((xid * message) option) Lwt.t =
   let ofhdr_str = String.create (2 * sizeof_ofp_header) in
   lwt ok = SafeSocket.recv sock ofhdr_str 0 sizeof_ofp_header in
-  if not ok then return None
+  if not ok then Lwt.return None
   else
     lwt hdr = Lwt.wrap (fun () -> Header.parse (Cstruct.of_string ofhdr_str)) in
     let body_len = hdr.Header.len - sizeof_ofp_header in
     let body_buf = String.create body_len in
     lwt ok = SafeSocket.recv sock body_buf 0 body_len in
-    if not ok then return None
+    if not ok then Lwt.return None
     else 
       match Message.parse hdr (Cstruct.of_string body_buf) with
-      | Some v -> return (Some v)
+      | Some v -> Lwt.return (Some v)
       | None ->
         Log.printf "platform" 
           "in recv_from_switch_fd, ignoring message with code %d\n%!"
@@ -77,12 +72,12 @@ let send_to_switch_fd (sock : file_descr) (xid : xid) (msg : message) : unit Lwt
     if n <> len then
       raise_lwt (Internal "[send_to_switch] not enough bytes written")
     else
-      return ()
+      Lwt.return ()
   with Unix.Unix_error (err, fn, arg) ->
     Log.printf "platform"
       "in send_to_switch_fd, %s\n%!"
       (Unix.error_message err);
-    return ()
+    Lwt.return ()
 
 let switch_fds : (switchId, file_descr) Hashtbl.t = Hashtbl.create 101
 
@@ -98,7 +93,7 @@ let disconnect_switch (sw:switchId) : unit Lwt.t =
   | Some fd -> 
     lwt _ = close fd in
     Hashtbl.remove switch_fds sw;
-    return ()
+    Lwt.return ()
   | None -> 
     raise_lwt (UnknownSwitch sw)
 
@@ -126,7 +121,7 @@ let switch_handshake (fd : file_descr) : features Lwt.t =
       Log.printf "platform" 
         "switch %Ld connected\n%!"
         feats.switch_id;
-      return feats
+      Lwt.return feats
     | _ -> 
       raise_lwt (Internal "expected FeaturesReply")
     end
@@ -172,7 +167,7 @@ let rec recv_from_switch (sw : switchId) : (xid * message) Lwt.t =
         send_to_switch sw xid (EchoReply bytes) >>
         recv_from_switch sw
       | Some (xid, msg) -> 
-        return (xid, msg)
+        Lwt.return (xid, msg)
       | None -> 
         raise_lwt (SwitchDisconnected sw)
      end
