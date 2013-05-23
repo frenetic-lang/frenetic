@@ -46,15 +46,21 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
         (OpenFlow0x01.Action.sequence_to_string a))
       flow_table;
     Platform.send_to_switch sw 0l delete_all_flows >>
+    let prio = ref 65535 in
     Lwt_list.iter_s
       (fun (match_, actions) ->
-          Platform.send_to_switch sw 0l (add_flow match_ actions))
+        try_lwt
+          Platform.send_to_switch sw 0l (add_flow !prio match_ actions) >>
+          (decr prio; Lwt.return ())
+       with exn -> 
+         Printf.eprintf "FAIL %s\n%!" (Printexc.to_string exn);
+           raise_lwt exn)
       flow_table >>
     (Printf.eprintf "[Controller.ml] initialized switch %Ld\n%!" sw;
      Lwt.return ())
 
   let install_new_policies sw pol_stream =
-    Lwt_stream.iter_s (configure_switch sw)
+    Lwt_stream.iter_p (configure_switch sw)
       (NetCore_Stream.to_stream pol_stream)
       
   let handle_packet_in sw pkt_in = 
@@ -103,8 +109,6 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       (fun pol ->
         let p = NetCore_Types.desugar genbucket genvlan pol get_pkt_handlers in
         pol_now := p;
-        Printf.eprintf "[Controller.ml] got new policy:\n%s\n%!" 
-          (Internal.pol_to_string p);
         push_pol (Some p))
       sugared_pol_stream
 

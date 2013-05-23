@@ -293,7 +293,7 @@ type message =
 val delete_all_flows : message
 
 (** A permanent [FlowModMsg] adding a rule. *)
-val add_flow : Match.t -> Action.sequence -> message
+val add_flow : int -> Match.t -> Action.sequence -> message
 
 
 (** Interface for all platforms. *)
