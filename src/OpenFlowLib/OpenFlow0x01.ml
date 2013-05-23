@@ -177,26 +177,26 @@ module Match = struct
     | Some n -> n
     | None -> Int64.zero
 
- let marshal m bits =
-   set_ofp_match_wildcards bits (Wildcards.marshal (wildcards_of_match m));
-   set_ofp_match_in_port bits (if_some16 m.inPort);
-   set_ofp_match_dl_src (bytes_of_mac (if_word48 m.dlSrc)) 0 bits;
-   set_ofp_match_dl_dst (bytes_of_mac (if_word48 m.dlDst)) 0 bits;
-   let vlan =
-     match m.dlVlan with
-     | Some (Some v) -> v
-     | Some None -> Packet_Parser.vlan_none
-     | None -> 0 in
-   set_ofp_match_dl_vlan bits (vlan);
-   set_ofp_match_dl_vlan_pcp bits (if_some8 m.dlVlanPcp);
-   set_ofp_match_dl_type bits (if_some16 m.dlTyp);
-   set_ofp_match_nw_tos bits (if_some8 m.nwTos);
-   set_ofp_match_nw_proto bits (if_some8 m.nwProto);
-   set_ofp_match_nw_src bits (if_some32 m.nwSrc);
-   set_ofp_match_nw_dst bits (if_some32 m.nwDst);
-   set_ofp_match_tp_src bits (if_some16 m.tpSrc);
-   set_ofp_match_tp_dst bits (if_some16 m.tpDst);
-   sizeof_ofp_match
+  let marshal m bits =
+    set_ofp_match_wildcards bits (Wildcards.marshal (wildcards_of_match m));
+    set_ofp_match_in_port bits (if_some16 m.inPort);
+    set_ofp_match_dl_src (bytes_of_mac (if_word48 m.dlSrc)) 0 bits;
+    set_ofp_match_dl_dst (bytes_of_mac (if_word48 m.dlDst)) 0 bits;
+    let vlan =
+      match m.dlVlan with
+      | Some (Some v) -> v
+      | Some None -> Packet_Parser.vlan_none
+      | None -> 0 in
+    set_ofp_match_dl_vlan bits (vlan);
+    set_ofp_match_dl_vlan_pcp bits (if_some8 m.dlVlanPcp);
+    set_ofp_match_dl_type bits (if_some16 m.dlTyp);
+    set_ofp_match_nw_tos bits (if_some8 m.nwTos);
+    set_ofp_match_nw_proto bits (if_some8 m.nwProto);
+    set_ofp_match_nw_src bits (if_some32 m.nwSrc);
+    set_ofp_match_nw_dst bits (if_some32 m.nwDst);
+    set_ofp_match_tp_src bits (if_some16 m.tpSrc);
+    set_ofp_match_tp_dst bits (if_some16 m.tpDst);
+    sizeof_ofp_match
 
   let parse bits =
     let w = Wildcards.parse (get_ofp_match_wildcards bits) in
@@ -667,15 +667,61 @@ type packetOut =
 type table_id = int8
 
 module IndividualFlowRequest = struct
+
   type t = { of_match : Match.t;
              table_id : table_id;
              port : PseudoPort.t }
+
+  cstruct ofp_flow_stats_request {
+    uint8_t of_match[40];
+    uint8_t table_id;
+    uint8_t pad;
+    uint16_t out_port
+  } as big_endian
+
+  let to_string req =
+    Printf.sprintf "{of_match = %s; table_id = %d; port = %s}"
+      (Match.to_string req.of_match)
+      req.table_id
+      (PseudoPort.to_string req.port)
+
+  let sizeof req = sizeof_ofp_flow_stats_request
+
+  let marshal req out =
+    let _ = Match.marshal req.of_match out in
+    set_ofp_flow_stats_request_table_id out req.table_id;
+    set_ofp_flow_stats_request_out_port out (PseudoPort.marshal req.port);
+    sizeof req
+
 end
 
 module AggregateFlowRequest = struct
+
   type t = { of_match : Match.t;
              table_id : table_id;
              port : PseudoPort.t }
+
+  cstruct ofp_aggregate_stats_request {
+    uint8_t of_match[40];
+    uint8_t table_id;
+    uint8_t pad;
+    uint16_t out_port
+  } as big_endian
+
+  let to_string req =
+    Printf.sprintf "{of_match = %s; table_id = %d; port = %s}"
+      (Match.to_string req.of_match)
+      req.table_id
+      (PseudoPort.to_string req.port)
+
+  let sizeof req = sizeof_ofp_aggregate_stats_request
+
+  let marshal req out =
+    let _ = Match.marshal req.of_match out in
+    set_ofp_aggregate_stats_request_table_id out req.table_id;
+    set_ofp_aggregate_stats_request_out_port out (PseudoPort.marshal req.port);
+    sizeof req
+
 end
 
 (* Component types of stats_reply messages. *)

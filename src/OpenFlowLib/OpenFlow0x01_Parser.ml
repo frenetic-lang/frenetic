@@ -330,9 +330,48 @@ module StatsRequest = struct
     
   type t = statsRequest
 
-  let sizeof buf = failwith "NYI: StatsRequest.sizeof"
+  cstruct ofp_stats_request {
+    uint16_t req_type;
+    uint16_t flags
+  } as big_endian
 
-  let marshal msg = failwith "NYI: StatsRequest.marshal"
+  let to_string msg = match msg with
+    | DescriptionReq -> "DescriptionReq"
+    | IndividualFlowReq req ->
+      "IndividualFlowReq " ^ (IndividualFlowRequest.to_string req)
+    | AggregateFlowReq req ->
+      "AggregateFlowReq " ^ (AggregateFlowRequest.to_string req)
+    | TableReq -> "TableReq"
+    | PortReq p -> "PortReq " ^ (PseudoPort.to_string p)
+
+  let sizeof msg =
+    let header_size = sizeof_ofp_stats_request in
+    match msg with
+    | DescriptionReq -> header_size
+    | IndividualFlowReq req -> 
+      header_size + (IndividualFlowRequest.sizeof req)
+    | _ -> 
+      failwith (Printf.sprintf "NYI: StatsRequest.sizeof %s" (to_string msg))
+
+  let ofp_stats_type_of_request req = match req with
+    | DescriptionReq -> OFPST_DESC
+    | IndividualFlowReq _ -> OFPST_FLOW
+    | AggregateFlowReq _ -> OFPST_AGGREGATE
+    | TableReq -> OFPST_TABLE
+    | PortReq _ -> OFPST_PORT
+
+  let marshal msg out = 
+    let req_type = ofp_stats_type_of_request msg in
+    let flags = 0x0 in
+    set_ofp_stats_request_req_type out (ofp_stats_types_to_int req_type);
+    set_ofp_stats_request_flags out flags;
+    let out' = Cstruct.shift out sizeof_ofp_stats_request in
+    match msg with
+    | DescriptionReq -> sizeof_ofp_stats_request
+    | IndividualFlowReq req -> IndividualFlowRequest.marshal req out'
+    | AggregateFlowReq req -> AggregateFlowRequest.marshal req out'
+    | _ -> 
+      failwith (Printf.sprintf "NYI: StatsRequest.marshal %s" (to_string msg))
 
 end
 
@@ -556,7 +595,7 @@ module Message = struct
     | BarrierRequest -> ()
     | BarrierReply -> ()
     | StatsRequestMsg msg -> 
-      let _ = StatsRequest.marshal msg in
+      let _ = StatsRequest.marshal msg out in
       ()
     | StatsReplyMsg _ -> ()
 

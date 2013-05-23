@@ -176,17 +176,33 @@ type packetOut = {
 type table_id = int8
 
 module IndividualFlowRequest : sig
+
     type t = { of_match : Match.t
              ; table_id : table_id
              ; port : PseudoPort.t
              }
+
+    val to_string : t -> string
+
+    val sizeof : t -> int
+
+    val marshal : t -> Cstruct.t -> int
+
 end
 
 module AggregateFlowRequest : sig
+
     type t = { of_match : Match.t
              ; table_id : table_id
              ; port : PseudoPort.t
              }
+
+    val to_string : t -> string
+
+    val sizeof : t -> int
+
+    val marshal : t -> Cstruct.t -> int
+
 end
 
 (* Component types of stats_reply messages. *)
