@@ -46,6 +46,9 @@ rule token = parse
   | "||" { OR }
   | "if" { IF }
   | "then" { THEN }
+  | "else" { ELSE }
+  | "pass" { PASS }
+  | "drop" { DROP }
   | ";" { SEMI }
   | "|" { BAR }
   | (byte as n6) ":" (byte as n5) ":" (byte as n4) ":" (byte as n3) ":" 

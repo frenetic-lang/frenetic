@@ -141,6 +141,8 @@ module External = struct
   | TcpDstPort of int (** 16-bits, implicitly IP *)
 
   type action =
+  | Pass
+  | Drop
   | To of int
   | ToAll
   | UpdateDlSrc of Int64.t * Int64.t
@@ -197,6 +199,8 @@ module External = struct
       Printf.sprintf "(DstIP %ld)" n
         
   let action_to_string act = match act with
+    | Pass -> "Pass"
+    | Drop -> "Drop"
     | To pt -> 
       Printf.sprintf "To %d" pt
     | ToAll -> "ToAll"
@@ -316,6 +320,8 @@ let desugar
   let open Internal in
   let open External in
   let desugar_act act = match act with
+    | Pass -> NetCore_Action.Output.pass
+    | Drop -> NetCore_Action.Output.drop
     | To pt -> 
       NetCore_Action.Output.forward pt
     | ToAll -> 
