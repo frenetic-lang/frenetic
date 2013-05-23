@@ -17,7 +17,7 @@ OCAMLBUILD = ocamlbuild -no-links -use-ocamlfind $(addprefix -I ,$(LIBRARIES))
 
 OCAMLFIND = ocamlfind
 
-all: native byte debug $(LIBRARIES) 
+all: ctags native byte debug $(LIBRARIES)
 
 native: $(addsuffix .native, $(APPLICATIONS))
 
@@ -60,4 +60,6 @@ clean:
 	$(OCAMLBUILD) -clean
 
 ctags: $(CTAGS_FILES)
-	@rm -f tags && ctags $(CTAGS_FILES)
+	@which ctags3 2> /dev/null > /dev/null \
+    && rm -f tags && ctags $(CTAGS_FILES) \
+    || true
