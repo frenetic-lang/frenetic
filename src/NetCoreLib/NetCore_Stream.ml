@@ -79,4 +79,5 @@ let from_stream (init : 'a) (stream : 'a Lwt_stream.t) : 'a t =
 let to_stream (x : 'a t) : 'a Lwt_stream.t =
   let (stream, push) = Lwt_stream.create () in
   let _ = x.attach_listener (fun a -> push (Some a)) in
+  push (Some (x.now ()));
   stream

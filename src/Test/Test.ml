@@ -296,7 +296,8 @@ module Test1 = struct
     Lwt.return ()
 
   let controller_script =
-    Controller.start_controller (Lwt_stream.of_list [Act (To 0)])
+    Controller.start_controller 
+      (NetCore_Stream.constant (Act (To 0)))
 
   let body = Lwt.pick [controller_script; network_script]
 
