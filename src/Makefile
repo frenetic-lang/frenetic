@@ -14,7 +14,7 @@ OCAMLBUILD = ocamlbuild -use-ocamlfind $(addprefix -I ,$(LIBRARIES))
 
 OCAMLFIND = ocamlfind
 
-all: native byte debug $(LIBRARIES)
+all: native byte debug $(LIBRARIES) 
 
 native: $(addsuffix .native, $(APPLICATIONS))
 
@@ -35,19 +35,20 @@ debug: $(addsuffix .d.byte, $(APPLICATIONS))
 	$(OCAMLBUILD) -no-links -cflag -ppopt -cflag -lwt-debug $@
 
 $(LIBRARIES):
-	$(foreach SUFFIX, $(LIBRARY_SUFFIXES), \
-            $(OCAMLBUILD) $(addsuffix $(SUFFIX), $@/$@))
+	$(foreach SUFFIX, $(SUFFIXES), \
+	    $(OCAMLBUILD) $(addsuffix $(SUFFIX),$@/$@);)
 
 install: $(LIBRARIES)
 	$(foreach LIBRARY,$(LIBRARIES), \
             $(OCAMLFIND) install $(LIBRARY) $(LIBRARY)/META \
                 $(foreach FILE, $(shell cat $(LIBRARY)/MANIFEST), \
-                    _buildb/$(LIBRARY)/$(FILE).mli _build/$(LIBRARY)/$(FILE).cmi) \
+                    _build/$(LIBRARY)/$(FILE).mli _build/$(LIBRARY)/$(FILE).cmi) \
                 $(foreach SUFFIX, $(SUFFIXES), \
                     $(addsuffix $(SUFFIX), _build/$(LIBRARY)/$(LIBRARY)));)
 
 uninstall: 
-	$(foreach LIBRARY,$(LIBRARIES),$(OCAMLFIND) remove $(LIBRARY);)
+	$(foreach LIBRARY, $(LIBRARIES), \
+            $(OCAMLFIND) remove $(LIBRARY);)
 
 doc:
 	$(OCAMLBUILD) doc.docdir/index.html
