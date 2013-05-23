@@ -817,11 +817,11 @@ let delete_all_flows =
     mfCheckOverlap = false
   }
 
-let add_flow match_ actions =
+let add_flow prio match_ actions =
   FlowModMsg {
     mfModCmd = AddFlow;
     mfMatch = match_;
-    mfPriority = 0;
+    mfPriority = prio;
     mfActions = actions;
     mfCookie = 0L;
     mfIdleTimeOut = Permanent;

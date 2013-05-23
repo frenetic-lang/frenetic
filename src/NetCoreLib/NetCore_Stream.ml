@@ -5,11 +5,14 @@ type 'a t = {
   attach_listener : ('a -> unit) -> (unit -> unit)
 }
 
+let now x = x.now ()
+
 module Listeners : sig
   type 'a t
   val empty : unit -> 'a t
   val attach : 'a t -> ('a -> unit) -> (unit -> unit)
   val invoke_all : 'a t -> 'a -> unit
+  val length : 'a t -> int
 end = struct
 
   module Gensym = NetCore_Gensym
@@ -24,9 +27,10 @@ end = struct
     (fun () -> lst := List.remove_assq key !lst)
 
   let invoke_all lst v = 
-    (if List.length !lst > 1 then
-        Printf.eprintf "[Stream] GLITCH.\n%!");
     List.iter (fun (_, listener) -> listener v) !lst
+
+  let length lst = List.length !lst
+
 end
 
 let map (f : 'a -> 'b) (src : 'a t) : 'b t =
@@ -62,7 +66,6 @@ let constant (x : 'a) = {
   attach_listener = (fun _ -> fun () -> ())
 }
 
-
 let from_stream (init : 'a) (stream : 'a Lwt_stream.t) : 'a t =
   let now = ref init in
   let listeners = Listeners.empty () in
@@ -71,6 +74,8 @@ let from_stream (init : 'a) (stream : 'a Lwt_stream.t) : 'a t =
       Lwt_stream.iter
         (fun a ->
           now := a;
+          Printf.eprintf "[Stream] invoking %d listeners%!"
+            (Listeners.length listeners);
           Listeners.invoke_all listeners !now)
         stream);
   {
@@ -80,6 +85,6 @@ let from_stream (init : 'a) (stream : 'a Lwt_stream.t) : 'a t =
 
 let to_stream (x : 'a t) : 'a Lwt_stream.t =
   let (stream, push) = Lwt_stream.create () in
-  let _ = x.attach_listener (fun a -> push (Some a)) in
+  let _ = x.attach_listener (fun a -> Printf.eprintf "[Stream] to_stream.\n%!"; push (Some a)) in
   push (Some (x.now ()));
   stream

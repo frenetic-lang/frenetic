@@ -128,7 +128,24 @@ module TestClassifier = struct
            (PoSeq
               (PoFilter (PrAnd (PrOnSwitch 1L, PrHdr (inPort (Physical 2)))),
                PoFilter (PrNone)),
-            PoAction (forward 1))))]
+            PoAction (forward 1))));
+     ("NAT debugging 1",
+      [],
+      1L,
+      PoITE
+        (PrAnd (PrOnSwitch 1L, PrHdr (inPort (Physical 2))),
+         PoSeq
+           (PoITE
+              (PrAnd (PrHdr (ipSrc 0xffffl), PrHdr (tcpSrcPort 2000)),
+               PoSeq
+                 (PoAction (updateSrcIP 0xffffl 0xaaaal),
+                  PoAction (updateSrcPort 2000 43072)),
+               PoFilter (PrNone)),
+            PoITE
+              (PrHdr (inPort (Physical 2)),
+               PoAction (forward 1),
+               PoAction pass)),
+         PoAction pass))]
 
   let go =
     TestList [test0; test1; test2; 
