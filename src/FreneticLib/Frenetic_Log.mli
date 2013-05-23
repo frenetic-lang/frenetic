@@ -4,6 +4,6 @@ module Log : sig
 
   val get_log_chan : unit -> out_channel
 
-  val printf : ('a, out_channel, unit) format -> 'a
+  val printf : string -> ('a, out_channel, unit) format -> 'a
 
 end

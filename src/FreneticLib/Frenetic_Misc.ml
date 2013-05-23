@@ -2,27 +2,6 @@ type ('a,'b) sum =
   | Inl of 'a
   | Inr of 'b
 
-module Log = struct
-
-  let log = ref stderr
-
-  let get_log_chan () : out_channel = !log
-
-  let set_log_file (replace : bool) (filename : string) : unit =
-    let chan =
-      match replace with
-      | true -> open_out filename
-      | false ->
-        open_out_gen [Open_wronly; Open_text; Open_creat; Open_excl]
-          0o600 filename in
-    log := chan;
-    at_exit (fun () -> close_out chan)
-
-  let printf (fmt : ('a, out_channel, unit) format) : 'a =
-    Printf.printf ".%!";
-    Printf.fprintf !log fmt
-end
-
 let test_bit n x =
   Int32.logand (Int32.shift_right_logical x n) Int32.one = Int32.one
 let clear_bit n x =
