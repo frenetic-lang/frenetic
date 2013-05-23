@@ -1,12 +1,12 @@
 (** Low-level OpenFlow API.
-
-    The platform manages connections to switches for the controller. It
-    provides functions to send and receive OpenFlow messages that do the
-    necessary low-level serialization themselves.
+    The Platform manages connections to switches for the
+    controller. It provides functions to send and receive OpenFlow
+    messages that do the necessary low-level serialization themselves.
 
     It is possible and instructive to build a controller directly atop
     [PLATFORM]. But, see [NetCore] for a higher-level abstraction.
 *)
+open Frenetic_Socket
 open OpenFlow0x01
 open OpenFlow0x01_Parser
 
@@ -14,42 +14,6 @@ open Lwt
 open Lwt_io
 open Lwt_unix
 open Lwt_list
-
-let sprintf = Format.sprintf
-
-module type SAFESOCKET = sig
-  type t = Lwt_unix.file_descr
-  val create : Lwt_unix.file_descr -> t
-  val recv : t -> string -> int -> int -> bool Lwt.t
-end
-
-module SafeSocket : SAFESOCKET = struct
-  open Lwt
-  open Lwt_unix
-
-  type t = Lwt_unix.file_descr
-
-  let create fd = fd
-
-  let rec recv fd buf off len =
-    if len = 0 then
-      return true
-    else
-      lwt n = Lwt_unix.recv fd buf off len [] in
-      if n = 0 then
-	return false
-      else if n = len then
-	return true
-      else
-	recv fd buf (off + n) (len - n)
-end
-
-let string_of_sockaddr (sa:sockaddr) : string =
-  match sa with
-  | ADDR_UNIX str ->
-    str
-  | ADDR_INET (addr,port) ->
-    sprintf "%s:%d" (Unix.string_of_inet_addr addr) port
 
 exception SwitchDisconnected of switchId
 exception UnknownSwitch of switchId
