@@ -164,6 +164,18 @@ module Output = struct
   let updateDlVlan od nw =
     [ { unmodified with outDlVlan = Some (od,nw) } ]
 
+  let updateSrcIP old new_ = 
+    [ { unmodified with outNwSrc = Some (old, new_) } ]
+
+  let updateDstIP old new_ = 
+    [ { unmodified with outNwDst = Some (old, new_) } ]
+
+  let updateSrcPort old new_ = 
+    [ { unmodified with outTpSrc = Some (old, new_) } ]
+
+  let updateDstPort old new_ = 
+    [ { unmodified with outTpDst = Some (old, new_) } ]
+
   let par_action act1 act2 = act1 @ act2
 
   let seq_mod beq m1 m2 =

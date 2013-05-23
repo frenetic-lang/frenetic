@@ -63,6 +63,10 @@ module External : sig
   | UpdateDlSrc of Int64.t * Int64.t
   | UpdateDlDst of Int64.t * Int64.t
   | UpdateDlVlan of int option * int option (** 12-bits *)
+  | UpdateSrcIP of Int32.t * Int32.t
+  | UpdateDstIP of Int32.t * Int32.t
+  | UpdateSrcPort of int * int
+  | UpdateDstPort of int * int
   | GetPacket of get_packet_handler
       
   type policy =

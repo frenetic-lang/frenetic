@@ -146,6 +146,10 @@ module External = struct
   | UpdateDlSrc of Int64.t * Int64.t
   | UpdateDlDst of Int64.t * Int64.t
   | UpdateDlVlan of int option * int option (** 12-bits *)
+  | UpdateSrcIP of Int32.t * Int32.t
+  | UpdateDstIP of Int32.t * Int32.t
+  | UpdateSrcPort of int * int
+  | UpdateDstPort of int * int
   | GetPacket of get_packet_handler
       
   type policy =
@@ -203,6 +207,18 @@ module External = struct
     | UpdateDlVlan(old,new0) -> 
       Printf.sprintf "UpdateDlSrc (%s,%s)"
         (Packet.dlVlan_to_string old) (Packet.dlVlan_to_string new0)
+   | UpdateSrcIP (old, new_) ->
+     Printf.sprintf "UpdateSrcIP (%s, %s)"
+       (Int32.to_string old) (Int32.to_string new_)
+   | UpdateDstIP (old, new_) ->
+     Printf.sprintf "UpdateDstIP (%s, %s)"
+       (Int32.to_string old) (Int32.to_string new_)
+   | UpdateSrcPort (old, new_) ->
+     Printf.sprintf "UpdateSrcPort (%s, %s)"
+       (string_of_int old) (string_of_int new_)
+   | UpdateDstPort (old, new_) ->
+     Printf.sprintf "UpdateDstPort (%s, %s)"
+       (string_of_int old) (string_of_int new_)
     | GetPacket _ -> 
       Printf.sprintf "GetPacket <fun>"
         
@@ -310,6 +326,14 @@ let desugar
       NetCore_Action.Output.updateDlDst old new0
     | UpdateDlVlan(old,new0) -> 
       NetCore_Action.Output.updateDlVlan old new0
+    | UpdateSrcIP (old, new_) ->
+      NetCore_Action.Output.updateSrcIP old new_
+    | UpdateDstIP (old, new_) ->
+      NetCore_Action.Output.updateDstIP old new_
+    | UpdateSrcPort (old, new_) ->
+      NetCore_Action.Output.updateSrcPort old new_
+    | UpdateDstPort (old, new_) ->
+      NetCore_Action.Output.updateDstPort old new_
     | GetPacket handler ->
       let id = genbucket () in 
       Hashtbl.add get_pkt_handlers id handler;
