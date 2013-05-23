@@ -43,6 +43,12 @@
 %token SEMI
 %token BAR
 %token LEARNING
+%token <string> ID
+%token COMMA
+%token NAT
+%token LET
+%token IN
+%token PUBLICIP
 %token EOF
 
 %start program
@@ -84,9 +90,9 @@ pred_and :
 pred :
   | pred_and { $1 }
 
-
 pol_atom :
   | LPAREN pol RPAREN { $2 }
+  | ID { fun env -> List.assoc $1 env }
   | INT64 { fun _ -> NetCore_Stream.constant (Act (To (int16_of_int64 $1))) }
   | ALL { fun _ -> NetCore_Stream.constant (Act ToAll) }
   | LEARNING 
@@ -121,6 +127,10 @@ pol_par_list :
 
 pol :
   | pol_pred { $1 }
+  | LET ID COMMA ID EQUALS NAT LPAREN PUBLICIP EQUALS IPADDR RPAREN IN pol
+    { fun env ->
+      let (priv, pub) = NetCore_NAT.make $10 in
+      $13 (($2, priv) :: ($4, pub) :: env) }
   | pol_pred BAR pol_par_list
     { fun env ->
       let pol1_stream = $1 env in

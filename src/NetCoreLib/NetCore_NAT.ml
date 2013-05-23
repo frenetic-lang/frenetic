@@ -77,4 +77,7 @@ let make (public_ip : nwAddr) =
       | _ -> ()
   and private_pol = ref (Act (GetPacket callback))
   and public_pol = ref Empty in
-  NetCore_Stream.from_stream (!private_pol, !public_pol) stream
+  let pair_stream =
+    NetCore_Stream.from_stream (!private_pol, !public_pol) stream in
+  (NetCore_Stream.map (fun (priv, _) -> priv) pair_stream,
+   NetCore_Stream.map (fun (_, pub) -> pub) pair_stream)

@@ -9,10 +9,12 @@
 
 let blank = [ ' ' '\t'  ]
 
+let id = ['a'-'z' 'A'-'z' '_']['a'-'z' 'A'-'z' '0'-'9' '_']*
 let decimal = ['0'-'9']+
 let hex = "0x" ['0'-'9' 'a'-'f' 'A'-'F']+
 let byte = ['0'-'9' 'a'-'f' 'A'-'F']  ['0'-'9' 'a'-'f' 'A'-'F']
-let decbyte = ['0'-'9'] ['0'-'9'] ['0'-'9']
+let decbyte = 
+  (['0'-'9'] ['0'-'9'] ['0'-'9']) | (['0'-'9'] ['0'-'9']) | ['0'-'9']
 
 rule token = parse
   | blank+ { token lexbuf }
@@ -20,6 +22,10 @@ rule token = parse
   | '\r' { new_line lexbuf; token lexbuf }
   | "\r\n" { new_line lexbuf; token lexbuf }
   | eof { EOF }
+  | "," { COMMA }
+  | "nat" { NAT }
+  | "in" { IN }
+  | "publicIP" { PUBLICIP } 
   | "(" { LPAREN }
   | ")" { RPAREN }
   | "!" { NOT }
@@ -42,8 +48,6 @@ rule token = parse
   | "then" { THEN }
   | ";" { SEMI }
   | "|" { BAR }
-  | decimal as n { INT64 (Int64.of_string n) }
-  | hex as n { INT64 (Int64.of_string n) }
   | (byte as n6) ":" (byte as n5) ":" (byte as n4) ":" (byte as n3) ":" 
     (byte as n2) ":" (byte as n1) 
     { let open Int64 in
@@ -54,12 +58,16 @@ rule token = parse
                  (logor (shift_left (parse_byte n3) 16)
                     (logor (shift_left (parse_byte n2) 8)
                        (parse_byte n1)))))) }
-  | (decbyte as b4) "." (decbyte as b3) "." (decbyte as b2) "." 
-    (decbyte as b1)
+  | (decbyte as b4) "." (decbyte as b3) "." (decbyte as b2) "." (decbyte as b1)
     { let open Int32 in
       IPADDR 
         (logor (shift_left (parse_decbyte b4) 24)
            (logor (shift_left (parse_decbyte b3) 16)
               (logor (shift_left (parse_decbyte b2) 8)
                  (parse_decbyte b1)))) }
+  | decimal as n { INT64 (Int64.of_string n) } 
+  | hex as n { INT64 (Int64.of_string n) }
   | "learn" { LEARNING }
+  | "let" { LET }
+  | "publicIP" { PUBLICIP }
+  | id as x { ID x } (* by going last, we lex to LEARN, NAT, etc. instead *)
