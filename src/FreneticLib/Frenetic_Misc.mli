@@ -2,16 +2,6 @@ type ('a,'b) sum =
   | Inl of 'a
   | Inr of 'b
 
-module Log : sig
-
-  val set_log_file : bool -> string -> unit
-
-  val get_log_chan : unit -> out_channel
-
-  val printf : ('a, out_channel, unit) format -> 'a
-
-end
-
 (* val test_bit : int -> Int32.t -> bool *)
 (* val clear_bit : int -> Int32.t -> Int32.t *)
 (* val set_bit : int -> Int32.t -> Int32.t *)

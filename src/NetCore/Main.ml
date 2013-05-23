@@ -17,7 +17,7 @@ let () =
 
 let main () = 
   (* JNF: kind of a hack that we have to call this function :-( *)
-  OpenFlow0x01_Platform.init_with_port 6633; 
+  OpenFlow0x01_Platform.init_with_port 6633 >>
   Controller.start_controller !policy
       
 let _ =
