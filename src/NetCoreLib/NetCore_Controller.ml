@@ -19,7 +19,7 @@ let for_bucket (in_port : portId) (pkt : Internal.value) =
 
 module type MAKE  = functor (Platform : OpenFlow0x01.PLATFORM) -> 
   sig
-    val start_controller : policy Lwt_stream.t -> unit Lwt.t
+    val start_controller : policy NetCore_Stream.t -> unit Lwt.t
   end
 
 module Make (Platform : OpenFlow0x01.PLATFORM) = struct
@@ -110,8 +110,9 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
         push_pol (Some p))
       sugared_pol_stream
 
-  let start_controller (pol : policy Lwt_stream.t) : unit Lwt.t = 
+  let start_controller pol = 
     let (pol_stream, push_pol) = Lwt_stream.create () in
-    accept_switches pol_stream <&> configure_switches push_pol pol
+    accept_switches pol_stream <&> 
+      configure_switches push_pol (NetCore_Stream.to_stream pol)
 
 end
