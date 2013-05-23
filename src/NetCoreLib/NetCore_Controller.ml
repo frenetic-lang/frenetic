@@ -71,7 +71,11 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
         let inp = Pkt (sw, NetCore_Pattern.Physical pkt_in.packetInPort,
                        pkt_in.packetInPacket, Buf bufferId ) in
         let outs = classify !pol_now inp in
-        let for_buckets = List.fold_right (fun oo acc -> match for_bucket pkt_in.packetInPort oo with None -> acc | Some o -> o ::acc) outs [] in
+        let for_buckets =
+          List.fold_right
+            (fun oo acc -> match for_bucket pkt_in.packetInPort oo with
+              | None -> acc
+              | Some o -> o ::acc) outs [] in
         List.iter apply_bucket for_buckets;
         Lwt.return ()
 

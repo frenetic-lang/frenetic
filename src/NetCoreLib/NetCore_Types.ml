@@ -47,7 +47,8 @@ module Internal = struct
 
   let eval_action inp act =
     let Pkt (sw, pt, pk, pay) = inp in
-    map (fun (pt',pk') -> Pkt (sw, pt', pk', pay)) (NetCore_Action.Output.apply_action act (pt, pk))
+    map (fun (pt',pk') -> Pkt (sw, pt', pk', pay))
+      (NetCore_Action.Output.apply_action act (pt, pk))
 
   let rec classify p inp = match p with 
     | PoAction action -> 
