@@ -477,8 +477,14 @@ module Action = struct
             (match pp with
               | PseudoPort.Controller w -> w
               | _ -> 0)
-	| _ ->
-	  failwith "NYI: Action.marshal"
+        | SetNwSrc addr 
+        | SetNwDst addr ->
+          set_ofp_action_nw_addr_nw_addr bits' addr
+        | SetTpSrc pt
+        | SetTpDst pt ->
+          set_ofp_action_tp_port_tp_port bits' pt
+	      | _ ->
+	        failwith "NYI: Action.marshal"
     end;
     sizeof a
 
