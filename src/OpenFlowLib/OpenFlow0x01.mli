@@ -2,14 +2,6 @@ open Packet
 
 exception Unparsable of string
 
-type int8 = int
-
-type int16 = int
-
-val bit : int32 -> int -> bool -> int32
-
-val test_bit : int -> int32 -> bool
-
 module Match : sig
 
   type t = {

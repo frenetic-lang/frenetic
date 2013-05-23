@@ -1,6 +1,7 @@
 (** OpenFlow 1.0 (protocol version 0x01) *)
 
 open Printf
+open Frenetic_Bit
 open OpenFlow0x01
 
 let sum (lst : int list) = List.fold_left (fun x y -> x + y) 0 lst
