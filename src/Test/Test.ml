@@ -1,4 +1,5 @@
 open Printf
+open NetCore_Types.Internal
 open NetCore_Types.External
 open OUnit
 
@@ -37,6 +38,16 @@ module TestClassifier = struct
          (fun (label, expected, calculated) ->
            label >:: fun () -> 
              assert_equal ~printer:C.to_string expected calculated)
+         lst)
+
+  let netcore_tests group_label lst = 
+    group_label >:::
+      (List.map
+         (fun (label, expected_tbl, input_sw, input_pol) ->
+           label >:: fun () -> 
+             assert_equal ~printer:C.to_string 
+               expected_tbl
+               (NetCore_Compiler.compile_pol input_pol input_sw))
          lst)
 
   let lst = 
@@ -102,8 +113,27 @@ module TestClassifier = struct
         [(dlSrc 0xDDDDL, forward 2); (all, drop)]
         [(all, forward 2)])]
 
+  let lst2 =
+    [("NAT module with *wrong* forwarding shim",
+      [(inPort (Physical 1), forward 2);
+       (all, drop)],
+      1L,
+      PoUnion
+        (PoSeq
+           (PoSeq
+              (PoFilter (PrAnd (PrOnSwitch 1L, PrHdr (inPort (Physical 1)))), 
+               PoAction (forward 5001)),
+            PoAction (forward 2)),
+         PoSeq
+           (PoSeq
+              (PoFilter (PrAnd (PrOnSwitch 1L, PrHdr (inPort (Physical 2)))),
+               PoFilter (PrNone)),
+            PoAction (forward 1))))]
+
   let go =
-    TestList [test0; test1; test2; classifier_tests "classifier tests" lst]
+    TestList [test0; test1; test2; 
+              classifier_tests "classifier tests" lst;
+              netcore_tests "NetCore tests" lst2]
 
 end
 

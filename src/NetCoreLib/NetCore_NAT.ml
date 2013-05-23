@@ -65,12 +65,17 @@ let make (public_ip : nwAddr) =
           }
         } ->
         let public_port = Table.fresh_public_port tbl private_ip private_port in
+        Printf.eprintf "[NAT] translating %s:%d to %s:%d\n%!"
+          (string_of_ip private_ip) private_port
+          (string_of_ip public_ip) public_port;
         private_pol :=
-          Seq (Seq (Act (UpdateSrcIP (private_ip, public_ip)),
+          ITE (And (SrcIP private_ip, TcpSrcPort private_port),
+               Seq (Act (UpdateSrcIP (private_ip, public_ip)),
                     Act (UpdateSrcPort (private_port, public_port))),
                !private_pol);
         public_pol :=
-          Seq (Seq (Act (UpdateSrcIP (public_ip, private_ip)),
+          ITE (And (SrcIP public_ip, TcpSrcPort public_port),
+               Seq (Act (UpdateSrcIP (public_ip, private_ip)),
                     Act (UpdateSrcPort (public_port, private_port))),
                !public_pol);
         push (Some (!private_pol, !public_pol))
