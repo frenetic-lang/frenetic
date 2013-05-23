@@ -69,5 +69,6 @@ val wildcardDlVlan : t -> t
 
 val wildcardPort : t -> t
 
+val to_format : Format.formatter -> t -> unit
 val to_string : t -> string
 

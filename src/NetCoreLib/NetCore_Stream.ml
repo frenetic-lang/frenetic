@@ -24,6 +24,8 @@ end = struct
     (fun () -> lst := List.remove_assq key !lst)
 
   let invoke_all lst v = 
+    (if List.length !lst > 1 then
+        Printf.eprintf "[Stream] GLITCH.\n%!");
     List.iter (fun (_, listener) -> listener v) !lst
 end
 

@@ -36,13 +36,12 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
   let pol_now : pol ref = ref init_pol
 
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
-    Printf.eprintf "[Controller.ml] compiling new policy for switch %Ld\n" sw;
-    Printf.eprintf "[Controller.ml] policy is:\n%s\n" (Internal.pol_to_string pol);
+    Printf.eprintf "[Controller.ml] compiling new policy for switch %Ld\n%!" sw;
     let flow_table = NetCore_Compiler.flow_table_of_policy sw pol in
-    Printf.eprintf "[Controller.ml] done compiling policy for switch %Ld\n" sw;
-    Printf.eprintf "[Controller.ml] flow table is:\n";
+    Printf.eprintf "[Controller.ml] done compiling policy for switch %Ld\n%!" sw;
+    Printf.eprintf "[Controller.ml] flow table is:\n%!";
     List.iter
-      (fun (m,a) -> Printf.eprintf "[Controller.ml] %s => %s\n"
+      (fun (m,a) -> Printf.eprintf "[Controller.ml] %s => %s\n%!"
         (OpenFlow0x01.Match.to_string m)
         (OpenFlow0x01.Action.sequence_to_string a))
       flow_table;
@@ -51,11 +50,12 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       (fun (match_, actions) ->
           Platform.send_to_switch sw 0l (add_flow match_ actions))
       flow_table >>
-    (Printf.eprintf "[Controller.ml] initialized switch %Ld\n" sw;
+    (Printf.eprintf "[Controller.ml] initialized switch %Ld\n%!" sw;
      Lwt.return ())
 
   let install_new_policies sw pol_stream =
-    Lwt_stream.iter_s (configure_switch sw) pol_stream
+    Lwt_stream.iter_s (configure_switch sw)
+      (NetCore_Stream.to_stream pol_stream)
       
   let handle_packet_in sw pkt_in = 
     let open Internal in
@@ -78,20 +78,16 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
 
   let switch_thread
       (sw : switchId)
-      (init_pol : pol)
-      (pol_stream : pol Lwt_stream.t) = 
-    configure_switch sw init_pol >>
+      (pol_stream : pol NetCore_Stream.t) = 
     install_new_policies sw pol_stream <&> handle_switch_messages sw >>
     (Printf.eprintf "[Controller.ml] thread for switch %Ld terminated.\n" sw;
      Lwt.return ())
 
   let rec accept_switches pol_stream = 
     lwt features = Platform.accept_switch () in
-    Printf.eprintf "[NetCore_Controller.ml]: switch %Ld connected\n"
+    Printf.eprintf "[NetCore_Controller.ml]: switch %Ld connected\n%!"
       features.switch_id;
-    let switch = switch_thread features.switch_id 
-      !pol_now (Lwt_stream.clone pol_stream) in
-    switch <&> accept_switches pol_stream
+    switch_thread features.switch_id pol_stream <&> accept_switches pol_stream
 
   let bucket_cell = ref 0 
   let vlan_cell = ref 0 
@@ -107,12 +103,14 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       (fun pol ->
         let p = NetCore_Types.desugar genbucket genvlan pol get_pkt_handlers in
         pol_now := p;
+        Printf.eprintf "[Controller.ml] got new policy:\n%s\n%!" 
+          (Internal.pol_to_string p);
         push_pol (Some p))
       sugared_pol_stream
 
   let start_controller pol = 
     let (pol_stream, push_pol) = Lwt_stream.create () in
-    accept_switches pol_stream <&> 
-      configure_switches push_pol (NetCore_Stream.to_stream pol)
+    accept_switches (NetCore_Stream.from_stream init_pol pol_stream) <&>  
+    configure_switches push_pol (NetCore_Stream.to_stream pol)
 
 end

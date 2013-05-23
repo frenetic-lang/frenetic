@@ -68,7 +68,7 @@ module Internal = struct
 
   let rec format_pred fmt pred = match pred with 
     | PrHdr pat -> 
-      fprintf fmt "@[PrHdr@;<1 2>@[%s@]@]" (NetCore_Pattern.to_string pat)
+      fprintf fmt "@[PrHdr@;<1 2>@[%a@]@]" NetCore_Pattern.to_format pat
     | PrOnSwitch sw ->
       fprintf fmt "@[PrOnSwitch %Lx@]" sw
     | PrOr (p1,p2) ->
@@ -141,6 +141,8 @@ module External = struct
   | TcpDstPort of int (** 16-bits, implicitly IP *)
 
   type action =
+  | Pass
+  | Drop
   | To of int
   | ToAll
   | UpdateDlSrc of Int64.t * Int64.t
@@ -197,6 +199,8 @@ module External = struct
       Printf.sprintf "(DstIP %ld)" n
         
   let action_to_string act = match act with
+    | Pass -> "Pass"
+    | Drop -> "Drop"
     | To pt -> 
       Printf.sprintf "To %d" pt
     | ToAll -> "ToAll"
@@ -316,6 +320,8 @@ let desugar
   let open Internal in
   let open External in
   let desugar_act act = match act with
+    | Pass -> NetCore_Action.Output.pass
+    | Drop -> NetCore_Action.Output.drop
     | To pt -> 
       NetCore_Action.Output.forward pt
     | ToAll -> 

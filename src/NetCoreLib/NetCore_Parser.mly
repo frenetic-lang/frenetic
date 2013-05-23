@@ -40,6 +40,7 @@
 %token OR
 %token IF
 %token THEN
+%token ELSE
 %token SEMI
 %token BAR
 %token LEARNING
@@ -49,6 +50,8 @@
 %token LET
 %token IN
 %token PUBLICIP
+%token PASS
+%token DROP
 %token EOF
 
 %start program
@@ -92,8 +95,15 @@ pred :
 
 pol_atom :
   | LPAREN pol RPAREN { $2 }
-  | ID { fun env -> List.assoc $1 env }
+  | ID 
+      { fun env -> 
+        try 
+          List.assoc $1 env 
+        with Not_found ->
+          failwith ("unbound variable " ^ $1) }
   | INT64 { fun _ -> NetCore_Stream.constant (Act (To (int16_of_int64 $1))) }
+  | PASS { fun _ -> NetCore_Stream.constant (Act Pass) }
+  | DROP { fun _ -> NetCore_Stream.constant (Act Drop) }
   | ALL { fun _ -> NetCore_Stream.constant (Act ToAll) }
   | LEARNING 
     { fun _ -> NetCore_Stream.from_stream
@@ -102,10 +112,13 @@ pol_atom :
 
 pol_pred :  
   | pol_atom { $1 }
-  | IF pred THEN pol_pred 
+  | IF pred THEN pol_pred ELSE pol_pred
     { fun env ->
-      let then_pol = $4 env in
-      NetCore_Stream.map (fun pol -> Seq (Filter $2, pol)) then_pol }
+      let then_pol_stream = $4 env in
+      let else_pol_stream = $6 env in
+      NetCore_Stream.map2 
+        (fun then_pol else_pol -> ITE ($2, then_pol, else_pol))
+        then_pol_stream else_pol_stream }
 
 pol_seq_list :
   | pol_pred { $1 }

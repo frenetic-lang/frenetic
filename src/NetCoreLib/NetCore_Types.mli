@@ -58,6 +58,8 @@ module External : sig
   | TcpDstPort of int (** 16-bits, implicitly IP *)
 
   type action =
+  | Pass
+  | Drop
   | To of int
   | ToAll
   | UpdateDlSrc of Int64.t * Int64.t
