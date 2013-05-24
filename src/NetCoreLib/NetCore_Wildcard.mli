@@ -1,11 +1,13 @@
+type 'a wildcard =
+  | WildcardExact of 'a
+  | WildcardAll
+  | WildcardNone
+
 module type Wildcard = sig
 
   type a
 
-  type t = 
-    | WildcardExact of a
-    | WildcardAll
-    | WildcardNone
+  type t = a wildcard
 
   val is_equal : t -> t -> bool
 
