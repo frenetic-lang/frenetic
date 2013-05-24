@@ -25,10 +25,6 @@ module Internal : sig
   type value =
   | Pkt of OpenFlow0x01.switchId * NetCore_Pattern.port * packet * payload
 
-  val match_pred : pred -> OpenFlow0x01.switchId -> NetCore_Pattern.port -> packet -> bool
-
-  val classify : pol -> value -> value list
-
   val pred_to_string : pred -> string
 
   val pol_to_string : pol -> string
