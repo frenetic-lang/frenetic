@@ -20,8 +20,6 @@ let rec match_pred pr sw pt pk =
     | PrNone -> 
       false
 
-let serialize_pkt = Packet_Parser.serialize_packet
-
 let eval_action inp act =
   let Pkt (sw, pt, pk, pay) = inp in
   List.map (fun (pt',pk') -> Pkt (sw, pt', pk', pay))
