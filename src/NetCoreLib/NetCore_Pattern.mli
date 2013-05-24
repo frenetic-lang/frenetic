@@ -1,15 +1,8 @@
 open Packet
 open OpenFlow0x01
 
-type port =
-  | Physical of portId
-  | All
-  | Bucket of int
-  | Here
-
-val string_of_port : port -> string
-
-type t 
+open NetCore_Types.Internal
+type t = ptrn
 
 val inter : t -> t -> t
 

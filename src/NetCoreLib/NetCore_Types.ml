@@ -3,8 +3,93 @@ open Packet
 open Format
 
 module Internal = struct
+
+  type port =
+    | Physical of portId
+    | All
+    | Bucket of int
+    | Here
+
+  module PortOrderedType = struct
+      
+    type t = port
+
+    let compare = Pervasives.compare
+      
+    let to_string = function
+      | Physical pid -> "Physical " ^ (portId_to_string pid)
+      | All -> "All"
+      | Bucket n -> "Bucket " ^ (string_of_int n)
+      | Here -> "Here"
+        
+  end
+
+  module DlVlanOrderedType = struct
+    type t = int option
+        
+    let compare x y = match (x, y) with
+      | None, None -> 0
+      | None, _ -> -1
+      | _, None -> 1
+      | Some a, Some b -> Pervasives.compare a b
+        
+    let to_string x = match x with
+      | Some n -> "Some " ^ string_of_int n
+      | None -> "None"
+  end
+    
+  module Int64Wildcard = NetCore_Wildcard.Make (Int64)
+  module Int32Wildcard = NetCore_Wildcard.Make (Int32)
+  module IntWildcard =  NetCore_Wildcard.Make (struct
+    type t = int
+    let compare = Pervasives.compare
+    let to_string n = string_of_int n
+  end)
+    
+  module DlAddrWildcard = Int64Wildcard
+  module DlTypWildcard = IntWildcard
+  module DlVlanWildcard = NetCore_Wildcard.Make (DlVlanOrderedType)
+  module DlVlanPcpWildcard = IntWildcard
+  module NwAddrWildcard = Int32Wildcard
+  module NwProtoWildcard = IntWildcard
+  module NwTosWildcard = IntWildcard
+  module TpPortWildcard = IntWildcard
+  module PortWildcard = NetCore_Wildcard.Make (PortOrderedType)
+
+  type ptrn = {
+    ptrnDlSrc : DlAddrWildcard.t;
+    ptrnDlDst : DlAddrWildcard.t;
+    ptrnDlType : DlTypWildcard.t;
+    ptrnDlVlan : DlVlanWildcard.t;
+    ptrnDlVlanPcp : DlVlanPcpWildcard.t;
+    ptrnNwSrc : NwAddrWildcard.t;
+    ptrnNwDst : NwAddrWildcard.t;
+    ptrnNwProto : NwProtoWildcard.t;
+    ptrnNwTos : NwTosWildcard.t;
+    ptrnTpSrc : TpPortWildcard.t;
+    ptrnTpDst : TpPortWildcard.t;
+    ptrnInPort : PortWildcard.t
+  }
+
+  type 'a match_modify = ('a * 'a) option
+
+  type output = {
+    outDlSrc : dlAddr match_modify;
+    outDlDst : dlAddr match_modify;
+    outDlVlan : dlVlan match_modify;
+    outDlVlanPcp : dlVlanPcp match_modify;
+    outNwSrc : nwAddr match_modify;
+    outNwDst : nwAddr match_modify;
+    outNwTos : nwTos match_modify;
+    outTpSrc : tpPort match_modify;
+    outTpDst : tpPort match_modify;
+    outPort : port 
+  }
+
+  type action = output list
+
   type pred =
-  | PrHdr of NetCore_Pattern.t
+  | PrHdr of ptrn
   | PrOnSwitch of OpenFlow0x01.switchId
   | PrOr of pred * pred
   | PrAnd of pred * pred
@@ -13,7 +98,7 @@ module Internal = struct
   | PrNone
 
   type pol =
-  | PoAction of NetCore_Action.Output.t
+  | PoAction of action
   | PoFilter of pred
   | PoUnion of pol * pol
   | PoSeq of pol * pol
@@ -24,11 +109,11 @@ module Internal = struct
   | Data of bytes 
 
   type value =
-  | Pkt of OpenFlow0x01.switchId * NetCore_Pattern.port * packet * payload
+  | Pkt of OpenFlow0x01.switchId * port * packet * payload
 
   let rec format_pred fmt pred = match pred with 
-    | PrHdr pat -> 
-      fprintf fmt "@[PrHdr@;<1 2>@[%a@]@]" NetCore_Pattern.to_format pat
+    | PrHdr pat -> failwith "NYI"
+      (* fprintf fmt "@[PrHdr@;<1 2>@[%a@]@]" NetCore_Pattern.to_format pat *)
     | PrOnSwitch sw ->
       fprintf fmt "@[PrOnSwitch %Lx@]" sw
     | PrOr (p1,p2) ->
@@ -53,8 +138,8 @@ module Internal = struct
     Buffer.contents buf
 
   let rec format_pol fmt pol = match pol with
-    | PoAction a -> 
-      fprintf fmt "@[PoAction@;<1 2>@[%s@]@]" (NetCore_Action.Output.to_string a)
+    | PoAction a -> failwith "NYI "
+      (* fprintf fmt "@[PoAction@;<1 2>@[%s@]@]" (NetCore_Action.Output.to_string a) *)
     | PoFilter pr -> 
       fprintf fmt "@[PoFilter@;<1 2>(@[%a@])@]" format_pred pr
     | PoUnion (p1,p2) -> 
@@ -75,10 +160,12 @@ module Internal = struct
     fprintf fmt "@?";
     Buffer.contents buf
 
+  let port_to_string = PortOrderedType.to_string
+
   let value_to_string = function 
     | Pkt (sid, port, pkt, pay) ->
       Printf.sprintf "(%Ld, %s, %s, _)" 
-        sid (NetCore_Pattern.string_of_port port) (packet_to_string pkt)
+        sid (port_to_string port) (packet_to_string pkt)
 end
 
 module External = struct

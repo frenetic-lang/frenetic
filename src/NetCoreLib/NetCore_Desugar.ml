@@ -48,7 +48,7 @@ let desugar
     | Switch swId -> 
       PrOnSwitch swId
     | InPort pt -> 
-      PrHdr (NetCore_Pattern.inPort (NetCore_Pattern.Physical pt))
+      PrHdr (NetCore_Pattern.inPort (Physical pt))
     | DlSrc n -> 
       PrHdr (NetCore_Pattern.dlSrc n)
     | DlDst n -> 

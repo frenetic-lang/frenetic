@@ -1,6 +1,7 @@
 open OpenFlow0x01
 open OpenFlow0x01.Action
 open Packet
+open NetCore_Types.Internal
 
 let concat_map f lst =
   List.fold_right (fun a bs -> List.append (f a) bs) lst []
@@ -24,9 +25,9 @@ module type ACTION = sig
 
   val pass : t
 
-  val apply_atom : e -> (NetCore_Pattern.port * packet) -> (NetCore_Pattern.port * packet) option
+  val apply_atom : e -> (port * packet) -> (port * packet) option
 
-  val apply_action : t -> (NetCore_Pattern.port * packet) -> (NetCore_Pattern.port * packet) list
+  val apply_action : t -> (port * packet) -> (port * packet) list
 
   val par_action : t -> t -> t
 
@@ -75,22 +76,7 @@ module Output = struct
   open List
   open Packet
   open NetCore_Pattern
-
-  type 'a match_modify = ('a * 'a) option
-
-  (** Note that OpenFlow does not allow the [dlType] and [nwProto]
-      fields to be modified. *)
-  type output =
-    { outDlSrc : dlAddr match_modify;
-      outDlDst : dlAddr match_modify;
-      outDlVlan : dlVlan match_modify;
-      outDlVlanPcp : dlVlanPcp match_modify;
-      outNwSrc : nwAddr match_modify;
-      outNwDst : nwAddr match_modify;
-      outNwTos : nwTos match_modify;
-      outTpSrc : tpPort match_modify;
-      outTpDst : tpPort match_modify;
-      outPort : NetCore_Pattern.port }
+  open NetCore_Types.Internal
 
   let match_modify_to_string
       (pr : 'a -> string) (lbl : string) (v : 'a match_modify) : string option =
@@ -113,10 +99,10 @@ module Output = struct
     let mods = String.concat ", " (List.fold_right (fun xo acc -> match xo with None -> acc | Some x -> x::acc) mods []) in
     if mods = "" then
       Format.sprintf "Fwd %s"
-        (NetCore_Pattern.string_of_port out.outPort)
+        (port_to_string out.outPort)
     else 
       Format.sprintf "Fwd %s<%s>"
-        (NetCore_Pattern.string_of_port out.outPort)
+        (port_to_string out.outPort)
         mods
 
   let to_string output_list =
@@ -148,12 +134,12 @@ module Output = struct
   let pass = [unmodified]
 
   let forward pt =
-    [ { unmodified with outPort = NetCore_Pattern.Physical pt } ]
+    [ { unmodified with outPort = Physical pt } ]
 
-  let to_all = [ { unmodified with outPort = NetCore_Pattern.All } ]
+  let to_all = [ { unmodified with outPort = All } ]
 
   let bucket n =
-    [ { unmodified with outPort = NetCore_Pattern.Bucket n } ]
+    [ { unmodified with outPort = Bucket n } ]
 
   let updateDlSrc od nw =
     [ { unmodified with outDlSrc = Some (od, nw) } ]
@@ -352,9 +338,9 @@ module Output = struct
 
   let output_to_of inp out = match out.outPort with
     | Here -> [] (* Fishy, IMO. Shouldn't this be InPort? *)
-    | NetCore_Pattern.All -> modify out @ (Output PseudoPort.AllPorts)
+    | All -> modify out @ (Output PseudoPort.AllPorts)
       :: unmodify out
-    | NetCore_Pattern.Physical pt ->
+    | Physical pt ->
       modify out @
         (( match inp with
          | Some pt' when (=) pt' pt ->
@@ -362,7 +348,7 @@ module Output = struct
          | _ ->
            Output (PseudoPort.PhysicalPort pt)) ::
           (unmodify out))
-    | NetCore_Pattern.Bucket n ->
+    | Bucket n ->
       [ Output (PseudoPort.Controller 65535) ]
 
   let as_actionSequence inp act =

@@ -1,74 +1,8 @@
 open Packet
 open OpenFlow0x01
+open NetCore_Types.Internal
 
-type port =
-| Physical of portId
-| All
-| Bucket of int
-| Here
-
-module PortOrderedType = struct
-
-  type t = port
-
-  let compare = Pervasives.compare
-
-  let to_string = function
-    | Physical pid -> "Physical " ^ (portId_to_string pid)
-    | All -> "All"
-    | Bucket n -> "Bucket " ^ (string_of_int n)
-    | Here -> "Here"
-
-end
-
-let string_of_port = PortOrderedType.to_string
-
-module DlVlanOrderedType = struct
-  type t = int option
-
-  let compare x y = match (x, y) with
-    | None, None -> 0
-    | None, _ -> -1
-    | _, None -> 1
-    | Some a, Some b -> Pervasives.compare a b
-
-  let to_string x = match x with
-    | Some n -> "Some " ^ string_of_int n
-    | None -> "None"
-end
-
-module Int64Wildcard = NetCore_Wildcard.Make (Int64)
-module Int32Wildcard = NetCore_Wildcard.Make (Int32)
-module IntWildcard =  NetCore_Wildcard.Make (struct
-  type t = int
-  let compare = Pervasives.compare
-  let to_string n = string_of_int n
-end)
-
-module DlAddrWildcard = Int64Wildcard
-module DlTypWildcard = IntWildcard
-module DlVlanWildcard = NetCore_Wildcard.Make (DlVlanOrderedType)
-module DlVlanPcpWildcard = IntWildcard
-module NwAddrWildcard = Int32Wildcard
-module NwProtoWildcard = IntWildcard
-module NwTosWildcard = IntWildcard
-module TpPortWildcard = IntWildcard
-module PortWildcard = NetCore_Wildcard.Make (PortOrderedType)
-
-type t = {
-  ptrnDlSrc : DlAddrWildcard.t;
-  ptrnDlDst : DlAddrWildcard.t;
-  ptrnDlType : DlTypWildcard.t;
-  ptrnDlVlan : DlVlanWildcard.t;
-  ptrnDlVlanPcp : DlVlanPcpWildcard.t;
-  ptrnNwSrc : NwAddrWildcard.t;
-  ptrnNwDst : NwAddrWildcard.t;
-  ptrnNwProto : NwProtoWildcard.t;
-  ptrnNwTos : NwTosWildcard.t;
-  ptrnTpSrc : TpPortWildcard.t;
-  ptrnTpDst : TpPortWildcard.t;
-  ptrnInPort : PortWildcard.t
-}
+type t = ptrn
 
 let all = {
   ptrnDlSrc = DlAddrWildcard.WildcardAll;

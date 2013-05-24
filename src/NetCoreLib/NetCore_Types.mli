@@ -2,8 +2,59 @@ open Packet
 open List
 
 module Internal : sig
+
+  type port =
+    | Physical of portId
+    | All
+    | Bucket of int
+    | Here
+
+  module DlAddrWildcard : NetCore_Wildcard.Wildcard with type a = dlAddr
+  module DlTypWildcard : NetCore_Wildcard.Wildcard with type a = dlTyp
+  module DlVlanWildcard : NetCore_Wildcard.Wildcard with type a = dlVlan
+  module DlVlanPcpWildcard : NetCore_Wildcard.Wildcard with type a = dlVlanPcp
+  module NwAddrWildcard : NetCore_Wildcard.Wildcard with type a = nwAddr
+  module NwProtoWildcard : NetCore_Wildcard.Wildcard with type a = nwProto
+  module NwTosWildcard : NetCore_Wildcard.Wildcard with type a = nwTos
+  module TpPortWildcard : NetCore_Wildcard.Wildcard with type a = tpPort
+  module PortWildcard : NetCore_Wildcard.Wildcard with type a = port
+
+  type ptrn = {
+    ptrnDlSrc : DlAddrWildcard.t;
+    ptrnDlDst : DlAddrWildcard.t;
+    ptrnDlType : DlTypWildcard.t;
+    ptrnDlVlan : DlVlanWildcard.t;
+    ptrnDlVlanPcp : DlVlanPcpWildcard.t;
+    ptrnNwSrc : NwAddrWildcard.t;
+    ptrnNwDst : NwAddrWildcard.t;
+    ptrnNwProto : NwProtoWildcard.t;
+    ptrnNwTos : NwTosWildcard.t;
+    ptrnTpSrc : TpPortWildcard.t;
+    ptrnTpDst : TpPortWildcard.t;
+    ptrnInPort : PortWildcard.t
+  }
+
+  type 'a match_modify = ('a * 'a) option
+
+  (** Note that OpenFlow does not allow the [dlType] and [nwProto]
+      fields to be modified. *)
+  type output = {
+    outDlSrc : dlAddr match_modify;
+    outDlDst : dlAddr match_modify;
+    outDlVlan : dlVlan match_modify;
+    outDlVlanPcp : dlVlanPcp match_modify;
+    outNwSrc : nwAddr match_modify;
+    outNwDst : nwAddr match_modify;
+    outNwTos : nwTos match_modify;
+    outTpSrc : tpPort match_modify;
+    outTpDst : tpPort match_modify;
+    outPort : port 
+  }
+
+  type action = output list
+
   type pred =
-  | PrHdr of NetCore_Pattern.t
+  | PrHdr of ptrn
   | PrOnSwitch of OpenFlow0x01.switchId
   | PrOr of pred * pred
   | PrAnd of pred * pred
@@ -12,7 +63,7 @@ module Internal : sig
   | PrNone
 
   type pol =
-  | PoAction of NetCore_Action.Output.t
+  | PoAction of action
   | PoFilter of pred
   | PoUnion of pol * pol
   | PoSeq of pol * pol
@@ -23,7 +74,9 @@ module Internal : sig
   | Data of bytes 
 
   type value =
-  | Pkt of OpenFlow0x01.switchId * NetCore_Pattern.port * packet * payload
+  | Pkt of OpenFlow0x01.switchId * port * packet * payload
+
+  val port_to_string : port -> string
 
   val pred_to_string : pred -> string
 
