@@ -11,9 +11,6 @@ open Frenetic_Log
 open OpenFlow0x01
 open OpenFlow0x01_Parser
 
-open Lwt_io
-open Lwt_list
-
 exception SwitchDisconnected of switchId
 exception UnknownSwitch of switchId
 exception UnknownSwitchDisconnected
@@ -102,7 +99,7 @@ let shutdown () : unit =
   match !server_fd with
   | Some fd -> 
     Lwt.ignore_result 
-      (iter_p 
+      (Lwt_list.iter_p 
         (fun fd -> Lwt_unix.close fd)
         (Hashtbl.fold (fun _ fd l -> fd::l) switch_fds []))
   | None -> ()
