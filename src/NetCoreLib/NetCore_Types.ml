@@ -12,6 +12,8 @@ module Internal = struct
     | Bucket of int
     | Here
 
+  type lp = OpenFlow0x01.switchId * port * packet
+
   type ptrn = {
     ptrnDlSrc : dlAddr wildcard;
     ptrnDlDst : dlAddr wildcard;
@@ -42,7 +44,11 @@ module Internal = struct
     outPort : port 
   }
 
-  type action = output list
+  type action_atom =
+    | SwitchAction of output
+    | ControllerAction of (OpenFlow0x01.switchId -> port -> packet -> action)
+
+  and action = action_atom list
 
   type pred =
   | PrHdr of ptrn
@@ -68,7 +74,7 @@ module Internal = struct
   | Pkt of OpenFlow0x01.switchId * port * packet * payload
 
   let rec format_pred fmt pred = match pred with 
-    | PrHdr pat -> failwith "NYI"
+    | PrHdr pat -> fprintf fmt "HDR"
       (* fprintf fmt "@[PrHdr@;<1 2>@[%a@]@]" NetCore_Pattern.to_format pat *)
     | PrOnSwitch sw ->
       fprintf fmt "@[PrOnSwitch %Lx@]" sw
@@ -94,7 +100,7 @@ module Internal = struct
     Buffer.contents buf
 
   let rec format_pol fmt pol = match pol with
-    | PoAction a -> failwith "NYI "
+    | PoAction a -> fprintf fmt "ACTION"
       (* fprintf fmt "@[PoAction@;<1 2>@[%s@]@]" (NetCore_Action.Output.to_string a) *)
     | PoFilter pr -> 
       fprintf fmt "@[PoFilter@;<1 2>(@[%a@])@]" format_pred pr
@@ -129,7 +135,9 @@ module Internal = struct
 end
 
 module External = struct
-  type get_packet_handler = OpenFlow0x01.switchId -> portId -> packet -> unit
+
+  type get_packet_handler = 
+      OpenFlow0x01.switchId -> Internal.port -> packet -> Internal.action
 
   type predicate =
   | And of predicate * predicate

@@ -1,5 +1,6 @@
 open Packet
 open NetCore_Types.External
+open NetCore_Action.Output
 
 (** Table relating private locations to public locations. *)
 module type TABLE = sig
@@ -78,8 +79,11 @@ let make (public_ip : nwAddr) =
                Seq (Act (UpdateSrcIP (public_ip, private_ip)),
                     Act (UpdateSrcPort (public_port, private_port))),
                !public_pol);
-        push (Some (!private_pol, !public_pol))
-      | _ -> ()
+        push (Some (!private_pol, !public_pol));
+        seq_action
+          (updateSrcIP private_ip public_ip)
+          (updateSrcPort private_port public_port)
+      | _ -> NetCore_Action.Output.drop
   and private_pol = ref (Act (GetPacket callback))
   and public_pol = ref Empty in
   let pair_stream =

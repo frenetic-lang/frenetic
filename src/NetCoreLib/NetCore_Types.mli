@@ -11,6 +11,8 @@ module Internal : sig
     | Bucket of int
     | Here
 
+  type lp = OpenFlow0x01.switchId * port * packet
+
   type ptrn = {
     ptrnDlSrc : dlAddr wildcard;
     ptrnDlDst : dlAddr wildcard;
@@ -43,7 +45,11 @@ module Internal : sig
     outPort : port 
   }
 
-  type action = output list
+  type action_atom =
+    | SwitchAction of output
+    | ControllerAction of (OpenFlow0x01.switchId -> port -> packet -> action)
+
+  and action = action_atom list
 
   type pred =
   | PrHdr of ptrn
@@ -80,7 +86,7 @@ end
 module External : sig
 
   type get_packet_handler = 
-    OpenFlow0x01.switchId -> portId -> packet -> unit
+    OpenFlow0x01.switchId -> Internal.port -> packet -> Internal.action
 
   type predicate =
   | And of predicate * predicate

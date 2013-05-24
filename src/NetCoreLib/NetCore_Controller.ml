@@ -27,17 +27,13 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
   let get_pkt_handlers : (int, get_packet_handler) Hashtbl.t = 
     Hashtbl.create 200
 
-  let apply_bucket (bucket_id, sw, pt, pk) : unit =
-    let handler = Hashtbl.find get_pkt_handlers bucket_id in
-    handler sw pt pk
-
   (* used to initialize newly connected switches and handle packet-in 
      messages *)
   let pol_now : pol ref = ref init_pol
 
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
     Printf.eprintf "[Controller.ml] compiling new policy for switch %Ld\n%!" sw;
-    let flow_table = NetCore_Compiler.flow_table_of_policy sw pol in
+    lwt flow_table = Lwt.wrap2 NetCore_Compiler.flow_table_of_policy sw pol in
     Printf.eprintf "[Controller.ml] flow table is:\n%!";
     List.iter
       (fun (m,a) -> Printf.eprintf "[Controller.ml] %s => %s\n%!"
@@ -67,16 +63,19 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     match pkt_in.packetInBufferId with
       | None -> Lwt.return ()
       | Some bufferId ->
-        let inp = Pkt (sw, Internal.Physical pkt_in.packetInPort,
+        let in_port = pkt_in.packetInPort in
+        let inp = Pkt (sw, Internal.Physical in_port,
                        pkt_in.packetInPacket, Buf bufferId ) in
-        let outs = NetCore_Semantics.classify !pol_now inp in
-        let for_buckets =
-          List.fold_right
-            (fun oo acc -> match for_bucket pkt_in.packetInPort oo with
-              | None -> acc
-              | Some o -> o ::acc) outs [] in
-        List.iter apply_bucket for_buckets;
-        Lwt.return ()
+        let full_action = NetCore_Semantics.eval !pol_now inp in
+        let controller_action =
+          NetCore_Action.Output.apply_controller full_action
+            (sw, Internal.Physical in_port, pkt_in.packetInPacket) in
+        let outp = { 
+          pktOutBufOrBytes = Buffer bufferId; 
+          pktOutPortId = None;
+          pktOutActions = NetCore_Action.Output.as_actionSequence
+            (Some in_port) controller_action } in
+          Platform.send_to_switch sw 0l (PacketOutMsg outp)
 
   let rec handle_switch_messages sw = 
     lwt v = Platform.recv_from_switch sw in
