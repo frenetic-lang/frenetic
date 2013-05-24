@@ -75,7 +75,9 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
           pktOutPortId = None;
           pktOutActions = NetCore_Action.Output.as_actionSequence
             (Some in_port) controller_action } in
-          Platform.send_to_switch sw 0l (PacketOutMsg outp)
+        lwt ok = Platform.send_to_switch sw 0l (PacketOutMsg outp) in 
+        (* JNF: switch down? *)
+        Lwt.return () 
 
   let rec handle_switch_messages sw = 
     lwt v = Platform.recv_from_switch sw in
