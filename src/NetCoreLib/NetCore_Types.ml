@@ -269,7 +269,9 @@ module External = struct
       | UpdateDlVlan _ -> 
         (false,true)
       | GetPacket _ -> 
-        (false, false) in 
+        (false, false) 
+      | _ -> 
+        failwith "Not yet implemented" in 
     let rec check_pred (pred : predicate) =
       match pred with
       | And (pr1, pr2) -> check_pred pr1 || check_pred pr2
@@ -304,6 +306,8 @@ module External = struct
         let _, vlanB' = check_pol pol' in
         let vlanB'' = check_pred egress in
         (true, vlanB || vlanB' || vlanB'')
+      | ITE _ -> 
+        failwith "Not yet implemented"
     in
     let sliceB, vlanB = check_pol pol in
     if sliceB && vlanB 

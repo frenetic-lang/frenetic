@@ -12,7 +12,6 @@ open OpenFlow0x01
 open OpenFlow0x01_Parser
 
 open Lwt_io
-open Lwt_unix
 open Lwt_list
 
 exception SwitchDisconnected of switchId
@@ -20,11 +19,11 @@ exception UnknownSwitch of switchId
 exception UnknownSwitchDisconnected
 exception Internal of string
 
-let server_fd : file_descr option ref = ref None
+let server_fd : Lwt_unix.file_descr option ref = ref None
 
 let max_pending = 64
 
-let init_with_fd (fd : file_descr) : unit Lwt.t = match !server_fd with
+let init_with_fd (fd : Lwt_unix.file_descr) : unit Lwt.t = match !server_fd with
   | Some _ ->
     raise_lwt (Internal "Platform already initialized")
   | None ->
@@ -32,20 +31,21 @@ let init_with_fd (fd : file_descr) : unit Lwt.t = match !server_fd with
     Lwt.return ()
       
 let init_with_port (p : int) : unit Lwt.t = 
+  let open Lwt_unix in 
   let fd = socket PF_INET SOCK_STREAM 0 in
   setsockopt fd SO_REUSEADDR true;
   bind fd (ADDR_INET (Unix.inet_addr_any, p));
   listen fd max_pending;
   init_with_fd fd
 
-let get_fd () : file_descr Lwt.t = match !server_fd with
+let get_fd () : Lwt_unix.file_descr Lwt.t = match !server_fd with
   | Some fd ->
     Lwt.return fd
   | None ->
     raise_lwt (Invalid_argument "Platform not initialized")
 
 (** Receive an OpenFlow message from a raw socket without updating controller state. *)
-let rec recv_from_switch_fd (sock : file_descr) : ((xid * message) option) Lwt.t =
+let rec recv_from_switch_fd (sock : Lwt_unix.file_descr) : ((xid * message) option) Lwt.t =
   let ofhdr_str = String.create (2 * sizeof_ofp_header) in
   lwt ok = SafeSocket.recv sock ofhdr_str 0 sizeof_ofp_header in
   if not ok then Lwt.return None
@@ -64,11 +64,11 @@ let rec recv_from_switch_fd (sock : file_descr) : ((xid * message) option) Lwt.t
           (msg_code_to_int hdr.Header.typ);
         recv_from_switch_fd sock
 
-let send_to_switch_fd (sock : file_descr) (xid : xid) (msg : message) : unit Lwt.t =
+let send_to_switch_fd (sock : Lwt_unix.file_descr) (xid : xid) (msg : message) : unit Lwt.t =
   try_lwt
     lwt out = Lwt.wrap2 Message.marshal xid msg in
     let len = String.length out in
-    lwt n = write sock out 0 len in
+    lwt n = Lwt_unix.write sock out 0 len in
     if n <> len then
       raise_lwt (Internal "[send_to_switch] not enough bytes written")
     else
@@ -79,9 +79,9 @@ let send_to_switch_fd (sock : file_descr) (xid : xid) (msg : message) : unit Lwt
       (Unix.error_message err);
     Lwt.return ()
 
-let switch_fds : (switchId, file_descr) Hashtbl.t = Hashtbl.create 101
+let switch_fds : (switchId, Lwt_unix.file_descr) Hashtbl.t = Hashtbl.create 101
 
-let fd_of_switch_id (sw:switchId) : file_descr option =
+let fd_of_switch_id (sw:switchId) : Lwt_unix.file_descr option =
   try 
     Some (Hashtbl.find switch_fds sw)
   with Not_found -> 
@@ -91,7 +91,7 @@ let disconnect_switch (sw:switchId) : unit Lwt.t =
   Log.printf "platform" "disconnect_switch\n%!";
   match fd_of_switch_id sw with 
   | Some fd -> 
-    lwt _ = close fd in
+    lwt _ = Lwt_unix.close fd in
     Hashtbl.remove switch_fds sw;
     Lwt.return ()
   | None -> 
@@ -103,11 +103,11 @@ let shutdown () : unit =
   | Some fd -> 
     Lwt.ignore_result 
       (iter_p 
-        (fun fd -> close fd)
+        (fun fd -> Lwt_unix.close fd)
         (Hashtbl.fold (fun _ fd l -> fd::l) switch_fds []))
   | None -> ()
 
-let switch_handshake (fd : file_descr) : features Lwt.t =
+let switch_handshake (fd : Lwt_unix.file_descr) : features Lwt.t =
   lwt _ = send_to_switch_fd fd 0l (Hello (Cstruct.of_string "")) in
   lwt resp = recv_from_switch_fd fd in 
   match resp with 
@@ -174,22 +174,22 @@ let rec recv_from_switch (sw : switchId) : (xid * message) Lwt.t =
   | None -> 
     raise_lwt (UnknownSwitch sw)
 
+(* TODO(arjun): a switch can stall during a handshake, while another
+   switch is ready to connect. To be fully robust, this module should
+   have a dedicated thread to accept TCP connections, a thread per new
+   connection to handle handshakes, and a queue of accepted switches.
+   Then, accept_switch will simply dequeue (or block if the queue is
+   empty). *)
 let rec accept_switch () =
   lwt server_fd = get_fd () in 
-  lwt (fd, sa) = accept server_fd in
+  lwt (fd, sa) = Lwt_unix.accept server_fd in
   Log.printf "platform" "%s connected, handshaking...\n%!"
     (string_of_sockaddr sa);
-  (* TODO(arjun): a switch can stall during a handshake, while another
-     switch is ready to connect. To be fully robust, this module should
-     have a dedicated thread to accept TCP connections, a thread per new
-     connection to handle handshakes, and a queue of accepted switches.
-     Then, accept_switch will simply dequeue (or block if the queue is
-     empty). *)
    try_lwt
      switch_handshake fd
    with UnknownSwitchDisconnected ->
      begin
-       lwt _ = close fd in
+       lwt _ = Lwt_unix.close fd in
        Log.printf "platform" "%s disconnected, trying again...\n%!"
          (string_of_sockaddr sa);
        accept_switch ()
