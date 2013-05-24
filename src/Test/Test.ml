@@ -2,6 +2,7 @@ open Printf
 open NetCore_Types.Internal
 open NetCore_Types.External
 open NetCore_Semantics
+open NetCore_Desugar
 open OUnit
 
 module TestClassifier = struct

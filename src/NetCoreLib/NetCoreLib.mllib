@@ -2,6 +2,7 @@ NetCore_Action
 NetCore_Classifier
 NetCore_Compiler
 NetCore_Controller
+NetCore_Desugar
 NetCore_Gensym
 NetCore_Lexer
 NetCore_MacLearning

@@ -110,7 +110,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
   let configure_switches push_pol sugared_pol_stream =
     Lwt_stream.iter
       (fun pol ->
-        let p = NetCore_Types.desugar genbucket genvlan pol get_pkt_handlers in
+        let p = NetCore_Desugar.desugar genbucket genvlan pol get_pkt_handlers in
         pol_now := p;
         push_pol (Some p))
       sugared_pol_stream
