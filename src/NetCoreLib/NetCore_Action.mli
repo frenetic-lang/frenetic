@@ -50,6 +50,7 @@ module Output : sig
   val updateSrcPort : int -> int -> t
   val updateDstPort : int -> int -> t
   val bucket : int -> t
+  (* val controller : (switchId portId -> packet -> t) -> t *)
   val as_actionSequence : portId option -> t -> OpenFlow0x01.Action.sequence
 end
 

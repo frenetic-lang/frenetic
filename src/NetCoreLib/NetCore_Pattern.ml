@@ -5,6 +5,7 @@ type port =
 | Physical of portId
 | All
 | Bucket of int
+| Here
 
 module PortOrderedType = struct
 
@@ -13,9 +14,10 @@ module PortOrderedType = struct
   let compare = Pervasives.compare
 
   let to_string = function
-    | Physical pid -> "P" ^ (portId_to_string pid)
+    | Physical pid -> "Physical " ^ (portId_to_string pid)
     | All -> "All"
-    | Bucket n -> "B" ^ (string_of_int n)
+    | Bucket n -> "Bucket " ^ (string_of_int n)
+    | Here -> "Here"
 
 end
 
