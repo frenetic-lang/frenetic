@@ -81,7 +81,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
   let rec handle_switch_messages sw = 
     lwt v = Platform.recv_from_switch sw in
     match v with
-      | (_, PacketInMsg pktIn) ->
+      | Some (_, PacketInMsg pktIn) ->
         handle_packet_in sw pktIn >> handle_switch_messages sw
       | _ -> handle_switch_messages sw
 
@@ -93,10 +93,10 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
      Lwt.return ())
 
   let rec accept_switches pol_stream = 
-    lwt features = Platform.accept_switch () in
-    Printf.eprintf "[NetCore_Controller.ml]: switch %Ld connected\n%!"
-      features.switch_id;
-    switch_thread features.switch_id pol_stream <&> accept_switches pol_stream
+    lwt feats = Platform.accept_switch () in
+    let sw = feats.switch_id in 
+    Printf.eprintf "[NetCore_Controller.ml]: switch %Ld connected\n%!" sw;
+    switch_thread sw pol_stream <&> accept_switches pol_stream
 
   let bucket_cell = ref 0 
   let vlan_cell = ref 0 
