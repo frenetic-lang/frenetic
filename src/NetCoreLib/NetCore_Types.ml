@@ -135,7 +135,9 @@ module Internal = struct
 end
 
 module External = struct
-  type get_packet_handler = OpenFlow0x01.switchId -> portId -> packet -> unit
+
+  type get_packet_handler = 
+      OpenFlow0x01.switchId -> Internal.port -> packet -> Internal.action
 
   type predicate =
   | And of predicate * predicate

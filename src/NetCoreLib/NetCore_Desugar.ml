@@ -32,9 +32,7 @@ let desugar
     | UpdateDstPort (old, new_) ->
       NetCore_Action.Output.updateDstPort old new_
     | GetPacket handler ->
-      let id = genbucket () in 
-      Hashtbl.add get_pkt_handlers id handler;
-      NetCore_Action.Output.bucket id in
+      NetCore_Action.Output.controller handler in
   let rec desugar_pred pred = match pred with
     | And (p1, p2) -> 
       PrAnd (desugar_pred p1, desugar_pred p2)

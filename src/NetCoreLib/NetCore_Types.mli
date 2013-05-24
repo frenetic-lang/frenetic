@@ -86,7 +86,7 @@ end
 module External : sig
 
   type get_packet_handler = 
-    OpenFlow0x01.switchId -> portId -> packet -> unit
+    OpenFlow0x01.switchId -> Internal.port -> packet -> Internal.action
 
   type predicate =
   | And of predicate * predicate

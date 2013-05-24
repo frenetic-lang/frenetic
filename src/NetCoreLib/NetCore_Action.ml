@@ -152,6 +152,9 @@ module Output = struct
   let bucket n =
     [ SwitchAction { unmodified with outPort = Bucket n } ]
 
+  let controller handler =
+    [ ControllerAction handler ]
+
   let updateDlSrc od nw =
     [ SwitchAction { unmodified with outDlSrc = Some (od, nw) } ]
 

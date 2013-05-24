@@ -1,6 +1,8 @@
 open Printf
 open Packet
 open OpenFlow0x01
+open NetCore_Types.Internal
+open NetCore_Action.Output
 open NetCore_Types.External
 
 module Learning = struct
@@ -38,19 +40,26 @@ module Learning = struct
 
   (** Stores a new switch * host * port tuple in the table, creates a
       new learning policy, and pushes that policy to the stream. *)
-  and learn_host sw pt pk : unit =
-    begin
-      printf "[MacLearning] at switch %Ld host %s at port %d\n%!"
-	    sw (string_of_mac pk.pktDlSrc) pt;
-      if Hashtbl.mem learned_hosts (sw, pk.pktDlSrc) then
-        printf "[MacLearning.ml] at switch %Ld, host %s at port %d (moved)\n%!"
-          sw (string_of_mac pk.pktDlSrc) pt
-      else
-        printf "[MacLearning.ml] at switch %Ld, host %s at port %d\n%!"
-          sw (string_of_mac pk.pktDlSrc) pt
-    end;
-    Hashtbl.replace learned_hosts (sw, pk.pktDlSrc) pt;
-    push (Some (make_learning_policy ()))
+  and learn_host sw pt pk  =
+    match pt with
+      | Physical pt ->
+        begin
+          begin
+            printf "[MacLearning] at switch %Ld host %s at port %d\n%!"
+	            sw (string_of_mac pk.pktDlSrc) pt;
+            if Hashtbl.mem learned_hosts (sw, pk.pktDlSrc) then
+              printf "[MacLearning.ml] at switch %Ld, host %s at port %d (moved)\n%!"
+                sw (string_of_mac pk.pktDlSrc) pt
+            else
+              printf "[MacLearning.ml] at switch %Ld, host %s at port %d\n%!"
+                sw (string_of_mac pk.pktDlSrc) pt
+          end;
+          Hashtbl.replace learned_hosts (sw, pk.pktDlSrc) pt;
+          push (Some (make_learning_policy ()));
+          drop
+        end
+      | _ -> drop
+          
   
   (** The initial value of the policy is to receives packets from all hosts. *)
 

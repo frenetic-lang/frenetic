@@ -27,10 +27,6 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
   let get_pkt_handlers : (int, get_packet_handler) Hashtbl.t = 
     Hashtbl.create 200
 
-  let apply_bucket (bucket_id, sw, pt, pk) : unit =
-    let handler = Hashtbl.find get_pkt_handlers bucket_id in
-    handler sw pt pk
-
   (* used to initialize newly connected switches and handle packet-in 
      messages *)
   let pol_now : pol ref = ref init_pol
