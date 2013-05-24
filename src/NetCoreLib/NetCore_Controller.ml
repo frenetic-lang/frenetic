@@ -67,16 +67,16 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     match pkt_in.packetInBufferId with
       | None -> Lwt.return ()
       | Some bufferId ->
-        let inp = Pkt (sw, Internal.Physical pkt_in.packetInPort,
+        let in_port = pkt_in.packetInPort in
+        let inp = Pkt (sw, Internal.Physical in_port,
                        pkt_in.packetInPacket, Buf bufferId ) in
-        let outs = NetCore_Semantics.classify !pol_now inp in
-        let for_buckets =
-          List.fold_right
-            (fun oo acc -> match for_bucket pkt_in.packetInPort oo with
-              | None -> acc
-              | Some o -> o ::acc) outs [] in
-        List.iter apply_bucket for_buckets;
-        Lwt.return ()
+        let action = NetCore_Semantics.eval !pol_now inp in
+        let outp = { 
+          pktOutBufOrBytes = Buffer bufferId; 
+          pktOutPortId = None;
+          pktOutActions = NetCore_Action.Output.as_actionSequence
+            (Some in_port) action } in
+        Platform.send_to_switch sw 0l (PacketOutMsg outp)
 
   let rec handle_switch_messages sw = 
     lwt v = Platform.recv_from_switch sw in

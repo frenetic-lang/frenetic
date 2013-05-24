@@ -1,3 +1,4 @@
+open Packet
 open Printf
 open NetCore_Types.Internal
 open NetCore_Types.External
@@ -40,6 +41,16 @@ module TestClassifier = struct
          (fun (label, expected, calculated) ->
            label >:: fun () -> 
              assert_equal ~printer:C.to_string expected calculated)
+         lst)
+
+  let eval_tests group_label lst = 
+    group_label >:::
+      (List.map
+         (fun (label, expected_action, input_pol, input_val) ->
+           label >:: fun () -> 
+             assert_equal ~printer:NetCore_Action.Output.to_string 
+               expected_action
+               (NetCore_Semantics.eval input_pol input_val))
          lst)
 
   let netcore_tests group_label lst = 
@@ -93,7 +104,8 @@ module TestClassifier = struct
         [(dlSrc 0xDDDDL, forward 2); (all, drop)]
         [(dlDst 0xEEEEL, pass); (all, drop)]);
      ("union regression 1",
-      [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), par_action (forward 2) (forward 30));
+      [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL),
+        par_action (forward 2) (forward 30));
        (dlSrc 0xDDDDL, forward 2);
        (dlDst 0xEEEEL, forward 30);
        (all, drop)],
@@ -147,12 +159,53 @@ module TestClassifier = struct
               (PrHdr (inPort (Physical 2)),
                PoAction (forward 1),
                PoAction pass)),
-         PoAction pass))]
+         PoAction pass));
+     ("sequencing 1",
+      [(dlVlan None, updateDlVlan None (Some 1));
+       (all, drop)],
+      1L,
+      PoSeq (PoAction (updateDlVlan None (Some 1)),
+             PoFilter (PrHdr (dlVlan (Some 1)))))]
 
-  let go =
-    TestList [test0; test1; test2; 
-              classifier_tests "classifier tests" lst;
-              netcore_tests "NetCore tests" lst2]
+  let pk = {
+    pktDlSrc = 0L;
+    pktDlDst = 0L;
+    pktDlTyp = 0x800;
+    pktDlVlan = None;
+    pktDlVlanPcp = 0;
+    pktNwHeader = NwUnparsable (0x800, Cstruct.create 8) 
+  }
+
+  let inp = Pkt (1L, Physical 1, pk, Buf 0l)
+
+  let lst3 =
+    [("sequencing 1",
+      updateDlVlan None (Some 1),
+      PoSeq (PoAction (updateDlVlan None (Some 1)),
+             PoFilter (PrHdr (dlVlan (Some 1)))),
+      inp);
+     ("filtering 1",
+      pass,
+      PoFilter (PrHdr (dlVlan (Some 1))),
+      Pkt (1L, Physical 1, { pk with pktDlVlan = Some 1 }, Buf 0l));
+     ("updating 1",
+      updateDlVlan None (Some 1),
+      PoAction (updateDlVlan None (Some 1)),
+      Pkt (1L, Physical 1, pk, Buf 0l))]
+      
+
+  let go = TestList 
+    [ test0; test1; test2; 
+      classifier_tests "classifier tests" lst;
+      netcore_tests "NetCore tests" lst2;
+      eval_tests "NetCore semantics tests" lst3;
+      ("eval_action update" >::
+          fun () ->
+            assert_equal
+              [Pkt (1L, Physical 1, { pk with pktDlVlan = Some 1 }, Buf 0l)]
+              (eval_action (Pkt (1L, Physical 1, pk, Buf 0l))
+                 (updateDlVlan None (Some 1))))
+    ]
 
 end
 
