@@ -12,6 +12,8 @@ let rec filter_map f xs = match xs with
     | Some y -> y :: (filter_map f xs')
     | None -> filter_map f xs'
 
+let filter_none = filter_map (fun x -> x)
+
 module type ACTION = sig
   type t
 
@@ -25,17 +27,15 @@ module type ACTION = sig
 
   val pass : t
 
-  val apply_atom : e -> (port * packet) -> (port * packet) option
-
-  val apply_action : t -> (port * packet) -> (port * packet) list
+  val apply_action : t -> lp -> lp list
 
   val par_action : t -> t -> t
 
   val seq_action : t -> t -> t
 
-  val restrict_range : e -> NetCore_Pattern.t -> NetCore_Pattern.t
+  val restrict_range : e -> ptrn -> ptrn
 
-  val domain : e -> NetCore_Pattern.t
+  val domain : e -> ptrn
 
   val to_string : t -> string
 
@@ -55,9 +55,14 @@ module Bool = struct
 
   let to_action b = b
 
-  let apply_atom b ptpk = if b then Some ptpk else None
+  let apply_atom b lp = if b then Some lp else None
 
-  let apply_action action ptpk = List.fold_right (fun a acc -> match apply_atom a ptpk with None -> acc | Some a' -> a'::acc) (atoms action) []
+  let apply_action action lp = 
+    List.fold_right 
+      (fun a acc -> match apply_atom a lp with 
+          None -> acc
+        | Some a' -> a'::acc) 
+      (atoms action) []
 
   let par_action b1 b2 = b1 || b2
 
@@ -105,13 +110,19 @@ module Output = struct
         (port_to_string out.outPort)
         mods
 
+  let string_of_action_atom atom = match atom with
+    | SwitchAction output -> "SwitchAction " ^ (string_of_output output)
+    | ControllerAction _ -> "ControllerAction _"
+
+  type action = action_atom list
+
   let to_string output_list =
     Printf.sprintf "[%s]"
-      (String.concat ", " (List.map string_of_output output_list))
+      (String.concat ", " (List.map string_of_action_atom output_list))
 
-  type e = output
+  type e = action_atom
 
-  type t = output list
+  type t = e list
 
   let atoms act = act
 
@@ -131,38 +142,70 @@ module Output = struct
       outTpDst = None;
       outPort = Here }
 
-  let pass = [unmodified]
+  let pass = [SwitchAction unmodified]
 
   let forward pt =
-    [ { unmodified with outPort = Physical pt } ]
+    [ SwitchAction { unmodified with outPort = Physical pt } ]
 
-  let to_all = [ { unmodified with outPort = All } ]
+  let to_all = [ SwitchAction { unmodified with outPort = All } ]
 
   let bucket n =
-    [ { unmodified with outPort = Bucket n } ]
+    [ SwitchAction { unmodified with outPort = Bucket n } ]
 
   let updateDlSrc od nw =
-    [ { unmodified with outDlSrc = Some (od, nw) } ]
+    [ SwitchAction { unmodified with outDlSrc = Some (od, nw) } ]
 
   let updateDlDst od nw =
-    [ { unmodified with outDlDst = Some (od, nw) } ]
+    [ SwitchAction { unmodified with outDlDst = Some (od, nw) } ]
 
   let updateDlVlan od nw =
-    [ { unmodified with outDlVlan = Some (od,nw) } ]
+    [ SwitchAction { unmodified with outDlVlan = Some (od,nw) } ]
 
   let updateSrcIP old new_ = 
-    [ { unmodified with outNwSrc = Some (old, new_) } ]
+    [ SwitchAction { unmodified with outNwSrc = Some (old, new_) } ]
 
   let updateDstIP old new_ = 
-    [ { unmodified with outNwDst = Some (old, new_) } ]
+    [ SwitchAction { unmodified with outNwDst = Some (old, new_) } ]
 
   let updateSrcPort old new_ = 
-    [ { unmodified with outTpSrc = Some (old, new_) } ]
+    [ SwitchAction { unmodified with outTpSrc = Some (old, new_) } ]
 
   let updateDstPort old new_ = 
-    [ { unmodified with outTpDst = Some (old, new_) } ]
+    [ SwitchAction { unmodified with outTpDst = Some (old, new_) } ]
+
+  let maybe_modify nw modifier pk = match nw with
+    | Some (a,v) ->
+      modifier pk v
+    | None ->
+      pk
+
+  let apply_output out (sw,pt,pkt) =
+    let pt' = match out.outPort with
+      | Here -> pt
+      | pt -> pt in
+    Some (sw, pt',
+         (maybe_modify out.outDlSrc Packet.setDlSrc
+         (maybe_modify out.outDlDst Packet.setDlDst
+         (maybe_modify out.outDlVlan Packet.setDlVlan
+         (maybe_modify out.outDlVlanPcp Packet.setDlVlanPcp
+         (maybe_modify out.outNwSrc Packet.setNwSrc
+         (maybe_modify out.outNwDst Packet.setNwDst
+         (maybe_modify out.outNwTos Packet.setNwTos
+         (maybe_modify out.outTpSrc Packet.setTpSrc
+         (maybe_modify out.outTpDst Packet.setTpDst pkt))))))))))
+
+  let rec apply_atom atom (sw,pt,pk) = match atom with
+    | SwitchAction out -> begin match apply_output out (sw,pt,pk) with
+        | None -> []
+        | Some lp -> [lp]
+    end
+    | ControllerAction f -> apply_action (f sw pt pk) (sw, pt, pk)
+
+  and apply_action act lp = concat_map (fun a -> apply_atom a lp) act
 
   let par_action act1 act2 = act1 @ act2
+
+  let par_actions = List.concat
 
   let seq_mod beq m1 m2 =
     match m1,m2 with
@@ -173,11 +216,10 @@ module Output = struct
     | None,_ ->
       Some m2
 
-  let seq_port pt1 pt2 =
-    match pt1,pt2 with
-      | Here, _ -> pt2
-      | _, Here -> pt1
-      | _ -> pt2
+  let seq_port pt1 pt2 = match (pt1, pt2) with
+    | Here, _ -> pt2
+    | _, Here -> pt1
+    | _ -> pt2
 
   let seq_output out1 out2 = match
       (seq_mod (=) out1.outDlSrc out2.outDlSrc,
@@ -213,16 +255,41 @@ module Output = struct
   let cross lst1 lst2 = 
     concat_map (fun a -> map (fun b -> (a, b)) lst2) lst1
 
+  let rec seq_action_atom atom1 atom2 = match (atom1, atom2) with
+    | SwitchAction out1, SwitchAction out2 -> 
+      begin match seq_output out1 out2 with
+        | Some out3 -> Some (SwitchAction out3)
+        | None -> None
+      end
+    | ControllerAction f, ControllerAction g ->
+      Some
+        (ControllerAction 
+           (fun sw pt pk ->
+             (* 1st action produces new packets *) 
+             let lps = apply_action (f sw pt pk) (sw, pt, pk) in 
+             (* 2nd action is applied to the new packets, to get joint action *)
+             par_actions (List.map (fun (sw', pt', pk') -> g sw' pt' pk') lps)))
+    | SwitchAction out, ControllerAction g ->
+      Some 
+        (ControllerAction
+           (fun sw pt pk ->
+             match apply_output out (sw, pt, pk) with
+               | None -> drop
+               | Some (sw', pt', pk') -> g sw' pt' pk'))
+    | ControllerAction f, SwitchAction out ->
+      Some 
+        (ControllerAction
+           (fun sw pt pk ->
+             let atoms1 = f sw pt pk in
+             filter_none
+               (List.map
+                  (fun atom1 -> seq_action_atom atom1 (SwitchAction out))
+                  atoms1)))
+
   let seq_action act1 act2 =
     filter_map
-      (fun (o1,o2) -> seq_output o1 o2)
+      (fun (o1,o2) -> seq_action_atom o1 o2)
       (cross act1 act2)
-
-  let maybe_modify nw modifier pk = match nw with
-    | Some (a,v) ->
-      modifier pk v
-    | None ->
-      pk
 
   (* JNF: seriously? *)
   let withVlanNone = function
@@ -235,21 +302,6 @@ module Output = struct
   | Some (None, None) ->
     Some (None, None)
   | None -> None
-
-  let apply_atom out (pt,pkt) =
-    let pt' = match out.outPort with
-      | Here -> pt
-      | pt -> pt in
-    Some (pt',
-         (maybe_modify out.outDlSrc Packet.setDlSrc
-         (maybe_modify out.outDlDst Packet.setDlDst
-         (maybe_modify out.outDlVlan Packet.setDlVlan
-         (maybe_modify out.outDlVlanPcp Packet.setDlVlanPcp
-         (maybe_modify out.outNwSrc Packet.setNwSrc
-         (maybe_modify out.outNwDst Packet.setNwDst
-         (maybe_modify out.outNwTos Packet.setNwTos
-         (maybe_modify out.outTpSrc Packet.setTpSrc
-         (maybe_modify out.outTpDst Packet.setTpDst pkt))))))))))
 
   let trans maybe_mod build_singleton set_wild pat =
     match maybe_mod with
@@ -281,20 +333,27 @@ module Output = struct
    *      v with None in pat.
    *    - if out does not update f, leave pat unchanged w.r.t. f.
    *)
-  let restrict_range out pat =
+  let restrict_range_switch out pat =
     let open NetCore_Pattern in
     restrict_port out.outPort
+      (* TODO(arjun): Fill in the rest!!!! *)
       (trans out.outDlSrc dlSrc wildcardDlSrc
         (trans out.outDlDst dlDst wildcardDlDst
           (trans out.outDlVlan dlVlan wildcardDlVlan pat)))
 
-  let domain out =
-    fold_right
-      NetCore_Pattern.inter
-      [ sel NetCore_Pattern.dlSrc out.outDlSrc
-      ; sel NetCore_Pattern.dlDst out.outDlDst
-      ; sel NetCore_Pattern.dlVlan out.outDlVlan ]
-      NetCore_Pattern.all
+  let restrict_range atom pat = match atom with
+    | SwitchAction out -> restrict_range_switch out pat
+    | ControllerAction _ -> pat
+
+  let domain atom = match atom with
+    | SwitchAction out -> 
+      fold_right
+        NetCore_Pattern.inter
+        [ sel NetCore_Pattern.dlSrc out.outDlSrc
+        ; sel NetCore_Pattern.dlDst out.outDlDst
+        ; sel NetCore_Pattern.dlVlan out.outDlVlan ]
+        NetCore_Pattern.all
+    | ControllerAction _ -> NetCore_Pattern.all
 
   let set upd mk lst = match upd with
     | Some (_,nw) ->
@@ -350,12 +409,14 @@ module Output = struct
           (unmodify out))
     | Bucket n ->
       [ Output (PseudoPort.Controller 65535) ]
+   
+  let atom_to_of inp atom = match atom with
+    | SwitchAction out -> output_to_of inp out
+    | ControllerAction _ -> [ Output (PseudoPort.Controller 65535) ]
 
-  let as_actionSequence inp act =
-    concat_map (output_to_of inp) act
+  let as_actionSequence inp act = 
+    concat_map (atom_to_of inp) act
 
-  let apply_action act ptpk =
-    filter_map (fun a -> apply_atom a ptpk) act
 
   (* TODO(arjun): What if they are permutations? *)
   let is_equal x y = x = y

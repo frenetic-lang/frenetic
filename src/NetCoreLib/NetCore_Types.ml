@@ -12,6 +12,8 @@ module Internal = struct
     | Bucket of int
     | Here
 
+  type lp = OpenFlow0x01.switchId * port * packet
+
   type ptrn = {
     ptrnDlSrc : dlAddr wildcard;
     ptrnDlDst : dlAddr wildcard;
@@ -42,7 +44,11 @@ module Internal = struct
     outPort : port 
   }
 
-  type action = output list
+  type action_atom =
+    | SwitchAction of output
+    | ControllerAction of (OpenFlow0x01.switchId -> port -> packet -> action)
+
+  and action = action_atom list
 
   type pred =
   | PrHdr of ptrn

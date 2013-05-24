@@ -22,8 +22,8 @@ let rec match_pred pr sw pt pk =
 
 let eval_action inp act =
   let Pkt (sw, pt, pk, pay) = inp in
-  List.map (fun (pt',pk') -> Pkt (sw, pt', pk', pay))
-    (NetCore_Action.Output.apply_action act (pt, pk))
+  List.map (fun (sw', pt',pk') -> Pkt (sw', pt', pk', pay))
+    (NetCore_Action.Output.apply_action act (sw, pt, pk))
 
 let rec classify p inp = match p with 
   | PoAction action -> 

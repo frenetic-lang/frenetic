@@ -20,9 +20,7 @@ module type ACTION =
   
   val pass : t
   
-  val apply_atom : e -> (port * packet) -> (port * packet) option
-  
-  val apply_action : t -> (port * packet) -> (port * packet) list
+  val apply_action : t -> lp -> lp list
   
   val par_action : t -> t -> t
   
@@ -40,7 +38,7 @@ module type ACTION =
 
 module Output : sig
   include ACTION
-    with type e = output 
+    with type e = action_atom
     and type t = action
   val forward : portId -> t
   val to_all : t

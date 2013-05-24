@@ -399,7 +399,7 @@ module Helper = struct
 
     let Pkt (in_sid, in_port, _, _) = in_val in
     let expected_pkts =
-      List.map (fun (Pkt (_, pr, p, _)) -> (pr, p)) expected_vals in
+      List.map (fun (Pkt (sw, pr, p, _)) -> (sw, pr, p)) expected_vals in
 
     (* Test the semantic interpretation. *)
     let vals = classify ds_pol in_val in
@@ -418,12 +418,14 @@ module Helper = struct
       ();
 
     let act = C.scan classifier in_port in_pkt in
-    let pkts = NetCore_Action.Output.apply_action act (in_port, in_pkt) in
+    let pkts = NetCore_Action.Output.apply_action act 
+      (in_sid, in_port, in_pkt) in
     let classifier_test =
       (name ^ " (classifier) test") >:: fun () ->
         assert_equal
           ~printer:(Frenetic_Misc.string_of_list
-            (Frenetic_Misc.string_of_pair port_to_string packet_to_string))
+                      (fun (_, pt, pk) ->
+                        (Frenetic_Misc.string_of_pair port_to_string packet_to_string) (pt,pk)))
           expected_pkts pkts in
     TestList [ sem_test; classifier_test ]
 
