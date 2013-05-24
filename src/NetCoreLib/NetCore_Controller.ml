@@ -14,7 +14,7 @@ let init_pol : pol = Internal.PoFilter Internal.PrNone
 let for_bucket (in_port : portId) (pkt : Internal.value) =
   let open Internal in
   match pkt with
-  | Pkt (swId, NetCore_Pattern.Bucket n, pkt, _) -> Some (n, swId, in_port, pkt)
+  | Pkt (swId, Internal.Bucket n, pkt, _) -> Some (n, swId, in_port, pkt)
   | _ -> None
 
 module type MAKE  = functor (Platform : OpenFlow0x01.PLATFORM) -> 
@@ -67,9 +67,9 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     match pkt_in.packetInBufferId with
       | None -> Lwt.return ()
       | Some bufferId ->
-        let inp = Pkt (sw, NetCore_Pattern.Physical pkt_in.packetInPort,
+        let inp = Pkt (sw, Internal.Physical pkt_in.packetInPort,
                        pkt_in.packetInPacket, Buf bufferId ) in
-        let outs = classify !pol_now inp in
+        let outs = NetCore_Semantics.classify !pol_now inp in
         let for_buckets =
           List.fold_right
             (fun oo acc -> match for_bucket pkt_in.packetInPort oo with
@@ -110,7 +110,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
   let configure_switches push_pol sugared_pol_stream =
     Lwt_stream.iter
       (fun pol ->
-        let p = NetCore_Types.desugar genbucket genvlan pol get_pkt_handlers in
+        let p = NetCore_Desugar.desugar genbucket genvlan pol get_pkt_handlers in
         pol_now := p;
         push_pol (Some p))
       sugared_pol_stream

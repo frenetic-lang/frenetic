@@ -1,6 +1,6 @@
 open OpenFlow0x01
 open Packet
-open NetCore_Pattern
+open NetCore_Types.Internal
 
 val concat_map : ('a -> 'b list) -> 'a list -> 'b list
 
@@ -28,9 +28,9 @@ module type ACTION =
   
   val seq_action : t -> t -> t
   
-  val restrict_range : e -> NetCore_Pattern.t -> NetCore_Pattern.t
+  val restrict_range : e -> ptrn -> ptrn
   
-  val domain : e -> NetCore_Pattern.t
+  val domain : e -> ptrn
 
   val to_string : t -> string
 
@@ -40,6 +40,8 @@ module type ACTION =
 
 module Output : sig
   include ACTION
+    with type e = output 
+    and type t = action
   val forward : portId -> t
   val to_all : t
   val updateDlSrc : Int64.t -> Int64.t -> t
@@ -50,6 +52,7 @@ module Output : sig
   val updateSrcPort : int -> int -> t
   val updateDstPort : int -> int -> t
   val bucket : int -> t
+  (* val controller : (switchId portId -> packet -> t) -> t *)
   val as_actionSequence : portId option -> t -> OpenFlow0x01.Action.sequence
 end
 

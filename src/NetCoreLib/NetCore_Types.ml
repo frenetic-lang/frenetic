@@ -3,8 +3,49 @@ open Packet
 open Format
 
 module Internal = struct
+
+  type 'a wildcard = 'a NetCore_Wildcard.wildcard
+
+  type port =
+    | Physical of portId
+    | All
+    | Bucket of int
+    | Here
+
+  type ptrn = {
+    ptrnDlSrc : dlAddr wildcard;
+    ptrnDlDst : dlAddr wildcard;
+    ptrnDlType : dlTyp wildcard;
+    ptrnDlVlan : dlVlan wildcard;
+    ptrnDlVlanPcp : dlVlanPcp wildcard;
+    ptrnNwSrc : nwAddr wildcard;
+    ptrnNwDst : nwAddr wildcard;
+    ptrnNwProto : nwProto wildcard;
+    ptrnNwTos : nwTos wildcard;
+    ptrnTpSrc : tpPort wildcard;
+    ptrnTpDst : tpPort wildcard;
+    ptrnInPort : port wildcard
+  }
+
+  type 'a match_modify = ('a * 'a) option
+
+  type output = {
+    outDlSrc : dlAddr match_modify;
+    outDlDst : dlAddr match_modify;
+    outDlVlan : dlVlan match_modify;
+    outDlVlanPcp : dlVlanPcp match_modify;
+    outNwSrc : nwAddr match_modify;
+    outNwDst : nwAddr match_modify;
+    outNwTos : nwTos match_modify;
+    outTpSrc : tpPort match_modify;
+    outTpDst : tpPort match_modify;
+    outPort : port 
+  }
+
+  type action = output list
+
   type pred =
-  | PrHdr of NetCore_Pattern.t
+  | PrHdr of ptrn
   | PrOnSwitch of OpenFlow0x01.switchId
   | PrOr of pred * pred
   | PrAnd of pred * pred
@@ -13,7 +54,7 @@ module Internal = struct
   | PrNone
 
   type pol =
-  | PoAction of NetCore_Action.Output.t
+  | PoAction of action
   | PoFilter of pred
   | PoUnion of pol * pol
   | PoSeq of pol * pol
@@ -24,52 +65,11 @@ module Internal = struct
   | Data of bytes 
 
   type value =
-  | Pkt of OpenFlow0x01.switchId * NetCore_Pattern.port * packet * payload
-
-  let rec match_pred pr sw pt pk =
-    match pr with
-    | PrHdr pat -> 
-      NetCore_Pattern.match_packet pt pk pat
-    | PrOnSwitch sw' -> 
-      if sw = sw' then true else false
-    | PrOr (p1, p2) -> 
-      (||) (match_pred p1 sw pt pk) (match_pred p2 sw pt pk)
-    | PrAnd (p1, p2) -> 
-      (&&) (match_pred p1 sw pt pk) (match_pred p2 sw pt pk)
-    | PrNot p' -> 
-      not (match_pred p' sw pt pk)
-    | PrAll -> 
-      true
-    | PrNone -> 
-      false
-
-  let serialize_pkt = Packet_Parser.serialize_packet
-
-  let eval_action inp act =
-    let Pkt (sw, pt, pk, pay) = inp in
-    map (fun (pt',pk') -> Pkt (sw, pt', pk', pay))
-      (NetCore_Action.Output.apply_action act (pt, pk))
-
-  let rec classify p inp = match p with 
-    | PoAction action -> 
-      eval_action inp action
-    | PoFilter pred0 ->
-      let Pkt (sw, pt, pk, buf) = inp in
-      if match_pred pred0 sw pt pk then [inp] else []
-    | PoUnion (p1, p2) -> 
-      classify p1 inp @ classify p2 inp
-    | PoSeq (p1, p2) -> 
-      NetCore_Action.concat_map (classify p2) (classify p1 inp)
-    | PoITE (pred, then_pol, else_pol) ->
-      let Pkt (sw, pt, pk, buf) = inp in
-      if match_pred pred sw pt pk then
-        classify then_pol inp
-      else
-        classify else_pol inp
+  | Pkt of OpenFlow0x01.switchId * port * packet * payload
 
   let rec format_pred fmt pred = match pred with 
-    | PrHdr pat -> 
-      fprintf fmt "@[PrHdr@;<1 2>@[%a@]@]" NetCore_Pattern.to_format pat
+    | PrHdr pat -> failwith "NYI"
+      (* fprintf fmt "@[PrHdr@;<1 2>@[%a@]@]" NetCore_Pattern.to_format pat *)
     | PrOnSwitch sw ->
       fprintf fmt "@[PrOnSwitch %Lx@]" sw
     | PrOr (p1,p2) ->
@@ -94,8 +94,8 @@ module Internal = struct
     Buffer.contents buf
 
   let rec format_pol fmt pol = match pol with
-    | PoAction a -> 
-      fprintf fmt "@[PoAction@;<1 2>@[%s@]@]" (NetCore_Action.Output.to_string a)
+    | PoAction a -> failwith "NYI "
+      (* fprintf fmt "@[PoAction@;<1 2>@[%s@]@]" (NetCore_Action.Output.to_string a) *)
     | PoFilter pr -> 
       fprintf fmt "@[PoFilter@;<1 2>(@[%a@])@]" format_pred pr
     | PoUnion (p1,p2) -> 
@@ -116,10 +116,16 @@ module Internal = struct
     fprintf fmt "@?";
     Buffer.contents buf
 
+  let port_to_string = function
+    | Physical pid -> "Physical " ^ (portId_to_string pid)
+    | All -> "All"
+    | Bucket n -> "Bucket " ^ (string_of_int n)
+    | Here -> "Here"
+
   let value_to_string = function 
     | Pkt (sid, port, pkt, pay) ->
       Printf.sprintf "(%Ld, %s, %s, _)" 
-        sid (NetCore_Pattern.string_of_port port) (packet_to_string pkt)
+        sid (port_to_string port) (packet_to_string pkt)
 end
 
 module External = struct
@@ -315,133 +321,3 @@ module External = struct
                       "modifies VLANs.")
     else ()
 end
-
-let desugar 
-  (genbucket : unit -> int)
-  (genvlan : unit -> int option)
-  (pol : External.policy) 
-  (get_pkt_handlers : (int, External.get_packet_handler) Hashtbl.t) :
-  Internal.pol =
-  let open Internal in
-  let open External in
-  let desugar_act act = match act with
-    | Pass -> NetCore_Action.Output.pass
-    | Drop -> NetCore_Action.Output.drop
-    | To pt -> 
-      NetCore_Action.Output.forward pt
-    | ToAll -> 
-      NetCore_Action.Output.to_all
-    | UpdateDlSrc(old,new0) -> 
-      NetCore_Action.Output.updateDlSrc old new0
-    | UpdateDlDst(old,new0) -> 
-      NetCore_Action.Output.updateDlDst old new0
-    | UpdateDlVlan(old,new0) -> 
-      NetCore_Action.Output.updateDlVlan old new0
-    | UpdateSrcIP (old, new_) ->
-      NetCore_Action.Output.updateSrcIP old new_
-    | UpdateDstIP (old, new_) ->
-      NetCore_Action.Output.updateDstIP old new_
-    | UpdateSrcPort (old, new_) ->
-      NetCore_Action.Output.updateSrcPort old new_
-    | UpdateDstPort (old, new_) ->
-      NetCore_Action.Output.updateDstPort old new_
-    | GetPacket handler ->
-      let id = genbucket () in 
-      Hashtbl.add get_pkt_handlers id handler;
-      NetCore_Action.Output.bucket id in
-  let rec desugar_pred pred = match pred with
-    | And (p1, p2) -> 
-      PrAnd (desugar_pred p1, desugar_pred p2)
-    | Or (p1, p2) ->
-      PrOr (desugar_pred p1, desugar_pred p2)
-    | Not p -> PrNot (desugar_pred p)
-    | All -> 
-      PrAll
-    | NoPackets -> 
-      PrNone
-    | Switch swId -> 
-      PrOnSwitch swId
-    | InPort pt -> 
-      PrHdr (NetCore_Pattern.inPort (NetCore_Pattern.Physical pt))
-    | DlSrc n -> 
-      PrHdr (NetCore_Pattern.dlSrc n)
-    | DlDst n -> 
-      PrHdr (NetCore_Pattern.dlDst n)
-    | DlVlan n -> 
-      PrHdr (NetCore_Pattern.dlVlan n)
-    | SrcIP n -> 
-      PrHdr (NetCore_Pattern.ipSrc n)
-    | DstIP n -> 
-      PrHdr (NetCore_Pattern.ipDst n)
-    | TcpSrcPort n -> 
-      PrHdr (NetCore_Pattern.tcpSrcPort n)
-    | TcpDstPort n -> 
-      PrHdr (NetCore_Pattern.tcpDstPort n) in
-  let rec desugar_pol curr pol = match pol with 
-    | Act action -> 
-      let pol' = PoAction (desugar_act action) in 
-      let slice' = [] in 
-      (pol', slice')
-    | Filter pred -> 
-      let pol' = PoFilter (desugar_pred pred) in 
-      let slice' = [] in
-      (pol', slice')
-    | Par (pol1, pol2) ->
-      let pol1',slice1 = desugar_pol curr pol1 in  
-      let pol2',slice2 = desugar_pol curr pol2 in  
-      let pol' = PoUnion (pol1', pol2') in 
-      let slice' = slice1 @ slice2 in 
-      (pol', slice')
-    | Seq (pol1, pol2) ->
-      let pol1',slice1 = desugar_pol curr pol1 in  
-      let pol2',slice2 = desugar_pol curr pol2 in  
-      let pol' = PoSeq (pol1', pol2') in 
-      let slice' = slice1 @ slice2 in 
-      (pol', slice')
-    | ITE (pred, then_pol, else_pol) ->
-      let (then_po, slice1) = desugar_pol curr then_pol in
-      let (else_po, slice2) = desugar_pol curr else_pol in
-      (PoITE (desugar_pred pred, then_po, else_po), 
-       slice1 @ slice2)
-    | Empty -> 
-      let pol' = PoFilter PrNone in 
-      let slice' = [] in 
-      (pol', slice') 
-    | Slice(sin, spol, sout) -> 
-
-      (* Informal slicing strategy:
-       *
-       *     {in} P {out} -->
-       *
-       *     (curr && in; set vlan := next) | next || rec; 
-       *     P;
-       *     (next && out; set vlan := curr) | -(next && out)
-       *)
-
-      let next = genvlan () in 
-      let sin' = desugar_pred sin in 
-      let sout' = desugar_pred sout in 
-      let spol',sslice' = desugar_pol next spol in 
-      let pred_rec = 
-        if List.length sslice' > 0 then
-          List.fold_left 
-            (fun acc s -> PrAnd(acc, PrHdr(NetCore_Pattern.dlVlan s)))
-            PrAll sslice'
-        else 
-          PrNone in
-      let pred_curr = PrHdr(NetCore_Pattern.dlVlan(curr)) in 
-      let pred_next = PrHdr(NetCore_Pattern.dlVlan(next)) in 
-      let pol1' = 
-        PoUnion ( PoSeq ( PoFilter(PrAnd(pred_curr, sin'))
-                        , PoAction (NetCore_Action.Output.updateDlVlan curr next))
-                , PoFilter (PrOr (pred_next, pred_rec))) in 
-      let pol2' = spol' in 
-      let pol3' = 
-        PoUnion ( PoSeq ( PoFilter(PrAnd(pred_next, sout'))
-                        , PoAction (NetCore_Action.Output.updateDlVlan next curr))
-                , PoFilter(PrNot(PrAnd(pred_next, sout')))) in 
-      let pol' = PoSeq(pol1', PoSeq(pol2', pol3')) in 
-      let slice' = next::sslice' in 
-      (pol', slice') in 
-  Hashtbl.clear get_pkt_handlers;
-  fst (desugar_pol None pol)

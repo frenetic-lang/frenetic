@@ -1,11 +1,13 @@
+type 'a wildcard =
+  | WildcardExact of 'a
+  | WildcardAll
+  | WildcardNone
+
 module type Wildcard = sig
 
   type a
 
-  type t = 
-    | WildcardExact of a
-    | WildcardAll
-    | WildcardNone
+  type t = a wildcard
 
   val is_equal : t -> t -> bool
   val contains : t -> t -> bool
@@ -27,10 +29,7 @@ module Make (Ord : OrderedType) = struct
 
   type a = Ord.t
 
-  type t = 
-    | WildcardExact of a
-    | WildcardAll
-    | WildcardNone
+  type t = a wildcard
 
   let is_equal x y = match (x, y) with
     | WildcardExact a, WildcardExact b -> Ord.compare a b = 0

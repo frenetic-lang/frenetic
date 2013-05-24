@@ -1,6 +1,8 @@
 open Printf
 open NetCore_Types.Internal
 open NetCore_Types.External
+open NetCore_Semantics
+open NetCore_Desugar
 open OUnit
 
 module TestClassifier = struct
@@ -383,7 +385,7 @@ module Helper = struct
 
   let in_val =
     Pkt ( Int64.one
-        , (NetCore_Pattern.Physical 1)
+        , (Physical 1)
         , in_pkt
         , (Buf Int32.zero))
 
@@ -421,7 +423,7 @@ module Helper = struct
       (name ^ " (classifier) test") >:: fun () ->
         assert_equal
           ~printer:(Frenetic_Misc.string_of_list
-            (Frenetic_Misc.string_of_pair NetCore_Pattern.string_of_port packet_to_string))
+            (Frenetic_Misc.string_of_pair port_to_string packet_to_string))
           expected_pkts pkts in
     TestList [ sem_test; classifier_test ]
 
@@ -433,7 +435,7 @@ module TestFilters = struct
   open Helper
 
   let test1 =
-    let policy = Filter All in
+    let policy = Filter NetCore_Types.External.All in
     mkEvalTest "filter true" policy in_val [in_val]
 
   let test2 =
@@ -468,7 +470,7 @@ module TestMods = struct
           , Seq ( Act ToAll
                 , Act (UpdateDlVlan ((Some 1), None)))) in
     let Pkt (sid, port, pkt, payload) = in_val in
-    let expected_vals = [Pkt (sid, NetCore_Pattern.All, pkt, payload)] in
+    let expected_vals = [Pkt (sid, NetCore_Types.Internal.All, pkt, payload)] in
     mkEvalTest "mod no effect 2" policy in_val expected_vals
 
   let test4 = 
@@ -498,9 +500,10 @@ module TestSlices = struct
   open Helper
 
   let test1 =
-    let policy = Slice (All, Act ToAll, All) in
+    let policy = Slice (NetCore_Types.External.All, Act ToAll,
+                        NetCore_Types.External.All) in
     let Pkt (sid, port, expected_pkt, payload) = in_val in
-    let expected_val = Pkt ( sid, (NetCore_Pattern.All), expected_pkt, payload) in
+    let expected_val = Pkt ( sid, All, expected_pkt, payload) in
     mkEvalTest "slice repeater" policy in_val [expected_val]
 
   let test1' =
@@ -510,7 +513,7 @@ module TestSlices = struct
           , Par ( Seq (Filter (DlVlan (Some 1)), Act (UpdateDlVlan (Some 1, None)))
                 , Filter (Not (DlVlan (Some 1)))))) in
     let Pkt (sid, port, expected_pkt, payload) = in_val in
-    let expected_val = Pkt ( sid, (NetCore_Pattern.All), expected_pkt, payload) in
+    let expected_val = Pkt ( sid, All, expected_pkt, payload) in
     mkEvalTest "slice' repeater" policy in_val [expected_val]
 
   let test1'' =
@@ -519,7 +522,7 @@ module TestSlices = struct
       Seq (Act ToAll,
       Seq (Filter (DlVlan (Some 1)), Act (UpdateDlVlan (Some 1, None))))) in
     let Pkt (sid, port, expected_pkt, payload) = in_val in
-    let expected_val = Pkt ( sid, (NetCore_Pattern.All), expected_pkt, payload) in
+    let expected_val = Pkt ( sid, All, expected_pkt, payload) in
     mkEvalTest "slice'' repeater" policy in_val [expected_val]
 
   let go = TestList [ test1; test1'; test1'' ]
