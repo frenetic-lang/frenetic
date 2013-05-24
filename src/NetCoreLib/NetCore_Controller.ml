@@ -33,7 +33,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
 
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
     Printf.eprintf "[Controller.ml] compiling new policy for switch %Ld\n%!" sw;
-    let flow_table = NetCore_Compiler.flow_table_of_policy sw pol in
+    lwt flow_table = Lwt.wrap2 NetCore_Compiler.flow_table_of_policy sw pol in
     Printf.eprintf "[Controller.ml] flow table is:\n%!";
     List.iter
       (fun (m,a) -> Printf.eprintf "[Controller.ml] %s => %s\n%!"
@@ -66,13 +66,16 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
         let in_port = pkt_in.packetInPort in
         let inp = Pkt (sw, Internal.Physical in_port,
                        pkt_in.packetInPacket, Buf bufferId ) in
-        let action = NetCore_Semantics.eval !pol_now inp in
+        let full_action = NetCore_Semantics.eval !pol_now inp in
+        let controller_action =
+          NetCore_Action.Output.apply_controller full_action
+            (sw, Internal.Physical in_port, pkt_in.packetInPacket) in
         let outp = { 
           pktOutBufOrBytes = Buffer bufferId; 
           pktOutPortId = None;
           pktOutActions = NetCore_Action.Output.as_actionSequence
-            (Some in_port) action } in
-        Platform.send_to_switch sw 0l (PacketOutMsg outp)
+            (Some in_port) controller_action } in
+          Platform.send_to_switch sw 0l (PacketOutMsg outp)
 
   let rec handle_switch_messages sw = 
     lwt v = Platform.recv_from_switch sw in

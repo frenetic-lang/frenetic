@@ -280,13 +280,13 @@ module Output = struct
                | None -> drop
                | Some (sw', pt', pk') -> g sw' pt' pk'))
     | ControllerAction f, SwitchAction out ->
-      Some 
+      Some
         (ControllerAction
            (fun sw pt pk ->
              let atoms1 = f sw pt pk in
              filter_none
                (List.map
-                  (fun atom1 -> seq_action_atom atom1 (SwitchAction out))
+                  (fun at1 -> seq_action_atom at1 (SwitchAction out))
                   atoms1)))
 
   let seq_action act1 act2 =
@@ -417,10 +417,24 @@ module Output = struct
     | SwitchAction out -> output_to_of inp out
     | ControllerAction _ -> [ Output (PseudoPort.Controller 65535) ]
 
+  let apply_controller action (sw, pt, pk) =
+    let f atom acc = match atom with
+      | SwitchAction _ -> acc
+      | ControllerAction f -> par_action (f sw pt pk) acc in
+    List.fold_right f action drop
+
   let as_actionSequence inp act = 
     concat_map (atom_to_of inp) act
 
+  let atom_is_equal x y = match x, y with
+    | SwitchAction out1, SwitchAction out2 -> out1 = out2
+    | ControllerAction f, ControllerAction g -> f == g (* functional values *)
+    | _ -> false
 
   (* TODO(arjun): What if they are permutations? *)
-  let is_equal x y = x = y
+  let rec is_equal xs ys = match xs, ys with
+    | [], [] -> true
+    | x :: xs', y :: ys' ->
+      atom_is_equal x y && is_equal xs' ys'
+    | _ -> false
 end
