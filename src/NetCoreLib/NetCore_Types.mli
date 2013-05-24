@@ -3,35 +3,27 @@ open List
 
 module Internal : sig
 
+  type 'a wildcard = 'a NetCore_Wildcard.wildcard
+
   type port =
     | Physical of portId
     | All
     | Bucket of int
     | Here
 
-  module DlAddrWildcard : NetCore_Wildcard.Wildcard with type a = dlAddr
-  module DlTypWildcard : NetCore_Wildcard.Wildcard with type a = dlTyp
-  module DlVlanWildcard : NetCore_Wildcard.Wildcard with type a = dlVlan
-  module DlVlanPcpWildcard : NetCore_Wildcard.Wildcard with type a = dlVlanPcp
-  module NwAddrWildcard : NetCore_Wildcard.Wildcard with type a = nwAddr
-  module NwProtoWildcard : NetCore_Wildcard.Wildcard with type a = nwProto
-  module NwTosWildcard : NetCore_Wildcard.Wildcard with type a = nwTos
-  module TpPortWildcard : NetCore_Wildcard.Wildcard with type a = tpPort
-  module PortWildcard : NetCore_Wildcard.Wildcard with type a = port
-
   type ptrn = {
-    ptrnDlSrc : DlAddrWildcard.t;
-    ptrnDlDst : DlAddrWildcard.t;
-    ptrnDlType : DlTypWildcard.t;
-    ptrnDlVlan : DlVlanWildcard.t;
-    ptrnDlVlanPcp : DlVlanPcpWildcard.t;
-    ptrnNwSrc : NwAddrWildcard.t;
-    ptrnNwDst : NwAddrWildcard.t;
-    ptrnNwProto : NwProtoWildcard.t;
-    ptrnNwTos : NwTosWildcard.t;
-    ptrnTpSrc : TpPortWildcard.t;
-    ptrnTpDst : TpPortWildcard.t;
-    ptrnInPort : PortWildcard.t
+    ptrnDlSrc : dlAddr wildcard;
+    ptrnDlDst : dlAddr wildcard;
+    ptrnDlType : dlTyp wildcard;
+    ptrnDlVlan : dlVlan wildcard;
+    ptrnDlVlanPcp : dlVlanPcp wildcard;
+    ptrnNwSrc : nwAddr wildcard;
+    ptrnNwDst : nwAddr wildcard;
+    ptrnNwProto : nwProto wildcard;
+    ptrnNwTos : nwTos wildcard;
+    ptrnTpSrc : tpPort wildcard;
+    ptrnTpDst : tpPort wildcard;
+    ptrnInPort : port wildcard
   }
 
   type 'a match_modify = ('a * 'a) option

@@ -4,71 +4,27 @@ open Format
 
 module Internal = struct
 
+  type 'a wildcard = 'a NetCore_Wildcard.wildcard
+
   type port =
     | Physical of portId
     | All
     | Bucket of int
     | Here
 
-  module PortOrderedType = struct
-      
-    type t = port
-
-    let compare = Pervasives.compare
-      
-    let to_string = function
-      | Physical pid -> "Physical " ^ (portId_to_string pid)
-      | All -> "All"
-      | Bucket n -> "Bucket " ^ (string_of_int n)
-      | Here -> "Here"
-        
-  end
-
-  module DlVlanOrderedType = struct
-    type t = int option
-        
-    let compare x y = match (x, y) with
-      | None, None -> 0
-      | None, _ -> -1
-      | _, None -> 1
-      | Some a, Some b -> Pervasives.compare a b
-        
-    let to_string x = match x with
-      | Some n -> "Some " ^ string_of_int n
-      | None -> "None"
-  end
-    
-  module Int64Wildcard = NetCore_Wildcard.Make (Int64)
-  module Int32Wildcard = NetCore_Wildcard.Make (Int32)
-  module IntWildcard =  NetCore_Wildcard.Make (struct
-    type t = int
-    let compare = Pervasives.compare
-    let to_string n = string_of_int n
-  end)
-    
-  module DlAddrWildcard = Int64Wildcard
-  module DlTypWildcard = IntWildcard
-  module DlVlanWildcard = NetCore_Wildcard.Make (DlVlanOrderedType)
-  module DlVlanPcpWildcard = IntWildcard
-  module NwAddrWildcard = Int32Wildcard
-  module NwProtoWildcard = IntWildcard
-  module NwTosWildcard = IntWildcard
-  module TpPortWildcard = IntWildcard
-  module PortWildcard = NetCore_Wildcard.Make (PortOrderedType)
-
   type ptrn = {
-    ptrnDlSrc : DlAddrWildcard.t;
-    ptrnDlDst : DlAddrWildcard.t;
-    ptrnDlType : DlTypWildcard.t;
-    ptrnDlVlan : DlVlanWildcard.t;
-    ptrnDlVlanPcp : DlVlanPcpWildcard.t;
-    ptrnNwSrc : NwAddrWildcard.t;
-    ptrnNwDst : NwAddrWildcard.t;
-    ptrnNwProto : NwProtoWildcard.t;
-    ptrnNwTos : NwTosWildcard.t;
-    ptrnTpSrc : TpPortWildcard.t;
-    ptrnTpDst : TpPortWildcard.t;
-    ptrnInPort : PortWildcard.t
+    ptrnDlSrc : dlAddr wildcard;
+    ptrnDlDst : dlAddr wildcard;
+    ptrnDlType : dlTyp wildcard;
+    ptrnDlVlan : dlVlan wildcard;
+    ptrnDlVlanPcp : dlVlanPcp wildcard;
+    ptrnNwSrc : nwAddr wildcard;
+    ptrnNwDst : nwAddr wildcard;
+    ptrnNwProto : nwProto wildcard;
+    ptrnNwTos : nwTos wildcard;
+    ptrnTpSrc : tpPort wildcard;
+    ptrnTpDst : tpPort wildcard;
+    ptrnInPort : port wildcard
   }
 
   type 'a match_modify = ('a * 'a) option
@@ -160,7 +116,11 @@ module Internal = struct
     fprintf fmt "@?";
     Buffer.contents buf
 
-  let port_to_string = PortOrderedType.to_string
+  let port_to_string = function
+    | Physical pid -> "Physical " ^ (portId_to_string pid)
+    | All -> "All"
+    | Bucket n -> "Bucket " ^ (string_of_int n)
+    | Here -> "Here"
 
   let value_to_string = function 
     | Pkt (sid, port, pkt, pay) ->
