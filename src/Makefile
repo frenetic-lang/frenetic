@@ -1,10 +1,12 @@
 APPLICATIONS = NetCore/Main \
-               Test/Test
+               Ox/Main \
+               Test/Test 
 
 LIBRARIES = FreneticLib \
             PacketLib \
             OpenFlowLib \
-            NetCoreLib 
+            NetCoreLib \
+            OxLib 
 
 SUFFIXES = .a .cmxa .cma .d.cma
 
