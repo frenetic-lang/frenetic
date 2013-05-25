@@ -87,13 +87,13 @@ let send_to_switch sw_id xid msg =
   let sw = Hashtbl.find !current_state.switches sw_id in
   exn_if_disconnected sw_id sw >>
   Lwt_channel.send (xid, msg) sw.to_switch >>
-  Lwt.return (Some ())
+  Lwt.return ()
 
 let recv_from_switch sw_id =
   let sw = Hashtbl.find !current_state.switches sw_id in
   exn_if_disconnected sw_id sw >>
   lwt resp = Lwt_channel.recv sw.to_controller in 
-  return (Some resp) 
+  return resp
 
 module Network = struct
 

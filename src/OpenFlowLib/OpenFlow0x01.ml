@@ -834,8 +834,8 @@ let add_flow prio match_ actions =
 
 module type PLATFORM = sig
   exception SwitchDisconnected of switchId
-  val send_to_switch : switchId -> xid -> message -> unit option Lwt.t
-  val recv_from_switch : switchId -> (xid * message) option Lwt.t
+  val send_to_switch : switchId -> xid -> message -> unit Lwt.t
+  val recv_from_switch : switchId -> (xid * message) Lwt.t
   val accept_switch : unit -> features Lwt.t
 end
 
