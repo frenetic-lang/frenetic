@@ -1,10 +1,12 @@
-APPLICATIONS = NetCore/Main \
-               Test/Test
+APPLICATIONS = Applications/NetCore \
+               Applications/Ox \
+               Applications/Test 
 
 LIBRARIES = FreneticLib \
             PacketLib \
             OpenFlowLib \
-            NetCoreLib 
+            NetCoreLib \
+            OxLib 
 
 CTAGS_FILES = $(shell ls $(addsuffix /*.ml,$(LIBRARIES)) \
                          $(addsuffix /*.ml,$(LIBRARIES)))
@@ -26,16 +28,16 @@ byte: $(addsuffix .byte, $(APPLICATIONS))
 debug: $(addsuffix .d.byte, $(APPLICATIONS))
 
 %.native %.byte:
-	$(OCAMLBUILD) $@
-
-%.a %.cmxa %.cma:
-	$(OCAMLBUILD) -no-links $@
+	$(OCAMLBUILD) -I Applications $@
 
 %.d.byte:
-	$(OCAMLBUILD) -cflag -ppopt -cflag -lwt-debug $@
+	$(OCAMLBUILD) -I Applications -cflag -ppopt -cflag -lwt-debug $@
+
+%.a %.cmxa %.cma:
+	$(OCAMLBUILD) -I Applications -no-links $@
 
 %.d.cma:
-	$(OCAMLBUILD) -no-links -cflag -ppopt -cflag -lwt-debug $@
+	$(OCAMLBUILD) -I applications -no-links -cflag -ppopt -cflag -lwt-debug $@
 
 $(LIBRARIES):
 	$(foreach SUFFIX, $(SUFFIXES), \

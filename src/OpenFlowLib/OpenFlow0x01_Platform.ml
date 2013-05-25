@@ -22,15 +22,16 @@ let max_pending : int =
 let switch_fds : (switchId, Lwt_unix.file_descr) Hashtbl.t = 
   Hashtbl.create 101
 
-let init_with_fd (fd : Lwt_unix.file_descr) : unit option Lwt.t = 
+let init_with_fd (fd : Lwt_unix.file_descr) : unit Lwt.t = 
   match !server_fd with
   | Some _ ->
-    Lwt.return None
+    raise_lwt (Invalid_argument "Platform already initialized")
   | None ->
     server_fd := Some fd;
-    Lwt.return (Some ())
+    Lwt.return ()
+    
       
-let init_with_port (port:int) : unit option Lwt.t = 
+let init_with_port (port:int) : unit Lwt.t = 
   let open Lwt_unix in 
   let fd = socket PF_INET SOCK_STREAM 0 in
   setsockopt fd SO_REUSEADDR true;
@@ -38,12 +39,12 @@ let init_with_port (port:int) : unit option Lwt.t =
   listen fd max_pending;
   init_with_fd fd
 
-let get_fd () : Lwt_unix.file_descr option = 
+let get_fd () : Lwt_unix.file_descr Lwt.t = 
   match !server_fd with 
-  | None -> 
-    None
-  | Some fd -> 
-    Some fd
+    | Some fd -> 
+      Lwt.return fd
+    | None -> 
+      raise_lwt (Invalid_argument "Platform not initialized")
 
 let rec recv_from_switch_fd (sock : Lwt_unix.file_descr) : (xid * message) option Lwt.t =
   let ofhdr_str = String.create (2 * sizeof_ofp_header) in (* JNF: why 2x? *)
@@ -57,7 +58,8 @@ let rec recv_from_switch_fd (sock : Lwt_unix.file_descr) : (xid * message) optio
     if not ok then Lwt.return None
     else 
       match Message.parse hdr (Cstruct.of_string body_buf) with
-      | Some v -> Lwt.return (Some v)
+      | Some v -> 
+        Lwt.return (Some v)
       | None ->
         Log.printf "platform" 
           "in recv_from_switch_fd, ignoring message with code %d\n%!"
@@ -95,30 +97,27 @@ let disconnect_switch (sw:switchId) : unit Lwt.t = match fd_of_switch_id sw with
       
 let shutdown () : unit = 
   Lwt.ignore_result 
-    (lwt () = match get_fd () with 
-      | Some fd -> 
-        Lwt_unix.close fd
-      | _ -> 
-        Lwt.return () in 
+    (lwt fd = get_fd () in 
+     lwt _ = Lwt_unix.close fd in 
      Lwt_list.iter_p
        Lwt_unix.close
        (Hashtbl.fold (fun _ fd l -> fd::l) switch_fds []))
 
-let send_to_switch (sw : switchId) (xid : xid) (msg : message) : unit option Lwt.t =
+let send_to_switch (sw : switchId) (xid : xid) (msg : message) : unit Lwt.t =
   match fd_of_switch_id sw with 
   | Some fd -> 
     lwt ok = send_to_switch_fd fd xid msg in 
     begin match ok with 
       | Some () -> 
-        Lwt.return (Some ())
+        Lwt.return ()
       | None -> 
         lwt _ = disconnect_switch sw in 
-        Lwt.return None 
+        raise_lwt (SwitchDisconnected sw)
     end
   | None -> 
-    Lwt.return None
+    raise_lwt (SwitchDisconnected sw)
 
-let rec recv_from_switch (sw : switchId) : (xid * message) option Lwt.t = 
+let rec recv_from_switch (sw : switchId) : (xid * message) Lwt.t = 
   match fd_of_switch_id sw with
     | Some fd -> 
       begin 
@@ -126,20 +125,16 @@ let rec recv_from_switch (sw : switchId) : (xid * message) option Lwt.t =
         match resp with
           | Some (xid, EchoRequest bytes) ->
             begin 
-              lwt ok = send_to_switch sw xid (EchoReply bytes) in 
-              match ok with 
-                | Some () -> 
-                  recv_from_switch sw
-                | None -> 
-                  Lwt.return None
+              send_to_switch sw xid (EchoReply bytes) >>
+              recv_from_switch sw
             end
           | Some (xid, msg) -> 
-            Lwt.return (Some (xid, msg))
+            Lwt.return (xid, msg)
           | None -> 
-            Lwt.return None
+            raise_lwt (SwitchDisconnected sw)
       end
     | None -> 
-      Lwt.return None
+      raise_lwt (SwitchDisconnected sw)
         
 let switch_handshake (fd : Lwt_unix.file_descr) : features option Lwt.t =
   lwt ok = send_to_switch_fd fd 0l (Hello (Cstruct.of_string "")) in
@@ -182,23 +177,17 @@ let switch_handshake (fd : Lwt_unix.file_descr) : features option Lwt.t =
    Then, accept_switch will simply dequeue (or block if the queue is
    empty). *)
 let rec accept_switch () =
-  match get_fd () with 
-    | Some server_fd -> 
-      lwt (fd, sa) = Lwt_unix.accept server_fd in
-      Log.printf "platform" "%s connected, handshaking...\n%!"
-        (string_of_sockaddr sa);
-      begin 
-        lwt ok = switch_handshake fd in 
-        match ok with 
-          | Some feats -> 
-            Lwt.return feats
-          | None -> 
-            lwt _ = Lwt_unix.close fd in
-            Log.printf "platform" "%s disconnected, trying again...\n%!"
-              (string_of_sockaddr sa);
-            accept_switch ()
-      end
+  lwt server_fd = get_fd () in 
+  lwt (fd, sa) = Lwt_unix.accept server_fd in
+  let _ = Log.printf "platform" "%s connected, handshaking...\n%!" (string_of_sockaddr sa) in 
+  lwt ok = switch_handshake fd in 
+  match ok with 
+    | Some feats -> 
+      Lwt.return feats
     | None -> 
-      raise_lwt (Invalid_argument "platform not initialized") 
+      lwt _ = Lwt_unix.close fd in
+      Log.printf "platform" "%s disconnected, trying again...\n%!"
+        (string_of_sockaddr sa);
+      accept_switch ()
         
         

@@ -91,11 +91,9 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
         let outp = { 
           pktOutBufOrBytes = Buffer bufferId; 
           pktOutPortId = None;
-          pktOutActions = NetCore_Action.Output.as_actionSequence
-            (Some in_port) action } in
-        lwt ok = Platform.send_to_switch sw 0l (PacketOutMsg outp) in 
-        (* JNF: switch down? *)
-        Lwt.return () 
+          pktOutActions = 
+            NetCore_Action.Output.as_actionSequence (Some in_port) action } in
+        Platform.send_to_switch sw 0l (PacketOutMsg outp)  
 
   let handle_stats_reply sw counter rep = match rep with
     | _ -> failwith "NYI: controller.handle_stats_reply"
@@ -104,8 +102,8 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
   let rec handle_switch_messages sw = 
     lwt v = Platform.recv_from_switch sw in
     lwt _ = match v with
-      | Some (_, PacketInMsg pktIn) -> handle_packet_in sw pktIn
-      | Some (bucket, StatsReplyMsg rep) -> handle_stats_reply sw bucket rep
+      | (_, PacketInMsg pktIn) -> handle_packet_in sw pktIn
+      | (bucket, StatsReplyMsg rep) -> handle_stats_reply sw bucket rep
       | _ -> Lwt.return ()
       in
     handle_switch_messages sw
