@@ -13,6 +13,8 @@ module type TABLE = sig
        [private_port is unused] *)
   val fresh_public_port : t -> nwAddr -> tpPort -> tpPort
 
+  val get_public_port : t -> nwAddr -> tpPort -> tpPort option
+
   (** [get_private_address public_port = (private_ip, private_port)] *)
   val get_private_addr : t -> tpPort -> nwAddr * tpPort
 
@@ -24,7 +26,8 @@ module Table : TABLE = struct
   type t = {
     min_port : tpPort;
     max_port : tpPort;
-    map : (tpPort, nwAddr * tpPort) Hashtbl.t
+    map : (tpPort, nwAddr * tpPort) Hashtbl.t;
+    map_rev : (nwAddr * tpPort, tpPort) Hashtbl.t;
   }
 
   let create min max =
@@ -32,7 +35,8 @@ module Table : TABLE = struct
     {
       min_port = min;
       max_port = max;
-      map = Hashtbl.create 100 (* more connections than any home needs, IMHO *)
+      map = Hashtbl.create 100;
+      map_rev = Hashtbl.create 100
     }
 
   let fresh_public_port tbl private_ip private_port = 
@@ -45,9 +49,15 @@ module Table : TABLE = struct
       else
         begin
           Hashtbl.add tbl.map public_port (private_ip, private_port);
+          Hashtbl.add tbl.map_rev (private_ip, private_port) public_port;
           public_port
         end in
     loop tbl.min_port
+
+  let get_public_port tbl private_ip private_port = 
+    try
+      Some (Hashtbl.find tbl.map_rev (private_ip, private_port))
+    with Not_found -> None 
 
   let get_private_addr tbl public_port = Hashtbl.find tbl.map public_port
 
@@ -65,24 +75,32 @@ let make (public_ip : nwAddr) =
             pktTpHeader = TpTCP { tcpSrc = private_port }
           }
         } ->
-        let public_port = Table.fresh_public_port tbl private_ip private_port in
-        Printf.eprintf "[NAT] translating %s:%d to %s:%d\n%!"
-          (string_of_ip private_ip) private_port
-          (string_of_ip public_ip) public_port;
-        private_pol :=
-          ITE (And (SrcIP private_ip, TcpSrcPort private_port),
-               Seq (Act (UpdateSrcIP (private_ip, public_ip)),
-                    Act (UpdateSrcPort (private_port, public_port))),
-               !private_pol);
-        public_pol :=
-          ITE (And (SrcIP public_ip, TcpSrcPort public_port),
-               Seq (Act (UpdateSrcIP (public_ip, private_ip)),
-                    Act (UpdateSrcPort (public_port, private_port))),
-               !public_pol);
-        push (Some (!private_pol, !public_pol));
-        seq_action
-          (updateSrcIP private_ip public_ip)
-          (updateSrcPort private_port public_port)
+        begin match Table.get_public_port tbl private_ip private_port with
+          | Some public_port ->
+            seq_action
+              (updateSrcIP private_ip public_ip)
+              (updateSrcPort private_port public_port)
+          | None ->
+            let public_port =
+              Table.fresh_public_port tbl private_ip private_port in
+            Printf.eprintf "[NAT] translating %s:%d to %s:%d\n%!"
+              (string_of_ip private_ip) private_port
+              (string_of_ip public_ip) public_port;
+            private_pol :=
+              ITE (And (SrcIP private_ip, TcpSrcPort private_port),
+                   Seq (Act (UpdateSrcIP (private_ip, public_ip)),
+                        Act (UpdateSrcPort (private_port, public_port))),
+                   !private_pol);
+            public_pol :=
+              ITE (And (SrcIP public_ip, TcpSrcPort public_port),
+                   Seq (Act (UpdateSrcIP (public_ip, private_ip)),
+                        Act (UpdateSrcPort (public_port, private_port))),
+                   !public_pol);
+            push (Some (!private_pol, !public_pol));
+            seq_action
+              (updateSrcIP private_ip public_ip)
+              (updateSrcPort private_port public_port)
+        end
       | _ -> NetCore_Action.Output.drop
   and private_pol = ref (Act (GetPacket callback))
   and public_pol = ref Empty in

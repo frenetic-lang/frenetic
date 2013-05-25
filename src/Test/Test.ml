@@ -598,8 +598,8 @@ end
 
 
 let tests =
-  TestList [ Test1.go
-           ; TestFilters.go
+  TestList [ Test1.go;
+            TestFilters.go
            ; TestMods.go
            ; TestSlices.go
            ; TestClassifier.go
