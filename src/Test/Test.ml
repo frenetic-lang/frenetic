@@ -354,7 +354,9 @@ module Helper = struct
     let genvlan () = incr vlan_cell; Some !vlan_cell in
     let get_pkt_handlers : (int, get_packet_handler) Hashtbl.t =
       Hashtbl.create 200 in
-    desugar genbucket genvlan pol get_pkt_handlers
+    let get_count_handlers : (int, get_count_handler) Hashtbl.t =
+      Hashtbl.create 200 in
+    desugar genbucket genvlan pol get_pkt_handlers get_count_handlers
 
   let in_pkt =
     { pktDlSrc = Int64.zero

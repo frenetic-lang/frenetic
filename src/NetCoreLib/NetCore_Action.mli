@@ -49,7 +49,7 @@ module Output : sig
   val updateDstIP : Int32.t -> Int32.t -> t
   val updateSrcPort : int -> int -> t
   val updateDstPort : int -> int -> t
-  val bucket : int -> t
+  val bucket : int -> bool -> t
   val as_actionSequence : portId option -> t -> OpenFlow0x01.Action.sequence
 end
 

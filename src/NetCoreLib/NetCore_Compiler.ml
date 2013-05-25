@@ -67,12 +67,16 @@ let to_rule (pattern, action) =
   match NetCore_Pattern.to_match pattern with
     | Some match_ ->
       Some (match_,
-            NetCore_Action.Output.as_actionSequence match_.OpenFlow0x01.Match.inPort
+            NetCore_Action.Output.as_actionSequence 
+              match_.OpenFlow0x01.Match.inPort
               action)
     | None -> None
 
 let flow_table_of_policy sw pol0 =
-  List.fold_right (fun p acc -> match to_rule p with None -> acc | Some r -> r::acc) (compile_pol pol0 sw) []
+  List.fold_right 
+    (fun p acc -> match to_rule p with None -> acc | Some r -> r::acc)
+    (compile_pol pol0 sw)
+    []
 
 let string_of_position p =
   let open Lexing in

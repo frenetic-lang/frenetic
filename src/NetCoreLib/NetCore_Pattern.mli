@@ -4,7 +4,7 @@ open OpenFlow0x01
 type port =
   | Physical of portId
   | All
-  | Bucket of int
+  | Bucket of (int * bool)
 
 val string_of_port : port -> string
 

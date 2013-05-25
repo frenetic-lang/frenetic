@@ -123,6 +123,7 @@ end
 
 module External = struct
   type get_packet_handler = OpenFlow0x01.switchId -> portId -> packet -> unit
+  type get_count_handler = OpenFlow0x01.switchId -> Int64.t -> unit
 
   type predicate =
   | And of predicate * predicate
@@ -153,6 +154,8 @@ module External = struct
   | UpdateSrcPort of int * int
   | UpdateDstPort of int * int
   | GetPacket of get_packet_handler
+  | GetPacketCount of get_count_handler
+  | GetByteCount of get_count_handler
       
   type policy =
   | Empty
@@ -315,7 +318,8 @@ let desugar
   (genbucket : unit -> int)
   (genvlan : unit -> int option)
   (pol : External.policy) 
-  (get_pkt_handlers : (int, External.get_packet_handler) Hashtbl.t) :
+  (get_pkt_handlers : (int, External.get_packet_handler) Hashtbl.t)
+  (get_pkt_stats_handlers : (int, External.get_count_handler) Hashtbl.t) :
   Internal.pol =
   let open Internal in
   let open External in
@@ -343,7 +347,13 @@ let desugar
     | GetPacket handler ->
       let id = genbucket () in 
       Hashtbl.add get_pkt_handlers id handler;
-      NetCore_Action.Output.bucket id in
+      NetCore_Action.Output.bucket id true
+    | GetPacketCount handler
+    | GetByteCount handler ->
+      let id = genbucket () in
+      Hashtbl.add get_pkt_stats_handlers id handler;
+      NetCore_Action.Output.bucket id false
+    in
   let rec desugar_pred pred = match pred with
     | And (p1, p2) -> 
       PrAnd (desugar_pred p1, desugar_pred p2)

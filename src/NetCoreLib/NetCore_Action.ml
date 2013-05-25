@@ -152,8 +152,8 @@ module Output = struct
 
   let to_all = [ { unmodified with outPort = Some NetCore_Pattern.All } ]
 
-  let bucket n =
-    [ { unmodified with outPort = Some (NetCore_Pattern.Bucket n) } ]
+  let bucket n b =
+    [ { unmodified with outPort = Some (NetCore_Pattern.Bucket (n,b)) } ]
 
   let updateDlSrc od nw =
     [ { unmodified with outDlSrc = Some (od, nw) } ]
@@ -361,10 +361,10 @@ module Output = struct
          | _ ->
            Output (PseudoPort.PhysicalPort pt)) ::
           (unmodify out))
-    | Some (NetCore_Pattern.Bucket n) ->
+    | Some (NetCore_Pattern.Bucket (n, true)) ->
       [ Output (PseudoPort.Controller 65535) ]
-    | None ->
-      []
+    | Some (NetCore_Pattern.Bucket (_, false)) -> []
+    | None -> []
 
   let as_actionSequence inp act =
     concat_map (output_to_of inp) act

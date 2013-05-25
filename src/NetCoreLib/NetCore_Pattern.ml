@@ -4,7 +4,7 @@ open OpenFlow0x01
 type port =
 | Physical of portId
 | All
-| Bucket of int
+| Bucket of (int * bool)
 
 module PortOrderedType = struct
 
@@ -15,7 +15,9 @@ module PortOrderedType = struct
   let to_string = function
     | Physical pid -> "P" ^ (portId_to_string pid)
     | All -> "All"
-    | Bucket n -> "B" ^ (string_of_int n)
+    | Bucket (n, b) ->
+      let label = if b then "BP" else "B" in
+      label ^ (string_of_int n)
 
 end
 

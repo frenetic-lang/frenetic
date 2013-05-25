@@ -38,8 +38,8 @@ end
 
 module External : sig
 
-  type get_packet_handler = 
-    OpenFlow0x01.switchId -> portId -> packet -> unit
+  type get_packet_handler = OpenFlow0x01.switchId -> portId -> packet -> unit
+  type get_count_handler = OpenFlow0x01.switchId -> Int64.t -> unit
 
   type predicate =
   | And of predicate * predicate
@@ -70,6 +70,8 @@ module External : sig
   | UpdateSrcPort of int * int
   | UpdateDstPort of int * int
   | GetPacket of get_packet_handler
+  | GetPacketCount of get_count_handler
+  | GetByteCount of get_count_handler
       
   type policy =
   | Empty
@@ -95,4 +97,5 @@ val desugar :
   (unit -> int option) -> 
   External.policy -> 
   (int, External.get_packet_handler) Hashtbl.t -> 
+  (int, External.get_count_handler) Hashtbl.t -> 
   Internal.pol

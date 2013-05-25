@@ -23,7 +23,7 @@ end = struct
     lst := (key, listener) :: !lst;
     (fun () -> lst := List.remove_assq key !lst)
 
-  let invoke_all lst v = 
+  let invoke_all lst v =
     (if List.length !lst > 1 then
         Printf.eprintf "[Stream] GLITCH.\n%!");
     List.iter (fun (_, listener) -> listener v) !lst
@@ -36,7 +36,7 @@ let map (f : 'a -> 'b) (src : 'a t) : 'b t =
     now := f a;
     Listeners.invoke_all listeners !now in
   let _ = src.attach_listener updater in
-  { 
+  {
     now = (fun () -> !now);
     attach_listener = Listeners.attach listeners
   }
@@ -62,19 +62,18 @@ let constant (x : 'a) = {
   attach_listener = (fun _ -> fun () -> ())
 }
 
-
 let from_stream (init : 'a) (stream : 'a Lwt_stream.t) : 'a t =
   let now = ref init in
   let listeners = Listeners.empty () in
   Lwt.async
-    (fun () -> 
+    (fun () ->
       Lwt_stream.iter
         (fun a ->
           now := a;
           Listeners.invoke_all listeners !now)
         stream);
   {
-    now = (fun () -> !now); 
+    now = (fun () -> !now);
     attach_listener = Listeners.attach listeners
   }
 
