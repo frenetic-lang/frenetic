@@ -23,23 +23,36 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
 
   let switches = ref SwitchSet.empty
 
+  (* Per-policy state. *)
+
   let get_count_handlers : (int, get_count_handler) Hashtbl.t = 
     Hashtbl.create 200
 
   let counters : (int, Int64.t) Hashtbl.t =
     Hashtbl.create 200
 
-  let buckets_to_counters : int IntMap.t ref = ref IntMap.empty
-  let counters_to_buckets : (int list) IntMap.t ref = ref IntMap.empty
+  let buckets_to_counters : int list IntMap.t ref = ref IntMap.empty
+  let counters_to_buckets : int list IntMap.t ref = ref IntMap.empty
+
+  let query_kill_switch = ref (Lwt_switch.create ())
 
   let bucket_cell = ref 0 
   let vlan_cell = ref 0 
+
   let genbucket () = 
     incr bucket_cell;
     !bucket_cell
+
   let genvlan () = 
     incr vlan_cell;
     Some !vlan_cell
+
+  let reset_policy_state () =
+    bucket_cell := 0;
+    vlan_cell := 0;
+    Hashtbl.reset get_count_handlers;
+    Hashtbl.reset counters;
+    query_kill_switch := Lwt_switch.create()
 
   (* used to initialize newly connected switches and handle packet-in 
      messages *)
@@ -123,35 +136,33 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     Printf.eprintf "[NetCore_Controller.ml]: switch %Ld connected\n%!" sw;
     switch_thread sw pol_stream <&> accept_switches pol_stream
 
-  let reset_policy_state () =
-    bucket_cell := 0;
-    vlan_cell := 0;
-    Hashtbl.reset get_count_handlers;
-    Hashtbl.reset counters
+  let add_to_maps bucket counter =
+    let upd (map : 'a list IntMap.t ref) (k : int) (v : 'a) : unit =
+      let vs = try IntMap.find k !map with Not_found -> [] in
+      map := (IntMap.add k (v::vs) !map)
+      in
+    upd buckets_to_counters bucket counter;
+    upd counters_to_buckets counter bucket
 
-  let spawn_queries pol : unit Lwt.t =
+  let initialize_query_state pol : unit =
+    failwith "NYI: initialize_query_state"
+
+  let spawn_queries pol switch : unit Lwt.t =
     failwith "NYI: spawn_queries"
 
-  let kill_outstanding_queries () : unit = 
+  let kill_outstanding_queries switch : unit = 
     failwith "NYI: kill_outstanding_queries"
 
-  let consolidate_buckets pol =
-    failwith "NYI: consolidate_buckets"
-
   let accept_policy push_pol pol = 
-    kill_outstanding_queries ();
+    kill_outstanding_queries !query_kill_switch;
     reset_policy_state ();
-    let p = 
-      NetCore_Desugar.desugar 
-        genbucket genvlan pol get_count_handlers in
+    let p = NetCore_Desugar.desugar genvlan pol in
     Printf.eprintf "[Controller.ml] got new policy:\n%s\n%!" 
       (Internal.pol_to_string p);
-    let p', b2c, c2b = consolidate_buckets p in
-    buckets_to_counters := b2c;
-    counters_to_buckets := c2b;
-    pol_now := p';
+    initialize_query_state p;
+    pol_now := p;
     push_pol (Some p);
-    spawn_queries p
+    spawn_queries p !query_kill_switch
 
   let accept_policies push_pol sugared_pol_stream =
     Lwt_stream.iter_s (accept_policy push_pol) sugared_pol_stream

@@ -45,9 +45,18 @@ module Internal : sig
     outPort : port 
   }
 
-  type action_atom =
+  (* Duplicates External.  Eventually, External should not depend on Internal.
+  *)
+  type get_packet_handler = 
+      OpenFlow0x01.switchId -> port -> packet -> action
+
+  and get_count_handler = OpenFlow0x01.switchId -> Int64.t -> unit
+
+  and action_atom =
     | SwitchAction of output
-    | ControllerAction of (OpenFlow0x01.switchId -> port -> packet -> action)
+    | ControllerAction of get_packet_handler
+    | ControllerPacketQuery of int * get_count_handler
+    | ControllerByteQuery of int * get_count_handler
 
   and action = action_atom list
 
@@ -118,8 +127,8 @@ module External : sig
   | UpdateSrcPort of int * int
   | UpdateDstPort of int * int
   | GetPacket of get_packet_handler
-  | GetPacketCount of get_count_handler
-  | GetByteCount of get_count_handler
+  | GetPacketCount of int * get_count_handler
+  | GetByteCount of int * get_count_handler
       
   type policy =
   | Empty

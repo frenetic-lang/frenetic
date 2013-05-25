@@ -3,14 +3,13 @@ open Packet
 open Format
 
 let desugar 
-  (genbucket : unit -> int)
   (genvlan : unit -> int option)
-  (pol : External.policy) 
-  (get_count_handlers : (int, External.get_count_handler) Hashtbl.t) :
+  (pol : External.policy) :
   Internal.pol =
   let open Internal in
   let open External in
-  let desugar_act act = match act with
+  let desugar_act act =
+    match act with
     | Pass -> NetCore_Action.Output.pass
     | Drop -> NetCore_Action.Output.drop
     | To pt -> 
@@ -33,12 +32,10 @@ let desugar
       NetCore_Action.Output.updateDstPort old new_
     | GetPacket handler ->
       NetCore_Action.Output.controller handler
-    | GetPacketCount handler
-    | GetByteCount handler ->
-      let id = genbucket () in
-      Hashtbl.add get_count_handlers id handler;
-      NetCore_Action.Output.bucket id
-    in
+    | GetPacketCount (d, handler) ->
+      NetCore_Action.Output.packet_query (d, handler)
+    | GetByteCount (d, handler) ->
+      NetCore_Action.Output.byte_query (d, handler) in
   let rec desugar_pred pred = match pred with
     | And (p1, p2) -> 
       PrAnd (desugar_pred p1, desugar_pred p2)
