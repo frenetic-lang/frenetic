@@ -154,15 +154,16 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     failwith "NYI: kill_outstanding_queries"
 
   let accept_policy push_pol pol = 
-    kill_outstanding_queries !query_kill_switch;
+    (* TODO(cole) kill_outstanding_queries !query_kill_switch; *)
     reset_policy_state ();
     let p = NetCore_Desugar.desugar genvlan pol in
     Printf.eprintf "[Controller.ml] got new policy:\n%s\n%!" 
       (Internal.pol_to_string p);
-    initialize_query_state p;
+    (* TODO(cole) initialize_query_state p; *)
     pol_now := p;
     push_pol (Some p);
-    spawn_queries p !query_kill_switch
+    (* TODO(cole) spawn_queries p !query_kill_switch *)
+    Lwt.return ()
 
   let accept_policies push_pol sugared_pol_stream =
     Lwt_stream.iter_s (accept_policy push_pol) sugared_pol_stream
