@@ -52,6 +52,7 @@ module Output : sig
   val bucket : int -> t
   val controller : (OpenFlow0x01.switchId -> port -> packet -> action) -> t
   val apply_controller : action -> lp -> action
+  val switch_part  : action -> action
   val as_actionSequence : portId option -> t -> OpenFlow0x01.Action.sequence
 end
 

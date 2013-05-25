@@ -70,12 +70,16 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
         let controller_action =
           NetCore_Action.Output.apply_controller full_action
             (sw, Internal.Physical in_port, pkt_in.packetInPacket) in
+        let action = match pkt_in.packetInReason with
+          | ExplicitSend -> controller_action
+          | NoMatch -> NetCore_Action.Output.par_action controller_action
+            (NetCore_Action.Output.switch_part full_action) in
         let outp = { 
           pktOutBufOrBytes = Buffer bufferId; 
           pktOutPortId = None;
-          pktOutActions = NetCore_Action.Output.as_actionSequence
-            (Some in_port) controller_action } in
-        Platform.send_to_switch sw 0l (PacketOutMsg outp)
+          pktOutActions = 
+            NetCore_Action.Output.as_actionSequence (Some in_port) action } in
+        Platform.send_to_switch sw 0l (PacketOutMsg outp)  
 
   let rec handle_switch_messages sw = 
     lwt v = Platform.recv_from_switch sw in

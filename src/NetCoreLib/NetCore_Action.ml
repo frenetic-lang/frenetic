@@ -423,6 +423,12 @@ module Output = struct
       | ControllerAction f -> par_action (f sw pt pk) acc in
     List.fold_right f action drop
 
+  let switch_part action = 
+    let f atom = match atom with
+      | SwitchAction _ -> true
+      | ControllerAction _ -> false in
+    List.filter f action
+
   let as_actionSequence inp act = 
     concat_map (atom_to_of inp) act
 
