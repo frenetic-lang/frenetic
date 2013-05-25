@@ -243,6 +243,10 @@ module External = struct
        (string_of_int old) (string_of_int new_)
     | GetPacket _ -> 
       Printf.sprintf "GetPacket <fun>"
+    | GetPacketCount _ ->
+      Printf.sprintf "GetPacketCount <fun>"
+    | GetByteCount _ ->
+      Printf.sprintf "GetByteCount <fun>"
         
   let rec policy_to_string pol = match pol with 
     | Empty -> 
