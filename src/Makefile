@@ -13,7 +13,7 @@ SUFFIXES = .a .cmxa .cma .d.cma
 
 .PHONY: all native byte debug install uninstall doc clean $(LIBRARIES)
 
-OCAMLBUILD = ocamlbuild -no-links -use-ocamlfind $(addprefix -I ,$(LIBRARIES))
+OCAMLBUILD = ocamlbuild -use-ocamlfind $(addprefix -I ,$(LIBRARIES))
 
 OCAMLFIND = ocamlfind
 

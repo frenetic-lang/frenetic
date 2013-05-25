@@ -1,27 +1,13 @@
 open Packet
 open OpenFlow0x01
-
-type port =
-| Physical of portId
-| All
-| Bucket of (int * bool)
+open NetCore_Types.Internal
+open NetCore_Wildcard
 
 module PortOrderedType = struct
-
   type t = port
-
   let compare = Pervasives.compare
-
-  let to_string = function
-    | Physical pid -> "P" ^ (portId_to_string pid)
-    | All -> "All"
-    | Bucket (n, b) ->
-      let label = if b then "BP" else "B" in
-      label ^ (string_of_int n)
-
+  let to_string = port_to_string
 end
-
-let string_of_port = PortOrderedType.to_string
 
 module DlVlanOrderedType = struct
   type t = int option
@@ -55,49 +41,37 @@ module NwTosWildcard = IntWildcard
 module TpPortWildcard = IntWildcard
 module PortWildcard = NetCore_Wildcard.Make (PortOrderedType)
 
-type t = {
-  ptrnDlSrc : DlAddrWildcard.t;
-  ptrnDlDst : DlAddrWildcard.t;
-  ptrnDlType : DlTypWildcard.t;
-  ptrnDlVlan : DlVlanWildcard.t;
-  ptrnDlVlanPcp : DlVlanPcpWildcard.t;
-  ptrnNwSrc : NwAddrWildcard.t;
-  ptrnNwDst : NwAddrWildcard.t;
-  ptrnNwProto : NwProtoWildcard.t;
-  ptrnNwTos : NwTosWildcard.t;
-  ptrnTpSrc : TpPortWildcard.t;
-  ptrnTpDst : TpPortWildcard.t;
-  ptrnInPort : PortWildcard.t
-}
+
+type t = ptrn
 
 let all = {
-  ptrnDlSrc = DlAddrWildcard.WildcardAll;
-  ptrnDlDst = DlAddrWildcard.WildcardAll;
-  ptrnDlType = DlTypWildcard.WildcardAll;
-  ptrnDlVlan = DlVlanWildcard.WildcardAll;
-  ptrnDlVlanPcp = DlVlanPcpWildcard.WildcardAll;
-  ptrnNwSrc = NwAddrWildcard.WildcardAll;
-  ptrnNwDst = NwAddrWildcard.WildcardAll;
-  ptrnNwProto = NwProtoWildcard.WildcardAll;
-  ptrnNwTos = NwTosWildcard.WildcardAll;
-  ptrnTpSrc = TpPortWildcard.WildcardAll;
-  ptrnTpDst = TpPortWildcard.WildcardAll;
-  ptrnInPort = PortWildcard.WildcardAll 
+  ptrnDlSrc = WildcardAll;
+  ptrnDlDst = WildcardAll;
+  ptrnDlType = WildcardAll;
+  ptrnDlVlan = WildcardAll;
+  ptrnDlVlanPcp = WildcardAll;
+  ptrnNwSrc = WildcardAll;
+  ptrnNwDst = WildcardAll;
+  ptrnNwProto = WildcardAll;
+  ptrnNwTos = WildcardAll;
+  ptrnTpSrc = WildcardAll;
+  ptrnTpDst = WildcardAll;
+  ptrnInPort = WildcardAll
 }
 
 let empty = {
-  ptrnDlSrc = DlAddrWildcard.WildcardNone;
-  ptrnDlDst = DlAddrWildcard.WildcardNone;
-  ptrnDlType = DlTypWildcard.WildcardNone;
-  ptrnDlVlan = DlVlanWildcard.WildcardNone;
-  ptrnDlVlanPcp = DlVlanPcpWildcard.WildcardNone;
-  ptrnNwSrc = NwAddrWildcard.WildcardNone;
-  ptrnNwDst = NwAddrWildcard.WildcardNone;
-  ptrnNwProto = NwProtoWildcard.WildcardNone;
-  ptrnNwTos = NwTosWildcard.WildcardNone;
-  ptrnTpSrc = TpPortWildcard.WildcardNone;
-  ptrnTpDst = TpPortWildcard.WildcardNone;
-  ptrnInPort = PortWildcard.WildcardNone 
+  ptrnDlSrc = WildcardNone;
+  ptrnDlDst = WildcardNone;
+  ptrnDlType = WildcardNone;
+  ptrnDlVlan = WildcardNone;
+  ptrnDlVlanPcp = WildcardNone;
+  ptrnNwSrc = WildcardNone;
+  ptrnNwDst = WildcardNone;
+  ptrnNwProto = WildcardNone;
+  ptrnNwTos = WildcardNone;
+  ptrnTpSrc = WildcardNone;
+  ptrnTpDst = WildcardNone;
+  ptrnInPort = WildcardNone
 }
 
 let is_empty pat =
@@ -128,7 +102,7 @@ let is_exact pat =
   && TpPortWildcard.is_exact pat.ptrnTpDst
   && PortWildcard.is_exact pat.ptrnInPort
 
-let to_match pat = 
+let to_match pat =
   match (DlAddrWildcard.to_option pat.ptrnDlSrc,
          DlAddrWildcard.to_option pat.ptrnDlDst,
          DlTypWildcard.to_option pat.ptrnDlType,
@@ -174,7 +148,7 @@ let inter pat pat' = {
   ptrnNwTos = NwTosWildcard.inter pat.ptrnNwTos pat'.ptrnNwTos;
   ptrnTpSrc = TpPortWildcard.inter pat.ptrnTpSrc pat'.ptrnTpSrc;
   ptrnTpDst = TpPortWildcard.inter pat.ptrnTpDst pat'.ptrnTpDst;
-  ptrnInPort = PortWildcard.inter pat.ptrnInPort pat'.ptrnInPort 
+  ptrnInPort = PortWildcard.inter pat.ptrnInPort pat'.ptrnInPort
 }
 
 let contains pat1 pat2 =
@@ -190,103 +164,103 @@ let contains pat1 pat2 =
   TpPortWildcard.contains pat1.ptrnTpSrc pat2.ptrnTpSrc &&
   TpPortWildcard.contains pat1.ptrnTpDst pat2.ptrnTpDst &&
   PortWildcard.contains pat1.ptrnInPort pat2.ptrnInPort
-  
+
 let exact_pattern pk pt = {
-  ptrnDlSrc = DlAddrWildcard.WildcardExact pk.pktDlSrc;
-  ptrnDlDst = DlAddrWildcard.WildcardExact pk.pktDlDst;
-  ptrnDlType = DlTypWildcard.WildcardExact pk.pktDlTyp;
-  ptrnDlVlan = DlVlanWildcard.WildcardExact pk.pktDlVlan;
-  ptrnDlVlanPcp = DlVlanPcpWildcard.WildcardExact pk.pktDlVlanPcp;
-  ptrnNwSrc = NwAddrWildcard.WildcardExact (pktNwSrc pk);
-  ptrnNwDst = NwAddrWildcard.WildcardExact (pktNwDst pk);
-  ptrnNwProto = NwProtoWildcard.WildcardExact (pktNwProto pk);
-  ptrnNwTos = NwTosWildcard.WildcardExact (pktNwTos pk);
-  ptrnTpSrc = TpPortWildcard.WildcardExact (pktTpSrc pk);
-  ptrnTpDst = TpPortWildcard.WildcardExact (pktTpDst pk);
-  ptrnInPort = PortWildcard.WildcardExact pt
+  ptrnDlSrc = WildcardExact pk.pktDlSrc;
+  ptrnDlDst = WildcardExact pk.pktDlDst;
+  ptrnDlType = WildcardExact pk.pktDlTyp;
+  ptrnDlVlan = WildcardExact pk.pktDlVlan;
+  ptrnDlVlanPcp = WildcardExact pk.pktDlVlanPcp;
+  ptrnNwSrc = WildcardExact (pktNwSrc pk);
+  ptrnNwDst = WildcardExact (pktNwDst pk);
+  ptrnNwProto = WildcardExact (pktNwProto pk);
+  ptrnNwTos = WildcardExact (pktNwTos pk);
+  ptrnTpSrc = WildcardExact (pktTpSrc pk);
+  ptrnTpDst = WildcardExact (pktTpDst pk);
+  ptrnInPort = WildcardExact pt
 }
 
 let match_packet pt pk pat =
   not (is_empty (inter (exact_pattern pk pt) pat))
 
 let setDlSrc dlSrc pat =
-  { pat with ptrnDlSrc = DlAddrWildcard.WildcardExact dlSrc }
+  { pat with ptrnDlSrc = WildcardExact dlSrc }
 
-let wildcardDlSrc pat = 
-  { pat with ptrnDlSrc = DlAddrWildcard.WildcardAll }
+let wildcardDlSrc pat =
+  { pat with ptrnDlSrc = WildcardAll }
 
 let setDlDst dlDst pat =
-  { pat with ptrnDlDst = DlAddrWildcard.WildcardExact dlDst }
+  { pat with ptrnDlDst = WildcardExact dlDst }
 
-let wildcardDlDst pat = 
-  { pat with ptrnDlDst = DlAddrWildcard.WildcardAll }
+let wildcardDlDst pat =
+  { pat with ptrnDlDst = WildcardAll }
 
 let setDlVlan dlVlan pat =
-  { pat with ptrnDlVlan = DlVlanWildcard.WildcardExact dlVlan }
+  { pat with ptrnDlVlan = WildcardExact dlVlan }
 
-let wildcardDlVlan pat = 
-  { pat with ptrnDlVlan = DlVlanWildcard.WildcardAll }
+let wildcardDlVlan pat =
+  { pat with ptrnDlVlan = WildcardAll }
 
 let setPort port pat =
-  { pat with ptrnInPort = PortWildcard.WildcardExact port }
+  { pat with ptrnInPort = WildcardExact port }
 
-let wildcardPort pat = 
-  { pat with ptrnInPort = PortWildcard.WildcardAll }
+let wildcardPort pat =
+  { pat with ptrnInPort = WildcardAll }
 
 let inPort pt =
-  { all with ptrnInPort = PortWildcard.WildcardExact pt }
+  { all with ptrnInPort = WildcardExact pt }
 
 let dlSrc mac =
-  { all with ptrnDlSrc = DlAddrWildcard.WildcardExact mac }
+  { all with ptrnDlSrc = WildcardExact mac }
 
 let dlDst mac =
-  { all with ptrnDlDst = DlAddrWildcard.WildcardExact mac }
+  { all with ptrnDlDst = WildcardExact mac }
 
 let dlType typ =
-  { all with ptrnDlType = DlTypWildcard.WildcardExact typ }
+  { all with ptrnDlType = WildcardExact typ }
 
 let dlVlan vlan =
-  { all with ptrnDlVlan = DlVlanWildcard.WildcardExact vlan }
+  { all with ptrnDlVlan = WildcardExact vlan }
 
 let dlVlanPcp pcp =
-  { all with ptrnDlVlanPcp = DlVlanPcpWildcard.WildcardExact pcp }
+  { all with ptrnDlVlanPcp = WildcardExact pcp }
 
 let ipSrc ip =
   { all with
-    ptrnDlType = DlTypWildcard.WildcardExact 0x800;
-    ptrnNwSrc = NwAddrWildcard.WildcardExact ip }
+    ptrnDlType = WildcardExact 0x800;
+    ptrnNwSrc = WildcardExact ip }
 
 let ipDst ip =
   { all with
-    ptrnDlType = DlTypWildcard.WildcardExact 0x800;
-    ptrnNwDst = NwAddrWildcard.WildcardExact ip }
+    ptrnDlType = WildcardExact 0x800;
+    ptrnNwDst = WildcardExact ip }
 
 let ipProto proto =
   { all with
-    ptrnDlType = DlTypWildcard.WildcardExact 0x800;
-    ptrnNwProto = NwProtoWildcard.WildcardExact proto }
+    ptrnDlType = WildcardExact 0x800;
+    ptrnNwProto = WildcardExact proto }
 
 let tpSrcPort proto tpPort =
   { all with
-    ptrnDlType = DlTypWildcard.WildcardExact 0x800;
-    ptrnNwProto = NwProtoWildcard.WildcardExact proto;
-    ptrnTpSrc = TpPortWildcard.WildcardExact tpPort }
+    ptrnDlType = WildcardExact 0x800;
+    ptrnNwProto = WildcardExact proto;
+    ptrnTpSrc = WildcardExact tpPort }
 
 let tpDstPort proto tpPort =
   { all with
-    ptrnDlType = DlTypWildcard.WildcardExact 0x800;
-    ptrnNwProto = NwProtoWildcard.WildcardExact proto;
-    ptrnTpDst = TpPortWildcard.WildcardExact tpPort }
+    ptrnDlType = WildcardExact 0x800;
+    ptrnNwProto = WildcardExact proto;
+    ptrnTpDst = WildcardExact tpPort }
 
 let tcpSrcPort = tpSrcPort 6
-let tcpDstPort = tpSrcPort 6
+let tcpDstPort = tpDstPort 6
 let udpSrcPort = tpSrcPort 17
 let udpDstPort = tpDstPort 17
 
 
-let to_format fmt pat = 
+let to_format fmt pat =
   let open Format in
-  fprintf 
+  fprintf
     fmt
     "@[{@;<1 2>@[dlSrc = %s;@ dlDst = %s;@ dlType = %s;@ \
      dlVlan = %s;@ dlVlanPcp = %s;@ nwSrc = %s;@ nwDst = %s;@ \
@@ -305,7 +279,7 @@ let to_format fmt pat =
     (TpPortWildcard.to_string pat.ptrnTpDst)
     (PortWildcard.to_string pat.ptrnInPort)
 
-let to_string x = 
+let to_string x =
   let buf = Buffer.create 100 in
   let fmt = Format.formatter_of_buffer buf in
   Format.pp_set_margin fmt 80;

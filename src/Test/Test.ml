@@ -1,6 +1,9 @@
+open Packet
 open Printf
 open NetCore_Types.Internal
 open NetCore_Types.External
+open NetCore_Semantics
+open NetCore_Desugar
 open OUnit
 
 module TestClassifier = struct
@@ -38,6 +41,16 @@ module TestClassifier = struct
          (fun (label, expected, calculated) ->
            label >:: fun () -> 
              assert_equal ~printer:C.to_string expected calculated)
+         lst)
+
+  let eval_tests group_label lst = 
+    group_label >:::
+      (List.map
+         (fun (label, expected_action, input_pol, input_val) ->
+           label >:: fun () -> 
+             assert_equal ~printer:NetCore_Action.Output.to_string 
+               expected_action
+               (NetCore_Semantics.eval input_pol input_val))
          lst)
 
   let netcore_tests group_label lst = 
@@ -91,7 +104,8 @@ module TestClassifier = struct
         [(dlSrc 0xDDDDL, forward 2); (all, drop)]
         [(dlDst 0xEEEEL, pass); (all, drop)]);
      ("union regression 1",
-      [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), par_action (forward 2) (forward 30));
+      [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL),
+        par_action (forward 2) (forward 30));
        (dlSrc 0xDDDDL, forward 2);
        (dlDst 0xEEEEL, forward 30);
        (all, drop)],
@@ -128,12 +142,70 @@ module TestClassifier = struct
            (PoSeq
               (PoFilter (PrAnd (PrOnSwitch 1L, PrHdr (inPort (Physical 2)))),
                PoFilter (PrNone)),
-            PoAction (forward 1))))]
+            PoAction (forward 1))));
+     ("NAT debugging 1",
+      [],
+      1L,
+      PoITE
+        (PrAnd (PrOnSwitch 1L, PrHdr (inPort (Physical 2))),
+         PoSeq
+           (PoITE
+              (PrAnd (PrHdr (ipSrc 0xffffl), PrHdr (tcpSrcPort 2000)),
+               PoSeq
+                 (PoAction (updateSrcIP 0xffffl 0xaaaal),
+                  PoAction (updateSrcPort 2000 43072)),
+               PoFilter (PrNone)),
+            PoITE
+              (PrHdr (inPort (Physical 2)),
+               PoAction (forward 1),
+               PoAction pass)),
+         PoAction pass));
+     ("sequencing 1",
+      [(dlVlan None, updateDlVlan None (Some 1));
+       (all, drop)],
+      1L,
+      PoSeq (PoAction (updateDlVlan None (Some 1)),
+             PoFilter (PrHdr (dlVlan (Some 1)))))]
 
-  let go =
-    TestList [test0; test1; test2; 
-              classifier_tests "classifier tests" lst;
-              netcore_tests "NetCore tests" lst2]
+  let pk = {
+    pktDlSrc = 0L;
+    pktDlDst = 0L;
+    pktDlTyp = 0x800;
+    pktDlVlan = None;
+    pktDlVlanPcp = 0;
+    pktNwHeader = NwUnparsable (0x800, Cstruct.create 8) 
+  }
+
+  let inp = Pkt (1L, Physical 1, pk, Buf 0l)
+
+  let lst3 =
+    [("sequencing 1",
+      updateDlVlan None (Some 1),
+      PoSeq (PoAction (updateDlVlan None (Some 1)),
+             PoFilter (PrHdr (dlVlan (Some 1)))),
+      inp);
+     ("filtering 1",
+      pass,
+      PoFilter (PrHdr (dlVlan (Some 1))),
+      Pkt (1L, Physical 1, { pk with pktDlVlan = Some 1 }, Buf 0l));
+     ("updating 1",
+      updateDlVlan None (Some 1),
+      PoAction (updateDlVlan None (Some 1)),
+      Pkt (1L, Physical 1, pk, Buf 0l))]
+      
+
+  let go = TestList 
+    [ test0; test1; test2; 
+      classifier_tests "classifier tests" lst;
+      netcore_tests "NetCore tests" lst2;
+      eval_tests "NetCore semantics tests" lst3;
+      ("eval_action update" >::
+          fun () ->
+            assert_equal
+              [Pkt (1L, Physical 1, { pk with pktDlVlan = Some 1 }, Buf 0l)]
+              (eval_action (Pkt (1L, Physical 1, pk, Buf 0l))
+                 (updateDlVlan None (Some 1))))
+    ]
 
 end
 
@@ -352,11 +424,9 @@ module Helper = struct
     let vlan_cell = ref 0 in
     let genbucket () = incr bucket_cell; !bucket_cell in
     let genvlan () = incr vlan_cell; Some !vlan_cell in
-    let get_pkt_handlers : (int, get_packet_handler) Hashtbl.t =
-      Hashtbl.create 200 in
     let get_count_handlers : (int, get_count_handler) Hashtbl.t =
       Hashtbl.create 200 in
-    desugar genbucket genvlan pol get_pkt_handlers get_count_handlers
+    desugar genbucket genvlan pol get_count_handlers
 
   let in_pkt =
     { pktDlSrc = Int64.zero
@@ -368,7 +438,7 @@ module Helper = struct
 
   let in_val =
     Pkt ( Int64.one
-        , (NetCore_Pattern.Physical 1)
+        , (Physical 1)
         , in_pkt
         , (Buf Int32.zero))
 
@@ -382,7 +452,7 @@ module Helper = struct
 
     let Pkt (in_sid, in_port, _, _) = in_val in
     let expected_pkts =
-      List.map (fun (Pkt (_, pr, p, _)) -> (pr, p)) expected_vals in
+      List.map (fun (Pkt (sw, pr, p, _)) -> (sw, pr, p)) expected_vals in
 
     (* Test the semantic interpretation. *)
     let vals = classify ds_pol in_val in
@@ -401,12 +471,14 @@ module Helper = struct
       ();
 
     let act = C.scan classifier in_port in_pkt in
-    let pkts = NetCore_Action.Output.apply_action act (in_port, in_pkt) in
+    let pkts = NetCore_Action.Output.apply_action act 
+      (in_sid, in_port, in_pkt) in
     let classifier_test =
       (name ^ " (classifier) test") >:: fun () ->
         assert_equal
           ~printer:(Frenetic_Misc.string_of_list
-            (Frenetic_Misc.string_of_pair NetCore_Pattern.string_of_port packet_to_string))
+                      (fun (_, pt, pk) ->
+                        (Frenetic_Misc.string_of_pair port_to_string packet_to_string) (pt,pk)))
           expected_pkts pkts in
     TestList [ sem_test; classifier_test ]
 
@@ -418,7 +490,7 @@ module TestFilters = struct
   open Helper
 
   let test1 =
-    let policy = Filter All in
+    let policy = Filter NetCore_Types.External.All in
     mkEvalTest "filter true" policy in_val [in_val]
 
   let test2 =
@@ -453,7 +525,7 @@ module TestMods = struct
           , Seq ( Act ToAll
                 , Act (UpdateDlVlan ((Some 1), None)))) in
     let Pkt (sid, port, pkt, payload) = in_val in
-    let expected_vals = [Pkt (sid, NetCore_Pattern.All, pkt, payload)] in
+    let expected_vals = [Pkt (sid, NetCore_Types.Internal.All, pkt, payload)] in
     mkEvalTest "mod no effect 2" policy in_val expected_vals
 
   let test4 = 
@@ -483,9 +555,10 @@ module TestSlices = struct
   open Helper
 
   let test1 =
-    let policy = Slice (All, Act ToAll, All) in
+    let policy = Slice (NetCore_Types.External.All, Act ToAll,
+                        NetCore_Types.External.All) in
     let Pkt (sid, port, expected_pkt, payload) = in_val in
-    let expected_val = Pkt ( sid, (NetCore_Pattern.All), expected_pkt, payload) in
+    let expected_val = Pkt ( sid, All, expected_pkt, payload) in
     mkEvalTest "slice repeater" policy in_val [expected_val]
 
   let test1' =
@@ -495,7 +568,7 @@ module TestSlices = struct
           , Par ( Seq (Filter (DlVlan (Some 1)), Act (UpdateDlVlan (Some 1, None)))
                 , Filter (Not (DlVlan (Some 1)))))) in
     let Pkt (sid, port, expected_pkt, payload) = in_val in
-    let expected_val = Pkt ( sid, (NetCore_Pattern.All), expected_pkt, payload) in
+    let expected_val = Pkt ( sid, All, expected_pkt, payload) in
     mkEvalTest "slice' repeater" policy in_val [expected_val]
 
   let test1'' =
@@ -504,7 +577,7 @@ module TestSlices = struct
       Seq (Act ToAll,
       Seq (Filter (DlVlan (Some 1)), Act (UpdateDlVlan (Some 1, None))))) in
     let Pkt (sid, port, expected_pkt, payload) = in_val in
-    let expected_val = Pkt ( sid, (NetCore_Pattern.All), expected_pkt, payload) in
+    let expected_val = Pkt ( sid, All, expected_pkt, payload) in
     mkEvalTest "slice'' repeater" policy in_val [expected_val]
 
   let go = TestList [ test1; test1'; test1'' ]
@@ -525,8 +598,8 @@ end
 
 
 let tests =
-  TestList [ Test1.go
-           ; TestFilters.go
+  TestList [ Test1.go;
+            TestFilters.go
            ; TestMods.go
            ; TestSlices.go
            ; TestClassifier.go

@@ -1,4 +1,4 @@
-(** Low-level OpenFlow API.
+(** Low OpenFlow API.
     The Platform manages connections to switches for the
     controller. It provides functions to send and receive OpenFlow
     messages that do the necessary low-level serialization themselves.
@@ -7,182 +7,198 @@
     [PLATFORM]. But, see [NetCore] for a higher-level abstraction.
 *)
 open Frenetic_Socket
+open Frenetic_Log
 open OpenFlow0x01
 open OpenFlow0x01_Parser
 
-open Lwt
-open Lwt_io
-open Lwt_unix
-open Lwt_list
-
 exception SwitchDisconnected of switchId
-exception UnknownSwitch of switchId
-exception UnknownSwitchDisconnected
-exception Internal of string
 
-let server_fd : file_descr option ref =
-ref None
+let server_fd : Lwt_unix.file_descr option ref = 
+  ref None
 
-let init_with_fd (fd : file_descr) : unit =
+let max_pending : int = 
+  64
+
+let switch_fds : (switchId, Lwt_unix.file_descr) Hashtbl.t = 
+  Hashtbl.create 101
+
+let init_with_fd (fd : Lwt_unix.file_descr) : unit option Lwt.t = 
   match !server_fd with
   | Some _ ->
-    raise (Internal "Platform already initialized")
+    Lwt.return None
   | None ->
-    server_fd := Some fd
-
-let init_with_port (p : int) : unit =
-  match !server_fd with
-  | Some _ ->
-    raise (Internal "Platform already initialized")
-  | None ->
-    Printf.printf "Here\n";
-    let fd = socket PF_INET SOCK_STREAM 0 in
-    setsockopt fd SO_REUSEADDR true;
-    bind fd (ADDR_INET (Unix.inet_addr_any, p));
-    listen fd 64; (* JNF: 640K ought to be enough for anybody. *)
-                  (* AG: ROFLCOPTER *)
     server_fd := Some fd;
-    Printf.printf "Done\n"
+    Lwt.return (Some ())
+      
+let init_with_port (port:int) : unit option Lwt.t = 
+  let open Lwt_unix in 
+  let fd = socket PF_INET SOCK_STREAM 0 in
+  setsockopt fd SO_REUSEADDR true;
+  bind fd (ADDR_INET (Unix.inet_addr_any, port));
+  listen fd max_pending;
+  init_with_fd fd
 
-let get_fd () =
-  match !server_fd with
-  | Some fd ->
-    fd
-  | None ->
-    raise (Invalid_argument "Platform not initialized")
+let get_fd () : Lwt_unix.file_descr option = 
+  match !server_fd with 
+  | None -> 
+    None
+  | Some fd -> 
+    Some fd
 
-(** Receives an OpenFlow message from a raw file. Does not update
-  any controller state. *)
-let rec recv_from_switch_fd (sock : file_descr) : (xid * message) Lwt.t =
-  let ofhdr_str = String.create (2 * sizeof_ofp_header) in
-  lwt b = SafeSocket.recv sock ofhdr_str 0 sizeof_ofp_header in
-  if not b then
-    raise_lwt UnknownSwitchDisconnected
+let rec recv_from_switch_fd (sock : Lwt_unix.file_descr) : (xid * message) option Lwt.t =
+  let ofhdr_str = String.create (2 * sizeof_ofp_header) in (* JNF: why 2x? *)
+  lwt ok = SafeSocket.recv sock ofhdr_str 0 sizeof_ofp_header in
+  if not ok then Lwt.return None
   else
     lwt hdr = Lwt.wrap (fun () -> Header.parse (Cstruct.of_string ofhdr_str)) in
-    let sizeof_body = hdr.Header.len - sizeof_ofp_header in
-    let body_str = String.create sizeof_body in
-    lwt b = SafeSocket.recv sock body_str 0 sizeof_body in
-    if not b then
-      raise_lwt UnknownSwitchDisconnected
-    else
-      match Message.parse hdr (Cstruct.of_string body_str) with
-      | Some v -> return v
+    let body_len = hdr.Header.len - sizeof_ofp_header in
+    let body_buf = String.create body_len in
+    lwt ok = SafeSocket.recv sock body_buf 0 body_len in
+    if not ok then Lwt.return None
+    else 
+      match Message.parse hdr (Cstruct.of_string body_buf) with
+      | Some v -> Lwt.return (Some v)
       | None ->
-        Printf.eprintf "[platform] ignoring message with code %d\n%!"
+        Log.printf "platform" 
+          "in recv_from_switch_fd, ignoring message with code %d\n%!"
           (msg_code_to_int hdr.Header.typ);
         recv_from_switch_fd sock
 
-let send_to_switch_fd (sock : file_descr) (xid : xid) (msg : message) =
+let send_to_switch_fd (sock : Lwt_unix.file_descr) (xid : xid) (msg : message) : unit option Lwt.t =
   try_lwt
-    lwt out = Lwt.wrap2 Message.marshal xid msg in
-    let len = String.length out in
-    lwt n = write sock out 0 len in
-    if n <> len then
-      raise_lwt (Internal "[send_to_switch] not enough bytes written")
+    lwt msg_buf = Lwt.wrap2 Message.marshal xid msg in
+    let msg_len = String.length msg_buf in
+    lwt sent = Lwt_unix.write sock msg_buf 0 msg_len in
+    if sent <> msg_len then
+      Lwt.return None
     else
-      return ()
+      Lwt.return (Some ())
   with Unix.Unix_error (err, fn, arg) ->
-    Printf.eprintf "[platform] error sending: %s\n%!"
+    Log.printf "platform"
+      "in send_to_switch_fd, %s\n%!"
       (Unix.error_message err);
-    return ()
+    Lwt.return None
 
-let switch_fds : (switchId, file_descr) Hashtbl.t =
-  Hashtbl.create 100
+let fd_of_switch_id (sw:switchId) : Lwt_unix.file_descr option =  
+  try
+    Some (Hashtbl.find switch_fds sw)
+  with Not_found -> 
+    None
 
-let fd_of_switch_id (switch_id:switchId) : file_descr =
-  try Hashtbl.find switch_fds switch_id
-  with Not_found -> raise (UnknownSwitch switch_id)
+let disconnect_switch (sw:switchId) : unit Lwt.t = match fd_of_switch_id sw with 
+  | Some fd -> 
+    lwt _ = Lwt_unix.close fd in
+    Hashtbl.remove switch_fds sw;
+    Lwt.return ()
+  | None -> 
+    Lwt.return ()
+      
+let shutdown () : unit = 
+  Lwt.ignore_result 
+    (lwt () = match get_fd () with 
+      | Some fd -> 
+        Lwt_unix.close fd
+      | _ -> 
+        Lwt.return () in 
+     Lwt_list.iter_p
+       Lwt_unix.close
+       (Hashtbl.fold (fun _ fd l -> fd::l) switch_fds []))
 
-let disconnect_switch (sw_id : switchId) =
-  Printf.eprintf "[platform] disconnect_switch\n%!";
-  try_lwt
-    let fd = Hashtbl.find switch_fds sw_id in
-    lwt _ = close fd in
-    Hashtbl.remove switch_fds sw_id;
-    return ()
-  with Not_found ->
-    Printf.eprintf "[disconnect_switch] switch not found\n%!";
-    raise_lwt (UnknownSwitch sw_id)
-
-let shutdown () : unit =
-  Printf.eprintf "[platform] shutdown\n%!";
-  match !server_fd with
-  | Some fd -> ignore_result
-    begin
-      lwt _ = iter_p (fun fd -> close fd)
-            (Hashtbl.fold (fun _ fd l -> fd::l) switch_fds []) in
-      return ()
+let send_to_switch (sw : switchId) (xid : xid) (msg : message) : unit option Lwt.t =
+  match fd_of_switch_id sw with 
+  | Some fd -> 
+    lwt ok = send_to_switch_fd fd xid msg in 
+    begin match ok with 
+      | Some () -> 
+        Lwt.return (Some ())
+      | None -> 
+        lwt _ = disconnect_switch sw in 
+        Lwt.return None 
     end
-  | None -> ()
+  | None -> 
+    Lwt.return None
 
-let switch_handshake (fd : file_descr) : features Lwt.t =
-  lwt _ = send_to_switch_fd fd 0l (Hello (Cstruct.of_string "")) in
-  lwt (xid, msg) = recv_from_switch_fd fd in
-  match msg with
-    | Hello _ ->
-      lwt _ = send_to_switch_fd fd 0l FeaturesRequest in
-      lwt (_, msg) = recv_from_switch_fd fd in
-      begin
-        match msg with
-          | FeaturesReply feats ->
-            Hashtbl.add switch_fds feats.switch_id fd;
-            Printf.eprintf "[platform] switch %Ld connected\n%!"
-              feats.switch_id;
-            return feats
-          | _ -> raise_lwt (Internal "expected FEATURES_REPLY")
+let rec recv_from_switch (sw : switchId) : (xid * message) option Lwt.t = 
+  match fd_of_switch_id sw with
+    | Some fd -> 
+      begin 
+        lwt resp = recv_from_switch_fd fd in 
+        match resp with
+          | Some (xid, EchoRequest bytes) ->
+            begin 
+              lwt ok = send_to_switch sw xid (EchoReply bytes) in 
+              match ok with 
+                | Some () -> 
+                  recv_from_switch sw
+                | None -> 
+                  Lwt.return None
+            end
+          | Some (xid, msg) -> 
+            Lwt.return (Some (xid, msg))
+          | None -> 
+            Lwt.return None
       end
-    | _ -> raise_lwt (Internal "expected Hello")
+    | None -> 
+      Lwt.return None
+        
+let switch_handshake (fd : Lwt_unix.file_descr) : features option Lwt.t =
+  lwt ok = send_to_switch_fd fd 0l (Hello (Cstruct.of_string "")) in
+  match ok with 
+    | Some () -> 
+      lwt resp = recv_from_switch_fd fd in 
+      begin match resp with 
+        | Some (_, Hello _) ->
+          begin 
+            lwt ok = send_to_switch_fd fd 0l FeaturesRequest in
+            match ok with 
+              | Some () -> 
+                begin 
+                  lwt resp = recv_from_switch_fd fd in 
+                  match resp with 
+                    | Some (_,FeaturesReply feats) ->
+                      Hashtbl.add switch_fds feats.switch_id fd;
+                      Log.printf "platform" 
+                        "switch %Ld connected\n%!"
+                        feats.switch_id;
+                      Lwt.return (Some feats)
+                    | _ -> 
+                      Lwt.return None
+                end
+              | None -> 
+                Lwt.return None
+          end
+        | Some _ -> 
+          Lwt.return None
+        | None -> 
+          Lwt.return None
+      end 
+    | None -> 
+      Lwt.return None
 
-let send_to_switch (sw_id : switchId) (xid : xid) (msg : message) : unit t =
-  let fd = fd_of_switch_id sw_id in
-  try_lwt
-    send_to_switch_fd fd xid msg
-  with Internal s ->
-    lwt _ = disconnect_switch sw_id in
-    raise_lwt (SwitchDisconnected sw_id)
-
-(* By handling echoes here, we do not respond to echoes during the
- handshake. *)
-let rec recv_from_switch (sw_id : switchId) : (xid * message) t =
-  let switch_fd = fd_of_switch_id sw_id in
-  lwt (xid, msg) =
-    try_lwt
-      recv_from_switch_fd switch_fd
-    with
-    | Internal s ->
-      begin
-        Printf.eprintf "[platform] disconnecting switch\n%!";
-        lwt _ = disconnect_switch sw_id in
-        raise_lwt (SwitchDisconnected sw_id)
-      end
-    | UnknownSwitchDisconnected ->
-    raise_lwt (SwitchDisconnected sw_id)
-    | exn ->
-      Printf.eprintf "[platform] other error\n%!";
-      raise_lwt exn in
-  match msg with
-    | EchoRequest bytes ->
-      send_to_switch sw_id xid (EchoReply bytes) >>
-      recv_from_switch sw_id
-    | _ -> return (xid, msg)
-
+(* TODO(arjun): a switch can stall during a handshake, while another
+   switch is ready to connect. To be fully robust, this module should
+   have a dedicated thread to accept TCP connections, a thread per new
+   connection to handle handshakes, and a queue of accepted switches.
+   Then, accept_switch will simply dequeue (or block if the queue is
+   empty). *)
 let rec accept_switch () =
-  lwt (fd, sa) = accept (get_fd ()) in
-  Printf.eprintf "[platform] : %s connected, handshaking...\n%!"
-    (string_of_sockaddr sa);
-  (* TODO(arjun): a switch can stall during a handshake, while another
-     switch is ready to connect. To be fully robust, this module should
-     have a dedicated thread to accept TCP connections, a thread per new
-     connection to handle handshakes, and a queue of accepted switches.
-     Then, accept_switch will simply dequeue (or block if the queue is
-     empty). *)
-   try_lwt
-     switch_handshake fd
-   with UnknownSwitchDisconnected ->
-     begin
-       lwt _ = close fd in
-       Printf.eprintf "[platform] : %s disconnected, trying again...\n%!"
-         (string_of_sockaddr sa);
-       accept_switch ()
-     end
+  match get_fd () with 
+    | Some server_fd -> 
+      lwt (fd, sa) = Lwt_unix.accept server_fd in
+      Log.printf "platform" "%s connected, handshaking...\n%!"
+        (string_of_sockaddr sa);
+      begin 
+        lwt ok = switch_handshake fd in 
+        match ok with 
+          | Some feats -> 
+            Lwt.return feats
+          | None -> 
+            lwt _ = Lwt_unix.close fd in
+            Log.printf "platform" "%s disconnected, trying again...\n%!"
+              (string_of_sockaddr sa);
+            accept_switch ()
+      end
+    | None -> 
+      raise_lwt (Invalid_argument "platform not initialized") 
+        
+        

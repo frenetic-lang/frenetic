@@ -11,12 +11,6 @@ let (<&>) = Lwt.(<&>)
 
 let init_pol : pol = Internal.PoFilter Internal.PrNone
 
-let for_bucket (in_port : portId) (pkt : Internal.value) =
-  let open Internal in
-  match pkt with
-  | Pkt (swId, NetCore_Pattern.Bucket n, pkt, _) -> Some (n, swId, in_port, pkt)
-  | _ -> None
-
 module type MAKE  = functor (Platform : OpenFlow0x01.PLATFORM) -> 
   sig
     val start_controller : policy NetCore_Stream.t -> unit Lwt.t
@@ -28,9 +22,6 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
   module IntMap = Map.Make (struct type t = int let compare = compare end)
 
   let switches = ref SwitchSet.empty
-
-  let get_pkt_handlers : (int, get_packet_handler) Hashtbl.t = 
-    Hashtbl.create 200
 
   let get_count_handlers : (int, get_count_handler) Hashtbl.t = 
     Hashtbl.create 200
@@ -50,20 +41,13 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     incr vlan_cell;
     Some !vlan_cell
 
-  let apply_bucket ((bucket_id, to_controller), sw, pt, pk) : unit =
-    if Hashtbl.mem get_pkt_handlers bucket_id then
-      let handler = Hashtbl.find get_pkt_handlers bucket_id in
-      handler sw pt pk
-    else ()
-
   (* used to initialize newly connected switches and handle packet-in 
      messages *)
   let pol_now : pol ref = ref init_pol
 
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
     Printf.eprintf "[Controller.ml] compiling new policy for switch %Ld\n%!" sw;
-    let flow_table = NetCore_Compiler.flow_table_of_policy sw pol in
-    Printf.eprintf "[Controller.ml] done compiling policy for switch %Ld\n%!" sw;
+    lwt flow_table = Lwt.wrap2 NetCore_Compiler.flow_table_of_policy sw pol in
     Printf.eprintf "[Controller.ml] flow table is:\n%!";
     List.iter
       (fun (m,a) -> Printf.eprintf "[Controller.ml] %s => %s\n%!"
@@ -71,15 +55,21 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
         (OpenFlow0x01.Action.sequence_to_string a))
       flow_table;
     Platform.send_to_switch sw 0l delete_all_flows >>
+    let prio = ref 65535 in
     Lwt_list.iter_s
       (fun (match_, actions) ->
-          Platform.send_to_switch sw 0l (add_flow match_ actions))
+        try_lwt
+          Platform.send_to_switch sw 0l (add_flow !prio match_ actions) >>
+          (decr prio; Lwt.return ())
+       with exn -> 
+         Printf.eprintf "FAIL %s\n%!" (Printexc.to_string exn);
+           raise_lwt exn)
       flow_table >>
     (Printf.eprintf "[Controller.ml] initialized switch %Ld\n%!" sw;
      Lwt.return ())
 
   let install_new_policies sw pol_stream =
-    Lwt_stream.iter_s (configure_switch sw)
+    Lwt_stream.iter_p (configure_switch sw)
       (NetCore_Stream.to_stream pol_stream)
       
   let handle_packet_in sw pkt_in = 
@@ -87,18 +77,25 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     match pkt_in.packetInBufferId with
       | None -> Lwt.return ()
       | Some bufferId ->
-        let inp = Pkt (sw, NetCore_Pattern.Physical pkt_in.packetInPort,
+        let in_port = pkt_in.packetInPort in
+        let inp = Pkt (sw, Internal.Physical in_port,
                        pkt_in.packetInPacket, Buf bufferId ) in
-        let outs = classify !pol_now inp in
-        let for_buckets = 
-          List.fold_right 
-            (fun out acc -> 
-              match for_bucket pkt_in.packetInPort out with 
-              | None -> acc 
-              | Some o -> o ::acc) 
-            outs [] in
-        List.iter apply_bucket for_buckets;
-        Lwt.return ()
+        let full_action = NetCore_Semantics.eval !pol_now inp in
+        let controller_action =
+          NetCore_Action.Output.apply_controller full_action
+            (sw, Internal.Physical in_port, pkt_in.packetInPacket) in
+        let action = match pkt_in.packetInReason with
+          | ExplicitSend -> controller_action
+          | NoMatch -> NetCore_Action.Output.par_action controller_action
+            (NetCore_Action.Output.switch_part full_action) in
+        let outp = { 
+          pktOutBufOrBytes = Buffer bufferId; 
+          pktOutPortId = None;
+          pktOutActions = NetCore_Action.Output.as_actionSequence
+            (Some in_port) action } in
+        lwt ok = Platform.send_to_switch sw 0l (PacketOutMsg outp) in 
+        (* JNF: switch down? *)
+        Lwt.return () 
 
   let handle_stats_reply sw counter rep = match rep with
     | _ -> failwith "NYI: controller.handle_stats_reply"
@@ -107,8 +104,8 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
   let rec handle_switch_messages sw = 
     lwt v = Platform.recv_from_switch sw in
     lwt _ = match v with
-      | (_, PacketInMsg pktIn) -> handle_packet_in sw pktIn
-      | (bucket, StatsReplyMsg rep) -> handle_stats_reply sw bucket rep
+      | Some (_, PacketInMsg pktIn) -> handle_packet_in sw pktIn
+      | Some (bucket, StatsReplyMsg rep) -> handle_stats_reply sw bucket rep
       | _ -> Lwt.return ()
       in
     handle_switch_messages sw
@@ -122,16 +119,15 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
      switches := SwitchSet.remove sw !switches;
      Lwt.return ())
 
-  let rec accept_switches (pol_stream : pol NetCore_Stream.t) = 
-    lwt features = Platform.accept_switch () in
-    Printf.eprintf "[NetCore_Controller.ml]: switch %Ld connected\n%!"
-      features.switch_id;
-    switch_thread features.switch_id pol_stream <&> accept_switches pol_stream
+  let rec accept_switches pol_stream = 
+    lwt feats = Platform.accept_switch () in
+    let sw = feats.switch_id in 
+    Printf.eprintf "[NetCore_Controller.ml]: switch %Ld connected\n%!" sw;
+    switch_thread sw pol_stream <&> accept_switches pol_stream
 
   let reset_policy_state () =
     bucket_cell := 0;
     vlan_cell := 0;
-    Hashtbl.reset get_pkt_handlers;
     Hashtbl.reset get_count_handlers;
     Hashtbl.reset counters
 
@@ -148,8 +144,8 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     kill_outstanding_queries ();
     reset_policy_state ();
     let p = 
-      NetCore_Types.desugar 
-        genbucket genvlan pol get_pkt_handlers get_count_handlers in
+      NetCore_Desugar.desugar 
+        genbucket genvlan pol get_count_handlers in
     Printf.eprintf "[Controller.ml] got new policy:\n%s\n%!" 
       (Internal.pol_to_string p);
     let p', b2c, c2b = consolidate_buckets p in

@@ -1,84 +1,118 @@
-type 'a t = {
-  now : unit -> 'a;
-  (* attach_listener adds a callback that reads new values, and returns
-     a thunk that removes the callback. *)
-  attach_listener : ('a -> unit) -> (unit -> unit)
-}
+open Printf
 
-module Listeners : sig
-  type 'a t
-  val empty : unit -> 'a t
-  val attach : 'a t -> ('a -> unit) -> (unit -> unit)
-  val invoke_all : 'a t -> 'a -> unit
-end = struct
+module Q = struct
 
-  module Gensym = NetCore_Gensym
+  type t = Queue of (int * (t -> t)) list
 
-  type 'a t = (Gensym.t * ('a -> unit)) list ref
+  let singleton rank v = Queue [(rank,v)]
 
-  let empty () = ref []
+  let rec enqueue rank handler q = match q with
+    | Queue [] -> Queue [(rank, handler)]
+    | Queue ((rank', handler') :: lst) ->
+      if rank <= rank' then
+        Queue ((rank, handler) :: (rank', handler') :: lst)
+      else
+        let (Queue lst'') = enqueue rank handler (Queue lst) in
+        Queue ((rank', handler') :: lst'')
 
-  let attach lst listener =
-    let key = Gensym.gensym () in
-    lst := (key, listener) :: !lst;
-    (fun () -> lst := List.remove_assq key !lst)
+  let dequeue q = match q with
+    | Queue [] -> None
+    | Queue ((rank, handler) :: lst) -> Some (rank, handler, Queue lst)
 
-  let invoke_all lst v =
-    (if List.length !lst > 1 then
-        Printf.eprintf "[Stream] GLITCH.\n%!");
-    List.iter (fun (_, listener) -> listener v) !lst
 end
 
-let map (f : 'a -> 'b) (src : 'a t) : 'b t =
-  let now = ref (f (src.now ())) in
-  let listeners = Listeners.empty () in
-  let updater a =
-    now := f a;
-    Listeners.invoke_all listeners !now in
-  let _ = src.attach_listener updater in
-  {
-    now = (fun () -> !now);
-    attach_listener = Listeners.attach listeners
-  }
-
-let map2 (f : 'a -> 'b -> 'c) (a_src : 'a t) (b_src : 'b t) : 'c t =
-  let now = ref (f (a_src.now ()) (b_src.now ())) in
-  let listeners = Listeners.empty () in
-  let a_updater a =
-    now := f a (b_src.now ());
-    Listeners.invoke_all listeners !now in
-  let b_updater b =
-    now := f (a_src.now ()) b;
-    Listeners.invoke_all listeners !now in
-  let _ = a_src.attach_listener a_updater in
-  let _ = b_src.attach_listener b_updater in
-  {
-    now = (fun () -> !now);
-    attach_listener = Listeners.attach listeners
-  }
-
-let constant (x : 'a) = {
-  now = (fun () -> x);
-  attach_listener = (fun _ -> fun () -> ())
+type 'a node = {
+  mutable now : 'a; (* current value *)
+  rank : int;
+  attach_consumer : (Q.t -> Q.t) -> unit
 }
 
-let from_stream (init : 'a) (stream : 'a Lwt_stream.t) : 'a t =
-  let now = ref init in
-  let listeners = Listeners.empty () in
+type 'a t = 'a node
+
+let now node = node.now
+
+let map (f : 'a -> 'b) (src : 'a node) : 'b node =
+  let sends_to = ref [] in
+  let self = {
+    now = f src.now;
+    rank = 1 + src.rank;
+    attach_consumer = (fun f -> sends_to := f :: !sends_to)
+  } in
+  let queued_now = ref false in
+  let producer q =
+    queued_now := false;
+    self.now <- f src.now;
+    List.fold_right (fun f q -> f q) !sends_to q in
+  let consumer q =
+    if !queued_now = false then
+      begin
+        queued_now := true;
+        Q.enqueue self.rank producer q
+      end
+    else
+      q in
+  src.attach_consumer consumer;
+  self
+
+let map2 (f : 'a -> 'b -> 'c) (a_src : 'a node) (b_src : 'b node) : 'c node =
+  let sends_to = ref [] in
+  let self = {
+    now = f a_src.now b_src.now;
+    rank = 1 + max a_src.rank b_src.rank;
+    attach_consumer = (fun f -> sends_to := f :: !sends_to)
+  } in
+  let queued_now = ref false in
+  let producer q =
+    queued_now := false;
+    self.now <- f a_src.now b_src.now;
+    List.fold_right (fun f q -> f q) !sends_to q in
+  let consumer q =
+    if !queued_now = false then
+      begin
+        queued_now := true;
+        Q.enqueue self.rank producer q
+      end
+    else
+      q in
+  a_src.attach_consumer consumer;
+  b_src.attach_consumer consumer;
+  self
+
+
+let constant (v : 'a) : 'a node =
+  {
+    now = v;
+    rank = 0;
+    attach_consumer = (fun _ -> ());
+  }
+
+let from_stream (init : 'a) (stream : 'a Lwt_stream.t) : 'a node =
+  let sends_to = ref [] in
+  let self = {
+    now = init;
+    rank = 0;
+    attach_consumer = (fun f -> sends_to := f :: !sends_to)
+  } in
+  let producer q =
+    List.fold_right (fun f q -> f q) !sends_to q in
+  let rec propagate q =
+    match Q.dequeue q with
+    | None -> ()
+    | Some (_, v, q') -> propagate (v q') in
   Lwt.async
     (fun () ->
       Lwt_stream.iter
         (fun a ->
-          now := a;
-          Listeners.invoke_all listeners !now)
+          self.now <- a;
+          try
+             propagate (Q.singleton 0 producer)
+          with exn ->
+            eprintf "EXN: %s\n" (Printexc.to_string exn))
         stream);
-  {
-    now = (fun () -> !now);
-    attach_listener = Listeners.attach listeners
-  }
+  self
 
-let to_stream (x : 'a t) : 'a Lwt_stream.t =
+let to_stream (x : 'a node) : 'a Lwt_stream.t =
   let (stream, push) = Lwt_stream.create () in
-  let _ = x.attach_listener (fun a -> push (Some a)) in
-  push (Some (x.now ()));
+  x.attach_consumer (fun q -> push (Some x.now); q);
+  push (Some x.now);
   stream

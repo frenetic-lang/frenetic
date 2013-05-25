@@ -2,8 +2,57 @@ open Packet
 open List
 
 module Internal : sig
+
+  type 'a wildcard = 'a NetCore_Wildcard.wildcard
+
+  type port =
+    | Physical of portId
+    | All
+    | Bucket of int
+    | Here
+
+  type lp = OpenFlow0x01.switchId * port * packet
+
+  type ptrn = {
+    ptrnDlSrc : dlAddr wildcard;
+    ptrnDlDst : dlAddr wildcard;
+    ptrnDlType : dlTyp wildcard;
+    ptrnDlVlan : dlVlan wildcard;
+    ptrnDlVlanPcp : dlVlanPcp wildcard;
+    ptrnNwSrc : nwAddr wildcard;
+    ptrnNwDst : nwAddr wildcard;
+    ptrnNwProto : nwProto wildcard;
+    ptrnNwTos : nwTos wildcard;
+    ptrnTpSrc : tpPort wildcard;
+    ptrnTpDst : tpPort wildcard;
+    ptrnInPort : port wildcard
+  }
+
+  type 'a match_modify = ('a * 'a) option
+
+  (** Note that OpenFlow does not allow the [dlType] and [nwProto]
+      fields to be modified. *)
+  type output = {
+    outDlSrc : dlAddr match_modify;
+    outDlDst : dlAddr match_modify;
+    outDlVlan : dlVlan match_modify;
+    outDlVlanPcp : dlVlanPcp match_modify;
+    outNwSrc : nwAddr match_modify;
+    outNwDst : nwAddr match_modify;
+    outNwTos : nwTos match_modify;
+    outTpSrc : tpPort match_modify;
+    outTpDst : tpPort match_modify;
+    outPort : port 
+  }
+
+  type action_atom =
+    | SwitchAction of output
+    | ControllerAction of (OpenFlow0x01.switchId -> port -> packet -> action)
+
+  and action = action_atom list
+
   type pred =
-  | PrHdr of NetCore_Pattern.t
+  | PrHdr of ptrn
   | PrOnSwitch of OpenFlow0x01.switchId
   | PrOr of pred * pred
   | PrAnd of pred * pred
@@ -12,7 +61,7 @@ module Internal : sig
   | PrNone
 
   type pol =
-  | PoAction of NetCore_Action.Output.t
+  | PoAction of action
   | PoFilter of pred
   | PoUnion of pol * pol
   | PoSeq of pol * pol
@@ -23,11 +72,9 @@ module Internal : sig
   | Data of bytes 
 
   type value =
-  | Pkt of OpenFlow0x01.switchId * NetCore_Pattern.port * packet * payload
+  | Pkt of OpenFlow0x01.switchId * port * packet * payload
 
-  val match_pred : pred -> OpenFlow0x01.switchId -> NetCore_Pattern.port -> packet -> bool
-
-  val classify : pol -> value -> value list
+  val port_to_string : port -> string
 
   val pred_to_string : pred -> string
 
@@ -38,7 +85,8 @@ end
 
 module External : sig
 
-  type get_packet_handler = OpenFlow0x01.switchId -> portId -> packet -> unit
+  type get_packet_handler = 
+    OpenFlow0x01.switchId -> Internal.port -> packet -> Internal.action
   type get_count_handler = OpenFlow0x01.switchId -> Int64.t -> unit
 
   type predicate =
@@ -91,11 +139,3 @@ module External : sig
   val policy_to_string : policy -> string
 
 end
-
-val desugar : 
-  (unit -> int) -> 
-  (unit -> int option) -> 
-  External.policy -> 
-  (int, External.get_packet_handler) Hashtbl.t -> 
-  (int, External.get_count_handler) Hashtbl.t -> 
-  Internal.pol

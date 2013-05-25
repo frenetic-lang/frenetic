@@ -477,8 +477,14 @@ module Action = struct
             (match pp with
               | PseudoPort.Controller w -> w
               | _ -> 0)
-	| _ ->
-	  failwith "NYI: Action.marshal"
+        | SetNwSrc addr 
+        | SetNwDst addr ->
+          set_ofp_action_nw_addr_nw_addr bits' addr
+        | SetTpSrc pt
+        | SetTpDst pt ->
+          set_ofp_action_tp_port_tp_port bits' pt
+	      | _ ->
+	        failwith "NYI: Action.marshal"
     end;
     sizeof a
 
@@ -811,11 +817,11 @@ let delete_all_flows =
     mfCheckOverlap = false
   }
 
-let add_flow match_ actions =
+let add_flow prio match_ actions =
   FlowModMsg {
     mfModCmd = AddFlow;
     mfMatch = match_;
-    mfPriority = 0;
+    mfPriority = prio;
     mfActions = actions;
     mfCookie = 0L;
     mfIdleTimeOut = Permanent;
@@ -828,8 +834,8 @@ let add_flow match_ actions =
 
 module type PLATFORM = sig
   exception SwitchDisconnected of switchId
-  val send_to_switch : switchId -> xid -> message -> unit Lwt.t
-  val recv_from_switch : switchId -> (xid * message) Lwt.t
+  val send_to_switch : switchId -> xid -> message -> unit option Lwt.t
+  val recv_from_switch : switchId -> (xid * message) option Lwt.t
   val accept_switch : unit -> features Lwt.t
 end
 

@@ -199,7 +199,7 @@ and ip_desc =
     let chksum = get_ip_chksum bits in 
     let src = get_ip_src bits in 
     let dst = get_ip_dst bits in 
-    let bits = Cstruct.shift bits ihl in 
+    let bits = Cstruct.shift bits (ihl * 4) in 
     let tp_header = match int_to_ip_proto proto with 
       | Some IP_ICMP -> 
         begin match icmp_desc.parse bits with 

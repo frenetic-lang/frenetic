@@ -12,12 +12,13 @@ let policy = ref (NetCore_Stream.constant Empty)
 let () =
   Arg.parse
     [ ]
-    (fun filename -> policy := NetCore_Compiler.parse_from_chan (open_in filename) filename)
-    "Usage: netcore FILENAME"
+    (fun filename -> 
+      policy := NetCore_Compiler.parse_from_chan (open_in filename) filename)
+    "usage: netcore filename"
 
 let main () = 
   (* JNF: kind of a hack that we have to call this function :-( *)
-  OpenFlow0x01_Platform.init_with_port 6633; 
+  OpenFlow0x01_Platform.init_with_port 6633 >>
   Controller.start_controller !policy
       
 let _ =
