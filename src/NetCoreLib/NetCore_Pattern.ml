@@ -254,7 +254,7 @@ let tpDstPort proto tpPort =
     ptrnTpDst = WildcardExact tpPort }
 
 let tcpSrcPort = tpSrcPort 6
-let tcpDstPort = tpSrcPort 6
+let tcpDstPort = tpDstPort 6
 let udpSrcPort = tpSrcPort 17
 let udpDstPort = tpDstPort 17
 
