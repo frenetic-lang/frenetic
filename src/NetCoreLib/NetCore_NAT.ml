@@ -73,10 +73,10 @@ let make (public_ip : nwAddr) =
     match pk with
       | { pktDlTyp = 0x800;
           pktNwHeader = NwIP {
-            pktIPSrc = src_ip;
-            pktIPDst = dst_ip;
-            pktIPProto = 6;
-            pktTpHeader = TpTCP { Tcp.src = src_pt; Tcp.dst = dst_pt }
+            Ip.src = src_ip;
+            Ip.dst = dst_ip;
+            Ip.proto = 6;
+            Ip.tp = Ip.Tcp { Tcp.src = src_pt; Tcp.dst = dst_pt }
           }
         } -> 
         eprintf "[NAT] firewall dropping IP packet from %s:%d to %s:%d\n%!"
@@ -88,9 +88,9 @@ let make (public_ip : nwAddr) =
     match pk with
       | { pktDlTyp = 0x800;
           pktNwHeader = NwIP {
-            pktIPSrc = private_ip;
-            pktIPProto = 6;
-            pktTpHeader = TpTCP { Tcp.src = private_port }
+            Ip.src = private_ip;
+            Ip.proto = 6;
+            Ip.tp = Ip.Tcp { Tcp.src = private_port }
           }
         } ->
         begin match Table.get_public_port tbl private_ip private_port with

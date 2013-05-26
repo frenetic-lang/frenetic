@@ -71,32 +71,41 @@ module Icmp : sig
   val serialize : Cstruct.t -> t -> unit
 end
 
-type tpPkt =
-  | TpTCP of Tcp.t
-  | TpICMP of Icmp.t
-  | TpUnparsable of nwProto * bytes
+module Ip : sig
 
-type ip = {
-  pktIPVhl : int8;
-  pktIPTos : nwTos;
-  pktIPLen : int16;
-  pktIPIdent : int16;
-  pktIPFlags : int8;
-  pktIPFrag : int16;
-  pktIPTtl : int8;
-  pktIPProto : nwProto;
-  pktIPChksum : int16;
-  pktIPSrc : nwAddr;
-  pktIPDst : nwAddr;
-  pktTpHeader : tpPkt 
-}
+  type tp =
+    | Tcp of Tcp.t
+    | Icmp of Icmp.t
+    | Unparsable of bytes
+
+  type t = {
+    vhl : int8;
+    tos : nwTos;
+    len : int16;
+    ident : int16;
+    flags : int8;
+    frag : int16;
+    ttl : int8;
+    proto : nwProto;
+    chksum : int16;
+    src : nwAddr;
+    dst : nwAddr;
+    tp : tp
+  }
+
+  val parse : Cstruct.t -> t option
+  val len : t -> int
+  val serialize : Cstruct.t -> t -> unit
+
+end
+
 
 type arp =
   | ARPQuery of dlAddr * nwAddr * nwAddr
   | ARPReply of dlAddr * nwAddr * dlAddr * nwAddr
 
 type nw =
-  | NwIP of ip
+  | NwIP of Ip.t
   | NwARP of arp
   | NwUnparsable of dlTyp * bytes
 

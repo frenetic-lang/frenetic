@@ -43,25 +43,6 @@ cenum arp_oper {
   ARP_REPLY = 0x0002
 } as uint16_t
 
-cenum ip_proto { 
-  IP_ICMP = 0x01;
-  IP_TCP = 0x06;
-  IP_UDP = 0x11
-} as uint8_t
-
-cstruct ip { 
-  uint8_t vhl; (* version and ihl *)
-  uint8_t tos; 
-  uint16_t len;
-  uint16_t ident;
-  uint16_t frag; (* flags and frag *)
-  uint8_t ttl;
-  uint8_t proto;
-  uint16_t chksum;
-  uint32_t src;
-  uint32_t dst;
-  uint32_t options (* options and padding *)
-} as big_endian
 
 (* Transport *)
 
@@ -71,7 +52,6 @@ cstruct udp {
   uint16_t len;
   uint16_t chksum
 } as big_endian
-
 
 (* Types for parsers *)
 type 'a desc = 
@@ -107,7 +87,7 @@ let rec eth_desc =
     let bits = Cstruct.shift bits offset in
     let nw_header = match int_to_eth_typ typ with 
       | Some ETHTYP_IP -> 
-        begin match ip_desc.parse bits with 
+        begin match Ip.parse bits with 
         | Some ip -> NwIP ip
         | None -> NwUnparsable (typ,Cstruct.of_string (Cstruct.to_string bits))
         end
@@ -130,7 +110,7 @@ let rec eth_desc =
         else sizeof_eth in 
       let nw_len = match pkt.pktNwHeader with 
         | NwIP ip -> 
-          ip_desc.len ip
+          Ip.len ip
         | NwARP arp -> 
           arp_desc.len arp 
         | NwUnparsable(_,data) -> 
@@ -159,85 +139,12 @@ let rec eth_desc =
           end in 
       match pkt.pktNwHeader with 
       | NwIP ip -> 
-        ip_desc.serialize bits ip
+        Ip.serialize bits ip
       | NwARP arp -> 
         arp_desc.serialize bits arp
       | NwUnparsable(_,data) -> 
         Cstruct.blit bits 0 data 0 (Cstruct.len data))
   }
-
-and ip_desc = 
-  { parse = (fun (bits:Cstruct.t) -> 
-    let vhl = get_ip_vhl bits in 
-    (* TODO(arjun): MUST test for IPv4. Students' machines configured with
-       IPv6 will otherwise explode. *)
-    let _ = vhl lsr 4 in (* TODO(jnf): test for IPv4? *)
-    let ihl = vhl land 0x0f in 
-    let tos = get_ip_tos bits in 
-    let len = get_ip_len bits in 
-    let frag = get_ip_frag bits in 
-    let flags = frag lsr 13 in 
-    let frag = frag land 0x1fff in 
-    let ttl = get_ip_ttl bits in 
-    let ident = get_ip_ident bits in 
-    let proto = get_ip_proto bits in 
-    let chksum = get_ip_chksum bits in 
-    let src = get_ip_src bits in 
-    let dst = get_ip_dst bits in 
-    let bits = Cstruct.shift bits (ihl * 4) in 
-    let tp_header = match int_to_ip_proto proto with 
-      | Some IP_ICMP -> 
-        begin match Icmp.parse bits with 
-        | Some icmp -> TpICMP icmp 
-        | _ -> TpUnparsable (proto, bits) 
-        end
-      | Some IP_TCP ->       
-        begin match Tcp.parse bits with 
-        | Some tcp -> TpTCP tcp 
-        | _ -> TpUnparsable (proto, bits) 
-        end
-      | _ -> 
-        TpUnparsable (proto, bits) in 
-    Some { pktIPVhl = vhl;
-           pktIPTos = tos;
-           pktIPLen = len;
-           pktIPIdent = ident;
-           pktIPFlags = flags ;
-           pktIPFrag = frag;
-           pktIPTtl = ttl;
-           pktIPProto = proto;
-           pktIPChksum = chksum;
-           pktIPSrc = src;
-           pktIPDst = dst;     
-           pktTpHeader = tp_header });
-    len = (fun (pkt:ip) -> 
-      let ip_len = sizeof_ip - 4 in (* JNF: hack! *)
-      let tp_len = match pkt.pktTpHeader with 
-      | TpTCP tcp -> 
-        Tcp.len tcp
-      | TpICMP icmp -> 
-        Icmp.len icmp
-      | TpUnparsable(_,data) -> 
-        Cstruct.len data in 
-      ip_len + tp_len);
-    serialize = (fun (bits:Cstruct.t) (pkt:ip) -> 
-      set_ip_vhl bits pkt.pktIPVhl;
-      set_ip_tos bits pkt.pktIPTos;
-      set_ip_ident bits pkt.pktIPTos;
-      set_ip_frag bits (pkt.pktIPFlags lor (pkt.pktIPFrag lsl 13));
-      set_ip_ttl bits pkt.pktIPTtl;
-      set_ip_proto bits pkt.pktIPProto;
-      set_ip_chksum bits pkt.pktIPChksum;
-      set_ip_src bits pkt.pktIPSrc;
-      set_ip_dst bits pkt.pktIPDst;
-      let bits = Cstruct.shift bits sizeof_ip in 
-      match pkt.pktTpHeader with 
-      | TpTCP tcp -> 
-        Tcp.serialize bits tcp
-      | TpICMP icmp -> 
-        Icmp.serialize bits icmp
-      | TpUnparsable (_,data) -> 
-        Cstruct.blit bits 0 data 0 (Cstruct.len data)) }
 
 and arp_desc = 
   { parse = (fun (bits:Cstruct.t) -> 

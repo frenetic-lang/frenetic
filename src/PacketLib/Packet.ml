@@ -146,33 +146,133 @@ module Icmp = struct
   
 end
 
+module Ip = struct
 
+  type tp =
+    | Tcp of Tcp.t
+    | Icmp of Icmp.t
+    | Unparsable of bytes
 
-type tpPkt =
-| TpTCP of Tcp.t
-| TpICMP of Icmp.t
-| TpUnparsable of nwProto * bytes
+  type t = {
+    vhl : int8;
+    tos : nwTos;
+    len : int16;
+    ident : int16;
+    flags : int8;
+    frag : int16;
+    ttl : int8;
+    proto : nwProto;
+    chksum : int16;
+    src : nwAddr;
+    dst : nwAddr;
+    tp : tp
+  }
 
-type ip = 
-  { pktIPVhl : int8; 
-    pktIPTos : nwTos; 
-    pktIPLen : int16;
-    pktIPIdent : int16; 
-    pktIPFlags : int8;
-    pktIPFrag : int16; 
-    pktIPTtl : int8; 
-    pktIPProto : nwProto;
-    pktIPChksum : int16; 
-    pktIPSrc : nwAddr; 
-    pktIPDst : nwAddr;
-    pktTpHeader : tpPkt }
+  cenum ip_proto { 
+    IP_ICMP = 0x01;
+    IP_TCP = 0x06;
+    IP_UDP = 0x11
+  } as uint8_t
+
+  cstruct ip { 
+    uint8_t vhl; (* version and ihl *)
+    uint8_t tos; 
+    uint16_t len;
+    uint16_t ident;
+    uint16_t frag; (* flags and frag *)
+    uint8_t ttl;
+    uint8_t proto;
+    uint16_t chksum;
+    uint32_t src;
+    uint32_t dst;
+    uint32_t options (* options and padding *)
+  } as big_endian
+
+  (* TODO(arjun): error if header does not fit *)
+  let  parse (bits : Cstruct.t) = 
+    let vhl = get_ip_vhl bits in 
+    (* TODO(arjun): MUST test for IPv4. Students' machines configured with
+       IPv6 will otherwise explode. *)
+    let _ = vhl lsr 4 in (* TODO(jnf): test for IPv4? *)
+    let ihl = vhl land 0x0f in 
+    let tos = get_ip_tos bits in 
+    let len = get_ip_len bits in 
+    let frag = get_ip_frag bits in 
+    let flags = frag lsr 13 in 
+    let frag = frag land 0x1fff in 
+    let ttl = get_ip_ttl bits in 
+    let ident = get_ip_ident bits in 
+    let proto = get_ip_proto bits in 
+    let chksum = get_ip_chksum bits in 
+    let src = get_ip_src bits in 
+    let dst = get_ip_dst bits in 
+    let bits = Cstruct.shift bits (ihl * 4) in 
+    let tp = match int_to_ip_proto proto with 
+      | Some IP_ICMP -> 
+        begin match Icmp.parse bits with 
+        | Some icmp -> Icmp icmp
+        | None -> Unparsable bits
+        end
+      | Some IP_TCP ->       
+        begin match Tcp.parse bits with 
+        | Some tcp -> Tcp tcp
+        | None -> Unparsable bits
+        end
+      | _ -> Unparsable bits in
+    Some {
+      vhl = vhl;
+      tos = tos;
+      len = len;
+      ident = ident;
+      flags = flags ;
+      frag = frag;
+      ttl = ttl;
+      proto = proto;
+      chksum = chksum;
+      src = src;
+      dst = dst;     
+      tp = tp
+    }
+
+  let len (pkt : t) = 
+  (* TODO(arjun): what is this hack? *)
+    let ip_len = sizeof_ip - 4 in (* JNF: hack! *)
+    let tp_len = match pkt.tp with 
+      | Tcp tcp -> Tcp.len tcp
+      | Icmp icmp -> Icmp.len icmp
+      | Unparsable data -> Cstruct.len data in 
+    ip_len + tp_len
+
+  (* TODO(arjun): error if not enough space *)
+  let serialize (bits : Cstruct.t) (pkt:t) =
+    set_ip_vhl bits pkt.vhl;
+    set_ip_tos bits pkt.tos;
+    set_ip_ident bits pkt.tos;
+    set_ip_frag bits (pkt.flags lor (pkt.frag lsl 13));
+    set_ip_ttl bits pkt.ttl;
+    set_ip_proto bits pkt.proto;
+    set_ip_chksum bits pkt.chksum; (* TODO(arjun): calculate checksum *)
+    set_ip_src bits pkt.src;
+    set_ip_dst bits pkt.dst;
+    let bits = Cstruct.shift bits sizeof_ip in 
+    match pkt.tp with
+      | Tcp tcp -> 
+        Tcp.serialize bits tcp
+      | Icmp icmp -> 
+        Icmp.serialize bits icmp
+      | Unparsable data ->
+        (* TODO(arjun): might be wrong. source -> dest order. *)
+        Cstruct.blit bits 0 data 0 (Cstruct.len data)
+
+end
+
 
 type arp =
 | ARPQuery of dlAddr * nwAddr * nwAddr
 | ARPReply of dlAddr * nwAddr * dlAddr * nwAddr
 
 type nw =
-| NwIP of ip
+| NwIP of Ip.t
 | NwARP of arp
 | NwUnparsable of dlTyp * bytes
 
@@ -185,36 +285,36 @@ type packet =
     pktNwHeader : nw }
 
 let pktNwSrc pkt = match pkt.pktNwHeader with
-  | NwIP ip -> ip.pktIPSrc
+  | NwIP ip -> ip.Ip.src
   | NwARP (ARPQuery (_,ip,_)) -> ip
   | NwARP (ARPReply (_,ip,_,_)) -> ip
   | NwUnparsable _ -> Int32.zero
 
 let pktNwDst pkt = match pkt.pktNwHeader with
-  | NwIP ip -> ip.pktIPDst
+  | NwIP ip -> ip.Ip.dst
   | NwARP (ARPQuery (_,_,ip)) -> ip
   | NwARP (ARPReply (_,_,_,ip)) -> ip
   | NwUnparsable _ -> Int32.zero
 
 let pktNwProto pkt = match pkt.pktNwHeader with 
-  | NwIP ip -> ip.pktIPProto
+  | NwIP ip -> ip.Ip.proto
   | _ -> 0
 
 let pktNwTos pkt = match pkt.pktNwHeader with 
-  | NwIP ip -> ip.pktIPTos
+  | NwIP ip -> ip.Ip.tos
   | _ -> 0
 
 let pktTpSrc pkt = match pkt.pktNwHeader with 
   | NwIP ip ->
-    (match ip.pktTpHeader with
-    | TpTCP frg -> frg.Tcp.src
+    (match ip.Ip.tp with
+    | Ip.Tcp frg -> frg.Tcp.src
     | _ -> 0)
   | _ -> 0
 
 let pktTpDst pkt = match pkt.pktNwHeader with 
   | NwIP ip ->
-    (match ip.pktTpHeader with
-    | TpTCP frg -> frg.Tcp.dst
+    (match ip.Ip.tp with
+    | Ip.Tcp frg -> frg.Tcp.dst
     | _ -> 0)
   | _ -> 0
 
@@ -232,20 +332,20 @@ let setDlVlanPcp pkt dlVlanPcp =
 
 let nw_setNwSrc nwPkt src = match nwPkt with
   | NwIP ip ->
-    NwIP { ip with pktIPSrc = src }
+    NwIP { ip with Ip.src = src }
   | nw -> 
     nw
 
 let nw_setNwDst nwPkt dst = match nwPkt with
   | NwIP ip ->
-    NwIP { ip with pktIPDst = dst }
+    NwIP { ip with Ip.dst = dst }
   | nw -> 
     nw
 
 let nw_setNwTos nwPkt tos =
   match nwPkt with
   | NwIP ip ->
-    NwIP { ip with pktIPTos = tos }
+    NwIP { ip with Ip.tos = tos }
   | nw -> 
     nw
     
@@ -259,26 +359,26 @@ let setNwTos pkt nwTos =
   { pkt with pktNwHeader = nw_setNwTos pkt.pktNwHeader nwTos }
 
 let tp_setTpSrc tp src = match tp with 
-  | TpTCP tcp ->
-    TpTCP { tcp with Tcp.src = src } (* JNF: checksum? *)
+  | Ip.Tcp tcp ->
+    Ip.Tcp { tcp with Tcp.src = src } (* JNF: checksum? *)
   | tp -> 
     tp
 
 let tp_setTpDst tp dst = match tp with 
-  | TpTCP tcp ->
-    TpTCP { tcp with Tcp.dst = dst } (* JNF: checksum? *)
+  | Ip.Tcp tcp ->
+    Ip.Tcp { tcp with Tcp.dst = dst } (* JNF: checksum? *)
   | tp -> 
     tp
 
 let nw_setTpSrc nwPkt tpSrc = match nwPkt with 
   | NwIP ip ->
-    NwIP { ip with pktTpHeader = tp_setTpSrc ip.pktTpHeader tpSrc }
+    NwIP { ip with Ip.tp = tp_setTpSrc ip.Ip.tp tpSrc }
   | nw -> 
     nw
 
 let nw_setTpDst nwPkt tpDst = match nwPkt with 
   | NwIP ip ->
-    NwIP { ip with pktTpHeader = tp_setTpDst ip.pktTpHeader tpDst }
+    NwIP { ip with Ip.tp = tp_setTpDst ip.Ip.tp tpDst }
   | nw -> 
     nw
 
