@@ -54,8 +54,8 @@ module Internal = struct
   and action_atom =
     | SwitchAction of output
     | ControllerAction of get_packet_handler
-    | ControllerPacketQuery of int * get_count_handler
-    | ControllerByteQuery of int * get_count_handler
+    | ControllerPacketQuery of int
+    | ControllerByteQuery of int
 
   and action = action_atom list
 

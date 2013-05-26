@@ -172,7 +172,7 @@ module IndividualFlowRequest : sig
 
     type t = { of_match : Match.t
              ; table_id : table_id
-             ; port : PseudoPort.t
+             ; port : PseudoPort.t option
              }
 
     val to_string : t -> string
@@ -187,7 +187,7 @@ module AggregateFlowRequest : sig
 
     type t = { of_match : Match.t
              ; table_id : table_id
-             ; port : PseudoPort.t
+             ; port : PseudoPort.t option
              }
 
     val to_string : t -> string
@@ -210,18 +210,22 @@ module DescriptionStats : sig
 end
 
 module IndividualFlowStats : sig
-    type t = { table_id : table_id
-             ; of_match : Match.t
-             ; duration_sec : int
-             ; duration_nsec : int
-             ; priority : int
-             ; idle_timeout : int
-             ; hard_timeout : int
-             ; cookie : Int64.t
-             ; packet_count : Int64.t
-             ; byte_count : Int64.t
-             ; actions : Action.sequence
-             }
+
+  type t = { table_id : table_id
+           ; of_match : Match.t
+           ; duration_sec : int
+           ; duration_nsec : int
+           ; priority : int
+           ; idle_timeout : int
+           ; hard_timeout : int
+           ; cookie : Int64.t
+           ; packet_count : Int64.t
+           ; byte_count : Int64.t
+           ; actions : Action.sequence
+           }
+
+  val to_string : t -> string
+
 end
 
 module AggregateFlowStats : sig

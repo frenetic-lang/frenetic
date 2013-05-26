@@ -27,7 +27,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
 
   (* Per-policy state. *)
 
-  let get_count_handlers : (int, get_count_handler) Hashtbl.t = 
+  let get_count_handlers : (int, (int * get_count_handler)) Hashtbl.t = 
     Hashtbl.create 200
 
   let counters : (int, Int64.t) Hashtbl.t =
@@ -170,7 +170,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
   let accept_policy push_pol pol = 
     (* TODO(cole) kill_outstanding_queries !query_kill_switch; *)
     reset_policy_state ();
-    let p = NetCore_Desugar.desugar genvlan pol in
+    let p = NetCore_Desugar.desugar genvlan genbucket get_count_handlers pol in
     Log.printf "[NetCore_Controller.ml]" "got new policy:\n%s\n%!" 
       (Internal.pol_to_string p);
     (* TODO(cole) initialize_query_state p; *)

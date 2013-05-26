@@ -102,10 +102,10 @@ module Output = struct
   let string_of_action_atom atom = match atom with
     | SwitchAction output -> "SwitchAction " ^ (string_of_output output)
     | ControllerAction _ -> "ControllerAction _"
-    | ControllerPacketQuery (d, _) -> 
-      Printf.sprintf "ControllerPacketQuery (%d, _)" d
-    | ControllerByteQuery (d, _) -> 
-      Printf.sprintf "ControllerByteQuery (%d, _)" d
+    | ControllerPacketQuery d -> 
+      Printf.sprintf "ControllerPacketQuery %d" d
+    | ControllerByteQuery d -> 
+      Printf.sprintf "ControllerByteQuery %d" d
 
   type action = action_atom list
 
@@ -142,11 +142,11 @@ module Output = struct
 
   let to_all = [ SwitchAction { unmodified with outPort = All } ]
 
-  let packet_query (d, h) =
-    [ ControllerPacketQuery (d, h) ]
+  let packet_query d =
+    [ ControllerPacketQuery d ]
 
-  let byte_query (d, h) =
-    [ ControllerByteQuery (d, h) ]
+  let byte_query d =
+    [ ControllerByteQuery d ]
 
   let bucket n =
     [ SwitchAction { unmodified with outPort = Bucket n } ]
@@ -458,10 +458,8 @@ module Output = struct
   let atom_is_equal x y = match x, y with
     | SwitchAction out1, SwitchAction out2 -> out1 = out2
     | ControllerAction f, ControllerAction g -> f == g (* functional values *)
-    | ControllerPacketQuery (d, f), ControllerPacketQuery (d', f') ->
-      d == d' && f == f'
-    | ControllerByteQuery (d, f), ControllerByteQuery (d', f') ->
-      d == d' && f == f'
+    | ControllerPacketQuery d, ControllerPacketQuery d' -> d == d'
+    | ControllerByteQuery d, ControllerByteQuery d' -> d == d'
     | _ -> false
 
   (* TODO(arjun): What if they are permutations? *)
