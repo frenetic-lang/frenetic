@@ -37,18 +37,25 @@ type nwTos = int8
 
 type tpPort = int16
 
-type tcp = {
-  tcpSrc : tpPort;
-  tcpDst : tpPort;
-  tcpSeq : int32;
-  tcpAck : int32; 
-  tcpOffset : int8;
-  tcpFlags : int16;
-  tcpWindow : int16;
-  tcpChksum : int8;
-  tcpUrgent : int8;
-  tcpPayload : bytes
-}
+module Tcp : sig
+  type t = {
+    src : tpPort; 
+    dst : tpPort; 
+    seq : int32;
+    ack : int32; 
+    offset : int8; 
+    flags : int16;
+    window : int16; 
+    chksum : int8; 
+    urgent : int8;
+    payload : bytes 
+  }
+
+  val parse : Cstruct.t -> t option
+  val len : t -> int
+  val serialize : Cstruct.t -> t -> unit
+
+end
 
 type icmp = {
   icmpType : int8;
@@ -58,7 +65,7 @@ type icmp = {
 }
 
 type tpPkt =
-  | TpTCP of tcp
+  | TpTCP of Tcp.t
   | TpICMP of icmp
   | TpUnparsable of nwProto * bytes
 

@@ -24,17 +24,87 @@ type nwTos = int8
 
 type tpPort = int16
 
-type tcp = 
-  { tcpSrc : tpPort; 
-    tcpDst : tpPort; 
-    tcpSeq : int32;
-    tcpAck : int32; 
-    tcpOffset : int8; 
-    tcpFlags : int16;
-    tcpWindow : int16; 
-    tcpChksum : int8; 
-    tcpUrgent : int8;
-    tcpPayload : bytes }
+module type Header = sig
+
+  type t
+  val parse : Cstruct.t -> t option
+  val len : t -> int
+  val serialize : Cstruct.t -> t -> unit
+
+end
+
+module Tcp = struct
+
+  type t = {
+    src : tpPort; 
+    dst : tpPort; 
+    seq : int32;
+    ack : int32; 
+    offset : int8; 
+    flags : int16;
+    window : int16; 
+    chksum : int8; 
+    urgent : int8;
+    payload : bytes 
+  }
+
+  cstruct tcp { 
+    uint16_t src;
+    uint16_t dst;
+    uint32_t seq;
+    uint32_t ack;
+    uint8_t offset; (* offset and reserved *)
+    uint8_t flags; 
+    uint16_t window;
+    uint16_t chksum;
+    uint16_t urgent;
+    uint32_t options (* options and padding *)
+  } as big_endian
+
+
+  (** TODO(arjun): errors if size is wrong *)
+  let parse (bits : Cstruct.t) = 
+    let src = get_tcp_src bits in 
+    let dst = get_tcp_dst bits in 
+    let seq = get_tcp_seq bits in 
+    let ack = get_tcp_ack bits in 
+    let offset = get_tcp_offset bits in 
+    let offset = offset lsr 4 in 
+    let _ = offset land 0x0f in 
+    let flags = get_tcp_flags bits in 
+    let window = get_tcp_window bits in 
+    let chksum = get_tcp_chksum bits in 
+    let urgent = get_tcp_urgent bits in 
+    let payload = Cstruct.shift bits sizeof_tcp in (* JNF: options fixme *)
+    Some { 
+      src = src;
+      dst = dst;
+      seq = seq;
+      ack = ack;
+      offset =  offset;
+      flags = flags;
+      window = window;
+      chksum = chksum;
+      urgent = urgent;
+      payload = payload 
+    }
+
+  (* TODO(arjun): should include payload size too *)
+  let len (pkt : t) = sizeof_tcp
+    
+  let serialize (bits : Cstruct.t) (pkt : t) =
+    set_tcp_src bits pkt.src;
+    set_tcp_dst bits pkt.dst;
+    set_tcp_seq bits pkt.seq;
+    set_tcp_ack bits pkt.ack;
+    set_tcp_offset bits pkt.offset;
+    set_tcp_flags bits pkt.flags;
+    set_tcp_window bits pkt.window;
+    set_tcp_window bits pkt.window;
+    let bits = Cstruct.shift bits sizeof_tcp in 
+    Cstruct.blit bits 0 pkt.payload 0 (Cstruct.len pkt.payload)
+
+end
 
 type icmp = 
   { icmpType : int8; 
@@ -43,7 +113,7 @@ type icmp =
     icmpPayload : bytes }
 
 type tpPkt =
-| TpTCP of tcp
+| TpTCP of Tcp.t
 | TpICMP of icmp
 | TpUnparsable of nwProto * bytes
 
@@ -101,14 +171,14 @@ let pktNwTos pkt = match pkt.pktNwHeader with
 let pktTpSrc pkt = match pkt.pktNwHeader with 
   | NwIP ip ->
     (match ip.pktTpHeader with
-    | TpTCP frg -> frg.tcpSrc
+    | TpTCP frg -> frg.Tcp.src
     | _ -> 0)
   | _ -> 0
 
 let pktTpDst pkt = match pkt.pktNwHeader with 
   | NwIP ip ->
     (match ip.pktTpHeader with
-    | TpTCP frg -> frg.tcpDst
+    | TpTCP frg -> frg.Tcp.dst
     | _ -> 0)
   | _ -> 0
 
@@ -154,13 +224,13 @@ let setNwTos pkt nwTos =
 
 let tp_setTpSrc tp src = match tp with 
   | TpTCP tcp ->
-    TpTCP { tcp with tcpSrc = src } (* JNF: checksum? *)
+    TpTCP { tcp with Tcp.src = src } (* JNF: checksum? *)
   | tp -> 
     tp
 
 let tp_setTpDst tp dst = match tp with 
   | TpTCP tcp ->
-    TpTCP { tcp with tcpDst = dst } (* JNF: checksum? *)
+    TpTCP { tcp with Tcp.dst = dst } (* JNF: checksum? *)
   | tp -> 
     tp
 

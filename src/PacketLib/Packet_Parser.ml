@@ -64,18 +64,6 @@ cstruct ip {
 } as big_endian
 
 (* Transport *)
-cstruct tcp { 
-  uint16_t src;
-  uint16_t dst;
-  uint32_t seq;
-  uint32_t ack;
-  uint8_t offset; (* offset and reserved *)
-  uint8_t flags; 
-  uint16_t window;
-  uint16_t chksum;
-  uint16_t urgent;
-  uint32_t options (* options and padding *)
-} as big_endian
 
 cstruct udp { 
   uint16_t src;
@@ -209,7 +197,7 @@ and ip_desc =
         | _ -> TpUnparsable (proto, bits) 
         end
       | Some IP_TCP ->       
-        begin match tcp_desc.parse bits with 
+        begin match Tcp.parse bits with 
         | Some tcp -> TpTCP tcp 
         | _ -> TpUnparsable (proto, bits) 
         end
@@ -231,7 +219,7 @@ and ip_desc =
       let ip_len = sizeof_ip - 4 in (* JNF: hack! *)
       let tp_len = match pkt.pktTpHeader with 
       | TpTCP tcp -> 
-        tcp_desc.len tcp
+        Tcp.len tcp
       | TpICMP icmp -> 
         icmp_desc.len icmp
       | TpUnparsable(_,data) -> 
@@ -250,7 +238,7 @@ and ip_desc =
       let bits = Cstruct.shift bits sizeof_ip in 
       match pkt.pktTpHeader with 
       | TpTCP tcp -> 
-        tcp_desc.serialize bits tcp
+        Tcp.serialize bits tcp
       | TpICMP icmp -> 
         icmp_desc.serialize bits icmp
       | TpUnparsable (_,data) -> 
@@ -289,43 +277,6 @@ and arp_desc =
         set_arp_spa bits spa;
         set_arp_tha (bytes_of_mac tha) 0 bits;
         set_arp_tpa bits tpa) }
-
-and tcp_desc = 
-  { parse = (fun (bits:Cstruct.t) -> 
-      let src = get_tcp_src bits in 
-      let dst = get_tcp_dst bits in 
-      let seq = get_tcp_seq bits in 
-      let ack = get_tcp_ack bits in 
-      let offset = get_tcp_offset bits in 
-      let offset = offset lsr 4 in 
-      let _ = offset land 0x0f in 
-      let flags = get_tcp_flags bits in 
-      let window = get_tcp_window bits in 
-      let chksum = get_tcp_chksum bits in 
-      let urgent = get_tcp_urgent bits in 
-      let payload = Cstruct.shift bits sizeof_tcp in (* JNF: options fixme *)
-      Some { tcpSrc = src;
-             tcpDst = dst;
-             tcpSeq = seq;
-             tcpAck = ack;
-             tcpOffset =  offset;
-             tcpFlags = flags;
-             tcpWindow = window;
-             tcpChksum = chksum;
-             tcpUrgent = urgent;
-             tcpPayload = payload });
-    len = (fun (pkt:tcp) -> sizeof_tcp);
-    serialize = (fun (bits:Cstruct.t) (pkt:tcp) -> 
-      set_tcp_src bits pkt.tcpSrc;
-      set_tcp_dst bits pkt.tcpDst;
-      set_tcp_seq bits pkt.tcpSeq;
-      set_tcp_ack bits pkt.tcpAck;
-      set_tcp_offset bits pkt.tcpOffset;
-      set_tcp_flags bits pkt.tcpFlags;
-      set_tcp_window bits pkt.tcpWindow;
-      set_tcp_window bits pkt.tcpWindow;
-      let bits = Cstruct.shift bits sizeof_tcp in 
-      Cstruct.blit bits 0 pkt.tcpPayload 0 (Cstruct.len pkt.tcpPayload)) }
 
 and icmp_desc = 
   { parse = (fun (bits:Cstruct.t) ->

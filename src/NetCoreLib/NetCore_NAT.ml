@@ -76,7 +76,7 @@ let make (public_ip : nwAddr) =
             pktIPSrc = src_ip;
             pktIPDst = dst_ip;
             pktIPProto = 6;
-            pktTpHeader = TpTCP { tcpSrc = src_pt; tcpDst = dst_pt }
+            pktTpHeader = TpTCP { Tcp.src = src_pt; Tcp.dst = dst_pt }
           }
         } -> 
         eprintf "[NAT] firewall dropping IP packet from %s:%d to %s:%d\n%!"
@@ -90,7 +90,7 @@ let make (public_ip : nwAddr) =
           pktNwHeader = NwIP {
             pktIPSrc = private_ip;
             pktIPProto = 6;
-            pktTpHeader = TpTCP { tcpSrc = private_port }
+            pktTpHeader = TpTCP { Tcp.src = private_port }
           }
         } ->
         begin match Table.get_public_port tbl private_ip private_port with
