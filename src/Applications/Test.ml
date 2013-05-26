@@ -422,7 +422,10 @@ module Helper = struct
   let desugar_policy pol =
     let vlan_cell = ref 0 in
     let genvlan () = incr vlan_cell; Some !vlan_cell in
-    desugar genvlan pol
+    let bucket_cell = ref 0 in
+    let genbucket () = incr bucket_cell; !bucket_cell in
+    let get_count_handlers = Hashtbl.create 200 in
+    desugar genvlan genbucket get_count_handlers pol
 
   let in_pkt =
     { pktDlSrc = Int64.zero
@@ -587,18 +590,25 @@ module TestParser = struct
 
   (* For each parsable type, test that parse(marshal(v)) == v for some value v.
    *)
+  let test_match = "match marshal/parse test" >:: fun () ->
+    let v = Match.all in
+    let bits = Cstruct.create Match.size in
+    let _ = Match.marshal v bits in
+    let v' = Match.parse bits in
+    assert_equal ~printer:Match.to_string v v'
 
-  let go = TestList [ ]
+  let go = TestList [ test_match ]
 
 end
 
 
 let tests =
-  TestList [ Test1.go;
-            TestFilters.go
+  TestList [ Test1.go
+           ; TestFilters.go
            ; TestMods.go
            ; TestSlices.go
            ; TestClassifier.go
+           ; TestParser.go
 (*           ; TestNetCore.go *)
            ]
 
