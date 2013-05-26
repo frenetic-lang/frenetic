@@ -165,18 +165,26 @@ let contains pat1 pat2 =
   TpPortWildcard.contains pat1.ptrnTpDst pat2.ptrnTpDst &&
   PortWildcard.contains pat1.ptrnInPort pat2.ptrnInPort
 
+let zero_default32 f x = match f x with
+  | Some v -> v
+  | None -> 0l
+
+let zero_default f x = match f x with
+  | Some v -> v
+  | None -> 0
+
 let exact_pattern pk pt = {
   ptrnDlSrc = WildcardExact pk.pktDlSrc;
   ptrnDlDst = WildcardExact pk.pktDlDst;
   ptrnDlType = WildcardExact pk.pktDlTyp;
   ptrnDlVlan = WildcardExact pk.pktDlVlan;
   ptrnDlVlanPcp = WildcardExact pk.pktDlVlanPcp;
-  ptrnNwSrc = WildcardExact (pktNwSrc pk);
-  ptrnNwDst = WildcardExact (pktNwDst pk);
-  ptrnNwProto = WildcardExact (pktNwProto pk);
-  ptrnNwTos = WildcardExact (pktNwTos pk);
-  ptrnTpSrc = WildcardExact (pktTpSrc pk);
-  ptrnTpDst = WildcardExact (pktTpDst pk);
+  ptrnNwSrc = WildcardExact (zero_default32 pktNwSrc pk);
+  ptrnNwDst = WildcardExact (zero_default32 pktNwDst pk);
+  ptrnNwProto = WildcardExact (zero_default pktNwProto pk);
+  ptrnNwTos = WildcardExact (zero_default pktNwTos pk);
+  ptrnTpSrc = WildcardExact (zero_default pktTpSrc pk);
+  ptrnTpDst = WildcardExact (zero_default pktTpDst pk);
   ptrnInPort = WildcardExact pt
 }
 

@@ -311,6 +311,14 @@ module Arp = struct
     uint32_t tpa
   } as big_endian
 
+  let nwSrc t = match t with
+    | Query (_, ip, _) -> ip
+    | Reply (_, ip, _, _) -> ip
+
+  let nwDst t = match t with
+    | Query (_, _, ip) -> ip
+    | Reply (_, _, _, ip) -> ip
+
   cenum arp_oper {
     ARP_REQUEST = 0x0001;
     ARP_REPLY = 0x0002
@@ -370,38 +378,36 @@ type packet =
     pktNwHeader : nw }
 
 let pktNwSrc pkt = match pkt.pktNwHeader with
-  | NwIP ip -> ip.Ip.src
-  | NwARP (Arp.Query (_,ip,_)) -> ip
-  | NwARP (Arp.Reply (_,ip,_,_)) -> ip
-  | NwUnparsable _ -> Int32.zero
+  | NwIP ip -> Some ip.Ip.src
+  | NwARP arp -> Some (Arp.nwSrc arp)
+  | NwUnparsable _ -> None
 
 let pktNwDst pkt = match pkt.pktNwHeader with
-  | NwIP ip -> ip.Ip.dst
-  | NwARP (Arp.Query (_,_,ip)) -> ip
-  | NwARP (Arp.Reply (_,_,_,ip)) -> ip
-  | NwUnparsable _ -> Int32.zero
+  | NwIP ip -> Some ip.Ip.dst
+  | NwARP arp -> Some (Arp.nwDst arp)
+  | NwUnparsable _ -> None
 
 let pktNwProto pkt = match pkt.pktNwHeader with 
-  | NwIP ip -> ip.Ip.proto
-  | _ -> 0
+  | NwIP ip -> Some ip.Ip.proto
+  | _ -> None
 
 let pktNwTos pkt = match pkt.pktNwHeader with 
-  | NwIP ip -> ip.Ip.tos
-  | _ -> 0
+  | NwIP ip -> Some ip.Ip.tos
+  | _ -> None
 
 let pktTpSrc pkt = match pkt.pktNwHeader with 
   | NwIP ip ->
     (match ip.Ip.tp with
-    | Ip.Tcp frg -> frg.Tcp.src
-    | _ -> 0)
-  | _ -> 0
+    | Ip.Tcp frg -> Some frg.Tcp.src
+    | _ -> None)
+  | _ -> None
 
 let pktTpDst pkt = match pkt.pktNwHeader with 
   | NwIP ip ->
     (match ip.Ip.tp with
-    | Ip.Tcp frg -> frg.Tcp.dst
-    | _ -> 0)
-  | _ -> 0
+    | Ip.Tcp frg -> Some frg.Tcp.dst
+    | _ -> None)
+  | _ -> None
 
 let setDlSrc pkt dlSrc =
   { pkt with pktDlSrc = dlSrc }
