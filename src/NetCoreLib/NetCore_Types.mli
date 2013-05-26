@@ -109,6 +109,7 @@ module External : sig
   | DlSrc of Int64.t
   | DlDst of Int64.t
   | DlVlan of int option (** 12-bits *)
+  | DlTyp of int
   | SrcIP of Int32.t
   | DstIP of Int32.t
   | TcpSrcPort of int (** 16-bits, implicitly IP *)

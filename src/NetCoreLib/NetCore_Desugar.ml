@@ -56,6 +56,8 @@ let desugar
       PrHdr (NetCore_Pattern.dlDst n)
     | DlVlan n -> 
       PrHdr (NetCore_Pattern.dlVlan n)
+    | DlTyp n ->
+      PrHdr (NetCore_Pattern.dlType n)
     | SrcIP n -> 
       PrHdr (NetCore_Pattern.ipSrc n)
     | DstIP n -> 

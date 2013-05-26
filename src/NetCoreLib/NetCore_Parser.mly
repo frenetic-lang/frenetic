@@ -52,6 +52,9 @@
 %token PUBLICIP
 %token PASS
 %token DROP
+%token FRAMETYPE
+%token ARP
+%token IP
 %token EOF
 
 %start program
@@ -81,6 +84,9 @@ pred_atom :
   | DSTIP EQUALS IPADDR { DstIP $3 }
   | TCPSRCPORT EQUALS INT64 { TcpSrcPort (int16_of_int64 $3) }
   | TCPDSTPORT EQUALS INT64 { TcpDstPort (int16_of_int64 $3) }
+  | FRAMETYPE EQUALS ARP { DlTyp 0x806 }
+  | FRAMETYPE EQUALS IP { DlTyp 0x800 }
+  | FRAMETYPE EQUALS INT64 { DlTyp (int16_of_int64 $3) }
 
 pred_or :
   | pred_atom { $1 }

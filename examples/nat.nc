@@ -1,4 +1,12 @@
-let translate_private, translate_public = nat (publicIP = 10.0.0.254) in
+if frameType = arp then
+  (if inPort = 2 then
+    1
+  else if inPort = 1 then
+    2
+  else
+    drop)
+else
+(let translate_private, translate_public = nat (publicIP = 10.0.0.254) in
    (if switch = 1 && inPort = 1 then 
       (translate_private; if inPort = 1 then 2 else pass)
     else
@@ -6,4 +14,4 @@ let translate_private, translate_public = nat (publicIP = 10.0.0.254) in
    (if switch = 1 && inPort = 2 then
       (translate_public; if inPort = 2 then 1 else pass)
     else
-      drop)
+      drop))
