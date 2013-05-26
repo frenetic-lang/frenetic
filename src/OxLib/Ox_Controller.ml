@@ -24,10 +24,9 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
         | (_,PacketInMsg pktIn) -> 
           handlers.handlePacketIn pktIn >>
           switch_thread sw handlers
-      | _ -> 
-        switch_thread sw handlers
+        | _ -> 
+          switch_thread sw handlers
     with Platform.SwitchDisconnected sw -> 
-      (* JNF: tacitly assuming sw is the same sw here *)
       handlers.handleSwitchDisconnected sw 
 
   let rec accept_switches handlers = 
