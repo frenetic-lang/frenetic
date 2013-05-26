@@ -61,11 +61,11 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
   let pol_now : pol ref = ref init_pol
 
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
-    Printf.eprintf "[Controller.ml] compiling new policy for switch %Ld\n%!" sw;
+    Log.printf "[NetCore_Controller.ml]" " compiling new policy for switch %Ld\n%!" sw;
     lwt flow_table = Lwt.wrap2 NetCore_Compiler.flow_table_of_policy sw pol in
-    Printf.eprintf "[Controller.ml] flow table is:\n%!";
+    Log.printf "[NetCore_Controller.ml]" " flow table is:\n%!";
     List.iter
-      (fun (m,a) -> Printf.eprintf "[Controller.ml] %s => %s\n%!"
+      (fun (m,a) -> Log.printf "[NetCore_Controller.ml]" " %s => %s\n%!"
         (OpenFlow0x01.Match.to_string m)
         (OpenFlow0x01.Action.sequence_to_string a))
       flow_table;
@@ -77,10 +77,10 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
           Platform.send_to_switch sw 0l (add_flow !prio match_ actions) >>
           (decr prio; Lwt.return ())
        with exn -> 
-         Printf.eprintf "FAIL %s\n%!" (Printexc.to_string exn);
+         Log.printf "[NetCore_Controller.ml]" "FAIL %s\n%!" (Printexc.to_string exn);
            raise_lwt exn)
       flow_table >>
-    (Printf.eprintf "[Controller.ml] initialized switch %Ld\n%!" sw;
+    (Log.printf "[NetCore_Controller.ml]" " initialized switch %Ld\n%!" sw;
      Lwt.return ())
 
   let install_new_policies sw pol_stream =
@@ -89,25 +89,33 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       
   let handle_packet_in sw pkt_in = 
     let open Internal in
-    match pkt_in.packetInBufferId with
-      | None -> Lwt.return ()
-      | Some bufferId ->
-        let in_port = pkt_in.packetInPort in
-        let inp = Pkt (sw, Internal.Physical in_port,
-                       pkt_in.packetInPacket, Buf bufferId ) in
+    let in_port = pkt_in.packetInPort in
+    match Packet_Parser.parse_packet pkt_in.packetInPacket with
+      | None -> 
+        let _ = Log.printf "NetCore_Controller" "unparsable packet" in
+        Lwt.return ()
+      | Some packet ->
+        let inp = Pkt (sw, Internal.Physical in_port, packet,
+                       match pkt_in.packetInBufferId with
+                         | Some id -> Buf id
+                         | None -> Data pkt_in.packetInPacket) in
         let full_action = NetCore_Semantics.eval !pol_now inp in
         let controller_action =
           NetCore_Action.Output.apply_controller full_action
-            (sw, Internal.Physical in_port, pkt_in.packetInPacket) in
+            (sw, Internal.Physical in_port, packet) in
         let action = match pkt_in.packetInReason with
           | ExplicitSend -> controller_action
           | NoMatch -> NetCore_Action.Output.par_action controller_action
             (NetCore_Action.Output.switch_part full_action) in
         let outp = { 
-          pktOutBufOrBytes = Buffer bufferId; 
+          pktOutBufOrBytes = begin match pkt_in.packetInBufferId with
+            | Some id -> Buffer id
+            | None -> Packet pkt_in.packetInPacket
+          end;
           pktOutPortId = None;
           pktOutActions = 
-            NetCore_Action.Output.as_actionSequence (Some in_port) action } in
+            NetCore_Action.Output.as_actionSequence (Some in_port) action 
+        } in
         Platform.send_to_switch sw 0l (PacketOutMsg outp)  
 
   let handle_stats_reply sw counter rep = match rep with
@@ -127,15 +135,19 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       (sw : switchId)
       (pol_stream : pol NetCore_Stream.t) = 
     switches := SwitchSet.add sw !switches;
-    install_new_policies sw pol_stream <&> handle_switch_messages sw >>
-    (Printf.eprintf "[Controller.ml] thread for switch %Ld terminated.\n" sw;
-     switches := SwitchSet.remove sw !switches;
-     Lwt.return ())
+    (try_lwt
+       install_new_policies sw pol_stream <&> handle_switch_messages sw
+     with exn ->
+       Log.printf "NetCore_Controller" "%s\n%!" (Printexc.to_string exn);
+       Lwt.return ()) >>
+     (Log.printf "NetCore_Controller" "thread for switch %Ld terminated.\n" sw;
+      switches := SwitchSet.remove sw !switches;
+      Lwt.return ())
 
   let rec accept_switches pol_stream = 
     lwt feats = Platform.accept_switch () in
     let sw = feats.switch_id in 
-    Printf.eprintf "[NetCore_Controller.ml]: switch %Ld connected\n%!" sw;
+    Log.printf "[NetCore_Controller.ml]" "[NetCore_Controller.ml]: switch %Ld connected\n%!" sw;
     switch_thread sw pol_stream <&> accept_switches pol_stream
 
   let add_to_maps bucket counter =
@@ -159,7 +171,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     (* TODO(cole) kill_outstanding_queries !query_kill_switch; *)
     reset_policy_state ();
     let p = NetCore_Desugar.desugar genvlan pol in
-    Printf.eprintf "[Controller.ml] got new policy:\n%s\n%!" 
+    Log.printf "[NetCore_Controller.ml]" "got new policy:\n%s\n%!" 
       (Internal.pol_to_string p);
     (* TODO(cole) initialize_query_state p; *)
     pol_now := p;
@@ -172,7 +184,12 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
 
   let start_controller pol = 
     let (pol_stream, push_pol) = Lwt_stream.create () in
-    accept_switches (NetCore_Stream.from_stream init_pol pol_stream) <&>  
-    accept_policies push_pol (NetCore_Stream.to_stream pol)
+    try_lwt
+      accept_switches (NetCore_Stream.from_stream init_pol pol_stream) <&>  
+      accept_policies push_pol (NetCore_Stream.to_stream pol)
+    with exn -> 
+      Log.printf "NetCore_Controller" "uncaught exception %s"
+        (Printexc.to_string exn);
+      Lwt.return ()
 
 end

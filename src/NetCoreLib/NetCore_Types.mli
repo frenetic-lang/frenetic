@@ -78,7 +78,7 @@ module Internal : sig
 
   type payload = 
   | Buf of OpenFlow0x01.bufferId
-  | Data of Packet.packet
+  | Data of bytes
 
   type value =
   | Pkt of OpenFlow0x01.switchId * port * packet * payload
