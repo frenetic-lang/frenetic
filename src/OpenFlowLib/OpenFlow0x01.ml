@@ -219,12 +219,12 @@ module Match = struct
         else
           Some (get_ofp_match_dl_type bits);
       nwSrc =
-        if w.Wildcards.nw_src = 0x3f then (* TODO(arjun): prefixes *)
+        if w.Wildcards.nw_src >= 32 then (* TODO(arjun): prefixes *)
           None
         else
           Some (get_ofp_match_nw_src bits);
       nwDst =
-        if w.Wildcards.nw_dst = 0x3f then (* TODO(arjun): prefixes *)
+        if w.Wildcards.nw_dst >= 32 then (* TODO(arjun): prefixes *)
           None
         else
           Some (get_ofp_match_nw_dst bits);
@@ -661,7 +661,7 @@ module IndividualFlowRequest = struct
 
   type t = { of_match : Match.t;
              table_id : table_id;
-             port : PseudoPort.t }
+             port : PseudoPort.t option }
 
   cstruct ofp_flow_stats_request {
     uint8_t of_match[40];
@@ -674,14 +674,21 @@ module IndividualFlowRequest = struct
     Printf.sprintf "{of_match = %s; table_id = %d; port = %s}"
       (Match.to_string req.of_match)
       req.table_id
-      (PseudoPort.to_string req.port)
+      (Frenetic_Misc.string_of_option PseudoPort.to_string req.port)
 
   let sizeof req = sizeof_ofp_flow_stats_request
 
   let marshal req out =
     let _ = Match.marshal req.of_match out in
     set_ofp_flow_stats_request_table_id out req.table_id;
-    set_ofp_flow_stats_request_out_port out (PseudoPort.marshal req.port);
+    begin match req.port with
+    | Some port -> 
+      set_ofp_flow_stats_request_out_port out (PseudoPort.marshal port);
+    | None ->
+      let open PseudoPort in
+      let port_code = ofp_port_to_int OFPP_NONE in
+      set_ofp_flow_stats_request_out_port out port_code
+    end;
     sizeof req
 
 end
@@ -690,7 +697,7 @@ module AggregateFlowRequest = struct
 
   type t = { of_match : Match.t;
              table_id : table_id;
-             port : PseudoPort.t }
+             port : PseudoPort.t option }
 
   cstruct ofp_aggregate_stats_request {
     uint8_t of_match[40];
@@ -703,14 +710,21 @@ module AggregateFlowRequest = struct
     Printf.sprintf "{of_match = %s; table_id = %d; port = %s}"
       (Match.to_string req.of_match)
       req.table_id
-      (PseudoPort.to_string req.port)
+      (Frenetic_Misc.string_of_option PseudoPort.to_string req.port)
 
   let sizeof req = sizeof_ofp_aggregate_stats_request
 
   let marshal req out =
     let _ = Match.marshal req.of_match out in
     set_ofp_aggregate_stats_request_table_id out req.table_id;
-    set_ofp_aggregate_stats_request_out_port out (PseudoPort.marshal req.port);
+    begin match req.port with
+    | Some port -> 
+      set_ofp_aggregate_stats_request_out_port out (PseudoPort.marshal port);
+    | None ->
+      let open PseudoPort in
+      let port_code = ofp_port_to_int OFPP_NONE in
+      set_ofp_aggregate_stats_request_out_port out port_code
+    end;
     sizeof req
 
 end
@@ -726,6 +740,7 @@ module DescriptionStats = struct
 end
 
 module IndividualFlowStats = struct
+
   type t = { table_id : table_id;
              of_match : Match.t;
              duration_sec : int;
@@ -737,6 +752,31 @@ module IndividualFlowStats = struct
              packet_count : Int64.t;
              byte_count : Int64.t;
              actions : Action.sequence }
+
+  let to_string stats = Printf.sprintf
+    "{ table_id = %d
+     ; of_match = %s
+     ; duration_sec = %d
+     ; duration_nsec = %d
+     ; priority = %d
+     ; idle_timeout = %d
+     ; hard_timeout = %d
+     ; cookie = %s
+     ; packet_count = %s
+     ; byte_count = %s
+     ; actions = %s }"
+     stats.table_id
+     (Match.to_string stats.of_match)
+     stats.duration_sec
+     stats.duration_nsec
+     stats.priority
+     stats.idle_timeout
+     stats.hard_timeout
+     (Int64.to_string stats.cookie)
+     (Int64.to_string stats.packet_count)
+     (Int64.to_string stats.byte_count)
+     (Action.sequence_to_string stats.actions)
+
 end
 
 module AggregateFlowStats = struct
