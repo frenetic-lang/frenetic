@@ -1,3 +1,7 @@
+(** Packet serialization library. *)
+
+(** {9 Packet types} *)
+
 type bytes = Cstruct.t
 
 type int8 = int
@@ -24,59 +28,65 @@ type nwTos = int8
 
 type tpPort = int16
 
-type tcp = 
-  { tcpSrc : tpPort; 
-    tcpDst : tpPort; 
-    tcpSeq : int32;
-    tcpAck : int32; 
-    tcpOffset : int8; 
-    tcpFlags : int16;
-    tcpWindow : int16; 
-    tcpChksum : int8; 
-    tcpUrgent : int8;
-    tcpPayload : bytes }
+type tcp = {
+  tcpSrc : tpPort;
+  tcpDst : tpPort;
+  tcpSeq : int32;
+  tcpAck : int32; 
+  tcpOffset : int8;
+  tcpFlags : int16;
+  tcpWindow : int16;
+  tcpChksum : int8;
+  tcpUrgent : int8;
+  tcpPayload : bytes
+}
 
-type icmp = 
-  { icmpType : int8; 
-    icmpCode : int8; 
-    icmpChksum : int16;
-    icmpPayload : bytes }
+type icmp = {
+  icmpType : int8;
+  icmpCode : int8;
+  icmpChksum : int16;
+  icmpPayload : bytes
+}
 
 type tpPkt =
-| TpTCP of tcp
-| TpICMP of icmp
-| TpUnparsable of nwProto * bytes
+  | TpTCP of tcp
+  | TpICMP of icmp
+  | TpUnparsable of nwProto * bytes
 
-type ip = 
-  { pktIPVhl : int8; 
-    pktIPTos : nwTos; 
-    pktIPLen : int16;
-    pktIPIdent : int16; 
-    pktIPFlags : int8;
-    pktIPFrag : int16; 
-    pktIPTtl : int8; 
-    pktIPProto : nwProto;
-    pktIPChksum : int16; 
-    pktIPSrc : nwAddr; 
-    pktIPDst : nwAddr;
-    pktTpHeader : tpPkt }
+type ip = {
+  pktIPVhl : int8;
+  pktIPTos : nwTos;
+  pktIPLen : int16;
+  pktIPIdent : int16;
+  pktIPFlags : int8;
+  pktIPFrag : int16;
+  pktIPTtl : int8;
+  pktIPProto : nwProto;
+  pktIPChksum : int16;
+  pktIPSrc : nwAddr;
+  pktIPDst : nwAddr;
+  pktTpHeader : tpPkt 
+}
 
 type arp =
-| ARPQuery of dlAddr * nwAddr * nwAddr
-| ARPReply of dlAddr * nwAddr * dlAddr * nwAddr
+  | ARPQuery of dlAddr * nwAddr * nwAddr
+  | ARPReply of dlAddr * nwAddr * dlAddr * nwAddr
 
 type nw =
-| NwIP of ip
-| NwARP of arp
-| NwUnparsable of dlTyp * bytes
+  | NwIP of ip
+  | NwARP of arp
+  | NwUnparsable of dlTyp * bytes
 
-type packet = 
-  { pktDlSrc : dlAddr; 
-    pktDlDst : dlAddr; 
-    pktDlTyp : dlTyp;
-    pktDlVlan : dlVlan; 
-    pktDlVlanPcp : dlVlanPcp;
-    pktNwHeader : nw }
+type packet = {
+  pktDlSrc : dlAddr;
+  pktDlDst : dlAddr; 
+  pktDlTyp : dlTyp;
+  pktDlVlan : dlVlan;
+  pktDlVlanPcp : dlVlanPcp;
+  pktNwHeader : nw
+}
+
+(** {9 Accessors} *)
 
 val pktNwSrc : packet -> nwAddr
 
@@ -89,7 +99,9 @@ val pktNwProto : packet -> nwProto
 val pktTpSrc : packet -> tpPort
 
 val pktTpDst : packet -> tpPort
-    
+
+(** {9 Mutators} *)
+
 val setDlSrc : packet -> dlAddr -> packet
 
 val setDlDst : packet -> dlAddr -> packet
@@ -108,7 +120,7 @@ val setTpSrc : packet -> tpPort -> packet
 
 val setTpDst : packet -> tpPort -> packet
 
-val get_byte : int64 -> int -> int
+(** {9 Pretty Printing} *)
 
 val string_of_mac : int48 -> string
 
