@@ -168,12 +168,12 @@ module TestClassifier = struct
              PoFilter (PrHdr (dlVlan (Some 1)))))]
 
   let pk = {
-    pktDlSrc = 0L;
-    pktDlDst = 0L;
-    pktDlTyp = 0x800;
-    pktDlVlan = None;
-    pktDlVlanPcp = 0;
-    pktNwHeader = NwUnparsable (0x800, Cstruct.create 8) 
+    dlSrc = 0L;
+    dlDst = 0L;
+    dlTyp = 0x800;
+    dlVlan = None;
+    dlVlanPcp = 0;
+    nw = Unparsable (Cstruct.create 8) 
   }
 
   let inp = Pkt (1L, Physical 1, pk, Buf 0l)
@@ -187,7 +187,7 @@ module TestClassifier = struct
      ("filtering 1",
       pass,
       PoFilter (PrHdr (dlVlan (Some 1))),
-      Pkt (1L, Physical 1, { pk with pktDlVlan = Some 1 }, Buf 0l));
+      Pkt (1L, Physical 1, { pk with dlVlan = Some 1 }, Buf 0l));
      ("updating 1",
       updateDlVlan None (Some 1),
       PoAction (updateDlVlan None (Some 1)),
@@ -202,7 +202,7 @@ module TestClassifier = struct
       ("eval_action update" >::
           fun () ->
             assert_equal
-              [Pkt (1L, Physical 1, { pk with pktDlVlan = Some 1 }, Buf 0l)]
+              [Pkt (1L, Physical 1, { pk with dlVlan = Some 1 }, Buf 0l)]
               (eval_action (Pkt (1L, Physical 1, pk, Buf 0l))
                  (updateDlVlan None (Some 1))))
     ]
@@ -428,12 +428,12 @@ module Helper = struct
     desugar genvlan genbucket get_count_handlers pol
 
   let in_pkt =
-    { pktDlSrc = Int64.zero
-    ; pktDlDst = Int64.zero
-    ; pktDlTyp = 0x90
-    ; pktDlVlan = None
-    ; pktDlVlanPcp = 0
-    ; pktNwHeader = NwUnparsable (0x90, Cstruct.create 8) }
+    { dlSrc = Int64.zero
+    ; dlDst = Int64.zero
+    ; dlTyp = 0x90
+    ; dlVlan = None
+    ; dlVlanPcp = 0
+    ; nw = Unparsable (Cstruct.create 8) }
 
   let in_val =
     Pkt ( Int64.one
@@ -509,7 +509,7 @@ module TestMods = struct
   let test1 =
     let policy = Act (UpdateDlVlan (None, Some 1)) in
     let Pkt (sid, port, pkt, payload) = in_val in
-    let expected_pkt = {pkt with pktDlVlan = Some 1} in
+    let expected_pkt = {pkt with dlVlan = Some 1} in
     let expected_val = Pkt ( sid, port, expected_pkt, payload) in
     mkEvalTest "mod vlan" policy in_val [expected_val]
 
@@ -532,7 +532,7 @@ module TestMods = struct
       Seq ( Act (UpdateDlVlan (None, Some 1))
           , Filter (DlVlan (Some 1))) in
     let Pkt (sid, port, pkt, payload) = in_val in
-    let expected_pkt = {pkt with pktDlVlan = Some 1} in
+    let expected_pkt = {pkt with dlVlan = Some 1} in
     let expected_val = Pkt ( sid, port, expected_pkt, payload) in
     mkEvalTest "seq mod filter" policy in_val [expected_val]
 

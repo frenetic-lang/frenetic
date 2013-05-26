@@ -8,7 +8,6 @@ module Internal : sig
   type port =
     | Physical of portId
     | All
-    | Bucket of int
     | Here
 
   type lp = OpenFlow0x01.switchId * port * packet

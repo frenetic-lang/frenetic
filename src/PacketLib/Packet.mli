@@ -37,77 +37,107 @@ type nwTos = int8
 
 type tpPort = int16
 
-type tcp = {
-  tcpSrc : tpPort;
-  tcpDst : tpPort;
-  tcpSeq : int32;
-  tcpAck : int32; 
-  tcpOffset : int8;
-  tcpFlags : int16;
-  tcpWindow : int16;
-  tcpChksum : int8;
-  tcpUrgent : int8;
-  tcpPayload : bytes
-}
+module Tcp : sig
+  type t = {
+    src : tpPort; 
+    dst : tpPort; 
+    seq : int32;
+    ack : int32; 
+    offset : int8; 
+    flags : int16;
+    window : int16; 
+    chksum : int8; 
+    urgent : int8;
+    payload : bytes 
+  }
 
-type icmp = {
-  icmpType : int8;
-  icmpCode : int8;
-  icmpChksum : int16;
-  icmpPayload : bytes
-}
+  val parse : Cstruct.t -> t option
+  val len : t -> int
+  val serialize : Cstruct.t -> t -> unit
 
-type tpPkt =
-  | TpTCP of tcp
-  | TpICMP of icmp
-  | TpUnparsable of nwProto * bytes
+end
 
-type ip = {
-  pktIPVhl : int8;
-  pktIPTos : nwTos;
-  pktIPLen : int16;
-  pktIPIdent : int16;
-  pktIPFlags : int8;
-  pktIPFrag : int16;
-  pktIPTtl : int8;
-  pktIPProto : nwProto;
-  pktIPChksum : int16;
-  pktIPSrc : nwAddr;
-  pktIPDst : nwAddr;
-  pktTpHeader : tpPkt 
-}
+module Icmp : sig
 
-type arp =
-  | ARPQuery of dlAddr * nwAddr * nwAddr
-  | ARPReply of dlAddr * nwAddr * dlAddr * nwAddr
+  type t = {
+    typ : int8;
+    code : int8;
+    chksum : int16;
+    payload : bytes
+  }
+
+  val parse : Cstruct.t -> t option
+  val len : t -> int
+  val serialize : Cstruct.t -> t -> unit
+end
+
+module Ip : sig
+
+  type tp =
+    | Tcp of Tcp.t
+    | Icmp of Icmp.t
+    | Unparsable of bytes
+
+  type t = {
+    vhl : int8;
+    tos : nwTos;
+    len : int16;
+    ident : int16;
+    flags : int8;
+    frag : int16;
+    ttl : int8;
+    proto : nwProto;
+    chksum : int16;
+    src : nwAddr;
+    dst : nwAddr;
+    tp : tp
+  }
+
+  val parse : Cstruct.t -> t option
+  val len : t -> int
+  val serialize : Cstruct.t -> t -> unit
+
+end
+
+module Arp : sig
+
+  type t =
+    | Query of dlAddr * nwAddr * nwAddr
+    | Reply of dlAddr * nwAddr * dlAddr * nwAddr
+
+  val parse : Cstruct.t -> t option
+  val len : t -> int
+  val serialize : Cstruct.t -> t -> unit
+
+end
 
 type nw =
-  | NwIP of ip
-  | NwARP of arp
-  | NwUnparsable of dlTyp * bytes
+  | Ip of Ip.t
+  | Arp of Arp.t
+  | Unparsable of bytes
 
 type packet = {
-  pktDlSrc : dlAddr;
-  pktDlDst : dlAddr; 
-  pktDlTyp : dlTyp;
-  pktDlVlan : dlVlan;
-  pktDlVlanPcp : dlVlanPcp;
-  pktNwHeader : nw
+  dlSrc : dlAddr;
+  dlDst : dlAddr; 
+  dlTyp : dlTyp;
+  dlVlan : dlVlan;
+  dlVlanPcp : dlVlanPcp;
+  nw : nw
 }
 
 (** {9:accs Accessors} *)
 
-val pktNwSrc : packet -> nwAddr
+val nwSrc : packet -> nwAddr option
 
-val pktNwDst : packet -> nwAddr
+val nwDst : packet -> nwAddr option
 
-val pktNwTos : packet -> nwTos
+val nwTos : packet -> nwTos option
 
-val pktNwProto : packet -> nwProto
+val nwProto : packet -> nwProto option
 
-val pktTpSrc : packet -> tpPort
+val tpSrc : packet -> tpPort option
 
-val pktTpDst : packet -> tpPort
+val tpDst : packet -> tpPort option
 
 (** {9 Mutators} *)
 
@@ -133,6 +163,7 @@ val setTpDst : packet -> tpPort -> packet
 
 val string_of_mac : int48 -> string
 
+(* TODO(arjun): IMO it is silly to expose *all* these functions. *)
 val portId_to_string : int16 -> string
 
 val dlAddr_to_string : int48 -> string
@@ -162,3 +193,9 @@ val bytes_of_mac : int48 -> string
 val mac_of_bytes : string -> int48
 
 val string_of_ip : int32 -> string
+
+(** {9:serialize Serialization} *)
+
+val vlan_none : int
+val parse : Cstruct.t -> packet option
+val serialize : packet -> Cstruct.t

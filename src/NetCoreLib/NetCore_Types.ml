@@ -9,7 +9,6 @@ module Internal = struct
   type port =
     | Physical of portId
     | All
-    | Bucket of int
     | Here
 
   type lp = OpenFlow0x01.switchId * port * packet
@@ -134,7 +133,6 @@ module Internal = struct
   let port_to_string = function
     | Physical pid -> "Physical " ^ (portId_to_string pid)
     | All -> "All"
-    | Bucket n -> "Bucket " ^ (string_of_int n)
     | Here -> "Here"
 
   let value_to_string = function 

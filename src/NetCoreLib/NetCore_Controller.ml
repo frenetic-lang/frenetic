@@ -90,7 +90,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
   let handle_packet_in sw pkt_in = 
     let open Internal in
     let in_port = pkt_in.packetInPort in
-    match Packet_Parser.parse_packet pkt_in.packetInPacket with
+    match Packet.parse pkt_in.packetInPacket with
       | None -> 
         let _ = Log.printf "NetCore_Controller" "unparsable packet" in
         Lwt.return ()

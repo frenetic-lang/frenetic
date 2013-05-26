@@ -46,15 +46,15 @@ module Learning = struct
         begin
           begin
             printf "[MacLearning] at switch %Ld host %s at port %d\n%!"
-	            sw (string_of_mac pk.pktDlSrc) pt;
-            if Hashtbl.mem learned_hosts (sw, pk.pktDlSrc) then
+	            sw (string_of_mac pk.dlSrc) pt;
+            if Hashtbl.mem learned_hosts (sw, pk.dlSrc) then
               printf "[MacLearning.ml] at switch %Ld, host %s at port %d (moved)\n%!"
-                sw (string_of_mac pk.pktDlSrc) pt
+                sw (string_of_mac pk.dlSrc) pt
             else
               printf "[MacLearning.ml] at switch %Ld, host %s at port %d\n%!"
-                sw (string_of_mac pk.pktDlSrc) pt
+                sw (string_of_mac pk.dlSrc) pt
           end;
-          Hashtbl.replace learned_hosts (sw, pk.pktDlSrc) pt;
+          Hashtbl.replace learned_hosts (sw, pk.dlSrc) pt;
           push (Some (make_learning_policy ()));
           drop
         end
