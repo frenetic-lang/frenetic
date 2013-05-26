@@ -10,13 +10,15 @@ module type OXPLATFORM =
 sig
   val packetOut : switchId -> packetOut -> unit Lwt.t
   val flowMod : switchId -> flowMod -> unit Lwt.t
+  val statsRequest : switchId -> statsRequest -> unit Lwt.t
 end
 
 module type OXHANDLER = 
 sig
   val switchConnected : switchId -> unit Lwt.t
   val switchDisconnected : switchId -> unit Lwt.t
-  val packetIn : packetIn -> unit Lwt.t
+  val packetIn : switchId -> packetIn -> unit Lwt.t
+  val statsReply : switchId -> statsReply -> unit Lwt.t
 end
 
 module MakeOxPlatform(Platform:OpenFlow0x01.PLATFORM) = struct
@@ -29,6 +31,10 @@ module MakeOxPlatform(Platform:OpenFlow0x01.PLATFORM) = struct
   let flowMod sw flowMod = 
     xid := Int32.succ !xid;
     Platform.send_to_switch sw !xid (FlowModMsg flowMod)  
+
+  let statsRequest sw req =
+    xid := Int32.succ !xid;
+    Platform.send_to_switch sw !xid (StatsRequestMsg req)
 end
 
 module Make (Platform:OpenFlow0x01.PLATFORM) (Handler:OXHANDLER) = 
@@ -38,8 +44,11 @@ struct
       lwt msg = Platform.recv_from_switch sw in 
       match msg with 
         | (_,PacketInMsg pktIn) -> 
-          Handler.packetIn pktIn >>
+          Handler.packetIn sw pktIn >>
           switch_thread sw 
+        | (_, StatsReplyMsg rep) ->
+          Handler.statsReply sw rep >>
+          switch_thread sw
         | _ -> 
           switch_thread sw 
     with Platform.SwitchDisconnected sw -> 
