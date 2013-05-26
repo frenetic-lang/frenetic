@@ -4,6 +4,8 @@ open Printf
 open Frenetic_Bit
 open OpenFlow0x01
 
+module Log = Frenetic_Log
+
 let sum (lst : int list) = List.fold_left (fun x y -> x + y) 0 lst
 
 cstruct ofp_header {
@@ -105,16 +107,13 @@ module PacketIn = struct
       | Some ACTION -> ExplicitSend
       | None ->
         raise (Unparsable (sprintf "bad reason in packet_in (%d)" reason_code)) in
-    let pkt_bits = Cstruct.shift bits sizeof_ofp_packet_in in
-    let pkt = match Packet_Parser.parse_packet pkt_bits with 
-      | Some pkt -> pkt 
-      | None -> 
-        raise (Unparsable (sprintf "malformed packet in packet_in")) in
-    { packetInBufferId = bufId;
+    { 
+      packetInBufferId = bufId;
       packetInTotalLen = total_len;
       packetInPort = in_port;
       packetInReason = reason;
-      packetInPacket = pkt }
+      packetInPacket = Cstruct.shift bits sizeof_ofp_packet_in
+    }
 
 end
 
@@ -146,13 +145,14 @@ module PacketOut = struct
         | Some n -> n);
     set_ofp_packet_out_actions_len buf
       (sum (List.map Action.sizeof pktOut.pktOutActions));
-    let _ = List.fold_left
+    let buf = List.fold_left
       (fun buf act -> Cstruct.shift buf (Action.marshal act buf))
       (Cstruct.shift buf sizeof_ofp_packet_out)
       (Action.move_controller_last pktOut.pktOutActions) in
     begin match pktOut.pktOutBufOrBytes with
     | Buffer n -> ()
-    | _ -> ()
+    | Packet bytes ->
+      Cstruct.blit bytes 0 buf 0 (Cstruct.len bytes)
     end;
     sizeof pktOut
 end
