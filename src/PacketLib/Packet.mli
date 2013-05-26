@@ -57,16 +57,23 @@ module Tcp : sig
 
 end
 
-type icmp = {
-  icmpType : int8;
-  icmpCode : int8;
-  icmpChksum : int16;
-  icmpPayload : bytes
-}
+module Icmp : sig
+
+  type t = {
+    typ : int8;
+    code : int8;
+    chksum : int16;
+    payload : bytes
+  }
+
+  val parse : Cstruct.t -> t option
+  val len : t -> int
+  val serialize : Cstruct.t -> t -> unit
+end
 
 type tpPkt =
   | TpTCP of Tcp.t
-  | TpICMP of icmp
+  | TpICMP of Icmp.t
   | TpUnparsable of nwProto * bytes
 
 type ip = {

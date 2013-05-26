@@ -72,11 +72,6 @@ cstruct udp {
   uint16_t chksum
 } as big_endian
 
-cstruct icmp { 
-  uint8_t typ;
-  uint8_t code;
-  uint16_t chksum
-} as big_endian
 
 (* Types for parsers *)
 type 'a desc = 
@@ -192,7 +187,7 @@ and ip_desc =
     let bits = Cstruct.shift bits (ihl * 4) in 
     let tp_header = match int_to_ip_proto proto with 
       | Some IP_ICMP -> 
-        begin match icmp_desc.parse bits with 
+        begin match Icmp.parse bits with 
         | Some icmp -> TpICMP icmp 
         | _ -> TpUnparsable (proto, bits) 
         end
@@ -221,7 +216,7 @@ and ip_desc =
       | TpTCP tcp -> 
         Tcp.len tcp
       | TpICMP icmp -> 
-        icmp_desc.len icmp
+        Icmp.len icmp
       | TpUnparsable(_,data) -> 
         Cstruct.len data in 
       ip_len + tp_len);
@@ -240,7 +235,7 @@ and ip_desc =
       | TpTCP tcp -> 
         Tcp.serialize bits tcp
       | TpICMP icmp -> 
-        icmp_desc.serialize bits icmp
+        Icmp.serialize bits icmp
       | TpUnparsable (_,data) -> 
         Cstruct.blit bits 0 data 0 (Cstruct.len data)) }
 
@@ -278,24 +273,6 @@ and arp_desc =
         set_arp_tha (bytes_of_mac tha) 0 bits;
         set_arp_tpa bits tpa) }
 
-and icmp_desc = 
-  { parse = (fun (bits:Cstruct.t) ->
-      let typ = get_icmp_typ bits in
-      let code = get_icmp_code bits in
-      let chksum = get_icmp_chksum bits in
-      let payload = Cstruct.shift bits sizeof_icmp in
-      Some { icmpType = typ;
-               icmpCode = code;
-               icmpChksum = chksum;
-               icmpPayload = payload });
-    len = (fun (pkt:icmp) -> sizeof_icmp);
-    serialize = (fun (bits:Cstruct.t) (pkt:icmp) ->
-      set_icmp_typ bits pkt.icmpType;
-      set_icmp_code bits pkt.icmpCode;
-      set_icmp_chksum bits pkt.icmpChksum;
-      let bits = Cstruct.shift bits sizeof_icmp in
-      Cstruct.blit bits 0 pkt.icmpPayload 0 (Cstruct.len pkt.icmpPayload))
-  }
 
 (* let parse_udp (bits:Cstruct.t) : udp option =  *)
 (*   let src = get_ucp_src bits in  *)

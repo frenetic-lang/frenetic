@@ -102,19 +102,55 @@ module Tcp = struct
     set_tcp_window bits pkt.window;
     set_tcp_window bits pkt.window;
     let bits = Cstruct.shift bits sizeof_tcp in 
+    (* TODO(arjun): I think the order is wrong here. It is source first,
+       then destination, I think. *)
     Cstruct.blit bits 0 pkt.payload 0 (Cstruct.len pkt.payload)
 
 end
 
-type icmp = 
-  { icmpType : int8; 
-    icmpCode : int8; 
-    icmpChksum : int16;
-    icmpPayload : bytes }
+module Icmp = struct
+
+  type t = {
+    typ : int8;
+    code : int8;
+    chksum : int16;
+    payload : bytes
+  }
+
+  cstruct icmp { 
+    uint8_t typ;
+    uint8_t code;
+    uint16_t chksum
+  } as big_endian
+
+  (* TODO(arjun): error if not enough bytes for header *)
+  let parse (bits : Cstruct.t) = 
+    let typ = get_icmp_typ bits in
+    let code = get_icmp_code bits in
+    let chksum = get_icmp_chksum bits in
+    let payload = Cstruct.shift bits sizeof_icmp in
+    Some { typ = typ; code = code; chksum = chksum; payload = payload }
+
+  (* TODO(arjun): length of payload too *)
+  let len (pkt: t) = sizeof_icmp
+
+  (* TODO(arjun): error if not enough space for packet *)
+  let serialize (bits : Cstruct.t) (pkt : t) =
+    set_icmp_typ bits pkt.typ;
+    set_icmp_code bits pkt.code;
+    set_icmp_chksum bits pkt.chksum;
+    let bits = Cstruct.shift bits sizeof_icmp in
+    (* TODO(arjun): I think the order is wrong here. It is source first,
+       then destination, I think. *)
+    Cstruct.blit bits 0 pkt.payload 0 (Cstruct.len pkt.payload)
+  
+end
+
+
 
 type tpPkt =
 | TpTCP of Tcp.t
-| TpICMP of icmp
+| TpICMP of Icmp.t
 | TpUnparsable of nwProto * bytes
 
 type ip = 
