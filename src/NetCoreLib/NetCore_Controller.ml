@@ -110,28 +110,6 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
             NetCore_Action.Output.as_actionSequence (Some in_port) action } in
         Platform.send_to_switch sw 0l (PacketOutMsg outp)  
 
-    match pkt_in.packetInBufferId with
-      | None -> Lwt.return ()
-      | Some bufferId ->
-        Log.printf "NetCore_Controller" "got a packet_in message";
-        let in_port = pkt_in.packetInPort in
-        let inp = Pkt (sw, Internal.Physical in_port,
-                       pkt_in.packetInPacket, Buf bufferId ) in
-        let full_action = NetCore_Semantics.eval !pol_now inp in
-        let controller_action =
-          NetCore_Action.Output.apply_controller full_action
-            (sw, Internal.Physical in_port, pkt_in.packetInPacket) in
-        let action = match pkt_in.packetInReason with
-          | ExplicitSend -> controller_action
-          | NoMatch -> NetCore_Action.Output.par_action controller_action
-            (NetCore_Action.Output.switch_part full_action) in
-        let outp = { 
-          pktOutBufOrBytes = Buffer bufferId; 
-          pktOutPortId = None;
-          pktOutActions = 
-            NetCore_Action.Output.as_actionSequence (Some in_port) action } in
-        Platform.send_to_switch sw 0l (PacketOutMsg outp)  
-
   let handle_stats_reply sw counter rep = match rep with
     | _ -> failwith "NYI: controller.handle_stats_reply"
     (* TODO: pick up here. *)
