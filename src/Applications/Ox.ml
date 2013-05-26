@@ -14,8 +14,12 @@ struct
     Log.printf "Main" "SwitchDisconnected"; 
     Lwt.return ()
 
-  let packetIn pktIn = 
+  let packetIn sw pktIn = 
     Log.printf "Main" "PacketIn"; 
+    Lwt.return ()
+
+  let statsReply sw stats =
+    Log.printf "Main" "StatsReply";
     Lwt.return ()
 end
 
