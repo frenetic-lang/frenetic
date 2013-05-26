@@ -148,9 +148,6 @@ module Output = struct
   let byte_query (d, h) =
     [ ControllerByteQuery (d, h) ]
 
-  let bucket n =
-    [ SwitchAction { unmodified with outPort = Bucket n } ]
-
   let controller handler =
     [ ControllerAction handler ]
 
@@ -425,7 +422,6 @@ module Output = struct
          | _ ->
            Output (PseudoPort.PhysicalPort pt)) ::
           (unmodify out))
-    | Bucket n -> []
    
   let atom_to_of inp atom = match atom with
     | SwitchAction out -> output_to_of inp out
