@@ -79,6 +79,29 @@ cenum ofp_stats_types {
   OFPST_VENDOR = 0xffff
 } as uint16_t
 
+let string_of_msg_code code = match code with
+  | HELLO -> "HELLO"
+  | ERROR -> "ERROR"
+  | ECHO_REQ -> "ECHO_REQ"
+  | ECHO_RESP -> "ECHO_RESP"
+  | VENDOR -> "VENDOR"
+  | FEATURES_REQ -> "FEATURES_REQ"
+  | FEATURES_RESP -> "FEATURES_RESP"
+  | GET_CONFIG_REQ -> "GET_CONFIG_REQ"
+  | GET_CONFIG_RESP -> "GET_CONFIG_RESP"
+  | SET_CONFIG -> "SET_CONFIG"
+  | PACKET_IN -> "PACKET_IN"
+  | FLOW_REMOVED -> "FLOW_REMOVED"
+  | PORT_STATUS -> "PORT_STATUS"
+  | PACKET_OUT -> "PACKET_OUT"
+  | FLOW_MOD -> "FLOW_MOD"
+  | PORT_MOD -> "PORT_MOD"
+  | STATS_REQ -> "STATS_REQ"
+  | STATS_RESP -> "STATS_RESP"
+  | BARRIER_REQ -> "BARRIER_REQ"
+  | BARRIER_RESP -> "BARRIER_RESP"
+  | QUEUE_GET_CONFIG_REQ -> "QUEUE_GET_CONFIG_REQ"
+  | QUEUE_GET_CONFIG_RESP -> "QUEUE_GET_CONFIG_RESP"
 
 module PacketIn = struct
 
@@ -325,6 +348,13 @@ module Header = struct
       xid = get_ofp_header_xid buf
     }
 
+  let to_string hdr =
+    Printf.sprintf "{ %d, %s, len = %d, xid = %d }"
+      hdr.ver
+      (string_of_msg_code hdr.typ)
+      hdr.len
+      (Int32.to_int hdr.xid)
+
 end
 
 module StatsRequest = struct
@@ -441,7 +471,14 @@ module StatsReply = struct
     } as big_endian
 
     type t = IndividualFlowStats.t
-    let parse bits =
+
+    let _parse bits =
+      (* length = flow stats + actions *)
+      let length = get_ofp_flow_stats_length bits in
+      let flow_stats_size = sizeof_ofp_flow_stats in
+      let actions_size = length - flow_stats_size in
+
+      (* get fields *)
       let table_id = get_ofp_flow_stats_table_id bits in
       let of_match = Match.parse (get_ofp_flow_stats_of_match bits) in
       let duration_sec = get_ofp_flow_stats_duration_sec bits in
@@ -452,20 +489,35 @@ module StatsReply = struct
       let cookie = get_ofp_flow_stats_cookie bits in
       let packet_count = get_ofp_flow_stats_packet_count bits in
       let byte_count = get_ofp_flow_stats_byte_count bits in
-      let actions = 
-        Action.parse_sequence (Cstruct.shift bits sizeof_ofp_flow_stats) in
+
+      (* get actions *)
+      let bits_after_flow_stats = Cstruct.shift bits sizeof_ofp_flow_stats in
+      let action_bits, rest = 
+        Cstruct.split bits_after_flow_stats actions_size in
+      let actions = Action.parse_sequence action_bits in
+
       let open IndividualFlowStats in
-      { table_id = table_id
-      ; of_match = of_match
-      ; duration_sec = Int32.to_int duration_sec
-      ; duration_nsec = Int32.to_int duration_nsec
-      ; priority = priority
-      ; idle_timeout = idle_timeout
-      ; hard_timeout = hard_timeout
-      ; cookie = cookie
-      ; packet_count = packet_count
-      ; byte_count = byte_count
-      ; actions = actions }
+      ( { table_id = table_id
+        ; of_match = of_match
+        ; duration_sec = Int32.to_int duration_sec
+        ; duration_nsec = Int32.to_int duration_nsec
+        ; priority = priority
+        ; idle_timeout = idle_timeout
+        ; hard_timeout = hard_timeout
+        ; cookie = cookie
+        ; packet_count = packet_count
+        ; byte_count = byte_count
+        ; actions = actions }
+      , rest)
+
+    let parse bits = fst (_parse bits)
+
+    let rec parse_sequence bits =
+      if Cstruct.len bits <= 0 then
+        []
+      else
+        let (v, bits') = _parse bits in
+        v :: parse_sequence bits'
 
   end
 
@@ -495,7 +547,7 @@ module StatsReply = struct
     let body = Cstruct.shift bits sizeof_ofp_stats_reply in
     match int_to_ofp_stats_types stats_type_code with
     | Some OFPST_DESC -> DescriptionRep (Description.parse body)
-    | Some OFPST_FLOW -> IndividualFlowRep (Flow.parse body)
+    | Some OFPST_FLOW -> IndividualFlowRep (Flow.parse_sequence body)
     | Some OFPST_AGGREGATE -> AggregateFlowRep (Aggregate.parse body)
     | Some OFPST_TABLE -> TableRep (Table.parse body)
     | Some OFPST_PORT -> PortRep (Port.parse body)

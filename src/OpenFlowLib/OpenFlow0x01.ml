@@ -511,7 +511,7 @@ module Action = struct
     | SetTpDst n -> sprintf "SetTpDst %d" n
 
   let sequence_to_string (lst : sequence) : string =
-    String.concat "; " (List.map to_string lst)
+    "[" ^ (String.concat "; " (List.map to_string lst)) ^ "]"
 
   let _parse bits =
     let length = get_ofp_action_header_len bits in
@@ -754,16 +754,16 @@ module IndividualFlowStats = struct
              actions : Action.sequence }
 
   let to_string stats = Printf.sprintf
-    "{ table_id = %d
-     ; of_match = %s
-     ; duration_sec = %d
-     ; duration_nsec = %d
-     ; priority = %d
-     ; idle_timeout = %d
-     ; hard_timeout = %d
-     ; cookie = %s
-     ; packet_count = %s
-     ; byte_count = %s
+    "{ table_id = %d\
+     ; of_match = %s\
+     ; duration_sec = %d\
+     ; duration_nsec = %d\
+     ; priority = %d\
+     ; idle_timeout = %d\
+     ; hard_timeout = %d\
+     ; cookie = %s\
+     ; packet_count = %s\
+     ; byte_count = %s\
      ; actions = %s }"
      stats.table_id
      (Match.to_string stats.of_match)
@@ -776,6 +776,9 @@ module IndividualFlowStats = struct
      (Int64.to_string stats.packet_count)
      (Int64.to_string stats.byte_count)
      (Action.sequence_to_string stats.actions)
+
+  let sequence_to_string stats_list =
+    Frenetic_Misc.string_of_list to_string stats_list
 
 end
 
@@ -821,7 +824,7 @@ type statsRequest =
 
 type statsReply =
   | DescriptionRep of DescriptionStats.t
-  | IndividualFlowRep of IndividualFlowStats.t
+  | IndividualFlowRep of IndividualFlowStats.t list
   | AggregateFlowRep of AggregateFlowStats.t
   | TableRep of TableStats.t
   | PortRep of PortStats.t

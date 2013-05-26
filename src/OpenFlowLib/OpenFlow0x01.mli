@@ -225,6 +225,7 @@ module IndividualFlowStats : sig
            }
 
   val to_string : t -> string
+  val sequence_to_string : t list -> string
 
 end
 
@@ -273,7 +274,7 @@ type statsRequest =
 
 type statsReply =
 | DescriptionRep of DescriptionStats.t
-| IndividualFlowRep of IndividualFlowStats.t
+| IndividualFlowRep of IndividualFlowStats.t list
 | AggregateFlowRep of AggregateFlowStats.t
 | TableRep of TableStats.t
 | PortRep of PortStats.t

@@ -15,6 +15,8 @@ module Header : sig
       
   val parse : Cstruct.t -> t 
 
+  val to_string : t -> string
+
 end
 
 module Message : sig
