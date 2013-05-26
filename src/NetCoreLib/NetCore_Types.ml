@@ -214,6 +214,8 @@ module External = struct
       Printf.sprintf "(DlSrc %s)" (string_of_mac add)
     | DlDst add -> 
       Printf.sprintf "(DlDst %s)" (string_of_mac add)
+    | DlTyp typ -> 
+      Printf.sprintf "(DlTyp %d)" typ
     | DlVlan no -> 
       Printf.sprintf "(DlVlan %s)" (match no with None -> "None" | Some n -> "Some " ^ string_of_int n)
     | All -> "All"
@@ -314,7 +316,8 @@ module External = struct
       | InPort _ -> false
       | DlSrc _ -> false
       | DlDst _ -> false
-      | DlVlan _ -> true
+      | DlTyp _ -> false
+      | DlVlan _ -> true        
       | SrcIP _ -> false
       | DstIP _ -> false
       | TcpSrcPort _ -> false

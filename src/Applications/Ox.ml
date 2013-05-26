@@ -1,26 +1,33 @@
 open Lwt
 open Unix
+open Ox_Controller
 
 module Log = Frenetic_Log
-module Controller = Ox_Controller.Make(OpenFlow0x01_Platform)
 
-let handlers = 
-  { Ox_Controller.handleSwitchConnected = 
-      (fun sw -> 
-        Log.printf "Main" "SwitchConnected"; 
-        Lwt.return ());
-    Ox_Controller.handleSwitchDisconnected = 
-      (fun sw -> 
-        Log.printf "Main" "SwitchDisconnected"; 
-        Lwt.return ());
-    Ox_Controller.handlePacketIn = 
-      (fun pktIn -> 
-        Log.printf "Main" "PacketIn"; 
-        Lwt.return ()) }
+module Make (OxPlatform:OXPLATFORM) = 
+struct
+  let switchConnected sw = 
+    Log.printf "Main" "SwitchConnected"; 
+    Lwt.return ()
+
+  let switchDisconnected sw = 
+    Log.printf "Main" "SwitchDisconnected"; 
+    Lwt.return ()
+
+  let packetIn pktIn = 
+    Log.printf "Main" "PacketIn"; 
+    Lwt.return ()
+end
+
+module OxPlatform = MakeOxPlatform(OpenFlow0x01_Platform)
+
+module Handlers = Make(OxPlatform)
+
+module Controller = Ox_Controller.Make(OpenFlow0x01_Platform)(Handlers)
 
 let main () = 
   OpenFlow0x01_Platform.init_with_port 6633 >>
-  Controller.start_controller handlers
+  Controller.start_controller ()
       
 let _ =
   Log.printf "Main" "--- Welcome to Ox ---\n%!";

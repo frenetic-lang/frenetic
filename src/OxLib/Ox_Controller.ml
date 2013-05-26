@@ -6,38 +6,52 @@ module Log = Frenetic_Log
 
 let (<&>) = Lwt.(<&>)
 
-type handler = 
-    { handleSwitchConnected : switchId -> unit Lwt.t;
-      handleSwitchDisconnected : switchId -> unit Lwt.t;        
-      handlePacketIn : packetIn -> unit Lwt.t }
+module type OXPLATFORM = 
+sig
+  val packetOut : switchId -> packetOut -> unit Lwt.t
+  val flowMod : switchId -> flowMod -> unit Lwt.t
+end
 
-module type MAKE = functor (Platform : OpenFlow0x01.PLATFORM) -> 
-  sig
-    val start_controller : handler -> unit Lwt.t
-  end
+module type OXHANDLER = 
+sig
+  val switchConnected : switchId -> unit Lwt.t
+  val switchDisconnected : switchId -> unit Lwt.t
+  val packetIn : packetIn -> unit Lwt.t
+end
 
-module Make (Platform : OpenFlow0x01.PLATFORM) = struct
+module MakeOxPlatform(Platform:OpenFlow0x01.PLATFORM) = struct
+  let xid = ref Int32.zero 
 
-  let rec switch_thread sw handlers = 
+  let packetOut sw pktOut = 
+    xid := Int32.succ !xid;
+    Platform.send_to_switch sw !xid (PacketOutMsg pktOut)  
+
+  let flowMod sw flowMod = 
+    xid := Int32.succ !xid;
+    Platform.send_to_switch sw !xid (FlowModMsg flowMod)  
+end
+
+module Make (Platform:OpenFlow0x01.PLATFORM) (Handler:OXHANDLER) = 
+struct
+  let rec switch_thread sw = 
     try_lwt
       lwt msg = Platform.recv_from_switch sw in 
       match msg with 
         | (_,PacketInMsg pktIn) -> 
-          handlers.handlePacketIn pktIn >>
-          switch_thread sw handlers
+          Handler.packetIn pktIn >>
+          switch_thread sw 
         | _ -> 
-          switch_thread sw handlers
+          switch_thread sw 
     with Platform.SwitchDisconnected sw -> 
-      handlers.handleSwitchDisconnected sw 
+      Handler.switchDisconnected sw 
 
-  let rec accept_switches handlers = 
+  let rec accept_switches () = 
     lwt feats = Platform.accept_switch () in 
     let sw = feats.switch_id in 
     let _ = Log.printf "Ox_Controller" "switch %Ld connected\n%!" sw in 
-    handlers.handleSwitchConnected sw <&>
-    switch_thread sw handlers <&> 
-    accept_switches handlers
+    Handler.switchConnected sw <&>
+    switch_thread sw <&> 
+    accept_switches ()
 
   let start_controller = accept_switches
-
 end
