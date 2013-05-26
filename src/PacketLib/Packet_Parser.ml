@@ -25,25 +25,6 @@ let vlan_none = 0xffff
 let vlan_mask = 0xfff
 let vlan_pcp_mask = 0x7 lsl 9
 
-(* Network *)
-cstruct arp {
-  uint16_t htype;
-  uint16_t ptype;
-  uint8_t hlen;
-  uint8_t plen;
-  uint16_t oper;
-  uint8_t sha[6];
-  uint32_t spa;
-  uint8_t tha[6];
-  uint32_t tpa
-} as big_endian
-
-cenum arp_oper {
-  ARP_REQUEST = 0x0001;
-  ARP_REPLY = 0x0002
-} as uint16_t
-
-
 (* Transport *)
 
 cstruct udp { 
@@ -92,7 +73,7 @@ let rec eth_desc =
         | None -> NwUnparsable (typ,Cstruct.of_string (Cstruct.to_string bits))
         end
       | Some ETHTYP_ARP -> 
-        begin match arp_desc.parse bits with 
+        begin match Arp.parse bits with 
         | Some arp -> NwARP arp 
         | _ -> NwUnparsable (typ, Cstruct.of_string (Cstruct.to_string bits))
         end
@@ -112,7 +93,7 @@ let rec eth_desc =
         | NwIP ip -> 
           Ip.len ip
         | NwARP arp -> 
-          arp_desc.len arp 
+          Arp.len arp 
         | NwUnparsable(_,data) -> 
           Cstruct.len data in 
       eth_len + nw_len);
@@ -141,45 +122,10 @@ let rec eth_desc =
       | NwIP ip -> 
         Ip.serialize bits ip
       | NwARP arp -> 
-        arp_desc.serialize bits arp
+        Arp.serialize bits arp
       | NwUnparsable(_,data) -> 
         Cstruct.blit bits 0 data 0 (Cstruct.len data))
   }
-
-and arp_desc = 
-  { parse = (fun (bits:Cstruct.t) -> 
-      let oper = get_arp_oper bits in 
-      let sha = mac_of_bytes (Cstruct.to_string (get_arp_sha bits)) in 
-      let spa = (get_arp_spa bits) in 
-      let tpa = (get_arp_tpa bits) in 
-      match int_to_arp_oper oper with 
-      | Some ARP_REQUEST -> 
-        Some (ARPQuery(sha,spa,tpa))
-      | Some ARP_REPLY -> 
-        let tha = mac_of_bytes (Cstruct.to_string (get_arp_tha bits)) in 
-        Some (ARPReply(sha,spa,tha,tpa))
-      | _ -> 
-        None);
-    len = (fun (pkt:arp) -> 
-      sizeof_arp);
-    serialize = (fun (bits:Cstruct.t) (pkt:arp) -> 
-      set_arp_htype bits 1;      (* JNF: baked *)
-      set_arp_ptype bits 0x800;  (* JNF: baked *)
-      set_arp_hlen bits 6;       (* JNF: baked *)
-      set_arp_plen bits 4;       (* JNF: baked *)
-      match pkt with 
-      | ARPQuery(sha,spa,tpa) -> 
-        set_arp_oper bits (arp_oper_to_int ARP_REQUEST);
-        set_arp_sha (bytes_of_mac sha) 0 bits;
-        set_arp_spa bits spa;
-        set_arp_tpa bits tpa;
-      | ARPReply(sha,spa,tha,tpa) -> 
-        set_arp_oper bits (arp_oper_to_int ARP_REPLY);
-        set_arp_sha (bytes_of_mac sha) 0 bits;
-        set_arp_spa bits spa;
-        set_arp_tha (bytes_of_mac tha) 0 bits;
-        set_arp_tpa bits tpa) }
-
 
 (* let parse_udp (bits:Cstruct.t) : udp option =  *)
 (*   let src = get_ucp_src bits in  *)

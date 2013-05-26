@@ -24,6 +24,32 @@ type nwTos = int8
 
 type tpPort = int16
 
+let get_byte (n:int64) (i:int) : int =
+  if i < 0 or i > 5 then
+    raise (Invalid_argument "Int64.get_byte index out of range");
+  Int64.to_int (Int64.logand 0xFFL (Int64.shift_right_logical n (8 * i)))
+
+let bytes_of_mac (x:int64) : string =
+  let byte n = Char.chr (get_byte x n) in
+  Format.sprintf "%c%c%c%c%c%c"
+    (byte 5) (byte 4) (byte 3)
+    (byte 2) (byte 1) (byte 0)
+
+let mac_of_bytes (str:string) : int64 =
+  if String.length str != 6 then
+    raise (Invalid_argument
+             (Format.sprintf "mac_of_bytes expected six-byte string, got %d
+                              bytes" (String.length str)));
+  let byte n = Int64.of_int (Char.code (String.get str n)) in
+  let open Int64 in
+  logor (shift_left (byte 0) (8 * 5))
+    (logor (shift_left (byte 1) (8 * 4))
+       (logor (shift_left (byte 2) (8 * 3))
+          (logor (shift_left (byte 3) (8 * 2))
+             (logor (shift_left (byte 4) (8 * 1))
+                (byte 5)))))
+
+
 module type Header = sig
 
   type t
@@ -266,14 +292,73 @@ module Ip = struct
 
 end
 
+module Arp = struct
 
-type arp =
-| ARPQuery of dlAddr * nwAddr * nwAddr
-| ARPReply of dlAddr * nwAddr * dlAddr * nwAddr
+  type t =
+    | Query of dlAddr * nwAddr * nwAddr
+    | Reply of dlAddr * nwAddr * dlAddr * nwAddr
+
+  (* Network *)
+  cstruct arp {
+    uint16_t htype;
+    uint16_t ptype;
+    uint8_t hlen;
+    uint8_t plen;
+    uint16_t oper;
+    uint8_t sha[6];
+    uint32_t spa;
+    uint8_t tha[6];
+    uint32_t tpa
+  } as big_endian
+
+  cenum arp_oper {
+    ARP_REQUEST = 0x0001;
+    ARP_REPLY = 0x0002
+  } as uint16_t
+  
+  (* TODO(arjun): error if not enough space *)
+  let parse (bits : Cstruct.t) =
+    let oper = get_arp_oper bits in 
+    let sha = mac_of_bytes (Cstruct.to_string (get_arp_sha bits)) in 
+    let spa = (get_arp_spa bits) in 
+    let tpa = (get_arp_tpa bits) in 
+    match int_to_arp_oper oper with 
+      | Some ARP_REQUEST -> 
+        Some (Query (sha, spa, tpa))
+      | Some ARP_REPLY -> 
+        let tha = mac_of_bytes (Cstruct.to_string (get_arp_tha bits)) in 
+        Some (Reply(sha, spa, tha, tpa))
+      | _ -> None
+
+  (* TODO(arjun): both requests and replies have the same size? *)
+  let len pk = sizeof_arp
+
+  (* TODO(arjun): error if not enough space *)
+  let serialize (bits : Cstruct.t) (pkt : t) =
+    (* NOTE(ARJUN, JNF): ARP packets specify the size of L2 addresses, so 
+       they can be used with IPv6. This version assumes we are doing IPv4. *)
+    set_arp_htype bits 1;
+    set_arp_ptype bits 0x800;
+    set_arp_hlen bits 6;
+    set_arp_plen bits 4;
+    match pkt with 
+      | Query (sha, spa, tpa) -> 
+        set_arp_oper bits (arp_oper_to_int ARP_REQUEST);
+        set_arp_sha (bytes_of_mac sha) 0 bits;
+        set_arp_spa bits spa;
+        set_arp_tpa bits tpa;
+      | Reply (sha, spa, tha, tpa) -> 
+        set_arp_oper bits (arp_oper_to_int ARP_REPLY);
+        set_arp_sha (bytes_of_mac sha) 0 bits;
+        set_arp_spa bits spa;
+        set_arp_tha (bytes_of_mac tha) 0 bits;
+        set_arp_tpa bits tpa
+
+end
 
 type nw =
 | NwIP of Ip.t
-| NwARP of arp
+| NwARP of Arp.t
 | NwUnparsable of dlTyp * bytes
 
 type packet = 
@@ -286,14 +371,14 @@ type packet =
 
 let pktNwSrc pkt = match pkt.pktNwHeader with
   | NwIP ip -> ip.Ip.src
-  | NwARP (ARPQuery (_,ip,_)) -> ip
-  | NwARP (ARPReply (_,ip,_,_)) -> ip
+  | NwARP (Arp.Query (_,ip,_)) -> ip
+  | NwARP (Arp.Reply (_,ip,_,_)) -> ip
   | NwUnparsable _ -> Int32.zero
 
 let pktNwDst pkt = match pkt.pktNwHeader with
   | NwIP ip -> ip.Ip.dst
-  | NwARP (ARPQuery (_,_,ip)) -> ip
-  | NwARP (ARPReply (_,_,_,ip)) -> ip
+  | NwARP (Arp.Query (_,_,ip)) -> ip
+  | NwARP (Arp.Reply (_,_,_,ip)) -> ip
   | NwUnparsable _ -> Int32.zero
 
 let pktNwProto pkt = match pkt.pktNwHeader with 
@@ -388,35 +473,10 @@ let setTpSrc pkt tpSrc =
 let setTpDst pkt tpDst =
   { pkt with pktNwHeader = nw_setTpDst pkt.pktNwHeader tpDst }
 
-let get_byte (n:int64) (i:int) : int =
-  if i < 0 or i > 5 then
-    raise (Invalid_argument "Int64.get_byte index out of range");
-  Int64.to_int (Int64.logand 0xFFL (Int64.shift_right_logical n (8 * i)))
-
 let string_of_mac (x:int64) : string =
   Format.sprintf "%02x:%02x:%02x:%02x:%02x:%02x"
     (get_byte x 5) (get_byte x 4) (get_byte x 3)
     (get_byte x 2) (get_byte x 1) (get_byte x 0)
-
-let bytes_of_mac (x:int64) : string =
-  let byte n = Char.chr (get_byte x n) in
-  Format.sprintf "%c%c%c%c%c%c"
-    (byte 5) (byte 4) (byte 3)
-    (byte 2) (byte 1) (byte 0)
-
-let mac_of_bytes (str:string) : int64 =
-  if String.length str != 6 then
-    raise (Invalid_argument
-             (Format.sprintf "mac_of_bytes expected six-byte string, got %d
-                              bytes" (String.length str)));
-  let byte n = Int64.of_int (Char.code (String.get str n)) in
-  let open Int64 in
-  logor (shift_left (byte 0) (8 * 5))
-    (logor (shift_left (byte 1) (8 * 4))
-       (logor (shift_left (byte 2) (8 * 3))
-          (logor (shift_left (byte 3) (8 * 2))
-             (logor (shift_left (byte 4) (8 * 1))
-                (byte 5)))))
 
 let get_byte32 (n : Int32.t) (i : int) : int = 
   let open Int32 in

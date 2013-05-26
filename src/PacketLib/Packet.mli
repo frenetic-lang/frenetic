@@ -99,14 +99,22 @@ module Ip : sig
 
 end
 
+module Arp : sig
 
-type arp =
-  | ARPQuery of dlAddr * nwAddr * nwAddr
-  | ARPReply of dlAddr * nwAddr * dlAddr * nwAddr
+  type t =
+    | Query of dlAddr * nwAddr * nwAddr
+    | Reply of dlAddr * nwAddr * dlAddr * nwAddr
+
+  val parse : Cstruct.t -> t option
+  val len : t -> int
+  val serialize : Cstruct.t -> t -> unit
+
+end
+
 
 type nw =
   | NwIP of Ip.t
-  | NwARP of arp
+  | NwARP of Arp.t
   | NwUnparsable of dlTyp * bytes
 
 type packet = {
