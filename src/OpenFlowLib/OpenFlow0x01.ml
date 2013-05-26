@@ -640,7 +640,7 @@ type packetIn =
     packetInTotalLen : int16;
     packetInPort : portId;
     packetInReason : reason;
-    packetInPacket : packet }
+    packetInPacket : bytes }
 
 type xid = int32
 
