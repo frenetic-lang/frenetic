@@ -186,6 +186,8 @@ let rec eth_desc =
 and ip_desc = 
   { parse = (fun (bits:Cstruct.t) -> 
     let vhl = get_ip_vhl bits in 
+    (* TODO(arjun): MUST test for IPv4. Students' machines configured with
+       IPv6 will otherwise explode. *)
     let _ = vhl lsr 4 in (* TODO(jnf): test for IPv4? *)
     let ihl = vhl land 0x0f in 
     let tos = get_ip_tos bits in 
