@@ -1,6 +1,15 @@
 (** Packet serialization library. *)
 
-(** {9 Packet types} *)
+(** {9 Packet types}
+
+    Based on {{:
+    https://openflow.stanford.edu/display/ONL/POX+Wiki#POXWiki-Workingwithpacketspoxlibpacket}
+    the packet library from POX}.
+
+    You can navigate a packet's structure directly from here. But, using
+    {!accs} may be more convenient.
+
+*)
 
 type bytes = Cstruct.t
 
@@ -86,7 +95,7 @@ type packet = {
   pktNwHeader : nw
 }
 
-(** {9 Accessors} *)
+(** {9:accs Accessors} *)
 
 val pktNwSrc : packet -> nwAddr
 
