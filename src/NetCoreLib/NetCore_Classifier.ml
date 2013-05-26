@@ -105,15 +105,16 @@ module Make : MAKE = functor (Action:ACTION) -> struct
      [a1] is ???
      [atom] is the first action that was applied.
   *)
-  let rec pick p1 atom = function
+  let rec sequence_atom_no_opt p1 atom tbl2 = match tbl2 with
   | [] -> []
   | (p2,a) :: tbl2' ->
     (NetCore_Pattern.inter
        p1
        (NetCore_Pattern.inter
           (Action.domain atom)
-          (Action.restrict_range atom p2)),
-     Action.seq_action (Action.to_action atom) a) :: (pick p1 atom tbl2')
+          (Action.sequence_range atom p2)),
+     Action.seq_action (Action.to_action atom) a) 
+     :: (sequence_atom_no_opt p1 atom tbl2')
 
   let rec sequence_no_opt tbl1 tbl2 =
     match tbl1 with
@@ -122,8 +123,11 @@ module Make : MAKE = functor (Action:ACTION) -> struct
       match Action.atoms a with
         | [] -> (p, Action.drop) :: (sequence_no_opt tbl1' tbl2)
         | atoms ->
-          (unions (List.map (fun atom -> pick p atom tbl2) atoms))
-          @ (sequence_no_opt tbl1' tbl2)
+          let sequenced_atoms = 
+            (unions 
+              (List.map 
+                (fun atom -> sequence_atom_no_opt p atom tbl2) atoms)) in
+          sequenced_atoms @ (sequence_no_opt tbl1' tbl2)
 
   let sequence tbl1 tbl2 =
     opt (sequence_no_opt tbl1 tbl2)

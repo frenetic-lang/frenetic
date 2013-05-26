@@ -1,7 +1,7 @@
 open Printf
 
 module Q = struct
-    
+
   type t = Queue of (int * (t -> t)) list
 
   let singleton rank v = Queue [(rank,v)]
@@ -33,46 +33,46 @@ let now node = node.now
 
 let map (f : 'a -> 'b) (src : 'a node) : 'b node =
   let sends_to = ref [] in
-  let self = { 
+  let self = {
     now = f src.now;
     rank = 1 + src.rank;
-    attach_consumer = (fun f -> sends_to := f :: !sends_to) 
+    attach_consumer = (fun f -> sends_to := f :: !sends_to)
   } in
   let queued_now = ref false in
   let producer q =
     queued_now := false;
     self.now <- f src.now;
     List.fold_right (fun f q -> f q) !sends_to q in
-  let consumer q = 
+  let consumer q =
     if !queued_now = false then
       begin
         queued_now := true;
         Q.enqueue self.rank producer q
       end
-    else 
+    else
       q in
   src.attach_consumer consumer;
   self
 
 let map2 (f : 'a -> 'b -> 'c) (a_src : 'a node) (b_src : 'b node) : 'c node =
   let sends_to = ref [] in
-  let self = { 
+  let self = {
     now = f a_src.now b_src.now;
     rank = 1 + max a_src.rank b_src.rank;
-    attach_consumer = (fun f -> sends_to := f :: !sends_to) 
+    attach_consumer = (fun f -> sends_to := f :: !sends_to)
   } in
   let queued_now = ref false in
   let producer q =
     queued_now := false;
     self.now <- f a_src.now b_src.now;
     List.fold_right (fun f q -> f q) !sends_to q in
-  let consumer q = 
+  let consumer q =
     if !queued_now = false then
       begin
         queued_now := true;
         Q.enqueue self.rank producer q
       end
-    else 
+    else
       q in
   a_src.attach_consumer consumer;
   b_src.attach_consumer consumer;
@@ -80,7 +80,7 @@ let map2 (f : 'a -> 'b -> 'c) (a_src : 'a node) (b_src : 'b node) : 'c node =
 
 
 let constant (v : 'a) : 'a node =
-  { 
+  {
     now = v;
     rank = 0;
     attach_consumer = (fun _ -> ());
@@ -88,19 +88,19 @@ let constant (v : 'a) : 'a node =
 
 let from_stream (init : 'a) (stream : 'a Lwt_stream.t) : 'a node =
   let sends_to = ref [] in
-  let self = { 
+  let self = {
     now = init;
     rank = 0;
-    attach_consumer = (fun f -> sends_to := f :: !sends_to) 
+    attach_consumer = (fun f -> sends_to := f :: !sends_to)
   } in
   let producer q =
     List.fold_right (fun f q -> f q) !sends_to q in
-  let rec propagate q = 
+  let rec propagate q =
     match Q.dequeue q with
     | None -> ()
     | Some (_, v, q') -> propagate (v q') in
   Lwt.async
-    (fun () -> 
+    (fun () ->
       Lwt_stream.iter
         (fun a ->
           self.now <- a;

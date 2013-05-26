@@ -41,6 +41,9 @@ rule token = parse
   | "dstIP" { DSTIP }
   | "tcpSrcPort" { TCPSRCPORT }
   | "dstSrcPort" { TCPDSTPORT }
+  | "frameType" { FRAMETYPE }
+  | "arp" { ARP }
+  | "ip" { IP }
   | "inPort" { INPORT }
   | "&&" { AND }
   | "||" { OR }

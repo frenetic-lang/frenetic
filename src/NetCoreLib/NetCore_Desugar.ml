@@ -3,14 +3,13 @@ open Packet
 open Format
 
 let desugar 
-  (genbucket : unit -> int)
   (genvlan : unit -> int option)
-  (pol : External.policy) 
-  (get_pkt_handlers : (int, External.get_packet_handler) Hashtbl.t) :
+  (pol : External.policy) :
   Internal.pol =
   let open Internal in
   let open External in
-  let desugar_act act = match act with
+  let desugar_act act =
+    match act with
     | Pass -> NetCore_Action.Output.pass
     | Drop -> NetCore_Action.Output.drop
     | To pt -> 
@@ -32,7 +31,11 @@ let desugar
     | UpdateDstPort (old, new_) ->
       NetCore_Action.Output.updateDstPort old new_
     | GetPacket handler ->
-      NetCore_Action.Output.controller handler in
+      NetCore_Action.Output.controller handler
+    | GetPacketCount (d, handler) ->
+      NetCore_Action.Output.packet_query (d, handler)
+    | GetByteCount (d, handler) ->
+      NetCore_Action.Output.byte_query (d, handler) in
   let rec desugar_pred pred = match pred with
     | And (p1, p2) -> 
       PrAnd (desugar_pred p1, desugar_pred p2)
@@ -53,6 +56,8 @@ let desugar
       PrHdr (NetCore_Pattern.dlDst n)
     | DlVlan n -> 
       PrHdr (NetCore_Pattern.dlVlan n)
+    | DlTyp n ->
+      PrHdr (NetCore_Pattern.dlType n)
     | SrcIP n -> 
       PrHdr (NetCore_Pattern.ipSrc n)
     | DstIP n -> 
@@ -127,5 +132,4 @@ let desugar
       let pol' = PoSeq(pol1', PoSeq(pol2', pol3')) in 
       let slice' = next::sslice' in 
       (pol', slice') in 
-  Hashtbl.clear get_pkt_handlers;
   fst (desugar_pol None pol)

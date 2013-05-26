@@ -8,6 +8,9 @@ LIBRARIES = FreneticLib \
             NetCoreLib \
             OxLib 
 
+CTAGS_FILES = $(shell ls $(addsuffix /*.ml,$(LIBRARIES)) \
+                         $(addsuffix /*.ml,$(LIBRARIES)))
+
 SUFFIXES = .a .cmxa .cma .d.cma
 
 .PHONY: all native byte debug install uninstall doc clean $(LIBRARIES)
@@ -16,7 +19,7 @@ OCAMLBUILD = ocamlbuild -use-ocamlfind $(addprefix -I ,$(LIBRARIES))
 
 OCAMLFIND = ocamlfind
 
-all: native byte debug $(LIBRARIES) 
+all: ctags native byte debug $(LIBRARIES)
 
 native: $(addsuffix .native, $(APPLICATIONS))
 
@@ -58,6 +61,7 @@ doc:
 clean:
 	$(OCAMLBUILD) -clean
 
-ctags: $(CTAGSFILES)
-	@echo "[5m[31m[1m*** Making ctags is broken! ***[0m"
-	rm -f tags && ctags $(CTAGSFILES)
+ctags: $(CTAGS_FILES)
+	@which ctags3 2> /dev/null > /dev/null \
+    && rm -f tags && ctags $(CTAGS_FILES) \
+    || true

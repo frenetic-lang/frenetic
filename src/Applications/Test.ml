@@ -30,7 +30,7 @@ module TestClassifier = struct
     "pattern restriction test" >::
       fun () ->
         assert_equal ~printer:NetCore_Pattern.to_string
-          (restrict_range
+          (sequence_range
              (List.hd (atoms (forward 1)))
              (NetCore_Pattern.inPort (Physical 1)))
           NetCore_Pattern.all
@@ -420,13 +420,9 @@ module Helper = struct
   open Packet
 
   let desugar_policy pol =
-    let bucket_cell = ref 0 in
     let vlan_cell = ref 0 in
-    let genbucket () = incr bucket_cell; !bucket_cell in
     let genvlan () = incr vlan_cell; Some !vlan_cell in
-    let get_pkt_handlers : (int, get_packet_handler) Hashtbl.t =
-      Hashtbl.create 200 in
-    desugar genbucket genvlan pol get_pkt_handlers
+    desugar genvlan pol
 
   let in_pkt =
     { pktDlSrc = Int64.zero

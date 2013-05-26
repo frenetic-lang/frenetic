@@ -1,7 +1,7 @@
 open Lwt
 open Unix
-open Frenetic_Log
 
+module Log = Frenetic_Log
 module Controller = Ox_Controller.Make(OpenFlow0x01_Platform)
 
 let handlers = 

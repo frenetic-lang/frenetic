@@ -2,10 +2,6 @@ open OpenFlow0x01
 open Packet
 open NetCore_Types.Internal
 
-val concat_map : ('a -> 'b list) -> 'a list -> 'b list
-
-val filter_map : ('a -> 'b option) -> 'a list -> 'b list
-
 module type ACTION = 
  sig 
   type t 
@@ -26,7 +22,7 @@ module type ACTION =
   
   val seq_action : t -> t -> t
   
-  val restrict_range : e -> ptrn -> ptrn
+  val sequence_range : e -> ptrn -> ptrn
   
   val domain : e -> ptrn
 
@@ -49,7 +45,8 @@ module Output : sig
   val updateDstIP : Int32.t -> Int32.t -> t
   val updateSrcPort : int -> int -> t
   val updateDstPort : int -> int -> t
-  val bucket : int -> t
+  val packet_query : (int * NetCore_Types.External.get_count_handler) -> t
+  val byte_query : (int * NetCore_Types.External.get_count_handler) -> t
   val controller : (OpenFlow0x01.switchId -> port -> packet -> action) -> t
   val apply_controller : action -> lp -> action
   val switch_part  : action -> action

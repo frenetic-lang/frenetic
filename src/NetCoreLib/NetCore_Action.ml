@@ -3,17 +3,6 @@ open OpenFlow0x01.Action
 open Packet
 open NetCore_Types.Internal
 
-let concat_map f lst =
-  List.fold_right (fun a bs -> List.append (f a) bs) lst []
-    
-let rec filter_map f xs = match xs with
-  | [] -> []
-  | x :: xs' -> match f x with
-    | Some y -> y :: (filter_map f xs')
-    | None -> filter_map f xs'
-
-let filter_none = filter_map (fun x -> x)
-
 module type ACTION = sig
   type t
 
@@ -33,7 +22,7 @@ module type ACTION = sig
 
   val seq_action : t -> t -> t
 
-  val restrict_range : e -> ptrn -> ptrn
+  val sequence_range : e -> ptrn -> ptrn
 
   val domain : e -> ptrn
 
@@ -68,7 +57,7 @@ module Bool = struct
 
   let seq_action b1 b2 = b1 && b2
 
-  let restrict_range b p = p
+  let sequence_range b p = p
 
   let domain b = NetCore_Pattern.all
 
@@ -113,6 +102,10 @@ module Output = struct
   let string_of_action_atom atom = match atom with
     | SwitchAction output -> "SwitchAction " ^ (string_of_output output)
     | ControllerAction _ -> "ControllerAction _"
+    | ControllerPacketQuery (d, _) -> 
+      Printf.sprintf "ControllerPacketQuery (%d, _)" d
+    | ControllerByteQuery (d, _) -> 
+      Printf.sprintf "ControllerByteQuery (%d, _)" d
 
   type action = action_atom list
 
@@ -148,6 +141,12 @@ module Output = struct
     [ SwitchAction { unmodified with outPort = Physical pt } ]
 
   let to_all = [ SwitchAction { unmodified with outPort = All } ]
+
+  let packet_query (d, h) =
+    [ ControllerPacketQuery (d, h) ]
+
+  let byte_query (d, h) =
+    [ ControllerByteQuery (d, h) ]
 
   let bucket n =
     [ SwitchAction { unmodified with outPort = Bucket n } ]
@@ -198,13 +197,17 @@ module Output = struct
          (maybe_modify out.outTpDst Packet.setTpDst pkt))))))))))
 
   let rec apply_atom atom (sw,pt,pk) = match atom with
-    | SwitchAction out -> begin match apply_output out (sw,pt,pk) with
+    | SwitchAction out -> 
+      begin match apply_output out (sw,pt,pk) with
         | None -> []
         | Some lp -> [lp]
-    end
+      end
     | ControllerAction f -> apply_action (f sw pt pk) (sw, pt, pk)
+    | ControllerPacketQuery _ -> []
+    | ControllerByteQuery _   -> []
 
-  and apply_action act lp = concat_map (fun a -> apply_atom a lp) act
+  and apply_action act lp = 
+    Frenetic_List.concat_map (fun a -> apply_atom a lp) act
 
   let par_action act1 act2 = act1 @ act2
 
@@ -256,7 +259,7 @@ module Output = struct
     | _ -> None
 
   let cross lst1 lst2 = 
-    concat_map (fun a -> map (fun b -> (a, b)) lst2) lst1
+    Frenetic_List.concat_map (fun a -> map (fun b -> (a, b)) lst2) lst1
 
   let rec seq_action_atom atom1 atom2 = match (atom1, atom2) with
     | SwitchAction out1, SwitchAction out2 -> 
@@ -284,13 +287,21 @@ module Output = struct
         (ControllerAction
            (fun sw pt pk ->
              let atoms1 = f sw pt pk in
-             filter_none
+             Frenetic_List.filter_none
                (List.map
                   (fun at1 -> seq_action_atom at1 (SwitchAction out))
                   atoms1)))
+    | ControllerPacketQuery _, _ 
+    | ControllerByteQuery   _, _ ->
+      (* Queries are functionally equivalent to drop.  But they count as a side
+       * effect first. *)
+      Some atom1
+    | _, ControllerPacketQuery _ 
+    | _, ControllerByteQuery   _ ->
+      Some atom2
 
   let seq_action act1 act2 =
-    filter_map
+    Frenetic_List.filter_map
       (fun (o1,o2) -> seq_action_atom o1 o2)
       (cross act1 act2)
 
@@ -336,7 +347,7 @@ module Output = struct
    *      v with None in pat.
    *    - if out does not update f, leave pat unchanged w.r.t. f.
    *)
-  let restrict_range_switch out pat =
+  let sequence_range_switch out pat =
     let open NetCore_Pattern in
     restrict_port out.outPort
       (* TODO(arjun): Fill in the rest!!!! *)
@@ -344,9 +355,11 @@ module Output = struct
         (trans out.outDlDst dlDst wildcardDlDst
           (trans out.outDlVlan dlVlan wildcardDlVlan pat)))
 
-  let restrict_range atom pat = match atom with
-    | SwitchAction out -> restrict_range_switch out pat
-    | ControllerAction _ -> pat
+  let sequence_range atom pat = match atom with
+    | SwitchAction out        -> sequence_range_switch out pat
+    | ControllerAction _      -> pat
+    | ControllerPacketQuery _ -> pat
+    | ControllerByteQuery _   -> pat
 
   let domain atom = match atom with
     | SwitchAction out -> 
@@ -356,7 +369,9 @@ module Output = struct
         ; sel NetCore_Pattern.dlDst out.outDlDst
         ; sel NetCore_Pattern.dlVlan out.outDlVlan ]
         NetCore_Pattern.all
-    | ControllerAction _ -> NetCore_Pattern.all
+    | ControllerAction _      -> NetCore_Pattern.all
+    | ControllerPacketQuery _ -> NetCore_Pattern.all
+    | ControllerByteQuery _   -> NetCore_Pattern.all
 
   let set upd mk lst = match upd with
     | Some (_,nw) ->
@@ -410,31 +425,43 @@ module Output = struct
          | _ ->
            Output (PseudoPort.PhysicalPort pt)) ::
           (unmodify out))
-    | Bucket n ->
-      [ Output (PseudoPort.Controller 65535) ]
+    | Bucket n -> []
    
   let atom_to_of inp atom = match atom with
     | SwitchAction out -> output_to_of inp out
     | ControllerAction _ -> [ Output (PseudoPort.Controller 65535) ]
+    | ControllerPacketQuery _ -> []
+    | ControllerByteQuery _ -> []
 
   let apply_controller action (sw, pt, pk) =
     let f atom acc = match atom with
       | SwitchAction _ -> acc
-      | ControllerAction f -> par_action (f sw pt pk) acc in
+      | ControllerAction f -> par_action (f sw pt pk) acc
+      (* TODO(cole): don't ignore packets sent to the controller? *)
+      | ControllerPacketQuery _ -> acc
+      | ControllerByteQuery _ -> acc
+      in
     List.fold_right f action drop
 
   let switch_part action = 
     let f atom = match atom with
       | SwitchAction _ -> true
-      | ControllerAction _ -> false in
+      | ControllerAction _ -> false
+      | ControllerPacketQuery _ -> false
+      | ControllerByteQuery _ -> false
+      in
     List.filter f action
 
   let as_actionSequence inp act = 
-    concat_map (atom_to_of inp) act
+    Frenetic_List.concat_map (atom_to_of inp) act
 
   let atom_is_equal x y = match x, y with
     | SwitchAction out1, SwitchAction out2 -> out1 = out2
     | ControllerAction f, ControllerAction g -> f == g (* functional values *)
+    | ControllerPacketQuery (d, f), ControllerPacketQuery (d', f') ->
+      d == d' && f == f'
+    | ControllerByteQuery (d, f), ControllerByteQuery (d', f') ->
+      d == d' && f == f'
     | _ -> false
 
   (* TODO(arjun): What if they are permutations? *)

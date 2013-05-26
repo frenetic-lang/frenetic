@@ -1,7 +1,8 @@
 open Printf
 open Packet
-open Frenetic_Log
 open OpenFlow0x01
+
+module Log = Frenetic_Log
 
 let (<&>) = Lwt.(<&>)
 
