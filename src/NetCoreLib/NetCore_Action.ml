@@ -3,17 +3,6 @@ open OpenFlow0x01.Action
 open Packet
 open NetCore_Types.Internal
 
-let concat_map f lst =
-  List.fold_right (fun a bs -> List.append (f a) bs) lst []
-    
-let rec filter_map f xs = match xs with
-  | [] -> []
-  | x :: xs' -> match f x with
-    | Some y -> y :: (filter_map f xs')
-    | None -> filter_map f xs'
-
-let filter_none = filter_map (fun x -> x)
-
 module type ACTION = sig
   type t
 
@@ -217,7 +206,8 @@ module Output = struct
     | ControllerPacketQuery _ -> []
     | ControllerByteQuery _   -> []
 
-  and apply_action act lp = concat_map (fun a -> apply_atom a lp) act
+  and apply_action act lp = 
+    Frenetic_List.concat_map (fun a -> apply_atom a lp) act
 
   let par_action act1 act2 = act1 @ act2
 
@@ -269,7 +259,7 @@ module Output = struct
     | _ -> None
 
   let cross lst1 lst2 = 
-    concat_map (fun a -> map (fun b -> (a, b)) lst2) lst1
+    Frenetic_List.concat_map (fun a -> map (fun b -> (a, b)) lst2) lst1
 
   let rec seq_action_atom atom1 atom2 = match (atom1, atom2) with
     | SwitchAction out1, SwitchAction out2 -> 
@@ -297,7 +287,7 @@ module Output = struct
         (ControllerAction
            (fun sw pt pk ->
              let atoms1 = f sw pt pk in
-             filter_none
+             Frenetic_List.filter_none
                (List.map
                   (fun at1 -> seq_action_atom at1 (SwitchAction out))
                   atoms1)))
@@ -311,7 +301,7 @@ module Output = struct
       Some atom2
 
   let seq_action act1 act2 =
-    filter_map
+    Frenetic_List.filter_map
       (fun (o1,o2) -> seq_action_atom o1 o2)
       (cross act1 act2)
 
@@ -463,7 +453,7 @@ module Output = struct
     List.filter f action
 
   let as_actionSequence inp act = 
-    concat_map (atom_to_of inp) act
+    Frenetic_List.concat_map (atom_to_of inp) act
 
   let atom_is_equal x y = match x, y with
     | SwitchAction out1, SwitchAction out2 -> out1 = out2

@@ -61,7 +61,7 @@ let rec compile_pol p sw =
       | false ->
         OutputClassifier.sequence
           [(pat, NetCore_Action.Output.pass)] else_tbl in
-    NetCore_Action.concat_map seq_then_else (compile_pred pred sw)
+    Frenetic_List.concat_map seq_then_else (compile_pred pred sw)
 
 let to_rule (pattern, action) = 
   match NetCore_Pattern.to_match pattern with

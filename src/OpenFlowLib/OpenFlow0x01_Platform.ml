@@ -7,9 +7,11 @@
     [PLATFORM]. But, see [NetCore] for a higher-level abstraction.
 *)
 open Frenetic_Socket
-open Frenetic_Log
 open OpenFlow0x01
 open OpenFlow0x01_Parser
+
+module Log = Frenetic_Log
+module Socket = Frenetic_Socket
 
 exception SwitchDisconnected of switchId
 
@@ -48,13 +50,13 @@ let get_fd () : Lwt_unix.file_descr Lwt.t =
 
 let rec recv_from_switch_fd (sock : Lwt_unix.file_descr) : (xid * message) option Lwt.t =
   let ofhdr_str = String.create (2 * sizeof_ofp_header) in (* JNF: why 2x? *)
-  lwt ok = SafeSocket.recv sock ofhdr_str 0 sizeof_ofp_header in
+  lwt ok = Socket.recv sock ofhdr_str 0 sizeof_ofp_header in
   if not ok then Lwt.return None
   else
     lwt hdr = Lwt.wrap (fun () -> Header.parse (Cstruct.of_string ofhdr_str)) in
     let body_len = hdr.Header.len - sizeof_ofp_header in
     let body_buf = String.create body_len in
-    lwt ok = SafeSocket.recv sock body_buf 0 body_len in
+    lwt ok = Socket.recv sock body_buf 0 body_len in
     if not ok then Lwt.return None
     else 
       match Message.parse hdr (Cstruct.of_string body_buf) with

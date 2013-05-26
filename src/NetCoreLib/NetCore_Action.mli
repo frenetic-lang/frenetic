@@ -2,10 +2,6 @@ open OpenFlow0x01
 open Packet
 open NetCore_Types.Internal
 
-val concat_map : ('a -> 'b list) -> 'a list -> 'b list
-
-val filter_map : ('a -> 'b option) -> 'a list -> 'b list
-
 module type ACTION = 
  sig 
   type t 
