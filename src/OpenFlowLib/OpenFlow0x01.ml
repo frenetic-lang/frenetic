@@ -170,7 +170,7 @@ module Match = struct
     let vlan =
       match m.dlVlan with
       | Some (Some v) -> v
-      | Some None -> Packet_Parser.vlan_none
+      | Some None -> Packet.vlan_none
       | None -> 0 in
     set_ofp_match_dl_vlan bits (vlan);
     set_ofp_match_dl_vlan_pcp bits (if_some8 m.dlVlanPcp);
@@ -203,7 +203,7 @@ module Match = struct
         else
           begin
             let vlan = get_ofp_match_dl_vlan bits in
-            if vlan = Packet_Parser.vlan_none then
+            if vlan = Packet.vlan_none then
               Some None
             else
               Some (Some vlan)
@@ -524,7 +524,7 @@ module Action = struct
       Output (PseudoPort.make ofp_port_code len)
     | Some OFPAT_SET_VLAN_VID ->
       let vid = get_ofp_action_vlan_vid_vlan_vid bits' in
-      if vid = Packet_Parser.vlan_none then
+      if vid = Packet.vlan_none then
         StripVlan
       else
         SetDlVlan (Some vid)

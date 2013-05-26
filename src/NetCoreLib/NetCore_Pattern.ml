@@ -174,17 +174,17 @@ let zero_default f x = match f x with
   | None -> 0
 
 let exact_pattern pk pt = {
-  ptrnDlSrc = WildcardExact pk.pktDlSrc;
-  ptrnDlDst = WildcardExact pk.pktDlDst;
-  ptrnDlType = WildcardExact pk.pktDlTyp;
-  ptrnDlVlan = WildcardExact pk.pktDlVlan;
-  ptrnDlVlanPcp = WildcardExact pk.pktDlVlanPcp;
-  ptrnNwSrc = WildcardExact (zero_default32 pktNwSrc pk);
-  ptrnNwDst = WildcardExact (zero_default32 pktNwDst pk);
-  ptrnNwProto = WildcardExact (zero_default pktNwProto pk);
-  ptrnNwTos = WildcardExact (zero_default pktNwTos pk);
-  ptrnTpSrc = WildcardExact (zero_default pktTpSrc pk);
-  ptrnTpDst = WildcardExact (zero_default pktTpDst pk);
+  ptrnDlSrc = WildcardExact pk.dlSrc;
+  ptrnDlDst = WildcardExact pk.dlDst;
+  ptrnDlType = WildcardExact pk.dlTyp;
+  ptrnDlVlan = WildcardExact pk.dlVlan;
+  ptrnDlVlanPcp = WildcardExact pk.dlVlanPcp;
+  ptrnNwSrc = WildcardExact (zero_default32 nwSrc pk);
+  ptrnNwDst = WildcardExact (zero_default32 nwDst pk);
+  ptrnNwProto = WildcardExact (zero_default nwProto pk);
+  ptrnNwTos = WildcardExact (zero_default nwTos pk);
+  ptrnTpSrc = WildcardExact (zero_default tpSrc pk);
+  ptrnTpDst = WildcardExact (zero_default tpDst pk);
   ptrnInPort = WildcardExact pt
 }
 

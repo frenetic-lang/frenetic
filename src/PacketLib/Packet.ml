@@ -365,89 +365,90 @@ module Arp = struct
 end
 
 type nw =
-| NwIP of Ip.t
-| NwARP of Arp.t
-| NwUnparsable of dlTyp * bytes
+  | Ip of Ip.t
+  | Arp of Arp.t
+  | Unparsable of bytes
 
-type packet = 
-  { pktDlSrc : dlAddr; 
-    pktDlDst : dlAddr; 
-    pktDlTyp : dlTyp;
-    pktDlVlan : dlVlan; 
-    pktDlVlanPcp : dlVlanPcp;
-    pktNwHeader : nw }
+type packet = {
+  dlSrc : dlAddr;
+  dlDst : dlAddr; 
+  dlTyp : dlTyp;
+  dlVlan : dlVlan;
+  dlVlanPcp : dlVlanPcp;
+  nw : nw
+}
 
-let pktNwSrc pkt = match pkt.pktNwHeader with
-  | NwIP ip -> Some ip.Ip.src
-  | NwARP arp -> Some (Arp.nwSrc arp)
-  | NwUnparsable _ -> None
+let nwSrc pkt = match pkt.nw with
+  | Ip ip -> Some ip.Ip.src
+  | Arp arp -> Some (Arp.nwSrc arp)
+  | Unparsable _ -> None
 
-let pktNwDst pkt = match pkt.pktNwHeader with
-  | NwIP ip -> Some ip.Ip.dst
-  | NwARP arp -> Some (Arp.nwDst arp)
-  | NwUnparsable _ -> None
+let nwDst pkt = match pkt.nw with
+  | Ip ip -> Some ip.Ip.dst
+  | Arp arp -> Some (Arp.nwDst arp)
+  | Unparsable _ -> None
 
-let pktNwProto pkt = match pkt.pktNwHeader with 
-  | NwIP ip -> Some ip.Ip.proto
+let nwProto pkt = match pkt.nw with 
+  | Ip ip -> Some ip.Ip.proto
   | _ -> None
 
-let pktNwTos pkt = match pkt.pktNwHeader with 
-  | NwIP ip -> Some ip.Ip.tos
+let nwTos pkt = match pkt.nw with 
+  | Ip ip -> Some ip.Ip.tos
   | _ -> None
 
-let pktTpSrc pkt = match pkt.pktNwHeader with 
-  | NwIP ip ->
+let tpSrc pkt = match pkt.nw with 
+  | Ip ip ->
     (match ip.Ip.tp with
     | Ip.Tcp frg -> Some frg.Tcp.src
     | _ -> None)
   | _ -> None
 
-let pktTpDst pkt = match pkt.pktNwHeader with 
-  | NwIP ip ->
+let tpDst pkt = match pkt.nw with 
+  | Ip ip ->
     (match ip.Ip.tp with
     | Ip.Tcp frg -> Some frg.Tcp.dst
     | _ -> None)
   | _ -> None
 
 let setDlSrc pkt dlSrc =
-  { pkt with pktDlSrc = dlSrc }
+  { pkt with dlSrc = dlSrc }
 
 let setDlDst pkt dlDst =
-  { pkt with pktDlDst = dlDst }
+  { pkt with dlDst = dlDst }
 
 let setDlVlan pkt dlVlan =
-  { pkt with pktDlVlan = dlVlan }
+  { pkt with dlVlan = dlVlan }
 
 let setDlVlanPcp pkt dlVlanPcp =
-  { pkt with pktDlVlanPcp = dlVlanPcp }
+  { pkt with dlVlanPcp = dlVlanPcp }
 
 let nw_setNwSrc nwPkt src = match nwPkt with
-  | NwIP ip ->
-    NwIP { ip with Ip.src = src }
+  | Ip ip ->
+    Ip { ip with Ip.src = src }
   | nw -> 
     nw
 
 let nw_setNwDst nwPkt dst = match nwPkt with
-  | NwIP ip ->
-    NwIP { ip with Ip.dst = dst }
+  | Ip ip ->
+    Ip { ip with Ip.dst = dst }
   | nw -> 
     nw
 
 let nw_setNwTos nwPkt tos =
   match nwPkt with
-  | NwIP ip ->
-    NwIP { ip with Ip.tos = tos }
+  | Ip ip ->
+    Ip { ip with Ip.tos = tos }
   | nw -> 
     nw
     
 let setNwSrc pkt nwSrc =
-  { pkt with pktNwHeader = nw_setNwSrc pkt.pktNwHeader nwSrc }
+  { pkt with nw = nw_setNwSrc pkt.nw nwSrc }
 
 let setNwDst pkt nwDst = 
-  { pkt with pktNwHeader = nw_setNwDst pkt.pktNwHeader nwDst }
+  { pkt with nw = nw_setNwDst pkt.nw nwDst }
 
 let setNwTos pkt nwTos =
-  { pkt with pktNwHeader = nw_setNwTos pkt.pktNwHeader nwTos }
+  { pkt with nw = nw_setNwTos pkt.nw nwTos }
 
 let tp_setTpSrc tp src = match tp with 
   | Ip.Tcp tcp ->
@@ -462,22 +463,22 @@ let tp_setTpDst tp dst = match tp with
     tp
 
 let nw_setTpSrc nwPkt tpSrc = match nwPkt with 
-  | NwIP ip ->
-    NwIP { ip with Ip.tp = tp_setTpSrc ip.Ip.tp tpSrc }
+  | Ip ip ->
+    Ip { ip with Ip.tp = tp_setTpSrc ip.Ip.tp tpSrc }
   | nw -> 
     nw
 
 let nw_setTpDst nwPkt tpDst = match nwPkt with 
-  | NwIP ip ->
-    NwIP { ip with Ip.tp = tp_setTpDst ip.Ip.tp tpDst }
+  | Ip ip ->
+    Ip { ip with Ip.tp = tp_setTpDst ip.Ip.tp tpDst }
   | nw -> 
     nw
 
 let setTpSrc pkt tpSrc =
-  { pkt with pktNwHeader = nw_setTpSrc pkt.pktNwHeader tpSrc }
+  { pkt with nw = nw_setTpSrc pkt.nw tpSrc }
 
 let setTpDst pkt tpDst =
-  { pkt with pktNwHeader = nw_setTpDst pkt.pktNwHeader tpDst }
+  { pkt with nw = nw_setTpDst pkt.nw tpDst }
 
 let string_of_mac (x:int64) : string =
   Format.sprintf "%02x:%02x:%02x:%02x:%02x:%02x"
@@ -517,16 +518,170 @@ let tpPort_to_string = string_of_int
 let nw_to_string nw = "Not yet implemented"
 
 let packet_to_string 
-    { pktDlSrc = pktDlSrc;
-      pktDlDst = pktDlDst;
-      pktDlTyp = pktDlTyp;
-      pktDlVlan = pktDlVlan;
-      pktDlVlanPcp = pktDlVlanPcp;
-      pktNwHeader = pktNwHeader } = 
+    { dlSrc = pktDlSrc;
+      dlDst = pktDlDst;
+      dlTyp = pktDlTyp;
+      dlVlan = pktDlVlan;
+      dlVlanPcp = pktDlVlanPcp;
+      nw = nw } = 
   Printf.sprintf "(%s, %s, %s, %s, %s, %s)"
     (dlAddr_to_string pktDlSrc)
     (dlAddr_to_string pktDlDst)
     (dlTyp_to_string pktDlTyp)
     (dlVlan_to_string pktDlVlan)
     (dlVlanPcp_to_string pktDlVlanPcp)
-    (nw_to_string pktNwHeader)
+    (nw_to_string nw)
+
+(* Data Link *)
+cstruct eth {
+  uint8_t dst[6];
+  uint8_t src[6];
+  uint16_t typ
+} as big_endian
+
+cstruct vlan {
+  uint8_t dst[6];
+  uint8_t src[6];
+  uint16_t hdr; (* 0x8100 *)
+  uint16_t tag; (* tag and pcp *)
+  uint16_t typ
+} as big_endian
+
+cenum eth_typ {
+  ETHTYP_IP = 0x0800;
+  ETHTYP_ARP = 0x0806;
+  ETHTYP_VLAN = 0x8100
+} as uint16_t
+
+let vlan_none = 0xffff
+let vlan_mask = 0xfff
+let vlan_pcp_mask = 0x7 lsl 9
+
+(* Transport *)
+
+cstruct udp { 
+  uint16_t src;
+  uint16_t dst;
+  uint16_t len;
+  uint16_t chksum
+} as big_endian
+
+(* TODO(arjun): error if not enough space *)
+let parse (bits : Cstruct.t) =
+  let dst = Cstruct.to_string (get_eth_dst bits) in
+  let src = Cstruct.to_string (get_eth_src bits) in
+  let typ = get_eth_typ bits in 
+  let (vlan_tag, vlan_pcp, typ, offset) = 
+    match int_to_eth_typ typ with 
+      | Some ETHTYP_VLAN -> 
+        let tag_and_pcp = get_vlan_tag bits in 
+        let vlan_tag = tag_and_pcp land 0xfff in 
+        let vlan_pcp = tag_and_pcp lsr 13 in 
+        let typ = get_vlan_typ bits in 
+        (Some vlan_tag, vlan_pcp, typ, sizeof_vlan)
+      | _ -> 
+        (None, 0x0, typ, sizeof_eth) in 
+  let bits = Cstruct.shift bits offset in
+  let nw_header = match int_to_eth_typ typ with 
+    | Some ETHTYP_IP -> 
+      begin match Ip.parse bits with 
+        | Some ip -> Ip ip
+        | None -> Unparsable (Cstruct.of_string (Cstruct.to_string bits))
+      end
+    | Some ETHTYP_ARP -> 
+      begin match Arp.parse bits with 
+        | Some arp -> Arp arp 
+        | _ -> Unparsable (Cstruct.of_string (Cstruct.to_string bits))
+      end
+    | _ -> 
+      Unparsable (Cstruct.of_string (Cstruct.to_string bits)) in 
+  Some {
+    dlSrc = mac_of_bytes src;
+    dlDst = mac_of_bytes dst;
+    dlTyp = typ;
+    dlVlan = vlan_tag;
+    dlVlanPcp = vlan_pcp;
+    nw = nw_header 
+  }
+
+let len (pkt : packet) =
+  let eth_len = 
+    if pkt.dlVlan != None then sizeof_vlan 
+    else sizeof_eth in 
+  let nw_len = match pkt.nw with 
+    | Ip ip -> Ip.len ip
+    | Arp arp -> Arp.len arp 
+    | Unparsable data -> Cstruct.len data in 
+  eth_len + nw_len
+
+let serialize_helper (bits : Cstruct.t) (pkt : packet) =
+  set_eth_src (bytes_of_mac pkt.dlSrc) 0 bits;
+  set_eth_dst (bytes_of_mac pkt.dlDst) 0 bits;
+  let bits =    
+    if pkt.dlVlan != None then 
+      begin 
+        set_vlan_hdr bits 0x8100;
+        let vlan_tag = 
+          match pkt.dlVlan with 
+            | Some v -> v 
+            | None -> vlan_none in
+        let tag_and_pcp = (pkt.dlVlanPcp lsl 4) lor vlan_tag in 
+        set_vlan_tag bits tag_and_pcp;
+        set_vlan_typ bits pkt.dlTyp;                        
+        Cstruct.shift bits sizeof_vlan 
+      end
+    else
+      begin 
+        set_eth_typ bits pkt.dlTyp;
+        Cstruct.shift bits sizeof_eth 
+      end in 
+  match pkt.nw with 
+    | Ip ip -> Ip.serialize bits ip
+    | Arp arp -> Arp.serialize bits arp
+    | Unparsable data -> Cstruct.blit bits 0 data 0 (Cstruct.len data)
+
+let serialize (pkt:packet) : Cstruct.t = 
+  let bits = Cstruct.create (len pkt) in 
+  let () = serialize_helper bits pkt in 
+  bits
+
+(* let parse_udp (bits:Cstruct.t) : udp option =  *)
+(*   let src = get_ucp_src bits in  *)
+(*   let dst = get_ucp_dst bits in  *)
+(*   let chksum = get_udp_chksum bits in  *)
+(*   let payload = Cstruct.shift bits sizeof_udp in  *)
+(*   Some { udpSrc = src; *)
+(*          udpDst = dst; *)
+(*          udpChksum = seq; *)
+(*          udpPayload = payload } *)
+
+(* Pretty Printing *)
+let string_of_nw pkt = 
+  match pkt with 
+    | Unparsable data -> 
+      Printf.sprintf "%s [%d:%d%d%d]\n\n"
+        (Cstruct.debug data)  (* TODO(arjun): doesn't work as expected!! *)
+        (Cstruct.len data)
+        (Char.code (Cstruct.get_char data 0))
+        (Char.code (Cstruct.get_char data 1))
+        (Char.code (Cstruct.get_char data 2))
+    | _ -> ""
+      
+let string_of_eth pkt = 
+  let vlan_tag = 
+    match pkt.dlVlan with
+    | Some v -> v
+    | None -> vlan_none in
+  Printf.sprintf 
+    "\n{ pktDlSrc = %s; 
+  pktDlDst = %s  
+  pktDlTyp : %d  
+  pktDlVlan : %d  
+  pktDlVlanPcp : %d
+  nw: %s }" 
+    (string_of_mac pkt.dlSrc)
+    (string_of_mac pkt.dlDst)
+    (pkt.dlTyp)
+    (vlan_tag)
+    (pkt.dlVlanPcp)
+    (string_of_nw pkt.nw)

@@ -71,8 +71,8 @@ let make (public_ip : nwAddr) =
   let tbl = Table.create 2000 65535 in
   let rec init_public_pol sw pt pk =
     match pk with
-      | { pktDlTyp = 0x800;
-          pktNwHeader = NwIP {
+      | { dlTyp = 0x800;
+          nw = Ip {
             Ip.src = src_ip;
             Ip.dst = dst_ip;
             Ip.proto = 6;
@@ -86,8 +86,8 @@ let make (public_ip : nwAddr) =
                       
   let rec callback sw pt pk =
     match pk with
-      | { pktDlTyp = 0x800;
-          pktNwHeader = NwIP {
+      | { dlTyp = 0x800;
+          nw = Ip {
             Ip.src = private_ip;
             Ip.proto = 6;
             Ip.tp = Ip.Tcp { Tcp.src = private_port }

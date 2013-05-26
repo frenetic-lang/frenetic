@@ -111,34 +111,33 @@ module Arp : sig
 
 end
 
-
 type nw =
-  | NwIP of Ip.t
-  | NwARP of Arp.t
-  | NwUnparsable of dlTyp * bytes
+  | Ip of Ip.t
+  | Arp of Arp.t
+  | Unparsable of bytes
 
 type packet = {
-  pktDlSrc : dlAddr;
-  pktDlDst : dlAddr; 
-  pktDlTyp : dlTyp;
-  pktDlVlan : dlVlan;
-  pktDlVlanPcp : dlVlanPcp;
-  pktNwHeader : nw
+  dlSrc : dlAddr;
+  dlDst : dlAddr; 
+  dlTyp : dlTyp;
+  dlVlan : dlVlan;
+  dlVlanPcp : dlVlanPcp;
+  nw : nw
 }
 
 (** {9:accs Accessors} *)
 
-val pktNwSrc : packet -> nwAddr option
+val nwSrc : packet -> nwAddr option
 
-val pktNwDst : packet -> nwAddr option
+val nwDst : packet -> nwAddr option
 
-val pktNwTos : packet -> nwTos option
+val nwTos : packet -> nwTos option
 
-val pktNwProto : packet -> nwProto option
+val nwProto : packet -> nwProto option
 
-val pktTpSrc : packet -> tpPort option
+val tpSrc : packet -> tpPort option
 
-val pktTpDst : packet -> tpPort option
+val tpDst : packet -> tpPort option
 
 (** {9 Mutators} *)
 
@@ -164,6 +163,7 @@ val setTpDst : packet -> tpPort -> packet
 
 val string_of_mac : int48 -> string
 
+(* TODO(arjun): IMO it is silly to expose *all* these functions. *)
 val portId_to_string : int16 -> string
 
 val dlAddr_to_string : int48 -> string
@@ -193,3 +193,9 @@ val bytes_of_mac : int48 -> string
 val mac_of_bytes : string -> int48
 
 val string_of_ip : int32 -> string
+
+(** {9:serialize Serialization} *)
+
+val vlan_none : int
+val parse : Cstruct.t -> packet option
+val serialize : packet -> Cstruct.t
