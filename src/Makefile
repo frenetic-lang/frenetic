@@ -1,6 +1,6 @@
 APPLICATIONS = Applications/NetCore \
                Applications/Ox \
-               Applications/Test 
+               Applications/Test
 
 LIBRARIES = FreneticLib \
             PacketLib \

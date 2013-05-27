@@ -4,6 +4,7 @@ open OpenFlow0x01
 open NetCore_Types
 open NetCore_Types.External
 
+
 module Log = Frenetic_Log
 
 (* Internal policy type *)
@@ -15,7 +16,7 @@ let init_pol : pol = Internal.PoFilter Internal.PrNone
 
 module type MAKE  = functor (Platform : OpenFlow0x01.PLATFORM) -> 
   sig
-    val start_controller : policy NetCore_Stream.t -> unit Lwt.t
+    val start_controller : NetCore_Types.Internal.pol NetCore_Stream.t -> unit Lwt.t
   end
 
 module Make (Platform : OpenFlow0x01.PLATFORM) = struct
@@ -63,12 +64,6 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
     Log.printf "[NetCore_Controller.ml]" " compiling new policy for switch %Ld\n%!" sw;
     lwt flow_table = Lwt.wrap2 NetCore_Compiler.flow_table_of_policy sw pol in
-    Log.printf "[NetCore_Controller.ml]" " flow table is:\n%!";
-    List.iter
-      (fun (m,a) -> Log.printf "[NetCore_Controller.ml]" " %s => %s\n%!"
-        (OpenFlow0x01.Match.to_string m)
-        (OpenFlow0x01.Action.sequence_to_string a))
-      flow_table;
     Platform.send_to_switch sw 0l delete_all_flows >>
     let prio = ref 65535 in
     Lwt_list.iter_s
@@ -170,12 +165,9 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
   let accept_policy push_pol pol = 
     (* TODO(cole) kill_outstanding_queries !query_kill_switch; *)
     reset_policy_state ();
-    let p = NetCore_Desugar.desugar genvlan genbucket get_count_handlers pol in
-    Log.printf "[NetCore_Controller.ml]" "got new policy:\n%s\n%!" 
-      (Internal.pol_to_string p);
     (* TODO(cole) initialize_query_state p; *)
-    pol_now := p;
-    push_pol (Some p);
+    pol_now := pol;
+    push_pol (Some pol);
     (* TODO(cole) spawn_queries p !query_kill_switch *)
     Lwt.return ()
 

@@ -386,32 +386,6 @@ end
 
         
         
-
-module Test1 = struct
-
-  module Network = OpenFlow0x01_TestPlatform.Network
-  module Controller = NetCore_Controller.Make (OpenFlow0x01_TestPlatform)
-
-  let network_script =
-    Network.connect_switch 100L >>
-    lwt msg = Network.recv_from_controller 100L in
-    Lwt.return ()
-
-  let controller_script =
-    Controller.start_controller 
-      (NetCore_Stream.constant (Act (To 0)))
-
-  let body = Lwt.pick [controller_script; network_script]
-
-  let go =
-    "repeater test" >::
-      (bracket
-         (fun () -> ())
-         (fun () -> Lwt_main.run body)
-         (fun () -> Network.tear_down ()))
-
-end
-
 module Helper = struct
 
   module C = NetCore_Classifier.Make (NetCore_Action.Output)
@@ -603,8 +577,7 @@ end
 
 
 let tests =
-  TestList [ Test1.go
-           ; TestFilters.go
+  TestList [ TestFilters.go
            ; TestMods.go
            ; TestSlices.go
            ; TestClassifier.go
