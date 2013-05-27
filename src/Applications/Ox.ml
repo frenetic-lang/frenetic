@@ -1,33 +1,33 @@
 open Lwt
 open Unix
 open Ox_Controller
+open OpenFlow0x01
 
 module Log = Frenetic_Log
 
-module Make (OxPlatform:OXPLATFORM) = 
+module Repeater (OxPlatform:OXPLATFORM) = 
 struct
-  let switchConnected sw = 
-    Log.printf "Main" "SwitchConnected"; 
-    Lwt.return ()
+  let switchConnected sw = Lwt.return ()
 
-  let switchDisconnected sw = 
-    Log.printf "Main" "SwitchDisconnected"; 
-    Lwt.return ()
+  let switchDisconnected sw = Lwt.return ()
 
   let packetIn sw pktIn = 
-    Log.printf "Main" "PacketIn"; 
-    Lwt.return ()
+    match pktIn.packetInBufferId with 
+      | None -> 
+	Lwt.return ()
+      | Some bufId -> 
+	let pktOut = { pktOutBufOrBytes = Buffer bufId;
+		       pktOutPortId = Some pktIn.packetInPort;
+		       pktOutActions = [Action.Output PseudoPort.Flood] } in 
+	OxPlatform.packetOut sw pktOut;
+	Lwt.return ()
 
-  let statsReply sw stats =
-    Log.printf "Main" "StatsReply";
-    Lwt.return ()
+  let statsReply sw stats = Lwt.return ()
 end
 
 module OxPlatform = MakeOxPlatform(OpenFlow0x01_Platform)
 
-module Handlers = Make(OxPlatform)
-
-module Controller = Ox_Controller.Make(OpenFlow0x01_Platform)(Handlers)
+module Controller = Ox_Controller.Make(OpenFlow0x01_Platform)(Repeater(OxPlatform))
 
 let main () = 
   OpenFlow0x01_Platform.init_with_port 6633 >>

@@ -44,6 +44,7 @@ struct
       lwt msg = Platform.recv_from_switch sw in 
       match msg with 
         | (_,PacketInMsg pktIn) -> 
+	  Log.printf "Ox_controller" "got packetin\n%!";
           Handler.packetIn sw pktIn >>
           switch_thread sw 
         | (_, StatsReplyMsg rep) ->
