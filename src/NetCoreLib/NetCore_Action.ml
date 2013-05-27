@@ -451,6 +451,15 @@ module Output = struct
   let as_actionSequence inp act = 
     Frenetic_List.concat_map (atom_to_of inp) act
 
+  let queries action =
+    let f atom = match atom with
+      | SwitchAction _ -> false
+      | ControllerAction _ -> false
+      | ControllerPacketQuery _ -> true
+      | ControllerByteQuery _ -> true
+      in
+    List.filter f action
+
   let atom_is_equal x y = match x, y with
     | SwitchAction out1, SwitchAction out2 -> out1 = out2
     | ControllerAction f, ControllerAction g -> f == g (* functional values *)

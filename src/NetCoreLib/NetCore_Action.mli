@@ -51,6 +51,7 @@ module Output : sig
   val apply_controller : action -> lp -> action
   val switch_part  : action -> action
   val as_actionSequence : portId option -> t -> OpenFlow0x01.Action.sequence
+  val queries : t -> t
 end
 
 module Bool : ACTION 

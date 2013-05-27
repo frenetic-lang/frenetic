@@ -72,10 +72,23 @@ let to_rule (pattern, action) =
               action)
     | None -> None
 
+let to_query (pattern, action) =
+  match NetCore_Pattern.to_match pattern with
+    | Some match_ ->
+      Some (List.map (fun q -> (match_, q)) 
+                     (NetCore_Action.Output.queries action))
+    | None -> None
+
 let flow_table_of_policy sw pol0 =
   List.fold_right 
     (fun p acc -> match to_rule p with None -> acc | Some r -> r::acc)
     (compile_pol pol0 sw)
+    []
+
+let queries_of_policy sw pol =
+  List.fold_right
+    (fun p acc -> match to_query p with None -> acc | Some r -> r::acc)
+    (compile_pol pol sw)
     []
 
 let string_of_position p =
