@@ -47,15 +47,6 @@ let compile_pol2 f = function
       PolStream
       (NetCore_Stream.map2 (fun p1 p2 -> f p1 p2) p1_stream p2_stream)
 
-let rec bind_all pos xs exps env = match (xs, exps) with
-  | ([], []) -> env
-  | ( x :: xs', exp :: exps') ->
-    if List.mem x xs' then
-      failwith "duplicate binding"
-    else
-      bind_all pos xs' exps' (Env.add x exp env)
-  | _ -> failwith "destructuring mismatch"
-
 let rec compile (env : env) = function
   | Par (pos, e1, e2) ->
     compile_pol2 
@@ -80,10 +71,9 @@ let rec compile (env : env) = function
                     (string_of_pos pos) x))
     end
   | Let (pos, binds, body) -> 
-    let env' = 
-      List.fold_left (fun env' (x, e) -> Env.add x e env')
-        env binds in
-    compile env' body
+    compile
+      (List.fold_left (fun env' (x, e) -> Env.add x e env') env binds)
+      body
   | Transform (pos, f, e) -> compile_pol f (compile env e)
 
 let compile_program exp = 
