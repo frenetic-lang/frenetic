@@ -269,24 +269,30 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       in
     handle_switch_messages sw
 
-  let switch_thread
-      (sw : switchId)
-      (pol_stream : pol NetCore_Stream.t) = 
+  let switch_thread sw pol_stream =
     switches := SwitchSet.add sw !switches;
     (try_lwt
-       install_new_policies sw pol_stream <&> handle_switch_messages sw
+      Lwt.pick [ install_new_policies sw pol_stream;
+                 handle_switch_messages sw ]
      with exn ->
-       Log.printf "NetCore_Controller" "%s\n%!" (Printexc.to_string exn);
-       Lwt.return ()) >>
-     (Log.printf "NetCore_Controller" "thread for switch %Ld terminated.\n" sw;
+       begin
+         Log.printf "[NetCore_Controller]" "unhandled exception %s.\n%!"
+           (Printexc.to_string exn);
+         Lwt.return ()
+       end) >>
+    begin
       switches := SwitchSet.remove sw !switches;
-      Lwt.return ())
+      Log.printf "NetCore_Controller" "cleaning up switch %Ld.\n%!" sw;
+      Lwt.return ()
+    end
+
 
   let rec accept_switches pol_stream = 
     lwt feats = Platform.accept_switch () in
     let sw = feats.switch_id in 
     Log.printf "NetCore_Controller" "switch %Ld connected\n%!" sw;
-    switch_thread sw pol_stream <&> accept_switches pol_stream
+    Lwt.async (switch_thread sw pol_stream);
+    accept_switches pol_stream
 
   let add_to_maps bucket counter =
     let upd (map : 'a list IntMap.t ref) (k : int) (v : 'a) : unit =
@@ -340,13 +346,8 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
 
   let start_controller pol = 
     let (pol_stream, push_pol) = Lwt_stream.create () in
-    try_lwt
-      accept_switches (NetCore_Stream.from_stream init_pol pol_stream) <&>  
-      accept_policies 
-        push_pol (NetCore_Stream.to_stream pol) (Lwt_switch.create ())
-    with exn -> 
-      Log.printf "NetCore_Controller" "uncaught exception %s\n%!"
-        (Printexc.to_string exn);
-      Lwt.return ()
+    accept_switches (NetCore_Stream.from_stream init_pol pol_stream) <&>
+    accept_policies
+      push_pol (NetCore_Stream.to_stream pol) (Lwt_switch.create ())
 
 end
