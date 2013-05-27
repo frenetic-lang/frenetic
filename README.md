@@ -4,7 +4,7 @@ Building from Source
 Prerequisites
 -------------
 
-- OCaml 4 or higher <http://caml.inria.fr/download.en.html>
+- OCaml 4.0 or higher <http://caml.inria.fr/download.en.html>
 
 - OPAM <http://opam.ocamlpro.com>
 
@@ -14,12 +14,11 @@ Prerequisites
   - lwt
   - cstruct 
   - oUnit
-  - menhir
 
   These are available on OPAM:
 
   ```
-  $ opam install ocamlfind cstruct lwt ounit menhir
+  $ opam install ocamlfind cstruct lwt ounit
   ```
 
   If this is your first time using OPAM, you should place the following in your .bashrc file to set up your environment:
