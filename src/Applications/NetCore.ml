@@ -8,7 +8,7 @@ module M = NetCore_MacLearning
 module Controller = NetCore_Controller.Make(OpenFlow0x01_Platform)
 
 let drop_all = NetCore_Types.Internal.PoAction (NetCore_Action.Output.drop)
-let policy = ref (NetCore_Stream.constant drop_all)
+let policy = ref (Lwt.return (), NetCore_Stream.constant drop_all)
 
 let () =
   Arg.parse
@@ -18,10 +18,11 @@ let () =
     "usage: netcore filename"
 
 let main () = 
-  (* JNF: kind of a hack that we have to call this function :-( *)
   OpenFlow0x01_Platform.init_with_port 6633 >>
-  Controller.start_controller !policy
-      
+  let (gen_stream, stream) = !policy in
+  Lwt.pick [gen_stream; Controller.start_controller stream]
+
+(* TODO(arjun): I do not 100% approve of this code. *)
 let _ =
   Sys.catch_break true;
   try 

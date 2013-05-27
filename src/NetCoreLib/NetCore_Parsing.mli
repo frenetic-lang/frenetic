@@ -1,3 +1,4 @@
-val parse_from_chan  : in_channel -> string -> NetCore_Types.Internal.pol NetCore_Stream.t
+open NetCore_Types.Internal
 
-val parse_from_lexbuf : Lexing.lexbuf -> string -> NetCore_Types.Internal.pol NetCore_Stream.t
+val parse_from_chan  : in_channel -> string -> unit Lwt.t * pol NetCore_Stream.t
+

@@ -17,7 +17,7 @@ type exp =
 
 and value = 
   | Pol of Pol.pol
-  | PolStream of Pol.pol NetCore_Stream.t
+  | PolStream of unit Lwt.t * Pol.pol NetCore_Stream.t
 
 type env = value Env.t
 
@@ -31,26 +31,27 @@ let string_of_pos pos =
     (pos.pos_cnum - pos.pos_bol)
 
 let compile_pol f = function
-  | Pol p -> Pol (f p)
-  | PolStream p_stream -> PolStream (NetCore_Stream.map f p_stream)
+  | Pol p ->
+    Pol (f p)
+  | PolStream (p_lwt, p_stream) ->
+    PolStream (p_lwt, NetCore_Stream.map f p_stream)
 
 let compile_pol2 f = function
   | (Pol p1, Pol p2) -> 
     Pol (f p1 p2)
-  | (PolStream p1_stream, Pol p2) ->
-    PolStream
-      (NetCore_Stream.map (fun p1 -> f p1 p2) p1_stream)
-  | (Pol p1, PolStream p2_stream) ->
-    PolStream
-      (NetCore_Stream.map (fun p2 -> f p1 p2) p2_stream)
-  | (PolStream p1_stream, PolStream p2_stream) ->
-      PolStream
-      (NetCore_Stream.map2 (fun p1 p2 -> f p1 p2) p1_stream p2_stream)
+  | (PolStream (p1_lwt, p1_stream), Pol p2) ->
+    PolStream  (p1_lwt, NetCore_Stream.map (fun p1 -> f p1 p2) p1_stream)
+  | (Pol p1, PolStream (p2_lwt, p2_stream)) ->
+     PolStream (p2_lwt, NetCore_Stream.map (fun p2 -> f p1 p2) p2_stream)
+  | (PolStream (p1_lwt, p1_stream), PolStream (p2_lwt, p2_stream)) ->
+     (* TODO(arjun): could print source location of the program that died!!! *)
+     (* TODO(arjun): blow up if either dies. *)
+    PolStream (Lwt.join [p1_lwt; p2_lwt],
+               NetCore_Stream.map2 (fun p1 p2 -> f p1 p2) p1_stream p2_stream)
 
 let rec compile (env : env) = function
   | Par (pos, e1, e2) ->
-    compile_pol2 
-      (fun p1 p2 -> Pol.PoUnion (p1, p2))
+    compile_pol2 (fun p1 p2 -> Pol.PoUnion (p1, p2))
       (compile env e1, compile env e2)
   | Seq (pos, e1, e2) ->
     compile_pol2
@@ -78,5 +79,5 @@ let rec compile (env : env) = function
 
 let compile_program exp = 
   match compile Env.empty exp with
-    | PolStream stream -> stream
-    | Pol pol -> NetCore_Stream.constant pol
+    | PolStream (lwt_e, stream) -> (lwt_e, stream)
+    | Pol pol -> (Lwt.return (), NetCore_Stream.constant pol)
