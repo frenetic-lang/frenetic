@@ -269,19 +269,30 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       in
     handle_switch_messages sw
 
-  let switch_thread
-      (sw : switchId)
-      (pol_stream : pol NetCore_Stream.t) = 
+  let switch_thread sw pol_stream =
     switches := SwitchSet.add sw !switches;
-    install_new_policies sw pol_stream <&> handle_switch_messages sw >>
-    (switches := SwitchSet.remove sw !switches;
-     Lwt.return ())
+    (try_lwt
+      Lwt.pick [ install_new_policies sw pol_stream;
+                 handle_switch_messages sw ]
+     with exn ->
+       begin
+         Log.printf "[NetCore_Controller]" "unhandled exception %s.\n%!"
+           (Printexc.to_string exn);
+         Lwt.return ()
+       end) >>
+    begin
+      switches := SwitchSet.remove sw !switches;
+      Log.printf "NetCore_Controller" "cleaning up switch %Ld.\n%!" sw;
+      Lwt.return ()
+    end
+
 
   let rec accept_switches pol_stream = 
     lwt feats = Platform.accept_switch () in
     let sw = feats.switch_id in 
     Log.printf "NetCore_Controller" "switch %Ld connected\n%!" sw;
-    switch_thread sw pol_stream <&> accept_switches pol_stream
+    Lwt.async (switch_thread sw pol_stream);
+    accept_switches pol_stream
 
   let add_to_maps bucket counter =
     let upd (map : 'a list IntMap.t ref) (k : int) (v : 'a) : unit =
