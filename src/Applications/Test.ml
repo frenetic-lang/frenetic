@@ -4,6 +4,7 @@ open NetCore_Types.Internal
 open NetCore_Types.External
 open NetCore_Semantics
 open NetCore_Desugar
+open NetCore_Pretty
 open OUnit
 
 module TestClassifier = struct
@@ -23,13 +24,13 @@ module TestClassifier = struct
   let test1 =
     "forward action domain should be NetCore_Pattern.all" >::
       fun () ->
-        assert_equal ~printer:NetCore_Pattern.to_string
+        assert_equal ~printer:NetCore_Pretty.pattern_to_string
           (domain (List.hd (atoms (forward 1)))) NetCore_Pattern.all
 
   let test2 =
     "pattern restriction test" >::
       fun () ->
-        assert_equal ~printer:NetCore_Pattern.to_string
+        assert_equal ~printer:NetCore_Pretty.pattern_to_string
           (sequence_range
              (List.hd (atoms (forward 1)))
              (NetCore_Pattern.inPort (Physical 1)))
@@ -386,32 +387,6 @@ end
 
         
         
-
-module Test1 = struct
-
-  module Network = OpenFlow0x01_TestPlatform.Network
-  module Controller = NetCore_Controller.Make (OpenFlow0x01_TestPlatform)
-
-  let network_script =
-    Network.connect_switch 100L >>
-    lwt msg = Network.recv_from_controller 100L in
-    Lwt.return ()
-
-  let controller_script =
-    Controller.start_controller 
-      (NetCore_Stream.constant (Act (To 0)))
-
-  let body = Lwt.pick [controller_script; network_script]
-
-  let go =
-    "repeater test" >::
-      (bracket
-         (fun () -> ())
-         (fun () -> Lwt_main.run body)
-         (fun () -> Network.tear_down ()))
-
-end
-
 module Helper = struct
 
   module C = NetCore_Classifier.Make (NetCore_Action.Output)
@@ -603,8 +578,7 @@ end
 
 
 let tests =
-  TestList [ Test1.go
-           ; TestFilters.go
+  TestList [ TestFilters.go
            ; TestMods.go
            ; TestSlices.go
            ; TestClassifier.go

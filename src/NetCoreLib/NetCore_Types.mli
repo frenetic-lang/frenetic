@@ -10,6 +10,17 @@ module Internal : sig
     | All
     | Here
 
+  module DlAddrWildcard : NetCore_Wildcard.Wildcard with type a = dlAddr
+  module DlTypWildcard : NetCore_Wildcard.Wildcard with type a = dlTyp
+  module DlVlanWildcard : NetCore_Wildcard.Wildcard with type a = dlVlan
+  module DlVlanPcpWildcard : NetCore_Wildcard.Wildcard with type a = dlVlanPcp
+  module NwAddrWildcard : NetCore_Wildcard.Wildcard with type a = nwAddr
+  module NwProtoWildcard : NetCore_Wildcard.Wildcard with type a = nwProto
+  module NwTosWildcard : NetCore_Wildcard.Wildcard with type a = nwTos
+  module TpPortWildcard : NetCore_Wildcard.Wildcard with type a = tpPort
+  module PortWildcard : NetCore_Wildcard.Wildcard with type a = port
+
+
   type lp = OpenFlow0x01.switchId * port * packet
 
   type ptrn = {
@@ -82,13 +93,6 @@ module Internal : sig
   type value =
   | Pkt of OpenFlow0x01.switchId * port * packet * payload
 
-  val port_to_string : port -> string
-
-  val pred_to_string : pred -> string
-
-  val pol_to_string : pol -> string
-
-  val value_to_string : value -> string 
 end
 
 module External : sig

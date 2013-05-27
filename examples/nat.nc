@@ -7,11 +7,11 @@ if frameType = arp then
     drop)
 else
 (let translate_private, translate_public = nat (publicIP = 10.0.0.254) in
-   (if switch = 1 && inPort = 1 then 
+   monitor_tbl(1, (if switch = 1 && inPort = 1 then 
       (translate_private; if inPort = 1 then 2 else pass)
     else
       drop) |
    (if switch = 1 && inPort = 2 then
       (translate_public; if inPort = 2 then 1 else pass)
     else
-      drop))
+      drop)))

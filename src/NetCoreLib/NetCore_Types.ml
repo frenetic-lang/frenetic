@@ -11,6 +11,48 @@ module Internal = struct
     | All
     | Here
 
+  module PortOrderedType = struct
+    type t = port
+    let compare = Pervasives.compare
+    let to_string =  function
+      | Physical pid -> "Physical " ^ (portId_to_string pid)
+      | All -> "All"
+      | Here -> "Here"
+
+  end
+
+  module DlVlanOrderedType = struct
+    type t = int option
+
+    let compare x y = match (x, y) with
+      | None, None -> 0
+      | None, _ -> -1
+      | _, None -> 1
+      | Some a, Some b -> Pervasives.compare a b
+
+    let to_string x = match x with
+      | Some n -> "Some " ^ string_of_int n
+      | None -> "None"
+  end
+
+  module Int64Wildcard = NetCore_Wildcard.Make (Int64)
+  module Int32Wildcard = NetCore_Wildcard.Make (Int32)
+  module IntWildcard =  NetCore_Wildcard.Make (struct
+    type t = int
+    let compare = Pervasives.compare
+    let to_string n = string_of_int n
+  end)
+
+  module DlAddrWildcard = Int64Wildcard
+  module DlTypWildcard = IntWildcard
+  module DlVlanWildcard = NetCore_Wildcard.Make (DlVlanOrderedType)
+  module DlVlanPcpWildcard = IntWildcard
+  module NwAddrWildcard = Int32Wildcard
+  module NwProtoWildcard = IntWildcard
+  module NwTosWildcard = IntWildcard
+  module TpPortWildcard = IntWildcard
+  module PortWildcard = NetCore_Wildcard.Make (PortOrderedType)
+
   type lp = OpenFlow0x01.switchId * port * packet
 
   type ptrn = {
@@ -81,64 +123,6 @@ module Internal = struct
   type value =
   | Pkt of OpenFlow0x01.switchId * port * packet * payload
 
-  let rec format_pred fmt pred = match pred with 
-    | PrHdr pat -> fprintf fmt "HDR"
-      (* fprintf fmt "@[PrHdr@;<1 2>@[%a@]@]" NetCore_Pattern.to_format pat *)
-    | PrOnSwitch sw ->
-      fprintf fmt "@[PrOnSwitch %Lx@]" sw
-    | PrOr (p1,p2) ->
-      fprintf fmt "@[PrOr@;<1 2>@[(@[%a@],@ @[%a@])@]@]"
-        format_pred p1 format_pred p2
-    | PrAnd (p1,p2) -> 
-      fprintf fmt "@[PrAnd@;<1 2>@[(@[%a@],@ @[%a@])@]@]" 
-        format_pred p1 format_pred p2
-    | PrNot p -> 
-      fprintf fmt "@[PrNot@;<1 2>(@[%a@])@]" format_pred p
-    | PrAll -> 
-      pp_print_string fmt "PrAll"
-    | PrNone -> 
-      pp_print_string fmt "PrNone"
-
-  let rec pred_to_string pred = 
-    let buf = Buffer.create 100 in
-    let fmt = formatter_of_buffer buf in
-    pp_set_margin fmt 80;
-    format_pred fmt pred;
-    fprintf fmt "@?";
-    Buffer.contents buf
-
-  let rec format_pol fmt pol = match pol with
-    | PoAction a -> fprintf fmt "ACTION"
-      (* fprintf fmt "@[PoAction@;<1 2>@[%s@]@]" (NetCore_Action.Output.to_string a) *)
-    | PoFilter pr -> 
-      fprintf fmt "@[PoFilter@;<1 2>(@[%a@])@]" format_pred pr
-    | PoUnion (p1,p2) -> 
-      fprintf fmt "@[PoUnion@;<1 2>@[(@[%a@],@ @[%a@])@]@]" format_pol p1
-        format_pol p2
-    | PoSeq (p1,p2) -> 
-      fprintf fmt "@[PoSeq@;<1 2>@[(@[%a@],@ @[%a@])@]@]" format_pol p1
-        format_pol p2
-    | PoITE (pred, then_pol, else_pol) ->
-      fprintf fmt "@[PoITE@;<1 2>@[(@[%a@],@ @[%a@],@ @[%a@])@]@]"
-        format_pred pred format_pol then_pol format_pol else_pol
-
-  let rec pol_to_string pred = 
-    let buf = Buffer.create 100 in
-    let fmt = formatter_of_buffer buf in
-    pp_set_margin fmt 80;
-    format_pol fmt pred;
-    fprintf fmt "@?";
-    Buffer.contents buf
-
-  let port_to_string = function
-    | Physical pid -> "Physical " ^ (portId_to_string pid)
-    | All -> "All"
-    | Here -> "Here"
-
-  let value_to_string = function 
-    | Pkt (sid, port, pkt, pay) ->
-      Printf.sprintf "(%Ld, %s, %s, _)" 
-        sid (port_to_string port) (packet_to_string pkt)
 end
 
 module External = struct

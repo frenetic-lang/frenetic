@@ -136,7 +136,7 @@ module Make : MAKE = functor (Action:ACTION) -> struct
     let buf = Buffer.create 100 in
     List.iter
       (fun (pat,act) ->
-        Buffer.add_string buf (NetCore_Pattern.to_string pat);
+        Buffer.add_string buf (NetCore_Pretty.pattern_to_string pat);
         Buffer.add_string buf " => ";
         Buffer.add_string buf (Action.to_string act);
         Buffer.add_string buf "\n")

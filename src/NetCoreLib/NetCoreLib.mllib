@@ -5,11 +5,14 @@ NetCore_Controller
 NetCore_Desugar
 NetCore_Gensym
 NetCore_Lexer
+NetCore_Monitoring
 NetCore_MacLearning
 NetCore_NAT
 NetCore_Parser
 NetCore_Pattern
+NetCore_Pretty
 NetCore_Semantics
 NetCore_Stream
+NetCore_SurfaceSyntax
 NetCore_Types
 NetCore_Wildcard

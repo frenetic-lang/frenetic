@@ -1,7 +1,8 @@
 open Printf
 open Packet
-open NetCore_Types.External
+open NetCore_Types.Internal
 open NetCore_Action.Output
+open NetCore_Pattern
 
 (** Table relating private locations to public locations. *)
 module type TABLE = sig
@@ -105,23 +106,27 @@ let make (public_ip : nwAddr) =
               (string_of_ip private_ip) private_port
               (string_of_ip public_ip) public_port;
             private_pol :=
-              ITE (And (SrcIP private_ip, TcpSrcPort private_port),
-                   Seq (Act (UpdateSrcIP (private_ip, public_ip)),
-                        Act (UpdateSrcPort (private_port, public_port))),
-                   !private_pol);
+              PoITE
+              (PrAnd (PrHdr (ipSrc private_ip),
+                      PrHdr (tcpSrcPort private_port)),
+               PoSeq (PoAction (updateSrcIP private_ip public_ip),
+                      PoAction (updateSrcPort private_port public_port)),
+               !private_pol);
             public_pol :=
-              ITE (And (DstIP public_ip, TcpDstPort public_port),
-                   Seq (Act (UpdateDstIP (public_ip, private_ip)),
-                        Act (UpdateDstPort (public_port, private_port))),
-                   !public_pol);
+              PoITE
+              (PrAnd (PrHdr (ipDst public_ip),
+                      PrHdr (tcpDstPort public_port)),
+               PoSeq (PoAction (updateDstIP public_ip private_ip),
+                      PoAction (updateDstPort public_port private_port)),
+               !public_pol);
             push (Some (!private_pol, !public_pol));
             seq_action
               (updateSrcIP private_ip public_ip)
               (updateSrcPort private_port public_port)
         end
-      | _ -> NetCore_Action.Output.drop
-  and private_pol = ref (Act (GetPacket callback))
-  and public_pol = ref (Act (GetPacket init_public_pol)) in
+      | _ -> drop
+  and private_pol = ref (PoAction [ControllerAction callback])
+  and public_pol = ref (PoAction [ControllerAction init_public_pol]) in
   let pair_stream =
     NetCore_Stream.from_stream (!private_pol, !public_pol) stream in
   (NetCore_Stream.map (fun (priv, _) -> priv) pair_stream,
