@@ -273,14 +273,9 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       (sw : switchId)
       (pol_stream : pol NetCore_Stream.t) = 
     switches := SwitchSet.add sw !switches;
-    (try_lwt
-       install_new_policies sw pol_stream <&> handle_switch_messages sw
-     with exn ->
-       Log.printf "NetCore_Controller" "%s\n%!" (Printexc.to_string exn);
-       Lwt.return ()) >>
-     (Log.printf "NetCore_Controller" "thread for switch %Ld terminated.\n" sw;
-      switches := SwitchSet.remove sw !switches;
-      Lwt.return ())
+    install_new_policies sw pol_stream <&> handle_switch_messages sw >>
+    (switches := SwitchSet.remove sw !switches;
+     Lwt.return ())
 
   let rec accept_switches pol_stream = 
     lwt feats = Platform.accept_switch () in
@@ -340,13 +335,8 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
 
   let start_controller pol = 
     let (pol_stream, push_pol) = Lwt_stream.create () in
-    try_lwt
-      accept_switches (NetCore_Stream.from_stream init_pol pol_stream) <&>  
-      accept_policies 
-        push_pol (NetCore_Stream.to_stream pol) (Lwt_switch.create ())
-    with exn -> 
-      Log.printf "NetCore_Controller" "uncaught exception %s\n%!"
-        (Printexc.to_string exn);
-      Lwt.return ()
+    accept_switches (NetCore_Stream.from_stream init_pol pol_stream) <&>
+    accept_policies
+      push_pol (NetCore_Stream.to_stream pol) (Lwt_switch.create ())
 
 end
