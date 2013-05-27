@@ -291,7 +291,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     lwt feats = Platform.accept_switch () in
     let sw = feats.switch_id in 
     Log.printf "NetCore_Controller" "switch %Ld connected\n%!" sw;
-    Lwt.async (switch_thread sw pol_stream);
+    Lwt.async (fun () -> switch_thread sw pol_stream);
     accept_switches pol_stream
 
   let add_to_maps bucket counter =
@@ -346,8 +346,12 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
 
   let start_controller pol = 
     let (pol_stream, push_pol) = Lwt_stream.create () in
-    accept_switches (NetCore_Stream.from_stream init_pol pol_stream) <&>
-    accept_policies
-      push_pol (NetCore_Stream.to_stream pol) (Lwt_switch.create ())
+    let (stream_lwt, pol_netcore_stream) =
+      NetCore_Stream.from_stream init_pol pol_stream in
+    Lwt.pick
+      [ accept_switches pol_netcore_stream;
+        accept_policies
+          push_pol (NetCore_Stream.to_stream pol) (Lwt_switch.create ());
+        stream_lwt ]
 
 end

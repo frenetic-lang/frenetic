@@ -127,7 +127,8 @@ let make (public_ip : nwAddr) =
       | _ -> drop
   and private_pol = ref (PoAction [ControllerAction callback])
   and public_pol = ref (PoAction [ControllerAction init_public_pol]) in
-  let pair_stream =
+  let (lwt_computation, pair_stream) =
     NetCore_Stream.from_stream (!private_pol, !public_pol) stream in
-  (NetCore_Stream.map (fun (priv, _) -> priv) pair_stream,
+  (lwt_computation,
+   NetCore_Stream.map (fun (priv, _) -> priv) pair_stream,
    NetCore_Stream.map (fun (_, pub) -> pub) pair_stream)
