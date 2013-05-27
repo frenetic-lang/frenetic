@@ -126,12 +126,13 @@ pol_pred :
     { $1 }
   | IF pred THEN pol_pred ELSE pol_pred
     { ITE (symbol_start_pos (), $2, $4, $6) }
-
-/*  | LEARNING 
-    { fun _ -> NetCore_Stream.from_stream
-        NetCore_MacLearning.Learning.init
-        NetCore_MacLearning.Routing.policy } 
-
+  | LET ID EQUALS LEARNING IN pol_pred
+    { Let (symbol_start_pos (), 
+           [($2, PolStream (NetCore_Stream.from_stream
+                              NetCore_MacLearning.Learning.init
+                              NetCore_MacLearning.Routing.policy))],
+           $6) }
+/*
   | LET ID COMMA ID EQUALS NAT LPAREN PUBLICIP EQUALS IPADDR RPAREN IN pol_pred
     { fun env ->
       let (priv, pub) = NetCore_NAT.make $10 in

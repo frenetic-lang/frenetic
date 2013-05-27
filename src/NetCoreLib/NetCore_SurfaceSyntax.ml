@@ -12,10 +12,10 @@ type exp =
   | Seq of pos * exp * exp
   | ITE of pos * Pol.pred * exp * exp
   | Id of pos * id
-  | Let of pos * (id * exp) list * exp
+  | Let of pos * (id * value) list * exp
   | Transform of pos * (Pol.pol -> Pol.pol) * exp
 
-type value = 
+and value = 
   | Pol of Pol.pol
   | PolStream of Pol.pol NetCore_Stream.t
 
@@ -81,7 +81,7 @@ let rec compile (env : env) = function
     end
   | Let (pos, binds, body) -> 
     let env' = 
-      List.fold_left (fun env' (x, e) -> Env.add x (compile env e) env')
+      List.fold_left (fun env' (x, e) -> Env.add x e env')
         env binds in
     compile env' body
   | Transform (pos, f, e) -> compile_pol f (compile env e)
