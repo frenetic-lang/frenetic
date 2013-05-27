@@ -90,7 +90,7 @@ module Output = struct
         match_modify_to_string nwTos_to_string "NwTos" out.outNwTos;
         match_modify_to_string string_of_int "TpSrc" out.outTpSrc;
         match_modify_to_string string_of_int "TpDst" out.outTpDst ] in
-    let mods = String.concat ", " (List.fold_right (fun xo acc -> match xo with None -> acc | Some x -> x::acc) mods []) in
+    (* let mods = String.concat ", " (List.fold_right (fun xo acc -> match xo with None -> acc | Some x -> x::acc) mods []) in *)
     "FWD" (*
     if mods = "" then
       Format.sprintf "Fwd %s"

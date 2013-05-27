@@ -80,13 +80,14 @@ struct
         | _ -> 
           switch_thread sw 
     with Platform.SwitchDisconnected sw -> 
+      Log.printf "Ox_Controller" "switch %Ld disconnected\n%!" sw;
       Handlers.switchDisconnected sw;
       process_deferred ()
 
   let rec accept_switches () = 
     lwt feats = Platform.accept_switch () in 
     let sw = feats.switch_id in 
-    let _ = Log.printf "Ox_Controller" "switch %Ld connected\n%!" sw in 
+    Log.printf "Ox_Controller" "switch %Ld connected\n%!" sw;
     let delete_all = {
       mfModCmd = DeleteFlow;
       mfMatch = Match.all;

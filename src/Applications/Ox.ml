@@ -59,8 +59,13 @@ struct
     
   let packetIn xid sw pktIn = 
     Log.printf "Learning" "PacketIn!\n%!";
+    Log.printf "Learning" "%s" 
+      (match Packet.parse pktIn.packetInPacket with 
+	| None -> "None"
+	| Some pkt -> packet_to_string pkt);
     match pktIn.packetInBufferId, Packet.parse pktIn.packetInPacket with
       | Some bufId, Some pkt -> 
+	Log.printf "Learning" "Okay!\n%!";
 	let inport = pktIn.packetInPort in 
 	let src = pkt.dlSrc in 
 	let dst = pkt.dlDst in 
@@ -94,6 +99,7 @@ struct
 	  } in 
 	  OxPlatform.packetOut xid sw pktOut
       | _ -> 
+	Log.printf "Learning" "Unparsed\n%!";
 	()	  
 end
 
