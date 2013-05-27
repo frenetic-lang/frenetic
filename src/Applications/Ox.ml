@@ -12,15 +12,18 @@ struct
 
   let switchDisconnected sw = ()
 
-  let packetIn sw pktIn = match pktIn.packetInBufferId with 
-    | None -> ()
+  let statsReply xid sw stats = ()
+
+  let packetIn xid sw pktIn = match pktIn.packetInBufferId with 
+    | None -> 
+      ()
     | Some bufId -> 
-      let pktOut = { pktOutBufOrBytes = Buffer bufId;
-		     pktOutPortId = Some pktIn.packetInPort;
-		     pktOutActions = [Action.Output PseudoPort.Flood] } in 
-      OxPlatform.packetOut sw pktOut
-	
-  let statsReply sw stats = ()
+      let pktOut = { 
+	pktOutBufOrBytes = Buffer bufId;
+	pktOutPortId = Some pktIn.packetInPort;
+	pktOutActions = [Action.Output PseudoPort.Flood] 
+      } in 
+      OxPlatform.packetOut xid sw pktOut
 end
 
 module Controller = Ox_Controller.Make(OpenFlow0x01_Platform)(Repeater)
