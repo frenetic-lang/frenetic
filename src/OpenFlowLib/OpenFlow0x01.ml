@@ -840,8 +840,8 @@ type message =
   | FlowModMsg of flowMod
   | PacketInMsg of packetIn
   | PacketOutMsg of packetOut
-  | BarrierRequest
-  | BarrierReply
+  | BarrierRequest (* JNF: why not "BarrierRequestMsg"? *)
+  | BarrierReply (* JNF: why not "BarrierReplyMsg"? *)
   | StatsRequestMsg of statsRequest
   | StatsReplyMsg of statsReply
 

@@ -3,6 +3,7 @@ open OpenFlow0x01
 module type OXPLATFORM = sig
   val packetOut : xid -> switchId -> packetOut -> unit
   val flowMod : xid -> switchId -> flowMod -> unit 
+  val barrierRequest : xid -> switchId -> unit
   val statsRequest : xid -> switchId -> statsRequest -> unit
   val callback : float -> (unit -> unit) -> unit
 end
@@ -13,6 +14,7 @@ sig
   val switchConnected : switchId -> unit 
   val switchDisconnected : switchId -> unit
   val packetIn : xid -> switchId -> packetIn -> unit
+  val barrierReply : xid -> unit
   val statsReply : xid -> switchId -> statsReply -> unit 
 end
 
