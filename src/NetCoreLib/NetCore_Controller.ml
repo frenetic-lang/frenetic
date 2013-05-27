@@ -286,7 +286,6 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       Lwt.return ()
     end
 
-
   let rec accept_switches pol_stream = 
     lwt feats = Platform.accept_switch () in
     let sw = feats.switch_id in 

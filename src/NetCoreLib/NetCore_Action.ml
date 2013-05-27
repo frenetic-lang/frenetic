@@ -80,16 +80,16 @@ module Output = struct
         Some (Format.sprintf "%s:%s->%s" lbl (pr old) (pr new_))
 
   let string_of_output (out : output) : string = 
-    let mods =
-      [ match_modify_to_string dlAddr_to_string "DlSrc" out.outDlSrc;
-        match_modify_to_string dlAddr_to_string "DlDst" out.outDlDst;
-        match_modify_to_string dlVlan_to_string "DlVlan" out.outDlVlan;
-        match_modify_to_string dlVlanPcp_to_string "DlVlanPcp" out.outDlVlanPcp;
-        match_modify_to_string string_of_ip "NwSrc" out.outNwSrc;
-        match_modify_to_string string_of_ip "NwDst" out.outNwDst;
-        match_modify_to_string nwTos_to_string "NwTos" out.outNwTos;
-        match_modify_to_string string_of_int "TpSrc" out.outTpSrc;
-        match_modify_to_string string_of_int "TpDst" out.outTpDst ] in
+    (* let mods = *)
+    (*   [ match_modify_to_string dlAddr_to_string "DlSrc" out.outDlSrc; *)
+    (*     match_modify_to_string dlAddr_to_string "DlDst" out.outDlDst; *)
+    (*     match_modify_to_string dlVlan_to_string "DlVlan" out.outDlVlan; *)
+    (*     match_modify_to_string dlVlanPcp_to_string "DlVlanPcp" out.outDlVlanPcp; *)
+    (*     match_modify_to_string string_of_ip "NwSrc" out.outNwSrc; *)
+    (*     match_modify_to_string string_of_ip "NwDst" out.outNwDst; *)
+    (*     match_modify_to_string nwTos_to_string "NwTos" out.outNwTos; *)
+    (*     match_modify_to_string string_of_int "TpSrc" out.outTpSrc; *)
+    (*     match_modify_to_string string_of_int "TpDst" out.outTpDst ] in *)
     (* let mods = String.concat ", " (List.fold_right (fun xo acc -> match xo with None -> acc | Some x -> x::acc) mods []) in *)
     "FWD" (*
     if mods = "" then
