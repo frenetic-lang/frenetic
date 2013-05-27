@@ -8,9 +8,9 @@ let (<&>) = Lwt.(<&>)
 
 module type OXPLATFORM = 
 sig
-  val packetOut : switchId -> packetOut -> unit 
-  val flowMod : switchId -> flowMod -> unit 
-  val statsRequest : switchId -> statsRequest -> unit
+  val packetOut : xid -> switchId -> packetOut -> unit 
+  val flowMod : xid -> switchId -> flowMod -> unit 
+  val statsRequest : xid -> switchId -> statsRequest -> unit
   val callback : float -> (unit -> unit) -> unit
 end
 
@@ -19,15 +19,14 @@ functor (OxPlatform:OXPLATFORM) ->
 sig
   val switchConnected : switchId -> unit 
   val switchDisconnected : switchId -> unit
-  val packetIn : switchId -> packetIn -> unit
-  val statsReply : switchId -> statsReply -> unit 
+  val packetIn : xid -> switchId -> packetIn -> unit
+  val statsReply : xid -> switchId -> statsReply -> unit 
 end
 
 module Make (Platform:OpenFlow0x01.PLATFORM) (OxModule:OXMODULE) = 
 struct
   
   (* global state *)
-  let xid = ref Int32.zero 
   let pending = ref []
   let defer thk = pending := thk::!pending 
   let reset () = pending := []
@@ -38,20 +37,17 @@ struct
     Lwt_list.iter_s go (List.rev old_pending)
 
   module OxPlatform = struct      
-    let packetOut sw pktOut = 
+    let packetOut xid sw pktOut = 
       defer (fun () -> 
-	xid := Int32.succ !xid;
-	Platform.send_to_switch sw !xid (PacketOutMsg pktOut))
+	Platform.send_to_switch sw xid (PacketOutMsg pktOut))
 	
-    let flowMod sw flowMod = 
+    let flowMod xid sw flowMod = 
       defer (fun () -> 
-	xid := Int32.succ !xid;
-	Platform.send_to_switch sw !xid (FlowModMsg flowMod))
+	Platform.send_to_switch sw xid (FlowModMsg flowMod))
 	
-    let statsRequest sw req =
+    let statsRequest xid sw req =
       defer (fun () -> 
-	xid := Int32.succ !xid;
-	Platform.send_to_switch sw !xid (StatsRequestMsg req))
+	Platform.send_to_switch sw xid (StatsRequestMsg req))
 
     let callback n thk = 
       Lwt.async (fun () -> 
@@ -66,12 +62,12 @@ struct
       lwt _ = process_deferred () in 
       lwt msg = Platform.recv_from_switch sw in 
       match msg with 
-        | (_,PacketInMsg pktIn) -> 
+        | (xid,PacketInMsg pktIn) -> 
 	  Log.printf "Ox_controller" "got packetin\n%!";
-          Handlers.packetIn sw pktIn;
+          Handlers.packetIn xid sw pktIn;
           switch_thread sw 
-        | (_, StatsReplyMsg rep) ->
-          Handlers.statsReply sw rep;
+        | (xid, StatsReplyMsg rep) ->
+          Handlers.statsReply xid sw rep;
           switch_thread sw
         | _ -> 
           switch_thread sw 
