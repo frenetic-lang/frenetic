@@ -1,5 +1,8 @@
 %{
- open NetCore_Types.External
+
+ open NetCore_SurfaceSyntax
+ module Pat = NetCore_Pattern
+ module Action = NetCore_Action.Output
 
  let int12_of_int64 (n : Int64.t) : int =
    if Int64.compare n Int64.zero >= 0 && 
@@ -60,108 +63,100 @@
 %start program
 
 /* environment -> policy */
-%type <(string * NetCore_Types.External.policy NetCore_Stream.t) list -> NetCore_Types.External.policy NetCore_Stream.t> program
+%type <NetCore_SurfaceSyntax.exp> program
 
 %%
 
 pred_atom :
   | LPAREN pred RPAREN { $2 }
   /* TODO(arjun): Support infix NOT too */
-  | NOT pred_atom { Not $2 } /* Most useful for writing "!( ... )" */
-  | STAR { All }
-  | NONE { NoPackets }
-  | SWITCH EQUALS INT64 { Switch $3 }
+  | NOT pred_atom { Pol.PrNot $2 } /* Most useful for writing "!( ... )" */
+  | STAR { Pol.PrAll }
+  | NONE { Pol.PrNone }
+  | SWITCH EQUALS INT64 { Pol.PrOnSwitch $3 }
   /* ARJUN: I do not want the lexer to distinguish integers of different sizes.
      (i.e., I do not want users to have to write suffixed integers such as
      0xbeefbeefbeefbeefL for large integers. So, I'm lexing everything to 
      Int64, then having checked-casts down to the right size. */
-  | INPORT EQUALS INT64 { InPort (int16_of_int64 $3) }
-  | SRCMAC EQUALS MACADDR { DlSrc $3 }
-  | DSTMAC EQUALS MACADDR { DlDst $3 }
-  | VLAN EQUALS NONE { DlVlan None }
-  | VLAN EQUALS INT64 { DlVlan (Some (int12_of_int64 $3)) }
-  | SRCIP EQUALS IPADDR { SrcIP $3 }
-  | DSTIP EQUALS IPADDR { DstIP $3 }
-  | TCPSRCPORT EQUALS INT64 { TcpSrcPort (int16_of_int64 $3) }
-  | TCPDSTPORT EQUALS INT64 { TcpDstPort (int16_of_int64 $3) }
-  | FRAMETYPE EQUALS ARP { DlTyp 0x806 }
-  | FRAMETYPE EQUALS IP { DlTyp 0x800 }
-  | FRAMETYPE EQUALS INT64 { DlTyp (int16_of_int64 $3) }
+  | INPORT EQUALS INT64 
+    { Pol.PrHdr (Pat.inPort (Pol.Physical (int16_of_int64 $3))) }
+  | SRCMAC EQUALS MACADDR { Pol.PrHdr (Pat.dlSrc $3) }
+  | DSTMAC EQUALS MACADDR { Pol.PrHdr (Pat.dlDst $3) }
+  | VLAN EQUALS NONE { Pol.PrHdr (Pat.dlVlan None) }
+  | VLAN EQUALS INT64 { Pol.PrHdr (Pat.dlVlan (Some (int12_of_int64 $3))) }
+  | SRCIP EQUALS IPADDR { Pol.PrHdr (Pat.ipSrc $3) }
+  | DSTIP EQUALS IPADDR { Pol.PrHdr (Pat.ipDst $3) }
+  | TCPSRCPORT EQUALS INT64 { Pol.PrHdr (Pat.tcpSrcPort (int16_of_int64 $3)) }
+  | TCPDSTPORT EQUALS INT64 { Pol.PrHdr (Pat.tcpDstPort (int16_of_int64 $3)) }
+  | FRAMETYPE EQUALS ARP
+    { Pol.PrHdr (Pat.dlType 0x806) }
+  | FRAMETYPE EQUALS IP
+    { Pol.PrHdr (Pat.dlType 0x800) }
+  | FRAMETYPE EQUALS INT64
+    { Pol.PrHdr (Pat.dlType (int16_of_int64 $3)) }
 
 pred_or :
   | pred_atom { $1 }
-  | pred_atom OR pred_or { Or ($1, $3) }
+  | pred_atom OR pred_or { Pol.PrOr ($1, $3) }
 
 pred_and :
   | pred_or { $1 }
-  | pred_or AND pred_and { And ($1, $3) }
+  | pred_or AND pred_and { Pol.PrAnd ($1, $3) }
 
 pred :
   | pred_and { $1 }
 
 pol_atom :
-  | LPAREN pol RPAREN { $2 }
+  | LPAREN pol RPAREN 
+    { $2 }
   | ID 
-      { fun env -> 
-        try 
-          List.assoc $1 env 
-        with Not_found ->
-          failwith ("unbound variable " ^ $1) }
-  | INT64 { fun _ -> NetCore_Stream.constant (Act (To (int16_of_int64 $1))) }
-  | PASS { fun _ -> NetCore_Stream.constant (Act Pass) }
-  | DROP { fun _ -> NetCore_Stream.constant (Act Drop) }
-  | ALL { fun _ -> NetCore_Stream.constant (Act ToAll) }
-  | LEARNING 
-    { fun _ -> NetCore_Stream.from_stream
-        NetCore_MacLearning.Learning.init
-        NetCore_MacLearning.Routing.policy }
+    { Id (symbol_start_pos (), $1) }
+  | INT64 
+    { Action (symbol_start_pos (), Action.forward (int16_of_int64 $1)) }
+  | PASS 
+    { Action (symbol_start_pos (), Action.pass) }
+  | DROP 
+    { Action (symbol_start_pos (), Action.drop) }
+  | ALL 
+    { Action (symbol_start_pos (), Action.to_all) }
+
 
 pol_pred :  
-  | pol_atom { $1 }
+  | pol_atom
+    { $1 }
   | IF pred THEN pol_pred ELSE pol_pred
-    { fun env ->
-      let then_pol_stream = $4 env in
-      let else_pol_stream = $6 env in
-      NetCore_Stream.map2 
-        (fun then_pol else_pol -> ITE ($2, then_pol, else_pol))
-        then_pol_stream else_pol_stream }
+    { ITE (symbol_start_pos (), $2, $4, $6) }
 
-pol_seq_list :
-  | pol_pred { $1 }
-  | pol_pred SEMI pol_seq_list 
-    { fun env -> 
-      let pol1_stream = $1 env in
-      let pol2_stream = $3 env in
-      NetCore_Stream.map2 (fun pol1 pol2 -> Seq (pol1, pol2)) 
-        pol1_stream pol2_stream }
+/*  | LEARNING 
+    { fun _ -> NetCore_Stream.from_stream
+        NetCore_MacLearning.Learning.init
+        NetCore_MacLearning.Routing.policy } 
 
-pol_par_list :
-  | pol_pred { $1 }
-  | pol_pred BAR pol_par_list
-    { fun env ->
-      let pol1_stream = $1 env in
-      let pol2_stream = $3 env in
-      NetCore_Stream.map2 (fun pol1 pol2 -> Par (pol1, pol2)) 
-        pol1_stream pol2_stream }
-
-pol :
-  | pol_pred { $1 }
-  | LET ID COMMA ID EQUALS NAT LPAREN PUBLICIP EQUALS IPADDR RPAREN IN pol
+  | LET ID COMMA ID EQUALS NAT LPAREN PUBLICIP EQUALS IPADDR RPAREN IN pol_pred
     { fun env ->
       let (priv, pub) = NetCore_NAT.make $10 in
       $13 (($2, priv) :: ($4, pub) :: env) }
+*/
+
+pol_seq_list :
+  | pol_pred 
+    { $1 }
+  | pol_pred SEMI pol_seq_list 
+    { Seq (symbol_start_pos (), $1, $3) }
+
+pol_par_list :
+  | pol_pred
+    { $1 }
   | pol_pred BAR pol_par_list
-    { fun env ->
-      let pol1_stream = $1 env in
-      let pol2_stream = $3 env in
-      NetCore_Stream.map2 (fun pol1 pol2 -> Par (pol1, pol2)) 
-        pol1_stream pol2_stream }
+    { Par (symbol_start_pos (), $1, $3) }
+
+pol :
+  | pol_pred 
+    { $1 }
+  | pol_pred BAR pol_par_list
+    { Par (symbol_start_pos (), $1, $3) }
   | pol_pred SEMI pol_seq_list
-    { fun env -> 
-      let pol1_stream = $1 env in
-      let pol2_stream = $3 env in
-      NetCore_Stream.map2 (fun pol1 pol2 -> Seq (pol1, pol2)) 
-        pol1_stream pol2_stream }
+    { Seq (symbol_start_pos (), $1, $3) }
 
 program
   : pol EOF { $1 }

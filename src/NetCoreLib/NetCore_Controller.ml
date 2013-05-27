@@ -4,6 +4,7 @@ open OpenFlow0x01
 open NetCore_Types
 open NetCore_Types.External
 
+
 module Log = Frenetic_Log
 
 (* Internal policy type *)
@@ -15,7 +16,7 @@ let init_pol : pol = Internal.PoFilter Internal.PrNone
 
 module type MAKE  = functor (Platform : OpenFlow0x01.PLATFORM) -> 
   sig
-    val start_controller : policy NetCore_Stream.t -> unit Lwt.t
+    val start_controller : NetCore_Types.Internal.pol NetCore_Stream.t -> unit Lwt.t
   end
 
 module Make (Platform : OpenFlow0x01.PLATFORM) = struct
@@ -170,12 +171,9 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
   let accept_policy push_pol pol = 
     (* TODO(cole) kill_outstanding_queries !query_kill_switch; *)
     reset_policy_state ();
-    let p = NetCore_Desugar.desugar genvlan genbucket get_count_handlers pol in
-    Log.printf "[NetCore_Controller.ml]" "got new policy:\n%s\n%!" 
-      (Internal.pol_to_string p);
     (* TODO(cole) initialize_query_state p; *)
-    pol_now := p;
-    push_pol (Some p);
+    pol_now := pol;
+    push_pol (Some pol);
     (* TODO(cole) spawn_queries p !query_kill_switch *)
     Lwt.return ()
 

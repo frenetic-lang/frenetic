@@ -11,5 +11,6 @@ NetCore_Parser
 NetCore_Pattern
 NetCore_Semantics
 NetCore_Stream
+NetCore_SurfaceSyntax
 NetCore_Types
 NetCore_Wildcard
