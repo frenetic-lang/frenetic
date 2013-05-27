@@ -11,6 +11,7 @@ sig
   val packetOut : switchId -> packetOut -> unit 
   val flowMod : switchId -> flowMod -> unit 
   val statsRequest : switchId -> statsRequest -> unit
+  val callback : float -> (unit -> unit) -> unit
 end
 
 module type OXMODULE = 
@@ -29,10 +30,12 @@ struct
   let xid = ref Int32.zero 
   let pending = ref []
   let defer thk = pending := thk::!pending 
+  let reset () = pending := []
+  let go thk = thk ()  
   let process_deferred () = 
     let old_pending = !pending in 
-    pending := [];
-    Lwt_list.iter_s (fun thk -> thk ()) (List.rev old_pending)
+    reset ();
+    Lwt_list.iter_s go (List.rev old_pending)
 
   module OxPlatform = struct      
     let packetOut sw pktOut = 
@@ -49,6 +52,11 @@ struct
       defer (fun () -> 
 	xid := Int32.succ !xid;
 	Platform.send_to_switch sw !xid (StatsRequestMsg req))
+
+    let callback n thk = 
+      Lwt.async (fun () -> 
+	Lwt_unix.sleep n >>
+	Lwt.wrap thk)
   end
 
   module Handlers = OxModule(OxPlatform) 

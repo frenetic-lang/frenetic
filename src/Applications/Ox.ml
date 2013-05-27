@@ -18,6 +18,9 @@ struct
       let pktOut = { pktOutBufOrBytes = Buffer bufId;
 		     pktOutPortId = Some pktIn.packetInPort;
 		     pktOutActions = [Action.Output PseudoPort.Flood] } in 
+      let t1 = Unix.time () in 
+      let thk () = Log.printf "Repeater" "T1=%f, T2=%f\n%!" t1 (Unix.time ()) in 
+      OxPlatform.callback 10.0 thk;
       OxPlatform.packetOut sw pktOut
 	
   let statsReply sw stats = ()

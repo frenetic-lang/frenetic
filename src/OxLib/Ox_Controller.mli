@@ -4,10 +4,11 @@ module type OXPLATFORM = sig
   val packetOut : switchId -> packetOut -> unit
   val flowMod : switchId -> flowMod -> unit 
   val statsRequest : switchId -> statsRequest -> unit
+  val callback : float -> (unit -> unit) -> unit
 end
 
 module type OXMODULE = 
-functor (OxPlatform:OXPLATFORM) -> 
+  functor (OxPlatform:OXPLATFORM) -> 
 sig
   val switchConnected : switchId -> unit 
   val switchDisconnected : switchId -> unit
@@ -17,7 +18,7 @@ end
 
 module Make : 
   functor (Platform:PLATFORM) -> 
-    functor (OxModule:OXMODULE) -> 
+  functor (OxModule:OXMODULE) -> 
 sig
   val start_controller : unit -> unit Lwt.t
 end
