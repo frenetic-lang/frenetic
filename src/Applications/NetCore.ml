@@ -14,7 +14,7 @@ let () =
   Arg.parse
     [ ]
     (fun filename -> 
-      policy := NetCore_Compiler.parse_from_chan (open_in filename) filename)
+      policy := NetCore_Parsing.parse_from_chan (open_in filename) filename)
     "usage: netcore filename"
 
 let main () = 

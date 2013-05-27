@@ -52,6 +52,8 @@ rule token = parse
   | "else" { ELSE }
   | "pass" { PASS }
   | "drop" { DROP }
+  | "monitor_pol" { MONITOR_POL }
+  | "monitor_tbl" { MONITOR_TBL }
   | ";" { SEMI }
   | "|" { BAR }
   | (byte as n6) ":" (byte as n5) ":" (byte as n4) ":" (byte as n3) ":" 

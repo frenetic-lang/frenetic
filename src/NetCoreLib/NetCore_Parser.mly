@@ -58,6 +58,9 @@
 %token FRAMETYPE
 %token ARP
 %token IP
+%token MONITOR_POL
+%token MONITOR_TBL
+%token <string> STRING
 %token EOF
 
 %start program
@@ -119,7 +122,10 @@ pol_atom :
     { Action (symbol_start_pos (), Action.drop) }
   | ALL 
     { Action (symbol_start_pos (), Action.to_all) }
-
+  | MONITOR_POL LPAREN pol RPAREN
+    { Transform (symbol_start_pos (), NetCore_Monitoring.monitor_pol, $3) }
+  | MONITOR_TBL LPAREN INT64 COMMA pol RPAREN
+    { Transform (symbol_start_pos (), NetCore_Monitoring.monitor_tbl $3, $5) }
 
 pol_pred :  
   | pol_atom

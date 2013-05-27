@@ -64,12 +64,6 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
     Log.printf "[NetCore_Controller.ml]" " compiling new policy for switch %Ld\n%!" sw;
     lwt flow_table = Lwt.wrap2 NetCore_Compiler.flow_table_of_policy sw pol in
-    Log.printf "[NetCore_Controller.ml]" " flow table is:\n%!";
-    List.iter
-      (fun (m,a) -> Log.printf "[NetCore_Controller.ml]" " %s => %s\n%!"
-        (OpenFlow0x01.Match.to_string m)
-        (OpenFlow0x01.Action.sequence_to_string a))
-      flow_table;
     Platform.send_to_switch sw 0l delete_all_flows >>
     let prio = ref 65535 in
     Lwt_list.iter_s
