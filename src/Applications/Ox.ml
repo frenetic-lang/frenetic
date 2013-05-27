@@ -8,27 +8,22 @@ module Log = Frenetic_Log
 
 module Repeater (OxPlatform:OXPLATFORM) = 
 struct
-  let switchConnected sw = Lwt.return ()
+  let switchConnected sw = ()
 
-  let switchDisconnected sw = Lwt.return ()
+  let switchDisconnected sw = ()
 
-  let packetIn sw pktIn = 
-    match pktIn.packetInBufferId with 
-      | None -> 
-	Lwt.return ()
-      | Some bufId -> 
-	let pktOut = { pktOutBufOrBytes = Buffer bufId;
-		       pktOutPortId = Some pktIn.packetInPort;
-		       pktOutActions = [Action.Output PseudoPort.Flood] } in 
-	OxPlatform.packetOut sw pktOut;
-	Lwt.return ()
-
-  let statsReply sw stats = Lwt.return ()
+  let packetIn sw pktIn = match pktIn.packetInBufferId with 
+    | None -> ()
+    | Some bufId -> 
+      let pktOut = { pktOutBufOrBytes = Buffer bufId;
+		     pktOutPortId = Some pktIn.packetInPort;
+		     pktOutActions = [Action.Output PseudoPort.Flood] } in 
+      OxPlatform.packetOut sw pktOut
+	
+  let statsReply sw stats = ()
 end
 
-module OxPlatform = MakeOxPlatform(OpenFlow0x01_Platform)
-
-module Controller = Ox_Controller.Make(OpenFlow0x01_Platform)(Repeater(OxPlatform))
+module Controller = Ox_Controller.Make(OpenFlow0x01_Platform)(Repeater)
 
 let main () = 
   OpenFlow0x01_Platform.init_with_port 6633 >>

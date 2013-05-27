@@ -1,27 +1,23 @@
 open OpenFlow0x01
 
 module type OXPLATFORM = sig
-  val packetOut : switchId -> packetOut -> unit Lwt.t
-  val flowMod : switchId -> flowMod -> unit Lwt.t
-  val statsRequest : switchId -> statsRequest -> unit Lwt.t
+  val packetOut : switchId -> packetOut -> unit
+  val flowMod : switchId -> flowMod -> unit 
+  val statsRequest : switchId -> statsRequest -> unit
 end
 
-module type OXHANDLER = sig
-  val switchConnected : switchId -> unit Lwt.t
-  val switchDisconnected : switchId -> unit Lwt.t
-  val packetIn : switchId -> packetIn -> unit Lwt.t
-  val statsReply : switchId -> statsReply -> unit Lwt.t
-end
-
-module MakeOxPlatform : 
-  functor (Platform:OpenFlow0x01.PLATFORM) -> 
+module type OXMODULE = 
+functor (OxPlatform:OXPLATFORM) -> 
 sig
-  include OXPLATFORM  
-end 
+  val switchConnected : switchId -> unit 
+  val switchDisconnected : switchId -> unit
+  val packetIn : switchId -> packetIn -> unit
+  val statsReply : switchId -> statsReply -> unit 
+end
 
 module Make : 
   functor (Platform:PLATFORM) -> 
-    functor (Handler:OXHANDLER) -> 
+    functor (OxModule:OXMODULE) -> 
 sig
   val start_controller : unit -> unit Lwt.t
 end
