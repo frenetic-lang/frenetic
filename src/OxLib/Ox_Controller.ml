@@ -10,6 +10,7 @@ module type OXPLATFORM =
 sig
   val packetOut : xid -> switchId -> packetOut -> unit 
   val flowMod : xid -> switchId -> flowMod -> unit 
+  val barrierRequest : xid -> switchId -> unit
   val statsRequest : xid -> switchId -> statsRequest -> unit
   val callback : float -> (unit -> unit) -> unit
 end
@@ -20,6 +21,7 @@ sig
   val switchConnected : switchId -> unit 
   val switchDisconnected : switchId -> unit
   val packetIn : xid -> switchId -> packetIn -> unit
+  val barrierReply : xid -> unit
   val statsReply : xid -> switchId -> statsReply -> unit 
 end
 
@@ -49,6 +51,10 @@ struct
       defer (fun () -> 
 	Platform.send_to_switch sw xid (StatsRequestMsg req))
 
+    let barrierRequest xid sw = 
+      defer (fun () -> 
+	Platform.send_to_switch sw xid BarrierRequest)
+
     let callback n thk = 
       Lwt.async (fun () -> 
 	Lwt_unix.sleep n >>
@@ -63,9 +69,11 @@ struct
       lwt msg = Platform.recv_from_switch sw in 
       match msg with 
         | (xid,PacketInMsg pktIn) -> 
-	  Log.printf "Ox_controller" "got packetin\n%!";
           Handlers.packetIn xid sw pktIn;
           switch_thread sw 
+	| (xid,BarrierReply) -> 
+	  Handlers.barrierReply xid;
+	  switch_thread sw
         | (xid, StatsReplyMsg rep) ->
           Handlers.statsReply xid sw rep;
           switch_thread sw
@@ -79,8 +87,22 @@ struct
     lwt feats = Platform.accept_switch () in 
     let sw = feats.switch_id in 
     let _ = Log.printf "Ox_Controller" "switch %Ld connected\n%!" sw in 
+    let delete_all = {
+      mfModCmd = DeleteFlow;
+      mfMatch = Match.all;
+      mfPriority = 65535;
+      mfActions = [];
+      mfCookie = Int64.zero;
+      mfIdleTimeOut = Permanent;
+      mfHardTimeOut = Permanent;
+      mfNotifyWhenRemoved = false;
+      mfApplyToPacket = None;
+      mfOutPort = None;
+      mfCheckOverlap = false } in 
+    lwt _ = Platform.send_to_switch sw Int32.zero (FlowModMsg delete_all) in 
+    lwt _ = Platform.send_to_switch sw Int32.one BarrierRequest in
     let _ = Handlers.switchConnected sw in 
-    switch_thread sw <&> accept_switches ()
+    accept_switches () <&> switch_thread sw
 
   let start_controller = accept_switches
 end
