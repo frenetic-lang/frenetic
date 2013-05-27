@@ -2,6 +2,7 @@ open Packet
 open OpenFlow0x01
 
 open NetCore_Types.Internal
+
 type t = ptrn
 
 val inter : t -> t -> t
@@ -16,6 +17,8 @@ val empty : t
 val exact_pattern : packet -> port -> t
   
 val is_empty : t -> bool
+
+val is_all : t -> bool
   
 val match_packet : port -> packet -> t -> bool
   
@@ -62,7 +65,3 @@ val wildcardDlDst : t -> t
 val wildcardDlVlan : t -> t
 
 val wildcardPort : t -> t
-
-val to_format : Format.formatter -> t -> unit
-val to_string : t -> string
-

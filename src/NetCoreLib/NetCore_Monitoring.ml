@@ -2,7 +2,7 @@
 let printf = Printf.printf
 
 let monitor_pol pol = 
-  printf "policy is:\n%s\n" (NetCore_Types.Internal.pol_to_string pol);
+  printf "policy is:\n%s\n" (NetCore_Pretty.pol_to_string pol);
   pol
 
 let monitor_tbl sw pol = 

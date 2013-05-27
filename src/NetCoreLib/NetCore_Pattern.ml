@@ -3,45 +3,6 @@ open OpenFlow0x01
 open NetCore_Types.Internal
 open NetCore_Wildcard
 
-module PortOrderedType = struct
-  type t = port
-  let compare = Pervasives.compare
-  let to_string = port_to_string
-end
-
-module DlVlanOrderedType = struct
-  type t = int option
-
-  let compare x y = match (x, y) with
-    | None, None -> 0
-    | None, _ -> -1
-    | _, None -> 1
-    | Some a, Some b -> Pervasives.compare a b
-
-  let to_string x = match x with
-    | Some n -> "Some " ^ string_of_int n
-    | None -> "None"
-end
-
-module Int64Wildcard = NetCore_Wildcard.Make (Int64)
-module Int32Wildcard = NetCore_Wildcard.Make (Int32)
-module IntWildcard =  NetCore_Wildcard.Make (struct
-  type t = int
-  let compare = Pervasives.compare
-  let to_string n = string_of_int n
-end)
-
-module DlAddrWildcard = Int64Wildcard
-module DlTypWildcard = IntWildcard
-module DlVlanWildcard = NetCore_Wildcard.Make (DlVlanOrderedType)
-module DlVlanPcpWildcard = IntWildcard
-module NwAddrWildcard = Int32Wildcard
-module NwProtoWildcard = IntWildcard
-module NwTosWildcard = IntWildcard
-module TpPortWildcard = IntWildcard
-module PortWildcard = NetCore_Wildcard.Make (PortOrderedType)
-
-
 type t = ptrn
 
 let all = {
@@ -87,6 +48,8 @@ let is_empty pat =
   || TpPortWildcard.is_empty pat.ptrnTpSrc
   || TpPortWildcard.is_empty pat.ptrnTpDst
   || PortWildcard.is_empty pat.ptrnInPort
+
+let is_all pat = pat = all
 
 let is_exact pat =
   DlAddrWildcard.is_exact pat.ptrnDlSrc
@@ -264,33 +227,3 @@ let tcpSrcPort = tpSrcPort 6
 let tcpDstPort = tpDstPort 6
 let udpSrcPort = tpSrcPort 17
 let udpDstPort = tpDstPort 17
-
-
-let to_format fmt pat =
-  let open Format in
-  fprintf
-    fmt
-    "@[{@;<1 2>@[dlSrc = %s;@ dlDst = %s;@ dlType = %s;@ \
-     dlVlan = %s;@ dlVlanPcp = %s;@ nwSrc = %s;@ nwDst = %s;@ \
-     nwProto = %s;@ nwTos = %s;@ tpSrc = %s;@ tpDst = %s;@ \
-     inPort = %s@]@ }@]"
-    (DlAddrWildcard.to_string pat.ptrnDlSrc)
-    (DlAddrWildcard.to_string pat.ptrnDlDst)
-    (DlTypWildcard.to_string pat.ptrnDlType)
-    (DlVlanWildcard.to_string pat.ptrnDlVlan)
-    (DlVlanPcpWildcard.to_string pat.ptrnDlVlanPcp)
-    (NwAddrWildcard.to_string pat.ptrnNwSrc)
-    (NwAddrWildcard.to_string pat.ptrnNwDst)
-    (NwProtoWildcard.to_string pat.ptrnNwProto)
-    (NwTosWildcard.to_string pat.ptrnNwTos)
-    (TpPortWildcard.to_string pat.ptrnTpSrc)
-    (TpPortWildcard.to_string pat.ptrnTpDst)
-    (PortWildcard.to_string pat.ptrnInPort)
-
-let to_string x =
-  let buf = Buffer.create 100 in
-  let fmt = Format.formatter_of_buffer buf in
-  Format.pp_set_margin fmt 80;
-  to_format fmt x;
-  Format.fprintf fmt "@?";
-  Buffer.contents buf

@@ -4,6 +4,7 @@ open NetCore_Types.Internal
 open NetCore_Types.External
 open NetCore_Semantics
 open NetCore_Desugar
+open NetCore_Pretty
 open OUnit
 
 module TestClassifier = struct
@@ -23,13 +24,13 @@ module TestClassifier = struct
   let test1 =
     "forward action domain should be NetCore_Pattern.all" >::
       fun () ->
-        assert_equal ~printer:NetCore_Pattern.to_string
+        assert_equal ~printer:NetCore_Pretty.pattern_to_string
           (domain (List.hd (atoms (forward 1)))) NetCore_Pattern.all
 
   let test2 =
     "pattern restriction test" >::
       fun () ->
-        assert_equal ~printer:NetCore_Pattern.to_string
+        assert_equal ~printer:NetCore_Pretty.pattern_to_string
           (sequence_range
              (List.hd (atoms (forward 1)))
              (NetCore_Pattern.inPort (Physical 1)))

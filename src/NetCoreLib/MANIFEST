@@ -7,6 +7,7 @@ NetCore_MacLearning
 NetCore_NAT
 NetCore_Parser
 NetCore_Pattern
+NetCore_Pretty
 NetCore_Semantics
 NetCore_Stream
 NetCore_Types
