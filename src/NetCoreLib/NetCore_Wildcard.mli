@@ -19,7 +19,6 @@ module type Wildcard = sig
   val is_empty : t -> bool
   val is_exact : t -> bool
   val to_option : t -> a option option
-  val to_string : t -> string
   (** [to_format_exact label] prints exact patterns with a label, but prints
       nothing for both [WildcardAll] and [WildcardNone] *)
   val to_string_exact : string -> t -> string

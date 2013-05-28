@@ -16,7 +16,6 @@ module type Wildcard = sig
   val is_empty : t -> bool
   val is_exact : t -> bool
   val to_option : t -> a option option
-  val to_string : t -> string
   val to_string_exact : string -> t -> string
 end
 
