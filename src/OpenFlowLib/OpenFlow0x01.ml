@@ -729,6 +729,61 @@ module AggregateFlowRequest = struct
 
 end
 
+(* component types of ofp_error_msg (datapath -> controller) *)
+
+type helloFailedError =
+  | HF_Incompatible
+  | HF_Eperm
+
+type badRequestError =
+  | BR_BadVersion
+  | BR_BadType
+  | BR_BadStat
+  | BR_BadVendor
+  | BR_BadSubType
+  | BR_Eperm
+  | BR_BadLen
+  | BR_BufferEmpty
+  | BR_BufferUnknown
+
+type badActionError =
+  | BA_BadType
+  | BA_BadLen
+  | BA_BadVendor
+  | BA_BadVendorType
+  | BA_BadOutPort
+  | BA_BadArgument
+  | BA_Eperm
+  | BA_TooMany
+  | BA_BadQueue
+
+type flowModFailedError =
+  | FM_AllTablesFull
+  | FM_Overlap
+  | FM_Eperm
+  | FM_BadEmergTimeout
+  | FM_BadCommand
+  | FM_Unsupported
+
+type portModFailedError =
+  | PM_BadPort
+  | PM_BadHwAddr
+
+type queueOpFailedError =
+  | QO_BadPort
+  | QO_BadQueue
+  | QO_Eperm
+
+(* Each error is composed of a couple (error_code, data) *)
+
+type error =
+  | HelloFailed of helloFailedError * Cstruct.t
+  | BadRequest of badRequestError * Cstruct.t
+  | BadAction of badActionError * Cstruct.t
+  | FlowModFailed of flowModFailedError * Cstruct.t
+  | PortModFailed of portModFailedError * Cstruct.t
+  | QueueOpFailed of queueOpFailedError  * Cstruct.t
+
 (* Component types of stats_reply messages. *)
 
 module DescriptionStats = struct
