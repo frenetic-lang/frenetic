@@ -29,6 +29,50 @@ struct
       OxPlatform.packetOut xid sw pktOut
 end
 
+module Monitor (OxPlatform:OXPLATFORM) =
+struct
+  let send_stats_request sw = 
+    Printf.printf "Callback\n%!";
+    let open AggregateFlowRequest in  
+	OxPlatform.callback 5.0 
+	  (fun () -> 
+	    Printf.printf "Sending stats request to %Ld\n%!" sw; 
+	    OxPlatform.statsRequest Int32.zero sw 
+	      (AggregateFlowReq { 
+		of_match = Match.all;
+		table_id = 0xff;
+		port = None }))
+
+  let switchConnected sw = 
+    send_stats_request sw
+
+  let switchDisconnected sw = ()
+
+  let barrierReply xid = ()
+
+  let statsReply xid sw stats = 
+    Printf.printf "Stats Reply\n%!";
+    let open AggregateFlowStats in 
+    match stats with 
+      | AggregateFlowRep afs -> 
+	Printf.printf "Packets: %d\nBytes: %d\n; Flows: %d\n%!"
+	  afs.packet_count afs.byte_count afs.flow_count;
+	send_stats_request sw
+      | _ -> 
+	()
+
+  let packetIn xid sw pktIn = match pktIn.packetInBufferId with
+    | None ->
+      ()
+    | Some bufId ->
+      let pktOut = {
+        pktOutBufOrBytes = Buffer bufId;
+        pktOutPortId = Some pktIn.packetInPort;
+        pktOutActions = [Action.Output PseudoPort.Flood]
+      } in
+      OxPlatform.packetOut xid sw pktOut
+end
+
 module Learning (OxPlatform:OXPLATFORM) =
 struct
   let table = ref []
@@ -82,7 +126,7 @@ struct
 	()	  
 end
 
-module Controller = Ox_Controller.Make(OpenFlow0x01_Platform)(Learning)
+module Controller = Ox_Controller.Make(OpenFlow0x01_Platform)(Monitor)
 
 let main () =
   OpenFlow0x01_Platform.init_with_port 6633 >>
