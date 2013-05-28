@@ -26,8 +26,6 @@ module type ACTION =
   
   val domain : e -> ptrn
 
-  val to_string : t -> string
-
   val is_equal : t -> t -> bool
 
  end
