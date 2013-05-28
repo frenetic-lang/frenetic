@@ -26,8 +26,6 @@ module type ACTION = sig
 
   val domain : e -> ptrn
 
-  val to_string : t -> string
-
   val is_equal : t -> t -> bool
 
  end
@@ -72,47 +70,7 @@ module Output = struct
   open NetCore_Pattern
   open NetCore_Types.Internal
 
-  let match_modify_to_string
-      (pr : 'a -> string) (lbl : string) (v : 'a match_modify) : string option =
-    match v with
-      | None -> None
-      | Some (old, new_) -> 
-        Some (Format.sprintf "%s:%s->%s" lbl (pr old) (pr new_))
-
-  let string_of_output (out : output) : string = 
-    (* let mods = *)
-    (*   [ match_modify_to_string dlAddr_to_string "DlSrc" out.outDlSrc; *)
-    (*     match_modify_to_string dlAddr_to_string "DlDst" out.outDlDst; *)
-    (*     match_modify_to_string dlVlan_to_string "DlVlan" out.outDlVlan; *)
-    (*     match_modify_to_string dlVlanPcp_to_string "DlVlanPcp" out.outDlVlanPcp; *)
-    (*     match_modify_to_string string_of_ip "NwSrc" out.outNwSrc; *)
-    (*     match_modify_to_string string_of_ip "NwDst" out.outNwDst; *)
-    (*     match_modify_to_string nwTos_to_string "NwTos" out.outNwTos; *)
-    (*     match_modify_to_string string_of_int "TpSrc" out.outTpSrc; *)
-    (*     match_modify_to_string string_of_int "TpDst" out.outTpDst ] in *)
-    (* let mods = String.concat ", " (List.fold_right (fun xo acc -> match xo with None -> acc | Some x -> x::acc) mods []) in *)
-    "FWD" (*
-    if mods = "" then
-      Format.sprintf "Fwd %s"
-        (PortOrderedType.to_string out.outPort)
-    else 
-      Format.sprintf "Fwd %s<%s>"
-        (PortOrderedType.to_string out.outPort)
-        mods *)
-
-  let string_of_action_atom atom = match atom with
-    | SwitchAction output -> "SwitchAction " ^ (string_of_output output)
-    | ControllerAction _ -> "ControllerAction _"
-    | ControllerPacketQuery d -> 
-      Printf.sprintf "ControllerPacketQuery %d" d
-    | ControllerByteQuery d -> 
-      Printf.sprintf "ControllerByteQuery %d" d
-
   type action = action_atom list
-
-  let to_string output_list =
-    Printf.sprintf "[%s]"
-      (String.concat ", " (List.map string_of_action_atom output_list))
 
   type e = action_atom
 
@@ -143,11 +101,11 @@ module Output = struct
 
   let to_all = [ SwitchAction { unmodified with outPort = All } ]
 
-  let packet_query d =
-    [ ControllerPacketQuery d ]
+  let packet_query d f =
+    [ ControllerQuery (d, f) ]
 
-  let byte_query d =
-    [ ControllerByteQuery d ]
+  let byte_query d f =
+    [ ControllerQuery (d, f) ]
 
   let controller handler =
     [ ControllerAction handler ]
@@ -201,8 +159,7 @@ module Output = struct
         | Some lp -> [lp]
       end
     | ControllerAction f -> apply_action (f sw pt pk) (sw, pt, pk)
-    | ControllerPacketQuery _ -> []
-    | ControllerByteQuery _   -> []
+    | ControllerQuery _ -> []
 
   and apply_action act lp = 
     Frenetic_List.concat_map (fun a -> apply_atom a lp) act
@@ -289,13 +246,11 @@ module Output = struct
                (List.map
                   (fun at1 -> seq_action_atom at1 (SwitchAction out))
                   atoms1)))
-    | ControllerPacketQuery _, _ 
-    | ControllerByteQuery   _, _ ->
+    | ControllerQuery   _, _ ->
       (* Queries are functionally equivalent to drop.  But they count as a side
        * effect first. *)
       Some atom1
-    | _, ControllerPacketQuery _ 
-    | _, ControllerByteQuery   _ ->
+    | _, ControllerQuery   _ ->
       Some atom2
 
   let seq_action act1 act2 =
@@ -356,8 +311,7 @@ module Output = struct
   let sequence_range atom pat = match atom with
     | SwitchAction out        -> sequence_range_switch out pat
     | ControllerAction _      -> pat
-    | ControllerPacketQuery _ -> pat
-    | ControllerByteQuery _   -> pat
+    | ControllerQuery _   -> pat
 
   let domain atom = match atom with
     | SwitchAction out -> 
@@ -368,8 +322,7 @@ module Output = struct
         ; sel NetCore_Pattern.dlVlan out.outDlVlan ]
         NetCore_Pattern.all
     | ControllerAction _      -> NetCore_Pattern.all
-    | ControllerPacketQuery _ -> NetCore_Pattern.all
-    | ControllerByteQuery _   -> NetCore_Pattern.all
+    | ControllerQuery _   -> NetCore_Pattern.all
 
   let set upd mk lst = match upd with
     | Some (_,nw) ->
@@ -427,16 +380,14 @@ module Output = struct
   let atom_to_of inp atom = match atom with
     | SwitchAction out -> output_to_of inp out
     | ControllerAction _ -> [ Output (PseudoPort.Controller 65535) ]
-    | ControllerPacketQuery _ -> []
-    | ControllerByteQuery _ -> []
+    | ControllerQuery _ -> []
 
   let apply_controller action (sw, pt, pk) =
     let f atom acc = match atom with
       | SwitchAction _ -> acc
       | ControllerAction f -> par_action (f sw pt pk) acc
       (* TODO(cole): don't ignore packets sent to the controller? *)
-      | ControllerPacketQuery _ -> acc
-      | ControllerByteQuery _ -> acc
+      | ControllerQuery _ -> acc
       in
     List.fold_right f action drop
 
@@ -444,8 +395,7 @@ module Output = struct
     let f atom = match atom with
       | SwitchAction _ -> true
       | ControllerAction _ -> false
-      | ControllerPacketQuery _ -> false
-      | ControllerByteQuery _ -> false
+      | ControllerQuery _ -> false
       in
     List.filter f action
 
@@ -456,16 +406,14 @@ module Output = struct
     let f atom = match atom with
       | SwitchAction _ -> false
       | ControllerAction _ -> false
-      | ControllerPacketQuery _ -> true
-      | ControllerByteQuery _ -> true
+      | ControllerQuery _ -> true
       in
     List.filter f action
 
   let atom_is_equal x y = match x, y with
     | SwitchAction out1, SwitchAction out2 -> out1 = out2
     | ControllerAction f, ControllerAction g -> f == g (* functional values *)
-    | ControllerPacketQuery d, ControllerPacketQuery d' -> d == d'
-    | ControllerByteQuery d, ControllerByteQuery d' -> d == d'
+    | ControllerQuery (d, f), ControllerQuery (d', f') -> d == d' && f == f'
     | _ -> false
 
   (* TODO(arjun): What if they are permutations? *)

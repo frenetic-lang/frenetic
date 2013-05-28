@@ -26,8 +26,6 @@ module type ACTION =
   
   val domain : e -> ptrn
 
-  val to_string : t -> string
-
   val is_equal : t -> t -> bool
 
  end
@@ -45,13 +43,15 @@ module Output : sig
   val updateDstIP : Int32.t -> Int32.t -> t
   val updateSrcPort : int -> int -> t
   val updateDstPort : int -> int -> t
-  val packet_query : int -> t
-  val byte_query : int -> t
+  val packet_query : int -> get_count_handler -> t
+  val byte_query : int -> get_count_handler -> t
   val controller : (OpenFlow0x01.switchId -> port -> packet -> action) -> t
   val apply_controller : action -> lp -> action
   val switch_part  : action -> action
   val as_actionSequence : portId option -> t -> OpenFlow0x01.Action.sequence
   val queries : t -> t
+  val is_equal : t -> t -> bool
+  val atom_is_equal : e -> e -> bool
 end
 
 module Bool : ACTION 

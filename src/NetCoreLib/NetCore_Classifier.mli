@@ -17,7 +17,6 @@ module type CLASSIFIER =
   
   val par_actions : action list -> action
 
-  val to_string : t -> string
  end
 
 module type MAKE  = functor (Action : ACTION) -> 

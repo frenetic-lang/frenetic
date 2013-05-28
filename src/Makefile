@@ -62,6 +62,6 @@ clean:
 	$(OCAMLBUILD) -clean
 
 ctags: $(CTAGS_FILES)
-	@which ctags3 2> /dev/null > /dev/null \
+	@which ctags 2> /dev/null > /dev/null \
     && rm -f tags && ctags $(CTAGS_FILES) \
     || true

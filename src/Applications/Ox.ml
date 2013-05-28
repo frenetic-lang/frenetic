@@ -7,7 +7,7 @@ open Packet
 
 module Log = Frenetic_Log
 
-module Repeater (OxPlatform:OXPLATFORM) = 
+module Repeater (OxPlatform:OXPLATFORM) =
 struct
   let switchConnected sw = ()
 
@@ -17,47 +17,32 @@ struct
 
   let statsReply xid sw stats = ()
 
-  let packetIn xid sw pktIn = match pktIn.packetInBufferId with 
-    | None -> 
+  let packetIn xid sw pktIn = match pktIn.packetInBufferId with
+    | None ->
       ()
-    | Some bufId -> 
-      let pktOut = { 
-	pktOutBufOrBytes = Buffer bufId;
-	pktOutPortId = Some pktIn.packetInPort;
-	pktOutActions = [Action.Output PseudoPort.Flood] 
-      } in 
+    | Some bufId ->
+      let pktOut = {
+        pktOutBufOrBytes = Buffer bufId;
+        pktOutPortId = Some pktIn.packetInPort;
+        pktOutActions = [Action.Output PseudoPort.Flood]
+      } in
       OxPlatform.packetOut xid sw pktOut
 end
 
-module Learning (OxPlatform:OXPLATFORM) = 
+module Learning (OxPlatform:OXPLATFORM) =
 struct
   let table = ref []
 
-  let switchConnected sw = 
+  let switchConnected sw =
     table := (sw,Hashtbl.create 11)::!table
-    (* let fm = { *)
-    (*   mfModCmd = AddFlow; *)
-    (*   mfMatch = Match.all; *)
-    (*   mfPriority = 0; *)
-    (*   mfActions = [Action.Output (PseudoPort.Controller 0)]; *)
-    (*   mfCookie = Int64.zero; *)
-    (*   mfIdleTimeOut = Permanent; *)
-    (*   mfHardTimeOut = Permanent; *)
-    (*   mfNotifyWhenRemoved = false; *)
-    (*   mfApplyToPacket = None; *)
-    (*   mfOutPort = None; *)
-    (*   mfCheckOverlap = false } in *)
-    (* table := (sw,Hashtbl.create 11)::!table;  *)
-    (* OxPlatform.flowMod Int32.zero sw fm; *)
-    (* OxPlatform.barrierRequest Int32.one sw *)
-    
-  let switchDisconnected sw = 
+
+  let switchDisconnected sw =
     table := List.remove_assoc sw !table
 
   let barrierReply xid = ()
-    
+
   let statsReply xid sw stats = ()
-    
+
   let packetIn xid sw pktIn = 
     match pktIn.packetInBufferId, Packet.parse pktIn.packetInPacket with
       | Some bufId, Some pkt -> 
@@ -99,17 +84,17 @@ end
 
 module Controller = Ox_Controller.Make(OpenFlow0x01_Platform)(Learning)
 
-let main () = 
+let main () =
   OpenFlow0x01_Platform.init_with_port 6633 >>
   Controller.start_controller ()
-      
+
 let _ =
-  Log.printf "Main" "--- Welcome to Ox ---\n%!";
+  Log.printf "Ox" "--- Welcome to Ox ---\n%!";
   Sys.catch_break true;
-  try 
+  try
     Lwt_main.run (main ())
-  with exn -> 
-    Log.printf "Main" "Unexpected exception: %s\n%s\n%!" 
-      (Printexc.to_string exn) 
+  with exn ->
+    Log.printf "Ox" "unexpected exception: %s\n%s\n%!"
+      (Printexc.to_string exn)
       (Printexc.get_backtrace ());
     exit 1

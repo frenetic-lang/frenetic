@@ -829,6 +829,13 @@ type statsReply =
   | TableRep of TableStats.t
   | PortRep of PortStats.t
 
+let string_of_statsReply r = match r with
+  | DescriptionRep _ -> "DescriptionRep"
+  | IndividualFlowRep _ -> "IndividualFlowRep"
+  | AggregateFlowRep _ -> "AggregateFlowRep"
+  | TableRep _ -> "TableRep"
+  | PortRep _ -> "PortRep"
+
 (* A subset of the OpenFlow 1.0 messages defined in Section 5.1 of the spec. *)
 
 type message =
