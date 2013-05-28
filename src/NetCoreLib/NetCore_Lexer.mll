@@ -17,6 +17,7 @@ let decbyte =
   (['0'-'9'] ['0'-'9'] ['0'-'9']) | (['0'-'9'] ['0'-'9']) | ['0'-'9']
 
 rule token = parse
+  | "(*" { block_comment lexbuf }
   | blank+ { token lexbuf }
   | '\n' { new_line lexbuf; token lexbuf }
   | '\r' { new_line lexbuf; token lexbuf }
@@ -80,3 +81,9 @@ rule token = parse
   | "let" { LET }
   | "publicIP" { PUBLICIP }
   | id as x { ID x } (* by going last, we lex to LEARN, NAT, etc. instead *)
+
+and block_comment = parse
+  | "*)" { token lexbuf }
+  | "*" { block_comment lexbuf }
+  | [ '\n' '\r' ] { new_line lexbuf; block_comment lexbuf }
+  | ([^ '\n' '\r' '*'])+  { block_comment lexbuf }
