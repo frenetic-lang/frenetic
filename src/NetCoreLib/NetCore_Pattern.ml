@@ -5,6 +5,49 @@ open NetCore_Wildcard
 
 type t = ptrn
 
+
+module PortOrderedType = struct
+  type t = port
+  let compare = Pervasives.compare
+  let to_string =  function
+    | Physical pid -> "Physical " ^ (portId_to_string pid)
+    | All -> "All"
+    | Here -> "Here"
+
+end
+
+module DlVlanOrderedType = struct
+  type t = int option
+
+  let compare x y = match (x, y) with
+    | None, None -> 0
+    | None, _ -> -1
+    | _, None -> 1
+    | Some a, Some b -> Pervasives.compare a b
+
+  let to_string x = match x with
+    | Some n -> "Some " ^ string_of_int n
+    | None -> "None"
+end
+
+module Int64Wildcard = NetCore_Wildcard.Make (Int64)
+module Int32Wildcard = NetCore_Wildcard.Make (Int32)
+module IntWildcard =  NetCore_Wildcard.Make (struct
+  type t = int
+  let compare = Pervasives.compare
+  let to_string n = string_of_int n
+end)
+
+module DlAddrWildcard = Int64Wildcard
+module DlTypWildcard = IntWildcard
+module DlVlanWildcard = NetCore_Wildcard.Make (DlVlanOrderedType)
+module DlVlanPcpWildcard = IntWildcard
+module NwAddrWildcard = Int32Wildcard
+module NwProtoWildcard = IntWildcard
+module NwTosWildcard = IntWildcard
+module TpPortWildcard = IntWildcard
+module PortWildcard = NetCore_Wildcard.Make (PortOrderedType)
+
 let all = {
   ptrnDlSrc = WildcardAll;
   ptrnDlDst = WildcardAll;

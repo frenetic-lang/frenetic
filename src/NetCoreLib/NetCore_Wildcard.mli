@@ -1,7 +1,4 @@
-type 'a wildcard =
-  | WildcardExact of 'a
-  | WildcardAll
-  | WildcardNone
+type 'a wildcard = 'a NetCore_Types.wildcard
 
 module type Wildcard = sig
 
