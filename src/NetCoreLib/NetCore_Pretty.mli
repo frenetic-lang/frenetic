@@ -9,3 +9,5 @@ val pol_to_string : pol -> string
 val value_to_string : value -> string 
 
 val pattern_to_string : ptrn -> string
+
+val action_to_string : action -> string

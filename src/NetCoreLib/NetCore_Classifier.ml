@@ -15,8 +15,6 @@ module type CLASSIFIER = sig
   val sequence : t -> t -> t
 
   val par_actions : action list -> action
-
-  val to_string : t -> string
 end
 
 module type MAKE = functor (Action : ACTION) ->
@@ -131,17 +129,6 @@ module Make : MAKE = functor (Action:ACTION) -> struct
 
   let sequence tbl1 tbl2 =
     opt (sequence_no_opt tbl1 tbl2)
-
-  let to_string tbl =
-    let buf = Buffer.create 100 in
-    List.iter
-      (fun (pat,act) ->
-        Buffer.add_string buf (NetCore_Pretty.pattern_to_string pat);
-        Buffer.add_string buf " => ";
-        Buffer.add_string buf (Action.to_string act);
-        Buffer.add_string buf "\n")
-      tbl;
-    Buffer.contents buf
 
  end
 

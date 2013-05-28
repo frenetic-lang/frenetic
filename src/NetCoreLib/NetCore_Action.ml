@@ -26,8 +26,6 @@ module type ACTION = sig
 
   val domain : e -> ptrn
 
-  val to_string : t -> string
-
   val is_equal : t -> t -> bool
 
  end
@@ -72,50 +70,7 @@ module Output = struct
   open NetCore_Pattern
   open NetCore_Types.Internal
 
-  let match_modify_to_string
-      (pr : 'a -> string) (lbl : string) (v : 'a match_modify) : string option =
-    match v with
-      | None -> None
-      | Some (old, new_) -> 
-        Some (Format.sprintf "%s:%s->%s" lbl (pr old) (pr new_))
-
-  let string_of_output (out : output) : string = 
-    "FWD" (*
-    let mods =
-      [ match_modify_to_string dlAddr_to_string "DlSrc" out.outDlSrc;
-        match_modify_to_string dlAddr_to_string "DlDst" out.outDlDst;
-        match_modify_to_string dlVlan_to_string "DlVlan" out.outDlVlan;
-        match_modify_to_string dlVlanPcp_to_string "DlVlanPcp" out.outDlVlanPcp;
-        match_modify_to_string string_of_ip "NwSrc" out.outNwSrc;
-        match_modify_to_string string_of_ip "NwDst" out.outNwDst;
-        match_modify_to_string nwTos_to_string "NwTos" out.outNwTos;
-        match_modify_to_string string_of_int "TpSrc" out.outTpSrc;
-        match_modify_to_string string_of_int "TpDst" out.outTpDst ] in
-    let mods = 
-      String.concat ", " 
-        (List.fold_right 
-          (fun xo acc -> match xo with 
-            | None -> acc 
-            | Some x -> x::acc) mods []) in
-    if mods = "" then
-      Format.sprintf "Fwd %s"
-        (PortOrderedType.to_string out.outPort)
-    else 
-      Format.sprintf "Fwd %s<%s>"
-        (PortOrderedType.to_string out.outPort)
-        mods *)
-
-  let string_of_action_atom atom = match atom with
-    | SwitchAction output -> "SwitchAction " ^ (string_of_output output)
-    | ControllerAction _ -> "ControllerAction _"
-    | ControllerQuery (d, _) -> 
-      Printf.sprintf "ControllerQuery (%d, _)" d
-
   type action = action_atom list
-
-  let to_string output_list =
-    Printf.sprintf "[%s]"
-      (String.concat ", " (List.map string_of_action_atom output_list))
 
   type e = action_atom
 

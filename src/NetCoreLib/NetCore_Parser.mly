@@ -153,15 +153,18 @@ pol :
   | pol_pred SEMI pol_seq_list
     { Seq (symbol_start_pos (), $1, $3) }
   | LET ID EQUALS LEARNING IN pol
-    { Let (symbol_start_pos (),
-           [($2, PolStream (NetCore_Stream.from_stream
-                              NetCore_MacLearning.Learning.init
-                              NetCore_MacLearning.Routing.policy))],
+    { let (init, pol) = NetCore_MacLearning.make () in
+      let (lwt_e, stream) = NetCore_Stream.from_stream init pol in
+      Let (symbol_start_pos (),
+           [($2, PolStream (lwt_e, stream))],
            $6) }
   | LET ID COMMA ID EQUALS NAT LPAREN PUBLICIP EQUALS IPADDR RPAREN IN pol
-    { let (priv, pub) = NetCore_NAT.make $10 in
+    { let (lwt_e, priv, pub) = NetCore_NAT.make $10 in
+      (* TODO(arjun): sort of strange, but correct. its the private policy
+         that induces policy updates. *)
       Let (symbol_start_pos (),
-           [($2, PolStream priv); ($4, PolStream pub)],
+           [($2, PolStream (lwt_e, priv));
+            ($4, PolStream (Lwt.return (), pub))],
            $13) }
 
 program

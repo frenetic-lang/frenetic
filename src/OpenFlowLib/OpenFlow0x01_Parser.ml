@@ -130,14 +130,14 @@ module PacketIn = struct
       | Some ACTION -> ExplicitSend
       | None ->
         raise (Unparsable (sprintf "bad reason in packet_in (%d)" reason_code)) in
-    { 
-      packetInBufferId = bufId;
+    let res = { packetInBufferId = bufId;
       packetInTotalLen = total_len;
       packetInPort = in_port;
       packetInReason = reason;
       packetInPacket = Cstruct.shift bits sizeof_ofp_packet_in
-    }
-
+    } in 
+    Printf.printf "*** LENGTH: %d\n%!" (Cstruct.len res.packetInPacket);
+    res
 end
 
 module PacketOut = struct

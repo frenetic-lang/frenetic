@@ -20,7 +20,6 @@ module Internal : sig
   module TpPortWildcard : NetCore_Wildcard.Wildcard with type a = tpPort
   module PortWildcard : NetCore_Wildcard.Wildcard with type a = port
 
-
   type lp = OpenFlow0x01.switchId * port * packet
 
   type ptrn = {

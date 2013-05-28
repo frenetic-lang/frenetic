@@ -17,7 +17,7 @@ module TestClassifier = struct
   let test0 =
     "action sequence test" >::
       fun () ->
-        assert_equal ~printer:NetCore_Action.Output.to_string
+        assert_equal ~printer:action_to_string
           (forward 5)
           (seq_action (forward 3) (forward 5))
 
@@ -41,7 +41,7 @@ module TestClassifier = struct
       (List.map 
          (fun (label, expected, calculated) ->
            label >:: fun () -> 
-             assert_equal ~printer:C.to_string expected calculated)
+             assert_equal expected calculated)
          lst)
 
   let eval_tests group_label lst = 
@@ -49,7 +49,7 @@ module TestClassifier = struct
       (List.map
          (fun (label, expected_action, input_pol, input_val) ->
            label >:: fun () -> 
-             assert_equal ~printer:NetCore_Action.Output.to_string 
+             assert_equal ~printer:action_to_string
                expected_action
                (NetCore_Semantics.eval input_pol input_val))
          lst)
@@ -59,7 +59,7 @@ module TestClassifier = struct
       (List.map
          (fun (label, expected_tbl, input_sw, input_pol) ->
            label >:: fun () -> 
-             assert_equal ~printer:C.to_string 
+             assert_equal
                expected_tbl
                (NetCore_Compiler.compile_pol input_pol input_sw))
          lst)
@@ -245,25 +245,25 @@ module TestNetCore = struct
   let test1 = 
       "maclearning regression 1" >::
         fun () ->
-          assert_equal  ~printer:C.to_string
+          assert_equal  
             (NetCore_Compiler.compile_pol test1_pol1 1L) []
 
   let test2 = 
       "maclearning regression 2" >::
         fun () ->
-          assert_equal  ~printer:C.to_string
+          assert_equal  
             (NetCore_Compiler.compile_pol test1_pol2 1L) []
 
   let test3 = 
       "maclearning regression 3" >::
         fun () ->
-          assert_equal  ~printer:C.to_string
+          assert_equal  
             (NetCore_Compiler.compile_pol test1_pol3 1L) []
 
   let test4 = 
       "maclearning regression 2 || 3" >::
         fun () ->
-          assert_equal  ~printer:C.to_string
+          assert_equal  
             (NetCore_Compiler.compile_pol
                (PoUnion (test1_pol2, test1_pol3))
             1L)
@@ -272,7 +272,7 @@ module TestNetCore = struct
   let test5 = 
       "maclearning regression 1 || 2 || 3" >::
         fun () ->
-          assert_equal  ~printer:C.to_string
+          assert_equal  
             (NetCore_Compiler.compile_pol
                (PoUnion (test1_pol1, PoUnion (test1_pol2, test1_pol3)))
             1L)
@@ -281,7 +281,7 @@ module TestNetCore = struct
   let test6 =
     "sequencing regression 1" >::
       fun () ->
-        assert_equal ~printer:C.to_string
+        assert_equal 
           (NetCore_Compiler.compile_pol 
              (PoFilter
                 (PrAnd 
@@ -337,28 +337,28 @@ module TestNetCore = struct
   let test7 =
     "maclearning regression pol2_query" >::
       fun () ->
-        assert_equal ~printer:C.to_string
+        assert_equal 
           (NetCore_Compiler.compile_pol pol2_query 1L)
           []
 
   let test8 =
     "maclearning regression pol2_fwd1" >::
       fun () ->
-        assert_equal ~printer:C.to_string
+        assert_equal 
           (NetCore_Compiler.compile_pol pol2_fwd1 1L)
           []
 
   let test9 =
     "maclearning regression pol2_fwd_rest" >::
       fun () ->
-        assert_equal ~printer:C.to_string
+        assert_equal 
           (NetCore_Compiler.compile_pol pol2_fwd_rest 1L)
           []
 
   let test10 =
     "maclearning regression pol2" >::
       fun () ->
-        assert_equal ~printer:C.to_string
+        assert_equal 
           (NetCore_Compiler.compile_pol pol2 1L)
           []
 
@@ -376,7 +376,7 @@ module TestNetCore = struct
   let test11 =
     "predicate compilation regression" >::
       fun () ->
-        assert_equal ~printer:C.to_string
+        assert_equal 
           (NetCore_Compiler.compile_pol pol3 1L)
           []
 
@@ -439,10 +439,12 @@ module Helper = struct
     (* Test the classifier interpretation. *)
     let classifier = NetCore_Compiler.compile_pol ds_pol in_sid in
 
+(*
     if dbg then
       printf "Classifier:\n%s\n" (C.to_string classifier)
     else
       ();
+*)
 
     let act = C.scan classifier in_port in_pkt in
     let pkts = NetCore_Action.Output.apply_action act 

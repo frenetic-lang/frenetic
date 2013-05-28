@@ -86,7 +86,7 @@ let constant (v : 'a) : 'a node =
     attach_consumer = (fun _ -> ());
   }
 
-let from_stream (init : 'a) (stream : 'a Lwt_stream.t) : 'a node =
+let from_stream (init : 'a) (stream : 'a Lwt_stream.t) : unit Lwt.t * 'a node =
   let sends_to = ref [] in
   let self = {
     now = init;
@@ -99,17 +99,12 @@ let from_stream (init : 'a) (stream : 'a Lwt_stream.t) : 'a node =
     match Q.dequeue q with
     | None -> ()
     | Some (_, v, q') -> propagate (v q') in
-  Lwt.async
-    (fun () ->
-      Lwt_stream.iter
-        (fun a ->
-          self.now <- a;
-          try
-             propagate (Q.singleton 0 producer)
-          with exn ->
-            eprintf "EXN: %s\n" (Printexc.to_string exn))
-        stream);
-  self
+  (Lwt_stream.iter_s
+     (fun a ->
+       self.now <- a;
+       Lwt.wrap1 propagate (Q.singleton 0 producer))
+     stream,
+   self)
 
 let to_stream (x : 'a node) : 'a Lwt_stream.t =
   let (stream, push) = Lwt_stream.create () in

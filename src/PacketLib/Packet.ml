@@ -568,9 +568,19 @@ cstruct udp {
 
 (* TODO(arjun): error if not enough space *)
 let parse (bits : Cstruct.t) =
-  let dst = Cstruct.to_string (get_eth_dst bits) in
+  if Cstruct.len bits = 0 then None
+  else 
+    begin Printf.printf "IN PARSE %d\n%!" (Cstruct.len bits);
   let src = Cstruct.to_string (get_eth_src bits) in
+  Printf.printf "OK #1\n%!";
+  let dst = Cstruct.to_string (get_eth_dst bits) in
+  Printf.printf "OK #2\n%!";
   let typ = get_eth_typ bits in 
+  Printf.printf "OK #3\n%!";
+  Printf.printf "SRC=%s, DST=%s, TYP=%d\n%!" 
+    (string_of_mac (mac_of_bytes src)) 
+    (string_of_mac (mac_of_bytes dst)) 
+    typ;
   let (vlan_tag, vlan_pcp, typ, offset) = 
     match int_to_eth_typ typ with 
       | Some ETHTYP_VLAN -> 
@@ -603,7 +613,7 @@ let parse (bits : Cstruct.t) =
     dlVlanPcp = vlan_pcp;
     nw = nw_header 
   }
-
+    end
 let len (pkt : packet) =
   let eth_len = 
     if pkt.dlVlan != None then sizeof_vlan 

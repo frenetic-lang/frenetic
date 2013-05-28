@@ -5,9 +5,9 @@ open NetCore_Types.Internal
 open NetCore_Action.Output
 open NetCore_Pattern
 
-module Learning = struct
-    
-  type int48 = int64 
+type int48 = int64 
+
+let make () = 
 
   (** The objective is to learn the port on which a host is connected on all
       switches. Word48.t is the type of MAC-addresses. This hashtable stores
@@ -15,7 +15,7 @@ module Learning = struct
       is to acount for host-mobility. When a host moves to a different port 
       on a switch, updating its entry removes the old entry too. *)
   let learned_hosts : (switchId * int48, portId) Hashtbl.t = 
-    Hashtbl.create 100
+    Hashtbl.create 100 in
 
   (** Create a predicate that matches all unknown 
       switch * port * host * port tuples. *)
@@ -26,12 +26,12 @@ module Learning = struct
           PrOr (PrAnd (PrAnd (PrOnSwitch sw, PrHdr (inPort (Physical pt))),
                        PrHdr (dlSrc eth)), pol))
         learned_hosts
-        PrNone)
+        PrNone) in
 
   (** We're using the Lwt library to create streams. Policy is a stream
       we can read. The push function sends a value into the policy 
       stream. *)
-  let (policy, push) = Lwt_stream.create ()
+  let (policy, push) = Lwt_stream.create () in
 
   (** Create a policy that directs all unknown packets to the controller. These
       packets are sent to the [learn_host] function below. *)
@@ -49,36 +49,30 @@ module Learning = struct
             printf "[MacLearning] at switch %Ld host %s at port %d\n%!"
 	            sw (string_of_mac pk.dlSrc) pt;
             if Hashtbl.mem learned_hosts (sw, pk.dlSrc) then
-              printf "[MacLearning.ml] at switch %Ld, host %s at port %d (moved)\n%!"
+              printf "[Macml] at switch %Ld, host %s at port %d (moved)\n%!"
                 sw (string_of_mac pk.dlSrc) pt
             else
-              printf "[MacLearning.ml] at switch %Ld, host %s at port %d\n%!"
+              printf "[Macml] at switch %Ld, host %s at port %d\n%!"
                 sw (string_of_mac pk.dlSrc) pt
           end;
           Hashtbl.replace learned_hosts (sw, pk.dlSrc) pt;
           push (Some (make_learning_policy ()));
           drop
         end
-      | _ -> drop
+      | _ -> drop in
           
   
   (** The initial value of the policy is to receives packets from all hosts. *)
 
   let init = 
-    PoSeq (PoFilter (PrHdr all), PoAction (controller learn_host))
-
-  let _ = push (Some init)
-
-end 
-
-module Routing = struct
+    PoSeq (PoFilter (PrHdr all), PoAction (controller learn_host)) in
 
   let known_hosts () = 
     Hashtbl.fold 
       (fun (sw,dst) _ hosts -> PrOr (PrAnd (PrOnSwitch sw, PrHdr (dlDst dst)),
                                      hosts))
-      Learning.learned_hosts
-      PrNone
+      learned_hosts
+      PrNone in
 
   (** Maps over all tuples, (sw, pt, mac) in [learned_hosts], and
       writes the rule:
@@ -93,14 +87,14 @@ module Routing = struct
           (PoSeq (PoFilter (PrAnd (PrOnSwitch sw, PrHdr (dlDst dst))),
                   PoAction (forward pt)),
            pol))
-      Learning.learned_hosts
-      (PoSeq (PoFilter (PrNot (known_hosts ())), PoAction to_all))
+      learned_hosts
+      (PoSeq (PoFilter (PrNot (known_hosts ())), PoAction to_all)) in
 
   (** Composes learning and routing policies, which together form
       mac-learning. *)      
   let policy = Lwt_stream.map (fun learning_pol ->
     PoUnion (learning_pol, make_routing_policy ()))
-    Learning.policy
-end
+    policy in
 
-
+  push (Some init);
+  (init, policy)
