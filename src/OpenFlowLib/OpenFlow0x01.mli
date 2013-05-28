@@ -279,6 +279,8 @@ type statsReply =
 | TableRep of TableStats.t
 | PortRep of PortStats.t
 
+val string_of_statsReply : statsReply -> string
+
 (* A subset of the OpenFlow 1.0 messages defined in Section 5.1 of the spec. *)
 
 type message =
