@@ -55,18 +55,16 @@ module Internal : sig
     outPort : port 
   }
 
-  (* Duplicates External.  Eventually, External should not depend on Internal.
-  *)
   type get_packet_handler = 
       OpenFlow0x01.switchId -> port -> packet -> action
 
-  and get_count_handler = OpenFlow0x01.switchId -> Int64.t -> unit
+  (* Packet count -> Byte count -> unit. *)
+  and get_count_handler = Int64.t -> Int64.t -> unit
 
   and action_atom =
     | SwitchAction of output
     | ControllerAction of get_packet_handler
-    | ControllerPacketQuery of int
-    | ControllerByteQuery of int
+    | ControllerQuery of int * get_count_handler
 
   and action = action_atom list
 
@@ -99,7 +97,7 @@ module External : sig
 
   type get_packet_handler = 
     OpenFlow0x01.switchId -> Internal.port -> packet -> Internal.action
-  type get_count_handler = OpenFlow0x01.switchId -> Int64.t -> unit
+  type get_count_handler = Int64.t -> Int64.t -> unit
 
   type predicate =
   | And of predicate * predicate

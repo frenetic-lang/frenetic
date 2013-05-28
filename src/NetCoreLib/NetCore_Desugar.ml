@@ -5,7 +5,7 @@ open Format
 let desugar 
   (genvlan : unit -> int option)
   (genbucket : unit -> int)
-  (get_count_handlers : (int, (int * External.get_count_handler)) Hashtbl.t)
+  (get_count_handlers : (int, (int * External.get_count_handler * bool)) Hashtbl.t)
   (pol : External.policy) :
   Internal.pol =
   let open Internal in
@@ -36,12 +36,12 @@ let desugar
       NetCore_Action.Output.controller handler
     | GetPacketCount (d, handler) ->
       let bucket = genbucket () in
-      Hashtbl.replace get_count_handlers bucket (d, handler);
-      NetCore_Action.Output.packet_query bucket
+      Hashtbl.replace get_count_handlers bucket (d, handler, true);
+      NetCore_Action.Output.packet_query d handler
     | GetByteCount (d, handler) ->
       let bucket = genbucket () in
-      Hashtbl.replace get_count_handlers bucket (d, handler);
-      NetCore_Action.Output.byte_query bucket in
+      Hashtbl.replace get_count_handlers bucket (d, handler, false);
+      NetCore_Action.Output.byte_query d handler in
   let rec desugar_pred pred = match pred with
     | And (p1, p2) -> 
       PrAnd (desugar_pred p1, desugar_pred p2)
