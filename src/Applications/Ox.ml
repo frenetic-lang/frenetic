@@ -59,29 +59,14 @@ struct
   let statsReply xid sw stats = ()
     
   let packetIn xid sw pktIn = 
-    Log.printf "Learning" "PacketIn got something!\n%!";
-    Log.printf "Learning" "Going to parse...\n%!";
-    Log.printf "Learning" "%s\n%!" 
-      (match Packet.parse pktIn.packetInPacket with 
-	| None -> "None"
-	| Some pkt -> packet_to_string pkt);
-    Log.printf "Learning" "Finished parse\n%!";
     match pktIn.packetInBufferId, Packet.parse pktIn.packetInPacket with
       | Some bufId, Some pkt -> 
-	Log.printf "Learning" "Okay!\n%!";
 	let inport = pktIn.packetInPort in 
 	let src = pkt.dlSrc in 
 	let dst = pkt.dlDst in 
-	Log.printf "Learning" "SRC=%s, DST=%s, IN=%d\n%!"
-	  (Packet.string_of_mac src)
-	  (Packet.string_of_mac dst)
-	  inport;
-	try 
-	  let sw_table = List.assoc sw !table in 
-	  Hashtbl.add sw_table src inport;
-        let _ = Log.printf "Learning" "Here\n%!" in 
+	let sw_table = List.assoc sw !table in 
+	Hashtbl.add sw_table src inport;
 	if Hashtbl.mem sw_table dst then 
-	  let _ = Log.printf "Learning" "Sending FlowMod\n%!" in 
 	  let outport = Hashtbl.find sw_table dst in 
 	  let m = { Match.all with 
 	            Match.dlSrc = Some src;
@@ -102,18 +87,13 @@ struct
 	  OxPlatform.flowMod (Int32.succ xid) sw fm;
 	  OxPlatform.barrierRequest (Int32.succ (Int32.succ xid)) sw
 	else
-	  let _ = Log.printf "Learning" "Flooding\n%!" in 
 	  let pktOut = { 
 	    pktOutBufOrBytes = Buffer bufId;
 	    pktOutPortId = Some pktIn.packetInPort;
 	    pktOutActions = [Action.Output PseudoPort.Flood] 
 	  } in 
 	  OxPlatform.packetOut xid sw pktOut
-	with exn -> 
-	  Log.printf "Learning" "Exception %s\n%!"
-	    (Printexc.to_string exn)
       | _ -> 
-	Log.printf "Learning" "Unparsed\n%!";
 	()	  
 end
 
