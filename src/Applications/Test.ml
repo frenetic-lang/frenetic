@@ -1,7 +1,6 @@
 open Packet
 open Printf
 open NetCore_Types.Internal
-open NetCore_Types.External
 open NetCore_Semantics
 open NetCore_Desugar
 open NetCore_Pretty
@@ -466,7 +465,7 @@ module TestFilters = struct
   open Helper
 
   let test1 =
-    let policy = Filter NetCore_Types.External.All in
+    let policy = Filter NetCore_Desugar.All in
     mkEvalTest "filter true" policy in_val [in_val]
 
   let test2 =
@@ -531,8 +530,8 @@ module TestSlices = struct
   open Helper
 
   let test1 =
-    let policy = Slice (NetCore_Types.External.All, Act ToAll,
-                        NetCore_Types.External.All) in
+    let policy = Slice (NetCore_Desugar.All, Act ToAll,
+                        NetCore_Desugar.All) in
     let Pkt (sid, port, expected_pkt, payload) = in_val in
     let expected_val = Pkt ( sid, All, expected_pkt, payload) in
     mkEvalTest "slice repeater" policy in_val [expected_val]

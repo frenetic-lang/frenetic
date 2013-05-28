@@ -1,7 +1,6 @@
 open Lwt
 open Printf
 open Unix
-open NetCore_Types.External
 
 module M = NetCore_MacLearning
 
