@@ -240,8 +240,8 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       | Some packet ->
         let inp = Pkt (sw, Physical in_port, packet,
                        match pkt_in.packetInBufferId with
-                         | Some id -> Buf id
-                         | None -> Data pkt_in.packetInPacket) in
+                         | Some id -> Buffer id
+                         | None -> Packet pkt_in.packetInPacket) in
         let full_action = NetCore_Semantics.eval !pol_now inp in
         let controller_action =
           NetCore_Action.Output.apply_controller full_action

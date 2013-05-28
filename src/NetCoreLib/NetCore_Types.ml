@@ -2,6 +2,8 @@ open List
 open Packet
 open Format
 
+type switchId = OpenFlow0x01.switchId
+
 type 'a wildcard =
   | WildcardExact of 'a
   | WildcardAll
@@ -12,7 +14,7 @@ type port =
   | All
   | Here
 
-type lp = OpenFlow0x01.switchId * port * packet
+type lp = switchId * port * packet
 
 type ptrn = {
   ptrnDlSrc : dlAddr wildcard;
@@ -44,8 +46,7 @@ type output = {
   outPort : port 
 }
 
-type get_packet_handler = 
-    OpenFlow0x01.switchId -> port -> packet -> action
+type get_packet_handler = switchId -> port -> packet -> action
 
   (* Packet count -> Byte count -> unit. *)
 and get_count_handler = Int64.t -> Int64.t -> unit
@@ -59,7 +60,7 @@ and action = action_atom list
 
 type pred =
   | PrHdr of ptrn
-  | PrOnSwitch of OpenFlow0x01.switchId
+  | PrOnSwitch of switchId
   | PrOr of pred * pred
   | PrAnd of pred * pred
   | PrNot of pred
@@ -73,9 +74,5 @@ type pol =
   | PoSeq of pol * pol
   | PoITE of pred * pol * pol
 
-type payload = 
-  | Buf of OpenFlow0x01.bufferId
-  | Data of bytes
-
 type value =
-  | Pkt of OpenFlow0x01.switchId * port * packet * payload
+  | Pkt of switchId * port * packet * OpenFlow0x01.payload
