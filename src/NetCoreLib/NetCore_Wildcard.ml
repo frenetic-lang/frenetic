@@ -78,9 +78,4 @@ module Make (Ord : OrderedType) = struct
     | WildcardAll -> ""
     | WildcardNone -> ""
 
-  let to_string x = match x with
-    | WildcardExact a -> "WildcardExact " ^ Ord.to_string a
-    | WildcardNone -> "WildcardNone"
-    | WildcardAll -> "WildcardAll"
-
 end
