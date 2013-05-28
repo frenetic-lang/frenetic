@@ -1,4 +1,4 @@
-open NetCore_Types.Internal
+open NetCore_Types
 
 val port_to_string : port -> string
 

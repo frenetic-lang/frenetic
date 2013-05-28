@@ -1,6 +1,6 @@
 open List
 open Packet
-open NetCore_Types.Internal
+open NetCore_Types
 
 module OutputClassifier = NetCore_Classifier.Make(NetCore_Action.Output)
 

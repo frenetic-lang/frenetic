@@ -3,7 +3,7 @@ open Packet
 open List
 
 type get_packet_handler = 
-    OpenFlow0x01.switchId -> Internal.port -> packet -> Internal.action
+    OpenFlow0x01.switchId -> port -> packet -> action
 type get_count_handler = Int64.t -> Int64.t -> unit
 
 type predicate =
@@ -61,5 +61,5 @@ val desugar : (unit -> int option)
   -> (unit -> int) 
   -> ((int, (int * get_count_handler * bool)) Hashtbl.t)
   -> policy 
-  -> Internal.pol
+  -> pol
 

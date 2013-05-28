@@ -1,5 +1,5 @@
 open Format
-open NetCore_Types.Internal
+open NetCore_Types
 open NetCore_Pattern
 
 

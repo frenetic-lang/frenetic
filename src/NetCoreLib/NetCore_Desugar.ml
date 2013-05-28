@@ -1,11 +1,10 @@
 open List
-open NetCore_Types
 open Packet
 open Format
-open Internal
+open NetCore_Types
 
   type get_packet_handler = 
-      OpenFlow0x01.switchId -> Internal.port -> packet -> Internal.action
+      OpenFlow0x01.switchId -> NetCore_Types.port -> packet -> NetCore_Types.action
   type get_count_handler = Int64.t -> Int64.t -> unit
 
   type predicate =
@@ -214,7 +213,7 @@ let desugar
   (genbucket : unit -> int)
   (get_count_handlers : (int, (int * get_count_handler * bool)) Hashtbl.t)
   (pol : policy) :
-  Internal.pol =
+  NetCore_Types.pol =
   let desugar_act act =
     match act with
     | Pass -> NetCore_Action.Output.pass

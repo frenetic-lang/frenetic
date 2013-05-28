@@ -6,9 +6,9 @@ module type ACTION = NetCore_Action.ACTION
 module type CLASSIFIER = sig
   type action
 
-  type t = (NetCore_Types.Internal.ptrn * action) list
+  type t = (NetCore_Types.ptrn * action) list
   
-  val scan : t -> NetCore_Types.Internal.port -> packet -> action
+  val scan : t -> NetCore_Types.port -> packet -> action
 
   val union : t -> t -> t
 

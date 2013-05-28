@@ -1,6 +1,6 @@
 open Packet
 open Printf
-open NetCore_Types.Internal
+open NetCore_Types
 open NetCore_Semantics
 open NetCore_Desugar
 open NetCore_Pretty
@@ -211,7 +211,7 @@ end
 
 module TestNetCore = struct
 
-  open NetCore_Types.Internal
+  open NetCore_Types
   open NetCore_Action.Output
   open NetCore_Pattern
   module C = NetCore_Classifier.Make (NetCore_Action.Output)
@@ -390,7 +390,7 @@ module Helper = struct
 
   module C = NetCore_Classifier.Make (NetCore_Action.Output)
   open NetCore_Types
-  open NetCore_Types.Internal
+  open NetCore_Types
   open Packet
 
   let desugar_policy pol =
@@ -461,7 +461,7 @@ end
 
 module TestFilters = struct
 
-  open NetCore_Types.Internal
+  open NetCore_Types
   open Helper
 
   let test1 =
@@ -478,7 +478,7 @@ end
 
 module TestMods = struct
 
-  open NetCore_Types.Internal
+  open NetCore_Types
   open Packet
   open Helper
 
@@ -500,7 +500,7 @@ module TestMods = struct
           , Seq ( Act ToAll
                 , Act (UpdateDlVlan ((Some 1), None)))) in
     let Pkt (sid, port, pkt, payload) = in_val in
-    let expected_vals = [Pkt (sid, NetCore_Types.Internal.All, pkt, payload)] in
+    let expected_vals = [Pkt (sid, NetCore_Types.All, pkt, payload)] in
     mkEvalTest "mod no effect 2" policy in_val expected_vals
 
   let test4 = 
@@ -525,7 +525,7 @@ end
 
 module TestSlices = struct
 
-  open NetCore_Types.Internal
+  open NetCore_Types
   open Packet
   open Helper
 

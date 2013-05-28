@@ -1,7 +1,7 @@
 open Packet
 open OpenFlow0x01
 
-open NetCore_Types.Internal
+open NetCore_Types
 
 type t = ptrn
 

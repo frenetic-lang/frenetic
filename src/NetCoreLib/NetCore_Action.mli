@@ -1,6 +1,6 @@
 open OpenFlow0x01
 open Packet
-open NetCore_Types.Internal
+open NetCore_Types
 
 module type ACTION = 
  sig 

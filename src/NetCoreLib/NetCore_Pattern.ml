@@ -1,6 +1,6 @@
 open Packet
 open OpenFlow0x01
-open NetCore_Types.Internal
+open NetCore_Types
 open NetCore_Wildcard
 
 type t = ptrn

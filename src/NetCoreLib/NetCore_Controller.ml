@@ -2,18 +2,13 @@ open Printf
 open Packet
 open OpenFlow0x01
 open NetCore_Types
-open NetCore_Types.Internal
-
 
 module Log = Frenetic_Log
 module SwitchSet = Set.Make (Int64)
 
-(* Internal policy type *)
-type pol = Internal.pol
-
 let (<&>) = Lwt.(<&>)
 
-let init_pol : pol = Internal.PoFilter Internal.PrNone
+let init_pol : pol = PoFilter PrNone
 
 (* Internal module for managing individual queries. *)
 module type QUERY = functor (Platform : OpenFlow0x01.PLATFORM) -> sig
@@ -21,9 +16,9 @@ module type QUERY = functor (Platform : OpenFlow0x01.PLATFORM) -> sig
   type t
 
   val create : xid
-            -> Internal.action_atom
+            -> action_atom
             -> int (* Time to wait between queries. *)
-            -> Internal.get_count_handler
+            -> get_count_handler
             -> Lwt_switch.t 
             -> SwitchSet.t 
             -> pol 
@@ -49,10 +44,10 @@ module Query (Platform : OpenFlow0x01.PLATFORM) = struct
   type t = 
     { (* Static. *)
       xid : xid
-    ; atom : NetCore_Types.Internal.action_atom
+    ; atom : NetCore_Types.action_atom
     ; time : float
-    ; cb : Internal.get_count_handler
-    ; policy : Internal.pol
+    ; cb : get_count_handler
+    ; policy : pol
       (* Mutable. *)
     ; counter_ids : counter_ids
     ; lock : Lwt_mutex.t
@@ -176,7 +171,7 @@ end
 
 module type MAKE  = functor (Platform : OpenFlow0x01.PLATFORM) -> 
   sig
-    val start_controller : NetCore_Types.Internal.pol NetCore_Stream.t -> unit Lwt.t
+    val start_controller : NetCore_Types.pol NetCore_Stream.t -> unit Lwt.t
   end
 
 module Make (Platform : OpenFlow0x01.PLATFORM) = struct
@@ -188,9 +183,9 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
   (* Per-policy state. *)
 
   let queries = ref []
-  let query_ids : (NetCore_Types.Internal.action_atom, int) Hashtbl.t =
+  let query_ids : (NetCore_Types.action_atom, int) Hashtbl.t =
     Hashtbl.create 200
-  let get_count_handlers : (int, (int * Internal.get_count_handler * bool)) Hashtbl.t = 
+  let get_count_handlers : (int, (int * get_count_handler * bool)) Hashtbl.t = 
     Hashtbl.create 200
 
   let bucket_cell = ref 0 
@@ -237,21 +232,20 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       (NetCore_Stream.to_stream pol_stream)
       
   let handle_packet_in sw pkt_in = 
-    let open Internal in
     let in_port = pkt_in.packetInPort in
     match Packet.parse pkt_in.packetInPacket with
       | None -> 
         let _ = Log.printf "NetCore_Controller" "unparsable packet\n%!" in
         Lwt.return ()
       | Some packet ->
-        let inp = Pkt (sw, Internal.Physical in_port, packet,
+        let inp = Pkt (sw, Physical in_port, packet,
                        match pkt_in.packetInBufferId with
                          | Some id -> Buf id
                          | None -> Data pkt_in.packetInPacket) in
         let full_action = NetCore_Semantics.eval !pol_now inp in
         let controller_action =
           NetCore_Action.Output.apply_controller full_action
-            (sw, Internal.Physical in_port, packet) in
+            (sw, Physical in_port, packet) in
         let action = match pkt_in.packetInReason with
           | ExplicitSend -> controller_action
           | NoMatch -> NetCore_Action.Output.par_action controller_action
@@ -311,7 +305,6 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     accept_switches pol_stream
 
   let rec extract_query_ids pol tbl = 
-    let open Internal in
     match pol with
     | PoAction atoms ->
       List.iter (fun atom -> match atom with
@@ -325,7 +318,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       extract_query_ids p1 tbl; extract_query_ids p2 tbl
 
   let make_query pol kill_switch atom qid : unit = 
-    let open NetCore_Types.Internal in
+    let open NetCore_Types in
     match atom with
     | ControllerQuery (time, cb) ->
       let xid = Int32.of_int qid in

@@ -1,4 +1,4 @@
-open NetCore_Types.Internal
+open NetCore_Types
 
 (** [new_nat public_ip] returns two related policy streams. The first
    is for outgoing traffic and the second is for incoming traffic. *)

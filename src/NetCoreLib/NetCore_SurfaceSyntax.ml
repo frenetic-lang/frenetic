@@ -1,4 +1,4 @@
-module Pol = NetCore_Types.Internal
+module Pol = NetCore_Types
 module Env = Map.Make (String)
 
 type pos = Lexing.position

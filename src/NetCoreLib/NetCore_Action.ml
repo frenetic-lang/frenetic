@@ -1,7 +1,7 @@
 open OpenFlow0x01
 open OpenFlow0x01.Action
 open Packet
-open NetCore_Types.Internal
+open NetCore_Types
 
 module type ACTION = sig
   type t
@@ -68,7 +68,7 @@ module Output = struct
   open List
   open Packet
   open NetCore_Pattern
-  open NetCore_Types.Internal
+  open NetCore_Types
 
   type action = action_atom list
 
