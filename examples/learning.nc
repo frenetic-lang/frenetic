@@ -1,3 +1,3 @@
 let l = learn in 
-  monitor_pol(l)
+  monitor_sw() | monitor_pol(l)
 

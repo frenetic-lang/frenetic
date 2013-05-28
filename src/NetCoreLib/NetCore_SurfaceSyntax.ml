@@ -6,6 +6,7 @@ type pos = Lexing.position
 type id = string
 
 type exp =
+  | HandleSwitchEvent of pos * (Pol.switchEvent -> unit)
   | Action of pos * Pol.action
   | Filter of pos * Pol.pred
   | Par of pos * exp * exp
@@ -50,6 +51,7 @@ let compile_pol2 f = function
                NetCore_Stream.map2 (fun p1 p2 -> f p1 p2) p1_stream p2_stream)
 
 let rec compile (env : env) = function
+  | HandleSwitchEvent (pos, f) -> Pol (Pol.HandleSwitchEvent f)
   | Par (pos, e1, e2) ->
     compile_pol2 (fun p1 p2 -> Pol.PoUnion (p1, p2))
       (compile env e1, compile env e2)

@@ -9,3 +9,5 @@ val eval_action : value -> action -> value list
 
 val eval : pol -> value -> action
 val classify : pol -> value -> value list
+
+val handle_switch_events : switchEvent -> pol -> unit

@@ -60,6 +60,7 @@
 %token IP
 %token MONITOR_POL
 %token MONITOR_TBL
+%token MONITOR_SW
 %token <string> STRING
 %token EOF
 
@@ -126,6 +127,9 @@ pol_atom :
     { Transform (symbol_start_pos (), NetCore_Monitoring.monitor_pol, $3) }
   | MONITOR_TBL LPAREN INT64 COMMA pol RPAREN
     { Transform (symbol_start_pos (), NetCore_Monitoring.monitor_tbl $3, $5) }
+  | MONITOR_SW LPAREN RPAREN 
+    { HandleSwitchEvent
+      (symbol_start_pos (), NetCore_Monitoring.monitor_switch_events) }
 
 pol_pred :  
   | pol_atom

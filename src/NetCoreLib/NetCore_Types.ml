@@ -67,12 +67,19 @@ type pred =
   | PrAll
   | PrNone
 
+type switchEvent =
+  | SwitchUp of switchId * OpenFlow0x01.features
+  | SwitchDown of switchId
+
 type pol =
+  | HandleSwitchEvent of (switchEvent -> unit)
   | PoAction of action
   | PoFilter of pred
   | PoUnion of pol * pol
   | PoSeq of pol * pol
   | PoITE of pred * pol * pol
 
+
 type value =
   | Pkt of switchId * port * packet * OpenFlow0x01.payload
+

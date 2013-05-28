@@ -27,6 +27,7 @@ let eval_action inp act =
     (NetCore_Action.Output.apply_action act (sw, pt, pk))
 
 let rec eval pol pkt = match pol with
+  | HandleSwitchEvent _ -> drop
   | PoAction action -> action
   | PoFilter pred0 ->
     let Pkt (sw, pt, pk, buf) = pkt in
@@ -46,3 +47,35 @@ let rec eval pol pkt = match pol with
       eval else_pol pkt
 
 let classify pol pkt = eval_action pkt (eval pol pkt)
+
+(* Interprets a predicate as a predicate on switches. PrHdr returns true *)
+let rec sw_pred sw = function
+  | PrHdr pat -> true
+  | PrOnSwitch sw' -> sw = sw'
+  | PrOr (p1, p2) -> sw_pred sw p1 || sw_pred sw p2
+  | PrAnd (p1, p2) -> sw_pred sw p1 && sw_pred sw p2
+  | PrNot p -> not (sw_pred sw p)
+  | PrAll -> true
+  | PrNone -> false
+
+let event_switch = function
+  | SwitchUp (sw, _) -> sw
+  | SwitchDown sw -> sw
+
+let rec apply_switch_events evt = function
+  | PoAction _ -> false
+  | PoFilter pred -> sw_pred (event_switch evt) pred
+  | PoUnion (pol1, pol2) ->
+    apply_switch_events evt pol1 || apply_switch_events evt pol2
+  | PoSeq (pol1, pol2) ->
+    apply_switch_events evt pol1 && apply_switch_events evt pol2
+  | PoITE (pred, pol1, pol2) ->
+    if sw_pred (event_switch evt) pred then 
+      apply_switch_events evt pol1 
+    else
+      apply_switch_events evt pol2
+  | HandleSwitchEvent handler -> handler evt; true (* return boolean? *)
+
+let handle_switch_events evt pol =
+  let _ = apply_switch_events evt pol in
+  ()

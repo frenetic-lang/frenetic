@@ -29,6 +29,7 @@ let rec compile_pred pr sw : BoolClassifier.t =
 
 let rec compile_pol p sw =
   match p with
+  | HandleSwitchEvent _ -> [(NetCore_Pattern.all, NetCore_Action.Output.drop)]
   | PoAction action ->
     fold_right 
       (fun e0 tbl -> 

@@ -1,3 +1,5 @@
+open NetCore_Types
+
 (* Yes! This is user-requesting monitoring, so just print to stdout!!! *)
 let printf = Printf.printf
 
@@ -14,3 +16,7 @@ let monitor_tbl sw pol =
       (OpenFlow0x01.Action.sequence_to_string a))
     tbl;
   pol
+
+let monitor_switch_events = function
+  | SwitchUp (sw, _) -> printf "switch %Ld connected.\n%!" sw
+  | SwitchDown sw -> printf "switch %Ld disconnected.\n%!" sw

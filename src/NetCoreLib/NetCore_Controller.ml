@@ -278,34 +278,47 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       in
     handle_switch_messages sw
 
-  let switch_thread sw pol_stream =
+  let switch_thread features pol_stream =
+    let sw = features.switch_id in
     switches := SwitchSet.add sw !switches;
     List.iter (Q.refresh_switches !switches) !queries;
     (try_lwt
+      lwt _ = Lwt.wrap2 NetCore_Semantics.handle_switch_events
+        (SwitchUp (sw, features))
+        (NetCore_Stream.now pol_stream) in
       Lwt.pick [ install_new_policies sw pol_stream;
                  handle_switch_messages sw ]
-     with exn ->
-       begin
-         Log.printf "[NetCore_Controller]" "unhandled exception %s.\n%!"
-           (Printexc.to_string exn);
-         Lwt.return ()
-       end) >>
+    with exn ->
+      begin
+        match exn with
+          | OpenFlow0x01_Platform.SwitchDisconnected _ ->
+            (* TODO(arjun): I can assume sw itself disconnected? *)
+            Lwt.return ()
+          | _ ->
+            (Log.printf "[NetCore_Controller]" "unhandled exception %s.\n%!"
+              (Printexc.to_string exn);
+             Lwt.return ())
+      end) >>
     begin
       switches := SwitchSet.remove sw !switches;
+      Lwt.async
+        (fun () -> (* TODO(arjun): 
+                      confirm this gracefully discards the exception *)
+          Lwt.wrap2 NetCore_Semantics.handle_switch_events 
+            (SwitchDown sw)
+            (NetCore_Stream.now pol_stream));
       List.iter (Q.remove_switch sw) !queries;
-      Log.printf "NetCore_Controller" "cleaning up switch %Ld.\n%!" sw;
       Lwt.return ()
     end
 
   let rec accept_switches pol_stream = 
     lwt feats = Platform.accept_switch () in
-    let sw = feats.switch_id in 
-    Log.printf "NetCore_Controller" "switch %Ld connected\n%!" sw;
-    Lwt.async (fun () -> switch_thread sw pol_stream);
+    Lwt.async (fun () -> switch_thread feats pol_stream);
     accept_switches pol_stream
 
   let rec extract_query_ids pol tbl = 
     match pol with
+    | HandleSwitchEvent _ -> ()
     | PoAction atoms ->
       List.iter (fun atom -> match atom with
         | ControllerQuery (time, cb) -> Hashtbl.replace tbl atom (genbucket ())

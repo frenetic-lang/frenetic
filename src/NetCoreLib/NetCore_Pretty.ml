@@ -116,6 +116,7 @@ let action_to_string output_list =
 
 
 let rec format_pol fmt pol = match pol with
+  | HandleSwitchEvent _ -> fprintf fmt "HandleSwitchEvent _"
   | PoAction a -> fprintf fmt "ACTION"
   (* fprintf fmt "@[PoAction@;<1 2>@[%s@]@]" (NetCore_Action.Output.to_string a) *)
   | PoFilter pr -> 

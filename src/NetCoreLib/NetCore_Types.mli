@@ -46,8 +46,7 @@ type output = {
   outPort : port 
 }
 
-type get_packet_handler = 
-    OpenFlow0x01.switchId -> port -> packet -> action
+type get_packet_handler = switchId -> port -> packet -> action
 
   (* Packet count -> Byte count -> unit. *)
 and get_count_handler = Int64.t -> Int64.t -> unit
@@ -68,12 +67,18 @@ type pred =
   | PrAll
   | PrNone
 
+type switchEvent =
+  | SwitchUp of switchId * OpenFlow0x01.features
+  | SwitchDown of switchId
+
 type pol =
+  | HandleSwitchEvent of (switchEvent -> unit)
   | PoAction of action
   | PoFilter of pred
   | PoUnion of pol * pol
   | PoSeq of pol * pol
   | PoITE of pred * pol * pol
+
 
 type value =
   | Pkt of switchId * port * packet * OpenFlow0x01.payload
