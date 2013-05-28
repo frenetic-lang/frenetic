@@ -3,6 +3,8 @@ open NetCore_Types
 open NetCore_Pattern
 
 
+let to_string_exact = NetCore_Wildcard.to_string_exact
+
 let format_list fmt sep lst =
   let open Format in
       let rec loop fmt lst = match lst with
@@ -12,6 +14,11 @@ let format_list fmt sep lst =
         | x :: lst' -> fprintf fmt "@[%s%s@]@[%a@]" x sep loop lst' in
       fprintf fmt "@[%a@]" loop lst
 
+let port_to_string = function
+  | Physical pid -> "Physical " ^ (string_of_int pid)
+  | All -> "All"
+  | Here -> "Here"
+
 let format_pattern fmt pat =
   let open Format in
       if is_all pat then
@@ -20,18 +27,18 @@ let format_pattern fmt pat =
         fprintf fmt "<none>"
       else 
         format_list fmt " && "
-          [ DlAddrWildcard.to_string_exact "dlSrc = " pat.ptrnDlSrc;
-            DlAddrWildcard.to_string_exact "dlDst = " pat.ptrnDlDst;
-            DlTypWildcard.to_string_exact "dlTyp = " pat.ptrnDlType;
-            DlVlanWildcard.to_string_exact "dlVlan = " pat.ptrnDlVlan;
-            DlVlanPcpWildcard.to_string_exact "dlVlanPcp = " pat.ptrnDlVlanPcp;
-            NwAddrWildcard.to_string_exact "nwSrc = " pat.ptrnNwSrc;
-            NwAddrWildcard.to_string_exact "nwDst = " pat.ptrnNwDst;
-            NwProtoWildcard.to_string_exact "nwProto = " pat.ptrnNwProto;
-            NwTosWildcard.to_string_exact "nwTos = " pat.ptrnNwTos;
-            TpPortWildcard.to_string_exact "tpSrc = " pat.ptrnTpSrc;
-            TpPortWildcard.to_string_exact "tpDst = " pat.ptrnTpDst;
-            PortWildcard.to_string_exact "inPort = " pat.ptrnInPort ]
+          [ to_string_exact Packet.string_of_mac "dlSrc = " pat.ptrnDlSrc;
+            to_string_exact Packet.string_of_mac "dlDst = " pat.ptrnDlDst;
+            to_string_exact string_of_int "dlTyp = " pat.ptrnDlType;
+            to_string_exact Packet.dlVlan_to_string "dlVlan = " pat.ptrnDlVlan;
+            to_string_exact string_of_int "dlVlanPcp = " pat.ptrnDlVlanPcp;
+            to_string_exact Packet.string_of_ip "nwSrc = " pat.ptrnNwSrc;
+            to_string_exact Packet.string_of_ip "nwDst = " pat.ptrnNwDst;
+            to_string_exact string_of_int "nwProto = " pat.ptrnNwProto;
+            to_string_exact string_of_int "nwTos = " pat.ptrnNwTos;
+            to_string_exact string_of_int "tpSrc = " pat.ptrnTpSrc;
+            to_string_exact string_of_int "tpDst = " pat.ptrnTpDst;
+            to_string_exact port_to_string "inPort = " pat.ptrnInPort ]
           
 let pattern_to_string x =
   let buf = Buffer.create 100 in
@@ -130,11 +137,6 @@ let rec pol_to_string pred =
   format_pol fmt pred;
   fprintf fmt "@?";
   Buffer.contents buf
-
-let port_to_string = function
-  | Physical pid -> "Physical " ^ (string_of_int pid)
-  | All -> "All"
-  | Here -> "Here"
 
 let value_to_string = function 
   | Pkt (sid, port, pkt, pay) ->

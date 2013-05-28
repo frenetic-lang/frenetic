@@ -16,13 +16,11 @@ module type Wildcard = sig
   val is_empty : t -> bool
   val is_exact : t -> bool
   val to_option : t -> a option option
-  val to_string_exact : string -> t -> string
 end
 
 module type OrderedType = sig
   type t 
   val compare : t -> t -> int
-  val to_string : t -> string
 end
 
 module Make (Ord : OrderedType) = struct
@@ -72,10 +70,10 @@ module Make (Ord : OrderedType) = struct
     | WildcardExact a -> Some (Some a)
     | WildcardNone -> None
 
-  let to_string_exact label = function
-    | WildcardExact a -> 
-      Format.sprintf "@[%s = %s@]" label (Ord.to_string a)
-    | WildcardAll -> ""
-    | WildcardNone -> ""
-
 end
+
+let to_string_exact ts label = function
+  | WildcardExact a -> 
+    Format.sprintf "@[%s = %s@]" label (ts a)
+  | WildcardAll -> ""
+  | WildcardNone -> ""
