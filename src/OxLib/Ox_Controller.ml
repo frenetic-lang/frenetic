@@ -58,7 +58,7 @@ struct
     let callback n thk = 
       Lwt.async (fun () -> 
 	Lwt_unix.sleep n >>
-	Lwt.wrap thk)
+        Lwt.wrap thk)
   end
 
   module Handlers = OxModule(OxPlatform) 
@@ -100,8 +100,8 @@ struct
       mfApplyToPacket = None;
       mfOutPort = None;
       mfCheckOverlap = false } in 
-    lwt _ = Platform.send_to_switch sw Int32.zero (FlowModMsg delete_all) in 
-    lwt _ = Platform.send_to_switch sw Int32.one BarrierRequest in
+    lwt _ = Platform.send_to_switch sw 0l (FlowModMsg delete_all) in 
+    lwt _ = Platform.send_to_switch sw 1l BarrierRequest in
     let _ = Handlers.switchConnected sw in 
     accept_switches () <&> switch_thread sw
 
