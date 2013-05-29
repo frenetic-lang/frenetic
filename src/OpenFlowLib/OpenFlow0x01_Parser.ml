@@ -408,7 +408,8 @@ module Features = struct
       (get_ofp_switch_features_action buf) in
     let _ = Cstruct.shift buf sizeof_ofp_switch_features in
     let portIter = Cstruct.iter (fun buf -> Some PortDesc.sizeof_ofp_phy_port) PortDesc.parse buf in
-    let ports = Cstruct.fold (fun acc bits -> bits :: acc) portIter [] in
+    (* let ports = Cstruct.fold (fun acc bits -> bits :: acc) portIter [] in *)
+    let ports = [] in
     { switch_id; 
       num_buffers; 
       num_tables; 
