@@ -45,39 +45,36 @@ Predicates:
 
 Policies:
 
-```
+```ocaml
 
-pol_atom :
-  | LPAREN pol RPAREN 
-  | ID 
-  | INT64 
-  | PASS 
-  | DROP 
-  | ALL 
-  | MONITOR_POL LPAREN pol RPAREN
-  | MONITOR_TBL LPAREN INT64 COMMA pol RPAREN
-  | MONITOR_SW LPAREN RPAREN 
+<id> ::= [A-Z a-z _] [A-Z a-z _ 0-9]*
 
-pol_pred :  
-  | pol_atom
-  | IF pred THEN pol_pred ELSE pol_pred
+<module> ::= learn ( )
+           | nat ( publicIP = <ip-addr> )
 
-pol_seq_list :
-  | pol_pred 
-  | pol_pred SEMI pol_seq_list 
+<apol> ::= ( <pol> )
+         | <id>
+         | <int> (* haha, the syntax for forwarding, atrocious *)
+         | pass
+         | drop
+         | all (* forward on all ports, not at all obvious *)
+         | monitor_pol ( <pol> )
+         | monitor_tbl ( <switch-id> , <pol> )
+         | monitor_sw ( )
 
-pol_par_list :
-  | pol_pred
-  | pol_pred BAR pol_par_list
+<cpol> ::= <apol>
+        | if <pred> then <cpol> else <cpol>
 
-pol :
-  | pol_pred 
-  | pol_pred BAR pol_par_list
-  | pol_pred SEMI pol_seq_list
-  | LET ID EQUALS LEARNING IN pol
-  | LET ID COMMA ID EQUALS NAT LPAREN PUBLICIP EQUALS IPADDR RPAREN IN pol
+<seq_pol_list> ::= <cpol>
+                 | <cpol> ; <seq_pol_list>
 
-program
-  : pol EOF { $1 }
+<par_pol_list> ::= <cpol>
+                 | <cpol> | <par_pol_list>
 
+<pol> ::= <cpol>
+        | <cpol> ; <seq_pol_list>
+        | <cpol> | <par_pol_list>
+        | let <id_1>, ... <id_n> = <module>(<arg_1> ,... , <arg_m>)
+
+<program> ::= <pol>
 ```
