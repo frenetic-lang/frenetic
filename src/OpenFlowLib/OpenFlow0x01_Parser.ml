@@ -366,6 +366,7 @@ module PortReason = struct
       | Some OFPPR_ADD -> PortAdd
       | Some OFPPR_DELETE -> PortDelete
       | Some OFPPR_MODIFY -> PortModify
+      | None -> raise (Unparsable "unrecognized port change reason code")
 
   let to_string rea = match rea with
     | PortAdd -> "PortAdd"
@@ -963,14 +964,15 @@ module Message = struct
     | PacketOutMsg msg -> 
       let _ = PacketOut.marshal msg out in
       ()
-    | PacketInMsg _ -> () (* TODO(arjun): wtf? *)
-    | FeaturesReply _ -> () (* TODO(arjun): wtf? *)
+    (* | PacketInMsg _ -> () (\* TODO(arjun): wtf? *\) *)
+    (* | FeaturesReply _ -> () (\* TODO(arjun): wtf? *\) *)
     | BarrierRequest -> ()
     | BarrierReply -> ()
     | StatsRequestMsg msg -> 
       let _ = StatsRequest.marshal msg out in
       ()
     | StatsReplyMsg _ -> ()
+    | _ -> failwith "Not yet implemented"
 
   let marshal (xid : xid) (msg : t) : string = 
     let sizeof_buf = sizeof_ofp_header + sizeof_body msg in
