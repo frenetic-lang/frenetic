@@ -45,8 +45,7 @@ Predicates:
 
 Policies:
 
-```ocaml
-
+```
 <id> ::= [A-Z a-z _] [A-Z a-z _ 0-9]*
 
 <module> ::= learn ( )
