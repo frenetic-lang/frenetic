@@ -15,5 +15,6 @@ NetCore_Pretty
 NetCore_Semantics
 NetCore_Stream
 NetCore_SurfaceSyntax
+NetCore_Topo
 NetCore_Types
 NetCore_Wildcard
