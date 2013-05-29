@@ -396,8 +396,6 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
 
   let switch_thread features pol_stream =
     let sw = features.switch_id in
-    Queries.stop;
-    Queries.start !pol_now;
     Queries.add_switch sw;
     (try_lwt
       lwt _ = Lwt.wrap2 NetCore_Semantics.handle_switch_events
