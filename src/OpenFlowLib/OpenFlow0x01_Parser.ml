@@ -59,13 +59,13 @@ cenum ofp_flow_mod_command {
 
 
 cstruct ofp_flow_mod {
-  uint64_t cookie;         
-  uint16_t command;        
-  uint16_t idle_timeout;   
-  uint16_t hard_timeout;   
-  uint16_t priority;       
-  uint32_t buffer_id;      
-  uint16_t out_port;       
+  uint64_t cookie;
+  uint16_t command;
+  uint16_t idle_timeout;
+  uint16_t hard_timeout;
+  uint16_t priority;
+  uint32_t buffer_id;
+  uint16_t out_port;
   uint16_t flags
 } as big_endian
 
@@ -889,6 +889,7 @@ module Message = struct
   let parse (hdr : Header.t) (buf : Cstruct.t) : (xid * t) option =
     let msg = match hdr.Header.typ with
       | HELLO -> Some (Hello buf)
+      | ERROR -> Some (ErrorMsg (Error.parse buf))
       | ECHO_REQ -> Some (EchoRequest buf)
       | ECHO_RESP -> Some (EchoReply buf)
       | FEATURES_REQ -> Some (FeaturesRequest)
@@ -906,6 +907,7 @@ module Message = struct
 
   let msg_code_of_message (msg : t) : msg_code = match msg with
     | Hello _ -> HELLO
+    | ErrorMsg _ -> ERROR
     | EchoRequest _ -> ECHO_REQ
     | EchoReply _ -> ECHO_RESP
     | FeaturesRequest -> FEATURES_REQ
@@ -921,6 +923,7 @@ module Message = struct
 
   let to_string (msg : t) : string = match msg with 
     | Hello _ -> "Hello"
+    | ErrorMsg _ -> "Error"
     | EchoRequest _ -> "EchoRequest"
     | EchoReply _ -> "EchoReply"
     | FeaturesRequest -> "FeaturesRequest"

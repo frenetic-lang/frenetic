@@ -396,6 +396,7 @@ type error =
 
 type message =
   | Hello of bytes
+  | ErrorMsg of error
   | EchoRequest of bytes
   | EchoReply of bytes
   | FeaturesRequest

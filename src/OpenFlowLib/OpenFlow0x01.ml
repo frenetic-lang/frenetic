@@ -949,6 +949,7 @@ let string_of_statsReply r = match r with
 
 type message =
   | Hello of bytes
+  | ErrorMsg of error
   | EchoRequest of bytes
   | EchoReply of bytes
   | FeaturesRequest
