@@ -101,7 +101,7 @@ mininet> h20 curl 10.0.0.30 # should hang (hit Ctrl + C)
 8. Compose the current policy with a new policy that allows connections from outside the NAT to h30.
 
 
-Dynamic NetCore Programing 1: Mac-Learning
+Dynamic NetCore Programing 2: Mac-Learning
 =====================================
 
 Explain how Mac-Learning works (composition)
