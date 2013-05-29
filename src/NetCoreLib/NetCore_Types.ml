@@ -46,6 +46,18 @@ type output = {
   outPort : port 
 }
 
+let id = 
+  { outDlSrc = None;
+    outDlDst = None;
+    outDlVlan = None;
+    outDlVlanPcp = None;
+    outNwSrc = None;
+    outNwDst = None;
+    outNwTos = None;
+    outTpSrc = None;
+    outTpDst = None;
+    outPort = Here }
+
 type get_packet_handler = switchId -> port -> packet -> action
 
   (* Packet count -> Byte count -> unit. *)

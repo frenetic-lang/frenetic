@@ -37,7 +37,7 @@ struct
 	OxPlatform.callback 5.0 
 	  (fun () -> 
 	    Printf.printf "Sending stats request to %Ld\n%!" sw; 
-	    OxPlatform.statsRequest Int32.zero sw 
+	    OxPlatform.statsRequest 0l sw 
 	      (AggregateFlowReq { 
 		of_match = Match.all;
 		table_id = 0xff;
@@ -57,6 +57,7 @@ struct
       | AggregateFlowRep afs -> 
 	Printf.printf "Packets: %d\nBytes: %d\n; Flows: %d\n%!"
 	  afs.packet_count afs.byte_count afs.flow_count;
+	(* JNF: callback at time 5 *)
 	send_stats_request sw
       | _ -> 
 	()

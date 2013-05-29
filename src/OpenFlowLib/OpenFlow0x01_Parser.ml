@@ -380,6 +380,7 @@ module StatsRequest = struct
     | IndividualFlowReq req -> 
       header_size + (IndividualFlowRequest.sizeof req)
     | _ -> 
+      (* CNS: Please implement me!! *)
       failwith (Printf.sprintf "NYI: StatsRequest.sizeof %s" (to_string msg))
 
   let ofp_stats_type_of_request req = match req with
