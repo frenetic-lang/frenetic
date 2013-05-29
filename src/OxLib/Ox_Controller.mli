@@ -16,6 +16,7 @@ sig
   val packetIn : xid -> switchId -> packetIn -> unit
   val barrierReply : xid -> unit
   val statsReply : xid -> switchId -> statsReply -> unit 
+  val portStatus : xid -> switchId -> portStatus -> unit 
 end
 
 module Make : 

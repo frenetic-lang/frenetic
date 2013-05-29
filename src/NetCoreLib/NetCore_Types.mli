@@ -46,6 +46,8 @@ type output = {
   outPort : port 
 }
 
+val id : output
+
 type get_packet_handler = switchId -> port -> packet -> action
 
   (* Packet count -> Byte count -> unit. *)

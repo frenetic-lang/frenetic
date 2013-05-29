@@ -23,13 +23,14 @@ sig
   val packetIn : xid -> switchId -> packetIn -> unit
   val barrierReply : xid -> unit
   val statsReply : xid -> switchId -> statsReply -> unit 
+  val portStatus : xid -> switchId -> portStatus -> unit 
 end
 
 module Make (Platform:OpenFlow0x01.PLATFORM) (OxModule:OXMODULE) = 
 struct
   
   (* global state *)
-  let pending = ref []
+  let pending : (unit -> unit Lwt.t) list ref = ref []
   let defer thk = pending := thk::!pending 
   let reset () = pending := []
   let go thk = thk ()  
@@ -55,7 +56,7 @@ struct
       defer (fun () -> 
 	Platform.send_to_switch sw xid BarrierRequest)
 
-    let callback n thk = 
+    let callback (n:float) (thk:unit -> unit) : unit = 
       Lwt.async (fun () -> 
 	Lwt_unix.sleep n >>
         Lwt.wrap thk)
@@ -63,6 +64,7 @@ struct
 
   module Handlers = OxModule(OxPlatform) 
 
+  (* JNF: refactor to make this a tailcall *)
   let rec switch_thread sw = 
     try_lwt
       lwt _ = process_deferred () in 
@@ -76,6 +78,10 @@ struct
 	  switch_thread sw
         | (xid, StatsReplyMsg rep) ->
           Handlers.statsReply xid sw rep;
+          switch_thread sw
+        | (xid, PortStatusMsg ps) ->
+	  Log.printf "Ox_Controller" "port status\n%!";
+          Handlers.portStatus xid sw ps;
           switch_thread sw
         | _ -> 
           switch_thread sw 
@@ -102,8 +108,9 @@ struct
       mfCheckOverlap = false } in 
     lwt _ = Platform.send_to_switch sw 0l (FlowModMsg delete_all) in 
     lwt _ = Platform.send_to_switch sw 1l BarrierRequest in
+    (* JNF: wait for barrier reply? *)
     let _ = Handlers.switchConnected sw in 
-    accept_switches () <&> switch_thread sw
+    Lwt.pick [accept_switches (); switch_thread sw]
 
   let start_controller = accept_switches
 end

@@ -16,12 +16,21 @@ let byte = ['0'-'9' 'a'-'f' 'A'-'F']  ['0'-'9' 'a'-'f' 'A'-'F']
 let decbyte = 
   (['0'-'9'] ['0'-'9'] ['0'-'9']) | (['0'-'9'] ['0'-'9']) | ['0'-'9']
 
-rule token = parse
-  | "(*" { block_comment lexbuf }
-  | blank+ { token lexbuf }
-  | '\n' { new_line lexbuf; token lexbuf }
-  | '\r' { new_line lexbuf; token lexbuf }
-  | "\r\n" { new_line lexbuf; token lexbuf }
+rule literate = parse
+  | "    " { token true lexbuf }
+  | '\n' { new_line lexbuf; literate lexbuf }
+  | _ { literate_text lexbuf }
+
+and literate_text = parse
+  | '\n' { new_line lexbuf; literate lexbuf }
+  | eof { EOF }
+  | [^ '\n'] { literate_text lexbuf }
+
+and token is_literate = parse
+  | "(*" { block_comment is_literate lexbuf }
+  | blank+ { token is_literate lexbuf }
+  | '\n' { new_line lexbuf; 
+           if is_literate then literate lexbuf else token false lexbuf }
   | eof { EOF }
   | "," { COMMA }
   | "nat" { NAT }
@@ -83,8 +92,11 @@ rule token = parse
   | "publicIP" { PUBLICIP }
   | id as x { ID x } (* by going last, we lex to LEARN, NAT, etc. instead *)
 
-and block_comment = parse
-  | "*)" { token lexbuf }
-  | "*" { block_comment lexbuf }
-  | [ '\n' '\r' ] { new_line lexbuf; block_comment lexbuf }
-  | ([^ '\n' '\r' '*'])+  { block_comment lexbuf }
+and block_comment is_literate = parse
+  | "*)" {  token is_literate lexbuf }
+  | "*" { block_comment is_literate lexbuf }
+  | [ '\n' ] { new_line lexbuf;
+               if is_literate 
+               then literate lexbuf 
+               else block_comment is_literate lexbuf }
+  | ([^ '\n' '*'])+  { block_comment is_literate lexbuf }

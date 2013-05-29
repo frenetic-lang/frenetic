@@ -130,6 +130,9 @@ let rec recv_from_switch (sw : switchId) : (xid * message) Lwt.t =
               send_to_switch sw xid (EchoReply bytes) >>
               recv_from_switch sw
             end
+          | Some (xid, PortStatusMsg foo) -> 
+	    Log.printf "platform" "PortStatusMsg\n%!";
+            Lwt.return (xid, PortStatusMsg foo)	      
           | Some (xid, msg) -> 
             Lwt.return (xid, msg)
           | None -> 

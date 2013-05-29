@@ -358,6 +358,9 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
           "received unexpected stats reply type (%s)"
           (OpenFlow0x01.string_of_statsReply r) in
           Lwt.return ()
+      | (xid, PortStatusMsg msg) ->
+	let _ = Log.printf "NetCore_Controller" "received %s" (OpenFlow0x01_Parser.PortStatus.to_string msg) in
+	Lwt.return ()
       | _ -> Lwt.return ()
       in
     handle_switch_messages sw
@@ -407,12 +410,32 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     let _ = push_pol (Some pol) in
     accept_policies push_pol sugared_pol_stream <&> Queries.start pol
 
-  let start_controller pol = 
+  (** emits packets synthesized at the controller. Produced packets are
+      subject to the current NetCore policy. *)
+  let emit_packets pkt_stream pol_stream = 
+    let emit_pkt (sw, pt, bytes) = match Packet.parse bytes with
+      | None -> 
+        Log.printf "NetCore_Controller" "cannot pars synth packet\n%!";
+        Lwt.return ()
+      | Some pkt -> 
+        let actions = NetCore_Semantics.eval
+          (NetCore_Stream.now pol_stream) (* TODO(arjun): glitch? *)
+          (Pkt (sw, Physical pt, pkt, Packet bytes)) in
+        let msg = {
+          pktOutBufOrBytes = Packet bytes;
+          pktOutPortId = None;
+          pktOutActions = NetCore_Action.Output.as_actionSequence None actions
+        } in
+        Platform.send_to_switch sw 0l (PacketOutMsg msg) in
+    Lwt_stream.iter_s emit_pkt pkt_stream
+
+  let start_controller pkt_stream pol = 
     let (pol_stream, push_pol) = Lwt_stream.create () in
     let (stream_lwt, pol_netcore_stream) =
       NetCore_Stream.from_stream init_pol pol_stream in
     Lwt.pick
       [ accept_switches pol_netcore_stream;
+        emit_packets pkt_stream pol_netcore_stream;
         accept_policies
           push_pol (NetCore_Stream.to_stream pol);
         stream_lwt ]

@@ -1,6 +1,8 @@
-open Syntax.External
+open NetCore_Types
+open Unix
 
 module Sat = struct
+
 type zPacket = 
   ZPacket of Int64.t * int * Int64.t * Int64.t
 
@@ -172,21 +174,20 @@ let serialize_program (ZProgram (decls)) =
 
 let solve prog = 
   let s = serialize_program prog in 
-  (* let _ = Misc.Log.printf "--- DEBUG ---\n%s\n%!" s in  *)
-  let ch = open_out ".z3.in" in 
-  let _ = output_string ch s in 
-  let _ = flush ch in 
-  let _ = close_out ch in 
-  let _ = Sys.command "z3 -smt2 -nw .z3.in > .z3.out" in 
-  let ch = open_in ".z3.out" in 
-  let bs = in_channel_length ch in 
-  let r = String.create bs in 
-  let _ = really_input ch r 0 bs in 
+  let z3_out,z3_in = open_process "z3 -smt2 -nw" in 
+  let _ = output_string z3_in s in 
+  let _ = flush z3_in in 
+  let _ = close_out z3_in in 
+  let n = in_channel_length z3_out in 
+  let r = String.create n in 
+  really_input z3_out r 0 n;
   r = "sat\n"
 end
 
+open Sat
+
 (* Topology *)
-type link = Link of OpenFlow0x01.Types.switchId * Packet.Types.portId
+type link = Link of OpenFlow0x01.switchId * Packet.portId
 
 type topology = Topology of (link * link) list
 
@@ -202,40 +203,27 @@ let packet_field (field:string) (pkt:zVar) (num:zTerm) : zFormula =
   ZEquals(TFunction(field, [TVar pkt]), num)
 
 (* Predicates *)
-let rec encode_predicate (pred:predicate) (pkt:zVar) : zFormula =
-  match pred with
-  | All -> 
+let encode_pattern (pat:ptrn) : zFormula = 
+  failwith "Not yet implemented" 
+
+let rec encode_predicate (pr:pred) (pkt:zVar) : zFormula =
+  match pr with
+  | PrAll -> 
     ZTrue
-  | NoPackets ->
+  | PrNone ->
     ZFalse
-  | Not pred1 ->
-    ZNot(encode_predicate pred1 pkt)
-  | And (pred1, pred2) ->
-    ZAnd([encode_predicate pred1 pkt;
-          encode_predicate pred2 pkt])
-  | Or(pred1, pred2) -> 
-    ZOr([encode_predicate pred1 pkt;
-          encode_predicate pred2 pkt])
-  | DlSrc mac -> 
-    packet_field "DlSrc" pkt (TInt mac)
-  | DlDst mac -> 
-    packet_field "DlSrc" pkt (TInt mac)
-  | DlVlan (Some vlan) -> 
-    packet_field "DlVlan" pkt (TInt (Int64.of_int vlan))
-  | DlVlan None -> 
-    failwith "Not yet implemented"
-  | SrcIP ip -> 
-    packet_field "SrcIP" pkt (TInt (Int64.of_int32 ip))
-  | DstIP ip -> 
-    packet_field "DstIP" pkt (TInt (Int64.of_int32 ip))
-  | TcpSrcPort port -> 
-    packet_field "TcpSrcPort" pkt (TInt (Int64.of_int port))
-  | TcpDstPort port -> 
-    packet_field "TcpDstPort" pkt (TInt (Int64.of_int port))
-  | InPort portId -> 
-    packet_field "InPort" pkt (TInt (Int64.of_int portId))
-  | Switch switchId -> 
-    packet_field "Switch" pkt (TInt switchId)
+  | PrOnSwitch sw -> 
+    packet_field "Switch" pkt (TInt sw)
+  | PrNot pr1 ->
+    ZNot(encode_predicate pr1 pkt)
+  | PrAnd (pr1, pr2) ->
+    ZAnd([encode_predicate pr1 pkt;
+          encode_predicate pr2 pkt])
+  | PrOr(pr1, pr2) -> 
+    ZOr([encode_predicate pr1 pkt;
+         encode_predicate pr2 pkt])
+  | PrHdr ptrn -> 
+    encode_pattern ptrn
           
 let equal_field (field:string) (pkt1:zVar) (pkt2:zVar) : zFormula list = 
   let num = TVar (fresh SInt) in 
@@ -243,23 +231,6 @@ let equal_field (field:string) (pkt1:zVar) (pkt2:zVar) : zFormula list =
 
 let equals (fields:string list) (pkt1:zVar) (pkt2:zVar) : zFormula list = 
   List.fold_left (fun acc field -> equal_field field pkt1 pkt2 @ acc) [] fields
-
-let action_forwards (act:action) (pkt1:zVar) (pkt2:zVar) : zFormula = 
-  match act with 
-  | To pId ->
-    ZAnd(equals [ "Switch"; "DlSrc"; "DlDst" ] pkt1 pkt2 @ 
-         [packet_field "InPort" pkt2 (TInt (Int64.of_int pId))])
-  | ToAll ->
-    let num1 = TVar (fresh SInt) in
-    let num2 = TVar (fresh SInt) in
-    ZAnd(equals [ "Switch"; "DlSrc"; "DlDst" ] pkt1 pkt2 @
-           [packet_field "InPort" pkt1 num1;
-            packet_field "InPort" pkt2 num2;
-            ZNot (ZEquals (num1, num2))])
-  | GetPacket gph ->
-    ZFalse
-  | _ -> 
-    failwith "action_forwards: not yet implemented"
 
 let topology_forwards (Topology topo:topology) (pkt1:zVar) (pkt2:zVar) : zFormula = 
   let eq = equals ["DlSrc"; "DlDst"] pkt1 pkt2 in 
@@ -273,26 +244,27 @@ let topology_forwards (Topology topo:topology) (pkt1:zVar) (pkt2:zVar) : zFormul
             @ acc)
           [] topo)
 
-let rec policy_forwards (pol:policy) (pkt1:zVar) (pkt2:zVar) : zFormula = 
+let rec policy_forwards (pol:pol) (pkt1:zVar) (pkt2:zVar) : zFormula = 
   match pol with
-  | Act (action) -> 
-    action_forwards action pkt1 pkt2
-  | Par (pol1, pol2) ->
+  | PoAction (acts) -> 
+    failwith "Not yet implemented"
+  | PoFilter pr ->
+    let eq = equals ["Switch"; "InPort"; "DlSrc"; "DlDst"] pkt1 pkt2 in 
+    ZAnd(encode_predicate pr pkt1::eq)
+  | PoUnion (pol1, pol2) ->
     ZOr([ policy_forwards pol1 pkt1 pkt2
         ; policy_forwards pol2 pkt1 pkt2 ])
-  | Seq (pol1, pol2) ->
+  | PoSeq (pol1, pol2) ->
     let pkt' = fresh SPacket in 
     ZAnd([policy_forwards pol1 pkt1 pkt';
           policy_forwards pol2 pkt' pkt2])
-  | Filter pred ->
-    let eq = equals ["Switch"; "InPort"; "DlSrc"; "DlDst"] pkt1 pkt2 in 
-    ZAnd(encode_predicate pred pkt1::eq)
-  | Empty -> 
-    ZFalse
+  | PoITE(pr,pol1,pol2) -> 
+    let pol' = PoUnion (PoSeq(PoFilter pr, pol1), PoSeq(PoFilter (PrNot pr), pol2)) in 
+    policy_forwards pol' pkt1 pkt2
   | _ -> 
     failwith "policy_forwards: not yet implemented"
 
-let rec forwards (k:int) (topo:topology) (pol:policy) (pkt1:zVar) (pkt2:zVar) : zFormula = 
+let rec forwards (k:int) (topo:topology) (pol:pol) (pkt1:zVar) (pkt2:zVar) : zFormula = 
   if k = 0 then 
     ZAnd(equals ["Switch"; "InPort"; "DlSrc"; "DlDst"] pkt1 pkt2)
   else
@@ -302,39 +274,3 @@ let rec forwards (k:int) (topo:topology) (pol:policy) (pkt1:zVar) (pkt2:zVar) : 
                ; topology_forwards topo pkt' pkt''
                ; forwards (k-1) topo pol pkt'' pkt2 ]
         ; forwards (k-1) topo pol pkt1 pkt2 ]
-
-type example = { name:string;
-                 topology:topology;
-                 policy:policy;
-                 formula:topology -> policy -> zVar -> zVar -> zFormula;
-                 expected:bool }
-
-let check ex = 
-  let pkt1 = fresh SPacket in 
-  let pkt2 = fresh SPacket in 
-  let f = ex.formula ex.topology ex.policy pkt1 pkt2 in 
-  let p = ZProgram [ZAssertDeclare f] in 
-  if solve p = ex.expected then 
-    Printf.eprintf "%s [[32mpassed[0m]\n" ex.name
-  else 
-    Printf.eprintf "%s [[31mfailed[0m]\n" ex.name
-
-let ex1 : example = 
-  let topology = 
-    let s1 = Int64.of_int 1 in
-    let s2 = Int64.of_int 2 in
-    let s3 = Int64.of_int 3 in
-    bidirectionalize 
-      (Topology [ (Link (s1, 2), Link (s2, 1)) 
-                ; (Link (s2, 2), Link (s3, 1)) ]) in 
-  let policy = Act ToAll in
-  let formula = forwards 2 in 
-  { name="Linear";
-    topology=topology;
-    policy=policy;
-    formula=formula;
-    expected=true }
-
-let examples = [ex1]
-    
-let () = List.iter check examples
