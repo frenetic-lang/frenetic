@@ -330,6 +330,7 @@ module PortDesc = struct
     } as big_endian
     
   let parse (bits : Cstruct.t) : portDesc =
+    let _ = Printf.printf "parsing portDesc\n%!" in
     let portDescPortNo = get_ofp_phy_port_port_no bits in
     let hw_addr = Packet.mac_of_bytes (Cstruct.to_string (get_ofp_phy_port_hw_addr bits)) in
     let name = Cstruct.to_string (get_ofp_phy_port_name bits) in
@@ -383,7 +384,7 @@ module PortStatus = struct
 
   let parse (bits : Cstruct.t) : portStatus =
     let portStatusReason = PortReason.parse (get_ofp_port_status_reason bits) in 
-    let _ = get_ofp_port_status_pad bits in
+    let _ = Cstruct.shift bits sizeof_ofp_port_status in
     let portStatusDesc = PortDesc.parse bits in
     { portStatusReason;
       portStatusDesc }
@@ -407,9 +408,12 @@ module Features = struct
     let supported_actions = Actions.parse 
       (get_ofp_switch_features_action buf) in
     let _ = Cstruct.shift buf sizeof_ofp_switch_features in
-    let portIter = Cstruct.iter (fun buf -> Some PortDesc.sizeof_ofp_phy_port) PortDesc.parse buf in
-    (* let ports = Cstruct.fold (fun acc bits -> bits :: acc) portIter [] in *)
-    let ports = [] in
+    let portIter = Cstruct.iter (fun buf -> if Cstruct.len buf >= PortDesc.sizeof_ofp_phy_port 
+      then
+	Some PortDesc.sizeof_ofp_phy_port
+      else
+	None) PortDesc.parse buf in
+    let ports = Cstruct.fold (fun acc bits -> bits :: acc) portIter [] in
     { switch_id; 
       num_buffers; 
       num_tables; 
@@ -907,6 +911,7 @@ module Message = struct
     | FeaturesReply _ -> FEATURES_RESP
     | FlowModMsg _ -> FLOW_MOD
     | PacketOutMsg _ -> PACKET_OUT
+    | PortStatusMsg _ -> PORT_STATUS
     | PacketInMsg _ -> PACKET_IN
     | BarrierRequest -> BARRIER_REQ
     | BarrierReply -> BARRIER_RESP
@@ -921,6 +926,7 @@ module Message = struct
     | FeaturesReply _ -> "FeaturesReply"
     | FlowModMsg _ -> "FlowMod"
     | PacketOutMsg _ -> "PacketOut"
+    | PortStatusMsg _ -> "PortStatus"
     | PacketInMsg _ -> "PacketIn"
     | BarrierRequest -> "BarrierRequest"
     | BarrierReply -> "BarrierReply"
