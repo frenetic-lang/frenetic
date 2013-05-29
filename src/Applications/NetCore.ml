@@ -28,7 +28,8 @@ let () =
 let main () = 
   OpenFlow0x01_Platform.init_with_port 6633 >>
   let (gen_stream, stream) = !policy in
-  Lwt.pick [gen_stream; Controller.start_controller stream]
+  let (pkt_stream, push_pkt) = Lwt_stream.create () in
+  Lwt.pick [gen_stream; Controller.start_controller pkt_stream stream]
 
 (* TODO(arjun): I do not 100% approve of this code. *)
 let _ =

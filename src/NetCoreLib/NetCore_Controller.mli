@@ -1,8 +1,11 @@
 open OpenFlow0x01
+open Packet
+open NetCore_Types
 
-module type MAKE  = functor (Platform : PLATFORM) -> 
+module Make : functor (Platform : PLATFORM) -> 
   sig
-    val start_controller : NetCore_Types.pol NetCore_Stream.t -> unit Lwt.t
+    val start_controller : 
+      (switchId * portId * bytes) Lwt_stream.t 
+      -> pol NetCore_Stream.t 
+      -> unit Lwt.t
   end
-
-module Make : MAKE
