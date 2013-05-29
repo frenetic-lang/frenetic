@@ -158,12 +158,15 @@ module Query (Platform : OpenFlow0x01.PLATFORM) = struct
       end
     else ()
 
-  let handle_reply sw q reps =
-    let () = List.iter (handle_single_reply sw q) reps in
+  let try_done q =
     if SwitchSet.is_empty (SwitchSet.inter !(q.switches_to_respond) !(q.switches)) then
       let _ = do_callback q in
       Lwt_mutex.unlock q.lock
     else ()
+
+  let handle_reply sw q reps =
+    let () = List.iter (handle_single_reply sw q) reps in
+    try_done q
 
   let refresh_switches switches q =
     let new_switches = SwitchSet.diff switches !(q.switches) in
@@ -171,7 +174,8 @@ module Query (Platform : OpenFlow0x01.PLATFORM) = struct
     SwitchSet.iter (set_fields q.counter_ids q.policy q.atom) new_switches
 
   let remove_switch sw q =
-    q.switches := SwitchSet.remove sw !(q.switches)
+    q.switches := SwitchSet.remove sw !(q.switches);
+    try_done q
 
   let find xid queries =
     List.find (fun q -> q.xid = xid) queries
