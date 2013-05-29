@@ -1,4 +1,5 @@
 open NetCore_Types
+open Unix
 
 module Sat = struct
 
@@ -173,16 +174,13 @@ let serialize_program (ZProgram (decls)) =
 
 let solve prog = 
   let s = serialize_program prog in 
-  (* let _ = Misc.Log.printf "--- DEBUG ---\n%s\n%!" s in  *)
-  let ch = open_out ".z3.in" in 
-  let _ = output_string ch s in 
-  let _ = flush ch in 
-  let _ = close_out ch in 
-  let _ = Sys.command "z3 -smt2 -nw .z3.in > .z3.out" in 
-  let ch = open_in ".z3.out" in 
-  let bs = in_channel_length ch in 
-  let r = String.create bs in 
-  let _ = really_input ch r 0 bs in 
+  let z3_out,z3_in = open_process "z3 -smt2 -nw" in 
+  let _ = output_string z3_in s in 
+  let _ = flush z3_in in 
+  let _ = close_out z3_in in 
+  let n = in_channel_length z3_out in 
+  let r = String.create n in 
+  really_input z3_out r 0 n;
   r = "sat\n"
 end
 
