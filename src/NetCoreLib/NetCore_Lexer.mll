@@ -17,7 +17,7 @@ let decbyte =
   (['0'-'9'] ['0'-'9'] ['0'-'9']) | (['0'-'9'] ['0'-'9']) | ['0'-'9']
 
 rule literate = parse
-  | '>' { token true lexbuf }
+  | "    " { token true lexbuf }
   | '\n' { new_line lexbuf; literate lexbuf }
   | eof { EOF }
   | _ { literate_text lexbuf }
