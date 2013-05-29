@@ -330,6 +330,7 @@ module PortDesc = struct
     } as big_endian
     
   let parse (bits : Cstruct.t) : portDesc =
+    let _ = Printf.printf "parsing portDesc\n%!" in
     let portDescPortNo = get_ofp_phy_port_port_no bits in
     let hw_addr = Packet.mac_of_bytes (Cstruct.to_string (get_ofp_phy_port_hw_addr bits)) in
     let name = Cstruct.to_string (get_ofp_phy_port_name bits) in
@@ -365,6 +366,7 @@ module PortReason = struct
       | Some OFPPR_ADD -> PortAdd
       | Some OFPPR_DELETE -> PortDelete
       | Some OFPPR_MODIFY -> PortModify
+      | None -> raise (Unparsable "unrecognized port change reason code")
 
   let to_string rea = match rea with
     | PortAdd -> "PortAdd"
@@ -383,7 +385,7 @@ module PortStatus = struct
 
   let parse (bits : Cstruct.t) : portStatus =
     let portStatusReason = PortReason.parse (get_ofp_port_status_reason bits) in 
-    let _ = get_ofp_port_status_pad bits in
+    let _ = Cstruct.shift bits sizeof_ofp_port_status in
     let portStatusDesc = PortDesc.parse bits in
     { portStatusReason;
       portStatusDesc }
@@ -407,7 +409,11 @@ module Features = struct
     let supported_actions = Actions.parse 
       (get_ofp_switch_features_action buf) in
     let _ = Cstruct.shift buf sizeof_ofp_switch_features in
-    let portIter = Cstruct.iter (fun buf -> Some PortDesc.sizeof_ofp_phy_port) PortDesc.parse buf in
+    let portIter = Cstruct.iter (fun buf -> if Cstruct.len buf >= PortDesc.sizeof_ofp_phy_port 
+      then
+	Some PortDesc.sizeof_ofp_phy_port
+      else
+	None) PortDesc.parse buf in
     let ports = Cstruct.fold (fun acc bits -> bits :: acc) portIter [] in
     { switch_id; 
       num_buffers; 
@@ -906,6 +912,7 @@ module Message = struct
     | FeaturesReply _ -> FEATURES_RESP
     | FlowModMsg _ -> FLOW_MOD
     | PacketOutMsg _ -> PACKET_OUT
+    | PortStatusMsg _ -> PORT_STATUS
     | PacketInMsg _ -> PACKET_IN
     | BarrierRequest -> BARRIER_REQ
     | BarrierReply -> BARRIER_RESP
@@ -920,6 +927,7 @@ module Message = struct
     | FeaturesReply _ -> "FeaturesReply"
     | FlowModMsg _ -> "FlowMod"
     | PacketOutMsg _ -> "PacketOut"
+    | PortStatusMsg _ -> "PortStatus"
     | PacketInMsg _ -> "PacketIn"
     | BarrierRequest -> "BarrierRequest"
     | BarrierReply -> "BarrierReply"
@@ -956,14 +964,15 @@ module Message = struct
     | PacketOutMsg msg -> 
       let _ = PacketOut.marshal msg out in
       ()
-    | PacketInMsg _ -> () (* TODO(arjun): wtf? *)
-    | FeaturesReply _ -> () (* TODO(arjun): wtf? *)
+    (* | PacketInMsg _ -> () (\* TODO(arjun): wtf? *\) *)
+    (* | FeaturesReply _ -> () (\* TODO(arjun): wtf? *\) *)
     | BarrierRequest -> ()
     | BarrierReply -> ()
     | StatsRequestMsg msg -> 
       let _ = StatsRequest.marshal msg out in
       ()
     | StatsReplyMsg _ -> ()
+    | _ -> failwith "Not yet implemented"
 
   let marshal (xid : xid) (msg : t) : string = 
     let sizeof_buf = sizeof_ofp_header + sizeof_body msg in
