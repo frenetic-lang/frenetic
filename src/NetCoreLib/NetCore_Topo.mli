@@ -8,6 +8,7 @@ type topo
 type loc =
   | Switch of switchId * portId
   | Host of dlAddr
+  | Free
 
 (*
 type change =
@@ -26,7 +27,7 @@ val ports_of_switch : topo -> switchId -> portId list
 (** [linked_to topo loc] returns the location that [loc] connects to,
     or [None]. We assume that locations are only linked to a single
     location. *)
-val linked_to : topo -> loc -> loc option
+val linked_to : topo -> loc -> loc
 
 (* val changes : topo -> unit Lwt_stream.t *)
 

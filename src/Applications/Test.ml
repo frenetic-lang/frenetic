@@ -559,7 +559,6 @@ end
 module TestParser = struct
 
   open OpenFlow0x01
-  open OpenFlow0x01_Parser
 
   (* For each parsable type, test that parse(marshal(v)) == v for some value v.
    *)
