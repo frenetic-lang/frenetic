@@ -101,8 +101,8 @@ module Output = struct
 
   let to_all = [ SwitchAction { unmodified with outPort = All } ]
 
-  let query d f =
-    [ ControllerQuery (d, f) ]
+  let query time f =
+    [ ControllerQuery (time, f) ]
 
   let controller handler =
     [ ControllerAction handler ]
@@ -410,7 +410,8 @@ module Output = struct
   let atom_is_equal x y = match x, y with
     | SwitchAction out1, SwitchAction out2 -> out1 = out2
     | ControllerAction f, ControllerAction g -> f == g (* functional values *)
-    | ControllerQuery (d, f), ControllerQuery (d', f') -> d == d' && f == f'
+    | ControllerQuery (time, f), ControllerQuery (time', f') -> 
+      time == time' && f == f'
     | _ -> false
 
   (* TODO(arjun): What if they are permutations? *)

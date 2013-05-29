@@ -67,7 +67,7 @@ module Query (Platform : OpenFlow0x01.PLATFORM) = struct
     (match q.atom with
         | SwitchAction _ -> "SwitchAction"
         | ControllerAction _ -> "ControllerAction"
-        | ControllerQuery (t, _) -> Printf.sprintf "ControllerQuery (%d,_)" t)
+        | ControllerQuery (t, _) -> Printf.sprintf "ControllerQuery (%f,_)" t)
     (Frenetic_Misc.string_of_list (fun sw -> Printf.sprintf "%Ld" sw)
       (SwitchSet.elements !(q.switches)))
 
@@ -247,7 +247,7 @@ module QuerySet (Platform : OpenFlow0x01.PLATFORM) = struct
     | HandleSwitchEvent _ -> ()
     | PoAction atoms ->
       List.iter (fun atom -> match atom with
-        | ControllerQuery (time, cb) -> 
+        | ControllerQuery (_, cb) -> 
           Hashtbl.replace q_actions_to_query_ids atom (gen_query_id ())
         | _ -> ())
         atoms
@@ -262,9 +262,8 @@ module QuerySet (Platform : OpenFlow0x01.PLATFORM) = struct
       let open NetCore_Types in
       match atom with
       | ControllerQuery (time, cb) ->
-        let float_time = float_of_int time in
         let query = 
-          Q.create qid atom float_time cb kill_switch !switches pol in
+          Q.create qid atom time cb kill_switch !switches pol in
         queries := query :: !queries
       | _ -> ()
     else ()

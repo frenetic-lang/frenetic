@@ -11,6 +11,7 @@ let blank = [ ' ' '\t'  ]
 
 let id = ['a'-'z' 'A'-'z' '_']['a'-'z' 'A'-'z' '0'-'9' '_']*
 let decimal = ['0'-'9']+
+let float_ = ['0'-'9']+ '.' ['0'-'9']+
 let hex = "0x" ['0'-'9' 'a'-'f' 'A'-'F']+
 let byte = ['0'-'9' 'a'-'f' 'A'-'F']  ['0'-'9' 'a'-'f' 'A'-'F']
 let decbyte = 
@@ -38,6 +39,8 @@ and token is_literate = parse
   | "publicIP" { PUBLICIP } 
   | "(" { LPAREN }
   | ")" { RPAREN }
+  | "{" { LCURLY }
+  | "}" { RCURLY }
   | "!" { NOT }
   | "*" { STAR }
   | "all" { ALL }
@@ -78,6 +81,7 @@ and token is_literate = parse
                  (logor (shift_left (parse_byte n3) 16)
                     (logor (shift_left (parse_byte n2) 8)
                        (parse_byte n1)))))) }
+  | float_ as f { FLOAT (float_of_string f) }
   | (decbyte as b4) "." (decbyte as b3) "." (decbyte as b2) "." (decbyte as b1)
     { let open Int32 in
       IPADDR 

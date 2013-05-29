@@ -36,7 +36,7 @@ type action =
   | UpdateSrcPort of int * int
   | UpdateDstPort of int * int
   | GetPacket of get_packet_handler
-  | GetCount of int * get_count_handler
+  | GetCount of float * get_count_handler
       
 type policy =
   | Empty

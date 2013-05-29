@@ -106,8 +106,8 @@ let string_of_output (out : output) : string =
 let string_of_action_atom atom = match atom with
   | SwitchAction output -> "SwitchAction " ^ (string_of_output output)
   | ControllerAction _ -> "ControllerAction _"
-  | ControllerQuery (d, f) -> 
-    Printf.sprintf "ControllerQuery %d" d
+  | ControllerQuery (time, f) -> 
+    Printf.sprintf "ControllerQuery %f" time
 
 let action_to_string output_list =
   Printf.sprintf "[%s]"

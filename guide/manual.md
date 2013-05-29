@@ -1,3 +1,4 @@
+
 NetCore Syntax
 ==============
 
@@ -48,6 +49,8 @@ Policies:
 ```
 <id> ::= [A-Z a-z _] [A-Z a-z _ 0-9]*
 
+<seconds> ::= [0-9]+ | [0-9]+ . [0-9]+
+
 <module> ::= learn ( )
            | nat ( publicIP = <ip-addr> )
 
@@ -60,6 +63,7 @@ Policies:
          | monitor_pol ( <pol> )
          | monitor_tbl ( <switch-id> , <pol> )
          | monitor_sw ( )
+         | monitor_load (<seconds>, <pred>) (* Print the number of packets and bytes matching <pred> in the last <seconds>. *)
 
 <cpol> ::= <apol>
         | if <pred> then <cpol> else <cpol>

@@ -37,7 +37,7 @@ open NetCore_Types
   | UpdateSrcPort of int * int
   | UpdateDstPort of int * int
   | GetPacket of get_packet_handler
-  | GetCount of int * get_count_handler
+  | GetCount of float * get_count_handler
       
   type policy =
   | Empty
@@ -112,8 +112,8 @@ open NetCore_Types
        (string_of_int old) (string_of_int new_)
     | GetPacket _ -> 
       Printf.sprintf "GetPacket <fun>"
-    | GetCount (d, _) ->
-      Printf.sprintf "GetCount %d <fun>" d
+    | GetCount (time, _) ->
+      Printf.sprintf "GetCount %f <fun>" time
         
   let rec policy_to_string pol = match pol with 
     | Empty -> 
@@ -230,8 +230,8 @@ let desugar (genvlan : unit -> int option) (pol : policy) : NetCore_Types.pol =
       NetCore_Action.Output.updateDstPort old new_
     | GetPacket handler ->
       NetCore_Action.Output.controller handler
-    | GetCount (d, handler) ->
-      NetCore_Action.Output.query d handler
+    | GetCount (time, handler) ->
+      NetCore_Action.Output.query time handler
     in
   let rec desugar_pred pred = match pred with
     | And (p1, p2) -> 
