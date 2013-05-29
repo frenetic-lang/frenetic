@@ -62,13 +62,14 @@ module Query (Platform : OpenFlow0x01.PLATFORM) = struct
     ; this_byte_count : Int64.t ref
     }
 
-  let to_string q = Printf.sprintf "{ xid = %d, atom = %s, time = %f, ...}"
+  let to_string q = Printf.sprintf "{ xid = %d, atom = %s, switches = %s, ...}"
     (Int32.to_int q.xid)
     (match q.atom with
         | SwitchAction _ -> "SwitchAction"
         | ControllerAction _ -> "ControllerAction"
         | ControllerQuery (t, _) -> Printf.sprintf "ControllerQuery (%d,_)" t)
-    q.time
+    (Frenetic_Misc.string_of_list (fun sw -> Printf.sprintf "%Ld" sw)
+      (SwitchSet.elements !(q.switches)))
 
   let set_fields tbl pol atom sw =
     let qfields = NetCore_Compiler.query_fields_of_policy pol atom sw in
@@ -78,6 +79,7 @@ module Query (Platform : OpenFlow0x01.PLATFORM) = struct
       qfields
 
   let kill q = 
+    (* let () = Log.printf "NetCore_Controller.Query" "killing (%s)\n%!" (to_string q) in *)
     Lwt_switch.turn_off q.kill_switch >>
     let _ = Lwt_mutex.unlock q.lock in
     Lwt.return ()
@@ -106,9 +108,11 @@ module Query (Platform : OpenFlow0x01.PLATFORM) = struct
     let _ = try
       Lwt_switch.add_hook (Some kill_switch) (fun () -> kill q)
     with Lwt_switch.Off -> () in
+    (* let () = Log.printf "NetCore_Controller.Query" "creating (%s)\n%!" (to_string q) in *)
     q
 
   let reset q =
+    (* let () = Log.printf "NetCore_Controller.Query" "resetting (%s)\n%!" (to_string q) in *)
     q.switches_to_respond := !(q.switches);
     q.last_packet_count := !(q.this_packet_count);
     q.this_packet_count := Int64.zero;
@@ -123,7 +127,9 @@ module Query (Platform : OpenFlow0x01.PLATFORM) = struct
     q.cb packet_count byte_count
 
   let send q =
+    (* let () = Log.printf "NetCore_Controller.Query" "sending (%s)\n%!" (to_string q) in *)
     if SwitchSet.is_empty !(q.switches) then
+      (* let () = Log.printf "NetCore_Controller.Query" "... but no switches\n%!" in *)
       let () = do_callback q in
       Lwt.return ()
     else
@@ -141,6 +147,7 @@ module Query (Platform : OpenFlow0x01.PLATFORM) = struct
         Lwt.return ()
 
   let start q =
+    (* let () = Log.printf "NetCore_Controller.Query" "starting (%s)\n%!" (to_string q) in *)
     let rec loop () =
       if not (is_dead q) then
         send q >>
@@ -150,6 +157,9 @@ module Query (Platform : OpenFlow0x01.PLATFORM) = struct
     loop ()
 
   let handle_single_reply sw q rep =
+    (* let () = Log.printf 
+      "NetCore_Controller.Query" "handle reply (%s) (%Ld)\n    (%s)\n%!"
+      (to_string q) sw (IndividualFlowStats.to_string rep) in *)
     let open IndividualFlowStats in
     if Hashtbl.mem q.counter_ids (sw, rep.of_match, rep.priority) then begin
       q.this_packet_count := Int64.add rep.packet_count !(q.this_packet_count);
@@ -158,20 +168,36 @@ module Query (Platform : OpenFlow0x01.PLATFORM) = struct
       end
     else ()
 
-  let handle_reply sw q reps =
-    let () = List.iter (handle_single_reply sw q) reps in
-    if SwitchSet.is_empty (SwitchSet.inter !(q.switches_to_respond) !(q.switches)) then
+  let try_done q =
+    if SwitchSet.is_empty 
+      (SwitchSet.inter !(q.switches_to_respond) !(q.switches))
+    then
+      (*let () = Log.printf "NetCore_Controller.Query" "got all replies! (%s)\n%!" (to_string q) in *)
       let _ = do_callback q in
       Lwt_mutex.unlock q.lock
     else ()
 
+  let handle_reply sw q reps =
+    let () = List.iter (handle_single_reply sw q) reps in
+    let () = 
+      q.switches_to_respond := 
+        SwitchSet.remove sw !(q.switches_to_respond) in
+    try_done q
+
   let refresh_switches switches q =
     let new_switches = SwitchSet.diff switches !(q.switches) in
     q.switches := switches;
+    (* SwitchSet.iter 
+      (fun s -> Log.printf "NetCore_Controller.Query" "refresh switch (%s) (%Ld) \n%!" (to_string q) s)
+      !(q.switches);
+    SwitchSet.iter 
+      (fun s -> Log.printf "NetCore_Controller.Query" "new switch (%s) (%Ld) \n%!" (to_string q) s)
+      new_switches; *)
     SwitchSet.iter (set_fields q.counter_ids q.policy q.atom) new_switches
 
   let remove_switch sw q =
-    q.switches := SwitchSet.remove sw !(q.switches)
+    q.switches := SwitchSet.remove sw !(q.switches);
+    try_done q
 
   let find xid queries =
     List.find (fun q -> q.xid = xid) queries
@@ -212,7 +238,6 @@ module QuerySet (Platform : OpenFlow0x01.PLATFORM) = struct
 
   let reset_state () =
     queries := [];
-    switches := SwitchSet.empty;
     query_switch := None;
     Hashtbl.reset q_actions_to_query_ids
 
@@ -273,6 +298,7 @@ module QuerySet (Platform : OpenFlow0x01.PLATFORM) = struct
     with Not_found -> ()
 
   let stop () : unit Lwt.t = 
+    (* let () = Log.printf "NetCore_Controller.QuerySet" "stopping\n%!" in *)
     lwt () = match !query_switch with
       | Some s -> Lwt_switch.turn_off s
       | None -> Lwt.return () in
@@ -280,10 +306,13 @@ module QuerySet (Platform : OpenFlow0x01.PLATFORM) = struct
     Lwt.return ()
 
   let add_switch sw =
+    (* let () = Log.printf "NetCore_Controller.QuerySet" "adding switch (%Ld)\n%!" sw in *)
     switches := SwitchSet.add sw !switches;
     List.iter (Q.refresh_switches !switches) !queries
 
   let remove_switch sw = 
+    (* let () = Log.printf "NetCore_Controller.QuerySet" "removing switch (%Ld)\n%!" sw in *)
+    switches := SwitchSet.add sw !switches;
     switches := SwitchSet.remove sw !switches;
     List.iter (Q.remove_switch sw) !queries
 
