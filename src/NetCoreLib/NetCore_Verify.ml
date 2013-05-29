@@ -1,3 +1,5 @@
+open Frenetic_List
+open Frenetic_Misc
 open NetCore_Types
 open Unix
 
@@ -55,13 +57,6 @@ let fresh sort =
     | SRelation _ -> Printf.sprintf "_R%d" n in 
   fresh_cell := ZVarDeclare(x,sort)::l;
   x
-
-(* Serialization *)
-let intercalate f s l = match l with 
-  | [] -> 
-    ""
-  | h::t -> 
-    List.fold_left (fun acc x -> acc ^ s ^ f x) (f h) t
 
 let serialize_packet (ZPacket (switch, port, src, dst)) =
   Printf.sprintf "(Packet %s %d %s %s)" 
@@ -174,14 +169,18 @@ let serialize_program (ZProgram (decls)) =
 
 let solve prog = 
   let s = serialize_program prog in 
-  let z3_out,z3_in = open_process "z3 -smt2 -nw" in 
-  let _ = output_string z3_in s in 
+  let z3_out,z3_in = open_process "z3 -in -smt2 -nw" in 
+  let _ = output_string z3_in s in
   let _ = flush z3_in in 
   let _ = close_out z3_in in 
-  let n = in_channel_length z3_out in 
-  let r = String.create n in 
-  really_input z3_out r 0 n;
-  r = "sat\n"
+  let b = Buffer.create 17 in 
+  (try
+    while true do
+      Buffer.add_string b (input_line z3_out);
+      Buffer.add_char b '\n';
+    done
+   with End_of_file -> ());
+  Buffer.contents b = "sat\n"
 end
 
 open Sat
@@ -203,11 +202,24 @@ let packet_field (field:string) (pkt:zVar) (num:zTerm) : zFormula =
   ZEquals(TFunction(field, [TVar pkt]), num)
 
 (* Predicates *)
-let encode_pattern (pat:ptrn) : zFormula = 
-  failwith "Not yet implemented" 
+let encode_pattern (pat:ptrn) (pkt:zVar) : zFormula = 
+  let map_wildcard f = function
+    | WildcardExact x -> Some (f x)
+    | WildcardAll -> None
+    | WildcardNone -> Some (ZFalse) in 
+  ZAnd 
+    (filter_map
+       (fun x -> x)
+       [ map_wildcard (fun mac -> packet_field "DlSrc" pkt (TInt mac)) pat.ptrnDlSrc
+       ; map_wildcard (fun mac -> packet_field "DlDst" pkt (TInt mac)) pat.ptrnDlDst
+       ; map_wildcard 
+	 (function 
+	   | All -> ZTrue
+	   | Here -> ZTrue 
+	   | Physical pt -> packet_field "InPort" pkt (TInt (Int64.of_int pt)))
+	 pat.ptrnInPort ])
 
-let rec encode_predicate (pr:pred) (pkt:zVar) : zFormula =
-  match pr with
+let rec encode_predicate (pr:pred) (pkt:zVar) : zFormula = match pr with 
   | PrAll -> 
     ZTrue
   | PrNone ->
@@ -223,11 +235,12 @@ let rec encode_predicate (pr:pred) (pkt:zVar) : zFormula =
     ZOr([encode_predicate pr1 pkt;
          encode_predicate pr2 pkt])
   | PrHdr ptrn -> 
-    encode_pattern ptrn
+    encode_pattern ptrn pkt
           
 let equal_field (field:string) (pkt1:zVar) (pkt2:zVar) : zFormula list = 
   let num = TVar (fresh SInt) in 
-  [packet_field field pkt1 num; packet_field field pkt2 num]
+  [ packet_field field pkt1 num
+  ; packet_field field pkt2 num ]
 
 let equals (fields:string list) (pkt1:zVar) (pkt2:zVar) : zFormula list = 
   List.fold_left (fun acc field -> equal_field field pkt1 pkt2 @ acc) [] fields
@@ -244,10 +257,27 @@ let topology_forwards (Topology topo:topology) (pkt1:zVar) (pkt2:zVar) : zFormul
             @ acc)
           [] topo)
 
+let output_forwards (out:output) (pkt1:zVar) (pkt2:zVar) : zFormula = 
+  ZOr (filter_map
+	 (fun x -> x)
+	 [ map_option (fun (_,mac) -> packet_field "DlSrc" pkt2 (TInt mac)) out.outDlSrc
+	 ; map_option (fun (_,mac) -> packet_field "DlDst" pkt2 (TInt mac)) out.outDlDst
+	 ; Some (match out.outPort with 
+	   | All -> ZNot(ZAnd(equal_field "InPort" pkt1 pkt2))
+	   | Here -> ZAnd(equal_field "InPort" pkt1 pkt2)
+	   | Physical pt -> packet_field "InPort" pkt2 (TInt (Int64.of_int pt))) ])
+	 
+
+let action_atom_forwards (act:action_atom) (pkt1:zVar) (pkt2:zVar) : zFormula = match act with 
+  | SwitchAction out -> 
+    output_forwards out pkt1 pkt2
+  | _ -> 
+    ZFalse 
+   
 let rec policy_forwards (pol:pol) (pkt1:zVar) (pkt2:zVar) : zFormula = 
   match pol with
   | PoAction (acts) -> 
-    failwith "Not yet implemented"
+    ZOr(List.map (fun act -> action_atom_forwards act pkt1 pkt2) acts)
   | PoFilter pr ->
     let eq = equals ["Switch"; "InPort"; "DlSrc"; "DlDst"] pkt1 pkt2 in 
     ZAnd(encode_predicate pr pkt1::eq)
