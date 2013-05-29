@@ -285,6 +285,136 @@ module Features = struct
       supported_actions }
 end
 
+module PortFeatures = struct
+    
+  let parse bits : portFeatures =
+    { portFeat10MBHD = test_bit 0 bits;
+      portFeat10MBFD = test_bit 1 bits;
+      portFeat100MBHD = test_bit 2 bits;
+      portFeat100MBFD = test_bit 3 bits;
+      portFeat1GBHD = test_bit 4 bits;
+      portFeat1GBFD = test_bit 5 bits;
+      portFeat10GBFD = test_bit 6 bits;
+      portFeatCopper = test_bit 7 bits;
+      portFeatFiber = test_bit 8 bits;
+      portFeatAutoneg = test_bit 9 bits;
+      portFeatPause = test_bit 10 bits;
+      portFeatPauseAsym = test_bit 11 bits
+    }
+
+end
+
+module PortState = struct
+
+  (* MJR: GAH, the enum values from OF1.0 make NO SENSE AT ALL. Two of
+     them have the SAME value, and the rest make no sense as bit
+     vectors. Only portStateDown is parsed correctly ATM *)
+  let parse bits : portState =
+    { portStateDown = test_bit 0 bits;
+      portStateSTPListen = false;
+      portStateSTPForward = false;
+      portStateSTPBlock = false;
+      portStateSTPMask = false
+    }
+
+end
+
+module PortConfig = struct
+
+  let parse bits : portConfig =
+    { portConfigDown = test_bit 0 bits;
+      portConfigNoSTP = test_bit 1 bits;
+      portConfigNoRecv = test_bit 2 bits;
+      portConfigNoRecvSTP = test_bit 3 bits;
+      portConfigNoFlood = test_bit 4 bits;
+      portConfigNoFWD = test_bit 5 bits;
+      portConfigNoPacketIn = test_bit 6 bits
+    }
+
+end
+
+module PortDesc = struct
+
+    cstruct ofp_phy_port {
+      uint16_t port_no;
+      uint8_t hw_addr[6];
+      uint8_t name[16]; (* OFP_MAX_PORT_NAME_LEN, Null-terminated *)
+      uint32_t config; (* Bitmap of OFPPC_* flags. *)
+      uint32_t state; (* Bitmap of OFPPS_* flags. *)
+      (* Bitmaps of OFPPF_* that describe features. All bits zeroed if
+       * unsupported or unavailable. *)
+      uint32_t curr; (* Current features. *)
+      uint32_t advertised; (* Features being advertised by the port. *)
+      uint32_t supported; (* Features supported by the port. *)
+      uint32_t peer (* Features advertised by peer. *)
+    } as big_endian
+    
+  let parse (bits : Cstruct.t) : portDesc =
+    let portDescPortNo = get_ofp_phy_port_port_no bits in
+    let hw_addr = Packet.mac_of_bytes (Cstruct.to_string (get_ofp_phy_port_hw_addr bits)) in
+    let name = Cstruct.to_string (get_ofp_phy_port_name bits) in
+    let config = PortConfig.parse (get_ofp_phy_port_config bits) in
+    let state = PortState.parse (get_ofp_phy_port_state bits) in
+    let curr = PortFeatures.parse (get_ofp_phy_port_curr bits) in
+    let advertised = PortFeatures.parse (get_ofp_phy_port_advertised bits) in
+    let supported = PortFeatures.parse (get_ofp_phy_port_supported bits) in
+    let peer = PortFeatures.parse (get_ofp_phy_port_peer bits) in
+    { portDescPortNo;
+      portDescHwAddr = hw_addr;
+      portDescName = name;
+      portDescConfig = config;
+      portDescState = state;
+      portDescCurr = curr;
+      portDescAdvertised = advertised;
+      portDescSupported = supported;
+      portDescPeer = peer
+    }
+end
+
+module PortReason = struct
+
+    cenum ofp_port_reason {
+      OFPPR_ADD;
+      OFPPR_DELETE;
+      OFPPR_MODIFY
+    } as uint8_t
+
+
+  let parse bits : portChangeReason =
+    match (int_to_ofp_port_reason bits) with
+      | Some OFPPR_ADD -> PortAdd
+      | Some OFPPR_DELETE -> PortDelete
+      | Some OFPPR_MODIFY -> PortModify
+
+  let to_string rea = match rea with
+    | PortAdd -> "PortAdd"
+    | PortDelete -> "PortDelete"
+    | PortModify -> "PortModify"
+
+end
+
+module PortStatus = struct
+
+    cstruct ofp_port_status {
+      uint8_t reason;               (* One of OFPPR_* *)
+      uint8_t pad[7]
+    } as big_endian
+
+
+  let parse (bits : Cstruct.t) : portStatus =
+    let portStatusReason = PortReason.parse (get_ofp_port_status_reason bits) in 
+    let _ = get_ofp_port_status_pad bits in
+    let portStatusDesc = PortDesc.parse bits in
+    { portStatusReason;
+      portStatusDesc }
+
+  let to_string ps =
+    let {portStatusReason; portStatusDesc} = ps in
+    Printf.sprintf "PortStatus %s %d" (PortReason.to_string portStatusReason)
+      (portStatusDesc.portDescPortNo)
+end
+
+
 module TimeoutSer = struct
 
   let to_int (x : timeout) = match x with
@@ -563,6 +693,187 @@ module StatsReply = struct
 
 end
 
+module Error = struct
+  
+  type t = error
+  
+  cstruct ofp_error_msg {
+    uint16_t error_type;
+    uint16_t error_code
+  } as big_endian
+  
+  cenum ofp_error_type {
+    OFPET_HELLO_FAILED;
+    OFPET_BAD_REQUEST;
+    OFPET_BAD_ACTION;
+    OFPET_FLOW_MOD_FAILED;
+    OFPET_PORT_MOD_FAILED;
+    OFPET_QUEUE_OP_FAILED
+  } as uint16_t
+  
+  module HelloFailed = struct
+    
+    type t = helloFailedError
+    
+    cenum ofp_hello_failed_code {
+      OFPHFC_INCOMPATIBLE;
+      OFPHFC_EPERM
+    } as uint16_t
+    
+    let parse error_code =
+      match int_to_ofp_hello_failed_code error_code with
+      | Some OFPHFC_INCOMPATIBLE -> HF_Incompatible
+      | Some OFPHFC_EPERM -> HF_Eperm
+      | None ->
+        let msg = "NYI: ofp_hello_failed_code in error" in
+              raise (Unparsable msg)
+  end
+  
+  module BadRequest = struct
+    
+    type t = badRequestError
+    
+    cenum ofp_bad_request_code {
+      OFPBRC_BAD_VERSION;
+      OFPBRC_BAD_TYPE;
+      OFPBRC_BAD_STAT;
+      OFPBRC_BAD_VENDOR;
+      OFPBRC_BAD_SUBTYPE;
+      OFPBRC_EPERM;
+      OFPBRC_BAD_LEN;
+      OFPBRC_BUFFER_EMPTY;
+      OFPBRC_BUFFER_UNKNOWN
+    } as uint16_t
+    
+    let parse error_code = 
+      match int_to_ofp_bad_request_code error_code with
+      | Some OFPBRC_BAD_VERSION -> BR_BadVersion
+      | Some OFPBRC_BAD_TYPE -> BR_BadType
+      | Some OFPBRC_BAD_STAT -> BR_BadStat
+      | Some OFPBRC_BAD_VENDOR -> BR_BadVendor
+      | Some OFPBRC_BAD_SUBTYPE -> BR_BadSubType
+      | Some OFPBRC_EPERM -> BR_Eperm
+      | Some OFPBRC_BAD_LEN -> BR_BadLen
+      | Some OFPBRC_BUFFER_EMPTY -> BR_BufferEmpty
+      | Some OFPBRC_BUFFER_UNKNOWN -> BR_BufferUnknown
+      | None ->
+        let msg = "NYI: ofp_bad_request_code in error" in
+              raise (Unparsable msg)
+  end
+  
+  module BadAction = struct
+    
+    type t = badActionError
+    
+    cenum ofp_bad_action_code {
+      OFPBAC_BAD_TYPE;
+      OFPBAC_BAD_LEN;
+      OFPBAC_BAD_VENDOR;
+      OFPBAC_BAD_VENDOR_TYPE;
+      OFPBAC_BAD_OUT_PORT;
+      OFPBAC_BAD_ARGUMENT;
+      OFPBAC_EPERM;
+      OFPBAC_TOO_MANY;
+      OFPBAC_BAD_QUEUE
+    } as uint16_t
+    
+    let parse error_code =
+      match int_to_ofp_bad_action_code error_code with
+      | Some OFPBAC_BAD_TYPE -> BA_BadType
+      | Some OFPBAC_BAD_LEN -> BA_BadLen
+      | Some OFPBAC_BAD_VENDOR -> BA_BadVendor
+      | Some OFPBAC_BAD_VENDOR_TYPE -> BA_BadVendorType
+      | Some OFPBAC_BAD_OUT_PORT -> BA_BadOutPort
+      | Some OFPBAC_BAD_ARGUMENT -> BA_BadArgument
+      | Some OFPBAC_EPERM -> BA_Eperm
+      | Some OFPBAC_TOO_MANY -> BA_TooMany
+      | Some OFPBAC_BAD_QUEUE -> BA_BadQueue
+      | None ->
+        let msg = "NYI: ofp_bad_action_code in error" in
+              raise (Unparsable msg)
+  end
+  
+  module FlowModFailed = struct
+    
+    type t = flowModFailedError
+    
+    cenum ofp_flow_mod_failed_code {
+      OFPFMFC_ALL_TABLES_FULL;
+      OFPFMFC_OVERLAP;
+      OFPFMFC_EPERM;
+      OFPFMFC_BAD_EMERG_TIMEOUT;
+      OFPFMFC_BAD_COMMAND;
+      OFPFMFC_UNSUPPORTED
+    } as uint16_t
+    
+    let parse error_code =
+      match int_to_ofp_flow_mod_failed_code error_code with
+      | Some OFPFMFC_ALL_TABLES_FULL -> FM_AllTablesFull
+      | Some OFPFMFC_OVERLAP -> FM_Overlap
+      | Some OFPFMFC_EPERM -> FM_Eperm
+      | Some OFPFMFC_BAD_EMERG_TIMEOUT -> FM_BadEmergTimeout
+      | Some OFPFMFC_BAD_COMMAND -> FM_BadCommand
+      | Some OFPFMFC_UNSUPPORTED -> FM_Unsupported
+      | None ->
+        let msg = "NYI: ofp_flow_mod_failed_code in error" in
+              raise (Unparsable msg)
+  end
+  
+  module PortModFailed = struct
+    
+    type t = portModFailedError
+    
+    cenum ofp_port_mod_failed_code {
+      OFPPMFC_BAD_PORT;
+      OFPPMFC_BAD_HW_ADDR
+    } as uint16_t
+    
+    let parse error_code =
+      match int_to_ofp_port_mod_failed_code error_code with
+      | Some OFPPMFC_BAD_PORT -> PM_BadPort
+      | Some OFPPMFC_BAD_HW_ADDR -> PM_BadHwAddr
+      | None ->
+        let msg = "NYI: ofp_port_mod_failed_code in error" in
+              raise (Unparsable msg)
+  end
+  
+  module QueueOpFailed = struct
+    
+    type t = queueOpFailedError
+    
+    cenum ofp_queue_op_failed_code {
+      OFPQOFC_BAD_PORT;
+      OFPQOFC_BAD_QUEUE;
+      OFPQOFC_EPERM
+    } as uint16_t
+    
+    let parse error_code = 
+      match int_to_ofp_queue_op_failed_code error_code with
+      | Some OFPQOFC_BAD_PORT -> QO_BadPort
+      | Some OFPQOFC_BAD_QUEUE -> QO_BadQueue
+      | Some OFPQOFC_EPERM -> QO_Eperm
+      | None ->
+        let msg = "NYI: ofp_queue_op_failed_code in error" in
+              raise (Unparsable msg)
+  end
+  
+  let parse bits =
+    let error_type = get_ofp_error_msg_error_type bits in
+    let error_code = get_ofp_error_msg_error_code bits in
+    let body = Cstruct.shift bits sizeof_ofp_error_msg in
+    match int_to_ofp_error_type error_type with
+    | Some OFPET_HELLO_FAILED -> HelloFailed ((HelloFailed.parse error_code), body)
+    | Some OFPET_BAD_REQUEST -> BadRequest ((BadRequest.parse error_code), body)
+    | Some OFPET_BAD_ACTION -> BadAction ((BadAction.parse error_code), body)
+    | Some OFPET_FLOW_MOD_FAILED -> FlowModFailed ((FlowModFailed.parse error_code), body)
+    | Some OFPET_PORT_MOD_FAILED -> PortModFailed ((PortModFailed.parse error_code), body)
+    | Some OFPET_QUEUE_OP_FAILED -> QueueOpFailed ((QueueOpFailed.parse error_code), body)
+    | None ->
+      let msg =
+        sprintf "bad ofp_error_type in ofp_error_msg (%d)" error_type in
+      raise(Unparsable msg)
+end
+
 module Message = struct
 
   type t = message
@@ -575,6 +886,7 @@ module Message = struct
       | FEATURES_REQ -> Some (FeaturesRequest)
       | FEATURES_RESP -> Some (FeaturesReply (Features.parse buf))
       | PACKET_IN -> Some (PacketInMsg (PacketIn.parse buf))
+      | PORT_STATUS -> Some (PortStatusMsg (PortStatus.parse buf))
       | BARRIER_REQ -> Some BarrierRequest
       | BARRIER_RESP -> Some BarrierReply
       | STATS_RESP -> Some (StatsReplyMsg (StatsReply.parse buf))

@@ -631,6 +631,59 @@ type flowMod =
     mfOutPort : PseudoPort.t option;
     mfCheckOverlap : bool }
 
+type portChangeReason =
+  | PortAdd
+  | PortDelete
+  | PortModify
+
+type portConfig =
+    { portConfigDown : bool; (* Port is administratively down. *)
+      portConfigNoSTP : bool; (* Disable 802.1D spanning tree on port. *)
+      portConfigNoRecv : bool; (* Drop all packets except 802.1D spanning
+				  tree packets. *)
+      portConfigNoRecvSTP : bool; (* Drop received 802.1D STP packets. *)
+      portConfigNoFlood : bool; (* Do not include this port when flooding. *)
+      portConfigNoFWD : bool; (* Drop packets forwarded to port. *)
+      portConfigNoPacketIn : bool (* Do not send packet-in msgs for port. *)
+    }
+
+type portState = 
+    { portStateDown : bool;  (* No physical link present. *)
+      portStateSTPListen : bool;
+      portStateSTPForward : bool;
+      portStateSTPBlock : bool;
+      portStateSTPMask : bool }
+
+type portFeatures =
+    { portFeat10MBHD : bool; (* 10 Mb half-duplex rate support. *)
+      portFeat10MBFD : bool; (* 10 Mb full-duplex rate support. *)
+      portFeat100MBHD : bool; (* 100 Mb half-duplex rate support. *)
+      portFeat100MBFD : bool; (* 100 Mb full-duplex rate support. *)
+      portFeat1GBHD : bool; (* 1 Gb half-duplex rate support. *)
+      portFeat1GBFD : bool; (* 1 Gb full-duplex rate support. *)
+      portFeat10GBFD : bool; (* 10 Gb full-duplex rate support. *)
+      portFeatCopper : bool; (* Copper medium. *)
+      portFeatFiber : bool; (* Fiber medium. *)
+      portFeatAutoneg : bool; (* Auto-negotiation. *)
+      portFeatPause : bool; (* Pause. *)
+      portFeatPauseAsym : bool (* Asymmetric pause. *)
+    }
+
+type portDesc =
+    { portDescPortNo : portId;
+      portDescHwAddr : dlAddr;
+      portDescName : string;
+      portDescConfig : portConfig;
+      portDescState : portState;
+      portDescCurr : portFeatures;
+      portDescAdvertised : portFeatures;
+      portDescSupported : portFeatures;
+      portDescPeer : portFeatures }
+
+type portStatus =
+    { portStatusReason : portChangeReason;
+      portStatusDesc : portDesc }
+
 type reason =
 | NoMatch
 | ExplicitSend
@@ -728,6 +781,61 @@ module AggregateFlowRequest = struct
     sizeof req
 
 end
+
+(* component types of ofp_error_msg (datapath -> controller) *)
+
+type helloFailedError =
+  | HF_Incompatible
+  | HF_Eperm
+
+type badRequestError =
+  | BR_BadVersion
+  | BR_BadType
+  | BR_BadStat
+  | BR_BadVendor
+  | BR_BadSubType
+  | BR_Eperm
+  | BR_BadLen
+  | BR_BufferEmpty
+  | BR_BufferUnknown
+
+type badActionError =
+  | BA_BadType
+  | BA_BadLen
+  | BA_BadVendor
+  | BA_BadVendorType
+  | BA_BadOutPort
+  | BA_BadArgument
+  | BA_Eperm
+  | BA_TooMany
+  | BA_BadQueue
+
+type flowModFailedError =
+  | FM_AllTablesFull
+  | FM_Overlap
+  | FM_Eperm
+  | FM_BadEmergTimeout
+  | FM_BadCommand
+  | FM_Unsupported
+
+type portModFailedError =
+  | PM_BadPort
+  | PM_BadHwAddr
+
+type queueOpFailedError =
+  | QO_BadPort
+  | QO_BadQueue
+  | QO_Eperm
+
+(* Each error is composed of a couple (error_code, data) *)
+
+type error =
+  | HelloFailed of helloFailedError * Cstruct.t
+  | BadRequest of badRequestError * Cstruct.t
+  | BadAction of badActionError * Cstruct.t
+  | FlowModFailed of flowModFailedError * Cstruct.t
+  | PortModFailed of portModFailedError * Cstruct.t
+  | QueueOpFailed of queueOpFailedError  * Cstruct.t
 
 (* Component types of stats_reply messages. *)
 
@@ -846,6 +954,7 @@ type message =
   | FeaturesReply of features
   | FlowModMsg of flowMod
   | PacketInMsg of packetIn
+  | PortStatusMsg of portStatus
   | PacketOutMsg of packetOut
   | BarrierRequest (* JNF: why not "BarrierRequestMsg"? *)
   | BarrierReply (* JNF: why not "BarrierReplyMsg"? *)
