@@ -14,7 +14,7 @@ CTAGS_FILES = $(shell ls $(addsuffix /*.ml,$(LIBRARIES)) \
 
 SUFFIXES = .a .cmxa .cma .d.cma
 
-.PHONY: all native byte debug install uninstall doc clean 
+.PHONY: all native byte debug install uninstall doc clean $(LIBRARIES)
 
 OCAMLBUILD = ocamlbuild -use-ocamlfind $(addprefix -I ,$(LIBRARIES))
 
