@@ -17,6 +17,13 @@
      Int64.to_int n
    else
      raise Parsing.Parse_error
+
+ let int_of_int64 (n : Int64.t) : int =
+   if Int64.compare n (Int64.of_int max_int) <= 0 &&
+     Int64.compare n (Int64.of_int min_int) >= 0 then
+     Int64.to_int n
+   else
+     raise Parsing.Parse_error
   
 %}
 
@@ -61,6 +68,7 @@
 %token MONITOR_POL
 %token MONITOR_TBL
 %token MONITOR_SW
+%token MONITOR_LOAD
 %token <string> STRING
 %token EOF
 
@@ -130,6 +138,11 @@ pol_atom :
   | MONITOR_SW LPAREN RPAREN 
     { HandleSwitchEvent
       (symbol_start_pos (), NetCore_Monitoring.monitor_switch_events) }
+  | MONITOR_LOAD LPAREN INT64 COMMA pred RPAREN
+    { Transform 
+      ( symbol_start_pos ()
+      , NetCore_Monitoring.monitor_load (int_of_int64 $3)
+      , Filter (symbol_start_pos (), $5) ) }
 
 pol_pred :  
   | pol_atom

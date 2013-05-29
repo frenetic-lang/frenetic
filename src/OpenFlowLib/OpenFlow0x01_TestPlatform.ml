@@ -72,7 +72,73 @@ let accept_switch () =
         set_tp_src = true;
         set_tp_dst = true;
         enqueue = true;
-        vendor = false } }
+        vendor = false };
+    ports =
+      [
+	{ portDescPortNo = 1;
+	  portDescHwAddr = Int64.of_int 0;
+	  portDescName = "test port 0";
+	  portDescConfig = { portConfigDown = false;
+			     portConfigNoSTP = false;
+			     portConfigNoRecv = false;
+			     portConfigNoRecvSTP = false;
+			     portConfigNoFlood = false;
+			     portConfigNoFWD = false;
+			     portConfigNoPacketIn = false };
+	  portDescState = { portStateDown = false;
+			    portStateSTPListen = false;
+			    portStateSTPForward = false;
+			    portStateSTPBlock = false;
+			    portStateSTPMask = false };
+	  portDescCurr = { portFeat10MBHD = true;
+			   portFeat10MBFD = true;
+			   portFeat100MBHD = true;
+			   portFeat100MBFD = true;
+			   portFeat1GBHD = true;
+			   portFeat1GBFD = true;
+			   portFeat10GBFD = true;
+			   portFeatCopper = true;
+			   portFeatFiber = true;
+			   portFeatAutoneg = true;
+			   portFeatPause = true;
+			   portFeatPauseAsym = true };
+	  portDescAdvertised = { portFeat10MBHD = true;
+				 portFeat10MBFD = true;
+				 portFeat100MBHD = true;
+				 portFeat100MBFD = true;
+				 portFeat1GBHD = true;
+				 portFeat1GBFD = true;
+				 portFeat10GBFD = true;
+				 portFeatCopper = true;
+				 portFeatFiber = true;
+				 portFeatAutoneg = true;
+				 portFeatPause = true;
+				 portFeatPauseAsym = true };
+	  portDescSupported = { portFeat10MBHD = true;
+				portFeat10MBFD = true;
+				portFeat100MBHD = true;
+				portFeat100MBFD = true;
+				portFeat1GBHD = true;
+				portFeat1GBFD = true;
+				portFeat10GBFD = true;
+				portFeatCopper = true;
+				portFeatFiber = true;
+				portFeatAutoneg = true;
+				portFeatPause = true;
+				portFeatPauseAsym = true };
+	  portDescPeer = { portFeat10MBHD = true;
+			   portFeat10MBFD = true;
+			   portFeat100MBHD = true;
+			   portFeat100MBFD = true;
+			   portFeat1GBHD = true;
+			   portFeat1GBFD = true;
+			   portFeat10GBFD = true;
+			   portFeatCopper = true;
+			   portFeatFiber = true;
+			   portFeatAutoneg = true;
+			   portFeatPause = true;
+			   portFeatPauseAsym = true } }]
+    }
 
 let exn_if_disconnected sw_id sw =
   if sw.status = Disconnected then

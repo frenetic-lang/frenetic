@@ -36,8 +36,7 @@ type action =
   | UpdateSrcPort of int * int
   | UpdateDstPort of int * int
   | GetPacket of get_packet_handler
-  | GetPacketCount of int * get_count_handler
-  | GetByteCount of int * get_count_handler
+  | GetCount of int * get_count_handler
       
 type policy =
   | Empty
@@ -57,9 +56,5 @@ val action_to_string : action -> string
 val policy_to_string : policy -> string
 
 
-val desugar : (unit -> int option) 
-  -> (unit -> int) 
-  -> ((int, (int * get_count_handler * bool)) Hashtbl.t)
-  -> policy 
-  -> pol
+val desugar : (unit -> int option) -> policy -> pol
 

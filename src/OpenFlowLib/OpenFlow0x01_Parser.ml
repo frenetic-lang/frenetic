@@ -265,26 +265,6 @@ module Actions = struct
 
 end
 
-module Features = struct
-
-  type t = features
-
-  let parse (buf : Cstruct.t) : t =
-    let switch_id = get_ofp_switch_features_datapath_id buf in 
-    let num_buffers = get_ofp_switch_features_n_buffers buf in
-    let num_tables = get_ofp_switch_features_n_tables buf in 
-    let supported_capabilities = Capabilities.parse
-      (get_ofp_switch_features_capabilities buf) in
-    let supported_actions = Actions.parse 
-      (get_ofp_switch_features_action buf) in
-    let _ = Cstruct.shift buf sizeof_ofp_switch_features in
-    { switch_id; 
-      num_buffers; 
-      num_tables; 
-      supported_capabilities; 
-      supported_actions }
-end
-
 module PortFeatures = struct
     
   let parse bits : portFeatures =
@@ -414,6 +394,28 @@ module PortStatus = struct
       (portStatusDesc.portDescPortNo)
 end
 
+module Features = struct
+
+  type t = features
+
+  let parse (buf : Cstruct.t) : t =
+    let switch_id = get_ofp_switch_features_datapath_id buf in 
+    let num_buffers = get_ofp_switch_features_n_buffers buf in
+    let num_tables = get_ofp_switch_features_n_tables buf in 
+    let supported_capabilities = Capabilities.parse
+      (get_ofp_switch_features_capabilities buf) in
+    let supported_actions = Actions.parse 
+      (get_ofp_switch_features_action buf) in
+    let _ = Cstruct.shift buf sizeof_ofp_switch_features in
+    let portIter = Cstruct.iter (fun buf -> Some PortDesc.sizeof_ofp_phy_port) PortDesc.parse buf in
+    let ports = Cstruct.fold (fun acc bits -> bits :: acc) portIter [] in
+    { switch_id; 
+      num_buffers; 
+      num_tables; 
+      supported_capabilities; 
+      supported_actions;
+      ports }
+end
 
 module TimeoutSer = struct
 

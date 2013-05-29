@@ -82,4 +82,4 @@ let rec compile (env : env) = function
 let compile_program exp = 
   match compile Env.empty exp with
     | PolStream (lwt_e, stream) -> (lwt_e, stream)
-    | Pol pol -> (Lwt.return (), NetCore_Stream.constant pol)
+    | Pol pol -> (fst (Lwt.wait ()), NetCore_Stream.constant pol)

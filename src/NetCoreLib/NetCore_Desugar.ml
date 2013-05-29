@@ -37,8 +37,7 @@ open NetCore_Types
   | UpdateSrcPort of int * int
   | UpdateDstPort of int * int
   | GetPacket of get_packet_handler
-  | GetPacketCount of int * get_count_handler
-  | GetByteCount of int * get_count_handler
+  | GetCount of int * get_count_handler
       
   type policy =
   | Empty
@@ -113,10 +112,8 @@ open NetCore_Types
        (string_of_int old) (string_of_int new_)
     | GetPacket _ -> 
       Printf.sprintf "GetPacket <fun>"
-    | GetPacketCount (d, _) ->
-      Printf.sprintf "GetPacketCount %d <fun>" d
-    | GetByteCount (d, _) ->
-      Printf.sprintf "GetByteCount %d <fun>" d
+    | GetCount (d, _) ->
+      Printf.sprintf "GetCount %d <fun>" d
         
   let rec policy_to_string pol = match pol with 
     | Empty -> 
@@ -208,12 +205,7 @@ open NetCore_Types
     else ()
 
 
-let desugar 
-  (genvlan : unit -> int option)
-  (genbucket : unit -> int)
-  (get_count_handlers : (int, (int * get_count_handler * bool)) Hashtbl.t)
-  (pol : policy) :
-  NetCore_Types.pol =
+let desugar (genvlan : unit -> int option) (pol : policy) : NetCore_Types.pol =
   let desugar_act act =
     match act with
     | Pass -> NetCore_Action.Output.pass
@@ -238,14 +230,9 @@ let desugar
       NetCore_Action.Output.updateDstPort old new_
     | GetPacket handler ->
       NetCore_Action.Output.controller handler
-    | GetPacketCount (d, handler) ->
-      let bucket = genbucket () in
-      Hashtbl.replace get_count_handlers bucket (d, handler, true);
-      NetCore_Action.Output.packet_query d handler
-    | GetByteCount (d, handler) ->
-      let bucket = genbucket () in
-      Hashtbl.replace get_count_handlers bucket (d, handler, false);
-      NetCore_Action.Output.byte_query d handler in
+    | GetCount (d, handler) ->
+      NetCore_Action.Output.query d handler
+    in
   let rec desugar_pred pred = match pred with
     | And (p1, p2) -> 
       PrAnd (desugar_pred p1, desugar_pred p2)
