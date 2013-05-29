@@ -54,7 +54,7 @@ Policies:
 
 <apol> ::= ( <pol> )
          | <id>
-         | <int> (* haha, the syntax for forwarding, atrocious *)
+         | <port-id> (* haha, the syntax for forwarding, atrocious *)
          | pass
          | drop
          | all (* forward on all ports, not at all obvious *)
