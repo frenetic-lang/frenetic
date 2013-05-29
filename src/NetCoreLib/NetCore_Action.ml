@@ -101,10 +101,7 @@ module Output = struct
 
   let to_all = [ SwitchAction { unmodified with outPort = All } ]
 
-  let packet_query d f =
-    [ ControllerQuery (d, f) ]
-
-  let byte_query d f =
+  let query d f =
     [ ControllerQuery (d, f) ]
 
   let controller handler =

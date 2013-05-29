@@ -43,8 +43,7 @@ module Output : sig
   val updateDstIP : Int32.t -> Int32.t -> t
   val updateSrcPort : int -> int -> t
   val updateDstPort : int -> int -> t
-  val packet_query : int -> get_count_handler -> t
-  val byte_query : int -> get_count_handler -> t
+  val query : int -> get_count_handler -> t
   val controller : (OpenFlow0x01.switchId -> port -> packet -> action) -> t
   val apply_controller : action -> lp -> action
   val switch_part  : action -> action

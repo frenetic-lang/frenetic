@@ -396,10 +396,7 @@ module Helper = struct
   let desugar_policy pol =
     let vlan_cell = ref 0 in
     let genvlan () = incr vlan_cell; Some !vlan_cell in
-    let bucket_cell = ref 0 in
-    let genbucket () = incr bucket_cell; !bucket_cell in
-    let get_count_handlers = Hashtbl.create 200 in
-    desugar genvlan genbucket get_count_handlers pol
+    desugar genvlan pol
 
   let in_pkt =
     { dlSrc = Int64.zero
