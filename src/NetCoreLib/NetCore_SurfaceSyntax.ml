@@ -15,6 +15,7 @@ type exp =
   | Id of pos * id
   | Let of pos * (id * value) list * exp
   | Transform of pos * (Pol.pol -> Pol.pol) * exp
+  | Slice of pos * Pol.pred * exp * Pol.pred
 
 and value = 
   | Pol of Pol.pol
@@ -78,6 +79,8 @@ let rec compile (env : env) = function
       (List.fold_left (fun env' (x, e) -> Env.add x e env') env binds)
       body
   | Transform (pos, f, e) -> compile_pol f (compile env e)
+  | Slice (pos, ingress, e, egress) -> 
+    failwith "NYI: slice surface syntax."
 
 let compile_program exp = 
   match compile Env.empty exp with

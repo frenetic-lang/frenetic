@@ -66,7 +66,7 @@ and get_count_handler = Int64.t -> Int64.t -> unit
 and action_atom =
   | SwitchAction of output
   | ControllerAction of get_packet_handler
-  | ControllerQuery of int * get_count_handler
+  | ControllerQuery of float * get_count_handler
 
 and action = action_atom list
 
