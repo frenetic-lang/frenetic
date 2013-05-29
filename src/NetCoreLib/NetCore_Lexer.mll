@@ -19,11 +19,11 @@ let decbyte =
 rule literate = parse
   | "    " { token true lexbuf }
   | '\n' { new_line lexbuf; literate lexbuf }
-  | eof { EOF }
   | _ { literate_text lexbuf }
 
 and literate_text = parse
   | '\n' { new_line lexbuf; literate lexbuf }
+  | eof { EOF }
   | [^ '\n'] { literate_text lexbuf }
 
 and token is_literate = parse
