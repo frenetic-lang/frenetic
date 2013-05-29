@@ -27,18 +27,19 @@ let format_pattern fmt pat =
         fprintf fmt "none"
       else 
         format_list fmt " && "
-          (List.filter (fun x -> not (x = "")) [ to_string_exact Packet.string_of_mac "dlSrc" pat.ptrnDlSrc;
-            to_string_exact Packet.string_of_mac "dlDst" pat.ptrnDlDst;
-            to_string_exact string_of_int "dlTyp " pat.ptrnDlType;
-            to_string_exact Packet.dlVlan_to_string "dlVlan" pat.ptrnDlVlan;
-            to_string_exact string_of_int "dlVlanPcp" pat.ptrnDlVlanPcp;
-            to_string_exact Packet.string_of_ip "nwSrc" pat.ptrnNwSrc;
-            to_string_exact Packet.string_of_ip "nwDst" pat.ptrnNwDst;
-            to_string_exact string_of_int "nwProto" pat.ptrnNwProto;
-            to_string_exact string_of_int "nwTos" pat.ptrnNwTos;
-            to_string_exact string_of_int "tpSrc" pat.ptrnTpSrc;
-            to_string_exact string_of_int "tpDst" pat.ptrnTpDst;
-            to_string_exact port_to_string "inPort" pat.ptrnInPort ])
+          (List.filter (fun x -> not (x = "")) 
+	     [ to_string_exact Packet.string_of_mac "srcmac" pat.ptrnDlSrc;
+               to_string_exact Packet.string_of_mac "dstmac" pat.ptrnDlDst;
+               to_string_exact string_of_int "frameType " pat.ptrnDlType;
+               to_string_exact Packet.dlVlan_to_string "vlan" pat.ptrnDlVlan;
+               to_string_exact string_of_int "dlVlanPcp" pat.ptrnDlVlanPcp;
+               to_string_exact Packet.string_of_ip "srcip" pat.ptrnNwSrc;
+               to_string_exact Packet.string_of_ip "dstip" pat.ptrnNwDst;
+               to_string_exact string_of_int "nwProto" pat.ptrnNwProto;
+               to_string_exact string_of_int "nwTos" pat.ptrnNwTos;
+               to_string_exact string_of_int "tcpsrcport" pat.ptrnTpSrc;
+               to_string_exact string_of_int "tcpdstport" pat.ptrnTpDst;
+               to_string_exact port_to_string "inPort" pat.ptrnInPort ])
           
 let pattern_to_string x =
   let buf = Buffer.create 100 in
@@ -133,10 +134,10 @@ let rec format_pol fmt pol = match pol with
   | PoITE (pred, then_pol, else_pol) ->
     match else_pol with
       | PoAction [] ->
-	fprintf fmt "@[If @[(@[%a@]) @ then @ (%a)@]@]"
+	fprintf fmt "@[if @[(%a)@])@;<1 0>then@ @[(%a)@]@]"
 	  format_pred pred format_pol then_pol
       | _ ->
-	fprintf fmt "@[If @[(@[%a@]) @ then @ (%a) @;<1 1>else @;<1 1>(%a@)@]@]"
+	fprintf fmt "@[if (@[%a@])@;<1 0>then@(%a)@;<1 0>else@;<1 1>(%a)@]"
 	  format_pred pred format_pol then_pol format_pol else_pol
 
 
