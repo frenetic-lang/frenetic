@@ -285,6 +285,136 @@ module Features = struct
       supported_actions }
 end
 
+module PortFeatures = struct
+    
+  let parse bits : portFeatures =
+    { portFeat10MBHD = test_bit 0 bits;
+      portFeat10MBFD = test_bit 1 bits;
+      portFeat100MBHD = test_bit 2 bits;
+      portFeat100MBFD = test_bit 3 bits;
+      portFeat1GBHD = test_bit 4 bits;
+      portFeat1GBFD = test_bit 5 bits;
+      portFeat10GBFD = test_bit 6 bits;
+      portFeatCopper = test_bit 7 bits;
+      portFeatFiber = test_bit 8 bits;
+      portFeatAutoneg = test_bit 9 bits;
+      portFeatPause = test_bit 10 bits;
+      portFeatPauseAsym = test_bit 11 bits
+    }
+
+end
+
+module PortState = struct
+
+  (* MJR: GAH, the enum values from OF1.0 make NO SENSE AT ALL. Two of
+     them have the SAME value, and the rest make no sense as bit
+     vectors. Only portStateDown is parsed correctly ATM *)
+  let parse bits : portState =
+    { portStateDown = test_bit 0 bits;
+      portStateSTPListen = false;
+      portStateSTPForward = false;
+      portStateSTPBlock = false;
+      portStateSTPMask = false
+    }
+
+end
+
+module PortConfig = struct
+
+  let parse bits : portConfig =
+    { portConfigDown = test_bit 0 bits;
+      portConfigNoSTP = test_bit 1 bits;
+      portConfigNoRecv = test_bit 2 bits;
+      portConfigNoRecvSTP = test_bit 3 bits;
+      portConfigNoFlood = test_bit 4 bits;
+      portConfigNoFWD = test_bit 5 bits;
+      portConfigNoPacketIn = test_bit 6 bits
+    }
+
+end
+
+module PortDesc = struct
+
+    cstruct ofp_phy_port {
+      uint16_t port_no;
+      uint8_t hw_addr[6];
+      uint8_t name[16]; (* OFP_MAX_PORT_NAME_LEN, Null-terminated *)
+      uint32_t config; (* Bitmap of OFPPC_* flags. *)
+      uint32_t state; (* Bitmap of OFPPS_* flags. *)
+      (* Bitmaps of OFPPF_* that describe features. All bits zeroed if
+       * unsupported or unavailable. *)
+      uint32_t curr; (* Current features. *)
+      uint32_t advertised; (* Features being advertised by the port. *)
+      uint32_t supported; (* Features supported by the port. *)
+      uint32_t peer (* Features advertised by peer. *)
+    } as big_endian
+    
+  let parse (bits : Cstruct.t) : portDesc =
+    let portDescPortNo = get_ofp_phy_port_port_no bits in
+    let hw_addr = Packet.mac_of_bytes (Cstruct.to_string (get_ofp_phy_port_hw_addr bits)) in
+    let name = Cstruct.to_string (get_ofp_phy_port_name bits) in
+    let config = PortConfig.parse (get_ofp_phy_port_config bits) in
+    let state = PortState.parse (get_ofp_phy_port_state bits) in
+    let curr = PortFeatures.parse (get_ofp_phy_port_curr bits) in
+    let advertised = PortFeatures.parse (get_ofp_phy_port_advertised bits) in
+    let supported = PortFeatures.parse (get_ofp_phy_port_supported bits) in
+    let peer = PortFeatures.parse (get_ofp_phy_port_peer bits) in
+    { portDescPortNo;
+      portDescHwAddr = hw_addr;
+      portDescName = name;
+      portDescConfig = config;
+      portDescState = state;
+      portDescCurr = curr;
+      portDescAdvertised = advertised;
+      portDescSupported = supported;
+      portDescPeer = peer
+    }
+end
+
+module PortReason = struct
+
+    cenum ofp_port_reason {
+      OFPPR_ADD;
+      OFPPR_DELETE;
+      OFPPR_MODIFY
+    } as uint8_t
+
+
+  let parse bits : portChangeReason =
+    match (int_to_ofp_port_reason bits) with
+      | Some OFPPR_ADD -> PortAdd
+      | Some OFPPR_DELETE -> PortDelete
+      | Some OFPPR_MODIFY -> PortModify
+
+  let to_string rea = match rea with
+    | PortAdd -> "PortAdd"
+    | PortDelete -> "PortDelete"
+    | PortModify -> "PortModify"
+
+end
+
+module PortStatus = struct
+
+    cstruct ofp_port_status {
+      uint8_t reason;               (* One of OFPPR_* *)
+      uint8_t pad[7]
+    } as big_endian
+
+
+  let parse (bits : Cstruct.t) : portStatus =
+    let portStatusReason = PortReason.parse (get_ofp_port_status_reason bits) in 
+    let _ = get_ofp_port_status_pad bits in
+    let portStatusDesc = PortDesc.parse bits in
+    { portStatusReason;
+      portStatusDesc }
+
+  let to_string ps =
+    let {portStatusReason; portStatusDesc} = ps in
+    Printf.sprintf "PortStatus %s %d" (PortReason.to_string portStatusReason)
+      (portStatusDesc.portDescPortNo)
+end
+
+
 module TimeoutSer = struct
 
   let to_int (x : timeout) = match x with
@@ -755,6 +885,7 @@ module Message = struct
       | FEATURES_REQ -> Some (FeaturesRequest)
       | FEATURES_RESP -> Some (FeaturesReply (Features.parse buf))
       | PACKET_IN -> Some (PacketInMsg (PacketIn.parse buf))
+      | PORT_STATUS -> Some (PortStatusMsg (PortStatus.parse buf))
       | BARRIER_REQ -> Some BarrierRequest
       | BARRIER_RESP -> Some BarrierReply
       | STATS_RESP -> Some (StatsReplyMsg (StatsReply.parse buf))

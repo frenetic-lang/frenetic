@@ -23,6 +23,7 @@ sig
   val packetIn : xid -> switchId -> packetIn -> unit
   val barrierReply : xid -> unit
   val statsReply : xid -> switchId -> statsReply -> unit 
+  val portStatus : xid -> switchId -> portStatus -> unit 
 end
 
 module Make (Platform:OpenFlow0x01.PLATFORM) (OxModule:OXMODULE) = 
@@ -76,6 +77,10 @@ struct
 	  switch_thread sw
         | (xid, StatsReplyMsg rep) ->
           Handlers.statsReply xid sw rep;
+          switch_thread sw
+        | (xid, PortStatusMsg ps) ->
+	  Log.printf "Ox_Controller" "port status\n%!";
+          Handlers.portStatus xid sw ps;
           switch_thread sw
         | _ -> 
           switch_thread sw 

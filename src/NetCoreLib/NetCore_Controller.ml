@@ -262,6 +262,9 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
         let _ = Log.printf "NetCore_Controller" "received unexpected stats reply type (%s)"
           (OpenFlow0x01.string_of_statsReply r) in
           Lwt.return ()
+      | (xid, PortStatusMsg msg) ->
+	let _ = Log.printf "NetCore_Controller" "received %s" (OpenFlow0x01_Parser.PortStatus.to_string msg) in
+	Lwt.return ()
       | _ -> Lwt.return ()
       in
     handle_switch_messages sw

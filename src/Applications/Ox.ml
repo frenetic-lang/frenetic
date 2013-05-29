@@ -50,6 +50,9 @@ struct
 
   let barrierReply xid = ()
 
+  let portStatus xid sw ps = 
+    Log.printf "Ox" "Port Status %Ld %s\n%!" sw (OpenFlow0x01_Parser.PortStatus.to_string ps)
+
   let statsReply xid sw stats = 
     Printf.printf "Stats Reply\n%!";
     let open AggregateFlowStats in 

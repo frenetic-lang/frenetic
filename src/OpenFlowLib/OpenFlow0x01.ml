@@ -631,6 +631,59 @@ type flowMod =
     mfOutPort : PseudoPort.t option;
     mfCheckOverlap : bool }
 
+type portChangeReason =
+  | PortAdd
+  | PortDelete
+  | PortModify
+
+type portConfig =
+    { portConfigDown : bool; (* Port is administratively down. *)
+      portConfigNoSTP : bool; (* Disable 802.1D spanning tree on port. *)
+      portConfigNoRecv : bool; (* Drop all packets except 802.1D spanning
+				  tree packets. *)
+      portConfigNoRecvSTP : bool; (* Drop received 802.1D STP packets. *)
+      portConfigNoFlood : bool; (* Do not include this port when flooding. *)
+      portConfigNoFWD : bool; (* Drop packets forwarded to port. *)
+      portConfigNoPacketIn : bool (* Do not send packet-in msgs for port. *)
+    }
+
+type portState = 
+    { portStateDown : bool;  (* No physical link present. *)
+      portStateSTPListen : bool;
+      portStateSTPForward : bool;
+      portStateSTPBlock : bool;
+      portStateSTPMask : bool }
+
+type portFeatures =
+    { portFeat10MBHD : bool; (* 10 Mb half-duplex rate support. *)
+      portFeat10MBFD : bool; (* 10 Mb full-duplex rate support. *)
+      portFeat100MBHD : bool; (* 100 Mb half-duplex rate support. *)
+      portFeat100MBFD : bool; (* 100 Mb full-duplex rate support. *)
+      portFeat1GBHD : bool; (* 1 Gb half-duplex rate support. *)
+      portFeat1GBFD : bool; (* 1 Gb full-duplex rate support. *)
+      portFeat10GBFD : bool; (* 10 Gb full-duplex rate support. *)
+      portFeatCopper : bool; (* Copper medium. *)
+      portFeatFiber : bool; (* Fiber medium. *)
+      portFeatAutoneg : bool; (* Auto-negotiation. *)
+      portFeatPause : bool; (* Pause. *)
+      portFeatPauseAsym : bool (* Asymmetric pause. *)
+    }
+
+type portDesc =
+    { portDescPortNo : portId;
+      portDescHwAddr : dlAddr;
+      portDescName : string;
+      portDescConfig : portConfig;
+      portDescState : portState;
+      portDescCurr : portFeatures;
+      portDescAdvertised : portFeatures;
+      portDescSupported : portFeatures;
+      portDescPeer : portFeatures }
+
+type portStatus =
+    { portStatusReason : portChangeReason;
+      portStatusDesc : portDesc }
+
 type reason =
 | NoMatch
 | ExplicitSend
@@ -901,6 +954,7 @@ type message =
   | FeaturesReply of features
   | FlowModMsg of flowMod
   | PacketInMsg of packetIn
+  | PortStatusMsg of portStatus
   | PacketOutMsg of packetOut
   | BarrierRequest (* JNF: why not "BarrierRequestMsg"? *)
   | BarrierReply (* JNF: why not "BarrierReplyMsg"? *)
