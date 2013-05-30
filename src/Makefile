@@ -1,8 +1,7 @@
 APPLICATIONS = Applications/Frenetic \
                Applications/Ox \
                Applications/Test \
-               Applications/Verify \
-               Applications/NetCoreConsistent
+               Applications/Verify 
 
 LIBRARIES = FreneticLib \
             PacketLib \
