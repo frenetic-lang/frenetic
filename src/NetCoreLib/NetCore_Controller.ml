@@ -446,24 +446,19 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     let _ = push_pol (Some pol) in
     accept_policies push_pol sugared_pol_stream <&> Queries.start pol
 
-  (** emits packets synthesized at the controller. Produced packets are
-      subject to the current NetCore policy. *)
+  (** Emits packets synthesized at the controller. Produced packets
+      are _not_ subjected to the current NetCore policy, so they do not
+      compose nicely with NetCore operatores. This requires some deep thought,
+      which is banned until after PLDI 2013. *)
   let emit_packets pkt_stream pol_stream = 
-    let emit_pkt (sw, pt, bytes) = match Packet.parse bytes with
-      | None -> 
-        Log.printf "NetCore_Controller" "cannot pars synth packet\n%!";
-        Lwt.return ()
-      | Some pkt -> 
-        let open PacketOut in
-        let actions = NetCore_Semantics.eval
-          (NetCore_Stream.now pol_stream) (* TODO(arjun): glitch? *)
-          (Pkt (sw, Physical pt, pkt, Packet bytes)) in
-        let msg = {
-          buf_or_bytes = Packet bytes;
-          port_id = None;
-          actions = NetCore_Action.Output.as_actionSequence None actions
-        } in
-        Platform.send_to_switch sw 0l (Message.PacketOutMsg msg) in
+    let emit_pkt (sw, pt, bytes) =
+      let open OpenFlow0x01 in
+      let msg = {
+        PacketOut.buf_or_bytes = PacketOut.Packet bytes;
+        PacketOut.port_id = None;
+        PacketOut.actions = [Action.Output (PseudoPort.PhysicalPort pt)]
+      } in
+      Platform.send_to_switch sw 0l (Message.PacketOutMsg msg) in
     Lwt_stream.iter_s emit_pkt pkt_stream
 
   let start_controller pkt_stream pol = 
