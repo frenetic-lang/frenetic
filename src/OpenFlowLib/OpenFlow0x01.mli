@@ -188,7 +188,7 @@ module PortStatus : sig
 
 end
 
-module Features : sig
+module SwitchFeatures : sig
 
   type capabilities =
     { flow_stats : bool
@@ -573,8 +573,8 @@ module Message : sig
     | ErrorMsg of Error.t
     | EchoRequest of bytes
     | EchoReply of bytes
-    | FeaturesRequest
-    | FeaturesReply of Features.t
+    | SwitchFeaturesRequest
+    | SwitchFeaturesReply of SwitchFeatures.t
     | FlowModMsg of FlowMod.t
     | PacketInMsg of PacketIn.t
     | PortStatusMsg of PortStatus.t
@@ -621,6 +621,6 @@ module type PLATFORM = sig
   (** [accept_switch] blocks until a switch connects, handles the
       OpenFlow handshake, and returns after the switch sends a
       [FEATURES_REPLY] message. *)
-  val accept_switch : unit -> Features.t Lwt.t
+  val accept_switch : unit -> SwitchFeatures.t Lwt.t
 
 end

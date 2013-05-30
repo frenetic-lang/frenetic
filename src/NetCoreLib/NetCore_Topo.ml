@@ -78,7 +78,7 @@ let make_switch_handler dlTyp topo =
     | SwitchUp (sw, features) -> 
       let ports =
         List.map (fun pt -> pt.OpenFlow0x01.PortDescription.port_no)
-          features.OpenFlow0x01.Features.ports in
+          features.OpenFlow0x01.SwitchFeatures.ports in
       switch_connected topo sw ports;
       Lwt.async
         (fun () ->

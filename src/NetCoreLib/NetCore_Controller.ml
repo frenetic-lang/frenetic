@@ -403,7 +403,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     handle_switch_messages sw
 
   let switch_thread features pol_stream =
-    let open Features in
+    let open SwitchFeatures in
     let sw = features.switch_id in
     Queries.add_switch sw;
     (try_lwt

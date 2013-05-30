@@ -766,9 +766,9 @@ module PortDescription = struct
     (* Bitmaps of OFPPF_* that describe features. All bits zeroed if
      * unsupported or unavailable. *)
     uint32_t curr; (* Current features. *)
-    uint32_t advertised; (* Features being advertised by the port. *)
-    uint32_t supported; (* Features supported by the port. *)
-    uint32_t peer (* Features advertised by peer. *)
+    uint32_t advertised; (* SwitchFeatures being advertised by the port. *)
+    uint32_t supported; (* SwitchFeatures supported by the port. *)
+    uint32_t peer (* SwitchFeatures advertised by peer. *)
   } as big_endian
 
   let to_string d = Printf.sprintf
@@ -867,7 +867,7 @@ module PortStatus = struct
 
 end
 
-module Features = struct
+module SwitchFeatures = struct
 
   type capabilities =
     { flow_stats : bool
@@ -1042,8 +1042,8 @@ module Features = struct
     ; supported_actions
     ; ports }
 
-  let size_of _ = failwith "NYI: Features.size_of"
-  let marshal _ _ = failwith "NYI: Features.marshal"
+  let size_of _ = failwith "NYI: SwitchFeatures.size_of"
+  let marshal _ _ = failwith "NYI: SwitchFeatures.marshal"
 
 end
 
@@ -2014,8 +2014,8 @@ module Message = struct
     | ErrorMsg of Error.t
     | EchoRequest of bytes
     | EchoReply of bytes
-    | FeaturesRequest
-    | FeaturesReply of Features.t
+    | SwitchFeaturesRequest
+    | SwitchFeaturesReply of SwitchFeatures.t
     | FlowModMsg of FlowMod.t
     | PacketInMsg of PacketIn.t
     | PortStatusMsg of PortStatus.t
@@ -2061,8 +2061,8 @@ module Message = struct
       | ERROR -> ErrorMsg (Error.parse buf)
       | ECHO_REQ -> EchoRequest buf
       | ECHO_RESP -> EchoReply buf
-      | FEATURES_REQ -> FeaturesRequest
-      | FEATURES_RESP -> FeaturesReply (Features.parse buf)
+      | FEATURES_REQ -> SwitchFeaturesRequest
+      | FEATURES_RESP -> SwitchFeaturesReply (SwitchFeatures.parse buf)
       | PACKET_IN -> PacketInMsg (PacketIn.parse buf)
       | PORT_STATUS -> PortStatusMsg (PortStatus.parse buf)
       | BARRIER_REQ -> BarrierRequest
@@ -2079,8 +2079,8 @@ module Message = struct
     | ErrorMsg _ -> ERROR
     | EchoRequest _ -> ECHO_REQ
     | EchoReply _ -> ECHO_RESP
-    | FeaturesRequest -> FEATURES_REQ
-    | FeaturesReply _ -> FEATURES_RESP
+    | SwitchFeaturesRequest -> FEATURES_REQ
+    | SwitchFeaturesReply _ -> FEATURES_RESP
     | FlowModMsg _ -> FLOW_MOD
     | PacketOutMsg _ -> PACKET_OUT
     | PortStatusMsg _ -> PORT_STATUS
@@ -2095,8 +2095,8 @@ module Message = struct
     | ErrorMsg _ -> "Error"
     | EchoRequest _ -> "EchoRequest"
     | EchoReply _ -> "EchoReply"
-    | FeaturesRequest -> "FeaturesRequest"
-    | FeaturesReply _ -> "FeaturesReply"
+    | SwitchFeaturesRequest -> "SwitchFeaturesRequest"
+    | SwitchFeaturesReply _ -> "SwitchFeaturesReply"
     | FlowModMsg _ -> "FlowMod"
     | PacketOutMsg _ -> "PacketOut"
     | PortStatusMsg _ -> "PortStatus"
@@ -2113,8 +2113,8 @@ module Message = struct
     | Hello buf -> Cstruct.len buf
     | EchoRequest buf -> Cstruct.len buf
     | EchoReply buf -> Cstruct.len buf
-    | FeaturesRequest -> 0
-    | FeaturesReply rep -> Features.size_of rep
+    | SwitchFeaturesRequest -> 0
+    | SwitchFeaturesReply rep -> SwitchFeatures.size_of rep
     | FlowModMsg msg -> FlowMod.size_of msg
     | PacketOutMsg msg -> PacketOut.size_of msg
     | BarrierRequest -> 0
@@ -2129,7 +2129,7 @@ module Message = struct
     | EchoRequest buf
     | EchoReply buf ->
       Cstruct.blit buf 0 out 0 (Cstruct.len buf)
-    | FeaturesRequest -> ()
+    | SwitchFeaturesRequest -> ()
     | FlowModMsg flow_mod ->
       let _ = FlowMod.marshal flow_mod out in
       ()
@@ -2137,7 +2137,7 @@ module Message = struct
       let _ = PacketOut.marshal msg out in
       ()
     (* | PacketInMsg _ -> () (\* TODO(arjun): wtf? *\) *)
-    (* | FeaturesReply _ -> () (\* TODO(arjun): wtf? *\) *)
+    (* | SwitchFeaturesReply _ -> () (\* TODO(arjun): wtf? *\) *)
     | BarrierRequest -> ()
     | BarrierReply -> ()
     | StatsRequestMsg msg ->
@@ -2165,5 +2165,5 @@ module type PLATFORM = sig
   exception SwitchDisconnected of switchId
   val send_to_switch : switchId -> Message.xid -> Message.t -> unit Lwt.t
   val recv_from_switch : switchId -> (Message.xid * Message.t) Lwt.t
-  val accept_switch : unit -> Features.t Lwt.t
+  val accept_switch : unit -> SwitchFeatures.t Lwt.t
 end

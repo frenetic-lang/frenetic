@@ -80,7 +80,7 @@ type pred =
   | PrNone
 
 type switchEvent =
-  | SwitchUp of switchId * OpenFlow0x01.Features.t
+  | SwitchUp of switchId * OpenFlow0x01.SwitchFeatures.t
   | SwitchDown of switchId
 
 type pol =

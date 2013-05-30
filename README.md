@@ -1,8 +1,13 @@
-Building from Source
-====================
+Frenetic
+========
 
-Prerequisites
--------------
+Work in Progress: Frenetic will be ready by June 10th, along with a
+standalone tutorial.
+
+Building from Source
+--------------------
+
+Prerequisites:
 
 - OCaml 4.0 or higher <http://caml.inria.fr/download.en.html>
 
@@ -27,8 +32,7 @@ Prerequisites
   eval `opam config env`
   ```
 
-Building
---------
+Building:
 
 From the root directory of the repository, simply run `make`
 
@@ -37,6 +41,6 @@ From the root directory of the repository, simply run `make`
   ```
 
 Hacking Wisdom
-==============
+--------------
 
 If you're using the user-mode reference switch, emit CONTROLLER actions last.
