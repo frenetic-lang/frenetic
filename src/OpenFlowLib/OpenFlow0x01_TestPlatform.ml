@@ -1,6 +1,8 @@
 open Lwt
 open OpenFlow0x01
 
+type xid = Message.xid
+
 module Lwt_channel = struct
   type 'a t = {
     stream : 'a Lwt_stream.t;
@@ -27,8 +29,8 @@ type status = Connecting | Connected | Disconnected
 
 type switch = {
   mutable status : status;
-  to_controller : (xid * message) Lwt_channel.t;
-  to_switch : (xid * message) Lwt_channel.t
+  to_controller : (xid * Message.t) Lwt_channel.t;
+  to_switch : (xid * Message.t) Lwt_channel.t
 }
 
 type state = {
@@ -42,6 +44,8 @@ let current_state = ref {
 }
 
 let accept_switch () =
+  let open Features in
+  let open PortDescription in
   lwt sw_id = Lwt_channel.recv !current_state.pending_switches in
   let sw = Hashtbl.find !current_state.switches sw_id in
   sw.status <- Connected;
@@ -75,69 +79,69 @@ let accept_switch () =
         vendor = false };
     ports =
       [
-	{ portDescPortNo = 1;
-	  portDescHwAddr = Int64.of_int 0;
-	  portDescName = "test port 0";
-	  portDescConfig = { portConfigDown = false;
-			     portConfigNoSTP = false;
-			     portConfigNoRecv = false;
-			     portConfigNoRecvSTP = false;
-			     portConfigNoFlood = false;
-			     portConfigNoFWD = false;
-			     portConfigNoPacketIn = false };
-	  portDescState = { portStateDown = false;
-			    portStateSTPListen = false;
-			    portStateSTPForward = false;
-			    portStateSTPBlock = false;
-			    portStateSTPMask = false };
-	  portDescCurr = { portFeat10MBHD = true;
-			   portFeat10MBFD = true;
-			   portFeat100MBHD = true;
-			   portFeat100MBFD = true;
-			   portFeat1GBHD = true;
-			   portFeat1GBFD = true;
-			   portFeat10GBFD = true;
-			   portFeatCopper = true;
-			   portFeatFiber = true;
-			   portFeatAutoneg = true;
-			   portFeatPause = true;
-			   portFeatPauseAsym = true };
-	  portDescAdvertised = { portFeat10MBHD = true;
-				 portFeat10MBFD = true;
-				 portFeat100MBHD = true;
-				 portFeat100MBFD = true;
-				 portFeat1GBHD = true;
-				 portFeat1GBFD = true;
-				 portFeat10GBFD = true;
-				 portFeatCopper = true;
-				 portFeatFiber = true;
-				 portFeatAutoneg = true;
-				 portFeatPause = true;
-				 portFeatPauseAsym = true };
-	  portDescSupported = { portFeat10MBHD = true;
-				portFeat10MBFD = true;
-				portFeat100MBHD = true;
-				portFeat100MBFD = true;
-				portFeat1GBHD = true;
-				portFeat1GBFD = true;
-				portFeat10GBFD = true;
-				portFeatCopper = true;
-				portFeatFiber = true;
-				portFeatAutoneg = true;
-				portFeatPause = true;
-				portFeatPauseAsym = true };
-	  portDescPeer = { portFeat10MBHD = true;
-			   portFeat10MBFD = true;
-			   portFeat100MBHD = true;
-			   portFeat100MBFD = true;
-			   portFeat1GBHD = true;
-			   portFeat1GBFD = true;
-			   portFeat10GBFD = true;
-			   portFeatCopper = true;
-			   portFeatFiber = true;
-			   portFeatAutoneg = true;
-			   portFeatPause = true;
-			   portFeatPauseAsym = true } }]
+        { port_no = 1;
+          hw_addr = Int64.of_int 0;
+          name = "test port 0";
+          config = { PortConfig.down = false;
+                     PortConfig.no_stp = false;
+                     PortConfig.no_recv = false;
+                     PortConfig.no_recv_stp = false;
+                     PortConfig.no_flood = false;
+                     PortConfig.no_fwd = false;
+                     PortConfig.no_packet_in = false };
+          state = { PortState.down = false;
+                    PortState.stp_listen = false;
+                    PortState.stp_forward = false;
+                    PortState.stp_block = false;
+                    PortState.stp_mask = false };
+          curr = { PortFeatures.f_10MBHD = true;
+                   PortFeatures.f_10MBFD = true;
+                   PortFeatures.f_100MBHD = true;
+                   PortFeatures.f_100MBFD = true;
+                   PortFeatures.f_1GBHD = true;
+                   PortFeatures.f_1GBFD = true;
+                   PortFeatures.f_10GBFD = true;
+                   PortFeatures.copper = true;
+                   PortFeatures.fiber = true;
+                   PortFeatures.autoneg = true;
+                   PortFeatures.pause = true;
+                   PortFeatures.pause_asym = true };
+          advertised = { PortFeatures.f_10MBHD = true;
+                                 PortFeatures.f_10MBFD = true;
+                                 PortFeatures.f_100MBHD = true;
+                                 PortFeatures.f_100MBFD = true;
+                                 PortFeatures.f_1GBHD = true;
+                                 PortFeatures.f_1GBFD = true;
+                                 PortFeatures.f_10GBFD = true;
+                                 PortFeatures.copper = true;
+                                 PortFeatures.fiber = true;
+                                 PortFeatures.autoneg = true;
+                                 PortFeatures.pause = true;
+                                 PortFeatures.pause_asym = true };
+          supported = { PortFeatures.f_10MBHD = true;
+                                PortFeatures.f_10MBFD = true;
+                                PortFeatures.f_100MBHD = true;
+                                PortFeatures.f_100MBFD = true;
+                                PortFeatures.f_1GBHD = true;
+                                PortFeatures.f_1GBFD = true;
+                                PortFeatures.f_10GBFD = true;
+                                PortFeatures.copper = true;
+                                PortFeatures.fiber = true;
+                                PortFeatures.autoneg = true;
+                                PortFeatures.pause = true;
+                                PortFeatures.pause_asym = true };
+          peer = { PortFeatures.f_10MBHD = true;
+                           PortFeatures.f_10MBFD = true;
+                           PortFeatures.f_100MBHD = true;
+                           PortFeatures.f_100MBFD = true;
+                           PortFeatures.f_1GBHD = true;
+                           PortFeatures.f_1GBFD = true;
+                           PortFeatures.f_10GBFD = true;
+                           PortFeatures.copper = true;
+                           PortFeatures.fiber = true;
+                           PortFeatures.autoneg = true;
+                           PortFeatures.pause = true;
+                           PortFeatures.pause_asym = true } }]
     }
 
 let exn_if_disconnected sw_id sw =

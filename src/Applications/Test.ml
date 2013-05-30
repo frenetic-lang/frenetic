@@ -176,7 +176,7 @@ module TestClassifier = struct
     nw = Unparsable (Cstruct.create 8) 
   }
 
-  let inp = Pkt (1L, Physical 1, pk, OpenFlow0x01.Buffer 0l)
+  let inp = Pkt (1L, Physical 1, pk, OpenFlow0x01.PacketOut.Buffer 0l)
 
   let lst3 =
     [("sequencing 1",
@@ -187,11 +187,11 @@ module TestClassifier = struct
      ("filtering 1",
       pass,
       PoFilter (PrHdr (dlVlan (Some 1))),
-      Pkt (1L, Physical 1, { pk with dlVlan = Some 1 }, OpenFlow0x01.Buffer 0l));
+      Pkt (1L, Physical 1, { pk with dlVlan = Some 1 }, OpenFlow0x01.PacketOut.Buffer 0l));
      ("updating 1",
       updateDlVlan None (Some 1),
       PoAction (updateDlVlan None (Some 1)),
-      Pkt (1L, Physical 1, pk, OpenFlow0x01.Buffer 0l))]
+      Pkt (1L, Physical 1, pk, OpenFlow0x01.PacketOut.Buffer 0l))]
       
 
   let go = TestList 
@@ -202,8 +202,8 @@ module TestClassifier = struct
       ("eval_action update" >::
           fun () ->
             assert_equal
-              [Pkt (1L, Physical 1, { pk with dlVlan = Some 1 }, OpenFlow0x01.Buffer 0l)]
-              (eval_action (Pkt (1L, Physical 1, pk, OpenFlow0x01.Buffer 0l))
+              [Pkt (1L, Physical 1, { pk with dlVlan = Some 1 }, OpenFlow0x01.PacketOut.Buffer 0l)]
+              (eval_action (Pkt (1L, Physical 1, pk, OpenFlow0x01.PacketOut.Buffer 0l))
                  (updateDlVlan None (Some 1))))
     ]
 
@@ -410,7 +410,7 @@ module Helper = struct
     Pkt ( Int64.one
         , (Physical 1)
         , in_pkt
-        , (OpenFlow0x01.Buffer Int32.zero))
+        , (OpenFlow0x01.PacketOut.Buffer Int32.zero))
 
   let mkEvalTest name ?debug:(dbg=false) pol in_val expected_vals = 
     let ds_pol = desugar_policy pol in
@@ -559,13 +559,12 @@ end
 module TestParser = struct
 
   open OpenFlow0x01
-  open OpenFlow0x01_Parser
 
   (* For each parsable type, test that parse(marshal(v)) == v for some value v.
    *)
   let test_match = "match marshal/parse test" >:: fun () ->
     let v = Match.all in
-    let bits = Cstruct.create Match.size in
+    let bits = Cstruct.create (Match.size_of v) in
     let _ = Match.marshal v bits in
     let v' = Match.parse bits in
     assert_equal ~printer:Match.to_string v v'

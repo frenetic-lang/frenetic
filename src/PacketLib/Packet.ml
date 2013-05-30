@@ -617,28 +617,20 @@ let len (pkt : packet) =
 let serialize_helper (bits : Cstruct.t) (pkt : packet) =
   set_eth_src (bytes_of_mac pkt.dlSrc) 0 bits;
   set_eth_dst (bytes_of_mac pkt.dlDst) 0 bits;
-  let bits =    
-    if pkt.dlVlan != None then 
-      begin 
+  let bits =
+    match pkt.dlVlan with
+      | Some v ->
         set_vlan_hdr bits 0x8100;
-        let vlan_tag = 
-          match pkt.dlVlan with 
-            | Some v -> v 
-            | None -> vlan_none in
-        let tag_and_pcp = (pkt.dlVlanPcp lsl 4) lor vlan_tag in 
-        set_vlan_tag bits tag_and_pcp;
-        set_vlan_typ bits pkt.dlTyp;                        
-        Cstruct.shift bits sizeof_vlan 
-      end
-    else
-      begin 
+        set_vlan_tag bits ((pkt.dlVlanPcp lsl 13) lor v);
+        set_vlan_typ bits pkt.dlTyp;
+        Cstruct.shift bits sizeof_vlan
+      | None ->
         set_eth_typ bits pkt.dlTyp;
-        Cstruct.shift bits sizeof_eth 
-      end in 
+        Cstruct.shift bits sizeof_eth in
   match pkt.nw with 
     | Ip ip -> Ip.serialize bits ip
     | Arp arp -> Arp.serialize bits arp
-    | Unparsable data -> Cstruct.blit bits 0 data 0 (Cstruct.len data)
+    | Unparsable data -> Cstruct.blit data 0 bits 0 (Cstruct.len data)
 
 let serialize (pkt:packet) : Cstruct.t = 
   let bits = Cstruct.create (len pkt) in 

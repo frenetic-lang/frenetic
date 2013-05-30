@@ -8,12 +8,13 @@
 *)
 open Frenetic_Socket
 open OpenFlow0x01
-open OpenFlow0x01_Parser
 
 module Log = Frenetic_Log
 module Socket = Frenetic_Socket
 
 exception SwitchDisconnected of switchId
+
+type xid = Message.xid
 
 let server_fd : Lwt_unix.file_descr option ref = 
   ref None
@@ -48,27 +49,37 @@ let get_fd () : Lwt_unix.file_descr Lwt.t =
     | None -> 
       raise_lwt (Invalid_argument "Platform not initialized")
 
-let rec recv_from_switch_fd (sock : Lwt_unix.file_descr) : (xid * message) option Lwt.t =
-  let ofhdr_str = String.create (2 * sizeof_ofp_header) in (* JNF: why 2x? *)
-  lwt ok = Socket.recv sock ofhdr_str 0 sizeof_ofp_header in
+let rec recv_from_switch_fd 
+  (sock : Lwt_unix.file_descr) : 
+  (Message.xid * Message.t) option Lwt.t =
+  let ofhdr_str = String.create (2 * Message.Header.size) in (* JNF: why 2x? *)
+  lwt ok = Socket.recv sock ofhdr_str 0 Message.Header.size in
   if not ok then Lwt.return None
   else
-    lwt hdr = Lwt.wrap (fun () -> Header.parse (Cstruct.of_string ofhdr_str)) in
-    let body_len = hdr.Header.len - sizeof_ofp_header in
+    lwt hdr = Lwt.wrap (fun () -> Message.Header.parse (Cstruct.of_string ofhdr_str)) in
+    let body_len = Message.Header.len hdr - Message.Header.size in
     let body_buf = String.create body_len in
     lwt ok = Socket.recv sock body_buf 0 body_len in
     if not ok then Lwt.return None
-    else 
-      match Message.parse hdr (Cstruct.of_string body_buf) with
-      | Some v -> 
-        Lwt.return (Some v)
-      | None ->
+    else try
+      let xid, msg = Message.parse hdr (Cstruct.of_string body_buf) in
+      Lwt.return (Some (xid, msg))
+    with 
+      | Unparsable error_msg ->
         Log.printf "platform" 
-          "in recv_from_switch_fd, ignoring message with code %d\n%!"
-          (msg_code_to_int hdr.Header.typ);
+          "in recv_from_switch_fd, error parsing incoming message (%s)\n%!"
+          error_msg;
+        recv_from_switch_fd sock
+      | Ignored msg ->
+        Log.printf "platform" 
+          "in recv_from_switch_fd, ignoring message (%s)\n%!"
+          msg;
         recv_from_switch_fd sock
 
-let send_to_switch_fd (sock : Lwt_unix.file_descr) (xid : xid) (msg : message) : unit option Lwt.t =
+let send_to_switch_fd 
+  (sock : Lwt_unix.file_descr) 
+  (xid : Message.xid) 
+  (msg : Message.t) : unit option Lwt.t =
   try_lwt
     lwt msg_buf = Lwt.wrap2 Message.marshal xid msg in
     let msg_len = String.length msg_buf in
@@ -105,7 +116,10 @@ let shutdown () : unit =
        Lwt_unix.close
        (Hashtbl.fold (fun _ fd l -> fd::l) switch_fds []))
 
-let send_to_switch (sw : switchId) (xid : xid) (msg : message) : unit Lwt.t =
+let send_to_switch 
+  (sw : switchId) 
+  (xid : Message.xid) 
+  (msg : Message.t) : unit Lwt.t =
   match fd_of_switch_id sw with 
   | Some fd -> 
     lwt ok = send_to_switch_fd fd xid msg in 
@@ -119,7 +133,8 @@ let send_to_switch (sw : switchId) (xid : xid) (msg : message) : unit Lwt.t =
   | None -> 
     raise_lwt (SwitchDisconnected sw)
 
-let rec recv_from_switch (sw : switchId) : (xid * message) Lwt.t = 
+let rec recv_from_switch (sw : switchId) : (Message.xid * Message.t) Lwt.t = 
+  let open Message in
   match fd_of_switch_id sw with
     | Some fd -> 
       begin 
@@ -141,7 +156,8 @@ let rec recv_from_switch (sw : switchId) : (xid * message) Lwt.t =
     | None -> 
       raise_lwt (SwitchDisconnected sw)
         
-let switch_handshake (fd : Lwt_unix.file_descr) : features option Lwt.t =
+let switch_handshake (fd : Lwt_unix.file_descr) : Features.t option Lwt.t =
+  let open Message in
   lwt ok = send_to_switch_fd fd 0l (Hello (Cstruct.of_string "")) in
   match ok with 
     | Some () -> 
@@ -156,20 +172,33 @@ let switch_handshake (fd : Lwt_unix.file_descr) : features option Lwt.t =
                   lwt resp = recv_from_switch_fd fd in 
                   match resp with 
                     | Some (_,FeaturesReply feats) ->
-                      Hashtbl.add switch_fds feats.switch_id fd;
+                      Hashtbl.add switch_fds feats.Features.switch_id fd;
                       Log.printf "platform" 
                         "switch %Ld connected\n%!"
-                        feats.switch_id;
+                        feats.Features.switch_id;
                       Lwt.return (Some feats)
-                    | _ -> 
+                    | _ ->
                       Lwt.return None
                 end
-              | None -> 
+              | None ->
                 Lwt.return None
           end
-        | Some _ -> 
-          Lwt.return None
-        | None -> 
+        | Some (_, error) ->
+          let open Error in
+          begin match error with
+          | ErrorMsg HelloFailed (code, bytes) ->
+            let open HelloFailed in
+            begin match code with
+            | Incompatible -> 
+              Log.printf "platform" "OFPET_HELLO_FAILED received (code: OFPHFC_INCOMPATIBLE)!\n";
+              Lwt.return None
+            | Eperm -> 
+              Log.printf "platform" "OFPET_HELLO_FAILED received (code: OFPHFC_EPERM)!\n";
+              Lwt.return None
+            end
+          | _ -> Lwt.return None
+          end
+        | None ->
           Lwt.return None
       end 
     | None -> 
@@ -184,7 +213,7 @@ let switch_handshake (fd : Lwt_unix.file_descr) : features option Lwt.t =
 let rec accept_switch () =
   lwt server_fd = get_fd () in 
   lwt (fd, sa) = Lwt_unix.accept server_fd in
-  let _ = Log.printf "platform" "%s connected, handshaking...\n%!" (string_of_sockaddr sa) in 
+  let _ = Log.printf "platform" "%s connected, handshaking...\n%!" (string_of_sockaddr sa) in
   lwt ok = switch_handshake fd in 
   match ok with 
     | Some feats -> 

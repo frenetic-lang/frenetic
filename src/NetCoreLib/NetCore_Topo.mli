@@ -8,13 +8,8 @@ type topo
 type loc =
   | Switch of switchId * portId
   | Host of dlAddr
+  | Free
 
-(*
-type change =
-  | SwitchUp of switchId
-  | SwitchDown of switchId
-  | HostUp of dlAddr
-*)
 val switches : topo -> switchId list
 
 val hosts : topo -> dlAddr list
@@ -26,19 +21,14 @@ val ports_of_switch : topo -> switchId -> portId list
 (** [linked_to topo loc] returns the location that [loc] connects to,
     or [None]. We assume that locations are only linked to a single
     location. *)
-val linked_to : topo -> loc -> loc option
-
-(* val changes : topo -> unit Lwt_stream.t *)
+val linked_to : topo -> loc -> loc
 
 (** [make dlTyp] creates a topology-discovery program that uses [dlTyp]
     as the Ethernet type code for its topology-discovery packets.
 
-    Do not use a well-known Ethernet type code. Instead, pick
-    something experimental. According to this webpage, codes 0x0101 --
-    0x01FF are reserved as experimental:
-
-    http://www.cavebear.com/archive/cavebear/Ethernet/type.html *)
-
+    If you pick a code less than 0x600, then parsers like Wireshark will
+    assume it is an 802.3 ethernet frame, and that the code is a frame
+    size. Pick something else, like 0x7FF. *)
 val make : Packet.dlTyp 
   -> NetCore_Types.pol NetCore_Stream.t * 
      (switchId * portId * Packet.bytes) Lwt_stream.t *

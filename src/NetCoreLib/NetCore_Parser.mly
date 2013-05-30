@@ -29,6 +29,8 @@
 
 %token LPAREN
 %token RPAREN
+%token LCURLY
+%token RCURLY
 %token NOT
 %token ALL
 %token STAR
@@ -46,6 +48,7 @@
 %token <Int64.t> INT64
 %token <Int64.t> MACADDR
 %token <Int32.t> IPADDR
+%token <float> FLOAT
 %token AND
 %token OR
 %token IF
@@ -78,6 +81,10 @@
 %type <NetCore_SurfaceSyntax.exp> program
 
 %%
+
+seconds :
+  | FLOAT { $1 }
+  | INT64 { float_of_int (int_of_int64 $1) }
 
 pred_atom :
   | LPAREN pred RPAREN { $2 }
@@ -138,11 +145,13 @@ pol_atom :
   | MONITOR_SW LPAREN RPAREN 
     { HandleSwitchEvent
       (symbol_start_pos (), NetCore_Monitoring.monitor_switch_events) }
-  | MONITOR_LOAD LPAREN INT64 COMMA pred RPAREN
+  | MONITOR_LOAD LPAREN seconds COMMA pred RPAREN
     { Transform 
       ( symbol_start_pos ()
-      , NetCore_Monitoring.monitor_load (int_of_int64 $3)
+      , NetCore_Monitoring.monitor_load $3
       , Filter (symbol_start_pos (), $5) ) }
+  | LCURLY pred RCURLY pol LCURLY pred RCURLY
+    { Slice (symbol_start_pos (), $2, $4, $6) }
 
 pol_pred :  
   | pol_atom

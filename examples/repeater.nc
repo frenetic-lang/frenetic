@@ -1,1 +1,1 @@
-if * then all
+if * then all else drop

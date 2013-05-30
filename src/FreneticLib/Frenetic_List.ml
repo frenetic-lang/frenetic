@@ -1,3 +1,9 @@
+let intercalate f s = function
+  | [] -> 
+    ""
+  | h::t -> 
+    List.fold_left (fun acc x -> acc ^ s ^ f x) (f h) t
+
 let intersperse v lst =
   List.fold_right (fun x xs -> x :: (v :: xs)) [] lst
 
