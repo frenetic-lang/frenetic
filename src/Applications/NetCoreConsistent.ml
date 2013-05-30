@@ -4,7 +4,7 @@ open Unix
 
 module M = NetCore_MacLearning
 
-module Controller = NetCore_ConsistentController.Make(OpenFlow0x01_Platform)
+module Controller = NetCore_Controller.MakeConsistent(OpenFlow0x01_Platform)
 
 let drop_all = NetCore_Types.PoAction (NetCore_Action.Output.drop)
 let policy = ref (Lwt.return (), NetCore_Stream.constant drop_all)

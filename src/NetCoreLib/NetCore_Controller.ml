@@ -398,6 +398,158 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       Log.printf "NetCore_Controller" 
         "received %s" (PortStatus.to_string msg) in
 	Lwt.return ()
+      | (xid, BarrierReply) ->
+	Lwt.return ()
+      | _ -> Lwt.return ()
+      in
+    handle_switch_messages sw
+
+  let switch_thread features pol_stream =
+    let open SwitchFeatures in
+    let sw = features.switch_id in
+    Queries.add_switch sw;
+    (try_lwt
+      lwt _ = Lwt.wrap2 NetCore_Semantics.handle_switch_events
+        (SwitchUp (sw, features))
+        (NetCore_Stream.now pol_stream) in
+      Lwt.pick [ install_new_policies sw pol_stream;
+                 handle_switch_messages sw ]
+    with exn ->
+      begin
+        match exn with
+          | OpenFlow0x01_Platform.SwitchDisconnected _ ->
+            (* TODO(arjun): I can assume sw itself disconnected? *)
+            Lwt.return ()
+          | _ ->
+            (Log.printf "[NetCore_Controller]" "unhandled exception %s.\n%!"
+              (Printexc.to_string exn);
+             Lwt.return ())
+      end) >>
+    begin
+      Lwt.async
+        (fun () -> (* TODO(arjun): 
+                      confirm this gracefully discards the exception *)
+          Lwt.wrap2 NetCore_Semantics.handle_switch_events 
+            (SwitchDown sw)
+            (NetCore_Stream.now pol_stream));
+      Queries.remove_switch sw;
+      Lwt.return ()
+    end
+
+  let rec accept_switches pol_stream = 
+    lwt feats = Platform.accept_switch () in
+    Lwt.async (fun () -> switch_thread feats pol_stream);
+    accept_switches pol_stream
+
+  let rec accept_policies push_pol sugared_pol_stream =
+    lwt pol = Lwt_stream.next sugared_pol_stream in
+    Queries.stop () >>
+    let _ = pol_now := pol in
+    let _ = push_pol (Some pol) in
+    accept_policies push_pol sugared_pol_stream <&> Queries.start pol
+
+  (** Emits packets synthesized at the controller. Produced packets
+      are _not_ subjected to the current NetCore policy, so they do not
+      compose nicely with NetCore operatores. This requires some deep thought,
+      which is banned until after PLDI 2013. *)
+  let emit_packets pkt_stream pol_stream = 
+    let emit_pkt (sw, pt, bytes) =
+      let open OpenFlow0x01 in
+      let msg = {
+        PacketOut.buf_or_bytes = PacketOut.Packet bytes;
+        PacketOut.port_id = None;
+        PacketOut.actions = [Action.Output (PseudoPort.PhysicalPort pt)]
+      } in
+      Platform.send_to_switch sw 0l (Message.PacketOutMsg msg) in
+    Lwt_stream.iter_s emit_pkt pkt_stream
+
+  let start_controller pkt_stream pol = 
+    let (pol_stream, push_pol) = Lwt_stream.create () in
+    let (stream_lwt, pol_netcore_stream) =
+      NetCore_Stream.from_stream init_pol pol_stream in
+    Lwt.pick
+      [ accept_switches pol_netcore_stream;
+        emit_packets pkt_stream pol_netcore_stream;
+        accept_policies
+          push_pol (NetCore_Stream.to_stream pol);
+        stream_lwt ]
+
+end
+
+module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
+  open NetCore_ConsistentUpdates
+
+  module Queries = QuerySet(Platform)
+
+  (* used to initialize newly connected switches and handle packet-in 
+     messages *)
+  let pol_now : pol ref = ref init_pol
+
+  let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
+    lwt flow_table = Lwt.wrap2 NetCore_Compiler.flow_table_of_policy sw pol in
+    Platform.send_to_switch sw 0l Message.delete_all_flows >>
+    let prio = ref 65535 in
+    Lwt_list.iter_s
+      (fun (match_, actions) ->
+        Platform.send_to_switch sw 0l 
+          (Message.add_flow !prio match_ actions) >>
+        (decr prio; Lwt.return ()))
+      flow_table
+
+  let install_new_policies sw pol_stream =
+    Lwt_stream.iter_p (configure_switch sw)
+      (NetCore_Stream.to_stream pol_stream)
+      
+  let handle_packet_in sw pkt_in = 
+    let open PacketIn in
+    let open PacketOut in
+    let in_port = pkt_in.port in
+    match Packet.parse pkt_in.packet with
+      | None -> 
+        let _ = Log.printf "NetCore_Controller" "unparsable packet\n%!" in
+        Lwt.return ()
+      | Some packet ->
+        let inp = Pkt (sw, Physical in_port, packet,
+                       match pkt_in.buffer_id with
+                         | Some id -> Buffer id
+                         | None -> Packet pkt_in.packet) in
+        let full_action = NetCore_Semantics.eval !pol_now inp in
+        let controller_action =
+          NetCore_Action.Output.apply_controller full_action
+            (sw, Physical in_port, packet) in
+        let action = match pkt_in.reason with
+          | ExplicitSend -> controller_action
+          | NoMatch -> NetCore_Action.Output.par_action controller_action
+            (NetCore_Action.Output.switch_part full_action) in
+        let outp = { 
+          buf_or_bytes = begin match pkt_in.buffer_id with
+            | Some id -> Buffer id
+            | None -> Packet pkt_in.packet
+          end;
+          port_id = None;
+          actions = 
+            NetCore_Action.Output.as_actionSequence (Some in_port) action 
+        } in
+        Platform.send_to_switch sw 0l (Message.PacketOutMsg outp)  
+
+  let rec handle_switch_messages sw = 
+    let open Message in
+    lwt v = Platform.recv_from_switch sw in
+    lwt _ = match v with
+      | (_, PacketInMsg pktIn) -> handle_packet_in sw pktIn
+      | (xid, StatsReplyMsg (StatsReply.IndividualFlowRep reps)) -> 
+        Queries.handle_reply sw xid reps;
+        Lwt.return ()
+      | (xid, StatsReplyMsg r) ->
+        let _ = Log.printf "NetCore_Controller" 
+          "received unexpected stats reply type (%s)"
+          (StatsReply.to_string r) in
+          Lwt.return ()
+      | (xid, PortStatusMsg msg) ->
+	let _ = 
+      Log.printf "NetCore_Controller" 
+        "received %s" (PortStatus.to_string msg) in
+	Lwt.return ()
       | _ -> Lwt.return ()
       in
     handle_switch_messages sw
