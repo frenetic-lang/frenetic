@@ -55,7 +55,8 @@ let make_discovery_pkt dlTyp (sw : switchId) (pt : portId) =
   let pk = { 
     dlSrc = 0xffffffffffffL; dlDst = 0xffffffffffffL; dlTyp = dlTyp;
     dlVlan = None; dlVlanPcp = 0;
-    nw = Unparsable (Cstruct.of_string (Marshal.to_string (sw, pt) [])) } in
+    nw = Unparsable (Cstruct.of_string (Marshal.to_string (sw, pt) []))
+  } in
   (sw, pt, Packet.serialize pk)
 
 let parse_discovery_pkt dlTyp pkt : (switchId * portId) option =
@@ -64,7 +65,8 @@ let parse_discovery_pkt dlTyp pkt : (switchId * portId) option =
     | { dlSrc = 0xffffffffffffL; dlDst = 0xffffffffffffL; dlTyp = dlTyp;
         dlVlan = None; dlVlanPcp = 0; 
         nw = Unparsable body } ->
-      Some (Marshal.from_string (Cstruct.to_string body) 0)
+      let payload = Cstruct.to_string body in
+      Some (Marshal.from_string payload 0)
     | _ -> None
 
 (* Responds to switch up/down events. On switch up, sends a discovery packet,
@@ -78,9 +80,17 @@ let make_switch_handler dlTyp topo =
         List.map (fun pt -> pt.OpenFlow0x01.PortDescription.port_no)
           features.OpenFlow0x01.Features.ports in
       switch_connected topo sw ports;
-      List.iter 
-        (fun pt -> send_discovery_pkt (Some (make_discovery_pkt dlTyp sw pt)))
-        ports;
+      Lwt.async
+        (fun () ->
+          Lwt_unix.sleep 5.0 >>
+          (List.iter 
+            (fun pt -> 
+              Log.printf "NetCore_Topo" 
+                "emitting a packet to switch=%Ld,port=%d\n%!" sw pt;
+              send_discovery_pkt 
+                (Some (make_discovery_pkt dlTyp sw pt)))
+            ports;
+           Lwt.return ()))
     | SwitchDown sw -> () in
   (discovery_pkt_stream, switch_event_handler)
 
