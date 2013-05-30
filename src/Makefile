@@ -1,4 +1,4 @@
-APPLICATIONS = Applications/NetCore \
+APPLICATIONS = Applications/Frenetic \
                Applications/Ox \
                Applications/Test \
                Applications/Verify
