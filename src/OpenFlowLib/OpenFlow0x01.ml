@@ -1024,7 +1024,7 @@ module Features = struct
       (get_ofp_switch_features_capabilities buf) in
     let supported_actions = action_of_int
       (get_ofp_switch_features_action buf) in
-    let _ = Cstruct.shift buf sizeof_ofp_switch_features in
+    let buf = Cstruct.shift buf sizeof_ofp_switch_features in
     let portIter =
       Cstruct.iter
         (fun buf ->
