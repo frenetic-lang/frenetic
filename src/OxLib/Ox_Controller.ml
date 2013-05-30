@@ -101,13 +101,13 @@ struct
     let sw = feats.SwitchFeatures.switch_id in 
     Log.printf "Ox_Controller" "switch %Ld connected\n%!" sw;
     let delete_all = {
-      mod_cmd = DeleteFlow;
+      mod_cmd = Command.DeleteFlow;
       match_ = Match.all;
       priority = 65535;
       actions = [];
       cookie = Int64.zero;
-      idle_timeout = Permanent;
-      hard_timeout = Permanent;
+      idle_timeout = Timeout.Permanent;
+      hard_timeout = Timeout.Permanent;
       notify_when_removed = false;
       apply_to_packet = None;
       out_port = None;

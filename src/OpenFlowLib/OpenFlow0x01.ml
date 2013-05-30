@@ -643,7 +643,7 @@ module PortDescription = struct
         no_packet_in = test_bit 6 d
       }
 
-    let size_of _ = 8
+    let size_of _ = 4
     let to_int _ = failwith "NYI: PortConfig.to_int"
 
   end
@@ -680,7 +680,7 @@ module PortDescription = struct
       ; stp_mask = false }
 
     let to_int _ = failwith "NYI: PortState.to_int"
-    let size_of _ = 8
+    let size_of _ = 4
 
   end
 
@@ -727,7 +727,7 @@ module PortDescription = struct
       p.pause
       p.pause_asym
 
-    let size_of _ = 8
+    let size_of _ = 4
     let to_int _ = failwith "NYI: PortFeatures.to_int"
 
     let of_int bits =
@@ -804,53 +804,70 @@ module PortDescription = struct
     ; supported = supported
     ; peer = peer }
 
-  let size_of _ = failwith "NYI: PortDesription.size_of"
+  let size_of _ = sizeof_ofp_phy_port
+
   let marshal _ _ = failwith "NYI: PortDescription.marshal"
 
 end
 
 module PortStatus = struct
 
-  type change_reason =
-    | Add
-    | Delete
-    | Modify
+  module ChangeReason = struct
+
+    type t =
+      | Add
+      | Delete
+      | Modify
+
+    cenum ofp_port_reason {
+      OFPPR_ADD;
+      OFPPR_DELETE;
+      OFPPR_MODIFY
+    } as uint8_t
+
+    let of_int d = 
+      let reason_code = int_to_ofp_port_reason d in
+      match reason_code with
+      | Some OFPPR_ADD -> Add
+      | Some OFPPR_DELETE -> Delete
+      | Some OFPPR_MODIFY -> Modify
+      | None ->
+        raise (Unparsable
+          (Printf.sprintf "unexpected ofp_port_reason %d" d))
+
+    let to_int reason = 
+      let reason_code = match reason with
+        | Add -> OFPPR_ADD
+        | Delete -> OFPPR_DELETE
+        | Modify -> OFPPR_MODIFY
+        in
+      ofp_port_reason_to_int reason_code
+
+    let to_string reason = match reason with
+        | Add -> "Add"
+        | Delete -> "Delete"
+        | Modify -> "Modify"
+
+    let size_of _ = 1
+
+  end
 
   type t =
-    { reason : change_reason
+    { reason : ChangeReason.t
     ; desc : PortDescription.t }
-
-  cenum ofp_port_reason {
-    OFPPR_ADD;
-    OFPPR_DELETE;
-    OFPPR_MODIFY
-  } as uint8_t
 
   cstruct ofp_port_status {
       uint8_t reason;               (* One of OFPPR_* *)
       uint8_t pad[7]
   } as big_endian
 
-  let string_of_change_reason r = match r with
-    | Add -> "Add"
-    | Delete -> "Delete"
-    | Modify -> "Modify"
-
   let to_string status = Printf.sprintf
     "{ reason = %s; desc = %s }"
-    (string_of_change_reason status.reason)
+    (ChangeReason.to_string status.reason)
     (PortDescription.to_string status.desc)
 
   let parse bits =
-    let reason_int = get_ofp_port_status_reason bits in
-    let reason_code = int_to_ofp_port_reason reason_int in
-    let reason = match reason_code with
-      | Some OFPPR_ADD -> Add
-      | Some OFPPR_DELETE -> Delete
-      | Some OFPPR_MODIFY -> Modify
-      | None ->
-        raise (Unparsable
-          (Printf.sprintf "unexpected ofp_port_reason %d" reason_int)) in
+    let reason = ChangeReason.of_int (get_ofp_port_status_reason bits) in
     let _ = Cstruct.shift bits sizeof_ofp_port_status in
     let description = PortDescription.parse bits in
     { reason = reason
@@ -859,46 +876,156 @@ module PortStatus = struct
   let to_string ps =
     let {reason; desc} = ps in
     Printf.sprintf "PortStatus %s %d"
-      (string_of_change_reason reason)
+      (ChangeReason.to_string reason)
       desc.PortDescription.port_no
 
-  let size_of _ = failwith "NYI: PortStatus.size_of"
+  let size_of status = 
+    ChangeReason.size_of status.reason + PortDescription.size_of status.desc
+
   let marshal _ _ = failwith "NYI: PortStatus.marshal"
 
 end
 
 module SwitchFeatures = struct
 
-  type capabilities =
-    { flow_stats : bool
-    ; table_stats : bool
-    ; port_stats : bool
-    ; stp : bool
-    ; ip_reasm : bool
-    ; queue_stats : bool
-    ; arp_match_ip : bool }
+  module Capabilities = struct
 
-  type actions =
-    { output : bool
-    ; set_vlan_id : bool
-    ; set_vlan_pcp : bool
-    ; strip_vlan : bool
-    ; set_dl_src : bool
-    ; set_dl_dst : bool
-    ; set_nw_src : bool
-    ; set_nw_dst : bool
-    ; set_nw_tos : bool
-    ; set_tp_src : bool
-    ; set_tp_dst : bool
-    ; enqueue : bool
-    ; vendor : bool }
+    type t =
+      { flow_stats : bool
+      ; table_stats : bool
+      ; port_stats : bool
+      ; stp : bool
+      ; ip_reasm : bool
+      ; queue_stats : bool
+      ; arp_match_ip : bool }
+
+    let size_of _ = 4
+
+    let to_string c = Printf.sprintf
+      "{ flow_stats = %B; \
+         table_stats = %B; \
+         port_stats = %B; \
+         stp = %B; \
+         ip_reasm = %B; \
+         queue_stats = %B; \
+         arp_mat_ip = %B }"
+      c.flow_stats
+      c.table_stats
+      c.port_stats
+      c.stp
+      c.ip_reasm
+      c.queue_stats
+      c.arp_match_ip
+
+    let of_int d =
+      { arp_match_ip = test_bit 7 d
+      ; queue_stats = test_bit 6 d
+      ; ip_reasm = test_bit 5 d
+      ; stp = test_bit 3 d
+      ; port_stats = test_bit 2 d
+      ; table_stats = test_bit 1 d
+      ; flow_stats = test_bit 0 d }
+
+    let to_int c =
+      let bits = Int32.zero in
+      let bits = bit bits 7 c.arp_match_ip in
+      let bits = bit bits 6 c.queue_stats in
+      let bits = bit bits 5 c.ip_reasm in
+      let bits = bit bits 3 c.stp in
+      let bits = bit bits 2 c.port_stats in
+      let bits = bit bits 1 c.table_stats in
+      let bits = bit bits 0 c.flow_stats in
+      bits
+
+  end
+
+  module SupportedActions = struct
+
+    type t =
+      { output : bool
+      ; set_vlan_id : bool
+      ; set_vlan_pcp : bool
+      ; strip_vlan : bool
+      ; set_dl_src : bool
+      ; set_dl_dst : bool
+      ; set_nw_src : bool
+      ; set_nw_dst : bool
+      ; set_nw_tos : bool
+      ; set_tp_src : bool
+      ; set_tp_dst : bool
+      ; enqueue : bool
+      ; vendor : bool }
+
+    let size_of _ = 4
+
+    let to_string a = Printf.sprintf
+      "{ output = %B; \
+         set_vlan_id = %B; \
+         set_vlan_pcp = %B; \
+         strip_vlan = %B; \
+         set_dl_src = %B; \
+         set_dl_dst = %B; \
+         set_nw_src = %B; \
+         set_nw_dst = %B; \
+         set_nw_tos = %B; \
+         set_tp_src = %B; \
+         set_tp_dst = %B; \
+         enqueue = %B; \
+         vendor = %B }"
+      a.output
+      a.set_vlan_id
+      a.set_vlan_pcp
+      a.strip_vlan
+      a.set_dl_src
+      a.set_dl_dst
+      a.set_nw_src
+      a.set_nw_dst
+      a.set_nw_tos
+      a.set_tp_src
+      a.set_tp_dst
+      a.enqueue
+      a.vendor
+
+    let of_int d =
+      { output = test_bit 0 d
+      ; set_vlan_id = test_bit 1 d
+      ; set_vlan_pcp = test_bit 2 d
+      ; strip_vlan = test_bit 3 d
+      ; set_dl_src = test_bit 4 d
+      ; set_dl_dst = test_bit 5 d
+      ; set_nw_src = test_bit 6 d
+      ; set_nw_dst = test_bit 7 d
+      ; set_nw_tos = test_bit 8 d
+      ; set_tp_src = test_bit 9 d
+      ; set_tp_dst = test_bit 10 d
+      ; enqueue = test_bit 11 d
+      ; vendor = test_bit 12 d }
+
+    let to_int a =
+      let bits = Int32.zero in
+      let bits = bit bits 0 a.output in
+      let bits = bit bits 1 a.set_vlan_id in
+      let bits = bit bits 2 a.set_vlan_pcp in
+      let bits = bit bits 3 a.strip_vlan in
+      let bits = bit bits 4 a.set_dl_src in
+      let bits = bit bits 5 a.set_dl_dst in
+      let bits = bit bits 6 a.set_nw_src in
+      let bits = bit bits 7 a.set_nw_dst in
+      let bits = bit bits 8 a.set_nw_tos in
+      let bits = bit bits 9 a.set_tp_src in
+      let bits = bit bits 10 a.set_tp_dst in
+      let bits = bit bits 11 a.enqueue in
+      let bits = bit bits 12 a.vendor in
+      bits
+
+  end
 
   type t =
     { switch_id : int64
     ; num_buffers : int32
     ; num_tables : int8
-    ; supported_capabilities : capabilities
-    ; supported_actions : actions
+    ; supported_capabilities : Capabilities.t
+    ; supported_actions : SupportedActions.t
     ; ports : PortDescription.t list }
 
   cstruct ofp_switch_features {
@@ -910,119 +1037,23 @@ module SwitchFeatures = struct
     uint32_t action
   } as big_endian
 
-  let string_of_capabilities c = Printf.sprintf
-    "{ flow_stats = %B; \
-       table_stats = %B; \
-       port_stats = %B; \
-       stp = %B; \
-       ip_reasm = %B; \
-       queue_stats = %B; \
-       arp_mat_ip = %B }"
-    c.flow_stats
-    c.table_stats
-    c.port_stats
-    c.stp
-    c.ip_reasm
-    c.queue_stats
-    c.arp_match_ip
-
-  let string_of_actions a = Printf.sprintf
-    "{ output = %B; \
-       set_vlan_id = %B; \
-       set_vlan_pcp = %B; \
-       strip_vlan = %B; \
-       set_dl_src = %B; \
-       set_dl_dst = %B; \
-       set_nw_src = %B; \
-       set_nw_dst = %B; \
-       set_nw_tos = %B; \
-       set_tp_src = %B; \
-       set_tp_dst = %B; \
-       enqueue = %B; \
-       vendor = %B }"
-    a.output
-    a.set_vlan_id
-    a.set_vlan_pcp
-    a.strip_vlan
-    a.set_dl_src
-    a.set_dl_dst
-    a.set_nw_src
-    a.set_nw_dst
-    a.set_nw_tos
-    a.set_tp_src
-    a.set_tp_dst
-    a.enqueue
-    a.vendor
-
   let to_string feats = Printf.sprintf
     "{ switch_id = %Ld; num_buffers = %s; num_tables = %d; \
        supported_capabilities = %s; supported_actions = %s; ports = %s }"
     feats.switch_id
     (Int32.to_string feats.num_buffers)
     feats.num_tables
-    (string_of_capabilities feats.supported_capabilities)
-    (string_of_actions feats.supported_actions)
+    (Capabilities.to_string feats.supported_capabilities)
+    (SupportedActions.to_string feats.supported_actions)
     (Frenetic_Misc.string_of_list PortDescription.to_string feats.ports)
-
-  let capabilities_of_int d =
-    { arp_match_ip = test_bit 7 d
-    ; queue_stats = test_bit 6 d
-    ; ip_reasm = test_bit 5 d
-    ; stp = test_bit 3 d
-    ; port_stats = test_bit 2 d
-    ; table_stats = test_bit 1 d
-    ; flow_stats = test_bit 0 d }
-
-  let capabilities_to_int c =
-    let bits = Int32.zero in
-    let bits = bit bits 7 c.arp_match_ip in
-    let bits = bit bits 6 c.queue_stats in
-    let bits = bit bits 5 c.ip_reasm in
-    let bits = bit bits 3 c.stp in
-    let bits = bit bits 2 c.port_stats in
-    let bits = bit bits 1 c.table_stats in
-    let bits = bit bits 0 c.flow_stats in
-    bits
-
-  let action_of_int d =
-    { output = test_bit 0 d
-    ; set_vlan_id = test_bit 1 d
-    ; set_vlan_pcp = test_bit 2 d
-    ; strip_vlan = test_bit 3 d
-    ; set_dl_src = test_bit 4 d
-    ; set_dl_dst = test_bit 5 d
-    ; set_nw_src = test_bit 6 d
-    ; set_nw_dst = test_bit 7 d
-    ; set_nw_tos = test_bit 8 d
-    ; set_tp_src = test_bit 9 d
-    ; set_tp_dst = test_bit 10 d
-    ; enqueue = test_bit 11 d
-    ; vendor = test_bit 12 d }
-
-  let action_to_int a =
-    let bits = Int32.zero in
-    let bits = bit bits 0 a.output in
-    let bits = bit bits 1 a.set_vlan_id in
-    let bits = bit bits 2 a.set_vlan_pcp in
-    let bits = bit bits 3 a.strip_vlan in
-    let bits = bit bits 4 a.set_dl_src in
-    let bits = bit bits 5 a.set_dl_dst in
-    let bits = bit bits 6 a.set_nw_src in
-    let bits = bit bits 7 a.set_nw_dst in
-    let bits = bit bits 8 a.set_nw_tos in
-    let bits = bit bits 9 a.set_tp_src in
-    let bits = bit bits 10 a.set_tp_dst in
-    let bits = bit bits 11 a.enqueue in
-    let bits = bit bits 12 a.vendor in
-    bits
 
   let parse (buf : Cstruct.t) : t =
     let switch_id = get_ofp_switch_features_datapath_id buf in
     let num_buffers = get_ofp_switch_features_n_buffers buf in
     let num_tables = get_ofp_switch_features_n_tables buf in
-    let supported_capabilities = capabilities_of_int
+    let supported_capabilities = Capabilities.of_int
       (get_ofp_switch_features_capabilities buf) in
-    let supported_actions = action_of_int
+    let supported_actions = SupportedActions.of_int
       (get_ofp_switch_features_action buf) in
     let buf = Cstruct.shift buf sizeof_ofp_switch_features in
     let portIter =
@@ -1042,44 +1073,95 @@ module SwitchFeatures = struct
     ; supported_actions
     ; ports }
 
-  let size_of _ = failwith "NYI: SwitchFeatures.size_of"
+  let size_of feats = 
+    sizeof_ofp_switch_features 
+    + sum (List.map PortDescription.size_of feats.ports)
+
   let marshal _ _ = failwith "NYI: SwitchFeatures.marshal"
 
 end
 
 module FlowMod = struct
 
-  type command =
-    | AddFlow
-    | ModFlow
-    | ModStrictFlow
-    | DeleteFlow
-    | DeleteStrictFlow
+  module Command = struct
 
-  type timeout =
-    | Permanent
-    | ExpiresAfter of int16
+    type t =
+      | AddFlow
+      | ModFlow
+      | ModStrictFlow
+      | DeleteFlow
+      | DeleteStrictFlow
+
+    cenum ofp_flow_mod_command {
+      OFPFC_ADD;
+      OFPFC_MODIFY;
+      OFPFC_MODIFY_STRICT;
+      OFPFC_DELETE;
+      OFPFC_DELETE_STRICT
+    } as uint16_t
+
+    let size_of _ = 2
+
+    let to_string cmd = match cmd with
+      | AddFlow -> "AddFlow"
+      | ModFlow -> "ModFlow"
+      | ModStrictFlow -> "ModStrictFlow"
+      | DeleteFlow -> "DeleteFlow"
+      | DeleteStrictFlow -> "DeleteStrictFlow"
+
+    let to_int t = match t with
+      | AddFlow -> ofp_flow_mod_command_to_int OFPFC_ADD
+      | ModFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY
+      | ModStrictFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY_STRICT
+      | DeleteFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE
+      | DeleteStrictFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE_STRICT
+
+    let of_int d =
+      let command_code = int_to_ofp_flow_mod_command d in
+      match command_code with
+      | Some OFPFC_ADD -> AddFlow
+      | Some OFPFC_MODIFY -> ModFlow
+      | Some OFPFC_MODIFY_STRICT -> ModStrictFlow
+      | Some OFPFC_DELETE -> DeleteFlow
+      | Some OFPFC_DELETE_STRICT -> DeleteStrictFlow
+      | None -> raise 
+        (Unparsable (Printf.sprintf "unexpected ofp_flow_mod_command %d" d))
+
+  end
+
+  module Timeout = struct
+
+    type t =
+      | Permanent
+      | ExpiresAfter of int16
+
+    let to_string t = match t with
+      | Permanent -> "Permanent"
+      | ExpiresAfter n -> Printf.sprintf "ExpiresAfter %d" n
+
+    let size_of _ = 2
+
+    let to_int x = match x with
+      | Permanent -> 0
+      | ExpiresAfter w -> w
+
+    let of_int d = 
+      if d = 0 then Permanent else ExpiresAfter d
+
+  end
 
   type t =
-    { mod_cmd : command
+    { mod_cmd : Command.t
     ; match_ : Match.t
     ; priority : priority
     ; actions : Action.sequence
     ; cookie : int64
-    ; idle_timeout : timeout
-    ; hard_timeout : timeout
+    ; idle_timeout : Timeout.t
+    ; hard_timeout : Timeout.t
     ; notify_when_removed : bool
     ; apply_to_packet : bufferId option
     ; out_port : PseudoPort.t option
     ; check_overlap : bool }
-
-  cenum ofp_flow_mod_command {
-    OFPFC_ADD;
-    OFPFC_MODIFY;
-    OFPFC_MODIFY_STRICT;
-    OFPFC_DELETE;
-    OFPFC_DELETE_STRICT
-  } as uint16_t
 
   cstruct ofp_flow_mod {
     uint64_t cookie;
@@ -1092,28 +1174,17 @@ module FlowMod = struct
     uint16_t flags
   } as big_endian
 
-  let string_of_command cmd = match cmd with
-    | AddFlow -> "AddFlow"
-    | ModFlow -> "ModFlow"
-    | ModStrictFlow -> "ModStrictFlow"
-    | DeleteFlow -> "DeleteFlow"
-    | DeleteStrictFlow -> "DeleteStrictFlow"
-
-  let string_of_timeout t = match t with
-    | Permanent -> "Permanent"
-    | ExpiresAfter n -> Printf.sprintf "ExpiresAfter %d" n
-
   let to_string m = Printf.sprintf
     "{ mod_cmd = %s; match = %s; priority = %s; actions = %s; cookie = %Ld;\
        idle_timeout = %s; hard_timeout = %s; notify_when_removed = %B;\
        apply_to_packet = %s; out_port = %s; check_overlap = %B }"
-    (string_of_command m.mod_cmd)
+    (Command.to_string m.mod_cmd)
     (Match.to_string m.match_)
     (string_of_priority m.priority)
     (Action.sequence_to_string m.actions)
     m.cookie
-    (string_of_timeout m.idle_timeout)
-    (string_of_timeout m.hard_timeout)
+    (Timeout.to_string m.idle_timeout)
+    (Timeout.to_string m.hard_timeout)
     m.notify_when_removed
     (Frenetic_Misc.string_of_option string_of_bufferId m.apply_to_packet)
     (Frenetic_Misc.string_of_option PseudoPort.to_string m.out_port)
@@ -1130,23 +1201,12 @@ module FlowMod = struct
     (if check_overlap then 1 lsl 1 else 0) lor
       (if notify_when_removed then 1 lsl 0 else 0)
 
-  let int_of_timeout (x : timeout) = match x with
-    | Permanent -> 0
-    | ExpiresAfter w -> w
-
-  let int_of_command t = match t with
-    | AddFlow -> ofp_flow_mod_command_to_int OFPFC_ADD
-    | ModFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY
-    | ModStrictFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY_STRICT
-    | DeleteFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE
-    | DeleteStrictFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE_STRICT
-
   let marshal m bits =
     let bits = Cstruct.shift bits (Match.marshal m.match_ bits) in
     set_ofp_flow_mod_cookie bits (m.cookie);
-    set_ofp_flow_mod_command bits (int_of_command m.mod_cmd);
-    set_ofp_flow_mod_idle_timeout bits (int_of_timeout m.idle_timeout);
-    set_ofp_flow_mod_hard_timeout bits (int_of_timeout m.hard_timeout);
+    set_ofp_flow_mod_command bits (Command.to_int m.mod_cmd);
+    set_ofp_flow_mod_idle_timeout bits (Timeout.to_int m.idle_timeout);
+    set_ofp_flow_mod_hard_timeout bits (Timeout.to_int m.hard_timeout);
     set_ofp_flow_mod_priority bits (m.priority);
     set_ofp_flow_mod_buffer_id bits
       (match m.apply_to_packet with
@@ -1167,21 +1227,40 @@ end
 
 module PacketIn = struct
 
-  type reason =
-    | NoMatch
-    | ExplicitSend
+  module Reason = struct
+
+    type t =
+      | NoMatch
+      | ExplicitSend
+
+    cenum ofp_reason {
+      NO_MATCH = 0;
+      ACTION = 1
+    } as uint8_t
+
+    let to_string r = match r with
+      | NoMatch -> "NoMatch"
+      | ExplicitSend -> "ExplicitSend"
+
+    let of_int d = match int_to_ofp_reason d with
+      | Some NO_MATCH -> NoMatch
+      | Some ACTION -> ExplicitSend
+      | None -> raise (Unparsable (sprintf "bad reason in packet_in (%d)" d))
+
+    let to_int r = match r with
+      | NoMatch -> ofp_reason_to_int NO_MATCH
+      | ExplicitSend -> ofp_reason_to_int ACTION
+
+    let size_of _ = 1
+
+  end
 
   type t =
     { buffer_id : bufferId option
     ; total_len : int16
     ; port : portId
-    ; reason : reason
+    ; reason : Reason.t
     ; packet :  bytes }
-
-  cenum ofp_reason {
-    NO_MATCH = 0;
-    ACTION = 1
-  } as uint8_t
 
   cstruct ofp_packet_in {
     uint32_t buffer_id;
@@ -1191,17 +1270,13 @@ module PacketIn = struct
     uint8_t pad
   } as big_endian
 
-  let string_of_reason r = match r with
-    | NoMatch -> "NoMatch"
-    | ExplicitSend -> "ExplicitSend"
-
   let to_string pin = Printf.sprintf
     "{ buffer_id = %s; total_len = %d; port = %s; reason = %s; \
        packet = <bytes> }"
     (Frenetic_Misc.string_of_option string_of_bufferId pin.buffer_id)
     pin.total_len
     (string_of_portId pin.port)
-    (string_of_reason pin.reason)
+    (Reason.to_string pin.reason)
 
   let parse bits =
     let buf_id = match get_ofp_packet_in_buffer_id bits with
@@ -1209,31 +1284,48 @@ module PacketIn = struct
       | n -> Some n in
     let total_len = get_ofp_packet_in_total_len bits in
     let in_port = get_ofp_packet_in_in_port bits in
-    let reason_code = get_ofp_packet_in_reason bits in
-    let reason = match int_to_ofp_reason reason_code with
-      | Some NO_MATCH -> NoMatch
-      | Some ACTION -> ExplicitSend
-      | None ->
-        raise (Unparsable (sprintf "bad reason in packet_in (%d)" reason_code)) in
+    let reason = Reason.of_int (get_ofp_packet_in_reason bits) in
     { buffer_id = buf_id
     ; total_len = total_len
     ; port = in_port
     ; reason = reason
     ; packet = Cstruct.shift bits sizeof_ofp_packet_in }
 
-  let size_of _ = failwith "NYI: PacketIn.size_of"
+  let size_of pin = sizeof_ofp_packet_in + Cstruct.len pin.packet
+
   let marshal _ _ = failwith "NYI: PacketIn.marshal"
 
 end
 
 module PacketOut = struct
 
-  type payload =
-  | Buffer of bufferId
-  | Packet of bytes
+  module Payload = struct
+
+    type t =
+      | Buffer of bufferId
+      | Packet of bytes
+
+    let to_string p = match p with
+      | Buffer id -> Printf.sprintf "Buffer %s" (string_of_bufferId id)
+      | Packet _ -> "Packet <bytes>"
+
+    let size_of p = match p with
+      | Buffer _ -> 0
+      | Packet bytes -> Cstruct.len bytes
+
+    let marshal p out = 
+      let _ = match p with
+        | Buffer n -> ()
+        | Packet bytes -> Cstruct.blit bytes 0 out 0 (Cstruct.len bytes)
+        in
+      size_of p
+
+    let parse _ = failwith "NYI: PacketOut.Payload.parse"
+
+  end
 
   type t =
-    { buf_or_bytes : payload
+    { buf_or_bytes : Payload.t
     ; port_id : portId option
     ; actions : Action.sequence }
 
@@ -1243,45 +1335,35 @@ module PacketOut = struct
     uint16_t actions_len
   } as big_endian
 
-  let string_of_payload p = match p with
-    | Buffer id -> Printf.sprintf "Buffer %s" (string_of_bufferId id)
-    | Packet _ -> "Packet <bytes>"
-
   let to_string out = Printf.sprintf
     "{ buf_or_bytes = %s; port_id = %s; actions = %s }"
-    (string_of_payload out.buf_or_bytes)
+    (Payload.to_string out.buf_or_bytes)
     (Frenetic_Misc.string_of_option string_of_portId out.port_id)
     (Action.sequence_to_string out.actions)
 
-  let size_of (pktOut : t) : int =
+  let size_of (pkt_out : t) : int =
     sizeof_ofp_packet_out +
-      (Action.size_of_sequence pktOut.actions) +
-      (match pktOut.buf_or_bytes with
-        | Buffer _ -> 0
-        | Packet bytes -> Cstruct.len bytes)
+      (Action.size_of_sequence pkt_out.actions) +
+      (Payload.size_of pkt_out.buf_or_bytes)
 
-  let marshal (pktOut : t) (buf : Cstruct.t) : int =
+  let marshal (pkt_out : t) (buf : Cstruct.t) : int =
     set_ofp_packet_out_buffer_id buf
-      (match pktOut.buf_or_bytes with
-        | Buffer n -> n
+      (match pkt_out.buf_or_bytes with
+        | Payload.Buffer n -> n
         | _ -> -1l);
     set_ofp_packet_out_in_port buf
       (PseudoPort.marshal_optional
-        (match pktOut.port_id with
+        (match pkt_out.port_id with
           | Some id -> Some (PseudoPort.PhysicalPort id)
           | None -> None));
     set_ofp_packet_out_actions_len buf
-      (Action.size_of_sequence pktOut.actions);
+      (Action.size_of_sequence pkt_out.actions);
     let buf = List.fold_left
       (fun buf act -> Cstruct.shift buf (Action.marshal act buf))
       (Cstruct.shift buf sizeof_ofp_packet_out)
-      (Action.move_controller_last pktOut.actions) in
-    begin match pktOut.buf_or_bytes with
-    | Buffer n -> ()
-    | Packet bytes ->
-      Cstruct.blit bytes 0 buf 0 (Cstruct.len bytes)
-    end;
-    size_of pktOut
+      (Action.move_controller_last pkt_out.actions) in
+    let _ = Payload.marshal pkt_out.buf_or_bytes buf in
+    size_of pkt_out
 
   let parse _ = failwith "NYI: PacketOut.parse"
 
@@ -2028,13 +2110,13 @@ module Message = struct
   let delete_all_flows =
     let open FlowMod in
     FlowModMsg
-      { mod_cmd = DeleteFlow
+      { mod_cmd = Command.DeleteFlow
       ; match_ = Match.all
       ; priority = 0
       ; actions = []
       ; cookie = 0L
-      ; idle_timeout = Permanent
-      ; hard_timeout = Permanent
+      ; idle_timeout = Timeout.Permanent
+      ; hard_timeout = Timeout.Permanent
       ; notify_when_removed = false
       ; apply_to_packet = None
       ; out_port = None
@@ -2043,13 +2125,13 @@ module Message = struct
   let add_flow prio match_ actions =
     let open FlowMod in
     FlowModMsg
-      { mod_cmd = AddFlow
+      { mod_cmd = Command.AddFlow
       ; match_ = match_
       ; priority = prio
       ; actions = actions
       ; cookie = 0L
-      ; idle_timeout = Permanent
-      ; hard_timeout = Permanent
+      ; idle_timeout = Timeout.Permanent
+      ; hard_timeout = Timeout.Permanent
       ; notify_when_removed = false
       ; apply_to_packet = None
       ; out_port = None

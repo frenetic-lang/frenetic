@@ -359,20 +359,20 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       | Some packet ->
         let inp = Pkt (sw, Physical in_port, packet,
                        match pkt_in.buffer_id with
-                         | Some id -> Buffer id
-                         | None -> Packet pkt_in.packet) in
+                         | Some id -> Payload.Buffer id
+                         | None -> Payload.Packet pkt_in.packet) in
         let full_action = NetCore_Semantics.eval !pol_now inp in
         let controller_action =
           NetCore_Action.Output.apply_controller full_action
             (sw, Physical in_port, packet) in
         let action = match pkt_in.reason with
-          | ExplicitSend -> controller_action
-          | NoMatch -> NetCore_Action.Output.par_action controller_action
+          | Reason.ExplicitSend -> controller_action
+          | Reason.NoMatch -> NetCore_Action.Output.par_action controller_action
             (NetCore_Action.Output.switch_part full_action) in
         let outp = { 
           buf_or_bytes = begin match pkt_in.buffer_id with
-            | Some id -> Buffer id
-            | None -> Packet pkt_in.packet
+            | Some id -> Payload.Buffer id
+            | None -> Payload.Packet pkt_in.packet
           end;
           port_id = None;
           actions = 
@@ -603,12 +603,13 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
       compose nicely with NetCore operatores. This requires some deep thought,
       which is banned until after PLDI 2013. *)
   let emit_packets pkt_stream pol_stream = 
+    let open PacketOut in
     let emit_pkt (sw, pt, bytes) =
       let open OpenFlow0x01 in
       let msg = {
-        PacketOut.buf_or_bytes = PacketOut.Packet bytes;
-        PacketOut.port_id = None;
-        PacketOut.actions = [Action.Output (PseudoPort.PhysicalPort pt)]
+        buf_or_bytes = Payload.Packet bytes;
+        port_id = None;
+        actions = [Action.Output (PseudoPort.PhysicalPort pt)]
       } in
       Platform.send_to_switch sw 0l (Message.PacketOutMsg msg) in
     Lwt_stream.iter_s emit_pkt pkt_stream

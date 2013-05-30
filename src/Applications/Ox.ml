@@ -23,7 +23,7 @@ struct
     | Some bufId ->
       let open PacketOut in
       let pktOut = {
-        buf_or_bytes = Buffer bufId;
+        buf_or_bytes = Payload.Buffer bufId;
         port_id = Some pktIn.PacketIn.port;
         actions = [Action.Output PseudoPort.Flood]
       } in
@@ -74,7 +74,7 @@ struct
       let open PacketIn in
       let open PacketOut in
       let pktOut = {
-        buf_or_bytes = Buffer bufId;
+        buf_or_bytes = Payload.Buffer bufId;
         port_id = Some pktIn.port;
         actions = [Action.Output PseudoPort.Flood]
       } in
@@ -111,13 +111,13 @@ struct
                     Match.dlDst = Some dst;
                     Match.inPort = Some inport } in 
           let fm = {
-            mod_cmd = AddFlow;
+            mod_cmd = Command.AddFlow;
             match_ = m;
             priority = 1;
             actions = [Action.Output (PseudoPort.PhysicalPort outport)];
             cookie = Int64.zero;
-            idle_timeout = Permanent;
-            hard_timeout = Permanent;
+            idle_timeout = Timeout.Permanent;
+            hard_timeout = Timeout.Permanent;
             notify_when_removed = false;
             apply_to_packet = None;
             out_port = None;
@@ -127,7 +127,7 @@ struct
         else
           let open PacketOut in
           let pktOut = { 
-            buf_or_bytes = Buffer bufId;
+            buf_or_bytes = Payload.Buffer bufId;
             port_id = Some pktIn.PacketIn.port;
             actions = [Action.Output PseudoPort.Flood] 
           } in 

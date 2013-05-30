@@ -172,13 +172,22 @@ end
 
 module PortStatus : sig
 
-  type change_reason =
-    | Add
-    | Delete
-    | Modify
+  module ChangeReason : sig
+
+    type t =
+      | Add
+      | Delete
+      | Modify
+
+    val of_int : int -> t
+    val to_int : t -> int
+    val to_string : t -> string
+    val size_of : t -> int
+
+  end
 
   type t =
-      { reason : change_reason
+      { reason : ChangeReason.t
       ; desc : PortDescription.t }
 
   val size_of : t -> int
@@ -190,36 +199,54 @@ end
 
 module SwitchFeatures : sig
 
-  type capabilities =
-    { flow_stats : bool
-    ; table_stats : bool
-    ; port_stats : bool
-    ; stp : bool
-    ; ip_reasm : bool
-    ; queue_stats : bool
-    ; arp_match_ip : bool }
+  module Capabilities : sig
 
-  type actions =
-    { output : bool
-    ; set_vlan_id : bool
-    ; set_vlan_pcp : bool
-    ; strip_vlan : bool
-    ; set_dl_src : bool
-    ; set_dl_dst : bool
-    ; set_nw_src : bool
-    ; set_nw_dst : bool
-    ; set_nw_tos : bool
-    ; set_tp_src : bool
-    ; set_tp_dst : bool
-    ; enqueue : bool
-    ; vendor : bool }
+    type t =
+      { flow_stats : bool
+      ; table_stats : bool
+      ; port_stats : bool
+      ; stp : bool
+      ; ip_reasm : bool
+      ; queue_stats : bool
+      ; arp_match_ip : bool }
+
+    val size_of : t -> int
+    val of_int : int32 -> t
+    val to_int : t -> int32
+    val to_string : t -> string
+
+  end
+
+  module SupportedActions : sig
+
+    type t =
+      { output : bool
+      ; set_vlan_id : bool
+      ; set_vlan_pcp : bool
+      ; strip_vlan : bool
+      ; set_dl_src : bool
+      ; set_dl_dst : bool
+      ; set_nw_src : bool
+      ; set_nw_dst : bool
+      ; set_nw_tos : bool
+      ; set_tp_src : bool
+      ; set_tp_dst : bool
+      ; enqueue : bool
+      ; vendor : bool }
+
+    val size_of : t -> int
+    val of_int : int32 -> t
+    val to_int : t -> int32
+    val to_string : t -> string
+
+  end
 
   type t =
     { switch_id : int64
     ; num_buffers : int32
     ; num_tables : int8
-    ; supported_capabilities : capabilities
-    ; supported_actions : actions
+    ; supported_capabilities : Capabilities.t
+    ; supported_actions : SupportedActions.t
     ; ports : PortDescription.t list }
 
   val size_of : t -> int
@@ -231,25 +258,43 @@ end
 
 module FlowMod : sig
 
-  type command =
-    | AddFlow
-    | ModFlow
-    | ModStrictFlow
-    | DeleteFlow
-    | DeleteStrictFlow
+  module Command : sig
 
-  type timeout =
-    | Permanent
-    | ExpiresAfter of int16
+    type t =
+      | AddFlow
+      | ModFlow
+      | ModStrictFlow
+      | DeleteFlow
+      | DeleteStrictFlow
+
+    val size_of : t -> int
+    val of_int : int -> t
+    val to_int : t -> int
+    val to_string : t -> string
+
+  end
+
+  module Timeout : sig
+
+    type t =
+      | Permanent
+      | ExpiresAfter of int16
+
+    val size_of : t -> int
+    val of_int : int -> t
+    val to_int : t -> int
+    val to_string : t -> string
+
+  end
 
   type t =
-    { mod_cmd : command
+    { mod_cmd : Command.t
     ; match_ : Match.t
     ; priority : priority
     ; actions : Action.sequence
     ; cookie : int64
-    ; idle_timeout : timeout
-    ; hard_timeout : timeout
+    ; idle_timeout : Timeout.t
+    ; hard_timeout : Timeout.t
     ; notify_when_removed : bool
     ; apply_to_packet : bufferId option
     ; out_port : PseudoPort.t option
@@ -264,15 +309,24 @@ end
 
 module PacketIn : sig
 
-  type reason =
-    | NoMatch
-    | ExplicitSend
+  module Reason : sig
+
+    type t =
+      | NoMatch
+      | ExplicitSend
+
+    val size_of : t -> int
+    val of_int : int -> t
+    val to_int : t -> int
+    val to_string : t -> string
+
+  end
 
   type t =
     { buffer_id : bufferId option
     ; total_len : int16
     ; port : portId
-    ; reason : reason
+    ; reason : Reason.t
     ; packet :  bytes }
 
   val size_of : t -> int
@@ -284,12 +338,21 @@ end
 
 module PacketOut : sig
 
-  type payload =
-  | Buffer of bufferId
-  | Packet of bytes
+  module Payload : sig
+
+    type t =
+      | Buffer of bufferId
+      | Packet of bytes
+
+    val size_of : t -> int
+    val parse : Cstruct.t -> t
+    val marshal : t -> Cstruct.t -> int
+    val to_string : t -> string
+
+  end
 
   type t =
-    { buf_or_bytes : payload
+    { buf_or_bytes : Payload.t
     ; port_id : portId option
     ; actions : Action.sequence }
 
@@ -549,9 +612,8 @@ module Error : sig
 end
 
 
-(* A subset of the OpenFlow 1.0 messages defined in Section 5.1 of the spec. *)
-
 module Message : sig
+(* A subset of the OpenFlow 1.0 messages defined in Section 5.1 of the spec. *)
 
   module Header : sig
 
