@@ -2002,6 +2002,7 @@ module Error = struct
     let to_string = function
       | BadPort -> "BadPort"
       | BadQueue -> "BadQueue"
+      | Eperm -> "Eperm"
 
   end
 
@@ -2132,8 +2133,9 @@ module Message = struct
       set_ofp_header_xid out hdr.xid;
       size_of hdr
 
-    (** [parse buf] assumes that [buf] has size [sizeof_ofp_header] *)
-    let parse buf =
+    (** [parse buf] assumes that [buf] has size [sizeof_ofp_header]. *)
+    let parse body_buf =
+      let buf = Cstruct.of_string body_buf in
       { ver = get_ofp_header_version buf;
         typ = begin match int_to_msg_code (get_ofp_header_typ buf) with
           | Some typ -> typ
@@ -2200,7 +2202,8 @@ module Message = struct
       ; out_port = None
       ; check_overlap = false }
 
-  let parse (hdr : Header.t) (buf : Cstruct.t) : (xid * t) =
+  let parse (hdr : Header.t) (body_buf : string) : (xid * t) =
+    let buf = Cstruct.of_string body_buf in
     let msg = match hdr.Header.typ with
       | HELLO -> Hello buf
       | ERROR -> ErrorMsg (Error.parse buf)

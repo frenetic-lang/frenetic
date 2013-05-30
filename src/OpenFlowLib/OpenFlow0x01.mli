@@ -534,11 +534,12 @@ module Message : sig
     (** Length in bytes of the serialized OpenFlow message with this header. *)
     val len : t -> int
 
+    (** [to_string hdr] pretty-prints [hdr]. *)
     val to_string : t -> string
 
-    val marshal : t -> Cstruct.t -> int
-
-    val parse : Cstruct.t -> t
+    (** [parse bits] parses [bits].
+        @raise Unparsable if [bits] cannot be parsed. *)
+    val parse : string -> t
 
   end
 
@@ -561,13 +562,23 @@ module Message : sig
     | StatsRequestMsg of StatsRequest.t
     | StatsReplyMsg of StatsReply.t
 
-  (** Size in bytes of a serialized [Message]. *)
+  (** [size_of msg] returns the size of [msg] in bytes when serialized. *)
   val size_of : t -> int
 
-  val parse : Header.t -> Cstruct.t -> (xid * t)
+  (** [parse hdr bits] parses the body of a message with header [hdr] from
+      buffer [bits]. 
+      @param hdr Header of the message to be parsed from [bits].
+      @param bits string containing a serialized message body.
+      @return [(xid, message)] where [xid] is the transaction ID.
+      @raise Unparsable if [bits] cannot be parsed.
+      @raise Ignored if [bits] contains a valid OpenFlow message that the 
+             parser does not yet handle. *)
+  val parse : Header.t -> string -> (xid * t)
 
+  (** [marshal xid msg] serializes [msg], giving it a transaction ID [xid]. *)
   val marshal : xid -> t -> string
 
+  (** [to_string msg] pretty-prints [msg]. *)
   val to_string : t -> string
 
   (** A message ([FlowModMsg]) that deletes all flows. *)
