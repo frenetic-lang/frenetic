@@ -3,6 +3,33 @@ open Packet
 open Format
 
 exception Unparsable of string
+exception Ignored of string
+
+(* TODO(cole): find a better place for these. *)
+type switchId = int64
+type priority = int16
+type bufferId = int32
+type table_id = int8
+
+let string_of_switchId = Int64.to_string
+let string_of_priority p = Printf.sprintf "%d" p
+let string_of_bufferId = Int32.to_string
+let string_of_table_id id = Printf.sprintf "%d" id
+
+let string_of_portId = portId_to_string
+let string_of_dlAddr = dlAddr_to_string
+
+let sum (lst : int list) = List.fold_left (fun x y -> x + y) 0 lst
+
+cenum ofp_stats_types {
+  OFPST_DESC;
+  OFPST_FLOW;
+  OFPST_AGGREGATE;
+  OFPST_TABLE;
+  OFPST_PORT;
+  OFPST_QUEUE;
+  OFPST_VENDOR = 0xffff
+} as uint16_t
 
 (** Internal module, only used to parse the wildcards bitfield *)
 module Wildcards = struct
@@ -110,7 +137,7 @@ module Match = struct
     uint16_t tp_dst
   } as big_endian
 
-  let size = sizeof_ofp_match
+  let size_of _ = sizeof_ofp_match
 
   let all = {
     dlSrc = None;
@@ -320,6 +347,8 @@ module PseudoPort = struct
     OFPP_NONE = 0xffff  (* Not associated with a physical port. *)
   } as uint16_t
 
+  let size_of _ = 2
+
   let marshal (t : t) : int = match t with
     | PhysicalPort p -> p
     | InPort -> ofp_port_to_int OFPP_IN_PORT
@@ -331,8 +360,6 @@ module PseudoPort = struct
   let marshal_optional (t : t option) : int = match t with
     | None -> ofp_port_to_int OFPP_NONE
     | Some x -> marshal x
-
-  let none = ofp_port_to_int OFPP_NONE
 
   let to_string (t : t) : string = match t with
     | PhysicalPort p -> string_of_int p
@@ -353,6 +380,8 @@ module PseudoPort = struct
       else
         raise
           (Unparsable (sprintf "unsupported port number (%d)" ofp_port_code))
+
+  let parse _ = failwith "NYI: PseudoPort.parse"
 
 end
 
@@ -450,7 +479,7 @@ module Action = struct
     | SetTpSrc _ -> OFPAT_SET_TP_SRC
     | SetTpDst _ -> OFPAT_SET_TP_DST
 
-  let sizeof (a : t) =
+  let size_of (a : t) =
     let h = sizeof_ofp_action_header in
     match a with
     | Output _ -> h + sizeof_ofp_action_output
@@ -465,9 +494,11 @@ module Action = struct
     | SetTpSrc _
     | SetTpDst _ -> h + sizeof_ofp_action_tp_port
 
+  let size_of_sequence acts = List.fold_left (+) 0 (List.map size_of acts)
+
   let marshal a bits =
     set_ofp_action_header_typ bits (ofp_action_type_to_int (type_code a));
-    set_ofp_action_header_len bits (sizeof a);
+    set_ofp_action_header_len bits (size_of a);
     let bits' = Cstruct.shift bits sizeof_ofp_action_header in
     begin
       match a with
@@ -477,16 +508,18 @@ module Action = struct
             (match pp with
               | PseudoPort.Controller w -> w
               | _ -> 0)
-        | SetNwSrc addr 
+        | SetNwSrc addr
         | SetNwDst addr ->
           set_ofp_action_nw_addr_nw_addr bits' addr
         | SetTpSrc pt
         | SetTpDst pt ->
           set_ofp_action_tp_port_tp_port bits' pt
-	      | _ ->
-	        failwith "NYI: Action.marshal"
+              | _ ->
+                failwith "NYI: Action.marshal"
     end;
-    sizeof a
+    size_of a
+
+  let marshal_sequence acts out = failwith "NYI: Action.marshal_sequence"
 
   let is_to_controller (act : t) : bool = match act with
     | Output (PseudoPort.Controller _) -> true
@@ -569,361 +602,771 @@ module Action = struct
 
 end
 
-type portChangeReason =
-  | PortAdd
-  | PortDelete
-  | PortModify
+module PortDescription = struct
 
-type portConfig =
-    { portConfigDown : bool; (* Port is administratively down. *)
-      portConfigNoSTP : bool; (* Disable 802.1D spanning tree on port. *)
-      portConfigNoRecv : bool; (* Drop all packets except 802.1D spanning
-				  tree packets. *)
-      portConfigNoRecvSTP : bool; (* Drop received 802.1D STP packets. *)
-      portConfigNoFlood : bool; (* Do not include this port when flooding. *)
-      portConfigNoFWD : bool; (* Drop packets forwarded to port. *)
-      portConfigNoPacketIn : bool (* Do not send packet-in msgs for port. *)
-    }
+  module PortConfig = struct
 
-type portState = 
-    { portStateDown : bool;  (* No physical link present. *)
-      portStateSTPListen : bool;
-      portStateSTPForward : bool;
-      portStateSTPBlock : bool;
-      portStateSTPMask : bool }
+    type t =
+      { down : bool (* Port is administratively down. *)
+      ; no_stp : bool (* Disable 802.1D spanning tree on port. *)
+      ; no_recv : bool (* Drop all packets except 802.1D spanning
+                                 * tree packets. *)
+      ; no_recv_stp : bool (* Drop received 802.1D STP packets. *)
+      ; no_flood : bool (* Do not include this port when flooding. *)
+      ; no_fwd : bool (* Drop packets forwarded to port. *)
+      ; no_packet_in : bool (* Do not send packet-in msgs for port. *)
+      }
 
-type portFeatures =
-    { portFeat10MBHD : bool; (* 10 Mb half-duplex rate support. *)
-      portFeat10MBFD : bool; (* 10 Mb full-duplex rate support. *)
-      portFeat100MBHD : bool; (* 100 Mb half-duplex rate support. *)
-      portFeat100MBFD : bool; (* 100 Mb full-duplex rate support. *)
-      portFeat1GBHD : bool; (* 1 Gb half-duplex rate support. *)
-      portFeat1GBFD : bool; (* 1 Gb full-duplex rate support. *)
-      portFeat10GBFD : bool; (* 10 Gb full-duplex rate support. *)
-      portFeatCopper : bool; (* Copper medium. *)
-      portFeatFiber : bool; (* Fiber medium. *)
-      portFeatAutoneg : bool; (* Auto-negotiation. *)
-      portFeatPause : bool; (* Pause. *)
-      portFeatPauseAsym : bool (* Asymmetric pause. *)
-    }
+    let to_string c = Printf.sprintf
+      "{ down = %B; \
+         no_stp = %B; \
+         no_recv = %B; \
+         no_recv_stp = %B; \
+         no_flood = %B; \
+         no_fwd = %B; \
+         no_packet_in = %B }"
+      c.down
+      c.no_stp
+      c.no_recv
+      c.no_recv_stp
+      c.no_flood
+      c.no_fwd
+      c.no_packet_in
 
-type portDesc =
-    { portDescPortNo : portId;
-      portDescHwAddr : dlAddr;
-      portDescName : string;
-      portDescConfig : portConfig;
-      portDescState : portState;
-      portDescCurr : portFeatures;
-      portDescAdvertised : portFeatures;
-      portDescSupported : portFeatures;
-      portDescPeer : portFeatures }
+    let of_int d =
+      { down = test_bit 0 d;
+        no_stp = test_bit 1 d;
+        no_recv = test_bit 2 d;
+        no_recv_stp = test_bit 3 d;
+        no_flood = test_bit 4 d;
+        no_fwd = test_bit 5 d;
+        no_packet_in = test_bit 6 d
+      }
 
-type portStatus =
-    { portStatusReason : portChangeReason;
-      portStatusDesc : portDesc }
+    let size_of _ = 8
+    let to_int _ = failwith "NYI: PortConfig.to_int"
 
-type capabilities =
-  { flow_stats : bool;
-    table_stats : bool;
-    port_stats : bool;
-    stp : bool;
-    ip_reasm : bool;
-    queue_stats : bool;
-    arp_match_ip : bool }
+  end
 
-type actions = { output : bool;
-                 set_vlan_id : bool;
-                 set_vlan_pcp : bool;
-                 strip_vlan : bool;
-                 set_dl_src : bool;
-                 set_dl_dst : bool;
-                 set_nw_src : bool;
-                 set_nw_dst : bool;
-                 set_nw_tos : bool;
-                 set_tp_src : bool;
-                 set_tp_dst : bool;
-                 enqueue : bool;
-                 vendor : bool }
+  module PortState = struct
 
-type features =
-  { switch_id : int64;
-    num_buffers : int32;
-    num_tables : int8;
-    supported_capabilities : capabilities;
-    supported_actions : actions;
-    ports : portDesc list}
+    type t =
+      { down : bool  (* No physical link present. *)
+      ; stp_listen : bool
+      ; stp_forward : bool
+      ; stp_block : bool
+      ; stp_mask : bool }
 
-type flowModCommand =
-| AddFlow
-| ModFlow
-| ModStrictFlow
-| DeleteFlow
-| DeleteStrictFlow
+    let to_string p = Printf.sprintf
+      "{ down = %B; \
+         stp_listen = %B; \
+         stp_forward = %B; \
+         stp_block = %B; \
+         stp_mask = %B }"
+      p.down
+      p.stp_listen
+      p.stp_forward
+      p.stp_block
+      p.stp_mask
 
-type switchId = int64
+    (* MJR: GAH, the enum values from OF1.0 make NO SENSE AT ALL. Two of
+       them have the SAME value, and the rest make no sense as bit
+       vectors. Only portStateDown is parsed correctly ATM *)
+    let of_int d =
+      { down = test_bit 0 d
+      ; stp_listen = false
+      ; stp_forward = false
+      ; stp_block = false
+      ; stp_mask = false }
 
-let string_of_switchId = Int64.to_string
+    let to_int _ = failwith "NYI: PortState.to_int"
+    let size_of _ = 8
 
-type priority = int16
+  end
 
-type bufferId = int32
+  module PortFeatures = struct
 
-type timeout =
-| Permanent
-| ExpiresAfter of int16
+    type t =
+      { f_10MBHD : bool (* 10 Mb half-duplex rate support. *)
+      ; f_10MBFD : bool (* 10 Mb full-duplex rate support. *)
+      ; f_100MBHD : bool (* 100 Mb half-duplex rate support. *)
+      ; f_100MBFD : bool (* 100 Mb full-duplex rate support. *)
+      ; f_1GBHD : bool (* 1 Gb half-duplex rate support. *)
+      ; f_1GBFD : bool (* 1 Gb full-duplex rate support. *)
+      ; f_10GBFD : bool (* 10 Gb full-duplex rate support. *)
+      ; copper : bool (* Copper medium. *)
+      ; fiber : bool (* Fiber medium. *)
+      ; autoneg : bool (* Auto-negotiation. *)
+      ; pause : bool (* Pause. *)
+      ; pause_asym : bool (* Asymmetric pause. *)
+      }
 
-type flowMod =
-  { mfModCmd : flowModCommand;
-    mfMatch : Match.t;
-    mfPriority : priority;
-    mfActions : Action.sequence;
-    mfCookie : int64;
-    mfIdleTimeOut : timeout;
-    mfHardTimeOut : timeout;
-    mfNotifyWhenRemoved : bool;
-    mfApplyToPacket : bufferId option;
-    mfOutPort : PseudoPort.t option;
-    mfCheckOverlap : bool }
+    let to_string p = Printf.sprintf
+      "{ f_10MBHD = %B; \
+         f_10MBFD = %B; \
+         f_100MBHD = %B; \
+         f_100MBFD = %B; \
+         f_1GBHD = %B; \
+         f_1GBFD = %B; \
+         f_10GBFD = %B; \
+         copper = %B; \
+         fiber = %B; \
+         autoneg = %B; \
+         pause = %B; \
+         pause_asym = %B }"
+      p.f_10MBHD
+      p.f_10MBFD
+      p.f_100MBHD
+      p.f_100MBFD
+      p.f_1GBHD
+      p.f_1GBFD
+      p.f_10GBFD
+      p.copper
+      p.fiber
+      p.autoneg
+      p.pause
+      p.pause_asym
 
-type reason =
-| NoMatch
-| ExplicitSend
+    let size_of _ = 8
+    let to_int _ = failwith "NYI: PortFeatures.to_int"
 
-type packetIn =
-  { packetInBufferId : bufferId option;
-    packetInTotalLen : int16;
-    packetInPort : portId;
-    packetInReason : reason;
-    packetInPacket : bytes }
+    let of_int bits =
+      { f_10MBHD = test_bit 0 bits
+      ; f_10MBFD = test_bit 1 bits
+      ; f_100MBHD = test_bit 2 bits
+      ; f_100MBFD = test_bit 3 bits
+      ; f_1GBHD = test_bit 4 bits
+      ; f_1GBFD = test_bit 5 bits
+      ; f_10GBFD = test_bit 6 bits
+      ; copper = test_bit 7 bits
+      ; fiber = test_bit 8 bits
+      ; autoneg = test_bit 9 bits
+      ; pause = test_bit 10 bits
+      ; pause_asym = test_bit 11 bits }
 
-type xid = int32
+  end
 
-type payload =
-| Buffer of bufferId
-| Packet of bytes
+  type t =
+    { port_no : portId
+    ; hw_addr : dlAddr
+    ; name : string
+    ; config : PortConfig.t
+    ; state : PortState.t
+    ; curr : PortFeatures.t
+    ; advertised : PortFeatures.t
+    ; supported : PortFeatures.t
+    ; peer : PortFeatures.t }
 
-type packetOut =
-  { pktOutBufOrBytes : payload;
-    pktOutPortId : portId option;
-    pktOutActions : Action.sequence }
-
-(* Component types of stats_request messages. *)
-
-type table_id = int8
-
-module IndividualFlowRequest = struct
-
-  type t = { of_match : Match.t;
-             table_id : table_id;
-             port : PseudoPort.t option }
-
-  cstruct ofp_flow_stats_request {
-    uint8_t of_match[40];
-    uint8_t table_id;
-    uint8_t pad;
-    uint16_t out_port
+  cstruct ofp_phy_port {
+    uint16_t port_no;
+    uint8_t hw_addr[6];
+    uint8_t name[16]; (* OFP_MAX_PORT_NAME_LEN, Null-terminated *)
+    uint32_t config; (* Bitmap of OFPPC_* flags. *)
+    uint32_t state; (* Bitmap of OFPPS_* flags. *)
+    (* Bitmaps of OFPPF_* that describe features. All bits zeroed if
+     * unsupported or unavailable. *)
+    uint32_t curr; (* Current features. *)
+    uint32_t advertised; (* Features being advertised by the port. *)
+    uint32_t supported; (* Features supported by the port. *)
+    uint32_t peer (* Features advertised by peer. *)
   } as big_endian
 
-  let to_string req =
-    Printf.sprintf "{of_match = %s; table_id = %d; port = %s}"
-      (Match.to_string req.of_match)
-      req.table_id
-      (Frenetic_Misc.string_of_option PseudoPort.to_string req.port)
+  let to_string d = Printf.sprintf
+    "{ port_no = %s; hw_addr = %s; name = %s; config = %s; state = %s; \
+       curr = %s; advertised = %s; supported = %s; peer = %s }"
+    (string_of_portId d.port_no)
+    (string_of_dlAddr d.hw_addr)
+    d.name
+    (PortConfig.to_string d.config)
+    (PortState.to_string d.state)
+    (PortFeatures.to_string d.curr)
+    (PortFeatures.to_string d.advertised)
+    (PortFeatures.to_string d.supported)
+    (PortFeatures.to_string d.peer)
 
-  let sizeof req = sizeof_ofp_flow_stats_request
+  let parse (bits : Cstruct.t) : t =
+    let portDescPortNo = get_ofp_phy_port_port_no bits in
+    let hw_addr = Packet.mac_of_bytes (Cstruct.to_string (get_ofp_phy_port_hw_addr bits)) in
+    let name = Cstruct.to_string (get_ofp_phy_port_name bits) in
+    let config = PortConfig.of_int (get_ofp_phy_port_config bits) in
+    let state = PortState.of_int (get_ofp_phy_port_state bits) in
+    let curr = PortFeatures.of_int (get_ofp_phy_port_curr bits) in
+    let advertised = PortFeatures.of_int (get_ofp_phy_port_advertised bits) in
+    let supported = PortFeatures.of_int (get_ofp_phy_port_supported bits) in
+    let peer = PortFeatures.of_int (get_ofp_phy_port_peer bits) in
+    { port_no = portDescPortNo
+    ; hw_addr = hw_addr
+    ; name = name
+    ; config = config
+    ; state = state
+    ; curr = curr
+    ; advertised = advertised
+    ; supported = supported
+    ; peer = peer }
 
-  let marshal req out =
-    let _ = Match.marshal req.of_match out in
-    set_ofp_flow_stats_request_table_id out req.table_id;
-    begin match req.port with
-    | Some port -> 
-      set_ofp_flow_stats_request_out_port out (PseudoPort.marshal port);
-    | None ->
-      let open PseudoPort in
-      let port_code = ofp_port_to_int OFPP_NONE in
-      set_ofp_flow_stats_request_out_port out port_code
-    end;
-    sizeof req
+  let size_of _ = failwith "NYI: PortDesription.size_of"
+  let marshal _ _ = failwith "NYI: PortDescription.marshal"
 
 end
 
-module AggregateFlowRequest = struct
+module PortStatus = struct
 
-  type t = { of_match : Match.t;
-             table_id : table_id;
-             port : PseudoPort.t option }
+  type change_reason =
+    | Add
+    | Delete
+    | Modify
 
-  cstruct ofp_aggregate_stats_request {
-    uint8_t of_match[40];
-    uint8_t table_id;
-    uint8_t pad;
-    uint16_t out_port
+  type t =
+    { reason : change_reason
+    ; desc : PortDescription.t }
+
+  cenum ofp_port_reason {
+    OFPPR_ADD;
+    OFPPR_DELETE;
+    OFPPR_MODIFY
+  } as uint8_t
+
+  cstruct ofp_port_status {
+      uint8_t reason;               (* One of OFPPR_* *)
+      uint8_t pad[7]
   } as big_endian
 
-  let to_string req =
-    Printf.sprintf "{of_match = %s; table_id = %d; port = %s}"
-      (Match.to_string req.of_match)
-      req.table_id
-      (Frenetic_Misc.string_of_option PseudoPort.to_string req.port)
+  let string_of_change_reason r = match r with
+    | Add -> "Add"
+    | Delete -> "Delete"
+    | Modify -> "Modify"
 
-  let sizeof req = sizeof_ofp_aggregate_stats_request
+  let to_string status = Printf.sprintf
+    "{ reason = %s; desc = %s }"
+    (string_of_change_reason status.reason)
+    (PortDescription.to_string status.desc)
 
-  let marshal req out =
-    let _ = Match.marshal req.of_match out in
-    set_ofp_aggregate_stats_request_table_id out req.table_id;
-    begin match req.port with
-    | Some port -> 
-      set_ofp_aggregate_stats_request_out_port out (PseudoPort.marshal port);
-    | None ->
-      let open PseudoPort in
-      let port_code = ofp_port_to_int OFPP_NONE in
-      set_ofp_aggregate_stats_request_out_port out port_code
+  let parse bits =
+    let reason_int = get_ofp_port_status_reason bits in
+    let reason_code = int_to_ofp_port_reason reason_int in
+    let reason = match reason_code with
+      | Some OFPPR_ADD -> Add
+      | Some OFPPR_DELETE -> Delete
+      | Some OFPPR_MODIFY -> Modify
+      | None ->
+        raise (Unparsable
+          (Printf.sprintf "unexpected ofp_port_reason %d" reason_int)) in
+    let _ = Cstruct.shift bits sizeof_ofp_port_status in
+    let description = PortDescription.parse bits in
+    { reason = reason
+    ; desc = description }
+
+  let to_string ps =
+    let {reason; desc} = ps in
+    Printf.sprintf "PortStatus %s %d"
+      (string_of_change_reason reason)
+      desc.PortDescription.port_no
+
+  let size_of _ = failwith "NYI: PortStatus.size_of"
+  let marshal _ _ = failwith "NYI: PortStatus.marshal"
+
+end
+
+module Features = struct
+
+  type capabilities =
+    { flow_stats : bool
+    ; table_stats : bool
+    ; port_stats : bool
+    ; stp : bool
+    ; ip_reasm : bool
+    ; queue_stats : bool
+    ; arp_match_ip : bool }
+
+  type actions =
+    { output : bool
+    ; set_vlan_id : bool
+    ; set_vlan_pcp : bool
+    ; strip_vlan : bool
+    ; set_dl_src : bool
+    ; set_dl_dst : bool
+    ; set_nw_src : bool
+    ; set_nw_dst : bool
+    ; set_nw_tos : bool
+    ; set_tp_src : bool
+    ; set_tp_dst : bool
+    ; enqueue : bool
+    ; vendor : bool }
+
+  type t =
+    { switch_id : int64
+    ; num_buffers : int32
+    ; num_tables : int8
+    ; supported_capabilities : capabilities
+    ; supported_actions : actions
+    ; ports : PortDescription.t list }
+
+  cstruct ofp_switch_features {
+    uint64_t datapath_id;
+    uint32_t n_buffers;
+    uint8_t n_tables;
+    uint8_t pad[3];
+    uint32_t capabilities;
+    uint32_t action
+  } as big_endian
+
+  let string_of_capabilities c = Printf.sprintf
+    "{ flow_stats = %B; \
+       table_stats = %B; \
+       port_stats = %B; \
+       stp = %B; \
+       ip_reasm = %B; \
+       queue_stats = %B; \
+       arp_mat_ip = %B }"
+    c.flow_stats
+    c.table_stats
+    c.port_stats
+    c.stp
+    c.ip_reasm
+    c.queue_stats
+    c.arp_match_ip
+
+  let string_of_actions a = Printf.sprintf
+    "{ output = %B; \
+       set_vlan_id = %B; \
+       set_vlan_pcp = %B; \
+       strip_vlan = %B; \
+       set_dl_src = %B; \
+       set_dl_dst = %B; \
+       set_nw_src = %B; \
+       set_nw_dst = %B; \
+       set_nw_tos = %B; \
+       set_tp_src = %B; \
+       set_tp_dst = %B; \
+       enqueue = %B; \
+       vendor = %B }"
+    a.output
+    a.set_vlan_id
+    a.set_vlan_pcp
+    a.strip_vlan
+    a.set_dl_src
+    a.set_dl_dst
+    a.set_nw_src
+    a.set_nw_dst
+    a.set_nw_tos
+    a.set_tp_src
+    a.set_tp_dst
+    a.enqueue
+    a.vendor
+
+  let to_string feats = Printf.sprintf
+    "{ switch_id = %Ld; num_buffers = %s; num_tables = %d; \
+       supported_capabilities = %s; supported_actions = %s; ports = %s }"
+    feats.switch_id
+    (Int32.to_string feats.num_buffers)
+    feats.num_tables
+    (string_of_capabilities feats.supported_capabilities)
+    (string_of_actions feats.supported_actions)
+    (Frenetic_Misc.string_of_list PortDescription.to_string feats.ports)
+
+  let capabilities_of_int d =
+    { arp_match_ip = test_bit 7 d
+    ; queue_stats = test_bit 6 d
+    ; ip_reasm = test_bit 5 d
+    ; stp = test_bit 3 d
+    ; port_stats = test_bit 2 d
+    ; table_stats = test_bit 1 d
+    ; flow_stats = test_bit 0 d }
+
+  let capabilities_to_int c =
+    let bits = Int32.zero in
+    let bits = bit bits 7 c.arp_match_ip in
+    let bits = bit bits 6 c.queue_stats in
+    let bits = bit bits 5 c.ip_reasm in
+    let bits = bit bits 3 c.stp in
+    let bits = bit bits 2 c.port_stats in
+    let bits = bit bits 1 c.table_stats in
+    let bits = bit bits 0 c.flow_stats in
+    bits
+
+  let action_of_int d =
+    { output = test_bit 0 d
+    ; set_vlan_id = test_bit 1 d
+    ; set_vlan_pcp = test_bit 2 d
+    ; strip_vlan = test_bit 3 d
+    ; set_dl_src = test_bit 4 d
+    ; set_dl_dst = test_bit 5 d
+    ; set_nw_src = test_bit 6 d
+    ; set_nw_dst = test_bit 7 d
+    ; set_nw_tos = test_bit 8 d
+    ; set_tp_src = test_bit 9 d
+    ; set_tp_dst = test_bit 10 d
+    ; enqueue = test_bit 11 d
+    ; vendor = test_bit 12 d }
+
+  let action_to_int a =
+    let bits = Int32.zero in
+    let bits = bit bits 0 a.output in
+    let bits = bit bits 1 a.set_vlan_id in
+    let bits = bit bits 2 a.set_vlan_pcp in
+    let bits = bit bits 3 a.strip_vlan in
+    let bits = bit bits 4 a.set_dl_src in
+    let bits = bit bits 5 a.set_dl_dst in
+    let bits = bit bits 6 a.set_nw_src in
+    let bits = bit bits 7 a.set_nw_dst in
+    let bits = bit bits 8 a.set_nw_tos in
+    let bits = bit bits 9 a.set_tp_src in
+    let bits = bit bits 10 a.set_tp_dst in
+    let bits = bit bits 11 a.enqueue in
+    let bits = bit bits 12 a.vendor in
+    bits
+
+  let parse (buf : Cstruct.t) : t =
+    let switch_id = get_ofp_switch_features_datapath_id buf in
+    let num_buffers = get_ofp_switch_features_n_buffers buf in
+    let num_tables = get_ofp_switch_features_n_tables buf in
+    let supported_capabilities = capabilities_of_int
+      (get_ofp_switch_features_capabilities buf) in
+    let supported_actions = action_of_int
+      (get_ofp_switch_features_action buf) in
+    let _ = Cstruct.shift buf sizeof_ofp_switch_features in
+    let portIter =
+      Cstruct.iter
+        (fun buf ->
+          if Cstruct.len buf >= PortDescription.sizeof_ofp_phy_port then
+            Some PortDescription.sizeof_ofp_phy_port
+          else
+            None)
+        PortDescription.parse
+        buf in
+    let ports = Cstruct.fold (fun acc bits -> bits :: acc) portIter [] in
+    { switch_id
+    ; num_buffers
+    ; num_tables
+    ; supported_capabilities
+    ; supported_actions
+    ; ports }
+
+  let size_of _ = failwith "NYI: Features.size_of"
+  let marshal _ _ = failwith "NYI: Features.marshal"
+
+end
+
+module FlowMod = struct
+
+  type command =
+    | AddFlow
+    | ModFlow
+    | ModStrictFlow
+    | DeleteFlow
+    | DeleteStrictFlow
+
+  type timeout =
+    | Permanent
+    | ExpiresAfter of int16
+
+  type t =
+    { mod_cmd : command
+    ; match_ : Match.t
+    ; priority : priority
+    ; actions : Action.sequence
+    ; cookie : int64
+    ; idle_timeout : timeout
+    ; hard_timeout : timeout
+    ; notify_when_removed : bool
+    ; apply_to_packet : bufferId option
+    ; out_port : PseudoPort.t option
+    ; check_overlap : bool }
+
+  cenum ofp_flow_mod_command {
+    OFPFC_ADD;
+    OFPFC_MODIFY;
+    OFPFC_MODIFY_STRICT;
+    OFPFC_DELETE;
+    OFPFC_DELETE_STRICT
+  } as uint16_t
+
+  cstruct ofp_flow_mod {
+    uint64_t cookie;
+    uint16_t command;
+    uint16_t idle_timeout;
+    uint16_t hard_timeout;
+    uint16_t priority;
+    uint32_t buffer_id;
+    uint16_t out_port;
+    uint16_t flags
+  } as big_endian
+
+  let string_of_command cmd = match cmd with
+    | AddFlow -> "AddFlow"
+    | ModFlow -> "ModFlow"
+    | ModStrictFlow -> "ModStrictFlow"
+    | DeleteFlow -> "DeleteFlow"
+    | DeleteStrictFlow -> "DeleteStrictFlow"
+
+  let string_of_timeout t = match t with
+    | Permanent -> "Permanent"
+    | ExpiresAfter n -> Printf.sprintf "ExpiresAfter %d" n
+
+  let to_string m = Printf.sprintf
+    "{ mod_cmd = %s; match = %s; priority = %s; actions = %s; cookie = %Ld;\
+       idle_timeout = %s; hard_timeout = %s; notify_when_removed = %B;\
+       apply_to_packet = %s; out_port = %s; check_overlap = %B }"
+    (string_of_command m.mod_cmd)
+    (Match.to_string m.match_)
+    (string_of_priority m.priority)
+    (Action.sequence_to_string m.actions)
+    m.cookie
+    (string_of_timeout m.idle_timeout)
+    (string_of_timeout m.hard_timeout)
+    m.notify_when_removed
+    (Frenetic_Misc.string_of_option string_of_bufferId m.apply_to_packet)
+    (Frenetic_Misc.string_of_option PseudoPort.to_string m.out_port)
+    m.check_overlap
+
+  let size_of msg =
+    (Match.size_of msg.match_)
+    + sizeof_ofp_flow_mod
+    + (Action.size_of_sequence msg.actions)
+
+  let parse _ = failwith "NYI: FlowMod.parse"
+
+  let flags_to_int (check_overlap : bool) (notify_when_removed : bool) =
+    (if check_overlap then 1 lsl 1 else 0) lor
+      (if notify_when_removed then 1 lsl 0 else 0)
+
+  let int_of_timeout (x : timeout) = match x with
+    | Permanent -> 0
+    | ExpiresAfter w -> w
+
+  let int_of_command t = match t with
+    | AddFlow -> ofp_flow_mod_command_to_int OFPFC_ADD
+    | ModFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY
+    | ModStrictFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY_STRICT
+    | DeleteFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE
+    | DeleteStrictFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE_STRICT
+
+  let marshal m bits =
+    let bits = Cstruct.shift bits (Match.marshal m.match_ bits) in
+    set_ofp_flow_mod_cookie bits (m.cookie);
+    set_ofp_flow_mod_command bits (int_of_command m.mod_cmd);
+    set_ofp_flow_mod_idle_timeout bits (int_of_timeout m.idle_timeout);
+    set_ofp_flow_mod_hard_timeout bits (int_of_timeout m.hard_timeout);
+    set_ofp_flow_mod_priority bits (m.priority);
+    set_ofp_flow_mod_buffer_id bits
+      (match m.apply_to_packet with
+        | None -> -1l
+        | Some bufId -> bufId);
+    set_ofp_flow_mod_out_port bits (PseudoPort.marshal_optional m.out_port);
+    set_ofp_flow_mod_flags bits
+      (flags_to_int m.check_overlap m.notify_when_removed);
+    let bits = Cstruct.shift bits sizeof_ofp_flow_mod in
+    let _ = List.fold_left
+      (fun bits act ->
+        Cstruct.shift bits (Action.marshal act bits))
+      bits
+      (Action.move_controller_last m.actions) in
+    size_of m
+
+end
+
+module PacketIn = struct
+
+  type reason =
+    | NoMatch
+    | ExplicitSend
+
+  type t =
+    { buffer_id : bufferId option
+    ; total_len : int16
+    ; port : portId
+    ; reason : reason
+    ; packet :  bytes }
+
+  cenum ofp_reason {
+    NO_MATCH = 0;
+    ACTION = 1
+  } as uint8_t
+
+  cstruct ofp_packet_in {
+    uint32_t buffer_id;
+    uint16_t total_len;
+    uint16_t in_port;
+    uint8_t reason;
+    uint8_t pad
+  } as big_endian
+
+  let string_of_reason r = match r with
+    | NoMatch -> "NoMatch"
+    | ExplicitSend -> "ExplicitSend"
+
+  let to_string pin = Printf.sprintf
+    "{ buffer_id = %s; total_len = %d; port = %s; reason = %s; \
+       packet = <bytes> }"
+    (Frenetic_Misc.string_of_option string_of_bufferId pin.buffer_id)
+    pin.total_len
+    (string_of_portId pin.port)
+    (string_of_reason pin.reason)
+
+  let parse bits =
+    let buf_id = match get_ofp_packet_in_buffer_id bits with
+      | -1l -> None
+      | n -> Some n in
+    let total_len = get_ofp_packet_in_total_len bits in
+    let in_port = get_ofp_packet_in_in_port bits in
+    let reason_code = get_ofp_packet_in_reason bits in
+    let reason = match int_to_ofp_reason reason_code with
+      | Some NO_MATCH -> NoMatch
+      | Some ACTION -> ExplicitSend
+      | None ->
+        raise (Unparsable (sprintf "bad reason in packet_in (%d)" reason_code)) in
+    { buffer_id = buf_id
+    ; total_len = total_len
+    ; port = in_port
+    ; reason = reason
+    ; packet = Cstruct.shift bits sizeof_ofp_packet_in }
+
+  let size_of _ = failwith "NYI: PacketIn.size_of"
+  let marshal _ _ = failwith "NYI: PacketIn.marshal"
+
+end
+
+module PacketOut = struct
+
+  type payload =
+  | Buffer of bufferId
+  | Packet of bytes
+
+  type t =
+    { buf_or_bytes : payload
+    ; port_id : portId option
+    ; actions : Action.sequence }
+
+  cstruct ofp_packet_out {
+    uint32_t buffer_id;
+    uint16_t in_port;
+    uint16_t actions_len
+  } as big_endian
+
+  let string_of_payload p = match p with
+    | Buffer id -> Printf.sprintf "Buffer %s" (string_of_bufferId id)
+    | Packet _ -> "Packet <bytes>"
+
+  let to_string out = Printf.sprintf
+    "{ buf_or_bytes = %s; port_id = %s; actions = %s }"
+    (string_of_payload out.buf_or_bytes)
+    (Frenetic_Misc.string_of_option string_of_portId out.port_id)
+    (Action.sequence_to_string out.actions)
+
+  let size_of (pktOut : t) : int =
+    sizeof_ofp_packet_out +
+      (Action.size_of_sequence pktOut.actions) +
+      (match pktOut.buf_or_bytes with
+        | Buffer _ -> 0
+        | Packet bytes -> Cstruct.len bytes)
+
+  let marshal (pktOut : t) (buf : Cstruct.t) : int =
+    set_ofp_packet_out_buffer_id buf
+      (match pktOut.buf_or_bytes with
+        | Buffer n -> n
+        | _ -> -1l);
+    set_ofp_packet_out_in_port buf
+      (PseudoPort.marshal_optional
+        (match pktOut.port_id with
+          | Some id -> Some (PseudoPort.PhysicalPort id)
+          | None -> None));
+    set_ofp_packet_out_actions_len buf
+      (Action.size_of_sequence pktOut.actions);
+    let buf = List.fold_left
+      (fun buf act -> Cstruct.shift buf (Action.marshal act buf))
+      (Cstruct.shift buf sizeof_ofp_packet_out)
+      (Action.move_controller_last pktOut.actions) in
+    begin match pktOut.buf_or_bytes with
+    | Buffer n -> ()
+    | Packet bytes ->
+      Cstruct.blit bytes 0 buf 0 (Cstruct.len bytes)
     end;
-    sizeof req
+    size_of pktOut
+
+  let parse _ = failwith "NYI: PacketOut.parse"
 
 end
 
-(* component types of ofp_error_msg (datapath -> controller) *)
+module StatsRequest = struct
 
-type helloFailedError =
-  | HF_Incompatible
-  | HF_Eperm
+  module IndividualFlowRequest = struct
 
-type badRequestError =
-  | BR_BadVersion
-  | BR_BadType
-  | BR_BadStat
-  | BR_BadVendor
-  | BR_BadSubType
-  | BR_Eperm
-  | BR_BadLen
-  | BR_BufferEmpty
-  | BR_BufferUnknown
+    type t =
+      { of_match : Match.t
+      ; table_id : table_id
+      ; port : PseudoPort.t option }
 
-type badActionError =
-  | BA_BadType
-  | BA_BadLen
-  | BA_BadVendor
-  | BA_BadVendorType
-  | BA_BadOutPort
-  | BA_BadArgument
-  | BA_Eperm
-  | BA_TooMany
-  | BA_BadQueue
+    cstruct ofp_flow_stats_request {
+      uint8_t of_match[40];
+      uint8_t table_id;
+      uint8_t pad;
+      uint16_t out_port
+    } as big_endian
 
-type flowModFailedError =
-  | FM_AllTablesFull
-  | FM_Overlap
-  | FM_Eperm
-  | FM_BadEmergTimeout
-  | FM_BadCommand
-  | FM_Unsupported
+    let size_of _ = sizeof_ofp_flow_stats_request
 
-type portModFailedError =
-  | PM_BadPort
-  | PM_BadHwAddr
+    let to_string req =
+      Printf.sprintf "{of_match = %s; table_id = %d; port = %s}"
+        (Match.to_string req.of_match)
+        req.table_id
+        (Frenetic_Misc.string_of_option PseudoPort.to_string req.port)
 
-type queueOpFailedError =
-  | QO_BadPort
-  | QO_BadQueue
-  | QO_Eperm
+    let marshal req out =
+      let _ = Match.marshal req.of_match out in
+      set_ofp_flow_stats_request_table_id out req.table_id;
+      begin match req.port with
+      | Some port ->
+        set_ofp_flow_stats_request_out_port out (PseudoPort.marshal port);
+      | None ->
+        let open PseudoPort in
+        let port_code = ofp_port_to_int OFPP_NONE in
+        set_ofp_flow_stats_request_out_port out port_code
+      end;
+      size_of req
 
-(* Each error is composed of a couple (error_code, data) *)
+    let parse _ = failwith "NYI: IndividualFlowRequest.parse"
 
-type error =
-  | HelloFailed of helloFailedError * Cstruct.t
-  | BadRequest of badRequestError * Cstruct.t
-  | BadAction of badActionError * Cstruct.t
-  | FlowModFailed of flowModFailedError * Cstruct.t
-  | PortModFailed of portModFailedError * Cstruct.t
-  | QueueOpFailed of queueOpFailedError  * Cstruct.t
+  end
 
-(* Component types of stats_reply messages. *)
+  module AggregateFlowRequest = struct
 
-module DescriptionStats = struct
-  type t = { manufacturer : string;
-             hardware : string;
-             software : string;
-             serial_number : string;
-             datapath : string }
-end
+    type t = { of_match : Match.t
+             ; table_id : table_id
+             ; port : PseudoPort.t option }
 
-module IndividualFlowStats = struct
+    cstruct ofp_aggregate_stats_request {
+      uint8_t of_match[40];
+      uint8_t table_id;
+      uint8_t pad;
+      uint16_t out_port
+    } as big_endian
 
-  type t = { table_id : table_id;
-             of_match : Match.t;
-             duration_sec : int;
-             duration_nsec : int;
-             priority : int;
-             idle_timeout : int;
-             hard_timeout : int;
-             cookie : Int64.t;
-             packet_count : Int64.t;
-             byte_count : Int64.t;
-             actions : Action.sequence }
+    let to_string req =
+      Printf.sprintf "{of_match = %s; table_id = %d; port = %s}"
+        (Match.to_string req.of_match)
+        req.table_id
+        (Frenetic_Misc.string_of_option PseudoPort.to_string req.port)
 
-  let to_string stats = Printf.sprintf
-    "{ table_id = %d\
-     ; of_match = %s\
-     ; duration_sec = %d\
-     ; duration_nsec = %d\
-     ; priority = %d\
-     ; idle_timeout = %d\
-     ; hard_timeout = %d\
-     ; cookie = %s\
-     ; packet_count = %s\
-     ; byte_count = %s\
-     ; actions = %s }"
-     stats.table_id
-     (Match.to_string stats.of_match)
-     stats.duration_sec
-     stats.duration_nsec
-     stats.priority
-     stats.idle_timeout
-     stats.hard_timeout
-     (Int64.to_string stats.cookie)
-     (Int64.to_string stats.packet_count)
-     (Int64.to_string stats.byte_count)
-     (Action.sequence_to_string stats.actions)
+    let size_of _ = sizeof_ofp_aggregate_stats_request
 
-  let sequence_to_string stats_list =
-    Frenetic_Misc.string_of_list to_string stats_list
+    let marshal req out =
+      let _ = Match.marshal req.of_match out in
+      set_ofp_aggregate_stats_request_table_id out req.table_id;
+      begin match req.port with
+      | Some port ->
+        set_ofp_aggregate_stats_request_out_port out (PseudoPort.marshal port);
+      | None ->
+        let open PseudoPort in
+        let port_code = ofp_port_to_int OFPP_NONE in
+        set_ofp_aggregate_stats_request_out_port out port_code
+      end;
+      size_of req
 
-end
+    let parse _ = failwith "NYI: AggregateFlowRequest.parse"
 
-module AggregateFlowStats = struct
-  type t = { packet_count : int;
-             byte_count : int;
-             flow_count : int }
-end
+  end
 
-module TableStats = struct
-  type t = { table_id : table_id;
-             name : string;
-             wildcards : int32;
-             max_entries : int;
-             active_count : int;
-             lookup_count : int;
-             matched_count : int }
-end
-
-module PortStats = struct
-  type t = { port_no : PseudoPort.t;
-             rx_packets : int;
-             tx_packets : int;
-             rx_bytes : int;
-             tx_bytes : int;
-             rx_dropped : int;
-             tx_dropped : int;
-             rx_errors : int;
-             tx_errors : int;
-             rx_frame_err : int;
-             rx_over_err : int;
-             rx_crc_err : int;
-             collisions : int }
-end
-
-type statsRequest =
+  type t =
   | DescriptionReq
   | IndividualFlowReq of IndividualFlowRequest.t
   | AggregateFlowReq of AggregateFlowRequest.t
@@ -931,71 +1374,792 @@ type statsRequest =
   | PortReq of PseudoPort.t
   (* TODO(cole): queue and vendor stats requests. *)
 
-type statsReply =
-  | DescriptionRep of DescriptionStats.t
-  | IndividualFlowRep of IndividualFlowStats.t list
-  | AggregateFlowRep of AggregateFlowStats.t
-  | TableRep of TableStats.t
-  | PortRep of PortStats.t
+  cstruct ofp_stats_request {
+    uint16_t req_type;
+    uint16_t flags
+  } as big_endian
 
-let string_of_statsReply r = match r with
-  | DescriptionRep _ -> "DescriptionRep"
-  | IndividualFlowRep _ -> "IndividualFlowRep"
-  | AggregateFlowRep _ -> "AggregateFlowRep"
-  | TableRep _ -> "TableRep"
-  | PortRep _ -> "PortRep"
+  let to_string msg = match msg with
+    | DescriptionReq -> "DescriptionReq"
+    | IndividualFlowReq req ->
+      "IndividualFlowReq " ^ (IndividualFlowRequest.to_string req)
+    | AggregateFlowReq req ->
+      "AggregateFlowReq " ^ (AggregateFlowRequest.to_string req)
+    | TableReq -> "TableReq"
+    | PortReq p -> "PortReq " ^ (PseudoPort.to_string p)
 
+  let size_of msg =
+    let header_size = sizeof_ofp_stats_request in
+    match msg with
+    | DescriptionReq -> header_size
+    | IndividualFlowReq req ->
+      header_size + (IndividualFlowRequest.size_of req)
+    | _ ->
+      (* CNS: Please implement me!! *)
+      failwith (Printf.sprintf "NYI: StatsRequest.size_of %s" (to_string msg))
+
+  let ofp_stats_type_of_request req = match req with
+    | DescriptionReq -> OFPST_DESC
+    | IndividualFlowReq _ -> OFPST_FLOW
+    | AggregateFlowReq _ -> OFPST_AGGREGATE
+    | TableReq -> OFPST_TABLE
+    | PortReq _ -> OFPST_PORT
+
+  let marshal msg out =
+    let req_type = ofp_stats_type_of_request msg in
+    let flags = 0x0 in
+    set_ofp_stats_request_req_type out (ofp_stats_types_to_int req_type);
+    set_ofp_stats_request_flags out flags;
+    let out' = Cstruct.shift out sizeof_ofp_stats_request in
+    match msg with
+    | DescriptionReq -> sizeof_ofp_stats_request
+    | IndividualFlowReq req -> IndividualFlowRequest.marshal req out'
+    | AggregateFlowReq req -> AggregateFlowRequest.marshal req out'
+    | _ ->
+      failwith (Printf.sprintf "NYI: StatsRequest.marshal %s" (to_string msg))
+
+  let parse _ = failwith "NYI: StatsRequest.parse"
+
+end
+
+module StatsReply = struct
+
+  module DescriptionStats = struct
+
+    type t =
+      { manufacturer : string
+      ; hardware : string
+      ; software : string
+      ; serial_number : string
+      ; datapath : string }
+
+    let desc_str_len = 256
+    let serial_num_len = 32
+
+    cstruct ofp_desc_stats {
+      uint8_t mfr_desc[256];
+      uint8_t hw_desc[256];
+      uint8_t sw_desc[256];
+      uint8_t serial_num[32];
+      uint8_t dp_desc[256]
+    } as big_endian
+
+    let mkString bits size =
+      let new_string = String.create size in
+      Cstruct.blit_to_string bits 0 new_string 0 size;
+      new_string
+
+    let parse bits =
+      let mfr_desc = mkString (get_ofp_desc_stats_mfr_desc bits) desc_str_len in
+      let hw_desc = mkString (get_ofp_desc_stats_hw_desc bits) desc_str_len in
+      let sw_desc = mkString (get_ofp_desc_stats_sw_desc bits) desc_str_len in
+      let serial_num =
+        mkString (get_ofp_desc_stats_serial_num bits) serial_num_len in
+      let dp_desc = mkString (get_ofp_desc_stats_dp_desc bits) desc_str_len in
+      { manufacturer = mfr_desc
+      ; hardware = hw_desc
+      ; software = sw_desc
+      ; serial_number = serial_num
+      ; datapath = dp_desc }
+
+    let size_of _ = sizeof_ofp_desc_stats
+
+    let to_string desc = Printf.sprintf
+      "{ manufacturer = %s; hardware = %s; software = %s;\
+         serial_number = %s; datapath = %s}"
+      desc.manufacturer desc.hardware desc.software
+      desc.serial_number desc.datapath
+
+    let marshal _ _ = failwith "NYI: DescriptionStats.marshal"
+
+  end
+
+  module IndividualFlowStats = struct
+
+    type t =
+      { table_id : table_id
+      ; of_match : Match.t
+      ; duration_sec : int
+      ; duration_nsec : int
+      ; priority : priority
+      ; idle_timeout : int
+      ; hard_timeout : int
+      ; cookie : Int64.t
+      ; packet_count : Int64.t
+      ; byte_count : Int64.t
+      ; actions : Action.sequence }
+
+    cstruct ofp_flow_stats {
+      uint16_t length;
+      uint8_t table_id;
+      uint8_t pad;
+      uint8_t of_match[40]; (* Size of struct ofp_match. *)
+      uint32_t duration_sec;
+      uint32_t duration_nsec;
+      uint16_t priority;
+      uint16_t idle_timeout;
+      uint16_t hard_timeout;
+      uint8_t pad2[6];
+      uint64_t cookie;
+      uint64_t packet_count;
+      uint64_t byte_count
+    } as big_endian
+
+    let size_of _ = failwith "NYI: IndividualFlowStats.size_of"
+    let marshal _ _ = failwith "NYI: IndividualFlowStats.marshal"
+
+    let to_string stats = Printf.sprintf
+      "{ table_id = %d; of_match = %s; duration_sec = %d; duration_nsec = %d\
+         priority = %d; idle_timeout = %d; hard_timeout = %d; cookie = %Ld\
+         packet_count = %Ld; byte_count = %Ld; actions = %s }"
+      stats.table_id
+      (Match.to_string stats.of_match)
+      stats.duration_sec
+      stats.duration_nsec
+      stats.priority
+      stats.idle_timeout
+      stats.hard_timeout
+      stats.cookie
+      stats.packet_count
+      stats.byte_count
+      (Action.sequence_to_string stats.actions)
+
+    let sequence_to_string = Frenetic_Misc.string_of_list to_string
+
+    let _parse bits =
+      (* length = flow stats + actions *)
+      let length = get_ofp_flow_stats_length bits in
+      let flow_stats_size = sizeof_ofp_flow_stats in
+      let actions_size = length - flow_stats_size in
+
+      (* get fields *)
+      let table_id = get_ofp_flow_stats_table_id bits in
+      let of_match = Match.parse (get_ofp_flow_stats_of_match bits) in
+      let duration_sec = get_ofp_flow_stats_duration_sec bits in
+      let duration_nsec = get_ofp_flow_stats_duration_nsec bits in
+      let priority = get_ofp_flow_stats_priority bits in
+      let idle_timeout = get_ofp_flow_stats_idle_timeout bits in
+      let hard_timeout = get_ofp_flow_stats_hard_timeout bits in
+      let cookie = get_ofp_flow_stats_cookie bits in
+      let packet_count = get_ofp_flow_stats_packet_count bits in
+      let byte_count = get_ofp_flow_stats_byte_count bits in
+
+      (* get actions *)
+      let bits_after_flow_stats = Cstruct.shift bits sizeof_ofp_flow_stats in
+      let action_bits, rest =
+        Cstruct.split bits_after_flow_stats actions_size in
+      let actions = Action.parse_sequence action_bits in
+
+      ( { table_id = table_id
+        ; of_match = of_match
+        ; duration_sec = Int32.to_int duration_sec
+        ; duration_nsec = Int32.to_int duration_nsec
+        ; priority = priority
+        ; idle_timeout = idle_timeout
+        ; hard_timeout = hard_timeout
+        ; cookie = cookie
+        ; packet_count = packet_count
+        ; byte_count = byte_count
+        ; actions = actions }
+      , rest)
+
+    let parse bits = fst (_parse bits)
+
+    let rec parse_sequence bits =
+      if Cstruct.len bits <= 0 then
+        []
+      else
+        let (v, bits') = _parse bits in
+        v :: parse_sequence bits'
+
+  end
+
+  module AggregateFlowStats = struct
+
+    type t =
+      { packet_count : Int64.t
+      ; byte_count : Int64.t
+      ; flow_count : int }
+
+    let to_string stats = Printf.sprintf
+      "{ packet_count = %Ld; byte_count = %Ld; flow_count = %d }"
+      stats.packet_count
+      stats.byte_count
+      stats.flow_count
+
+    let size_of _ = failwith "NYI: AggregateFlowStats.size_of"
+    let parse _ = failwith "NYI: AggregateFlowStats.parse"
+    let marshal _ _ = failwith "NYI: AggregateFlowStats.marshal"
+
+  end
+
+  module TableStats = struct
+
+    type t =
+      { table_id : table_id
+      ; name : string
+      ; wildcards : int32
+      ; max_entries : int
+      ; active_count : int
+      ; lookup_count : int
+      ; matched_count : int }
+
+    let to_string stats = failwith "NYI: TableStats.to_string"
+    let size_of _ = failwith "NYI: TableStats.size_of"
+    let parse _ = failwith "NYI: TableStats.parse"
+    let marshal _ _ = failwith "NYI: TableStats.marshal"
+
+  end
+
+  module PortStats = struct
+
+    type t =
+      { port_no : PseudoPort.t
+      ; rx_packets : int
+      ; tx_packets : int
+      ; rx_bytes : int
+      ; tx_bytes : int
+      ; rx_dropped : int
+      ; tx_dropped : int
+      ; rx_errors : int
+      ; tx_errors : int
+      ; rx_frame_err : int
+      ; rx_over_err : int
+      ; rx_crc_err : int
+      ; collisions : int }
+
+    let to_string stats = failwith "NYI: PortStats.to_string"
+    let size_of _ = failwith "NYI: PortStats.size_of"
+    let parse _ = failwith "NYI: PortStats.parse"
+    let marshal _ _ = failwith "NYI: PortStats.marshal"
+
+  end
+
+  type t =
+    | DescriptionRep of DescriptionStats.t
+    | IndividualFlowRep of IndividualFlowStats.t list
+    | AggregateFlowRep of AggregateFlowStats.t
+    | TableRep of TableStats.t
+    | PortRep of PortStats.t
+
+  cstruct ofp_stats_reply {
+    uint16_t stats_type;
+    uint16_t flags
+  } as big_endian
+
+  let to_string rep = match rep with
+    | DescriptionRep stats -> DescriptionStats.to_string stats
+    | IndividualFlowRep stats ->
+      Frenetic_Misc.string_of_list IndividualFlowStats.to_string stats
+    | AggregateFlowRep stats -> AggregateFlowStats.to_string stats
+    | TableRep stats -> TableStats.to_string stats
+    | PortRep stats -> PortStats.to_string stats
+
+  let size_of _ = failwith "NYI: StatsReply.size_of"
+  let marshal _ _ = failwith "NYI: StatsReply.marshal"
+
+  let parse bits =
+    let stats_type_code = get_ofp_stats_reply_stats_type bits in
+    let body = Cstruct.shift bits sizeof_ofp_stats_reply in
+    match int_to_ofp_stats_types stats_type_code with
+    | Some OFPST_DESC -> DescriptionRep (DescriptionStats.parse body)
+    | Some OFPST_FLOW ->
+      IndividualFlowRep (IndividualFlowStats.parse_sequence body)
+    | Some OFPST_AGGREGATE ->
+      AggregateFlowRep (AggregateFlowStats.parse body)
+    | Some OFPST_TABLE -> TableRep (TableStats.parse body)
+    | Some OFPST_PORT -> PortRep (PortStats.parse body)
+    | Some OFPST_QUEUE ->
+      let msg = "NYI: OFPST_QUEUE ofp_stats_type in stats_reply" in
+      raise (Unparsable msg)
+    | Some OFPST_VENDOR ->
+      let msg = "NYI: OFPST_VENDOR ofp_stats_type in stats_reply" in
+      raise (Unparsable msg)
+    | None ->
+      let msg =
+        sprintf "bad ofp_stats_type in stats_reply (%d)" stats_type_code in
+      raise (Unparsable msg)
+
+end
+
+module Error = struct
+
+  cstruct ofp_error_msg {
+    uint16_t error_type;
+    uint16_t error_code
+  } as big_endian
+
+  cenum ofp_error_type {
+    OFPET_HELLO_FAILED;
+    OFPET_BAD_REQUEST;
+    OFPET_BAD_ACTION;
+    OFPET_FLOW_MOD_FAILED;
+    OFPET_PORT_MOD_FAILED;
+    OFPET_QUEUE_OP_FAILED
+  } as uint16_t
+
+  module HelloFailed = struct
+
+    type t =
+      | Incompatible
+      | Eperm
+
+    cenum ofp_hello_failed_code {
+      OFPHFC_INCOMPATIBLE;
+      OFPHFC_EPERM
+    } as uint16_t
+
+    let of_int error_code =
+      match int_to_ofp_hello_failed_code error_code with
+      | Some OFPHFC_INCOMPATIBLE -> Incompatible
+      | Some OFPHFC_EPERM -> Eperm
+      | None ->
+        let msg = "NYI: ofp_hello_failed_code in error" in
+              raise (Unparsable msg)
+  end
+
+  module BadRequest = struct
+
+    type t =
+      | BadVersion
+      | BadType
+      | BadStat
+      | BadVendor
+      | BadSubType
+      | Eperm
+      | BadLen
+      | BufferEmpty
+      | BufferUnknown
+
+    cenum ofp_bad_request_code {
+      OFPBRC_BAD_VERSION;
+      OFPBRC_BAD_TYPE;
+      OFPBRC_BAD_STAT;
+      OFPBRC_BAD_VENDOR;
+      OFPBRC_BAD_SUBTYPE;
+      OFPBRC_EPERM;
+      OFPBRC_BAD_LEN;
+      OFPBRC_BUFFER_EMPTY;
+      OFPBRC_BUFFER_UNKNOWN
+    } as uint16_t
+
+    let of_int error_code =
+      match int_to_ofp_bad_request_code error_code with
+      | Some OFPBRC_BAD_VERSION -> BadVersion
+      | Some OFPBRC_BAD_TYPE -> BadType
+      | Some OFPBRC_BAD_STAT -> BadStat
+      | Some OFPBRC_BAD_VENDOR -> BadVendor
+      | Some OFPBRC_BAD_SUBTYPE -> BadSubType
+      | Some OFPBRC_EPERM -> Eperm
+      | Some OFPBRC_BAD_LEN -> BadLen
+      | Some OFPBRC_BUFFER_EMPTY -> BufferEmpty
+      | Some OFPBRC_BUFFER_UNKNOWN -> BufferUnknown
+      | None ->
+        let msg = "NYI: ofp_bad_request_code in error" in
+              raise (Unparsable msg)
+  end
+
+  module BadAction = struct
+
+    type t =
+      | BadType
+      | BadLen
+      | BadVendor
+      | BadVendorType
+      | BadOutPort
+      | BadArgument
+      | Eperm
+      | TooMany
+      | BadQueue
+
+    cenum ofp_bad_action_code {
+      OFPBAC_BAD_TYPE;
+      OFPBAC_BAD_LEN;
+      OFPBAC_BAD_VENDOR;
+      OFPBAC_BAD_VENDOR_TYPE;
+      OFPBAC_BAD_OUT_PORT;
+      OFPBAC_BAD_ARGUMENT;
+      OFPBAC_EPERM;
+      OFPBAC_TOO_MANY;
+      OFPBAC_BAD_QUEUE
+    } as uint16_t
+
+    let of_int error_code =
+      match int_to_ofp_bad_action_code error_code with
+      | Some OFPBAC_BAD_TYPE -> BadType
+      | Some OFPBAC_BAD_LEN -> BadLen
+      | Some OFPBAC_BAD_VENDOR -> BadVendor
+      | Some OFPBAC_BAD_VENDOR_TYPE -> BadVendorType
+      | Some OFPBAC_BAD_OUT_PORT -> BadOutPort
+      | Some OFPBAC_BAD_ARGUMENT -> BadArgument
+      | Some OFPBAC_EPERM -> Eperm
+      | Some OFPBAC_TOO_MANY -> TooMany
+      | Some OFPBAC_BAD_QUEUE -> BadQueue
+      | None ->
+        let msg = "NYI: ofp_bad_action_code in error" in
+              raise (Unparsable msg)
+  end
+
+  module FlowModFailed = struct
+
+    type t =
+      | AllTablesFull
+      | Overlap
+      | Eperm
+      | BadEmergTimeout
+      | BadCommand
+      | Unsupported
+
+    cenum ofp_flow_mod_failed_code {
+      OFPFMFC_ALL_TABLES_FULL;
+      OFPFMFC_OVERLAP;
+      OFPFMFC_EPERM;
+      OFPFMFC_BAD_EMERG_TIMEOUT;
+      OFPFMFC_BAD_COMMAND;
+      OFPFMFC_UNSUPPORTED
+    } as uint16_t
+
+    let of_int error_code =
+      match int_to_ofp_flow_mod_failed_code error_code with
+      | Some OFPFMFC_ALL_TABLES_FULL -> AllTablesFull
+      | Some OFPFMFC_OVERLAP -> Overlap
+      | Some OFPFMFC_EPERM -> Eperm
+      | Some OFPFMFC_BAD_EMERG_TIMEOUT -> BadEmergTimeout
+      | Some OFPFMFC_BAD_COMMAND -> BadCommand
+      | Some OFPFMFC_UNSUPPORTED -> Unsupported
+      | None ->
+        let msg = "NYI: ofp_flow_mod_failed_code in error" in
+              raise (Unparsable msg)
+  end
+
+  module PortModFailed = struct
+
+    type t =
+      | BadPort
+      | BadHwAddr
+
+    cenum ofp_port_mod_failed_code {
+      OFPPMFC_BAD_PORT;
+      OFPPMFC_BAD_HW_ADDR
+    } as uint16_t
+
+    let of_int error_code =
+      match int_to_ofp_port_mod_failed_code error_code with
+      | Some OFPPMFC_BAD_PORT -> BadPort
+      | Some OFPPMFC_BAD_HW_ADDR -> BadHwAddr
+      | None ->
+        let msg = "NYI: ofp_port_mod_failed_code in error" in
+              raise (Unparsable msg)
+  end
+
+  module QueueOpFailed = struct
+
+    type t =
+      | BadPort
+      | BadQueue
+      | Eperm
+
+    cenum ofp_queue_op_failed_code {
+      OFPQOFC_BAD_PORT;
+      OFPQOFC_BAD_QUEUE;
+      OFPQOFC_EPERM
+    } as uint16_t
+
+    let of_int error_code =
+      match int_to_ofp_queue_op_failed_code error_code with
+      | Some OFPQOFC_BAD_PORT -> BadPort
+      | Some OFPQOFC_BAD_QUEUE -> BadQueue
+      | Some OFPQOFC_EPERM -> Eperm
+      | None ->
+        let msg = "NYI: ofp_queue_op_failed_code in error" in
+              raise (Unparsable msg)
+  end
+
+  (* Each error is composed of a pair (error_code, data) *)
+  type t =
+    | HelloFailed of HelloFailed.t * Cstruct.t
+    | BadRequest of BadRequest.t * Cstruct.t
+    | BadAction of BadAction.t * Cstruct.t
+    | FlowModFailed of FlowModFailed.t * Cstruct.t
+    | PortModFailed of PortModFailed.t * Cstruct.t
+    | QueueOpFailed of QueueOpFailed.t  * Cstruct.t
+
+  let parse bits =
+    let error_type = get_ofp_error_msg_error_type bits in
+    let error_code = get_ofp_error_msg_error_code bits in
+    let body = Cstruct.shift bits sizeof_ofp_error_msg in
+    match int_to_ofp_error_type error_type with
+    | Some OFPET_HELLO_FAILED ->
+      HelloFailed ((HelloFailed.of_int error_code), body)
+    | Some OFPET_BAD_REQUEST ->
+      BadRequest ((BadRequest.of_int error_code), body)
+    | Some OFPET_BAD_ACTION ->
+      BadAction ((BadAction.of_int error_code), body)
+    | Some OFPET_FLOW_MOD_FAILED ->
+      FlowModFailed ((FlowModFailed.of_int error_code), body)
+    | Some OFPET_PORT_MOD_FAILED ->
+      PortModFailed ((PortModFailed.of_int error_code), body)
+    | Some OFPET_QUEUE_OP_FAILED ->
+      QueueOpFailed ((QueueOpFailed.of_int error_code), body)
+    | None ->
+      let msg =
+        sprintf "bad ofp_error_type in ofp_error_msg (%d)" error_type in
+      raise(Unparsable msg)
+end
+
+module Message = struct
 (* A subset of the OpenFlow 1.0 messages defined in Section 5.1 of the spec. *)
 
-type message =
-  | Hello of bytes
-  | EchoRequest of bytes
-  | EchoReply of bytes
-  | FeaturesRequest
-  | FeaturesReply of features
-  | FlowModMsg of flowMod
-  | PacketInMsg of packetIn
-  | PortStatusMsg of portStatus
-  | PacketOutMsg of packetOut
-  | BarrierRequest (* JNF: why not "BarrierRequestMsg"? *)
-  | BarrierReply (* JNF: why not "BarrierReplyMsg"? *)
-  | StatsRequestMsg of statsRequest
-  | StatsReplyMsg of statsReply
+  cenum msg_code {
+    HELLO;
+    ERROR;
+    ECHO_REQ;
+    ECHO_RESP;
+    VENDOR;
+    FEATURES_REQ;
+    FEATURES_RESP;
+    GET_CONFIG_REQ;
+    GET_CONFIG_RESP;
+    SET_CONFIG;
+    PACKET_IN;
+    FLOW_REMOVED;
+    PORT_STATUS;
+    PACKET_OUT;
+    FLOW_MOD;
+    PORT_MOD;
+    STATS_REQ;
+    STATS_RESP;
+    BARRIER_REQ;
+    BARRIER_RESP;
+    QUEUE_GET_CONFIG_REQ;
+    QUEUE_GET_CONFIG_RESP
+  } as uint8_t
 
-let delete_all_flows =
-  FlowModMsg {
-    mfModCmd = DeleteFlow;
-    mfMatch = Match.all;
-    mfPriority = 0;
-    mfActions = [];
-    mfCookie = 0L;
-    mfIdleTimeOut = Permanent;
-    mfHardTimeOut = Permanent;
-    mfNotifyWhenRemoved = false;
-    mfApplyToPacket = None;
-    mfOutPort = None;
-    mfCheckOverlap = false
-  }
+  let string_of_msg_code code = match code with
+    | HELLO -> "HELLO"
+    | ERROR -> "ERROR"
+    | ECHO_REQ -> "ECHO_REQ"
+    | ECHO_RESP -> "ECHO_RESP"
+    | VENDOR -> "VENDOR"
+    | FEATURES_REQ -> "FEATURES_REQ"
+    | FEATURES_RESP -> "FEATURES_RESP"
+    | GET_CONFIG_REQ -> "GET_CONFIG_REQ"
+    | GET_CONFIG_RESP -> "GET_CONFIG_RESP"
+    | SET_CONFIG -> "SET_CONFIG"
+    | PACKET_IN -> "PACKET_IN"
+    | FLOW_REMOVED -> "FLOW_REMOVED"
+    | PORT_STATUS -> "PORT_STATUS"
+    | PACKET_OUT -> "PACKET_OUT"
+    | FLOW_MOD -> "FLOW_MOD"
+    | PORT_MOD -> "PORT_MOD"
+    | STATS_REQ -> "STATS_REQ"
+    | STATS_RESP -> "STATS_RESP"
+    | BARRIER_REQ -> "BARRIER_REQ"
+    | BARRIER_RESP -> "BARRIER_RESP"
+    | QUEUE_GET_CONFIG_REQ -> "QUEUE_GET_CONFIG_REQ"
+    | QUEUE_GET_CONFIG_RESP -> "QUEUE_GET_CONFIG_RESP"
 
-let add_flow prio match_ actions =
-  FlowModMsg {
-    mfModCmd = AddFlow;
-    mfMatch = match_;
-    mfPriority = prio;
-    mfActions = actions;
-    mfCookie = 0L;
-    mfIdleTimeOut = Permanent;
-    mfHardTimeOut = Permanent;
-    mfNotifyWhenRemoved = false;
-    mfApplyToPacket = None;
-    mfOutPort = None;
-    mfCheckOverlap = false
-  }
+  module Header = struct
+
+    let ver : int = 0x01
+
+    type t =
+      { ver: int
+      ; typ: msg_code
+      ; len: int
+      ; xid: int32 }
+
+    cstruct ofp_header {
+      uint8_t version;
+      uint8_t typ;
+      uint16_t length;
+      uint32_t xid
+    } as big_endian
+
+    let size = sizeof_ofp_header
+    let size_of _ = size
+    let len hdr = hdr.len
+
+    let marshal hdr out =
+      set_ofp_header_version out hdr.ver;
+      set_ofp_header_typ out (msg_code_to_int hdr.typ);
+      set_ofp_header_length out hdr.len;
+      set_ofp_header_xid out hdr.xid;
+      size_of hdr
+
+    (** [parse buf] assumes that [buf] has size [sizeof_ofp_header] *)
+    let parse buf =
+      { ver = get_ofp_header_version buf;
+        typ = begin match int_to_msg_code (get_ofp_header_typ buf) with
+          | Some typ -> typ
+          | None -> raise (Unparsable "unrecognized message code")
+        end;
+        len = get_ofp_header_length buf;
+        xid = get_ofp_header_xid buf
+      }
+
+    let to_string hdr =
+      Printf.sprintf "{ %d, %s, len = %d, xid = %d }"
+        hdr.ver
+        (string_of_msg_code hdr.typ)
+        hdr.len
+        (Int32.to_int hdr.xid)
+
+  end
+
+  type xid = int32
+
+  type t =
+    | Hello of bytes
+    | EchoRequest of bytes
+    | EchoReply of bytes
+    | FeaturesRequest
+    | FeaturesReply of Features.t
+    | FlowModMsg of FlowMod.t
+    | PacketInMsg of PacketIn.t
+    | PortStatusMsg of PortStatus.t
+    | PacketOutMsg of PacketOut.t
+    | BarrierRequest (* JNF: why not "BarrierRequestMsg"? *)
+    | BarrierReply (* JNF: why not "BarrierReplyMsg"? *)
+    | StatsRequestMsg of StatsRequest.t
+    | StatsReplyMsg of StatsReply.t
+
+  let delete_all_flows =
+    let open FlowMod in
+    FlowModMsg
+      { mod_cmd = DeleteFlow
+      ; match_ = Match.all
+      ; priority = 0
+      ; actions = []
+      ; cookie = 0L
+      ; idle_timeout = Permanent
+      ; hard_timeout = Permanent
+      ; notify_when_removed = false
+      ; apply_to_packet = None
+      ; out_port = None
+      ; check_overlap = false }
+
+  let add_flow prio match_ actions =
+    let open FlowMod in
+    FlowModMsg
+      { mod_cmd = AddFlow
+      ; match_ = match_
+      ; priority = prio
+      ; actions = actions
+      ; cookie = 0L
+      ; idle_timeout = Permanent
+      ; hard_timeout = Permanent
+      ; notify_when_removed = false
+      ; apply_to_packet = None
+      ; out_port = None
+      ; check_overlap = false }
+
+  let parse (hdr : Header.t) (buf : Cstruct.t) : (xid * t) =
+    let msg = match hdr.Header.typ with
+      | HELLO -> Hello buf
+      | ECHO_REQ -> EchoRequest buf
+      | ECHO_RESP -> EchoReply buf
+      | FEATURES_REQ -> FeaturesRequest
+      | FEATURES_RESP -> FeaturesReply (Features.parse buf)
+      | PACKET_IN -> PacketInMsg (PacketIn.parse buf)
+      | PORT_STATUS -> PortStatusMsg (PortStatus.parse buf)
+      | BARRIER_REQ -> BarrierRequest
+      | BARRIER_RESP -> BarrierReply
+      | STATS_RESP -> StatsReplyMsg (StatsReply.parse buf)
+      | code -> raise (Ignored
+        (Printf.sprintf "unexpected message type (%s)"
+          (string_of_msg_code code)))
+      in
+    (hdr.Header.xid, msg)
+
+  let msg_code_of_message (msg : t) : msg_code = match msg with
+    | Hello _ -> HELLO
+    | EchoRequest _ -> ECHO_REQ
+    | EchoReply _ -> ECHO_RESP
+    | FeaturesRequest -> FEATURES_REQ
+    | FeaturesReply _ -> FEATURES_RESP
+    | FlowModMsg _ -> FLOW_MOD
+    | PacketOutMsg _ -> PACKET_OUT
+    | PortStatusMsg _ -> PORT_STATUS
+    | PacketInMsg _ -> PACKET_IN
+    | BarrierRequest -> BARRIER_REQ
+    | BarrierReply -> BARRIER_RESP
+    | StatsRequestMsg _ -> STATS_REQ
+    | StatsReplyMsg _ -> STATS_RESP
+
+  let to_string (msg : t) : string = match msg with
+    | Hello _ -> "Hello"
+    | EchoRequest _ -> "EchoRequest"
+    | EchoReply _ -> "EchoReply"
+    | FeaturesRequest -> "FeaturesRequest"
+    | FeaturesReply _ -> "FeaturesReply"
+    | FlowModMsg _ -> "FlowMod"
+    | PacketOutMsg _ -> "PacketOut"
+    | PortStatusMsg _ -> "PortStatus"
+    | PacketInMsg _ -> "PacketIn"
+    | BarrierRequest -> "BarrierRequest"
+    | BarrierReply -> "BarrierReply"
+    | StatsRequestMsg _ -> "StatsRequest"
+    | StatsReplyMsg _ -> "StatsReply"
+
+  open Bigarray
+
+  (** Size of the message body, without the header *)
+  let sizeof_body (msg : t) : int = match msg with
+    | Hello buf -> Cstruct.len buf
+    | EchoRequest buf -> Cstruct.len buf
+    | EchoReply buf -> Cstruct.len buf
+    | FeaturesRequest -> 0
+    | FeaturesReply rep -> Features.size_of rep
+    | FlowModMsg msg -> FlowMod.size_of msg
+    | PacketOutMsg msg -> PacketOut.size_of msg
+    | BarrierRequest -> 0
+    | BarrierReply -> 0
+    | StatsRequestMsg msg -> StatsRequest.size_of msg
+    | StatsReplyMsg msg -> StatsReply.size_of msg
+    | _ ->
+      failwith "Not yet implemented"
+
+  let blit_message (msg : t) (out : Cstruct.t) = match msg with
+    | Hello buf
+    | EchoRequest buf
+    | EchoReply buf ->
+      Cstruct.blit buf 0 out 0 (Cstruct.len buf)
+    | FeaturesRequest -> ()
+    | FlowModMsg flow_mod ->
+      let _ = FlowMod.marshal flow_mod out in
+      ()
+    | PacketOutMsg msg ->
+      let _ = PacketOut.marshal msg out in
+      ()
+    (* | PacketInMsg _ -> () (\* TODO(arjun): wtf? *\) *)
+    (* | FeaturesReply _ -> () (\* TODO(arjun): wtf? *\) *)
+    | BarrierRequest -> ()
+    | BarrierReply -> ()
+    | StatsRequestMsg msg ->
+      let _ = StatsRequest.marshal msg out in
+      ()
+    | StatsReplyMsg _ -> ()
+    | _ -> failwith "Not yet implemented"
+
+  let size_of msg = Header.size + sizeof_body msg
+
+  let marshal (xid : xid) (msg : t) : string =
+    let hdr = let open Header in
+      {ver = ver; typ = msg_code_of_message msg; len = 0; xid = xid} in
+    let sizeof_buf = Header.size_of hdr + sizeof_body msg in
+    let hdr = {hdr with Header.len = sizeof_buf} in
+    let buf = Cstruct.create sizeof_buf in
+    let _ = Header.marshal hdr buf in
+    blit_message msg (Cstruct.shift buf (Header.size_of hdr));
+    let str = Cstruct.to_string buf in
+    str
+
+end
 
 module type PLATFORM = sig
   exception SwitchDisconnected of switchId
-  val send_to_switch : switchId -> xid -> message -> unit Lwt.t
-  val recv_from_switch : switchId -> (xid * message) Lwt.t
-  val accept_switch : unit -> features Lwt.t
+  val send_to_switch : switchId -> Message.xid -> Message.t -> unit Lwt.t
+  val recv_from_switch : switchId -> (Message.xid * Message.t) Lwt.t
+  val accept_switch : unit -> Features.t Lwt.t
 end
-

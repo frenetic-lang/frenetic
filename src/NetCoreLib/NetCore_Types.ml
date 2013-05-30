@@ -80,7 +80,7 @@ type pred =
   | PrNone
 
 type switchEvent =
-  | SwitchUp of switchId * OpenFlow0x01.features
+  | SwitchUp of switchId * OpenFlow0x01.Features.t
   | SwitchDown of switchId
 
 type pol =
@@ -93,5 +93,5 @@ type pol =
 
 
 type value =
-  | Pkt of switchId * port * packet * OpenFlow0x01.payload
+  | Pkt of switchId * port * packet * OpenFlow0x01.PacketOut.payload
 

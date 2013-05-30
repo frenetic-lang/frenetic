@@ -15,7 +15,7 @@ module type QUERY = functor (Platform : OpenFlow0x01.PLATFORM) -> sig
  
   type t
 
-  val create : xid
+  val create : Message.xid
             -> action_atom
             -> int (* Time to wait between queries. *)
             -> get_count_handler
@@ -28,13 +28,13 @@ module type QUERY = functor (Platform : OpenFlow0x01.PLATFORM) -> sig
   val start : t -> unit Lwt.t
   val handle_reply : switchId 
                   -> t
-                  -> IndividualFlowStats.t list
+                  -> StatsReply.IndividualFlowStats.t list
                   -> unit
 
   val refresh_switches : SwitchSet.t -> t -> unit
   val remove_switch : switchId -> t -> unit
 
-  val find : xid -> t list -> t
+  val find : Message.xid -> t list -> t
 
 end
 
@@ -45,7 +45,7 @@ module Query (Platform : OpenFlow0x01.PLATFORM) = struct
 
   type t = 
     { (* Static. *)
-      xid : xid
+      xid : Message.xid
     ; atom : NetCore_Types.action_atom
     ; time : float
     ; cb : get_count_handler
@@ -134,9 +134,9 @@ module Query (Platform : OpenFlow0x01.PLATFORM) = struct
       Lwt.return ()
     else
       let query_msg =
-        let open IndividualFlowRequest in
-        StatsRequestMsg 
-          (IndividualFlowReq 
+        let open StatsRequest.IndividualFlowRequest in
+        Message.StatsRequestMsg 
+          (StatsRequest.IndividualFlowReq 
           {of_match = Match.all; table_id = 0; port = None}) in
       Lwt_mutex.lock q.lock >>
       if not (is_dead q) then
@@ -159,8 +159,8 @@ module Query (Platform : OpenFlow0x01.PLATFORM) = struct
   let handle_single_reply sw q rep =
     (* let () = Log.printf 
       "NetCore_Controller.Query" "handle reply (%s) (%Ld)\n    (%s)\n%!"
-      (to_string q) sw (IndividualFlowStats.to_string rep) in *)
-    let open IndividualFlowStats in
+      (to_string q) sw (StatsReply.IndividualFlowStats.to_string rep) in *)
+    let open StatsReply.IndividualFlowStats in
     if Hashtbl.mem q.counter_ids (sw, rep.of_match, rep.priority) then begin
       q.this_packet_count := Int64.add rep.packet_count !(q.this_packet_count);
       q.this_byte_count := Int64.add rep.byte_count !(q.this_byte_count);
@@ -210,13 +210,16 @@ module type QUERYSET = functor (Platform : OpenFlow0x01.PLATFORM) ->
     val stop : unit -> unit
     val add_switch : switchId -> unit
     val remove_switch : switchId -> unit
-    val handle_reply : switchId -> xid -> IndividualFlowStats.t list -> unit
+    val handle_reply : switchId 
+                    -> Message.xid 
+                    -> StatsReply.IndividualFlowStats.t list 
+                    -> unit
   end
 
 module QuerySet (Platform : OpenFlow0x01.PLATFORM) = struct
 
   module Q = Query (Platform)
-  type qid = xid
+  type qid = Message.xid
 
   (* The query ID generator is persistent across start/stop
    * cycles, in order to properly ignore old query responses.
@@ -332,12 +335,13 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
 
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
     lwt flow_table = Lwt.wrap2 NetCore_Compiler.flow_table_of_policy sw pol in
-    Platform.send_to_switch sw 0l delete_all_flows >>
+    Platform.send_to_switch sw 0l Message.delete_all_flows >>
     let prio = ref 65535 in
     Lwt_list.iter_s
       (fun (match_, actions) ->
-          Platform.send_to_switch sw 0l (add_flow !prio match_ actions) >>
-          (decr prio; Lwt.return ()))
+        Platform.send_to_switch sw 0l 
+          (Message.add_flow !prio match_ actions) >>
+        (decr prio; Lwt.return ()))
       flow_table
 
   let install_new_policies sw pol_stream =
@@ -345,55 +349,61 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       (NetCore_Stream.to_stream pol_stream)
       
   let handle_packet_in sw pkt_in = 
-    let in_port = pkt_in.packetInPort in
-    match Packet.parse pkt_in.packetInPacket with
+    let open PacketIn in
+    let open PacketOut in
+    let in_port = pkt_in.port in
+    match Packet.parse pkt_in.packet with
       | None -> 
         let _ = Log.printf "NetCore_Controller" "unparsable packet\n%!" in
         Lwt.return ()
       | Some packet ->
         let inp = Pkt (sw, Physical in_port, packet,
-                       match pkt_in.packetInBufferId with
+                       match pkt_in.buffer_id with
                          | Some id -> Buffer id
-                         | None -> Packet pkt_in.packetInPacket) in
+                         | None -> Packet pkt_in.packet) in
         let full_action = NetCore_Semantics.eval !pol_now inp in
         let controller_action =
           NetCore_Action.Output.apply_controller full_action
             (sw, Physical in_port, packet) in
-        let action = match pkt_in.packetInReason with
+        let action = match pkt_in.reason with
           | ExplicitSend -> controller_action
           | NoMatch -> NetCore_Action.Output.par_action controller_action
             (NetCore_Action.Output.switch_part full_action) in
         let outp = { 
-          pktOutBufOrBytes = begin match pkt_in.packetInBufferId with
+          buf_or_bytes = begin match pkt_in.buffer_id with
             | Some id -> Buffer id
-            | None -> Packet pkt_in.packetInPacket
+            | None -> Packet pkt_in.packet
           end;
-          pktOutPortId = None;
-          pktOutActions = 
+          port_id = None;
+          actions = 
             NetCore_Action.Output.as_actionSequence (Some in_port) action 
         } in
-        Platform.send_to_switch sw 0l (PacketOutMsg outp)  
+        Platform.send_to_switch sw 0l (Message.PacketOutMsg outp)  
 
   let rec handle_switch_messages sw = 
+    let open Message in
     lwt v = Platform.recv_from_switch sw in
     lwt _ = match v with
       | (_, PacketInMsg pktIn) -> handle_packet_in sw pktIn
-      | (xid, StatsReplyMsg (IndividualFlowRep reps)) -> 
+      | (xid, StatsReplyMsg (StatsReply.IndividualFlowRep reps)) -> 
         Queries.handle_reply sw xid reps;
         Lwt.return ()
       | (xid, StatsReplyMsg r) ->
         let _ = Log.printf "NetCore_Controller" 
           "received unexpected stats reply type (%s)"
-          (OpenFlow0x01.string_of_statsReply r) in
+          (StatsReply.to_string r) in
           Lwt.return ()
       | (xid, PortStatusMsg msg) ->
-	let _ = Log.printf "NetCore_Controller" "received %s" (OpenFlow0x01_Parser.PortStatus.to_string msg) in
+	let _ = 
+      Log.printf "NetCore_Controller" 
+        "received %s" (PortStatus.to_string msg) in
 	Lwt.return ()
       | _ -> Lwt.return ()
       in
     handle_switch_messages sw
 
   let switch_thread features pol_stream =
+    let open Features in
     let sw = features.switch_id in
     Queries.add_switch sw;
     (try_lwt
@@ -444,15 +454,16 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
         Log.printf "NetCore_Controller" "cannot pars synth packet\n%!";
         Lwt.return ()
       | Some pkt -> 
+        let open PacketOut in
         let actions = NetCore_Semantics.eval
           (NetCore_Stream.now pol_stream) (* TODO(arjun): glitch? *)
           (Pkt (sw, Physical pt, pkt, Packet bytes)) in
         let msg = {
-          pktOutBufOrBytes = Packet bytes;
-          pktOutPortId = None;
-          pktOutActions = NetCore_Action.Output.as_actionSequence None actions
+          buf_or_bytes = Packet bytes;
+          port_id = None;
+          actions = NetCore_Action.Output.as_actionSequence None actions
         } in
-        Platform.send_to_switch sw 0l (PacketOutMsg msg) in
+        Platform.send_to_switch sw 0l (Message.PacketOutMsg msg) in
     Lwt_stream.iter_s emit_pkt pkt_stream
 
   let start_controller pkt_stream pol = 
