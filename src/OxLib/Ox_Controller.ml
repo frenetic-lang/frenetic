@@ -98,7 +98,7 @@ struct
     let open Message in
     let open FlowMod in
     lwt feats = Platform.accept_switch () in 
-    let sw = feats.Features.switch_id in 
+    let sw = feats.SwitchFeatures.switch_id in 
     Log.printf "Ox_Controller" "switch %Ld connected\n%!" sw;
     let delete_all = {
       mod_cmd = DeleteFlow;

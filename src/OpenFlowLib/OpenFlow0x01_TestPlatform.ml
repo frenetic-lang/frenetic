@@ -44,7 +44,7 @@ let current_state = ref {
 }
 
 let accept_switch () =
-  let open Features in
+  let open SwitchFeatures in
   let open PortDescription in
   lwt sw_id = Lwt_channel.recv !current_state.pending_switches in
   let sw = Hashtbl.find !current_state.switches sw_id in

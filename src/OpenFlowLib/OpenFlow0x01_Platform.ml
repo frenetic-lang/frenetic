@@ -156,7 +156,7 @@ let rec recv_from_switch (sw : switchId) : (Message.xid * Message.t) Lwt.t =
     | None -> 
       raise_lwt (SwitchDisconnected sw)
         
-let switch_handshake (fd : Lwt_unix.file_descr) : Features.t option Lwt.t =
+let switch_handshake (fd : Lwt_unix.file_descr) : SwitchFeatures.t option Lwt.t =
   let open Message in
   lwt ok = send_to_switch_fd fd 0l (Hello (Cstruct.of_string "")) in
   match ok with 
@@ -165,17 +165,17 @@ let switch_handshake (fd : Lwt_unix.file_descr) : Features.t option Lwt.t =
       begin match resp with 
         | Some (_, Hello _) ->
           begin 
-            lwt ok = send_to_switch_fd fd 0l FeaturesRequest in
+            lwt ok = send_to_switch_fd fd 0l SwitchFeaturesRequest in
             match ok with 
               | Some () -> 
                 begin 
                   lwt resp = recv_from_switch_fd fd in 
                   match resp with 
-                    | Some (_,FeaturesReply feats) ->
-                      Hashtbl.add switch_fds feats.Features.switch_id fd;
+                    | Some (_,SwitchFeaturesReply feats) ->
+                      Hashtbl.add switch_fds feats.SwitchFeatures.switch_id fd;
                       Log.printf "platform" 
                         "switch %Ld connected\n%!"
-                        feats.Features.switch_id;
+                        feats.SwitchFeatures.switch_id;
                       Lwt.return (Some feats)
                     | _ ->
                       Lwt.return None
