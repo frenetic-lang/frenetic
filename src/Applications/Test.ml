@@ -176,7 +176,7 @@ module TestClassifier = struct
     nw = Unparsable (Cstruct.create 8) 
   }
 
-  let inp = Pkt (1L, Physical 1, pk, OpenFlow0x01.PacketOut.Buffer 0l)
+  let inp = Pkt (1L, Physical 1, pk, OpenFlow0x01.PacketOut.Payload.Buffer 0l)
 
   let lst3 =
     [("sequencing 1",
@@ -187,11 +187,14 @@ module TestClassifier = struct
      ("filtering 1",
       pass,
       PoFilter (PrHdr (dlVlan (Some 1))),
-      Pkt (1L, Physical 1, { pk with dlVlan = Some 1 }, OpenFlow0x01.PacketOut.Buffer 0l));
+      Pkt (1L, 
+           Physical 1, 
+           { pk with dlVlan = Some 1 },
+           OpenFlow0x01.PacketOut.Payload.Buffer 0l));
      ("updating 1",
       updateDlVlan None (Some 1),
       PoAction (updateDlVlan None (Some 1)),
-      Pkt (1L, Physical 1, pk, OpenFlow0x01.PacketOut.Buffer 0l))]
+      Pkt (1L, Physical 1, pk, OpenFlow0x01.PacketOut.Payload.Buffer 0l))]
       
 
   let go = TestList 
@@ -200,11 +203,17 @@ module TestClassifier = struct
       netcore_tests "NetCore tests" lst2;
       eval_tests "NetCore semantics tests" lst3;
       ("eval_action update" >::
-          fun () ->
-            assert_equal
-              [Pkt (1L, Physical 1, { pk with dlVlan = Some 1 }, OpenFlow0x01.PacketOut.Buffer 0l)]
-              (eval_action (Pkt (1L, Physical 1, pk, OpenFlow0x01.PacketOut.Buffer 0l))
-                 (updateDlVlan None (Some 1))))
+        fun () ->
+          assert_equal
+            [Pkt (1L, Physical 1, 
+                  { pk with dlVlan = Some 1 }, 
+                  OpenFlow0x01.PacketOut.Payload.Buffer 0l)]
+            (eval_action 
+              (Pkt (1L, 
+                    Physical 1, 
+                    pk, 
+                    OpenFlow0x01.PacketOut.Payload.Buffer 0l))
+              (updateDlVlan None (Some 1))))
     ]
 
 end
@@ -410,7 +419,7 @@ module Helper = struct
     Pkt ( Int64.one
         , (Physical 1)
         , in_pkt
-        , (OpenFlow0x01.PacketOut.Buffer Int32.zero))
+        , (OpenFlow0x01.PacketOut.Payload.Buffer Int32.zero))
 
   let mkEvalTest name ?debug:(dbg=false) pol in_val expected_vals = 
     let ds_pol = desugar_policy pol in

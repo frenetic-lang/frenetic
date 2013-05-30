@@ -50,6 +50,8 @@ let accept_switch () =
   let sw = Hashtbl.find !current_state.switches sw_id in
   sw.status <- Connected;
   Hashtbl.replace !current_state.switches sw_id sw;
+  let open Capabilities in
+  let open SupportedActions in
   return {
     switch_id = sw_id;
     num_buffers = 100l;
