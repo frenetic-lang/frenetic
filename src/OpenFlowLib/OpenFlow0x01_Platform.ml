@@ -177,15 +177,28 @@ let switch_handshake (fd : Lwt_unix.file_descr) : Features.t option Lwt.t =
                         "switch %Ld connected\n%!"
                         feats.Features.switch_id;
                       Lwt.return (Some feats)
-                    | _ -> 
+                    | _ ->
                       Lwt.return None
                 end
-              | None -> 
+              | None ->
                 Lwt.return None
           end
-        | Some _ -> 
-          Lwt.return None
-        | None -> 
+        | Some (_, error) ->
+          let open Error in
+          begin match error with
+          | ErrorMsg HelloFailed (code, bytes) ->
+            let open HelloFailed in
+            begin match code with
+            | Incompatible -> 
+              Log.printf "platform" "OFPET_HELLO_FAILED received (code: OFPHFC_INCOMPATIBLE)!\n";
+              Lwt.return None
+            | Eperm -> 
+              Log.printf "platform" "OFPET_HELLO_FAILED received (code: OFPHFC_EPERM)!\n";
+              Lwt.return None
+            end
+          | _ -> Lwt.return None
+          end
+        | None ->
           Lwt.return None
       end 
     | None -> 
@@ -200,7 +213,7 @@ let switch_handshake (fd : Lwt_unix.file_descr) : Features.t option Lwt.t =
 let rec accept_switch () =
   lwt server_fd = get_fd () in 
   lwt (fd, sa) = Lwt_unix.accept server_fd in
-  let _ = Log.printf "platform" "%s connected, handshaking...\n%!" (string_of_sockaddr sa) in 
+  let _ = Log.printf "platform" "%s connected, handshaking...\n%!" (string_of_sockaddr sa) in
   lwt ok = switch_handshake fd in 
   match ok with 
     | Some feats -> 

@@ -1,3 +1,7 @@
+let map_option f = function
+  | None -> None
+  | Some x -> Some (f x)
+
 let string_of_list to_string l =
   let strs = List.map to_string l in
   "[" ^ (String.concat ", " strs) ^ "]"

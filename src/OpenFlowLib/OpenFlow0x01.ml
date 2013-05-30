@@ -2011,6 +2011,7 @@ module Message = struct
 
   type t =
     | Hello of bytes
+    | ErrorMsg of Error.t
     | EchoRequest of bytes
     | EchoReply of bytes
     | FeaturesRequest
@@ -2057,6 +2058,7 @@ module Message = struct
   let parse (hdr : Header.t) (buf : Cstruct.t) : (xid * t) =
     let msg = match hdr.Header.typ with
       | HELLO -> Hello buf
+      | ERROR -> ErrorMsg (Error.parse buf)
       | ECHO_REQ -> EchoRequest buf
       | ECHO_RESP -> EchoReply buf
       | FEATURES_REQ -> FeaturesRequest
@@ -2074,6 +2076,7 @@ module Message = struct
 
   let msg_code_of_message (msg : t) : msg_code = match msg with
     | Hello _ -> HELLO
+    | ErrorMsg _ -> ERROR
     | EchoRequest _ -> ECHO_REQ
     | EchoReply _ -> ECHO_RESP
     | FeaturesRequest -> FEATURES_REQ
@@ -2089,6 +2092,7 @@ module Message = struct
 
   let to_string (msg : t) : string = match msg with
     | Hello _ -> "Hello"
+    | ErrorMsg _ -> "Error"
     | EchoRequest _ -> "EchoRequest"
     | EchoReply _ -> "EchoReply"
     | FeaturesRequest -> "FeaturesRequest"

@@ -570,6 +570,7 @@ module Message : sig
 
   type t =
     | Hello of bytes
+    | ErrorMsg of Error.t
     | EchoRequest of bytes
     | EchoReply of bytes
     | FeaturesRequest
