@@ -478,12 +478,15 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
 
   open NetCore_ConsistentUpdates
   module Queries = QuerySet(Platform)
+  module Topo = NetCore_Topo.Topo 
 
   (* used to initialize newly connected switches and handle packet-in 
      messages *)
   let pol_now : pol ref = ref init_pol
 
-  let topo_pol_stream,_,topo = NetCore_Topo.make 0x7ff
+  let (topo_pol_stream, discovery_lwt) = Topo.create
+    (fun lp -> failwith "TODO(arjun): give me a function to emit packets")
+  
   let topo_pol = NetCore_Stream.now topo_pol_stream
 
   let clear_switch (sw : switchId) : unit Lwt.t =
@@ -603,14 +606,14 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
     Lwt.async (fun () -> switch_thread feats pol_stream);
     accept_switches pol_stream
 
-  let make_extPorts topo sw =
+  let make_extPorts sw =
     List.fold_left (fun acc (pId,loc) -> 
       match loc with
-	| NetCore_Topo.Switch _ -> acc
-	| _ -> pId :: acc)
-      (NetCore_Topo.ports_of_switch topo sw) []
+	      | NetCore_Topo.Switch _ -> acc
+	      | _ -> pId :: acc)
+      (Topo.ports_of_switch  sw) []
 
-  module GenSym =
+  module GenSym = (* TODO(arjun): consider NetCore_Gensym *)
   struct
     let create () = ref 0
     let next_val g =  incr g; !g
@@ -619,7 +622,7 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
   let rec accept_policies push_pol sugared_pol_stream genSym =
     lwt pol = Lwt_stream.next sugared_pol_stream in
     let ver = GenSym.next_val genSym in
-    let (int_pol,ext_pol) = gen_update_pols pol ver (NetCore_Topo.switches topo) (make_extPorts topo) in
+    let (int_pol,ext_pol) = gen_update_pols pol ver (Topo.get_switches ()) make_extPorts in
     Queries.stop () >>
     let _ = pol_now := PoUnion(PoUnion(int_pol, ext_pol), topo_pol) in
     let _ = push_pol (Some (int_pol, ext_pol, topo_pol)) in
@@ -652,6 +655,7 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
         emit_packets pkt_stream pol_netcore_stream;
         accept_policies
           push_pol (NetCore_Stream.to_stream pol) genSym;
-        stream_lwt ]
+        stream_lwt;
+        discovery_lwt ]
 
 end
