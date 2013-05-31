@@ -15,7 +15,7 @@ Prerequisites:
 
 - The following OCaml libraries:
 
-  - findlib
+  - ocamlfind
   - lwt
   - cstruct 
   - oUnit
@@ -24,12 +24,6 @@ Prerequisites:
 
   ```
   $ opam install ocamlfind cstruct lwt ounit
-  ```
-
-  If this is your first time using OPAM, you should place the following in your .bashrc file to set up your environment:
-
-  ```
-  eval `opam config env`
   ```
 
 Building:

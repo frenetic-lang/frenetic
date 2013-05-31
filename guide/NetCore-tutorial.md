@@ -1,15 +1,23 @@
 Introduction
 ============
 
-This tutorial illustrates how to use NetCore to program a distributed
-collection of switches running the OpenFlow protocol.  
+The goal of this tutorial is to teach readers how to program a Software-Defined Network (SDN) running 
+OpenFlow using the Frenetic programming language.  This involves explaining the syntax and semantics 
+of Frenetic and illustrating its use on a number of simple examples.  Along the way, there are a number 
+of exercises for the reader.  Solutions appear at the bottom of the page.
 
-This is a literate netcore document that can be executed as a program.
+In addition to being a tutorial, this file is also what is known as a 
+[literate program](http://en.wikipedia.org/wiki/Literate_programming). 
+In other words, readers can download and execute this text file as is, without making any modifications.  
+Intuitively, what we have done is simply turn the commenting conventions on their head:  by default, 
+everything is a comment.  The only regions of the file that will be executed as code are those that are 
+indented 4 spaces.
+
 As you read this document, we encourage you to try to complete the
-example exercises and play with them in mininet.  The last line of the
-file defines the main policy that will be executed when this file is
-compiled.  To compile a different policy, simply edit the last line,
-as indicated by the instructions preceding it.
+example exercises and play with them in mininet.  The last line of this
+file defines the main Frenetic policy that will be executed when this file is
+compiled.  To change Frenetic policy that is executed, simply edit the last line.  To compile and execute 
+this file in mininet, please see the instructions at the [end of this document](#compilation_instructions).
 
 
 NetCore Introduction
@@ -125,12 +133,12 @@ Solutions
 
 5.
 
-Main Program
-============
+Compilation Instructions
+=========================
 
 To execute this document as a NetCore program, do the following:
 
-The following line determines the policy to be executed.  Replace <learn>
+The following line determines the policy to be executed.  Replace **learn**
 with the name of some other policy defined in this file to test it out.
 
     policy main = learn

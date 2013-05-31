@@ -3,6 +3,7 @@ open NetCore_Pattern
 open NetCore_Action.Output
 
 module Log = Frenetic_Log
+module Bijection = NetCore_Bijection
 
 type switchId = OpenFlow0x01.switchId
 type portId = Packet.portId
@@ -11,112 +12,117 @@ type dlAddr = Packet.dlAddr
 type loc =
   | Switch of switchId * portId
   | Host of dlAddr
-  | Free
 
-type topo = {
-  switches : (switchId, (portId, loc) Hashtbl.t) Hashtbl.t;
-  hosts : (dlAddr, loc) Hashtbl.t
-}
+module type Arg = sig
 
-(*
-type change =
-  | SwitchUp of switchId
-  | SwitchDown of switchId
-  | HostUp of dlAddr
-*)
+  val dl_typ : Packet.dlTyp
 
-let switches topo = 
-  Hashtbl.fold (fun sw _ lst -> sw :: lst) topo.switches []
+end
 
-let hosts topo = 
-  Hashtbl.fold (fun mac _ lst -> mac :: lst) topo.hosts []
 
-let ports_of_switch topo sw = 
-  try
-    Hashtbl.fold (fun pt _ lst -> pt :: lst) (Hashtbl.find topo.switches sw) []
-  with Not_found ->
-    []
+module type TOPO = sig
 
-let linked_to topo = function
-  | Host src -> Hashtbl.find topo.hosts src
-  | Switch (sw, pt) -> Hashtbl.find (Hashtbl.find topo.switches sw) pt
-  | Free -> Free
+  val create : (switchId * portId * Packet.bytes -> unit) 
+    -> NetCore_Types.pol NetCore_Stream.t * unit Lwt.t
 
-let switch_disconnected topo sw = ()
+  val ports_of_switch : switchId -> portId list
 
-let switch_connected topo sw ports = ()
+  val get_switches : unit -> switchId list
 
-let new_edge topo (sw1, pt1) (sw2, pt2) = 
-  Log.printf "NetCore_Topo" "Detected (%Ld,%d) <--> (%Ld, %d)\n%!" 
-    sw1 pt1 sw2 pt2
+end
 
-let make_discovery_pkt dlTyp (sw : switchId) (pt : portId) =
-  let open Packet in
-  let pk = { 
-    dlSrc = 0xffffffffffffL; dlDst = 0xffffffffffffL; dlTyp = dlTyp;
-    dlVlan = None; dlVlanPcp = 0;
-    nw = Unparsable (Cstruct.of_string (Marshal.to_string (sw, pt) []))
-  } in
-  (sw, pt, Packet.serialize pk)
 
-let parse_discovery_pkt dlTyp pkt : (switchId * portId) option =
+module Make (A : Arg) = struct
+
+  let dl_typ = A.dl_typ
+
+  let parse_discovery_pkt pkt : (switchId * portId) option =
   let open Packet in
   match pkt with
-    | { dlSrc = 0xffffffffffffL; dlDst = 0xffffffffffffL; dlTyp = dlTyp;
+    | { dlSrc = 0xffffffffffffL; 
+        dlDst = 0xffffffffffffL; 
+        dlTyp = dl_typ;
         dlVlan = None; dlVlanPcp = 0; 
         nw = Unparsable body } ->
       let payload = Cstruct.to_string body in
       Some (Marshal.from_string payload 0)
     | _ -> None
 
-(* Responds to switch up/down events. On switch up, sends a discovery packet,
-   and on switch down, cleans up state. *)
-let make_switch_handler dlTyp topo = 
-  (* switchId * portId * bytes *)
-  let (discovery_pkt_stream, send_discovery_pkt) = Lwt_stream.create () in
+  let make_discovery_pkt  (sw : switchId) (pt : portId) =
+    let open Packet in
+    let pk = { 
+      dlSrc = 0xffffffffffffL;
+      dlDst = 0xffffffffffffL;
+      dlTyp = dl_typ;
+      dlVlan = None;
+      dlVlanPcp = 0;
+      nw = Unparsable (Cstruct.of_string (Marshal.to_string (sw, pt) []))
+    } in
+    (sw, pt, Packet.serialize pk)
+
+  type lp = switchId * portId * Packet.bytes
+
+  let switch_disconnected edges switches sw =
+    try
+      let pts = Hashtbl.find switches sw in
+      List.iter (fun pt -> Bijection.del edges (Switch (sw, pt))) pts;
+      Hashtbl.remove switches sw
+    with Not_found -> ()
+
+  let switch_connected edges switches sw pts =
+    switch_disconnected edges switches sw;
+    Hashtbl.add switches sw pts
+
+  let edges : loc Bijection.t = Bijection.create 100
+  
+  let switches : (switchId, portId list) Hashtbl.t = Hashtbl.create 10
+
+  let ports_of_switch sw = 
+    try Hashtbl.find switches sw with Not_found -> []
+
+  let get_switches () = 
+    Hashtbl.fold (fun k _ lst -> k :: lst) switches []
+
   let switch_event_handler = function
     | SwitchUp (sw, features) -> 
       let ports =
         List.map (fun pt -> pt.OpenFlow0x01.PortDescription.port_no)
           features.OpenFlow0x01.SwitchFeatures.ports in
-      switch_connected topo sw ports;
-      Lwt.async
-        (fun () ->
-          Lwt_unix.sleep 5.0 >>
-          (List.iter 
-            (fun pt -> 
-              Log.printf "NetCore_Topo" 
-                "emitting a packet to switch=%Ld,port=%d\n%!" sw pt;
-              send_discovery_pkt 
-                (Some (make_discovery_pkt dlTyp sw pt)))
-            ports;
-           Lwt.return ()))
-    | SwitchDown sw -> () in
-  (discovery_pkt_stream, switch_event_handler)
+      switch_connected edges switches sw ports
+    | SwitchDown sw -> switch_disconnected edges switches sw
 
-let recv_discovery_pkt dlTyp topo sw pt pk = 
-  match pt with
+  let recv_discovery_pkt sw pt pk = match pt with
     | Physical phys_pt ->
       begin
-        match parse_discovery_pkt dlTyp pk with
+        match parse_discovery_pkt pk with
           | None -> Log.printf "NetCore_Topo" "malformed discovery packet.\n%!"
-          | Some (sw', pt') -> new_edge topo (sw, phys_pt) (sw', pt')
+          | Some (sw', pt') -> 
+            Log.printf "NetCore_Topo" "added edge %Ld:%d <--> %Ld:%d\n%!"
+              sw phys_pt sw' pt';
+            Bijection.add edges (Switch (sw, phys_pt)) (Switch (sw', pt'))
       end;
       drop
     | _ -> drop
 
+  let create (send_pkt : lp -> unit) =
+    let pol = 
+      PoUnion (HandleSwitchEvent switch_event_handler,
+               PoSeq (PoFilter (PrHdr (dlType dl_typ)),
+                      PoAction (controller recv_discovery_pkt))) in
+    let rec send_discovery () =
+      Lwt_unix.sleep 5.0 >>
+        (Hashtbl.iter 
+           (fun sw ports ->
+             List.iter
+               (fun pt -> 
+                 Log.printf "NetCore_Topo" 
+                   "emitting a packet to switch=%Ld,port=%d\n%!" sw pt;
+                 send_pkt (make_discovery_pkt sw pt))
+               ports)
+           switches;
+         send_discovery ()) in
+    (NetCore_Stream.constant pol, send_discovery ())
+      
+end
 
-let make pkt_dlTyp =
-  let topo = { switches = Hashtbl.create 1;
-               hosts = Hashtbl.create 100 
-             } in
-  let (send_discovery_pkt, handle_switch_up_down) =
-    make_switch_handler pkt_dlTyp topo in
-  let recv_discovery_pkt = recv_discovery_pkt pkt_dlTyp topo in
-  let pol = 
-    PoUnion (HandleSwitchEvent handle_switch_up_down,
-             PoSeq (PoFilter (PrHdr (dlType pkt_dlTyp)),
-                    PoAction (controller recv_discovery_pkt))) in
-  (NetCore_Stream.constant pol,
-   send_discovery_pkt,
-   topo)
+module Topo = Make (struct let dl_typ = 0x7FF end)

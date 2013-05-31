@@ -271,15 +271,11 @@ module QuerySet (Platform : OpenFlow0x01.PLATFORM) = struct
       | _ -> ()
     else ()
 
-  (* Populate and start queries. *)
+  (* Start queries. If any query fails, we stop all queries. *)
   let spawn_queries pol kill_switch : unit Lwt.t =
     let _ = generate_query_ids pol in
     Hashtbl.iter (make_query pol kill_switch) q_actions_to_query_ids;
-    let rec loop qlist : unit Lwt.t = match qlist with
-      | [] -> Lwt.return ()
-      | q :: qtail -> Q.start q <&> loop qtail
-      in
-    loop !queries
+    Lwt.pick (List.map Q.start !queries)
 
   let start pol : unit Lwt.t =
     (* If old queries are still going, stop them. *)
@@ -329,10 +325,6 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
 
   module Queries = QuerySet(Platform)
 
-  (* used to initialize newly connected switches and handle packet-in 
-     messages *)
-  let pol_now : pol ref = ref init_pol
-
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
     lwt flow_table = Lwt.wrap2 NetCore_Compiler.flow_table_of_policy sw pol in
     Platform.send_to_switch sw 0l Message.delete_all_flows >>
@@ -348,7 +340,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     Lwt_stream.iter_p (configure_switch sw)
       (NetCore_Stream.to_stream pol_stream)
       
-  let handle_packet_in sw pkt_in = 
+  let handle_packet_in pol sw pkt_in = 
     let open PacketIn in
     let open PacketOut in
     let in_port = pkt_in.port in
@@ -361,7 +353,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
                        match pkt_in.buffer_id with
                          | Some id -> Payload.Buffer id
                          | None -> Payload.Packet pkt_in.packet) in
-        let full_action = NetCore_Semantics.eval !pol_now inp in
+        let full_action = NetCore_Semantics.eval (NetCore_Stream.now pol) inp in
         let controller_action =
           NetCore_Action.Output.apply_controller full_action
             (sw, Physical in_port, packet) in
@@ -380,27 +372,24 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
         } in
         Platform.send_to_switch sw 0l (Message.PacketOutMsg outp)  
 
-  let rec handle_switch_messages sw = 
+  let rec handle_switch_messages pol sw = 
     let open Message in
-    lwt v = Platform.recv_from_switch sw in
-    lwt _ = match v with
-      | (_, PacketInMsg pktIn) -> handle_packet_in sw pktIn
-      | (xid, StatsReplyMsg (StatsReply.IndividualFlowRep reps)) -> 
+    lwt (xid, msg) = Platform.recv_from_switch sw in
+    lwt _ = match msg with
+      | PacketInMsg pktIn -> handle_packet_in pol sw pktIn
+      | StatsReplyMsg (StatsReply.IndividualFlowRep reps) -> 
         Queries.handle_reply sw xid reps;
         Lwt.return ()
-      | (xid, StatsReplyMsg r) ->
+      | StatsReplyMsg r ->
         let _ = Log.printf "NetCore_Controller" 
           "received unexpected stats reply type (%s)"
           (StatsReply.to_string r) in
           Lwt.return ()
-      | (xid, PortStatusMsg msg) ->
-	let _ = 
-      Log.printf "NetCore_Controller" 
-        "received %s" (PortStatus.to_string msg) in
-	Lwt.return ()
-      | _ -> Lwt.return ()
-      in
-    handle_switch_messages sw
+      | PortStatusMsg msg ->
+        (* TODO(arjun): this should be used by NetCore_Topo *)
+        Lwt.return ()
+      | _ -> Lwt.return () in
+    handle_switch_messages pol sw
 
   let switch_thread features pol_stream =
     let open SwitchFeatures in
@@ -411,7 +400,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
         (SwitchUp (sw, features))
         (NetCore_Stream.now pol_stream) in
       Lwt.pick [ install_new_policies sw pol_stream;
-                 handle_switch_messages sw ]
+                 handle_switch_messages pol_stream sw ]
     with exn ->
       begin
         match exn with
@@ -436,21 +425,20 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
 
   let rec accept_switches pol_stream = 
     lwt feats = Platform.accept_switch () in
+    (* An exception raised by a switch thread does not kill the controller. *)
     Lwt.async (fun () -> switch_thread feats pol_stream);
     accept_switches pol_stream
 
-  let rec accept_policies push_pol sugared_pol_stream =
-    lwt pol = Lwt_stream.next sugared_pol_stream in
+  let rec setup_queries pol_stream = 
+    lwt pol = Lwt_stream.next pol_stream in
     Queries.stop () >>
-    let _ = pol_now := pol in
-    let _ = push_pol (Some pol) in
-    accept_policies push_pol sugared_pol_stream <&> Queries.start pol
+    Queries.start pol <&> setup_queries pol_stream
 
   (** Emits packets synthesized at the controller. Produced packets
       are _not_ subjected to the current NetCore policy, so they do not
       compose nicely with NetCore operatores. This requires some deep thought,
       which is banned until after PLDI 2013. *)
-  let emit_packets pkt_stream pol_stream = 
+  let emit_packets pkt_stream = 
     let open PacketOut in
     let emit_pkt (sw, pt, bytes) =
       let open OpenFlow0x01 in
@@ -463,27 +451,27 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     Lwt_stream.iter_s emit_pkt pkt_stream
 
   let start_controller pkt_stream pol = 
-    let (pol_stream, push_pol) = Lwt_stream.create () in
-    let (stream_lwt, pol_netcore_stream) =
-      NetCore_Stream.from_stream init_pol pol_stream in
-    Lwt.pick
-      [ accept_switches pol_netcore_stream;
-        emit_packets pkt_stream pol_netcore_stream;
-        accept_policies
-          push_pol (NetCore_Stream.to_stream pol);
-        stream_lwt ]
+    Lwt.pick [
+      accept_switches pol;
+      emit_packets pkt_stream;
+      setup_queries (NetCore_Stream.to_stream pol)
+    ]
+
 end
 
 module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
 
   open NetCore_ConsistentUpdates
   module Queries = QuerySet(Platform)
+  module Topo = NetCore_Topo.Topo 
 
   (* used to initialize newly connected switches and handle packet-in 
      messages *)
   let pol_now : pol ref = ref init_pol
 
-  let topo_pol_stream,_,topo = NetCore_Topo.make 0x7ff
+  let (topo_pol_stream, discovery_lwt) = Topo.create
+    (fun lp -> failwith "TODO(arjun): give me a function to emit packets")
+  
   let topo_pol = NetCore_Stream.now topo_pol_stream
 
   let clear_switch (sw : switchId) : unit Lwt.t =
@@ -603,14 +591,14 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
     Lwt.async (fun () -> switch_thread feats pol_stream);
     accept_switches pol_stream
 
-  let make_extPorts topo sw =
+  let make_extPorts sw =
     List.fold_left (fun acc (pId,loc) -> 
       match loc with
-	| NetCore_Topo.Switch _ -> acc
-	| _ -> pId :: acc)
-      (NetCore_Topo.ports_of_switch topo sw) []
+	      | NetCore_Topo.Switch _ -> acc
+	      | _ -> pId :: acc)
+      (Topo.ports_of_switch  sw) []
 
-  module GenSym =
+  module GenSym = (* TODO(arjun): consider NetCore_Gensym *)
   struct
     let create () = ref 0
     let next_val g =  incr g; !g
@@ -619,7 +607,7 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
   let rec accept_policies push_pol sugared_pol_stream genSym =
     lwt pol = Lwt_stream.next sugared_pol_stream in
     let ver = GenSym.next_val genSym in
-    let (int_pol,ext_pol) = gen_update_pols pol ver (NetCore_Topo.switches topo) (make_extPorts topo) in
+    let (int_pol,ext_pol) = gen_update_pols pol ver (Topo.get_switches ()) make_extPorts in
     Queries.stop () >>
     let _ = pol_now := PoUnion(PoUnion(int_pol, ext_pol), topo_pol) in
     let _ = push_pol (Some (int_pol, ext_pol, topo_pol)) in
@@ -652,6 +640,7 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
         emit_packets pkt_stream pol_netcore_stream;
         accept_policies
           push_pol (NetCore_Stream.to_stream pol) genSym;
-        stream_lwt ]
+        stream_lwt;
+        discovery_lwt ]
 
 end
