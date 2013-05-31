@@ -193,7 +193,7 @@ let routing2_for_D =
   deliver(B, 10.0.0.40, 3)
   
 let sol2 =
-  (routing2_for_B + routing2_for_C + routing2_for_D)
+  arpify(routing2_for_B + routing2_for_C + routing2_for_D)
 ```
 
 ### Static Solution 3
@@ -237,7 +237,7 @@ query that filters out the http and ssh traffic, so that system only prints the 
 
 ```
 let monitor =
-  if !(tcpport = 80 || tcpport = 22) then monitor_sw()  
+  if !(tcpport = 80 || tcpport = 22 || frameType = arp) then monitor_sw()  
 
 let sol4 =
   sol3 + monitor
