@@ -214,6 +214,7 @@ let encode_pattern (pat:ptrn) (pkt:zVar) : zFormula =
        ; map_wildcard (fun mac -> packet_field "DlDst" pkt (TInt mac)) pat.ptrnDlDst
        ; map_wildcard 
 	 (function 
+           (* TODO: PseudoPorts *)
 	   | All -> ZTrue
 	   | Here -> ZTrue 
 	   | Physical pt -> packet_field "InPort" pkt (TInt (Int64.of_int pt)))
@@ -245,6 +246,7 @@ let equal_field (field:string) (pkt1:zVar) (pkt2:zVar) : zFormula list =
 let equals (fields:string list) (pkt1:zVar) (pkt2:zVar) : zFormula list = 
   List.fold_left (fun acc field -> equal_field field pkt1 pkt2 @ acc) [] fields
 
+(* TODO: topology *)
 let topology_forwards (Topology topo:topology) (pkt1:zVar) (pkt2:zVar) : zFormula = 
   let eq = equals ["DlSrc"; "DlDst"] pkt1 pkt2 in 
   ZAnd (List.fold_left 
@@ -263,10 +265,10 @@ let output_forwards (out:output) (pkt1:zVar) (pkt2:zVar) : zFormula =
 	 [ map_option (fun (_,mac) -> packet_field "DlSrc" pkt2 (TInt mac)) out.outDlSrc
 	 ; map_option (fun (_,mac) -> packet_field "DlDst" pkt2 (TInt mac)) out.outDlDst
 	 ; Some (match out.outPort with 
+           (* TODO: PseudoPorts *)
 	   | All -> ZNot(ZAnd(equal_field "InPort" pkt1 pkt2))
 	   | Here -> ZAnd(equal_field "InPort" pkt1 pkt2)
 	   | Physical pt -> packet_field "InPort" pkt2 (TInt (Int64.of_int pt))) ])
-	 
 
 let action_atom_forwards (act:action_atom) (pkt1:zVar) (pkt2:zVar) : zFormula = match act with 
   | SwitchAction out -> 

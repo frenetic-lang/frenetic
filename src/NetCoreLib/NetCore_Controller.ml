@@ -470,7 +470,9 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
   let pol_now : pol ref = ref init_pol
 
   let (topo_pol_stream, discovery_lwt) = Topo.create
-    (fun lp -> failwith "TODO(arjun): give me a function to emit packets")
+    (fun lp -> 
+      Log.printf "NetCore_Controller"
+        "TODO(arjun): give me a function to emit packets")
   
   let topo_pol = NetCore_Stream.now topo_pol_stream
 
