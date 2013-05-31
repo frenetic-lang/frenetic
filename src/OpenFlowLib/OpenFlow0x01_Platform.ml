@@ -30,7 +30,7 @@ let init_with_fd (fd : Lwt_unix.file_descr) : unit Lwt.t =
     server_fd := Some fd;
     Lwt.return ()
 
-let init_with_port (port:int) : unit Lwt.t = 
+let init_with_port (port : int) : unit Lwt.t = 
   let open Lwt_unix in 
   let fd = socket PF_INET SOCK_STREAM 0 in
   setsockopt fd SO_REUSEADDR true;
@@ -40,23 +40,26 @@ let init_with_port (port:int) : unit Lwt.t =
 
 let get_fd () : Lwt_unix.file_descr Lwt.t = 
   match !server_fd with 
-    | Some fd -> 
+    | Some fd ->
       Lwt.return fd
-    | None -> 
+    | None ->
       raise_lwt (Invalid_argument "Platform not initialized")
 
-let rec recv_from_switch_fd 
-  (sock : Lwt_unix.file_descr) : 
-  (xid * Message.t) option Lwt.t =
+(* If this function cannot parse a message, it logs a warning and
+   tries to receive and parse the next. *)
+let rec recv_from_switch_fd (sock : Lwt_unix.file_descr) 
+    : (xid * Message.t) option Lwt.t =
   let ofhdr_str = String.create (2 * Message.Header.size) in (* JNF: why 2x? *)
   lwt ok = Socket.recv sock ofhdr_str 0 Message.Header.size in
-  if not ok then Lwt.return None
+  if not ok then 
+    Lwt.return None
   else
     lwt hdr = Lwt.wrap (fun () -> Message.Header.parse ofhdr_str) in
     let body_len = Message.Header.len hdr - Message.Header.size in
     let body_buf = String.create body_len in
     lwt ok = Socket.recv sock body_buf 0 body_len in
-    if not ok then Lwt.return None
+    if not ok then 
+      Lwt.return None
     else try
       let xid, msg = Message.parse hdr body_buf in
       Lwt.return (Some (xid, msg))
