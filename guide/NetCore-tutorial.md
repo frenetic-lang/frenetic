@@ -41,10 +41,10 @@ Static NetCore Programming Examples
 0. Review the topology in tutorial-topo.  Define some user-friendly switch names for our topology too:
 
 ```
-switch A = 101
-switch B = 102
-switch C = 103
-switch D = 104
+let A : switch = 101
+let B : switch = 102
+let C : switch = 103
+let D : switch = 104
 ```
 
 1. Write a program to route all ip traffic as follows: 
@@ -60,11 +60,11 @@ Start your work with this handy wrapper to handle flooding of arp packets.
 Replace "drop" below with some other policy that solves the problem.
 
 ```
-policy arpify (P:policy) =
+let arpify (P:policy) =
   if frameType = arp then all
   else P
   
-policy my_sol1 = arpify(drop)
+let my_sol1 = arpify(drop)
 ```
 
 2. Extend the program written in (a) to route all traffic between
@@ -155,18 +155,18 @@ Solutions
 ### Static Solution 1
 
 ```
-policy deliver(s:switch, i:ip, p:port) =
+let deliver(s:switch, i:ip, p:port) =
   if switch = s && dstip = i then fwd p 
 
-policy routing1_for_C = 
+let routing1_for_C = 
   deliver(C, 10.0.0.10, 2) + 
   deliver(C, 10.0.0.20, 3)
   
-policy routing1_for_D =
+let routing1_for_D =
   deliver(D, 10.0.0.30, 2) +
   deliver(D, 10.0.0.40, 3)
 
-policy sol1 = 
+let sol1 = 
   arpify(routing1_for_C + routing1_for_D)
 ```    
   
@@ -174,58 +174,58 @@ policy sol1 =
 ### Static Solution 2
 
 ```
-policy routing2_for_C =
+let routing2_for_C =
   deliver(C, 10.0.0.10, 2) + 
   deliver(C, 10.0.0.20, 3) +
   deliver(C, 10.0.0.30, 1) +
   deliver(C, 10.0.0.40, 1)
   
-policy routing2_for_B =
+let routing2_for_B =
   deliver(B, 10.0.0.10, 2) + 
   deliver(B, 10.0.0.20, 2) +
   deliver(B, 10.0.0.30, 3) +
   deliver(B, 10.0.0.40, 3)
   
-policy routing2_for_D =
+let routing2_for_D =
   deliver(B, 10.0.0.10, 1) + 
   deliver(B, 10.0.0.20, 1) +
   deliver(B, 10.0.0.30, 2) +
   deliver(B, 10.0.0.40, 3)
   
-policy sol2 =
+let sol2 =
   (routing2_for_B + routing2_for_C + routing2_for_D)
 ```
 
 ### Static Solution 3
 
 ```
-policy routing3_for_C =
+let routing3_for_C =
   deliver(C, 10.0.0.10, 2) + 
   deliver(C, 10.0.0.20, 3) +
   deliver(C, 10.0.0.30, 1) +
   deliver(C, 10.0.0.40, 1) +
   deliver(C, 10.0.0.50, 1)
   
-policy routing3_for_B =
+let routing3_for_B =
   deliver(B, 10.0.0.10, 2) + 
   deliver(B, 10.0.0.20, 2) +
   deliver(B, 10.0.0.30, 3) +
   deliver(B, 10.0.0.40, 3) +
   deliver(B, 10.0.0.50, 1)
   
-policy routing3_for_D =
+let routing3_for_D =
   deliver(B, 10.0.0.10, 1) + 
   deliver(B, 10.0.0.20, 1) +
   deliver(B, 10.0.0.30, 2) +
   deliver(B, 10.0.0.40, 3) +
   deliver(B, 10.0.0.50, 1)
   
-policy routing3_for_A =
+let routing3_for_A =
   if switch = A then
     if srcip = 10.0.0.5 then fwd 1
     else fwd 2
   
-policy sol3 = 
+let sol3 = 
   arpify (routing3_for_A + routing3_for_B + routing3_for_C + routing3_for_D)
 ```
 
@@ -236,10 +236,10 @@ Host 50 sends some special traffic on port 6110.  You might discover the existen
 query that filters out the http and ssh traffic, so that system only prints the 6110 traffic:
 
 ```
-policy monitor =
+let monitor =
   if !(tcpport = 80 || tcpport = 22) then monitor_sw()  
 
-policy sol4 =
+let sol4 =
   sol3 + monitor
 ```
 
