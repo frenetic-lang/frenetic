@@ -137,7 +137,7 @@ let rec format_pol fmt pol = match pol with
 	fprintf fmt "@[if @[(%a)@])@;<1 0>then@ @[(%a)@]@]"
 	  format_pred pred format_pol then_pol
       | _ ->
-	fprintf fmt "@[if (@[%a@])@;<1 0>then@(%a)@;<1 0>else@;<1 1>(%a)@]"
+	fprintf fmt "@[if (@[%a@])@;<1 0>then@[(%a)]@;<1 0>else@;<1 1>(%a)@]"
 	  format_pred pred format_pol then_pol format_pol else_pol
 
 
