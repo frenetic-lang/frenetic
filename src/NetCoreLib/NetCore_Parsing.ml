@@ -6,9 +6,11 @@ let literate_lexer (lexbuf : Lexing.lexbuf) : NetCore_Parser.token =
   let open Lexing in
   let p = lexeme_start_p lexbuf in
   if p.pos_cnum - p.pos_bol = 0 then
-    NetCore_Lexer.literate lexbuf
+    (match !NetCore_Lexer.st with
+      | NetCore_Lexer.LiterateBlock -> NetCore_Lexer.token lexbuf
+      | _ -> NetCore_Lexer.literate lexbuf)
   else
-    NetCore_Lexer.token true lexbuf
+    NetCore_Lexer.token lexbuf
 
 let parse_from_lexbuf is_literate lexbuf name =
   let open Lexing in
@@ -17,7 +19,7 @@ let parse_from_lexbuf is_literate lexbuf name =
       let lexer = if is_literate then
           literate_lexer
         else
-          NetCore_Lexer.token false in
+          NetCore_Lexer.token in
       NetCore_SurfaceSyntax.compile_program
         (NetCore_Parser.program lexer lexbuf)
     with

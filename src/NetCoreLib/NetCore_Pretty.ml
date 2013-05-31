@@ -49,33 +49,6 @@ let pattern_to_string x =
   Format.fprintf fmt "@?";
   Buffer.contents buf
 
-let rec format_pred fmt pred = match pred with 
-  | PrHdr pat ->
-    fprintf fmt "@[@[%a@]@]" format_pattern pat
-  | PrOnSwitch sw ->
-    fprintf fmt "@[switch = %Lx@]" sw
-  | PrOr (p1,p2) ->
-    fprintf fmt "@[@[(@[%a@] ||@ @[%a@])@]@]"
-      format_pred p1 format_pred p2
-  | PrAnd (p1,p2) -> 
-    fprintf fmt "@[@[(@[%a@] &&@ @[%a@])@]@]" 
-      format_pred p1 format_pred p2
-  | PrNot p -> 
-    fprintf fmt "@[not@;<1 2>(@[%a@])@]" format_pred p
-  | PrAll -> 
-    pp_print_string fmt "*"
-  | PrNone -> 
-    pp_print_string fmt "none"
-
-let rec pred_to_string pred = 
-  let buf = Buffer.create 100 in
-  let fmt = formatter_of_buffer buf in
-  pp_set_margin fmt 80;
-  format_pred fmt pred;
-  fprintf fmt "@?";
-  Buffer.contents buf
-
-
 let match_modify_to_string
     (pr : 'a -> string) (lbl : string) (v : 'a match_modify) : string option =
   match v with
@@ -111,35 +84,72 @@ let string_of_action_atom atom = match atom with
 
 let action_to_string output_list =
   match output_list with
-    | [] -> ""
+    | [] -> "drop"
     | [a] -> string_of_action_atom a
     | _ ->
       Printf.sprintf "[%s]"
 	(String.concat ", " (List.map string_of_action_atom output_list))
 
+module Format = struct
 
+  let rec pred fmt p = match p with
+    | PrAnd (p1, p2) -> fprintf fmt "@[%a@ && %a@]" orpred p1 pred p2
+    | _ -> orpred fmt p
 
-let rec format_pol fmt pol = match pol with
-  | HandleSwitchEvent _ -> fprintf fmt "HandleSwitchEvent _"
-  | PoAction a -> (* fprintf fmt "ACTION" *)
-    fprintf fmt "@[@[%s@]@]" (action_to_string a)
-  | PoFilter pr -> 
-    fprintf fmt "@[PoFilter@;<1 2>(@[%a@])@]" format_pred pr
-  | PoUnion (p1,p2) -> 
-    fprintf fmt "@[@[(@[%a@]@;<1 1>|@[@ %a@])@]@]" format_pol p1
-      format_pol p2
-  | PoSeq (p1,p2) -> 
-    fprintf fmt "@[(@[%a@];@;<1 1>@[%a@])@]" format_pol p1
-      format_pol p2
-  | PoITE (pred, then_pol, else_pol) ->
-    match else_pol with
-      | PoAction [] ->
-	fprintf fmt "@[if @[(%a)@])@;<1 0>then@ @[(%a)@]@]"
-	  format_pred pred format_pol then_pol
-      | _ ->
-	fprintf fmt "@[if (@[%a@])@;<1 0>then@ @[(%a)@]@;<1 0>else@;<1 1>@[(%a)@]@]"
-	  format_pred pred format_pol then_pol format_pol else_pol
+  and orpred fmt p = match p with
+    | PrAnd (p1, p2) -> fprintf fmt "@[%a@ || %a@]" apred p1 pred p2
+    | _ -> apred fmt p
 
+  and apred fmt p = match p with 
+    | PrHdr ptrn -> format_pattern fmt ptrn
+    | PrOnSwitch sw -> fprintf fmt "@[switch = %Lx@]" sw
+    | PrNot p' -> fprintf fmt "@[!@ %a@]" apred p'
+    | PrAll -> fprintf fmt "@[*@]"
+    | PrNone -> fprintf fmt "@[none@]" 
+    (* TODO(arjun): concrete syntax is "<none>", don't know how to escape *)
+    | PrOr _
+    | PrAnd _ -> fprintf fmt "@[(%a)@]" pred p
+
+  let rec pol fmt p = match p with
+    | PoSeq (p1, p2) -> fprintf fmt "@[@[%a;@ @]%a@]" cpol p1 seq_pol_list p2
+    | PoUnion (p1, p2) -> fprintf fmt "@[%a@ |@ %a@]" cpol p1 par_pol_list p2
+    | _ -> cpol fmt p
+
+  and seq_pol_list fmt p = match p with
+    | PoSeq (p1, p2) -> fprintf fmt "@[@[%a;@]%a@]" cpol p1 seq_pol_list p2
+    | _ -> cpol fmt p
+
+  and par_pol_list fmt p = match p with
+    | PoUnion (p1, p2) -> fprintf fmt "@[@[%a;@]%a@]" cpol p1 par_pol_list p2
+    | _ -> cpol fmt p
+
+  and cpol fmt p = match p with
+    | PoITE (pr, then_pol, else_pol) ->
+	    fprintf fmt "@[if@ %a@;<1 2>@[then@;<1 2>%a@]@;<1 2>@[else@;<1 2>%a@]@]"
+        pred pr cpol then_pol cpol else_pol
+    | _ -> apol fmt p
+
+  and apol fmt p = match p with
+    | HandleSwitchEvent _ -> fprintf fmt "@[HandleSwitchEvent _@]"
+    | PoAction a -> fprintf fmt "@[%s@]" (action_to_string a)
+    | PoFilter pr -> pred fmt pr
+    | PoUnion _
+    | PoSeq _
+    | PoITE _ -> fprintf fmt "@[(%a)@]" pol p
+
+end
+
+let format_pol = Format.pol
+
+let format_pred = Format.pred
+
+let rec pred_to_string pred = 
+  let buf = Buffer.create 100 in
+  let fmt = formatter_of_buffer buf in
+  pp_set_margin fmt 80;
+  Format.pred fmt pred;
+  fprintf fmt "@?";
+  Buffer.contents buf
 
 let rec pol_to_string pred = 
   let buf = Buffer.create 100 in
