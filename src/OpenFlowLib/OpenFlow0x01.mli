@@ -28,19 +28,22 @@ module Match : sig
 (** Flow match data structure.  See Section 5.2.3 of the OpenFlow 1.0
 specification. *)
 
+  (** Each field describes criteria for matching one packet header field.  A
+  value of [None] indicates a wildcard match (i.e. match all values). *)
   type t =
-    { dlSrc : dlAddr option
-    ; dlDst : dlAddr option
-    ; dlTyp : dlTyp option
-    ; dlVlan : dlVlan option
-    ; dlVlanPcp : dlVlanPcp option
-    ; nwSrc : nwAddr option
-    ; nwDst : nwAddr option
-    ; nwProto : nwProto option
-    ; nwTos : nwTos option
-    ; tpSrc : tpPort option
-    ; tpDst : tpPort option
-    ; inPort : portId option }
+    { dlSrc : dlAddr option (** Ethernet source address. *)
+    ; dlDst : dlAddr option (** Etherent destination address. *)
+    ; dlTyp : dlTyp option (** Ethernet frame type. *)
+    ; dlVlan : dlVlan option (** Input VLAN id. *)
+    ; dlVlanPcp : dlVlanPcp option (** Input VLAN priority. *)
+    ; nwSrc : nwAddr option (** IP source address. *)
+    ; nwDst : nwAddr option (** IP destination address. *)
+    ; nwProto : nwProto option (** IP protocol. *)
+    ; nwTos : nwTos option (** IP ToS. *)
+    ; tpSrc : tpPort option (** TCP/UDP source port. *)
+    ; tpDst : tpPort option (** TCP/UDP destination port. *)
+    ; inPort : portId option (** Input switch port. *)
+    }
 
   (** A pattern that matches all packets. (All fields wildcarded.) *)
   val all : t
@@ -56,10 +59,13 @@ of the OpenFlow 1.0 specification. *)
 
   type t =
     | PhysicalPort of portId
-    | InPort
-    | Flood
-    | AllPorts
-    | Controller of int
+    | InPort (** Send the packet out the input port.  This virtual port must
+             be explicitly used in order to send back out of the input port. *)
+    | Flood (** All physical ports except input port and those disabled by 
+            STP. *)
+    | AllPorts (** All physical ports except input port. *)
+    | Controller of int (** Send to controller along with [n] (max 1024) bytes
+                        of the packet. *)
 
   (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
@@ -71,17 +77,17 @@ module Action : sig
 specification. *)
 
   type t =
-    | Output of PseudoPort.t
-    | SetDlVlan of dlVlan
-    | SetDlVlanPcp of dlVlanPcp
-    | StripVlan
-    | SetDlSrc of dlAddr
-    | SetDlDst of dlAddr
-    | SetNwSrc of nwAddr
-    | SetNwDst of nwAddr
-    | SetNwTos of nwTos
-    | SetTpSrc of tpPort
-    | SetTpDst of tpPort
+    | Output of PseudoPort.t (** Output to switch port. *)
+    | SetDlVlan of dlVlan (** Set the 802.1Q VLAN ID. *)
+    | SetDlVlanPcp of dlVlanPcp (** Set the 802.1Q priority. *)
+    | StripVlan (** Strip the 802.1Q header. *)
+    | SetDlSrc of dlAddr (** Set ethernet source address. *)
+    | SetDlDst of dlAddr (** Set ethernet destination address. *)
+    | SetNwSrc of nwAddr (** Set IP source address. *)
+    | SetNwDst of nwAddr (** Set IP destination address. *)
+    | SetNwTos of nwTos (** Set IP ToS. *)
+    | SetTpSrc of tpPort (** Set TCP/UDP source port. *)
+    | SetTpDst of tpPort (** Set TCP/UDP destination port. *)
 
   type sequence = t list
 
@@ -173,10 +179,11 @@ module PortDescription : sig
     ; name : string
     ; config : PortConfig.t
     ; state : PortState.t
-    ; curr : PortFeatures.t
-    ; advertised : PortFeatures.t
-    ; supported : PortFeatures.t
-    ; peer : PortFeatures.t }
+    ; curr : PortFeatures.t (** Current features. *)
+    ; advertised : PortFeatures.t (** Features being advertised by the port. *)
+    ; supported : PortFeatures.t (** Features supported by the port. *)
+    ; peer : PortFeatures.t (** Features advertised by peer. *)
+    }
 
   (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
@@ -272,12 +279,15 @@ specification. *)
   end
 
   type t =
-    { switch_id : switchId
-    ; num_buffers : int32
-    ; num_tables : int8
+    { switch_id : switchId (** Datapath unique ID.  The lower 48 bits are for 
+                           a MAC address, while the upper 16 bits are 
+                           implementer-defined. *)
+    ; num_buffers : int32 (** Max packets buffered at once. *)
+    ; num_tables : int8 (** Number of tables supported by datapath. *)
     ; supported_capabilities : Capabilities.t
     ; supported_actions : SupportedActions.t
-    ; ports : PortDescription.t list }
+    ; ports : PortDescription.t list (** Port definitions. *)
+    }
 
   (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
@@ -317,16 +327,23 @@ specification. *)
 
   type t =
     { mod_cmd : Command.t
-    ; match_ : Match.t
-    ; priority : int16
-    ; actions : Action.sequence
-    ; cookie : int64
-    ; idle_timeout : Timeout.t
-    ; hard_timeout : Timeout.t
-    ; notify_when_removed : bool
-    ; apply_to_packet : int32 option
-    ; out_port : PseudoPort.t option
-    ; check_overlap : bool }
+    ; match_ : Match.t (** Fields to match. *)
+    ; priority : int16 (** Priority level of flow entry. *)
+    ; actions : Action.sequence (** Actions. *)
+    ; cookie : int64 (** Opaque controller-issued identifier. *)
+    ; idle_timeout : Timeout.t (** Idle time before discarding (seconds). *)
+    ; hard_timeout : Timeout.t (** Max time before discarding (seconds). *)
+    ; notify_when_removed : bool (** Send flow removed message when flow
+                                 expires or is deleted. *)
+    ; apply_to_packet : int32 option (** Optional buffered packet to apply 
+                                     to. *)
+    ; out_port : PseudoPort.t option (** For [DeleteFlow] and 
+                                     [DeleteStrictFlow] modifications, require
+                                     matching entries to include this as an
+                                     output port.  A value of [None] indicates
+                                     no restriction. *)
+    ; check_overlap : bool (** Check for overlapping entries first. *)
+    }
 
   (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
