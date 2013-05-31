@@ -6,24 +6,21 @@
     It is possible and instructive to build a controller directly atop
     [PLATFORM]. But, see [NetCore] for a higher-level abstraction.
 *)
-open Frenetic_Socket
-open OpenFlow0x01
-
 module Log = Frenetic_Log
 module Socket = Frenetic_Socket
+module OF = OpenFlow0x01
+module Message = OF.Message
+
+type switchId = OF.switchId
+type xid = OF.Message.xid
 
 exception SwitchDisconnected of switchId
 
-type xid = Message.xid
+let server_fd : Lwt_unix.file_descr option ref = ref None
 
-let server_fd : Lwt_unix.file_descr option ref = 
-  ref None
+let max_pending : int = 64
 
-let max_pending : int = 
-  64
-
-let switch_fds : (switchId, Lwt_unix.file_descr) Hashtbl.t = 
-  Hashtbl.create 101
+let switch_fds : (switchId, Lwt_unix.file_descr) Hashtbl.t = Hashtbl.create 101
 
 let init_with_fd (fd : Lwt_unix.file_descr) : unit Lwt.t = 
   match !server_fd with
@@ -32,8 +29,7 @@ let init_with_fd (fd : Lwt_unix.file_descr) : unit Lwt.t =
   | None ->
     server_fd := Some fd;
     Lwt.return ()
-    
-      
+
 let init_with_port (port:int) : unit Lwt.t = 
   let open Lwt_unix in 
   let fd = socket PF_INET SOCK_STREAM 0 in
@@ -51,7 +47,7 @@ let get_fd () : Lwt_unix.file_descr Lwt.t =
 
 let rec recv_from_switch_fd 
   (sock : Lwt_unix.file_descr) : 
-  (Message.xid * Message.t) option Lwt.t =
+  (xid * Message.t) option Lwt.t =
   let ofhdr_str = String.create (2 * Message.Header.size) in (* JNF: why 2x? *)
   lwt ok = Socket.recv sock ofhdr_str 0 Message.Header.size in
   if not ok then Lwt.return None
@@ -65,12 +61,12 @@ let rec recv_from_switch_fd
       let xid, msg = Message.parse hdr body_buf in
       Lwt.return (Some (xid, msg))
     with 
-      | Unparsable error_msg ->
+      | OF.Unparsable error_msg ->
         Log.printf "platform" 
           "in recv_from_switch_fd, error parsing incoming message (%s)\n%!"
           error_msg;
         recv_from_switch_fd sock
-      | Ignored msg ->
+      | OF.Ignored msg ->
         Log.printf "platform" 
           "in recv_from_switch_fd, ignoring message (%s)\n%!"
           msg;
@@ -156,7 +152,7 @@ let rec recv_from_switch (sw : switchId) : (Message.xid * Message.t) Lwt.t =
     | None -> 
       raise_lwt (SwitchDisconnected sw)
         
-let switch_handshake (fd : Lwt_unix.file_descr) : SwitchFeatures.t option Lwt.t =
+let switch_handshake (fd : Lwt_unix.file_descr) : OF.SwitchFeatures.t option Lwt.t =
   let open Message in
   lwt ok = send_to_switch_fd fd 0l (Hello (Cstruct.of_string "")) in
   match ok with 
@@ -172,10 +168,10 @@ let switch_handshake (fd : Lwt_unix.file_descr) : SwitchFeatures.t option Lwt.t 
                   lwt resp = recv_from_switch_fd fd in 
                   match resp with 
                     | Some (_,SwitchFeaturesReply feats) ->
-                      Hashtbl.add switch_fds feats.SwitchFeatures.switch_id fd;
+                      Hashtbl.add switch_fds feats.OF.SwitchFeatures.switch_id fd;
                       Log.printf "platform" 
                         "switch %Ld connected\n%!"
-                        feats.SwitchFeatures.switch_id;
+                        feats.OF.SwitchFeatures.switch_id;
                       Lwt.return (Some feats)
                     | _ ->
                       Lwt.return None
@@ -184,7 +180,7 @@ let switch_handshake (fd : Lwt_unix.file_descr) : SwitchFeatures.t option Lwt.t 
                 Lwt.return None
           end
         | Some (_, error) ->
-          let open Error in
+          let open OF.Error in
           begin match error with
           | ErrorMsg HelloFailed (code, bytes) ->
             let open HelloFailed in
@@ -213,7 +209,7 @@ let switch_handshake (fd : Lwt_unix.file_descr) : SwitchFeatures.t option Lwt.t 
 let rec accept_switch () =
   lwt server_fd = get_fd () in 
   lwt (fd, sa) = Lwt_unix.accept server_fd in
-  let _ = Log.printf "platform" "%s connected, handshaking...\n%!" (string_of_sockaddr sa) in
+  let _ = Log.printf "platform" "%s connected, handshaking...\n%!" (Socket.string_of_sockaddr sa) in
   lwt ok = switch_handshake fd in 
   match ok with 
     | Some feats -> 
@@ -221,7 +217,7 @@ let rec accept_switch () =
     | None -> 
       lwt _ = Lwt_unix.close fd in
       Log.printf "platform" "%s disconnected, trying again...\n%!"
-        (string_of_sockaddr sa);
+        (Socket.string_of_sockaddr sa);
       accept_switch ()
         
         
