@@ -2,7 +2,6 @@ open Format
 open NetCore_Types
 open NetCore_Pattern
 
-
 let to_string_exact = NetCore_Wildcard.to_string_exact
 
 let format_list fmt sep lst =
@@ -49,48 +48,38 @@ let pattern_to_string x =
   Format.fprintf fmt "@?";
   Buffer.contents buf
 
-let match_modify_to_string
-    (pr : 'a -> string) (lbl : string) (v : 'a match_modify) : string option =
-  match v with
-    | None -> None
-    | Some (old, new_) -> 
-      Some (Format.sprintf "%s:%s->%s" lbl (pr old) (pr new_))
 
-let string_of_output (out : output) : string = 
-    let mods =
-      [ match_modify_to_string Packet.dlAddr_to_string "DlSrc" out.outDlSrc;
-        match_modify_to_string Packet.dlAddr_to_string "DlDst" out.outDlDst;
-        match_modify_to_string Packet.dlVlan_to_string "DlVlan" out.outDlVlan;
-        match_modify_to_string Packet.dlVlanPcp_to_string "DlVlanPcp" out.outDlVlanPcp;
-        match_modify_to_string Packet.string_of_ip "NwSrc" out.outNwSrc;
-        match_modify_to_string Packet.string_of_ip "NwDst" out.outNwDst;
-        match_modify_to_string Packet.nwTos_to_string "NwTos" out.outNwTos;
-        match_modify_to_string string_of_int "TpSrc" out.outTpSrc;
-        match_modify_to_string string_of_int "TpDst" out.outTpDst ] in
-    let mods = String.concat ", " (List.fold_right (fun xo acc -> match xo with None -> acc | Some x -> x::acc) mods []) in
-  (* "FWD" *) 
-          if mods = "" then
-          port_to_string out.outPort
-          else
-          Format.sprintf " %s<%s>"
-          (port_to_string out.outPort)
-          mods
 
-let string_of_action_atom atom = match atom with
-  | SwitchAction output -> (string_of_output output)
-  | ControllerAction _ -> "controller"
-  | ControllerQuery (time, f) -> 
-    Printf.sprintf "ControllerQuery %f" time
-
-let action_to_string output_list =
-  match output_list with
-    | [] -> "drop"
-    | [a] -> string_of_action_atom a
-    | _ ->
-      Printf.sprintf "[%s]"
-	(String.concat ", " (List.map string_of_action_atom output_list))
 
 module Format = struct
+
+  let match_modify pr lbl fmt mm = match mm with
+    | None -> ()
+    | Some (old, new_) -> fprintf fmt "@[@[%s@,->@,%s@];@ @]"
+      (pr old) (pr new_)
+
+  let output fmt (out : output) : unit =
+    fprintf fmt "@[%a%a%a%a%a%a%a%a%a%s@]"
+      (match_modify Packet.dlAddr_to_string "dlSrc") out.outDlSrc
+      (match_modify Packet.dlAddr_to_string "dlDst") out.outDlDst
+      (match_modify Packet.dlVlan_to_string "dlVlan") out.outDlVlan
+      (match_modify Packet.dlVlanPcp_to_string "dlVlanPcp") out.outDlVlanPcp
+      (match_modify Packet.string_of_ip "nwSrc") out.outNwSrc
+      (match_modify Packet.string_of_ip "nwDst") out.outNwDst
+      (match_modify Packet.nwTos_to_string "nwTos") out.outNwTos
+      (match_modify string_of_int "tpSrc") out.outTpSrc
+      (match_modify string_of_int "tpDst") out.outTpDst
+      (port_to_string out.outPort)
+
+  let action fmt action : unit = match action with
+    | SwitchAction o -> output fmt o
+    | ControllerAction _ -> fprintf fmt "controller"
+    | ControllerQuery (time, f) -> fprintf fmt "ControllerQuery %f" time
+
+  let rec action_list fmt lst = match lst with
+    | [] -> fprintf fmt "drop"
+    | [x] -> action fmt x
+    | x :: lst' -> fprintf fmt "@[%a@ | %a@]" action x action_list lst'
 
   let rec pred fmt p = match p with
     | PrAnd (p1, p2) -> fprintf fmt "@[%a@ && %a@]" orpred p1 pred p2
@@ -103,7 +92,7 @@ module Format = struct
   and apred fmt p = match p with 
     | PrHdr ptrn -> format_pattern fmt ptrn
     | PrOnSwitch sw -> fprintf fmt "@[switch = %Lx@]" sw
-    | PrNot p' -> fprintf fmt "@[!@ %a@]" apred p'
+    | PrNot p' -> fprintf fmt "@[!%a@]" apred p'
     | PrAll -> fprintf fmt "@[*@]"
     | PrNone -> fprintf fmt "@[none@]" 
     (* TODO(arjun): concrete syntax is "<none>", don't know how to escape *)
@@ -131,7 +120,7 @@ module Format = struct
 
   and apol fmt p = match p with
     | HandleSwitchEvent _ -> fprintf fmt "@[HandleSwitchEvent _@]"
-    | PoAction a -> fprintf fmt "@[%s@]" (action_to_string a)
+    | PoAction a -> fprintf fmt "@[%a@]" action_list a
     | PoFilter pr -> pred fmt pr
     | PoUnion _
     | PoSeq _
@@ -143,21 +132,19 @@ let format_pol = Format.pol
 
 let format_pred = Format.pred
 
-let rec pred_to_string pred = 
+let mk_to_string formatter x =
   let buf = Buffer.create 100 in
   let fmt = formatter_of_buffer buf in
   pp_set_margin fmt 80;
-  Format.pred fmt pred;
+  formatter fmt x;
   fprintf fmt "@?";
   Buffer.contents buf
 
-let rec pol_to_string pred = 
-  let buf = Buffer.create 100 in
-  let fmt = formatter_of_buffer buf in
-  pp_set_margin fmt 80;
-  format_pol fmt pred;
-  fprintf fmt "@?";
-  Buffer.contents buf
+let pred_to_string = mk_to_string Format.pred
+
+let pol_to_string = mk_to_string Format.pol
+
+let action_to_string = mk_to_string Format.action_list
 
 let value_to_string = function 
   | Pkt (sid, port, pkt, pay) ->
