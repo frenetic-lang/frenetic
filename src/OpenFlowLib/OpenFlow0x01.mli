@@ -525,18 +525,25 @@ specification. *)
 
     type t =
       { port_no : PseudoPort.t
-      ; rx_packets : int64
-      ; tx_packets : int64
-      ; rx_bytes : int64
-      ; tx_bytes : int64
-      ; rx_dropped : int64
-      ; tx_dropped : int64
-      ; rx_errors : int64
-      ; tx_errors : int64
-      ; rx_frame_err : int64
-      ; rx_over_err : int64
-      ; rx_crc_err : int64
-      ; collisions : int64 }
+      ; rx_packets : int64 (** Number of received packets. *)
+      ; tx_packets : int64 (** Number of transmitted packets *)
+      ; rx_bytes : int64 (** Number of received bytes. *)
+      ; tx_bytes : int64 (** Number of transmitted bytes. *)
+      ; rx_dropped : int64 (** Number of packets dropped by RX. *)
+      ; tx_dropped : int64 (** Number of packets dropped by TX. *)
+      ; rx_errors : int64 (** Number of receive errors.  This is a super-set
+                              of more specific receive errors and should be
+                              greater than or equal to the sum of all 
+                              [rx_X_err] values. *)
+      ; tx_errors : int64 (** Number of transmit errors.  This is a super-set
+                              of more specific transmit errors and should be
+                              greater than or equal to the sum of all 
+                              [tx_X_err] values. *)
+      ; rx_frame_err : int64 (** Number of frame alignment errors. *)
+      ; rx_over_err : int64 (** Number of of packets with RX overrun. *)
+      ; rx_crc_err : int64 (** Number of CRC errors. *)
+      ; collisions : int64 (** Number of collisions. *)
+      }
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -556,12 +563,13 @@ specification. *)
 end
 
 module Error : sig
+(** Error message.  See Section 5.4.4 of the OpenFlow 1.0 specification. *)
 
   module HelloFailed : sig
 
     type t =
-      | Incompatible
-      | Eperm
+      | Incompatible (** No compatible version. *)
+      | Eperm (** Permissions error. *)
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -571,15 +579,15 @@ module Error : sig
   module BadRequest : sig
 
     type t =
-      | BadVersion
-      | BadType
-      | BadStat
-      | BadVendor
-      | BadSubType
-      | Eperm
-      | BadLen
-      | BufferEmpty
-      | BufferUnknown
+      | BadVersion (** [Header] version not supported. *)
+      | BadType (** [Message] type not supported. *)
+      | BadStat (** StatsRequest type not supported. *)
+      | BadVendor (** Vendor not supported. *)
+      | BadSubType (** Vendor subtype not supported. *)
+      | Eperm (** Permissions error. *)
+      | BadLen (** Wrong request length for type. *)
+      | BufferEmpty (** Specified buffer has already been used. *)
+      | BufferUnknown (** Specified buffer does not exist. *)
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -589,15 +597,15 @@ module Error : sig
   module BadAction : sig
 
     type t =
-      | BadType
-      | BadLen
-      | BadVendor
-      | BadVendorType
-      | BadOutPort
-      | BadArgument
-      | Eperm
-      | TooMany
-      | BadQueue
+      | BadType (** Unknown action type. *)
+      | BadLen (** Length problem in actions. *)
+      | BadVendor (** Unknown vendor id specified. *)
+      | BadVendorType (** Unknown action type for vendor id. *)
+      | BadOutPort (** Problem validating output action. *)
+      | BadArgument (** Bad action argument. *)
+      | Eperm (** Permissions error. *)
+      | TooMany (** Can't handle this many actions. *)
+      | BadQueue (** Problem validating output queue. *)
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -607,12 +615,14 @@ module Error : sig
   module FlowModFailed : sig
 
     type t =
-      | AllTablesFull
-      | Overlap
-      | Eperm
-      | BadEmergTimeout
-      | BadCommand
-      | Unsupported
+      | AllTablesFull (** Flow not added because of full tables. *)
+      | Overlap (** Attepted to add overlapping flow with 
+                [FlowMod.check_overlap] set. *)
+      | Eperm (** Permissions error. *)
+      | BadEmergTimeout (** Flow not added because of non-zero idle/hard timeout. *)
+      | BadCommand (** Unknown command. *)
+      | Unsupported (** Unsupported action list - cannot process in the order
+                    specified. *)
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -622,8 +632,8 @@ module Error : sig
   module PortModFailed : sig
 
     type t =
-      | BadPort
-      | BadHwAddr
+      | BadPort (** Specified port does not exist. *)
+      | BadHwAddr (** Specified hardware address is wrong. *)
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -633,22 +643,34 @@ module Error : sig
   module QueueOpFailed : sig
 
     type t =
-      | BadPort
-      | BadQueue
-      | Eperm
+      | BadPort (** Invalid port (or port does not exist). *)
+      | BadQueue (** Queue does not exist. *)
+      | Eperm (** Permissions error. *)
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
 
-  (* Each error is composed of a pair (error_code, data) *)
+  (** Each error is composed of a pair (error_code, data) *)
   type t =
+
+    (** Hello protocol failed. *)
     | HelloFailed of HelloFailed.t * Cstruct.t
+
+    (** Request was not understood. *)
     | BadRequest of BadRequest.t * Cstruct.t
+
+    (** Error in action description *)
     | BadAction of BadAction.t * Cstruct.t
+
+    (** Problem modifying flow entry. *)
     | FlowModFailed of FlowModFailed.t * Cstruct.t
+
+    (** Port mod request failed. *)
     | PortModFailed of PortModFailed.t * Cstruct.t
+
+    (** Queue operation failed. *)
     | QueueOpFailed of QueueOpFailed.t  * Cstruct.t
 
   (** [to_string v] pretty-prints [v]. *)
@@ -658,7 +680,8 @@ end
 
 
 module Message : sig
-(* A subset of the OpenFlow 1.0 messages defined in Section 5.1 of the spec. *)
+(* A subset of the OpenFlow 1.0 messages defined in Section 5.1 of the 
+specification. *)
 
   module Header : sig
 
