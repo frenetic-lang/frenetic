@@ -94,8 +94,7 @@ let accept_switch () =
           state = { PortState.down = false;
                     PortState.stp_listen = false;
                     PortState.stp_forward = false;
-                    PortState.stp_block = false;
-                    PortState.stp_mask = false };
+                    PortState.stp_block = false };
           curr = { PortFeatures.f_10MBHD = true;
                    PortFeatures.f_10MBFD = true;
                    PortFeatures.f_100MBHD = true;

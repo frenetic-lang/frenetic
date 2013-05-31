@@ -10,23 +10,23 @@ OpenFlow 1.0 specification, Rather than reproducing the specification here. *)
 open Packet
 
 (** [Unparsable msg] signals an error in parsing, such as when a bit sequence
-    has been corrupted. *)
+has been corrupted. *)
 exception Unparsable of string
 
 (** [Ignored msg] signals the arrival of a valid OpenFlow message that the
-    parser is not yet equipped to handle. *)
+parser is not yet equipped to handle. *)
 exception Ignored of string
 
 (* [switchId] is the type of switch identifiers received as part of
-   [SwitchFeature] replies. *)
+[SwitchFeature] replies. *)
 type switchId = int64
 
-type table_id = int8
-
+(* [string_of_switchId sw] pretty-prints [sw]. *)
 val string_of_switchId : switchId -> string
-val string_of_table_id : table_id -> string
 
 module Match : sig
+(** Flow match data structure.  See Section 5.2.3 of the OpenFlow 1.0
+specification. *)
 
   type t =
     { dlSrc : dlAddr option
@@ -45,11 +45,14 @@ module Match : sig
   (** A pattern that matches all packets. (All fields wildcarded.) *)
   val all : t
 
+  (** [to_string m] pretty-prints [m]. *)
   val to_string : t -> string
 
 end
 
 module PseudoPort : sig
+(** A pseudo-port, as described by the [ofp_port] enumeration in Section 5.2.1
+of the OpenFlow 1.0 specification. *)
 
   type t =
     | PhysicalPort of portId
@@ -58,11 +61,14 @@ module PseudoPort : sig
     | AllPorts
     | Controller of int
 
+  (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
 
 end
 
 module Action : sig
+(** Flow action data structure.  See Section 5.2.4 of the OpenFlow 1.0
+specification. *)
 
   type t =
     | Output of PseudoPort.t
@@ -79,16 +85,27 @@ module Action : sig
 
   type sequence = t list
 
+  (** [move_controller_last seq] produces a semantically-equivalent list of
+  actions with actions that send packets to the controller moved to the end.
+  This works around a known bug in the OpenFlow reference switch where actions
+  in an action sequence after a "send to controller" ([Output (Controller n)])
+  action are ignored. *)
   val move_controller_last : sequence -> sequence
 
+  (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
+
+  (** [sequence_to_string v] pretty-prints an action sequence. *)
   val sequence_to_string : sequence -> string
 
 end
 
 module PortDescription : sig
+(** Port data structure.  See section 5.2.1 of the OpenFlow 1.0 specification. *)
 
   module PortConfig : sig
+  (** See the [ofp_port_config] enumeration in Section 5.2.1 of the OpenFlow 
+  1.0 specification. *)
 
     type t =
       { down : bool (** Port is administratively down. *)
@@ -101,24 +118,34 @@ module PortDescription : sig
       ; no_packet_in : bool (** Do not send packet-in msgs for port. *)
       }
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
 
   module PortState : sig
+  (** See the [ofp_port_state] enumeration in Section 5.2.1 of the OpenFlow 
+  1.0 specification.
+  
+  The [stp_X] fields have no effect on switch operation.  The controller must
+  adjust [PortConfig.no_recv], [PortConfig.no_fwd], and
+  [PortConfig.no_packet_in] to fully implement an 802.1D tree. *)
 
     type t =
-      { down : bool  (* No physical link present. *)
-      ; stp_listen : bool
-      ; stp_forward : bool
-      ; stp_block : bool
-      ; stp_mask : bool }
+      { down : bool  (** No physical link present. *)
+      ; stp_listen : bool (** Not learning or relaying frames. *)
+      ; stp_forward : bool (** Learning but not relaying frames. *)
+      ; stp_block : bool (** Not part of spanning tree. *)
+      }
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
 
   module PortFeatures : sig
+  (** See the [ofp_port_features] enumeration in Section 5.2.1 of the OpenFlow
+  1.0 specification. *)
 
     type t =
       { f_10MBHD : bool (** 10 Mb half-duplex rate support. *)
@@ -135,6 +162,7 @@ module PortDescription : sig
       ; pause_asym : bool (** Asymmetric pause. *)
       }
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
@@ -150,19 +178,24 @@ module PortDescription : sig
     ; supported : PortFeatures.t
     ; peer : PortFeatures.t }
 
+  (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
 
 end
 
 module PortStatus : sig
+(** Port status message.  See Section 5.4.3 of the OpenFlow 1.0 specification. *)
 
   module ChangeReason : sig
+  (** See the [ofp_port_reason] enumeration in Section 5.4.3 of the OpenFlow
+  1.0 specification. *)
 
     type t =
-      | Add
-      | Delete
-      | Modify
+      | Add (** The port was added. *)
+      | Delete (** The port was removed. *)
+      | Modify (** Some attribute of the port has changed. *)
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
@@ -171,28 +204,52 @@ module PortStatus : sig
       { reason : ChangeReason.t
       ; desc : PortDescription.t }
 
+  (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
 
 end
 
 module SwitchFeatures : sig
+(** Switch features data structure.  See Section 5.3.1 of the OpenFlow 1.0
+specification. *)
+
+  (** Fields that support wildcard patterns on this switch. *)
+  type supported_wildcards =
+    { dlSrc : bool
+    ; dlDst : bool
+    ; dlTyp : bool
+    ; dlVlan : bool
+    ; dlVlanPcp : bool
+    ; nwSrc : bool
+    ; nwDst : bool
+    ; nwProto : bool
+    ; nwTos : bool
+    ; tpSrc : bool
+    ; tpDst : bool
+    ; inPort : bool }
 
   module Capabilities : sig
+  (** See the [ofp_capabilities] enumeration in Section 5.3.1 of the OpenFlow
+  1.0 specification. *)
+
 
     type t =
-      { flow_stats : bool
-      ; table_stats : bool
-      ; port_stats : bool
-      ; stp : bool
-      ; ip_reasm : bool
-      ; queue_stats : bool
-      ; arp_match_ip : bool }
+      { flow_stats : bool (** Flow statistics. *)
+      ; table_stats : bool (** Table statistics. *)
+      ; port_stats : bool (** Port statistics. *)
+      ; stp : bool (** 802.1D spanning tree. *)
+      ; ip_reasm : bool (** Can reassemble IP fragments. *)
+      ; queue_stats : bool (** Queue statistics. *)
+      ; arp_match_ip : bool (** Match IP addresses in ARP packets. *)
+      }
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
 
   module SupportedActions : sig
+  (** Describes which actions ([Action.t]) this switch supports. *)
 
     type t =
       { output : bool
@@ -209,6 +266,7 @@ module SwitchFeatures : sig
       ; enqueue : bool
       ; vendor : bool }
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
@@ -221,21 +279,27 @@ module SwitchFeatures : sig
     ; supported_actions : SupportedActions.t
     ; ports : PortDescription.t list }
 
+  (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
 
 end
 
 module FlowMod : sig
+(** A flow modification data structure.  See Section 5.3.3 of the OpenFlow 1.0
+specification. *)
 
   module Command : sig
+  (** See the [ofp_flow_mod_command] enumeration in Section 5.3.3 of the 
+  OpenFlow 1.0 specification. *)
 
     type t =
-      | AddFlow
-      | ModFlow
-      | ModStrictFlow
-      | DeleteFlow
-      | DeleteStrictFlow
+      | AddFlow (** New flow. *)
+      | ModFlow (** Modify all matching flows. *)
+      | ModStrictFlow (** Modify entry strictly matching wildcards. *)
+      | DeleteFlow (** Delete all matching flows. *)
+      | DeleteStrictFlow (** Delete entry strictly matching wildcards. *)
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
@@ -246,6 +310,7 @@ module FlowMod : sig
       | Permanent
       | ExpiresAfter of int16
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
@@ -263,11 +328,14 @@ module FlowMod : sig
     ; out_port : PseudoPort.t option
     ; check_overlap : bool }
 
+  (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
 
 end
 
 module PacketIn : sig
+(** A Packet-In message.  See Section 5.4.1 of the OpenFlow 1.0 specification.
+*)
 
   module Reason : sig
 
@@ -275,22 +343,29 @@ module PacketIn : sig
       | NoMatch
       | ExplicitSend
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
 
   type t =
-    { buffer_id : int32 option
-    ; total_len : int16
-    ; port : portId
-    ; reason : Reason.t
-    ; packet :  bytes }
+    { buffer_id : int32 option (** ID assigned by datapath. *)
+    ; total_len : int16 (** Full length of frame. *)
+    ; port : portId (** Port on which frame was received. *)
+    ; reason : Reason.t (** Reason packet is being sent. *)
+    ; packet : bytes (** Ethernet frame, halfway through 32-bit word, so the
+                     IP header is 32-bit aligned.  The amount of data is
+                     inferred from the length field in the header. *) 
+    }
 
+  (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
 
 end
 
 module PacketOut : sig
+(** A send packet message.  See Section 5.3.6 of the OpenFlow 1.0 
+specification. *)
 
   module Payload : sig
 
@@ -298,64 +373,95 @@ module PacketOut : sig
       | Buffer of int32
       | Packet of bytes
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
 
   type t =
     { buf_or_bytes : Payload.t
-    ; port_id : portId option
-    ; actions : Action.sequence }
+    ; port_id : portId option (** Packet's input port. *)
+    ; actions : Action.sequence (** Actions. *)
+    }
 
+  (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
 
 end
 
 module StatsRequest : sig
+(** A statistics request message.  See Section 5.3.5 of the OpenFlow 1.0 
+specification. *)
 
   module IndividualFlowRequest : sig
 
-    type t = { of_match : Match.t
-             ; table_id : table_id
-             ; port : PseudoPort.t option }
+    type t = { of_match : Match.t (** Fields to match. *)
+             ; table_id : int8 (** ID of tabel to read from. *)
+             ; port : PseudoPort.t option (** Require matching entries to
+                                          include this as an output port.  A
+                                          value of [None] indicates no
+                                          restriction. *)
+             }
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
 
   module AggregateFlowRequest : sig
 
-    type t = { of_match : Match.t
-             ; table_id : table_id
-             ; port : PseudoPort.t option }
+    type t = { of_match : Match.t (** Fields to match. *)
+             ; table_id : int8 (** ID of tabel to read from. *)
+             ; port : PseudoPort.t option (** Require matching entries to
+                                          include this as an output port.  A
+                                          value of [None] indicates no
+                                          restriction. *)
+             }
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
 
   type t =
-  | DescriptionReq
-  | IndividualFlowReq of IndividualFlowRequest.t
-  | AggregateFlowReq of AggregateFlowRequest.t
-  | TableReq
-  | PortReq of PseudoPort.t
-  (* TODO(cole): queue and vendor stats requests. *)
+  
+    (** Description of this OpenFlow switch. *)
+    | DescriptionReq
+  
+    (** Individual flow statistics. *)
+    | IndividualFlowReq of IndividualFlowRequest.t
+  
+    (** Aggregate flow statistics. *)
+    | AggregateFlowReq of AggregateFlowRequest.t
+  
+    (** Flow table statistics. *)
+    | TableReq
+  
+    (** Physical port statistics. *)
+    | PortReq of PseudoPort.t
+  
+    (* TODO(cole): queue and vendor stats requests. *)
 
+  (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
 
 end
 
 module StatsReply : sig
+(** A statistics reply message.  See Section 5.3.5 of the OpenFlow 1.0 
+specification. *)
 
   module DescriptionStats : sig
 
     type t =
-      { manufacturer : string
-      ; hardware : string
-      ; software : string
-      ; serial_number : string
-      ; datapath : string }
+      { manufacturer : string (** Manufacturer description. *)
+      ; hardware : string (** Hardware description. *)
+      ; software : string (** Software description. *)
+      ; serial_number : string (** Serial number. *)
+      ; datapath : string (** Human readable description of datapath. *)
+      }
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
@@ -363,18 +469,22 @@ module StatsReply : sig
   module IndividualFlowStats : sig
 
     type t =
-      { table_id : table_id
-      ; of_match : Match.t
-      ; duration_sec : int32
-      ; duration_nsec : int32
-      ; priority : int16
-      ; idle_timeout : int16
-      ; hard_timeout : int16
-      ; cookie : int64
-      ; packet_count : int64
-      ; byte_count : int64
-      ; actions : Action.sequence }
+      { table_id : int8 (** ID of table flow came from. *)
+      ; of_match : Match.t (** Description of fields. *)
+      ; duration_sec : int32 (** Time flow has been alive in seconds. *)
+      ; duration_nsec : int32 (** Time flow has been alive in nanoseconds 
+                              beyond [duration_sec]. *)
+      ; priority : int16 (** Priority of the entry.  Only meaningful when this
+                         is not an exact-match entry. *)
+      ; idle_timeout : int16 (** Number of seconds idle before expiration. *)
+      ; hard_timeout : int16 (** Number of seconds before expiration. *)
+      ; cookie : int64 (** Opaque controller-issued identifier. *)
+      ; packet_count : int64 (** Number of packets in flow. *)
+      ; byte_count : int64 (** Number of bytes in flow. *)
+      ; actions : Action.sequence (** Actions. *)
+      }
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
@@ -382,10 +492,12 @@ module StatsReply : sig
   module AggregateFlowStats : sig
 
     type t =
-      { packet_count : int64
-      ; byte_count : int64
-      ; flow_count : int16 }
+      { packet_count : int64 (** Number of packets in flows. *)
+      ; byte_count : int64 (** Number of bytes in flows. *)
+      ; flow_count : int16 (** Number of flows. *)
+      }
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
@@ -393,14 +505,18 @@ module StatsReply : sig
   module TableStats : sig
 
     type t =
-      { table_id : table_id
+      { table_id : int8 (** Identifier of table.  Lower numbered tables are 
+                        consulted first. *)
       ; name : string
-      ; wildcards : int32
-      ; max_entries : int32
-      ; active_count : int32
-      ; lookup_count : int64
-      ; matched_count : int64 }
+      ; wildcards : SwitchFeatures.supported_wildcards (** Wildcards supported
+                                                       by this table. *)
+      ; max_entries : int32 (** Max number of entries supported. *)
+      ; active_count : int32 (** Number of active entries. *)
+      ; lookup_count : int64 (** Number of packets looked up in table. *)
+      ; matched_count : int64 (** Number of packets that hit table. *)
+      }
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
@@ -422,6 +538,7 @@ module StatsReply : sig
       ; rx_crc_err : int64
       ; collisions : int64 }
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
@@ -433,6 +550,7 @@ module StatsReply : sig
     | TableRep of TableStats.t
     | PortRep of PortStats.t
 
+  (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
 
 end
@@ -445,6 +563,7 @@ module Error : sig
       | Incompatible
       | Eperm
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
@@ -462,6 +581,7 @@ module Error : sig
       | BufferEmpty
       | BufferUnknown
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
@@ -479,6 +599,7 @@ module Error : sig
       | TooMany
       | BadQueue
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
@@ -493,6 +614,7 @@ module Error : sig
       | BadCommand
       | Unsupported
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
@@ -503,6 +625,7 @@ module Error : sig
       | BadPort
       | BadHwAddr
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
@@ -514,6 +637,7 @@ module Error : sig
       | BadQueue
       | Eperm
 
+    (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
@@ -527,6 +651,7 @@ module Error : sig
     | PortModFailed of PortModFailed.t * Cstruct.t
     | QueueOpFailed of QueueOpFailed.t  * Cstruct.t
 
+  (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
 
 end

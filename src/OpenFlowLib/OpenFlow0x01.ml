@@ -7,10 +7,8 @@ exception Ignored of string
 
 (* TODO(cole): find a better place for these. *)
 type switchId = int64
-type table_id = int8
 
 let string_of_switchId = Int64.to_string
-let string_of_table_id id = Printf.sprintf "%d" id
 
 let string_of_portId = portId_to_string
 let string_of_dlAddr = dlAddr_to_string
@@ -650,20 +648,17 @@ module PortDescription = struct
       { down : bool  (* No physical link present. *)
       ; stp_listen : bool
       ; stp_forward : bool
-      ; stp_block : bool
-      ; stp_mask : bool }
+      ; stp_block : bool }
 
     let to_string p = Printf.sprintf
       "{ down = %B; \
          stp_listen = %B; \
          stp_forward = %B; \
-         stp_block = %B; \
-         stp_mask = %B }"
+         stp_block = %B }"
       p.down
       p.stp_listen
       p.stp_forward
       p.stp_block
-      p.stp_mask
 
     (* MJR: GAH, the enum values from OF1.0 make NO SENSE AT ALL. Two of
        them have the SAME value, and the rest make no sense as bit
@@ -672,8 +667,7 @@ module PortDescription = struct
       { down = test_bit 0 d
       ; stp_listen = false
       ; stp_forward = false
-      ; stp_block = false
-      ; stp_mask = false }
+      ; stp_block = false }
 
     let to_int _ = failwith "NYI: PortState.to_int"
     let size_of _ = 4
@@ -883,6 +877,20 @@ module PortStatus = struct
 end
 
 module SwitchFeatures = struct
+
+  type supported_wildcards =
+    { dlSrc : bool
+    ; dlDst : bool
+    ; dlTyp : bool
+    ; dlVlan : bool
+    ; dlVlanPcp : bool
+    ; nwSrc : bool
+    ; nwDst : bool
+    ; nwProto : bool
+    ; nwTos : bool
+    ; tpSrc : bool
+    ; tpDst : bool
+    ; inPort : bool }
 
   module Capabilities = struct
 
@@ -1367,7 +1375,7 @@ module StatsRequest = struct
 
     type t =
       { of_match : Match.t
-      ; table_id : table_id
+      ; table_id : int8
       ; port : PseudoPort.t option }
 
     cstruct ofp_flow_stats_request {
@@ -1405,7 +1413,7 @@ module StatsRequest = struct
   module AggregateFlowRequest = struct
 
     type t = { of_match : Match.t
-             ; table_id : table_id
+             ; table_id : int8
              ; port : PseudoPort.t option }
 
     cstruct ofp_aggregate_stats_request {
@@ -1551,7 +1559,7 @@ module StatsReply = struct
   module IndividualFlowStats = struct
 
     type t =
-      { table_id : table_id
+      { table_id : int8
       ; of_match : Match.t
       ; duration_sec : int32
       ; duration_nsec : int32
@@ -1670,9 +1678,9 @@ module StatsReply = struct
   module TableStats = struct
 
     type t =
-      { table_id : table_id
+      { table_id : int8
       ; name : string
-      ; wildcards : int32
+      ; wildcards : SwitchFeatures.supported_wildcards
       ; max_entries : int32
       ; active_count : int32
       ; lookup_count : int64
