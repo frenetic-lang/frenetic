@@ -5,6 +5,12 @@
   let parse_byte str = Int64.of_string ("0x" ^ str)
   let parse_decbyte str = Int32.of_string str
 
+  type mode =
+    | Code
+    | LiterateLine
+    | LiterateBlock
+
+  let st = ref Code
 }
 
 let blank = [ ' ' '\t'  ]
@@ -18,20 +24,30 @@ let decbyte =
   (['0'-'9'] ['0'-'9'] ['0'-'9']) | (['0'-'9'] ['0'-'9']) | ['0'-'9']
 
 rule literate = parse
-  | "    " { token true lexbuf }
+  | "    " { st := LiterateLine; token lexbuf }
+  | "```\n" { st := LiterateBlock; token lexbuf }
   | '\n' { new_line lexbuf; literate lexbuf }
   | _ { literate_text lexbuf }
 
+(* preserves !st *)
 and literate_text = parse
   | '\n' { new_line lexbuf; literate lexbuf }
   | eof { EOF }
   | [^ '\n'] { literate_text lexbuf }
 
-and token is_literate = parse
-  | "(*" { block_comment is_literate lexbuf }
-  | blank+ { token is_literate lexbuf }
+and token = parse
+  | "(*" { block_comment lexbuf }
+  | blank+ { token lexbuf }
+  | "```\n" 
+    { match !st with
+      | LiterateBlock -> literate lexbuf 
+      | Code -> TICKTICKTICK (* makes parser fail *)
+      | LiterateLine -> TICKTICKTICK (* makes parser fail *) }
   | '\n' { new_line lexbuf; 
-           if is_literate then literate lexbuf else token false lexbuf }
+           match !st with
+             | Code -> token lexbuf
+             | LiterateBlock -> token lexbuf
+             | LiterateLine -> literate lexbuf }
   | eof { EOF }
   | "," { COMMA }
   | "nat" { NAT }
@@ -96,11 +112,13 @@ and token is_literate = parse
   | "publicIP" { PUBLICIP }
   | id as x { ID x } (* by going last, we lex to LEARN, NAT, etc. instead *)
 
-and block_comment is_literate = parse
-  | "*)" {  token is_literate lexbuf }
-  | "*" { block_comment is_literate lexbuf }
+and block_comment = parse
+  | "*)" {  token lexbuf }
+  | "*" { block_comment lexbuf }
   | [ '\n' ] { new_line lexbuf;
-               if is_literate 
-               then literate lexbuf 
-               else block_comment is_literate lexbuf }
-  | ([^ '\n' '*'])+  { block_comment is_literate lexbuf }
+               match !st with
+                 | Code -> block_comment lexbuf
+                 | LiterateBlock -> block_comment lexbuf
+                 | LiterateLine -> literate lexbuf
+             }
+  | ([^ '\n' '*'])+  { block_comment lexbuf }

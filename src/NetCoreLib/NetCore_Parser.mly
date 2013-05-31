@@ -74,6 +74,7 @@
 %token MONITOR_LOAD
 %token <string> STRING
 %token EOF
+%token TICKTICKTICK /* only for Markdown */
 
 %start program
 
