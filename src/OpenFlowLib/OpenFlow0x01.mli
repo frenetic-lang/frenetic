@@ -33,9 +33,6 @@ module Match : sig
   (** A pattern that matches all packets. (All fields wildcarded.) *)
   val all : t
 
-  val size_of : t -> int
-  val parse : Cstruct.t -> t
-  val marshal : t -> Cstruct.t -> int
   val to_string : t -> string
 
 end
@@ -49,10 +46,6 @@ module PseudoPort : sig
     | AllPorts
     | Controller of int
 
-  val size_of : t -> int
-  val parse : Cstruct.t -> t
-  val marshal : t -> int
-  val marshal_optional : t option -> int
   val to_string : t -> string
 
 end
@@ -74,19 +67,10 @@ module Action : sig
 
   type sequence = t list
 
-  val size_of : t -> int
-  val size_of_sequence : sequence -> int
-
-  val marshal : t -> Cstruct.t -> int
-  val marshal_sequence : sequence -> Cstruct.t -> int
-
   val move_controller_last : sequence -> sequence
 
   val to_string : t -> string
   val sequence_to_string : sequence -> string
-
-  val parse : Cstruct.t -> t
-  val parse_sequence : Cstruct.t -> sequence
 
 end
 
@@ -95,19 +79,16 @@ module PortDescription : sig
   module PortConfig : sig
 
     type t =
-      { down : bool (* Port is administratively down. *)
-      ; no_stp : bool (* Disable 802.1D spanning tree on port. *)
-      ; no_recv : bool (* Drop all packets except 802.1D spanning
-                                 * tree packets. *)
-      ; no_recv_stp : bool (* Drop received 802.1D STP packets. *)
-      ; no_flood : bool (* Do not include this port when flooding. *)
-      ; no_fwd : bool (* Drop packets forwarded to port. *)
-      ; no_packet_in : bool (* Do not send packet-in msgs for port. *)
+      { down : bool (** Port is administratively down. *)
+      ; no_stp : bool (** Disable 802.1D spanning tree on port. *)
+      ; no_recv : bool (** Drop all packets except 802.1D spanning
+                         * tree packets. *)
+      ; no_recv_stp : bool (** Drop received 802.1D STP packets. *)
+      ; no_flood : bool (** Do not include this port when flooding. *)
+      ; no_fwd : bool (** Drop packets forwarded to port. *)
+      ; no_packet_in : bool (** Do not send packet-in msgs for port. *)
       }
 
-    val size_of : t -> int
-    val of_int : int32 -> t
-    val to_int : t -> int32
     val to_string : t -> string
 
   end
@@ -121,9 +102,6 @@ module PortDescription : sig
       ; stp_block : bool
       ; stp_mask : bool }
 
-    val size_of : t -> int
-    val of_int : int32 -> t
-    val to_int : t -> int32
     val to_string : t -> string
 
   end
@@ -131,23 +109,20 @@ module PortDescription : sig
   module PortFeatures : sig
 
     type t =
-      { f_10MBHD : bool (* 10 Mb half-duplex rate support. *)
-      ; f_10MBFD : bool (* 10 Mb full-duplex rate support. *)
-      ; f_100MBHD : bool (* 100 Mb half-duplex rate support. *)
-      ; f_100MBFD : bool (* 100 Mb full-duplex rate support. *)
-      ; f_1GBHD : bool (* 1 Gb half-duplex rate support. *)
-      ; f_1GBFD : bool (* 1 Gb full-duplex rate support. *)
-      ; f_10GBFD : bool (* 10 Gb full-duplex rate support. *)
-      ; copper : bool (* Copper medium. *)
-      ; fiber : bool (* Fiber medium. *)
-      ; autoneg : bool (* Auto-negotiation. *)
-      ; pause : bool (* Pause. *)
-      ; pause_asym : bool (* Asymmetric pause. *)
+      { f_10MBHD : bool (** 10 Mb half-duplex rate support. *)
+      ; f_10MBFD : bool (** 10 Mb full-duplex rate support. *)
+      ; f_100MBHD : bool (** 100 Mb half-duplex rate support. *)
+      ; f_100MBFD : bool (** 100 Mb full-duplex rate support. *)
+      ; f_1GBHD : bool (** 1 Gb half-duplex rate support. *)
+      ; f_1GBFD : bool (** 1 Gb full-duplex rate support. *)
+      ; f_10GBFD : bool (** 10 Gb full-duplex rate support. *)
+      ; copper : bool (** Copper medium. *)
+      ; fiber : bool (** Fiber medium. *)
+      ; autoneg : bool (** Auto-negotiation. *)
+      ; pause : bool (** Pause. *)
+      ; pause_asym : bool (** Asymmetric pause. *)
       }
 
-    val size_of : t -> int
-    val of_int : int32 -> t
-    val to_int : t -> int32
     val to_string : t -> string
 
   end
@@ -163,9 +138,6 @@ module PortDescription : sig
     ; supported : PortFeatures.t
     ; peer : PortFeatures.t }
 
-  val size_of : t -> int
-  val parse : Cstruct.t -> t
-  val marshal : t -> Cstruct.t -> int
   val to_string : t -> string
 
 end
@@ -179,10 +151,7 @@ module PortStatus : sig
       | Delete
       | Modify
 
-    val of_int : int -> t
-    val to_int : t -> int
     val to_string : t -> string
-    val size_of : t -> int
 
   end
 
@@ -190,9 +159,6 @@ module PortStatus : sig
       { reason : ChangeReason.t
       ; desc : PortDescription.t }
 
-  val size_of : t -> int
-  val parse : Cstruct.t -> t
-  val marshal : t -> Cstruct.t -> int
   val to_string : t -> string
 
 end
@@ -210,9 +176,6 @@ module SwitchFeatures : sig
       ; queue_stats : bool
       ; arp_match_ip : bool }
 
-    val size_of : t -> int
-    val of_int : int32 -> t
-    val to_int : t -> int32
     val to_string : t -> string
 
   end
@@ -234,9 +197,6 @@ module SwitchFeatures : sig
       ; enqueue : bool
       ; vendor : bool }
 
-    val size_of : t -> int
-    val of_int : int32 -> t
-    val to_int : t -> int32
     val to_string : t -> string
 
   end
@@ -249,9 +209,6 @@ module SwitchFeatures : sig
     ; supported_actions : SupportedActions.t
     ; ports : PortDescription.t list }
 
-  val size_of : t -> int
-  val parse : Cstruct.t -> t
-  val marshal : t -> Cstruct.t -> int
   val to_string : t -> string
 
 end
@@ -267,9 +224,6 @@ module FlowMod : sig
       | DeleteFlow
       | DeleteStrictFlow
 
-    val size_of : t -> int
-    val of_int : int -> t
-    val to_int : t -> int
     val to_string : t -> string
 
   end
@@ -280,9 +234,6 @@ module FlowMod : sig
       | Permanent
       | ExpiresAfter of int16
 
-    val size_of : t -> int
-    val of_int : int -> t
-    val to_int : t -> int
     val to_string : t -> string
 
   end
@@ -300,9 +251,6 @@ module FlowMod : sig
     ; out_port : PseudoPort.t option
     ; check_overlap : bool }
 
-  val size_of : t -> int
-  val parse : Cstruct.t -> t
-  val marshal : t -> Cstruct.t -> int
   val to_string : t -> string
 
 end
@@ -315,9 +263,6 @@ module PacketIn : sig
       | NoMatch
       | ExplicitSend
 
-    val size_of : t -> int
-    val of_int : int -> t
-    val to_int : t -> int
     val to_string : t -> string
 
   end
@@ -329,9 +274,6 @@ module PacketIn : sig
     ; reason : Reason.t
     ; packet :  bytes }
 
-  val size_of : t -> int
-  val parse : Cstruct.t -> t
-  val marshal : t -> Cstruct.t -> int
   val to_string : t -> string
 
 end
@@ -344,9 +286,6 @@ module PacketOut : sig
       | Buffer of bufferId
       | Packet of bytes
 
-    val size_of : t -> int
-    val parse : Cstruct.t -> t
-    val marshal : t -> Cstruct.t -> int
     val to_string : t -> string
 
   end
@@ -356,9 +295,6 @@ module PacketOut : sig
     ; port_id : portId option
     ; actions : Action.sequence }
 
-  val size_of : t -> int
-  val parse : Cstruct.t -> t
-  val marshal : t -> Cstruct.t -> int
   val to_string : t -> string
 
 end
@@ -371,9 +307,6 @@ module StatsRequest : sig
              ; table_id : table_id
              ; port : PseudoPort.t option }
 
-    val size_of : t -> int
-    val parse : Cstruct.t -> t
-    val marshal : t -> Cstruct.t -> int
     val to_string : t -> string
 
   end
@@ -384,9 +317,6 @@ module StatsRequest : sig
              ; table_id : table_id
              ; port : PseudoPort.t option }
 
-    val size_of : t -> int
-    val parse : Cstruct.t -> t
-    val marshal : t -> Cstruct.t -> int
     val to_string : t -> string
 
   end
@@ -399,9 +329,6 @@ module StatsRequest : sig
   | PortReq of PseudoPort.t
   (* TODO(cole): queue and vendor stats requests. *)
 
-  val size_of : t -> int
-  val parse : Cstruct.t -> t
-  val marshal : t -> Cstruct.t -> int
   val to_string : t -> string
 
 end
@@ -417,9 +344,6 @@ module StatsReply : sig
       ; serial_number : string
       ; datapath : string }
 
-    val size_of : t -> int
-    val parse : Cstruct.t -> t
-    val marshal : t -> Cstruct.t -> int
     val to_string : t -> string
 
   end
@@ -439,11 +363,7 @@ module StatsReply : sig
       ; byte_count : Int64.t
       ; actions : Action.sequence }
 
-    val size_of : t -> int
-    val parse : Cstruct.t -> t
-    val marshal : t -> Cstruct.t -> int
     val to_string : t -> string
-    val sequence_to_string : t list -> string
 
   end
 
@@ -454,9 +374,6 @@ module StatsReply : sig
       ; byte_count : Int64.t
       ; flow_count : int }
 
-    val size_of : t -> int
-    val parse : Cstruct.t -> t
-    val marshal : t -> Cstruct.t -> int
     val to_string : t -> string
 
   end
@@ -472,9 +389,6 @@ module StatsReply : sig
       ; lookup_count : int
       ; matched_count : int }
 
-    val size_of : t -> int
-    val parse : Cstruct.t -> t
-    val marshal : t -> Cstruct.t -> int
     val to_string : t -> string
 
   end
@@ -496,9 +410,6 @@ module StatsReply : sig
       ; rx_crc_err : int
       ; collisions : int }
 
-    val size_of : t -> int
-    val parse : Cstruct.t -> t
-    val marshal : t -> Cstruct.t -> int
     val to_string : t -> string
 
   end
@@ -510,9 +421,6 @@ module StatsReply : sig
     | TableRep of TableStats.t
     | PortRep of PortStats.t
 
-  val size_of : t -> int
-  val parse : Cstruct.t -> t
-  val marshal : t -> Cstruct.t -> int
   val to_string : t -> string
 
 end
@@ -525,7 +433,7 @@ module Error : sig
       | Incompatible
       | Eperm
 
-    val of_int : int -> t
+    val to_string : t -> string
 
   end
 
@@ -542,7 +450,7 @@ module Error : sig
       | BufferEmpty
       | BufferUnknown
 
-    val of_int : int -> t
+    val to_string : t -> string
 
   end
 
@@ -559,7 +467,7 @@ module Error : sig
       | TooMany
       | BadQueue
 
-    val of_int : int -> t
+    val to_string : t -> string
 
   end
 
@@ -573,7 +481,7 @@ module Error : sig
       | BadCommand
       | Unsupported
 
-    val of_int : int -> t
+    val to_string : t -> string
 
   end
 
@@ -583,7 +491,7 @@ module Error : sig
       | BadPort
       | BadHwAddr
 
-    val of_int : int -> t
+    val to_string : t -> string
 
   end
 
@@ -594,7 +502,7 @@ module Error : sig
       | BadQueue
       | Eperm
 
-    val of_int : int -> t
+    val to_string : t -> string
 
   end
 
@@ -607,7 +515,7 @@ module Error : sig
     | PortModFailed of PortModFailed.t * Cstruct.t
     | QueueOpFailed of QueueOpFailed.t  * Cstruct.t
 
-  val parse : Cstruct.t -> t
+  val to_string : t -> string
 
 end
 
@@ -619,15 +527,23 @@ module Message : sig
 
     type t
 
+    (** Size in bytes of a serialized OpenFlow header structure (struct 
+        ofp_header). *)
     val size : int
-    val size_of : t -> int
+
+    (** Length in bytes of the serialized OpenFlow message with this header. *)
     val len : t -> int
-    val parse : Cstruct.t -> t
-    val marshal : t -> Cstruct.t -> int
+
+    (** [to_string hdr] pretty-prints [hdr]. *)
     val to_string : t -> string
+
+    (** [parse bits] parses [bits].
+        @raise Unparsable if [bits] cannot be parsed. *)
+    val parse : string -> t
 
   end
 
+  (* Transaction ID of OpenFlow messages. *)
   type xid = int32
 
   type t =
@@ -646,9 +562,23 @@ module Message : sig
     | StatsRequestMsg of StatsRequest.t
     | StatsReplyMsg of StatsReply.t
 
+  (** [size_of msg] returns the size of [msg] in bytes when serialized. *)
   val size_of : t -> int
-  val parse : Header.t -> Cstruct.t -> (xid * t)
+
+  (** [parse hdr bits] parses the body of a message with header [hdr] from
+      buffer [bits]. 
+      @param hdr Header of the message to be parsed from [bits].
+      @param bits string containing a serialized message body.
+      @return [(xid, message)] where [xid] is the transaction ID.
+      @raise Unparsable if [bits] cannot be parsed.
+      @raise Ignored if [bits] contains a valid OpenFlow message that the 
+             parser does not yet handle. *)
+  val parse : Header.t -> string -> (xid * t)
+
+  (** [marshal xid msg] serializes [msg], giving it a transaction ID [xid]. *)
   val marshal : xid -> t -> string
+
+  (** [to_string msg] pretty-prints [msg]. *)
   val to_string : t -> string
 
   (** A message ([FlowModMsg]) that deletes all flows. *)

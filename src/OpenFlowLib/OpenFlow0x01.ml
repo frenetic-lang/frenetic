@@ -1798,6 +1798,11 @@ module Error = struct
       | None ->
         let msg = "NYI: ofp_hello_failed_code in error" in
               raise (Unparsable msg)
+
+    let to_string e = match e with
+      | Incompatible -> "Incompatible"
+      | Eperm -> "Eperm"
+
   end
 
   module BadRequest = struct
@@ -1839,6 +1844,18 @@ module Error = struct
       | None ->
         let msg = "NYI: ofp_bad_request_code in error" in
               raise (Unparsable msg)
+
+    let to_string r = match r with
+      | BadVersion -> "BadVersion"
+      | BadType -> "BadType"
+      | BadStat -> "BadStat"
+      | BadVendor -> "BadVendor"
+      | BadSubType -> "BadSubType"
+      | Eperm -> "Eperm"
+      | BadLen -> "BadLen"
+      | BufferEmpty -> "BufferEmpty"
+      | BufferUnknown -> "BufferUnknown"
+
   end
 
   module BadAction = struct
@@ -1880,6 +1897,18 @@ module Error = struct
       | None ->
         let msg = "NYI: ofp_bad_action_code in error" in
               raise (Unparsable msg)
+
+    let to_string a = match a with
+      | BadType -> "BadType"
+      | BadLen -> "BadLen"
+      | BadVendor -> "BadVendor"
+      | BadVendorType -> "BadVendorType"
+      | BadOutPort -> "BadOutPort"
+      | BadArgument -> "BadArgument"
+      | Eperm -> "Eperm"
+      | TooMany -> "TooMany"
+      | BadQueue -> "BadQueue"
+
   end
 
   module FlowModFailed = struct
@@ -1912,6 +1941,15 @@ module Error = struct
       | None ->
         let msg = "NYI: ofp_flow_mod_failed_code in error" in
               raise (Unparsable msg)
+
+    let to_string f = match f with
+      | AllTablesFull -> "AllTablesFull"
+      | Overlap -> "Overlap"
+      | Eperm -> "Eperm"
+      | BadEmergTimeout -> "BadEmergTimeout"
+      | BadCommand -> "BadCommand"
+      | Unsupported -> "Unsupported"
+
   end
 
   module PortModFailed = struct
@@ -1932,6 +1970,11 @@ module Error = struct
       | None ->
         let msg = "NYI: ofp_port_mod_failed_code in error" in
               raise (Unparsable msg)
+
+    let to_string = function
+      | BadPort -> "BadPort"
+      | BadHwAddr -> "BadHwAddr"
+
   end
 
   module QueueOpFailed = struct
@@ -1955,6 +1998,12 @@ module Error = struct
       | None ->
         let msg = "NYI: ofp_queue_op_failed_code in error" in
               raise (Unparsable msg)
+
+    let to_string = function
+      | BadPort -> "BadPort"
+      | BadQueue -> "BadQueue"
+      | Eperm -> "Eperm"
+
   end
 
   (* Each error is composed of a pair (error_code, data) *)
@@ -1987,6 +2036,21 @@ module Error = struct
       let msg =
         sprintf "bad ofp_error_type in ofp_error_msg (%d)" error_type in
       raise(Unparsable msg)
+
+  let to_string = function
+    | HelloFailed (code, _) -> 
+      "HelloFailed (" ^ (HelloFailed.to_string code) ^ ", <data>)"
+    | BadRequest (code, _) -> 
+      "BadRequest (" ^ (BadRequest.to_string code) ^ ", <data>)"
+    | BadAction (code, _) -> 
+      "BadAction (" ^ (BadAction.to_string code) ^ ", <data>)"
+    | FlowModFailed (code, _) -> 
+      "FlowModFailed (" ^ (FlowModFailed.to_string code) ^ ", <data>)"
+    | PortModFailed (code, _) ->
+      "PortModFailed (" ^ (PortModFailed.to_string code) ^ ", <data>)"
+    | QueueOpFailed (code, _) ->
+      "QueueOpFailed (" ^ (QueueOpFailed.to_string code) ^ ", <data>)"
+
 end
 
 module Message = struct
@@ -2069,8 +2133,9 @@ module Message = struct
       set_ofp_header_xid out hdr.xid;
       size_of hdr
 
-    (** [parse buf] assumes that [buf] has size [sizeof_ofp_header] *)
-    let parse buf =
+    (** [parse buf] assumes that [buf] has size [sizeof_ofp_header]. *)
+    let parse body_buf =
+      let buf = Cstruct.of_string body_buf in
       { ver = get_ofp_header_version buf;
         typ = begin match int_to_msg_code (get_ofp_header_typ buf) with
           | Some typ -> typ
@@ -2137,7 +2202,8 @@ module Message = struct
       ; out_port = None
       ; check_overlap = false }
 
-  let parse (hdr : Header.t) (buf : Cstruct.t) : (xid * t) =
+  let parse (hdr : Header.t) (body_buf : string) : (xid * t) =
+    let buf = Cstruct.of_string body_buf in
     let msg = match hdr.Header.typ with
       | HELLO -> Hello buf
       | ERROR -> ErrorMsg (Error.parse buf)

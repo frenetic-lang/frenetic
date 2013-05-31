@@ -56,13 +56,13 @@ let rec recv_from_switch_fd
   lwt ok = Socket.recv sock ofhdr_str 0 Message.Header.size in
   if not ok then Lwt.return None
   else
-    lwt hdr = Lwt.wrap (fun () -> Message.Header.parse (Cstruct.of_string ofhdr_str)) in
+    lwt hdr = Lwt.wrap (fun () -> Message.Header.parse ofhdr_str) in
     let body_len = Message.Header.len hdr - Message.Header.size in
     let body_buf = String.create body_len in
     lwt ok = Socket.recv sock body_buf 0 body_len in
     if not ok then Lwt.return None
     else try
-      let xid, msg = Message.parse hdr (Cstruct.of_string body_buf) in
+      let xid, msg = Message.parse hdr body_buf in
       Lwt.return (Some (xid, msg))
     with 
       | Unparsable error_msg ->
