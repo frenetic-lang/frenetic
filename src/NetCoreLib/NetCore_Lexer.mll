@@ -61,6 +61,7 @@ and token = parse
   | "*" { STAR }
   | "all" { ALL }
   | "<none>" { NONE }
+  | "filter" { FILTER }
   | "=" { EQUALS }
   | "->" { RARROW }
   | "switch" { SWITCH }

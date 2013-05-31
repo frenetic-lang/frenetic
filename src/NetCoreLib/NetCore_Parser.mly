@@ -76,6 +76,7 @@
 %token EOF
 %token TICKTICKTICK /* only for Markdown */
 %token RARROW
+%token FILTER
 
 %start program
 
@@ -131,6 +132,7 @@ pred :
 pol_atom :
   | LPAREN pol RPAREN 
     { $2 }
+  | FILTER pred { Filter (symbol_start_pos (), $2) }
   | ID 
     { Id (symbol_start_pos (), $1) }
   | INT64 

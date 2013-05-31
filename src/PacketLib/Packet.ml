@@ -502,8 +502,8 @@ let dlAddr_to_string = string_of_mac
 let dlTyp_to_string = string_of_int
 
 let dlVlan_to_string = function
-  | None -> "None"
-  | Some n -> "Some " ^ string_of_int n
+  | None -> "none"
+  | Some n -> string_of_int n
 
 let dlVlanPcp_to_string = string_of_int
 

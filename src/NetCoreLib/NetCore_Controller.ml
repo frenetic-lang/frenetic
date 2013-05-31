@@ -480,10 +480,14 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
     Platform.send_to_switch sw 0l Message.delete_all_flows
 
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
+    Log.printf "ConsistentController" "In configure_squence\n%!";
     lwt flow_table = Lwt.wrap2 NetCore_Compiler.flow_table_of_policy sw pol in
     let prio = ref 65535 in
     Lwt_list.iter_s
       (fun (match_, actions) ->
+        printf " %s => %s\n%!"
+          (OpenFlow0x01.Match.to_string match_)
+          (OpenFlow0x01.Action.sequence_to_string actions);
         Platform.send_to_switch sw 0l 
           (Message.add_flow !prio match_ actions) >>
         (decr prio; Lwt.return ()))

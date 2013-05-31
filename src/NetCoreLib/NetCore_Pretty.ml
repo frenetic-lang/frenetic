@@ -4,54 +4,42 @@ open NetCore_Pattern
 
 let to_string_exact = NetCore_Wildcard.to_string_exact
 
-let format_list fmt sep lst =
-  let open Format in
-      let rec loop fmt lst = match lst with
-        | [x; y] -> fprintf fmt "@[%s%s@]@[%s@]" x sep y
-        | [x] -> fprintf fmt "@[%s@]" x
-        | [] ->  ()
-        | x :: lst' -> fprintf fmt "@[%s%s@]@[%a@]" x sep loop lst' in
-      fprintf fmt "@[%a@]" loop lst
 
 let port_to_string = function
   | Physical pid -> (string_of_int pid)
   | All -> "All"
   | Here -> "Here"
 
-let format_pattern fmt pat =
-  let open Format in
-      if is_all pat then
-        fprintf fmt "*"
-      else if is_empty pat then
-        fprintf fmt "none"
-      else 
-        format_list fmt " && "
-          (List.filter (fun x -> not (x = "")) 
-	     [ to_string_exact Packet.string_of_mac "srcmac" pat.ptrnDlSrc;
-               to_string_exact Packet.string_of_mac "dstmac" pat.ptrnDlDst;
-               to_string_exact string_of_int "frameType " pat.ptrnDlType;
-               to_string_exact Packet.dlVlan_to_string "vlan" pat.ptrnDlVlan;
-               to_string_exact string_of_int "dlVlanPcp" pat.ptrnDlVlanPcp;
-               to_string_exact Packet.string_of_ip "srcip" pat.ptrnNwSrc;
-               to_string_exact Packet.string_of_ip "dstip" pat.ptrnNwDst;
-               to_string_exact string_of_int "nwProto" pat.ptrnNwProto;
-               to_string_exact string_of_int "nwTos" pat.ptrnNwTos;
-               to_string_exact string_of_int "tcpsrcport" pat.ptrnTpSrc;
-               to_string_exact string_of_int "tcpdstport" pat.ptrnTpDst;
-               to_string_exact port_to_string "inPort" pat.ptrnInPort ])
-          
-let pattern_to_string x =
-  let buf = Buffer.create 100 in
-  let fmt = Format.formatter_of_buffer buf in
-  Format.pp_set_margin fmt 80;
-  format_pattern fmt x;
-  Format.fprintf fmt "@?";
-  Buffer.contents buf
-
-
-
-
 module Format = struct
+  
+  let format_list fmt sep lst =
+    let rec loop fmt lst = match lst with
+      | [x; y] -> fprintf fmt "@[%s%s@]@[%s@]" x sep y
+      | [x] -> fprintf fmt "@[%s@]" x
+      | [] ->  ()
+      | x :: lst' -> fprintf fmt "@[%s%s@]@[%a@]" x sep loop lst' in
+    fprintf fmt "@[%a@]" loop lst
+
+  let pat fmt pat =
+    if is_all pat then
+      fprintf fmt "*"
+    else if is_empty pat then
+      fprintf fmt "none"
+    else 
+      format_list fmt " && "
+        (List.filter (fun x -> not (x = "")) 
+	         [ to_string_exact Packet.string_of_mac "srcmac" pat.ptrnDlSrc;
+             to_string_exact Packet.string_of_mac "dstmac" pat.ptrnDlDst;
+             to_string_exact string_of_int "frameType " pat.ptrnDlType;
+             to_string_exact Packet.dlVlan_to_string "vlan" pat.ptrnDlVlan;
+             to_string_exact string_of_int "dlVlanPcp" pat.ptrnDlVlanPcp;
+             to_string_exact Packet.string_of_ip "srcip" pat.ptrnNwSrc;
+             to_string_exact Packet.string_of_ip "dstip" pat.ptrnNwDst;
+             to_string_exact string_of_int "nwProto" pat.ptrnNwProto;
+             to_string_exact string_of_int "nwTos" pat.ptrnNwTos;
+             to_string_exact string_of_int "tcpsrcport" pat.ptrnTpSrc;
+             to_string_exact string_of_int "tcpdstport" pat.ptrnTpDst;
+             to_string_exact port_to_string "inPort" pat.ptrnInPort ])
 
   let match_modify pr lbl fmt mm = match mm with
     | None -> ()
@@ -90,7 +78,8 @@ module Format = struct
     | _ -> apred fmt p
 
   and apred fmt p = match p with 
-    | PrHdr ptrn -> format_pattern fmt ptrn
+    (* pat does create a single box *)
+    | PrHdr ptrn -> fprintf fmt "@[%a@]" pat ptrn 
     | PrOnSwitch sw -> fprintf fmt "@[switch = %Lx@]" sw
     | PrNot p' -> fprintf fmt "@[!%a@]" apred p'
     | PrAll -> fprintf fmt "@[*@]"
@@ -121,7 +110,7 @@ module Format = struct
   and apol fmt p = match p with
     | HandleSwitchEvent _ -> fprintf fmt "@[HandleSwitchEvent _@]"
     | PoAction a -> fprintf fmt "@[%a@]" action_list a
-    | PoFilter pr -> pred fmt pr
+    | PoFilter pr -> fprintf fmt "@[filter %a@]" pred pr
     | PoUnion _
     | PoSeq _
     | PoITE _ -> fprintf fmt "@[(%a)@]" pol p
@@ -145,6 +134,8 @@ let pred_to_string = mk_to_string Format.pred
 let pol_to_string = mk_to_string Format.pol
 
 let action_to_string = mk_to_string Format.action_list
+
+let pattern_to_string = mk_to_string Format.pat
 
 let value_to_string = function 
   | Pkt (sid, port, pkt, pay) ->
