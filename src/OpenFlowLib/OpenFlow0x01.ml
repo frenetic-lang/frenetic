@@ -7,12 +7,10 @@ exception Ignored of string
 
 (* TODO(cole): find a better place for these. *)
 type switchId = int64
-type priority = int16
 type bufferId = int32
 type table_id = int8
 
 let string_of_switchId = Int64.to_string
-let string_of_priority p = Printf.sprintf "%d" p
 let string_of_bufferId = Int32.to_string
 let string_of_table_id id = Printf.sprintf "%d" id
 
@@ -1149,7 +1147,7 @@ module FlowMod = struct
   type t =
     { mod_cmd : Command.t
     ; match_ : Match.t
-    ; priority : priority
+    ; priority : int16
     ; actions : Action.sequence
     ; cookie : int64
     ; idle_timeout : Timeout.t
@@ -1171,12 +1169,12 @@ module FlowMod = struct
   } as big_endian
 
   let to_string m = Printf.sprintf
-    "{ mod_cmd = %s; match = %s; priority = %s; actions = %s; cookie = %Ld;\
+    "{ mod_cmd = %s; match = %s; priority = %d; actions = %s; cookie = %Ld;\
        idle_timeout = %s; hard_timeout = %s; notify_when_removed = %B;\
        apply_to_packet = %s; out_port = %s; check_overlap = %B }"
     (Command.to_string m.mod_cmd)
     (Match.to_string m.match_)
-    (string_of_priority m.priority)
+    m.priority
     (Action.sequence_to_string m.actions)
     m.cookie
     (Timeout.to_string m.idle_timeout)
@@ -1559,7 +1557,7 @@ module StatsReply = struct
       ; of_match : Match.t
       ; duration_sec : int32
       ; duration_nsec : int32
-      ; priority : priority
+      ; priority : int16
       ; idle_timeout : int
       ; hard_timeout : int
       ; cookie : int64

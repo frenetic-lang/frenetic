@@ -21,12 +21,10 @@ exception Ignored of string
    [SwitchFeature] replies. *)
 type switchId = int64
 
-type priority = int16
 type bufferId = int32
 type table_id = int8
 
 val string_of_switchId : switchId -> string
-val string_of_priority : priority -> string
 val string_of_bufferId : bufferId -> string
 val string_of_table_id : table_id -> string
 
