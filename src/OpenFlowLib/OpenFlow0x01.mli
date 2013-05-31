@@ -1,10 +1,26 @@
+(** This module provides data structures and functions for constructing,
+marshalling, and parsing OpenFlow 1.0 messages.  It is largely drawn from the
+OpenFlow 1.0 specification:
+
+http://www.openflow.org/documents/openflow-spec-v1.0.0.pdf
+
+Most data structures are documented with a pointer to relevent section in the
+OpenFlow 1.0 specification, Rather than reproducing the specification here. *)
+
 open Packet
 
+(** [Unparsable msg] signals an error in parsing, such as when a bit sequence
+    has been corrupted. *)
 exception Unparsable of string
+
+(** [Ignored msg] signals the arrival of a valid OpenFlow message that the
+    parser is not yet equipped to handle. *)
 exception Ignored of string
 
-(* TODO(cole): find a better place for these. *)
+(* [switchId] is the type of switch identifiers received as part of
+   [SwitchFeature] replies. *)
 type switchId = int64
+
 type priority = int16
 type bufferId = int32
 type table_id = int8
@@ -202,7 +218,7 @@ module SwitchFeatures : sig
   end
 
   type t =
-    { switch_id : int64
+    { switch_id : switchId
     ; num_buffers : int32
     ; num_tables : int8
     ; supported_capabilities : Capabilities.t
@@ -241,7 +257,7 @@ module FlowMod : sig
   type t =
     { mod_cmd : Command.t
     ; match_ : Match.t
-    ; priority : priority
+    ; priority : int16
     ; actions : Action.sequence
     ; cookie : int64
     ; idle_timeout : Timeout.t
@@ -353,14 +369,14 @@ module StatsReply : sig
     type t =
       { table_id : table_id
       ; of_match : Match.t
-      ; duration_sec : int
-      ; duration_nsec : int
-      ; priority : int
-      ; idle_timeout : int
-      ; hard_timeout : int
-      ; cookie : Int64.t
-      ; packet_count : Int64.t
-      ; byte_count : Int64.t
+      ; duration_sec : int32
+      ; duration_nsec : int32
+      ; priority : int16
+      ; idle_timeout : int16
+      ; hard_timeout : int16
+      ; cookie : int64
+      ; packet_count : int64
+      ; byte_count : int64
       ; actions : Action.sequence }
 
     val to_string : t -> string
@@ -370,9 +386,9 @@ module StatsReply : sig
   module AggregateFlowStats : sig
 
     type t =
-      { packet_count : Int64.t
-      ; byte_count : Int64.t
-      ; flow_count : int }
+      { packet_count : int64
+      ; byte_count : int64
+      ; flow_count : int16 }
 
     val to_string : t -> string
 
@@ -384,10 +400,10 @@ module StatsReply : sig
       { table_id : table_id
       ; name : string
       ; wildcards : int32
-      ; max_entries : int
-      ; active_count : int
-      ; lookup_count : int
-      ; matched_count : int }
+      ; max_entries : int32
+      ; active_count : int32
+      ; lookup_count : int64
+      ; matched_count : int64 }
 
     val to_string : t -> string
 
@@ -397,18 +413,18 @@ module StatsReply : sig
 
     type t =
       { port_no : PseudoPort.t
-      ; rx_packets : int
-      ; tx_packets : int
-      ; rx_bytes : int
-      ; tx_bytes : int
-      ; rx_dropped : int
-      ; tx_dropped : int
-      ; rx_errors : int
-      ; tx_errors : int
-      ; rx_frame_err : int
-      ; rx_over_err : int
-      ; rx_crc_err : int
-      ; collisions : int }
+      ; rx_packets : int64
+      ; tx_packets : int64
+      ; rx_bytes : int64
+      ; tx_bytes : int64
+      ; rx_dropped : int64
+      ; tx_dropped : int64
+      ; rx_errors : int64
+      ; tx_errors : int64
+      ; rx_frame_err : int64
+      ; rx_over_err : int64
+      ; rx_crc_err : int64
+      ; collisions : int64 }
 
     val to_string : t -> string
 

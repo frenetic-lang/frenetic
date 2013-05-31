@@ -1557,14 +1557,14 @@ module StatsReply = struct
     type t =
       { table_id : table_id
       ; of_match : Match.t
-      ; duration_sec : int
-      ; duration_nsec : int
+      ; duration_sec : int32
+      ; duration_nsec : int32
       ; priority : priority
       ; idle_timeout : int
       ; hard_timeout : int
-      ; cookie : Int64.t
-      ; packet_count : Int64.t
-      ; byte_count : Int64.t
+      ; cookie : int64
+      ; packet_count : int64
+      ; byte_count : int64
       ; actions : Action.sequence }
 
     cstruct ofp_flow_stats {
@@ -1592,8 +1592,8 @@ module StatsReply = struct
          packet_count = %Ld; byte_count = %Ld; actions = %s }"
       stats.table_id
       (Match.to_string stats.of_match)
-      stats.duration_sec
-      stats.duration_nsec
+      (Int32.to_int stats.duration_sec)
+      (Int32.to_int stats.duration_nsec)
       stats.priority
       stats.idle_timeout
       stats.hard_timeout
@@ -1630,8 +1630,8 @@ module StatsReply = struct
 
       ( { table_id = table_id
         ; of_match = of_match
-        ; duration_sec = Int32.to_int duration_sec
-        ; duration_nsec = Int32.to_int duration_nsec
+        ; duration_sec = duration_sec
+        ; duration_nsec = duration_nsec
         ; priority = priority
         ; idle_timeout = idle_timeout
         ; hard_timeout = hard_timeout
@@ -1655,9 +1655,9 @@ module StatsReply = struct
   module AggregateFlowStats = struct
 
     type t =
-      { packet_count : Int64.t
-      ; byte_count : Int64.t
-      ; flow_count : int }
+      { packet_count : int64
+      ; byte_count : int64
+      ; flow_count : int16 }
 
     let to_string stats = Printf.sprintf
       "{ packet_count = %Ld; byte_count = %Ld; flow_count = %d }"
@@ -1677,10 +1677,10 @@ module StatsReply = struct
       { table_id : table_id
       ; name : string
       ; wildcards : int32
-      ; max_entries : int
-      ; active_count : int
-      ; lookup_count : int
-      ; matched_count : int }
+      ; max_entries : int32
+      ; active_count : int32
+      ; lookup_count : int64
+      ; matched_count : int64 }
 
     let to_string stats = failwith "NYI: TableStats.to_string"
     let size_of _ = failwith "NYI: TableStats.size_of"
@@ -1693,18 +1693,18 @@ module StatsReply = struct
 
     type t =
       { port_no : PseudoPort.t
-      ; rx_packets : int
-      ; tx_packets : int
-      ; rx_bytes : int
-      ; tx_bytes : int
-      ; rx_dropped : int
-      ; tx_dropped : int
-      ; rx_errors : int
-      ; tx_errors : int
-      ; rx_frame_err : int
-      ; rx_over_err : int
-      ; rx_crc_err : int
-      ; collisions : int }
+      ; rx_packets : int64
+      ; tx_packets : int64
+      ; rx_bytes : int64
+      ; tx_bytes : int64
+      ; rx_dropped : int64
+      ; tx_dropped : int64
+      ; rx_errors : int64
+      ; tx_errors : int64
+      ; rx_frame_err : int64
+      ; rx_over_err : int64
+      ; rx_crc_err : int64
+      ; collisions : int64 }
 
     let to_string stats = failwith "NYI: PortStats.to_string"
     let size_of _ = failwith "NYI: PortStats.size_of"
