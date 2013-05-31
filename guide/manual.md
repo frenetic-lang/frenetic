@@ -1,4 +1,3 @@
-
 NetCore Syntax
 ==============
 
@@ -56,6 +55,7 @@ Policies:
 
 <apol> ::= ( <pol> )
          | <id>
+         | filter <pred>
          | <port-id> (* haha, the syntax for forwarding, atrocious *)
          | pass
          | drop
