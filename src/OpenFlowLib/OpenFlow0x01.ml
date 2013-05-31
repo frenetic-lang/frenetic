@@ -7,11 +7,9 @@ exception Ignored of string
 
 (* TODO(cole): find a better place for these. *)
 type switchId = int64
-type bufferId = int32
 type table_id = int8
 
 let string_of_switchId = Int64.to_string
-let string_of_bufferId = Int32.to_string
 let string_of_table_id id = Printf.sprintf "%d" id
 
 let string_of_portId = portId_to_string
@@ -1153,7 +1151,7 @@ module FlowMod = struct
     ; idle_timeout : Timeout.t
     ; hard_timeout : Timeout.t
     ; notify_when_removed : bool
-    ; apply_to_packet : bufferId option
+    ; apply_to_packet : int32 option
     ; out_port : PseudoPort.t option
     ; check_overlap : bool }
 
@@ -1180,7 +1178,7 @@ module FlowMod = struct
     (Timeout.to_string m.idle_timeout)
     (Timeout.to_string m.hard_timeout)
     m.notify_when_removed
-    (Frenetic_Misc.string_of_option string_of_bufferId m.apply_to_packet)
+    (Frenetic_Misc.string_of_option Int32.to_string m.apply_to_packet)
     (Frenetic_Misc.string_of_option PseudoPort.to_string m.out_port)
     m.check_overlap
 
@@ -1250,7 +1248,7 @@ module PacketIn = struct
   end
 
   type t =
-    { buffer_id : bufferId option
+    { buffer_id : int32 option
     ; total_len : int16
     ; port : portId
     ; reason : Reason.t
@@ -1267,7 +1265,7 @@ module PacketIn = struct
   let to_string pin = Printf.sprintf
     "{ buffer_id = %s; total_len = %d; port = %s; reason = %s; \
        packet = <bytes> }"
-    (Frenetic_Misc.string_of_option string_of_bufferId pin.buffer_id)
+    (Frenetic_Misc.string_of_option Int32.to_string pin.buffer_id)
     pin.total_len
     (string_of_portId pin.port)
     (Reason.to_string pin.reason)
@@ -1296,11 +1294,11 @@ module PacketOut = struct
   module Payload = struct
 
     type t =
-      | Buffer of bufferId
+      | Buffer of int32
       | Packet of bytes
 
     let to_string p = match p with
-      | Buffer id -> Printf.sprintf "Buffer %s" (string_of_bufferId id)
+      | Buffer id -> Printf.sprintf "Buffer %s" (Int32.to_string id)
       | Packet _ -> "Packet <bytes>"
 
     let size_of p = match p with

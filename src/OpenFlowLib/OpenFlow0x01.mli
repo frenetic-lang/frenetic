@@ -21,11 +21,9 @@ exception Ignored of string
    [SwitchFeature] replies. *)
 type switchId = int64
 
-type bufferId = int32
 type table_id = int8
 
 val string_of_switchId : switchId -> string
-val string_of_bufferId : bufferId -> string
 val string_of_table_id : table_id -> string
 
 module Match : sig
@@ -261,7 +259,7 @@ module FlowMod : sig
     ; idle_timeout : Timeout.t
     ; hard_timeout : Timeout.t
     ; notify_when_removed : bool
-    ; apply_to_packet : bufferId option
+    ; apply_to_packet : int32 option
     ; out_port : PseudoPort.t option
     ; check_overlap : bool }
 
@@ -282,7 +280,7 @@ module PacketIn : sig
   end
 
   type t =
-    { buffer_id : bufferId option
+    { buffer_id : int32 option
     ; total_len : int16
     ; port : portId
     ; reason : Reason.t
@@ -297,7 +295,7 @@ module PacketOut : sig
   module Payload : sig
 
     type t =
-      | Buffer of bufferId
+      | Buffer of int32
       | Packet of bytes
 
     val to_string : t -> string
