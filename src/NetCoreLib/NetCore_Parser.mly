@@ -75,6 +75,7 @@
 %token <string> STRING
 %token EOF
 %token TICKTICKTICK /* only for Markdown */
+%token RARROW
 
 %start program
 
@@ -114,6 +115,7 @@ pred_atom :
     { Pol.PrHdr (Pat.dlType 0x800) }
   | FRAMETYPE EQUALS INT64
     { Pol.PrHdr (Pat.dlType (int16_of_int64 $3)) }
+    
 
 pred_or :
   | pred_atom { $1 }
@@ -137,6 +139,9 @@ pol_atom :
     { Action (symbol_start_pos (), Action.pass) }
   | DROP 
     { Action (symbol_start_pos (), Action.drop) }
+  | VLAN NONE RARROW INT64
+    { Action (symbol_start_pos (),
+              Action.updateDlVlan None (Some (int12_of_int64 $4))) }
   | ALL 
     { Action (symbol_start_pos (), Action.to_all) }
   | MONITOR_POL LPAREN pol RPAREN
