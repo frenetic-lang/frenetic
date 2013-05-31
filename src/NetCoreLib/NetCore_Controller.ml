@@ -472,20 +472,25 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
         accept_policies
           push_pol (NetCore_Stream.to_stream pol);
         stream_lwt ]
-
 end
 
 module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
 
+  open NetCore_ConsistentUpdates
   module Queries = QuerySet(Platform)
 
   (* used to initialize newly connected switches and handle packet-in 
      messages *)
   let pol_now : pol ref = ref init_pol
 
+  let topo_pol_stream,_,topo = NetCore_Topo.make 0x7ff
+  let topo_pol = NetCore_Stream.now topo_pol_stream
+
+  let clear_switch (sw : switchId) : unit Lwt.t =
+    Platform.send_to_switch sw 0l Message.delete_all_flows
+
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
     lwt flow_table = Lwt.wrap2 NetCore_Compiler.flow_table_of_policy sw pol in
-    Platform.send_to_switch sw 0l Message.delete_all_flows >>
     let prio = ref 65535 in
     Lwt_list.iter_s
       (fun (match_, actions) ->
@@ -494,8 +499,15 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
         (decr prio; Lwt.return ()))
       flow_table
 
+  (* First draft: ignore barriers *)
   let install_new_policies sw pol_stream =
-    Lwt_stream.iter_p (configure_switch sw)
+    Lwt_stream.iter_p (fun (int, ext, topo_pol) -> 
+      clear_switch sw >>
+	configure_switch sw topo_pol >>
+	let _ = Log.printf "NetCore_Controller" "internal pol: %s\n%!" (NetCore_Pretty.pol_to_string int) in
+	configure_switch sw int >>
+	  let _ = Log.printf "NetCore_Controller" "external pol: %s\n%!" (NetCore_Pretty.pol_to_string ext) in
+      configure_switch sw ext)
       (NetCore_Stream.to_stream pol_stream)
       
   let handle_packet_in sw pkt_in = 
@@ -557,9 +569,10 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
     let sw = features.switch_id in
     Queries.add_switch sw;
     (try_lwt
+       let (int_pol,ext_pol,topo_pol) = (NetCore_Stream.now pol_stream) in
       lwt _ = Lwt.wrap2 NetCore_Semantics.handle_switch_events
-        (SwitchUp (sw, features))
-        (NetCore_Stream.now pol_stream) in
+        (SwitchUp (sw, features)) (PoUnion (PoUnion(int_pol,ext_pol), topo_pol))
+         in
       Lwt.pick [ install_new_policies sw pol_stream;
                  handle_switch_messages sw ]
     with exn ->
@@ -577,9 +590,10 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
       Lwt.async
         (fun () -> (* TODO(arjun): 
                       confirm this gracefully discards the exception *)
+	  let (int_pol,ext_pol,topo_pol) = (NetCore_Stream.now pol_stream) in
           Lwt.wrap2 NetCore_Semantics.handle_switch_events 
             (SwitchDown sw)
-            (NetCore_Stream.now pol_stream));
+	    (PoUnion (PoUnion(int_pol,ext_pol), topo_pol)));
       Queries.remove_switch sw;
       Lwt.return ()
     end
@@ -589,12 +603,27 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
     Lwt.async (fun () -> switch_thread feats pol_stream);
     accept_switches pol_stream
 
-  let rec accept_policies push_pol sugared_pol_stream =
+  let make_extPorts topo sw =
+    List.fold_left (fun acc (pId,loc) -> 
+      match loc with
+	| NetCore_Topo.Switch _ -> acc
+	| _ -> pId :: acc)
+      (NetCore_Topo.ports_of_switch topo sw) []
+
+  module GenSym =
+  struct
+    let create () = ref 0
+    let next_val g =  incr g; !g
+  end
+
+  let rec accept_policies push_pol sugared_pol_stream genSym =
     lwt pol = Lwt_stream.next sugared_pol_stream in
+    let ver = GenSym.next_val genSym in
+    let (int_pol,ext_pol) = gen_update_pols pol ver (NetCore_Topo.switches topo) (make_extPorts topo) in
     Queries.stop () >>
-    let _ = pol_now := pol in
-    let _ = push_pol (Some pol) in
-    accept_policies push_pol sugared_pol_stream <&> Queries.start pol
+    let _ = pol_now := PoUnion(PoUnion(int_pol, ext_pol), topo_pol) in
+    let _ = push_pol (Some (int_pol, ext_pol, topo_pol)) in
+    accept_policies push_pol sugared_pol_stream genSym <&> Queries.start (PoUnion(pol, topo_pol))
 
   (** Emits packets synthesized at the controller. Produced packets
       are _not_ subjected to the current NetCore policy, so they do not
@@ -612,15 +641,17 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
       Platform.send_to_switch sw 0l (Message.PacketOutMsg msg) in
     Lwt_stream.iter_s emit_pkt pkt_stream
 
+
   let start_controller pkt_stream pol = 
     let (pol_stream, push_pol) = Lwt_stream.create () in
+    let genSym = GenSym.create () in
     let (stream_lwt, pol_netcore_stream) =
-      NetCore_Stream.from_stream init_pol pol_stream in
+      NetCore_Stream.from_stream (init_pol, init_pol, topo_pol) pol_stream in
     Lwt.pick
       [ accept_switches pol_netcore_stream;
         emit_packets pkt_stream pol_netcore_stream;
         accept_policies
-          push_pol (NetCore_Stream.to_stream pol);
+          push_pol (NetCore_Stream.to_stream pol) genSym;
         stream_lwt ]
 
 end

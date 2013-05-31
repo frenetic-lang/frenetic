@@ -36,8 +36,10 @@ let make () =
   (** Create a policy that directs all unknown packets to the controller. These
       packets are sent to the [learn_host] function below. *)
   let rec make_learning_policy () = 
-    PoSeq (PoFilter (make_unknown_predicate ()),
-           PoAction (controller learn_host))
+    (* PoSeq (PoFilter (make_unknown_predicate ()), *)
+    (*        PoAction (controller learn_host)) *)
+    PoITE (make_unknown_predicate (),PoAction (controller learn_host), PoAction [])
+
 
   (** Stores a new switch * host * port tuple in the table, creates a
       new learning policy, and pushes that policy to the stream. *)
@@ -65,7 +67,8 @@ let make () =
   (** The initial value of the policy is to receives packets from all hosts. *)
 
   let init = 
-    PoSeq (PoFilter (PrHdr all), PoAction (controller learn_host)) in
+    (* PoSeq (PoFilter (PrHdr all), PoAction (controller learn_host)) in *)
+    PoITE (PrHdr all, PoAction (controller learn_host), PoAction []) in
 
   let known_hosts () = 
     Hashtbl.fold 
@@ -84,11 +87,11 @@ let make () =
     Hashtbl.fold
       (fun (sw, dst) pt pol ->
         PoUnion
-          (PoSeq (PoFilter (PrAnd (PrOnSwitch sw, PrHdr (dlDst dst))),
-                  PoAction (forward pt)),
+          (PoITE (PrAnd (PrOnSwitch sw, PrHdr (dlDst dst)),
+                  PoAction (forward pt), PoAction []),
            pol))
       learned_hosts
-      (PoSeq (PoFilter (PrNot (known_hosts ())), PoAction to_all)) in
+      (PoITE (PrNot (known_hosts ()), PoAction to_all, PoAction [])) in
 
   (** Composes learning and routing policies, which together form
       mac-learning. *)      
