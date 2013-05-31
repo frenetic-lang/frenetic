@@ -126,10 +126,10 @@ let rec format_pol fmt pol = match pol with
   | PoFilter pr -> 
     fprintf fmt "@[PoFilter@;<1 2>(@[%a@])@]" format_pred pr
   | PoUnion (p1,p2) -> 
-    fprintf fmt "@[@[(@[%a@] | @[%a@])@]@]" format_pol p1
+    fprintf fmt "@[@[(@[%a@]@;<1 1>|@[@ %a@])@]@]" format_pol p1
       format_pol p2
   | PoSeq (p1,p2) -> 
-    fprintf fmt "@[@[(@[%a@]; @[%a@])@]@]" format_pol p1
+    fprintf fmt "@[(@[%a@];@;<1 1>@[%a@])@]" format_pol p1
       format_pol p2
   | PoITE (pred, then_pol, else_pol) ->
     match else_pol with
@@ -137,7 +137,7 @@ let rec format_pol fmt pol = match pol with
 	fprintf fmt "@[if @[(%a)@])@;<1 0>then@ @[(%a)@]@]"
 	  format_pred pred format_pol then_pol
       | _ ->
-	fprintf fmt "@[if (@[%a@])@;<1 0>then@[(%a)]@;<1 0>else@;<1 1>(%a)@]"
+	fprintf fmt "@[if (@[%a@])@;<1 0>then@ @[(%a)@]@;<1 0>else@;<1 1>@[(%a)@]@]"
 	  format_pred pred format_pol then_pol format_pol else_pol
 
 
