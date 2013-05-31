@@ -1,5 +1,5 @@
-Introduction
-============
+Frenetic Tutorial
+=============
 
 The goal of this tutorial is to teach readers how to program a Software-Defined Network (SDN) running OpenFlow using the Frenetic programming language.  This involves explaining the syntax and semantics of Frenetic and illustrating its use on a number of simple examples.  Along the way, there are a number of exercises for the reader.  Solutions appear at the bottom of the page.
 
@@ -9,7 +9,7 @@ indented 4 spaces.
 As you read this document, we encourage you to try to complete the example exercises and play with them in mininet.  The last line of this file defines the main Frenetic policy that will be executed when this file is compiled.  To change Frenetic policy that is executed, simply edit the last line.  To compile and execute this file in mininet, please see the instructions at the [end of this document](#compilation_instructions).
 
 Motivation for the Frenetic Design
-===========================
+-----------------------------------------------
 
 *Mostly plagiarized from IEEE overview paper*
 
@@ -26,7 +26,7 @@ In addition, a network is a distributed system, and all of the usual complicatio
 The goal of the Frenetic language is to raise the level of abstraction for programming SDNs. To replace the low-level imperative interfaces available today, Frenetic offers a suite of declarative abstractions for querying network state, deﬁning forwarding policies, and updating policies in a consistent way.  These constructs are designed to be *modular* so that individual policies can be written in isolation, by different developers and later composed with other components to create sophisticated policies. This is made possible in part by the design of the constructs themselves, and in part by the underlying run-time system, which implements them by compiling them down to low-level OpenFlow forwarding rules.  Our emphasis on modularity and composition—the foundational principles behind effective design of any complex software system—is the key feature that distinguishes Frenetic from other SDN controllers.
 
 Frenetic Introduction
-========================
+----------------------
 
 Describe the basic semantics and concepts.
 
@@ -36,12 +36,36 @@ Describe the basic semantics and concepts.
 
 
 Static NetCore Programming Examples
-===================================
+------------------------------------
 
-0. Review the topology in tutorial-topo.
+0. Review the topology in tutorial-topo.  Define some user-friendly switch names for our topology too:
+
+```
+switch A = 101
+switch B = 102
+switch C = 103
+switch D = 104
+```
+
+1. Write a program to route all ip traffic as follows: 
+  - packets with destination ip 10.0.0.10 arriving at switch C go to host 10.  
+  - packets with destination ip 10.0.0.20 arriving at switch C go to host 20.  
+  - packets with destination ip 10.0.0.30 arriving at switch D go to host 30.  
+  - packets with destination ip 10.0.0.40 arriving at switch D go to host 40.  
+  - flood all arp packets arriving at any switch
+Try out your program by pinging 10 from 20 and 20 from 10.  What happens?
+What happens if you ping 10 from 30?
+
+Start your work with this handy wrapper to handle flooding of arp packets.
+Replace "drop" below with some other policy that solves the problem.
+
+```
+policy arpify (P:policy) =
+  if frameType = arp then all
+  else P
   
-1. Write a program to route all traffic between hosts 10 and 20.  
-Also route all traffic between 30 and 40.
+policy my_sol1 = arpify(drop)
+```
 
 2. Extend the program written in (a) to route all traffic between
 10, 20, 30, 40.
@@ -70,12 +94,12 @@ Compose it with the routing policy defined in part 3.
   - All other traffic must be allowed to pass through the network.
 
 Dynamic NetCore Concepts
-======================
+------------------------
 
 - A dynamic program produces a stream of policies.
 
 Dynamic NetCore Programing 1: NAT
-================================
+----------------------------------
 
 We have to explain how NAT works.
 - When a machine on the inside initiates a connection to a machine on the outside, NAT will pick a new, available public port, and rewrite the source IP and port to use the available port and the public IP. Responses to previously established port are rewritten to use the private source port and IP.
@@ -115,7 +139,7 @@ mininet> h20 curl 10.0.0.30 # should hang (hit Ctrl + C)
 
 
 Dynamic NetCore Programing 2: Mac-Learning
-=====================================
+------------------------------------------
 
 Explain how Mac-Learning works (composition)
 
@@ -126,17 +150,100 @@ Explain how Mac-Learning works (composition)
 3. ...
 
 Solutions
-=========
+---------
 
-1. 
+### Static Solution 1
 
-2.
+```
+policy deliver(s:switch, i:ip, p:port) =
+  if switch = s && dstip = i then fwd p 
 
-3.
+policy routing1_for_C = 
+  deliver(C, 10.0.0.10, 2) + 
+  deliver(C, 10.0.0.20, 3)
+  
+policy routing1_for_D =
+  deliver(D, 10.0.0.30, 2) +
+  deliver(D, 10.0.0.40, 3)
 
-4.
+policy sol1 = 
+  arpify(routing1_for_C + routing1_for_D)
+```    
+  
 
-5.
+### Static Solution 2
+
+```
+policy routing2_for_C =
+  deliver(C, 10.0.0.10, 2) + 
+  deliver(C, 10.0.0.20, 3) +
+  deliver(C, 10.0.0.30, 1) +
+  deliver(C, 10.0.0.40, 1)
+  
+policy routing2_for_B =
+  deliver(B, 10.0.0.10, 2) + 
+  deliver(B, 10.0.0.20, 2) +
+  deliver(B, 10.0.0.30, 3) +
+  deliver(B, 10.0.0.40, 3)
+  
+policy routing2_for_D =
+  deliver(B, 10.0.0.10, 1) + 
+  deliver(B, 10.0.0.20, 1) +
+  deliver(B, 10.0.0.30, 2) +
+  deliver(B, 10.0.0.40, 3)
+  
+policy sol2 =
+  (routing2_for_B + routing2_for_C + routing2_for_D)
+```
+
+### Static Solution 3
+
+```
+policy routing3_for_C =
+  deliver(C, 10.0.0.10, 2) + 
+  deliver(C, 10.0.0.20, 3) +
+  deliver(C, 10.0.0.30, 1) +
+  deliver(C, 10.0.0.40, 1) +
+  deliver(C, 10.0.0.50, 1)
+  
+policy routing3_for_B =
+  deliver(B, 10.0.0.10, 2) + 
+  deliver(B, 10.0.0.20, 2) +
+  deliver(B, 10.0.0.30, 3) +
+  deliver(B, 10.0.0.40, 3) +
+  deliver(B, 10.0.0.50, 1)
+  
+policy routing3_for_D =
+  deliver(B, 10.0.0.10, 1) + 
+  deliver(B, 10.0.0.20, 1) +
+  deliver(B, 10.0.0.30, 2) +
+  deliver(B, 10.0.0.40, 3) +
+  deliver(B, 10.0.0.50, 1)
+  
+policy routing3_for_A =
+  if switch = A then
+    if srcip = 10.0.0.5 then fwd 1
+    else fwd 2
+  
+policy sol3 = 
+  arpify (routing3_for_A + routing3_for_B + routing3_for_C + routing3_for_D)
+```
+
+### Static Solution 4
+
+Hosts 10, 20, 30, 40 and 50 are all sending large amounts of http traffic (port 80) and some ssh traffic (port 22).
+Host 50 sends some special traffic on port 6110.  You might discover the existence of that traffic by writing a
+query that filters out the http and ssh traffic, so that system only prints the 6110 traffic:
+
+```
+policy monitor =
+  if !(tcpport = 80 || tcpport = 22) then monitor_sw()  
+
+policy sol4 =
+  sol3 + monitor
+```
+
+### Static Solution 5
 
 Compilation Instructions
 =========================
@@ -146,4 +253,6 @@ To execute this document as a NetCore program, do the following:
 The following line determines the policy to be executed.  Replace **learn**
 with the name of some other policy defined in this file to test it out.
 
-    policy main = learn
+```
+policy main = learn
+```
