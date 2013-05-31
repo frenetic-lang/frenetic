@@ -504,10 +504,10 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
     Lwt_stream.iter_p (fun (int, ext, topo_pol) -> 
       clear_switch sw >>
 	configure_switch sw topo_pol >>
-	let _ = Log.printf "NetCore_Controller" "internal pol: %s\n%!" (NetCore_Pretty.pol_to_string int) in
+	let _ = Log.printf "NetCore_Controller" "internal pol:\n%s\n%!" (NetCore_Pretty.pol_to_string int) in
 	configure_switch sw int >>
-	  let _ = Log.printf "NetCore_Controller" "external pol: %s\n%!" (NetCore_Pretty.pol_to_string ext) in
-      configure_switch sw ext)
+	  let _ = Log.printf "NetCore_Controller" "external pol:\n%s\n%!" (NetCore_Pretty.pol_to_string ext) in
+      configure_switch sw (PoUnion(int,ext)))
       (NetCore_Stream.to_stream pol_stream)
       
   let handle_packet_in sw pkt_in = 
