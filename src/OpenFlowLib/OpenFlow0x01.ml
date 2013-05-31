@@ -1058,11 +1058,7 @@ module SwitchFeatures = struct
     let buf = Cstruct.shift buf sizeof_ofp_switch_features in
     let portIter =
       Cstruct.iter
-        (fun buf ->
-          if Cstruct.len buf >= PortDescription.sizeof_ofp_phy_port then
-            Some PortDescription.sizeof_ofp_phy_port
-          else
-            None)
+        (fun buf -> Some PortDescription.sizeof_ofp_phy_port)
         PortDescription.parse
         buf in
     let ports = Cstruct.fold (fun acc bits -> bits :: acc) portIter [] in
