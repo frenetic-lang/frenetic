@@ -271,15 +271,11 @@ module QuerySet (Platform : OpenFlow0x01.PLATFORM) = struct
       | _ -> ()
     else ()
 
-  (* Populate and start queries. *)
+  (* Start queries. If any query fails, we stop all queries. *)
   let spawn_queries pol kill_switch : unit Lwt.t =
     let _ = generate_query_ids pol in
     Hashtbl.iter (make_query pol kill_switch) q_actions_to_query_ids;
-    let rec loop qlist : unit Lwt.t = match qlist with
-      | [] -> Lwt.return ()
-      | q :: qtail -> Q.start q <&> loop qtail
-      in
-    loop !queries
+    Lwt.pick (List.map Q.start !queries)
 
   let start pol : unit Lwt.t =
     (* If old queries are still going, stop them. *)
@@ -436,7 +432,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
   let rec setup_queries pol_stream = 
     lwt pol = Lwt_stream.next pol_stream in
     Queries.stop () >>
-    setup_queries pol_stream <&> Queries.start pol
+    Queries.start pol <&> setup_queries pol_stream
 
   (** Emits packets synthesized at the controller. Produced packets
       are _not_ subjected to the current NetCore policy, so they do not
