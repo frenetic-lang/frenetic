@@ -66,9 +66,8 @@ let my_sol1 = arpify(drop)
 3. Now consider the program that routes all traffic between all hosts,
 which we will provide.
 
-4. Use the NetCore query facility to solve the following problem:
-Discover the set of all TCP ports being used by either machines 10 or
-20.  Here is a [list of common port
+4. Use the NetCore query facility to discover the set of all TCP ports 
+being used by either machines 10 or 20.  Here is a [list of common port
 numbers](http://packetlife.net/media/library/23/common-ports.pdf)
 Note: some protocols are sending a lot of traffic (eg: HTTP, on port
 80).  As you investigate, narrow your searches to find the "needle in
