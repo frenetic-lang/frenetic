@@ -40,13 +40,6 @@ Static NetCore Programming Examples
 
 0. Review the topology in tutorial-topo.  Define some user-friendly switch names for our topology too:
 
-```
-let A : switch = 101
-let B : switch = 102
-let C : switch = 103
-let D : switch = 104
-```
-
 1. Write a program to route all ip traffic as follows: 
   - packets with destination ip 10.0.0.10 arriving at switch C go to host 10.  
   - packets with destination ip 10.0.0.20 arriving at switch C go to host 20.  
@@ -111,7 +104,7 @@ We have to explain how NAT works.
 
 3. Initiate a Web connection from host 10 to the untrusted host 50.
 
-```
+```mininet
 mininet> h50 cat /usr/share/dict/words | nc -l 80 &
 mininet> h10 curl 10.0.0.50 # should print words
 ```
@@ -119,19 +112,20 @@ mininet> h10 curl 10.0.0.50 # should print words
 4. Determine the public and private ports that this connection uses, using monitor_tbl / monitor_pol
 
 5. Run a Web server on h30:
-```
+
+```mininet
 mininet> h30 cat /usr/share/dict/words | nc -l 80 &
 ```
 
 6. Connect to the Web server from h10 to ensure that it is working:
 
-```
+```mininet
 mininet> h10 curl 10.0.0.30 # should print words
 ```
 
 7. Can you connect from h50? Why not?
 
-```
+```mininet
 mininet> h20 curl 10.0.0.30 # should hang (hit Ctrl + C)
 ```
 
@@ -149,101 +143,6 @@ Explain how Mac-Learning works (composition)
 2. Inspect the mac-learning table on switch 102.
 3. ...
 
-Solutions
----------
-
-### Static Solution 1
-
-```
-let deliver(s:switch, i:ip, p:port) =
-  if switch = s && dstip = i then fwd p 
-
-let routing1_for_C = 
-  deliver(C, 10.0.0.10, 2) + 
-  deliver(C, 10.0.0.20, 3)
-  
-let routing1_for_D =
-  deliver(D, 10.0.0.30, 2) +
-  deliver(D, 10.0.0.40, 3)
-
-let sol1 = 
-  arpify(routing1_for_C + routing1_for_D)
-```    
-  
-
-### Static Solution 2
-
-```
-let routing2_for_C =
-  deliver(C, 10.0.0.10, 2) + 
-  deliver(C, 10.0.0.20, 3) +
-  deliver(C, 10.0.0.30, 1) +
-  deliver(C, 10.0.0.40, 1)
-  
-let routing2_for_B =
-  deliver(B, 10.0.0.10, 2) + 
-  deliver(B, 10.0.0.20, 2) +
-  deliver(B, 10.0.0.30, 3) +
-  deliver(B, 10.0.0.40, 3)
-  
-let routing2_for_D =
-  deliver(B, 10.0.0.10, 1) + 
-  deliver(B, 10.0.0.20, 1) +
-  deliver(B, 10.0.0.30, 2) +
-  deliver(B, 10.0.0.40, 3)
-  
-let sol2 =
-  arpify(routing2_for_B + routing2_for_C + routing2_for_D)
-```
-
-### Static Solution 3
-
-```
-let routing3_for_C =
-  deliver(C, 10.0.0.10, 2) + 
-  deliver(C, 10.0.0.20, 3) +
-  deliver(C, 10.0.0.30, 1) +
-  deliver(C, 10.0.0.40, 1) +
-  deliver(C, 10.0.0.50, 1)
-  
-let routing3_for_B =
-  deliver(B, 10.0.0.10, 2) + 
-  deliver(B, 10.0.0.20, 2) +
-  deliver(B, 10.0.0.30, 3) +
-  deliver(B, 10.0.0.40, 3) +
-  deliver(B, 10.0.0.50, 1)
-  
-let routing3_for_D =
-  deliver(B, 10.0.0.10, 1) + 
-  deliver(B, 10.0.0.20, 1) +
-  deliver(B, 10.0.0.30, 2) +
-  deliver(B, 10.0.0.40, 3) +
-  deliver(B, 10.0.0.50, 1)
-  
-let routing3_for_A =
-  if switch = A then
-    if srcip = 10.0.0.5 then fwd 1
-    else fwd 2
-  
-let sol3 = 
-  arpify (routing3_for_A + routing3_for_B + routing3_for_C + routing3_for_D)
-```
-
-### Static Solution 4
-
-Hosts 10, 20, 30, 40 and 50 are all sending large amounts of http traffic (port 80) and some ssh traffic (port 22).
-Host 50 sends some special traffic on port 6110.  You might discover the existence of that traffic by writing a
-query that filters out the http and ssh traffic, so that system only prints the 6110 traffic:
-
-```
-let monitor =
-  if !(tcpport = 80 || tcpport = 22 || frameType = arp) then monitor_sw()  
-
-let sol4 =
-  sol3 + monitor
-```
-
-### Static Solution 5
 
 Compilation Instructions
 =========================
