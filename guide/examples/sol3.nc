@@ -3,7 +3,7 @@ let arpify(P:policy) =
   else P
 
 let deliver(s:switch, i:ip, p:port) =
-  if switch = s && dstip = i then fwd(p) 
+  if switch = s && dstIP = i then fwd(p) 
 
 let routing_for_103 =
   deliver(103, 10.0.0.10, 2) + 
@@ -28,7 +28,7 @@ let routing_for_104 =
 
 let routing_for_101 =
   if switch = 101 then
-    if srcip = 10.0.0.5 then fwd(1)
+    if srcIP = 10.0.0.5 then fwd(1)
     else fwd(2)
 
 let sol = 

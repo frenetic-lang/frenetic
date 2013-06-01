@@ -3,7 +3,7 @@ let arpify(P:policy) =
   else P
 
 let deliver(s:switch, i:ip, p:port) =
-  if switch = s && dstip = i then fwd(p) 
+  if switch = s && dstIP = i then fwd(p) 
 
 let routing_for_103 = 
   deliver(103, 10.0.0.10, 2) + 
@@ -17,7 +17,7 @@ let sol3 =
   arpify(routing_for_103 + routing_for_104)
 
 let monitor =
-  if !(tcpport = 80 || tcpport = 22 || frameType = arp) then monitor_sw() 
+  if !(tcpDstPort = 80 || tcpDstPort = 22 || frameType = arp) then monitor_sw() 
 
 let sol =
   sol3 + monitor 
