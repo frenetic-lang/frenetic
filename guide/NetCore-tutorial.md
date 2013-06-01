@@ -81,10 +81,9 @@ Compose it with the routing policy defined in part 3.
   - Machines 10, 20, 30, 40 are trusted machines.  
   - Machine 50 is an untrusted machine.  
   - Each of these machines is serving files using HTTP (TCP port 80).  
-  - Machines 10 and 20 have private files that may not be read by untrusted machines.  
+  - Machines 10 and 20 have private files that may not be read by untrusted machines using HTTP.  
   - Machines 30, 40, 50 have public files that may be read by any machine.
-  - Machine 50 may not ssh (TCP port 22) in to any of the private machines
-  - All other traffic must be allowed to pass through the network.
+  - All traffic not explicitly prohibited must be allowed to pass through the network.
 
 Dynamic NetCore Concepts
 ------------------------
