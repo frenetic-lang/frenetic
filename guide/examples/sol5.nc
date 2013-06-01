@@ -38,4 +38,13 @@ let sol3 =
           routing_for_104)
 
 let firewall =
-  
+  if switch = 101 && port = 1 && then
+     if tcpDstPort = 80 && (dstIP = 10.0.0.10 || dstIP = 10.0.0.20) then 
+        drop
+     else
+        pass
+  else
+     pass
+
+let sol =  
+  firewall; sol3
