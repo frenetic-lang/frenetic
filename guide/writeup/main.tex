@@ -42,7 +42,9 @@
 \newcommand{\ie}{\emph{i.e.}}
 \newcommand{\etc}{\emph{etc.}}
 
+
 \newcommand{\tutorialdir}{\texttt{tutorial directory}}
+\newcommand{\manualref}{\texttt{manual}}
 
 
 
@@ -231,10 +233,18 @@ let repeater =
 The \code{let} keyword introduces a new policy, which we have chosen to call 
 \code{repeater}.  An \code{if}-\code{then}-\code{else} statement determines
 whether to forward a packet out port 1 or port 2, depending on the packet's
-\code{inPort} field.
+\code{inPort} field.  In addition to testing the packet's \code{inPort}, 
+if statement predicates can refer to
+the \code{switch} 
+at which a packet arrives, as well as any of the OpenFlow-supported
+fields, such as the \code{srcIP}, \code{dstIP} or \code{frameType}.  
+Conditions can also be formed using 
+conjunctions (\code{\&\&}), disjunctions
+(\code{||}) and negation (\code{!}) of other conditions.
+See the \manualref{} for the complete list of predicates. 
 
 \dpw{The following commands are essentially made up.  Will have to rejigger.}
-Let's test the program to see what it does.  In the \tutorialdir{},
+Now, let's test the program to see what it does.  In the \tutorialdir{},
 you will see a file named \code{tut1.nc}, which contains the
 repeater program.  Start up the Frenetic controller program by 
 executing the following command at the prompt.
@@ -272,11 +282,82 @@ You should see the following trace:
 Hit \code{ctrl-C} when you have seen enough.
 
 \subsubsection{Example 2: Simple Network Address Translation}
-Next, ... do simple NAT on the switch, showing field mutation
-and sequencing.
+
+Next, let's adapt our first example so that instead of simply acting
+as a repeater, it does some static address translation for us as well.
+We will transform packets destined for IP address 10.0.0.1 entering the 
+switch at port 1 in to packets destined for IP address 10.0.0.101.
+In the other direction, we will translate source IP addresses from
+10.0.0.101 to 10.0.0.1.  Now, our example.
+%
+\begin{progeg}
+let natter =
+  if inPort = 1 then
+    (if dstIP = 10.0.0.1 then dstIP := 10.0.0.101 else pass); 
+    fwd(2)
+  else 
+    (if srcIP = 10.0.0.101 then srcIP := 10.0.0.1 else pass); 
+    fwd(1)
+\end{progeg}
+%
+As the reader can see, packet modifications are implemented using
+assignment actions, which have the following form.
+%
+\begin{progeg}
+field := constant
+\end{progeg}
+%
+Above \code{field} may be any OpenFlow-supported field (such as 
+\code{srcMac}, \code{srcIP} or others).  The constant must have the
+appropriate form.  For instance, when assigning to the \code{srcIP}
+field, the constant must be an ip-address with the form 
+\code{xxx.xxx.xxx.xxx}.  See the manual for the syntax of other
+constants.
+
+The semi-colon may be used to sequence any series of primitive actions
+or, more generally, any series of policies.  For instance, above, the policy
+%
+\begin{progeg}
+if dstIP = 10.0.0.1 then dstIP := 10.0.0.101 else pass
+\end{progeg}
+%
+is placed in sequence with the action
+%
+\begin{progeg}
+fwd(2)
+\end{progeg}
+%
+The first policy fragment modifies packets destined for 10.0.0.1 and leaves
+all other packets unchanged --- the \code{pass} primitive is the identity
+transformation on packets (and it turns out to be quite useful in
+combination with sequencing). The second policy fragment 
+forwards all packets out port 2 regardless
+of destination IP.  When sequenced, some packets are modified, some left
+untouched, and all are forwarded.
 
 \subsubsection{Example 3: Debugging}
-Illustrate using a query to see the packets.  Also parallel composition.
+
+A useful way to debug a network policy is to examine packets as they
+flow through the network.  In static Frenetic, it is possible to add 
+\emph{queries} to a program.  These queries can select subsets of packets,
+send them to the controller and print them to your screen.  As
+an example, suppose we would like to check that address translation 
+is happening correctly in our previous example.  Intuitively, we now
+want to send packets in two different directions \emph{at the same time}:
+(1) we want to continue forwarding packets as before, and (2) we want
+a separate copy of a packet to be sent to the controller for printing.
+To do both these actions requires a new policy combinator: 
+\emph{parallel composition} (\code{+}).  Intuitively, the parallel
+composition \code{P1 + P2} executes both \code{P1} and \code{P2}
+on the input packet at the same time, returning the union of the results.
+Code to monitor the results of natting appears below.
+%
+\begin{progeg}
+let natter\_debug = 
+  natter + (if outport = 2 then monitor\_sw())
+\end{progeg}
+%
+
 
 \subsubsection{Example 4: Multiple Switches}
 Illustrate multiple switches.  Use two switches.  Do destination-based
@@ -285,6 +366,10 @@ Run mininet in a different topology.
 
 \subsubsection{Example 5:  Add a Firewall}
 
+\subsection{Semantics}
+
+Evaluation Semantics.
+
 \subsection{Summary of Concepts}
 
 Give pointer to the manual.
@@ -292,9 +377,6 @@ Give pointer to the manual.
 \subsection{Exercises}
 
 Review the new topology with 5 switches.  
-
-Start your work with this handy wrapper to handle flooding of arp packets.
-Replace "drop" below with some other policy that solves the problem.
 
 The following parameterized policy may be useful in completing the
 exercises.
