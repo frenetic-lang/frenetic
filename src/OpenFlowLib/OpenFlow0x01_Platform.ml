@@ -106,7 +106,7 @@ let shutdown () : unit =
   Lwt.ignore_result 
     (lwt fd = get_fd () in 
      lwt _ = Lwt_unix.close fd in 
-     Lwt_list.iter_p
+     Lwt_list.iter_p (* it is okay to discard these exceptions *)
        Lwt_unix.close
        (Hashtbl.fold (fun _ fd l -> fd::l) switch_fds []))
 
