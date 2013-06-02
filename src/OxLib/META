@@ -1,0 +1,3 @@
+requires = "lwt lwt.unix cstruct PacketLib OpenFlowLib"
+archive(byte) = "OxLib.d.cma"
+archive(native) = "OxLib.cmxa OxLib.a"

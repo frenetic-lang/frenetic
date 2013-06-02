@@ -5,20 +5,43 @@ open OpenFlow0x01
 module Log = Frenetic_Log
 type xid = Message.xid
 
-let (<&>) = Lwt.(<&>)
+module Platform = OpenFlow0x01_Platform
 
-module type OXPLATFORM = 
-sig
-  val packetOut : xid -> switchId -> PacketOut.t -> unit 
-  val flowMod : xid -> switchId -> FlowMod.t -> unit 
-  val barrierRequest : xid -> switchId -> unit
-  val statsRequest : xid -> switchId -> StatsRequest.t -> unit
-  val callback : float -> (unit -> unit) -> unit
+type to_sw = switchId * xid * Message.t
+
+let (to_send_stream, defer) : (to_sw Lwt_stream.t * (to_sw option -> unit))
+    = Lwt_stream.create ()
+
+let munge_exns thunk =
+  try_lwt
+    Lwt.wrap thunk
+  with exn ->
+    begin
+      Log.printf "Ox" "unhandled exception: %s\nRaised by a callback.\n%s%!"
+        (Printexc.to_string exn)
+        (Printexc.get_backtrace ());
+      Lwt.return ()
+    end
+
+module OxPlatform = struct
+  open Message
+
+  let packetOut xid sw pktOut = defer (Some (sw, xid, PacketOutMsg pktOut))
+	  
+  let flowMod xid sw flowMod = defer (Some (sw, xid, FlowModMsg flowMod))
+	  
+  let statsRequest xid sw req = defer (Some (sw, xid, StatsRequestMsg req))
+    
+  let barrierRequest xid sw = defer (Some (sw, xid, BarrierRequest))
+    
+  (* TODO(arjun): I'm not happy about this. I want an exception to terminate
+     the right swich, unless we have exceptions kill the controller. *)
+  let callback (n : float) (thk : unit -> unit) : unit = 
+    Lwt.async 
+      (fun () -> Lwt_unix.sleep n >> munge_exns thk)
 end
 
-module type OXMODULE = 
-functor (OxPlatform:OXPLATFORM) -> 
-sig
+module type OXMODULE = sig
   val switchConnected : switchId -> unit 
   val switchDisconnected : switchId -> unit
   val packetIn : xid -> switchId -> PacketIn.t -> unit
@@ -27,72 +50,54 @@ sig
   val portStatus : xid -> switchId -> PortStatus.t -> unit 
 end
 
-module Make (Platform:OpenFlow0x01.PLATFORM) (OxModule:OXMODULE) = 
-struct
-  
-  (* global state *)
-  let pending : (unit -> unit Lwt.t) list ref = ref []
-  let defer thk = pending := thk::!pending 
-  let reset () = pending := []
-  let go thk = thk ()  
-  let process_deferred () = 
-    let old_pending = !pending in 
-    reset ();
-    Lwt_list.iter_s go (List.rev old_pending)
 
-  module OxPlatform = struct      
-    open Message
+module Make (Handlers:OXMODULE) = struct
 
-    let packetOut xid sw pktOut = 
-      defer (fun () -> 
-	Platform.send_to_switch sw xid (PacketOutMsg pktOut))
-	
-    let flowMod xid sw flowMod = 
-      defer (fun () -> 
-	Platform.send_to_switch sw xid (FlowModMsg flowMod))
-	
-    let statsRequest xid sw req =
-      defer (fun () -> 
-	Platform.send_to_switch sw xid (StatsRequestMsg req))
-
-    let barrierRequest xid sw = 
-      defer (fun () -> 
-	Platform.send_to_switch sw xid BarrierRequest)
-
-    let callback (n:float) (thk:unit -> unit) : unit = 
-      Lwt.async (fun () -> 
-	Lwt_unix.sleep n >>
-        Lwt.wrap thk)
-  end
-
-  module Handlers = OxModule(OxPlatform) 
-
-  (* JNF: refactor to make this a tailcall *)
-  let rec switch_thread sw = 
+  let rec switch_thread_loop sw = 
     let open Message in
+    begin
+      match_lwt (Platform.recv_from_switch sw) with
+        | (xid, PacketInMsg pktIn) -> Lwt.wrap3 Handlers.packetIn xid sw pktIn
+	      | (xid, BarrierReply) -> Lwt.wrap1 Handlers.barrierReply xid
+        | (xid, StatsReplyMsg rep) -> Lwt.wrap3 Handlers.statsReply xid sw rep
+        | (xid, PortStatusMsg ps) -> Lwt.wrap3 Handlers.portStatus xid sw ps
+        | (xid, msg) ->
+          (Log.printf "Ox" "ignored a message from %Ld" sw;
+           Lwt.return ())
+           
+    end >>
+    switch_thread_loop sw
+
+  let switch_thread sw =
     try_lwt
-      lwt _ = process_deferred () in 
-      lwt msg = Platform.recv_from_switch sw in 
-      match msg with 
-        | (xid,PacketInMsg pktIn) -> 
-          Handlers.packetIn xid sw pktIn;
-          switch_thread sw 
-	| (xid,BarrierReply) -> 
-	  Handlers.barrierReply xid;
-	  switch_thread sw
-        | (xid, StatsReplyMsg rep) ->
-          Handlers.statsReply xid sw rep;
-          switch_thread sw
-        | (xid, PortStatusMsg ps) ->
-	  Log.printf "Ox_Controller" "port status\n%!";
-          Handlers.portStatus xid sw ps;
-          switch_thread sw
-        | _ -> 
-          switch_thread sw 
-    with Platform.SwitchDisconnected sw -> 
-      Log.printf "Ox_Controller" "switch %Ld disconnected\n%!" sw;
-      Handlers.switchDisconnected sw;
-      process_deferred ()
+      switch_thread_loop sw
+    with 
+      | Platform.SwitchDisconnected sw -> 
+        begin
+          Log.printf "Ox" "switch %Ld disconnected\n%!" sw;
+          Lwt.return ()
+        end
+      | exn ->
+        begin
+          Log.printf "Ox" "unhandled exception: %s\nRaised in handler for \
+                           switch %Ld" (Printexc.to_string exn) sw;
+          Lwt.return ()
+        end
+
+  (* TODO(arjun): IMO, send_to_switch should *never* fail. *)
+  let handle_deferred () = 
+    let f (sw, xid, msg) =
+      try_lwt
+        Platform.send_to_switch sw xid msg
+      with exn ->
+        begin
+          Log.printf "Ox" "unhandled exception: %s sending a message to switch \
+                           %Ld.\n%s%!" 
+            (Printexc.to_string exn) sw 
+            (Printexc.get_backtrace ());
+          Lwt.return ()
+        end in
+    Lwt_stream.iter_s f to_send_stream
 
   let rec accept_switches () = 
     let open Message in
@@ -100,23 +105,14 @@ struct
     lwt feats = Platform.accept_switch () in 
     let sw = feats.SwitchFeatures.switch_id in 
     Log.printf "Ox_Controller" "switch %Ld connected\n%!" sw;
-    let delete_all = {
-      mod_cmd = Command.DeleteFlow;
-      match_ = Match.all;
-      priority = 65535;
-      actions = [];
-      cookie = Int64.zero;
-      idle_timeout = Timeout.Permanent;
-      hard_timeout = Timeout.Permanent;
-      notify_when_removed = false;
-      apply_to_packet = None;
-      out_port = None;
-      check_overlap = false } in 
-    lwt _ = Platform.send_to_switch sw 0l (FlowModMsg delete_all) in 
+    lwt _ = Platform.send_to_switch sw 0l delete_all_flows in
     lwt _ = Platform.send_to_switch sw 1l BarrierRequest in
     (* JNF: wait for barrier reply? *)
     let _ = Handlers.switchConnected sw in 
-    Lwt.pick [accept_switches (); switch_thread sw]
+    Lwt.async (fun () -> switch_thread sw);
+    accept_switches ()
 
-  let start_controller = accept_switches
+  let start_controller () = 
+    Platform.init_with_port 6633 >>
+    Lwt.pick [ handle_deferred (); accept_switches () ]
 end

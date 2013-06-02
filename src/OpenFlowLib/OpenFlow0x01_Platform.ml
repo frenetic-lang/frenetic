@@ -79,27 +79,22 @@ let send_to_switch_fd
   (sock : Lwt_unix.file_descr) 
   (xid : Message.xid) 
   (msg : Message.t) : unit option Lwt.t =
-  try_lwt
-    lwt msg_buf = Lwt.wrap2 Message.marshal xid msg in
-    let msg_len = String.length msg_buf in
-    lwt sent = Lwt_unix.write sock msg_buf 0 msg_len in
-    if sent <> msg_len then
-      Lwt.return None
-    else
-      Lwt.return (Some ())
-  with Unix.Unix_error (err, fn, arg) ->
-    Log.printf "platform"
-      "in send_to_switch_fd, %s\n%!"
-      (Unix.error_message err);
+  lwt msg_buf = Lwt.wrap2 Message.marshal xid msg in
+  let msg_len = String.length msg_buf in
+  lwt sent = Lwt_unix.write sock msg_buf 0 msg_len in
+  if sent <> msg_len then
     Lwt.return None
+  else
+    Lwt.return (Some ())
 
-let fd_of_switch_id (sw:switchId) : Lwt_unix.file_descr option =  
+let fd_of_switch_id (sw : switchId) : Lwt_unix.file_descr option =  
   try
     Some (Hashtbl.find switch_fds sw)
   with Not_found -> 
     None
 
-let disconnect_switch (sw:switchId) : unit Lwt.t = match fd_of_switch_id sw with 
+let disconnect_switch (sw : switchId) : unit Lwt.t = 
+  match fd_of_switch_id sw with 
   | Some fd -> 
     lwt _ = Lwt_unix.close fd in
     Hashtbl.remove switch_fds sw;
@@ -111,7 +106,7 @@ let shutdown () : unit =
   Lwt.ignore_result 
     (lwt fd = get_fd () in 
      lwt _ = Lwt_unix.close fd in 
-     Lwt_list.iter_p
+     Lwt_list.iter_p (* it is okay to discard these exceptions *)
        Lwt_unix.close
        (Hashtbl.fold (fun _ fd l -> fd::l) switch_fds []))
 
@@ -120,7 +115,7 @@ let send_to_switch
   (xid : Message.xid) 
   (msg : Message.t) : unit Lwt.t =
   match fd_of_switch_id sw with 
-  | Some fd -> 
+  | Some fd ->
     lwt ok = send_to_switch_fd fd xid msg in 
     begin match ok with 
       | Some () -> 
@@ -129,7 +124,7 @@ let send_to_switch
         lwt _ = disconnect_switch sw in 
         raise_lwt (SwitchDisconnected sw)
     end
-  | None -> 
+  | None ->
     raise_lwt (SwitchDisconnected sw)
 
 let rec recv_from_switch (sw : switchId) : (Message.xid * Message.t) Lwt.t = 
@@ -140,13 +135,8 @@ let rec recv_from_switch (sw : switchId) : (Message.xid * Message.t) Lwt.t =
         lwt resp = recv_from_switch_fd fd in 
         match resp with
           | Some (xid, EchoRequest bytes) ->
-            begin 
-              send_to_switch sw xid (EchoReply bytes) >>
-              recv_from_switch sw
-            end
-          | Some (xid, PortStatusMsg foo) -> 
-	    Log.printf "platform" "PortStatusMsg\n%!";
-            Lwt.return (xid, PortStatusMsg foo)	      
+            send_to_switch sw xid (EchoReply bytes) >>
+            recv_from_switch sw
           | Some (xid, msg) -> 
             Lwt.return (xid, msg)
           | None -> 
@@ -155,7 +145,8 @@ let rec recv_from_switch (sw : switchId) : (Message.xid * Message.t) Lwt.t =
     | None -> 
       raise_lwt (SwitchDisconnected sw)
         
-let switch_handshake (fd : Lwt_unix.file_descr) : OF.SwitchFeatures.t option Lwt.t =
+let switch_handshake (fd : Lwt_unix.file_descr) : 
+  OF.SwitchFeatures.t option Lwt.t =
   let open Message in
   lwt ok = send_to_switch_fd fd 0l (Hello (Cstruct.of_string "")) in
   match ok with 
@@ -172,8 +163,7 @@ let switch_handshake (fd : Lwt_unix.file_descr) : OF.SwitchFeatures.t option Lwt
                   match resp with 
                     | Some (_,SwitchFeaturesReply feats) ->
                       Hashtbl.add switch_fds feats.OF.SwitchFeatures.switch_id fd;
-                      Log.printf "platform" 
-                        "switch %Ld connected\n%!"
+                      Log.printf "Platform"  "switch %Ld connected\n%!"
                         feats.OF.SwitchFeatures.switch_id;
                       Lwt.return (Some feats)
                     | _ ->
@@ -212,15 +202,9 @@ let switch_handshake (fd : Lwt_unix.file_descr) : OF.SwitchFeatures.t option Lwt
 let rec accept_switch () =
   lwt server_fd = get_fd () in 
   lwt (fd, sa) = Lwt_unix.accept server_fd in
-  let _ = Log.printf "platform" "%s connected, handshaking...\n%!" (Socket.string_of_sockaddr sa) in
   lwt ok = switch_handshake fd in 
   match ok with 
-    | Some feats -> 
-      Lwt.return feats
-    | None -> 
-      lwt _ = Lwt_unix.close fd in
-      Log.printf "platform" "%s disconnected, trying again...\n%!"
-        (Socket.string_of_sockaddr sa);
-      accept_switch ()
+    | Some feats -> Lwt.return feats
+    | None -> accept_switch ()
         
         

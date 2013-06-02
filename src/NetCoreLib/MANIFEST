@@ -2,7 +2,6 @@ NetCore_Action
 NetCore_Classifier
 NetCore_Compiler
 NetCore_Controller
-NetCore_ConsistentUpdates
 NetCore_Desugar
 NetCore_MacLearning
 NetCore_NAT

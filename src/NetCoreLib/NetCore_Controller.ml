@@ -141,7 +141,7 @@ module Query (Platform : OpenFlow0x01.PLATFORM) = struct
       Lwt_mutex.lock q.lock >>
       if not (is_dead q) then
         let _ = reset q in
-        Lwt_list.iter_p (fun sw -> Platform.send_to_switch sw q.xid query_msg)
+        Lwt_list.iter_s (fun sw -> Platform.send_to_switch sw q.xid query_msg)
           (SwitchSet.elements !(q.switches))
       else
         Lwt.return ()
@@ -337,7 +337,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       flow_table
 
   let install_new_policies sw pol_stream =
-    Lwt_stream.iter_p (configure_switch sw)
+    Lwt_stream.iter_s (configure_switch sw)
       (NetCore_Stream.to_stream pol_stream)
       
   let handle_packet_in pol sw pkt_in = 
@@ -408,7 +408,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
             (* TODO(arjun): I can assume sw itself disconnected? *)
             Lwt.return ()
           | _ ->
-            (Log.printf "[NetCore_Controller]" "unhandled exception %s.\n%!"
+            (Log.printf "NetCore Controller" "unhandled exception %s.\n%!"
               (Printexc.to_string exn);
              Lwt.return ())
       end) >>
@@ -495,7 +495,7 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
 
   (* First draft: ignore barriers *)
   let install_new_policies sw pol_stream =
-    Lwt_stream.iter_p (fun (int, ext, topo_pol) -> 
+    Lwt_stream.iter_s (fun (int, ext, topo_pol) -> 
       clear_switch sw >>
 	configure_switch sw topo_pol >>
 	let _ = Log.printf "NetCore_Controller" "internal pol:\n%s\n%!" (NetCore_Pretty.pol_to_string int) in
