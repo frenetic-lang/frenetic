@@ -3,10 +3,6 @@
 \newif\iffull\fullfalse
 \newif\ifcolor\colorfalse
 
-% For per-person control of tex'ing, put commands like \fulltrue
-% in a file called texdirectives.tex. 
-\makeatletter \@input{texdirectives} \makeatother
-
 \documentclass{article}
 
 \usepackage{xcolor}
@@ -57,6 +53,49 @@
 \begin{document}
 
 \maketitle
+
+\section{OpenFlow Programming with Ox}
+
+- OpenFlow: controller sends and receives messages (plaigarize from Frenetic
+  ICFP paper, IMO.)
+
+- Ox: you write event handlers, it calls your handlers, etc.
+
+\subsection{Our Example Network}
+
+- Gotta use tikzee
+
+\subsection{Example 1: Repeater and Firewall}
+
+- Step 1: just AllPorts. 
+  Emit PacketOut messages, in response to PacketIn messages
+
+- Step 2: Filter out incoming SSH traffic at switch to untrusted host
+  Give students a program that filters out all SSH traffic, as an example
+
+- Step 3: emit a flow table for step 1 above
+
+- Step 4: emit a flow table for step 2 above
+
+\subsection{Example 2: Monitoring}
+
+- Step 1: count the volume of traffic sent to host X 
+  (and the old policy still holds)
+
+\subsection{Example 2: Efficient Repeater and Firewall}
+
+
+\subsection{Example 3: Naive Learning Switch}
+
+- Just one switch
+
+\subsection{Example 4: Efficient Learning Switch}
+
+- Emit rules, show
+
+\subsection{Example 5: Learning Switch and Monitoring}
+
+- Also count the volume of traffic sent to host X
 
 \section{Introduction}
 
