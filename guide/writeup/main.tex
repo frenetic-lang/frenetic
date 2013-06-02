@@ -42,6 +42,10 @@
 \newcommand{\ie}{\emph{i.e.}}
 \newcommand{\etc}{\emph{etc.}}
 
+\newcommand{\tutorialdir}{\texttt{tutorial directory}}
+
+
+
 \usepackage{local}
 
 \title{Frenetic Tutorial}
@@ -59,7 +63,16 @@ Software-Defined Network (SDN) running OpenFlow using the Frenetic
 programming language.  This involves explaining the syntax and
 semantics of Frenetic and illustrating its use on a number of simple
 examples.  Along the way, there are a number of exercises for the
-reader.  Solutions appear online.
+reader.  
+
+We encourage the reader to try executing the tutorial examples and exercises
+on the tutorial VM that we provide.
+
+\dpw{insert url for tutorial VM and instructions for downloading the VM.  
+Tell the reader to start up the VM and to cd to the \tutorialdir{} on the
+machine, which will have a set of program example files, stubs for exercises
+and topologies ready to go in that directory.  Get the reader to execute
+a simple test script to make sure everything is working properly.}
 
 \section{Motivation}
 
@@ -187,49 +200,130 @@ forward packets.
 
 \subsection{Introductory Examples}
 
+Static Frenetic is a small language consisting entirely of the following
+features:
+
+\begin{itemize}
+\item a set of primitive \emph{actions}, which allow programmers to modify and 
+forward packets
+\item \emph{conditional statements}, which allow programmers to perform 
+different actions on different kinds of packets
+\item  \emph{sequencing}, which allows programmers to perform a series of
+transformations on a packet, and
+\item \emph{parallel composition}, which allows programmers to do more
+than one thing on a packet --- perhaps forwarding the packet to two 
+different locations.
+\end{itemize}
+
+\subsubsection{Example 1: A Repeater}
+
+To begin, consider a network with just one switch.  Assume that switch 
+has two ports, numbered 1 and 2.  Our first goal will be to program
+a repeater --- a simple switch that forwards all packets coming in port 1
+out port 2 and vice versa.  The following policy accomplishes that task.
+
 \begin{progeg}
-stuff
+let repeater =
+  if inPort = 1 then fwd(2)
+  else fwd(1)
 \end{progeg}
 
-Describe the basic semantics and concepts.
+The \code{let} keyword introduces a new policy, which we have chosen to call 
+\code{repeater}.  An \code{if}-\code{then}-\code{else} statement determines
+whether to forward a packet out port 1 or port 2, depending on the packet's
+\code{inPort} field.
 
-- located packets
-- policies are functions
-- basic functions
+\dpw{The following commands are essentially made up.  Will have to rejigger.}
+Let's test the program to see what it does.  In the \tutorialdir{},
+you will see a file named \code{tut1.nc}, which contains the
+repeater program.  Start up the Frenetic controller program by 
+executing the following command at the prompt.
 
+\begin{progeg}
+> ./frenetic tut1.nc
+\end{progeg}
+%
+Now start up mininet:
+%
+\begin{progeg}
+> sudo mn controller=remote
+\end{progeg}
+%
+Mininet will start up with a single switch and two hosts, 
+\code{h1} and \code{h2}, connected to the two ports on the switch.
+You should see the following message:
+%
+\begin{progeg}
+...
+\end{progeg}
+%
+At the mininet prompt, test your repeater program using ping:
+%
+\begin{progeg}
+mininet> h1 ping h2
+\end{progeg}
+%
+You should see the following trace:
+%
+\begin{progeg}
+...
+\end{progeg}
+%
+Hit \code{ctrl-C} when you have seen enough.
 
-Static NetCore Programming Examples
-------------------------------------
+\subsubsection{Example 2: Simple Network Address Translation}
+Next, ... do simple NAT on the switch, showing field mutation
+and sequencing.
 
-0. Review the topology in tutorial-topo.  Define some user-friendly switch names for our topology too:
+\subsubsection{Example 3: Debugging}
+Illustrate using a query to see the packets.  Also parallel composition.
 
-1. Write a program to route all ip traffic as follows: 
-  - packets with destination ip 10.0.0.10 arriving at switch C go to host 10.  
-  - packets with destination ip 10.0.0.20 arriving at switch C go to host 20.  
-  - packets with destination ip 10.0.0.30 arriving at switch D go to host 30.  
-  - packets with destination ip 10.0.0.40 arriving at switch D go to host 40.  
-  - flood all arp packets arriving at any switch
-Try out your program by pinging 10 from 20 and 20 from 10.  What happens?
-What happens if you ping 10 from 30?
+\subsubsection{Example 4: Multiple Switches}
+Illustrate multiple switches.  Use two switches.  Do destination-based
+IP routing.  Show how to handle arp.  Show a parameterized policy.
+Run mininet in a different topology.
+
+\subsubsection{Example 5:  Add a Firewall}
+
+\subsection{Summary of Concepts}
+
+Give pointer to the manual.
+
+\subsection{Exercises}
+
+Review the new topology with 5 switches.  
 
 Start your work with this handy wrapper to handle flooding of arp packets.
 Replace "drop" below with some other policy that solves the problem.
 
-```
+The following parameterized policy may be useful in completing the
+exercises.
+
+\begin{progeg}
 let arpify (P:policy) =
   if frameType = arp then all
   else P
-  
-let my_sol1 = arpify(drop)
-```
+\end{progeg}
 
-2. Extend the program written in (a) to route all traffic between
-10, 20, 30, 40.
+\noindent
+\begin{enumerate}
+\item Write a program to route all IP traffic as follows: 
+\begin{itemize}
+  \item packets with destination ip 10.0.0.10 arriving at switch C go to host 10.  
+  \item packets with destination ip 10.0.0.20 arriving at switch C go to host 20.  
+  \item packets with destination ip 10.0.0.30 arriving at switch D go to host 30.  
+  \item packets with destination ip 10.0.0.40 arriving at switch D go to host 40.  
+  \item flood all arp packets arriving at any switch
+\end{itemize}
+Try out your program by pinging 10 from 20 and 20 from 10.  What happens?
+What happens if you ping 10 from 30?
 
-3. Now consider the program that routes all traffic between all hosts,
-which we will provide.
+\item
+Extend the program written in (a) to route all traffic between
+10, 20, 30, 40, 50 assuming these hosts have IP addresses 
+10.0.0.10, 10.0.0.20, 10.0.0.30, 10.0.0.40, and 10.0.0.50.
 
-4. Use the NetCore query facility to discover the set of all TCP ports 
+\item Use the NetCore query facility to discover the set of all TCP ports 
 being used by either machines 10 or 20.  Here is a [list of common port
 numbers](http://packetlife.net/media/library/23/common-ports.pdf)
 Note: some protocols are sending a lot of traffic (eg: HTTP, on port
@@ -238,16 +332,19 @@ the haystack."  There is one host sending a small amount of traffic to
 a non-standard port in a nonstandard format.  Which host is it?  Print
 the packets using that port.  They contain a secret message.
 
-5. Construct a firewall for the network that enforces the following policy.
-Compose it with the routing policy defined in part 3.
-  - Machines 10, 20, 30, 40 are trusted machines.  
-  - Machine 50 is an untrusted machine.  
-  - Each of these machines is serving files using HTTP (TCP port 80).  
-  - Machines 10 and 20 have private files that may not be read by untrusted machines using HTTP.  
-  - Machines 30, 40, 50 have public files that may be read by any machine.
-  - All traffic not explicitly prohibited must be allowed to pass through the network.
+\item Construct a firewall for the network that enforces the following policy.
+Compose it with the routing policy defined in part 2.
+\begin{itemize}
+  \item Machines 10, 20, 30, 40 are trusted machines.  
+  \item Machine 50 is an untrusted machine.  
+  \item Each of these machines is serving files using HTTP (TCP port 80).  
+  \item Machines 10 and 20 have private files that may not be read by untrusted machines using HTTP.  
+  \item Machines 30, 40, 50 have public files that may be read by any machine.
+  \item All traffic not explicitly prohibited must be allowed to pass through the network.
+\end{itemize}
+\end{enumerate}
 
-
+\section{Dynamic Frenetic Examples}
 
 \paragraph*{Acknowledgements.}
 %
