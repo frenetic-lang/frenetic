@@ -1,3 +1,5 @@
+open Frenetic_Bit
+
 type bytes = Cstruct.t
 
 type int8 = int
@@ -5,8 +7,6 @@ type int8 = int
 type int16 = int
 
 type int48 = int64
-
-type portId = int16
 
 type dlAddr = int48
 
@@ -50,15 +50,6 @@ let mac_of_bytes (str:string) : int64 =
                 (byte 5)))))
 
 
-module type Header = sig
-
-  type t
-  val parse : Cstruct.t -> t option
-  val len : t -> int
-  val serialize : Cstruct.t -> t -> unit
-
-end
-
 module Tcp = struct
 
   type t = {
@@ -87,6 +78,7 @@ module Tcp = struct
     uint32_t options (* options and padding *)
   } as big_endian
 
+  let to_string t = failwith "NYI: Tcp.to_string"
 
   (** TODO(arjun): errors if size is wrong *)
   let parse (bits : Cstruct.t) = 
@@ -149,6 +141,8 @@ module Icmp = struct
     uint16_t chksum
   } as big_endian
 
+  let to_string v = failwith "NYI: Icmp.to_string"
+
   (* TODO(arjun): error if not enough bytes for header *)
   let parse (bits : Cstruct.t) = 
     let typ = get_icmp_typ bits in
@@ -177,17 +171,38 @@ module Ip = struct
   type tp =
     | Tcp of Tcp.t
     | Icmp of Icmp.t
-    | Unparsable of bytes
+    | Unparsable of (nwProto * bytes)
+
+  module Flags = struct
+  (** [Flags] is the type of IPv4 flags. *)
+
+    type t =
+      { df : bool (** Don't fragment. *)
+      ; mf : bool (** More fragments. *)
+      }
+
+    let to_string v = Printf.sprintf
+      "{ df = %B; mf = %B }"
+      v.df v.mf
+
+    let of_int d =
+      { df = test_bit 1 d
+      ; mf = test_bit 2 d }
+
+    let to_int v =
+      let ret = Int32.zero in
+      let ret = bit ret 1 v.df in
+      let ret = bit ret 2 v.mf in
+      Int32.to_int ret
+
+  end
 
   type t = {
-    vhl : int8;
     tos : nwTos;
-    len : int16;
     ident : int16;
-    flags : int8;
+    flags : Flags.t;
     frag : int16;
     ttl : int8;
-    proto : nwProto;
     chksum : int16;
     src : nwAddr;
     dst : nwAddr;
@@ -214,6 +229,8 @@ module Ip = struct
     uint32_t options (* options and padding *)
   } as big_endian
 
+  let to_string v = failwith "NYI: Ip.to_string"
+
   (* TODO(arjun): error if header does not fit *)
   let  parse (bits : Cstruct.t) = 
     let vhl = get_ip_vhl bits in 
@@ -222,9 +239,8 @@ module Ip = struct
     let _ = vhl lsr 4 in (* TODO(jnf): test for IPv4? *)
     let ihl = vhl land 0x0f in 
     let tos = get_ip_tos bits in 
-    let len = get_ip_len bits in 
     let frag = get_ip_frag bits in 
-    let flags = frag lsr 13 in 
+    let flags = Flags.of_int (Int32.of_int (frag lsr 13)) in
     let frag = frag land 0x1fff in 
     let ttl = get_ip_ttl bits in 
     let ident = get_ip_ident bits in 
@@ -237,23 +253,20 @@ module Ip = struct
       | Some IP_ICMP -> 
         begin match Icmp.parse bits with 
         | Some icmp -> Icmp icmp
-        | None -> Unparsable bits
+        | None -> Unparsable (proto, bits)
         end
       | Some IP_TCP ->       
         begin match Tcp.parse bits with 
         | Some tcp -> Tcp tcp
-        | None -> Unparsable bits
+        | None -> Unparsable (proto, bits)
         end
-      | _ -> Unparsable bits in
+      | _ -> Unparsable (proto, bits) in
     Some {
-      vhl = vhl;
       tos = tos;
-      len = len;
       ident = ident;
-      flags = flags ;
+      flags = flags;
       frag = frag;
       ttl = ttl;
-      proto = proto;
       chksum = chksum;
       src = src;
       dst = dst;     
@@ -266,17 +279,24 @@ module Ip = struct
     let tp_len = match pkt.tp with 
       | Tcp tcp -> Tcp.len tcp
       | Icmp icmp -> Icmp.len icmp
-      | Unparsable data -> Cstruct.len data in 
+      | Unparsable (_, data) -> Cstruct.len data in 
     ip_len + tp_len
 
   (* TODO(arjun): error if not enough space *)
   let serialize (bits : Cstruct.t) (pkt:t) =
-    set_ip_vhl bits pkt.vhl;
+    let v = 4 in (* IP version 4. *)
+    let ihl = 5 in (* We don't support IPv4 options at the moment. *)
+    let vhl = (v lsl 4) lor ihl in
+    set_ip_vhl bits vhl;
     set_ip_tos bits pkt.tos;
     set_ip_ident bits pkt.tos;
-    set_ip_frag bits (pkt.flags lor (pkt.frag lsl 13));
+    set_ip_frag bits ((Flags.to_int pkt.flags) lor (pkt.frag lsl 13));
     set_ip_ttl bits pkt.ttl;
-    set_ip_proto bits pkt.proto;
+    let proto = match pkt.tp with
+      | Tcp _ -> 6
+      | Icmp _ -> 1
+      | Unparsable (p, _) -> p in
+    set_ip_proto bits proto;
     set_ip_chksum bits pkt.chksum; (* TODO(arjun): calculate checksum *)
     set_ip_src bits pkt.src;
     set_ip_dst bits pkt.dst;
@@ -286,9 +306,8 @@ module Ip = struct
         Tcp.serialize bits tcp
       | Icmp icmp -> 
         Icmp.serialize bits icmp
-      | Unparsable data ->
-        (* TODO(arjun): might be wrong. source -> dest order. *)
-        Cstruct.blit bits 0 data 0 (Cstruct.len data)
+      | Unparsable (protocol, data) ->
+        Cstruct.blit data 0 bits 0 (Cstruct.len data)
 
 end
 
@@ -310,6 +329,8 @@ module Arp = struct
     uint8_t tha[6];
     uint32_t tpa
   } as big_endian
+
+  let to_string v = failwith "NYI: Arp.to_string"
 
   let nwSrc t = match t with
     | Query (_, ip, _) -> ip
@@ -389,7 +410,12 @@ let nwDst pkt = match pkt.nw with
   | Unparsable _ -> None
 
 let nwProto pkt = match pkt.nw with 
-  | Ip ip -> Some ip.Ip.proto
+  | Ip ip -> 
+    begin match ip.Ip.tp with
+      | Ip.Tcp _ -> Some 6
+      | Ip.Icmp _ -> Some 1
+      | Ip.Unparsable (p, _) -> Some p
+    end
   | _ -> None
 
 let nwTos pkt = match pkt.nw with 
@@ -494,8 +520,6 @@ let get_byte32 (n : Int32.t) (i : int) : int =
 let string_of_ip (ip : Int32.t) : string = 
   Format.sprintf "%d.%d.%d.%d" (get_byte32 ip 3) (get_byte32 ip 2) 
     (get_byte32 ip 1) (get_byte32 ip 0)
-
-let portId_to_string = string_of_int
 
 let dlAddr_to_string = string_of_mac
 

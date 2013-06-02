@@ -8,7 +8,7 @@ type 'a wildcard =
   | WildcardNone
 
 type port =
-  | Physical of portId
+  | Physical of OpenFlow0x01.portId
   | All
   | Here
 

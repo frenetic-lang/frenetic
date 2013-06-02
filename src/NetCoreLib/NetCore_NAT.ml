@@ -76,7 +76,6 @@ let make (public_ip : nwAddr) =
           nw = Ip {
             Ip.src = src_ip;
             Ip.dst = dst_ip;
-            Ip.proto = 6;
             Ip.tp = Ip.Tcp { Tcp.src = src_pt; Tcp.dst = dst_pt }
           }
         } -> 
@@ -90,7 +89,6 @@ let make (public_ip : nwAddr) =
       | { dlTyp = 0x800;
           nw = Ip {
             Ip.src = private_ip;
-            Ip.proto = 6;
             Ip.tp = Ip.Tcp { Tcp.src = private_port }
           }
         } ->

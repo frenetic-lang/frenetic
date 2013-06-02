@@ -6,7 +6,7 @@ module Log = Frenetic_Log
 module Bijection = NetCore_Bijection
 
 type switchId = OpenFlow0x01.switchId
-type portId = Packet.portId
+type portId = OpenFlow0x01.portId
 type dlAddr = Packet.dlAddr
 
 type loc =

@@ -10,7 +10,7 @@ module PortOrderedType = struct
   type t = port
   let compare = Pervasives.compare
   let to_string =  function
-    | Physical pid -> "Physical " ^ (portId_to_string pid)
+    | Physical pid -> "Physical " ^ (string_of_portId pid)
     | All -> "All"
     | Here -> "Here"
 

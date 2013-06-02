@@ -14,7 +14,7 @@ open NetCore_Types
   | All
   | NoPackets
   | Switch of OpenFlow0x01.switchId
-  | InPort of portId
+  | InPort of OpenFlow0x01.portId
   | DlSrc of Int64.t
   | DlDst of Int64.t
   | DlVlan of int option (** 12-bits *)

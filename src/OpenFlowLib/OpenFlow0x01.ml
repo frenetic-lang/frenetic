@@ -5,12 +5,12 @@ open Format
 exception Unparsable of string
 exception Ignored of string
 
-(* TODO(cole): find a better place for these. *)
 type switchId = int64
+type portId = int16
 
 let string_of_switchId = Int64.to_string
 
-let string_of_portId = portId_to_string
+let string_of_portId = string_of_int
 let string_of_dlAddr = dlAddr_to_string
 
 let sum (lst : int list) = List.fold_left (fun x y -> x + y) 0 lst

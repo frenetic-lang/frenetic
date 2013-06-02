@@ -186,7 +186,7 @@ end
 open Sat
 
 (* Topology *)
-type link = Link of OpenFlow0x01.switchId * Packet.portId
+type link = Link of OpenFlow0x01.switchId * OpenFlow0x01.portId
 
 type topology = Topology of (link * link) list
 

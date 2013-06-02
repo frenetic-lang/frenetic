@@ -21,8 +21,14 @@ exception Ignored of string
 [SwitchFeature] replies. *)
 type switchId = int64
 
+(* [portId] is the type of physical port identifiers (port numbers). *)
+type portId = int16
+
 (* [string_of_switchId sw] pretty-prints [sw]. *)
 val string_of_switchId : switchId -> string
+
+(* [string_of_switchId p] pretty-prints [p]. *)
+val string_of_portId : portId -> string
 
 module Match : sig
 (** Flow match data structure.  See Section 5.2.3 of the OpenFlow 1.0
