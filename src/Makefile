@@ -29,17 +29,18 @@ byte: $(addsuffix .byte, $(APPLICATIONS))
 
 debug: $(addsuffix .d.byte, $(APPLICATIONS))
 
+%.d.byte:
+	$(OCAMLBUILD) -I Applications -cflag -ppopt -cflag -lwt-debug $@
+
 %.native %.byte:
 	$(OCAMLBUILD) -I Applications $@
 
-%.d.byte:
-	$(OCAMLBUILD) -I Applications -cflag -ppopt -cflag -lwt-debug $@
+%.d.cma:
+	$(OCAMLBUILD) -I applications -no-links -cflag -ppopt -cflag -lwt-debug $@
 
 %.a %.cmxa %.cma:
 	$(OCAMLBUILD) -I Applications -no-links $@
 
-%.d.cma:
-	$(OCAMLBUILD) -I applications -no-links -cflag -ppopt -cflag -lwt-debug $@
 
 $(LIBRARIES):
 	$(foreach SUFFIX, $(SUFFIXES), \
