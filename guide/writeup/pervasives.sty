@@ -1,0 +1,379 @@
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{stmaryrd}
+\usepackage{xspace}
+\usepackage{bcprules} % Is this a pun?
+\usepackage{color}
+\usepackage{graphicx}
+\usepackage[capitalise]{cleveref}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usetikzlibrary{patterns}
+\usetikzlibrary{matrix}
+\usetikzlibrary{arrows}
+\usetikzlibrary{patterns}
+\usetikzlibrary{calc}
+\usetikzlibrary{shapes.symbols}
+\usepackage{floatpag}
+\floatpagestyle{empty}
+\usepackage{caption}
+\usepackage{balance}
+\usepackage{subcaption}
+
+% Giant margins if draft, but text area is the same. Todonotes only appear
+% \ifdraft
+\ifdraft
+\usepackage{todonotes}
+%% \usepackage[letterpaper,
+%%             paperwidth=400mm,
+%%             textwidth=\textwidth,
+%%             textheight=\textheight,
+%%             paperheight=12in,
+%%             marginparsep=25pt,
+%%             marginparwidth=120pt]
+%%            {geometry}
+\else
+  \usepackage[disable]{todonotes}
+\fi
+
+\newcommand{\squeezeh}{\hspace{-.1in}}
+\newcommand{\squeezev}{\vspace{-.15in}}
+
+
+\newenvironment{outline}{\color{red}}{}
+\newcommand{\ie}{\emph{i.e.}}
+\newcommand{\eg}{\emph{e.g.}}
+\newcommand{\etc}{\emph{etc.}}
+\newcommand{\etal}{\emph{et al.}\xspace}
+
+\newcommand{\finish}[1]{\ifdraft\textcolor{red}{\textbf{[#1]}}\fi}
+\newcommand{\jnf}[1]{\finish{#1 --JNF}}
+\newcommand{\dpw}[1]{\finish{#1 --DPW}}
+\newcommand{\mjr}[1]{\finish{#1 --MJR}}
+\newcommand{\jrex}[1]{\finish{#1 --JREX}}
+\newcommand{\rev}[1]{\finish{#1 --Reviewer}}
+\newcommand{\ag}[1]{\finish{#1 --AG}}
+\newcommand{\comment}[1]{}
+
+\newcommand{\usecnt}[1]{\arabic{#1}\stepcounter{#1}}
+
+% DPW:  I should be using some package for these, feel free to replace:
+
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{prop}{Proposition}
+\newtheorem{corollary}{Corollary}
+
+\newtheorem{thm:compiler}[theorem]{Theorem}
+\newtheorem{lem:natpatexists}[lemma]{Lemma}
+\newtheorem{lem:natpatinter}[lemma]{Lemma}
+\newtheorem{lem:flowmodseq}[lemma]{Lemma}
+\newtheorem{def:unamb}[definition]{Definition}
+\newtheorem{def:approx}[definition]{Definition}
+\newtheorem{def:barriers}[definition]{Definition}
+\newtheorem{def:safewire}[definition]{Definition}
+\newtheorem{def:safeconfig}[definition]{Definition}
+\newtheorem{def:ctrlflowmod}[definition]{Definition}
+\newtheorem{thm:safeconfigpres}[theorem]{Theorem}
+\newtheorem{thm:weaksim}[theorem]{Theorem}
+\newtheorem{def:compatctrl}[definition]{Definition}
+\newtheorem{cly:netcorebisim}[corollary]{Corollary}
+\newtheorem{def:abssem}[definition]{Definition}
+
+\newenvironment{proofsketch}{\textit{Proof Sketch:}}{}
+
+
+\newcommand{\bigsqueeze}{\vspace*{-\bigskipamount}}
+\newcommand{\medsqueeze}{\vspace*{-\medskipamount}}
+\newcommand{\smallsqueeze}{\vspace*{-\smallskipamount}}
+
+\newcommand{\coqnet}{NetCore\xspace}
+
+% An extended double-arrow
+\makeatletter
+\newcommand{\xRightarrow}[2][]{\ext@arrow 0359\Rightarrowfill@{#1}{#2}}
+\makeatother
+
+% Network Model Syntax
+
+\newcommand{\Send}{\ensuremath{Send}}
+\newcommand{\SendPkt}{\ensuremath{Send}}
+\newcommand{\Update}{\ensuremath{Update}}
+\newcommand{\Recv}{\ensuremath{Recv}}
+\newcommand{\AP}{\ensuremath{a}}
+\newcommand{\Bit}{\ensuremath{b}}
+\newcommand{\Host}{\ensuremath{\mathit{host}}}
+\newcommand{\HostMap}{\ensuremath{\mathit{hosts}}}
+\newcommand{\HState}{\ensuremath{hs}}
+\newcommand{\Pol}{\ensuremath{\mathit{pg}}}
+\newcommand{\FlowTable}{\ensuremath{\mathit{T}}}
+\newcommand{\SwFlowTable}{\ensuremath{\mathit{S}}}
+\newcommand{\Act}{\pt}
+\newcommand{\CS}{\ensuremath{\mathit{SM}}}
+\newcommand{\SC}{\ensuremath{\mathit{CM}}}
+
+\newcommand{\Pred}{\ensuremath{\mathit{pr}}\xspace}
+
+\newcommand{\Trace}{\ensuremath{t}} 
+\newcommand{\TE}{\ensuremath{h}}
+ \newcommand{\ofmsg}[1]{\texttt{#1}}
+\newcommand{\SRC}{\ensuremath{\mathit{SRC}}}
+\newcommand{\DST}{\ensuremath{\mathit{DST}}}
+\newcommand{\INPORT}{\ensuremath{\mathit{INPORT}}}
+\newcommand{\AND}{\ensuremath{\wedge}}
+\newcommand{\WORLD}{\ensuremath{\mathit{World}}}
+\newcommand{\TF}{\ensuremath{T}}
+\newcommand{\LS}{\ensuremath{LS}} \newcommand{\SwS}{\ensuremath{SS}}
+\newcommand{\HS}{\ensuremath{HS}}
+\newcommand{\EQ}{\ensuremath{EQ}}
+\newcommand{\CState}{\ensuremath{CS}}
+\newcommand{\CSQ}{\ensuremath{SQ}}
+\newcommand{\SCQ}{\ensuremath{CQ}}
+\newcommand{\G}{\ensuremath{G}}
+\newcommand{\Config}{\ensuremath{C}}
+\newcommand{\Net}{\ensuremath{N}}
+\newcommand{\NetEv}{\ensuremath{ev}}
+\newcommand{\Upd}{\ensuremath{u}}
+\newcommand{\Upds}{\ensuremath{us}}
+\newcommand{\Clear}{\ensuremath{d}}
+\newcommand{\Q}{\ensuremath{Q}}
+\newcommand{\Obs}{\ensuremath{o}}
+\newcommand{\OS}{\ensuremath{\mathit{us}}}
+\newcommand{\U}{\ensuremath{u}}
+\newcommand{\Restrict}[2]{\ensuremath{#1|#2}}
+\newcommand{\M}{M\xspace}
+
+\newcommand{\then}{\Rightarrow}
+\newcommand{\bool}{\ensuremath{\mathit{bool}}}
+\newcommand{\alt}{\; | \;}
+\newcommand{\multiset}[1]{\ensuremath{\{\!|#1|\!\}}}
+\newcommand{\queue}[1]{\ensuremath{\left[#1\right]}}
+
+\newcommand{\sw}{\ensuremath{\mathit{sw}}\xspace} % switch id
+\newcommand{\pts}{\ensuremath{\mathit{pts}}} % port set
+
+\newcommand{\pt}{\ensuremath{pt}\xspace} % port id
+\newcommand{\pk}{\ensuremath{pk}\xspace} % packet
+
+\newcommand{\evalpol}[1]{\ensuremath{\llbracket#1\rrbracket}}
+\newcommand{\evalact}[1]{\ensuremath{\llbracket#1\rrbracket}}
+\newcommand{\evalpat}[1]{\ensuremath{\llbracket#1\rrbracket}}
+
+\newcommand{\PktOut}[1]{\textbf{PktOut\ }#1}
+\newcommand{\PktIn}[1]{\textbf{PktIn\ }#1}
+\newcommand{\FlowMod}[1]{\textbf{FlowMod}~#1}
+\newcommand{\BarrierRequest}[1]{\ensuremath{\textbf{BarrierRequest\ }#1}\xspace}
+\newcommand{\BarrierReply}[1]{\ensuremath{\textbf{BarrierReply\ }#1}\xspace}
+
+% Patterns
+\newcommand{\ofpat}[1]{\ensuremath{\textbf{#1}}\xspace}
+\newcommand{\ofinport}{\ofpat{inPort}}
+\newcommand{\ofsrcmac}{\ofpat{dlSrc}}
+\newcommand{\ofdstmac}{\ofpat{dlDst}}
+\newcommand{\offrametyp}{\ofpat{dlTyp}}
+\newcommand{\ofsrcip}{\ofpat{nwSrc}}
+\newcommand{\ofdstip}{\ofpat{nwDst}}
+\newcommand{\ofnwproto}{\ofpat{nwProto}}
+\newcommand{\ofsrcport}{\ofpat{tpSrc}}
+\newcommand{\ofdstport}{\ofpat{tpDst}}
+
+\newcommand{\inport}{\textit{inPort}}
+\newcommand{\srcmac}{\textit{dlSrc}}
+\newcommand{\dstmac}{\textit{dlDst}}
+\newcommand{\frametyp}{\textit{dlTyp}}
+\newcommand{\srcip}{\textit{nwSrc}}
+\newcommand{\dstip}{\textit{nwDst}}
+\newcommand{\nwproto}{\textit{nwProto}}
+\newcommand{\srcport}{\textit{tpSrc}}
+\newcommand{\dstport}{\textit{tpDst}}
+
+\newcommand{\mkPk}{\ensuremath{\textbf{Eth}}\xspace}
+\newcommand{\mkIP}{\ensuremath{\textbf{IP}}\xspace}
+\newcommand{\mkUnkPk}{\ensuremath{\textbf{Unknown}}\xspace}
+\newcommand{\nwpkt}{\ensuremath{\mathit{nwPk}}\xspace}
+\newcommand{\ippkt}{\ensuremath{\mathit{tpPk}}\xspace}
+\newcommand{\mkTCP}{\ensuremath{\textbf{TCP}}\xspace}
+
+\newcommand{\matchdl}[2]{#1\##2}
+\newcommand{\matchnw}[2]{#1\#_{\mathit{nw}}#2}
+\newcommand{\matchtp}[2]{#1\#_{\mathit{tp}}#2}
+
+% Actions
+\newcommand{\Patt}{\ensuremath{\mathit{pat}}\xspace}
+\newcommand{\Action}{\ensuremath{\mathit{act}}}
+
+\newcommand{\ncnot}[1]{\ensuremath{\textbf{not}~#1}\xspace}
+\newcommand{\ncand}{\ensuremath{~\textbf{and}~}\xspace}
+\newcommand{\ncor}{\ensuremath{~\textbf{or}~}\xspace}
+\newcommand{\ncrestrict}[2]
+  {\ensuremath{\textbf{restrict}~#1~\textbf{by}~#2}\xspace}
+\newcommand{\nchdr}[2]{\ensuremath{\ofpat{#1}\mathord{=}#2\xspace}}
+\newcommand{\ncatsw}{\ensuremath{\textbf{at}}\xspace}
+
+
+% A switch and its components
+\renewcommand{\S}{\ensuremath{S}}
+\newcommand{\SF}{\ensuremath{\mathit{FT}}\xspace}
+\newcommand{\NT}{\ensuremath{\mathit{NT}}\xspace} % network table
+\newcommand{\emptySF}{\ensuremath{\langle \rangle}} % empty flow table
+\newcommand{\SFint}[1]{\ensuremath{\llbracket#1\rrbracket}\xspace}
+% \newcommand{\SFint}[1]{\ensuremath{#1 \vdash}\xspace}
+\newcommand{\SFMod}{\ensuremath{\delta}\xspace}
+\newcommand{\SFModint}{\ensuremath{\mathrm{apply}}\xspace}
+\newcommand{\compose}{\ensuremath{\bullet}} % function composition
+\newcommand{\inp}{\ensuremath{\mathit{in_p}}\xspace}
+\newcommand{\outp}{\ensuremath{\mathit{out_p}}\xspace}
+\newcommand{\inm}{\ensuremath{\mathit{in_m}}\xspace}
+\newcommand{\outm}{\ensuremath{\mathit{out_m}}\xspace}
+
+\newcommand{\crel}{\rightsquigarrow} % controller in/out relation
+\newcommand{\Lt}{\ensuremath{L}} % link (packets)
+\newcommand{\Mt}{\ensuremath{M}} % control-network link (messages)
+\newcommand{\CSL}{\ensuremath{\mathit{SMS}}\xspace} % CS list
+\newcommand{\SCL}{\ensuremath{\mathit{CMS}}\xspace} % SC list
+
+% Constructors
+\newcommand{\mkS}{\ensuremath{\mathbb{S}}\xspace}
+\newcommand{\mkC}{\ensuremath{\mathbb{C}}\xspace}
+\newcommand{\mkL}{\ensuremath{\mathbb{L}}\xspace}
+\newcommand{\mkM}{\ensuremath{\mathbb{M}}\xspace}
+
+\newcommand{\ep}{\ensuremath{\mathit{ep}}} % endpoint of link
+
+
+\newcommand{\parcomp}{\ensuremath{\mid}}
+
+
+\newcommand{\C}{\ensuremath{C}} % controller
+\newcommand{\Cst}{\ensuremath{\sigma}\xspace} % controller state
+\newcommand{\Cin}{\ensuremath{f_{\mathit{in}}}\xspace} % controller function
+\newcommand{\Cout}{\ensuremath{f_{\mathit{out}}}\xspace} % controller function
+
+\newcommand{\loc}{\ensuremath{\mathit{loc}}} 
+\newcommand{\lp}{\ensuremath{\mathit{lp}}}
+\newcommand{\lps}{\ensuremath{\mathit{lps}}}
+\newcommand{\pks}{\ensuremath{\mathit{pks}}}
+
+\newcommand{\obsstep}[1]{\ensuremath{\xrightarrow{#1}}}
+\newcommand{\taustep}{\ensuremath{\longrightarrow}}
+\newcommand{\tausteps}{\ensuremath{\longrightarrow^*}}
+\newcommand{\absobsstep}[1]{\ensuremath{\xRightarrow{#1}}}
+
+\newcommand{\app}{\ensuremath{+\!\!\!\!+}} % append lists
+
+\newcommand{\Sys}{\ensuremath{Sys}\xspace} % system state
+
+\newcommand{\netcorestate}{\ensuremath{In}} % netcore state
+\newcommand{\netcorestep}[1]{\ensuremath{\overset{#1}{\longrightarrow}}} % netcore state
+
+\newcommand{\payload}{\mathit{payload}} % data payload
+\newcommand{\underscore}{\_} % ignore field
+
+% Policy
+\newcommand{\pol}{\ensuremath{\mathit{pg}}\xspace}
+
+\newcommand{\topo}{\ensuremath{T}\xspace}
+
+% Wildcards
+\newcommand{\All}{\ensuremath{\star}} % wildcard-any
+\newcommand{\fint}[1]{\ensuremath{\mathbb{N}^{#1}}} %n-bit int--[FILL] standard notation?
+
+\newcommand{\prio}{\ensuremath{\mathit{n}}} %priority
+\newcommand{\addflow}[3]{\ensuremath{\textbf{Add}~#1~#2~#3}}
+\newcommand{\offlowmod}{\ensuremath{\textbf{FlowMod}}\xspace}
+\newcommand{\delflow}[1]{\ensuremath{\textbf{Del}~#1}}
+
+\newcommand{\compilepol}{\ensuremath{\mathcal{C}}\xspace}
+\newcommand{\compilepred}{\ensuremath{\mathcal{P}}\xspace}
+
+\newcommand{\mkflowmods}[1]{\ensuremath{\delta(#1)}}
+\newcommand{\ftapprox}{\ensuremath{\sqsubseteq}}
+\newcommand{\optimize}{\ensuremath{\mathcal{O}}\xspace}
+
+
+% bisimulation
+\newcommand{\bisim}{\ensuremath{\approx_{\textit{OF}}}\xspace}
+\newcommand{\countpkt}{\ensuremath{\mathrm{count}}}
+\newcommand{\classify}{\ensuremath{\mathrm{classify}}\xspace}
+\newcommand{\bifunc}{\ensuremath{\mathrm{F}}\xspace}
+
+\newcommand{\defeq}{\ensuremath{\triangleq}}
+
+\newcommand{\ofpt}[1]{\ensuremath{\texttt{#1}}\xspace}
+\newcommand{\offwd}[1]{\ensuremath{\texttt{Fwd}~\texttt{#1}}\xspace}
+\newcommand{\emptymset}{\multiset{}}
+
+\tikzset{
+  every picture/.style={
+    draw=black!25,
+    thick,
+  },
+  every pin/.style={
+    inner sep=0pt,
+    pin distance=5pt,
+  },
+  every pin edge/.style={
+    thick,
+  },
+  switch/.style={
+    circle,
+    fill=black!40,
+    draw=black!50,
+    minimum size=14pt,
+    inner sep=0pt},
+  myred/.style={
+    fill=black!10!red!76,
+    draw=black!20!red!76},
+  myblack/.style={
+    draw=black!75,
+    fill=black!50},
+  mynone/.style={
+    draw=white,
+    fill=white},
+  mygreen/.style={
+    fill=black!50!green!75,
+    draw=black!75!green!75},
+  myblue/.style={
+    fill=black!15!blue!50,
+    draw=black!35!blue!50},
+  mypurple/.style={
+    fill=black!20!purple!100,
+    draw=black!35!purple!100},
+  mycloud/.style={
+    draw=black!50,
+    cloud,
+    cloud puffs=7,
+    minimum width=14pt,
+    minimum height=12pt 
+  }
+}
+
+\pgfplotsset{% 
+  filter discard warning=false,
+  compat=1.3,
+  width=4.75cm,
+  height=3.25cm,
+  every semilogy axis/.append style=
+  {ybar,bar width=.5pt,
+   font=\scriptsize,
+   stack plots=false,
+   scaled ticks=false,
+   xlabel near ticks,
+   ylabel near ticks,
+   xtick align=inside,
+   ytick align=inside,
+   ylabel={Control traffic (bytes)},
+   xlabel={Time (seconds)},
+   xmin=-3,
+   xmax=100,
+   xtick={20,40,60,80},
+   ymin=0,
+   ymax=100000,
+   ytickten={0,...,6}},
+  every axis title/.append style={ at={(0.5,.9)} },
+  every axis plot/.append style={very thick}
+}
+
+\newcommand{\sfont}[1]{\textsf{\textcolor{white}{#1}}}

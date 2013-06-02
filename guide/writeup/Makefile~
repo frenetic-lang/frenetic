@@ -1,0 +1,10 @@
+.PHONY=all clean
+
+all:
+	pdflatex main; bibtex main; pdflatex main; pdflatex main
+
+quick:
+	pdflatex main
+
+clean:
+	latexmk -c main
