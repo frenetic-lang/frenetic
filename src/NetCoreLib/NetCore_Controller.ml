@@ -451,6 +451,9 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     Lwt_stream.iter_s emit_pkt pkt_stream
 
   let start_controller pkt_stream pol = 
+    (* Do not delete the following printf. It is meant to be the minimal output
+       from the controller. *)
+    Log.printf "NetCore" "controller started.";
     Lwt.pick [
       accept_switches pol;
       emit_packets pkt_stream;
