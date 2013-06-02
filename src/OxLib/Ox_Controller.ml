@@ -5,8 +5,6 @@ open OpenFlow0x01
 module Log = Frenetic_Log
 type xid = Message.xid
 
-let (<&>) = Lwt.(<&>)
-
 module type OXPLATFORM = 
 sig
   val packetOut : xid -> switchId -> PacketOut.t -> unit 
@@ -100,19 +98,7 @@ struct
     lwt feats = Platform.accept_switch () in 
     let sw = feats.SwitchFeatures.switch_id in 
     Log.printf "Ox_Controller" "switch %Ld connected\n%!" sw;
-    let delete_all = {
-      mod_cmd = Command.DeleteFlow;
-      match_ = Match.all;
-      priority = 65535;
-      actions = [];
-      cookie = Int64.zero;
-      idle_timeout = Timeout.Permanent;
-      hard_timeout = Timeout.Permanent;
-      notify_when_removed = false;
-      apply_to_packet = None;
-      out_port = None;
-      check_overlap = false } in 
-    lwt _ = Platform.send_to_switch sw 0l (FlowModMsg delete_all) in 
+    lwt _ = Platform.send_to_switch sw 0l delete_all_flows in
     lwt _ = Platform.send_to_switch sw 1l BarrierRequest in
     (* JNF: wait for barrier reply? *)
     let _ = Handlers.switchConnected sw in 
