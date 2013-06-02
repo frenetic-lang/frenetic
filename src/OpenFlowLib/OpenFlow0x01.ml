@@ -508,8 +508,7 @@ module Action = struct
         | SetTpSrc pt
         | SetTpDst pt ->
           set_ofp_action_tp_port_tp_port bits' pt
-              | _ ->
-                failwith "NYI: Action.marshal"
+        | _ -> failwith "NYI: Action.marshal"
     end;
     size_of a
 
