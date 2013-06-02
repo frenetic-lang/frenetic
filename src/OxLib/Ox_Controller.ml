@@ -5,18 +5,43 @@ open OpenFlow0x01
 module Log = Frenetic_Log
 type xid = Message.xid
 
-module type OXPLATFORM = 
-sig
-  val packetOut : xid -> switchId -> PacketOut.t -> unit 
-  val flowMod : xid -> switchId -> FlowMod.t -> unit 
-  val barrierRequest : xid -> switchId -> unit
-  val statsRequest : xid -> switchId -> StatsRequest.t -> unit
-  val callback : float -> (unit -> unit) -> unit
+module Platform = OpenFlow0x01_Platform
+
+type to_sw = switchId * xid * Message.t
+
+let (to_send_stream, defer) : (to_sw Lwt_stream.t * (to_sw option -> unit))
+    = Lwt_stream.create ()
+
+let munge_exns thunk =
+  try_lwt
+    Lwt.wrap thunk
+  with exn ->
+    begin
+      Log.printf "Ox" "unhandled exception: %s\nRaised by a callback.\n%s%!"
+        (Printexc.to_string exn)
+        (Printexc.get_backtrace ());
+      Lwt.return ()
+    end
+
+module OxPlatform = struct
+  open Message
+
+  let packetOut xid sw pktOut = defer (Some (sw, xid, PacketOutMsg pktOut))
+	  
+  let flowMod xid sw flowMod = defer (Some (sw, xid, FlowModMsg flowMod))
+	  
+  let statsRequest xid sw req = defer (Some (sw, xid, StatsRequestMsg req))
+    
+  let barrierRequest xid sw = defer (Some (sw, xid, BarrierRequest))
+    
+  (* TODO(arjun): I'm not happy about this. I want an exception to terminate
+     the right swich, unless we have exceptions kill the controller. *)
+  let callback (n : float) (thk : unit -> unit) : unit = 
+    Lwt.async 
+      (fun () -> Lwt_unix.sleep n >> munge_exns thk)
 end
 
-module type OXMODULE = 
-functor (OxPlatform:OXPLATFORM) -> 
-sig
+module type OXMODULE = sig
   val switchConnected : switchId -> unit 
   val switchDisconnected : switchId -> unit
   val packetIn : xid -> switchId -> PacketIn.t -> unit
@@ -25,44 +50,8 @@ sig
   val portStatus : xid -> switchId -> PortStatus.t -> unit 
 end
 
-module Make (Platform:OpenFlow0x01.PLATFORM) (OxModule:OXMODULE) = 
-struct
 
-  type to_sw = switchId * xid * Message.t
-
-  let (to_send_stream, defer) : (to_sw Lwt_stream.t * (to_sw option -> unit))
-      = Lwt_stream.create ()
-
-  let munge_exns thunk =
-    try_lwt
-      Lwt.wrap thunk
-    with exn ->
-      begin
-        Log.printf "Ox" "unhandled exception: %s\nRaised by a callback.\n%s%!"
-          (Printexc.to_string exn)
-          (Printexc.get_backtrace ());
-        Lwt.return ()
-      end
-
-  module OxPlatform = struct      
-    open Message
-
-    let packetOut xid sw pktOut = defer (Some (sw, xid, PacketOutMsg pktOut))
-	
-    let flowMod xid sw flowMod = defer (Some (sw, xid, FlowModMsg flowMod))
-	
-    let statsRequest xid sw req = defer (Some (sw, xid, StatsRequestMsg req))
-
-    let barrierRequest xid sw = defer (Some (sw, xid, BarrierRequest))
-
-    (* TODO(arjun): I'm not happy about this. I want an exception to terminate
-       the right swich, unless we have exceptions kill the controller. *)
-    let callback (n : float) (thk : unit -> unit) : unit = 
-      Lwt.async 
-        (fun () -> Lwt_unix.sleep n >> munge_exns thk)
-  end
-
-  module Handlers = OxModule(OxPlatform) 
+module Make (Handlers:OXMODULE) = struct
 
   let rec switch_thread_loop sw = 
     let open Message in
@@ -124,5 +113,6 @@ struct
     accept_switches ()
 
   let start_controller () = 
+    Platform.init_with_port 6633 >>
     Lwt.pick [ handle_deferred (); accept_switches () ]
 end
