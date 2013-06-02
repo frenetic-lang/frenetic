@@ -1,5 +1,4 @@
 APPLICATIONS = Applications/Frenetic \
-               Applications/Ox \
                Applications/Test \
                Applications/Verify \
                Applications/NetCoreConsistent 
@@ -21,13 +20,18 @@ OCAMLBUILD = ocamlbuild -use-ocamlfind $(addprefix -I ,$(LIBRARIES))
 
 OCAMLFIND = ocamlfind
 
-all: ctags native byte debug $(LIBRARIES)
+all: ctags native byte debug $(LIBRARIES) oxen
 
 native: $(addsuffix .native, $(APPLICATIONS))
 
 byte: $(addsuffix .byte, $(APPLICATIONS))
 
 debug: $(addsuffix .d.byte, $(APPLICATIONS))
+
+oxen:
+	cd Applications/OxMonitor && $(MAKE)
+	cd Applications/OxLearning && $(MAKE)
+	cd Applications/OxRepeater && $(MAKE)
 
 %.d.byte:
 	$(OCAMLBUILD) -I Applications -cflag -ppopt -cflag -lwt-debug $@
