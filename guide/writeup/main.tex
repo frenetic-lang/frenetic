@@ -36,6 +36,12 @@
 \newcommand{\dpw}[1]{\finish[cornellred]{#1 --DPW}}
 \newcommand{\arjun}[1]{\finish[cornellred]{#1 --ARJUN}}
 
+\newcommand{\code}[1]{\texttt{#1}}
+
+\newcommand{\eg}{\emph{e.g.}}
+\newcommand{\ie}{\emph{i.e.}}
+\newcommand{\etc}{\emph{etc.}}
+
 \usepackage{local}
 
 \title{Frenetic Tutorial}
@@ -130,8 +136,60 @@ composition—the foundational principles behind effective design of any
 complex software system—is the key feature that distinguishes Frenetic
 from other SDN controllers.
 
-\section{Programming Static Frenetic Policies}
+\section{Programming Static Network Policies}
 
+\dpw{I'm going to describe policies a functions producing sets of packets.
+Kill me later?}
+
+A Frenetic policy describes how a collection of switches
+forwards packets from one location to another.  We call a Frenetic policy
+\emph{static} when it is fixed ahead of time,
+does not change, and does not depend upon the packets flows that
+appear in the network.  We focus on static policies in this
+section of the tutorial.
+
+The Frenetic programming paradigm encourages users to think of static
+policies as abstract \emph{functions} and to ignore how these functions
+are actually implemented on switch hardware.  Our compiler will take
+care of implementing the functions --- programmers need only concern
+themselves with specifying the right functionality.  
+
+More specifically, each policy is a function
+from a \emph{located packet} to a set of new \emph{located packets}.
+A \emph{located packet} is simply a record that contains one
+field for each OpenFlow-supported packet header (\code{srcMac}, \code{dstMac},
+\code{vlan}, \code{srcIP}, \code{dstIP}, \code{tcpSrcPort}, \code{tcpDstPort}, 
+\code{frameType}) as well as fields specifying the packet location 
+in the network (\code{switch} and \code{inPort}).
+
+To understand how a packet flows through a network, a programmer must
+analyze both the current Frenetic policy $P$ and the network topology
+$T$.  The policy is a function that explains how a switch should move
+a packet from an input port to an output port.  The topology is a
+function that explains how a packet moves from the outport of one
+switch, across a link, to the inport of some other switch.  Hence,
+given a located packet $p_0$, we can trace its path through the
+network by first applying the policy function $P(p_0)$, generating a
+set of (possibly zero) packets $\{p_1,\ldots,p_k\}$ at outports on a
+switch.  For simplicity, let's assume the result $P(p_0)$ contains
+just one packet ($p_1$) (\ie, it is a normal forwarding policy, not a
+broadcast).  Next, we apply the topology function $T$ to generate a
+packet $p_1'$ accross the other side of the link at some new switch.
+Then we apply the policy function $P$ again: $P(p_1')$ generating some
+further set of results.  And apply the topology function $T$ to each
+element of that result set.  In summary, one traces the flow of
+packets through a network by alternately applying the policy function
+$P$ and the topology function $T$.
+
+The bottom line is that (static) Frenetic is just a domain-specific
+language for writing down functions that determine how switches
+forward packets.
+
+\subsection{Introductory Examples}
+
+\begin{progeg}
+stuff
+\end{progeg}
 
 Describe the basic semantics and concepts.
 
