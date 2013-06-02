@@ -1,3 +1,3 @@
-requires = "lwt lwt.unix cstruct PacketLib"
+requires = "lwt lwt.unix cstruct PacketLib FreneticLib"
 archive(byte) = "OpenFlowLib.d.cma"
 archive(native) = "OpenFlowLib.cmxa OpenFlowLib.a"
