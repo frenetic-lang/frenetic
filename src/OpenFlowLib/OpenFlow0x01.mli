@@ -356,9 +356,25 @@ specification. *)
 
 end
 
-module PacketIn : sig
-(** A Packet-In message.  See Section 5.4.1 of the OpenFlow 1.0 specification.
+(** The payload for [PacketIn.t] and [PacketOut.t] messages. *)
+module Payload : sig
+
+  type t =
+    | Buffered of int32 * bytes 
+    (** [Buffered (id, buf)] is a packet buffered on a switch. *)
+    | NotBuffered of bytes
+
+  (** [parse pk] signals an exception if the packet cannot be parsed.
+      TODO(arjun): Which exception? *)
+  val parse : t -> Packet.packet
+
+  val to_string : t -> string
+end
+
+(** A Packet-In message.  See Section 5.4.1 of the OpenFlow 1.0
+    specification.
 *)
+module PacketIn : sig
 
   module Reason : sig
 
@@ -372,13 +388,10 @@ module PacketIn : sig
   end
 
   type t =
-    { buffer_id : int32 option (** ID assigned by datapath. *)
+    { payload : Payload.t
     ; total_len : int16 (** Full length of frame. *)
     ; port : portId (** Port on which frame was received. *)
     ; reason : Reason.t (** Reason packet is being sent. *)
-    ; packet : bytes (** Ethernet frame, halfway through 32-bit word, so the
-                     IP header is 32-bit aligned.  The amount of data is
-                     inferred from the length field in the header. *) 
     }
 
   (** [to_string v] pretty-prints [v]. *)
@@ -386,25 +399,14 @@ module PacketIn : sig
 
 end
 
+(** A send packet message.  See Section 5.3.6 of the OpenFlow 1.0
+    specification. *)
 module PacketOut : sig
-(** A send packet message.  See Section 5.3.6 of the OpenFlow 1.0 
-specification. *)
-
-  module Payload : sig
-
-    type t =
-      | Buffer of int32
-      | Packet of bytes
-
-    (** [to_string v] pretty-prints [v]. *)
-    val to_string : t -> string
-
-  end
 
   type t =
-    { buf_or_bytes : Payload.t
-    ; port_id : portId option (** Packet's input port. *)
-    ; actions : Action.sequence (** Actions. *)
+      { payload : Payload.t
+      ; port_id : portId option (** Packet's input port. *)
+      ; actions : Action.sequence (** Actions. *)
     }
 
   (** [to_string v] pretty-prints [v]. *)

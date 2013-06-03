@@ -341,36 +341,32 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       (NetCore_Stream.to_stream pol_stream)
       
   let handle_packet_in pol sw pkt_in = 
-    let open PacketIn in
-    let open PacketOut in
-    let in_port = pkt_in.port in
-    match Packet.parse pkt_in.packet with
-      | None -> 
+    let in_port = pkt_in.PacketIn.port in
+    try_lwt
+      let packet = Payload.parse pkt_in.PacketIn.payload in
+      let inp = Pkt (sw, Physical in_port, packet, pkt_in.PacketIn.payload) in
+      let full_action = NetCore_Semantics.eval (NetCore_Stream.now pol) inp in
+      let controller_action =
+        NetCore_Action.Output.apply_controller full_action
+          (sw, Physical in_port, packet) in
+      let action = match pkt_in.PacketIn.reason with
+        | PacketIn.Reason.ExplicitSend -> controller_action
+        | PacketIn.Reason.NoMatch ->
+          NetCore_Action.Output.par_action controller_action
+            (NetCore_Action.Output.switch_part full_action) in
+      let outp = { 
+        PacketOut.payload = pkt_in.PacketIn.payload;
+        PacketOut.port_id = None;
+        PacketOut.actions = 
+          NetCore_Action.Output.as_actionSequence (Some in_port) action 
+      } in
+      Platform.send_to_switch sw 0l (Message.PacketOutMsg outp)  
+    with Unparsable _ -> 
+      begin
         let _ = Log.printf "NetCore_Controller" "unparsable packet\n%!" in
         Lwt.return ()
-      | Some packet ->
-        let inp = Pkt (sw, Physical in_port, packet,
-                       match pkt_in.buffer_id with
-                         | Some id -> Payload.Buffer id
-                         | None -> Payload.Packet pkt_in.packet) in
-        let full_action = NetCore_Semantics.eval (NetCore_Stream.now pol) inp in
-        let controller_action =
-          NetCore_Action.Output.apply_controller full_action
-            (sw, Physical in_port, packet) in
-        let action = match pkt_in.reason with
-          | Reason.ExplicitSend -> controller_action
-          | Reason.NoMatch -> NetCore_Action.Output.par_action controller_action
-            (NetCore_Action.Output.switch_part full_action) in
-        let outp = { 
-          buf_or_bytes = begin match pkt_in.buffer_id with
-            | Some id -> Payload.Buffer id
-            | None -> Payload.Packet pkt_in.packet
-          end;
-          port_id = None;
-          actions = 
-            NetCore_Action.Output.as_actionSequence (Some in_port) action 
-        } in
-        Platform.send_to_switch sw 0l (Message.PacketOutMsg outp)  
+      end
+
 
   let rec handle_switch_messages pol sw = 
     let open Message in
@@ -443,7 +439,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     let emit_pkt (sw, pt, bytes) =
       let open OpenFlow0x01 in
       let msg = {
-        buf_or_bytes = Payload.Packet bytes;
+        payload = Payload.NotBuffered bytes;
         port_id = None;
         actions = [Action.Output (PseudoPort.PhysicalPort pt)]
       } in
@@ -509,35 +505,24 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
       
   let handle_packet_in sw pkt_in = 
     let open PacketIn in
-    let open PacketOut in
     let in_port = pkt_in.port in
-    match Packet.parse pkt_in.packet with
-      | None -> 
-        let _ = Log.printf "NetCore_Controller" "unparsable packet\n%!" in
-        Lwt.return ()
-      | Some packet ->
-        let inp = Pkt (sw, Physical in_port, packet,
-                       match pkt_in.buffer_id with
-                         | Some id -> Payload.Buffer id
-                         | None -> Payload.Packet pkt_in.packet) in
-        let full_action = NetCore_Semantics.eval !pol_now inp in
-        let controller_action =
-          NetCore_Action.Output.apply_controller full_action
-            (sw, Physical in_port, packet) in
-        let action = match pkt_in.reason with
-          | Reason.ExplicitSend -> controller_action
-          | Reason.NoMatch -> NetCore_Action.Output.par_action controller_action
-            (NetCore_Action.Output.switch_part full_action) in
-        let outp = { 
-          buf_or_bytes = begin match pkt_in.buffer_id with
-            | Some id -> Payload.Buffer id
-            | None -> Payload.Packet pkt_in.packet
-          end;
-          port_id = None;
-          actions = 
-            NetCore_Action.Output.as_actionSequence (Some in_port) action 
-        } in
-        Platform.send_to_switch sw 0l (Message.PacketOutMsg outp)  
+    let packet = Payload.parse pkt_in.payload in
+    let inp = Pkt (sw, Physical in_port, packet, pkt_in.payload) in
+    let full_action = NetCore_Semantics.eval !pol_now inp in
+    let controller_action =
+      NetCore_Action.Output.apply_controller full_action
+        (sw, Physical in_port, packet) in
+    let action = match pkt_in.reason with
+      | Reason.ExplicitSend -> controller_action
+      | Reason.NoMatch -> NetCore_Action.Output.par_action controller_action
+        (NetCore_Action.Output.switch_part full_action) in
+    let outp = { 
+      PacketOut.payload = pkt_in.payload;
+      PacketOut.port_id = None;
+      PacketOut.actions = 
+        NetCore_Action.Output.as_actionSequence (Some in_port) action 
+    } in
+    Platform.send_to_switch sw 0l (Message.PacketOutMsg outp)  
 
   let rec handle_switch_messages sw = 
     let open Message in
@@ -631,7 +616,7 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
     let emit_pkt (sw, pt, bytes) =
       let open OpenFlow0x01 in
       let msg = {
-        buf_or_bytes = Payload.Packet bytes;
+        payload = Payload.NotBuffered bytes;
         port_id = None;
         actions = [Action.Output (PseudoPort.PhysicalPort pt)]
       } in

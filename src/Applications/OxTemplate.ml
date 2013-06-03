@@ -11,17 +11,11 @@ module MyApplication : Ox_Controller.OXMODULE = struct
   let packet_in (sw : switchId) (xid : Message.xid) (pk : PacketIn.t) : unit =
     Printf.printf "Received a PacketIn message from switch %Ld:\n%s\n%!"
       sw (PacketIn.to_string pk);
-    (* TODO(arjun): seriously ... common payload type between both!!!! *)
-    match pk.PacketIn.buffer_id with
-      | Some buf ->
-        send_packet_out sw 0l ({ PacketOut.buf_or_bytes = PacketOut.Payload.Buffer buf;
-                           PacketOut.port_id = None;
-                           PacketOut.actions = [] })
-      | None -> 
-        send_packet_out sw 0l
-          { PacketOut.buf_or_bytes = PacketOut.Payload.Packet pk.PacketIn.packet;
-            PacketOut.port_id = None;
-            PacketOut.actions = [] }
+    send_packet_out sw 0l
+      { PacketOut.payload = pk.PacketIn.payload;
+        PacketOut.port_id = None;
+        PacketOut.actions = []
+      }
 
   let barrier_reply (sw : switchId) (xid : Message.xid) : unit =
     Printf.printf "Received a barrier reply %ld.\n%!" xid
