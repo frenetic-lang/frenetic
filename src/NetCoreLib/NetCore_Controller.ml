@@ -15,7 +15,7 @@ module type QUERY = functor (Platform : OpenFlow0x01.PLATFORM) -> sig
  
   type t
 
-  val create : Message.xid
+  val create : xid
             -> action_atom
             -> int (* Time to wait between queries. *)
             -> get_count_handler
@@ -34,7 +34,7 @@ module type QUERY = functor (Platform : OpenFlow0x01.PLATFORM) -> sig
   val refresh_switches : SwitchSet.t -> t -> unit
   val remove_switch : switchId -> t -> unit
 
-  val find : Message.xid -> t list -> t
+  val find : xid -> t list -> t
 
 end
 
@@ -45,7 +45,7 @@ module Query (Platform : OpenFlow0x01.PLATFORM) = struct
 
   type t = 
     { (* Static. *)
-      xid : Message.xid
+      xid : xid
     ; atom : NetCore_Types.action_atom
     ; time : float
     ; cb : get_count_handler
@@ -211,7 +211,7 @@ module type QUERYSET = functor (Platform : OpenFlow0x01.PLATFORM) ->
     val add_switch : switchId -> unit
     val remove_switch : switchId -> unit
     val handle_reply : switchId 
-                    -> Message.xid 
+                    -> xid 
                     -> StatsReply.IndividualFlowStats.t list 
                     -> unit
   end
@@ -219,7 +219,7 @@ module type QUERYSET = functor (Platform : OpenFlow0x01.PLATFORM) ->
 module QuerySet (Platform : OpenFlow0x01.PLATFORM) = struct
 
   module Q = Query (Platform)
-  type qid = Message.xid
+  type qid = xid
 
   (* The query ID generator is persistent across start/stop
    * cycles, in order to properly ignore old query responses.

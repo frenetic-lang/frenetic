@@ -7,6 +7,7 @@ exception Ignored of string
 
 type switchId = int64
 type portId = int16
+type xid = int32
 
 let string_of_switchId = Int64.to_string
 
@@ -2188,8 +2189,6 @@ module Message = struct
 
   end
 
-  type xid = int32
-
   type t =
     | Hello of bytes
     | ErrorMsg of Error.t
@@ -2330,7 +2329,7 @@ end
 
 module type PLATFORM = sig
   exception SwitchDisconnected of switchId
-  val send_to_switch : switchId -> Message.xid -> Message.t -> unit Lwt.t
-  val recv_from_switch : switchId -> (Message.xid * Message.t) Lwt.t
+  val send_to_switch : switchId -> xid -> Message.t -> unit Lwt.t
+  val recv_from_switch : switchId -> (xid * Message.t) Lwt.t
   val accept_switch : unit -> SwitchFeatures.t Lwt.t
 end

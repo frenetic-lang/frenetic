@@ -1,7 +1,6 @@
 module MyApplication : Ox_Controller.OXMODULE = struct
   open Ox_Controller.OxPlatform
   open OpenFlow0x01
-  type xid = Message.xid
 
   let switch_connected (sw : switchId) : unit = 
     Printf.printf "Switch %Ld connected.\n%!" sw

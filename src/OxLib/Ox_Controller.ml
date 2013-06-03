@@ -3,7 +3,6 @@ open Packet
 open OpenFlow0x01
 
 module Log = Frenetic_Log
-type xid = Message.xid
 
 module Platform = OpenFlow0x01_Platform
 
@@ -48,10 +47,10 @@ end
 module type OXMODULE = sig
   val switch_connected : switchId -> unit
   val switch_disconnected : switchId -> unit
-  val packet_in : switchId -> Message.xid -> PacketIn.t -> unit
-  val barrier_reply : switchId -> Message.xid -> unit
-  val stats_reply : switchId -> Message.xid -> StatsReply.t -> unit
-  val port_status : switchId -> Message.xid -> PortStatus.t -> unit
+  val packet_in : switchId -> xid -> PacketIn.t -> unit
+  val barrier_reply : switchId -> xid -> unit
+  val stats_reply : switchId -> xid -> StatsReply.t -> unit
+  val port_status : switchId -> xid -> PortStatus.t -> unit
 end
 
 

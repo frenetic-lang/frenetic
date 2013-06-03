@@ -24,6 +24,9 @@ type switchId = int64
 (* [portId] is the type of physical port identifiers (port numbers). *)
 type portId = int16
 
+(* Transaction ID of OpenFlow messages. *)
+type xid = int32
+
 (* [string_of_switchId sw] pretty-prints [sw]. *)
 val string_of_switchId : switchId -> string
 
@@ -736,9 +739,6 @@ specification. *)
 
   end
 
-  (* Transaction ID of OpenFlow messages. *)
-  type xid = int32
-
   type t =
     | Hello of bytes
     | ErrorMsg of Error.t
@@ -790,7 +790,7 @@ module type PLATFORM = sig
 
   (** [send_to_switch switch_id xid msg] sends [msg] to the switch,
       blocking until the send completes. *)
-  val send_to_switch : switchId -> Message.xid -> Message.t-> unit Lwt.t
+  val send_to_switch : switchId -> xid -> Message.t-> unit Lwt.t
 
   (** [recv_from_switch switch_id] blocks until [switch_id] sends a
       message.
@@ -798,7 +798,7 @@ module type PLATFORM = sig
       If the switch sends an [ECHO_REQUEST], [recv_from_switch] will
       itself respond with an [ECHO_REPLY] and block for the next
       message. *)
-  val recv_from_switch : switchId -> (Message.xid * Message.t) Lwt.t
+  val recv_from_switch : switchId -> (xid * Message.t) Lwt.t
 
   (** [accept_switch] blocks until a switch connects, handles the
       OpenFlow handshake, and returns after the switch sends a

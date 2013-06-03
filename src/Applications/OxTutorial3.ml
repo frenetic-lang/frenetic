@@ -1,7 +1,6 @@
 module MyApplication : Ox_Controller.OXMODULE = struct
   open Ox_Controller.OxPlatform
   open OpenFlow0x01
-  type xid = Message.xid
 
   (* TODO(arjun): decide where this goes. matchArp is trivial, but we will
      later ask them to calculate a cross product. *)
