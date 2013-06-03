@@ -50,7 +50,6 @@ and token = parse
              | LiterateLine -> literate lexbuf }
   | eof { EOF }
   | "," { COMMA }
-  | "nat" { NAT }
   | "in" { IN }
   | "publicIP" { PUBLICIP } 
   | "(" { LPAREN }
@@ -60,35 +59,39 @@ and token = parse
   | "!" { NOT }
   | "*" { STAR }
   | "all" { ALL }
+  | "fwd" { FWD }
   | "<none>" { NONE }
   | "filter" { FILTER }
   | "=" { EQUALS }
   | "->" { RARROW }
   | "switch" { SWITCH }
   | "vlan" { VLAN }
-  | "srcMac" { SRCMAC }
-  | "dstMac" { DSTMAC }
+  | "srcMAC" { SRCMAC }
+  | "dstMAC" { DSTMAC }
   | "srcIP" { SRCIP }
   | "dstIP" { DSTIP }
   | "tcpSrcPort" { TCPSRCPORT }
-  | "dstSrcPort" { TCPDSTPORT }
+  | "tcpDstPort" { TCPDSTPORT }
   | "frameType" { FRAMETYPE }
   | "arp" { ARP }
   | "ip" { IP }
   | "inPort" { INPORT }
   | "&&" { AND }
   | "||" { OR }
+  | "begin" { BEGIN }
+  | "end" { END }
   | "if" { IF }
   | "then" { THEN }
   | "else" { ELSE }
   | "pass" { PASS }
   | "drop" { DROP }
-  | "monitor_pol" { MONITOR_POL }
-  | "monitor_tbl" { MONITOR_TBL }
-  | "monitor_sw" { MONITOR_SW }
-  | "monitor_load" { MONITOR_LOAD }
+  | "monitorPolicy" { MONITOR_POL }
+  | "monitorTable" { MONITOR_TBL }
+  | "monitorSwitch" { MONITOR_SW }
+  | "monitorLoad" { MONITOR_LOAD }
   | ";" { SEMI }
   | "|" { BAR }
+  | "+" { PLUS }
   | (byte as n6) ":" (byte as n5) ":" (byte as n4) ":" (byte as n3) ":" 
     (byte as n2) ":" (byte as n1) 
     { let open Int64 in
@@ -109,9 +112,7 @@ and token = parse
                  (parse_decbyte b1)))) }
   | decimal as n { INT64 (Int64.of_string n) } 
   | hex as n { INT64 (Int64.of_string n) }
-  | "learn" { LEARNING }
   | "let" { LET }
-  | "publicIP" { PUBLICIP }
   | id as x { ID x } (* by going last, we lex to LEARN, NAT, etc. instead *)
 
 and block_comment = parse

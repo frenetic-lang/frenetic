@@ -24,15 +24,25 @@
      Int64.to_int n
    else
      raise Parsing.Parse_error
+
+ let nat_hash = Hashtbl.create 7
+
+ let mk_nat ip = 
+   (if not (Hashtbl.mem nat_hash ip) then 
+       Hashtbl.add nat_hash ip (NetCore_NAT.make ip));
+   Hashtbl.find nat_hash ip
   
 %}
 
 %token LPAREN
 %token RPAREN
+%token BEGIN
+%token END
 %token LCURLY
 %token RCURLY
 %token NOT
 %token ALL
+%token FWD
 %token STAR
 %token NONE
 %token EQUALS
@@ -56,10 +66,9 @@
 %token ELSE
 %token SEMI
 %token BAR
-%token LEARNING
+%token PLUS
 %token <string> ID
 %token COMMA
-%token NAT
 %token LET
 %token IN
 %token PUBLICIP
@@ -132,11 +141,14 @@ pred :
 pol_atom :
   | LPAREN pol RPAREN 
     { $2 }
-  | FILTER pred { Filter (symbol_start_pos (), $2) }
+  | BEGIN pol END 
+    { $2 }
+  | FILTER pred 
+    { Filter (symbol_start_pos (), $2) }
   | ID 
     { Id (symbol_start_pos (), $1) }
-  | INT64 
-    { Action (symbol_start_pos (), Action.forward (int16_of_int64 $1)) }
+  | FWD LPAREN INT64 RPAREN 
+    { Action (symbol_start_pos (), Action.forward (int16_of_int64 $3)) }
   | PASS 
     { Action (symbol_start_pos (), Action.pass) }
   | DROP 
@@ -161,45 +173,53 @@ pol_atom :
   | LCURLY pred RCURLY pol LCURLY pred RCURLY
     { Slice (symbol_start_pos (), $2, $4, $6) }
 
-pol_pred :  
+pol_pred_double :  
   | pol_atom
     { $1 }
-  | IF pred THEN pol_pred ELSE pol_pred
+  | IF pred THEN pol_pred_double ELSE pol_pred_double
     { ITE (symbol_start_pos (), $2, $4, $6) }
 
-pol_seq_list :
-  | pol_pred 
+pol_pred_single:
+  | pol_pred_double
     { $1 }
-  | pol_pred SEMI pol_seq_list 
+  | IF pred THEN pol_pred_double 
+    { ITE (symbol_start_pos (), $2, $4, Action (symbol_start_pos (), Action.drop)) }
+
+pol_seq_list :
+  | pol_pred_single 
+    { $1 }
+  | pol_pred_single SEMI pol_seq_list 
     { Seq (symbol_start_pos (), $1, $3) }
 
 pol_par_list :
-  | pol_pred
+  | pol_pred_single
     { $1 }
-  | pol_pred BAR pol_par_list
+  | pol_pred_single PLUS pol_par_list
     { Par (symbol_start_pos (), $1, $3) }
 
 pol :
-  | pol_pred 
+  | pol_pred_single
     { $1 }
-  | pol_pred BAR pol_par_list
+  | pol_pred_single PLUS pol_par_list
     { Par (symbol_start_pos (), $1, $3) }
-  | pol_pred SEMI pol_seq_list
+  | pol_pred_single SEMI pol_seq_list 
     { Seq (symbol_start_pos (), $1, $3) }
-  | LET ID EQUALS LEARNING IN pol
-    { let (init, pol) = NetCore_MacLearning.make () in
-      let (lwt_e, stream) = NetCore_Stream.from_stream init pol in
-      Let (symbol_start_pos (),
-           [($2, PolStream (lwt_e, stream))],
+  | LET ID EQUALS pol IN pol
+    { Let (symbol_start_pos (),
+           [($2, $4)],
            $6) }
-  | LET ID COMMA ID EQUALS NAT LPAREN PUBLICIP EQUALS IPADDR RPAREN IN pol
-    { let (lwt_e, priv, pub) = NetCore_NAT.make $10 in
-      (* TODO(arjun): sort of strange, but correct. its the private policy
+  | LET ID COMMA ID EQUALS ID LPAREN PUBLICIP EQUALS IPADDR RPAREN IN pol
+    { (* TODO(arjun): sort of strange, but correct. its the private policy
          that induces policy updates. *)
-      Let (symbol_start_pos (),
-           [($2, PolStream (lwt_e, priv));
-            ($4, PolStream (Lwt.return (), pub))],
-           $13) }
+      if $6 <> "nat" then 
+	raise Parsing.Parse_error
+      else
+	let (lwt_e, priv, pub) = mk_nat $10 in
+	Let (symbol_start_pos (),
+             [($2, Value (PolStream (lwt_e, priv)));
+              ($4, Value (PolStream (Lwt.return (), pub)))],
+             $13) }
+
 
 program
   : pol EOF { $1 }

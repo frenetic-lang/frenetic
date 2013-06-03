@@ -15,7 +15,7 @@ module type QUERY = functor (Platform : OpenFlow0x01.PLATFORM) -> sig
  
   type t
 
-  val create : Message.xid
+  val create : xid
             -> action_atom
             -> int (* Time to wait between queries. *)
             -> get_count_handler
@@ -34,7 +34,7 @@ module type QUERY = functor (Platform : OpenFlow0x01.PLATFORM) -> sig
   val refresh_switches : SwitchSet.t -> t -> unit
   val remove_switch : switchId -> t -> unit
 
-  val find : Message.xid -> t list -> t
+  val find : xid -> t list -> t
 
 end
 
@@ -45,7 +45,7 @@ module Query (Platform : OpenFlow0x01.PLATFORM) = struct
 
   type t = 
     { (* Static. *)
-      xid : Message.xid
+      xid : xid
     ; atom : NetCore_Types.action_atom
     ; time : float
     ; cb : get_count_handler
@@ -211,7 +211,7 @@ module type QUERYSET = functor (Platform : OpenFlow0x01.PLATFORM) ->
     val add_switch : switchId -> unit
     val remove_switch : switchId -> unit
     val handle_reply : switchId 
-                    -> Message.xid 
+                    -> xid 
                     -> StatsReply.IndividualFlowStats.t list 
                     -> unit
   end
@@ -219,7 +219,7 @@ module type QUERYSET = functor (Platform : OpenFlow0x01.PLATFORM) ->
 module QuerySet (Platform : OpenFlow0x01.PLATFORM) = struct
 
   module Q = Query (Platform)
-  type qid = Message.xid
+  type qid = xid
 
   (* The query ID generator is persistent across start/stop
    * cycles, in order to properly ignore old query responses.
@@ -332,7 +332,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     Lwt_list.iter_s
       (fun (match_, actions) ->
         Platform.send_to_switch sw 0l 
-          (Message.add_flow !prio match_ actions) >>
+          (Message.FlowModMsg (FlowMod.add_flow !prio match_ actions)) >>
         (decr prio; Lwt.return ()))
       flow_table
 
@@ -341,32 +341,31 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
       (NetCore_Stream.to_stream pol_stream)
       
   let handle_packet_in pol sw pkt_in = 
-    let open PacketIn in
-    let open PacketOut in
-    let in_port = pkt_in.port in
-    let packet = Packet.parse pkt_in.packet in
-    let inp = Pkt (sw, Physical in_port, packet,
-                   match pkt_in.buffer_id with
-                     | Some id -> Payload.Buffer id
-                     | None -> Payload.Packet pkt_in.packet) in
-    let full_action = NetCore_Semantics.eval (NetCore_Stream.now pol) inp in
-    let controller_action =
-      NetCore_Action.Output.apply_controller full_action
-        (sw, Physical in_port, packet) in
-    let action = match pkt_in.reason with
-      | Reason.ExplicitSend -> controller_action
-      | Reason.NoMatch -> NetCore_Action.Output.par_action controller_action
-        (NetCore_Action.Output.switch_part full_action) in
-    let outp = { 
-      buf_or_bytes = begin match pkt_in.buffer_id with
-        | Some id -> Payload.Buffer id
-        | None -> Payload.Packet pkt_in.packet
-      end;
-      port_id = None;
-      actions = 
-        NetCore_Action.Output.as_actionSequence (Some in_port) action 
-    } in
-    Platform.send_to_switch sw 0l (Message.PacketOutMsg outp)  
+    let in_port = pkt_in.PacketIn.port in
+    try_lwt
+      let packet = Payload.parse pkt_in.PacketIn.payload in
+      let inp = Pkt (sw, Physical in_port, packet, pkt_in.PacketIn.payload) in
+      let full_action = NetCore_Semantics.eval (NetCore_Stream.now pol) inp in
+      let controller_action =
+        NetCore_Action.Output.apply_controller full_action
+          (sw, Physical in_port, packet) in
+      let action = match pkt_in.PacketIn.reason with
+        | PacketIn.Reason.ExplicitSend -> controller_action
+        | PacketIn.Reason.NoMatch ->
+          NetCore_Action.Output.par_action controller_action
+            (NetCore_Action.Output.switch_part full_action) in
+      let outp = { 
+        PacketOut.payload = pkt_in.PacketIn.payload;
+        PacketOut.port_id = None;
+        PacketOut.actions = 
+          NetCore_Action.Output.as_actionSequence (Some in_port) action 
+      } in
+      Platform.send_to_switch sw 0l (Message.PacketOutMsg outp)  
+    with Unparsable _ -> 
+      begin
+        let _ = Log.printf "NetCore_Controller" "unparsable packet\n%!" in
+        Lwt.return ()
+      end
 
   let rec handle_switch_messages pol sw = 
     let open Message in
@@ -439,7 +438,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     let emit_pkt (sw, pt, bytes) =
       let open OpenFlow0x01 in
       let msg = {
-        buf_or_bytes = Payload.Packet bytes;
+        payload = Payload.NotBuffered bytes;
         port_id = None;
         actions = [Action.Output (PseudoPort.PhysicalPort pt)]
       } in
@@ -488,7 +487,7 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
           (OpenFlow0x01.Match.to_string match_)
           (OpenFlow0x01.Action.sequence_to_string actions);
         Platform.send_to_switch sw 0l 
-          (Message.add_flow !prio match_ actions) >>
+          (Message.FlowModMsg (FlowMod.add_flow !prio match_ actions)) >>
         (decr prio; Lwt.return ()))
       flow_table
 
@@ -505,13 +504,9 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
       
   let handle_packet_in sw pkt_in = 
     let open PacketIn in
-    let open PacketOut in
     let in_port = pkt_in.port in
-    let packet = Packet.parse pkt_in.packet in
-    let inp = Pkt (sw, Physical in_port, packet,
-                   match pkt_in.buffer_id with
-                     | Some id -> Payload.Buffer id
-                     | None -> Payload.Packet pkt_in.packet) in
+    let packet = Payload.parse pkt_in.payload in
+    let inp = Pkt (sw, Physical in_port, packet, pkt_in.payload) in
     let full_action = NetCore_Semantics.eval !pol_now inp in
     let controller_action =
       NetCore_Action.Output.apply_controller full_action
@@ -521,12 +516,9 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
       | Reason.NoMatch -> NetCore_Action.Output.par_action controller_action
         (NetCore_Action.Output.switch_part full_action) in
     let outp = { 
-      buf_or_bytes = begin match pkt_in.buffer_id with
-        | Some id -> Payload.Buffer id
-        | None -> Payload.Packet pkt_in.packet
-      end;
-      port_id = None;
-      actions = 
+      PacketOut.payload = pkt_in.payload;
+      PacketOut.port_id = None;
+      PacketOut.actions = 
         NetCore_Action.Output.as_actionSequence (Some in_port) action 
     } in
     Platform.send_to_switch sw 0l (Message.PacketOutMsg outp)  
@@ -623,7 +615,7 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
     let emit_pkt (sw, pt, bytes) =
       let open OpenFlow0x01 in
       let msg = {
-        buf_or_bytes = Payload.Packet bytes;
+        payload = Payload.NotBuffered bytes;
         port_id = None;
         actions = [Action.Output (PseudoPort.PhysicalPort pt)]
       } in

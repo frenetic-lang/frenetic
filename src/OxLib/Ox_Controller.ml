@@ -3,7 +3,6 @@ open Packet
 open OpenFlow0x01
 
 module Log = Frenetic_Log
-type xid = Message.xid
 
 module Platform = OpenFlow0x01_Platform
 
@@ -48,10 +47,10 @@ end
 module type OXMODULE = sig
   val switch_connected : switchId -> unit
   val switch_disconnected : switchId -> unit
-  val packet_in : switchId -> Message.xid -> PacketIn.t -> unit
-  val barrier_reply : switchId -> Message.xid -> unit
-  val stats_reply : switchId -> Message.xid -> StatsReply.t -> unit
-  val port_status : switchId -> Message.xid -> PortStatus.t -> unit
+  val packet_in : switchId -> xid -> PacketIn.t -> unit
+  val barrier_reply : switchId -> xid -> unit
+  val stats_reply : switchId -> xid -> StatsReply.t -> unit
+  val port_status : switchId -> xid -> PortStatus.t -> unit
 end
 
 
@@ -119,4 +118,16 @@ module Make (Handlers:OXMODULE) = struct
   let start_controller () = 
     Platform.init_with_port 6633 >>
     Lwt.pick [ handle_deferred (); accept_switches () ]
+
+  let _ =
+    Log.printf "Ox" "Controller launching...\n%!";
+    Sys.catch_break true;
+    try
+      Lwt_main.run (start_controller ())
+    with exn ->
+      Log.printf "Ox" "Unexpected exception: %s\n%s\n%!"
+        (Printexc.to_string exn)
+        (Printexc.get_backtrace ());
+      exit 1
+
 end

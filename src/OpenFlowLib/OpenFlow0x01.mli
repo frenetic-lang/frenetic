@@ -24,6 +24,9 @@ type switchId = int64
 (* [portId] is the type of physical port identifiers (port numbers). *)
 type portId = int16
 
+(* Transaction ID of OpenFlow messages. *)
+type xid = int32
+
 (* [string_of_switchId sw] pretty-prints [sw]. *)
 val string_of_switchId : switchId -> string
 
@@ -351,14 +354,38 @@ specification. *)
     ; check_overlap : bool (** Check for overlapping entries first. *)
     }
 
+  (** [add_flow priority pattern action_sequence] creates a
+      [FlowMod.t] instruction that adds a new flow table entry with
+      the specified [priority], [pattern], and [action_sequence].
+
+      The entry is permanent (i.e., does not timeout), its cookie is
+      zero, etc. *)
+  val add_flow : int16 -> Match.t -> Action.sequence -> t
+
   (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
 
 end
 
-module PacketIn : sig
-(** A Packet-In message.  See Section 5.4.1 of the OpenFlow 1.0 specification.
+(** The payload for [PacketIn.t] and [PacketOut.t] messages. *)
+module Payload : sig
+
+  type t =
+    | Buffered of int32 * bytes 
+    (** [Buffered (id, buf)] is a packet buffered on a switch. *)
+    | NotBuffered of bytes
+
+  (** [parse pk] signals an exception if the packet cannot be parsed.
+      TODO(arjun): Which exception? *)
+  val parse : t -> Packet.packet
+
+  val to_string : t -> string
+end
+
+(** A Packet-In message.  See Section 5.4.1 of the OpenFlow 1.0
+    specification.
 *)
+module PacketIn : sig
 
   module Reason : sig
 
@@ -372,13 +399,10 @@ module PacketIn : sig
   end
 
   type t =
-    { buffer_id : int32 option (** ID assigned by datapath. *)
+    { payload : Payload.t
     ; total_len : int16 (** Full length of frame. *)
     ; port : portId (** Port on which frame was received. *)
     ; reason : Reason.t (** Reason packet is being sent. *)
-    ; packet : bytes (** Ethernet frame, halfway through 32-bit word, so the
-                     IP header is 32-bit aligned.  The amount of data is
-                     inferred from the length field in the header. *) 
     }
 
   (** [to_string v] pretty-prints [v]. *)
@@ -386,25 +410,14 @@ module PacketIn : sig
 
 end
 
+(** A send packet message.  See Section 5.3.6 of the OpenFlow 1.0
+    specification. *)
 module PacketOut : sig
-(** A send packet message.  See Section 5.3.6 of the OpenFlow 1.0 
-specification. *)
-
-  module Payload : sig
-
-    type t =
-      | Buffer of int32
-      | Packet of bytes
-
-    (** [to_string v] pretty-prints [v]. *)
-    val to_string : t -> string
-
-  end
 
   type t =
-    { buf_or_bytes : Payload.t
-    ; port_id : portId option (** Packet's input port. *)
-    ; actions : Action.sequence (** Actions. *)
+      { payload : Payload.t
+      ; port_id : portId option (** Packet's input port. *)
+      ; actions : Action.sequence (** Actions. *)
     }
 
   (** [to_string v] pretty-prints [v]. *)
@@ -726,9 +739,6 @@ specification. *)
 
   end
 
-  (* Transaction ID of OpenFlow messages. *)
-  type xid = int32
-
   type t =
     | Hello of bytes
     | ErrorMsg of Error.t
@@ -767,9 +777,6 @@ specification. *)
   (** A message ([FlowModMsg]) that deletes all flows. *)
   val delete_all_flows : t
 
-  (** A permanent [FlowModMsg] adding a rule. *)
-  val add_flow : int -> Match.t -> Action.sequence -> t
-
 end
 
 (** Interface for all platforms. *)
@@ -783,7 +790,7 @@ module type PLATFORM = sig
 
   (** [send_to_switch switch_id xid msg] sends [msg] to the switch,
       blocking until the send completes. *)
-  val send_to_switch : switchId -> Message.xid -> Message.t-> unit Lwt.t
+  val send_to_switch : switchId -> xid -> Message.t-> unit Lwt.t
 
   (** [recv_from_switch switch_id] blocks until [switch_id] sends a
       message.
@@ -791,7 +798,7 @@ module type PLATFORM = sig
       If the switch sends an [ECHO_REQUEST], [recv_from_switch] will
       itself respond with an [ECHO_REPLY] and block for the next
       message. *)
-  val recv_from_switch : switchId -> (Message.xid * Message.t) Lwt.t
+  val recv_from_switch : switchId -> (xid * Message.t) Lwt.t
 
   (** [accept_switch] blocks until a switch connects, handles the
       OpenFlow handshake, and returns after the switch sends a

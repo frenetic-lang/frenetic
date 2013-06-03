@@ -5,7 +5,12 @@ APPLICATIONS = Applications/Frenetic \
                Applications/OxTemplate \
 	             Applications/OxRepeater \
                Applications/OxMonitor \
-               Applications/OxLearning
+               Applications/OxLearning \
+               Applications/OxTutorial1 \
+               Applications/OxTutorial2 \
+               Applications/OxTutorial3 \
+               Applications/OxTutorial4
+
 
 LIBRARIES = FreneticLib \
             PacketLib \

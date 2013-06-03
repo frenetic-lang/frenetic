@@ -1,17 +1,14 @@
 if frameType = arp then
-  (if inPort = 2 then
-    1
-  else if inPort = 1 then
-    2
-  else
-    drop)
-else
-(let translate_private, translate_public = nat (publicIP = 10.0.0.254) in
-   monitor_tbl(1, (if switch = 1 && inPort = 1 then 
-      (translate_private; if inPort = 1 then 2 else pass)
-    else
-      drop) |
-   (if switch = 1 && inPort = 2 then
-      (translate_public; if inPort = 2 then 1 else pass)
-    else
-      drop)))
+  if inPort = 2 then fwd(1)
+  else (if inPort = 1 then fwd(2))
+else  
+  begin 
+    let translatePrivate, translatePublic = 
+      nat (publicIP = 10.0.0.254) in
+    let pol = 
+        if switch = 1 && inPort = 1 then 
+          (translatePrivate; if inPort = 1 then fwd(2) else pass)
+      + if switch = 1 && inPort = 2 then
+          (translatePublic; if inPort = 2 then fwd(1) else pass) in 
+    monitorTable(1, pol) 
+  end  

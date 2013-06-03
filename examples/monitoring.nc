@@ -1,1 +1,3 @@
-if * then all else drop | monitor_load (5, *)
+(* A simple monitoring application *)
+  if * then all 
++ monitorLoad (5, *)

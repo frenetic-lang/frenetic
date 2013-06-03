@@ -6,6 +6,9 @@ open NetCore_Desugar
 open NetCore_Pretty
 open OUnit
 
+
+let pay = OpenFlow0x01.Payload.Buffered (0l, Cstruct.create 10)
+
 module TestClassifier = struct
 
   module C = NetCore_Classifier.Make (NetCore_Action.Output)
@@ -175,7 +178,7 @@ module TestClassifier = struct
     nw = Unparsable (0, Cstruct.create 8) 
   }
 
-  let inp = Pkt (1L, Physical 1, pk, OpenFlow0x01.PacketOut.Payload.Buffer 0l)
+  let inp = Pkt (1L, Physical 1, pk, pay)
 
   let lst3 =
     [("sequencing 1",
@@ -189,11 +192,11 @@ module TestClassifier = struct
       Pkt (1L, 
            Physical 1, 
            { pk with dlVlan = Some 1 },
-           OpenFlow0x01.PacketOut.Payload.Buffer 0l));
+           pay));
      ("updating 1",
       updateDlVlan None (Some 1),
       PoAction (updateDlVlan None (Some 1)),
-      Pkt (1L, Physical 1, pk, OpenFlow0x01.PacketOut.Payload.Buffer 0l))]
+      Pkt (1L, Physical 1, pk, pay))]
       
 
   let go = TestList 
@@ -206,12 +209,12 @@ module TestClassifier = struct
           assert_equal
             [Pkt (1L, Physical 1, 
                   { pk with dlVlan = Some 1 }, 
-                  OpenFlow0x01.PacketOut.Payload.Buffer 0l)]
+                  pay)]
             (eval_action 
               (Pkt (1L, 
                     Physical 1, 
                     pk, 
-                    OpenFlow0x01.PacketOut.Payload.Buffer 0l))
+                    pay))
               (updateDlVlan None (Some 1))))
     ]
 
@@ -417,7 +420,7 @@ module Helper = struct
     Pkt ( Int64.one
         , (Physical 1)
         , in_pkt
-        , (OpenFlow0x01.PacketOut.Payload.Buffer Int32.zero))
+        , pay)
 
   let mkEvalTest name ?debug:(dbg=false) pol in_val expected_vals = 
     let ds_pol = desugar_policy pol in

@@ -7,6 +7,7 @@ exception Ignored of string
 
 type switchId = int64
 type portId = int16
+type xid = int32
 
 let string_of_switchId = Int64.to_string
 let string_of_portId = string_of_int
@@ -508,6 +509,10 @@ module Action = struct
         | SetTpSrc pt
         | SetTpDst pt ->
           set_ofp_action_tp_port_tp_port bits' pt
+	| SetDlVlan (Some vid) ->
+	  set_ofp_action_vlan_vid_vlan_vid bits' vid
+	| SetDlVlan None ->
+	  ()
         | _ -> failwith "NYI: Action.marshal"
     end;
     size_of a
@@ -1162,6 +1167,21 @@ module FlowMod = struct
     ; out_port : PseudoPort.t option
     ; check_overlap : bool }
 
+  let add_flow prio pat actions = 
+    { mod_cmd = Command.AddFlow;
+      match_ = pat;
+      priority = prio;
+      actions = actions;
+      cookie = 0L;
+      idle_timeout = Timeout.Permanent;
+      hard_timeout = Timeout.Permanent;
+      notify_when_removed = false;
+      out_port =  None;
+      apply_to_packet = None;
+      check_overlap = false
+    }
+
+
   cstruct ofp_flow_mod {
     uint64_t cookie;
     uint16_t command;
@@ -1224,6 +1244,38 @@ module FlowMod = struct
 
 end
 
+module Payload = struct
+
+  type t = 
+    | Buffered of int32 * bytes
+    | NotBuffered of bytes
+
+  let parse (t : t) = match t with
+    | Buffered (_, b)
+    | NotBuffered b -> 
+      Packet.parse b
+
+  let to_string (t : t) = match t with
+    | Buffered (b, pk) ->
+      Format.sprintf "%d bytes (buffered at %ld)" (Cstruct.len pk) b
+    | NotBuffered pk -> 
+      Format.sprintf "%d bytes" (Cstruct.len pk)
+
+  (* sizeof when in a [PacketOut] message *)
+  let packetout_sizeof p = match p with
+    | Buffered _ -> 0
+    | NotBuffered bytes -> Cstruct.len bytes
+
+  let packetout_marshal p out = 
+      let _ = match p with
+        | Buffered _ -> ()
+        | NotBuffered bytes ->
+          Cstruct.blit bytes 0 out 0 (Cstruct.len bytes)
+        in
+      packetout_sizeof p
+
+end
+
 module PacketIn = struct
 
   module Reason = struct
@@ -1255,11 +1307,11 @@ module PacketIn = struct
   end
 
   type t =
-    { buffer_id : int32 option
+    { payload : Payload.t
     ; total_len : int16
     ; port : portId
     ; reason : Reason.t
-    ; packet :  bytes }
+    }
 
   cstruct ofp_packet_in {
     uint32_t buffer_id;
@@ -1270,9 +1322,9 @@ module PacketIn = struct
   } as big_endian
 
   let to_string pin = Printf.sprintf
-    "{ buffer_id = %s; total_len = %d; port = %s; reason = %s; \
+    "{ payload = %s; total_len = %d; port = %s; reason = %s; \
        packet = <bytes> }"
-    (Frenetic_Misc.string_of_option Int32.to_string pin.buffer_id)
+    (Payload.to_string pin.payload)
     pin.total_len
     (string_of_portId pin.port)
     (Reason.to_string pin.reason)
@@ -1284,47 +1336,19 @@ module PacketIn = struct
     let total_len = get_ofp_packet_in_total_len bits in
     let in_port = get_ofp_packet_in_in_port bits in
     let reason = Reason.of_int (get_ofp_packet_in_reason bits) in
-    { buffer_id = buf_id
-    ; total_len = total_len
-    ; port = in_port
-    ; reason = reason
-    ; packet = Cstruct.shift bits sizeof_ofp_packet_in }
-
-  let size_of pin = sizeof_ofp_packet_in + Cstruct.len pin.packet
-
-  let marshal _ _ = failwith "NYI: PacketIn.marshal"
-
+    let pk = Cstruct.shift bits sizeof_ofp_packet_in in
+    let payload = match buf_id with
+      | None -> Payload.NotBuffered pk
+      | Some n -> Payload.Buffered (n, pk) in
+    { payload = payload; total_len = total_len; port = in_port;
+      reason = reason }
 end
 
 module PacketOut = struct
 
-  module Payload = struct
-
-    type t =
-      | Buffer of int32
-      | Packet of bytes
-
-    let to_string p = match p with
-      | Buffer id -> Printf.sprintf "Buffer %s" (Int32.to_string id)
-      | Packet _ -> "Packet <bytes>"
-
-    let size_of p = match p with
-      | Buffer _ -> 0
-      | Packet bytes -> Cstruct.len bytes
-
-    let marshal p out = 
-      let _ = match p with
-        | Buffer n -> ()
-        | Packet bytes -> Cstruct.blit bytes 0 out 0 (Cstruct.len bytes)
-        in
-      size_of p
-
-    let parse _ = failwith "NYI: PacketOut.Payload.parse"
-
-  end
 
   type t =
-    { buf_or_bytes : Payload.t
+    { payload : Payload.t
     ; port_id : portId option
     ; actions : Action.sequence }
 
@@ -1335,21 +1359,21 @@ module PacketOut = struct
   } as big_endian
 
   let to_string out = Printf.sprintf
-    "{ buf_or_bytes = %s; port_id = %s; actions = %s }"
-    (Payload.to_string out.buf_or_bytes)
+    "{ payload = %s; port_id = %s; actions = %s }"
+    (Payload.to_string out.payload)
     (Frenetic_Misc.string_of_option string_of_portId out.port_id)
     (Action.sequence_to_string out.actions)
 
   let size_of (pkt_out : t) : int =
     sizeof_ofp_packet_out +
       (Action.size_of_sequence pkt_out.actions) +
-      (Payload.size_of pkt_out.buf_or_bytes)
+      (Payload.packetout_sizeof pkt_out.payload)
 
   let marshal (pkt_out : t) (buf : Cstruct.t) : int =
     set_ofp_packet_out_buffer_id buf
-      (match pkt_out.buf_or_bytes with
-        | Payload.Buffer n -> n
-        | _ -> -1l);
+      (match pkt_out.payload with
+        | Payload.Buffered (n, _) -> n
+        | Payload.NotBuffered _  -> -1l);
     set_ofp_packet_out_in_port buf
       (PseudoPort.marshal_optional
         (match pkt_out.port_id with
@@ -1361,10 +1385,8 @@ module PacketOut = struct
       (fun buf act -> Cstruct.shift buf (Action.marshal act buf))
       (Cstruct.shift buf sizeof_ofp_packet_out)
       (Action.move_controller_last pkt_out.actions) in
-    let _ = Payload.marshal pkt_out.buf_or_bytes buf in
+    let _ = Payload.packetout_marshal pkt_out.payload buf in
     size_of pkt_out
-
-  let parse _ = failwith "NYI: PacketOut.parse"
 
 end
 
@@ -2165,8 +2187,6 @@ module Message = struct
 
   end
 
-  type xid = int32
-
   type t =
     | Hello of bytes
     | ErrorMsg of Error.t
@@ -2190,21 +2210,6 @@ module Message = struct
       ; match_ = Match.all
       ; priority = 0
       ; actions = []
-      ; cookie = 0L
-      ; idle_timeout = Timeout.Permanent
-      ; hard_timeout = Timeout.Permanent
-      ; notify_when_removed = false
-      ; apply_to_packet = None
-      ; out_port = None
-      ; check_overlap = false }
-
-  let add_flow prio match_ actions =
-    let open FlowMod in
-    FlowModMsg
-      { mod_cmd = Command.AddFlow
-      ; match_ = match_
-      ; priority = prio
-      ; actions = actions
       ; cookie = 0L
       ; idle_timeout = Timeout.Permanent
       ; hard_timeout = Timeout.Permanent
@@ -2322,7 +2327,7 @@ end
 
 module type PLATFORM = sig
   exception SwitchDisconnected of switchId
-  val send_to_switch : switchId -> Message.xid -> Message.t -> unit Lwt.t
-  val recv_from_switch : switchId -> (Message.xid * Message.t) Lwt.t
+  val send_to_switch : switchId -> xid -> Message.t -> unit Lwt.t
+  val recv_from_switch : switchId -> (xid * Message.t) Lwt.t
   val accept_switch : unit -> SwitchFeatures.t Lwt.t
 end
