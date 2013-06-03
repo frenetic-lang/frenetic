@@ -1,6 +1,7 @@
 module MyApplication : Ox_Controller.OXMODULE = struct
   open Ox_Controller.OxPlatform
   open OpenFlow0x01
+  type xid = Message.xid
 
   let switch_connected (sw : switchId) : unit =
     Printf.printf "Switch %Ld connected.\n%!" sw
@@ -8,7 +9,7 @@ module MyApplication : Ox_Controller.OXMODULE = struct
   let switch_disconnected (sw : switchId) : unit =
     Printf.printf "Switch %Ld disconnected.\n%!" sw
       
-  let packet_in (sw : switchId) (xid : Message.xid) (pk : PacketIn.t) : unit =
+  let packet_in (sw : switchId) (xid : xid) (pk : PacketIn.t) : unit =
     Printf.printf "Received a PacketIn message from switch %Ld:\n%s\n%!"
       sw (PacketIn.to_string pk);
     send_packet_out sw 0l
@@ -17,16 +18,16 @@ module MyApplication : Ox_Controller.OXMODULE = struct
         PacketOut.actions = []
       }
 
-  let barrier_reply (sw : switchId) (xid : Message.xid) : unit =
+  let barrier_reply (sw : switchId) (xid : xid) : unit =
     Printf.printf "Received a barrier reply %ld.\n%!" xid
 
-  let stats_reply (sw : switchId) (xid : Message.xid) (stats : StatsReply.t) : unit =
+  let stats_reply (sw : switchId) (xid : xid) (stats : StatsReply.t) : unit =
     Printf.printf "Received a StatsReply from switch %Ld:\n%s\n%!"
       sw (StatsReply.to_string stats)
 
-  let port_status (sw : switchId) (xid : Message.xid) (port_stat : PortStatus.t) : unit =
+  let port_status (sw : switchId) (xid : xid) (port : PortStatus.t) : unit =
     Printf.printf "Received a PortStatus from switch %Ld:\n%s\n%!"
-      sw (PortStatus.to_string port_stat)
+      sw (PortStatus.to_string port)
 
 end
 
