@@ -49,7 +49,7 @@ type nwProto = int8
 (** [nwTos] is the type of IPv4 types of service. *)
 type nwTos = int8
 
-(** [tpPort] is the type of TCP/UDP ports. *)
+(** [tpPort] is the type of TCP ports. *)
 type tpPort = int16
 
 (** TCP frame of a packet. *)
@@ -185,29 +185,29 @@ type packet =
 (** [dlTyp pkt] returns the EtherType of [pkt]. *)
 val dlTyp : packet -> dlTyp
 
-(** [nwSrc pkt] returns the source IP address of [pkt], if the packet is
-carrying an IP payload. *)
-val nwSrc : packet -> nwAddr option
+(** [nwSrc pkt] returns the source IP address of [pkt].
+@raise Invalid_argument if the packet is not carrying an IP payload. *)
+val nwSrc : packet -> nwAddr
 
-(** [nwDst pkt] returns the destination IP address of [pkt], if the packet is
-carrying an IP payload. *)
-val nwDst : packet -> nwAddr option
+(** [nwDst pkt] returns the destination IP address of [pkt].
+@raise Invalid_argument if the packet is not carrying an IP payload. *)
+val nwDst : packet -> nwAddr
 
-(** [nwTos pkt] returns the IPv4 type of service of [pkt], if the packet is
-carrying an IP payload. *)
-val nwTos : packet -> nwTos option
+(** [nwTos pkt] returns the IPv4 type of service of [pkt].
+@raise Invalid_argument if the packet is not carrying an IP payload. *)
+val nwTos : packet -> nwTos
 
-(** [nwProto pkt] returns the IPv4 protocol of [pkt], if the packet is carrying
-an IP payload. *)
-val nwProto : packet -> nwProto option
+(** [nwProto pkt] returns the IPv4 protocol of [pkt].
+@raise Invalid_argument if the packet is not carrying an IP payload. *)
+val nwProto : packet -> nwProto
 
-(** [tpSrc pkt] returns the TCP/UDP source port of [pkt], if the packet is
-carrying a TCP/UDP payload. *)
-val tpSrc : packet -> tpPort option
+(** [tpSrc pkt] returns the TCP source port of [pkt].
+@raise Invalid_argument if the packet is not carrying a TCP payload. *)
+val tpSrc : packet -> tpPort
 
-(** [tpDst pkt] returns the TCP/UDP destination port of [pkt], if the packet is
-carrying a TCP/UDP payload. *)
-val tpDst : packet -> tpPort option
+(** [tpDst pkt] returns the TCP destination port of [pkt].
+@raise Invalid_argument if the packet is not carrying a TCP payload. *)
+val tpDst : packet -> tpPort
 
 (** {9 Mutators} *)
 
@@ -236,12 +236,12 @@ val setNwDst : packet -> nwAddr -> packet
 carries an IP payload.  Otherwise, it returns the packet unchanged. *)
 val setNwTos : packet -> nwTos -> packet
 
-(** [setTpSrc pkt] sets the TCP/UDP source port of [pkt] if the packet
-carries an TCP/UDP payload.  Otherwise, it returns the packet unchanged. *)
+(** [setTpSrc pkt] sets the TCP source port of [pkt] if the packet
+carries an TCP payload.  Otherwise, it returns the packet unchanged. *)
 val setTpSrc : packet -> tpPort -> packet
 
-(** [setTpDst pkt] sets the TCP/UDP destination port of [pkt] if the packet
-carries a TCP/UDP payload.  Otherwise, it returns the packet unchanged. *)
+(** [setTpDst pkt] sets the TCP destination port of [pkt] if the packet
+carries a TCP payload.  Otherwise, it returns the packet unchanged. *)
 val setTpDst : packet -> tpPort -> packet
 
 (** {9 Pretty Printing} *)
@@ -275,7 +275,7 @@ val string_of_nwProto : nwProto -> string
 (** [string_of_nwTos t] pretty-prints an IPv4 type of service. *)
 val string_of_nwTos : nwTos -> string
 
-(** [string_of_tpPort p] pretty-prints a TCP/UDP port number. *)
+(** [string_of_tpPort p] pretty-prints a TCP port number. *)
 val string_of_tpPort : tpPort -> string
 
 (** [string_of_nw nw] pretty-prints an ethernet frame payload. *)

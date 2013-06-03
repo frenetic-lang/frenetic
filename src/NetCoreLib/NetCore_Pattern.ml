@@ -171,13 +171,13 @@ let contains pat1 pat2 =
   TpPortWildcard.contains pat1.ptrnTpDst pat2.ptrnTpDst &&
   PortWildcard.contains pat1.ptrnInPort pat2.ptrnInPort
 
-let zero_default32 f x = match f x with
-  | Some v -> v
-  | None -> 0l
+let zero_default32 f x = 
+  try f x 
+  with Invalid_argument _ -> 0l
 
-let zero_default f x = match f x with
-  | Some v -> v
-  | None -> 0
+let zero_default f x = 
+  try f x
+  with Invalid_argument _ -> 0
 
 let exact_pattern pk pt = 
   let dlTyp = dlTyp pk in
