@@ -478,19 +478,32 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
   let clear_switch (sw : switchId) : unit Lwt.t =
     Platform.send_to_switch sw 0l Message.delete_all_flows
 
+  let rec pop_last lst = match lst with
+    | [] -> failwith "pop_last must be called w/ non-empty list"
+    | [a] -> [],a
+    | a :: lst -> let lst',last = pop_last lst in
+		  a::lst',last
+
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
     Log.printf "ConsistentController" "In configure_squence\n%!";
-    lwt flow_table = Lwt.wrap2 NetCore_Compiler.flow_table_of_policy sw pol in
-    let prio = ref 65535 in
-    Lwt_list.iter_s
-      (fun (match_, actions) ->
-        printf " %s => %s\n%!"
-          (OpenFlow0x01.Match.to_string match_)
-          (OpenFlow0x01.Action.sequence_to_string actions);
-        Platform.send_to_switch sw 0l 
-          (Message.add_flow !prio match_ actions) >>
+    (* Flow table always emits default drop rule. Installing policies
+       in sequence w/o clearing results in multiple such rules, possibly
+       messing up semantics w/ they overlap/shadow real rules. Instead,
+       default drop rule should be installed at bottom priority *)
+    lwt flow_table, drop_rule = Lwt.wrap1 pop_last (NetCore_Compiler.flow_table_of_policy sw pol) in
+  let prio = ref 65535 in
+  Lwt_list.iter_s
+    (fun (match_, actions) ->
+      printf " %s => %s\n%!"
+        (OpenFlow0x01.Match.to_string match_)
+        (OpenFlow0x01.Action.sequence_to_string actions);
+      Platform.send_to_switch sw 0l 
+        (Message.add_flow !prio match_ actions) >>
         (decr prio; Lwt.return ()))
-      flow_table
+    flow_table;
+      Platform.send_to_switch sw 0l 
+        (Message.add_flow 1 (fst drop_rule) (snd drop_rule))
+
 
   (* First draft: ignore barriers *)
   let install_new_policies sw pol_stream =
