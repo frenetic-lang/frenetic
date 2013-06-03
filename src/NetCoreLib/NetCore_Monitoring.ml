@@ -27,3 +27,12 @@ let monitor_load (window : float) filter =
       packets bytes (NetCore_Pretty.string_of_pol filter) window in
   PoSeq (filter, PoAction (NetCore_Action.Output.query window monitor_load_handler))
   
+let monitor_packets (filter:pol) : pol = 
+  let monitor_packet_handler sw port pkt = 
+    printf "Packet %s on switch %Ld port %s matched %s\n%!"
+      (Packet.string_of_packet pkt) 
+      sw 
+      (NetCore_Pretty.string_of_port port) 
+      (NetCore_Pretty.string_of_pol filter);
+    NetCore_Action.Output.drop in
+  PoSeq(filter, PoAction (NetCore_Action.Output.controller monitor_packet_handler))

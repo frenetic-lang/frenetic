@@ -81,6 +81,7 @@
 %token MONITOR_TBL
 %token MONITOR_SW
 %token MONITOR_LOAD
+%token MONITOR_PKTS
 %token <string> STRING
 %token EOF
 %token TICKTICKTICK /* only for Markdown */
@@ -170,6 +171,11 @@ pol_atom :
       ( symbol_start_pos ()
       , NetCore_Monitoring.monitor_load $3
       , Filter (symbol_start_pos (), $5) ) }
+  | MONITOR_PKTS LPAREN pred RPAREN
+    { Transform 
+      ( symbol_start_pos ()
+      , NetCore_Monitoring.monitor_packets 
+      , Filter (symbol_start_pos (), $3) ) }
   | LCURLY pred RCURLY pol LCURLY pred RCURLY
     { Slice (symbol_start_pos (), $2, $4, $6) }
 
