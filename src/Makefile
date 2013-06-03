@@ -10,8 +10,8 @@ APPLICATIONS = Applications/Frenetic \
                Applications/OxTutorial2 \
                Applications/OxTutorial3 \
                Applications/OxTutorial4 \
-               Applications/OxTutorial5
-
+               Applications/OxTutorial5 \
+               Applications/OxTutorial6
 
 LIBRARIES = FreneticLib \
             PacketLib \
