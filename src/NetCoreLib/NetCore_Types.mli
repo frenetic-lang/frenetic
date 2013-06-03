@@ -1,3 +1,6 @@
+(** Library for building the underlying infrastructure of Frenetic controllers.
+*)
+
 open Packet
 
 type switchId = OpenFlow0x01.switchId

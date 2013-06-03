@@ -1,5 +1,4 @@
-(** Data structures and functions for constructing, marshaling and parsing
-ethernet data packets. *)
+(** Library for constructing, marshaling and parsing ethernet data packets. *)
 
 (** {9 Packet types}
 
