@@ -23,7 +23,7 @@ let internal_policy p ver =
 let edge_policy p ver =
   PoSeq(PoFilter(PrHdr {allPtrn with ptrnDlVlan = WildcardExact None}),
 	PoSeq(p, PoAction[SwitchAction {id with outPort = Here; 
-	  outDlVlan = Some (None, Some ver);outDlVlanPcp = Some (0,1) }]))
+	  outDlVlan = Some (None, Some ver)}]))
 
 let prOr = List.fold_left (fun pr1 pr2 -> PrOr(pr1, pr2)) PrNone
 

@@ -508,6 +508,10 @@ module Action = struct
         | SetTpSrc pt
         | SetTpDst pt ->
           set_ofp_action_tp_port_tp_port bits' pt
+	| SetDlVlan (Some vid) ->
+	  set_ofp_action_vlan_vid_vlan_vid bits' vid
+	| SetDlVlan None ->
+	  ()
         | _ -> failwith "NYI: Action.marshal"
     end;
     size_of a
