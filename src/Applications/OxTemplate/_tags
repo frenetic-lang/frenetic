@@ -1,3 +1,0 @@
-<*.d.byte> : package(lwt), package(lwt.unix), package(PacketLib), package(OpenFlowLib), package(OxLib)
-<*.native> : package(lwt), package(lwt.unix), package(PacketLib), package(OpenFlowLib), package(OxLib)
-<*.ml{,i}> : package(lwt), package(lwt.syntax), package(cstruct.syntax), syntax(camlp4o), package(PacketLib), package(OpenFlowLib), package(OxLib)

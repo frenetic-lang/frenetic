@@ -2,7 +2,9 @@ APPLICATIONS = Applications/Frenetic \
                Applications/Test \
                Applications/Verify \
                Applications/NetCoreConsistent \
-               Applications/OxTemplate
+               Applications/OxTemplate \
+	             Applications/OxRepeater \
+               Applications/OxMonitor
 
 LIBRARIES = FreneticLib \
             PacketLib \
@@ -21,18 +23,13 @@ OCAMLBUILD = ocamlbuild -use-ocamlfind $(addprefix -I ,$(LIBRARIES))
 
 OCAMLFIND = ocamlfind
 
-all: ctags native byte debug $(LIBRARIES) oxen
+all: ctags native byte debug $(LIBRARIES)
 
 native: $(addsuffix .native, $(APPLICATIONS))
 
 byte: $(addsuffix .byte, $(APPLICATIONS))
 
 debug: $(addsuffix .d.byte, $(APPLICATIONS))
-
-oxen:
-	cd Applications/OxMonitor && $(MAKE)
-	cd Applications/OxLearning && $(MAKE)
-	cd Applications/OxRepeater && $(MAKE)
 
 %.d.byte:
 	$(OCAMLBUILD) -I Applications -cflag -ppopt -cflag -lwt-debug $@
