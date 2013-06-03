@@ -4,7 +4,8 @@ APPLICATIONS = Applications/Frenetic \
                Applications/NetCoreConsistent \
                Applications/OxTemplate \
 	             Applications/OxRepeater \
-               Applications/OxMonitor
+               Applications/OxMonitor \
+               Applications/OxLearning
 
 LIBRARIES = FreneticLib \
             PacketLib \

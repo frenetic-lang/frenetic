@@ -4,22 +4,22 @@ module MyApplication : Ox_Controller.OXMODULE = struct
 
   let table = ref []
 
-  let switchConnected sw =
+  let switch_connected sw =
     table := (sw,Hashtbl.create 11)::!table
 
-  let switchDisconnected sw =
+  let switch_disconnected sw =
     table := List.remove_assoc sw !table
 
-  let barrierReply xid = ()
+  let barrier_reply sw xid = ()
 
-  let statsReply xid sw stats = ()
+  let stats_reply sw xid stats = ()
 
-  let packetIn xid sw pktIn = 
+  let packet_in sw xid pktIn = 
     match pktIn.PacketIn.buffer_id, Packet.parse pktIn.PacketIn.packet with
       | Some bufId, Some pkt -> 
         let inport = pktIn.PacketIn.port in 
-        let src = pkt.dlSrc in 
-        let dst = pkt.dlDst in 
+        let src = pkt.Packet.dlSrc in 
+        let dst = pkt.Packet.dlDst in 
         let sw_table = List.assoc sw !table in 
         Hashtbl.add sw_table src inport;
         let open FlowMod in
@@ -41,8 +41,8 @@ module MyApplication : Ox_Controller.OXMODULE = struct
                 apply_to_packet = None;
                 out_port = None;
                 check_overlap = false } in 
-              flowMod (Int32.succ xid) sw fm;
-              barrierRequest (Int32.succ (Int32.succ xid)) sw
+              send_flow_mod sw (Int32.succ xid) fm;
+              send_barrier_request sw (Int32.succ (Int32.succ xid))
             else
               let open PacketOut in
                   let pktOut = { 
@@ -50,11 +50,11 @@ module MyApplication : Ox_Controller.OXMODULE = struct
                     port_id = Some pktIn.PacketIn.port;
                     actions = [Action.Output PseudoPort.Flood] 
                   } in 
-                  packetOut xid sw pktOut
+                  send_packet_out sw xid pktOut
       | _ -> 
         ()          
 
-  let portStatus _ _ _ = ()
+  let port_status _ _ _ = ()
 
 end
 

@@ -2,18 +2,18 @@ module MyApplication : Ox_Controller.OXMODULE = struct
   open Ox_Controller.OxPlatform
   open OpenFlow0x01
 
-  let send_stats_request sw = 
+  let my_send_stats_request sw = 
     let open StatsRequest.AggregateFlowRequest in  
-        callback 5.0 
+        timeout 5.0  (* consider milliseconds to avoid writing 1.0 *)
           (fun () -> 
             Printf.printf "Sending stats request to %Ld\n%!" sw; 
-            statsRequest 0l sw 
+            send_stats_request sw 0l
               (StatsRequest.AggregateFlowReq { 
                 of_match = Match.all;
                 table_id = 0xff;
                 port = None }))
 
-  let switchConnected sw = 
+  let switch_connected sw = 
     let open FlowMod in
         let fm = {
           mod_cmd = Command.AddFlow;
@@ -27,15 +27,15 @@ module MyApplication : Ox_Controller.OXMODULE = struct
           apply_to_packet = None;
           out_port = None;
           check_overlap = false } in 
-        flowMod (Int32.one) sw fm;
-        barrierRequest (Int32.succ Int32.one) sw;
-        send_stats_request sw
+        send_flow_mod sw 1l fm;
+        send_barrier_request sw 2l;
+        my_send_stats_request sw
 
-  let switchDisconnected sw = ()
+  let switch_disconnected sw = ()
 
-  let barrierReply xid = ()
+  let barrier_reply sw xid = ()
 
-  let statsReply xid sw stats = 
+  let stats_reply sw xid stats = 
     Printf.printf "Stats Reply\n%!";
     let open StatsReply in
         let open AggregateFlowStats in 
@@ -43,13 +43,13 @@ module MyApplication : Ox_Controller.OXMODULE = struct
               | AggregateFlowRep afs -> 
                 Printf.printf "Packets: %Ld\nBytes: %Ld\nFlows: %ld\n%!"
                   afs.packet_count afs.byte_count afs.flow_count;
-                send_stats_request sw
+                my_send_stats_request sw
               | _ -> 
                 ()
 
-  let packetIn xid sw pktIn = ()
+  let packet_in sw xid pktIn = ()
 
-  let portStatus xid sw msg = ()
+  let port_status sw xid msg = ()
 
 
 end

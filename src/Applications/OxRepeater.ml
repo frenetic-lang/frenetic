@@ -2,15 +2,15 @@ module MyApplication : Ox_Controller.OXMODULE = struct
   open Ox_Controller.OxPlatform
   open OpenFlow0x01
 
-  let switchConnected sw = ()
+  let switch_connected sw = ()
 
-  let switchDisconnected sw = ()
+  let switch_disconnected sw = ()
     
-  let barrierReply xid = ()
+  let barrier_reply sw xid = ()
     
-  let statsReply xid sw stats = ()
+  let stats_reply sw xid stats = ()
     
-  let packetIn xid sw pktIn = match pktIn.PacketIn.buffer_id with
+  let packet_in sw xid pktIn = match pktIn.PacketIn.buffer_id with
     | None ->
       () (* TODO(arjun): cannot count on this! *)
     | Some bufId ->
@@ -20,9 +20,9 @@ module MyApplication : Ox_Controller.OXMODULE = struct
             port_id = Some pktIn.PacketIn.port;
             actions = [Action.Output PseudoPort.Flood]
           } in
-          packetOut xid sw pktOut
+          send_packet_out sw xid pktOut
 
-  let portStatus xid sw msg = ()
+  let port_status sw xid msg = ()
 
 end
 
