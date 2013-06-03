@@ -1,6 +1,5 @@
-(** Data structures and functions for constructing, marshalling, and parsing
-OpenFlow 1.0 messages.  It is largely drawn from the OpenFlow 1.0
-specification:
+(** Library for constructing, marshalling, and parsing OpenFlow 1.0 messages.
+It is largely drawn from the OpenFlow 1.0 specification:
 
 http://www.openflow.org/documents/openflow-spec-v1.0.0.pdf
 
