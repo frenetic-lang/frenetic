@@ -9,14 +9,24 @@ module MyApplication : Ox_Controller.OXMODULE = struct
   let switch_disconnected (sw : switchId) : unit =
     Printf.printf "Switch %Ld disconnected.\n%!" sw
       
-  let packet_in (sw : switchId) (xid : xid) (pk : PacketIn.t) : unit =
+  let packet_in (sw : switchId) (xid : xid) (pktIn : PacketIn.t) : unit =
     Printf.printf "Received a PacketIn message from switch %Ld:\n%s\n%!"
-      sw (PacketIn.to_string pk);
-    send_packet_out sw 0l
-      { PacketOut.payload = pk.PacketIn.payload;
-        PacketOut.port_id = None;
-        PacketOut.actions = []
-      }
+      sw (PacketIn.to_string pktIn);
+    (* FILL: Send the packet out of all ports, but block ICMP *)
+    let payload = pktIn.PacketIn.payload in
+    let pk = Payload.parse payload in
+    if pk.Packet.dlTyp = 0x806 then
+      send_packet_out sw 0l
+        { PacketOut.payload = payload;
+          PacketOut.port_id = None;
+          PacketOut.actions = []
+        }
+    else 
+      send_packet_out sw 0l
+        { PacketOut.payload = payload;
+          PacketOut.port_id = None;
+          PacketOut.actions = [Action.Output PseudoPort.AllPorts]
+        }
 
   let barrier_reply (sw : switchId) (xid : xid) : unit =
     Printf.printf "Received a barrier reply %ld.\n%!" xid
