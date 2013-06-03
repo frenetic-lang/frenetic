@@ -19,12 +19,12 @@ module Network : sig
     (* [send_to_controller] sends a message [message] to the controller with
        transaction ID [xid] from switch [switchId].  The switch should have 
        been connected with [connect_switch] first. *)
-    val send_to_controller : switchId -> Message.xid -> Message.t -> unit Lwt.t
+    val send_to_controller : switchId -> xid -> Message.t -> unit Lwt.t
   
     (* [recv_from_controller] blocks until switch [switchId] receives a message
        [message] with transaction ID [xid] from the controller.  The switch 
        should have been connected with [connect_switch] first. *)
-    val recv_from_controller : switchId -> (Message.xid * Message.t) Lwt.t
+    val recv_from_controller : switchId -> (xid * Message.t) Lwt.t
   
     (* [tear_down] disconnects any connected switches, discarding any pending
        messages. *)

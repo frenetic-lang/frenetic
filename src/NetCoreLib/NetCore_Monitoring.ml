@@ -4,7 +4,7 @@ open NetCore_Types
 let printf = Printf.printf
 
 let monitor_pol pol = 
-  printf "policy is:\n%s\n%!" (NetCore_Pretty.pol_to_string pol);
+  printf "policy is:\n%s\n%!" (NetCore_Pretty.string_of_pol pol);
   pol
 
 let monitor_tbl sw pol = 
@@ -24,6 +24,6 @@ let monitor_switch_events = function
 let monitor_load (window : float) filter =
   let monitor_load_handler packets bytes =
     printf "%Ld packets and %Ld bytes matched %s in the last %f seconds.\n%!"
-      packets bytes (NetCore_Pretty.pol_to_string filter) window in
+      packets bytes (NetCore_Pretty.string_of_pol filter) window in
   PoSeq (filter, PoAction (NetCore_Action.Output.query window monitor_load_handler))
   

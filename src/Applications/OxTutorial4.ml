@@ -37,8 +37,7 @@ module MyApplication : Ox_Controller.OXMODULE = struct
     (* [FILL IN HERE] Use the packet_in function from OxTutorial2 here. *)
     let payload = pktIn.PacketIn.payload in
     let pk = Payload.parse payload in
-    (* TODO(arjun): AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGGGGGGGGGGGH! *)
-    if pk.Packet.dlTyp = 0x800 && Packet.nwProto pk = 1 then
+    if Packet.dlTyp pk = 0x800 && Packet.nwProto pk = 1 then
       send_packet_out sw 0l
         { PacketOut.payload = payload;
           PacketOut.port_id = None;

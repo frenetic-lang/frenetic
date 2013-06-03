@@ -41,9 +41,8 @@ module Make (A : Arg) = struct
   match pkt with
     | { dlSrc = 0xffffffffffffL; 
         dlDst = 0xffffffffffffL; 
-        dlTyp = dl_typ;
         dlVlan = None; dlVlanPcp = 0; 
-        nw = Unparsable body } ->
+        nw = Unparsable (dl_typ, body) } ->
       let payload = Cstruct.to_string body in
       Some (Marshal.from_string payload 0)
     | _ -> None
@@ -53,10 +52,10 @@ module Make (A : Arg) = struct
     let pk = { 
       dlSrc = 0xffffffffffffL;
       dlDst = 0xffffffffffffL;
-      dlTyp = dl_typ;
       dlVlan = None;
       dlVlanPcp = 0;
-      nw = Unparsable (Cstruct.of_string (Marshal.to_string (sw, pt) []))
+      nw = Unparsable 
+             (dl_typ, Cstruct.of_string (Marshal.to_string (sw, pt) []))
     } in
     (sw, pt, Packet.serialize pk)
 

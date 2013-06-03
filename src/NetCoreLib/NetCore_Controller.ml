@@ -367,7 +367,6 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
         Lwt.return ()
       end
 
-
   let rec handle_switch_messages pol sw = 
     let open Message in
     lwt (xid, msg) = Platform.recv_from_switch sw in
@@ -497,9 +496,9 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
     Lwt_stream.iter_s (fun (int, ext, topo_pol) -> 
       clear_switch sw >>
 	configure_switch sw topo_pol >>
-	let _ = Log.printf "NetCore_Controller" "internal pol:\n%s\n%!" (NetCore_Pretty.pol_to_string int) in
+	let _ = Log.printf "NetCore_Controller" "internal pol:\n%s\n%!" (NetCore_Pretty.string_of_pol int) in
 	configure_switch sw int >>
-	  let _ = Log.printf "NetCore_Controller" "external pol:\n%s\n%!" (NetCore_Pretty.pol_to_string ext) in
+	  let _ = Log.printf "NetCore_Controller" "external pol:\n%s\n%!" (NetCore_Pretty.string_of_pol ext) in
       configure_switch sw (PoUnion(int,ext)))
       (NetCore_Stream.to_stream pol_stream)
       

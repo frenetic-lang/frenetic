@@ -5,7 +5,7 @@ open NetCore_Pattern
 let to_string_exact = NetCore_Wildcard.to_string_exact
 
 
-let port_to_string = function
+let string_of_port = function
   | Physical pid -> (string_of_int pid)
   | All -> "All"
   | Here -> "Here"
@@ -31,7 +31,7 @@ module Format = struct
 	         [ to_string_exact Packet.string_of_mac "srcmac" pat.ptrnDlSrc;
              to_string_exact Packet.string_of_mac "dstmac" pat.ptrnDlDst;
              to_string_exact string_of_int "frameType " pat.ptrnDlType;
-             to_string_exact Packet.dlVlan_to_string "vlan" pat.ptrnDlVlan;
+             to_string_exact Packet.string_of_dlVlan "vlan" pat.ptrnDlVlan;
              to_string_exact string_of_int "dlVlanPcp" pat.ptrnDlVlanPcp;
              to_string_exact Packet.string_of_ip "srcip" pat.ptrnNwSrc;
              to_string_exact Packet.string_of_ip "dstip" pat.ptrnNwDst;
@@ -39,7 +39,7 @@ module Format = struct
              to_string_exact string_of_int "nwTos" pat.ptrnNwTos;
              to_string_exact string_of_int "tcpsrcport" pat.ptrnTpSrc;
              to_string_exact string_of_int "tcpdstport" pat.ptrnTpDst;
-             to_string_exact port_to_string "inPort" pat.ptrnInPort ])
+             to_string_exact string_of_port "inPort" pat.ptrnInPort ])
 
   let match_modify pr lbl fmt mm = match mm with
     | None -> ()
@@ -48,16 +48,16 @@ module Format = struct
 
   let output fmt (out : output) : unit =
     fprintf fmt "@[%a%a%a%a%a%a%a%a%a%s@]"
-      (match_modify Packet.dlAddr_to_string "dlSrc") out.outDlSrc
-      (match_modify Packet.dlAddr_to_string "dlDst") out.outDlDst
-      (match_modify Packet.dlVlan_to_string "dlVlan") out.outDlVlan
-      (match_modify Packet.dlVlanPcp_to_string "dlVlanPcp") out.outDlVlanPcp
+      (match_modify Packet.string_of_dlAddr "dlSrc") out.outDlSrc
+      (match_modify Packet.string_of_dlAddr "dlDst") out.outDlDst
+      (match_modify Packet.string_of_dlVlan "dlVlan") out.outDlVlan
+      (match_modify Packet.string_of_dlVlanPcp "dlVlanPcp") out.outDlVlanPcp
       (match_modify Packet.string_of_ip "nwSrc") out.outNwSrc
       (match_modify Packet.string_of_ip "nwDst") out.outNwDst
-      (match_modify Packet.nwTos_to_string "nwTos") out.outNwTos
+      (match_modify Packet.string_of_nwTos "nwTos") out.outNwTos
       (match_modify string_of_int "tpSrc") out.outTpSrc
       (match_modify string_of_int "tpDst") out.outTpDst
-      (port_to_string out.outPort)
+      (string_of_port out.outPort)
 
   let action fmt action : unit = match action with
     | SwitchAction o -> output fmt o
@@ -121,7 +121,7 @@ let format_pol = Format.pol
 
 let format_pred = Format.pred
 
-let mk_to_string formatter x =
+let string_of_mk formatter x =
   let buf = Buffer.create 100 in
   let fmt = formatter_of_buffer buf in
   pp_set_margin fmt 80;
@@ -129,15 +129,15 @@ let mk_to_string formatter x =
   fprintf fmt "@?";
   Buffer.contents buf
 
-let pred_to_string = mk_to_string Format.pred
+let string_of_pred = string_of_mk Format.pred
 
-let pol_to_string = mk_to_string Format.pol
+let string_of_pol = string_of_mk Format.pol
 
-let action_to_string = mk_to_string Format.action_list
+let string_of_action = string_of_mk Format.action_list
 
-let pattern_to_string = mk_to_string Format.pat
+let string_of_pattern = string_of_mk Format.pat
 
-let value_to_string = function 
+let string_of_value = function 
   | Pkt (sid, port, pkt, pay) ->
     Printf.sprintf "(%Ld, %s, %s, _)" 
-      sid (port_to_string port) (Packet.packet_to_string pkt)
+      sid (string_of_port port) (Packet.string_of_packet pkt)

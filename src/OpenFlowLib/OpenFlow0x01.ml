@@ -10,11 +10,11 @@ type portId = int16
 type xid = int32
 
 let string_of_switchId = Int64.to_string
-
 let string_of_portId = string_of_int
-let string_of_dlAddr = dlAddr_to_string
 
 let sum (lst : int list) = List.fold_left (fun x y -> x + y) 0 lst
+
+let vlan_none = 0xffff
 
 cenum ofp_stats_types {
   OFPST_DESC;
@@ -192,7 +192,7 @@ module Match = struct
     let vlan =
       match m.dlVlan with
       | Some (Some v) -> v
-      | Some None -> Packet.vlan_none
+      | Some None -> vlan_none
       | None -> 0 in
     set_ofp_match_dl_vlan bits (vlan);
     set_ofp_match_dl_vlan_pcp bits (if_some8 m.dlVlanPcp);
@@ -225,7 +225,7 @@ module Match = struct
         else
           begin
             let vlan = get_ofp_match_dl_vlan bits in
-            if vlan = Packet.vlan_none then
+            if vlan = vlan_none then
               Some None
             else
               Some (Some vlan)
@@ -555,7 +555,7 @@ module Action = struct
       Output (PseudoPort.make ofp_port_code len)
     | Some OFPAT_SET_VLAN_VID ->
       let vid = get_ofp_action_vlan_vid_vlan_vid bits' in
-      if vid = Packet.vlan_none then
+      if vid = vlan_none then
         StripVlan
       else
         SetDlVlan (Some vid)
@@ -1253,9 +1253,7 @@ module Payload = struct
   let parse (t : t) = match t with
     | Buffered (_, b)
     | NotBuffered b -> 
-      match Packet.parse b with
-        | Some pk -> pk
-        | None -> raise (Unparsable "payload cannot be parsed")
+      Packet.parse b
 
   let to_string (t : t) = match t with
     | Buffered (b, pk) ->
