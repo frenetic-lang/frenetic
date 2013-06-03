@@ -232,4 +232,5 @@ program :
     { Let (symbol_start_pos (),
 	  [($2, $4)], 
 	  $5) }
+
 %%
