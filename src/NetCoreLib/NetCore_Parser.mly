@@ -162,7 +162,7 @@ pol_atom :
     { Transform (symbol_start_pos (), NetCore_Monitoring.monitor_pol, $3) }
   | MONITOR_TBL LPAREN INT64 COMMA pol RPAREN
     { Transform (symbol_start_pos (), NetCore_Monitoring.monitor_tbl $3, $5) }
-  | MONITOR_SW LPAREN RPAREN 
+  | MONITOR_SW 
     { HandleSwitchEvent
       (symbol_start_pos (), NetCore_Monitoring.monitor_switch_events) }
   | MONITOR_LOAD LPAREN seconds COMMA pred RPAREN
@@ -221,7 +221,16 @@ pol :
              $13) }
 
 
-program
-  : pol EOF { $1 }
+program :
+ | pol EOF 
+    { $1 }
+
+ | LET ID EQUALS pol 
+    { $4 } 
+
+ | LET ID EQUALS pol program 
+    { Let (symbol_start_pos (),
+	  [($2, $4)], 
+	  $5) }
 
 %%
