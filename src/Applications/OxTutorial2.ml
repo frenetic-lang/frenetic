@@ -15,8 +15,7 @@ module MyApplication : Ox_Controller.OXMODULE = struct
   let packet_in (sw : switchId) (xid : xid) (pktIn : PacketIn.t) : unit =
     let payload = pktIn.PacketIn.payload in
     let pk = Payload.parse payload in
-    (* TODO(arjun): AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGGGGGGGGGGGH! *)
-    if (Packet.dlTyp pk) = 0x806 && Packet.nwProto pk = 1 then
+    if Packet.dlTyp pk = 0x800 && Packet.nwProto pk = 1 then
       send_packet_out sw 0l
         { PacketOut.payload = payload;
           PacketOut.port_id = None;

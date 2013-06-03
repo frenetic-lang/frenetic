@@ -20,14 +20,11 @@ module MyApplication : Ox_Controller.OXMODULE = struct
 
   (* [FILL IN HERE]: write this predicate *)
   let is_http_packet (pk : Packet.packet) : bool = 
-    pk.Packet.dlTyp = 0x800 && (* TODO(arjun): GAAAAAAAAAAAH! *)
+    Packet.dlTyp dlTyp = 0x800 &&
     Packet.nwProto pk = 6 &&
     (Packet.tpSrc pk = 80 || Packet.tpDst pk = 80)
 
-  (* [FILL IN HERE] You can use the packet_in function from OxTutorial2.
-     However, 
-     00:00:00:00:00:02 in the network and use policy from
-     OxTutorial1 *)
+  (* [FILL IN HERE] You can use the packet_in function from OxTutorial2. *)
   let packet_in (sw : switchId) (xid : xid) (pktIn : PacketIn.t) : unit =
     if is_http_packet (Payload.parse pktIn.PacketIn.payload) then
       begin
