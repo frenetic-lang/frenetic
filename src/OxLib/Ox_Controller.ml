@@ -26,28 +26,32 @@ let munge_exns thunk =
 module OxPlatform = struct
   open Message
 
-  let packetOut xid sw pktOut = defer (Some (sw, xid, PacketOutMsg pktOut))
+  let send_packet_out sw xid pktOut =
+    defer (Some (sw, xid, PacketOutMsg pktOut))
 	  
-  let flowMod xid sw flowMod = defer (Some (sw, xid, FlowModMsg flowMod))
+  let send_flow_mod sw xid flowMod =
+    defer (Some (sw, xid, FlowModMsg flowMod))
 	  
-  let statsRequest xid sw req = defer (Some (sw, xid, StatsRequestMsg req))
+  let send_stats_request sw xid req =
+    defer (Some (sw, xid, StatsRequestMsg req))
     
-  let barrierRequest xid sw = defer (Some (sw, xid, BarrierRequest))
+  let send_barrier_request sw xid =
+    defer (Some (sw, xid, BarrierRequest))
     
   (* TODO(arjun): I'm not happy about this. I want an exception to terminate
      the right swich, unless we have exceptions kill the controller. *)
-  let callback (n : float) (thk : unit -> unit) : unit = 
+  let timeout (n : float) (thk : unit -> unit) : unit = 
     Lwt.async 
       (fun () -> Lwt_unix.sleep n >> munge_exns thk)
 end
 
 module type OXMODULE = sig
-  val switchConnected : switchId -> unit 
-  val switchDisconnected : switchId -> unit
-  val packetIn : xid -> switchId -> PacketIn.t -> unit
-  val barrierReply : xid -> unit
-  val statsReply : xid -> switchId -> StatsReply.t -> unit 
-  val portStatus : xid -> switchId -> PortStatus.t -> unit 
+  val switch_connected : switchId -> unit
+  val switch_disconnected : switchId -> unit
+  val packet_in : switchId -> Message.xid -> PacketIn.t -> unit
+  val barrier_reply : switchId -> Message.xid -> unit
+  val stats_reply : switchId -> Message.xid -> StatsReply.t -> unit
+  val port_status : switchId -> Message.xid -> PortStatus.t -> unit
 end
 
 
@@ -57,10 +61,10 @@ module Make (Handlers:OXMODULE) = struct
     let open Message in
     begin
       match_lwt (Platform.recv_from_switch sw) with
-        | (xid, PacketInMsg pktIn) -> Lwt.wrap3 Handlers.packetIn xid sw pktIn
-	      | (xid, BarrierReply) -> Lwt.wrap1 Handlers.barrierReply xid
-        | (xid, StatsReplyMsg rep) -> Lwt.wrap3 Handlers.statsReply xid sw rep
-        | (xid, PortStatusMsg ps) -> Lwt.wrap3 Handlers.portStatus xid sw ps
+        | (xid, PacketInMsg pktIn) -> Lwt.wrap3 Handlers.packet_in sw xid pktIn
+	      | (xid, BarrierReply) -> Lwt.wrap2 Handlers.barrier_reply sw xid
+        | (xid, StatsReplyMsg rep) -> Lwt.wrap3 Handlers.stats_reply sw xid rep
+        | (xid, PortStatusMsg ps) -> Lwt.wrap3 Handlers.port_status sw xid ps
         | (xid, msg) ->
           (Log.printf "Ox" "ignored a message from %Ld" sw;
            Lwt.return ())
@@ -108,7 +112,7 @@ module Make (Handlers:OXMODULE) = struct
     lwt _ = Platform.send_to_switch sw 0l delete_all_flows in
     lwt _ = Platform.send_to_switch sw 1l BarrierRequest in
     (* JNF: wait for barrier reply? *)
-    let _ = Handlers.switchConnected sw in 
+    let _ = Handlers.switch_connected sw in 
     Lwt.async (fun () -> switch_thread sw);
     accept_switches ()
 
