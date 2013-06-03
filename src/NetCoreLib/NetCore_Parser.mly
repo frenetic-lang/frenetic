@@ -221,7 +221,15 @@ pol :
              $13) }
 
 
-program
-  : pol EOF { $1 }
+program :
+ | pol EOF 
+    { $1 }
 
+ | LET ID EQUALS pol 
+    { $4 } 
+
+ | LET ID EQUALS pol program 
+    { Let (symbol_start_pos (),
+	  [($2, $4)], 
+	  $5) }
 %%
