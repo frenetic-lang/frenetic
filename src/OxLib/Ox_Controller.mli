@@ -1,20 +1,20 @@
 open OpenFlow0x01
 
 module OxPlatform : sig
-  val packetOut : Message.xid -> switchId -> PacketOut.t -> unit
-  val flowMod : Message.xid -> switchId -> FlowMod.t -> unit
-  val barrierRequest : Message.xid -> switchId -> unit
-  val statsRequest : Message.xid -> switchId -> StatsRequest.t -> unit
-  val callback : float -> (unit -> unit) -> unit
+  val send_packet_out : switchId -> Message.xid -> PacketOut.t -> unit
+  val send_flow_mod : switchId -> Message.xid -> FlowMod.t -> unit
+  val send_barrier_request : switchId -> Message.xid -> unit
+  val send_stats_request : switchId -> Message.xid -> StatsRequest.t -> unit
+  val timeout : float -> (unit -> unit) -> unit
 end
 
 module type OXMODULE = sig
-  val switchConnected : switchId -> unit
-  val switchDisconnected : switchId -> unit
-  val packetIn : Message.xid -> switchId -> PacketIn.t -> unit
-  val barrierReply : Message.xid -> unit
-  val statsReply : Message.xid -> switchId -> StatsReply.t -> unit
-  val portStatus : Message.xid -> switchId -> PortStatus.t -> unit
+  val switch_connected : switchId -> unit
+  val switch_disconnected : switchId -> unit
+  val packet_in : switchId -> Message.xid -> PacketIn.t -> unit
+  val barrier_reply : switchId -> Message.xid -> unit
+  val stats_reply : switchId -> Message.xid -> StatsReply.t -> unit
+  val port_status : switchId -> Message.xid -> PortStatus.t -> unit
 end
 
 module Make :functor (OxModule:OXMODULE) ->
