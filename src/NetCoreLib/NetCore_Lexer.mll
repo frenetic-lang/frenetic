@@ -89,6 +89,7 @@ and token = parse
   | "monitorTable" { MONITOR_TBL }
   | "monitorSwitch" { MONITOR_SW }
   | "monitorLoad" { MONITOR_LOAD }
+  | "monitorPackets" { MONITOR_PKTS }
   | ";" { SEMI }
   | "|" { BAR }
   | "+" { PLUS }
