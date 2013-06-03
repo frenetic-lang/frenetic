@@ -10,17 +10,17 @@ module MyApplication : Ox_Controller.OXMODULE = struct
   open Ox_Controller.OxPlatform
   open OpenFlow0x01
 
+  let num_http_packets = ref 0
+
   let switch_connected (sw : switchId) : unit = 
     Printf.printf "Switch %Ld connected.\n%!" sw
       
   let switch_disconnected (sw : switchId) : unit =
     Printf.printf "Switch %Ld disconnected.\n%!" sw
 
-  let num_http_packets = ref 0
-
   (* [FILL IN HERE]: write this predicate *)
   let is_http_packet (pk : Packet.packet) : bool = 
-    Packet.dlTyp dlTyp = 0x800 &&
+    Packet.dlTyp pk = 0x800 &&
     Packet.nwProto pk = 6 &&
     (Packet.tpSrc pk = 80 || Packet.tpDst pk = 80)
 
