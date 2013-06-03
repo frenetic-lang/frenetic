@@ -64,6 +64,7 @@
 %token ELSE
 %token SEMI
 %token BAR
+%token PLUS
 %token <string> ID
 %token COMMA
 %token LET
@@ -138,7 +139,8 @@ pred :
 pol_atom :
   | LPAREN pol RPAREN 
     { $2 }
-  | FILTER pred { Filter (symbol_start_pos (), $2) }
+  | FILTER pred 
+    { Filter (symbol_start_pos (), $2) }
   | ID 
     { Id (symbol_start_pos (), $1) }
   | FWD LPAREN INT64 RPAREN 
@@ -178,6 +180,7 @@ pol_pred_single:
     { $1 }
   | IF pred THEN pol_pred_double 
     { ITE (symbol_start_pos (), $2, $4, Action (symbol_start_pos (), Action.drop)) }
+
 pol_seq_list :
   | pol_pred_single 
     { $1 }
@@ -193,7 +196,7 @@ pol_par_list :
 pol :
   | pol_pred_single 
     { $1 }
-  | pol_pred_single BAR pol_par_list
+  | pol_pred_single PLUS pol_par_list
     { Par (symbol_start_pos (), $1, $3) }
   | pol_pred_single SEMI pol_seq_list
     { Seq (symbol_start_pos (), $1, $3) }
