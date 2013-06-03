@@ -1,4 +1,4 @@
-(* Extend OxTutorial3 to implement the packet_in function efficiently on
+(* Extend OxTutorial2 to implement the packet_in function efficiently on
    a switch. *)
 module MyApplication : Ox_Controller.OXMODULE = struct
   open Ox_Controller.OxPlatform
