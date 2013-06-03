@@ -400,41 +400,49 @@ type packet = {
 }
 
 let nwSrc pkt = match pkt.nw with
-  | Ip ip -> Some ip.Ip.src
-  | Arp arp -> Some (Arp.nwSrc arp)
-  | Unparsable _ -> None
+  | Ip ip -> ip.Ip.src
+  | Arp arp -> Arp.nwSrc arp
+  | Unparsable _ -> raise (Invalid_argument "nwSrc: unparsable packet")
 
 let nwDst pkt = match pkt.nw with
-  | Ip ip -> Some ip.Ip.dst
-  | Arp arp -> Some (Arp.nwDst arp)
-  | Unparsable _ -> None
+  | Ip ip -> ip.Ip.dst
+  | Arp arp -> Arp.nwDst arp
+  | Unparsable _ -> raise (Invalid_argument "nwDst: unparsable packet")
 
 let nwProto pkt = match pkt.nw with 
   | Ip ip -> 
     begin match ip.Ip.tp with
-      | Ip.Tcp _ -> Some 6
-      | Ip.Icmp _ -> Some 1
-      | Ip.Unparsable (p, _) -> Some p
+      | Ip.Tcp _ -> 6
+      | Ip.Icmp _ -> 1
+      | Ip.Unparsable (p, _) -> p
     end
-  | _ -> None
+  | Arp _ -> raise (Invalid_argument "nwProto: ARP packet")
+  | Unparsable _ -> raise (Invalid_argument "nwProto: unparsable packet")
 
 let nwTos pkt = match pkt.nw with 
-  | Ip ip -> Some ip.Ip.tos
-  | _ -> None
+  | Ip ip -> ip.Ip.tos
+  | Arp _ -> raise (Invalid_argument "nwTos: ARP packet")
+  | Unparsable _ -> raise (Invalid_argument "nwTos: unparsable packet")
 
 let tpSrc pkt = match pkt.nw with 
   | Ip ip ->
     (match ip.Ip.tp with
-    | Ip.Tcp frg -> Some frg.Tcp.src
-    | _ -> None)
-  | _ -> None
+    | Ip.Tcp frg -> frg.Tcp.src
+    | Ip.Icmp _ -> raise (Invalid_argument "tpSrc: ICMP packet")
+    | Ip.Unparsable _ -> 
+      raise (Invalid_argument "tpSrc: cannot parse body of IP packet"))
+  | Arp _ -> raise (Invalid_argument "tpSrc: ARP packet")
+  | Unparsable _ -> raise (Invalid_argument "tpSrc: unparsable packet")
 
 let tpDst pkt = match pkt.nw with 
   | Ip ip ->
     (match ip.Ip.tp with
-    | Ip.Tcp frg -> Some frg.Tcp.dst
-    | _ -> None)
-  | _ -> None
+    | Ip.Tcp frg -> frg.Tcp.dst
+    | Ip.Icmp _ -> raise (Invalid_argument "tpDst: ICMP packet")
+    | Ip.Unparsable _ -> 
+      raise (Invalid_argument "tpDst: cannot parse body of IP packet"))
+  | Arp _ -> raise (Invalid_argument "tpDst: ARP packet")
+  | Unparsable _ -> raise (Invalid_argument "tpDst: unparsable packet")
 
 let setDlSrc pkt dlSrc =
   { pkt with dlSrc = dlSrc }

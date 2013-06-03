@@ -147,17 +147,17 @@ type packet =
 
 (** {9:accs Accessors} *)
 
-val nwSrc : packet -> nwAddr option
+val nwSrc : packet -> nwAddr
 
-val nwDst : packet -> nwAddr option
+val nwDst : packet -> nwAddr
 
-val nwTos : packet -> nwTos option
+val nwTos : packet -> nwTos
 
-val nwProto : packet -> nwProto option
+val nwProto : packet -> nwProto
 
-val tpSrc : packet -> tpPort option
+val tpSrc : packet -> tpPort
 
-val tpDst : packet -> tpPort option
+val tpDst : packet -> tpPort
 
 (** {9 Mutators} *)
 
