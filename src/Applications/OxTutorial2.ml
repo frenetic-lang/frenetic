@@ -1,3 +1,6 @@
+(* Write a packet_in function that drops ICMP traffic and acts as a repeater
+   on all other traffic. Do not try to add rules to the flow table until the
+   function works correctly. *)
 module MyApplication : Ox_Controller.OXMODULE = struct
   open Ox_Controller.OxPlatform
   open OpenFlow0x01

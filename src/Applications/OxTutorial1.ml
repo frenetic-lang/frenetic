@@ -4,20 +4,20 @@ module MyApplication : Ox_Controller.OXMODULE = struct
   open Ox_Controller.OxPlatform
   open OpenFlow0x01
 
+  (* [FILL HERE] When a switch connects, add a rule to its flow table
+     to make it behave as a repeater. *)
   let switch_connected (sw : switchId) : unit =
-    Printf.printf "Switch %Ld connected.\n%!" sw
-      
+    Printf.printf "Switch %Ld connected.\n%!" sw;
+    send_flow_mod sw 1l
+      (FlowMod.add_flow 200 Match.all [Action.Output PseudoPort.AllPorts])
+
   let switch_disconnected (sw : switchId) : unit =
     Printf.printf "Switch %Ld disconnected.\n%!" sw
-      
+
   let packet_in (sw : switchId) (xid : xid) (pk : PacketIn.t) : unit =
-    Printf.printf "Received a PacketIn message from switch %Ld:\n%s\n%!"
-      sw (PacketIn.to_string pk);
-    (* FILL: Send the packet out of all ports. *)
     send_packet_out sw 0l
       { PacketOut.payload = pk.PacketIn.payload;
         PacketOut.port_id = None;
-        (* TODO(arjun): warn in docs that Flood is *wrong* *)
         PacketOut.actions = [Action.Output PseudoPort.AllPorts]
       }
 
