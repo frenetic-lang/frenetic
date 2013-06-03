@@ -10,14 +10,13 @@ module MyApplication : Ox_Controller.OXMODULE = struct
       
   let switch_disconnected (sw : switchId) : unit =
     Printf.printf "Switch %Ld disconnected.\n%!" sw
-      
+
+  (* [FILL IN HERE]: Send the packet out of all ports, but block ICMP *)
   let packet_in (sw : switchId) (xid : xid) (pktIn : PacketIn.t) : unit =
-    Printf.printf "Received a PacketIn message from switch %Ld:\n%s\n%!"
-      sw (PacketIn.to_string pktIn);
-    (* FILL: Send the packet out of all ports, but block ICMP *)
     let payload = pktIn.PacketIn.payload in
     let pk = Payload.parse payload in
-    if (Packet.dlTyp pk) = 0x806 then
+    (* TODO(arjun): AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGGGGGGGGGGGH! *)
+    if (Packet.dlTyp pk) = 0x806 && Packet.nwProto pk = 1 then
       send_packet_out sw 0l
         { PacketOut.payload = payload;
           PacketOut.port_id = None;
@@ -31,15 +30,13 @@ module MyApplication : Ox_Controller.OXMODULE = struct
         }
 
   let barrier_reply (sw : switchId) (xid : xid) : unit =
-    Printf.printf "Received a barrier reply %ld.\n%!" xid
+    ()
 
   let stats_reply (sw : switchId) (xid : xid) (stats : StatsReply.t) : unit =
-    Printf.printf "Received a StatsReply from switch %Ld:\n%s\n%!"
-      sw (StatsReply.to_string stats)
+    ()
 
   let port_status (sw : switchId) (xid : xid) (port : PortStatus.t) : unit =
-    Printf.printf "Received a PortStatus from switch %Ld:\n%s\n%!"
-      sw (PortStatus.to_string port)
+    ()
 
 end
 
