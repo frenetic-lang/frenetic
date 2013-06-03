@@ -54,13 +54,13 @@ open NetCore_Types
     | [] -> 
       Empty
       
-  let rec predicate_to_string pred = match pred with
+  let rec string_of_predicate pred = match pred with
     | And (p1,p2) -> 
-      Printf.sprintf "(And %s %s)" (predicate_to_string p1) (predicate_to_string p2)
+      Printf.sprintf "(And %s %s)" (string_of_predicate p1) (string_of_predicate p2)
     | Or (p1,p2) -> 
-      Printf.sprintf "(Or %s %s)" (predicate_to_string p1) (predicate_to_string p2)
+      Printf.sprintf "(Or %s %s)" (string_of_predicate p1) (string_of_predicate p2)
     | Not p1 -> 
-      Printf.sprintf "(Not %s)" (predicate_to_string p1)
+      Printf.sprintf "(Not %s)" (string_of_predicate p1)
     | NoPackets -> 
       Printf.sprintf "None"
     | Switch sw -> 
@@ -85,7 +85,7 @@ open NetCore_Types
     | DstIP n ->
       Printf.sprintf "(DstIP %ld)" n
         
-  let action_to_string act = match act with
+  let string_of_action act = match act with
     | Pass -> "Pass"
     | Drop -> "Drop"
     | To pt -> 
@@ -97,7 +97,7 @@ open NetCore_Types
       Printf.sprintf "UpdateDlSrc(%Ld,%Ld)" old new0
     | UpdateDlVlan(old,new0) -> 
       Printf.sprintf "UpdateDlSrc (%s,%s)"
-        (Packet.dlVlan_to_string old) (Packet.dlVlan_to_string new0)
+        (Packet.string_of_dlVlan old) (Packet.string_of_dlVlan new0)
    | UpdateSrcIP (old, new_) ->
      Printf.sprintf "UpdateSrcIP (%s, %s)"
        (Int32.to_string old) (Int32.to_string new_)
@@ -115,31 +115,31 @@ open NetCore_Types
     | GetCount (time, _) ->
       Printf.sprintf "GetCount %f <fun>" time
         
-  let rec policy_to_string pol = match pol with 
+  let rec string_of_policy pol = match pol with 
     | Empty -> 
       "Empty"
     | Act act -> 
-      Printf.sprintf "%s" (action_to_string act)
+      Printf.sprintf "%s" (string_of_action act)
     | Par (p1,p2) -> 
       Printf.sprintf "(%s) U (%s)" 
-        (policy_to_string p1) 
-        (policy_to_string p2)
+        (string_of_policy p1) 
+        (string_of_policy p2)
     | Seq (p1,p2) -> 
       Printf.sprintf "(%s) >> (%s)" 
-        (policy_to_string p1) 
-        (policy_to_string p2)
+        (string_of_policy p1) 
+        (string_of_policy p2)
     | Filter pr -> 
-      predicate_to_string pr
+      string_of_predicate pr
     | ITE (pred, then_pol, else_pol) ->
       Printf.sprintf "ITE (%s, %s, %s)"
-        (predicate_to_string pred)
-        (policy_to_string then_pol)
-        (policy_to_string else_pol)
+        (string_of_predicate pred)
+        (string_of_policy then_pol)
+        (string_of_policy else_pol)
     | Slice (ingress,pol',egress) -> 
       Printf.sprintf "{%s} %s {%s}" 
-        (predicate_to_string ingress) 
-        (policy_to_string pol') 
-        (predicate_to_string egress)
+        (string_of_predicate ingress) 
+        (string_of_policy pol') 
+        (string_of_predicate egress)
 
   (* JNF: better comment *)
   (* Fail if a policy contains slices and also matches or sets VLANs. *)

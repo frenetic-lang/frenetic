@@ -1,5 +1,7 @@
 open Frenetic_Bit
 
+exception UnparsablePacket of string
+
 type bytes = Cstruct.t
 
 type int8 = int
@@ -52,18 +54,61 @@ let mac_of_bytes (str:string) : int64 =
 
 module Tcp = struct
 
-  type t = {
-    src : tpPort; 
-    dst : tpPort; 
-    seq : int32;
-    ack : int32; 
-    offset : int8; 
-    flags : int16;
-    window : int16; 
-    chksum : int8; 
-    urgent : int8;
-    payload : bytes 
-  }
+  module Flags = struct
+
+    type t =
+      { ns : bool
+      ; cwr : bool
+      ; ece : bool
+      ; urg : bool
+      ; ack : bool
+      ; psh : bool
+      ; rst : bool
+      ; syn : bool
+      ; fin : bool }
+
+    let to_string f = Printf.sprintf
+      "{ ns = %B; cwr = %B; ece = %B; urg = %B; ack = %B; psh = %B; rst = %B; \
+         syn = %B; fin = %B }"
+      f.ns f.cwr f.ece f.urg f.ack f.psh f.rst f.syn f.fin
+
+    let to_int f = 
+      let ret = Int32.zero in
+      let ret = bit ret 0 f.ns in
+      let ret = bit ret 1 f.cwr in
+      let ret = bit ret 2 f.ece in
+      let ret = bit ret 3 f.urg in
+      let ret = bit ret 4 f.ack in
+      let ret = bit ret 5 f.psh in
+      let ret = bit ret 6 f.rst in
+      let ret = bit ret 7 f.syn in
+      let ret = bit ret 8 f.fin in
+      Int32.to_int ret
+
+    let of_int d =
+      { ns  = test_bit 0 d
+      ; cwr = test_bit 1 d
+      ; ece = test_bit 2 d
+      ; urg = test_bit 3 d
+      ; ack = test_bit 4 d
+      ; psh = test_bit 5 d
+      ; rst = test_bit 6 d
+      ; syn = test_bit 7 d
+      ; fin = test_bit 8 d }
+
+  end
+
+  type t = 
+    { src : tpPort
+    ; dst : tpPort
+    ; seq : int32
+    ; ack : int32
+    ; offset : int8
+    ; flags : Flags.t
+    ; window : int16
+    ; chksum : int8
+    ; urgent : int8
+    ; payload : bytes }
 
   cstruct tcp { 
     uint16_t src;
@@ -89,13 +134,12 @@ module Tcp = struct
     let offset = get_tcp_offset bits in 
     let offset = offset lsr 4 in 
     let _ = offset land 0x0f in 
-    let flags = get_tcp_flags bits in 
+    let flags = Flags.of_int (Int32.of_int (get_tcp_flags bits)) in 
     let window = get_tcp_window bits in 
     let chksum = get_tcp_chksum bits in 
     let urgent = get_tcp_urgent bits in 
     let payload = Cstruct.shift bits sizeof_tcp in (* JNF: options fixme *)
-    Some { 
-      src = src;
+    { src = src;
       dst = dst;
       seq = seq;
       ack = ack;
@@ -104,8 +148,7 @@ module Tcp = struct
       window = window;
       chksum = chksum;
       urgent = urgent;
-      payload = payload 
-    }
+      payload = payload }
 
   (* TODO(arjun): should include payload size too *)
   let len (pkt : t) = sizeof_tcp
@@ -116,7 +159,7 @@ module Tcp = struct
     set_tcp_seq bits pkt.seq;
     set_tcp_ack bits pkt.ack;
     set_tcp_offset bits pkt.offset;
-    set_tcp_flags bits pkt.flags;
+    set_tcp_flags bits (Flags.to_int pkt.flags);
     set_tcp_window bits pkt.window;
     set_tcp_window bits pkt.window;
     let bits = Cstruct.shift bits sizeof_tcp in 
@@ -149,7 +192,7 @@ module Icmp = struct
     let code = get_icmp_code bits in
     let chksum = get_icmp_chksum bits in
     let payload = Cstruct.shift bits sizeof_icmp in
-    Some { typ = typ; code = code; chksum = chksum; payload = payload }
+    { typ = typ; code = code; chksum = chksum; payload = payload }
 
   (* TODO(arjun): length of payload too *)
   let len (pkt: t) = sizeof_icmp
@@ -250,19 +293,10 @@ module Ip = struct
     let dst = get_ip_dst bits in 
     let bits = Cstruct.shift bits (ihl * 4) in 
     let tp = match int_to_ip_proto proto with 
-      | Some IP_ICMP -> 
-        begin match Icmp.parse bits with 
-        | Some icmp -> Icmp icmp
-        | None -> Unparsable (proto, bits)
-        end
-      | Some IP_TCP ->       
-        begin match Tcp.parse bits with 
-        | Some tcp -> Tcp tcp
-        | None -> Unparsable (proto, bits)
-        end
+      | Some IP_ICMP -> Icmp (Icmp.parse bits)
+      | Some IP_TCP -> Tcp (Tcp.parse bits)
       | _ -> Unparsable (proto, bits) in
-    Some {
-      tos = tos;
+    { tos = tos;
       ident = ident;
       flags = flags;
       frag = frag;
@@ -270,8 +304,7 @@ module Ip = struct
       chksum = chksum;
       src = src;
       dst = dst;     
-      tp = tp
-    }
+      tp = tp }
 
   let len (pkt : t) = 
   (* TODO(arjun): what is this hack? *)
@@ -353,11 +386,13 @@ module Arp = struct
     let tpa = (get_arp_tpa bits) in 
     match int_to_arp_oper oper with 
       | Some ARP_REQUEST -> 
-        Some (Query (sha, spa, tpa))
+        Query (sha, spa, tpa)
       | Some ARP_REPLY -> 
         let tha = mac_of_bytes (Cstruct.to_string (get_arp_tha bits)) in 
-        Some (Reply(sha, spa, tha, tpa))
-      | _ -> None
+        Reply(sha, spa, tha, tpa)
+      | _ -> 
+        raise (UnparsablePacket 
+          (Printf.sprintf "unrecognized ARP operation code (%d)" oper))
 
   (* TODO(arjun): both requests and replies have the same size? *)
   let len pk = sizeof_arp
@@ -388,12 +423,11 @@ end
 type nw =
   | Ip of Ip.t
   | Arp of Arp.t
-  | Unparsable of bytes
+  | Unparsable of (dlTyp * bytes)
 
 type packet = {
   dlSrc : dlAddr;
   dlDst : dlAddr; 
-  dlTyp : dlTyp;
   dlVlan : dlVlan;
   dlVlanPcp : dlVlanPcp;
   nw : nw
@@ -517,44 +551,51 @@ let get_byte32 (n : Int32.t) (i : int) : int =
     raise (Invalid_argument "get_byte32 index out of range");
   to_int (logand 0xFFl (shift_right_logical n (8 * i)))
 
+let get_dlTyp nw = match nw with
+    | Ip _ -> 0x800
+    | Arp _ -> 0x806
+    | Unparsable (t, _) -> t
+
+let dlTyp pkt = get_dlTyp pkt.nw
+
 let string_of_ip (ip : Int32.t) : string = 
   Format.sprintf "%d.%d.%d.%d" (get_byte32 ip 3) (get_byte32 ip 2) 
     (get_byte32 ip 1) (get_byte32 ip 0)
 
-let dlAddr_to_string = string_of_mac
+let string_of_dlAddr = string_of_mac
 
-let dlTyp_to_string = string_of_int
+let string_of_dlTyp = string_of_int
 
-let dlVlan_to_string = function
+let string_of_dlVlan = function
   | None -> "none"
   | Some n -> string_of_int n
 
-let dlVlanPcp_to_string = string_of_int
+let string_of_dlVlanPcp = string_of_int
 
-let nwAddr_to_string = Int32.to_string
+let string_of_nwAddr = Int32.to_string
 
-let nwProto_to_string = string_of_int
+let string_of_nwProto = string_of_int
 
-let nwTos_to_string = string_of_int
+let string_of_nwTos = string_of_int
 
-let tpPort_to_string = string_of_int
+let string_of_tpPort = string_of_int
 
-let nw_to_string nw = "Not yet implemented"
+let string_of_nw nw = "Not yet implemented"
 
-let packet_to_string 
+let string_of_packet 
     { dlSrc = pktDlSrc;
       dlDst = pktDlDst;
-      dlTyp = pktDlTyp;
       dlVlan = pktDlVlan;
       dlVlanPcp = pktDlVlanPcp;
       nw = nw } = 
+  let dlTyp = get_dlTyp nw in
   Printf.sprintf "(%s, %s, %s, %s, %s, %s)"
-    (dlAddr_to_string pktDlSrc)
-    (dlAddr_to_string pktDlDst)
-    (dlTyp_to_string pktDlTyp)
-    (dlVlan_to_string pktDlVlan)
-    (dlVlanPcp_to_string pktDlVlanPcp)
-    (nw_to_string nw)
+    (string_of_dlAddr pktDlSrc)
+    (string_of_dlAddr pktDlDst)
+    (string_of_int dlTyp)
+    (string_of_dlVlan pktDlVlan)
+    (string_of_dlVlanPcp pktDlVlanPcp)
+    (string_of_nw nw)
 
 (* Data Link *)
 cstruct eth {
@@ -577,7 +618,6 @@ cenum eth_typ {
   ETHTYP_VLAN = 0x8100
 } as uint16_t
 
-let vlan_none = 0xffff
 let vlan_mask = 0xfff
 let vlan_pcp_mask = 0x7 lsl 9
 
@@ -607,26 +647,20 @@ let parse (bits : Cstruct.t) =
         (None, 0x0, typ, sizeof_eth) in 
   let bits = Cstruct.shift bits offset in
   let nw_header = match int_to_eth_typ typ with 
-    | Some ETHTYP_IP -> 
-      begin match Ip.parse bits with 
-        | Some ip -> Ip ip
-        | None -> Unparsable (Cstruct.of_string (Cstruct.to_string bits))
-      end
+    | Some ETHTYP_IP -> Ip (Ip.parse bits)
     | Some ETHTYP_ARP -> 
-      begin match Arp.parse bits with 
-        | Some arp -> Arp arp 
-        | _ -> Unparsable (Cstruct.of_string (Cstruct.to_string bits))
+      begin try 
+        Arp (Arp.parse bits)
+      with UnparsablePacket _ -> 
+        Unparsable (typ, Cstruct.of_string (Cstruct.to_string bits))
       end
     | _ -> 
-      Unparsable (Cstruct.of_string (Cstruct.to_string bits)) in 
-  Some {
-    dlSrc = mac_of_bytes src;
+      Unparsable (typ, Cstruct.of_string (Cstruct.to_string bits)) in 
+  { dlSrc = mac_of_bytes src;
     dlDst = mac_of_bytes dst;
-    dlTyp = typ;
     dlVlan = vlan_tag;
     dlVlanPcp = vlan_pcp;
-    nw = nw_header 
-  }
+    nw = nw_header }
 
 let len (pkt : packet) =
   let eth_len = 
@@ -635,26 +669,27 @@ let len (pkt : packet) =
   let nw_len = match pkt.nw with 
     | Ip ip -> Ip.len ip
     | Arp arp -> Arp.len arp 
-    | Unparsable data -> Cstruct.len data in 
+    | Unparsable (_, data) -> Cstruct.len data in 
   eth_len + nw_len
 
 let serialize_helper (bits : Cstruct.t) (pkt : packet) =
   set_eth_src (bytes_of_mac pkt.dlSrc) 0 bits;
   set_eth_dst (bytes_of_mac pkt.dlDst) 0 bits;
+  let dlTyp = get_dlTyp pkt.nw in
   let bits =
     match pkt.dlVlan with
       | Some v ->
         set_vlan_hdr bits 0x8100;
         set_vlan_tag bits ((pkt.dlVlanPcp lsl 13) lor v);
-        set_vlan_typ bits pkt.dlTyp;
+        set_vlan_typ bits dlTyp;
         Cstruct.shift bits sizeof_vlan
       | None ->
-        set_eth_typ bits pkt.dlTyp;
+        set_eth_typ bits dlTyp;
         Cstruct.shift bits sizeof_eth in
   match pkt.nw with 
     | Ip ip -> Ip.serialize bits ip
     | Arp arp -> Arp.serialize bits arp
-    | Unparsable data -> Cstruct.blit data 0 bits 0 (Cstruct.len data)
+    | Unparsable (_, data) -> Cstruct.blit data 0 bits 0 (Cstruct.len data)
 
 let serialize (pkt:packet) : Cstruct.t = 
   let bits = Cstruct.create (len pkt) in 
@@ -674,8 +709,9 @@ let serialize (pkt:packet) : Cstruct.t =
 (* Pretty Printing *)
 let string_of_nw pkt = 
   match pkt with 
-    | Unparsable data -> 
-      Printf.sprintf "%s [%d:%d%d%d]\n\n"
+    | Unparsable (typ, data) -> 
+      Printf.sprintf "(%d, %s [%d:%d%d%d])"
+        typ
         (Cstruct.debug data)  (* TODO(arjun): doesn't work as expected!! *)
         (Cstruct.len data)
         (Char.code (Cstruct.get_char data 0))
@@ -686,18 +722,15 @@ let string_of_nw pkt =
 let string_of_eth pkt = 
   let vlan_tag = 
     match pkt.dlVlan with
-    | Some v -> v
-    | None -> vlan_none in
+    | Some v -> string_of_int v
+    | None -> "None" in
+  let dlTyp = get_dlTyp pkt.nw in
   Printf.sprintf 
-    "\n{ pktDlSrc = %s; 
-  pktDlDst = %s  
-  pktDlTyp : %d  
-  pktDlVlan : %d  
-  pktDlVlanPcp : %d
-  nw: %s }" 
+    "{ pktDlSrc = %s; pktDlDst = %s; pktDlTyp = %d; pktDlVlan = %s; \
+       pktDlVlanPcp = %d; nw = %s }" 
     (string_of_mac pkt.dlSrc)
     (string_of_mac pkt.dlDst)
-    (pkt.dlTyp)
+    dlTyp
     (vlan_tag)
     (pkt.dlVlanPcp)
     (string_of_nw pkt.nw)

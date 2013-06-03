@@ -1,13 +1,13 @@
 open NetCore_Types
 
-val port_to_string : port -> string
+val string_of_port : port -> string
 
-val pred_to_string : pred -> string
+val string_of_pred : pred -> string
 
-val pol_to_string : pol -> string
+val string_of_pol : pol -> string
 
-val value_to_string : value -> string 
+val string_of_value : value -> string 
 
-val pattern_to_string : ptrn -> string
+val string_of_pattern : ptrn -> string
 
-val action_to_string : action -> string
+val string_of_action : action -> string

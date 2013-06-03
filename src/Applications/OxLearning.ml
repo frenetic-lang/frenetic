@@ -15,8 +15,9 @@ module MyApplication : Ox_Controller.OXMODULE = struct
   let stats_reply sw xid stats = ()
 
   let packet_in sw xid pktIn = 
-    match pktIn.PacketIn.buffer_id, Packet.parse pktIn.PacketIn.packet with
-      | Some bufId, Some pkt -> 
+    let pkt = Packet.parse pktIn.PacketIn.packet in
+    match pktIn.PacketIn.buffer_id with
+      | Some bufId -> 
         let inport = pktIn.PacketIn.port in 
         let src = pkt.Packet.dlSrc in 
         let dst = pkt.Packet.dlDst in 

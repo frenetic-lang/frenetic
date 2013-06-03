@@ -16,20 +16,20 @@ module TestClassifier = struct
   let test0 =
     "action sequence test" >::
       fun () ->
-        assert_equal ~printer:action_to_string
+        assert_equal ~printer:string_of_action
           (forward 5)
           (seq_action (forward 3) (forward 5))
 
   let test1 =
     "forward action domain should be NetCore_Pattern.all" >::
       fun () ->
-        assert_equal ~printer:NetCore_Pretty.pattern_to_string
+        assert_equal ~printer:NetCore_Pretty.string_of_pattern
           (domain (List.hd (atoms (forward 1)))) NetCore_Pattern.all
 
   let test2 =
     "pattern restriction test" >::
       fun () ->
-        assert_equal ~printer:NetCore_Pretty.pattern_to_string
+        assert_equal ~printer:NetCore_Pretty.string_of_pattern
           (sequence_range
              (List.hd (atoms (forward 1)))
              (NetCore_Pattern.inPort (Physical 1)))
@@ -48,7 +48,7 @@ module TestClassifier = struct
       (List.map
          (fun (label, expected_action, input_pol, input_val) ->
            label >:: fun () -> 
-             assert_equal ~printer:action_to_string
+             assert_equal ~printer:string_of_action
                expected_action
                (NetCore_Semantics.eval input_pol input_val))
          lst)
@@ -170,10 +170,9 @@ module TestClassifier = struct
   let pk = {
     dlSrc = 0L;
     dlDst = 0L;
-    dlTyp = 0x800;
     dlVlan = None;
     dlVlanPcp = 0;
-    nw = Unparsable (Cstruct.create 8) 
+    nw = Unparsable (0, Cstruct.create 8) 
   }
 
   let inp = Pkt (1L, Physical 1, pk, OpenFlow0x01.PacketOut.Payload.Buffer 0l)
@@ -410,10 +409,9 @@ module Helper = struct
   let in_pkt =
     { dlSrc = Int64.zero
     ; dlDst = Int64.zero
-    ; dlTyp = 0x90
     ; dlVlan = None
     ; dlVlanPcp = 0
-    ; nw = Unparsable (Cstruct.create 8) }
+    ; nw = Unparsable (0x90, Cstruct.create 8) }
 
   let in_val =
     Pkt ( Int64.one
@@ -425,7 +423,7 @@ module Helper = struct
     let ds_pol = desugar_policy pol in
 
     if dbg then
-      printf "Internal policy:\n%s\n" (pol_to_string ds_pol)
+      printf "Internal policy:\n%s\n" (string_of_pol ds_pol)
     else
       ();
 
@@ -438,7 +436,7 @@ module Helper = struct
     let sem_test = 
       (name ^ " (semantic) test") >:: fun () ->
         assert_equal
-          ~printer:(Frenetic_Misc.string_of_list value_to_string)
+          ~printer:(Frenetic_Misc.string_of_list string_of_value)
           expected_vals vals in
 
     (* Test the classifier interpretation. *)
@@ -459,7 +457,7 @@ module Helper = struct
         assert_equal
           ~printer:(Frenetic_Misc.string_of_list
                       (fun (_, pt, pk) ->
-                        (Frenetic_Misc.string_of_pair port_to_string packet_to_string) (pt,pk)))
+                        (Frenetic_Misc.string_of_pair string_of_port string_of_packet) (pt,pk)))
           expected_pkts pkts in
     TestList [ sem_test; classifier_test ]
 

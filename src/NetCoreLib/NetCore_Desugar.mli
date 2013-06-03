@@ -49,11 +49,11 @@ type policy =
 
 val par : policy list -> policy
   
-val predicate_to_string : predicate -> string
+val string_of_predicate : predicate -> string
   
-val action_to_string : action -> string
+val string_of_action : action -> string
   
-val policy_to_string : policy -> string
+val string_of_policy : policy -> string
 
 
 val desugar : (unit -> int option) -> policy -> pol
