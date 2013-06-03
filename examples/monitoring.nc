@@ -1,3 +1,3 @@
 (* A simple monitoring application *)
   if * then all 
-| monitorLoad (5, *)
++ monitorLoad (5, *)

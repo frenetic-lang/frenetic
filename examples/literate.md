@@ -1,10 +1,13 @@
 Guide to writing literate NetCore
 =================================
 
-This is a literate NetCore program. The NetCore executable parses any file with the extension `.md` as literate NetCore. In literate NetCore, lines that begin with *four* spaces are code, and all other lines are ignored. For example, the following block is code:
+This is a literate NetCore program. The NetCore executable parses any
+file with the extension `.md` as literate NetCore. In literate
+NetCore, lines that begin with *four* spaces are code, and all other
+lines are ignored. For example, the following block is code:
 
     let l = learn in 
-    monitor_sw() | monitor_pol(l)
+    monitorSwitch() + monitorPolicy(l)
 
 Frankly, I think that four spaces is unnecessarily verbose. But, we're
 just using the syntax of Github's markdown:
