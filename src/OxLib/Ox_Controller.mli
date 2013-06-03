@@ -17,7 +17,6 @@ module type OXMODULE = sig
   val port_status : switchId -> xid -> PortStatus.t -> unit
 end
 
-module Make :functor (OxModule:OXMODULE) ->
-sig
-  val start_controller : unit -> unit Lwt.t
+module Make : functor (OxModule:OXMODULE) -> sig
+
 end

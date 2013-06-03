@@ -118,4 +118,16 @@ module Make (Handlers:OXMODULE) = struct
   let start_controller () = 
     Platform.init_with_port 6633 >>
     Lwt.pick [ handle_deferred (); accept_switches () ]
+
+  let _ =
+    Log.printf "Ox" "Controller launching...\n%!";
+    Sys.catch_break true;
+    try
+      Lwt_main.run (start_controller ())
+    with exn ->
+      Log.printf "Ox" "Unexpected exception: %s\n%s\n%!"
+        (Printexc.to_string exn)
+        (Printexc.get_backtrace ());
+      exit 1
+
 end

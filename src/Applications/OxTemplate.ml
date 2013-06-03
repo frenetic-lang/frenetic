@@ -27,14 +27,3 @@ module MyApplication : Ox_Controller.OXMODULE = struct
 end
 
 module Controller = Ox_Controller.Make (MyApplication)
-
-let _ =
-  Printf.printf "[Main] Controller launching...\n%!";
-  Sys.catch_break true;
-  try
-    Lwt_main.run (Controller.start_controller ())
-  with exn ->
-    Printf.printf "[Main] Unexpected exception: %s\n%s\n%!"
-      (Printexc.to_string exn)
-      (Printexc.get_backtrace ());
-    exit 1
