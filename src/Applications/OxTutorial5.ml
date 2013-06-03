@@ -1,5 +1,5 @@
 (* Extend OxTutorial4 to also implement its packet_in handler efficiently
-   in the flow table. *)
+   in the flow table. This is not complete! But, an intermediate point. *)
 module MyApplication : Ox_Controller.OXMODULE = struct
   open Ox_Controller.OxPlatform
   open OpenFlow0x01
@@ -22,10 +22,26 @@ module MyApplication : Ox_Controller.OXMODULE = struct
       dlVlanPcp = None; nwSrc = None; nwDst = None; nwProto = Some 6;
       nwTos = None; tpSrc = Some 80; tpDst = None; inPort = None }
 
+  (* TODO(arjun): I think we provide this function here, and explain what
+     it does. *)
+  let rec periodic_stats_request sw interval pat =
+    let callback () =
+      Printf.printf "Sending stats request to %Ld\n%!" sw; 
+      send_stats_request sw 0l
+        (StatsRequest.AggregateFlowReq {
+          StatsRequest.AggregateFlowRequest.of_match = pat;
+          StatsRequest.AggregateFlowRequest.table_id = 0xff;
+          StatsRequest.AggregateFlowRequest.port = None });
+      periodic_stats_request sw interval pat in
+    timeout interval callback
+
   (* FILL: configure the flow table to efficiently implement the packet
-     processing function you've written in packet_in *)
+     processing function you've written in packet_in. Also need to send
+     stat-requests. *)
   let switch_connected (sw : switchId) : unit =
     Printf.printf "Switch %Ld connected.\n%!" sw;
+    periodic_stats_request sw 5.0 match_http_requests;
+    periodic_stats_request sw 5.0 match_http_responses;   
     send_flow_mod sw 0l
       (FlowMod.add_flow 200 match_icmp []);
     send_flow_mod sw 1l
@@ -70,15 +86,14 @@ module MyApplication : Ox_Controller.OXMODULE = struct
         }
 
   let barrier_reply (sw : switchId) (xid : xid) : unit =
-    Printf.printf "Received a barrier reply %ld.\n%!" xid
+    ()
 
   let stats_reply (sw : switchId) (xid : xid) (stats : StatsReply.t) : unit =
     Printf.printf "Received a StatsReply from switch %Ld:\n%s\n%!"
       sw (StatsReply.to_string stats)
 
   let port_status (sw : switchId) (xid : xid) (port : PortStatus.t) : unit =
-    Printf.printf "Received a PortStatus from switch %Ld:\n%s\n%!"
-      sw (PortStatus.to_string port)
+    ()
 
 end
 
