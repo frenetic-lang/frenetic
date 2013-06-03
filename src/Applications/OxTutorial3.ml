@@ -3,22 +3,6 @@ module MyApplication : Ox_Controller.OXMODULE = struct
   open OpenFlow0x01
   type xid = Message.xid
 
-  (* TODO(arjun): provide in library? *)
-  let add_flow prio pat actions = 
-    let open FlowMod in
-    { mod_cmd = Command.AddFlow;
-      match_ = pat;
-      priority = prio;
-      actions = actions;
-      cookie = 0L;
-      idle_timeout = Timeout.Permanent;
-      hard_timeout = Timeout.Permanent;
-      notify_when_removed = false;
-      out_port =  None;
-      apply_to_packet = None;
-      check_overlap = false
-    }
-
   (* TODO(arjun): decide where this goes. matchArp is trivial, but we will
      later ask them to calculate a cross product. *)
   let match_arp = 
@@ -32,9 +16,9 @@ module MyApplication : Ox_Controller.OXMODULE = struct
   let switch_connected (sw : switchId) : unit =
     Printf.printf "Switch %Ld connected.\n%!" sw;
     send_flow_mod sw 0l
-      (add_flow 200 match_arp []);
+      (FlowMod.add_flow 200 match_arp []);
     send_flow_mod sw 1l
-      (add_flow 199 Match.all [Action.Output PseudoPort.AllPorts])
+      (FlowMod.add_flow 199 Match.all [Action.Output PseudoPort.AllPorts])
       
   let switch_disconnected (sw : switchId) : unit =
     Printf.printf "Switch %Ld disconnected.\n%!" sw

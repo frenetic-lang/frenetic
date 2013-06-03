@@ -1166,6 +1166,21 @@ module FlowMod = struct
     ; out_port : PseudoPort.t option
     ; check_overlap : bool }
 
+  let add_flow prio pat actions = 
+    { mod_cmd = Command.AddFlow;
+      match_ = pat;
+      priority = prio;
+      actions = actions;
+      cookie = 0L;
+      idle_timeout = Timeout.Permanent;
+      hard_timeout = Timeout.Permanent;
+      notify_when_removed = false;
+      out_port =  None;
+      apply_to_packet = None;
+      check_overlap = false
+    }
+
+
   cstruct ofp_flow_mod {
     uint64_t cookie;
     uint16_t command;
@@ -2198,21 +2213,6 @@ module Message = struct
       ; match_ = Match.all
       ; priority = 0
       ; actions = []
-      ; cookie = 0L
-      ; idle_timeout = Timeout.Permanent
-      ; hard_timeout = Timeout.Permanent
-      ; notify_when_removed = false
-      ; apply_to_packet = None
-      ; out_port = None
-      ; check_overlap = false }
-
-  let add_flow prio match_ actions =
-    let open FlowMod in
-    FlowModMsg
-      { mod_cmd = Command.AddFlow
-      ; match_ = match_
-      ; priority = prio
-      ; actions = actions
       ; cookie = 0L
       ; idle_timeout = Timeout.Permanent
       ; hard_timeout = Timeout.Permanent

@@ -332,7 +332,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     Lwt_list.iter_s
       (fun (match_, actions) ->
         Platform.send_to_switch sw 0l 
-          (Message.add_flow !prio match_ actions) >>
+          (Message.FlowModMsg (FlowMod.add_flow !prio match_ actions)) >>
         (decr prio; Lwt.return ()))
       flow_table
 
@@ -488,7 +488,7 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
           (OpenFlow0x01.Match.to_string match_)
           (OpenFlow0x01.Action.sequence_to_string actions);
         Platform.send_to_switch sw 0l 
-          (Message.add_flow !prio match_ actions) >>
+          (Message.FlowModMsg (FlowMod.add_flow !prio match_ actions)) >>
         (decr prio; Lwt.return ()))
       flow_table
 
