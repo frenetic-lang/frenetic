@@ -10,12 +10,13 @@ module MyApplication : Ox_Controller.OXMODULE = struct
       
   let switch_disconnected (sw : switchId) : unit =
     Printf.printf "Switch %Ld disconnected.\n%!" sw
-      
+
+  (* [FILL IN HERE]: Send the packet out of all ports, but block ICMP *)
   let packet_in (sw : switchId) (xid : xid) (pktIn : PacketIn.t) : unit =
-    (* FILL: Send the packet out of all ports, but block ICMP *)
     let payload = pktIn.PacketIn.payload in
     let pk = Payload.parse payload in
-    if pk.Packet.dlTyp = 0x800 && pk.Packet.nwProto = 1 then
+    (* TODO(arjun): AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGGGGGGGGGGGH! *)
+    if pk.Packet.dlTyp = 0x800 && Packet.nwProto pk = 1 then
       send_packet_out sw 0l
         { PacketOut.payload = payload;
           PacketOut.port_id = None;
