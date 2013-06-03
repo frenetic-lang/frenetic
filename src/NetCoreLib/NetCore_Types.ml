@@ -93,5 +93,5 @@ type pol =
 
 
 type value =
-  | Pkt of switchId * port * packet * OpenFlow0x01.PacketOut.Payload.t
+  | Pkt of switchId * port * packet * OpenFlow0x01.Payload.t
 

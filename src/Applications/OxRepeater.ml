@@ -10,17 +10,12 @@ module MyApplication : Ox_Controller.OXMODULE = struct
     
   let stats_reply sw xid stats = ()
     
-  let packet_in sw xid pktIn = match pktIn.PacketIn.buffer_id with
-    | None ->
-      () (* TODO(arjun): cannot count on this! *)
-    | Some bufId ->
-      let open PacketOut in
-          let pktOut = {
-            buf_or_bytes = Payload.Buffer bufId;
-            port_id = Some pktIn.PacketIn.port;
-            actions = [Action.Output PseudoPort.Flood]
-          } in
-          send_packet_out sw xid pktOut
+  let packet_in sw xid pktIn = 
+    send_packet_out sw 0l
+      { PacketOut.payload = pktIn.PacketIn.payload;
+        PacketOut.port_id = None;
+        PacketOut.actions = [Action.Output PseudoPort.AllPorts]
+      }
 
   let port_status sw xid msg = ()
 
