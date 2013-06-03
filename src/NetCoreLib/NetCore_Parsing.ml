@@ -28,9 +28,9 @@ let parse_from_lexbuf is_literate lexbuf name =
                     (string_of_position lexbuf.lex_curr_p)
                     (lexeme lexbuf))
       | Parsing.Parse_error ->
-        failwith (Printf.sprintf "parse error at %s; unexpected token %s %b"
+        failwith (Printf.sprintf "parse error at %s; unexpected token %s"
                     (string_of_position lexbuf.lex_curr_p)
-                    (lexeme lexbuf) (lexbuf.lex_eof_reached))
+                    (lexeme lexbuf))
 
 let parse_from_chan cin name =
   parse_from_lexbuf false (Lexing.from_channel cin) name

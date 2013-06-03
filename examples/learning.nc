@@ -1,4 +1,4 @@
-(* a learning switch *)
+(* An ethernet learning switch *)
 let l = learn in 
-  monitor_tbl(1, l)
+monitorTable(1, l)
 
