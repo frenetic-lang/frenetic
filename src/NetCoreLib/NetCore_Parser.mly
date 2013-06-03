@@ -36,6 +36,8 @@
 
 %token LPAREN
 %token RPAREN
+%token BEGIN
+%token END
 %token LCURLY
 %token RCURLY
 %token NOT
@@ -139,6 +141,8 @@ pred :
 pol_atom :
   | LPAREN pol RPAREN 
     { $2 }
+  | BEGIN pol END 
+    { $2 }
   | FILTER pred 
     { Filter (symbol_start_pos (), $2) }
   | ID 
@@ -190,15 +194,15 @@ pol_seq_list :
 pol_par_list :
   | pol_pred_single
     { $1 }
-  | pol_pred_single BAR pol_par_list
+  | pol_pred_single PLUS pol_par_list
     { Par (symbol_start_pos (), $1, $3) }
 
 pol :
-  | pol_pred_single 
+  | pol_pred_single
     { $1 }
   | pol_pred_single PLUS pol_par_list
     { Par (symbol_start_pos (), $1, $3) }
-  | pol_pred_single SEMI pol_seq_list
+  | pol_pred_single SEMI pol_seq_list 
     { Seq (symbol_start_pos (), $1, $3) }
   | LET ID EQUALS pol IN pol
     { Let (symbol_start_pos (),
@@ -215,6 +219,7 @@ pol :
              [($2, Value (PolStream (lwt_e, priv)));
               ($4, Value (PolStream (Lwt.return (), pub)))],
              $13) }
+
 
 program
   : pol EOF { $1 }

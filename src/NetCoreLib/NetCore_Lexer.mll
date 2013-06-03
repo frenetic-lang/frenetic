@@ -78,6 +78,8 @@ and token = parse
   | "inPort" { INPORT }
   | "&&" { AND }
   | "||" { OR }
+  | "begin" { BEGIN }
+  | "end" { END }
   | "if" { IF }
   | "then" { THEN }
   | "else" { ELSE }
