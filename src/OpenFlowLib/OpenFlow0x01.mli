@@ -517,7 +517,7 @@ specification. *)
     type t =
       { packet_count : int64 (** Number of packets in flows. *)
       ; byte_count : int64 (** Number of bytes in flows. *)
-      ; flow_count : int16 (** Number of flows. *)
+      ; flow_count : int32 (** Number of flows. *)
       }
 
     (** [to_string v] pretty-prints [v]. *)

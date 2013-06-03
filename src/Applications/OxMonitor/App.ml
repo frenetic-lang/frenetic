@@ -3,7 +3,6 @@ open OpenFlow0x01
 open Packet
 
 let send_stats_request sw = 
-  Printf.printf "Callback\n%!";
   let open StatsRequest.AggregateFlowRequest in  
       callback 5.0 
         (fun () -> 
@@ -15,6 +14,21 @@ let send_stats_request sw =
               port = None }))
 
 let switchConnected sw = 
+  let open FlowMod in
+  let fm = {
+    mod_cmd = Command.AddFlow;
+    match_ = Match.all;
+    priority = 1;
+    actions = [Action.Output PseudoPort.Flood];
+    cookie = Int64.zero;
+    idle_timeout = Timeout.Permanent;
+    hard_timeout = Timeout.Permanent;
+    notify_when_removed = false;
+    apply_to_packet = None;
+    out_port = None;
+    check_overlap = false } in 
+  flowMod (Int32.one) sw fm;
+  barrierRequest (Int32.succ Int32.one) sw;
   send_stats_request sw
 
 let switchDisconnected sw = ()
@@ -27,24 +41,12 @@ let statsReply xid sw stats =
       let open AggregateFlowStats in 
           match stats with 
             | AggregateFlowRep afs -> 
-              Printf.printf "Packets: %Ld\nBytes: %Ld\n; Flows: %d\n%!"
+              Printf.printf "Packets: %Ld\nBytes: %Ld\nFlows: %ld\n%!"
                 afs.packet_count afs.byte_count afs.flow_count;
-        (* JNF: callback at time 5 *)
               send_stats_request sw
             | _ -> 
               ()
 
-let packetIn xid sw pktIn = match pktIn.PacketIn.buffer_id with
-  | None ->
-    ()
-  | Some bufId ->
-    let open PacketIn in
-        let open PacketOut in
-            let pktOut = {
-              buf_or_bytes = Payload.Buffer bufId;
-              port_id = Some pktIn.port;
-              actions = [Action.Output PseudoPort.Flood]
-            } in
-            packetOut xid sw pktOut
+let packetIn xid sw pktIn = ()
 
 let portStatus xid sw msg = ()

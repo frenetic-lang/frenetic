@@ -1475,9 +1475,10 @@ module StatsRequest = struct
     | DescriptionReq -> header_size
     | IndividualFlowReq req ->
       header_size + (IndividualFlowRequest.size_of req)
+    | AggregateFlowReq req -> 
+      header_size + (AggregateFlowRequest.size_of req)
     | _ ->
-      (* CNS: Please implement me!! *)
-      failwith (Printf.sprintf "NYI: StatsRequest.size_of %s" (to_string msg))
+      failwith (Printf.sprintf "NYI: StatsRequest.size_of: %s" (to_string msg))
 
   let ofp_stats_type_of_request req = match req with
     | DescriptionReq -> OFPST_DESC
@@ -1660,16 +1661,27 @@ module StatsReply = struct
     type t =
       { packet_count : int64
       ; byte_count : int64
-      ; flow_count : int16 }
+      ; flow_count : int32 }
+
+    cstruct ofp_aggregate_stats {
+      uint64_t packet_count;
+      uint64_t byte_count;
+      uint32_t flow_count;
+      uint8_t pad[4]
+    } as big_endian
 
     let to_string stats = Printf.sprintf
-      "{ packet_count = %Ld; byte_count = %Ld; flow_count = %d }"
+      "{ packet_count = %Ld; byte_count = %Ld; flow_count = %ld }"
       stats.packet_count
       stats.byte_count
       stats.flow_count
 
+    let parse bits = 
+      { packet_count = get_ofp_aggregate_stats_packet_count bits;
+	byte_count = get_ofp_aggregate_stats_byte_count bits;
+	flow_count = get_ofp_aggregate_stats_flow_count bits }
+
     let size_of _ = failwith "NYI: AggregateFlowStats.size_of"
-    let parse _ = failwith "NYI: AggregateFlowStats.parse"
     let marshal _ _ = failwith "NYI: AggregateFlowStats.marshal"
 
   end
