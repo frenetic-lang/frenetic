@@ -193,7 +193,51 @@ let packet_in (sw : switchId) (xid : xid) (pktIn : PacketIn.t) : unit =
 Exercise 2: Firewall
 ====================
 
-- 
+In this exercise, you will compose your repeater with a simple firewall that
+blocks ICMP traffic. As a result, `ping`s will be blocked, but other traffic,
+such as Web traffic, will still be handled by the repeater.
+
+<h3>A Naive Firewall</h3>
+
+We will start by writing the `packet_in` function for this
+policy. After we've successfully tested the `packet_in` function,
+we'll build an efficient firewall that operates locally on the switch.
+
+The repeater simply emits the payload of the `pktIn` message. In
+contrast, your firewall has to inspect the payload and determine if it
+is an ICMP packet.  Ox includes a parser for some common packet
+formats, including ICMP.
+
+```ocaml
+let packet_in (sw : switchId) (xid : xid) (pktIn : PacketIn.t) : unit =
+  let payload = pktIn.PacketIn.payload in
+  let pkt = Payload.parse payload in
+  ...
+```
+
+The `Payload.parse` function produces nested records that represent
+the logical structure of the payload. For example, a ping request
+would be represented as:
+
+```ocaml
+{ dlSrc = 0x000000000001; (* source mac address *)
+  dlDst = 0x000000000002; (* destination mac address *)
+  dlVlan = None;
+  dlVlanPcp = 0;
+  nw = Ip { Ip.Icmp { Icmp.typ = 8; (* echo request *)
+                      Icmp.code = 0;
+                      Icmp.chksum = ...;
+                      Icmp.payload = ... } } }
+```
+
+Instead of navigating nested records such as these, we recommend using
+the predicates ([REF]) that Ox provides.
+
+- Predicate tips
+
+- Testing
+
+<h3>An Efficient Firewall</h3>
 
 
 
