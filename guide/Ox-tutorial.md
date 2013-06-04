@@ -1,5 +1,30 @@
-Introduction
-============
+Getting Started
+===============
+
+In this tutorial, you will learn to program software-defined networks
+(SDN) using OpenFlow. The software for this tutorial is available as
+a virtual machine. To get started:
+
+- Download and install the [VirtualBox] [1] virtualization platform.
+- Download the [Frenetic Tutorial VM] [2].
+- Launch the tutorial VM, which will launch a GUI and automatically login
+  as `frenetic`. The password for the account is also `frenetic`.
+- At a terminal, go to the tutorial directory (`cd src/frenetic`)
+  and check for updates (`git pull`):
+
+  ```
+  $ cd src/frenetic
+  $ git pull
+  $ make reinstall
+  ```
+
+[1] https://www.virtualbox.org
+[2] http://www.cs.brown.edu/~arjun/tmp/Frenetic.vdi
+
+Virtual Machine Contents
+------------------------
+
+using OpenFlow. OpenFlow is a open 
 
 - SDN from 10,000 feet (very, very brief. Link to something else)
 
@@ -197,7 +222,7 @@ In this exercise, you will compose your repeater with a simple firewall that
 blocks ICMP traffic. As a result, `ping`s will be blocked, but other traffic,
 such as Web traffic, will still be handled by the repeater.
 
-<h3>A Naive Firewall</h3>
+### The Firewall Function
 
 We will start by writing the `packet_in` function for this
 policy. After we've successfully tested the `packet_in` function,
@@ -237,8 +262,79 @@ the predicates ([REF]) that Ox provides.
 
 - Testing
 
-<h3>An Efficient Firewall</h3>
+### An Efficient Firewall
 
+In this part, you will implement the firewall efficiently, using the
+flow table on the switch. You still need a `packet_in` function to
+process packets sent before the flow table is initialized. You should
+simply build on your solution to the previous part and _leave its
+`packet_in` function untouched_.
+
+Fill in the `switch_connected` event handler. You need to install two
+entries into the flow table--one for ICMP traffic and the other for
+all other traffic;
+
+```ocaml
+let switch_connected (sw : switchId) : unit =
+  Printf.printf "Switch %Ld connected.\n%!" sw;
+  send_flow_mod sw 0l (FlowMod.add_flow prio1 pat1 actions1);
+  send_flow_mod sw 0l (FlowMod.add_flow prio2 pat2 actions2)
+```
+
+Your task is to fill in the priorities, patterns, and actions in the
+handler above.
+
+First, write an OpenFlow pattern to match ICMP traffic. Patterns in
+OpenFlow 1.0 can match the values of 12 pre-determined packet headers.
+For example, the following pattern matches all traffic from the host
+whose Ethernet address is `00:00:00:00:00:12`:
+
+```ocaml
+let from_host12 =
+  let open Match in
+  { dlSrc = Some 0x000000000012L; (* the L suffix indicates a long integer *)
+    dlDst = None; 
+    dlTyp = None;
+    dlVlan = None;
+    dlVlanPcp = None;
+    nwSrc = None;
+    nwDst = None;
+    nwProto = None;
+    nwTos = None;
+    tpSrc = None;
+    tpDst = None;
+    inPort = None }
+```
+
+In a pattern, `header = Some x` means that the value of `header` must be `x`
+and `header = None` means that `header` may have any value.
+
+```ocaml
+let from_10_0_0_1 = 
+  let open Match in
+  { dlSrc = None;
+    dlDst = None; 
+    dlTyp = 0x800; (* frame type for IP *)
+    dlVlan = None;
+    dlVlanPcp = None;
+    nwSrc = 0x10000001; (* 10.0.0.1 *)
+    nwDst = None;
+    nwProto = None;
+    nwTos = None;
+    tpSrc = None;
+    tpDst = None;
+    inPort = None }
+```
+
+This pattern also specifies the frame type for IP packets (`dlTyp =
+0x800`). If you don't write the frame type, the value of `nwSrc` is
+ignored.
+
+When the switch processes a packet, it applies the actions from _the
+highest-priority matching entry_. If a packet matches several entries
+with the same priority, the behavior is unspecified. Therefore, pick
+different priorities for each pattern, unless you are certain the
+patterns are disjoint.
 
 
 Exercise 3: Traffic Monitoring
