@@ -68,8 +68,7 @@ uninstall:
             $(OCAMLFIND) remove $(LIBRARY);)
 
 doc:
-	$(OCAMLBUILD) doc.docdir/index.html && \
-    cp _build/doc.docdir/* ../doc
+	$(OCAMLBUILD) doc.docdir/index.html
 
 clean:
 	$(OCAMLBUILD) -clean
