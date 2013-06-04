@@ -394,7 +394,11 @@ module PacketIn : sig
 
   type t =
     { payload : Payload.t
-    ; total_len : int16 (** Full length of frame. *)
+      (** The packet contents, which may truncated, in which case, 
+          the full packet is buffered on the switch. *)
+    ; total_len : int16
+      (** The length of the full packet, which may exceed the length
+          of [payload] if the packet is buffered. *)
     ; port : portId (** Port on which frame was received. *)
     ; reason : Reason.t (** Reason packet is being sent. *)
     }
