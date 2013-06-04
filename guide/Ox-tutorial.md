@@ -5,10 +5,17 @@ In this tutorial, you will learn to program software-defined networks
 (SDN) using OpenFlow. The software for this tutorial is available as
 a virtual machine. To get started:
 
-- Download and install the [VirtualBox] [1] virtualization platform.
-- Download the [Frenetic Tutorial VM] [2].
+- Download and install the [VirtualBox](https://www.virtualbox.org)
+  virtualization platform.
+  
+- Download the
+  [Frenetic Tutorial VM](http://www.cs.brown.edu/~arjun/tmp/Frenetic.vdi).
+
+  > Insert the right link.
+
 - Launch the tutorial VM, which will launch a GUI and automatically login
   as `frenetic`. The password for the account is also `frenetic`.
+
 - At a terminal, go to the tutorial directory (`cd src/frenetic`)
   and check for updates (`git pull`):
 
@@ -17,9 +24,6 @@ a virtual machine. To get started:
   $ git pull
   $ make reinstall
   ```
-
-[1] https://www.virtualbox.org
-[2] http://www.cs.brown.edu/~arjun/tmp/Frenetic.vdi
 
 Virtual Machine Contents
 ------------------------
