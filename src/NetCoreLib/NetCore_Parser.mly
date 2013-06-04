@@ -157,6 +157,12 @@ pol_atom :
   | VLAN NONE RARROW INT64
     { Action (symbol_start_pos (),
               Action.updateDlVlan None (Some (int12_of_int64 $4))) }
+  | TCPSRCPORT INT64 RARROW INT64
+    { Action (symbol_start_pos (),
+              Action.updateSrcPort (int16_of_int64 $2) (int16_of_int64 $4)) }
+  | TCPDSTPORT INT64 RARROW INT64
+    { Action (symbol_start_pos (),
+              Action.updateDstPort (int16_of_int64 $2) (int16_of_int64 $4)) }
   | ALL 
     { Action (symbol_start_pos (), Action.to_all) }
   | MONITOR_POL LPAREN pol RPAREN
