@@ -34,6 +34,12 @@ From the root directory of the repository, simply run `make`
   $ make
   ```
 
+Documentation
+-------------
+
+The API documentation is available
+[online](http://htmlpreview.github.com/?https://github.com/frenetic-lang/frenetic/tree/master/doc).
+
 Hacking Wisdom
 --------------
 
