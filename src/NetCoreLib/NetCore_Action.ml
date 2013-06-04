@@ -299,11 +299,27 @@ module Output = struct
    *)
   let sequence_range_switch out pat =
     let open NetCore_Pattern in
-    restrict_port out.outPort
-      (* TODO(arjun): Fill in the rest!!!! *)
-      (trans out.outDlSrc dlSrc wildcardDlSrc
-        (trans out.outDlDst dlDst wildcardDlDst
-          (trans out.outDlVlan dlVlan wildcardDlVlan pat)))
+    let pat = restrict_port out.outPort pat in
+    let pat = trans out.outDlSrc dlSrc wildcardDlSrc pat in
+    let pat = trans out.outDlDst dlDst wildcardDlDst pat in 
+    let pat = trans out.outDlVlan dlVlan wildcardDlVlan pat in
+    let pat = trans out.outDlVlanPcp dlVlanPcp wildcardDlVlanPcp pat in
+    let pat = trans out.outNwSrc
+      (fun v -> { all with ptrnNwSrc = WildcardExact v })
+      wildcardNwSrc pat in
+    let pat = trans out.outNwDst
+      (fun v -> { all with ptrnNwDst = WildcardExact v })
+      wildcardNwDst pat in
+    let pat = trans out.outNwTos 
+      (fun v -> { all with ptrnNwTos = WildcardExact v })
+      wildcardNwTos pat in
+    let pat = trans out.outTpSrc 
+      (fun v -> { all with ptrnTpSrc = WildcardExact v })
+      wildcardTpSrc pat in
+    let pat = trans out.outTpDst
+      (fun v -> { all with ptrnTpDst = WildcardExact v })
+      wildcardTpDst pat in
+    pat
 
   let sequence_range atom pat = match atom with
     | SwitchAction out        -> sequence_range_switch out pat

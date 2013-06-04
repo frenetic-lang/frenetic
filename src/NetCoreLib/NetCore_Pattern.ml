@@ -167,14 +167,19 @@ let exact_pattern pk pt =
 let match_packet pt pk pat =
   not (is_empty (inter (exact_pattern pk pt) pat))
 
+(* TODO(arjun): these set* used at all? *)
 let setDlSrc dlSrc pat =
   { pat with ptrnDlSrc = WildcardExact dlSrc }
+
+let setPort port pat =
+  { pat with ptrnInPort = WildcardExact port }
+
+let setDlDst dlDst pat =
+  { pat with ptrnDlDst = WildcardExact dlDst }
 
 let wildcardDlSrc pat =
   { pat with ptrnDlSrc = WildcardAll }
 
-let setDlDst dlDst pat =
-  { pat with ptrnDlDst = WildcardExact dlDst }
 
 let wildcardDlDst pat =
   { pat with ptrnDlDst = WildcardAll }
@@ -185,9 +190,24 @@ let setDlVlan dlVlan pat =
 let wildcardDlVlan pat =
   { pat with ptrnDlVlan = WildcardAll }
 
-let setPort port pat =
-  { pat with ptrnInPort = WildcardExact port }
 
 let wildcardPort pat =
   { pat with ptrnInPort = WildcardAll }
 
+let wildcardDlVlanPcp pat =
+  { pat with ptrnDlVlanPcp = WildcardAll }
+
+let wildcardNwSrc pat =
+  { pat with ptrnNwSrc = WildcardAll }
+
+let wildcardNwDst pat =
+  { pat with ptrnNwDst = WildcardAll }
+
+let wildcardNwTos pat =
+  { pat with ptrnNwTos = WildcardAll }
+
+let wildcardTpSrc pat =
+  { pat with ptrnTpSrc = WildcardAll }
+
+let wildcardTpDst pat =
+  { pat with ptrnTpDst = WildcardAll }

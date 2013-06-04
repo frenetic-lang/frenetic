@@ -35,3 +35,15 @@ val wildcardDlDst : t -> t
 val wildcardDlVlan : t -> t
 
 val wildcardPort : t -> t
+
+val wildcardDlVlanPcp : t -> t
+
+val wildcardNwSrc : t -> t
+
+val wildcardNwDst : t -> t
+
+val wildcardNwTos : t -> t
+
+val wildcardTpSrc : t -> t
+
+val wildcardTpDst : t -> t
