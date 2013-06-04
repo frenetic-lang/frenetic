@@ -68,52 +68,48 @@ Handy References
   controllers. We will tell you exactly what Mininet commands to use,
   so you don't need to read this.
 
-> Continue below
-
-Virtual Machine Contents
-------------------------
-
-using OpenFlow. OpenFlow is a open 
-
-- SDN from 10,000 feet (very, very brief. Link to something else)
-
-  * Centralized controller defines network-wide policy
-  
-  * Controller is connected to all switches in the network. These switches
-    can be _programmed_ to implement the network-wide policy
-
-- OpenFlow is an open protocol for configuring switches and reading switch
-  state.
-
-  * Let's the controller add rules the a _flow table_, which determines
-    how the switch processes packets.
-
-  * Even let's the switch divert packets to the controller, where you
-    can write arbitrary packet-processing code.
-
-- In this tutorial, you will write implement several policies for OpenFlow,
-  using the _Ox Controller Platform_
-
-  * Repeater
-
-  * Firewall
-
-  * Network monitor
-
-  * Learning switch
-
-- OCaml. It is amazing. Why are you still using Haskell?
-
-  - We are going to go easy on the OCaml.
-
-  - Ox controllers are simple, event-driven programs.
-
-  - Packet processing logic is very generic. What you learn can be used
-    to build controllers for NOX, POX, Beacon, etc.
-
-
 Exercise 1: Repeater
 ====================
+
+### OpenFlow Overview
+
+In a basic SDN, all switches connect to a centralized controller
+machine. The controller thus has a global view of network, and can
+_program all switches_ to implement a unified, network-wide policy.
+To program a switch, the controller uses a standard protocol, such as
+OpenFlow.
+
+A switch processes packets using a _flow table_, which is a list of
+prioritized packet-processing rules. For example, the following
+is a sketch of a flow table that drops ICMP traffic and floods
+all other traffic:
+
+<table>
+<tr>
+  <th>Priority</th>
+  <th>Pattern</th>
+  <th>Action</th>
+</tr>
+<tr>
+  <td>50</td>
+  <td>ICMP</td>
+  <td>drop</td>
+</tr>
+  <td>40</td>
+  <td>*</td>
+  <td>forward to all ports
+</tr>
+
+
+Each rule has a pattern (to match packets), a list of actions (to
+apply to matching packets), and various counters that collect
+statistics on processed traffic. Using OpenFlow, a controller can add
+and remove rules, query the counters, and more. The controller can
+even have the switch divert packets to itself, where you can write
+arbitrary packet-processing code.
+
+
+> continue below
 
 - The Ox platform provides several functions to send different types
   of messages to switches. In turn, your Ox application must define
