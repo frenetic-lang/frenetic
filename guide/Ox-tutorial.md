@@ -171,64 +171,28 @@ $ ocamlbuild -use-ocamlfind -package OxLib ex1.d.byte
 > Fold PacketLib and OpenFlowLib into OxLib, IMHO.
 
 The `packet_in` function above receives a [PacketIn] message and emits
-a [PacketOut] message using [send_packet_out] [OxPlatform].
+a [PacketOut] message using [send_packet_out] [OxPlatform]. Note that
+the list of actions is empty (`packetOut.actions = []`), which means the
+packet is dropped.
 
-[PacketIn]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.PacketIn.html
+*Programming Task*: Instead of dropping the packet, send it out of all
+ports (excluding the input port). This is easier than it sounds,
+because you can do it with just one [OpenFlow action] [Action]. Once
+you've found the right action to apply, rebuild the controller and
+test that it works.
 
-[PacketOut]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.PacketOut.html
-
-[OxPlatform]: http://frenetic-lang.github.io/frenetic/docs/Ox_Controller.OxPlatform.html
-
-
-- Here is a trivial `packet_in` handler that simply drops all packets
-  it receives:
-
-```ocaml
-let packet_in (sw : switchId) (xid : xid) (pktIn : PacketIn.t) : unit =
-  Printf.printf "Received a packet from %Ld.\n%!" sw;
-  send_packet_out sw 0l
-    { PacketOut.payload = pktIn.PacketIn.payload;
-      PacketOut.port_id = None;
-      PacketOut.actions = []
-    }
-```
-- `pktIn` is a record representing the PacketIn message. Its most
-  significant field is `pktIn.PacketIn.payload`, which is the packet
-  that was received. It has few other fields with additional metadata
-  about the packet. See [REF] for details.
-
-- `send_packet_out` can be used to sent any payload to a switch. Here,
-  we simply re-send the packet we received (as `PacketOut.payload`)
-
-- `PacketOut.actions` specifies a list of actions to apply the
-  packet. The actions of OpenFlow 1.0 allow several headers to be
-  modified and packets to be emitted.
-
-- Above, `PacketOut.actions` is empty, so the packet is dropped.
-
-- *Programming Task*: instead of dropping the packet, send it out of
-  all ports, but not the packet's input port.
-
-  * You do this by editing the action list `PacketOut.action = []`.
-
-  * See [REF], which lists all the actions that OpenFlow supports.
-
-    > Arjun: this is just to force people to read this bit of the manual.
-
-  * Build your controller by typing `make` in the `OxTutorial1` directory.
-
-- *Testing Your Program*
+*Testing your Controller*:
 
   * Start your controller by running:
 
     ```
-    $ ./controller
+    $ ./ex1
     ```
 
   * In a separate terminal window, start the Mininet network simulator:
 
     ```
-    $ ./mininet
+    $ ./mn --controller=remote
     ```
 
   * This script create a virtual network with one switch (`s1`) and
@@ -241,7 +205,9 @@ let packet_in (sw : switchId) (xid : xid) (pktIn : PacketIn.t) : unit =
   * If you look at the terminal for your controller, you'll see that it
     receives all ICMP packets itself.
 
-<h3>Part 2: An Efficient Repeater</h3>
+  > Add some sample output
+
+### An Efficient Repeater
 
 - Diverting all packets to the controller is very inefficent. You will
   now add rules into the switch's _flow table_ so that the switch can
@@ -408,4 +374,13 @@ Exercise 3: Traffic Monitoring
 
 Exercise 4: Learning Switch
 ===========================
+
+[Action]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.Action.html
+
+[PacketIn]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.PacketIn.html
+
+[PacketOut]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.PacketOut.html
+
+[OxPlatform]: http://frenetic-lang.github.io/frenetic/docs/Ox_Controller.OxPlatform.html
+
 
