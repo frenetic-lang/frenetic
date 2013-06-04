@@ -3,7 +3,7 @@ APPLICATIONS = Applications/Frenetic \
                Applications/Verify \
                Applications/NetCoreConsistent \
                Applications/OxTemplate \
-	             Applications/OxRepeater \
+               Applications/OxRepeater \
                Applications/OxMonitor \
                Applications/OxLearning \
                Applications/OxTutorial1 \
@@ -68,7 +68,8 @@ uninstall:
             $(OCAMLFIND) remove $(LIBRARY);)
 
 doc:
-	$(OCAMLBUILD) doc.docdir/index.html
+	$(OCAMLBUILD) doc.docdir/index.html && \
+    cp _build/doc.docdir/* ../doc
 
 clean:
 	$(OCAMLBUILD) -clean
