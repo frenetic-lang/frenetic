@@ -9,15 +9,12 @@
 
 let mapper =
   if inPort = 1 && tcpDstPort = 5020 then
-    begin
-      tcpDstPort 5020 -> 5010; 
-      fwd(2)
-    end
+    tcpDstPort 5020 -> 5010
   else if inPort = 2 && tcpSrcPort = 5010 then
-    begin
-      tcpSrcPort 5010 -> 5020; 
-      fwd(1)
-    end
+    tcpSrcPort 5010 -> 5020
   else
-    all
+    pass
+
+let forwarder =
+  mapper; all
   
