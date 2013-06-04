@@ -1,7 +1,7 @@
 %{
 
+ open NetCore_Types
  open NetCore_SurfaceSyntax
- module Pat = NetCore_Pattern
  module Action = NetCore_Action.Output
 
  let int12_of_int64 (n : Int64.t) : int =
@@ -111,21 +111,21 @@ pred_atom :
      0xbeefbeefbeefbeefL for large integers. So, I'm lexing everything to 
      Int64, then having checked-casts down to the right size. */
   | INPORT EQUALS INT64 
-    { Pol.PrHdr (Pat.inPort (Pol.Physical (int16_of_int64 $3))) }
-  | SRCMAC EQUALS MACADDR { Pol.PrHdr (Pat.dlSrc $3) }
-  | DSTMAC EQUALS MACADDR { Pol.PrHdr (Pat.dlDst $3) }
-  | VLAN EQUALS NONE { Pol.PrHdr (Pat.dlVlan None) }
-  | VLAN EQUALS INT64 { Pol.PrHdr (Pat.dlVlan (Some (int12_of_int64 $3))) }
-  | SRCIP EQUALS IPADDR { Pol.PrHdr (Pat.ipSrc $3) }
-  | DSTIP EQUALS IPADDR { Pol.PrHdr (Pat.ipDst $3) }
-  | TCPSRCPORT EQUALS INT64 { Pol.PrHdr (Pat.tcpSrcPort (int16_of_int64 $3)) }
-  | TCPDSTPORT EQUALS INT64 { Pol.PrHdr (Pat.tcpDstPort (int16_of_int64 $3)) }
+    { Pol.PrHdr (inPort (Pol.Physical (int16_of_int64 $3))) }
+  | SRCMAC EQUALS MACADDR { Pol.PrHdr (dlSrc $3) }
+  | DSTMAC EQUALS MACADDR { Pol.PrHdr (dlDst $3) }
+  | VLAN EQUALS NONE { Pol.PrHdr (dlVlan None) }
+  | VLAN EQUALS INT64 { Pol.PrHdr (dlVlan (Some (int12_of_int64 $3))) }
+  | SRCIP EQUALS IPADDR { Pol.PrHdr (ipSrc $3) }
+  | DSTIP EQUALS IPADDR { Pol.PrHdr (ipDst $3) }
+  | TCPSRCPORT EQUALS INT64 { Pol.PrHdr (tcpSrcPort (int16_of_int64 $3)) }
+  | TCPDSTPORT EQUALS INT64 { Pol.PrHdr (tcpDstPort (int16_of_int64 $3)) }
   | FRAMETYPE EQUALS ARP
-    { Pol.PrHdr (Pat.dlType 0x806) }
+    { Pol.PrHdr (dlType 0x806) }
   | FRAMETYPE EQUALS IP
-    { Pol.PrHdr (Pat.dlType 0x800) }
+    { Pol.PrHdr (dlType 0x800) }
   | FRAMETYPE EQUALS INT64
-    { Pol.PrHdr (Pat.dlType (int16_of_int64 $3)) }
+    { Pol.PrHdr (dlType (int16_of_int64 $3)) }
     
 
 pred_or :

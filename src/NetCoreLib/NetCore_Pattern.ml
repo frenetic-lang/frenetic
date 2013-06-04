@@ -48,36 +48,6 @@ module NwTosWildcard = IntWildcard
 module TpPortWildcard = IntWildcard
 module PortWildcard = NetCore_Wildcard.Make (PortOrderedType)
 
-let all = {
-  ptrnDlSrc = WildcardAll;
-  ptrnDlDst = WildcardAll;
-  ptrnDlType = WildcardAll;
-  ptrnDlVlan = WildcardAll;
-  ptrnDlVlanPcp = WildcardAll;
-  ptrnNwSrc = WildcardAll;
-  ptrnNwDst = WildcardAll;
-  ptrnNwProto = WildcardAll;
-  ptrnNwTos = WildcardAll;
-  ptrnTpSrc = WildcardAll;
-  ptrnTpDst = WildcardAll;
-  ptrnInPort = WildcardAll
-}
-
-let empty = {
-  ptrnDlSrc = WildcardNone;
-  ptrnDlDst = WildcardNone;
-  ptrnDlType = WildcardNone;
-  ptrnDlVlan = WildcardNone;
-  ptrnDlVlanPcp = WildcardNone;
-  ptrnNwSrc = WildcardNone;
-  ptrnNwDst = WildcardNone;
-  ptrnNwProto = WildcardNone;
-  ptrnNwTos = WildcardNone;
-  ptrnTpSrc = WildcardNone;
-  ptrnTpDst = WildcardNone;
-  ptrnInPort = WildcardNone
-}
-
 let is_empty pat =
   DlAddrWildcard.is_empty pat.ptrnDlSrc
   || DlAddrWildcard.is_empty pat.ptrnDlDst
@@ -197,14 +167,19 @@ let exact_pattern pk pt =
 let match_packet pt pk pat =
   not (is_empty (inter (exact_pattern pk pt) pat))
 
+(* TODO(arjun): these set* used at all? *)
 let setDlSrc dlSrc pat =
   { pat with ptrnDlSrc = WildcardExact dlSrc }
+
+let setPort port pat =
+  { pat with ptrnInPort = WildcardExact port }
+
+let setDlDst dlDst pat =
+  { pat with ptrnDlDst = WildcardExact dlDst }
 
 let wildcardDlSrc pat =
   { pat with ptrnDlSrc = WildcardAll }
 
-let setDlDst dlDst pat =
-  { pat with ptrnDlDst = WildcardExact dlDst }
 
 let wildcardDlDst pat =
   { pat with ptrnDlDst = WildcardAll }
@@ -215,58 +190,24 @@ let setDlVlan dlVlan pat =
 let wildcardDlVlan pat =
   { pat with ptrnDlVlan = WildcardAll }
 
-let setPort port pat =
-  { pat with ptrnInPort = WildcardExact port }
 
 let wildcardPort pat =
   { pat with ptrnInPort = WildcardAll }
 
-let inPort pt =
-  { all with ptrnInPort = WildcardExact pt }
+let wildcardDlVlanPcp pat =
+  { pat with ptrnDlVlanPcp = WildcardAll }
 
-let dlSrc mac =
-  { all with ptrnDlSrc = WildcardExact mac }
+let wildcardNwSrc pat =
+  { pat with ptrnNwSrc = WildcardAll }
 
-let dlDst mac =
-  { all with ptrnDlDst = WildcardExact mac }
+let wildcardNwDst pat =
+  { pat with ptrnNwDst = WildcardAll }
 
-let dlType typ =
-  { all with ptrnDlType = WildcardExact typ }
+let wildcardNwTos pat =
+  { pat with ptrnNwTos = WildcardAll }
 
-let dlVlan vlan =
-  { all with ptrnDlVlan = WildcardExact vlan }
+let wildcardTpSrc pat =
+  { pat with ptrnTpSrc = WildcardAll }
 
-let dlVlanPcp pcp =
-  { all with ptrnDlVlanPcp = WildcardExact pcp }
-
-let ipSrc ip =
-  { all with
-    ptrnDlType = WildcardExact 0x800;
-    ptrnNwSrc = WildcardExact ip }
-
-let ipDst ip =
-  { all with
-    ptrnDlType = WildcardExact 0x800;
-    ptrnNwDst = WildcardExact ip }
-
-let ipProto proto =
-  { all with
-    ptrnDlType = WildcardExact 0x800;
-    ptrnNwProto = WildcardExact proto }
-
-let tpSrcPort proto tpPort =
-  { all with
-    ptrnDlType = WildcardExact 0x800;
-    ptrnNwProto = WildcardExact proto;
-    ptrnTpSrc = WildcardExact tpPort }
-
-let tpDstPort proto tpPort =
-  { all with
-    ptrnDlType = WildcardExact 0x800;
-    ptrnNwProto = WildcardExact proto;
-    ptrnTpDst = WildcardExact tpPort }
-
-let tcpSrcPort = tpSrcPort 6
-let tcpDstPort = tpDstPort 6
-let udpSrcPort = tpSrcPort 17
-let udpDstPort = tpDstPort 17
+let wildcardTpDst pat =
+  { pat with ptrnTpDst = WildcardAll }

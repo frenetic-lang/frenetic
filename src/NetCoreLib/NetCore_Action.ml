@@ -57,7 +57,7 @@ module Bool = struct
 
   let sequence_range b p = p
 
-  let domain b = NetCore_Pattern.all
+  let domain b = all
 
   let to_string b = if b then "true" else "false"
 
@@ -271,21 +271,21 @@ module Output = struct
     match maybe_mod with
     | Some (old, nw) ->
       if NetCore_Pattern.is_empty (NetCore_Pattern.inter (build_singleton nw) pat) then
-        NetCore_Pattern.empty
+        empty
       else
         set_wild pat
     | None -> pat
 
   let sel f = function
   | Some p -> let (old, y) = p in f old
-  | None -> NetCore_Pattern.all
+  | None -> all
 
   let restrict_port portMod pat2 = match portMod with
     | Here -> pat2
     | port ->
       if NetCore_Pattern.is_empty 
-        (NetCore_Pattern.inter (NetCore_Pattern.inPort port) pat2) then
-        NetCore_Pattern.empty
+        (NetCore_Pattern.inter (inPort port) pat2) then
+        empty
       else
         NetCore_Pattern.wildcardPort pat2
 
@@ -299,11 +299,27 @@ module Output = struct
    *)
   let sequence_range_switch out pat =
     let open NetCore_Pattern in
-    restrict_port out.outPort
-      (* TODO(arjun): Fill in the rest!!!! *)
-      (trans out.outDlSrc dlSrc wildcardDlSrc
-        (trans out.outDlDst dlDst wildcardDlDst
-          (trans out.outDlVlan dlVlan wildcardDlVlan pat)))
+    let pat = restrict_port out.outPort pat in
+    let pat = trans out.outDlSrc dlSrc wildcardDlSrc pat in
+    let pat = trans out.outDlDst dlDst wildcardDlDst pat in 
+    let pat = trans out.outDlVlan dlVlan wildcardDlVlan pat in
+    let pat = trans out.outDlVlanPcp dlVlanPcp wildcardDlVlanPcp pat in
+    let pat = trans out.outNwSrc
+      (fun v -> { all with ptrnNwSrc = WildcardExact v })
+      wildcardNwSrc pat in
+    let pat = trans out.outNwDst
+      (fun v -> { all with ptrnNwDst = WildcardExact v })
+      wildcardNwDst pat in
+    let pat = trans out.outNwTos 
+      (fun v -> { all with ptrnNwTos = WildcardExact v })
+      wildcardNwTos pat in
+    let pat = trans out.outTpSrc 
+      (fun v -> { all with ptrnTpSrc = WildcardExact v })
+      wildcardTpSrc pat in
+    let pat = trans out.outTpDst
+      (fun v -> { all with ptrnTpDst = WildcardExact v })
+      wildcardTpDst pat in
+    pat
 
   let sequence_range atom pat = match atom with
     | SwitchAction out        -> sequence_range_switch out pat
@@ -314,12 +330,12 @@ module Output = struct
     | SwitchAction out -> 
       fold_right
         NetCore_Pattern.inter
-        [ sel NetCore_Pattern.dlSrc out.outDlSrc
-        ; sel NetCore_Pattern.dlDst out.outDlDst
-        ; sel NetCore_Pattern.dlVlan out.outDlVlan ]
-        NetCore_Pattern.all
-    | ControllerAction _      -> NetCore_Pattern.all
-    | ControllerQuery _   -> NetCore_Pattern.all
+        [ sel dlSrc out.outDlSrc
+        ; sel dlDst out.outDlDst
+        ; sel dlVlan out.outDlVlan ]
+        all
+    | ControllerAction _      -> all
+    | ControllerQuery _   -> all
 
   let set upd mk lst = match upd with
     | Some (_,nw) ->

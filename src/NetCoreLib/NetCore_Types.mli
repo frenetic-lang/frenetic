@@ -87,3 +87,34 @@ type pol =
 
 type value =
   | Pkt of switchId * port * packet * OpenFlow0x01.Payload.t
+
+
+val all : ptrn
+
+val empty : ptrn
+
+val dlSrc : dlAddr -> ptrn
+
+val dlDst : dlAddr -> ptrn
+  
+val dlType : dlTyp -> ptrn
+  
+val dlVlan : dlVlan -> ptrn
+  
+val dlVlanPcp : dlVlanPcp -> ptrn
+  
+val ipSrc : nwAddr -> ptrn
+  
+val ipDst : nwAddr -> ptrn
+  
+val ipProto : nwProto -> ptrn
+  
+val inPort : port -> ptrn
+  
+val tcpSrcPort : tpPort -> ptrn
+  
+val tcpDstPort : tpPort -> ptrn
+  
+val udpSrcPort : tpPort -> ptrn
+  
+val udpDstPort : tpPort -> ptrn
