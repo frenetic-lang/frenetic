@@ -105,7 +105,7 @@ traffic, floods TCP traffic, and sends all other traffic to the controller:
   <td>flood</td>
   <td>700</td>
 </tr>
-</tr>
+<tr>
   <td>40</td>
   <td>UDP</td>
   <td>controller</td>
@@ -128,8 +128,6 @@ controller for processing.  After you complete and test that this
 naive strategy works correctly, you'll insert rules into the flow
 table to process packets on the switch itself.
 
-#### Controller Template
-
 The Ox platform provides several functions to send different types of
 messages to switches. In turn, your Ox application must define event
 handlers to receive messages from switches. In this tutorial, we will
@@ -144,8 +142,15 @@ module MyApplication : Ox_Controller.OXMODULE = struct
   open OpenFlow0x01
   
   include Ox_Defaults
-      
+
+  let switch_connected (sw : switchId) : unit =
+    Printf.printf "Switch %Ld connected.\n%!" sw
+
+  let switch_disconnected (sw : switchId) : unit =
+    Printf.printf "Switch %Ld disconnected.\n%!" sw
+
   let packet_in (sw : switchId) (xid : xid) (pk : PacketIn.t) : unit =
+    Printf.printf "%s\n%!" (PacketIn.to_string pk);
     send_packet_out sw 0l
       { PacketOut.payload = pk.PacketIn.payload;
         PacketOut.port_id = None;
@@ -163,38 +168,17 @@ From the terminal, compile the program as follows:
 $ ocamlbuild -use-ocamlfind -package OxLib ex1.d.byte
 ```
 
-> Continue below
+> Fold PacketLib and OpenFlowLib into OxLib, IMHO.
 
+The `packet_in` function above receives a [PacketIn] message and emits
+a [PacketOut] message using [send_packet_out] [OxPlatform].
 
-- We will learn how to configure the _flow table_ on an OpenFlow
-  switch to implement a policy efficientlhy.
+[PacketIn]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.PacketIn.html
 
-- We will learn how to process packets on the controller itself. This
-  is much slower than packet-processing on a switch. But, there are
-  cases where it is necessary.
+[PacketOut]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.PacketOut.html
 
-<h3>Part 1: Repeater on the Controller</h3>
+[OxPlatform]: http://frenetic-lang.github.io/frenetic/docs/Ox_Controller.OxPlatform.html
 
-- We eschew the flow table and handle all packets at the controller.
-
-- In OpenFlow, if the flow table doesn't match a packet, the packet is
-  sent to the controller.
-
-- When the switch is rebooted, its flow table is empty and all packets
-  are divereted to the controller instead (to the `packet_in`
-  handler).
-
-
-- Open the file `OxTutorial1.ml`. There are dummy event handlers that
-  ignore all events they receive.
-
-- However, the `packet_in` handler prints the packets it receives and
-  then drops calling `send_packet_out`, which the Ox platform
-  provides.
-
-- Please see section [FILL] of the OpenFlow specification for a
-  comprehensive explanation of `PacketIn` and `PacketOut` messages,
-  their fields, etc.
 
 - Here is a trivial `packet_in` handler that simply drops all packets
   it receives:
