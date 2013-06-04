@@ -1,5 +1,79 @@
-Introduction
-============
+Getting Started
+===============
+
+In this tutorial, you will learn to program software-defined networks
+(SDN) using OpenFlow. The software for this tutorial is available as
+a virtual machine. To get started:
+
+- Download and install the [VirtualBox](https://www.virtualbox.org)
+  virtualization platform.
+  
+- Download the
+  [Frenetic Tutorial VM](http://www.cs.brown.edu/~arjun/tmp/Frenetic.vdi).
+
+  > Insert the right link.
+
+- Launch the tutorial VM, which will launch a GUI and automatically login
+  as `frenetic`. The password for the account is also `frenetic`.
+
+- At a terminal, go to the tutorial directory, check for updates, and
+  rebuild the tutorial software:
+
+  ```
+  $ cd src/frenetic
+  $ git pull
+  $ make reinstall
+  ```
+
+  > Make `make reinstall` work.
+
+Handy References
+----------------
+
+- [Introduction to OCaml](http://www.cs.cornell.edu/courses/cs3110/2012fa/recitations/rec01.html)
+
+  In this tutorial, you will build controllers in OCaml. We use a tiny
+  fragment of the language and provide several examples, but a little
+  familiarity with OCaml syntax will be helpful.
+
+  We recommend that you either (1) skim the Introduction to OCaml, or
+  (2) do this tutorial with a partner who has passing familiarity with
+  OCaml (or Haskell, or some related language).
+
+  > Pick a good introduction. I think the 3110 intro has too many words.
+
+- [Ox Platform Reference](http://frenetic-lang.github.io/frenetic/)
+
+  > Insert the right link.
+  
+  You will write your controllers using Ox, which is a lightweight
+  library for writing controllers in OCaml. This tutorial will guide you
+  though writing Ox controllers.
+
+  Ox is loosely based on controllers such as [POX]
+  (https://openflow.stanford.edu/display/ONL/POX+Wiki) and [NOX]
+  (http://www.noxrepo.org/nox/about-nox/). You should be able to apply
+  what you learn in this tutorial to write POX/NOX controllers too.
+
+- [OpenFlow 1.0 Specification] (http://www.openflow.org/documents/openflow-spec-v1.0.0.pdf)
+
+  The OpenFlow specification describes OpenFlow-conformant switches
+  and details the wire-format of the OpenFlow protocol. You'll find that
+  most of the Ox Platform Reference simply reflects the OpenFlow messages
+  and data types into OCaml.
+
+- [Mininet] (http://mininet.org/walkthrough/)
+
+  You will use the Mininet network simulator to run your
+  controllers. We will tell you exactly what Mininet commands to use,
+  so you don't need to read this.
+
+> Continue below
+
+Virtual Machine Contents
+------------------------
+
+using OpenFlow. OpenFlow is a open 
 
 - SDN from 10,000 feet (very, very brief. Link to something else)
 
@@ -37,12 +111,6 @@ Introduction
   - Packet processing logic is very generic. What you learn can be used
     to build controllers for NOX, POX, Beacon, etc.
 
-Handy References
-----------------
-
-- _Teach Yourself OCaml in 21 Days_ by Nate Foster and child.
-
-- OpenFlow 1.0 Specification
 
 Exercise 1: Repeater
 ====================
@@ -197,7 +265,7 @@ In this exercise, you will compose your repeater with a simple firewall that
 blocks ICMP traffic. As a result, `ping`s will be blocked, but other traffic,
 such as Web traffic, will still be handled by the repeater.
 
-<h3>A Naive Firewall</h3>
+### The Firewall Function
 
 We will start by writing the `packet_in` function for this
 policy. After we've successfully tested the `packet_in` function,
@@ -237,8 +305,79 @@ the predicates ([REF]) that Ox provides.
 
 - Testing
 
-<h3>An Efficient Firewall</h3>
+### An Efficient Firewall
 
+In this part, you will implement the firewall efficiently, using the
+flow table on the switch. You still need a `packet_in` function to
+process packets sent before the flow table is initialized. You should
+simply build on your solution to the previous part and _leave its
+`packet_in` function untouched_.
+
+Fill in the `switch_connected` event handler. You need to install two
+entries into the flow table--one for ICMP traffic and the other for
+all other traffic;
+
+```ocaml
+let switch_connected (sw : switchId) : unit =
+  Printf.printf "Switch %Ld connected.\n%!" sw;
+  send_flow_mod sw 0l (FlowMod.add_flow prio1 pat1 actions1);
+  send_flow_mod sw 0l (FlowMod.add_flow prio2 pat2 actions2)
+```
+
+Your task is to fill in the priorities, patterns, and actions in the
+handler above.
+
+First, write an OpenFlow pattern to match ICMP traffic. Patterns in
+OpenFlow 1.0 can match the values of 12 pre-determined packet headers.
+For example, the following pattern matches all traffic from the host
+whose Ethernet address is `00:00:00:00:00:12`:
+
+```ocaml
+let from_host12 =
+  let open Match in
+  { dlSrc = Some 0x000000000012L; (* the L suffix indicates a long integer *)
+    dlDst = None; 
+    dlTyp = None;
+    dlVlan = None;
+    dlVlanPcp = None;
+    nwSrc = None;
+    nwDst = None;
+    nwProto = None;
+    nwTos = None;
+    tpSrc = None;
+    tpDst = None;
+    inPort = None }
+```
+
+In a pattern, `header = Some x` means that the value of `header` must be `x`
+and `header = None` means that `header` may have any value.
+
+```ocaml
+let from_10_0_0_1 = 
+  let open Match in
+  { dlSrc = None;
+    dlDst = None; 
+    dlTyp = 0x800; (* frame type for IP *)
+    dlVlan = None;
+    dlVlanPcp = None;
+    nwSrc = 0x10000001; (* 10.0.0.1 *)
+    nwDst = None;
+    nwProto = None;
+    nwTos = None;
+    tpSrc = None;
+    tpDst = None;
+    inPort = None }
+```
+
+This pattern also specifies the frame type for IP packets (`dlTyp =
+0x800`). If you don't write the frame type, the value of `nwSrc` is
+ignored.
+
+When the switch processes a packet, it applies the actions from _the
+highest-priority matching entry_. If a packet matches several entries
+with the same priority, the behavior is unspecified. Therefore, pick
+different priorities for each pattern, unless you are certain the
+patterns are disjoint.
 
 
 Exercise 3: Traffic Monitoring
