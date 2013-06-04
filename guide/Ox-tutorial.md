@@ -99,7 +99,7 @@ all other traffic:
   <td>*</td>
   <td>forward to all ports
 </tr>
-
+</table>
 
 Each rule has a pattern (to match packets), a list of actions (to
 apply to matching packets), and various counters that collect
