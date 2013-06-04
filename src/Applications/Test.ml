@@ -409,12 +409,31 @@ module Helper = struct
     let genvlan () = incr vlan_cell; Some !vlan_cell in
     desugar genvlan pol
 
+  let in_tp = 
+    let open Icmp in
+    Ip.Icmp { typ = 8 (** Ping request. *)
+            ; code = 0
+            ; chksum = 0 (** TODO(cole) generate checksum. *)
+            ; payload = Cstruct.create 0 }
+
+  let in_nw =
+    let open Ip in
+    Ip { tos = 0
+       ; ident = 0
+       ; flags = { Flags.df = false; Flags.mf = false }
+       ; frag = 0
+       ; ttl = 10
+       ; chksum = 0 (* TODO(cole) generate checksum. *)
+       ; src = 0l
+       ; dst = 1l
+       ; tp = in_tp }
+
   let in_pkt =
     { dlSrc = Int64.zero
     ; dlDst = Int64.zero
     ; dlVlan = None
     ; dlVlanPcp = 0
-    ; nw = Unparsable (0x90, Cstruct.create 8) }
+    ; nw = in_nw }
 
   let in_val =
     Pkt ( Int64.one
@@ -499,7 +518,12 @@ module TestMods = struct
   let test2 =
     let policy = Seq ( Act (UpdateDlVlan (None, (Some 1)))
                      , Act (UpdateDlVlan ((Some 1), None))) in
-    mkEvalTest "mod no effect" policy in_val [in_val]
+    mkEvalTest "vlan: act; undo act == pass " policy in_val [in_val]
+
+  let test2' =
+    let policy = Seq ( Act (UpdateSrcIP (0l, 1l))
+                     , Act (UpdateSrcIP (1l, 0l))) in
+    mkEvalTest "srcip: act; undo act == pass" policy in_val [in_val]
 
   let test3 =
     let policy =
@@ -526,7 +550,7 @@ module TestMods = struct
                       , Act (UpdateDlVlan (Some 1, None)))) in
     mkEvalTest "seq mod seq" policy in_val [in_val]
 
-  let go = TestList [ test1; test2; test3; test4; test5 ]
+  let go = TestList [ test1; test2; test2'; test3; test4; test5 ]
 
 end
 
