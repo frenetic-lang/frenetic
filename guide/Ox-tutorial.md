@@ -42,9 +42,7 @@ Handy References
 
   > Pick a good introduction. I think the 3110 intro has too many words.
 
-- [Ox Platform Reference](http://frenetic-lang.github.io/frenetic/)
-
-  > Insert the right link.
+- [Ox Platform Reference](http://frenetic-lang.github.io/frenetic/docs/)
   
   You will write your controllers using Ox, which is a lightweight
   library for writing controllers in OCaml. This tutorial will guide you
@@ -80,47 +78,93 @@ To program a switch, the controller uses a standard protocol, such as
 OpenFlow.
 
 A switch processes packets using a _flow table_, which is a list of
-prioritized packet-processing rules. For example, the following
-is a sketch of a flow table that drops ICMP traffic and floods
-all other traffic:
+prioritized packet-processing rules.  Each rule has a pattern (to
+match packets), a list of actions (to apply to matching packets), and
+various counters that collect statistics on processed traffic. If a
+pattern matches several packets, the switch applies the
+highest-priority rule.
+
+For example, the following is a sketch of a flow table that drops ICMP
+traffic, floods TCP traffic, and sends all other traffic to the controller:
 
 <table>
 <tr>
   <th>Priority</th>
   <th>Pattern</th>
   <th>Action</th>
+  <th>Counter (bytes)</th>
 </tr>
 <tr>
   <td>50</td>
   <td>ICMP</td>
   <td>drop</td>
+  <td>50</td>
 </tr>
   <td>40</td>
-  <td>*</td>
-  <td>forward to all ports
+  <td>TCP</td>
+  <td>flood</td>
+  <td>700</td>
+</tr>
+</tr>
+  <td>40</td>
+  <td>UDP</td>
+  <td>controller</td>
+  <td>50</td>
 </tr>
 </table>
 
-Each rule has a pattern (to match packets), a list of actions (to
-apply to matching packets), and various counters that collect
-statistics on processed traffic. Using OpenFlow, a controller can add
-and remove rules, query the counters, and more. The controller can
-even have the switch divert packets to itself, where you can write
-arbitrary packet-processing code.
+By sending packets to the controller, the controller can implement an
+arbitrary packet-processing function (e.g., deep-packet inspection).
+Sending packets to the controller is much slower than processing them
+locally on a switch.  So, a controller typically inserts rules into
+the flow table to implement the packet-processing function efficiently.
 
+### Exercise 1: A Naive Repeater
 
-> continue below
+As a warmup exercise, you will build a repeater that forwards incoming
+packets on all other ports. You will do so in two steps. First, you
+will leave the flow table empty, so all packets are diverted to the
+controller for processing.  After you complete and test that this
+naive strategy works correctly, you'll insert rules into the flow
+table to process packets on the switch itself.
 
-- The Ox platform provides several functions to send different types
-  of messages to switches. In turn, your Ox application must define
-  event handlers to receive messages from switches. In this tutorial,
-  we will eventually cover all these messages.
+#### Controller Template
 
-- See *Ox reference manual* for a overview.
+The Ox platform provides several functions to send different types of
+messages to switches. In turn, your Ox application must define event
+handlers to receive messages from switches. In this tutorial, we will
+eventually cover all these messages.
 
-- In this exercise, we will build a repeater: an network element that
-  forwards incoming packets on all other ports. This is a very naive
-  way to get connectivity in a network, but it is a good warmup.
+For now, you only need to write a handler for the `packet_in` message.
+Create a file `ex1.ml` and fill it with the following template:
+
+```ocaml
+module MyApplication : Ox_Controller.OXMODULE = struct
+  open Ox_Controller.OxPlatform
+  open OpenFlow0x01
+  
+  include Ox_Defaults
+      
+  let packet_in (sw : switchId) (xid : xid) (pk : PacketIn.t) : unit =
+    send_packet_out sw 0l
+      { PacketOut.payload = pk.PacketIn.payload;
+        PacketOut.port_id = None;
+        PacketOut.actions = []
+      }
+
+end
+```
+
+> Define Ox_Defaults
+
+From the terminal, compile the program as follows:
+
+```shell
+$ ocamlbuild -use-ocamlfind -package OxLib ex1.d.byte
+```
+
+> Continue below
+
 
 - We will learn how to configure the _flow table_ on an OpenFlow
   switch to implement a policy efficientlhy.
@@ -140,8 +184,6 @@ arbitrary packet-processing code.
   are divereted to the controller instead (to the `packet_in`
   handler).
 
-- In this exercise, we write a trivial repeater that processes all
-  packets in the `packet_in` event handler.
 
 - Open the file `OxTutorial1.ml`. There are dummy event handlers that
   ignore all events they receive.
