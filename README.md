@@ -38,7 +38,7 @@ Documentation
 -------------
 
 The API documentation is available
-[online](http://htmlpreview.github.com/?https://github.com/frenetic-lang/frenetic/tree/master/doc).
+[online](http://htmlpreview.github.io/?https://github.com/frenetic-lang/frenetic/blob/master/doc/index.html).
 
 Hacking Wisdom
 --------------
