@@ -2,7 +2,6 @@ open Printf
 open Packet
 open NetCore_Types
 open NetCore_Action.Output
-open NetCore_Pattern
 
 (** Table relating private locations to public locations. *)
 module type TABLE = sig
