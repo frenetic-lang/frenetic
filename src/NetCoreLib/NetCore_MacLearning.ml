@@ -3,7 +3,6 @@ open Packet
 open OpenFlow0x01
 open NetCore_Types
 open NetCore_Action.Output
-open NetCore_Pattern
 
 type int48 = int64 
 

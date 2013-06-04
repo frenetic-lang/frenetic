@@ -1,5 +1,4 @@
 open NetCore_Types
-open NetCore_Pattern
 open NetCore_Action.Output
 
 module Log = Frenetic_Log
