@@ -42,9 +42,7 @@ Handy References
 
   > Pick a good introduction. I think the 3110 intro has too many words.
 
-- [Ox Platform Reference](http://frenetic-lang.github.io/frenetic/)
-
-  > Insert the right link.
+- [Ox Platform Reference](http://frenetic-lang.github.io/frenetic/docs/)
   
   You will write your controllers using Ox, which is a lightweight
   library for writing controllers in OCaml. This tutorial will guide you
@@ -68,195 +66,220 @@ Handy References
   controllers. We will tell you exactly what Mininet commands to use,
   so you don't need to read this.
 
-> Continue below
-
-Virtual Machine Contents
-------------------------
-
-using OpenFlow. OpenFlow is a open 
-
-- SDN from 10,000 feet (very, very brief. Link to something else)
-
-  * Centralized controller defines network-wide policy
-  
-  * Controller is connected to all switches in the network. These switches
-    can be _programmed_ to implement the network-wide policy
-
-- OpenFlow is an open protocol for configuring switches and reading switch
-  state.
-
-  * Let's the controller add rules the a _flow table_, which determines
-    how the switch processes packets.
-
-  * Even let's the switch divert packets to the controller, where you
-    can write arbitrary packet-processing code.
-
-- In this tutorial, you will write implement several policies for OpenFlow,
-  using the _Ox Controller Platform_
-
-  * Repeater
-
-  * Firewall
-
-  * Network monitor
-
-  * Learning switch
-
-- OCaml. It is amazing. Why are you still using Haskell?
-
-  - We are going to go easy on the OCaml.
-
-  - Ox controllers are simple, event-driven programs.
-
-  - Packet processing logic is very generic. What you learn can be used
-    to build controllers for NOX, POX, Beacon, etc.
-
-
 Exercise 1: Repeater
 ====================
 
-- The Ox platform provides several functions to send different types
-  of messages to switches. In turn, your Ox application must define
-  event handlers to receive messages from switches. In this tutorial,
-  we will eventually cover all these messages.
+### OpenFlow Overview
 
-- See *Ox reference manual* for a overview.
+In a basic SDN, all switches connect to a centralized controller
+machine. The controller thus has a global view of network, and can
+_program all switches_ to implement a unified, network-wide policy.
+To program a switch, the controller uses a standard protocol, such as
+OpenFlow.
 
-- In this exercise, we will build a repeater: an network element that
-  forwards incoming packets on all other ports. This is a very naive
-  way to get connectivity in a network, but it is a good warmup.
+A switch processes packets using a _flow table_, which is a list of
+prioritized packet-processing rules.  Each rule has a pattern (to
+match packets), a list of actions (to apply to matching packets), and
+various counters that collect statistics on processed traffic. If a
+pattern matches several packets, the switch applies the
+highest-priority rule.
 
-- We will learn how to configure the _flow table_ on an OpenFlow
-  switch to implement a policy efficientlhy.
+For example, the following is a sketch of a flow table that drops ICMP
+traffic, floods TCP traffic, and sends all other traffic to the controller:
 
-- We will learn how to process packets on the controller itself. This
-  is much slower than packet-processing on a switch. But, there are
-  cases where it is necessary.
+<table>
+<tr>
+  <th>Priority</th>
+  <th>Pattern</th>
+  <th>Action</th>
+  <th>Counter (bytes)</th>
+</tr>
+<tr>
+  <td>50</td>
+  <td>ICMP</td>
+  <td>drop</td>
+  <td>50</td>
+</tr>
+  <td>40</td>
+  <td>TCP</td>
+  <td>flood</td>
+  <td>700</td>
+</tr>
+<tr>
+  <td>40</td>
+  <td>UDP</td>
+  <td>controller</td>
+  <td>50</td>
+</tr>
+</table>
 
-<h3>Part 1: Repeater on the Controller</h3>
+By sending packets to the controller, the controller can implement an
+arbitrary packet-processing function (e.g., deep-packet inspection).
+Sending packets to the controller is much slower than processing them
+locally on a switch.  So, a controller typically inserts rules into
+the flow table to implement the packet-processing function efficiently.
 
-- We eschew the flow table and handle all packets at the controller.
+<h3 id="Exercise1">Exercise 1: A Naive Repeater</h3>
 
-- In OpenFlow, if the flow table doesn't match a packet, the packet is
-  sent to the controller.
+As a warmup exercise, you will build a repeater that forwards incoming
+packets on all other ports. You will do so in two steps. First, you
+will leave the flow table empty, so all packets are diverted to the
+controller for processing.  After you complete and test that this
+naive strategy works correctly, you'll insert rules into the flow
+table to process packets on the switch itself.
 
-- When the switch is rebooted, its flow table is empty and all packets
-  are divereted to the controller instead (to the `packet_in`
-  handler).
+The Ox platform provides several functions to send different types of
+messages to switches. In turn, your Ox application must define event
+handlers to receive messages from switches. In this tutorial, we will
+eventually cover all these messages.
 
-- In this exercise, we write a trivial repeater that processes all
-  packets in the `packet_in` event handler.
-
-- Open the file `OxTutorial1.ml`. There are dummy event handlers that
-  ignore all events they receive.
-
-- However, the `packet_in` handler prints the packets it receives and
-  then drops calling `send_packet_out`, which the Ox platform
-  provides.
-
-- Please see section [FILL] of the OpenFlow specification for a
-  comprehensive explanation of `PacketIn` and `PacketOut` messages,
-  their fields, etc.
-
-- Here is a trivial `packet_in` handler that simply drops all packets
-  it receives:
+For now, you only need to write a handler for the `packet_in` message.
+Create a file `ex1.ml` and fill it with the following template:
 
 ```ocaml
-let packet_in (sw : switchId) (xid : xid) (pktIn : PacketIn.t) : unit =
-  Printf.printf "Received a packet from %Ld.\n%!" sw;
-  send_packet_out sw 0l
-    { PacketOut.payload = pktIn.PacketIn.payload;
-      PacketOut.port_id = None;
-      PacketOut.actions = []
-    }
+module MyApplication : Ox_Controller.OXMODULE = struct
+  open Ox_Controller.OxPlatform
+  open OpenFlow0x01
+  
+  include Ox_Defaults
+
+  let switch_connected (sw : switchId) : unit =
+    Printf.printf "Switch %Ld connected.\n%!" sw
+
+  let switch_disconnected (sw : switchId) : unit =
+    Printf.printf "Switch %Ld disconnected.\n%!" sw
+
+  let packet_in (sw : switchId) (xid : xid) (pk : PacketIn.t) : unit =
+    Printf.printf "%s\n%!" (PacketIn.to_string pk);
+    send_packet_out sw 0l
+      { PacketOut.payload = pk.PacketIn.payload;
+        PacketOut.port_id = None;
+        PacketOut.actions = []
+      }
+      
+end
 ```
-- `pktIn` is a record representing the PacketIn message. Its most
-  significant field is `pktIn.PacketIn.payload`, which is the packet
-  that was received. It has few other fields with additional metadata
-  about the packet. See [REF] for details.
 
-- `send_packet_out` can be used to sent any payload to a switch. Here,
-  we simply re-send the packet we received (as `PacketOut.payload`)
+> Define Ox_Defaults
 
-- `PacketOut.actions` specifies a list of actions to apply the
-  packet. The actions of OpenFlow 1.0 allow several headers to be
-  modified and packets to be emitted.
+From the terminal, compile the program as follows:
 
-- Above, `PacketOut.actions` is empty, so the packet is dropped.
+```shell
+$ ocamlbuild -use-ocamlfind -package OxLib ex1.d.byte
+```
 
-- *Programming Task*: instead of dropping the packet, send it out of
-  all ports, but not the packet's input port.
+> Fold PacketLib and OpenFlowLib into OxLib, IMHO.
 
-  * You do this by editing the action list `PacketOut.action = []`.
+The `packet_in` function above receives a [PacketIn] message and emits
+a [PacketOut] message using [send_packet_out] [OxPlatform]. Note that
+the list of actions is empty (`packetOut.actions = []`), which means the
+packet is dropped.
 
-  * See [REF], which lists all the actions that OpenFlow supports.
+#### Programming Task
 
-    > Arjun: this is just to force people to read this bit of the manual.
+Instead of dropping the packet, send it out of all
+ports (excluding the input port). This is easier than it sounds,
+because you can do it with just one [OpenFlow action] [Action]. Once
+you've found the right action to apply, rebuild the controller and
+test that it works.
 
-  * Build your controller by typing `make` in the `OxTutorial1` directory.
+#### Testing your Controller
 
-- *Testing Your Program*
+- Start your controller by running:
 
-  * Start your controller by running:
-
-    ```
-    $ ./controller
-    ```
-
-  * In a separate terminal window, start the Mininet network simulator:
-
-    ```
-    $ ./mininet
-    ```
-
-  * This script create a virtual network with one switch (`s1`) and
-    two hosts (`h1` and `h2`). Test it by pinging between both hosts:
-
-    ```
-    mininet> h1 ping h2
-    ```
-
-  * If you look at the terminal for your controller, you'll see that it
-    receives all ICMP packets itself.
-
-<h3>Part 2: An Efficient Repeater</h3>
-
-- Diverting all packets to the controller is very inefficent. You will
-  now add rules into the switch's _flow table_ so that the switch can
-  process packets locally without sending them to the controller.
-
-- *Note*: You still need the packet-in function you wrote above. While is
-  flow table is being configured (e.g., when the switch is rebooted) packets
-  may still be diverted to the controller, where they have to be processed
-  by the packet-in function.
-
-- You will now fill in the `switch_connected` handler in your program.
-  When the switch first connects, use `send_flow_mod` [REF] as follows:
-
-  ```ocaml
-   let switch_connected (sw : switchId) : unit =
-     Printf.printf "Switch %Ld connected.\n%!" sw;
-     send_flow_mod sw 1l (FlowMod.add_flow priority pattern action_list)
+  ```
+  $ ./ex1.d.byte
   ```
 
-  Fill in `priority`, `pattern`, and `action_list`.
+- In a separate terminal window, start the Mininet network simulator:
 
-  * `pattern` is an OpenFlow pattern for matching packets.
-    Since your repeater matches all packets, use `Match.all`
+  ```
+  $ sudo ./mn --controller=remote --topo=single,3 --mac
+  ```
 
-  * `priority` is a 16-bit priority for the rule. `65536` is the highest
-    priority and `0` is the lowest priority.
+  A brief explanation of the flags:
 
-  * For `action_list`, you must apply the same actions you did in your
-    `packet_in` function. (If not, switch and controller will be
-    inconsistent.)
+  * `topo=single` creates a network with one switch and three hosts.
 
-   * Testing as above, but pings should not reach the switch.
+  * `--mac` sets the hosts mac addresses to `1`, `2`, and `3` (instead
+    of a random number).
+
+  * `--controller=remote` directs the switches to connect to your controller
+    (instead of using a default controller that is built into Mininet).
+
+- On the controller terminal, you should see the following
+
+  ```
+  $ ./ex1.d.byte
+  Switch 1 Connected.
+  ```
+  
+- On the Mininet terminal, make `h1` ping `h2`:
+
+  ```
+  mininet> h1 ping -c 1 h2
+  ```
+
+  The command should succeed and print the following:
+  ```
+  1 packets transmitted, 1 packets received, 0.0% packet loss
+  ```
+  
+- On the controller terminal, you should see the following:
+  ```
+  ping request
+  ping reply
+  ```
+
+  > Fill in the action output
+
+  This indicates that the controller itself received the the packets, which
+  is not very efficient.
+  
+### Exercise 2: An Efficient Repeater
+
+Diverting all packets to the controller is very inefficent. You will
+now add rules to the switch _flow table_ so that the switch can
+process packets locally without sending them to the controller.
+
+*Note*: You still need the packet-in function you wrote above. While
+is flow table is being configured (e.g., when the switch is rebooted)
+packets may still be diverted to the controller, where they have to be
+processed by the packet-in function.
+
+#### Programming Task
+
+You will now fill in the `switch_connected` handler in your program.
+Use the following as a template:
+
+```ocaml
+let switch_connected (sw : switchId) : unit =
+  Printf.printf "Switch %Ld connected.\n%!" sw;
+  send_flow_mod sw 1l (FlowMod.add_flow priority pattern action_list)
+```
+
+This function uses `send_flow_mod` [OxPlatform] to add a new rule to
+the flow table. Your task is to fill in `priority`, `pattern`, and
+`action_list`.
+
+- `pattern` is an [OpenFlow pattern] [Match] for matching packets.  Since your
+    repeater matches all packets, you can use `Match.all`.
+
+- `priority` is a 16-bit priority for the rule. Since you just have one
+  rule, the priority you pick is not relevant, you can just use `0`.
+
+- For `action_list`, you must apply the same actions you did in your
+  `packet_in` function. (If not, switch and controller will be
+  inconsistent.)
 
 
-      (FlowMod.add_flow 200 Match.all [Action.Output PseudoPort.AllPorts])
+#### Building and Testing Your Controller
 
-   * TODO(arjun): fast pings to show that packet_ins can still happen?
+You can build and test your controller in exactly as you did in
+[Exercise 1][Exercise1]. However, during testing, the controller should not
+receive any packets.
+
+> TODO(arjun): fast pings to show that packet_ins can still happen?
    
 Exercise 2: Firewall
 ====================
@@ -387,3 +410,12 @@ Exercise 3: Traffic Monitoring
 Exercise 4: Learning Switch
 ===========================
 
+[Action]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.Action.html
+
+[PacketIn]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.PacketIn.html
+
+[PacketOut]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.PacketOut.html
+
+[OxPlatform]: http://frenetic-lang.github.io/frenetic/docs/Ox_Controller.OxPlatform.html
+
+[Match]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.Match.html
