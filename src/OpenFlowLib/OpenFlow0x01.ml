@@ -504,15 +504,11 @@ module Action = struct
               | PseudoPort.Controller w -> w
               | _ -> 0)
         | SetNwSrc addr
-        | SetNwDst addr ->
-          set_ofp_action_nw_addr_nw_addr bits' addr
+        | SetNwDst addr -> set_ofp_action_nw_addr_nw_addr bits' addr
         | SetTpSrc pt
-        | SetTpDst pt ->
-          set_ofp_action_tp_port_tp_port bits' pt
-	| SetDlVlan (Some vid) ->
-	  set_ofp_action_vlan_vid_vlan_vid bits' vid
-	| SetDlVlan None ->
-	  ()
+        | SetTpDst pt -> set_ofp_action_tp_port_tp_port bits' pt
+	      | SetDlVlan (Some vid) -> set_ofp_action_vlan_vid_vlan_vid bits' vid
+	      | SetDlVlan None -> ()
         | _ -> failwith "NYI: Action.marshal"
     end;
     size_of a
