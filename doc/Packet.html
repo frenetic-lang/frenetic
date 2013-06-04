@@ -1,0 +1,306 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="next" href="NetCore_Types.html">
+<link rel="Up" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Packet" rel="Chapter" href="Packet.html">
+<link title="NetCore_Types" rel="Chapter" href="NetCore_Types.html">
+<link title="OpenFlow0x01" rel="Chapter" href="OpenFlow0x01.html">
+<link title="Ox_Controller" rel="Chapter" href="Ox_Controller.html"><link title="Packet types" rel="Section" href="#9_Packettypes">
+<link title="Accessors" rel="Section" href="#accs">
+<link title="Mutators" rel="Section" href="#9_Mutators">
+<link title="Pretty Printing" rel="Section" href="#9_PrettyPrinting">
+<link title="Serialization" rel="Section" href="#serialize">
+<title>Packet</title>
+</head>
+<body>
+<div class="navbar">&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="NetCore_Types.html" title="NetCore_Types">Next</a>
+</div>
+<h1>Module <a href="type_Packet.html">Packet</a></h1>
+<pre><span class="keyword">module</span> Packet: <code class="code">sig</code> <a href="Packet.html">..</a> <code class="code">end</code></pre><div class="info">
+Library for constructing, marshaling and parsing ethernet data packets.<br>
+</div>
+<hr width="100%">
+<br>
+<div class="h9" id="9_Packettypes">Packet types</div>
+<p>
+
+    Based on <a href="
+    https://openflow.stanford.edu/display/ONL/POX+Wiki#POXWiki-Workingwithpacketspoxlibpacket">
+    the packet library from POX</a>.
+<p>
+
+    You can navigate a packet's structure directly from here. But, using
+    <a href="Packet.html#accs"><i>Accessors</i></a> may be more convenient.<br>
+<pre><span id="TYPEbytes"><span class="keyword">type</span> <code class="type"></code>bytes</span> = <code class="type">Cstruct.t</code> </pre>
+<div class="info">
+<code class="code">bytes</code> is the type of arbitrary byte arrays, accessible via the Cstruct
+library.<br>
+</div>
+
+<pre><span id="TYPEint8"><span class="keyword">type</span> <code class="type"></code>int8</span> = <code class="type">int</code> </pre>
+<div class="info">
+<code class="code">int8</code> is the type of 8-bit integers.<br>
+</div>
+
+<pre><span id="TYPEint16"><span class="keyword">type</span> <code class="type"></code>int16</span> = <code class="type">int</code> </pre>
+<div class="info">
+<code class="code">int16</code> is the type of 16-bit integers.<br>
+</div>
+
+<pre><span id="TYPEint48"><span class="keyword">type</span> <code class="type"></code>int48</span> = <code class="type">int64</code> </pre>
+<div class="info">
+<code class="code">int48</code> is the type of 48-bit integers.<br>
+</div>
+
+<pre><span id="TYPEdlAddr"><span class="keyword">type</span> <code class="type"></code>dlAddr</span> = <code class="type"><a href="Packet.html#TYPEint48">int48</a></code> </pre>
+<div class="info">
+<code class="code">dlAddr</code> is the type of Ethernet addresses.<br>
+</div>
+
+<pre><span id="TYPEdlTyp"><span class="keyword">type</span> <code class="type"></code>dlTyp</span> = <code class="type"><a href="Packet.html#TYPEint16">int16</a></code> </pre>
+<div class="info">
+<code class="code">dlTyp</code> is the type of Ethernet frame types.<br>
+</div>
+
+<pre><span id="TYPEdlVlan"><span class="keyword">type</span> <code class="type"></code>dlVlan</span> = <code class="type"><a href="Packet.html#TYPEint16">int16</a> option</code> </pre>
+<div class="info">
+<code class="code">dlVlan</code> is the type of VLAN identifiers.  A value of <code class="code">None</code> indicates that
+no 802.1Q (VLAN) header is set, which is distinct from setting the VLAN to 0.<br>
+</div>
+
+<pre><span id="TYPEdlVlanPcp"><span class="keyword">type</span> <code class="type"></code>dlVlanPcp</span> = <code class="type"><a href="Packet.html#TYPEint8">int8</a></code> </pre>
+<div class="info">
+<code class="code">dlVlanPcp</code> is the type of 802.1Q (VLAN) priorities.<br>
+</div>
+
+<pre><span id="TYPEnwAddr"><span class="keyword">type</span> <code class="type"></code>nwAddr</span> = <code class="type">int32</code> </pre>
+<div class="info">
+<code class="code">nwAddr</code> is the type of IPv4 addresses.<br>
+</div>
+
+<pre><span id="TYPEnwProto"><span class="keyword">type</span> <code class="type"></code>nwProto</span> = <code class="type"><a href="Packet.html#TYPEint8">int8</a></code> </pre>
+<div class="info">
+<code class="code">nwProto</code> is the type of IPv4 protocol numbers.<br>
+</div>
+
+<pre><span id="TYPEnwTos"><span class="keyword">type</span> <code class="type"></code>nwTos</span> = <code class="type"><a href="Packet.html#TYPEint8">int8</a></code> </pre>
+<div class="info">
+<code class="code">nwTos</code> is the type of IPv4 types of service.<br>
+</div>
+
+<pre><span id="TYPEtpPort"><span class="keyword">type</span> <code class="type"></code>tpPort</span> = <code class="type"><a href="Packet.html#TYPEint16">int16</a></code> </pre>
+<div class="info">
+<code class="code">tpPort</code> is the type of TCP ports.<br>
+</div>
+
+<pre><span class="keyword">module</span> <a href="Packet.Tcp.html">Tcp</a>: <code class="code">sig</code> <a href="Packet.Tcp.html">..</a> <code class="code">end</code></pre><div class="info">
+TCP frame of a packet.
+</div>
+<pre><span class="keyword">module</span> <a href="Packet.Icmp.html">Icmp</a>: <code class="code">sig</code> <a href="Packet.Icmp.html">..</a> <code class="code">end</code></pre><div class="info">
+ICMP frame of a packet.
+</div>
+<pre><span class="keyword">module</span> <a href="Packet.Ip.html">Ip</a>: <code class="code">sig</code> <a href="Packet.Ip.html">..</a> <code class="code">end</code></pre><div class="info">
+IPv4 frame of a packet.
+</div>
+<pre><span class="keyword">module</span> <a href="Packet.Arp.html">Arp</a>: <code class="code">sig</code> <a href="Packet.Arp.html">..</a> <code class="code">end</code></pre><div class="info">
+Address resolution protocol (ARP) packet payload.
+</div>
+<pre><code><span id="TYPEnw"><span class="keyword">type</span> <code class="type"></code>nw</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTnw.Ip"><span class="constructor">Ip</span></span> <span class="keyword">of</span> <code class="type"><a href="Packet.Ip.html#TYPEt">Ip.t</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Internet Protocol version 4 (IPv4).</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTnw.Arp"><span class="constructor">Arp</span></span> <span class="keyword">of</span> <code class="type"><a href="Packet.Arp.html#TYPEt">Arp.t</a></code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Address Resolution Protocol (ARP).</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTnw.Unparsable"><span class="constructor">Unparsable</span></span> <span class="keyword">of</span> <code class="type">(<a href="Packet.html#TYPEdlTyp">dlTyp</a> * <a href="Packet.html#TYPEbytes">bytes</a>)</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >The EtherType code accompanied by the 
+                                  uninterpreted ethernet payload.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+
+<div class="info">
+<code class="code">nw</code> is the type of an ethernet frame payload.<br>
+</div>
+
+<pre><code><span id="TYPEpacket"><span class="keyword">type</span> <code class="type"></code>packet</span> = {</code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpacket.dlSrc">dlSrc</span>&nbsp;:<code class="type"><a href="Packet.html#TYPEdlAddr">dlAddr</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Ethernet source address.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpacket.dlDst">dlDst</span>&nbsp;:<code class="type"><a href="Packet.html#TYPEdlAddr">dlAddr</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Ethernet destination address.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpacket.dlVlan">dlVlan</span>&nbsp;:<code class="type"><a href="Packet.html#TYPEdlVlan">dlVlan</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >802.1Q VLAN identifier, if any.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpacket.dlVlanPcp">dlVlanPcp</span>&nbsp;:<code class="type"><a href="Packet.html#TYPEdlVlanPcp">dlVlanPcp</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >802.1Q VLAN priority.  Ignored if <code class="code">dlVlan</code> is 
+                          <code class="code">None</code>.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTpacket.nw">nw</span>&nbsp;:<code class="type"><a href="Packet.html#TYPEnw">nw</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Ethernet payload.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+}
+
+<div class="info">
+<code class="code">packet</code> is the type of ethernet data packets.<br>
+</div>
+
+<br>
+<div class="h9" id="accs">Accessors</div><br>
+<pre><span id="VALdlTyp"><span class="keyword">val</span> dlTyp</span> : <code class="type"><a href="Packet.html#TYPEpacket">packet</a> -> <a href="Packet.html#TYPEdlTyp">dlTyp</a></code></pre><div class="info">
+<code class="code">dlTyp pkt</code> returns the EtherType of <code class="code">pkt</code>.<br>
+</div>
+<pre><span id="VALnwSrc"><span class="keyword">val</span> nwSrc</span> : <code class="type"><a href="Packet.html#TYPEpacket">packet</a> -> <a href="Packet.html#TYPEnwAddr">nwAddr</a></code></pre><div class="info">
+<code class="code">nwSrc pkt</code> returns the source IP address of <code class="code">pkt</code>.<br>
+<b>Raises</b> <code>Invalid_argument</code> if the packet is not carrying an IP payload.<br>
+</div>
+<pre><span id="VALnwDst"><span class="keyword">val</span> nwDst</span> : <code class="type"><a href="Packet.html#TYPEpacket">packet</a> -> <a href="Packet.html#TYPEnwAddr">nwAddr</a></code></pre><div class="info">
+<code class="code">nwDst pkt</code> returns the destination IP address of <code class="code">pkt</code>.<br>
+<b>Raises</b> <code>Invalid_argument</code> if the packet is not carrying an IP payload.<br>
+</div>
+<pre><span id="VALnwTos"><span class="keyword">val</span> nwTos</span> : <code class="type"><a href="Packet.html#TYPEpacket">packet</a> -> <a href="Packet.html#TYPEnwTos">nwTos</a></code></pre><div class="info">
+<code class="code">nwTos pkt</code> returns the IPv4 type of service of <code class="code">pkt</code>.<br>
+<b>Raises</b> <code>Invalid_argument</code> if the packet is not carrying an IP payload.<br>
+</div>
+<pre><span id="VALnwProto"><span class="keyword">val</span> nwProto</span> : <code class="type"><a href="Packet.html#TYPEpacket">packet</a> -> <a href="Packet.html#TYPEnwProto">nwProto</a></code></pre><div class="info">
+<code class="code">nwProto pkt</code> returns the IPv4 protocol of <code class="code">pkt</code>.<br>
+<b>Raises</b> <code>Invalid_argument</code> if the packet is not carrying an IP payload.<br>
+</div>
+<pre><span id="VALtpSrc"><span class="keyword">val</span> tpSrc</span> : <code class="type"><a href="Packet.html#TYPEpacket">packet</a> -> <a href="Packet.html#TYPEtpPort">tpPort</a></code></pre><div class="info">
+<code class="code">tpSrc pkt</code> returns the TCP source port of <code class="code">pkt</code>.<br>
+<b>Raises</b> <code>Invalid_argument</code> if the packet is not carrying a TCP payload.<br>
+</div>
+<pre><span id="VALtpDst"><span class="keyword">val</span> tpDst</span> : <code class="type"><a href="Packet.html#TYPEpacket">packet</a> -> <a href="Packet.html#TYPEtpPort">tpPort</a></code></pre><div class="info">
+<code class="code">tpDst pkt</code> returns the TCP destination port of <code class="code">pkt</code>.<br>
+<b>Raises</b> <code>Invalid_argument</code> if the packet is not carrying a TCP payload.<br>
+</div>
+<br>
+<div class="h9" id="9_Mutators">Mutators</div><br>
+<pre><span id="VALsetDlSrc"><span class="keyword">val</span> setDlSrc</span> : <code class="type"><a href="Packet.html#TYPEpacket">packet</a> -> <a href="Packet.html#TYPEdlAddr">dlAddr</a> -> <a href="Packet.html#TYPEpacket">packet</a></code></pre><div class="info">
+<code class="code">setDlSrc pkt addr</code> sets the ethernet source address of <code class="code">pkt</code> to <code class="code">addr</code>.<br>
+</div>
+<pre><span id="VALsetDlDst"><span class="keyword">val</span> setDlDst</span> : <code class="type"><a href="Packet.html#TYPEpacket">packet</a> -> <a href="Packet.html#TYPEdlAddr">dlAddr</a> -> <a href="Packet.html#TYPEpacket">packet</a></code></pre><div class="info">
+<code class="code">setDlSrc pkt addr</code> sets the ethernet destination address of <code class="code">pkt</code> to
+<code class="code">addr</code>.<br>
+</div>
+<pre><span id="VALsetDlVlan"><span class="keyword">val</span> setDlVlan</span> : <code class="type"><a href="Packet.html#TYPEpacket">packet</a> -> <a href="Packet.html#TYPEdlVlan">dlVlan</a> -> <a href="Packet.html#TYPEpacket">packet</a></code></pre><div class="info">
+<code class="code">setDlSrc pkt vlan</code> sets the VLAN identifier of <code class="code">pkt</code> to <code class="code">vlan</code>.<br>
+</div>
+<pre><span id="VALsetDlVlanPcp"><span class="keyword">val</span> setDlVlanPcp</span> : <code class="type"><a href="Packet.html#TYPEpacket">packet</a> -> <a href="Packet.html#TYPEdlVlanPcp">dlVlanPcp</a> -> <a href="Packet.html#TYPEpacket">packet</a></code></pre><div class="info">
+<code class="code">setDlVlanPcp pkt pri</code> sets the VLAN priority of <code class="code">pkt</code> to <code class="code">pri</code>.<br>
+</div>
+<pre><span id="VALsetNwSrc"><span class="keyword">val</span> setNwSrc</span> : <code class="type"><a href="Packet.html#TYPEpacket">packet</a> -> <a href="Packet.html#TYPEnwAddr">nwAddr</a> -> <a href="Packet.html#TYPEpacket">packet</a></code></pre><div class="info">
+<code class="code">setNwSrc pkt</code> sets the source IP address of <code class="code">pkt</code> if the packet carries an
+IP payload.  Otherwise, it returns the packet unchanged.<br>
+</div>
+<pre><span id="VALsetNwDst"><span class="keyword">val</span> setNwDst</span> : <code class="type"><a href="Packet.html#TYPEpacket">packet</a> -> <a href="Packet.html#TYPEnwAddr">nwAddr</a> -> <a href="Packet.html#TYPEpacket">packet</a></code></pre><div class="info">
+<code class="code">setNwDst pkt</code> sets the destination IP address of <code class="code">pkt</code> if the packet
+carries an IP payload.  Otherwise, it returns the packet unchanged.<br>
+</div>
+<pre><span id="VALsetNwTos"><span class="keyword">val</span> setNwTos</span> : <code class="type"><a href="Packet.html#TYPEpacket">packet</a> -> <a href="Packet.html#TYPEnwTos">nwTos</a> -> <a href="Packet.html#TYPEpacket">packet</a></code></pre><div class="info">
+<code class="code">setNwTos pkt</code> sets the IPv4 type of service of <code class="code">pkt</code> if the packet
+carries an IP payload.  Otherwise, it returns the packet unchanged.<br>
+</div>
+<pre><span id="VALsetTpSrc"><span class="keyword">val</span> setTpSrc</span> : <code class="type"><a href="Packet.html#TYPEpacket">packet</a> -> <a href="Packet.html#TYPEtpPort">tpPort</a> -> <a href="Packet.html#TYPEpacket">packet</a></code></pre><div class="info">
+<code class="code">setTpSrc pkt</code> sets the TCP source port of <code class="code">pkt</code> if the packet
+carries an TCP payload.  Otherwise, it returns the packet unchanged.<br>
+</div>
+<pre><span id="VALsetTpDst"><span class="keyword">val</span> setTpDst</span> : <code class="type"><a href="Packet.html#TYPEpacket">packet</a> -> <a href="Packet.html#TYPEtpPort">tpPort</a> -> <a href="Packet.html#TYPEpacket">packet</a></code></pre><div class="info">
+<code class="code">setTpDst pkt</code> sets the TCP destination port of <code class="code">pkt</code> if the packet
+carries a TCP payload.  Otherwise, it returns the packet unchanged.<br>
+</div>
+<br>
+<div class="h9" id="9_PrettyPrinting">Pretty Printing</div><br>
+<pre><span id="VALstring_of_mac"><span class="keyword">val</span> string_of_mac</span> : <code class="type"><a href="Packet.html#TYPEdlAddr">dlAddr</a> -> string</code></pre><div class="info">
+<code class="code">string_of_mac mac</code> pretty-prints an ethernet address.<br>
+</div>
+<pre><span id="VALstring_of_dlAddr"><span class="keyword">val</span> string_of_dlAddr</span> : <code class="type"><a href="Packet.html#TYPEdlAddr">dlAddr</a> -> string</code></pre><div class="info">
+<code class="code">string_of_dlAddr addr</code> is identical to <code class="code">string_of_mac</code>.<br>
+</div>
+<pre><span id="VALstring_of_dlTyp"><span class="keyword">val</span> string_of_dlTyp</span> : <code class="type"><a href="Packet.html#TYPEdlTyp">dlTyp</a> -> string</code></pre><div class="info">
+<code class="code">string_of_dlTyp typ</code> pretty-prints an IPv4 type of service.<br>
+</div>
+<pre><span id="VALstring_of_dlVlan"><span class="keyword">val</span> string_of_dlVlan</span> : <code class="type"><a href="Packet.html#TYPEdlVlan">dlVlan</a> -> string</code></pre><div class="info">
+<code class="code">string_of_dlVlan vlan</code> pretty-prints an 802.1Q VLAN identifier.<br>
+</div>
+<pre><span id="VALstring_of_dlVlanPcp"><span class="keyword">val</span> string_of_dlVlanPcp</span> : <code class="type"><a href="Packet.html#TYPEdlVlanPcp">dlVlanPcp</a> -> string</code></pre><div class="info">
+<code class="code">string_of_dlVlanPcp p</code> pretty-prints an 802.1Q VLAN priority.<br>
+</div>
+<pre><span id="VALstring_of_ip"><span class="keyword">val</span> string_of_ip</span> : <code class="type"><a href="Packet.html#TYPEnwAddr">nwAddr</a> -> string</code></pre><div class="info">
+<code class="code">string_of_ip ip</code> pretty-prints an IPv4 address.<br>
+</div>
+<pre><span id="VALstring_of_nwAddr"><span class="keyword">val</span> string_of_nwAddr</span> : <code class="type"><a href="Packet.html#TYPEnwAddr">nwAddr</a> -> string</code></pre><div class="info">
+<code class="code">string_of_nwAddr addr</code> is identical to <code class="code">string_of_ip</code>.<br>
+</div>
+<pre><span id="VALstring_of_nwProto"><span class="keyword">val</span> string_of_nwProto</span> : <code class="type"><a href="Packet.html#TYPEnwProto">nwProto</a> -> string</code></pre><div class="info">
+<code class="code">string_of_nwProto p</code> pretty-prints an IPv4 protocol.<br>
+</div>
+<pre><span id="VALstring_of_nwTos"><span class="keyword">val</span> string_of_nwTos</span> : <code class="type"><a href="Packet.html#TYPEnwTos">nwTos</a> -> string</code></pre><div class="info">
+<code class="code">string_of_nwTos t</code> pretty-prints an IPv4 type of service.<br>
+</div>
+<pre><span id="VALstring_of_tpPort"><span class="keyword">val</span> string_of_tpPort</span> : <code class="type"><a href="Packet.html#TYPEtpPort">tpPort</a> -> string</code></pre><div class="info">
+<code class="code">string_of_tpPort p</code> pretty-prints a TCP port number.<br>
+</div>
+<pre><span id="VALstring_of_nw"><span class="keyword">val</span> string_of_nw</span> : <code class="type"><a href="Packet.html#TYPEnw">nw</a> -> string</code></pre><div class="info">
+<code class="code">string_of_nw nw</code> pretty-prints an ethernet frame payload.<br>
+</div>
+<pre><span id="VALstring_of_packet"><span class="keyword">val</span> string_of_packet</span> : <code class="type"><a href="Packet.html#TYPEpacket">packet</a> -> string</code></pre><div class="info">
+<code class="code">string_of_packet pkt</code> pretty-prints a packet.<br>
+</div>
+<pre><span id="VALbytes_of_mac"><span class="keyword">val</span> bytes_of_mac</span> : <code class="type"><a href="Packet.html#TYPEdlAddr">dlAddr</a> -> string</code></pre><div class="info">
+<code class="code">bytes_of_mac mac</code> returns a bit-string representation of <code class="code">mac</code>.<br>
+</div>
+<pre><span id="VALmac_of_bytes"><span class="keyword">val</span> mac_of_bytes</span> : <code class="type">string -> <a href="Packet.html#TYPEint48">int48</a></code></pre><div class="info">
+<code class="code">mac_of_bytes str</code> constructs a <code class="code">dlAddr</code> from a bit-string representation.<br>
+<b>Raises</b> <code>Invalid_argument</code> if the length of the string is not six characters.<br>
+</div>
+<br>
+<div class="h9" id="serialize">Serialization</div><br>
+<pre><span id="VALparse"><span class="keyword">val</span> parse</span> : <code class="type">Cstruct.t -> <a href="Packet.html#TYPEpacket">packet</a></code></pre><div class="info">
+<code class="code">parse bits</code> parses a bit sequence into a packet.<br>
+</div>
+<pre><span id="VALserialize"><span class="keyword">val</span> serialize</span> : <code class="type"><a href="Packet.html#TYPEpacket">packet</a> -> Cstruct.t</code></pre><div class="info">
+<code class="code">marshal pkt</code> serializes <code class="code">pkt</code> into a bit sequence.<br>
+</div>
+</body></html>

@@ -1,0 +1,42 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="Up" href="OpenFlow0x01.Message.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Packet" rel="Chapter" href="Packet.html">
+<link title="NetCore_Types" rel="Chapter" href="NetCore_Types.html">
+<link title="OpenFlow0x01" rel="Chapter" href="OpenFlow0x01.html">
+<link title="Ox_Controller" rel="Chapter" href="Ox_Controller.html"><title>OpenFlow0x01.Message.Header</title>
+</head>
+<body>
+<div class="navbar">&nbsp;<a class="up" href="OpenFlow0x01.Message.html" title="OpenFlow0x01.Message">Up</a>
+&nbsp;</div>
+<h1>Module <a href="type_OpenFlow0x01.Message.Header.html">OpenFlow0x01.Message.Header</a></h1>
+<pre><span class="keyword">module</span> Header: <code class="code">sig</code> <a href="OpenFlow0x01.Message.Header.html">..</a> <code class="code">end</code></pre><div class="info">
+A message header.<br>
+</div>
+<hr width="100%">
+<pre><span id="TYPEt"><span class="keyword">type</span> <code class="type"></code>t</span> </pre>
+
+<pre><span id="VALsize"><span class="keyword">val</span> size</span> : <code class="type">int</code></pre><div class="info">
+Size in bytes of a serialized OpenFlow header structure (struct 
+        ofp_header).<br>
+</div>
+<pre><span id="VALlen"><span class="keyword">val</span> len</span> : <code class="type"><a href="OpenFlow0x01.Message.Header.html#TYPEt">t</a> -> int</code></pre><div class="info">
+Length in bytes of the serialized OpenFlow message with this header.<br>
+</div>
+<pre><span id="VALto_string"><span class="keyword">val</span> to_string</span> : <code class="type"><a href="OpenFlow0x01.Message.Header.html#TYPEt">t</a> -> string</code></pre><div class="info">
+<code class="code">to_string hdr</code> pretty-prints <code class="code">hdr</code>.<br>
+</div>
+<pre><span id="VALparse"><span class="keyword">val</span> parse</span> : <code class="type">string -> <a href="OpenFlow0x01.Message.Header.html#TYPEt">t</a></code></pre><div class="info">
+<code class="code">parse bits</code> parses <code class="code">bits</code>.<br>
+<b>Raises</b> <code>Unparsable</code> if <code class="code">bits</code> cannot be parsed.<br>
+</div>
+</body></html>

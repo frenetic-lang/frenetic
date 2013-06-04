@@ -1,0 +1,130 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="Packet.Icmp.html">
+<link rel="next" href="Packet.Arp.html">
+<link rel="Up" href="Packet.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Packet" rel="Chapter" href="Packet.html">
+<link title="NetCore_Types" rel="Chapter" href="NetCore_Types.html">
+<link title="OpenFlow0x01" rel="Chapter" href="OpenFlow0x01.html">
+<link title="Ox_Controller" rel="Chapter" href="Ox_Controller.html"><title>Packet.Ip</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="Packet.Icmp.html" title="Packet.Icmp">Previous</a>
+&nbsp;<a class="up" href="Packet.html" title="Packet">Up</a>
+&nbsp;<a class="post" href="Packet.Arp.html" title="Packet.Arp">Next</a>
+</div>
+<h1>Module <a href="type_Packet.Ip.html">Packet.Ip</a></h1>
+<pre><span class="keyword">module</span> Ip: <code class="code">sig</code> <a href="Packet.Ip.html">..</a> <code class="code">end</code></pre><div class="info">
+IPv4 frame of a packet.<br>
+</div>
+<hr width="100%">
+<pre><code><span id="TYPEtp"><span class="keyword">type</span> <code class="type"></code>tp</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtp.Tcp"><span class="constructor">Tcp</span></span> <span class="keyword">of</span> <code class="type"><a href="Packet.Tcp.html#TYPEt">Packet.Tcp.t</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtp.Icmp"><span class="constructor">Icmp</span></span> <span class="keyword">of</span> <code class="type"><a href="Packet.Icmp.html#TYPEt">Packet.Icmp.t</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTtp.Unparsable"><span class="constructor">Unparsable</span></span> <span class="keyword">of</span> <code class="type">(<a href="Packet.html#TYPEnwProto">Packet.nwProto</a> * <a href="Packet.html#TYPEbytes">Packet.bytes</a>)</code></code></td>
+
+</tr></table>
+
+<div class="info">
+<code class="code">tp</code> is the type of protocol, which indicates which protocol is
+  encapsulated in the payload of the IPv4 frame.  At present, only TCP and ICMP
+  are explicitly supported; otherwise, the raw bytes and IPv4 protocol number
+  are provided.<br>
+</div>
+
+<pre><span class="keyword">module</span> <a href="Packet.Ip.Flags.html">Flags</a>: <code class="code">sig</code> <a href="Packet.Ip.Flags.html">..</a> <code class="code">end</code></pre><pre><code><span id="TYPEt"><span class="keyword">type</span> <code class="type"></code>t</span> = {</code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.tos">tos</span>&nbsp;:<code class="type"><a href="Packet.html#TYPEnwTos">Packet.nwTos</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Type of service.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.ident">ident</span>&nbsp;:<code class="type"><a href="Packet.html#TYPEint16">Packet.int16</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Identification.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.flags">flags</span>&nbsp;:<code class="type"><a href="Packet.Ip.Flags.html#TYPEt">Flags.t</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >IPv4 header flags.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.frag">frag</span>&nbsp;:<code class="type"><a href="Packet.html#TYPEint16">Packet.int16</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Fragment offset.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.ttl">ttl</span>&nbsp;:<code class="type"><a href="Packet.html#TYPEint8">Packet.int8</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Time to live.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.chksum">chksum</span>&nbsp;:<code class="type"><a href="Packet.html#TYPEint16">Packet.int16</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Header checksum.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.src">src</span>&nbsp;:<code class="type"><a href="Packet.html#TYPEnwAddr">Packet.nwAddr</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >IP source address.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.dst">dst</span>&nbsp;:<code class="type"><a href="Packet.html#TYPEnwAddr">Packet.nwAddr</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >IP destination address.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.tp">tp</span>&nbsp;:<code class="type"><a href="Packet.Ip.html#TYPEtp">tp</a></code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Packet payload.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+}
+
+
+<pre><span id="VALto_string"><span class="keyword">val</span> to_string</span> : <code class="type"><a href="Packet.Ip.html#TYPEt">t</a> -> string</code></pre><div class="info">
+<code class="code">to_string v</code> pretty-prints <code class="code">v</code>.<br>
+</div>
+</body></html>

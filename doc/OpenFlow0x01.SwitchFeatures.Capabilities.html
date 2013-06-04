@@ -1,0 +1,85 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="next" href="OpenFlow0x01.SwitchFeatures.SupportedActions.html">
+<link rel="Up" href="OpenFlow0x01.SwitchFeatures.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Packet" rel="Chapter" href="Packet.html">
+<link title="NetCore_Types" rel="Chapter" href="NetCore_Types.html">
+<link title="OpenFlow0x01" rel="Chapter" href="OpenFlow0x01.html">
+<link title="Ox_Controller" rel="Chapter" href="Ox_Controller.html"><title>OpenFlow0x01.SwitchFeatures.Capabilities</title>
+</head>
+<body>
+<div class="navbar">&nbsp;<a class="up" href="OpenFlow0x01.SwitchFeatures.html" title="OpenFlow0x01.SwitchFeatures">Up</a>
+&nbsp;<a class="post" href="OpenFlow0x01.SwitchFeatures.SupportedActions.html" title="OpenFlow0x01.SwitchFeatures.SupportedActions">Next</a>
+</div>
+<h1>Module <a href="type_OpenFlow0x01.SwitchFeatures.Capabilities.html">OpenFlow0x01.SwitchFeatures.Capabilities</a></h1>
+<pre><span class="keyword">module</span> Capabilities: <code class="code">sig</code> <a href="OpenFlow0x01.SwitchFeatures.Capabilities.html">..</a> <code class="code">end</code></pre><div class="info">
+See the <code class="code">ofp_capabilities</code> enumeration in Section 5.3.1 of the OpenFlow
+  1.0 specification.<br>
+</div>
+<hr width="100%">
+<pre><code><span id="TYPEt"><span class="keyword">type</span> <code class="type"></code>t</span> = {</code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.flow_stats">flow_stats</span>&nbsp;:<code class="type">bool</code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Flow statistics.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.table_stats">table_stats</span>&nbsp;:<code class="type">bool</code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Table statistics.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.port_stats">port_stats</span>&nbsp;:<code class="type">bool</code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Port statistics.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.stp">stp</span>&nbsp;:<code class="type">bool</code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >802.1D spanning tree.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.ip_reasm">ip_reasm</span>&nbsp;:<code class="type">bool</code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Can reassemble IP fragments.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.queue_stats">queue_stats</span>&nbsp;:<code class="type">bool</code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Queue statistics.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.arp_match_ip">arp_match_ip</span>&nbsp;:<code class="type">bool</code>;</code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Match IP addresses in ARP packets.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+}
+
+
+<pre><span id="VALto_string"><span class="keyword">val</span> to_string</span> : <code class="type"><a href="OpenFlow0x01.SwitchFeatures.Capabilities.html#TYPEt">t</a> -> string</code></pre><div class="info">
+<code class="code">to_string v</code> pretty-prints <code class="code">v</code>.<br>
+</div>
+</body></html>

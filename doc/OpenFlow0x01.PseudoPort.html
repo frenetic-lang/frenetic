@@ -1,0 +1,75 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="OpenFlow0x01.Match.html">
+<link rel="next" href="OpenFlow0x01.Action.html">
+<link rel="Up" href="OpenFlow0x01.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Packet" rel="Chapter" href="Packet.html">
+<link title="NetCore_Types" rel="Chapter" href="NetCore_Types.html">
+<link title="OpenFlow0x01" rel="Chapter" href="OpenFlow0x01.html">
+<link title="Ox_Controller" rel="Chapter" href="Ox_Controller.html"><title>OpenFlow0x01.PseudoPort</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="OpenFlow0x01.Match.html" title="OpenFlow0x01.Match">Previous</a>
+&nbsp;<a class="up" href="OpenFlow0x01.html" title="OpenFlow0x01">Up</a>
+&nbsp;<a class="post" href="OpenFlow0x01.Action.html" title="OpenFlow0x01.Action">Next</a>
+</div>
+<h1>Module <a href="type_OpenFlow0x01.PseudoPort.html">OpenFlow0x01.PseudoPort</a></h1>
+<pre><span class="keyword">module</span> PseudoPort: <code class="code">sig</code> <a href="OpenFlow0x01.PseudoPort.html">..</a> <code class="code">end</code></pre><div class="info">
+A pseudo-port, as described by the <code class="code">ofp_port</code> enumeration in Section 5.2.1
+of the OpenFlow 1.0 specification.<br>
+</div>
+<hr width="100%">
+<pre><code><span id="TYPEt"><span class="keyword">type</span> <code class="type"></code>t</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.PhysicalPort"><span class="constructor">PhysicalPort</span></span> <span class="keyword">of</span> <code class="type"><a href="OpenFlow0x01.html#TYPEportId">OpenFlow0x01.portId</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.InPort"><span class="constructor">InPort</span></span></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Send the packet out the input port.  This virtual port must
+             be explicitly used in order to send back out of the input port.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.Flood"><span class="constructor">Flood</span></span></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >All physical ports except input port and those disabled by 
+            STP.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.AllPorts"><span class="constructor">AllPorts</span></span></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >All physical ports except input port.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.Controller"><span class="constructor">Controller</span></span> <span class="keyword">of</span> <code class="type">int</code></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Send to controller along with <code class="code">n</code> (max 1024) bytes
+                        of the packet.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+
+
+<pre><span id="VALto_string"><span class="keyword">val</span> to_string</span> : <code class="type"><a href="OpenFlow0x01.PseudoPort.html#TYPEt">t</a> -> string</code></pre><div class="info">
+<code class="code">to_string v</code> pretty-prints <code class="code">v</code>.<br>
+</div>
+</body></html>

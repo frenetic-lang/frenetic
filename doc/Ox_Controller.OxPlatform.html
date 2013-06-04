@@ -1,0 +1,50 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="next" href="Ox_Controller.Make.html">
+<link rel="Up" href="Ox_Controller.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Packet" rel="Chapter" href="Packet.html">
+<link title="NetCore_Types" rel="Chapter" href="NetCore_Types.html">
+<link title="OpenFlow0x01" rel="Chapter" href="OpenFlow0x01.html">
+<link title="Ox_Controller" rel="Chapter" href="Ox_Controller.html"><title>Ox_Controller.OxPlatform</title>
+</head>
+<body>
+<div class="navbar">&nbsp;<a class="up" href="Ox_Controller.html" title="Ox_Controller">Up</a>
+&nbsp;<a class="post" href="Ox_Controller.Make.html" title="Ox_Controller.Make">Next</a>
+</div>
+<h1>Module <a href="type_Ox_Controller.OxPlatform.html">Ox_Controller.OxPlatform</a></h1>
+<pre><span class="keyword">module</span> OxPlatform: <code class="code">sig</code> <a href="Ox_Controller.OxPlatform.html">..</a> <code class="code">end</code></pre><div class="info">
+The <code class="code">OxPlatform</code> module contains functions for interacting with the Ox
+controller and the underlying OpenFlow network.<br>
+</div>
+<hr width="100%">
+<pre><span id="VALsend_packet_out"><span class="keyword">val</span> send_packet_out</span> : <code class="type"><a href="OpenFlow0x01.html#TYPEswitchId">OpenFlow0x01.switchId</a> -> <a href="OpenFlow0x01.html#TYPExid">OpenFlow0x01.xid</a> -> <a href="OpenFlow0x01.PacketOut.html#TYPEt">OpenFlow0x01.PacketOut.t</a> -> unit</code></pre><div class="info">
+<code class="code">send_packet_out sw xid pkt</code> sends a <code class="code">PacketOutMsg</code> message with
+  transaction ID xid to switch <code class="code">sw</code>.<br>
+</div>
+<pre><span id="VALsend_flow_mod"><span class="keyword">val</span> send_flow_mod</span> : <code class="type"><a href="OpenFlow0x01.html#TYPEswitchId">OpenFlow0x01.switchId</a> -> <a href="OpenFlow0x01.html#TYPExid">OpenFlow0x01.xid</a> -> <a href="OpenFlow0x01.FlowMod.html#TYPEt">OpenFlow0x01.FlowMod.t</a> -> unit</code></pre><div class="info">
+<code class="code">send_flow_mod sw xid mod</code> sends a <code class="code">FlowModMsg</code> message with transaction
+  ID xid to switch <code class="code">sw</code>.<br>
+</div>
+<pre><span id="VALsend_barrier_request"><span class="keyword">val</span> send_barrier_request</span> : <code class="type"><a href="OpenFlow0x01.html#TYPEswitchId">OpenFlow0x01.switchId</a> -> <a href="OpenFlow0x01.html#TYPExid">OpenFlow0x01.xid</a> -> unit</code></pre><div class="info">
+<code class="code">send_barrier_request sw xid</code> sends a barrier request to switch <code class="code">sw</code> with
+  transaction ID <code class="code">xid</code>.<br>
+</div>
+<pre><span id="VALsend_stats_request"><span class="keyword">val</span> send_stats_request</span> : <code class="type"><a href="OpenFlow0x01.html#TYPEswitchId">OpenFlow0x01.switchId</a> -><br>       <a href="OpenFlow0x01.html#TYPExid">OpenFlow0x01.xid</a> -> <a href="OpenFlow0x01.StatsRequest.html#TYPEt">OpenFlow0x01.StatsRequest.t</a> -> unit</code></pre><div class="info">
+<code class="code">send_stats_request sw xid req</code> sends a <code class="code">StatsRequestMsg</code> message with
+  transaction ID <code class="code">xid</code> to switch <code class="code">sw</code>.<br>
+</div>
+<pre><span id="VALtimeout"><span class="keyword">val</span> timeout</span> : <code class="type">float -> (unit -> unit) -> unit</code></pre><div class="info">
+<code class="code">timeout n thunk</code> will (asynchronously) sleep for <code class="code">n</code> seconds and then
+  invoke <code class="code">thunk</code>.  Unhandled exceptions raised by <code class="code">thunk</code> will generate a
+  warning message but are otherwise ignored.<br>
+</div>
+</body></html>

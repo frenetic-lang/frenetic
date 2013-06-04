@@ -1,0 +1,146 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="NetCore_Types.html">
+<link rel="next" href="Ox_Controller.html">
+<link rel="Up" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Packet" rel="Chapter" href="Packet.html">
+<link title="NetCore_Types" rel="Chapter" href="NetCore_Types.html">
+<link title="OpenFlow0x01" rel="Chapter" href="OpenFlow0x01.html">
+<link title="Ox_Controller" rel="Chapter" href="Ox_Controller.html"><link title="OpenFlow types" rel="Section" href="#9_OpenFlowtypes">
+<link title="Pretty printing" rel="Section" href="#9_Prettyprinting">
+<link title="Platform signatures" rel="Section" href="#9_Platformsignatures">
+<link title="Parsing exceptions" rel="Section" href="#9_Parsingexceptions">
+<title>OpenFlow0x01</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="NetCore_Types.html" title="NetCore_Types">Previous</a>
+&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="Ox_Controller.html" title="Ox_Controller">Next</a>
+</div>
+<h1>Module <a href="type_OpenFlow0x01.html">OpenFlow0x01</a></h1>
+<pre><span class="keyword">module</span> OpenFlow0x01: <code class="code">sig</code> <a href="OpenFlow0x01.html">..</a> <code class="code">end</code></pre><div class="info">
+Library for constructing, marshalling, and parsing OpenFlow 1.0 messages.
+It is largely drawn from the OpenFlow 1.0 specification:
+<p>
+
+<a href="http://www.openflow.org/documents/openflow-spec-v1.0.0.pdf">
+http://www.openflow.org/documents/openflow-spec-v1.0.0.pdf</a>
+<p>
+
+Most data structures are documented with a pointer to relevent section in the
+OpenFlow 1.0 specification, rather than reproducing the specification here.<br>
+</div>
+<hr width="100%">
+<br>
+<div class="h9" id="9_OpenFlowtypes">OpenFlow types</div>
+<p>
+
+    These types are primarily drawn from Section 5 of the OpenFlow 1.0
+    specification.<br>
+<pre><span id="TYPEswitchId"><span class="keyword">type</span> <code class="type"></code>switchId</span> = <code class="type">int64</code> </pre>
+<div class="info">
+<code class="code">switchId</code> is the type of switch identifiers received as part of
+<code class="code">SwitchFeature</code> replies.<br>
+</div>
+
+<pre><span id="TYPEportId"><span class="keyword">type</span> <code class="type"></code>portId</span> = <code class="type"><a href="Packet.html#TYPEint16">Packet.int16</a></code> </pre>
+<div class="info">
+<code class="code">portId</code> is the type of physical port identifiers (port numbers).<br>
+</div>
+
+<pre><span id="TYPExid"><span class="keyword">type</span> <code class="type"></code>xid</span> = <code class="type">int32</code> </pre>
+<div class="info">
+Transaction ID of OpenFlow messages.<br>
+</div>
+
+<pre><span class="keyword">module</span> <a href="OpenFlow0x01.Match.html">Match</a>: <code class="code">sig</code> <a href="OpenFlow0x01.Match.html">..</a> <code class="code">end</code></pre><div class="info">
+Flow match data structure.
+</div>
+<pre><span class="keyword">module</span> <a href="OpenFlow0x01.PseudoPort.html">PseudoPort</a>: <code class="code">sig</code> <a href="OpenFlow0x01.PseudoPort.html">..</a> <code class="code">end</code></pre><div class="info">
+A pseudo-port, as described by the <code class="code">ofp_port</code> enumeration in Section 5.2.1
+of the OpenFlow 1.0 specification.
+</div>
+<pre><span class="keyword">module</span> <a href="OpenFlow0x01.Action.html">Action</a>: <code class="code">sig</code> <a href="OpenFlow0x01.Action.html">..</a> <code class="code">end</code></pre><div class="info">
+Flow action data structure.
+</div>
+<pre><span class="keyword">module</span> <a href="OpenFlow0x01.PortDescription.html">PortDescription</a>: <code class="code">sig</code> <a href="OpenFlow0x01.PortDescription.html">..</a> <code class="code">end</code></pre><div class="info">
+Port data structure.
+</div>
+<pre><span class="keyword">module</span> <a href="OpenFlow0x01.PortStatus.html">PortStatus</a>: <code class="code">sig</code> <a href="OpenFlow0x01.PortStatus.html">..</a> <code class="code">end</code></pre><div class="info">
+Port status message.
+</div>
+<pre><span class="keyword">module</span> <a href="OpenFlow0x01.SwitchFeatures.html">SwitchFeatures</a>: <code class="code">sig</code> <a href="OpenFlow0x01.SwitchFeatures.html">..</a> <code class="code">end</code></pre><div class="info">
+Switch features data structure.
+</div>
+<pre><span class="keyword">module</span> <a href="OpenFlow0x01.FlowMod.html">FlowMod</a>: <code class="code">sig</code> <a href="OpenFlow0x01.FlowMod.html">..</a> <code class="code">end</code></pre><div class="info">
+A flow modification data structure.
+</div>
+<pre><span class="keyword">module</span> <a href="OpenFlow0x01.Payload.html">Payload</a>: <code class="code">sig</code> <a href="OpenFlow0x01.Payload.html">..</a> <code class="code">end</code></pre><div class="info">
+The payload for <code class="code">PacketIn.t</code> and <code class="code">PacketOut.t</code> messages.
+</div>
+<pre><span class="keyword">module</span> <a href="OpenFlow0x01.PacketIn.html">PacketIn</a>: <code class="code">sig</code> <a href="OpenFlow0x01.PacketIn.html">..</a> <code class="code">end</code></pre><div class="info">
+A packet-in message.
+</div>
+<pre><span class="keyword">module</span> <a href="OpenFlow0x01.PacketOut.html">PacketOut</a>: <code class="code">sig</code> <a href="OpenFlow0x01.PacketOut.html">..</a> <code class="code">end</code></pre><div class="info">
+A send-packet message.
+</div>
+<pre><span class="keyword">module</span> <a href="OpenFlow0x01.StatsRequest.html">StatsRequest</a>: <code class="code">sig</code> <a href="OpenFlow0x01.StatsRequest.html">..</a> <code class="code">end</code></pre><div class="info">
+A statistics request message.
+</div>
+<pre><span class="keyword">module</span> <a href="OpenFlow0x01.StatsReply.html">StatsReply</a>: <code class="code">sig</code> <a href="OpenFlow0x01.StatsReply.html">..</a> <code class="code">end</code></pre><div class="info">
+A statistics reply message.
+</div>
+<pre><span class="keyword">module</span> <a href="OpenFlow0x01.Error.html">Error</a>: <code class="code">sig</code> <a href="OpenFlow0x01.Error.html">..</a> <code class="code">end</code></pre><div class="info">
+An error message.
+</div>
+<pre><span class="keyword">module</span> <a href="OpenFlow0x01.Message.html">Message</a>: <code class="code">sig</code> <a href="OpenFlow0x01.Message.html">..</a> <code class="code">end</code></pre><div class="info">
+A subset of the OpenFlow 1.0 messages defined in Section 5.1 of the 
+specification.
+</div>
+<br>
+<div class="h9" id="9_Prettyprinting">Pretty printing</div>
+<p>
+
+    In general, each submodule contains pretty-printing functions for the types
+    defined therein.  This section defines pretty printers for top-level types.<br>
+<pre><span id="VALstring_of_switchId"><span class="keyword">val</span> string_of_switchId</span> : <code class="type"><a href="OpenFlow0x01.html#TYPEswitchId">switchId</a> -> string</code></pre><div class="info">
+<code class="code">string_of_switchId sw</code> pretty-prints <code class="code">sw</code>.<br>
+</div>
+<pre><span id="VALstring_of_portId"><span class="keyword">val</span> string_of_portId</span> : <code class="type"><a href="OpenFlow0x01.html#TYPEportId">portId</a> -> string</code></pre><div class="info">
+<code class="code">string_of_switchId p</code> pretty-prints <code class="code">p</code>.<br>
+</div>
+<br>
+<div class="h9" id="9_Platformsignatures">Platform signatures</div> 
+<p>
+
+    An OpenFlow platform is responsible for accepting and managing connections
+    to OpenFlow-enabled switches.  It relies on the <code class="code">Message</code> module for
+    parsing and marshaling messages.<br>
+<pre><span class="keyword">module type</span> <a href="OpenFlow0x01.PLATFORM.html">PLATFORM</a> = <code class="code">sig</code> <a href="OpenFlow0x01.PLATFORM.html">..</a> <code class="code">end</code></pre><div class="info">
+Interface for all platforms.
+</div>
+<br>
+<div class="h9" id="9_Parsingexceptions">Parsing exceptions</div>
+<p>
+
+    These exceptions may occur when parsing OpenFlow messages.<br>
+<pre><span id="EXCEPTIONUnparsable"><span class="keyword">exception</span> Unparsable</span> <span class="keyword">of</span> <code class="type">string</code></pre>
+<div class="info">
+<code class="code">Unparsable msg</code> signals an error in parsing, such as when a bit sequence
+has been corrupted.<br>
+</div>
+<pre><span id="EXCEPTIONIgnored"><span class="keyword">exception</span> Ignored</span> <span class="keyword">of</span> <code class="type">string</code></pre>
+<div class="info">
+<code class="code">Ignored msg</code> signals the arrival of a valid OpenFlow message that the
+parser is not yet equipped to handle.<br>
+</div>
+</body></html>

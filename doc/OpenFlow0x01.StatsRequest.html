@@ -1,0 +1,78 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="OpenFlow0x01.PacketOut.html">
+<link rel="next" href="OpenFlow0x01.StatsReply.html">
+<link rel="Up" href="OpenFlow0x01.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Packet" rel="Chapter" href="Packet.html">
+<link title="NetCore_Types" rel="Chapter" href="NetCore_Types.html">
+<link title="OpenFlow0x01" rel="Chapter" href="OpenFlow0x01.html">
+<link title="Ox_Controller" rel="Chapter" href="Ox_Controller.html"><title>OpenFlow0x01.StatsRequest</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="OpenFlow0x01.PacketOut.html" title="OpenFlow0x01.PacketOut">Previous</a>
+&nbsp;<a class="up" href="OpenFlow0x01.html" title="OpenFlow0x01">Up</a>
+&nbsp;<a class="post" href="OpenFlow0x01.StatsReply.html" title="OpenFlow0x01.StatsReply">Next</a>
+</div>
+<h1>Module <a href="type_OpenFlow0x01.StatsRequest.html">OpenFlow0x01.StatsRequest</a></h1>
+<pre><span class="keyword">module</span> StatsRequest: <code class="code">sig</code> <a href="OpenFlow0x01.StatsRequest.html">..</a> <code class="code">end</code></pre><div class="info">
+A statistics request message.  See Section 5.3.5 of the OpenFlow 1.0 
+specification.<br>
+</div>
+<hr width="100%">
+<pre><span class="keyword">module</span> <a href="OpenFlow0x01.StatsRequest.IndividualFlowRequest.html">IndividualFlowRequest</a>: <code class="code">sig</code> <a href="OpenFlow0x01.StatsRequest.IndividualFlowRequest.html">..</a> <code class="code">end</code></pre><div class="info">
+The body of an individual flow statistics request.
+</div>
+<pre><span class="keyword">module</span> <a href="OpenFlow0x01.StatsRequest.AggregateFlowRequest.html">AggregateFlowRequest</a>: <code class="code">sig</code> <a href="OpenFlow0x01.StatsRequest.AggregateFlowRequest.html">..</a> <code class="code">end</code></pre><div class="info">
+The body of an aggregate flow statistics request.
+</div>
+<pre><code><span id="TYPEt"><span class="keyword">type</span> <code class="type"></code>t</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.DescriptionReq"><span class="constructor">DescriptionReq</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.IndividualFlowReq"><span class="constructor">IndividualFlowReq</span></span> <span class="keyword">of</span> <code class="type"><a href="OpenFlow0x01.StatsRequest.IndividualFlowRequest.html#TYPEt">IndividualFlowRequest.t</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.AggregateFlowReq"><span class="constructor">AggregateFlowReq</span></span> <span class="keyword">of</span> <code class="type"><a href="OpenFlow0x01.StatsRequest.AggregateFlowRequest.html#TYPEt">AggregateFlowRequest.t</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.TableReq"><span class="constructor">TableReq</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTt.PortReq"><span class="constructor">PortReq</span></span> <span class="keyword">of</span> <code class="type"><a href="OpenFlow0x01.PseudoPort.html#TYPEt">OpenFlow0x01.PseudoPort.t</a></code></code></td>
+
+</tr></table>
+
+
+<pre><span id="VALto_string"><span class="keyword">val</span> to_string</span> : <code class="type"><a href="OpenFlow0x01.StatsRequest.html#TYPEt">t</a> -> string</code></pre><div class="info">
+<code class="code">to_string v</code> pretty-prints <code class="code">v</code>.<br>
+</div>
+</body></html>

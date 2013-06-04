@@ -1,0 +1,34 @@
+<html><head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of exceptions" rel=Appendix href="index_exceptions.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Packet" rel="Chapter" href="Packet.html">
+<link title="NetCore_Types" rel="Chapter" href="NetCore_Types.html">
+<link title="OpenFlow0x01" rel="Chapter" href="OpenFlow0x01.html">
+<link title="Ox_Controller" rel="Chapter" href="Ox_Controller.html"><title>OpenFlow0x01.Action</title>
+</head>
+<body>
+<code class="code"><span class="keyword">sig</span><br>
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;t&nbsp;=<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Output</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">OpenFlow0x01</span>.<span class="constructor">PseudoPort</span>.t<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">SetDlVlan</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Packet</span>.dlVlan<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">SetDlVlanPcp</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Packet</span>.dlVlanPcp<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">StripVlan</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">SetDlSrc</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Packet</span>.dlAddr<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">SetDlDst</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Packet</span>.dlAddr<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">SetNwSrc</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Packet</span>.nwAddr<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">SetNwDst</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Packet</span>.nwAddr<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">SetNwTos</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Packet</span>.nwTos<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">SetTpSrc</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Packet</span>.tpPort<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">SetTpDst</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Packet</span>.tpPort<br>
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;sequence&nbsp;=&nbsp;<span class="constructor">OpenFlow0x01</span>.<span class="constructor">Action</span>.t&nbsp;list<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;move_controller_last&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">OpenFlow0x01</span>.<span class="constructor">Action</span>.sequence&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">OpenFlow0x01</span>.<span class="constructor">Action</span>.sequence<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;to_string&nbsp;:&nbsp;<span class="constructor">OpenFlow0x01</span>.<span class="constructor">Action</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;sequence_to_string&nbsp;:&nbsp;<span class="constructor">OpenFlow0x01</span>.<span class="constructor">Action</span>.sequence&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;string<br>
+<span class="keyword">end</span></code></body></html>
