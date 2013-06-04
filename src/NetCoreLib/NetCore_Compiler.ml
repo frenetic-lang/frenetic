@@ -9,27 +9,27 @@ module BoolClassifier = NetCore_Classifier.Make(NetCore_Action.Bool)
 let rec compile_pred pr sw : BoolClassifier.t = 
   match pr with
   | PrHdr pat -> 
-   [(pat,true); (NetCore_Pattern.all, false)]
+   [(pat,true); (all, false)]
   | PrOnSwitch sw' ->
     if sw = sw' then
-      [(NetCore_Pattern.all, true)] 
+      [(all, true)] 
     else 
-      [(NetCore_Pattern.all, false)]
+      [(all, false)]
   | PrOr (pr1, pr2) ->
     BoolClassifier.union (compile_pred pr1 sw) (compile_pred pr2 sw)
   | PrAnd (pr1, pr2) ->
     BoolClassifier.sequence (compile_pred pr1 sw) (compile_pred pr2 sw)
   | PrNot pr' ->    
     map (fun (a,b) -> (a, not b)) 
-      (compile_pred pr' sw @ [(NetCore_Pattern.all,false)])
+      (compile_pred pr' sw @ [(all,false)])
   | PrAll -> 
-    [NetCore_Pattern.all,true]
+    [all,true]
   | PrNone -> 
-    [NetCore_Pattern.all,false]
+    [all,false]
 
 let rec compile_pol p sw =
   match p with
-  | HandleSwitchEvent _ -> [(NetCore_Pattern.all, NetCore_Action.Output.drop)]
+  | HandleSwitchEvent _ -> [(all, NetCore_Action.Output.drop)]
   | PoAction action ->
     fold_right 
       (fun e0 tbl -> 
@@ -37,7 +37,7 @@ let rec compile_pol p sw =
           [(NetCore_Action.Output.domain e0, NetCore_Action.Output.to_action e0)]
           tbl)
       (NetCore_Action.Output.atoms action)
-      [(NetCore_Pattern.all, NetCore_Action.Output.drop)]
+      [(all, NetCore_Action.Output.drop)]
   | PoFilter pred ->
     map 
       (fun (a,b) -> match b with

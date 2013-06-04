@@ -48,36 +48,6 @@ module NwTosWildcard = IntWildcard
 module TpPortWildcard = IntWildcard
 module PortWildcard = NetCore_Wildcard.Make (PortOrderedType)
 
-let all = {
-  ptrnDlSrc = WildcardAll;
-  ptrnDlDst = WildcardAll;
-  ptrnDlType = WildcardAll;
-  ptrnDlVlan = WildcardAll;
-  ptrnDlVlanPcp = WildcardAll;
-  ptrnNwSrc = WildcardAll;
-  ptrnNwDst = WildcardAll;
-  ptrnNwProto = WildcardAll;
-  ptrnNwTos = WildcardAll;
-  ptrnTpSrc = WildcardAll;
-  ptrnTpDst = WildcardAll;
-  ptrnInPort = WildcardAll
-}
-
-let empty = {
-  ptrnDlSrc = WildcardNone;
-  ptrnDlDst = WildcardNone;
-  ptrnDlType = WildcardNone;
-  ptrnDlVlan = WildcardNone;
-  ptrnDlVlanPcp = WildcardNone;
-  ptrnNwSrc = WildcardNone;
-  ptrnNwDst = WildcardNone;
-  ptrnNwProto = WildcardNone;
-  ptrnNwTos = WildcardNone;
-  ptrnTpSrc = WildcardNone;
-  ptrnTpDst = WildcardNone;
-  ptrnInPort = WildcardNone
-}
-
 let is_empty pat =
   DlAddrWildcard.is_empty pat.ptrnDlSrc
   || DlAddrWildcard.is_empty pat.ptrnDlDst
@@ -221,52 +191,3 @@ let setPort port pat =
 let wildcardPort pat =
   { pat with ptrnInPort = WildcardAll }
 
-let inPort pt =
-  { all with ptrnInPort = WildcardExact pt }
-
-let dlSrc mac =
-  { all with ptrnDlSrc = WildcardExact mac }
-
-let dlDst mac =
-  { all with ptrnDlDst = WildcardExact mac }
-
-let dlType typ =
-  { all with ptrnDlType = WildcardExact typ }
-
-let dlVlan vlan =
-  { all with ptrnDlVlan = WildcardExact vlan }
-
-let dlVlanPcp pcp =
-  { all with ptrnDlVlanPcp = WildcardExact pcp }
-
-let ipSrc ip =
-  { all with
-    ptrnDlType = WildcardExact 0x800;
-    ptrnNwSrc = WildcardExact ip }
-
-let ipDst ip =
-  { all with
-    ptrnDlType = WildcardExact 0x800;
-    ptrnNwDst = WildcardExact ip }
-
-let ipProto proto =
-  { all with
-    ptrnDlType = WildcardExact 0x800;
-    ptrnNwProto = WildcardExact proto }
-
-let tpSrcPort proto tpPort =
-  { all with
-    ptrnDlType = WildcardExact 0x800;
-    ptrnNwProto = WildcardExact proto;
-    ptrnTpSrc = WildcardExact tpPort }
-
-let tpDstPort proto tpPort =
-  { all with
-    ptrnDlType = WildcardExact 0x800;
-    ptrnNwProto = WildcardExact proto;
-    ptrnTpDst = WildcardExact tpPort }
-
-let tcpSrcPort = tpSrcPort 6
-let tcpDstPort = tpDstPort 6
-let udpSrcPort = tpSrcPort 17
-let udpDstPort = tpDstPort 17

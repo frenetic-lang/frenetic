@@ -57,7 +57,7 @@ module Bool = struct
 
   let sequence_range b p = p
 
-  let domain b = NetCore_Pattern.all
+  let domain b = all
 
   let to_string b = if b then "true" else "false"
 
@@ -271,21 +271,21 @@ module Output = struct
     match maybe_mod with
     | Some (old, nw) ->
       if NetCore_Pattern.is_empty (NetCore_Pattern.inter (build_singleton nw) pat) then
-        NetCore_Pattern.empty
+        empty
       else
         set_wild pat
     | None -> pat
 
   let sel f = function
   | Some p -> let (old, y) = p in f old
-  | None -> NetCore_Pattern.all
+  | None -> all
 
   let restrict_port portMod pat2 = match portMod with
     | Here -> pat2
     | port ->
       if NetCore_Pattern.is_empty 
-        (NetCore_Pattern.inter (NetCore_Pattern.inPort port) pat2) then
-        NetCore_Pattern.empty
+        (NetCore_Pattern.inter (inPort port) pat2) then
+        empty
       else
         NetCore_Pattern.wildcardPort pat2
 
@@ -314,12 +314,12 @@ module Output = struct
     | SwitchAction out -> 
       fold_right
         NetCore_Pattern.inter
-        [ sel NetCore_Pattern.dlSrc out.outDlSrc
-        ; sel NetCore_Pattern.dlDst out.outDlDst
-        ; sel NetCore_Pattern.dlVlan out.outDlVlan ]
-        NetCore_Pattern.all
-    | ControllerAction _      -> NetCore_Pattern.all
-    | ControllerQuery _   -> NetCore_Pattern.all
+        [ sel dlSrc out.outDlSrc
+        ; sel dlDst out.outDlDst
+        ; sel dlVlan out.outDlVlan ]
+        all
+    | ControllerAction _      -> all
+    | ControllerQuery _   -> all
 
   let set upd mk lst = match upd with
     | Some (_,nw) ->

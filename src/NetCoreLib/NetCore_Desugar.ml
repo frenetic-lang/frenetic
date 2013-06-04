@@ -246,23 +246,23 @@ let desugar (genvlan : unit -> int option) (pol : policy) : NetCore_Types.pol =
     | Switch swId -> 
       PrOnSwitch swId
     | InPort pt -> 
-      PrHdr (NetCore_Pattern.inPort (Physical pt))
+      PrHdr (inPort (Physical pt))
     | DlSrc n -> 
-      PrHdr (NetCore_Pattern.dlSrc n)
+      PrHdr (dlSrc n)
     | DlDst n -> 
-      PrHdr (NetCore_Pattern.dlDst n)
+      PrHdr (dlDst n)
     | DlVlan n -> 
-      PrHdr (NetCore_Pattern.dlVlan n)
+      PrHdr (dlVlan n)
     | DlTyp n ->
-      PrHdr (NetCore_Pattern.dlType n)
+      PrHdr (dlType n)
     | SrcIP n -> 
-      PrHdr (NetCore_Pattern.ipSrc n)
+      PrHdr (ipSrc n)
     | DstIP n -> 
-      PrHdr (NetCore_Pattern.ipDst n)
+      PrHdr (ipDst n)
     | TcpSrcPort n -> 
-      PrHdr (NetCore_Pattern.tcpSrcPort n)
+      PrHdr (tcpSrcPort n)
     | TcpDstPort n -> 
-      PrHdr (NetCore_Pattern.tcpDstPort n) in
+      PrHdr (tcpDstPort n) in
   let rec desugar_pol curr pol = match pol with 
     | Act action -> 
       let pol' = PoAction (desugar_act action) in 
@@ -311,12 +311,12 @@ let desugar (genvlan : unit -> int option) (pol : policy) : NetCore_Types.pol =
       let pred_rec = 
         if List.length sslice' > 0 then
           List.fold_left 
-            (fun acc s -> PrAnd(acc, PrHdr(NetCore_Pattern.dlVlan s)))
+            (fun acc s -> PrAnd(acc, PrHdr(dlVlan s)))
             PrAll sslice'
         else 
           PrNone in
-      let pred_curr = PrHdr(NetCore_Pattern.dlVlan(curr)) in 
-      let pred_next = PrHdr(NetCore_Pattern.dlVlan(next)) in 
+      let pred_curr = PrHdr(dlVlan(curr)) in 
+      let pred_next = PrHdr(dlVlan(next)) in 
       let pol1' = 
         PoUnion ( PoSeq ( PoFilter(PrAnd(pred_curr, sin'))
                         , PoAction (NetCore_Action.Output.updateDlVlan curr next))

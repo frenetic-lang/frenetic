@@ -24,10 +24,10 @@ module TestClassifier = struct
           (seq_action (forward 3) (forward 5))
 
   let test1 =
-    "forward action domain should be NetCore_Pattern.all" >::
+    "forward action domain should be all" >::
       fun () ->
         assert_equal ~printer:NetCore_Pretty.string_of_pattern
-          (domain (List.hd (atoms (forward 1)))) NetCore_Pattern.all
+          (domain (List.hd (atoms (forward 1)))) all
 
   let test2 =
     "pattern restriction test" >::
@@ -35,8 +35,8 @@ module TestClassifier = struct
         assert_equal ~printer:NetCore_Pretty.string_of_pattern
           (sequence_range
              (List.hd (atoms (forward 1)))
-             (NetCore_Pattern.inPort (Physical 1)))
-          NetCore_Pattern.all
+             (inPort (Physical 1)))
+          all
 
   let classifier_tests group_label lst =
     group_label >::: 
@@ -70,14 +70,14 @@ module TestClassifier = struct
     [("composition test 1",
       [(NetCore_Pattern.inter (dlDst 0xdeadbeefL) (inPort (Physical 5)),
         forward 2);
-       (NetCore_Pattern.all, drop)],
+       (all, drop)],
       let tbl1 =
         [(NetCore_Pattern.inter (dlDst 0xdeadbeefL) (inPort (Physical 5)),
           forward 1);
-         (NetCore_Pattern.all, drop)] in
+         (all, drop)] in
       let tbl2 =
         [(inPort (Physical 1), forward 2);
-         (NetCore_Pattern.all, drop)] in
+         (all, drop)] in
       (sequence tbl1 tbl2));
      ("composition test 2",
       [(inter (dlSrc 0xFFFFL) (inPort (Physical 10)), forward 20);
@@ -233,15 +233,15 @@ module TestNetCore = struct
          (PrNot 
             (PrOr (PrAnd 
                      (PrAnd (PrOnSwitch 1L, 
-                             PrHdr (NetCore_Pattern.inPort (Physical 1))), 
-                      PrHdr (NetCore_Pattern.dlSrc 0x0ab75f2211d4L)), PrNone))),
+                             PrHdr (inPort (Physical 1))), 
+                      PrHdr (dlSrc 0x0ab75f2211d4L)), PrNone))),
        PoAction (forward 3))
 
   let test1_pol2 = 
     PoSeq 
       (PoFilter
          (PrAnd 
-            (PrOnSwitch 1L, PrHdr (NetCore_Pattern.dlDst 0x0ab75f2211d4L))), 
+            (PrOnSwitch 1L, PrHdr (dlDst 0x0ab75f2211d4L))), 
        PoAction (forward 1))
 
   let test1_pol3 =
@@ -249,7 +249,7 @@ module TestNetCore = struct
       (PoFilter 
          (PrNot 
             (PrOr (PrAnd (PrOnSwitch 1L,
-                          PrHdr (NetCore_Pattern.dlDst 0x0ab75f2211d4L)),
+                          PrHdr (dlDst 0x0ab75f2211d4L)),
                    PrNone))), PoAction to_all)
 
   let test1 = 
