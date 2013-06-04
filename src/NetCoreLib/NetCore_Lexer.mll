@@ -71,7 +71,7 @@ and token = parse
   | "srcIP" { SRCIP }
   | "dstIP" { DSTIP }
   | "tcpSrcPort" { TCPSRCPORT }
-  | "dstSrcPort" { TCPDSTPORT }
+  | "tcpDstPort" { TCPDSTPORT }
   | "frameType" { FRAMETYPE }
   | "arp" { ARP }
   | "ip" { IP }
@@ -89,6 +89,7 @@ and token = parse
   | "monitorTable" { MONITOR_TBL }
   | "monitorSwitch" { MONITOR_SW }
   | "monitorLoad" { MONITOR_LOAD }
+  | "monitorPackets" { MONITOR_PKTS }
   | ";" { SEMI }
   | "|" { BAR }
   | "+" { PLUS }

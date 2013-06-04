@@ -12,7 +12,7 @@ module OF = OpenFlow0x01
 module Message = OF.Message
 
 type switchId = OF.switchId
-type xid = OF.Message.xid
+type xid = OF.xid
 
 exception SwitchDisconnected of switchId
 
@@ -77,7 +77,7 @@ let rec recv_from_switch_fd (sock : Lwt_unix.file_descr)
 
 let send_to_switch_fd 
   (sock : Lwt_unix.file_descr) 
-  (xid : Message.xid) 
+  (xid : xid) 
   (msg : Message.t) : unit option Lwt.t =
   lwt msg_buf = Lwt.wrap2 Message.marshal xid msg in
   let msg_len = String.length msg_buf in
@@ -112,7 +112,7 @@ let shutdown () : unit =
 
 let send_to_switch 
   (sw : switchId) 
-  (xid : Message.xid) 
+  (xid : xid) 
   (msg : Message.t) : unit Lwt.t =
   match fd_of_switch_id sw with 
   | Some fd ->
@@ -127,7 +127,7 @@ let send_to_switch
   | None ->
     raise_lwt (SwitchDisconnected sw)
 
-let rec recv_from_switch (sw : switchId) : (Message.xid * Message.t) Lwt.t = 
+let rec recv_from_switch (sw : switchId) : (xid * Message.t) Lwt.t = 
   let open Message in
   match fd_of_switch_id sw with
     | Some fd -> 

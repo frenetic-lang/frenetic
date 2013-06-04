@@ -1,6 +1,12 @@
 Frenetic Tutorial
 =============
 
+*DPW: This preamble is old and needs revision*
+
+*DPW TODO:  I called everything "Frenetic" or "Static Frenetic" 
+but that was a bad idea.  Should revise to call NetCore NetCore and 
+Frenetic Frenetic.*
+
 The goal of this tutorial is to teach readers how to program a Software-Defined Network (SDN) running OpenFlow using the Frenetic programming language.  This involves explaining the syntax and semantics of Frenetic and illustrating its use on a number of simple examples.  Along the way, there are a number of exercises for the reader.  Solutions appear at the bottom of the page.
 
 In addition to being a tutorial, this file is also what is known as a [literate program](http://en.wikipedia.org/wiki/Literate_programming). In other words, readers can download and execute this text file as is, without making any modifications.  Intuitively, what we have done is simply turn the commenting conventions on their head:  by default, everything is a comment.  The only regions of the file that will be executed as code are those that are 
@@ -11,7 +17,7 @@ As you read this document, we encourage you to try to complete the example exerc
 Motivation for the Frenetic Design
 -----------------------------------------------
 
-*Mostly plagiarized from IEEE overview paper*
+*Much in this section was plagiarized from IEEE overview paper*
 
 Traditional networks are built out of special-purpose devices running distributed protocols that provide functionality such as routing, trafﬁc monitoring, load balancing, NATing and access control. These devices have a tightly-integrated control and data plane, and network operators must separately conﬁgure every protocol on each individual device. This configuration task is a challenging one as network operators must struggle with a host of different baroque, low-level, vendor-specific configuration languages.  Moreover, the pace of innovation is slow as device internals and APIs are often private and proprietary, making it difficult to develop new protocols or functionality to suit client needs.    
 
@@ -25,64 +31,182 @@ In addition, a network is a distributed system, and all of the usual complicatio
 
 The goal of the Frenetic language is to raise the level of abstraction for programming SDNs. To replace the low-level imperative interfaces available today, Frenetic offers a suite of declarative abstractions for querying network state, deﬁning forwarding policies, and updating policies in a consistent way.  These constructs are designed to be *modular* so that individual policies can be written in isolation, by different developers and later composed with other components to create sophisticated policies. This is made possible in part by the design of the constructs themselves, and in part by the underlying run-time system, which implements them by compiling them down to low-level OpenFlow forwarding rules.  Our emphasis on modularity and composition—the foundational principles behind effective design of any complex software system—is the key feature that distinguishes Frenetic from other SDN controllers.
 
-Frenetic Introduction
-----------------------
+Preliminary Programming Concepts
+--------------------------------
 
-Describe the basic semantics and concepts.
+A Frenetic policy describes how a collection of switches
+forwards packets from one location to another.  We call a Frenetic policy
+*static* when it is fixed ahead of time,
+does not change, and does not depend upon the packets flows that
+appear in the network.  We will focus first on static policies 
+and add some simple dynamics later in the tutorial.
 
-- located packets
-- policies are functions
-- basic functions
+The Frenetic programming paradigm encourages users to think of static
+policies as abstract *functions* that specify the behavior of switches
+and to ignore how these functions are actually implemented on switch 
+hardware --- our compiler will take
+care of the implementation for you.
+Conceptually, such static policies process *located packets* --- i.e.,
+records with one field for each OpenFlow-supported packet header
+(<code>srcMac</code>, <code>dstMac</code>, <code>srcIP</code>, etc.) as well as
+one field denoting the current switch processing the packet and
+another field denoting the inPort the packet arrived at.
+More specifically, each policy is a function
+that takes a single located packet as an input (the packet to
+be forwarded) and generates a *multi-set* of new located packets.
+(A multi-set is simply a set that can contain multiple, identical
+elements.  When one takes the union of two multi-sets that both
+contain the element x, the resulting multi-set has two occurrences
+of the element x.)  In the rest of the tutorial, we will often 
+call our located packets simply "packets" for short.
+Keep in mind that all packets processed by Frenetic come with associated
+location information.
 
+To understand how a packet flows through a network, a programmer must
+analyze both the current Frenetic policy P and the network topology
+T.  The policy is a function that explains how a switch should move
+a packet from an input port to an output port.  The topology is a
+function that explains how a packet moves from the outport of one
+switch, across a link, to the inport of some other switch.  Hence,
+given a located packet p0, we can trace its path through the
+network by first applying the policy function P(p0) generating a
+multi-set of (possibly zero) packets {p1,...,pk} at outports on a
+switch.  For simplicity, let's assume the result P(p0) contains
+just one packet (p1) (i.e., it is a normal forwarding policy, that
+does not drop the input packet and does not broadcast the packet out
+multiple ports).  Next, we apply the topology function T to generate a
+packet p1' across the other side of the link at some new switch.
+Then we apply the policy function P again: P(p1') will generate some
+subsequent number of output packets.  
+And then apply the topology function T again.  
 
-Static NetCore Programming Examples
-------------------------------------
+In summary, one traces the flow of
+packets through a network by alternately applying the policy function
+P and the topology function T.
+Static Frenetic is just a domain-specific
+language that makes it easy to write down a single policy function
+P that determines how switches forward packets.
 
-0. Review the topology in tutorial-topo.  Define some user-friendly switch names for our topology too:
+Introductory Examples
+---------------------
 
-1. Write a program to route all ip traffic as follows: 
-  - packets with destination ip 10.0.0.10 arriving at switch C go to host 10.  
-  - packets with destination ip 10.0.0.20 arriving at switch C go to host 20.  
-  - packets with destination ip 10.0.0.30 arriving at switch D go to host 30.  
-  - packets with destination ip 10.0.0.40 arriving at switch D go to host 40.  
-  - flood all arp packets arriving at any switch
-Try out your program by pinging 10 from 20 and 20 from 10.  What happens?
-What happens if you ping 10 from 30?
+The main features of Static Frenetic include the following.
 
-Start your work with this handy wrapper to handle flooding of arp packets.
-Replace "drop" below with some other policy that solves the problem.
+  - a set of primitive *actions*, which allow programmers to modify and 
+forward packets
+  - *conditional statements*, which allow programmers to perform 
+different actions on different kinds of packets
+  - *sequencing*, which allows programmers to perform a series of
+transformations on a packet, and
+  - *parallel composition*, which allows programmers to make a logical copy
+of a packet and thereby to generate more than one result from their
+policy --- perhaps forwarding the packet to two different locations.
+
+We will illustrate each of these features through a series of examples.
+
+### Example 1: A Repeater
+
+To begin, consider a network with just one switch.  Assume that switch 
+has two ports, numbered 1 and 2.  Our first goal will be to program
+a repeater --- a simple switch that forwards all packets coming in port 1
+out port 2 and vice versa.  The following policy accomplishes that task.
 
 ```
-let arpify (P:policy) =
-  if frameType = arp then all
-  else P
-  
-let my_sol1 = arpify(drop)
+let repeater =
+  if inPort = 1 then fwd(2)
+  else fwd(1)
 ```
 
-2. Extend the program written in (a) to route all traffic between
-10, 20, 30, 40.
+The <code>let</code> keyword introduces a new policy, 
+which we have chosen to call 
+<code>repeater</code>.  
+An <code>if</code>-<code>then</code>-<code>else</code> statement determines
+whether to forward a packet out port 1 or port 2, depending on the packet's
+<code>inPort</code> field.  In addition to testing the packet's <code>inPort</code>, 
+if statement predicates can refer to
+the <code>switch</code> 
+at which a packet arrives, as well as any of the OpenFlow-supported
+fields, such as the <code>srcIP</code>, <code>dstIP</code> or 
+<code>frameType</code>.  
+Conditions can also be formed using 
+conjunctions (<code>&&</code>), disjunctions
+(<code>||</code>) and negation (<code>!</code>) of other conditions.
+See the [manual](link...) for the complete list of predicates. 
 
-3. Now consider the program that routes all traffic between all hosts,
-which we will provide.
+*Dave: I did this on my machine, not inside a final vm with all files
+and aliases in place, etc, so this will need to be retested in the student 
+environment.*
 
-4. Use the NetCore query facility to discover the set of all TCP ports 
-being used by either machines 10 or 20.  Here is a [list of common port
-numbers](http://packetlife.net/media/library/23/common-ports.pdf)
-Note: some protocols are sending a lot of traffic (eg: HTTP, on port
-80).  As you investigate, narrow your searches to find the "needle in
-the haystack."  There is one host sending a small amount of traffic to
-a non-standard port in a nonstandard format.  Which host is it?  Print
-the packets using that port.  They contain a secret message.
+Now, let's test the program to see what it does.  In 
+<code>$TUTORIALDIR/examples</code>,
+you will see a file named <code>tut1.nc</code>, which contains the
+repeater program.  Change to that directory and
+start up the Frenetic controller program.
 
-5. Construct a firewall for the network that enforces the following policy.
-Compose it with the routing policy defined in part 3.
-  - Machines 10, 20, 30, 40 are trusted machines.  
-  - Machine 50 is an untrusted machine.  
-  - Each of these machines is serving files using HTTP (TCP port 80).  
-  - Machines 10 and 20 have private files that may not be read by untrusted machines using HTTP.  
-  - Machines 30, 40, 50 have public files that may be read by any machine.
-  - All traffic not explicitly prohibited must be allowed to pass through the network.
+```
+> cd examples
+> frenetic tut1.nc
+```
+
+Now, in a separate shell, start up mininet:
+
+```
+> sudo mn --controller=remote
+*** Creating network
+*** Adding controller
+*** Adding hosts:
+h1 h2 
+*** Adding switches:
+s1 
+*** Adding links:
+(h1, s1) (h2, s1) 
+*** Configuring hosts
+h1 h2 
+*** Starting controller
+*** Starting 1 switches
+s1 
+*** Starting CLI:
+mininet> 
+```
+
+Mininet has started up a single switch with two hosts <code>h1</code> and
+<code>h2</code>, connected to the two ports on the switch.
+At the mininet prompt, test your repeater program using ping:
+
+```
+mininet> h1 ping h2
+```
+
+You should see a trace like this one:
+
+```
+64 bytes from 10.0.0.2: icmp_req=1 ttl=64 time=0.397 ms
+64 bytes from 10.0.0.2: icmp_req=2 ttl=64 time=0.051 ms
+64 bytes from 10.0.0.2: icmp_req=3 ttl=64 time=0.059 ms
+64 bytes from 10.0.0.2: icmp_req=4 ttl=64 time=0.056 ms
+64 bytes from 10.0.0.2: icmp_req=5 ttl=64 time=0.040 ms
+64 bytes from 10.0.0.2: icmp_req=6 ttl=64 time=0.042 ms
+^C
+--- 10.0.0.2 ping statistics ---
+6 packets transmitted, 6 received, 0% packet loss, time 5000ms
+rtt min/avg/max/mdev = 0.040/0.107/0.397/0.130 ms
+```
+
+### Example 2: Simple Port Translation
+
+### Example 3: A Larger Network
+
+### Example 4: Queries and Debugging 
+
+
+Exercises
+---------
+
+Semantics
+---------
+
+Summary
+---------
 
 Dynamic NetCore Concepts
 ------------------------

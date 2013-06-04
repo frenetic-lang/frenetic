@@ -15,7 +15,7 @@ module type QUERY = functor (Platform : OpenFlow0x01.PLATFORM) -> sig
  
   type t
 
-  val create : Message.xid
+  val create : xid
             -> action_atom
             -> int (* Time to wait between queries. *)
             -> get_count_handler
@@ -34,7 +34,7 @@ module type QUERY = functor (Platform : OpenFlow0x01.PLATFORM) -> sig
   val refresh_switches : SwitchSet.t -> t -> unit
   val remove_switch : switchId -> t -> unit
 
-  val find : Message.xid -> t list -> t
+  val find : xid -> t list -> t
 
 end
 
@@ -45,7 +45,7 @@ module Query (Platform : OpenFlow0x01.PLATFORM) = struct
 
   type t = 
     { (* Static. *)
-      xid : Message.xid
+      xid : xid
     ; atom : NetCore_Types.action_atom
     ; time : float
     ; cb : get_count_handler
@@ -211,7 +211,7 @@ module type QUERYSET = functor (Platform : OpenFlow0x01.PLATFORM) ->
     val add_switch : switchId -> unit
     val remove_switch : switchId -> unit
     val handle_reply : switchId 
-                    -> Message.xid 
+                    -> xid 
                     -> StatsReply.IndividualFlowStats.t list 
                     -> unit
   end
@@ -219,7 +219,7 @@ module type QUERYSET = functor (Platform : OpenFlow0x01.PLATFORM) ->
 module QuerySet (Platform : OpenFlow0x01.PLATFORM) = struct
 
   module Q = Query (Platform)
-  type qid = Message.xid
+  type qid = xid
 
   (* The query ID generator is persistent across start/stop
    * cycles, in order to properly ignore old query responses.
@@ -332,7 +332,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
     Lwt_list.iter_s
       (fun (match_, actions) ->
         Platform.send_to_switch sw 0l 
-          (Message.add_flow !prio match_ actions) >>
+          (Message.FlowModMsg (FlowMod.add_flow !prio match_ actions)) >>
         (decr prio; Lwt.return ()))
       flow_table
 
@@ -366,7 +366,6 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
         let _ = Log.printf "NetCore_Controller" "unparsable packet\n%!" in
         Lwt.return ()
       end
-
 
   let rec handle_switch_messages pol sw = 
     let open Message in
@@ -498,11 +497,11 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
         (OpenFlow0x01.Match.to_string match_)
         (OpenFlow0x01.Action.sequence_to_string actions);
       Platform.send_to_switch sw 0l 
-        (Message.add_flow !prio match_ actions) >>
+	(Message.FlowModMsg (FlowMod.add_flow !prio match_ actions)) >>
         (decr prio; Lwt.return ()))
     flow_table;
       Platform.send_to_switch sw 0l 
-        (Message.add_flow 1 (fst drop_rule) (snd drop_rule))
+        (Message.FlowModMsg (FlowMod.add_flow 1 (fst drop_rule) (snd drop_rule)))
 
 
   (* First draft: ignore barriers *)
@@ -510,9 +509,9 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
     Lwt_stream.iter_s (fun (int, ext, topo_pol) -> 
       clear_switch sw >>
 	configure_switch sw topo_pol >>
-	let _ = Log.printf "NetCore_Controller" "internal pol:\n%s\n%!" (NetCore_Pretty.pol_to_string int) in
+	let _ = Log.printf "NetCore_Controller" "internal pol:\n%s\n%!" (NetCore_Pretty.string_of_pol int) in
 	configure_switch sw int >>
-	  let _ = Log.printf "NetCore_Controller" "external pol:\n%s\n%!" (NetCore_Pretty.pol_to_string ext) in
+	  let _ = Log.printf "NetCore_Controller" "external pol:\n%s\n%!" (NetCore_Pretty.string_of_pol ext) in
       configure_switch sw (PoUnion(int,ext)))
       (NetCore_Stream.to_stream pol_stream)
       

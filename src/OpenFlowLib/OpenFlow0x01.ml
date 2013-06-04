@@ -7,13 +7,14 @@ exception Ignored of string
 
 type switchId = int64
 type portId = int16
+type xid = int32
 
 let string_of_switchId = Int64.to_string
-
 let string_of_portId = string_of_int
-let string_of_dlAddr = dlAddr_to_string
 
 let sum (lst : int list) = List.fold_left (fun x y -> x + y) 0 lst
+
+let vlan_none = 0xffff
 
 cenum ofp_stats_types {
   OFPST_DESC;
@@ -191,7 +192,7 @@ module Match = struct
     let vlan =
       match m.dlVlan with
       | Some (Some v) -> v
-      | Some None -> Packet.vlan_none
+      | Some None -> vlan_none
       | None -> 0 in
     set_ofp_match_dl_vlan bits (vlan);
     set_ofp_match_dl_vlan_pcp bits (if_some8 m.dlVlanPcp);
@@ -224,7 +225,7 @@ module Match = struct
         else
           begin
             let vlan = get_ofp_match_dl_vlan bits in
-            if vlan = Packet.vlan_none then
+            if vlan = vlan_none then
               Some None
             else
               Some (Some vlan)
@@ -554,7 +555,7 @@ module Action = struct
       Output (PseudoPort.make ofp_port_code len)
     | Some OFPAT_SET_VLAN_VID ->
       let vid = get_ofp_action_vlan_vid_vlan_vid bits' in
-      if vid = Packet.vlan_none then
+      if vid = vlan_none then
         StripVlan
       else
         SetDlVlan (Some vid)
@@ -1166,6 +1167,21 @@ module FlowMod = struct
     ; out_port : PseudoPort.t option
     ; check_overlap : bool }
 
+  let add_flow prio pat actions = 
+    { mod_cmd = Command.AddFlow;
+      match_ = pat;
+      priority = prio;
+      actions = actions;
+      cookie = 0L;
+      idle_timeout = Timeout.Permanent;
+      hard_timeout = Timeout.Permanent;
+      notify_when_removed = false;
+      out_port =  None;
+      apply_to_packet = None;
+      check_overlap = false
+    }
+
+
   cstruct ofp_flow_mod {
     uint64_t cookie;
     uint16_t command;
@@ -1237,9 +1253,7 @@ module Payload = struct
   let parse (t : t) = match t with
     | Buffered (_, b)
     | NotBuffered b -> 
-      match Packet.parse b with
-        | Some pk -> pk
-        | None -> raise (Unparsable "payload cannot be parsed")
+      Packet.parse b
 
   let to_string (t : t) = match t with
     | Buffered (b, pk) ->
@@ -2173,8 +2187,6 @@ module Message = struct
 
   end
 
-  type xid = int32
-
   type t =
     | Hello of bytes
     | ErrorMsg of Error.t
@@ -2198,21 +2210,6 @@ module Message = struct
       ; match_ = Match.all
       ; priority = 0
       ; actions = []
-      ; cookie = 0L
-      ; idle_timeout = Timeout.Permanent
-      ; hard_timeout = Timeout.Permanent
-      ; notify_when_removed = false
-      ; apply_to_packet = None
-      ; out_port = None
-      ; check_overlap = false }
-
-  let add_flow prio match_ actions =
-    let open FlowMod in
-    FlowModMsg
-      { mod_cmd = Command.AddFlow
-      ; match_ = match_
-      ; priority = prio
-      ; actions = actions
       ; cookie = 0L
       ; idle_timeout = Timeout.Permanent
       ; hard_timeout = Timeout.Permanent
@@ -2330,7 +2327,7 @@ end
 
 module type PLATFORM = sig
   exception SwitchDisconnected of switchId
-  val send_to_switch : switchId -> Message.xid -> Message.t -> unit Lwt.t
-  val recv_from_switch : switchId -> (Message.xid * Message.t) Lwt.t
+  val send_to_switch : switchId -> xid -> Message.t -> unit Lwt.t
+  val recv_from_switch : switchId -> (xid * Message.t) Lwt.t
   val accept_switch : unit -> SwitchFeatures.t Lwt.t
 end

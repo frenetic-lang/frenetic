@@ -1,27 +1,37 @@
-let arpify(P:policy) =
-  if frameType = arp then all
-  else P
-
-let deliver(s:switch, i:ip, p:port) =
-  if switch = s && dstIP = i then fwd(p) 
+let routing_for_102 =
+  if switch = 102 then 
+    begin 
+      if dstIP = 10.0.0.10 then fwd(2) + 
+      if dstIP = 10.0.0.20 then fwd(2) + 
+      if dstIP = 10.0.0.30 then fwd(3) + 
+      if dstIP = 10.0.0.40 then fwd(3)
+    end
 
 let routing_for_103 =
-  deliver(103, 10.0.0.10, 2) + 
-  deliver(103, 10.0.0.20, 3) +
-  deliver(103, 10.0.0.30, 1) +
-  deliver(103, 10.0.0.40, 1)
+  if switch = 103 then 
+    begin 
+      if dstIP = 10.0.0.10 then fwd(2) + 
+      if dstIP = 10.0.0.20 then fwd(3) + 
+      if dstIP = 10.0.0.30 then fwd(1) + 
+      if dstIP = 10.0.0.40 then fwd(1)
+    end
 
-let routing_for_102 =
-  deliver(102, 10.0.0.10, 2) + 
-  deliver(102, 10.0.0.20, 2) +
-  deliver(102, 10.0.0.30, 3) +
-  deliver(102, 10.0.0.40, 3)
 
 let routing_for_104 =
-  deliver(104, 10.0.0.10, 1) + 
-  deliver(104, 10.0.0.20, 1) +
-  deliver(104, 10.0.0.30, 2) +
-  deliver(104, 10.0.0.40, 3)
+  if switch = 104 then 
+    begin 
+      if dstIP = 10.0.0.10 then fwd(1) + 
+      if dstIP = 10.0.0.20 then fwd(1) + 
+      if dstIP = 10.0.0.30 then fwd(2) + 
+      if dstIP = 10.0.0.40 then fwd(3)
+    end
 
 let sol2 =
-  arpify(routing_for_102 + routing_for_103 + routing_for_104)
+  if frameType = arp then 
+    all 
+  else 
+    begin 
+      routing_for_102 + 
+      routing_for_103 + 
+      routing_for_104
+    end

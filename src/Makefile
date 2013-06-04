@@ -3,14 +3,15 @@ APPLICATIONS = Applications/Frenetic \
                Applications/Verify \
                Applications/NetCoreConsistent \
                Applications/OxTemplate \
-	             Applications/OxRepeater \
+               Applications/OxRepeater \
                Applications/OxMonitor \
                Applications/OxLearning \
                Applications/OxTutorial1 \
                Applications/OxTutorial2 \
                Applications/OxTutorial3 \
-               Applications/OxTutorial4
-
+               Applications/OxTutorial4 \
+               Applications/OxTutorial5 \
+               Applications/OxTutorial6
 
 LIBRARIES = FreneticLib \
             PacketLib \

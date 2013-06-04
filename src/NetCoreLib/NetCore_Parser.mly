@@ -81,6 +81,7 @@
 %token MONITOR_TBL
 %token MONITOR_SW
 %token MONITOR_LOAD
+%token MONITOR_PKTS
 %token <string> STRING
 %token EOF
 %token TICKTICKTICK /* only for Markdown */
@@ -156,13 +157,19 @@ pol_atom :
   | VLAN NONE RARROW INT64
     { Action (symbol_start_pos (),
               Action.updateDlVlan None (Some (int12_of_int64 $4))) }
+  | TCPSRCPORT INT64 RARROW INT64
+    { Action (symbol_start_pos (),
+              Action.updateSrcPort (int16_of_int64 $2) (int16_of_int64 $4)) }
+  | TCPDSTPORT INT64 RARROW INT64
+    { Action (symbol_start_pos (),
+              Action.updateDstPort (int16_of_int64 $2) (int16_of_int64 $4)) }
   | ALL 
     { Action (symbol_start_pos (), Action.to_all) }
   | MONITOR_POL LPAREN pol RPAREN
     { Transform (symbol_start_pos (), NetCore_Monitoring.monitor_pol, $3) }
   | MONITOR_TBL LPAREN INT64 COMMA pol RPAREN
     { Transform (symbol_start_pos (), NetCore_Monitoring.monitor_tbl $3, $5) }
-  | MONITOR_SW LPAREN RPAREN 
+  | MONITOR_SW 
     { HandleSwitchEvent
       (symbol_start_pos (), NetCore_Monitoring.monitor_switch_events) }
   | MONITOR_LOAD LPAREN seconds COMMA pred RPAREN
@@ -170,6 +177,11 @@ pol_atom :
       ( symbol_start_pos ()
       , NetCore_Monitoring.monitor_load $3
       , Filter (symbol_start_pos (), $5) ) }
+  | MONITOR_PKTS LPAREN pred RPAREN
+    { Transform 
+      ( symbol_start_pos ()
+      , NetCore_Monitoring.monitor_packets 
+      , Filter (symbol_start_pos (), $3) ) }
   | LCURLY pred RCURLY pol LCURLY pred RCURLY
     { Slice (symbol_start_pos (), $2, $4, $6) }
 
@@ -221,7 +233,16 @@ pol :
              $13) }
 
 
-program
-  : pol EOF { $1 }
+program :
+ | pol EOF 
+    { $1 }
+
+ | LET ID EQUALS pol 
+    { $4 } 
+
+ | LET ID EQUALS pol program 
+    { Let (symbol_start_pos (),
+	  [($2, $4)], 
+	  $5) }
 
 %%

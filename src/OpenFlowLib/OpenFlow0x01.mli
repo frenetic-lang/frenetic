@@ -1,38 +1,33 @@
-(** This module provides data structures and functions for constructing,
-marshalling, and parsing OpenFlow 1.0 messages.  It is largely drawn from the
-OpenFlow 1.0 specification:
+(** Library for constructing, marshalling, and parsing OpenFlow 1.0 messages.
+It is largely drawn from the OpenFlow 1.0 specification:
 
-http://www.openflow.org/documents/openflow-spec-v1.0.0.pdf
+{{:http://www.openflow.org/documents/openflow-spec-v1.0.0.pdf}
+http://www.openflow.org/documents/openflow-spec-v1.0.0.pdf}
 
 Most data structures are documented with a pointer to relevent section in the
-OpenFlow 1.0 specification, Rather than reproducing the specification here. *)
+OpenFlow 1.0 specification, rather than reproducing the specification here. *)
 
 open Packet
 
-(** [Unparsable msg] signals an error in parsing, such as when a bit sequence
-has been corrupted. *)
-exception Unparsable of string
+(** {9 OpenFlow types}
 
-(** [Ignored msg] signals the arrival of a valid OpenFlow message that the
-parser is not yet equipped to handle. *)
-exception Ignored of string
+    These types are primarily drawn from Section 5 of the OpenFlow 1.0
+    specification.
+*)
 
-(* [switchId] is the type of switch identifiers received as part of
+(** [switchId] is the type of switch identifiers received as part of
 [SwitchFeature] replies. *)
 type switchId = int64
 
-(* [portId] is the type of physical port identifiers (port numbers). *)
+(** [portId] is the type of physical port identifiers (port numbers). *)
 type portId = int16
 
-(* [string_of_switchId sw] pretty-prints [sw]. *)
-val string_of_switchId : switchId -> string
+(** Transaction ID of OpenFlow messages. *)
+type xid = int32
 
-(* [string_of_switchId p] pretty-prints [p]. *)
-val string_of_portId : portId -> string
-
-module Match : sig
 (** Flow match data structure.  See Section 5.2.3 of the OpenFlow 1.0
 specification. *)
+module Match : sig
 
   (** Each field describes criteria for matching one packet header field.  A
   value of [None] indicates a wildcard match (i.e. match all values). *)
@@ -59,9 +54,9 @@ specification. *)
 
 end
 
-module PseudoPort : sig
 (** A pseudo-port, as described by the [ofp_port] enumeration in Section 5.2.1
 of the OpenFlow 1.0 specification. *)
+module PseudoPort : sig
 
   type t =
     | PhysicalPort of portId
@@ -78,9 +73,9 @@ of the OpenFlow 1.0 specification. *)
 
 end
 
-module Action : sig
 (** Flow action data structure.  See Section 5.2.4 of the OpenFlow 1.0
 specification. *)
+module Action : sig
 
   type t =
     | Output of PseudoPort.t (** Output to switch port. *)
@@ -112,12 +107,12 @@ specification. *)
 
 end
 
-module PortDescription : sig
 (** Port data structure.  See section 5.2.1 of the OpenFlow 1.0 specification. *)
+module PortDescription : sig
 
-  module PortConfig : sig
   (** See the [ofp_port_config] enumeration in Section 5.2.1 of the OpenFlow 
   1.0 specification. *)
+  module PortConfig : sig
 
     type t =
       { down : bool (** Port is administratively down. *)
@@ -135,13 +130,13 @@ module PortDescription : sig
 
   end
 
-  module PortState : sig
   (** See the [ofp_port_state] enumeration in Section 5.2.1 of the OpenFlow 
   1.0 specification.
   
   The [stp_X] fields have no effect on switch operation.  The controller must
   adjust [PortConfig.no_recv], [PortConfig.no_fwd], and
   [PortConfig.no_packet_in] to fully implement an 802.1D tree. *)
+  module PortState : sig
 
     type t =
       { down : bool  (** No physical link present. *)
@@ -155,9 +150,9 @@ module PortDescription : sig
 
   end
 
-  module PortFeatures : sig
   (** See the [ofp_port_features] enumeration in Section 5.2.1 of the OpenFlow
   1.0 specification. *)
+  module PortFeatures : sig
 
     type t =
       { f_10MBHD : bool (** 10 Mb half-duplex rate support. *)
@@ -196,12 +191,12 @@ module PortDescription : sig
 
 end
 
-module PortStatus : sig
 (** Port status message.  See Section 5.4.3 of the OpenFlow 1.0 specification. *)
+module PortStatus : sig
 
-  module ChangeReason : sig
   (** See the [ofp_port_reason] enumeration in Section 5.4.3 of the OpenFlow
   1.0 specification. *)
+  module ChangeReason : sig
 
     type t =
       | Add (** The port was added. *)
@@ -222,9 +217,9 @@ module PortStatus : sig
 
 end
 
-module SwitchFeatures : sig
 (** Switch features data structure.  See Section 5.3.1 of the OpenFlow 1.0
 specification. *)
+module SwitchFeatures : sig
 
   (** Fields that support wildcard patterns on this switch. *)
   type supported_wildcards =
@@ -241,9 +236,9 @@ specification. *)
     ; tpDst : bool
     ; inPort : bool }
 
-  module Capabilities : sig
   (** See the [ofp_capabilities] enumeration in Section 5.3.1 of the OpenFlow
   1.0 specification. *)
+  module Capabilities : sig
 
 
     type t =
@@ -261,8 +256,8 @@ specification. *)
 
   end
 
-  module SupportedActions : sig
   (** Describes which actions ([Action.t]) this switch supports. *)
+  module SupportedActions : sig
 
     type t =
       { output : bool
@@ -300,13 +295,13 @@ specification. *)
 
 end
 
-module FlowMod : sig
 (** A flow modification data structure.  See Section 5.3.3 of the OpenFlow 1.0
 specification. *)
+module FlowMod : sig
 
-  module Command : sig
   (** See the [ofp_flow_mod_command] enumeration in Section 5.3.3 of the 
   OpenFlow 1.0 specification. *)
+  module Command : sig
 
     type t =
       | AddFlow (** New flow. *)
@@ -320,11 +315,13 @@ specification. *)
 
   end
 
+  (** The type of flow rule timeouts.  See Section 5.3.3 of the OpenFlow 1.0
+  specification. *)
   module Timeout : sig
 
     type t =
-      | Permanent
-      | ExpiresAfter of int16
+      | Permanent (** No timeout. *)
+      | ExpiresAfter of int16 (** Time out after [n] seconds. *)
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -351,6 +348,14 @@ specification. *)
     ; check_overlap : bool (** Check for overlapping entries first. *)
     }
 
+  (** [add_flow priority pattern action_sequence] creates a
+      [FlowMod.t] instruction that adds a new flow table entry with
+      the specified [priority], [pattern], and [action_sequence].
+
+      The entry is permanent (i.e., does not timeout), its cookie is
+      zero, etc. *)
+  val add_flow : int16 -> Match.t -> Action.sequence -> t
+
   (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
 
@@ -371,7 +376,7 @@ module Payload : sig
   val to_string : t -> string
 end
 
-(** A Packet-In message.  See Section 5.4.1 of the OpenFlow 1.0
+(** A packet-in message.  See Section 5.4.1 of the OpenFlow 1.0
     specification.
 *)
 module PacketIn : sig
@@ -389,7 +394,11 @@ module PacketIn : sig
 
   type t =
     { payload : Payload.t
-    ; total_len : int16 (** Full length of frame. *)
+      (** The packet contents, which may truncated, in which case, 
+          the full packet is buffered on the switch. *)
+    ; total_len : int16
+      (** The length of the full packet, which may exceed the length
+          of [payload] if the packet is buffered. *)
     ; port : portId (** Port on which frame was received. *)
     ; reason : Reason.t (** Reason packet is being sent. *)
     }
@@ -399,7 +408,7 @@ module PacketIn : sig
 
 end
 
-(** A send packet message.  See Section 5.3.6 of the OpenFlow 1.0
+(** A send-packet message.  See Section 5.3.6 of the OpenFlow 1.0
     specification. *)
 module PacketOut : sig
 
@@ -414,10 +423,11 @@ module PacketOut : sig
 
 end
 
-module StatsRequest : sig
 (** A statistics request message.  See Section 5.3.5 of the OpenFlow 1.0 
 specification. *)
+module StatsRequest : sig
 
+  (** The body of an individual flow statistics request. *)
   module IndividualFlowRequest : sig
 
     type t = { of_match : Match.t (** Fields to match. *)
@@ -433,6 +443,7 @@ specification. *)
 
   end
 
+  (** The body of an aggregate flow statistics request. *)
   module AggregateFlowRequest : sig
 
     type t = { of_match : Match.t (** Fields to match. *)
@@ -472,10 +483,11 @@ specification. *)
 
 end
 
-module StatsReply : sig
 (** A statistics reply message.  See Section 5.3.5 of the OpenFlow 1.0 
 specification. *)
+module StatsReply : sig
 
+  (** The body of a reply to a description request. *)
   module DescriptionStats : sig
 
     type t =
@@ -491,6 +503,7 @@ specification. *)
 
   end
 
+  (** The body of a reply to an individual flow statistics request. *)
   module IndividualFlowStats : sig
 
     type t =
@@ -514,6 +527,7 @@ specification. *)
 
   end
 
+  (** The body of a reply to an aggregate flow statistics request. *)
   module AggregateFlowStats : sig
 
     type t =
@@ -527,6 +541,7 @@ specification. *)
 
   end
 
+  (** The body of a reply to a table statistics request. *)
   module TableStats : sig
 
     type t =
@@ -546,6 +561,7 @@ specification. *)
 
   end
 
+  (** The body of a reply to a port statistics request. *)
   module PortStats : sig
 
     type t =
@@ -587,8 +603,8 @@ specification. *)
 
 end
 
+(** An error message.  See Section 5.4.4 of the OpenFlow 1.0 specification. *)
 module Error : sig
-(** Error message.  See Section 5.4.4 of the OpenFlow 1.0 specification. *)
 
   module HelloFailed : sig
 
@@ -704,10 +720,11 @@ module Error : sig
 end
 
 
-module Message : sig
-(* A subset of the OpenFlow 1.0 messages defined in Section 5.1 of the 
+(** A subset of the OpenFlow 1.0 messages defined in Section 5.1 of the 
 specification. *)
+module Message : sig
 
+  (** A message header. *)
   module Header : sig
 
     type t
@@ -727,9 +744,6 @@ specification. *)
     val parse : string -> t
 
   end
-
-  (* Transaction ID of OpenFlow messages. *)
-  type xid = int32
 
   type t =
     | Hello of bytes
@@ -769,10 +783,28 @@ specification. *)
   (** A message ([FlowModMsg]) that deletes all flows. *)
   val delete_all_flows : t
 
-  (** A permanent [FlowModMsg] adding a rule. *)
-  val add_flow : int -> Match.t -> Action.sequence -> t
-
 end
+
+
+(** {9 Pretty printing}
+
+    In general, each submodule contains pretty-printing functions for the types
+    defined therein.  This section defines pretty printers for top-level types.
+*)
+
+(** [string_of_switchId sw] pretty-prints [sw]. *)
+val string_of_switchId : switchId -> string
+
+(** [string_of_switchId p] pretty-prints [p]. *)
+val string_of_portId : portId -> string
+
+
+(** {9 Platform signatures} 
+
+    An OpenFlow platform is responsible for accepting and managing connections
+    to OpenFlow-enabled switches.  It relies on the [Message] module for
+    parsing and marshaling messages.
+*)
 
 (** Interface for all platforms. *)
 module type PLATFORM = sig
@@ -785,7 +817,7 @@ module type PLATFORM = sig
 
   (** [send_to_switch switch_id xid msg] sends [msg] to the switch,
       blocking until the send completes. *)
-  val send_to_switch : switchId -> Message.xid -> Message.t-> unit Lwt.t
+  val send_to_switch : switchId -> xid -> Message.t-> unit Lwt.t
 
   (** [recv_from_switch switch_id] blocks until [switch_id] sends a
       message.
@@ -793,7 +825,7 @@ module type PLATFORM = sig
       If the switch sends an [ECHO_REQUEST], [recv_from_switch] will
       itself respond with an [ECHO_REPLY] and block for the next
       message. *)
-  val recv_from_switch : switchId -> (Message.xid * Message.t) Lwt.t
+  val recv_from_switch : switchId -> (xid * Message.t) Lwt.t
 
   (** [accept_switch] blocks until a switch connects, handles the
       OpenFlow handshake, and returns after the switch sends a
@@ -801,3 +833,16 @@ module type PLATFORM = sig
   val accept_switch : unit -> SwitchFeatures.t Lwt.t
 
 end
+
+(** {9 Parsing exceptions}
+
+    These exceptions may occur when parsing OpenFlow messages.
+*)
+
+(** [Unparsable msg] signals an error in parsing, such as when a bit sequence
+has been corrupted. *)
+exception Unparsable of string
+
+(** [Ignored msg] signals the arrival of a valid OpenFlow message that the
+parser is not yet equipped to handle. *)
+exception Ignored of string
