@@ -119,7 +119,7 @@ Sending packets to the controller is much slower than processing them
 locally on a switch.  So, a controller typically inserts rules into
 the flow table to implement the packet-processing function efficiently.
 
-### Exercise 1: A Naive Repeater
+<h3 id="Exercise1">Exercise 1: A Naive Repeater</h3>
 
 As a warmup exercise, you will build a repeater that forwards incoming
 packets on all other ports. You will do so in two steps. First, you
@@ -272,11 +272,13 @@ the flow table. Your task is to fill in `priority`, `pattern`, and
   `packet_in` function. (If not, switch and controller will be
   inconsistent.)
 
-#### Testing Your Controller
 
-You can test this controller as you tested the controller above. However,
-the controller itself should not receive packets.
-   
+#### Building and Testing Your Controller
+
+You can build and test your controller in exactly as you did in
+[Exercise 1][Exercise1]. However, during testing, the controller should not
+receive any packets.
+
 > TODO(arjun): fast pings to show that packet_ins can still happen?
    
 Exercise 2: Firewall
