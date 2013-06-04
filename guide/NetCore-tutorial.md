@@ -31,17 +31,17 @@ In addition, a network is a distributed system, and all of the usual complicatio
 
 The goal of the Frenetic language is to raise the level of abstraction for programming SDNs. To replace the low-level imperative interfaces available today, Frenetic offers a suite of declarative abstractions for querying network state, deﬁning forwarding policies, and updating policies in a consistent way.  These constructs are designed to be *modular* so that individual policies can be written in isolation, by different developers and later composed with other components to create sophisticated policies. This is made possible in part by the design of the constructs themselves, and in part by the underlying run-time system, which implements them by compiling them down to low-level OpenFlow forwarding rules.  Our emphasis on modularity and composition—the foundational principles behind effective design of any complex software system—is the key feature that distinguishes Frenetic from other SDN controllers.
 
-Preliminary Programming Concepts
---------------------------------
+Preliminary NetCore Programming Concepts
+-----------------------------------------
 
-A Frenetic policy describes how a collection of switches
-forwards packets from one location to another.  We call a Frenetic policy
+A NetCore policy describes how a collection of switches
+forwards packets from one location to another.  We call a NetCore policy
 *static* when it is fixed ahead of time,
-does not change, and does not depend upon the packets flows that
+does not change, and does not depend upon the packet flows that
 appear in the network.  We will focus first on static policies 
 and add some simple dynamics later in the tutorial.
 
-The Frenetic programming paradigm encourages users to think of static
+The NetCore programming paradigm encourages users to think of static
 policies as abstract *functions* that specify the behavior of switches
 and to ignore how these functions are actually implemented on switch 
 hardware --- our compiler will take
@@ -59,11 +59,11 @@ elements.  When one takes the union of two multi-sets that both
 contain the element x, the resulting multi-set has two occurrences
 of the element x.)  In the rest of the tutorial, we will often 
 call our located packets simply "packets" for short.
-Keep in mind that all packets processed by Frenetic come with associated
+Keep in mind that all packets processed by NetCore come with associated
 location information.
 
 To understand how a packet flows through a network, a programmer must
-analyze both the current Frenetic policy P and the network topology
+analyze both the current NetCore policy P and the network topology
 T.  The policy is a function that explains how a switch should move
 a packet from an input port to an output port.  The topology is a
 function that explains how a packet moves from the outport of one
@@ -83,14 +83,14 @@ And then apply the topology function T again.
 In summary, one traces the flow of
 packets through a network by alternately applying the policy function
 P and the topology function T.
-Static Frenetic is just a domain-specific
+Static NetCore is just a domain-specific
 language that makes it easy to write down a single policy function
 P that determines how switches forward packets.
 
 Introductory Examples
 ---------------------
 
-The main features of Static Frenetic include the following.
+The main features of Static NetCore include the following.
 
   - a set of primitive *actions*, which allow programmers to modify and 
 forward packets
@@ -112,11 +112,15 @@ a repeater --- a simple switch that forwards all packets coming in port 1
 out port 2 and vice versa.  The following policy accomplishes that task.
 
 ```
+(* a simple repeater *)
+
 let repeater =
   if inPort = 1 then fwd(2)
   else fwd(1)
 ```
-
+As in OCaml, 
+NetCore comments are placed within <code>(*</code> and <code>*)</code>
+(and comments may be nested).
 The <code>let</code> keyword introduces a new policy, 
 which we have chosen to call 
 <code>repeater</code>.  
@@ -171,7 +175,8 @@ mininet>
 
 Mininet has started up a single switch with two hosts <code>h1</code> and
 <code>h2</code>, connected to the two ports on the switch.
-At the mininet prompt, test your repeater program using ping:
+At the mininet prompt, test your repeater program by pinging h2
+from h1:
 
 ```
 mininet> h1 ping h2
@@ -192,7 +197,96 @@ You should see a trace like this one:
 rtt min/avg/max/mdev = 0.040/0.107/0.397/0.130 ms
 ```
 
+Ping h1 from h2 as well.  Once you are convinced the repeater works,
+try replacing the given repeater with an even simpler one:
+
+```
+let repeater = all
+```
+
+The <code>all</code> policy forwards any packet arriving at a switch out
+all ports on that switch except the port it arrived on.
+
+
 ### Example 2: Simple Port Translation
+
+Next, let's adapt our first example so that instead of simply acting
+as a repeater, our switch does some packet rewriting.  More specifically,
+let's create a switch that maps connections initiated by host h1 
+and destined to TCP port 5022 to the standard ssh port 22.  To implement
+the example, we will use three additional concepts:  *modification
+actions*, the *identity action* <code>pass</code> and *sequential composition*.
+
+In general, packet modifications are written as follows:
+```
+field pre-value -> post-value
+```
+When executing such an action, the switch tests the <code>field</code>
+to determine whether it holds the <code>pre-value</code>.  If it does,
+then the field is rewritten to the <code>post-value</code>.  If it
+does not, then the packet is dropped. *DPW: Check semantics of conditional
+actions.*  For instance,
+```
+tcpDstPort 5022 -> 22
+```
+rewrites the <code>tcpDstPort</code> of packets starting with
+<code>tcpDstPort</code> 5022 to 22.
+
+Now that policies can have an interesting mix of modification and 
+forwarding actions, we need a way to glue those actions together:
+*sequential composition* (<code>;</code>).  For instance,
+```
+tcpDstPort 5022 -> 22; fwd(1)
+```
+modifies the <code>tcpDstPort</code> and then forwards the result of
+the modification out port 1.  Note that in this case, we have composed
+the effect of two actions.  However, you can use sequential composition
+to compose the effects of any two policies --- they do not just have
+to be simple actions.  This is useful for putting together complex
+policies from simpler parts.  
+
+The <code>pass</code> action goes together naturally with sequential
+composition as it acts like the identity function on packets. In other
+words, <code>pass</code> has the useful property that both 
+<code>pass; P</code> and
+<code>P; pass</code> are equal to <code>P</code> for any policy 
+<code>P</code>.  At first, it seems as though this makes 
+<code>pass</code> a completely useless construct, but it turns
+out to be essential in combination with other features of NetCore.
+
+Now, the port translation program:
+```
+let mapper =
+  if inPort = 1 && tcpDstPort = 5022 then
+    tcpDstPort 5022 -> 22
+  else if inPort = 2 && tcpSrcPort = 22 then
+    tcpSrcPort 22 -> 5022
+  else
+    pass
+
+let forwarder =
+  mapper; all
+```
+The mapper component rewrites the destination port in one
+direction and the source port in the other, if those ports
+take on the given values entering the switch.  If they don't,
+<code>pass</code> leaves packets untouched.  A forwarder
+is defined by composing a mapper with the all forwarding policy.
+
+Try out the mapper from the examples directory:
+```
+> frenetic tut2.nc
+```
+Then in mininet, in the default topology,
+simulate an ssh process listening on port 22 on host h2:
+```
+mininet> h2 iperf -s -p 22 &
+```
+and connect to it from h1 by establishing a connection to port 5022.
+The mapper will translate port numbers for you.
+```
+mininet> h1 iperf -c 10.0.0.2 -p 5022
+```
 
 ### Example 3: A Larger Network
 
