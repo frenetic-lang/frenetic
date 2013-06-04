@@ -376,8 +376,6 @@ module PseudoPort = struct
         raise
           (Unparsable (sprintf "unsupported port number (%d)" ofp_port_code))
 
-  let parse _ = failwith "NYI: PseudoPort.parse"
-
 end
 
 module Action = struct
@@ -636,7 +634,6 @@ module PortDescription = struct
       }
 
     let size_of _ = 4
-    let to_int _ = failwith "NYI: PortConfig.to_int"
 
   end
 
@@ -667,7 +664,6 @@ module PortDescription = struct
       ; stp_forward = false
       ; stp_block = false }
 
-    let to_int _ = failwith "NYI: PortState.to_int"
     let size_of _ = 4
 
   end
@@ -716,7 +712,6 @@ module PortDescription = struct
       p.pause_asym
 
     let size_of _ = 4
-    let to_int _ = failwith "NYI: PortFeatures.to_int"
 
     let of_int bits =
       { f_10MBHD = test_bit 0 bits
