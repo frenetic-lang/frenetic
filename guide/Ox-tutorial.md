@@ -430,8 +430,6 @@ and otherwise false.
 
     This command should successfully display the source for the guide.
 
-> TODO(arjun): continue below
-
 ### An Efficient Firewall
 
 In this part, you will implement the firewall efficiently, using the
@@ -454,7 +452,7 @@ let switch_connected (sw : switchId) : unit =
 Your task is to fill in the priorities, patterns, and actions in the
 handler above.
 
-First, write an OpenFlow pattern to match ICMP traffic. Patterns in
+First, write a [pattern][Match] to match ICMP traffic. Patterns in
 OpenFlow 1.0 can match the values of 12 pre-determined packet headers.
 For example, the following pattern matches all traffic from the host
 whose Ethernet address is `00:00:00:00:00:12`:
@@ -506,9 +504,12 @@ with the same priority, the behavior is unspecified. Therefore, pick
 different priorities for each pattern, unless you are certain the
 patterns are disjoint.
 
+> TODO(arjun): continue below
 
 Exercise 3: Traffic Monitoring
 ==============================
+
+
 
 
 Exercise 4: Learning Switch
