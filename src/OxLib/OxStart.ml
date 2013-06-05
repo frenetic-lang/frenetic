@@ -2,48 +2,7 @@ open Printf
 open Packet
 open OpenFlow0x01_Core
 open OpenFlow0x01
-
-module Log = Frenetic_Log
-
-module Platform = OpenFlow0x01_Platform
-
-type to_sw = switchId * xid * Message.t
-
-let (to_send_stream, defer) : (to_sw Lwt_stream.t * (to_sw option -> unit))
-    = Lwt_stream.create ()
-
-let munge_exns thunk =
-  try_lwt
-    Lwt.wrap thunk
-  with exn ->
-    begin
-      Log.printf "Ox" "unhandled exception: %s\nRaised by a callback.\n%s%!"
-        (Printexc.to_string exn)
-        (Printexc.get_backtrace ());
-      Lwt.return ()
-    end
-
-module OxPlatform = struct
-  open Message
-
-  let send_packet_out sw xid pktOut =
-    defer (Some (sw, xid, PacketOutMsg pktOut))
-	  
-  let send_flow_mod sw xid flowMod =
-    defer (Some (sw, xid, FlowModMsg flowMod))
-	  
-  let send_stats_request sw xid req =
-    defer (Some (sw, xid, StatsRequestMsg req))
-    
-  let send_barrier_request sw xid =
-    defer (Some (sw, xid, BarrierRequest))
-    
-  (* TODO(arjun): I'm not happy about this. I want an exception to terminate
-     the right swich, unless we have exceptions kill the controller. *)
-  let timeout (n : float) (thk : unit -> unit) : unit = 
-    Lwt.async 
-      (fun () -> Lwt_unix.sleep n >> munge_exns thk)
-end
+open OxShared
 
 module type OXMODULE = sig
   val switch_connected : switchId -> unit
