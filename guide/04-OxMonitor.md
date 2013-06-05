@@ -1,23 +1,51 @@
-
 Exercise 3: Traffic Monitoring
 ==============================
 
-- Compose the firewall and repeater with a third application: Web
-  traffic monitor (count the total number of packets sent to and from
-  port 80).
+In this exercise, you will write a controller that measures the volume
+of Web traffic on a network. To implement monitoring efficiently, you
+will learn how to read the traffic [statistics] that OpenFlow switches
+maintain. You will compose your new traffic monitor with the
+[repeater] and [firewall] you wrote in earlier exercises.
 
-### The Monitoring Function
+As usual, you will proceed in two steps: you will first write and test
+a traffic monitoring function, and then implement it efficiently uses
+flow tables and OpenFlow statistics.
 
-- Use the following template:
+## The Monitoring Function
+
+Your monitor must count the total number of packets _sent to and
+received from_ port 80. Since the monitoring function receives all
+packets, you can maintain a global counter and increment it each time
+the `packet_in` function receives a new HTTP packet:
+
+```ocaml
+let num_http_packets = ref 0
+
+let packet_in (sw : switchId) (xid : xid) (pktIn : packetIn) : unit =
+  if is_http_packet (parse_payload pktIn.Papayload) then
+    begin
+        num_http_packets := !num_http_packets + 1;
+        Printf.printf "Seen %d HTTP packets.\n%!" !num_http_packets
+    end
+```
+
+*Programming Task:* Your task is to write the `is_http_packet` predicate.
+
+
+To implement the firewall and repeater, you should be able to use the
+the `packet_in` function you wrote in [Exercise 2][firewall] verbatim. Simply
+copy the function over, give it a different name, and call it from the actually
+`packet_in` function above.
+
+Use this template to get started quickly:
 
 ```ocaml
 open Ox
 open OxPlatform
-open OpenFlow0x01
-module MyApplication : OXMODULE = struct
+open OpenFlow0x01_Core
 
-  include OxDefaults
-  
+module MyApp : OXMODULE = struct
+
   let num_http_packets = ref 0
 
   let switch_connected (sw : switchId) : unit = 
@@ -32,7 +60,6 @@ module MyApplication : OXMODULE = struct
   let packet_in_ex2 (sw : switchId) (xid : xid) (pktIn : PacketIn.t) : unit =
     (* [FILL IN HERE]: the packet_in function from exercise 2 *)
 
-  (* [FILL IN HERE] You can use the packet_in function from OxTutorial2. *)
   let packet_in (sw : switchId) (xid : xid) (pktIn : PacketIn.t) : unit =
     packet_in_ex2 sw xid pktIn;
     if is_http_packet (Payload.parse pktIn.PacketIn.payload) then
@@ -43,13 +70,42 @@ module MyApplication : OXMODULE = struct
 
 end
 
-module Controller = Make (MyApplication)
+module Controller = Make (MyApp)
 ```
 
-#### Testing 
+## Testing
 
-- Same test sequence as above. But, when sending HTTP traffic, the counter
-  should be incremented.
+> Fill in the same test sequence as above. But, when sending HTTP
+> traffic, the counter should be incremented.
 
-- Run a Web server on port 8080. Note that connectivity works, but the
-  counter is not incremented.
+- Finally, you should test to ensure that other traffic is neither
+  blocked by the firewall nor counted by your monitor.
+
+  To conduct this test, run a Web server on a non-standard port (e.g.,
+  port 8080) and test that packets sent to and from this port are
+  neither blocked nor logged.
+
+  Run a web server and a web client from Mininet as follows:
+
+  ```
+  mininet> h2 python -m SimpleHTTPServer 8080 . &
+  ```
+
+  Fetch a page from the server:
+  ```
+  mininet> h1 curl 10.0.0.2 8080
+  ```
+
+  The client should successfully download the page. Furthermore, in the
+  controller terminal, you should find that no traffic is logged during
+  this connection.
+
+### Efficient Monitoring
+
+
+
+[repeater]: [./02-OxRepeater.md]
+
+[firewall]: [./03-OxFirewall.md]
+
+[statistics]: [http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Stats.html]
