@@ -74,7 +74,7 @@ module Format = struct
     | _ -> orpred fmt p
 
   and orpred fmt p = match p with
-    | PrAnd (p1, p2) -> fprintf fmt "@[%a@ || %a@]" apred p1 pred p2
+    | PrOr (p1, p2) -> fprintf fmt "@[%a@ || %a@]" apred p1 pred p2
     | _ -> apred fmt p
 
   and apred fmt p = match p with 
