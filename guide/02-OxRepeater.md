@@ -1,4 +1,4 @@
-Exercise 1: Repeater
+Chapter 1: Repeater
 ====================
 
 ### OpenFlow Overview
@@ -10,55 +10,71 @@ To program a switch, the controller uses a standard protocol, such as
 OpenFlow.
 
 A switch processes packets using a _flow table_, which is a list of
-prioritized packet-processing rules.  Each rule has a pattern (to
-match packets), a list of actions (to apply to matching packets), and
-various counters that collect statistics on processed traffic. If a
-pattern matches several packets, the switch applies the
-highest-priority rule.
+prioritized rules.  Each rule has four components:
 
-For example, the following is a sketch of a flow table that drops ICMP
-traffic, floods TCP traffic, and sends all other traffic to the controller:
+- A _pattern_ that matches packets' headers,
+
+- A _list of actions_ that is applied matching packets,
+
+- A _priority_ that is used to choose between rules that have
+  overlapping patterns, and
+
+- A _packet counter_ and a _byte counter_ that count count the number
+  of packets and bytes that have matched the rule.
+
+For example, consider the following flow table:
 
 <table>
 <tr>
-  <th>Priority</th>
-  <th>Pattern</th>
-  <th>Action</th>
-  <th>Counter (bytes)</th>
+  <th>Priority</th><th>Pattern</th><th>Action</th> <th>Counter (bytes)</th>
 </tr>
 <tr>
-  <td>50</td>
-  <td>ICMP</td>
-  <td>drop</td>
-  <td>50</td>
+  <td>50</td><td>ICMP</td><td>drop</td><td>50</td>
 </tr>
-  <td>40</td>
-  <td>TCP</td>
-  <td>flood</td>
-  <td>700</td>
+  <td>40</td><td>TCP</td><td>forward 2, forward 5</td><td>700</td>
 </tr>
 <tr>
-  <td>40</td>
-  <td>UDP</td>
-  <td>controller</td>
-  <td>50</td>
+  <td>30</td><td>UDP</td><td>controller</td><td>50</td>
 </tr>
+<tr>
+  <td>20</td><td>ICMP</td><td>forward 2</td><td>0</td>
 </table>
 
-By sending packets to the controller, the controller can implement an
-arbitrary packet-processing function (e.g., deep-packet inspection).
-Sending packets to the controller is much slower than processing them
-locally on a switch.  So, a controller typically inserts rules into
-the flow table to implement the packet-processing function efficiently.
+This table drops all ICMP (ping) packets, sends TCP packets out of
+ports 2 and 5 (i.e., it creates two copies), and sends UDP traffic to
+the controller. The last rule matches ICMP traffic. However, since it
+is fully-shadowed by the higher-priority rule, it is never
+triggered. (Shadowed rules can usually be eliminated safely.)
+
+The rule for UDP packets is notable, because it _sends packets to the
+controller_. At the controller, you can write an arbitrary
+packet-processing function (e.g., deep-packet
+inspection). Unsurprisingly, sending packets to the controller is much
+slower than processing them on the switch itself. Therefore, a
+controller typically uses the flow table to implement the intended
+packet-processing function efficiently.
 
 <h3 id="Exercise1">Exercise 1: A Naive Repeater</h3>
 
-As a warmup exercise, you will build a repeater that forwards incoming
-packets on all other ports. You will do so in two steps. First, you
-will leave the flow table empty, so all packets are diverted to the
-controller for processing.  After you complete and test that this
-naive strategy works correctly, you'll insert rules into the flow
-table to process packets on the switch itself.
+As a warmup exercise, you will build a repeater: a switch that
+forwards incoming packets on all other ports. You will do so in two
+steps:
+
+- First, you will leave the flow table empty, so all packets are
+  diverted to the controller for processing. At the controller, you can
+  use general programming techniques to easily express any policy you intend.
+
+- After you complete and test the controller's packet-processing function,
+  you will add rules into the flow table to implement the packet-processing
+  function on the switch itself.
+
+> This two-step exercise may seem contrived for a repeater. But, we
+> will quickly escalate to programs that are tricky to implement
+> efficiently. For these programs, the first naive implementation will
+> serve as a reference implementation to help you determine if your
+> efficient implementation is correct. We will also witness some corner
+> cases where it is necessary to process packets on both the controller
+> and switches. So, you do need both implementations.
 
 The Ox platform provides several functions to send different types of
 messages to switches. In turn, your Ox application must define event
