@@ -2,29 +2,11 @@ open Frenetic_Bit
 
 exception UnparsablePacket of string
 
-type bytes = Cstruct.t
-
-type int8 = int
-
-type int16 = int
-
-type int48 = int64
-
-type dlAddr = int48
-
-type dlTyp = int16
-
-type dlVlan = int16 option
-
-type dlVlanPcp = int8
-
-type nwAddr = int32
-
-type nwProto = int8
-
-type nwTos = int8
-
-type tpPort = int16
+let get_byte32 (n : Int32.t) (i : int) : int = 
+  let open Int32 in
+  if i < 0 or i > 3 then
+    raise (Invalid_argument "get_byte32 index out of range");
+  to_int (logand 0xFFl (shift_right_logical n (8 * i)))
 
 let get_byte (n:int64) (i:int) : int =
   if i < 0 or i > 5 then
@@ -51,6 +33,40 @@ let mac_of_bytes (str:string) : int64 =
              (logor (shift_left (byte 4) (8 * 1))
                 (byte 5)))))
 
+let string_of_ip (ip : Int32.t) : string = 
+  Format.sprintf "%d.%d.%d.%d" (get_byte32 ip 3) (get_byte32 ip 2) 
+    (get_byte32 ip 1) (get_byte32 ip 0)
+
+let string_of_mac (x:int64) : string =
+  Format.sprintf "%02x:%02x:%02x:%02x:%02x:%02x"
+    (get_byte x 5) (get_byte x 4) (get_byte x 3)
+    (get_byte x 2) (get_byte x 1) (get_byte x 0)
+
+
+type bytes = Cstruct.t
+
+type int8 = int
+
+type int16 = int
+
+type int48 = int64
+
+type dlAddr = int48
+
+type dlTyp = int16
+
+type dlVlan = int16 option
+
+type dlVlanPcp = int8
+
+type nwAddr = int32
+
+type nwProto = int8
+
+type nwTos = int8
+
+type tpPort = int16
+
 
 module Tcp = struct
 
@@ -67,6 +83,7 @@ module Tcp = struct
       ; syn : bool
       ; fin : bool }
 
+    (** TODO(arjun): IMO, this is TMI *)
     let to_string f = Printf.sprintf
       "{ ns = %B; cwr = %B; ece = %B; urg = %B; ack = %B; psh = %B; rst = %B; \
          syn = %B; fin = %B }"
@@ -110,6 +127,10 @@ module Tcp = struct
     ; urgent : int8
     ; payload : bytes }
 
+  let format fmt v =
+    let open Format in
+    fprintf fmt "@[tpSrc=%d;tpDst=%d@]" v.src v.dst
+
   cstruct tcp { 
     uint16_t src;
     uint16_t dst;
@@ -122,8 +143,6 @@ module Tcp = struct
     uint16_t urgent;
     uint32_t options (* options and padding *)
   } as big_endian
-
-  let to_string t = failwith "NYI: Tcp.to_string"
 
   (** TODO(arjun): errors if size is wrong *)
   let parse (bits : Cstruct.t) = 
@@ -184,6 +203,13 @@ module Icmp = struct
     uint16_t chksum
   } as big_endian
 
+  let format fmt v =
+    let open Format in
+    match v.typ with
+      | 0 -> fprintf fmt "ICMP echo reply";
+      | 8 -> fprintf fmt "ICMP echo response"
+      | n -> fprintf fmt "ICMP type=%d,code=%d" n v.code
+
   let to_string v = failwith "NYI: Icmp.to_string"
 
   (* TODO(arjun): error if not enough bytes for header *)
@@ -224,6 +250,7 @@ module Ip = struct
       ; mf : bool (** More fragments. *)
       }
 
+    (* TODO(arjun): TMI *)
     let to_string v = Printf.sprintf
       "{ df = %B; mf = %B }"
       v.df v.mf
@@ -252,6 +279,18 @@ module Ip = struct
     tp : tp
   }
 
+  let format_tp fmt = function
+    | Tcp tcp -> Tcp.format fmt tcp
+    | Icmp icmp -> Icmp.format fmt icmp
+    | Unparsable (proto, _) -> Format.fprintf fmt "protocol=%d" proto
+
+  let format fmt v =
+    let open Format in
+    fprintf fmt "@[nwSrc=%s,nwDst=%s,%a@]"
+      (string_of_ip v.src)
+      (string_of_ip v.dst) 
+      format_tp v.tp
+
   cenum ip_proto { 
     IP_ICMP = 0x01;
     IP_TCP = 0x06;
@@ -271,8 +310,6 @@ module Ip = struct
     uint32_t dst;
     uint32_t options (* options and padding *)
   } as big_endian
-
-  let to_string v = failwith "NYI: Ip.to_string"
 
   (* TODO(arjun): error if header does not fit *)
   let  parse (bits : Cstruct.t) = 
@@ -350,6 +387,21 @@ module Arp = struct
     | Query of dlAddr * nwAddr * nwAddr
     | Reply of dlAddr * nwAddr * dlAddr * nwAddr
 
+  let format fmt v =
+    let open Format in
+    match v with
+      | Query (srcMac, srcIP,dstIP) ->
+        (* src mac should be the same as ethernet srcMac, in theory *)
+        fprintf fmt "@[ARP Query,senderIP=%s,targetIP=%s@]"
+          (string_of_ip srcIP) (string_of_ip dstIP)
+      | Reply (srcMac, srcIP, dstMac, dstIP) ->
+        (* src mac should be the same as ethernet srcMac, in theory *)
+        fprintf fmt "@[ARP Reply,senderMac=%s,senderIP=%s,targetIP=%s@]"
+          (string_of_mac srcMac)
+          (string_of_ip srcIP)
+          (string_of_ip dstIP)
+      
+
   (* Network *)
   cstruct arp {
     uint16_t htype;
@@ -362,8 +414,6 @@ module Arp = struct
     uint8_t tha[6];
     uint32_t tpa
   } as big_endian
-
-  let to_string v = failwith "NYI: Arp.to_string"
 
   let nwSrc t = match t with
     | Query (_, ip, _) -> ip
@@ -432,6 +482,27 @@ type packet = {
   dlVlanPcp : dlVlanPcp;
   nw : nw
 }
+
+let format_nw fmt v =
+  let open Format in
+  match v with 
+    | Ip ip -> Ip.format fmt ip
+    | Arp arp -> Arp.format fmt arp
+    | Unparsable (typ, _) -> fprintf fmt "frameType=%d" typ
+
+let format_vlan fmt v =
+  let open Format in
+  match v with
+    | None -> ()
+    | Some x -> fprintf fmt "vlan=%d," x
+
+let format_packet fmt v =
+  let open Format in
+  fprintf fmt "@[dlSrc=%s,dlDst=%s,%a%a@]"
+    (string_of_mac v.dlSrc)
+    (string_of_mac v.dlDst)
+    format_vlan v.dlVlan
+    format_nw v.nw
 
 let nwSrc pkt = match pkt.nw with
   | Ip ip -> ip.Ip.src
@@ -548,27 +619,12 @@ let setTpSrc pkt tpSrc =
 let setTpDst pkt tpDst =
   { pkt with nw = nw_setTpDst pkt.nw tpDst }
 
-let string_of_mac (x:int64) : string =
-  Format.sprintf "%02x:%02x:%02x:%02x:%02x:%02x"
-    (get_byte x 5) (get_byte x 4) (get_byte x 3)
-    (get_byte x 2) (get_byte x 1) (get_byte x 0)
-
-let get_byte32 (n : Int32.t) (i : int) : int = 
-  let open Int32 in
-  if i < 0 or i > 3 then
-    raise (Invalid_argument "get_byte32 index out of range");
-  to_int (logand 0xFFl (shift_right_logical n (8 * i)))
-
 let get_dlTyp nw = match nw with
     | Ip _ -> 0x800
     | Arp _ -> 0x806
     | Unparsable (t, _) -> t
 
 let dlTyp pkt = get_dlTyp pkt.nw
-
-let string_of_ip (ip : Int32.t) : string = 
-  Format.sprintf "%d.%d.%d.%d" (get_byte32 ip 3) (get_byte32 ip 2) 
-    (get_byte32 ip 1) (get_byte32 ip 0)
 
 let string_of_dlAddr = string_of_mac
 
@@ -587,23 +643,6 @@ let string_of_nwProto = string_of_int
 let string_of_nwTos = string_of_int
 
 let string_of_tpPort = string_of_int
-
-let string_of_nw nw = "Not yet implemented"
-
-let string_of_packet 
-    { dlSrc = pktDlSrc;
-      dlDst = pktDlDst;
-      dlVlan = pktDlVlan;
-      dlVlanPcp = pktDlVlanPcp;
-      nw = nw } = 
-  let dlTyp = get_dlTyp nw in
-  Printf.sprintf "(%s, %s, %s, %s, %s, %s)"
-    (string_of_dlAddr pktDlSrc)
-    (string_of_dlAddr pktDlDst)
-    (string_of_int dlTyp)
-    (string_of_dlVlan pktDlVlan)
-    (string_of_dlVlanPcp pktDlVlanPcp)
-    (string_of_nw nw)
 
 (* Data Link *)
 cstruct eth {
@@ -704,41 +743,13 @@ let serialize (pkt:packet) : Cstruct.t =
   let () = serialize_helper bits pkt in 
   bits
 
-(* let parse_udp (bits:Cstruct.t) : udp option =  *)
-(*   let src = get_ucp_src bits in  *)
-(*   let dst = get_ucp_dst bits in  *)
-(*   let chksum = get_udp_chksum bits in  *)
-(*   let payload = Cstruct.shift bits sizeof_udp in  *)
-(*   Some { udpSrc = src; *)
-(*          udpDst = dst; *)
-(*          udpChksum = seq; *)
-(*          udpPayload = payload } *)
+let string_of_mk formatter x =
+  let open Format in
+  let buf = Buffer.create 100 in
+  let fmt = formatter_of_buffer buf in
+  pp_set_margin fmt 80;
+  formatter fmt x;
+  fprintf fmt "@?";
+  Buffer.contents buf
 
-(* Pretty Printing *)
-let string_of_nw pkt = 
-  match pkt with 
-    | Unparsable (typ, data) -> 
-      Printf.sprintf "(%d, %s [%d:%d%d%d])"
-        typ
-        (Cstruct.debug data)  (* TODO(arjun): doesn't work as expected!! *)
-        (Cstruct.len data)
-        (Char.code (Cstruct.get_char data 0))
-        (Char.code (Cstruct.get_char data 1))
-        (Char.code (Cstruct.get_char data 2))
-    | _ -> ""
-      
-let string_of_eth pkt = 
-  let vlan_tag = 
-    match pkt.dlVlan with
-    | Some v -> string_of_int v
-    | None -> "None" in
-  let dlTyp = get_dlTyp pkt.nw in
-  Printf.sprintf 
-    "{ pktDlSrc = %s; pktDlDst = %s; pktDlTyp = %d; pktDlVlan = %s; \
-       pktDlVlanPcp = %d; nw = %s }" 
-    (string_of_mac pkt.dlSrc)
-    (string_of_mac pkt.dlDst)
-    dlTyp
-    (vlan_tag)
-    (pkt.dlVlanPcp)
-    (string_of_nw pkt.nw)
+let to_string = string_of_mk format_packet

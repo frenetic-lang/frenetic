@@ -30,7 +30,7 @@ let monitor_load (window : float) filter =
 let monitor_packets (filter:pol) : pol = 
   let monitor_packet_handler sw port pkt = 
     printf "Packet %s on switch %Ld port %s matched %s\n%!"
-      (Packet.string_of_packet pkt) 
+      (Packet.to_string pkt) 
       sw 
       (NetCore_Pretty.string_of_port port) 
       (NetCore_Pretty.string_of_pol filter);

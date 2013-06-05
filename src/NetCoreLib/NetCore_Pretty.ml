@@ -140,4 +140,4 @@ let string_of_pattern = string_of_mk Format.pat
 let string_of_value = function 
   | Pkt (sid, port, pkt, pay) ->
     Printf.sprintf "(%Ld, %s, %s, _)" 
-      sid (string_of_port port) (Packet.string_of_packet pkt)
+      sid (string_of_port port) (Packet.to_string pkt)

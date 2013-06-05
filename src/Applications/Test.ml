@@ -479,7 +479,7 @@ module Helper = struct
         assert_equal
           ~printer:(Frenetic_Misc.string_of_list
                       (fun (_, pt, pk) ->
-                        (Frenetic_Misc.string_of_pair string_of_port string_of_packet) (pt,pk)))
+                        (Frenetic_Misc.string_of_pair string_of_port Packet.to_string) (pt,pk)))
           expected_pkts pkts in
     TestList [ sem_test; classifier_test ]
 

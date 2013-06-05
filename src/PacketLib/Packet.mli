@@ -71,9 +71,6 @@ module Tcp : sig
       ; fin : bool (** No more data from sender. *)
       }
 
-    (** [to_string v] pretty-prints v. *)
-    val to_string : t -> string
-
   end
 
   type t = 
@@ -89,9 +86,6 @@ module Tcp : sig
     ; payload : bytes (** TCP payload. *)
     }
 
-  (** [to_string v] pretty-prints [v]. *)
-  val to_string : t -> string
-
 end
 
 (** ICMP frame of a packet. *)
@@ -103,9 +97,6 @@ module Icmp : sig
     ; chksum : int16 (** Checksum. *)
     ; payload : bytes (** ICMP payload. *)
     }
-
-  (** [to_string v] pretty-prints [v]. *)
-  val to_string : t -> string
 
 end
 
@@ -129,8 +120,6 @@ module Ip : sig
       ; mf : bool (** More fragments. *)
       }
 
-    val to_string : t -> string
-
   end
 
   type t = 
@@ -145,9 +134,6 @@ module Ip : sig
     ; tp : tp (** Packet payload. *)
     }
 
-  (** [to_string v] pretty-prints [v]. *)
-  val to_string : t -> string
-
 end
 
 (** Address resolution protocol (ARP) packet payload. *)
@@ -156,9 +142,6 @@ module Arp : sig
   type t =
     | Query of dlAddr * nwAddr * nwAddr
     | Reply of dlAddr * nwAddr * dlAddr * nwAddr
-
-  (** [to_string v] pretty-prints [v]. *)
-  val to_string : t -> string
 
 end
 
@@ -277,12 +260,6 @@ val string_of_nwTos : nwTos -> string
 (** [string_of_tpPort p] pretty-prints a TCP port number. *)
 val string_of_tpPort : tpPort -> string
 
-(** [string_of_nw nw] pretty-prints an ethernet frame payload. *)
-val string_of_nw : nw -> string
-
-(** [string_of_packet pkt] pretty-prints a packet. *)
-val string_of_packet : packet -> string
-
 (** [bytes_of_mac mac] returns a bit-string representation of [mac]. *)
 val bytes_of_mac : dlAddr -> string
 
@@ -297,3 +274,5 @@ val parse : Cstruct.t -> packet
 
 (** [marshal pkt] serializes [pkt] into a bit sequence. *)
 val serialize : packet -> Cstruct.t
+
+val to_string : packet -> string
