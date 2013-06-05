@@ -46,6 +46,8 @@ open OpenFlow0x01_Core
 
 module MyApp : OXMODULE = struct
 
+  include OxDefaults
+  
   let num_http_packets = ref 0
 
   let switch_connected (sw : switchId) : unit = 
@@ -73,7 +75,7 @@ end
 module Controller = Make (MyApp)
 ```
 
-## Testing
+### Testing
 
 > Fill in the same test sequence as above. But, when sending HTTP
 > traffic, the counter should be incremented.
@@ -100,7 +102,47 @@ module Controller = Make (MyApp)
   controller terminal, you should find that no traffic is logged during
   this connection.
 
-### Efficient Monitoring
+## Efficient Monitoring
+
+- Introduction to counters
+
+- Introduction to aggregate requests
+
+- Demonstrate in full counting the number of blocked ICMP packets
+
+  * Does not count packets blocked on the controller, so fill that in too
+
+- Although Web traffic is forwarded in exactly the same manner as non-ICMP
+  traffic, you need to create separate, higher priority rules to match Web
+  traffic, so that you have counters that match Web traffic exclusively.
+
+- You cannot write a single OpenFlow pattern that matches both HTTP
+  requests and replies. You need to match they separately, thus you need two
+  rules, which gives you two counters. Therefore, you need to issue two statistics
+  requests and calculate their sum.
+
+- Have your monitor print the number of HTTP packets whenever you receive
+  updated statistics in the `stats_reply` function.
+
+- However, each call to `stats_reply` will provide either the number of HTTP
+  requests or the number of HTTP responses --- not both.
+
+- Therefore, when you receive updated statistics on HTTP requests, you
+  need to have remember the last statistics received on HTTP
+  responses. Similarly, you the last known statistics on HTTP requests
+  when you receive an update on HTTP rsponses.
+
+- Create two variables to hold the latest statistics on HTTP requests
+  and HTTP responses.
+
+- When you receive new statistics, you must update the appropriate value,
+  and print their sum.
+
+- Use the following template
+
+  > FILL
+
+- Bonus: Have we forgetten anything?
 
 
 
