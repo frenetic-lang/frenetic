@@ -1,4 +1,5 @@
 open OpenFlow0x01
+open OpenFlow0x01_Core
 open Ox
 
 module MyApplication : OXMODULE = struct
@@ -27,9 +28,9 @@ module MyApplication : OXMODULE = struct
         if Hashtbl.mem sw_table dst then 
           let outport = Hashtbl.find sw_table dst in 
           let m = { Match.all with 
-            Match.dlSrc = Some src;
-            Match.dlDst = Some dst;
-            Match.inPort = Some inport } in 
+            dlSrc = Some src;
+            dlDst = Some dst;
+            inPort = Some inport } in 
           let fm = {
             mod_cmd = Command.AddFlow;
             match_ = m;

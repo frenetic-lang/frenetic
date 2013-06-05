@@ -1,3 +1,5 @@
+open OpenFlow0x01_Core
+
 (* Extend OxTutorial2 to implement the packet_in function efficiently on
    a switch. *)
 module MyApplication : Ox.OXMODULE = struct
@@ -6,7 +8,6 @@ module MyApplication : Ox.OXMODULE = struct
 
   (* [FILL IN HERE]: write a match rule to match ICMP traffic. *)
   let match_icmp = 
-    let open Match in
     { dlSrc = None; dlDst = None; dlTyp = Some 0x800; dlVlan = None;
       dlVlanPcp = None; nwSrc = None; nwDst = None; nwProto = Some 1;
       nwTos = None; tpSrc = None; tpDst = None; inPort = None }

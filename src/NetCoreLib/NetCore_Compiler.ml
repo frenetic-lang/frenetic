@@ -1,6 +1,7 @@
 open List
 open Packet
 open NetCore_Types
+module OF = OpenFlow0x01_Core
 
 module OutputClassifier = NetCore_Classifier.Make(NetCore_Action.Output)
 
@@ -69,7 +70,7 @@ let to_rule (pattern, action) =
     | Some match_ ->
       Some (match_,
             NetCore_Action.Output.as_actionSequence 
-              match_.OpenFlow0x01.Match.inPort
+              match_.OF.inPort
               action)
     | None -> None
 

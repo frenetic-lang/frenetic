@@ -1,6 +1,7 @@
 open Frenetic_Bit
 open Packet
 open Format
+open OpenFlow0x01_Core
 
 exception Unparsable of string
 exception Ignored of string
@@ -99,20 +100,7 @@ end
 
 module Match = struct
 
-  type t = {
-    dlSrc : dlAddr option;
-    dlDst : dlAddr option;
-    dlTyp : dlTyp option;
-    dlVlan : dlVlan option;
-    dlVlanPcp : dlVlanPcp option;
-    nwSrc : nwAddr option;
-    nwDst : nwAddr option;
-    nwProto : nwProto option;
-    nwTos : nwTos option;
-    tpSrc : tpPort option;
-    tpDst : tpPort option;
-    inPort : portId option
-  }
+  type t = OpenFlow0x01_Core.pattern
 
   cstruct ofp_match {
     uint32_t wildcards;

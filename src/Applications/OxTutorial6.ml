@@ -1,3 +1,5 @@
+open OpenFlow0x01_Core
+
 (* Extend OxTutorial4 to also implement its packet_in handler efficiently
    in the flow table. This finishes OxTutoria6. *)
 module MyApplication : Ox.OXMODULE = struct
@@ -5,19 +7,16 @@ module MyApplication : Ox.OXMODULE = struct
   open OpenFlow0x01
 
   let match_icmp = 
-    let open Match in
     { dlSrc = None; dlDst = None; dlTyp = Some 0x800; dlVlan = None;
       dlVlanPcp = None; nwSrc = None; nwDst = None; nwProto = Some 1;
       nwTos = None; tpSrc = None; tpDst = None; inPort = None }
 
   let match_http_requests = 
-    let open Match in
     { dlSrc = None; dlDst = None; dlTyp = Some 0x800; dlVlan = None;
       dlVlanPcp = None; nwSrc = None; nwDst = None; nwProto = Some 6;
       nwTos = None; tpSrc = None; tpDst = Some 80; inPort = None }
 
   let match_http_responses = 
-    let open Match in
     { dlSrc = None; dlDst = None; dlTyp = Some 0x800; dlVlan = None;
       dlVlanPcp = None; nwSrc = None; nwDst = None; nwProto = Some 6;
       nwTos = None; tpSrc = Some 80; tpDst = None; inPort = None }

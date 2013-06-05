@@ -3,6 +3,8 @@ open OpenFlow0x01
 open NetCore_Types
 open NetCore_Wildcard
 
+module OF = OpenFlow0x01_Core
+
 type t = ptrn
 
 
@@ -95,18 +97,18 @@ let to_match pat =
        Some nwSrc, Some nwDst, Some nwProto, Some nwTos,
        Some tpSrc, Some tpDst, Some inPort) ->
       Some {
-        Match.dlSrc = dlSrc;
-        Match.dlDst = dlDst;
-        Match.dlTyp = dlTyp;
-        Match.dlVlan = dlVlan;
-        Match.dlVlanPcp = dlVlanPcp;
-        Match.nwSrc = nwSrc;
-        Match.nwDst = nwDst;
-        Match.nwProto = nwProto;
-        Match.nwTos = nwTos;
-        Match.tpSrc = tpSrc;
-        Match.tpDst = tpDst;
-        Match.inPort = match inPort with
+        OF.dlSrc = dlSrc;
+        OF.dlDst = dlDst;
+        OF.dlTyp = dlTyp;
+        OF.dlVlan = dlVlan;
+        OF.dlVlanPcp = dlVlanPcp;
+        OF.nwSrc = nwSrc;
+        OF.nwDst = nwDst;
+        OF.nwProto = nwProto;
+        OF.nwTos = nwTos;
+        OF.tpSrc = tpSrc;
+        OF.tpDst = tpDst;
+        OF.inPort = match inPort with
           | Some (Physical pt) -> Some pt
           | _ -> None
       }
