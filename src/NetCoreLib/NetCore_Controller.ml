@@ -49,11 +49,15 @@ module Query (Platform : PLATFORM) = struct
     type t = (switchId * Match.t * int)
     let compare (s1, m1, p1) (s2, m2, p2) =
       let rv_s = Int64.compare s1 s2 in
-      if rv_s != 0 then 
+      if rv_s <> 0 then 
         rv_s 
-      else if p1 = p2 && m1 = m2 then
+      else if p1 = p2 && m1 <> m2 then
         (* TODO(cole) be smarter when less tired. *)
-        raise (BadFlow "Bad flow table comparison!")
+        let msg = Printf.sprintf
+          "Bad flow table comparison: (%s, %s, %d) vs (%s, %s, %d)"
+          (string_of_switchId s1) (Match.to_string m1) p1
+          (string_of_switchId s2) (Match.to_string m2) p2 in
+        raise (BadFlow msg)
       else
         compare p1 p2
   end
