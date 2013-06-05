@@ -1,15 +1,15 @@
-open OpenFlow0x01_Core
-open Ox
-open OxPlatform
-
-module MyApplication : OXMODULE = struct
-
-  include OxDefaults
+module MyApplication : Ox.OXMODULE = struct
+  open Ox.OxPlatform
+  open OpenFlow0x01
 
   let switch_connected sw = ()
 
   let switch_disconnected sw = ()
-   
+    
+  let barrier_reply sw xid = ()
+    
+  let stats_reply sw xid stats = ()
+    
   let packet_in sw xid pktIn = 
     send_packet_out sw 0l
       { PacketOut.payload = pktIn.PacketIn.payload;
@@ -17,6 +17,8 @@ module MyApplication : OXMODULE = struct
         PacketOut.actions = [Action.Output PseudoPort.AllPorts]
       }
 
+  let port_status sw xid msg = ()
+
 end
 
-module Controller = Make (MyApplication)
+module Controller = Ox.Make (MyApplication)

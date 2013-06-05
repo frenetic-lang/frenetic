@@ -1,10 +1,9 @@
-open OpenFlow0x01_Core
+open OpenFlow0x01
 open Ox
-open OxPlatform
 
-module MyApplication : OXMODULE = struct
+module MyApplication :OXMODULE = struct
+  open OxPlatform
 
-  include OxDefaults
 
   let switch_connected (sw : switchId) : unit =
     Printf.printf "[Main] Switch %Ld connected.\n%!" sw
@@ -18,6 +17,16 @@ module MyApplication : OXMODULE = struct
         PacketOut.port_id = None;
         PacketOut.actions = []
       }
+
+  let barrier_reply (sw : switchId) (xid : xid) : unit =
+    ()
+
+  let stats_reply (sw : switchId) (xid : xid) (stats : StatsReply.t) : unit =
+    ()
+
+  let port_status (sw : switchId) (xid : xid) (port : PortStatus.t) : unit =
+    ()
+
 end
 
 module Controller = Make (MyApplication)

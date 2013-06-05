@@ -1,6 +1,6 @@
 open Printf
 open Packet
-open OpenFlow0x01_Core
+open OpenFlow0x01
 open NetCore_Types
 open NetCore_Action.Output
 

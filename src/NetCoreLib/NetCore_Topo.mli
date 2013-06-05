@@ -1,5 +1,5 @@
-type switchId = OpenFlow0x01_Core.switchId
-type portId = OpenFlow0x01_Core.portId
+type switchId = OpenFlow0x01.switchId
+type portId = OpenFlow0x01.portId
 type dlAddr = Packet.dlAddr
 
 module type Arg = sig

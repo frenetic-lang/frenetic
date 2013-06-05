@@ -3,7 +3,6 @@
     [Message] module for parsing and marshaling messages.
 *)
 
-open OpenFlow0x01_Core
 open OpenFlow0x01
 
 (** Interface for all platforms. *)

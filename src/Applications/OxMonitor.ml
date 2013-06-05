@@ -1,9 +1,6 @@
-open OpenFlow0x01_Core
-open OpenFlow0x01
-open Ox
-open OxPlatform
-
-module MyApplication : OXMODULE = struct
+module MyApplication : Ox.OXMODULE = struct
+  open Ox.OxPlatform
+  open OpenFlow0x01
 
   let my_send_stats_request sw = 
     let open StatsRequest.AggregateFlowRequest in  
@@ -57,4 +54,4 @@ module MyApplication : OXMODULE = struct
 
 end
 
-module Controller = Make (MyApplication)
+module Controller = Ox.Make (MyApplication)

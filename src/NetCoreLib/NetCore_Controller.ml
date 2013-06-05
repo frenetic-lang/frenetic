@@ -1,6 +1,5 @@
 open Printf
 open Packet
-open OpenFlow0x01_Core
 open OpenFlow0x01
 open NetCore_Types
 
@@ -455,6 +454,7 @@ module Make (Platform : PLATFORM) = struct
   let emit_packets pkt_stream = 
     let open PacketOut in
     let emit_pkt (sw, pt, bytes) =
+      let open OpenFlow0x01 in
       let msg = {
         payload = Payload.NotBuffered bytes;
         port_id = None;
@@ -513,8 +513,8 @@ module MakeConsistent (Platform : PLATFORM) = struct
     Lwt_list.iter_s
       (fun (match_, actions) ->
         printf " %s => %s\n%!"
-          (Match.to_string match_)
-          (Action.sequence_to_string actions);
+          (OpenFlow0x01.Match.to_string match_)
+          (OpenFlow0x01.Action.sequence_to_string actions);
         Platform.send_to_switch sw 0l 
           (Message.FlowModMsg (FlowMod.add_flow !prio match_ actions)) >>
           (decr prio; Lwt.return ()))
@@ -648,6 +648,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
   let emit_packets pkt_stream pol_stream = 
     let open PacketOut in
     let emit_pkt (sw, pt, bytes) =
+      let open OpenFlow0x01 in
       let msg = {
         payload = Payload.NotBuffered bytes;
         port_id = None;

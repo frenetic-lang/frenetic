@@ -1,6 +1,5 @@
 open Printf
 open Packet
-open OpenFlow0x01_Core
 open OpenFlow0x01
 
 module Log = Frenetic_Log

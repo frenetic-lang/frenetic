@@ -69,7 +69,7 @@ let to_rule (pattern, action) =
     | Some match_ ->
       Some (match_,
             NetCore_Action.Output.as_actionSequence 
-              match_.OpenFlow0x01_Core.Match.inPort
+              match_.OpenFlow0x01.Match.inPort
               action)
     | None -> None
 

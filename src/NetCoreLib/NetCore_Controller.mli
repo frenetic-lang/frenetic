@@ -1,4 +1,4 @@
-open OpenFlow0x01_Core
+open OpenFlow0x01
 open Packet
 open NetCore_Types
 

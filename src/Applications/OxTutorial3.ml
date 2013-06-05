@@ -1,12 +1,8 @@
-open Ox
-open OxPlatform
-open OpenFlow0x01_Core
-
 (* Extend OxTutorial2 to implement the packet_in function efficiently on
    a switch. *)
-module MyApplication : OXMODULE = struct
-
-  include OxDefaults
+module MyApplication : Ox.OXMODULE = struct
+  open Ox.OxPlatform
+  open OpenFlow0x01
 
   (* [FILL IN HERE]: write a match rule to match ICMP traffic. *)
   let match_icmp = 
@@ -44,6 +40,14 @@ module MyApplication : OXMODULE = struct
           PacketOut.actions = [Action.Output PseudoPort.AllPorts]
         }
 
+  let barrier_reply (sw : switchId) (xid : xid) : unit =
+    ()
+
+  let stats_reply (sw : switchId) (xid : xid) (stats : StatsReply.t) : unit =
+    ()
+
+  let port_status (sw : switchId) (xid : xid) (port : PortStatus.t) : unit =
+    ()
 end
 
-module Controller = Make (MyApplication)
+module Controller = Ox.Make (MyApplication)

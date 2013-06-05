@@ -7,7 +7,7 @@ open NetCore_Pretty
 open OUnit
 
 
-let pay = OpenFlow0x01_Core.Payload.Buffered (0l, Cstruct.create 10)
+let pay = OpenFlow0x01.Payload.Buffered (0l, Cstruct.create 10)
 
 module TestClassifier = struct
 
@@ -619,7 +619,7 @@ end
 (*
 module TestParser = struct
 
-  open OpenFlow0x01_Core
+  open OpenFlow0x01
 
   (* For each parsable type, test that parse(marshal(v)) == v for some value v.
    *)

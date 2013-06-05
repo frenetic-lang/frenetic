@@ -2,7 +2,7 @@ open List
 open Packet
 open Format
 
-type switchId = OpenFlow0x01_Core.switchId
+type switchId = OpenFlow0x01.switchId
 
 type 'a wildcard =
   | WildcardExact of 'a
@@ -10,7 +10,7 @@ type 'a wildcard =
   | WildcardNone
 
 type port =
-  | Physical of OpenFlow0x01_Core.portId
+  | Physical of OpenFlow0x01.portId
   | All
   | Here
 
@@ -93,7 +93,7 @@ type pol =
 
 
 type value =
-  | Pkt of switchId * port * packet * OpenFlow0x01_Core.Payload.t
+  | Pkt of switchId * port * packet * OpenFlow0x01.Payload.t
 
 let all = {
   ptrnDlSrc = WildcardAll;
