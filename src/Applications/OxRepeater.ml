@@ -1,5 +1,5 @@
-module MyApplication : Ox_Controller.OXMODULE = struct
-  open Ox_Controller.OxPlatform
+module MyApplication : Ox.OXMODULE = struct
+  open Ox.OxPlatform
   open OpenFlow0x01
 
   let switch_connected sw = ()
@@ -21,4 +21,4 @@ module MyApplication : Ox_Controller.OXMODULE = struct
 
 end
 
-module Controller = Ox_Controller.Make (MyApplication)
+module Controller = Ox.Make (MyApplication)

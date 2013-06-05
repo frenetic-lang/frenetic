@@ -53,6 +53,16 @@ module type OXMODULE = sig
   val port_status : switchId -> xid -> PortStatus.t -> unit
 end
 
+module OxDefaults = struct
+
+  let barrier_reply _ _ = ()
+
+  let stats_reply _ _ _ = ()
+
+  let port_status _ _ _ = ()
+
+end
+
 
 module Make (Handlers:OXMODULE) = struct
 

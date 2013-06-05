@@ -6,8 +6,8 @@
 
    *Do not* write a flow table.
  *)
-module MyApplication : Ox_Controller.OXMODULE = struct
-  open Ox_Controller.OxPlatform
+module MyApplication : Ox.OXMODULE = struct
+  open Ox.OxPlatform
   open OpenFlow0x01
 
   let num_http_packets = ref 0
@@ -58,4 +58,4 @@ module MyApplication : Ox_Controller.OXMODULE = struct
 
 end
 
-module Controller = Ox_Controller.Make (MyApplication)
+module Controller = Ox.Make (MyApplication)

@@ -1,7 +1,7 @@
 (* Extend OxTutorial2 to implement the packet_in function efficiently on
    a switch. *)
-module MyApplication : Ox_Controller.OXMODULE = struct
-  open Ox_Controller.OxPlatform
+module MyApplication : Ox.OXMODULE = struct
+  open Ox.OxPlatform
   open OpenFlow0x01
 
   (* [FILL IN HERE]: write a match rule to match ICMP traffic. *)
@@ -50,4 +50,4 @@ module MyApplication : Ox_Controller.OXMODULE = struct
     ()
 end
 
-module Controller = Ox_Controller.Make (MyApplication)
+module Controller = Ox.Make (MyApplication)

@@ -1,8 +1,12 @@
+open Ox
+open OxPlatform
+open OpenFlow0x01
+
 (* Student has seen repeater that emits packet-out messages. Now, emit
    a flow table to implement a repeater efficiently. *)
-module MyApplication : Ox_Controller.OXMODULE = struct
-  open Ox_Controller.OxPlatform
-  open OpenFlow0x01
+module MyApplication : OXMODULE = struct
+
+  include OxDefaults
 
   (* [FILL HERE] When a switch connects, add a rule to its flow table
      to make it behave as a repeater. *)
@@ -21,15 +25,6 @@ module MyApplication : Ox_Controller.OXMODULE = struct
         PacketOut.actions = [Action.Output PseudoPort.AllPorts]
       }
 
-  let barrier_reply (sw : switchId) (xid : xid) : unit =
-    ()
-
-  let stats_reply (sw : switchId) (xid : xid) (stats : StatsReply.t) : unit =
-    ()
-
-  let port_status (sw : switchId) (xid : xid) (port : PortStatus.t) : unit =
-    ()
-
 end
 
-module Controller = Ox_Controller.Make (MyApplication)
+module Controller = Make (MyApplication)
