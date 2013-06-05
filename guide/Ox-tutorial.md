@@ -561,8 +561,6 @@ module Controller = Make (MyApplication)
 - Run a Web server on port 8080. Note that connectivity works, but the
   counter is not incremented.
 
-
-
 Exercise 4: Learning Switch
 ===========================
 
