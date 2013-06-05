@@ -1,9 +1,11 @@
 open OpenFlow0x01
-open OpenFlow0x01_Core
 open Ox
+open OxPlatform
+open OpenFlow0x01_Core
 
 module MyApplication : OXMODULE = struct
-  open OxPlatform
+
+  include OxDefaults
 
   let table = ref []
 
@@ -12,10 +14,6 @@ module MyApplication : OXMODULE = struct
 
   let switch_disconnected sw =
     table := List.remove_assoc sw !table
-
-  let barrier_reply sw xid = ()
-
-  let stats_reply sw xid stats = ()
 
   let packet_in sw xid pktIn =
     let pkt = Payload.parse pktIn.input_payload in
@@ -45,15 +43,12 @@ module MyApplication : OXMODULE = struct
       send_flow_mod sw (Int32.succ xid) fm;
       send_barrier_request sw (Int32.succ (Int32.succ xid))
     else
-      let open PacketOut in
-          let pktOut = { 
-            payload = pktIn.input_payload;
-            port_id = Some pktIn.port;
-            actions = [Output Flood] 
-          } in 
-          send_packet_out sw xid pktOut
-            
-  let port_status _ _ _ = ()
+      let pktOut = { 
+        output_payload = pktIn.input_payload;
+        port_id = Some pktIn.port;
+        apply_actions = [Output Flood] 
+      } in 
+      send_packet_out sw xid pktOut
 
 end
 

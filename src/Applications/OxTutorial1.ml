@@ -1,7 +1,7 @@
+open OpenFlow0x01
 open Ox
 open OpenFlow0x01_Core
 open OxPlatform
-open OpenFlow0x01
 
 (* Student has seen repeater that emits packet-out messages. Now, emit
    a flow table to implement a repeater efficiently. *)
@@ -21,9 +21,9 @@ module MyApplication : OXMODULE = struct
 
   let packet_in (sw : switchId) (xid : xid) (pk : PacketIn.t) : unit =
     send_packet_out sw 0l
-      { PacketOut.payload = pk.input_payload;
-        PacketOut.port_id = None;
-        PacketOut.actions = [Output AllPorts]
+      { output_payload = pk.input_payload;
+        port_id = None;
+        apply_actions = [Output AllPorts]
       }
 
 end

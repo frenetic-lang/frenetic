@@ -73,15 +73,15 @@ module MyApplication : Ox.OXMODULE = struct
     let pk = Payload.parse payload in
     if Packet.dlTyp pk = 0x800 && Packet.nwProto pk = 1 then
       send_packet_out sw 0l
-        { PacketOut.payload = payload;
-          PacketOut.port_id = None;
-          PacketOut.actions = []
+        { output_payload = payload;
+          port_id = None;
+          apply_actions = []
         }
     else 
       send_packet_out sw 0l
-        { PacketOut.payload = payload;
-          PacketOut.port_id = None;
-          PacketOut.actions = [Output AllPorts]
+        { output_payload = payload;
+          port_id = None;
+          apply_actions = [Output AllPorts]
         }
 
   let barrier_reply (sw : switchId) (xid : xid) : unit =

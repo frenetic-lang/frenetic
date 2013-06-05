@@ -117,15 +117,9 @@ module PacketIn : sig
 
 end
 
-(** A send-packet message.  See Section 5.3.6 of the OpenFlow 1.0
-    specification. *)
 module PacketOut : sig
 
-  type t =
-      { payload : Payload.t
-      ; port_id : portId option (** Packet's input port. *)
-      ; actions : Action.sequence (** Actions. *)
-    }
+  type t = packetOut
 
   (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string

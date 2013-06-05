@@ -1,11 +1,14 @@
+open OpenFlow0x01
+open Ox
 open OpenFlow0x01_Core
+open OxPlatform
 
 (* Write a packet_in function that drops ICMP traffic and acts as a repeater
    on all other traffic. Do not try to add rules to the flow table until the
    function works correctly. *)
-module MyApplication : Ox.OXMODULE = struct
-  open Ox.OxPlatform
-  open OpenFlow0x01
+module MyApplication : OXMODULE = struct
+
+  include OxDefaults
 
   let switch_connected (sw : switchId) : unit =
     Printf.printf "Switch %Ld connected.\n%!" sw
@@ -19,26 +22,17 @@ module MyApplication : Ox.OXMODULE = struct
     let pk = Payload.parse payload in
     if Packet.dlTyp pk = 0x800 && Packet.nwProto pk = 1 then
       send_packet_out sw 0l
-        { PacketOut.payload = payload;
-          PacketOut.port_id = None;
-          PacketOut.actions = []
+        { output_payload = payload;
+          port_id = None;
+          apply_actions = []
         }
     else 
       send_packet_out sw 0l
-        { PacketOut.payload = payload;
-          PacketOut.port_id = None;
-          PacketOut.actions = [Output AllPorts]
+        { output_payload = payload;
+          port_id = None;
+          apply_actions = [Output AllPorts]
         }
-
-  let barrier_reply (sw : switchId) (xid : xid) : unit =
-    ()
-
-  let stats_reply (sw : switchId) (xid : xid) (stats : StatsReply.t) : unit =
-    ()
-
-  let port_status (sw : switchId) (xid : xid) (port : PortStatus.t) : unit =
-    ()
 
 end
 
-module Controller = Ox.Make (MyApplication)
+module Controller = Make (MyApplication)

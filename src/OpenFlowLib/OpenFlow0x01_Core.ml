@@ -82,3 +82,9 @@ type packetIn =
     ; port : portId
     ; reason : packetInReason
     }
+
+type packetOut =
+    { output_payload : payload
+    ; port_id : portId option
+    ; apply_actions : action list
+    }

@@ -133,3 +133,11 @@ type packetIn =
     ; port : portId (** Port on which frame was received. *)
     ; reason : packetInReason (** Reason packet is being sent. *)
     }
+
+(** A send-packet message.  See Section 5.3.6 of the OpenFlow 1.0
+    specification. *)
+type packetOut =
+    { output_payload : payload
+    ; port_id : portId option (** Packet's input port. *)
+    ; apply_actions : action list (** Actions. *)
+    }

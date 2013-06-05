@@ -797,10 +797,7 @@ end
 module PacketOut = struct
 
 
-  type t =
-    { payload : Payload.t
-    ; port_id : portId option
-    ; actions : Action.sequence }
+  type t = packetOut
 
   cstruct ofp_packet_out {
     uint32_t buffer_id;
@@ -810,18 +807,18 @@ module PacketOut = struct
 
   let to_string out = Printf.sprintf
     "{ payload = %s; port_id = %s; actions = %s }"
-    (Payload.to_string out.payload)
+    (Payload.to_string out.output_payload)
     (Frenetic_Misc.string_of_option string_of_portId out.port_id)
-    (Action.sequence_to_string out.actions)
+    (Action.sequence_to_string out.apply_actions)
 
   let size_of (pkt_out : t) : int =
     sizeof_ofp_packet_out +
-      (Action.size_of_sequence pkt_out.actions) +
-      (Payload.packetout_sizeof pkt_out.payload)
+      (Action.size_of_sequence pkt_out.apply_actions) +
+      (Payload.packetout_sizeof pkt_out.output_payload)
 
   let marshal (pkt_out : t) (buf : Cstruct.t) : int =
     set_ofp_packet_out_buffer_id buf
-      (match pkt_out.payload with
+      (match pkt_out.output_payload with
         | Buffered (n, _) -> n
         | NotBuffered _  -> -1l);
     set_ofp_packet_out_in_port buf
@@ -830,12 +827,12 @@ module PacketOut = struct
           | Some id -> Some (PhysicalPort id)
           | None -> None));
     set_ofp_packet_out_actions_len buf
-      (Action.size_of_sequence pkt_out.actions);
+      (Action.size_of_sequence pkt_out.apply_actions);
     let buf = List.fold_left
       (fun buf act -> Cstruct.shift buf (Action.marshal act buf))
       (Cstruct.shift buf sizeof_ofp_packet_out)
-      (Action.move_controller_last pkt_out.actions) in
-    let _ = Payload.packetout_marshal pkt_out.payload buf in
+      (Action.move_controller_last pkt_out.apply_actions) in
+    let _ = Payload.packetout_marshal pkt_out.output_payload buf in
     size_of pkt_out
 
 end

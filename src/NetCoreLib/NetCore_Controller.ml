@@ -374,9 +374,9 @@ module Make (Platform : PLATFORM) = struct
           NetCore_Action.Output.par_action controller_action
             (NetCore_Action.Output.switch_part full_action) in
       let outp = { 
-        PacketOut.payload = pkt_in.input_payload;
-        PacketOut.port_id = None;
-        PacketOut.actions = 
+        output_payload = pkt_in.input_payload;
+        port_id = None;
+        apply_actions = 
           NetCore_Action.Output.as_actionSequence (Some in_port) action 
       } in
       Platform.send_to_switch sw 0l (Message.PacketOutMsg outp)  
@@ -455,11 +455,10 @@ module Make (Platform : PLATFORM) = struct
   let emit_packets pkt_stream = 
     let open PacketOut in
     let emit_pkt (sw, pt, bytes) =
-      let open OpenFlow0x01 in
       let msg = {
-        payload = NotBuffered bytes;
+        output_payload = NotBuffered bytes;
         port_id = None;
-        actions = [Output (PhysicalPort pt)]
+        apply_actions = [Output (PhysicalPort pt)]
       } in
       Platform.send_to_switch sw 0l (Message.PacketOutMsg msg) in
     Lwt_stream.iter_s emit_pkt pkt_stream
@@ -551,9 +550,9 @@ module MakeConsistent (Platform : PLATFORM) = struct
       | NoMatch -> NetCore_Action.Output.par_action controller_action
         (NetCore_Action.Output.switch_part full_action) in
     let outp = { 
-      PacketOut.payload = pkt_in.input_payload;
-      PacketOut.port_id = None;
-      PacketOut.actions = 
+      output_payload = pkt_in.input_payload;
+      port_id = None;
+      apply_actions = 
         NetCore_Action.Output.as_actionSequence (Some in_port) action 
     } in
     Platform.send_to_switch sw 0l (Message.PacketOutMsg outp)  
@@ -648,11 +647,10 @@ module MakeConsistent (Platform : PLATFORM) = struct
   let emit_packets pkt_stream pol_stream = 
     let open PacketOut in
     let emit_pkt (sw, pt, bytes) =
-      let open OpenFlow0x01 in
-      let msg = {
-        payload = NotBuffered bytes;
+       let msg = {
+        output_payload = NotBuffered bytes;
         port_id = None;
-        actions = [Output (PhysicalPort pt)]
+        apply_actions = [Output (PhysicalPort pt)]
       } in
       Platform.send_to_switch sw 0l (Message.PacketOutMsg msg) in
     Lwt_stream.iter_s emit_pkt pkt_stream
