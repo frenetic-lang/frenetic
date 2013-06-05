@@ -141,3 +141,15 @@ type packetOut =
     ; port_id : portId option (** Packet's input port. *)
     ; apply_actions : action list (** Actions. *)
     }
+
+(** {9 Convenient Functions} *)
+
+(** [add_flow priority pattern action_sequence] creates a
+    [FlowMod.t] instruction that adds a new flow table entry with
+    the specified [priority], [pattern], and [action_sequence].
+
+    The entry is permanent (i.e., does not timeout), its cookie is
+    zero, etc. *)
+val add_flow : int16 -> pattern -> action list -> flowMod
+
+

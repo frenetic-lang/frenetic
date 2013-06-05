@@ -74,13 +74,6 @@ module FlowMod : sig
 
   type t = flowMod
 
-  (** [add_flow priority pattern action_sequence] creates a
-      [FlowMod.t] instruction that adds a new flow table entry with
-      the specified [priority], [pattern], and [action_sequence].
-
-      The entry is permanent (i.e., does not timeout), its cookie is
-      zero, etc. *)
-  val add_flow : int16 -> Match.t -> Action.sequence -> t
 
   (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string

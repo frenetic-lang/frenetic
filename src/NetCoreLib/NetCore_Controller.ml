@@ -351,7 +351,7 @@ module Make (Platform : PLATFORM) = struct
     Lwt_list.iter_s
       (fun (match_, actions) ->
         Platform.send_to_switch sw 0l 
-          (Message.FlowModMsg (FlowMod.add_flow !prio match_ actions)) >>
+          (Message.FlowModMsg (add_flow !prio match_ actions)) >>
         (decr prio; Lwt.return ()))
       flow_table
 
@@ -516,11 +516,11 @@ module MakeConsistent (Platform : PLATFORM) = struct
           (OpenFlow0x01.Match.to_string match_)
           (OpenFlow0x01.Action.sequence_to_string actions);
         Platform.send_to_switch sw 0l 
-          (Message.FlowModMsg (FlowMod.add_flow !prio match_ actions)) >>
+          (Message.FlowModMsg (add_flow !prio match_ actions)) >>
           (decr prio; Lwt.return ()))
       flow_table >>
       Platform.send_to_switch sw 0l 
-        (Message.FlowModMsg (FlowMod.add_flow 1 (fst drop_rule) (snd drop_rule)))
+        (Message.FlowModMsg (add_flow 1 (fst drop_rule) (snd drop_rule)))
 
 
   (* First draft: ignore barriers *)

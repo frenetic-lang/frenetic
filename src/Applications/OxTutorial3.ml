@@ -19,9 +19,9 @@ module MyApplication : OXMODULE = struct
   let switch_connected (sw : switchId) : unit =
     Printf.printf "Switch %Ld connected.\n%!" sw;
     send_flow_mod sw 0l
-      (FlowMod.add_flow 200 match_icmp []);
+      (add_flow 200 match_icmp []);
     send_flow_mod sw 1l
-      (FlowMod.add_flow 199 Match.all [Output AllPorts])
+      (add_flow 199 Match.all [Output AllPorts])
       
   let switch_disconnected (sw : switchId) : unit =
     Printf.printf "Switch %Ld disconnected.\n%!" sw

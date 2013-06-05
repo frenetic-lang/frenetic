@@ -13,8 +13,7 @@ module MyApplication : OXMODULE = struct
      to make it behave as a repeater. *)
   let switch_connected (sw : switchId) : unit =
     Printf.printf "Switch %Ld connected.\n%!" sw;
-    send_flow_mod sw 1l
-      (FlowMod.add_flow 200 Match.all [Output AllPorts])
+    send_flow_mod sw 1l (add_flow 200 Match.all [Output AllPorts])
 
   let switch_disconnected (sw : switchId) : unit =
     Printf.printf "Switch %Ld disconnected.\n%!" sw

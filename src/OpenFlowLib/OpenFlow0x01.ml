@@ -628,21 +628,6 @@ module FlowMod = struct
 
   type t = flowMod
 
-  let add_flow prio pat actions = 
-    { command = AddFlow;
-      pattern = pat;
-      priority = prio;
-      actions = actions;
-      cookie = 0L;
-      idle_timeout = Permanent;
-      hard_timeout = Permanent;
-      notify_when_removed = false;
-      out_port =  None;
-      apply_to_packet = None;
-      check_overlap = false
-    }
-
-
   cstruct ofp_flow_mod {
     uint64_t cookie;
     uint16_t command;

@@ -40,15 +40,15 @@ module MyApplication : Ox.OXMODULE = struct
     periodic_stats_request sw 5.0 500l match_http_requests;
     periodic_stats_request sw 5.0 700l match_http_responses;   
     send_flow_mod sw 0l
-      (FlowMod.add_flow 200 match_icmp []);
+      (add_flow 200 match_icmp []);
     send_flow_mod sw 1l
-      (FlowMod.add_flow 199 match_http_requests 
+      (add_flow 199 match_http_requests 
          [Output AllPorts]);
     send_flow_mod sw 1l
-      (FlowMod.add_flow 198 match_http_responses 
+      (add_flow 198 match_http_responses 
          [Output AllPorts]);
     send_flow_mod sw 1l
-      (FlowMod.add_flow 197 Match.all [Output AllPorts])
+      (add_flow 197 Match.all [Output AllPorts])
       
   let switch_disconnected (sw : switchId) : unit =
     Printf.printf "Switch %Ld disconnected.\n%!" sw
