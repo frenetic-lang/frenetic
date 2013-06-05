@@ -49,7 +49,6 @@ module Wildcards = struct
     let value = (0x3f land v) lsl off in
     (Int32.logor f (Int32.of_int value))
 
-  (* TODO(arjun): this is different from mirage *)
   let get_nw_mask (f : int32) (off : int) : int =
     (Int32.to_int (Int32.shift_right f off)) land 0x3f
 
@@ -135,8 +134,9 @@ module Match = struct
       Wildcards.nw_proto = is_none m.nwProto;
       Wildcards.tp_src = is_none m.tpSrc;
       Wildcards.tp_dst = is_none m.tpDst;
-      (* TODO(arjun): support IP prefixes *)
+      (* Oversimplified, since we don't support IP prefixes *)
       Wildcards.nw_src = if is_none m.nwSrc then 32 else 0x0;
+      (* Oversimplified, since we don't support IP prefixes *)
       Wildcards.nw_dst = if is_none m.nwDst then 32 else 0x0;
       Wildcards.dl_vlan_pcp = is_none m.dlVlanPcp;
       Wildcards.nw_tos = is_none m.nwTos;
@@ -215,12 +215,14 @@ module Match = struct
         else
           Some (get_ofp_match_dl_type bits);
       nwSrc =
-        if w.Wildcards.nw_src >= 32 then (* TODO(arjun): prefixes *)
+      (* Oversimplified, since we don't support IP prefixes *)
+        if w.Wildcards.nw_src >= 32 then 
           None
         else
           Some (get_ofp_match_nw_src bits);
       nwDst =
-        if w.Wildcards.nw_dst >= 32 then (* TODO(arjun): prefixes *)
+        (* Oversimplified, since we don't support IP prefixes *)
+        if w.Wildcards.nw_dst >= 32 then
           None
         else
           Some (get_ofp_match_nw_dst bits);
@@ -340,13 +342,25 @@ module PseudoPort = struct
 
   let size_of _ = 2
 
+  (* Pseudo-ports show up in two sorts of places:
+
+     1. As an output port in a flow table action. In which case, the
+        wire-format for output actions has a dedicated field for the
+        number of bits to send to the controller. the marshal function for
+        actions handles extracting the parameter of [Controller] ports.
+
+     2. Everywhere else, it is actually (I think) an error to use Controller
+        as a pseudo-port.
+
+     In summary, ontroller should be a type apart from the other pseudo-ports.
+  *)
   let marshal (t : t) : int = match t with
     | PhysicalPort p -> p
     | InPort -> ofp_port_to_int OFPP_IN_PORT
     | Flood -> ofp_port_to_int OFPP_FLOOD
     | AllPorts -> ofp_port_to_int OFPP_ALL
-    (* TODO(arjun): what happened to the byte count? *)
-    | Controller _ -> ofp_port_to_int OFPP_CONTROLLER
+    (* see wall of text above *)
+    | Controller _ -> ofp_port_to_int OFPP_CONTROLLER 
 
   let marshal_optional (t : t option) : int = match t with
     | None -> ofp_port_to_int OFPP_NONE
@@ -785,7 +799,7 @@ module PacketIn = struct
     let total_len = get_ofp_packet_in_total_len bits in
     let in_port = get_ofp_packet_in_in_port bits in
     let reason = Reason.of_int (get_ofp_packet_in_reason bits) in
-    let pk = Cstruct.shift bits sizeof_ofp_packet_in in (* TODO(arjun): what if zero payload? *)
+    let pk = Cstruct.shift bits sizeof_ofp_packet_in in
     let payload = match buf_id with
       | None -> NotBuffered pk
       | Some n -> Buffered (n, pk) in
@@ -1576,13 +1590,14 @@ module Error = struct
       OFPHFC_EPERM
     } as uint16_t
 
+
     let of_int error_code =
       match int_to_ofp_hello_failed_code error_code with
       | Some OFPHFC_INCOMPATIBLE -> Incompatible
       | Some OFPHFC_EPERM -> Eperm
       | None ->
         let msg = "NYI: ofp_hello_failed_code in error" in
-              raise (Unparsable msg)
+        raise (Unparsable msg)
 
     let to_string e = match e with
       | Incompatible -> "Incompatible"
@@ -2040,8 +2055,6 @@ module Message = struct
     | PacketOutMsg msg ->
       let _ = PacketOut.marshal msg out in
       ()
-    (* | PacketInMsg _ -> () (\* TODO(arjun): wtf? *\) *)
-    (* | SwitchFeaturesReply _ -> () (\* TODO(arjun): wtf? *\) *)
     | BarrierRequest -> () (* no body, this is okay *)
     | BarrierReply -> () (* no body, this is okay *)
     | StatsRequestMsg msg ->
