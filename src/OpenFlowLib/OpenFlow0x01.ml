@@ -1568,14 +1568,9 @@ module StatsReply = struct
     | Some OFPST_AGGREGATE ->
       AggregateFlowRep (AggregateFlowStats.parse body)
     | Some OFPST_TABLE -> TableRep (TableStats.parse body)
-    | Some OFPST_QUEUE ->
-      let msg = "NYI: OFPST_QUEUE ofp_stats_type in stats_reply" in
-      raise (Unparsable msg)
-    | Some OFPST_VENDOR ->
-      let msg = "NYI: OFPST_VENDOR ofp_stats_type in stats_reply" in
-      raise (Unparsable msg)
-    | Some OFPST_PORT ->
-      raise (Unparsable "Port statistics not supported yet.")
+    | Some OFPST_QUEUE -> raise (Unparsable "queue statistics unsupported")
+    | Some OFPST_VENDOR -> raise (Unparsable "vendor statistics unsupported")
+    | Some OFPST_PORT -> raise (Unparsable "port statistics unsupported")
     | None ->
       let msg =
         sprintf "bad ofp_stats_type in stats_reply (%d)" stats_type_code in
