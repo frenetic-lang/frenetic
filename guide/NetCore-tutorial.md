@@ -9,24 +9,26 @@ network configurations.  However, NetCoreDSL also contains a limited set of
 building blocks that allow programmers to craft dynamic policies that generate
 a series of static NetCore configurations.
 
-This tutorial should also be viewed as a stepping stone towards learning how
-to program in the more powerful *Frenetic* environment.  *Frenetic* is a general-purpose
-SDN programming language embedded as a set of libraries in OCaml.  
-In Frenetic, one programs
-applications that react to network events such as topology changes and
-statistics queries.  On seeing a network event, a Frenetic application will generate
-a new static network configuration and pass it off to the Frenetic run-time system.  
-The Frenetic run-time system will compile the static configuraion in to OpenFlow
-and update the running network with the compiled policy in a 
-[per-packet consistent manner](http://frenetic-lang.org/publications/network-update-sigcomm12.pdf).  
-The static configurations constructed by Frenetic applications are built using
-[NetCoreLib](https://github.com/frenetic-lang/frenetic/tree/master/src/NetCoreLib),
-which has the same semantics as the NetCore DSL described in this tutorial.  
-Hence, a Frenetic program is really just a general-purpose
-OCaml program that reacts to network events and generates a stream of NetCore policies.
-Since NetCoreLib and NetCoreDSL are effectively the same (with NetCoreDSL simply adding
-a pleasing domain-specific, user-level syntax), we will drop the "DSL" part of the
-name from this point forward and simply refer to NetCore.
+This tutorial should also be viewed as a stepping stone towards
+learning how to program in the more powerful *Frenetic* environment.
+*Frenetic* is a general-purpose SDN programming language embedded as a
+set of libraries in OCaml.  In Frenetic, one programs applications
+that react to network events such as topology changes and statistics
+queries.  On seeing a network event, a Frenetic application will
+generate a new static network configuration and pass it off to the
+Frenetic run-time system.  The Frenetic run-time system will compile
+the static configuraion in to OpenFlow and update the running network
+with the compiled policy in a [per-packet consistent
+manner](http://frenetic-lang.org/publications/network-update-sigcomm12.pdf).
+The static configurations constructed by Frenetic applications are
+built using [NetCoreLib](https://github.com/frenetic-lang/frenetic/tree/master/src/NetCoreLib),
+which has the same semantics as the NetCore DSL described in this
+tutorial.  Hence, a Frenetic program is really just a general-purpose
+OCaml program that reacts to network events and generates a stream of
+NetCore policies.  Since NetCoreLib and NetCoreDSL are effectively the
+same (with NetCoreDSL simply adding a pleasing domain-specific,
+user-level syntax), we will drop the "DSL" part of the name from this
+point forward and simply refer to NetCore.
 
 Before divining in to the technical portion of the tutorial, we
 briefly motivate the design of NetCore and Frenetic.  The technical
