@@ -298,7 +298,6 @@ module Output = struct
    *    - if out does not update f, leave pat unchanged w.r.t. f.
    *)
   let sequence_range_switch out pat =
-    let open NetCore_Pattern in
     let pat = restrict_port out.outPort pat in
     let pat = trans out.outDlSrc dlSrc wildcardDlSrc pat in
     let pat = trans out.outDlDst dlDst wildcardDlDst pat in 

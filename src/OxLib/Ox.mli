@@ -30,9 +30,22 @@ module OxPlatform : sig
 
 end
 
+(** Provides default implementations for some advanced event handlers,
+    reducing clutter in simple controllers.
+
+    These event handlers simply ignore the messages they receive. *)
+module OxDefaults : sig
+  val barrier_reply : switchId -> xid -> unit
+
+  val stats_reply : switchId -> xid -> StatsReply.t -> unit
+
+  val port_status : switchId -> xid -> PortStatus.t -> unit
+
+end
+
 (** [OXMODULE] is the type of modules that implement Ox controller callback
-functions.  Modules of type [OXMODULE] are passed to the [Make] functor,
-producing an Ox controller. *)
+    functions.  Modules of type [OXMODULE] are passed to the [Make] functor,
+    producing an Ox controller. *)
 module type OXMODULE = sig
 
   (** [switch_connected sw] is a callback invoked with [sw] when a switch with

@@ -376,8 +376,6 @@ module PseudoPort = struct
         raise
           (Unparsable (sprintf "unsupported port number (%d)" ofp_port_code))
 
-  let parse _ = failwith "NYI: PseudoPort.parse"
-
 end
 
 module Action = struct
@@ -504,20 +502,14 @@ module Action = struct
               | PseudoPort.Controller w -> w
               | _ -> 0)
         | SetNwSrc addr
-        | SetNwDst addr ->
-          set_ofp_action_nw_addr_nw_addr bits' addr
+        | SetNwDst addr -> set_ofp_action_nw_addr_nw_addr bits' addr
         | SetTpSrc pt
-        | SetTpDst pt ->
-          set_ofp_action_tp_port_tp_port bits' pt
-	| SetDlVlan (Some vid) ->
-	  set_ofp_action_vlan_vid_vlan_vid bits' vid
-	| SetDlVlan None ->
-	  ()
+        | SetTpDst pt -> set_ofp_action_tp_port_tp_port bits' pt
+	      | SetDlVlan (Some vid) -> set_ofp_action_vlan_vid_vlan_vid bits' vid
+	      | SetDlVlan None -> ()
         | _ -> failwith "NYI: Action.marshal"
     end;
     size_of a
-
-  let marshal_sequence acts out = failwith "NYI: Action.marshal_sequence"
 
   let is_to_controller (act : t) : bool = match act with
     | Output (PseudoPort.Controller _) -> true
@@ -642,7 +634,6 @@ module PortDescription = struct
       }
 
     let size_of _ = 4
-    let to_int _ = failwith "NYI: PortConfig.to_int"
 
   end
 
@@ -673,7 +664,6 @@ module PortDescription = struct
       ; stp_forward = false
       ; stp_block = false }
 
-    let to_int _ = failwith "NYI: PortState.to_int"
     let size_of _ = 4
 
   end
@@ -722,7 +712,6 @@ module PortDescription = struct
       p.pause_asym
 
     let size_of _ = 4
-    let to_int _ = failwith "NYI: PortFeatures.to_int"
 
     let of_int bits =
       { f_10MBHD = test_bit 0 bits
@@ -800,8 +789,6 @@ module PortDescription = struct
 
   let size_of _ = sizeof_ofp_phy_port
 
-  let marshal _ _ = failwith "NYI: PortDescription.marshal"
-
 end
 
 module PortStatus = struct
@@ -875,8 +862,6 @@ module PortStatus = struct
 
   let size_of status = 
     ChangeReason.size_of status.reason + PortDescription.size_of status.desc
-
-  let marshal _ _ = failwith "NYI: PortStatus.marshal"
 
 end
 
@@ -1080,9 +1065,6 @@ module SwitchFeatures = struct
   let size_of feats = 
     sizeof_ofp_switch_features 
     + sum (List.map PortDescription.size_of feats.ports)
-
-  let marshal _ _ = failwith "NYI: SwitchFeatures.marshal"
-
 end
 
 module FlowMod = struct
@@ -1213,8 +1195,6 @@ module FlowMod = struct
     (Match.size_of msg.match_)
     + sizeof_ofp_flow_mod
     + (Action.size_of_sequence msg.actions)
-
-  let parse _ = failwith "NYI: FlowMod.parse"
 
   let flags_to_int (check_overlap : bool) (notify_when_removed : bool) =
     (if check_overlap then 1 lsl 1 else 0) lor
@@ -1427,8 +1407,6 @@ module StatsRequest = struct
       end;
       size_of req
 
-    let parse _ = failwith "NYI: IndividualFlowRequest.parse"
-
   end
 
   module AggregateFlowRequest = struct
@@ -1464,8 +1442,6 @@ module StatsRequest = struct
         set_ofp_aggregate_stats_request_out_port out port_code
       end;
       size_of req
-
-    let parse _ = failwith "NYI: AggregateFlowRequest.parse"
 
   end
 
@@ -1522,8 +1498,6 @@ module StatsRequest = struct
     | _ ->
       failwith (Printf.sprintf "NYI: StatsRequest.marshal %s" (to_string msg))
 
-  let parse _ = failwith "NYI: StatsRequest.parse"
-
 end
 
 module StatsReply = struct
@@ -1574,8 +1548,6 @@ module StatsReply = struct
       desc.manufacturer desc.hardware desc.software
       desc.serial_number desc.datapath
 
-    let marshal _ _ = failwith "NYI: DescriptionStats.marshal"
-
   end
 
   module IndividualFlowStats = struct
@@ -1608,9 +1580,6 @@ module StatsReply = struct
       uint64_t packet_count;
       uint64_t byte_count
     } as big_endian
-
-    let size_of _ = failwith "NYI: IndividualFlowStats.size_of"
-    let marshal _ _ = failwith "NYI: IndividualFlowStats.marshal"
 
     let to_string stats = Printf.sprintf
       "{ table_id = %d; of_match = %s; duration_sec = %d; duration_nsec = %d\
@@ -1703,9 +1672,6 @@ module StatsReply = struct
 	byte_count = get_ofp_aggregate_stats_byte_count bits;
 	flow_count = get_ofp_aggregate_stats_flow_count bits }
 
-    let size_of _ = failwith "NYI: AggregateFlowStats.size_of"
-    let marshal _ _ = failwith "NYI: AggregateFlowStats.marshal"
-
   end
 
   module TableStats = struct
@@ -1720,9 +1686,7 @@ module StatsReply = struct
       ; matched_count : int64 }
 
     let to_string stats = failwith "NYI: TableStats.to_string"
-    let size_of _ = failwith "NYI: TableStats.size_of"
     let parse _ = failwith "NYI: TableStats.parse"
-    let marshal _ _ = failwith "NYI: TableStats.marshal"
 
   end
 
@@ -1744,9 +1708,7 @@ module StatsReply = struct
       ; collisions : int64 }
 
     let to_string stats = failwith "NYI: PortStats.to_string"
-    let size_of _ = failwith "NYI: PortStats.size_of"
     let parse _ = failwith "NYI: PortStats.parse"
-    let marshal _ _ = failwith "NYI: PortStats.marshal"
 
   end
 
@@ -1769,9 +1731,6 @@ module StatsReply = struct
     | AggregateFlowRep stats -> AggregateFlowStats.to_string stats
     | TableRep stats -> TableStats.to_string stats
     | PortRep stats -> PortStats.to_string stats
-
-  let size_of _ = failwith "NYI: StatsReply.size_of"
-  let marshal _ _ = failwith "NYI: StatsReply.marshal"
 
   let parse bits =
     let stats_type_code = get_ofp_stats_reply_stats_type bits in
@@ -2284,9 +2243,12 @@ module Message = struct
     | BarrierRequest -> 0
     | BarrierReply -> 0
     | StatsRequestMsg msg -> StatsRequest.size_of msg
-    | StatsReplyMsg msg -> StatsReply.size_of msg
-    | _ ->
-      failwith "Not yet implemented"
+    | ErrorMsg _
+    | PacketInMsg _
+    | PortStatusMsg _
+    | StatsReplyMsg _ -> 
+      raise (Invalid_argument "cannot marshal (controller should not send \
+                               this message to a switch")
 
   let blit_message (msg : t) (out : Cstruct.t) = match msg with
     | Hello buf
@@ -2302,13 +2264,17 @@ module Message = struct
       ()
     (* | PacketInMsg _ -> () (\* TODO(arjun): wtf? *\) *)
     (* | SwitchFeaturesReply _ -> () (\* TODO(arjun): wtf? *\) *)
-    | BarrierRequest -> ()
-    | BarrierReply -> ()
+    | BarrierRequest -> () (* no body, this is okay *)
+    | BarrierReply -> () (* no body, this is okay *)
     | StatsRequestMsg msg ->
       let _ = StatsRequest.marshal msg out in
       ()
-    | StatsReplyMsg _ -> ()
-    | _ -> failwith "Not yet implemented"
+    | ErrorMsg _
+    | PacketInMsg _
+    | PortStatusMsg _
+    | SwitchFeaturesReply _
+    | StatsReplyMsg _ ->
+      failwith "should not reach this line (sizeof_body should raise)"
 
   let size_of msg = Header.size + sizeof_body msg
 

@@ -1,6 +1,9 @@
-module MyApplication : Ox_Controller.OXMODULE = struct
-  open Ox_Controller.OxPlatform
-  open OpenFlow0x01
+open OpenFlow0x01
+open Ox
+
+module MyApplication :OXMODULE = struct
+  open OxPlatform
+
 
   let switch_connected (sw : switchId) : unit =
     Printf.printf "[Main] Switch %Ld connected.\n%!" sw
@@ -26,4 +29,4 @@ module MyApplication : Ox_Controller.OXMODULE = struct
 
 end
 
-module Controller = Ox_Controller.Make (MyApplication)
+module Controller = Make (MyApplication)

@@ -1,7 +1,6 @@
 open Packet
 open OpenFlow0x01
 open NetCore_Types
-open NetCore_Pattern
 open NetCore_Action.Output
 
 let rec match_pred pr sw pt pk =

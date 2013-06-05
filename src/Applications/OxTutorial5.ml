@@ -1,7 +1,7 @@
 (* Extend OxTutorial4 to also implement its packet_in handler efficiently
    in the flow table. This is not complete! But, an intermediate point. *)
-module MyApplication : Ox_Controller.OXMODULE = struct
-  open Ox_Controller.OxPlatform
+module MyApplication : Ox.OXMODULE = struct
+  open Ox.OxPlatform
   open OpenFlow0x01
 
   let match_icmp = 
@@ -97,4 +97,4 @@ module MyApplication : Ox_Controller.OXMODULE = struct
 
 end
 
-module Controller = Ox_Controller.Make (MyApplication)
+module Controller = Ox.Make (MyApplication)

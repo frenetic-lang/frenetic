@@ -1,7 +1,6 @@
 open Packet
 open OpenFlow0x01
 open NetCore_Action
-open NetCore_Pattern
 
 module type CLASSIFIER = 
  sig 
