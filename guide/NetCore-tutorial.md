@@ -1,20 +1,45 @@
-Frenetic Tutorial
+NetCore Tutorial
 =============
 
-*DPW: This preamble is old and needs revision*
+The goal of this tutorial is to teach readers how to program a
+Software-Defined Network (SDN) running OpenFlow using the *NetCore*
+Domain-specific Programming Language (NetCoreDSL).  NetCoreDSL is 
+designed primarily to allow users to program static (unchanging)
+network configurations.  However, NetCoreDSL also contains a limited set of
+building blocks that allow programmers to craft dynamic policies that generate
+a series of static NetCore configurations.
 
-*DPW TODO:  I called everything "Frenetic" or "Static Frenetic" 
-but that was a bad idea.  Should revise to call NetCore NetCore and 
-Frenetic Frenetic.*
+This tutorial should also be viewed as a stepping stone towards learning how
+to program in the more powerful *Frenetic* environment.  *Frenetic* is a general-purpose
+SDN programming language embedded as a set of libraries in OCaml.  
+In Frenetic, one programs
+applications that react to network events such as topology changes and
+statistics queries.  On seeing a network event, a Frenetic application will generate
+a new static network configuration and pass it off to the Frenetic run-time system.  
+The Frenetic run-time system will compile the static configuraion in to OpenFlow
+and update the running network with the compiled policy in a 
+[per-packet consistent manner](http://frenetic-lang.org/publications/network-update-sigcomm12.pdf).  
+The static configurations constructed by Frenetic applications are built using
+[NetCoreLib](https://github.com/frenetic-lang/frenetic/tree/master/src/NetCoreLib),
+which has the same semantics as the NetCore DSL described in this tutorial.  
+Hence, a Frenetic program is really just a general-purpose
+OCaml program that reacts to network events and generates a stream of NetCore policies.
+Since NetCoreLib and NetCoreDSL are effectively the same (with NetCoreDSL simply adding
+a pleasing domain-specific, user-level syntax), we will drop the "DSL" part of the
+name from this point forward and simply refer to NetCore.
 
-The goal of this tutorial is to teach readers how to program a Software-Defined Network (SDN) running OpenFlow using the Frenetic programming language.  This involves explaining the syntax and semantics of Frenetic and illustrating its use on a number of simple examples.  Along the way, there are a number of exercises for the reader.  Solutions appear at the bottom of the page.
+Before divining in to the technical portion of the tutorial, we
+briefly motivate the design of NetCore and Frenetic.  The technical
+portions of the tutorial focus on explaining the syntax and semantics
+of NetCore and illustrating its use on a number of simple examples.
+There are also a number of exercises for the reader.  As you read this
+document, we encourage you to experiment with the examples and try the
+exercises.  To get started, you will need to download and start up the
+tutorial VM.  Please see the instructions here.
 
-In addition to being a tutorial, this file is also what is known as a [literate program](http://en.wikipedia.org/wiki/Literate_programming). In other words, readers can download and execute this text file as is, without making any modifications.  Intuitively, what we have done is simply turn the commenting conventions on their head:  by default, everything is a comment.  The only regions of the file that will be executed as code are those that are 
-indented 4 spaces.
+*TO DO: Link to joint getting started instructions*
 
-As you read this document, we encourage you to try to complete the example exercises and play with them in mininet.  The last line of this file defines the main Frenetic policy that will be executed when this file is compiled.  To change Frenetic policy that is executed, simply edit the last line.  To compile and execute this file in mininet, please see the instructions at the [end of this document](#compilation_instructions).
-
-Motivation for the Frenetic Design
+Motivation for the Frenetic and NetCore Designs
 -----------------------------------------------
 
 *Much in this section was plagiarized from IEEE overview paper*
