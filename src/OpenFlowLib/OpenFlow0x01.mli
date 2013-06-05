@@ -12,6 +12,7 @@ module Match : sig
   type t = pattern
 
   val to_string : t -> string
+  val compare : t -> t -> int
 
 end
 
