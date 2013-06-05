@@ -93,7 +93,7 @@ module MyApplication : OXMODULE = struct
   let stats_reply (sw : switchId) (xid : xid) (stats : StatsReply.t) : unit =
     match stats with
       | StatsReply.AggregateFlowRep rep ->
-        let k = rep.StatsReply.AggregateFlowStats.packet_count in
+        let k = rep.StatsReply.total_packet_count in
         (match xid with
           | 500l -> 
             num_http_request_packets := Int64.add !num_http_request_packets k
