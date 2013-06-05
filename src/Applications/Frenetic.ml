@@ -6,7 +6,7 @@ module M = NetCore_MacLearning
 
 module Controller = NetCore_Controller.Make(OpenFlow0x01_Platform)
 
-let drop_all = NetCore_Types.PoAction (NetCore_Action.Output.drop)
+let drop_all = NetCore_Types.Action (NetCore_Action.Output.drop)
 let policy = ref (Lwt.return (), NetCore_Stream.constant drop_all)
 
 let parse_by_extension filename =

@@ -10,7 +10,7 @@ module Stats = OpenFlow0x01_Stats
 
 let (<&>) = Lwt.(<&>)
 
-let init_pol : pol = PoFilter PrNone
+let init_pol : pol = Filter Nothing
 
 module type PLATFORM = OpenFlow0x01_PlatformSig.PLATFORM
 
@@ -266,16 +266,16 @@ module QuerySet (Platform : PLATFORM) = struct
   let rec generate_query_ids pol gen_query_id : unit =
     match pol with
     | HandleSwitchEvent _ -> ()
-    | PoAction atoms ->
+    | Action atoms ->
       List.iter (fun atom -> match atom with
         | ControllerQuery (_, cb) -> 
           Hashtbl.replace q_actions_to_query_ids atom (gen_query_id ())
         | _ -> ())
         atoms
-    | PoFilter _ -> ()
-    | PoUnion (p1, p2)
-    | PoSeq (p1, p2)
-    | PoITE (_, p1, p2) ->
+    | Filter _ -> ()
+    | Union (p1, p2)
+    | Seq (p1, p2)
+    | ITE (_, p1, p2) ->
       generate_query_ids p1 gen_query_id; generate_query_ids p2 gen_query_id
 
   let make_query pol kill_switch atom qid : unit = 
@@ -535,7 +535,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
       configure_switch sw int >>
       let _ = Log.printf "NetCore_Controller" "external pol:\n%s\n%!" 
         (NetCore_Pretty.string_of_pol ext) in
-      configure_switch sw (PoUnion(int,ext)))
+      configure_switch sw (Union(int,ext)))
       (NetCore_Stream.to_stream pol_stream)
       
   let handle_packet_in sw pkt_in = 
@@ -587,7 +587,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
     (try_lwt
        let (int_pol,ext_pol,topo_pol) = (NetCore_Stream.now pol_stream) in
       lwt _ = Lwt.wrap2 NetCore_Semantics.handle_switch_events
-        (SwitchUp (sw, features)) (PoUnion (PoUnion(int_pol,ext_pol), topo_pol))
+        (SwitchUp (sw, features)) (Union (Union(int_pol,ext_pol), topo_pol))
          in
       Lwt.pick [ install_new_policies sw pol_stream;
                  handle_switch_messages sw ]
@@ -609,7 +609,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
           let (int_pol,ext_pol,topo_pol) = (NetCore_Stream.now pol_stream) in
           Lwt.wrap2 NetCore_Semantics.handle_switch_events 
             (SwitchDown sw)
-            (PoUnion (PoUnion(int_pol,ext_pol), topo_pol)));
+            (Union (Union(int_pol,ext_pol), topo_pol)));
       Queries.remove_switch sw;
       Lwt.return ()
     end
@@ -637,9 +637,9 @@ module MakeConsistent (Platform : PLATFORM) = struct
     let ver = GenSym.next_val genSym in
     let (int_pol,ext_pol) = gen_update_pols pol ver (Topo.get_switches ()) make_extPorts in
     Queries.stop () >>
-    let _ = pol_now := PoUnion(PoUnion(int_pol, ext_pol), topo_pol) in
+    let _ = pol_now := Union(Union(int_pol, ext_pol), topo_pol) in
     let _ = push_pol (Some (int_pol, ext_pol, topo_pol)) in
-    accept_policies push_pol sugared_pol_stream genSym <&> Queries.start (PoUnion(pol, topo_pol))
+    accept_policies push_pol sugared_pol_stream genSym <&> Queries.start (Union(pol, topo_pol))
 
   (** Emits packets synthesized at the controller. Produced packets
       are _not_ subjected to the current NetCore policy, so they do not

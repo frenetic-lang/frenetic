@@ -104,9 +104,9 @@ module Make (A : Arg) = struct
 
   let create (send_pkt : lp -> unit) =
     let pol = 
-      PoUnion (HandleSwitchEvent switch_event_handler,
-               PoSeq (PoFilter (PrHdr (dlType dl_typ)),
-                      PoAction (controller recv_discovery_pkt))) in
+      Union (HandleSwitchEvent switch_event_handler,
+               Seq (Filter (Hdr (dlType dl_typ)),
+                      Action (controller recv_discovery_pkt))) in
     let rec send_discovery () =
       Lwt_unix.sleep 5.0 >>
         (Hashtbl.iter 

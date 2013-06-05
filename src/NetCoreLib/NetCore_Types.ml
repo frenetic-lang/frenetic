@@ -71,13 +71,13 @@ and action_atom =
 and action = action_atom list
 
 type pred =
-  | PrHdr of ptrn
-  | PrOnSwitch of switchId
-  | PrOr of pred * pred
-  | PrAnd of pred * pred
-  | PrNot of pred
-  | PrAll
-  | PrNone
+  | Hdr of ptrn
+  | OnSwitch of switchId
+  | Or of pred * pred
+  | And of pred * pred
+  | Not of pred
+  | Everything
+  | Nothing
 
 type switchEvent =
   | SwitchUp of switchId * OpenFlow0x01.SwitchFeatures.t
@@ -85,11 +85,11 @@ type switchEvent =
 
 type pol =
   | HandleSwitchEvent of (switchEvent -> unit)
-  | PoAction of action
-  | PoFilter of pred
-  | PoUnion of pol * pol
-  | PoSeq of pol * pol
-  | PoITE of pred * pol * pol
+  | Action of action
+  | Filter of pred
+  | Union of pol * pol
+  | Seq of pol * pol
+  | ITE of pred * pol * pol
 
 
 type value =

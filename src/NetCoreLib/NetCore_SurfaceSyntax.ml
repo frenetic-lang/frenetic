@@ -63,17 +63,17 @@ let compile_pol2 f = function
 let rec compile (env : env) = function
   | HandleSwitchEvent (pos, f) -> Pol (Pol.HandleSwitchEvent f)
   | Par (pos, e1, e2) ->
-    compile_pol2 (fun p1 p2 -> Pol.PoUnion (p1, p2))
+    compile_pol2 (fun p1 p2 -> Pol.Union (p1, p2))
       (compile env e1, compile env e2)
   | Seq (pos, e1, e2) ->
     compile_pol2
-      (fun p1 p2 -> Pol.PoSeq (p1, p2))
+      (fun p1 p2 -> Pol.Seq (p1, p2))
       (compile env e1, compile env e2)
-  | Filter (pos, pred) -> Pol (Pol.PoFilter pred)
-  | Action (pos, act) -> Pol (Pol.PoAction act)
+  | Filter (pos, pred) -> Pol (Pol.Filter pred)
+  | Action (pos, act) -> Pol (Pol.Action act)
   | ITE (pos, pred, e1, e2) ->
     compile_pol2
-      (fun p1 p2 -> Pol.PoITE (pred, p1, p2))
+      (fun p1 p2 -> Pol.ITE (pred, p1, p2))
       (compile env e1, compile env e2)
   | Id (pos, x) ->
     begin 

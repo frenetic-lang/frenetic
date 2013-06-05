@@ -221,21 +221,21 @@ let encode_pattern (pat:ptrn) (pkt:zVar) : zFormula =
 	 pat.ptrnInPort ])
 
 let rec encode_predicate (pr:pred) (pkt:zVar) : zFormula = match pr with 
-  | PrAll -> 
+  | Everything -> 
     ZTrue
-  | PrNone ->
+  | Nothing ->
     ZFalse
-  | PrOnSwitch sw -> 
+  | OnSwitch sw -> 
     packet_field "Switch" pkt (TInt sw)
-  | PrNot pr1 ->
+  | Not pr1 ->
     ZNot(encode_predicate pr1 pkt)
-  | PrAnd (pr1, pr2) ->
+  | And (pr1, pr2) ->
     ZAnd([encode_predicate pr1 pkt;
           encode_predicate pr2 pkt])
-  | PrOr(pr1, pr2) -> 
+  | Or(pr1, pr2) -> 
     ZOr([encode_predicate pr1 pkt;
          encode_predicate pr2 pkt])
-  | PrHdr ptrn -> 
+  | Hdr ptrn -> 
     encode_pattern ptrn pkt
           
 let equal_field (field:string) (pkt1:zVar) (pkt2:zVar) : zFormula list = 
@@ -278,20 +278,20 @@ let action_atom_forwards (act:action_atom) (pkt1:zVar) (pkt2:zVar) : zFormula = 
    
 let rec policy_forwards (pol:pol) (pkt1:zVar) (pkt2:zVar) : zFormula = 
   match pol with
-  | PoAction (acts) -> 
+  | Action (acts) -> 
     ZOr(List.map (fun act -> action_atom_forwards act pkt1 pkt2) acts)
-  | PoFilter pr ->
+  | Filter pr ->
     let eq = equals ["Switch"; "InPort"; "DlSrc"; "DlDst"] pkt1 pkt2 in 
     ZAnd(encode_predicate pr pkt1::eq)
-  | PoUnion (pol1, pol2) ->
+  | Union (pol1, pol2) ->
     ZOr([ policy_forwards pol1 pkt1 pkt2
         ; policy_forwards pol2 pkt1 pkt2 ])
-  | PoSeq (pol1, pol2) ->
+  | Seq (pol1, pol2) ->
     let pkt' = fresh SPacket in 
     ZAnd([policy_forwards pol1 pkt1 pkt';
           policy_forwards pol2 pkt' pkt2])
-  | PoITE(pr,pol1,pol2) -> 
-    let pol' = PoUnion (PoSeq(PoFilter pr, pol1), PoSeq(PoFilter (PrNot pr), pol2)) in 
+  | ITE(pr,pol1,pol2) -> 
+    let pol' = Union (Seq(Filter pr, pol1), Seq(Filter (Not pr), pol2)) in 
     policy_forwards pol' pkt1 pkt2
   | _ -> 
     failwith "policy_forwards: not yet implemented"

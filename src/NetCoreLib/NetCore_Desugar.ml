@@ -1,10 +1,10 @@
 open List
 open Packet
 open Format
-open NetCore_Types
+module NCT = NetCore_Types
 
   type get_packet_handler = 
-      OpenFlow0x01.switchId -> NetCore_Types.port -> packet -> NetCore_Types.action
+      OpenFlow0x01.switchId -> NCT.port -> packet -> NCT.action
   type get_count_handler = Int64.t -> Int64.t -> unit
 
   type predicate =
@@ -205,7 +205,7 @@ open NetCore_Types
     else ()
 
 
-let desugar (genvlan : unit -> int option) (pol : policy) : NetCore_Types.pol =
+let desugar (genvlan : unit -> int option) (pol : policy) : NCT.pol =
   let desugar_act act =
     match act with
     | Pass -> NetCore_Action.Output.pass
@@ -233,64 +233,65 @@ let desugar (genvlan : unit -> int option) (pol : policy) : NetCore_Types.pol =
     | GetCount (time, handler) ->
       NetCore_Action.Output.query time handler
     in
-  let rec desugar_pred pred = match pred with
+  let rec desugar_pred (pred : predicate) : NCT.pred = 
+    match pred with
     | And (p1, p2) -> 
-      PrAnd (desugar_pred p1, desugar_pred p2)
+      NCT.And (desugar_pred p1, desugar_pred p2)
     | Or (p1, p2) ->
-      PrOr (desugar_pred p1, desugar_pred p2)
-    | Not p -> PrNot (desugar_pred p)
+      NCT.Or (desugar_pred p1, desugar_pred p2)
+    | Not p -> NCT.Not (desugar_pred p)
     | All -> 
-      PrAll
+      NCT.Everything
     | NoPackets -> 
-      PrNone
+      NCT.Nothing
     | Switch swId -> 
-      PrOnSwitch swId
+      NCT.OnSwitch swId
     | InPort pt -> 
-      PrHdr (inPort (Physical pt))
+      NCT.Hdr (NCT.inPort (NCT.Physical pt))
     | DlSrc n -> 
-      PrHdr (dlSrc n)
+      NCT.Hdr (NCT.dlSrc n)
     | DlDst n -> 
-      PrHdr (dlDst n)
+      NCT.Hdr (NCT.dlDst n)
     | DlVlan n -> 
-      PrHdr (dlVlan n)
+      NCT.Hdr (NCT.dlVlan n)
     | DlTyp n ->
-      PrHdr (dlType n)
+      NCT.Hdr (NCT.dlType n)
     | SrcIP n -> 
-      PrHdr (ipSrc n)
+      NCT.Hdr (NCT.ipSrc n)
     | DstIP n -> 
-      PrHdr (ipDst n)
+      NCT.Hdr (NCT.ipDst n)
     | TcpSrcPort n -> 
-      PrHdr (tcpSrcPort n)
+      NCT.Hdr (NCT.tcpSrcPort n)
     | TcpDstPort n -> 
-      PrHdr (tcpDstPort n) in
+      NCT.Hdr (NCT.tcpDstPort n) in
   let rec desugar_pol curr pol = match pol with 
     | Act action -> 
-      let pol' = PoAction (desugar_act action) in 
+      let pol' = NCT.Action (desugar_act action) in 
       let slice' = [] in 
       (pol', slice')
     | Filter pred -> 
-      let pol' = PoFilter (desugar_pred pred) in 
+      let pol' = NCT.Filter (desugar_pred pred) in 
       let slice' = [] in
       (pol', slice')
     | Par (pol1, pol2) ->
       let pol1',slice1 = desugar_pol curr pol1 in  
       let pol2',slice2 = desugar_pol curr pol2 in  
-      let pol' = PoUnion (pol1', pol2') in 
+      let pol' = NCT.Union (pol1', pol2') in 
       let slice' = slice1 @ slice2 in 
       (pol', slice')
     | Seq (pol1, pol2) ->
       let pol1',slice1 = desugar_pol curr pol1 in  
       let pol2',slice2 = desugar_pol curr pol2 in  
-      let pol' = PoSeq (pol1', pol2') in 
+      let pol' = NCT.Seq (pol1', pol2') in 
       let slice' = slice1 @ slice2 in 
       (pol', slice')
     | ITE (pred, then_pol, else_pol) ->
       let (then_po, slice1) = desugar_pol curr then_pol in
       let (else_po, slice2) = desugar_pol curr else_pol in
-      (PoITE (desugar_pred pred, then_po, else_po), 
+      (NCT.ITE (desugar_pred pred, then_po, else_po), 
        slice1 @ slice2)
     | Empty -> 
-      let pol' = PoFilter PrNone in 
+      let pol' = NCT.Filter NCT.Nothing in 
       let slice' = [] in 
       (pol', slice') 
     | Slice(sin, spol, sout) -> 
@@ -311,22 +312,25 @@ let desugar (genvlan : unit -> int option) (pol : policy) : NetCore_Types.pol =
       let pred_rec = 
         if List.length sslice' > 0 then
           List.fold_left 
-            (fun acc s -> PrAnd(acc, PrHdr(dlVlan s)))
-            PrAll sslice'
+            (fun acc s -> NCT.And(acc, NCT.Hdr(NCT.dlVlan s)))
+            NCT.Everything sslice'
         else 
-          PrNone in
-      let pred_curr = PrHdr(dlVlan(curr)) in 
-      let pred_next = PrHdr(dlVlan(next)) in 
+          NCT.Nothing in
+      let pred_curr = NCT.Hdr(NCT.dlVlan(curr)) in 
+      let pred_next = NCT.Hdr(NCT.dlVlan(next)) in 
       let pol1' = 
-        PoUnion ( PoSeq ( PoFilter(PrAnd(pred_curr, sin'))
-                        , PoAction (NetCore_Action.Output.updateDlVlan curr next))
-                , PoFilter (PrOr (pred_next, pred_rec))) in 
+        NCT.Union 
+          ( NCT.Seq 
+            ( NCT.Filter(NCT.And(pred_curr, sin'))
+            , NCT.Action 
+              (NetCore_Action.Output.updateDlVlan curr next))
+          , NCT.Filter (NCT.Or (pred_next, pred_rec))) in 
       let pol2' = spol' in 
       let pol3' = 
-        PoUnion ( PoSeq ( PoFilter(PrAnd(pred_next, sout'))
-                        , PoAction (NetCore_Action.Output.updateDlVlan next curr))
-                , PoFilter(PrNot(PrAnd(pred_next, sout')))) in 
-      let pol' = PoSeq(pol1', PoSeq(pol2', pol3')) in 
+        NCT.Union ( NCT.Seq ( NCT.Filter(NCT.And(pred_next, sout'))
+                        , NCT.Action (NetCore_Action.Output.updateDlVlan next curr))
+                , NCT.Filter(NCT.Not(NCT.And(pred_next, sout')))) in 
+      let pol' = NCT.Seq(pol1', NCT.Seq(pol2', pol3')) in 
       let slice' = next::sslice' in 
       (pol', slice') in 
   fst (desugar_pol None pol)

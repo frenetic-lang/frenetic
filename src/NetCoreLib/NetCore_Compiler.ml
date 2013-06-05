@@ -9,29 +9,29 @@ module BoolClassifier = NetCore_Classifier.Make(NetCore_Action.Bool)
 
 let rec compile_pred pr sw : BoolClassifier.t = 
   match pr with
-  | PrHdr pat -> 
+  | Hdr pat -> 
    [(pat,true); (all, false)]
-  | PrOnSwitch sw' ->
+  | OnSwitch sw' ->
     if sw = sw' then
       [(all, true)] 
     else 
       [(all, false)]
-  | PrOr (pr1, pr2) ->
+  | Or (pr1, pr2) ->
     BoolClassifier.union (compile_pred pr1 sw) (compile_pred pr2 sw)
-  | PrAnd (pr1, pr2) ->
+  | And (pr1, pr2) ->
     BoolClassifier.sequence (compile_pred pr1 sw) (compile_pred pr2 sw)
-  | PrNot pr' ->    
+  | Not pr' ->    
     map (fun (a,b) -> (a, not b)) 
       (compile_pred pr' sw @ [(all,false)])
-  | PrAll -> 
+  | Everything -> 
     [all,true]
-  | PrNone -> 
+  | Nothing -> 
     [all,false]
 
 let rec compile_pol p sw =
   match p with
   | HandleSwitchEvent _ -> [(all, NetCore_Action.Output.drop)]
-  | PoAction action ->
+  | Action action ->
     fold_right 
       (fun e0 tbl -> 
         OutputClassifier.union 
@@ -39,21 +39,21 @@ let rec compile_pol p sw =
           tbl)
       (NetCore_Action.Output.atoms action)
       [(all, NetCore_Action.Output.drop)]
-  | PoFilter pred ->
+  | Filter pred ->
     map 
       (fun (a,b) -> match b with
       | true -> (a, NetCore_Action.Output.pass)
       | false -> (a, NetCore_Action.Output.drop))
       (compile_pred pred sw)
-  | PoUnion (pol1, pol2) ->
+  | Union (pol1, pol2) ->
     OutputClassifier.union 
       (compile_pol pol1 sw) 
       (compile_pol pol2 sw)
-  | PoSeq (pol1, pol2) ->
+  | Seq (pol1, pol2) ->
     OutputClassifier.sequence 
       (compile_pol pol1 sw) 
       (compile_pol pol2 sw)
-  | PoITE (pred, then_pol, else_pol) ->
+  | ITE (pred, then_pol, else_pol) ->
     let then_tbl = compile_pol then_pol sw in
     let else_tbl = compile_pol else_pol sw in
     let seq_then_else (pat, b) = match b with

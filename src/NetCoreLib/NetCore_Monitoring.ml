@@ -21,7 +21,7 @@ let monitor_load (window : float) filter =
   let monitor_load_handler packets bytes =
     printf "%Ld packets and %Ld bytes matched %s in the last %f seconds.\n%!"
       packets bytes (NetCore_Pretty.string_of_pol filter) window in
-  PoSeq (filter, PoAction (NetCore_Action.Output.query window monitor_load_handler))
+  Seq (filter, Action (NetCore_Action.Output.query window monitor_load_handler))
   
 let monitor_packets (label : string) : action = 
   let monitor_packet_handler sw port pkt = 
