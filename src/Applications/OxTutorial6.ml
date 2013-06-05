@@ -1,7 +1,7 @@
 open Ox
-open OpenFlow0x01 (* TODO(arjun): fix *)
 open OpenFlow0x01_Core
 open OxPlatform
+module Stats = OpenFlow0x01_Stats
 
 (* Extend OxTutorial4 to also implement its packet_in handler efficiently
    in the flow table. This finishes OxTutoria6. *)
@@ -28,7 +28,7 @@ module MyApplication : OXMODULE = struct
     let callback () =
       Printf.printf "Sending stats request to %Ld\n%!" sw; 
       send_stats_request sw xid
-        (StatsRequest.AggregateRequest (pat, 0xff, None));
+        (Stats.AggregateRequest (pat, 0xff, None));
       periodic_stats_request sw interval xid pat in
     timeout interval callback
 
@@ -90,10 +90,10 @@ module MyApplication : OXMODULE = struct
 
   (* TODO(arjun): this has to become simpler, even if we give it to
      students. *)
-  let stats_reply (sw : switchId) (xid : xid) (stats : StatsReply.t) : unit =
+  let stats_reply (sw : switchId) (xid : xid) (stats : Stats.reply) : unit =
     match stats with
-      | StatsReply.AggregateFlowRep rep ->
-        let k = rep.StatsReply.total_packet_count in
+      | Stats.AggregateFlowRep rep ->
+        let k = rep.Stats.total_packet_count in
         (match xid with
           | 500l -> 
             num_http_request_packets := Int64.add !num_http_request_packets k
@@ -106,7 +106,8 @@ module MyApplication : OXMODULE = struct
         Printf.printf "Unexpected stats message.\n%!"
 
 
-  let port_status (sw : switchId) (xid : xid) (port : PortStatus.t) : unit =
+(* TODO(arjun) *)
+  let port_status (sw : switchId) (xid : xid) (port : OpenFlow0x01.PortStatus.t) : unit =
     ()
 
 end

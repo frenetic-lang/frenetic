@@ -1,7 +1,7 @@
 open Ox
-open OpenFlow0x01 (* TODO(arjun) : FIX *)
 open OpenFlow0x01_Core
 open OxPlatform
+module Stats = OpenFlow0x01_Stats
 
 module MyApplication : OXMODULE = struct
   
@@ -11,7 +11,7 @@ module MyApplication : OXMODULE = struct
       (fun () -> 
         Printf.printf "Sending stats request to %Ld\n%!" sw; 
         send_stats_request sw 0l
-          (StatsRequest.AggregateRequest (match_all, 0xff, None)))
+          (Stats.AggregateRequest (match_all, 0xff, None)))
 
   let switch_connected sw = 
     let fm = {
@@ -36,14 +36,14 @@ module MyApplication : OXMODULE = struct
 
   let stats_reply sw xid stats = 
     Printf.printf "Stats Reply\n%!";
-    let open StatsReply in
-        match stats with 
-          | AggregateFlowRep afs -> 
-            Printf.printf "Packets: %Ld\nBytes: %Ld\nFlows: %ld\n%!"
-              afs.total_packet_count afs.total_byte_count afs.flow_count;
-            my_send_stats_request sw
-          | _ -> 
-            ()
+    match stats with 
+      | Stats.AggregateFlowRep afs -> 
+        Printf.printf "Packets: %Ld\nBytes: %Ld\nFlows: %ld\n%!"
+          afs.Stats.total_packet_count afs.Stats.total_byte_count 
+          afs.Stats.flow_count;
+        my_send_stats_request sw
+      | _ -> 
+        ()
 
   let packet_in sw xid pktIn = ()
 

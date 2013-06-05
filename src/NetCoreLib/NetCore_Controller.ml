@@ -6,6 +6,7 @@ open NetCore_Types
 
 module Log = Frenetic_Log
 module SwitchSet = Set.Make (Int64)
+module Stats = OpenFlow0x01_Stats
 
 let (<&>) = Lwt.(<&>)
 
@@ -31,7 +32,7 @@ module type QUERY = functor (Platform : PLATFORM) -> sig
   val start : t -> unit Lwt.t
   val handle_reply : switchId 
                   -> t
-                  -> StatsReply.individualStats list
+                  -> Stats.individualStats list
                   -> unit
 
   val refresh_switches : SwitchSet.t -> t -> unit
@@ -152,7 +153,7 @@ module Query (Platform : PLATFORM) = struct
     else
       let query_msg =
         Message.StatsRequestMsg 
-          (StatsRequest.IndividualRequest (match_all, 0, None)) in
+          (Stats.IndividualRequest (match_all, 0, None)) in
       Lwt_mutex.lock q.lock >>
       if not (is_dead q) then
         let _ = reset q in
@@ -174,8 +175,8 @@ module Query (Platform : PLATFORM) = struct
   let handle_single_reply sw q rep =
     (* let () = Log.printf 
       "NetCore_Controller.Query" "handle reply (%s) (%Ld)\n    (%s)\n%!"
-      (to_string q) sw (StatsReply.IndividualFlowStats.to_string rep) in *)
-    let open StatsReply in
+      (to_string q) sw (Stats.IndividualFlowStats.to_string rep) in *)
+    let open Stats in
     if FlowSet.mem (sw, rep.of_match, rep.priority) !(q.counter_ids) then begin
       q.this_packet_count := Int64.add rep.packet_count !(q.this_packet_count);
       q.this_byte_count := Int64.add rep.byte_count !(q.this_byte_count);
@@ -226,7 +227,7 @@ module type QUERYSET = functor (Platform : PLATFORM) ->
     val remove_switch : switchId -> unit
     val handle_reply : switchId 
                     -> xid 
-                    -> StatsReply.individualStats list 
+                    -> Stats.individualStats list 
                     -> unit
   end
 
@@ -386,7 +387,7 @@ module Make (Platform : PLATFORM) = struct
     lwt (xid, msg) = Platform.recv_from_switch sw in
     lwt _ = match msg with
       | PacketInMsg pktIn -> handle_packet_in pol sw pktIn
-      | StatsReplyMsg (StatsReply.IndividualFlowRep reps) -> 
+      | StatsReplyMsg (Stats.IndividualFlowRep reps) -> 
         Queries.handle_reply sw xid reps;
         Lwt.return ()
       | StatsReplyMsg r ->
@@ -559,7 +560,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
     lwt v = Platform.recv_from_switch sw in
     lwt _ = match v with
       | (_, PacketInMsg pktIn) -> handle_packet_in sw pktIn
-      | (xid, StatsReplyMsg (StatsReply.IndividualFlowRep reps)) -> 
+      | (xid, StatsReplyMsg (Stats.IndividualFlowRep reps)) -> 
         Queries.handle_reply sw xid reps;
         Lwt.return ()
       | (xid, StatsReplyMsg r) ->

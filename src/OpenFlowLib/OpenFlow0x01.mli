@@ -301,68 +301,14 @@ module SwitchFeatures : sig
 
 end
 
-(** A statistics request message.  See Section 5.3.5 of the OpenFlow 1.0 
-specification. *)
 module StatsRequest : sig
-
-  (** Both [IndividualRequest] and [AggregateRequest] take as
-      paramters, a [pattern] that specifies the fields to match, the
-      [table_if] to read from, and an optional port, which requires
-      matching entries to have this as an output port. *)
-  type t =
-    | DescriptionRequest     (** Description of this OpenFlow switch. *)
-    | IndividualRequest of pattern * int8 * pseudoPort option
-    | AggregateRequest of pattern * int8 * pseudoPort option
-  
-    (* TODO(cole): queue and vendor stats requests. *)
-
-  (** [to_string v] pretty-prints [v]. *)
+  type t = OpenFlow0x01_Stats.request
   val to_string : t -> string
-
 end
 
-(** A statistics reply message.  See Section 5.3.5 of the OpenFlow 1.0 
-specification. *)
 module StatsReply : sig
 
-  (** The body of a reply to a description request. *)
-  type descriptionStats =
-      { manufacturer : string (** Manufacturer description. *)
-      ; hardware : string (** Hardware description. *)
-      ; software : string (** Software description. *)
-      ; serial_number : string (** Serial number. *)
-      ; datapath : string (** Human readable description of datapath. *)
-      }
-        
-  (** The body of a reply to an individual flow statistics request. *)
-  type individualStats =
-    { table_id : int8 (** ID of table flow came from. *)
-    ; of_match : pattern (** Description of fields. *)
-    ; duration_sec : int32 (** Time flow has been alive in seconds. *)
-    ; duration_nsec : int32 (** Time flow has been alive in nanoseconds 
-                                beyond [duration_sec]. *)
-    ; priority : int16 (** Priority of the entry.  Only meaningful when this
-                           is not an exact-match entry. *)
-    ; idle_timeout : int16 (** Number of seconds idle before expiration. *)
-    ; hard_timeout : int16 (** Number of seconds before expiration. *)
-    ; cookie : int64 (** Opaque controller-issued identifier. *)
-    ; packet_count : int64 (** Number of packets in flow. *)
-    ; byte_count : int64 (** Number of bytes in flow. *)
-    ; actions : action list (** Actions. *)
-    }
-
-  type aggregateStats =
-    { total_packet_count : int64 (** Number of packets in flows. *)
-    ; total_byte_count : int64 (** Number of bytes in flows. *)
-    ; flow_count : int32 (** Number of flows. *)
-    }
-
-  type t =
-    | DescriptionRep of descriptionStats
-    | IndividualFlowRep of individualStats list
-    | AggregateFlowRep of aggregateStats
-
-  (** [to_string v] pretty-prints [v]. *)
+  type t = OpenFlow0x01_Stats.reply
   val to_string : t -> string
 
 end

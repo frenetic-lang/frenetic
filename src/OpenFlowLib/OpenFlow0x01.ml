@@ -1313,10 +1313,8 @@ end
 
 module StatsRequest = struct
 
-  type t =
-    | DescriptionRequest
-    | IndividualRequest of pattern * int8 * pseudoPort option
-    | AggregateRequest of pattern * int8 * pseudoPort option
+  open OpenFlow0x01_Stats
+  type t = request
 
   cstruct ofp_stats_request {
     uint16_t req_type;
@@ -1378,12 +1376,9 @@ end
 
 module StatsReply = struct
 
-  type descriptionStats =
-      { manufacturer : string
-      ; hardware : string
-      ; software : string
-      ; serial_number : string
-      ; datapath : string }
+  open OpenFlow0x01_Stats
+  type t = reply
+
 
   let desc_str_len = 256
   let serial_num_len = 32
@@ -1423,18 +1418,6 @@ module StatsReply = struct
       desc.serial_number desc.datapath
 
 
-    type individualStats =
-      { table_id : int8
-      ; of_match : Match.t
-      ; duration_sec : int32
-      ; duration_nsec : int32
-      ; priority : int16
-      ; idle_timeout : int
-      ; hard_timeout : int
-      ; cookie : int64
-      ; packet_count : int64
-      ; byte_count : int64
-      ; actions : Action.sequence }
 
     cstruct ofp_flow_stats {
       uint16_t length;
@@ -1516,10 +1499,6 @@ module StatsReply = struct
         let (v, bits') = _parse_individual_stats bits in
         v :: parse_sequence_individual_stats bits'
 
-    type aggregateStats =
-      { total_packet_count : int64
-      ; total_byte_count : int64
-      ; flow_count : int32 }
 
     cstruct ofp_aggregate_stats {
       uint64_t packet_count;
@@ -1538,11 +1517,6 @@ module StatsReply = struct
       { total_packet_count = get_ofp_aggregate_stats_packet_count bits;
 	      total_byte_count = get_ofp_aggregate_stats_byte_count bits;
 	      flow_count = get_ofp_aggregate_stats_flow_count bits }
-
-  type t =
-    | DescriptionRep of descriptionStats
-    | IndividualFlowRep of individualStats list
-    | AggregateFlowRep of aggregateStats
 
   cstruct ofp_stats_reply {
     uint16_t stats_type;
