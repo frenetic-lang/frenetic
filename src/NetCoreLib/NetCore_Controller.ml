@@ -40,8 +40,25 @@ end
 
 module Query (Platform : OpenFlow0x01.PLATFORM) = struct
 
+  exception BadFlow of string
+
+  module Flow = struct
+    type t = (switchId * Match.t * int)
+    let compare (s1, m1, p1) (s2, m2, p2) =
+      let rv_s = Int64.compare s1 s2 in
+      if rv_s != 0 then 
+        rv_s 
+      else if p1 = p2 && m1 = m2 then
+        (* TODO(cole) be smarter when less tired. *)
+        raise (BadFlow "Bad flow table comparison!")
+      else
+        compare p1 p2
+  end
+
+  module FlowSet = Set.Make (Flow)
+
   (* switch id, match, priority *)
-  type counter_ids = (switchId * Match.t * int, unit) Hashtbl.t
+  type counter_ids = FlowSet.t ref
 
   type t = 
     { (* Static. *)
@@ -75,7 +92,7 @@ module Query (Platform : OpenFlow0x01.PLATFORM) = struct
     let qfields = NetCore_Compiler.query_fields_of_policy pol atom sw in
     let pri = ref 65535 in
     List.iter 
-      (fun match_ -> Hashtbl.replace tbl (sw, match_, !pri) (); decr pri)
+      (fun match_ -> tbl := FlowSet.add (sw, match_, !pri) !tbl; decr pri)
       qfields
 
   let kill q = 
@@ -87,7 +104,7 @@ module Query (Platform : OpenFlow0x01.PLATFORM) = struct
   let is_dead q = not (Lwt_switch.is_on q.kill_switch)
 
   let create xid atom time cb kill_switch switches policy =
-    let counter_ids = Hashtbl.create 200 in
+    let counter_ids = ref FlowSet.empty in
     let _ = SwitchSet.iter (set_fields counter_ids policy atom) switches in
     let q = 
       { xid = xid
@@ -161,10 +178,9 @@ module Query (Platform : OpenFlow0x01.PLATFORM) = struct
       "NetCore_Controller.Query" "handle reply (%s) (%Ld)\n    (%s)\n%!"
       (to_string q) sw (StatsReply.IndividualFlowStats.to_string rep) in *)
     let open StatsReply.IndividualFlowStats in
-    if Hashtbl.mem q.counter_ids (sw, rep.of_match, rep.priority) then begin
+    if FlowSet.mem (sw, rep.of_match, rep.priority) !(q.counter_ids) then begin
       q.this_packet_count := Int64.add rep.packet_count !(q.this_packet_count);
       q.this_byte_count := Int64.add rep.byte_count !(q.this_byte_count);
-      q.switches_to_respond := SwitchSet.remove sw !(q.switches_to_respond)
       end
     else ()
 
@@ -481,7 +497,7 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
     | [] -> failwith "pop_last must be called w/ non-empty list"
     | [a] -> [],a
     | a :: lst -> let lst',last = pop_last lst in
-		  a::lst',last
+                  a::lst',last
 
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
     Log.printf "ConsistentController" "In configure_squence\n%!";
@@ -489,17 +505,18 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
        in sequence w/o clearing results in multiple such rules, possibly
        messing up semantics w/ they overlap/shadow real rules. Instead,
        default drop rule should be installed at bottom priority *)
-    lwt flow_table, drop_rule = Lwt.wrap1 pop_last (NetCore_Compiler.flow_table_of_policy sw pol) in
-  let prio = ref 65535 in
-  Lwt_list.iter_s
-    (fun (match_, actions) ->
-      printf " %s => %s\n%!"
-        (OpenFlow0x01.Match.to_string match_)
-        (OpenFlow0x01.Action.sequence_to_string actions);
-      Platform.send_to_switch sw 0l 
-	(Message.FlowModMsg (FlowMod.add_flow !prio match_ actions)) >>
-        (decr prio; Lwt.return ()))
-    flow_table;
+    lwt flow_table, drop_rule = 
+      Lwt.wrap1 pop_last (NetCore_Compiler.flow_table_of_policy sw pol) in
+    let prio = ref 65535 in
+    Lwt_list.iter_s
+      (fun (match_, actions) ->
+        printf " %s => %s\n%!"
+          (OpenFlow0x01.Match.to_string match_)
+          (OpenFlow0x01.Action.sequence_to_string actions);
+        Platform.send_to_switch sw 0l 
+          (Message.FlowModMsg (FlowMod.add_flow !prio match_ actions)) >>
+          (decr prio; Lwt.return ()))
+      flow_table >>
       Platform.send_to_switch sw 0l 
         (Message.FlowModMsg (FlowMod.add_flow 1 (fst drop_rule) (snd drop_rule)))
 
@@ -508,10 +525,13 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
   let install_new_policies sw pol_stream =
     Lwt_stream.iter_s (fun (int, ext, topo_pol) -> 
       clear_switch sw >>
-	configure_switch sw topo_pol >>
-	let _ = Log.printf "NetCore_Controller" "internal pol:\n%s\n%!" (NetCore_Pretty.string_of_pol int) in
-	configure_switch sw int >>
-	  let _ = Log.printf "NetCore_Controller" "external pol:\n%s\n%!" (NetCore_Pretty.string_of_pol ext) in
+      configure_switch sw topo_pol >>
+      let _ = 
+        Log.printf "NetCore_Controller" "internal pol:\n%s\n%!" 
+          (NetCore_Pretty.string_of_pol int) in
+      configure_switch sw int >>
+      let _ = Log.printf "NetCore_Controller" "external pol:\n%s\n%!" 
+        (NetCore_Pretty.string_of_pol ext) in
       configure_switch sw (PoUnion(int,ext)))
       (NetCore_Stream.to_stream pol_stream)
       
@@ -550,10 +570,10 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
           (StatsReply.to_string r) in
           Lwt.return ()
       | (xid, PortStatusMsg msg) ->
-	let _ = 
+        let _ = 
       Log.printf "NetCore_Controller" 
         "received %s" (PortStatus.to_string msg) in
-	Lwt.return ()
+        Lwt.return ()
       | _ -> Lwt.return ()
       in
     handle_switch_messages sw
@@ -584,10 +604,10 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
       Lwt.async
         (fun () -> (* TODO(arjun): 
                       confirm this gracefully discards the exception *)
-	  let (int_pol,ext_pol,topo_pol) = (NetCore_Stream.now pol_stream) in
+          let (int_pol,ext_pol,topo_pol) = (NetCore_Stream.now pol_stream) in
           Lwt.wrap2 NetCore_Semantics.handle_switch_events 
             (SwitchDown sw)
-	    (PoUnion (PoUnion(int_pol,ext_pol), topo_pol)));
+            (PoUnion (PoUnion(int_pol,ext_pol), topo_pol)));
       Queries.remove_switch sw;
       Lwt.return ()
     end
@@ -600,8 +620,8 @@ module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
   let make_extPorts sw =
     List.fold_left (fun acc (pId,loc) -> 
       match loc with
-	      | NetCore_Topo.Switch _ -> acc
-	      | _ -> pId :: acc)
+              | NetCore_Topo.Switch _ -> acc
+              | _ -> pId :: acc)
       (Topo.ports_of_switch  sw) []
 
   module GenSym = (* TODO(arjun): consider NetCore_Gensym *)
