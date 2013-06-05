@@ -1,5 +1,6 @@
 open Printf
 open Packet
+open OpenFlow0x01_Core
 open OpenFlow0x01
 
 module Log = Frenetic_Log
@@ -118,7 +119,7 @@ module Make (Handlers:OXMODULE) = struct
     lwt feats = Platform.accept_switch () in 
     let sw = feats.SwitchFeatures.switch_id in 
     Log.printf "Ox_Controller" "switch %Ld connected\n%!" sw;
-    lwt _ = Platform.send_to_switch sw 0l delete_all_flows in
+    lwt _ = Platform.send_to_switch sw 0l (FlowModMsg delete_all_flows) in
     lwt _ = Platform.send_to_switch sw 1l BarrierRequest in
     (* JNF: wait for barrier reply? *)
     let _ = Handlers.switch_connected sw in 

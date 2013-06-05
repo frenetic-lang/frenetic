@@ -1,8 +1,10 @@
+open Ox
+open OpenFlow0x01 (* TODO(arjun) : FIX *)
 open OpenFlow0x01_Core
+open OxPlatform
 
-module MyApplication : Ox.OXMODULE = struct
-  open Ox.OxPlatform
-  open OpenFlow0x01
+module MyApplication : OXMODULE = struct
+  
 
   let my_send_stats_request sw = 
     let open StatsRequest.AggregateFlowRequest in  
@@ -11,14 +13,14 @@ module MyApplication : Ox.OXMODULE = struct
             Printf.printf "Sending stats request to %Ld\n%!" sw; 
             send_stats_request sw 0l
               (StatsRequest.AggregateFlowReq { 
-                of_match = Match.all;
+                of_match = match_all;
                 table_id = 0xff;
                 port = None }))
 
   let switch_connected sw = 
     let fm = {
       command = AddFlow;
-      pattern = Match.all;
+      pattern = match_all;
       priority = 1;
       actions = [Output Flood];
       cookie = Int64.zero;
@@ -55,4 +57,4 @@ module MyApplication : Ox.OXMODULE = struct
 
 end
 
-module Controller = Ox.Make (MyApplication)
+module Controller = Make (MyApplication)

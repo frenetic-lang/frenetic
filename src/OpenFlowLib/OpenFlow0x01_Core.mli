@@ -144,6 +144,12 @@ type packetOut =
 
 (** {9 Convenient Functions} *)
 
+
+val parse_payload : payload -> Packet.packet
+
+(** A pattern that matches all packets. (All fields wildcarded.) *)
+val match_all : pattern
+
 (** [add_flow priority pattern action_sequence] creates a
     [FlowMod.t] instruction that adds a new flow table entry with
     the specified [priority], [pattern], and [action_sequence].
@@ -152,4 +158,5 @@ type packetOut =
     zero, etc. *)
 val add_flow : int16 -> pattern -> action list -> flowMod
 
+val delete_all_flows : flowMod
 

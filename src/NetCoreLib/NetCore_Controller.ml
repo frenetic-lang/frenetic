@@ -157,7 +157,7 @@ module Query (Platform : PLATFORM) = struct
         let open StatsRequest.IndividualFlowRequest in
         Message.StatsRequestMsg 
           (StatsRequest.IndividualFlowReq 
-          {of_match = Match.all; table_id = 0; port = None}) in
+          {of_match = match_all; table_id = 0; port = None}) in
       Lwt_mutex.lock q.lock >>
       if not (is_dead q) then
         let _ = reset q in
@@ -346,7 +346,7 @@ module Make (Platform : PLATFORM) = struct
 
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
     lwt flow_table = Lwt.wrap2 NetCore_Compiler.flow_table_of_policy sw pol in
-    Platform.send_to_switch sw 0l Message.delete_all_flows >>
+    Platform.send_to_switch sw 0l (Message.FlowModMsg delete_all_flows) >>
     let prio = ref 65535 in
     Lwt_list.iter_s
       (fun (match_, actions) ->
@@ -362,7 +362,7 @@ module Make (Platform : PLATFORM) = struct
   let handle_packet_in pol sw pkt_in = 
     let in_port = pkt_in.port in
     try_lwt
-      let packet = Payload.parse pkt_in.input_payload in
+      let packet = parse_payload pkt_in.input_payload in
       let inp = Pkt (sw, Physical in_port, packet, pkt_in.input_payload) in
       let full_action = NetCore_Semantics.eval (NetCore_Stream.now pol) inp in
       let controller_action =
@@ -493,7 +493,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
   let topo_pol = NetCore_Stream.now topo_pol_stream
 
   let clear_switch (sw : switchId) : unit Lwt.t =
-    Platform.send_to_switch sw 0l Message.delete_all_flows
+    Platform.send_to_switch sw 0l (Message.FlowModMsg delete_all_flows)
 
   let rec pop_last lst = match lst with
     | [] -> failwith "pop_last must be called w/ non-empty list"
@@ -539,7 +539,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
       
   let handle_packet_in sw pkt_in = 
     let in_port = pkt_in.port in
-    let packet = Payload.parse pkt_in.input_payload in
+    let packet = parse_payload pkt_in.input_payload in
     let inp = Pkt (sw, Physical in_port, packet, pkt_in.input_payload) in
     let full_action = NetCore_Semantics.eval !pol_now inp in
     let controller_action =

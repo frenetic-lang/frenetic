@@ -1,6 +1,6 @@
 open Ox
 open OxPlatform
-open OpenFlow0x01
+
 open OpenFlow0x01_Core
 
 (* Extend OxTutorial2 to implement the packet_in function efficiently on
@@ -21,16 +21,16 @@ module MyApplication : OXMODULE = struct
     send_flow_mod sw 0l
       (add_flow 200 match_icmp []);
     send_flow_mod sw 1l
-      (add_flow 199 Match.all [Output AllPorts])
+      (add_flow 199 match_all [Output AllPorts])
       
   let switch_disconnected (sw : switchId) : unit =
     Printf.printf "Switch %Ld disconnected.\n%!" sw
 
   (* [FILL IN HERE]: Use exactly the same packet_in function you wrote from
      OxTutorial2.  *)
-  let packet_in (sw : switchId) (xid : xid) (pktIn : PacketIn.t) : unit =
+  let packet_in (sw : switchId) (xid : xid) (pktIn : packetIn) : unit =
     let payload = pktIn.input_payload in
-    let pk = Payload.parse payload in
+    let pk = parse_payload payload in
     if Packet.dlTyp pk = 0x806 && Packet.nwProto pk = 1 then
       send_packet_out sw 0l
         { output_payload = payload;

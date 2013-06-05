@@ -122,20 +122,6 @@ module Match = struct
 
   let size_of _ = sizeof_ofp_match
 
-  let all = {
-    dlSrc = None;
-    dlDst = None;
-    dlTyp = None;
-    dlVlan = None;
-    dlVlanPcp = None;
-    nwSrc = None;
-    nwDst = None;
-    nwProto = None;
-    nwTos = None;
-    tpSrc = None;
-    tpDst = None;
-    inPort = None
-  }
   let is_none x = match x with
     | None -> true
     | Some _ -> false
@@ -691,11 +677,6 @@ end
 module Payload = struct
 
   type t = payload
-
-  let parse (t : t) = match t with
-    | Buffered (_, b)
-    | NotBuffered b -> 
-      Packet.parse b
 
   let to_string (t : t) = match t with
     | Buffered (b, pk) ->
@@ -2088,21 +2069,6 @@ module Message = struct
     | BarrierReply (* JNF: why not "BarrierReplyMsg"? *)
     | StatsRequestMsg of StatsRequest.t
     | StatsReplyMsg of StatsReply.t
-
-  let delete_all_flows =
-    let open FlowMod in
-    FlowModMsg
-      { command = DeleteFlow
-      ; pattern = Match.all
-      ; priority = 0
-      ; actions = []
-      ; cookie = 0L
-      ; idle_timeout = Permanent
-      ; hard_timeout = Permanent
-      ; notify_when_removed = false
-      ; apply_to_packet = None
-      ; out_port = None
-      ; check_overlap = false }
 
   let parse (hdr : Header.t) (body_buf : string) : (xid * t) =
     let buf = Cstruct.of_string body_buf in

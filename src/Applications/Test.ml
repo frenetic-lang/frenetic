@@ -619,12 +619,12 @@ end
 (*
 module TestParser = struct
 
-  open OpenFlow0x01
+  
 
   (* For each parsable type, test that parse(marshal(v)) == v for some value v.
    *)
   let test_match = "match marshal/parse test" >:: fun () ->
-    let v = Match.all in
+    let v = match_all in
     let bits = Cstruct.create (Match.size_of v) in
     let _ = Match.marshal v bits in
     let v' = Match.parse bits in

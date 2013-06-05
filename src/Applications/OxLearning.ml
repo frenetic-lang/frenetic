@@ -1,4 +1,4 @@
-open OpenFlow0x01
+
 open Ox
 open OxPlatform
 open OpenFlow0x01_Core
@@ -16,7 +16,7 @@ module MyApplication : OXMODULE = struct
     table := List.remove_assoc sw !table
 
   let packet_in sw xid pktIn =
-    let pkt = Payload.parse pktIn.input_payload in
+    let pkt = parse_payload pktIn.input_payload in
     let inport = pktIn.port in 
     let src = pkt.Packet.dlSrc in 
     let dst = pkt.Packet.dlDst in 
@@ -24,7 +24,7 @@ module MyApplication : OXMODULE = struct
     Hashtbl.add sw_table src inport;
     if Hashtbl.mem sw_table dst then 
       let outport = Hashtbl.find sw_table dst in 
-      let m = { Match.all with 
+      let m = { match_all with 
         dlSrc = Some src;
         dlDst = Some dst;
         inPort = Some inport } in 

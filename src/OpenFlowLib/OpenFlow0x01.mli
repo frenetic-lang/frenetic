@@ -11,9 +11,6 @@ module Match : sig
 
   type t = pattern
 
-  (** A pattern that matches all packets. (All fields wildcarded.) *)
-  val all : t
-
   val to_string : t -> string
 
 end
@@ -84,10 +81,6 @@ end
 module Payload : sig
 
   type t = payload
-
-  (** [parse pk] signals an exception if the packet cannot be parsed.
-      TODO(arjun): Which exception? *)
-  val parse : t -> Packet.packet
 
   val to_string : t -> string
 end
@@ -663,9 +656,6 @@ module Message : sig
 
   (** [to_string msg] pretty-prints [msg]. *)
   val to_string : t -> string
-
-  (** A message ([FlowModMsg]) that deletes all flows. *)
-  val delete_all_flows : t
 
 end
 

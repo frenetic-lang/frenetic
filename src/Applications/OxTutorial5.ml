@@ -1,10 +1,11 @@
+open Ox
+open OpenFlow0x01 (* TODO(arjun): fix *)
 open OpenFlow0x01_Core
+open OxPlatform
 
 (* Extend OxTutorial4 to also implement its packet_in handler efficiently
    in the flow table. This is not complete! But, an intermediate point. *)
-module MyApplication : Ox.OXMODULE = struct
-  open Ox.OxPlatform
-  open OpenFlow0x01
+module MyApplication : OXMODULE = struct
 
   let match_icmp = 
     { dlSrc = None; dlDst = None; dlTyp = Some 0x800; dlVlan = None;
@@ -50,7 +51,7 @@ module MyApplication : Ox.OXMODULE = struct
       (add_flow 198 match_http_responses 
          [Output AllPorts]);
     send_flow_mod sw 1l
-      (add_flow 197 Match.all [Output AllPorts])
+      (add_flow 197 match_all [Output AllPorts])
       
   let switch_disconnected (sw : switchId) : unit =
     Printf.printf "Switch %Ld disconnected.\n%!" sw
@@ -63,14 +64,14 @@ module MyApplication : Ox.OXMODULE = struct
     (Packet.tpSrc pk = 80 || Packet.tpDst pk = 80)
 
   (* [FILL IN HERE] Use the packet_in function you write in OxTutorial4. *)
-  let packet_in (sw : switchId) (xid : xid) (pktIn : PacketIn.t) : unit =
-    if is_http_packet (Payload.parse pktIn.input_payload) then
+  let packet_in (sw : switchId) (xid : xid) (pktIn : packetIn) : unit =
+    if is_http_packet (parse_payload pktIn.input_payload) then
       begin
         num_http_packets := !num_http_packets + 1;
         Printf.printf "Seen %d HTTP packets.\n%!" !num_http_packets
       end;
     let payload = pktIn.input_payload in
-    let pk = Payload.parse payload in
+    let pk = parse_payload payload in
     if Packet.dlTyp pk = 0x800 && Packet.nwProto pk = 1 then
       send_packet_out sw 0l
         { output_payload = payload;
@@ -96,4 +97,4 @@ module MyApplication : Ox.OXMODULE = struct
 
 end
 
-module Controller = Ox.Make (MyApplication)
+module Controller = Make (MyApplication)

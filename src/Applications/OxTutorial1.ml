@@ -1,4 +1,3 @@
-open OpenFlow0x01
 open Ox
 open OpenFlow0x01_Core
 open OxPlatform
@@ -13,12 +12,12 @@ module MyApplication : OXMODULE = struct
      to make it behave as a repeater. *)
   let switch_connected (sw : switchId) : unit =
     Printf.printf "Switch %Ld connected.\n%!" sw;
-    send_flow_mod sw 1l (add_flow 200 Match.all [Output AllPorts])
+    send_flow_mod sw 1l (add_flow 200 match_all [Output AllPorts])
 
   let switch_disconnected (sw : switchId) : unit =
     Printf.printf "Switch %Ld disconnected.\n%!" sw
 
-  let packet_in (sw : switchId) (xid : xid) (pk : PacketIn.t) : unit =
+  let packet_in (sw : switchId) (xid : xid) (pk : packetIn) : unit =
     send_packet_out sw 0l
       { output_payload = pk.input_payload;
         port_id = None;
