@@ -3,7 +3,7 @@
 
 open OpenFlow0x01
   
-include OpenFlow0x01.PLATFORM
+include OpenFlow0x01_PlatformSig.PLATFORM
 
 module Network : sig
     

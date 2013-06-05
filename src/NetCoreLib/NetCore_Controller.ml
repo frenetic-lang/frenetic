@@ -10,8 +10,10 @@ let (<&>) = Lwt.(<&>)
 
 let init_pol : pol = PoFilter PrNone
 
+module type PLATFORM = OpenFlow0x01_PlatformSig.PLATFORM
+
 (* Internal module for managing individual queries. *)
-module type QUERY = functor (Platform : OpenFlow0x01.PLATFORM) -> sig
+module type QUERY = functor (Platform : PLATFORM) -> sig
  
   type t
 
@@ -38,7 +40,7 @@ module type QUERY = functor (Platform : OpenFlow0x01.PLATFORM) -> sig
 
 end
 
-module Query (Platform : OpenFlow0x01.PLATFORM) = struct
+module Query (Platform : PLATFORM) = struct
 
   exception BadFlow of string
 
@@ -220,7 +222,7 @@ module Query (Platform : OpenFlow0x01.PLATFORM) = struct
 
 end
 
-module type QUERYSET = functor (Platform : OpenFlow0x01.PLATFORM) ->
+module type QUERYSET = functor (Platform : PLATFORM) ->
   sig
     val start : pol -> unit Lwt.t
     val stop : unit -> unit
@@ -232,7 +234,7 @@ module type QUERYSET = functor (Platform : OpenFlow0x01.PLATFORM) ->
                     -> unit
   end
 
-module QuerySet (Platform : OpenFlow0x01.PLATFORM) = struct
+module QuerySet (Platform : PLATFORM) = struct
 
   module Q = Query (Platform)
   type qid = xid
@@ -332,12 +334,12 @@ module QuerySet (Platform : OpenFlow0x01.PLATFORM) = struct
 
 end
 
-module type MAKE  = functor (Platform : OpenFlow0x01.PLATFORM) -> 
+module type MAKE  = functor (Platform : PLATFORM) -> 
   sig
     val start_controller : NetCore_Types.pol NetCore_Stream.t -> unit Lwt.t
   end
 
-module Make (Platform : OpenFlow0x01.PLATFORM) = struct
+module Make (Platform : PLATFORM) = struct
 
   module Queries = QuerySet(Platform)
 
@@ -473,7 +475,7 @@ module Make (Platform : OpenFlow0x01.PLATFORM) = struct
 
 end
 
-module MakeConsistent (Platform : OpenFlow0x01.PLATFORM) = struct
+module MakeConsistent (Platform : PLATFORM) = struct
 
   open NetCore_ConsistentUpdates
   module Queries = QuerySet(Platform)

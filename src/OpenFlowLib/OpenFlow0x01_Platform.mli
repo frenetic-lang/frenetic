@@ -3,7 +3,7 @@
 open Lwt_unix
 open OpenFlow0x01
 
-include OpenFlow0x01.PLATFORM
+include OpenFlow0x01_PlatformSig.PLATFORM
 
 (** [init_with_port p] accepts connections from switches on port [p], which
     is usually [6633]. *)
