@@ -1284,7 +1284,6 @@ module StatsRequest = struct
     | DescriptionRequest
     | IndividualRequest of pattern * int8 * pseudoPort option
     | AggregateRequest of pattern * int8 * pseudoPort option
-    | TableRequest
 
   cstruct ofp_stats_request {
     uint16_t req_type;
@@ -1317,7 +1316,6 @@ module StatsRequest = struct
       "IndividualFlowReq "
     | AggregateRequest _ ->
       "AggregateFlowReq "
-    | TableRequest -> "TableReq"
 
   let size_of msg =
     let header_size = sizeof_ofp_stats_request in
@@ -1325,14 +1323,11 @@ module StatsRequest = struct
     | DescriptionRequest -> header_size
     | AggregateRequest _
     | IndividualRequest _ -> header_size + sizeof_ofp_flow_stats_request
-    | _ ->
-      failwith (Printf.sprintf "NYI: StatsRequest.size_of: %s" (to_string msg))
 
   let ofp_stats_type_of_request req = match req with
     | DescriptionRequest -> OFPST_DESC
     | IndividualRequest _ -> OFPST_FLOW
     | AggregateRequest _ -> OFPST_AGGREGATE
-    | TableRequest -> OFPST_TABLE
 
   let marshal msg out =
     let req_type = ofp_stats_type_of_request msg in
@@ -1345,8 +1340,6 @@ module StatsRequest = struct
     | IndividualRequest (pat, tbl, port)
     | AggregateRequest (pat, tbl, port) ->
       marshal_flow_stats_request pat port tbl out'
-    | _ ->
-      failwith (Printf.sprintf "NYI: StatsRequest.marshal %s" (to_string msg))
 
 end
 
@@ -1524,27 +1517,10 @@ module StatsReply = struct
 
   end
 
-  module TableStats = struct
-
-    type t =
-      { table_id : int8
-      ; name : string
-      ; wildcards : SwitchFeatures.supported_wildcards
-      ; max_entries : int32
-      ; active_count : int32
-      ; lookup_count : int64
-      ; matched_count : int64 }
-
-    let to_string stats = failwith "NYI: TableStats.to_string"
-    let parse _ = failwith "NYI: TableStats.parse"
-
-  end
-
   type t =
     | DescriptionRep of DescriptionStats.t
     | IndividualFlowRep of IndividualFlowStats.t list
     | AggregateFlowRep of AggregateFlowStats.t
-    | TableRep of TableStats.t
 
   cstruct ofp_stats_reply {
     uint16_t stats_type;
@@ -1556,7 +1532,6 @@ module StatsReply = struct
     | IndividualFlowRep stats ->
       Frenetic_Misc.string_of_list IndividualFlowStats.to_string stats
     | AggregateFlowRep stats -> AggregateFlowStats.to_string stats
-    | TableRep stats -> TableStats.to_string stats
 
   let parse bits =
     let stats_type_code = get_ofp_stats_reply_stats_type bits in
@@ -1567,7 +1542,7 @@ module StatsReply = struct
       IndividualFlowRep (IndividualFlowStats.parse_sequence body)
     | Some OFPST_AGGREGATE ->
       AggregateFlowRep (AggregateFlowStats.parse body)
-    | Some OFPST_TABLE -> TableRep (TableStats.parse body)
+    | Some OFPST_TABLE -> raise (Unparsable "table statistics unsupported")
     | Some OFPST_QUEUE -> raise (Unparsable "queue statistics unsupported")
     | Some OFPST_VENDOR -> raise (Unparsable "vendor statistics unsupported")
     | Some OFPST_PORT -> raise (Unparsable "port statistics unsupported")

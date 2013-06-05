@@ -312,8 +312,6 @@ module StatsRequest : sig
     | DescriptionRequest     (** Description of this OpenFlow switch. *)
     | IndividualRequest of pattern * int8 * pseudoPort option
     | AggregateRequest of pattern * int8 * pseudoPort option
-      (** Flow table statistics. *)
-    | TableRequest
   
     (* TODO(cole): queue and vendor stats requests. *)
 
@@ -380,31 +378,10 @@ module StatsReply : sig
 
   end
 
-  (** The body of a reply to a table statistics request. *)
-  module TableStats : sig
-
-    type t =
-      { table_id : int8 (** Identifier of table.  Lower numbered tables are 
-                        consulted first. *)
-      ; name : string
-      ; wildcards : SwitchFeatures.supported_wildcards (** Wildcards supported
-                                                       by this table. *)
-      ; max_entries : int32 (** Max number of entries supported. *)
-      ; active_count : int32 (** Number of active entries. *)
-      ; lookup_count : int64 (** Number of packets looked up in table. *)
-      ; matched_count : int64 (** Number of packets that hit table. *)
-      }
-
-    (** [to_string v] pretty-prints [v]. *)
-    val to_string : t -> string
-
-  end
-
   type t =
     | DescriptionRep of DescriptionStats.t
     | IndividualFlowRep of IndividualFlowStats.t list
     | AggregateFlowRep of AggregateFlowStats.t
-    | TableRep of TableStats.t
 
   (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
