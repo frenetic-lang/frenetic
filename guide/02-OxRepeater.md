@@ -1,5 +1,5 @@
-Exercise 1: Repeater and Firewall
-=================================
+Exercise 1: Repeater
+====================
 
 ### OpenFlow Overview
 

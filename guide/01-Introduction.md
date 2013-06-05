@@ -13,8 +13,9 @@ a virtual machine. To get started:
 
   > Insert the right link.
 
-- Launch the tutorial VM, which will launch a GUI and automatically login
-  as `frenetic`. The password for the account is also `frenetic`.
+- Launch the tutorial VM, which will launch a Linux desktop
+  environment and automatically log you into the account
+  "frenetic". The password for this account is also "frenetic".
 
 - At a terminal, go to the tutorial directory, check for updates, and
   rebuild the tutorial software:
@@ -25,33 +26,30 @@ a virtual machine. To get started:
   $ make reinstall
   ```
 
-  > Make `make reinstall` work.
-
 Handy References
 ----------------
 
 - [Introduction to OCaml](http://www.cs.cornell.edu/courses/cs3110/2012fa/recitations/rec01.html)
 
   In this tutorial, you will build controllers in OCaml. We use a tiny
-  fragment of the language and provide several examples, but a little
+  fragment of the language and provide lots of example code, but a little
   familiarity with OCaml syntax will be helpful.
 
   We recommend that you either (1) skim the Introduction to OCaml, or
   (2) do this tutorial with a partner who has passing familiarity with
   OCaml (or Haskell, or some related language).
 
-  > Pick a good introduction. I think the 3110 intro has too many words.
 
 - [Ox Platform Reference](http://frenetic-lang.github.io/frenetic/docs/)
   
   You will write your controllers using Ox, which is a lightweight
-  library for writing controllers in OCaml. This tutorial will guide you
+  platforn for writing controllers in OCaml. This tutorial will guide you
   though writing Ox controllers.
 
-  Ox is loosely based on controllers such as [POX]
+  Ox is loosely based on platforms such as [POX]
   (https://openflow.stanford.edu/display/ONL/POX+Wiki) and [NOX]
-  (http://www.noxrepo.org/nox/about-nox/). You should be able to apply
-  what you learn in this tutorial to write POX/NOX controllers too.
+  (http://www.noxrepo.org/nox/about-nox/). The concepts and techniques
+  you learn in this tutorial are applicable to those platforms too.
 
 - [OpenFlow 1.0 Specification] (http://www.openflow.org/documents/openflow-spec-v1.0.0.pdf)
 
@@ -64,7 +62,7 @@ Handy References
 
   You will use the Mininet network simulator to run your
   controllers. We will tell you exactly what Mininet commands to use,
-  so you don't need to read this.
+  so you don't really need to read this.
 
 
 

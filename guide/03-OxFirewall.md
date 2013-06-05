@@ -219,7 +219,6 @@ with the same priority, the behavior is unspecified. Therefore, pick
 different priorities for each pattern, unless you are certain the
 patterns are disjoint.
 
-
 [Action]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.Action.html
 
 [PacketIn]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.PacketIn.html
