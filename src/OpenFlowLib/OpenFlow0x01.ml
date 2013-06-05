@@ -505,7 +505,7 @@ module Action = struct
         | SetTpSrc pt
         | SetTpDst pt -> set_ofp_action_tp_port_tp_port bits' pt
 	      | SetDlVlan (Some vid) -> set_ofp_action_vlan_vid_vlan_vid bits' vid
-	      | SetDlVlan None -> () (* TODO(arjun): er... this and strip?? diff!?*)
+	      | SetDlVlan None -> set_ofp_action_vlan_vid_vlan_vid bits' 0xFFFF
         | SetDlVlanPcp n -> set_ofp_action_vlan_pcp_vlan_pcp bits' n
         | StripVlan -> () (* just padding *)
         | SetNwTos n -> set_ofp_action_nw_tos_nw_tos bits' n
