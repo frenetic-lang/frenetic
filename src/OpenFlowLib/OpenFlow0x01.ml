@@ -1378,17 +1378,15 @@ end
 
 module StatsReply = struct
 
-  module DescriptionStats = struct
-
-    type t =
+  type descriptionStats =
       { manufacturer : string
       ; hardware : string
       ; software : string
       ; serial_number : string
       ; datapath : string }
 
-    let desc_str_len = 256
-    let serial_num_len = 32
+  let desc_str_len = 256
+  let serial_num_len = 32
 
     cstruct ofp_desc_stats {
       uint8_t mfr_desc[256];
@@ -1403,7 +1401,7 @@ module StatsReply = struct
       Cstruct.blit_to_string bits 0 new_string 0 size;
       new_string
 
-    let parse bits =
+    let parse_description_stats bits =
       let mfr_desc = mkString (get_ofp_desc_stats_mfr_desc bits) desc_str_len in
       let hw_desc = mkString (get_ofp_desc_stats_hw_desc bits) desc_str_len in
       let sw_desc = mkString (get_ofp_desc_stats_sw_desc bits) desc_str_len in
@@ -1416,19 +1414,16 @@ module StatsReply = struct
       ; serial_number = serial_num
       ; datapath = dp_desc }
 
-    let size_of _ = sizeof_ofp_desc_stats
+    let size_of_description_stats _ = sizeof_ofp_desc_stats
 
-    let to_string desc = Printf.sprintf
+    let to_string_description_stats desc = Printf.sprintf
       "{ manufacturer = %s; hardware = %s; software = %s;\
          serial_number = %s; datapath = %s}"
       desc.manufacturer desc.hardware desc.software
       desc.serial_number desc.datapath
 
-  end
 
-  module IndividualFlowStats = struct
-
-    type t =
+    type individualStats =
       { table_id : int8
       ; of_match : Match.t
       ; duration_sec : int32
@@ -1457,7 +1452,7 @@ module StatsReply = struct
       uint64_t byte_count
     } as big_endian
 
-    let to_string stats = Printf.sprintf
+    let to_string_individual_stats stats = Printf.sprintf
       "{ table_id = %d; of_match = %s; duration_sec = %d; duration_nsec = %d\
          priority = %d; idle_timeout = %d; hard_timeout = %d; cookie = %Ld\
          packet_count = %Ld; byte_count = %Ld; actions = %s }"
@@ -1475,7 +1470,7 @@ module StatsReply = struct
 
     let sequence_to_string = Frenetic_Misc.string_of_list to_string
 
-    let _parse bits =
+    let _parse_individual_stats bits =
       (* length = flow stats + actions *)
       let length = get_ofp_flow_stats_length bits in
       let flow_stats_size = sizeof_ofp_flow_stats in
@@ -1512,22 +1507,18 @@ module StatsReply = struct
         ; actions = actions }
       , rest)
 
-    let parse bits = fst (_parse bits)
+    let parse_individual_stats bits = fst (_parse_individual_stats bits)
 
-    let rec parse_sequence bits =
+    let rec parse_sequence_individual_stats bits =
       if Cstruct.len bits <= 0 then
         []
       else
-        let (v, bits') = _parse bits in
-        v :: parse_sequence bits'
+        let (v, bits') = _parse_individual_stats bits in
+        v :: parse_sequence_individual_stats bits'
 
-  end
-
-  module AggregateFlowStats = struct
-
-    type t =
-      { packet_count : int64
-      ; byte_count : int64
+    type aggregateStats =
+      { total_packet_count : int64
+      ; total_byte_count : int64
       ; flow_count : int32 }
 
     cstruct ofp_aggregate_stats {
@@ -1537,23 +1528,21 @@ module StatsReply = struct
       uint8_t pad[4]
     } as big_endian
 
-    let to_string stats = Printf.sprintf
+    let to_string_aggregate_stats stats = Printf.sprintf
       "{ packet_count = %Ld; byte_count = %Ld; flow_count = %ld }"
-      stats.packet_count
-      stats.byte_count
+      stats.total_packet_count
+      stats.total_byte_count
       stats.flow_count
 
-    let parse bits = 
-      { packet_count = get_ofp_aggregate_stats_packet_count bits;
-	byte_count = get_ofp_aggregate_stats_byte_count bits;
-	flow_count = get_ofp_aggregate_stats_flow_count bits }
-
-  end
+    let parse_aggregate_stats bits = 
+      { total_packet_count = get_ofp_aggregate_stats_packet_count bits;
+	      total_byte_count = get_ofp_aggregate_stats_byte_count bits;
+	      flow_count = get_ofp_aggregate_stats_flow_count bits }
 
   type t =
-    | DescriptionRep of DescriptionStats.t
-    | IndividualFlowRep of IndividualFlowStats.t list
-    | AggregateFlowRep of AggregateFlowStats.t
+    | DescriptionRep of descriptionStats
+    | IndividualFlowRep of individualStats list
+    | AggregateFlowRep of aggregateStats
 
   cstruct ofp_stats_reply {
     uint16_t stats_type;
@@ -1561,20 +1550,20 @@ module StatsReply = struct
   } as big_endian
 
   let to_string rep = match rep with
-    | DescriptionRep stats -> DescriptionStats.to_string stats
+    | DescriptionRep stats -> to_string_description_stats stats
     | IndividualFlowRep stats ->
-      Frenetic_Misc.string_of_list IndividualFlowStats.to_string stats
-    | AggregateFlowRep stats -> AggregateFlowStats.to_string stats
+      Frenetic_Misc.string_of_list to_string_individual_stats stats
+    | AggregateFlowRep stats -> to_string_aggregate_stats stats
 
   let parse bits =
     let stats_type_code = get_ofp_stats_reply_stats_type bits in
     let body = Cstruct.shift bits sizeof_ofp_stats_reply in
     match int_to_ofp_stats_types stats_type_code with
-    | Some OFPST_DESC -> DescriptionRep (DescriptionStats.parse body)
+    | Some OFPST_DESC -> DescriptionRep (parse_description_stats body)
     | Some OFPST_FLOW ->
-      IndividualFlowRep (IndividualFlowStats.parse_sequence body)
+      IndividualFlowRep (parse_sequence_individual_stats body)
     | Some OFPST_AGGREGATE ->
-      AggregateFlowRep (AggregateFlowStats.parse body)
+      AggregateFlowRep (parse_aggregate_stats body)
     | Some OFPST_TABLE -> raise (Unparsable "table statistics unsupported")
     | Some OFPST_QUEUE -> raise (Unparsable "queue statistics unsupported")
     | Some OFPST_VENDOR -> raise (Unparsable "vendor statistics unsupported")

@@ -31,7 +31,7 @@ module type QUERY = functor (Platform : PLATFORM) -> sig
   val start : t -> unit Lwt.t
   val handle_reply : switchId 
                   -> t
-                  -> StatsReply.IndividualFlowStats.t list
+                  -> StatsReply.individualStats list
                   -> unit
 
   val refresh_switches : SwitchSet.t -> t -> unit
@@ -175,7 +175,7 @@ module Query (Platform : PLATFORM) = struct
     (* let () = Log.printf 
       "NetCore_Controller.Query" "handle reply (%s) (%Ld)\n    (%s)\n%!"
       (to_string q) sw (StatsReply.IndividualFlowStats.to_string rep) in *)
-    let open StatsReply.IndividualFlowStats in
+    let open StatsReply in
     if FlowSet.mem (sw, rep.of_match, rep.priority) !(q.counter_ids) then begin
       q.this_packet_count := Int64.add rep.packet_count !(q.this_packet_count);
       q.this_byte_count := Int64.add rep.byte_count !(q.this_byte_count);
@@ -226,7 +226,7 @@ module type QUERYSET = functor (Platform : PLATFORM) ->
     val remove_switch : switchId -> unit
     val handle_reply : switchId 
                     -> xid 
-                    -> StatsReply.IndividualFlowStats.t list 
+                    -> StatsReply.individualStats list 
                     -> unit
   end
 
