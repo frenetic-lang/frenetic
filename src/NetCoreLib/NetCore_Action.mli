@@ -1,4 +1,4 @@
-open OpenFlow0x01
+open OpenFlow0x01_Core
 open Packet
 open NetCore_Types
 
@@ -44,10 +44,10 @@ module Output : sig
   val updateSrcPort : int -> int -> t
   val updateDstPort : int -> int -> t
   val query : float -> get_count_handler -> t
-  val controller : (OpenFlow0x01.switchId -> port -> packet -> action) -> t
+  val controller : (switchId -> port -> packet -> action) -> t
   val apply_controller : action -> lp -> action
   val switch_part  : action -> action
-  val as_actionSequence : portId option -> t -> OpenFlow0x01.Action.sequence
+  val as_actionSequence : portId option -> t -> Action.sequence
   val queries : t -> t
   val is_equal : t -> t -> bool
   val atom_is_equal : e -> e -> bool

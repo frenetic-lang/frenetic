@@ -11,8 +11,7 @@ module Socket = Frenetic_Socket
 module OF = OpenFlow0x01
 module Message = OF.Message
 
-type switchId = OF.switchId
-type xid = OF.xid
+open OpenFlow0x01_Core
 
 exception SwitchDisconnected of switchId
 
@@ -64,12 +63,12 @@ let rec recv_from_switch_fd (sock : Lwt_unix.file_descr)
       let xid, msg = Message.parse hdr body_buf in
       Lwt.return (Some (xid, msg))
     with 
-      | OF.Unparsable error_msg ->
+      | Unparsable error_msg ->
         Log.printf "platform" 
           "in recv_from_switch_fd, error parsing incoming message (%s)\n%!"
           error_msg;
         recv_from_switch_fd sock
-      | OF.Ignored msg ->
+      | Ignored msg ->
         Log.printf "platform" 
           "in recv_from_switch_fd, ignoring message (%s)\n%!"
           msg;

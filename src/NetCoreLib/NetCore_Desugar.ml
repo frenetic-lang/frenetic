@@ -4,7 +4,7 @@ open Format
 open NetCore_Types
 
   type get_packet_handler = 
-      OpenFlow0x01.switchId -> NetCore_Types.port -> packet -> NetCore_Types.action
+      OpenFlow0x01_Core.switchId -> NetCore_Types.port -> packet -> NetCore_Types.action
   type get_count_handler = Int64.t -> Int64.t -> unit
 
   type predicate =
@@ -13,8 +13,8 @@ open NetCore_Types
   | Not of predicate
   | All
   | NoPackets
-  | Switch of OpenFlow0x01.switchId
-  | InPort of OpenFlow0x01.portId
+  | Switch of OpenFlow0x01_Core.switchId
+  | InPort of OpenFlow0x01_Core.portId
   | DlSrc of Int64.t
   | DlDst of Int64.t
   | DlVlan of int option (** 12-bits *)

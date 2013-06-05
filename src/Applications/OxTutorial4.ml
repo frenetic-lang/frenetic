@@ -1,3 +1,7 @@
+open Ox
+open OxPlatform
+open OpenFlow0x01_Core
+
 (* Write a packet_in function that:
   
    1. Blocks all ICMP traffic
@@ -6,9 +10,9 @@
 
    *Do not* write a flow table.
  *)
-module MyApplication : Ox.OXMODULE = struct
-  open Ox.OxPlatform
-  open OpenFlow0x01
+module MyApplication : OXMODULE = struct
+
+  include OxDefaults
 
   let num_http_packets = ref 0
 
@@ -47,15 +51,6 @@ module MyApplication : Ox.OXMODULE = struct
           PacketOut.actions = [Action.Output PseudoPort.AllPorts]
         }
 
-  let barrier_reply (sw : switchId) (xid : xid) : unit =
-    ()
-
-  let stats_reply (sw : switchId) (xid : xid) (stats : StatsReply.t) : unit =
-    ()
-
-  let port_status (sw : switchId) (xid : xid) (port : PortStatus.t) : unit =
-    ()
-
 end
 
-module Controller = Ox.Make (MyApplication)
+module Controller = Make (MyApplication)

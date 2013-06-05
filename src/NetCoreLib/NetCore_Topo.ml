@@ -4,8 +4,8 @@ open NetCore_Action.Output
 module Log = Frenetic_Log
 module Bijection = NetCore_Bijection
 
-type switchId = OpenFlow0x01.switchId
-type portId = OpenFlow0x01.portId
+type switchId = OpenFlow0x01_Core.switchId
+type portId = OpenFlow0x01_Core.portId
 type dlAddr = Packet.dlAddr
 
 type loc =

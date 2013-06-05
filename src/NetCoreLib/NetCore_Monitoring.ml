@@ -12,8 +12,8 @@ let monitor_tbl sw pol =
   printf "Flow table at switch %Ld is:\n%!" sw;
   List.iter
     (fun (m,a) -> printf " %s => %s\n%!"
-      (OpenFlow0x01.Match.to_string m)
-      (OpenFlow0x01.Action.sequence_to_string a))
+      (OpenFlow0x01_Core.Match.to_string m)
+      (OpenFlow0x01_Core.Action.sequence_to_string a))
     tbl;
   pol
 

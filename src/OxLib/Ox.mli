@@ -1,6 +1,7 @@
 (** An OpenFlow controller interface for directly sending and receiving
 OpenFlow messages. *)
 
+open OpenFlow0x01_Core
 open OpenFlow0x01
 
 (** The [OxPlatform] module contains functions for interacting with the Ox

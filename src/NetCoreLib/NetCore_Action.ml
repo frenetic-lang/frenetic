@@ -1,5 +1,5 @@
-open OpenFlow0x01
-open OpenFlow0x01.Action
+open OpenFlow0x01_Core
+open Action
 open Packet
 open NetCore_Types
 

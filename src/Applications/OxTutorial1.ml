@@ -1,6 +1,6 @@
 open Ox
 open OxPlatform
-open OpenFlow0x01
+open OpenFlow0x01_Core
 
 (* Student has seen repeater that emits packet-out messages. Now, emit
    a flow table to implement a repeater efficiently. *)

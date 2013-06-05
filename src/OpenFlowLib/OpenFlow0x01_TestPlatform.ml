@@ -1,7 +1,6 @@
 open Lwt
+open OpenFlow0x01_Core
 open OpenFlow0x01
-
-type xid = OpenFlow0x01.xid
 
 module Lwt_channel = struct
   type 'a t = {
