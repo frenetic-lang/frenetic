@@ -314,8 +314,6 @@ module StatsRequest : sig
     | AggregateRequest of pattern * int8 * pseudoPort option
       (** Flow table statistics. *)
     | TableRequest
-      (** Physical port statistics. *)
-    | PortRequest of pseudoPort
   
     (* TODO(cole): queue and vendor stats requests. *)
 
@@ -402,42 +400,11 @@ module StatsReply : sig
 
   end
 
-  (** The body of a reply to a port statistics request. *)
-  module PortStats : sig
-
-    type t =
-      { port_no : PseudoPort.t
-      ; rx_packets : int64 (** Number of received packets. *)
-      ; tx_packets : int64 (** Number of transmitted packets *)
-      ; rx_bytes : int64 (** Number of received bytes. *)
-      ; tx_bytes : int64 (** Number of transmitted bytes. *)
-      ; rx_dropped : int64 (** Number of packets dropped by RX. *)
-      ; tx_dropped : int64 (** Number of packets dropped by TX. *)
-      ; rx_errors : int64 (** Number of receive errors.  This is a super-set
-                              of more specific receive errors and should be
-                              greater than or equal to the sum of all 
-                              [rx_X_err] values. *)
-      ; tx_errors : int64 (** Number of transmit errors.  This is a super-set
-                              of more specific transmit errors and should be
-                              greater than or equal to the sum of all 
-                              [tx_X_err] values. *)
-      ; rx_frame_err : int64 (** Number of frame alignment errors. *)
-      ; rx_over_err : int64 (** Number of of packets with RX overrun. *)
-      ; rx_crc_err : int64 (** Number of CRC errors. *)
-      ; collisions : int64 (** Number of collisions. *)
-      }
-
-    (** [to_string v] pretty-prints [v]. *)
-    val to_string : t -> string
-
-  end
-
   type t =
     | DescriptionRep of DescriptionStats.t
     | IndividualFlowRep of IndividualFlowStats.t list
     | AggregateFlowRep of AggregateFlowStats.t
     | TableRep of TableStats.t
-    | PortRep of PortStats.t
 
   (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string

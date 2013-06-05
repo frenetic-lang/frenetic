@@ -1285,7 +1285,6 @@ module StatsRequest = struct
     | IndividualRequest of pattern * int8 * pseudoPort option
     | AggregateRequest of pattern * int8 * pseudoPort option
     | TableRequest
-    | PortRequest of pseudoPort
 
   cstruct ofp_stats_request {
     uint16_t req_type;
@@ -1319,7 +1318,6 @@ module StatsRequest = struct
     | AggregateRequest _ ->
       "AggregateFlowReq "
     | TableRequest -> "TableReq"
-    | PortRequest p -> "PortReq " ^ (PseudoPort.to_string p)
 
   let size_of msg =
     let header_size = sizeof_ofp_stats_request in
@@ -1335,7 +1333,6 @@ module StatsRequest = struct
     | IndividualRequest _ -> OFPST_FLOW
     | AggregateRequest _ -> OFPST_AGGREGATE
     | TableRequest -> OFPST_TABLE
-    | PortRequest _ -> OFPST_PORT
 
   let marshal msg out =
     let req_type = ofp_stats_type_of_request msg in
@@ -1543,34 +1540,11 @@ module StatsReply = struct
 
   end
 
-  module PortStats = struct
-
-    type t =
-      { port_no : PseudoPort.t
-      ; rx_packets : int64
-      ; tx_packets : int64
-      ; rx_bytes : int64
-      ; tx_bytes : int64
-      ; rx_dropped : int64
-      ; tx_dropped : int64
-      ; rx_errors : int64
-      ; tx_errors : int64
-      ; rx_frame_err : int64
-      ; rx_over_err : int64
-      ; rx_crc_err : int64
-      ; collisions : int64 }
-
-    let to_string stats = failwith "NYI: PortStats.to_string"
-    let parse _ = failwith "NYI: PortStats.parse"
-
-  end
-
   type t =
     | DescriptionRep of DescriptionStats.t
     | IndividualFlowRep of IndividualFlowStats.t list
     | AggregateFlowRep of AggregateFlowStats.t
     | TableRep of TableStats.t
-    | PortRep of PortStats.t
 
   cstruct ofp_stats_reply {
     uint16_t stats_type;
@@ -1583,7 +1557,6 @@ module StatsReply = struct
       Frenetic_Misc.string_of_list IndividualFlowStats.to_string stats
     | AggregateFlowRep stats -> AggregateFlowStats.to_string stats
     | TableRep stats -> TableStats.to_string stats
-    | PortRep stats -> PortStats.to_string stats
 
   let parse bits =
     let stats_type_code = get_ofp_stats_reply_stats_type bits in
@@ -1595,13 +1568,14 @@ module StatsReply = struct
     | Some OFPST_AGGREGATE ->
       AggregateFlowRep (AggregateFlowStats.parse body)
     | Some OFPST_TABLE -> TableRep (TableStats.parse body)
-    | Some OFPST_PORT -> PortRep (PortStats.parse body)
     | Some OFPST_QUEUE ->
       let msg = "NYI: OFPST_QUEUE ofp_stats_type in stats_reply" in
       raise (Unparsable msg)
     | Some OFPST_VENDOR ->
       let msg = "NYI: OFPST_VENDOR ofp_stats_type in stats_reply" in
       raise (Unparsable msg)
+    | Some OFPST_PORT ->
+      raise (Unparsable "Port statistics not supported yet.")
     | None ->
       let msg =
         sprintf "bad ofp_stats_type in stats_reply (%d)" stats_type_code in
