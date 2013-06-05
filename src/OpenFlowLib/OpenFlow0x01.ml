@@ -1280,118 +1280,62 @@ end
 
 module StatsRequest = struct
 
-  module IndividualFlowRequest = struct
-
-    type t =
-      { of_match : Match.t
-      ; table_id : int8
-      ; port : PseudoPort.t option }
-
-    cstruct ofp_flow_stats_request {
-      uint8_t of_match[40];
-      uint8_t table_id;
-      uint8_t pad;
-      uint16_t out_port
-    } as big_endian
-
-    let size_of _ = sizeof_ofp_flow_stats_request
-
-    let to_string req =
-      Printf.sprintf "{of_match = %s; table_id = %d; port = %s}"
-        (Match.to_string req.of_match)
-        req.table_id
-        (Frenetic_Misc.string_of_option PseudoPort.to_string req.port)
-
-    let marshal req out =
-      let _ = Match.marshal req.of_match out in
-      set_ofp_flow_stats_request_table_id out req.table_id;
-      begin match req.port with
-      | Some port ->
-        set_ofp_flow_stats_request_out_port out (PseudoPort.marshal port);
-      | None ->
-        let open PseudoPort in
-        let port_code = ofp_port_to_int OFPP_NONE in
-        set_ofp_flow_stats_request_out_port out port_code
-      end;
-      size_of req
-
-  end
-
-  module AggregateFlowRequest = struct
-
-    type t = { of_match : Match.t
-             ; table_id : int8
-             ; port : PseudoPort.t option }
-
-    cstruct ofp_aggregate_stats_request {
-      uint8_t of_match[40];
-      uint8_t table_id;
-      uint8_t pad;
-      uint16_t out_port
-    } as big_endian
-
-    let to_string req =
-      Printf.sprintf "{of_match = %s; table_id = %d; port = %s}"
-        (Match.to_string req.of_match)
-        req.table_id
-        (Frenetic_Misc.string_of_option PseudoPort.to_string req.port)
-
-    let size_of _ = sizeof_ofp_aggregate_stats_request
-
-    let marshal req out =
-      let _ = Match.marshal req.of_match out in
-      set_ofp_aggregate_stats_request_table_id out req.table_id;
-      begin match req.port with
-      | Some port ->
-        set_ofp_aggregate_stats_request_out_port out (PseudoPort.marshal port);
-      | None ->
-        let open PseudoPort in
-        let port_code = ofp_port_to_int OFPP_NONE in
-        set_ofp_aggregate_stats_request_out_port out port_code
-      end;
-      size_of req
-
-  end
-
   type t =
-  | DescriptionReq
-  | IndividualFlowReq of IndividualFlowRequest.t
-  | AggregateFlowReq of AggregateFlowRequest.t
-  | TableReq
-  | PortReq of PseudoPort.t
-  (* TODO(cole): queue and vendor stats requests. *)
+    | DescriptionRequest
+    | IndividualRequest of pattern * int8 * pseudoPort option
+    | AggregateRequest of pattern * int8 * pseudoPort option
+    | TableRequest
+    | PortRequest of pseudoPort
 
   cstruct ofp_stats_request {
     uint16_t req_type;
     uint16_t flags
   } as big_endian
 
+  cstruct ofp_flow_stats_request {
+    uint8_t of_match[40];
+    uint8_t table_id;
+    uint8_t pad;
+    uint16_t out_port
+  } as big_endian
+
+  let marshal_flow_stats_request pat port table out =
+    let _ = Match.marshal pat out in
+    set_ofp_flow_stats_request_table_id out table;
+    begin match port with
+      | Some port ->
+        set_ofp_flow_stats_request_out_port out (PseudoPort.marshal port);
+      | None ->
+        let open PseudoPort in
+        let port_code = ofp_port_to_int OFPP_NONE in
+        set_ofp_flow_stats_request_out_port out port_code
+    end;
+    sizeof_ofp_flow_stats_request
+
   let to_string msg = match msg with
-    | DescriptionReq -> "DescriptionReq"
-    | IndividualFlowReq req ->
-      "IndividualFlowReq " ^ (IndividualFlowRequest.to_string req)
-    | AggregateFlowReq req ->
-      "AggregateFlowReq " ^ (AggregateFlowRequest.to_string req)
-    | TableReq -> "TableReq"
-    | PortReq p -> "PortReq " ^ (PseudoPort.to_string p)
+    | DescriptionRequest -> "DescriptionReq"
+    | IndividualRequest _ ->
+      "IndividualFlowReq "
+    | AggregateRequest _ ->
+      "AggregateFlowReq "
+    | TableRequest -> "TableReq"
+    | PortRequest p -> "PortReq " ^ (PseudoPort.to_string p)
 
   let size_of msg =
     let header_size = sizeof_ofp_stats_request in
     match msg with
-    | DescriptionReq -> header_size
-    | IndividualFlowReq req ->
-      header_size + (IndividualFlowRequest.size_of req)
-    | AggregateFlowReq req -> 
-      header_size + (AggregateFlowRequest.size_of req)
+    | DescriptionRequest -> header_size
+    | AggregateRequest _
+    | IndividualRequest _ -> header_size + sizeof_ofp_flow_stats_request
     | _ ->
       failwith (Printf.sprintf "NYI: StatsRequest.size_of: %s" (to_string msg))
 
   let ofp_stats_type_of_request req = match req with
-    | DescriptionReq -> OFPST_DESC
-    | IndividualFlowReq _ -> OFPST_FLOW
-    | AggregateFlowReq _ -> OFPST_AGGREGATE
-    | TableReq -> OFPST_TABLE
-    | PortReq _ -> OFPST_PORT
+    | DescriptionRequest -> OFPST_DESC
+    | IndividualRequest _ -> OFPST_FLOW
+    | AggregateRequest _ -> OFPST_AGGREGATE
+    | TableRequest -> OFPST_TABLE
+    | PortRequest _ -> OFPST_PORT
 
   let marshal msg out =
     let req_type = ofp_stats_type_of_request msg in
@@ -1400,9 +1344,10 @@ module StatsRequest = struct
     set_ofp_stats_request_flags out flags;
     let out' = Cstruct.shift out sizeof_ofp_stats_request in
     match msg with
-    | DescriptionReq -> sizeof_ofp_stats_request
-    | IndividualFlowReq req -> IndividualFlowRequest.marshal req out'
-    | AggregateFlowReq req -> AggregateFlowRequest.marshal req out'
+    | DescriptionRequest -> sizeof_ofp_stats_request
+    | IndividualRequest (pat, tbl, port)
+    | AggregateRequest (pat, tbl, port) ->
+      marshal_flow_stats_request pat port tbl out'
     | _ ->
       failwith (Printf.sprintf "NYI: StatsRequest.marshal %s" (to_string msg))
 

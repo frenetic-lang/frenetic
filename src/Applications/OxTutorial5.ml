@@ -28,10 +28,7 @@ module MyApplication : OXMODULE = struct
     let callback () =
       Printf.printf "Sending stats request to %Ld\n%!" sw; 
       send_stats_request sw 0l
-        (StatsRequest.AggregateFlowReq {
-          StatsRequest.AggregateFlowRequest.of_match = pat;
-          StatsRequest.AggregateFlowRequest.table_id = 0xff;
-          StatsRequest.AggregateFlowRequest.port = None });
+        (StatsRequest.AggregateRequest (pat, 0xff, None));
       periodic_stats_request sw interval pat in
     timeout interval callback
 

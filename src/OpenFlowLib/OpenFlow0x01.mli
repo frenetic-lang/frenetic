@@ -304,54 +304,18 @@ end
 specification. *)
 module StatsRequest : sig
 
-  (** The body of an individual flow statistics request. *)
-  module IndividualFlowRequest : sig
-
-    type t = { of_match : Match.t (** Fields to match. *)
-             ; table_id : int8 (** ID of tabel to read from. *)
-             ; port : PseudoPort.t option (** Require matching entries to
-                                          include this as an output port.  A
-                                          value of [None] indicates no
-                                          restriction. *)
-             }
-
-    (** [to_string v] pretty-prints [v]. *)
-    val to_string : t -> string
-
-  end
-
-  (** The body of an aggregate flow statistics request. *)
-  module AggregateFlowRequest : sig
-
-    type t = { of_match : Match.t (** Fields to match. *)
-             ; table_id : int8 (** ID of tabel to read from. *)
-             ; port : PseudoPort.t option (** Require matching entries to
-                                          include this as an output port.  A
-                                          value of [None] indicates no
-                                          restriction. *)
-             }
-
-    (** [to_string v] pretty-prints [v]. *)
-    val to_string : t -> string
-
-  end
-
+  (** Both [IndividualRequest] and [AggregateRequest] take as
+      paramters, a [pattern] that specifies the fields to match, the
+      [table_if] to read from, and an optional port, which requires
+      matching entries to have this as an output port. *)
   type t =
-  
-    (** Description of this OpenFlow switch. *)
-    | DescriptionReq
-  
-    (** Individual flow statistics. *)
-    | IndividualFlowReq of IndividualFlowRequest.t
-  
-    (** Aggregate flow statistics. *)
-    | AggregateFlowReq of AggregateFlowRequest.t
-  
-    (** Flow table statistics. *)
-    | TableReq
-  
-    (** Physical port statistics. *)
-    | PortReq of PseudoPort.t
+    | DescriptionRequest     (** Description of this OpenFlow switch. *)
+    | IndividualRequest of pattern * int8 * pseudoPort option
+    | AggregateRequest of pattern * int8 * pseudoPort option
+      (** Flow table statistics. *)
+    | TableRequest
+      (** Physical port statistics. *)
+    | PortRequest of pseudoPort
   
     (* TODO(cole): queue and vendor stats requests. *)
 

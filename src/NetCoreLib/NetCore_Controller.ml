@@ -154,10 +154,8 @@ module Query (Platform : PLATFORM) = struct
       Lwt.return ()
     else
       let query_msg =
-        let open StatsRequest.IndividualFlowRequest in
         Message.StatsRequestMsg 
-          (StatsRequest.IndividualFlowReq 
-          {of_match = match_all; table_id = 0; port = None}) in
+          (StatsRequest.IndividualRequest (match_all, 0, None)) in
       Lwt_mutex.lock q.lock >>
       if not (is_dead q) then
         let _ = reset q in

@@ -7,15 +7,11 @@ module MyApplication : OXMODULE = struct
   
 
   let my_send_stats_request sw = 
-    let open StatsRequest.AggregateFlowRequest in  
-        timeout 5.0  (* consider milliseconds to avoid writing 1.0 *)
-          (fun () -> 
-            Printf.printf "Sending stats request to %Ld\n%!" sw; 
-            send_stats_request sw 0l
-              (StatsRequest.AggregateFlowReq { 
-                of_match = match_all;
-                table_id = 0xff;
-                port = None }))
+    timeout 5.0  (* TODO(arjun):consider milliseconds to avoid writing 1.0 *)
+      (fun () -> 
+        Printf.printf "Sending stats request to %Ld\n%!" sw; 
+        send_stats_request sw 0l
+          (StatsRequest.AggregateRequest (match_all, 0xff, None)))
 
   let switch_connected sw = 
     let fm = {
