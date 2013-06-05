@@ -51,7 +51,6 @@ module type OXMODULE = sig
   val packet_in : switchId -> xid -> PacketIn.t -> unit
   val barrier_reply : switchId -> xid -> unit
   val stats_reply : switchId -> xid -> StatsReply.t -> unit
-  val port_status : switchId -> xid -> PortStatus.t -> unit
 end
 
 module OxDefaults = struct
@@ -59,8 +58,6 @@ module OxDefaults = struct
   let barrier_reply _ _ = ()
 
   let stats_reply _ _ _ = ()
-
-  let port_status _ _ _ = ()
 
 end
 
@@ -74,7 +71,6 @@ module Make (Handlers:OXMODULE) = struct
         | (xid, PacketInMsg pktIn) -> Lwt.wrap3 Handlers.packet_in sw xid pktIn
 	      | (xid, BarrierReply) -> Lwt.wrap2 Handlers.barrier_reply sw xid
         | (xid, StatsReplyMsg rep) -> Lwt.wrap3 Handlers.stats_reply sw xid rep
-        | (xid, PortStatusMsg ps) -> Lwt.wrap3 Handlers.port_status sw xid ps
         | (xid, msg) ->
           (Log.printf "Ox" "ignored a message from %Ld" sw;
            Lwt.return ())

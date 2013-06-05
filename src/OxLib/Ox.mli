@@ -39,8 +39,6 @@ module OxDefaults : sig
 
   val stats_reply : switchId -> xid -> StatsReply.t -> unit
 
-  val port_status : switchId -> xid -> PortStatus.t -> unit
-
 end
 
 (** [OXMODULE] is the type of modules that implement Ox controller callback
@@ -67,11 +65,6 @@ module type OXMODULE = sig
   (** [stats_reply sw xid rep] is a callback invoked when switch [sw] responds
   with a reply [rep] to a statistics request with transaction ID [xid]. *)
   val stats_reply : switchId -> xid -> StatsReply.t -> unit
-
-  (** [port_status sw xid stat] is a callback invoked when a port status
-  message from switch [sw] with transaction ID [xid] arrives at the controller.
-  *)
-  val port_status : switchId -> xid -> PortStatus.t -> unit
 
 end
 
