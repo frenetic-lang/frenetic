@@ -16,7 +16,7 @@ if frameType = arp then
   else (if inPort = 1 then fwd(2))
 else  
   begin 
-    let translatePrivh2 arp -s 10.0.0.254 00:00:00:00:00:01ate, translatePublic = 
+    let translatePrivate, translatePublic = 
       nat (publicIP = 10.0.0.254) in
     let pol = 
         if switch = 1 && inPort = 1 then 

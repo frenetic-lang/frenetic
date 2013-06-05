@@ -21,7 +21,7 @@ the static configuraion in to OpenFlow and update the running network
 with the compiled policy in a [per-packet consistent
 manner](http://frenetic-lang.org/publications/network-update-sigcomm12.pdf).
 The static configurations constructed by Frenetic applications are
-built using [NetCoreLib](https://github.com/frenetic-lang/frenetic/tree/master/src/NetCoreLib),
+built using [NetCoreLib](http://frenetic-lang.github.io/frenetic/docs/NetCore_Types.html),
 which has the same semantics as the NetCore DSL described in this
 tutorial.  Hence, a Frenetic program is really just a general-purpose
 OCaml program that reacts to network events and generates a stream of
@@ -478,81 +478,155 @@ To test the monitor, try pinging from h1 to h2 as well as h1 to h3.  Watch
 the controller terminal to see how many packets cross switch 3 in 
 each case.
 
-Exercises
----------
+### Exercises
 
-Semantics
----------
+*TODO*
 
-Summary
----------
+1.
+
+2.
+
+3.
 
 Dynamic NetCore Concepts
 ------------------------
 
-- A dynamic program produces a stream of policies.
+So far in this tutorial, we have used NetCore to write static network
+policies --- policies that do not change in response to network traffic or
+topology events such as a switch coming up or going down.  In general,
+crafting a dynamic policy amounts to writing a program that generates a
+*stream* of static policies.  For instance, a new static policy can be generated
+each time a new switch comes on line or the load in the network reaches
+some threshold or a new connection is initiated.  
 
-Dynamic NetCore Programing 1: NAT
-----------------------------------
-
-We have to explain how NAT works.
-- When a machine on the inside initiates a connection to a machine on the outside, NAT will pick a new, available public port, and rewrite the source IP and port to use the available port and the public IP. Responses to previously established port are rewritten to use the private source port and IP.
-
-
-1. Keep routing component from (3) above.
-
-2. Place a NAT on switch 101, with port 1 as public-port and port 2 as private-port. 
-
-3. Initiate a Web connection from host 10 to the untrusted host 50.
-
-```mininet
-mininet> h50 cat /usr/share/dict/words | nc -l 80 &
-mininet> h10 curl 10.0.0.50 # should print words
-```
- 
-4. Determine the public and private ports that this connection uses, using monitor_tbl / monitor_pol
-
-5. Run a Web server on h30:
-
-```mininet
-mininet> h30 cat /usr/share/dict/words | nc -l 80 &
-```
-
-6. Connect to the Web server from h10 to ensure that it is working:
-
-```mininet
-mininet> h10 curl 10.0.0.30 # should print words
-```
-
-7. Can you connect from h50? Why not?
-
-```mininet
-mininet> h20 curl 10.0.0.30 # should hang (hit Ctrl + C)
-```
-
-8. Compose the current policy with a new policy that allows connections from outside the NAT to h30.
-
-
-Dynamic NetCore Programing 2: Mac-Learning
-------------------------------------------
-
-Explain how Mac-Learning works (composition)
-
-1. Keep the NAT from the previous section, but modify the routing policy as follows:
-  - Use a static policy to route between 101 and 102.
-  - Use mac-learning for all other routing.
-2. Inspect the mac-learning table on switch 102.
-3. ...
-
-
-Compilation Instructions
-=========================
-
-To execute this document as a NetCore program, do the following:
-
-The following line determines the policy to be executed.  Replace **learn**
-with the name of some other policy defined in this file to test it out.
+NetCoreDSL makes it possible to experiment with simple dynamic
+policies by providing a small number of dynamic building blocks
+including a learning switch and a NAT box.  Intuitively, to create
+a dynamic policy, one writes an ordinary static policy that 
+includes a reference to a dynamic building block:
 
 ```
-policy main = learn
+let policy = ... static_component ... dynamic_component ...
 ```
+If the <code>dynamic_component</code> generates the following series of 
+policies as it executes:
+```
+dynamic1
+
+dynamic2
+
+dynamic3 
+
+...
+```
+then <code>policy</code> will be:
+```
+... static_component ... dynamic1 ...
+
+... static_component ... dynamic2 ...
+
+... static_component ... dynamic3 ...
+
+...
+```
+In other words, the static components remain fixed as the dynamic subcomponent
+fluctuates from one variant to the next.
+
+
+### Example 5: NAT
+------------------
+
+In this example, we will investigate how to use a dynamic NAT
+component to support connections initiated from a private machine "on
+the inside," behind a public IP, to a remote machine "on the outside."
+More specifically, when a machine on the inside initiates a connection
+to a machine on the outside, NAT will pick a new, available public
+port, and rewrite the source IP and port to use the available port and
+the public IP. Responses to previously established port are rewritten
+to use the private source port and IP.
+
+To use the built-in <code>nat</code> box, we supply it with a desired public IP
+address (say, <code>10.0.0.254</code>) and invoke it as follows.
+```
+let translatePrivate, translatePublic = nat (publicIP = 10.0.0.254)
+in ...
+```
+This expression generates a pair of dynamic 
+components:  (1) <code>translatePrivate</code>
+rewrites requests travelling from inside to 
+outside, and (2) <code>translatePublic</code> rewrites requests travelling
+from outside back in.  These two components can be used within the
+policy following the keyword <code>in</code>.  The following
+code defines the complete program. 
+```
+let natter =
+  let translatePrivate, translatePublic = 
+    nat (publicIP = 10.0.0.254) 
+  in
+    if switch = 1 && inPort = 1 then 
+      (translatePrivate; if inPort = 1 then fwd(2) else pass)
+  + if switch = 1 && inPort = 2 then
+      (translatePublic; if inPort = 2 then fwd(1) else pass)
+
+let app =
+  if frameType = arp then all
+  else monitorTable(1, natter)  
+```
+The last line of the program uses <code>monitorTable(n,pol)</code>,
+which will print the flow table generated for switch number
+<code>n</code> due to <code>pol</code> each time the policy
+is updated.  This gives the programmer insight in to which rules 
+are installed dynamically on the switch.
+
+The policy can be found in <code>tut5.nc</code>.  Launch a controller
+now:
+```
+$ frenetic tut5.nc
+```
+and start mininet as follows.
+```
+$ sudo mn  --controller=remote --mac
+```
+Next you will need to prime your arp cache on host <code>h2</code>
+and start a simple web server running.
+```
+mininet> h2 arp -s 10.0.0.254 00:00:00:00:00:01
+mininet> h2 python -m SimpleHTTPServer 80 . &
+```
+Finally, try fetching a web page from the server:
+```
+h1 wget -O - 10.0.0.2
+```
+When you do so, you should see the <code>tut5.nc</code> controller
+print out an updated flow table for switch 1.  The flow table is 
+printed as a list of rules, with the highest priority rule at the
+top and the lowest priority rule at the bottom.  Each rule has
+the form
+```
+{Packet Pattern} => [Actions]
+```
+The <code>Packet Pattern</code> is a list of conditions the packet
+fields must satisfy to match the rule.  The <code>Actions</code>
+are taken if the packet matches.  
+
+After issuing the <code>wget</code> command,
+you should see 2 rules matching packets coming <code>inPort</code> 1
+and 2 rules matching packets coming <code>inPort</code> 2.
+Take a look:  Which private port did this connection use?  Which
+public port?
+
+### Exercises
+
+*TODO*
+
+1. What happens if you try to ping h2 from h1?
+```
+mininet> h1 ping -c 1 h2
+```
+Modify the policy in some way to allow ping through.
+
+2. Experiment with the Mac Learning Component.  What are the mac addresses
+of hosts 1, 2, and 3?
+
+
+
