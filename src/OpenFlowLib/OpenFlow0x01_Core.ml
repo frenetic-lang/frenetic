@@ -68,4 +68,7 @@ type flowMod =
     ; check_overlap : bool
     }
 
+type payload =
+  | Buffered of int32 * bytes 
+  | NotBuffered of bytes
       

@@ -87,13 +87,10 @@ module FlowMod : sig
 
 end
 
-(** The payload for [PacketIn.t] and [PacketOut.t] messages. *)
+
 module Payload : sig
 
-  type t =
-    | Buffered of int32 * bytes 
-    (** [Buffered (id, buf)] is a packet buffered on a switch. *)
-    | NotBuffered of bytes
+  type t = payload
 
   (** [parse pk] signals an exception if the packet cannot be parsed.
       TODO(arjun): Which exception? *)

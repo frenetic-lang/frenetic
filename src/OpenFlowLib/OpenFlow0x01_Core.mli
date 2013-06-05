@@ -110,4 +110,9 @@ type flowMod =
                                      no restriction. *)
     ; check_overlap : bool (** Check for overlapping entries first. *)
     }
-      
+
+(** The payload for [packetIn] and [packetOut] messages. *)
+type payload =
+  | Buffered of int32 * bytes 
+    (** [Buffered (id, buf)] is a packet buffered on a switch. *)
+  | NotBuffered of bytes

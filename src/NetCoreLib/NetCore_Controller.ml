@@ -457,7 +457,7 @@ module Make (Platform : PLATFORM) = struct
     let emit_pkt (sw, pt, bytes) =
       let open OpenFlow0x01 in
       let msg = {
-        payload = Payload.NotBuffered bytes;
+        payload = NotBuffered bytes;
         port_id = None;
         actions = [Output (PhysicalPort pt)]
       } in
@@ -651,7 +651,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
     let emit_pkt (sw, pt, bytes) =
       let open OpenFlow0x01 in
       let msg = {
-        payload = Payload.NotBuffered bytes;
+        payload = NotBuffered bytes;
         port_id = None;
         actions = [Output (PhysicalPort pt)]
       } in

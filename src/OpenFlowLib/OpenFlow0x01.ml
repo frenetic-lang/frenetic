@@ -705,9 +705,7 @@ end
 
 module Payload = struct
 
-  type t = 
-    | Buffered of int32 * bytes
-    | NotBuffered of bytes
+  type t = payload
 
   let parse (t : t) = match t with
     | Buffered (_, b)
@@ -797,8 +795,8 @@ module PacketIn = struct
     let reason = Reason.of_int (get_ofp_packet_in_reason bits) in
     let pk = Cstruct.shift bits sizeof_ofp_packet_in in
     let payload = match buf_id with
-      | None -> Payload.NotBuffered pk
-      | Some n -> Payload.Buffered (n, pk) in
+      | None -> NotBuffered pk
+      | Some n -> Buffered (n, pk) in
     { payload = payload; total_len = total_len; port = in_port;
       reason = reason }
 end
@@ -831,8 +829,8 @@ module PacketOut = struct
   let marshal (pkt_out : t) (buf : Cstruct.t) : int =
     set_ofp_packet_out_buffer_id buf
       (match pkt_out.payload with
-        | Payload.Buffered (n, _) -> n
-        | Payload.NotBuffered _  -> -1l);
+        | Buffered (n, _) -> n
+        | NotBuffered _  -> -1l);
     set_ofp_packet_out_in_port buf
       (PseudoPort.marshal_optional
         (match pkt_out.port_id with

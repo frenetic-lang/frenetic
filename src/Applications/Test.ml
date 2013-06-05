@@ -7,7 +7,7 @@ open NetCore_Pretty
 open OUnit
 
 
-let pay = OpenFlow0x01.Payload.Buffered (0l, Cstruct.create 10)
+let pay = OpenFlow0x01_Core.Buffered (0l, Cstruct.create 10)
 
 module TestClassifier = struct
 
