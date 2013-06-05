@@ -568,12 +568,7 @@ module FlowMod = struct
 
   module Command = struct
 
-    type t =
-      | AddFlow
-      | ModFlow
-      | ModStrictFlow
-      | DeleteFlow
-      | DeleteStrictFlow
+    type t = flowModCommand
 
     cenum ofp_flow_mod_command {
       OFPFC_ADD;
@@ -614,9 +609,7 @@ module FlowMod = struct
 
   module Timeout = struct
 
-    type t =
-      | Permanent
-      | ExpiresAfter of int16
+    type t = timeout
 
     let to_string t = match t with
       | Permanent -> "Permanent"
@@ -633,27 +626,16 @@ module FlowMod = struct
 
   end
 
-  type t =
-    { mod_cmd : Command.t
-    ; match_ : Match.t
-    ; priority : int16
-    ; actions : Action.sequence
-    ; cookie : int64
-    ; idle_timeout : Timeout.t
-    ; hard_timeout : Timeout.t
-    ; notify_when_removed : bool
-    ; apply_to_packet : int32 option
-    ; out_port : PseudoPort.t option
-    ; check_overlap : bool }
+  type t = flowMod
 
   let add_flow prio pat actions = 
-    { mod_cmd = Command.AddFlow;
-      match_ = pat;
+    { command = AddFlow;
+      pattern = pat;
       priority = prio;
       actions = actions;
       cookie = 0L;
-      idle_timeout = Timeout.Permanent;
-      hard_timeout = Timeout.Permanent;
+      idle_timeout = Permanent;
+      hard_timeout = Permanent;
       notify_when_removed = false;
       out_port =  None;
       apply_to_packet = None;
@@ -673,11 +655,11 @@ module FlowMod = struct
   } as big_endian
 
   let to_string m = Printf.sprintf
-    "{ mod_cmd = %s; match = %s; priority = %d; actions = %s; cookie = %Ld;\
+    "{ command = %s; match = %s; priority = %d; actions = %s; cookie = %Ld;\
        idle_timeout = %s; hard_timeout = %s; notify_when_removed = %B;\
        apply_to_packet = %s; out_port = %s; check_overlap = %B }"
-    (Command.to_string m.mod_cmd)
-    (Match.to_string m.match_)
+    (Command.to_string m.command)
+    (Match.to_string m.pattern)
     m.priority
     (Action.sequence_to_string m.actions)
     m.cookie
@@ -689,7 +671,7 @@ module FlowMod = struct
     m.check_overlap
 
   let size_of msg =
-    (Match.size_of msg.match_)
+    (Match.size_of msg.pattern)
     + sizeof_ofp_flow_mod
     + (Action.size_of_sequence msg.actions)
 
@@ -698,9 +680,9 @@ module FlowMod = struct
       (if notify_when_removed then 1 lsl 0 else 0)
 
   let marshal m bits =
-    let bits = Cstruct.shift bits (Match.marshal m.match_ bits) in
+    let bits = Cstruct.shift bits (Match.marshal m.pattern bits) in
     set_ofp_flow_mod_cookie bits (m.cookie);
-    set_ofp_flow_mod_command bits (Command.to_int m.mod_cmd);
+    set_ofp_flow_mod_command bits (Command.to_int m.command);
     set_ofp_flow_mod_idle_timeout bits (Timeout.to_int m.idle_timeout);
     set_ofp_flow_mod_hard_timeout bits (Timeout.to_int m.hard_timeout);
     set_ofp_flow_mod_priority bits (m.priority);
@@ -2137,13 +2119,13 @@ module Message = struct
   let delete_all_flows =
     let open FlowMod in
     FlowModMsg
-      { mod_cmd = Command.DeleteFlow
-      ; match_ = Match.all
+      { command = DeleteFlow
+      ; pattern = Match.all
       ; priority = 0
       ; actions = []
       ; cookie = 0L
-      ; idle_timeout = Timeout.Permanent
-      ; hard_timeout = Timeout.Permanent
+      ; idle_timeout = Permanent
+      ; hard_timeout = Permanent
       ; notify_when_removed = false
       ; apply_to_packet = None
       ; out_port = None

@@ -72,3 +72,42 @@ type action =
   | SetNwTos of nwTos (** Set IP ToS. *)
   | SetTpSrc of tpPort (** Set TCP/UDP source port. *)
   | SetTpDst of tpPort (** Set TCP/UDP destination port. *)
+
+
+(** The type of flow rule timeouts.  See Section 5.3.3 of the OpenFlow 1.0
+    specification. *)
+type timeout =
+  | Permanent (** No timeout. *)
+  | ExpiresAfter of int16 (** Time out after [n] seconds. *)
+
+(** See the [ofp_flow_mod_command] enumeration in Section 5.3.3 of the 
+    OpenFlow 1.0 specification. *)
+type flowModCommand =
+  | AddFlow (** New flow. *)
+  | ModFlow (** Modify all matching flows. *)
+  | ModStrictFlow (** Modify entry strictly matching wildcards. *)
+  | DeleteFlow (** Delete all matching flows. *)
+  | DeleteStrictFlow (** Delete entry strictly matching wildcards. *)
+
+(** A flow modification data structure.  See Section 5.3.3 of the OpenFlow 1.0
+specification. *)
+type flowMod =
+    { command : flowModCommand
+    ; pattern: pattern (** Fields to match. *)
+    ; priority : int16 (** Priority level of flow entry. *)
+    ; actions : action list (** Actions. *)
+    ; cookie : int64 (** Opaque controller-issued identifier. *)
+    ; idle_timeout : timeout (** Idle time before discarding (seconds). *)
+    ; hard_timeout : timeout (** Max time before discarding (seconds). *)
+    ; notify_when_removed : bool (** Send flow removed message when flow
+                                 expires or is deleted. *)
+    ; apply_to_packet : int32 option (** Optional buffered packet to apply 
+                                     to. *)
+    ; out_port : pseudoPort option (** For [DeleteFlow] and 
+                                     [DeleteStrictFlow] modifications, require
+                                     matching entries to include this as an
+                                     output port.  A value of [None] indicates
+                                     no restriction. *)
+    ; check_overlap : bool (** Check for overlapping entries first. *)
+    }
+      

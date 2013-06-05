@@ -43,3 +43,29 @@ type action =
   | SetTpSrc of tpPort
   | SetTpDst of tpPort
 
+type timeout =
+  | Permanent
+  | ExpiresAfter of int16
+
+type flowModCommand =
+  | AddFlow
+  | ModFlow
+  | ModStrictFlow
+  | DeleteFlow 
+  | DeleteStrictFlow 
+
+type flowMod =
+    { command : flowModCommand
+    ; pattern: pattern 
+    ; priority : int16
+    ; actions : action list
+    ; cookie : int64
+    ; idle_timeout : timeout
+    ; hard_timeout : timeout
+    ; notify_when_removed : bool
+    ; apply_to_packet : int32 option
+    ; out_port : pseudoPort option
+    ; check_overlap : bool
+    }
+
+      

@@ -16,22 +16,21 @@ module MyApplication : Ox.OXMODULE = struct
                 port = None }))
 
   let switch_connected sw = 
-    let open FlowMod in
-        let fm = {
-          mod_cmd = Command.AddFlow;
-          match_ = Match.all;
-          priority = 1;
-          actions = [Output Flood];
-          cookie = Int64.zero;
-          idle_timeout = Timeout.Permanent;
-          hard_timeout = Timeout.Permanent;
-          notify_when_removed = false;
-          apply_to_packet = None;
-          out_port = None;
-          check_overlap = false } in 
-        send_flow_mod sw 1l fm;
-        send_barrier_request sw 2l;
-        my_send_stats_request sw
+    let fm = {
+      command = AddFlow;
+      pattern = Match.all;
+      priority = 1;
+      actions = [Output Flood];
+      cookie = Int64.zero;
+      idle_timeout = Permanent;
+      hard_timeout = Permanent;
+      notify_when_removed = false;
+      apply_to_packet = None;
+      out_port = None;
+      check_overlap = false } in 
+    send_flow_mod sw 1l fm;
+    send_barrier_request sw 2l;
+    my_send_stats_request sw
 
   let switch_disconnected sw = ()
 

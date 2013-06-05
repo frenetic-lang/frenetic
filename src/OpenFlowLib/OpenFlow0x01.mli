@@ -54,12 +54,7 @@ module FlowMod : sig
   OpenFlow 1.0 specification. *)
   module Command : sig
 
-    type t =
-      | AddFlow (** New flow. *)
-      | ModFlow (** Modify all matching flows. *)
-      | ModStrictFlow (** Modify entry strictly matching wildcards. *)
-      | DeleteFlow (** Delete all matching flows. *)
-      | DeleteStrictFlow (** Delete entry strictly matching wildcards. *)
+    type t = flowModCommand
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -70,34 +65,14 @@ module FlowMod : sig
   specification. *)
   module Timeout : sig
 
-    type t =
-      | Permanent (** No timeout. *)
-      | ExpiresAfter of int16 (** Time out after [n] seconds. *)
+    type t = timeout
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
   end
 
-  type t =
-    { mod_cmd : Command.t
-    ; match_ : Match.t (** Fields to match. *)
-    ; priority : int16 (** Priority level of flow entry. *)
-    ; actions : Action.sequence (** Actions. *)
-    ; cookie : int64 (** Opaque controller-issued identifier. *)
-    ; idle_timeout : Timeout.t (** Idle time before discarding (seconds). *)
-    ; hard_timeout : Timeout.t (** Max time before discarding (seconds). *)
-    ; notify_when_removed : bool (** Send flow removed message when flow
-                                 expires or is deleted. *)
-    ; apply_to_packet : int32 option (** Optional buffered packet to apply 
-                                     to. *)
-    ; out_port : PseudoPort.t option (** For [DeleteFlow] and 
-                                     [DeleteStrictFlow] modifications, require
-                                     matching entries to include this as an
-                                     output port.  A value of [None] indicates
-                                     no restriction. *)
-    ; check_overlap : bool (** Check for overlapping entries first. *)
-    }
+  type t = flowMod
 
   (** [add_flow priority pattern action_sequence] creates a
       [FlowMod.t] instruction that adds a new flow table entry with
