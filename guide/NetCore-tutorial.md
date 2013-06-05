@@ -175,14 +175,14 @@ repeater program.  Change to that directory and
 start up the Frenetic controller program.
 
 ```
-> cd examples
-> frenetic tut1.nc
+$ cd examples
+$ frenetic tut1.nc
 ```
 
 Now, in a separate shell, start up mininet:
 
 ```
-> sudo mn --controller=remote
+$ sudo mn --controller=remote
 *** Creating network
 *** Adding controller
 *** Adding hosts:
@@ -200,40 +200,32 @@ s1
 mininet> 
 ```
 
-Mininet has started up a single switch with two hosts <code>h1</code> and
-<code>h2</code>, connected to the two ports on the switch.
-At the mininet prompt, test your repeater program by pinging h2
-from h1:
+Mininet has started up a single switch with two hosts <code>h1</code> 
+and <code>h2</code>, connected to the two ports on the switch.  At the 
+mininet prompt, test your repeater program by pinging h2 from h1:
 
 ```
-mininet> h1 ping h2
+mininet> h1 ping -c 1 h2
 ```
-
 You should see a trace like this one:
-
 ```
-64 bytes from 10.0.0.2: icmp_req=1 ttl=64 time=0.397 ms
-64 bytes from 10.0.0.2: icmp_req=2 ttl=64 time=0.051 ms
-64 bytes from 10.0.0.2: icmp_req=3 ttl=64 time=0.059 ms
-64 bytes from 10.0.0.2: icmp_req=4 ttl=64 time=0.056 ms
-64 bytes from 10.0.0.2: icmp_req=5 ttl=64 time=0.040 ms
-64 bytes from 10.0.0.2: icmp_req=6 ttl=64 time=0.042 ms
-^C
+PING 10.0.0.2 (10.0.0.2) 56(84) bytes of data.
+64 bytes from 10.0.0.2: icmp_req=1 ttl=64 time=0.216 ms
+
 --- 10.0.0.2 ping statistics ---
-6 packets transmitted, 6 received, 0% packet loss, time 5000ms
-rtt min/avg/max/mdev = 0.040/0.107/0.397/0.130 ms
+1 packets transmitted, 1 received, 0% packet loss, time 0ms
+rtt min/avg/max/mdev = 0.216/0.216/0.216/0.000 ms
 ```
-
 Ping h1 from h2 as well.  Once you are convinced the repeater works,
 try replacing the given repeater with an even simpler one:
-
 ```
 let repeater = all
 ```
-
 The <code>all</code> policy forwards any packet arriving at a switch out
-all ports on that switch except the port it arrived on.
-
+all ports on that switch except the port it arrived on.  The "opposite"
+of the <code>all</code> policy is the <code>drop</code> policy,
+which drops all packets on the floor.  How would you create a policy that 
+acts like a firewall, dropping certain packets and forwarding others?
 
 ### Example 2: Simple Port Translation
 
@@ -325,7 +317,7 @@ TCP window size: 22.9 KByte (default)
 [  3]  0.0-10.0 sec  3.24 GBytes  2.79 Gbits/sec
 ```
 
-### Example 3: A Slightly Larger Network
+### Example 3: A Multi-Switch Network
 
 Consider a network with 3 switches, and one host attached to each
 switch: *TODO: draw a better picture*
@@ -338,34 +330,32 @@ switch: *TODO: draw a better picture*
 ```
 You can start such a network when you boot up mininet:
 ```
-> sudo mn --controller=remote --topo=linear,3
+$ sudo mn --controller=remote --topo=linear,3
 ```
 In this network, our goal is to flood arp packets sent over
 the network and to route IP packets directly.  We'll write the
 policy by breaking it in to pieces, starting with the components
-that handle IP routing on a switch-by-switch basis:
+that handle IP routing on a switch-by-switch basis.  In what
+follows, we will use conditional <code>if pred then P</code> statements with 
+no <code>else</code> branch.  Such statements apply <code>P</code> to all 
+packets that satisfy <code>pred</code> and <code>drop</code> all others.
 ```
 let s1 =
-  filter (switch = 1);
-  if dstIP = 10.0.0.1 then fwd(1)
-  else fwd(2)
+  if switch = 1 then 
+    if dstIP = 10.0.0.1 then fwd(1)
+    else fwd(2)
 
 let s2 =
-  filter (switch = 2);
-  if dstIP = 10.0.0.1 then fwd(2)
-  else if dstIP = 10.0.0.2 then fwd(1)
-  else fwd(3)
-    
+  if switch = 2 then 
+    if dstIP = 10.0.0.1 then fwd(2)
+    else if dstIP = 10.0.0.2 then fwd(1)
+    else fwd(3)
+   
 let s3 =
-  filter (switch = 3);
-  if dstIP = 10.0.0.1 || dstIP = 10.0.0.2 then fwd(2)
-  else fwd(1)
+  if (switch = 3) then 
+    if dstIP = 10.0.0.1 || dstIP = 10.0.0.2 then fwd(2)
+    else fwd(1)
 ```
-In the program fragment above, we have used a new feature: the filter.  A filter
-selects those packets that match the associated predicate (in this case
-a predicate on switch id) and allows them to pass through.  It drops
-all packets that do not match match the filter.
-
 Next, we define the main policy, which broadcasts arp traffic and
 combine the three components defined above to forward IP traffic:
 ```
@@ -379,16 +369,18 @@ on each packet without preference for one policy over another.  In this
 specific case, if one policy (say s2) forwards the packet then the other
 two will drop it (s1 and s3) because each policy handles a disjoint set
 of packets (each handles the packets arriving at its respective switch).
-In the next example, we will see parallel composition used to do multiple
-interesting things with the same packet.
+This turns out to be what we want in this case, but it is perfectly
+legal for multiple policies in a parallel composition to do something
+interesting with a packet.  NetCore will ensure all actions are executed.
+We will see this sort of composition in the next example.
 
 To try out this policy, fire up mininet with the linear 3-switch topology:
 ```
-> sudo mn --controller=remote --topo=linear,3
+$ sudo mn --controller=remote --topo=linear,3
 ```
 Then start the <code>tut3.nc</code> program:
 ```
-> frenetic tut3.nc
+$ frenetic tut3.nc
 ```
 In mininet, try starting a simple web server on host h3:
 ```
@@ -413,46 +405,46 @@ let router =
 When we boot up the example, and try to ping h3 from h1, we are
 unable to connect:
 ```
-mininet> h1 ping h3
-^CPING 10.0.0.3 (10.0.0.3) 56(84) bytes of data.
+mininet> h1 ping -c 1 h3
+PING 10.0.0.3 (10.0.0.3) 56(84) bytes of data.
+From 10.0.0.1 icmp_seq=1 Destination Host Unreachable
 
 --- 10.0.0.3 ping statistics ---
-12 packets transmitted, 0 received, 100% packet loss, time 11029ms
+1 packets transmitted, 0 received, +1 errors, 100% packet loss, time 0ms
 ```
 One good method to track down bugs in NetCore programs is
 using wireshark.  However, another technique is to embed *queries*
-in to NetCore programs themselves.  <code>monitorPackets( pred )</code>
-is a policy that siphons off packets to the controller and prints them
-to the terminal, dropping all other packets.  For instance, 
-If we augment the broken variant of example 3 with a monitor,
+in to NetCore programs themselves.  <code>monitorPackets("id")</code>
+is a policy that sends all packets it receives to the controller,
+as opposed to forwarding them along a data path.  The controller 
+prints the packets to terminal prefixed by the 
+string "id".  
+
+Typically, when one monitors a network, one does so *in parallel*
+with some standard forwarding policy; one would like the packets
+to go *two* places:  the controller, for inspection, and to whatever
+regular host they are otherwise destined for.  For instance, if we 
+augment the broken variant of example 3 with several monitoring
+clauses, composed in parallel with our router,
 we can begin to diagnose the problem:
 ```
 let monitored_network = 
-  router + monitorPackets(switch=2)
+    router 
+  + if switch = 2 && frameType = ip then monitorPackets("s2")
+  + if switch = 3 && frameType = ip then monitorPackets("s3")
 ```
-We use parallel composition here as we wish to make two copies of a packet:
-one copy is processed forwarded by the router and another copy is processed
-by the monitor.
-
 To see what happens, start up a controller running <code>tut4.nc</code>
 ```
-> frenetic tut4.nc
+$ frenetic tut4.nc
 ```
 Now, inside mininet, ping host h3 from h1:
 ```
-mininet> h1 ping h3
-^CPING 10.0.0.3 (10.0.0.3) 56(84) bytes of data.
-
---- 10.0.0.3 ping statistics ---
-7 packets transmitted, 0 received, 100% packet loss, time 6039ms
+mininet> h1 ping -c 1 h3
 ```
-In your controller terminal, you should see a stream of packets being
-received at switch 2.
+In your controller terminal, you should see a packet 
+received at switch 2, but no packets received at switch 3.
 ```
-...
-Packet (ae:3d:a5:8a:d5:e1, 1e:b0:be:9b:99:2b, 2048, none, 0, Not yet implemented) on switch 2 port 2 matched filter switch = 2
-Packet (ae:3d:a5:8a:d5:e1, 1e:b0:be:9b:99:2b, 2048, none, 0, Not yet implemented) on switch 2 port 2 matched filter switch = 2
-Packet (ae:3d:a5:8a:d5:e1, 1e:b0:be:9b:99:2b, 2048, none, 0, Not yet implemented) on switch 2 port 2 matched filter switch = 2
+[s2] packet dlSrc=6a:a7:14:74:c8:95,dlDst=6a:aa:1c:52:e6:8f,nwSrc=10.0.0.1,nwDst=10.0.0.3,ICMP echo response on switch 2 port 2
 ```
 So the packets are arriving at switch 2.  If you adjust your monitor to
 monitor switch 3, you'll see the packets don't make it.  
