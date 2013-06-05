@@ -22,6 +22,7 @@ let hex = "0x" ['0'-'9' 'a'-'f' 'A'-'F']+
 let byte = ['0'-'9' 'a'-'f' 'A'-'F']  ['0'-'9' 'a'-'f' 'A'-'F']
 let decbyte = 
   (['0'-'9'] ['0'-'9'] ['0'-'9']) | (['0'-'9'] ['0'-'9']) | ['0'-'9']
+let string_body = ([^'"'] | "\\\"")*
 
 rule literate = parse
   | "    " { st := LiterateLine; token lexbuf }
@@ -113,6 +114,7 @@ and token = parse
   | decimal as n { INT64 (Int64.of_string n) } 
   | hex as n { INT64 (Int64.of_string n) }
   | "let" { LET }
+  | '"' (string_body as s) '"' { STRING s }
   | id as x { ID x } (* by going last, we lex to LEARN, NAT, etc. instead *)
 
 and block_comment = parse

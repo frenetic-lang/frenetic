@@ -177,8 +177,8 @@ pol_atom :
       ( symbol_start_pos ()
       , NetCore_Monitoring.monitor_load $3
       , Filter (symbol_start_pos (), $5) ) }
-  | MONITOR_PKTS
-    { Action (symbol_start_pos (), NetCore_Monitoring.monitor_packets ()) }
+  | MONITOR_PKTS LPAREN STRING RPAREN
+    { Action (symbol_start_pos (), NetCore_Monitoring.monitor_packets $3) }
   | LCURLY pred RCURLY pol LCURLY pred RCURLY
     { Slice (symbol_start_pos (), $2, $4, $6) }
 
