@@ -54,7 +54,7 @@ slower than processing them on the switch itself. Therefore, a
 controller typically uses the flow table to implement the intended
 packet-processing function efficiently.
 
-<h3 id="Exercise1">Exercise 1: A Naive Repeater</h3>
+<h3 id="exercise1">Exercise 1: A Naive Repeater</h3>
 
 As a warmup exercise, you will build a repeater: a switch that
 forwards incoming packets on all other ports. You will do so in two
@@ -76,75 +76,75 @@ steps:
 > cases where it is necessary to process packets on both the controller
 > and switches. So, you do need both implementations.
 
-The Ox platform provides several functions to send different types of
-messages to switches. In turn, your Ox application must define event
-handlers to receive messages from switches. In this tutorial, we will
-eventually cover all these messages.
+You will write your controller using the [Ox Platform]. Ox provides
+several functions to send different types of messages to switches. In
+turn, your application much define event handlers to receive messages
+from switches.
 
 For now, you only need to write a handler for the `packet_in` message.
-Create a file `ex1.ml` and fill it with the following template:
+Use [NaiveRepeater.ml][./ox-tutorial-code/NaiveRepeater.ml] as a
+starting point.
 
-```ocaml
-module MyApplication : Ox_Controller.OXMODULE = struct
-  open Ox_Controller.OxPlatform
-  open OpenFlow0x01
-  
-  include Ox_Defaults
-
-  let switch_connected (sw : switchId) : unit =
-    Printf.printf "Switch %Ld connected.\n%!" sw
-
-  let switch_disconnected (sw : switchId) : unit =
-    Printf.printf "Switch %Ld disconnected.\n%!" sw
-
-  let packet_in (sw : switchId) (xid : xid) (pk : PacketIn.t) : unit =
-    Printf.printf "%s\n%!" (PacketIn.to_string pk);
-    send_packet_out sw 0l
-      { PacketOut.payload = pk.PacketIn.payload;
-        PacketOut.port_id = None;
-        PacketOut.actions = []
-      }
-      
-end
-
-module Controller = Ox_Controller.Make (MyApplication)
-```
-
-> Define Ox_Defaults
-
-From the terminal, compile the program as follows:
+This file and the entire tutorial is included with the tutorial VM.
+Open a terminal and type:
 
 ```shell
-$ ocamlbuild -use-ocamlfind -package OxLib ex1.d.byte
+$ cd src/frenetic/guide/ox-tutorial-code
 ```
 
-> Fold PacketLib and OpenFlowLib into OxLib, IMHO.
+You should work within this directory, because we've included a Makefile that
+links to the correct Ox and OpenFlow libraries.
 
-The `packet_in` function above receives a [PacketIn] message and emits
-a [PacketOut] message using [send_packet_out] [OxPlatform]. Note that
-the list of actions is empty (`packetOut.actions = []`), which means the
-packet is dropped.
 
+<h4>Programming Task</h4>
 #### Programming Task
 
 Instead of dropping the packet, send it out of all
 ports (excluding the input port). This is easier than it sounds,
-because you can do it with just one [OpenFlow action] [Action]. Once
-you've found the right action to apply, rebuild the controller and
-test that it works.
+because you can do it with just one [OpenFlow action] [Action]. Go find the
+action, replace the dummy action with right one, and then proceed
+to building and testing your controller.
+
+<h4 id="compiling">Compiling your Controller</h4>
+
+To build your controller, run
+
+```shell
+  $ make NaiveController.d.byte
+```
+
+> The file extension indicates that it a bytecode, debug build.  You
+> can use `make foo.d.byte` to compile any `foo.ml` file in this
+> directory.
+
+If compilation succeeds, you should see output akin to this:
+
+```
+ocamlbuild -use-ocamlfind -cflag -ppopt -cflag -lwt-debug NaiveRepeater.d.byte
+Finished, 4 targets (0 cached) in 00:00:00.
+```
 
 #### Testing your Controller
 
-- Start your controller by running:
+You can use Mininet to test your controller, which is included in the
+tutorial VM. Mininet runs a virtual network on your computer,
+isolating each virtual host in a _container_. To test the repeater,
+you'll use Mininet to create a network with one switch and three hosts
+and have each ping the other.
+
+- Start your controller
 
   ```
-  $ ./ex1.d.byte
+  $ ./Naive_Repeater.d.byte
   ```
 
-- In a separate terminal window, start the Mininet network simulator:
+  It should print `[Ox] Controller launching...`
+
+
+- Start Mininet in a separate terminal window:
 
   ```
-  $ sudo ./mn --controller=remote --topo=single,3 --mac
+  $ sudo mn --controller=remote --topo=single,3 --mac
   ```
 
   A brief explanation of the flags:
@@ -152,41 +152,35 @@ test that it works.
   * `topo=single` creates a network with one switch and three hosts.
 
   * `--mac` sets the hosts mac addresses to `1`, `2`, and `3` (instead
-    of a random number).
+    of a random number). This makes debugging a lot easier.
 
   * `--controller=remote` directs the switches to connect to your controller
     (instead of using a default controller that is built into Mininet).
 
-- On the controller terminal, you should see the following
+  
+- After Mininet launches, your controller should print
+  `[Ox_Controller] switch 1 connected`.
+
+  Mininet will print the network topology, then drop you into the Mininet
+  prompt:
+
+  `mininet>`
+
+- From the Mininet prompt, you can run make your hosts ping each other:
 
   ```
-  $ ./ex1.d.byte
-  Switch 1 Connected.
+  mininet> h1 ping h2
+  mininet> h2 ping h3
+  ...
   ```
   
-- On the Mininet terminal, make `h1` ping `h2`:
+  Pinging should always succeed. In addition, if your controller
+  calls `printf` in its packet-in function, you will see the controller
+  receiving all pings (and other traffic, such as ARP).
 
-  ```
-  mininet> h1 ping -c 1 h2
-  ```
-
-  The command should succeed and print the following:
-  ```
-  1 packets transmitted, 1 packets received, 0.0% packet loss
-  ```
+This repeater is functionall correct, but laughably inefficient.
   
-- On the controller terminal, you should see the following:
-  ```
-  ping request
-  ping reply
-  ```
-
-  > Fill in the action output
-
-  This indicates that the controller itself received the the packets, which
-  is not very efficient.
-  
-### Exercise 2: An Efficient Repeater
+<h3 id="exercise2">Exercise 2: An Efficient Repeater</h3>
 
 Diverting all packets to the controller is very inefficent. You will
 now add rules to the switch _flow table_ so that the switch can

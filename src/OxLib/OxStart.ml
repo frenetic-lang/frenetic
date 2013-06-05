@@ -73,7 +73,7 @@ module Make (Handlers:OXMODULE) = struct
     let open FlowMod in
     lwt feats = Platform.accept_switch () in 
     let sw = feats.SwitchFeatures.switch_id in 
-    Log.printf "Ox_Controller" "switch %Ld connected\n%!" sw;
+    Log.printf "Ox" "switch %Ld connected\n%!" sw;
     lwt _ = Platform.send_to_switch sw 0l (FlowModMsg delete_all_flows) in
     lwt _ = Platform.send_to_switch sw 1l BarrierRequest in
     (* JNF: wait for barrier reply? *)

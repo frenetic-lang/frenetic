@@ -163,8 +163,6 @@ let switch_handshake (fd : Lwt_unix.file_descr) :
                   match resp with 
                     | Some (_,SwitchFeaturesReply feats) ->
                       Hashtbl.add switch_fds feats.OF.SwitchFeatures.switch_id fd;
-                      Log.printf "Platform"  "switch %Ld connected\n%!"
-                        feats.OF.SwitchFeatures.switch_id;
                       Lwt.return (Some feats)
                     | _ ->
                       Lwt.return None
