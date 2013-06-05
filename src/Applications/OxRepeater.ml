@@ -16,7 +16,7 @@ module MyApplication : Ox.OXMODULE = struct
     send_packet_out sw 0l
       { PacketOut.payload = pktIn.PacketIn.payload;
         PacketOut.port_id = None;
-        PacketOut.actions = [Action.Output AllPorts]
+        PacketOut.actions = [Output AllPorts]
       }
 
   let port_status sw xid msg = ()

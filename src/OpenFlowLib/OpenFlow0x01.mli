@@ -25,22 +25,9 @@ module PseudoPort : sig
 
 end
 
-(** Flow action data structure.  See Section 5.2.4 of the OpenFlow 1.0
-specification. *)
 module Action : sig
 
-  type t =
-    | Output of PseudoPort.t (** Output to switch port. *)
-    | SetDlVlan of dlVlan (** Set the 802.1Q VLAN ID. *)
-    | SetDlVlanPcp of dlVlanPcp (** Set the 802.1Q priority. *)
-    | StripVlan (** Strip the 802.1Q header. *)
-    | SetDlSrc of dlAddr (** Set ethernet source address. *)
-    | SetDlDst of dlAddr (** Set ethernet destination address. *)
-    | SetNwSrc of nwAddr (** Set IP source address. *)
-    | SetNwDst of nwAddr (** Set IP destination address. *)
-    | SetNwTos of nwTos (** Set IP ToS. *)
-    | SetTpSrc of tpPort (** Set TCP/UDP source port. *)
-    | SetTpDst of tpPort (** Set TCP/UDP destination port. *)
+  type t = action
 
   type sequence = t list
 

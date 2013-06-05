@@ -363,18 +363,7 @@ end
 
 module Action = struct
 
-  type t =
-    | Output of PseudoPort.t
-    | SetDlVlan of dlVlan
-    | SetDlVlanPcp of dlVlanPcp
-    | StripVlan
-    | SetDlSrc of dlAddr
-    | SetDlDst of dlAddr
-    | SetNwSrc of nwAddr
-    | SetNwDst of nwAddr
-    | SetNwTos of nwTos
-    | SetTpSrc of tpPort
-    | SetTpDst of tpPort
+  type t = action
 
   type sequence = t list
 

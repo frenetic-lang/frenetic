@@ -459,7 +459,7 @@ module Make (Platform : PLATFORM) = struct
       let msg = {
         payload = Payload.NotBuffered bytes;
         port_id = None;
-        actions = [Action.Output (PhysicalPort pt)]
+        actions = [Output (PhysicalPort pt)]
       } in
       Platform.send_to_switch sw 0l (Message.PacketOutMsg msg) in
     Lwt_stream.iter_s emit_pkt pkt_stream
@@ -653,7 +653,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
       let msg = {
         payload = Payload.NotBuffered bytes;
         port_id = None;
-        actions = [Action.Output (PhysicalPort pt)]
+        actions = [Output (PhysicalPort pt)]
       } in
       Platform.send_to_switch sw 0l (Message.PacketOutMsg msg) in
     Lwt_stream.iter_s emit_pkt pkt_stream

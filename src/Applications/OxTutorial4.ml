@@ -46,7 +46,7 @@ module MyApplication : Ox.OXMODULE = struct
       send_packet_out sw 0l
         { PacketOut.payload = payload;
           PacketOut.port_id = None;
-          PacketOut.actions = [Action.Output AllPorts]
+          PacketOut.actions = [Output AllPorts]
         }
 
   let barrier_reply (sw : switchId) (xid : xid) : unit =
