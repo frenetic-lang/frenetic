@@ -326,63 +326,41 @@ specification. *)
 module StatsReply : sig
 
   (** The body of a reply to a description request. *)
-  module DescriptionStats : sig
-
-    type t =
+  type descriptionStats =
       { manufacturer : string (** Manufacturer description. *)
       ; hardware : string (** Hardware description. *)
       ; software : string (** Software description. *)
       ; serial_number : string (** Serial number. *)
       ; datapath : string (** Human readable description of datapath. *)
       }
-
-    (** [to_string v] pretty-prints [v]. *)
-    val to_string : t -> string
-
-  end
-
+        
   (** The body of a reply to an individual flow statistics request. *)
-  module IndividualFlowStats : sig
+  type individualStats =
+    { table_id : int8 (** ID of table flow came from. *)
+    ; of_match : pattern (** Description of fields. *)
+    ; duration_sec : int32 (** Time flow has been alive in seconds. *)
+    ; duration_nsec : int32 (** Time flow has been alive in nanoseconds 
+                                beyond [duration_sec]. *)
+    ; priority : int16 (** Priority of the entry.  Only meaningful when this
+                           is not an exact-match entry. *)
+    ; idle_timeout : int16 (** Number of seconds idle before expiration. *)
+    ; hard_timeout : int16 (** Number of seconds before expiration. *)
+    ; cookie : int64 (** Opaque controller-issued identifier. *)
+    ; packet_count : int64 (** Number of packets in flow. *)
+    ; byte_count : int64 (** Number of bytes in flow. *)
+    ; actions : action list (** Actions. *)
+    }
 
-    type t =
-      { table_id : int8 (** ID of table flow came from. *)
-      ; of_match : Match.t (** Description of fields. *)
-      ; duration_sec : int32 (** Time flow has been alive in seconds. *)
-      ; duration_nsec : int32 (** Time flow has been alive in nanoseconds 
-                              beyond [duration_sec]. *)
-      ; priority : int16 (** Priority of the entry.  Only meaningful when this
-                         is not an exact-match entry. *)
-      ; idle_timeout : int16 (** Number of seconds idle before expiration. *)
-      ; hard_timeout : int16 (** Number of seconds before expiration. *)
-      ; cookie : int64 (** Opaque controller-issued identifier. *)
-      ; packet_count : int64 (** Number of packets in flow. *)
-      ; byte_count : int64 (** Number of bytes in flow. *)
-      ; actions : Action.sequence (** Actions. *)
-      }
-
-    (** [to_string v] pretty-prints [v]. *)
-    val to_string : t -> string
-
-  end
-
-  (** The body of a reply to an aggregate flow statistics request. *)
-  module AggregateFlowStats : sig
-
-    type t =
-      { packet_count : int64 (** Number of packets in flows. *)
-      ; byte_count : int64 (** Number of bytes in flows. *)
-      ; flow_count : int32 (** Number of flows. *)
-      }
-
-    (** [to_string v] pretty-prints [v]. *)
-    val to_string : t -> string
-
-  end
+  type aggregateStats =
+    { total_packet_count : int64 (** Number of packets in flows. *)
+    ; total_byte_count : int64 (** Number of bytes in flows. *)
+    ; flow_count : int32 (** Number of flows. *)
+    }
 
   type t =
-    | DescriptionRep of DescriptionStats.t
-    | IndividualFlowRep of IndividualFlowStats.t list
-    | AggregateFlowRep of AggregateFlowStats.t
+    | DescriptionRep of descriptionStats
+    | IndividualFlowRep of individualStats list
+    | AggregateFlowRep of aggregateStats
 
   (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string

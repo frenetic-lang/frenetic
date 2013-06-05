@@ -37,14 +37,13 @@ module MyApplication : OXMODULE = struct
   let stats_reply sw xid stats = 
     Printf.printf "Stats Reply\n%!";
     let open StatsReply in
-        let open AggregateFlowStats in 
-            match stats with 
-              | AggregateFlowRep afs -> 
-                Printf.printf "Packets: %Ld\nBytes: %Ld\nFlows: %ld\n%!"
-                  afs.packet_count afs.byte_count afs.flow_count;
-                my_send_stats_request sw
-              | _ -> 
-                ()
+        match stats with 
+          | AggregateFlowRep afs -> 
+            Printf.printf "Packets: %Ld\nBytes: %Ld\nFlows: %ld\n%!"
+              afs.total_packet_count afs.total_byte_count afs.flow_count;
+            my_send_stats_request sw
+          | _ -> 
+            ()
 
   let packet_in sw xid pktIn = ()
 
