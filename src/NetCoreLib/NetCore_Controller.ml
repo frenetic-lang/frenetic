@@ -46,6 +46,8 @@ module Query (Platform : PLATFORM) = struct
 
   module Flow = struct
     type t = (switchId * Match.t * int)
+    let compare = compare
+(*
     let compare (s1, m1, p1) (s2, m2, p2) =
       let s_comp = Int64.compare s1 s2 in
       let p_comp = compare p1 p2 in
@@ -54,6 +56,7 @@ module Query (Platform : PLATFORM) = struct
         List.find (fun c -> c <> 0) [s_comp; p_comp; m_comp]
       with
         Not_found -> 0
+*)
   end
 
   module FlowSet = Set.Make (Flow)

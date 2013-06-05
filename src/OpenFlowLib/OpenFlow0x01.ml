@@ -285,33 +285,6 @@ module Match = struct
       | [] -> "{*}"
       | _ ->  "{" ^ (String.concat ", " set_fields) ^ "}"
 
-  let compare_opt comp a b = match (a, b) with
-    | Some a', Some b' -> comp a' b'
-    | Some _, None -> 1
-    | None, Some _ -> -1
-    | None, None -> 0
-
-  (* [compare] induces a total (but artificial) ordering on patterns. *)
-  (* TODO(cole) this is kind of bogus. *)
-  let compare a b =
-    let field_comparisons =
-      [ compare_opt Int64.compare a.dlSrc b.dlSrc
-      ; compare_opt Int64.compare a.dlDst b.dlDst
-      ; compare_opt compare a.dlTyp b.dlTyp
-      ; compare_opt compare a.dlVlan b.dlVlan
-      ; compare_opt compare a.dlVlanPcp b.dlVlanPcp
-      ; compare_opt Int32.compare a.nwSrc b.nwSrc
-      ; compare_opt Int32.compare a.nwDst b.nwDst
-      ; compare_opt compare a.nwProto b.nwProto
-      ; compare_opt compare a.nwTos b.nwTos
-      ; compare_opt compare a.tpSrc b.tpSrc
-      ; compare_opt compare a.tpDst b.tpDst
-      ; compare_opt compare a.inPort b.inPort ] in
-    try 
-      List.find (fun c -> c <> 0) field_comparisons 
-    with 
-        Not_found -> 0
-
 end
 
 module PseudoPort = struct
