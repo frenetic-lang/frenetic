@@ -68,7 +68,7 @@ module MyApplication : Ox.OXMODULE = struct
 
   (* TODO(arjun): I think we'll provide this. *)
   let packet_in (sw : switchId) (xid : xid) (pktIn : PacketIn.t) : unit =
-    let payload = pktIn.PacketIn.payload in
+    let payload = pktIn.input_payload in
     let pk = Payload.parse payload in
     if is_http_request_packet pk then
       num_http_request_packets := Int64.add 1L !num_http_request_packets;

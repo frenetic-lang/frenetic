@@ -15,7 +15,7 @@ module MyApplication : Ox.OXMODULE = struct
 
   (* [FILL IN HERE]: Send the packet out of all ports, but block ICMP *)
   let packet_in (sw : switchId) (xid : xid) (pktIn : PacketIn.t) : unit =
-    let payload = pktIn.PacketIn.payload in
+    let payload = pktIn.input_payload in
     let pk = Payload.parse payload in
     if Packet.dlTyp pk = 0x800 && Packet.nwProto pk = 1 then
       send_packet_out sw 0l

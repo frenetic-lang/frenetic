@@ -18,8 +18,8 @@ module MyApplication : OXMODULE = struct
   let stats_reply sw xid stats = ()
 
   let packet_in sw xid pktIn =
-    let pkt = Payload.parse pktIn.PacketIn.payload in
-    let inport = pktIn.PacketIn.port in 
+    let pkt = Payload.parse pktIn.input_payload in
+    let inport = pktIn.port in 
     let src = pkt.Packet.dlSrc in 
     let dst = pkt.Packet.dlDst in 
     let sw_table = List.assoc sw !table in 
@@ -47,8 +47,8 @@ module MyApplication : OXMODULE = struct
     else
       let open PacketOut in
           let pktOut = { 
-            payload = pktIn.PacketIn.payload;
-            port_id = Some pktIn.PacketIn.port;
+            payload = pktIn.input_payload;
+            port_id = Some pktIn.port;
             actions = [Output Flood] 
           } in 
           send_packet_out sw xid pktOut

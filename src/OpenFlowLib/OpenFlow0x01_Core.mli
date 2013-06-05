@@ -116,3 +116,20 @@ type payload =
   | Buffered of int32 * bytes 
     (** [Buffered (id, buf)] is a packet buffered on a switch. *)
   | NotBuffered of bytes
+
+type packetInReason =
+  | NoMatch
+  | ExplicitSend
+
+(** A packet-in message.  See Section 5.4.1 of the OpenFlow 1.0
+    specification. *)
+type packetIn =
+    { input_payload : payload
+    (** The packet contents, which may truncated, in which case, 
+        the full packet is buffered on the switch. *)
+    ; total_len : int16
+      (** The length of the full packet, which may exceed the length
+          of [payload] if the packet is buffered. *)
+    ; port : portId (** Port on which frame was received. *)
+    ; reason : packetInReason (** Reason packet is being sent. *)
+    }

@@ -64,12 +64,12 @@ module MyApplication : Ox.OXMODULE = struct
 
   (* [FILL IN HERE] Use the packet_in function you write in OxTutorial4. *)
   let packet_in (sw : switchId) (xid : xid) (pktIn : PacketIn.t) : unit =
-    if is_http_packet (Payload.parse pktIn.PacketIn.payload) then
+    if is_http_packet (Payload.parse pktIn.input_payload) then
       begin
         num_http_packets := !num_http_packets + 1;
         Printf.printf "Seen %d HTTP packets.\n%!" !num_http_packets
       end;
-    let payload = pktIn.PacketIn.payload in
+    let payload = pktIn.input_payload in
     let pk = Payload.parse payload in
     if Packet.dlTyp pk = 0x800 && Packet.nwProto pk = 1 then
       send_packet_out sw 0l

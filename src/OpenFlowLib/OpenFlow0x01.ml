@@ -737,9 +737,7 @@ module PacketIn = struct
 
   module Reason = struct
 
-    type t =
-      | NoMatch
-      | ExplicitSend
+    type t = packetInReason
 
     cenum ofp_reason {
       NO_MATCH = 0;
@@ -763,12 +761,7 @@ module PacketIn = struct
 
   end
 
-  type t =
-    { payload : Payload.t
-    ; total_len : int16
-    ; port : portId
-    ; reason : Reason.t
-    }
+  type t = packetIn
 
   cstruct ofp_packet_in {
     uint32_t buffer_id;
@@ -781,7 +774,7 @@ module PacketIn = struct
   let to_string pin = Printf.sprintf
     "{ payload = %s; total_len = %d; port = %s; reason = %s; \
        packet = <bytes> }"
-    (Payload.to_string pin.payload)
+    (Payload.to_string pin.input_payload)
     pin.total_len
     (string_of_portId pin.port)
     (Reason.to_string pin.reason)
@@ -793,11 +786,11 @@ module PacketIn = struct
     let total_len = get_ofp_packet_in_total_len bits in
     let in_port = get_ofp_packet_in_in_port bits in
     let reason = Reason.of_int (get_ofp_packet_in_reason bits) in
-    let pk = Cstruct.shift bits sizeof_ofp_packet_in in
+    let pk = Cstruct.shift bits sizeof_ofp_packet_in in (* TODO(arjun): what if zero payload? *)
     let payload = match buf_id with
       | None -> NotBuffered pk
       | Some n -> Buffered (n, pk) in
-    { payload = payload; total_len = total_len; port = in_port;
+    { input_payload = payload; total_len = total_len; port = in_port;
       reason = reason }
 end
 

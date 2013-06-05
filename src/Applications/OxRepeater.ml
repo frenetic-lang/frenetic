@@ -14,7 +14,7 @@ module MyApplication : Ox.OXMODULE = struct
     
   let packet_in sw xid pktIn = 
     send_packet_out sw 0l
-      { PacketOut.payload = pktIn.PacketIn.payload;
+      { PacketOut.payload = pktIn.input_payload;
         PacketOut.port_id = None;
         PacketOut.actions = [Output AllPorts]
       }

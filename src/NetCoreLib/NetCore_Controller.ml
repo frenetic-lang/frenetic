@@ -360,21 +360,21 @@ module Make (Platform : PLATFORM) = struct
       (NetCore_Stream.to_stream pol_stream)
       
   let handle_packet_in pol sw pkt_in = 
-    let in_port = pkt_in.PacketIn.port in
+    let in_port = pkt_in.port in
     try_lwt
-      let packet = Payload.parse pkt_in.PacketIn.payload in
-      let inp = Pkt (sw, Physical in_port, packet, pkt_in.PacketIn.payload) in
+      let packet = Payload.parse pkt_in.input_payload in
+      let inp = Pkt (sw, Physical in_port, packet, pkt_in.input_payload) in
       let full_action = NetCore_Semantics.eval (NetCore_Stream.now pol) inp in
       let controller_action =
         NetCore_Action.Output.apply_controller full_action
           (sw, Physical in_port, packet) in
-      let action = match pkt_in.PacketIn.reason with
-        | PacketIn.Reason.ExplicitSend -> controller_action
-        | PacketIn.Reason.NoMatch ->
+      let action = match pkt_in.reason with
+        | ExplicitSend -> controller_action
+        | NoMatch ->
           NetCore_Action.Output.par_action controller_action
             (NetCore_Action.Output.switch_part full_action) in
       let outp = { 
-        PacketOut.payload = pkt_in.PacketIn.payload;
+        PacketOut.payload = pkt_in.input_payload;
         PacketOut.port_id = None;
         PacketOut.actions = 
           NetCore_Action.Output.as_actionSequence (Some in_port) action 
@@ -539,20 +539,19 @@ module MakeConsistent (Platform : PLATFORM) = struct
       (NetCore_Stream.to_stream pol_stream)
       
   let handle_packet_in sw pkt_in = 
-    let open PacketIn in
     let in_port = pkt_in.port in
-    let packet = Payload.parse pkt_in.payload in
-    let inp = Pkt (sw, Physical in_port, packet, pkt_in.payload) in
+    let packet = Payload.parse pkt_in.input_payload in
+    let inp = Pkt (sw, Physical in_port, packet, pkt_in.input_payload) in
     let full_action = NetCore_Semantics.eval !pol_now inp in
     let controller_action =
       NetCore_Action.Output.apply_controller full_action
         (sw, Physical in_port, packet) in
     let action = match pkt_in.reason with
-      | Reason.ExplicitSend -> controller_action
-      | Reason.NoMatch -> NetCore_Action.Output.par_action controller_action
+      | ExplicitSend -> controller_action
+      | NoMatch -> NetCore_Action.Output.par_action controller_action
         (NetCore_Action.Output.switch_part full_action) in
     let outp = { 
-      PacketOut.payload = pkt_in.payload;
+      PacketOut.payload = pkt_in.input_payload;
       PacketOut.port_id = None;
       PacketOut.actions = 
         NetCore_Action.Output.as_actionSequence (Some in_port) action 

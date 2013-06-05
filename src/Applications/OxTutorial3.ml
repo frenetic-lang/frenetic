@@ -26,7 +26,7 @@ module MyApplication : Ox.OXMODULE = struct
   (* [FILL IN HERE]: Use exactly the same packet_in function you wrote from
      OxTutorial2.  *)
   let packet_in (sw : switchId) (xid : xid) (pktIn : PacketIn.t) : unit =
-    let payload = pktIn.PacketIn.payload in
+    let payload = pktIn.input_payload in
     let pk = Payload.parse payload in
     if Packet.dlTyp pk = 0x806 && Packet.nwProto pk = 1 then
       send_packet_out sw 0l

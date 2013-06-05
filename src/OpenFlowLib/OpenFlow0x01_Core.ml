@@ -71,4 +71,14 @@ type flowMod =
 type payload =
   | Buffered of int32 * bytes 
   | NotBuffered of bytes
-      
+
+type packetInReason =
+  | NoMatch
+  | ExplicitSend
+
+type packetIn =
+    { input_payload : payload
+    ; total_len : int16
+    ; port : portId
+    ; reason : packetInReason
+    }
