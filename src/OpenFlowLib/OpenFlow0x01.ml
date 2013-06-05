@@ -301,12 +301,7 @@ end
 
 module PseudoPort = struct
 
-  type t =
-    | PhysicalPort of portId
-    | InPort
-    | Flood
-    | AllPorts
-    | Controller of int
+  type t = pseudoPort
 
   cenum ofp_port {
     (* Maximum number of physical switch ports. *)
@@ -487,7 +482,7 @@ module Action = struct
           set_ofp_action_output_port bits' (PseudoPort.marshal pp);
           set_ofp_action_output_max_len bits'
             (match pp with
-              | PseudoPort.Controller w -> w
+              | Controller w -> w
               | _ -> 0)
         | SetNwSrc addr
         | SetNwDst addr -> set_ofp_action_nw_addr_nw_addr bits' addr
@@ -500,7 +495,7 @@ module Action = struct
     size_of a
 
   let is_to_controller (act : t) : bool = match act with
-    | Output (PseudoPort.Controller _) -> true
+    | Output (Controller _) -> true
     | _ -> false
 
   let move_controller_last (lst : sequence) : sequence =
@@ -870,7 +865,7 @@ module PacketOut = struct
     set_ofp_packet_out_in_port buf
       (PseudoPort.marshal_optional
         (match pkt_out.port_id with
-          | Some id -> Some (PseudoPort.PhysicalPort id)
+          | Some id -> Some (PhysicalPort id)
           | None -> None));
     set_ofp_packet_out_actions_len buf
       (Action.size_of_sequence pkt_out.actions);

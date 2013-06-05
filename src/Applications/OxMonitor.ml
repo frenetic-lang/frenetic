@@ -1,3 +1,5 @@
+open OpenFlow0x01_Core
+
 module MyApplication : Ox.OXMODULE = struct
   open Ox.OxPlatform
   open OpenFlow0x01
@@ -19,7 +21,7 @@ module MyApplication : Ox.OXMODULE = struct
           mod_cmd = Command.AddFlow;
           match_ = Match.all;
           priority = 1;
-          actions = [Action.Output PseudoPort.Flood];
+          actions = [Action.Output Flood];
           cookie = Int64.zero;
           idle_timeout = Timeout.Permanent;
           hard_timeout = Timeout.Permanent;

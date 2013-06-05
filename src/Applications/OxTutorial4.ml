@@ -1,3 +1,5 @@
+open OpenFlow0x01_Core
+
 (* Write a packet_in function that:
   
    1. Blocks all ICMP traffic
@@ -44,7 +46,7 @@ module MyApplication : Ox.OXMODULE = struct
       send_packet_out sw 0l
         { PacketOut.payload = payload;
           PacketOut.port_id = None;
-          PacketOut.actions = [Action.Output PseudoPort.AllPorts]
+          PacketOut.actions = [Action.Output AllPorts]
         }
 
   let barrier_reply (sw : switchId) (xid : xid) : unit =

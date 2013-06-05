@@ -1,3 +1,5 @@
+open OpenFlow0x01_Core
+
 (* Write a packet_in function that drops ICMP traffic and acts as a repeater
    on all other traffic. Do not try to add rules to the flow table until the
    function works correctly. *)
@@ -25,7 +27,7 @@ module MyApplication : Ox.OXMODULE = struct
       send_packet_out sw 0l
         { PacketOut.payload = payload;
           PacketOut.port_id = None;
-          PacketOut.actions = [Action.Output PseudoPort.AllPorts]
+          PacketOut.actions = [Action.Output AllPorts]
         }
 
   let barrier_reply (sw : switchId) (xid : xid) : unit =

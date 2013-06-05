@@ -1,3 +1,5 @@
+open OpenFlow0x01_Core
+
 module MyApplication : Ox.OXMODULE = struct
   open Ox.OxPlatform
   open OpenFlow0x01
@@ -14,7 +16,7 @@ module MyApplication : Ox.OXMODULE = struct
     send_packet_out sw 0l
       { PacketOut.payload = pktIn.PacketIn.payload;
         PacketOut.port_id = None;
-        PacketOut.actions = [Action.Output PseudoPort.AllPorts]
+        PacketOut.actions = [Action.Output AllPorts]
       }
 
   let port_status sw xid msg = ()

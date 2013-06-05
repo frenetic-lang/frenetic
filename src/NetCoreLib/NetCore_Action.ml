@@ -1,4 +1,5 @@
 open OpenFlow0x01
+open OpenFlow0x01_Core
 open OpenFlow0x01.Action
 open Packet
 open NetCore_Types
@@ -378,20 +379,20 @@ module Output = struct
 
   let output_to_of inp out = match out.outPort with
     | Here -> [] (* Fishy, IMO. Shouldn't this be InPort? *)
-    | All -> modify out @ (Output PseudoPort.AllPorts)
+    | All -> modify out @ (Output AllPorts)
       :: unmodify out
     | Physical pt ->
       modify out @
         (( match inp with
          | Some pt' when (=) pt' pt ->
-             Output PseudoPort.InPort
+             Output InPort
          | _ ->
-           Output (PseudoPort.PhysicalPort pt)) ::
+           Output (PhysicalPort pt)) ::
           (unmodify out))
    
   let atom_to_of inp atom = match atom with
     | SwitchAction out -> output_to_of inp out
-    | ControllerAction _ -> [ Output (PseudoPort.Controller 65535) ]
+    | ControllerAction _ -> [ Output (Controller 65535) ]
     | ControllerQuery _ -> []
 
   let apply_controller action (sw, pt, pk) =

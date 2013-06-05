@@ -1,4 +1,5 @@
 open Ox
+open OpenFlow0x01_Core
 open OxPlatform
 open OpenFlow0x01
 
@@ -13,7 +14,7 @@ module MyApplication : OXMODULE = struct
   let switch_connected (sw : switchId) : unit =
     Printf.printf "Switch %Ld connected.\n%!" sw;
     send_flow_mod sw 1l
-      (FlowMod.add_flow 200 Match.all [Action.Output PseudoPort.AllPorts])
+      (FlowMod.add_flow 200 Match.all [Action.Output AllPorts])
 
   let switch_disconnected (sw : switchId) : unit =
     Printf.printf "Switch %Ld disconnected.\n%!" sw
@@ -22,7 +23,7 @@ module MyApplication : OXMODULE = struct
     send_packet_out sw 0l
       { PacketOut.payload = pk.PacketIn.payload;
         PacketOut.port_id = None;
-        PacketOut.actions = [Action.Output PseudoPort.AllPorts]
+        PacketOut.actions = [Action.Output AllPorts]
       }
 
 end

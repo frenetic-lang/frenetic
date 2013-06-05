@@ -44,3 +44,16 @@ type pattern =
     ; inPort : portId option (** Input switch port. *)
     }
 
+(** A pseudo-port, as described by the [ofp_port] enumeration in
+    Section 5.2.1 of the OpenFlow 1.0 specification. *)
+type pseudoPort =
+  | PhysicalPort of portId
+  | AllPorts (** All physical ports except input port. *)
+
+  | InPort (** Send the packet out the input port.  This virtual port
+               must be explicitly used in order to send back out of
+               the input port. *)
+  | Flood (** All physical ports except input port and those disabled by 
+              STP. *)
+  | Controller of int (** Send to controller along with [n] (max 1024)
+                          bytes of the packet. *)

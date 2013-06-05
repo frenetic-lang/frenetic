@@ -1,4 +1,5 @@
 open Packet
+open OpenFlow0x01_Core
 
 type switchId = OpenFlow0x01_Core.switchId
 
@@ -8,7 +9,7 @@ type xid = OpenFlow0x01_Core.xid
 
 module Match : sig
 
-  type t = OpenFlow0x01_Core.pattern
+  type t = pattern
 
   (** A pattern that matches all packets. (All fields wildcarded.) *)
   val all : t
@@ -17,21 +18,9 @@ module Match : sig
 
 end
 
-(** A pseudo-port, as described by the [ofp_port] enumeration in Section 5.2.1
-of the OpenFlow 1.0 specification. *)
 module PseudoPort : sig
 
-  type t =
-    | PhysicalPort of portId
-    | InPort (** Send the packet out the input port.  This virtual port must
-             be explicitly used in order to send back out of the input port. *)
-    | Flood (** All physical ports except input port and those disabled by 
-            STP. *)
-    | AllPorts (** All physical ports except input port. *)
-    | Controller of int (** Send to controller along with [n] (max 1024) bytes
-                        of the packet. *)
-
-  (** [to_string v] pretty-prints [v]. *)
+  type t = pseudoPort
   val to_string : t -> string
 
 end

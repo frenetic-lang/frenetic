@@ -35,7 +35,7 @@ module MyApplication : OXMODULE = struct
             mod_cmd = Command.AddFlow;
             match_ = m;
             priority = 1;
-            actions = [Action.Output (PseudoPort.PhysicalPort outport)];
+            actions = [Action.Output (PhysicalPort outport)];
             cookie = Int64.zero;
             idle_timeout = Timeout.Permanent;
             hard_timeout = Timeout.Permanent;
@@ -50,7 +50,7 @@ module MyApplication : OXMODULE = struct
           let pktOut = { 
             payload = pktIn.PacketIn.payload;
             port_id = Some pktIn.PacketIn.port;
-            actions = [Action.Output PseudoPort.Flood] 
+            actions = [Action.Output Flood] 
               } in 
           send_packet_out sw xid pktOut
 

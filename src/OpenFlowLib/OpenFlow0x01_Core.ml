@@ -21,3 +21,10 @@ type pattern =
     ; inPort : portId option
     }
 
+
+type pseudoPort =
+  | PhysicalPort of portId
+  | AllPorts
+  | InPort
+  | Flood
+  | Controller of int

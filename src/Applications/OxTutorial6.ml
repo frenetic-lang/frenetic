@@ -43,12 +43,12 @@ module MyApplication : Ox.OXMODULE = struct
       (FlowMod.add_flow 200 match_icmp []);
     send_flow_mod sw 1l
       (FlowMod.add_flow 199 match_http_requests 
-         [Action.Output PseudoPort.AllPorts]);
+         [Action.Output AllPorts]);
     send_flow_mod sw 1l
       (FlowMod.add_flow 198 match_http_responses 
-         [Action.Output PseudoPort.AllPorts]);
+         [Action.Output AllPorts]);
     send_flow_mod sw 1l
-      (FlowMod.add_flow 197 Match.all [Action.Output PseudoPort.AllPorts])
+      (FlowMod.add_flow 197 Match.all [Action.Output AllPorts])
       
   let switch_disconnected (sw : switchId) : unit =
     Printf.printf "Switch %Ld disconnected.\n%!" sw
@@ -84,7 +84,7 @@ module MyApplication : Ox.OXMODULE = struct
       send_packet_out sw 0l
         { PacketOut.payload = payload;
           PacketOut.port_id = None;
-          PacketOut.actions = [Action.Output PseudoPort.AllPorts]
+          PacketOut.actions = [Action.Output AllPorts]
         }
 
   let barrier_reply (sw : switchId) (xid : xid) : unit =
