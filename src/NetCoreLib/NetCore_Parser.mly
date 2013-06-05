@@ -162,6 +162,10 @@ pol_atom :
   | TCPDSTPORT INT64 RARROW INT64
     { Action (symbol_start_pos (),
               Action.updateDstPort (int16_of_int64 $2) (int16_of_int64 $4)) }
+  | SRCMAC MACADDR RARROW MACADDR
+    { Action (symbol_start_pos (), Action.updateDlSrc $2 $4) }
+  | DSTMAC MACADDR RARROW MACADDR
+    { Action (symbol_start_pos (), Action.updateDlDst $2 $4) }
   | ALL 
     { Action (symbol_start_pos (), Action.to_all) }
   | MONITOR_POL LPAREN pol RPAREN
