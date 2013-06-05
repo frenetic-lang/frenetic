@@ -464,10 +464,16 @@ module Action = struct
         | SetTpSrc pt
         | SetTpDst pt -> set_ofp_action_tp_port_tp_port bits' pt
 	      | SetDlVlan (Some vid) -> set_ofp_action_vlan_vid_vlan_vid bits' vid
-	      | SetDlVlan None -> ()
-        | _ -> failwith "NYI: Action.marshal"
+	      | SetDlVlan None -> () (* TODO(arjun): er... this and strip?? diff!?*)
+        | SetDlVlanPcp n -> set_ofp_action_vlan_pcp_vlan_pcp bits' n
+        | StripVlan -> () (* just padding *)
+        | SetNwTos n -> set_ofp_action_nw_tos_nw_tos bits' n
+        | SetDlSrc mac
+        | SetDlDst mac ->
+          set_ofp_action_dl_addr_dl_addr (Packet.bytes_of_mac mac) 0 bits'
     end;
     size_of a
+
 
   let is_to_controller (act : t) : bool = match act with
     | Output (Controller _) -> true
