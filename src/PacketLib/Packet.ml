@@ -42,7 +42,6 @@ let string_of_mac (x:int64) : string =
     (get_byte x 5) (get_byte x 4) (get_byte x 3)
     (get_byte x 2) (get_byte x 1) (get_byte x 0)
 
-
 type bytes = Cstruct.t
 
 type int8 = int
@@ -67,7 +66,6 @@ type nwTos = int8
 
 type tpPort = int16
 
-
 module Tcp = struct
 
   module Flags = struct
@@ -83,7 +81,6 @@ module Tcp = struct
       ; syn : bool
       ; fin : bool }
 
-    (** TODO(arjun): IMO, this is TMI *)
     let to_string f = Printf.sprintf
       "{ ns = %B; cwr = %B; ece = %B; urg = %B; ack = %B; psh = %B; rst = %B; \
          syn = %B; fin = %B }"
@@ -144,8 +141,9 @@ module Tcp = struct
     uint32_t options (* options and padding *)
   } as big_endian
 
-  (** TODO(arjun): errors if size is wrong *)
   let parse (bits : Cstruct.t) = 
+    if Cstruct.len bits < sizeof_tcp then
+      raise (UnparsablePacket "not enough bytes for TCP header");
     let src = get_tcp_src bits in 
     let dst = get_tcp_dst bits in 
     let seq = get_tcp_seq bits in 
@@ -157,7 +155,8 @@ module Tcp = struct
     let window = get_tcp_window bits in 
     let chksum = get_tcp_chksum bits in 
     let urgent = get_tcp_urgent bits in 
-    let payload = Cstruct.shift bits sizeof_tcp in (* JNF: options fixme *)
+    (* TODO(JNF): support options *)
+    let payload = Cstruct.shift bits sizeof_tcp in
     { src = src;
       dst = dst;
       seq = seq;
@@ -169,9 +168,9 @@ module Tcp = struct
       urgent = urgent;
       payload = payload }
 
-  (* TODO(arjun): should include payload size too *)
-  let len (pkt : t) = sizeof_tcp
-    
+  let len (pkt : t) = sizeof_tcp + Cstruct.len pkt.payload
+
+  (* Assumes that bits has enough room *)
   let serialize (bits : Cstruct.t) (pkt : t) =
     set_tcp_src bits pkt.src;
     set_tcp_dst bits pkt.dst;
@@ -182,9 +181,7 @@ module Tcp = struct
     set_tcp_window bits pkt.window;
     set_tcp_window bits pkt.window;
     let bits = Cstruct.shift bits sizeof_tcp in 
-    (* TODO(arjun): I think the order is wrong here. It is source first,
-       then destination, I think. *)
-    Cstruct.blit bits 0 pkt.payload 0 (Cstruct.len pkt.payload)
+    Cstruct.blit pkt.payload 0 bits 0 (Cstruct.len pkt.payload)
 
 end
 
@@ -210,28 +207,24 @@ module Icmp = struct
       | 8 -> fprintf fmt "ICMP echo response"
       | n -> fprintf fmt "ICMP type=%d,code=%d" n v.code
 
-  let to_string v = failwith "NYI: Icmp.to_string"
-
-  (* TODO(arjun): error if not enough bytes for header *)
   let parse (bits : Cstruct.t) = 
+    if Cstruct.len bits < sizeof_icmp then
+      raise (UnparsablePacket "not enough bytes for ICMP header");
     let typ = get_icmp_typ bits in
     let code = get_icmp_code bits in
     let chksum = get_icmp_chksum bits in
     let payload = Cstruct.shift bits sizeof_icmp in
     { typ = typ; code = code; chksum = chksum; payload = payload }
 
-  (* TODO(arjun): length of payload too *)
-  let len (pkt: t) = sizeof_icmp
+  let len (pkt: t) = sizeof_icmp + Cstruct.len pkt.payload
 
-  (* TODO(arjun): error if not enough space for packet *)
+  (* Assumes that bits has enough room. *)
   let serialize (bits : Cstruct.t) (pkt : t) =
     set_icmp_typ bits pkt.typ;
     set_icmp_code bits pkt.code;
     set_icmp_chksum bits pkt.chksum;
     let bits = Cstruct.shift bits sizeof_icmp in
-    (* TODO(arjun): I think the order is wrong here. It is source first,
-       then destination, I think. *)
-    Cstruct.blit bits 0 pkt.payload 0 (Cstruct.len pkt.payload)
+    Cstruct.blit pkt.payload 0 bits 0 (Cstruct.len pkt.payload)
   
 end
 
@@ -250,10 +243,7 @@ module Ip = struct
       ; mf : bool (** More fragments. *)
       }
 
-    (* TODO(arjun): TMI *)
-    let to_string v = Printf.sprintf
-      "{ df = %B; mf = %B }"
-      v.df v.mf
+    let to_string v = Printf.sprintf "{ df = %B; mf = %B }" v.df v.mf
 
     let of_int d =
       { df = test_bit 1 d
@@ -311,12 +301,12 @@ module Ip = struct
     uint32_t options (* options and padding *)
   } as big_endian
 
-  (* TODO(arjun): error if header does not fit *)
   let  parse (bits : Cstruct.t) = 
+    if Cstruct.len bits < sizeof_ip then
+      raise (UnparsablePacket "not enough bytes for IP header");
     let vhl = get_ip_vhl bits in 
-    (* TODO(arjun): MUST test for IPv4. Students' machines configured with
-       IPv6 will otherwise explode. *)
-    let _ = vhl lsr 4 in (* TODO(jnf): test for IPv4? *)
+    if vhl lsr 4 <> 4 then
+      raise (UnparsablePacket "expected IPv4 header");
     let ihl = vhl land 0x0f in 
     let tos = get_ip_tos bits in 
     let frag = get_ip_frag bits in 
@@ -329,10 +319,12 @@ module Ip = struct
     let src = get_ip_src bits in 
     let dst = get_ip_dst bits in 
     let bits = Cstruct.shift bits (ihl * 4) in 
-    let tp = match int_to_ip_proto proto with 
-      | Some IP_ICMP -> Icmp (Icmp.parse bits)
-      | Some IP_TCP -> Tcp (Tcp.parse bits)
-      | _ -> Unparsable (proto, bits) in
+    let tp = 
+      try match int_to_ip_proto proto with 
+        | Some IP_ICMP -> Icmp (Icmp.parse bits)
+        | Some IP_TCP -> Tcp (Tcp.parse bits)
+        | _ -> Unparsable (proto, bits) 
+      with UnparsablePacket _ -> Unparsable (proto, bits) in
     { tos = tos;
       ident = ident;
       flags = flags;
@@ -344,15 +336,15 @@ module Ip = struct
       tp = tp }
 
   let len (pkt : t) = 
-  (* TODO(arjun): what is this hack? *)
-    let ip_len = sizeof_ip - 4 in (* JNF: hack! *)
+    (* JNF hack *)
+    let ip_len = sizeof_ip - 4 in (* cstruct for ip has options, hence hack *)
     let tp_len = match pkt.tp with 
       | Tcp tcp -> Tcp.len tcp
       | Icmp icmp -> Icmp.len icmp
       | Unparsable (_, data) -> Cstruct.len data in 
     ip_len + tp_len
 
-  (* TODO(arjun): error if not enough space *)
+  (* Assumes there is enough space *)
   let serialize (bits : Cstruct.t) (pkt:t) =
     let v = 4 in (* IP version 4. *)
     let ihl = 5 in (* We don't support IPv4 options at the moment. *)
@@ -367,7 +359,7 @@ module Ip = struct
       | Icmp _ -> 1
       | Unparsable (p, _) -> p in
     set_ip_proto bits proto;
-    set_ip_chksum bits pkt.chksum; (* TODO(arjun): calculate checksum *)
+    set_ip_chksum bits pkt.chksum;
     set_ip_src bits pkt.src;
     set_ip_dst bits pkt.dst;
     let bits = Cstruct.shift bits sizeof_ip in 
@@ -428,8 +420,9 @@ module Arp = struct
     ARP_REPLY = 0x0002
   } as uint16_t
   
-  (* TODO(arjun): error if not enough space *)
   let parse (bits : Cstruct.t) =
+    if Cstruct.len bits < sizeof_arp then
+      raise (UnparsablePacket "not enough bytes for ARP header");
     let oper = get_arp_oper bits in 
     let sha = mac_of_bytes (Cstruct.to_string (get_arp_sha bits)) in 
     let spa = (get_arp_spa bits) in 
@@ -444,10 +437,9 @@ module Arp = struct
         raise (UnparsablePacket 
           (Printf.sprintf "unrecognized ARP operation code (%d)" oper))
 
-  (* TODO(arjun): both requests and replies have the same size? *)
-  let len pk = sizeof_arp
+  let len pk = sizeof_arp (* both requests and replies do have the same size *)
 
-  (* TODO(arjun): error if not enough space *)
+  (* Assumes there is enough space *)
   let serialize (bits : Cstruct.t) (pkt : t) =
     (* NOTE(ARJUN, JNF): ARP packets specify the size of L2 addresses, so 
        they can be used with IPv6. This version assumes we are doing IPv4. *)
@@ -677,7 +669,7 @@ cstruct udp {
   uint16_t chksum
 } as big_endian
 
-(* TODO(arjun): error if not enough space *)
+(* TODO(arjun): error if not enough space (annoying to do due to VLANs)*)
 let parse (bits : Cstruct.t) =
   let src = Cstruct.to_string (get_eth_src bits) in
   let dst = Cstruct.to_string (get_eth_dst bits) in
@@ -693,16 +685,19 @@ let parse (bits : Cstruct.t) =
       | _ -> 
         (None, 0x0, typ, sizeof_eth) in 
   let bits = Cstruct.shift bits offset in
-  let nw_header = match int_to_eth_typ typ with 
-    | Some ETHTYP_IP -> Ip (Ip.parse bits)
-    | Some ETHTYP_ARP -> 
-      begin try 
-        Arp (Arp.parse bits)
-      with UnparsablePacket _ -> 
-        Unparsable (typ, Cstruct.of_string (Cstruct.to_string bits))
+  let nw_header = 
+    try match int_to_eth_typ typ with 
+      | Some ETHTYP_IP -> Ip (Ip.parse bits)
+      | Some ETHTYP_ARP -> 
+        begin try 
+                Arp (Arp.parse bits)
+          with UnparsablePacket _ -> 
+            Unparsable (typ, Cstruct.of_string (Cstruct.to_string bits))
       end
-    | _ -> 
-      Unparsable (typ, Cstruct.of_string (Cstruct.to_string bits)) in 
+      | _ -> 
+        Unparsable (typ, Cstruct.of_string (Cstruct.to_string bits))
+    with UnparsablePacket _ ->
+      Unparsable (typ, Cstruct.of_string (Cstruct.to_string bits)) in
   { dlSrc = mac_of_bytes src;
     dlDst = mac_of_bytes dst;
     dlVlan = vlan_tag;
@@ -739,6 +734,7 @@ let serialize_helper (bits : Cstruct.t) (pkt : packet) =
     | Unparsable (_, data) -> Cstruct.blit data 0 bits 0 (Cstruct.len data)
 
 let serialize (pkt:packet) : Cstruct.t = 
+  (* Allocating (len pkt) ensures the other serializers have enough room *)
   let bits = Cstruct.create (len pkt) in 
   let () = serialize_helper bits pkt in 
   bits
