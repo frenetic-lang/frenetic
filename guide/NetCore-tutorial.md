@@ -287,11 +287,169 @@ The mapper will translate port numbers for you.
 ```
 mininet> h1 iperf -c 10.0.0.2 -p 5022
 ```
+You shoud see a trace like the following one.
+```
+------------------------------------------------------------
+Client connecting to 10.0.0.2, TCP port 5022
+TCP window size: 22.9 KByte (default)
+------------------------------------------------------------
+[  3] local 10.0.0.1 port 42605 connected with 10.0.0.2 port 5022
+[ ID] Interval       Transfer     Bandwidth
+[  3]  0.0-10.0 sec  3.24 GBytes  2.79 Gbits/sec
+```
 
-### Example 3: A Larger Network
+### Example 3: A Slightly Larger Network
 
-### Example 4: Queries and Debugging 
+Consider a network with 3 switches, and one host attached to each
+switch: *TODO: draw a better picture*
+```
+    h1        h2        h3
+    |         |         |
+    |         |         |
+    1         1         1
+   (s1)2 -- 2(s2)3 -- 2(s3)
+```
+You can start such a network when you boot up mininet:
+```
+> sudo mn --controller=remote --topo=linear,3
+```
+In this network, our goal is to flood arp packets sent over
+the network and to route IP packets directly.  We'll write the
+policy by breaking it in to pieces, starting with the components
+that handle IP routing on a switch-by-switch basis:
+```
+let s1 =
+  filter (switch = 1);
+  if dstIP = 10.0.0.1 then fwd(1)
+  else fwd(2)
 
+let s2 =
+  filter (switch = 2);
+  if dstIP = 10.0.0.1 then fwd(2)
+  else if dstIP = 10.0.0.2 then fwd(1)
+  else fwd(3)
+    
+let s3 =
+  filter (switch = 3);
+  if dstIP = 10.0.0.1 || dstIP = 10.0.0.2 then fwd(2)
+  else fwd(1)
+```
+In the program fragment above, we have used a new feature: the filter.  A filter
+selects those packets that match the associated predicate (in this case
+a predicate on switch id) and allows them to pass through.  It drops
+all packets that do not match match the filter.
+
+Next, we define the main policy, which broadcasts arp traffic and
+combine the three components defined above to forward IP traffic:
+```
+let router =
+  if frameType = arp then all
+  else s1 + s2 + s3
+```
+Here, <code>s1 + s2 + s3</code> represents the *parallel composition* of 
+three policies. In other words, we execute all three policies simultaneously
+on each packet without preference for one policy over another.  In this
+specific case, if one policy (say s2) forwards the packet then the other
+two will drop it (s1 and s3) because each policy handles a disjoint set
+of packets (each handles the packets arriving at its respective switch).
+In the next example, we will see parallel composition used to do multiple
+interesting things with the same packet.
+
+To try out this policy, fire up mininet with the linear 3-switch topology:
+```
+> sudo mn --controller=remote --topo=linear,3
+```
+Then start the <code>tut3.nc</code> program:
+```
+> frenetic tut3.nc
+```
+In mininet, try starting a simple web server on host h3:
+```
+mininet> h3 python -m SimpleHTTPServer 80 &
+```
+And check that you can fetch content from the server at h3 from h1:
+```
+mininet> h1 wget -O - h3
+```
+Anything interesting on h3?
+
+### Example 4: Queries and Debugging
+
+Let's continue with example 3, but assume we were asleep when coding
+and forgot to include the proper forwarding policy (s2) for switch 2.
+Hence our router looks like this:
+```
+let router =
+  if frameType = arp then all
+  else s1 + s3  (* missing s2 *)
+```
+When we boot up the example, and try to ping h3 from h1, we are
+unable to connect:
+```
+mininet> h1 ping h3
+^CPING 10.0.0.3 (10.0.0.3) 56(84) bytes of data.
+
+--- 10.0.0.3 ping statistics ---
+12 packets transmitted, 0 received, 100% packet loss, time 11029ms
+```
+One good method to track down bugs in NetCore programs is
+using wireshark.  However, another technique is to embed *queries*
+in to NetCore programs themselves.  <code>monitorPackets( pred )</code>
+is a policy that siphons off packets to the controller and prints them
+to the terminal, dropping all other packets.  For instance, 
+If we augment the broken variant of example 3 with a monitor,
+we can begin to diagnose the problem:
+```
+let monitored_network = 
+  router + monitorPackets(switch=2)
+```
+We use parallel composition here as we wish to make two copies of a packet:
+one copy is processed forwarded by the router and another copy is processed
+by the monitor.
+
+To see what happens, start up a controller running <code>tut4.nc</code>
+```
+> frenetic tut4.nc
+```
+Now, inside mininet, ping host h3 from h1:
+```
+mininet> h1 ping h3
+^CPING 10.0.0.3 (10.0.0.3) 56(84) bytes of data.
+
+--- 10.0.0.3 ping statistics ---
+7 packets transmitted, 0 received, 100% packet loss, time 6039ms
+```
+In your controller terminal, you should see a stream of packets being
+received at switch 2.
+```
+...
+Packet (ae:3d:a5:8a:d5:e1, 1e:b0:be:9b:99:2b, 2048, none, 0, Not yet implemented) on switch 2 port 2 matched filter switch = 2
+Packet (ae:3d:a5:8a:d5:e1, 1e:b0:be:9b:99:2b, 2048, none, 0, Not yet implemented) on switch 2 port 2 matched filter switch = 2
+Packet (ae:3d:a5:8a:d5:e1, 1e:b0:be:9b:99:2b, 2048, none, 0, Not yet implemented) on switch 2 port 2 matched filter switch = 2
+```
+So the packets are arriving at switch 2.  If you adjust your monitor to
+monitor switch 3, you'll see the packets don't make it.  
+Something goes wrong between the entry to switch 2 and the entry to switch 3!
+Now, fix the policy:
+```
+let router =
+  if frameType = arp then all
+  else s1 + s2 + s3
+```
+and let's monitor the load on the network instead of looking at the contents
+of packets.  Doing so involves <code>monitorLoad( n , pred )</code>,
+which prints the number of packets and the number of 
+bytes satisfying 
+<code>pred</code> every <code>n</code> seconds.  
+Modifying <code>tut4.nc</code> to measure the load of non-arp traffic
+on switch 3 every 5 seconds involves adding the following definition.
+```
+let monitored_network = 
+  router + monitorLoad(5, switch=3)
+```
+To test the monitor, try pinging from h1 to h2 as well as h1 to h3.  Watch
+the controller terminal to see how many packets cross switch 3 in 
+each case.
 
 Exercises
 ---------
