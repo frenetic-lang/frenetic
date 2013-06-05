@@ -408,6 +408,7 @@ module Make (Platform : PLATFORM) = struct
   let switch_thread features pol_stream =
     let open SwitchFeatures in
     let sw = features.switch_id in
+    Log.printf "NetCore Controller" "switch %Ld connected.\n%!"  sw;
     Queries.add_switch sw;
     (try_lwt
       lwt _ = Lwt.wrap2 NetCore_Semantics.handle_switch_events
@@ -434,6 +435,7 @@ module Make (Platform : PLATFORM) = struct
             (SwitchDown sw)
             (NetCore_Stream.now pol_stream));
       Queries.remove_switch sw;
+      Log.printf "NetCore Controller" "switch %Ld disconnected.\n%!"  sw;
       Lwt.return ()
     end
 

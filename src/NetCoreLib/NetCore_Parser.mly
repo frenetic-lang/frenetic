@@ -79,7 +79,6 @@
 %token IP
 %token MONITOR_POL
 %token MONITOR_TBL
-%token MONITOR_SW
 %token MONITOR_LOAD
 %token MONITOR_PKTS
 %token <string> STRING
@@ -169,9 +168,6 @@ pol_atom :
     { Transform (symbol_start_pos (), NetCore_Monitoring.monitor_pol, $3) }
   | MONITOR_TBL LPAREN INT64 COMMA pol RPAREN
     { Transform (symbol_start_pos (), NetCore_Monitoring.monitor_tbl $3, $5) }
-  | MONITOR_SW 
-    { HandleSwitchEvent
-      (symbol_start_pos (), NetCore_Monitoring.monitor_switch_events) }
   | MONITOR_LOAD LPAREN seconds COMMA pred RPAREN
     { Transform 
       ( symbol_start_pos ()

@@ -87,7 +87,6 @@ and token = parse
   | "drop" { DROP }
   | "monitorPolicy" { MONITOR_POL }
   | "monitorTable" { MONITOR_TBL }
-  | "monitorSwitch" { MONITOR_SW }
   | "monitorLoad" { MONITOR_LOAD }
   | "monitorPackets" { MONITOR_PKTS }
   | ";" { SEMI }

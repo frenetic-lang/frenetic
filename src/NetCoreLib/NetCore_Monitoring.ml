@@ -17,10 +17,6 @@ let monitor_tbl sw pol =
     tbl;
   pol
 
-let monitor_switch_events = function
-  | SwitchUp (sw, _) -> printf "switch %Ld connected.\n%!" sw
-  | SwitchDown sw -> printf "switch %Ld disconnected.\n%!" sw
-
 let monitor_load (window : float) filter =
   let monitor_load_handler packets bytes =
     printf "%Ld packets and %Ld bytes matched %s in the last %f seconds.\n%!"
