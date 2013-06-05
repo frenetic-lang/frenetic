@@ -107,6 +107,134 @@ module Action : sig
 
 end
 
+(** A flow modification data structure.  See Section 5.3.3 of the OpenFlow 1.0
+specification. *)
+module FlowMod : sig
+
+  (** See the [ofp_flow_mod_command] enumeration in Section 5.3.3 of the 
+  OpenFlow 1.0 specification. *)
+  module Command : sig
+
+    type t =
+      | AddFlow (** New flow. *)
+      | ModFlow (** Modify all matching flows. *)
+      | ModStrictFlow (** Modify entry strictly matching wildcards. *)
+      | DeleteFlow (** Delete all matching flows. *)
+      | DeleteStrictFlow (** Delete entry strictly matching wildcards. *)
+
+    (** [to_string v] pretty-prints [v]. *)
+    val to_string : t -> string
+
+  end
+
+  (** The type of flow rule timeouts.  See Section 5.3.3 of the OpenFlow 1.0
+  specification. *)
+  module Timeout : sig
+
+    type t =
+      | Permanent (** No timeout. *)
+      | ExpiresAfter of int16 (** Time out after [n] seconds. *)
+
+    (** [to_string v] pretty-prints [v]. *)
+    val to_string : t -> string
+
+  end
+
+  type t =
+    { mod_cmd : Command.t
+    ; match_ : Match.t (** Fields to match. *)
+    ; priority : int16 (** Priority level of flow entry. *)
+    ; actions : Action.sequence (** Actions. *)
+    ; cookie : int64 (** Opaque controller-issued identifier. *)
+    ; idle_timeout : Timeout.t (** Idle time before discarding (seconds). *)
+    ; hard_timeout : Timeout.t (** Max time before discarding (seconds). *)
+    ; notify_when_removed : bool (** Send flow removed message when flow
+                                 expires or is deleted. *)
+    ; apply_to_packet : int32 option (** Optional buffered packet to apply 
+                                     to. *)
+    ; out_port : PseudoPort.t option (** For [DeleteFlow] and 
+                                     [DeleteStrictFlow] modifications, require
+                                     matching entries to include this as an
+                                     output port.  A value of [None] indicates
+                                     no restriction. *)
+    ; check_overlap : bool (** Check for overlapping entries first. *)
+    }
+
+  (** [add_flow priority pattern action_sequence] creates a
+      [FlowMod.t] instruction that adds a new flow table entry with
+      the specified [priority], [pattern], and [action_sequence].
+
+      The entry is permanent (i.e., does not timeout), its cookie is
+      zero, etc. *)
+  val add_flow : int16 -> Match.t -> Action.sequence -> t
+
+  (** [to_string v] pretty-prints [v]. *)
+  val to_string : t -> string
+
+end
+
+(** The payload for [PacketIn.t] and [PacketOut.t] messages. *)
+module Payload : sig
+
+  type t =
+    | Buffered of int32 * bytes 
+    (** [Buffered (id, buf)] is a packet buffered on a switch. *)
+    | NotBuffered of bytes
+
+  (** [parse pk] signals an exception if the packet cannot be parsed.
+      TODO(arjun): Which exception? *)
+  val parse : t -> Packet.packet
+
+  val to_string : t -> string
+end
+
+(** A packet-in message.  See Section 5.4.1 of the OpenFlow 1.0
+    specification.
+*)
+module PacketIn : sig
+
+  module Reason : sig
+
+    type t =
+      | NoMatch
+      | ExplicitSend
+
+    (** [to_string v] pretty-prints [v]. *)
+    val to_string : t -> string
+
+  end
+
+  type t =
+    { payload : Payload.t
+      (** The packet contents, which may truncated, in which case, 
+          the full packet is buffered on the switch. *)
+    ; total_len : int16
+      (** The length of the full packet, which may exceed the length
+          of [payload] if the packet is buffered. *)
+    ; port : portId (** Port on which frame was received. *)
+    ; reason : Reason.t (** Reason packet is being sent. *)
+    }
+
+  (** [to_string v] pretty-prints [v]. *)
+  val to_string : t -> string
+
+end
+
+(** A send-packet message.  See Section 5.3.6 of the OpenFlow 1.0
+    specification. *)
+module PacketOut : sig
+
+  type t =
+      { payload : Payload.t
+      ; port_id : portId option (** Packet's input port. *)
+      ; actions : Action.sequence (** Actions. *)
+    }
+
+  (** [to_string v] pretty-prints [v]. *)
+  val to_string : t -> string
+
+end
+
 (** Port data structure.  See section 5.2.1 of the OpenFlow 1.0 specification. *)
 module PortDescription : sig
 
@@ -288,134 +416,6 @@ module SwitchFeatures : sig
     ; supported_capabilities : Capabilities.t
     ; supported_actions : SupportedActions.t
     ; ports : PortDescription.t list (** Port definitions. *)
-    }
-
-  (** [to_string v] pretty-prints [v]. *)
-  val to_string : t -> string
-
-end
-
-(** A flow modification data structure.  See Section 5.3.3 of the OpenFlow 1.0
-specification. *)
-module FlowMod : sig
-
-  (** See the [ofp_flow_mod_command] enumeration in Section 5.3.3 of the 
-  OpenFlow 1.0 specification. *)
-  module Command : sig
-
-    type t =
-      | AddFlow (** New flow. *)
-      | ModFlow (** Modify all matching flows. *)
-      | ModStrictFlow (** Modify entry strictly matching wildcards. *)
-      | DeleteFlow (** Delete all matching flows. *)
-      | DeleteStrictFlow (** Delete entry strictly matching wildcards. *)
-
-    (** [to_string v] pretty-prints [v]. *)
-    val to_string : t -> string
-
-  end
-
-  (** The type of flow rule timeouts.  See Section 5.3.3 of the OpenFlow 1.0
-  specification. *)
-  module Timeout : sig
-
-    type t =
-      | Permanent (** No timeout. *)
-      | ExpiresAfter of int16 (** Time out after [n] seconds. *)
-
-    (** [to_string v] pretty-prints [v]. *)
-    val to_string : t -> string
-
-  end
-
-  type t =
-    { mod_cmd : Command.t
-    ; match_ : Match.t (** Fields to match. *)
-    ; priority : int16 (** Priority level of flow entry. *)
-    ; actions : Action.sequence (** Actions. *)
-    ; cookie : int64 (** Opaque controller-issued identifier. *)
-    ; idle_timeout : Timeout.t (** Idle time before discarding (seconds). *)
-    ; hard_timeout : Timeout.t (** Max time before discarding (seconds). *)
-    ; notify_when_removed : bool (** Send flow removed message when flow
-                                 expires or is deleted. *)
-    ; apply_to_packet : int32 option (** Optional buffered packet to apply 
-                                     to. *)
-    ; out_port : PseudoPort.t option (** For [DeleteFlow] and 
-                                     [DeleteStrictFlow] modifications, require
-                                     matching entries to include this as an
-                                     output port.  A value of [None] indicates
-                                     no restriction. *)
-    ; check_overlap : bool (** Check for overlapping entries first. *)
-    }
-
-  (** [add_flow priority pattern action_sequence] creates a
-      [FlowMod.t] instruction that adds a new flow table entry with
-      the specified [priority], [pattern], and [action_sequence].
-
-      The entry is permanent (i.e., does not timeout), its cookie is
-      zero, etc. *)
-  val add_flow : int16 -> Match.t -> Action.sequence -> t
-
-  (** [to_string v] pretty-prints [v]. *)
-  val to_string : t -> string
-
-end
-
-(** The payload for [PacketIn.t] and [PacketOut.t] messages. *)
-module Payload : sig
-
-  type t =
-    | Buffered of int32 * bytes 
-    (** [Buffered (id, buf)] is a packet buffered on a switch. *)
-    | NotBuffered of bytes
-
-  (** [parse pk] signals an exception if the packet cannot be parsed.
-      TODO(arjun): Which exception? *)
-  val parse : t -> Packet.packet
-
-  val to_string : t -> string
-end
-
-(** A packet-in message.  See Section 5.4.1 of the OpenFlow 1.0
-    specification.
-*)
-module PacketIn : sig
-
-  module Reason : sig
-
-    type t =
-      | NoMatch
-      | ExplicitSend
-
-    (** [to_string v] pretty-prints [v]. *)
-    val to_string : t -> string
-
-  end
-
-  type t =
-    { payload : Payload.t
-      (** The packet contents, which may truncated, in which case, 
-          the full packet is buffered on the switch. *)
-    ; total_len : int16
-      (** The length of the full packet, which may exceed the length
-          of [payload] if the packet is buffered. *)
-    ; port : portId (** Port on which frame was received. *)
-    ; reason : Reason.t (** Reason packet is being sent. *)
-    }
-
-  (** [to_string v] pretty-prints [v]. *)
-  val to_string : t -> string
-
-end
-
-(** A send-packet message.  See Section 5.3.6 of the OpenFlow 1.0
-    specification. *)
-module PacketOut : sig
-
-  type t =
-      { payload : Payload.t
-      ; port_id : portId option (** Packet's input port. *)
-      ; actions : Action.sequence (** Actions. *)
     }
 
   (** [to_string v] pretty-prints [v]. *)

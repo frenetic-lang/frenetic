@@ -592,6 +592,309 @@ module Action = struct
 
 end
 
+module FlowMod = struct
+
+  module Command = struct
+
+    type t =
+      | AddFlow
+      | ModFlow
+      | ModStrictFlow
+      | DeleteFlow
+      | DeleteStrictFlow
+
+    cenum ofp_flow_mod_command {
+      OFPFC_ADD;
+      OFPFC_MODIFY;
+      OFPFC_MODIFY_STRICT;
+      OFPFC_DELETE;
+      OFPFC_DELETE_STRICT
+    } as uint16_t
+
+    let size_of _ = 2
+
+    let to_string cmd = match cmd with
+      | AddFlow -> "AddFlow"
+      | ModFlow -> "ModFlow"
+      | ModStrictFlow -> "ModStrictFlow"
+      | DeleteFlow -> "DeleteFlow"
+      | DeleteStrictFlow -> "DeleteStrictFlow"
+
+    let to_int t = match t with
+      | AddFlow -> ofp_flow_mod_command_to_int OFPFC_ADD
+      | ModFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY
+      | ModStrictFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY_STRICT
+      | DeleteFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE
+      | DeleteStrictFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE_STRICT
+
+    let of_int d =
+      let command_code = int_to_ofp_flow_mod_command d in
+      match command_code with
+      | Some OFPFC_ADD -> AddFlow
+      | Some OFPFC_MODIFY -> ModFlow
+      | Some OFPFC_MODIFY_STRICT -> ModStrictFlow
+      | Some OFPFC_DELETE -> DeleteFlow
+      | Some OFPFC_DELETE_STRICT -> DeleteStrictFlow
+      | None -> raise 
+        (Unparsable (Printf.sprintf "unexpected ofp_flow_mod_command %d" d))
+
+  end
+
+  module Timeout = struct
+
+    type t =
+      | Permanent
+      | ExpiresAfter of int16
+
+    let to_string t = match t with
+      | Permanent -> "Permanent"
+      | ExpiresAfter n -> Printf.sprintf "ExpiresAfter %d" n
+
+    let size_of _ = 2
+
+    let to_int x = match x with
+      | Permanent -> 0
+      | ExpiresAfter w -> w
+
+    let of_int d = 
+      if d = 0 then Permanent else ExpiresAfter d
+
+  end
+
+  type t =
+    { mod_cmd : Command.t
+    ; match_ : Match.t
+    ; priority : int16
+    ; actions : Action.sequence
+    ; cookie : int64
+    ; idle_timeout : Timeout.t
+    ; hard_timeout : Timeout.t
+    ; notify_when_removed : bool
+    ; apply_to_packet : int32 option
+    ; out_port : PseudoPort.t option
+    ; check_overlap : bool }
+
+  let add_flow prio pat actions = 
+    { mod_cmd = Command.AddFlow;
+      match_ = pat;
+      priority = prio;
+      actions = actions;
+      cookie = 0L;
+      idle_timeout = Timeout.Permanent;
+      hard_timeout = Timeout.Permanent;
+      notify_when_removed = false;
+      out_port =  None;
+      apply_to_packet = None;
+      check_overlap = false
+    }
+
+
+  cstruct ofp_flow_mod {
+    uint64_t cookie;
+    uint16_t command;
+    uint16_t idle_timeout;
+    uint16_t hard_timeout;
+    uint16_t priority;
+    uint32_t buffer_id;
+    uint16_t out_port;
+    uint16_t flags
+  } as big_endian
+
+  let to_string m = Printf.sprintf
+    "{ mod_cmd = %s; match = %s; priority = %d; actions = %s; cookie = %Ld;\
+       idle_timeout = %s; hard_timeout = %s; notify_when_removed = %B;\
+       apply_to_packet = %s; out_port = %s; check_overlap = %B }"
+    (Command.to_string m.mod_cmd)
+    (Match.to_string m.match_)
+    m.priority
+    (Action.sequence_to_string m.actions)
+    m.cookie
+    (Timeout.to_string m.idle_timeout)
+    (Timeout.to_string m.hard_timeout)
+    m.notify_when_removed
+    (Frenetic_Misc.string_of_option Int32.to_string m.apply_to_packet)
+    (Frenetic_Misc.string_of_option PseudoPort.to_string m.out_port)
+    m.check_overlap
+
+  let size_of msg =
+    (Match.size_of msg.match_)
+    + sizeof_ofp_flow_mod
+    + (Action.size_of_sequence msg.actions)
+
+  let flags_to_int (check_overlap : bool) (notify_when_removed : bool) =
+    (if check_overlap then 1 lsl 1 else 0) lor
+      (if notify_when_removed then 1 lsl 0 else 0)
+
+  let marshal m bits =
+    let bits = Cstruct.shift bits (Match.marshal m.match_ bits) in
+    set_ofp_flow_mod_cookie bits (m.cookie);
+    set_ofp_flow_mod_command bits (Command.to_int m.mod_cmd);
+    set_ofp_flow_mod_idle_timeout bits (Timeout.to_int m.idle_timeout);
+    set_ofp_flow_mod_hard_timeout bits (Timeout.to_int m.hard_timeout);
+    set_ofp_flow_mod_priority bits (m.priority);
+    set_ofp_flow_mod_buffer_id bits
+      (match m.apply_to_packet with
+        | None -> -1l
+        | Some bufId -> bufId);
+    set_ofp_flow_mod_out_port bits (PseudoPort.marshal_optional m.out_port);
+    set_ofp_flow_mod_flags bits
+      (flags_to_int m.check_overlap m.notify_when_removed);
+    let bits = Cstruct.shift bits sizeof_ofp_flow_mod in
+    let _ = List.fold_left
+      (fun bits act ->
+        Cstruct.shift bits (Action.marshal act bits))
+      bits
+      (Action.move_controller_last m.actions) in
+    size_of m
+
+end
+
+module Payload = struct
+
+  type t = 
+    | Buffered of int32 * bytes
+    | NotBuffered of bytes
+
+  let parse (t : t) = match t with
+    | Buffered (_, b)
+    | NotBuffered b -> 
+      Packet.parse b
+
+  let to_string (t : t) = match t with
+    | Buffered (b, pk) ->
+      Format.sprintf "%d bytes (buffered at %ld)" (Cstruct.len pk) b
+    | NotBuffered pk -> 
+      Format.sprintf "%d bytes" (Cstruct.len pk)
+
+  (* sizeof when in a [PacketOut] message *)
+  let packetout_sizeof p = match p with
+    | Buffered _ -> 0
+    | NotBuffered bytes -> Cstruct.len bytes
+
+  let packetout_marshal p out = 
+      let _ = match p with
+        | Buffered _ -> ()
+        | NotBuffered bytes ->
+          Cstruct.blit bytes 0 out 0 (Cstruct.len bytes)
+        in
+      packetout_sizeof p
+
+end
+
+module PacketIn = struct
+
+  module Reason = struct
+
+    type t =
+      | NoMatch
+      | ExplicitSend
+
+    cenum ofp_reason {
+      NO_MATCH = 0;
+      ACTION = 1
+    } as uint8_t
+
+    let to_string r = match r with
+      | NoMatch -> "NoMatch"
+      | ExplicitSend -> "ExplicitSend"
+
+    let of_int d = match int_to_ofp_reason d with
+      | Some NO_MATCH -> NoMatch
+      | Some ACTION -> ExplicitSend
+      | None -> raise (Unparsable (sprintf "bad reason in packet_in (%d)" d))
+
+    let to_int r = match r with
+      | NoMatch -> ofp_reason_to_int NO_MATCH
+      | ExplicitSend -> ofp_reason_to_int ACTION
+
+    let size_of _ = 1
+
+  end
+
+  type t =
+    { payload : Payload.t
+    ; total_len : int16
+    ; port : portId
+    ; reason : Reason.t
+    }
+
+  cstruct ofp_packet_in {
+    uint32_t buffer_id;
+    uint16_t total_len;
+    uint16_t in_port;
+    uint8_t reason;
+    uint8_t pad
+  } as big_endian
+
+  let to_string pin = Printf.sprintf
+    "{ payload = %s; total_len = %d; port = %s; reason = %s; \
+       packet = <bytes> }"
+    (Payload.to_string pin.payload)
+    pin.total_len
+    (string_of_portId pin.port)
+    (Reason.to_string pin.reason)
+
+  let parse bits =
+    let buf_id = match get_ofp_packet_in_buffer_id bits with
+      | -1l -> None
+      | n -> Some n in
+    let total_len = get_ofp_packet_in_total_len bits in
+    let in_port = get_ofp_packet_in_in_port bits in
+    let reason = Reason.of_int (get_ofp_packet_in_reason bits) in
+    let pk = Cstruct.shift bits sizeof_ofp_packet_in in
+    let payload = match buf_id with
+      | None -> Payload.NotBuffered pk
+      | Some n -> Payload.Buffered (n, pk) in
+    { payload = payload; total_len = total_len; port = in_port;
+      reason = reason }
+end
+
+module PacketOut = struct
+
+
+  type t =
+    { payload : Payload.t
+    ; port_id : portId option
+    ; actions : Action.sequence }
+
+  cstruct ofp_packet_out {
+    uint32_t buffer_id;
+    uint16_t in_port;
+    uint16_t actions_len
+  } as big_endian
+
+  let to_string out = Printf.sprintf
+    "{ payload = %s; port_id = %s; actions = %s }"
+    (Payload.to_string out.payload)
+    (Frenetic_Misc.string_of_option string_of_portId out.port_id)
+    (Action.sequence_to_string out.actions)
+
+  let size_of (pkt_out : t) : int =
+    sizeof_ofp_packet_out +
+      (Action.size_of_sequence pkt_out.actions) +
+      (Payload.packetout_sizeof pkt_out.payload)
+
+  let marshal (pkt_out : t) (buf : Cstruct.t) : int =
+    set_ofp_packet_out_buffer_id buf
+      (match pkt_out.payload with
+        | Payload.Buffered (n, _) -> n
+        | Payload.NotBuffered _  -> -1l);
+    set_ofp_packet_out_in_port buf
+      (PseudoPort.marshal_optional
+        (match pkt_out.port_id with
+          | Some id -> Some (PseudoPort.PhysicalPort id)
+          | None -> None));
+    set_ofp_packet_out_actions_len buf
+      (Action.size_of_sequence pkt_out.actions);
+    let buf = List.fold_left
+      (fun buf act -> Cstruct.shift buf (Action.marshal act buf))
+      (Cstruct.shift buf sizeof_ofp_packet_out)
+      (Action.move_controller_last pkt_out.actions) in
+    let _ = Payload.packetout_marshal pkt_out.payload buf in
+    size_of pkt_out
+
+end
+
 module PortDescription = struct
 
   module PortConfig = struct
@@ -1065,309 +1368,6 @@ module SwitchFeatures = struct
   let size_of feats = 
     sizeof_ofp_switch_features 
     + sum (List.map PortDescription.size_of feats.ports)
-end
-
-module FlowMod = struct
-
-  module Command = struct
-
-    type t =
-      | AddFlow
-      | ModFlow
-      | ModStrictFlow
-      | DeleteFlow
-      | DeleteStrictFlow
-
-    cenum ofp_flow_mod_command {
-      OFPFC_ADD;
-      OFPFC_MODIFY;
-      OFPFC_MODIFY_STRICT;
-      OFPFC_DELETE;
-      OFPFC_DELETE_STRICT
-    } as uint16_t
-
-    let size_of _ = 2
-
-    let to_string cmd = match cmd with
-      | AddFlow -> "AddFlow"
-      | ModFlow -> "ModFlow"
-      | ModStrictFlow -> "ModStrictFlow"
-      | DeleteFlow -> "DeleteFlow"
-      | DeleteStrictFlow -> "DeleteStrictFlow"
-
-    let to_int t = match t with
-      | AddFlow -> ofp_flow_mod_command_to_int OFPFC_ADD
-      | ModFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY
-      | ModStrictFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY_STRICT
-      | DeleteFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE
-      | DeleteStrictFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE_STRICT
-
-    let of_int d =
-      let command_code = int_to_ofp_flow_mod_command d in
-      match command_code with
-      | Some OFPFC_ADD -> AddFlow
-      | Some OFPFC_MODIFY -> ModFlow
-      | Some OFPFC_MODIFY_STRICT -> ModStrictFlow
-      | Some OFPFC_DELETE -> DeleteFlow
-      | Some OFPFC_DELETE_STRICT -> DeleteStrictFlow
-      | None -> raise 
-        (Unparsable (Printf.sprintf "unexpected ofp_flow_mod_command %d" d))
-
-  end
-
-  module Timeout = struct
-
-    type t =
-      | Permanent
-      | ExpiresAfter of int16
-
-    let to_string t = match t with
-      | Permanent -> "Permanent"
-      | ExpiresAfter n -> Printf.sprintf "ExpiresAfter %d" n
-
-    let size_of _ = 2
-
-    let to_int x = match x with
-      | Permanent -> 0
-      | ExpiresAfter w -> w
-
-    let of_int d = 
-      if d = 0 then Permanent else ExpiresAfter d
-
-  end
-
-  type t =
-    { mod_cmd : Command.t
-    ; match_ : Match.t
-    ; priority : int16
-    ; actions : Action.sequence
-    ; cookie : int64
-    ; idle_timeout : Timeout.t
-    ; hard_timeout : Timeout.t
-    ; notify_when_removed : bool
-    ; apply_to_packet : int32 option
-    ; out_port : PseudoPort.t option
-    ; check_overlap : bool }
-
-  let add_flow prio pat actions = 
-    { mod_cmd = Command.AddFlow;
-      match_ = pat;
-      priority = prio;
-      actions = actions;
-      cookie = 0L;
-      idle_timeout = Timeout.Permanent;
-      hard_timeout = Timeout.Permanent;
-      notify_when_removed = false;
-      out_port =  None;
-      apply_to_packet = None;
-      check_overlap = false
-    }
-
-
-  cstruct ofp_flow_mod {
-    uint64_t cookie;
-    uint16_t command;
-    uint16_t idle_timeout;
-    uint16_t hard_timeout;
-    uint16_t priority;
-    uint32_t buffer_id;
-    uint16_t out_port;
-    uint16_t flags
-  } as big_endian
-
-  let to_string m = Printf.sprintf
-    "{ mod_cmd = %s; match = %s; priority = %d; actions = %s; cookie = %Ld;\
-       idle_timeout = %s; hard_timeout = %s; notify_when_removed = %B;\
-       apply_to_packet = %s; out_port = %s; check_overlap = %B }"
-    (Command.to_string m.mod_cmd)
-    (Match.to_string m.match_)
-    m.priority
-    (Action.sequence_to_string m.actions)
-    m.cookie
-    (Timeout.to_string m.idle_timeout)
-    (Timeout.to_string m.hard_timeout)
-    m.notify_when_removed
-    (Frenetic_Misc.string_of_option Int32.to_string m.apply_to_packet)
-    (Frenetic_Misc.string_of_option PseudoPort.to_string m.out_port)
-    m.check_overlap
-
-  let size_of msg =
-    (Match.size_of msg.match_)
-    + sizeof_ofp_flow_mod
-    + (Action.size_of_sequence msg.actions)
-
-  let flags_to_int (check_overlap : bool) (notify_when_removed : bool) =
-    (if check_overlap then 1 lsl 1 else 0) lor
-      (if notify_when_removed then 1 lsl 0 else 0)
-
-  let marshal m bits =
-    let bits = Cstruct.shift bits (Match.marshal m.match_ bits) in
-    set_ofp_flow_mod_cookie bits (m.cookie);
-    set_ofp_flow_mod_command bits (Command.to_int m.mod_cmd);
-    set_ofp_flow_mod_idle_timeout bits (Timeout.to_int m.idle_timeout);
-    set_ofp_flow_mod_hard_timeout bits (Timeout.to_int m.hard_timeout);
-    set_ofp_flow_mod_priority bits (m.priority);
-    set_ofp_flow_mod_buffer_id bits
-      (match m.apply_to_packet with
-        | None -> -1l
-        | Some bufId -> bufId);
-    set_ofp_flow_mod_out_port bits (PseudoPort.marshal_optional m.out_port);
-    set_ofp_flow_mod_flags bits
-      (flags_to_int m.check_overlap m.notify_when_removed);
-    let bits = Cstruct.shift bits sizeof_ofp_flow_mod in
-    let _ = List.fold_left
-      (fun bits act ->
-        Cstruct.shift bits (Action.marshal act bits))
-      bits
-      (Action.move_controller_last m.actions) in
-    size_of m
-
-end
-
-module Payload = struct
-
-  type t = 
-    | Buffered of int32 * bytes
-    | NotBuffered of bytes
-
-  let parse (t : t) = match t with
-    | Buffered (_, b)
-    | NotBuffered b -> 
-      Packet.parse b
-
-  let to_string (t : t) = match t with
-    | Buffered (b, pk) ->
-      Format.sprintf "%d bytes (buffered at %ld)" (Cstruct.len pk) b
-    | NotBuffered pk -> 
-      Format.sprintf "%d bytes" (Cstruct.len pk)
-
-  (* sizeof when in a [PacketOut] message *)
-  let packetout_sizeof p = match p with
-    | Buffered _ -> 0
-    | NotBuffered bytes -> Cstruct.len bytes
-
-  let packetout_marshal p out = 
-      let _ = match p with
-        | Buffered _ -> ()
-        | NotBuffered bytes ->
-          Cstruct.blit bytes 0 out 0 (Cstruct.len bytes)
-        in
-      packetout_sizeof p
-
-end
-
-module PacketIn = struct
-
-  module Reason = struct
-
-    type t =
-      | NoMatch
-      | ExplicitSend
-
-    cenum ofp_reason {
-      NO_MATCH = 0;
-      ACTION = 1
-    } as uint8_t
-
-    let to_string r = match r with
-      | NoMatch -> "NoMatch"
-      | ExplicitSend -> "ExplicitSend"
-
-    let of_int d = match int_to_ofp_reason d with
-      | Some NO_MATCH -> NoMatch
-      | Some ACTION -> ExplicitSend
-      | None -> raise (Unparsable (sprintf "bad reason in packet_in (%d)" d))
-
-    let to_int r = match r with
-      | NoMatch -> ofp_reason_to_int NO_MATCH
-      | ExplicitSend -> ofp_reason_to_int ACTION
-
-    let size_of _ = 1
-
-  end
-
-  type t =
-    { payload : Payload.t
-    ; total_len : int16
-    ; port : portId
-    ; reason : Reason.t
-    }
-
-  cstruct ofp_packet_in {
-    uint32_t buffer_id;
-    uint16_t total_len;
-    uint16_t in_port;
-    uint8_t reason;
-    uint8_t pad
-  } as big_endian
-
-  let to_string pin = Printf.sprintf
-    "{ payload = %s; total_len = %d; port = %s; reason = %s; \
-       packet = <bytes> }"
-    (Payload.to_string pin.payload)
-    pin.total_len
-    (string_of_portId pin.port)
-    (Reason.to_string pin.reason)
-
-  let parse bits =
-    let buf_id = match get_ofp_packet_in_buffer_id bits with
-      | -1l -> None
-      | n -> Some n in
-    let total_len = get_ofp_packet_in_total_len bits in
-    let in_port = get_ofp_packet_in_in_port bits in
-    let reason = Reason.of_int (get_ofp_packet_in_reason bits) in
-    let pk = Cstruct.shift bits sizeof_ofp_packet_in in
-    let payload = match buf_id with
-      | None -> Payload.NotBuffered pk
-      | Some n -> Payload.Buffered (n, pk) in
-    { payload = payload; total_len = total_len; port = in_port;
-      reason = reason }
-end
-
-module PacketOut = struct
-
-
-  type t =
-    { payload : Payload.t
-    ; port_id : portId option
-    ; actions : Action.sequence }
-
-  cstruct ofp_packet_out {
-    uint32_t buffer_id;
-    uint16_t in_port;
-    uint16_t actions_len
-  } as big_endian
-
-  let to_string out = Printf.sprintf
-    "{ payload = %s; port_id = %s; actions = %s }"
-    (Payload.to_string out.payload)
-    (Frenetic_Misc.string_of_option string_of_portId out.port_id)
-    (Action.sequence_to_string out.actions)
-
-  let size_of (pkt_out : t) : int =
-    sizeof_ofp_packet_out +
-      (Action.size_of_sequence pkt_out.actions) +
-      (Payload.packetout_sizeof pkt_out.payload)
-
-  let marshal (pkt_out : t) (buf : Cstruct.t) : int =
-    set_ofp_packet_out_buffer_id buf
-      (match pkt_out.payload with
-        | Payload.Buffered (n, _) -> n
-        | Payload.NotBuffered _  -> -1l);
-    set_ofp_packet_out_in_port buf
-      (PseudoPort.marshal_optional
-        (match pkt_out.port_id with
-          | Some id -> Some (PseudoPort.PhysicalPort id)
-          | None -> None));
-    set_ofp_packet_out_actions_len buf
-      (Action.size_of_sequence pkt_out.actions);
-    let buf = List.fold_left
-      (fun buf act -> Cstruct.shift buf (Action.marshal act buf))
-      (Cstruct.shift buf sizeof_ofp_packet_out)
-      (Action.move_controller_last pkt_out.actions) in
-    let _ = Payload.packetout_marshal pkt_out.payload buf in
-    size_of pkt_out
-
 end
 
 module StatsRequest = struct
