@@ -159,7 +159,7 @@ fields, such as the <code>srcIP</code>, <code>dstIP</code> or
 conjunctions (<code>&&</code>), disjunctions
 (<code>||</code>) and negation (<code>!</code>) of other conditions.
 See the [manual](link...) for the complete list of predicates. 
-```
+
 Within the <code>netcore-tutorial-code</code> directory, you should
 find the repeater policy in <code>repeater.nc</code>.  To start the
 repeater controller, just type:
