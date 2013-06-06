@@ -19,13 +19,13 @@ let make () =
   (** Create a predicate that matches all unknown 
       switch * port * host * port tuples. *)
   let make_unknown_predicate () = 
-    PrNot
+    Not
       (Hashtbl.fold 
         (fun (sw,eth) pt pol -> 
-          PrOr (PrAnd (PrAnd (PrOnSwitch sw, PrHdr (inPort (Physical pt))),
-                       PrHdr (dlSrc eth)), pol))
+          Or (And (And (OnSwitch sw, Hdr (inPort (Physical pt))),
+                       Hdr (dlSrc eth)), pol))
         learned_hosts
-        PrNone) in
+        Nothing) in
 
   (** We're using the Lwt library to create streams. Policy is a stream
       we can read. The push function sends a value into the policy 
@@ -35,9 +35,9 @@ let make () =
   (** Create a policy that directs all unknown packets to the controller. These
       packets are sent to the [learn_host] function below. *)
   let rec make_learning_policy () = 
-    (* PoSeq (PoFilter (make_unknown_predicate ()), *)
-    (*        PoAction (controller learn_host)) *)
-    PoITE (make_unknown_predicate (),PoAction (controller learn_host), PoAction [])
+    (* Seq (Filter (make_unknown_predicate ()), *)
+    (*        Action (controller learn_host)) *)
+    ITE (make_unknown_predicate (),Action (controller learn_host), Action [])
 
 
   (** Stores a new switch * host * port tuple in the table, creates a
@@ -66,15 +66,15 @@ let make () =
   (** The initial value of the policy is to receives packets from all hosts. *)
 
   let init = 
-    (* PoSeq (PoFilter (PrHdr all), PoAction (controller learn_host)) in *)
-    PoITE (PrHdr all, PoAction (controller learn_host), PoAction []) in
+    (* Seq (Filter (Hdr all), Action (controller learn_host)) in *)
+    ITE (Hdr all, Action (controller learn_host), Action []) in
 
   let known_hosts () = 
     Hashtbl.fold 
-      (fun (sw,dst) _ hosts -> PrOr (PrAnd (PrOnSwitch sw, PrHdr (dlDst dst)),
+      (fun (sw,dst) _ hosts -> Or (And (OnSwitch sw, Hdr (dlDst dst)),
                                      hosts))
       learned_hosts
-      PrNone in
+      Nothing in
 
   (** Maps over all tuples, (sw, pt, mac) in [learned_hosts], and
       writes the rule:
@@ -85,17 +85,17 @@ let make () =
   let make_routing_policy () = 
     Hashtbl.fold
       (fun (sw, dst) pt pol ->
-        PoUnion
-          (PoITE (PrAnd (PrOnSwitch sw, PrHdr (dlDst dst)),
-                  PoAction (forward pt), PoAction []),
+        Union
+          (ITE (And (OnSwitch sw, Hdr (dlDst dst)),
+                  Action (forward pt), Action []),
            pol))
       learned_hosts
-      (PoITE (PrNot (known_hosts ()), PoAction to_all, PoAction [])) in
+      (ITE (Not (known_hosts ()), Action to_all, Action [])) in
 
   (** Composes learning and routing policies, which together form
       mac-learning. *)      
   let policy = Lwt_stream.map (fun learning_pol ->
-    PoUnion (learning_pol, make_routing_policy ()))
+    Union (learning_pol, make_routing_policy ()))
     policy in
 
   push (Some init);

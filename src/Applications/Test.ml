@@ -2,7 +2,6 @@ open Packet
 open Printf
 open NetCore_Types
 open NetCore_Semantics
-open NetCore_Desugar
 open NetCore_Pretty
 open OUnit
 
@@ -135,40 +134,40 @@ module TestClassifier = struct
       [(inPort (Physical 1), forward 2);
        (all, drop)],
       1L,
-      PoUnion
-        (PoSeq
-           (PoSeq
-              (PoFilter (PrAnd (PrOnSwitch 1L, PrHdr (inPort (Physical 1)))), 
-               PoAction (forward 5001)),
-            PoAction (forward 2)),
-         PoSeq
-           (PoSeq
-              (PoFilter (PrAnd (PrOnSwitch 1L, PrHdr (inPort (Physical 2)))),
-               PoFilter (PrNone)),
-            PoAction (forward 1))));
+      Union
+        (Seq
+           (Seq
+              (Filter (And (OnSwitch 1L, Hdr (inPort (Physical 1)))), 
+               Action (forward 5001)),
+            Action (forward 2)),
+         Seq
+           (Seq
+              (Filter (And (OnSwitch 1L, Hdr (inPort (Physical 2)))),
+               Filter (Nothing)),
+            Action (forward 1))));
      ("NAT debugging 1",
       [],
       1L,
-      PoITE
-        (PrAnd (PrOnSwitch 1L, PrHdr (inPort (Physical 2))),
-         PoSeq
-           (PoITE
-              (PrAnd (PrHdr (ipSrc 0xffffl), PrHdr (tcpSrcPort 2000)),
-               PoSeq
-                 (PoAction (updateSrcIP 0xffffl 0xaaaal),
-                  PoAction (updateSrcPort 2000 43072)),
-               PoFilter (PrNone)),
-            PoITE
-              (PrHdr (inPort (Physical 2)),
-               PoAction (forward 1),
-               PoAction pass)),
-         PoAction pass));
+      ITE
+        (And (OnSwitch 1L, Hdr (inPort (Physical 2))),
+         Seq
+           (ITE
+              (And (Hdr (ipSrc 0xffffl), Hdr (tcpSrcPort 2000)),
+               Seq
+                 (Action (updateSrcIP 0xffffl 0xaaaal),
+                  Action (updateSrcPort 2000 43072)),
+               Filter (Nothing)),
+            ITE
+              (Hdr (inPort (Physical 2)),
+               Action (forward 1),
+               Action pass)),
+         Action pass));
      ("sequencing 1",
       [(dlVlan None, updateDlVlan None (Some 1));
        (all, drop)],
       1L,
-      PoSeq (PoAction (updateDlVlan None (Some 1)),
-             PoFilter (PrHdr (dlVlan (Some 1)))))]
+      Seq (Action (updateDlVlan None (Some 1)),
+             Filter (Hdr (dlVlan (Some 1)))))]
 
   let pk = {
     dlSrc = 0L;
@@ -183,19 +182,19 @@ module TestClassifier = struct
   let lst3 =
     [("sequencing 1",
       updateDlVlan None (Some 1),
-      PoSeq (PoAction (updateDlVlan None (Some 1)),
-             PoFilter (PrHdr (dlVlan (Some 1)))),
+      Seq (Action (updateDlVlan None (Some 1)),
+             Filter (Hdr (dlVlan (Some 1)))),
       inp);
      ("filtering 1",
       pass,
-      PoFilter (PrHdr (dlVlan (Some 1))),
+      Filter (Hdr (dlVlan (Some 1))),
       Pkt (1L, 
            Physical 1, 
            { pk with dlVlan = Some 1 },
            pay));
      ("updating 1",
       updateDlVlan None (Some 1),
-      PoAction (updateDlVlan None (Some 1)),
+      Action (updateDlVlan None (Some 1)),
       Pkt (1L, Physical 1, pk, pay))]
       
 
@@ -228,29 +227,29 @@ module TestNetCore = struct
   module C = NetCore_Classifier.Make (NetCore_Action.Output)
 
   let test1_pol1 =
-    PoSeq 
-      (PoFilter 
-         (PrNot 
-            (PrOr (PrAnd 
-                     (PrAnd (PrOnSwitch 1L, 
-                             PrHdr (inPort (Physical 1))), 
-                      PrHdr (dlSrc 0x0ab75f2211d4L)), PrNone))),
-       PoAction (forward 3))
+    Seq 
+      (Filter 
+         (Not 
+            (Or (And 
+                     (And (OnSwitch 1L, 
+                             Hdr (inPort (Physical 1))), 
+                      Hdr (dlSrc 0x0ab75f2211d4L)), Nothing))),
+       Action (forward 3))
 
   let test1_pol2 = 
-    PoSeq 
-      (PoFilter
-         (PrAnd 
-            (PrOnSwitch 1L, PrHdr (dlDst 0x0ab75f2211d4L))), 
-       PoAction (forward 1))
+    Seq 
+      (Filter
+         (And 
+            (OnSwitch 1L, Hdr (dlDst 0x0ab75f2211d4L))), 
+       Action (forward 1))
 
   let test1_pol3 =
-    PoSeq 
-      (PoFilter 
-         (PrNot 
-            (PrOr (PrAnd (PrOnSwitch 1L,
-                          PrHdr (dlDst 0x0ab75f2211d4L)),
-                   PrNone))), PoAction to_all)
+    Seq 
+      (Filter 
+         (Not 
+            (Or (And (OnSwitch 1L,
+                          Hdr (dlDst 0x0ab75f2211d4L)),
+                   Nothing))), Action to_all)
 
   let test1 = 
       "maclearning regression 1" >::
@@ -275,7 +274,7 @@ module TestNetCore = struct
         fun () ->
           assert_equal  
             (NetCore_Compiler.compile_pol
-               (PoUnion (test1_pol2, test1_pol3))
+               (Union (test1_pol2, test1_pol3))
             1L)
             []
 
@@ -284,7 +283,7 @@ module TestNetCore = struct
         fun () ->
           assert_equal  
             (NetCore_Compiler.compile_pol
-               (PoUnion (test1_pol1, PoUnion (test1_pol2, test1_pol3)))
+               (Union (test1_pol1, Union (test1_pol2, test1_pol3)))
             1L)
             []
 
@@ -293,55 +292,55 @@ module TestNetCore = struct
       fun () ->
         assert_equal 
           (NetCore_Compiler.compile_pol 
-             (PoFilter
-                (PrAnd 
-                   (PrOnSwitch 1L, PrHdr (dlDst 0x0ab75f2211d4L))))
+             (Filter
+                (And 
+                   (OnSwitch 1L, Hdr (dlDst 0x0ab75f2211d4L))))
              1L)
           [(dlDst 0x0ab75f2211d4L, pass); 
            (all, drop)]
 
   let pol2_query =
-    PoSeq
-      (PoFilter
-         (PrNot
-            (PrOr
-               (PrAnd
-                  (PrAnd (PrOnSwitch 1L, PrHdr (inPort (Physical 1))),
-                   PrHdr (dlSrc 0x92f0fea53b3fL)),
-                PrOr
-                  (PrAnd
-                     (PrAnd (PrOnSwitch 1L, PrHdr (inPort (Physical 2))),
-                      PrHdr (dlSrc 0x1274ccafe0eaL)),
-                   PrNone)))),
-       PoAction (forward 5000))
+    Seq
+      (Filter
+         (Not
+            (Or
+               (And
+                  (And (OnSwitch 1L, Hdr (inPort (Physical 1))),
+                   Hdr (dlSrc 0x92f0fea53b3fL)),
+                Or
+                  (And
+                     (And (OnSwitch 1L, Hdr (inPort (Physical 2))),
+                      Hdr (dlSrc 0x1274ccafe0eaL)),
+                   Nothing)))),
+       Action (forward 5000))
 
   let pol2_fwd1 = 
-    PoSeq
-      (PoFilter (PrAnd (PrOnSwitch 1L, PrHdr (dlDst 0x92f0fea53b3fL))),
-       PoAction (forward 1))
+    Seq
+      (Filter (And (OnSwitch 1L, Hdr (dlDst 0x92f0fea53b3fL))),
+       Action (forward 1))
 
   let pol2_fwd2 = 
-    PoSeq
-      (PoFilter (PrAnd (PrOnSwitch 1L, PrHdr (dlDst 0x1274ccafe0eaL))),
-       PoAction (forward 2))
+    Seq
+      (Filter (And (OnSwitch 1L, Hdr (dlDst 0x1274ccafe0eaL))),
+       Action (forward 2))
 
   let pol2_fwd_rest =
-    PoSeq
-      (PoFilter
-         (PrNot
-            (PrOr
-               (PrAnd (PrOnSwitch 1L, PrHdr (dlDst 0x92f0fea53b3fL)),
-                PrOr
-                  (PrAnd (PrOnSwitch 1L, PrHdr (dlDst 0x1274ccafe0eaL)),
-                   PrNone)))),
-       PoAction to_all)
+    Seq
+      (Filter
+         (Not
+            (Or
+               (And (OnSwitch 1L, Hdr (dlDst 0x92f0fea53b3fL)),
+                Or
+                  (And (OnSwitch 1L, Hdr (dlDst 0x1274ccafe0eaL)),
+                   Nothing)))),
+       Action to_all)
 
   let pol2 = 
-    PoUnion
+    Union
       (pol2_query,
-       PoUnion
+       Union
          (pol2_fwd1,
-          PoUnion
+          Union
             (pol2_fwd2, pol2_fwd_rest)))
 
   let test7 =
@@ -373,15 +372,15 @@ module TestNetCore = struct
           []
 
   let pol3_1 = 
-    PrAnd (PrHdr (inPort (Physical 1)), PrHdr (dlSrc 0x92f0fea53b3fL))
+    And (Hdr (inPort (Physical 1)), Hdr (dlSrc 0x92f0fea53b3fL))
 
   let pol3_2 =
-    PrAnd
-      (PrHdr (inPort (Physical 2)),
-       PrHdr (dlSrc 0x1274ccafe0eaL))
+    And
+      (Hdr (inPort (Physical 2)),
+       Hdr (dlSrc 0x1274ccafe0eaL))
 
   let pol3 =
-    PoFilter pol3_2
+    Filter pol3_2
 
   let test11 =
     "predicate compilation regression" >::
@@ -407,7 +406,7 @@ module Helper = struct
   let desugar_policy pol =
     let vlan_cell = ref 0 in
     let genvlan () = incr vlan_cell; Some !vlan_cell in
-    desugar genvlan pol
+    NetCore_Desugar.desugar genvlan pol
 
   let in_tp = 
     let open Icmp in
@@ -441,7 +440,12 @@ module Helper = struct
         , in_pkt
         , pay)
 
-  let mkEvalTest name ?debug:(dbg=false) pol in_val expected_vals = 
+  let mkEvalTest 
+    name 
+    ?debug:(dbg=false) 
+    (pol : NetCore_Desugar.policy) 
+    in_val 
+    expected_vals = 
     let ds_pol = desugar_policy pol in
 
     if dbg then
@@ -491,11 +495,11 @@ module TestFilters = struct
   open Helper
 
   let test1 =
-    let policy = Filter NetCore_Desugar.All in
+    let policy = NetCore_Desugar.Filter NetCore_Desugar.All in
     mkEvalTest "filter true" policy in_val [in_val]
 
   let test2 =
-    let policy = Filter NoPackets in
+    let policy = NetCore_Desugar.Filter NetCore_Desugar.NoPackets in
     mkEvalTest "filter false" policy in_val []
 
   let go = TestList [ test1; test2 ]
@@ -504,7 +508,7 @@ end
 
 module TestMods = struct
 
-  open NetCore_Types
+  open NetCore_Desugar
   open Packet
   open Helper
 
@@ -581,7 +585,7 @@ end
 
 module TestSlices = struct
 
-  open NetCore_Types
+  open NetCore_Desugar
   open Packet
   open Helper
 
@@ -589,7 +593,7 @@ module TestSlices = struct
     let policy = Slice (NetCore_Desugar.All, Act ToAll,
                         NetCore_Desugar.All) in
     let Pkt (sid, port, expected_pkt, payload) = in_val in
-    let expected_val = Pkt ( sid, All, expected_pkt, payload) in
+    let expected_val = Pkt ( sid, NetCore_Types.All, expected_pkt, payload) in
     mkEvalTest "slice repeater" policy in_val [expected_val]
 
   let test1' =
@@ -599,7 +603,7 @@ module TestSlices = struct
           , Par ( Seq (Filter (DlVlan (Some 1)), Act (UpdateDlVlan (Some 1, None)))
                 , Filter (Not (DlVlan (Some 1)))))) in
     let Pkt (sid, port, expected_pkt, payload) = in_val in
-    let expected_val = Pkt ( sid, All, expected_pkt, payload) in
+    let expected_val = Pkt ( sid, NetCore_Types.All, expected_pkt, payload) in
     mkEvalTest "slice' repeater" policy in_val [expected_val]
 
   let test1'' =
@@ -608,7 +612,7 @@ module TestSlices = struct
       Seq (Act ToAll,
       Seq (Filter (DlVlan (Some 1)), Act (UpdateDlVlan (Some 1, None))))) in
     let Pkt (sid, port, expected_pkt, payload) = in_val in
-    let expected_val = Pkt ( sid, All, expected_pkt, payload) in
+    let expected_val = Pkt ( sid, NetCore_Types.All, expected_pkt, payload) in
     mkEvalTest "slice'' repeater" policy in_val [expected_val]
 
   let go = TestList [ test1; test1'; test1'' ]

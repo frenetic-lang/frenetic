@@ -2,24 +2,30 @@ open OxStart
 open OpenFlow0x01_Core
 open OxPlatform
 
-(* Write a packet_in function that drops ICMP traffic and acts as a repeater
-   on all other traffic. Do not try to add rules to the flow table until the
-   function works correctly. *)
-module MyApplication : OXMODULE = struct
+module MyApplication = struct
 
   include OxDefaults
 
+  let match_icmp = { match_all with
+    dlTyp = Some 0x800;
+    nwProto = Some 1
+  }
+
   let switch_connected (sw : switchId) : unit =
-    Printf.printf "Switch %Ld connected.\n%!" sw
+    Printf.printf "Switch %Ld connected.\n%!" sw;
+    send_flow_mod sw 0l (add_flow 200 match_icmp []);
+    send_flow_mod sw 0l (add_flow 100 match_all [Output AllPorts])
       
   let switch_disconnected (sw : switchId) : unit =
     Printf.printf "Switch %Ld disconnected.\n%!" sw
 
-  (* [FILL IN HERE]: Send the packet out of all ports, but block ICMP *)
+  let is_icmp_packet (pk : Packet.packet) =
+    Packet.dlTyp pk = 0x800 && Packet.nwProto pk = 1
+
   let packet_in (sw : switchId) (xid : xid) (pktIn : packetIn) : unit =
     let payload = pktIn.input_payload in
     let pk = parse_payload payload in
-    if Packet.dlTyp pk = 0x800 && Packet.nwProto pk = 1 then
+    if is_icmp_packet pk then
       send_packet_out sw 0l
         { output_payload = payload;
           port_id = None;

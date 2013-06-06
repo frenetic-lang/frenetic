@@ -620,7 +620,10 @@ let dlTyp pkt = get_dlTyp pkt.nw
 
 let string_of_dlAddr = string_of_mac
 
-let string_of_dlTyp = string_of_int
+let string_of_dlTyp v = match v with
+  | 0x800 -> "ip"
+  | 0x806 -> "arp"
+  | v' -> Printf.sprintf "0x%x" v'
 
 let string_of_dlVlan = function
   | None -> "none"

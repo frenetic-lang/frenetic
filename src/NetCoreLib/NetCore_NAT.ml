@@ -101,18 +101,18 @@ let make (public_ip : nwAddr) =
               (string_of_ip private_ip) private_port
               (string_of_ip public_ip) public_port;
             private_pol :=
-              PoITE
-              (PrAnd (PrHdr (ipSrc private_ip),
-                      PrHdr (tcpSrcPort private_port)),
-               PoSeq (PoAction (updateSrcIP private_ip public_ip),
-                      PoAction (updateSrcPort private_port public_port)),
+              ITE
+              (And (Hdr (ipSrc private_ip),
+                      Hdr (tcpSrcPort private_port)),
+               Seq (Action (updateSrcIP private_ip public_ip),
+                      Action (updateSrcPort private_port public_port)),
                !private_pol);
             public_pol :=
-              PoITE
-              (PrAnd (PrHdr (ipDst public_ip),
-                      PrHdr (tcpDstPort public_port)),
-               PoSeq (PoAction (updateDstIP public_ip private_ip),
-                      PoAction (updateDstPort public_port private_port)),
+              ITE
+              (And (Hdr (ipDst public_ip),
+                      Hdr (tcpDstPort public_port)),
+               Seq (Action (updateDstIP public_ip private_ip),
+                      Action (updateDstPort public_port private_port)),
                !public_pol);
             push (Some (!private_pol, !public_pol));
             seq_action
@@ -120,8 +120,8 @@ let make (public_ip : nwAddr) =
               (updateSrcPort private_port public_port)
         end
       | _ -> drop
-  and private_pol = ref (PoAction [ControllerAction callback])
-  and public_pol = ref (PoAction [ControllerAction init_public_pol]) in
+  and private_pol = ref (Action [ControllerAction callback])
+  and public_pol = ref (Action [ControllerAction init_public_pol]) in
   let (lwt_computation, pair_stream) =
     NetCore_Stream.from_stream (!private_pol, !public_pol) stream in
   (lwt_computation,

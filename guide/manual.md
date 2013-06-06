@@ -64,7 +64,10 @@ Policies:
          | monitorPackets ( <string> )
          | monitorPolicy ( <pol> )
          | monitorTable ( <switch-id> , <pol> )
-         | monitorLoad (<seconds>, <pred>) (* Print the number of packets and bytes matching <pred> in the last <seconds>. *)
+         | monitorLoad (<seconds>, <string>) (* Print the number of packets  *)
+                                             (* and bytes processed by this  *)
+                                             (* policy in the last <seconds>.*)
+                                             (* Label output using <string>. *)
 
 <cpol> ::= <apol>
         | if <pred> then <cpol> else <cpol>

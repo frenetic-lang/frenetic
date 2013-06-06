@@ -29,7 +29,7 @@ let ex1 : example =
     bidirectionalize 
       (Topology [ (Link (s1, 2), Link (s2, 1)) 
                 ; (Link (s2, 2), Link (s3, 1)) ]) in 
-  let policy = PoAction [SwitchAction { id with outPort = All }] in
+  let policy = Action [SwitchAction { id with outPort = All }] in
   let formula = forwards 2 in 
   { name="Linear";
     topology=topology;

@@ -101,39 +101,39 @@ seconds :
 pred_atom :
   | LPAREN pred RPAREN { $2 }
   /* TODO(arjun): Support infix NOT too */
-  | NOT pred_atom { Pol.PrNot $2 } /* Most useful for writing "!( ... )" */
-  | STAR { Pol.PrAll }
-  | NONE { Pol.PrNone }
-  | SWITCH EQUALS INT64 { Pol.PrOnSwitch $3 }
+  | NOT pred_atom { Pol.Not $2 } /* Most useful for writing "!( ... )" */
+  | STAR { Pol.Everything }
+  | NONE { Pol.Nothing }
+  | SWITCH EQUALS INT64 { Pol.OnSwitch $3 }
   /* ARJUN: I do not want the lexer to distinguish integers of different sizes.
      (i.e., I do not want users to have to write suffixed integers such as
      0xbeefbeefbeefbeefL for large integers. So, I'm lexing everything to 
      Int64, then having checked-casts down to the right size. */
   | INPORT EQUALS INT64 
-    { Pol.PrHdr (inPort (Pol.Physical (int16_of_int64 $3))) }
-  | SRCMAC EQUALS MACADDR { Pol.PrHdr (dlSrc $3) }
-  | DSTMAC EQUALS MACADDR { Pol.PrHdr (dlDst $3) }
-  | VLAN EQUALS NONE { Pol.PrHdr (dlVlan None) }
-  | VLAN EQUALS INT64 { Pol.PrHdr (dlVlan (Some (int12_of_int64 $3))) }
-  | SRCIP EQUALS IPADDR { Pol.PrHdr (ipSrc $3) }
-  | DSTIP EQUALS IPADDR { Pol.PrHdr (ipDst $3) }
-  | TCPSRCPORT EQUALS INT64 { Pol.PrHdr (tcpSrcPort (int16_of_int64 $3)) }
-  | TCPDSTPORT EQUALS INT64 { Pol.PrHdr (tcpDstPort (int16_of_int64 $3)) }
+    { Pol.Hdr (inPort (Pol.Physical (int16_of_int64 $3))) }
+  | SRCMAC EQUALS MACADDR { Pol.Hdr (dlSrc $3) }
+  | DSTMAC EQUALS MACADDR { Pol.Hdr (dlDst $3) }
+  | VLAN EQUALS NONE { Pol.Hdr (dlVlan None) }
+  | VLAN EQUALS INT64 { Pol.Hdr (dlVlan (Some (int12_of_int64 $3))) }
+  | SRCIP EQUALS IPADDR { Pol.Hdr (ipSrc $3) }
+  | DSTIP EQUALS IPADDR { Pol.Hdr (ipDst $3) }
+  | TCPSRCPORT EQUALS INT64 { Pol.Hdr (tcpSrcPort (int16_of_int64 $3)) }
+  | TCPDSTPORT EQUALS INT64 { Pol.Hdr (tcpDstPort (int16_of_int64 $3)) }
   | FRAMETYPE EQUALS ARP
-    { Pol.PrHdr (dlType 0x806) }
+    { Pol.Hdr (dlType 0x806) }
   | FRAMETYPE EQUALS IP
-    { Pol.PrHdr (dlType 0x800) }
+    { Pol.Hdr (dlType 0x800) }
   | FRAMETYPE EQUALS INT64
-    { Pol.PrHdr (dlType (int16_of_int64 $3)) }
+    { Pol.Hdr (dlType (int16_of_int64 $3)) }
     
 
 pred_or :
   | pred_atom { $1 }
-  | pred_atom OR pred_or { Pol.PrOr ($1, $3) }
+  | pred_atom OR pred_or { Pol.Or ($1, $3) }
 
 pred_and :
   | pred_or { $1 }
-  | pred_or AND pred_and { Pol.PrAnd ($1, $3) }
+  | pred_or AND pred_and { Pol.And ($1, $3) }
 
 pred :
   | pred_and { $1 }
@@ -172,11 +172,8 @@ pol_atom :
     { Transform (symbol_start_pos (), NetCore_Monitoring.monitor_pol, $3) }
   | MONITOR_TBL LPAREN INT64 COMMA pol RPAREN
     { Transform (symbol_start_pos (), NetCore_Monitoring.monitor_tbl $3, $5) }
-  | MONITOR_LOAD LPAREN seconds COMMA pred RPAREN
-    { Transform 
-      ( symbol_start_pos ()
-      , NetCore_Monitoring.monitor_load $3
-      , Filter (symbol_start_pos (), $5) ) }
+  | MONITOR_LOAD LPAREN seconds COMMA STRING RPAREN
+    { Action (symbol_start_pos (), NetCore_Monitoring.monitor_load $3 $5) }
   | MONITOR_PKTS LPAREN STRING RPAREN
     { Action (symbol_start_pos (), NetCore_Monitoring.monitor_packets $3) }
   | LCURLY pred RCURLY pol LCURLY pred RCURLY
