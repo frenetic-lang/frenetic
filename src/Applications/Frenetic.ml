@@ -1,13 +1,4 @@
-open Lwt
-open Printf
-open Unix
-
-module M = NetCore_MacLearning
-
 module Controller = NetCore_Controller.Make(OpenFlow0x01_Platform)
-
-let drop_all = NetCore_Types.Action (NetCore_Action.Output.drop)
-let policy = ref (Lwt.return (), NetCore_Stream.constant drop_all)
 
 let parse_by_extension filename =
   if String.length filename < 3 then
@@ -19,25 +10,46 @@ let parse_by_extension filename =
   else 
     failwith "unknown file extension"
 
+type modeType =
+  | ControllerMode (* start as a controller *)
+  | ParserMode (* only parse (for testing) *)
+
+let mode = ref ControllerMode
+
+let policy_filename = ref ""
+
+let arg_spec =
+  [ ("-parse-only", 
+     Arg.Unit (fun () -> mode := ParserMode),
+     "parse the file, but do not start the controller") ]
+
+let usage =
+    "Usage: frenetic [OPTION]... FILE\n \
+     Starts the Frenetic controller, running the policy in FILE."
+
 let () =
   Arg.parse
-    [ ]
-    (fun filename ->  policy := parse_by_extension filename)
-    "usage: netcore filename"
+    arg_spec
+    (fun fname -> policy_filename := fname)
+    usage
 
-let main () = 
-  OpenFlow0x01_Platform.init_with_port 6633 >>
-  let (gen_stream, stream) = !policy in
-  let (pkt_stream, push_pkt) = Lwt_stream.create () in
-  Lwt.pick [gen_stream; Controller.start_controller pkt_stream stream]
+let policy = match !policy_filename with
+  | "" -> Arg.usage arg_spec usage; exit 1
+  | fname -> parse_by_extension fname
 
-(* TODO(arjun): I do not 100% approve of this code. *)
-let _ =
-  Sys.catch_break true;
-  try 
-    Lwt_main.run (main ())
-  with exn -> 
-    Printf.eprintf "[main] exception: %s\n%s\n%!" 
-      (Printexc.to_string exn) 
-      (Printexc.get_backtrace ());
-    exit 1
+let () = match !mode with
+  | ParserMode -> Printf.printf "Parsed OK\n"
+  | ControllerMode ->
+    let main () = 
+      OpenFlow0x01_Platform.init_with_port 6633 >>
+        let (gen_stream, stream) = policy in
+        let (pkt_stream, push_pkt) = Lwt_stream.create () in
+        Lwt.pick [gen_stream; Controller.start_controller pkt_stream stream] in
+    Sys.catch_break true;
+    try 
+      Lwt_main.run (main ())
+    with exn -> (* TODO(arjun): fairly certain this is not needed *)
+      Printf.eprintf "unhandled exception: %s\n%s\n%!" 
+        (Printexc.to_string exn) 
+        (Printexc.get_backtrace ());
+      exit 1

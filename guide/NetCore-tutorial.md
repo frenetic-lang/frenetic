@@ -34,17 +34,21 @@ Before divining in to the technical portion of the tutorial, we
 briefly motivate the design of NetCore and Frenetic.  The technical
 portions of the tutorial focus on explaining the syntax and semantics
 of NetCore and illustrating its use on a number of simple examples.
-There are also a number of exercises for the reader.  As you read this
-document, we encourage you to experiment with the examples and try the
-exercises.  To get started, you will need to download and start up the
-tutorial VM.  Please see the instructions here.
+There are also a number of exercises for the reader.  
 
-*TO DO: Link to joint getting started instructions*
+Getting Started
+---------------
+
+As you read this document, we encourage you to experiment with the examples 
+and try the exercises.  To do so, you will need to download and start up the
+tutorial VM.  Please see the [instructions here](https://github.com/frenetic-lang/frenetic/blob/master/guide/01-Introduction.md#getting-started).
 
 Motivation for the Frenetic and NetCore Designs
 -----------------------------------------------
 
 *Much in this section was plagiarized from IEEE overview paper*
+
+*Should this section be cut and just get to the tutorial?*
 
 Traditional networks are built out of special-purpose devices running distributed protocols that provide functionality such as routing, trafﬁc monitoring, load balancing, NATing and access control. These devices have a tightly-integrated control and data plane, and network operators must separately conﬁgure every protocol on each individual device. This configuration task is a challenging one as network operators must struggle with a host of different baroque, low-level, vendor-specific configuration languages.  Moreover, the pace of innovation is slow as device internals and APIs are often private and proprietary, making it difficult to develop new protocols or functionality to suit client needs.    
 
@@ -130,6 +134,11 @@ of a packet and thereby to generate more than one result from their
 policy --- perhaps forwarding the packet to two different locations.
 
 We will illustrate each of these features through a series of examples.
+You will find the examples in the frenetic repository 
+in <code>guide/examples</code>.  Go there now.
+```
+$ cd guide/examples
+```
 
 ### Example 1: A Repeater
 
@@ -145,42 +154,27 @@ let repeater =
   if inPort = 1 then fwd(2)
   else fwd(1)
 ```
-As in OCaml, 
-NetCore comments are placed within <code>(*</code> and <code>*)</code>
-(and comments may be nested).
-The <code>let</code> keyword introduces a new policy, 
-which we have chosen to call 
-<code>repeater</code>.  
-An <code>if</code>-<code>then</code>-<code>else</code> statement determines
-whether to forward a packet out port 1 or port 2, depending on the packet's
-<code>inPort</code> field.  In addition to testing the packet's <code>inPort</code>, 
-if statement predicates can refer to
-the <code>switch</code> 
+As in OCaml, NetCore comments are placed within <code>(*</code> and <code>*)</code>
+(and comments may be nested). The <code>let</code> keyword introduces a new policy, which we have chosen to call <code>repeater</code>.  An <code>if</code>-<code>then</code>-<code>else</code> statement determines whether to forward a packet out port 1 or port 2, depending on the packet's <code>inPort</code> field.  In addition to testing the packet's <code>inPort</code>, if statement predicates can refer to the <code>switch</code> 
 at which a packet arrives, as well as any of the OpenFlow-supported
 fields, such as the <code>srcIP</code>, <code>dstIP</code> or 
-<code>frameType</code>.  
-Conditions can also be formed using 
+<code>frameType</code>.  Conditions can also be formed using 
 conjunctions (<code>&&</code>), disjunctions
 (<code>||</code>) and negation (<code>!</code>) of other conditions.
 See the [manual](link...) for the complete list of predicates. 
 
-*Dave: I did this on my machine, not inside a final vm with all files
-and aliases in place, etc, so this will need to be retested in the student 
-environment.*
-
-Now, let's test the program to see what it does.  In 
-<code>$TUTORIALDIR/examples</code>,
-you will see a file named <code>tut1.nc</code>, which contains the
-repeater program.  Change to that directory and
-start up the Frenetic controller program.
-
+Now, let's test the program to see what it does.  
+You should be in <code>guide/examples</code>.
+First, create an alias to the compiler:
+*TODO: This should be done differently*
 ```
-$ cd examples
+$ alias frenetic='../../src/Frenetic.d.byte'
+```
+Next, start the <code>tut1.nc</code> example.
+```
 $ frenetic tut1.nc
 ```
-
-Now, in a separate shell, start up mininet:
-
+In a separate terminal, start up mininet:
 ```
 $ sudo mn --controller=remote
 *** Creating network
@@ -199,11 +193,9 @@ s1
 *** Starting CLI:
 mininet> 
 ```
-
 Mininet has started up a single switch with two hosts <code>h1</code> 
 and <code>h2</code>, connected to the two ports on the switch.  At the 
 mininet prompt, test your repeater program by pinging h2 from h1:
-
 ```
 mininet> h1 ping -c 1 h2
 ```
@@ -294,7 +286,7 @@ is defined by composing a mapper with the all forwarding policy.
 
 Try out the mapper from the examples directory:
 ```
-> frenetic tut2.nc
+$ frenetic tut2.nc
 ```
 Then in mininet, in the default topology,
 simulate an ssh process listening on port 22 on host h2:
@@ -414,24 +406,27 @@ From 10.0.0.1 icmp_seq=1 Destination Host Unreachable
 ```
 One good method to track down bugs in NetCore programs is
 using wireshark.  However, another technique is to embed *queries*
-in to NetCore programs themselves.  <code>monitorPackets("id")</code>
+in to NetCore programs themselves.  <code>monitorPackets( label )</code>
 is a policy that sends all packets it receives to the controller,
 as opposed to forwarding them along a data path.  The controller 
 prints the packets to terminal prefixed by the 
-string "id".  
+string <code>label</code>.  
 
 Typically, when one monitors a network, one does so *in parallel*
 with some standard forwarding policy; one would like the packets
 to go *two* places:  the controller, for inspection, and to whatever
-regular host they are otherwise destined for.  For instance, if we 
+else they are otherwise destined.  For instance, if we 
 augment the broken variant of example 3 with several monitoring
 clauses, composed in parallel with our router,
-we can begin to diagnose the problem:
+we can begin to diagnose the problem.  Notice also that we use
+<code>if</code>-<code>then</code> statements to limit the packets
+that reach the monitor policy --- the monitor policy
+prints *all* packets that reach it.
 ```
 let monitored_network = 
     router 
-  + if switch = 2 && frameType = ip then monitorPackets("s2")
-  + if switch = 3 && frameType = ip then monitorPackets("s3")
+  + if switch = 2 && frameType = ip then monitorPackets("S2")
+  + if switch = 3 && frameType = ip then monitorPackets("S3")
 ```
 To see what happens, start up a controller running <code>tut4.nc</code>
 ```
@@ -441,43 +436,85 @@ Now, inside mininet, ping host h3 from h1:
 ```
 mininet> h1 ping -c 1 h3
 ```
-In your controller terminal, you should see a packet 
-received at switch 2, but no packets received at switch 3.
+In then controller terminal, you should see a packet 
+arrive at switch 2, but no packets arrive at switch 3.
 ```
 [s2] packet dlSrc=6a:a7:14:74:c8:95,dlDst=6a:aa:1c:52:e6:8f,nwSrc=10.0.0.1,nwDst=10.0.0.3,ICMP echo response on switch 2 port 2
 ```
-So the packets are arriving at switch 2.  If you adjust your monitor to
-monitor switch 3, you'll see the packets don't make it.  
-Something goes wrong between the entry to switch 2 and the entry to switch 3!
-Now, fix the policy:
-```
-let router =
-  if frameType = arp then all
-  else s1 + s2 + s3
-```
-and let's monitor the load on the network instead of looking at the contents
-of packets.  Doing so involves <code>monitorLoad( n , label )</code>,
-which prints the number of packets and the number of 
-bytes processed by <code>monitorLoad</code> every <code>n</code> seconds, where the output is labeled with <code>label</code>.  Of course, we can restrict the packets monitored by <code>monitorLoad</code> embedding it in an if-then-else clause.
-Modifying <code>tut4.nc</code> to measure the load of non-arp traffic
+Something must go wrong between the entry to switch 2 and the entry to switch 3!
+
+Now, fix the policy by adding the s2 component back in to the 
+<code>router</code> policy and try ping
+again.  Note the differences.
+
+If we are not interested in examining individual packets, but
+instead are interested in monitoring the aggregate load at 
+different places in the network,
+we could use the <code>monitorLoad( n , label )</code> policy.  
+This policy prints the number of packets and the number of 
+bytes it receives every <code>n</code> seconds.  Again, each output
+line is labelled with <code>label</code>, and
+again, we can restrict the packets monitored by 
+<code>monitorLoad</code> using a <code>if</code>-<code>then</code> clause.
+For instance,
+modifying <code>tut4.nc</code> to measure the load of non-arp traffic
 on switch 3 every 5 seconds involves adding the following definition.
 ```
 let monitored_network = 
-  router + (if switch=3 then monitorLoad(5, "LOAD") else pass)
+  router + if switch=3 then monitorLoad(5, "LOAD")
 ```
-To test the monitor, try pinging from h1 to h2 as well as h1 to h3.  Watch
-the controller terminal to see how many packets cross switch 3 in 
-each case.
+To test the monitor, try using ping again.  Watch
+the controller terminal to see how many packets cross switch 3.
 
 ### Exercises
 
-*TODO*
+In these exercises, we will experiment with a tree-shaped network of
+3 switches and 4 hosts in the following configuration.
+*TODO: better picture*
+```
+        (s1)
+        1  2
+       /    \
+      3      3
+  (s2)       (s3)
+  1  2       1  2
+ /    \     /    \
+h1     h2  h3    h4
+```
+You can start up mininet in this configuration as follows.
+```
+$ sudo mn --controller=remote --mac --topo=tree,depth=2,fanout=2
+```
+Remember that the IP addresses of hosts h1, h2, h3, and h4 are
+10.0.0.1, 10.0.0.2, 10.0.0.3 and 10.0.0.4, and the MAC addresses
+are 1, 2, 3, and 4.
 
-1.
+1.  Write the simplest possible policy that will allow any host to
+send messages to any other.
 
-2.
+2.  Set up a web server on host h4 and fetch a web page from h3.
+How many arp packets (<code>frameType = arp</code>) reach switch s2?  How many 
+IP packets (<code>frameType = ip</code>) reach switch s2?
 
-3.
+3.  Refine your policy so that arp packets are broadcast to all hosts
+but ip packets are forwarded only to their destination.
+
+4.  Construct a network that forwards like the network defined in part 3
+but also implements a firewall specified as follows.
+  - Machines 30 and 40 are *trusted* machines.
+  - Machines 10 and 20 are *untrusted* machines.
+  - Set up a web server on each machine (TCP port 80).
+  - Machines 30 and 40 have private files that may not be read by untrusted machines using HTTP.
+  - Machines 10 and 20 have public files that may be read by any machine.
+  - All traffic not explicitly prohibited must be allowed to pass through the network.
+
+Solutions may be found in the guide/examples directory in 
+files <code>sol1-1.nc</code>, <code>sol1-2.nc</code>, <code>sol1-3.nc</code>, 
+<code>sol1-4.nc</code>.
+
+*TODO:  Solutions! And polishing up the problems.  Would be nice
+to think about how to implement some kind of "needle in a haystack" search
+for some kind of traffic using queries.*
 
 Dynamic NetCore Concepts
 ------------------------
@@ -525,7 +562,6 @@ fluctuates from one variant to the next.
 
 
 ### Example 5: NAT
-------------------
 
 In this example, we will investigate how to use a dynamic NAT
 component to support connections initiated from a private machine "on
@@ -608,16 +644,41 @@ public port?
 
 ### Exercises
 
-*TODO*
+*This section very much TODO.*
 
-1. What happens if you try to ping h2 from h1?
+1. When running tut5.nc, what happens if you try to ping h2 from h1?
 ```
 mininet> h1 ping -c 1 h2
 ```
 Modify the policy in some way to allow ping through.
 
-2. Experiment with the Mac Learning Component.  What are the mac addresses
-of hosts 1, 2, and 3?
+2. Experiment with the Mac Learning Component.  A simple policy that
+uses Mac Learning may be found in tut6.nc.
+Consider running the policy on our tree-shaped topology.
+*TODO: better picture*
+```
+        (s1)
+        1  2
+       /    \
+      3      3
+  (s2)       (s3)
+  1  2       1  2
+ /    \     /    \
+h1     h2  h3    h4
+```
+This time start up mininet with random mac addresses (omit the
+<code>--mac</cod> option.  
+```
+$ sudo mn --controller=remote --topo=tree,depth=2,fanout=2
+```
+Figure out what the mac addresses of each of the hosts are using
+two different monitoring techniques.
 
+Solutions to these exercises may be found in
+guide/examples directory in files <code>sol2-1.nc</code> and
+<code>sol2-2.nc</code>.
 
+Summary
+-------
 
+NetCore rocks!  QED.

@@ -104,13 +104,67 @@ module Controller = Make (MyApp)
 
 ## Efficient Monitoring
 
-- Introduction to counters
+Switches themselves keeps track of the number of packets (and bytes)
+it receives.  To implement an efficient monitor, you will use
+OpenFlow's [statistics] API to query these counters.
 
-- Introduction to aggregate requests
+### Example: Counting Dropped ICMP Packets
 
-- Demonstrate in full counting the number of blocked ICMP packets
+In this section, we describe an extension to the [firewall] that also counts
+the number of packets it drops. This example will help you build your own
+monitoring controller.
 
-  * Does not count packets blocked on the controller, so fill that in too
+Recall that the firewall installs two rules in the flow table:
+
+```ocaml
+let switch_connected (sw : switchId) : unit =
+  send_flow_mod sw 0l (FlowMod.add_flow hi icmp_pat []);
+  send_flow_mod sw 0l (FlowMod.add_flow lo all_pat [Output AllPorts])
+```
+
+Each rule is associated with a packet-counter that counts the number of packets
+on which the rule is applied. For example, if 10 ICMP packets are blocked and
+50 other packets are not blocked, the counters would look as follows:
+
+<table>
+<tr>
+  <th>Priority</th> <th>Pattern</th> <th>Action</th> <th>Counter (bytes)</th>
+</tr>
+<tr>
+  <td>hi</td><td>ICMP</td><td>drop</td><td>10</td>
+</tr>
+  <td>50</td><td>ALL</td><td>Output AllPorts</td><td>50</td>
+</tr>
+</table>
+
+To count the number of ICMP packets, we need to read the first counter. We can
+read the counter using the [send_stats_request] function. This function
+can be used issue several different kinds of statictics requests.
+
+The easiest way to use this API is to issue an `AggregateRequest` in this form:
+
+```ocaml
+send_stats_request switch xid (Stats.AggregateRequest (pattern, 0, None))
+```
+Above, `switch` is the switch to query, `xid` is a unique identifier that is
+returned in the reply, and `pattern` is the pattern to match.
+
+In response to this request, the switch will response with an
+[aggregateStats] reply, which is sent to the `stats_reply` handler:
+
+```ocaml
+let stats_reply (sw : switchId) (xid : xid) (stats : Stats.reply) : unit =
+  match stats with
+  | Stats.AggregateFlowRep stat ->
+    Printf.printf "Blocked %Ld ICMP packets.\n%!" stats.Stats.total_packet_count
+  | _ -> Printf.printf "unexpected stats reply.\n%!"
+```
+
+For the complete example, see [OxCountingFirewall.ml]. It has 
+
+> TODO(arjun): fill in.
+
+### Efficiently Monitoring Web Traffic
 
 - Although Web traffic is forwarded in exactly the same manner as non-ICMP
   traffic, you need to create separate, higher priority rules to match Web
@@ -151,3 +205,5 @@ module Controller = Make (MyApp)
 [firewall]: [./03-OxFirewall.md]
 
 [statistics]: [http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Stats.html]
+
+[send_stats_request]: [http://frenetic-lang.github.io/frenetic/docs/OOx.OxPlatform.html#VALsend_stats_request]
