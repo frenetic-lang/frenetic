@@ -42,7 +42,7 @@ and try the exercises.  To do so, you will need to download and start up the
 tutorial VM.  Please see the [instructions here](https://github.com/frenetic-lang/frenetic/blob/master/guide/01-Introduction.md#getting-started).
 
 Chapter 1: Introducing NetCore
-------------------------------
+==============================
 
 A NetCore policy describes how a collection of switches
 forwards packets from one location to another.  We call a NetCore policy
@@ -87,15 +87,14 @@ does not drop the input packet and does not broadcast the packet out
 multiple ports).  Next, we apply the topology function T to generate a
 packet p1' across the other side of the link at some new switch.
 Then we apply the policy function P again: P(p1') will generate some
-subsequent number of output packets.  
-And then apply the topology function T again.  
+subsequent number of output packets.  And then apply the topology function T
+again.
 
-In summary, one traces the flow of
-packets through a network by alternately applying the policy function
-P and the topology function T. Static NetCore is just a domain-specific
-language that makes it easy to write down a single policy function
-P that determines how switches forward packets. The main features of 
-Static NetCore include the following.
+In summary, one traces the flow of packets through a network by alternately
+applying the policy function P and the topology function T. Static NetCore is
+just a domain-specific language that makes it easy to write down a single
+policy function P that determines how switches forward packets. The main
+features of Static NetCore include the following.
 
   - a set of primitive *actions*, which allow programmers to modify and 
 forward packets,
@@ -122,7 +121,11 @@ efficient repeater by adding rules to the switch flow table.  Recall that a
 repeater simply forwards incoming packets on all other ports.
 
 In this example, we will begin by considering a network with just one switch
-with two ports, numbered 1 and 2.  Our first goal will be to program a
+with two ports, numbered 1 and 2:  
+
+![Default Mininet topology.][topo_1]
+
+Our first goal will be to program a
 switch-specific repeater that forwards traffic arriving at port 1 out port 2,
 and vice versa.  The following NetCore policy accomplishes that task.
 
