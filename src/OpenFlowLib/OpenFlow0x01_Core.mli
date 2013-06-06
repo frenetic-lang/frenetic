@@ -9,7 +9,7 @@ OpenFlow 1.0 specification, rather than reproducing the specification here. *)
 
 open Packet
 
-(** {9 OpenFlow types}
+(** {2 OpenFlow types}
 
     These types are primarily drawn from Section 5 of the OpenFlow 1.0
     specification.
@@ -25,10 +25,10 @@ type portId = int16
 (** Transaction ID of OpenFlow messages. *)
 type xid = int32
 
-(** Flow match data structure.  See Section 5.2.3 of the OpenFlow 1.0
-    specification.  Each field describes criteria for matching one packet
-    header field.  A value of [None] indicates a wildcard match
-    (i.e. match all values). *)
+(** A pattern that matches a packet headers.
+
+    For each field, write [Some x] indicates that the headers must be
+    [x], where [None] is a wildcard. *)
 type pattern =  
     { dlSrc : dlAddr option (** Ethernet source address. *)
     ; dlDst : dlAddr option (** Etherent destination address. *)
@@ -142,7 +142,7 @@ type packetOut =
     ; apply_actions : action list (** Actions. *)
     }
 
-(** {9 Convenient Functions} *)
+(** {2 Convenient Functions} *)
 
 
 val parse_payload : payload -> Packet.packet
@@ -160,3 +160,48 @@ val add_flow : int16 -> pattern -> action list -> flowMod
 
 val delete_all_flows : flowMod
 
+(** {4:patternexamples Pattern Examples}
+
+    For example, the following pattern matches all packets from the
+    host with Ethernet address 00:00:00:00:00:12:
+    
+[
+let from_host12 = {
+  dlSrc = Some 0x000000000012L;
+  dlDst = None; 
+  dlTyp = None;
+  dlVlan = None;
+  dlVlanPcp = None;
+  nwSrc = None;
+  nwDst = None;
+  nwProto = None;
+  nwTos = None;
+  tpSrc = None;
+  tpDst = None;
+  inPort = None
+}
+]
+
+    This is quite verbose. You can abbreviate using functional update.
+    The builtin pattern {! match_all} has all fields sets to
+    [None]. So, the following definition is identical to the one
+    above:
+
+    [let from_host12 = { match_all with dlSrc = Some 0x000000000012L }]
+
+    Here are a few more examples.
+
+    This pattern matches all packets:
+    
+    [let all_ip = { match_all with dlTyp = Some 0x800 }]
+
+    This pattern matches all packets with source IP address 10.0.0.1:
+    
+    [let from_10_0_0_1 = { match_all with dlTyp = Some 0x800; nwSrc = 0x10000001 }]
+
+    This pattern matches all TCP packets:
+    [let al_tcp = { match_all with dlTyp = Some 0x800; nwProto = 6 }]
+
+    Note that to match IP-level headers, e.g., [nwProto] and [nwSrc]),
+    we have to write [dlTye = Some 0x800], or they are ignored.    
+*)

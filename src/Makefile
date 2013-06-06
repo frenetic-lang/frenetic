@@ -71,7 +71,7 @@ reinstall: clean uninstall all install
 	sudo ln -f -s `pwd`/Frenetic.d.byte /usr/local/bin/frenetic
 
 doc:
-	$(OCAMLBUILD) doc.docdir/index.html
+	$(OCAMLBUILD) -docflag -colorize-code  doc.docdir/index.html
 
 clean:
 	$(OCAMLBUILD) -clean

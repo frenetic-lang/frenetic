@@ -45,7 +45,7 @@ Recall that ICMP packets are contained in IP (frame type 0x800) and have
 the protocol number 1. In addition, note taht it doesn't make sense to
 query the protocol number of a non-IP packet.
 
-#### Building and Testing Your Controller
+#### Building and Testing Your Firewall
 
 - Build and launch the controller:
 
@@ -113,77 +113,46 @@ query the protocol number of a non-IP packet.
 
 ### An Efficient Firewall
 
-In this part, you will implement the firewall efficiently, using the
-flow table on the switch. You still need a `packet_in` function to
-process packets sent before the flow table is initialized. You should
-simply build on your solution to the previous part and _leave its
-`packet_in` function untouched_.
+In this part, you will extend your implementation of the firewall
+function to also implement the firewall using flow tables.
+
+> Use [Sol_Firewall1.ml] if necessary.
+
+#### Programming Task
 
 Fill in the `switch_connected` event handler. You need to install two
 entries into the flow table--one for ICMP traffic and the other for
-all other traffic;
+all other traffic. You can use the following template:
 
 ```ocaml
 let switch_connected (sw : switchId) : unit =
   Printf.printf "Switch %Ld connected.\n%!" sw;
-  send_flow_mod sw 0l (FlowMod.add_flow prio1 pat1 actions1);
-  send_flow_mod sw 0l (FlowMod.add_flow prio2 pat2 actions2)
+  send_flow_mod sw 0l (add_flow priority1 pattern1 actions1);
+  send_flow_mod sw 0l (add_flow priority2 pattern2 actions2)
 ```
 
-Your task is to fill in the priorities, patterns, and actions in the
-handler above.
+You have to determine the priorities, patterns, and actions in the
+handler above. You might want to revisit the description of flow
+tables in [Chapter 1]. Here is a quick refresher:
 
-First, write a [pattern][Match] to match ICMP traffic. Patterns in
-OpenFlow 1.0 can match the values of 12 pre-determined packet headers.
-For example, the following pattern matches all traffic from the host
-whose Ethernet address is `00:00:00:00:00:12`:
 
-```ocaml
-let from_host12 =
-  let open Match in
-  { dlSrc = Some 0x000000000012L; (* the L suffix indicates a long integer *)
-    dlDst = None; 
-    dlTyp = None;
-    dlVlan = None;
-    dlVlanPcp = None;
-    nwSrc = None;
-    nwDst = None;
-    nwProto = None;
-    nwTos = None;
-    tpSrc = None;
-    tpDst = None;
-    inPort = None }
-```
+- *Priorities*: higher numbers mean higher priority
 
-In a pattern, `header = Some x` means that the value of `header` must be `x`
-and `header = None` means that `header` may have any value.
+- *Action lists*: To drop traffic, you provide an empty list (`[]` in
+  OCaml) of actions
 
-```ocaml
-let from_10_0_0_1 = 
-  let open Match in
-  { dlSrc = None;
-    dlDst = None; 
-    dlTyp = 0x800; (* frame type for IP *)
-    dlVlan = None;
-    dlVlanPcp = None;
-    nwSrc = 0x10000001; (* 10.0.0.1 *)
-    nwDst = None;
-    nwProto = None;
-    nwTos = None;
-    tpSrc = None;
-    tpDst = None;
-    inPort = None }
-```
+- *Patterns*: In the previous chapter, you used the builtin pattern
+  `match_all`, which you may use again if needed. You will certainly
+  need to write a pattern to match ICMP packets. The [Ox Manual] has
+  several example patterns to get you started. You'll need to know
+  that the _frame type for IP packets is 0x800_ and the _protocol
+  number for ICMP is 1_.
 
-This pattern also specifies the frame type for IP packets (`dlTyp =
-0x800`). If you don't write the frame type, the value of `nwSrc` is
-ignored.
+#### Building and Testing
 
-When the switch processes a packet, it applies the actions from _the
-highest-priority matching entry_. If a packet matches several entries
-with the same priority, the behavior is unspecified. Therefore, pick
-different priorities for each pattern, unless you are certain the
-patterns are disjoint.
+Build and test the efficient firewall in exactly the same way you
+tested the firewall function. In addition, you shouldn't observe
+packets at the controller.
 
 [Action]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.Action.html
 
