@@ -171,11 +171,12 @@ or <code>frameType</code>.  Conditions can also be formed using conjunctions
 of other conditions.  See the [manual](link...) for the complete list of
 predicates. 
 
-The last line of the program uses <code>monitorTable(n,pol)</code>, which will
-print the flow table generated for switch number <code>n</code> due to
-<code>pol</code> each time the policy is updated.  When you run the example,
-take a look at the flow table that the NetCore compiler creates for you, and
-compare it to your flow table rules from the Ox tutorial.
+The last line of the program uses <code>monitorTable(1,repeater)</code>, which
+will print the flow table generated for switch <code>1</code> from the
+<code>repeater</code> policy.  It is equivalent to <code>repeater</code>, but
+with the side effect of printing the flow table.  Now, when you run the
+example, take a look at the flow table that the NetCore compiler creates for
+you and compare it to your flow table rules from the Ox tutorial.
 
 Within the <code>netcore-tutorial-code</code> directory, you should
 find the repeater policy in <code>repeater.nc</code>.  To start the
