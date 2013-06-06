@@ -609,16 +609,16 @@ Flow table at switch 1 is:
  {*} => [Output AllPorts]
 ```
 
-Let's break it down:
-* **IP and SSH** (rule 1): drops SSH traffic from H1.
-* **Just SSH** (rule 2): drops SSH traffic.
-* **Just IP** (rule 3): forwards traffic from H1.
-* **Other** (rule 4): forwards all other traffic.
+Let's break it down, rule by rule:
+* (rule 1): drops SSH traffic from H1.
+* (rule 2): drops SSH traffic.
+* (rule 3): forwards traffic from H1.
+* (rule 4): forwards all other traffic.
 
-Why so many rules?  Well, OpenFlow switches can only count packets as they
-match a rule.  Rule 1, for example, is necessary to precisely count traffic
-from H1.  Without it, our query would miss any SSH traffic sent from H1, as it
-would be lumped in with all the other SSH traffic dropped by rule 2.
+Why so many rules?  OpenFlow switches can only count packets as they match a
+rule.  Rule 1, for example, is necessary to precisely count traffic from H1.
+Without it, our query would miss any SSH traffic sent from H1, as it would be
+lumped in with all the other SSH traffic dropped by rule 2.
 
 In general, NetCore creates a flow table for two policies joined by parallel
 composition (<code>P1 + P2</code>) by creating flow tables for <code>P1</code>
