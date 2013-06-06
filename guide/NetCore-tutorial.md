@@ -246,10 +246,10 @@ traffic that hosts are allowed to send.  The following table describes the type
 of traffic that each host in a five-host network can send:
 
 <table>
-  <TH> 
-    <TD>Host</TD> <TD>Host Description</TD> 
-    <TD>frameType</TD> <TD>ipProtocolType</TD> <TD>tcpDstPort</TD> 
-  </TH>
+  <TR> 
+    <TH>Host</TH> <TH>Host Description</TH> 
+    <TH>frameType</TH> <TH>ipProtocolType</TH> <TH>tcpDstPort</TH> 
+  </TR>
   <TR> 
     <TD>H1</TD> <TD>Network tap: receives traffic.</TD>
     <TD>arp</TD> <TD></TD> <TD></TD>           
