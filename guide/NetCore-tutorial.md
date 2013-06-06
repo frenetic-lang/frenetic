@@ -42,7 +42,7 @@ and try the exercises.  To do so, you will need to download and start up the
 tutorial VM.  Please see the [instructions here](https://github.com/frenetic-lang/frenetic/blob/master/guide/01-Introduction.md#getting-started).
 
 Chapter 1: Introducing NetCore
-==============================
+------------------------------
 
 A NetCore policy describes how a collection of switches
 forwards packets from one location to another.  We call a NetCore policy
@@ -115,8 +115,7 @@ in <code>guide/netcore-tutorial-code</code>.  Go there now.
 $ cd guide/netcore-tutorial-code
 ```
 
-A First Example Program
------------------------
+### A First Example Program
 
 In the [OxRepeater](02-OxRepeater.md) chapter, you learned how to program an
 efficient repeater by adding rules to the switch flow table.  Recall that a
@@ -208,8 +207,7 @@ see additional lines prefixed by the switch identifier, one line
 per switch.  Lines 3 and 4 describe the hosts <code>h1</code> 
 and <code>h2</code>.
 
-Testing Your Program
---------------------
+#### Testing Your Program
 
 At the 
 mininet prompt, test your repeater program by pinging h2 from h1:
@@ -238,8 +236,7 @@ that out too to see if you have done it correctly.
 The opposite of the <code>all</code> policy is the <code>drop</code> policy,
 which drops all packets on the floor.  
 
-Programming Exercise
---------------------
+### Programming Exercise
 
 In this exercise, we will be designing a NetCore policy for handling
 traffic on the switch created when you run the following
