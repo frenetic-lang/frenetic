@@ -134,6 +134,11 @@ of a packet and thereby to generate more than one result from their
 policy --- perhaps forwarding the packet to two different locations.
 
 We will illustrate each of these features through a series of examples.
+You will find the examples in the frenetic repository 
+in <code>guide/examples</code>.  Go there now.
+```
+$ cd guide/examples
+```
 
 ### Example 1: A Repeater
 
@@ -149,42 +154,27 @@ let repeater =
   if inPort = 1 then fwd(2)
   else fwd(1)
 ```
-As in OCaml, 
-NetCore comments are placed within <code>(*</code> and <code>*)</code>
-(and comments may be nested).
-The <code>let</code> keyword introduces a new policy, 
-which we have chosen to call 
-<code>repeater</code>.  
-An <code>if</code>-<code>then</code>-<code>else</code> statement determines
-whether to forward a packet out port 1 or port 2, depending on the packet's
-<code>inPort</code> field.  In addition to testing the packet's <code>inPort</code>, 
-if statement predicates can refer to
-the <code>switch</code> 
+As in OCaml, NetCore comments are placed within <code>(*</code> and <code>*)</code>
+(and comments may be nested). The <code>let</code> keyword introduces a new policy, which we have chosen to call <code>repeater</code>.  An <code>if</code>-<code>then</code>-<code>else</code> statement determines whether to forward a packet out port 1 or port 2, depending on the packet's <code>inPort</code> field.  In addition to testing the packet's <code>inPort</code>, if statement predicates can refer to the <code>switch</code> 
 at which a packet arrives, as well as any of the OpenFlow-supported
 fields, such as the <code>srcIP</code>, <code>dstIP</code> or 
-<code>frameType</code>.  
-Conditions can also be formed using 
+<code>frameType</code>.  Conditions can also be formed using 
 conjunctions (<code>&&</code>), disjunctions
 (<code>||</code>) and negation (<code>!</code>) of other conditions.
 See the [manual](link...) for the complete list of predicates. 
 
-*Dave: I did this on my machine, not inside a final vm with all files
-and aliases in place, etc, so this will need to be retested in the student 
-environment.*
-
-Now, let's test the program to see what it does.  In 
-<code>$TUTORIALDIR/examples</code>,
-you will see a file named <code>tut1.nc</code>, which contains the
-repeater program.  Change to that directory and
-start up the Frenetic controller program.
-
+Now, let's test the program to see what it does.  
+You should be in <code>guide/examples</code>.
+First, create an alias to the compiler:
+*TODO: This should be done differently*
 ```
-$ cd examples
+$ alias frenetic='../../src/Frenetic.d.byte'
+```
+Next, start the <code>tut1.nc</code> example.
+```
 $ frenetic tut1.nc
 ```
-
-Now, in a separate shell, start up mininet:
-
+In a separate terminal, start up mininet:
 ```
 $ sudo mn --controller=remote
 *** Creating network
@@ -203,11 +193,9 @@ s1
 *** Starting CLI:
 mininet> 
 ```
-
 Mininet has started up a single switch with two hosts <code>h1</code> 
 and <code>h2</code>, connected to the two ports on the switch.  At the 
 mininet prompt, test your repeater program by pinging h2 from h1:
-
 ```
 mininet> h1 ping -c 1 h2
 ```
