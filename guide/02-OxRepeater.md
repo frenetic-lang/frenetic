@@ -82,7 +82,7 @@ turn, your application much define event handlers to receive messages
 from switches.
 
 For now, you only need to write a handler for the `packet_in` message.
-Use [NaiveRepeater.ml][./ox-tutorial-code/NaiveRepeater.ml] as a
+Use [Repeater.ml][./ox-tutorial-code/Repeater.ml] as a
 starting point.
 
 This file and the entire tutorial is included with the tutorial VM.
@@ -95,8 +95,6 @@ $ cd src/frenetic/guide/ox-tutorial-code
 You should work within this directory, because we've included a Makefile that
 links to the correct Ox and OpenFlow libraries.
 
-
-<h4>Programming Task</h4>
 #### Programming Task
 
 Instead of dropping the packet, send it out of all
@@ -110,7 +108,7 @@ to building and testing your controller.
 To build your controller, run
 
 ```shell
-  $ make NaiveController.d.byte
+  $ make Repeater.byte
 ```
 
 > The file extension indicates that it a bytecode, debug build.  You
@@ -120,7 +118,7 @@ To build your controller, run
 If compilation succeeds, you should see output akin to this:
 
 ```
-ocamlbuild -use-ocamlfind -cflag -ppopt -cflag -lwt-debug NaiveRepeater.d.byte
+ocamlbuild -use-ocamlfind -cflag -ppopt -cflag -lwt-debug Repeater.d.byte
 Finished, 4 targets (0 cached) in 00:00:00.
 ```
 
@@ -135,7 +133,7 @@ and have each ping the other.
 - Start your controller
 
   ```
-  $ ./Naive_Repeater.d.byte
+  $ ./Repeater.d.byte
   ```
 
   It should print `[Ox] Controller launching...`
@@ -166,7 +164,7 @@ and have each ping the other.
 
   `mininet>`
 
-- From the Mininet prompt, you can run make your hosts ping each other:
+- From the Mininet prompt, you can make your hosts ping each other:
 
   ```
   mininet> h1 ping h2
@@ -182,9 +180,18 @@ This repeater is functionall correct, but laughably inefficient.
   
 <h3 id="exercise2">Exercise 2: An Efficient Repeater</h3>
 
-Diverting all packets to the controller is very inefficent. You will
-now add rules to the switch _flow table_ so that the switch can
-process packets locally without sending them to the controller.
+Processing all packets at the controller is very inefficient.
+You will now add rules to the switch _flow table_ to have the switch
+process packets itself.
+
+For this part, continue building on the naive repeater you wrote above.
+
+> Build on its [solution file][./ox-tutorial-code/Solution_Repeater1.ml]
+> if necessary.
+
+Do not delete the packet-in function you wrote. Instead, you will fill
+the `switch_connected` function to send a [_flow table
+modification_][flowmod].
 
 *Note*: You still need the packet-in function you wrote above. While
 is flow table is being configured (e.g., when the switch is rebooted)
@@ -202,28 +209,94 @@ let switch_connected (sw : switchId) : unit =
   send_flow_mod sw 1l (FlowMod.add_flow priority pattern action_list)
 ```
 
-This function uses `send_flow_mod` [OxPlatform] to add a new rule to
+This function uses [send_flow_mod] to add a new rule to
 the flow table. Your task is to fill in `priority`, `pattern`, and
 `action_list`.
 
-- `pattern` is an [OpenFlow pattern] [Match] for matching packets.  Since your
-    repeater matches all packets, you can use `Match.all`.
+- `pattern` is an OpenFlow [pattern]for matching packets.  Since your
+   repeater matches all packets, you can simply use [match_all].
+   (We cover patterns in detail later.)
 
 - `priority` is a 16-bit priority for the rule. Since you just have one
-  rule, the priority you pick is not relevant, you can just use `0`.
+  rule, the priority you pick is not relevant, you can just use `20`.
 
 - For `action_list`, you must apply the same actions you did in your
   `packet_in` function. (If not, switch and controller will be
   inconsistent.)
 
-
 #### Building and Testing Your Controller
+
+You can build and test this extended repeater in exactly the same way
+you tested the last. However, during testing, the controller should not
+receive any packets itself.
+
+- Build:
+
+  ```shell
+  $ make Repeater.byte
+  ```
+
+- Start your controller:
+
+  ```
+  $ ./Repeater.d.byte
+  ```
+
+
+- Start Mininet in a separate terminal window:
+
+  ```
+  $ sudo mn --controller=remote --topo=single,3 --mac
+  ```
+
+- From the Mininet prompt, try a ping:
+
+  ```
+  mininet> h1 ping h2
+  ```
+
+  The pings should succeed, but the controller won't receive any
+  packets (keep a `printf` in the `packet_in` function to observe
+  packets reaching the controller).
+
+### Why Keep the Controller Function?
+
+Since the switch is processing packets itself, why do bother keeping
+the `packet_in` function? Even though we are configuring the switch to
+handle all packets, there are still certain situations where the the
+`packet_in` function is applied. We'll create such a situation:
+
+- Shutdown the repeater (`Ctrl+C`)
+
+- In mininet, send a stream of high-frequency pings:
+
+  ```
+  mininet> h1 ping -i 0.001 h2
+  ```
+
+- Launch the repeater again:
+
+  ```
+  $ ./Repeater.d.byte
+  ```
+
+You are very likely to observe a few packets at the controller, and
+here's why.  When you launch the controller and the switch
+re-connects, your controller sends two messages:
+
+- A message to _delete all flows_, which Ox sends automatically. In
+  general, we don't know the state of the flow table when a switch
+  connects, so its best to start with a clean slate.
+
+- Next, Ox sends the _add flow_ message that you wrote.
+
+In the interval between these two messages, the flow table is empty,
+thus packets get diverted to the controller. In general, you may
+witness packets during configuration changes.
 
 You can build and test your controller in exactly as you did in
 [Exercise 1][Exercise1]. However, during testing, the controller should not
 receive any packets.
-
-> TODO(arjun): fast pings to show that packet_ins can still happen?
 
 [Action]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.Action.html
 
