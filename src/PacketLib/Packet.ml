@@ -631,7 +631,7 @@ let string_of_dlVlan = function
 
 let string_of_dlVlanPcp = string_of_int
 
-let string_of_nwAddr = Int32.to_string
+let string_of_nwAddr = string_of_ip
 
 let string_of_nwProto = function
   | 0x01 -> "icmp"
