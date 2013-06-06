@@ -37,7 +37,7 @@ Predicates:
           | vlan = <vlan-id>
           | srcIP = <ip-address>
           | dstIP = <ip-address>
-          | ipProtocolType = <ip-protocol>
+          | ipProtocol = <ip-protocol>
           | tcpSrcPort = <tcp-port>
           | tcpDstPort = <tcp-port>
           | frameType = <frame-type>
