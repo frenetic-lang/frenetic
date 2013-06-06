@@ -42,7 +42,7 @@ and try the exercises.  To do so, you will need to download and start up the
 tutorial VM.  Please see the [instructions here](https://github.com/frenetic-lang/frenetic/blob/master/guide/01-Introduction.md#getting-started).
 
 Chapter 1: Introducing NetCore
-------------------------------
+==============================
 
 A NetCore policy describes how a collection of switches
 forwards packets from one location to another.  We call a NetCore policy
@@ -87,15 +87,14 @@ does not drop the input packet and does not broadcast the packet out
 multiple ports).  Next, we apply the topology function T to generate a
 packet p1' across the other side of the link at some new switch.
 Then we apply the policy function P again: P(p1') will generate some
-subsequent number of output packets.  
-And then apply the topology function T again.  
+subsequent number of output packets.  And then apply the topology function T
+again.
 
-In summary, one traces the flow of
-packets through a network by alternately applying the policy function
-P and the topology function T. Static NetCore is just a domain-specific
-language that makes it easy to write down a single policy function
-P that determines how switches forward packets. The main features of 
-Static NetCore include the following.
+In summary, one traces the flow of packets through a network by alternately
+applying the policy function P and the topology function T. Static NetCore is
+just a domain-specific language that makes it easy to write down a single
+policy function P that determines how switches forward packets. The main
+features of Static NetCore include the following.
 
   - a set of primitive *actions*, which allow programmers to modify and 
 forward packets,
@@ -119,10 +118,14 @@ $ cd guide/netcore-tutorial-code
 
 In the [OxRepeater](02-OxRepeater.md) chapter, you learned how to program an
 efficient repeater by adding rules to the switch flow table.  Recall that a
-repeater simply forwards incoming packets on all other ports.
+repeater simply forwards incoming packets out all other ports.
 
 In this example, we will begin by considering a network with just one switch
-with two ports, numbered 1 and 2.  Our first goal will be to program a
+with two ports, numbered 1 and 2:  
+
+![Default Mininet topology.][topo_1]
+
+Our first goal will be to program a
 switch-specific repeater that forwards traffic arriving at port 1 out port 2,
 and vice versa.  The following NetCore policy accomplishes that task.
 
@@ -285,11 +288,11 @@ connected to ports 1-5, respectively, that enforces the restrictions in the
 table above.  Assume that any traffic that meeting the criteria may be
 broadcast (i.e. using the <code>all</code> policy).
 
-*TODO: make this link work.*
-
 Use [Firewall.nc](netcore-tutorial-code/Firewall.nc) as a starting point.
 
 #### Testing your Controller
+
+*TODO: you can also use monitorTable.*
 
 To run your controller, navigate to the <code>netcore-tutorial-code</code>
 directory and type:
@@ -306,19 +309,20 @@ sudo mn --controller=remote --topo=single,5
 
 Use <code>ping</code> to test ICMP.  Remember that ICMP traffic is
 bidirectional, and so pinging from, say, H2 to H3 should fail, because H3
-cannot reply.
+replies are dropped.
 
 ##### IPv4
 
-Use <code>iperf</code> to test both SSH and web traffic:
+Use <code>iperf</code> to test both SSH and web traffic.  For example, these
+commands send TCP traffic between H2 and H3:
 ```
 mininet> h2 iperf -s -p 80 &
 mininet> h3 iperf -c 10.0.0.3 -p 80
 ```
 
-The first command sets <code>iperf</code> to listen on port 80 on host H3.  The
-second initiates a TCP connection from H4 to 10.0.0.3:80 (H3, port 80).  You
-should see the following output:
+The first command starts <code>iperf</code> listening for TCP traffic on H3,
+port 80.  The second initiates a TCP connection from H4 to 10.0.0.3:80 (H3,
+port 80).  You should see the following output:
 ```
 mininet> h2 iperf -s -p 80 &
 ------------------------------------------------------------
@@ -388,8 +392,8 @@ A Port Mapping Policy
 To begin, let's adapt the example from Chapter 1 
 so that instead of simply acting
 as a repeater, our switch does some packet rewriting.  More specifically,
-let's create a switch that maps connections initiated by host h1 
-and destined to TCP port 5022 to the standard ssh port 22.  
+let's create a switch that maps connections initiated by host H1 
+and destined to TCP port 5022 to the standard SSH port 22.  
 
 In general, packet modifications are written as follows:
 ```
@@ -402,33 +406,26 @@ does not, then the packet is dropped.  For instance,
 ```
 tcpDstPort 5022 -> 22
 ```
-rewrites the <code>tcpDstPort</code> of packets starting with
-<code>tcpDstPort</code> 5022 to 22.
+rewrites the <code>tcpDstPort</code> of packets from 5022 to 22.
 
-Now that policies can have an interesting mix of modification and 
-forwarding actions, we need a way to take the outputs of one policy
-and funnel them in to the inputs of another policy.  This is exactly
-what the *sequential composition operator* (<code>;</code>)
-does.  For instance,
+Now, policies can mix modification and forwarding actions, but we need a way to
+pipe the output of one policy into the next.  For this, we use
+the *sequential composition* operator (<code>;</code>).  For instance,
 ```
 tcpDstPort 5022 -> 22; fwd(1)
 ```
-modifies the <code>tcpDstPort</code> and then forwards the result of
-the modification out port 1.  Note that in this case, we have composed
-the effect of two actions.  However, you can use sequential composition
-to compose the effects of any two policies --- they do not just have
-to be simple actions.    
+rewrites the <code>tcpDstPort</code> and then forwards the modified packets out
+port 1.  In this case, we have composed the effects of two actions, but in
+general you can use sequential composition to compose any two policies.
 
-We need one more concept in order to be able to write our port-mapper
-program elegantly:  The <code>pass</code> action.  This action
-acts like the identity function on packets. In other
-words, it simply pipes all of its input packets through untouched
-to its output.  Hence, <code>pass</code> has the property that both 
-<code>pass; P</code> and
-<code>P; pass</code> are exactly the same as just <code>P</code>, for any 
-policy <code>P</code>.  At first, it seems as though this makes 
-<code>pass</code> a completely useless construct, but it turns
-out to be essential in combination with other features of NetCore.
+We need one more concept in order to write an elegant port-mapper program:
+The <code>pass</code> action.  This action acts like the identity function on
+packets. In other words, it simply pipes all of its input packets through
+untouched to its output.  Hence, <code>pass</code> has the property that both
+<code>pass; P</code> and <code>P; pass</code> are exactly the same as just
+<code>P</code>, for any policy <code>P</code>.  At first, it seems as though
+this makes <code>pass</code> a completely useless construct, but it turns out
+to be essential in combination with other features of NetCore.
 
 Now, the port translation program:
 ```
@@ -446,14 +443,14 @@ let routing =
 let forwarder =
   mapper; routing
 ```
-The mapper component rewrites the destination port in one
+The <code>mapper</code> component rewrites the destination port in one
 direction and the source port in the other, if those ports
 take on the given values entering the switch.  Notice how we
-used <code>pass</code> in the final else branch of the 
+used <code>pass</code> in the final <code>else</code> branch of the 
 <code>mapper</code> policy to leaves packets of all other kinds
-untouched.  Doing so, allows us to compose the mapper component
-with any routing component we choose.  In this case, a forwarder
-is defined by composing a mapper with the trivial <code>all</code>
+untouched.  This allows us to compose the mapper component
+with any routing component we choose.  In this case, <code>forwarder</code>
+is defined by composing <code>mapper</code> with the trivial <code>all</code>
 routing policy.  However, in a more complex network, the routing
 component could be arbitrarily sophisticated and still compose
 properly with the mapper.
@@ -467,20 +464,20 @@ with frenetic.
 $ frenetic port_map.nc
 ```
 Then start mininet in the default topology, and
-simulate an ssh process listening on port 22 on host h2:
+simulate an SSH process listening on port 22 on host H2:
 ```
 $ sudo mn --controller=remote
 mininet> h2 iperf -s -p 22 &
 ```
-You can connect to h2 (IP address 10.0.0.2) 
-from h1 by establishing a connection to port 5022
+You can connect to H2 (IP address 10.0.0.2) 
+from H1 by establishing a connection to port 5022
 using the command below.  (The <code>-t</code> option specifies
 the time window for sending traffic.)
 The mapper will translate port numbers for you.
 ```
 mininet> h1 iperf -c 10.0.0.2 -p 5022 -t 0.0001
 ```
-You shoud see a trace like the following one.
+You shoud see a trace like the following:
 ```
 ------------------------------------------------------------
 Client connecting to 10.0.0.2, TCP port 5022
@@ -490,8 +487,7 @@ TCP window size: 22.9 KByte (default)
 [ ID] Interval       Transfer     Bandwidth
 [  3]  0.0- 0.0 sec   128 KBytes   149 Mbits/sec
 ```
-You can also test that the network still allows ping traffic
-through:
+You can also test that the network still allows ping traffic:
 ```
 mininet> h1 ping -c 1 h2
 ```
@@ -499,30 +495,26 @@ mininet> h1 ping -c 1 h2
 Composing Queries
 -----------------
 
-When developing more complex policies, it is very useful to be able
-peer in to the middle of the network to take a look at what is going
-on.  Hence, NetCore supports several kinds of queries that can help you
-understand and debug the behavior of your network.  As an example,
-the <code>monitorPackets( label )</code> policy sends every input packet
-it receives to the controller as opposed to forwarding it along a
-network data path (like the <code>fwd(port)</code> policy does).
-At the controller, the packet is printed with the string <code>label</code> 
-as a prefix and then discarded.
+When developing more complex policies, it is very useful to peer into the
+middle of the network.  Hence, NetCore supports several kinds of queries that
+can help you understand and debug the behavior of your network.  As an example,
+the <code>monitorPackets( label )</code> policy sends every input packet it
+receives to the controller as opposed to forwarding it along a network data
+path (like the <code>fwd(port)</code> policy does).  At the controller, the
+packet is printed with the string <code>label</code> as a prefix and then
+discarded.
 
-Interestingly, when one monitors a network, one does so *in parallel*
-with some standard forwarding policy; one would like the packets
-to go *two* places:  the controller, for inspection, and to whatever
-else they are otherwise destined.  To support this kind of idiom,
-we must introduce a new kind of operator on policies:  
+Interestingly, when one monitors a network, one does so *in parallel* with some
+standard forwarding policy; one would like the packets to go *two* places:  the
+controller, for inspection, and wherever they may be destined in the network.
+To support this idiom, we must introduce a new kind of operator on policies:
 *parallel composition*.  Intuitively, when supplied with a packet
-<code>p</code> as input, the parallel composition 
-<code>P1 + P2</code> applies <code>P1</code> to <code>p</code>
-and also applies <code>P2</code> to <code>p</code>.  
-Overall, it generates 
-the *union* of the results from <code>P1</code> and <code>P2</code>.  Hence, 
-if <code>P1</code> forwards to A
-and <code>P1</code> forwards to B then <code>P1 + P2</code> makes
-a copy of the input packet and forwards to both A and B.
+<code>p</code> as input, the parallel composition <code>P1 + P2</code> applies
+<code>P1</code> to <code>p</code> and also applies <code>P2</code> to
+<code>p</code>.  Overall, it generates the *union* of the results from
+<code>P1</code> and <code>P2</code>.  Hence, if <code>P1</code> forwards to A
+and <code>P1</code> forwards to B then <code>P1 + P2</code> makes a copy of the
+input packet and forwards to both A and B.
 
 With this in mind, let's modify the port mapper to inspect the
 packets both before and after the rewriting.  To do so, we can
@@ -576,21 +568,21 @@ iperf for <code>20</code> seconds.
 mininet> h1 iperf -c 10.0.0.2 -p 5022 -t 20
 ```
 
+Under the Hood
+--------------
+Queries + ICMP firewall to show cross product.
+
 Programming Exercise: A Multi-Switch Network
----------------------------------------------
+---------------------------------------------------------
 
 In this exercise, you will explore how to construct a policy for
 a multi-switch network using the composition operators discussed
 in this chapter.  You should also practice using queries to help
 debug your program.  The network under consideration has 3 switches, 
-and one host attached to each switch: *TODO: draw a better picture*
-```
-    h1        h2        h3
-    |         |         |
-    |         |         |
-    1         1         1
-   (s1)2 -- 2(s2)3 -- 2(s3)
-```
+and one host attached to each switch: 
+
+![Simple linear topology.][topo_2]
+
 You can start such a network when you boot up mininet:
 ```
 $ sudo mn --controller=remote --topo=linear,3
@@ -629,7 +621,102 @@ Check that you can fetch content from the server at h3 from h1:
 ```
 mininet> h1 wget -O - h3
 ```
-But not from h2:
+See anything interesting on h3?  Make sure h3's web server is inaccessible 
+from from h2:
+```
+mininet> h2 wget -O - h3
+```
+
+### Example 4: Queries and Debugging
+
+Let's continue with example 3, but assume we were asleep when coding
+and forgot to include the proper forwarding policy (s2) for switch 2.
+Hence our router looks like this:
+```
+let router =
+  if frameType = arp then all
+  else s1 + s3  (* missing s2 *)
+```
+When we boot up the example, and try to ping h3 from h1, we are
+unable to connect:
+```
+mininet> h1 ping -c 1 h3
+PING 10.0.0.3 (10.0.0.3) 56(84) bytes of data.
+From 10.0.0.1 icmp_seq=1 Destination Host Unreachable
+
+--- 10.0.0.3 ping statistics ---
+1 packets transmitted, 0 received, +1 errors, 100% packet loss, time 0ms
+```
+One good method to track down bugs in NetCore programs is
+using wireshark.  However, another technique is to embed *queries*
+in to NetCore programs themselves.  <code>monitorPackets( label )</code>
+is a policy that sends all packets it receives to the controller,
+as opposed to forwarding them along a data path.  The controller 
+prints the packets to terminal prefixed by the 
+string <code>label</code>.  
+
+Typically, when one monitors a network, one does so *in parallel*
+with some standard forwarding policy; one would like the packets
+to go *two* places:  the controller, for inspection, and to whatever
+else they are otherwise destined.  For instance, if we 
+augment the broken variant of example 3 with several monitoring
+clauses, composed in parallel with our router,
+we can begin to diagnose the problem.  Notice also that we use
+<code>if</code>-<code>then</code> statements to limit the packets
+that reach the monitor policy --- the monitor policy
+prints *all* packets that reach it.
+```
+let monitored_network = 
+    router 
+  + if switch = 2 && frameType = ip then monitorPackets("S2")
+  + if switch = 3 && frameType = ip then monitorPackets("S3")
+```
+To see what happens, start up a controller running <code>tut4.nc</code>
+```
+$ frenetic tut4.nc
+```
+Now, inside mininet, ping host h3 from h1:
+```
+mininet> h1 ping -c 1 h3
+```
+In then controller terminal, you should see a packet 
+arrive at switch 2, but no packets arrive at switch 3.
+```
+[s2] packet dlSrc=6a:a7:14:74:c8:95,dlDst=6a:aa:1c:52:e6:8f,nwSrc=10.0.0.1,nwDst=10.0.0.3,ICMP echo response on switch 2 port 2
+```
+Something must go wrong between the entry to switch 2 and the entry to switch 3!
+
+Now, fix the policy by adding the s2 component back in to the 
+<code>router</code> policy and try ping
+again.  Note the differences.
+
+If we are not interested in examining individual packets, but
+instead are interested in monitoring the aggregate load at 
+different places in the network,
+we could use the <code>monitorLoad( n , label )</code> policy.  
+This policy prints the number of packets and the number of 
+bytes it receives every <code>n</code> seconds.  Again, each output
+line is labelled with <code>label</code>, and
+again, we can restrict the packets monitored by 
+<code>monitorLoad</code> using a <code>if</code>-<code>then</code> clause.
+For instance,
+modifying <code>tut4.nc</code> to measure the load of non-arp traffic
+on switch 3 every 5 seconds involves adding the following definition.
+```
+let monitored_network = 
+  router + if switch=3 then monitorLoad(5, "LOAD")
+```
+To test the monitor, try using ping again.  Watch
+the controller terminal to see how many packets cross switch 3.
+
+### Exercises
+
+In these exercises, we will experiment with a tree-shaped network of
+3 switches and 4 hosts in the following configuration.
+
+![Simple tree topology.][topo_3]
+
+You can start up mininet in this configuration as follows.
 ```
 mininet> h2 wget -O - h3
 ```
@@ -797,3 +884,8 @@ Summary
 -------
 
 NetCore rocks!  QED.
+
+
+[topo_1]: images/topo_1.png "Default Mininet topology."
+[topo_2]: images/topo_2.png "Simple linear topology."
+[topo_3]: images/topo_3.png "Simple tree topology."
