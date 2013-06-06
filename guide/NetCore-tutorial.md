@@ -46,6 +46,8 @@ Motivation for the Frenetic and NetCore Designs
 
 *Much in this section was plagiarized from IEEE overview paper*
 
+*Should this section be cut and just get to the tutorial?*
+
 Traditional networks are built out of special-purpose devices running distributed protocols that provide functionality such as routing, trafﬁc monitoring, load balancing, NATing and access control. These devices have a tightly-integrated control and data plane, and network operators must separately conﬁgure every protocol on each individual device. This configuration task is a challenging one as network operators must struggle with a host of different baroque, low-level, vendor-specific configuration languages.  Moreover, the pace of innovation is slow as device internals and APIs are often private and proprietary, making it difficult to develop new protocols or functionality to suit client needs.    
 
 Recent years, however, have seen growing interest in software-deﬁned networks (SDNs), in which a logically-centralized controller manages the packet-processing functionality of a distributed collection of switches. SDNs make it possible for programmers to control the behavior of the network directly, by conﬁguring the packet-forwarding rules installed on each switch.  Moreover, the Open Networking Foundation is committed to developing a standard, open, vendor-neutral protocol for controlling collections of switches.  This protocol is OpenFlow.
@@ -414,24 +416,27 @@ From 10.0.0.1 icmp_seq=1 Destination Host Unreachable
 ```
 One good method to track down bugs in NetCore programs is
 using wireshark.  However, another technique is to embed *queries*
-in to NetCore programs themselves.  <code>monitorPackets("id")</code>
+in to NetCore programs themselves.  <code>monitorPackets( label )</code>
 is a policy that sends all packets it receives to the controller,
 as opposed to forwarding them along a data path.  The controller 
 prints the packets to terminal prefixed by the 
-string "id".  
+string <code>label</code>.  
 
 Typically, when one monitors a network, one does so *in parallel*
 with some standard forwarding policy; one would like the packets
 to go *two* places:  the controller, for inspection, and to whatever
-regular host they are otherwise destined for.  For instance, if we 
+else they are otherwise destined.  For instance, if we 
 augment the broken variant of example 3 with several monitoring
 clauses, composed in parallel with our router,
-we can begin to diagnose the problem:
+we can begin to diagnose the problem.  Notice also that we use
+<code>if</code>-<code>then</code> statements to limit the packets
+that reach the monitor policy --- the monitor policy
+prints *all* packets that reach it.
 ```
 let monitored_network = 
     router 
-  + if switch = 2 && frameType = ip then monitorPackets("s2")
-  + if switch = 3 && frameType = ip then monitorPackets("s3")
+  + if switch = 2 && frameType = ip then monitorPackets("S2")
+  + if switch = 3 && frameType = ip then monitorPackets("S3")
 ```
 To see what happens, start up a controller running <code>tut4.nc</code>
 ```
@@ -441,35 +446,35 @@ Now, inside mininet, ping host h3 from h1:
 ```
 mininet> h1 ping -c 1 h3
 ```
-In your controller terminal, you should see a packet 
-received at switch 2, but no packets received at switch 3.
+In then controller terminal, you should see a packet 
+arrive at switch 2, but no packets arrive at switch 3.
 ```
 [s2] packet dlSrc=6a:a7:14:74:c8:95,dlDst=6a:aa:1c:52:e6:8f,nwSrc=10.0.0.1,nwDst=10.0.0.3,ICMP echo response on switch 2 port 2
 ```
-Something goes wrong between the entry to switch 2 and the entry to switch 3!
-Now, fix the policy by adding back the s2 component and try pinging
-again.  Note the difference.
+Something must go wrong between the entry to switch 2 and the entry to switch 3!
+
+Now, fix the policy by adding the s2 component back in to the 
+<code>router</code> policy and try ping
+again.  Note the differences.
 
 If we are not interested in examining individual packets, but
 instead are interested in monitoring the aggregate load at 
 different places in the network,
-we could use the <code>monitorLoad( n , "id" )</code> policy.  
+we could use the <code>monitorLoad( n , label )</code> policy.  
 This policy prints the number of packets and the number of 
-bytes it receives every <code>n</code> seconds.  
-For example, to measure the load
-on switch 3, printing results every 5 seconds, edit
-<code>tut4.nc</code> to add the following definition.
-
-*TODO:  Need to make monitorLoad symmetric with monitorPackets so the
-following incantation will work.*
-
+bytes it receives every <code>n</code> seconds.  Again, each output
+line is labelled with <code>label</code>, and
+again, we can restrict the packets monitored by 
+<code>monitorLoad</code> using a <code>if</code>-<code>then</code> clause.
+For instance,
+modifying <code>tut4.nc</code> to measure the load of non-arp traffic
+on switch 3 every 5 seconds involves adding the following definition.
 ```
 let monitored_network = 
-  router + if switch = 3 then monitorLoad(5, "load")
+  router + if switch=3 then monitorLoad(5, "LOAD")
 ```
-To test the monitor, try pinging from h1 to h2 as well as h1 to h3.  Watch
-the controller terminal to see how many packets cross switch 3 in 
-each case.
+To test the monitor, try using ping again.  Watch
+the controller terminal to see how many packets cross switch 3.
 
 ### Exercises
 
@@ -502,7 +507,7 @@ How many arp packets (<code>frameType = arp</code>) reach switch s2?  How many
 IP packets (<code>frameType = ip</code>) reach switch s2?
 
 3.  Refine your policy so that arp packets are broadcast to all hosts
-but ip packets are forwarded by destination.
+but ip packets are forwarded only to their destination.
 
 4.  Construct a network that forwards like the network defined in part 3
 but also implements a firewall specified as follows.
@@ -513,9 +518,9 @@ but also implements a firewall specified as follows.
   - Machines 10 and 20 have public files that may be read by any machine.
   - All traffic not explicitly prohibited must be allowed to pass through the network.
 
-Work through the exercises yourself.  Solutions may be found in the
-guide/examples directory in files <code>sol1-1.nc</code>,
-<code>sol1-2.nc</code>, <code>sol1-3.nc</code>, <code>sol1-4.nc</code>.
+Solutions may be found in the guide/examples directory in 
+files <code>sol1-1.nc</code>, <code>sol1-2.nc</code>, <code>sol1-3.nc</code>, 
+<code>sol1-4.nc</code>.
 
 *TODO:  Solutions! And polishing up the problems.  Would be nice
 to think about how to implement some kind of "needle in a haystack" search
