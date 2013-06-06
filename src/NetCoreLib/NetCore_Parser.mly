@@ -136,9 +136,9 @@ pred_atom :
   | FRAMETYPE EQUALS INT64
     { Pol.Hdr (dlTyp (int16_of_int64 $3)) }
   | PROTOCOLTYPE EQUALS ICMP
-    { Pol.Hdr (ipProto 1) }
+    { Pol.Hdr (ipProto 0x1) }
   | PROTOCOLTYPE EQUALS IPV4
-    { Pol.Hdr (ipProto 4) }
+    { Pol.Hdr (ipProto 0x4) }
   | PROTOCOLTYPE EQUALS INT64
     { Pol.Hdr (ipProto (int8_of_int64 $3)) }
     
