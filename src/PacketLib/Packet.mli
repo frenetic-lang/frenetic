@@ -236,7 +236,7 @@ val string_of_mac : dlAddr -> string
 (** [string_of_dlAddr addr] is identical to [string_of_mac]. *)
 val string_of_dlAddr : dlAddr -> string
 
-(** [string_of_dlTyp typ] pretty-prints an IPv4 type of service. *)
+(** [string_of_dlTyp typ] pretty-prints an ethernet frame type. *)
 val string_of_dlTyp : dlTyp -> string
 
 (** [string_of_dlVlan vlan] pretty-prints an 802.1Q VLAN identifier. *)
