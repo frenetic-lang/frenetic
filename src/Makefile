@@ -6,10 +6,6 @@ APPLICATIONS = Applications/Frenetic \
                Applications/OxRepeater \
                Applications/OxMonitor \
                Applications/OxLearning \
-               Applications/OxTutorial1 \
-               Applications/OxTutorial2 \
-               Applications/OxTutorial3 \
-               Applications/OxTutorial4 \
                Applications/OxTutorial5 \
                Applications/OxTutorial6
 

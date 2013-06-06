@@ -1,10 +1,9 @@
-open OxStart
 open OpenFlow0x01_Core
 open OxPlatform
 
 module MyApplication = struct
 
-  include DefaultTutorialHandlers
+  include OxStart.DefaultTutorialHandlers
 
   let match_icmp = { match_all with
     dlTyp = Some 0x800;
@@ -37,4 +36,4 @@ module MyApplication = struct
 
 end
 
-module Controller = Make (MyApplication)
+module Controller = OxStart.Make (MyApplication)

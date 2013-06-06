@@ -1,10 +1,9 @@
-open OxStart
 open OpenFlow0x01_Core
 open OxPlatform
 
 module MyApplication = struct
 
-  include DefaultTutorialHandlers
+  include OxStart.DefaultTutorialHandlers
 
   let switch_connected (sw : switchId) : unit =
     Printf.printf "Switch %Ld connected.\n%!" sw
@@ -30,4 +29,4 @@ module MyApplication = struct
 
 end
 
-module Controller = Make (MyApplication)
+module Controller = OxStart.Make (MyApplication)

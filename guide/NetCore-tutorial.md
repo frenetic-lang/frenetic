@@ -115,7 +115,7 @@ in <code>guide/netcore-tutorial-code</code>.  Go there now.
 $ cd guide/netcore-tutorial-code
 ```
 
-### A First Example Program
+### Example 1: A Naive Repeater (Redux)
 
 In the [OxRepeater](02-OxRepeater.md) chapter, you learned how to program an
 efficient repeater by adding rules to the switch flow table.  Recall that a
@@ -155,6 +155,8 @@ will print the flow table generated for switch <code>1</code> from the
 with the side effect of printing the flow table.  Now, when you run the
 example, take a look at the flow table that the NetCore compiler creates for
 you and compare it to your flow table rules from the Ox tutorial.
+
+#### Run the Example
 
 Within the <code>netcore-tutorial-code</code> directory, you should
 find the repeater policy in <code>repeater.nc</code>.  To start the
@@ -207,10 +209,9 @@ see additional lines prefixed by the switch identifier, one line
 per switch.  Lines 3 and 4 describe the hosts <code>h1</code> 
 and <code>h2</code>.
 
-#### Testing Your Program
+#### Test the Example
 
-At the 
-mininet prompt, test your repeater program by pinging h2 from h1:
+At the mininet prompt, test your repeater program by pinging h2 from h1:
 ```
 mininet> h1 ping -c 1 h2
 ```
@@ -227,7 +228,8 @@ Ping h1 from h2 as well.
 Once you are convinced the repeater works,
 try replacing the given repeater with an even simpler one:
 ```
-let repeater = all
+let repeater = all in
+monitorTable(1, repeater)
 ```
 The <code>all</code> policy forwards any packet arriving at a switch out
 all ports on that switch except the port it arrived on.  Try testing
@@ -236,7 +238,7 @@ that out too to see if you have done it correctly.
 The opposite of the <code>all</code> policy is the <code>drop</code> policy,
 which drops all packets on the floor.  
 
-### Programming Exercise
+### Exercise 1: Access Control
 
 In this exercise, we will be designing a NetCore policy for handling
 traffic on the switch created when you run the following

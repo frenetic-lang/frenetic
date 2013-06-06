@@ -4,7 +4,6 @@ open OpenFlow0x01_Core
 module MyApplication = struct
 
   include OxStart.DefaultTutorialHandlers
-
   
   let switch_connected (sw : switchId) : unit =
     Printf.printf "Switch %Ld connected.\n%!" sw;
