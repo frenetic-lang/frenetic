@@ -516,14 +516,12 @@ To support this idiom, we must introduce a new kind of operator on policies:
 and <code>P1</code> forwards to B then <code>P1 + P2</code> makes a copy of the
 input packet and forwards to both A and B.
 
-With this in mind, let's modify the port mapper to inspect the
-packets both before and after the rewriting.  To do so, we can
-leave the mapper component unchanged from above but add 
-monitoring to the forwarder.
+With this in mind, let's modify the port mapper to inspect the packets both
+before and after the rewriting.  We can leave the mapper component unchanged
+and add monitoring to the forwarder.
 ```
 ...
 let before = if inPort = 1 then monitorPackets("BEFORE")
-
 let after = if inPort = 1 then monitorPackets("AFTER")
 
 let forwarder =
@@ -547,23 +545,20 @@ You will notice <code>tpDst=5022</code> in lines marked
 <code>BEFORE</code> and <code>tpDst=22</code> in lines marked 
 <code>AFTER</code>.
 
-Another useful kind of query is one that measures the load at different
-places in the network.  The <code>monitorLoad( n , label )</code> policy  
-prints the number of packets and the number of 
-bytes it receives every <code>n</code> seconds.  Again, each output
-line is prefixed by the string <code>label</code>, and
-again, we can restrict the packets monitored by 
-<code>monitorLoad</code> using a <code>if</code>-<code>then</code> clauses.
-Try removing the packet monitoring policies and in the port map 
-application and adding a <code>monitorLoad</code> policy
-to measure the number of packets
-sent by iperf.  The implementation of <code>monitorLoad</code>
-is far more efficient than <code>monitorPackets</code>
-as it does not send packets to the controller.  It merely queries
-openFlow counters after each time interval.  You can issue a longer
-iperf request by adjusting the timing parameter.  Watch the load
-printed in the controller window.  The following command runs
-iperf for <code>20</code> seconds.
+Another useful query measures the load at different places in the network.  The
+<code>monitorLoad( n , label )</code> policy prints the number of packets and
+bytes it receives every <code>n</code> seconds.  Output is prefixed by the
+string <code>label</code>, and we can restrict the packets monitored by
+<code>monitorLoad</code> using <code>if</code>-<code>then</code> clauses.
+
+Try removing the packet monitoring policies in the port mapper and adding a
+<code>monitorLoad</code> query to measure the number of packets sent by iperf.
+The implementation of <code>monitorLoad</code> is far more efficient than
+<code>monitorPackets</code>, as it does not send packets to the controller.
+Instead, it queries OpenFlow counters on the switch after each time interval.
+You can issue a longer iperf request by adjusting the timing parameter
+(<code>-t seconds</code>).  Watch the load printed in the controller window.
+The following command runs iperf for <code>20</code> seconds.
 ```
 mininet> h1 iperf -c 10.0.0.2 -p 5022 -t 20
 ```
