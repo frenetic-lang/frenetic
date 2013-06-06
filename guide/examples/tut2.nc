@@ -2,17 +2,10 @@
    test in mininet on the default topology as follows: 
 
    mininet> h2 iperf -s -p 22 &
-   mininet> h1 iperf -c 10.0.0.2 -p 5022
+   mininet> h1 iperf -c 10.0.0.2 -p 5022 -t 0.0001
 
    You should see h1 establish a connection with h2.
 *)
-
-23232asdsd
-asdad3
-my_variable
-123414
-11:23:23:23:23:23
-12.23.34.2
 
 let mapper =
   if inPort = 1 && tcpDstPort = 5022 then
@@ -22,5 +15,9 @@ let mapper =
   else
     pass
 
+let before = if inPort = 1 then monitorPackets("BEFORE")
+
+let after = if inPort = 1 then monitorPackets("AFTER")
+
 let forwarder =
-  mapper; all
+  (before + mapper); (all + after)
