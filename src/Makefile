@@ -24,7 +24,7 @@ CTAGS_FILES = $(shell ls $(addsuffix /*.ml,$(LIBRARIES)) \
 
 SUFFIXES = .a .cmxa .cma .d.cma
 
-.PHONY: all native byte debug install uninstall doc clean $(LIBRARIES)
+.PHONY: all native byte debug install uninstall reinstall doc clean $(LIBRARIES)
 
 OCAMLBUILD = ocamlbuild -use-ocamlfind $(addprefix -I ,$(LIBRARIES))
 
@@ -66,6 +66,8 @@ install: $(LIBRARIES)
 uninstall: 
 	$(foreach LIBRARY, $(LIBRARIES), \
             $(OCAMLFIND) remove $(LIBRARY);)
+
+reinstall: clean uninstall all install
 
 doc:
 	$(OCAMLBUILD) doc.docdir/index.html
