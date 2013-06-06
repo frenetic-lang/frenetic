@@ -7,8 +7,8 @@ let to_string_exact = NetCore_Wildcard.to_string_exact
 
 let string_of_port = function
   | Physical pid -> (string_of_int pid)
-  | All -> "All"
-  | Here -> "Here"
+  | All -> "all"
+  | Here -> "pass"
 
 module Format = struct
   
@@ -43,8 +43,8 @@ module Format = struct
 
   let match_modify pr lbl fmt mm = match mm with
     | None -> ()
-    | Some (old, new_) -> fprintf fmt "@[@[%s@,->@,%s@];@ @]"
-      (pr old) (pr new_)
+    | Some (old, new_) -> fprintf fmt "@[@[%s:@ %s@,->@,%s@];@ @]"
+      lbl (pr old) (pr new_)
 
   let output fmt (out : output) : unit =
     fprintf fmt "@[%a%a%a%a%a%a%a%a%a%s@]"
