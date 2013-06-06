@@ -294,7 +294,7 @@ is defined by composing a mapper with the all forwarding policy.
 
 Try out the mapper from the examples directory:
 ```
-> frenetic tut2.nc
+$ frenetic tut2.nc
 ```
 Then in mininet, in the default topology,
 simulate an ssh process listening on port 22 on host h2:
@@ -446,25 +446,26 @@ received at switch 2, but no packets received at switch 3.
 ```
 [s2] packet dlSrc=6a:a7:14:74:c8:95,dlDst=6a:aa:1c:52:e6:8f,nwSrc=10.0.0.1,nwDst=10.0.0.3,ICMP echo response on switch 2 port 2
 ```
-So the packets are arriving at switch 2.  If you adjust your monitor to
-monitor switch 3, you'll see the packets don't make it.  
 Something goes wrong between the entry to switch 2 and the entry to switch 3!
-Now, fix the policy:
-```
-let router =
-  if frameType = arp then all
-  else s1 + s2 + s3
-```
-and let's monitor the load on the network instead of looking at the contents
-of packets.  Doing so involves <code>monitorLoad( n , pred )</code>,
-which prints the number of packets and the number of 
-bytes satisfying 
-<code>pred</code> every <code>n</code> seconds.  
-Modifying <code>tut4.nc</code> to measure the load of non-arp traffic
-on switch 3 every 5 seconds involves adding the following definition.
+Now, fix the policy by adding back the s2 component and try pinging
+again.  Note the difference.
+
+If we are not interested in examining individual packets, but
+instead are interested in monitoring the aggregate load at 
+different places in the network,
+we could use the <code>monitorLoad( n , "id" )</code> policy.  
+This policy prints the number of packets and the number of 
+bytes it receives every <code>n</code> seconds.  
+For example, to measure the load
+on switch 3, printing results every 5 seconds, edit
+<code>tut4.nc</code> to add the following definition.
+
+*TODO:  Need to make monitorLoad symmetric with monitorPackets so the
+following incantation will work.*
+
 ```
 let monitored_network = 
-  router + monitorLoad(5, switch=3)
+  router + if switch = 3 then monitorLoad(5, "load")
 ```
 To test the monitor, try pinging from h1 to h2 as well as h1 to h3.  Watch
 the controller terminal to see how many packets cross switch 3 in 
@@ -472,13 +473,53 @@ each case.
 
 ### Exercises
 
-*TODO*
+In these exercises, we will experiment with a tree-shaped network of
+3 switches and 4 hosts in the following configuration.
+*TODO: better picture*
+```
+        (s1)
+        1  2
+       /    \
+      3      3
+  (s2)       (s3)
+  1  2       1  2
+ /    \     /    \
+h1     h2  h3    h4
+```
+You can start up mininet in this configuration as follows.
+```
+$ sudo mn --controller=remote --mac --topo=tree,depth=2,fanout=2
+```
+Remember that the IP addresses of hosts h1, h2, h3, and h4 are
+10.0.0.1, 10.0.0.2, 10.0.0.3 and 10.0.0.4, and the MAC addresses
+are 1, 2, 3, and 4.
 
-1.
+1.  Write the simplest possible policy that will allow any host to
+send messages to any other.
 
-2.
+2.  Set up a web server on host h4 and fetch a web page from h3.
+How many arp packets (<code>frameType = arp</code>) reach switch s2?  How many 
+IP packets (<code>frameType = ip</code>) reach switch s2?
 
-3.
+3.  Refine your policy so that arp packets are broadcast to all hosts
+but ip packets are forwarded by destination.
+
+4.  Construct a network that forwards like the network defined in part 3
+but also implements a firewall specified as follows.
+  - Machines 30 and 40 are *trusted* machines.
+  - Machines 10 and 20 are *untrusted* machines.
+  - Set up a web server on each machine (TCP port 80).
+  - Machines 30 and 40 have private files that may not be read by untrusted machines using HTTP.
+  - Machines 10 and 20 have public files that may be read by any machine.
+  - All traffic not explicitly prohibited must be allowed to pass through the network.
+
+Work through the exercises yourself.  Solutions may be found in the
+guide/examples directory in files <code>sol1-1.nc</code>,
+<code>sol1-2.nc</code>, <code>sol1-3.nc</code>, <code>sol1-4.nc</code>.
+
+*TODO:  Solutions! And polishing up the problems.  Would be nice
+to think about how to implement some kind of "needle in a haystack" search
+for some kind of traffic using queries.*
 
 Dynamic NetCore Concepts
 ------------------------
@@ -526,7 +567,6 @@ fluctuates from one variant to the next.
 
 
 ### Example 5: NAT
-------------------
 
 In this example, we will investigate how to use a dynamic NAT
 component to support connections initiated from a private machine "on
@@ -609,16 +649,41 @@ public port?
 
 ### Exercises
 
-*TODO*
+*This section very much TODO.*
 
-1. What happens if you try to ping h2 from h1?
+1. When running tut5.nc, what happens if you try to ping h2 from h1?
 ```
 mininet> h1 ping -c 1 h2
 ```
 Modify the policy in some way to allow ping through.
 
-2. Experiment with the Mac Learning Component.  What are the mac addresses
-of hosts 1, 2, and 3?
+2. Experiment with the Mac Learning Component.  A simple policy that
+uses Mac Learning may be found in tut6.nc.
+Consider running the policy on our tree-shaped topology.
+*TODO: better picture*
+```
+        (s1)
+        1  2
+       /    \
+      3      3
+  (s2)       (s3)
+  1  2       1  2
+ /    \     /    \
+h1     h2  h3    h4
+```
+This time start up mininet with random mac addresses (omit the
+<code>--mac</cod> option.  
+```
+$ sudo mn --controller=remote --topo=tree,depth=2,fanout=2
+```
+Figure out what the mac addresses of each of the hosts are using
+two different monitoring techniques.
 
+Solutions to these exercises may be found in
+guide/examples directory in files <code>sol2-1.nc</code> and
+<code>sol2-2.nc</code>.
 
+Summary
+-------
 
+NetCore rocks!  QED.
