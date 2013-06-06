@@ -486,10 +486,26 @@ module MakeConsistent (Platform : PLATFORM) = struct
      messages *)
   let pol_now : pol ref = ref init_pol
 
-  let (topo_pol_stream, discovery_lwt) = Topo.create
-    (fun lp -> 
-      Log.printf "NetCore_Controller"
-        "TODO(arjun): give me a function to emit packets")
+  (** Emits packets synthesized at the controller. Produced packets
+      are _not_ subjected to the current NetCore policy, so they do not
+      compose nicely with NetCore operatores. This requires some deep thought,
+      which is banned until after PLDI 2013. *)
+  let emit_pkt (sw, pt, bytes) =
+    let open PacketOut in
+	let msg = {
+          output_payload = NotBuffered bytes;
+          port_id = None;
+          apply_actions = [Output (PhysicalPort pt)]
+	} in
+	Platform.send_to_switch sw 0l (Message.PacketOutMsg msg)
+
+  let emit_packets pkt_stream = 
+    Lwt_stream.iter_s emit_pkt pkt_stream
+
+  let (topo_pol_stream, discovery_lwt) = Topo.create (fun x -> emit_pkt x; ())
+    (* (fun lp ->  *)
+    (*   Log.printf "NetCore_Controller" *)
+    (*     "TODO(arjun): give me a function to emit packets") *)
   
   let topo_pol = NetCore_Stream.now topo_pol_stream
 
@@ -641,22 +657,6 @@ module MakeConsistent (Platform : PLATFORM) = struct
     let _ = push_pol (Some (int_pol, ext_pol, topo_pol)) in
     accept_policies push_pol sugared_pol_stream genSym <&> Queries.start (PoUnion(pol, topo_pol))
 
-  (** Emits packets synthesized at the controller. Produced packets
-      are _not_ subjected to the current NetCore policy, so they do not
-      compose nicely with NetCore operatores. This requires some deep thought,
-      which is banned until after PLDI 2013. *)
-  let emit_packets pkt_stream pol_stream = 
-    let open PacketOut in
-    let emit_pkt (sw, pt, bytes) =
-       let msg = {
-        output_payload = NotBuffered bytes;
-        port_id = None;
-        apply_actions = [Output (PhysicalPort pt)]
-      } in
-      Platform.send_to_switch sw 0l (Message.PacketOutMsg msg) in
-    Lwt_stream.iter_s emit_pkt pkt_stream
-
-
   let start_controller pkt_stream pol = 
     let (pol_stream, push_pol) = Lwt_stream.create () in
     let genSym = GenSym.create () in
@@ -664,7 +664,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
       NetCore_Stream.from_stream (init_pol, init_pol, topo_pol) pol_stream in
     Lwt.pick
       [ accept_switches pol_netcore_stream;
-        emit_packets pkt_stream pol_netcore_stream;
+        emit_packets pkt_stream;
         accept_policies
           push_pol (NetCore_Stream.to_stream pol) genSym;
         stream_lwt;
