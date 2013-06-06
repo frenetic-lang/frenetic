@@ -1,5 +1,5 @@
-Exercise 3: Traffic Monitoring
-==============================
+Chapter 3: Traffic Monitoring
+=============================
 
 In this exercise, you will write a controller that measures the volume
 of Web traffic on a network. To implement monitoring efficiently, you
@@ -11,9 +11,11 @@ As usual, you will proceed in two steps: you will first write and test
 a traffic monitoring function, and then implement it efficiently uses
 flow tables and OpenFlow statistics.
 
-## The Monitoring Function
+### The Monitoring Function
 
-Your monitor must count the total number of packets _sent to and
+Use `Monitor.ml` as a template for this exercise.
+
+Your monitor must count the total number of packets _sent to port 80 and
 received from_ port 80. Since the monitoring function receives all
 packets, you can maintain a global counter and increment it each time
 the `packet_in` function receives a new HTTP packet:
@@ -22,87 +24,100 @@ the `packet_in` function receives a new HTTP packet:
 let num_http_packets = ref 0
 
 let packet_in (sw : switchId) (xid : xid) (pktIn : packetIn) : unit =
-  if is_http_packet (parse_payload pktIn.Papayload) then
+  if is_http_packet (parse_payload pktIn.payload) then
     begin
         num_http_packets := !num_http_packets + 1;
         Printf.printf "Seen %d HTTP packets.\n%!" !num_http_packets
     end
 ```
 
-*Programming Task:* Your task is to write the `is_http_packet` predicate.
+#### Programming Task
 
+Write the `is_http_packet` predicate, using the [packet accessors] you used
+to build the firewall.
 
-To implement the firewall and repeater, you should be able to use the
-the `packet_in` function you wrote in [Exercise 2][firewall] verbatim. Simply
-copy the function over, give it a different name, and call it from the actually
-`packet_in` function above.
+You're not just monitoring Web traffic. You need to block ICMP traffic
+and use route non-ICMP traffic, as you did before. In fact, you should
+_use the `packet_in` function from `Firewall.ml` verbatim_.
 
-Use this template to get started quickly:
+#### Building and Testing Your Monitor
 
-```ocaml
-open Ox
-open OxPlatform
-open OpenFlow0x01_Core
+You should first test that the your monitor preserves the features of the
+firewall and repeater. To do so, you'll run the same tests you in the previous
+chapter. You will also test the monitor by checking that traffic to and from
+port 80 increments the counter (and that other traffic does not).
 
-module MyApp : OXMODULE = struct
+- Build and launch the controller:
 
-  include OxDefaults
-  
-  let num_http_packets = ref 0
+  ```shell
+  $ make Firewall.d.byte
+  $ ./Firewall.d.byte
+  ```
 
-  let switch_connected (sw : switchId) : unit = 
-    Printf.printf "Switch %Ld connected.\n%!" sw
-      
-  let switch_disconnected (sw : switchId) : unit =
-    Printf.printf "Switch %Ld disconnected.\n%!" sw
+- In a separate terminal window, start Mininet using the same
+  parameters you've used before:
 
-  let is_http_packet (pk : Packet.packet) : bool = 
-    (* [FILL IN HERE]: write this predicate *)
+  ```
+  $ sudo ./mn --controller=remote --topo=single,3 --mac
+  ```
 
-  let packet_in_ex2 (sw : switchId) (xid : xid) (pktIn : PacketIn.t) : unit =
-    (* [FILL IN HERE]: the packet_in function from exercise 2 *)
+- Test that the firewall correctly drops pings, reporting `100% packet loss`:
 
-  let packet_in (sw : switchId) (xid : xid) (pktIn : PacketIn.t) : unit =
-    packet_in_ex2 sw xid pktIn;
-    if is_http_packet (Payload.parse pktIn.PacketIn.payload) then
-      begin
-        num_http_packets := !num_http_packets + 1;
-        Printf.printf "Seen %d HTTP packets.\n%!" !num_http_packets
-      end
+  ```
+  mininet> h1 ping h2
+  mininet> h2 ping h1
+  ```
 
-end
+- Test that Web traffic is unaffected, but logged. To do so, you will
+   run a Web server on one host and a client on another:
 
-module Controller = Make (MyApp)
-```
+  * In Mininet, start new terminals for `h1` and `h2`:
 
-### Testing
+    ```
+    mininet> h1 xterm &
+    mininet> h2 xterm &
+    ```
 
-> Fill in the same test sequence as above. But, when sending HTTP
-> traffic, the counter should be incremented.
+  * In the terminal for `h1` start a local Web server:
+
+    ```
+    # cd ~/src/frenetic/guide
+    # python -m SimpleHTTPServer
+    ```
+
+  * In the terminal for `h2` fetch a web page from `h1`:
+
+    ```
+    # curl 10.0.0.1/index.html
+    ```
+
+    This command should succeed and in the controller's terminal, you 
+    should find that HTTP traffic is logged.
+
+    > fill in output
 
 - Finally, you should test to ensure that other traffic is neither
-  blocked by the firewall nor counted by your monitor.
+  blocked by the firewall nor counted by your monitor. To do so, kill the
+  Web server running on `h2` and start it on a non-standard port (e.g., 8080):
 
-  To conduct this test, run a Web server on a non-standard port (e.g.,
-  port 8080) and test that packets sent to and from this port are
-  neither blocked nor logged.
+  * On the terminal for `h2`:
 
-  Run a web server and a web client from Mininet as follows:
+    ```
+    $ python -m SimpleHTTPServer 8080 .
+    ```
 
-  ```
-  mininet> h2 python -m SimpleHTTPServer 8080 . &
-  ```
+  * On the terminal for h1, fetch a page:
 
-  Fetch a page from the server:
-  ```
-  mininet> h1 curl 10.0.0.2 8080
-  ```
+    ```
+    $ curl 10.0.0.2 8080
+    ```
 
   The client should successfully download the page. Furthermore, in the
   controller terminal, you should find that no traffic is logged during
   this connection.
 
-## Efficient Monitoring
+
+### Efficient Monitoring
 
 Switches themselves keeps track of the number of packets (and bytes)
 it receives.  To implement an efficient monitor, you will use
