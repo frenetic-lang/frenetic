@@ -238,7 +238,70 @@ that out too to see if you have done it correctly.
 The opposite of the <code>all</code> policy is the <code>drop</code> policy,
 which drops all packets on the floor.  
 
-### Exercise 1: Access Control
+### Exercise 1: Firewall
+
+In the [OxFirewall](03-OxFirewall.md) chapter, you developed a firewall to
+block ICMP traffic.  Most networks impose other restrictions on the type of
+traffic that hosts are allowed to send.  The following table describes the type
+of traffic that each host in a five-host network can send:
+
+<table>
+  <TH> 
+    <TD>Host</TD> <TD>Host Description</TD> 
+    <TD>frameType</TD> <TD>ipProtocolType</TD> <TD>tcpDstPort</TD> 
+  </TH>
+  <TR> 
+    <TD>H1</TD> <TD>Network tap: receives traffic.</TD>
+    <TD>arp</TD> <TD></TD> <TD></TD>           
+  </TR>
+  <TR> 
+    <TD>H2</TD> <TD>Admin.</TD>
+    <TD>*</TD> <TD>*</TD> <TD>*</TD>           
+  </TR>
+  <TR> 
+    <TD>H3</TD> <TD>User: web traffic.</TD>
+    <TD>arp, ip</TD> <TD>ipv4</TD> <TD>80</TD>          
+  </TR>
+  <TR> 
+    <TD>H4</TD> <TD>User: web traffic.</TD>
+    <TD>arp, ip</TD> <TD>ipv4</TD> <TD>80</TD>          
+  </TR>
+  <TR> 
+    <TD>H5</TD> <TD>Power user: web traffic, ssh, and ping.</TD>
+    <TD>arp, ip</TD> <TD>icmp, ipv4</TD> <TD>22, 80</TD>           
+  </TR>
+</table>
+
+For example, H4 is allowed to send ARP and web traffic, whereas H5 can ping, as
+well as send ARP, web, and SSH traffic.  H1 is a network tap: it can send ARP
+traffic to advertise its location, but otherwise receives and logs diagnostic
+traffic directed to it.
+
+#### Programming Task
+
+Write a NetCore policy for a network with a single switch and five hosts,
+connected to ports 1-5 respectively, that enforces the restrictions in the
+table above.  Assume that any traffic that meeting the criteria may be
+broadcast (i.e. using the <code>all</code> policy).
+
+*TODO: make this link work.*
+
+Use [Firewall.nc](netcore-tutorial-code/Firewall.nc) as a starting point.
+
+#### Testing your Controller
+
+To run your controller, navigate to the <code>netcore-tutorial-code</code>
+directory and type:
+```
+frenetic Firewall.nc
+```
+
+In another terminal, start a mininet instance with five hosts:
+```
+sudo mn --controller=remote --topo=single,5
+```
+
+Use <code>ping</code> and <code>iperf</code> to test your firewall.
 
 In this exercise, we will be designing a NetCore policy for handling
 traffic on the switch created when you run the following
