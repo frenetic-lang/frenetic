@@ -6,8 +6,9 @@ open OpenFlow0x01_Stats
     reducing clutter in simple controllers.
 
     These event handlers simply ignore the messages they receive. *)
-module OxDefaults : sig
+module DefaultTutorialHandlers : sig
 
+  val switch_disconnected : switchId -> unit
   val barrier_reply : switchId -> xid -> unit
   val stats_reply : switchId -> xid -> reply -> unit
 

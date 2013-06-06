@@ -14,14 +14,13 @@ open OpenFlow0x01_Core
  *)
 module MyApplication : OXMODULE = struct
 
+  include DefaultTutorialHandlers
+
   let num_http_packets = ref 0
 
   let switch_connected (sw : switchId) : unit = 
     Printf.printf "Switch %Ld connected.\n%!" sw
       
-  let switch_disconnected (sw : switchId) : unit =
-    Printf.printf "Switch %Ld disconnected.\n%!" sw
-
   (* [FILL IN HERE]: write this predicate *)
   let is_http_packet (pk : Packet.packet) : bool = 
     Packet.dlTyp pk = 0x800 &&
@@ -50,12 +49,6 @@ module MyApplication : OXMODULE = struct
           port_id = None;
           apply_actions = [Output AllPorts]
         }
-
-  let barrier_reply (sw : switchId) (xid : xid) : unit =
-    ()
-
-  let stats_reply (sw : switchId) (xid : xid) (stats : StatsReply.t) : unit =
-    ()
 
   let port_status (sw : switchId) (xid : xid) (port : PortStatus.t) : unit =
     ()
