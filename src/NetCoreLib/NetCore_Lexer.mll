@@ -71,7 +71,7 @@ and token = parse
   | "dstMAC" { DSTMAC }
   | "srcIP" { SRCIP }
   | "dstIP" { DSTIP }
-  | "ipProtocolType" { PROTOCOLTYPE }
+  | "ipProtocol" { PROTOCOLTYPE }
   | "tcpSrcPort" { TCPSRCPORT }
   | "tcpDstPort" { TCPDSTPORT }
   | "frameType" { FRAMETYPE }

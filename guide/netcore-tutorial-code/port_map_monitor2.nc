@@ -15,9 +15,7 @@ let mapper =
   else
     pass
 
-let before = if inPort = 1 then monitorPackets("BEFORE")
-
-let after = if inPort = 1 then monitorPackets("AFTER")
+let load = if inPort = 1 then monitorLoad(5, "LOAD")
 
 let forwarder =
-  (before + mapper); (all + after)
+  (mapper; all) + load

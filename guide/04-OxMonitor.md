@@ -116,104 +116,125 @@ port 80 increments the counter (and that other traffic does not).
   controller terminal, you should find that no traffic is logged during
   this connection.
 
-
-### Efficient Monitoring
+### Efficiently Monitoring Web Traffic
 
 Switches themselves keeps track of the number of packets (and bytes)
-it receives.  To implement an efficient monitor, you will use
+they receive.  To implement an efficient monitor, you will use
 OpenFlow's [statistics] API to query these counters.
 
-### Example: Counting Dropped ICMP Packets
-
-In this section, we describe an extension to the [firewall] that also counts
-the number of packets it drops. This example will help you build your own
-monitoring controller.
-
-Recall that the firewall installs two rules in the flow table:
-
-```ocaml
-let switch_connected (sw : switchId) : unit =
-  send_flow_mod sw 0l (FlowMod.add_flow hi icmp_pat []);
-  send_flow_mod sw 0l (FlowMod.add_flow lo all_pat [Output AllPorts])
-```
-
-Each rule is associated with a packet-counter that counts the number of packets
-on which the rule is applied. For example, if 10 ICMP packets are blocked and
-50 other packets are not blocked, the counters would look as follows:
+Recall from [REF] that each rule in a flow table is associated with
+a packet-counter that counts the number of packets to which the
+rule is applied. For example, consider the following flow table:
 
 <table>
 <tr>
   <th>Priority</th> <th>Pattern</th> <th>Action</th> <th>Counter (bytes)</th>
 </tr>
 <tr>
-  <td>hi</td><td>ICMP</td><td>drop</td><td>10</td>
+  <td>60</td><td>ICMP</td><td>drop</td><td>10</td>
 </tr>
-  <td>50</td><td>ALL</td><td>Output AllPorts</td><td>50</td>
+  <td>50</td><td>ALL</td><td>Output AllPorts</td><td>300</td>
 </tr>
 </table>
 
-To count the number of ICMP packets, we need to read the first counter. We can
-read the counter using the [send_stats_request] function. This function
-can be used issue several different kinds of statictics requests.
+The first counter states that 10 ICMP packets have been blocked and
+the secord reports that 300 non-ICMP packets have been forwarded.
 
-The easiest way to use this API is to issue an `AggregateRequest` in this form:
+You can read these counters using the OpenFlow statistics API, but
+these are not the counters you are looking for. Do you see the
+problem?
+
+> Answer: The problem is that the second counter account for HTTP
+> packets and all other non-ICMP traffic. Although this flow table
+> implements the desired forwarding policy, it is too coarse grained
+> to implement the desired monitoring policy.
+
+#### Programming Task 1
+
+Augment `Monitor.ml` to build a flow table. The forwarding logic only
+requires two rules -- one for ICMP and the other for non-ICMP traffic
+-- but you'll need additional rules to ensure that you have
+fine-grained counters.  Once you have determined the rules you need,
+create the rules as you did before using `send_flow_mod` in the
+`switch_connected` function.
+
+#### Programming Task 2
+
+*Complete Programming Task 1 before moving onto this task. *
+
+As you realized in the previous programing task, you cannot write a
+single OpenFlow pattern that matches both HTTP requests and
+replies. You need to match they separately, using two rules, which
+gives you two counters. Therefore, you need to issue two statistics
+requests and calculate their sum.
+
+You can read counters by calling [send_stats_request]. To
+monitor traffic continuously, you will need to do so periodically.
+To do so, you can use the following function:
 
 ```ocaml
-send_stats_request switch xid (Stats.AggregateRequest (pattern, 0, None))
+let rec periodic_stats_request sw interval xid pat =
+  let callback () =
+    Printf.printf "Sending stats request to %Ld\n%!" sw; 
+    send_stats_request sw xid
+      (Stats.AggregateRequest (pat, 0xff, None));
+    periodic_stats_request sw interval xid pat in
+  timeout interval callback
 ```
-Above, `switch` is the switch to query, `xid` is a unique identifier that is
-returned in the reply, and `pattern` is the pattern to match.
 
-In response to this request, the switch will response with an
-[aggregateStats] reply, which is sent to the `stats_reply` handler:
+This function issues an [AggregateRequest] every [interval] seconds
+for counters that match [pat]. Use `periodic_stats_request` in
+`switch_connected`. For example, in the template below, 
+the program periodically reads the counter for HTTP requests
+and HTTP responses every five seconds:
 
 ```ocaml
+let http_req_xid = (* [FILL] *)
+
+let http_resp_xid = (* [FILL] *)
+
+let switch_connected (sw : switchId) : unit =
+  Printf.printf "Switch %Ld connected.\n%!" sw;
+  periodic_stats_request sw 5.0 http_req_xid match_http_requests;
+  periodic_stats_request sw 5.0 http_resp_xid match_http_responses;
+  ...
+```
+
+You need to fill in the patterns `match_http_requests` and
+`match_http_responses`, which you have already calculated. In
+addition, you need to pick distinct values for `http_req_xid` and
+`http_resp_xid`. These `_xid` values are returned in the statistics
+reply message, and we use them to tell the replies apart.
+
+```ocaml
+let num_http_request_packets = ref 0L 
+let num_http_response_packets = ref 0L
+
 let stats_reply (sw : switchId) (xid : xid) (stats : Stats.reply) : unit =
   match stats with
-  | Stats.AggregateFlowRep stat ->
-    Printf.printf "Blocked %Ld ICMP packets.\n%!" stats.Stats.total_packet_count
-  | _ -> Printf.printf "unexpected stats reply.\n%!"
+  | Stats.AggregateFlowRep rep ->
+    let k = rep.Stats.total_packet_count in
+    begin
+      if xid = http_req_xid then
+        num_http_request_packets := Int64.add !num_http_request_packets k
+      else if xid = http_resp_xid then
+        num_http_response_packets := Int64.add !num_http_response_packets k
+    end;
+    Printf.printf "Seen %Ld HTTP packets.\n%!"
+      (Int64.add !num_http_request_packets !num_http_response_packets)
+  | _ -> ()
+
 ```
 
-For the complete example, see [OxCountingFirewall.ml]. It has 
+#### Building and Testing Your Monitor
 
-> TODO(arjun): fill in.
-
-### Efficiently Monitoring Web Traffic
-
-- Although Web traffic is forwarded in exactly the same manner as non-ICMP
-  traffic, you need to create separate, higher priority rules to match Web
-  traffic, so that you have counters that match Web traffic exclusively.
-
-- You cannot write a single OpenFlow pattern that matches both HTTP
-  requests and replies. You need to match they separately, thus you need two
-  rules, which gives you two counters. Therefore, you need to issue two statistics
-  requests and calculate their sum.
-
-- Have your monitor print the number of HTTP packets whenever you receive
-  updated statistics in the `stats_reply` function.
-
-- However, each call to `stats_reply` will provide either the number of HTTP
-  requests or the number of HTTP responses --- not both.
-
-- Therefore, when you receive updated statistics on HTTP requests, you
-  need to have remember the last statistics received on HTTP
-  responses. Similarly, you the last known statistics on HTTP requests
-  when you receive an update on HTTP rsponses.
-
-- Create two variables to hold the latest statistics on HTTP requests
-  and HTTP responses.
-
-- When you receive new statistics, you must update the appropriate value,
-  and print their sum.
-
-- Use the following template
-
-  > FILL
-
-- Bonus: Have we forgetten anything?
+You should be able to build and test the extended monitor as you did before.
 
 
+#### Extra Credit
+
+Did you spot the bug? What happens if the controller receives HTTP
+packets, before the switch is fully initialized?
 
 [repeater]: [./02-OxRepeater.md]
 

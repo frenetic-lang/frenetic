@@ -238,35 +238,158 @@ that out too to see if you have done it correctly.
 The opposite of the <code>all</code> policy is the <code>drop</code> policy,
 which drops all packets on the floor.  
 
-### Exercise 1: Access Control
+### Exercise 1: Firewall
 
-In this exercise, we will be designing a NetCore policy for handling
-traffic on the switch created when you run the following
-command to start up mininet:
+In the [OxFirewall](03-OxFirewall.md) chapter, you developed a firewall to
+block ICMP traffic.  Most networks impose other restrictions on the type of
+traffic that hosts are allowed to send.  The following table describes the type
+of traffic that each host in a five-host network can send:
+
+<table>
+  <TR> 
+    <TH>Host</TH> <TH>Host Description</TH> 
+    <TH>frameType</TH> <TH>ipProtocolType</TH> <TH>tcpDstPort</TH> 
+  </TR>
+  <TR> 
+    <TD>H1</TD> <TD>Network tap: receives traffic.</TD>
+    <TD>arp</TD> <TD></TD> <TD></TD>           
+  </TR>
+  <TR> 
+    <TD>H2</TD> <TD>Admin.</TD>
+    <TD>*</TD> <TD>*</TD> <TD>*</TD>           
+  </TR>
+  <TR> 
+    <TD>H3</TD> <TD>User: web traffic.</TD>
+    <TD>arp, ip</TD> <TD>ipv4</TD> <TD>80</TD>          
+  </TR>
+  <TR> 
+    <TD>H4</TD> <TD>User: web traffic.</TD>
+    <TD>arp, ip</TD> <TD>ipv4</TD> <TD>80</TD>          
+  </TR>
+  <TR> 
+    <TD>H5</TD> <TD>Power user: web traffic, ssh, and ping.</TD>
+    <TD>arp, ip</TD> <TD>icmp, ipv4</TD> <TD>22, 80</TD>           
+  </TR>
+</table>
+
+For example, H4 is allowed to send ARP and web traffic, whereas H5 can ping, as
+well as send ARP, web, and SSH traffic.  H1 is a network tap: it can send ARP
+traffic to advertise its location, but otherwise receives and logs diagnostic
+traffic directed to it.  The administrator can, of course, send any type of
+traffic.
+
+#### Programming Task
+
+Write a NetCore policy for a network with a single switch and five hosts
+connected to ports 1-5, respectively, that enforces the restrictions in the
+table above.  Assume that any traffic that meeting the criteria may be
+broadcast (i.e. using the <code>all</code> policy).
+
+*TODO: make this link work.*
+
+Use [Firewall.nc](netcore-tutorial-code/Firewall.nc) as a starting point.
+
+#### Testing your Controller
+
+To run your controller, navigate to the <code>netcore-tutorial-code</code>
+directory and type:
 ```
-$ sudo mn --controller=remote --topo=single,5
+frenetic Firewall.nc
 ```
-First, inside mininet, use <code>net</code> to determine the 
-mininet topology that has been created.
 
-Next, create a new file called <code>switch.nc</code>.  Design
-a policy that allows the even-numbered hosts to talk to one another
-and the odd-numbered hosts to talk to one another, but does not
-allow even to talk to odd or vice versa.  Test the correctness
-of your policy.  You can find a solution in <code>switch_sol.nc</code>.
+In another terminal, start a mininet instance with five hosts:
+```
+sudo mn --controller=remote --topo=single,5
+```
 
-*TODO: We could create our own topology that puts different hosts
-on different links to make figuring out the topology more interesting.*
+##### ICMP
 
-Chapter 2: Sequential Composition
+Use <code>ping</code> to test ICMP.  Remember that ICMP traffic is
+bidirectional, and so pinging from, say, H2 to H3 should fail, because H3
+cannot reply.
+
+##### IPv4
+
+Use <code>iperf</code> to test both SSH and web traffic:
+```
+mininet> h2 iperf -s -p 80 &
+mininet> h3 iperf -c 10.0.0.3 -p 80
+```
+
+The first command sets <code>iperf</code> to listen on port 80 on host H3.  The
+second initiates a TCP connection from H4 to 10.0.0.3:80 (H3, port 80).  You
+should see the following output:
+```
+mininet> h2 iperf -s -p 80 &
+------------------------------------------------------------
+Server listening on TCP port 80
+TCP window size: 85.3 KByte (default)
+------------------------------------------------------------
+mininet> h3 iperf -c 10.0.0.3 -p 80
+------------------------------------------------------------
+Client connecting to 10.0.0.3, TCP port 80
+TCP window size:  647 KByte (default)
+------------------------------------------------------------
+[  3] local 10.0.0.3 port 60621 connected with 10.0.0.3 port 80
+[  4] local 10.0.0.3 port 80 connected with 10.0.0.3 port 60621
+[ ID] Interval       Transfer     Bandwidth
+[  3]  0.0-10.0 sec   384 MBytes   322 Mbits/sec
+[ ID] Interval       Transfer     Bandwidth
+[  4]  0.0-10.0 sec   384 MBytes   322 Mbits/sec
+```
+
+##### ARP
+
+Testing H1 is a bit tricky, as it should respond to ARP requests but not, say,
+TCP handshakes.  One approach is to use <code>iperf</code> to receive UDP
+traffic on H1:
+```
+mininet> h1 iperf -u -s -p 80 &
+mininet> h2 iperf -u -c 10.0.0.1 -p 80
+```
+
+Sending UDP traffic from H2 to H1 should succeed with the following output:
+```
+mininet> h1 iperf -u -s -p 80 &
+------------------------------------------------------------
+Server listening on UDP port 80
+Receiving 1470 byte datagrams
+UDP buffer size:  176 KByte (default)
+------------------------------------------------------------
+mininet> h2 iperf -u -c 10.0.0.1 -p 80
+------------------------------------------------------------
+Client connecting to 10.0.0.1, UDP port 80
+Sending 1470 byte datagrams
+UDP buffer size:  176 KByte (default)
+------------------------------------------------------------
+[  3] local 10.0.0.2 port 40281 connected with 10.0.0.1 port 80
+[ ID] Interval       Transfer     Bandwidth
+[  3]  0.0-10.0 sec  1.25 MBytes  1.05 Mbits/sec
+[  3] Sent 893 datagrams
+[  3] WARNING: did not receive ack of last datagram after 10 tries.
+```
+
+The warning on the last line indicates that the acknowledgment from H1 did not
+reach H2, as expected.
+
+
+Chapter 2: Composition Operators
 =================================
 
-Next, let's adapt our first example so that instead of simply acting
+A key feature of the NetCore design is its support for modular
+construction of SDN policies:  One can build complex policies
+by combining a collection of simpler ones.  In this chapter,
+we will describe two key *composition operators* that make this
+possible.
+
+A Port Mapping Policy
+----------------------
+
+To begin, let's adapt the example from Chapter 1 
+so that instead of simply acting
 as a repeater, our switch does some packet rewriting.  More specifically,
 let's create a switch that maps connections initiated by host h1 
-and destined to TCP port 5022 to the standard ssh port 22.  To implement
-the example, we will use three additional concepts:  *modification
-actions*, the *identity action* <code>pass</code> and *sequential composition*.
+and destined to TCP port 5022 to the standard ssh port 22.  
 
 In general, packet modifications are written as follows:
 ```
@@ -275,8 +398,7 @@ field pre-value -> post-value
 When executing such an action, the switch tests the <code>field</code>
 to determine whether it holds the <code>pre-value</code>.  If it does,
 then the field is rewritten to the <code>post-value</code>.  If it
-does not, then the packet is dropped. *DPW: Check semantics of conditional
-actions.*  For instance,
+does not, then the packet is dropped.  For instance,
 ```
 tcpDstPort 5022 -> 22
 ```
@@ -284,8 +406,10 @@ rewrites the <code>tcpDstPort</code> of packets starting with
 <code>tcpDstPort</code> 5022 to 22.
 
 Now that policies can have an interesting mix of modification and 
-forwarding actions, we need a way to glue those actions together:
-*sequential composition* (<code>;</code>).  For instance,
+forwarding actions, we need a way to take the outputs of one policy
+and funnel them in to the inputs of another policy.  This is exactly
+what the *sequential composition operator* (<code>;</code>)
+does.  For instance,
 ```
 tcpDstPort 5022 -> 22; fwd(1)
 ```
@@ -293,15 +417,16 @@ modifies the <code>tcpDstPort</code> and then forwards the result of
 the modification out port 1.  Note that in this case, we have composed
 the effect of two actions.  However, you can use sequential composition
 to compose the effects of any two policies --- they do not just have
-to be simple actions.  This is useful for putting together complex
-policies from simpler parts.  
+to be simple actions.    
 
-The <code>pass</code> action goes together naturally with sequential
-composition as it acts like the identity function on packets. In other
-words, <code>pass</code> has the useful property that both 
+We need one more concept in order to be able to write our port-mapper
+program elegantly:  The <code>pass</code> action.  This action
+acts like the identity function on packets. In other
+words, it simply pipes all of its input packets through untouched
+to its output.  Hence, <code>pass</code> has the property that both 
 <code>pass; P</code> and
-<code>P; pass</code> are equal to <code>P</code> for any policy 
-<code>P</code>.  At first, it seems as though this makes 
+<code>P; pass</code> are exactly the same as just <code>P</code>, for any 
+policy <code>P</code>.  At first, it seems as though this makes 
 <code>pass</code> a completely useless construct, but it turns
 out to be essential in combination with other features of NetCore.
 
@@ -315,28 +440,45 @@ let mapper =
   else
     pass
 
+let routing = 
+  all
+
 let forwarder =
-  mapper; all
+  mapper; routing
 ```
 The mapper component rewrites the destination port in one
 direction and the source port in the other, if those ports
-take on the given values entering the switch.  If they don't,
-<code>pass</code> leaves packets untouched.  A forwarder
-is defined by composing a mapper with the all forwarding policy.
+take on the given values entering the switch.  Notice how we
+used <code>pass</code> in the final else branch of the 
+<code>mapper</code> policy to leaves packets of all other kinds
+untouched.  Doing so, allows us to compose the mapper component
+with any routing component we choose.  In this case, a forwarder
+is defined by composing a mapper with the trivial <code>all</code>
+routing policy.  However, in a more complex network, the routing
+component could be arbitrarily sophisticated and still compose
+properly with the mapper.
 
-Try out the mapper from the examples directory:
+Testing the Port Mapper
+-----------------------
+
+You will find the mapper in <code>port_map.nc</code>.  Start it up
+with frenetic.
 ```
-$ frenetic tut2.nc
+$ frenetic port_map.nc
 ```
-Then in mininet, in the default topology,
+Then start mininet in the default topology, and
 simulate an ssh process listening on port 22 on host h2:
 ```
+$ sudo mn --controller=remote
 mininet> h2 iperf -s -p 22 &
 ```
-and connect to it from h1 by establishing a connection to port 5022.
+You can connect to h2 (IP address 10.0.0.2) 
+from h1 by establishing a connection to port 5022
+using the command below.  (The <code>-t</code> option specifies
+the time window for sending traffic.)
 The mapper will translate port numbers for you.
 ```
-mininet> h1 iperf -c 10.0.0.2 -p 5022
+mininet> h1 iperf -c 10.0.0.2 -p 5022 -t 0.0001
 ```
 You shoud see a trace like the following one.
 ```
@@ -344,13 +486,103 @@ You shoud see a trace like the following one.
 Client connecting to 10.0.0.2, TCP port 5022
 TCP window size: 22.9 KByte (default)
 ------------------------------------------------------------
-[  3] local 10.0.0.1 port 42605 connected with 10.0.0.2 port 5022
+[  3] local 10.0.0.1 port 52273 connected with 10.0.0.2 port 5022
 [ ID] Interval       Transfer     Bandwidth
-[  3]  0.0-10.0 sec  3.24 GBytes  2.79 Gbits/sec
+[  3]  0.0- 0.0 sec   128 KBytes   149 Mbits/sec
+```
+You can also test that the network still allows ping traffic
+through:
+```
+mininet> h1 ping -c 1 h2
 ```
 
-### Example 3: A Multi-Switch Network
+Composing Queries
+-----------------
 
+When developing more complex policies, it is very useful to be able
+peer in to the middle of the network to take a look at what is going
+on.  Hence, NetCore supports several kinds of queries that can help you
+understand and debug the behavior of your network.  As an example,
+the <code>monitorPackets( label )</code> policy sends every input packet
+it receives to the controller as opposed to forwarding it along a
+network data path (like the <code>fwd(port)</code> policy does).
+At the controller, the packet is printed with the string <code>label</code> 
+as a prefix and then discarded.
+
+Interestingly, when one monitors a network, one does so *in parallel*
+with some standard forwarding policy; one would like the packets
+to go *two* places:  the controller, for inspection, and to whatever
+else they are otherwise destined.  To support this kind of idiom,
+we must introduce a new kind of operator on policies:  
+*parallel composition*.  Intuitively, when supplied with a packet
+<code>p</code> as input, the parallel composition 
+<code>P1 + P2</code> applies <code>P1</code> to <code>p</code>
+and also applies <code>P2</code> to <code>p</code>.  
+Overall, it generates 
+the *union* of the results from <code>P1</code> and <code>P2</code>.  Hence, 
+if <code>P1</code> forwards to A
+and <code>P1</code> forwards to B then <code>P1 + P2</code> makes
+a copy of the input packet and forwards to both A and B.
+
+With this in mind, let's modify the port mapper to inspect the
+packets both before and after the rewriting.  To do so, we can
+leave the mapper component unchanged from above but add 
+monitoring to the forwarder.
+```
+...
+let before = if inPort = 1 then monitorPackets("BEFORE")
+
+let after = if inPort = 1 then monitorPackets("AFTER")
+
+let forwarder =
+  (before + mapper); (all + after)
+```
+Above, we used a 
+<code>if</code>-<code>then</code> statement (no else) to limit the packets
+that reach the monitoring policy to only those packets satisfying
+the <code>inPort = 1</code> predicate.  Otherwise, the monitor policy
+prints *all* packets that reach it.  Note that if there is no <code>else</code>
+branch in a conditional, packets not matching the conditional are dropped.
+
+This new policy can be found in <code>port_map_monitor.nc</code>.
+Test it as above using iperf, but this time watch the output in the 
+controller window.  You should see lines similar to the following being printed:
+```
+[BEFORE] packet dlSrc=4a:f7:98:81:78:0d,dlDst=d6:7c:1e:d6:e3:0b,nwSrc=10.0.0.1,nwDst=10.0.0.2,tpSrc=52923;tpDst=5022 on switch 1 port 1
+[AFTER] packet dlSrc=4a:f7:98:81:78:0d,dlDst=d6:7c:1e:d6:e3:0b,nwSrc=10.0.0.1,nwDst=10.0.0.2,tpSrc=52923;tpDst=22 on switch 1 port 1
+```
+You will notice <code>tpDst=5022</code> in lines marked
+<code>BEFORE</code> and <code>tpDst=22</code> in lines marked 
+<code>AFTER</code>.
+
+Another useful kind of query is one that measures the load at different
+places in the network.  The <code>monitorLoad( n , label )</code> policy  
+prints the number of packets and the number of 
+bytes it receives every <code>n</code> seconds.  Again, each output
+line is prefixed by the string <code>label</code>, and
+again, we can restrict the packets monitored by 
+<code>monitorLoad</code> using a <code>if</code>-<code>then</code> clauses.
+Try removing the packet monitoring policies and in the port map 
+application and adding a <code>monitorLoad</code> policy
+to measure the number of packets
+sent by iperf.  The implementation of <code>monitorLoad</code>
+is far more efficient than <code>monitorPackets</code>
+as it does not send packets to the controller.  It merely queries
+openFlow counters after each time interval.  You can issue a longer
+iperf request by adjusting the timing parameter.  Watch the load
+printed in the controller window.  The following command runs
+iperf for <code>20</code> seconds.
+```
+mininet> h1 iperf -c 10.0.0.2 -p 5022 -t 20
+```
+
+Programming Exercise: Implementing a Multi-Switch Network
+---------------------------------------------------------
+
+In this exercise, you will explore how to construct a policy for
+a multi-switch network using the composition operators discussed
+in this chapter.  You should also practice using queries to help
+debug
 Consider a network with 3 switches, and one host attached to each
 switch: *TODO: draw a better picture*
 ```

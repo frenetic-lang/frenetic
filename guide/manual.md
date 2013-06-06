@@ -15,6 +15,9 @@ Types and stuff:
 <frame-type> ::= arp (* shorthand for 0x806 *)
                | ip  (* shorthand for 0x800 *)
                | 8-bit integer
+<ip-protocol> ::= icmp (* shorthand for 0x1 *)
+                | ipv4 (* shorthand for 0x4 *)
+                | 8-bit integer
 
 <seconds> ::= [0-9]+ | [0-9]+ . [0-9]+
 <string> ::= '"' [^ '"']* '"'
@@ -34,6 +37,7 @@ Predicates:
           | vlan = <vlan-id>
           | srcIP = <ip-address>
           | dstIP = <ip-address>
+          | ipProtocol = <ip-protocol>
           | tcpSrcPort = <tcp-port>
           | tcpDstPort = <tcp-port>
           | frameType = <frame-type>
