@@ -4,14 +4,11 @@ open OxPlatform
 
 module MyApplication = struct
 
-  include OxDefaults
+  include DefaultTutorialHandlers
 
   let switch_connected (sw : switchId) : unit =
     Printf.printf "Switch %Ld connected.\n%!" sw
       
-  let switch_disconnected (sw : switchId) : unit =
-    Printf.printf "Switch %Ld disconnected.\n%!" sw
-
   let is_icmp_packet (pk : Packet.packet) =
     Packet.dlTyp pk = 0x800 && Packet.nwProto pk = 1
 

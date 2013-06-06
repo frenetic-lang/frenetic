@@ -4,7 +4,7 @@ open OxPlatform
 
 module MyApplication = struct
 
-  include OxDefaults
+  include DefaultTutorialHandlers
 
   let match_icmp = { match_all with
     dlTyp = Some 0x800;
@@ -16,9 +16,6 @@ module MyApplication = struct
     send_flow_mod sw 0l (add_flow 200 match_icmp []);
     send_flow_mod sw 0l (add_flow 100 match_all [Output AllPorts])
       
-  let switch_disconnected (sw : switchId) : unit =
-    Printf.printf "Switch %Ld disconnected.\n%!" sw
-
   let is_icmp_packet (pk : Packet.packet) =
     Packet.dlTyp pk = 0x800 && Packet.nwProto pk = 1
 
