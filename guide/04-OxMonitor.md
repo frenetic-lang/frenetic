@@ -206,7 +206,7 @@ addition, you need to pick distinct values for `http_req_xid` and
 `http_resp_xid`. These `_xid` values are returned in the statistics
 reply message, and we use them to tell the replies apart.
 
-```
+```ocaml
 let num_http_request_packets = ref 0L 
 let num_http_response_packets = ref 0L
 
@@ -226,10 +226,15 @@ let stats_reply (sw : switchId) (xid : xid) (stats : Stats.reply) : unit =
 
 ```
 
+#### Building and Testing Your Monitor
 
-- Bonus: Have we forgetten anything?
+You should be able to build and test the extended monitor as you did before.
 
 
+#### Extra Credit
+
+Did you spot the bug? What happens if the controller receives HTTP
+packets, before the switch is fully initialized?
 
 [repeater]: [./02-OxRepeater.md]
 
