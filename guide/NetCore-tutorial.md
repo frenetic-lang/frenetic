@@ -275,12 +275,13 @@ of traffic that each host in a five-host network can send:
 For example, H4 is allowed to send ARP and web traffic, whereas H5 can ping, as
 well as send ARP, web, and SSH traffic.  H1 is a network tap: it can send ARP
 traffic to advertise its location, but otherwise receives and logs diagnostic
-traffic directed to it.
+traffic directed to it.  The administrator can, of course, send any type of
+traffic.
 
 #### Programming Task
 
-Write a NetCore policy for a network with a single switch and five hosts,
-connected to ports 1-5 respectively, that enforces the restrictions in the
+Write a NetCore policy for a network with a single switch and five hosts
+connected to ports 1-5, respectively, that enforces the restrictions in the
 table above.  Assume that any traffic that meeting the criteria may be
 broadcast (i.e. using the <code>all</code> policy).
 
@@ -301,25 +302,76 @@ In another terminal, start a mininet instance with five hosts:
 sudo mn --controller=remote --topo=single,5
 ```
 
-Use <code>ping</code> and <code>iperf</code> to test your firewall.
+##### ICMP
 
-In this exercise, we will be designing a NetCore policy for handling
-traffic on the switch created when you run the following
-command to start up mininet:
+Use <code>ping</code> to test ICMP.  Remember that ICMP traffic is
+bidirectional, and so pinging from, say, H2 to H3 should fail, because H3
+cannot reply.
+
+##### IPv4
+
+Use <code>iperf</code> to test both SSH and web traffic:
 ```
-$ sudo mn --controller=remote --topo=single,5
+mininet> h2 iperf -s -p 80 &
+mininet> h3 iperf -c 10.0.0.3 -p 80
 ```
-First, inside mininet, use <code>net</code> to determine the 
-mininet topology that has been created.
 
-Next, create a new file called <code>switch.nc</code>.  Design
-a policy that allows the even-numbered hosts to talk to one another
-and the odd-numbered hosts to talk to one another, but does not
-allow even to talk to odd or vice versa.  Test the correctness
-of your policy.  You can find a solution in <code>switch_sol.nc</code>.
+The first command sets <code>iperf</code> to listen on port 80 on host H3.  The
+second initiates a TCP connection from H4 to 10.0.0.3:80 (H3, port 80).  You
+should see the following output:
+```
+mininet> h2 iperf -s -p 80 &
+------------------------------------------------------------
+Server listening on TCP port 80
+TCP window size: 85.3 KByte (default)
+------------------------------------------------------------
+mininet> h3 iperf -c 10.0.0.3 -p 80
+------------------------------------------------------------
+Client connecting to 10.0.0.3, TCP port 80
+TCP window size:  647 KByte (default)
+------------------------------------------------------------
+[  3] local 10.0.0.3 port 60621 connected with 10.0.0.3 port 80
+[  4] local 10.0.0.3 port 80 connected with 10.0.0.3 port 60621
+[ ID] Interval       Transfer     Bandwidth
+[  3]  0.0-10.0 sec   384 MBytes   322 Mbits/sec
+[ ID] Interval       Transfer     Bandwidth
+[  4]  0.0-10.0 sec   384 MBytes   322 Mbits/sec
+```
 
-*TODO: We could create our own topology that puts different hosts
-on different links to make figuring out the topology more interesting.*
+##### ARP
+
+Testing H1 is a bit tricky, as it should respond to ARP requests but not, say,
+TCP handshakes.  One approach is to use <code>iperf</code> to receive UDP
+traffic on H1:
+```
+mininet> h1 iperf -u -s -p 80 &
+mininet> h2 iperf -u -c 10.0.0.1 -p 80
+```
+
+Sending UDP traffic from H2 to H1 should succeed with the following output:
+```
+mininet> h1 iperf -u -s -p 80 &
+------------------------------------------------------------
+Server listening on UDP port 80
+Receiving 1470 byte datagrams
+UDP buffer size:  176 KByte (default)
+------------------------------------------------------------
+mininet> h2 iperf -u -c 10.0.0.1 -p 80
+------------------------------------------------------------
+Client connecting to 10.0.0.1, UDP port 80
+Sending 1470 byte datagrams
+UDP buffer size:  176 KByte (default)
+------------------------------------------------------------
+[  3] local 10.0.0.2 port 40281 connected with 10.0.0.1 port 80
+[ ID] Interval       Transfer     Bandwidth
+[  3]  0.0-10.0 sec  1.25 MBytes  1.05 Mbits/sec
+[  3] Sent 893 datagrams
+[  3] WARNING: did not receive ack of last datagram after 10 tries.
+```
+
+The warning on the last line indicates that the acknowledgment from H1 did not
+reach H2, as expected.
+
 
 Chapter 2: Sequential Composition
 =================================
