@@ -30,11 +30,9 @@ same (with NetCoreDSL simply adding a pleasing domain-specific,
 user-level syntax), we will drop the "DSL" part of the name from this
 point forward and simply refer to NetCore.
 
-Before divining in to the technical portion of the tutorial, we
-briefly motivate the design of NetCore and Frenetic.  The technical
-portions of the tutorial focus on explaining the syntax and semantics
-of NetCore and illustrating its use on a number of simple examples.
-There are also a number of exercises for the reader.  
+As an aside, you may find it interesting to read about the [motivation and
+design decisions](http://frenetic-lang.org/publications/overview-ieeecoms13.pdf)
+that went into creating NetCore and Frenetic.
 
 Getting Started
 ---------------
@@ -42,25 +40,6 @@ Getting Started
 As you read this document, we encourage you to experiment with the examples 
 and try the exercises.  To do so, you will need to download and start up the
 tutorial VM.  Please see the [instructions here](https://github.com/frenetic-lang/frenetic/blob/master/guide/01-Introduction.md#getting-started).
-
-Motivation for the Frenetic and NetCore Designs
------------------------------------------------
-
-*Much in this section was plagiarized from IEEE overview paper*
-
-*Should this section be cut and just get to the tutorial?*
-
-Traditional networks are built out of special-purpose devices running distributed protocols that provide functionality such as routing, trafﬁc monitoring, load balancing, NATing and access control. These devices have a tightly-integrated control and data plane, and network operators must separately conﬁgure every protocol on each individual device. This configuration task is a challenging one as network operators must struggle with a host of different baroque, low-level, vendor-specific configuration languages.  Moreover, the pace of innovation is slow as device internals and APIs are often private and proprietary, making it difficult to develop new protocols or functionality to suit client needs.    
-
-Recent years, however, have seen growing interest in software-deﬁned networks (SDNs), in which a logically-centralized controller manages the packet-processing functionality of a distributed collection of switches. SDNs make it possible for programmers to control the behavior of the network directly, by conﬁguring the packet-forwarding rules installed on each switch.  Moreover, the Open Networking Foundation is committed to developing a standard, open, vendor-neutral protocol for controlling collections of switches.  This protocol is OpenFlow.
-
-SDNs can both simplify existing applications and also serve as a platform for developing new ones. For example, to implement shortest-path routing, the controller can calculate the forwarding rules for each switch by running Dijkstra’s algorithm on the graph of the network topology instead of using a more complicated distributed protocol. To conserve energy, the controller can selectively shut down links or even whole switches after directing trafﬁc along other paths. To enforce ﬁne-grained access control policies, the controller can consult an external authentication server and install custom firewall rules.
-
-But although SDNs makes it possible to program the network, they do not make it easy. Protocols such as OpenFlow expose an interface that closely matches the features of the underlying switch hardware. Roughly speaking, OpenFlow allows programmers to manually install and uninstall individual packet-processing rules.  First-generation controller systems such as NOX, Beacon, and Floodlight support the same low-level interface, which forces applications to be implemented using programs that manipulate the fine-grained state of individual devices.  Unfortunately, it is extremely difficult to develop independent program components, such as a router, firewall and network monitor, that collaborate to control the flow of traffic through a network since the application must ultimately install a *single* set of low-level rules on the underlying switches.  This single set of rules must simultaneously implement the desired high-level semantics for each independent high-level component.
-
-In addition, a network is a distributed system, and all of the usual complications arise—in particular, control messages sent to switches are processed asynchronously. Programming asynchronous, distributed systems is notoriously difficult and error prone.  Network programmers require require support to get this right.
-
-The goal of the Frenetic language is to raise the level of abstraction for programming SDNs. To replace the low-level imperative interfaces available today, Frenetic offers a suite of declarative abstractions for querying network state, deﬁning forwarding policies, and updating policies in a consistent way.  These constructs are designed to be *modular* so that individual policies can be written in isolation, by different developers and later composed with other components to create sophisticated policies. This is made possible in part by the design of the constructs themselves, and in part by the underlying run-time system, which implements them by compiling them down to low-level OpenFlow forwarding rules.  Our emphasis on modularity and composition—the foundational principles behind effective design of any complex software system—is the key feature that distinguishes Frenetic from other SDN controllers.
 
 Chapter 1: Introducing NetCore
 ==============================
