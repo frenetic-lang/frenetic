@@ -120,11 +120,11 @@ pred_atom :
   | TCPSRCPORT EQUALS INT64 { Pol.Hdr (tcpSrcPort (int16_of_int64 $3)) }
   | TCPDSTPORT EQUALS INT64 { Pol.Hdr (tcpDstPort (int16_of_int64 $3)) }
   | FRAMETYPE EQUALS ARP
-    { Pol.Hdr (dlType 0x806) }
+    { Pol.Hdr (dlTyp 0x806) }
   | FRAMETYPE EQUALS IP
-    { Pol.Hdr (dlType 0x800) }
+    { Pol.Hdr (dlTyp 0x800) }
   | FRAMETYPE EQUALS INT64
-    { Pol.Hdr (dlType (int16_of_int64 $3)) }
+    { Pol.Hdr (dlTyp (int16_of_int64 $3)) }
     
 
 pred_or :

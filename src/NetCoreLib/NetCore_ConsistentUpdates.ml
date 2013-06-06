@@ -5,7 +5,7 @@ open NetCore_Types
 let allPtrn = 
   { ptrnDlSrc = WildcardAll;
     ptrnDlDst = WildcardAll;
-    ptrnDlType = WildcardAll;
+    ptrnDlTyp = WildcardAll;
     ptrnDlVlan = WildcardAll;
     ptrnDlVlanPcp = WildcardAll;
     ptrnNwSrc = WildcardAll;

@@ -19,7 +19,7 @@ type lp = switchId * port * packet
 type ptrn = {
   ptrnDlSrc : dlAddr wildcard;
   ptrnDlDst : dlAddr wildcard;
-  ptrnDlType : dlTyp wildcard;
+  ptrnDlTyp : dlTyp wildcard;
   ptrnDlVlan : dlVlan wildcard;
   ptrnDlVlanPcp : dlVlanPcp wildcard;
   ptrnNwSrc : nwAddr wildcard;
@@ -98,7 +98,7 @@ type value =
 let all = {
   ptrnDlSrc = WildcardAll;
   ptrnDlDst = WildcardAll;
-  ptrnDlType = WildcardAll;
+  ptrnDlTyp = WildcardAll;
   ptrnDlVlan = WildcardAll;
   ptrnDlVlanPcp = WildcardAll;
   ptrnNwSrc = WildcardAll;
@@ -113,7 +113,7 @@ let all = {
 let empty = {
   ptrnDlSrc = WildcardNone;
   ptrnDlDst = WildcardNone;
-  ptrnDlType = WildcardNone;
+  ptrnDlTyp = WildcardNone;
   ptrnDlVlan = WildcardNone;
   ptrnDlVlanPcp = WildcardNone;
   ptrnNwSrc = WildcardNone;
@@ -134,8 +134,8 @@ let dlSrc mac =
 let dlDst mac =
   { all with ptrnDlDst = WildcardExact mac }
 
-let dlType typ =
-  { all with ptrnDlType = WildcardExact typ }
+let dlTyp typ =
+  { all with ptrnDlTyp = WildcardExact typ }
 
 let dlVlan vlan =
   { all with ptrnDlVlan = WildcardExact vlan }
@@ -145,28 +145,28 @@ let dlVlanPcp pcp =
 
 let ipSrc ip =
   { all with
-    ptrnDlType = WildcardExact 0x800;
+    ptrnDlTyp = WildcardExact 0x800;
     ptrnNwSrc = WildcardExact ip }
 
 let ipDst ip =
   { all with
-    ptrnDlType = WildcardExact 0x800;
+    ptrnDlTyp = WildcardExact 0x800;
     ptrnNwDst = WildcardExact ip }
 
 let ipProto proto =
   { all with
-    ptrnDlType = WildcardExact 0x800;
+    ptrnDlTyp = WildcardExact 0x800;
     ptrnNwProto = WildcardExact proto }
 
 let tpSrcPort proto tpPort =
   { all with
-    ptrnDlType = WildcardExact 0x800;
+    ptrnDlTyp = WildcardExact 0x800;
     ptrnNwProto = WildcardExact proto;
     ptrnTpSrc = WildcardExact tpPort }
 
 let tpDstPort proto tpPort =
   { all with
-    ptrnDlType = WildcardExact 0x800;
+    ptrnDlTyp = WildcardExact 0x800;
     ptrnNwProto = WildcardExact proto;
     ptrnTpDst = WildcardExact tpPort }
 

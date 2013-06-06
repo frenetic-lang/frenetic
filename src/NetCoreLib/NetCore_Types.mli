@@ -20,7 +20,7 @@ type lp = switchId * port * packet
 type ptrn = {
   ptrnDlSrc : dlAddr wildcard;
   ptrnDlDst : dlAddr wildcard;
-  ptrnDlType : dlTyp wildcard;
+  ptrnDlTyp : dlTyp wildcard;
   ptrnDlVlan : dlVlan wildcard;
   ptrnDlVlanPcp : dlVlanPcp wildcard;
   ptrnNwSrc : nwAddr wildcard;
@@ -34,7 +34,7 @@ type ptrn = {
 
 type 'a match_modify = ('a * 'a) option
 
-  (** Note that OpenFlow does not allow the [dlType] and [nwProto]
+  (** Note that OpenFlow does not allow the [dlTyp] and [nwProto]
       fields to be modified. *)
 type output = {
   outDlSrc : dlAddr match_modify;
@@ -97,7 +97,7 @@ val dlSrc : dlAddr -> ptrn
 
 val dlDst : dlAddr -> ptrn
   
-val dlType : dlTyp -> ptrn
+val dlTyp : dlTyp -> ptrn
   
 val dlVlan : dlVlan -> ptrn
   
