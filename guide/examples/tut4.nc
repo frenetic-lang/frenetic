@@ -38,8 +38,8 @@ let router =
 
 let monitored_network = 
     router 
-  + if switch = 2 && frameType = ip then monitorPackets("s2")
-  + if switch = 3 && frameType = ip then monitorPackets("s3")
+  + if switch = 2 && frameType = ip then monitorPackets("S2")
+  + if switch = 3 && frameType = ip then monitorPackets("S3")
 
 (*
 let monitored_network = 
