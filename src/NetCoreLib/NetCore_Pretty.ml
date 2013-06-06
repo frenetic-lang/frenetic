@@ -62,7 +62,7 @@ module Format = struct
   let action fmt action : unit = match action with
     | SwitchAction o -> output fmt o
     | ControllerAction _ -> fprintf fmt "controller"
-    | ControllerQuery (time, f) -> fprintf fmt "ControllerQuery %f" time
+    | ControllerQuery (time, f) -> fprintf fmt "controllerQuery %f" time
 
   let rec action_list fmt lst = match lst with
     | [] -> fprintf fmt "drop"
@@ -108,7 +108,7 @@ module Format = struct
     | _ -> apol fmt p
 
   and apol fmt p = match p with
-    | HandleSwitchEvent _ -> fprintf fmt "@[HandleSwitchEvent _@]"
+    | HandleSwitchEvent _ -> fprintf fmt "@[handleSwitchEvent _@]"
     | Action a -> fprintf fmt "@[%a@]" action_list a
     | Filter pr -> fprintf fmt "@[filter %a@]" pred pr
     | Union _
