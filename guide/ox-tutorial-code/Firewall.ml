@@ -1,16 +1,12 @@
-open OxStart
 open OpenFlow0x01_Core
 open OxPlatform
 
 module MyApplication = struct
 
-  include OxDefaults
+  include OxStart.DefaultTutorialHandlers
 
   let switch_connected (sw : switchId) : unit =
     Printf.printf "Switch %Ld connected.\n%!" sw
-      
-  let switch_disconnected (sw : switchId) : unit =
-    Printf.printf "Switch %Ld disconnected.\n%!" sw
 
   (* [FILL]: Match ICMP packets *)
   let is_icmp_packet (pk : Packet.packet) =
@@ -34,4 +30,4 @@ module MyApplication = struct
 
 end
 
-module Controller = Make (MyApplication)
+module Controller = OxStart.Make (MyApplication)

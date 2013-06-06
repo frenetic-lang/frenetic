@@ -115,7 +115,7 @@ in <code>guide/netcore-tutorial-code</code>.  Go there now.
 $ cd guide/netcore-tutorial-code
 ```
 
-### A First Example Program
+### Example 1: A Naive Repeater (Redux)
 
 In the [OxRepeater](02-OxRepeater.md) chapter, you learned how to program an
 efficient repeater by adding rules to the switch flow table.  Recall that a
@@ -155,6 +155,8 @@ will print the flow table generated for switch <code>1</code> from the
 with the side effect of printing the flow table.  Now, when you run the
 example, take a look at the flow table that the NetCore compiler creates for
 you and compare it to your flow table rules from the Ox tutorial.
+
+#### Run the Example
 
 Within the <code>netcore-tutorial-code</code> directory, you should
 find the repeater policy in <code>repeater.nc</code>.  To start the
@@ -207,10 +209,9 @@ see additional lines prefixed by the switch identifier, one line
 per switch.  Lines 3 and 4 describe the hosts <code>h1</code> 
 and <code>h2</code>.
 
-#### Testing Your Program
+#### Test the Example
 
-At the 
-mininet prompt, test your repeater program by pinging h2 from h1:
+At the mininet prompt, test your repeater program by pinging h2 from h1:
 ```
 mininet> h1 ping -c 1 h2
 ```
@@ -227,7 +228,8 @@ Ping h1 from h2 as well.
 Once you are convinced the repeater works,
 try replacing the given repeater with an even simpler one:
 ```
-let repeater = all
+let repeater = all in
+monitorTable(1, repeater)
 ```
 The <code>all</code> policy forwards any packet arriving at a switch out
 all ports on that switch except the port it arrived on.  Try testing
@@ -236,7 +238,70 @@ that out too to see if you have done it correctly.
 The opposite of the <code>all</code> policy is the <code>drop</code> policy,
 which drops all packets on the floor.  
 
-### Programming Exercise
+### Exercise 1: Firewall
+
+In the [OxFirewall](03-OxFirewall.md) chapter, you developed a firewall to
+block ICMP traffic.  Most networks impose other restrictions on the type of
+traffic that hosts are allowed to send.  The following table describes the type
+of traffic that each host in a five-host network can send:
+
+<table>
+  <TR> 
+    <TH>Host</TH> <TH>Host Description</TH> 
+    <TH>frameType</TH> <TH>ipProtocolType</TH> <TH>tcpDstPort</TH> 
+  </TR>
+  <TR> 
+    <TD>H1</TD> <TD>Network tap: receives traffic.</TD>
+    <TD>arp</TD> <TD></TD> <TD></TD>           
+  </TR>
+  <TR> 
+    <TD>H2</TD> <TD>Admin.</TD>
+    <TD>*</TD> <TD>*</TD> <TD>*</TD>           
+  </TR>
+  <TR> 
+    <TD>H3</TD> <TD>User: web traffic.</TD>
+    <TD>arp, ip</TD> <TD>ipv4</TD> <TD>80</TD>          
+  </TR>
+  <TR> 
+    <TD>H4</TD> <TD>User: web traffic.</TD>
+    <TD>arp, ip</TD> <TD>ipv4</TD> <TD>80</TD>          
+  </TR>
+  <TR> 
+    <TD>H5</TD> <TD>Power user: web traffic, ssh, and ping.</TD>
+    <TD>arp, ip</TD> <TD>icmp, ipv4</TD> <TD>22, 80</TD>           
+  </TR>
+</table>
+
+For example, H4 is allowed to send ARP and web traffic, whereas H5 can ping, as
+well as send ARP, web, and SSH traffic.  H1 is a network tap: it can send ARP
+traffic to advertise its location, but otherwise receives and logs diagnostic
+traffic directed to it.
+
+#### Programming Task
+
+Write a NetCore policy for a network with a single switch and five hosts,
+connected to ports 1-5 respectively, that enforces the restrictions in the
+table above.  Assume that any traffic that meeting the criteria may be
+broadcast (i.e. using the <code>all</code> policy).
+
+*TODO: make this link work.*
+
+Use [Firewall.nc](netcore-tutorial-code/Firewall.nc) as a starting point.
+
+#### Testing your Controller
+
+To run your controller, navigate to the <code>netcore-tutorial-code</code>
+directory and type:
+```
+frenetic Firewall.nc
+```
+
+In another terminal, start a mininet instance with five hosts:
+```
+sudo mn --controller=remote --topo=single,5
+```
+
+Use <code>ping</code> and <code>iperf</code> to test your firewall.
 
 In this exercise, we will be designing a NetCore policy for handling
 traffic on the switch created when you run the following
