@@ -12,7 +12,10 @@ module type OXMODULE = sig
   val stats_reply : switchId -> xid -> StatsReply.t -> unit
 end
 
-module OxDefaults = struct
+module DefaultTutorialHandlers = struct
+
+  let switch_disconnected (sw : switchId) : unit =
+    Printf.printf "Switch %Ld disconnected.\n%!" sw
 
   let barrier_reply _ _ = ()
 

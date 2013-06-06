@@ -4,7 +4,7 @@ open OxPlatform
 
 module MyApplication : OXMODULE = struct
 
-  include OxDefaults
+  include DefaultTutorialHandlers
 
   let switch_connected (sw : switchId) : unit =
     Printf.printf "[Main] Switch %Ld connected.\n%!" sw

@@ -7,14 +7,11 @@ open OxPlatform
    function works correctly. *)
 module MyApplication : OXMODULE = struct
 
-  include OxDefaults
+  include DefaultTutorialHandlers
 
   let switch_connected (sw : switchId) : unit =
     Printf.printf "Switch %Ld connected.\n%!" sw
       
-  let switch_disconnected (sw : switchId) : unit =
-    Printf.printf "Switch %Ld disconnected.\n%!" sw
-
   (* [FILL IN HERE]: Send the packet out of all ports, but block ICMP *)
   let packet_in (sw : switchId) (xid : xid) (pktIn : packetIn) : unit =
     let payload = pktIn.input_payload in

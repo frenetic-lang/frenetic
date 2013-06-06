@@ -7,6 +7,8 @@ module Stats = OpenFlow0x01_Stats
    in the flow table. This is not complete! But, an intermediate point. *)
 module MyApplication : OXMODULE = struct
 
+  include DefaultTutorialHandlers
+
   let match_icmp = 
     { dlSrc = None; dlDst = None; dlTyp = Some 0x800; dlVlan = None;
       dlVlanPcp = None; nwSrc = None; nwDst = None; nwProto = Some 1;
@@ -50,9 +52,6 @@ module MyApplication : OXMODULE = struct
     send_flow_mod sw 1l
       (add_flow 197 match_all [Output AllPorts])
       
-  let switch_disconnected (sw : switchId) : unit =
-    Printf.printf "Switch %Ld disconnected.\n%!" sw
-
   let num_http_packets = ref 0
 
   let is_http_packet (pk : Packet.packet) : bool = 
@@ -81,9 +80,6 @@ module MyApplication : OXMODULE = struct
           port_id = None;
           apply_actions = [Output AllPorts]
         }
-
-  let barrier_reply (sw : switchId) (xid : xid) : unit =
-    ()
 
   let stats_reply (sw : switchId) (xid : xid) (stats : Stats.reply) : unit =
     Printf.printf "Received a StatsReply from switch %Ld:\n%s\n%!"

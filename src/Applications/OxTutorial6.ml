@@ -7,6 +7,8 @@ module Stats = OpenFlow0x01_Stats
    in the flow table. This finishes OxTutoria6. *)
 module MyApplication : OXMODULE = struct
 
+  include DefaultTutorialHandlers
+
   let match_icmp = 
     { dlSrc = None; dlDst = None; dlTyp = Some 0x800; dlVlan = None;
       dlVlanPcp = None; nwSrc = None; nwDst = None; nwProto = Some 1;
@@ -48,9 +50,6 @@ module MyApplication : OXMODULE = struct
     send_flow_mod sw 1l
       (add_flow 197 match_all [Output AllPorts])
       
-  let switch_disconnected (sw : switchId) : unit =
-    Printf.printf "Switch %Ld disconnected.\n%!" sw
-
   let num_http_request_packets = ref 0L
   let num_http_response_packets = ref 0L
 
@@ -85,8 +84,6 @@ module MyApplication : OXMODULE = struct
           apply_actions = [Output AllPorts]
         }
 
-  let barrier_reply (sw : switchId) (xid : xid) : unit =
-    ()
 
   (* TODO(arjun): this has to become simpler, even if we give it to
      students. *)

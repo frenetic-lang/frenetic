@@ -6,16 +6,13 @@ open OxPlatform
    a flow table to implement a repeater efficiently. *)
 module MyApplication : OXMODULE = struct
 
-  include OxDefaults
+  include DefaultTutorialHandlers
 
   (* [FILL HERE] When a switch connects, add a rule to its flow table
      to make it behave as a repeater. *)
   let switch_connected (sw : switchId) : unit =
     Printf.printf "Switch %Ld connected.\n%!" sw;
     send_flow_mod sw 1l (add_flow 200 match_all [Output AllPorts])
-
-  let switch_disconnected (sw : switchId) : unit =
-    Printf.printf "Switch %Ld disconnected.\n%!" sw
 
   let packet_in (sw : switchId) (xid : xid) (pk : packetIn) : unit =
     send_packet_out sw 0l

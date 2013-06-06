@@ -7,7 +7,7 @@ open OpenFlow0x01_Core
    a switch. *)
 module MyApplication : OXMODULE = struct
 
-  include OxDefaults
+  include DefaultTutorialHandlers
 
   (* [FILL IN HERE]: write a match rule to match ICMP traffic. *)
   let match_icmp = 
@@ -23,9 +23,6 @@ module MyApplication : OXMODULE = struct
     send_flow_mod sw 1l
       (add_flow 199 match_all [Output AllPorts])
       
-  let switch_disconnected (sw : switchId) : unit =
-    Printf.printf "Switch %Ld disconnected.\n%!" sw
-
   (* [FILL IN HERE]: Use exactly the same packet_in function you wrote from
      OxTutorial2.  *)
   let packet_in (sw : switchId) (xid : xid) (pktIn : packetIn) : unit =

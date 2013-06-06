@@ -4,7 +4,7 @@ open OpenFlow0x01_Core
 
 module MyApplication : OXMODULE = struct
     
-  include OxDefaults
+  include DefaultTutorialHandlers
     
   let switch_connected sw = ()
 
