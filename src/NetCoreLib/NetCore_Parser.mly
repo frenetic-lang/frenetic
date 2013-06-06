@@ -4,6 +4,13 @@
  open NetCore_SurfaceSyntax
  module Action = NetCore_Action.Output
 
+ let int8_of_int64 (n : Int64.t) : int =
+   if Int64.compare n Int64.zero >= 0 && 
+     Int64.compare n (Int64.of_int 0xFF) <= 0 then
+     Int64.to_int n
+   else
+     raise Parsing.Parse_error
+
  let int12_of_int64 (n : Int64.t) : int =
    if Int64.compare n Int64.zero >= 0 && 
      Int64.compare n (Int64.of_int 0xFFF) <= 0 then
@@ -75,8 +82,11 @@
 %token PASS
 %token DROP
 %token FRAMETYPE
+%token PROTOCOLTYPE
 %token ARP
 %token IP
+%token ICMP
+%token IPV4
 %token MONITOR_POL
 %token MONITOR_TBL
 %token MONITOR_LOAD
@@ -125,6 +135,12 @@ pred_atom :
     { Pol.Hdr (dlTyp 0x800) }
   | FRAMETYPE EQUALS INT64
     { Pol.Hdr (dlTyp (int16_of_int64 $3)) }
+  | PROTOCOLTYPE EQUALS ICMP
+    { Pol.Hdr (ipProto 1) }
+  | PROTOCOLTYPE EQUALS IPV4
+    { Pol.Hdr (ipProto 4) }
+  | PROTOCOLTYPE EQUALS INT64
+    { Pol.Hdr (ipProto (int8_of_int64 $3)) }
     
 
 pred_or :

@@ -71,11 +71,14 @@ and token = parse
   | "dstMAC" { DSTMAC }
   | "srcIP" { SRCIP }
   | "dstIP" { DSTIP }
+  | "ipProtocolType" { PROTOCOLTYPE }
   | "tcpSrcPort" { TCPSRCPORT }
   | "tcpDstPort" { TCPDSTPORT }
   | "frameType" { FRAMETYPE }
   | "arp" { ARP }
   | "ip" { IP }
+  | "icmp" { ICMP }
+  | "ipv4" { IPV4 }
   | "inPort" { INPORT }
   | "&&" { AND }
   | "||" { OR }
