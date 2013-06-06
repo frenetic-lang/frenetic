@@ -62,8 +62,8 @@ In addition, a network is a distributed system, and all of the usual complicatio
 
 The goal of the Frenetic language is to raise the level of abstraction for programming SDNs. To replace the low-level imperative interfaces available today, Frenetic offers a suite of declarative abstractions for querying network state, deﬁning forwarding policies, and updating policies in a consistent way.  These constructs are designed to be *modular* so that individual policies can be written in isolation, by different developers and later composed with other components to create sophisticated policies. This is made possible in part by the design of the constructs themselves, and in part by the underlying run-time system, which implements them by compiling them down to low-level OpenFlow forwarding rules.  Our emphasis on modularity and composition—the foundational principles behind effective design of any complex software system—is the key feature that distinguishes Frenetic from other SDN controllers.
 
-Preliminary NetCore Programming Concepts
------------------------------------------
+Chapter 1: Introducing NetCore
+==============================
 
 A NetCore policy describes how a collection of switches
 forwards packets from one location to another.  We call a NetCore policy
@@ -76,16 +76,16 @@ The NetCore programming paradigm encourages users to think of static
 policies as abstract *functions* that specify the behavior of switches
 and to ignore how these functions are actually implemented on switch 
 hardware --- our compiler will take
-care of the implementation for you.
-Conceptually, such static policies process *located packets* --- i.e.,
+care of the implementation for you.  Conceptually, such static 
+policies process *located packets* --- i.e.,
 records with one field for each OpenFlow-supported packet header
 (<code>srcMac</code>, <code>dstMac</code>, <code>srcIP</code>, etc.) as well as
 one field denoting the current switch processing the packet and
 another field denoting the inPort the packet arrived at.
 More specifically, each policy is a function
 that takes a single located packet as an input (the packet to
-be forwarded) and generates a *multi-set* of new located packets.
-(A multi-set is simply a set that can contain multiple, identical
+be forwarded) and generates a *multi-set* of new located 
+packets.  (A multi-set is simply a set that can contain multiple, identical
 elements.  When one takes the union of two multi-sets that both
 contain the element x, the resulting multi-set has two occurrences
 of the element x.)  In the rest of the tutorial, we will often 
@@ -113,34 +113,31 @@ And then apply the topology function T again.
 
 In summary, one traces the flow of
 packets through a network by alternately applying the policy function
-P and the topology function T.
-Static NetCore is just a domain-specific
+P and the topology function T. Static NetCore is just a domain-specific
 language that makes it easy to write down a single policy function
-P that determines how switches forward packets.
-
-Introductory Examples
----------------------
-
-The main features of Static NetCore include the following.
+P that determines how switches forward packets. The main features of 
+Static NetCore include the following.
 
   - a set of primitive *actions*, which allow programmers to modify and 
-forward packets
+forward packets,
   - *conditional statements*, which allow programmers to perform 
-different actions on different kinds of packets
+different actions on different kinds of packets,
   - *sequencing*, which allows programmers to perform a series of
-transformations on a packet, and
+transformations on a packet,
   - *parallel composition*, which allows programmers to make a logical copy
 of a packet and thereby to generate more than one result from their
-policy --- perhaps forwarding the packet to two different locations.
+policy --- perhaps forwarding the packet to two different locations, and
+  - *queries*, which allow programmers to inspect
 
 We will illustrate each of these features through a series of examples.
 You will find the examples in the frenetic repository 
-in <code>guide/examples</code>.  Go there now.
+in <code>guide/netcore-tutorial-code</code>.  Go there now.
 ```
-$ cd guide/examples
+$ cd guide/netcore-tutorial-code
 ```
 
-### Example 1: A Repeater
+A First Example Program
+-----------------------
 
 To begin, consider a network with just one switch.  Assume that switch 
 has two ports, numbered 1 and 2.  Our first goal will be to program
@@ -162,21 +159,20 @@ fields, such as the <code>srcIP</code>, <code>dstIP</code> or
 conjunctions (<code>&&</code>), disjunctions
 (<code>||</code>) and negation (<code>!</code>) of other conditions.
 See the [manual](link...) for the complete list of predicates. 
-
-Now, let's test the program to see what it does.  
-You should be in <code>guide/examples</code>.
-First, create an alias to the compiler:
-*TODO: This should be done differently*
 ```
-$ alias frenetic='../../src/Frenetic.d.byte'
+Within the <code>netcore-tutorial-code</code> directory, you should
+find the repeater policy in <code>repeater.nc</code>.  To start the
+repeater controller, just type:
 ```
-Next, start the <code>tut1.nc</code> example.
+$ frenetic repeater.nc
 ```
-$ frenetic tut1.nc
-```
-In a separate terminal, start up mininet:
+Now, in a separate terminal, start up mininet with the default, single
+switch topology.
 ```
 $ sudo mn --controller=remote
+```
+You should see the following trace as mininet boots up.
+```
 *** Creating network
 *** Adding controller
 *** Adding hosts:
@@ -194,7 +190,31 @@ s1
 mininet> 
 ```
 Mininet has started up a single switch with two hosts <code>h1</code> 
-and <code>h2</code>, connected to the two ports on the switch.  At the 
+and <code>h2</code>, connected to the two ports on the switch.  
+If you ever want to know more about the topology, you can type
+```
+mininet> net
+```
+You should see the following.
+```
+c0
+s1 lo:  s1-eth1:h1-eth0 s1-eth2:h2-eth0
+h1 h1-eth0:s1-eth1
+h2 h2-eth0:s1-eth2
+```
+Line 1 tells you there is a controller (<code>c0</code>) running.  Line 2
+describes the ports on switch <code>s1</code>.  In particular, 
+switch 1 port 1 (<code>s1-eth1</code>) is connected to host h1.
+Likewise, switch 1 port 2 (<code>s1-eth2</code>) is connected to 
+host h2. If there was more than one switch in the network, we would
+see additional lines prefixed by the switch identifier, one line
+per switch.  Lines 3 and 4 describe the hosts <code>h1</code> 
+and <code>h2</code>.
+
+Testing Your Program
+--------------------
+
+At the 
 mininet prompt, test your repeater program by pinging h2 from h1:
 ```
 mininet> h1 ping -c 1 h2
@@ -208,18 +228,42 @@ PING 10.0.0.2 (10.0.0.2) 56(84) bytes of data.
 1 packets transmitted, 1 received, 0% packet loss, time 0ms
 rtt min/avg/max/mdev = 0.216/0.216/0.216/0.000 ms
 ```
-Ping h1 from h2 as well.  Once you are convinced the repeater works,
+Ping h1 from h2 as well.
+Once you are convinced the repeater works,
 try replacing the given repeater with an even simpler one:
 ```
 let repeater = all
 ```
 The <code>all</code> policy forwards any packet arriving at a switch out
-all ports on that switch except the port it arrived on.  The "opposite"
-of the <code>all</code> policy is the <code>drop</code> policy,
-which drops all packets on the floor.  How would you create a policy that 
-acts like a firewall, dropping certain packets and forwarding others?
+all ports on that switch except the port it arrived on.  Try testing
+that out too to see if you have done it correctly.
 
-### Example 2: Simple Port Translation
+The opposite of the <code>all</code> policy is the <code>drop</code> policy,
+which drops all packets on the floor.  
+
+Programming Exercise
+--------------------
+
+In this exercise, we will be designing a NetCore policy for handling
+traffic on the switch created when you run the following
+command to start up mininet:
+```
+$ sudo mn --controller=remote --topo=single,5
+```
+First, inside mininet, use <code>net</code> to determine the 
+mininet topology that has been created.
+
+Next, create a new file called <code>switch.nc</code>.  Design
+a policy that allows the even-numbered hosts to talk to one another
+and the odd-numbered hosts to talk to one another, but does not
+allow even to talk to odd or vice versa.  Test the correctness
+of your policy.  You can find a solution in <code>switch_sol.nc</code>.
+
+*TODO: We could create our own topology that puts different hosts
+on different links to make figuring out the topology more interesting.*
+
+Chapter 2: Sequential Composition
+=================================
 
 Next, let's adapt our first example so that instead of simply acting
 as a repeater, our switch does some packet rewriting.  More specifically,
