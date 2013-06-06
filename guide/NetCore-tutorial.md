@@ -610,10 +610,10 @@ Flow table at switch 1 is:
 ```
 
 Let's break it down, rule by rule:
-* (rule 1): drops SSH traffic from H1.
-* (rule 2): drops SSH traffic.
-* (rule 3): forwards traffic from H1.
-* (rule 4): forwards all other traffic.
+* **Rule 1**: drop SSH traffic from H1.
+* **Rule 2**: drop SSH traffic.
+* **Rule 3**: forward traffic from H1.
+* **Rule 4**: forward all other traffic.
 
 Why so many rules?  OpenFlow switches can only count packets as they match a
 rule.  Rule 1, for example, is necessary to precisely count traffic from H1.
