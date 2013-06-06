@@ -408,8 +408,8 @@ tcpDstPort 5022 -> 22
 ```
 rewrites the <code>tcpDstPort</code> of packets from 5022 to 22.
 
-Now policies can mix modification and forwarding actions, but we need a way to
-take the output of one policy and funnel it into the next.  For this, we use
+Now, policies can mix modification and forwarding actions, but we need a way to
+pipe the output of one policy into the next.  For this, we use
 the *sequential composition* operator (<code>;</code>).  For instance,
 ```
 tcpDstPort 5022 -> 22; fwd(1)
@@ -495,30 +495,26 @@ mininet> h1 ping -c 1 h2
 Composing Queries
 -----------------
 
-When developing more complex policies, it is very useful to be able
-peer in to the middle of the network to take a look at what is going
-on.  Hence, NetCore supports several kinds of queries that can help you
-understand and debug the behavior of your network.  As an example,
-the <code>monitorPackets( label )</code> policy sends every input packet
-it receives to the controller as opposed to forwarding it along a
-network data path (like the <code>fwd(port)</code> policy does).
-At the controller, the packet is printed with the string <code>label</code> 
-as a prefix and then discarded.
+When developing more complex policies, it is very useful to peer into the
+middle of the network.  Hence, NetCore supports several kinds of queries that
+can help you understand and debug the behavior of your network.  As an example,
+the <code>monitorPackets( label )</code> policy sends every input packet it
+receives to the controller as opposed to forwarding it along a network data
+path (like the <code>fwd(port)</code> policy does).  At the controller, the
+packet is printed with the string <code>label</code> as a prefix and then
+discarded.
 
-Interestingly, when one monitors a network, one does so *in parallel*
-with some standard forwarding policy; one would like the packets
-to go *two* places:  the controller, for inspection, and to whatever
-else they are otherwise destined.  To support this kind of idiom,
-we must introduce a new kind of operator on policies:  
+Interestingly, when one monitors a network, one does so *in parallel* with some
+standard forwarding policy; one would like the packets to go *two* places:  the
+controller, for inspection, and wherever they may be destined in the network.
+To support this idiom, we must introduce a new kind of operator on policies:
 *parallel composition*.  Intuitively, when supplied with a packet
-<code>p</code> as input, the parallel composition 
-<code>P1 + P2</code> applies <code>P1</code> to <code>p</code>
-and also applies <code>P2</code> to <code>p</code>.  
-Overall, it generates 
-the *union* of the results from <code>P1</code> and <code>P2</code>.  Hence, 
-if <code>P1</code> forwards to A
-and <code>P1</code> forwards to B then <code>P1 + P2</code> makes
-a copy of the input packet and forwards to both A and B.
+<code>p</code> as input, the parallel composition <code>P1 + P2</code> applies
+<code>P1</code> to <code>p</code> and also applies <code>P2</code> to
+<code>p</code>.  Overall, it generates the *union* of the results from
+<code>P1</code> and <code>P2</code>.  Hence, if <code>P1</code> forwards to A
+and <code>P1</code> forwards to B then <code>P1 + P2</code> makes a copy of the
+input packet and forwards to both A and B.
 
 With this in mind, let's modify the port mapper to inspect the
 packets both before and after the rewriting.  To do so, we can
