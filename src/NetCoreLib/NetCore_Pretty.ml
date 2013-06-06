@@ -28,18 +28,18 @@ module Format = struct
     else 
       format_list fmt " && "
         (List.filter (fun x -> not (x = "")) 
-	         [ to_string_exact Packet.string_of_mac "srcmac" pat.ptrnDlSrc;
-             to_string_exact Packet.string_of_mac "dstmac" pat.ptrnDlDst;
-             to_string_exact string_of_int "frameType " pat.ptrnDlType;
-             to_string_exact Packet.string_of_dlVlan "vlan" pat.ptrnDlVlan;
-             to_string_exact string_of_int "dlVlanPcp" pat.ptrnDlVlanPcp;
-             to_string_exact Packet.string_of_ip "srcip" pat.ptrnNwSrc;
-             to_string_exact Packet.string_of_ip "dstip" pat.ptrnNwDst;
-             to_string_exact string_of_int "nwProto" pat.ptrnNwProto;
-             to_string_exact string_of_int "nwTos" pat.ptrnNwTos;
-             to_string_exact string_of_int "tcpsrcport" pat.ptrnTpSrc;
-             to_string_exact string_of_int "tcpdstport" pat.ptrnTpDst;
-             to_string_exact string_of_port "inPort" pat.ptrnInPort ])
+	      [ to_string_exact Packet.string_of_mac "srcMac" pat.ptrnDlSrc;
+          to_string_exact Packet.string_of_mac "dstMac" pat.ptrnDlDst;
+          to_string_exact Packet.string_of_dlTyp "frameType " pat.ptrnDlType;
+          to_string_exact Packet.string_of_dlVlan "vlan" pat.ptrnDlVlan;
+          to_string_exact string_of_int "dlVlanPcp" pat.ptrnDlVlanPcp;
+          to_string_exact Packet.string_of_ip "srcIp" pat.ptrnNwSrc;
+          to_string_exact Packet.string_of_ip "dstIp" pat.ptrnNwDst;
+          to_string_exact string_of_int "nwProto" pat.ptrnNwProto;
+          to_string_exact string_of_int "nwTos" pat.ptrnNwTos;
+          to_string_exact string_of_int "tcpSrcPort" pat.ptrnTpSrc;
+          to_string_exact string_of_int "tcpDstPort" pat.ptrnTpDst;
+          to_string_exact string_of_port "inPort" pat.ptrnInPort ])
 
   let match_modify pr lbl fmt mm = match mm with
     | None -> ()
