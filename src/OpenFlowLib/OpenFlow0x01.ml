@@ -1569,7 +1569,7 @@ module Error = struct
       | Some OFPHFC_INCOMPATIBLE -> Incompatible
       | Some OFPHFC_EPERM -> Eperm
       | None ->
-        let msg = "NYI: ofp_hello_failed_code in error" in
+        let msg = sprintf "bad ofp_hello_failed_code in error (%d)" error_code in
         raise (Unparsable msg)
 
     let to_string e = match e with
@@ -1615,7 +1615,7 @@ module Error = struct
       | Some OFPBRC_BUFFER_EMPTY -> BufferEmpty
       | Some OFPBRC_BUFFER_UNKNOWN -> BufferUnknown
       | None ->
-        let msg = "NYI: ofp_bad_request_code in error" in
+        let msg = sprintf "bad ofp_bad_request_code in error (%d)" error_code in
               raise (Unparsable msg)
 
     let to_string r = match r with
@@ -1668,7 +1668,7 @@ module Error = struct
       | Some OFPBAC_TOO_MANY -> TooMany
       | Some OFPBAC_BAD_QUEUE -> BadQueue
       | None ->
-        let msg = "NYI: ofp_bad_action_code in error" in
+        let msg = sprintf "bad ofp_bad_action_code in error (%d)" error_code in
               raise (Unparsable msg)
 
     let to_string a = match a with
@@ -1712,7 +1712,7 @@ module Error = struct
       | Some OFPFMFC_BAD_COMMAND -> BadCommand
       | Some OFPFMFC_UNSUPPORTED -> Unsupported
       | None ->
-        let msg = "NYI: ofp_flow_mod_failed_code in error" in
+        let msg = sprintf "bad ofp_flow_mod_failed_code in error (%d)" error_code in
               raise (Unparsable msg)
 
     let to_string f = match f with
@@ -1741,7 +1741,7 @@ module Error = struct
       | Some OFPPMFC_BAD_PORT -> BadPort
       | Some OFPPMFC_BAD_HW_ADDR -> BadHwAddr
       | None ->
-        let msg = "NYI: ofp_port_mod_failed_code in error" in
+        let msg = sprintf "bad ofp_port_mod_failed_code in error (%d)" error_code in
               raise (Unparsable msg)
 
     let to_string = function
@@ -1769,7 +1769,7 @@ module Error = struct
       | Some OFPQOFC_BAD_QUEUE -> BadQueue
       | Some OFPQOFC_EPERM -> Eperm
       | None ->
-        let msg = "NYI: ofp_queue_op_failed_code in error" in
+        let msg = sprintf "bad ofp_queue_op_failed_code in error (%d)" error_code in
               raise (Unparsable msg)
 
     let to_string = function
