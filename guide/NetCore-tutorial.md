@@ -576,15 +576,14 @@ iperf for <code>20</code> seconds.
 mininet> h1 iperf -c 10.0.0.2 -p 5022 -t 20
 ```
 
-Programming Exercise: Implementing a Multi-Switch Network
----------------------------------------------------------
+Programming Exercise: A Multi-Switch Network
+---------------------------------------------
 
 In this exercise, you will explore how to construct a policy for
 a multi-switch network using the composition operators discussed
 in this chapter.  You should also practice using queries to help
-debug
-Consider a network with 3 switches, and one host attached to each
-switch: *TODO: draw a better picture*
+debug your program.  The network under consideration has 3 switches, 
+and one host attached to each switch: *TODO: draw a better picture*
 ```
     h1        h2        h3
     |         |         |
@@ -596,200 +595,49 @@ You can start such a network when you boot up mininet:
 ```
 $ sudo mn --controller=remote --topo=linear,3
 ```
-In this network, our goal is to flood arp packets sent over
-the network and to route IP packets directly.  We'll write the
-policy by breaking it in to pieces, starting with the components
-that handle IP routing on a switch-by-switch basis.  In what
-follows, we will use conditional <code>if pred then P</code> statements with 
-no <code>else</code> branch.  Such statements apply <code>P</code> to all 
-packets that satisfy <code>pred</code> and <code>drop</code> all others.
-```
-let s1 =
-  if switch = 1 then 
-    if dstIP = 10.0.0.1 then fwd(1)
-    else fwd(2)
+Your goals are to implement a policy that performs the following
+actions:
+  - broadcast all arp packets to all hosts
+  - route other packets to the correct host according to their destination 
+IP address.  Host h1 has IP address 10.0.0.1, host h2 has
+IP address 10.0.0.2 and host h3 has IP address 10.0.0.3.
+  - prevent host h2 from contacting h3's web server.  In other words,
+drop all packets from source IP 10.0.0.2 destined for source
+IP 10.0.0.3 on tcp port 80 (web).
 
-let s2 =
-  if switch = 2 then 
-    if dstIP = 10.0.0.1 then fwd(2)
-    else if dstIP = 10.0.0.2 then fwd(1)
-    else fwd(3)
-   
-let s3 =
-  if (switch = 3) then 
-    if dstIP = 10.0.0.1 || dstIP = 10.0.0.2 then fwd(2)
-    else fwd(1)
-```
-Next, we define the main policy, which broadcasts arp traffic and
-combine the three components defined above to forward IP traffic:
-```
-let router =
-  if frameType = arp then all
-  else s1 + s2 + s3
-```
-Here, <code>s1 + s2 + s3</code> represents the *parallel composition* of 
-three policies. In other words, we execute all three policies simultaneously
-on each packet without preference for one policy over another.  In this
-specific case, if one policy (say s2) forwards the packet then the other
-two will drop it (s1 and s3) because each policy handles a disjoint set
-of packets (each handles the packets arriving at its respective switch).
-This turns out to be what we want in this case, but it is perfectly
-legal for multiple policies in a parallel composition to do something
-interesting with a packet.  NetCore will ensure all actions are executed.
-We will see this sort of composition in the next example.
+Moreover, the goal is to design the policy in a modular fashion.
+To that end, we have provided you with a template to start from in
+<code>Multi_Switch.nc</code>.  The template defines independent components
+that should implement IP routing for switches s1, s2, and s3.  There is
+also a component for defining a firewall policy.  After defining the
+individual components, assemble them using the appropriate
+composition operators.
 
-To try out this policy, fire up mininet with the linear 3-switch topology:
+To test your policy, fire up mininet with the linear 3-switch topology:
 ```
 $ sudo mn --controller=remote --topo=linear,3
 ```
-Then start the <code>tut3.nc</code> program:
+Then start your <code>Multi_Switch.nc</code> program:
 ```
 $ frenetic tut3.nc
 ```
-In mininet, try starting a simple web server on host h3:
+In mininet, start a web server on host h3:
 ```
-mininet> h3 python -m SimpleHTTPServer 80 &
+mininet> h3 python -m SimpleHTTPServer 80 . &
 ```
-And check that you can fetch content from the server at h3 from h1:
+Check that you can fetch content from the server at h3 from h1:
 ```
 mininet> h1 wget -O - h3
 ```
-Anything interesting on h3?
+But not from h2:
+```
+mininet> h2 wget -O - h3
+```
+Ensure that you are correctly forwarding other traffic 
+by using ping or iperf.
 
-### Example 4: Queries and Debugging
-
-Let's continue with example 3, but assume we were asleep when coding
-and forgot to include the proper forwarding policy (s2) for switch 2.
-Hence our router looks like this:
-```
-let router =
-  if frameType = arp then all
-  else s1 + s3  (* missing s2 *)
-```
-When we boot up the example, and try to ping h3 from h1, we are
-unable to connect:
-```
-mininet> h1 ping -c 1 h3
-PING 10.0.0.3 (10.0.0.3) 56(84) bytes of data.
-From 10.0.0.1 icmp_seq=1 Destination Host Unreachable
-
---- 10.0.0.3 ping statistics ---
-1 packets transmitted, 0 received, +1 errors, 100% packet loss, time 0ms
-```
-One good method to track down bugs in NetCore programs is
-using wireshark.  However, another technique is to embed *queries*
-in to NetCore programs themselves.  <code>monitorPackets( label )</code>
-is a policy that sends all packets it receives to the controller,
-as opposed to forwarding them along a data path.  The controller 
-prints the packets to terminal prefixed by the 
-string <code>label</code>.  
-
-Typically, when one monitors a network, one does so *in parallel*
-with some standard forwarding policy; one would like the packets
-to go *two* places:  the controller, for inspection, and to whatever
-else they are otherwise destined.  For instance, if we 
-augment the broken variant of example 3 with several monitoring
-clauses, composed in parallel with our router,
-we can begin to diagnose the problem.  Notice also that we use
-<code>if</code>-<code>then</code> statements to limit the packets
-that reach the monitor policy --- the monitor policy
-prints *all* packets that reach it.
-```
-let monitored_network = 
-    router 
-  + if switch = 2 && frameType = ip then monitorPackets("S2")
-  + if switch = 3 && frameType = ip then monitorPackets("S3")
-```
-To see what happens, start up a controller running <code>tut4.nc</code>
-```
-$ frenetic tut4.nc
-```
-Now, inside mininet, ping host h3 from h1:
-```
-mininet> h1 ping -c 1 h3
-```
-In then controller terminal, you should see a packet 
-arrive at switch 2, but no packets arrive at switch 3.
-```
-[s2] packet dlSrc=6a:a7:14:74:c8:95,dlDst=6a:aa:1c:52:e6:8f,nwSrc=10.0.0.1,nwDst=10.0.0.3,ICMP echo response on switch 2 port 2
-```
-Something must go wrong between the entry to switch 2 and the entry to switch 3!
-
-Now, fix the policy by adding the s2 component back in to the 
-<code>router</code> policy and try ping
-again.  Note the differences.
-
-If we are not interested in examining individual packets, but
-instead are interested in monitoring the aggregate load at 
-different places in the network,
-we could use the <code>monitorLoad( n , label )</code> policy.  
-This policy prints the number of packets and the number of 
-bytes it receives every <code>n</code> seconds.  Again, each output
-line is labelled with <code>label</code>, and
-again, we can restrict the packets monitored by 
-<code>monitorLoad</code> using a <code>if</code>-<code>then</code> clause.
-For instance,
-modifying <code>tut4.nc</code> to measure the load of non-arp traffic
-on switch 3 every 5 seconds involves adding the following definition.
-```
-let monitored_network = 
-  router + if switch=3 then monitorLoad(5, "LOAD")
-```
-To test the monitor, try using ping again.  Watch
-the controller terminal to see how many packets cross switch 3.
-
-### Exercises
-
-In these exercises, we will experiment with a tree-shaped network of
-3 switches and 4 hosts in the following configuration.
-*TODO: better picture*
-```
-        (s1)
-        1  2
-       /    \
-      3      3
-  (s2)       (s3)
-  1  2       1  2
- /    \     /    \
-h1     h2  h3    h4
-```
-You can start up mininet in this configuration as follows.
-```
-$ sudo mn --controller=remote --mac --topo=tree,depth=2,fanout=2
-```
-Remember that the IP addresses of hosts h1, h2, h3, and h4 are
-10.0.0.1, 10.0.0.2, 10.0.0.3 and 10.0.0.4, and the MAC addresses
-are 1, 2, 3, and 4.
-
-1.  Write the simplest possible policy that will allow any host to
-send messages to any other.
-
-2.  Set up a web server on host h4 and fetch a web page from h3.
-How many arp packets (<code>frameType = arp</code>) reach switch s2?  How many 
-IP packets (<code>frameType = ip</code>) reach switch s2?
-
-3.  Refine your policy so that arp packets are broadcast to all hosts
-but ip packets are forwarded only to their destination.
-
-4.  Construct a network that forwards like the network defined in part 3
-but also implements a firewall specified as follows.
-  - Machines 30 and 40 are *trusted* machines.
-  - Machines 10 and 20 are *untrusted* machines.
-  - Set up a web server on each machine (TCP port 80).
-  - Machines 30 and 40 have private files that may not be read by untrusted machines using HTTP.
-  - Machines 10 and 20 have public files that may be read by any machine.
-  - All traffic not explicitly prohibited must be allowed to pass through the network.
-
-Solutions may be found in the guide/examples directory in 
-files <code>sol1-1.nc</code>, <code>sol1-2.nc</code>, <code>sol1-3.nc</code>, 
-<code>sol1-4.nc</code>.
-
-*TODO:  Solutions! And polishing up the problems.  Would be nice
-to think about how to implement some kind of "needle in a haystack" search
-for some kind of traffic using queries.*
-
-Dynamic NetCore Concepts
-------------------------
+Chapter 3:  Dynamic NetCore
+===========================
 
 So far in this tutorial, we have used NetCore to write static network
 policies --- policies that do not change in response to network traffic or
