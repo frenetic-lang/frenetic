@@ -146,20 +146,22 @@ module NCT = NetCore_Types
   let check_policy_vlans (pol : policy) : unit = 
     let check_act (act : action) = 
       match act with
-      | To _ -> 
-        (false, false)
-      | ToAll -> 
-        (false, false)
-      | UpdateDlSrc _ -> 
-        (false,false)
-      | UpdateDlDst _ -> 
-        (false,false)
       | UpdateDlVlan _ -> 
         (false,true)
-      | GetPacket _ -> 
-        (false, false) 
-      | _ -> 
-        failwith "Not yet implemented" in 
+      | Pass
+      | Drop
+      | To _
+      | ToAll
+      | UpdateDlSrc _
+      | UpdateDlDst _
+      | UpdateSrcIP _
+      | UpdateDstIP _ 
+      | UpdateSrcPort _ 
+      | UpdateDstPort _ 
+      | GetPacket _
+      | GetCount _ ->
+	(false, false) in
+
     let rec check_pred (pred : predicate) =
       match pred with
       | And (pr1, pr2) -> check_pred pr1 || check_pred pr2
@@ -195,8 +197,11 @@ module NCT = NetCore_Types
         let _, vlanB' = check_pol pol' in
         let vlanB'' = check_pred egress in
         (true, vlanB || vlanB' || vlanB'')
-      | ITE _ -> 
-        failwith "Not yet implemented"
+      | ITE (pr, thn, els) -> 
+	let vlanIf = check_pred pr in
+	let sliceThen, vlanThen = check_pol thn in
+	let sliceElse, vlanElse = check_pol els in
+	(sliceThen || sliceElse, vlanIf || vlanThen || vlanElse)
     in
     let sliceB, vlanB = check_pol pol in
     if sliceB && vlanB 
