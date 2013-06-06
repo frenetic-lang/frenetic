@@ -9,9 +9,6 @@ module MyApplication = struct
     Printf.printf "Switch %Ld connected.\n%!" sw;
     send_flow_mod sw 0l (add_flow 10 match_all [Output AllPorts])
 
-  let switch_disconnected (sw : switchId) : unit =
-    Printf.printf "Switch %Ld disconnected.\n%!" sw
-
   let packet_in (sw : switchId) (xid : xid) (pk : packetIn) : unit =
     Printf.printf "packet_in: %s\n%!" (OpenFlow0x01.PacketIn.to_string pk);
     send_packet_out sw 0l
