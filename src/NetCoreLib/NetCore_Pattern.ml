@@ -53,7 +53,7 @@ module PortWildcard = NetCore_Wildcard.Make (PortOrderedType)
 let is_empty pat =
   DlAddrWildcard.is_empty pat.ptrnDlSrc
   || DlAddrWildcard.is_empty pat.ptrnDlDst
-  || DlTypWildcard.is_empty pat.ptrnDlType
+  || DlTypWildcard.is_empty pat.ptrnDlTyp
   || DlVlanWildcard.is_empty pat.ptrnDlVlan
   || DlVlanPcpWildcard.is_empty pat.ptrnDlVlanPcp
   || NwAddrWildcard.is_empty pat.ptrnNwSrc
@@ -69,7 +69,7 @@ let is_all pat = pat = all
 let is_exact pat =
   DlAddrWildcard.is_exact pat.ptrnDlSrc
   && DlAddrWildcard.is_exact pat.ptrnDlDst
-  && DlTypWildcard.is_exact pat.ptrnDlType
+  && DlTypWildcard.is_exact pat.ptrnDlTyp
   && DlVlanWildcard.is_exact pat.ptrnDlVlan
   && DlVlanPcpWildcard.is_exact pat.ptrnDlVlanPcp
   && NwAddrWildcard.is_exact pat.ptrnNwSrc
@@ -83,7 +83,7 @@ let is_exact pat =
 let to_match pat =
   match (DlAddrWildcard.to_option pat.ptrnDlSrc,
          DlAddrWildcard.to_option pat.ptrnDlDst,
-         DlTypWildcard.to_option pat.ptrnDlType,
+         DlTypWildcard.to_option pat.ptrnDlTyp,
          DlVlanWildcard.to_option pat.ptrnDlVlan,
          DlVlanPcpWildcard.to_option pat.ptrnDlVlanPcp,
          NwAddrWildcard.to_option pat.ptrnNwSrc,
@@ -117,7 +117,7 @@ let to_match pat =
 let inter pat pat' = {
   ptrnDlSrc = DlAddrWildcard.inter pat.ptrnDlSrc pat'.ptrnDlSrc;
   ptrnDlDst = DlAddrWildcard.inter pat.ptrnDlDst pat'.ptrnDlDst;
-  ptrnDlType = DlTypWildcard.inter pat.ptrnDlType pat'.ptrnDlType;
+  ptrnDlTyp = DlTypWildcard.inter pat.ptrnDlTyp pat'.ptrnDlTyp;
   ptrnDlVlan = DlVlanWildcard.inter pat.ptrnDlVlan pat'.ptrnDlVlan;
   ptrnDlVlanPcp = DlVlanPcpWildcard.inter pat.ptrnDlVlanPcp pat'.ptrnDlVlanPcp;
   ptrnNwSrc = NwAddrWildcard.inter pat.ptrnNwSrc pat'.ptrnNwSrc;
@@ -132,7 +132,7 @@ let inter pat pat' = {
 let contains pat1 pat2 =
   DlAddrWildcard.contains pat1.ptrnDlSrc pat2.ptrnDlSrc &&
   DlAddrWildcard.contains pat1.ptrnDlDst pat2.ptrnDlDst &&
-  DlTypWildcard.contains pat1.ptrnDlType pat2.ptrnDlType &&
+  DlTypWildcard.contains pat1.ptrnDlTyp pat2.ptrnDlTyp &&
   DlVlanWildcard.contains pat1.ptrnDlVlan pat2.ptrnDlVlan &&
   DlVlanPcpWildcard.contains pat1.ptrnDlVlanPcp pat2.ptrnDlVlanPcp &&
   NwAddrWildcard.contains pat1.ptrnNwSrc pat2.ptrnNwSrc &&
@@ -152,10 +152,10 @@ let zero_default f x =
   with Invalid_argument _ -> 0
 
 let exact_pattern pk pt = 
-  let dlTyp = dlTyp pk in
+  let dlTyp = Packet.dlTyp pk in
   { ptrnDlSrc = WildcardExact pk.dlSrc
   ; ptrnDlDst = WildcardExact pk.dlDst
-  ; ptrnDlType = WildcardExact dlTyp
+  ; ptrnDlTyp = WildcardExact dlTyp
   ; ptrnDlVlan = WildcardExact pk.dlVlan
   ; ptrnDlVlanPcp = WildcardExact pk.dlVlanPcp
   ; ptrnNwSrc = WildcardExact (zero_default32 nwSrc pk)

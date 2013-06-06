@@ -260,7 +260,7 @@ let desugar (genvlan : unit -> int option) (pol : policy) : NCT.pol =
     | DlVlan n -> 
       NCT.Hdr (NCT.dlVlan n)
     | DlTyp n ->
-      NCT.Hdr (NCT.dlType n)
+      NCT.Hdr (NCT.dlTyp n)
     | SrcIP n -> 
       NCT.Hdr (NCT.ipSrc n)
     | DstIP n -> 

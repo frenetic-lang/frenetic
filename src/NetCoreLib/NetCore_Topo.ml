@@ -105,7 +105,7 @@ module Make (A : Arg) = struct
   let create (send_pkt : lp -> unit Lwt.t) =
     let pol = 
       Union (HandleSwitchEvent switch_event_handler,
-               Seq (Filter (Hdr (dlType dl_typ)),
+               Seq (Filter (Hdr (dlTyp dl_typ)),
                       Action (controller recv_discovery_pkt))) in
     let f sw ports lwt_acc =
       lwt_acc >>
