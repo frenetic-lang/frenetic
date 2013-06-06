@@ -34,12 +34,14 @@ Before divining in to the technical portion of the tutorial, we
 briefly motivate the design of NetCore and Frenetic.  The technical
 portions of the tutorial focus on explaining the syntax and semantics
 of NetCore and illustrating its use on a number of simple examples.
-There are also a number of exercises for the reader.  As you read this
-document, we encourage you to experiment with the examples and try the
-exercises.  To get started, you will need to download and start up the
-tutorial VM.  Please see the instructions here.
+There are also a number of exercises for the reader.  
 
-*TO DO: Link to joint getting started instructions*
+Getting Started
+---------------
+
+As you read this document, we encourage you to experiment with the examples 
+and try the exercises.  To do so, you will need to download and start up the
+tutorial VM.  Please see the [instructions here](https://github.com/frenetic-lang/frenetic/blob/master/guide/01-Introduction.md#getting-started).
 
 Motivation for the Frenetic and NetCore Designs
 -----------------------------------------------
