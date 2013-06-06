@@ -627,16 +627,15 @@ concatenating the original tables.  The result looks like this:
 
 ![Parallel composition.][parallel_composition]
 
-Section **A** is the Cartesian product.  Packets that match both
-<code>P1</code> and <code>P2</code> are matched here.  Because **A** is given a
-higher priority in the flow table, any packets that reach **B** or **C** may
-match <code>P1</code> *or* <code>P2</code> but not both.
+Section **A** in the flow table is the Cartesian product.  Packets that match
+both <code>P1</code> and <code>P2</code> are matched here.  Because **A** is
+given a higher priority, any packets that reach **B** or **C** may match
+<code>P1</code> *or* <code>P2</code>, but not both.
 
-As an aside, NetCore policies are total functions: they always process all
-packets.  NetCore adds a finall, catch-all rule to the flow table to drop
-packets that are not matched higher up.
-
-Queries + ICMP firewall to show cross product.
+As an aside, NetCore policies are total functions: they always process every
+packet, even if that "processing" is simply to drop it.  Hence, NetCore adds a
+final, catch-all rule to the flow table to drop packets that are not matched
+higher up.
 
 Programming Exercise: A Multi-Switch Network
 ---------------------------------------------------------
