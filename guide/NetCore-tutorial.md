@@ -456,15 +456,14 @@ let router =
   else s1 + s2 + s3
 ```
 and let's monitor the load on the network instead of looking at the contents
-of packets.  Doing so involves <code>monitorLoad( n , pred )</code>,
+of packets.  Doing so involves <code>monitorLoad( n , label )</code>,
 which prints the number of packets and the number of 
-bytes satisfying 
-<code>pred</code> every <code>n</code> seconds.  
+bytes processed by <code>monitorLoad</code> every <code>n</code> seconds, where the output is labeled with <code>label</code>.  Of course, we can restrict the packets monitored by <code>monitorLoad</code> embedding it in an if-then-else clause.
 Modifying <code>tut4.nc</code> to measure the load of non-arp traffic
 on switch 3 every 5 seconds involves adding the following definition.
 ```
 let monitored_network = 
-  router + monitorLoad(5, switch=3)
+  router + (if switch=3 then monitorLoad(5, "LOAD") else pass)
 ```
 To test the monitor, try pinging from h1 to h2 as well as h1 to h3.  Watch
 the controller terminal to see how many packets cross switch 3 in 

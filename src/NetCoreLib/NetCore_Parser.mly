@@ -172,11 +172,8 @@ pol_atom :
     { Transform (symbol_start_pos (), NetCore_Monitoring.monitor_pol, $3) }
   | MONITOR_TBL LPAREN INT64 COMMA pol RPAREN
     { Transform (symbol_start_pos (), NetCore_Monitoring.monitor_tbl $3, $5) }
-  | MONITOR_LOAD LPAREN seconds COMMA pred RPAREN
-    { Transform 
-      ( symbol_start_pos ()
-      , NetCore_Monitoring.monitor_load $3
-      , Filter (symbol_start_pos (), $5) ) }
+  | MONITOR_LOAD LPAREN seconds COMMA STRING RPAREN
+    { Action (symbol_start_pos (), NetCore_Monitoring.monitor_load $3 $5) }
   | MONITOR_PKTS LPAREN STRING RPAREN
     { Action (symbol_start_pos (), NetCore_Monitoring.monitor_packets $3) }
   | LCURLY pred RCURLY pol LCURLY pred RCURLY

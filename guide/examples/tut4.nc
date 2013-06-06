@@ -43,5 +43,5 @@ let monitored_network =
 
 (*
 let monitored_network = 
-  router + if switch = 3 then monitorLoad(5, * )
+  router + if switch = 3 then monitorLoad(5, "LOAD" )
 *)
