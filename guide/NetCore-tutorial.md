@@ -118,7 +118,7 @@ $ cd guide/netcore-tutorial-code
 
 In the [OxRepeater](02-OxRepeater.md) chapter, you learned how to program an
 efficient repeater by adding rules to the switch flow table.  Recall that a
-repeater simply forwards incoming packets on all other ports.
+repeater simply forwards incoming packets out all other ports.
 
 In this example, we will begin by considering a network with just one switch
 with two ports, numbered 1 and 2:  
@@ -313,7 +313,8 @@ replies are dropped.
 
 ##### IPv4
 
-Use <code>iperf</code> to test both SSH and web traffic:
+Use <code>iperf</code> to test both SSH and web traffic.  For example, these
+commands send TCP traffic between H2 and H3:
 ```
 mininet> h2 iperf -s -p 80 &
 mininet> h3 iperf -c 10.0.0.3 -p 80
@@ -391,8 +392,8 @@ A Port Mapping Policy
 To begin, let's adapt the example from Chapter 1 
 so that instead of simply acting
 as a repeater, our switch does some packet rewriting.  More specifically,
-let's create a switch that maps connections initiated by host h1 
-and destined to TCP port 5022 to the standard ssh port 22.  
+let's create a switch that maps connections initiated by host H1 
+and destined to TCP port 5022 to the standard SSH port 22.  
 
 In general, packet modifications are written as follows:
 ```
@@ -405,33 +406,26 @@ does not, then the packet is dropped.  For instance,
 ```
 tcpDstPort 5022 -> 22
 ```
-rewrites the <code>tcpDstPort</code> of packets starting with
-<code>tcpDstPort</code> 5022 to 22.
+rewrites the <code>tcpDstPort</code> of packets from 5022 to 22.
 
-Now that policies can have an interesting mix of modification and 
-forwarding actions, we need a way to take the outputs of one policy
-and funnel them in to the inputs of another policy.  This is exactly
-what the *sequential composition operator* (<code>;</code>)
-does.  For instance,
+Now policies can mix modification and forwarding actions, but we need a way to
+take the output of one policy and funnel it into the next.  For this, we use
+the *sequential composition* operator (<code>;</code>).  For instance,
 ```
 tcpDstPort 5022 -> 22; fwd(1)
 ```
-modifies the <code>tcpDstPort</code> and then forwards the result of
-the modification out port 1.  Note that in this case, we have composed
-the effect of two actions.  However, you can use sequential composition
-to compose the effects of any two policies --- they do not just have
-to be simple actions.    
+rewrites the <code>tcpDstPort</code> and then forwards the modified packets out
+port 1.  In this case, we have composed the effects of two actions, but in
+general you can use sequential composition to compose any two policies.
 
-We need one more concept in order to be able to write our port-mapper
-program elegantly:  The <code>pass</code> action.  This action
-acts like the identity function on packets. In other
-words, it simply pipes all of its input packets through untouched
-to its output.  Hence, <code>pass</code> has the property that both 
-<code>pass; P</code> and
-<code>P; pass</code> are exactly the same as just <code>P</code>, for any 
-policy <code>P</code>.  At first, it seems as though this makes 
-<code>pass</code> a completely useless construct, but it turns
-out to be essential in combination with other features of NetCore.
+We need one more concept in order to write an elegant port-mapper program:
+The <code>pass</code> action.  This action acts like the identity function on
+packets. In other words, it simply pipes all of its input packets through
+untouched to its output.  Hence, <code>pass</code> has the property that both
+<code>pass; P</code> and <code>P; pass</code> are exactly the same as just
+<code>P</code>, for any policy <code>P</code>.  At first, it seems as though
+this makes <code>pass</code> a completely useless construct, but it turns out
+to be essential in combination with other features of NetCore.
 
 Now, the port translation program:
 ```
@@ -449,14 +443,14 @@ let routing =
 let forwarder =
   mapper; routing
 ```
-The mapper component rewrites the destination port in one
+The <code>mapper</code> component rewrites the destination port in one
 direction and the source port in the other, if those ports
 take on the given values entering the switch.  Notice how we
-used <code>pass</code> in the final else branch of the 
+used <code>pass</code> in the final <code>else</code> branch of the 
 <code>mapper</code> policy to leaves packets of all other kinds
-untouched.  Doing so, allows us to compose the mapper component
-with any routing component we choose.  In this case, a forwarder
-is defined by composing a mapper with the trivial <code>all</code>
+untouched.  This allows us to compose the mapper component
+with any routing component we choose.  In this case, <code>forwarder</code>
+is defined by composing <code>mapper</code> with the trivial <code>all</code>
 routing policy.  However, in a more complex network, the routing
 component could be arbitrarily sophisticated and still compose
 properly with the mapper.
@@ -470,20 +464,20 @@ with frenetic.
 $ frenetic port_map.nc
 ```
 Then start mininet in the default topology, and
-simulate an ssh process listening on port 22 on host h2:
+simulate an SSH process listening on port 22 on host H2:
 ```
 $ sudo mn --controller=remote
 mininet> h2 iperf -s -p 22 &
 ```
-You can connect to h2 (IP address 10.0.0.2) 
-from h1 by establishing a connection to port 5022
+You can connect to H2 (IP address 10.0.0.2) 
+from H1 by establishing a connection to port 5022
 using the command below.  (The <code>-t</code> option specifies
 the time window for sending traffic.)
 The mapper will translate port numbers for you.
 ```
 mininet> h1 iperf -c 10.0.0.2 -p 5022 -t 0.0001
 ```
-You shoud see a trace like the following one.
+You shoud see a trace like the following:
 ```
 ------------------------------------------------------------
 Client connecting to 10.0.0.2, TCP port 5022
@@ -493,8 +487,7 @@ TCP window size: 22.9 KByte (default)
 [ ID] Interval       Transfer     Bandwidth
 [  3]  0.0- 0.0 sec   128 KBytes   149 Mbits/sec
 ```
-You can also test that the network still allows ping traffic
-through:
+You can also test that the network still allows ping traffic:
 ```
 mininet> h1 ping -c 1 h2
 ```
