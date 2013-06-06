@@ -285,11 +285,11 @@ connected to ports 1-5, respectively, that enforces the restrictions in the
 table above.  Assume that any traffic that meeting the criteria may be
 broadcast (i.e. using the <code>all</code> policy).
 
-*TODO: make this link work.*
-
 Use [Firewall.nc](netcore-tutorial-code/Firewall.nc) as a starting point.
 
 #### Testing your Controller
+
+*TODO: you can also use monitorTable.*
 
 To run your controller, navigate to the <code>netcore-tutorial-code</code>
 directory and type:
@@ -306,7 +306,7 @@ sudo mn --controller=remote --topo=single,5
 
 Use <code>ping</code> to test ICMP.  Remember that ICMP traffic is
 bidirectional, and so pinging from, say, H2 to H3 should fail, because H3
-cannot reply.
+replies are dropped.
 
 ##### IPv4
 
@@ -316,9 +316,9 @@ mininet> h2 iperf -s -p 80 &
 mininet> h3 iperf -c 10.0.0.3 -p 80
 ```
 
-The first command sets <code>iperf</code> to listen on port 80 on host H3.  The
-second initiates a TCP connection from H4 to 10.0.0.3:80 (H3, port 80).  You
-should see the following output:
+The first command starts <code>iperf</code> listening for TCP traffic on H3,
+port 80.  The second initiates a TCP connection from H4 to 10.0.0.3:80 (H3,
+port 80).  You should see the following output:
 ```
 mininet> h2 iperf -s -p 80 &
 ------------------------------------------------------------
@@ -576,6 +576,10 @@ iperf for <code>20</code> seconds.
 mininet> h1 iperf -c 10.0.0.2 -p 5022 -t 20
 ```
 
+Under the Hood
+--------------
+Queries + ICMP firewall to show cross product.
+
 Programming Exercise: Implementing a Multi-Switch Network
 ---------------------------------------------------------
 
@@ -584,14 +588,10 @@ a multi-switch network using the composition operators discussed
 in this chapter.  You should also practice using queries to help
 debug
 Consider a network with 3 switches, and one host attached to each
-switch: *TODO: draw a better picture*
-```
-    h1        h2        h3
-    |         |         |
-    |         |         |
-    1         1         1
-   (s1)2 -- 2(s2)3 -- 2(s3)
-```
+switch:
+
+![Simple linear topology.][topo_1]
+
 You can start such a network when you boot up mininet:
 ```
 $ sudo mn --controller=remote --topo=linear,3
@@ -742,17 +742,9 @@ the controller terminal to see how many packets cross switch 3.
 
 In these exercises, we will experiment with a tree-shaped network of
 3 switches and 4 hosts in the following configuration.
-*TODO: better picture*
-```
-        (s1)
-        1  2
-       /    \
-      3      3
-  (s2)       (s3)
-  1  2       1  2
- /    \     /    \
-h1     h2  h3    h4
-```
+
+![Simple tree topology.][topo_2]
+
 You can start up mininet in this configuration as follows.
 ```
 $ sudo mn --controller=remote --mac --topo=tree,depth=2,fanout=2
@@ -949,3 +941,8 @@ Summary
 -------
 
 NetCore rocks!  QED.
+
+
+[topo_1]: images/topo_1.png "Default Mininet topology."
+[topo_2]: images/topo_2.png "Simple linear topology."
+[topo_3]: images/topo_3.png "Simple tree topology."
