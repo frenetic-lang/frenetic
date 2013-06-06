@@ -30,9 +30,9 @@ same (with NetCoreDSL simply adding a pleasing domain-specific,
 user-level syntax), we will drop the "DSL" part of the name from this
 point forward and simply refer to NetCore.
 
-As an aside, you may find it interesting to read about the [motivation and
-design decisions](http://frenetic-lang.org/publications/overview-ieeecoms13.pdf)
-that went into creating NetCore and Frenetic.
+As an aside, you may find it interesting to read about [why we created
+Frenetic](http://frenetic-lang.org/publications/overview-ieeecoms13.pdf) in the
+first place.
 
 Getting Started
 ---------------
@@ -263,15 +263,15 @@ of traffic that each host in a five-host network can send:
   </TR>
   <TR> 
     <TD>H3</TD> <TD>User: web traffic.</TD>
-    <TD>arp, ip</TD> <TD>ipv4</TD> <TD>80</TD>          
+    <TD>arp, ip</TD> <TD>tcp</TD> <TD>80</TD>          
   </TR>
   <TR> 
     <TD>H4</TD> <TD>User: web traffic.</TD>
-    <TD>arp, ip</TD> <TD>ipv4</TD> <TD>80</TD>          
+    <TD>arp, ip</TD> <TD>tcp</TD> <TD>80</TD>          
   </TR>
   <TR> 
     <TD>H5</TD> <TD>Power user: web traffic, ssh, and ping.</TD>
-    <TD>arp, ip</TD> <TD>icmp, ipv4</TD> <TD>22, 80</TD>           
+    <TD>arp, ip</TD> <TD>icmp, tcp</TD> <TD>22, 80</TD>           
   </TR>
 </table>
 
@@ -565,6 +565,77 @@ mininet> h1 iperf -c 10.0.0.2 -p 5022 -t 20
 
 Under the Hood
 --------------
+
+Sequential and parallel composition make it easier to write SDN controller
+programs, but it all gets compiled to OpenFlow rules in the end.  To get a feel
+for how the compiler works, let's take another look at a NetCore version of the
+efficient firewall from the [OxFirewall](03-OxFirewall.md) chapter, altering it
+slightly to block SSH rather than ICMP traffic:
+```
+let firewall = if !(tcpDstPort = 22) then all in
+monitorTable(1, firewall)
+```
+
+We added a table query to show the flow table that NetCore produces for the
+firewall.  Now, fire up the firewall
+([Ox_Firewall.nc](netcore-tutorial-code/Ox_Firewall.nc)).  You should see the
+following output:
+```
+$ frenetic netcore-tutorial-code/Ox_Firewall.nc
+Flow table at switch 1 is:
+ {dlTyp = ip, nwProto = tcp, tpDst = 22} => []
+ {*} => [Output AllPorts]
+ {*} => [Output AllPorts]
+```
+
+As you can see from the latter two rules, NetCore is less efficient than a
+human programmer.  (But not for long, we hope!)  Nevertheless, this should look
+very similar to the flow table you programmed.
+
+Now, let's add a query to monitor traffic from H1:
+```
+let firewall = if !(tcpDstPort = 22) then all in
+let monitor = if srcIP = 10.0.0.1 then monitorLoad(10, "From H1") in
+monitorTable(1, firewall + monitor)
+```
+
+The flow table should look something like this:
+```
+$ frenetic netcore-tutorial-code/Ox_Firewall_Monitor.nc
+Flow table at switch 1 is:
+ {dlTyp = ip, nwSrc = 10.0.0.1, nwProto = tcp, tpDst = 22} => []
+ {dlTyp = ip, nwProto = tcp, tpDst = 22} => []
+ {dlTyp = ip, nwSrc = 10.0.0.1} => [Output AllPorts]
+ {*} => [Output AllPorts]
+```
+
+Let's break it down:
+* **IP and SSH** (rule 1): drops SSH traffic from H1.
+* **Just SSH** (rule 2): drops SSH traffic.
+* **Just IP** (rule 3): forwards traffic from H1.
+* **Other** (rule 4): forwards all other traffic.
+
+Why so many rules?  Well, OpenFlow switches can only count packets as they
+match a rule.  Rule 1, for example, is necessary to precisely count traffic
+from H1.  Without it, our query would miss any SSH traffic sent from H1, as it
+would be lumped in with all the other SSH traffic dropped by rule 2.
+
+In general, NetCore creates a flow table for two policies joined by parallel
+composition (<code>P1 + P2</code>) by creating flow tables for <code>P1</code>
+and <code>P2</code>, and taking the Cartesian product of these tables, and then
+concatenating the original tables.  The result looks like this:
+
+![Parallel composition.][parallel_composition]
+
+Section **A** is the Cartesian product.  Packets that match both
+<code>P1</code> and <code>P2</code> are matched here.  Because **A** is given a
+higher priority in the flow table, any packets that reach **B** or **C** may
+match <code>P1</code> *or* <code>P2</code> but not both.
+
+As an aside, NetCore policies are total functions: they always process all
+packets.  NetCore adds a finall, catch-all rule to the flow table to drop
+packets that are not matched higher up.
+
 Queries + ICMP firewall to show cross product.
 
 Programming Exercise: A Multi-Switch Network
@@ -788,3 +859,4 @@ NetCore rocks!  QED.
 [topo_1]: images/topo_1.png "Default Mininet topology."
 [topo_2]: images/topo_2.png "Simple linear topology."
 [topo_3]: images/topo_3.png "Simple tree topology."
+[parallel_composition]: images/parallel_composition.png "Parallel composition."
