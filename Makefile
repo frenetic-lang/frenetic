@@ -6,3 +6,6 @@ test:
 
 clean:
 	cd src && $(MAKE) clean
+
+reinstall:
+	cd src && $(MAKE) reinstall

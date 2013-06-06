@@ -28,13 +28,13 @@ module Format = struct
     else 
       format_list fmt " && "
         (List.filter (fun x -> not (x = "")) 
-	      [ to_string_exact Packet.string_of_mac "srcMac" pat.ptrnDlSrc;
-          to_string_exact Packet.string_of_mac "dstMac" pat.ptrnDlDst;
-          to_string_exact Packet.string_of_dlTyp "frameType " pat.ptrnDlType;
+	      [ to_string_exact Packet.string_of_mac "srcMAC" pat.ptrnDlSrc;
+          to_string_exact Packet.string_of_mac "dstMAC" pat.ptrnDlDst;
+          to_string_exact Packet.string_of_dlTyp "frameType" pat.ptrnDlType;
           to_string_exact Packet.string_of_dlVlan "vlan" pat.ptrnDlVlan;
           to_string_exact string_of_int "dlVlanPcp" pat.ptrnDlVlanPcp;
-          to_string_exact Packet.string_of_ip "srcIp" pat.ptrnNwSrc;
-          to_string_exact Packet.string_of_ip "dstIp" pat.ptrnNwDst;
+          to_string_exact Packet.string_of_ip "srcIP" pat.ptrnNwSrc;
+          to_string_exact Packet.string_of_ip "dstIP" pat.ptrnNwDst;
           to_string_exact string_of_int "nwProto" pat.ptrnNwProto;
           to_string_exact string_of_int "nwTos" pat.ptrnNwTos;
           to_string_exact string_of_int "tcpSrcPort" pat.ptrnTpSrc;
@@ -62,7 +62,7 @@ module Format = struct
   let action fmt action : unit = match action with
     | SwitchAction o -> output fmt o
     | ControllerAction _ -> fprintf fmt "controller"
-    | ControllerQuery (time, f) -> fprintf fmt "ControllerQuery %f" time
+    | ControllerQuery (time, f) -> fprintf fmt "controllerQuery %f" time
 
   let rec action_list fmt lst = match lst with
     | [] -> fprintf fmt "drop"
@@ -108,7 +108,7 @@ module Format = struct
     | _ -> apol fmt p
 
   and apol fmt p = match p with
-    | HandleSwitchEvent _ -> fprintf fmt "@[HandleSwitchEvent _@]"
+    | HandleSwitchEvent _ -> fprintf fmt "@[handleSwitchEvent _@]"
     | Action a -> fprintf fmt "@[%a@]" action_list a
     | Filter pr -> fprintf fmt "@[filter %a@]" pred pr
     | Union _
