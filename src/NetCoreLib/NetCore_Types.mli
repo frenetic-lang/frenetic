@@ -3,7 +3,7 @@
 
 open Packet
 
-type switchId = OpenFlow0x01.switchId
+type switchId = OpenFlow0x01_Core.switchId
 
 type 'a wildcard =
   | WildcardExact of 'a
@@ -11,7 +11,7 @@ type 'a wildcard =
   | WildcardNone
 
 type port =
-  | Physical of OpenFlow0x01.portId
+  | Physical of OpenFlow0x01_Core.portId
   | All
   | Here
 
