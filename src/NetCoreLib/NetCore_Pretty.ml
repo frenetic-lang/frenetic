@@ -35,7 +35,7 @@ module Format = struct
           to_string_exact string_of_int "dlVlanPcp" pat.ptrnDlVlanPcp;
           to_string_exact Packet.string_of_ip "srcIP" pat.ptrnNwSrc;
           to_string_exact Packet.string_of_ip "dstIP" pat.ptrnNwDst;
-          to_string_exact string_of_int "nwProto" pat.ptrnNwProto;
+          to_string_exact Packet.string_of_nwProto "nwProto" pat.ptrnNwProto;
           to_string_exact string_of_int "nwTos" pat.ptrnNwTos;
           to_string_exact string_of_int "tcpSrcPort" pat.ptrnTpSrc;
           to_string_exact string_of_int "tcpDstPort" pat.ptrnTpDst;

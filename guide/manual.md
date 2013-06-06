@@ -15,8 +15,9 @@ Types and stuff:
 <frame-type> ::= arp (* shorthand for 0x806 *)
                | ip  (* shorthand for 0x800 *)
                | 8-bit integer
-<ip-protocol> ::= icmp (* shorthand for 0x1 *)
-                | ipv4 (* shorthand for 0x4 *)
+<ip-protocol> ::= icmp (* shorthand for 0x01 *)
+                | tcp  (* shorthand for 0x06 *)
+                | udp  (* shorthand for 0x11 *)
                 | 8-bit integer
 
 <seconds> ::= [0-9]+ | [0-9]+ . [0-9]+

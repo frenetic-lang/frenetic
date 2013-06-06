@@ -633,7 +633,11 @@ let string_of_dlVlanPcp = string_of_int
 
 let string_of_nwAddr = Int32.to_string
 
-let string_of_nwProto = string_of_int
+let string_of_nwProto = function
+  | 0x01 -> "icmp"
+  | 0x06 -> "tcp"
+  | 0x11 -> "udp"
+  | v -> string_of_int v
 
 let string_of_nwTos = string_of_int
 

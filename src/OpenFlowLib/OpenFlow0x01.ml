@@ -264,19 +264,19 @@ module Match = struct
     let all_fields =
       [ fld_str "dlSrc" string_of_mac x.dlSrc;
         fld_str "dlDst" string_of_mac x.dlDst;
-        fld_str "dlTyp" string_of_int x.dlTyp;
+        fld_str "dlTyp" Packet.string_of_dlTyp x.dlTyp;
         (match x.dlVlan with
           | None -> None
           | Some None -> Some "dlVlan = none"
           | Some (Some vlan) -> fld_str "dlVlan" string_of_int (Some vlan));
-        fld_str "dlVlanPcp" string_of_int x.dlVlanPcp;
-        fld_str "nwSrc" Int32.to_string x.nwSrc;
-        fld_str "nwDst" Int32.to_string x.nwDst;
-        fld_str "nwProto" string_of_int x.nwProto;
-        fld_str "nwTos" string_of_int x.nwTos;
-        fld_str "tpSrc" string_of_int x.tpSrc;
-        fld_str "tpDst" string_of_int x.tpDst;
-        fld_str "inPort" string_of_int x.inPort ] in
+        fld_str "dlVlanPcp" Packet.string_of_dlVlanPcp x.dlVlanPcp;
+        fld_str "nwSrc" Packet.string_of_nwAddr x.nwSrc;
+        fld_str "nwDst" Packet.string_of_nwAddr x.nwDst;
+        fld_str "nwProto" Packet.string_of_nwProto x.nwProto;
+        fld_str "nwTos" Packet.string_of_nwTos x.nwTos;
+        fld_str "tpSrc" Packet.string_of_tpPort x.tpSrc;
+        fld_str "tpDst" Packet.string_of_tpPort x.tpDst;
+        fld_str "inPort" string_of_portId x.inPort ] in
     let set_fields =
       List.fold_right
         (fun fo acc -> match fo with None -> acc | Some f -> f :: acc)

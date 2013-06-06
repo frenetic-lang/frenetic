@@ -86,7 +86,8 @@
 %token ARP
 %token IP
 %token ICMP
-%token IPV4
+%token TCP
+%token UDP
 %token MONITOR_POL
 %token MONITOR_TBL
 %token MONITOR_LOAD
@@ -136,9 +137,11 @@ pred_atom :
   | FRAMETYPE EQUALS INT64
     { Pol.Hdr (dlTyp (int16_of_int64 $3)) }
   | PROTOCOLTYPE EQUALS ICMP
-    { Pol.Hdr (ipProto 0x1) }
-  | PROTOCOLTYPE EQUALS IPV4
-    { Pol.Hdr (ipProto 0x4) }
+    { Pol.Hdr (ipProto 0x01) }
+  | PROTOCOLTYPE EQUALS TCP
+    { Pol.Hdr (ipProto 0x06) }
+  | PROTOCOLTYPE EQUALS UDP
+    { Pol.Hdr (ipProto 0x11) }
   | PROTOCOLTYPE EQUALS INT64
     { Pol.Hdr (ipProto (int8_of_int64 $3)) }
     
