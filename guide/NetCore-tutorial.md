@@ -590,7 +590,7 @@ debug
 Consider a network with 3 switches, and one host attached to each
 switch:
 
-![Simple linear topology.][topo_1]
+![Simple linear topology.][topo_2]
 
 You can start such a network when you boot up mininet:
 ```
@@ -743,7 +743,7 @@ the controller terminal to see how many packets cross switch 3.
 In these exercises, we will experiment with a tree-shaped network of
 3 switches and 4 hosts in the following configuration.
 
-![Simple tree topology.][topo_2]
+![Simple tree topology.][topo_3]
 
 You can start up mininet in this configuration as follows.
 ```
