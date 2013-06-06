@@ -502,7 +502,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
   let emit_packets pkt_stream = 
     Lwt_stream.iter_s emit_pkt pkt_stream
 
-  let (topo_pol_stream, discovery_lwt) = Topo.create (fun x -> emit_pkt x; ())
+  let (topo_pol_stream, discovery_lwt) = Topo.create (fun x -> emit_pkt x)
     (* (fun lp ->  *)
     (*   Log.printf "NetCore_Controller" *)
     (*     "TODO(arjun): give me a function to emit packets") *)

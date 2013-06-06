@@ -10,7 +10,7 @@ end
 
 module type TOPO = sig
 
-  val create : (switchId * portId * Packet.bytes -> unit) 
+  val create : (switchId * portId * Packet.bytes -> unit Lwt.t) 
     -> NetCore_Types.pol NetCore_Stream.t * unit Lwt.t
 
   val ports_of_switch : switchId -> portId list

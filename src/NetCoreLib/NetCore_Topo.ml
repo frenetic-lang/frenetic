@@ -21,7 +21,7 @@ end
 
 module type TOPO = sig
 
-  val create : (switchId * portId * Packet.bytes -> unit) 
+  val create : (switchId * portId * Packet.bytes -> unit Lwt.t) 
     -> NetCore_Types.pol NetCore_Stream.t * unit Lwt.t
 
   val ports_of_switch : switchId -> portId list
@@ -102,23 +102,23 @@ module Make (A : Arg) = struct
       drop
     | _ -> drop
 
-  let create (send_pkt : lp -> unit) =
+  let create (send_pkt : lp -> unit Lwt.t) =
     let pol = 
       Union (HandleSwitchEvent switch_event_handler,
                Seq (Filter (Hdr (dlType dl_typ)),
                       Action (controller recv_discovery_pkt))) in
+    let f sw ports lwt_acc =
+      lwt_acc >>
+      Lwt_list.iter_s 
+        (fun pt -> 
+          Log.printf "NetCore_Topo" 
+            "emitting a packet to switch=%Ld,port=%d\n%!" sw pt;
+            send_pkt (make_discovery_pkt sw pt))
+        ports in
     let rec send_discovery () =
       Lwt_unix.sleep 5.0 >>
-        (Hashtbl.iter 
-           (fun sw ports ->
-             List.iter
-               (fun pt -> 
-                 Log.printf "NetCore_Topo" 
-                   "emitting a packet to switch=%Ld,port=%d\n%!" sw pt;
-                 send_pkt (make_discovery_pkt sw pt))
-               ports)
-           switches;
-         send_discovery ()) in
+      Hashtbl.fold f switches Lwt.return_unit >>
+      send_discovery () in
     (NetCore_Stream.constant pol, send_discovery ())
       
 end
