@@ -1,102 +1,67 @@
-Exercise 2: Firewall
-====================
+Chapter 2: Firewall
+===================
 
-In this exercise, you will compose your repeater with a simple firewall that
-blocks ICMP traffic. As a result, `ping`s will be blocked, but other traffic,
-such as Web traffic, will still be handled by the repeater.
+In this chapter, you will compose your repeater with a simple firewall
+that blocks ICMP traffic. As a result, `ping`s will be blocked, but
+other traffic, such as Web traffic, will still be handled by the
+repeater.
 
 ### The Firewall Function
 
-You will first write the `packet_in` function for the firewall.  After
-you've tested it successfully, you'll configure the flow table to
-implement the firewall efficiently.
-
-Use the following template:
+You will first write the `packet_in` function for the firewall:
 
 ```ocaml
-module MyApplication : Ox_Controller.OXMODULE = struct
-  open Ox_Controller.OxPlatform
-  open OpenFlow0x01
-  
-  include Ox_Defaults
-
-  let switch_connected (sw : switchId) : unit =
-    Printf.printf "Switch %Ld connected.\n%!" sw
-
-  let switch_disconnected (sw : switchId) : unit =
-    Printf.printf "Switch %Ld disconnected.\n%!" sw
-
-  let packet_in (sw : switchId) (xid : xid) (pk : PacketIn.t) : unit =
-    Printf.printf "%s\n%!" (PacketIn.to_string pk);
-    let payload = pktIn.PacketIn.payload in
-    let pkt = Payload.parse payload in
-    send_packet_out sw 0l
-      { PacketOut.payload = pk.PacketIn.payload;
-        PacketOut.port_id = None;
-        PacketOut.actions = []
-      }
-      
-end
-
-module Controller = Ox_Controller.Make (MyApplication)
+let packet_in (sw : switchId) (xid : xid) (pktIn : packetIn) : unit =
+  ...
 ```
 
-This template is similar to template for the repeater. Whereas the
-repeater simply emits the payload of the `pktIn` message, the firewall
-needs to inspect the payload to determine if it is an ICMP packet is
-an ICMP packet.  Ox includes a [parser and packet library] [Packet]
-for some common packet formats, including ICMP.
+After you've tested it successfully, you'll configure the flow table
+to implement the firewall efficiently. Unlike the repeater, which
+blindly forwards packets, the firewall needs inspect packet-headers to
+determine if they should be dropped. The argument `pktIn` of type
+[packetIn] has a binary payload that holds the headers you need.
 
-The parser function produces nested records that represent
-the logical structure of the payload. For example, a ping request
-would be represented as:
+Ox includes a packet parsing library that supports several common formats,
+including ICMP. You can use it parse the packet as follows:
 
 ```ocaml
-{ dlSrc = 0x000000000001; (* source mac address *)
-  dlDst = 0x000000000002; (* destination mac address *)
-  dlVlan = None;
-  dlVlanPcp = 0;
-  nw = Ip { Ip.Icmp { Icmp.typ = 8; (* echo request *)
-                      Icmp.code = 0;
-                      Icmp.chksum = ...;
-                      Icmp.payload = ... } } }
+let packet_in (sw : switchId) (xid : xid) (pktIn : packetIn) : unit =
+  let payload = pktIn.input_payload in
+  let pk = parse_payload payload in
+  ...
 ```
 
-Instead of navigating nested records such as these, we recommend using
-the accessors in the [packet library] [Packet].
+Applying `parse_payload` will parse the packet into a series of nested
+frames. You can extract headers from these frames using OCaml's
+pattern matching (not recommended) or using the [accessor functions] in
+the packet library, which is what we recommend.
 
-For example, `dlTyp pk = 0x800` returns `true` if `pk` is an IP packet
-and otherwise false.
+#### Programming Task
+
+Starting from [./ox-tutorial-code/Firewall.ml], fill in the
+`is_icmp_packet` function.
+
+Recall that ICMP packets are contained in IP (frame type 0x800) and have
+the protocol number 1. In addition, note taht it doesn't make sense to
+query the protocol number of a non-IP packet.
 
 #### Building and Testing Your Controller
 
-- Build your controller by running:
+- Build and launch the controller:
 
   ```shell
-  $ ocamlbuild -use-ocamlfind -package OxLib ex3.d.byte
+  $ make Firewall.d.byte
+  $ ./Firewall.d.byte
   ```
 
-- Start your controller by running:
-
-  ```
-  $ ./ex3.d.byte
-  ```
-
-- In a separate terminal window, start the Mininet network simulator, using
-  the same parameters you've used before:
+- In a separate terminal window, start Mininet using the same
+  parameters you've used before:
 
   ```
   $ sudo ./mn --controller=remote --topo=single,3 --mac
   ```
 
-- On the controller terminal, you should see the following
-
-  ```
-  $ ./ex1.d.byte
-  Switch 1 Connected.
-  ```
-  
-- On the Mininet terminal, make `h1` ping `h2` and vice versa:
+- Test to ensure that pings fail within Mininet:
 
   ```
   mininet> h1 ping -c 1 h2
@@ -119,11 +84,12 @@ and otherwise false.
   This indicates that the controller saw the ping request (and dropped it),
   so no ping response was ever seen.
 
-- Although ICMP is blocker, other traffic, such as Web traffic should
-  be unaffected. To ensure that this is the case, you can run a web server
-  on a host.
+- Although ICMP is blocked, other traffic, such as Web traffic should
+  be unaffected. To ensure that this is the case, try to run a Web server
+  on one host and a client on another.
 
-  * In mininet, start new terminals for `h1` and `h2`:
+
+  * In Mininet, start new terminals for `h1` and `h2`:
 
     ```
     mininet> h1 xterm &
@@ -143,7 +109,7 @@ and otherwise false.
     # curl 10.0.0.1/index.html
     ```
 
-    This command should successfully display the source for the guide.
+    This command should succeed.
 
 ### An Efficient Firewall
 
