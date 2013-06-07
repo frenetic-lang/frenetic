@@ -115,7 +115,7 @@ module Output = struct
     [ SwitchAction { unmodified with outDlDst = Some (od, nw) } ]
 
   let updateDlVlan od nw =
-    [ SwitchAction { unmodified with outDlVlan = Some (od,nw) } ]
+    [ SwitchAction { unmodified with outDlVlan = Some (od, nw) } ]
 
   let updateSrcIP old new_ = 
     [ SwitchAction { unmodified with outNwSrc = Some (old, new_) } ]
@@ -251,18 +251,6 @@ module Output = struct
       (fun (o1,o2) -> seq_action_atom o1 o2)
       (cross act1 act2)
 
-  (* JNF: seriously? *)
-  let withVlanNone = function
-  | Some (Some od,Some nw) ->
-    Some (od, nw)
-  | Some (Some od,None) ->
-    Some (od, None)
-  | Some (None,Some nw) ->
-    Some (None, nw)
-  | Some (None, None) ->
-    Some (None, None)
-  | None -> None
-
   let trans maybe_mod build_singleton set_wild pat =
     match maybe_mod with
     | Some (old, nw) ->
@@ -273,7 +261,7 @@ module Output = struct
     | None -> pat
 
   let sel f = function
-  | Some p -> let (old, y) = p in f old
+  | Some p -> let (old, _) = p in f old
   | None -> all
 
   let restrict_port portMod pat2 = match portMod with
@@ -349,12 +337,6 @@ module Output = struct
       (mk od) :: lst
     | None ->
       lst
-
-  let setDlVlan' = function
-  | Some n ->
-    SetDlVlan n
-  | None ->
-    StripVlan
 
   let modify out =
     set out.outDlSrc (fun x -> SetDlSrc x)

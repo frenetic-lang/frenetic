@@ -62,9 +62,9 @@ type pseudoPort =
     specification. *)
 type action =
   | Output of pseudoPort (** Output to switch port. *)
-  | SetDlVlan of dlVlan (** Set the 802.1Q VLAN ID. *)
+  | SetDlVlan of dlVlan (** Set the 802.1Q VLAN ID.  A value of None strips 
+                        the 802.1Q header. *)
   | SetDlVlanPcp of dlVlanPcp (** Set the 802.1Q priority. *)
-  | StripVlan (** Strip the 802.1Q header. *)
   | SetDlSrc of dlAddr (** Set ethernet source address. *)
   | SetDlDst of dlAddr (** Set ethernet destination address. *)
   | SetNwSrc of nwAddr (** Set IP source address. *)

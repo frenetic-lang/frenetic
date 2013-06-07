@@ -167,7 +167,7 @@ module Match = struct
       match m.dlVlan with
         | Some (Some v) -> v
         | Some None -> vlan_none
-        | None -> 0 in
+        | None -> vlan_none in
     set_ofp_match_dl_vlan bits (vlan);
     set_ofp_match_dl_vlan_pcp bits (if_some8 m.dlVlanPcp);
     set_ofp_match_dl_type bits (if_some16 m.dlTyp);
@@ -433,9 +433,9 @@ module Action = struct
 
   let type_code (a : t) = match a with
     | Output _ -> OFPAT_OUTPUT
+    | SetDlVlan None -> OFPAT_STRIP_VLAN
     | SetDlVlan _ -> OFPAT_SET_VLAN_VID
     | SetDlVlanPcp _ -> OFPAT_SET_VLAN_PCP
-    | StripVlan -> OFPAT_STRIP_VLAN
     | SetDlSrc _ -> OFPAT_SET_DL_SRC
     | SetDlDst _ -> OFPAT_SET_DL_DST
     | SetNwSrc _ -> OFPAT_SET_NW_SRC
@@ -450,7 +450,6 @@ module Action = struct
       | Output _ -> h + sizeof_ofp_action_output
       | SetDlVlan _ -> h + sizeof_ofp_action_vlan_vid
       | SetDlVlanPcp _ -> h + sizeof_ofp_action_vlan_pcp
-      | StripVlan -> h + sizeof_ofp_action_strip_vlan
       | SetDlSrc _
       | SetDlDst _ -> h + sizeof_ofp_action_dl_addr
       | SetNwSrc _
@@ -477,10 +476,9 @@ module Action = struct
         | SetNwDst addr -> set_ofp_action_nw_addr_nw_addr bits' addr
         | SetTpSrc pt
         | SetTpDst pt -> set_ofp_action_tp_port_tp_port bits' pt
-	      | SetDlVlan (Some vid) -> set_ofp_action_vlan_vid_vlan_vid bits' vid
-	      | SetDlVlan None -> set_ofp_action_vlan_vid_vlan_vid bits' 0xFFFF
+        | SetDlVlan (Some vid) -> set_ofp_action_vlan_vid_vlan_vid bits' vid
+        | SetDlVlan None -> set_ofp_action_vlan_vid_vlan_vid bits' vlan_none
         | SetDlVlanPcp n -> set_ofp_action_vlan_pcp_vlan_pcp bits' n
-        | StripVlan -> () (* just padding *)
         | SetNwTos n -> set_ofp_action_nw_tos_nw_tos bits' n
         | SetDlSrc mac
         | SetDlDst mac ->
@@ -502,7 +500,6 @@ module Action = struct
     | SetDlVlan None -> "SetDlVlan None"
     | SetDlVlan (Some n) -> sprintf "SetDlVlan %d" n
     | SetDlVlanPcp n -> sprintf "SetDlVlanPcp n"
-    | StripVlan -> "StripDlVlan"
     | SetDlSrc mac -> "SetDlSrc " ^ string_of_mac mac
     | SetDlDst mac -> "SetDlDst " ^ string_of_mac mac
     | SetNwSrc ip -> "SetNwSrc " ^ string_of_ip ip
@@ -526,12 +523,12 @@ module Action = struct
       | Some OFPAT_SET_VLAN_VID ->
         let vid = get_ofp_action_vlan_vid_vlan_vid bits' in
         if vid = vlan_none then
-          StripVlan
+          SetDlVlan None
         else
           SetDlVlan (Some vid)
       | Some OFPAT_SET_VLAN_PCP ->
         SetDlVlanPcp (get_ofp_action_vlan_pcp_vlan_pcp bits')
-      | Some OFPAT_STRIP_VLAN -> StripVlan
+      | Some OFPAT_STRIP_VLAN -> SetDlVlan None
       | Some OFPAT_SET_DL_SRC ->
         let dl =
           mac_of_bytes
@@ -1469,8 +1466,8 @@ module StatsReply = struct
 
     let parse_aggregate_stats bits = 
       { total_packet_count = get_ofp_aggregate_stats_packet_count bits;
-	      total_byte_count = get_ofp_aggregate_stats_byte_count bits;
-	      flow_count = get_ofp_aggregate_stats_flow_count bits }
+              total_byte_count = get_ofp_aggregate_stats_byte_count bits;
+              flow_count = get_ofp_aggregate_stats_flow_count bits }
 
   cstruct ofp_stats_reply {
     uint16_t stats_type;

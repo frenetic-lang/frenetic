@@ -182,6 +182,8 @@ pol_atom :
   | VLAN INT64 RARROW NONE
     { Action (symbol_start_pos (),
               Action.updateDlVlan (Some (int12_of_int64 $2)) None) }
+  | VLAN NONE RARROW NONE
+    { Action (symbol_start_pos (), Action.updateDlVlan None None) }
   | TCPSRCPORT INT64 RARROW INT64
     { Action (symbol_start_pos (),
               Action.updateSrcPort (int16_of_int64 $2) (int16_of_int64 $4)) }

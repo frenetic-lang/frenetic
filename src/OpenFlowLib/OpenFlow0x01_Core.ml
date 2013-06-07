@@ -33,7 +33,6 @@ type action =
   | Output of pseudoPort
   | SetDlVlan of dlVlan
   | SetDlVlanPcp of dlVlanPcp
-  | StripVlan
   | SetDlSrc of dlAddr
   | SetDlDst of dlAddr
   | SetNwSrc of nwAddr
