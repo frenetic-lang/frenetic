@@ -161,15 +161,15 @@ problem?
 #### Programming Task 1
 
 Augment `Monitor.ml` to build a flow table. The forwarding logic only
-requires two rules -- one for ICMP and the other for non-ICMP traffic
--- but you'll need additional rules to ensure that you have
+requires two rules &mdash; one for ICMP and the other for non-ICMP traffic
+&mdash; but you'll need additional rules to ensure that you have
 fine-grained counters.  Once you have determined the rules you need,
 create the rules as you did before using `send_flow_mod` in the
 `switch_connected` function.
 
 #### Programming Task 2
 
-*Complete Programming Task 1 before moving onto this task. *
+*Complete Programming Task 1 before moving onto this task.*
 
 As you realized in the previous programing task, you cannot write a
 single OpenFlow pattern that matches both HTTP requests and
