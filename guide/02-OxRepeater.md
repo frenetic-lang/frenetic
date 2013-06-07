@@ -94,7 +94,7 @@ steps:
 In this part, you will only write the `packet_in` function for the repeater,
 thereby processing all packets at the controller.
 
-Use [ox-tutorial-code/Repeater.ml] as a starting point. This file and
+Use [Repeater.ml](ox-tutorial-code/Repeater.ml) as a starting point. This file and
 the entire tutorial is included with the tutorial VM.  Open a terminal
 and type:
 
@@ -107,7 +107,7 @@ to the Ox libraries for you.
 
 #### Programming Task
 
-[Repeater.ml][ox-tutorial-code/Repeater.ml] has a `packet_in` function
+[Repeater.ml](ox-tutorial-code/Repeater.ml) has a `packet_in` function
 that just drops all packets. This is obviously wrong. To be a
 repeater, it has to send it out of all ports (excluding the input
 port). This is easier than it sounds, because you can do it with just
@@ -201,7 +201,7 @@ process packets itself.
 
 For this part, continue building on the naive repeater you wrote above.
 
-> Build on its [solution file][ox-tutorial-code/Sol_Repeater1.ml]
+> Build on its [solution file](ox-tutorial-code/Sol_Repeater1.ml)
 > if necessary.
 
 #### Programming Task
