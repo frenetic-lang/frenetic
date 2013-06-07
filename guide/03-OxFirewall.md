@@ -30,8 +30,10 @@ frames. The easiest way to examine packet headers is to then use the
 #### Programming Task
 
 Starting from [Firewall.ml](ox-tutorial-code/Firewall.ml), fill in the
-`is_icmp_packet` function. Recall that ICMP messages are contained in
-IP packets (frame type 0x800) and have IP protocol number 1.
+`is_icmp_packet` function.  Recall that the _frame type for IP packets
+is 0x800_ and the _protocol number for ICMP is 1_.
+
+> TODO(arjun): `Recall that' snark. Acceptable?
 
 #### Building and Testing Your Firewall
 
@@ -118,8 +120,8 @@ function to also implement the firewall using flow tables.
 #### Programming Task
 
 Fill in the `switch_connected` event handler. You need to install two
-entries into the flow table--one for ICMP traffic and the other for
-all other traffic. You can use the following template:
+entries into the flow table: one for ICMP traffic and the other for
+all other traffic. Use the following template:
 
 ```ocaml
 let switch_connected (sw : switchId) : unit =
@@ -130,8 +132,7 @@ let switch_connected (sw : switchId) : unit =
 
 You have to determine the priorities, patterns, and actions in the
 handler above. You might want to revisit the description of flow
-tables in [Chapter 1][ch1]. Here is a quick refresher:
-
+tables in [Chapter 1][Ch1]. Here is a quick refresher:
 
 - *Priorities*: higher numbers mean higher priority
 
@@ -141,9 +142,7 @@ tables in [Chapter 1][ch1]. Here is a quick refresher:
 - *Patterns*: In the previous chapter, you used the builtin pattern
   `match_all`, which you may use again if needed. You will certainly
   need to write a pattern to match ICMP packets. The Ox Manual has
-  several [example patterns] to get you started. You'll need to know
-  that the _frame type for IP packets is 0x800_ and the _protocol
-  number for ICMP is 1_.
+  several [example patterns] to get you started.
 
 #### Building and Testing
 
