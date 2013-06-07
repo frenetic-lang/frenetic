@@ -90,7 +90,7 @@ module Format = struct
 
   let rec pol fmt p = match p with
     | Seq (p1, p2) -> fprintf fmt "@[@[%a;@ @]%a@]" cpol p1 seq_pol_list p2
-    | Union (p1, p2) -> fprintf fmt "@[%a@ |@ %a@]" cpol p1 par_pol_list p2
+    | Union (p1, p2) -> fprintf fmt "@[%a@ +@ %a@]" cpol p1 par_pol_list p2
     | _ -> cpol fmt p
 
   and seq_pol_list fmt p = match p with
