@@ -164,18 +164,18 @@ hosts and have them ping each other:
 
   * `topo=single` creates a network with one switch and three hosts.
 
-  * `--mac` sets the hosts mac addresses to `1`, `2`, and `3` (instead
-    of a random number). This makes debugging a lot easier.
+  * `--mac` sets the hosts' mac addresses to 1`, 2, and 3 (instead
+    of random numbers). This makes debugging a lot easier.
 
   * `--controller=remote` directs the switches to connect to your controller
-    (instead of using a default controller that is built into Mininet).
+    (instead of using a default, built-in controller).
 
   
 - After Mininet launches, your controller should print
   `[Ox_Controller] switch 1 connected`.
 
-  Mininet will print the network topology, then drop you into the Mininet
-  prompt:
+  Mininet will print the network topology and then drop you into the
+  Mininet prompt:
 
   `mininet>`
 
@@ -196,7 +196,7 @@ This repeater is functionall correct, but laughably inefficient.
 ### Exercise 2: An Efficient Repeater
 
 Processing all packets at the controller is very inefficient.
-You will now add rules to the switch _flow table_ to have the switch
+You will now add rules to the switch's flow table to have the switch
 process packets itself.
 
 For this part, continue building on the naive repeater you wrote above.
@@ -206,8 +206,8 @@ For this part, continue building on the naive repeater you wrote above.
 
 #### Programming Task
 
-You will now fill in the `switch_connected` handler in your program.
-Use the following as a template:
+Fill in the `switch_connected` handler in your program, using the following
+as a template:
 
 ```ocaml
 let switch_connected (sw : switchId) : unit =
@@ -307,6 +307,8 @@ implement a policy change, you may see packets at the controller.
 [Ch6]: 06-NetCoreIntroduction.md
 [Ch7]: 07-NetCoreComposition.md
 [Ch8]: 08-DynamicNetCore.md
+
+[send_flow_mod]: http://frenetic-lang.github.io/frenetic/docs/OxPlatform.html#VALsend_flow_mod
 
 [Action]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.Action.html
 
