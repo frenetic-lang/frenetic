@@ -361,24 +361,17 @@ module Make (Platform : PLATFORM) = struct
   let handle_packet_in pol sw pkt_in = 
     let in_port = pkt_in.port in
     try_lwt
-      let packet = parse_payload pkt_in.input_payload in
-      let inp = Pkt (sw, Physical in_port, packet, pkt_in.input_payload) in
-      let full_action = NetCore_Semantics.eval (NetCore_Stream.now pol) inp in
-      let controller_action =
-        NetCore_Action.Output.apply_controller full_action
-          (sw, Physical in_port, packet) in
-      let action = match pkt_in.reason with
-        | ExplicitSend -> controller_action
-        | NoMatch ->
-          NetCore_Action.Output.par_action controller_action
-            (NetCore_Action.Output.switch_part full_action) in
-      let outp = { 
-        output_payload = pkt_in.input_payload;
-        port_id = None;
-        apply_actions = 
-          NetCore_Action.Output.as_actionSequence (Some in_port) action 
-      } in
-      Platform.send_to_switch sw 0l (Message.PacketOutMsg outp)  
+      let in_packet = parse_payload pkt_in.input_payload in
+      let in_val = 
+        Pkt (sw, Physical in_port, in_packet, pkt_in.input_payload) in
+      let action = NetCore_Semantics.eval (NetCore_Stream.now pol) in_val in
+      let out_payload = 
+        { output_payload = pkt_in.input_payload
+        ; port_id = None
+        ; apply_actions = 
+            NetCore_Action.Output.as_actionSequence (Some in_port) action
+        } in
+      Platform.send_to_switch sw 0l (Message.PacketOutMsg out_payload)  
     with Unparsable _ -> 
       begin
         let _ = Log.printf "NetCore_Controller" "unparsable packet\n%!" in
@@ -553,32 +546,25 @@ module MakeConsistent (Platform : PLATFORM) = struct
         (NetCore_Pretty.string_of_pol ext) in
       configure_switch sw (Union(int,ext)))
       (NetCore_Stream.to_stream pol_stream)
-      
+
   let handle_packet_in sw pkt_in = 
     let in_port = pkt_in.port in
-    let packet = parse_payload pkt_in.input_payload in
-    let inp = Pkt (sw, Physical in_port, packet, pkt_in.input_payload) in
-    let full_action = NetCore_Semantics.eval !pol_now inp in
-    let controller_action =
-      NetCore_Action.Output.apply_controller full_action
-        (sw, Physical in_port, packet) in
-    let action = match pkt_in.reason with
-      | ExplicitSend -> controller_action
-      | NoMatch -> NetCore_Action.Output.par_action controller_action
-        (NetCore_Action.Output.switch_part full_action) in
-    let outp = { 
-      output_payload = pkt_in.input_payload;
-      port_id = None;
-      apply_actions = 
-        NetCore_Action.Output.as_actionSequence (Some in_port) action 
-    } in
-    Platform.send_to_switch sw 0l (Message.PacketOutMsg outp)  
+    let in_packet = parse_payload pkt_in.input_payload in
+    let in_val = Pkt (sw, Physical in_port, in_packet, pkt_in.input_payload) in
+    let action = NetCore_Semantics.eval !pol_now in_val in
+    let out_packet = 
+      { output_payload = pkt_in.input_payload
+      ; port_id = None
+      ; apply_actions = 
+         NetCore_Action.Output.as_actionSequence (Some in_port) action 
+      } in
+    Platform.send_to_switch sw 0l (Message.PacketOutMsg out_packet)
 
   let rec handle_switch_messages sw = 
     let open Message in
     lwt v = Platform.recv_from_switch sw in
     lwt _ = match v with
-      | (_, PacketInMsg pktIn) -> handle_packet_in sw pktIn
+      | (_, PacketInMsg pkt_in) -> handle_packet_in sw pkt_in
       | (xid, StatsReplyMsg (Stats.IndividualFlowRep reps)) -> 
         Queries.handle_reply sw xid reps;
         Lwt.return ()

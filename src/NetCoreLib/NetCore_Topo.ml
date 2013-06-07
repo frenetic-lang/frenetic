@@ -56,7 +56,7 @@ module Make (A : Arg) = struct
       nw = Unparsable 
              (dl_typ, Cstruct.of_string (Marshal.to_string (sw, pt) []))
     } in
-    (sw, pt, Packet.serialize pk)
+    (sw, pt, Packet.marshal pk)
 
   type lp = switchId * portId * Packet.bytes
 

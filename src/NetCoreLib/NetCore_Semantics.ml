@@ -25,9 +25,21 @@ let eval_action inp act =
   List.map (fun (sw', pt',pk') -> Pkt (sw', pt', pk', pay))
     (NetCore_Action.Output.apply_action act (sw, pt, pk))
 
+(* Do side effects, then return switch action. *)
+let rec eval_helper_atom atom pkt = 
+  let Pkt (sw, pt, pk, _) = pkt in
+  match atom with
+  | SwitchAction _ -> [atom]
+  | ControllerAction f -> 
+    eval_helper_action (f sw pt pk) pkt
+  | ControllerQuery _ -> []
+
+and eval_helper_action act pkt =
+  Frenetic_List.concat_map (fun a -> eval_helper_atom a pkt) act
+
 let rec eval pol pkt = match pol with
   | HandleSwitchEvent _ -> drop
-  | Action action -> action
+  | Action action -> eval_helper_action action pkt
   | Filter pred0 ->
     let Pkt (sw, pt, pk, buf) = pkt in
     if match_pred pred0 sw pt pk then pass else drop

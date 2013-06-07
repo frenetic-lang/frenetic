@@ -135,6 +135,12 @@ let parse_payload = function
   | NotBuffered b -> 
     Packet.parse b
 
+let marshal_payload buffer pkt =
+  let payload = Packet.marshal pkt in
+  match buffer with
+    | Some b -> Buffered (b, payload)
+    | None -> NotBuffered payload
+
 module Format = struct
 
   open Format
