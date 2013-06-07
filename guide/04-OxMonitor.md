@@ -174,11 +174,11 @@ create the rules as you did before using `send_flow_mod` in the
 As you realized in the previous programing task, you cannot write a
 single OpenFlow pattern that matches both HTTP requests and
 replies. You need to match they separately, using two rules, which
-gives you two counters. Therefore, you need to issue two statistics
-requests and calculate their sum.
+gives you two counters. Therefore, you need to read each counter
+independently and calculate their sum.
 
-You can read counters by calling [send_stats_request]. To
-monitor traffic continuously, you will need to do so periodically.
+
+You can read counters by calling [send_stats_request] periodically.
 To do so, you can use the following function:
 
 ```ocaml
@@ -191,11 +191,11 @@ let rec periodic_stats_request sw interval xid pat =
   timeout interval callback
 ```
 
-This function issues an [AggregateRequest] every [interval] seconds
-for counters that match [pat]. Use `periodic_stats_request` in
-`switch_connected`. For example, in the template below, 
-the program periodically reads the counter for HTTP requests
-and HTTP responses every five seconds:
+This function issues a request every `interval` seconds for counters
+that match `pat`. Use `periodic_stats_request` in
+`switch_connected`. For example, in the template below, the program
+periodically reads the counter for HTTP requests and HTTP responses
+every five seconds:
 
 ```ocaml
 let switch_connected (sw : switchId) : unit =
@@ -207,6 +207,9 @@ let switch_connected (sw : switchId) : unit =
 
 You need to fill in the patterns `match_http_requests` and
 `match_http_responses`, which you have already calculated.
+
+Finally, you need a `stats_reply` handler that calculates the sum
+of the two counters. We've provided one below:
 
 ```ocaml
 let num_http_request_packets = ref 0L 
