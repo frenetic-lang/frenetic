@@ -15,8 +15,7 @@ from [Chapter 6](06-NetCoreIntroduction.md) so that instead of simply
 acting as a repeater, our switch does some packet rewriting.  More
 specifically, we will create a switch that maps connections initiated by host 
 <code>h1</code>
-and destined to TCP port 5022 to the standard SSH port 22.  
-To do
+and destined to TCP port 5022 to the standard SSH port 22.  To do
 so, we'll have to learn about several new NetCore features including
 *packet modification actions,* *sequential composition* and the *pass*
 action.
@@ -44,7 +43,7 @@ the *sequential composition* operator (<code>;</code>).  You should
 think of the sequential composition <code>P1; P2</code> as a kind 
 of *function composition* that processes
 each packet using the function corresponding <code>P1</code> first, generating
-a multi-set of zero, one or more intermediate packets <code>{p1,...,pk}<code>, and 
+a multi-set of zero, one or more intermediate packets <code>{p1,...,pk}</code>, and 
 then applies the function corresponding to <code>P2</code> 
 to each intermediate packet <code>pi</code>, returning some number of
 final result packets.
