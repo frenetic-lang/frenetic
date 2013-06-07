@@ -8,15 +8,15 @@ maintain. You will compose your new traffic monitor with the
 [repeater][Ch2] and [firewall][Ch3] you wrote in earlier exercises.
 
 As usual, you will proceed in two steps: you will first write and test
-a traffic monitoring function, and then implement it efficiently uses
+a traffic monitoring function and then implement it efficiently using
 flow tables and OpenFlow statistics.
 
 ### The Monitoring Function
 
-Your monitor must count the total number of packets _sent to port 80 and
-received from_ port 80. Since the monitoring function receives all
-packets, you can maintain a global counter and increment it each time
-the `packet_in` function receives a new HTTP packet:
+Your monitor must count the total number of packets sent to port 80 *and*
+received from port 80. Since the `packet_in` function receives all
+packets, all you need to do is increment a global counter each time
+`packet_in` receives a new packet:
 
 ```ocaml
 let num_http_packets = ref 0
@@ -31,10 +31,10 @@ let packet_in (sw : switchId) (xid : xid) (pktIn : packetIn) : unit =
 
 #### Programming Task
 
-Use [Monitor.ml](ox-tutorial-code/Monitor.ml] as a template for this exercise.
+Use [Monitor.ml](ox-tutorial-code/Monitor.ml) as a template for this exercise.
 
-- Write the `is_http_packet` predicate, using the [packet accessors]
-  you used to build the firewall.
+- Write the `is_http_packet` predicate, using the [header accessor
+  functions] you used to build the firewall.
 
 - You're not just monitoring Web traffic. You need to firewall ICMP
   traffic and apply the repeater to non-ICMP traffic, as you did
@@ -43,9 +43,9 @@ Use [Monitor.ml](ox-tutorial-code/Monitor.ml] as a template for this exercise.
 
 #### Building and Testing Your Monitor
 
-You should first test that the your monitor preserves the features of the
+You should first test that your monitor preserves the features of the
 firewall and repeater. To do so, you'll run the same tests you in the previous
-chapter. You will also test the monitor by checking that traffic to and from
+chapter. You should next test  the monitor by checking that traffic to and from
 port 80 increments the counter (and that other traffic does not).
 
 - Build and launch the controller:
@@ -55,22 +55,21 @@ port 80 increments the counter (and that other traffic does not).
   $ ./Firewall.d.byte
   ```
 
-- In a separate terminal window, start Mininet using the same
-  parameters you've used before:
+- In a separate terminal window, start Mininet:
 
   ```
   $ sudo mn --controller=remote --topo=single,3 --mac
   ```
 
-- Test that the firewall correctly drops pings, reporting `100% packet loss`:
+- Test that the firewall correctly drops pings, reporting "100% packet loss":
 
   ```
   mininet> h1 ping h2
   mininet> h2 ping h1
   ```
 
-- Test that Web traffic is unaffected, but logged. To do so, you will
-   run a Web server on one host and a client on another:
+- Test that Web traffic is unaffected, but logged. To do so, run a Web
+   server on one host and a client on another:
 
   * In Mininet, start new terminals for `h1` and `h2`:
 
@@ -104,9 +103,10 @@ port 80 increments the counter (and that other traffic does not).
     ...
     ```    
 
-- Finally, you should test to ensure that other traffic is neither
-  blocked by the firewall nor counted by your monitor. To do so, kill the
-  Web server running on `h1` and start it on a non-standard port (e.g., 8080):
+- Finally, you should test that other traffic is neither blocked by
+  the firewall nor counted by your monitor. To do so, kill the Web
+  server running on `h1` and start a new Web server on a non-standard
+  port (e.g., 8080):
 
   * On the terminal for `h1`:
 
@@ -130,9 +130,10 @@ Switches themselves keeps track of the number of packets (and bytes)
 they receive.  To implement an efficient monitor, you will use
 OpenFlow's [statistics] API to query these counters.
 
-Recall from [REF] that each rule in a flow table is associated with
-a packet-counter that counts the number of packets to which the
-rule is applied. For example, consider the following flow table:
+Recall from [Chapter 1][Ch1] that each rule in a flow table is
+associated with a packet-counter that counts the number of packets to
+which the rule is applied. For example, consider the following flow
+table:
 
 <table>
 <tr>
@@ -243,6 +244,8 @@ You should be able to build and test the extended monitor as you did before.
 
 Did you spot the bug? What happens if the controller receives HTTP
 packets, before the switch is fully initialized?
+
+[statistics]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Stats.html
 
 [Action]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.Action.html
 
