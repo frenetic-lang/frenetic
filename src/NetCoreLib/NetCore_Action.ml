@@ -413,7 +413,11 @@ module Output = struct
         (function | Output (Controller _) -> true | _ -> false)
         of_atoms in
     if List.length controller_atoms > 0 then
-      not_controller_atoms @ [hd controller_atoms]
+      [hd controller_atoms]
+      (* TODO(cole) restore this when we do something smarter
+       * handling PacketIn messages.
+       *    not_controller_atoms @ [hd controller_atoms]
+       *)
     else
       not_controller_atoms
 
