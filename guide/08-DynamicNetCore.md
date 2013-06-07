@@ -184,7 +184,6 @@ frameType = ip && dstIP = 10.0.0.254 && nwProto = tcp && tcpDstPort = 2000
 Try making some additional requests to the web server to see how the
 policy changes.
 
-
 Summary
 -------
 
