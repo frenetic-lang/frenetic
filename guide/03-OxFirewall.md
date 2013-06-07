@@ -181,4 +181,4 @@ packets at the controller.
 
 [match_all]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html#VALmatch_all
 
-[example patterns]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Co
+[example patterns]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html#patternexamples
