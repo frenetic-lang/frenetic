@@ -181,4 +181,4 @@ packets at the controller.
 
 [example patterns]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html#patternexamples
 
-[header accessor functions]: http://frenetic-lang.github.io/frenetic/docs/Packet.html
+[header accessor functions]: http://frenetic-lang.github.io/frenetic/docs/Packet.html#accs
