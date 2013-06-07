@@ -23,8 +23,8 @@ of static NetCore configurations.
 This tutorial should also be viewed as a stepping stone to learning how to
 program in the more powerful *Frenetic* environment.  *Frenetic* is a
 general-purpose SDN programming language embedded as a set of libraries in
-OCaml.  In Frenetic, one programs applications that react to network events,
-such as topology changes and statistics queries:
+OCaml.  Frenetic applications react to network events, such as topology changes 
+and statistics queries.  For example:
 
 1. An event reaches the application.
 1. The application generates a new static network configuration and sends it to the Frenetic run time.
