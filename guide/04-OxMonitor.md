@@ -261,6 +261,8 @@ packets, before the switch is fully initialized?
 
 [OpenFlow_Core]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html
 
+[send_stats_request]: http://frenetic-lang.github.io/frenetic/docs/OxPlatform.html#VALsend_stats_request
+
 [send_flow_mod]: http://frenetic-lang.github.io/frenetic/docs/OxPlatform.html#VALsend_flow_mod
 
 [pattern]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html#TYPEpattern
