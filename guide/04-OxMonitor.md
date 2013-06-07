@@ -51,8 +51,8 @@ port 80 increments the counter (and that other traffic does not).
 - Build and launch the controller:
 
   ```shell
-  $ make Firewall.d.byte
-  $ ./Firewall.d.byte
+  $ make Monitor.d.byte
+  $ ./Monitor.d.byte
   ```
 
 - In a separate terminal window, start Mininet:
