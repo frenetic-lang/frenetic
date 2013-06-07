@@ -43,7 +43,7 @@ Handy References
 - [Ox Platform Reference](http://frenetic-lang.github.io/frenetic/docs/)
   
   You will write your controllers using Ox, which is a lightweight
-  platforn for writing controllers in OCaml. This tutorial will guide you
+  platform for writing controllers in OCaml. This tutorial will guide you
   though writing Ox controllers.
 
   Ox is loosely based on platforms such as [POX]

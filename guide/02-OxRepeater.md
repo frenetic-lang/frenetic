@@ -14,12 +14,12 @@ prioritized rules.  Each rule has four components:
 
 - A _pattern_ that matches packets' headers,
 
-- A _list of actions_ that is applied matching packets,
+- A _list of actions_ that is applied to matching packets,
 
 - A _priority_ that is used to choose between rules that have
   overlapping patterns, and
 
-- A _packet counter_ and a _byte counter_ that count count the number
+- A _packet counter_ and a _byte counter_ that record the number
   of packets and bytes that have matched the rule.
 
 For example, consider the following flow table:
@@ -51,7 +51,7 @@ controller_. At the controller, you can write an arbitrary
 packet-processing function (e.g., deep-packet
 inspection). Unsurprisingly, sending packets to the controller is much
 slower than processing them on the switch itself. Therefore, a
-controller typically uses the flow table to implement the intended
+controller typically uses switch flow tables to implement the intended
 packet-processing function efficiently.
 
 <h3 id="exercise1">Exercise 1: A Naive Repeater</h3>
@@ -62,13 +62,13 @@ steps:
 
 - First, you will leave the flow table empty, so all packets are
   diverted to the controller for processing. At the controller, you can
-  use general programming techniques to easily express any policy you intend.
+  use general programming techniques to express any policy you desire.
 
 - After you complete and test the controller's packet-processing function,
   you will add rules into the flow table to implement the packet-processing
   function on the switch itself.
 
-> This two-step exercise may seem contrived for a repeater. But, we
+> This two-step exercise may seem contrived for a simple repeater. But, we
 > will quickly escalate to programs that are tricky to implement
 > efficiently. For these programs, the first naive implementation will
 > serve as a reference implementation to help you determine if your
@@ -108,10 +108,10 @@ to building and testing your controller.
 To build your controller, run
 
 ```shell
-  $ make Repeater.byte
+  $ make Repeater.d.byte
 ```
 
-> The file extension indicates that it a bytecode, debug build.  You
+> The file extension indicates that it is a bytecode, debug build.  You
 > can use `make foo.d.byte` to compile any `foo.ml` file in this
 > directory.
 
