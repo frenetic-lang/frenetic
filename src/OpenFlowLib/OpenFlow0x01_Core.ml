@@ -21,7 +21,6 @@ type pattern =
     ; inPort : portId option
     }
 
-
 type pseudoPort =
   | PhysicalPort of portId
   | AllPorts
@@ -34,7 +33,6 @@ type action =
   | Output of pseudoPort
   | SetDlVlan of dlVlan
   | SetDlVlanPcp of dlVlanPcp
-  | StripVlan
   | SetDlSrc of dlAddr
   | SetDlDst of dlAddr
   | SetNwSrc of nwAddr
@@ -136,3 +134,42 @@ let parse_payload = function
   | Buffered (_, b)
   | NotBuffered b -> 
     Packet.parse b
+
+module Format = struct
+
+  open Format
+
+  let bytes fmt bytes =
+    try
+      Packet.format_packet fmt (Packet.parse bytes)
+    with exn -> (* TODO(arjun): should catch right error *)
+      fprintf fmt "unparsable packet"        
+
+  let payload fmt payload = 
+    match payload with
+      | NotBuffered buf -> bytes fmt buf
+      | Buffered (n, buf) -> fprintf fmt "%a (buffered at %s)" bytes buf 
+        (Int32.to_string n)
+
+  let reason fmt = function
+      | NoMatch -> fprintf fmt "NoMatch"
+      | ExplicitSend -> fprintf fmt "ExplicitSend"
+
+  let packetIn fmt pktIn =
+    fprintf fmt 
+      "@[packetIn{@;<1 2>@[@[total_len=%d@]@ @[port=%d@]@ @[reason=%a@]@ \
+                    @[payload=%a@]@]@ }@]"
+      pktIn.total_len pktIn.port reason pktIn.reason
+      payload pktIn.input_payload
+
+  let string_of_mk formatter x =
+    let buf = Buffer.create 100 in
+    let fmt = formatter_of_buffer buf in
+    pp_set_margin fmt 80;
+    formatter fmt x;
+    fprintf fmt "@?";
+    Buffer.contents buf
+
+end
+
+let packetIn_to_string  = Format.string_of_mk Format.packetIn

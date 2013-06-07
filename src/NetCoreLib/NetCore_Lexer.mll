@@ -78,7 +78,8 @@ and token = parse
   | "arp" { ARP }
   | "ip" { IP }
   | "icmp" { ICMP }
-  | "ipv4" { IPV4 }
+  | "tcp" { TCP }
+  | "udp" { UDP }
   | "inPort" { INPORT }
   | "&&" { AND }
   | "||" { OR }

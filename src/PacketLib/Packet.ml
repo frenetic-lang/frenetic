@@ -480,7 +480,7 @@ let format_nw fmt v =
   match v with 
     | Ip ip -> Ip.format fmt ip
     | Arp arp -> Arp.format fmt arp
-    | Unparsable (typ, _) -> fprintf fmt "frameType=%d" typ
+    | Unparsable (typ, _) -> fprintf fmt "frameType=0x%X" typ
 
 let format_vlan fmt v =
   let open Format in
@@ -631,9 +631,13 @@ let string_of_dlVlan = function
 
 let string_of_dlVlanPcp = string_of_int
 
-let string_of_nwAddr = Int32.to_string
+let string_of_nwAddr = string_of_ip
 
-let string_of_nwProto = string_of_int
+let string_of_nwProto = function
+  | 0x01 -> "icmp"
+  | 0x06 -> "tcp"
+  | 0x11 -> "udp"
+  | v -> string_of_int v
 
 let string_of_nwTos = string_of_int
 
@@ -741,6 +745,7 @@ let serialize (pkt:packet) : Cstruct.t =
   let bits = Cstruct.create (len pkt) in 
   let () = serialize_helper bits pkt in 
   bits
+
 
 let string_of_mk formatter x =
   let open Format in

@@ -10,7 +10,7 @@ module MyApplication = struct
     send_flow_mod sw 0l (add_flow 10 match_all [Output AllPorts])
 
   let packet_in (sw : switchId) (xid : xid) (pk : packetIn) : unit =
-    Printf.printf "packet_in: %s\n%!" (OpenFlow0x01.PacketIn.to_string pk);
+    Printf.printf "%s\n%!" (packetIn_to_string pk);
     send_packet_out sw 0l
       { output_payload = pk.input_payload;
         port_id = None;

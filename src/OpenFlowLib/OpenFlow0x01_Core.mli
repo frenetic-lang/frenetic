@@ -62,9 +62,9 @@ type pseudoPort =
     specification. *)
 type action =
   | Output of pseudoPort (** Output to switch port. *)
-  | SetDlVlan of dlVlan (** Set the 802.1Q VLAN ID. *)
+  | SetDlVlan of dlVlan (** Set the 802.1Q VLAN ID.  A value of None strips 
+                        the 802.1Q header. *)
   | SetDlVlanPcp of dlVlanPcp (** Set the 802.1Q priority. *)
-  | StripVlan (** Strip the 802.1Q header. *)
   | SetDlSrc of dlAddr (** Set ethernet source address. *)
   | SetDlDst of dlAddr (** Set ethernet destination address. *)
   | SetNwSrc of nwAddr (** Set IP source address. *)
@@ -144,7 +144,6 @@ type packetOut =
 
 (** {2 Convenient Functions} *)
 
-
 val parse_payload : payload -> Packet.packet
 
 (** A pattern that matches all packets. (All fields wildcarded.) *)
@@ -160,7 +159,11 @@ val add_flow : int16 -> pattern -> action list -> flowMod
 
 val delete_all_flows : flowMod
 
-(** {4:patternexamples Pattern Examples}
+(** {2 Printing and Debugging} *)
+
+val packetIn_to_string : packetIn -> string
+
+(** {3:patternexamples Pattern Examples}
 
     For example, the following pattern matches all packets from the
     host with Ethernet address 00:00:00:00:00:12:
