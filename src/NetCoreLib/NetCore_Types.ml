@@ -158,6 +158,11 @@ let ipProto proto =
     ptrnDlTyp = WildcardExact 0x800;
     ptrnNwProto = WildcardExact proto }
 
+let ipTos tos =
+  { all with
+    ptrnDlTyp = WildcardExact 0x800;
+    ptrnNwTos = WildcardExact tos }
+
 let tpSrcPort proto tpPort =
   { all with
     ptrnDlTyp = WildcardExact 0x800;

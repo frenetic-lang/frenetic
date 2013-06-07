@@ -175,6 +175,13 @@ pol_atom :
   | VLAN NONE RARROW INT64
     { Action (symbol_start_pos (),
               Action.updateDlVlan None (Some (int12_of_int64 $4))) }
+  | VLAN INT64 RARROW INT64
+    { Action (symbol_start_pos (),
+              Action.updateDlVlan 
+                (Some (int12_of_int64 $2)) (Some (int12_of_int64 $4))) }
+  | VLAN INT64 RARROW NONE
+    { Action (symbol_start_pos (),
+              Action.updateDlVlan (Some (int12_of_int64 $2)) None) }
   | TCPSRCPORT INT64 RARROW INT64
     { Action (symbol_start_pos (),
               Action.updateSrcPort (int16_of_int64 $2) (int16_of_int64 $4)) }
@@ -185,6 +192,10 @@ pol_atom :
     { Action (symbol_start_pos (), Action.updateDlSrc $2 $4) }
   | DSTMAC MACADDR RARROW MACADDR
     { Action (symbol_start_pos (), Action.updateDlDst $2 $4) }
+  | SRCIP IPADDR RARROW IPADDR
+    { Action (symbol_start_pos (), Action.updateSrcIP $2 $4) }
+  | DSTIP IPADDR RARROW IPADDR
+    { Action (symbol_start_pos (), Action.updateDstIP $2 $4) }
   | ALL 
     { Action (symbol_start_pos (), Action.to_all) }
   | MONITOR_POL LPAREN pol RPAREN

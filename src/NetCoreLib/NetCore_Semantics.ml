@@ -37,7 +37,7 @@ let rec eval pol pkt = match pol with
     let act1 = eval pol1 pkt in
     let pkts' = eval_action pkt act1 in
     let act2 = List.fold_right par_action (List.map (eval pol2) pkts') drop in
-    seq_action act1 act2
+    act2
   | ITE (pred, then_pol, else_pol) ->
     let Pkt (sw, pt, pk, buf) = pkt in
     if match_pred pred sw pt pk then
