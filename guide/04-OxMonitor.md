@@ -130,7 +130,7 @@ Switches themselves keeps track of the number of packets (and bytes)
 they receive.  To implement an efficient monitor, you will use
 OpenFlow's [statistics] API to query these counters.
 
-Recall from [Chapter 1][Ch1] that each rule in a flow table is
+Recall from [Chapter 2][Ch2] that each rule in a flow table is
 associated with a packet-counter that counts the number of packets to
 which the rule is applied. For example, consider the following flow
 table:
