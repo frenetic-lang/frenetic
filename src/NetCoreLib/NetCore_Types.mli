@@ -108,6 +108,8 @@ val ipSrc : nwAddr -> ptrn
 val ipDst : nwAddr -> ptrn
   
 val ipProto : nwProto -> ptrn
+
+val ipTos : nwTos -> ptrn
   
 val inPort : port -> ptrn
   

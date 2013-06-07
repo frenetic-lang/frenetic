@@ -1,7 +1,15 @@
-NetCore Syntax
+NetCore Manual
 ==============
 
-Types and stuff:
+The NetCore Manual is intended as a lightweight reference to the syntax of the
+NetCore domain-specific language (NetCoreDSL).  More detailed documentation can
+be found in the [NetCore tutorial](01-Introduction.md).
+
+
+NetCore Syntax
+--------------
+
+Types:
 
 ```
 (* Integers can be either decimal or hexadecimal (with leading 0x *)
@@ -62,10 +70,17 @@ Policies:
 <apol> ::= ( <pol> )
          | <id>
          | filter <pred>
-         | <port-id> (* haha, the syntax for forwarding, atrocious *)
+         | <port-id> (* Forward out port <port-id>. *)
          | pass
          | drop
-         | all (* forward on all ports, not at all obvious *)
+         | all (* Forward out all ports. *)
+         | srcMAC <mac-address> -> <mac-address>
+         | dstMAC <mac-address> -> <mac-address>
+         | vlan <vlan-id> -> <vlan-id>
+         | srcIP <ip-address> -> <ip-address>
+         | dstIP <ip-address> -> <ip-address>
+         | tcpSrcPort <tcp-port> -> <tcp-port>
+         | tcpDstPort <tcp-port> -> <tcp-port>
          | monitorPackets ( <string> )
          | monitorPolicy ( <pol> )
          | monitorTable ( <switch-id> , <pol> )
