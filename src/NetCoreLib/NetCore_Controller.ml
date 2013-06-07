@@ -396,7 +396,7 @@ module Make (Platform : PLATFORM) = struct
       | StatsReplyMsg r ->
         let _ = Log.printf "NetCore_Controller" 
           "received unexpected stats reply type (%s)"
-          (StatsReply.to_string r) in
+          (Stats.reply_to_string r) in
           Lwt.return ()
       | PortStatusMsg msg ->
         (* TODO(arjun): this should be used by NetCore_Topo *)
@@ -585,7 +585,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
       | (xid, StatsReplyMsg r) ->
         let _ = Log.printf "NetCore_Controller" 
           "received unexpected stats reply type (%s)"
-          (StatsReply.to_string r) in
+          (Stats.reply_to_string r) in
           Lwt.return ()
       | (xid, PortStatusMsg msg) ->
         let _ = 
