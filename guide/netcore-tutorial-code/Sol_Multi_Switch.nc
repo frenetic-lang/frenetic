@@ -15,6 +15,8 @@
 
    $ sudo mn --controller=remote --topo=linear,3
    mininet> h1 ping -c 1 h3
+   mininet> h2 ping -c 1 h3
+   mininet> h3 ping -c 1 h1
 *)
 
 let s1 =
@@ -30,8 +32,8 @@ let s2 =
    
 let s3 =
   if (switch = 3) then 
-    if dstIP = 10.0.0.1 || dstIP = 10.0.0.2 then fwd(2)
-    else fwd(1)
+    if dstIP = 10.0.0.3 then fwd(1)
+    else fwd(2)
 
 let firewall =
   if srcIP = 10.0.0.1 && dstIP = 10.0.0.3 && tcpDstPort = 80 then drop

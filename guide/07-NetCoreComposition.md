@@ -191,9 +191,11 @@ Above, we used a
 that reach the monitoring policy to only those packets satisfying
 the <code>inPort = 1</code> predicate.  Otherwise, the monitor policy
 prints *all* packets that reach it.  Note that if there is no <code>else</code>
-branch in a conditional, packets not matching the conditional are dropped.
+branch in a conditional, packets not matching the conditional are dropped
+(i.e., in this second case, the conditional produces the empty set of result
+packets).
 
-This new policy can be found in <code>port_map_monitor.nc</code>.
+This new policy can be found in <code>Port_Map_Monitor1.nc</code>.
 Test it as above using iperf, but this time watch the output in the 
 controller window.  You should see lines similar to the following being printed:
 ```
@@ -204,19 +206,25 @@ You will notice <code>tpDst=5022</code> in lines marked
 <code>BEFORE</code> and <code>tpDst=22</code> in lines marked 
 <code>AFTER</code>.
 
+Monitoring Load
+---------------
+
 Another useful query measures the load at different places in the network.  The
-<code>monitorLoad( n , label )</code> policy prints the number of packets and
-bytes it receives every <code>n</code> seconds.  Output is prefixed by the
+<code>monitorLoad(n, label)</code> policy prints the number of packets and
+bytes it receives every <code>n</code> seconds.  Each output line from this
+query is prefixed by the
 string <code>label</code>, and we can restrict the packets monitored by
 <code>monitorLoad</code> using <code>if</code>-<code>then</code> clauses.
+Note that the implementation 
+of <code>monitorLoad</code> is far more efficient 
+than <code>monitorPackets</code> as the former does not send packets 
+to the controller.
 
-Try removing the packet monitoring policies in the port mapper and adding a
-<code>monitorLoad</code> query to measure the number of packets sent by iperf.
-The implementation of <code>monitorLoad</code> is far more efficient than
-<code>monitorPackets</code>, as it does not send packets to the controller.
-Instead, it queries OpenFlow counters on the switch after each time interval.
-You can issue a longer iperf request by adjusting the timing parameter
-(<code>-t seconds</code>).  Watch the load printed in the controller window.
+<code>Port_Map_Monitor2.nc</code> contains a variation of the port mapper 
+that monitors load instead of packets.  You can test it by
+issuing a longer iperf request 
+(adjust the timing parameter <code>-t seconds</code>).  Watch the load 
+printed in the controller terminal.
 The following command runs iperf for <code>20</code> seconds.
 ```
 mininet> h1 iperf -c 10.0.0.2 -p 5022 -t 20
@@ -247,11 +255,12 @@ Flow table at switch 1 is:
  {*} => [Output AllPorts]
 ```
 
-As you can see from the latter two rules, NetCore is less efficient than a
+As you can see from the latter two rules, NetCore is less efficient 
+(in terms of switch rule space used) than a
 human programmer.  (But not for long, we hope!)  Nevertheless, this should look
 very similar to the flow table you programmed.
 
-Now, let's add a query to monitor traffic from <code>h1</code>:
+Now, let's add a query to monitor traffic for <code>h1</code>:
 ```
 let firewall = if !(tcpDstPort = 22) then all in
 let monitor = if srcIP = 10.0.0.1 then monitorLoad(10, "From H1") in
@@ -314,12 +323,12 @@ $ sudo mn --controller=remote --topo=linear,3
 Your goals are to implement a policy that performs the following
 actions:
   - broadcast all arp packets to all hosts
-  - route other packets to the correct host according to their destination 
+  - route other packets to the correct host using their destination 
 IP address.  Host h1 has IP address 10.0.0.1, host h2 has
 IP address 10.0.0.2 and host h3 has IP address 10.0.0.3.
-  - prevent host h2 from contacting h3's web server.  In other words,
-drop all packets from source IP 10.0.0.2 destined for source
-IP 10.0.0.3 on tcp port 80 (web).
+  - prevent host h2 from contacting h3's web server by
+dropping all packets from source IP 10.0.0.2 destined for source
+IP 10.0.0.3 with desintation TCP port 80.
 
 Moreover, the goal is to design the policy in a modular fashion.
 To that end, we have provided you with a template to start from in
@@ -345,11 +354,11 @@ Check that you can fetch content from the server at h3 from h1:
 ```
 mininet> h1 wget -O - h3
 ```
-See anything interesting on h3?  Make sure h3's web server is inaccessible 
-from from h2:
+Make sure h3's web server is inaccessible from from h2:
 ```
 mininet> h2 wget -O - h3
 ```
+You can find a solution in <code>Sol_Multi_Switch.nc</code>.
 
 [topo_1]: images/topo_1.png "Default Mininet topology."
 [topo_2]: images/topo_2.png "Simple linear topology."
