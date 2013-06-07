@@ -139,23 +139,19 @@ module Output = struct
     let pt' = match out.outPort with
       | Here -> pt
       | pt -> pt in
-    Some (sw, pt',
-         (maybe_modify out.outDlSrc Packet.setDlSrc
-         (maybe_modify out.outDlDst Packet.setDlDst
-         (maybe_modify out.outDlVlan Packet.setDlVlan
-         (maybe_modify out.outDlVlanPcp Packet.setDlVlanPcp
-         (maybe_modify out.outNwSrc Packet.setNwSrc
-         (maybe_modify out.outNwDst Packet.setNwDst
-         (maybe_modify out.outNwTos Packet.setNwTos
-         (maybe_modify out.outTpSrc Packet.setTpSrc
-         (maybe_modify out.outTpDst Packet.setTpDst pkt))))))))))
+    (sw, pt',
+    (maybe_modify out.outDlSrc Packet.setDlSrc
+    (maybe_modify out.outDlDst Packet.setDlDst
+    (maybe_modify out.outDlVlan Packet.setDlVlan
+    (maybe_modify out.outDlVlanPcp Packet.setDlVlanPcp
+    (maybe_modify out.outNwSrc Packet.setNwSrc
+    (maybe_modify out.outNwDst Packet.setNwDst
+    (maybe_modify out.outNwTos Packet.setNwTos
+    (maybe_modify out.outTpSrc Packet.setTpSrc
+    (maybe_modify out.outTpDst Packet.setTpDst pkt))))))))))
 
   let rec apply_atom atom (sw,pt,pk) = match atom with
-    | SwitchAction out -> 
-      begin match apply_output out (sw,pt,pk) with
-        | None -> []
-        | Some lp -> [lp]
-      end
+    | SwitchAction out -> [apply_output out (sw,pt,pk)]
     | ControllerAction f -> apply_action (f sw pt pk) (sw, pt, pk)
     | ControllerQuery _ -> []
 
@@ -232,9 +228,8 @@ module Output = struct
       Some 
         (ControllerAction
            (fun sw pt pk ->
-             match apply_output out (sw, pt, pk) with
-               | None -> drop
-               | Some (sw', pt', pk') -> g sw' pt' pk'))
+             let sw', pt', pk' = apply_output out (sw, pt, pk) in
+             g sw' pt' pk'))
     | ControllerAction f, SwitchAction out ->
       Some
         (ControllerAction
@@ -332,7 +327,13 @@ module Output = struct
         NetCore_Pattern.inter
         [ sel dlSrc out.outDlSrc
         ; sel dlDst out.outDlDst
-        ; sel dlVlan out.outDlVlan ]
+        ; sel dlVlan out.outDlVlan
+        ; sel dlVlanPcp out.outDlVlanPcp
+        ; sel ipSrc out.outNwSrc
+        ; sel ipDst out.outNwDst
+        ; sel ipTos out.outNwTos
+        ; sel tcpSrcPort out.outTpSrc
+        ; sel tcpDstPort out.outTpDst ]
         all
     | ControllerAction _      -> all
     | ControllerQuery _   -> all
@@ -413,7 +414,14 @@ module Output = struct
     List.filter f action
 
   let as_actionSequence inp act = 
-    Frenetic_List.concat_map (atom_to_of inp) act
+    let controller_atoms, not_controller_atoms =
+      List.partition
+        (function | Output (Controller _) -> true | _ -> false)
+        (Frenetic_List.concat_map (atom_to_of inp) act) in
+    if List.length controller_atoms > 0 then
+      not_controller_atoms @ [hd controller_atoms]
+    else
+      not_controller_atoms
 
   let queries action =
     let f atom = match atom with
