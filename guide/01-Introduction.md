@@ -1,9 +1,60 @@
-Getting Started
-===============
+Frenetic Tutorial
+=================
 
-In this tutorial, you will learn to program software-defined networks
-(SDN) using OpenFlow. The software for this tutorial is available as
-a virtual machine. To get started:
+In this tutorial, you will learn to program software-defined networks (SDN)
+using OpenFlow and NetCore, the surface language of Frenetic. The tutorial is
+broken into three sections.
+
+### Ox
+
+Chapters 2 - 5 introduce the nuts and bolts of controlling an SDN with the
+OpenFlow protocol using *Ox*, an OCaml controller platform for sending and
+receiving OpenFlow messages.
+
+[[2 Ox Repeater][Ch2]] [[3 Ox Firewall][Ch3]] [[4 Ox Monitor][Ch4]] [[5 Ox Learning][Ch5]]
+
+### NetCore
+
+Chapters 6 - 8 teach readers how to program an SDN running OpenFlow using the
+*NetCore* Domain-specific Programming Language (NetCoreDSL).  NetCoreDSL is
+designed primarily to allow users to program static (unchanging) network
+configurations.  However, NetCoreDSL also contains a limited set of building
+blocks that allow programmers to craft dynamic policies that generate a series
+of static NetCore configurations.
+
+[[6 NetCore Introduction][Ch6]] [[7 NetCore Composition][Ch7]] [[8 Dynamic NetCore][Ch8]]
+
+### Frenetic
+
+This tutorial should also be viewed as a stepping stone towards learning how to
+program in the more powerful *Frenetic* environment.  *Frenetic* is a
+general-purpose SDN programming language embedded as a set of libraries in
+OCaml.  In Frenetic, one programs applications that react to network events
+such as topology changes and statistics queries.  On seeing a network event, a
+Frenetic application will generate a new static network configuration and pass
+it off to the Frenetic run-time system.  The Frenetic run-time system will
+compile the static configuraion in to OpenFlow and update the running network
+with the compiled policy in a [per-packet consistent
+manner](http://frenetic-lang.org/publications/network-update-sigcomm12.pdf).
+The static configurations constructed by Frenetic applications are built using
+[NetCoreLib](http://frenetic-lang.github.io/frenetic/docs/NetCore_Types.html),
+which has the same semantics as the NetCore DSL described in this tutorial.
+Hence, a Frenetic program is really just a general-purpose OCaml program that
+reacts to network events and generates a stream of NetCore policies.  Since
+NetCoreLib and NetCoreDSL are effectively the same (with NetCoreDSL simply
+adding a pleasing domain-specific, user-level syntax), we will drop the "DSL"
+part of the name from this point forward and simply refer to NetCore.
+
+As an aside, you may find it interesting to read about [why we created
+Frenetic](http://frenetic-lang.org/publications/overview-ieeecoms13.pdf) in the
+first place.
+
+Getting Started
+---------------
+
+As you read this document, we encourage you to experiment with the examples 
+and try the exercises.  To do so, you will need to download and start up the
+tutorial VM.  To get started:
 
 - Download and install the [VirtualBox](https://www.virtualbox.org)
   virtualization platform.
@@ -77,3 +128,11 @@ Handy References
 [Match]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.Match.html
 
 [Packet]: http://frenetic-lang.github.io/frenetic/docs/Packet.html
+
+[Ch2]: 02-OxRepeater.md
+[Ch3]: 03-OxFirewall.md
+[Ch4]: 04-OxMonitor.md
+[Ch5]: 05-OxLearning.md
+[Ch6]: 06-NetCoreIntroduction.md
+[Ch7]: 07-NetCoreComposition.md
+[Ch8]: 08-DynamicNetCore.md
