@@ -51,8 +51,8 @@ port 80 increments the counter (and that other traffic does not).
 - Build and launch the controller:
 
   ```shell
-  $ make Firewall.d.byte
-  $ ./Firewall.d.byte
+  $ make Monitor.d.byte
+  $ ./Monitor.d.byte
   ```
 
 - In a separate terminal window, start Mininet:
@@ -161,24 +161,24 @@ problem?
 #### Programming Task 1
 
 Augment `Monitor.ml` to build a flow table. The forwarding logic only
-requires two rules -- one for ICMP and the other for non-ICMP traffic
--- but you'll need additional rules to ensure that you have
+requires two rules &mdash; one for ICMP and the other for non-ICMP traffic
+&mdash; but you'll need additional rules to ensure that you have
 fine-grained counters.  Once you have determined the rules you need,
 create the rules as you did before using `send_flow_mod` in the
 `switch_connected` function.
 
 #### Programming Task 2
 
-*Complete Programming Task 1 before moving onto this task. *
+*Complete Programming Task 1 before moving onto this task.*
 
 As you realized in the previous programing task, you cannot write a
 single OpenFlow pattern that matches both HTTP requests and
 replies. You need to match they separately, using two rules, which
-gives you two counters. Therefore, you need to issue two statistics
-requests and calculate their sum.
+gives you two counters. Therefore, you need to read each counter
+independently and calculate their sum.
 
-You can read counters by calling [send_stats_request]. To
-monitor traffic continuously, you will need to do so periodically.
+
+You can read counters by calling [send_stats_request] periodically.
 To do so, you can use the following function:
 
 ```ocaml
@@ -191,29 +191,25 @@ let rec periodic_stats_request sw interval xid pat =
   timeout interval callback
 ```
 
-This function issues an [AggregateRequest] every [interval] seconds
-for counters that match [pat]. Use `periodic_stats_request` in
-`switch_connected`. For example, in the template below, 
-the program periodically reads the counter for HTTP requests
-and HTTP responses every five seconds:
+This function issues a request every `interval` seconds for counters
+that match `pat`. Use `periodic_stats_request` in
+`switch_connected`. For example, in the template below, the program
+periodically reads the counter for HTTP requests and HTTP responses
+every five seconds:
 
 ```ocaml
-let http_req_xid = (* [FILL] *)
-
-let http_resp_xid = (* [FILL] *)
-
 let switch_connected (sw : switchId) : unit =
   Printf.printf "Switch %Ld connected.\n%!" sw;
-  periodic_stats_request sw 5.0 http_req_xid match_http_requests;
-  periodic_stats_request sw 5.0 http_resp_xid match_http_responses;
+  periodic_stats_request sw 5.0 10l match_http_requests;
+  periodic_stats_request sw 5.0 20l match_http_responses;
   ...
 ```
 
 You need to fill in the patterns `match_http_requests` and
-`match_http_responses`, which you have already calculated. In
-addition, you need to pick distinct values for `http_req_xid` and
-`http_resp_xid`. These `_xid` values are returned in the statistics
-reply message, and we use them to tell the replies apart.
+`match_http_responses`, which you have already calculated.
+
+Finally, you need a `stats_reply` handler that calculates the sum
+of the two counters. We've provided one below:
 
 ```ocaml
 let num_http_request_packets = ref 0L 
@@ -222,12 +218,11 @@ let num_http_response_packets = ref 0L
 let stats_reply (sw : switchId) (xid : xid) (stats : Stats.reply) : unit =
   match stats with
   | Stats.AggregateFlowRep rep ->
-    let k = rep.Stats.total_packet_count in
     begin
-      if xid = http_req_xid then
-        num_http_request_packets := Int64.add !num_http_request_packets k
-      else if xid = http_resp_xid then
-        num_http_response_packets := Int64.add !num_http_response_packets k
+      if xid = 10l then
+        num_http_request_packets := rep.Stats.total_packet_count
+      else if xid = 20l then
+        num_http_response_packets := rep.Stats.total_packet_count
     end;
     Printf.printf "Seen %Ld HTTP packets.\n%!"
       (Int64.add !num_http_request_packets !num_http_response_packets)
@@ -268,6 +263,8 @@ packets, before the switch is fully initialized?
 [Ch8]: 08-DynamicNetCore.md
 
 [OpenFlow_Core]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html
+
+[send_stats_request]: http://frenetic-lang.github.io/frenetic/docs/OxPlatform.html#VALsend_stats_request
 
 [send_flow_mod]: http://frenetic-lang.github.io/frenetic/docs/OxPlatform.html#VALsend_flow_mod
 

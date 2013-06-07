@@ -10,11 +10,17 @@ possible.
 A Port Mapping Policy
 ----------------------
 
-To begin, let's adapt the example from Chapter 6 so that instead of simply
+Our goal in this subsection will be to adapt the simple repeater 
+from [Chapter 6](06-NetCoreIntroduction.md) so that instead of simply
 acting as a repeater, our switch does some packet rewriting.  More
-specifically, let's create a switch that maps connections initiated by host 
+specifically, we will create a switch that maps connections initiated by host 
 <code>h1</code>
-and destined to TCP port 5022 to the standard SSH port 22.  
+and destined to TCP port 5022 to the standard SSH port 22.  To do
+so, we'll have to learn about several new NetCore features including
+*packet modification actions,* *sequential composition* and the *pass*
+action.
+
+### Packet Modifications
 
 In general, packet modifications are written as follows:
 ```
@@ -29,24 +35,55 @@ tcpDstPort 5022 -> 22
 ```
 rewrites the <code>tcpDstPort</code> of packets from 5022 to 22.
 
+### Sequential Composition
+
 Now, policies can mix modification and forwarding actions, but we need a way to
-pipe the output of one policy into the next.  For this, we use
-the *sequential composition* operator (<code>;</code>).  For instance,
+pipe the output of one policy in to the next.  For this, we use
+the *sequential composition* operator (<code>;</code>).  You should
+think of the sequential composition <code>P1; P2</code> as a kind 
+of *function composition* that processes
+each packet using the function corresponding <code>P1</code> first, generating
+a multi-set of zero, one or more intermediate packets <code>{p1,...,pk}</code>, and 
+then applies the function corresponding to <code>P2</code> 
+to each intermediate packet <code>pi</code>, returning some number of
+final result packets.
+
+As a simple first example, consider
 ```
 tcpDstPort 5022 -> 22; fwd(1)
 ```
-rewrites the <code>tcpDstPort</code> and then forwards the modified packets out
-port 1.  In this case, we have composed the effects of two actions, but in
-general you can use sequential composition to compose any two policies.
+the first action produces a packet with <code>tcpDstPort</code> equal to
+22 in the same place it started.  The second action takes that intermediate
+result and produces a new packet at port 1.  Now consider the following
+variation:
+```
+fwd(1); tcpDstPort 5022 -> 22
+```
+It is semantically equivalent to the first.  The <code>fwd</code>
+action creates a new packet at port 1 and the modification changes the
+<code>tcpDstPort</code> afterwards.  More interesting still,
+```
+all; tcpDstPort 5022 -> 22
+```
+moves the packet to <code>all</code> ports (except the one it came in on)
+and rewrites all of them.
+
+### Exercise
+
+What does the policy <code>drop; all</code> do?  Why?
+
+### The Pass Action
 
 We need one more concept in order to write an elegant port-mapper program:
 The <code>pass</code> action.  This action acts like the identity function on
 packets. In other words, it simply pipes all of its input packets through
 untouched to its output.  Hence, <code>pass</code> has the property that both
 <code>pass; P</code> and <code>P; pass</code> are exactly the same as just
-<code>P</code>, for any policy <code>P</code>.  At first, it seems as though
+<code>P</code>.  At first, it seems as though
 this makes <code>pass</code> a completely useless construct, but it turns out
 to be essential in combination with other features of NetCore.
+
+### And Finally, the Port Mapper
 
 Now, the port translation program:
 ```
@@ -68,7 +105,7 @@ The <code>mapper</code> component rewrites the destination port in one
 direction and the source port in the other, if those ports
 take on the given values entering the switch.  Notice how we
 used <code>pass</code> in the final <code>else</code> branch of the 
-<code>mapper</code> policy to leaves packets of all other kinds
+<code>mapper</code> policy to leave packets of all other kinds
 untouched.  This allows us to compose the mapper component
 with any routing component we choose.  In this case, <code>forwarder</code>
 is defined by composing <code>mapper</code> with the trivial <code>all</code>
@@ -79,10 +116,10 @@ properly with the mapper.
 Testing the Port Mapper
 -----------------------
 
-You will find the mapper in <code>port_map.nc</code>.  Start it up
+You will find the mapper in <code>Port_Map.nc</code>.  Start it up
 with frenetic.
 ```
-$ frenetic port_map.nc
+$ frenetic Port_Map.nc
 ```
 Then start mininet in the default topology, and
 simulate an SSH process listening on port 22 on host <code>h2</code>:
@@ -119,7 +156,7 @@ Composing Queries
 When developing more complex policies, it is very useful to peer into the
 middle of the network.  Hence, NetCore supports several kinds of queries that
 can help you understand and debug the behavior of your network.  As an example,
-the <code>monitorPackets( label )</code> policy sends every input packet it
+the <code>monitorPackets(label)</code> policy sends every input packet it
 receives to the controller as opposed to forwarding it along a network data
 path (like the <code>fwd(port)</code> policy does).  At the controller, the
 packet is printed with the string <code>label</code> as a prefix and then
@@ -131,7 +168,8 @@ controller, for inspection, and wherever they may be destined in the network.
 To support this idiom, we must introduce a new kind of operator on policies:
 *parallel composition*.  Intuitively, when supplied with a packet
 <code>p</code> as input, the parallel composition <code>P1 + P2</code> applies
-<code>P1</code> to <code>p</code> and also applies <code>P2</code> to
+<code>P1</code> to <code>p</code> and also, independently,
+applies <code>P2</code> to a second copy of
 <code>p</code>.  Overall, it generates the *union* of the results from
 <code>P1</code> and <code>P2</code>.  Hence, if <code>P1</code> forwards to A
 and <code>P1</code> forwards to B then <code>P1 + P2</code> makes a copy of the
@@ -153,9 +191,11 @@ Above, we used a
 that reach the monitoring policy to only those packets satisfying
 the <code>inPort = 1</code> predicate.  Otherwise, the monitor policy
 prints *all* packets that reach it.  Note that if there is no <code>else</code>
-branch in a conditional, packets not matching the conditional are dropped.
+branch in a conditional, packets not matching the conditional are dropped
+(i.e., in this second case, the conditional produces the empty set of result
+packets).
 
-This new policy can be found in <code>port_map_monitor.nc</code>.
+This new policy can be found in <code>Port_Map_Monitor1.nc</code>.
 Test it as above using iperf, but this time watch the output in the 
 controller window.  You should see lines similar to the following being printed:
 ```
@@ -166,19 +206,25 @@ You will notice <code>tpDst=5022</code> in lines marked
 <code>BEFORE</code> and <code>tpDst=22</code> in lines marked 
 <code>AFTER</code>.
 
+Monitoring Load
+---------------
+
 Another useful query measures the load at different places in the network.  The
-<code>monitorLoad( n , label )</code> policy prints the number of packets and
-bytes it receives every <code>n</code> seconds.  Output is prefixed by the
+<code>monitorLoad(n, label)</code> policy prints the number of packets and
+bytes it receives every <code>n</code> seconds.  Each output line from this
+query is prefixed by the
 string <code>label</code>, and we can restrict the packets monitored by
 <code>monitorLoad</code> using <code>if</code>-<code>then</code> clauses.
+Note that the implementation 
+of <code>monitorLoad</code> is far more efficient 
+than <code>monitorPackets</code> as the former does not send packets 
+to the controller.
 
-Try removing the packet monitoring policies in the port mapper and adding a
-<code>monitorLoad</code> query to measure the number of packets sent by iperf.
-The implementation of <code>monitorLoad</code> is far more efficient than
-<code>monitorPackets</code>, as it does not send packets to the controller.
-Instead, it queries OpenFlow counters on the switch after each time interval.
-You can issue a longer iperf request by adjusting the timing parameter
-(<code>-t seconds</code>).  Watch the load printed in the controller window.
+<code>Port_Map_Monitor2.nc</code> contains a variation of the port mapper 
+that monitors load instead of packets.  You can test it by
+issuing a longer iperf request 
+(adjust the timing parameter <code>-t seconds</code>).  Watch the load 
+printed in the controller terminal.
 The following command runs iperf for <code>20</code> seconds.
 ```
 mininet> h1 iperf -c 10.0.0.2 -p 5022 -t 20
@@ -209,11 +255,12 @@ Flow table at switch 1 is:
  {*} => [Output AllPorts]
 ```
 
-As you can see from the latter two rules, NetCore is less efficient than a
+As you can see from the latter two rules, NetCore is less efficient 
+(in terms of switch rule space used) than a
 human programmer.  (But not for long, we hope!)  Nevertheless, this should look
 very similar to the flow table you programmed.
 
-Now, let's add a query to monitor traffic from <code>h1</code>:
+Now, let's add a query to monitor traffic for <code>h1</code>:
 ```
 let firewall = if !(tcpDstPort = 22) then all in
 let monitor = if srcIP = 10.0.0.1 then monitorLoad(10, "From H1") in
@@ -276,12 +323,12 @@ $ sudo mn --controller=remote --topo=linear,3
 Your goals are to implement a policy that performs the following
 actions:
   - broadcast all arp packets to all hosts
-  - route other packets to the correct host according to their destination 
+  - route other packets to the correct host using their destination 
 IP address.  Host h1 has IP address 10.0.0.1, host h2 has
 IP address 10.0.0.2 and host h3 has IP address 10.0.0.3.
-  - prevent host h2 from contacting h3's web server.  In other words,
-drop all packets from source IP 10.0.0.2 destined for source
-IP 10.0.0.3 on tcp port 80 (web).
+  - prevent host h2 from contacting h3's web server by
+dropping all packets from source IP 10.0.0.2 destined for source
+IP 10.0.0.3 with desintation TCP port 80.
 
 Moreover, the goal is to design the policy in a modular fashion.
 To that end, we have provided you with a template to start from in
@@ -307,11 +354,11 @@ Check that you can fetch content from the server at h3 from h1:
 ```
 mininet> h1 wget -O - h3
 ```
-See anything interesting on h3?  Make sure h3's web server is inaccessible 
-from from h2:
+Make sure h3's web server is inaccessible from from h2:
 ```
 mininet> h2 wget -O - h3
 ```
+You can find a solution in <code>Sol_Multi_Switch.nc</code>.
 
 [topo_1]: images/topo_1.png "Default Mininet topology."
 [topo_2]: images/topo_2.png "Simple linear topology."
