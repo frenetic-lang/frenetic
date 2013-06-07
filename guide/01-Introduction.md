@@ -28,7 +28,7 @@ and statistics queries.  For example:
 
 1. An event reaches the application.
 1. The application generates a new static network configuration and sends it to the Frenetic run time.
-1. The Frenetic run time compiles it to OpenFlow and updates the running network, maintaining (per-packet consistency](http://frenetic-lang.org/publications/network-update-sigcomm12.pdf).
+1. The Frenetic run time compiles it to OpenFlow and updates the running network, maintaining [per-packet consistency](http://frenetic-lang.org/publications/network-update-sigcomm12.pdf).
 
 Static network configurations are built using
 [NetCoreLib](http://frenetic-lang.github.io/frenetic/docs/NetCore_Types.html),
