@@ -132,7 +132,7 @@ let switch_connected (sw : switchId) : unit =
 
 You have to determine the priorities, patterns, and actions in the
 handler above. You might want to revisit the description of flow
-tables in [Chapter 1]. Here is a quick refresher:
+tables in [Chapter 1][ch1]. Here is a quick refresher:
 
 
 - *Priorities*: higher numbers mean higher priority
@@ -142,8 +142,8 @@ tables in [Chapter 1]. Here is a quick refresher:
 
 - *Patterns*: In the previous chapter, you used the builtin pattern
   `match_all`, which you may use again if needed. You will certainly
-  need to write a pattern to match ICMP packets. The [Ox Manual] has
-  several example patterns to get you started. You'll need to know
+  need to write a pattern to match ICMP packets. The Ox Manual has
+  several [example patterns] to get you started. You'll need to know
   that the _frame type for IP packets is 0x800_ and the _protocol
   number for ICMP is 1_.
 
@@ -159,8 +159,26 @@ packets at the controller.
 
 [PacketOut]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.PacketOut.html
 
-[OxPlatform]: http://frenetic-lang.github.io/frenetic/docs/Ox_Controller.OxPlatform.html
+[Ox Platform]: http://frenetic-lang.github.io/frenetic/docs/Ox_Controller.OxPlatform.html
 
 [Match]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.Match.html
 
 [Packet]: http://frenetic-lang.github.io/frenetic/docs/Packet.html
+
+[Ch2]: 02-OxRepeater.md
+[Ch3]: 03-OxFirewall.md
+[Ch4]: 04-OxMonitor.md
+[Ch5]: 05-OxLearning.md
+[Ch6]: 06-NetCoreIntroduction.md
+[Ch7]: 07-NetCoreComposition.md
+[Ch8]: 08-DynamicNetCore.md
+
+[send_flow_mod]: http://frenetic-lang.github.io/frenetic/docs/OxPlatform.html#VALsend_flow_mod
+
+[pattern]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html#TYPEpattern
+
+[match_all]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html#VALmatch_all
+
+[match_all]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html#VALmatch_all
+
+[example patterns]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Co
