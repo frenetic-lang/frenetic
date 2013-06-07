@@ -14,7 +14,6 @@ type descriptionStats =
     ; serial_number : string
     ; datapath : string
     }
-      
  
 type individualStats =
     { table_id : int8
@@ -40,3 +39,36 @@ type reply =
   | DescriptionRep of descriptionStats
   | IndividualFlowRep of individualStats list
   | AggregateFlowRep of aggregateStats
+
+module Format = struct
+
+  open Format
+
+  let descriptionStats fmt v =
+    fprintf fmt "@[{@[@[manufacturer=%s;@]@ @[hardware=%s;@]@ \
+                      @[software=%s;@]@ @[serial=%s;@]@ @[datapath=%s@]@]}@]"
+      v.manufacturer v.hardware v.software v.serial_number v.datapath
+
+  (* TODO(arjun): must fill *)
+  let individualStats fmt v = fprintf fmt "individualStats"
+
+  let aggregateStats fmt v =
+    fprintf fmt "@[{@[@[packets=%Ld;@]@ @[bytes=%Ld;@]@ @[flows=%ld@]@]}@]"
+      v.total_packet_count v.total_byte_count v.flow_count
+
+  let reply fmt v = match v with
+    | DescriptionRep st -> descriptionStats fmt st
+    | IndividualFlowRep st -> individualStats fmt st
+    | AggregateFlowRep st -> aggregateStats fmt st
+
+  let string_of_mk formatter x =
+    let buf = Buffer.create 100 in
+    let fmt = formatter_of_buffer buf in
+    pp_set_margin fmt 80;
+    formatter fmt x;
+    fprintf fmt "@?";
+    Buffer.contents buf
+
+end
+
+let reply_to_string  = Format.string_of_mk Format.reply

@@ -1379,14 +1379,6 @@ module StatsReply = struct
 
     let size_of_description_stats _ = sizeof_ofp_desc_stats
 
-    let to_string_description_stats desc = Printf.sprintf
-      "{ manufacturer = %s; hardware = %s; software = %s;\
-         serial_number = %s; datapath = %s}"
-      desc.manufacturer desc.hardware desc.software
-      desc.serial_number desc.datapath
-
-
-
     cstruct ofp_flow_stats {
       uint16_t length;
       uint8_t table_id;
@@ -1475,12 +1467,6 @@ module StatsReply = struct
       uint8_t pad[4]
     } as big_endian
 
-    let to_string_aggregate_stats stats = Printf.sprintf
-      "{ packet_count = %Ld; byte_count = %Ld; flow_count = %ld }"
-      stats.total_packet_count
-      stats.total_byte_count
-      stats.flow_count
-
     let parse_aggregate_stats bits = 
       { total_packet_count = get_ofp_aggregate_stats_packet_count bits;
 	      total_byte_count = get_ofp_aggregate_stats_byte_count bits;
@@ -1490,12 +1476,6 @@ module StatsReply = struct
     uint16_t stats_type;
     uint16_t flags
   } as big_endian
-
-  let to_string rep = match rep with
-    | DescriptionRep stats -> to_string_description_stats stats
-    | IndividualFlowRep stats ->
-      Frenetic_Misc.string_of_list to_string_individual_stats stats
-    | AggregateFlowRep stats -> to_string_aggregate_stats stats
 
   let parse bits =
     let stats_type_code = get_ofp_stats_reply_stats_type bits in

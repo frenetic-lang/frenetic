@@ -301,7 +301,6 @@ end
 module StatsReply : sig
 
   type t = OpenFlow0x01_Stats.reply
-  val to_string : t -> string
 
 end
 

@@ -49,3 +49,5 @@ type reply =
   | DescriptionRep of descriptionStats
   | IndividualFlowRep of individualStats list
   | AggregateFlowRep of aggregateStats
+
+val reply_to_string : reply -> string
