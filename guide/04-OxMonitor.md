@@ -59,7 +59,7 @@ port 80 increments the counter (and that other traffic does not).
   parameters you've used before:
 
   ```
-  $ sudo ./mn --controller=remote --topo=single,3 --mac
+  $ sudo mn --controller=remote --topo=single,3 --mac
   ```
 
 - Test that the firewall correctly drops pings, reporting `100% packet loss`:
@@ -83,39 +83,46 @@ port 80 increments the counter (and that other traffic does not).
 
     ```
     # cd ~/src/frenetic/guide
-    # python -m SimpleHTTPServer
+    # python -m SimpleHTTPServer 80
     ```
 
   * In the terminal for `h2` fetch a web page from `h1`:
 
     ```
-    # curl 10.0.0.1/index.html
+    # curl 10.0.0.1
     ```
 
-    This command should succeed and in the controller's terminal, you 
-    should find that HTTP traffic is logged.
+    This command should succeed and you should find HTTP traffic
+    logged in the controller's terminal:
 
-    > fill in output
+    ```
+    Seen 1 HTTP packets.
+    Seen 2 HTTP packets.
+    Seen 3 HTTP packets.
+    Seen 4 HTTP packets.
+    Seen 5 HTTP packets.
+    ...
+    ```    
 
 - Finally, you should test to ensure that other traffic is neither
   blocked by the firewall nor counted by your monitor. To do so, kill the
-  Web server running on `h2` and start it on a non-standard port (e.g., 8080):
+  Web server running on `h1` and start it on a non-standard port (e.g., 8080):
 
-  * On the terminal for `h2`:
-
-    ```
-    $ python -m SimpleHTTPServer 8080 .
-    ```
-
-  * On the terminal for h1, fetch a page:
+  * On the terminal for `h1`:
 
     ```
-    $ curl 10.0.0.2 8080
+    ^C
+    $ python -m SimpleHTTPServer 8080
     ```
 
-  The client should successfully download the page. Furthermore, in the
-  controller terminal, you should find that no traffic is logged during
-  this connection.
+  * On the terminal for `h2`, fetch a page:
+
+    ```
+    $ curl 10.0.0.1:8080
+    ```
+
+  The client should successfully download the page. However, none of
+  these packets should get logged by the controller.
 
 ### Efficiently Monitoring Web Traffic
 
