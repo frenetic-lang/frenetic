@@ -204,7 +204,7 @@ module Icmp = struct
     let open Format in
     match v.typ with
       | 0 -> fprintf fmt "ICMP echo reply";
-      | 8 -> fprintf fmt "ICMP echo response"
+      | 8 -> fprintf fmt "ICMP echo request"
       | n -> fprintf fmt "ICMP type=%d,code=%d" n v.code
 
   let parse (bits : Cstruct.t) = 
