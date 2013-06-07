@@ -480,7 +480,7 @@ let format_nw fmt v =
   match v with 
     | Ip ip -> Ip.format fmt ip
     | Arp arp -> Arp.format fmt arp
-    | Unparsable (typ, _) -> fprintf fmt "frameType=%d" typ
+    | Unparsable (typ, _) -> fprintf fmt "frameType=0x%X" typ
 
 let format_vlan fmt v =
   let open Format in
