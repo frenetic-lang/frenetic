@@ -13,17 +13,17 @@ module MyApplication = struct
     Packet.dlTyp pk <> Packet.dlTyp pk (* i.e., false *)
 
   let packet_in (sw : switchId) (xid : xid) (pktIn : packetIn) : unit =
-    let payload = pktIn.input_payload in
-    let pk = parse_payload payload in
+    Printf.printf "%s\n%!" (packetIn_to_string pktIn);
+    let pk = parse_payload pktIn.input_payload in
     if is_icmp_packet pk then
       send_packet_out sw 0l
-        { output_payload = payload;
+        { output_payload = pktIn.input_payload;
           port_id = None;
           apply_actions = []
         }
     else 
       send_packet_out sw 0l
-        { output_payload = payload;
+        { output_payload = pktIn.input_payload;
           port_id = None;
           apply_actions = [Output AllPorts]
         }

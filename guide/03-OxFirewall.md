@@ -2,48 +2,38 @@ Chapter 2: Firewall
 ===================
 
 In this chapter, you will compose your repeater with a simple firewall
-that blocks ICMP traffic. As a result, `ping`s will be blocked, but
-other traffic, such as Web traffic, will still be handled by the
-repeater.
+that blocks ICMP traffic. As a result, the `ping` command will no longer
+work on hosts. But, you will still be able to run other programs, such as 
+Web servers.
+
+You will first write the `packet_in` function for the firewall.
+After you've tested it successfully, you'll configure the flow table
+to implement the firewall efficiently. 
 
 ### The Firewall Function
 
-You will first write the `packet_in` function for the firewall:
+Unlike the repeater, which blindly forwards packets, the firewall's
+`packet_in` function needs to inspect packets' headers to determine if
+they should be dropped.
+
+To do so, you need to parse the packet received. Ox includes a packet
+parsing library that supports some common packet formats, including ICMP.
+You can use it to parse the packet as follows:
 
 ```ocaml
 let packet_in (sw : switchId) (xid : xid) (pktIn : packetIn) : unit =
+  let pk = parse_payload pktIn.input_payload in
   ...
 ```
-
-After you've tested it successfully, you'll configure the flow table
-to implement the firewall efficiently. Unlike the repeater, which
-blindly forwards packets, the firewall needs inspect packet-headers to
-determine if they should be dropped. The argument `pktIn` of type
-[packetIn] has a binary payload that holds the headers you need.
-
-Ox includes a packet parsing library that supports several common formats,
-including ICMP. You can use it parse the packet as follows:
-
-```ocaml
-let packet_in (sw : switchId) (xid : xid) (pktIn : packetIn) : unit =
-  let payload = pktIn.input_payload in
-  let pk = parse_payload payload in
-  ...
-```
-
-Applying `parse_payload` will parse the packet into a series of nested
-frames. You can extract headers from these frames using OCaml's
-pattern matching (not recommended) or using the [accessor functions] in
-the packet library, which is what we recommend.
+Applying `parse_payload` parses the packet into a series of nested
+frames. The easiest way to examine packet headers is to then use the
+[accessor functions] in the packet library.
 
 #### Programming Task
 
-Starting from [./ox-tutorial-code/Firewall.ml], fill in the
-`is_icmp_packet` function.
-
-Recall that ICMP packets are contained in IP (frame type 0x800) and have
-the protocol number 1. In addition, note taht it doesn't make sense to
-query the protocol number of a non-IP packet.
+Starting from [Firewall.ml](ox-tutorial-code/Firewall.ml), fill in the
+`is_icmp_packet` function. Recall that ICMP messages are contained in
+IP packets (frame type 0x800) and have IP protocol number 1.
 
 #### Building and Testing Your Firewall
 
@@ -58,7 +48,7 @@ query the protocol number of a non-IP packet.
   parameters you've used before:
 
   ```
-  $ sudo ./mn --controller=remote --topo=single,3 --mac
+  $ sudo mn --controller=remote --topo=single,3 --mac
   ```
 
 - Test to ensure that pings fail within Mininet:
@@ -70,19 +60,28 @@ query the protocol number of a non-IP packet.
 
   These command should fail, printing `100.0% packet loss`.
 
-
-- On the controller terminal, you should see that only ping requests are
-  received:
+- On the controller terminal, you should see the controller receiving
+  several ICMP echo requests, but no ICMP echo replies:
   
   ```
-  ping request
-  ping reqeust
-  ```
+Switch 1 connected.
+packetIn{
+  total_len=98 port=1 reason=NoMatch
+  payload=dlSrc=00:00:00:00:00:01,dlDst=00:00:00:00:00:02,nwSrc=10.0.0.1,nwDst=10.0.0.2,ICMP echo request (buffered at 277)
+}
+packetIn{
+  total_len=98 port=1 reason=NoMatch
+  payload=dlSrc=00:00:00:00:00:01,dlDst=00:00:00:00:00:02,nwSrc=10.0.0.1,nwDst=10.0.0.2,ICMP echo request (buffered at 278)
+}
+packetIn{
+  total_len=98 port=1 reason=NoMatch
+  payload=dlSrc=00:00:00:00:00:01,dlDst=00:00:00:00:00:02,nwSrc=10.0.0.1,nwDst=10.0.0.2,ICMP echo request (buffered at 279)
+}
+...
+```
 
-  > TODO(arjun): Fill in actual text.
-
-  This indicates that the controller saw the ping request (and dropped it),
-  so no ping response was ever seen.
+  This indicates that the controller sees the ping request and drops it,
+  thus no host ever sends a reply.
 
 - Although ICMP is blocked, other traffic, such as Web traffic should
   be unaffected. To ensure that this is the case, try to run a Web server
@@ -116,7 +115,7 @@ query the protocol number of a non-IP packet.
 In this part, you will extend your implementation of the firewall
 function to also implement the firewall using flow tables.
 
-> Use [Sol_Firewall1.ml] if necessary.
+> Use [Sol_Firewall1.ml](ox-tutorial-code/Sol_Firewall1.ml) if necessary.
 
 #### Programming Task
 
