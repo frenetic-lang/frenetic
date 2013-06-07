@@ -12,7 +12,8 @@ A Port Mapping Policy
 
 To begin, let's adapt the example from Chapter 6 so that instead of simply
 acting as a repeater, our switch does some packet rewriting.  More
-specifically, let's create a switch that maps connections initiated by host H1
+specifically, let's create a switch that maps connections initiated by host 
+<code>h1</code>
 and destined to TCP port 5022 to the standard SSH port 22.  
 
 In general, packet modifications are written as follows:
@@ -84,13 +85,13 @@ with frenetic.
 $ frenetic port_map.nc
 ```
 Then start mininet in the default topology, and
-simulate an SSH process listening on port 22 on host H2:
+simulate an SSH process listening on port 22 on host <code>h2</code>:
 ```
 $ sudo mn --controller=remote
 mininet> h2 iperf -s -p 22 &
 ```
-You can connect to H2 (IP address 10.0.0.2) 
-from H1 by establishing a connection to port 5022
+You can connect to <code>h2</code> (IP address 10.0.0.2) 
+from <code>h1</code> by establishing a connection to port 5022
 using the command below.  (The <code>-t</code> option specifies
 the time window for sending traffic.)
 The mapper will translate port numbers for you.
@@ -212,7 +213,7 @@ As you can see from the latter two rules, NetCore is less efficient than a
 human programmer.  (But not for long, we hope!)  Nevertheless, this should look
 very similar to the flow table you programmed.
 
-Now, let's add a query to monitor traffic from H1:
+Now, let's add a query to monitor traffic from <code>h1</code>:
 ```
 let firewall = if !(tcpDstPort = 22) then all in
 let monitor = if srcIP = 10.0.0.1 then monitorLoad(10, "From H1") in
@@ -230,14 +231,14 @@ Flow table at switch 1 is:
 ```
 
 Let's break it down, rule by rule:
-* **Rule 1**: drop SSH traffic from H1.
+* **Rule 1**: drop SSH traffic from <code>h1</code>.
 * **Rule 2**: drop SSH traffic.
-* **Rule 3**: forward traffic from H1.
+* **Rule 3**: forward traffic from <code>h1</code>.
 * **Rule 4**: forward all other traffic.
 
 Why so many rules?  OpenFlow switches can only count packets as they match a
-rule.  Rule 1, for example, is necessary to precisely count traffic from H1.
-Without it, our query would miss any SSH traffic sent from H1, as it would be
+rule.  Rule 1, for example, is necessary to precisely count traffic from <code>h1</code>.
+Without it, our query would miss any SSH traffic sent from <code>h1</code>, as it would be
 lumped in with all the other SSH traffic dropped by rule 2.
 
 In general, NetCore creates a flow table for two policies joined by parallel
