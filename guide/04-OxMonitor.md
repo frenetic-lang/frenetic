@@ -198,22 +198,15 @@ the program periodically reads the counter for HTTP requests
 and HTTP responses every five seconds:
 
 ```ocaml
-let http_req_xid = (* [FILL] *)
-
-let http_resp_xid = (* [FILL] *)
-
 let switch_connected (sw : switchId) : unit =
   Printf.printf "Switch %Ld connected.\n%!" sw;
-  periodic_stats_request sw 5.0 http_req_xid match_http_requests;
-  periodic_stats_request sw 5.0 http_resp_xid match_http_responses;
+  periodic_stats_request sw 5.0 10l match_http_requests;
+  periodic_stats_request sw 5.0 20l match_http_responses;
   ...
 ```
 
 You need to fill in the patterns `match_http_requests` and
-`match_http_responses`, which you have already calculated. In
-addition, you need to pick distinct values for `http_req_xid` and
-`http_resp_xid`. These `_xid` values are returned in the statistics
-reply message, and we use them to tell the replies apart.
+`match_http_responses`, which you have already calculated.
 
 ```ocaml
 let num_http_request_packets = ref 0L 
@@ -222,12 +215,11 @@ let num_http_response_packets = ref 0L
 let stats_reply (sw : switchId) (xid : xid) (stats : Stats.reply) : unit =
   match stats with
   | Stats.AggregateFlowRep rep ->
-    let k = rep.Stats.total_packet_count in
     begin
-      if xid = http_req_xid then
-        num_http_request_packets := Int64.add !num_http_request_packets k
-      else if xid = http_resp_xid then
-        num_http_response_packets := Int64.add !num_http_response_packets k
+      if xid = 10l then
+        num_http_request_packets := rep.Stats.total_packet_count
+      else if xid = 20l then
+        num_http_response_packets := rep.Stats.total_packet_count
     end;
     Printf.printf "Seen %Ld HTTP packets.\n%!"
       (Int64.add !num_http_request_packets !num_http_response_packets)
