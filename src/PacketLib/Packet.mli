@@ -164,7 +164,7 @@ type packet =
 
 (** {9:accs Accessors} *)
 
-(** [dlTyp pkt] returns the EtherType of [pkt]. *)
+(** [dlTyp pkt] returns the ethernet frame type of [pkt] *)
 val dlTyp : packet -> dlTyp
 
 (** [nwSrc pkt] returns the source IP address of [pkt].
@@ -179,7 +179,7 @@ val nwDst : packet -> nwAddr
 @raise Invalid_argument if the packet is not carrying an IP payload. *)
 val nwTos : packet -> nwTos
 
-(** [nwProto pkt] returns the IPv4 protocol of [pkt].
+(** [nwProto pkt] returns the IP protocol number of [pkt].
 @raise Invalid_argument if the packet is not carrying an IP payload. *)
 val nwProto : packet -> nwProto
 
