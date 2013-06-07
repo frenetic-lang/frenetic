@@ -2,13 +2,11 @@ Chapter 2: Firewall
 ===================
 
 In this chapter, you will compose your repeater with a simple firewall
-that blocks ICMP traffic. As a result, the `ping` command will no longer
-work on hosts. But, you will still be able to run other programs, such as 
-Web servers.
-
-You will first write the `packet_in` function for the firewall.
-After you've tested it successfully, you'll configure the flow table
-to implement the firewall efficiently. 
+that blocks ICMP traffic. As a result, the `ping` command will no
+longer work on hosts. But, you will still be able to run other
+programs, such as Web servers.  You will first write the `packet_in`
+function for the firewall.  After you've tested it successfully,
+you'll configure the flow table to implement the firewall efficiently.
 
 ### The Firewall Function
 
@@ -27,7 +25,7 @@ let packet_in (sw : switchId) (xid : xid) (pktIn : packetIn) : unit =
 ```
 Applying `parse_payload` parses the packet into a series of nested
 frames. The easiest way to examine packet headers is to then use the
-[accessor functions] in the packet library.
+[header accessor functions] in the packet library.
 
 #### Programming Task
 
@@ -182,3 +180,5 @@ packets at the controller.
 [match_all]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html#VALmatch_all
 
 [example patterns]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html#patternexamples
+
+[header accessor functions]: http://frenetic-lang.github.io/frenetic/docs/Packet.html
