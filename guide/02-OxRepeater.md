@@ -183,13 +183,33 @@ hosts and have them ping each other:
 
   ```
   mininet> h1 ping h2
-  mininet> h2 ping h3
-  ...
+  PING 10.0.0.2 (10.0.0.2) 56(84) bytes of data.
+  64 bytes from 10.0.0.2: icmp_req=1 ttl=64 time=1.97 ms
+  64 bytes from 10.0.0.2: icmp_req=2 ttl=64 time=1.92 ms
+  64 bytes from 10.0.0.2: icmp_req=3 ttl=64 time=2.46 ms
+  64 bytes from 10.0.0.2: icmp_req=4 ttl=64 time=2.21 ms
+  ^C
+  --- 10.0.0.2 ping statistics ---
+  4 packets transmitted, 4 received, 0% packet loss, time 3006ms
+  rtt min/avg/max/mdev = 1.926/2.144/2.461/0.213 ms
+  ```
+
+  ```
+  mininet> h2 ping h1
+  PING 10.0.0.1 (10.0.0.1) 56(84) bytes of data.
+  64 bytes from 10.0.0.1: icmp_req=1 ttl=64 time=1.98 ms
+  64 bytes from 10.0.0.1: icmp_req=2 ttl=64 time=2.45 ms
+  64 bytes from 10.0.0.1: icmp_req=3 ttl=64 time=2.40 ms
+  ^C
+  --- 10.0.0.1 ping statistics ---
+  3 packets transmitted, 3 received, 0% packet loss, time 2005ms
+  rtt min/avg/max/mdev = 1.983/2.280/2.453/0.214 ms
   ```
   
-  Pinging should always succeed. In addition, if your controller
-  calls `printf` in its packet-in function, you will see the controller
-  receiving all pings (and other traffic, such as ARP).
+  Pinging should always succeed ("0% packet loss"). In addition, if
+  your controller calls `printf` in its packet-in function, you will
+  see the controller receiving all pings (and other traffic, such as
+  ARP).
 
 This repeater is functionall correct, but laughably inefficient.
   
@@ -212,7 +232,7 @@ as a template:
 ```ocaml
 let switch_connected (sw : switchId) : unit =
   Printf.printf "Switch %Ld connected.\n%!" sw;
-  send_flow_mod sw 1l (FlowMod.add_flow priority pattern action_list)
+  send_flow_mod sw 1l (add_flow priority pattern action_list)
 ```
 
 This function uses [send_flow_mod] to add a new rule to
@@ -239,7 +259,7 @@ receive any packets itself.
 - Build and start the controller:
 
   ```shell
-  $ make Repeater.byte
+  $ make Repeater.d.byte
   $ ./Repeater.d.byte
   ```
 
@@ -307,6 +327,8 @@ implement a policy change, you may see packets at the controller.
 [Ch6]: 06-NetCoreIntroduction.md
 [Ch7]: 07-NetCoreComposition.md
 [Ch8]: 08-DynamicNetCore.md
+
+[OpenFlow_Core]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html
 
 [send_flow_mod]: http://frenetic-lang.github.io/frenetic/docs/OxPlatform.html#VALsend_flow_mod
 

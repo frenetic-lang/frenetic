@@ -1,5 +1,12 @@
 open Frenetic_Bit
 
+let icmp_code = 0x01
+let tcp_code = 0x06
+let udp_code = 0x11
+
+let ip_code = 0x800
+let arp_code = 0x806
+
 exception UnparsablePacket of string
 
 let get_byte32 (n : Int32.t) (i : int) : int = 
@@ -355,8 +362,8 @@ module Ip = struct
     set_ip_frag bits ((Flags.to_int pkt.flags) lor (pkt.frag lsl 13));
     set_ip_ttl bits pkt.ttl;
     let proto = match pkt.tp with
-      | Tcp _ -> 6
-      | Icmp _ -> 1
+      | Tcp _ -> tcp_code
+      | Icmp _ -> icmp_code
       | Unparsable (p, _) -> p in
     set_ip_proto bits proto;
     set_ip_chksum bits pkt.chksum;
@@ -444,7 +451,7 @@ module Arp = struct
     (* NOTE(ARJUN, JNF): ARP packets specify the size of L2 addresses, so 
        they can be used with IPv6. This version assumes we are doing IPv4. *)
     set_arp_htype bits 1;
-    set_arp_ptype bits 0x800;
+    set_arp_ptype bits ip_code;
     set_arp_hlen bits 6;
     set_arp_plen bits 4;
     match pkt with 
@@ -612,8 +619,8 @@ let setTpDst pkt tpDst =
   { pkt with nw = nw_setTpDst pkt.nw tpDst }
 
 let get_dlTyp nw = match nw with
-    | Ip _ -> 0x800
-    | Arp _ -> 0x806
+    | Ip _ -> ip_code
+    | Arp _ -> arp_code
     | Unparsable (t, _) -> t
 
 let dlTyp pkt = get_dlTyp pkt.nw
@@ -621,8 +628,8 @@ let dlTyp pkt = get_dlTyp pkt.nw
 let string_of_dlAddr = string_of_mac
 
 let string_of_dlTyp v = match v with
-  | 0x800 -> "ip"
-  | 0x806 -> "arp"
+  | ip_code -> "ip"
+  | arp_code -> "arp"
   | v' -> Printf.sprintf "0x%x" v'
 
 let string_of_dlVlan = function
@@ -634,9 +641,9 @@ let string_of_dlVlanPcp = string_of_int
 let string_of_nwAddr = string_of_ip
 
 let string_of_nwProto = function
-  | 0x01 -> "icmp"
-  | 0x06 -> "tcp"
-  | 0x11 -> "udp"
+  | icmp_code -> "icmp"
+  | tcp_code -> "tcp"
+  | udp_code -> "udp"
   | v -> string_of_int v
 
 let string_of_nwTos = string_of_int

@@ -2,13 +2,11 @@ Chapter 2: Firewall
 ===================
 
 In this chapter, you will compose your repeater with a simple firewall
-that blocks ICMP traffic. As a result, the `ping` command will no longer
-work on hosts. But, you will still be able to run other programs, such as 
-Web servers.
-
-You will first write the `packet_in` function for the firewall.
-After you've tested it successfully, you'll configure the flow table
-to implement the firewall efficiently. 
+that blocks ICMP traffic. As a result, the `ping` command will no
+longer work on hosts. But, you will still be able to run other
+programs, such as Web servers.  You will first write the `packet_in`
+function for the firewall.  After you've tested it successfully,
+you'll configure the flow table to implement the firewall efficiently.
 
 ### The Firewall Function
 
@@ -27,13 +25,15 @@ let packet_in (sw : switchId) (xid : xid) (pktIn : packetIn) : unit =
 ```
 Applying `parse_payload` parses the packet into a series of nested
 frames. The easiest way to examine packet headers is to then use the
-[accessor functions] in the packet library.
+[header accessor functions] in the packet library.
 
 #### Programming Task
 
 Starting from [Firewall.ml](ox-tutorial-code/Firewall.ml), fill in the
-`is_icmp_packet` function. Recall that ICMP messages are contained in
-IP packets (frame type 0x800) and have IP protocol number 1.
+`is_icmp_packet` function.  Recall that the _frame type for IP packets
+is 0x800_ and the _protocol number for ICMP is 1_.
+
+> TODO(arjun): `Recall that' snark. Acceptable?
 
 #### Building and Testing Your Firewall
 
@@ -120,8 +120,8 @@ function to also implement the firewall using flow tables.
 #### Programming Task
 
 Fill in the `switch_connected` event handler. You need to install two
-entries into the flow table--one for ICMP traffic and the other for
-all other traffic. You can use the following template:
+entries into the flow table: one for ICMP traffic and the other for
+all other traffic. Use the following template:
 
 ```ocaml
 let switch_connected (sw : switchId) : unit =
@@ -132,8 +132,7 @@ let switch_connected (sw : switchId) : unit =
 
 You have to determine the priorities, patterns, and actions in the
 handler above. You might want to revisit the description of flow
-tables in [Chapter 1][ch1]. Here is a quick refresher:
-
+tables in [Chapter 1][Ch1]. Here is a quick refresher:
 
 - *Priorities*: higher numbers mean higher priority
 
@@ -143,9 +142,7 @@ tables in [Chapter 1][ch1]. Here is a quick refresher:
 - *Patterns*: In the previous chapter, you used the builtin pattern
   `match_all`, which you may use again if needed. You will certainly
   need to write a pattern to match ICMP packets. The Ox Manual has
-  several [example patterns] to get you started. You'll need to know
-  that the _frame type for IP packets is 0x800_ and the _protocol
-  number for ICMP is 1_.
+  several [example patterns] to get you started.
 
 #### Building and Testing
 
@@ -173,6 +170,8 @@ packets at the controller.
 [Ch7]: 07-NetCoreComposition.md
 [Ch8]: 08-DynamicNetCore.md
 
+[OpenFlow_Core]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html
+
 [send_flow_mod]: http://frenetic-lang.github.io/frenetic/docs/OxPlatform.html#VALsend_flow_mod
 
 [pattern]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html#TYPEpattern
@@ -182,3 +181,5 @@ packets at the controller.
 [match_all]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html#VALmatch_all
 
 [example patterns]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html#patternexamples
+
+[header accessor functions]: http://frenetic-lang.github.io/frenetic/docs/Packet.html#accs

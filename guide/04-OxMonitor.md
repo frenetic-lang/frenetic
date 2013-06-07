@@ -5,15 +5,13 @@ In this exercise, you will write a controller that measures the volume
 of Web traffic on a network. To implement monitoring efficiently, you
 will learn how to read the traffic [statistics] that OpenFlow switches
 maintain. You will compose your new traffic monitor with the
-[repeater] and [firewall] you wrote in earlier exercises.
+[repeater][Ch2] and [firewall][Ch3] you wrote in earlier exercises.
 
 As usual, you will proceed in two steps: you will first write and test
 a traffic monitoring function, and then implement it efficiently uses
 flow tables and OpenFlow statistics.
 
 ### The Monitoring Function
-
-Use `Monitor.ml` as a template for this exercise.
 
 Your monitor must count the total number of packets _sent to port 80 and
 received from_ port 80. Since the monitoring function receives all
@@ -26,19 +24,22 @@ let num_http_packets = ref 0
 let packet_in (sw : switchId) (xid : xid) (pktIn : packetIn) : unit =
   if is_http_packet (parse_payload pktIn.payload) then
     begin
-        num_http_packets := !num_http_packets + 1;
-        Printf.printf "Seen %d HTTP packets.\n%!" !num_http_packets
+      num_http_packets := !num_http_packets + 1;
+      Printf.printf "Seen %d HTTP packets.\n%!" !num_http_packets
     end
 ```
 
 #### Programming Task
 
-Write the `is_http_packet` predicate, using the [packet accessors] you used
-to build the firewall.
+Use [Monitor.ml](ox-tutorial-code/Monitor.ml] as a template for this exercise.
 
-You're not just monitoring Web traffic. You need to block ICMP traffic
-and use route non-ICMP traffic, as you did before. In fact, you should
-_use the `packet_in` function from `Firewall.ml` verbatim_.
+- Write the `is_http_packet` predicate, using the [packet accessors]
+  you used to build the firewall.
+
+- You're not just monitoring Web traffic. You need to firewall ICMP
+  traffic and apply the repeater to non-ICMP traffic, as you did
+  before. In fact, you should use the `packet_in` function from
+  `Firewall.ml` _verbatim_.
 
 #### Building and Testing Your Monitor
 
@@ -58,7 +59,7 @@ port 80 increments the counter (and that other traffic does not).
   parameters you've used before:
 
   ```
-  $ sudo ./mn --controller=remote --topo=single,3 --mac
+  $ sudo mn --controller=remote --topo=single,3 --mac
   ```
 
 - Test that the firewall correctly drops pings, reporting `100% packet loss`:
@@ -82,39 +83,46 @@ port 80 increments the counter (and that other traffic does not).
 
     ```
     # cd ~/src/frenetic/guide
-    # python -m SimpleHTTPServer
+    # python -m SimpleHTTPServer 80
     ```
 
   * In the terminal for `h2` fetch a web page from `h1`:
 
     ```
-    # curl 10.0.0.1/index.html
+    # curl 10.0.0.1
     ```
 
-    This command should succeed and in the controller's terminal, you 
-    should find that HTTP traffic is logged.
+    This command should succeed and you should find HTTP traffic
+    logged in the controller's terminal:
 
-    > fill in output
+    ```
+    Seen 1 HTTP packets.
+    Seen 2 HTTP packets.
+    Seen 3 HTTP packets.
+    Seen 4 HTTP packets.
+    Seen 5 HTTP packets.
+    ...
+    ```    
 
 - Finally, you should test to ensure that other traffic is neither
   blocked by the firewall nor counted by your monitor. To do so, kill the
-  Web server running on `h2` and start it on a non-standard port (e.g., 8080):
+  Web server running on `h1` and start it on a non-standard port (e.g., 8080):
 
-  * On the terminal for `h2`:
-
-    ```
-    $ python -m SimpleHTTPServer 8080 .
-    ```
-
-  * On the terminal for h1, fetch a page:
+  * On the terminal for `h1`:
 
     ```
-    $ curl 10.0.0.2 8080
+    ^C
+    $ python -m SimpleHTTPServer 8080
     ```
 
-  The client should successfully download the page. Furthermore, in the
-  controller terminal, you should find that no traffic is logged during
-  this connection.
+  * On the terminal for `h2`, fetch a page:
+
+    ```
+    $ curl 10.0.0.1:8080
+    ```
+
+  The client should successfully download the page. However, none of
+  these packets should get logged by the controller.
 
 ### Efficiently Monitoring Web Traffic
 
@@ -236,10 +244,36 @@ You should be able to build and test the extended monitor as you did before.
 Did you spot the bug? What happens if the controller receives HTTP
 packets, before the switch is fully initialized?
 
-[repeater]: [./02-OxRepeater.md]
+[Action]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.Action.html
 
-[firewall]: [./03-OxFirewall.md]
+[PacketIn]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.PacketIn.html
 
-[statistics]: [http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Stats.html]
+[PacketOut]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.PacketOut.html
 
-[send_stats_request]: [http://frenetic-lang.github.io/frenetic/docs/OOx.OxPlatform.html#VALsend_stats_request]
+[Ox Platform]: http://frenetic-lang.github.io/frenetic/docs/Ox_Controller.OxPlatform.html
+
+[Match]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.Match.html
+
+[Packet]: http://frenetic-lang.github.io/frenetic/docs/Packet.html
+
+[Ch2]: 02-OxRepeater.md
+[Ch3]: 03-OxFirewall.md
+[Ch4]: 04-OxMonitor.md
+[Ch5]: 05-OxLearning.md
+[Ch6]: 06-NetCoreIntroduction.md
+[Ch7]: 07-NetCoreComposition.md
+[Ch8]: 08-DynamicNetCore.md
+
+[OpenFlow_Core]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html
+
+[send_flow_mod]: http://frenetic-lang.github.io/frenetic/docs/OxPlatform.html#VALsend_flow_mod
+
+[pattern]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html#TYPEpattern
+
+[match_all]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html#VALmatch_all
+
+[match_all]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html#VALmatch_all
+
+[example patterns]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html#patternexamples
+
+[header accessor functions]: http://frenetic-lang.github.io/frenetic/docs/Packet.html#accs

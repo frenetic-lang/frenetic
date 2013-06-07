@@ -409,11 +409,29 @@ module Helper = struct
     NetCore_Desugar.desugar genvlan pol
 
   let in_tp = 
-    let open Icmp in
-    Ip.Icmp { typ = 8 (** Ping request. *)
-            ; code = 0
-            ; chksum = 0 (** TODO(cole) generate checksum. *)
-            ; payload = Cstruct.create 0 }
+    let flags = 
+      let open Tcp.Flags in
+      { ns = true
+      ; cwr = true
+      ; ece = true
+      ; urg = true
+      ; ack = true
+      ; psh = true
+      ; rst = true
+      ; syn = true
+      ; fin = true } in
+    let open Tcp in
+    Ip.Tcp
+      { src = 0
+      ; dst = 0
+      ; seq = 0l
+      ; ack = 0l
+      ; offset = 0
+      ; flags = flags
+      ; window = 0
+      ; chksum = 0
+      ; urgent = 0
+      ; payload = Cstruct.create 0 }
 
   let in_nw =
     let open Ip in
@@ -468,12 +486,15 @@ module Helper = struct
     (* Test the classifier interpretation. *)
     let classifier = NetCore_Compiler.compile_pol ds_pol in_sid in
 
-(*
     if dbg then
-      printf "Classifier:\n%s\n" (C.to_string classifier)
+      let _ = printf "Classifier:\n" in
+      List.iter 
+        (fun (m,a) -> printf " %s => %s\n"
+          (NetCore_Pretty.string_of_pattern m)
+          (NetCore_Pretty.string_of_action a))
+        classifier
     else
       ();
-*)
 
     let act = C.scan classifier in_port in_pkt in
     let pkts = NetCore_Action.Output.apply_action act 
@@ -483,8 +504,12 @@ module Helper = struct
         assert_equal
           ~printer:(Frenetic_Misc.string_of_list
                       (fun (_, pt, pk) ->
-                        (Frenetic_Misc.string_of_pair string_of_port Packet.to_string) (pt,pk)))
+                        (Frenetic_Misc.string_of_pair 
+                          string_of_port 
+                          Packet.to_string) 
+                          (pt,pk)))
           expected_pkts pkts in
+
     TestList [ sem_test; classifier_test ]
 
 end
@@ -544,6 +569,16 @@ module TestMods = struct
                      , Act (UpdateDstPort (1, 0))) in
     mkEvalTest "tpdst: act; undo act == pass" policy in_val [in_val]
 
+  let test2f =
+    let policy = Seq ( Act (UpdateDlSrc (0L, 1L))
+                     , Act (UpdateDlSrc (1L, 0L))) in
+    mkEvalTest "dlSrc: act; undo act == pass" policy in_val [in_val]
+
+  let test2g =
+    let policy = Seq ( Act (UpdateDlDst (0L, 1L))
+                     , Act (UpdateDlDst (1L, 0L))) in
+    mkEvalTest "dlDst: act; undo act == pass" policy in_val [in_val]
+
   let test3 =
     let policy =
       Seq ( Act (UpdateDlVlan (None, (Some 1)))
@@ -577,6 +612,8 @@ module TestMods = struct
       ; test2c
       ; test2d
       ; test2e
+      ; test2f
+      ; test2g
       ; test3
       ; test4
       ; test5 ]
