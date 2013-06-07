@@ -200,11 +200,11 @@ let from_host12 = {
 
     This pattern matches all packets with source IP address 10.0.0.1:
     
-    [let from_10_0_0_1 = { match_all with dlTyp = Some 0x800; nwSrc = 0x10000001 }]
+    [let from_10_0_0_1 = { match_all with dlTyp = Some 0x800; nwSrc = Some 0x10000001 }]
 
     This pattern matches all TCP packets:
-    [let al_tcp = { match_all with dlTyp = Some 0x800; nwProto = 6 }]
+    [let al_tcp = { match_all with dlTyp = Some 0x800; nwProto = Some 6 }]
 
     Note that to match IP-level headers, e.g., [nwProto] and [nwSrc]),
-    we have to write [dlTye = Some 0x800], or they are ignored.    
+    we have to write [dlTye = Some 0x800], or they are ignored.
 *)

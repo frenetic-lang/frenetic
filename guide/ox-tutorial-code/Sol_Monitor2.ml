@@ -14,7 +14,7 @@ module MyApplication = struct
         (Stats.AggregateRequest (pat, 0xff, None));
       periodic_stats_request sw interval xid pat in
     timeout interval callback
-  
+      
   let match_http_response = 
     { match_all with dlTyp = Some 0x800; nwProto = Some 6; tpSrc = Some 80 }
 
@@ -27,8 +27,8 @@ module MyApplication = struct
 
   let switch_connected (sw : switchId) : unit =
     Printf.printf "Switch %Ld connected.\n%!" sw;
-    periodic_stats_request sw 5.0 500l match_http_request;
-    periodic_stats_request sw 5.0 700l match_http_response;
+    periodic_stats_request sw 5.0 10l match_http_request;
+    periodic_stats_request sw 5.0 20l match_http_response;
     send_flow_mod sw 0l (add_flow 200 match_icmp []);
     send_flow_mod sw 0l (add_flow 199 match_http_request [Output AllPorts]);
     send_flow_mod sw 0l (add_flow 198 match_http_response [Output AllPorts]);
@@ -68,7 +68,7 @@ module MyApplication = struct
 
 
   let num_http_packets = ref 0
-   
+    
   let packet_in (sw : switchId) (xid : xid) (pktIn : packetIn) : unit =
     Printf.printf "%s\n%!" (packetIn_to_string pktIn);
     firewall_packet_in sw xid pktIn;
@@ -79,22 +79,21 @@ module MyApplication = struct
       end
 
   let num_http_request_packets = ref 0L
+
   let num_http_response_packets = ref 0L
+
   let stats_reply (sw : switchId) (xid : xid) (stats : Stats.reply) : unit =
     match stats with
       | Stats.AggregateFlowRep rep ->
-        let k = rep.Stats.total_packet_count in
-        (match xid with
-          | 500l -> 
-            num_http_request_packets := Int64.add !num_http_request_packets k
-          | 700l ->
-            num_http_response_packets := Int64.add !num_http_response_packets k
-          | _ -> Printf.printf "Unexpected xid (%ld) in StatsReply\n%!" xid);
+        begin
+          if xid = 10l then
+            num_http_request_packets := rep.Stats.total_packet_count
+          else if xid = 20l then
+            num_http_response_packets := rep.Stats.total_packet_count
+        end;
         Printf.printf "Seen %Ld HTTP packets.\n%!"
           (Int64.add !num_http_request_packets !num_http_response_packets)
-      | _ -> 
-        Printf.printf "Unexpected stats message.\n%!"
-
+      | _ -> ()
 
 end
 

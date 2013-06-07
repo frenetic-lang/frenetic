@@ -1,5 +1,6 @@
 open OxPlatform
 open OpenFlow0x01_Core
+module Stats = OpenFlow0x01_Stats
 
 module MyApplication = struct
 

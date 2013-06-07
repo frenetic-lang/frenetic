@@ -628,8 +628,8 @@ let dlTyp pkt = get_dlTyp pkt.nw
 let string_of_dlAddr = string_of_mac
 
 let string_of_dlTyp v = match v with
-  | ip_code -> "ip"
-  | arp_code -> "arp"
+  | 0x800 -> "ip"
+  | 0x806 -> "arp"
   | v' -> Printf.sprintf "0x%x" v'
 
 let string_of_dlVlan = function
@@ -641,9 +641,9 @@ let string_of_dlVlanPcp = string_of_int
 let string_of_nwAddr = string_of_ip
 
 let string_of_nwProto = function
-  | icmp_code -> "icmp"
-  | tcp_code -> "tcp"
-  | udp_code -> "udp"
+  | 0x01 -> "icmp"
+  | 0x06 -> "tcp"
+  | 0x11 -> "udp"
   | v -> string_of_int v
 
 let string_of_nwTos = string_of_int

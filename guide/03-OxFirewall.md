@@ -99,7 +99,7 @@ packetIn{
 
     ```
     # cd ~/src/frenetic/guide
-    # python -m SimpleHTTPServer
+    # python -m SimpleHTTPServer 80
     ```
 
   * In the terminal for `h2` fetch a web page from `h1`:

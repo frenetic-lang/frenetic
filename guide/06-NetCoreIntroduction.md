@@ -45,11 +45,11 @@ multiple ports).  Next, we apply the topology function T to generate a
 packet p1' across the other side of the link at some new switch.
 Then we apply the policy function P again: P(p1') will generate some
 subsequent number of output packets.  And then apply the topology function T
-again.
+again, etc.
 
 In summary, one traces the flow of packets through a network by alternately
 applying the policy function P and the topology function T. Static NetCore is
-just a domain-specific language that makes it easy to write down a single
+just a domain-specific language that makes it easy to write down a 
 policy function P that determines how switches forward packets. The main
 features of Static NetCore include the following.
 
@@ -62,7 +62,10 @@ transformations on a packet,
   - *parallel composition*, which allows programmers to make a logical copy
 of a packet and thereby to generate more than one result from their
 policy --- perhaps forwarding the packet to two different locations, and
-  - *queries*, which allow programmers to inspect
+  - *queries*, which allow programmers to inspect the contents of packets
+as the flow across a network, the load at various points in the network,
+the current static policy in force or the concrete rules installed on
+OpenFlow flow tables.
 
 We will illustrate each of these features through a series of examples.
 You will find the examples in the frenetic repository 
