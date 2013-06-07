@@ -1,25 +1,30 @@
 Frenetic Tutorial
 =================
+
 In this tutorial, you will learn to program software-defined networks (SDN)
 using OpenFlow and NetCore, the surface language of Frenetic. The tutorial is
 divided into two sections:
 
-* **Ox:** Chapters 2 - 5 introduce the nuts and bolts of controlling an SDN with the
-OpenFlow protocol using *Ox*, an OCaml controller platform for sending and
-receiving OpenFlow messages.
+* **Ox:** Chapters 2 &mdash; 5 introduce the nuts and bolts of
+programming an OpenFlow-based SDN. In these chapters, we use *Ox*, a
+simple platform for writing OpenFlow controllers in OCaml. Apart from
+managing the socket connections and serialization, Ox gives you direct
+access to the OpenFlow protocol.
 
-[[2 Ox Repeater][Ch2]] [[3 Ox Firewall][Ch3]] [[4 Ox Monitor][Ch4]] [[5 Ox Learning][Ch5]]
+[[2 Ox Repeater][Ch2]] [[3 Ox Firewall][Ch3]] [[4 Ox Monitor][Ch4]]
+[[5 Ox Learning][Ch5]]
 
-* **NetCore:** Chapters 6 - 8 teach readers how to program an SDN running OpenFlow using the
-*NetCore* domain-specific programming language (NetCoreDSL).  NetCoreDSL is
-designed primarily to allow users to program static (unchanging) network
-configurations.  However, NetCoreDSL also contains a limited set of building
-blocks that allow programmers to craft dynamic policies that generate a series
-of static NetCore configurations.
+* **NetCore:** Chapters 6 &mdash; 8 teach you how to program SDNs
+  using the _NetCore_ domain-specific programming language
+  (NetCoreDSL). You will see that NetCoreDSL provides high-level
+  abstractions and rich, compositional features that make SDN
+  programming much easier.
 
-[[6 NetCore Introduction][Ch6]] [[7 NetCore Composition][Ch7]] [[8 Dynamic NetCore][Ch8]]
+[[6 NetCore Introduction][Ch6]] [[7 NetCore Composition][Ch7]] [[8
+Dynamic NetCore][Ch8]]
 
 ### Frenetic
+
 This tutorial should also be viewed as a stepping stone to learning how to
 program in the more powerful *Frenetic* environment.  *Frenetic* is a
 general-purpose SDN programming language embedded as a set of libraries in
@@ -27,19 +32,30 @@ OCaml.  Frenetic applications react to network events, such as topology changes
 and statistics queries.  For example:
 
 1. An event reaches the application.
-1. The application generates a new static network configuration and sends it to the Frenetic run time.
-1. The Frenetic run time compiles it to OpenFlow and updates the running network, maintaining [per-packet consistency](http://frenetic-lang.org/publications/network-update-sigcomm12.pdf).
+
+1. The application generates a new static network configuration (using
+   NetCore) and sends it to the Frenetic run time.
+
+1. The Frenetic run time compiles it to OpenFlow and updates the
+   running network, maintaining [per-packet
+   consistency](http://frenetic-lang.org/publications/network-update-sigcomm12.pdf).
+
+   > TODO(arjun): Unfortunately, this last point false. Unless this is
+     implemented and working by Sunday, this document is not going to
+     say this.
 
 Static network configurations are built using
 [NetCoreLib](http://frenetic-lang.github.io/frenetic/docs/NetCore_Types.html),
-which has the same semantics as the NetCore DSL described in this tutorial.
-Hence, a Frenetic program is really just a general-purpose OCaml program that
-reacts to network events and generates a stream of NetCore policies.  Since
-NetCoreLib and NetCoreDSL are effectively the same (with NetCoreDSL simply
-adding a pleasant, domain-specific, user-level syntax), we will drop the "DSL"
-part of the name from this point forward and simply refer to NetCore.
+which has the same semantics as the NetCore DSL described in this
+tutorial.  Hence, a Frenetic program is really just a general-purpose
+OCaml program that reacts to network events and generates a stream of
+NetCore policies.  Since NetCoreLib and NetCoreDSL are effectively the
+same (with NetCoreDSL simply adding a pleasant, domain-specific,
+user-level syntax), we will drop the "DSL" part of the name from this
+point forward and simply refer to NetCore.
 
 #### Why Frenetic?
+
 As an aside, you may find it interesting to read about [why we created
 Frenetic](http://frenetic-lang.org/publications/overview-ieeecoms13.pdf) in the
 first place.
@@ -56,7 +72,7 @@ tutorial VM.  To get started:
 - Download the
   [Frenetic Tutorial VM](http://www.cs.brown.edu/~arjun/tmp/Frenetic.vdi).
 
-  > Insert the right link.
+  > TODO(arjun): Insert the right link.
 
 - Launch the tutorial VM, which will launch a Linux desktop
   environment and automatically log you into the account
@@ -71,19 +87,21 @@ tutorial VM.  To get started:
   $ make reinstall
   ```
 
+Background Material
+-------------------
+
+The chapters on OpenFlow programming with Ox involve a little bit of
+OCaml programming. We only use a tiny fragment of the language and do
+provide lots of example code. But, some familiarity with OCaml syntax
+will be very helpful. We recommend reading these two brief tutorials:
+
+1. [OCaml Basics] (http://ocaml.org/tutorials/basics.html), and
+
+2. [The Structure of OCaml Programs]
+   (http://ocaml.org/tutorials/structure_of_ocaml_programs.html).
+
 Handy References
 ----------------
-
-- [Introduction to OCaml](http://www.cs.cornell.edu/courses/cs3110/2012fa/recitations/rec01.html)
-
-  In this tutorial, you will build controllers in OCaml. We use a tiny
-  fragment of the language and provide lots of example code, but a little
-  familiarity with OCaml syntax will be helpful.
-
-  We recommend that you either (1) skim the Introduction to OCaml, or
-  (2) do this tutorial with a partner who has passing familiarity with
-  OCaml (or Haskell, or some related language).
-
 
 - [Ox Platform Reference](http://frenetic-lang.github.io/frenetic/docs/)
   
@@ -103,13 +121,15 @@ Handy References
   most of the Ox Platform Reference simply reflects the OpenFlow messages
   and data types into OCaml.
 
+  You don't need to read the OpenFlow specification to follow the
+  guide. But, if you want to understand OpenFlow in depth, you should
+  read it eventually.
+
 - [Mininet] (http://mininet.org/walkthrough/)
 
   You will use the Mininet network simulator to run your
   controllers. We will tell you exactly what Mininet commands to use,
   so you don't really need to read this.
-
-
 
 [Action]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.Action.html
 
