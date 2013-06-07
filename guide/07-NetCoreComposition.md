@@ -10,11 +10,18 @@ possible.
 A Port Mapping Policy
 ----------------------
 
-To begin, let's adapt the example from Chapter 6 so that instead of simply
+Our goal in this subsection will be to adapt the simple repeater 
+from [Chapter 6](06-NetCoreIntroduction.md) so that instead of simply
 acting as a repeater, our switch does some packet rewriting.  More
-specifically, let's create a switch that maps connections initiated by host 
+specifically, we will create a switch that maps connections initiated by host 
 <code>h1</code>
 and destined to TCP port 5022 to the standard SSH port 22.  
+To do
+so, we'll have to learn about several new NetCore features including
+*packet modification actions,* *sequential composition* and the *pass*
+action.
+
+### Packet Modifications
 
 In general, packet modifications are written as follows:
 ```
@@ -29,24 +36,55 @@ tcpDstPort 5022 -> 22
 ```
 rewrites the <code>tcpDstPort</code> of packets from 5022 to 22.
 
+### Sequential Composition
+
 Now, policies can mix modification and forwarding actions, but we need a way to
-pipe the output of one policy into the next.  For this, we use
-the *sequential composition* operator (<code>;</code>).  For instance,
+pipe the output of one policy in to the next.  For this, we use
+the *sequential composition* operator (<code>;</code>).  You should
+think of the sequential composition <code>P1; P2</code> as a kind 
+of *function composition* that processes
+each packet using the function corresponding <code>P1</code> first, generating
+a multi-set of zero, one or more intermediate packets <code>{p1,...,pk}<code>, and 
+then applies the function corresponding to <code>P2</code> 
+to each intermediate packet <code>pi</code>, returning some number of
+final result packets.
+
+As a simple first example, consider
 ```
 tcpDstPort 5022 -> 22; fwd(1)
 ```
-rewrites the <code>tcpDstPort</code> and then forwards the modified packets out
-port 1.  In this case, we have composed the effects of two actions, but in
-general you can use sequential composition to compose any two policies.
+the first action produces a packet with <code>tcpDstPort</code> equal to
+22 in the same place it started.  The second action takes that intermediate
+result and produces a new packet at port 1.  Now consider the following
+variation:
+```
+fwd(1); tcpDstPort 5022 -> 22
+```
+It is semantically equivalent to the first.  The <code>fwd</code>
+action creates a new packet at port 1 and the modification changes the
+<code>tcpDstPort</code> afterwards.  More interesting still,
+```
+all; tcpDstPort 5022 -> 22
+```
+moves the packet to <code>all</code> ports (except the one it came in on)
+and rewrites all of them.
+
+#### Exercise
+
+What does the policy <code>drop; all</code> do?  Why?
+
+### The Pass Action
 
 We need one more concept in order to write an elegant port-mapper program:
 The <code>pass</code> action.  This action acts like the identity function on
 packets. In other words, it simply pipes all of its input packets through
 untouched to its output.  Hence, <code>pass</code> has the property that both
 <code>pass; P</code> and <code>P; pass</code> are exactly the same as just
-<code>P</code>, for any policy <code>P</code>.  At first, it seems as though
+<code>P</code>.  At first, it seems as though
 this makes <code>pass</code> a completely useless construct, but it turns out
 to be essential in combination with other features of NetCore.
+
+### And Finally, the Port Mapper
 
 Now, the port translation program:
 ```
