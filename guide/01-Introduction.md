@@ -2,7 +2,7 @@ Frenetic Tutorial
 =================
 In this tutorial, you will learn to program software-defined networks (SDN)
 using OpenFlow and NetCore, the surface language of Frenetic. The tutorial is
-broken into two sections:
+divided into two sections:
 
 * **Ox** Chapters 2 - 5 introduce the nuts and bolts of controlling an SDN with the
 OpenFlow protocol using *Ox*, an OCaml controller platform for sending and
