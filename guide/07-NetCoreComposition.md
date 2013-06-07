@@ -68,7 +68,7 @@ all; tcpDstPort 5022 -> 22
 moves the packet to <code>all</code> ports (except the one it came in on)
 and rewrites all of them.
 
-#### Exercise
+### Exercise
 
 What does the policy <code>drop; all</code> do?  Why?
 
@@ -105,7 +105,7 @@ The <code>mapper</code> component rewrites the destination port in one
 direction and the source port in the other, if those ports
 take on the given values entering the switch.  Notice how we
 used <code>pass</code> in the final <code>else</code> branch of the 
-<code>mapper</code> policy to leaves packets of all other kinds
+<code>mapper</code> policy to leave packets of all other kinds
 untouched.  This allows us to compose the mapper component
 with any routing component we choose.  In this case, <code>forwarder</code>
 is defined by composing <code>mapper</code> with the trivial <code>all</code>
@@ -116,10 +116,10 @@ properly with the mapper.
 Testing the Port Mapper
 -----------------------
 
-You will find the mapper in <code>port_map.nc</code>.  Start it up
+You will find the mapper in <code>Port_Map.nc</code>.  Start it up
 with frenetic.
 ```
-$ frenetic port_map.nc
+$ frenetic Port_Map.nc
 ```
 Then start mininet in the default topology, and
 simulate an SSH process listening on port 22 on host <code>h2</code>:
@@ -156,7 +156,7 @@ Composing Queries
 When developing more complex policies, it is very useful to peer into the
 middle of the network.  Hence, NetCore supports several kinds of queries that
 can help you understand and debug the behavior of your network.  As an example,
-the <code>monitorPackets( label )</code> policy sends every input packet it
+the <code>monitorPackets(label)</code> policy sends every input packet it
 receives to the controller as opposed to forwarding it along a network data
 path (like the <code>fwd(port)</code> policy does).  At the controller, the
 packet is printed with the string <code>label</code> as a prefix and then
@@ -168,7 +168,8 @@ controller, for inspection, and wherever they may be destined in the network.
 To support this idiom, we must introduce a new kind of operator on policies:
 *parallel composition*.  Intuitively, when supplied with a packet
 <code>p</code> as input, the parallel composition <code>P1 + P2</code> applies
-<code>P1</code> to <code>p</code> and also applies <code>P2</code> to
+<code>P1</code> to <code>p</code> and also, independently,
+applies <code>P2</code> to a second copy of
 <code>p</code>.  Overall, it generates the *union* of the results from
 <code>P1</code> and <code>P2</code>.  Hence, if <code>P1</code> forwards to A
 and <code>P1</code> forwards to B then <code>P1 + P2</code> makes a copy of the
