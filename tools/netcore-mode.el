@@ -29,7 +29,7 @@ For detail, see `comment-dwim'."
     ("inPort" . 'font-lock-function-name-face)
     ("in" . 'font-lock-keyword-face)
     ("publicIP" . 'font-lock-function-name-face)
-    ("all" . 'font-lock-constant-face)
+    (" all" . 'font-lock-constant-face)
     ("fwd" . 'font-lock-function-name-face)
     ("<none>" . 'font-lock-constant-face)
     ("filter" . 'font-lock-function-name-face)
