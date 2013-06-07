@@ -178,7 +178,7 @@ module Tcp = struct
   let len (pkt : t) = sizeof_tcp + Cstruct.len pkt.payload
 
   (* Assumes that bits has enough room *)
-  let serialize (bits : Cstruct.t) (pkt : t) =
+  let marshal (bits : Cstruct.t) (pkt : t) =
     set_tcp_src bits pkt.src;
     set_tcp_dst bits pkt.dst;
     set_tcp_seq bits pkt.seq;
@@ -226,7 +226,7 @@ module Icmp = struct
   let len (pkt: t) = sizeof_icmp + Cstruct.len pkt.payload
 
   (* Assumes that bits has enough room. *)
-  let serialize (bits : Cstruct.t) (pkt : t) =
+  let marshal (bits : Cstruct.t) (pkt : t) =
     set_icmp_typ bits pkt.typ;
     set_icmp_code bits pkt.code;
     set_icmp_chksum bits pkt.chksum;
@@ -352,7 +352,7 @@ module Ip = struct
     ip_len + tp_len
 
   (* Assumes there is enough space *)
-  let serialize (bits : Cstruct.t) (pkt:t) =
+  let marshal (bits : Cstruct.t) (pkt:t) =
     let v = 4 in (* IP version 4. *)
     let ihl = 5 in (* We don't support IPv4 options at the moment. *)
     let vhl = (v lsl 4) lor ihl in
@@ -372,9 +372,9 @@ module Ip = struct
     let bits = Cstruct.shift bits sizeof_ip in 
     match pkt.tp with
       | Tcp tcp -> 
-        Tcp.serialize bits tcp
+        Tcp.marshal bits tcp
       | Icmp icmp -> 
-        Icmp.serialize bits icmp
+        Icmp.marshal bits icmp
       | Unparsable (protocol, data) ->
         Cstruct.blit data 0 bits 0 (Cstruct.len data)
 
@@ -447,7 +447,7 @@ module Arp = struct
   let len pk = sizeof_arp (* both requests and replies do have the same size *)
 
   (* Assumes there is enough space *)
-  let serialize (bits : Cstruct.t) (pkt : t) =
+  let marshal (bits : Cstruct.t) (pkt : t) =
     (* NOTE(ARJUN, JNF): ARP packets specify the size of L2 addresses, so 
        they can be used with IPv6. This version assumes we are doing IPv4. *)
     set_arp_htype bits 1;
@@ -728,7 +728,7 @@ let len (pkt : packet) =
     | Unparsable (_, data) -> Cstruct.len data in 
   eth_len + nw_len
 
-let serialize_helper (bits : Cstruct.t) (pkt : packet) =
+let marshal_helper (bits : Cstruct.t) (pkt : packet) =
   set_eth_src (bytes_of_mac pkt.dlSrc) 0 bits;
   set_eth_dst (bytes_of_mac pkt.dlDst) 0 bits;
   let dlTyp = get_dlTyp pkt.nw in
@@ -743,14 +743,14 @@ let serialize_helper (bits : Cstruct.t) (pkt : packet) =
         set_eth_typ bits dlTyp;
         Cstruct.shift bits sizeof_eth in
   match pkt.nw with 
-    | Ip ip -> Ip.serialize bits ip
-    | Arp arp -> Arp.serialize bits arp
+    | Ip ip -> Ip.marshal bits ip
+    | Arp arp -> Arp.marshal bits arp
     | Unparsable (_, data) -> Cstruct.blit data 0 bits 0 (Cstruct.len data)
 
-let serialize (pkt:packet) : Cstruct.t = 
-  (* Allocating (len pkt) ensures the other serializers have enough room *)
+let marshal (pkt:packet) : Cstruct.t = 
+  (* Allocating (len pkt) ensures the other marshalers have enough room *)
   let bits = Cstruct.create (len pkt) in 
-  let () = serialize_helper bits pkt in 
+  let () = marshal_helper bits pkt in 
   bits
 
 

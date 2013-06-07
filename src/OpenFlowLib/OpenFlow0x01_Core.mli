@@ -146,6 +146,10 @@ type packetOut =
 
 val parse_payload : payload -> Packet.packet
 
+(** [marshal_payload buf pkt] serializes pkt, where [buf] is an optional 
+buffer ID. *)
+val marshal_payload : int32 option -> Packet.packet -> payload
+
 (** A pattern that matches all packets. (All fields wildcarded.) *)
 val match_all : pattern
 

@@ -382,13 +382,13 @@ module Action = struct
         uint8_t pad[2]
       } as big_endian
 
+      cstruct ofp_action_strip_vlan {
+        uint8_t pad[4]
+      } as big_endian
+
       cstruct ofp_action_vlan_pcp {
         uint8_t vlan_pcp;
         uint8_t pad[3]
-      } as big_endian
-
-      cstruct ofp_action_strip_vlan {
-        uint8_t pad[2]
       } as big_endian
 
       cstruct ofp_action_dl_addr {
@@ -434,7 +434,7 @@ module Action = struct
   let type_code (a : t) = match a with
     | Output _ -> OFPAT_OUTPUT
     | SetDlVlan None -> OFPAT_STRIP_VLAN
-    | SetDlVlan _ -> OFPAT_SET_VLAN_VID
+    | SetDlVlan (Some _) -> OFPAT_SET_VLAN_VID
     | SetDlVlanPcp _ -> OFPAT_SET_VLAN_PCP
     | SetDlSrc _ -> OFPAT_SET_DL_SRC
     | SetDlDst _ -> OFPAT_SET_DL_DST
@@ -446,17 +446,21 @@ module Action = struct
 
   let size_of (a : t) =
     let h = sizeof_ofp_action_header in
-    match a with
-      | Output _ -> h + sizeof_ofp_action_output
-      | SetDlVlan _ -> h + sizeof_ofp_action_vlan_vid
-      | SetDlVlanPcp _ -> h + sizeof_ofp_action_vlan_pcp
-      | SetDlSrc _
-      | SetDlDst _ -> h + sizeof_ofp_action_dl_addr
-      | SetNwSrc _
-      | SetNwDst _ -> h + sizeof_ofp_action_nw_addr
-      | SetNwTos _ -> h + sizeof_ofp_action_nw_tos
-      | SetTpSrc _
-      | SetTpDst _ -> h + sizeof_ofp_action_tp_port
+    let body =
+      match a with
+        | Output _ -> sizeof_ofp_action_output
+        | SetDlVlan None -> sizeof_ofp_action_strip_vlan
+        | SetDlVlan (Some _) -> sizeof_ofp_action_vlan_vid
+        | SetDlVlanPcp _ -> sizeof_ofp_action_vlan_pcp
+        | SetDlSrc _
+        | SetDlDst _ -> sizeof_ofp_action_dl_addr
+        | SetNwSrc _
+        | SetNwDst _ -> sizeof_ofp_action_nw_addr
+        | SetNwTos _ -> sizeof_ofp_action_nw_tos
+        | SetTpSrc _
+        | SetTpDst _ -> sizeof_ofp_action_tp_port
+        in
+    h + body
 
   let size_of_sequence acts = List.fold_left (+) 0 (List.map size_of acts)
 
@@ -477,7 +481,7 @@ module Action = struct
         | SetTpSrc pt
         | SetTpDst pt -> set_ofp_action_tp_port_tp_port bits' pt
         | SetDlVlan (Some vid) -> set_ofp_action_vlan_vid_vlan_vid bits' vid
-        | SetDlVlan None -> set_ofp_action_vlan_vid_vlan_vid bits' vlan_none
+        | SetDlVlan None -> ()
         | SetDlVlanPcp n -> set_ofp_action_vlan_pcp_vlan_pcp bits' n
         | SetNwTos n -> set_ofp_action_nw_tos_nw_tos bits' n
         | SetDlSrc mac

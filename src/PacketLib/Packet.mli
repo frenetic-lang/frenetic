@@ -267,13 +267,13 @@ val bytes_of_mac : dlAddr -> string
 @raise Invalid_argument if the length of the string is not six characters. *)
 val mac_of_bytes : string -> int48
 
-(** {9:serialize Serialization} *)
+(** {9:marshal Serialization} *)
 
 (** [parse bits] parses a bit sequence into a packet. *)
 val parse : Cstruct.t -> packet
 
-(** [marshal pkt] serializes [pkt] into a bit sequence. *)
-val serialize : packet -> Cstruct.t
+(** [marshal pkt] marshals [pkt] into a bit sequence. *)
+val marshal : packet -> Cstruct.t
 
 val to_string : packet -> string
 
