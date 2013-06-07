@@ -135,23 +135,53 @@ module Output = struct
     | None ->
       pk
 
+  let sel f = function
+  | Some p -> let (old, _) = p in f old
+  | None -> all
+
+  let domain atom = match atom with
+    | SwitchAction out -> 
+      fold_right
+        NetCore_Pattern.inter
+        [ sel dlSrc out.outDlSrc
+        ; sel dlDst out.outDlDst
+        ; sel dlVlan out.outDlVlan
+        ; sel dlVlanPcp out.outDlVlanPcp
+        ; sel ipSrc out.outNwSrc
+        ; sel ipDst out.outNwDst
+        ; sel ipTos out.outNwTos
+        ; sel tcpSrcPort out.outTpSrc
+        ; sel tcpDstPort out.outTpDst ]
+        all
+    | ControllerAction _      -> all
+    | ControllerQuery _   -> all
+
   let apply_output out (sw,pt,pkt) =
-    let pt' = match out.outPort with
-      | Here -> pt
-      | pt -> pt in
-    (sw, pt',
-    (maybe_modify out.outDlSrc Packet.setDlSrc
-    (maybe_modify out.outDlDst Packet.setDlDst
-    (maybe_modify out.outDlVlan Packet.setDlVlan
-    (maybe_modify out.outDlVlanPcp Packet.setDlVlanPcp
-    (maybe_modify out.outNwSrc Packet.setNwSrc
-    (maybe_modify out.outNwDst Packet.setNwDst
-    (maybe_modify out.outNwTos Packet.setNwTos
-    (maybe_modify out.outTpSrc Packet.setTpSrc
-    (maybe_modify out.outTpDst Packet.setTpDst pkt))))))))))
+    let dom = domain (SwitchAction out) in
+    if NetCore_Pattern.match_packet pt pkt dom then
+      let pt' = match out.outPort with
+        | Here -> pt
+        | pt -> pt in
+      Some
+        (sw, pt',
+        (maybe_modify out.outDlSrc Packet.setDlSrc
+        (maybe_modify out.outDlDst Packet.setDlDst
+        (maybe_modify out.outDlVlan Packet.setDlVlan
+        (maybe_modify out.outDlVlanPcp Packet.setDlVlanPcp
+        (maybe_modify out.outNwSrc Packet.setNwSrc
+        (maybe_modify out.outNwDst Packet.setNwDst
+        (maybe_modify out.outNwTos Packet.setNwTos
+        (maybe_modify out.outTpSrc Packet.setTpSrc
+        (maybe_modify out.outTpDst Packet.setTpDst pkt))))))))))
+    else
+      None
 
   let rec apply_atom atom (sw,pt,pk) = match atom with
-    | SwitchAction out -> [apply_output out (sw,pt,pk)]
+    | SwitchAction out -> 
+      begin match apply_output out (sw,pt,pk) with
+        | Some v -> [v]
+        | None -> []
+      end
     | ControllerAction f -> apply_action (f sw pt pk) (sw, pt, pk)
     | ControllerQuery _ -> []
 
@@ -228,8 +258,10 @@ module Output = struct
       Some 
         (ControllerAction
            (fun sw pt pk ->
-             let sw', pt', pk' = apply_output out (sw, pt, pk) in
-             g sw' pt' pk'))
+             begin match apply_output out (sw, pt, pk) with
+             | Some (sw', pt', pk') -> g sw' pt' pk'
+             | None -> []
+             end))
     | ControllerAction f, SwitchAction out ->
       Some
         (ControllerAction
@@ -259,10 +291,6 @@ module Output = struct
       else
         set_wild pat
     | None -> pat
-
-  let sel f = function
-  | Some p -> let (old, _) = p in f old
-  | None -> all
 
   let restrict_port portMod pat2 = match portMod with
     | Here -> pat2
@@ -308,23 +336,6 @@ module Output = struct
     | SwitchAction out        -> sequence_range_switch out pat
     | ControllerAction _      -> pat
     | ControllerQuery _   -> pat
-
-  let domain atom = match atom with
-    | SwitchAction out -> 
-      fold_right
-        NetCore_Pattern.inter
-        [ sel dlSrc out.outDlSrc
-        ; sel dlDst out.outDlDst
-        ; sel dlVlan out.outDlVlan
-        ; sel dlVlanPcp out.outDlVlanPcp
-        ; sel ipSrc out.outNwSrc
-        ; sel ipDst out.outNwDst
-        ; sel ipTos out.outNwTos
-        ; sel tcpSrcPort out.outTpSrc
-        ; sel tcpDstPort out.outTpDst ]
-        all
-    | ControllerAction _      -> all
-    | ControllerQuery _   -> all
 
   let set upd mk lst = match upd with
     | Some (_,nw) ->
@@ -396,10 +407,11 @@ module Output = struct
     List.filter f action
 
   let as_actionSequence inp act = 
+    let of_atoms = Frenetic_List.concat_map (atom_to_of inp) act in
     let controller_atoms, not_controller_atoms =
       List.partition
         (function | Output (Controller _) -> true | _ -> false)
-        (Frenetic_List.concat_map (atom_to_of inp) act) in
+        of_atoms in
     if List.length controller_atoms > 0 then
       not_controller_atoms @ [hd controller_atoms]
     else
