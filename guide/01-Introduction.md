@@ -2,11 +2,7 @@ Frenetic Tutorial
 =================
 In this tutorial, you will learn to program software-defined networks (SDN)
 using OpenFlow and NetCore, the surface language of Frenetic. The tutorial is
-broken into three sections.
-
-As an aside, you may find it interesting to read about [why we created
-Frenetic](http://frenetic-lang.org/publications/overview-ieeecoms13.pdf) in the
-first place.
+broken into two sections:
 
 ### Ox
 Chapters 2 - 5 introduce the nuts and bolts of controlling an SDN with the
@@ -44,6 +40,11 @@ reacts to network events and generates a stream of NetCore policies.  Since
 NetCoreLib and NetCoreDSL are effectively the same (with NetCoreDSL simply
 adding a pleasing domain-specific, user-level syntax), we will drop the "DSL"
 part of the name from this point forward and simply refer to NetCore.
+
+### Why Frenetic?
+As an aside, you may find it interesting to read about [why we created
+Frenetic](http://frenetic-lang.org/publications/overview-ieeecoms13.pdf) in the
+first place.
 
 Getting Started
 ---------------
