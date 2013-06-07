@@ -20,7 +20,7 @@ module MyApplication = struct
   let num_http_packets = ref 0
    
   let packet_in (sw : switchId) (xid : xid) (pktIn : packetIn) : unit =
-    Printf.printf "packet_in: %s\n%!" (OpenFlow0x01.PacketIn.to_string pktIn);
+    Printf.printf "%s\n%!" (packetIn_to_string pktIn);
     firewall_packet_in sw xid pktIn;
     if is_http_packet (parse_payload pktIn.input_payload) then
       begin

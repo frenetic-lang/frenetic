@@ -698,12 +698,6 @@ module Payload = struct
 
   type t = payload
 
-  let to_string (t : t) = match t with
-    | Buffered (b, pk) ->
-      Format.sprintf "%d bytes (buffered at %ld)" (Cstruct.len pk) b
-    | NotBuffered pk -> 
-      Format.sprintf "%d bytes" (Cstruct.len pk)
-
   (* sizeof when in a [PacketOut] message *)
   let packetout_sizeof p = match p with
     | Buffered _ -> 0
@@ -730,10 +724,6 @@ module PacketIn = struct
           ACTION = 1
         } as uint8_t
 
-    let to_string r = match r with
-      | NoMatch -> "NoMatch"
-      | ExplicitSend -> "ExplicitSend"
-
     let of_int d = match int_to_ofp_reason d with
       | Some NO_MATCH -> NoMatch
       | Some ACTION -> ExplicitSend
@@ -756,14 +746,6 @@ module PacketIn = struct
         uint8_t reason;
         uint8_t pad
       } as big_endian
-
-  let to_string pin = Printf.sprintf
-    "{ payload = %s; total_len = %d; port = %s; reason = %s; \
-       packet = <bytes> }"
-    (Payload.to_string pin.input_payload)
-    pin.total_len
-    (string_of_portId pin.port)
-    (Reason.to_string pin.reason)
 
   let parse bits =
     let buf_id = match get_ofp_packet_in_buffer_id bits with
@@ -792,8 +774,7 @@ module PacketOut = struct
       } as big_endian
 
   let to_string out = Printf.sprintf
-    "{ payload = %s; port_id = %s; actions = %s }"
-    (Payload.to_string out.output_payload)
+    "{ payload = ...; port_id = %s; actions = %s }"
     (Frenetic_Misc.string_of_option string_of_portId out.port_id)
     (Action.sequence_to_string out.apply_actions)
 
@@ -1398,14 +1379,6 @@ module StatsReply = struct
 
     let size_of_description_stats _ = sizeof_ofp_desc_stats
 
-    let to_string_description_stats desc = Printf.sprintf
-      "{ manufacturer = %s; hardware = %s; software = %s;\
-         serial_number = %s; datapath = %s}"
-      desc.manufacturer desc.hardware desc.software
-      desc.serial_number desc.datapath
-
-
-
     cstruct ofp_flow_stats {
       uint16_t length;
       uint8_t table_id;
@@ -1494,12 +1467,6 @@ module StatsReply = struct
       uint8_t pad[4]
     } as big_endian
 
-    let to_string_aggregate_stats stats = Printf.sprintf
-      "{ packet_count = %Ld; byte_count = %Ld; flow_count = %ld }"
-      stats.total_packet_count
-      stats.total_byte_count
-      stats.flow_count
-
     let parse_aggregate_stats bits = 
       { total_packet_count = get_ofp_aggregate_stats_packet_count bits;
 	      total_byte_count = get_ofp_aggregate_stats_byte_count bits;
@@ -1509,12 +1476,6 @@ module StatsReply = struct
     uint16_t stats_type;
     uint16_t flags
   } as big_endian
-
-  let to_string rep = match rep with
-    | DescriptionRep stats -> to_string_description_stats stats
-    | IndividualFlowRep stats ->
-      Frenetic_Misc.string_of_list to_string_individual_stats stats
-    | AggregateFlowRep stats -> to_string_aggregate_stats stats
 
   let parse bits =
     let stats_type_code = get_ofp_stats_reply_stats_type bits in

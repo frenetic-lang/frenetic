@@ -276,3 +276,5 @@ val parse : Cstruct.t -> packet
 val serialize : packet -> Cstruct.t
 
 val to_string : packet -> string
+
+val format_packet : Format.formatter -> packet -> unit

@@ -144,7 +144,6 @@ type packetOut =
 
 (** {2 Convenient Functions} *)
 
-
 val parse_payload : payload -> Packet.packet
 
 (** A pattern that matches all packets. (All fields wildcarded.) *)
@@ -160,7 +159,11 @@ val add_flow : int16 -> pattern -> action list -> flowMod
 
 val delete_all_flows : flowMod
 
-(** {4:patternexamples Pattern Examples}
+(** {2 Printing and Debugging} *)
+
+val packetIn_to_string : packetIn -> string
+
+(** {3:patternexamples Pattern Examples}
 
     For example, the following pattern matches all packets from the
     host with Ethernet address 00:00:00:00:00:12:
