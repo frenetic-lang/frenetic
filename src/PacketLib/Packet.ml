@@ -746,6 +746,7 @@ let serialize (pkt:packet) : Cstruct.t =
   let () = serialize_helper bits pkt in 
   bits
 
+
 let string_of_mk formatter x =
   let open Format in
   let buf = Buffer.create 100 in

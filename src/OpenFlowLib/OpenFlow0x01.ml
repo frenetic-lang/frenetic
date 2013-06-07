@@ -698,12 +698,6 @@ module Payload = struct
 
   type t = payload
 
-  let to_string (t : t) = match t with
-    | Buffered (b, pk) ->
-      Format.sprintf "%d bytes (buffered at %ld)" (Cstruct.len pk) b
-    | NotBuffered pk -> 
-      Format.sprintf "%d bytes" (Cstruct.len pk)
-
   (* sizeof when in a [PacketOut] message *)
   let packetout_sizeof p = match p with
     | Buffered _ -> 0
@@ -730,10 +724,6 @@ module PacketIn = struct
           ACTION = 1
         } as uint8_t
 
-    let to_string r = match r with
-      | NoMatch -> "NoMatch"
-      | ExplicitSend -> "ExplicitSend"
-
     let of_int d = match int_to_ofp_reason d with
       | Some NO_MATCH -> NoMatch
       | Some ACTION -> ExplicitSend
@@ -756,14 +746,6 @@ module PacketIn = struct
         uint8_t reason;
         uint8_t pad
       } as big_endian
-
-  let to_string pin = Printf.sprintf
-    "{ payload = %s; total_len = %d; port = %s; reason = %s; \
-       packet = <bytes> }"
-    (Payload.to_string pin.input_payload)
-    pin.total_len
-    (string_of_portId pin.port)
-    (Reason.to_string pin.reason)
 
   let parse bits =
     let buf_id = match get_ofp_packet_in_buffer_id bits with
@@ -792,8 +774,7 @@ module PacketOut = struct
       } as big_endian
 
   let to_string out = Printf.sprintf
-    "{ payload = %s; port_id = %s; actions = %s }"
-    (Payload.to_string out.output_payload)
+    "{ payload = ...; port_id = %s; actions = %s }"
     (Frenetic_Misc.string_of_option string_of_portId out.port_id)
     (Action.sequence_to_string out.apply_actions)
 

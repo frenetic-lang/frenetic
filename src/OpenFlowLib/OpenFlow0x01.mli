@@ -82,7 +82,6 @@ module Payload : sig
 
   type t = payload
 
-  val to_string : t -> string
 end
 
 module PacketIn : sig
@@ -91,15 +90,9 @@ module PacketIn : sig
 
     type t = packetInReason
 
-    (** [to_string v] pretty-prints [v]. *)
-    val to_string : t -> string
-
   end
 
   type t = packetIn
-
-  (** [to_string v] pretty-prints [v]. *)
-  val to_string : t -> string
 
 end
 
