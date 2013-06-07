@@ -162,16 +162,16 @@ h2 h2-eth0:s1-eth2
 ```
 Line 1 tells you there is a controller (<code>c0</code>) running.  Line 2
 describes the ports on switch <code>s1</code>.  In particular, 
-switch 1 port 1 (<code>s1-eth1</code>) is connected to host h1.
+switch 1 port 1 (<code>s1-eth1</code>) is connected to host <code>h1</code>.
 Likewise, switch 1 port 2 (<code>s1-eth2</code>) is connected to 
-host h2. If there was more than one switch in the network, we would
+host <code>h2</code>. If there was more than one switch in the network, we would
 see additional lines prefixed by the switch identifier, one line
 per switch.  Lines 3 and 4 describe the hosts <code>h1</code> 
 and <code>h2</code>.
 
 #### Test the Example
 
-At the mininet prompt, test your repeater program by pinging h2 from h1:
+At the mininet prompt, test your repeater program by pinging <code>h2</code> from <code>h1</code>:
 ```
 mininet> h1 ping -c 1 h2
 ```
@@ -184,7 +184,7 @@ PING 10.0.0.2 (10.0.0.2) 56(84) bytes of data.
 1 packets transmitted, 1 received, 0% packet loss, time 0ms
 rtt min/avg/max/mdev = 0.216/0.216/0.216/0.000 ms
 ```
-Ping h1 from h2 as well.
+Ping <code>h1</code> from <code>h2</code> as well.
 Once you are convinced the repeater works,
 try replacing the given repeater with an even simpler one:
 ```
@@ -211,29 +211,30 @@ of traffic that each host in a five-host network can send:
     <TH>frameType</TH> <TH>ipProtocolType</TH> <TH>tcpDstPort</TH> 
   </TR>
   <TR> 
-    <TD>H1</TD> <TD>Network tap: receives traffic.</TD>
+    <TD>h1</TD> <TD>Network tap: receives traffic.</TD>
     <TD>arp</TD> <TD></TD> <TD></TD>           
   </TR>
   <TR> 
-    <TD>H2</TD> <TD>Admin.</TD>
+    <TD>h2</TD> <TD>Admin.</TD>
     <TD>*</TD> <TD>*</TD> <TD>*</TD>           
   </TR>
   <TR> 
-    <TD>H3</TD> <TD>User: web traffic.</TD>
+    <TD>h3</TD> <TD>User: web traffic.</TD>
     <TD>arp, ip</TD> <TD>tcp</TD> <TD>80</TD>          
   </TR>
   <TR> 
-    <TD>H4</TD> <TD>User: web traffic.</TD>
+    <TD>h4</TD> <TD>User: web traffic.</TD>
     <TD>arp, ip</TD> <TD>tcp</TD> <TD>80</TD>          
   </TR>
   <TR> 
-    <TD>H5</TD> <TD>Power user: web traffic, ssh, and ping.</TD>
+    <TD>h5</TD> <TD>Power user: web traffic, ssh, and ping.</TD>
     <TD>arp, ip</TD> <TD>icmp, tcp</TD> <TD>22, 80</TD>           
   </TR>
 </table>
 
-For example, H4 is allowed to send ARP and web traffic, whereas H5 can ping, as
-well as send ARP, web, and SSH traffic.  H1 is a network tap: it can send ARP
+For example, <code>h4</code> is allowed to send ARP and web 
+traffic, whereas <code>h5</code> can ping, as
+well as send ARP, web, and SSH traffic.  <code>h1</code> is a network tap: it can send ARP
 traffic to advertise its location, but otherwise receives and logs diagnostic
 traffic directed to it.  The administrator can, of course, send any type of
 traffic.
@@ -265,20 +266,20 @@ sudo mn --controller=remote --topo=single,5
 ##### ICMP
 
 Use <code>ping</code> to test ICMP.  Remember that ICMP traffic is
-bidirectional, and so pinging from, say, H2 to H3 should fail, because H3
+bidirectional, and so pinging from, say, <code>h2</code> to <code>h3</code> should fail, because H3
 replies are dropped.
 
 ##### IPv4
 
 Use <code>iperf</code> to test both SSH and web traffic.  For example, these
-commands send TCP traffic between H2 and H3:
+commands send TCP traffic between <code>h2</code> and <code>h3</code>:
 ```
 mininet> h2 iperf -s -p 80 &
 mininet> h3 iperf -c 10.0.0.3 -p 80
 ```
 
-The first command starts <code>iperf</code> listening for TCP traffic on H3,
-port 80.  The second initiates a TCP connection from H4 to 10.0.0.3:80 (H3,
+The first command starts <code>iperf</code> listening for TCP traffic on <code>h3</code>,
+port 80.  The second initiates a TCP connection from H4 to 10.0.0.3:80 (<code>h3</code>,
 port 80).  You should see the following output:
 ```
 mininet> h2 iperf -s -p 80 &
@@ -301,15 +302,15 @@ TCP window size:  647 KByte (default)
 
 ##### ARP
 
-Testing H1 is a bit tricky, as it should respond to ARP requests but not, say,
+Testing <code>h1</code> is a bit tricky, as it should respond to ARP requests but not, say,
 TCP handshakes.  One approach is to use <code>iperf</code> to receive UDP
-traffic on H1:
+traffic on <code>h1</code>:
 ```
 mininet> h1 iperf -u -s -p 80 &
 mininet> h2 iperf -u -c 10.0.0.1 -p 80
 ```
 
-Sending UDP traffic from H2 to H1 should succeed with the following output:
+Sending UDP traffic from <code>h2</code> to <code>h1</code> should succeed with the following output:
 ```
 mininet> h1 iperf -u -s -p 80 &
 ------------------------------------------------------------
@@ -330,8 +331,8 @@ UDP buffer size:  176 KByte (default)
 [  3] WARNING: did not receive ack of last datagram after 10 tries.
 ```
 
-The warning on the last line indicates that the acknowledgment from H1 did not
-reach H2, as expected.
+The warning on the last line indicates that the acknowledgment from <code>h1</code> did not
+reach <code>h2</code>, as expected.
 
 [topo_1]: images/topo_1.png "Default Mininet topology."
 [topo_2]: images/topo_2.png "Simple linear topology."
