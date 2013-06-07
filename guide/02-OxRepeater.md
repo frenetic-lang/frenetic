@@ -308,6 +308,8 @@ implement a policy change, you may see packets at the controller.
 [Ch7]: 07-NetCoreComposition.md
 [Ch8]: 08-DynamicNetCore.md
 
+[OpenFlow_Core]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html
+
 [send_flow_mod]: http://frenetic-lang.github.io/frenetic/docs/OxPlatform.html#VALsend_flow_mod
 
 [pattern]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Core.html#TYPEpattern
