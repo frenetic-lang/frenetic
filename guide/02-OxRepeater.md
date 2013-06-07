@@ -107,9 +107,15 @@ to the Ox libraries for you.
 
 #### Programming Task
 
+[Repeater.ml](ox-tutorial-code/Repeater.ml) contains the skeleton of
+an Ox application. It defines two functions: `switch_connected`, which
+is called when switches come online and connect to the controller, and
+`packet_in`, which is called whenever a packet is sent from a switch
+to the controller.
+
 [Repeater.ml](ox-tutorial-code/Repeater.ml) has a `packet_in` function
-that just drops all packets. This is obviously wrong. To be a
-repeater, it has to send it out of all ports (excluding the input
+that just sends every packet out port 1. This is obviously wrong. To be a
+repeater, it has to send each packet out of every port (excluding the input
 port). This is easier than it sounds, because you can do it with just
 one OpenFlow action.
 
@@ -316,7 +322,7 @@ re-connects, your controller sends two messages:
 - Next, Ox sends the _add flow_ message that you wrote.
 
 In the interval between these two messages, the flow table is empty,
-thus packets get diverted to the controller. More broadly, whenever
+thus packets get diverted to the controller. More generally, whenever
 the switch is configured for the first time, or re-configured to
 implement a policy change, you may see packets at the controller.
 
