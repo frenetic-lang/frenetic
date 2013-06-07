@@ -124,7 +124,7 @@ type packetInReason =
 (** A packet-in message.  See Section 5.4.1 of the OpenFlow 1.0
     specification. *)
 type packetIn =
-    { input_payload : payload
+    { input_payload : payload (* MJR: Should we rename this just to 'payload'? Looks weird in the tutorial *)
     (** The packet contents, which may truncated, in which case, 
         the full packet is buffered on the switch. *)
     ; total_len : int16
