@@ -99,12 +99,24 @@ packet fields, were key ingredients in supporting these abstractions.
 
 *TO DO: Mark, Arjun?*
 
-Conclusions
------------
+#### Conclusions
 
-*Something broad about the marriage of programming languages and networking.*
+Overall, the Frenetic project aims to develop new high-level abstractions
+that make programming networks simpler, more reliable and more secure.
+We have made some progress on this front by blending the skills of 
+both networking and programming languages researchers.  And it's 
+taken a great team of people from undergraduate students to graduate
+students to post docs and faculty to put it together.
 
-Thanks for listening.  Have fun with Frenetic!
+*Uggh that was gushy.*
+
+#### Acknoweldgement
+
+This work is supported in part by ONR grants N00014-09-1-0770 and
+N00014-09-1-0652, NSF grants CNS-1111698 and CNS-1111520, TRUST, and
+gifts from Dell, Intel, and Google. Any opinions, ﬁndings, and
+recommendations are those of the authors and do not necessarily reﬂect
+the views of the ONR or NSF.
 
 ![Frenetic.][frenetic_logo]
 
