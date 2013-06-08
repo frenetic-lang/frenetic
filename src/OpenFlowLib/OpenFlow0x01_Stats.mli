@@ -2,9 +2,10 @@ open Packet
 open OpenFlow0x01_Core
 
 (** Both [IndividualRequest] and [AggregateRequest] take as paramters,
-    a [pattern] that specifies the fields to match, the [table_if]
+    a [pattern] that specifies the fields to match, the [table_id]
     to read from, and an optional port, which requires matching
-    entries to have this as an output port. *)
+    entries to have this as an output port.  Use table ID [0xFF] to
+    read from all tables. *)
 type request =
   | DescriptionRequest     (** Description of this OpenFlow switch. *)
   | IndividualRequest of pattern * int8 * pseudoPort option
