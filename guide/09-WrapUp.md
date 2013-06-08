@@ -16,7 +16,7 @@ Still, there's a lot more to the Frenetic environment than what you
 have seen in this tutorial.  One way to get started finding out more is
 to dig further in to implementation.  You might start by looking at
 [NetCoreLib](https://github.com/frenetic-lang/frenetic/tree/master/src/NetCoreLib) which is the primary library that implements NetCoreDSL.  You can start
-by looking at the internal syntax of NetCore in the [NetCoreTypes Module](https://github.com/frenetic-lang/frenetic/blob/master/src/NetCoreLib/NetCore_Types.mli) and then move on to the libraries there that implement Mac Learning](https://github.com/frenetic-lang/frenetic/blob/master/src/NetCoreLib/NetCore_MacLearning.mli) and
+by looking at the internal syntax of NetCore in the [NetCoreTypes Module](https://github.com/frenetic-lang/frenetic/blob/master/src/NetCoreLib/NetCore_Types.mli) and then move on to the libraries there that implement [Mac Learning](https://github.com/frenetic-lang/frenetic/blob/master/src/NetCoreLib/NetCore_MacLearning.mli) and
 [Nat](https://github.com/frenetic-lang/frenetic/blob/master/src/NetCoreLib/NetCore_NAT.ml).  The latter components will introduce you to the basics of
 how to construct your own dynamic policies in the Frenetic programming 
 environment using NetCoreLib combined with OCaml's [Lwt Threading Libraries](http://ocsigen.org/lwt/manual).
@@ -24,7 +24,7 @@ environment using NetCoreLib combined with OCaml's [Lwt Threading Libraries](htt
 We have also written a number of papers that explain the theory, design and
 implementation of Frenetic in greater depth.  A collection of all our
 key papers can be found, together with bibiographic information on the
-(Frenetic Publications page)[https://frenetic-lang.org/publications.php].  However, some of the highlights follow.
+[Frenetic Publications page](https://frenetic-lang.org/publications.php).  However, some of the highlights follow.
  
 #### [Frenetic: A Network Programming Language](http://frenetic-lang.org/publications/frenetic-icfp11.pdf) 
 
