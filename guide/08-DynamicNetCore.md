@@ -189,7 +189,7 @@ Summary
 
 NetCore rocks!  QED.
 
-## Next chapter: [Wrap Up][Ch9]
+## Next chapter: [Wrap-up][Ch9]
 
 
 [Ch9]: 09-WrapUp.md
