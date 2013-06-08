@@ -68,7 +68,7 @@ port 80 increments the counter (and that other traffic does not).
   mininet> h2 ping h1
   ```
 
-- Test that Web traffic is unaffected, but logged. To do so, run a Web
+- Test that Web traffic is unaffected, but logged. To do so, run a fortune
    server on one host and a client on another:
 
   * In Mininet, start new terminals for `h1` and `h2`:
@@ -81,14 +81,13 @@ port 80 increments the counter (and that other traffic does not).
   * In the terminal for `h1` start a local Web server:
 
     ```
-    # cd ~/src/frenetic/guide
-    # python -m SimpleHTTPServer 80
+    # while true; do fortune | nc -l 80; done
     ```
 
   * In the terminal for `h2` fetch a web page from `h1`:
 
     ```
-    # curl 10.0.0.1
+    # curl 10.0.0.1:80
     ```
 
     This command should succeed and you should find HTTP traffic
@@ -107,15 +106,15 @@ port 80 increments the counter (and that other traffic does not).
 
 
 - Finally, you should test that other traffic is neither blocked by
-  the firewall nor counted by your monitor. To do so, kill the Web
-  server running on `h1` and start a new Web server on a non-standard
+  the firewall nor counted by your monitor. To do so, kill the fortune 
+  server running on `h1` and start a new fortune server on a non-standard
   port (e.g., 8080):
 
   * On the terminal for `h1`:
 
     ```
     ^C
-    $ python -m SimpleHTTPServer 8080
+    $ while true; do fortune | nc -l 8080; done
     ```
 
   * On the terminal for `h2`, fetch a page:

@@ -96,17 +96,16 @@ packetIn{
     mininet> h2 xterm &
     ```
 
-  * In the terminal for `h1` start a local Web server:
+  * In the terminal for `h1` start a local "fortune server:"
 
     ```
-    # cd ~/src/frenetic/guide
-    # python -m SimpleHTTPServer 80
+    # while true; do fortune | nc -l 80; done
     ```
 
   * In the terminal for `h2` fetch a web page from `h1`:
 
     ```
-    # curl 10.0.0.1/index.html
+    # curl 10.0.0.1:80
     ```
 
     This command should succeed.
