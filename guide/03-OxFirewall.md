@@ -135,10 +135,10 @@ You have to determine the priorities, patterns, and actions in the
 handler above. You might want to revisit the description of flow
 tables in [Chapter 2][Ch2]. Here is a quick refresher:
 
-- *Priorities*: higher numbers mean higher priority
+- *Priorities*: higher numbers mean higher priority.
 
 - *Action lists*: To drop traffic, you provide an empty list (`[]` in
-  OCaml) of actions
+  OCaml) of actions.
 
 - *Patterns*: In the previous chapter, you used the builtin pattern
   `match_all`, which you may use again if needed. You will certainly
@@ -150,6 +150,8 @@ tables in [Chapter 2][Ch2]. Here is a quick refresher:
 Build and test the efficient firewall in exactly the same way you
 tested the firewall function. In addition, you shouldn't observe
 packets at the controller.
+
+## Next chapter: [Ox Monitor][Ch4]
 
 [Action]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.Action.html
 
