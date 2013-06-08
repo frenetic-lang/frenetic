@@ -210,5 +210,5 @@ let from_host12 = {
     [let al_tcp = { match_all with dlTyp = Some 0x800; nwProto = Some 6 }]
 
     Note that to match IP-level headers, e.g., [nwProto] and [nwSrc]),
-    we have to write [dlTye = Some 0x800], or they are ignored.
+    we have to write [dlTyp = Some 0x800], or they are ignored.
 *)
