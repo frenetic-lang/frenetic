@@ -12,10 +12,10 @@ For detail, see `comment-dwim'."
 (setq netcore-keywords
   '(
     ("," . 'font-lock-builtin)
-    ("(" . 'font-lock-builtin)
-    (")" . 'font-lock-builtin)
-    ("{" . 'font-lock-builtin)
-    ("}" . 'font-lock-builtin)
+;;     ("(" . 'font-lock-builtin) **/
+;;     (")" . 'font-lock-builtin) **/
+;;     ("{" . 'font-lock-builtin) **/
+;;     ("}" . 'font-lock-builtin) **/
     ("!" . 'font-lock-builtin)
     ("*" . 'font-lock-builtin)
     ("=" . 'font-lock-builtin)
@@ -32,7 +32,7 @@ For detail, see `comment-dwim'."
     (" publicIP " . 'font-lock-function-name-face)
     ("all " . 'font-lock-constant-face)
     (" all" . 'font-lock-constant-face)
-    ("fwd " . 'font-lock-function-name-face)
+    ("fwd" . 'font-lock-function-name-face)
     ("<none>" . 'font-lock-constant-face)
     ("filter " . 'font-lock-function-name-face)
     ("switch " . 'font-lock-function-name-face)
@@ -71,8 +71,8 @@ For detail, see `comment-dwim'."
 (setq netcore-syntax-table
   (let ((synTable (make-syntax-table)))
 
-    (modify-syntax-entry ?\( ". 1" synTable)
-    (modify-syntax-entry ?\) ". 4" synTable)
+    (modify-syntax-entry ?\( "(. 1" synTable)
+    (modify-syntax-entry ?\) "). 4" synTable)
     (modify-syntax-entry ?* ". 23" synTable)
 
     synTable))
