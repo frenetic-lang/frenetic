@@ -52,7 +52,3 @@ The [API
 documentation](http://htmlpreview.github.io/?https://github.com/frenetic-lang/frenetic/blob/master/doc/index.html)
 is also available online.
 
-Hacking Wisdom
---------------
-
-If you're using the user-mode reference switch, emit CONTROLLER actions last.
