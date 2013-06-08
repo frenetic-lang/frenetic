@@ -1,78 +1,31 @@
 Chapter 6: Introducing NetCore
 ==============================
 
-A NetCore policy describes how a collection of switches
-forwards packets from one location to another.  We call a NetCore policy
-*static* when it is fixed ahead of time,
-does not change, and does not depend upon the packet flows that
-appear in the network.  We will focus first on static policies 
-and add some simple dynamics later in the tutorial.
+- You've learned how to write controllers with OpenFlow. We've shown
+  you a simple, two step recipe to implement policies:
 
-The NetCore programming paradigm encourages users to think of static
-policies as abstract *functions* that specify the behavior of switches
-and to ignore how these functions are actually implemented on switch 
-hardware --- our compiler will take
-care of the implementation for you.  Conceptually, such static 
-policies process *located packets* --- i.e.,
-records with one field for each OpenFlow-supported packet header
-(<code>srcMac</code>, <code>dstMac</code>, <code>srcIP</code>, etc.) as well as
-one field denoting the current switch processing the packet and
-another field denoting the inPort the packet arrived at.
-More specifically, each policy is a function
-that takes a single located packet as an input (the packet to
-be forwarded) and generates a *multi-set* of new located 
-packets.  (A multi-set is simply a set that can contain multiple, identical
-elements.  When one takes the union of two multi-sets that both
-contain the element x, the resulting multi-set has two occurrences
-of the element x.)  In the rest of the tutorial, we will often 
-call our located packets simply "packets" for short.
-Keep in mind that all packets processed by NetCore come with associated
-location information.
+  * You can easily write a _packet-in_ function to have the controller
+     implement any policy -- though it may be a very inefficient
+     implementation
 
-To understand how a packet flows through a network, a programmer must
-analyze both the current NetCore policy P and the network topology
-T.  The policy is a function that explains how a switch should move
-a packet from an input port to an output port.  The topology is a
-function that explains how a packet moves from the outport of one
-switch, across a link, to the inport of some other switch.  Hence,
-given a located packet p0, we can trace its path through the
-network by first applying the policy function P(p0) generating a
-multi-set of (possibly zero) packets {p1,...,pk} at outports on a
-switch.  For simplicity, let's assume the result P(p0) contains
-just one packet (p1) (i.e., it is a normal forwarding policy, that
-does not drop the input packet and does not broadcast the packet out
-multiple ports).  Next, we apply the topology function T to generate a
-packet p1' across the other side of the link at some new switch.
-Then we apply the policy function P again: P(p1') will generate some
-subsequent number of output packets.  And then apply the topology function T
-again, etc.
+  * You can then use flow tables and statistics to program switches to
+    implement the same policy efficiently.
 
-In summary, one traces the flow of packets through a network by alternately
-applying the policy function P and the topology function T. Static NetCore is
-just a domain-specific language that makes it easy to write down a 
-policy function P that determines how switches forward packets. The main
-features of Static NetCore include the following.
+- In the following chapters, we introduce a new way to program SDN policies.
 
-  - a set of primitive *actions*, which allow programmers to modify and 
-forward packets,
-  - *conditional statements*, which allow programmers to perform 
-different actions on different kinds of packets,
-  - *sequencing*, which allows programmers to perform a series of
-transformations on a packet,
-  - *parallel composition*, which allows programmers to make a logical copy
-of a packet and thereby to generate more than one result from their
-policy --- perhaps forwarding the packet to two different locations, and
-  - *queries*, which allow programmers to inspect the contents of packets
-as the flow across a network, the load at various points in the network,
-the current static policy in force or the concrete rules installed on
-OpenFlow flow tables.
+  - You will write policy-functions in a little language we call
+    **NetCore**.
 
-We will illustrate each of these features through a series of examples.
-You will find the examples in the frenetic repository 
-in <code>guide/netcore-tutorial-code</code>.  Go there now.
-```
-$ cd guide/netcore-tutorial-code
-```
+  - You will then feed your program to the the NetCore Compiler, which
+    synthesizes flow tables that implement your function. (It also
+    sends statistics requests, accumulates replies, manages
+    switch connections, and more.)
+
+- `guide/netcore-tutorial-code`.
+
+  ```
+  $ cd guide/netcore-tutorial-code
+  ```
 
 ### Example 1: A Naive Repeater (Redux)
 
@@ -201,143 +154,81 @@ that out too to see if you have done it correctly.
 The opposite of the <code>all</code> policy is the <code>drop</code> policy,
 which drops all packets on the floor.  
 
-### Exercise 1: Firewall
 
-In the [OxFirewall](03-OxFirewall.md) chapter, you developed a firewall to
-block ICMP traffic.  Most networks impose other restrictions on the type of
-traffic that hosts are allowed to send.  The following table describes the type
-of traffic that each host in a five-host network can send:
+Reasoning About NetCore
+=======================
 
-<table>
-  <TR> 
-    <TH>Host</TH> <TH>Host Description</TH> 
-    <TH>frameType</TH> <TH>ipProtocolType</TH> <TH>tcpDstPort</TH> 
-  </TR>
-  <TR> 
-    <TD>h1</TD> <TD>Network tap: receives traffic.</TD>
-    <TD>arp</TD> <TD></TD> <TD></TD>           
-  </TR>
-  <TR> 
-    <TD>h2</TD> <TD>Admin.</TD>
-    <TD>*</TD> <TD>*</TD> <TD>*</TD>           
-  </TR>
-  <TR> 
-    <TD>h3</TD> <TD>User: web traffic.</TD>
-    <TD>arp, ip</TD> <TD>tcp</TD> <TD>80</TD>          
-  </TR>
-  <TR> 
-    <TD>h4</TD> <TD>User: web traffic.</TD>
-    <TD>arp, ip</TD> <TD>tcp</TD> <TD>80</TD>          
-  </TR>
-  <TR> 
-    <TD>h5</TD> <TD>Power user: web traffic, ssh, and ping.</TD>
-    <TD>arp, ip</TD> <TD>icmp, tcp</TD> <TD>22, 80</TD>           
-  </TR>
-</table>
+A NetCore policy describes how a collection of switches
+forwards packets from one location to another.  We call a NetCore policy
+*static* when it is fixed ahead of time,
+does not change, and does not depend upon the packet flows that
+appear in the network.  We will focus first on static policies 
+and add some simple dynamics later in the tutorial.
 
-For example, <code>h4</code> is allowed to send ARP and web 
-traffic, whereas <code>h5</code> can ping, as
-well as send ARP, web, and SSH traffic.  <code>h1</code> is a network tap: it can send ARP
-traffic to advertise its location, but otherwise receives and logs diagnostic
-traffic directed to it.  The administrator can, of course, send any type of
-traffic.
+The NetCore programming paradigm encourages users to think of static
+policies as abstract *functions* that specify the behavior of switches
+and to ignore how these functions are actually implemented on switch 
+hardware --- our compiler will take
+care of the implementation for you.  Conceptually, such static 
+policies process *located packets* --- i.e.,
+records with one field for each OpenFlow-supported packet header
+(<code>srcMac</code>, <code>dstMac</code>, <code>srcIP</code>, etc.) as well as
+one field denoting the current switch processing the packet and
+another field denoting the inPort the packet arrived at.
+More specifically, each policy is a function
+that takes a single located packet as an input (the packet to
+be forwarded) and generates a *multi-set* of new located 
+packets.  (A multi-set is simply a set that can contain multiple, identical
+elements.  When one takes the union of two multi-sets that both
+contain the element x, the resulting multi-set has two occurrences
+of the element x.)  In the rest of the tutorial, we will often 
+call our located packets simply "packets" for short.
+Keep in mind that all packets processed by NetCore come with associated
+location information.
 
-#### Programming Task
+To understand how a packet flows through a network, a programmer must
+analyze both the current NetCore policy P and the network topology
+T.  The policy is a function that explains how a switch should move
+a packet from an input port to an output port.  The topology is a
+function that explains how a packet moves from the outport of one
+switch, across a link, to the inport of some other switch.  Hence,
+given a located packet p0, we can trace its path through the
+network by first applying the policy function P(p0) generating a
+multi-set of (possibly zero) packets {p1,...,pk} at outports on a
+switch.  For simplicity, let's assume the result P(p0) contains
+just one packet (p1) (i.e., it is a normal forwarding policy, that
+does not drop the input packet and does not broadcast the packet out
+multiple ports).  Next, we apply the topology function T to generate a
+packet p1' across the other side of the link at some new switch.
+Then we apply the policy function P again: P(p1') will generate some
+subsequent number of output packets.  And then apply the topology function T
+again, etc.
 
-Write a NetCore policy for a network with a single switch and five hosts
-connected to ports 1-5, respectively, that enforces the restrictions in the
-table above.  Assume that any traffic that meeting the criteria may be
-broadcast (i.e. using the <code>all</code> policy).
+In summary, one traces the flow of packets through a network by alternately
+applying the policy function P and the topology function T. Static NetCore is
+just a domain-specific language that makes it easy to write down a 
+policy function P that determines how switches forward packets. The main
+features of Static NetCore include the following.
 
-Use [Firewall.nc](netcore-tutorial-code/Firewall.nc) as a starting point.
+  - a set of primitive *actions*, which allow programmers to modify and 
+forward packets,
+  - *conditional statements*, which allow programmers to perform 
+different actions on different kinds of packets,
+  - *sequencing*, which allows programmers to perform a series of
+transformations on a packet,
+  - *parallel composition*, which allows programmers to make a logical copy
+of a packet and thereby to generate more than one result from their
+policy --- perhaps forwarding the packet to two different locations, and
+  - *queries*, which allow programmers to inspect the contents of packets
+as the flow across a network, the load at various points in the network,
+the current static policy in force or the concrete rules installed on
+OpenFlow flow tables.
 
-#### Testing your Controller
 
-*TODO: you can also use monitorTable.*
 
-To run your controller, navigate to the <code>netcore-tutorial-code</code>
-directory and type:
-```
-frenetic Firewall.nc
-```
 
-In another terminal, start a mininet instance with five hosts:
-```
-sudo mn --controller=remote --topo=single,5
-```
 
-##### ICMP
 
-Use <code>ping</code> to test ICMP.  Remember that ICMP traffic is
-bidirectional, and so pinging from, say, <code>h2</code> to <code>h3</code> should fail, because H3
-replies are dropped.
-
-##### IPv4
-
-Use <code>iperf</code> to test both SSH and web traffic.  For example, these
-commands send TCP traffic between <code>h2</code> and <code>h3</code>:
-```
-mininet> h2 iperf -s -p 80 &
-mininet> h3 iperf -c 10.0.0.3 -p 80
-```
-
-The first command starts <code>iperf</code> listening for TCP traffic on <code>h3</code>,
-port 80.  The second initiates a TCP connection from H4 to 10.0.0.3:80 (<code>h3</code>,
-port 80).  You should see the following output:
-```
-mininet> h2 iperf -s -p 80 &
-------------------------------------------------------------
-Server listening on TCP port 80
-TCP window size: 85.3 KByte (default)
-------------------------------------------------------------
-mininet> h3 iperf -c 10.0.0.3 -p 80
-------------------------------------------------------------
-Client connecting to 10.0.0.3, TCP port 80
-TCP window size:  647 KByte (default)
-------------------------------------------------------------
-[  3] local 10.0.0.3 port 60621 connected with 10.0.0.3 port 80
-[  4] local 10.0.0.3 port 80 connected with 10.0.0.3 port 60621
-[ ID] Interval       Transfer     Bandwidth
-[  3]  0.0-10.0 sec   384 MBytes   322 Mbits/sec
-[ ID] Interval       Transfer     Bandwidth
-[  4]  0.0-10.0 sec   384 MBytes   322 Mbits/sec
-```
-
-##### ARP
-
-Testing <code>h1</code> is a bit tricky, as it should respond to ARP requests but not, say,
-TCP handshakes.  One approach is to use <code>iperf</code> to receive UDP
-traffic on <code>h1</code>:
-```
-mininet> h1 iperf -u -s -p 80 &
-mininet> h2 iperf -u -c 10.0.0.1 -p 80
-```
-
-Sending UDP traffic from <code>h2</code> to <code>h1</code> should succeed with the following output:
-```
-mininet> h1 iperf -u -s -p 80 &
-------------------------------------------------------------
-Server listening on UDP port 80
-Receiving 1470 byte datagrams
-UDP buffer size:  176 KByte (default)
-------------------------------------------------------------
-mininet> h2 iperf -u -c 10.0.0.1 -p 80
-------------------------------------------------------------
-Client connecting to 10.0.0.1, UDP port 80
-Sending 1470 byte datagrams
-UDP buffer size:  176 KByte (default)
-------------------------------------------------------------
-[  3] local 10.0.0.2 port 40281 connected with 10.0.0.1 port 80
-[ ID] Interval       Transfer     Bandwidth
-[  3]  0.0-10.0 sec  1.25 MBytes  1.05 Mbits/sec
-[  3] Sent 893 datagrams
-[  3] WARNING: did not receive ack of last datagram after 10 tries.
-```
-
-The warning on the last line indicates that the acknowledgment from <code>h1</code> did not
-reach <code>h2</code>, as expected.
-
-## Next chapter: [NetCore Composition][Ch7]
 
 
 [Ch7]: 07-NetCoreComposition.md
