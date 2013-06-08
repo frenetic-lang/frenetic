@@ -101,8 +101,7 @@ port 80 increments the counter (and that other traffic does not).
     Saw 4 HTTP packets.
     Saw 5 HTTP packets.
     ...
-    ```    
-
+    ```   
 > If you are seeing <code>packetIn</code> messages in between the HTTP traffic logs,
 > you could comment out the appropriate printf commands.
 
