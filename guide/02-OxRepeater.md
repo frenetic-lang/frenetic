@@ -1,4 +1,4 @@
-Chapter 1: Repeater
+Chapter 2: Repeater
 ====================
 
 ### Introduction to OpenFlow

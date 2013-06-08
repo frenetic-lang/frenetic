@@ -1,4 +1,4 @@
-Chapter 3: Traffic Monitoring
+Chapter 4: Traffic Monitoring
 =============================
 
 In this exercise, you will write a controller that measures the volume
@@ -13,7 +13,7 @@ flow tables and OpenFlow statistics.
 
 ### The Monitoring Function
 
-Your monitor must count the total number of packets sent to port 80 *and*
+Your monitor must count the total number of packets sent to *and*
 received from port 80. Since the `packet_in` function receives all
 packets, all you need to do is increment a global counter each time
 `packet_in` receives a new packet:
@@ -173,8 +173,8 @@ create the rules as you did before using `send_flow_mod` in the
 
 As you realized in the previous programing task, you cannot write a
 single OpenFlow pattern that matches both HTTP requests and
-replies. You need to match they separately, using two rules, which
-gives you two counters. Therefore, you need to read each counter
+replies. You need to match them separately, using two rules, which will
+give you two counters. Therefore, you need to read each counter
 independently and calculate their sum.
 
 
@@ -208,8 +208,9 @@ let switch_connected (sw : switchId) : unit =
 You need to fill in the patterns `match_http_requests` and
 `match_http_responses`, which you have already calculated.
 
-Finally, you need a `stats_reply` handler that calculates the sum
-of the two counters. We've provided one below:
+Finally, you need a `stats_reply` function that will handle the stats
+responses from the switch and calculates the sum of the two
+counters. We've provided one below:
 
 ```ocaml
 let num_http_request_packets = ref 0L 
@@ -232,7 +233,7 @@ let stats_reply (sw : switchId) (xid : xid) (stats : Stats.reply) : unit =
 
 #### Building and Testing Your Monitor
 
-You should be able to build and test the extended monitor as you did before.
+You should be able to build and test the extended monitor as before.
 
 
 #### Extra Credit

@@ -1,4 +1,4 @@
-Chapter 2: Firewall
+Chapter 3: Firewall
 ===================
 
 In this chapter, you will compose your repeater with a simple firewall
@@ -30,10 +30,11 @@ frames. The easiest way to examine packet headers is to then use the
 #### Programming Task
 
 Starting from [Firewall.ml](ox-tutorial-code/Firewall.ml), fill in the
-`is_icmp_packet` function.  Recall that the _frame type for IP packets
-is 0x800_ and the _protocol number for ICMP is 1_.
+`is_icmp_packet` function.  The _frame type_ for IP packets
+is _0x800_ and the _protocol number_ for ICMP is _1_.
 
 > TODO(arjun): `Recall that' snark. Acceptable?
+> mjr: snark is fine, 'recall that' implies that they missed something
 
 #### Building and Testing Your Firewall
 
@@ -132,7 +133,7 @@ let switch_connected (sw : switchId) : unit =
 
 You have to determine the priorities, patterns, and actions in the
 handler above. You might want to revisit the description of flow
-tables in [Chapter 1][Ch1]. Here is a quick refresher:
+tables in [Chapter 2][Ch2]. Here is a quick refresher:
 
 - *Priorities*: higher numbers mean higher priority
 

@@ -1,4 +1,4 @@
-Chapter 4: Learning Switch
+Chapter 5: Learning Switch
 ==========================
 
 In this chapter, you will build an Ethernet learning switch.
