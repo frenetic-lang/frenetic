@@ -3,15 +3,20 @@ Chapter 5: Learning Switch
 
 In this chapter, you will build an Ethernet learning switch.
 
-Thus far, you've provided connectivity by simply flooding packets,
-which is not scalable. As an alternative, we could pre-configure the
-switch to directly forward traffic to statically known hosts without
-flooding.
+Thus far, you've provided connectivity by simply flooding every
+packet. Early network devices (called 'hubs') behaved this way, but it
+was quickly discovered that they don't scale as the network grows in
+size. As an alternative, if we know the location of specific hosts, we
+forward direct traffic directly towards them. We can learn the
+locations of hosts by remembering where they are when they send
+traffic, and flooding traffic for as-yet-unknown hosts. Such a device
+is called a switch.
+
+> Not entirely unlike the classic Monty Python sketch "How Not to be Seen"
 
 > FILL
 
- A learning
-switch has two logically distinct components:
+ A learning switch has two logically distinct components:
 
 - The *learning module* builds a table that maps hosts (mac addresses)
   to the switch-port on which they are connected. The learning module
@@ -24,9 +29,6 @@ switch has two logically distinct components:
   is accessible through port _N_, then the routing module forwards the
   packet directly out of port _N_. (If the table does not have an
   entry for _X_, it simply floods the packet.)
-
-A learning switch is therefore much more efficient than the repeater
-you have used for connectivity so far.
 
 ### The Learning Switch Function
 
