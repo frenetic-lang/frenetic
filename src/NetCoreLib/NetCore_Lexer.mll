@@ -97,6 +97,8 @@ and token = parse
   | ";" { SEMI }
   | "|" { BAR }
   | "+" { PLUS }
+  | "::" (byte as n1)
+    { MACADDR (parse_byte n1) }
   | (byte as n6) ":" (byte as n5) ":" (byte as n4) ":" (byte as n3) ":" 
     (byte as n2) ":" (byte as n1) 
     { let open Int64 in
