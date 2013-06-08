@@ -106,4 +106,6 @@ Conclusions
 
 Thanks for listening.  Have fun with Frenetic!
 
-*TODO: Put the Frenetic logo at the bottom?*
+![Frenetic.][frenetic_logo]
+
+[frenetic_logo]: images/frenetic-logo.png "Frenetic"
