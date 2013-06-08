@@ -25,7 +25,7 @@ let packet_in (sw : switchId) (xid : xid) (pktIn : packetIn) : unit =
   if is_http_packet (parse_payload pktIn.payload) then
     begin
       num_http_packets := !num_http_packets + 1;
-      Printf.printf "Seen %d HTTP packets.\n%!" !num_http_packets
+      Printf.printf "Saw %d HTTP packets.\n%!" !num_http_packets
     end
 ```
 
@@ -95,11 +95,11 @@ port 80 increments the counter (and that other traffic does not).
     logged in the controller's terminal:
 
     ```
-    Seen 1 HTTP packets.
-    Seen 2 HTTP packets.
-    Seen 3 HTTP packets.
-    Seen 4 HTTP packets.
-    Seen 5 HTTP packets.
+    Saw 1 HTTP packets.
+    Saw 2 HTTP packets.
+    Saw 3 HTTP packets.
+    Saw 4 HTTP packets.
+    Saw 5 HTTP packets.
     ...
     ```    
 
@@ -153,8 +153,8 @@ You can read these counters using the OpenFlow statistics API, but
 these are not the counters you are looking for. Do you see the
 problem?
 
-> Answer: The problem is that the second counter account for HTTP
-> packets and all other non-ICMP traffic. Although this flow table
+> Answer: The problem is that the second counter accounts for HTTP
+> packets as well as *all other* non-ICMP traffic. Although this flow table
 > implements the desired forwarding policy, it is too coarse grained
 > to implement the desired monitoring policy.
 
@@ -169,7 +169,7 @@ create the rules as you did before using `send_flow_mod` in the
 
 #### Programming Task 2
 
-*Complete Programming Task 1 before moving onto this task.*
+*Complete Programming Task 1 before moving on to this task.*
 
 As you realized in the previous programing task, you cannot write a
 single OpenFlow pattern that matches both HTTP requests and
@@ -209,7 +209,7 @@ You need to fill in the patterns `match_http_requests` and
 `match_http_responses`, which you have already calculated.
 
 Finally, you need a `stats_reply` function that will handle the stats
-responses from the switch and calculates the sum of the two
+responses from the switch and calculate the sum of the two
 counters. We've provided one below:
 
 ```ocaml
@@ -225,7 +225,7 @@ let stats_reply (sw : switchId) (xid : xid) (stats : Stats.reply) : unit =
       else if xid = 20l then
         num_http_response_packets := rep.Stats.total_packet_count
     end;
-    Printf.printf "Seen %Ld HTTP packets.\n%!"
+    Printf.printf "Saw %Ld HTTP packets.\n%!"
       (Int64.add !num_http_request_packets !num_http_response_packets)
   | _ -> ()
 
@@ -239,7 +239,9 @@ You should be able to build and test the extended monitor as before.
 #### Extra Credit
 
 Did you spot the bug? What happens if the controller receives HTTP
-packets, before the switch is fully initialized?
+packets before the switch is fully initialized?
+
+## Next chapter: [Ox Learning Switch][Ch5]
 
 [statistics]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01_Stats.html
 

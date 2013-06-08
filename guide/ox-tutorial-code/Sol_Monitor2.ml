@@ -75,7 +75,7 @@ module MyApplication = struct
     if is_http_packet (parse_payload pktIn.input_payload) then
       begin
         num_http_packets := !num_http_packets + 1;
-        Printf.printf "Seen %d HTTP packets.\n%!" !num_http_packets
+        Printf.printf "Saw %d HTTP packets.\n%!" !num_http_packets
       end
 
   let num_http_request_packets = ref 0L
@@ -91,7 +91,7 @@ module MyApplication = struct
           else if xid = 20l then
             num_http_response_packets := rep.Stats.total_packet_count
         end;
-        Printf.printf "Seen %Ld HTTP packets.\n%!"
+        Printf.printf "Saw %Ld HTTP packets.\n%!"
           (Int64.add !num_http_request_packets !num_http_response_packets)
       | _ -> ()
 

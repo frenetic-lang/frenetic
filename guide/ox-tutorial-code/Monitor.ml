@@ -26,7 +26,7 @@ module MyApplication = struct
     if is_http_packet (parse_payload pktIn.input_payload) then
       begin
         num_http_packets := !num_http_packets + 1;
-        Printf.printf "Seen %d HTTP packets.\n%!" !num_http_packets
+        Printf.printf "Saw %d HTTP packets.\n%!" !num_http_packets
       end
 
 end
