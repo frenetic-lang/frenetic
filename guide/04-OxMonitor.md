@@ -123,7 +123,7 @@ port 80 increments the counter (and that other traffic does not).
     $ curl 10.0.0.1:8080
     ```
 
-  The client should successfully download the page. However, none of
+  The client should successfully download the fortune. However, none of
   these packets should get logged by the controller.
 
 ### Efficiently Monitoring Web Traffic
