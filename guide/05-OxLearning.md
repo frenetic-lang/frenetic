@@ -106,8 +106,10 @@ the
 
 inspects packets' source locations
 
+## Next chapter: [NetCore Introduction][Ch6]
 
 
+[Ch6]: 06-NetCoreIntroduction.md
 
 [Action]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.Action.html
 

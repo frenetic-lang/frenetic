@@ -337,6 +337,11 @@ UDP buffer size:  176 KByte (default)
 The warning on the last line indicates that the acknowledgment from <code>h1</code> did not
 reach <code>h2</code>, as expected.
 
+## Next chapter: [NetCore Composition][Ch7]
+
+
+[Ch7]: 07-NetCoreComposition.md
+
 [topo_1]: images/topo_1.png "Default Mininet topology."
 [topo_2]: images/topo_2.png "Simple linear topology."
 [topo_3]: images/topo_3.png "Simple tree topology."

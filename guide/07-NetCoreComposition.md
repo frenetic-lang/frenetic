@@ -360,6 +360,11 @@ mininet> h2 wget -O - h3
 ```
 You can find a solution in <code>Sol_Multi_Switch.nc</code>.
 
+## Next chapter: [Dynamic NetCore][Ch8]
+
+
+[Ch8]: 08-DynamicNetCore.md
+
 [topo_1]: images/topo_1.png "Default Mininet topology."
 [topo_2]: images/topo_2.png "Simple linear topology."
 [topo_3]: images/topo_3.png "Simple tree topology."

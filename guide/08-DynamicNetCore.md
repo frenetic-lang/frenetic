@@ -189,6 +189,11 @@ Summary
 
 NetCore rocks!  QED.
 
+## Next chapter: [Wrap Up][Ch9]
+
+
+[Ch9]: 09-WrapUp.md
+
 [topo_1]: images/topo_1.png "Default Mininet topology."
 [topo_2]: images/topo_2.png "Simple linear topology."
 [topo_3]: images/topo_3.png "Simple tree topology."
