@@ -4,7 +4,7 @@ Chapter 2: Repeater
 ### Introduction to OpenFlow
 
 In a basic SDN, all switches connect to a centralized controller
-machine. The controller thus has a global view of network and can
+machine. The controller thus has a global view of the network and can
 program all switches to implement a unified, network-wide policy.
 To program a switch, the controller uses a standard protocol, such as
 OpenFlow.
@@ -168,7 +168,7 @@ hosts and have them ping each other:
 
   A brief explanation of the flags:
 
-  * `topo=single` creates a network with one switch and three hosts.
+  * `topo=single,3` creates a network with one switch and three hosts.
 
   * `--mac` sets the hosts' mac addresses to 1`, 2, and 3 (instead
     of random numbers). This makes debugging a lot easier.
@@ -217,7 +217,7 @@ hosts and have them ping each other:
   see the controller receiving all pings (and other traffic, such as
   ARP).
 
-This repeater is functionall correct, but laughably inefficient.
+This repeater is functionally correct, but laughably inefficient.
   
 ### Exercise 2: An Efficient Repeater
 
@@ -325,6 +325,9 @@ In the interval between these two messages, the flow table is empty,
 thus packets get diverted to the controller. More generally, whenever
 the switch is configured for the first time, or re-configured to
 implement a policy change, you may see packets at the controller.
+
+## Next chapter: [Ox Firewall][Ch3]
+
 
 [Ch2]: 02-OxRepeater.md
 [Ch3]: 03-OxFirewall.md
