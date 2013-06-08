@@ -9,6 +9,7 @@ endif
 syn match NCName '[a-zA-Z0-9_]*'
 syn keyword NCBuiltIn nat monitorPolicy
 syn match NCNumber '\d*' 
+syn match NCMac '\([a-fA-F0-9][a-fA-F0-9]:\)\{5}[a-fA-F0-9][a-fA-F0-9]'
 syn match NCIPNumber '\(\d\{1,3}\.\)\{1,3}\d\{1,3}' 
 syn region NCBlockCmd start="begin" end="end"
 syn keyword NCLet let in nextgroup=NCName skipwhite
@@ -24,6 +25,7 @@ hi def link NCName          Function
 hi def link NCBlockCmd      Statement
 hi def link NCLet           Statement 
 hi def link NCKeyword       Conditional 
+hi def link NCMAC	    Number 
 hi def link NCNumber        Number 
 hi def link NCIPNumber      Number 
 hi def link NCMatch         Function 
