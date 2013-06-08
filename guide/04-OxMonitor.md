@@ -103,6 +103,10 @@ port 80 increments the counter (and that other traffic does not).
     ...
     ```    
 
+> If you are seeing <code>packetIn</code> messages in between the HTTP traffic logs,
+> you could comment out the appropriate printf commands.
+
+
 - Finally, you should test that other traffic is neither blocked by
   the firewall nor counted by your monitor. To do so, kill the Web
   server running on `h1` and start a new Web server on a non-standard
