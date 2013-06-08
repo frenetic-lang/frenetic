@@ -155,7 +155,9 @@ module Output = struct
       drop
 
   (* Return an action [act] such that [eval_action p1 act] = [p2]. *)
-  let make_transformer (pt1, p1) (pt2, p2) =
+  let make_transformer v1 v2 =
+    let Pkt (_, pt1, p1, _) = v1 in
+    let Pkt (_, pt2, p2, _) = v2 in
     let eth_actions =
       [ maybe_transform_port pt1 pt2 updatePort
       ; maybe_transform p1.dlSrc p2.dlSrc updateDlSrc

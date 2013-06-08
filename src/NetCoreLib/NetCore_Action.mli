@@ -51,7 +51,7 @@ module Output : sig
   val queries : t -> t
   val is_equal : t -> t -> bool
   val atom_is_equal : e -> e -> bool
-  val make_transformer : (port * packet) -> (port * packet) -> action
+  val make_transformer : value -> value -> action
 end
 
 module Bool : ACTION 

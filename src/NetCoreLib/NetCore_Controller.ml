@@ -357,42 +357,6 @@ module Make (Platform : PLATFORM) = struct
   let install_new_policies sw pol_stream =
     Lwt_stream.iter_s (configure_switch sw)
       (NetCore_Stream.to_stream pol_stream)
-
-  (* Calculate the actions required to transform the incoming packet
-   * into each of the new outgoing packets not already forwarded
-   * in the dataplane. *)
-  let generate_packet_out_action sw pol in_port in_packet policy_out_vals =
-    (* Evaluate the packet against the flow table on the switch. *)
-    let flow_table = NetCore_Compiler.flow_table_of_policy sw pol in
-    let flow_table_out_lps =
-      List.filter 
-        (fun (pt, _) -> match pt with 
-          | OpenFlow0x01_Core.Controller _ -> false
-          | _ -> true)
-        (OpenFlow0x01.classify flow_table in_port in_packet) in
-
-    (* These are packets not already processed in the data plane. *)
-    let new_vals =
-      let nc_port_to_of_port p = match p with
-        | Here -> OpenFlow0x01_Core.InPort
-        | All -> OpenFlow0x01_Core.AllPorts
-        | Physical p' -> OpenFlow0x01_Core.PhysicalPort p' in
-      List.filter
-        (fun (Pkt (sw, pt, pkt, _)) -> 
-          not (List.mem (nc_port_to_of_port pt, pkt) flow_table_out_lps))
-        policy_out_vals in
-
-    (* Calculate the actions required to transform the incoming packet
-     * into each of the new outgoing packets. *)
-    let actions = List.map 
-      (fun (Pkt (_, pt, pkt, _)) -> 
-        NetCore_Action.Output.make_transformer 
-          (Physical in_port, in_packet) (pt, pkt))
-       new_vals in
-    List.fold_left 
-      NetCore_Action.Output.par_action 
-      NetCore_Action.Output.drop 
-      actions
       
   let handle_packet_in pol sw pkt_in = 
     let in_port = pkt_in.port in
@@ -402,10 +366,32 @@ module Make (Platform : PLATFORM) = struct
       let in_val = 
         Pkt (sw, Physical in_port, in_packet, pkt_in.input_payload) in
 
+      (* Evaluate the packet against the full policy. *)
       let policy_out_vals = NetCore_Semantics.eval pol in_val in
-      let action =
-        generate_packet_out_action 
-          sw pol in_port in_packet policy_out_vals in
+
+      (* Evaluate the packet against the flow table on the switch. *)
+      let classifier = NetCore_Compiler.compile_pol pol sw in
+      let switch_action =
+        NetCore_Action.Output.switch_part
+          (NetCore_Compiler.OutputClassifier.scan 
+            classifier (Physical in_port) in_packet) in
+      let classifier_out_vals = 
+        NetCore_Semantics.eval_action switch_action in_val in
+
+    (* These are packets not already processed in the data plane. *)
+      let new_out_vals =
+        List.filter 
+          (fun v -> not (List.mem v classifier_out_vals)) 
+          policy_out_vals in
+
+      (* Calculate the action required to transform the incoming packet
+       * into each of the new outgoing packets. *)
+      let action = 
+        List.fold_left 
+          NetCore_Action.Output.par_action
+          NetCore_Action.Output.drop
+          (List.map (NetCore_Action.Output.make_transformer in_val)
+            new_out_vals) in
 
       let out_payload = 
         { output_payload = pkt_in.input_payload

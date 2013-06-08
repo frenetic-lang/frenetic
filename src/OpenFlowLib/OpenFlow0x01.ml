@@ -285,34 +285,6 @@ module Match = struct
       | [] -> "{*}"
       | _ ->  "{" ^ (String.concat ", " set_fields) ^ "}"
 
-  let maybe_match v_opt v = match v_opt with
-    | Some v' -> v' = v
-    | None -> true
-
-  let maybe_match_try v_opt v_get pkt =
-    match v_opt with
-      | Some _ ->
-        begin try 
-          maybe_match v_opt (v_get pkt)
-        with Invalid_argument _ -> 
-          false
-        end
-      | None -> true
-
-  let match_packet (m : t) pt (pkt : Packet.packet) =
-    maybe_match m.dlSrc pkt.Packet.dlSrc
-    && maybe_match m.dlDst pkt.Packet.dlDst
-    && maybe_match m.dlTyp (Packet.dlTyp pkt)
-    && maybe_match m.dlVlan pkt.Packet.dlVlan
-    && maybe_match m.dlVlanPcp pkt.Packet.dlVlanPcp
-    && maybe_match_try m.nwSrc Packet.nwSrc pkt
-    && maybe_match_try m.nwDst Packet.nwDst pkt
-    && maybe_match_try m.nwProto Packet.nwProto pkt
-    && maybe_match_try m.nwTos Packet.nwTos pkt
-    && maybe_match_try m.tpSrc Packet.tpSrc pkt
-    && maybe_match_try m.tpDst Packet.tpDst pkt
-    && maybe_match m.inPort pt
-
 end
 
 module PseudoPort = struct
@@ -596,26 +568,6 @@ module Action = struct
     else
       let bits', act = _parse bits in
       act::(parse_sequence bits')
-
-  let apply act pt pkt = match act with
-    | Output m -> (m, pkt)
-    | SetDlVlan m -> (pt, setDlVlan pkt m)
-    | SetDlVlanPcp m -> (pt, setDlVlanPcp pkt m)
-    | SetDlSrc m -> (pt, setDlSrc pkt m)
-    | SetDlDst m -> (pt, setDlDst pkt m)
-    | SetNwSrc m -> (pt, setNwSrc pkt m)
-    | SetNwDst m -> (pt, setNwDst pkt m)
-    | SetNwTos m -> (pt, setNwTos pkt m)
-    | SetTpSrc m -> (pt, setTpSrc pkt m)
-    | SetTpDst m -> (pt, setTpDst pkt m)
-
-  let rec apply_sequence seq pt pkt = match seq with
-    | [] -> []
-    | (Output m)::tail ->
-      (apply (Output m) pt pkt)::(apply_sequence tail pt pkt)
-    | h::tail ->
-      let pt', pkt' = apply h pt pkt in
-      apply_sequence tail pt' pkt'
 
 end
 
@@ -2064,13 +2016,3 @@ module Message = struct
     str
 
 end
-
-let rec classify table pt pkt = match table with
-  | [] -> [(Controller 65535, pkt)]
-  | (m, acts)::t ->
-    if Match.match_packet m pt pkt then
-      Action.apply_sequence acts (PhysicalPort pt) pkt
-    else
-      (Frenetic_Log.printf "COLE (classify)" "no match\n%!";
-      classify t pt pkt
-      )
