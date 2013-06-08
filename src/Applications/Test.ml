@@ -50,8 +50,8 @@ module TestClassifier = struct
       (List.map
          (fun (label, expected_action, input_pol, input_val) ->
            label >:: fun () -> 
-             assert_equal ~printer:string_of_action
-               expected_action
+             assert_equal
+               (NetCore_Semantics.eval_action expected_action input_val)
                (NetCore_Semantics.eval input_pol input_val))
          lst)
 
@@ -210,11 +210,11 @@ module TestClassifier = struct
                   { pk with dlVlan = Some 1 }, 
                   pay)]
             (eval_action 
+              (updateDlVlan None (Some 1))
               (Pkt (1L, 
                     Physical 1, 
                     pk, 
-                    pay))
-              (updateDlVlan None (Some 1))))
+                    pay))))
     ]
 
 end
@@ -476,7 +476,7 @@ module Helper = struct
       List.map (fun (Pkt (sw, pr, p, _)) -> (sw, pr, p)) expected_vals in
 
     (* Test the semantic interpretation. *)
-    let vals = classify ds_pol in_val in
+    let vals = eval ds_pol in_val in
     let sem_test = 
       (name ^ " (semantic) test") >:: fun () ->
         assert_equal

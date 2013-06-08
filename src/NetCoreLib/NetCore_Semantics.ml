@@ -20,44 +20,28 @@ let rec match_pred pr sw pt pk =
     | Nothing -> 
       false
 
-let eval_action inp act =
+let eval_action act inp =
   let Pkt (sw, pt, pk, pay) = inp in
   List.map (fun (sw', pt',pk') -> Pkt (sw', pt', pk', pay))
     (NetCore_Action.Output.apply_action act (sw, pt, pk))
 
-(* Do side effects, then return switch action. *)
-let rec eval_helper_atom atom pkt = 
-  let Pkt (sw, pt, pk, _) = pkt in
-  match atom with
-  | SwitchAction _ -> [atom]
-  | ControllerAction f -> 
-    eval_helper_action (f sw pt pk) pkt
-  | ControllerQuery _ -> []
-
-and eval_helper_action act pkt =
-  Frenetic_List.concat_map (fun a -> eval_helper_atom a pkt) act
-
 let rec eval pol pkt = match pol with
-  | HandleSwitchEvent _ -> drop
-  | Action action -> eval_helper_action action pkt
+  | HandleSwitchEvent _ -> []
+  | Action action -> eval_action action pkt 
   | Filter pred0 ->
     let Pkt (sw, pt, pk, buf) = pkt in
-    if match_pred pred0 sw pt pk then pass else drop
+    if match_pred pred0 sw pt pk then [pkt] else []
   | Union (p1, p2) -> 
-    par_action (eval p1 pkt) (eval p2 pkt)
+    (eval p1 pkt) @ (eval p2 pkt)
   | Seq (pol1, pol2) -> 
-    let act1 = eval pol1 pkt in
-    let pkts' = eval_action pkt act1 in
-    let act2 = List.fold_right par_action (List.map (eval pol2) pkts') drop in
-    seq_action act1 act2
+    let pkts' = eval pol1 pkt in
+    Frenetic_List.concat_map (eval pol2) pkts'
   | ITE (pred, then_pol, else_pol) ->
     let Pkt (sw, pt, pk, buf) = pkt in
     if match_pred pred sw pt pk then
       eval then_pol pkt
     else
       eval else_pol pkt
-
-let classify pol pkt = eval_action pkt (eval pol pkt)
 
 (* Interprets a predicate as a predicate on switches. Hdr returns true *)
 let rec sw_pred sw = function

@@ -1,7 +1,7 @@
 (* A larger network of switches.
    Flood arp packets.
    Route IP packets by destination IP.
-   Prevent IP 10.0.0.1 from contacting IP 10.0.0.3 on tcp port 80 (web)
+   Prevent IP 10.0.0.2 from contacting IP 10.0.0.3 on tcp port 80 (web)
 
    Mininet Topology: linear,3
 

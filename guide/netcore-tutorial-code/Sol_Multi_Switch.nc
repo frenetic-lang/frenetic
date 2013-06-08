@@ -1,7 +1,7 @@
 (* A network of 3 switches.
    Flood arp packets.
    Route IP packets along topology.
-   Prevent IP 10.0.0.1 from contacting IP 10.0.0.3 on tcp port 80 (web)
+   Prevent IP 10.0.0.2 from contacting IP 10.0.0.3 on tcp port 80 (web)
 
    Mininet Topology: linear,3
 
@@ -36,7 +36,7 @@ let s3 =
     else fwd(2)
 
 let firewall =
-  if srcIP = 10.0.0.1 && dstIP = 10.0.0.3 && tcpDstPort = 80 then drop
+  if srcIP = 10.0.0.2 && dstIP = 10.0.0.3 && tcpDstPort = 80 then drop
   else pass
 
 let router =
