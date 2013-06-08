@@ -96,13 +96,14 @@ packetIn{
     mininet> h2 xterm &
     ```
 
-  * In the terminal for `h1` start a local "fortune server:"
+  * In the terminal for `h1` start a local "fortune server" (a server
+    that returns insightful fortunes to those who query it):
 
     ```
     # while true; do fortune | nc -l 80; done
     ```
 
-  * In the terminal for `h2` fetch a web page from `h1`:
+  * In the terminal for `h2` fetch a fortune from `h1`:
 
     ```
     # curl 10.0.0.1:80

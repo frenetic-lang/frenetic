@@ -78,13 +78,13 @@ port 80 increments the counter (and that other traffic does not).
     mininet> h2 xterm &
     ```
 
-  * In the terminal for `h1` start a local Web server:
+  * In the terminal for `h1` start a local fortune server:
 
     ```
     # while true; do fortune | nc -l 80; done
     ```
 
-  * In the terminal for `h2` fetch a web page from `h1`:
+  * In the terminal for `h2` fetch a fortune from `h1`:
 
     ```
     # curl 10.0.0.1:80
@@ -117,7 +117,7 @@ port 80 increments the counter (and that other traffic does not).
     $ while true; do fortune | nc -l 8080; done
     ```
 
-  * On the terminal for `h2`, fetch a page:
+  * On the terminal for `h2`, fetch a fortune:
 
     ```
     $ curl 10.0.0.1:8080
