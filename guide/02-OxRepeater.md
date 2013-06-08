@@ -259,17 +259,17 @@ You can build and test this extended repeater in exactly the same way
 you tested the last. However, during testing, the controller should not
 receive any packets itself.
 
+- In a separate terminal, start Mininet:
+
+  ```
+  $ sudo mn --controller=remote --topo=single,3 --mac
+  ```
+
 - Build and start the controller:
 
   ```shell
   $ make Repeater.d.byte
   $ ./Repeater.d.byte
-  ```
-
-- In a separate terminal, start Mininet:
-
-  ```
-  $ sudo mn --controller=remote --topo=single,3 --mac
   ```
 
 - From the Mininet prompt, try a ping:
