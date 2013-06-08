@@ -82,29 +82,30 @@ Finally, in the `packet_in` handler, run both `learning_packet_in` and
 
 #### Compiling and Testing
 
+Build and test it as before. After every host has sent traffic, you should not see any flooded packets.
+
 > FILL (show mobility)
+> MJR: I can't see a simple way of demonstrating host mobility in
+> mininet. I suggest we ignore it.
 
 ### An Efficient Learning Switch
 
-- 
+Sending traffic directly to its destination is a clear improvement on
+simply flooding, but we can do better. Just as we've done in each of
+the previous chapters, we'd like to install rules to keep the
+forwarding on the switch. But this time we have to be a little more
+careful: if we install rules too soon, the controller won't learn the
+locations of every host. For example, when host 1 sends a packet to
+host 2, we learn the location of host 1. If we install a rule
+directing all traffic destined for host 1 out the correct port, then
+we will never see the reply from host 2 and won't learn its
+location. Instead, we need to wait for the reply from host 2, and then
+install a rule that matches traffic from host 1 to host 2, and vice
+versa.
 
-     
-                            
-  Hashtbl.add known_hosts <pkt_src> <pkt_in_port>
-
-
-
-
-
-
-  
-
-the
-  port to which i
-
- traffic directly to its destinatio
-
-inspects packets' source locations
+Extend Learning.ml to install rules to handle traffic. After the
+controller learns the location of every host, no more packets should
+arrive on the controller.
 
 ## Next chapter: [NetCore Introduction][Ch6]
 
