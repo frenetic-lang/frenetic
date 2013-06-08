@@ -105,12 +105,11 @@ Overall, the Frenetic project aims to develop new high-level abstractions
 that make programming networks simpler, more reliable and more secure.
 We have made some progress on this front by blending the skills of 
 both networking and programming languages researchers.  And it's 
-taken a great team of people from undergraduate students to graduate
+taken a great [team of people](https://frenetic-lang.org/members.php) from 
+undergraduate students to graduate
 students to post docs and faculty to put it together.
 
-*Uggh that was gushy.*
-
-#### Acknoweldgement
+#### Acknowledgement
 
 This work is supported in part by ONR grants N00014-09-1-0770 and
 N00014-09-1-0652, NSF grants CNS-1111698 and CNS-1111520, TRUST, and
