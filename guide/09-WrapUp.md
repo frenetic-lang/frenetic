@@ -15,18 +15,18 @@ installed automatically in the data plane.
 Still, there's a lot more to the Frenetic environment than what you
 have seen in this tutorial.  One way to get started finding out more is
 to dig further in to implementation.  You might start by looking at
-(NetCoreLib)[https://github.com/frenetic-lang/frenetic/tree/master/src/NetCoreLib] which is the primary library that implements NetCoreDSL.  You can start
-by looking at the internal syntax of NetCore in the [NetCoreTypes Module](https://github.com/frenetic-lang/frenetic/blob/master/src/NetCoreLib/NetCore_Types.mli) and then move on to the libraries there that implement (Mac Learning)[https://github.com/frenetic-lang/frenetic/blob/master/src/NetCoreLib/NetCore_MacLearning.mli] and
-(Nat)[https://github.com/frenetic-lang/frenetic/blob/master/src/NetCoreLib/NetCore_NAT.ml].  The latter components will introduce you to the basics of
+[NetCoreLib](https://github.com/frenetic-lang/frenetic/tree/master/src/NetCoreLib) which is the primary library that implements NetCoreDSL.  You can start
+by looking at the internal syntax of NetCore in the [NetCoreTypes Module](https://github.com/frenetic-lang/frenetic/blob/master/src/NetCoreLib/NetCore_Types.mli) and then move on to the libraries there that implement Mac Learning](https://github.com/frenetic-lang/frenetic/blob/master/src/NetCoreLib/NetCore_MacLearning.mli) and
+[Nat](https://github.com/frenetic-lang/frenetic/blob/master/src/NetCoreLib/NetCore_NAT.ml).  The latter components will introduce you to the basics of
 how to construct your own dynamic policies in the Frenetic programming 
-environment using NetCoreLib combined with OCaml's (Lwt Threading Libraries)[http://ocsigen.org/lwt/manual].
+environment using NetCoreLib combined with OCaml's [Lwt Threading Libraries](http://ocsigen.org/lwt/manual).
 
 We have also written a number of papers that explain the theory, design and
 implementation of Frenetic in greater depth.  A collection of all our
 key papers can be found, together with bibiographic information on the
 (Frenetic Publications page)[https://frenetic-lang.org/publications.php].  However, some of the highlights follow.
  
-#### (Frenetic: A Network Programming Language)[http://frenetic-lang.org/publications/frenetic-icfp11.pdf] 
+#### [Frenetic: A Network Programming Language](http://frenetic-lang.org/publications/frenetic-icfp11.pdf) 
 
 This paper describes our earliest design ideas.  In particular, it
 demonstrates the fact OpenFlow is non-modular and therefore a poor
@@ -41,7 +41,7 @@ controller for processing.  After processing the packet, the
 controller would install a single exact-match (microflow) rule on a
 switch to process further packets of that sort in the data plane.
 
-#### (A Compiler and Run-time System for Network Programming Languages)[http://frenetic-lang.org/publications/compiler-popl12.pdf]
+#### [A Compiler and Run-time System for Network Programming Languages](http://frenetic-lang.org/publications/compiler-popl12.pdf)
 
 If you are well-versed in programming language theory, you may be
 interested in this paper.  It describes the formal semantics of (a
@@ -53,7 +53,7 @@ composition*, so the compilation story doesn't end with this paper.
 We are hoping to write another paper soon that finishes the story.
 Stay tuned.
 
-#### (Abstractions for Network Update)[http://frenetic-lang.org/publications/network-update-sigcomm12.pdf]
+#### [Abstractions for Network Update](http://frenetic-lang.org/publications/network-update-sigcomm12.pdf)
 
 When implementing dynamic NetCore or Frenetic controllers, a key problem is
 how to update a network switches from one policy to the next in a 
@@ -74,7 +74,7 @@ efficiently, prove that our implementation is correct and exploit the semantics
 to support automated verification of connectivity constraints with the 
 NuSMV model checker.
 
-#### (Composing Software Defined Networks)[http://frenetic-lang.org/publications/composing-nsdi13.pdf]
+#### [Composing Software Defined Networks](http://frenetic-lang.org/publications/composing-nsdi13.pdf)
 
 In this paper, we further explored the design of high-level languages
 for SDN programming.  In particular, it was here that we really
@@ -91,7 +91,7 @@ made out of many intricately interconnected switches.  Interesting,
 sequential composition, as well as some new features such as virtual
 packet fields, were key ingredients in supporting these abstractions.
 
-#### (Machine-Verified Network Controllers)[http://frenetic-lang.org/publications/verified-pldi13.pdf]
+#### [Machine-Verified Network Controllers](http://frenetic-lang.org/publications/verified-pldi13.pdf)
 
 *TO DO: Mark, Arjun?*
 
