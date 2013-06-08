@@ -151,15 +151,6 @@ isolating each virtual host in a Linux container. To test the
 repeater, use Mininet to create a network with one switch and three
 hosts and have them ping each other:
 
-- Start your controller
-
-  ```
-  $ ./Repeater.d.byte
-  ```
-
-  It should print `[Ox] Controller launching...`
-
-
 - Start Mininet in a separate terminal window:
 
   ```
@@ -176,15 +167,21 @@ hosts and have them ping each other:
   * `--controller=remote` directs the switches to connect to your controller
     (instead of using a default, built-in controller).
 
-  
-- After Mininet launches, your controller should print
-  `[Ox_Controller] switch 1 connected`.
-
-  Mininet will print the network topology and then drop you into the
+- After Mininet launches, it will print the network topology and then drop you into the
   Mininet prompt:
 
   `mininet>`
 
+- Start your controller back in the original terminal:
+
+  ```
+  $ ./Repeater.d.byte
+  ```
+
+  It should print `[Ox] Controller launching...`
+  and then you should see switch 1 connecting to the controller:
+  `[Ox_Controller] switch 1 connected`.
+  
 - From the Mininet prompt, you can make your hosts ping each other:
 
   ```
