@@ -1,7 +1,7 @@
 Frenetic Tutorial
 =================
 
-In this tutorial, you will learn to program software-defined networks (SDN)
+In this tutorial, you will learn to program software-defined networks (SDNs)
 using OpenFlow and NetCore, the surface language of Frenetic. The tutorial is
 divided into two sections:
 
@@ -25,7 +25,7 @@ Dynamic NetCore][Ch8]]
 
 ### Frenetic
 
-This tutorial should also be viewed as a stepping stone to learning how to
+This tutorial should also be viewed as a stepping stone toward learning how to
 program in the more powerful *Frenetic* environment.  *Frenetic* is a
 general-purpose SDN programming language embedded as a set of libraries in
 OCaml.  Frenetic applications react to network events, such as topology changes 
@@ -130,6 +130,9 @@ Handy References
   You will use the Mininet network simulator to run your
   controllers. We will tell you exactly what Mininet commands to use,
   so you don't really need to read this.
+
+## Next: [02 Ox Repeater][Ch2]
+
 
 [Action]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.Action.html
 
