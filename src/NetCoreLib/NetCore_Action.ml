@@ -83,6 +83,10 @@ module Output = struct
 
   let drop = []
 
+  let par_action act1 act2 = act1 @ act2
+
+  let par_actions = List.concat
+
   let unmodified =
     { outDlSrc = None;
       outDlDst = None;
@@ -117,17 +121,73 @@ module Output = struct
   let updateDlVlan od nw =
     [ SwitchAction { unmodified with outDlVlan = Some (od, nw) } ]
 
+  let updateDlVlanPcp od nw =
+    [ SwitchAction { unmodified with outDlVlanPcp = Some (od, nw) } ]
+
   let updateSrcIP old new_ = 
     [ SwitchAction { unmodified with outNwSrc = Some (old, new_) } ]
 
   let updateDstIP old new_ = 
     [ SwitchAction { unmodified with outNwDst = Some (old, new_) } ]
 
+  let updateTosIP old new_ = 
+    [ SwitchAction { unmodified with outNwTos = Some (old, new_) } ]
+
   let updateSrcPort old new_ = 
     [ SwitchAction { unmodified with outTpSrc = Some (old, new_) } ]
 
   let updateDstPort old new_ = 
     [ SwitchAction { unmodified with outTpDst = Some (old, new_) } ]
+
+  let updatePort new_ =
+    [ SwitchAction { unmodified with outPort = new_ } ]
+
+  let maybe_transform old new_ transformer =
+    if old <> new_ then
+      transformer old new_
+    else
+      drop
+
+  let maybe_transform_port old new_ transformer = 
+    if old <> new_ then
+      transformer new_
+    else
+      drop
+
+  (* Return an action [act] such that [eval_action p1 act] = [p2]. *)
+  let make_transformer (pt1, p1) (pt2, p2) =
+    let eth_actions =
+      [ maybe_transform_port pt1 pt2 updatePort
+      ; maybe_transform p1.dlSrc p2.dlSrc updateDlSrc
+      ; maybe_transform p1.dlDst p2.dlDst updateDlDst
+      ; maybe_transform p1.dlVlan p2.dlVlan updateDlVlan
+      ; maybe_transform p1.dlVlanPcp p2.dlVlanPcp updateDlVlanPcp ] in
+    let ip_actions = match (p1.nw, p2.nw) with 
+      | Ip ip1, Ip ip2 ->
+        let open Ip in
+        let ip_acts =
+          [ maybe_transform ip1.src ip2.src updateSrcIP
+          ; maybe_transform ip1.dst ip2.dst updateDstIP
+          ; maybe_transform ip1.tos ip2.tos updateTosIP ] in
+        let tcp_acts = begin match (ip1.tp, ip2.tp) with
+          | Tcp tcp1, Tcp tcp2 ->
+            [ maybe_transform tcp1.Tcp.src tcp2.Tcp.src updateSrcPort
+            ; maybe_transform tcp1.Tcp.dst tcp2.Tcp.dst updateDstPort ]
+          | Icmp _, Icmp _
+          | Unparsable _, Unparsable _ 
+          | _, _ -> []
+          end in
+        ip_acts @ tcp_acts
+      | Arp _, Arp _
+      | Unparsable _, Unparsable _
+        (* TODO(cole) warn/fail if these values differ? *)
+      | _, _ ->
+        (* TODO(cole) warn/fail that the policy somehow changed the frame 
+         * type? *)
+        []
+      in
+    List.fold_left par_action drop (eth_actions @ ip_actions)
+
 
   let maybe_modify nw modifier pk = match nw with
     | Some (a,v) ->
@@ -188,9 +248,10 @@ module Output = struct
   and apply_action act lp = 
     Frenetic_List.concat_map (fun a -> apply_atom a lp) act
 
-  let par_action act1 act2 = act1 @ act2
-
-  let par_actions = List.concat
+  let seq_port pt1 pt2 = match (pt1, pt2) with
+    | Here, _ -> pt2
+    | _, Here -> pt1
+    | _ -> pt2
 
   let seq_mod beq m1 m2 =
     match m1,m2 with
@@ -200,11 +261,6 @@ module Output = struct
       Some m1
     | None,_ ->
       Some m2
-
-  let seq_port pt1 pt2 = match (pt1, pt2) with
-    | Here, _ -> pt2
-    | _, Here -> pt1
-    | _ -> pt2
 
   let seq_output out1 out2 = match
       (seq_mod (=) out1.outDlSrc out2.outDlSrc,
@@ -413,11 +469,7 @@ module Output = struct
         (function | Output (Controller _) -> true | _ -> false)
         of_atoms in
     if List.length controller_atoms > 0 then
-      [hd controller_atoms]
-      (* TODO(cole) restore this when we do something smarter
-       * handling PacketIn messages.
-       *    not_controller_atoms @ [hd controller_atoms]
-       *)
+       not_controller_atoms @ [hd controller_atoms]
     else
       not_controller_atoms
 

@@ -12,6 +12,7 @@ module Match : sig
   type t = pattern
 
   val to_string : t -> string
+  val match_packet : t -> portId -> Packet.packet -> bool
 
 end
 
@@ -40,6 +41,11 @@ module Action : sig
 
   (** [sequence_to_string v] pretty-prints an action sequence. *)
   val sequence_to_string : sequence -> string
+
+  val apply_sequence : sequence 
+                    -> pseudoPort 
+                    -> Packet.packet 
+                    -> (pseudoPort * Packet.packet) list
 
 end
 
@@ -508,3 +514,8 @@ exception Unparsable of string
 (** [Ignored msg] signals the arrival of a valid OpenFlow message that the
 parser is not yet equipped to handle. *)
 exception Ignored of string
+
+val classify : (Match.t * Action.sequence) list 
+            -> portId
+            -> packet 
+            -> (pseudoPort * packet) list
