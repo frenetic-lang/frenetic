@@ -37,7 +37,7 @@ locations. Use `Learning.ml` as a template, which has a hash-table for you
 to use as a map from hosts to ports:
 
 ```ocaml
-let known_hosts : (dlAddr, portId) = Hashtbl.create 50 (* initial capacity *)
+let known_hosts : (dlAddr, portId) Hashtbl.t = Hashtbl.create 50 (* initial capacity *)
 ```
 
 Use `Hashtbl.add` to learn the location of each host in the
@@ -66,14 +66,14 @@ let routing_packet_in (sw : switchId) (xid : xid) (pktIn : packetIn) : unit =
     send_packet_out sw 0l {
       output_payload = pktIn.input_payload;
       port_id = None;
-      apply_actios = [Output (PhysicalPort out_port)]
+      apply_actions = [Output (PhysicalPort out_port)]
     }
   with Not_found ->
     (Printf.printf "Flooding to %Ld.\n" pkt_dst;
      send_packet_out sw 0l {
        output_payload = pktIn.input_payload;
        port_id = None;
-       apply_actios = [Output AllPorts]
+       apply_actions = [Output AllPorts]
      })
 ```
 
