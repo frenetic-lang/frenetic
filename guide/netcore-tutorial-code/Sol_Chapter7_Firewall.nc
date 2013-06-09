@@ -13,39 +13,71 @@ let routing =
   else
     drop
 
+(* This is a very naive way to write this firewall. *)
 let firewall_or_route =
   if frameType=0x806 ||
-     (tcpSrcPort = 80 || tcpSrcPort = 22 || tcpSrcPort = 25) ||
      (srcMAC = 00:00:00:00:00:01 && dstMAC = 00:00:00:00:00:01 &&
-      (tcpDstPort = 22 || tcpDstPort = 80 || tcpDstPort = 25)) ||
+      (tcpDstPort = 80 || tcpDstPort = 25)) ||
      (srcMAC = 00:00:00:00:00:01 && dstMAC = 00:00:00:00:00:02 && 
-      (tcpDstPort = 22 || tcpDstPort = 80 || tcpDstPort = 25)) ||
+      (tcpDstPort = 80 || tcpDstPort = 25)) ||
      (srcMAC = 00:00:00:00:00:01 && dstMAC = 00:00:00:00:00:04 &&
       tcpDstPort = 80) ||
      (srcMAC = 00:00:00:00:00:02 && dstMAC = 00:00:00:00:00:01 &&
-      (tcpDstPort = 22 || tcpDstPort = 80 || tcpDstPort = 25)) ||
+      (tcpDstPort = 80 || tcpDstPort = 25)) ||
     (srcMAC = 00:00:00:00:00:02 && dstMAC = 00:00:00:00:00:02 &&
-      (tcpDstPort = 22 || tcpDstPort = 80 || tcpDstPort = 25)) ||
+      (tcpDstPort = 80 || tcpDstPort = 25)) ||
     (srcMAC = 00:00:00:00:00:02 && dstMAC = 00:00:00:00:00:04 &&
       tcpDstPort = 80) ||
     (srcMAC = 00:00:00:00:00:03 && dstMAC = 00:00:00:00:00:01 &&
       tcpDstPort = 2) ||
     (srcMAC = 00:00:00:00:00:03 && dstMAC = 00:00:00:00:00:01 &&
-      (tcpDstPort = 22 || tcpDstPort = 80 || tcpDstPort = 25)) ||
+      (tcpDstPort = 80 || tcpDstPort = 25)) ||
     (srcMAC = 00:00:00:00:00:03 && dstMAC = 00:00:00:00:00:02 &&
       tcpDstPort = 25) ||
     (srcMAC = 00:00:00:00:00:03 && dstMAC = 00:00:00:00:00:03 &&
-      (tcpDstPort = 22 || tcpDstPort = 80 || tcpDstPort = 25)) ||
+      (tcpDstPort = 80 || tcpDstPort = 25)) ||
     (srcMAC = 00:00:00:00:00:03 && dstMAC = 00:00:00:00:00:04 &&
-      (tcpDstPort = 22 || tcpDstPort = 80 || tcpDstPort = 25)) ||
+      (tcpDstPort = 80 || tcpDstPort = 25)) ||
     (srcMAC = 00:00:00:00:00:04 && dstMAC = 00:00:00:00:00:01 &&
-      (tcpDstPort = 22 || tcpDstPort = 80 || tcpDstPort = 25)) ||
+      (tcpDstPort = 80 || tcpDstPort = 25)) ||
     (srcMAC = 00:00:00:00:00:04 && dstMAC = 00:00:00:00:00:02 &&
       tcpDstPort = 25) ||
     (srcMAC = 00:00:00:00:00:04 && dstMAC = 00:00:00:00:00:03 && 
-      (tcpDstPort = 22 || tcpDstPort = 80 || tcpDstPort = 25)) ||
+      (tcpDstPort = 80 || tcpDstPort = 25)) ||
     (srcMAC = 00:00:00:00:00:04 && dstMAC = 00:00:00:00:00:04 &&
-      (tcpDstPort = 22 || tcpDstPort = 80 || tcpDstPort = 25))
+      (tcpDstPort = 80 || tcpDstPort = 25)) ||
+     (dstMAC = 00:00:00:00:00:01 && srcMAC = 00:00:00:00:00:01 &&
+      (tcpSrcPort = 80 || tcpSrcPort = 25)) ||
+     (dstMAC = 00:00:00:00:00:01 && srcMAC = 00:00:00:00:00:02 && 
+      (tcpSrcPort = 80 || tcpSrcPort = 25)) ||
+     (dstMAC = 00:00:00:00:00:01 && srcMAC = 00:00:00:00:00:04 &&
+      tcpSrcPort = 80) ||
+     (dstMAC = 00:00:00:00:00:02 && srcMAC = 00:00:00:00:00:01 &&
+      (tcpSrcPort = 80 || tcpSrcPort = 25)) ||
+    (dstMAC = 00:00:00:00:00:02 && srcMAC = 00:00:00:00:00:02 &&
+      (tcpSrcPort = 80 || tcpSrcPort = 25)) ||
+    (dstMAC = 00:00:00:00:00:02 && srcMAC = 00:00:00:00:00:04 &&
+      tcpSrcPort = 80) ||
+    (dstMAC = 00:00:00:00:00:03 && srcMAC = 00:00:00:00:00:01 &&
+      tcpSrcPort = 2) ||
+    (dstMAC = 00:00:00:00:00:03 && srcMAC = 00:00:00:00:00:01 &&
+      (tcpSrcPort = 80 || tcpSrcPort = 25)) ||
+    (dstMAC = 00:00:00:00:00:03 && srcMAC = 00:00:00:00:00:02 &&
+      tcpSrcPort = 25) ||
+    (dstMAC = 00:00:00:00:00:03 && srcMAC = 00:00:00:00:00:03 &&
+      (tcpSrcPort = 80 || tcpSrcPort = 25)) ||
+    (dstMAC = 00:00:00:00:00:03 && srcMAC = 00:00:00:00:00:04 &&
+      (tcpSrcPort = 80 || tcpSrcPort = 25)) ||
+    (dstMAC = 00:00:00:00:00:04 && srcMAC = 00:00:00:00:00:01 &&
+      (tcpSrcPort = 80 || tcpSrcPort = 25)) ||
+    (dstMAC = 00:00:00:00:00:04 && srcMAC = 00:00:00:00:00:02 &&
+      tcpSrcPort = 25) ||
+    (dstMAC = 00:00:00:00:00:04 && srcMAC = 00:00:00:00:00:03 && 
+      (tcpSrcPort = 80 || tcpSrcPort = 25)) ||
+    (dstMAC = 00:00:00:00:00:04 && srcMAC = 00:00:00:00:00:04 &&
+      (tcpSrcPort = 80 || tcpSrcPort = 25))
+
+
   then
     routing
   else
