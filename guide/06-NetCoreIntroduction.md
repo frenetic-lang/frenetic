@@ -85,26 +85,6 @@ switch topology.
 ```
 $ sudo mn --controller=remote
 ```
-You should see the following trace as mininet boots up.
-```
-*** Creating network
-*** Adding controller
-*** Adding hosts:
-h1 h2 
-*** Adding switches:
-s1 
-*** Adding links:
-(h1, s1) (h2, s1) 
-*** Configuring hosts
-h1 h2 
-*** Starting controller
-*** Starting 1 switches
-s1 
-*** Starting CLI:
-mininet> 
-```
-Mininet has started up a single switch with two hosts <code>h1</code> 
-and <code>h2</code>, connected to the two ports on the switch.  
 
 #### Test the Example
 
