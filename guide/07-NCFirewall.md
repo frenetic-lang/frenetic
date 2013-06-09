@@ -178,7 +178,7 @@ $ frenetic Chapter7.nc
 And Mininet in another, then open a terminal on each host:
 
 ```
-$ sudo mn --controller=remote --topo=single,4 --mac
+$ sudo mn --controller=remote --topo=single,4 --mac --arp
 mininet> xterm h1 h2 h3 h4
 ```
 
