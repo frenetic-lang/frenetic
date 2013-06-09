@@ -37,12 +37,7 @@ and statistics queries.  For example:
    NetCore) and sends it to the Frenetic run time.
 
 1. The Frenetic run time compiles it to OpenFlow and updates the
-   running network, maintaining [per-packet
-   consistency](http://frenetic-lang.org/publications/network-update-sigcomm12.pdf).
-
-   > TODO(arjun): Unfortunately, this last point false. Unless this is
-     implemented and working by Sunday, this document is not going to
-     say this.
+   running networ.
 
 Static network configurations are built using
 [NetCoreLib](http://frenetic-lang.github.io/frenetic/docs/NetCore_Types.html),
@@ -70,9 +65,7 @@ tutorial VM.  To get started:
   virtualization platform.
   
 - Download the
-  [Frenetic Tutorial VM](http://www.cs.brown.edu/~arjun/tmp/Frenetic.vdi).
-
-  > TODO(arjun): Insert the right link.
+  [Frenetic Tutorial VM](http://www.cs.brown.edu/~arjun/frenetic.ova).
 
 - Launch the tutorial VM, which will launch a Linux desktop
   environment and automatically log you into the account

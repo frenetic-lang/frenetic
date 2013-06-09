@@ -344,8 +344,6 @@ re-connects, your controller sends two messages:
   In general, we don't know the state of the flow table when a switch
   connects, so we need to start with a clean slate.
 
-  > TODO(arjun): NATE FOSTER and LAURENT. Forward reference?
-
 - Next, Ox sends the _add flow_ message that you wrote.
 
 In the interval between these two messages, the flow table is empty,

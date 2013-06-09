@@ -33,9 +33,6 @@ Starting from [Firewall.ml](ox-tutorial-code/Firewall.ml), fill in the
 `is_icmp_packet` function.  The _frame type_ for IP packets
 is _0x800_ and the _protocol number_ for ICMP is _1_.
 
-> TODO(arjun): `Recall that' snark. Acceptable?
-> mjr: snark is fine, 'recall that' implies that they missed something
-
 #### Building and Testing Your Firewall
 
 - Build and launch the controller:
