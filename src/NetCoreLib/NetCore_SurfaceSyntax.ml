@@ -22,6 +22,10 @@ and value =
   | Pol of Pol.pol
   | PolStream of unit Lwt.t * Pol.pol NetCore_Stream.t
 
+type top =
+  | Bind of pos * id * exp * top
+  | Main of pos * exp
+
 type env = value Env.t
 
 let init_env = 

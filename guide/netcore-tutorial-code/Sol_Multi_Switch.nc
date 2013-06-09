@@ -43,3 +43,4 @@ let router =
   if frameType = arp then all
   else (firewall; (s1 + s2 + s3))
 
+router

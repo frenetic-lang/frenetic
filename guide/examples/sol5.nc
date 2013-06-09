@@ -58,3 +58,5 @@ let firewall =
 
 let sol5 =  
   firewall; routing
+
+sol5

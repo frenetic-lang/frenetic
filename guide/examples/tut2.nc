@@ -21,3 +21,5 @@ let after = if inPort = 1 then monitorPackets("AFTER")
 
 let forwarder =
   (before + mapper); (all + after)
+
+forwarder

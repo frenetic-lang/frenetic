@@ -73,3 +73,5 @@ let use_nat2 =
      topo)
 
 let use_nat2_monitor = monitorTable(0, use_nat2)
+
+use_nat2_monitor

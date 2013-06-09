@@ -29,3 +29,5 @@ let monitoring =
   if !(tcpDstPort = 80 || tcpDstPort = 22 || frameType = arp) then monitorSwitch 
 
 let sol4 = routing + monitoring
+
+sol4

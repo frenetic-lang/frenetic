@@ -59,8 +59,15 @@ let rec compile (env : env) = function
   | Slice (pos, ingress, e, egress) -> 
     failwith "NYI: slice surface syntax."
 
+let rec compile_top (env : env) = function
+  | Bind (pos, x, exp, rest) ->
+    compile_top (Env.add x (compile env exp) env) rest
+  | Main (pos, exp) -> compile env exp
+
+
+
 let compile_program exp = 
-  match compile init_env exp with
+  match compile_top init_env exp with
     | PolStream (lwt_e, stream) -> (lwt_e, stream)
     | Pol pol -> (fst (Lwt.wait ()), NetCore_Stream.constant pol)
 

@@ -19,3 +19,5 @@ let load = if inPort = 1 then monitorLoad(5, "LOAD")
 
 let forwarder =
   (mapper; all) + load
+
+forwarder

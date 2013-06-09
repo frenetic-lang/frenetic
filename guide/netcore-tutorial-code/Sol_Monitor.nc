@@ -15,3 +15,5 @@ let monitor =
 
 let prog =
   monitorTable(0, monitor + topo)
+
+prog

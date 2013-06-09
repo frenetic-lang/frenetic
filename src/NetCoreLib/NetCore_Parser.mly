@@ -101,7 +101,7 @@
 %start program
 
 /* environment -> policy */
-%type <NetCore_SurfaceSyntax.exp> program
+%type <NetCore_SurfaceSyntax.top> program
 
 %%
 
@@ -261,14 +261,14 @@ pol :
 
 program :
  | pol EOF 
-    { $1 }
+    { Main (symbol_start_pos (), $1) }
 
  | LET ID EQUALS pol EOF
-    { $4 } 
+    { Bind (symbol_start_pos (), $2, $4,
+        Main (symbol_start_pos (),
+              Action (symbol_start_pos (), Action.drop))) }
 
  | LET ID EQUALS pol program 
-    { Let (symbol_start_pos (),
-	  [($2, $4)], 
-	  $5) }
+    { Bind (symbol_start_pos (), $2, $4,  $5) }
 
 %%

@@ -60,3 +60,5 @@ let firewall_compact =
     else drop
 
 let prog = monitorTable(0, firewall_compact)
+
+prog

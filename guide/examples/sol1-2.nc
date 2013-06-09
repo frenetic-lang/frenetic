@@ -5,3 +5,4 @@ let router =
   + if frameType = arp then monitorLoad (5, "ARP")
   + if frameType = ip then monitorLoad (5, "IP")
 
+router

@@ -44,3 +44,5 @@ let nat =
 
 let foo = 
   monitorTable(0, monitor + (firewall_compact; nat; topo))
+
+foo
