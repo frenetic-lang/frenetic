@@ -187,7 +187,7 @@ For test servers, just run _fortune_ on port 80 and 25.
 Instead of trying a comprehensive test, just test a few points of the access control policy. For example, if you run _fortune_ on port 25 on `h4`:
 
 ```
-h4 $ while true; do fortune | nc -l 25; done
+$ while true; do fortune | nc -l 25; done
 ```
 
 Then, running `curl 10.0.0.4:25` should succeed from `h3`, but fail form `h2`.
