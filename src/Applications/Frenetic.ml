@@ -1,14 +1,5 @@
 module Controller = NetCore_Controller.Make(OpenFlow0x01_Platform)
 
-let parse_by_extension filename =
-  if String.length filename < 3 then
-    failwith "missing file extension"
-  else if Str.last_chars filename 3 = ".md" then
-    NetCore_Parsing.parse_literate_from_chan (open_in filename) filename
-  else if Str.last_chars filename 3 = ".nc" then
-    NetCore_Parsing.parse_from_chan (open_in filename) filename
-  else 
-    failwith "unknown file extension"
 
 type modeType =
   | ControllerMode (* start as a controller *)
@@ -35,7 +26,7 @@ let () =
 
 let policy = match !policy_filename with
   | "" -> Arg.usage arg_spec usage; exit 1
-  | fname -> NetCore_Parsing.compile_program (parse_by_extension fname)
+  | fname -> NetCore_Parsing.compile_program (NetCore_Parsing.parse_by_extension fname)
 
 let () = match !mode with
   | ParserMode -> Printf.printf "Parsed OK\n"

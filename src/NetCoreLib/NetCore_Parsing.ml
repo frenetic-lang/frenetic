@@ -59,6 +59,7 @@ let rec compile (env : env) = function
   | Value v -> v
   | Slice (pos, ingress, e, egress) -> 
     failwith "NYI: slice surface syntax."
+    
 
 let compile_program exp = 
   match compile init_env exp with
@@ -101,3 +102,13 @@ let parse_from_chan cin name =
 
 let parse_literate_from_chan cin name =
   parse_from_lexbuf true (Lexing.from_channel cin) name
+
+let parse_by_extension filename =
+  if String.length filename < 3 then
+    failwith "missing file extension"
+  else if Str.last_chars filename 3 = ".md" then
+    parse_literate_from_chan (open_in filename) filename
+  else if Str.last_chars filename 3 = ".nc" then
+    parse_from_chan (open_in filename) filename
+  else 
+    failwith "unknown file extension"
