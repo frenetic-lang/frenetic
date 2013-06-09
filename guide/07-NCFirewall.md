@@ -158,8 +158,8 @@ $ sudo mn --controller=remote --topo=single,4 --mac
 To facilitate testing, you can simply run three copies of _fortune_ on each host that listen on the HTTP, SSH, and SMTP ports. We've included a shell script, `netcore-tutorial-code/fortune-http-ssh-smtp.sh` that does just that. Run it on each host:
 
 ```
-mininet> h1 ./fortune-http-ssh-smtp.sh &
-mininet> h2 ./fortune-http-ssh-smtp.sh &
+mininet> h1 ./fortunes.sh &
+mininet> h2 ./fortunes.sh &
 mininet> h3 ./fortune-http-ssh-smtp.sh &
 mininet> h4 ./fortune-http-ssh-smtp.sh &
 ```
