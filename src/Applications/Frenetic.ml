@@ -35,7 +35,7 @@ let () =
 
 let policy = match !policy_filename with
   | "" -> Arg.usage arg_spec usage; exit 1
-  | fname -> parse_by_extension fname
+  | fname -> NetCore_Parsing.compile_program (parse_by_extension fname)
 
 let () = match !mode with
   | ParserMode -> Printf.printf "Parsed OK\n"

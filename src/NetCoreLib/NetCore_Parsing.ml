@@ -85,8 +85,7 @@ let parse_from_lexbuf is_literate lexbuf name =
           literate_lexer
         else
           NetCore_Lexer.token in
-        compile_program
-        (NetCore_Parser.program lexer lexbuf)
+      (NetCore_Parser.program lexer lexbuf)
     with
       | Failure "lexing: empty token" ->
         failwith (Printf.sprintf "lexical error at %s %s"

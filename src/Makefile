@@ -1,7 +1,6 @@
 APPLICATIONS = Applications/Frenetic \
                Applications/Test \
                Applications/Verify \
-               Applications/NetCoreConsistent \
                Applications/OxRepeater \
                Applications/OxMonitor \
                Applications/OxLearning
