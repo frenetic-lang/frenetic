@@ -63,15 +63,42 @@ let rec compile_top (env : env) = function
   | Bind (pos, x, exp, rest) ->
     compile_top (Env.add x (compile env exp) env) rest
   | Main (pos, exp) -> compile env exp
-
-
+  | Include _ -> failwith "unexpected include"
 
 let compile_program exp = 
   match compile_top init_env exp with
     | PolStream (lwt_e, stream) -> (lwt_e, stream)
     | Pol pol -> (fst (Lwt.wait ()), NetCore_Stream.constant pol)
 
-let literate_lexer (lexbuf : Lexing.lexbuf) : NetCore_Parser.token =
+
+
+let rec splice_top included rest = match included with
+  | Include (pos, filename, rest') -> 
+    failwith "unexpected include2"
+  | Main (pos, Action (_, action)) -> 
+    if action = NetCore_Action.Output.drop then
+      rest
+    else
+      raise (CompileError 
+               (sprintf "%s: included module has a main-expression  \
+                         (only top-level let expressions allowed"
+                  (string_of_pos pos)))
+  | Main (pos, _) ->
+      raise (CompileError 
+               (sprintf "%s: included module has a main-expression  \
+                         (only top-level let expressions allowed"
+                  (string_of_pos pos)))
+
+  | Bind (p, x, e, included) ->
+    Bind (p, x, e, splice_top included rest)
+
+and expand_top = function
+  | Include (pos, filename, rest) ->
+    splice_top (parse_by_extension filename) rest
+  | Main (pos, exp) -> Main (pos, exp)
+  | Bind (p, x, e, rest) -> Bind (p, x, e, expand_top rest)
+
+and literate_lexer (lexbuf : Lexing.lexbuf) : NetCore_Parser.token =
   let open Lexing in
   let p = lexeme_start_p lexbuf in
   if p.pos_cnum - p.pos_bol = 0 then
@@ -81,7 +108,7 @@ let literate_lexer (lexbuf : Lexing.lexbuf) : NetCore_Parser.token =
   else
     NetCore_Lexer.token lexbuf
 
-let parse_from_lexbuf is_literate lexbuf name =
+and parse_from_lexbuf is_literate lexbuf name =
   let open Lexing in
     try
       lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = name };
@@ -89,7 +116,7 @@ let parse_from_lexbuf is_literate lexbuf name =
           literate_lexer
         else
           NetCore_Lexer.token in
-      (NetCore_Parser.program lexer lexbuf)
+      expand_top (NetCore_Parser.program lexer lexbuf)
     with
       | Failure "lexing: empty token" ->
         failwith (Printf.sprintf "lexical error at %s %s"
@@ -100,13 +127,13 @@ let parse_from_lexbuf is_literate lexbuf name =
                     (string_of_pos lexbuf.lex_curr_p)
                     (lexeme lexbuf))
 
-let parse_from_chan cin name =
+and parse_from_chan cin name =
   parse_from_lexbuf false (Lexing.from_channel cin) name
 
-let parse_literate_from_chan cin name =
+and parse_literate_from_chan cin name =
   parse_from_lexbuf true (Lexing.from_channel cin) name
 
-let parse_by_extension filename =
+and parse_by_extension filename =
   if String.length filename < 3 then
     failwith "missing file extension"
   else if Str.last_chars filename 3 = ".md" then

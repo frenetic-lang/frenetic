@@ -25,6 +25,7 @@ and value =
 type top =
   | Bind of pos * id * exp * top
   | Main of pos * exp
+  | Include of pos * string * top
 
 type env = value Env.t
 

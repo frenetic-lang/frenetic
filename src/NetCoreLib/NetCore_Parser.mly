@@ -97,6 +97,7 @@
 %token TICKTICKTICK /* only for Markdown */
 %token RARROW
 %token FILTER
+%token INCLUDE
 
 %start program
 
@@ -270,5 +271,8 @@ program :
 
  | LET ID EQUALS pol program 
     { Bind (symbol_start_pos (), $2, $4,  $5) }
+
+ | INCLUDE STRING program
+   { Include (symbol_start_pos (), $2, $3) }
 
 %%

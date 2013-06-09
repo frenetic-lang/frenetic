@@ -66,6 +66,7 @@ and token = parse
   | "=" { EQUALS }
   | "->" { RARROW }
   | "switch" { SWITCH }
+  | "include" { INCLUDE }
   | "vlan" { VLAN }
   | "srcMAC" { SRCMAC }
   | "dstMAC" { DSTMAC }
