@@ -8,7 +8,6 @@ let string_of_pos pos =
   sprintf "%s, line %d, column %d" pos.pos_fname pos.pos_lnum
     (pos.pos_cnum - pos.pos_bol)
 
-
 let compile_pol f = function
   | Pol p ->
     Pol (f p)
@@ -59,14 +58,11 @@ let rec compile (env : env) = function
   | Value v -> v
   | Slice (pos, ingress, e, egress) -> 
     failwith "NYI: slice surface syntax."
-    
 
 let compile_program exp = 
   match compile init_env exp with
     | PolStream (lwt_e, stream) -> (lwt_e, stream)
     | Pol pol -> (fst (Lwt.wait ()), NetCore_Stream.constant pol)
-
-
 
 let literate_lexer (lexbuf : Lexing.lexbuf) : NetCore_Parser.token =
   let open Lexing in
