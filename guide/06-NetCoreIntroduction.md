@@ -191,7 +191,7 @@ OpenFlow flow tables.
 
 
 
-## Next chapter: [NetCore Introduction][Ch7]
+## Next chapter: [Firewall Redux][Ch7]
 
 [Ch7]: 07-NCFirewall.md
 
