@@ -1,4 +1,5 @@
- # Chapter 7: Firewall Redux
+Chapter 7: Firewall Redux
+=========================
 
 In [Chapter 3](03-OxFirewall.md), you used OpenFlow and the Ox
 controller to write a firewall that blocks ICMP traffic. You first
