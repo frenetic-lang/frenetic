@@ -28,7 +28,7 @@ let s3 = drop
 let firewall = drop
 
 let router =
-  if frameType = arp then all
+  if dlTyp = arp then all
   else drop     (* replace drop with policy using s1, s2, s3, firewall *)
 
 router

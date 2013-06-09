@@ -28,9 +28,9 @@ module Format = struct
     else 
       format_list fmt " && "
         (List.filter (fun x -> not (x = "")) 
-	      [ to_string_exact Packet.string_of_mac "srcMAC" pat.ptrnDlSrc;
-          to_string_exact Packet.string_of_mac "dstMAC" pat.ptrnDlDst;
-          to_string_exact Packet.string_of_dlTyp "frameType" pat.ptrnDlTyp;
+	      [ to_string_exact Packet.string_of_mac "dlSrc" pat.ptrnDlSrc;
+          to_string_exact Packet.string_of_mac "dlDst" pat.ptrnDlDst;
+          to_string_exact Packet.string_of_dlTyp "dlTyp" pat.ptrnDlTyp;
           to_string_exact Packet.string_of_dlVlan "vlan" pat.ptrnDlVlan;
           to_string_exact string_of_int "dlVlanPcp" pat.ptrnDlVlanPcp;
           to_string_exact Packet.string_of_ip "srcIP" pat.ptrnNwSrc;

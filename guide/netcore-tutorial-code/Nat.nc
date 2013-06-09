@@ -19,7 +19,7 @@ let natter =
       (translatePublic; if inPort = 2 then fwd(1) else pass)
 
 let app =
-  if frameType = arp then all
+  if dlTyp = arp then all
   else monitorPolicy(natter)
 
 app

@@ -41,15 +41,15 @@ Predicates:
           | <none>
           | switch = <switch-id>
           | inPort = <port-id>
-          | srcMac = <mac-address>
-          | dstMac = <mac-address>
+          | dlSrc = <mac-address>
+          | dlDst = <mac-address>
           | vlan = <vlan-id>
           | srcIP = <ip-address>
           | dstIP = <ip-address>
-          | ipProtocol = <ip-protocol>
+          | nwProto = <ip-protocol>
           | tcpSrcPort = <tcp-port>
           | tcpDstPort = <tcp-port>
-          | frameType = <frame-type>
+          | dlTyp = <frame-type>
 
 <orpred> ::= <apred>
            | <apred> || <orpred>

@@ -68,14 +68,14 @@ and token = parse
   | "switch" { SWITCH }
   | "include" { INCLUDE }
   | "vlan" { VLAN }
-  | "srcMAC" { SRCMAC }
-  | "dstMAC" { DSTMAC }
+  | "dlSrc" { SRCMAC }
+  | "dlDst" { DSTMAC }
   | "srcIP" { SRCIP }
   | "dstIP" { DSTIP }
-  | "ipProtocol" { PROTOCOLTYPE }
+  | "nwProto" { PROTOCOLTYPE }
   | "tcpSrcPort" { TCPSRCPORT }
   | "tcpDstPort" { TCPDSTPORT }
-  | "frameType" { FRAMETYPE }
+  | "dlTyp" { FRAMETYPE }
   | "arp" { ARP }
   | "ip" { IP }
   | "icmp" { ICMP }

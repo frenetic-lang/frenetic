@@ -2,13 +2,13 @@ let firewall_compact =
       (* The first two lines make the flow table much larger! You can remove,
          but that allows mac addresses other than {1,2,3,4} access to
          SSH,HTTP, SMTP *) 
-  if (srcMAC=::1 || srcMAC=::2 || srcMAC=::3 || srcMAC=::4) &&
-     (dstMAC=::1 || dstMAC=::2 || dstMAC=::3 || dstMAC=::4) &&
+  if (dlSrc=::1 || dlSrc=::2 || dlSrc=::3 || dlSrc=::4) &&
+     (dlDst=::1 || dlDst=::2 || dlDst=::3 || dlDst=::4) &&
      (tcpDstPort = 22 || tcpDstPort = 80 || tcpDstPort = 25) &&
-     !(dstMAC = ::3 && (srcMAC = ::1 || srcMAC = ::2)) && (* block to 3 *)
+     !(dlDst = ::3 && (dlSrc = ::1 || dlSrc = ::2)) && (* block to 3 *)
      (* encoded implication *)
-     (!((srcMAC = ::1 || srcMAC = ::2) && dstMAC = ::4) || tcpDstPort = 80) &&
-     (tcpDstPort = 25 || !((srcMAC = ::4 || srcMAC=::3) && dstMAC=::2))
+     (!((dlSrc = ::1 || dlSrc = ::2) && dlDst = ::4) || tcpDstPort = 80) &&
+     (tcpDstPort = 25 || !((dlSrc = ::4 || dlSrc=::3) && dlDst=::2))
     then pass
     else drop
 
@@ -20,10 +20,10 @@ let monitor =
     drop
 
 let topo = 
-  if dstMAC = ::1 then fwd(1)
-  else if dstMAC = ::2 then fwd(2)
-  else if dstMAC = ::3 then fwd(3)
-  else if dstMAC = ::4 then fwd(4)
+  if dlDst = ::1 then fwd(1)
+  else if dlDst = ::2 then fwd(2)
+  else if dlDst = ::3 then fwd(3)
+  else if dlDst = ::4 then fwd(4)
   else drop
 
 let nat_private =

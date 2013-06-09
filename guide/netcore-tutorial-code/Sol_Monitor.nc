@@ -1,10 +1,10 @@
 (* We'll use tshark to monitor email *)
 
 let topo = 
-  if dstMAC = ::1 then fwd(1)
-  else if dstMAC = ::2 then fwd(2)
-  else if dstMAC = ::3 then fwd(3)
-  else if dstMAC = ::4 then fwd(4)
+  if dlDst = ::1 then fwd(1)
+  else if dlDst = ::2 then fwd(2)
+  else if dlDst = ::3 then fwd(3)
+  else if dlDst = ::4 then fwd(4)
   else drop
 
 let monitor =
