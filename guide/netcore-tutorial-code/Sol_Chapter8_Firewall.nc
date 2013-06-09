@@ -1,3 +1,5 @@
+include "Sol_Chapter8_FirewallModule.nc"
+
 let routing =
   if dstMAC = ff:ff:ff:ff:ff:ff then
     all    
@@ -25,4 +27,4 @@ let routing =
   else
     drop
 
-monitorTable(2, routing)
+firewall; routing
