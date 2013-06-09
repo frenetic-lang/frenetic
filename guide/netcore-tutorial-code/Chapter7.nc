@@ -4,8 +4,6 @@ let routing =
   (* [FILL] Replace "if false then drop" with route to hosts 2, 3, and 4. *)
   else if false then
    drop
-  else if dlDst=ff:ff:ff:ff:ff:ff then
-    all (*  allow broadcasts *)
   else
     drop
     

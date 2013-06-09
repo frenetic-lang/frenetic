@@ -32,8 +32,6 @@ let routing =
      fwd(1)
   else if (* destination is 2, forward out port 2, etc. *)
     ...
-  else if dlDst=ff:ff:ff:ff:ff:ff then
-    all (*  allow broadcasts *)
   else
     drop
     
@@ -53,7 +51,7 @@ $ frenetic Chapter7.nc
 And Mininet in another:
 
 ```
-$ sudo mn --controller=remote --topo=single,4 --mac
+$ sudo mn --controller=remote --topo=single,4 --mac --arp
 ```
 
 Using Mininet, ensure that you can ping between all hosts:
