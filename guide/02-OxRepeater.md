@@ -215,6 +215,36 @@ hosts and have them ping each other:
   ARP).
 
 This repeater is functionally correct, but laughably inefficient.
+
+<blockquote>
+<p><b>Aside:</b>  For the most part, we will be using simple topologies in this tutorial.
+However, if you ever want to know more information about the topology mininet is currently running, you can type
+<p>
+<pre>
+mininet> net
+</pre>
+
+<p>
+In this example, you should see the following.
+
+<p>
+<pre>
+c0
+s1 lo:  s1-eth1:h1-eth0 s1-eth2:h2-eth0
+h1 h1-eth0:s1-eth1
+h2 h2-eth0:s1-eth2
+</pre>
+
+<p>
+Line 1 tells you there is a controller (<code>c0</code>) running.  Line 2
+describes the ports on switch <code>s1</code>.  In particular, 
+switch 1 port 1 (<code>s1-eth1</code>) is connected to host <code>h1</code>.
+Likewise, switch 1 port 2 (<code>s1-eth2</code>) is connected to 
+host <code>h2</code>. If there was more than one switch in the network, we would
+see additional lines prefixed by the switch identifier, one line
+per switch.  Lines 3 and 4 describe the hosts <code>h1</code> 
+and <code>h2</code>.
+</blockquote>
   
 ### Exercise 2: An Efficient Repeater
 

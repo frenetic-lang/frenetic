@@ -13,7 +13,7 @@ You are going to program the following network of four hosts and one switch:
 
 ![image](images/topo-single-4.png)
 
-The host with MAC address `00:00:00:00:0n` is connected to port `n`. Mininet has builtin support for building single-switch topologies:
+The host with MAC address `00:00:00:00:00:0n` is connected to port `n`. Mininet has builtin support for building single-switch topologies:
 
 ```
 $ sudo mn --controller=remote --topo=single,4 --mac
@@ -192,6 +192,10 @@ Instead of trying a comprehensive test, just test a few points of the access con
 h4 $ while true; do fortune | nc -l 25; done
 ```
 
-Then, running `curl 10.0.0.4:80` should succeed from `h3`, but fail form `h2`.
+Then, running `curl 10.0.0.4:25` should succeed from `h3`, but fail form `h2`.
 
-## Next chapter: [NetCore Composition][Ch7]
+## Next chapter: [Multi-switch Programming][Ch8]
+
+[Ch8]: 08-NCMultiSwitch.md
+
+[Action]: http://frenetic-lang.github.io/frenetic/docs/OpenFlow0x01.Action.html

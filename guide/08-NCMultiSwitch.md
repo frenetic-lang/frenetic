@@ -1,4 +1,4 @@
-# Chapter 8: Multiple Switches (at last!)
+# Chapter 8: Multi-Switch Programming (at last!)
 
 In this chapter, you'll finally work with a multi-switch network. First, you'll write and test a routing policy. Then, you'll use the re-use firewall you wrote in the last chapter and apply it to this network. In fact, you'll learn how package your firewall into a reusable module that you can compose with any other policy. You'll accomplish this using a key feature of NetCore: _sequential composition_.
 
