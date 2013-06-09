@@ -16,22 +16,81 @@ switch. To write a multi-switch routing policy, you can use the `switch = n` pre
 ```
 let routing =
   if switch = 1 then
-    if dstMAC = 00:00:00:00:00:01 then
-      fwd(1)
-    else if dstMAC = 00:00:00:00:00:02 then
-      fwd(2)
-    else
-      fwd(3)
+    (* Policy for Switch 1 *)
+    ...
   else if switch = 2 then
-    (* fill in policy for 2 *)
+    (* Policy for Switch 2 *)
+    ...
   else if switch = 3 then
-    (* fill in policy for 3 *)
+    (* Policy for Switch 3 *)
+    ...
   else
     drop
+    
+routing
 ```
 
-Unfortunately, simply connecting hosts isn't suff
+You'll find this template in [Routing2.nc](netcore-tutorial-code/Routing2.nc). Fill it in.
 
-      
+#### Testing
+
+Launch Frenetic in one terminal:
+
+```
+$ frenetic Routing2.nc
+```
+
+And Mininet in another:
+
+```
+$ sudo mn --controller=remote --topo=tree,2,2 --mac
+```
+> `tree,2,2` creates a topology of height 2 and fanout 2
+
+You should be able to ping between all hosts in Mininet:
+
+```
+mininet> pingall
+```
+
+## The Firewall Policy
+
+Now that basic connectivity works, let's apply an access control policy: exactly the same policy you used on the one-switch network in the last chapter.
+
+Although your task is to apply the same policy, you can't reuse the code, since
+it bakes in the routing policy for the one-switch network. So, instead of copying the firewall predicate, we'll turn it into a reusable firewall that can be composed
+with either routing policy.
+
+### Building a Reusable Firewall
+
+- Two NetCore policies, `P` and `Q` can be strung together, by writing `P; Q`.
+- This operation is called _sequential composition_
+- Akin to Unix pipes
+- You can think of policies as packet-processing functions, and `P; Q` simply
+  pipes the packets produced by `P` into the policy `Q`
+
+- You've probably used `grep` and pipes on a Linux to filter text.
+- Similarly, you can use sequential composition to filter packets
+  You're going to write `firewall; routing`
+  
+- Right now, `Firewall.nc` either drops packets that should be filterd,
+  or routes packets itself. We need to have it etierh drop packets or
+   _leave packets untouched_.
+   
+   
+```
+include "Firewall.nc"
+
+let routing = (* your routing policy from Programming Task 1 *)
+
+firewall; routing
+```
+
+#### Testing
+
+- as in the previous chapter
 
 
+M
+
+  
