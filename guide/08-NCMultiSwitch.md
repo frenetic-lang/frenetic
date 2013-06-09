@@ -1,17 +1,25 @@
 # Chapter 8: Multiple Switches (at last!)
 
-In this chapter, you'll finally work with a multi-switch network. First, you'll write and test a routing policy. Then, you'll use the firewall policy you wrote in the previous chapter and apply it to the new network. In fact, you'll learn how package your firewall into a reusable module that you can compose with any other policy. You'll accomplish this by using a key feature of NetCore: _sequential composition_.
+In this chapter, you'll finally work with a multi-switch network. First, you'll write and test a routing policy. Then, you'll use the firewall policy you wrote in the previous chapter and apply it to the new network. In fact, you'll learn how package your firewall into a reusable module that you can compose with any other policy. You'll accomplish this using a key feature of NetCore: _sequential composition_.
+
+## Topology
+
 
 You will work with the following tree topology:
 
 ![image](images/topo-tree-2-2.png)
 
-The figure labels hosts as before, and also labels switches and their ports.
+The figure labels hosts as before, and also labels switches and their ports. You can create this topology easily with Mininet:
 
-### Programming Task 1
+```
+$ sudo mn --controller=remote --topo=tree,2,2 --mac
+```
+> `tree,2,2` creates a topology of height 2 and fanout 2
 
-Using NetCore, write a routing policy that connects all hosts to each other. You already know how to do this for a single
-switch. To write a multi-switch routing policy, you can use the `switch = n` predicate as follows:
+
+### Exercise 1: Routing
+
+Using NetCore, write a routing policy that connects all hosts to each other. You already know how to do this for a single switch. To write a multi-switch routing policy, you can use the `switch = n` predicate as follows:
 
 ```
 let routing =
@@ -40,57 +48,68 @@ Launch Frenetic in one terminal:
 $ frenetic Routing2.nc
 ```
 
-And Mininet in another:
+And Mininet in another, then run `pingall`:
 
 ```
 $ sudo mn --controller=remote --topo=tree,2,2 --mac
-```
-> `tree,2,2` creates a topology of height 2 and fanout 2
-
-You should be able to ping between all hosts in Mininet:
-
-```
 mininet> pingall
 ```
 
-## The Firewall Policy
+## A Reusable Firewall Using Sequential Composition
 
-Now that basic connectivity works, let's apply an access control policy: exactly the same policy you used on the one-switch network in the last chapter.
+Now that basic connectivity works, your goal is to apply exactly the same access control policy you built in the
+last chapter to this new network. Unfortunately, you cannot simply reuse the firewall in its current form, since it has baked-in the routing policy for the one-switch network. i.e., the policy from [Chapter 7][Ch7] looks like
+this:
 
-Although your task is to apply the same policy, you can't reuse the code, since
-it bakes in the routing policy for the one-switch network. So, instead of copying the firewall predicate, we'll turn it into a reusable firewall that can be composed
-with either routing policy.
+```
+let routing = (* routing for 1 switch only *)
 
-### Building a Reusable Firewall
+let firewall =
+  if (* traffic allowed *) then
+    routing
+  else
+    drop
+```
 
-- Two NetCore policies, `P` and `Q` can be strung together, by writing `P; Q`.
-- This operation is called _sequential composition_
-- Akin to Unix pipes
-- You can think of policies as packet-processing functions, and `P; Q` simply
-  pipes the packets produced by `P` into the policy `Q`
+We need a way to truly separate the routing policy and the firewall policy. To do so, we will use a NetCore operator called _sequential composition_. Sequential composition lets you take any two policies, `P` and `Q`,
+and run them in sequence:
 
-- You've probably used `grep` and pipes on a Linux to filter text.
-- Similarly, you can use sequential composition to filter packets
-  You're going to write `firewall; routing`
+```
+P; Q
+```
+
+This form of composition is akin to pipes in Unix. You can think of `P;Q` as a way to pipe the packets produced by `P` into the policy `Q`. To achieve complex tasks, you can string a long chain of policies together, `P1;P2;P3; ...` just as you can use pipes to compose several different Unix programs together.
+
+You've probably used `grep` and pipes on a Linux to filter lines of text. You can similarly use sequential composition to filter (i.e., firewall) packets:
+
+`firewall; routing`
+
+For this to work, you do need to make one small change to `firewall`: you will replace all occurrences of`routing` within the `firewall` to use the special action `pass`, which is the identity function on packets.
+By having the firewall just `pass` or `drop`, you can compose it with any routing policy.
+
+### Exercise 2: Abstracting the Firewall
+
+In this exercise, you'll move the firewall you wrote in the last chapter to its own file, `Firewall.nc`, edit it to just `pass` and `drop` packets, and then include `Firewall.nc` into both `Chapter7.nc` and `Chapter8.nc`.
+
+- Move the code for `firewall` function from `Chapter6.nc` into a new file called `Firewall.nc`.
+
+- In `firewall`, you have (possibly several) occurrences of `routing` (i.e., the routing policy from Chapter 7).  
+  Replace all occurrences of `routing` with `pass`, making the firewall agnostic to routing.
+
+- Modify `Chapter7.nc`, changing the main expression to sequence `firewall` and `routing`:
+
+  ```
+  (* This is a sketch of Chapter7.nc *)
+  include "Firewall.nc"
   
-- Right now, `Firewall.nc` either drops packets that should be filterd,
-  or routes packets itself. We need to have it etierh drop packets or
-   _leave packets untouched_.
-   
-   
-```
-include "Firewall.nc"
-
-let routing = (* your routing policy from Programming Task 1 *)
-
-firewall; routing
-```
-
+  let routing = ...
+  
+  firewall; routing
+  ```
+  
+- Modify `Chapter8.nc` in exactly the same way: include `Firewall.nc` and then change the main expression to  
+  `firewall; routing`.
+  
 #### Testing
 
-- as in the previous chapter
-
-
-M
-
-  
+You should test this firewall in exactly the same way you tested the firewall in [Chapter 6][Ch6].
