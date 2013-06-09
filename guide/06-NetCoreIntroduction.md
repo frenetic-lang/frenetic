@@ -75,7 +75,7 @@ you and compare it to your flow table rules from the Ox tutorial.
 #### Run the Example
 
 Within the <code>netcore-tutorial-code</code> directory, you should
-find the repeater policy in <code>repeater.nc</code>.  To start the
+find the repeater policy in <code>Repeater.nc</code>.  To start the
 repeater controller, just type:
 ```
 $ frenetic Repeater.nc
@@ -221,7 +221,7 @@ transformations on a packet,
 of a packet and thereby to generate more than one result from their
 policy --- perhaps forwarding the packet to two different locations, and
   - *queries*, which allow programmers to inspect the contents of packets
-as the flow across a network, the load at various points in the network,
+as they flow across a network, the load at various points in the network,
 the current static policy in force or the concrete rules installed on
 OpenFlow flow tables.
 
