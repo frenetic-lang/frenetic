@@ -91,7 +91,7 @@ We will use <code>natter</code> inside the following
 simple application.
 ```
 let app =
-  if frameType = arp then all
+  if dlTyp = arp then all
   else monitorPolicy(natter)  
 ```
 This application handles arp separately.  It also uses a new feature,
@@ -153,8 +153,8 @@ looks like this:
 if switch = 1 && inPort = 1
   then
     (if
-     frameType = ip && srcIP = 10.0.0.1
-     && frameType = ip && nwProto = tcp && tcpSrcPort = 53591
+     dlTyp = ip && srcIP = 10.0.0.1
+     && dlTyp = ip && nwProto = tcp && tcpSrcPort = 53591
        then (nwSrc 10.0.0.1->10.0.0.254; pass; tpSrc 53591->2000; pass)
        else controller;
      if inPort = 1 then 2 else pass)
@@ -163,8 +163,8 @@ if switch = 1 && inPort = 1
 if switch = 1 && inPort = 2
   then
     (if
-     frameType = ip && dstIP = 10.0.0.254
-     && frameType = ip && nwProto = tcp && tcpDstPort = 2000
+     dlTyp = ip && dstIP = 10.0.0.254
+     && dlTyp = ip && nwProto = tcp && tcpDstPort = 2000
        then (nwDst 10.0.0.254->10.0.0.1; pass; tpDst 2000->53591; pass)
        else controller;
      if inPort = 2 then 1 else pass)
@@ -179,7 +179,7 @@ to the controller.  In particular, TCP packets
 destinated for the public IP 10.0.0.254, port 2000, will now be handled on the
 switch.  Those are the packets that satisfy this newly embedded predicate:
 ```
-frameType = ip && dstIP = 10.0.0.254 && nwProto = tcp && tcpDstPort = 2000
+dlTyp = ip && dstIP = 10.0.0.254 && nwProto = tcp && tcpDstPort = 2000
 ```
 Try making some additional requests to the web server to see how the
 policy changes.
