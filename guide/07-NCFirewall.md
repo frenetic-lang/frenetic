@@ -4,11 +4,12 @@ Chapter 7: Firewall Redux
 In [Chapter 3](03-OxFirewall.md), you wrote a firewall that blocks ICMP traffic using OpenFlow and Ox. You did this in two steps: first, you wrote a _packet_in_ function and then configured flow table to implement the same function efficiently. 
 This NetCore program has the same features: `if frameType = 0x800 && and ipProtocol = 1 then drop else all`. 
 
-In this chapter, you'll implement a more interesting firewall policy, for a trivial, one-switch topology. But, in the next chapter, you'll see that the policy you write in this chapter is easy to reuse and apply to any other topology.
+In this chapter, you'll implement a more interesting firewall policy. But, you will still use a trivial, one-switch topology. But, in the next chapter, you'll see 
+that your firewall is easy to reuse and apply to any other topology.
 
 ## Topology 
 
-In this chapter, you'll work the following network of four hosts and one switch:
+You are going to program the following network of four hosts and one switch:
 
 ![image](images/topo-single-4.png)
 
@@ -87,7 +88,7 @@ Now that basic connectivity works, you should enforce the access control policy 
   <td>HTTP, SMTP</td>
   <td>HTTP, SMTP</td>
   <td>Deny All</td>
-  <td style="background-color: lightblue">HTTP</td>
+  <td>HTTP</td>
 </tr>
 <tr>
   <th>00:00:00:00:00:02</th>
@@ -113,26 +114,42 @@ Now that basic connectivity works, you should enforce the access control policy 
 </table>
 
 Each cell in this table has a list of allowed protocols for connections between
-clients (rows) and servers (columns)
+clients (rows) and servers (columns). For example, consider the top-right corner of the table:
 
 
+<table>
+<tr>
+  <th></th>
+  <th>00:00:00:00:00:04</th>
+</tr>
+<tr>
+  <th>00:00:00:00:00:01</th>
+  <td>HTTP</td>
+</tr>
+</table>
 
+This cell indicates that HTTP connections (port 80) are allowed between client
+`00:00:00:00:00:01` and the server `00:00:00:00:00:04`. To realize this policy in NetCore, you need to allow packets from the client to port 80 on the server *and* from port 80 on the server to the client:
 
+```
+if (srcMAC = 00:00:00:00:00:01 && dstMAC = 00:00:00:00:00:04 && tcpDstPort = 80) ||
+   (srcMAC = 00:00:00:00:00:04 && dstMAC = 00:00:00:00:00:01 && tcpSrcPort = 80)
+then
+  routing
+else
+  drop
+```
 
-this this, each cell specifies the 
-
-In this table, the values in each cell state the allowed allowed TCP destination ports for connections from the source to the destination.
-
-> Recall that HTTP is port 80, SSH is port 22, and SMTP is port 25.
-
-For example, the cell in to top-right corner states that host 1 is only allowed to send packets to port 80 of host 4. Any flow not explicitly mentioned is disallowed.
-
-### Exercise 2
+### Exercise 2: Firewall + Routing
 
 Wrap the routing policy you wrote above within a fire-walling policy.
+Assume standard port numbers:
 
-> See [Sol_Chapter7_1.nc](netcore-example-code/Sol_Chapter7_1.nc), if you did not
-> finish the previous task.
+- HTTP servers are on port 80 and 
+- SMTP servers are on port 25.
+
+> See [Sol_Chapter7_1.nc](netcore-example-code/Sol_Chapter7_Routing.nc), if you
+> did not finish the previous task.
 
 Your edited file will probably have the following structure:
 
@@ -142,47 +159,39 @@ let routing = (* from part 1, above *)
 let firewall =
   if (* traffic-allowed *) then
     routing
+  ....
   else
     drop
 
-monitorTable(1, firewall)
+firewall
 ```
+
+While you could write the policy by enumerating each allowed flow, consider
+using `if`-`then`-`else` and boolean expressions (`p1 && p2`, `p1 || p2`, and `!p`) to write a compact and legible policy.
 
 #### Testing
 
 Launch Frenetic in one terminal:
 
 ```
-$ frenetic Firewall.nc
+$ frenetic Chapter7.nc
 ```
 
-And Mininet in another:
+And Mininet in another, then open a terminal on each host:
 
 ```
 $ sudo mn --controller=remote --topo=single,4 --mac
+mininet> xterm h1 h2 h3 h4
 ```
 
-To facilitate testing, you can simply run three copies of _fortune_ on each host that listen on the HTTP, SSH, and SMTP ports. We've included a shell script, `netcore-tutorial-code/fortune-http-ssh-smtp.sh` that does just that. Run it on each host:
+For test servers, just run _fortune_ on port 80 and 25.
+
+Instead of trying a comprehensive test, just test a few points of the access control policy. For example, if you run _fortune_ on port 25 on `h4`:
 
 ```
-mininet> h1 ./fortunes.sh &
-mininet> h2 ./fortunes.sh &
-mininet> h3 ./fortune-http-ssh-smtp.sh &
-mininet> h4 ./fortune-http-ssh-smtp.sh &
+h4 $ while true; do fortune | nc -l 25; done
 ```
 
-To throughly test the policy, you need to open a connection between each pair
-of hosts, over each port. There is no need for such a comprehensive test in this tutorial. But, you should try a few. For example, ensure that `h1` cannot connect to any port on `h3`:
-
-```
-mininet> h1 curl 10.0.0.3:80 # should fail
-mininet> h1 curl 10.0.0.3:25 # should fail
-mininet> h1 curl 10.0.0.3:22 # should fail
-```
-
-> TODO(arjun): fill in the actual error message above
-
-> TODO(arjun): Consider providing a testing script if it provides any value.
-
+Then, running `curl 10.0.0.4:80` should succeed from `h3`, but fail form `h2`.
 
 ## Next chapter: [NetCore Composition][Ch7]
