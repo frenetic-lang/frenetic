@@ -263,7 +263,7 @@ program :
  | pol EOF 
     { $1 }
 
- | LET ID EQUALS pol 
+ | LET ID EQUALS pol EOF
     { $4 } 
 
  | LET ID EQUALS pol program 
