@@ -1,12 +1,12 @@
 # Chapter 8: Multiple Switches (at last!)
 
-In this chapter, you'll finally work with a multi-switch network. First, you'll use write and test a routing policy for this network. Then, you'll use the firewall policy you wrote in the previous chapter and apply it to the new network. In fact, you'll learn how package your firewall into a reusable module that you can compose with any other policy. You'll accomplish this by using a key feature of NetCore: _sequential composition_.
+In this chapter, you'll finally work with a multi-switch network. First, you'll write and test a routing policy. Then, you'll use the firewall policy you wrote in the previous chapter and apply it to the new network. In fact, you'll learn how package your firewall into a reusable module that you can compose with any other policy. You'll accomplish this by using a key feature of NetCore: _sequential composition_.
 
 You will work with the following tree topology:
 
 ![image](images/topo-tree-2-2.png)
 
-The figure labels hosts as before, and also labels switches (with unique IDs) and switches' ports.
+The figure labels hosts as before, and also labels switches and their ports.
 
 ### Programming Task 1
 
@@ -30,7 +30,7 @@ let routing =
 routing
 ```
 
-You'll find this template in [Routing2.nc](netcore-tutorial-code/Routing2.nc). Fill it in.
+You'll find this template in [Chapter8.nc](netcore-tutorial-code/Chapter8.nc). Fill it in.
 
 #### Testing
 
