@@ -230,9 +230,9 @@ OpenFlow flow tables.
 
 
 
+## Next chapter: [NetCore Introduction][Ch7]
 
-
-[Ch7]: 07-NetCoreComposition.md
+[Ch7]: 07-NCFirewall.md
 
 [topo_1]: images/topo_1.png "Default Mininet topology."
 [topo_2]: images/topo_2.png "Simple linear topology."

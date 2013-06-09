@@ -2,7 +2,7 @@ Chapter 7: Firewall Redux
 =========================
 
 In [Chapter 3](03-OxFirewall.md), you wrote a firewall that blocks ICMP traffic using OpenFlow and Ox. You did this in two steps: first, you wrote a _packet_in_ function and then configured flow table to implement the same function efficiently. 
-This NetCore program has the same features: `if frameType = 0x800 && and ipProtocol = 1 then drop else all`. 
+This NetCore program has the same features: `if frameType = 0x800 && ipProtocol = 1 then drop else all`. 
 
 In this chapter, you'll implement a more interesting firewall policy. But, you will still use a trivial, one-switch topology. But, in the next chapter, you'll see 
 that your firewall is easy to reuse and apply to any other topology.
