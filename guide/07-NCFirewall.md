@@ -1,25 +1,24 @@
 Chapter 7: Firewall Redux
 =========================
 
-In [Chapter 3](03-OxFirewall.md), you used OpenFlow and the Ox
-controller to write a firewall that blocks ICMP traffic. You first
-wrote the `packet_in` function, and then configured the switch's flow
-table to implement the same function efficiently.
+In [Chapter 3](03-OxFirewall.md), you wrote a firewall that blocks ICMP traffic using OpenFlow and Ox. You did this in two steps: first, you wrote a _packet_in_ function and then configured flow table to implement the same function efficiently. 
+This NetCore program has the same features: `if frameType = 0x800 && and ipProtocol = 1 then drop else all`. 
 
-This NetCore program does all of the above:
+In this chapter, you'll implement a more interesting firewall policy, for a trivial, one-switch topology. But, in the next chapter, you'll see that the policy you write in this chapter is easy to reuse and apply to any other topology.
 
-```
-if frameType = 0x800 && and ipProtocol = 1 then drop else all
-```
+## Topology 
 
-In this chapter, you'll implement a more interesting firewall policy
-with NetCore. You'll work with a network of four hosts and one switch, depicted below:
+In this chapter, you'll work the following network of four hosts and one switch:
 
 ![image](images/topo-single-4.png)
 
-The host with MAC address `00:00:00:00:0n` is connected to port `n`.
+The host with MAC address `00:00:00:00:0n` is connected to port `n`. Mininet has builtin support for building single-switch topologies:
 
-### Programming Task 1
+```
+$ sudo mn --controller=remote --topo=single,4 --mac
+```
+
+### Exercise 1: Routing
 
 Write a routing policy for this network. Use `monitorTable` to examine the flow table that the compiler generates and try a few `ping`s between hosts.
 
@@ -56,63 +55,71 @@ And Mininet in another:
 $ sudo mn --controller=remote --topo=single,4 --mac
 ```
 
-In the controller's terminal, you should see the simple, synthesized flow table,
-and in the Mininet terminal, you should be able to ping between all hosts:
+Using Mininet, ensure that you can ping between all hosts:
 
 ```
 mininet> pingall
 ```
 
-### The Firewall Policy
+## Access Control Policy
 
-Now that basic connectivity works, your task is to implement the following firewall policy:
+Now that basic connectivity works, you should enforce the access control policy written in the table below:
 
 <table>
 <tr>
   <th style="visibility: hidden"></th>
   <th style="visibility: hidden"></th>
-  <th colspan="4">Destination MAC address</th>
+  <th colspan="4">Server MAC address</th>
 </tr>
 <tr>
   <th style="visibility: hidden"></th>
   <th style="visibility: hidden"></th>
-  <th>00:..:01</th>
-  <th>00:..:02</th>
-  <th>00:..:03</th>
-  <th>00:..:04</th>
+  <th>00:00:00:00:00:01</th>
+  <th>00:00:00:00:00:02</th>
+  <th>00:00:00:00:00:03</th>
+  <th>00:00:00:00:00:04</th>
 </tr>
 <tr>
   <th rowspan="5" style="-webkit-transform:rotate(270deg)" >
-    Source MAC<br>address
+    Client MAC<br>address
   </th>
-  <th>00:..:01</th>
-  <td>SSH, HTTP, SMTP</td>
-  <td>SSH, HTTP, SMTP</td>
+  <th>00:00:00:00:00:01</th>
+  <td>HTTP, SMTP</td>
+  <td>HTTP, SMTP</td>
+  <td>Deny All</td>
+  <td style="background-color: lightblue">HTTP</td>
+</tr>
+<tr>
+  <th>00:00:00:00:00:02</th>
+  <td>HTTP, SMTP</td>
+  <td>HTTP, SMTP</td>
   <td>Deny All</td>
   <td>HTTP</td>
 </tr>
 <tr>
-  <th>00:..:02</th>
-  <td>SSH, HTTP, SMTP</td>
-  <td>SSH, HTTP, SMTP</td>
-  <td>Deny All</td>
-  <td>HTTP</td>
+  <th>00:00:00:00:00:03</th>
+  <td>HTTP, SMTP</td>
+  <td>SMTP</td>
+  <td>HTTP, SMTP</td>
+  <td>HTTP, SMTP</td>
 </tr>
 <tr>
-  <th>00:..:03</th>
-  <td>SSH, HTTP, SMTP</td>
+  <th>00:00:00:00:00:04</th>
+  <td>HTTP, SMTP</td>
   <td>SMTP</td>
-  <td>SSH, HTTP, SMTP</td>
-  <td>SSH, HTTP, SMTP</td>
-</tr>
-<tr>
-  <th>00:..:04</th>
-  <td>SSH, HTTP, SMTP</td>
-  <td>SMTP</td>
-  <td>SSH, HTTP, SMTP</td>
-  <td>SSH, HTTP, SMTP</td>
+  <td>HTTP, SMTP</td>
+  <td>HTTP, SMTP</td>
 </tr>
 </table>
+
+Each cell in this table has a list of allowed protocols for connections between
+clients (rows) and servers (columns)
+
+
+
+
+
+this this, each cell specifies the 
 
 In this table, the values in each cell state the allowed allowed TCP destination ports for connections from the source to the destination.
 
@@ -120,7 +127,7 @@ In this table, the values in each cell state the allowed allowed TCP destination
 
 For example, the cell in to top-right corner states that host 1 is only allowed to send packets to port 80 of host 4. Any flow not explicitly mentioned is disallowed.
 
-### Programming Task 2
+### Exercise 2
 
 Wrap the routing policy you wrote above within a fire-walling policy.
 
