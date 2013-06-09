@@ -9,7 +9,7 @@ table to implement the same function efficiently.
 This NetCore program does all of the above:
 
 ```
-if dlTyp = 0x800 && and nwProto = 1 then drop else all
+if frameType = 0x800 && and ipProtocol = 1 then drop else all
 ```
 
 In this chapter, you'll implement a more interesting firewall policy
@@ -22,7 +22,6 @@ The host with MAC address `00:00:00:00:0n` is connected to port `n`.
 ### Programming Task 1
 
 Write a routing policy for this network. Use `monitorTable` to examine the flow table that the compiler generates and try a few `ping`s between hosts.
-
 
 As you've seen, NetCore supports ordinary `if`-`then`-`else` expressions.
 So, you can implement the routing policy as follows:
@@ -38,17 +37,20 @@ let routing =
   else
     drop
     
-` r Nlet main =
-  monitorTable(1, routing)
+monitorTable(1, routing)
 ```
 
-Save the policy to a file called `Routing.nc` and launch Frenetic in one terminal:
+Fill in the rest of the policy by editing [Chapter7.nc](netcore-tutorial-code/Chapter7.nc). 
+
+#### Testing
+
+Launch Frenetic in one terminal:
 
 ```
-$ frenetic Routing.nc
+$ frenetic Chapter7.nc
 ```
 
-And Mininet in the other:
+And Mininet in another:
 
 ```
 $ sudo mn --controller=remote --topo=single,4 --mac
@@ -112,9 +114,20 @@ Now that basic connectivity works, your task is to implement the following firew
 </tr>
 </table>
 
+In this table, the values in each cell state the allowed allowed TCP destination ports for connections from the source to the destination.
+
+> Recall that HTTP is port 80, SSH is port 22, and SMTP is port 25.
+
+For example, the cell in to top-right corner states that host 1 is only allowed to send packets to port 80 of host 4. Any flow not explicitly mentioned is disallowed.
+
 ### Programming Task 2
 
-To help you get started, see the file [Firewall.nc](netcore-tutorial-code/Firewall.nc). You'll need to fill in the firewall policy and paste in your routing policy. The combined policy will have the form:
+Wrap the routing policy you wrote above within a fire-walling policy.
+
+> See [Sol_Chapter7_1.nc](netcore-example-code/Sol_Chapter7_1.nc), if you did not
+> finish the previous task.
+
+Your edited file will probably have the following structure:
 
 ```
 let routing = (* from part 1, above *)
@@ -125,8 +138,7 @@ let firewall =
   else
     drop
 
-let main =
-  monitorTable(1, firewall)
+monitorTable(1, firewall)
 ```
 
 #### Testing
@@ -143,7 +155,7 @@ And Mininet in another:
 $ sudo mn --controller=remote --topo=single,4 --mac
 ```
 
-To facilitate testing, you can simply run fortune servers on all hosts, listening on the HTTP, SSH, and SMTP ports. We've included a shell script, `netcore-tutorial-code/fortune-http-ssh-smtp.sh` that does just that. Run it on each host:
+To facilitate testing, you can simply run three copies of _fortune_ on each host that listen on the HTTP, SSH, and SMTP ports. We've included a shell script, `netcore-tutorial-code/fortune-http-ssh-smtp.sh` that does just that. Run it on each host:
 
 ```
 mininet> h1 ./fortune-http-ssh-smtp.sh &
