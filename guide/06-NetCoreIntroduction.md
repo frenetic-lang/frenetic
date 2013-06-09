@@ -78,7 +78,7 @@ Within the <code>netcore-tutorial-code</code> directory, you should
 find the repeater policy in <code>repeater.nc</code>.  To start the
 repeater controller, just type:
 ```
-$ frenetic repeater.nc
+$ frenetic Repeater.nc
 ```
 Now, in a separate terminal, start up mininet with the default, single
 switch topology.
@@ -213,7 +213,8 @@ features of Static NetCore include the following.
   - a set of primitive *actions*, which allow programmers to modify and 
 forward packets,
   - *conditional statements*, which allow programmers to perform 
-different actions on different kinds of packets,
+different actions on different kinds of packets or on the same kinds
+of packets but at different locations in the network,
   - *sequencing*, which allows programmers to perform a series of
 transformations on a packet,
   - *parallel composition*, which allows programmers to make a logical copy
