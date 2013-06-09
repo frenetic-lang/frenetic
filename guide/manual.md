@@ -74,8 +74,8 @@ Policies:
          | pass
          | drop
          | all (* Forward out all ports. *)
-         | srcMAC <mac-address> -> <mac-address>
-         | dstMAC <mac-address> -> <mac-address>
+         | dlSrc <mac-address> -> <mac-address>
+         | dlDst <mac-address> -> <mac-address>
          | vlan <vlan-id> -> <vlan-id>
          | srcIP <ip-address> -> <ip-address>
          | dstIP <ip-address> -> <ip-address>

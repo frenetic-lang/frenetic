@@ -60,7 +60,7 @@ whether to forward a packet out port 1 or port 2, depending on the packet's
 <code>inPort</code>, if statement predicates can refer to the
 <code>switch</code> at which a packet arrives, as well as any of the
 OpenFlow-supported fields, such as the <code>srcIP</code>, <code>dstIP</code>
-or <code>frameType</code>.  Conditions can also be formed using conjunctions
+or <code>dlTyp</code>.  Conditions can also be formed using conjunctions
 (<code>&&</code>), disjunctions (<code>||</code>) and negation (<code>!</code>)
 of other conditions.  See the [manual](link...) for the complete list of
 predicates. 
@@ -172,7 +172,7 @@ hardware --- our compiler will take
 care of the implementation for you.  Conceptually, such static 
 policies process *located packets* --- i.e.,
 records with one field for each OpenFlow-supported packet header
-(<code>srcMac</code>, <code>dstMac</code>, <code>srcIP</code>, etc.) as well as
+(<code>dlSrc</code>, <code>dlDst</code>, <code>srcIP</code>, etc.) as well as
 one field denoting the current switch processing the packet and
 another field denoting the inPort the packet arrived at.
 More specifically, each policy is a function

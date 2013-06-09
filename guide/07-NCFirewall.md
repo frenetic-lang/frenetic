@@ -2,7 +2,7 @@ Chapter 7: Firewall Redux
 =========================
 
 In [Chapter 3](03-OxFirewall.md), you wrote a firewall that blocks ICMP traffic using OpenFlow and Ox. You did this in two steps: first, you wrote a _packet_in_ function and then configured flow table to implement the same function efficiently. 
-This NetCore program has the same features: `if frameType = 0x800 && ipProtocol = 1 then drop else all`. 
+This NetCore program has the same features: `if dlTyp = 0x800 && nwProto = 1 then drop else all`. 
 
 In this chapter, you'll implement a more interesting firewall policy. But, you will still use a trivial, one-switch topology. But, in the next chapter, you'll see 
 that your firewall is easy to reuse and apply to any other topology.
@@ -28,11 +28,11 @@ So, you can implement the routing policy as follows:
 
 ```
 let routing =
-  if dstMAC=00:00:00:00:00:01 then
+  if dlDst=00:00:00:00:00:01 then
      fwd(1)
   else if (* destination is 2, forward out port 2, etc. *)
     ...
-  else if dstMAC=ff:ff:ff:ff:ff:ff then
+  else if dlDst=ff:ff:ff:ff:ff:ff then
     all (*  allow broadcasts *)
   else
     drop
@@ -132,8 +132,8 @@ This cell indicates that HTTP connections (port 80) are allowed between client
 `00:00:00:00:00:01` and the server `00:00:00:00:00:04`. To realize this policy in NetCore, you need to allow packets from the client to port 80 on the server *and* from port 80 on the server to the client:
 
 ```
-if (srcMAC = 00:00:00:00:00:01 && dstMAC = 00:00:00:00:00:04 && tcpDstPort = 80) ||
-   (srcMAC = 00:00:00:00:00:04 && dstMAC = 00:00:00:00:00:01 && tcpSrcPort = 80)
+if (dlSrc = 00:00:00:00:00:01 && dlDst = 00:00:00:00:00:04 && tcpDstPort = 80) ||
+   (dlSrc = 00:00:00:00:00:04 && dlDst = 00:00:00:00:00:01 && tcpSrcPort = 80)
 then
   routing
 else
