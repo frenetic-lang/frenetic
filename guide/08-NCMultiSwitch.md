@@ -38,8 +38,7 @@ let routing =
 routing
 ```
 
-CD in to the chapter8 directory:
-
+Change in to the chapter8 directory:
 ```
 $ cd chapter8
 ```
@@ -94,44 +93,36 @@ You've probably used _grep_ and pipes in Linux to filter lines of text. You can 
 
 `firewall; routing`
 
-For this to work, you do need to make one small change to `firewall`:  replace all occurrences of `routing` with  the special action `pass`. The `pass` action is the identity function on packets. When you use `pass` in a policy, you don't forward it out of a port, but simply pass it on unchanged to the next policy in a sequence.
+For this to work, you do need to make one small change to `firewall`:  replace all occurrences of `routing` with  the special action `pass`. The `pass` action is the identity function on packets. When you use `pass` in a policy, you don't forward it out of a port, but simply leave it unchanged to be processed by the next policy in a sequence.
 Hopefully, it is evident that if your firewall only applies `pass` and `drop`, then it becomes truly topology-independent.
 
 ### Exercise 2: Abstracting the Firewall
 
-In this exercise, you'll move the firewall you wrote in the last chapter to its own file, `Firewall.nc`, edit it to just `pass` and `drop` packets, and then include `Firewall.nc` into both `Chapter7.nc` and `Chapter8.nc`.
+In this exercise, you'll write move the firewall you wrote in the last chapter to its own file, `Firewall.nc`, edit it to just `pass` and `drop` packets, and then include `Firewall.nc` and `Routing.nc` in to a new file called `Main.nc`.
 
 > If you didn't finish Chapter 7, use
 > [Sol_Chapter7_Firewall.nc](netcore-tutorial-code/Sol_Chapter7_Firewall.nc).
 > If you didn't finish the routing policy above, see
-> [Sol_Chapter8_Routing.nc](netcore-tutorial-code/Sol_Chapter7_Routing.nc).
+> [Sol_Routing.nc](netcore-tutorial-code/Chapter8/Sol_Routing.nc).
 
-- Move the code for `firewall` function from `Chapter7.nc` into a new file called `Firewall.nc`.
+- Move the code for `firewall` function from `Chapter7.nc` in to `Chapter8/Firewall.nc`.
 
-- In `firewall`, you have (possibly several) occurrences of `routing` (i.e., the routing policy from Chapter 7).  
-  Replace all occurrences of `routing` with `pass`.
-
-- Modify your old `Chapter7.nc` file, changing the main expression to sequence `firewall` and `routing`:
-
-  ```
-  (* This is a sketch of Chapter7.nc *)
-  include "Firewall.nc"
+- In `firewall`, you have (possibly several) occurrences of `routing` (i.e., the routing policy from Chapter 7).  Replace all occurrences of `routing` with `pass`.
   
-  let routing = ...
+- Examine `Main.nc`, which we have written for you: we have included `Firewall.nc` and `Routing.nc` and composed them.  
   
-  firewall; routing
-  ```
-  
-- Modify `Chapter8.nc` in exactly the same way: include `Firewall.nc` and then change the main expression to  
-  `firewall; routing`.
-  
-You should test this firewall just as you tested it in [Chapter 7][Ch7].
+You should test this `Main.nc` just as you tested the firewall in [Chapter 7][Ch7].
 
-Per the firewall, host `00:00:00:00:00:02` cannot send a packet to port `25` on host `00:00:00:00:00:04`.
-When you compose `firewall; routing`, on which switch is that packet dropped? You should be able to answer the question by just reading your policy and inspecting the topology figure above.
+### Extra Credit I
 
+Per the firewall, host `00:00:00:00:00:02` cannot send a packet to port `25` on host `00:00:00:00:00:04`. `Main.nc` composes `firewall; routing`, on which switch is that packet dropped? You should be able to answer the question just by reading your policy and inspecting the topology figure above.
+
+### Extra Credit II
+
+Show that your firewall in `Firewall.nc` is truly reuseable.  Reimplement your solution in `Chapter7.nc` in a modular fashion using `Firewall.nc`. You may start with `Sol_Chapter7.nc` if you wish. 
 
 ## Next chapter: [Monitoring with NetCore][Ch9]
 
 [Ch9]: 09-NCMonitoring.md
+[Ch7]: 07-NCFirewall.md
 

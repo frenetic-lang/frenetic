@@ -2,4 +2,4 @@ include "Sol_Firewall.nc"
 include "Sol_Routing.nc"
 include "Sol_Monitoring.nc"
 
-let multi_switch = (firewall; routing) + monitoring
+let multi_switch = firewall; routing
