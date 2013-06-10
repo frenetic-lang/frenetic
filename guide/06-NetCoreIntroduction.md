@@ -1,31 +1,29 @@
 Chapter 6: Introducing NetCore
 ==============================
 
-- You've learned how to write controllers with OpenFlow. We've shown
-  you a simple, two step recipe to implement policies:
+You've learned how to write controllers with OpenFlow. We've shown
+you a simple, two step recipe to implement policies:
 
-  * You can easily write a _packet-in_ function to have the controller
-     implement any policy -- though it may be a very inefficient
-     implementation
+* You can easily write a _packet-in_ function to have the controller
+  implement any policy, though it may be a very inefficient
+  implementation.
 
-  * You can then use flow tables and statistics to program switches to
-    implement the same policy efficiently.
+* You can then use flow tables and statistics to program switches to
+  implement the same policy efficiently.
 
-- In the following chapters, we introduce a new way to program SDN policies.
+In the following chapters, we introduce a new way to program SDN policies.
+You write policy-functions in a little language we call **NetCore**.
+The NetCore compiler will then synthesize the flow tables needed to
+implement your policy-function efficiently. (It also
+sends statistics requests, accumulates replies, manages
+switch connections, and more.)
 
-  - You write policy-functions in a little language we call
-    **NetCore**.
+The templates and solutions for this part of the tutorial are in
+the `netcore-tutorial-code` directory:
 
-  - You then feed your program to the the NetCore Compiler, which
-    synthesizes flow tables that implement your function. (It also
-    sends statistics requests, accumulates replies, manages
-    switch connections, and more.)
-
-- `guide/netcore-tutorial-code`.
-
-  ```
-  $ cd guide/netcore-tutorial-code
-  ```
+```
+$ cd guide/netcore-tutorial-code
+```
 
 ### Example 1: A Naive Repeater (Redux)
 
@@ -185,10 +183,6 @@ policy --- perhaps forwarding the packet to two different locations, and
 as they flow across a network, the load at various points in the network,
 the current static policy in force or the concrete rules installed on
 OpenFlow flow tables.
-
-
-
-
 
 
 ## Next chapter: [Firewall Redux][Ch7]
