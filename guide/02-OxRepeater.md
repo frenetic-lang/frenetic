@@ -52,7 +52,7 @@ in priority-order:
 3. The next rule sends UDP traffic to the special controller port (see
    below).
 
-4. The final rule matches ICMP traffic. However, since it is
+4. The final rule matches ICMP traffic. However, since this rule is
    fully-shadowed by the first rule, it will never be reached. (Fully
    shadowed rules can usually be safely eliminated.)
 
@@ -98,7 +98,7 @@ Use [Repeater.ml](ox-tutorial-code/Repeater.ml) as a starting point. This file a
 the entire tutorial is included with the tutorial VM.  Open a terminal
 and type:
 
-```shell
+```
 $ cd src/frenetic/guide/ox-tutorial-code
 ```
 
@@ -128,8 +128,8 @@ module) and use it.
 To build your controller, run the following command in the
 `ox-tutorial-code` directory:
 
-```shell
-  $ make Repeater.d.byte
+```
+$ make Repeater.d.byte
 ```
 
 > The file extension indicates that it is a bytecode, debug build.  You
@@ -154,15 +154,18 @@ hosts and have them ping each other:
 - Start Mininet in a separate terminal window:
 
   ```
-  $ sudo mn --controller=remote --topo=single,3 --mac
+  $ sudo mn --controller=remote --topo=single,3 --mac --arp
   ```
 
   A brief explanation of the flags:
 
   * `topo=single,3` creates a network with one switch and three hosts.
 
-  * `--mac` sets the hosts' mac addresses to 1`, 2, and 3 (instead
+  * `--mac` sets the hosts' mac addresses to 1, 2, and 3 (instead
     of random numbers). This makes debugging a lot easier.
+    
+  * `--arp` statically configures the ARP tables on all hosts, so you don't have to
+    deal with ARP broadcast traffic.
 
   * `--controller=remote` directs the switches to connect to your controller
     (instead of using a default, built-in controller).
@@ -180,7 +183,7 @@ hosts and have them ping each other:
 
   It should print `[Ox] Controller launching...`
   and then you should see switch 1 connecting to the controller:
-  `[Ox_Controller] switch 1 connected`.
+  `[Ox] switch 1 connected`.
   
 - From the Mininet prompt, you can make your hosts ping each other:
 
@@ -211,8 +214,7 @@ hosts and have them ping each other:
   
   Pinging should always succeed ("0% packet loss"). In addition, if
   your controller calls `printf` in its packet-in function, you will
-  see the controller receiving all pings (and other traffic, such as
-  ARP).
+  see the controller receiving all pings.
 
 This repeater is functionally correct, but laughably inefficient.
 

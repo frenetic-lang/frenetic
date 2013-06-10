@@ -155,9 +155,9 @@ Your edited file will probably have the following structure:
 let routing = (* from part 1, above *)
 
 let firewall =
-  if (* traffic-allowed *) then
+  if (* traffic is allowed *) then
     routing
-  ....
+  ...
   else
     drop
 
@@ -187,6 +187,7 @@ For test servers, just run _fortune_ on port 80 and 25.
 Instead of trying a comprehensive test, just test a few points of the access control policy. For example, if you run _fortune_ on port 25 on `h4`:
 
 ```
+## Run on h4's terminal
 $ while true; do fortune | nc -l 25; done
 ```
 
