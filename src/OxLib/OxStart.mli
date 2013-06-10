@@ -8,6 +8,7 @@ open OpenFlow0x01_Stats
     These event handlers simply ignore the messages they receive. *)
 module DefaultTutorialHandlers : sig
 
+  val switch_connected : switchId -> unit
   val switch_disconnected : switchId -> unit
   val barrier_reply : switchId -> xid -> unit
   val stats_reply : switchId -> xid -> reply -> unit

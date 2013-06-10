@@ -14,8 +14,11 @@ end
 
 module DefaultTutorialHandlers = struct
 
-  let switch_disconnected (sw : switchId) : unit =
-    Printf.printf "Switch %Ld disconnected.\n%!" sw
+  (* I've intentionally omitted packet_in from this structure. *)
+
+  let switch_disconnected (sw : switchId) : unit = ()
+
+  let switch_connected (sw : switchId) : unit = ()
 
   let barrier_reply _ _ = ()
 
@@ -28,17 +31,17 @@ module Make (Handlers:OXMODULE) = struct
 
   let rec switch_thread_loop sw = 
     let open Message in
-    begin
-      match_lwt (Platform.recv_from_switch sw) with
-        | (xid, PacketInMsg pktIn) -> Lwt.wrap3 Handlers.packet_in sw xid pktIn
-	      | (xid, BarrierReply) -> Lwt.wrap2 Handlers.barrier_reply sw xid
-        | (xid, StatsReplyMsg rep) -> Lwt.wrap3 Handlers.stats_reply sw xid rep
-        | (xid, msg) ->
-          (Log.printf "Ox" "ignored a message from %Ld" sw;
-           Lwt.return ())
-           
-    end >>
-    switch_thread_loop sw
+        begin
+          match_lwt (Platform.recv_from_switch sw) with
+            | (xid, PacketInMsg pktIn) -> Lwt.wrap3 Handlers.packet_in sw xid pktIn
+	          | (xid, BarrierReply) -> Lwt.wrap2 Handlers.barrier_reply sw xid
+            | (xid, StatsReplyMsg rep) -> Lwt.wrap3 Handlers.stats_reply sw xid rep
+            | (xid, msg) ->
+              (Log.printf "Ox" "ignored a message from %Ld" sw;
+               Lwt.return ())
+                
+        end >>
+          switch_thread_loop sw
 
   let switch_thread sw =
     try_lwt

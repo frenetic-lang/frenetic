@@ -5,9 +5,6 @@ module MyApplication = struct
 
   include OxStart.DefaultTutorialHandlers
 
-  let switch_connected (sw : switchId) : unit =
-    Printf.printf "Switch %Ld connected.\n%!" sw
-
   (* [FILL] This packet_in function sends all packets out of port 1.
      Modify it to behave like a repeater: send the packet out of all
      ports, except its input port. *)
