@@ -89,8 +89,7 @@ packetIn{
   * In Mininet, start new terminals for `h1` and `h2`:
 
     ```
-    mininet> h1 xterm &
-    mininet> h2 xterm &
+    mininet> xterm h1 h2
     ```
 
   * In the terminal for `h1` start a local "fortune server" (a server

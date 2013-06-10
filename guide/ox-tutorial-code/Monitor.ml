@@ -6,9 +6,6 @@ module MyApplication = struct
 
   include OxStart.DefaultTutorialHandlers
   
-  let switch_connected (sw : switchId) : unit =
-    Printf.printf "Switch %Ld connected.\n%!" sw
-
   (* [FILL] copy over the packet_in function from Firewall.ml
      verbatim, including any helper functions. *)
   let firewall_packet_in (sw : switchId) (xid : xid) (pktIn : packetIn) : unit =
