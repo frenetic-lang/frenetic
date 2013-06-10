@@ -119,7 +119,6 @@ repeater, it has to send each packet out of every port (excluding the input
 port). This is easier than it sounds, because you can do it with just
 one OpenFlow action.
 
-
 Find the right action in the Ox manual (it is in the [OpenFlow_Core]
 module) and use it.
 
