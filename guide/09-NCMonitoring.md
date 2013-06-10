@@ -36,7 +36,7 @@ cd Chapter9
 ```
 Proceed as follows:
 
-- First, create a new file, `Monitor.nc`.  Inside this file, create infrastructure for monitoring the web traffic sent by `h2`. Create a different string label for each of the other hosts ("H2->H1", "H2->H3", "H2->H4") and use `monitorLoad` to record the HTTP packets send from `h2` to each of the other hosts separately.
+- First, inside `Monitoring.nc`, create infrastructure for monitoring the web traffic sent by `h2`. More specifically, create a different string label for each of the other hosts ("H2->H1", "H2->H3", "H2->H4") and use `monitorLoad` to record the HTTP packets send from `h2` to each of the other hosts separately.
 - Second, modify the template `Main.nc` to compose your monitoring policy with the firewall and router defined in Chapter 8
 
 When you are done, testing your monitor.
