@@ -28,11 +28,38 @@ a packet `pk`, the parallel composition creates two copies of `pk` and
 applies `P1` to the first and `P2` to the second.  Overall, it generates the *union* of the results from
 <code>P1</code> and <code>P2</code>.  Hence, if <code>P1</code> forwards to A and <code>P1</code> forwards to B then <code>P1 + P2</code> makes a copy of the input packet and forwards to both A and B.
 
-> TODO(arjun): continue below. Do an exercise on monitoring HTTP + routing
+### Exercise: Modular Web Monitoring
+
+Cloud service providers will typically bill their clients in accordance to the resources they use.  Your task in this exercise is to set up monitoring infrastructure for the network developed in Chapter 8.  To do so, switch to the Chapter 9 directory.
+```
+cd Chapter9
+```
+Proceed as follows:
+
+- First, create a new file, `Monitor.nc`.  Inside this file, create infrastructure for monitoring the web traffic sent by `h2`. Create a different string label for each of the other hosts ("H2->H1", "H2->H3", "H2->H4") and use `monitorLoad` to record the HTTP packets send from `h2` to each of the other hosts separately.
+- Second, modify the template `Main.nc` to compose your monitoring policy with the firewall and router defined in Chapter 8
+
+When you are done, testing your monitor.
+
+- Start mininet and launch an `xterm` on host `h2`:
+```
+$ sudo mn --controller=remote --topo=tree,2,2 --mac --arp
+mininet> xterm h2
+```
+- Set up a fortune server on host `h2` :
+```
+$ while true; do fortune | nc -l 80; done 
+```
+- Fetch fortunes from the other hosts.  For example:
+```
+mininet> h1 curl 10.0.0.2:80
+```
+
+During your experiments, you should should see the load between `h1` and `h2` escalate.  Your firewall should block requests from `h3` and `h4` to `h2` so you should never see the load from `h2` to `h3` or `h4` escalate.
 
 
 
-
+------------
 
 With this in mind, let's modify the port mapper to inspect the packets both
 before and after the rewriting.  We can leave the mapper component unchanged
