@@ -13,10 +13,10 @@ Chapter 6: Introducing NetCore
 
 - In the following chapters, we introduce a new way to program SDN policies.
 
-  - You will write policy-functions in a little language we call
+  - You write policy-functions in a little language we call
     **NetCore**.
 
-  - You will then feed your program to the the NetCore Compiler, which
+  - You then feed your program to the the NetCore Compiler, which
     synthesizes flow tables that implement your function. (It also
     sends statistics requests, accumulates replies, manages
     switch connections, and more.)
@@ -62,7 +62,7 @@ whether to forward a packet out port 1 or port 2, depending on the packet's
 OpenFlow-supported fields, such as the <code>srcIP</code>, <code>dstIP</code>
 or <code>dlTyp</code>.  Conditions can also be formed using conjunctions
 (<code>&&</code>), disjunctions (<code>||</code>) and negation (<code>!</code>)
-of other conditions.  See the [manual](link...) for the complete list of
+of other conditions.  See the [manual](A-NCManual.md) for the complete list of
 predicates. 
 
 The last line of the program uses <code>monitorTable(1,repeater)</code>, which
