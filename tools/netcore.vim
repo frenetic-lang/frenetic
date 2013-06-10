@@ -14,7 +14,7 @@ syn match NCIPNumber '\(\d\{1,3}\.\)\{1,3}\d\{1,3}'
 syn region NCBlockCmd start="begin" end="end"
 syn keyword NCLet let in nextgroup=NCName skipwhite
 syn keyword NCKeyword if then else
-syn keyword NCMatch inPort publicIP all fwd <none> filter switch vlan srcMAC dstMAC srcIP dstIP tcpSrcPort tcpDstPort frameType arp ip pass drop
+syn keyword NCMatch inPort publicIP all fwd <none> filter switch vlan dlTyp dlDst dlSrc srcIP dstIP tcpSrcPort tcpDstPort frameType arp ip pass drop
 syn keyword NCOperator "," "(" ")" "{" "}" "!" "*" "=" "->" "&&" "||" ";" "|" "+"
 syn region NCComment start="(\*" end="\*)" 
 
