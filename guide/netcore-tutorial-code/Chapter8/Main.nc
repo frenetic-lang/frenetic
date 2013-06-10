@@ -1,5 +1,3 @@
-include "Sol_Firewall.nc"
-include "Sol_Routing.nc"
-include "Sol_Monitoring.nc"
+include "Routing.nc"
 
-let multi_switch = firewall; routing
+monitorTable(2, routing)

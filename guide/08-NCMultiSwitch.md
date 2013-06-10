@@ -34,28 +34,26 @@ let routing =
     ...
   else
     drop
-    
-routing
 ```
 
 Change in to the chapter8 directory:
 ```
 $ cd chapter8
 ```
-Here, you'll find the template above in [Routing.nc](netcore-tutorial-code/Chapter8/Routing.nc). Fill it in.
+Here, you'll find the template above in [Routing.nc](netcore-tutorial-code/Chapter8/Routing.nc). Fill it in.  When you are finishing filling in the definition of `routing`, this file should contain nothing but a single `let` declaration.  In particular, there should be no "main" policy expression as `Routing.nc` is actually just a module that will be included in a larger program.  That larger program is contained in the file `Main.nc`.  There, you will see that `Routing.nc` has been included and its definition `routing` used.
 
 #### Testing
 
-Launch Frenetic in one terminal:
+Launch Frenetic in a terminal by invoking `Main.nc`:
 
 ```
-$ frenetic Routing.nc
+$ frenetic Main.nc
 ```
 
-And Mininet in another:
+Then launch Mininet in another:
 
 ```
-$ sudo mn --controller=remote --topo=tree,2,2 --mac
+$ sudo mn --controller=remote --topo=tree,2,2 --mac --arp
 ```
 
 Then, ensure that all hosts can reach each other:
@@ -98,24 +96,26 @@ Hopefully, it is evident that if your firewall only applies `pass` and `drop`, t
 
 ### Exercise 2: Abstracting the Firewall
 
-In this exercise, you'll write move the firewall you wrote in the last chapter to its own file, `Firewall.nc`, edit it to just `pass` and `drop` packets, and then include `Firewall.nc` and `Routing.nc` in to a new file called `Main.nc`.
+In this exercise, you'll move the firewall you wrote in the last chapter to its own file, `Firewall.nc` and edit it to just `pass` and `drop` packets.  Then you will build a multi-module policy that involves `Firewall.nc`, `Routing.nc` and `Main.nc`.
 
 > If you didn't finish Chapter 7, use
 > [Sol_Chapter7_Firewall.nc](netcore-tutorial-code/Sol_Chapter7_Firewall.nc).
 > If you didn't finish the routing policy above, see
 > [Sol_Routing.nc](netcore-tutorial-code/Chapter8/Sol_Routing.nc).
 
+Once you have a firewall policy and a routing policy to start from, continue as follows.
+
 - Move the code for `firewall` function from `Chapter7.nc` in to `Chapter8/Firewall.nc`.
 
 - In `firewall`, you have (possibly several) occurrences of `routing` (i.e., the routing policy from Chapter 7).  Replace all occurrences of `routing` with `pass`.
   
-- Examine `Main.nc`, which we have written for you: we have included `Firewall.nc` and `Routing.nc` and composed them.  
+- Edit `Main.nc` so it includes both `Firewall.nc` and `Routing.nc` and composes their definitions effectively.  
   
 You should test this `Main.nc` just as you tested the firewall in [Chapter 7][Ch7].
 
 ### Extra Credit I
 
-Per the firewall, host `00:00:00:00:00:02` cannot send a packet to port `25` on host `00:00:00:00:00:04`. `Main.nc` composes `firewall; routing`, on which switch is that packet dropped? You should be able to answer the question just by reading your policy and inspecting the topology figure above.
+Per the firewall, host `00:00:00:00:00:02` cannot send a packet to port `25` on host `00:00:00:00:00:04`. If host host `00:00:00:00:00:02` attempts to send such a packet, on which switch is that packet dropped? You should be able to answer the question just by reading your policy and inspecting the topology figure above.
 
 ### Extra Credit II
 

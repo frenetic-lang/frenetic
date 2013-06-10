@@ -24,5 +24,3 @@ let routing =
       fwd(3)
   else
     drop
-
-monitorTable(2, routing)
