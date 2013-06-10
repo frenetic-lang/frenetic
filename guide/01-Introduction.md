@@ -49,13 +49,13 @@ access to the OpenFlow protocol.
   abstractions and rich, compositional features that make SDN
   programming much easier.
 
-[[6 NetCore Introduction][Ch6]] [[7 NetCore Composition][Ch7]] [[8
-Dynamic NetCore][Ch8]]
+[[6 NetCore Introduction][Ch6]] [[7 NetCore Firewall][Ch7]] [[8
+Multiple Switches][Ch8]] [[9 NetCore Monitoring][Ch9]]
 
 ### Frenetic
 
 This tutorial should also be viewed as a stepping stone toward learning how to
-program in the more powerful *Frenetic* environment.  *Frenetic* is a
+program in the more powerful *Frenetic* environment. *Frenetic* is a
 general-purpose SDN programming language embedded as a set of libraries in
 OCaml.  Frenetic applications react to network events, such as topology changes 
 and statistics queries.  For example:
@@ -66,17 +66,14 @@ and statistics queries.  For example:
    NetCore) and sends it to the Frenetic run time.
 
 1. The Frenetic run time compiles it to OpenFlow and updates the
-   running networ.
+   running network.
 
 Static network configurations are built using
 [NetCoreLib](http://frenetic-lang.github.io/frenetic/docs/NetCore_Types.html),
-which has the same semantics as the NetCore DSL described in this
-tutorial.  Hence, a Frenetic program is really just a general-purpose
+which has the same semantics as NetCore, which is presented in this tutorial.
+Hence, a Frenetic program is really just a general-purpose
 OCaml program that reacts to network events and generates a stream of
-NetCore policies.  Since NetCoreLib and NetCoreDSL are effectively the
-same (with NetCoreDSL simply adding a pleasant, domain-specific,
-user-level syntax), we will drop the "DSL" part of the name from this
-point forward and simply refer to NetCore.
+NetCore policies.
 
 #### Why Frenetic?
 
@@ -92,10 +89,9 @@ OCaml programming. We only use a tiny fragment of the language and do
 provide lots of example code. But, some familiarity with OCaml syntax
 will be very helpful. We recommend reading these two brief tutorials:
 
-1. [OCaml Basics] (http://ocaml.org/tutorials/basics.html), and
+1. [OCaml Basics](http://ocaml.org/tutorials/basics.html), and
 
-2. [The Structure of OCaml Programs]
-   (http://ocaml.org/tutorials/structure_of_ocaml_programs.html).
+2. [The Structure of OCaml Programs](http://ocaml.org/tutorials/structure_of_ocaml_programs.html).
 
 Handy References
 ----------------
@@ -106,12 +102,12 @@ Handy References
   platform for writing controllers in OCaml. This tutorial will guide you
   though writing Ox controllers.
 
-  Ox is loosely based on platforms such as [POX]
-  (https://openflow.stanford.edu/display/ONL/POX+Wiki) and [NOX]
-  (http://www.noxrepo.org/nox/about-nox/). The concepts and techniques
+  Ox is loosely based on platforms such as 
+  [POX](https://openflow.stanford.edu/display/ONL/POX+Wiki) and
+  [NOX](http://www.noxrepo.org/nox/about-nox/). The concepts and techniques
   you learn in this tutorial are applicable to those platforms too.
 
-- [OpenFlow 1.0 Specification] (http://www.openflow.org/documents/openflow-spec-v1.0.0.pdf)
+- [OpenFlow 1.0 Specification](http://www.openflow.org/documents/openflow-spec-v1.0.0.pdf)
 
   The OpenFlow specification describes OpenFlow-conformant switches
   and details the wire-format of the OpenFlow protocol. You'll find that
@@ -122,7 +118,7 @@ Handy References
   guide. But, if you want to understand OpenFlow in depth, you should
   read it eventually.
 
-- [Mininet] (http://mininet.org/walkthrough/)
+- [Mininet](http://mininet.org/walkthrough/)
 
   You will use the Mininet network simulator to run your
   controllers. We will tell you exactly what Mininet commands to use,
@@ -148,5 +144,6 @@ Handy References
 [Ch4]: 04-OxMonitor.md
 [Ch5]: 05-OxLearning.md
 [Ch6]: 06-NetCoreIntroduction.md
-[Ch7]: 07-NetCoreComposition.md
-[Ch8]: 08-DynamicNetCore.md
+[Ch7]: 07-NCFirewall.md
+[Ch8]: 08-NCMultiSwitch.md
+[Ch9]: 09-NCMonitoring.md
