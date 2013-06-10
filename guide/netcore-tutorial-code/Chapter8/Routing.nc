@@ -1,3 +1,4 @@
+(* Fill in the routing policy for the topology in Chapter 8 *)
 let routing =
   if switch = 1 then
     drop
@@ -8,3 +9,4 @@ let routing =
   else
     drop
     
+routing

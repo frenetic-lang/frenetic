@@ -34,20 +34,22 @@ let routing =
     ...
   else
     drop
+
+routing
 ```
 
 Change in to the chapter8 directory:
 ```
 $ cd chapter8
 ```
-Here, you'll find the template above in [Routing.nc](netcore-tutorial-code/Chapter8/Routing.nc). Fill it in.  When you are finishing filling in the definition of `routing`, this file should contain nothing but a single `let` declaration.  In particular, there should be no "main" policy expression as `Routing.nc` is actually just a module that will be included in a larger program.  That larger program is contained in the file `Main.nc`.  There, you will see that `Routing.nc` has been included and its definition `routing` used.
+Here, you'll find the template above in [Routing.nc](netcore-tutorial-code/Chapter8/Routing.nc). Fill it in.
 
 #### Testing
 
-Launch Frenetic in a terminal by invoking `Main.nc`:
+Launch Frenetic in a terminal by invoking `Routing.nc`:
 
 ```
-$ frenetic Main.nc
+$ frenetic Routing.nc
 ```
 
 Then launch Mininet in another:
@@ -76,6 +78,8 @@ let firewall =
     routing
   else
     drop
+
+firewall
 ```
 
 To truly separate the routing policy from the firewall policy, you will use NetCore's _sequential composition_  operator. Sequential composition lets you take any two policies, `P` and `Q`,
@@ -109,9 +113,19 @@ Once you have a firewall policy and a routing policy to start from, continue as 
 
 - In `firewall`, you have (possibly several) occurrences of `routing` (i.e., the routing policy from Chapter 7).  Replace all occurrences of `routing` with `pass`.
   
-- Edit `Main.nc` so it includes both `Firewall.nc` and `Routing.nc` and composes their definitions effectively.  
+- Edit `Routing.nc` to include `Firewall.nc` and compose the firewall and
+  the routing policy:
+
+  ```
+  include "Firewall.nc"
+
+  let routing = ...
+
+  firewall; routing
+  ```
   
-You should test this `Main.nc` just as you tested the firewall in [Chapter 7][Ch7].
+  You should test this policy just as you tested the firewall in
+  [Chapter 7][Ch7].
 
 ### Extra Credit I
 
