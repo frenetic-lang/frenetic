@@ -1,6 +1,35 @@
 Frenetic Tutorial
 =================
 
+Getting Started
+---------------
+
+This is a hands-on tutorial with several programming exercises.
+We strongly recomend using the tutorial VM we've prepared that has
+all the software that you need pre-installed:
+
+- Download and install the [VirtualBox](https://www.virtualbox.org)
+  virtualization platform.
+  
+- Download the
+  [Frenetic Tutorial VM](http://www.cs.brown.edu/~arjun/frenetic.ova).
+
+- Launch the tutorial VM, which will launch a Linux desktop
+  environment and automatically log you into the account
+  "frenetic". The password for this account is also "frenetic".
+
+- At a terminal, go to the tutorial directory, check for updates, and
+  rebuild the tutorial software:
+
+  ```
+  $ cd src/frenetic
+  $ git pull
+  $ make reinstall
+  ```
+
+Introduction
+------------
+
 In this tutorial, you will learn to program software-defined networks (SDNs)
 using OpenFlow and NetCore, the surface language of Frenetic. The tutorial is
 divided into two sections:
@@ -54,31 +83,6 @@ point forward and simply refer to NetCore.
 As an aside, you may find it interesting to read about [why we created
 Frenetic](http://frenetic-lang.org/publications/overview-ieeecoms13.pdf) in the
 first place.
-
-Getting Started
----------------
-As you read this document, we encourage you to experiment with the examples 
-and try the exercises.  To do so, you will need to download and start up the
-tutorial VM.  To get started:
-
-- Download and install the [VirtualBox](https://www.virtualbox.org)
-  virtualization platform.
-  
-- Download the
-  [Frenetic Tutorial VM](http://www.cs.brown.edu/~arjun/frenetic.ova).
-
-- Launch the tutorial VM, which will launch a Linux desktop
-  environment and automatically log you into the account
-  "frenetic". The password for this account is also "frenetic".
-
-- At a terminal, go to the tutorial directory, check for updates, and
-  rebuild the tutorial software:
-
-  ```
-  $ cd src/frenetic
-  $ git pull
-  $ make reinstall
-  ```
 
 Background Material
 -------------------
