@@ -38,14 +38,19 @@ let routing =
 routing
 ```
 
-You'll find this template in [Chapter8.nc](netcore-tutorial-code/Chapter8.nc). Fill it in.
+CD in to the chapter8 directory:
+
+```
+$ cd chapter8
+```
+Here, you'll find the template above in [Routing.nc](netcore-tutorial-code/Chapter8/Routing.nc). Fill it in.
 
 #### Testing
 
 Launch Frenetic in one terminal:
 
 ```
-$ frenetic Chapter8.nc
+$ frenetic Routing.nc
 ```
 
 And Mininet in another:

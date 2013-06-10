@@ -59,10 +59,12 @@ packets).
 This new policy can be found in <code>Port_Map_Monitor1.nc</code>.
 Test it as above using iperf, but this time watch the output in the 
 controller window.  You should see lines similar to the following being printed:
+
 ```
 [BEFORE] packet dlSrc=4a:f7:98:81:78:0d,dlDst=d6:7c:1e:d6:e3:0b,nwSrc=10.0.0.1,nwDst=10.0.0.2,tpSrc=52923;tpDst=5022 on switch 1 port 1
 [AFTER] packet dlSrc=4a:f7:98:81:78:0d,dlDst=d6:7c:1e:d6:e3:0b,nwSrc=10.0.0.1,nwDst=10.0.0.2,tpSrc=52923;tpDst=22 on switch 1 port 1
 ```
+
 You will notice <code>tpDst=5022</code> in lines marked
 <code>BEFORE</code> and <code>tpDst=22</code> in lines marked 
 <code>AFTER</code>.
