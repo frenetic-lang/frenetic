@@ -125,3 +125,8 @@ You should test this firewall just as you tested it in [Chapter 7][Ch7].
 Per the firewall, host `00:00:00:00:00:02` cannot send a packet to port `25` on host `00:00:00:00:00:04`.
 When you compose `firewall; routing`, on which switch is that packet dropped? You should be able to answer the question by just reading your policy and inspecting the topology figure above.
 
+
+## Next chapter: [Monitoring with NetCore][Ch9]
+
+[Ch9]: 09-NCMonitoring.md
+

@@ -13,7 +13,6 @@ The following NetCore program does all of the above:
 
 ```
 if tcpSrcPort = 80 || tcpDstPort = 80 then monitorLoad(5, "HTTP traffic")
-
 ```
 
 However, unlike the Ox controller, which flooded all traffic, this NetCore program doesn't forward any traffic it all. Instead, you can compose it
@@ -23,14 +22,10 @@ NetCore's _parallel composition_ operator.
 ## Parallel Composition
 
 When you monitor the network, you do so *in parallel* with the routing policy. Intuitively, you want to send packets to two places: the
-controller, for inspection, and wherever they may be destined in the network.
-
-To support this idiom, you need new kind of operator on policies:
+controller, for inspection, and wherever they may be destined in the network. To support this idiom, you need new kind of operator on policies:
 *parallel composition*, written `P1 + P2`. Intuitively, when applied to
 a packet `pk`, the parallel composition creates two copies of `pk` and
-applies `P1` to the first and `P2` to the second. 
-
-Overall, it generates the *union* of the results from
+applies `P1` to the first and `P2` to the second.  Overall, it generates the *union* of the results from
 <code>P1</code> and <code>P2</code>.  Hence, if <code>P1</code> forwards to A and <code>P1</code> forwards to B then <code>P1 + P2</code> makes a copy of the input packet and forwards to both A and B.
 
 > TODO(arjun): continue below. Do an exercise on monitoring HTTP + routing
@@ -94,3 +89,8 @@ printed in the controller terminal.
 The following command runs iperf for <code>20</code> seconds.
 ```
 mininet> h1 iperf -c 10.0.0.2 -p 5022 -t 20
+
+
+## Next chapter: [Tutorial Wrap-up][Ch10]
+
+[Ch10]: 10-WrapUp.md
