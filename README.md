@@ -1,8 +1,9 @@
 Frenetic
 ========
 
-Work in Progress: Frenetic will be ready by June 10th, along with a
-standalone tutorial.
+The [**Frenetic Tutorial**](guide/01-Introduction.md) is now available.
+Download the Frenetic Virtual Machine from the _Getting Started_ section.
+
 
 Building from Source
 --------------------
