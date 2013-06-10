@@ -24,7 +24,6 @@ module MyApplication = struct
   let match_icmp =
     { match_all with dlTyp = Some 0x800; nwProto = Some 1}
 
-
   let switch_connected (sw : switchId) : unit =
     Printf.printf "Switch %Ld connected.\n%!" sw;
     periodic_stats_request sw 5.0 10l match_http_request;

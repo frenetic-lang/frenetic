@@ -1,5 +1,3 @@
-include "Sol_Chapter8_FirewallModule.nc"
-
 let routing =
   if dlDst = ff:ff:ff:ff:ff:ff then
     all    
@@ -26,5 +24,3 @@ let routing =
       fwd(3)
   else
     drop
-
-firewall; routing

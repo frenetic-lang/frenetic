@@ -13,7 +13,6 @@ The following NetCore program does all of the above:
 
 ```
 if tcpSrcPort = 80 || tcpDstPort = 80 then monitorLoad(5, "HTTP traffic")
-
 ```
 
 However, unlike the Ox controller, which flooded all traffic, this NetCore program doesn't forward any traffic it all. Instead, you can compose it
@@ -23,74 +22,129 @@ NetCore's _parallel composition_ operator.
 ## Parallel Composition
 
 When you monitor the network, you do so *in parallel* with the routing policy. Intuitively, you want to send packets to two places: the
-controller, for inspection, and wherever they may be destined in the network.
-
-To support this idiom, you need new kind of operator on policies:
+controller, for inspection, and wherever they may be destined in the network. To support this idiom, you need new kind of operator on policies:
 *parallel composition*, written `P1 + P2`. Intuitively, when applied to
 a packet `pk`, the parallel composition creates two copies of `pk` and
-applies `P1` to the first and `P2` to the second. 
-
-Overall, it generates the *union* of the results from
+applies `P1` to the first and `P2` to the second.  Overall, it generates the *union* of the results from
 <code>P1</code> and <code>P2</code>.  Hence, if <code>P1</code> forwards to A and <code>P1</code> forwards to B then <code>P1 + P2</code> makes a copy of the input packet and forwards to both A and B.
 
-> TODO(arjun): continue below. Do an exercise on monitoring HTTP + routing
+### Exercise: Modular Web Monitoring
 
+Cloud service providers will typically bill their clients in accordance to the resources they use.  Your task in this exercise is to set up monitoring infrastructure for the network developed in Chapter 8.  To do so, switch to the Chapter 9 directory.
+```
+cd Chapter9
+```
+Proceed as follows:
 
+- First, inside `Monitoring.nc`, create infrastructure for monitoring the web traffic sent by `h2`. More specifically, create a different string label for each of the other hosts ("H2->H1", "H2->H3", "H2->H4") and use `monitorLoad` to record the HTTP packets send from `h2` to each of the other hosts separately.
+- Second, modify the template `Main.nc` to compose your monitoring policy with the firewall and router defined in Chapter 8
 
+When you are done, testing your monitor.
 
+- Start mininet and launch an `xterm` on host `h2`:
+```
+$ sudo mn --controller=remote --topo=tree,2,2 --mac --arp
+mininet> xterm h2
+```
+- Set up a fortune server on host `h2` :
+```
+$ while true; do fortune | nc -l 80; done 
+```
+- Fetch fortunes from the other hosts.  For example:
+```
+mininet> h1 curl 10.0.0.2:80
+```
 
-With this in mind, let's modify the port mapper to inspect the packets both
-before and after the rewriting.  We can leave the mapper component unchanged
-and add monitoring to the forwarder.
+During your experiments, you should should see the load between `h1` and `h2` escalate.  Your firewall should block requests from `h3` and `h4` to `h2` so you should never see the load from `h2` to `h3` or `h4` escalate.
+
+## Monitoring Packets
+
+When debugging complex policies, it can be useful to peer in to the
+middle of the network.  If you need this kind of "printf"-style debugging support when implementing a policy, you may use 
+the <code>monitorPackets(label)</code> policy, which sends every input packet it
+receives to the controller as opposed to forwarding it along a network data
+path (like the <code>fwd(port)</code> policy does).  At the controller, the
+packet is printed with the string <code>label</code> as a prefix and then
+discarded.
+
+## Under the Hood
+
+Sequential and parallel composition make it easier to write SDN controller
+programs, but it all gets compiled to OpenFlow rules in the end.  To get a feel
+for how the compiler works, let's take another look at a NetCore version of the
+efficient firewall from the [OxFirewall](03-OxFirewall.md) chapter, altering it
+slightly to block SSH rather than ICMP traffic:
 
 ```
-...
-let before = if inPort = 1 then monitorPackets("BEFORE")
-let after = if inPort = 1 then monitorPackets("AFTER")
-
-let forwarder =
-  (before + mapper); (all + after)
+let firewall = if !(tcpDstPort = 22) then all in
+monitorTable(1, firewall)
 ```
 
-Above, we used a 
-<code>if</code>-<code>then</code> statement (no else) to limit the packets
-that reach the monitoring policy to only those packets satisfying
-the <code>inPort = 1</code> predicate.  Otherwise, the monitor policy
-prints *all* packets that reach it.  Note that if there is no <code>else</code>
-branch in a conditional, packets not matching the conditional are dropped
-(i.e., in this second case, the conditional produces the empty set of result
-packets).
+We added a table query to show the flow table that NetCore produces for the
+firewall.  Now, fire up the firewall
+([Ox_Firewall.nc](netcore-tutorial-code/Ox_Firewall.nc)).  You should see the
+following output:
 
-This new policy can be found in <code>Port_Map_Monitor1.nc</code>.
-Test it as above using iperf, but this time watch the output in the 
-controller window.  You should see lines similar to the following being printed:
 ```
-[BEFORE] packet dlSrc=4a:f7:98:81:78:0d,dlDst=d6:7c:1e:d6:e3:0b,nwSrc=10.0.0.1,nwDst=10.0.0.2,tpSrc=52923;tpDst=5022 on switch 1 port 1
-[AFTER] packet dlSrc=4a:f7:98:81:78:0d,dlDst=d6:7c:1e:d6:e3:0b,nwSrc=10.0.0.1,nwDst=10.0.0.2,tpSrc=52923;tpDst=22 on switch 1 port 1
+$ frenetic netcore-tutorial-code/Ox_Firewall.nc
+Flow table at switch 1 is:
+ {dlTyp = ip, nwProto = tcp, tpDst = 22} => []
+ {*} => [Output AllPorts]
+ {*} => [Output AllPorts]
 ```
-You will notice <code>tpDst=5022</code> in lines marked
-<code>BEFORE</code> and <code>tpDst=22</code> in lines marked 
-<code>AFTER</code>.
 
-Monitoring Load
----------------
+As you can see from the latter two rules, NetCore is less efficient 
+(in terms of switch rule space used) than a
+human programmer.  (But not for long, we hope!)  Nevertheless, this should look
+very similar to the flow table you programmed.
 
-Another useful query measures the load at different places in the network.  The
-<code>monitorLoad(n, label)</code> policy prints the number of packets and
-bytes it receives every <code>n</code> seconds.  Each output line from this
-query is prefixed by the
-string <code>label</code>, and we can restrict the packets monitored by
-<code>monitorLoad</code> using <code>if</code>-<code>then</code> clauses.
-Note that the implementation 
-of <code>monitorLoad</code> is far more efficient 
-than <code>monitorPackets</code> as the former does not send packets 
-to the controller.
-
-<code>Port_Map_Monitor2.nc</code> contains a variation of the port mapper 
-that monitors load instead of packets.  You can test it by
-issuing a longer iperf request 
-(adjust the timing parameter <code>-t seconds</code>).  Watch the load 
-printed in the controller terminal.
-The following command runs iperf for <code>20</code> seconds.
+Now, let's add a query to monitor traffic for <code>h1</code>:
 ```
-mininet> h1 iperf -c 10.0.0.2 -p 5022 -t 20
+let firewall = if !(tcpDstPort = 22) then all in
+let monitor = if srcIP = 10.0.0.1 then monitorLoad(10, "From H1") in
+monitorTable(1, firewall + monitor)
+```
+
+The flow table should look something like this:
+```
+$ frenetic netcore-tutorial-code/Ox_Firewall_Monitor.nc
+Flow table at switch 1 is:
+ {dlTyp = ip, nwSrc = 10.0.0.1, nwProto = tcp, tpDst = 22} => []
+ {dlTyp = ip, nwProto = tcp, tpDst = 22} => []
+ {dlTyp = ip, nwSrc = 10.0.0.1} => [Output AllPorts]
+ {*} => [Output AllPorts]
+```
+
+Let's break it down, rule by rule:
+* **Rule 1**: drop SSH traffic from <code>h1</code>.
+* **Rule 2**: drop SSH traffic.
+* **Rule 3**: forward traffic from <code>h1</code>.
+* **Rule 4**: forward all other traffic.
+
+Why so many rules?  OpenFlow switches can only count packets as they match a
+rule.  Rule 1, for example, is necessary to precisely count traffic from <code>h1</code>.
+Without it, our query would miss any SSH traffic sent from <code>h1</code>, as it would be
+lumped in with all the other SSH traffic dropped by rule 2.
+
+In general, NetCore creates a flow table for two policies joined by parallel
+composition (<code>P1 + P2</code>) by creating flow tables for <code>P1</code>
+and <code>P2</code>, and taking the Cartesian product of these tables, and then
+concatenating the original tables.  The result looks like this:
+
+![Parallel composition.][parallel_composition]
+
+Section **A** in the flow table is the Cartesian product.  Packets that match
+both <code>P1</code> and <code>P2</code> are matched here.  Because **A** is
+given a higher priority, any packets that reach **B** or **C** may match
+<code>P1</code> *or* <code>P2</code>, but not both.
+
+As an aside, NetCore policies are total functions: they always process every
+packet, even if that "processing" is simply to drop it.  Hence, NetCore adds a
+final, catch-all rule to the flow table to drop packets that are not matched
+higher up.
+
+
+
+## Next chapter: [Tutorial Wrap-up][Ch10]
+
+[Ch10]: 10-WrapUp.md

@@ -5,9 +5,6 @@ module MyApplication = struct
 
   include OxStart.DefaultTutorialHandlers
 
-  let switch_connected (sw : switchId) : unit =
-    Printf.printf "Switch %Ld connected.\n%!" sw
-
   (* [FILL]: Match ICMP packets *)
   let is_icmp_packet (pk : Packet.packet) =
     Packet.dlTyp pk <> Packet.dlTyp pk (* i.e., false *)
