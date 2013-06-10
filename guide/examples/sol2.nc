@@ -27,7 +27,7 @@ let routing_for_104 =
     end
 
 let sol2 =
-  if frameType = arp then 
+  if dlTyp = arp then 
     all 
   else 
     begin 
