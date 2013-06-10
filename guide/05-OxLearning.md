@@ -19,7 +19,7 @@ called a learning switch, and it has come to replace hubs in modern networks.
 
 A learning switch has two logically distinct components:
 
-- The *learning module* builds a table that maps hosts (mac addresses)
+- The *learning module* builds a table that maps hosts (MAC addresses)
   to the switch port on which they are connected. The learning module
   builds this table by inspecting the source ethernet address and inport
   of every packet at the switch.
@@ -49,10 +49,11 @@ You can use `Hashtbl.add` to add a new host/port mapping:
 Hashtbl.add known_hosts <pkt_src> <pkt_in_port>
 ```
 
-* Modify the `learning_packet_in` function in [Learning.ml](ox-tutorial-code/Learning.ml)
-to extract the ethernet source address and input port from incoming packets; and
-* fix `packet_in` to extract the ethernet destination address; and
-* update `packet_in` to invoke `learning_packet_in` and then `routing_packet_in`.
+With this in hand, modify the `learning_packet_in` function in                                                                                                                                                                              
+[Learning.ml](ox-tutorial-code/Learning.ml) to extract the ethernet source                                                                                                                                                                  
+address and input port from incoming packets, storing them in the hash table.                                                                                                                                                               
+Then, fix `packet_in` to extract the ethernet destination address, and                                                                                                                                                                      
+update `packet_in` to invoke `learning_packet_in` and then `routing_packet_in`.
 
 #### Compiling and Testing your Learning Switch
 
@@ -106,7 +107,7 @@ from `h2` to `h3`.  No traffic should reach `h1`:
     listening on h1-eth0, link-type EN10MB (Ethernet), capture size 65535 bytes
     ```
 
-  * In the terminal for `h1`, start a local fortune server:
+  * In the terminal for `h2`, start a local fortune server:
   
     ```
     # while true; do fortune | nc -l 80; done
@@ -124,13 +125,13 @@ from `h2` to `h3`.  No traffic should reach `h1`:
     as well as `h2`.
 
     > Note that this will fail if you have not already used `ping` to learn the
-    > locations of `h2` and `h3`.
+    > locations of `h2` and `h3` before starting `tcpdump`.  Can you see why?
 
 ### An Efficient Learning Switch
 
 Sending traffic directly to its destination is a clear improvement over simply
 flooding, but we can do better. Just as in each previous chapter, we would like
-to install rules to keep forwarding on the switch. But this time we cannot be
+to install rules to keep forwarding on the switch. But this time, we cannot be
 entirely proactive.  Imagine, for a moment, that we intend our controller to
 work seamlessly with any number of hosts with arbitrary MAC addresses, rather
 than the prescribed topology we have tested with so far.  In this case, we must
