@@ -49,16 +49,12 @@ You can use `Hashtbl.add` to add a new host/port mapping:
 Hashtbl.add known_hosts <pkt_src> <pkt_in_port>
 ```
 
-With this in hand, modify the `learning_packet_in` function in                                                                                                                                                                              
-[Learning.ml](ox-tutorial-code/Learning.ml) to extract the ethernet source                                                                                                                                                                  
-address and input port from incoming packets, storing them in the hash table.                                                                                                                                                               
-Then, fix `packet_in` to extract the ethernet destination address, and                                                                                                                                                                      
-update `packet_in` to invoke `learning_packet_in` and then `routing_packet_in`.
+With this in hand, modify the `learning_packet_in` function in [Learning.ml](ox-tutorial-code/Learning.ml) to extract the ethernet source address and input port from incoming packets, storing them in the hash table.  Then, fix `packet_in` to extract the ethernet destination address, and update `packet_in` to invoke `learning_packet_in` and then `routing_packet_in`.
 
 #### Compiling and Testing your Learning Switch
 
 You should first test that your learning switch preserves connectivity by
-sending ICMP messages between each host pair.  Next, use `tcpdump` to ensure
+sending ICMP messages between each host pair.  Then, use `tcpdump` to ensure
 that your learning switch stops flooding once it learns the locations of two
 hosts.
 
