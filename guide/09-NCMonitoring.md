@@ -28,16 +28,17 @@ a packet `pk`, the parallel composition creates two copies of `pk` and
 applies `P1` to the first and `P2` to the second.  Overall, it generates the *union* of the results from
 <code>P1</code> and <code>P2</code>.  Hence, if <code>P1</code> forwards to A and <code>P1</code> forwards to B then <code>P1 + P2</code> makes a copy of the input packet and forwards to both A and B.
 
-### Exercise: Modular Web Monitoring
+### Exercise:Web Monitoring
 
 Cloud service providers will typically bill their clients in accordance to the resources they use.  Your task in this exercise is to set up monitoring infrastructure for the network developed in Chapter 8.  To do so, switch to the Chapter 9 directory.
 ```
-cd Chapter9
+$ cd Chapter9
 ```
 Proceed as follows:
 
-- First, inside `Monitoring.nc`, create infrastructure for monitoring the web traffic sent by `h2`. More specifically, create a different string label for each of the other hosts ("H2->H1", "H2->H3", "H2->H4") and use `monitorLoad` to record the HTTP packets send from `h2` to each of the other hosts separately.
-- Second, modify the template `Main.nc` to compose your monitoring policy with the firewall and router defined in Chapter 8
+- Open up `Main.nc`.  There we have included `Sol_Firewall.nc` from Chapter 8 and copied in the routing solution we defined (you can replace our router with yours if you like).  
+- Fill in the definition of `monitoring` to create infrastructure for monitoring the web traffic sent by `h2`. More specifically, create a different string label for each of the other hosts ("H2->H1", "H2->H3", "H2->H4") and use `monitorLoad` to print the number of HTTP packets sent from `h2` to each of the other hosts separately.
+- Fill in the definition of `app` to compose your monitoring policy with `firewall` and `routing` definitions.
 
 When you are done, testing your monitor.
 
