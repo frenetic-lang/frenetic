@@ -14,7 +14,11 @@ The figure labels hosts, switches, and port numbers. You can create this topolog
 ```
 $ sudo mn --controller=remote --topo=tree,2,2 --mac --arp
 ```
-> `tree,2,2` creates a topology of height 2 and fanout 2
+> `tree,2,2` creates a topology of height 2 and fanout 2.
+> 
+> `--arp` populates host arp table so we don't have to
+> worry about broadcasting arp packets
+
 
 
 ### Exercise 1: Routing

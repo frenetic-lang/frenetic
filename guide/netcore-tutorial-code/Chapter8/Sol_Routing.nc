@@ -1,7 +1,5 @@
 let routing =
-  if dlDst = ff:ff:ff:ff:ff:ff then
-    all    
-  else if switch = 1 then
+  if switch = 1 then
     if inPort = 1 then
       fwd(2)
     else if inPort = 2 then
@@ -24,3 +22,5 @@ let routing =
       fwd(3)
   else
     drop
+
+routing
