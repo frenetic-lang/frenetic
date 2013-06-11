@@ -12,7 +12,7 @@ You will work with the following tree topology:
 The figure labels hosts, switches, and port numbers. You can create this topology easily with Mininet:
 
 ```
-$ sudo mn --controller=remote --topo=tree,2,2 --mac
+$ sudo mn --controller=remote --topo=tree,2,2 --mac --arp
 ```
 > `tree,2,2` creates a topology of height 2 and fanout 2
 
