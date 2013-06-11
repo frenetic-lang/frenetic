@@ -45,18 +45,8 @@ end
 module Query (Platform : PLATFORM) = struct
 
   module Flow = struct
-    type t = (switchId * Match.t * int)
+    type t = (switchId * Match.t)
     let compare = compare
-(*
-    let compare (s1, m1, p1) (s2, m2, p2) =
-      let s_comp = Int64.compare s1 s2 in
-      let p_comp = compare p1 p2 in
-      let m_comp = Match.compare m1 m2 in
-      try
-        List.find (fun c -> c <> 0) [s_comp; p_comp; m_comp]
-      with
-        Not_found -> 0
-*)
   end
 
   module FlowSet = Set.Make (Flow)
@@ -94,9 +84,8 @@ module Query (Platform : PLATFORM) = struct
 
   let set_fields tbl pol atom sw =
     let qfields = NetCore_Compiler.query_fields_of_policy pol atom sw in
-    let pri = ref 65535 in
     List.iter 
-      (fun match_ -> tbl := FlowSet.add (sw, match_, !pri) !tbl; decr pri)
+      (fun match_ -> tbl := FlowSet.add (sw, match_) !tbl)
       qfields
 
   let kill q = 
@@ -180,7 +169,7 @@ module Query (Platform : PLATFORM) = struct
       "NetCore_Controller.Query" "handle reply (%s) (%Ld)\n    (%s)\n%!"
       (to_string q) sw (Stats.IndividualFlowStats.to_string rep) in *)
     let open Stats in
-    if FlowSet.mem (sw, rep.of_match, rep.priority) !(q.counter_ids) then begin
+    if FlowSet.mem (sw, rep.of_match) !(q.counter_ids) then begin
       q.this_packet_count := Int64.add rep.packet_count !(q.this_packet_count);
       q.this_byte_count := Int64.add rep.byte_count !(q.this_byte_count);
       end
