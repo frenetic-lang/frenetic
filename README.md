@@ -1,7 +1,7 @@
 Frenetic
 ========
 
-The [**Frenetic Tutorial**](/frenetic-lang/frenetic/wiki/Frenetic-Tutorial) is now available.
+The [**Frenetic Tutorial**](https://github.com/frenetic-lang/frenetic/wiki/Frenetic-Tutorial) is now available.
 
 Building from Source
 --------------------
