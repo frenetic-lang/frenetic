@@ -37,10 +37,10 @@ debug: $(addsuffix .d.byte, $(APPLICATIONS))
 	$(OCAMLBUILD) -I Applications $@
 
 %.d.cma:
-	$(OCAMLBUILD) -I applications -no-links -cflag -ppopt -cflag -lwt-debug $@
+	$(OCAMLBUILD) -no-links -cflag -ppopt -cflag -lwt-debug $@
 
 %.a %.cmxa %.cma:
-	$(OCAMLBUILD) -I Applications -no-links $@
+	$(OCAMLBUILD) -no-links $@
 
 
 $(LIBRARIES):
