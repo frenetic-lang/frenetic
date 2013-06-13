@@ -1,9 +1,7 @@
 Frenetic
 ========
 
-The [**Frenetic Tutorial**](guide/01-Introduction.md) is now available.
-Download the Frenetic Virtual Machine from the _Getting Started_ section.
-
+The [**Frenetic Tutorial**](https://github.com/frenetic-lang/frenetic/wiki/Frenetic-Tutorial) is now available.
 
 Building from Source
 --------------------
