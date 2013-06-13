@@ -95,6 +95,7 @@ and token = parse
   | "monitorTable" { MONITOR_TBL }
   | "monitorLoad" { MONITOR_LOAD }
   | "monitorPackets" { MONITOR_PKTS }
+  | "fw" { FW }
   | ";" { SEMI }
   | "|" { BAR }
   | "+" { PLUS }

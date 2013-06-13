@@ -38,7 +38,10 @@
    (if not (Hashtbl.mem nat_hash ip) then 
        Hashtbl.add nat_hash ip (NetCore_NAT.make ip));
    Hashtbl.find nat_hash ip
-  
+ 
+ let mk_fw sw inside outside =
+   NetCore_StatefulFirewall.make sw inside outside
+ 
 %}
 
 %token LPAREN
@@ -98,6 +101,7 @@
 %token RARROW
 %token FILTER
 %token INCLUDE
+%token FW
 
 %start program
 
@@ -211,6 +215,10 @@ pol_atom :
     { Action (symbol_start_pos (), NetCore_Monitoring.monitor_packets $3) }
   | LCURLY pred RCURLY pol LCURLY pred RCURLY
     { Slice (symbol_start_pos (), $2, $4, $6) }
+  | FW LPAREN INT64 COMMA INT64 COMMA INT64 RPAREN
+    { let (lwt_e, pol) = mk_fw $3 (int_of_int64 $5) (int_of_int64 $7) in
+      Value (PolStream (lwt_e, pol))
+    }
 
 pol_pred_double :  
   | pol_atom
@@ -258,7 +266,6 @@ pol :
              [($2, Value (PolStream (lwt_e, priv)));
               ($4, Value (PolStream (Lwt.return (), pub)))],
              $13) }
-
 
 program :
  | pol EOF 
