@@ -10,4 +10,4 @@ _build
 *.cma
 *.pyo
 *.pyc
-ocaml/extracted
+.DS_Store
