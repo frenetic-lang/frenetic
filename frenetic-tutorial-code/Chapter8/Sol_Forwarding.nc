@@ -1,4 +1,4 @@
-let routing =
+let forwarding =
   if switch = 1 then
     if inPort = 1 then
       fwd(2)
@@ -23,4 +23,4 @@ let routing =
   else
     drop
 
-routing
+forwarding

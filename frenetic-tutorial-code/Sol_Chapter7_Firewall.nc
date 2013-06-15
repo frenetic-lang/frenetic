@@ -1,5 +1,5 @@
-(* Copied from Sol_Chapter7_Routing.nc. *)
-let routing =
+(* Copied from Sol_Chapter7_Forwarding.nc. *)
+let forwarding =
   if dlDst=00:00:00:00:00:01 then
      fwd(1)
   else if dlDst=00:00:00:00:00:02 then
@@ -12,7 +12,7 @@ let routing =
     drop
 
 (* This is a very naive way to write this firewall. *)
-let firewall_or_route =
+let firewall_or_forward =
   if (tcpDstPort = 80 &&
       ((dlSrc = 00:00:00:00:00:01 && dlDst = 00:00:00:00:00:01) ||
        (dlSrc = 00:00:00:00:00:01 && dlDst = 00:00:00:00:00:02) ||
@@ -46,8 +46,8 @@ let firewall_or_route =
       (dlDst = 00:00:00:00:00:04 && dlSrc = 00:00:00:00:00:01) ||
       (dlDst = 00:00:00:00:00:04 && dlSrc = 00:00:00:00:00:02)))
   then
-    routing
+    forwarding
   else
     drop
 
-monitorTable(1, firewall_or_route)
+monitorTable(1, firewall_or_forward)

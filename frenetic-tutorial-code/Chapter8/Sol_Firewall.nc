@@ -1,4 +1,4 @@
-(* Copied from Sol_Chapter7_Firewall.nc, then s/routing/pass/g *)
+(* Copied from Sol_Chapter7_Firewall.nc, then s/forwarding/pass/g *)
 let firewall = 
   if dlTyp=0x806 ||
      (dlSrc = 00:00:00:00:00:01 && dlDst = 00:00:00:00:00:01 &&

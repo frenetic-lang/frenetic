@@ -17,7 +17,7 @@
    mininet> h1 ping -c 1 h3
 *)
 
-(* Destination-based IP routing for switches s1, s2 and s3 *)
+(* Destination-based IP forwarding for switches s1, s2 and s3 *)
 let s1 = drop
 
 let s2 = drop

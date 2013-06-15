@@ -2,8 +2,8 @@
 
 include "../Chapter8/Sol_Firewall.nc"
 
-(* A Routing solution to Chapter 8 -- use your own if you wish *)
-let routing =
+(* A forwarding solution to Chapter 8 -- use your own if you wish *)
+let forwarding =
   if switch = 1 then
     if inPort = 1 then fwd(2)
     else if inPort = 2 then fwd(1)
@@ -22,7 +22,7 @@ let routing =
 (* Implement a monitor for the web traffic h2 sends to each other host *)
 let monitoring = drop
 
-(* define app by composing the definitions: firewall, routing, monitoring *)  
+(* define app by composing the definitions: firewall, forwarding, monitoring *)  
 let app = drop
 
 monitorTable(2, app)

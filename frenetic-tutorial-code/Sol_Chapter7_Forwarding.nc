@@ -1,4 +1,4 @@
-let routing =
+let forwarding =
   if dlDst=00:00:00:00:00:01 then
     fwd(1)
   else if dlDst=00:00:00:00:00:02 then
@@ -10,4 +10,4 @@ let routing =
   else
     drop
     
-monitorTable(1, routing)
+monitorTable(1, forwarding)

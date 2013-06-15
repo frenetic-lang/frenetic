@@ -1,6 +1,6 @@
 include "../Chapter8/Sol_Firewall.nc"
 
-let routing =
+let forwarding =
   if switch = 1 then
     if inPort = 1 then fwd(2)
     else if inPort = 2 then fwd(1)
@@ -27,6 +27,6 @@ let monitoring =
     else
       drop
 
-let app = (firewall; routing) + monitoring
+let app = (firewall; forwarding) + monitoring
 
 monitorTable(2, app)

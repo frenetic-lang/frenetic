@@ -1,4 +1,4 @@
-let routing =
+let forwarding =
   if dlDst=00:00:00:00:00:01 then
      fwd(1)
   (* [FILL] Replace "if false then drop" with route to hosts 2, 3, and 4. *)
@@ -7,5 +7,5 @@ let routing =
   else
     drop
     
-monitorTable(1, routing)
+monitorTable(1, forwarding)
 
