@@ -48,6 +48,6 @@ starting with the Ox tutorial before progressing to the Frenetic tutorial.
 The Frenetic language is primarily documented in the [Frenetic
 Manual](https://github.com/frenetic-lang/frenetic/wiki/A-NCManual).
 The [API
-documentation](http://htmlpreview.github.io/?https://github.com/frenetic-lang/frenetic/blob/master/doc/index.html)
+documentation](http://frenetic-lang.github.io/frenetic/docs/index.html)
 is also available online.
 
