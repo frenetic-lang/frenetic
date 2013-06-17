@@ -46,7 +46,7 @@ For readers unfamiliar with programming software defined networks, we recommend
 starting with the Ox tutorial before progressing to the Frenetic tutorial.
 
 The Frenetic language is primarily documented in the [Frenetic
-Manual](https://github.com/frenetic-lang/frenetic/blob/master/guide/A-NCManual.md).
+Manual](https://github.com/frenetic-lang/frenetic/wiki/A-NCManual).
 The [API
 documentation](http://htmlpreview.github.io/?https://github.com/frenetic-lang/frenetic/blob/master/doc/index.html)
 is also available online.
