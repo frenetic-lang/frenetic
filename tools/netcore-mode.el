@@ -62,7 +62,7 @@ For detail, see `comment-dwim'."
     ("monitorTable" . 'font-lock-function-name-face)
     ("monitorLoad" . 'font-lock-function-name-face)
     ("monitorPackets" . 'font-lock-function-name-face)
-    ("\(0x\)?[:xdigit:]+" . 'font-lock-constant-face)
+    ("0x[a-fA-F0-9]+" . 'font-lock-constant-face)
     ("\\([a-fA-F0-9][a-fA-F0-9]:\\)\\{5\\}[a-fA-F0-9][a-fA-F0-9]" . 'font-lock-constant-face)
     ("\\([0-9]\\{1,3\\}\\.\\)\\{1,3\\}[0-9]\\{1,3\\}" .
      'font-lock-constant-face)
