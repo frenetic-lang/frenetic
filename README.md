@@ -38,8 +38,8 @@ Documentation
 
 We have developed several guides for getting up to speed on programming OpenFlow networks in general and using Frenetic in particular.  See the [Frenetic Tutorial](https://github.com/frenetic-lang/frenetic/wiki/Frenetic-Tutorial) launch page for more details.
 
-The Frenetic language is primarily documented in the [Frenetic
-Manual](https://github.com/frenetic-lang/frenetic/wiki/A-NCManual).
+While the Frenetic language is primarily documented in the tutorial, the [Frenetic
+Manual](https://github.com/frenetic-lang/frenetic/wiki/A-NCManual) provides a lightweight reference for the Frenetic DSL.
 The [API
 documentation](http://frenetic-lang.github.io/frenetic/docs/index.html)
 is also available online.
