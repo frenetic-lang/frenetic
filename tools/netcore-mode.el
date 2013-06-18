@@ -64,6 +64,7 @@ For detail, see `comment-dwim'."
     ("monitorPackets" . 'font-lock-function-name-face)
     ("0x[a-fA-F0-9]+" . 'font-lock-constant-face)
     ("\\([a-fA-F0-9][a-fA-F0-9]:\\)\\{5\\}[a-fA-F0-9][a-fA-F0-9]" . 'font-lock-constant-face)
+    ("\\(:\\)\\{2\\}[a-fA-F0-9][a-fA-F0-9]?" . 'font-lock-constant-face)
     ("\\([0-9]\\{1,3\\}\\.\\)\\{1,3\\}[0-9]\\{1,3\\}" .
      'font-lock-constant-face)
     ("\\b[0-9]+\\b" . 'font-lock-constant-face)
