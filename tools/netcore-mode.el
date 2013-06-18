@@ -44,6 +44,7 @@ For detail, see `comment-dwim'."
     ("dlTyp" . 'font-lock-function-name-face)
     ("srcIP " . 'font-lock-function-name-face)
     ("dstIP " . 'font-lock-function-name-face)
+    ("nwProto" . 'font-lock-function-name-face)
     ("tcpSrcPort" . 'font-lock-function-name-face)
     ("tcpDstPort" . 'font-lock-function-name-face)
     ("frameType" . 'font-lock-function-name-face)
