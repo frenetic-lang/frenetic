@@ -10,7 +10,7 @@ module MyApplication = struct
     nwProto = Some 1
   }
 
-  let switch_connected (sw : switchId) : unit =
+  let switch_connected (sw : switchId) _ : unit =
     Printf.printf "Switch %Ld connected.\n%!" sw;
     send_flow_mod sw 0l (add_flow 200 match_icmp []);
     send_flow_mod sw 0l (add_flow 100 match_all [Output AllPorts])

@@ -35,7 +35,7 @@ module MyApplication = struct
        })
 
 
-  let switch_connected (sw : switchId) : unit =
+  let switch_connected (sw : switchId) _ : unit =
     Printf.printf "Switch %Ld connected.\n%!" sw
 
   (* [FILL] Modify this packet_in function to run both

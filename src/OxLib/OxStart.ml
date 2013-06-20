@@ -5,7 +5,7 @@ open OpenFlow0x01
 open OxShared
 
 module type OXMODULE = sig
-  val switch_connected : switchId -> unit
+  val switch_connected : switchId -> OpenFlow0x01.SwitchFeatures.t -> unit
   val switch_disconnected : switchId -> unit
   val packet_in : switchId -> xid -> PacketIn.t -> unit
   val barrier_reply : switchId -> xid -> unit
@@ -18,7 +18,7 @@ module DefaultTutorialHandlers = struct
 
   let switch_disconnected (sw : switchId) : unit = ()
 
-  let switch_connected (sw : switchId) : unit = ()
+  let switch_connected (sw : switchId) (feats : SwitchFeatures.t) : unit = ()
 
   let barrier_reply _ _ = ()
 
@@ -83,7 +83,7 @@ module Make (Handlers:OXMODULE) = struct
     lwt _ = Platform.send_to_switch sw 0l (FlowModMsg delete_all_flows) in
     lwt _ = Platform.send_to_switch sw 1l BarrierRequest in
     (* JNF: wait for barrier reply? *)
-    let _ = Handlers.switch_connected sw in 
+    let _ = Handlers.switch_connected sw feats in 
     Lwt.async (fun () -> switch_thread sw);
     accept_switches ()
 

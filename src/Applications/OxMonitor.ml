@@ -13,7 +13,7 @@ module MyApplication : OXMODULE = struct
         send_stats_request sw 0l
           (Stats.AggregateRequest (match_all, 0xff, None)))
 
-  let switch_connected sw = 
+  let switch_connected sw feats = 
     let fm = {
       command = AddFlow;
       pattern = match_all;

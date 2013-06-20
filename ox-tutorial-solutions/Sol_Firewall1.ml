@@ -5,7 +5,7 @@ module MyApplication = struct
 
   include OxStart.DefaultTutorialHandlers
 
-  let switch_connected (sw : switchId) : unit =
+  let switch_connected (sw : switchId) _ : unit =
     Printf.printf "Switch %Ld connected.\n%!" sw
       
   let is_icmp_packet (pk : Packet.packet) =

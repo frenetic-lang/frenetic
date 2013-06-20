@@ -9,7 +9,7 @@ module MyApplication : OXMODULE = struct
 
   let table = ref []
 
-  let switch_connected sw =
+  let switch_connected sw feats =
     table := (sw,Hashtbl.create 11)::!table
 
   let switch_disconnected sw =
