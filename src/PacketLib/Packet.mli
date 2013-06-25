@@ -272,6 +272,9 @@ val mac_of_bytes : string -> int48
 (** [parse bits] parses a bit sequence into a packet. *)
 val parse : Cstruct.t -> packet
 
+(** [len pkt] length of packet in bytes. *)
+val len : packet -> int
+
 (** [marshal pkt] marshals [pkt] into a bit sequence. *)
 val marshal : packet -> Cstruct.t
 
