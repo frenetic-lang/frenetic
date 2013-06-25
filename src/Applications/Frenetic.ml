@@ -1,6 +1,5 @@
 module Controller = NetCore_Controller.Make(OpenFlow0x01_Platform)
 
-
 type modeType =
   | ControllerMode (* start as a controller *)
   | ParserMode (* only parse (for testing) *)

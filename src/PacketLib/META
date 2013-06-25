@@ -1,3 +1,0 @@
-requires = "lwt lwt.unix cstruct FreneticLib"
-archive(byte) = "PacketLib.d.cma"
-archive(native) = "PacketLib.cmxa PacketLib.a"

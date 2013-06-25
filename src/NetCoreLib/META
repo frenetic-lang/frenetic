@@ -1,3 +1,0 @@
-requires = "lwt lwt.unix cstruct PacketLib OpenFlowLib"
-archive(byte) = "NetCoreLib.d.cma"
-archive(native) = "NetCoreLib.cmxa NetCoreLib.a"
