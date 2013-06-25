@@ -1,0 +1,12 @@
+# OASIS_START
+# DO NOT EDIT (digest: fda28f9222c070b09ec33879f2ae75a7)
+version = "1.0"
+description = "Frenetic Network Programming Language"
+requires = "lwt lwt.unix cstruct lwt.syntax"
+archive(byte) = "FreneticLib.cma"
+archive(byte, plugin) = "FreneticLib.cma"
+archive(native) = "FreneticLib.cmxa"
+archive(native, plugin) = "FreneticLib.cmxs"
+exists_if = "FreneticLib.cma"
+# OASIS_STOP
+

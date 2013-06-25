@@ -1,0 +1,20 @@
+# OASIS_START
+# DO NOT EDIT (digest: 5ba9b5998640923918df1027d3bd4a7e)
+OpenFlowLib/OpenFlow0x01
+OpenFlowLib/OpenFlow0x01_Core
+OpenFlowLib/OpenFlow0x01_Stats
+OpenFlowLib/OpenFlow0x01_PlatformSig
+OpenFlowLib/OpenFlow0x01_Platform
+OpenFlowLib/OpenFlow0x01_TestPlatform
+PacketLib/Packet
+NetCoreLib/NetCore_Controller
+NetCoreLib/NetCore_ConsistentUpdates
+NetCoreLib/NetCore_Pretty
+NetCoreLib/NetCore_MacLearning
+NetCoreLib/NetCore_NAT
+NetCoreLib/NetCore_Semantics
+NetCoreLib/NetCore_Stream
+NetCoreLib/NetCore_StatefulFirewall
+NetCoreLib/NetCore_Topo
+NetCoreLib/NetCore_Types
+# OASIS_STOP

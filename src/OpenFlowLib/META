@@ -1,0 +1,13 @@
+# OASIS_START
+# DO NOT EDIT (digest: 3cb3079eb2e86a123f6f89368296422a)
+version = "1.0"
+description = "Frenetic Network Programming Language"
+requires =
+"lwt lwt.unix cstruct cstruct.syntax lwt.syntax FreneticLib PacketLib"
+archive(byte) = "OpenFlowLib.cma"
+archive(byte, plugin) = "OpenFlowLib.cma"
+archive(native) = "OpenFlowLib.cmxa"
+archive(native, plugin) = "OpenFlowLib.cmxs"
+exists_if = "OpenFlowLib.cma"
+# OASIS_STOP
+

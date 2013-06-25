@@ -1,0 +1,12 @@
+# OASIS_START
+# DO NOT EDIT (digest: fb064f2d234d48eec2b39af84eae7ca5)
+version = "1.0"
+description = "Frenetic Network Programming Language"
+requires = "lwt lwt.syntax cstruct PacketLib OpenFlowLib"
+archive(byte) = "OxLib.cma"
+archive(byte, plugin) = "OxLib.cma"
+archive(native) = "OxLib.cmxa"
+archive(native, plugin) = "OxLib.cmxs"
+exists_if = "OxLib.cma"
+# OASIS_STOP
+

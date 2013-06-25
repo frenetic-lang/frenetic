@@ -1,1 +1,139 @@
-<**/*.ml> : syntax_camlp4o
+# OASIS_START
+# DO NOT EDIT (digest: 0a58c9b3f55e7a9bb8af104511d91aeb)
+# Ignore VCS directories, you can use the same kind of rule outside 
+# OASIS_START/STOP if you want to exclude directories that contains 
+# useless stuff for the build process
+<**/.svn>: -traverse
+<**/.svn>: not_hygienic
+".bzr": -traverse
+".bzr": not_hygienic
+".hg": -traverse
+".hg": not_hygienic
+".git": -traverse
+".git": not_hygienic
+"_darcs": -traverse
+"_darcs": not_hygienic
+# Library FreneticLib
+"FreneticLib/FreneticLib.cmxs": use_FreneticLib
+<FreneticLib/*.ml{,i}>: pkg_lwt
+<FreneticLib/*.ml{,i}>: pkg_lwt.syntax
+<FreneticLib/*.ml{,i}>: pkg_lwt.unix
+<FreneticLib/*.ml{,i}>: pkg_cstruct
+# Library PacketLib
+"PacketLib/PacketLib.cmxs": use_PacketLib
+<PacketLib/*.ml{,i}>: use_FreneticLib
+<PacketLib/*.ml{,i}>: pkg_lwt
+<PacketLib/*.ml{,i}>: pkg_lwt.syntax
+<PacketLib/*.ml{,i}>: pkg_lwt.unix
+<PacketLib/*.ml{,i}>: pkg_cstruct
+<PacketLib/*.ml{,i}>: pkg_cstruct.syntax
+# Library OpenFlowLib
+"OpenFlowLib/OpenFlowLib.cmxs": use_OpenFlowLib
+<OpenFlowLib/*.ml{,i}>: use_PacketLib
+<OpenFlowLib/*.ml{,i}>: use_FreneticLib
+<OpenFlowLib/*.ml{,i}>: pkg_lwt
+<OpenFlowLib/*.ml{,i}>: pkg_lwt.syntax
+<OpenFlowLib/*.ml{,i}>: pkg_lwt.unix
+<OpenFlowLib/*.ml{,i}>: pkg_cstruct
+<OpenFlowLib/*.ml{,i}>: pkg_cstruct.syntax
+# Library OxLib
+"OxLib/OxLib.cmxs": use_OxLib
+<OxLib/*.ml{,i}>: use_OpenFlowLib
+<OxLib/*.ml{,i}>: use_PacketLib
+<OxLib/*.ml{,i}>: use_FreneticLib
+<OxLib/*.ml{,i}>: pkg_lwt
+<OxLib/*.ml{,i}>: pkg_lwt.syntax
+<OxLib/*.ml{,i}>: pkg_lwt.unix
+<OxLib/*.ml{,i}>: pkg_cstruct
+<OxLib/*.ml{,i}>: pkg_cstruct.syntax
+# Library NetCoreLib
+"NetCoreLib/NetCoreLib.cmxs": use_NetCoreLib
+<NetCoreLib/*.ml{,i}>: use_OpenFlowLib
+<NetCoreLib/*.ml{,i}>: use_PacketLib
+<NetCoreLib/*.ml{,i}>: use_FreneticLib
+<NetCoreLib/*.ml{,i}>: pkg_lwt
+<NetCoreLib/*.ml{,i}>: pkg_lwt.syntax
+<NetCoreLib/*.ml{,i}>: pkg_lwt.unix
+<NetCoreLib/*.ml{,i}>: pkg_cstruct
+<NetCoreLib/*.ml{,i}>: pkg_str
+<NetCoreLib/*.ml{,i}>: pkg_cstruct.syntax
+# Executable Frenetic
+"Applications/Frenetic.byte": use_NetCoreLib
+"Applications/Frenetic.byte": use_OpenFlowLib
+"Applications/Frenetic.byte": use_PacketLib
+"Applications/Frenetic.byte": use_FreneticLib
+"Applications/Frenetic.byte": pkg_lwt
+"Applications/Frenetic.byte": pkg_lwt.syntax
+"Applications/Frenetic.byte": pkg_lwt.unix
+"Applications/Frenetic.byte": pkg_cstruct
+"Applications/Frenetic.byte": pkg_str
+"Applications/Frenetic.byte": pkg_cstruct.syntax
+"Applications/Frenetic.byte": custom
+# Executable Test_Frenetic
+"Applications/Test.byte": use_NetCoreLib
+"Applications/Test.byte": use_OpenFlowLib
+"Applications/Test.byte": use_PacketLib
+"Applications/Test.byte": use_FreneticLib
+"Applications/Test.byte": pkg_oUnit
+"Applications/Test.byte": pkg_lwt
+"Applications/Test.byte": pkg_lwt.syntax
+"Applications/Test.byte": pkg_lwt.unix
+"Applications/Test.byte": pkg_cstruct
+"Applications/Test.byte": pkg_str
+"Applications/Test.byte": pkg_cstruct.syntax
+<Applications/*.ml{,i}>: pkg_oUnit
+# Executable OxRepeater
+"Applications/OxRepeater.byte": use_OxLib
+"Applications/OxRepeater.byte": use_OpenFlowLib
+"Applications/OxRepeater.byte": use_PacketLib
+"Applications/OxRepeater.byte": use_FreneticLib
+"Applications/OxRepeater.byte": pkg_lwt
+"Applications/OxRepeater.byte": pkg_lwt.syntax
+"Applications/OxRepeater.byte": pkg_lwt.unix
+"Applications/OxRepeater.byte": pkg_cstruct
+"Applications/OxRepeater.byte": pkg_cstruct.syntax
+# Executable OxLearning
+"Applications/OxLearning.byte": use_OxLib
+"Applications/OxLearning.byte": use_OpenFlowLib
+"Applications/OxLearning.byte": use_PacketLib
+"Applications/OxLearning.byte": use_FreneticLib
+"Applications/OxLearning.byte": pkg_lwt
+"Applications/OxLearning.byte": pkg_lwt.syntax
+"Applications/OxLearning.byte": pkg_lwt.unix
+"Applications/OxLearning.byte": pkg_cstruct
+"Applications/OxLearning.byte": pkg_cstruct.syntax
+# Executable OxMonitor
+"Applications/OxMonitor.byte": use_OxLib
+"Applications/OxMonitor.byte": use_OpenFlowLib
+"Applications/OxMonitor.byte": use_PacketLib
+"Applications/OxMonitor.byte": use_FreneticLib
+"Applications/OxMonitor.byte": pkg_lwt
+"Applications/OxMonitor.byte": pkg_lwt.syntax
+"Applications/OxMonitor.byte": pkg_lwt.unix
+"Applications/OxMonitor.byte": pkg_cstruct
+"Applications/OxMonitor.byte": pkg_cstruct.syntax
+<Applications/*.ml{,i}>: use_OxLib
+# Executable Verify
+"Applications/Verify.byte": use_NetCoreLib
+"Applications/Verify.byte": use_OpenFlowLib
+"Applications/Verify.byte": use_PacketLib
+"Applications/Verify.byte": use_FreneticLib
+"Applications/Verify.byte": pkg_lwt
+"Applications/Verify.byte": pkg_lwt.syntax
+"Applications/Verify.byte": pkg_lwt.unix
+"Applications/Verify.byte": pkg_cstruct
+"Applications/Verify.byte": pkg_str
+"Applications/Verify.byte": pkg_cstruct.syntax
+<Applications/*.ml{,i}>: use_NetCoreLib
+<Applications/*.ml{,i}>: use_OpenFlowLib
+<Applications/*.ml{,i}>: use_PacketLib
+<Applications/*.ml{,i}>: use_FreneticLib
+<Applications/*.ml{,i}>: pkg_lwt
+<Applications/*.ml{,i}>: pkg_lwt.syntax
+<Applications/*.ml{,i}>: pkg_lwt.unix
+<Applications/*.ml{,i}>: pkg_cstruct
+<Applications/*.ml{,i}>: pkg_str
+<Applications/*.ml{,i}>: pkg_cstruct.syntax
+"Applications/Verify.byte": custom
+# OASIS_STOP
+<**/*.ml>: syntax_camlp4o
