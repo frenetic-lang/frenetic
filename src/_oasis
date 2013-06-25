@@ -1,0 +1,127 @@
+OASISFormat: 0.3
+Name:        frenetic
+Version:     1.0
+Synopsis:    Frenetic Network Programming Language
+Authors:     See the AUTHORS file
+License:     LGPL
+Plugins:     META (0.3)
+BuildTools:  ocamlbuild
+
+
+Library FreneticLib
+  Path: FreneticLib
+  BuildDepends: lwt,lwt.unix,cstruct,lwt.syntax
+  Findlibname: FreneticLib
+  Modules:
+    Frenetic_Misc,
+    Frenetic_Log,
+    Frenetic_List,
+    Frenetic_Bit,
+    Frenetic_Socket
+
+Library PacketLib
+  Path: PacketLib
+  BuildDepends: cstruct,cstruct.syntax,FreneticLib
+  Findlibname: PacketLib
+  Modules: Packet
+
+Library OpenFlowLib
+  Path: OpenFlowLib
+  BuildDepends:
+    lwt,lwt.unix,cstruct,cstruct.syntax,lwt.syntax,FreneticLib,PacketLib
+  Findlibname: OpenFlowLib
+  Modules:
+    OpenFlow0x01,
+    OpenFlow0x01_Core,
+    OpenFlow0x01_Stats,
+    OpenFlow0x01_PlatformSig,
+    OpenFlow0x01_Platform,
+    OpenFlow0x01_TestPlatform
+
+Library OxLib
+  Path: OxLib
+  BuildDepends:
+    lwt,lwt.syntax,cstruct,PacketLib,OpenFlowLib
+  Findlibname: OxLib
+  InternalModules:
+    OxShared
+  Modules:
+    OxStart,
+    OxPlatform
+
+Library NetCoreLib
+  Path: NetCoreLib
+  BuildDepends:
+    lwt,lwt.unix,cstruct,PacketLib,OpenFlowLib,FreneticLib,lwt.syntax,str
+  Findlibname: NetCoreLib
+  InternalModules:
+    NetCore_Action,
+    NetCore_Classifier,
+    NetCore_Compiler,
+    NetCore_Desugar,
+    NetCore_Gensym,
+    NetCore_Lexer,
+    NetCore_Monitoring,
+    NetCore_Parser,
+    NetCore_Parsing,
+    NetCore_Pattern,
+    NetCore_Wildcard,
+    NetCore_SurfaceSyntax
+  Modules:
+    NetCore_Controller,
+    NetCore_ConsistentUpdates,
+    NetCore_Pretty,
+    NetCore_MacLearning,
+    NetCore_NAT,
+    NetCore_Semantics,
+    NetCore_Stream,
+    NetCore_StatefulFirewall,
+    NetCore_Topo,
+    NetCore_Types
+
+Executable Frenetic
+  Path: Applications
+  MainIs: Frenetic.ml
+  Custom: true
+  BuildDepends: lwt,lwt.syntax,NetCoreLib
+  Install: False
+
+Document doc
+  Title: Frenetic documentation
+  Type: ocamlbuild (0.3)
+  BuildTools+: ocamldoc
+  XOCamlBuildPath: .
+  XOCamlBuildLibraries: OpenFlowLib,PacketLib,NetCoreLib
+  Install: False
+
+Executable Test_Frenetic
+  Path: Applications
+  MainIs: Test.ml
+  BuildDepends: oUnit,PacketLib,FreneticLib,NetCoreLib
+  Install: False
+
+Executable OxRepeater
+  Path: Applications
+  MainIs: OxRepeater.ml
+  BuildDepends: OxLib
+  Install: False
+
+Executable OxLearning
+  Path: Applications
+  MainIs: OxLearning.ml
+  BuildDepends: OxLib
+  Install: False
+
+Executable OxMonitor
+  Path: Applications
+  MainIs: OxMonitor.ml
+  BuildDepends: OxLib
+  Install: False
+
+Executable Verify
+  Path: Applications
+  MainIs: Verify.ml
+  Custom: true
+  BuildDepends: NetCoreLib
+  Install: False
+
