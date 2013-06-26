@@ -1,0 +1,12 @@
+# OASIS_START
+# DO NOT EDIT (digest: 25ff509ebb99a1b9d1b119ffa91150d2)
+version = "1.0"
+description = "The NetCore Compiler and Runtime System"
+requires = "lwt lwt.unix cstruct lwt.syntax str packet openflow"
+archive(byte) = "netcore.cma"
+archive(byte, plugin) = "netcore.cma"
+archive(native) = "netcore.cmxa"
+archive(native, plugin) = "netcore.cmxs"
+exists_if = "netcore.cma"
+# OASIS_STOP
+

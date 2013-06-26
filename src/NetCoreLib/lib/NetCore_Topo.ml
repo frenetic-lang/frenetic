@@ -1,7 +1,7 @@
 open NetCore_Types
 open NetCore_Action.Output
 
-module Log = Frenetic_Log
+module Log = Lwt_log
 module Bijection = NetCore_Bijection
 
 type switchId = OpenFlow0x01.switchId
@@ -93,10 +93,13 @@ module Make (A : Arg) = struct
     | Physical phys_pt ->
       begin
         match parse_discovery_pkt pk with
-          | None -> Log.printf "NetCore_Topo" "malformed discovery packet.\n%!"
+          | None -> 
+            Lwt.async (fun () -> Log.info "malformed discovery packet.\n%!")
           | Some (sw', pt') -> 
-            Log.printf "NetCore_Topo" "added edge %Ld:%d <--> %Ld:%d\n%!"
-              sw phys_pt sw' pt';
+            Lwt.async
+              (fun () ->
+                Log.info_f "added edge %Ld:%d <--> %Ld:%d\n%!"
+                  sw phys_pt sw' pt');
             Bijection.add edges (Switch (sw, phys_pt)) (Switch (sw', pt'))
       end;
       drop
@@ -111,8 +114,8 @@ module Make (A : Arg) = struct
       lwt_acc >>
       Lwt_list.iter_s 
         (fun pt -> 
-          Log.printf "NetCore_Topo" 
-            "emitting a packet to switch=%Ld,port=%d\n%!" sw pt;
+          Log.info_f
+            "emitting a packet to switch=%Ld,port=%d\n%!" sw pt >>
             send_pkt (make_discovery_pkt sw pt))
         ports in
     let rec send_discovery () =

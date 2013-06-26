@@ -1,0 +1,49 @@
+OASISFormat: 0.3
+Name:        netcore
+Version:     1.0
+Synopsis:    The NetCore Compiler and Runtime System
+Authors:     See the AUTHORS file
+License:     LGPL
+Plugins:     META (0.3)
+BuildTools:  ocamlbuild
+
+Library netcore
+  Path: lib
+  BuildDepends:
+    lwt,
+    lwt.unix,
+    cstruct,
+    lwt.syntax,
+    str,
+    packet,openflow
+  InternalModules:
+    Frenetic_List,
+    NetCore_Action,
+    NetCore_Classifier,
+    NetCore_Compiler,
+    NetCore_Desugar,
+    NetCore_Gensym,
+    NetCore_Lexer,
+    NetCore_Monitoring,
+    NetCore_Parser,
+    NetCore_Pattern,
+    NetCore_Wildcard,
+    NetCore_SurfaceSyntax
+  Modules:
+    NetCore_Controller,
+    NetCore_ConsistentUpdates,
+    NetCore_Pretty,
+    NetCore_MacLearning,
+    NetCore_NAT,
+    NetCore_Semantics,
+    NetCore_Stream,
+    NetCore_StatefulFirewall,
+    NetCore_Topo,
+    NetCore_Types,
+    NetCore_Parsing
+
+Executable Test_Frenetic
+  Path: test
+  MainIs: Test.ml
+  BuildDepends: oUnit,packet,netcore
+  Install: False

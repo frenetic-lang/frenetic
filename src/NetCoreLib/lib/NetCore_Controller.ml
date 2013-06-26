@@ -4,7 +4,7 @@ open OpenFlow0x01
 open OpenFlow0x01_Core
 open NetCore_Types
 
-module Log = Frenetic_Log
+module Log = Lwt_log
 module SwitchSet = Set.Make (Int64)
 module Stats = OpenFlow0x01_Stats
 
@@ -79,8 +79,8 @@ module Query (Platform : PLATFORM) = struct
         | SwitchAction _ -> "SwitchAction"
         | ControllerAction _ -> "ControllerAction"
         | ControllerQuery (t, _) -> Printf.sprintf "ControllerQuery (%f,_)" t)
-    (Frenetic_Misc.string_of_list (fun sw -> Printf.sprintf "%Ld" sw)
-      (SwitchSet.elements !(q.switches)))
+    (String.concat "," (List.map (fun sw -> Printf.sprintf "%Ld" sw)
+                          (SwitchSet.elements !(q.switches))))
 
   let set_fields tbl pol atom sw =
     let qfields = NetCore_Compiler.query_fields_of_policy pol atom sw in
@@ -390,10 +390,7 @@ module Make (Platform : PLATFORM) = struct
         } in
       Platform.send_to_switch sw 0l (Message.PacketOutMsg out_payload)  
     with Unparsable _ -> 
-      begin
-        let _ = Log.printf "NetCore_Controller" "unparsable packet\n%!" in
-        Lwt.return ()
-      end
+      Log.warning_f "unparsable packet"
 
   let rec handle_switch_messages pol sw = 
     let open Message in
@@ -404,10 +401,8 @@ module Make (Platform : PLATFORM) = struct
         Queries.handle_reply sw xid reps;
         Lwt.return ()
       | StatsReplyMsg r ->
-        let _ = Log.printf "NetCore_Controller" 
-          "received unexpected stats reply type (%s)"
-          (Stats.reply_to_string r) in
-          Lwt.return ()
+        Log.warning_f "received unexpected stats reply type (%s)"
+          (Stats.reply_to_string r)
       | PortStatusMsg msg ->
         (* TODO(arjun): this should be used by NetCore_Topo *)
         Lwt.return ()
@@ -417,8 +412,8 @@ module Make (Platform : PLATFORM) = struct
   let switch_thread features pol_stream =
     let open SwitchFeatures in
     let sw = features.switch_id in
-    Log.printf "NetCore Controller" "switch %Ld connected.\n%!"  sw;
-    Queries.add_switch sw;
+    Log.info_f "switch %Ld connected.\n%!" sw >>
+    let _ = Queries.add_switch sw in
     (try_lwt
       lwt _ = Lwt.wrap2 NetCore_Semantics.handle_switch_events
         (SwitchUp (sw, features))
@@ -432,9 +427,7 @@ module Make (Platform : PLATFORM) = struct
             (* TODO(arjun): I can assume sw itself disconnected? *)
             Lwt.return ()
           | _ ->
-            (Log.printf "NetCore Controller" "unhandled exception %s.\n%!"
-              (Printexc.to_string exn);
-             Lwt.return ())
+            Log.error_f ~exn:exn "unhandled exception"
       end) >>
     begin
       Lwt.async
@@ -444,8 +437,7 @@ module Make (Platform : PLATFORM) = struct
             (SwitchDown sw)
             (NetCore_Stream.now pol_stream));
       Queries.remove_switch sw;
-      Log.printf "NetCore Controller" "switch %Ld disconnected.\n%!"  sw;
-      Lwt.return ()
+      Log.info_f "switch %Ld disconnected.\n%!" sw
     end
 
   let rec accept_switches pol_stream = 
@@ -477,7 +469,7 @@ module Make (Platform : PLATFORM) = struct
   let start_controller pkt_stream pol = 
     (* Do not delete the following printf. It is meant to be the minimal output
        from the controller. *)
-    Log.printf "NetCore" "controller started.";
+    Log.info_f "controller started" >>
     Lwt.pick [
       accept_switches pol;
       emit_packets pkt_stream;
@@ -529,7 +521,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
                   a::lst',last
 
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
-    Log.printf "ConsistentController" "In configure_squence\n%!";
+    Log.info_f "In configure_squence\n%!" >>
     (* Flow table always emits default drop rule. Installing policies
        in sequence w/o clearing results in multiple such rules, possibly
        messing up semantics w/ they overlap/shadow real rules. Instead,
@@ -555,12 +547,9 @@ module MakeConsistent (Platform : PLATFORM) = struct
     Lwt_stream.iter_s (fun (int, ext, topo_pol) -> 
       clear_switch sw >>
       configure_switch sw topo_pol >>
-      let _ = 
-        Log.printf "NetCore_Controller" "internal pol:\n%s\n%!" 
-          (NetCore_Pretty.string_of_pol int) in
+      Log.info_f  "internal pol:\n%s"  (NetCore_Pretty.string_of_pol int) >>
       configure_switch sw int >>
-      let _ = Log.printf "NetCore_Controller" "external pol:\n%s\n%!" 
-        (NetCore_Pretty.string_of_pol ext) in
+      Log.info_f "external pol:\n%s\n%!" (NetCore_Pretty.string_of_pol ext) >>
       configure_switch sw (Union(int,ext)))
       (NetCore_Stream.to_stream pol_stream)
 
@@ -589,15 +578,11 @@ module MakeConsistent (Platform : PLATFORM) = struct
         Queries.handle_reply sw xid reps;
         Lwt.return ()
       | (xid, StatsReplyMsg r) ->
-        let _ = Log.printf "NetCore_Controller" 
+        Log.info_f
           "received unexpected stats reply type (%s)"
-          (Stats.reply_to_string r) in
-          Lwt.return ()
+          (Stats.reply_to_string r) 
       | (xid, PortStatusMsg msg) ->
-        let _ = 
-      Log.printf "NetCore_Controller" 
-        "received %s" (PortStatus.to_string msg) in
-        Lwt.return ()
+        Log.info_f  "received %s" (PortStatus.to_string msg)
       | _ -> Lwt.return ()
       in
     handle_switch_messages sw
@@ -620,9 +605,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
             (* TODO(arjun): I can assume sw itself disconnected? *)
             Lwt.return ()
           | _ ->
-            (Log.printf "[NetCore_Controller]" "unhandled exception %s.\n%!"
-              (Printexc.to_string exn);
-             Lwt.return ())
+            Log.error_f ~exn:exn "unhandled exception"
       end) >>
     begin
       Lwt.async

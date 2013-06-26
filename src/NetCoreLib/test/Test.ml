@@ -5,6 +5,7 @@ open NetCore_Semantics
 open NetCore_Pretty
 open OUnit
 
+let string_of_list f lst = String.concat "," (List.map f lst)
 
 let pay = OpenFlow0x01_Core.Buffered (0l, Cstruct.create 10)
 
@@ -480,7 +481,7 @@ module Helper = struct
     let sem_test = 
       (name ^ " (semantic) test") >:: fun () ->
         assert_equal
-          ~printer:(Frenetic_Misc.string_of_list string_of_value)
+          ~printer:(string_of_list string_of_value)
           expected_vals vals in
 
     (* Test the classifier interpretation. *)
@@ -502,12 +503,11 @@ module Helper = struct
     let classifier_test =
       (name ^ " (classifier) test") >:: fun () ->
         assert_equal
-          ~printer:(Frenetic_Misc.string_of_list
+          ~printer:(string_of_list
                       (fun (_, pt, pk) ->
-                        (Frenetic_Misc.string_of_pair 
-                          string_of_port 
-                          Packet.to_string) 
-                          (pt,pk)))
+                        Format.sprintf "(%s,%s)"
+                          (string_of_port pt)
+                          (Packet.to_string pk)))
           expected_pkts pkts in
 
     TestList [ sem_test; classifier_test ]

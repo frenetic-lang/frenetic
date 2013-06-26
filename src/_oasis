@@ -7,73 +7,11 @@ License:     LGPL
 Plugins:     META (0.3)
 BuildTools:  ocamlbuild
 
-Library frenetic
-  Path: .
-  Findlibname: frenetic
-  
-Library common
-  Path: FreneticLib
-  BuildDepends: lwt,lwt.unix,cstruct,lwt.syntax
-  Findlibparent: frenetic
-  Modules:
-    Frenetic_Misc,
-    Frenetic_Log,
-    Frenetic_List,
-    Frenetic_Bit,
-    Frenetic_Socket
-
-Library netcore
-  Path: NetCoreLib
-  BuildDepends:
-    lwt,lwt.unix,cstruct,lwt.syntax,str,
-    frenetic.common,packet,openflow
-  Findlibparent: frenetic
-  InternalModules:
-    NetCore_Action,
-    NetCore_Classifier,
-    NetCore_Compiler,
-    NetCore_Desugar,
-    NetCore_Gensym,
-    NetCore_Lexer,
-    NetCore_Monitoring,
-    NetCore_Parser,
-    NetCore_Parsing,
-    NetCore_Pattern,
-    NetCore_Wildcard,
-    NetCore_SurfaceSyntax
-  Modules:
-    NetCore_Controller,
-    NetCore_ConsistentUpdates,
-    NetCore_Pretty,
-    NetCore_MacLearning,
-    NetCore_NAT,
-    NetCore_Semantics,
-    NetCore_Stream,
-    NetCore_StatefulFirewall,
-    NetCore_Topo,
-    NetCore_Types
-
 Executable Frenetic
   Path: Applications
   MainIs: Frenetic.ml
   Custom: true
-  BuildDepends: lwt,lwt.syntax,frenetic.netcore
-  Install: False
-
-
-Document doc
-  Title: Frenetic documentation
-  Type: ocamlbuild (0.3)
-  BuildTools+: ocamldoc
-  XOCamlBuildPath: .
-  XOCamlBuildLibraries: openflow,packet,frenetic.netcore
-  Install: False
-
-
-Executable Test_Frenetic
-  Path: Applications
-  MainIs: Test.ml
-  BuildDepends: oUnit,packet,frenetic.common,frenetic.netcore
+  BuildDepends: lwt,lwt.syntax,netcore
   Install: False
 
 Executable OxRepeater
@@ -93,11 +31,3 @@ Executable OxMonitor
   MainIs: OxMonitor.ml
   BuildDepends: ox
   Install: False
-
-Executable Verify
-  Path: Applications
-  MainIs: Verify.ml
-  Custom: true
-  BuildDepends:ox
-  Install: False
-
