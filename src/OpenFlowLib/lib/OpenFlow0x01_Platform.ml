@@ -6,7 +6,7 @@
     It is possible and instructive to build a controller directly atop
     [PLATFORM]. But, see [NetCore] for a higher-level abstraction.
 *)
-module Log = Frenetic_Log
+module Log = Lwt_log
 module Socket = Frenetic_Socket
 module OF = OpenFlow0x01
 module Message = OF.Message
@@ -65,14 +65,14 @@ let rec recv_from_switch_fd (sock : Lwt_unix.file_descr)
       Lwt.return (Some (xid, msg))
     with 
       | OF.Unparsable error_msg ->
-        Log.printf "platform" 
+        Log.error_f
           "in recv_from_switch_fd, error parsing incoming message (%s)\n%!"
-          error_msg;
+          error_msg >>
         recv_from_switch_fd sock
       | OF.Ignored msg ->
-        Log.printf "platform" 
+        Log.error_f
           "in recv_from_switch_fd, ignoring message (%s)\n%!"
-          msg;
+          msg >>
         recv_from_switch_fd sock
 
 let send_to_switch_fd 
@@ -177,10 +177,12 @@ let switch_handshake (fd : Lwt_unix.file_descr) :
             let open HelloFailed in
             begin match code with
             | Incompatible -> 
-              Log.printf "platform" "OFPET_HELLO_FAILED received (code: OFPHFC_INCOMPATIBLE)!\n";
+              Log.error_f
+                "OFPET_HELLO_FAILED received (code: OFPHFC_INCOMPATIBLE)!\n" >>
               Lwt.return None
             | Eperm -> 
-              Log.printf "platform" "OFPET_HELLO_FAILED received (code: OFPHFC_EPERM)!\n";
+              Log.error_f
+                "OFPET_HELLO_FAILED received (code: OFPHFC_EPERM)!\n" >>
               Lwt.return None
             end
           | _ -> Lwt.return None

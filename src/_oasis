@@ -22,28 +22,10 @@ Library common
     Frenetic_Bit,
     Frenetic_Socket
 
-Library openflow
-  Path: OpenFlowLib
-  BuildDepends:
-    lwt,lwt.unix,cstruct,cstruct.syntax,lwt.syntax,frenetic.common,
-    packet
-  Findlibparent: frenetic
-  Modules:
-    OpenFlow0x01,
-    OpenFlow0x01_Core,
-    OpenFlow0x01_Stats,
-    OpenFlow0x01_PlatformSig,
-    OpenFlow0x01_Platform,
-    OpenFlow0x01_TestPlatform,
-    OpenFlow0x04,
-    OpenFlow0x04_Core,
-    OpenFlow0x04_Platform,
-    OpenFlow0x04_Misc
-
 Library ox
   Path: OxLib
   BuildDepends:
-    lwt,lwt.syntax,cstruct,packet,frenetic.openflow
+    lwt,lwt.syntax,cstruct,packet,openflow
   Findlibparent: frenetic
   InternalModules:
     OxShared
@@ -55,7 +37,7 @@ Library netcore
   Path: NetCoreLib
   BuildDepends:
     lwt,lwt.unix,cstruct,lwt.syntax,str,
-    frenetic.common,packet,frenetic.openflow
+    frenetic.common,packet,openflow
   Findlibparent: frenetic
   InternalModules:
     NetCore_Action,
@@ -95,7 +77,7 @@ Document doc
   Type: ocamlbuild (0.3)
   BuildTools+: ocamldoc
   XOCamlBuildPath: .
-  XOCamlBuildLibraries: frenetic.openflow,packet,frenetic.netcore
+  XOCamlBuildLibraries: openflow,packet,frenetic.netcore
   Install: False
 
 

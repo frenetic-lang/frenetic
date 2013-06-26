@@ -1,4 +1,3 @@
-open Frenetic_Bit
 open Packet
 open Format
 open OpenFlow0x01_Core
@@ -12,6 +11,18 @@ type xid = int32
 
 let string_of_switchId = Int64.to_string
 let string_of_portId = string_of_int
+
+let clear_bit (n:int) (x:int32) : int32 =
+  Int32.logand x (Int32.lognot (Int32.shift_left Int32.one n))
+
+let set_bit (n:int) (x:int32) : int32 =
+  Int32.logor x (Int32.shift_left Int32.one n)
+
+let bit (x : int32) (n : int) (v : bool) : int32 =
+  if v then set_bit n x else clear_bit n x
+
+let test_bit (n:int) (x:int32) : bool =
+  Int32.logand (Int32.shift_right_logical x n) Int32.one = Int32.one
 
 let sum (lst : int list) = List.fold_left (fun x y -> x + y) 0 lst
 

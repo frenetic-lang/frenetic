@@ -1,0 +1,33 @@
+OASISFormat: 0.3
+Name:        openflow
+Version:     0.1
+Synopsis:    Serialization library for OpenFlow
+Authors:     See the AUTHORS file
+License:     LGPL
+Plugins:     META (0.3)
+BuildTools:  ocamlbuild
+
+
+Library openflow
+  Path: lib
+  BuildDepends:
+    lwt,
+    lwt.unix,
+    cstruct,
+    cstruct.syntax,
+    lwt.syntax,
+    packet
+  InternalModules:
+    Frenetic_Misc,
+    Frenetic_Socket
+  Modules:
+    OpenFlow0x01,
+    OpenFlow0x01_Core,
+    OpenFlow0x01_Stats,
+    OpenFlow0x01_PlatformSig,
+    OpenFlow0x01_Platform,
+    OpenFlow0x01_TestPlatform,
+    OpenFlow0x04,
+    OpenFlow0x04_Core,
+    OpenFlow0x04_Platform,
+    OpenFlow0x04_Misc
