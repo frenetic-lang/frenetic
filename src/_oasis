@@ -7,7 +7,6 @@ License:     LGPL
 Plugins:     META (0.3)
 BuildTools:  ocamlbuild
 
-
 Library frenetic
   Path: .
   Findlibname: frenetic
@@ -23,17 +22,11 @@ Library common
     Frenetic_Bit,
     Frenetic_Socket
 
-Library packet
-  Path: PacketLib
-  BuildDepends: cstruct,cstruct.syntax,frenetic.common
-  Findlibparent: frenetic
-  Modules: Packet
-
 Library openflow
   Path: OpenFlowLib
   BuildDepends:
     lwt,lwt.unix,cstruct,cstruct.syntax,lwt.syntax,frenetic.common,
-    frenetic.packet
+    packet
   Findlibparent: frenetic
   Modules:
     OpenFlow0x01,
@@ -50,7 +43,7 @@ Library openflow
 Library ox
   Path: OxLib
   BuildDepends:
-    lwt,lwt.syntax,cstruct,frenetic.packet,frenetic.openflow
+    lwt,lwt.syntax,cstruct,packet,frenetic.openflow
   Findlibparent: frenetic
   InternalModules:
     OxShared
@@ -62,7 +55,7 @@ Library netcore
   Path: NetCoreLib
   BuildDepends:
     lwt,lwt.unix,cstruct,lwt.syntax,str,
-    frenetic.common,frenetic.packet,frenetic.openflow
+    frenetic.common,packet,frenetic.openflow
   Findlibparent: frenetic
   InternalModules:
     NetCore_Action,
@@ -102,14 +95,14 @@ Document doc
   Type: ocamlbuild (0.3)
   BuildTools+: ocamldoc
   XOCamlBuildPath: .
-  XOCamlBuildLibraries: frenetic.openflow,frenetic.packet,frenetic.netcore
+  XOCamlBuildLibraries: frenetic.openflow,packet,frenetic.netcore
   Install: False
 
 
 Executable Test_Frenetic
   Path: Applications
   MainIs: Test.ml
-  BuildDepends: oUnit,frenetic.packet,frenetic.common,frenetic.netcore
+  BuildDepends: oUnit,packet,frenetic.common,frenetic.netcore
   Install: False
 
 Executable OxRepeater

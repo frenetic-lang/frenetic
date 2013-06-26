@@ -1,0 +1,13 @@
+# OASIS_START
+# DO NOT EDIT (digest: 9cd578b4b43ab991731cdf7852cc351d)
+version = "1.0"
+description =
+"Serialization for some common network packets, including ethernet frames, IP, TCP, and ARP."
+requires = "cstruct cstruct.syntax"
+archive(byte) = "packet.cma"
+archive(byte, plugin) = "packet.cma"
+archive(native) = "packet.cmxa"
+archive(native, plugin) = "packet.cmxs"
+exists_if = "packet.cma"
+# OASIS_STOP
+

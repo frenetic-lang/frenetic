@@ -1,5 +1,3 @@
-open Frenetic_Bit
-
 let icmp_code = 0x01
 let tcp_code = 0x06
 let udp_code = 0x11
@@ -8,6 +6,18 @@ let ip_code = 0x800
 let arp_code = 0x806
 
 exception UnparsablePacket of string
+
+let clear_bit (n:int) (x:int32) : int32 =
+  Int32.logand x (Int32.lognot (Int32.shift_left Int32.one n))
+
+let set_bit (n:int) (x:int32) : int32 =
+  Int32.logor x (Int32.shift_left Int32.one n)
+
+let bit (x : int32) (n : int) (v : bool) : int32 =
+  if v then set_bit n x else clear_bit n x
+
+let test_bit (n:int) (x:int32) : bool =
+  Int32.logand (Int32.shift_right_logical x n) Int32.one = Int32.one
 
 let get_byte32 (n : Int32.t) (i : int) : int = 
   let open Int32 in
