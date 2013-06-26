@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 0a58c9b3f55e7a9bb8af104511d91aeb)
+# DO NOT EDIT (digest: 4f418afee4a86765e2c60aa90317e74c)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -68,7 +68,6 @@
 "Applications/Frenetic.byte": pkg_cstruct
 "Applications/Frenetic.byte": pkg_str
 "Applications/Frenetic.byte": pkg_cstruct.syntax
-"Applications/Frenetic.byte": custom
 # Executable Test_Frenetic
 "Applications/Test.byte": use_NetCoreLib
 "Applications/Test.byte": use_OpenFlowLib
