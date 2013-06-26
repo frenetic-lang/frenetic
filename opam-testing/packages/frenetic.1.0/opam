@@ -1,0 +1,11 @@
+opam-version: "1"
+maintainer: "arjun@cs.umass.edu"
+build: [
+  ["sh" "-c" "cd src && ocaml setup.ml -configure --prefix %{prefix}%"]
+  ["sh" "-c" "cd src && ocaml setup.ml -build"]
+  ["sh" "-c" "cd src && ocaml setup.ml -install"]
+]
+remove: [
+  ["ocamlfind" "remove" "frenetic"]
+]
+depends: ["ocamlfind" "lwt"]
