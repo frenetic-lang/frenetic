@@ -7,40 +7,8 @@ License:     LGPL
 Plugins:     META (0.3)
 BuildTools:  ocamlbuild
 
-Flag freneticlib
-  Description: Build FreneticLib
-  Default: false
-
-Flag packetlib
-  Description: Build PacketLib
-  Default: false
-
-Flag openflowlib
-  Description: Build OpenFlowLib
-  Default: false
-
-Flag oxlib
-  Description: Build OxLib
-  Default: false
-
-Flag netcorelib
-  Description: Build NetCoreLib
-  Default: false
-
-Flag freneticexec
-  Description: Build Frenetic
-  Default: false
-
-Flag others
-  Description: build tests and Ox examples
-  Default: false
-
-Flag alltargets
-  Description: build all targets
-  Default: false
 
 Library FreneticLib
-  Build$: flag(alltargets) || flag(freneticlib) 
   Path: FreneticLib
   BuildDepends: lwt,lwt.unix,cstruct,lwt.syntax
   Findlibname: FreneticLib
@@ -52,14 +20,12 @@ Library FreneticLib
     Frenetic_Socket
 
 Library PacketLib
-  Build$: flag(alltargets) || flag(packetlib)
   Path: PacketLib
   BuildDepends: cstruct,cstruct.syntax,FreneticLib
   Findlibname: PacketLib
   Modules: Packet
 
 Library OpenFlowLib
-  Build$: flag(alltargets) || flag(openflowlib)
   Path: OpenFlowLib
   BuildDepends:
     lwt,lwt.unix,cstruct,cstruct.syntax,lwt.syntax,FreneticLib,PacketLib
@@ -77,7 +43,6 @@ Library OpenFlowLib
     OpenFlow0x04_Misc
 
 Library OxLib
-  Build$: flag(alltargets) || flag(oxlib)
   Path: OxLib
   BuildDepends:
     lwt,lwt.syntax,cstruct,PacketLib,OpenFlowLib
@@ -89,7 +54,6 @@ Library OxLib
     OxPlatform
 
 Library NetCoreLib
-  Build$: flag(alltargets) || flag(netcorelib)
   Path: NetCoreLib
   BuildDepends:
     lwt,lwt.unix,cstruct,PacketLib,OpenFlowLib,FreneticLib,lwt.syntax,str
@@ -120,14 +84,13 @@ Library NetCoreLib
     NetCore_Types
 
 Executable Frenetic
-  Build$: flag(alltargets) || flag(freneticexec)
   Path: Applications
   MainIs: Frenetic.ml
+  Custom: true
   BuildDepends: lwt,lwt.syntax,NetCoreLib
   Install: False
 
 Document doc
-  Build$: flag(docs)
   Title: Frenetic documentation
   Type: ocamlbuild (0.3)
   BuildTools+: ocamldoc
@@ -136,37 +99,33 @@ Document doc
   Install: False
 
 Executable Test_Frenetic
-  Build$: flag(alltargets) || flag(others)
   Path: Applications
   MainIs: Test.ml
   BuildDepends: oUnit,PacketLib,FreneticLib,NetCoreLib
   Install: False
 
 Executable OxRepeater
-  Build$: flag(alltargets) || flag(others)
   Path: Applications
   MainIs: OxRepeater.ml
   BuildDepends: OxLib
   Install: False
 
 Executable OxLearning
-  Build$: flag(alltargets) || flag(others)
   Path: Applications
   MainIs: OxLearning.ml
   BuildDepends: OxLib
   Install: False
 
 Executable OxMonitor
-  Build$: flag(alltargets) || flag(others)
   Path: Applications
   MainIs: OxMonitor.ml
   BuildDepends: OxLib
   Install: False
 
 Executable Verify
-  Build$: flag(alltargets) || flag(others)
   Path: Applications
   MainIs: Verify.ml
   Custom: true
   BuildDepends: NetCoreLib
   Install: False
+
