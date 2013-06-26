@@ -13,21 +13,3 @@ Executable Frenetic
   Custom: true
   BuildDepends: lwt,lwt.syntax,netcore
   Install: False
-
-Executable OxRepeater
-  Path: Applications
-  MainIs: OxRepeater.ml
-  BuildDepends: ox
-  Install: False
-
-Executable OxLearning
-  Path: Applications
-  MainIs: OxLearning.ml
-  BuildDepends: ox
-  Install: False
-
-Executable OxMonitor
-  Path: Applications
-  MainIs: OxMonitor.ml
-  BuildDepends: ox
-  Install: False
