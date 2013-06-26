@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 24bec41e885c2f9c56fe203e0e15a7c2)
+# DO NOT EDIT (digest: 2a3672e1f5e708e9cf6ecb1c808596cf)
 OpenFlowLib/OpenFlow0x01
 OpenFlowLib/OpenFlow0x01_Core
 OpenFlowLib/OpenFlow0x01_Stats
@@ -9,7 +9,6 @@ OpenFlowLib/OpenFlow0x01_TestPlatform
 OpenFlowLib/OpenFlow0x04
 OpenFlowLib/OpenFlow0x04_Core
 OpenFlowLib/OpenFlow0x04_Platform
-OpenFlowLib/OpenFlow0x04_Misc
 PacketLib/Packet
 NetCoreLib/NetCore_Controller
 NetCoreLib/NetCore_ConsistentUpdates
