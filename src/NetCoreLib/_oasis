@@ -4,10 +4,13 @@ Version:     1.0
 Synopsis:    The NetCore Compiler and Runtime System
 Authors:     Nate Foster, Arjun Guha, Mark Reitblatt, Cole Schlesinger, and
              David Walker
-Nate Foster, Arjun Guha, Mark Reitblatt, and Cole Schlesinger
 License:     LGPL
 Plugins:     META (0.3)
 BuildTools:  ocamlbuild
+
+Flag frenetic
+  Description: install the Frenetic executable
+  Default: True
 
 Library netcore
   Path: lib
@@ -50,3 +53,14 @@ Executable Test_Frenetic
   MainIs: Test.ml
   BuildDepends: oUnit,packet,netcore
   Install: False
+
+Executable Frenetic
+  Path: frenetic
+  MainIs: Frenetic.ml
+  Custom: true
+  Install$: flag(frenetic)
+  BuildDepends:
+    lwt,
+    lwt.syntax,
+    netcore
+

@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: b36c6b28930c7da1def8bc910dfc5885) *)
+(* DO NOT EDIT (digest: 373afc924b5d5ef51e15ff64f0d72e3f) *)
 module OASISGettext = struct
 (* # 21 "src/oasis/OASISGettext.ml" *)
 
@@ -480,7 +480,7 @@ let package_default =
      MyOCamlbuildBase.lib_ocaml = [("netcore", ["lib"])];
      lib_c = [];
      flags = [];
-     includes = [("test", ["lib"])];
+     includes = [("test", ["lib"]); ("frenetic", ["lib"])];
      }
   ;;
 

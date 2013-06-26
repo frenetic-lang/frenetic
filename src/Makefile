@@ -5,14 +5,12 @@ all:
 	cd OpenFlowLib && $(MAKE)
 	cd OxLib && $(MAKE)
 	cd NetCoreLib && $(MAKE)
-	cd Frenetic && $(MAKE)
 
 clean:
 	cd PacketLib && $(MAKE) clean
 	cd OpenFlowLib && $(MAKE) clean
 	cd OxLib && $(MAKE) clean
 	cd NetCoreLib && $(MAKE) clean
-	cd Frenetic && $(MAKE) clean
 
 ctags: $(CTAGS_FILES)
 	@which ctags 2> /dev/null > /dev/null \
