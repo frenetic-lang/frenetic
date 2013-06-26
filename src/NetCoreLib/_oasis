@@ -8,7 +8,7 @@ License:     LGPL
 Plugins:     META (0.3)
 BuildTools:  ocamlbuild
 
-Flag frenetic
+Flag installexec
   Description: install the Frenetic executable
   Default: True
 
@@ -58,7 +58,7 @@ Executable Frenetic
   Path: frenetic
   MainIs: Frenetic.ml
   Custom: true
-  Install$: flag(frenetic)
+  Install$: flag(installexec)
   BuildDepends:
     lwt,
     lwt.syntax,

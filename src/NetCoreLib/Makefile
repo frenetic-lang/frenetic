@@ -6,8 +6,9 @@ reinstall: all
 	$(OCAML) setup.ml -reinstall
 
 all:
-	$(OCAML) setup.ml -configure --disable-frenetic
+	$(OCAML) setup.ml -configure --disable-installexec
 	$(OCAML) setup.ml -build
+	sudo ln -sf `pwd`/frenetic.byte /usr/local/bin/frenetic
 
 clean:
 	$(OCAML) setup.ml -clean
