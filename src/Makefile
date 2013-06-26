@@ -5,7 +5,7 @@ OCAML=ocaml
 world: configure build
 
 configure:
-	$(OCAML) setup.ml -configure
+	$(OCAML) setup.ml -configure --enable-alltargets
 
 build:
 	$(OCAML) setup.ml -build
