@@ -1,0 +1,67 @@
+# OASIS_START
+# DO NOT EDIT (digest: fe4d1a5a38dbeda01e4e10dc0ce71c11)
+version = "1.0"
+description = "Frenetic Network Programming Language"
+archive(byte) = "frenetic.cma"
+archive(byte, plugin) = "frenetic.cma"
+archive(native) = "frenetic.cmxa"
+archive(native, plugin) = "frenetic.cmxs"
+exists_if = "frenetic.cma"
+package "packet" (
+ version = "1.0"
+ description = "Frenetic Network Programming Language"
+ requires = "cstruct cstruct.syntax frenetic.common"
+ archive(byte) = "packet.cma"
+ archive(byte, plugin) = "packet.cma"
+ archive(native) = "packet.cmxa"
+ archive(native, plugin) = "packet.cmxs"
+ exists_if = "packet.cma"
+)
+
+package "ox" (
+ version = "1.0"
+ description = "Frenetic Network Programming Language"
+ requires = "lwt lwt.syntax cstruct frenetic.packet frenetic.openflow"
+ archive(byte) = "ox.cma"
+ archive(byte, plugin) = "ox.cma"
+ archive(native) = "ox.cmxa"
+ archive(native, plugin) = "ox.cmxs"
+ exists_if = "ox.cma"
+)
+
+package "openflow" (
+ version = "1.0"
+ description = "Frenetic Network Programming Language"
+ requires =
+ "lwt lwt.unix cstruct cstruct.syntax lwt.syntax frenetic.common frenetic.packet"
+ archive(byte) = "openflow.cma"
+ archive(byte, plugin) = "openflow.cma"
+ archive(native) = "openflow.cmxa"
+ archive(native, plugin) = "openflow.cmxs"
+ exists_if = "openflow.cma"
+)
+
+package "netcore" (
+ version = "1.0"
+ description = "Frenetic Network Programming Language"
+ requires =
+ "lwt lwt.unix cstruct lwt.syntax str frenetic.common frenetic.packet frenetic.openflow"
+ archive(byte) = "netcore.cma"
+ archive(byte, plugin) = "netcore.cma"
+ archive(native) = "netcore.cmxa"
+ archive(native, plugin) = "netcore.cmxs"
+ exists_if = "netcore.cma"
+)
+
+package "common" (
+ version = "1.0"
+ description = "Frenetic Network Programming Language"
+ requires = "lwt lwt.unix cstruct lwt.syntax"
+ archive(byte) = "common.cma"
+ archive(byte, plugin) = "common.cma"
+ archive(native) = "common.cmxa"
+ archive(native, plugin) = "common.cmxs"
+ exists_if = "common.cma"
+)
+# OASIS_STOP
+
