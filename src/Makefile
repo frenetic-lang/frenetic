@@ -1,27 +1,18 @@
-.PHONY: world configure build clean install uninstall reinstall ctags
+.PHONY: all clean ctags
 
-OCAML=ocaml
-
-world: configure build
-
-configure:
-	$(OCAML) setup.ml -configure
-
-build:
-	$(OCAML) setup.ml -build
-
-install:
-	$(OCAML) setup.ml -install
-
-uninstall:
-	$(OCAML) setup.ml -uninstall
-
-reinstall: world
-	$(OCAML) setup.ml -reinstall
-	sudo ln -f -s `pwd`/Frenetic.byte /usr/local/bin/frenetic
+all:
+	cd PacketLib && $(MAKE)
+	cd OpenFlowLib && $(MAKE)
+	cd OxLib && $(MAKE)
+	cd NetCoreLib && $(MAKE)
+	cd Frenetic && $(MAKE)
 
 clean:
-	$(OCAML) setup.ml -clean
+	cd PacketLib && $(MAKE) clean
+	cd OpenFlowLib && $(MAKE) clean
+	cd OxLib && $(MAKE) clean
+	cd NetCoreLib && $(MAKE) clean
+	cd Frenetic && $(MAKE) clean
 
 ctags: $(CTAGS_FILES)
 	@which ctags 2> /dev/null > /dev/null \

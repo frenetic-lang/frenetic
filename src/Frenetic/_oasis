@@ -8,8 +8,11 @@ Plugins:     META (0.3)
 BuildTools:  ocamlbuild
 
 Executable Frenetic
-  Path: Applications
+  Path: frenetic
   MainIs: Frenetic.ml
   Custom: true
-  BuildDepends: lwt,lwt.syntax,netcore
+  BuildDepends:
+    lwt,
+    lwt.syntax,
+    netcore
   Install: False

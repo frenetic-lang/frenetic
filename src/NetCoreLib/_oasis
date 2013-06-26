@@ -28,7 +28,8 @@ Library netcore
     NetCore_Parser,
     NetCore_Pattern,
     NetCore_Wildcard,
-    NetCore_SurfaceSyntax
+    NetCore_SurfaceSyntax,
+    NetCore_Bijection
   Modules:
     NetCore_Controller,
     NetCore_ConsistentUpdates,

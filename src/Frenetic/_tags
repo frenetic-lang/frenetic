@@ -1,0 +1,25 @@
+# OASIS_START
+# DO NOT EDIT (digest: dab9f20bc5fafa813b36b0f0ccbc4004)
+# Ignore VCS directories, you can use the same kind of rule outside 
+# OASIS_START/STOP if you want to exclude directories that contains 
+# useless stuff for the build process
+<**/.svn>: -traverse
+<**/.svn>: not_hygienic
+".bzr": -traverse
+".bzr": not_hygienic
+".hg": -traverse
+".hg": not_hygienic
+".git": -traverse
+".git": not_hygienic
+"_darcs": -traverse
+"_darcs": not_hygienic
+# Executable Frenetic
+"frenetic/Frenetic.byte": pkg_lwt
+"frenetic/Frenetic.byte": pkg_lwt.syntax
+"frenetic/Frenetic.byte": pkg_netcore
+<frenetic/*.ml{,i}>: pkg_lwt
+<frenetic/*.ml{,i}>: pkg_lwt.syntax
+<frenetic/*.ml{,i}>: pkg_netcore
+"frenetic/Frenetic.byte": custom
+# OASIS_STOP
+<frenetic/*.ml>: syntax_camlp4o
