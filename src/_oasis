@@ -22,17 +22,6 @@ Library common
     Frenetic_Bit,
     Frenetic_Socket
 
-Library ox
-  Path: OxLib
-  BuildDepends:
-    lwt,lwt.syntax,cstruct,packet,openflow
-  Findlibparent: frenetic
-  InternalModules:
-    OxShared
-  Modules:
-    OxStart,
-    OxPlatform
-
 Library netcore
   Path: NetCoreLib
   BuildDepends:
@@ -90,25 +79,25 @@ Executable Test_Frenetic
 Executable OxRepeater
   Path: Applications
   MainIs: OxRepeater.ml
-  BuildDepends: frenetic.ox
+  BuildDepends: ox
   Install: False
 
 Executable OxLearning
   Path: Applications
   MainIs: OxLearning.ml
-  BuildDepends: frenetic.ox
+  BuildDepends: ox
   Install: False
 
 Executable OxMonitor
   Path: Applications
   MainIs: OxMonitor.ml
-  BuildDepends: frenetic.ox
+  BuildDepends: ox
   Install: False
 
 Executable Verify
   Path: Applications
   MainIs: Verify.ml
   Custom: true
-  BuildDepends:frenetic.ox
+  BuildDepends:ox
   Install: False
 

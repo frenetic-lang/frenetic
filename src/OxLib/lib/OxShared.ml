@@ -3,7 +3,7 @@ open Packet
 open OpenFlow0x01_Core
 open OpenFlow0x01
 
-module Log = Frenetic_Log
+module Log = Lwt_log
 
 module Platform = OpenFlow0x01_Platform
 
@@ -17,8 +17,6 @@ let munge_exns thunk =
     Lwt.wrap thunk
   with exn ->
     begin
-      Log.printf "Ox" "unhandled exception: %s\nRaised by a callback.\n%s%!"
-        (Printexc.to_string exn)
-        (Printexc.get_backtrace ());
+      Log.error_f ~exn:exn "unhandled exception raised by a callback" >>
       Lwt.return ()
     end

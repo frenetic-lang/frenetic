@@ -36,9 +36,7 @@ module Make (Handlers:OXMODULE) = struct
             | (xid, PacketInMsg pktIn) -> Lwt.wrap3 Handlers.packet_in sw xid pktIn
 	          | (xid, BarrierReply) -> Lwt.wrap2 Handlers.barrier_reply sw xid
             | (xid, StatsReplyMsg rep) -> Lwt.wrap3 Handlers.stats_reply sw xid rep
-            | (xid, msg) ->
-              (Log.printf "Ox" "ignored a message from %Ld" sw;
-               Lwt.return ())
+            | (xid, msg) -> Log.info_f "ignored a message from %Ld" sw
                 
         end >>
           switch_thread_loop sw
@@ -48,16 +46,10 @@ module Make (Handlers:OXMODULE) = struct
       switch_thread_loop sw
     with 
       | Platform.SwitchDisconnected sw -> 
-        begin
-          Log.printf "Ox" "switch %Ld disconnected\n%!" sw;
-          Lwt.return ()
-        end
+        Log.info_f "switch %Ld disconnected\n%!" sw
       | exn ->
-        begin
-          Log.printf "Ox" "unhandled exception: %s\nRaised in handler for \
-                           switch %Ld" (Printexc.to_string exn) sw;
-          Lwt.return ()
-        end
+        Log.info_f ~exn:exn  "unhandled exception raised in handler for \
+                           switch %Ld" sw
 
   (* TODO(arjun): IMO, send_to_switch should *never* fail. *)
   let handle_deferred () = 
@@ -65,13 +57,9 @@ module Make (Handlers:OXMODULE) = struct
       try_lwt
         Platform.send_to_switch sw xid msg
       with exn ->
-        begin
-          Log.printf "Ox" "unhandled exception: %s sending a message to switch \
-                           %Ld.\n%s%!" 
-            (Printexc.to_string exn) sw 
-            (Printexc.get_backtrace ());
-          Lwt.return ()
-        end in
+        Log.info_f ~exn:exn "unhandled exception sending a message to switch \
+                             %Ld"  sw 
+    in
     Lwt_stream.iter_s f to_send_stream
 
   let rec accept_switches () = 
@@ -79,7 +67,7 @@ module Make (Handlers:OXMODULE) = struct
     let open FlowMod in
     lwt feats = Platform.accept_switch () in 
     let sw = feats.SwitchFeatures.switch_id in 
-    Log.printf "Ox" "switch %Ld connected\n%!" sw;
+    lwt _ = Log.info_f "switch %Ld connected" sw in
     lwt _ = Platform.send_to_switch sw 0l (FlowModMsg delete_all_flows) in
     lwt _ = Platform.send_to_switch sw 1l BarrierRequest in
     (* JNF: wait for barrier reply? *)
@@ -92,12 +80,13 @@ module Make (Handlers:OXMODULE) = struct
     Lwt.pick [ handle_deferred (); accept_switches () ]
 
   let _ =
-    Log.printf "Ox" "Controller launching...\n%!";
+    (* intentionally on stdout *)
+    Format.printf "Ox controller launching...\n%!";
     Sys.catch_break true;
     try
       Lwt_main.run (start_controller ())
     with exn ->
-      Log.printf "Ox" "Unexpected exception: %s\n%s\n%!"
+      Format.printf "Unexpected exception: %s\n%s\n%!"
         (Printexc.to_string exn)
         (Printexc.get_backtrace ());
       exit 1

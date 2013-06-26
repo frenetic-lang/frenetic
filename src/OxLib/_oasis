@@ -1,0 +1,22 @@
+OASISFormat: 0.3
+Name:        ox
+Version:     1.0
+Synopsis:    A platform for writing OpenFlow controllers
+Authors:     See the AUTHORS file
+License:     LGPL
+Plugins:     META (0.3)
+BuildTools:  ocamlbuild
+
+Library ox
+  Path: lib
+  BuildDepends:
+    lwt,
+    lwt.syntax,
+    cstruct,
+    packet,
+    openflow
+  InternalModules:
+    OxShared
+  Modules:
+    OxStart,
+    OxPlatform
