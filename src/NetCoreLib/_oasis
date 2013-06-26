@@ -2,7 +2,9 @@ OASISFormat: 0.3
 Name:        netcore
 Version:     1.0
 Synopsis:    The NetCore Compiler and Runtime System
-Authors:     See the AUTHORS file
+Authors:     Nate Foster, Arjun Guha, Mark Reitblatt, Cole Schlesinger, and
+             David Walker
+Nate Foster, Arjun Guha, Mark Reitblatt, and Cole Schlesinger
 License:     LGPL
 Plugins:     META (0.3)
 BuildTools:  ocamlbuild

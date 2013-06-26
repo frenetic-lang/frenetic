@@ -2,7 +2,8 @@ OASISFormat: 0.3
 Name:        frenetic
 Version:     1.0
 Synopsis:    Frenetic Network Programming Language
-Authors:     See the AUTHORS file
+Authors:     Nate Foster, Arjun Guha, Mark Reitblatt, Cole Schlesinger, and
+             David Walker
 License:     LGPL
 Plugins:     META (0.3)
 BuildTools:  ocamlbuild

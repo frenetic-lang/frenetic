@@ -3,11 +3,11 @@ Name:        packet
 Version:     0.1
 Synopsis:    Serialization for some common network packets, including
              ethernet frames, IP, TCP, and ARP.
-Authors:     See the AUTHORS file
+Authors:     Nate Foster, Arjun Guha, Mark Reitblatt, and Cole Schlesinger
+Maintainer:  Arjun Guha <arjun@cs.umass.edu>
 License:     LGPL
 Plugins:     META (0.3)
 BuildTools:  ocamlbuild
-
 
 Library packet
   Path: lib
