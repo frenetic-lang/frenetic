@@ -616,10 +616,10 @@ module Oxm = struct
 
   let parse (bits : Cstruct.t) : oxm * Cstruct.t =
     (* printf "class= %d\n" (get_ofp_oxm_oxm_class bits); *)
-    let c = match int_to_ofp_oxm_class (get_ofp_oxm_oxm_class bits) with
-      | Some n -> n
-      | None -> 
-        raise (Unparsable (sprintf "malformed class in oxm")) in
+    (* let c = match int_to_ofp_oxm_class (get_ofp_oxm_oxm_class bits) with *)
+    (*   | Some n -> n *)
+    (*   | None ->  *)
+    (*     raise (Unparsable (sprintf "malformed class in oxm")) in *)
     (* TODO: assert c is OFPXMC_OPENFLOW_BASIC *)
     let value = get_ofp_oxm_oxm_field_and_hashmask bits in
     let f = match int_to_oxm_ofb_match_fields (value lsr 1) with
@@ -940,7 +940,6 @@ module OfpMatch = struct
     (List.append [field] fields, bits3)
 
   let parse (bits : Cstruct.t) : oxmMatch * Cstruct.t =
-    let typ = get_ofp_match_typ bits in
     let length = get_ofp_match_length bits in
     let oxm_bits = Cstruct.sub bits sizeof_ofp_match (length - sizeof_ofp_match) in
     let fields, _ = parse_fields oxm_bits in
@@ -1079,7 +1078,6 @@ module Features = struct
     let aux_id = get_ofp_switch_features_auxiliary_id bits in
     let supported_capabilities = Capabilities.parse
       (get_ofp_switch_features_capabilities bits) in
-    let bits = Cstruct.shift bits sizeof_ofp_switch_features in
     { datapath_id; 
       num_buffers; 
       num_tables;
@@ -1102,18 +1100,7 @@ module PortDesc = struct
     
   let parse (bits : Cstruct.t) : portDesc =
     let port_no = get_ofp_port_port_no bits in
-    let _ = get_ofp_port_pad bits in
-    let hw_addr = get_ofp_port_hw_addr bits in
-    let _ = get_ofp_port_pad2 bits in
-    let name = get_ofp_port_name bits in
-    let config = get_ofp_port_config bits in
     let state = PortState.parse (get_ofp_port_state bits) in
-    let curr = get_ofp_port_curr bits in
-    let advertised = get_ofp_port_advertised bits in
-    let supported = get_ofp_port_supported bits in
-    let peer = get_ofp_port_peer bits in
-    let curr_speed = get_ofp_port_curr_speed bits in
-    let max_speed = get_ofp_port_max_speed bits in
     { port_no;
       (* hw_addr; *)
       (* name; *)
@@ -1134,6 +1121,8 @@ module PortReason = struct
       | Some OFPPR_ADD -> PortAdd
       | Some OFPPR_DELETE -> PortDelete
       | Some OFPPR_MODIFY -> PortModify
+      | _ -> raise
+            (Unparsable (sprintf "bad port_reason number (%d)" bits))
 end
 
 module PortStatus = struct
@@ -1264,6 +1253,9 @@ module Message = struct
     | GroupModMsg _ -> GROUP_MOD
     | PacketInMsg _ -> PACKET_IN
     | PacketOutMsg _ -> PACKET_OUT
+    | PortStatusMsg _ ->   PORT_STATUS
+    | BarrierRequest ->   BARRIER_REQ
+    | BarrierReply ->   BARRIER_RESP
 
   let sizeof (msg : message) : int = match msg with
     | Hello -> sizeof_ofp_header
@@ -1306,19 +1298,8 @@ module Message = struct
     str
 
   let parse (bits : Cstruct.t) =
-    (* let oc = open_out "test-msg-1.3-msg3-prebodybits" in *)
-    (* let str = Cstruct.to_string bits in *)
-    (* fprintf oc "%s" str; *)
-    (* close_out oc; *)
-    let ver = get_ofp_header_version bits in
     let typ = get_ofp_header_typ bits in
-    let len = get_ofp_header_length bits in
-    let xid = get_ofp_header_xid bits in
     let body_bits = Cstruct.shift bits sizeof_ofp_header in
-    (* let oc2 = open_out "test-msg-1.3-msg3-bodybits" in *)
-    (* let str = Cstruct.to_string body_bits in *)
-    (* fprintf oc2 "%s" str; *)
-    (* close_out oc2; *)
     match int_to_msg_code typ with
         | Some HELLO -> Hello
         | Some ECHO_RESP -> EchoReply body_bits
