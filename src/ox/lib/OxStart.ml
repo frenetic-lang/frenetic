@@ -78,7 +78,7 @@ module Make (Handlers:OXMODULE) = struct
     Lwt.async (fun () -> switch_thread sw);
     accept_switches ()
 
-  let start_controller () : unix Lwt.t = 
+  let start_controller () : unit Lwt.t = 
     Platform.init_with_port 6633 >>
     Lwt.pick [ handle_deferred (); accept_switches () ]
 
