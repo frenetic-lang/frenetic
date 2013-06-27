@@ -132,7 +132,7 @@ module OpenFlowPlatform = struct
     OpenFlow0x04_Misc.Log.printf "[platform] trying to read Hello\n%!";
     lwt (xid, msg) = recv_from_switch_fd fd in
     match msg with
-      | Hello _ -> 
+      | Hello -> 
         OpenFlow0x04_Misc.Log.printf "[platform] sending Features Request\n%!";
         lwt _ = send_to_switch_fd fd 0l FeaturesRequest in
         lwt (_, msg) = recv_from_switch_fd fd in
