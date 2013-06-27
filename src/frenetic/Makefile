@@ -1,12 +1,14 @@
-.PHONY: all reinstall clean
+.PHONY: reinstall clean configure build
 
 OCAML=ocaml
 
-reinstall: all
+reinstall: build
 	$(OCAML) setup.ml -reinstall
 
-all:
-	$(OCAML) setup.ml -configure --disable-installexec
+configure:	
+	$(OCAML) setup.ml -configure --disable-installexec --disable-docs
+
+build: configure
 	$(OCAML) setup.ml -build
 	sudo ln -sf `pwd`/frenetic.byte /usr/local/bin/frenetic
 

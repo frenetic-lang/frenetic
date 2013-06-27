@@ -1,12 +1,15 @@
-.PHONY: all reinstall clean
+.PHONY: reinstall clean build configure
 
 OCAML=ocaml
 
-reinstall: all
+reinstall: build
 	$(OCAML) setup.ml -reinstall
 
-all:
-	$(OCAML) setup.ml -all
+build: configure
+	$(OCAML) setup.ml -build
+
+configure:
+	$(OCAML) setup.ml -configure --disable-docs
 
 clean:
 	$(OCAML) setup.ml -clean
