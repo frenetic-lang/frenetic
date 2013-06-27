@@ -5,7 +5,9 @@ Synopsis:    A platform for writing OpenFlow controllers
 Authors:     Nate Foster, Arjun Guha, Mark Reitblatt, and Cole Schlesinger
 License:     LGPL
 Plugins:     META (0.3)
-BuildTools:  ocamlbuild
+BuildTools:
+  ocamlbuild,
+  ocamldoc
 
 Library ox
   Path: lib
@@ -18,5 +20,13 @@ Library ox
   InternalModules:
     OxShared
   Modules:
+    OxStart,
+    OxPlatform
+
+Document doc
+  Title: Ox Platform Documentation
+  Type: ocamlbuild (0.3)
+  XOCamlBuildPath: lib
+  XOCamlBuildModules:
     OxStart,
     OxPlatform

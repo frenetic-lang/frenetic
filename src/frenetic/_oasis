@@ -6,7 +6,9 @@ Authors:     Nate Foster, Arjun Guha, Mark Reitblatt, Cole Schlesinger, and
              David Walker
 License:     LGPL
 Plugins:     META (0.3)
-BuildTools:  ocamlbuild
+BuildTools:
+  ocamlbuild,
+  ocamldoc
 
 Flag installexec
   Description: install the Frenetic executable
@@ -64,3 +66,19 @@ Executable Frenetic
     lwt.syntax,
     netcore
 
+Document doc
+  Title: NetCore Documentation
+  Type: ocamlbuild (0.3)
+  XOCamlBuildPath: lib
+  XOCamlBuildModules:
+    NetCore_Controller,
+    NetCore_ConsistentUpdates,
+    NetCore_Pretty,
+    NetCore_MacLearning,
+    NetCore_NAT,
+    NetCore_Semantics,
+    NetCore_Stream,
+    NetCore_StatefulFirewall,
+    NetCore_Topo,
+    NetCore_Types,
+    NetCore_Parsing

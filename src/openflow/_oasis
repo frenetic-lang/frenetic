@@ -6,7 +6,9 @@ Authors:     Marco Canini, Nate Foster, Arjun Guha, Mark Reitblatt,
              Cole Schlesinger, and Laurent Vanbever
 License:     LGPL
 Plugins:     META (0.3)
-BuildTools:  ocamlbuild
+BuildTools:
+  ocamlbuild,
+  ocamldoc
 
 Library openflow
   Path: lib
@@ -27,6 +29,21 @@ Library openflow
     OpenFlow0x01_PlatformSig,
     OpenFlow0x01_Platform,
     OpenFlow0x01_TestPlatform,
+    OpenFlow0x04,
+    OpenFlow0x04_Core,
+    OpenFlow0x04_Platform,
+    OpenFlow0x04_Misc
+
+Document doc
+  Title: OpenFlow documentation
+  Type: ocamlbuild (0.3)
+  XOCamlBuildPath: lib
+  XOCamlBuildModules:
+    OpenFlow0x01,
+    OpenFlow0x01_Core,
+    OpenFlow0x01_Stats,
+    OpenFlow0x01_PlatformSig,
+    OpenFlow0x01_Platform,
     OpenFlow0x04,
     OpenFlow0x04_Core,
     OpenFlow0x04_Platform,
