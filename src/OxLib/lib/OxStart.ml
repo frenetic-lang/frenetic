@@ -10,6 +10,8 @@ module type OXMODULE = sig
   val packet_in : switchId -> xid -> PacketIn.t -> unit
   val barrier_reply : switchId -> xid -> unit
   val stats_reply : switchId -> xid -> StatsReply.t -> unit
+  val cleanup : unit -> unit
+
 end
 
 module DefaultTutorialHandlers = struct
@@ -23,6 +25,8 @@ module DefaultTutorialHandlers = struct
   let barrier_reply _ _ = ()
 
   let stats_reply _ _ _ = ()
+
+  let cleanup _ = ()
 
 end
 
@@ -86,6 +90,7 @@ module Make (Handlers:OXMODULE) = struct
     try
       Lwt_main.run (start_controller ())
     with exn ->
+      Handlers.cleanup ();
       Format.printf "Unexpected exception: %s\n%s\n%!"
         (Printexc.to_string exn)
         (Printexc.get_backtrace ());

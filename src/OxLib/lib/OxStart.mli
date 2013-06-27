@@ -12,6 +12,7 @@ module DefaultTutorialHandlers : sig
   val switch_disconnected : switchId -> unit
   val barrier_reply : switchId -> xid -> unit
   val stats_reply : switchId -> xid -> reply -> unit
+  val cleanup : unit -> unit
 
 end
 
@@ -39,6 +40,11 @@ module type OXMODULE = sig
   (** [stats_reply sw xid rep] is a callback invoked when switch [sw] responds
   with a reply [rep] to a statistics request with transaction ID [xid]. *)
   val stats_reply : switchId -> xid -> reply -> unit
+
+  (** [cleanup] is called when an exception stops the running of the main
+  controller loop. *)
+  val cleanup : unit -> unit
+
 
 end
 
