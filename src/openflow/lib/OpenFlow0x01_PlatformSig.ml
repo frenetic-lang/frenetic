@@ -16,7 +16,7 @@ module type PLATFORM = sig
 
   (** [send_to_switch switch_id xid msg] sends [msg] to the switch,
       blocking until the send completes. *)
-  val send_to_switch : switchId -> xid -> Message.t-> unit Lwt.t
+  val send_to_switch : switchId -> xid -> Message.t -> unit Lwt.t
 
   (** [recv_from_switch switch_id] blocks until [switch_id] sends a
       message.
