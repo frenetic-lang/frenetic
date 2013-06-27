@@ -6,6 +6,6 @@ build: [
   [ocaml "setup.ml" "-install"]
 ]
 remove: [
-  ["ocamlfind" "remove" "frenetic"]
+  ["ocamlfind" "remove" "openflow"]
 ]
-depends: ["ocamlfind" "lwt" "cstruct" "str" "packet" "openflow"]
+depends: ["ocamlfind" "lwt" "cstruct" "packet"]
