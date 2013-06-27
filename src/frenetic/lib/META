@@ -1,7 +1,7 @@
 # OASIS_START
-# DO NOT EDIT (digest: 25ff509ebb99a1b9d1b119ffa91150d2)
+# DO NOT EDIT (digest: c53495d6c9bd486c309e7a6c92f7e1e0)
 version = "1.0"
-description = "The NetCore Compiler and Runtime System"
+description = "The Frenetic Compiler and Runtime System"
 requires = "lwt lwt.unix cstruct lwt.syntax str packet openflow"
 archive(byte) = "netcore.cma"
 archive(byte, plugin) = "netcore.cma"

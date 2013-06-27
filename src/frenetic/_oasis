@@ -1,7 +1,7 @@
 OASISFormat: 0.3
-Name:        netcore
+Name:        frenetic
 Version:     1.0
-Synopsis:    The NetCore Compiler and Runtime System
+Synopsis:    The Frenetic Compiler and Runtime System
 Authors:     Nate Foster, Arjun Guha, Mark Reitblatt, Cole Schlesinger, and
              David Walker
 License:     LGPL
