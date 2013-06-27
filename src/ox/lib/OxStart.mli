@@ -48,9 +48,10 @@ module type OXMODULE = sig
 
 end
 
-(** Given an [OXMODULE] module, produce an Ox controller that, when run,
-listens on port 6633 for messages from OpenFlow-enabled switches.  Messages and
-network events are passed to the appropriate [OXMODULE] callbacks. *)
+(** Given an [OXMODULE] module, build and run (!) an Ox controller
+    that, listens on port 6633 for messages from OpenFlow-enabled
+    switches.  Messages and network events are passed to the
+    appropriate [OXMODULE] callbacks. *)
 module Make : functor (OxModule:OXMODULE) -> sig
 
 end

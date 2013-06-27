@@ -11,7 +11,6 @@ module type OXMODULE = sig
   val barrier_reply : switchId -> xid -> unit
   val stats_reply : switchId -> xid -> StatsReply.t -> unit
   val cleanup : unit -> unit
-
 end
 
 module DefaultTutorialHandlers = struct
@@ -79,7 +78,7 @@ module Make (Handlers:OXMODULE) = struct
     Lwt.async (fun () -> switch_thread sw);
     accept_switches ()
 
-  let start_controller () = 
+  let start_controller () : unit Lwt.t = 
     Platform.init_with_port 6633 >>
     Lwt.pick [ handle_deferred (); accept_switches () ]
 
@@ -95,5 +94,4 @@ module Make (Handlers:OXMODULE) = struct
         (Printexc.to_string exn)
         (Printexc.get_backtrace ());
       exit 1
-
 end
