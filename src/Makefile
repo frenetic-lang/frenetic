@@ -1,16 +1,16 @@
 .PHONY: all clean ctags
 
 all:
-	cd PacketLib && $(MAKE)
-	cd OpenFlowLib && $(MAKE)
-	cd OxLib && $(MAKE)
-	cd NetCoreLib && $(MAKE)
+	cd packet && $(MAKE)
+	cd openflow && $(MAKE)
+	cd ox && $(MAKE)
+	cd frenetic && $(MAKE)
 
 clean:
-	cd PacketLib && $(MAKE) clean
-	cd OpenFlowLib && $(MAKE) clean
-	cd OxLib && $(MAKE) clean
-	cd NetCoreLib && $(MAKE) clean
+	cd packet && $(MAKE) clean
+	cd openflow && $(MAKE) clean
+	cd ox && $(MAKE) clean
+	cd frenetic && $(MAKE) clean
 
 ctags: $(CTAGS_FILES)
 	@which ctags 2> /dev/null > /dev/null \
