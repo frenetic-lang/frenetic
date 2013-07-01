@@ -28,6 +28,7 @@ let eval_action act inp =
 let rec eval pol pkt = match pol with
   | HandleSwitchEvent _ -> []
   | Action action -> eval_action action pkt 
+  | ActionChoice _ -> failwith "NYI: eval ActionChoice"
   | Filter pred0 ->
     let Pkt (sw, pt, pk, buf) = pkt in
     if match_pred pred0 sw pt pk then [pkt] else []
@@ -59,6 +60,7 @@ let event_switch = function
 
 let rec apply_switch_events evt = function
   | Action _ -> false
+  | ActionChoice _ -> false
   | Filter pred -> sw_pred (event_switch evt) pred
   | Union (pol1, pol2) ->
     apply_switch_events evt pol1 || apply_switch_events evt pol2

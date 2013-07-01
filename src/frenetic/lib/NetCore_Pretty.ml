@@ -110,6 +110,7 @@ module Format = struct
   and apol fmt p = match p with
     | HandleSwitchEvent _ -> fprintf fmt "@[handleSwitchEvent _@]"
     | Action a -> fprintf fmt "@[%a@]" action_list a
+    | ActionChoice _ -> failwith "NYI: apol ActionChoice"
     | Filter pr -> fprintf fmt "@[filter %a@]" pred pr
     | Union _
     | Seq _

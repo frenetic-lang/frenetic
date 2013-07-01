@@ -261,6 +261,7 @@ module QuerySet (Platform : PLATFORM) = struct
           Hashtbl.replace q_actions_to_query_ids atom (gen_query_id ())
         | _ -> ())
         atoms
+    | ActionChoice _ -> failwith "NYI: generate_query_ids ActionChoice"
     | Filter _ -> ()
     | Union (p1, p2)
     | Seq (p1, p2)

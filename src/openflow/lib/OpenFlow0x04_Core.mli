@@ -52,6 +52,8 @@ type oxm =
 
 type oxmMatch = oxm list
 
+val match_all : oxmMatch
+
 type pseudoPort =
 | PhysicalPort of portId
 | InPort
@@ -129,6 +131,10 @@ type flowMod = { mfCookie : int64 mask; mfTable_id : tableId;
                  mfOut_port : pseudoPort option;
                  mfOut_group : groupId option; mfFlags : flowModFlags;
                  mfOfp_match : oxmMatch; mfInstructions : instruction list }
+
+val add_flow : int16 -> oxmMatch -> instruction list -> flowMod
+
+val delete_all_flows : flowMod
 
 val mfCookie : flowMod -> int64 mask
 

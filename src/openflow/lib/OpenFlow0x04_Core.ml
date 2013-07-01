@@ -157,6 +157,43 @@ type flowMod = { mfCookie : int64 mask; mfTable_id : tableId;
                  mfOut_group : groupId option; mfFlags : flowModFlags;
                  mfOfp_match : oxmMatch; mfInstructions : instruction list }
 
+let match_all = []
+
+let default_fm_flags = 
+  { fmf_send_flow_rem = false
+  ; fmf_check_overlap = false
+  ; fmf_reset_counts = false
+  ; fmf_no_pkt_counts = false
+  ; fmf_no_byt_counts = false }
+
+let add_flow prio pat insts =
+  { mfCookie = val_to_mask 0L
+  ; mfTable_id = 0
+  ; mfCommand = AddFlow
+  ; mfIdle_timeout = Permanent
+  ; mfHard_timeout = Permanent
+  ; mfPriority = prio
+  ; mfBuffer_id = None
+  ; mfOut_port = None
+  ; mfOut_group = None
+  ; mfFlags = default_fm_flags
+  ; mfOfp_match = pat
+  ; mfInstructions = insts }
+
+let delete_all_flows =
+  { mfCookie = val_to_mask 0L
+  ; mfTable_id = 0
+  ; mfCommand = DeleteFlow
+  ; mfIdle_timeout = Permanent
+  ; mfHard_timeout = Permanent
+  ; mfPriority = 0
+  ; mfBuffer_id = None
+  ; mfOut_port = None
+  ; mfOut_group = None
+  ; mfFlags = default_fm_flags
+  ; mfOfp_match = match_all
+  ; mfInstructions = [] }
+
 (** val mfCookie : flowMod -> int64 mask **)
 
 let mfCookie x = x.mfCookie

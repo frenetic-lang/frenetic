@@ -79,6 +79,7 @@ type switchEvent =
 type pol =
   | HandleSwitchEvent of (switchEvent -> unit)
   | Action of action
+  | ActionChoice of action list
   | Filter of pred
   | Union of pol * pol
   | Seq of pol * pol

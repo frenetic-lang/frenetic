@@ -39,6 +39,7 @@ let rec compile_pol p sw =
           tbl)
       (NetCore_Action.Output.atoms action)
       [(all, NetCore_Action.Output.drop)]
+  | ActionChoice _ -> failwith "NYI compile_pol ActionChoice"
   | Filter pred ->
     map 
       (fun (a,b) -> match b with
