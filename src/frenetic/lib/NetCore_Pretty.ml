@@ -98,7 +98,7 @@ module Format = struct
     | _ -> cpol fmt p
 
   and par_pol_list fmt p = match p with
-    | Union (p1, p2) -> fprintf fmt "@[@[%a;@]%a@]" cpol p1 par_pol_list p2
+    | Union (p1, p2) -> fprintf fmt "@[@[%a+@]%a@]" cpol p1 par_pol_list p2
     | _ -> cpol fmt p
 
   and cpol fmt p = match p with
