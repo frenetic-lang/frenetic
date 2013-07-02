@@ -1,5 +1,4 @@
 open Packet
-open OpenFlow0x01
 
 module type ACTION = NetCore_Action.ACTION
 
