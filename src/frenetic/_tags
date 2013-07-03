@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: cd21184001e545c1b92857b63a5ccbea)
+# DO NOT EDIT (digest: 14ae3a1f58a3cf4d3fa5928f48e2c8fa)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -42,14 +42,14 @@
 <test/*.ml{,i}>: pkg_str
 <test/*.ml{,i}>: pkg_openflow
 # Executable frenetic
-"frenetic/Frenetic.byte": use_netcore
-"frenetic/Frenetic.byte": pkg_lwt
-"frenetic/Frenetic.byte": pkg_lwt.syntax
-"frenetic/Frenetic.byte": pkg_packet
-"frenetic/Frenetic.byte": pkg_lwt.unix
-"frenetic/Frenetic.byte": pkg_cstruct
-"frenetic/Frenetic.byte": pkg_str
-"frenetic/Frenetic.byte": pkg_openflow
+"frenetic/frenetic.byte": use_netcore
+"frenetic/frenetic.byte": pkg_lwt
+"frenetic/frenetic.byte": pkg_lwt.syntax
+"frenetic/frenetic.byte": pkg_packet
+"frenetic/frenetic.byte": pkg_lwt.unix
+"frenetic/frenetic.byte": pkg_cstruct
+"frenetic/frenetic.byte": pkg_str
+"frenetic/frenetic.byte": pkg_openflow
 <frenetic/*.ml{,i}>: use_netcore
 <frenetic/*.ml{,i}>: pkg_lwt
 <frenetic/*.ml{,i}>: pkg_lwt.syntax
@@ -58,7 +58,7 @@
 <frenetic/*.ml{,i}>: pkg_cstruct
 <frenetic/*.ml{,i}>: pkg_str
 <frenetic/*.ml{,i}>: pkg_openflow
-"frenetic/Frenetic.byte": custom
+"frenetic/frenetic.byte": custom
 # OASIS_STOP
 <lib/*.ml>: syntax_camlp4o
 <frenetic/*.ml>: syntax_camlp4o
