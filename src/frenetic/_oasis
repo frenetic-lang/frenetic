@@ -58,7 +58,7 @@ Executable Test_Frenetic
 
 Executable frenetic
   Path: frenetic
-  MainIs: Frenetic.ml
+  MainIs: frenetic.ml
   Custom: true
   Install$: flag(installexec)
   BuildDepends:
