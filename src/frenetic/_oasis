@@ -56,7 +56,7 @@ Executable Test_Frenetic
   BuildDepends: oUnit,packet,netcore
   Install: False
 
-Executable Frenetic
+Executable frenetic
   Path: frenetic
   MainIs: Frenetic.ml
   Custom: true
