@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 33c0ddca24649042d891794657dcf699)
+# DO NOT EDIT (digest: cd21184001e545c1b92857b63a5ccbea)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -41,7 +41,7 @@
 <test/*.ml{,i}>: pkg_cstruct
 <test/*.ml{,i}>: pkg_str
 <test/*.ml{,i}>: pkg_openflow
-# Executable Frenetic
+# Executable frenetic
 "frenetic/Frenetic.byte": use_netcore
 "frenetic/Frenetic.byte": pkg_lwt
 "frenetic/Frenetic.byte": pkg_lwt.syntax
