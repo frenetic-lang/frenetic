@@ -1,6 +1,6 @@
 OASISFormat: 0.3
 Name:        frenetic
-Version:     1.0
+Version:     1.0.1
 Synopsis:    The Frenetic Compiler and Runtime System
 Authors:     Nate Foster, Arjun Guha, Mark Reitblatt, Cole Schlesinger, and
              David Walker
