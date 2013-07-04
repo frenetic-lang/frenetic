@@ -1,2 +1,2 @@
-<*.ml{,i}> : package(frenetic.packet), package(frenetic.openflow), package(frenetic.ox)
-<*.d.byte> : package(frenetic.packet), package(frenetic.openflow), package(frenetic.ox)
+<*.ml{,i}> : package(packet), package(openflow), package(ox)
+<*.d.byte> : package(packet), package(openflow), package(ox)
