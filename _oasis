@@ -5,10 +5,13 @@ Synopsis:    Serialization for some common network packets, including
              ethernet frames, IP, TCP, and ARP.
 Authors:     Nate Foster, Arjun Guha, Mark Reitblatt, and Cole Schlesinger
 License:     LGPL
-Plugins:     META (0.3)
+Plugins:     META (0.3), StdFiles (0.3), DevFiles (0.3)
 BuildTools:
   ocamlbuild,
   ocamldoc
+
+XStdFilesREADME: False
+XStdFilesAUTHORS: FAlse
 
 Library packet
   Path: lib
