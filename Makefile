@@ -1,15 +1,38 @@
-.PHONY: reinstall clean build configure
+# OASIS_START
+# DO NOT EDIT (digest: bc1e05bfc8b39b664f29dae8dbd3ebbb)
 
-OCAML=ocaml
+SETUP = ocaml setup.ml
 
-reinstall: build
-	$(OCAML) setup.ml -reinstall
+build: setup.data
+	$(SETUP) -build $(BUILDFLAGS)
 
-build: configure
-	$(OCAML) setup.ml -build
+doc: setup.data build
+	$(SETUP) -doc $(DOCFLAGS)
 
-configure:
-	$(OCAML) setup.ml -configure --disable-docs
+test: setup.data build
+	$(SETUP) -test $(TESTFLAGS)
 
-clean:
-	$(OCAML) setup.ml -clean
+all: 
+	$(SETUP) -all $(ALLFLAGS)
+
+install: setup.data
+	$(SETUP) -install $(INSTALLFLAGS)
+
+uninstall: setup.data
+	$(SETUP) -uninstall $(UNINSTALLFLAGS)
+
+reinstall: setup.data
+	$(SETUP) -reinstall $(REINSTALLFLAGS)
+
+clean: 
+	$(SETUP) -clean $(CLEANFLAGS)
+
+distclean: 
+	$(SETUP) -distclean $(DISTCLEANFLAGS)
+
+setup.data:
+	$(SETUP) -configure $(CONFIGUREFLAGS)
+
+.PHONY: build doc test all install uninstall reinstall clean distclean configure
+
+# OASIS_STOP
