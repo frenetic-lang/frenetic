@@ -1,0 +1,14 @@
+*.vo
+*.v.d
+*.glob
+Makefile.coq
+_build
+*.d.byte
+*.byte
+*.native
+*.out
+*.cmi
+*.cma
+*.pyo
+*.pyc
+.DS_Store

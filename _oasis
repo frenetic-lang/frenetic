@@ -1,0 +1,23 @@
+OASISFormat: 0.3
+Name:        packet
+Version:     0.1
+Synopsis:    Serialization for some common network packets, including
+             ethernet frames, IP, TCP, and ARP.
+Authors:     Nate Foster, Arjun Guha, Mark Reitblatt, and Cole Schlesinger
+License:     LGPL
+Plugins:     META (0.3)
+BuildTools:
+  ocamlbuild,
+  ocamldoc
+
+Library packet
+  Path: lib
+  BuildDepends: cstruct, cstruct.syntax
+  Modules: Packet
+
+Document doc
+  Title: Packet documentation
+  Type: ocamlbuild (0.3)
+  XOCamlBuildPath: lib
+  XOCamlBuildModules:
+    Packet
