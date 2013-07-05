@@ -1,6 +1,6 @@
 # OASIS_START
-# DO NOT EDIT (digest: e3f2523f538fa59b6e1b6aed96532a9a)
-version = "0.1"
+# DO NOT EDIT (digest: 2dca310655179dec98a35d1f1e2b522a)
+version = "0.1.1"
 description =
 "Serialization for some common network packets, including ethernet frames, IP, TCP, and ARP."
 requires = "cstruct cstruct.syntax"
