@@ -12,6 +12,7 @@ type 'a wildcard =
 
 type port =
   | Physical of OpenFlow0x01_Core.portId
+  | Queue of OpenFlow0x01.portId * OpenFlow0x01.queueId
   | All
   | Here
 

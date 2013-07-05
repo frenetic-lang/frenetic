@@ -7,9 +7,9 @@ let to_string_exact = NetCore_Wildcard.to_string_exact
 
 let string_of_port = function
   | Physical pid -> (string_of_int pid)
+  | Queue (pid, qid) -> (string_of_int pid)  ^ " " ^ (Int32.to_string qid)
   | All -> "all"
   | Here -> "pass"
-  | Queue (pid, qid) -> (string_of_int pid)  ^ " " ^ (Int32.to_string qid)
 
 module Format = struct
   

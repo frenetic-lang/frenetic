@@ -498,6 +498,9 @@ val string_of_switchId : switchId -> string
 (** [string_of_switchId p] pretty-prints [p]. *)
 val string_of_portId : portId -> string
 
+(** [string_of_queueId q] pretty-prints [q]. *)
+val string_of_queueId : queueId -> string
+
 (** {9 Parsing exceptions}
 
     These exceptions may occur when parsing OpenFlow messages.
