@@ -441,7 +441,9 @@ module Output = struct
          | _ ->
            Output (PhysicalPort pt)) ::
           (unmodify out))
-   
+    | Queue pt qid ->
+      (* TODO(rjs) add queue action *) [] 
+
   let atom_to_of inp atom = match atom with
     | SwitchAction out -> output_to_of inp out
     | ControllerAction _ -> [ Output (Controller 65535) ]

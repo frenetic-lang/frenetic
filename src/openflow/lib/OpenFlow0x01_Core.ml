@@ -4,6 +4,8 @@ type switchId = int64
 
 type portId = int16
 
+type queueId = int32
+
 type xid = int32
 
 type pattern =  

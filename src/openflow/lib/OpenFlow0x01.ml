@@ -7,10 +7,12 @@ exception Ignored of string
 
 type switchId = int64
 type portId = int16
+type queueId = int32
 type xid = int32
 
 let string_of_switchId = Int64.to_string
 let string_of_portId = string_of_int
+let string_of_queueId =  Int32.to_string
 
 let clear_bit (n:int) (x:int32) : int32 =
   Int32.logand x (Int32.lognot (Int32.shift_left Int32.one n))

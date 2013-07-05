@@ -9,6 +9,7 @@ let string_of_port = function
   | Physical pid -> (string_of_int pid)
   | All -> "all"
   | Here -> "pass"
+  | Queue pid qid-> (string_of_int pid) ^ " " ^ (Int32.to_string qid)
 
 module Format = struct
   

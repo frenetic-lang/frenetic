@@ -22,6 +22,9 @@ type switchId = int64
 (** [portId] is the type of physical port identifiers (port numbers). *)
 type portId = int16
 
+(** [queueId] identifies a specific queue for QoS. *)
+type queueId = int32
+
 (** Transaction ID of OpenFlow messages. *)
 type xid = int32
 

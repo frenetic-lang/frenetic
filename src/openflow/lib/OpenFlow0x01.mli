@@ -5,6 +5,8 @@ type switchId = OpenFlow0x01_Core.switchId
 
 type portId = OpenFlow0x01_Core.portId
 
+type queueId = OpenFlow0x01_Core.queueId
+
 type xid = OpenFlow0x01_Core.xid
 
 module Match : sig

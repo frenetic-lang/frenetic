@@ -218,6 +218,7 @@ let encode_pattern (pat:ptrn) (pkt:zVar) : zFormula =
 	   | All -> ZTrue
 	   | Here -> ZTrue 
 	   | Physical pt -> packet_field "InPort" pkt (TInt (Int64.of_int pt)))
+	   | Queue pt qid -> ZTrue (* TODO(rjs) Fix for queue ports *)
 	 pat.ptrnInPort ])
 
 let rec encode_predicate (pr:pred) (pkt:zVar) : zFormula = match pr with 
@@ -269,6 +270,7 @@ let output_forwards (out:output) (pkt1:zVar) (pkt2:zVar) : zFormula =
 	   | All -> ZNot(ZAnd(equal_field "InPort" pkt1 pkt2))
 	   | Here -> ZAnd(equal_field "InPort" pkt1 pkt2)
 	   | Physical pt -> packet_field "InPort" pkt2 (TInt (Int64.of_int pt))) ])
+	   | Queue pt qid -> ZTrue (* TODO(rjs) Fix for queue ports *)
 
 let action_atom_forwards (act:action_atom) (pkt1:zVar) (pkt2:zVar) : zFormula = match act with 
   | SwitchAction out -> 
