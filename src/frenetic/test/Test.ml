@@ -9,6 +9,8 @@ let string_of_list f lst = String.concat "," (List.map f lst)
 
 let pay = OpenFlow0x01_Core.Buffered (0l, Cstruct.create 10)
 
+module NetCoreCompiler = NetCore_Compiler.NetCoreCompiler
+
 module TestClassifier = struct
 
   module C = NetCore_Classifier.Make (NetCore_Action.Output)
@@ -63,7 +65,7 @@ module TestClassifier = struct
            label >:: fun () -> 
              assert_equal
                expected_tbl
-               (NetCore_Compiler.compile_pol input_pol input_sw))
+               (NetCoreCompiler.compile_pol input_pol input_sw))
          lst)
 
   let lst = 
@@ -256,25 +258,25 @@ module TestNetCore = struct
       "maclearning regression 1" >::
         fun () ->
           assert_equal  
-            (NetCore_Compiler.compile_pol test1_pol1 1L) []
+            (NetCoreCompiler.compile_pol test1_pol1 1L) []
 
   let test2 = 
       "maclearning regression 2" >::
         fun () ->
           assert_equal  
-            (NetCore_Compiler.compile_pol test1_pol2 1L) []
+            (NetCoreCompiler.compile_pol test1_pol2 1L) []
 
   let test3 = 
       "maclearning regression 3" >::
         fun () ->
           assert_equal  
-            (NetCore_Compiler.compile_pol test1_pol3 1L) []
+            (NetCoreCompiler.compile_pol test1_pol3 1L) []
 
   let test4 = 
       "maclearning regression 2 || 3" >::
         fun () ->
           assert_equal  
-            (NetCore_Compiler.compile_pol
+            (NetCoreCompiler.compile_pol
                (Union (test1_pol2, test1_pol3))
             1L)
             []
@@ -283,7 +285,7 @@ module TestNetCore = struct
       "maclearning regression 1 || 2 || 3" >::
         fun () ->
           assert_equal  
-            (NetCore_Compiler.compile_pol
+            (NetCoreCompiler.compile_pol
                (Union (test1_pol1, Union (test1_pol2, test1_pol3)))
             1L)
             []
@@ -292,7 +294,7 @@ module TestNetCore = struct
     "sequencing regression 1" >::
       fun () ->
         assert_equal 
-          (NetCore_Compiler.compile_pol 
+          (NetCoreCompiler.compile_pol 
              (Filter
                 (And 
                    (OnSwitch 1L, Hdr (dlDst 0x0ab75f2211d4L))))
@@ -348,28 +350,28 @@ module TestNetCore = struct
     "maclearning regression pol2_query" >::
       fun () ->
         assert_equal 
-          (NetCore_Compiler.compile_pol pol2_query 1L)
+          (NetCoreCompiler.compile_pol pol2_query 1L)
           []
 
   let test8 =
     "maclearning regression pol2_fwd1" >::
       fun () ->
         assert_equal 
-          (NetCore_Compiler.compile_pol pol2_fwd1 1L)
+          (NetCoreCompiler.compile_pol pol2_fwd1 1L)
           []
 
   let test9 =
     "maclearning regression pol2_fwd_rest" >::
       fun () ->
         assert_equal 
-          (NetCore_Compiler.compile_pol pol2_fwd_rest 1L)
+          (NetCoreCompiler.compile_pol pol2_fwd_rest 1L)
           []
 
   let test10 =
     "maclearning regression pol2" >::
       fun () ->
         assert_equal 
-          (NetCore_Compiler.compile_pol pol2 1L)
+          (NetCoreCompiler.compile_pol pol2 1L)
           []
 
   let pol3_1 = 
@@ -387,7 +389,7 @@ module TestNetCore = struct
     "predicate compilation regression" >::
       fun () ->
         assert_equal 
-          (NetCore_Compiler.compile_pol pol3 1L)
+          (NetCoreCompiler.compile_pol pol3 1L)
           []
 
   let go = TestList [test11; test10; test9; test8; test7; test6; test5;
@@ -485,7 +487,7 @@ module Helper = struct
           expected_vals vals in
 
     (* Test the classifier interpretation. *)
-    let classifier = NetCore_Compiler.compile_pol ds_pol in_sid in
+    let classifier = NetCoreCompiler.compile_pol ds_pol in_sid in
 
     if dbg then
       let _ = printf "Classifier:\n" in

@@ -1,5 +1,4 @@
 open Packet
-open OpenFlow0x01
 open NetCore_Action
 
 module type CLASSIFIER = 

@@ -7,6 +7,7 @@ open NetCore_Types
 module Log = Lwt_log
 module SwitchSet = Set.Make (Int64)
 module Stats = OpenFlow0x01_Stats
+module NetCoreCompiler = NetCore_Compiler.NetCoreCompiler
 
 let (<&>) = Lwt.(<&>)
 
@@ -83,7 +84,7 @@ module Query (Platform : PLATFORM) = struct
                           (SwitchSet.elements !(q.switches))))
 
   let set_fields tbl pol atom sw =
-    let qfields = NetCore_Compiler.query_fields_of_policy pol atom sw in
+    let qfields = NetCoreCompiler.query_fields_of_policy pol atom sw in
     List.iter 
       (fun match_ -> tbl := FlowSet.add (sw, match_) !tbl)
       qfields
@@ -334,7 +335,7 @@ module Make (Platform : PLATFORM) = struct
   module Queries = QuerySet (Platform)
 
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
-    lwt flow_table = Lwt.wrap2 NetCore_Compiler.flow_table_of_policy sw pol in
+    lwt flow_table = Lwt.wrap2 NetCoreCompiler.flow_table_of_policy sw pol in
     Platform.send_to_switch sw 0l (Message.FlowModMsg delete_all_flows) >>
     let prio = ref 65535 in
     Lwt_list.iter_s
@@ -360,10 +361,10 @@ module Make (Platform : PLATFORM) = struct
       let policy_out_vals = NetCore_Semantics.eval pol in_val in
 
       (* Evaluate the packet against the flow table on the switch. *)
-      let classifier = NetCore_Compiler.compile_pol pol sw in
+      let classifier = NetCoreCompiler.compile_pol pol sw in
       let switch_action =
         NetCore_Action.Output.switch_part
-          (NetCore_Compiler.OutputClassifier.scan 
+          (NetCoreCompiler.OutputClassifier.scan 
             classifier (Physical in_port) in_packet) in
       let classifier_out_vals = 
         NetCore_Semantics.eval_action switch_action in_val in
@@ -528,7 +529,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
        messing up semantics w/ they overlap/shadow real rules. Instead,
        default drop rule should be installed at bottom priority *)
     lwt flow_table, drop_rule = 
-      Lwt.wrap1 pop_last (NetCore_Compiler.flow_table_of_policy sw pol) in
+      Lwt.wrap1 pop_last (NetCoreCompiler.flow_table_of_policy sw pol) in
     let prio = ref 65535 in
     Lwt_list.iter_s
       (fun (match_, actions) ->

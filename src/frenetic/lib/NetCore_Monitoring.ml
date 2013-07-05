@@ -1,5 +1,7 @@
 open NetCore_Types
 
+module Compiler = NetCore_Compiler.NetCoreCompiler
+
 (* Yes! This is user-requesting monitoring, so just print to stdout!!! *)
 let printf = Printf.printf
 
@@ -8,7 +10,7 @@ let monitor_pol pol =
   pol
 
 let monitor_tbl sw pol = 
-  let tbl = NetCore_Compiler.flow_table_of_policy sw pol in
+  let tbl = Compiler.flow_table_of_policy sw pol in
   printf "Flow table at switch %Ld is:\n%!" sw;
   List.iter
     (fun (m,a) -> printf " %s => %s\n%!"

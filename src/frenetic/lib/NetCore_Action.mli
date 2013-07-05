@@ -11,7 +11,7 @@ module type ACTION =
   val atoms : t -> e list
 
   val to_action : e -> t
-  
+
   val drop : t
   
   val pass : t
@@ -28,10 +28,21 @@ module type ACTION =
 
   val is_equal : t -> t -> bool
 
+  val atom_is_equal : e -> e -> bool
+
  end
 
+module type COMPILER_ACTION =
+  sig
+    include ACTION
+      with type e = action_atom
+    val from_nc_action : action -> t
+    val as_actionSequence : portId option -> t -> OpenFlow0x01.Action.sequence
+    val queries : t -> e list
+  end
+
 module Output : sig
-  include ACTION
+  include COMPILER_ACTION
     with type e = action_atom
     and type t = action
   val forward : portId -> t
@@ -47,12 +58,11 @@ module Output : sig
   val controller : (OpenFlow0x01.switchId -> port -> packet -> action) -> t
   val apply_controller : action -> lp -> action
   val switch_part  : action -> action
-  val as_actionSequence : portId option -> t -> OpenFlow0x01.Action.sequence
-  val queries : t -> t
-  val is_equal : t -> t -> bool
-  val atom_is_equal : e -> e -> bool
   val make_transformer : value -> value -> action
 end
 
 module Bool : ACTION 
   with type t = bool
+
+module Group : COMPILER_ACTION
+  with type t = action list

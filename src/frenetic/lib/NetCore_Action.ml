@@ -29,7 +29,18 @@ module type ACTION = sig
 
   val is_equal : t -> t -> bool
 
+  val atom_is_equal : e -> e -> bool
+
  end
+
+module type COMPILER_ACTION =
+  sig
+    include ACTION
+      with type e = action_atom
+    val from_nc_action : action -> t
+    val as_actionSequence : portId option -> t -> OpenFlow0x01.Action.sequence
+    val queries : t -> e list
+  end
 
 module Bool = struct
   type t = bool
@@ -63,6 +74,9 @@ module Bool = struct
   let to_string b = if b then "true" else "false"
 
   let is_equal x y = x = y
+
+  let atom_is_equal x y = x = y
+
 end
 
 module Output = struct
@@ -80,6 +94,8 @@ module Output = struct
   let atoms act = act
 
   let to_action x = [x]
+    
+  let from_nc_action x = x
 
   let drop = []
 
@@ -498,4 +514,59 @@ module Output = struct
     | x :: xs', y :: ys' ->
       atom_is_equal x y && is_equal xs' ys'
     | _ -> false
+end
+
+(* Action for OF >= 1.1 group actions. Intended interpretations:
+   FF - [[a];[b]] = do action a unless it fails, else do action b
+   roundrobin - [[a];[b]] = do action a, next time do action b. Repeat.
+*)
+
+module Group = struct
+  open NetCore_Types
+
+  type t = action list
+  type e = action_atom
+
+  let atoms a = List.flatten a
+
+  let drop = []
+
+  let pass = [ Output.pass ]
+
+  let to_action a = [[a]]
+
+  let from_nc_action x = [x]
+
+  let apply_atom = Output.apply_atom
+
+  (* Only uses the first action in the group *)
+  let apply_action actions lp = match actions with
+    | [] -> []
+    | act :: actions -> 
+      Frenetic_List.concat_map (fun a -> apply_atom a lp) act
+
+  (* let rec prod lst1 lst2 = match lst1 with *)
+  (*   | [] -> [] *)
+  (*   | a :: lst1 -> (List.map (List.append x) lst2) @ prod lst1 lst2 *)
+
+  let par_action b1 b2 = List.map (fun (a,b) -> a @ b) (Output.cross b1 b2)
+
+  let seq_action b1 b2 = failwith "NYI: Group seq_action"
+
+  let sequence_range b p = failwith "NYI: Group sequence_range"
+
+  let as_actionSequence inp acts = match acts with
+    | [] -> []
+    | act :: acts -> Output.as_actionSequence inp act
+
+  let queries x = atoms (List.map Output.queries x)
+
+  let domain = Output.domain
+
+  let is_equal x y = 
+    try List.for_all2 Output.is_equal x y
+    with Invalid_argument _ -> false
+
+  let atom_is_equal = Output.atom_is_equal
+
 end
