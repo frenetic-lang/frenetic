@@ -52,6 +52,7 @@ and token = parse
   | eof { EOF }
   | "," { COMMA }
   | "in" { IN }
+  | "at" { AT }
   | "publicIP" { PUBLICIP } 
   | "(" { LPAREN }
   | ")" { RPAREN }

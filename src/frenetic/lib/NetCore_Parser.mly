@@ -81,6 +81,7 @@
 %token COMMA
 %token LET
 %token IN
+%token AT
 %token PUBLICIP
 %token PASS
 %token DROP
@@ -172,6 +173,8 @@ pol_atom :
   | ID 
     { Id (symbol_start_pos (), $1) }
   | FWD LPAREN INT64 RPAREN 
+    { Action (symbol_start_pos (), Action.forward (int16_of_int64 $3)) }
+  | FWD LPAREN INT64 RPAREN AT INT64
     { Action (symbol_start_pos (), Action.forward (int16_of_int64 $3)) }
   | PASS 
     { Action (symbol_start_pos (), Action.pass) }
