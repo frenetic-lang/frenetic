@@ -441,7 +441,7 @@ module Output = struct
          | _ ->
            Output (PhysicalPort pt)) ::
           (unmodify out))
-    | Queue pt qid ->
+    | Queue (pt, qid) ->
       (* TODO(rjs) add queue action *) [] 
 
   let atom_to_of inp atom = match atom with

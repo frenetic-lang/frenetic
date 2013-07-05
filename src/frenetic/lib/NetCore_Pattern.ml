@@ -15,7 +15,7 @@ module PortOrderedType = struct
     | Physical pid -> "Physical " ^ (string_of_portId pid)
     | All -> "All"
     | Here -> "Here"
-    | Queue pid qid -> "Queue " ^ (string_of_portId pid)  ^ " " ^ (string_of_queueId qid)
+    | Queue (pid, qid) -> "Queue " ^ (string_of_portId pid)  ^ " " ^ (string_of_queueId qid)
 
 end
 
