@@ -1,13 +1,16 @@
 OASISFormat: 0.3
 Name:        ox
-Version:     1.0
+Version:     1.0.1
 Synopsis:    A platform for writing OpenFlow controllers
 Authors:     Nate Foster, Arjun Guha, Mark Reitblatt, and Cole Schlesinger
 License:     LGPL
-Plugins:     META (0.3)
+Plugins:     META (0.3), StdFiles (0.3), DevFiles (0.3)
 BuildTools:
   ocamlbuild,
   ocamldoc
+
+XStdFilesREADME: False
+XStdFilesAUTHORS: False
 
 Library ox
   Path: lib
