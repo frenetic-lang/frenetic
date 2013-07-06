@@ -1,0 +1,41 @@
+(* OASIS_START *)
+(* DO NOT EDIT (digest: ff0c0738209864dae2ec41d0587fb256) *)
+This is the INSTALL file for the frenetic distribution.
+
+This package uses OASIS to generate its build system. See section OASIS for
+full information. 
+
+Dependencies
+============
+
+In order to compile this package, you will need:
+* ocaml for all, doc doc
+* findlib
+* lwt for library netcore, executable frenetic
+* cstruct for library netcore
+* packet for library netcore, executable Test_Frenetic
+* openflow for library netcore
+* oUnit for executable Test_Frenetic
+
+Installing
+==========
+
+1. Uncompress the source archive and go to the root of the package
+2. Run 'ocaml setup.ml -configure'
+3. Run 'ocaml setup.ml -build'
+4. Run 'ocaml setup.ml -install'
+
+Uninstalling
+============
+
+1. Go to the root of the package 
+2. Run 'ocaml setup.ml -uninstall'
+
+OASIS
+=====
+
+OASIS is a program that generates a setup.ml file using a simple '_oasis'
+configuration file. The generated setup only depends on the standard OCaml
+installation: no additional library is required.
+
+(* OASIS_STOP *)
