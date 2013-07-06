@@ -1,6 +1,6 @@
 # OASIS_START
-# DO NOT EDIT (digest: 0877e932c074035937168e2d42344ac6)
-version = "1.0"
+# DO NOT EDIT (digest: 780d99ae66060ce0ca3c77a896dbfc75)
+version = "1.0.1"
 description = "A platform for writing OpenFlow controllers"
 requires = "lwt lwt.syntax cstruct packet openflow"
 archive(byte) = "ox.cma"
