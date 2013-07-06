@@ -1,0 +1,15 @@
+# OASIS_START
+# DO NOT EDIT (digest: ae6967050d86dcb6fae967a24bb2eee5)
+OpenFlow0x01
+OpenFlow0x01_Core
+OpenFlow0x01_Stats
+OpenFlow0x01_PlatformSig
+OpenFlow0x01_Platform
+OpenFlow0x01_TestPlatform
+OpenFlow0x04
+OpenFlow0x04_Core
+OpenFlow0x04_Platform
+OpenFlow0x04_Misc
+Frenetic_Misc
+Frenetic_Socket
+# OASIS_STOP
