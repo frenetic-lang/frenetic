@@ -1,0 +1,12 @@
+# OASIS_START
+# DO NOT EDIT (digest: 0877e932c074035937168e2d42344ac6)
+version = "1.0"
+description = "A platform for writing OpenFlow controllers"
+requires = "lwt lwt.syntax cstruct packet openflow"
+archive(byte) = "ox.cma"
+archive(byte, plugin) = "ox.cma"
+archive(native) = "ox.cmxa"
+archive(native, plugin) = "ox.cmxs"
+exists_if = "ox.cma"
+# OASIS_STOP
+
