@@ -1,7 +1,3 @@
-*.vo
-*.v.d
-*.glob
-Makefile.coq
 _build
 *.d.byte
 *.byte
@@ -9,6 +5,6 @@ _build
 *.out
 *.cmi
 *.cma
-*.pyo
-*.pyc
 .DS_Store
+setup.data
+setup.log
