@@ -16,7 +16,7 @@ let arg_spec =
      "parse the file, but do not start the controller") ;
      
     ("-version", 
-     Arg.Unit (fun () -> Printf.printf "\n1.0.1\n\n"),
+     Arg.Unit (fun () -> Printf.printf "\n1.0.2\n\n"),
      "show version") ;
      
     ("-port", 
