@@ -5,10 +5,13 @@ Synopsis:    The Frenetic Compiler and Runtime System
 Authors:     Nate Foster, Arjun Guha, Mark Reitblatt, Cole Schlesinger, and
              David Walker
 License:     LGPL
-Plugins:     META (0.3)
+Plugins:     META (0.3), StdFiles (0.3), DevFiles (0.3)
 BuildTools:
   ocamlbuild,
   ocamldoc
+
+XStdFilesREADME: False
+XStdFilesAUTHORS: False
 
 Flag installexec
   Description: install the Frenetic executable

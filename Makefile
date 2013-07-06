@@ -1,11 +1,15 @@
-all:
-	cd src && $(MAKE)
+.PHONY: reinstall clean configure build
 
-test:
-	cd src && $(MAKE) test
+OCAML=ocaml
+
+reinstall: build
+	$(OCAML) setup.ml -reinstall
+
+configure:	
+	$(OCAML) setup.ml -configure --disable-installexec --disable-docs
+
+build: configure
+	$(OCAML) setup.ml -build
 
 clean:
-	cd src && $(MAKE) clean
-
-reinstall:
-	cd src && $(MAKE) all
+	$(OCAML) setup.ml -clean
