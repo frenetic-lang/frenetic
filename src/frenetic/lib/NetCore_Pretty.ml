@@ -6,7 +6,7 @@ let to_string_exact = NetCore_Wildcard.to_string_exact
 
 
 let string_of_port = function
-  | Physical pid -> (string_of_int pid)
+  | Physical pid -> (string_of_portId pid)
   | All -> "all"
   | Here -> "pass"
 
@@ -69,6 +69,11 @@ module Format = struct
     | [x] -> action fmt x
     | x :: lst' -> fprintf fmt "@[%a@ | %a@]" action x action_list lst'
 
+  let rec action_choice_list fmt lst = match lst with
+    | [] -> fprintf fmt "drop"
+    | [x] -> action_list fmt x
+    | x :: lst' -> fprintf fmt "@[ (@[%a@]) <|> (@[%a@])]" action_list x action_choice_list lst'
+
   let rec pred fmt p = match p with
     | And (p1, p2) -> fprintf fmt "@[%a@ && %a@]" orpred p1 pred p2
     | _ -> orpred fmt p
@@ -110,7 +115,7 @@ module Format = struct
   and apol fmt p = match p with
     | HandleSwitchEvent _ -> fprintf fmt "@[handleSwitchEvent _@]"
     | Action a -> fprintf fmt "@[%a@]" action_list a
-    | ActionChoice _ -> failwith "NYI: apol ActionChoice"
+    | ActionChoice a -> fprintf fmt "@[%a@]" action_choice_list a
     | Filter pr -> fprintf fmt "@[filter %a@]" pred pr
     | Union _
     | Seq _

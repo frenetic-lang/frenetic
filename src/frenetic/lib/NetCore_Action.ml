@@ -1,8 +1,18 @@
-open OpenFlow0x01
-open OpenFlow0x01_Core
-open OpenFlow0x01.Action
 open Packet
 open NetCore_Types
+
+module type OPENFLOW =
+ sig
+   module Action :
+   sig
+     type sequence
+   end
+   type switchId
+   type features
+   type switchEvent =
+     | SwitchUp of switchId * features
+     | SwitchDown of switchId
+ end
 
 module type ACTION = sig
   type t
@@ -33,12 +43,12 @@ module type ACTION = sig
 
  end
 
-module type COMPILER_ACTION =
+module type COMPILER_ACTION0x01 =
   sig
     include ACTION
       with type e = action_atom
     val from_nc_action : action -> t
-    val as_actionSequence : portId option -> t -> OpenFlow0x01.Action.sequence
+    (* val as_actionSequence : portId option -> t -> OpenFlow0x01.Action.sequence *)
     val queries : t -> e list
   end
 
@@ -79,7 +89,8 @@ module Bool = struct
 
 end
 
-module Output = struct
+module Output =
+struct
   open List
   open Packet
   open NetCore_Pattern
@@ -90,6 +101,8 @@ module Output = struct
   type e = action_atom
 
   type t = e list
+
+  let string_of_action = NetCore_Pretty.string_of_action
 
   let atoms act = act
 
@@ -411,58 +424,6 @@ module Output = struct
     | ControllerAction _      -> pat
     | ControllerQuery _   -> pat
 
-  let set upd mk lst = match upd with
-    | Some (_,nw) ->
-      (mk nw) :: lst
-    | None ->
-      lst
-
-  let unset upd mk lst = match upd with
-    | Some (od,_) ->
-      (mk od) :: lst
-    | None ->
-      lst
-
-  let modify out =
-    set out.outDlSrc (fun x -> SetDlSrc x)
-      (set out.outDlDst (fun x -> SetDlDst x)
-        (set out.outDlVlan (fun x -> SetDlVlan x)
-          (set out.outDlVlanPcp (fun x -> SetDlVlanPcp x)
-            (set out.outNwSrc (fun x -> SetNwSrc x)
-              (set out.outNwDst (fun x -> SetNwDst x)
-                (set out.outNwTos (fun x -> SetNwTos x)
-                  (set out.outTpSrc (fun x -> SetTpSrc x)
-                    (set out.outTpDst (fun x -> SetTpDst x) []))))))))
-
-  let unmodify out =
-    unset out.outDlSrc (fun x -> SetDlSrc x)
-      (unset out.outDlDst (fun x -> SetDlDst x)
-        (unset out.outDlVlan (fun x -> SetDlVlan x)
-          (unset out.outDlVlanPcp (fun x -> SetDlVlanPcp x)
-            (unset out.outNwSrc (fun x -> SetNwSrc x)
-              (unset out.outNwDst (fun x -> SetNwDst x)
-                (unset out.outNwTos (fun x -> SetNwTos x)
-                  (unset out.outTpSrc (fun x -> SetTpSrc x)
-                    (unset out.outTpDst (fun x -> SetTpDst x) []))))))))
-
-  let output_to_of inp out = match out.outPort with
-    | Here -> [] (* Fishy, IMO. Shouldn't this be InPort? *)
-    | All -> modify out @ (Output AllPorts)
-      :: unmodify out
-    | Physical pt ->
-      modify out @
-        (( match inp with
-         | Some pt' when (=) pt' pt ->
-             Output InPort
-         | _ ->
-           Output (PhysicalPort pt)) ::
-          (unmodify out))
-   
-  let atom_to_of inp atom = match atom with
-    | SwitchAction out -> output_to_of inp out
-    | ControllerAction _ -> [ Output (Controller 65535) ]
-    | ControllerQuery _ -> []
-
   let apply_controller action (sw, pt, pk) =
     let f atom acc = match atom with
       | SwitchAction _ -> acc
@@ -480,16 +441,6 @@ module Output = struct
       in
     List.filter f action
 
-  let as_actionSequence inp act = 
-    let of_atoms = Frenetic_List.concat_map (atom_to_of inp) act in
-    let controller_atoms, not_controller_atoms =
-      List.partition
-        (function | Output (Controller _) -> true | _ -> false)
-        of_atoms in
-    if List.length controller_atoms > 0 then
-       not_controller_atoms @ [hd controller_atoms]
-    else
-      not_controller_atoms
 
   let queries action =
     let f atom = match atom with
@@ -529,11 +480,64 @@ module Group = struct
 
   let drop = []
 
-  let pass = [ Output.pass ]
+  let pass = 
+    [ Output.pass ]
+
+  let forward pt = 
+    [ Output.forward pt ]
+
+  let to_all = 
+    [ Output.to_all ]
+
+  let query time f = 
+    [ Output.query time f ]
+
+  let controller handler = 
+    [ Output.controller handler ]
+
+  let updateDlSrc od nw =
+    [ Output.updateDlSrc od nw ]
+
+  let updateDlDst od nw =
+    [ Output.updateDlDst od nw ]
+
+  let updateDlVlan od nw =
+    [ Output.updateDlVlan od nw ]
+
+  let updateDlVlanPcp od nw =
+    [ Output.updateDlVlanPcp od nw ]
+
+  let updateSrcIP old new_ = 
+    [ Output.updateSrcIP old new_ ]
+
+  let updateDstIP old new_ = 
+    [ Output.updateDstIP old new_ ]
+
+  let updateTosIP old new_ = 
+    [ Output.updateTosIP old new_ ]
+
+  let updateSrcPort old new_ = 
+    [ Output.updateSrcPort old new_ ]
+
+  let updateDstPort old new_ = 
+    [ Output.updateDstPort old new_ ]
+
+  let updatePort new_ =
+    [ Output.updatePort new_ ]
 
   let to_action a = [[a]]
 
   let from_nc_action x = [x]
+
+  let make_transformer v1 v2 = [ Output.make_transformer v1 v2 ]
+
+  let switch_part action = 
+    let f atom = match atom with
+      | SwitchAction _ -> true
+      | ControllerAction _ -> false
+      | ControllerQuery _ -> false
+      in
+    List.filter f action
 
   let apply_atom = Output.apply_atom
 
@@ -553,9 +557,18 @@ module Group = struct
 
   let sequence_range b p = failwith "NYI: Group sequence_range"
 
-  let as_actionSequence inp acts = match acts with
-    | [] -> []
-    | act :: acts -> Output.as_actionSequence inp act
+  let apply_controller action (sw, pt, pk) =
+    let f atom acc = match atom with
+      | SwitchAction _ -> acc
+      | ControllerAction f -> par_action [(f sw pt pk)] acc
+      (* TODO(cole): don't ignore packets sent to the controller? *)
+      | ControllerQuery _ -> acc
+      in
+    List.fold_right f action drop
+
+  (* let as_actionSequence inp acts = match acts with *)
+  (*   | [] -> [] *)
+  (*   | act :: acts -> Output.as_actionSequence inp act *)
 
   let queries x = atoms (List.map Output.queries x)
 
@@ -566,5 +579,8 @@ module Group = struct
     with Invalid_argument _ -> false
 
   let atom_is_equal = Output.atom_is_equal
+
+  let string_of_action t =
+        "[" ^ (String.concat "; " (List.map Output.string_of_action t)) ^ "]"
 
 end

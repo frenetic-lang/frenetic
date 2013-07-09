@@ -1,6 +1,4 @@
 open Packet
-open OpenFlow0x01
-
 open NetCore_Types
 
 type t = ptrn
@@ -18,7 +16,9 @@ val is_all : t -> bool
   
 val match_packet : port -> packet -> t -> bool
   
-val to_match : t -> Match.t option
+val to_match0x01 : t -> OpenFlow0x01.Match.t option
+
+val to_match0x04 : t -> OpenFlow0x04_Core.oxmMatch * portId option
   
 val setDlSrc : dlAddr -> t -> t
   

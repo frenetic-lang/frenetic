@@ -1,6 +1,7 @@
 # OASIS_START
-# DO NOT EDIT (digest: 70e1b2557e75e111755f8c5292e744ad)
+# DO NOT EDIT (digest: 49e5223619331815761eb6e7c8b6504e)
 NetCore_Controller
+NetCore_Controller0x04
 NetCore_ConsistentUpdates
 NetCore_Pretty
 NetCore_MacLearning
@@ -15,6 +16,7 @@ Frenetic_List
 NetCore_Action
 NetCore_Classifier
 NetCore_Compiler
+NetCore_Compat
 NetCore_Desugar
 NetCore_Gensym
 NetCore_Lexer

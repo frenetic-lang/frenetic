@@ -22,22 +22,22 @@ module TestClassifier = struct
     "action sequence test" >::
       fun () ->
         assert_equal ~printer:string_of_action
-          (forward 5)
-          (seq_action (forward 3) (forward 5))
+          (forward 5l)
+          (seq_action (forward 3l) (forward 5l))
 
   let test1 =
     "forward action domain should be all" >::
       fun () ->
         assert_equal ~printer:NetCore_Pretty.string_of_pattern
-          (domain (List.hd (atoms (forward 1)))) all
+          (domain (List.hd (atoms (forward 1l)))) all
 
   let test2 =
     "pattern restriction test" >::
       fun () ->
         assert_equal ~printer:NetCore_Pretty.string_of_pattern
           (sequence_range
-             (List.hd (atoms (forward 1)))
-             (inPort (Physical 1)))
+             (List.hd (atoms (forward 1l)))
+             (inPort (Physical 1l)))
           all
 
   let classifier_tests group_label lst =
@@ -70,89 +70,89 @@ module TestClassifier = struct
 
   let lst = 
     [("composition test 1",
-      [(NetCore_Pattern.inter (dlDst 0xdeadbeefL) (inPort (Physical 5)),
-        forward 2);
+      [(NetCore_Pattern.inter (dlDst 0xdeadbeefL) (inPort (Physical 5l)),
+        forward 2l);
        (all, drop)],
       let tbl1 =
-        [(NetCore_Pattern.inter (dlDst 0xdeadbeefL) (inPort (Physical 5)),
-          forward 1);
+        [(NetCore_Pattern.inter (dlDst 0xdeadbeefL) (inPort (Physical 5l)),
+          forward 1l);
          (all, drop)] in
       let tbl2 =
-        [(inPort (Physical 1), forward 2);
+        [(inPort (Physical 1l), forward 2l);
          (all, drop)] in
       (sequence tbl1 tbl2));
      ("composition test 2",
-      [(inter (dlSrc 0xFFFFL) (inPort (Physical 10)), forward 20);
-       (inter (dlSrc 0xFFFFL) (inPort (Physical 300)), forward 400);
+      [(inter (dlSrc 0xFFFFL) (inPort (Physical 10l)), forward 20l);
+       (inter (dlSrc 0xFFFFL) (inPort (Physical 300l)), forward 400l);
        (all, drop)],
       sequence
         [(dlSrc 0xFFFFL, pass); (all, drop)]
-        [(inPort (Physical 10), forward 20);
-         (inPort (Physical 300), forward 400);
+        [(inPort (Physical 10l), forward 20l);
+         (inPort (Physical 300l), forward 400l);
          (all, drop)]);
      ("composition test 3",
-      [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), forward 2);
+      [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), forward 2l);
        (all, drop)],
       sequence
-        [(dlSrc 0xDDDDL, forward 1); (all, drop)]
-        [(dlDst 0xEEEEL, forward 2); (all, drop)]);
+        [(dlSrc 0xDDDDL, forward 1l); (all, drop)]
+        [(dlDst 0xEEEEL, forward 2l); (all, drop)]);
      ("sequencing test 4",
-      [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), forward 2);
+      [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), forward 2l);
        (all, drop)],
       sequence
         [(dlSrc 0xDDDDL, pass); (all, drop)]
-        [(dlDst 0xEEEEL, forward 2); (all, drop)]);
+        [(dlDst 0xEEEEL, forward 2l); (all, drop)]);
      ("sequencing test 5",
-      [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), forward 2);
+      [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL), forward 2l);
        (all, drop)],
       sequence
-        [(dlSrc 0xDDDDL, forward 2); (all, drop)]
+        [(dlSrc 0xDDDDL, forward 2l); (all, drop)]
         [(dlDst 0xEEEEL, pass); (all, drop)]);
      ("union regression 1",
       [(inter (dlSrc 0xDDDDL) (dlDst 0xEEEEL),
-        par_action (forward 2) (forward 30));
-       (dlSrc 0xDDDDL, forward 2);
-       (dlDst 0xEEEEL, forward 30);
+        par_action (forward 2l) (forward 30l));
+       (dlSrc 0xDDDDL, forward 2l);
+       (dlDst 0xEEEEL, forward 30l);
        (all, drop)],
       union
-        [(dlSrc 0xDDDDL, forward 2);
+        [(dlSrc 0xDDDDL, forward 2l);
          (all, drop)]
-        [(dlDst 0xEEEEL, forward 30);
+        [(dlDst 0xEEEEL, forward 30l);
          (all, drop)]);
      ("union overlap 1",
-      [(dlSrc 0xDDDDL, par_action (forward 2) (forward 30));
-       (all, forward 30)],
+      [(dlSrc 0xDDDDL, par_action (forward 2l) (forward 30l));
+       (all, forward 30l)],
       union
-        [(dlSrc 0xDDDDL, forward 2); (all, drop)]
-        [(all, forward 30)]);
+        [(dlSrc 0xDDDDL, forward 2l); (all, drop)]
+        [(all, forward 30l)]);
      ("union overlap 2",
-      [(dlSrc 0xDDDDL, par_action (forward 2) (forward 2));
-       (all, forward 2)],
+      [(dlSrc 0xDDDDL, par_action (forward 2l) (forward 2l));
+       (all, forward 2l)],
       union
-        [(dlSrc 0xDDDDL, forward 2); (all, drop)]
-        [(all, forward 2)])]
+        [(dlSrc 0xDDDDL, forward 2l); (all, drop)]
+        [(all, forward 2l)])]
 
   let lst2 =
     [("NAT module with *wrong* forwarding shim",
-      [(inPort (Physical 1), forward 2);
+      [(inPort (Physical 1l), forward 2l);
        (all, drop)],
       1L,
       Union
         (Seq
            (Seq
-              (Filter (And (OnSwitch 1L, Hdr (inPort (Physical 1)))), 
-               Action (forward 5001)),
-            Action (forward 2)),
+              (Filter (And (OnSwitch 1L, Hdr (inPort (Physical 1l)))), 
+               Action (forward 5001l)),
+            Action (forward 2l)),
          Seq
            (Seq
-              (Filter (And (OnSwitch 1L, Hdr (inPort (Physical 2)))),
+              (Filter (And (OnSwitch 1L, Hdr (inPort (Physical 2l)))),
                Filter (Nothing)),
-            Action (forward 1))));
+            Action (forward 1l))));
      ("NAT debugging 1",
       [],
       1L,
       ITE
-        (And (OnSwitch 1L, Hdr (inPort (Physical 2))),
+        (And (OnSwitch 1L, Hdr (inPort (Physical 2l))),
          Seq
            (ITE
               (And (Hdr (ipSrc 0xffffl), Hdr (tcpSrcPort 2000)),
@@ -161,8 +161,8 @@ module TestClassifier = struct
                   Action (updateSrcPort 2000 43072)),
                Filter (Nothing)),
             ITE
-              (Hdr (inPort (Physical 2)),
-               Action (forward 1),
+              (Hdr (inPort (Physical 2l)),
+               Action (forward 1l),
                Action pass)),
          Action pass));
      ("sequencing 1",
@@ -180,7 +180,7 @@ module TestClassifier = struct
     nw = Unparsable (0, Cstruct.create 8) 
   }
 
-  let inp = Pkt (1L, Physical 1, pk, pay)
+  let inp = Pkt (1L, Physical 1l, pk, pay)
 
   let lst3 =
     [("sequencing 1",
@@ -192,13 +192,13 @@ module TestClassifier = struct
       pass,
       Filter (Hdr (dlVlan (Some 1))),
       Pkt (1L, 
-           Physical 1, 
+           Physical 1l, 
            { pk with dlVlan = Some 1 },
            pay));
      ("updating 1",
       updateDlVlan None (Some 1),
       Action (updateDlVlan None (Some 1)),
-      Pkt (1L, Physical 1, pk, pay))]
+      Pkt (1L, Physical 1l, pk, pay))]
       
 
   let go = TestList 
@@ -209,13 +209,13 @@ module TestClassifier = struct
       ("eval_action update" >::
         fun () ->
           assert_equal
-            [Pkt (1L, Physical 1, 
+            [Pkt (1L, Physical 1l, 
                   { pk with dlVlan = Some 1 }, 
                   pay)]
             (eval_action 
               (updateDlVlan None (Some 1))
               (Pkt (1L, 
-                    Physical 1, 
+                    Physical 1l, 
                     pk, 
                     pay))))
     ]
@@ -235,16 +235,16 @@ module TestNetCore = struct
          (Not 
             (Or (And 
                      (And (OnSwitch 1L, 
-                             Hdr (inPort (Physical 1))), 
+                             Hdr (inPort (Physical 1l))), 
                       Hdr (dlSrc 0x0ab75f2211d4L)), Nothing))),
-       Action (forward 3))
+       Action (forward 3l))
 
   let test1_pol2 = 
     Seq 
       (Filter
          (And 
             (OnSwitch 1L, Hdr (dlDst 0x0ab75f2211d4L))), 
-       Action (forward 1))
+       Action (forward 1l))
 
   let test1_pol3 =
     Seq 
@@ -308,24 +308,24 @@ module TestNetCore = struct
          (Not
             (Or
                (And
-                  (And (OnSwitch 1L, Hdr (inPort (Physical 1))),
+                  (And (OnSwitch 1L, Hdr (inPort (Physical 1l))),
                    Hdr (dlSrc 0x92f0fea53b3fL)),
                 Or
                   (And
-                     (And (OnSwitch 1L, Hdr (inPort (Physical 2))),
+                     (And (OnSwitch 1L, Hdr (inPort (Physical 2l))),
                       Hdr (dlSrc 0x1274ccafe0eaL)),
                    Nothing)))),
-       Action (forward 5000))
+       Action (forward 5000l))
 
   let pol2_fwd1 = 
     Seq
       (Filter (And (OnSwitch 1L, Hdr (dlDst 0x92f0fea53b3fL))),
-       Action (forward 1))
+       Action (forward 1l))
 
   let pol2_fwd2 = 
     Seq
       (Filter (And (OnSwitch 1L, Hdr (dlDst 0x1274ccafe0eaL))),
-       Action (forward 2))
+       Action (forward 2l))
 
   let pol2_fwd_rest =
     Seq
@@ -375,11 +375,11 @@ module TestNetCore = struct
           []
 
   let pol3_1 = 
-    And (Hdr (inPort (Physical 1)), Hdr (dlSrc 0x92f0fea53b3fL))
+    And (Hdr (inPort (Physical 1l)), Hdr (dlSrc 0x92f0fea53b3fL))
 
   let pol3_2 =
     And
-      (Hdr (inPort (Physical 2)),
+      (Hdr (inPort (Physical 2l)),
        Hdr (dlSrc 0x1274ccafe0eaL))
 
   let pol3 =
@@ -457,7 +457,7 @@ module Helper = struct
 
   let in_val =
     Pkt ( Int64.one
-        , (Physical 1)
+        , (Physical 1l)
         , in_pkt
         , pay)
 

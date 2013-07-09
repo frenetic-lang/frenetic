@@ -35,7 +35,7 @@ module type PLATFORM = sig
   (** [accept_switch] blocks until a switch connects, handles the
       OpenFlow handshake, and returns after the switch sends a
       [FEATURES_REPLY] message. *)
-  val accept_switch : unit -> features Lwt.t
+  val accept_switch : unit -> (features * portDesc list) Lwt.t
 
 end
 

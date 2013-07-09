@@ -25,6 +25,13 @@
    else
      raise Parsing.Parse_error
 
+ let int32_of_int64 (n : Int64.t) : int32 =
+   if Int64.compare n Int64.zero >= 0 && 
+     Int64.compare n (Int64.of_int 0xFFFFFFFF) <= 0 then
+     (Int32.of_int (Int64.to_int n))
+   else
+     raise Parsing.Parse_error
+
  let int_of_int64 (n : Int64.t) : int =
    if Int64.compare n (Int64.of_int max_int) <= 0 &&
      Int64.compare n (Int64.of_int min_int) >= 0 then
@@ -126,7 +133,7 @@ pred_atom :
      0xbeefbeefbeefbeefL for large integers. So, I'm lexing everything to 
      Int64, then having checked-casts down to the right size. */
   | INPORT EQUALS INT64 
-    { Pol.Hdr (inPort (Pol.Physical (int16_of_int64 $3))) }
+    { Pol.Hdr (inPort (Pol.Physical (int32_of_int64 $3))) }
   | SRCMAC EQUALS MACADDR { Pol.Hdr (dlSrc $3) }
   | DSTMAC EQUALS MACADDR { Pol.Hdr (dlDst $3) }
   | VLAN EQUALS NONE { Pol.Hdr (dlVlan None) }
@@ -172,7 +179,7 @@ pol_atom :
   | ID 
     { Id (symbol_start_pos (), $1) }
   | FWD LPAREN INT64 RPAREN 
-    { Action (symbol_start_pos (), Action.forward (int16_of_int64 $3)) }
+    { Action (symbol_start_pos (), Action.forward (int32_of_int64 $3)) }
   | PASS 
     { Action (symbol_start_pos (), Action.pass) }
   | DROP 
@@ -216,7 +223,7 @@ pol_atom :
   | LCURLY pred RCURLY pol LCURLY pred RCURLY
     { Slice (symbol_start_pos (), $2, $4, $6) }
   | FW LPAREN INT64 COMMA INT64 COMMA INT64 RPAREN
-    { let (lwt_e, pol) = mk_fw $3 (int_of_int64 $5) (int_of_int64 $7) in
+    { let (lwt_e, pol) = mk_fw $3 (int32_of_int64 $5) (int32_of_int64 $7) in
       Value (PolStream (lwt_e, pol))
     }
 

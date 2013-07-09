@@ -11,6 +11,11 @@ val m_mask : 'a1 mask -> 'a1 option
 type xid = int32
 type int12 = int16
 
+type payload =
+  | Buffered of int32 * bytes 
+    (** [Buffered (id, buf)] is a packet buffered on a switch. *)
+  | NotBuffered of bytes
+
 val val_to_mask : 'a1 -> 'a1 mask
 
 type switchId = int64
@@ -164,12 +169,10 @@ type packetInReason =
 | NoMatch
 | ExplicitSend
 
-type packetIn = { pi_buffer_id : int32 option; pi_total_len : int16;
+type packetIn = { pi_total_len : int16;
                   pi_reason : packetInReason; pi_table_id : tableId;
                   pi_cookie : int64; pi_ofp_match : oxmMatch;
-                  pi_pkt : packet option }
-
-val pi_buffer_id : packetIn -> int32 option
+                  pi_payload : payload }
 
 val pi_total_len : packetIn -> int16
 
@@ -180,8 +183,6 @@ val pi_table_id : packetIn -> tableId
 val pi_cookie : packetIn -> int64
 
 val pi_ofp_match : packetIn -> oxmMatch
-
-val pi_pkt : packetIn -> packet option
 
 type capabilities = { flow_stats : bool; table_stats : bool;
                       port_stats : bool; group_stats : bool; ip_reasm : 
@@ -226,16 +227,19 @@ val aux_id : features -> int8
 
 val supported_capabilities : features -> capabilities
 
-type packetOut = { po_buffer_id : bufferId option; po_in_port : pseudoPort;
-                   po_actions : actionSequence; po_pkt : packet option }
-
-val po_buffer_id : packetOut -> bufferId option
+type packetOut = { po_in_port : pseudoPort;
+                   po_actions : actionSequence; po_payload : payload }
 
 val po_in_port : packetOut -> pseudoPort
 
 val po_actions : packetOut -> actionSequence
 
-val po_pkt : packetOut -> packet option
+type multipartRequest = 
+  | SwitchDescReq
+  | PortsDescReq 
+
+type multipartReply = 
+  | PortsDescReply of portDesc list
 
 type message =
 | Hello
@@ -248,5 +252,9 @@ type message =
 | PacketInMsg of packetIn
 | PacketOutMsg of packetOut
 | PortStatusMsg of portStatus
+| MultipartReq of multipartRequest
+| MultipartReply of multipartReply
 | BarrierRequest
 | BarrierReply
+
+val portsDescRequest : message

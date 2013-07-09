@@ -28,6 +28,7 @@ Library netcore
     NetCore_Action,
     NetCore_Classifier,
     NetCore_Compiler,
+    NetCore_Compat,
     NetCore_Desugar,
     NetCore_Gensym,
     NetCore_Lexer,
@@ -39,6 +40,7 @@ Library netcore
     NetCore_Bijection
   Modules:
     NetCore_Controller,
+    NetCore_Controller0x04,
     NetCore_ConsistentUpdates,
     NetCore_Pretty,
     NetCore_MacLearning,

@@ -4,8 +4,8 @@ open NetCore_Action.Output
 module Log = Lwt_log
 module Bijection = NetCore_Bijection
 
-type switchId = OpenFlow0x01.switchId
-type portId = OpenFlow0x01.portId
+type switchId = NetCore_Types.switchId
+type portId = NetCore_Types.portId
 type dlAddr = Packet.dlAddr
 
 type loc =
@@ -83,10 +83,7 @@ module Make (A : Arg) = struct
 
   let switch_event_handler = function
     | SwitchUp (sw, features) -> 
-      let ports =
-        List.map (fun pt -> pt.OpenFlow0x01.PortDescription.port_no)
-          features.OpenFlow0x01.SwitchFeatures.ports in
-      switch_connected edges switches sw ports
+      switch_connected edges switches sw features.ports
     | SwitchDown sw -> switch_disconnected edges switches sw
 
   let recv_discovery_pkt sw pt pk = match pt with
@@ -98,7 +95,7 @@ module Make (A : Arg) = struct
           | Some (sw', pt') -> 
             Lwt.async
               (fun () ->
-                Log.info_f "added edge %Ld:%d <--> %Ld:%d\n%!"
+                Log.info_f "added edge %Ld:%ld <--> %Ld:%ld\n%!"
                   sw phys_pt sw' pt');
             Bijection.add edges (Switch (sw, phys_pt)) (Switch (sw', pt'))
       end;
@@ -115,7 +112,7 @@ module Make (A : Arg) = struct
       Lwt_list.iter_s 
         (fun pt -> 
           Log.info_f
-            "emitting a packet to switch=%Ld,port=%d\n%!" sw pt >>
+            "emitting a packet to switch=%Ld,port=%ld\n%!" sw pt >>
             send_pkt (make_discovery_pkt sw pt))
         ports in
     let rec send_discovery () =

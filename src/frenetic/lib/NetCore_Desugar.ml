@@ -216,7 +216,7 @@ let desugar (genvlan : unit -> int option) (pol : policy) : NCT.pol =
     | Pass -> NetCore_Action.Output.pass
     | Drop -> NetCore_Action.Output.drop
     | To pt -> 
-      NetCore_Action.Output.forward pt
+      NetCore_Action.Output.forward (Int32.of_int pt)
     | ToAll -> 
       NetCore_Action.Output.to_all
     | UpdateDlSrc(old,new0) -> 
@@ -252,7 +252,7 @@ let desugar (genvlan : unit -> int option) (pol : policy) : NCT.pol =
     | Switch swId -> 
       NCT.OnSwitch swId
     | InPort pt -> 
-      NCT.Hdr (NCT.inPort (NCT.Physical pt))
+      NCT.Hdr (NCT.inPort (NCT.Physical (Int32.of_int pt)))
     | DlSrc n -> 
       NCT.Hdr (NCT.dlSrc n)
     | DlDst n -> 

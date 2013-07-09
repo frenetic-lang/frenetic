@@ -7,7 +7,32 @@ module BoolClassifier = NetCore_Classifier.Make(NetCore_Action.Bool)
 
 module GroupClassifier = NetCore_Classifier.Make(NetCore_Action.Group)
 
-module CompilePol (Output : NetCore_Action.COMPILER_ACTION) = struct
+module type POLICYCOMPILER = 
+sig
+  module OutputClassifier : NetCore_Classifier.CLASSIFIER
+
+  (* val flow_table_of_policy :  *)
+  (*   OpenFlow0x01.switchId  *)
+  (*   -> NetCore_Types.pol  *)
+  (*   -> (OpenFlow0x01.Match.t * OpenFlow0x01.Action.sequence) list *)
+
+  (* val query_fields_of_policy :  *)
+  (*   NetCore_Types.pol  *)
+  (*   -> NetCore_Types.action_atom *)
+  (*   -> OpenFlow0x01.switchId *)
+  (*   -> OpenFlow0x01.Match.t list *)
+
+  val compile_pol : 
+    NetCore_Types.pol 
+    -> OpenFlow0x01.switchId 
+    -> OutputClassifier.t
+end
+    
+module type MAKE = functor (Output : NetCore_Action.COMPILER_ACTION0x01) ->
+  sig include POLICYCOMPILER end
+  with type OutputClassifier.action = Output.t
+
+module CompilePol (Output : NetCore_Action.COMPILER_ACTION0x01) = struct
 
   module OutputClassifier = NetCore_Classifier.Make(Output)
 
@@ -70,32 +95,6 @@ module CompilePol (Output : NetCore_Action.COMPILER_ACTION) = struct
               [(pat, Output.pass)] else_tbl in
 	Frenetic_List.concat_map seq_then_else (compile_pred pred sw)
 
-  let to_rule (pattern, action) = 
-    match NetCore_Pattern.to_match pattern with
-      | Some match_ ->
-	Some (match_,
-              Output.as_actionSequence 
-		match_.OF.inPort
-		action)
-      | None -> None
-
-  let to_query atom (pattern, action) =
-    let query_atoms = Output.queries action in
-    if List.exists (Output.atom_is_equal atom) query_atoms then
-      NetCore_Pattern.to_match pattern
-    else None
-
-  let flow_table_of_policy sw pol0 =
-    List.fold_right 
-      (fun p acc -> match to_rule p with None -> acc | Some r -> r::acc)
-      (compile_pol pol0 sw)
-      []
-
-  let query_fields_of_policy pol atom sw =
-    List.fold_right
-      (fun p acc -> match (to_query atom) p with None -> acc | Some r -> r::acc)
-      (compile_pol pol sw)
-      []
 end
 
 module NetCoreCompiler = CompilePol(NetCore_Action.Output)

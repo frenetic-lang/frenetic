@@ -12,7 +12,7 @@ module type PLATFORM = sig
   exception SwitchDisconnected of switchId 
   val send_to_switch : switchId -> xid -> message -> unit t
   val recv_from_switch : switchId -> (xid * message) t
-  val accept_switch : unit -> features t
+  val accept_switch : unit -> (features * portDesc list) t
 end
 
 let string_of_sockaddr (sa:sockaddr) : string = match sa with
@@ -126,7 +126,7 @@ module OpenFlowPlatform = struct
     | None -> 
        ()
 
-  let switch_handshake (fd : file_descr) : features Lwt.t = 
+  let switch_handshake (fd : file_descr) : (features * portDesc list) Lwt.t = 
     OpenFlow0x04_Misc.Log.printf "[platform] switch_handshake\n%!";
     lwt _ = send_to_switch_fd fd 0l Hello in
     OpenFlow0x04_Misc.Log.printf "[platform] trying to read Hello\n%!";
@@ -141,8 +141,16 @@ module OpenFlowPlatform = struct
             | FeaturesReply feats ->
               Hashtbl.add switch_fds feats.datapath_id fd;
               OpenFlow0x04_Misc.Log.printf "[platform] switch %Ld connected\n%!"
-                        feats.datapath_id;
-              return feats
+                feats.datapath_id;
+              OpenFlow0x04_Misc.Log.printf "[platform] sending Ports Request\n%!";
+              lwt _ = send_to_switch_fd fd 0l portsDescRequest in
+              lwt (_, msg) = recv_from_switch_fd fd in
+              begin
+		match msg with
+		  | MultipartReply (PortsDescReply ports) ->
+		    return (feats, ports)
+		  | _ -> raise_lwt (Internal "expected PORT_DESC_REPLY")
+              end 
             | _ -> raise_lwt (Internal "expected FEATURES_REPLY")
         end 
       | _ -> raise_lwt (Internal "expected Hello")

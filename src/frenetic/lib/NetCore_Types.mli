@@ -3,7 +3,10 @@
 
 open Packet
 
-type switchId = OpenFlow0x01_Core.switchId
+type switchId = int64
+type portId = int32
+
+val string_of_portId : portId -> string
 
 type 'a wildcard =
   | WildcardExact of 'a
@@ -11,7 +14,7 @@ type 'a wildcard =
   | WildcardNone
 
 type port =
-  | Physical of OpenFlow0x01_Core.portId
+  | Physical of portId
   | All
   | Here
 
@@ -72,8 +75,17 @@ type pred =
   | Everything
   | Nothing
 
+type capabilities = { flow_stats : bool; table_stats : bool;
+                      port_stats : bool; group_stats : bool; 
+		      ip_reasm : bool; queue_stats : bool; 
+		      port_blocked : bool }
+
+type switchFeatures = { datapath_id : switchId; num_buffers : int;
+			num_tables : int; supported_capabilities : capabilities;
+			ports : portId list }
+
 type switchEvent =
-  | SwitchUp of switchId * OpenFlow0x01.SwitchFeatures.t
+  | SwitchUp of switchId * switchFeatures
   | SwitchDown of switchId
 
 type pol =

@@ -8,11 +8,12 @@ module Log = Lwt_log
 module SwitchSet = Set.Make (Int64)
 module Stats = OpenFlow0x01_Stats
 module NetCoreCompiler = NetCore_Compiler.NetCoreCompiler
+module Compat = NetCore_Compat.Compat0x01
 
 let (<&>) = Lwt.(<&>)
 
 let init_pol : pol = Filter Nothing
-
+  
 module type PLATFORM = OpenFlow0x01_PlatformSig.PLATFORM
 
 (* Internal module for managing individual queries. *)
@@ -74,8 +75,8 @@ module Query (Platform : PLATFORM) = struct
     ; this_byte_count : Int64.t ref
     }
 
-  let to_string q = Printf.sprintf "{ xid = %d, atom = %s, switches = %s, ...}"
-    (Int32.to_int q.xid)
+  let to_string q = Printf.sprintf "{ xid = %ld, atom = %s, switches = %s, ...}"
+    q.xid
     (match q.atom with
         | SwitchAction _ -> "SwitchAction"
         | ControllerAction _ -> "ControllerAction"
@@ -83,8 +84,20 @@ module Query (Platform : PLATFORM) = struct
     (String.concat "," (List.map (fun sw -> Printf.sprintf "%Ld" sw)
                           (SwitchSet.elements !(q.switches))))
 
+  let to_query atom (pattern, action) =
+    let query_atoms = NetCore_Action.Output.queries action in
+    if List.exists (NetCore_Action.Output.atom_is_equal atom) query_atoms then
+      NetCore_Pattern.to_match0x01 pattern
+    else None
+
+  let query_fields_of_policy pol atom sw =
+    List.fold_right
+      (fun p acc -> match (to_query atom) p with None -> acc | Some r -> r::acc)
+      (NetCoreCompiler.compile_pol pol sw)
+      []
+
   let set_fields tbl pol atom sw =
-    let qfields = NetCoreCompiler.query_fields_of_policy pol atom sw in
+    let qfields = query_fields_of_policy pol atom sw in
     List.iter 
       (fun match_ -> tbl := FlowSet.add (sw, match_) !tbl)
       qfields
@@ -335,7 +348,7 @@ module Make (Platform : PLATFORM) = struct
   module Queries = QuerySet (Platform)
 
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
-    lwt flow_table = Lwt.wrap2 NetCoreCompiler.flow_table_of_policy sw pol in
+    lwt flow_table = Lwt.wrap2 Compat.flow_table_of_policy sw pol in
     Platform.send_to_switch sw 0l (Message.FlowModMsg delete_all_flows) >>
     let prio = ref 65535 in
     Lwt_list.iter_s
@@ -350,7 +363,7 @@ module Make (Platform : PLATFORM) = struct
       (NetCore_Stream.to_stream pol_stream)
       
   let handle_packet_in pol sw pkt_in = 
-    let in_port = pkt_in.port in
+    let in_port = Compat.to_nc_portId pkt_in.port in
     try_lwt
       let pol = NetCore_Stream.now pol in
       let in_packet = parse_payload pkt_in.input_payload in
@@ -388,7 +401,7 @@ module Make (Platform : PLATFORM) = struct
         { output_payload = pkt_in.input_payload
         ; port_id = None
         ; apply_actions = 
-            NetCore_Action.Output.as_actionSequence (Some in_port) action
+            Compat.as_actionSequence (Some in_port) action
         } in
       Platform.send_to_switch sw 0l (Message.PacketOutMsg out_payload)  
     with Unparsable _ -> 
@@ -418,7 +431,7 @@ module Make (Platform : PLATFORM) = struct
     let _ = Queries.add_switch sw in
     (try_lwt
       lwt _ = Lwt.wrap2 NetCore_Semantics.handle_switch_events
-        (SwitchUp (sw, features))
+        (SwitchUp (sw, Compat.to_nc_features features))
         (NetCore_Stream.now pol_stream) in
       Lwt.pick [ install_new_policies sw pol_stream;
                  handle_switch_messages pol_stream sw ]
@@ -463,7 +476,7 @@ module Make (Platform : PLATFORM) = struct
       let msg = {
         output_payload = NotBuffered bytes;
         port_id = None;
-        apply_actions = [Output (PhysicalPort pt)]
+        apply_actions = [Output (PhysicalPort (Compat.to_of_portId pt))]
       } in
       Platform.send_to_switch sw 0l (Message.PacketOutMsg msg) in
     Lwt_stream.iter_s emit_pkt pkt_stream
@@ -499,7 +512,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
 	let msg = {
           output_payload = NotBuffered bytes;
           port_id = None;
-          apply_actions = [Output (PhysicalPort pt)]
+          apply_actions = [Output (PhysicalPort (Compat.to_of_portId pt))]
 	} in
 	Platform.send_to_switch sw 0l (Message.PacketOutMsg msg)
 
@@ -529,7 +542,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
        messing up semantics w/ they overlap/shadow real rules. Instead,
        default drop rule should be installed at bottom priority *)
     lwt flow_table, drop_rule = 
-      Lwt.wrap1 pop_last (NetCoreCompiler.flow_table_of_policy sw pol) in
+      Lwt.wrap1 pop_last (Compat.flow_table_of_policy sw pol) in
     let prio = ref 65535 in
     Lwt_list.iter_s
       (fun (match_, actions) ->
@@ -596,7 +609,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
     (try_lwt
        let (int_pol,ext_pol,topo_pol) = (NetCore_Stream.now pol_stream) in
       lwt _ = Lwt.wrap2 NetCore_Semantics.handle_switch_events
-        (SwitchUp (sw, features)) (Union (Union(int_pol,ext_pol), topo_pol))
+        (SwitchUp (sw, Compat.to_nc_features features)) (Union (Union(int_pol,ext_pol), topo_pol))
          in
       Lwt.pick [ install_new_policies sw pol_stream;
                  handle_switch_messages sw ]
