@@ -6,6 +6,11 @@ let coq_VLAN_NONE = Some 65535
 
 type 'a mask = { m_value : 'a; m_mask : 'a option }
 
+type payload =
+  | Buffered of int32 * bytes 
+    (** [Buffered (id, buf)] is a packet buffered on a switch. *)
+  | NotBuffered of bytes
+
 (** val m_value : 'a1 mask -> 'a1 **)
 
 let m_value x = x.m_value
@@ -246,14 +251,10 @@ type packetInReason =
 | NoMatch
 | ExplicitSend
 
-type packetIn = { pi_buffer_id : int32 option; pi_total_len : int16;
-                  pi_reason : packetInReason; pi_table_id : tableId;
-                  pi_cookie : int64; pi_ofp_match : oxmMatch;
-                  pi_pkt : packet option }
-
-(** val pi_buffer_id : packetIn -> int32 option **)
-
-let pi_buffer_id x = x.pi_buffer_id
+type packetIn = { pi_total_len : int16; pi_reason : packetInReason; 
+		  pi_table_id : tableId; pi_cookie : int64;
+		  pi_ofp_match : oxmMatch; pi_payload : payload 
+		}
 
 (** val pi_total_len : packetIn -> int16 **)
 
@@ -274,10 +275,6 @@ let pi_cookie x = x.pi_cookie
 (** val pi_ofp_match : packetIn -> oxmMatch **)
 
 let pi_ofp_match x = x.pi_ofp_match
-
-(** val pi_pkt : packetIn -> packet option **)
-
-let pi_pkt x = x.pi_pkt
 
 type capabilities = { flow_stats : bool; table_stats : bool;
                       port_stats : bool; group_stats : bool; ip_reasm : 
@@ -356,12 +353,9 @@ let aux_id x = x.aux_id
 
 let supported_capabilities x = x.supported_capabilities
 
-type packetOut = { po_buffer_id : bufferId option; po_in_port : pseudoPort;
-                   po_actions : actionSequence; po_pkt : packet option }
+type packetOut = { po_in_port : pseudoPort;
+                   po_actions : actionSequence; po_payload : payload }
 
-(** val po_buffer_id : packetOut -> bufferId option **)
-
-let po_buffer_id x = x.po_buffer_id
 
 (** val po_in_port : packetOut -> pseudoPort **)
 
@@ -371,9 +365,12 @@ let po_in_port x = x.po_in_port
 
 let po_actions x = x.po_actions
 
-(** val po_pkt : packetOut -> packet option **)
+type multipartRequest = 
+  | SwitchDescReq
+  | PortsDescReq 
 
-let po_pkt x = x.po_pkt
+type multipartReply = 
+  | PortsDescReply of portDesc list
 
 type message =
 | Hello
@@ -386,5 +383,9 @@ type message =
 | PacketInMsg of packetIn
 | PacketOutMsg of packetOut
 | PortStatusMsg of portStatus
+| MultipartReq of multipartRequest
+| MultipartReply of multipartReply
 | BarrierRequest
 | BarrierReply
+
+let portsDescRequest = MultipartReq PortsDescReq

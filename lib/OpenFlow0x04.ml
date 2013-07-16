@@ -15,6 +15,7 @@ let sum (lst : int list) = List.fold_left (fun x y -> x + y) 0 lst
 
 type uint48 = uint64
 type uint12 = uint16
+type switchId = OpenFlow0x04_Core.switchId
 
 
 (* OKAY *)
@@ -440,6 +441,96 @@ cstruct ofp_oxm {
   uint8_t oxm_length
 } as big_endian
 
+
+cstruct ofp_multipart_request {
+	uint16_t typ;   (* One of the OFPMP_* constants. *)
+	uint16_t flags;  (* OFPMP_REQ_* flags (none yet defined). *)
+	uint8_t pad[4];
+	uint8_t body[0] (* Body of the request. *)
+} as big_endian
+
+cenum ofp_multipart_request_flags {
+    OFPMPF_REQ_MORE = 1 (* More requests to follow. *)
+} as uint16_t
+
+cenum ofp_multipart_reply_flags {
+    OFPMPF_REPLY_MORE  = 1  (* More replies to follow. *)
+} as uint16_t
+
+cstruct ofp_multipart_reply {
+	uint16_t typ;   (* One of the OFPMP_* constants. *)
+	uint16_t flags;  (* OFPMP_REPLY_* flags. *)
+	uint8_t pad[4];
+	uint8_t body[0] (* Body of the reply. *)
+} as big_endian
+
+cenum ofp_multipart_types {
+    (* Description of this OpenFlow switch.
+    * The request body is empty.
+    * The reply body is struct ofp_desc. *)
+    OFPMP_DESC = 0;
+    (* Individual flow statistics.
+    * The request body is struct ofp_flow_multipart_request.
+    * The reply body is an array of struct ofp_flow_stats. *)
+    OFPMP_FLOW = 1;
+    (* Aggregate flow statistics.
+    * The request body is struct ofp_aggregate_stats_request.
+    * The reply body is struct ofp_aggregate_stats_reply. *)
+    OFPMP_AGGREGATE = 2;
+    (* Flow table statistics.
+    * The request body is empty.
+    * The reply body is an array of struct ofp_table_stats. *)
+    OFPMP_TABLE = 3;
+    (* Port statistics.
+    * The request body is struct ofp_port_stats_request.
+    * The reply body is an array of struct ofp_port_stats. *)
+    OFPMP_PORT_STATS = 4;
+    (* Queue statistics for a port
+    * The request body is struct ofp_queue_stats_request.
+    * The reply body is an array of struct ofp_queue_stats *)
+    OFPMP_QUEUE = 5;
+    (* Group counter statistics.
+    * The request body is struct ofp_group_stats_request.
+    * The reply is an array of struct ofp_group_stats. *)
+    OFPMP_GROUP = 6;
+    (* Group description statistics.
+    * The request body is empty.
+    * The reply body is an array of struct ofp_group_desc_stats. *)
+    OFPMP_GROUP_DESC = 7;
+    (* Group features.
+    * The request body is empty.
+    * The reply body is struct ofp_group_features_stats. *)
+    OFPMP_GROUP_FEATURES = 8;
+    (* Meter statistics.
+     * The request body is struct ofp_meter_multipart_requests.
+     * The reply body is an array of struct ofp_meter_stats. *)
+    OFPMP_METER = 9;
+    (* Meter configuration.
+    * The request body is struct ofp_meter_multipart_requests.
+    * The reply body is an array of struct ofp_meter_config. *)
+    OFPMP_METER_CONFIG = 10;
+    (* Meter features.
+    * The request body is empty.
+    * The reply body is struct ofp_meter_features. *)
+    OFPMP_METER_FEATURES = 11;
+    (* Table features.
+    * The request body is either empty or contains an array of
+    * struct ofp_table_features containing the controller’s
+    * desired view of the switch. If the switch is unable to
+    * set the specified view an error is returned.
+    * The reply body is an array of struct ofp_table_features. *)
+    OFPMP_TABLE_FEATURES = 12;
+    (* Port description.
+    * The request body is empty.
+    * The reply body is an array of struct ofp_port. *)
+    OFPMP_PORT_DESC = 13;
+    (* Experimenter extension.
+    * The request and reply bodies begin with
+    * struct ofp_experimenter_stats_header.
+    * The request and reply bodies are otherwise experimenter-defined. *)
+    OFPMP_EXPERIMENTER = 0xffff
+} as uint16_t
+
 cstruct ofp_uint8 {
   uint8_t value
 } as big_endian
@@ -759,6 +850,8 @@ module Oxm = struct
 end
 
 module Action = struct
+
+  type sequence = OpenFlow0x04_Core.actionSequence
     
   let sizeof (act : action) : int = match act with
     | Output _ -> sizeof_ofp_action_output
@@ -1171,18 +1264,17 @@ module PacketIn = struct
     let ofp_match, pkt_bits = OfpMatch.parse ofp_match_bits in
     let pkt_bits = Cstruct.shift pkt_bits 2 in (* pad bytes *)
     (* printf "len = %d\n" (Cstruct.len pkt_bits); *)
-    let pkt = match Cstruct.len pkt_bits with
-      | 0 -> None
-      | _ -> Some (Packet.parse pkt_bits)
+    let pkt = match bufId with
+      | None -> NotBuffered pkt_bits
+      | Some n -> Buffered (n,pkt_bits)
     in
     let _ = OpenFlow0x04_Misc.Log.printf "[PacketIn] okay \n%!" in 
-    { pi_buffer_id = bufId;
-      pi_total_len = total_len;
+    { pi_total_len = total_len;
       pi_reason = reason;
       pi_table_id = table_id;
       pi_cookie = cookie;
       pi_ofp_match = ofp_match;
-      pi_pkt = pkt
+      pi_payload = pkt
     }
 
 end
@@ -1208,16 +1300,16 @@ module PacketOut = struct
 
   let sizeof (po : packetOut) =
     sizeof_ofp_packet_out + sum (map Action.sizeof po.po_actions) +
-    (match po.po_pkt with
-      | None -> 0
-      | Some bytes -> Packet.len bytes)
+    (match po.po_payload with
+      | Buffered _ -> 0
+      | NotBuffered bytes -> Cstruct.len bytes)
 
   let marshal (buf : Cstruct.t) (po : packetOut) : int =
     let size = sizeof po in
     set_ofp_packet_out_buffer_id buf (
-      match po.po_buffer_id with
-        | None -> 0xffffffffl
-        | Some buffer_id -> buffer_id);
+      match po.po_payload with
+        | NotBuffered _ -> 0xffffffffl
+        | Buffered (buffer_id, _) -> buffer_id);
     set_ofp_packet_out_in_port buf
       (match po.po_in_port with
         | PhysicalPort pid -> pid
@@ -1232,14 +1324,87 @@ module PacketOut = struct
     set_ofp_packet_out_pad5 buf 0;
     let buf = Cstruct.shift buf sizeof_ofp_packet_out in
     let act_size = marshal_fields buf po.po_actions Action.marshal in
-    match po.po_pkt with
-      | None -> size
-      | Some pkt ->
-        let pkt_buf = Packet.marshal pkt in
+    match po.po_payload with
+      | Buffered _ -> size
+      | NotBuffered pkt_buf ->
         Cstruct.blit pkt_buf 0 buf act_size (Cstruct.len pkt_buf);
         size
 
 end
+
+module MultipartReq = struct
+    
+    cstruct ofp_multipart_request {
+      uint16_t typ; (* One of the OFPMP_* constants. *)
+      uint16_t flags; (* OFPMPF_REQ_* flags. *)
+      uint8_t pad0;
+      uint8_t pad1;
+      uint8_t pad2;
+      uint8_t pad3
+    } as big_endian
+
+  let msg_code_of_request mpr = match mpr with
+    | SwitchDescReq -> OFPMP_DESC
+    | PortsDescReq -> OFPMP_PORT_DESC
+
+  let sizeof (mpr : multipartRequest) =
+    sizeof_ofp_multipart_request + 
+    (match mpr with 
+      | SwitchDescReq 
+      | PortsDescReq -> 0)
+
+  let marshal (buf : Cstruct.t) (mpr : multipartRequest) : int =
+    let size = sizeof mpr in
+    set_ofp_multipart_request_typ buf (ofp_multipart_types_to_int (msg_code_of_request mpr));
+    set_ofp_multipart_request_flags buf 0;
+    set_ofp_multipart_request_pad0 buf 0;
+    set_ofp_multipart_request_pad1 buf 0;
+    set_ofp_multipart_request_pad2 buf 0;
+    set_ofp_multipart_request_pad3 buf 0;
+    size
+
+end
+
+module PortsDescriptionReply = struct
+    
+    cstruct ofp_multipart_reply {
+      uint16_t typ; (* One of the OFPMP_* constants. *)
+      uint16_t flags; (* OFPMPF_REQ_* flags. *)
+      uint8_t pad0;
+      uint8_t pad1;
+      uint8_t pad2;
+      uint8_t pad3
+    } as big_endian
+
+  let parse (bits : Cstruct.t) : multipartReply =
+    let portIter =
+      Cstruct.iter
+        (fun buf -> Some sizeof_ofp_port)
+        PortDesc.parse
+        bits in
+    PortsDescReply (Cstruct.fold (fun acc bits -> bits :: acc) portIter [])
+
+end
+
+module MultipartReply = struct
+    
+    cstruct ofp_multipart_reply {
+      uint16_t typ; (* One of the OFPMP_* constants. *)
+      uint16_t flags; (* OFPMPF_REQ_* flags. *)
+      uint8_t pad0;
+      uint8_t pad1;
+      uint8_t pad2;
+      uint8_t pad3
+    } as big_endian
+
+  let parse (bits : Cstruct.t) : multipartReply =
+    let ofp_body_bits = Cstruct.shift bits sizeof_ofp_multipart_reply in
+    match int_to_ofp_multipart_types (get_ofp_multipart_reply_typ bits) with
+      | Some OFPMP_PORT_DESC -> PortsDescriptionReply.parse ofp_body_bits
+      | _ -> raise (Unparsable (sprintf "NYI: can't parse this multipart reply"))
+
+end
+    
 
 module Message = struct
 
@@ -1254,6 +1419,8 @@ module Message = struct
     | PacketInMsg _ -> PACKET_IN
     | PacketOutMsg _ -> PACKET_OUT
     | PortStatusMsg _ ->   PORT_STATUS
+    | MultipartReq _ -> MULTIPART_REQ
+    | MultipartReply _ -> MULTIPART_RESP
     | BarrierRequest ->   BARRIER_REQ
     | BarrierReply ->   BARRIER_RESP
 
@@ -1265,8 +1432,13 @@ module Message = struct
     | FeaturesReply _ -> sizeof_ofp_header + sizeof_ofp_switch_features
     | FlowModMsg fm -> sizeof_ofp_header + FlowMod.sizeof fm
     | GroupModMsg gm -> sizeof_ofp_header + GroupMod.sizeof gm
+    | PacketInMsg _ -> failwith "NYI: sizeof PacketInMsg"
     | PacketOutMsg po -> sizeof_ofp_header + PacketOut.sizeof po
-    | _ -> failwith "unknowns"
+    | PortStatusMsg _ -> failwith "NYI: sizeof PortStatusMsg"
+    | MultipartReq req -> sizeof_ofp_header + MultipartReq.sizeof req
+    | MultipartReply _ -> failwith "NYI: sizeof MultipartReply"
+    | BarrierRequest -> failwith "NYI: sizeof BarrierRequest"
+    | BarrierReply -> failwith "NYI: sizeof BarrierReply"
 
   let marshal (buf : Cstruct.t) (msg : message) : int =
     let buf2 = (Cstruct.shift buf sizeof_ofp_header) in
@@ -1282,13 +1454,21 @@ module Message = struct
         sizeof_ofp_header + String.length (Cstruct.to_string bytes)
       | FeaturesRequest ->
         sizeof_ofp_header
+      | FeaturesReply _ -> failwith "NYI: marshal FeaturesReply"
       | FlowModMsg fm ->
 	sizeof_ofp_header + FlowMod.marshal buf2 fm
       | GroupModMsg gm ->
         sizeof_ofp_header + GroupMod.marshal buf2 gm
       | PacketOutMsg po ->
         sizeof_ofp_header + PacketOut.marshal buf2 po
-      | _ -> failwith "unknowns"
+      | MultipartReq mpr ->
+	sizeof_ofp_header + MultipartReq.marshal buf2 mpr
+      | MultipartReply _ -> failwith "NYI: marshal MultipartReply"
+      | BarrierRequest -> failwith "NYI: marshal BarrierRequest"
+      | BarrierReply -> failwith "NYI: marshal BarrierReply"
+      | PacketInMsg _ -> failwith "NYI: marshal PacketInMsg"
+      | PortStatusMsg _ -> failwith "NYI: marshal PortStatusMsg"
+
 
   let serialize (xid : xid) (msg : message) : string = 
     let buf = Cstruct.create (sizeof msg) in
@@ -1307,510 +1487,6 @@ module Message = struct
         | Some PACKET_IN -> PacketInMsg (PacketIn.parse body_bits)
 	| Some ECHO_REQ -> EchoRequest body_bits
 	| Some PORT_STATUS -> PortStatusMsg (PortStatus.parse body_bits)
+	| Some MULTIPART_RESP -> MultipartReply (MultipartReply.parse body_bits)
         | _ -> raise (Unparsable (Printf.sprintf "unrecognized message code %d" typ))
 end
-
-
-(*
-
-module PseudoPort = struct
-
-  type t = pseudoPort
-
-  let marshal (t : t) : int = match t with
-    | PhysicalPort p -> p
-    | InPort -> ofp_port_to_int OFPP_IN_PORT
-    | Flood -> ofp_port_to_int OFPP_FLOOD
-    | AllPorts -> ofp_port_to_int OFPP_ALL
-    (* TODO(arjun): what happened to the byte count? *)
-    | Controller _ -> ofp_port_to_int OFPP_CONTROLLER
-
-  let marshal_optional (t : t option) : int = match t with
-    | None -> ofp_port_to_int OFPP_NONE
-    | Some x -> marshal x
-
-end
-
-module PacketIn = struct
-
-  cenum reason {
-    NO_MATCH = 0;
-    ACTION = 1
-  } as uint8_t
-
- cstruct ofp_packet_in {
-   uint32_t buffer_id;     
-   uint16_t total_len;     
-   uint16_t in_port;       
-   uint8_t reason;         
-   uint8_t pad
-  } as big_endian
-
-  let parse bits =
-    let bufId = match get_ofp_packet_in_buffer_id bits with
-      | -1l -> None
-      | n -> Some n in
-  let total_len = get_ofp_packet_in_total_len bits in
-  let in_port = get_ofp_packet_in_in_port bits in
-  let reason_code = get_ofp_packet_in_reason bits in
-  let reason = match int_to_reason reason_code with
-    | Some NO_MATCH -> NoMatch
-    | Some ACTION -> ExplicitSend
-    | None ->
-      raise (Unparsable (sprintf "bad reason in packet_in (%d)" reason_code)) in
-  let pkt_bits = Cstruct.shift bits sizeof_ofp_packet_in in
-  let pkt = match Packet_Parser.parse_packet pkt_bits with 
-    | Some pkt -> pkt 
-    | None -> 
-      raise (Unparsable (sprintf "malformed packet in packet_in")) in
-  let _ = Misc.Log.printf "[PacketIn] okay \n%!" in 
-  { packetInBufferId = bufId;
-    packetInTotalLen = total_len;
-    packetInPort = in_port;
-    packetInReason_ = reason;
-    packetInPacket = pkt }
-
-end
-
-module Action = struct
-
-  type t = action
-
-  let type_code (a : t) = match a with
-    | Output _ -> OFPAT_OUTPUT
-    | SetDlVlan _ -> OFPAT_SET_VLAN_VID
-    | SetDlVlanPcp _ -> OFPAT_SET_VLAN_PCP
-    | StripVlan -> OFPAT_STRIP_VLAN
-    | SetDlSrc _ -> OFPAT_SET_DL_SRC
-    | SetDlDst _ -> OFPAT_SET_DL_DST
-    | SetNwSrc _ -> OFPAT_SET_NW_SRC
-    | SetNwDst _ -> OFPAT_SET_NW_DST
-    | SetNwTos _ -> OFPAT_SET_NW_TOS
-    | SetTpSrc _ -> OFPAT_SET_TP_SRC
-    | SetTpDst _ -> OFPAT_SET_TP_DST
-
-  let sizeof (a : t) = match a with
-    | Output _ -> sizeof_ofp_action_output
-    | SetDlVlan _ -> sizeof_ofp_action_vlan_vid
-    | SetDlVlanPcp _ -> sizeof_ofp_action_vlan_pcp
-    | StripVlan -> sizeof_ofp_action_header
-    | SetDlSrc _
-    | SetDlDst _ -> sizeof_ofp_action_dl_addr
-    | SetNwSrc _
-    | SetNwDst _ -> sizeof_ofp_action_nw_addr
-    | SetNwTos _ -> sizeof_ofp_action_nw_tos
-    | SetTpSrc _
-    | SetTpDst _ -> sizeof_ofp_action_tp_port
-
-  let marshal a bits = 
-    set_ofp_action_header_typ bits (ofp_action_type_to_int (type_code a));
-    set_ofp_action_header_len bits (sizeof a);
-    begin
-      match a with
-        | Output pp ->
-          set_ofp_action_output_port bits (PseudoPort.marshal pp);
-          set_ofp_action_output_max_len bits
-            (match pp with
-              | Controller w -> w
-              | _ -> 0)
-    end;
-    sizeof a
-      
-        
-end
-
-module Timeout = struct
-
-  type t = timeout
-
-  let marshal (t : t) : int = match t with
-    | Permanent -> 0
-    | ExpiresAfter n -> n
-
-end
-
-module FlowModCommand = struct
-    
-  type t = flowModCommand
-
-  let marshal (t : t) : int = match t with
-    | AddFlow -> ofp_flow_mod_command_to_int OFPFC_ADD
-    | ModFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY
-    | ModStrictFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY_STRICT
-    | DeleteFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE
-    | DeleteStrictFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE_STRICT
-     
-end
-
-module Capabilities = struct
-
-  type t = capabilities
-
-  let parse bits =
-    { arp_match_ip = test_bit 7 bits; 
-      queue_stats = test_bit 6 bits; 
-      ip_reasm = test_bit 5 bits; 
-      stp = test_bit 3 bits; 
-      port_stats = test_bit 2 bits; 
-      table_stats = test_bit 1 bits; 
-      flow_stats = test_bit 0 bits;
-    }
-
-  let marshal (c : t) : int32 =
-    let bits = Int32.zero in 
-    let bits = bit bits 7 c.arp_match_ip in
-    let bits = bit bits 6 c.queue_stats in
-    let bits = bit bits 5 c.ip_reasm in
-    let bits = bit bits 3 c.stp in 
-    let bits = bit bits 2 c.port_stats in
-    let bits = bit bits 1 c.table_stats in
-    let bits = bit bits 0 c.flow_stats in
-    bits
-
-end
-
-module Actions = struct
-
-  type t = actions
-
- let parse bits = 
-   { output = test_bit 0 bits; 
-     set_vlan_id = test_bit 1 bits; 
-     set_vlan_pcp = test_bit 2 bits; 
-     strip_vlan = test_bit 3 bits;
-     set_dl_src = test_bit 4 bits; 
-     set_dl_dst = test_bit 5 bits; 
-     set_nw_src = test_bit 6 bits; 
-     set_nw_dst = test_bit 7 bits;
-     set_nw_tos = test_bit 8 bits; 
-     set_tp_src = test_bit 9 bits; 
-     set_tp_dst = test_bit 10 bits; 
-     enqueue = test_bit 11 bits; 
-     vendor = test_bit 12 bits; }
-
-  let marshal (a : actions) : int32 =
-    let bits = Int32.zero in
-    let bits = bit bits 0 a.output in  
-    let bits = bit bits 1 a.set_vlan_id in  
-    let bits = bit bits 2 a.set_vlan_pcp in  
-    let bits = bit bits 3 a.strip_vlan in 
-    let bits = bit bits 4 a.set_dl_src in  
-    let bits = bit bits 5 a.set_dl_dst in  
-    let bits = bit bits 6 a.set_nw_src in  
-    let bits = bit bits 7 a.set_nw_dst in 
-    let bits = bit bits 8 a.set_nw_tos in  
-    let bits = bit bits 9 a.set_tp_src in  
-    let bits = bit bits 10 a.set_tp_dst in  
-    let bits = bit bits 11 a.enqueue in  
-    let bits = bit bits 12 a.vendor in  
-    bits
-
-end
-
-module Features = struct
-
-  type t = features
-
-  let parse (buf : Cstruct.buf) : t =
-    let switch_id = get_ofp_switch_features_datapath_id buf in 
-    let num_buffers = get_ofp_switch_features_n_buffers buf in
-    let num_tables = get_ofp_switch_features_n_tables buf in 
-    let supported_capabilities = Capabilities.parse
-      (get_ofp_switch_features_capabilities buf) in
-    let supported_actions = Actions.parse 
-      (get_ofp_switch_features_action buf) in
-    let buf = Cstruct.shift buf sizeof_ofp_switch_features in
-    { switch_id; 
-      num_buffers; 
-      num_tables; 
-      supported_capabilities; 
-      supported_actions }
-end
-
-(** Internal module, only used to parse the wildcards bitfield *)
-module Wildcards = struct
-
-  type t = {
-    in_port: bool; 
-    dl_vlan: bool;
-    dl_src: bool; 
-    dl_dst: bool; 
-    dl_type: bool; 
-    nw_proto: bool; 
-    tp_src: bool; 
-    tp_dst: bool; 
-    nw_src: int; (* XXX *)
-    nw_dst: int; (* XXX *)
-    dl_vlan_pcp: bool;
-    nw_tos: bool;
-  }
-
-  let set_nw_mask (f:int32) (off : int) (v : int) : int32 = 
-    let value = (0x3f land v) lsl off in
-    (Int32.logor f (Int32.of_int value))
-
-  (* TODO(arjun): this is different from mirage *)
-  let get_nw_mask (f : int32) (off : int) : int = 
-    (Int32.to_int (Int32.shift_right f off)) land 0x3f
-
-  let marshal m = 
-    let ret = Int32.zero in 
-    let ret = bit ret 0 m.in_port in
-    let ret = bit ret 1 m.dl_vlan in 
-    let ret = bit ret 2 m.dl_src in
-    let ret = bit ret 3 m.dl_dst in
-    let ret = bit ret 4 m.dl_type in
-    let ret = bit ret 5 m.nw_proto in
-    let ret = bit ret 6 m.tp_src in
-    let ret = bit ret 7 m.tp_dst in
-    let ret = set_nw_mask ret 8 m.nw_src in
-    let ret = set_nw_mask ret 14 m.nw_dst in
-    let ret = bit ret 20 m.dl_vlan_pcp in 
-    let ret = bit ret 21 m.nw_tos in
-    ret
-
-  let to_string h = 
-    Format.sprintf
-      "in_port:%s,dl_vlan:%s,dl_src:%s,dl_dst:%s,dl_type:%s,\
-       nw_proto:%s,tp_src:%s,tp_dst:%s,nw_src:%d,nw_dst:%d,\
-       dl_vlan_pcp:%s,nw_tos:%s" 
-      (string_of_bool h.in_port) 
-      (string_of_bool h.dl_vlan) (string_of_bool h.dl_src)
-      (string_of_bool h.dl_dst) (string_of_bool h.dl_type)
-      (string_of_bool h.nw_proto) (string_of_bool h.tp_src)
-      (string_of_bool h.tp_dst) h.nw_src
-      h.nw_dst (string_of_bool h.dl_vlan_pcp) 
-      (string_of_bool h.nw_tos)
-      
-  let parse bits = 
-    { nw_tos = test_bit 21 bits;
-      dl_vlan_pcp = test_bit 20 bits;
-      nw_dst = get_nw_mask bits 14; 
-      nw_src = get_nw_mask bits 8; 
-      tp_dst = test_bit 7 bits; 
-      tp_src = test_bit 6 bits; 
-      nw_proto = test_bit 5 bits; 
-      dl_type = test_bit 4 bits; 
-      dl_dst = test_bit 3 bits; 
-      dl_src = test_bit 2 bits; 
-      dl_vlan = test_bit 1 bits; 
-      in_port = test_bit 0 bits;
-    }
-end
-
-module Match = struct
-
-  type t = of_match
-
-  let is_none x = match x with
-    | None -> true
-    | Some _ -> false
-
-  let wildcards_of_match (m : t) : Wildcards.t =
-    { Wildcards.in_port = is_none m.matchInPort;
-      Wildcards.dl_vlan = is_none m.matchDlVlan;
-      Wildcards.dl_src = is_none m.matchDlSrc;
-      Wildcards.dl_dst = is_none m.matchDlDst;
-      Wildcards.dl_type = is_none m.matchDlTyp;
-      Wildcards.nw_proto = is_none m.matchNwProto;
-      Wildcards.tp_src = is_none m.matchTpSrc;
-      Wildcards.tp_dst = is_none m.matchTpDst;
-      (* TODO(arjun): support IP prefixes *)
-      Wildcards.nw_src = if is_none m.matchNwSrc then 32 else 0x0;
-      Wildcards.nw_dst = if is_none m.matchNwDst then 32 else 0x0;
-      Wildcards.dl_vlan_pcp = is_none m.matchDlVlanPcp;
-      Wildcards.nw_tos = is_none m.matchNwTos;
-  }
-
-  let if_some16 x = match x with
-    | Some n -> n
-    | None -> 0
-
-  let if_some8 x = match x with
-    | Some n -> n
-    | None -> 0
-
-  let if_some32 x = match x with
-    | Some n -> n
-    | None -> 0l
-
-  let if_word48 x = match x with
-    | Some n -> n
-    | None -> Int64.zero
-
- let marshal m bits = 
-   set_ofp_match_wildcards bits (Wildcards.marshal (wildcards_of_match m));
-   set_ofp_match_in_port bits (if_some16 m.matchInPort); 
-   set_ofp_match_dl_src (bytes_of_mac (if_word48 m.matchDlSrc)) 0 bits;
-   set_ofp_match_dl_dst (bytes_of_mac (if_word48 m.matchDlDst)) 0 bits;
-   set_ofp_match_dl_vlan bits (if_some16 m.matchDlVlan);
-   set_ofp_match_dl_vlan_pcp bits (if_some8 m.matchDlVlanPcp);
-   set_ofp_match_dl_type bits (if_some16 m.matchDlTyp);
-   set_ofp_match_nw_tos bits (if_some8 m.matchNwTos);
-   set_ofp_match_nw_proto bits (if_some8 m.matchNwProto);
-   set_ofp_match_nw_src bits (if_some32 m.matchNwSrc);
-   set_ofp_match_nw_dst bits (if_some32 m.matchNwDst);
-   set_ofp_match_tp_src bits (if_some16 m.matchTpSrc);
-   set_ofp_match_tp_dst bits (if_some16 m.matchTpDst); 
-   sizeof_ofp_match 
-
-  let parse bits = 
-    let w = Wildcards.parse (get_ofp_match_wildcards bits) in
-    { matchDlSrc = 
-        if w.Wildcards.dl_src then 
-          None
-        else
-          Some (mac_of_bytes
-                  (Cstruct.to_string (get_ofp_match_dl_src bits)));
-      matchDlDst = 
-        if w.Wildcards.dl_dst then 
-          None
-        else
-          Some (mac_of_bytes
-                  (Cstruct.to_string (get_ofp_match_dl_dst bits)));
-      matchDlVlan =
-        if w.Wildcards.dl_vlan then
-          None
-        else
-          Some (get_ofp_match_dl_vlan bits);
-      matchDlVlanPcp = 
-        if w.Wildcards.dl_vlan_pcp then
-          None
-        else
-          Some (get_ofp_match_dl_vlan_pcp bits);
-      matchDlTyp =
-        if w.Wildcards.dl_type then
-          None
-        else
-          Some (get_ofp_match_dl_type bits);
-      matchNwSrc = 
-        if w.Wildcards.nw_src = 0x3f then (* TODO(arjun): prefixes *)
-          None
-        else
-          Some (get_ofp_match_nw_src bits);
-      matchNwDst = 
-        if w.Wildcards.nw_dst = 0x3f then (* TODO(arjun): prefixes *)
-          None
-        else
-          Some (get_ofp_match_nw_dst bits);
-      matchNwProto =
-        if w.Wildcards.nw_proto then
-          None
-        else
-          Some (get_ofp_match_nw_proto bits);
-      matchNwTos = 
-        if w.Wildcards.nw_tos then 
-          None
-        else 
-          Some (get_ofp_match_nw_tos bits);
-      matchTpSrc =
-        if w.Wildcards.tp_src then
-          None
-        else
-          Some (get_ofp_match_tp_src bits);
-      matchTpDst =
-        if w.Wildcards.tp_dst then
-          None
-        else
-          Some (get_ofp_match_tp_dst bits);
-      matchInPort =
-        if w.Wildcards.in_port then
-          None
-        else
-          Some (get_ofp_match_in_port bits);
-    }
-
-end
-
-module TimeoutSer = struct
-
-  let to_int (x : timeout) = match x with
-    | Permanent -> 0
-    | ExpiresAfter w -> w
-
-end  
-
-module Header = struct
-
-  let ver : int = 0x01
-
-  type t = {
-    ver: int;
-    typ: msg_code;
-    len: int;
-    xid: int32
-  }
-      
-  (** [parse buf] assumes that [buf] has size [sizeof_ofp_header] *)
-  let parse buf = 
-    { ver = get_ofp_header_version buf;
-      typ = begin match int_to_msg_code (get_ofp_header_typ buf) with
-        | Some typ -> typ
-        | None -> raise (Unparsable "unrecognized message code")
-      end;
-      len = get_ofp_header_length buf;
-      xid = get_ofp_header_xid buf
-    }
-
-end
-
-module Message = struct
-
-  type t = message
-  
-  let parse (hdr : Header.t) (buf : Cstruct.buf) : (xid * t) option =
-    let msg = match hdr.Header.typ with
-      | HELLO -> Some (Hello buf)
-      | ECHO_REQ -> Some (EchoRequest buf)
-      | ECHO_RESP -> Some (EchoReply buf)
-      | FEATURES_REQ -> Some (FeaturesRequest)
-      | FEATURES_RESP -> Some (FeaturesReply (Features.parse buf))
-      | PACKET_IN -> Some (PacketInMsg (PacketIn.parse buf))
-      | code -> None
-    in
-    match msg with
-      | Some v -> Some (hdr.Header.xid, v)
-      | None -> None
-
-  let msg_code_of_message (msg : t) : msg_code = match msg with
-    | Hello _ -> HELLO
-    | EchoRequest _ -> ECHO_REQ
-    | EchoReply _ -> ECHO_RESP
-    | FeaturesRequest -> FEATURES_REQ
-    | FeaturesReply _ -> FEATURES_RESP
-    | FlowModMsg _ -> FLOW_MOD
-
-  open Bigarray
-
-  (** Size of the message body, without the header *)
-  let sizeof_body (msg : t) : int = match msg with
-    | Hello buf -> Array1.dim buf
-    | EchoRequest buf -> Array1.dim buf
-    | EchoReply buf -> Array1.dim buf
-    | FeaturesRequest -> 0
-    | FeaturesReply _ -> sizeof_ofp_switch_features
-    | FlowModMsg msg ->
-      sizeof_ofp_match + sizeof_ofp_flow_mod + 
-        sum (List.map Action.sizeof msg.mfActions)
-    | _ -> failwith "unknowns"
-
-  let blit_message (msg : t) (out : Cstruct.buf) = match msg with
-    | Hello buf
-    | EchoRequest buf
-    | EchoReply buf ->
-      Cstruct.blit_buffer buf 0 out 0 (Cstruct.len buf)
-    | FeaturesRequest -> ()
-    | FlowModMsg flow_mod -> FlowMod.marshal flow_mod out
-
-  let marshal (xid : xid) (msg : t) : string = 
-    let sizeof_buf = sizeof_ofp_header + sizeof_body msg in
-    let buf = Array1.create char c_layout sizeof_buf in
-    set_ofp_header_version buf 0x1;
-    set_ofp_header_typ buf (msg_code_to_int (msg_code_of_message msg));
-    set_ofp_header_length buf sizeof_buf;
-    set_ofp_header_xid buf xid;
-    blit_message msg (Cstruct.shift buf sizeof_ofp_header);
-    let str = Cstruct.to_string buf in
-    str
-end
-*)
