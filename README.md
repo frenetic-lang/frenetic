@@ -18,11 +18,13 @@ Prerequisites:
   - lwt
   - cstruct 
   - oUnit
+  - openflow
+  - packet
 
   These are available on OPAM:
 
   ```
-  $ opam install ocamlfind cstruct lwt ounit
+  $ opam install ocamlfind cstruct lwt ounit openflow packet
   ```
 
 Building:
