@@ -27,7 +27,7 @@
 
  let int32_of_int64 (n : Int64.t) : int32 =
    if Int64.compare n Int64.zero >= 0 && 
-     Int64.compare n (Int64.of_int 0xFFFFFFFF) <= 0 then
+     Int64.compare n (Int64.of_int32 Int32.max_int) <= 0 then
      (Int32.of_int (Int64.to_int n))
    else
      raise Parsing.Parse_error
