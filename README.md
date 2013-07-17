@@ -18,14 +18,16 @@ Prerequisites:
   - lwt
   - cstruct 
   - oUnit
-  - openflow
-  - packet
 
   These are available on OPAM:
 
   ```
-  $ opam install ocamlfind cstruct lwt ounit openflow packet
+  $ opam install ocamlfind cstruct lwt ounit
   ```
+
+- The [ocaml-packet](https://github.com/frenetic-lang/ocaml-packet) and
+  [ocaml-openflow](https://github.com/frenetic-lang/ocaml-openflow) libraries.
+  It is recommended that you build these from source as well.
 
 Building:
 
