@@ -140,9 +140,9 @@ let serialize_declaration = function
 let init_decls : zDeclaration list = 
   [ ZSortDeclare
       ("Packet", [("packet", [ ("PSwitch", SInt)
-		             ; ("PInPort", SInt)
-		             ; ("PDlSrc", SInt)
-		             ; ("PDlDst", SInt) ])])
+                             ; ("PInPort", SInt)
+                             ; ("PDlSrc", SInt)
+                             ; ("PDlDst", SInt) ])])
   ; ZSortDeclare
        ("Pair", [("pair", [("First", SInt)
                              ;("Second", SInt)])])
@@ -213,13 +213,13 @@ let encode_pattern (pat:ptrn) (pkt:zVar) : zFormula =
        [ map_wildcard (fun mac -> packet_field "DlSrc" pkt (TInt mac)) pat.ptrnDlSrc
        ; map_wildcard (fun mac -> packet_field "DlDst" pkt (TInt mac)) pat.ptrnDlDst
        ; map_wildcard 
-	 (function 
+         (function 
            (* TODO: PseudoPorts *)
-	   | All -> ZTrue
-	   | Here -> ZTrue 
-	   | Physical pt -> packet_field "InPort" pkt (TInt (Int64.of_int pt)))
-	   | Queue pt qid -> ZTrue (* TODO(rjs) Fix for queue ports *)
-	 pat.ptrnInPort ])
+           | All -> ZTrue
+           | Here -> ZTrue 
+           | Physical pt -> packet_field "InPort" pkt (TInt (Int64.of_int pt)))
+           | Queue pt qid -> ZTrue (* TODO(rjs) Fix for queue ports *)
+         pat.ptrnInPort ])
 
 let rec encode_predicate (pr:pred) (pkt:zVar) : zFormula = match pr with 
   | Everything -> 
@@ -252,25 +252,25 @@ let topology_forwards (Topology topo:topology) (pkt1:zVar) (pkt2:zVar) : zFormul
   let eq = equals ["DlSrc"; "DlDst"] pkt1 pkt2 in 
   ZAnd (List.fold_left 
           (fun acc (Link(s1, p1), Link(s2, p2)) ->   
-	    eq 
-	    @ [ packet_field "Switch" pkt1 (TInt s1)
-	      ; packet_field "InPort" pkt1 (TInt (Int64.of_int p1))
-	      ; packet_field "Switch" pkt2 (TInt s2)
-	      ; packet_field "InPort" pkt2 (TInt (Int64.of_int p2))]
+            eq 
+            @ [ packet_field "Switch" pkt1 (TInt s1)
+              ; packet_field "InPort" pkt1 (TInt (Int64.of_int p1))
+              ; packet_field "Switch" pkt2 (TInt s2)
+              ; packet_field "InPort" pkt2 (TInt (Int64.of_int p2))]
             @ acc)
           [] topo)
 
 let output_forwards (out:output) (pkt1:zVar) (pkt2:zVar) : zFormula = 
   ZOr (filter_map
-	 (fun x -> x)
-	 [ map_option (fun (_,mac) -> packet_field "DlSrc" pkt2 (TInt mac)) out.outDlSrc
-	 ; map_option (fun (_,mac) -> packet_field "DlDst" pkt2 (TInt mac)) out.outDlDst
-	 ; Some (match out.outPort with 
+         (fun x -> x)
+         [ map_option (fun (_,mac) -> packet_field "DlSrc" pkt2 (TInt mac)) out.outDlSrc
+         ; map_option (fun (_,mac) -> packet_field "DlDst" pkt2 (TInt mac)) out.outDlDst
+         ; Some (match out.outPort with 
            (* TODO: PseudoPorts *)
-	   | All -> ZNot(ZAnd(equal_field "InPort" pkt1 pkt2))
-	   | Here -> ZAnd(equal_field "InPort" pkt1 pkt2)
-	   | Physical pt -> packet_field "InPort" pkt2 (TInt (Int64.of_int pt))) ])
-	   | Queue pt qid -> ZTrue (* TODO(rjs) Fix for queue ports *)
+           | All -> ZNot(ZAnd(equal_field "InPort" pkt1 pkt2))
+           | Here -> ZAnd(equal_field "InPort" pkt1 pkt2)
+           | Physical pt -> packet_field "InPort" pkt2 (TInt (Int64.of_int pt))) ])
+           | Queue pt qid -> ZTrue (* TODO(rjs) Fix for queue ports *)
 
 let action_atom_forwards (act:action_atom) (pkt1:zVar) (pkt2:zVar) : zFormula = match act with 
   | SwitchAction out -> 

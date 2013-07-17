@@ -509,12 +509,12 @@ module MakeConsistent (Platform : PLATFORM) = struct
       which is banned until after PLDI 2013. *)
   let emit_pkt (sw, pt, bytes) =
     let open PacketOut in
-	let msg = {
+        let msg = {
           output_payload = NotBuffered bytes;
           port_id = None;
           apply_actions = [Output (PhysicalPort (Compat.to_of_portId pt))]
-	} in
-	Platform.send_to_switch sw 0l (Message.PacketOutMsg msg)
+        } in
+        Platform.send_to_switch sw 0l (Message.PacketOutMsg msg)
 
   let emit_packets pkt_stream = 
     Lwt_stream.iter_s emit_pkt pkt_stream
@@ -655,7 +655,11 @@ module MakeConsistent (Platform : PLATFORM) = struct
   let rec accept_policies push_pol sugared_pol_stream genSym =
     lwt pol = Lwt_stream.next sugared_pol_stream in
     let ver = GenSym.next_val genSym in
-    let (int_pol,ext_pol) = gen_update_pols pol ver (Topo.get_switches ()) make_extPorts in
+    let switches = Topo.get_switches () in
+    let int_pol,ext_pol = 
+      match switches with 
+        | [] -> (pol, pol)
+        | _ -> gen_update_pols pol ver switches make_extPorts in
     Queries.stop () >>
     let _ = pol_now := Union(Union(int_pol, ext_pol), topo_pol) in
     let _ = push_pol (Some (int_pol, ext_pol, topo_pol)) in

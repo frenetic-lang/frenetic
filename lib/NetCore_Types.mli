@@ -8,6 +8,7 @@ type portId = int32
 type queueId = int32
 
 val string_of_portId : portId -> string
+val string_of_switchId : switchId -> string
 
 type 'a wildcard =
   | WildcardExact of 'a
@@ -79,12 +80,12 @@ type pred =
 
 type capabilities = { flow_stats : bool; table_stats : bool;
                       port_stats : bool; group_stats : bool; 
-		      ip_reasm : bool; queue_stats : bool; 
-		      port_blocked : bool }
+                      ip_reasm : bool; queue_stats : bool; 
+                      port_blocked : bool }
 
 type switchFeatures = { datapath_id : switchId; num_buffers : int;
-			num_tables : int; supported_capabilities : capabilities;
-			ports : portId list }
+                        num_tables : int; supported_capabilities : capabilities;
+                        ports : portId list }
 
 type switchEvent =
   | SwitchUp of switchId * switchFeatures

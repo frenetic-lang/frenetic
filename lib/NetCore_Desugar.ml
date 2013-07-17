@@ -160,7 +160,7 @@ module NCT = NetCore_Types
       | UpdateDstPort _ 
       | GetPacket _
       | GetCount _ ->
-	(false, false) in
+        (false, false) in
 
     let rec check_pred (pred : predicate) =
       match pred with
@@ -198,10 +198,10 @@ module NCT = NetCore_Types
         let vlanB'' = check_pred egress in
         (true, vlanB || vlanB' || vlanB'')
       | ITE (pr, thn, els) -> 
-	let vlanIf = check_pred pr in
-	let sliceThen, vlanThen = check_pol thn in
-	let sliceElse, vlanElse = check_pol els in
-	(sliceThen || sliceElse, vlanIf || vlanThen || vlanElse)
+        let vlanIf = check_pred pr in
+        let sliceThen, vlanThen = check_pol thn in
+        let sliceElse, vlanElse = check_pol els in
+        (sliceThen || sliceElse, vlanIf || vlanThen || vlanElse)
     in
     let sliceB, vlanB = check_pol pol in
     if sliceB && vlanB 
