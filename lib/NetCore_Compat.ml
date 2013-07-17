@@ -231,7 +231,6 @@ struct
        | Some (Some a) -> [ OxmVlanVId (val_to_mask a)]
      (* Must be empty list. Trying to get cute and use a wildcard mask confuses the switch *)
        | None -> []
-       | Some None -> [OxmVlanVId {m_value=0; m_mask=None}]
        | Some None -> [OxmVlanVId {m_value=0; m_mask=None}])
    (* VlanPCP requires exact non-VLAN_NONE match on Vlan *)
      @ (match (dlVlanPcp, dlVlan) with (Some a, Some _) -> [ OxmVlanPcp a] | _ -> [])
