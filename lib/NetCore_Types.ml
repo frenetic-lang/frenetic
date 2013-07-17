@@ -7,6 +7,7 @@ type portId = int32
 type queueId = int32
 
 let string_of_portId pid = Printf.sprintf "%ld" pid
+let string_of_switchId swid = Printf.sprintf "%Ld" swid
 
 type 'a wildcard =
   | WildcardExact of 'a
@@ -86,12 +87,12 @@ type pred =
 
 type capabilities = { flow_stats : bool; table_stats : bool;
                       port_stats : bool; group_stats : bool; 
-		      ip_reasm : bool; queue_stats : bool; 
-		      port_blocked : bool }
+                      ip_reasm : bool; queue_stats : bool; 
+                      port_blocked : bool }
 
 type switchFeatures = { datapath_id : switchId; num_buffers : int;
-			num_tables : int; supported_capabilities : capabilities;
-			ports : portId list }
+                        num_tables : int; supported_capabilities : capabilities;
+                        ports : portId list }
 
 type switchEvent =
   | SwitchUp of switchId * switchFeatures

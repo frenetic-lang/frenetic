@@ -25,12 +25,12 @@ let make sw inside outside =
       (2) packets with ipDst ip from inside to outside *) 
   let new_flow ip pol =
     ITE (And(Hdr (inPort (Physical outside)), 
-	     And(is_ip_packet, Hdr (ipSrc ip))), 
-	 Action (forward inside), 
-	 ITE (And(Hdr (inPort (Physical inside)), 
-		  And(is_ip_packet, Hdr (ipDst ip))), 
-	 Action (forward outside), 
-	 pol)) in
+             And(is_ip_packet, Hdr (ipSrc ip))), 
+         Action (forward inside), 
+         ITE (And(Hdr (inPort (Physical inside)), 
+                  And(is_ip_packet, Hdr (ipDst ip))), 
+         Action (forward outside), 
+         pol)) in
 
   let on_switch pol = ITE (OnSwitch sw, pol, Action []) in
 

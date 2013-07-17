@@ -29,7 +29,7 @@ module Format = struct
     else 
       format_list fmt " && "
         (List.filter (fun x -> not (x = "")) 
-	      [ to_string_exact Packet.string_of_mac "dlSrc" pat.ptrnDlSrc;
+              [ to_string_exact Packet.string_of_mac "dlSrc" pat.ptrnDlSrc;
           to_string_exact Packet.string_of_mac "dlDst" pat.ptrnDlDst;
           to_string_exact Packet.string_of_dlTyp "dlTyp" pat.ptrnDlTyp;
           to_string_exact Packet.string_of_dlVlan "vlan" pat.ptrnDlVlan;
@@ -109,7 +109,7 @@ module Format = struct
 
   and cpol fmt p = match p with
     | ITE (pr, then_pol, else_pol) ->
-	    fprintf fmt "@[if@ %a@;<1 2>@[then@;<1 2>%a@]@;<1 2>@[else@;<1 2>%a@]@]"
+            fprintf fmt "@[if@ %a@;<1 2>@[then@;<1 2>%a@]@;<1 2>@[else@;<1 2>%a@]@]"
         pred pr cpol then_pol cpol else_pol
     | _ -> apol fmt p
 

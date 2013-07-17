@@ -41,24 +41,24 @@ struct
   let modify out =
     set out.outDlSrc (fun x -> SetDlSrc x)
       (set out.outDlDst (fun x -> SetDlDst x)
-	 (set out.outDlVlan (fun x -> SetDlVlan x)
+         (set out.outDlVlan (fun x -> SetDlVlan x)
             (set out.outDlVlanPcp (fun x -> SetDlVlanPcp x)
                (set out.outNwSrc (fun x -> SetNwSrc x)
-		  (set out.outNwDst (fun x -> SetNwDst x)
+                  (set out.outNwDst (fun x -> SetNwDst x)
                      (set out.outNwTos (fun x -> SetNwTos x)
-			(set out.outTpSrc (fun x -> SetTpSrc x)
-			   (set out.outTpDst (fun x -> SetTpDst x) []))))))))
+                        (set out.outTpSrc (fun x -> SetTpSrc x)
+                           (set out.outTpDst (fun x -> SetTpDst x) []))))))))
 
   let unmodify out =
     unset out.outDlSrc (fun x -> SetDlSrc x)
       (unset out.outDlDst (fun x -> SetDlDst x)
-	 (unset out.outDlVlan (fun x -> SetDlVlan x)
+         (unset out.outDlVlan (fun x -> SetDlVlan x)
             (unset out.outDlVlanPcp (fun x -> SetDlVlanPcp x)
                (unset out.outNwSrc (fun x -> SetNwSrc x)
-		  (unset out.outNwDst (fun x -> SetNwDst x)
+                  (unset out.outNwDst (fun x -> SetNwDst x)
                      (unset out.outNwTos (fun x -> SetNwTos x)
-			(unset out.outTpSrc (fun x -> SetTpSrc x)
-			   (unset out.outTpDst (fun x -> SetTpDst x) []))))))))
+                        (unset out.outTpSrc (fun x -> SetTpSrc x)
+                           (unset out.outTpDst (fun x -> SetTpDst x) []))))))))
 
   let nc_port_to_of p = match p with
     | Physical p -> PhysicalPort (to_of_portId p)
@@ -72,14 +72,14 @@ struct
       :: unmodify out
     | Physical pt ->
       modify out @
-	(( match inp with
+        (( match inp with
           | Some pt' when (=) pt' pt ->
             Output InPort
           | _ ->
             Output (PhysicalPort (to_of_portId pt))) ::
             (unmodify out))
     | _ -> failwith "output_to_of: Don't know how to handle this port type"
-	
+        
   let atom_to_of inp atom = match atom with
     | SwitchAction out -> output_to_of inp out
     | ControllerAction _ -> [ Output (Controller 65535) ]
@@ -89,8 +89,8 @@ struct
     let of_atoms = Frenetic_List.concat_map (atom_to_of inp) act in
     let controller_atoms, not_controller_atoms =
       List.partition
-	(function | Output (Controller _) -> true | _ -> false)
-	of_atoms in
+        (function | Output (Controller _) -> true | _ -> false)
+        of_atoms in
     if List.length controller_atoms > 0 then
       not_controller_atoms @ [List.hd controller_atoms]
     else
@@ -99,12 +99,12 @@ struct
   let to_rule (pattern, action) =
     match NetCore_Pattern.to_match0x01 pattern with
       | Some match_ ->
-	Some (match_,
+        Some (match_,
               as_actionSequence
-  		(match match_.OpenFlow0x01_Core.inPort with
-  		  | None -> None
-  		  | Some foo -> Some (to_nc_portId foo))
-  		action)
+                (match match_.OpenFlow0x01_Core.inPort with
+                  | None -> None
+                  | Some foo -> Some (to_nc_portId foo))
+                action)
       | None -> None
 
   let flow_table_of_policy sw pol0 =
@@ -154,8 +154,8 @@ struct
   (* TODO: just omitting most mods (NW_SRC etc) because 1.3 parser is a little behind *)
   let modification_to_openflow0x01 mods =
     let { outDlSrc = dlSrc; outDlDst = dlDst; outDlVlan = dlVlan;
-	  outDlVlanPcp = dlVlanPcp; outNwSrc = nwSrc; outNwDst = nwDst;
-	  outNwTos = nwTos; outTpSrc = tpSrc; outTpDst = tpDst } = mods
+          outDlVlanPcp = dlVlanPcp; outNwSrc = nwSrc; outNwDst = nwDst;
+          outNwTos = nwTos; outTpSrc = tpSrc; outTpDst = tpDst } = mods
     in
     (maybe_openflow0x01_modification dlSrc (fun x -> SetField (OxmEthSrc (val_to_mask x)))) 
     @ (maybe_openflow0x01_modification dlDst (fun x -> SetField (OxmEthDst (val_to_mask x))))
@@ -177,20 +177,20 @@ struct
   let translate_action in_port = function
     | OF10.Output p ->
       (match p with
-  	| OF10.PhysicalPort pp ->
-  	  let pp = Int32.of_int pp in
-  	  (match in_port with
-  	    | Some pp' ->
-  	      if pp' = pp
-  	      then
-  		[Output InPort]
-  	      else
-  		[Output (PhysicalPort pp)]
-  	    | None -> [Output (PhysicalPort pp)])
-  	| OF10.InPort -> [Output InPort]
-  	| OF10.AllPorts -> [Output AllPorts]
-  	| OF10.Controller x -> [Output (Controller x)]
-  	| OF10.Flood -> [Output Flood])
+        | OF10.PhysicalPort pp ->
+          let pp = Int32.of_int pp in
+          (match in_port with
+            | Some pp' ->
+              if pp' = pp
+              then
+                [Output InPort]
+              else
+                [Output (PhysicalPort pp)]
+            | None -> [Output (PhysicalPort pp)])
+        | OF10.InPort -> [Output InPort]
+        | OF10.AllPorts -> [Output AllPorts]
+        | OF10.Controller x -> [Output (Controller x)]
+        | OF10.Flood -> [Output Flood])
     | OF10.SetDlVlan (Some vlan) -> [PushVlan; SetField (OxmVlanVId (val_to_mask vlan))]
     | OF10.SetDlVlan None -> [PopVlan]
     | OF10.SetDlVlanPcp vpcp -> [SetField (OxmVlanPcp vpcp)]
@@ -266,28 +266,28 @@ struct
   let modify out =
     set out.outDlSrc (fun x -> SetField (OxmEthSrc (val_to_mask x)))
       (set out.outDlDst (fun x -> SetField (OxmEthDst (val_to_mask x)))
-	 ((fun lst -> match out.outDlVlan with
-	   | Some (Some _, Some x) -> SetField (OxmVlanVId (val_to_mask x)) :: lst
-	   | Some (None, Some vlan) -> [PushVlan; SetField (OxmVlanVId (val_to_mask vlan))] @ lst
-	   | Some (Some _, None) -> PopVlan :: lst
-	   | Some (None, None) -> lst
-	   | None -> lst)
+         ((fun lst -> match out.outDlVlan with
+           | Some (Some _, Some x) -> SetField (OxmVlanVId (val_to_mask x)) :: lst
+           | Some (None, Some vlan) -> [PushVlan; SetField (OxmVlanVId (val_to_mask vlan))] @ lst
+           | Some (Some _, None) -> PopVlan :: lst
+           | Some (None, None) -> lst
+           | None -> lst)
             (set out.outDlVlanPcp (fun x -> SetField (OxmVlanPcp x))
                (set out.outNwSrc (fun x -> SetField (OxmIP4Src (val_to_mask x)))
-		  (set out.outNwDst (fun x -> SetField (OxmIP4Dst (val_to_mask x))) [])))))
+                  (set out.outNwDst (fun x -> SetField (OxmIP4Dst (val_to_mask x))) [])))))
 
   let unmodify out =
     unset out.outDlSrc (fun x -> SetField (OxmEthSrc (val_to_mask x)))
       (unset out.outDlDst (fun x -> SetField (OxmEthDst (val_to_mask x)))
-	 ((fun lst -> match out.outDlVlan with
-	   | Some (Some vlan, Some x) -> SetField (OxmVlanVId (val_to_mask vlan)) :: lst
-	   | Some (None, Some vlan) -> PopVlan :: lst
-	   | Some (Some vlan, None) -> [PushVlan; SetField (OxmVlanVId (val_to_mask vlan))] @ lst
-	   | Some (None, None) -> lst
-	   | None -> lst)
+         ((fun lst -> match out.outDlVlan with
+           | Some (Some vlan, Some x) -> SetField (OxmVlanVId (val_to_mask vlan)) :: lst
+           | Some (None, Some vlan) -> PopVlan :: lst
+           | Some (Some vlan, None) -> [PushVlan; SetField (OxmVlanVId (val_to_mask vlan))] @ lst
+           | Some (None, None) -> lst
+           | None -> lst)
             (unset out.outDlVlanPcp (fun x -> SetField (OxmVlanPcp x))
                (unset out.outNwSrc (fun x -> SetField (OxmIP4Src (val_to_mask x)))
-		  (unset out.outNwDst (fun x -> SetField (OxmIP4Dst (val_to_mask x))) [])))))
+                  (unset out.outNwDst (fun x -> SetField (OxmIP4Dst (val_to_mask x))) [])))))
 
   let nc_port_to_of p = match p with
     | Physical p -> PhysicalPort (to_of_portId p)
@@ -301,14 +301,14 @@ struct
       :: unmodify out
     | Physical pt ->
       modify out @
-	(( match inp with
+        (( match inp with
           | Some pt' when (=) pt' pt ->
             Output InPort
           | _ ->
             Output (PhysicalPort (to_of_portId pt))) ::
             (unmodify out))
     | _ -> failwith "output_to_of: Don't know how to handle this port type"
-	
+        
   let atom_to_of inp atom = match atom with
     | SwitchAction out -> output_to_of inp out
     | ControllerAction _ -> [ Output (Controller 65535) ]
@@ -318,19 +318,19 @@ struct
     let of_atoms = Frenetic_List.concat_map (atom_to_of inp) act in
     let controller_atoms, not_controller_atoms =
       List.partition
-	(function | Output (Controller _) -> true | _ -> false)
-	of_atoms in
+        (function | Output (Controller _) -> true | _ -> false)
+        of_atoms in
     if List.length controller_atoms > 0 then
       not_controller_atoms @ [List.hd controller_atoms]
     else
       not_controller_atoms
-	
+        
   let as_actionSequence inp acts = 
     List.map (as_actionSequence1 inp) acts
 
   let to_rule (pattern, action) =
     let match_, inport = NetCore_Pattern.to_match0x04 pattern in
-	(match_, as_actionSequence inport action)
+        (match_, as_actionSequence inport action)
 
   let flow_table_of_policy sw pol0 =
     List.map to_rule (NetCoreCompiler.compile_pol pol0 sw)

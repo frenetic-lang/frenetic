@@ -52,20 +52,20 @@ module Make (Platform : PLATFORM) = struct
       mfCookie = val_to_mask (Int64.of_int 0); mfIdle_timeout = Permanent; 
       mfHard_timeout = Permanent; mfOut_group = None;
       mfFlags = {  fmf_send_flow_rem = false; 
-		   fmf_check_overlap = false; 
-		   fmf_reset_counts = false; 
-		   fmf_no_pkt_counts = false;
-		   fmf_no_byt_counts = false }; 
+                   fmf_check_overlap = false; 
+                   fmf_reset_counts = false; 
+                   fmf_no_pkt_counts = false;
+                   fmf_no_byt_counts = false }; 
       mfBuffer_id = None; mfOut_port = None}
 
 
   let rec flowtable_to_group_table1 ft n = match ft with
     | (mat, []) :: ft -> let ft', gt = flowtable_to_group_table1 ft n in
-			 ((mat, []) :: ft', gt)
+                         ((mat, []) :: ft', gt)
     | (mat, [act]) :: ft -> let ft', gt = flowtable_to_group_table1 ft n in
-			    ((mat, act) :: ft', gt)
+                            ((mat, act) :: ft', gt)
     | (mat, acts) :: ft -> let ft', gt = flowtable_to_group_table1 ft (Int32.succ n) in
-			   ((mat, [Group n]) :: ft', (n, acts) :: gt)
+                           ((mat, [Group n]) :: ft', (n, acts) :: gt)
     | [] -> ([], [])
     
 
@@ -79,7 +79,7 @@ module Make (Platform : PLATFORM) = struct
     
   let acts_to_buckets acts = List.map 
     (fun act ->  { bu_weight = 0; bu_watch_port = get_watch_port act;
-		   bu_watch_group = None; bu_actions = act }) acts
+                   bu_watch_group = None; bu_actions = act }) acts
     
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
     lwt flow_table = Lwt.wrap2 Compat.flow_table_of_policy sw pol in
@@ -115,8 +115,8 @@ module Make (Platform : PLATFORM) = struct
     try_lwt
       let pol = NetCore_Stream.now pol in
       let in_packet, payload = match pkt_in.pi_payload with
-	| NotBuffered pkt -> Packet.parse pkt, OpenFlow0x01_Core.NotBuffered pkt
-	| Buffered _ -> failwith "Buffered packets not supported by NetCore_Controller0x04"
+        | NotBuffered pkt -> Packet.parse pkt, OpenFlow0x01_Core.NotBuffered pkt
+        | Buffered _ -> failwith "Buffered packets not supported by NetCore_Controller0x04"
       in
       let in_val = 
         Pkt (sw, Physical in_port, in_packet, payload) in
@@ -152,8 +152,8 @@ module Make (Platform : PLATFORM) = struct
         ; po_in_port = (PhysicalPort in_port)
         ; po_actions = 
             match Compat.as_actionSequence (Some in_port) action with
-	      | acts :: _ -> acts
-	      | [] -> []
+              | acts :: _ -> acts
+              | [] -> []
         } in
       Platform.send_to_switch sw 0l (PacketOutMsg out_payload)  
     with Unparsable _ -> 

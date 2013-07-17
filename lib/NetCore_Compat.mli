@@ -8,7 +8,7 @@ sig
   val nc_port_to_of : NetCore_Types.port -> OpenFlow0x01_Core.pseudoPort
 
   val output_to_of : NetCore_Types.portId option -> NetCore_Types.output -> OpenFlow0x01_Core.action list
-	
+        
   val as_actionSequence : NetCore_Types.portId option -> NetCore_Types.action_atom list -> OpenFlow0x01_Core.action list
 
   val flow_table_of_policy : NetCore_Types.switchId -> NetCore_Types.pol -> (OpenFlow0x01_Core.pattern * OpenFlow0x01_Core.action list) list
