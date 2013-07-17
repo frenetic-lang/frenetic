@@ -1,19 +1,6 @@
 open Packet
 open NetCore_Types
 
-module type OPENFLOW =
- sig
-   module Action :
-   sig
-     type sequence
-   end
-   type switchId
-   type features
-   type switchEvent =
-     | SwitchUp of switchId * features
-     | SwitchDown of switchId
- end
-
 module type ACTION = sig
   type t
 
@@ -41,6 +28,8 @@ module type ACTION = sig
 
   val atom_is_equal : e -> e -> bool
 
+  val string_of_action : t -> string
+
  end
 
 module type COMPILER_ACTION0x01 =
@@ -51,43 +40,6 @@ module type COMPILER_ACTION0x01 =
     (* val as_actionSequence : portId option -> t -> OpenFlow0x01.Action.sequence *)
     val queries : t -> e list
   end
-
-module Bool = struct
-  type t = bool
-  type e = bool
-
-  let atoms b = [b]
-
-  let drop = false
-
-  let pass = true
-
-  let to_action b = b
-
-  let apply_atom b lp = if b then Some lp else None
-
-  let apply_action action lp = 
-    List.fold_right 
-      (fun a acc -> match apply_atom a lp with 
-          None -> acc
-        | Some a' -> a'::acc) 
-      (atoms action) []
-
-  let par_action b1 b2 = b1 || b2
-
-  let seq_action b1 b2 = b1 && b2
-
-  let sequence_range b p = p
-
-  let domain b = all
-
-  let to_string b = if b then "true" else "false"
-
-  let is_equal x y = x = y
-
-  let atom_is_equal x y = x = y
-
-end
 
 module Output =
 struct

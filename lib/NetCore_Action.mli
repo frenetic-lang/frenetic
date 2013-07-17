@@ -1,18 +1,5 @@
 open Packet
 open NetCore_Types
-
-module type OPENFLOW =
- sig
-   module Action :
-   sig
-     type sequence
-   end
-   type switchId
-   type features
-   type switchEvent =
-     | SwitchUp of switchId * features
-     | SwitchDown of switchId
- end
        
 module type ACTION = 
  sig 
@@ -42,16 +29,9 @@ module type ACTION =
 
   val atom_is_equal : e -> e -> bool
 
- end
+  val string_of_action : t -> string
 
-(* module type MAKE_COMPILER_ACTION = functor (OpenFlow : OPENFLOW) -> *)
-(*   sig *)
-(*     include ACTION *)
-(*       with type e = action_atom *)
-(*     val from_nc_action : action -> t *)
-(*     val as_actionSequence : portId option -> t -> OpenFlow.Action.sequence *)
-(*     val queries : t -> e list *)
-(*   end *)
+ end
 
 module type COMPILER_ACTION0x01 =
   sig
@@ -67,7 +47,6 @@ sig
   include ACTION
       with type e = action_atom
       and type t = action
-  val string_of_action : t -> string
   val from_nc_action : action -> t
   val queries : t -> e list
   val forward : portId -> t
@@ -86,16 +65,11 @@ sig
   val make_transformer : value -> value -> action
 end
 
-
-module Bool : ACTION 
-  with type t = bool
-
 module Group : 
 sig
   include ACTION
       with type e = action_atom
       and type t = action list
-  val string_of_action : t -> string
   val from_nc_action : action -> t
   val queries : t -> e list
   val forward : portId -> t
