@@ -36,7 +36,9 @@ From the root directory of the repository, simply run `make`
   $ make
   ```
 
-Finally, run `make install` from the root directory of the repository.
+Installing:
+
+Run `make install` from the root directory of the repository.
 
   ```
   $ make install
