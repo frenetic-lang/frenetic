@@ -22,7 +22,7 @@ Prerequisites:
   These are available on OPAM:
 
   ```
-  $ opam install ocamlfind cstruct lwt ounit openflow packet
+  $ opam install ocamlfind cstruct lwt ounit
   ```
 
 - The [ocaml-packet](https://github.com/frenetic-lang/ocaml-packet) and
