@@ -1,16 +1,11 @@
 open NetCore_Types
 open NetCore_Action.Output
-
+module G = NetCore_Graph.Graph
 module Log = Lwt_log
-module Bijection = NetCore_Bijection
 
 type switchId = NetCore_Types.switchId
 type portId = NetCore_Types.portId
 type dlAddr = Packet.dlAddr
-
-type loc =
-  | Switch of switchId * portId
-  | Host of dlAddr
 
 module type Arg = sig
 
@@ -24,7 +19,11 @@ module type TOPO = sig
   val create : (switchId * portId * Packet.bytes -> unit Lwt.t) 
     -> NetCore_Types.pol NetCore_Stream.t * unit Lwt.t
 
+  val graph : G.graph
+
   val ports_of_switch : switchId -> portId list
+
+  val edge_ports_of_switch : switchId -> portId list
 
   val get_switches : unit -> switchId list
 
@@ -34,6 +33,7 @@ end
 module Make (A : Arg) = struct
 
   let dl_typ = A.dl_typ
+  let graph = G.create ()
 
   let parse_discovery_pkt pkt : (switchId * portId) option =
   let open Packet in
@@ -60,31 +60,33 @@ module Make (A : Arg) = struct
 
   type lp = switchId * portId * Packet.bytes
 
-  let switch_disconnected edges switches sw =
+  let switch_disconnected graph sw =
     try
-      let pts = Hashtbl.find switches sw in
-      List.iter (fun pt -> Bijection.del edges (Switch (sw, pt))) pts;
-      Hashtbl.remove switches sw
+      G.del_node graph (G.Switch sw)
     with Not_found -> ()
 
-  let switch_connected edges switches sw pts =
-    switch_disconnected edges switches sw;
-    Hashtbl.add switches sw pts
+  let switch_connected graph sw pts =
+    switch_disconnected graph sw;
+    G.add_switch graph sw;
+    List.iter (fun pt -> G.add_port graph (G.Switch sw) pt) pts
 
-  let edges : loc Bijection.t = Bijection.create 100
+  (* let edges : loc Bijection.t = Bijection.create 100 *)
   
-  let switches : (switchId, portId list) Hashtbl.t = Hashtbl.create 10
+  (* let switches : (switchId, portId list) Hashtbl.t = Hashtbl.create 10 *)
 
   let ports_of_switch sw = 
-    try Hashtbl.find switches sw with Not_found -> []
+    G.ports_of_switch graph (G.Switch sw)
 
-  let get_switches () = 
-    Hashtbl.fold (fun k _ lst -> k :: lst) switches []
+  let edge_ports_of_switch sw = ports_of_switch sw
+
+  let get_switches () = G.get_switches graph
 
   let switch_event_handler = function
     | SwitchUp (sw, features) -> 
-      switch_connected edges switches sw features.ports
-    | SwitchDown sw -> switch_disconnected edges switches sw
+      Log.warning_f "switch_up: %s%!\n" (NetCore_Types.string_of_switchId sw);
+      Log.warning_f "ports: %s%!\n" (String.concat ";" (List.map NetCore_Types.string_of_portId features.ports));
+      switch_connected graph sw features.ports
+    | SwitchDown sw -> switch_disconnected graph sw
 
   let recv_discovery_pkt sw pt pk = match pt with
     | Physical phys_pt ->
@@ -97,7 +99,7 @@ module Make (A : Arg) = struct
               (fun () ->
                 Log.info_f "added edge %Ld:%ld <--> %Ld:%ld\n%!"
                   sw phys_pt sw' pt');
-            Bijection.add edges (Switch (sw, phys_pt)) (Switch (sw', pt'))
+            G.add_edge graph (G.Switch sw) phys_pt (G.Switch sw') pt'
       end;
       drop
     | _ -> drop
@@ -107,17 +109,17 @@ module Make (A : Arg) = struct
       Union (HandleSwitchEvent switch_event_handler,
                Seq (Filter (Hdr (dlTyp dl_typ)),
                       Action (controller recv_discovery_pkt))) in
-    let f sw ports lwt_acc =
+    let f lwt_acc (sw, ports) =
       lwt_acc >>
       Lwt_list.iter_s 
         (fun pt -> 
-          Log.info_f
+          Log.warning_f
             "emitting a packet to switch=%Ld,port=%ld\n%!" sw pt >>
             send_pkt (make_discovery_pkt sw pt))
         ports in
     let rec send_discovery () =
       Lwt_unix.sleep 5.0 >>
-      Hashtbl.fold f switches Lwt.return_unit >>
+      List.fold_left f Lwt.return_unit (G.get_switches_and_ports graph) >>
       send_discovery () in
     (NetCore_Stream.constant pol, send_discovery ())
       

@@ -8,6 +8,7 @@ type queueId = int32
 
 let string_of_portId pid = Printf.sprintf "%ld" pid
 let string_of_switchId swid = Printf.sprintf "%Ld" swid
+let string_of_queueId pid = Printf.sprintf "%ld" pid
 
 type 'a wildcard =
   | WildcardExact of 'a

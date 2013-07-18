@@ -639,12 +639,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
     Lwt.async (fun () -> switch_thread feats pol_stream);
     accept_switches pol_stream
 
-  let make_extPorts sw =
-    List.fold_left (fun acc (pId,loc) -> 
-      match loc with
-              | NetCore_Topo.Switch _ -> acc
-              | _ -> pId :: acc)
-      (Topo.ports_of_switch  sw) []
+  let make_extPorts sw = Topo.edge_ports_of_switch sw
 
   module GenSym = (* TODO(arjun): consider NetCore_Gensym *)
   struct

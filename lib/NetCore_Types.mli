@@ -9,6 +9,7 @@ type queueId = int32
 
 val string_of_portId : portId -> string
 val string_of_switchId : switchId -> string
+val string_of_queueId : queueId -> string
 
 type 'a wildcard =
   | WildcardExact of 'a

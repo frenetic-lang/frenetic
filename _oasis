@@ -52,6 +52,7 @@ Library netcore
     NetCore_Stream,
     NetCore_StatefulFirewall,
     NetCore_Topo,
+    NetCore_Graph,
     NetCore_Types,
     NetCore_Parsing
 

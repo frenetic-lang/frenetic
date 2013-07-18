@@ -13,15 +13,15 @@ module type TOPO = sig
   val create : (switchId * portId * Packet.bytes -> unit Lwt.t) 
     -> NetCore_Types.pol NetCore_Stream.t * unit Lwt.t
 
+  val graph : NetCore_Graph.Graph.graph
+
   val ports_of_switch : switchId -> portId list
+
+  val edge_ports_of_switch : switchId -> portId list
 
   val get_switches : unit -> switchId list
 
 end
-
-type loc =
-  | Switch of switchId * portId
-  | Host of dlAddr
 
 module Make : functor (A : Arg) -> TOPO
 
