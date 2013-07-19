@@ -558,6 +558,12 @@ let tpDst pkt = match pkt.nw with
   | Arp _ -> raise (Invalid_argument "tpDst: ARP packet")
   | Unparsable _ -> raise (Invalid_argument "tpDst: unparsable packet")
 
+let arpOperation pkt = match pkt.nw with
+  | Arp (Arp.Query _) -> 1
+  | Arp (Arp.Reply _) -> 2
+  | Ip _ -> raise (Invalid_argument "arpOperation: IP packet")
+  | Unparsable _ -> raise (Invalid_argument "arpOperation: unparsable packet")
+
 let setDlSrc pkt dlSrc =
   { pkt with dlSrc = dlSrc }
 

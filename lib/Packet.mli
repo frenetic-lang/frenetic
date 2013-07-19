@@ -191,6 +191,10 @@ val tpSrc : packet -> tpPort
 @raise Invalid_argument if the packet is not carrying a TCP payload. *)
 val tpDst : packet -> tpPort
 
+(** [arpOperation pkt] returns the ARP operation code of [pkt].
+@raise Invalid_argument if the packet is not carrying a ARP payload. *)
+val arpOperation : packet -> int
+
 (** {9 Mutators} *)
 
 (** [setDlSrc pkt addr] sets the ethernet source address of [pkt] to [addr]. *)
