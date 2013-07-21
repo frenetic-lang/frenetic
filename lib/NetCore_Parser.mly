@@ -178,7 +178,7 @@ pol_atom :
   | FILTER pred 
     { Filter (symbol_start_pos (), $2) }
   | ID 
-    { Id (symbol_start_pos (), $1) }
+    { CExp (Id (symbol_start_pos (), $1)) }
   | FWD LPAREN INT64 RPAREN 
     { Action (symbol_start_pos (), Action.forward (int32_of_int64 $3)) }
   | FWD LPAREN INT64 RPAREN AT INT64
@@ -227,7 +227,7 @@ pol_atom :
     { Slice (symbol_start_pos (), $2, $4, $6) }
   | FW LPAREN INT64 COMMA INT64 COMMA INT64 RPAREN
     { let (lwt_e, pol) = mk_fw $3 (int32_of_int64 $5) (int32_of_int64 $7) in
-      Value (PolStream (lwt_e, pol))
+      CExp (Value (PolStream (lwt_e, pol)))
     }
 
 pol_pred_double :  
@@ -273,8 +273,8 @@ pol :
       else
 	let (lwt_e, priv, pub) = mk_nat $10 in
 	Let (symbol_start_pos (),
-             [($2, Value (PolStream (lwt_e, priv)));
-              ($4, Value (PolStream (Lwt.return (), pub)))],
+             [($2, CExp (Value (PolStream (lwt_e, priv))));
+              ($4, CExp (Value (PolStream (Lwt.return (), pub))))],
              $13) }
 
 program :
