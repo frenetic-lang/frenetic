@@ -70,6 +70,21 @@ let rec compile (env : env) = function
     end
   | Filter (pos, pred) -> Pol (Pol.Filter pred)
   | Action (pos, act) -> Pol (Pol.Action act)
+  | Action1 (pos, e, act1) ->
+    begin
+      match compile_cexp env e with
+        | Const i -> Pol (Pol.Action (act1 i))
+        | _ -> raise (CompileError (sprintf "%s: needed a number"
+                                      (string_of_pos pos)))
+    end
+  | Action2 (pos, e1, e2, act2) ->
+    begin
+      match (compile_cexp env e1, compile_cexp env e2) with
+        | (Const i, Const j) -> Pol (Pol.Action (act2 i j))
+        | ( _, _) -> raise (CompileError
+                              (sprintf "%s: expected a constant, got a policy"
+                                (string_of_pos pos)))
+    end
   | ITE (pos, pred, e1, e2) ->
     begin
       try

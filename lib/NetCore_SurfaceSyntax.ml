@@ -8,6 +8,8 @@ type id = string
 type exp =
   | HandleSwitchEvent of pos * (Pol.switchEvent -> unit)
   | Action of pos * Pol.action
+  | Action1 of pos * cexp * (int64 -> Pol.action)
+  | Action2 of pos * cexp * cexp * (int64 -> int64 -> Pol.action)
   | Filter of pos * Pol.pred
   | Par of pos * exp * exp
   | Seq of pos * exp * exp
