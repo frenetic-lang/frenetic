@@ -20,6 +20,7 @@ sig
   val shortest_path : graph -> a -> a -> a list
   val get_ports : graph -> a -> a -> (b*b)
   val ports_of_switch : graph -> a -> b list
+  val edge_ports_of_switch : graph -> NetCore_Types.switchId -> b list
   val get_switches : graph -> NetCore_Types.switchId list
   val get_hosts : graph -> a list
   val get_nodes : graph -> a list
@@ -165,6 +166,15 @@ module Graph : GRAPH =
           Not_found -> raise (NotFound(Printf.sprintf "Can't find %s to get ports_of_switch\n" 
                                          (node_to_string s))) in
       H.fold (fun pt _ acc -> pt :: acc) sTbl []
+
+    let edge_ports_of_switch topo s = 
+      let sTbl = try (H.find topo (Switch s)) with 
+          Not_found -> raise (NotFound(Printf.sprintf "Can't find %s to get ports_of_switch\n" 
+                                         (node_to_string (Switch s)))) in
+      H.fold (fun pt sw_pt acc -> match sw_pt with
+	| None -> pt :: acc
+	| Some (Switch _,_) -> acc
+	| Some (Host _, _) -> pt :: acc) sTbl []
 
     let get_switches_and_ports graph = H.fold (fun k pTbl acc -> match k with
       | Switch sw -> (sw, ports_of_switch graph (Switch sw)) :: acc

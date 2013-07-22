@@ -497,34 +497,36 @@ module MakeConsistent (Platform : PLATFORM) = struct
 
   open NetCore_ConsistentUpdates
   module Queries = QuerySet(Platform)
-  module Topo = NetCore_Topo.Topo 
+
+  let all_internal_pols_installed = Lwt_condition.create ()
+  let internal_policy_barrier_xid = 1337l
+  let current_switches = ref SwitchSet.empty
+  let switches_with_new_internal_policy = ref SwitchSet.empty
 
   (* used to initialize newly connected switches and handle packet-in 
      messages *)
   let pol_now : pol ref = ref init_pol
 
-  (** Emits packets synthesized at the controller. Produced packets
-      are _not_ subjected to the current NetCore policy, so they do not
-      compose nicely with NetCore operatores. This requires some deep thought,
-      which is banned until after PLDI 2013. *)
-  let emit_pkt (sw, pt, bytes) =
-    let open PacketOut in
-        let msg = {
-          output_payload = NotBuffered bytes;
-          port_id = None;
-          apply_actions = [Output (PhysicalPort (Compat.to_of_portId pt))]
-        } in
-        Platform.send_to_switch sw 0l (Message.PacketOutMsg msg)
+  (* Currently, (22 July 2013), the compiler does not handle
+     AllPorts actions correctly. In order for consistent updates to
+     work, we need to desugar AllPorts before passing policies to
+     the compiler *)
+  let explode_allPorts_in_action ports act = match act with
+    | SwitchAction out -> if out.outPort = All then
+        (List.map (fun pt -> SwitchAction {out with outPort = Physical pt}) ports)
+      else [act]
+    | ControllerAction _ -> [act]
+    | ControllerQuery _ -> [act]
+      
+  let rec explode_allPorts pol ports = match pol with
+    | HandleSwitchEvent _ -> pol
+    | Action acts -> Action (List.flatten (List.map (explode_allPorts_in_action ports) acts))
+    | ActionChoice _ -> pol
+    | Filter _ -> pol
+    | Union (a,b) -> Union (explode_allPorts a ports, explode_allPorts b ports)
+    | Seq (a,b) -> Seq (explode_allPorts a ports, explode_allPorts b ports)
+    | ITE (a,b,c) -> ITE(a, explode_allPorts b ports, explode_allPorts c ports)
 
-  let emit_packets pkt_stream = 
-    Lwt_stream.iter_s emit_pkt pkt_stream
-
-  let (topo_pol_stream, discovery_lwt) = Topo.create (fun x -> emit_pkt x)
-    (* (fun lp ->  *)
-    (*   Log.printf "NetCore_Controller" *)
-    (*     "TODO(arjun): give me a function to emit packets") *)
-  
-  let topo_pol = NetCore_Stream.now topo_pol_stream
 
   let clear_switch (sw : switchId) : unit Lwt.t =
     Platform.send_to_switch sw 0l (Message.FlowModMsg delete_all_flows)
@@ -556,14 +558,22 @@ module MakeConsistent (Platform : PLATFORM) = struct
       Platform.send_to_switch sw 0l 
         (Message.FlowModMsg (add_flow 1 (fst drop_rule) (snd drop_rule)))
 
+  let send_barrier (sw : switchId) (xid : xid) : unit Lwt.t =
+    Log.info_f "In send_barrier\n%!" >>
+    Platform.send_to_switch sw xid Message.BarrierRequest
 
   (* First draft: ignore barriers *)
-  let install_new_policies sw pol_stream =
-    Lwt_stream.iter_s (fun (int, ext, topo_pol) -> 
+  let install_new_policies sw ports pol_stream =
+    Lwt_stream.iter_s (fun (int, ext) -> 
+      let int = explode_allPorts int ports in
+      let ext = explode_allPorts ext ports in
       clear_switch sw >>
-      configure_switch sw topo_pol >>
+      send_barrier sw 0l >>
       Log.info_f  "internal pol:\n%s"  (NetCore_Pretty.string_of_pol int) >>
       configure_switch sw int >>
+      send_barrier sw internal_policy_barrier_xid >>
+      (* Block for other switches *)
+      Lwt_condition.wait all_internal_pols_installed >>
       Log.info_f "external pol:\n%s\n%!" (NetCore_Pretty.string_of_pol ext) >>
       configure_switch sw (Union(int,ext)))
       (NetCore_Stream.to_stream pol_stream)
@@ -598,20 +608,36 @@ module MakeConsistent (Platform : PLATFORM) = struct
           (Stats.reply_to_string r) 
       | (xid, PortStatusMsg msg) ->
         Log.info_f  "received %s" (PortStatus.to_string msg)
+      (* TODO: match on return XID for cond var broadcast *) 
+      | (xid, BarrierReply) -> 
+        (match xid = internal_policy_barrier_xid with
+          | true -> 
+            let new_switch_set = SwitchSet.add sw !switches_with_new_internal_policy in
+            (match new_switch_set = !current_switches with 
+              | true ->
+                Lwt_condition.broadcast all_internal_pols_installed ();
+                switches_with_new_internal_policy := SwitchSet.empty;
+                Lwt.return ()
+              | false -> switches_with_new_internal_policy := new_switch_set;
+                Lwt.return ())
+          | false -> Lwt.return ())
       | _ -> Lwt.return ()
       in
     handle_switch_messages sw
 
-  let switch_thread features pol_stream =
+  let switch_thread features pol_stream topo =
     let open SwitchFeatures in
     let sw = features.switch_id in
+    let ports = List.map (fun x -> Compat.to_nc_portId x.PortDescription.port_no) features.ports in
+    (* MJR: Is this racy? What is the lwt concurrency semantics? *)
     Queries.add_switch sw;
+    current_switches := SwitchSet.add sw !current_switches;
     (try_lwt
-       let (int_pol,ext_pol,topo_pol) = (NetCore_Stream.now pol_stream) in
+       let (int_pol,ext_pol) = NetCore_Stream.now pol_stream in
       lwt _ = Lwt.wrap2 NetCore_Semantics.handle_switch_events
-        (SwitchUp (sw, Compat.to_nc_features features)) (Union (Union(int_pol,ext_pol), topo_pol))
+        (SwitchUp (sw, Compat.to_nc_features features)) (Union(int_pol,ext_pol))
          in
-      Lwt.pick [ install_new_policies sw pol_stream;
+      Lwt.pick [ install_new_policies sw ports pol_stream;
                  handle_switch_messages sw ]
     with exn ->
       begin
@@ -626,20 +652,20 @@ module MakeConsistent (Platform : PLATFORM) = struct
       Lwt.async
         (fun () -> (* TODO(arjun): 
                       confirm this gracefully discards the exception *)
-          let (int_pol,ext_pol,topo_pol) = (NetCore_Stream.now pol_stream) in
+          let (int_pol,ext_pol) = (NetCore_Stream.now pol_stream) in
           Lwt.wrap2 NetCore_Semantics.handle_switch_events 
             (SwitchDown sw)
-            (Union (Union(int_pol,ext_pol), topo_pol)));
+            (Union(int_pol,ext_pol)));
       Queries.remove_switch sw;
       Lwt.return ()
     end
 
-  let rec accept_switches pol_stream = 
+  let rec accept_switches pol_stream topo = 
     lwt feats = Platform.accept_switch () in
-    Lwt.async (fun () -> switch_thread feats pol_stream);
-    accept_switches pol_stream
+    Lwt.async (fun () -> switch_thread feats pol_stream topo);
+    accept_switches pol_stream topo
 
-  let make_extPorts sw = Topo.edge_ports_of_switch sw
+  let make_extPorts topo sw = NetCore_Graph.Graph.edge_ports_of_switch topo sw
 
   module GenSym = (* TODO(arjun): consider NetCore_Gensym *)
   struct
@@ -647,30 +673,30 @@ module MakeConsistent (Platform : PLATFORM) = struct
     let next_val g =  incr g; !g
   end
 
-  let rec accept_policies push_pol sugared_pol_stream genSym =
+  let rec accept_policies push_pol sugared_pol_stream genSym topo =
     lwt pol = Lwt_stream.next sugared_pol_stream in
     let ver = GenSym.next_val genSym in
-    let switches = Topo.get_switches () in
+    let switches = NetCore_Graph.Graph.get_switches topo in
     let int_pol,ext_pol = 
       match switches with 
         | [] -> (pol, pol)
-        | _ -> gen_update_pols pol ver switches make_extPorts in
+        | _ -> gen_update_pols pol ver switches (make_extPorts topo) in
     Queries.stop () >>
-    let _ = pol_now := Union(Union(int_pol, ext_pol), topo_pol) in
-    let _ = push_pol (Some (int_pol, ext_pol, topo_pol)) in
-    accept_policies push_pol sugared_pol_stream genSym <&> Queries.start (Union(pol, topo_pol))
+    let _ = pol_now := Union(int_pol, ext_pol) in
+    let _ = push_pol (Some (int_pol, ext_pol)) in
+    accept_policies push_pol sugared_pol_stream genSym topo <&> Queries.start pol
 
-  let start_controller pkt_stream pol = 
+  let start_controller pkt_stream pol topo = 
     let (pol_stream, push_pol) = Lwt_stream.create () in
     let genSym = GenSym.create () in
     let (stream_lwt, pol_netcore_stream) =
-      NetCore_Stream.from_stream (init_pol, init_pol, topo_pol) pol_stream in
+      NetCore_Stream.from_stream (init_pol, init_pol) pol_stream in
     Lwt.pick
-      [ accept_switches pol_netcore_stream;
-        emit_packets pkt_stream;
+      [ accept_switches pol_netcore_stream topo;
+        (* emit_packets pkt_stream; *)
         accept_policies
-          push_pol (NetCore_Stream.to_stream pol) genSym;
-        stream_lwt;
-        discovery_lwt ]
+          push_pol (NetCore_Stream.to_stream pol) genSym topo;
+        stream_lwt
+        (* discovery_lwt *) ]
 
 end

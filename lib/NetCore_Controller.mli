@@ -15,5 +15,6 @@ module MakeConsistent : functor (Platform : OpenFlow0x01_PlatformSig.PLATFORM) -
     val start_controller : 
       (switchId * portId * bytes) Lwt_stream.t 
       -> pol NetCore_Stream.t 
+      -> NetCore_Graph.Graph.graph
       -> unit Lwt.t
   end
