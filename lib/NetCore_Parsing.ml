@@ -1,5 +1,6 @@
 open NetCore_SurfaceSyntax
 exception CompileError of string
+exception ValueError of string
 
 let sprintf = Format.sprintf
 
@@ -9,6 +10,9 @@ let string_of_pos pos =
     (pos.pos_cnum - pos.pos_bol)
 
 let compile_pol f = function
+  | Const i ->
+    (* TODO(spiros): is it ok to for this to NOOP silently *)
+    Const i
   | Pol p ->
     Pol (f p)
   | PolStream (p_lwt, p_stream) ->
@@ -26,38 +30,80 @@ let compile_pol2 f = function
      (* TODO(arjun): blow up if either dies. *)
     PolStream (Lwt.join [p1_lwt; p2_lwt],
                NetCore_Stream.map2 (fun p1 p2 -> f p1 p2) p1_stream p2_stream)
+  | (Const _, _) -> raise (ValueError "expected first policy is a constant")
+  | (_, Const _) -> raise (ValueError "expected second policy is a constant")
+
+let rec compile_cexp (env : env) = function
+  | Id (pos, x) ->
+    begin
+      try Env.find x env
+      with Not_found ->
+        raise (ValueError
+                 (sprintf "%s: variable %s is not defined"
+                    (string_of_pos pos) x))
+    end
+  | Value v -> v
 
 let rec compile (env : env) = function
   | HandleSwitchEvent (pos, f) -> Pol (Pol.HandleSwitchEvent f)
   | Par (pos, e1, e2) ->
-    compile_pol2 (fun p1 p2 -> Pol.Union (p1, p2))
-      (compile env e1, compile env e2)
+    begin
+      try
+        compile_pol2
+          (fun p1 p2 -> Pol.Union (p1, p2))
+          (compile env e1, compile env e2)
+      with ValueError str ->
+        raise (CompileError
+                 (sprintf "%s: can't create parallel policy, %s"
+                    (string_of_pos pos) str))
+    end
   | Seq (pos, e1, e2) ->
-    compile_pol2
-      (fun p1 p2 -> Pol.Seq (p1, p2))
-      (compile env e1, compile env e2)
+    begin
+      try
+        compile_pol2
+          (fun p1 p2 -> Pol.Seq (p1, p2))
+          (compile env e1, compile env e2)
+      with ValueError str ->
+        raise (CompileError
+                 (sprintf "%s: can't create seqential policy, %s"
+                    (string_of_pos pos) str))
+    end
   | Filter (pos, pred) -> Pol (Pol.Filter pred)
   | Action (pos, act) -> Pol (Pol.Action act)
+  | Action1 (pos, e, act1) ->
+    begin
+      match compile_cexp env e with
+        | Const i -> Pol (Pol.Action (act1 i))
+        | _ -> raise (CompileError (sprintf "%s: needed a number"
+                                      (string_of_pos pos)))
+    end
+  | Action2 (pos, e1, e2, act2) ->
+    begin
+      match (compile_cexp env e1, compile_cexp env e2) with
+        | (Const i, Const j) -> Pol (Pol.Action (act2 i j))
+        | ( _, _) -> raise (CompileError
+                              (sprintf "%s: expected a constant, got a policy"
+                                (string_of_pos pos)))
+    end
   | ITE (pos, pred, e1, e2) ->
-    compile_pol2
-      (fun p1 p2 -> Pol.ITE (pred, p1, p2))
-      (compile env e1, compile env e2)
-  | Id (pos, x) ->
-    begin 
-      try Env.find x env
-      with Not_found ->
-        raise (CompileError 
-                 (sprintf "%s: variable %s is not defined"
-                    (string_of_pos pos) x))
+    begin
+      try
+        compile_pol2
+          (fun p1 p2 -> Pol.ITE (pred, p1, p2))
+          (compile env e1, compile env e2)
+      with ValueError str ->
+        raise (CompileError
+                 (sprintf "%s: can't create conditional policy, %s"
+                    (string_of_pos pos) str))
     end
   | Let (pos, binds, body) -> 
     compile
       (List.fold_left (fun env' (x, e) -> Env.add x (compile env e) env') env binds)
       body
   | Transform (pos, f, e) -> compile_pol f (compile env e)
-  | Value v -> v
   | Slice (pos, ingress, e, egress) -> 
     failwith "NYI: slice surface syntax."
+  | CExp e -> compile_cexp env e
 
 let rec compile_top (env : env) = function
   | Bind (pos, x, exp, rest) ->
@@ -69,6 +115,7 @@ let compile_program exp =
   match compile_top init_env exp with
     | PolStream (lwt_e, stream) -> (lwt_e, stream)
     | Pol pol -> (fst (Lwt.wait ()), NetCore_Stream.constant pol)
+    | Const _ -> raise (CompileError "program produced a constant, not a policy")
 
 
 

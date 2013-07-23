@@ -158,6 +158,11 @@ pred_atom :
   | PROTOCOLTYPE EQUALS INT64
     { Pol.Hdr (ipProto (int8_of_int64 $3)) }
     
+cexp :
+  | ID
+    { Id (symbol_start_pos (), $1) }
+  | INT64
+    { Value (Const $1) }
 
 pred_or :
   | pred_atom { $1 }
@@ -177,34 +182,39 @@ pol_atom :
     { $2 }
   | FILTER pred 
     { Filter (symbol_start_pos (), $2) }
-  | ID 
-    { Id (symbol_start_pos (), $1) }
-  | FWD LPAREN INT64 RPAREN 
-    { Action (symbol_start_pos (), Action.forward (int32_of_int64 $3)) }
-  | FWD LPAREN INT64 RPAREN AT INT64
-    { Action (symbol_start_pos (), Action.forward (int32_of_int64 $3)) }
+  | cexp
+    { CExp $1 }
+  | FWD LPAREN cexp RPAREN
+    { Action1 (symbol_start_pos (), $3,
+                fun i -> Action.forward (int32_of_int64 i)) }
+  | FWD LPAREN cexp RPAREN AT INT64
+    { Action1 (symbol_start_pos (), $3,
+                (* XXX: Why is the last int64 ignored? *)
+                fun i -> Action.forward (int32_of_int64 i)) }
   | PASS 
     { Action (symbol_start_pos (), Action.pass) }
   | DROP 
     { Action (symbol_start_pos (), Action.drop) }
-  | VLAN NONE RARROW INT64
-    { Action (symbol_start_pos (),
-              Action.updateDlVlan None (Some (int12_of_int64 $4))) }
-  | VLAN INT64 RARROW INT64
-    { Action (symbol_start_pos (),
-              Action.updateDlVlan 
-                (Some (int12_of_int64 $2)) (Some (int12_of_int64 $4))) }
-  | VLAN INT64 RARROW NONE
-    { Action (symbol_start_pos (),
-              Action.updateDlVlan (Some (int12_of_int64 $2)) None) }
+  | VLAN NONE RARROW cexp
+    { Action1 (symbol_start_pos (), $4,
+                fun i -> Action.updateDlVlan None (Some (int12_of_int64 i))) }
+  | VLAN cexp RARROW cexp
+    { Action2 (symbol_start_pos (), $2, $4,
+                fun i j -> Action.updateDlVlan
+                    (Some (int12_of_int64 i)) (Some (int12_of_int64 j))) }
+  | VLAN cexp RARROW NONE
+    { Action1 (symbol_start_pos (), $2,
+                fun i -> Action.updateDlVlan (Some (int12_of_int64 i)) None) }
   | VLAN NONE RARROW NONE
     { Action (symbol_start_pos (), Action.updateDlVlan None None) }
-  | TCPSRCPORT INT64 RARROW INT64
-    { Action (symbol_start_pos (),
-              Action.updateSrcPort (int16_of_int64 $2) (int16_of_int64 $4)) }
-  | TCPDSTPORT INT64 RARROW INT64
-    { Action (symbol_start_pos (),
-              Action.updateDstPort (int16_of_int64 $2) (int16_of_int64 $4)) }
+  | TCPSRCPORT cexp RARROW cexp
+    { Action2 (symbol_start_pos (), $2, $4,
+                fun i j ->
+                  Action.updateSrcPort (int16_of_int64 i) (int16_of_int64 j)) }
+  | TCPDSTPORT cexp RARROW cexp
+    { Action2 (symbol_start_pos (), $2, $4,
+                fun i j ->
+                  Action.updateDstPort (int16_of_int64 i) (int16_of_int64 j)) }
   | SRCMAC MACADDR RARROW MACADDR
     { Action (symbol_start_pos (), Action.updateDlSrc $2 $4) }
   | DSTMAC MACADDR RARROW MACADDR
@@ -227,7 +237,7 @@ pol_atom :
     { Slice (symbol_start_pos (), $2, $4, $6) }
   | FW LPAREN INT64 COMMA INT64 COMMA INT64 RPAREN
     { let (lwt_e, pol) = mk_fw $3 (int32_of_int64 $5) (int32_of_int64 $7) in
-      Value (PolStream (lwt_e, pol))
+      CExp (Value (PolStream (lwt_e, pol)))
     }
 
 pol_pred_double :  
@@ -273,8 +283,8 @@ pol :
       else
 	let (lwt_e, priv, pub) = mk_nat $10 in
 	Let (symbol_start_pos (),
-             [($2, Value (PolStream (lwt_e, priv)));
-              ($4, Value (PolStream (Lwt.return (), pub)))],
+             [($2, CExp (Value (PolStream (lwt_e, priv))));
+              ($4, CExp (Value (PolStream (Lwt.return (), pub))))],
              $13) }
 
 program :
