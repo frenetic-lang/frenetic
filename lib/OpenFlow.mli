@@ -42,6 +42,25 @@ val pattern_of_field : field -> pattern
 (** [pattern_inter pat1 pat2] may fail if the two patterns are disjoint. *)
 val pattern_inter : pattern -> pattern -> pattern option
 
+(** A high-level language, such as Frenetic, should support OpenFlow 1.0
+	and also exploit OpenFlow 1.3 features when possible. For example,
+	when two Frenetic actions are composed in parallel, they logically work
+	on two copies of a packet. Certain kinds of parallel composition cannot
+	be realized in OpenFlow 1.0, but they are trivial to implement with
+	group tables in OpenFlow 1.3.
+
+	Similarly, OpenFlow 1.3 can implement failover efficiently using fast-
+	failover groups. But, in OpenFlow 1.0, we have to incur a round-trip
+	to the controller.
+
+	Instead of creating two different versions of the Frenetic compiler, we
+	here define a high-level action data type. When targeting OpenFlow 1.0,
+	action translates to 1.0 action sequences and controller round-trips
+	if needed. When targeting OpenFlow 1.3, action also builds group
+    tables to realize actions efficiently. This requires a global analysis
+    of all the actions in a flow table. Therefore, Frenetic needs to
+    supply the entire flow table at once and cannot add and remove flow table
+	entries individually. *)
 type action =
   | OutputAllPorts
   | OutputPort of portId
