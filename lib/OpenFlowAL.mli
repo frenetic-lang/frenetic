@@ -89,11 +89,6 @@ type flow = {
 (** Priorities are implicit *)
 type flow_table = flow list 
 
-(** [setup_flow_table sw tbl] returns after [sw] is configured to implement 
-    [tbl]. [setup_flow_table] fails if [sw] runs a version of OpenFlow that
-	does not support the features that [tbl] requires. *)
-val setup_flow_table : switchId -> flow_table -> unit Lwt.t
-
 (** {1 Controller Packet Processing} *)
 
 (** The payload for [packetIn] and [packetOut] messages. *)
@@ -106,20 +101,6 @@ type packetInReason =
   | NoMatch
   | ExplicitSend
 
-type packetIn = {
-  input_payload: payload;
-  total_len: int16;
-  input_port: portId;
-  reason: packetInReason
-}
-
-type packetOut = {
-  output_payload : payload;
-  apply_action: action;
-  (** If the action requires a group table entry, it will only be realized
-  	  if a compatible group table exists. *)
-}
-
 (* {1 Switch Configuration} *)
 
 (** A simplification of the _switch features_ message from OpenFlow *)
@@ -127,9 +108,6 @@ type switch = {
   switch_id : switchId;
   switch_ports : portId list
 }
-
-val accept_switch : unit -> switch Lwt.t
-
 
 (* {1 Statistics} *)
 
@@ -147,9 +125,21 @@ type flowStats = {
   flow_byte_count: int64
 }
 
-val flow_stats_request : switchId -> pattern -> list flowStats Lwt.t
-
-
 (* {1 Errors} *)
 
 (* TODO: FILL *)
+
+(* {1 Abstract OpenFlow API} *)
+
+ (** [setup_flow_table sw tbl] returns after [sw] is configured to implement 
+  [tbl]. [setup_flow_table] fails if [sw] runs a version of OpenFlow that
+  does not support the features that [tbl] requires. *)
+val setup_flow_table : switchId -> flow_table -> unit Lwt.t
+
+val accept_switch : unit -> switch Lwt.t
+
+val flow_stats_request : switchId -> pattern -> list flowStats Lwt.t
+
+val packet_in : switchId -> (payload * int16 * portId * packetInReason) Lwt.t
+
+val packet_out : switchId -> payload -> action -> Lwt.t  
