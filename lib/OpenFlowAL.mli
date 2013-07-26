@@ -70,9 +70,9 @@ type action =
     (** Either (i) compile to an action sequence, (ii) compile to an OpenFlow
         1.3 group of type "all", which clones the packet for each group, or
         (iii) signal an exception. *)
-  | Failover of portId * action * action
-    (** [Failover (watchPort, a1, a2)] uses OpenFlow 1.3 fast-failover to 
-        move from [a1] to [a2] if [watchPort] goes down. *)
+  | Failover of (portId * action) list
+    (** [Failover actions] uses OpenFlow 1.3 fast-failover to move between
+        the actions as ports go down. *)
 
 type timeout =
   | Permanent (** No timeout. *)
