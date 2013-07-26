@@ -2,7 +2,7 @@ module Controller = NetCore_Controller.Make(OpenFlow0x01_Platform)
 
 type modeType =
   | ControllerMode (* start as a controller *)
-  | ParserMode (* only parse (for testing) *)
+  | ParseMode      (* only parse (for testing) *)
 
 let mode = ref ControllerMode
 
@@ -12,7 +12,7 @@ let listenPort = ref 6633
 
 let arg_spec =
   [ ("-parse-only", 
-     Arg.Unit (fun () -> mode := ParserMode),
+     Arg.Unit (fun () -> mode := ParseMode),
      "parse the file, but do not start the controller") ;
      
     ("-version", 
@@ -21,7 +21,7 @@ let arg_spec =
      
     ("-port", 
      Arg.Int (fun port -> listenPort := port),
-     "set listenPort := port") ;
+     "set listenPort := port")  
   ]
 
 let usage =
@@ -39,7 +39,8 @@ let policy = match !policy_filename with
   | fname -> NetCore_Parsing.compile_program (NetCore_Parsing.parse_by_extension fname)
 
 let () = match !mode with
-  | ParserMode -> Printf.printf "Parsed OK\n"
+  | ParseMode -> 
+    Printf.printf "Parsed OK\n"
   | ControllerMode ->
     let main () = 
       OpenFlow0x01_Platform.init_with_port !listenPort >>

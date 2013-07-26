@@ -54,7 +54,8 @@ Library netcore
     NetCore_Topo,
     NetCore_Graph,
     NetCore_Types,
-    NetCore_Parsing
+    NetCore_Parsing,
+    NetCore_Verify
 
 Executable Test_Frenetic
   Path: test

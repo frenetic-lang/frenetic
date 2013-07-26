@@ -109,15 +109,17 @@ let rec compile_top (env : env) = function
   | Bind (pos, x, exp, rest) ->
     compile_top (Env.add x (compile env exp) env) rest
   | Main (pos, exp) -> compile env exp
-  | Include _ -> failwith "unexpected include"
+  | Check (pos, str, exp) -> 
+    NetCore_Verify.check str;
+    compile_top env exp
+  | Include _ -> 
+    failwith "unexpected include"
 
 let compile_program exp = 
   match compile_top init_env exp with
     | PolStream (lwt_e, stream) -> (lwt_e, stream)
     | Pol pol -> (fst (Lwt.wait ()), NetCore_Stream.constant pol)
     | Const _ -> raise (CompileError "program produced a constant, not a policy")
-
-
 
 let rec splice_top included rest = match included with
   | Include (pos, filename, rest') -> 
@@ -138,12 +140,15 @@ let rec splice_top included rest = match included with
 
   | Bind (p, x, e, included) ->
     Bind (p, x, e, splice_top included rest)
+  | Check(p, s, e) -> 
+    Check(p, s, e)
 
 and expand_top = function
   | Include (pos, filename, rest) ->
     splice_top (parse_by_extension filename) rest
   | Main (pos, exp) -> Main (pos, exp)
   | Bind (p, x, e, rest) -> Bind (p, x, e, expand_top rest)
+  | Check (p, s, exp) -> Check (p, s, exp)
 
 and literate_lexer (lexbuf : Lexing.lexbuf) : NetCore_Parser.token =
   let open Lexing in

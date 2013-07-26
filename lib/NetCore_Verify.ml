@@ -1,7 +1,10 @@
 open Frenetic_List
-open Frenetic_Misc
 open NetCore_Types
 open Unix
+
+let map_option f = function
+  | None -> None
+  | Some x -> Some (f x)
 
 module Sat = struct
 
@@ -216,9 +219,9 @@ let encode_pattern (pat:ptrn) (pkt:zVar) : zFormula =
          (function 
            (* TODO: PseudoPorts *)
            | All -> ZTrue
-           | Here -> ZTrue 
-           | Physical pt -> packet_field "InPort" pkt (TInt (Int64.of_int pt)))
-           | Queue pt qid -> ZTrue (* TODO(rjs) Fix for queue ports *)
+           | Here -> ZTrue
+           | Physical pt -> packet_field "InPort" pkt (TInt (Int64.of_int32 pt))
+	   | Queue _ -> ZTrue)
          pat.ptrnInPort ])
 
 let rec encode_predicate (pr:pred) (pkt:zVar) : zFormula = match pr with 
@@ -269,8 +272,8 @@ let output_forwards (out:output) (pkt1:zVar) (pkt2:zVar) : zFormula =
            (* TODO: PseudoPorts *)
            | All -> ZNot(ZAnd(equal_field "InPort" pkt1 pkt2))
            | Here -> ZAnd(equal_field "InPort" pkt1 pkt2)
-           | Physical pt -> packet_field "InPort" pkt2 (TInt (Int64.of_int pt))) ])
-           | Queue pt qid -> ZTrue (* TODO(rjs) Fix for queue ports *)
+           | Physical pt -> packet_field "InPort" pkt2 (TInt (Int64.of_int32 pt))
+	   | Queue _ -> ZFalse)])
 
 let action_atom_forwards (act:action_atom) (pkt1:zVar) (pkt2:zVar) : zFormula = match act with 
   | SwitchAction out -> 
@@ -308,3 +311,6 @@ let rec forwards (k:int) (topo:topology) (pol:pol) (pkt1:zVar) (pkt2:zVar) : zFo
                ; topology_forwards topo pkt' pkt''
                ; forwards (k-1) topo pol pkt'' pkt2 ]
         ; forwards (k-1) topo pol pkt1 pkt2 ]
+
+let check str = 
+  Printf.printf "[Verify.check unimplemented: %s]\n%!" str

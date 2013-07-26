@@ -109,6 +109,7 @@
 %token RARROW
 %token FILTER
 %token INCLUDE
+%token CHECK
 %token FW
 
 %start program
@@ -301,5 +302,8 @@ program :
 
  | INCLUDE STRING program
    { Include (symbol_start_pos (), $2, $3) }
+
+ | CHECK STRING program
+   { Check (symbol_start_pos (), $2, $3) }
 
 %%
