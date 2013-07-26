@@ -128,12 +128,28 @@ type switch = {
   switch_ports : portId list
 }
 
+val accept_switch : unit -> switch Lwt.t
+
 
 (* {1 Statistics} *)
 
-[FILL]
+(** The body of a reply to an individual flow statistics request. *)
+type flowStats = {
+  flow_table_id : int8; (** ID of table flow came from. *)
+  flow_pattern : pattern;
+  flow_duration_sec: int32;
+  flow_duration_nsec: int32;
+  flow_priority: int16;
+  flow_idle_timeout: int16;
+  flow_hard_timeout: int16;
+  flow_action: action;
+  flow_packet_count: int64;
+  flow_byte_count: int64
+}
+
+val flow_stats_request : switchId -> pattern -> list flowStats Lwt.t
+
 
 (* {1 Errors} *)
 
-[FILL]
-
+(* TODO: FILL *)
