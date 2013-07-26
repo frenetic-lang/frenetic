@@ -1,3 +1,4 @@
+open Frenetic_Socket
 open OpenFlow0x04_Core
 open OpenFlow0x04
 
@@ -14,12 +15,6 @@ module type PLATFORM = sig
   val recv_from_switch : switchId -> (xid * message) t
   val accept_switch : unit -> (features * portDesc list) t
 end
-
-let string_of_sockaddr (sa:sockaddr) : string = match sa with
-  | ADDR_UNIX str -> 
-    str
-  | ADDR_INET (addr,port) -> 
-    sprintf "%s:%d" (Unix.string_of_inet_addr addr) port
 
 module OpenFlowPlatform = struct
   exception SwitchDisconnected of switchId 
