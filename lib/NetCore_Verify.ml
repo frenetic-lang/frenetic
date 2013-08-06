@@ -18,16 +18,13 @@ module Sat = struct
   type zSort = 
     | SPacket
     | SInt
-    | SPath
-    | SPair
     | SFunction of zSort * zSort
     | SRelation of zSort list
 
   type zTerm = 
     | TVar of zVar
     | TInt of Int64.t
-    | TPacket of switchId * portId * packet
-    | TPath of zTerm list
+    | TLocatedPacket of switchId * portId * packet
     | TFunction of zVar * zTerm list
 
   type zFormula =
@@ -54,14 +51,12 @@ module Sat = struct
     let x = match sort with
       | SPacket -> Printf.sprintf "_pkt%d" n 
       | SInt -> Printf.sprintf "_n%d" n
-      | SPair -> Printf.sprintf "_pair%d" n 
-      | SPath -> Printf.sprintf "_path%d" n
       | SFunction _ -> Printf.sprintf "_f%d" n
       | SRelation _ -> Printf.sprintf "_R%d" n in 
     fresh_cell := ZVarDeclare(x,sort)::l;
     x
 
-  let serialize_packet (sw,pt,pkt) = 
+  let serialize_located_packet (sw,pt,pkt) = 
     Printf.sprintf "(Packet %s %s %s %s)" 
       (Int64.to_string sw) 
       (Int32.to_string pt)
@@ -73,10 +68,6 @@ module Sat = struct
       "Packet"
     | SInt -> 
       "Int"
-    | SPair ->
-      "Pair"
-    | SPath ->
-      "Path"
     | SFunction(sort1,sort2) -> 
       Printf.sprintf "(%s) %s" 
 	(serialize_sort sort1) 
@@ -88,16 +79,8 @@ module Sat = struct
   let rec serialize_term = function 
     | TVar x -> 
       x
-    | TPacket (sw,pt,pkt) -> 
-      serialize_packet (sw,pt,pkt)
-    | TPath ([]) ->
-      "(nil)"
-    | TPath(pkt::pth) -> 
-      Printf.sprintf 
-	"(cons (pair (Switch %s) (Inport %s)) %s)" 
-	(serialize_term pkt)
-	(serialize_term pkt)
-	(serialize_term (TPath(pth)))
+    | TLocatedPacket (sw,pt,pkt) -> 
+      serialize_located_packet (sw,pt,pkt)
     | TInt n -> 
       Printf.sprintf "%s" 
 	(Int64.to_string n)
@@ -150,13 +133,6 @@ module Sat = struct
                                ; ("PInPort", SInt)
                                ; ("PDlSrc", SInt)
                                ; ("PDlDst", SInt) ])])
-    ; ZSortDeclare
-      ("Pair", [("pair", [ ("First", SInt)
-                         ; ("Second", SInt)])])
-    ;  ZSortDeclare
-      ("Path", [ ("nil", [])
-               ; ("cons", [ ("Head", SPair)
-                          ; ("Tail", SPair)])])
     ; ZVarDeclare
       ("Switch", SFunction(SPacket, SInt))
     ; ZVarDeclare
