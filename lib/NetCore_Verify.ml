@@ -180,6 +180,7 @@ module Topology = struct
 	 (fun acc edge -> edge::(reverse_edge edge)::acc) 
 	 [] topo)
 
+  (* JNF: placeholder. Need to find all-pairs max shortest path. *)
   let diameter _ = 3
 
 end
