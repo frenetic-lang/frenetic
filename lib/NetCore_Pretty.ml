@@ -86,7 +86,7 @@ module Format = struct
   and apred fmt p = match p with 
     (* pat does create a single box *)
     | Hdr ptrn -> fprintf fmt "@[%a@]" pat ptrn 
-    | OnSwitch sw -> fprintf fmt "@[switch = %Lx@]" sw
+    | OnSwitch sw -> fprintf fmt "@[switch = %Ld@]" sw
     | Not p' -> fprintf fmt "@[!%a@]" apred p'
     | Everything -> fprintf fmt "@[*@]"
     | Nothing -> fprintf fmt "@[none@]" 
