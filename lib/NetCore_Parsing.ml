@@ -110,7 +110,10 @@ let rec compile_top (env : env) = function
     compile_top (Env.add x (compile env exp) env) rest
   | Main (pos, exp) -> compile env exp
   | Check (pos, str, inp, pol, outp, oko, exp) -> 
-    NetCore_Verify.check str inp pol outp oko;
+    let pol' = match compile env pol with 
+      | Pol pol' -> pol'
+      | _ -> failwith "unexpected value" in 
+    NetCore_Verify.check str inp pol' outp oko;
     compile_top env exp
   | Include _ -> 
     failwith "unexpected include"

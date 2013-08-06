@@ -180,6 +180,8 @@ module Topology = struct
 	 (fun acc edge -> edge::(reverse_edge edge)::acc) 
 	 [] topo)
 
+  let diameter _ = 3
+
 end
 
 module Verify = struct
@@ -299,4 +301,18 @@ end
 let topo = ref (Topology.Topology [])
 
 let check str inp pol outp oko = 
-  Printf.printf "[Verify.check unimplemented: %s]\n%!" str
+  let x = Sat.fresh Sat.SPacket in 
+  let y = Sat.fresh Sat.SPacket in 
+  let prog = 
+    Sat.ZProgram [ Sat.ZAssertDeclare (Verify.encode_predicate inp x)
+		 ; Sat.ZAssertDeclare (Verify.forwards (Topology.diameter !topo) !topo pol x y)
+		 ; Sat.ZAssertDeclare (Verify.encode_predicate outp y) ] in 
+  match oko, Sat.solve prog with 
+    | Some ok, sat -> 
+      if ok = sat then 
+	()
+      else
+	Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat
+    | None, sat -> 
+      Printf.printf "[Verify.check %s: %b]\n%!" str sat
+      
