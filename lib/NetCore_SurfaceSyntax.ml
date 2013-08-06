@@ -32,7 +32,7 @@ type top =
   | Bind of pos * id * exp * top
   | Main of pos * exp
   | Include of pos * string * top
-  | Check of pos * string * top
+  | Check of pos * string * Pol.pred * exp * Pol.pred * bool option * top
 
 type env = value Env.t
 

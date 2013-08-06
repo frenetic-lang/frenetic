@@ -109,8 +109,8 @@ let rec compile_top (env : env) = function
   | Bind (pos, x, exp, rest) ->
     compile_top (Env.add x (compile env exp) env) rest
   | Main (pos, exp) -> compile env exp
-  | Check (pos, str, exp) -> 
-    NetCore_Verify.check str;
+  | Check (pos, str, inp, pol, outp, oko, exp) -> 
+    NetCore_Verify.check str inp pol outp oko;
     compile_top env exp
   | Include _ -> 
     failwith "unexpected include"
@@ -140,15 +140,15 @@ let rec splice_top included rest = match included with
 
   | Bind (p, x, e, included) ->
     Bind (p, x, e, splice_top included rest)
-  | Check(p, s, e) -> 
-    Check(p, s, e)
+  | Check(p, s, i, l, o, k, e) -> 
+    Check(p, s, i, l, o, k, e)
 
 and expand_top = function
   | Include (pos, filename, rest) ->
     splice_top (parse_by_extension filename) rest
   | Main (pos, exp) -> Main (pos, exp)
   | Bind (p, x, e, rest) -> Bind (p, x, e, expand_top rest)
-  | Check (p, s, exp) -> Check (p, s, exp)
+  | Check (p, s, i, l, o, k, e) -> Check (p, s, i, l, o, k, e)
 
 and literate_lexer (lexbuf : Lexing.lexbuf) : NetCore_Parser.token =
   let open Lexing in

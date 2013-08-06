@@ -58,6 +58,9 @@
 %token LCURLY
 %token RCURLY
 %token NOT
+%token QMARK
+%token TRUE
+%token FALSE
 %token ALL
 %token FWD
 %token STAR
@@ -303,7 +306,13 @@ program :
  | INCLUDE STRING program
    { Include (symbol_start_pos (), $2, $3) }
 
- | CHECK STRING program
-   { Check (symbol_start_pos (), $2, $3) }
+ | CHECK STRING pred pol pred EQUALS TRUE program
+   { Check (symbol_start_pos (), $2, $3, $4, $5, Some true, $8) }
+
+ | CHECK STRING pred pol pred EQUALS FALSE program
+   { Check (symbol_start_pos (), $2, $3, $4, $5, Some true, $8) }
+
+ | CHECK STRING pred pol pred EQUALS QMARK program
+   { Check (symbol_start_pos (), $2, $3, $4, $5, None, $8) }
 
 %%

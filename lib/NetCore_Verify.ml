@@ -296,5 +296,7 @@ module Verify = struct
           ; forwards (k-1) topo pol pkt1 pkt2 ]
 end
 
-  let check str inp pol topo outp ok = 
-    Printf.printf "[Verify.check unimplemented: %s]\n%!" str
+let topo = ref (Topology.Topology [])
+
+let check str inp pol outp oko = 
+  Printf.printf "[Verify.check unimplemented: %s]\n%!" str
