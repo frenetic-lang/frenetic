@@ -348,6 +348,7 @@ module Make (Platform : PLATFORM) = struct
   module Queries = QuerySet (Platform)
 
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
+    (* BASUS: ignore (NetCore_Monitoring.monitor_tbl sw pol); *)
     lwt flow_table = Lwt.wrap2 Compat.flow_table_of_policy sw pol in
     Platform.send_to_switch sw 0l (Message.FlowModMsg delete_all_flows) >>
     let prio = ref 65535 in
