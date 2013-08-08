@@ -439,7 +439,7 @@ module Make (Platform : PLATFORM) = struct
     with exn ->
       begin
         match exn with
-          | OpenFlow0x01_Platform.SwitchDisconnected _ ->
+          | OpenFlow0x01_switch.Disconnected _ ->
             (* TODO(arjun): I can assume sw itself disconnected? *)
             Lwt.return ()
           | _ ->
@@ -643,7 +643,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
     with exn ->
       begin
         match exn with
-          | OpenFlow0x01_Platform.SwitchDisconnected _ ->
+          | OpenFlow0x01_switch.Disconnected _ ->
             (* TODO(arjun): I can assume sw itself disconnected? *)
             Lwt.return ()
           | _ ->
