@@ -23,3 +23,4 @@
 <lib/*.ml{,i}>: pkg_packet
 # OASIS_STOP
 <lib/*.ml>: syntax_camlp4o
+<of13test/*.ml>: syntax_camlp4o
