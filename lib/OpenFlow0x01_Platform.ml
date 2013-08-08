@@ -10,6 +10,7 @@ module Log = Lwt_log
 module Socket = Frenetic_Socket
 module OF = OpenFlow0x01
 module Message = OF.Message
+module Switch = OpenFlow0x01_switch
 
 type switchId = OF.switchId
 type xid = OF.xid
@@ -20,7 +21,7 @@ let server_fd : Lwt_unix.file_descr option ref = ref None
 
 let max_pending : int = 64
 
-let switch_fds : (switchId, Lwt_unix.file_descr) Hashtbl.t = Hashtbl.create 101
+let switch_handles : (switchId, Switch.t) Hashtbl.t = Hashtbl.create 101
 
 let init_with_fd (fd : Lwt_unix.file_descr) : unit Lwt.t = 
   match !server_fd with
@@ -45,153 +46,33 @@ let get_fd () : Lwt_unix.file_descr Lwt.t =
     | None ->
       raise_lwt (Invalid_argument "Platform not initialized")
 
-(* If this function cannot parse a message, it logs a warning and
-   tries to receive and parse the next. *)
-let rec recv_from_switch_fd (sock : Lwt_unix.file_descr) 
-    : (xid * Message.t) option Lwt.t =
-  let ofhdr_str = String.create (2 * Message.Header.size) in (* JNF: why 2x? *)
-  lwt ok = Socket.recv sock ofhdr_str 0 Message.Header.size in
-  if not ok then 
-    Lwt.return None
-  else
-    lwt hdr = Lwt.wrap (fun () -> Message.Header.parse ofhdr_str) in
-    let body_len = Message.Header.len hdr - Message.Header.size in
-    let body_buf = String.create body_len in
-    lwt ok = Socket.recv sock body_buf 0 body_len in
-    if not ok then 
-      Lwt.return None
-    else try
-      let xid, msg = Message.parse hdr body_buf in
-      Lwt.return (Some (xid, msg))
-    with 
-      | OF.Unparsable error_msg ->
-        Log.error_f
-          "in recv_from_switch_fd, error parsing incoming message (%s)\n%!"
-          error_msg >>
-        recv_from_switch_fd sock
-      | OF.Ignored msg ->
-        Log.error_f
-          "in recv_from_switch_fd, ignoring message (%s)\n%!"
-          msg >>
-        recv_from_switch_fd sock
-
-let send_to_switch_fd 
-  (sock : Lwt_unix.file_descr) 
-  (xid : xid) 
-  (msg : Message.t) : unit option Lwt.t =
-  lwt msg_buf = Lwt.wrap2 Message.marshal xid msg in
-  let msg_len = String.length msg_buf in
-  lwt sent = Lwt_unix.write sock msg_buf 0 msg_len in
-  if sent <> msg_len then
-    Lwt.return None
-  else
-    Lwt.return (Some ())
-
-let fd_of_switch_id (sw : switchId) : Lwt_unix.file_descr option =  
+let handle_of_switch_id (sw : switchId) : Switch.t option =  
   try
-    Some (Hashtbl.find switch_fds sw)
+    Some (Hashtbl.find switch_handles sw)
   with Not_found -> 
     None
-
-let disconnect_switch (sw : switchId) : unit Lwt.t = 
-  match fd_of_switch_id sw with 
-  | Some fd -> 
-    lwt _ = Lwt_unix.close fd in
-    Hashtbl.remove switch_fds sw;
-    Lwt.return ()
-  | None -> 
-    Lwt.return ()
       
 let shutdown () : unit = 
   Lwt.ignore_result 
     (lwt fd = get_fd () in 
      lwt _ = Lwt_unix.close fd in 
      Lwt_list.iter_p (* it is okay to discard these exceptions *)
-       Lwt_unix.close
-       (Hashtbl.fold (fun _ fd l -> fd::l) switch_fds []))
+       Switch.disconnect
+       (Hashtbl.fold (fun _ h l -> h::l) switch_handles []))
 
 let send_to_switch 
   (sw : switchId) 
   (xid : xid) 
   (msg : Message.t) : unit Lwt.t =
-  match fd_of_switch_id sw with 
-  | Some fd ->
-    lwt ok = send_to_switch_fd fd xid msg in 
-    begin match ok with 
-      | Some () -> 
-        Lwt.return ()
-      | None -> 
-        lwt _ = disconnect_switch sw in 
-        raise_lwt (SwitchDisconnected sw)
-    end
-  | None ->
-    raise_lwt (SwitchDisconnected sw)
+  match handle_of_switch_id sw with 
+  | Some handle -> Switch.send handle xid msg
+  | None -> raise_lwt (Switch.Disconnected sw)
 
 let rec recv_from_switch (sw : switchId) : (xid * Message.t) Lwt.t = 
-  let open Message in
-  match fd_of_switch_id sw with
-    | Some fd -> 
-      begin 
-        lwt resp = recv_from_switch_fd fd in 
-        match resp with
-          | Some (xid, EchoRequest bytes) ->
-            send_to_switch sw xid (EchoReply bytes) >>
-            recv_from_switch sw
-          | Some (xid, msg) -> 
-            Lwt.return (xid, msg)
-          | None -> 
-            raise_lwt (SwitchDisconnected sw)
-      end
-    | None -> 
-      raise_lwt (SwitchDisconnected sw)
-        
-let switch_handshake (fd : Lwt_unix.file_descr) : 
-  OF.SwitchFeatures.t option Lwt.t =
-  let open Message in
-  lwt ok = send_to_switch_fd fd 0l (Hello (Cstruct.of_string "")) in
-  match ok with 
-    | Some () -> 
-      lwt resp = recv_from_switch_fd fd in 
-      begin match resp with 
-        | Some (_, Hello _) ->
-          begin 
-            lwt ok = send_to_switch_fd fd 0l SwitchFeaturesRequest in
-            match ok with 
-              | Some () -> 
-                begin 
-                  lwt resp = recv_from_switch_fd fd in 
-                  match resp with 
-                    | Some (_,SwitchFeaturesReply feats) ->
-                      Hashtbl.add switch_fds feats.OF.SwitchFeatures.switch_id fd;
-                      Lwt.return (Some feats)
-                    | _ ->
-                      Lwt.return None
-                end
-              | None ->
-                Lwt.return None
-          end
-        | Some (_, error) ->
-          let open OF.Error in
-          begin match error with
-          | ErrorMsg HelloFailed (code, bytes) ->
-            let open HelloFailed in
-            begin match code with
-            | Incompatible -> 
-              Log.error_f
-                "OFPET_HELLO_FAILED received (code: OFPHFC_INCOMPATIBLE)!\n" >>
-              Lwt.return None
-            | Eperm -> 
-              Log.error_f
-                "OFPET_HELLO_FAILED received (code: OFPHFC_EPERM)!\n" >>
-              Lwt.return None
-            end
-          | _ -> Lwt.return None
-          end
-        | None ->
-          Lwt.return None
-      end 
-    | None -> 
-      Lwt.return None
+  match handle_of_switch_id sw with
+  | Some handle -> Switch.recv handle
+  | None -> raise_lwt (Switch.Disconnected sw)
+
 
 (* TODO(arjun): a switch can stall during a handshake, while another
    switch is ready to connect. To be fully robust, this module should
@@ -202,9 +83,9 @@ let switch_handshake (fd : Lwt_unix.file_descr) :
 let rec accept_switch () =
   lwt server_fd = get_fd () in 
   lwt (fd, sa) = Lwt_unix.accept server_fd in
-  lwt ok = switch_handshake fd in 
-  match ok with 
-    | Some feats -> Lwt.return feats
-    | None -> accept_switch ()
-        
-        
+  match_lwt Switch.handshake fd with
+  | Some handle -> 
+    Hashtbl.add switch_handles (Switch.id handle) handle;
+    Lwt.return (Switch.features handle)
+  | None ->
+    accept_switch ()
