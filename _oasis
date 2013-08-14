@@ -35,7 +35,7 @@ Library openflow
     OpenFlow0x04_Core,
     OpenFlow0x04_Platform,
     OpenFlow0x04_Misc,
-    OpenFlow0x01_switch
+    OpenFlow0x01_Switch
 
 Document doc
   Title: OpenFlow documentation

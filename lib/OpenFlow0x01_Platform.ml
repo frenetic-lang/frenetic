@@ -10,7 +10,7 @@ module Log = Lwt_log
 module Socket = Frenetic_Socket
 module OF = OpenFlow0x01
 module Message = OF.Message
-module Switch = OpenFlow0x01_switch
+module Switch = OpenFlow0x01_Switch
 
 type switchId = OF.switchId
 type xid = OF.xid
