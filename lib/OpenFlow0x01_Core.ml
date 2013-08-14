@@ -30,7 +30,6 @@ type pseudoPort =
   | Flood
   | Controller of int
 
-
 type action =
   | Output of pseudoPort
   | SetDlVlan of dlVlan

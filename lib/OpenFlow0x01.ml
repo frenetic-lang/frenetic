@@ -716,19 +716,16 @@ module Payload = struct
 
   type t = payload
 
-  (* sizeof when in a [PacketOut] message *)
-  let packetout_sizeof p = match p with
+  let size_of p = match p with
     | Buffered _ -> 0
     | NotBuffered bytes -> Cstruct.len bytes
 
-  let packetout_marshal p out = 
-    let _ = match p with
-      | Buffered _ -> ()
-      | NotBuffered bytes ->
-        Cstruct.blit bytes 0 out 0 (Cstruct.len bytes)
-    in
-    packetout_sizeof p
-
+   let marshal p out = 
+     let _ = match p with
+       | Buffered _ -> ()
+       | NotBuffered bytes ->
+         Cstruct.blit bytes 0 out 0 (Cstruct.len bytes) in
+     size_of p
 end
 
 module PacketIn = struct
@@ -737,10 +734,10 @@ module PacketIn = struct
 
     type t = packetInReason
 
-        cenum ofp_reason {
-          NO_MATCH = 0;
-          ACTION = 1
-        } as uint8_t
+    cenum ofp_reason {
+      NO_MATCH = 0;
+      ACTION = 1
+    } as uint8_t
 
     let of_int d = match int_to_ofp_reason d with
       | Some NO_MATCH -> NoMatch
@@ -757,14 +754,14 @@ module PacketIn = struct
 
   type t = packetIn
 
-      cstruct ofp_packet_in {
-        uint32_t buffer_id;
-        uint16_t total_len;
-        uint16_t in_port;
-        uint8_t reason;
-        uint8_t pad
-      } as big_endian
-
+  cstruct ofp_packet_in {
+    uint32_t buffer_id;
+    uint16_t total_len;
+    uint16_t in_port;
+    uint8_t reason;
+    uint8_t pad
+  } as big_endian
+  
   let parse bits =
     let buf_id = match get_ofp_packet_in_buffer_id bits with
       | -1l -> None
@@ -776,30 +773,60 @@ module PacketIn = struct
     let payload = match buf_id with
       | None -> NotBuffered pk
       | Some n -> Buffered (n, pk) in
-    { input_payload = payload; total_len = total_len; port = in_port;
+    { input_payload = payload;
+      total_len = total_len; 
+      port = in_port;
       reason = reason }
+
+  let size_of pi = sizeof_ofp_packet_in + Payload.size_of pi.input_payload
+
+  let marshal pi out = 
+    let buf_id = match pi.input_payload with
+      | NotBuffered(_) -> -1l
+      | Buffered(n,_) -> n in 
+    set_ofp_packet_in_buffer_id out buf_id;
+    set_ofp_packet_in_total_len out pi.total_len;
+    set_ofp_packet_in_in_port out pi.port;
+    set_ofp_packet_in_reason out (Reason.to_int pi.reason);
+    let _ = Payload.marshal pi.input_payload out in 
+    size_of pi
 end
 
 module PacketOut = struct
 
-
   type t = packetOut
 
-      cstruct ofp_packet_out {
-        uint32_t buffer_id;
-        uint16_t in_port;
-        uint16_t actions_len
-      } as big_endian
+  cstruct ofp_packet_out {
+    uint32_t buffer_id;
+    uint16_t in_port;
+    uint16_t actions_len
+  } as big_endian
 
   let to_string out = Printf.sprintf
     "{ payload = ...; port_id = %s; actions = %s }"
     (Frenetic_Misc.string_of_option string_of_portId out.port_id)
     (Action.sequence_to_string out.apply_actions)
 
-  let size_of (pkt_out : t) : int =
+  let parse bits = 
+    let buf_id = match get_ofp_packet_out_buffer_id bits with 
+      | -1l -> None
+      | n -> Some n in 
+    let in_port = get_ofp_packet_out_in_port bits in 
+    let actions_len = get_ofp_packet_out_actions_len bits in 
+    let bits_after_actions_len = Cstruct.shift bits sizeof_ofp_packet_out in 
+    let actions_bits,pk = Cstruct.split bits_after_actions_len actions_len in 
+    let actions = Action.parse_sequence actions_bits in 
+    let payload = match buf_id with 
+      | None -> NotBuffered pk
+      | Some n -> Buffered(n,pk) in 
+    { output_payload = payload;
+      port_id = Some in_port; (* TODO(JNF): should this sometimes be None? *)
+      apply_actions = actions }
+      
+  let size_of po = 
     sizeof_ofp_packet_out +
-      (Action.size_of_sequence pkt_out.apply_actions) +
-      (Payload.packetout_sizeof pkt_out.output_payload)
+      (Action.size_of_sequence po.apply_actions) +
+      (Payload.size_of po.output_payload)
 
   let marshal (pkt_out : t) (buf : Cstruct.t) : int =
     set_ofp_packet_out_buffer_id buf
@@ -817,7 +844,7 @@ module PacketOut = struct
       (fun buf act -> Cstruct.shift buf (Action.marshal act buf))
       (Cstruct.shift buf sizeof_ofp_packet_out)
       (Action.move_controller_last pkt_out.apply_actions) in
-    let _ = Payload.packetout_marshal pkt_out.output_payload buf in
+    let _ = Payload.marshal pkt_out.output_payload buf in
     size_of pkt_out
 
 end
@@ -1997,6 +2024,7 @@ module Message = struct
       | BARRIER_REQ -> BarrierRequest
       | BARRIER_RESP -> BarrierReply
       | STATS_RESP -> StatsReplyMsg (StatsReply.parse buf)
+      | PACKET_OUT -> PacketOutMsg (PacketOut.parse buf)
       | code -> raise (Ignored
         (Printf.sprintf "unexpected message type (%s)"
           (string_of_msg_code code)))
@@ -2049,8 +2077,8 @@ module Message = struct
     | BarrierRequest -> 0
     | BarrierReply -> 0
     | StatsRequestMsg msg -> StatsRequest.size_of msg
+    | PacketInMsg msg -> PacketIn.size_of msg
     | ErrorMsg _
-    | PacketInMsg _
     | PortStatusMsg _
     | StatsReplyMsg _ -> 
       raise (Invalid_argument "cannot marshal (controller should not send \
@@ -2077,8 +2105,10 @@ module Message = struct
     | SwitchFeaturesReply rep -> 
       let _ = SwitchFeatures.marshal rep out in 
       () 
+    | PacketInMsg msg -> 
+      let _ = PacketIn.marshal msg out in 
+      ()
     | ErrorMsg _
-    | PacketInMsg _
     | PortStatusMsg _
     | StatsReplyMsg _ ->
       failwith "should not reach this line (sizeof_body should raise)"
