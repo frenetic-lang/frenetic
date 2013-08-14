@@ -863,6 +863,17 @@ module PortDescription = struct
         no_packet_in = test_bit 6 d
       }
 
+    let to_int d = 
+      let bits = Int32.zero in
+      let bits = bit bits 6 d.no_packet_in in 
+      let bits = bit bits 5 d.no_fwd in 
+      let bits = bit bits 4 d.no_flood in 
+      let bits = bit bits 3 d.no_recv_stp in 
+      let bits = bit bits 2 d.no_recv in 
+      let bits = bit bits 1 d.no_stp in 
+      let bits = bit bits 0 d.down in 
+      bits
+
     let size_of _ = 4
 
   end
@@ -893,6 +904,14 @@ module PortDescription = struct
       ; stp_listen = false
       ; stp_forward = false
       ; stp_block = false }
+
+    let to_int d = 
+      let bits = Int32.zero in
+      let bits = bit bits 3 d.stp_block in 
+      let bits = bit bits 2 d.stp_forward in 
+      let bits = bit bits 1 d.stp_listen in 
+      let bits = bit bits 0 d.down in 
+      bits
 
     let size_of _ = 4
 
@@ -957,6 +976,22 @@ module PortDescription = struct
       ; pause = test_bit 10 bits
       ; pause_asym = test_bit 11 bits }
 
+
+    let to_int f = 
+      let bits = Int32.zero in
+      let bits = bit bits 11 f.pause_asym in 
+      let bits = bit bits 10 f.pause in 
+      let bits = bit bits 9 f.autoneg in 
+      let bits = bit bits 8 f.fiber in 
+      let bits = bit bits 7 f.copper in 
+      let bits = bit bits 6 f.f_10GBFD in 
+      let bits = bit bits 5 f.f_1GBFD in 
+      let bits = bit bits 4 f.f_1GBHD in 
+      let bits = bit bits 3 f.f_100MBFD in 
+      let bits = bit bits 2 f.f_100MBHD in 
+      let bits = bit bits 1 f.f_10MBFD in 
+      let bits = bit bits 0 f.f_10MBHD in 
+      bits
   end
 
   type t =
@@ -1019,6 +1054,17 @@ module PortDescription = struct
 
   let size_of _ = sizeof_ofp_phy_port
 
+  let marshal pd out = 
+    set_ofp_phy_port_port_no out pd.port_no;
+    set_ofp_phy_port_hw_addr (bytes_of_mac pd.hw_addr) 0 out;
+    set_ofp_phy_port_name pd.name 0 out;
+    set_ofp_phy_port_config out (PortConfig.to_int pd.config);
+    set_ofp_phy_port_state out (PortState.to_int pd.state);
+    set_ofp_phy_port_curr out (PortFeatures.to_int pd.curr);
+    set_ofp_phy_port_advertised out (PortFeatures.to_int pd.advertised);
+    set_ofp_phy_port_supported out (PortFeatures.to_int pd.supported);
+    set_ofp_phy_port_peer out (PortFeatures.to_int pd.peer);
+    sizeof_ofp_phy_port
 end
 
 module PortStatus = struct
@@ -1295,6 +1341,21 @@ module SwitchFeatures = struct
   let size_of feats = 
     sizeof_ofp_switch_features 
     + sum (List.map PortDescription.size_of feats.ports)
+
+  let marshal feats out = 
+    set_ofp_switch_features_datapath_id out feats.switch_id;
+    set_ofp_switch_features_n_buffers out feats.num_buffers;
+    set_ofp_switch_features_n_tables out feats.num_tables;
+    set_ofp_switch_features_capabilities out 
+      (Capabilities.to_int feats.supported_capabilities);
+    set_ofp_switch_features_action out 
+      (SupportedActions.to_int feats.supported_actions);
+    let _ = 
+      List.fold_left 
+	(fun out port -> Cstruct.shift out (PortDescription.marshal port out)) 
+	(Cstruct.shift out sizeof_ofp_switch_features) feats.ports in 
+    size_of feats
+
 end
 
 module StatsRequest = struct
@@ -2000,7 +2061,8 @@ module Message = struct
     | EchoRequest buf
     | EchoReply buf ->
       Cstruct.blit buf 0 out 0 (Cstruct.len buf)
-    | SwitchFeaturesRequest -> ()
+    | SwitchFeaturesRequest -> 
+      ()
     | FlowModMsg flow_mod ->
       let _ = FlowMod.marshal flow_mod out in
       ()
@@ -2012,10 +2074,12 @@ module Message = struct
     | StatsRequestMsg msg ->
       let _ = StatsRequest.marshal msg out in
       ()
+    | SwitchFeaturesReply rep -> 
+      let _ = SwitchFeatures.marshal rep out in 
+      () 
     | ErrorMsg _
     | PacketInMsg _
     | PortStatusMsg _
-    | SwitchFeaturesReply _
     | StatsReplyMsg _ ->
       failwith "should not reach this line (sizeof_body should raise)"
 
