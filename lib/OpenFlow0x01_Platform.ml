@@ -89,3 +89,21 @@ let rec accept_switch () =
     Lwt.return (Switch.features handle)
   | None ->
     accept_switch ()
+
+let rec connect_to_controller (hostname:string) (port:int) : unit Lwt.t =
+  Format.printf "Trying to connect to [%s:%d]...\n%!" hostname port;
+  let open Lwt_unix in
+  let host = Unix.gethostbyname hostname in
+  let addr = ADDR_INET (host.h_addr_list.(0), port) in
+  let sock = socket host.h_addrtype SOCK_STREAM 0 in
+  try
+    lwt () = connect sock addr in
+    (* Lwt.return sock *)
+    Lwt.return ()
+  with exn ->
+    let timeout = 2.0 in
+    Format.printf 
+      "Error connecting to [%s:%d] will try again in %.2f ...\n%!" 
+      hostname port timeout;
+    sleep timeout >>
+    connect_to_controller hostname port
