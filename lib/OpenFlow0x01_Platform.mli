@@ -14,7 +14,3 @@ val init_with_fd : file_descr -> unit Lwt.t
 
 (** [shutdown] shuts down the server gracefully *) 
 val shutdown : unit -> unit 
-
-(** [connect_to_controller hostname pport] attempts to open a TCP
-    connection to the controller at [hostname] and [port] *)
-val connect_to_controller : string -> int -> unit Lwt.t

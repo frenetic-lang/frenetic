@@ -22,9 +22,9 @@ Library openflow
     lwt.syntax,
     packet
   InternalModules:
-    Frenetic_Misc,
-    Frenetic_Socket
+    Frenetic_Misc
   Modules:
+    Frenetic_Socket,
     OpenFlow0x01,
     OpenFlow0x01_Core,
     OpenFlow0x01_Stats,
