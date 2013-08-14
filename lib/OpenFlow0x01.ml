@@ -594,13 +594,13 @@ module FlowMod = struct
 
     type t = flowModCommand
 
-        cenum ofp_flow_mod_command {
-          OFPFC_ADD;
-          OFPFC_MODIFY;
-          OFPFC_MODIFY_STRICT;
-          OFPFC_DELETE;
-          OFPFC_DELETE_STRICT
-        } as uint16_t
+    cenum ofp_flow_mod_command {
+      OFPFC_ADD;
+      OFPFC_MODIFY;
+      OFPFC_MODIFY_STRICT;
+      OFPFC_DELETE;
+      OFPFC_DELETE_STRICT
+    } as uint16_t
 
     let size_of _ = 2
 
@@ -652,16 +652,16 @@ module FlowMod = struct
 
   type t = flowMod
 
-      cstruct ofp_flow_mod {
-        uint64_t cookie;
-        uint16_t command;
-        uint16_t idle_timeout;
-        uint16_t hard_timeout;
-        uint16_t priority;
-        uint32_t buffer_id;
-        uint16_t out_port;
-        uint16_t flags
-      } as big_endian
+  cstruct ofp_flow_mod {
+    uint64_t cookie;
+    uint16_t command;
+    uint16_t idle_timeout;
+    uint16_t hard_timeout;
+    uint16_t priority;
+    uint32_t buffer_id;
+    uint16_t out_port;
+    uint16_t flags
+  } as big_endian
 
   let to_string m = Printf.sprintf
     "{ command = %s; match = %s; priority = %d; actions = %s; cookie = %Ld;\
@@ -687,6 +687,43 @@ module FlowMod = struct
   let flags_to_int (check_overlap : bool) (notify_when_removed : bool) =
     (if check_overlap then 1 lsl 1 else 0) lor
       (if notify_when_removed then 1 lsl 0 else 0)
+
+  let check_overlap_of_flags flags = 
+    (1 lsl 1) land flags != 0
+
+  let notify_when_removed_of_flags flags = 
+    (1 lsl 0) land flags != 0
+
+  let parse bits = 
+    let pattern = Match.parse bits in 
+    let bits = Cstruct.shift bits (Match.size_of pattern) in 
+    let cookie = get_ofp_flow_mod_cookie bits in 
+    let command = get_ofp_flow_mod_command bits in 
+    let idle_timeout = get_ofp_flow_mod_idle_timeout bits in 
+    let hard_timeout = get_ofp_flow_mod_hard_timeout bits in 
+    let priority = get_ofp_flow_mod_priority bits in 
+    let buffer_id = get_ofp_flow_mod_buffer_id bits in 
+    let out_port = get_ofp_flow_mod_out_port bits in 
+    let flags = get_ofp_flow_mod_flags bits in 
+    let bits = Cstruct.shift bits sizeof_ofp_flow_mod in 
+    let actions = Action.parse_sequence bits in 
+    { command = Command.of_int command;
+      pattern = pattern;	
+      priority = priority;
+      actions = actions;
+      cookie = cookie;
+      idle_timeout = Timeout.of_int idle_timeout;
+      hard_timeout = Timeout.of_int hard_timeout;
+      notify_when_removed = notify_when_removed_of_flags flags;
+      apply_to_packet = 
+	(match buffer_id with 
+	  | -1l -> None 
+	  | n -> Some n);
+      out_port = 
+	(let open PseudoPort in 
+	 if ofp_port_to_int OFPP_NONE = out_port then None
+	 else Some (PhysicalPort out_port));
+      check_overlap = check_overlap_of_flags flags }
 
   let marshal m bits =
     let bits = Cstruct.shift bits (Match.marshal m.pattern bits) in
@@ -820,7 +857,10 @@ module PacketOut = struct
       | None -> NotBuffered pk
       | Some n -> Buffered(n,pk) in 
     { output_payload = payload;
-      port_id = Some in_port; (* TODO(JNF): should this sometimes be None? *)
+      port_id = 
+	(let open PseudoPort in 
+	if ofp_port_to_int OFPP_NONE = in_port then None
+	else Some in_port); 
       apply_actions = actions }
       
   let size_of po = 
@@ -2025,6 +2065,7 @@ module Message = struct
       | BARRIER_RESP -> BarrierReply
       | STATS_RESP -> StatsReplyMsg (StatsReply.parse buf)
       | PACKET_OUT -> PacketOutMsg (PacketOut.parse buf)
+      | FLOW_MOD -> FlowModMsg (FlowMod.parse buf)
       | code -> raise (Ignored
         (Printf.sprintf "unexpected message type (%s)"
           (string_of_msg_code code)))
@@ -2125,5 +2166,4 @@ module Message = struct
     blit_message msg (Cstruct.shift buf (Header.size_of hdr));
     let str = Cstruct.to_string buf in
     str
-
 end
