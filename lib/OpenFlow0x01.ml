@@ -1213,6 +1213,9 @@ module PortStatus = struct
     (ChangeReason.to_string status.reason)
     (PortDescription.to_string status.desc)
 
+  let size_of ps = 
+    ChangeReason.size_of ps.reason + PortDescription.size_of ps.desc
+
   let parse bits =
     let reason = ChangeReason.of_int (get_ofp_port_status_reason bits) in
     let _ = Cstruct.shift bits sizeof_ofp_port_status in
@@ -1220,15 +1223,11 @@ module PortStatus = struct
     { reason = reason
     ; desc = description }
 
-  let to_string ps =
-    let {reason; desc} = ps in
-    Printf.sprintf "PortStatus %s %d"
-      (ChangeReason.to_string reason)
-      desc.PortDescription.port_no
-
-  let size_of status = 
-    ChangeReason.size_of status.reason + PortDescription.size_of status.desc
-
+  let marshal ps bits = 
+    set_ofp_port_status_reason bits (ChangeReason.to_int ps.reason);
+    let bits = Cstruct.shift bits sizeof_ofp_port_status in 
+    let _ = PortDescription.marshal ps.desc bits in 
+    size_of ps
 end
 
 module SwitchFeatures = struct
@@ -2235,8 +2234,10 @@ module Message = struct
     | SetConfig msg -> 
       let _ = SwitchConfig.marshal msg out in 
       ()
+    | PortStatusMsg msg -> 
+      let _ = PortStatus.marshal msg out in 
+      ()
     | ErrorMsg _
-    | PortStatusMsg _
     | StatsReplyMsg _ ->
       failwith "should not reach this line (sizeof_body should raise)"
 
