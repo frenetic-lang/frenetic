@@ -754,12 +754,23 @@ module Payload = struct
   type t = payload
 
   let size_of p = match p with
-    | Buffered _ -> 0
-    | NotBuffered bytes -> Cstruct.len bytes
+    | Buffered(_,bytes) 
+    | NotBuffered bytes -> 
+      Cstruct.len bytes
+
+  let to_string p = 
+    match p with 
+      | Buffered (buf_id,pk) -> 
+	Printf.sprintf "#%s[%s]" 
+	  (Int32.to_string buf_id)
+	  (Packet.to_string (Packet.parse pk))
+      | NotBuffered(pk) -> 
+	Printf.sprintf "[%s]"
+	  (Packet.to_string (Packet.parse pk))
 
    let marshal p out = 
      let _ = match p with
-       | Buffered _ -> ()
+       | Buffered(_,bytes) 
        | NotBuffered bytes ->
          Cstruct.blit bytes 0 out 0 (Cstruct.len bytes) in
      size_of p
@@ -785,6 +796,10 @@ module PacketIn = struct
       | NoMatch -> ofp_reason_to_int NO_MATCH
       | ExplicitSend -> ofp_reason_to_int ACTION
 
+    let to_string r = match r with
+      | NoMatch -> "NoMatch"
+      | ExplicitSend -> "ExplicitSend"
+
     let size_of _ = 1
 
   end
@@ -798,7 +813,13 @@ module PacketIn = struct
     uint8_t reason;
     uint8_t pad
   } as big_endian
-  
+
+  let to_string pi = 
+    Printf.sprintf
+      "{ in_port = %d; payload = %s }"
+      pi.port
+      (Payload.to_string pi.input_payload)
+
   let parse bits =
     let buf_id = match get_ofp_packet_in_buffer_id bits with
       | -1l -> None
@@ -814,8 +835,9 @@ module PacketIn = struct
       total_len = total_len; 
       port = in_port;
       reason = reason }
-
-  let size_of pi = sizeof_ofp_packet_in + Payload.size_of pi.input_payload
+ 
+  let size_of pi = 
+    sizeof_ofp_packet_in + Payload.size_of pi.input_payload
 
   let marshal pi out = 
     let buf_id = match pi.input_payload with
@@ -825,6 +847,7 @@ module PacketIn = struct
     set_ofp_packet_in_total_len out pi.total_len;
     set_ofp_packet_in_in_port out pi.port;
     set_ofp_packet_in_reason out (Reason.to_int pi.reason);
+    let out = Cstruct.shift out sizeof_ofp_packet_in in 
     let _ = Payload.marshal pi.input_payload out in 
     size_of pi
 end
