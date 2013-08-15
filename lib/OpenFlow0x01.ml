@@ -1200,8 +1200,8 @@ module PortStatus = struct
   end
 
   type t =
-    { reason : ChangeReason.t
-    ; desc : PortDescription.t }
+    { reason : ChangeReason.t;
+      desc : PortDescription.t }
 
   cstruct ofp_port_status {
       uint8_t reason;               (* One of OFPPR_* *)
@@ -1446,6 +1446,61 @@ module SwitchFeatures = struct
 	(Cstruct.shift out sizeof_ofp_switch_features) feats.ports in 
     size_of feats
 
+end
+
+module SwitchConfig = struct
+    
+  module FragFlags = struct
+
+    type t = 
+      | FragNormal 
+      | FragDrop
+      | FragReassemble 
+
+    let of_int d = match d with 
+      | 0 -> FragNormal
+      | 1 -> FragDrop
+      | 2 -> FragReassemble
+      | _ -> raise (Unparsable "malformed frag flags")
+	
+    let to_int f = match f with 
+      | FragNormal -> 0
+      | FragDrop -> 1
+      | FragReassemble -> 2
+
+    let to_string f = match f with
+      | FragNormal -> "FragNormal"
+      | FragDrop -> "FragDrop"
+      | FragReassemble -> "FragReassmble"
+
+  end
+    
+  type t = { frag_flags : FragFlags.t; 
+	     miss_send_len : int }
+
+      cstruct ofp_switch_config {
+	uint16_t flags;
+	uint16_t miss_send_len
+      } as big_endian
+
+  let size_of _ = sizeof_ofp_switch_config
+
+  let parse buf = 
+    let frag_flags = get_ofp_switch_config_flags buf in 
+    let miss_send_len = get_ofp_switch_config_miss_send_len buf in 
+    { frag_flags = FragFlags.of_int frag_flags;
+      miss_send_len = miss_send_len }
+
+  let marshal sc buf = 
+    set_ofp_switch_config_flags buf (FragFlags.to_int sc.frag_flags);
+    set_ofp_switch_config_miss_send_len buf sc.miss_send_len;
+    size_of sc
+      
+  let to_string sc = 
+    Printf.sprintf 
+      "{ frag_flags = %s; miss_send_len = %d }"
+      (FragFlags.to_string sc.frag_flags)
+      sc.miss_send_len
 end
 
 module StatsRequest = struct
@@ -2068,10 +2123,11 @@ module Message = struct
     | PacketInMsg of PacketIn.t
     | PortStatusMsg of PortStatus.t
     | PacketOutMsg of PacketOut.t
-    | BarrierRequest (* JNF: why not "BarrierRequestMsg"? *)
-    | BarrierReply (* JNF: why not "BarrierReplyMsg"? *)
+    | BarrierRequest
+    | BarrierReply
     | StatsRequestMsg of StatsRequest.t
     | StatsReplyMsg of StatsReply.t
+    | SetConfig of SwitchConfig.t
 
   let parse (hdr : Header.t) (body_buf : string) : (xid * t) =
     let buf = Cstruct.of_string body_buf in
@@ -2089,6 +2145,7 @@ module Message = struct
       | STATS_RESP -> StatsReplyMsg (StatsReply.parse buf)
       | PACKET_OUT -> PacketOutMsg (PacketOut.parse buf)
       | FLOW_MOD -> FlowModMsg (FlowMod.parse buf)
+      | SET_CONFIG -> SetConfig (SwitchConfig.parse buf)
       | code -> raise (Ignored
         (Printf.sprintf "unexpected message type (%s)"
           (string_of_msg_code code)))
@@ -2110,6 +2167,7 @@ module Message = struct
     | BarrierReply -> BARRIER_RESP
     | StatsRequestMsg _ -> STATS_REQ
     | StatsReplyMsg _ -> STATS_RESP
+    | SetConfig _ -> SET_CONFIG
 
   let to_string (msg : t) : string = match msg with
     | Hello _ -> "Hello"
@@ -2126,6 +2184,7 @@ module Message = struct
     | BarrierReply -> "BarrierReply"
     | StatsRequestMsg _ -> "StatsRequest"
     | StatsReplyMsg _ -> "StatsReply"
+    | SetConfig _ -> "SetConfig"
 
   open Bigarray
 
@@ -2142,6 +2201,7 @@ module Message = struct
     | BarrierReply -> 0
     | StatsRequestMsg msg -> StatsRequest.size_of msg
     | PacketInMsg msg -> PacketIn.size_of msg
+    | SetConfig msg -> SwitchConfig.size_of msg
     | ErrorMsg _
     | PortStatusMsg _
     | StatsReplyMsg _ -> 
@@ -2171,6 +2231,9 @@ module Message = struct
       () 
     | PacketInMsg msg -> 
       let _ = PacketIn.marshal msg out in 
+      ()
+    | SetConfig msg -> 
+      let _ = SwitchConfig.marshal msg out in 
       ()
     | ErrorMsg _
     | PortStatusMsg _
