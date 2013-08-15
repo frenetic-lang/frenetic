@@ -744,6 +744,17 @@ let len (pkt : packet) =
     | Unparsable (_, data) -> Cstruct.len data in 
   eth_len + nw_len
 
+let string_of_mk formatter x =
+  let open Format in
+  let buf = Buffer.create 100 in
+  let fmt = formatter_of_buffer buf in
+  pp_set_margin fmt 80;
+  formatter fmt x;
+  fprintf fmt "@?";
+  Buffer.contents buf
+
+let to_string = string_of_mk format_packet
+
 let marshal_helper (bits : Cstruct.t) (pkt : packet) =
   set_eth_src (bytes_of_mac pkt.dlSrc) 0 bits;
   set_eth_dst (bytes_of_mac pkt.dlDst) 0 bits;
@@ -768,15 +779,3 @@ let marshal (pkt:packet) : Cstruct.t =
   let bits = Cstruct.create (len pkt) in 
   let () = marshal_helper bits pkt in 
   bits
-
-
-let string_of_mk formatter x =
-  let open Format in
-  let buf = Buffer.create 100 in
-  let fmt = formatter_of_buffer buf in
-  pp_set_margin fmt 80;
-  formatter fmt x;
-  fprintf fmt "@?";
-  Buffer.contents buf
-
-let to_string = string_of_mk format_packet
