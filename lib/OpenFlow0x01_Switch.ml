@@ -12,30 +12,29 @@ type msg = Message.t
    tries to receive and parse the next. *)
 let rec recv_from_switch_fd (sock : file_descr) : (xid * msg) option Lwt.t =
   let ofhdr_str = String.create (2 * Message.Header.size) in (* JNF: why 2x? *)
-  lwt ok = Socket.recv sock ofhdr_str 0 Message.Header.size in
-  if not ok then 
-    Lwt.return None
-  else
-    lwt hdr = Lwt.wrap (fun () -> Message.Header.parse ofhdr_str) in
-    let body_len = Message.Header.len hdr - Message.Header.size in
-    let body_buf = String.create body_len in
-    lwt ok = Socket.recv sock body_buf 0 body_len in
-    if not ok then 
-      Lwt.return None
-    else try
-      let xid, msg = Message.parse hdr body_buf in
-      Lwt.return (Some (xid, msg))
-    with 
-      | OF.Unparsable error_msg ->
-        Log.error_f
-          "in recv_from_switch, error parsing incoming message (%s)\n%!"
-          error_msg >>
-        recv_from_switch_fd sock
-      | OF.Ignored msg ->
-        Log.error_f
-          "in recv_from_switch, ignoring message (%s)\n%!"
-          msg >>
-        recv_from_switch_fd sock
+  match_lwt Socket.recv sock ofhdr_str 0 Message.Header.size with
+    | false -> Lwt.return None
+    | true ->
+      lwt hdr = Lwt.wrap (fun () -> Message.Header.parse ofhdr_str) in
+      let body_len = Message.Header.len hdr - Message.Header.size in
+      let body_buf = String.create body_len in
+      match_lwt Socket.recv sock body_buf 0 body_len with
+        | false -> Lwt.return None
+        | true ->
+          try
+            let xid, msg = Message.parse hdr body_buf in
+            Lwt.return (Some (xid, msg))
+          with 
+            | OF.Unparsable error_msg ->
+              Log.error_f
+                "in recv_from_switch, error parsing incoming message (%s)\n%!"
+                error_msg >>
+              recv_from_switch_fd sock
+            | OF.Ignored msg ->
+              Log.error_f
+                "in recv_from_switch, ignoring message (%s)\n%!"
+                msg >>
+              recv_from_switch_fd sock
 
 let send_to_switch_fd (sock : file_descr) (xid : xid) (msg : msg) : bool Lwt.t =
   lwt msg_buf = Lwt.wrap2 Message.marshal xid msg in
@@ -46,40 +45,36 @@ let send_to_switch_fd (sock : file_descr) (xid : xid) (msg : msg) : bool Lwt.t =
 let switch_handshake (fd : file_descr) : OF.SwitchFeatures.t option Lwt.t =
   let open Message in
   match_lwt send_to_switch_fd fd 0l (Hello (Cstruct.of_string "")) with
-  | true -> 
-    lwt resp = recv_from_switch_fd fd in 
-    begin match resp with 
-      | Some (_, Hello _) ->
-        begin 
-          match_lwt send_to_switch_fd fd 0l SwitchFeaturesRequest with
-            | true ->
-              begin 
-                lwt resp = recv_from_switch_fd fd in 
-                match resp with 
-                  | Some (_,SwitchFeaturesReply feats) ->
-                    Lwt.return (Some feats)
-                  | _ -> Lwt.return None
-              end
-            | false ->
-              Lwt.return None
-        end
-      | Some (_, error) ->
-        let open OF.Error in
-        begin match error with
-        | ErrorMsg HelloFailed (code, bytes) ->
-          let open HelloFailed in
-          begin match code with
-          | Incompatible -> 
-            Log.error_f
-              "OFPET_HELLO_FAILED received (code: OFPHFC_INCOMPATIBLE)!\n" >>
+  | true -> begin match_lwt recv_from_switch_fd fd with 
+    | Some (_, Hello _) ->
+      begin 
+        match_lwt send_to_switch_fd fd 0l SwitchFeaturesRequest with
+          | true ->
+            begin match_lwt recv_from_switch_fd fd with 
+              | Some (_,SwitchFeaturesReply feats) ->
+                Lwt.return (Some feats)
+              | _ -> Lwt.return None
+            end
+          | false ->
             Lwt.return None
-          | Eperm -> 
-            Log.error_f
-              "OFPET_HELLO_FAILED received (code: OFPHFC_EPERM)!\n" >>
-            Lwt.return None
-          end
-        | _ -> Lwt.return None
+      end
+    | Some (_, error) ->
+      let open OF.Error in
+      begin match error with
+      | ErrorMsg HelloFailed (code, bytes) ->
+        let open HelloFailed in
+        begin match code with
+        | Incompatible -> 
+          Log.error_f
+            "OFPET_HELLO_FAILED received (code: OFPHFC_INCOMPATIBLE)!\n" >>
+          Lwt.return None
+        | Eperm -> 
+          Log.error_f
+            "OFPET_HELLO_FAILED received (code: OFPHFC_EPERM)!\n" >>
+          Lwt.return None
         end
+      | _ -> Lwt.return None
+      end
       | None ->
         Lwt.return None
     end 
