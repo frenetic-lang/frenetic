@@ -89,20 +89,29 @@ type t = {
   send_stream : (xid * msg) Lwt_stream.t;
   send : (xid * msg) option -> unit;
   recv_stream : (xid * msg) Lwt_stream.t;
-  recv : (xid * msg) option -> unit
+  recv : (xid * msg) option -> unit;
+  wait_disconnect : unit Lwt.t; (* sleeps until woken by disconnect *)
+  disconnect : unit Lwt.u;
 }
+
+let id (switch : t) =
+  switch.features.OF.SwitchFeatures.switch_id
+
+let features (switch : t) =
+  switch.features
 
 let disconnect (switch : t) : unit Lwt.t =
 	lwt _ = Lwt_unix.close switch.fd in
-	switch.send None;
-	switch.recv None;
+  Lwt.wakeup switch.disconnect ();
 	Lwt.return ()
+
+let wait_disconnect (switch : t) : unit Lwt.t =
+  switch.wait_disconnect
 
 let rec recv_thread (switch : t) : unit Lwt.t =
 	match_lwt recv_from_switch_fd switch.fd with
   | None ->
-    lwt _ = disconnect switch in
-	  Lwt.return ()
+    disconnect switch
 	| Some (xid, Message.EchoRequest bytes) ->
 	  switch.send (Some (xid, Message.EchoReply bytes));
     recv_thread switch
@@ -111,14 +120,13 @@ let rec recv_thread (switch : t) : unit Lwt.t =
     recv_thread switch
 
 let rec send_thread (switch : t) : unit Lwt.t =
-	(* only send_thread should ever close send_stream *)
 	lwt (xid, msg) = Lwt_stream.next switch.send_stream in
   match_lwt send_to_switch_fd switch.fd xid msg with
   | true -> send_thread switch
   | false -> disconnect switch
 
 let switch_thread (switch : t) : unit Lwt.t =
-	Lwt.choose [ send_thread switch; recv_thread switch ]
+	Lwt.pick [ send_thread switch; recv_thread switch; switch.wait_disconnect ]
 
 let handshake (fd : file_descr) : t option Lwt.t = 
   match_lwt switch_handshake fd with
@@ -127,24 +135,16 @@ let handshake (fd : file_descr) : t option Lwt.t =
   | Some features -> 
     let (send_stream, send) = Lwt_stream.create () in
     let (recv_stream, recv) = Lwt_stream.create () in
-    let switch = { fd; features; send_stream; send; recv_stream; recv } in
+    let (wait_disconnect, disconnect) = Lwt.wait () in
+    let switch = { fd; features; send_stream; send; recv_stream; recv;
+                   wait_disconnect; disconnect } in
     Lwt.async (fun () -> switch_thread switch);
     Lwt.return (Some switch)
 
-let id (switch : t) =
-  switch.features.OF.SwitchFeatures.switch_id
-
-let features (switch : t) =
-	switch.features
 
 let send (switch : t) (xid : xid) (msg : msg) : unit Lwt.t =
-	try
-		switch.send (Some (xid, msg));
-		Lwt.return () (* TODO(arjun): Lwt is now pointless here. *)
-  with
-    Lwt_stream.Closed -> raise (Disconnected (id switch))
+  switch.send (Some (xid, msg));
+  Lwt.return () (* TODO(arjun): Lwt is now pointless here. *)
 
 let recv (switch : t) : (xid * msg) Lwt.t =
-  match_lwt Lwt_stream.get switch.recv_stream with
-    | None -> raise (Disconnected (id switch))
-    | Some xid_msg -> Lwt.return xid_msg
+  Lwt_stream.next switch.recv_stream

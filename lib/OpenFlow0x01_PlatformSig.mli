@@ -25,4 +25,7 @@ module type PLATFORM = sig
       [FEATURES_REPLY] message. *)
   val accept_switch : unit -> SwitchFeatures.t Lwt.t
 
+  (** [wait_disconnect switch_id] sleeps until the switch has disconnected. *)
+  val wait_disconnect : switchId -> unit Lwt.t
+
 end

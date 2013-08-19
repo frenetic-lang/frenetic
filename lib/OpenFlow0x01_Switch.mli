@@ -22,8 +22,6 @@ val recv_from_switch_fd :
 (* A handle to an OpenFlow switch that manages keep-alive. *)
 type t
 
-exception Disconnected of OpenFlow0x01_Core.switchId
-
 val id : t -> OpenFlow0x01_Core.switchId
 
 val features : t -> OpenFlow0x01.SwitchFeatures.t
@@ -45,3 +43,5 @@ val recv : t
   -> (OpenFlow0x01_Core.xid * OpenFlow0x01.Message.t) Lwt.t
 
 val disconnect : t -> unit Lwt.t
+
+val wait_disconnect : t -> unit Lwt.t

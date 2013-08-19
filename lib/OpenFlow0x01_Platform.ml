@@ -15,8 +15,6 @@ module Switch = OpenFlow0x01_Switch
 type switchId = OF.switchId
 type xid = OF.xid
 
-exception SwitchDisconnected of switchId
-
 let server_fd : Lwt_unix.file_descr option ref = ref None
 
 let max_pending : int = 64
@@ -66,12 +64,19 @@ let send_to_switch
   (msg : Message.t) : unit Lwt.t =
   match handle_of_switch_id sw with 
   | Some handle -> Switch.send handle xid msg
-  | None -> raise_lwt (Switch.Disconnected sw)
+  | None -> Lwt.return ()
 
 let rec recv_from_switch (sw : switchId) : (xid * Message.t) Lwt.t = 
   match handle_of_switch_id sw with
   | Some handle -> Switch.recv handle
-  | None -> raise_lwt (Switch.Disconnected sw)
+  | None -> let (waiter, _) = Lwt.wait () in
+      waiter >> 
+      Lwt.fail (Failure "should not have woken up")
+
+let wait_disconnect (sw : switchId) : unit Lwt.t = 
+  match handle_of_switch_id sw with
+    | Some handle -> Switch.wait_disconnect handle
+    | None -> Lwt.return ()
 
 
 (* TODO(arjun): a switch can stall during a handshake, while another
