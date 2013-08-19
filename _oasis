@@ -39,8 +39,7 @@ Library netcore
     NetCore_Parser,
     NetCore_Pattern,
     NetCore_Wildcard,
-    NetCore_SurfaceSyntax,
-    NetCore_Bijection
+    NetCore_SurfaceSyntax
   Modules:
     NetCore_Controller,
     NetCore_Controller0x04,
