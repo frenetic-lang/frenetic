@@ -18,7 +18,6 @@ val recv_from_switch_fd :
 
 (** * High-level switch connection *)
 
-
 (* A handle to an OpenFlow switch that manages keep-alive. *)
 type t
 
@@ -34,7 +33,8 @@ val handshake : Lwt_unix.file_descr -> t option Lwt.t
 
 (** [send switch_id xid msg] sends [msg] to [switch_id],
     blocking until the send completes. *)
-val send : t -> OpenFlow0x01_Core.xid 
+val send : t 
+  -> OpenFlow0x01_Core.xid 
   -> OpenFlow0x01.Message.t -> unit Lwt.t
 
 (** [recv switch_id] blocks until [switch_id] sends a

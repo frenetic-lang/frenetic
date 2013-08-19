@@ -81,7 +81,7 @@ let switch_handshake (fd : file_descr) : OF.SwitchFeatures.t option Lwt.t =
   | false -> 
     Lwt.return None
 
-exception Disconnected of OFC.switchId
+(******************************************************************************)
 
 type t = {
   fd : file_descr;
