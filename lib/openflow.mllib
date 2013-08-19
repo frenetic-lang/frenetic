@@ -1,12 +1,10 @@
 # OASIS_START
-# DO NOT EDIT (digest: 1b1b077b95f31e4e2922a97bbd1582e3)
+# DO NOT EDIT (digest: b6ea08ee66ccc45c6f9dca108332edd7)
 Frenetic_Socket
 OpenFlow0x01
 OpenFlow0x01_Core
 OpenFlow0x01_Stats
-OpenFlow0x01_PlatformSig
 OpenFlow0x01_Platform
-OpenFlow0x01_TestPlatform
 OpenFlow0x04
 OpenFlow0x04_Core
 OpenFlow0x04_Platform
