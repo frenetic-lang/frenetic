@@ -22,7 +22,10 @@ Library openflow
     lwt.syntax,
     packet
   InternalModules:
-    Frenetic_Misc
+    Frenetic_Misc,
+    ModComposition,
+    HighLevelSwitch,
+    HighLevelSwitch0x01
   Modules:
     Frenetic_Socket,
     OpenFlow0x01,
@@ -34,7 +37,9 @@ Library openflow
     OpenFlow0x04_Platform,
     OpenFlow0x04_Misc,
     OpenFlow0x01_Switch,
-    OpenFlow0x01_TxSwitch
+    OpenFlow0x01_TxSwitch,
+    SDN_types,
+    SDN
 
 Document doc
   Title: OpenFlow documentation

@@ -1,9 +1,10 @@
 # OASIS_START
-# DO NOT EDIT (digest: c60fbdbfbec8bcd210f42c0b58cdfd2d)
+# DO NOT EDIT (digest: e48d702efbab93e53490e8b9f86a3154)
 OpenFlow0x01
 OpenFlow0x01_Core
 OpenFlow0x01_Stats
-OpenFlow0x01_PlatformSig
+OpenFlow0x01_Switch
+OpenFlow0x01_TxSwitch
 OpenFlow0x01_Platform
 OpenFlow0x04
 OpenFlow0x04_Core
