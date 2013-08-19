@@ -13,38 +13,10 @@ module Compat = NetCore_Compat.Compat0x01
 let (<&>) = Lwt.(<&>)
 
 let init_pol : pol = Filter Nothing
-  
-module type PLATFORM = OpenFlow0x01_PlatformSig.PLATFORM
 
-(* Internal module for managing individual queries. *)
-module type QUERY = functor (Platform : PLATFORM) -> sig
- 
-  type t
+module Platform = OpenFlow0x01_Platform
 
-  val create : xid
-            -> action_atom
-            -> int (* Time to wait between queries. *)
-            -> get_count_handler
-            -> Lwt_switch.t 
-            -> SwitchSet.t 
-            -> pol 
-            -> t
-
-  val kill : t -> unit Lwt.t
-  val start : t -> unit Lwt.t
-  val handle_reply : switchId 
-                  -> t
-                  -> Stats.individualStats list
-                  -> unit
-
-  val refresh_switches : SwitchSet.t -> t -> unit
-  val remove_switch : switchId -> t -> unit
-
-  val find : xid -> t list -> t
-
-end
-
-module Query (Platform : PLATFORM) = struct
+module Query = struct
 
   module Flow = struct
     type t = (switchId * Match.t)
@@ -225,21 +197,9 @@ module Query (Platform : PLATFORM) = struct
 
 end
 
-module type QUERYSET = functor (Platform : PLATFORM) ->
-  sig
-    val start : pol -> unit Lwt.t
-    val stop : unit -> unit
-    val add_switch : switchId -> unit
-    val remove_switch : switchId -> unit
-    val handle_reply : switchId 
-                    -> xid 
-                    -> Stats.individualStats list 
-                    -> unit
-  end
+module QuerySet = struct
 
-module QuerySet (Platform : PLATFORM) = struct
-
-  module Q = Query (Platform)
+  module Q = Query
   type qid = xid
 
   (* The query ID generator is persistent across start/stop
@@ -338,14 +298,9 @@ module QuerySet (Platform : PLATFORM) = struct
 
 end
 
-module type MAKE  = functor (Platform : PLATFORM) -> 
-  sig
-    val start_controller : NetCore_Types.pol NetCore_Stream.t -> unit Lwt.t
-  end
+module Make  = struct
 
-module Make (Platform : PLATFORM) = struct
-
-  module Queries = QuerySet (Platform)
+  module Queries = QuerySet
 
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
     (* BASUS: ignore (NetCore_Monitoring.monitor_tbl sw pol); *)
@@ -487,10 +442,12 @@ module Make (Platform : PLATFORM) = struct
 
 end
 
-module MakeConsistent (Platform : PLATFORM) = struct
+let start_controller = Make.start_controller
+
+module MakeConsistent = struct
 
   open NetCore_ConsistentUpdates
-  module Queries = QuerySet(Platform)
+  module Queries = QuerySet
 
   let all_internal_pols_installed = Lwt_condition.create ()
   let internal_policy_barrier_xid = 1337l
@@ -687,3 +644,5 @@ module MakeConsistent (Platform : PLATFORM) = struct
         (* discovery_lwt *) ]
 
 end
+
+let start_consistent_controller = MakeConsistent.start_controller
