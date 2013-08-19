@@ -37,59 +37,54 @@ let rec recv_from_switch_fd (sock : file_descr) : (xid * msg) option Lwt.t =
           msg >>
         recv_from_switch_fd sock
 
-let send_to_switch_fd (sock : file_descr) (xid : xid) (msg : msg) : unit option Lwt.t =
+let send_to_switch_fd (sock : file_descr) (xid : xid) (msg : msg) : bool Lwt.t =
   lwt msg_buf = Lwt.wrap2 Message.marshal xid msg in
   let msg_len = String.length msg_buf in
   lwt sent = Lwt_unix.write sock msg_buf 0 msg_len in
-  if sent <> msg_len then
-    Lwt.return None
-  else
-    Lwt.return (Some ())
+  Lwt.return (sent = msg_len)
 
 let switch_handshake (fd : file_descr) : OF.SwitchFeatures.t option Lwt.t =
   let open Message in
-  lwt ok = send_to_switch_fd fd 0l (Hello (Cstruct.of_string "")) in
-  match ok with 
-    | Some () -> 
-      lwt resp = recv_from_switch_fd fd in 
-      begin match resp with 
-        | Some (_, Hello _) ->
-          begin 
-            lwt ok = send_to_switch_fd fd 0l SwitchFeaturesRequest in
-            match ok with 
-              | Some () -> 
-                begin 
-                  lwt resp = recv_from_switch_fd fd in 
-                  match resp with 
-                    | Some (_,SwitchFeaturesReply feats) ->
-                      Lwt.return (Some feats)
-                    | _ -> Lwt.return None
-                end
-              | None ->
-                Lwt.return None
-          end
-        | Some (_, error) ->
-          let open OF.Error in
-          begin match error with
-          | ErrorMsg HelloFailed (code, bytes) ->
-            let open HelloFailed in
-            begin match code with
-            | Incompatible -> 
-              Log.error_f
-                "OFPET_HELLO_FAILED received (code: OFPHFC_INCOMPATIBLE)!\n" >>
+  match_lwt send_to_switch_fd fd 0l (Hello (Cstruct.of_string "")) with
+  | true -> 
+    lwt resp = recv_from_switch_fd fd in 
+    begin match resp with 
+      | Some (_, Hello _) ->
+        begin 
+          match_lwt send_to_switch_fd fd 0l SwitchFeaturesRequest with
+            | true ->
+              begin 
+                lwt resp = recv_from_switch_fd fd in 
+                match resp with 
+                  | Some (_,SwitchFeaturesReply feats) ->
+                    Lwt.return (Some feats)
+                  | _ -> Lwt.return None
+              end
+            | false ->
               Lwt.return None
-            | Eperm -> 
-              Log.error_f
-                "OFPET_HELLO_FAILED received (code: OFPHFC_EPERM)!\n" >>
-              Lwt.return None
-            end
-          | _ -> Lwt.return None
+        end
+      | Some (_, error) ->
+        let open OF.Error in
+        begin match error with
+        | ErrorMsg HelloFailed (code, bytes) ->
+          let open HelloFailed in
+          begin match code with
+          | Incompatible -> 
+            Log.error_f
+              "OFPET_HELLO_FAILED received (code: OFPHFC_INCOMPATIBLE)!\n" >>
+            Lwt.return None
+          | Eperm -> 
+            Log.error_f
+              "OFPET_HELLO_FAILED received (code: OFPHFC_EPERM)!\n" >>
+            Lwt.return None
           end
-        | None ->
-          Lwt.return None
-      end 
-    | None -> 
-      Lwt.return None
+        | _ -> Lwt.return None
+        end
+      | None ->
+        Lwt.return None
+    end 
+  | false -> 
+    Lwt.return None
 
 exception Disconnected of OFC.switchId
 
@@ -124,11 +119,8 @@ let rec send_thread (switch : t) : unit Lwt.t =
 	(* only send_thread should ever close send_stream *)
 	lwt (xid, msg) = Lwt_stream.next switch.send_stream in
   match_lwt send_to_switch_fd switch.fd xid msg with
-  | Some () -> 
-    send_thread switch
-  | None -> 
-  	lwt _ = disconnect switch in
-  	Lwt.return ()
+  | true -> send_thread switch
+  | false -> disconnect switch
 
 let switch_thread (switch : t) : unit Lwt.t =
 	Lwt.choose [ send_thread switch; recv_thread switch ]

@@ -2,13 +2,13 @@
 
 (** * Low-level switch connection *)
 
-(** [send_to_switch_fd fd xid msg] sends [msg] to the switch at [fd],
-    blocking until the send completes. *)
+(** [send_to_switch_fd fd xid msg] sends [msg] to the switch at [fd]. It
+    returns [true] if the correct number of bytes were written. *)
 val send_to_switch_fd : 
   Lwt_unix.file_descr -> 
   OpenFlow0x01_Core.xid ->
   OpenFlow0x01.Message.t -> 
-  unit option Lwt.t
+  bool Lwt.t
 
 (** [recv_from_switch_fd fd] blocks until the switch at [fd] sends a
     message. *)
