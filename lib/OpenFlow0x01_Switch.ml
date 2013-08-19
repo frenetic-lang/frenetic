@@ -86,10 +86,8 @@ let switch_handshake (fd : file_descr) : OF.SwitchFeatures.t option Lwt.t =
 type t = {
   fd : file_descr;
   features : OF.SwitchFeatures.t;
-  send_stream : (xid * msg) Lwt_stream.t;
   send : (xid * msg) option -> unit;
   recv_stream : (xid * msg) Lwt_stream.t;
-  recv : (xid * msg) option -> unit;
   wait_disconnect : unit Lwt.t; (* sleeps until woken by disconnect *)
   disconnect : unit Lwt.u;
 }
@@ -108,25 +106,26 @@ let disconnect (switch : t) : unit Lwt.t =
 let wait_disconnect (switch : t) : unit Lwt.t =
   switch.wait_disconnect
 
-let rec recv_thread (switch : t) : unit Lwt.t =
+let rec recv_thread 
+  (recv : (xid * msg) option -> unit)
+  (switch : t) : unit Lwt.t =
 	match_lwt recv_from_switch_fd switch.fd with
   | None ->
     disconnect switch
 	| Some (xid, Message.EchoRequest bytes) ->
 	  switch.send (Some (xid, Message.EchoReply bytes));
-    recv_thread switch
+    recv_thread recv switch
   | Some xid_msg ->
-		switch.recv (Some xid_msg); 
-    recv_thread switch
+		recv (Some xid_msg); 
+    recv_thread recv switch
 
-let rec send_thread (switch : t) : unit Lwt.t =
-	lwt (xid, msg) = Lwt_stream.next switch.send_stream in
+let rec send_thread
+  (send_stream : (xid * msg) Lwt_stream.t) 
+  (switch : t) : unit Lwt.t =
+	lwt (xid, msg) = Lwt_stream.next send_stream in
   match_lwt send_to_switch_fd switch.fd xid msg with
-  | true -> send_thread switch
+  | true -> send_thread send_stream switch
   | false -> disconnect switch
-
-let switch_thread (switch : t) : unit Lwt.t =
-	Lwt.pick [ send_thread switch; recv_thread switch; switch.wait_disconnect ]
 
 let handshake (fd : file_descr) : t option Lwt.t = 
   match_lwt switch_handshake fd with
@@ -136,9 +135,12 @@ let handshake (fd : file_descr) : t option Lwt.t =
     let (send_stream, send) = Lwt_stream.create () in
     let (recv_stream, recv) = Lwt_stream.create () in
     let (wait_disconnect, disconnect) = Lwt.wait () in
-    let switch = { fd; features; send_stream; send; recv_stream; recv;
+    let switch = { fd; features; send; recv_stream;
                    wait_disconnect; disconnect } in
-    Lwt.async (fun () -> switch_thread switch);
+    Lwt.async (fun () ->
+      Lwt.pick [ send_thread send_stream switch;
+                 recv_thread recv switch;
+                 switch.wait_disconnect ]);
     Lwt.return (Some switch)
 
 
