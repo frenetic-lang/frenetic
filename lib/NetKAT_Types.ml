@@ -21,8 +21,8 @@ type hdrVal =
   | NwAddr of Packet.nwAddr
   | NwTosVal of Packet.nwTos
   | TpPort of Packet.tpPort
-  | PortVal of OpenFlow0x01.portId
-  | SwitchVal of OpenFlow0x01.switchId
+  | PortVal of SDN_types.portId
+  | SwitchVal of SDN_types.switchId
 
 type pol =
   | Drop
@@ -65,8 +65,8 @@ module Formatting = struct
     | NwAddr n -> fprintf fmt "%ld" n
     | NwTosVal n -> fprintf fmt "%d" n
     | TpPort n -> fprintf fmt "%d" n
-    | PortVal n -> fprintf fmt "%d" n
-    | SwitchVal n -> fprintf fmt "%Ld" n
+    | PortVal n -> SDN_types.format_portId fmt n
+    | SwitchVal n -> SDN_types.format_switchId fmt n
 
   let rec pol (cxt : cxt) (fmt : formatter) (p : pol) : unit = match p with
     | Drop -> fprintf fmt "@[drop@]"

@@ -21,8 +21,8 @@ type hdrVal =
   | NwAddr of Packet.nwAddr
   | NwTosVal of Packet.nwTos
   | TpPort of Packet.tpPort
-  | PortVal of OpenFlow0x01.portId
-  | SwitchVal of OpenFlow0x01.switchId
+  | PortVal of SDN_types.portId
+  | SwitchVal of SDN_types.switchId
 
 type pol =
   | Drop
