@@ -33,5 +33,13 @@ type pol =
   | Par of pol * pol
   | Seq of pol * pol
 
+(** A map keyed by header names. *)
+module HdrMap : Map.S
+  with type key = hdr
+
+type hdrValMap = hdrVal HdrMap.t
+
 val format_pol : Format.formatter -> pol -> unit
+
 val string_of_pol : pol -> string
+

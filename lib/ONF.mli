@@ -1,17 +1,16 @@
-(** A map keyed by header names. *)
-module HdrMap : Map.S
-  with type key = NetKAT_Types.hdr
+(** Compiler for NetKAT *)
+
 
 (* A set of maps from header names to header values *)
 module HdrValSet : Set.S
-  with type elt = NetKAT_Types.hdrVal HdrMap.t
+  with type elt = NetKAT_Types.hdrValMap
 
 (** Conjunction of tests, where each test tests a distinct field. *)
-type pred = NetKAT_Types.hdrVal HdrMap.t
+type pred = NetKAT_Types.hdrValMap
 
 (** Set of updates, where each update affects a distinct field. Therefore, they
 	  all commute with each other. *)
-type seq = NetKAT_Types.hdrVal HdrMap.t
+type seq = NetKAT_Types.hdrValMap
 
 type sum = HdrValSet.t
 

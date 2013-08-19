@@ -33,6 +33,13 @@ type pol =
   | Par of pol * pol
   | Seq of pol * pol
 
+module HdrMap = Map.Make (struct
+  type t = hdr
+  let compare = Pervasives.compare
+end)
+
+type hdrValMap = hdrVal HdrMap.t
+
 module Formatting = struct
 
   type cxt = SEQ | PAR | NEG | PAREN

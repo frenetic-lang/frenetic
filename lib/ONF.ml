@@ -1,18 +1,15 @@
 module K = NetKAT_Types
 
-module HdrMap = Map.Make (struct
-  type t = K.hdr
-  let compare = Pervasives.compare
-end)
+module HdrMap = K.HdrMap
 
 module HdrValSet = Set.Make (struct
   type t = K.hdrVal HdrMap.t
   let compare x y = HdrMap.compare Pervasives.compare x y
 end)
 
-type pred = K.hdrVal HdrMap.t
+type pred = K.hdrValMap
 
-type seq = K.hdrVal HdrMap.t
+type seq = K.hdrValMap
 
 type sum = HdrValSet.t
 
