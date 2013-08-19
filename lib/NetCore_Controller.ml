@@ -3,6 +3,7 @@ open Packet
 open OpenFlow0x01
 open OpenFlow0x01_Core
 open NetCore_Types
+open NetCore_Pattern
 
 module Log = Lwt_log
 module SwitchSet = Set.Make (Int64)

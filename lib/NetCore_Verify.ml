@@ -4,6 +4,7 @@ open NetCore_Types
 open Unix
 
 module W = NetCore_Wildcard
+module P = NetCore_Pattern
 
 (* JNF: This function belongs somewhere else. *)
 let map_option f = function
@@ -202,16 +203,16 @@ module Verify = struct
     ZAnd 
       (filter_map
 	 (fun x -> x)
-	 [ map_wildcard (fun mac -> packet_field "DlSrc" pkt (TInt mac)) pat.ptrnDlSrc
-	 ; map_wildcard (fun mac -> packet_field "DlDst" pkt (TInt mac)) pat.ptrnDlDst
+	 [ map_wildcard (fun mac -> packet_field "DlSrc" pkt (TInt mac)) pat.P.ptrnDlSrc
+	 ; map_wildcard (fun mac -> packet_field "DlDst" pkt (TInt mac)) pat.P.ptrnDlDst
 	 ; map_wildcard 
            (function 
              (* TODO: PseudoPorts *)
-             | All -> ZTrue
-             | Here -> ZTrue
-             | Physical pt -> packet_field "InPort" pkt (TInt (Int64.of_int32 pt))
-	     | Queue _ -> ZTrue)
-           pat.ptrnInPort ])
+             | P.All -> ZTrue
+             | P.Here -> ZTrue
+             | P.Physical pt -> packet_field "InPort" pkt (TInt (Int64.of_int32 pt))
+      	     | P.Queue _ -> ZTrue)
+                 pat.P.ptrnInPort ])
 
   let rec encode_predicate (pr:pred) (pkt:zVar) : zFormula = match pr with 
     | Everything -> 
@@ -258,10 +259,10 @@ module Verify = struct
            ; map_option (fun (_,mac) -> packet_field "DlDst" pkt2 (TInt mac)) out.outDlDst
            ; Some (match out.outPort with 
            (* TODO: PseudoPorts *)
-             | All -> ZNot(ZAnd(equal_field "InPort" pkt1 pkt2))
-             | Here -> ZAnd(equal_field "InPort" pkt1 pkt2)
-             | Physical pt -> packet_field "InPort" pkt2 (TInt (Int64.of_int32 pt))
-	     | Queue _ -> ZFalse)])
+             | P.All -> ZNot(ZAnd(equal_field "InPort" pkt1 pkt2))
+             | P.Here -> ZAnd(equal_field "InPort" pkt1 pkt2)
+             | P.Physical pt -> packet_field "InPort" pkt2 (TInt (Int64.of_int32 pt))
+      	     | P.Queue _ -> ZFalse)])
       
   let action_atom_forwards (act:action_atom) (pkt1:zVar) (pkt2:zVar) : zFormula = match act with 
     | SwitchAction out -> 

@@ -1,5 +1,6 @@
 open Packet
 open NetCore_Types
+open NetCore_Pattern
        
 module type ACTION = 
  sig 

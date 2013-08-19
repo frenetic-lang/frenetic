@@ -1,6 +1,7 @@
 open Printf
 open Packet
 open NetCore_Types
+open NetCore_Pattern
 open NetCore_Action.Output
 
 (** Table relating private locations to public locations. *)

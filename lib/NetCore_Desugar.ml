@@ -2,6 +2,7 @@ open List
 open Packet
 open Format
 module NCT = NetCore_Types
+module P = NetCore_Pattern
 
   type get_packet_handler = 
       OpenFlow0x01.switchId -> NCT.port -> packet -> NCT.action
@@ -252,23 +253,23 @@ let desugar (genvlan : unit -> int option) (pol : policy) : NCT.pol =
     | Switch swId -> 
       NCT.OnSwitch swId
     | InPort pt -> 
-      NCT.Hdr (NCT.inPort (NCT.Physical (Int32.of_int pt)))
+      NCT.Hdr (P.inPort (P.Physical (Int32.of_int pt)))
     | DlSrc n -> 
-      NCT.Hdr (NCT.dlSrc n)
+      NCT.Hdr (P.dlSrc n)
     | DlDst n -> 
-      NCT.Hdr (NCT.dlDst n)
+      NCT.Hdr (P.dlDst n)
     | DlVlan n -> 
-      NCT.Hdr (NCT.dlVlan n)
+      NCT.Hdr (P.dlVlan n)
     | DlTyp n ->
-      NCT.Hdr (NCT.dlTyp n)
+      NCT.Hdr (P.dlTyp n)
     | SrcIP n -> 
-      NCT.Hdr (NCT.ipSrc n)
+      NCT.Hdr (P.ipSrc n)
     | DstIP n -> 
-      NCT.Hdr (NCT.ipDst n)
+      NCT.Hdr (P.ipDst n)
     | TcpSrcPort n -> 
-      NCT.Hdr (NCT.tcpSrcPort n)
+      NCT.Hdr (P.tcpSrcPort n)
     | TcpDstPort n -> 
-      NCT.Hdr (NCT.tcpDstPort n) in
+      NCT.Hdr (P.tcpDstPort n) in
   let rec desugar_pol curr pol = match pol with 
     | Act action -> 
       let pol' = NCT.Action (desugar_act action) in 
@@ -317,12 +318,12 @@ let desugar (genvlan : unit -> int option) (pol : policy) : NCT.pol =
       let pred_rec = 
         if List.length sslice' > 0 then
           List.fold_left 
-            (fun acc s -> NCT.And(acc, NCT.Hdr(NCT.dlVlan s)))
+            (fun acc s -> NCT.And(acc, NCT.Hdr(P.dlVlan s)))
             NCT.Everything sslice'
         else 
           NCT.Nothing in
-      let pred_curr = NCT.Hdr(NCT.dlVlan(curr)) in 
-      let pred_next = NCT.Hdr(NCT.dlVlan(next)) in 
+      let pred_curr = NCT.Hdr(P.dlVlan(curr)) in 
+      let pred_next = NCT.Hdr(P.dlVlan(next)) in 
       let pol1' = 
         NCT.Union 
           ( NCT.Seq 

@@ -1,6 +1,7 @@
 open List
 open Packet
 open NetCore_Types
+open NetCore_Pattern
 module OF = OpenFlow0x01_Core
 
 module GroupClassifier = NetCore_Classifier.Make(NetCore_Action.Group)

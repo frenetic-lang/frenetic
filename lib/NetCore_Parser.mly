@@ -3,6 +3,7 @@
  open NetCore_Types
  open NetCore_SurfaceSyntax
  module Action = NetCore_Action.Output
+ module P = NetCore_Pattern
 
  let int8_of_int64 (n : Int64.t) : int =
    if Int64.compare n Int64.zero >= 0 && 
@@ -138,29 +139,29 @@ pred_atom :
      0xbeefbeefbeefbeefL for large integers. So, I'm lexing everything to 
      Int64, then having checked-casts down to the right size. */
   | INPORT EQUALS INT64 
-    { Pol.Hdr (inPort (Pol.Physical (int32_of_int64 $3))) }
-  | SRCMAC EQUALS MACADDR { Pol.Hdr (dlSrc $3) }
-  | DSTMAC EQUALS MACADDR { Pol.Hdr (dlDst $3) }
-  | VLAN EQUALS NONE { Pol.Hdr (dlVlan None) }
-  | VLAN EQUALS INT64 { Pol.Hdr (dlVlan (Some (int12_of_int64 $3))) }
-  | SRCIP EQUALS IPADDR { Pol.Hdr (ipSrc $3) }
-  | DSTIP EQUALS IPADDR { Pol.Hdr (ipDst $3) }
-  | TCPSRCPORT EQUALS INT64 { Pol.Hdr (tcpSrcPort (int16_of_int64 $3)) }
-  | TCPDSTPORT EQUALS INT64 { Pol.Hdr (tcpDstPort (int16_of_int64 $3)) }
+    { Pol.Hdr (P.inPort (P.Physical (int32_of_int64 $3))) }
+  | SRCMAC EQUALS MACADDR { Pol.Hdr (P.dlSrc $3) }
+  | DSTMAC EQUALS MACADDR { Pol.Hdr (P.dlDst $3) }
+  | VLAN EQUALS NONE { Pol.Hdr (P.dlVlan None) }
+  | VLAN EQUALS INT64 { Pol.Hdr (P.dlVlan (Some (int12_of_int64 $3))) }
+  | SRCIP EQUALS IPADDR { Pol.Hdr (P.ipSrc $3) }
+  | DSTIP EQUALS IPADDR { Pol.Hdr (P.ipDst $3) }
+  | TCPSRCPORT EQUALS INT64 { Pol.Hdr (P.tcpSrcPort (int16_of_int64 $3)) }
+  | TCPDSTPORT EQUALS INT64 { Pol.Hdr (P.tcpDstPort (int16_of_int64 $3)) }
   | FRAMETYPE EQUALS ARP
-    { Pol.Hdr (dlTyp 0x806) }
+    { Pol.Hdr (P.dlTyp 0x806) }
   | FRAMETYPE EQUALS IP
-    { Pol.Hdr (dlTyp 0x800) }
+    { Pol.Hdr (P.dlTyp 0x800) }
   | FRAMETYPE EQUALS INT64
-    { Pol.Hdr (dlTyp (int16_of_int64 $3)) }
+    { Pol.Hdr (P.dlTyp (int16_of_int64 $3)) }
   | PROTOCOLTYPE EQUALS ICMP
-    { Pol.Hdr (ipProto 0x01) }
+    { Pol.Hdr (P.ipProto 0x01) }
   | PROTOCOLTYPE EQUALS TCP
-    { Pol.Hdr (ipProto 0x06) }
+    { Pol.Hdr (P.ipProto 0x06) }
   | PROTOCOLTYPE EQUALS UDP
-    { Pol.Hdr (ipProto 0x11) }
+    { Pol.Hdr (P.ipProto 0x11) }
   | PROTOCOLTYPE EQUALS INT64
-    { Pol.Hdr (ipProto (int8_of_int64 $3)) }
+    { Pol.Hdr (P.ipProto (int8_of_int64 $3)) }
     
 cexp :
   | ID

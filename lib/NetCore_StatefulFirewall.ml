@@ -2,6 +2,7 @@ open Printf
 open Packet
 open NetCore_Types
 open NetCore_Action.Output
+open NetCore_Pattern
 
 type int48 = int64 
 

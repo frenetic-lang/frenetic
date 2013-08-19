@@ -1,5 +1,7 @@
 open NetCore_Types
 open NetCore_Action.Output
+open NetCore_Pattern
+
 module G = NetCore_Graph.Graph
 module Log = Lwt_log
 

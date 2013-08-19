@@ -1,4 +1,5 @@
 open NetCore_Wildcard
+module P = NetCore_Pattern
 
 module Compat0x01 =
 struct
@@ -63,16 +64,16 @@ struct
                            (unset out.outTpDst (fun x -> SetTpDst x) []))))))))
 
   let nc_port_to_of p = match p with
-    | Physical p -> PhysicalPort (to_of_portId p)
-    | All -> AllPorts
-    | Here -> InPort
+    | P.Physical p -> PhysicalPort (to_of_portId p)
+    | P.All -> AllPorts
+    | P.Here -> InPort
     | _ -> failwith "nc_port_to_of: Don't know how to handle this port type"
 
   let output_to_of inp out = match out.outPort with
-    | Here -> [] (* Fishy, IMO. Shouldn't this be InPort? *)
-    | All -> modify out @ (Output AllPorts)
+    | P.Here -> [] (* Fishy, IMO. Shouldn't this be InPort? *)
+    | P.All -> modify out @ (Output AllPorts)
       :: unmodify out
-    | Physical pt ->
+    | P.Physical pt ->
       modify out @
         (( match inp with
           | Some pt' when (=) pt' pt ->
@@ -292,16 +293,16 @@ struct
                   (unset out.outNwDst (fun x -> SetField (OxmIP4Dst (val_to_mask x))) [])))))
 
   let nc_port_to_of p = match p with
-    | Physical p -> PhysicalPort (to_of_portId p)
-    | All -> AllPorts
-    | Here -> InPort
+    | P.Physical p -> PhysicalPort (to_of_portId p)
+    | P.All -> AllPorts
+    | P.Here -> InPort
     | _ -> failwith "nc_port_to_of: Don't know how to handle this port type"
 
   let output_to_of inp out = match out.outPort with
-    | Here -> [] (* Fishy, IMO. Shouldn't this be InPort? *)
-    | All -> modify out @ (Output AllPorts)
+    | P.Here -> [] (* Fishy, IMO. Shouldn't this be InPort? *)
+    | P.All -> modify out @ (Output AllPorts)
       :: unmodify out
-    | Physical pt ->
+    | P.Physical pt ->
       modify out @
         (( match inp with
           | Some pt' when (=) pt' pt ->

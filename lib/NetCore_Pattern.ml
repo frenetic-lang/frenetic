@@ -1,21 +1,42 @@
 open Packet
 open OpenFlow0x01
-open NetCore_Types
 open NetCore_Wildcard
-
 module OF = OpenFlow0x01_Core
 
-type t = ptrn
+type portId = Int32.t
+type queueId = Int32.t
 
+type port =
+  | Physical of portId
+  | Queue of portId * queueId
+  | All
+  | Here
+
+type t = {
+  ptrnDlSrc : dlAddr wildcard;
+  ptrnDlDst : dlAddr wildcard;
+  ptrnDlTyp : dlTyp wildcard;
+  ptrnDlVlan : dlVlan wildcard;
+  ptrnDlVlanPcp : dlVlanPcp wildcard;
+  ptrnNwSrc : nwAddr wildcard;
+  ptrnNwDst : nwAddr wildcard;
+  ptrnNwProto : nwProto wildcard;
+  ptrnNwTos : nwTos wildcard;
+  ptrnTpSrc : tpPort wildcard;
+  ptrnTpDst : tpPort wildcard;
+  ptrnInPort : port wildcard
+}
 
 module PortOrderedType = struct
   type t = port
   let compare = Pervasives.compare
   let to_string =  function
-    | Physical pid -> "Physical " ^ (NetCore_Types.string_of_portId pid)
+    | Physical pid -> 
+        Format.sprintf "Physical %ld" pid
     | All -> "All"
     | Here -> "Here"
-    | Queue (pid, qid) -> "Queue " ^ (string_of_portId pid)  ^ " " ^ (string_of_queueId qid)
+    | Queue (pid, qid) -> 
+        Format.sprintf "Queue %ld %ld" pid qid
 
 end
 
@@ -50,6 +71,93 @@ module NwProtoWildcard = IntWildcard
 module NwTosWildcard = IntWildcard
 module TpPortWildcard = IntWildcard
 module PortWildcard = NetCore_Wildcard.Make (PortOrderedType)
+
+let all = {
+  ptrnDlSrc = WildcardAll;
+  ptrnDlDst = WildcardAll;
+  ptrnDlTyp = WildcardAll;
+  ptrnDlVlan = WildcardAll;
+  ptrnDlVlanPcp = WildcardAll;
+  ptrnNwSrc = WildcardAll;
+  ptrnNwDst = WildcardAll;
+  ptrnNwProto = WildcardAll;
+  ptrnNwTos = WildcardAll;
+  ptrnTpSrc = WildcardAll;
+  ptrnTpDst = WildcardAll;
+  ptrnInPort = WildcardAll
+}
+
+let empty = {
+  ptrnDlSrc = WildcardNone;
+  ptrnDlDst = WildcardNone;
+  ptrnDlTyp = WildcardNone;
+  ptrnDlVlan = WildcardNone;
+  ptrnDlVlanPcp = WildcardNone;
+  ptrnNwSrc = WildcardNone;
+  ptrnNwDst = WildcardNone;
+  ptrnNwProto = WildcardNone;
+  ptrnNwTos = WildcardNone;
+  ptrnTpSrc = WildcardNone;
+  ptrnTpDst = WildcardNone;
+  ptrnInPort = WildcardNone
+}
+
+let inPort pt =
+  { all with ptrnInPort = WildcardExact pt }
+
+let dlSrc mac =
+  { all with ptrnDlSrc = WildcardExact mac }
+
+let dlDst mac =
+  { all with ptrnDlDst = WildcardExact mac }
+
+let dlTyp typ =
+  { all with ptrnDlTyp = WildcardExact typ }
+
+let dlVlan vlan =
+  { all with ptrnDlVlan = WildcardExact vlan }
+
+let dlVlanPcp pcp =
+  { all with ptrnDlVlanPcp = WildcardExact pcp }
+
+let ipSrc ip =
+  { all with
+    ptrnDlTyp = WildcardExact 0x800;
+    ptrnNwSrc = WildcardExact ip }
+
+let ipDst ip =
+  { all with
+    ptrnDlTyp = WildcardExact 0x800;
+    ptrnNwDst = WildcardExact ip }
+
+let ipProto proto =
+  { all with
+    ptrnDlTyp = WildcardExact 0x800;
+    ptrnNwProto = WildcardExact proto }
+
+let ipTos tos =
+  { all with
+    ptrnDlTyp = WildcardExact 0x800;
+    ptrnNwTos = WildcardExact tos }
+
+let tpSrcPort proto tpPort =
+  { all with
+    ptrnDlTyp = WildcardExact 0x800;
+    ptrnNwProto = WildcardExact proto;
+    ptrnTpSrc = WildcardExact tpPort }
+
+let tpDstPort proto tpPort =
+  { all with
+    ptrnDlTyp = WildcardExact 0x800;
+    ptrnNwProto = WildcardExact proto;
+    ptrnTpDst = WildcardExact tpPort }
+
+let tcpSrcPort = tpSrcPort 6
+let tcpDstPort = tpDstPort 6
+let udpSrcPort = tpSrcPort 17
+let udpDstPort = tpDstPort 17
+
+
 
 let is_empty pat =
   DlAddrWildcard.is_empty pat.ptrnDlSrc

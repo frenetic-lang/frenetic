@@ -1,7 +1,29 @@
 open Packet
-open NetCore_Types
+open NetCore_Wildcard
 
-type t = ptrn
+type portId = int32
+type queueId = int32
+
+type port =
+  | Physical of portId
+  | Queue of portId * queueId
+  | All
+  | Here
+
+type t = {
+  ptrnDlSrc : dlAddr wildcard;
+  ptrnDlDst : dlAddr wildcard;
+  ptrnDlTyp : dlTyp wildcard;
+  ptrnDlVlan : dlVlan wildcard;
+  ptrnDlVlanPcp : dlVlanPcp wildcard;
+  ptrnNwSrc : nwAddr wildcard;
+  ptrnNwDst : nwAddr wildcard;
+  ptrnNwProto : nwProto wildcard;
+  ptrnNwTos : nwTos wildcard;
+  ptrnTpSrc : tpPort wildcard;
+  ptrnTpDst : tpPort wildcard;
+  ptrnInPort : port wildcard
+}
 
 val inter : t -> t -> t
 
@@ -47,3 +69,35 @@ val wildcardNwTos : t -> t
 val wildcardTpSrc : t -> t
 
 val wildcardTpDst : t -> t
+
+val all : t
+
+val empty : t
+
+val dlSrc : dlAddr -> t
+
+val dlDst : dlAddr -> t
+  
+val dlTyp : dlTyp -> t
+  
+val dlVlan : dlVlan -> t
+  
+val dlVlanPcp : dlVlanPcp -> t
+  
+val ipSrc : nwAddr -> t
+  
+val ipDst : nwAddr -> t
+  
+val ipProto : nwProto -> t
+
+val ipTos : nwTos -> t
+  
+val inPort : port -> t
+  
+val tcpSrcPort : tpPort -> t
+  
+val tcpDstPort : tpPort -> t
+  
+val udpSrcPort : tpPort -> t
+  
+val udpDstPort : tpPort -> t
