@@ -1,7 +1,7 @@
 open List
 open Packet
 open Format
-
+open NetCore_Wildcard
 type switchId = int64
 type portId = int32
 type queueId = int32
@@ -10,10 +10,7 @@ let string_of_portId pid = Printf.sprintf "%ld" pid
 let string_of_switchId swid = Printf.sprintf "%Ld" swid
 let string_of_queueId pid = Printf.sprintf "%ld" pid
 
-type 'a wildcard =
-  | WildcardExact of 'a
-  | WildcardAll
-  | WildcardNone
+type 'a wildcard = 'a NetCore_Wildcard.wildcard
 
 type port =
   | Physical of portId

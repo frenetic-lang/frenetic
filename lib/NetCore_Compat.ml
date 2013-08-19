@@ -1,3 +1,5 @@
+open NetCore_Wildcard
+
 module Compat0x01 =
 struct
   open OpenFlow0x01

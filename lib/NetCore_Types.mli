@@ -11,10 +11,7 @@ val string_of_portId : portId -> string
 val string_of_switchId : switchId -> string
 val string_of_queueId : queueId -> string
 
-type 'a wildcard =
-  | WildcardExact of 'a
-  | WildcardAll
-  | WildcardNone
+type 'a wildcard = 'a NetCore_Wildcard.wildcard
 
 type port =
   | Physical of portId

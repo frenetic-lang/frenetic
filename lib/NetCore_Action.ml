@@ -1,5 +1,6 @@
 open Packet
 open NetCore_Types
+open NetCore_Wildcard
 
 module type ACTION = sig
   type t

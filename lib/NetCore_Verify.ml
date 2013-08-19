@@ -3,6 +3,8 @@ open Frenetic_List
 open NetCore_Types
 open Unix
 
+module W = NetCore_Wildcard
+
 (* JNF: This function belongs somewhere else. *)
 let map_option f = function
   | None -> None
@@ -194,9 +196,9 @@ module Verify = struct
       
   let encode_pattern (pat:ptrn) (pkt:zVar) : zFormula = 
     let map_wildcard f = function
-      | WildcardExact x -> Some (f x)
-      | WildcardAll -> None
-      | WildcardNone -> Some (ZFalse) in 
+      | W.WildcardExact x -> Some (f x)
+      | W.WildcardAll -> None
+      | W.WildcardNone -> Some (ZFalse) in 
     ZAnd 
       (filter_map
 	 (fun x -> x)
