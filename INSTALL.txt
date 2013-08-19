@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: ff0c0738209864dae2ec41d0587fb256) *)
+(* DO NOT EDIT (digest: f69c60e63b1bcd13f39718c2c53a302d) *)
 This is the INSTALL file for the frenetic distribution.
 
 This package uses OASIS to generate its build system. See section OASIS for
@@ -9,13 +9,14 @@ Dependencies
 ============
 
 In order to compile this package, you will need:
-* ocaml for all, doc doc
+* ocaml for all, test all_tests, doc doc
 * findlib
 * lwt for library netcore, executable frenetic
 * cstruct for library netcore
-* packet for library netcore, executable Test_Frenetic
+* packet for library netcore, executable testtool
 * openflow for library netcore
-* oUnit for executable Test_Frenetic
+* oUnit for executable testtool
+* pa_ounit for executable testtool
 
 Installing
 ==========

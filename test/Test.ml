@@ -5,6 +5,7 @@ open NetCore_Semantics
 open NetCore_Pattern
 open NetCore_Pretty
 open OUnit
+open ONF_Tests
 
 let string_of_list f lst = String.concat "," (List.map f lst)
 
@@ -688,4 +689,3 @@ let tests =
 (*         ; TestNetCore.go *)
            ]
 
-let _ = run_test_tt_main tests
