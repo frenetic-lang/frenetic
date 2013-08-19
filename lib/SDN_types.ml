@@ -141,6 +141,15 @@ type flowStats = {
   flow_byte_count: int64
 }
 
+let format_switchId (fmt : Format.formatter) (switchId : switchId) : unit = 
+  match switchId with
+  | OF10SwitchId n -> Format.fprintf fmt "%Ld" n
+  | OF13SwitchId n -> Format.fprintf fmt "%Ld" n
+
+let format_portId (fmt : Format.formatter) (portId : portId) : unit = 
+  match portId with
+  | OF10PortId n -> Format.fprintf fmt "%d" n
+  | OF13PortId n -> Format.fprintf fmt "%ld" n
 
 module type SWITCH = sig
   type t

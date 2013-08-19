@@ -157,6 +157,11 @@ type flowStats = {
 
 (* TODO: FILL *)
 
+(* {1 Pretty-printing } *)
+
+val format_portId : Format.formatter -> portId -> unit
+val format_switchId : Format.formatter -> switchId -> unit
+
 module type SWITCH = sig
 
   type t
