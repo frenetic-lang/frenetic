@@ -39,6 +39,16 @@ module HdrMap : Map.S
 
 type hdrValMap = hdrVal HdrMap.t
 
+type pkt = {
+  headers : hdrValMap;
+  payload : SDN_types.payload
+}
+
+module PktSet : Set.S
+  with type elt = pkt
+
+val eval : pkt -> pol -> PktSet.t
+
 val format_pol : Format.formatter -> pol -> unit
 
 val string_of_pol : pol -> string
