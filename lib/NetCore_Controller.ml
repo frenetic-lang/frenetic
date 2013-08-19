@@ -437,14 +437,7 @@ module Make (Platform : PLATFORM) = struct
       Lwt.pick [ install_new_policies sw pol_stream;
                  handle_switch_messages pol_stream sw ]
     with exn ->
-      begin
-        match exn with
-          | OpenFlow0x01_switch.Disconnected _ ->
-            (* TODO(arjun): I can assume sw itself disconnected? *)
-            Lwt.return ()
-          | _ ->
-            Log.error_f ~exn:exn "unhandled exception"
-      end) >>
+         Log.error_f ~exn:exn "unhandled exception" ) >>
     begin
       Lwt.async
         (fun () -> (* TODO(arjun): 
@@ -641,14 +634,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
       Lwt.pick [ install_new_policies sw ports pol_stream;
                  handle_switch_messages sw ]
     with exn ->
-      begin
-        match exn with
-          | OpenFlow0x01_switch.Disconnected _ ->
-            (* TODO(arjun): I can assume sw itself disconnected? *)
-            Lwt.return ()
-          | _ ->
-            Log.error_f ~exn:exn "unhandled exception"
-      end) >>
+            Log.error_f ~exn:exn "unhandled exception") >>
     begin
       Lwt.async
         (fun () -> (* TODO(arjun): 
