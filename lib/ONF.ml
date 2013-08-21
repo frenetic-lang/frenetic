@@ -109,23 +109,72 @@ let rec seq_local_local (pol1 : local) (pol2 : local) : local = match pol1 with
   | ITE (pred1, sum1, pol1') ->
     norm_ite pred1 (seq_sum_local sum1 pol2) (seq_local_local pol1' pol2)
 
-(* negate_sum pred = Neg pred *)
-let rec negate_sum (pred : sum) : sum = match HdrValSet.cardinal pred with
-  (* if pred = Drop then Id *)
-  | 0 -> HdrValSet.singleton id
+(* map_sum f (seq_1 + ... + seq_n) = f seq_1 + ... + f seq_n *)
+let map_sum (f : seq -> seq) (pol : sum) =
+  let g seq pol' = HdrValSet.add (f seq) pol' in
+  HdrValSet.fold g pol HdrValSet.empty
 
-  | 1 -> if HdrMap.is_empty (HdrValSet.choose pred) then
-          drop
-        else
-          failwith "negating a non-policy (or not normalized)"
-  | _ -> failwith "negating a non-policy (or not normalized)"
+let is_drop (pol : sum) : bool =
+  HdrValSet.is_empty pol
 
-(* negate pred = Neg ped *)
+(* there is only one element, and it is the empty sequence of updates *)
+let is_id (pol : sum) : bool =
+  not (HdrValSet.is_empty pol) && HdrMap.is_empty (HdrValSet.choose pol)
+
+(*
+    !(if A then X else IND)
+  = !(A; X + !A; IND)           by definition of if .. then .. else
+  = !(A; X) ; !(!A; IND)        de Morgan's law
+
+  Case X = 1:
+
+      !(A; X) ; !(!A; IND)       from above
+    = !(A; 1) ; !(!A; IND)       substitute X = 1
+    = !A; !(!A; IND)             identity
+    = !A; (!!A + !IND)           de Morgan's law
+    = !A; (A + !IND)             double negation
+    = !A; A + !A; !IND           distributivity
+    = 0 + !A; !IND               excluded middle
+    = if A then 0 else 1; !IND   by defn. of if-then-else
+
+    !IND can be normalized by induction and the product can be normalized
+    by the seq_local_local function.
+
+  Case X = 0:
+
+      !(A; X) ; !(!A; IND)       from above
+    = !(A; 0) ; !(!A; IND)       substitute X = 0
+    = !0      ; !(!A; IND)       zero
+    = 1; !(!A; IND)              negation
+    = !(!A; IND)                 identity
+    = !!A + !IND                 de Morgan's law
+    = A + !IND                   double negation
+    = if A then 1 else 0 + !IND  by defn. of if-then-else
+
+    !IND can be normalized by induction and the sum can be normalized
+    by the par_local_local function.
+*)
 let rec negate (pred : local) : local = match pred with
-  | Action sum -> Action (negate_sum sum)
-  | ITE (pr, sum, pol') -> ITE (pr, negate_sum sum, negate pol')
+  | Action sum ->
+    if is_drop sum then
+      Action (HdrValSet.singleton id)
+    else if is_id sum then
+      Action drop
+    else
+      failwith "not a predicate"
+  | ITE (a, x, ind) ->
+    if is_drop x then
+      par_local_local 
+       (ITE (a, HdrValSet.singleton id, Action drop))
+       (negate ind)
+    else if is_id x then
+      seq_local_local
+        (ITE (a, drop, Action (HdrValSet.singleton id)))
+        (negate ind)
+    else
+      failwith "not a predicate"
 
-let rec local_normalize (pol : K.pol) : local = match pol with
+and local_normalize (pol : K.pol) : local = match pol with
   | K.Drop ->
     Action drop (* missing from appendix *)
   | K.Id ->

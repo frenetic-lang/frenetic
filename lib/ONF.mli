@@ -40,7 +40,6 @@ type seq = NetKAT_Types.hdrValMap
   where all subterms [seq] are distinct. *)
 type sum = HdrValSet.t
 
-
 (** A cascase of [if .. then .. else] expressions nested under the [else]
     branch.
 
