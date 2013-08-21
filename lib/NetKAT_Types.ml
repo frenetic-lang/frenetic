@@ -14,15 +14,11 @@ type hdr =
   | Switch
 
 type hdrVal =
-  | DlAddr of Packet.dlAddr
-  | DlTypVal of Packet.dlTyp
-  | DlVlanVal of Packet.dlVlan
-  | DlVlanPcpVal of Packet.dlVlanPcp
-  | NwAddr of Packet.nwAddr
-  | NwTosVal of Packet.nwTos
-  | TpPort of Packet.tpPort
-  | PortVal of SDN_types.portId
-  | SwitchVal of SDN_types.switchId
+  | Int64 of Int64.t
+  | Int48 of Int64.t
+  | Int32 of Int32.t
+  | Int16 of int
+  | Int4 of int
 
 type pol =
   | Drop
@@ -48,21 +44,30 @@ type pkt = {
 module PktSet = Set.Make (struct
   type t = pkt
 
-  (** TODO(arjun): compare payloads? *)
+  (* First compare by headers, then payload. The payload comparison is a
+     little questionable. However, this is safe to use in eval, since
+     all output packets have the same payload as the input packet. *)
   let compare x y =
-    HdrMap.compare Pervasives.compare x.headers y.headers
+    let cmp = HdrMap.compare Pervasives.compare x.headers y.headers in
+    if cmp != 0 then
+      cmp
+  else
+    Pervasives.compare x.payload y.payload
 end)
 
 let rec eval (pkt : pkt) (pol : pol) : PktSet.t = match pol with
   | Drop -> PktSet.empty
   | Id -> PktSet.singleton pkt
   | Test (h, v) -> 
-    if HdrMap.mem h pkt.headers && HdrMap.find h pkt.headers = v then
+    if HdrMap.find h pkt.headers = v then
       PktSet.singleton pkt
     else
       PktSet.empty
   | Set (h, v) ->
-    PktSet.singleton { pkt with headers = HdrMap.add h v pkt.headers }
+    if HdrMap.mem h pkt.headers then
+      PktSet.singleton { pkt with headers = HdrMap.add h v pkt.headers }
+    else
+      raise Not_found (* for consistency with Test *)
   | Neg p ->
     PktSet.diff (PktSet.singleton pkt) (eval pkt p)
   | Par (pol1, pol2) ->
@@ -72,8 +77,6 @@ let rec eval (pkt : pkt) (pol : pol) : PktSet.t = match pol with
     PktSet.fold f (eval pkt pol1) PktSet.empty
 
 module Formatting = struct
-
-  type cxt = SEQ | PAR | NEG | PAREN
 
   open Format
 
@@ -95,16 +98,15 @@ module Formatting = struct
         | Switch -> "switch")
 
   let hdrVal (fmt : formatter) (v : hdrVal) : unit = match v with
-    | DlAddr n -> fprintf fmt "%Ld" n
-    | DlTypVal n -> fprintf fmt "%d" n
-    | DlVlanVal None -> fprintf fmt "0xFFFF"     
-    | DlVlanVal (Some n) -> fprintf fmt "%d" n
-    | DlVlanPcpVal n -> fprintf fmt "%d" n
-    | NwAddr n -> fprintf fmt "%ld" n
-    | NwTosVal n -> fprintf fmt "%d" n
-    | TpPort n -> fprintf fmt "%d" n
-    | PortVal n -> SDN_types.format_portId fmt n
-    | SwitchVal n -> SDN_types.format_switchId fmt n
+    | Int64 n -> fprintf fmt "%Ld" n
+    | Int48 n -> fprintf fmt "%Ld" n
+    | Int32 n -> fprintf fmt "%ld" n
+    | Int16 n -> fprintf fmt "%d" n
+    | Int4 n -> fprintf fmt "%d" n
+
+  (* The type of the immediately surrounding context, which guides parenthesis-
+     intersion. *)
+  type cxt = SEQ | PAR | NEG | PAREN
 
   let rec pol (cxt : cxt) (fmt : formatter) (p : pol) : unit = match p with
     | Drop -> fprintf fmt "@[drop@]"
@@ -140,4 +142,4 @@ let make_string_of formatter x =
 
 let format_pol = Formatting.pol Formatting.PAREN
 
-let string_of_pol  = make_string_of format_pol
+let string_of_pol = make_string_of format_pol

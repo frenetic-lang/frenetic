@@ -109,15 +109,19 @@ let rec seq_local_local (pol1 : local) (pol2 : local) : local = match pol1 with
   | ITE (pred1, sum1, pol1') ->
     norm_ite pred1 (seq_sum_local sum1 pol2) (seq_local_local pol1' pol2)
 
-let rec negate_sum (pol : sum) : sum = match HdrValSet.cardinal pol with
+(* negate_sum pred = Neg pred *)
+let rec negate_sum (pred : sum) : sum = match HdrValSet.cardinal pred with
+  (* if pred = Drop then Id *)
   | 0 -> HdrValSet.singleton id
-  | 1 -> if HdrMap.is_empty (HdrValSet.choose pol) then
+
+  | 1 -> if HdrMap.is_empty (HdrValSet.choose pred) then
           drop
         else
           failwith "negating a non-policy (or not normalized)"
   | _ -> failwith "negating a non-policy (or not normalized)"
 
-let rec negate (pol : local) : local = match pol with
+(* negate pred = Neg ped *)
+let rec negate (pred : local) : local = match pred with
   | Action sum -> Action (negate_sum sum)
   | ITE (pr, sum, pol') -> ITE (pr, negate_sum sum, negate pol')
 
