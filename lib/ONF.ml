@@ -21,8 +21,10 @@ let id : seq = HdrMap.empty
 
 let drop : sum = HdrValSet.empty
 
+(* Only used by and_pred *)
 exception Empty_pred
 
+(* Some (pr1 ; pr2) unless the conjunct in empty, in which case, return None. *)
 let rec and_pred (pr1 : pred) (pr2 : pred) : pred option =
 	let f hdr val1 val2 = match (val1, val2) with
 	| (Some v1, Some v2) -> if v1 <> v2 then raise Empty_pred else Some v1
@@ -34,27 +36,86 @@ let rec and_pred (pr1 : pred) (pr2 : pred) : pred option =
   with
     Empty_pred -> None
 
+(* s1 + s2 *)
 let rec par_sum_sum (s1 : sum) (s2 : sum) : sum = 
   HdrValSet.union s1 s2
 
-let rec par_sum_local (s : sum) (l : local) : local = match l with
-  | Action s' -> Action (par_sum_sum s s')
-  | ITE (pr, s', l') -> ITE (pr, par_sum_sum s s', par_sum_local s l')
+(* Lemma 1: if Y then S + S' else (S + A') = S + (if Y then S' else A')
 
-let rec par_local_local (p1 : local) (p2 : local) : local = match (p1, p2) with
-  | (_ , Action s2) -> par_sum_local s2 p1
-  | (Action s1, _) -> par_sum_local s1 p2
-  | (ITE (pr1, s1, p1'), ITE (pr2, s2, p2')) ->
-    match and_pred pr1 pr2 with
-    | None -> 
-      ITE (pr1, s1,
-      	ITE (pr2, s2, 
-      	  Action drop))
-    | Some pr1_and_pr2 ->
-	    ITE (pr1_and_pr2, par_sum_sum s1 s2,
-	      ITE (pr1, s1,
-	      	ITE (pr2, s2,
-	      	  Action drop)))
+   if Y then S + S' else (S + A')                      
+  = Y;(S + S') + !Y;(S + A')                            if-then-else
+  = Y;S + !Y;S + Y;S' + !Y;A'                           distributivity
+  = (Y+!Y);S + (Y;S' + !Y;A')                           commutativity
+  = 1;S + (Y;S' + !Y;A')                                excluded middle
+  = S + (Y;S' + !Y;A')                                  *1
+  = S + (if Y then S' else A')                          if-then-else
+  = S + A                                               substitution
+
+  QED
+ *)
+
+(* simpl_par_sum_local S A = S + A *)
+let rec simpl_par_sum_local (s : sum) (l : local) : local = match l with
+  (* Case A = S' is trivial *)
+  | Action s' -> Action (par_sum_sum s s')
+  (* Case A = if Y then S' else A'
+
+       if Y then S + S' else [simpl_par_sum_local S A']    RHS below
+     = if Y then S + S' else (S + A')                      induction
+     = S + (if Y then S' else A')                          Lemma 1
+     = S + A                                               substitution
+   *)
+  | ITE (y, s', a') -> ITE (y, par_sum_sum s s', simpl_par_sum_local s a')
+
+(* par_sum_local X S A B = if X then S + A else B *)
+let rec par_sum_local (x : pred) (s : sum) (a : local) (b : local) : local = 
+  match a with
+  (* Case A = S'
+    
+       if X then S + S' else B                                        RHS below
+     = if X then S + A else B                                      substitution
+   *)
+  | Action s' -> ITE(x, par_sum_sum s s', b)
+  (* Case A = if Y then S' else A'
+
+     = if X; Y then S + S' else [par_sum_local X S A' B]              RHS below
+     = if X; Y then S + S' else if X then S + A' else B               induction
+     = X;Y;(S + S') + !(X;Y);(if X then S + A' else B)             if-then-else
+     = X;Y;(S + S') + (!X+!Y);(if X then S + A' else B)          de Morgans law
+     = X;Y;(S + S') + !X;(if X then S + A' else B)               distributivity
+                    + !Y;(if X then S + A' else B)         
+     = X;Y;(S + S') + !X;B + !Y;(if X then S + A' else B)         contradiction
+     = X;Y;(S + S') + !X;B + !Y;(X;(S+A') + !X;B)                  if-then-else
+     = X;Y;(S + S') + !X;B + !Y;X;(S+A') + !Y;!X;B               distributivity
+     = X;Y;(S + S') + !Y;X;(S+A') + (1+!Y);!X;B                  distributivity
+     = X;Y;(S + S') + !Y;X;(S+A') + !X;B                                    b+1             
+     = if X then Y;(S + S') + !Y;(S + A') else B                   if-then-else
+     = if X then (if Y then S + S' else S + A') else B             if-then-else
+     = if X then (S + if Y then S' else A') else B                      Lemma 1
+     = if X then (S + A) else B                                    substitution
+   *)
+  | ITE (y, s', a') -> 
+    let else_branch = par_sum_local x s a' b in
+    match and_pred x y with
+    | None -> else_branch
+    | Some x_and_y ->
+    ITE (x_and_y, par_sum_sum s s', else_branch)
+
+(* par_local_local A B = A + B *)
+let rec par_local_local (a : local) (b : local) : local = match (a, b) with
+  (* Immediate *)
+  | (_ , Action s) -> simpl_par_sum_local s a
+  (* Commutativity, then immediate *)
+  | (Action s, _) -> simpl_par_sum_local s b
+  (* Case A = if X then A' else B'
+    
+     = par_sum_local X A' B (par_local_local B' B)                    RHS below
+     = par_sum_local X A' B (B' + B)                                  induction
+     = if X then A' + B else B' + B                               par_sum_local
+     = (if X then A' else B') + B                                       Lemma 1
+     = A + B                                                       substitution
+  *)
+  | (ITE (x, a', b'), _) ->  par_sum_local x a' b (par_local_local b' b)
 
 (* equivalent to h<-v; seq *)
 let seq_seq (h : K.hdr) (v : K.hdrVal) (seq : seq) : seq = 
