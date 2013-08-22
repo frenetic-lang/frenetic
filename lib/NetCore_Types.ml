@@ -49,7 +49,7 @@ let id =
 
 type get_packet_handler = switchId -> port -> packet -> action
 
-  (* Packet count -> Byte count -> unit. *)
+(* Packet count -> Byte count -> unit. *)
 and get_count_handler = Int64.t -> Int64.t -> unit
 
 and action_atom =

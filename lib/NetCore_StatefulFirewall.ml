@@ -13,7 +13,7 @@ let make sw inside outside =
         (2) drop all ip packets from outside to inside initially
         (3) when inside sends to dstIP X, allow srcIP X to send back to inside
         (4) drop all non-ip packets
-      *)
+  *)
 
   (** policies is a stream we can read. 
       push sends a value into the policy stream. *)
@@ -30,8 +30,8 @@ let make sw inside outside =
          Action (forward inside), 
          ITE (And(Hdr (inPort (Physical inside)), 
                   And(is_ip_packet, Hdr (ipDst ip))), 
-         Action (forward outside), 
-         pol)) in
+              Action (forward outside), 
+              pol)) in
 
   let on_switch pol = ITE (OnSwitch sw, pol, Action []) in
 
@@ -53,8 +53,8 @@ let make sw inside outside =
         (2) drops all others *)
   let init = 
     ITE (And(Hdr (inPort (Physical inside)), is_ip_packet), 
-      Action (controller (fun sw port pk -> allow_flow pk)), 
-      Action []) in
+         Action (controller (fun sw port pk -> allow_flow pk)), 
+         Action []) in
 
   current := init;
   push (Some (on_switch init));

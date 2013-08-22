@@ -31,16 +31,16 @@ module type ACTION = sig
 
   val string_of_action : t -> string
 
- end
+end
 
 module type COMPILER_ACTION0x01 =
-  sig
-    include ACTION
-      with type e = action_atom
-    val from_nc_action : action -> t
-    (* val as_actionSequence : portId option -> t -> OpenFlow0x01.Action.sequence *)
-    val queries : t -> e list
-  end
+sig
+  include ACTION
+    with type e = action_atom
+  val from_nc_action : action -> t
+  (* val as_actionSequence : portId option -> t -> OpenFlow0x01.Action.sequence *)
+  val queries : t -> e list
+end
 
 module Output =
 struct
@@ -60,7 +60,7 @@ struct
   let atoms act = act
 
   let to_action x = [x]
-    
+
   let from_nc_action x = x
 
   let drop = []
@@ -160,16 +160,16 @@ struct
           | Icmp _, Icmp _
           | Unparsable _, Unparsable _ 
           | _, _ -> []
-          end in
+        end in
         ip_acts @ tcp_acts
       | Arp _, Arp _
       | Unparsable _, Unparsable _
-        (* TODO(cole) warn/fail if these values differ? *)
+      (* TODO(cole) warn/fail if these values differ? *)
       | _, _ ->
         (* TODO(cole) warn/fail that the policy somehow changed the frame 
          * type? *)
         []
-      in
+    in
     List.fold_left par_action drop (eth_actions @ ip_actions)
 
 
@@ -180,8 +180,8 @@ struct
       pk
 
   let sel f = function
-  | Some p -> let (old, _) = p in f old
-  | None -> all
+    | Some p -> let (old, _) = p in f old
+    | None -> all
 
   let domain atom = match atom with
     | SwitchAction out -> 
@@ -208,15 +208,15 @@ struct
         | pt -> pt in
       Some
         (sw, pt',
-        (maybe_modify out.outDlSrc Packet.setDlSrc
-        (maybe_modify out.outDlDst Packet.setDlDst
-        (maybe_modify out.outDlVlan Packet.setDlVlan
-        (maybe_modify out.outDlVlanPcp Packet.setDlVlanPcp
-        (maybe_modify out.outNwSrc Packet.setNwSrc
-        (maybe_modify out.outNwDst Packet.setNwDst
-        (maybe_modify out.outNwTos Packet.setNwTos
-        (maybe_modify out.outTpSrc Packet.setTpSrc
-        (maybe_modify out.outTpDst Packet.setTpDst pkt))))))))))
+         (maybe_modify out.outDlSrc Packet.setDlSrc
+            (maybe_modify out.outDlDst Packet.setDlDst
+               (maybe_modify out.outDlVlan Packet.setDlVlan
+                  (maybe_modify out.outDlVlanPcp Packet.setDlVlanPcp
+                     (maybe_modify out.outNwSrc Packet.setNwSrc
+                        (maybe_modify out.outNwDst Packet.setNwDst
+                           (maybe_modify out.outNwTos Packet.setNwTos
+                              (maybe_modify out.outTpSrc Packet.setTpSrc
+                                 (maybe_modify out.outTpDst Packet.setTpDst pkt))))))))))
     else
       None
 
@@ -256,26 +256,26 @@ struct
        seq_mod (=) out1.outNwTos out2.outNwTos,
        seq_mod (=) out1.outTpSrc out2.outTpSrc,
        seq_mod (=) out1.outTpDst out2.outTpDst) with
-    | ( Some dlSrc,
-        Some dlDst,
-        Some dlVlan,
-        Some dlVlanPcp,
-        Some nwSrc,
-        Some nwDst,
-        Some nwTos,
-        Some tpSrc,
-        Some tpDst ) ->
-      Some { outDlSrc = dlSrc;
-             outDlDst = dlDst;
-             outDlVlan = dlVlan;
-             outDlVlanPcp = dlVlanPcp;
-             outNwSrc = nwSrc;
-             outNwDst = nwDst;
-             outNwTos = nwTos;
-             outTpSrc = tpSrc;
-             outTpDst = tpDst;
-             outPort = seq_port out1.outPort out2.outPort }
-    | _ -> None
+  | ( Some dlSrc,
+      Some dlDst,
+      Some dlVlan,
+      Some dlVlanPcp,
+      Some nwSrc,
+      Some nwDst,
+      Some nwTos,
+      Some tpSrc,
+      Some tpDst ) ->
+    Some { outDlSrc = dlSrc;
+           outDlDst = dlDst;
+           outDlVlan = dlVlan;
+           outDlVlanPcp = dlVlanPcp;
+           outNwSrc = nwSrc;
+           outNwDst = nwDst;
+           outNwTos = nwTos;
+           outTpSrc = tpSrc;
+           outTpDst = tpDst;
+           outPort = seq_port out1.outPort out2.outPort }
+  | _ -> None
 
   let cross lst1 lst2 = 
     Frenetic_List.concat_map (fun a -> map (fun b -> (a, b)) lst2) lst1
@@ -290,27 +290,27 @@ struct
       Some
         (ControllerAction 
            (fun sw pt pk ->
-             (* 1st action produces new packets *) 
-             let lps = apply_action (f sw pt pk) (sw, pt, pk) in 
-             (* 2nd action is applied to the new packets, to get joint action *)
-             par_actions (List.map (fun (sw', pt', pk') -> g sw' pt' pk') lps)))
+              (* 1st action produces new packets *) 
+              let lps = apply_action (f sw pt pk) (sw, pt, pk) in 
+              (* 2nd action is applied to the new packets, to get joint action *)
+              par_actions (List.map (fun (sw', pt', pk') -> g sw' pt' pk') lps)))
     | SwitchAction out, ControllerAction g ->
       Some 
         (ControllerAction
            (fun sw pt pk ->
-             begin match apply_output out (sw, pt, pk) with
-             | Some (sw', pt', pk') -> g sw' pt' pk'
-             | None -> []
-             end))
+              begin match apply_output out (sw, pt, pk) with
+                | Some (sw', pt', pk') -> g sw' pt' pk'
+                | None -> []
+              end))
     | ControllerAction f, SwitchAction out ->
       Some
         (ControllerAction
            (fun sw pt pk ->
-             let atoms1 = f sw pt pk in
-             Frenetic_List.filter_none
-               (List.map
-                  (fun at1 -> seq_action_atom at1 (SwitchAction out))
-                  atoms1)))
+              let atoms1 = f sw pt pk in
+              Frenetic_List.filter_none
+                (List.map
+                   (fun at1 -> seq_action_atom at1 (SwitchAction out))
+                   atoms1)))
     | ControllerQuery   _, _ ->
       (* Queries are functionally equivalent to drop.  But they count as a side
        * effect first. *)
@@ -336,7 +336,7 @@ struct
     | Here -> pat2
     | port ->
       if NetCore_Pattern.is_empty 
-        (NetCore_Pattern.inter (inPort port) pat2) then
+          (NetCore_Pattern.inter (inPort port) pat2) then
         empty
       else
         NetCore_Pattern.wildcardPort pat2
@@ -348,7 +348,7 @@ struct
    *    - if out updates f to v, and pat does not match v, then replace
    *      v with None in pat.
    *    - if out does not update f, leave pat unchanged w.r.t. f.
-   *)
+  *)
   let sequence_range_switch out pat =
     let pat = restrict_port out.outPort pat in
     let pat = trans out.outDlSrc dlSrc wildcardDlSrc pat in
@@ -356,20 +356,20 @@ struct
     let pat = trans out.outDlVlan dlVlan wildcardDlVlan pat in
     let pat = trans out.outDlVlanPcp dlVlanPcp wildcardDlVlanPcp pat in
     let pat = trans out.outNwSrc
-      (fun v -> { all with ptrnNwSrc = WildcardExact v })
-      wildcardNwSrc pat in
+        (fun v -> { all with ptrnNwSrc = WildcardExact v })
+        wildcardNwSrc pat in
     let pat = trans out.outNwDst
-      (fun v -> { all with ptrnNwDst = WildcardExact v })
-      wildcardNwDst pat in
+        (fun v -> { all with ptrnNwDst = WildcardExact v })
+        wildcardNwDst pat in
     let pat = trans out.outNwTos 
-      (fun v -> { all with ptrnNwTos = WildcardExact v })
-      wildcardNwTos pat in
+        (fun v -> { all with ptrnNwTos = WildcardExact v })
+        wildcardNwTos pat in
     let pat = trans out.outTpSrc 
-      (fun v -> { all with ptrnTpSrc = WildcardExact v })
-      wildcardTpSrc pat in
+        (fun v -> { all with ptrnTpSrc = WildcardExact v })
+        wildcardTpSrc pat in
     let pat = trans out.outTpDst
-      (fun v -> { all with ptrnTpDst = WildcardExact v })
-      wildcardTpDst pat in
+        (fun v -> { all with ptrnTpDst = WildcardExact v })
+        wildcardTpDst pat in
     pat
 
   let sequence_range atom pat = match atom with
@@ -383,7 +383,7 @@ struct
       | ControllerAction f -> par_action (f sw pt pk) acc
       (* TODO(cole): don't ignore packets sent to the controller? *)
       | ControllerQuery _ -> acc
-      in
+    in
     List.fold_right f action drop
 
   let switch_part action = 
@@ -391,7 +391,7 @@ struct
       | SwitchAction _ -> true
       | ControllerAction _ -> false
       | ControllerQuery _ -> false
-      in
+    in
     List.filter f action
 
 
@@ -400,7 +400,7 @@ struct
       | SwitchAction _ -> false
       | ControllerAction _ -> false
       | ControllerQuery _ -> true
-      in
+    in
     List.filter f action
 
   let atom_is_equal x y = match x, y with
@@ -489,7 +489,7 @@ module Group = struct
       | SwitchAction _ -> true
       | ControllerAction _ -> false
       | ControllerQuery _ -> false
-      in
+    in
     List.filter f action
 
   let apply_atom = Output.apply_atom
@@ -516,7 +516,7 @@ module Group = struct
       | ControllerAction f -> par_action [(f sw pt pk)] acc
       (* TODO(cole): don't ignore packets sent to the controller? *)
       | ControllerQuery _ -> acc
-      in
+    in
     List.fold_right f action drop
 
   (* let as_actionSequence inp acts = match acts with *)
@@ -534,6 +534,6 @@ module Group = struct
   let atom_is_equal = Output.atom_is_equal
 
   let string_of_action t =
-        "[" ^ (String.concat "; " (List.map Output.string_of_action t)) ^ "]"
+    "[" ^ (String.concat "; " (List.map Output.string_of_action t)) ^ "]"
 
 end

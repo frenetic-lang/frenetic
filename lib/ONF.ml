@@ -3,9 +3,9 @@ module K = NetKAT_Types
 module HdrMap = K.HdrMap
 
 module HdrValSet = Set.Make (struct
-  type t = K.hdrVal HdrMap.t
-  let compare x y = HdrMap.compare Pervasives.compare x y
-end)
+    type t = K.hdrVal HdrMap.t
+    let compare x y = HdrMap.compare Pervasives.compare x y
+  end)
 
 type pred = K.hdrValMap
 
@@ -32,12 +32,12 @@ let map_sum (f : seq -> seq) (pol : sum) =
 
 (* Some (pr1 ; pr2) unless the conjunct in empty, in which case, return None. *)
 let rec and_pred (pr1 : pred) (pr2 : pred) : pred option =
-	let f hdr val1 val2 = match (val1, val2) with
-	| (Some v1, Some v2) -> if v1 <> v2 then raise Empty_pred else Some v1
-	| (Some v1, None) -> Some v1
-	| (None, Some v2) -> Some v2
-	| (None, None) -> failwith "and_pred impossible case" in
-	try 
+  let f hdr val1 val2 = match (val1, val2) with
+    | (Some v1, Some v2) -> if v1 <> v2 then raise Empty_pred else Some v1
+    | (Some v1, None) -> Some v1
+    | (None, Some v2) -> Some v2
+    | (None, None) -> failwith "and_pred impossible case" in
+  try 
     Some (HdrMap.merge f pr1 pr2)
   with
     Empty_pred -> None
@@ -49,16 +49,16 @@ let rec par_sum_sum (s1 : sum) (s2 : sum) : sum =
 (* Lemma 1: if Y then S + S' else (S + A') = S + (if Y then S' else A')
 
    if Y then S + S' else (S + A')                      
-  = Y;(S + S') + !Y;(S + A')                            if-then-else
-  = Y;S + !Y;S + Y;S' + !Y;A'                           distributivity
-  = (Y+!Y);S + (Y;S' + !Y;A')                           commutativity
-  = 1;S + (Y;S' + !Y;A')                                excluded middle
-  = S + (Y;S' + !Y;A')                                  *1
-  = S + (if Y then S' else A')                          if-then-else
-  = S + A                                               substitution
+   = Y;(S + S') + !Y;(S + A')                            if-then-else
+   = Y;S + !Y;S + Y;S' + !Y;A'                           distributivity
+   = (Y+!Y);S + (Y;S' + !Y;A')                           commutativity
+   = 1;S + (Y;S' + !Y;A')                                excluded middle
+   = S + (Y;S' + !Y;A')                                  *1
+   = S + (if Y then S' else A')                          if-then-else
+   = S + A                                               substitution
 
-  QED
- *)
+   QED
+*)
 
 (* simpl_par_sum_local S A = S + A *)
 let rec simpl_par_sum_local (s : sum) (l : local) : local = match l with
@@ -70,17 +70,17 @@ let rec simpl_par_sum_local (s : sum) (l : local) : local = match l with
      = if Y then S + S' else (S + A')                      induction
      = S + (if Y then S' else A')                          Lemma 1
      = S + A                                               substitution
-   *)
+  *)
   | ITE (y, s', a') -> ITE (y, par_sum_sum s s', simpl_par_sum_local s a')
 
 (* par_sum_local X S A B = if X then S + A else B *)
 let rec par_sum_local (x : pred) (s : sum) (a : local) (b : local) : local = 
   match a with
   (* Case A = S'
-    
+
        if X then S + S' else B                                        RHS below
      = if X then S + A else B                                      substitution
-   *)
+  *)
   | Action s' -> ITE(x, par_sum_sum s s', b)
   (* Case A = if Y then S' else A'
 
@@ -99,13 +99,13 @@ let rec par_sum_local (x : pred) (s : sum) (a : local) (b : local) : local =
      = if X then (if Y then S + S' else S + A') else B             if-then-else
      = if X then (S + if Y then S' else A') else B                      Lemma 1
      = if X then (S + A) else B                                    substitution
-   *)
+  *)
   | ITE (y, s', a') -> 
     let else_branch = par_sum_local x s a' b in
     match and_pred x y with
     | None -> else_branch
     | Some x_and_y ->
-    ITE (x_and_y, par_sum_sum s s', else_branch)
+      ITE (x_and_y, par_sum_sum s s', else_branch)
 
 (* par_local_local A B = A + B *)
 let rec par_local_local (a : local) (b : local) : local = match (a, b) with
@@ -114,7 +114,7 @@ let rec par_local_local (a : local) (b : local) : local = match (a, b) with
   (* Commutativity, then immediate *)
   | (Action s, _) -> simpl_par_sum_local s b
   (* Case A = if X then A' else B'
-    
+
      = par_sum_local X A' B (par_local_local B' B)                    RHS below
      = par_sum_local X A' B (B' + B)                                  induction
      = if X then A' + B else B' + B                               par_sum_local
@@ -125,10 +125,10 @@ let rec par_local_local (a : local) (b : local) : local = match (a, b) with
 
 (* seq_seq H V SEQ = H<-V; SEQ *)
 let seq_seq (h : K.hdr) (v : K.hdrVal) (seq : seq) : seq = 
-	if HdrMap.mem h seq then
-	  seq
-	else
-	  HdrMap.add h v seq
+  if HdrMap.mem h seq then
+    seq
+  else
+    HdrMap.add h v seq
 
 (* commute_sum H V S = H <- V; S *)
 let commute_sum (h : K.hdr) (v : K.hdrVal) (s : sum) : sum =
@@ -139,7 +139,7 @@ let rec pred_matches (h : K.hdr) (v : K.hdrVal) (pr : pred) : bool =
   not (HdrMap.mem h pr) || HdrMap.find h pr = v
 
 let rec pred_wildcard (h : K.hdr) (pr : pred) : pred =
-	  HdrMap.remove h pr
+  HdrMap.remove h pr
 
 (* commute H V P = H<-V; P *)
 let rec commute (h : K.hdr) (v : K.hdrVal) (p : local) : local = match p with
@@ -150,7 +150,7 @@ let rec commute (h : K.hdr) (v : K.hdrVal) (p : local) : local = match p with
      = H <- V; (H=V + !H=V); if X then S else Q
      = H<-V;H=V;if X then S else Q + H<-V;!H=V;if X then S else Q 
      = CONTINUE
-   *)
+  *)
   | ITE (pr, sum, pol) ->
     match pred_matches h v pr with
     | false -> commute h v pol
@@ -158,7 +158,7 @@ let rec commute (h : K.hdr) (v : K.hdrVal) (p : local) : local = match p with
 
 (* returns a term equivalent to [if pr then pol1 else pol2] *)
 let rec norm_ite (pr : pred) (pol1 : local) (pol2 : local) : local =
-	match pol1 with
+  match pol1 with
   | Action sum1 -> ITE (pr, sum1, pol2)
   | ITE (pr1', sum1', pol1') ->
     match and_pred pr pr1' with
@@ -166,7 +166,7 @@ let rec norm_ite (pr : pred) (pol1 : local) (pol2 : local) : local =
     | Some pr1_and_pr1' -> ITE (pr1_and_pr1', sum1', norm_ite pr pol1' pol2)
 
 let seq_seq_local (p1 : seq) (p2 : local) : local = 
-	HdrMap.fold commute  p1 p2
+  HdrMap.fold commute  p1 p2
 
 (* p1; p2 *)
 let seq_sum_local (p1 : sum) (p2 : local) : local = 
@@ -234,8 +234,8 @@ let rec negate (pred : local) : local = match pred with
   | ITE (a, x, ind) ->
     if is_drop x then
       par_local_local 
-       (ITE (a, HdrValSet.singleton id, Action drop))
-       (negate ind)
+        (ITE (a, HdrValSet.singleton id, Action drop))
+        (negate ind)
     else if is_id x then
       seq_local_local
         (ITE (a, drop, Action (HdrValSet.singleton id)))
@@ -272,8 +272,8 @@ let pred_to_netkat pr =
   else
     let (h, v) = HdrMap.min_binding pr in
     let pr' = HdrMap.remove h pr in
-	  let f h v pol = K.Seq (K.Test (h, v), pol) in
-	  HdrMap.fold f pr' (K.Test (h, v))
+    let f h v pol = K.Seq (K.Test (h, v), pol) in
+    HdrMap.fold f pr' (K.Test (h, v))
 
 let seq_to_netkat (pol : seq) : K.pol =
   (* avoid printing trailing K.Id if it is unnecessary *)
@@ -300,4 +300,4 @@ let rec to_netkat (pol : local) : K.pol = match pol with
   | ITE (pred, sum, pol') ->
     let pr = pred_to_netkat pred in
     K.Par (K.Seq (pr, sum_to_netkat sum),
-    	     K.Seq (K.Neg pr, to_netkat pol'))
+           K.Seq (K.Neg pr, to_netkat pol'))

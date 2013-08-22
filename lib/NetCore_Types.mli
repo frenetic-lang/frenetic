@@ -22,8 +22,8 @@ type ptrn = NetCore_Pattern.t
 
 type 'a match_modify = ('a * 'a) option
 
-  (** Note that OpenFlow does not allow the [dlTyp] and [nwProto]
-      fields to be modified. *)
+(** Note that OpenFlow does not allow the [dlTyp] and [nwProto]
+    fields to be modified. *)
 type output = {
   outDlSrc : dlAddr match_modify;
   outDlDst : dlAddr match_modify;
@@ -41,7 +41,7 @@ val id : output
 
 type get_packet_handler = switchId -> port -> packet -> action
 
-  (* Packet count -> Byte count -> unit. *)
+(* Packet count -> Byte count -> unit. *)
 and get_count_handler = Int64.t -> Int64.t -> unit
 
 and action_atom =

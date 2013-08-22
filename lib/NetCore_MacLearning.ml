@@ -22,11 +22,11 @@ let make () =
   let make_unknown_predicate () = 
     Not
       (Hashtbl.fold 
-        (fun (sw,eth) pt pol -> 
-          Or (And (And (OnSwitch sw, Hdr (inPort (Physical pt))),
-                       Hdr (dlSrc eth)), pol))
-        learned_hosts
-        Nothing) in
+         (fun (sw,eth) pt pol -> 
+            Or (And (And (OnSwitch sw, Hdr (inPort (Physical pt))),
+                     Hdr (dlSrc eth)), pol))
+         learned_hosts
+         Nothing) in
 
   (** We're using the Lwt library to create streams. Policy is a stream
       we can read. The push function sends a value into the policy 
@@ -45,25 +45,25 @@ let make () =
       new learning policy, and pushes that policy to the stream. *)
   and learn_host sw pt pk  =
     match pt with
-      | Physical pt ->
+    | Physical pt ->
+      begin
         begin
-          begin
-            printf "[MacLearning] at switch %Ld host %s at port %ld\n%!"
-                    sw (string_of_mac pk.dlSrc) pt;
-            if Hashtbl.mem learned_hosts (sw, pk.dlSrc) then
-              printf "[Macml] at switch %Ld, host %s at port %ld (moved)\n%!"
-                sw (string_of_mac pk.dlSrc) pt
-            else
-              printf "[Macml] at switch %Ld, host %s at port %ld\n%!"
-                sw (string_of_mac pk.dlSrc) pt
-          end;
-          Hashtbl.replace learned_hosts (sw, pk.dlSrc) pt;
-          push (Some (make_learning_policy ()));
-          drop
-        end
-      | _ -> drop in
-          
-  
+          printf "[MacLearning] at switch %Ld host %s at port %ld\n%!"
+            sw (string_of_mac pk.dlSrc) pt;
+          if Hashtbl.mem learned_hosts (sw, pk.dlSrc) then
+            printf "[Macml] at switch %Ld, host %s at port %ld (moved)\n%!"
+              sw (string_of_mac pk.dlSrc) pt
+          else
+            printf "[Macml] at switch %Ld, host %s at port %ld\n%!"
+              sw (string_of_mac pk.dlSrc) pt
+        end;
+        Hashtbl.replace learned_hosts (sw, pk.dlSrc) pt;
+        push (Some (make_learning_policy ()));
+        drop
+      end
+    | _ -> drop in
+
+
   (** The initial value of the policy is to receives packets from all hosts. *)
 
   let init = 
@@ -73,31 +73,31 @@ let make () =
   let known_hosts () = 
     Hashtbl.fold 
       (fun (sw,dst) _ hosts -> Or (And (OnSwitch sw, Hdr (dlDst dst)),
-                                     hosts))
+                                   hosts))
       learned_hosts
       Nothing in
 
   (** Maps over all tuples, (sw, pt, mac) in [learned_hosts], and
       writes the rule:
-      
+
       Switch = sw && DstMac = mac ==> To pt
-      
+
       Sends traffic for unknown destinations to ToAll ports. *)
   let make_routing_policy () = 
     Hashtbl.fold
       (fun (sw, dst) pt pol ->
-        Union
-          (ITE (And (OnSwitch sw, Hdr (dlDst dst)),
-                  Action (forward pt), Action []),
-           pol))
+         Union
+           (ITE (And (OnSwitch sw, Hdr (dlDst dst)),
+                 Action (forward pt), Action []),
+            pol))
       learned_hosts
       (ITE (Not (known_hosts ()), Action to_all, Action [])) in
 
   (** Composes learning and routing policies, which together form
       mac-learning. *)      
   let policy = Lwt_stream.map (fun learning_pol ->
-    Union (learning_pol, make_routing_policy ()))
-    policy in
+      Union (learning_pol, make_routing_policy ()))
+      policy in
 
   push (Some init);
   (init, policy)

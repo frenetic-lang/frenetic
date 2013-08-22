@@ -30,9 +30,9 @@ type pol =
   | Seq of pol * pol
 
 module HdrMap = Map.Make (struct
-  type t = hdr
-  let compare = Pervasives.compare
-end)
+    type t = hdr
+    let compare = Pervasives.compare
+  end)
 
 type hdrValMap = hdrVal HdrMap.t
 
@@ -42,18 +42,18 @@ type pkt = {
 }
 
 module PktSet = Set.Make (struct
-  type t = pkt
+    type t = pkt
 
-  (* First compare by headers, then payload. The payload comparison is a
-     little questionable. However, this is safe to use in eval, since
-     all output packets have the same payload as the input packet. *)
-  let compare x y =
-    let cmp = HdrMap.compare Pervasives.compare x.headers y.headers in
-    if cmp != 0 then
-      cmp
-  else
-    Pervasives.compare x.payload y.payload
-end)
+    (* First compare by headers, then payload. The payload comparison is a
+       little questionable. However, this is safe to use in eval, since
+       all output packets have the same payload as the input packet. *)
+    let compare x y =
+      let cmp = HdrMap.compare Pervasives.compare x.headers y.headers in
+      if cmp != 0 then
+        cmp
+      else
+        Pervasives.compare x.payload y.payload
+  end)
 
 let rec eval (pkt : pkt) (pol : pol) : PktSet.t = match pol with
   | Drop -> PktSet.empty
@@ -83,19 +83,19 @@ module Formatting = struct
   let hdr (fmt : formatter) (h : hdr) : unit = 
     pp_print_string fmt
       (match h with
-        | DlSrc -> "dlSrc"
-        | DlDst -> "dlDst"
-        | DlTyp -> "dlTyp"
-        | DlVlan -> "dlVlan"
-        | DlVlanPcp -> "dlVlanPcp"
-        | NwSrc -> "nwSrc"
-        | NwDst -> "nwDst"
-        | NwProto -> "nwProto"
-        | NwTos -> "nwTos"
-        | TpSrc -> "tpSrc"
-        | TpDst -> "tpDst"
-        | Port -> "port"
-        | Switch -> "switch")
+       | DlSrc -> "dlSrc"
+       | DlDst -> "dlDst"
+       | DlTyp -> "dlTyp"
+       | DlVlan -> "dlVlan"
+       | DlVlanPcp -> "dlVlanPcp"
+       | NwSrc -> "nwSrc"
+       | NwDst -> "nwDst"
+       | NwProto -> "nwProto"
+       | NwTos -> "nwTos"
+       | TpSrc -> "tpSrc"
+       | TpDst -> "tpDst"
+       | Port -> "port"
+       | Switch -> "switch")
 
   let hdrVal (fmt : formatter) (v : hdrVal) : unit = match v with
     | Int64 n -> fprintf fmt "%Ld" n
@@ -114,19 +114,19 @@ module Formatting = struct
     | Test (h, v) -> fprintf fmt "@[%a = %a@]" hdr h hdrVal v
     | Set (h, v) -> fprintf fmt "@[%a <- %a@]" hdr h hdrVal v
     | Neg p' -> begin match cxt with
-      | PAREN -> fprintf fmt "@[!%a@]" (pol NEG) p'
-      | _ -> fprintf fmt "@[!@[(%a)@]@]" (pol PAREN) p'
+        | PAREN -> fprintf fmt "@[!%a@]" (pol NEG) p'
+        | _ -> fprintf fmt "@[!@[(%a)@]@]" (pol PAREN) p'
       end
     | Par (p1, p2) -> begin match cxt with
-      | PAREN
-      | PAR -> fprintf fmt "@[%a + %a@]" (pol PAR) p1 (pol PAR) p2
-      | _ -> fprintf fmt "@[(@[%a + %a@])@]" (pol PAR) p1 (pol PAR) p2
+        | PAREN
+        | PAR -> fprintf fmt "@[%a + %a@]" (pol PAR) p1 (pol PAR) p2
+        | _ -> fprintf fmt "@[(@[%a + %a@])@]" (pol PAR) p1 (pol PAR) p2
       end
     | Seq (p1, p2) -> begin match cxt with
-      | PAREN
-      | SEQ
-      | PAR -> fprintf fmt "@[%a ; %a@]" (pol SEQ) p1 (pol SEQ) p2
-      | _ -> fprintf fmt "@[(@[%a ; %a@])@]" (pol SEQ) p1 (pol SEQ) p2
+        | PAREN
+        | SEQ
+        | PAR -> fprintf fmt "@[%a ; %a@]" (pol SEQ) p1 (pol SEQ) p2
+        | _ -> fprintf fmt "@[(@[%a ; %a@])@]" (pol SEQ) p1 (pol SEQ) p2
       end
 
 end

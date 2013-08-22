@@ -17,9 +17,9 @@ let init_pol : pol = Filter Nothing
 module type PLATFORM = OpenFlow0x04_Platform.PLATFORM
 
 module type MAKE  = functor (Platform : PLATFORM) -> 
-  sig
-    val start_controller : NetCore_Types.pol NetCore_Stream.t -> unit Lwt.t
-  end
+sig
+  val start_controller : NetCore_Types.pol NetCore_Stream.t -> unit Lwt.t
+end
 
 module Make (Platform : PLATFORM) = struct
   let rec prio_rec prio = function
@@ -27,8 +27,8 @@ module Make (Platform : PLATFORM) = struct
     | p::rest ->
       let pat,act0 = p in ((prio,pat),act0)::(prio_rec (prio - 1) rest)
 
-(** val prioritize :
-    'a1 coq_Classifier -> ((Word16.t*Pattern.pattern)*'a1) list **)
+  (** val prioritize :
+      'a1 coq_Classifier -> ((Word16.t*Pattern.pattern)*'a1) list **)
 
   let prioritize lst =
     prio_rec max_int lst
@@ -42,7 +42,7 @@ module Make (Platform : PLATFORM) = struct
 
 
   let get_inport = List.fold_left (fun acc oxm -> 
-    match oxm with
+      match oxm with
       | OxmInPort pp -> Some pp
       | _ -> acc) None
 
@@ -62,13 +62,13 @@ module Make (Platform : PLATFORM) = struct
 
   let rec flowtable_to_group_table1 ft n = match ft with
     | (mat, []) :: ft -> let ft', gt = flowtable_to_group_table1 ft n in
-                         ((mat, []) :: ft', gt)
+      ((mat, []) :: ft', gt)
     | (mat, [act]) :: ft -> let ft', gt = flowtable_to_group_table1 ft n in
-                            ((mat, act) :: ft', gt)
+      ((mat, act) :: ft', gt)
     | (mat, acts) :: ft -> let ft', gt = flowtable_to_group_table1 ft (Int32.succ n) in
-                           ((mat, [Group n]) :: ft', (n, acts) :: gt)
+      ((mat, [Group n]) :: ft', (n, acts) :: gt)
     | [] -> ([], [])
-    
+
 
   let flowtable_to_group_table ft = 
     flowtable_to_group_table1 ft 0l
@@ -77,37 +77,37 @@ module Make (Platform : PLATFORM) = struct
     | Output (PhysicalPort pp) :: acts -> Some pp
     | _ :: acts -> get_watch_port acts
     | [] -> None
-    
+
   let acts_to_buckets acts = List.map 
-    (fun act ->  { bu_weight = 0; bu_watch_port = get_watch_port act;
-                   bu_watch_group = None; bu_actions = act }) acts
-    
+      (fun act ->  { bu_weight = 0; bu_watch_port = get_watch_port act;
+                     bu_watch_group = None; bu_actions = act }) acts
+
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
     lwt flow_table = Lwt.wrap2 Compat.flow_table_of_policy sw pol in
     let ft, gt = flowtable_to_group_table flow_table in
     Platform.send_to_switch sw 0l (FlowModMsg delete_all_flows) >>
     Lwt_list.iter_s
       (fun (gid, actions) ->
-        Platform.send_to_switch sw 0l 
-          (GroupModMsg (AddGroup (FF, gid, acts_to_buckets actions))) >>
-        Lwt.return ())
+         Platform.send_to_switch sw 0l 
+           (GroupModMsg (AddGroup (FF, gid, acts_to_buckets actions))) >>
+         Lwt.return ())
       gt >>
     let prio = ref 65535 in
     Lwt_list.iter_s
       (fun (match_, actions) ->
-        Platform.send_to_switch sw 0l 
-          (FlowModMsg (to_flow_mod !prio match_ actions 0)) >>
-        (decr prio; Lwt.return ()))
+         Platform.send_to_switch sw 0l 
+           (FlowModMsg (to_flow_mod !prio match_ actions 0)) >>
+         (decr prio; Lwt.return ()))
       ft
 
   let install_new_policies sw pol_stream =
     Lwt_stream.iter_s (configure_switch sw)
       (NetCore_Stream.to_stream pol_stream)
-      
+
   let get_in_port_from_oxm = List.fold_left 
-    (fun acc x -> match x with
-      | OxmInPort pt -> Some pt
-      | _ -> acc) None
+      (fun acc x -> match x with
+         | OxmInPort pt -> Some pt
+         | _ -> acc) None
 
   let handle_packet_in pol sw pkt_in = 
     let in_port = match get_in_port_from_oxm pkt_in.pi_ofp_match with
@@ -129,11 +129,11 @@ module Make (Platform : PLATFORM) = struct
       let switch_action =
         NetCore_Action.Group.switch_part
           (NetCoreCompiler.OutputClassifier.scan 
-            classifier (Physical in_port) in_packet) in
+             classifier (Physical in_port) in_packet) in
       let classifier_out_vals = 
         NetCore_Semantics.eval_action switch_action in_val in
 
-    (* These are packets not already processed in the data plane. *)
+      (* These are packets not already processed in the data plane. *)
       let new_out_vals =
         List.filter 
           (fun v -> not (List.mem v classifier_out_vals)) 
@@ -146,15 +146,15 @@ module Make (Platform : PLATFORM) = struct
           NetCore_Action.Group.par_action
           NetCore_Action.Group.drop
           (List.map (fun v -> NetCore_Action.Group.make_transformer in_val v)
-            new_out_vals) in
+             new_out_vals) in
 
       let out_payload = 
         { po_payload = pkt_in.pi_payload
         ; po_in_port = (PhysicalPort in_port)
         ; po_actions = 
             match Compat.as_actionSequence (Some in_port) action with
-              | acts :: _ -> acts
-              | [] -> []
+            | acts :: _ -> acts
+            | [] -> []
         } in
       Platform.send_to_switch sw 0l (PacketOutMsg out_payload)  
     with Unparsable _ -> 
@@ -182,27 +182,27 @@ module Make (Platform : PLATFORM) = struct
     Log.info_f "switch %Ld connected.\n%!" sw >>
     (* let _ = Queries.add_switch sw in *)
     (try_lwt
-      lwt _ = Lwt.wrap2 NetCore_Semantics.handle_switch_events
-        (SwitchUp (sw, features))
-        (NetCore_Stream.now pol_stream) in
-      Lwt.pick [ install_new_policies sw pol_stream;
-                 handle_switch_messages pol_stream sw ]
-    with exn ->
-      begin
-        match exn with
-          | OpenFlow0x04_Platform.OpenFlowPlatform.SwitchDisconnected _ ->
-            (* TODO(arjun): I can assume sw itself disconnected? *)
-            Lwt.return ()
-          | _ ->
-            Log.error_f ~exn:exn "unhandled exception"
-      end) >>
+       lwt _ = Lwt.wrap2 NetCore_Semantics.handle_switch_events
+           (SwitchUp (sw, features))
+           (NetCore_Stream.now pol_stream) in
+       Lwt.pick [ install_new_policies sw pol_stream;
+                  handle_switch_messages pol_stream sw ]
+     with exn ->
+       begin
+         match exn with
+         | OpenFlow0x04_Platform.OpenFlowPlatform.SwitchDisconnected _ ->
+           (* TODO(arjun): I can assume sw itself disconnected? *)
+           Lwt.return ()
+         | _ ->
+           Log.error_f ~exn:exn "unhandled exception"
+       end) >>
     begin
       Lwt.async
         (fun () -> (* TODO(arjun): 
                       confirm this gracefully discards the exception *)
-          Lwt.wrap2 NetCore_Semantics.handle_switch_events 
-            (SwitchDown sw)
-            (NetCore_Stream.now pol_stream));
+           Lwt.wrap2 NetCore_Semantics.handle_switch_events 
+             (SwitchDown sw)
+             (NetCore_Stream.now pol_stream));
       (* Queries.remove_switch sw; *)
       Log.info_f "switch %Ld disconnected.\n%!" sw
     end
@@ -214,9 +214,9 @@ module Make (Platform : PLATFORM) = struct
     accept_switches pol_stream
 
   let rec setup_queries pol_stream = init_pol
-    (* lwt pol = Lwt_stream.next pol_stream in *)
-    (* Queries.stop () >> *)
-    (* Queries.start pol <&> setup_queries pol_stream *)
+  (* lwt pol = Lwt_stream.next pol_stream in *)
+  (* Queries.stop () >> *)
+  (* Queries.start pol <&> setup_queries pol_stream *)
 
   (** Emits packets synthesized at the controller. Produced packets
       are _not_ subjected to the current NetCore policy, so they do not

@@ -39,7 +39,7 @@ type env = value Env.t
 let init_env = 
   Env.add
     "learn"
-     (let (init, pol) = NetCore_MacLearning.make () in
-      let (lwt_e, stream) = NetCore_Stream.from_stream init pol in
-      PolStream (lwt_e, stream))
-  Env.empty
+    (let (init, pol) = NetCore_MacLearning.make () in
+     let (lwt_e, stream) = NetCore_Stream.from_stream init pol in
+     PolStream (lwt_e, stream))
+    Env.empty

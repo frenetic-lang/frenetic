@@ -72,17 +72,17 @@ struct
   let output_to_of inp out = match out.outPort with
     | P.Here -> [] (* Fishy, IMO. Shouldn't this be InPort? *)
     | P.All -> modify out @ (Output AllPorts)
-      :: unmodify out
+                            :: unmodify out
     | P.Physical pt ->
       modify out @
         (( match inp with
-          | Some pt' when (=) pt' pt ->
-            Output InPort
-          | _ ->
-            Output (PhysicalPort (to_of_portId pt))) ::
-            (unmodify out))
+            | Some pt' when (=) pt' pt ->
+              Output InPort
+            | _ ->
+              Output (PhysicalPort (to_of_portId pt))) ::
+           (unmodify out))
     | _ -> failwith "output_to_of: Don't know how to handle this port type"
-        
+
   let atom_to_of inp atom = match atom with
     | SwitchAction out -> output_to_of inp out
     | ControllerAction _ -> [ Output (Controller 65535) ]
@@ -101,14 +101,14 @@ struct
 
   let to_rule (pattern, action) =
     match NetCore_Pattern.to_match0x01 pattern with
-      | Some match_ ->
-        Some (match_,
-              as_actionSequence
-                (match match_.OpenFlow0x01_Core.inPort with
-                  | None -> None
-                  | Some foo -> Some (to_nc_portId foo))
-                action)
-      | None -> None
+    | Some match_ ->
+      Some (match_,
+            as_actionSequence
+              (match match_.OpenFlow0x01_Core.inPort with
+               | None -> None
+               | Some foo -> Some (to_nc_portId foo))
+              action)
+    | None -> None
 
   let flow_table_of_policy sw pol0 =
     List.fold_right
@@ -148,8 +148,8 @@ struct
 
   let maybe_openflow0x01_modification newVal mkModify =
     match newVal with
-      | Some (_,v) -> (mkModify v)::[]
-      | None -> []
+    | Some (_,v) -> (mkModify v)::[]
+    | None -> []
 
 
   (** val modification_to_openflow0x01 : modification -> actionSequence **)
@@ -162,16 +162,16 @@ struct
     in
     (maybe_openflow0x01_modification dlSrc (fun x -> SetField (OxmEthSrc (val_to_mask x)))) 
     @ (maybe_openflow0x01_modification dlDst (fun x -> SetField (OxmEthDst (val_to_mask x))))
-  (* If vlan, create vlan tag *)
+    (* If vlan, create vlan tag *)
     @ (match (dlVlan, dlVlanPcp) with
-      | (Some (_,None),_) -> [PopVlan]
-      | (Some (_,(Some n)),_) -> [PushVlan]
-      | (_, _) -> [])
+        | (Some (_,None),_) -> [PopVlan]
+        | (Some (_,(Some n)),_) -> [PushVlan]
+        | (_, _) -> [])
     @ (maybe_openflow0x01_modification dlVlanPcp (fun x -> SetField (OxmVlanPcp x)))
     @ (match dlVlan with
-      | Some (_,None) -> []
-      | Some (_,(Some n)) -> [SetField (OxmVlanVId (val_to_mask n))]
-      | None -> [])
+        | Some (_,None) -> []
+        | Some (_,(Some n)) -> [SetField (OxmVlanVId (val_to_mask n))]
+        | None -> [])
 
   (** val translate_action : portId option -> act -> actionSequence **)
 
@@ -180,20 +180,20 @@ struct
   let translate_action in_port = function
     | OF10.Output p ->
       (match p with
-        | OF10.PhysicalPort pp ->
-          let pp = Int32.of_int pp in
-          (match in_port with
-            | Some pp' ->
-              if pp' = pp
-              then
-                [Output InPort]
-              else
-                [Output (PhysicalPort pp)]
-            | None -> [Output (PhysicalPort pp)])
-        | OF10.InPort -> [Output InPort]
-        | OF10.AllPorts -> [Output AllPorts]
-        | OF10.Controller x -> [Output (Controller x)]
-        | OF10.Flood -> [Output Flood])
+       | OF10.PhysicalPort pp ->
+         let pp = Int32.of_int pp in
+         (match in_port with
+          | Some pp' ->
+            if pp' = pp
+            then
+              [Output InPort]
+            else
+              [Output (PhysicalPort pp)]
+          | None -> [Output (PhysicalPort pp)])
+       | OF10.InPort -> [Output InPort]
+       | OF10.AllPorts -> [Output AllPorts]
+       | OF10.Controller x -> [Output (Controller x)]
+       | OF10.Flood -> [Output Flood])
     | OF10.SetDlVlan (Some vlan) -> [PushVlan; SetField (OxmVlanVId (val_to_mask vlan))]
     | OF10.SetDlVlan None -> [PopVlan]
     | OF10.SetDlVlanPcp vpcp -> [SetField (OxmVlanPcp vpcp)]
@@ -205,13 +205,13 @@ struct
     | OF10.SetTpDst dst -> [SetField (OxmTCPDst (val_to_mask dst))]
     | OF10.SetNwTos _ -> failwith "NYI: translate_action SetNwTos"
 
-(** val to_flow_mod : priority -> Pattern.pattern -> act list -> flowMod **)
+  (** val to_flow_mod : priority -> Pattern.pattern -> act list -> flowMod **)
 
   let wildcard_to_mask wc def =
     match wc with
-      | WildcardExact a -> val_to_mask a
-      | WildcardAll -> {m_value = def; m_mask = Some def}
-      | WildcardNone -> {m_value = def; m_mask = Some def}
+    | WildcardExact a -> val_to_mask a
+    | WildcardAll -> {m_value = def; m_mask = Some def}
+    | WildcardNone -> {m_value = def; m_mask = Some def}
 
   let pattern_to_oxm_match pat = 
     let { OpenFlow0x01_Core.dlSrc = dlSrc;
@@ -226,31 +226,31 @@ struct
           tpSrc = tpSrc;
           tpDst = tpDst;
           inPort = inPort } = pat in
-  (* 0 is the all wildcard *)
+    (* 0 is the all wildcard *)
     ((match dlSrc with Some a -> [OxmEthSrc (val_to_mask a)] | _ -> [])
      @ (match dlTyp with Some t -> [OxmEthType t] | _ -> [])
      @ (match dlDst with Some a -> [ OxmEthDst (val_to_mask a)] | _ -> [])
      @ (match dlVlan with
-       | Some (Some a) -> [ OxmVlanVId (val_to_mask a)]
-     (* Must be empty list. Trying to get cute and use a wildcard mask confuses the switch *)
-       | None -> []
-       | Some None -> [OxmVlanVId {m_value=0; m_mask=None}])
-   (* VlanPCP requires exact non-VLAN_NONE match on Vlan *)
+         | Some (Some a) -> [ OxmVlanVId (val_to_mask a)]
+         (* Must be empty list. Trying to get cute and use a wildcard mask confuses the switch *)
+         | None -> []
+         | Some None -> [OxmVlanVId {m_value=0; m_mask=None}])
+     (* VlanPCP requires exact non-VLAN_NONE match on Vlan *)
      @ (match (dlVlanPcp, dlVlan) with (Some a, Some _) -> [ OxmVlanPcp a] | _ -> [])
      @ (match nwSrc with Some a -> [ OxmIP4Src (val_to_mask a)] | _ -> [])
      @ (match nwDst with Some a -> [ OxmIP4Dst (val_to_mask a)] | _ -> [])
      @ (match inPort with Some p -> [OxmInPort (Int32.of_int p)] | _ -> []),
-   (* If IP addrs are set, must be IP EthType. Predicate not currently in compiler *)
-   (* @ (match (nwSrc, nwDst) with  *)
-   (*   | (Wildcard.WildcardExact t, _) *)
-   (*   | (_, Wildcard.WildcardExact t) -> [OxmEthType 0x800]  *)
-   (*   | (_,_) -> []) *)
+     (* If IP addrs are set, must be IP EthType. Predicate not currently in compiler *)
+     (* @ (match (nwSrc, nwDst) with  *)
+     (*   | (Wildcard.WildcardExact t, _) *)
+     (*   | (_, Wildcard.WildcardExact t) -> [OxmEthType 0x800]  *)
+     (*   | (_,_) -> []) *)
      match inPort with
-       | Some p -> Some (Int32.of_int p)
-       | _ -> None)
+     | Some p -> Some (Int32.of_int p)
+     | _ -> None)
 
   let get_inport = List.fold_left (fun acc oxm -> 
-    match oxm with
+      match oxm with
       | OxmInPort pp -> Some pp
       | _ -> acc) None
 
@@ -270,11 +270,11 @@ struct
     set out.outDlSrc (fun x -> SetField (OxmEthSrc (val_to_mask x)))
       (set out.outDlDst (fun x -> SetField (OxmEthDst (val_to_mask x)))
          ((fun lst -> match out.outDlVlan with
-           | Some (Some _, Some x) -> SetField (OxmVlanVId (val_to_mask x)) :: lst
-           | Some (None, Some vlan) -> [PushVlan; SetField (OxmVlanVId (val_to_mask vlan))] @ lst
-           | Some (Some _, None) -> PopVlan :: lst
-           | Some (None, None) -> lst
-           | None -> lst)
+             | Some (Some _, Some x) -> SetField (OxmVlanVId (val_to_mask x)) :: lst
+             | Some (None, Some vlan) -> [PushVlan; SetField (OxmVlanVId (val_to_mask vlan))] @ lst
+             | Some (Some _, None) -> PopVlan :: lst
+             | Some (None, None) -> lst
+             | None -> lst)
             (set out.outDlVlanPcp (fun x -> SetField (OxmVlanPcp x))
                (set out.outNwSrc (fun x -> SetField (OxmIP4Src (val_to_mask x)))
                   (set out.outNwDst (fun x -> SetField (OxmIP4Dst (val_to_mask x))) [])))))
@@ -283,11 +283,11 @@ struct
     unset out.outDlSrc (fun x -> SetField (OxmEthSrc (val_to_mask x)))
       (unset out.outDlDst (fun x -> SetField (OxmEthDst (val_to_mask x)))
          ((fun lst -> match out.outDlVlan with
-           | Some (Some vlan, Some x) -> SetField (OxmVlanVId (val_to_mask vlan)) :: lst
-           | Some (None, Some vlan) -> PopVlan :: lst
-           | Some (Some vlan, None) -> [PushVlan; SetField (OxmVlanVId (val_to_mask vlan))] @ lst
-           | Some (None, None) -> lst
-           | None -> lst)
+             | Some (Some vlan, Some x) -> SetField (OxmVlanVId (val_to_mask vlan)) :: lst
+             | Some (None, Some vlan) -> PopVlan :: lst
+             | Some (Some vlan, None) -> [PushVlan; SetField (OxmVlanVId (val_to_mask vlan))] @ lst
+             | Some (None, None) -> lst
+             | None -> lst)
             (unset out.outDlVlanPcp (fun x -> SetField (OxmVlanPcp x))
                (unset out.outNwSrc (fun x -> SetField (OxmIP4Src (val_to_mask x)))
                   (unset out.outNwDst (fun x -> SetField (OxmIP4Dst (val_to_mask x))) [])))))
@@ -301,17 +301,17 @@ struct
   let output_to_of inp out = match out.outPort with
     | P.Here -> [] (* Fishy, IMO. Shouldn't this be InPort? *)
     | P.All -> modify out @ (Output AllPorts)
-      :: unmodify out
+                            :: unmodify out
     | P.Physical pt ->
       modify out @
         (( match inp with
-          | Some pt' when (=) pt' pt ->
-            Output InPort
-          | _ ->
-            Output (PhysicalPort (to_of_portId pt))) ::
-            (unmodify out))
+            | Some pt' when (=) pt' pt ->
+              Output InPort
+            | _ ->
+              Output (PhysicalPort (to_of_portId pt))) ::
+           (unmodify out))
     | _ -> failwith "output_to_of: Don't know how to handle this port type"
-        
+
   let atom_to_of inp atom = match atom with
     | SwitchAction out -> output_to_of inp out
     | ControllerAction _ -> [ Output (Controller 65535) ]
@@ -327,13 +327,13 @@ struct
       not_controller_atoms @ [List.hd controller_atoms]
     else
       not_controller_atoms
-        
+
   let as_actionSequence inp acts = 
     List.map (as_actionSequence1 inp) acts
 
   let to_rule (pattern, action) =
     let match_, inport = NetCore_Pattern.to_match0x04 pattern in
-        (match_, as_actionSequence inport action)
+    (match_, as_actionSequence inport action)
 
   let flow_table_of_policy sw pol0 =
     List.map to_rule (NetCoreCompiler.compile_pol pol0 sw)

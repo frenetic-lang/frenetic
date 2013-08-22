@@ -3,17 +3,17 @@
 
 (** {2 Headers} 
 
-  We use the same packet headers that OpenFlow 1.0 supports. Refer to the
-  OpenFlow specification for details on their semantics.
-  
-  The size of a header depends on the header name. But, insteam encoding this
-  dependency in the type system, we place integers of various sizes in the
-  [hdrVal] sum type.
+    We use the same packet headers that OpenFlow 1.0 supports. Refer to the
+    OpenFlow specification for details on their semantics.
 
-  {b Warning:} Some header combinations are invalid and some headers
-  depend on the presence of other headers. To be safe, use {i valid patterns}.
+    The size of a header depends on the header name. But, insteam encoding this
+    dependency in the type system, we place integers of various sizes in the
+    [hdrVal] sum type.
 
- *)
+    {b Warning:} Some header combinations are invalid and some headers
+    depend on the presence of other headers. To be safe, use {i valid patterns}.
+
+*)
 
 type hdr =
   | DlSrc
@@ -39,10 +39,10 @@ type hdrVal =
 
 (** {2 Policies}
 
-  In the spirit of KAT, predicates are formed with [Drop], [Id], [Par], [Seq],
-  and [Neg].
+    In the spirit of KAT, predicates are formed with [Drop], [Id], [Par], [Seq],
+    and [Neg].
 
- *)
+*)
 
 type pol =
   | Drop
@@ -55,10 +55,10 @@ type pol =
 
 (** {2 Packets} 
 
-  If we only defined the semantics and were not building a system, a
-  packet would only be a record of headers. However, the runtime needs to
-  apply [eval] to packets contained in [PACKET_IN] mesages. For the runtime,
-  packets also carry a payload that is unmodified by [eval].
+    If we only defined the semantics and were not building a system, a
+    packet would only be a record of headers. However, the runtime needs to
+    apply [eval] to packets contained in [PACKET_IN] mesages. For the runtime,
+    packets also carry a payload that is unmodified by [eval].
 
 *)
 
@@ -79,9 +79,9 @@ type pkt = {
 
 (** {2 Semantics}
 
-  [eval pkt pol] raises [Not_found] if it tests or updates a header that  [pkt]
-  does not have. This behavior is different from OpenFlow, which fails  silently
-  in both cases.
+    [eval pkt pol] raises [Not_found] if it tests or updates a header that  [pkt]
+    does not have. This behavior is different from OpenFlow, which fails  silently
+    in both cases.
 *)
 
 module PktSet : Set.S
