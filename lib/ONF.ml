@@ -24,6 +24,12 @@ let drop : sum = HdrValSet.empty
 (* Only used by and_pred *)
 exception Empty_pred
 
+(* map_sum f (seq_1 + ... + seq_n) = f seq_1 + ... + f seq_n *)
+let map_sum (f : seq -> seq) (pol : sum) =
+  let g seq pol' = HdrValSet.add (f seq) pol' in
+  HdrValSet.fold g pol drop
+
+
 (* Some (pr1 ; pr2) unless the conjunct in empty, in which case, return None. *)
 let rec and_pred (pr1 : pred) (pr2 : pred) : pred option =
 	let f hdr val1 val2 = match (val1, val2) with
@@ -117,17 +123,16 @@ let rec par_local_local (a : local) (b : local) : local = match (a, b) with
   *)
   | (ITE (x, a', b'), _) ->  par_sum_local x a' b (par_local_local b' b)
 
-(* equivalent to h<-v; seq *)
+(* seq_seq H V SEQ = H<-V; SEQ *)
 let seq_seq (h : K.hdr) (v : K.hdrVal) (seq : seq) : seq = 
 	if HdrMap.mem h seq then
 	  seq
 	else
 	  HdrMap.add h v seq
 
-(* returns a term equivalent to h<-v ; s *)
-let rec commute_sum h v s =
-  let f seq sum = HdrValSet.add (seq_seq h v seq) sum in
-  HdrValSet.fold f s drop
+(* commute_sum H V S = H <- V; S *)
+let commute_sum (h : K.hdr) (v : K.hdrVal) (s : sum) : sum =
+  map_sum (seq_seq h v) s (* distributivity *)
 
 (* pr is a conjunct, so if h is not bound, then it is matches h = v *)
 let rec pred_matches (h : K.hdr) (v : K.hdrVal) (pr : pred) : bool =
@@ -136,9 +141,16 @@ let rec pred_matches (h : K.hdr) (v : K.hdrVal) (pr : pred) : bool =
 let rec pred_wildcard (h : K.hdr) (pr : pred) : pred =
 	  HdrMap.remove h pr
 
-(* returns a term equivalent to h<-v; p *)
+(* commute H V P = H<-V; P *)
 let rec commute (h : K.hdr) (v : K.hdrVal) (p : local) : local = match p with
   | Action sum -> Action (commute_sum h v sum)
+  (* Case P = if X then S else Q
+
+       H <- V; if X then S else Q
+     = H <- V; (H=V + !H=V); if X then S else Q
+     = H<-V;H=V;if X then S else Q + H<-V;!H=V;if X then S else Q 
+     = CONTINUE
+   *)
   | ITE (pr, sum, pol) ->
     match pred_matches h v pr with
     | false -> commute h v pol
@@ -170,10 +182,6 @@ let rec seq_local_local (pol1 : local) (pol2 : local) : local = match pol1 with
   | ITE (pred1, sum1, pol1') ->
     norm_ite pred1 (seq_sum_local sum1 pol2) (seq_local_local pol1' pol2)
 
-(* map_sum f (seq_1 + ... + seq_n) = f seq_1 + ... + f seq_n *)
-let map_sum (f : seq -> seq) (pol : sum) =
-  let g seq pol' = HdrValSet.add (f seq) pol' in
-  HdrValSet.fold g pol HdrValSet.empty
 
 let is_drop (pol : sum) : bool =
   HdrValSet.is_empty pol
