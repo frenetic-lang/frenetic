@@ -29,7 +29,6 @@ let map_sum (f : seq -> seq) (pol : sum) =
   let g seq pol' = HdrValSet.add (f seq) pol' in
   HdrValSet.fold g pol drop
 
-
 (* Some (pr1 ; pr2) unless the conjunct in empty, in which case, return None. *)
 let rec and_pred (pr1 : pred) (pr2 : pred) : pred option =
   let f hdr val1 val2 = match (val1, val2) with
@@ -55,7 +54,6 @@ let rec par_sum_sum (s1 : sum) (s2 : sum) : sum =
    = 1;S + (Y;S' + !Y;A')                                excluded middle
    = S + (Y;S' + !Y;A')                                  *1
    = S + (if Y then S' else A')                          if-then-else
-   = S + A                                               substitution
 
    QED
 *)
