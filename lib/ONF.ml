@@ -48,7 +48,7 @@ let rec par_sum_sum (s1 : sum) (s2 : sum) : sum =
 
 (* Lemma 1: if Y then S + S' else (S + A') = S + (if Y then S' else A')
 
-   if Y then S + S' else (S + A')                      
+     if Y then S + S' else (S + A')                      
    = Y;(S + S') + !Y;(S + A')                            if-then-else
    = Y;S + !Y;S + Y;S' + !Y;A'                           distributivity
    = (Y+!Y);S + (Y;S' + !Y;A')                           commutativity
@@ -84,7 +84,7 @@ let rec par_sum_local (x : pred) (s : sum) (a : local) (b : local) : local =
   | Action s' -> ITE(x, par_sum_sum s s', b)
   (* Case A = if Y then S' else A'
 
-     = if X; Y then S + S' else [par_sum_local X S A' B]              RHS below
+       if X; Y then S + S' else [par_sum_local X S A' B]              RHS below
      = if X; Y then S + S' else if X then S + A' else B               induction
      = X;Y;(S + S') + !(X;Y);(if X then S + A' else B)             if-then-else
      = X;Y;(S + S') + (!X+!Y);(if X then S + A' else B)          de Morgans law
@@ -115,7 +115,7 @@ let rec par_local_local (a : local) (b : local) : local = match (a, b) with
   | (Action s, _) -> simpl_par_sum_local s b
   (* Case A = if X then A' else B'
 
-     = par_sum_local X A' B (par_local_local B' B)                    RHS below
+       par_sum_local X A' B (par_local_local B' B)                    RHS below
      = par_sum_local X A' B (B' + B)                                  induction
      = if X then A' + B else B' + B                               par_sum_local
      = (if X then A' else B') + B                                       Lemma 1
