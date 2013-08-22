@@ -46,28 +46,28 @@ module TestClassifier = struct
     group_label >::: 
       (List.map 
          (fun (label, expected, calculated) ->
-           label >:: fun () -> 
-             assert_equal expected calculated)
+            label >:: fun () -> 
+              assert_equal expected calculated)
          lst)
 
   let eval_tests group_label lst = 
     group_label >:::
       (List.map
          (fun (label, expected_action, input_pol, input_val) ->
-           label >:: fun () -> 
-             assert_equal
-               (NetCore_Semantics.eval_action expected_action input_val)
-               (NetCore_Semantics.eval input_pol input_val))
+            label >:: fun () -> 
+              assert_equal
+                (NetCore_Semantics.eval_action expected_action input_val)
+                (NetCore_Semantics.eval input_pol input_val))
          lst)
 
   let netcore_tests group_label lst = 
     group_label >:::
       (List.map
          (fun (label, expected_tbl, input_sw, input_pol) ->
-           label >:: fun () -> 
-             assert_equal
-               expected_tbl
-               (NetCoreCompiler.compile_pol input_pol input_sw))
+            label >:: fun () -> 
+              assert_equal
+                expected_tbl
+                (NetCoreCompiler.compile_pol input_pol input_sw))
          lst)
 
   let lst = 
@@ -172,7 +172,7 @@ module TestClassifier = struct
        (all, drop)],
       1L,
       Seq (Action (updateDlVlan None (Some 1)),
-             Filter (Hdr (dlVlan (Some 1)))))]
+           Filter (Hdr (dlVlan (Some 1)))))]
 
   let pk = {
     dlSrc = 0L;
@@ -188,7 +188,7 @@ module TestClassifier = struct
     [("sequencing 1",
       updateDlVlan None (Some 1),
       Seq (Action (updateDlVlan None (Some 1)),
-             Filter (Hdr (dlVlan (Some 1)))),
+           Filter (Hdr (dlVlan (Some 1)))),
       inp);
      ("filtering 1",
       pass,
@@ -201,26 +201,26 @@ module TestClassifier = struct
       updateDlVlan None (Some 1),
       Action (updateDlVlan None (Some 1)),
       Pkt (1L, Physical 1l, pk, pay))]
-      
+
 
   let go = TestList 
-    [ test0; test1; test2; 
-      classifier_tests "classifier tests" lst;
-      netcore_tests "NetCore tests" lst2;
-      eval_tests "NetCore semantics tests" lst3;
-      ("eval_action update" >::
-        fun () ->
-          assert_equal
-            [Pkt (1L, Physical 1l, 
-                  { pk with dlVlan = Some 1 }, 
-                  pay)]
-            (eval_action 
-              (updateDlVlan None (Some 1))
-              (Pkt (1L, 
-                    Physical 1l, 
-                    pk, 
-                    pay))))
-    ]
+      [ test0; test1; test2; 
+        classifier_tests "classifier tests" lst;
+        netcore_tests "NetCore tests" lst2;
+        eval_tests "NetCore semantics tests" lst3;
+        ("eval_action update" >::
+           fun () ->
+             assert_equal
+               [Pkt (1L, Physical 1l, 
+                     { pk with dlVlan = Some 1 }, 
+                     pay)]
+               (eval_action 
+                  (updateDlVlan None (Some 1))
+                  (Pkt (1L, 
+                        Physical 1l, 
+                        pk, 
+                        pay))))
+      ]
 
 end
 
@@ -236,9 +236,9 @@ module TestNetCore = struct
       (Filter 
          (Not 
             (Or (And 
-                     (And (OnSwitch 1L, 
-                             Hdr (inPort (Physical 1l))), 
-                      Hdr (dlSrc 0x0ab75f2211d4L)), Nothing))),
+                   (And (OnSwitch 1L, 
+                         Hdr (inPort (Physical 1l))), 
+                    Hdr (dlSrc 0x0ab75f2211d4L)), Nothing))),
        Action (forward 3l))
 
   let test1_pol2 = 
@@ -253,44 +253,44 @@ module TestNetCore = struct
       (Filter 
          (Not 
             (Or (And (OnSwitch 1L,
-                          Hdr (dlDst 0x0ab75f2211d4L)),
-                   Nothing))), Action to_all)
+                      Hdr (dlDst 0x0ab75f2211d4L)),
+                 Nothing))), Action to_all)
 
   let test1 = 
-      "maclearning regression 1" >::
-        fun () ->
-          assert_equal  
-            (NetCoreCompiler.compile_pol test1_pol1 1L) []
+    "maclearning regression 1" >::
+      fun () ->
+        assert_equal  
+          (NetCoreCompiler.compile_pol test1_pol1 1L) []
 
   let test2 = 
-      "maclearning regression 2" >::
-        fun () ->
-          assert_equal  
-            (NetCoreCompiler.compile_pol test1_pol2 1L) []
+    "maclearning regression 2" >::
+      fun () ->
+        assert_equal  
+          (NetCoreCompiler.compile_pol test1_pol2 1L) []
 
   let test3 = 
-      "maclearning regression 3" >::
-        fun () ->
-          assert_equal  
-            (NetCoreCompiler.compile_pol test1_pol3 1L) []
+    "maclearning regression 3" >::
+      fun () ->
+        assert_equal  
+          (NetCoreCompiler.compile_pol test1_pol3 1L) []
 
   let test4 = 
-      "maclearning regression 2 || 3" >::
-        fun () ->
-          assert_equal  
-            (NetCoreCompiler.compile_pol
-               (Union (test1_pol2, test1_pol3))
-            1L)
-            []
+    "maclearning regression 2 || 3" >::
+      fun () ->
+        assert_equal  
+          (NetCoreCompiler.compile_pol
+             (Union (test1_pol2, test1_pol3))
+             1L)
+          []
 
   let test5 = 
-      "maclearning regression 1 || 2 || 3" >::
-        fun () ->
-          assert_equal  
-            (NetCoreCompiler.compile_pol
-               (Union (test1_pol1, Union (test1_pol2, test1_pol3)))
-            1L)
-            []
+    "maclearning regression 1 || 2 || 3" >::
+      fun () ->
+        assert_equal  
+          (NetCoreCompiler.compile_pol
+             (Union (test1_pol1, Union (test1_pol2, test1_pol3)))
+             1L)
+          []
 
   let test6 =
     "sequencing regression 1" >::
@@ -399,8 +399,8 @@ module TestNetCore = struct
 
 end
 
-        
-        
+
+
 module Helper = struct
 
   module C = NetCore_Classifier.Make (NetCore_Action.Output)
@@ -464,11 +464,11 @@ module Helper = struct
         , pay)
 
   let mkEvalTest 
-    name 
-    ?debug:(dbg=false) 
-    (pol : NetCore_Desugar.policy) 
-    in_val 
-    expected_vals = 
+      name 
+      ?debug:(dbg=false) 
+      (pol : NetCore_Desugar.policy) 
+      in_val 
+      expected_vals = 
     let ds_pol = desugar_policy pol in
 
     if dbg then
@@ -495,23 +495,23 @@ module Helper = struct
       let _ = printf "Classifier:\n" in
       List.iter 
         (fun (m,a) -> printf " %s => %s\n"
-          (NetCore_Pretty.string_of_pattern m)
-          (NetCore_Pretty.string_of_action a))
+            (NetCore_Pretty.string_of_pattern m)
+            (NetCore_Pretty.string_of_action a))
         classifier
     else
       ();
 
     let act = C.scan classifier in_port in_pkt in
     let pkts = NetCore_Action.Output.apply_action act 
-      (in_sid, in_port, in_pkt) in
+        (in_sid, in_port, in_pkt) in
     let classifier_test =
       (name ^ " (classifier) test") >:: fun () ->
         assert_equal
           ~printer:(string_of_list
                       (fun (_, pt, pk) ->
-                        Format.sprintf "(%s,%s)"
-                          (string_of_port pt)
-                          (Packet.to_string pk)))
+                         Format.sprintf "(%s,%s)"
+                           (string_of_port pt)
+                           (Packet.to_string pk)))
           expected_pkts pkts in
 
     TestList [ sem_test; classifier_test ]
@@ -605,7 +605,7 @@ module TestMods = struct
     let policy =
       Seq ( Act (UpdateDlVlan (None, Some 1))
           , Seq ( Filter (DlVlan (Some 1))
-                      , Act (UpdateDlVlan (Some 1, None)))) in
+                , Act (UpdateDlVlan (Some 1, None)))) in
     mkEvalTest "seq mod seq" policy in_val [in_val]
 
   let go = 
@@ -640,9 +640,9 @@ module TestSlices = struct
   let test1' =
     let policy =
       Seq ( Seq (Filter (DlVlan None), Act (UpdateDlVlan (None, Some 1))),
-      Seq ( Act ToAll
-          , Par ( Seq (Filter (DlVlan (Some 1)), Act (UpdateDlVlan (Some 1, None)))
-                , Filter (Not (DlVlan (Some 1)))))) in
+            Seq ( Act ToAll
+                , Par ( Seq (Filter (DlVlan (Some 1)), Act (UpdateDlVlan (Some 1, None)))
+                      , Filter (Not (DlVlan (Some 1)))))) in
     let Pkt (sid, port, expected_pkt, payload) = in_val in
     let expected_val = Pkt ( sid, NetCore_Pattern.All, expected_pkt, payload) in
     mkEvalTest "slice' repeater" policy in_val [expected_val]
@@ -650,8 +650,8 @@ module TestSlices = struct
   let test1'' =
     let policy =
       Seq (Seq (Filter (DlVlan None), Act (UpdateDlVlan (None, Some 1))),
-      Seq (Act ToAll,
-      Seq (Filter (DlVlan (Some 1)), Act (UpdateDlVlan (Some 1, None))))) in
+           Seq (Act ToAll,
+                Seq (Filter (DlVlan (Some 1)), Act (UpdateDlVlan (Some 1, None))))) in
     let Pkt (sid, port, expected_pkt, payload) = in_val in
     let expected_val = Pkt ( sid, NetCore_Pattern.All, expected_pkt, payload) in
     mkEvalTest "slice'' repeater" policy in_val [expected_val]
@@ -664,7 +664,7 @@ end
 (*
 module TestParser = struct
 
-  
+
 
   (* For each parsable type, test that parse(marshal(v)) == v for some value v.
    *)
@@ -685,7 +685,7 @@ let tests =
            ; TestMods.go
            ; TestSlices.go
            ; TestClassifier.go
-(*         ; TestParser.go *)
-(*         ; TestNetCore.go *)
+           (*         ; TestParser.go *)
+           (*         ; TestNetCore.go *)
            ]
 
