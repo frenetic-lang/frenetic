@@ -14,6 +14,9 @@ module type CLASSIFIER = sig
   val sequence : t -> t -> t
 
   val par_actions : action list -> action
+
+  val choice : t -> t -> t
+
 end
 
 module type MAKE = functor (Action : ACTION) ->
@@ -128,6 +131,16 @@ module Make : MAKE = functor (Action:ACTION) -> struct
 
   let sequence tbl1 tbl2 =
     opt (sequence_no_opt tbl1 tbl2)
+
+  let alt_entry cl (pat, act) = 
+    List.fold_right 
+      (fun (pat',act') acc ->
+        (NetCore_Pattern.inter pat pat', Action.alt_action act act') :: acc) cl []
+
+  let alt_no_opt cl1 cl2 =
+    opt ((List.fold_right (fun v acc -> (alt_entry cl2 v) @ acc) cl1 []) @ cl1 @ cl2)
+
+  let choice = alt_no_opt
 
  end
 

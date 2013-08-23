@@ -20,6 +20,8 @@ module type ACTION =
   val par_action : t -> t -> t
   
   val seq_action : t -> t -> t
+
+  val alt_action : t -> t -> t
   
   val sequence_range : e -> ptrn -> ptrn
   

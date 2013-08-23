@@ -8,3 +8,4 @@ _build
 .DS_Store
 setup.data
 setup.log
+*~

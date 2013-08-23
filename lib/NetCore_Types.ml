@@ -107,6 +107,7 @@ type pol =
   | Union of pol * pol
   | Seq of pol * pol
   | ITE of pred * pol * pol
+  | Choice of pol * pol
 
 
 type value =

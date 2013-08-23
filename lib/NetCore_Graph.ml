@@ -154,12 +154,13 @@ module Graph : GRAPH =
       let s1Tbl = try (H.find topo s1) with 
           Not_found -> raise (NotFound(Printf.sprintf "Can't find %s to get_ports to %s\n" 
                                          (node_to_string s1) (node_to_string s2))) in     
-      let unwrap (Some foo) = foo in
-      try unwrap (H.fold (fun pt sw_pt acc -> match sw_pt with
-	| Some (sw, pt') -> if sw = s2 then Some (pt, pt') else acc
-	| None -> acc) s1Tbl None) 
-      with _ -> raise (NotFound(Printf.sprintf "Can't find ports to %s from %s\n" 
-                                  (node_to_string s2) (node_to_string s1)))
+      match (H.fold (fun pt sw_pt acc -> 
+	match sw_pt with
+	  | Some (sw, pt') -> if sw = s2 then Some (pt, pt') else acc
+	  | None -> acc) s1Tbl None) with
+	| Some foo -> foo
+	| None -> raise (NotFound(Printf.sprintf "Can't find ports to %s from %s\n" 
+                                    (node_to_string s2) (node_to_string s1)))
 
     let ports_of_switch topo s = 
       let sTbl = try (H.find topo s) with 

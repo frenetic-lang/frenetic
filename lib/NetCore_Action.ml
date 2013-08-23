@@ -14,11 +14,14 @@ module type ACTION = sig
 
   val pass : t
 
+  (* MJR: Should this change to lp list list now that we have non-det actions? *)
   val apply_action : t -> lp -> lp list
 
   val par_action : t -> t -> t
 
   val seq_action : t -> t -> t
+
+  val alt_action : t -> t -> t
 
   val sequence_range : e -> ptrn -> ptrn
 
@@ -322,6 +325,9 @@ struct
       (fun (o1,o2) -> seq_action_atom o1 o2)
       (cross act1 act2)
 
+  let alt_action act1 act2 =
+    failwith "NYI: alt_action"
+
   let trans maybe_mod build_singleton set_wild pat =
     match maybe_mod with
     | Some (old, nw) ->
@@ -505,9 +511,11 @@ module Group = struct
 
   let par_action b1 b2 = List.map (fun (a,b) -> a @ b) (Output.cross b1 b2)
 
-  let seq_action b1 b2 = failwith "NYI: Group seq_action"
+  let seq_action b1 b2 = List.map (fun (a,b) -> Output.seq_action a b) (Output.cross b1 b2)
 
-  let sequence_range b p = failwith "NYI: Group sequence_range"
+  let alt_action b1 b2 = b1 @ b2
+
+  let sequence_range = Output.sequence_range
 
   let apply_controller action (sw, pt, pk) =
     let f atom acc = match atom with
