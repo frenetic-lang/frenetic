@@ -1,30 +1,31 @@
 open Packet
 open NetCore_Types
-       
+open NetCore_Pattern
+
 module type ACTION = 
- sig 
+sig 
   type t 
-  
+
   type e 
-  
+
   val atoms : t -> e list
 
   val to_action : e -> t
 
   val drop : t
-  
+
   val pass : t
-  
+
   val apply_action : t -> lp -> lp list
-  
+
   val par_action : t -> t -> t
-  
+
   val seq_action : t -> t -> t
 
   val alt_action : t -> t -> t
   
   val sequence_range : e -> ptrn -> ptrn
-  
+
   val domain : e -> ptrn
 
   val is_equal : t -> t -> bool
@@ -33,22 +34,22 @@ module type ACTION =
 
   val string_of_action : t -> string
 
- end
+end
 
 module type COMPILER_ACTION0x01 =
-  sig
-    include ACTION
-      with type e = action_atom
-    val from_nc_action : action -> t
-    (* val as_actionSequence : portId option -> t -> OpenFlow0x01.Action.sequence *)
-    val queries : t -> e list
-  end
+sig
+  include ACTION
+    with type e = action_atom
+  val from_nc_action : action -> t
+  (* val as_actionSequence : portId option -> t -> OpenFlow0x01.Action.sequence *)
+  val queries : t -> e list
+end
 
 module Output : 
 sig
   include ACTION
-      with type e = action_atom
-      and type t = action
+    with type e = action_atom
+     and type t = action
   val from_nc_action : action -> t
   val queries : t -> e list
   val forward : portId -> t
@@ -70,8 +71,8 @@ end
 module Group : 
 sig
   include ACTION
-      with type e = action_atom
-      and type t = action list
+    with type e = action_atom
+     and type t = action list
   val from_nc_action : action -> t
   val queries : t -> e list
   val forward : portId -> t

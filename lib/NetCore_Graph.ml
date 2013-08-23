@@ -43,61 +43,61 @@ sig
 end
 
 module Graph : GRAPH =
-  struct
-    type node = 
-        Host of int
-      | Switch of M.switchId
-    type a = node
-    type b = M.portId
-    type h = int
-    (* sw -> port -> (sw*port) *)
-    type portTbl_t = ((a,(b, (a*b) option) H.t) H.t)
-    (* h -> (sw*port) *)
-    type graph = portTbl_t
-    exception NoPath of string*string
-    exception NotFound of string
+struct
+  type node = 
+      Host of int
+    | Switch of M.switchId
+  type a = node
+  type b = M.portId
+  type h = int
+  (* sw -> port -> (sw*port) *)
+  type portTbl_t = ((a,(b, (a*b) option) H.t) H.t)
+  (* h -> (sw*port) *)
+  type graph = portTbl_t
+  exception NoPath of string*string
+  exception NotFound of string
 
-    let node_to_string nd = match nd with
-      | Switch sw -> Printf.sprintf "Switch %Ld" sw
-      | Host h -> Printf.sprintf "Host %d" h
+  let node_to_string nd = match nd with
+    | Switch sw -> Printf.sprintf "Switch %Ld" sw
+    | Host h -> Printf.sprintf "Host %d" h
 
-    let get_switches graph = H.fold (fun k _ acc -> match k with
+  let get_switches graph = H.fold (fun k _ acc -> match k with
       | Switch sw -> sw :: acc
       | Host _ -> acc) graph []
 
-    let get_hosts graph = H.fold (fun k _ acc -> match k with
+  let get_hosts graph = H.fold (fun k _ acc -> match k with
       | Host _ -> k :: acc
       | Switch _ -> acc) graph []
 
-    let get_nodes graph = H.fold (fun k _ acc -> k :: acc) graph []
+  let get_nodes graph = H.fold (fun k _ acc -> k :: acc) graph []
 
-    let port_tbl_to_string portTbl =
-      String.concat ";\n\t\t" (H.fold (fun port sw_p' acc -> match sw_p' with
-					  | Some (sw',port') -> (Printf.sprintf "%ld -> (%s,%ld)" 
-                                                                      port 
-                                                                      (node_to_string sw') 
-                                                                      port') :: acc
-					  | None -> (Printf.sprintf "%ld"
-                                                                      port :: acc) ) 
-                                 portTbl [])
+  let port_tbl_to_string portTbl =
+    String.concat ";\n\t\t" (H.fold (fun port sw_p' acc -> match sw_p' with
+        | Some (sw',port') -> (Printf.sprintf "%ld -> (%s,%ld)" 
+                                 port 
+                                 (node_to_string sw') 
+                                 port') :: acc
+        | None -> (Printf.sprintf "%ld"
+                     port :: acc) ) 
+        portTbl [])
 
-    let to_string graph =
-      String.concat ";\n\t" (H.fold (fun sw portTbl acc -> (Printf.sprintf "%s -> {%s}" 
-                                                              (node_to_string sw) 
-                                                              (port_tbl_to_string portTbl)) :: acc) 
-                               graph [])
-    let add_node graph (sw : a) = H.add graph sw (H.create 5)
-    let add_switch graph sw = add_node graph (Switch sw)
-    let add_host graph h = add_node graph (Host h)
-    let add_edge graph sw1 pt1 sw2 pt2 = 
-      let swTbl = (try (H.find graph sw1) with 
+  let to_string graph =
+    String.concat ";\n\t" (H.fold (fun sw portTbl acc -> (Printf.sprintf "%s -> {%s}" 
+                                                            (node_to_string sw) 
+                                                            (port_tbl_to_string portTbl)) :: acc) 
+                             graph [])
+  let add_node graph (sw : a) = H.add graph sw (H.create 5)
+  let add_switch graph sw = add_node graph (Switch sw)
+  let add_host graph h = add_node graph (Host h)
+  let add_edge graph sw1 pt1 sw2 pt2 = 
+    let swTbl = (try (H.find graph sw1) with 
           Not_found -> let foo = H.create 5 in
-                       H.add graph sw1 foo;
-                       foo) in
-      H.add swTbl pt1 (Some (sw2, pt2))
+          H.add graph sw1 foo;
+          foo) in
+    H.add swTbl pt1 (Some (sw2, pt2))
 
-    let add_port graph sw pt =
-      let swTbl = (try (H.find graph sw) with 
+  let add_port graph sw pt =
+    let swTbl = (try (H.find graph sw) with 
           Not_found -> let foo = H.create 5 in
                        H.add graph sw foo;
                        foo) in
@@ -181,24 +181,24 @@ module Graph : GRAPH =
       | Switch sw -> (sw, ports_of_switch graph (Switch sw)) :: acc
       | _ -> acc) graph []
 
-    let del_link graph sw1 sw2 = 
-      let p1,p2 = get_ports graph sw1 sw2 in
-      del_edge graph sw1 p1
-    let del_links graph edges = List.iter (fun (a,b) -> del_link graph a b) edges
+  let del_link graph sw1 sw2 = 
+    let p1,p2 = get_ports graph sw1 sw2 in
+    del_edge graph sw1 p1
+  let del_links graph edges = List.iter (fun (a,b) -> del_link graph a b) edges
 
-    let del_node graph sw = 
-      let nbrs = get_nbrs graph sw in
-      try List.iter (fun a -> del_link graph a sw; del_link graph sw a) nbrs with _ -> ();
-        H.remove graph sw
+  let del_node graph sw = 
+    let nbrs = get_nbrs graph sw in
+    try List.iter (fun a -> del_link graph a sw; del_link graph sw a) nbrs with _ -> ();
+      H.remove graph sw
 
 
-    let next_hop topo sw p = 
-      let swTbl = try (Hashtbl.find topo sw) 
-        with Not_found -> raise (NotFound(Printf.sprintf "Can't find %s to get next_hop\n" (node_to_string sw))) in
-      try match (Hashtbl.find swTbl p) with
-	| Some (sw', p') -> sw'
-	| None -> raise (NotFound(Printf.sprintf "next_hop: Port %ld is not connected\n" p))
-      with Not_found -> raise (NotFound(Printf.sprintf "Can't find port %ld to get next_hop\n" p))
+  let next_hop topo sw p = 
+    let swTbl = try (Hashtbl.find topo sw) 
+      with Not_found -> raise (NotFound(Printf.sprintf "Can't find %s to get next_hop\n" (node_to_string sw))) in
+    try match (Hashtbl.find swTbl p) with
+      | Some (sw', p') -> sw'
+      | None -> raise (NotFound(Printf.sprintf "next_hop: Port %ld is not connected\n" p))
+    with Not_found -> raise (NotFound(Printf.sprintf "Can't find port %ld to get next_hop\n" p))
 
-    let has_node graph = H.mem graph
-  end
+  let has_node graph = H.mem graph
+end

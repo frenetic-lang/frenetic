@@ -14,8 +14,8 @@ let monitor_tbl sw pol =
   printf "Flow table at switch %Ld is:\n%!" sw;
   List.iter
     (fun (m,a) -> printf " %s => %s\n%!"
-      (NetCore_Pretty.string_of_pattern m)
-      (NetCore_Action.Output.string_of_action a))
+        (NetCore_Pretty.string_of_pattern m)
+        (NetCore_Action.Output.string_of_action a))
     tbl;
   pol
 
@@ -24,7 +24,7 @@ let monitor_load (window : float) (label : string) =
     printf "[%s] %Ld packets and %Ld bytes in the last %f seconds.\n%!"
       label packets bytes window in
   NetCore_Action.Output.query window monitor_load_handler
-  
+
 let monitor_packets (label : string) : action = 
   let monitor_packet_handler sw port pkt = 
     printf "[%s] packet %s on switch %Ld port %s\n%!"

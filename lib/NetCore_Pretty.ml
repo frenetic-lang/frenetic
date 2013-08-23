@@ -12,7 +12,7 @@ let string_of_port = function
   | Here -> "pass"
 
 module Format = struct
-  
+
   let format_list fmt sep lst =
     let rec loop fmt lst = match lst with
       | [x; y] -> fprintf fmt "@[%s%s@]@[%s@]" x sep y
@@ -29,23 +29,23 @@ module Format = struct
     else 
       format_list fmt " && "
         (List.filter (fun x -> not (x = "")) 
-              [ to_string_exact Packet.string_of_mac "dlSrc" pat.ptrnDlSrc;
-          to_string_exact Packet.string_of_mac "dlDst" pat.ptrnDlDst;
-          to_string_exact Packet.string_of_dlTyp "dlTyp" pat.ptrnDlTyp;
-          to_string_exact Packet.string_of_dlVlan "vlan" pat.ptrnDlVlan;
-          to_string_exact string_of_int "dlVlanPcp" pat.ptrnDlVlanPcp;
-          to_string_exact Packet.string_of_ip "srcIP" pat.ptrnNwSrc;
-          to_string_exact Packet.string_of_ip "dstIP" pat.ptrnNwDst;
-          to_string_exact Packet.string_of_nwProto "nwProto" pat.ptrnNwProto;
-          to_string_exact string_of_int "nwTos" pat.ptrnNwTos;
-          to_string_exact string_of_int "tcpSrcPort" pat.ptrnTpSrc;
-          to_string_exact string_of_int "tcpDstPort" pat.ptrnTpDst;
-          to_string_exact string_of_port "inPort" pat.ptrnInPort ])
+           [ to_string_exact Packet.string_of_mac "dlSrc" pat.ptrnDlSrc;
+             to_string_exact Packet.string_of_mac "dlDst" pat.ptrnDlDst;
+             to_string_exact Packet.string_of_dlTyp "dlTyp" pat.ptrnDlTyp;
+             to_string_exact Packet.string_of_dlVlan "vlan" pat.ptrnDlVlan;
+             to_string_exact string_of_int "dlVlanPcp" pat.ptrnDlVlanPcp;
+             to_string_exact Packet.string_of_ip "srcIP" pat.ptrnNwSrc;
+             to_string_exact Packet.string_of_ip "dstIP" pat.ptrnNwDst;
+             to_string_exact Packet.string_of_nwProto "nwProto" pat.ptrnNwProto;
+             to_string_exact string_of_int "nwTos" pat.ptrnNwTos;
+             to_string_exact string_of_int "tcpSrcPort" pat.ptrnTpSrc;
+             to_string_exact string_of_int "tcpDstPort" pat.ptrnTpDst;
+             to_string_exact string_of_port "inPort" pat.ptrnInPort ])
 
   let match_modify pr lbl fmt mm = match mm with
     | None -> ()
     | Some (old, new_) -> fprintf fmt "@[@[%s@ %s@,->@,%s@];@ @]"
-      lbl (pr old) (pr new_)
+                            lbl (pr old) (pr new_)
 
   let output fmt (out : output) : unit =
     fprintf fmt "@[%a%a%a%a%a%a%a%a%a%s@]"
@@ -86,7 +86,7 @@ module Format = struct
   and apred fmt p = match p with 
     (* pat does create a single box *)
     | Hdr ptrn -> fprintf fmt "@[%a@]" pat ptrn 
-    | OnSwitch sw -> fprintf fmt "@[switch = %Lx@]" sw
+    | OnSwitch sw -> fprintf fmt "@[switch = %Ld@]" sw
     | Not p' -> fprintf fmt "@[!%a@]" apred p'
     | Everything -> fprintf fmt "@[*@]"
     | Nothing -> fprintf fmt "@[none@]" 
@@ -109,7 +109,7 @@ module Format = struct
 
   and cpol fmt p = match p with
     | ITE (pr, then_pol, else_pol) ->
-            fprintf fmt "@[if@ %a@;<1 2>@[then@;<1 2>%a@]@;<1 2>@[else@;<1 2>%a@]@]"
+      fprintf fmt "@[if@ %a@;<1 2>@[then@;<1 2>%a@]@;<1 2>@[else@;<1 2>%a@]@]"
         pred pr cpol then_pol cpol else_pol
     | _ -> apol fmt p
 

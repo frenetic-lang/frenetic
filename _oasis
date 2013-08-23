@@ -40,7 +40,8 @@ Library netcore
     NetCore_Pattern,
     NetCore_Wildcard,
     NetCore_SurfaceSyntax,
-    NetCore_Bijection
+    NetKAT_Types,
+    ONF
   Modules:
     NetCore_Controller,
     NetCore_Controller0x04,
@@ -57,11 +58,16 @@ Library netcore
     NetCore_Parsing,
     NetCore_Verify
 
-Executable Test_Frenetic
+Executable testtool
   Path: test
   MainIs: Test.ml
-  BuildDepends: oUnit,packet,netcore
+  BuildDepends: oUnit,packet,netcore,pa_ounit,pa_ounit.syntax
   Install: False
+
+Test all_tests
+  Command: $testtool inline-test-runner dummy
+  Run$: flag(tests)
+  TestTools: testtool
 
 Executable frenetic
   Path: frenetic
@@ -88,4 +94,6 @@ Document doc
     NetCore_StatefulFirewall,
     NetCore_Topo,
     NetCore_Types,
-    NetCore_Parsing
+    NetCore_Parsing,
+    NetKAT_Types,
+    ONF

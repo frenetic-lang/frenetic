@@ -3,6 +3,7 @@ open Packet
 open OpenFlow0x01
 open OpenFlow0x01_Core
 open NetCore_Types
+open NetCore_Pattern
 
 module Log = Lwt_log
 module SwitchSet = Set.Make (Int64)
@@ -13,38 +14,10 @@ module Compat = NetCore_Compat.Compat0x01
 let (<&>) = Lwt.(<&>)
 
 let init_pol : pol = Filter Nothing
-  
-module type PLATFORM = OpenFlow0x01_PlatformSig.PLATFORM
 
-(* Internal module for managing individual queries. *)
-module type QUERY = functor (Platform : PLATFORM) -> sig
- 
-  type t
+module Platform = OpenFlow0x01_Platform
 
-  val create : xid
-            -> action_atom
-            -> int (* Time to wait between queries. *)
-            -> get_count_handler
-            -> Lwt_switch.t 
-            -> SwitchSet.t 
-            -> pol 
-            -> t
-
-  val kill : t -> unit Lwt.t
-  val start : t -> unit Lwt.t
-  val handle_reply : switchId 
-                  -> t
-                  -> Stats.individualStats list
-                  -> unit
-
-  val refresh_switches : SwitchSet.t -> t -> unit
-  val remove_switch : switchId -> t -> unit
-
-  val find : xid -> t list -> t
-
-end
-
-module Query (Platform : PLATFORM) = struct
+module Query = struct
 
   module Flow = struct
     type t = (switchId * Match.t)
@@ -63,7 +36,7 @@ module Query (Platform : PLATFORM) = struct
     ; time : float
     ; cb : get_count_handler
     ; policy : pol
-      (* Mutable. *)
+    (* Mutable. *)
     ; counter_ids : counter_ids
     ; lock : Lwt_mutex.t
     ; kill_switch : Lwt_switch.t
@@ -76,13 +49,13 @@ module Query (Platform : PLATFORM) = struct
     }
 
   let to_string q = Printf.sprintf "{ xid = %ld, atom = %s, switches = %s, ...}"
-    q.xid
-    (match q.atom with
-        | SwitchAction _ -> "SwitchAction"
-        | ControllerAction _ -> "ControllerAction"
-        | ControllerQuery (t, _) -> Printf.sprintf "ControllerQuery (%f,_)" t)
-    (String.concat "," (List.map (fun sw -> Printf.sprintf "%Ld" sw)
-                          (SwitchSet.elements !(q.switches))))
+      q.xid
+      (match q.atom with
+       | SwitchAction _ -> "SwitchAction"
+       | ControllerAction _ -> "ControllerAction"
+       | ControllerQuery (t, _) -> Printf.sprintf "ControllerQuery (%f,_)" t)
+      (String.concat "," (List.map (fun sw -> Printf.sprintf "%Ld" sw)
+                            (SwitchSet.elements !(q.switches))))
 
   let to_query atom (pattern, action) =
     let query_atoms = NetCore_Action.Output.queries action in
@@ -130,8 +103,8 @@ module Query (Platform : PLATFORM) = struct
       ; this_byte_count = ref Int64.zero 
       } in
     let _ = try
-      Lwt_switch.add_hook (Some kill_switch) (fun () -> kill q)
-    with Lwt_switch.Off -> () in
+        Lwt_switch.add_hook (Some kill_switch) (fun () -> kill q)
+      with Lwt_switch.Off -> () in
     (* let () = Log.printf "NetCore_Controller.Query" "creating (%s)\n%!" (to_string q) in *)
     q
 
@@ -180,18 +153,18 @@ module Query (Platform : PLATFORM) = struct
 
   let handle_single_reply sw q rep =
     (* let () = Log.printf 
-      "NetCore_Controller.Query" "handle reply (%s) (%Ld)\n    (%s)\n%!"
-      (to_string q) sw (Stats.IndividualFlowStats.to_string rep) in *)
+       "NetCore_Controller.Query" "handle reply (%s) (%Ld)\n    (%s)\n%!"
+       (to_string q) sw (Stats.IndividualFlowStats.to_string rep) in *)
     let open Stats in
     if FlowSet.mem (sw, rep.of_match) !(q.counter_ids) then begin
       q.this_packet_count := Int64.add rep.packet_count !(q.this_packet_count);
       q.this_byte_count := Int64.add rep.byte_count !(q.this_byte_count);
-      end
+    end
     else ()
 
   let try_done q =
     if SwitchSet.is_empty 
-      (SwitchSet.inter !(q.switches_to_respond) !(q.switches))
+        (SwitchSet.inter !(q.switches_to_respond) !(q.switches))
     then
       (*let () = Log.printf "NetCore_Controller.Query" "got all replies! (%s)\n%!" (to_string q) in *)
       let _ = do_callback q in
@@ -209,11 +182,11 @@ module Query (Platform : PLATFORM) = struct
     let new_switches = SwitchSet.diff switches !(q.switches) in
     q.switches := switches;
     (* SwitchSet.iter 
-      (fun s -> Log.printf "NetCore_Controller.Query" "refresh switch (%s) (%Ld) \n%!" (to_string q) s)
-      !(q.switches);
-    SwitchSet.iter 
-      (fun s -> Log.printf "NetCore_Controller.Query" "new switch (%s) (%Ld) \n%!" (to_string q) s)
-      new_switches; *)
+       (fun s -> Log.printf "NetCore_Controller.Query" "refresh switch (%s) (%Ld) \n%!" (to_string q) s)
+       !(q.switches);
+       SwitchSet.iter 
+       (fun s -> Log.printf "NetCore_Controller.Query" "new switch (%s) (%Ld) \n%!" (to_string q) s)
+       new_switches; *)
     SwitchSet.iter (set_fields q.counter_ids q.policy q.atom) new_switches
 
   let remove_switch sw q =
@@ -225,26 +198,14 @@ module Query (Platform : PLATFORM) = struct
 
 end
 
-module type QUERYSET = functor (Platform : PLATFORM) ->
-  sig
-    val start : pol -> unit Lwt.t
-    val stop : unit -> unit
-    val add_switch : switchId -> unit
-    val remove_switch : switchId -> unit
-    val handle_reply : switchId 
-                    -> xid 
-                    -> Stats.individualStats list 
-                    -> unit
-  end
+module QuerySet = struct
 
-module QuerySet (Platform : PLATFORM) = struct
-
-  module Q = Query (Platform)
+  module Q = Query
   type qid = xid
 
   (* The query ID generator is persistent across start/stop
    * cycles, in order to properly ignore old query responses.
-   *)
+  *)
   let query_id_cell = ref Int32.zero
   let gen_query_id () = 
     query_id_cell := Int32.succ !query_id_cell; 
@@ -271,9 +232,9 @@ module QuerySet (Platform : PLATFORM) = struct
     | HandleSwitchEvent _ -> ()
     | Action atoms ->
       List.iter (fun atom -> match atom with
-        | ControllerQuery (_, cb) -> 
-          Hashtbl.replace q_actions_to_query_ids atom (gen_query_id ())
-        | _ -> ())
+          | ControllerQuery (_, cb) -> 
+            Hashtbl.replace q_actions_to_query_ids atom (gen_query_id ())
+          | _ -> ())
         atoms
     | ActionChoice _ -> failwith "NYI: generate_query_ids ActionChoice"
     | Filter _ -> ()
@@ -338,30 +299,26 @@ module QuerySet (Platform : PLATFORM) = struct
 
 end
 
-module type MAKE  = functor (Platform : PLATFORM) -> 
-  sig
-    val start_controller : NetCore_Types.pol NetCore_Stream.t -> unit Lwt.t
-  end
+module Make  = struct
 
-module Make (Platform : PLATFORM) = struct
-
-  module Queries = QuerySet (Platform)
+  module Queries = QuerySet
 
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
+    (* BASUS: ignore (NetCore_Monitoring.monitor_tbl sw pol); *)
     lwt flow_table = Lwt.wrap2 Compat.flow_table_of_policy sw pol in
     Platform.send_to_switch sw 0l (Message.FlowModMsg delete_all_flows) >>
     let prio = ref 65535 in
     Lwt_list.iter_s
       (fun (match_, actions) ->
-        Platform.send_to_switch sw 0l 
-          (Message.FlowModMsg (add_flow !prio match_ actions)) >>
-        (decr prio; Lwt.return ()))
+         Platform.send_to_switch sw 0l 
+           (Message.FlowModMsg (add_flow !prio match_ actions)) >>
+         (decr prio; Lwt.return ()))
       flow_table
 
   let install_new_policies sw pol_stream =
     Lwt_stream.iter_s (configure_switch sw)
       (NetCore_Stream.to_stream pol_stream)
-      
+
   let handle_packet_in pol sw pkt_in = 
     let in_port = Compat.to_nc_portId pkt_in.port in
     try_lwt
@@ -378,11 +335,11 @@ module Make (Platform : PLATFORM) = struct
       let switch_action =
         NetCore_Action.Output.switch_part
           (NetCoreCompiler.OutputClassifier.scan 
-            classifier (Physical in_port) in_packet) in
+             classifier (Physical in_port) in_packet) in
       let classifier_out_vals = 
         NetCore_Semantics.eval_action switch_action in_val in
 
-    (* These are packets not already processed in the data plane. *)
+      (* These are packets not already processed in the data plane. *)
       let new_out_vals =
         List.filter 
           (fun v -> not (List.mem v classifier_out_vals)) 
@@ -395,7 +352,7 @@ module Make (Platform : PLATFORM) = struct
           NetCore_Action.Output.par_action
           NetCore_Action.Output.drop
           (List.map (NetCore_Action.Output.make_transformer in_val)
-            new_out_vals) in
+             new_out_vals) in
 
       let out_payload = 
         { output_payload = pkt_in.input_payload
@@ -430,27 +387,20 @@ module Make (Platform : PLATFORM) = struct
     Log.info_f "switch %Ld connected.\n%!" sw >>
     let _ = Queries.add_switch sw in
     (try_lwt
-      lwt _ = Lwt.wrap2 NetCore_Semantics.handle_switch_events
-        (SwitchUp (sw, Compat.to_nc_features features))
-        (NetCore_Stream.now pol_stream) in
-      Lwt.pick [ install_new_policies sw pol_stream;
-                 handle_switch_messages pol_stream sw ]
-    with exn ->
-      begin
-        match exn with
-          | OpenFlow0x01_Platform.SwitchDisconnected _ ->
-            (* TODO(arjun): I can assume sw itself disconnected? *)
-            Lwt.return ()
-          | _ ->
-            Log.error_f ~exn:exn "unhandled exception"
-      end) >>
+       lwt _ = Lwt.wrap2 NetCore_Semantics.handle_switch_events
+           (SwitchUp (sw, Compat.to_nc_features features))
+           (NetCore_Stream.now pol_stream) in
+       Lwt.pick [ install_new_policies sw pol_stream;
+                  handle_switch_messages pol_stream sw ]
+     with exn ->
+       Log.error_f ~exn:exn "unhandled exception" ) >>
     begin
       Lwt.async
         (fun () -> (* TODO(arjun): 
                       confirm this gracefully discards the exception *)
-          Lwt.wrap2 NetCore_Semantics.handle_switch_events 
-            (SwitchDown sw)
-            (NetCore_Stream.now pol_stream));
+           Lwt.wrap2 NetCore_Semantics.handle_switch_events 
+             (SwitchDown sw)
+             (NetCore_Stream.now pol_stream));
       Queries.remove_switch sw;
       Log.info_f "switch %Ld disconnected.\n%!" sw
     end
@@ -493,10 +443,12 @@ module Make (Platform : PLATFORM) = struct
 
 end
 
-module MakeConsistent (Platform : PLATFORM) = struct
+let start_controller = Make.start_controller
+
+module MakeConsistent = struct
 
   open NetCore_ConsistentUpdates
-  module Queries = QuerySet(Platform)
+  module Queries = QuerySet
 
   let all_internal_pols_installed = Lwt_condition.create ()
   let internal_policy_barrier_xid = 1337l
@@ -517,7 +469,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
       else [act]
     | ControllerAction _ -> [act]
     | ControllerQuery _ -> [act]
-      
+
   let rec explode_allPorts pol ports = match pol with
     | HandleSwitchEvent _ -> pol
     | Action acts -> Action (List.flatten (List.map (explode_allPorts_in_action ports) acts))
@@ -535,7 +487,7 @@ module MakeConsistent (Platform : PLATFORM) = struct
     | [] -> failwith "pop_last must be called w/ non-empty list"
     | [a] -> [],a
     | a :: lst -> let lst',last = pop_last lst in
-                  a::lst',last
+      a::lst',last
 
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
     Log.info_f "In configure_squence\n%!" >>
@@ -548,15 +500,15 @@ module MakeConsistent (Platform : PLATFORM) = struct
     let prio = ref 65535 in
     Lwt_list.iter_s
       (fun (match_, actions) ->
-        printf " %s => %s\n%!"
-          (OpenFlow0x01.Match.to_string match_)
-          (OpenFlow0x01.Action.sequence_to_string actions);
-        Platform.send_to_switch sw 0l 
-          (Message.FlowModMsg (add_flow !prio match_ actions)) >>
-          (decr prio; Lwt.return ()))
+         printf " %s => %s\n%!"
+           (OpenFlow0x01.Match.to_string match_)
+           (OpenFlow0x01.Action.sequence_to_string actions);
+         Platform.send_to_switch sw 0l 
+           (Message.FlowModMsg (add_flow !prio match_ actions)) >>
+         (decr prio; Lwt.return ()))
       flow_table >>
-      Platform.send_to_switch sw 0l 
-        (Message.FlowModMsg (add_flow 1 (fst drop_rule) (snd drop_rule)))
+    Platform.send_to_switch sw 0l 
+      (Message.FlowModMsg (add_flow 1 (fst drop_rule) (snd drop_rule)))
 
   let send_barrier (sw : switchId) (xid : xid) : unit Lwt.t =
     Log.info_f "In send_barrier\n%!" >>
@@ -565,17 +517,17 @@ module MakeConsistent (Platform : PLATFORM) = struct
   (* First draft: ignore barriers *)
   let install_new_policies sw ports pol_stream =
     Lwt_stream.iter_s (fun (int, ext) -> 
-      let int = explode_allPorts int ports in
-      let ext = explode_allPorts ext ports in
-      clear_switch sw >>
-      send_barrier sw 0l >>
-      Log.info_f  "internal pol:\n%s"  (NetCore_Pretty.string_of_pol int) >>
-      configure_switch sw int >>
-      send_barrier sw internal_policy_barrier_xid >>
-      (* Block for other switches *)
-      Lwt_condition.wait all_internal_pols_installed >>
-      Log.info_f "external pol:\n%s\n%!" (NetCore_Pretty.string_of_pol ext) >>
-      configure_switch sw (Union(int,ext)))
+        let int = explode_allPorts int ports in
+        let ext = explode_allPorts ext ports in
+        clear_switch sw >>
+        send_barrier sw 0l >>
+        Log.info_f  "internal pol:\n%s"  (NetCore_Pretty.string_of_pol int) >>
+        configure_switch sw int >>
+        send_barrier sw internal_policy_barrier_xid >>
+        (* Block for other switches *)
+        Lwt_condition.wait all_internal_pols_installed >>
+        Log.info_f "external pol:\n%s\n%!" (NetCore_Pretty.string_of_pol ext) >>
+        configure_switch sw (Union(int,ext)))
       (NetCore_Stream.to_stream pol_stream)
 
   let handle_packet_in sw pkt_in = 
@@ -611,18 +563,18 @@ module MakeConsistent (Platform : PLATFORM) = struct
       (* TODO: match on return XID for cond var broadcast *) 
       | (xid, BarrierReply) -> 
         (match xid = internal_policy_barrier_xid with
-          | true -> 
-            let new_switch_set = SwitchSet.add sw !switches_with_new_internal_policy in
-            (match new_switch_set = !current_switches with 
-              | true ->
-                Lwt_condition.broadcast all_internal_pols_installed ();
-                switches_with_new_internal_policy := SwitchSet.empty;
-                Lwt.return ()
-              | false -> switches_with_new_internal_policy := new_switch_set;
-                Lwt.return ())
-          | false -> Lwt.return ())
+         | true -> 
+           let new_switch_set = SwitchSet.add sw !switches_with_new_internal_policy in
+           (match new_switch_set = !current_switches with 
+            | true ->
+              Lwt_condition.broadcast all_internal_pols_installed ();
+              switches_with_new_internal_policy := SwitchSet.empty;
+              Lwt.return ()
+            | false -> switches_with_new_internal_policy := new_switch_set;
+              Lwt.return ())
+         | false -> Lwt.return ())
       | _ -> Lwt.return ()
-      in
+    in
     handle_switch_messages sw
 
   let switch_thread features pol_stream topo =
@@ -634,28 +586,21 @@ module MakeConsistent (Platform : PLATFORM) = struct
     current_switches := SwitchSet.add sw !current_switches;
     (try_lwt
        let (int_pol,ext_pol) = NetCore_Stream.now pol_stream in
-      lwt _ = Lwt.wrap2 NetCore_Semantics.handle_switch_events
-        (SwitchUp (sw, Compat.to_nc_features features)) (Union(int_pol,ext_pol))
-         in
-      Lwt.pick [ install_new_policies sw ports pol_stream;
-                 handle_switch_messages sw ]
-    with exn ->
-      begin
-        match exn with
-          | OpenFlow0x01_Platform.SwitchDisconnected _ ->
-            (* TODO(arjun): I can assume sw itself disconnected? *)
-            Lwt.return ()
-          | _ ->
-            Log.error_f ~exn:exn "unhandled exception"
-      end) >>
+       lwt _ = Lwt.wrap2 NetCore_Semantics.handle_switch_events
+           (SwitchUp (sw, Compat.to_nc_features features)) (Union(int_pol,ext_pol))
+       in
+       Lwt.pick [ install_new_policies sw ports pol_stream;
+                  handle_switch_messages sw ]
+     with exn ->
+       Log.error_f ~exn:exn "unhandled exception") >>
     begin
       Lwt.async
         (fun () -> (* TODO(arjun): 
                       confirm this gracefully discards the exception *)
-          let (int_pol,ext_pol) = (NetCore_Stream.now pol_stream) in
-          Lwt.wrap2 NetCore_Semantics.handle_switch_events 
-            (SwitchDown sw)
-            (Union(int_pol,ext_pol)));
+           let (int_pol,ext_pol) = (NetCore_Stream.now pol_stream) in
+           Lwt.wrap2 NetCore_Semantics.handle_switch_events 
+             (SwitchDown sw)
+             (Union(int_pol,ext_pol)));
       Queries.remove_switch sw;
       Lwt.return ()
     end
@@ -679,8 +624,8 @@ module MakeConsistent (Platform : PLATFORM) = struct
     let switches = NetCore_Graph.Graph.get_switches topo in
     let int_pol,ext_pol = 
       match switches with 
-        | [] -> (pol, pol)
-        | _ -> gen_update_pols pol ver switches (make_extPorts topo) in
+      | [] -> (pol, pol)
+      | _ -> gen_update_pols pol ver switches (make_extPorts topo) in
     Queries.stop () >>
     let _ = pol_now := Union(int_pol, ext_pol) in
     let _ = push_pol (Some (int_pol, ext_pol)) in
@@ -700,3 +645,5 @@ module MakeConsistent (Platform : PLATFORM) = struct
         (* discovery_lwt *) ]
 
 end
+
+let start_consistent_controller = MakeConsistent.start_controller

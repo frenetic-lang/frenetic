@@ -1,21 +1,42 @@
 open Packet
 open OpenFlow0x01
-open NetCore_Types
 open NetCore_Wildcard
-
 module OF = OpenFlow0x01_Core
 
-type t = ptrn
+type portId = Int32.t
+type queueId = Int32.t
 
+type port =
+  | Physical of portId
+  | Queue of portId * queueId
+  | All
+  | Here
+
+type t = {
+  ptrnDlSrc : dlAddr wildcard;
+  ptrnDlDst : dlAddr wildcard;
+  ptrnDlTyp : dlTyp wildcard;
+  ptrnDlVlan : dlVlan wildcard;
+  ptrnDlVlanPcp : dlVlanPcp wildcard;
+  ptrnNwSrc : nwAddr wildcard;
+  ptrnNwDst : nwAddr wildcard;
+  ptrnNwProto : nwProto wildcard;
+  ptrnNwTos : nwTos wildcard;
+  ptrnTpSrc : tpPort wildcard;
+  ptrnTpDst : tpPort wildcard;
+  ptrnInPort : port wildcard
+}
 
 module PortOrderedType = struct
   type t = port
   let compare = Pervasives.compare
   let to_string =  function
-    | Physical pid -> "Physical " ^ (NetCore_Types.string_of_portId pid)
+    | Physical pid -> 
+      Format.sprintf "Physical %ld" pid
     | All -> "All"
     | Here -> "Here"
-    | Queue (pid, qid) -> "Queue " ^ (string_of_portId pid)  ^ " " ^ (string_of_queueId qid)
+    | Queue (pid, qid) -> 
+      Format.sprintf "Queue %ld %ld" pid qid
 
 end
 
@@ -36,10 +57,10 @@ end
 module Int64Wildcard = NetCore_Wildcard.Make (Int64)
 module Int32Wildcard = NetCore_Wildcard.Make (Int32)
 module IntWildcard =  NetCore_Wildcard.Make (struct
-  type t = int
-  let compare = Pervasives.compare
-  let to_string n = string_of_int n
-end)
+    type t = int
+    let compare = Pervasives.compare
+    let to_string n = string_of_int n
+  end)
 
 module DlAddrWildcard = Int64Wildcard
 module DlTypWildcard = IntWildcard
@@ -50,6 +71,93 @@ module NwProtoWildcard = IntWildcard
 module NwTosWildcard = IntWildcard
 module TpPortWildcard = IntWildcard
 module PortWildcard = NetCore_Wildcard.Make (PortOrderedType)
+
+let all = {
+  ptrnDlSrc = WildcardAll;
+  ptrnDlDst = WildcardAll;
+  ptrnDlTyp = WildcardAll;
+  ptrnDlVlan = WildcardAll;
+  ptrnDlVlanPcp = WildcardAll;
+  ptrnNwSrc = WildcardAll;
+  ptrnNwDst = WildcardAll;
+  ptrnNwProto = WildcardAll;
+  ptrnNwTos = WildcardAll;
+  ptrnTpSrc = WildcardAll;
+  ptrnTpDst = WildcardAll;
+  ptrnInPort = WildcardAll
+}
+
+let empty = {
+  ptrnDlSrc = WildcardNone;
+  ptrnDlDst = WildcardNone;
+  ptrnDlTyp = WildcardNone;
+  ptrnDlVlan = WildcardNone;
+  ptrnDlVlanPcp = WildcardNone;
+  ptrnNwSrc = WildcardNone;
+  ptrnNwDst = WildcardNone;
+  ptrnNwProto = WildcardNone;
+  ptrnNwTos = WildcardNone;
+  ptrnTpSrc = WildcardNone;
+  ptrnTpDst = WildcardNone;
+  ptrnInPort = WildcardNone
+}
+
+let inPort pt =
+  { all with ptrnInPort = WildcardExact pt }
+
+let dlSrc mac =
+  { all with ptrnDlSrc = WildcardExact mac }
+
+let dlDst mac =
+  { all with ptrnDlDst = WildcardExact mac }
+
+let dlTyp typ =
+  { all with ptrnDlTyp = WildcardExact typ }
+
+let dlVlan vlan =
+  { all with ptrnDlVlan = WildcardExact vlan }
+
+let dlVlanPcp pcp =
+  { all with ptrnDlVlanPcp = WildcardExact pcp }
+
+let ipSrc ip =
+  { all with
+    ptrnDlTyp = WildcardExact 0x800;
+    ptrnNwSrc = WildcardExact ip }
+
+let ipDst ip =
+  { all with
+    ptrnDlTyp = WildcardExact 0x800;
+    ptrnNwDst = WildcardExact ip }
+
+let ipProto proto =
+  { all with
+    ptrnDlTyp = WildcardExact 0x800;
+    ptrnNwProto = WildcardExact proto }
+
+let ipTos tos =
+  { all with
+    ptrnDlTyp = WildcardExact 0x800;
+    ptrnNwTos = WildcardExact tos }
+
+let tpSrcPort proto tpPort =
+  { all with
+    ptrnDlTyp = WildcardExact 0x800;
+    ptrnNwProto = WildcardExact proto;
+    ptrnTpSrc = WildcardExact tpPort }
+
+let tpDstPort proto tpPort =
+  { all with
+    ptrnDlTyp = WildcardExact 0x800;
+    ptrnNwProto = WildcardExact proto;
+    ptrnTpDst = WildcardExact tpPort }
+
+let tcpSrcPort = tpSrcPort 6
+let tcpDstPort = tpDstPort 6
+let udpSrcPort = tpSrcPort 17
+let udpDstPort = tpDstPort 17
+
+
 
 let is_empty pat =
   DlAddrWildcard.is_empty pat.ptrnDlSrc
@@ -94,26 +202,26 @@ let to_match0x01 pat =
          TpPortWildcard.to_option pat.ptrnTpSrc,
          TpPortWildcard.to_option pat.ptrnTpDst,
          PortWildcard.to_option pat.ptrnInPort) with
-    | (Some dlSrc, Some dlDst, Some dlTyp, Some dlVlan, Some dlVlanPcp,
-       Some nwSrc, Some nwDst, Some nwProto, Some nwTos,
-       Some tpSrc, Some tpDst, Some inPort) ->
-      Some {
-        OF.dlSrc = dlSrc;
-        OF.dlDst = dlDst;
-        OF.dlTyp = dlTyp;
-        OF.dlVlan = dlVlan;
-        OF.dlVlanPcp = dlVlanPcp;
-        OF.nwSrc = nwSrc;
-        OF.nwDst = nwDst;
-        OF.nwProto = nwProto;
-        OF.nwTos = nwTos;
-        OF.tpSrc = tpSrc;
-        OF.tpDst = tpDst;
-        OF.inPort = match inPort with
-          | Some (Physical pt) -> Some (Int32.to_int pt)
-          | _ -> None
-      }
-    | _ -> None
+  | (Some dlSrc, Some dlDst, Some dlTyp, Some dlVlan, Some dlVlanPcp,
+     Some nwSrc, Some nwDst, Some nwProto, Some nwTos,
+     Some tpSrc, Some tpDst, Some inPort) ->
+    Some {
+      OF.dlSrc = dlSrc;
+      OF.dlDst = dlDst;
+      OF.dlTyp = dlTyp;
+      OF.dlVlan = dlVlan;
+      OF.dlVlanPcp = dlVlanPcp;
+      OF.nwSrc = nwSrc;
+      OF.nwDst = nwDst;
+      OF.nwProto = nwProto;
+      OF.nwTos = nwTos;
+      OF.tpSrc = tpSrc;
+      OF.tpDst = tpDst;
+      OF.inPort = match inPort with
+        | Some (Physical pt) -> Some (Int32.to_int pt)
+        | _ -> None
+    }
+  | _ -> None
 
 module OF0x04 = OpenFlow0x04_Core
 
@@ -130,22 +238,22 @@ let to_match0x04 pat =
          TpPortWildcard.to_option pat.ptrnTpSrc,
          TpPortWildcard.to_option pat.ptrnTpDst,
          PortWildcard.to_option pat.ptrnInPort) with
-    | (Some dlSrc, Some dlDst, Some dlTyp, Some dlVlan, Some dlVlanPcp,
-       Some nwSrc, Some nwDst, Some nwProto, Some nwTos,
-       Some tpSrc, Some tpDst, Some inPort) ->
-      ((match dlSrc with       None -> [] | Some v -> [ OF0x04.OxmEthSrc (OF0x04.val_to_mask v) ]) 
-       @ (match dlDst with     None -> [] | Some v -> [ OF0x04.OxmEthDst (OF0x04.val_to_mask v) ]) 
-       @ (match dlTyp with     None -> [] | Some v -> [ OF0x04.OxmEthType v ]) 
-       @ (match dlVlan with    None -> [] | Some (None) -> [] | Some (Some v) -> [ OF0x04.OxmVlanVId (OF0x04.val_to_mask v) ]) 
-       @ (match dlVlanPcp with None -> [] | Some v -> [ OF0x04.OxmVlanPcp v ])
-       @ (match nwSrc with     None -> [] | Some v -> [ OF0x04.OxmIP4Src (OF0x04.val_to_mask v) ])
-       @ (match nwDst with     None -> [] | Some v -> [ OF0x04.OxmIP4Dst (OF0x04.val_to_mask v) ])
-       @ (match nwProto with   None -> [] | Some v -> [ OF0x04.OxmIPProto v ])
-       @ (match tpSrc with     None -> [] | Some v -> [ OF0x04.OxmTCPSrc (OF0x04.val_to_mask v) ])
-       @ (match tpDst with     None -> [] | Some v -> [ OF0x04.OxmTCPDst (OF0x04.val_to_mask v) ])
-       @ (match inPort with    None -> [] | Some (Physical pt) -> [ OF0x04.OxmInPort pt ] | _ -> []),
-       (match inPort with Some (Physical pt) -> Some pt | _ -> None))
-    | _ -> ([], None)
+  | (Some dlSrc, Some dlDst, Some dlTyp, Some dlVlan, Some dlVlanPcp,
+     Some nwSrc, Some nwDst, Some nwProto, Some nwTos,
+     Some tpSrc, Some tpDst, Some inPort) ->
+    ((match dlSrc with       None -> [] | Some v -> [ OF0x04.OxmEthSrc (OF0x04.val_to_mask v) ]) 
+     @ (match dlDst with     None -> [] | Some v -> [ OF0x04.OxmEthDst (OF0x04.val_to_mask v) ]) 
+     @ (match dlTyp with     None -> [] | Some v -> [ OF0x04.OxmEthType v ]) 
+     @ (match dlVlan with    None -> [] | Some (None) -> [] | Some (Some v) -> [ OF0x04.OxmVlanVId (OF0x04.val_to_mask v) ]) 
+     @ (match dlVlanPcp with None -> [] | Some v -> [ OF0x04.OxmVlanPcp v ])
+     @ (match nwSrc with     None -> [] | Some v -> [ OF0x04.OxmIP4Src (OF0x04.val_to_mask v) ])
+     @ (match nwDst with     None -> [] | Some v -> [ OF0x04.OxmIP4Dst (OF0x04.val_to_mask v) ])
+     @ (match nwProto with   None -> [] | Some v -> [ OF0x04.OxmIPProto v ])
+     @ (match tpSrc with     None -> [] | Some v -> [ OF0x04.OxmTCPSrc (OF0x04.val_to_mask v) ])
+     @ (match tpDst with     None -> [] | Some v -> [ OF0x04.OxmTCPDst (OF0x04.val_to_mask v) ])
+     @ (match inPort with    None -> [] | Some (Physical pt) -> [ OF0x04.OxmInPort pt ] | _ -> []),
+     (match inPort with Some (Physical pt) -> Some pt | _ -> None))
+  | _ -> ([], None)
 
 let inter pat pat' = {
   ptrnDlSrc = DlAddrWildcard.inter pat.ptrnDlSrc pat'.ptrnDlSrc;

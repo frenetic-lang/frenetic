@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 8e2575f195020ef74ee48de7253cb67f)
+# DO NOT EDIT (digest: dab4b3b7c16bcadb06bdb30bce35e2c7)
 NetCore_Controller
 NetCore_Controller0x04
 NetCore_ConsistentUpdates
@@ -27,5 +27,6 @@ NetCore_Parser
 NetCore_Pattern
 NetCore_Wildcard
 NetCore_SurfaceSyntax
-NetCore_Bijection
+NetKAT_Types
+ONF
 # OASIS_STOP

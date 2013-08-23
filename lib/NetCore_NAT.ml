@@ -1,6 +1,7 @@
 open Printf
 open Packet
 open NetCore_Types
+open NetCore_Pattern
 open NetCore_Action.Output
 
 (** Table relating private locations to public locations. *)
@@ -10,8 +11,8 @@ module type TABLE = sig
   (** [create min_port max_port] bounds the range of ports*)
   val create : tpPort -> tpPort -> t
 
-   (** [fresh_public_port private_ip private_port = private_port] where
-       [private_port is unused] *)
+  (** [fresh_public_port private_ip private_port = private_port] where
+      [private_port is unused] *)
   val fresh_public_port : t -> nwAddr -> tpPort -> tpPort
 
   val get_public_port : t -> nwAddr -> tpPort -> tpPort option
@@ -71,55 +72,55 @@ let make (public_ip : nwAddr) =
   let tbl = Table.create 2000 65535 in
   let rec init_public_pol sw pt pk =
     match pk with
-      | { nw = Ip {
-            Ip.src = src_ip;
-            Ip.dst = dst_ip;
-            Ip.tp = Ip.Tcp { Tcp.src = src_pt; Tcp.dst = dst_pt }
-          }
-        } -> 
-        eprintf "[NAT] firewall dropping IP packet from %s:%d to %s:%d\n%!"
-          (string_of_ip src_ip) src_pt (string_of_ip dst_ip) dst_pt;
-        drop 
-      | _ -> eprintf "[NAT] firewalling non IP packet.\n%!"; drop in
-                      
+    | { nw = Ip {
+        Ip.src = src_ip;
+        Ip.dst = dst_ip;
+        Ip.tp = Ip.Tcp { Tcp.src = src_pt; Tcp.dst = dst_pt }
+      }
+      } -> 
+      eprintf "[NAT] firewall dropping IP packet from %s:%d to %s:%d\n%!"
+        (string_of_ip src_ip) src_pt (string_of_ip dst_ip) dst_pt;
+      drop 
+    | _ -> eprintf "[NAT] firewalling non IP packet.\n%!"; drop in
+
   let rec callback sw pt pk =
     match pk with
-      | { nw = Ip {
-            Ip.src = private_ip;
-            Ip.tp = Ip.Tcp { Tcp.src = private_port }
-          }
-        } ->
-        begin match Table.get_public_port tbl private_ip private_port with
-          | Some public_port ->
-            seq_action
-              (updateSrcIP private_ip public_ip)
-              (updateSrcPort private_port public_port)
-          | None ->
-            let public_port =
-              Table.fresh_public_port tbl private_ip private_port in
-            Printf.eprintf "[NAT] translating %s:%d to %s:%d\n%!"
-              (string_of_ip private_ip) private_port
-              (string_of_ip public_ip) public_port;
-            private_pol :=
-              ITE
+    | { nw = Ip {
+        Ip.src = private_ip;
+        Ip.tp = Ip.Tcp { Tcp.src = private_port }
+      }
+      } ->
+      begin match Table.get_public_port tbl private_ip private_port with
+        | Some public_port ->
+          seq_action
+            (updateSrcIP private_ip public_ip)
+            (updateSrcPort private_port public_port)
+        | None ->
+          let public_port =
+            Table.fresh_public_port tbl private_ip private_port in
+          Printf.eprintf "[NAT] translating %s:%d to %s:%d\n%!"
+            (string_of_ip private_ip) private_port
+            (string_of_ip public_ip) public_port;
+          private_pol :=
+            ITE
               (And (Hdr (ipSrc private_ip),
-                      Hdr (tcpSrcPort private_port)),
+                    Hdr (tcpSrcPort private_port)),
                Seq (Action (updateSrcIP private_ip public_ip),
-                      Action (updateSrcPort private_port public_port)),
+                    Action (updateSrcPort private_port public_port)),
                !private_pol);
-            public_pol :=
-              ITE
+          public_pol :=
+            ITE
               (And (Hdr (ipDst public_ip),
-                      Hdr (tcpDstPort public_port)),
+                    Hdr (tcpDstPort public_port)),
                Seq (Action (updateDstIP public_ip private_ip),
-                      Action (updateDstPort public_port private_port)),
+                    Action (updateDstPort public_port private_port)),
                !public_pol);
-            push (Some (!private_pol, !public_pol));
-            seq_action
-              (updateSrcIP private_ip public_ip)
-              (updateSrcPort private_port public_port)
-        end
-      | _ -> drop
+          push (Some (!private_pol, !public_pol));
+          seq_action
+            (updateSrcIP private_ip public_ip)
+            (updateSrcPort private_port public_port)
+      end
+    | _ -> drop
   and private_pol = ref (Action [ControllerAction callback])
   and public_pol = ref (Action [ControllerAction init_public_pol]) in
   let (lwt_computation, pair_stream) =

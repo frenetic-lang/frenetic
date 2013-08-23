@@ -101,8 +101,8 @@ let from_stream (init : 'a) (stream : 'a Lwt_stream.t) : unit Lwt.t * 'a node =
     | Some (_, v, q') -> propagate (v q') in
   (Lwt_stream.iter_s
      (fun a ->
-       self.now <- a;
-       Lwt.wrap1 propagate (Q.singleton 0 producer))
+        self.now <- a;
+        Lwt.wrap1 propagate (Q.singleton 0 producer))
      stream,
    self)
 

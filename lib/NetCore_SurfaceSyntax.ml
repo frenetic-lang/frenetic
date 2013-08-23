@@ -32,14 +32,14 @@ type top =
   | Bind of pos * id * exp * top
   | Main of pos * exp
   | Include of pos * string * top
-  | Check of pos * string * top
+  | Check of pos * string * Pol.pred * exp * Pol.pred * bool option * top
 
 type env = value Env.t
 
 let init_env = 
   Env.add
     "learn"
-     (let (init, pol) = NetCore_MacLearning.make () in
-      let (lwt_e, stream) = NetCore_Stream.from_stream init pol in
-      PolStream (lwt_e, stream))
-  Env.empty
+    (let (init, pol) = NetCore_MacLearning.make () in
+     let (lwt_e, stream) = NetCore_Stream.from_stream init pol in
+     PolStream (lwt_e, stream))
+    Env.empty

@@ -1,5 +1,7 @@
 open NetCore_Types
 open NetCore_Action.Output
+open NetCore_Pattern
+
 module G = NetCore_Graph.Graph
 module Log = Lwt_log
 
@@ -36,8 +38,8 @@ module Make (A : Arg) = struct
   let graph = G.create ()
 
   let parse_discovery_pkt pkt : (switchId * portId) option =
-  let open Packet in
-  match pkt with
+    let open Packet in
+    match pkt with
     | { dlSrc = 0xffffffffffffL; 
         dlDst = 0xffffffffffffL; 
         dlVlan = None; dlVlanPcp = 0; 
@@ -54,7 +56,7 @@ module Make (A : Arg) = struct
       dlVlan = None;
       dlVlanPcp = 0;
       nw = Unparsable 
-             (dl_typ, Cstruct.of_string (Marshal.to_string (sw, pt) []))
+          (dl_typ, Cstruct.of_string (Marshal.to_string (sw, pt) []))
     } in
     (sw, pt, Packet.marshal pk)
 
@@ -71,7 +73,7 @@ module Make (A : Arg) = struct
     List.iter (fun pt -> G.add_port graph (G.Switch sw) pt) pts
 
   (* let edges : loc Bijection.t = Bijection.create 100 *)
-  
+
   (* let switches : (switchId, portId list) Hashtbl.t = Hashtbl.create 10 *)
 
   let ports_of_switch sw = 
@@ -92,14 +94,14 @@ module Make (A : Arg) = struct
     | Physical phys_pt ->
       begin
         match parse_discovery_pkt pk with
-          | None -> 
-            Lwt.async (fun () -> Log.info "malformed discovery packet.\n%!")
-          | Some (sw', pt') -> 
-            Lwt.async
-              (fun () ->
-                Log.info_f "added edge %Ld:%ld <--> %Ld:%ld\n%!"
-                  sw phys_pt sw' pt');
-            G.add_edge graph (G.Switch sw) phys_pt (G.Switch sw') pt'
+        | None -> 
+          Lwt.async (fun () -> Log.info "malformed discovery packet.\n%!")
+        | Some (sw', pt') -> 
+          Lwt.async
+            (fun () ->
+               Log.info_f "added edge %Ld:%ld <--> %Ld:%ld\n%!"
+                 sw phys_pt sw' pt');
+          G.add_edge graph (G.Switch sw) phys_pt (G.Switch sw') pt'
       end;
       drop
     | _ -> drop
@@ -107,22 +109,22 @@ module Make (A : Arg) = struct
   let create (send_pkt : lp -> unit Lwt.t) =
     let pol = 
       Union (HandleSwitchEvent switch_event_handler,
-               Seq (Filter (Hdr (dlTyp dl_typ)),
-                      Action (controller recv_discovery_pkt))) in
+             Seq (Filter (Hdr (dlTyp dl_typ)),
+                  Action (controller recv_discovery_pkt))) in
     let f lwt_acc (sw, ports) =
       lwt_acc >>
       Lwt_list.iter_s 
         (fun pt -> 
-          Log.warning_f
-            "emitting a packet to switch=%Ld,port=%ld\n%!" sw pt >>
-            send_pkt (make_discovery_pkt sw pt))
+           Log.warning_f
+             "emitting a packet to switch=%Ld,port=%ld\n%!" sw pt >>
+           send_pkt (make_discovery_pkt sw pt))
         ports in
     let rec send_discovery () =
       Lwt_unix.sleep 5.0 >>
       List.fold_left f Lwt.return_unit (G.get_switches_and_ports graph) >>
       send_discovery () in
     (NetCore_Stream.constant pol, send_discovery ())
-      
+
 end
 
 module Topo = Make (struct let dl_typ = 0x7FF end)

@@ -9,7 +9,7 @@ let intersperse v lst =
 
 let concat_map f lst =
   List.fold_right (fun a bs -> List.append (f a) bs) lst []
-    
+
 let rec filter_map f xs = match xs with
   | [] -> []
   | x :: xs' -> match f x with

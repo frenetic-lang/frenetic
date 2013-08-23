@@ -19,9 +19,9 @@ sig
     -> OpenFlow0x01.switchId 
     -> OutputClassifier.t
 end
-    
+
 module type MAKE = functor (Output : NetCore_Action.COMPILER_ACTION0x01) ->
-  sig include POLICYCOMPILER end
+sig include POLICYCOMPILER end
   with type OutputClassifier.action = Output.t
 
 module CompilePol : MAKE

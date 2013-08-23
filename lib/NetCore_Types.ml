@@ -1,6 +1,8 @@
 open List
 open Packet
 open Format
+open NetCore_Wildcard
+open NetCore_Pattern
 
 type switchId = int64
 type portId = int32
@@ -10,33 +12,13 @@ let string_of_portId pid = Printf.sprintf "%ld" pid
 let string_of_switchId swid = Printf.sprintf "%Ld" swid
 let string_of_queueId pid = Printf.sprintf "%ld" pid
 
-type 'a wildcard =
-  | WildcardExact of 'a
-  | WildcardAll
-  | WildcardNone
+type 'a wildcard = 'a NetCore_Wildcard.wildcard
 
-type port =
-  | Physical of portId
-  | Queue of portId * queueId
-  | All
-  | Here
+type port = NetCore_Pattern.port
 
 type lp = switchId * port * packet
 
-type ptrn = {
-  ptrnDlSrc : dlAddr wildcard;
-  ptrnDlDst : dlAddr wildcard;
-  ptrnDlTyp : dlTyp wildcard;
-  ptrnDlVlan : dlVlan wildcard;
-  ptrnDlVlanPcp : dlVlanPcp wildcard;
-  ptrnNwSrc : nwAddr wildcard;
-  ptrnNwDst : nwAddr wildcard;
-  ptrnNwProto : nwProto wildcard;
-  ptrnNwTos : nwTos wildcard;
-  ptrnTpSrc : tpPort wildcard;
-  ptrnTpDst : tpPort wildcard;
-  ptrnInPort : port wildcard
-}
+type ptrn = NetCore_Pattern.t
 
 type 'a match_modify = ('a * 'a) option
 
@@ -67,7 +49,7 @@ let id =
 
 type get_packet_handler = switchId -> port -> packet -> action
 
-  (* Packet count -> Byte count -> unit. *)
+(* Packet count -> Byte count -> unit. *)
 and get_count_handler = Int64.t -> Int64.t -> unit
 
 and action_atom =
@@ -113,87 +95,3 @@ type pol =
 type value =
   | Pkt of switchId * port * packet * OpenFlow0x01.Payload.t
 
-let all = {
-  ptrnDlSrc = WildcardAll;
-  ptrnDlDst = WildcardAll;
-  ptrnDlTyp = WildcardAll;
-  ptrnDlVlan = WildcardAll;
-  ptrnDlVlanPcp = WildcardAll;
-  ptrnNwSrc = WildcardAll;
-  ptrnNwDst = WildcardAll;
-  ptrnNwProto = WildcardAll;
-  ptrnNwTos = WildcardAll;
-  ptrnTpSrc = WildcardAll;
-  ptrnTpDst = WildcardAll;
-  ptrnInPort = WildcardAll
-}
-
-let empty = {
-  ptrnDlSrc = WildcardNone;
-  ptrnDlDst = WildcardNone;
-  ptrnDlTyp = WildcardNone;
-  ptrnDlVlan = WildcardNone;
-  ptrnDlVlanPcp = WildcardNone;
-  ptrnNwSrc = WildcardNone;
-  ptrnNwDst = WildcardNone;
-  ptrnNwProto = WildcardNone;
-  ptrnNwTos = WildcardNone;
-  ptrnTpSrc = WildcardNone;
-  ptrnTpDst = WildcardNone;
-  ptrnInPort = WildcardNone
-}
-
-let inPort pt =
-  { all with ptrnInPort = WildcardExact pt }
-
-let dlSrc mac =
-  { all with ptrnDlSrc = WildcardExact mac }
-
-let dlDst mac =
-  { all with ptrnDlDst = WildcardExact mac }
-
-let dlTyp typ =
-  { all with ptrnDlTyp = WildcardExact typ }
-
-let dlVlan vlan =
-  { all with ptrnDlVlan = WildcardExact vlan }
-
-let dlVlanPcp pcp =
-  { all with ptrnDlVlanPcp = WildcardExact pcp }
-
-let ipSrc ip =
-  { all with
-    ptrnDlTyp = WildcardExact 0x800;
-    ptrnNwSrc = WildcardExact ip }
-
-let ipDst ip =
-  { all with
-    ptrnDlTyp = WildcardExact 0x800;
-    ptrnNwDst = WildcardExact ip }
-
-let ipProto proto =
-  { all with
-    ptrnDlTyp = WildcardExact 0x800;
-    ptrnNwProto = WildcardExact proto }
-
-let ipTos tos =
-  { all with
-    ptrnDlTyp = WildcardExact 0x800;
-    ptrnNwTos = WildcardExact tos }
-
-let tpSrcPort proto tpPort =
-  { all with
-    ptrnDlTyp = WildcardExact 0x800;
-    ptrnNwProto = WildcardExact proto;
-    ptrnTpSrc = WildcardExact tpPort }
-
-let tpDstPort proto tpPort =
-  { all with
-    ptrnDlTyp = WildcardExact 0x800;
-    ptrnNwProto = WildcardExact proto;
-    ptrnTpDst = WildcardExact tpPort }
-
-let tcpSrcPort = tpSrcPort 6
-let tcpDstPort = tpDstPort 6
-let udpSrcPort = tpSrcPort 17
-let udpDstPort = tpDstPort 17

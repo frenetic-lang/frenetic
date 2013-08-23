@@ -59,7 +59,10 @@ and token = parse
   | "{" { LCURLY }
   | "}" { RCURLY }
   | "!" { NOT }
+  | "?" { QMARK }
   | "*" { STAR }
+  | "true" { TRUE }
+  | "false" { FALSE }
   | "all" { ALL }
   | "fwd" { FWD }
   | "<none>" { NONE }

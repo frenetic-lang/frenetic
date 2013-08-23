@@ -1,4 +1,4 @@
-module Controller = NetCore_Controller.Make(OpenFlow0x01_Platform)
+module Controller = NetCore_Controller
 
 type modeType =
   | ControllerMode (* start as a controller *)

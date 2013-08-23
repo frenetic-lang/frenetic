@@ -37,7 +37,7 @@ type action =
   | UpdateDstPort of int * int
   | GetPacket of get_packet_handler
   | GetCount of float * get_count_handler
-      
+
 type policy =
   | Empty
   | Act of action
@@ -48,11 +48,11 @@ type policy =
   | ITE of predicate * policy * policy
 
 val par : policy list -> policy
-  
+
 val string_of_predicate : predicate -> string
-  
+
 val string_of_action : action -> string
-  
+
 val string_of_policy : policy -> string
 
 

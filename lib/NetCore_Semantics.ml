@@ -4,20 +4,20 @@ open NetCore_Action.Output
 
 let rec match_pred pr sw pt pk =
   match pr with
-    | Hdr pat -> 
-      NetCore_Pattern.match_packet pt pk pat
-    | OnSwitch sw' -> 
-      if sw = sw' then true else false
-    | Or (p1, p2) -> 
-      (||) (match_pred p1 sw pt pk) (match_pred p2 sw pt pk)
-    | And (p1, p2) -> 
-      (&&) (match_pred p1 sw pt pk) (match_pred p2 sw pt pk)
-    | Not p' -> 
-      not (match_pred p' sw pt pk)
-    | Everything -> 
-      true
-    | Nothing -> 
-      false
+  | Hdr pat -> 
+    NetCore_Pattern.match_packet pt pk pat
+  | OnSwitch sw' -> 
+    if sw = sw' then true else false
+  | Or (p1, p2) -> 
+    (||) (match_pred p1 sw pt pk) (match_pred p2 sw pt pk)
+  | And (p1, p2) -> 
+    (&&) (match_pred p1 sw pt pk) (match_pred p2 sw pt pk)
+  | Not p' -> 
+    not (match_pred p' sw pt pk)
+  | Everything -> 
+    true
+  | Nothing -> 
+    false
 
 let eval_action act inp =
   let Pkt (sw, pt, pk, pay) = inp in
