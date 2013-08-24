@@ -1447,6 +1447,62 @@ module SwitchFeatures = struct
 
 end
 
+module ConfigReply = struct
+    
+  module FragFlags = struct
+
+    type t = 
+      | FragNormal 
+      | FragDrop
+      | FragReassemble 
+
+    let of_int d = match d with 
+      | 0 -> FragNormal
+      | 1 -> FragDrop
+      | 2 -> FragReassemble
+      | _ -> raise (Unparsable "malformed frag flags")
+	
+    let to_int f = match f with 
+      | FragNormal -> 0
+      | FragDrop -> 1
+      | FragReassemble -> 2
+
+    let to_string f = match f with
+      | FragNormal -> "FragNormal"
+      | FragDrop -> "FragDrop"
+      | FragReassemble -> "FragReassmble"
+
+  end
+    
+  type t = { 
+    frag_flags : FragFlags.t; 
+    miss_send_len : int }
+
+  cstruct ofp_switch_config {
+    uint16_t flags;
+    uint16_t miss_send_len
+  } as big_endian
+
+  let size_of _ = sizeof_ofp_switch_config
+
+  let parse buf = 
+    let frag_flags = get_ofp_switch_config_flags buf in 
+    let miss_send_len = get_ofp_switch_config_miss_send_len buf in 
+    { frag_flags = FragFlags.of_int frag_flags;
+      miss_send_len = miss_send_len }
+
+  let marshal sc buf = 
+    set_ofp_switch_config_flags buf (FragFlags.to_int sc.frag_flags);
+    set_ofp_switch_config_miss_send_len buf sc.miss_send_len;
+    size_of sc
+      
+  let to_string sc = 
+    Printf.sprintf 
+      "{ frag_flags = %s; miss_send_len = %d }"
+      (FragFlags.to_string sc.frag_flags)
+      sc.miss_send_len
+end
+
 module SwitchConfig = struct
     
   module FragFlags = struct
@@ -1533,7 +1589,10 @@ module StatsRequest = struct
     sizeof_ofp_flow_stats_request
 
   let to_string msg = match msg with
-    | DescriptionRequest -> "DescriptionReq"
+    | DescriptionRequest -> 
+      "DescriptionReq"
+    | FlowTableStatsRequest ->
+      "FlowTableStatsReq"
     | IndividualRequest _ ->
       "IndividualFlowReq "
     | AggregateRequest _ ->
@@ -1543,15 +1602,17 @@ module StatsRequest = struct
     let header_size = sizeof_ofp_stats_request in
     match msg with
     | DescriptionRequest -> header_size
+    | FlowTableStatsRequest -> header_size
     | AggregateRequest _
     | IndividualRequest _ -> header_size + sizeof_ofp_flow_stats_request
 
   let ofp_stats_type_of_request req = match req with
     | DescriptionRequest -> OFPST_DESC
+    | FlowTableStatsRequest -> OFPST_TABLE
     | IndividualRequest _ -> OFPST_FLOW
     | AggregateRequest _ -> OFPST_AGGREGATE
 
-  let marshal msg out =
+  let marshal (msg : request) (out : Cstruct.t) =
     let req_type = ofp_stats_type_of_request msg in
     let flags = 0x0 in
     set_ofp_stats_request_req_type out (ofp_stats_types_to_int req_type);
@@ -1559,10 +1620,57 @@ module StatsRequest = struct
     let out' = Cstruct.shift out sizeof_ofp_stats_request in
     match msg with
     | DescriptionRequest -> sizeof_ofp_stats_request
-    | IndividualRequest (pat, tbl, port)
-    | AggregateRequest (pat, tbl, port) ->
-      marshal_flow_stats_request pat port tbl out'
-
+    | FlowTableStatsRequest -> sizeof_ofp_stats_request
+    | IndividualRequest flow_req ->
+      marshal_flow_stats_request flow_req.is_of_match flow_req.is_out_port flow_req.is_table_id out'
+    | AggregateRequest agg_req ->
+      marshal_flow_stats_request agg_req.as_of_match agg_req.as_out_port agg_req.as_table_id out'
+  
+  let parse_flow_stats_request bits =
+    let is_of_match = Match.parse (get_ofp_flow_stats_request_of_match bits) in
+    let is_table_id = get_ofp_flow_stats_request_table_id bits in
+    let is_out_port =
+      (let open PseudoPort in
+      if ofp_port_to_int OFPP_NONE = (get_ofp_flow_stats_request_out_port bits) then
+        None
+      else
+        Some (PhysicalPort (get_ofp_flow_stats_request_out_port bits)))
+    in
+    { is_of_match = is_of_match;
+      is_table_id = is_table_id;
+      is_out_port = is_out_port
+    }
+    
+  let parse_aggregate_stats_request bits =
+    let as_of_match = Match.parse (get_ofp_flow_stats_request_of_match bits) in
+    let as_table_id = get_ofp_flow_stats_request_table_id bits in
+    let as_out_port =
+      (let open PseudoPort in
+      if ofp_port_to_int OFPP_NONE = (get_ofp_flow_stats_request_out_port bits) then
+        None
+      else
+        Some (PhysicalPort (get_ofp_flow_stats_request_out_port bits)))
+    in
+    { as_of_match = as_of_match;
+      as_table_id = as_table_id;
+      as_out_port = as_out_port
+    }
+  
+  let parse bits =
+    let stats_type_code = get_ofp_stats_request_req_type bits in
+    let body = Cstruct.shift bits sizeof_ofp_stats_request in
+    match int_to_ofp_stats_types stats_type_code with
+    | Some OFPST_DESC -> DescriptionRequest
+    | Some OFPST_TABLE -> FlowTableStatsRequest
+    | Some OFPST_FLOW -> IndividualRequest (parse_flow_stats_request body)
+    | Some OFPST_AGGREGATE -> AggregateRequest (parse_aggregate_stats_request body)
+    | Some OFPST_QUEUE -> raise (Unparsable "queue statistics unsupported")
+    | Some OFPST_VENDOR -> raise (Unparsable "vendor statistics unsupported")
+    | Some OFPST_PORT -> raise (Unparsable "port statistics unsupported")
+    | None ->
+      let msg =
+        sprintf "bad ofp_stats_type in stats_request (%d)" stats_type_code in
+      raise (Unparsable msg)
 end
 
 module StatsReply = struct
@@ -2108,7 +2216,6 @@ module Message = struct
         (string_of_msg_code hdr.typ)
         hdr.len
         (Int32.to_int hdr.xid)
-
   end
 
   type t =
@@ -2127,6 +2234,8 @@ module Message = struct
     | StatsRequestMsg of StatsRequest.t
     | StatsReplyMsg of StatsReply.t
     | SetConfig of SwitchConfig.t
+    | ConfigRequestMsg
+    | ConfigReplyMsg of ConfigReply.t
 
   let parse (hdr : Header.t) (body_buf : string) : (xid * t) =
     let buf = Cstruct.of_string body_buf in
@@ -2141,9 +2250,12 @@ module Message = struct
       | PORT_STATUS -> PortStatusMsg (PortStatus.parse buf)
       | BARRIER_REQ -> BarrierRequest
       | BARRIER_RESP -> BarrierReply
+      | STATS_REQ -> StatsRequestMsg (StatsRequest.parse buf)
       | STATS_RESP -> StatsReplyMsg (StatsReply.parse buf)
       | PACKET_OUT -> PacketOutMsg (PacketOut.parse buf)
       | FLOW_MOD -> FlowModMsg (FlowMod.parse buf)
+      | GET_CONFIG_REQ -> ConfigRequestMsg
+      | GET_CONFIG_RESP -> ConfigReplyMsg (ConfigReply.parse buf)
       | SET_CONFIG -> SetConfig (SwitchConfig.parse buf)
       | code -> raise (Ignored
         (Printf.sprintf "unexpected message type (%s)"
@@ -2167,6 +2279,8 @@ module Message = struct
     | StatsRequestMsg _ -> STATS_REQ
     | StatsReplyMsg _ -> STATS_RESP
     | SetConfig _ -> SET_CONFIG
+    | ConfigRequestMsg -> GET_CONFIG_REQ
+    | ConfigReplyMsg _ -> GET_CONFIG_RESP
 
   let to_string (msg : t) : string = match msg with
     | Hello _ -> "Hello"
@@ -2184,6 +2298,8 @@ module Message = struct
     | StatsRequestMsg _ -> "StatsRequest"
     | StatsReplyMsg _ -> "StatsReply"
     | SetConfig _ -> "SetConfig"
+    | ConfigRequestMsg -> "ConfigRequestMsg"
+    | ConfigReplyMsg _ -> "ConfigReplyMsg"
 
   open Bigarray
 
@@ -2201,6 +2317,8 @@ module Message = struct
     | StatsRequestMsg msg -> StatsRequest.size_of msg
     | PacketInMsg msg -> PacketIn.size_of msg
     | SetConfig msg -> SwitchConfig.size_of msg
+    | ConfigRequestMsg -> 0
+    | ConfigReplyMsg msg -> ConfigReply.size_of msg
     | ErrorMsg _
     | PortStatusMsg _
     | StatsReplyMsg _ -> 
@@ -2213,6 +2331,8 @@ module Message = struct
     | EchoReply buf ->
       Cstruct.blit buf 0 out 0 (Cstruct.len buf)
     | SwitchFeaturesRequest -> 
+      ()
+    | ConfigRequestMsg ->
       ()
     | FlowModMsg flow_mod ->
       let _ = FlowMod.marshal flow_mod out in
@@ -2233,6 +2353,9 @@ module Message = struct
       ()
     | SetConfig msg -> 
       let _ = SwitchConfig.marshal msg out in 
+      ()
+    | ConfigReplyMsg msg ->
+      let _ = ConfigReply.marshal msg out in 
       ()
     | PortStatusMsg msg -> 
       let _ = PortStatus.marshal msg out in 
