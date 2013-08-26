@@ -37,8 +37,6 @@ Library netcore
     NetCore_Lexer,
     NetCore_Monitoring,
     NetCore_Parser,
-    NetCore_Pattern,
-    NetCore_Wildcard,
     NetCore_SurfaceSyntax,
     NetKAT_Types,
     ONF
@@ -56,7 +54,9 @@ Library netcore
     NetCore_Graph,
     NetCore_Types,
     NetCore_Parsing,
-    NetCore_Verify
+    NetCore_Pattern,
+    NetCore_Verify,
+    NetCore_Wildcard
 
 Executable testtool
   Path: test

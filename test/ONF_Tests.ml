@@ -27,11 +27,11 @@ TEST "compile negation" =
 
 TEST "compile negation of sum" =
   let pr = Seq (Test (DlSrc, Int48 0L), Test (DlDst, Int48 0L)) in
-  test_compile 
+  test_compile
     (Neg pr)
     (* order flipped, a canonical ordering from to_netkat would be great *)
     (ite (Seq (Test (DlDst, Int48 0L), Test (DlSrc, Int48 0L)))
-       Drop 
+       Drop
        (* trivial optimization *)
        (ite (Test (DlSrc, Int48 0L)) Id Id))
 

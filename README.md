@@ -16,11 +16,12 @@ Prerequisites:
   - ocamlfind
   - openflow
   - oUnit
+  - pa_ounit
 
   Instal them using the following command:
 
   ```
-  $ opam install cstruct lwt ocamlfind ounit
+  $ opam install cstruct lwt ocamlfind ounit pa_ounit
   ```
 
 - The following OCaml libraries that we recommend you compile from source:
