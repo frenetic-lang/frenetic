@@ -61,7 +61,7 @@ let switch_handshake (fd : file_descr) : OF.SwitchFeatures.t option Lwt.t =
     | Some (_, error) ->
       let open OF.Error in
       begin match error with
-      | ErrorMsg HelloFailed (code, bytes) ->
+      | ErrorMsg (Error (HelloFailed code, bytes)) ->
         let open HelloFailed in
         begin match code with
         | Incompatible -> 

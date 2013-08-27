@@ -433,26 +433,33 @@ module Error : sig
 
   end
 
-  (** Each error is composed of a pair (error_code, data) *)
-  type t =
+  
 
+
+  (** Each error is composed of a pair (error_code, data) *)
+  type c =
+  
     (** Hello protocol failed. *)
-    | HelloFailed of HelloFailed.t * Cstruct.t
+    | HelloFailed of HelloFailed.t
 
     (** Request was not understood. *)
-    | BadRequest of BadRequest.t * Cstruct.t
+    | BadRequest of BadRequest.t
 
     (** Error in action description *)
-    | BadAction of BadAction.t * Cstruct.t
+    | BadAction of BadAction.t
 
     (** Problem modifying flow entry. *)
-    | FlowModFailed of FlowModFailed.t * Cstruct.t
+    | FlowModFailed of FlowModFailed.t
 
     (** Port mod request failed. *)
-    | PortModFailed of PortModFailed.t * Cstruct.t
+    | PortModFailed of PortModFailed.t
 
     (** Queue operation failed. *)
-    | QueueOpFailed of QueueOpFailed.t  * Cstruct.t
+    | QueueOpFailed of QueueOpFailed.t
+  
+  type t = 
+  
+    | Error of c * Cstruct.t
 
   (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string

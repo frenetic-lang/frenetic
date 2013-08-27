@@ -1470,7 +1470,7 @@ module ConfigReply = struct
     let to_string f = match f with
       | FragNormal -> "FragNormal"
       | FragDrop -> "FragDrop"
-      | FragReassemble -> "FragReassmble"
+      | FragReassemble -> "FragReassemble"
 
   end
     
@@ -1526,7 +1526,7 @@ module SwitchConfig = struct
     let to_string f = match f with
       | FragNormal -> "FragNormal"
       | FragDrop -> "FragDrop"
-      | FragReassemble -> "FragReassmble"
+      | FragReassemble -> "FragReassemble"
 
   end
     
@@ -1710,6 +1710,7 @@ module StatsReply = struct
 
     let size_of_description_stats _ = sizeof_ofp_desc_stats
 
+    (** Reply to an ofp_stats_request of type OFPST_FLOW *)
     cstruct ofp_flow_stats {
       uint16_t length;
       uint8_t table_id;
@@ -1790,7 +1791,6 @@ module StatsReply = struct
         let (v, bits') = _parse_individual_stats bits in
         v :: parse_sequence_individual_stats bits'
 
-
     cstruct ofp_aggregate_stats {
       uint64_t packet_count;
       uint64_t byte_count;
@@ -1803,6 +1803,7 @@ module StatsReply = struct
               total_byte_count = get_ofp_aggregate_stats_byte_count bits;
               flow_count = get_ofp_aggregate_stats_flow_count bits }
 
+  (** Reply to an ofp_stats_request of type OFPST_AGGREGATE *)
   cstruct ofp_stats_reply {
     uint16_t stats_type;
     uint16_t flags
@@ -1825,16 +1826,21 @@ module StatsReply = struct
       let msg =
         sprintf "bad ofp_stats_type in stats_reply (%d)" stats_type_code in
       raise (Unparsable msg)
-
+  
+  let size_of (a : t) = match a with
+    | DescriptionRep _ -> sizeof_ofp_desc_stats
+    | IndividualFlowRep _ -> sizeof_ofp_flow_stats
+    | AggregateFlowRep _ -> sizeof_ofp_aggregate_stats
+    
 end
 
 module Error = struct
-
+  
   cstruct ofp_error_msg {
     uint16_t error_type;
     uint16_t error_code
   } as big_endian
-
+  
   cenum ofp_error_type {
     OFPET_HELLO_FAILED;
     OFPET_BAD_REQUEST;
@@ -1843,18 +1849,65 @@ module Error = struct
     OFPET_PORT_MOD_FAILED;
     OFPET_QUEUE_OP_FAILED
   } as uint16_t
+  
+  cenum ofp_hello_failed_code {
+    OFPHFC_INCOMPATIBLE;
+    OFPHFC_EPERM
+  } as uint16_t
+  
+  cenum ofp_bad_action_code {
+    OFPBAC_BAD_TYPE;
+    OFPBAC_BAD_LEN;
+    OFPBAC_BAD_VENDOR;
+    OFPBAC_BAD_VENDOR_TYPE;
+    OFPBAC_BAD_OUT_PORT;
+    OFPBAC_BAD_ARGUMENT;
+    OFPBAC_EPERM;
+    OFPBAC_TOO_MANY;
+    OFPBAC_BAD_QUEUE
+  } as uint16_t
+  
+  cenum ofp_bad_request_code {
+    OFPBRC_BAD_VERSION;
+    OFPBRC_BAD_TYPE;
+    OFPBRC_BAD_STAT;
+    OFPBRC_BAD_VENDOR;
+    OFPBRC_BAD_SUBTYPE;
+    OFPBRC_EPERM;
+    OFPBRC_BAD_LEN;
+    OFPBRC_BUFFER_EMPTY;
+    OFPBRC_BUFFER_UNKNOWN
+  } as uint16_t
+  
+  cenum ofp_flow_mod_failed_code {
+    OFPFMFC_ALL_TABLES_FULL;
+    OFPFMFC_OVERLAP;
+    OFPFMFC_EPERM;
+    OFPFMFC_BAD_EMERG_TIMEOUT;
+    OFPFMFC_BAD_COMMAND;
+    OFPFMFC_UNSUPPORTED
+  } as uint16_t
+
+  cenum ofp_port_mod_failed_code {
+    OFPPMFC_BAD_PORT;
+    OFPPMFC_BAD_HW_ADDR
+  } as uint16_t
+  
+  cenum ofp_queue_op_failed_code {
+    OFPQOFC_BAD_PORT;
+    OFPQOFC_BAD_QUEUE;
+    OFPQOFC_EPERM
+  } as uint16_t
 
   module HelloFailed = struct
 
     type t =
       | Incompatible
       | Eperm
-
-    cenum ofp_hello_failed_code {
-      OFPHFC_INCOMPATIBLE;
-      OFPHFC_EPERM
-    } as uint16_t
-
+    
+    let type_code (a : t) = match a with
+      | Incompatible -> OFPHFC_INCOMPATIBLE
+      | Eperm -> OFPHFC_EPERM
 
     let of_int error_code =
       match int_to_ofp_hello_failed_code error_code with
@@ -1882,18 +1935,17 @@ module Error = struct
       | BadLen
       | BufferEmpty
       | BufferUnknown
-
-    cenum ofp_bad_request_code {
-      OFPBRC_BAD_VERSION;
-      OFPBRC_BAD_TYPE;
-      OFPBRC_BAD_STAT;
-      OFPBRC_BAD_VENDOR;
-      OFPBRC_BAD_SUBTYPE;
-      OFPBRC_EPERM;
-      OFPBRC_BAD_LEN;
-      OFPBRC_BUFFER_EMPTY;
-      OFPBRC_BUFFER_UNKNOWN
-    } as uint16_t
+    
+    let type_code (a : t) = match a with
+      | BadVersion -> OFPBRC_BAD_VERSION
+      | BadType -> OFPBRC_BAD_TYPE
+      | BadStat -> OFPBRC_BAD_STAT
+      | BadVendor -> OFPBRC_BAD_VENDOR
+      | BadSubType -> OFPBRC_BAD_SUBTYPE
+      | Eperm -> OFPBRC_EPERM
+      | BadLen -> OFPBRC_BAD_LEN
+      | BufferEmpty -> OFPBRC_BUFFER_EMPTY
+      | BufferUnknown -> OFPBRC_BUFFER_UNKNOWN
 
     let of_int error_code =
       match int_to_ofp_bad_request_code error_code with
@@ -1935,18 +1987,17 @@ module Error = struct
       | Eperm
       | TooMany
       | BadQueue
-
-    cenum ofp_bad_action_code {
-      OFPBAC_BAD_TYPE;
-      OFPBAC_BAD_LEN;
-      OFPBAC_BAD_VENDOR;
-      OFPBAC_BAD_VENDOR_TYPE;
-      OFPBAC_BAD_OUT_PORT;
-      OFPBAC_BAD_ARGUMENT;
-      OFPBAC_EPERM;
-      OFPBAC_TOO_MANY;
-      OFPBAC_BAD_QUEUE
-    } as uint16_t
+    
+     let type_code (a : t) = match a with
+       | BadType -> OFPBAC_BAD_TYPE
+       | BadLen -> OFPBAC_BAD_LEN
+       | BadVendor -> OFPBAC_BAD_VENDOR
+       | BadVendorType -> OFPBAC_BAD_VENDOR_TYPE
+       | BadOutPort -> OFPBAC_BAD_OUT_PORT
+       | BadArgument -> OFPBAC_BAD_ARGUMENT
+       | Eperm -> OFPBAC_EPERM
+       | TooMany -> OFPBAC_TOO_MANY
+       | BadQueue -> OFPBAC_BAD_QUEUE
 
     let of_int error_code =
       match int_to_ofp_bad_action_code error_code with
@@ -1985,15 +2036,14 @@ module Error = struct
       | BadEmergTimeout
       | BadCommand
       | Unsupported
-
-    cenum ofp_flow_mod_failed_code {
-      OFPFMFC_ALL_TABLES_FULL;
-      OFPFMFC_OVERLAP;
-      OFPFMFC_EPERM;
-      OFPFMFC_BAD_EMERG_TIMEOUT;
-      OFPFMFC_BAD_COMMAND;
-      OFPFMFC_UNSUPPORTED
-    } as uint16_t
+    
+    let type_code (a : t) = match a with
+      | AllTablesFull -> OFPFMFC_ALL_TABLES_FULL
+      | Overlap -> OFPFMFC_OVERLAP
+      | Eperm -> OFPFMFC_EPERM
+      | BadEmergTimeout -> OFPFMFC_BAD_EMERG_TIMEOUT
+      | BadCommand -> OFPFMFC_BAD_COMMAND
+      | Unsupported -> OFPFMFC_UNSUPPORTED
 
     let of_int error_code =
       match int_to_ofp_flow_mod_failed_code error_code with
@@ -2022,11 +2072,10 @@ module Error = struct
     type t =
       | BadPort
       | BadHwAddr
-
-    cenum ofp_port_mod_failed_code {
-      OFPPMFC_BAD_PORT;
-      OFPPMFC_BAD_HW_ADDR
-    } as uint16_t
+    
+    let type_code (a : t) = match a with
+      | BadPort -> OFPPMFC_BAD_PORT
+      | BadHwAddr -> OFPPMFC_BAD_HW_ADDR
 
     let of_int error_code =
       match int_to_ofp_port_mod_failed_code error_code with
@@ -2048,12 +2097,11 @@ module Error = struct
       | BadPort
       | BadQueue
       | Eperm
-
-    cenum ofp_queue_op_failed_code {
-      OFPQOFC_BAD_PORT;
-      OFPQOFC_BAD_QUEUE;
-      OFPQOFC_EPERM
-    } as uint16_t
+    
+    let type_code (a : t) = match a with
+      | BadPort -> OFPQOFC_BAD_PORT
+      | BadQueue -> OFPQOFC_BAD_QUEUE
+      | Eperm -> OFPQOFC_EPERM
 
     let of_int error_code =
       match int_to_ofp_queue_op_failed_code error_code with
@@ -2071,51 +2119,83 @@ module Error = struct
 
   end
 
+  let size_of _ = sizeof_ofp_error_msg
+
   (* Each error is composed of a pair (error_code, data) *)
+  type c =
+    | HelloFailed of HelloFailed.t
+    | BadRequest of BadRequest.t
+    | BadAction of BadAction.t
+    | FlowModFailed of FlowModFailed.t
+    | PortModFailed of PortModFailed.t
+    | QueueOpFailed of QueueOpFailed.t
+  
   type t =
-    | HelloFailed of HelloFailed.t * Cstruct.t
-    | BadRequest of BadRequest.t * Cstruct.t
-    | BadAction of BadAction.t * Cstruct.t
-    | FlowModFailed of FlowModFailed.t * Cstruct.t
-    | PortModFailed of PortModFailed.t * Cstruct.t
-    | QueueOpFailed of QueueOpFailed.t  * Cstruct.t
+    | Error of c * Cstruct.t
 
   let parse bits =
     let error_type = get_ofp_error_msg_error_type bits in
     let error_code = get_ofp_error_msg_error_code bits in
     let body = Cstruct.shift bits sizeof_ofp_error_msg in
-    match int_to_ofp_error_type error_type with
+    let code = match int_to_ofp_error_type error_type with
     | Some OFPET_HELLO_FAILED ->
-      HelloFailed ((HelloFailed.of_int error_code), body)
+      HelloFailed (HelloFailed.of_int error_code)
     | Some OFPET_BAD_REQUEST ->
-      BadRequest ((BadRequest.of_int error_code), body)
+      BadRequest (BadRequest.of_int error_code)
     | Some OFPET_BAD_ACTION ->
-      BadAction ((BadAction.of_int error_code), body)
+      BadAction (BadAction.of_int error_code)
     | Some OFPET_FLOW_MOD_FAILED ->
-      FlowModFailed ((FlowModFailed.of_int error_code), body)
+      FlowModFailed (FlowModFailed.of_int error_code)
     | Some OFPET_PORT_MOD_FAILED ->
-      PortModFailed ((PortModFailed.of_int error_code), body)
+      PortModFailed (PortModFailed.of_int error_code)
     | Some OFPET_QUEUE_OP_FAILED ->
-      QueueOpFailed ((QueueOpFailed.of_int error_code), body)
+      QueueOpFailed (QueueOpFailed.of_int error_code)
     | None ->
       let msg =
         sprintf "bad ofp_error_type in ofp_error_msg (%d)" error_type in
-      raise(Unparsable msg)
+      raise(Unparsable msg) 
+    in
+      Error(code, body)
+  
+  let marshal (Error(code, body)) out =
+    begin match code with
+      | HelloFailed error_code ->
+        set_ofp_error_msg_error_type out (ofp_error_type_to_int OFPET_HELLO_FAILED);
+        set_ofp_error_msg_error_code out (ofp_hello_failed_code_to_int (HelloFailed.type_code error_code))
+      | BadRequest error_code -> 
+        set_ofp_error_msg_error_type out (ofp_error_type_to_int OFPET_BAD_REQUEST);
+        set_ofp_error_msg_error_code out (ofp_bad_request_code_to_int (BadRequest.type_code error_code))
+      | BadAction error_code ->
+        set_ofp_error_msg_error_type out (ofp_error_type_to_int OFPET_BAD_ACTION);
+        set_ofp_error_msg_error_code out (ofp_bad_action_code_to_int (BadAction.type_code error_code))
+      | FlowModFailed error_code ->
+        set_ofp_error_msg_error_type out (ofp_error_type_to_int OFPET_FLOW_MOD_FAILED);
+        set_ofp_error_msg_error_code out (ofp_flow_mod_failed_code_to_int (FlowModFailed.type_code error_code))
+      | PortModFailed error_code ->
+        set_ofp_error_msg_error_type out (ofp_error_type_to_int OFPET_PORT_MOD_FAILED);
+        set_ofp_error_msg_error_code out (ofp_port_mod_failed_code_to_int (PortModFailed.type_code error_code))
+      | QueueOpFailed error_code ->  
+        set_ofp_error_msg_error_type out (ofp_error_type_to_int OFPET_QUEUE_OP_FAILED);
+        set_ofp_error_msg_error_code out (ofp_queue_op_failed_code_to_int (QueueOpFailed.type_code error_code))
+    end;
+    let out = Cstruct.shift out sizeof_ofp_error_msg in 
+    let _ = Cstruct.blit body 0 out 0 (Cstruct.len body) in 
+      sizeof_ofp_error_msg + Cstruct.len body
 
-  let to_string = function
-    | HelloFailed (code, _) -> 
+  let to_string (Error(code,_)) = 
+    match code with
+    | HelloFailed code -> 
       "HelloFailed (" ^ (HelloFailed.to_string code) ^ ", <data>)"
-    | BadRequest (code, _) -> 
+    | BadRequest code -> 
       "BadRequest (" ^ (BadRequest.to_string code) ^ ", <data>)"
-    | BadAction (code, _) -> 
+    | BadAction code -> 
       "BadAction (" ^ (BadAction.to_string code) ^ ", <data>)"
-    | FlowModFailed (code, _) -> 
+    | FlowModFailed code -> 
       "FlowModFailed (" ^ (FlowModFailed.to_string code) ^ ", <data>)"
-    | PortModFailed (code, _) ->
+    | PortModFailed code ->
       "PortModFailed (" ^ (PortModFailed.to_string code) ^ ", <data>)"
-    | QueueOpFailed (code, _) ->
+    | QueueOpFailed code ->
       "QueueOpFailed (" ^ (QueueOpFailed.to_string code) ^ ", <data>)"
-
 end
 
 module Message = struct
@@ -2319,11 +2399,10 @@ module Message = struct
     | SetConfig msg -> SwitchConfig.size_of msg
     | ConfigRequestMsg -> 0
     | ConfigReplyMsg msg -> ConfigReply.size_of msg
-    | ErrorMsg _
-    | PortStatusMsg _
-    | StatsReplyMsg _ -> 
-      raise (Invalid_argument "cannot marshal (controller should not send \
-                               this message to a switch")
+    | PortStatusMsg msg -> PortStatus.size_of msg
+    | ErrorMsg msg -> Error.size_of msg
+    | StatsReplyMsg msg -> StatsReply.size_of msg
+    | code -> raise (Invalid_argument (Printf.sprintf "cannot marshal (controller should not send message this message (%s) to a switch)" (to_string msg)))
 
   let blit_message (msg : t) (out : Cstruct.t) = match msg with
     | Hello buf
