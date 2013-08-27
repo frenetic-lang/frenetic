@@ -130,9 +130,12 @@ module Query = struct
       let () = do_callback q in
       Lwt.return ()
     else
+      let open OpenFlow0x01_Stats in 
       let query_msg =
         Message.StatsRequestMsg 
-          (Stats.IndividualRequest (match_all, 0, None)) in
+          (Stats.IndividualRequest { is_of_match = match_all;
+				     is_table_id = 0;
+				     is_out_port = None }) in 
       Lwt_mutex.lock q.lock >>
       if not (is_dead q) then
         let _ = reset q in
@@ -238,6 +241,7 @@ module QuerySet = struct
         atoms
     | ActionChoice _ -> failwith "NYI: generate_query_ids ActionChoice"
     | Filter _ -> ()
+    | Choice (p1, p2) 
     | Union (p1, p2)
     | Seq (p1, p2)
     | ITE (_, p1, p2) ->
@@ -478,7 +482,7 @@ module MakeConsistent = struct
     | Union (a,b) -> Union (explode_allPorts a ports, explode_allPorts b ports)
     | Seq (a,b) -> Seq (explode_allPorts a ports, explode_allPorts b ports)
     | ITE (a,b,c) -> ITE(a, explode_allPorts b ports, explode_allPorts c ports)
-
+    | Choice(a,b) -> Choice(explode_allPorts a ports, explode_allPorts b ports)
 
   let clear_switch (sw : switchId) : unit Lwt.t =
     Platform.send_to_switch sw 0l (Message.FlowModMsg delete_all_flows)
