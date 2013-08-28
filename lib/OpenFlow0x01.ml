@@ -30,15 +30,15 @@ let sum (lst : int list) = List.fold_left (fun x y -> x + y) 0 lst
 
 let vlan_none = 0xffff
 
-  cenum ofp_stats_types {
-    OFPST_DESC;
-    OFPST_FLOW;
-    OFPST_AGGREGATE;
-    OFPST_TABLE;
-    OFPST_PORT;
-    OFPST_QUEUE;
-    OFPST_VENDOR = 0xffff
-  } as uint16_t
+cenum ofp_stats_types {
+  OFPST_DESC;
+  OFPST_FLOW;
+  OFPST_AGGREGATE;
+  OFPST_TABLE;
+  OFPST_PORT;
+  OFPST_QUEUE;
+  OFPST_VENDOR = 0xffff
+} as uint16_t
 
 (** Internal module, only used to parse the wildcards bitfield *)
 module Wildcards = struct
@@ -1678,7 +1678,6 @@ module StatsReply = struct
   open OpenFlow0x01_Stats
   type t = reply
 
-
   let desc_str_len = 256
   let serial_num_len = 32
 
@@ -1827,10 +1826,52 @@ module StatsReply = struct
         sprintf "bad ofp_stats_type in stats_reply (%d)" stats_type_code in
       raise (Unparsable msg)
   
+  let marshal msg out =
+    begin match msg with
+      | DescriptionRep rep ->
+        set_ofp_stats_reply_stats_type out (ofp_stats_types_to_int OFPST_DESC);
+        begin let out = Cstruct.shift out sizeof_ofp_stats_reply in
+          set_ofp_desc_stats_mfr_desc (rep.manufacturer) 0 out;
+          set_ofp_desc_stats_hw_desc (rep.hardware) 0 out;
+          set_ofp_desc_stats_sw_desc (rep.software) 0 out;
+          set_ofp_desc_stats_serial_num (rep.serial_number) 0 out;
+          set_ofp_desc_stats_dp_desc (rep.datapath) 0 out;
+        end;
+        sizeof_ofp_stats_reply + sizeof_ofp_desc_stats
+      | AggregateFlowRep rep -> 
+        set_ofp_stats_reply_stats_type out (ofp_stats_types_to_int OFPST_AGGREGATE);
+        begin let out = Cstruct.shift out sizeof_ofp_stats_reply in
+          set_ofp_aggregate_stats_packet_count out (rep.total_packet_count);
+          set_ofp_aggregate_stats_byte_count out (rep.total_byte_count);
+          set_ofp_aggregate_stats_flow_count out (rep.flow_count)
+        end;
+        sizeof_ofp_stats_reply + sizeof_ofp_aggregate_stats
+      | IndividualFlowRep rep -> 
+        set_ofp_stats_reply_stats_type out (ofp_stats_types_to_int OFPST_FLOW);
+        begin let out = Cstruct.shift out sizeof_ofp_stats_reply in
+          match rep with
+          | [] -> set_ofp_flow_stats_length out (sizeof_ofp_flow_stats)
+          | head :: tail ->
+              set_ofp_flow_stats_length out (sizeof_ofp_flow_stats);
+              set_ofp_flow_stats_table_id out (head.table_id);
+              let out = Cstruct.shift out (Match.marshal head.of_match out) in
+              set_ofp_flow_stats_duration_sec out (head.duration_sec);
+              set_ofp_flow_stats_duration_nsec out (head.duration_nsec);
+              set_ofp_flow_stats_priority out (head.priority);
+              set_ofp_flow_stats_idle_timeout out (head.idle_timeout);
+              set_ofp_flow_stats_hard_timeout out (head.hard_timeout);
+              set_ofp_flow_stats_cookie out (head.cookie);
+              set_ofp_flow_stats_packet_count out (head.packet_count);
+              set_ofp_flow_stats_byte_count out (head.byte_count)
+        end;
+        (** TODO: Support the marshaling of multiple action and multiple flows *)
+        sizeof_ofp_stats_reply + sizeof_ofp_flow_stats
+    end
+  
   let size_of (a : t) = match a with
-    | DescriptionRep _ -> sizeof_ofp_desc_stats
-    | IndividualFlowRep _ -> sizeof_ofp_flow_stats
-    | AggregateFlowRep _ -> sizeof_ofp_aggregate_stats
+    | DescriptionRep _ -> sizeof_ofp_stats_reply + sizeof_ofp_desc_stats
+    | IndividualFlowRep _ -> sizeof_ofp_stats_reply + sizeof_ofp_flow_stats
+    | AggregateFlowRep _ -> sizeof_ofp_stats_reply + sizeof_ofp_aggregate_stats
     
 end
 
@@ -2402,7 +2443,7 @@ module Message = struct
     | PortStatusMsg msg -> PortStatus.size_of msg
     | ErrorMsg msg -> Error.size_of msg
     | StatsReplyMsg msg -> StatsReply.size_of msg
-    | code -> raise (Invalid_argument (Printf.sprintf "cannot marshal (controller should not send message this message (%s) to a switch)" (to_string msg)))
+    (**| code -> raise (Invalid_argument (Printf.sprintf "cannot marshal (controller should not send message this message (%s) to a switch)" (to_string msg)))*)
 
   let blit_message (msg : t) (out : Cstruct.t) = match msg with
     | Hello buf
@@ -2439,9 +2480,12 @@ module Message = struct
     | PortStatusMsg msg -> 
       let _ = PortStatus.marshal msg out in 
       ()
-    | ErrorMsg _
-    | StatsReplyMsg _ ->
-      failwith "should not reach this line (sizeof_body should raise)"
+    | ErrorMsg msg ->
+      let _ = Error.marshal msg out in 
+      ()
+    | StatsReplyMsg msg ->
+      let _ = StatsReply.marshal msg out in 
+      ()
 
   let size_of msg = Header.size + sizeof_body msg
 
