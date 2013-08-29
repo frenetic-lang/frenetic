@@ -148,6 +148,7 @@ type flowStats = {
 
 val format_portId : Format.formatter -> portId -> unit
 val format_switchId : Format.formatter -> switchId -> unit
+val format_field : Format.formatter -> field -> unit
 
 module type SWITCH = sig
 

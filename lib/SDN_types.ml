@@ -110,6 +110,22 @@ let format_portId (fmt : Format.formatter) (portId : portId) : unit =
   | OF10PortId n -> Format.fprintf fmt "%d" n
   | OF13PortId n -> Format.fprintf fmt "%ld" n
 
+let format_field (fmt : Format.formatter) (f : field) : unit =
+  Format.pp_print_string fmt
+    (match f with
+      | InPort -> "InPort"
+      | EthType -> "EthType"
+      | EthSrc -> "EthSrc"
+      | EthDst -> "EthDst"
+      | Vlan -> "Vlan"
+      | VlanPcp -> "VlanPcp"
+      | IPProto -> "IPProto"
+      | IP4Src -> "IP4Src"
+      | IP4Dst -> "IP4Dst"
+      | TCPSrcPort -> "TCPSrcPort"
+      | TCPDstPort -> "TCPDstPort")
+
+
 module type SWITCH = sig
   type t
   val setup_flow_table : t -> flowTable -> unit Lwt.t
