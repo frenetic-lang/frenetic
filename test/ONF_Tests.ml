@@ -1,4 +1,5 @@
 open NetKAT_Types
+open VInt
 
 let compile (pol : pol) : pol = ONF.to_netkat (ONF.compile pol)
 

@@ -13,12 +13,7 @@ type hdr =
   | Port
   | Switch
 
-type hdrVal =
-  | Int64 of Int64.t
-  | Int48 of Int64.t
-  | Int32 of Int32.t
-  | Int16 of int
-  | Int4 of int
+type hdrVal = VInt.t
 
 type pol =
   | Drop
@@ -97,13 +92,6 @@ module Formatting = struct
        | Port -> "port"
        | Switch -> "switch")
 
-  let hdrVal (fmt : formatter) (v : hdrVal) : unit = match v with
-    | Int64 n -> fprintf fmt "%Ld" n
-    | Int48 n -> fprintf fmt "%Ld" n
-    | Int32 n -> fprintf fmt "%ld" n
-    | Int16 n -> fprintf fmt "%d" n
-    | Int4 n -> fprintf fmt "%d" n
-
   (* The type of the immediately surrounding context, which guides parenthesis-
      intersion. *)
   type cxt = SEQ | PAR | NEG | PAREN
@@ -111,8 +99,8 @@ module Formatting = struct
   let rec pol (cxt : cxt) (fmt : formatter) (p : pol) : unit = match p with
     | Drop -> fprintf fmt "@[drop@]"
     | Id -> fprintf fmt "@[id@]"
-    | Test (h, v) -> fprintf fmt "@[%a = %a@]" hdr h hdrVal v
-    | Set (h, v) -> fprintf fmt "@[%a <- %a@]" hdr h hdrVal v
+    | Test (h, v) -> fprintf fmt "@[%a = %a@]" hdr h VInt.format v
+    | Set (h, v) -> fprintf fmt "@[%a <- %a@]" hdr h VInt.format v
     | Neg p' -> begin match cxt with
         | PAREN -> fprintf fmt "@[!%a@]" (pol NEG) p'
         | _ -> fprintf fmt "@[!@[(%a)@]@]" (pol PAREN) p'

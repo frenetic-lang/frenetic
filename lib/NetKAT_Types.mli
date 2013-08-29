@@ -30,12 +30,7 @@ type hdr =
   | Port
   | Switch
 
-type hdrVal =
-  | Int64 of Int64.t
-  | Int48 of Int64.t
-  | Int32 of Int32.t
-  | Int16 of int
-  | Int4 of int
+type hdrVal = VInt.t
 
 (** {2 Policies}
 
