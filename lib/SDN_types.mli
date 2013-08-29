@@ -38,39 +38,40 @@ type port =
   | Controller of int
 
 type field =
-  | InPort of portId
-  | EthType of int16
-  | EthSrc of int48
-  | EthDst of int48
-  | Vlan of int12
-  | VlanPcp of int8
-  | IPProto of int8
-  | IP4Src of int32
-  | IP4Dst of int32
-  | TCPSrcPort of int16
-  | TCPDstPort of int16
+  | InPort
+  | EthType
+  | EthSrc
+  | EthDst
+  | Vlan
+  | VlanPcp
+  | IPProto
+  | IP4Src
+  | IP4Dst
+  | TCPSrcPort
+  | TCPDstPort
 
-(** DO NOT construct patterns manually. There are well-formedness criteria
-    that are easy to violate. Instead, use [pattern_of_field] and
-    [pattern_inter] below. *)
-type pattern = {
-  inPort : portId option;
-  ethType : int16 option;
-  ethSrc : int48 option;
-  ethDst : int48 option;
-  vlan: int12 option;
-  vlanPcp: int8 option;
-  ipProto: int8 option;
-  ip4Src: int32 option;
-  ip4Dst: int32 option;
-  tcpSrcPort: int16 option;
-  tcpDstPort: int16 option
-}
+type fieldVal =  
+  | Int64 of Int64.t
+  | Int48 of Int64.t
+  | Int32 of Int32.t
+  | Int16 of int
+  | Int8 of int
+  | Int4 of int
 
-val pattern_of_field : field -> pattern
 
-(** [pattern_inter pat1 pat2] may fail if the two patterns are disjoint. *)
-val pattern_inter : pattern -> pattern -> pattern option
+module FieldMap : Map.S
+  with type key = field
+
+(** WARNING: There are dependencies between different fields that must be met. *)
+type pattern = fieldVal FieldMap.t
+
+(** [get_int64 v] raises [Invalid_argument] if [v] is not [Int64_ ] *)
+val get_int64 : fieldVal -> Int64.t
+val get_int48 : fieldVal -> Int64.t
+val get_int32 : fieldVal -> Int32.t
+val get_int16 : fieldVal -> int
+val get_int8 : fieldVal -> int
+val get_int4 : fieldVal -> int
 
 (** A high-level language, such as Frenetic, should support OpenFlow 1.0
   and also exploit OpenFlow 1.3 features when possible. For example,
@@ -94,7 +95,7 @@ val pattern_inter : pattern -> pattern -> pattern option
 type action =
   | OutputAllPorts
   | OutputPort of portId
-  | SetField of field
+  | SetField of field * fieldVal
   | Seq of action * action (** directly corresponds to an _action sequence_ *)
   | Par of action * action 
   | Failover of portId * action * action

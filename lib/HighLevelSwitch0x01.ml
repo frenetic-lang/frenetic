@@ -4,6 +4,7 @@ module AL = SDN_types
 module Core = OpenFlow0x01_Core
 module Mod = ModComposition
 module Msg = OpenFlow0x01.Message
+module Fields = AL.FieldMap
 
 let from_buffer_id (bufId : AL.bufferId) : int32 =
 	let open SDN_types in
@@ -51,31 +52,28 @@ let to_packetIn (pktIn : Core.packetIn) : AL.pktIn =
 	| { input_payload; total_len; port; reason } ->
 	  (to_payload input_payload, total_len, to_portId port, to_reason reason)
 
-let from_pattern (pat : AL.pattern) : Core.pattern =
-	let open SDN_types in
-	match pat with
-	|  { inPort; ethType; ethSrc; ethDst; vlan; vlanPcp; ipProto; ip4Src; ip4Dst;
-	     tcpSrcPort; tcpDstPort } ->
-  	let open OpenFlow0x01_Core in
-  	{ dlSrc = ethSrc;
-  		dlDst = ethDst;
-  		dlTyp = ethType;
-  		dlVlan = (match vlan with
-  		  | Some 0xFFFF -> Some None
-  		  | Some x -> Some (Some x)
-  		  | None -> None);
-  		dlVlanPcp = vlanPcp;
-  		nwSrc = ip4Src;
-  		nwDst = ip4Dst;
-  		nwProto = ipProto;
-  		nwTos = None;
-  		tpSrc = tcpSrcPort;
-  		tpDst = tcpDstPort;
-  		inPort = (match inPort with
-      	| Some (OF10PortId n) -> Some n
-      	| Some _ -> raise (Invalid_argument "expected OpenFlow 1.0 port ID")
-        | None -> None)
-  	}
+let from_pattern (pat : AL.pattern) : Core.pattern = 
+  let lookup conv field =
+    try Some (conv (Fields.find field pat))
+    with Not_found -> None in
+	{
+  Core.dlSrc = lookup AL.get_int48 AL.EthSrc;
+  Core.dlDst = lookup AL.get_int48 AL.EthDst;
+  Core.dlTyp = lookup AL.get_int16 AL.EthType;
+  Core.dlVlan = 
+    (try match AL.get_int16 (Fields.find AL.Vlan pat) with
+					 | 0xFFFF -> Some None
+	  		   | x -> Some (Some x)
+	   with Not_found -> None);
+	Core.dlVlanPcp = lookup AL.get_int4 AL.VlanPcp;
+	Core.nwSrc = lookup AL.get_int32 AL.IP4Src;
+	Core.nwDst = lookup AL.get_int32 AL.IP4Dst;
+  Core.nwProto = lookup AL.get_int8 AL.IPProto;
+	Core.nwTos = None; (* Forgot to define it at the abstraction layer *)
+	Core.tpSrc = lookup AL.get_int16 AL.TCPSrcPort;
+  Core.tpDst = lookup AL.get_int16 AL.TCPDstPort;
+	Core.inPort = lookup AL.get_int16 AL.InPort;
+	}
 
 (* Converts an abstract action into an OpenFlow 1.0 action. The operation may
    fail if the action in unrealizable. *)
@@ -91,17 +89,19 @@ let rec from_action (inPort : Core.portId option) (act : AL.action)
   	else
 		  (Mod.none, [Output (PhysicalPort n)])
 	| OutputPort _ -> raise (Invalid_argument "expected OpenFlow 1.0 port number")
-	| SetField (AL.InPort _) -> raise (Invalid_argument "cannot set input port")
-	| SetField (EthType _) -> raise (Invalid_argument "cannot set frame type")
-	| SetField (EthSrc n) -> (Mod.dlSrc, [SetDlSrc n])
-	| SetField (EthDst n) -> (Mod.dlDst , [SetDlDst n])
-	| SetField (Vlan n) -> (Mod.dlVlan, [SetDlVlan (Some n)]) (* TODO(arjun): we should strip away our magic None *)
-	| SetField (VlanPcp n) -> (Mod.dlVlanPcp, [SetDlVlanPcp n])
-	| SetField (IPProto n) -> raise (Invalid_argument "cannot set IP protocol")
-	| SetField (IP4Src n) -> (Mod.nwSrc, [SetNwSrc n])
-	| SetField (IP4Dst n) -> (Mod.nwDst, [SetNwDst n])
-	| SetField (TCPSrcPort n) -> (Mod.tpSrc, [SetTpSrc n])
-	| SetField (TCPDstPort n) -> (Mod.tpDst, [SetTpDst n])
+	| SetField (AL.InPort, _) -> raise (Invalid_argument "cannot set input port")
+	| SetField (EthType, _) -> raise (Invalid_argument "cannot set frame type")
+	| SetField (EthSrc, Int48 n) -> (Mod.dlSrc, [SetDlSrc n])
+	| SetField (EthDst, Int48 n) -> (Mod.dlDst , [SetDlDst n])
+	| SetField (Vlan, Int16 0xFFFF) -> (Mod.dlVlan, [SetDlVlan None])
+	| SetField (Vlan, Int16 n) -> (Mod.dlVlan, [SetDlVlan (Some n)])
+	| SetField (VlanPcp, Int4 n) -> (Mod.dlVlanPcp, [SetDlVlanPcp n])
+	| SetField (IPProto, _) -> raise (Invalid_argument "cannot set IP protocol")
+	| SetField (IP4Src, Int32 n) -> (Mod.nwSrc, [SetNwSrc n])
+	| SetField (IP4Dst, Int32 n) -> (Mod.nwDst, [SetNwDst n])
+	| SetField (TCPSrcPort, Int16 n) -> (Mod.tpSrc, [SetTpSrc n])
+	| SetField (TCPDstPort, Int16 n) -> (Mod.tpDst, [SetTpDst n])
+	| SetField _ -> raise (Invalid_argument "invalid SetField combination")
 	| Seq (a1, a2) -> 
 		let (mods1, seq1) = from_action inPort a1 in
 		let (mods2, seq2) = from_action inPort a2 in

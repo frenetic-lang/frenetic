@@ -29,68 +29,68 @@ type port =
   | Controller of int
 
 type field =
-  | InPort of portId
-  | EthType of int16
-  | EthSrc of int48
-  | EthDst of int48
-  | Vlan of int12
-  | VlanPcp of int8
-  | IPProto of int8
-  | IP4Src of int32
-  | IP4Dst of int32
-  | TCPSrcPort of int16
-  | TCPDstPort of int16
+  | InPort
+  | EthType
+  | EthSrc
+  | EthDst
+  | Vlan
+  | VlanPcp
+  | IPProto
+  | IP4Src
+  | IP4Dst
+  | TCPSrcPort
+  | TCPDstPort
 
-type pattern = {
-  inPort : portId option;
-  ethType : int16 option;
-  ethSrc : int48 option;
-  ethDst : int48 option;
-  vlan: int12 option;
-  vlanPcp: int8 option;
-  ipProto: int8 option;
-  ip4Src: int32 option;
-  ip4Dst: int32 option;
-  tcpSrcPort: int16 option;
-  tcpDstPort: int16 option
-}
+type fieldVal =  
+  | Int64 of Int64.t
+  | Int48 of Int64.t
+  | Int32 of Int32.t
+  | Int16 of int
+  | Int8 of int
+  | Int4 of int
 
-let pattern_all = {
-  inPort = None;
-  ethType = None;
-  ethSrc = None;
-  ethDst = None;
-  vlan = None;
-  vlanPcp = None;
-  ipProto = None;
-  ip4Src = None;
-  ip4Dst = None;
-  tcpSrcPort = None;
-  tcpDstPort = None
-}
+module FieldMap = Map.Make(struct
+  type t = field
+  let compare = Pervasives.compare
+end)
 
-let pattern_of_field (f : field) : pattern =
-	failwith "NYI"
+type pattern = fieldVal FieldMap.t
 
-let pattern_inter (p1 : pattern) (p2 : pattern) : pattern option =
-	failwith "NYI"
+let get_int64 (v : fieldVal) : Int64.t = match v with
+  | Int64 n -> n
+  | _ -> raise (Invalid_argument "get_int64")
+
+let get_int48 (v : fieldVal) : Int64.t = match v with
+  | Int48 n -> n
+  | _ -> raise (Invalid_argument "get_int48")
+
+let get_int32 (v : fieldVal) : Int32.t = match v with
+  | Int32 n -> n
+  | _ -> raise (Invalid_argument "get_int32")
+
+let get_int16 (v : fieldVal) : int = match v with
+  | Int16 n -> n
+  | _ -> raise (Invalid_argument "get_int16")
+
+let get_int8 (v : fieldVal) : int = match v with
+  | Int8 n -> n
+  | _ -> raise (Invalid_argument "get_int8")
+
+let get_int4 (v : fieldVal) : int = match v with
+  | Int4 n -> n
+  | _ -> raise (Invalid_argument "get_int4")
 
 type action =
   | OutputAllPorts
   | OutputPort of portId
-  | SetField of field
-  | Seq of action * action (** directly corresponds to an _action sequence_ *)
+  | SetField of field * fieldVal
+  | Seq of action * action
   | Par of action * action 
-    (** Either (i) compile to an action sequence, (ii) compile to an OpenFlow
-        1.3 group of type "all", which clones the packet for each group, or
-        (iii) signal an exception. *)
   | Failover of portId * action * action
-    (** [Failover (watchPort, a1, a2)] uses OpenFlow 1.3 fast-failover to 
-        move from [a1] to [a2] if [watchPort] goes down. *)
 
 type timeout =
-  | Permanent (** No timeout. *)
-  | ExpiresAfter of int16 (** Time out after [n] seconds. *)
+  | Permanent
+  | ExpiresAfter of int16
 
 type flow = {
   pattern: pattern;
@@ -100,15 +100,10 @@ type flow = {
   hard_timeout: timeout
 }
 
-(** Priorities are implicit *)
 type flowTable = flow list 
 
-(** {1 Controller Packet Processing} *)
-
-(** The payload for [packetIn] and [packetOut] messages. *)
 type payload =
   | Buffered of bufferId * bytes 
-    (** [Buffered (id, buf)] is a packet buffered on a switch. *)
   | NotBuffered of bytes
 
 type packetInReason =
@@ -117,17 +112,11 @@ type packetInReason =
 
 type pktIn = payload * int * portId * packetInReason
 
-(* {1 Switch Configuration} *)
-
-(** A simplification of the _switch features_ message from OpenFlow *)
 type switchFeatures = {
   switch_id : switchId;
   switch_ports : portId list
 }
 
-(* {1 Statistics} *)
-
-(** The body of a reply to an individual flow statistics request. *)
 type flowStats = {
   flow_table_id : int8; (** ID of table flow came from. *)
   flow_pattern : pattern;
