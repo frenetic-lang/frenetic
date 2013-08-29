@@ -33,12 +33,8 @@ let from_port (port : AL.port) : Core.pseudoPort =
 	match port with
 	| AllPorts -> Core.AllPorts
 	| Controller n -> Core.Controller n
-	| PhysicalPort (OF10PortId n) -> Core.PhysicalPort n
+	| PhysicalPort (VInt.Int16 n) -> Core.PhysicalPort n
   | PhysicalPort _ -> raise (Invalid_argument "expected OpenFlow 1.0 port ID")
-
-
-let to_portId (portId : int) : AL.portId =
-	AL.OF10PortId portId
 
 let to_reason (reason : Core.packetInReason) : AL.packetInReason =
 	let open Core in
@@ -50,7 +46,7 @@ let to_packetIn (pktIn : Core.packetIn) : AL.pktIn =
 	let open Core in
 	match pktIn with
 	| { input_payload; total_len; port; reason } ->
-	  (to_payload input_payload, total_len, to_portId port, to_reason reason)
+	  (to_payload input_payload, total_len, VInt.Int16 port, to_reason reason)
 
 let from_pattern (pat : AL.pattern) : Core.pattern = 
   let lookup conv field =
@@ -83,7 +79,7 @@ let rec from_action (inPort : Core.portId option) (act : AL.action)
 	let open OpenFlow0x01_Core in
 	match act with
   | OutputAllPorts -> (Mod.none, [Output AllPorts])
-  | OutputPort (OF10PortId n) ->
+  | OutputPort (VInt.Int16 n) ->
     if Some n = inPort then
 	    (Mod.none, [Output InPort])
   	else
@@ -148,7 +144,7 @@ let features (sw : t) : AL.switchFeatures =
 	let feats = Switch.features sw.switch in
 	let open OpenFlow0x01.SwitchFeatures in
 	let from_portDesc desc =
-	  AL.OF10PortId desc.OpenFlow0x01.PortDescription.port_no in
+	  VInt.Int16 desc.OpenFlow0x01.PortDescription.port_no in
 	{ AL.switch_id = AL.OF10SwitchId feats.switch_id;
     AL.switch_ports = List.map from_portDesc feats.ports
 	}

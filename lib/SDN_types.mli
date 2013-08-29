@@ -20,10 +20,6 @@ type switchId =
   | OF10SwitchId of OpenFlow0x01_Core.switchId
   | OF13SwitchId of OpenFlow0x04_Core.switchId
 
-type portId =
-  | OF10PortId of OpenFlow0x01_Core.portId
-  | OF13PortId of OpenFlow0x04_Core.portId
-
 type bufferId =
   | OF10BufferId of int32
   | OF13BufferId of OpenFlow0x04_Core.bufferId
@@ -33,7 +29,7 @@ exception Unsupported of string
 (** {1 Packet Forwarding} *)
 
 type port =
-  | PhysicalPort of portId
+  | PhysicalPort of VInt.t
   | AllPorts
   | Controller of int
 
@@ -80,11 +76,11 @@ type pattern = fieldVal FieldMap.t
   entries individually. *)
 type action =
   | OutputAllPorts
-  | OutputPort of portId
+  | OutputPort of VInt.t
   | SetField of field * fieldVal
   | Seq of action * action (** directly corresponds to an _action sequence_ *)
   | Par of action * action 
-  | Failover of portId * action * action
+  | Failover of VInt.t * action * action
   | EmptyAction
 
 type timeout =
@@ -115,14 +111,14 @@ type packetInReason =
   | ExplicitSend
 
 (** [(payload, total_length, in_port, reason)] *)
-type pktIn = payload * int * portId * packetInReason
+type pktIn = payload * int * VInt.t * packetInReason
 
 (* {1 Switch Configuration} *)
 
 (** A simplification of the _switch features_ message from OpenFlow *)
 type switchFeatures = {
   switch_id : switchId;
-  switch_ports : portId list
+  switch_ports : VInt.t list
 }
 
 (* {1 Statistics} *)
@@ -147,7 +143,6 @@ type flowStats = {
 
 (* {1 Pretty-printing } *)
 
-val format_portId : Format.formatter -> portId -> unit
 val format_switchId : Format.formatter -> switchId -> unit
 val format_field : Format.formatter -> field -> unit
 

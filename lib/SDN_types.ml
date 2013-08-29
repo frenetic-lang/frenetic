@@ -15,16 +15,12 @@ type switchId =
   | OF10SwitchId of OF10.switchId
   | OF13SwitchId of OF13.switchId
 
-type portId =
-  | OF10PortId of OF10.portId
-  | OF13PortId of OF13.portId
-
 type bufferId =
   | OF10BufferId of int32
   | OF13BufferId of OF13.bufferId
 
 type port =
-  | PhysicalPort of portId
+  | PhysicalPort of VInt.t
   | AllPorts
   | Controller of int
 
@@ -52,11 +48,11 @@ type pattern = fieldVal FieldMap.t
 
 type action =
   | OutputAllPorts
-  | OutputPort of portId
+  | OutputPort of VInt.t
   | SetField of field * fieldVal
   | Seq of action * action
   | Par of action * action 
-  | Failover of portId * action * action
+  | Failover of VInt.t * action * action
   | EmptyAction
 
 type timeout =
@@ -81,11 +77,11 @@ type packetInReason =
   | NoMatch
   | ExplicitSend
 
-type pktIn = payload * int * portId * packetInReason
+type pktIn = payload * int * VInt.t * packetInReason
 
 type switchFeatures = {
   switch_id : switchId;
-  switch_ports : portId list
+  switch_ports : VInt.t list
 }
 
 type flowStats = {
@@ -105,11 +101,6 @@ let format_switchId (fmt : Format.formatter) (switchId : switchId) : unit =
   match switchId with
   | OF10SwitchId n -> Format.fprintf fmt "%Ld" n
   | OF13SwitchId n -> Format.fprintf fmt "%Ld" n
-
-let format_portId (fmt : Format.formatter) (portId : portId) : unit = 
-  match portId with
-  | OF10PortId n -> Format.fprintf fmt "%d" n
-  | OF13PortId n -> Format.fprintf fmt "%ld" n
 
 let format_field (fmt : Format.formatter) (f : field) : unit =
   Format.pp_print_string fmt
