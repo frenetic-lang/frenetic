@@ -1,16 +1,5 @@
 type hdr =
-  | DlSrc
-  | DlDst
-  | DlTyp
-  | DlVlan
-  | DlVlanPcp
-  | NwSrc
-  | NwDst
-  | NwProto
-  | NwTos
-  | TpSrc
-  | TpDst
-  | Port
+  | Hdr of SDN_types.field
   | Switch
 
 type hdrVal = VInt.t
@@ -75,22 +64,9 @@ module Formatting = struct
 
   open Format
 
-  let hdr (fmt : formatter) (h : hdr) : unit = 
-    pp_print_string fmt
-      (match h with
-       | DlSrc -> "dlSrc"
-       | DlDst -> "dlDst"
-       | DlTyp -> "dlTyp"
-       | DlVlan -> "dlVlan"
-       | DlVlanPcp -> "dlVlanPcp"
-       | NwSrc -> "nwSrc"
-       | NwDst -> "nwDst"
-       | NwProto -> "nwProto"
-       | NwTos -> "nwTos"
-       | TpSrc -> "tpSrc"
-       | TpDst -> "tpDst"
-       | Port -> "port"
-       | Switch -> "switch")
+  let hdr (fmt : formatter) (h : hdr) : unit = match h with
+    | Hdr h' -> SDN_types.format_field fmt h'
+    | Switch -> pp_print_string fmt "switch"
 
   (* The type of the immediately surrounding context, which guides parenthesis-
      intersion. *)
