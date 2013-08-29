@@ -1,4 +1,5 @@
 module Switch = OpenFlow0x01_Switch
+module TxSwitch = OpenFlow0x01_TxSwitch
 module AL = SDN_types
 module Core = OpenFlow0x01_Core
 module Mod = ModComposition
@@ -137,13 +138,13 @@ let from_flow (priority : int) (flow : AL.flow) : Core.flowMod =
       }
 
 type t = {
-	handle : Switch.t;
-	packet_ins : AL.pktIn Lwt_stream.t;
-	terminator: unit Lwt.u
+	switch : Switch.t;
+	tx_switch : TxSwitch.t;
+	packet_ins : AL.pktIn Lwt_stream.t
 }
 
 let features (sw : t) : AL.switchFeatures =
-	let feats = Switch.features sw.handle in
+	let feats = Switch.features sw.switch in
 	let open OpenFlow0x01.SwitchFeatures in
 	let from_portDesc desc =
 	  AL.OF10PortId desc.OpenFlow0x01.PortDescription.port_no in
@@ -151,36 +152,30 @@ let features (sw : t) : AL.switchFeatures =
     AL.switch_ports = List.map from_portDesc feats.ports
 	}
 
-let from_handle (handle : Switch.t) : t =
+let from_handle (switch : Switch.t) : t =
+	let tx_switch = TxSwitch.from_switch switch in
 	let (packet_ins, send_pktIn) = Lwt_stream.create () in
-	let (termination_thread, terminator) = Lwt.wait () in
-	let termination_thread =
-	  lwt _ = termination_thread in
-	  send_pktIn None;
-	  Lwt.return () in
-	let rec switch_thread () =
-	  match_lwt Switch.recv handle with
-	  | (_, Msg.PacketInMsg pktIn) ->
-	    send_pktIn (Some (to_packetIn pktIn));
-	    switch_thread ()
-	  | (xid, msg) ->
-	  	(* TODO(arjun): log ignored messages *)
-	  	switch_thread () in
-	Lwt.async (fun () -> Lwt.pick [ switch_thread (); termination_thread ]);
-	{ handle; packet_ins; terminator }
+	let switch_thread () =
+	  let recv_msg msg = match msg with
+	    | Msg.PacketInMsg pktIn -> send_pktIn (Some (to_packetIn pktIn))
+	    | msg -> (* TODO(arjun): log ignored messages *) () in
+	  Lwt_stream.iter recv_msg (TxSwitch.recv_stream tx_switch) in
+	Lwt.async (fun () -> 
+		Lwt.pick [ switch_thread (); 
+               Switch.wait_disconnect switch ]);
+	{ switch; tx_switch; packet_ins }
 
 let disconnect (t : t) : unit Lwt.t = 
-  Lwt.wakeup t.terminator ();
-  Lwt.return ()
+	Switch.disconnect t.switch
 
 let setup_flow_table (sw : t) (tbl : AL.flowTable) : unit Lwt.t =
   let priority = ref 65535 in
   let send_flow_mod (flow : AL.flow) =
     lwt flow_mod = Lwt.wrap2 from_flow !priority flow in
-    lwt _ = Switch.send sw.handle 0l (Msg.FlowModMsg flow_mod) in
+    lwt _ = TxSwitch.send sw.tx_switch (Msg.FlowModMsg flow_mod) in
     decr priority; (* TODO(arjun): range check *)
     Lwt.return () in
-  lwt _ = Switch.send sw.handle 0l (Msg.FlowModMsg Core.delete_all_flows) in
+  lwt _ = TxSwitch.send sw.tx_switch (Msg.FlowModMsg Core.delete_all_flows) in
   Lwt_list.iter_s send_flow_mod tbl
 
 let packet_in (sw : t) =
@@ -197,7 +192,7 @@ let packet_out (sw : t) (pay : AL.payload) (act : AL.action) : unit Lwt.t =
 	  Core.port_id = None;
 	  Core.apply_actions = actions
 	} in
-	Switch.send sw.handle 0l (Msg.PacketOutMsg pktOut)
+	TxSwitch.send sw.tx_switch (Msg.PacketOutMsg pktOut)
 
 let flow_stats_request (sw : t) (pat : AL.pattern) : AL.flowStats list Lwt.t =
   raise_lwt (Failure "flow_stats_request NYI")
