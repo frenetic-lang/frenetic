@@ -27,6 +27,7 @@ Library openflow
     HighLevelSwitch,
     HighLevelSwitch0x01
   Modules:
+    VInt,
     Frenetic_Socket,
     OpenFlow0x01,
     OpenFlow0x01_Core,
