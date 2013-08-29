@@ -111,6 +111,7 @@ let rec from_action (inPort : Core.portId option) (act : AL.action)
 		let (mods2, seq2) = from_action inPort a2 in
 		(Mod.par mods1 mods2, seq1 @ seq2)
 	| Failover _ -> raise (Invalid_argument "cannot implement fast failover")
+	| EmptyAction -> (Mod.none, [])
 
 let from_timeout (timeout : AL.timeout) : Core.timeout =
 	match timeout with

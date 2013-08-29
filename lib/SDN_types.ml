@@ -57,6 +57,7 @@ type action =
   | Seq of action * action
   | Par of action * action 
   | Failover of portId * action * action
+  | EmptyAction
 
 type timeout =
   | Permanent
