@@ -41,13 +41,7 @@ type field =
   | TCPSrcPort
   | TCPDstPort
 
-type fieldVal =  
-  | Int64 of Int64.t
-  | Int48 of Int64.t
-  | Int32 of Int32.t
-  | Int16 of int
-  | Int8 of int
-  | Int4 of int
+type fieldVal = VInt.t
 
 module FieldMap = Map.Make(struct
   type t = field
@@ -55,30 +49,6 @@ module FieldMap = Map.Make(struct
 end)
 
 type pattern = fieldVal FieldMap.t
-
-let get_int64 (v : fieldVal) : Int64.t = match v with
-  | Int64 n -> n
-  | _ -> raise (Invalid_argument "get_int64")
-
-let get_int48 (v : fieldVal) : Int64.t = match v with
-  | Int48 n -> n
-  | _ -> raise (Invalid_argument "get_int48")
-
-let get_int32 (v : fieldVal) : Int32.t = match v with
-  | Int32 n -> n
-  | _ -> raise (Invalid_argument "get_int32")
-
-let get_int16 (v : fieldVal) : int = match v with
-  | Int16 n -> n
-  | _ -> raise (Invalid_argument "get_int16")
-
-let get_int8 (v : fieldVal) : int = match v with
-  | Int8 n -> n
-  | _ -> raise (Invalid_argument "get_int8")
-
-let get_int4 (v : fieldVal) : int = match v with
-  | Int4 n -> n
-  | _ -> raise (Invalid_argument "get_int4")
 
 type action =
   | OutputAllPorts

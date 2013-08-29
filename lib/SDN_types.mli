@@ -50,14 +50,7 @@ type field =
   | TCPSrcPort
   | TCPDstPort
 
-type fieldVal =  
-  | Int64 of Int64.t
-  | Int48 of Int64.t
-  | Int32 of Int32.t
-  | Int16 of int
-  | Int8 of int
-  | Int4 of int
-
+type fieldVal = VInt.t
 
 module FieldMap : Map.S
   with type key = field
@@ -65,13 +58,6 @@ module FieldMap : Map.S
 (** WARNING: There are dependencies between different fields that must be met. *)
 type pattern = fieldVal FieldMap.t
 
-(** [get_int64 v] raises [Invalid_argument] if [v] is not [Int64_ ] *)
-val get_int64 : fieldVal -> Int64.t
-val get_int48 : fieldVal -> Int64.t
-val get_int32 : fieldVal -> Int32.t
-val get_int16 : fieldVal -> int
-val get_int8 : fieldVal -> int
-val get_int4 : fieldVal -> int
 
 (** A high-level language, such as Frenetic, should support OpenFlow 1.0
   and also exploit OpenFlow 1.3 features when possible. For example,

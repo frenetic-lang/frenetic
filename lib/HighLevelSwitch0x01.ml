@@ -57,22 +57,22 @@ let from_pattern (pat : AL.pattern) : Core.pattern =
     try Some (conv (Fields.find field pat))
     with Not_found -> None in
 	{
-  Core.dlSrc = lookup AL.get_int48 AL.EthSrc;
-  Core.dlDst = lookup AL.get_int48 AL.EthDst;
-  Core.dlTyp = lookup AL.get_int16 AL.EthType;
+  Core.dlSrc = lookup VInt.get_int48 AL.EthSrc;
+  Core.dlDst = lookup VInt.get_int48 AL.EthDst;
+  Core.dlTyp = lookup VInt.get_int16 AL.EthType;
   Core.dlVlan = 
-    (try match AL.get_int16 (Fields.find AL.Vlan pat) with
+    (try match VInt.get_int16 (Fields.find AL.Vlan pat) with
 					 | 0xFFFF -> Some None
 	  		   | x -> Some (Some x)
 	   with Not_found -> None);
-	Core.dlVlanPcp = lookup AL.get_int4 AL.VlanPcp;
-	Core.nwSrc = lookup AL.get_int32 AL.IP4Src;
-	Core.nwDst = lookup AL.get_int32 AL.IP4Dst;
-  Core.nwProto = lookup AL.get_int8 AL.IPProto;
+	Core.dlVlanPcp = lookup VInt.get_int4 AL.VlanPcp;
+	Core.nwSrc = lookup VInt.get_int32 AL.IP4Src;
+	Core.nwDst = lookup VInt.get_int32 AL.IP4Dst;
+  Core.nwProto = lookup VInt.get_int8 AL.IPProto;
 	Core.nwTos = None; (* Forgot to define it at the abstraction layer *)
-	Core.tpSrc = lookup AL.get_int16 AL.TCPSrcPort;
-  Core.tpDst = lookup AL.get_int16 AL.TCPDstPort;
-	Core.inPort = lookup AL.get_int16 AL.InPort;
+	Core.tpSrc = lookup VInt.get_int16 AL.TCPSrcPort;
+  Core.tpDst = lookup VInt.get_int16 AL.TCPDstPort;
+	Core.inPort = lookup VInt.get_int16 AL.InPort;
 	}
 
 (* Converts an abstract action into an OpenFlow 1.0 action. The operation may
@@ -91,16 +91,16 @@ let rec from_action (inPort : Core.portId option) (act : AL.action)
 	| OutputPort _ -> raise (Invalid_argument "expected OpenFlow 1.0 port number")
 	| SetField (AL.InPort, _) -> raise (Invalid_argument "cannot set input port")
 	| SetField (EthType, _) -> raise (Invalid_argument "cannot set frame type")
-	| SetField (EthSrc, Int48 n) -> (Mod.dlSrc, [SetDlSrc n])
-	| SetField (EthDst, Int48 n) -> (Mod.dlDst , [SetDlDst n])
-	| SetField (Vlan, Int16 0xFFFF) -> (Mod.dlVlan, [SetDlVlan None])
-	| SetField (Vlan, Int16 n) -> (Mod.dlVlan, [SetDlVlan (Some n)])
-	| SetField (VlanPcp, Int4 n) -> (Mod.dlVlanPcp, [SetDlVlanPcp n])
+	| SetField (EthSrc, VInt.Int48 n) -> (Mod.dlSrc, [SetDlSrc n])
+	| SetField (EthDst, VInt.Int48 n) -> (Mod.dlDst , [SetDlDst n])
+	| SetField (Vlan, VInt.Int16 0xFFFF) -> (Mod.dlVlan, [SetDlVlan None])
+	| SetField (Vlan, VInt.Int16 n) -> (Mod.dlVlan, [SetDlVlan (Some n)])
+	| SetField (VlanPcp, VInt.Int4 n) -> (Mod.dlVlanPcp, [SetDlVlanPcp n])
 	| SetField (IPProto, _) -> raise (Invalid_argument "cannot set IP protocol")
-	| SetField (IP4Src, Int32 n) -> (Mod.nwSrc, [SetNwSrc n])
-	| SetField (IP4Dst, Int32 n) -> (Mod.nwDst, [SetNwDst n])
-	| SetField (TCPSrcPort, Int16 n) -> (Mod.tpSrc, [SetTpSrc n])
-	| SetField (TCPDstPort, Int16 n) -> (Mod.tpDst, [SetTpDst n])
+	| SetField (IP4Src, VInt.Int32 n) -> (Mod.nwSrc, [SetNwSrc n])
+	| SetField (IP4Dst, VInt.Int32 n) -> (Mod.nwDst, [SetNwDst n])
+	| SetField (TCPSrcPort, VInt.Int16 n) -> (Mod.tpSrc, [SetTpSrc n])
+	| SetField (TCPDstPort, VInt.Int16 n) -> (Mod.tpDst, [SetTpDst n])
 	| SetField _ -> raise (Invalid_argument "invalid SetField combination")
 	| Seq (a1, a2) -> 
 		let (mods1, seq1) = from_action inPort a1 in
