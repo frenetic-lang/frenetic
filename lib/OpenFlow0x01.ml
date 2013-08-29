@@ -2239,6 +2239,30 @@ module Error = struct
       "QueueOpFailed (" ^ (QueueOpFailed.to_string code) ^ ", <data>)"
 end
 
+module Vendor = struct
+    
+  type t = int32 * Cstruct.t
+  
+  cstruct ofp_vendor_header {
+    uint32_t vendor
+  } as big_endian
+  
+  let parse bits =
+    let vendor = get_ofp_vendor_header_vendor bits in
+    let body = Cstruct.shift bits sizeof_ofp_vendor_header in
+    (vendor, body)
+    
+  let marshal msg out =
+    let (vendor, body) = msg in
+    set_ofp_vendor_header_vendor out (vendor);
+    let out = Cstruct.shift out sizeof_ofp_vendor_header in 
+    let _ = Cstruct.blit (body) 0 out 0 (Cstruct.len (body)) in
+    12
+    
+  let size_of _ = 12
+  
+end
+
 module Message = struct
 (* A subset of the OpenFlow 1.0 messages defined in Section 5.1 of the spec. *)
 
@@ -2344,6 +2368,7 @@ module Message = struct
     | ErrorMsg of Error.t
     | EchoRequest of bytes
     | EchoReply of bytes
+    | VendorMsg of Vendor.t
     | SwitchFeaturesRequest
     | SwitchFeaturesReply of SwitchFeatures.t
     | FlowModMsg of FlowMod.t
@@ -2365,6 +2390,7 @@ module Message = struct
       | ERROR -> ErrorMsg (Error.parse buf)
       | ECHO_REQ -> EchoRequest buf
       | ECHO_RESP -> EchoReply buf
+      | VENDOR -> VendorMsg (Vendor.parse buf)
       | FEATURES_REQ -> SwitchFeaturesRequest
       | FEATURES_RESP -> SwitchFeaturesReply (SwitchFeatures.parse buf)
       | PACKET_IN -> PacketInMsg (PacketIn.parse buf)
@@ -2389,6 +2415,7 @@ module Message = struct
     | ErrorMsg _ -> ERROR
     | EchoRequest _ -> ECHO_REQ
     | EchoReply _ -> ECHO_RESP
+    | VendorMsg _ -> VENDOR
     | SwitchFeaturesRequest -> FEATURES_REQ
     | SwitchFeaturesReply _ -> FEATURES_RESP
     | FlowModMsg _ -> FLOW_MOD
@@ -2408,6 +2435,7 @@ module Message = struct
     | ErrorMsg _ -> "Error"
     | EchoRequest _ -> "EchoRequest"
     | EchoReply _ -> "EchoReply"
+    | VendorMsg _ -> "Vendor"
     | SwitchFeaturesRequest -> "SwitchFeaturesRequest"
     | SwitchFeaturesReply _ -> "SwitchFeaturesReply"
     | FlowModMsg _ -> "FlowMod"
@@ -2429,6 +2457,7 @@ module Message = struct
     | Hello buf -> Cstruct.len buf
     | EchoRequest buf -> Cstruct.len buf
     | EchoReply buf -> Cstruct.len buf
+    | VendorMsg buf -> Vendor.size_of msg
     | SwitchFeaturesRequest -> 0
     | SwitchFeaturesReply rep -> SwitchFeatures.size_of rep
     | FlowModMsg msg -> FlowMod.size_of msg
@@ -2450,6 +2479,9 @@ module Message = struct
     | EchoRequest buf
     | EchoReply buf ->
       Cstruct.blit buf 0 out 0 (Cstruct.len buf)
+    | VendorMsg msg ->
+      let _ = Vendor.marshal msg out in
+      ()      
     | SwitchFeaturesRequest -> 
       ()
     | ConfigRequestMsg ->
