@@ -16,18 +16,7 @@
 *)
 
 type hdr =
-  | DlSrc
-  | DlDst
-  | DlTyp
-  | DlVlan
-  | DlVlanPcp
-  | NwSrc
-  | NwDst
-  | NwProto
-  | NwTos
-  | TpSrc
-  | TpDst
-  | Port
+  | Hdr of SDN_types.field
   | Switch
 
 type hdrVal = VInt.t
