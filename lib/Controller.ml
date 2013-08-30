@@ -9,7 +9,7 @@ let pred_to_pattern (sw : SDN.fieldVal) (pred : ONF.pred) : SDN.pattern option =
 	    | NetKAT.Switch -> pat (* already tested for this *)
       | NetKAT.Hdr h' -> SDN.FieldMap.add h' v pat in
 	if NetKAT.HdrMap.mem NetKAT.Switch pred &&
-	   NetKAT.HdrMap.find NetKAT.Switch pred = sw then
+	   NetKAT.HdrMap.find NetKAT.Switch pred <> sw then
 	   None
   else 
     Some (NetKAT.HdrMap.fold f pred SDN.FieldMap.empty)
