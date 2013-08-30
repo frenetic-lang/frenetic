@@ -11,9 +11,7 @@ type int64 = Int64.t
 type int48 = Int64.t
 type bytes = string
 
-type switchId =
-  | OF10SwitchId of OF10.switchId
-  | OF13SwitchId of OF13.switchId
+type switchId = VInt.t
 
 type bufferId =
   | OF10BufferId of int32
@@ -96,11 +94,6 @@ type flowStats = {
   flow_packet_count: int64;
   flow_byte_count: int64
 }
-
-let format_switchId (fmt : Format.formatter) (switchId : switchId) : unit = 
-  match switchId with
-  | OF10SwitchId n -> Format.fprintf fmt "%Ld" n
-  | OF13SwitchId n -> Format.fprintf fmt "%Ld" n
 
 let format_field (fmt : Format.formatter) (f : field) : unit =
   Format.pp_print_string fmt

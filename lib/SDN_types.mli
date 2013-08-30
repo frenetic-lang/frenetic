@@ -16,9 +16,7 @@ type int64 = Int64.t
 type int48 = Int64.t
 type bytes = string
 
-type switchId =
-  | OF10SwitchId of OpenFlow0x01_Core.switchId
-  | OF13SwitchId of OpenFlow0x04_Core.switchId
+type switchId = VInt.t
 
 type bufferId =
   | OF10BufferId of int32
@@ -143,7 +141,6 @@ type flowStats = {
 
 (* {1 Pretty-printing } *)
 
-val format_switchId : Format.formatter -> switchId -> unit
 val format_field : Format.formatter -> field -> unit
 
 module type SWITCH = sig
