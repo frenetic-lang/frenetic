@@ -27,8 +27,8 @@ module Sat = struct
   type zTerm = 
     | TVar of zVar
     | TInt of Int64.t
-    | TLocatedPacket of switchId * portId * packet
-    | TFunction of zVar * zTerm list
+    | TPkt of switchId * portId * packet
+    | TApp of zVar * zTerm
 
   type zFormula =
     | ZTrue
@@ -82,14 +82,13 @@ module Sat = struct
   let rec serialize_term = function 
     | TVar x -> 
       x
-    | TLocatedPacket (sw,pt,pkt) -> 
+    | TPkt (sw,pt,pkt) -> 
       serialize_located_packet (sw,pt,pkt)
     | TInt n -> 
       Printf.sprintf "%s" 
         (Int64.to_string n)
-    | TFunction (f, terms) -> 
-      Printf.sprintf "(%s %s)" f 
-        (intercalate serialize_term " " terms)
+    | TApp (f, term) -> 
+      Printf.sprintf "(%s %s)" f (serialize_term term)
 
   let rec serialize_formula = function
     | ZTrue -> 
@@ -169,148 +168,89 @@ module Sat = struct
     Buffer.contents b = "sat\n"
 end
 
-module Topology = struct
-
-  type link = Link of OpenFlow0x01.switchId * OpenFlow0x01.portId
-
-  type topology = Topology of (link * link) list
-
-  let reverse_edge (sp1, sp2) = (sp2, sp1)
-
-  let bidirectionalize (Topology topo) = 
-    Topology 
-      (List.fold_left 
-         (fun acc edge -> edge::(reverse_edge edge)::acc) 
-         [] topo)
-
-  (* JNF: placeholder. Need to find all-pairs max shortest path. *)
-  let diameter _ = 3
-
-end
 
 module Verify = struct
   open Sat
-  open Topology
+  open SDN_types
+  open NetKAT_Types
 
-  let packet_field (field:string) (pkt:zVar) (num:zTerm) : zFormula = 
-    ZEquals(TFunction(field, [TVar pkt]), num)
+  let all_fields =
+      [ Hdr InPort 
+      ; Hdr EthType
+      ; Hdr EthSrc
+      ; Hdr EthDst
+      ; Hdr Vlan
+      ; Hdr VlanPcp
+      ; Hdr IPProto
+      ; Hdr IP4Src
+      ; Hdr IP4Dst
+      ; Hdr TCPSrcPort
+      ; Hdr TCPDstPort
+      ; Switch 
+]
 
-  let encode_pattern (pat:ptrn) (pkt:zVar) : zFormula = 
-    let map_wildcard f = function
-      | W.WildcardExact x -> Some (f x)
-      | W.WildcardAll -> None
-      | W.WildcardNone -> Some (ZFalse) in 
-    ZAnd 
-      (filter_map
-         (fun x -> x)
-         [ map_wildcard (fun mac -> packet_field "DlSrc" pkt (TInt mac)) pat.P.ptrnDlSrc
-         ; map_wildcard (fun mac -> packet_field "DlDst" pkt (TInt mac)) pat.P.ptrnDlDst
-         ; map_wildcard 
-             (function 
-               (* TODO: PseudoPorts *)
-               | P.All -> ZTrue
-               | P.Here -> ZTrue
-               | P.Physical pt -> packet_field "InPort" pkt (TInt (Int64.of_int32 pt))
-               | P.Queue _ -> ZTrue)
-             pat.P.ptrnInPort ])
+  (* Bring header field names inline with SDN types*)
+  let encode_header (header: hdr) (pkt: zVar): zTerm =
+    match header with
+      | Hdr InPort -> TApp ("InPort", TVar pkt)
+      | Hdr EthType -> assert false
+      | Hdr EthSrc -> TApp ("DlSrc", TVar pkt)
+      | Hdr EthDst -> TApp ("DlDst", TVar pkt)
+      | Hdr Vlan -> assert false
+      | Hdr VlanPcp -> assert false
+      | Hdr IPProto -> assert false
+      | Hdr IP4Src -> assert false
+      | Hdr IP4Dst -> assert false
+      | Hdr TCPSrcPort -> assert false
+      | Hdr TCPDstPort -> assert false
+      | Switch -> TApp ("Switch", TVar pkt)
 
-  let rec encode_predicate (pr:pred) (pkt:zVar) : zFormula = match pr with 
-    | Everything -> 
-      ZTrue
-    | Nothing ->
-      ZFalse
-    | OnSwitch sw -> 
-      packet_field "Switch" pkt (TInt sw)
-    | Not pr1 ->
-      ZNot(encode_predicate pr1 pkt)
-    | And (pr1, pr2) ->
-      ZAnd([encode_predicate pr1 pkt;
-            encode_predicate pr2 pkt])
-    | Or(pr1, pr2) -> 
-      ZOr([encode_predicate pr1 pkt;
-           encode_predicate pr2 pkt])
-    | Hdr ptrn -> 
-      encode_pattern ptrn pkt
-
-  let equal_field (field:string) (pkt1:zVar) (pkt2:zVar) : zFormula list = 
-    let num = TVar (fresh SInt) in 
-    [ packet_field field pkt1 num
-    ; packet_field field pkt2 num ]
-
-  let equals (fields:string list) (pkt1:zVar) (pkt2:zVar) : zFormula list = 
-    List.fold_left (fun acc field -> equal_field field pkt1 pkt2 @ acc) [] fields
-
-  let topology_forwards (Topology topo:topology) (pkt1:zVar) (pkt2:zVar) : zFormula = 
-    let eq = equals ["DlSrc"; "DlDst"] pkt1 pkt2 in 
+  let equal_field (pkt1: zVar) (pkt2: zVar) (except_fields: hdr list): zFormula =
     ZAnd (List.fold_left 
-            (fun acc (Link(s1, p1), Link(s2, p2)) ->   
-               eq 
-               @ [ packet_field "Switch" pkt1 (TInt s1)
-                 ; packet_field "InPort" pkt1 (TInt (Int64.of_int p1))
-                 ; packet_field "Switch" pkt2 (TInt s2)
-                 ; packet_field "InPort" pkt2 (TInt (Int64.of_int p2))]
-               @ acc)
-            [] topo)
+	    ( fun acc hd -> 
+	      if List.mem hd except_fields then 
+		acc 
+	      else
+		ZEquals (encode_header hd pkt1, encode_header hd pkt2)::acc) 
+	    [] all_fields )
 
-  let output_forwards (out:output) (pkt1:zVar) (pkt2:zVar) : zFormula = 
-    ZOr (filter_map
-           (fun x -> x)
-           [ map_option (fun (_,mac) -> packet_field "DlSrc" pkt2 (TInt mac)) out.outDlSrc
-           ; map_option (fun (_,mac) -> packet_field "DlDst" pkt2 (TInt mac)) out.outDlDst
-           ; Some (match out.outPort with 
-               (* TODO: PseudoPorts *)
-               | P.All -> ZNot(ZAnd(equal_field "InPort" pkt1 pkt2))
-               | P.Here -> ZAnd(equal_field "InPort" pkt1 pkt2)
-               | P.Physical pt -> packet_field "InPort" pkt2 (TInt (Int64.of_int32 pt))
-               | P.Queue _ -> ZFalse)])
+  let encode_vint (v: VInt.t): zTerm =
+    TInt (VInt.get_int64 v)
 
-  let action_atom_forwards (act:action_atom) (pkt1:zVar) (pkt2:zVar) : zFormula = match act with 
-    | SwitchAction out -> 
-      output_forwards out pkt1 pkt2
-    | _ -> 
-      ZFalse 
+  let rec forwards (pol: pol) (pkt1:zVar) (pkt2: zVar): zFormula =
+     match pol with
+       | Drop -> ZFalse
+       | Id -> ZEquals (TVar pkt1, TVar pkt2)
+       | Test (hdr, v) -> ZAnd [ZEquals (encode_header hdr pkt1, encode_vint v);
+				ZEquals (TVar pkt1, TVar pkt2)]
+       | Set (hdr, v) -> ZAnd [ZEquals (encode_header hdr pkt2, encode_vint v);
+			       equal_field pkt1 pkt2 [hdr]]
+       | Neg p -> ZNot (forwards p pkt1 pkt2)
+       | Par (p1, p2) -> ZOr [forwards p1 pkt1 pkt2;
+			   forwards p2 pkt1 pkt2]
+       | Seq (p1, p2) -> let pkt' = fresh SPacket in
+		      ZAnd [forwards p1 pkt1 pkt';
+			    forwards p2 pkt' pkt2]
 
-  let rec policy_forwards (pol:pol) (pkt1:zVar) (pkt2:zVar) : zFormula = 
-    match pol with
-    | Action (acts) -> 
-      ZOr(List.map (fun act -> action_atom_forwards act pkt1 pkt2) acts)
-    | Filter pr ->
-      let eq = equals ["Switch"; "InPort"; "DlSrc"; "DlDst"] pkt1 pkt2 in 
-      ZAnd(encode_predicate pr pkt1::eq)
-    | Union (pol1, pol2) ->
-      ZOr([ policy_forwards pol1 pkt1 pkt2
-          ; policy_forwards pol2 pkt1 pkt2 ])
-    | Seq (pol1, pol2) ->
-      let pkt' = fresh SPacket in 
-      ZAnd([ policy_forwards pol1 pkt1 pkt'
-           ; policy_forwards pol2 pkt' pkt2])
-    | ITE(pr,pol1,pol2) -> 
-      let pol' = Union (Seq(Filter pr, pol1), Seq(Filter (Not pr), pol2)) in 
-      policy_forwards pol' pkt1 pkt2
-    | _ -> 
-      failwith "policy_forwards: not yet implemented"
-
-  let rec forwards (k:int) (topo:topology) (pol:pol) (pkt1:zVar) (pkt2:zVar) : zFormula = 
+  let rec forwards_star (k:int) (topo:pol) (pol:pol) (pkt1:zVar) (pkt2:zVar) : zFormula = 
     if k = 0 then 
-      ZAnd(equals ["Switch"; "InPort"; "DlSrc"; "DlDst"] pkt1 pkt2)
+      ZEquals (TVar pkt1, TVar pkt2)
     else
       let pkt' = fresh SPacket in 
       let pkt'' = fresh SPacket in 
-      ZOr [ ZAnd [ policy_forwards pol pkt1 pkt'
-                 ; topology_forwards topo pkt' pkt''
-                 ; forwards (k-1) topo pol pkt'' pkt2 ]
-          ; forwards (k-1) topo pol pkt1 pkt2 ]
+      ZOr [ ZAnd [ forwards pol pkt1 pkt'
+                 ; forwards topo pkt' pkt''
+                 ; forwards_star (k-1) topo pol pkt'' pkt2 ]
+          ; forwards_star (k-1) topo pol pkt1 pkt2 ]
 end
-
-let topo = ref (Topology.Topology [])
 
 let check str inp pol outp oko = 
   let x = Sat.fresh Sat.SPacket in 
   let y = Sat.fresh Sat.SPacket in 
   let prog = 
-    Sat.ZProgram [ Sat.ZAssertDeclare (Verify.encode_predicate inp x)
-                 ; Sat.ZAssertDeclare (Verify.forwards (Topology.diameter !topo) !topo pol x y)
-                 ; Sat.ZAssertDeclare (Verify.encode_predicate outp y) ] in 
+    Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards inp x x)
+                 ; Sat.ZAssertDeclare (Verify.forwards_star (* TODO: dummy *) 3 NetKAT_Types.Drop pol x y)
+                 ; Sat.ZAssertDeclare (Verify.forwards outp y y) ] in 
   match oko, Sat.solve prog with 
   | Some ok, sat -> 
     if ok = sat then 
