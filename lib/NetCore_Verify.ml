@@ -1,6 +1,6 @@
 open Packet
-open Frenetic_List
 open NetCore_Types
+open Frenetic_List
 open Unix
 
 module W = NetCore_Wildcard
@@ -171,77 +171,83 @@ end
 
 module Verify = struct
   open Sat
-  open SDN_types
+  open SDN_Types
   open NetKAT_Types
 
   let all_fields =
-      [ Hdr InPort 
-      ; Hdr EthType
-      ; Hdr EthSrc
-      ; Hdr EthDst
-      ; Hdr Vlan
-      ; Hdr VlanPcp
-      ; Hdr IPProto
-      ; Hdr IP4Src
-      ; Hdr IP4Dst
-      ; Hdr TCPSrcPort
-      ; Hdr TCPDstPort
+      [ Header InPort 
+      ; Header EthType
+      ; Header EthSrc
+      ; Header EthDst
+      ; Header Vlan
+      ; Header VlanPcp
+      ; Header IPProto
+      ; Header IP4Src
+      ; Header IP4Dst
+      ; Header TCPSrcPort
+      ; Header TCPDstPort
       ; Switch 
 ]
 
   (* Bring header field names inline with SDN types*)
-  let encode_header (header: hdr) (pkt: zVar): zTerm =
+  let encode_header (header: header) (pkt: zVar): zTerm =
     match header with
-      | Hdr InPort -> TApp ("InPort", TVar pkt)
-      | Hdr EthType -> assert false
-      | Hdr EthSrc -> TApp ("DlSrc", TVar pkt)
-      | Hdr EthDst -> TApp ("DlDst", TVar pkt)
-      | Hdr Vlan -> assert false
-      | Hdr VlanPcp -> assert false
-      | Hdr IPProto -> assert false
-      | Hdr IP4Src -> assert false
-      | Hdr IP4Dst -> assert false
-      | Hdr TCPSrcPort -> assert false
-      | Hdr TCPDstPort -> assert false
+      | Header InPort -> TApp ("InPort", TVar pkt)
+      | Header EthType -> assert false
+      | Header EthSrc -> TApp ("DlSrc", TVar pkt)
+      | Header EthDst -> TApp ("DlDst", TVar pkt)
+      | Header Vlan -> assert false
+      | Header VlanPcp -> assert false
+      | Header IPProto -> assert false
+      | Header IP4Src -> assert false
+      | Header IP4Dst -> assert false
+      | Header TCPSrcPort -> assert false
+      | Header TCPDstPort -> assert false
       | Switch -> TApp ("Switch", TVar pkt)
 
-  let equal_field (pkt1: zVar) (pkt2: zVar) (except_fields: hdr list): zFormula =
+  let equal_field (pkt1: zVar) (pkt2: zVar) (except_fields:header list): zFormula =
     ZAnd (List.fold_left 
-	    ( fun acc hd -> 
+	    (fun acc hd -> 
 	      if List.mem hd except_fields then 
 		acc 
 	      else
 		ZEquals (encode_header hd pkt1, encode_header hd pkt2)::acc) 
 	    [] all_fields )
 
-  let encode_vint (v: VInt.t): zTerm =
-    TInt (VInt.get_int64 v)
+  let encode_vint (v: VInt.t): zTerm = TInt (VInt.get_int64 v)
 
-  let rec forwards (pol: pol) (pkt1:zVar) (pkt2: zVar): zFormula =
-     match pol with
-       | Drop -> ZFalse
-       | Id -> ZEquals (TVar pkt1, TVar pkt2)
-       | Test (hdr, v) -> ZAnd [ZEquals (encode_header hdr pkt1, encode_vint v);
-				ZEquals (TVar pkt1, TVar pkt2)]
-       | Set (hdr, v) -> ZAnd [ZEquals (encode_header hdr pkt2, encode_vint v);
-			       equal_field pkt1 pkt2 [hdr]]
-       | Neg p -> ZNot (forwards p pkt1 pkt2)
-       | Par (p1, p2) -> ZOr [forwards p1 pkt1 pkt2;
-			   forwards p2 pkt1 pkt2]
-       | Seq (p1, p2) -> let pkt' = fresh SPacket in
-		      ZAnd [forwards p1 pkt1 pkt';
-			    forwards p2 pkt' pkt2]
+  let rec forwards (pol:policy) (pkt1:zVar) (pkt2: zVar): zFormula =
+    match pol with
+      | Drop -> 
+	ZFalse
+      | Id -> 
+	ZEquals (TVar pkt1, TVar pkt2)
+      | Test (hdr, v) -> 
+	ZAnd [ZEquals (encode_header hdr pkt1, encode_vint v);
+	      ZEquals (TVar pkt1, TVar pkt2)]
+      | Mod (hdr, v) -> 
+	ZAnd [ZEquals (encode_header hdr pkt2, encode_vint v);
+	      equal_field pkt1 pkt2 [hdr]]
+      | Neg p -> 
+	ZNot (forwards p pkt1 pkt2)
+      | Par (p1, p2) -> 
+	ZOr [forwards p1 pkt1 pkt2;
+	     forwards p2 pkt1 pkt2]
+      | Seq (p1, p2) -> 
+	let pkt' = fresh SPacket in
+	ZAnd [forwards p1 pkt1 pkt';
+	      forwards p2 pkt' pkt2]
 
-  let rec forwards_star (k:int) (topo:pol) (pol:pol) (pkt1:zVar) (pkt2:zVar) : zFormula = 
+  let rec forwards_star (k:int) (pol:policy) (topo:policy) (pkt1:zVar) (pkt2:zVar) : zFormula = 
     if k = 0 then 
       ZEquals (TVar pkt1, TVar pkt2)
     else
       let pkt' = fresh SPacket in 
       let pkt'' = fresh SPacket in 
-      ZOr [ ZAnd [ forwards pol pkt1 pkt'
-                 ; forwards topo pkt' pkt''
-                 ; forwards_star (k-1) topo pol pkt'' pkt2 ]
-          ; forwards_star (k-1) topo pol pkt1 pkt2 ]
+      ZOr [ ZAnd [ forwards pol pkt1 pkt';
+                   forwards topo pkt' pkt'';
+                   forwards_star (k-1) pol topo pkt'' pkt2 ];
+            forwards_star (k-1) pol topo pkt1 pkt2 ]
 end
 
 let check str inp pol outp oko = 
@@ -249,7 +255,7 @@ let check str inp pol outp oko =
   let y = Sat.fresh Sat.SPacket in 
   let prog = 
     Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards inp x x)
-                 ; Sat.ZAssertDeclare (Verify.forwards_star (* TODO: dummy *) 3 NetKAT_Types.Drop pol x y)
+                 ; Sat.ZAssertDeclare (Verify.forwards_star (* TODO: dummy *) 3 pol NetKAT_Types.Drop x y)
                  ; Sat.ZAssertDeclare (Verify.forwards outp y y) ] in 
   match oko, Sat.solve prog with 
   | Some ok, sat -> 

@@ -8,18 +8,18 @@
 
     The size of a header depends on the header name. But, insteam encoding this
     dependency in the type system, we place integers of various sizes in the
-    [hdrVal] sum type.
+    [header_val] sum type.
 
     {b Warning:} Some header combinations are invalid and some headers
     depend on the presence of other headers. To be safe, use {i valid patterns}.
 
 *)
 
-type hdr =
-  | Hdr of SDN_types.field
+type header =
+  | Header of SDN_Types.field
   | Switch
 
-type hdrVal = VInt.t
+type header_val = VInt.t
 
 (** {2 Policies}
 
@@ -28,14 +28,14 @@ type hdrVal = VInt.t
 
 *)
 
-type pol =
+type policy =
   | Drop
   | Id
-  | Test of hdr * hdrVal
-  | Set of hdr * hdrVal 
-  | Neg of pol
-  | Par of pol * pol
-  | Seq of pol * pol
+  | Test of header * header_val
+  | Mod of header * header_val
+  | Neg of policy
+  | Par of policy * policy
+  | Seq of policy * policy
 
 (** {2 Packets} 
 
@@ -47,18 +47,18 @@ type pol =
 *)
 
 (** A map keyed by header names. *)
-module HdrMap : Map.S
-  with type key = hdr
+module HeaderMap : Map.S
+  with type key = header
 
-type hdrValMap = hdrVal HdrMap.t
+type header_val_map = header_val HeaderMap.t
 
-type pkt = {
-  headers : hdrValMap;
+type packet = {
+  headers : header_val_map;
   (** Evaluating the policy [Test (h, v)] looks for [h] in these headers. If
       they are not found, we signal an error. An OpenFlow switch will never
       look for a header that does not exist. So, it is safe to assume that
        unused headers are set to zero or some other default value. *)
-  payload : SDN_types.payload
+  payload : SDN_Types.payload
 }
 
 (** {2 Semantics}
@@ -68,13 +68,13 @@ type pkt = {
     in both cases.
 *)
 
-module PktSet : Set.S
-  with type elt = pkt
+module PacketSet : Set.S
+  with type elt = packet
 
-val eval : pkt -> pol -> PktSet.t
+val eval : packet -> policy -> PacketSet.t
 
 (** {2 Utilities} *)
 
-val format_pol : Format.formatter -> pol -> unit
+val format_policy : Format.formatter -> policy -> unit
 
-val string_of_pol : pol -> string
+val string_of_policy : policy -> string

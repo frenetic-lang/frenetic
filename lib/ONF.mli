@@ -11,8 +11,8 @@
 *)
 
 (* A set of maps from header names to header values *)
-module HdrValSet : Set.S
-  with type elt = NetKAT_Types.hdrValMap
+module HeaderValMapSet : Set.S
+  with type elt = NetKAT_Types.header_val_map
 
 (** A conjunction of tests, where each test tests a distinct field and all
     fields are tested. Formally:
@@ -22,7 +22,7 @@ module HdrValSet : Set.S
     [pred ::= h_1 = v_1 ; .. ; h_k = v_k]
 
     where all [k] headers are tested. *)
-type pred = NetKAT_Types.hdrValMap
+type pred = NetKAT_Types.header_val_map
 
 (** A sequence of updates, where each update affects a distinct field.
     Therefore, they all commute with each other and can be represented by
@@ -31,14 +31,14 @@ type pred = NetKAT_Types.hdrValMap
     [seq  ::= h_1 -> v_1 ; ... ; h_1 -> v_n]
 
     where all headers [h] are distinct. *)
-type seq = NetKAT_Types.hdrValMap
+type seq = NetKAT_Types.header_val_map
 
 (** A sum of update sequences, where each sequence is distinct. Formally:
 
     	[sum ::= seq_1; ...; seq_n]
 
     where all subterms [seq] are distinct. *)
-type sum = HdrValSet.t
+type sum = HeaderValMapSet.t
 
 (** A cascase of [if .. then .. else] expressions nested under the [else]
     branch.
@@ -60,10 +60,10 @@ type local =
 
 *)
 
-val compile : NetKAT_Types.pol -> local
+val compile : NetKAT_Types.policy -> local
 
 (** {2 Utilities} *)
 
 (** Converts the ONF term to an isomorphic NetKAT term, but simplifies
     [x + Id] to [x] when possible. *)
-val to_netkat : local -> NetKAT_Types.pol
+val to_netkat : local -> NetKAT_Types.policy

@@ -1,33 +1,33 @@
 module K = NetKAT_Types
 
-module HdrMap = K.HdrMap
+module HeaderMap = K.HeaderMap
 
-module HdrValSet = Set.Make (struct
-    type t = K.hdrVal HdrMap.t
-    let compare x y = HdrMap.compare Pervasives.compare x y
+module HeaderValMapSet = Set.Make (struct
+    type t = K.header_val HeaderMap.t
+    let compare x y = HeaderMap.compare Pervasives.compare x y
   end)
 
-type pred = K.hdrValMap
+type pred = K.header_val_map
 
-type seq = K.hdrValMap
+type seq = K.header_val_map
 
-type sum = HdrValSet.t
+type sum = HeaderValMapSet.t
 
 type local =
   | Action of sum
   | ITE of pred * sum * local
 
-let id : seq = HdrMap.empty
+let id : seq = HeaderMap.empty
 
-let drop : sum = HdrValSet.empty
+let drop : sum = HeaderValMapSet.empty
 
 (* Only used by and_pred *)
 exception Empty_pred
 
 (* map_sum f (seq_1 + ... + seq_n) = f seq_1 + ... + f seq_n *)
 let map_sum (f : seq -> seq) (pol : sum) =
-  let g seq pol' = HdrValSet.add (f seq) pol' in
-  HdrValSet.fold g pol drop
+  let g seq pol' = HeaderValMapSet.add (f seq) pol' in
+  HeaderValMapSet.fold g pol drop
 
 (* Some (pr1 ; pr2) unless the conjunct in empty, in which case, return None. *)
 let rec and_pred (pr1 : pred) (pr2 : pred) : pred option =
@@ -37,13 +37,13 @@ let rec and_pred (pr1 : pred) (pr2 : pred) : pred option =
     | (None, Some v2) -> Some v2
     | (None, None) -> failwith "and_pred impossible case" in
   try 
-    Some (HdrMap.merge f pr1 pr2)
+    Some (HeaderMap.merge f pr1 pr2)
   with
     Empty_pred -> None
 
 (* s1 + s2 *)
 let rec par_sum_sum (s1 : sum) (s2 : sum) : sum = 
-  HdrValSet.union s1 s2
+  HeaderValMapSet.union s1 s2
 
 (* Lemma 1: if Y then S + S' else (S + A') = S + (if Y then S' else A')
 
@@ -122,25 +122,25 @@ let rec par_local_local (a : local) (b : local) : local = match (a, b) with
   | (ITE (x, a', b'), _) ->  par_sum_local x a' b (par_local_local b' b)
 
 (* seq_seq H V SEQ = H<-V; SEQ *)
-let seq_seq (h : K.hdr) (v : K.hdrVal) (seq : seq) : seq = 
-  if HdrMap.mem h seq then
+let seq_seq (h : K.header) (v : K.header_val) (seq : seq) : seq = 
+  if HeaderMap.mem h seq then
     seq
   else
-    HdrMap.add h v seq
+    HeaderMap.add h v seq
 
 (* commute_sum H V S = H <- V; S *)
-let commute_sum (h : K.hdr) (v : K.hdrVal) (s : sum) : sum =
+let commute_sum (h : K.header) (v : K.header_val) (s : sum) : sum =
   map_sum (seq_seq h v) s (* distributivity *)
 
 (* pr is a conjunct, so if h is not bound, then it is matches h = v *)
-let rec pred_matches (h : K.hdr) (v : K.hdrVal) (pr : pred) : bool =
-  not (HdrMap.mem h pr) || HdrMap.find h pr = v
+let rec pred_matches (h : K.header) (v : K.header_val) (pr : pred) : bool =
+  not (HeaderMap.mem h pr) || HeaderMap.find h pr = v
 
-let rec pred_wildcard (h : K.hdr) (pr : pred) : pred =
-  HdrMap.remove h pr
+let rec pred_wildcard (h : K.header) (pr : pred) : pred =
+  HeaderMap.remove h pr
 
 (* commute H V P = H<-V; P *)
-let rec commute (h : K.hdr) (v : K.hdrVal) (p : local) : local = match p with
+let rec commute (h : K.header) (v : K.header_val) (p : local) : local = match p with
   | Action sum -> Action (commute_sum h v sum)
   (* Case P = if X then S else Q
 
@@ -164,11 +164,11 @@ let rec norm_ite (pr : pred) (pol1 : local) (pol2 : local) : local =
     | Some pr1_and_pr1' -> ITE (pr1_and_pr1', sum1', norm_ite pr pol1' pol2)
 
 let seq_seq_local (p1 : seq) (p2 : local) : local = 
-  HdrMap.fold commute  p1 p2
+  HeaderMap.fold commute  p1 p2
 
 (* p1; p2 *)
 let seq_sum_local (p1 : sum) (p2 : local) : local = 
-  let lst = HdrValSet.fold (fun elt lst -> elt :: lst) p1 [] in
+  let lst = HeaderValMapSet.fold (fun elt lst -> elt :: lst) p1 [] in
   let rec loop lst = match lst with
     | [] -> Action drop
     | seq :: lst' ->
@@ -182,11 +182,11 @@ let rec seq_local_local (pol1 : local) (pol2 : local) : local = match pol1 with
 
 
 let is_drop (pol : sum) : bool =
-  HdrValSet.is_empty pol
+  HeaderValMapSet.is_empty pol
 
 (* there is only one element, and it is the empty sequence of updates *)
 let is_id (pol : sum) : bool =
-  not (HdrValSet.is_empty pol) && HdrMap.is_empty (HdrValSet.choose pol)
+  not (HeaderValMapSet.is_empty pol) && HeaderMap.is_empty (HeaderValMapSet.choose pol)
 
 (*
     !(if A then X else IND)
@@ -224,7 +224,7 @@ let is_id (pol : sum) : bool =
 let rec negate (pred : local) : local = match pred with
   | Action sum ->
     if is_drop sum then
-      Action (HdrValSet.singleton id)
+      Action (HeaderValMapSet.singleton id)
     else if is_id sum then
       Action drop
     else
@@ -232,28 +232,28 @@ let rec negate (pred : local) : local = match pred with
   | ITE (a, x, ind) ->
     if is_drop x then
       par_local_local 
-        (ITE (a, HdrValSet.singleton id, Action drop))
+        (ITE (a, HeaderValMapSet.singleton id, Action drop))
         (negate ind)
     else if is_id x then
       seq_local_local
-        (ITE (a, drop, Action (HdrValSet.singleton id)))
+        (ITE (a, drop, Action (HeaderValMapSet.singleton id)))
         (negate ind)
     else
       failwith "not a predicate"
 
-and local_normalize (pol : K.pol) : local = match pol with
+and local_normalize (pol : K.policy) : local = match pol with
   | K.Drop ->
     Action drop (* missing from appendix *)
   | K.Id ->
-    Action (HdrValSet.singleton HdrMap.empty) (* missing from appendix *)
+    Action (HeaderValMapSet.singleton HeaderMap.empty) (* missing from appendix *)
   | K.Neg p ->
     negate (local_normalize p)
   | K.Test (h, v) ->
-    ITE (HdrMap.singleton h v, HdrValSet.singleton id, Action drop)
-  | K.Set (K.Switch, _) ->
+    ITE (HeaderMap.singleton h v, HeaderValMapSet.singleton id, Action drop)
+  | K.Mod (K.Switch, _) ->
     failwith "unexpected Switch in local_normalize"
-  | K.Set (h, v) ->
-    Action (HdrValSet.singleton (HdrMap.singleton h v))
+  | K.Mod (h, v) ->
+    Action (HeaderValMapSet.singleton (HeaderMap.singleton h v))
   | K.Par (pol1, pol2) ->
     (* In Lemma 30, cases 2--4 p,q should be written using if..then..else
        shorthand. *)
@@ -265,35 +265,35 @@ let compile = local_normalize
 
 let pred_to_netkat pr =
   (* avoid printing trailing K.Id if it is unnecessary *)
-  if HdrMap.is_empty pr then
+  if HeaderMap.is_empty pr then
     K.Id
   else
-    let (h, v) = HdrMap.min_binding pr in
-    let pr' = HdrMap.remove h pr in
+    let (h, v) = HeaderMap.min_binding pr in
+    let pr' = HeaderMap.remove h pr in
     let f h v pol = K.Seq (K.Test (h, v), pol) in
-    HdrMap.fold f pr' (K.Test (h, v))
+    HeaderMap.fold f pr' (K.Test (h, v))
 
-let seq_to_netkat (pol : seq) : K.pol =
+let seq_to_netkat (pol : seq) : K.policy =
   (* avoid printing trailing K.Id if it is unnecessary *)
-  if HdrMap.is_empty pol then
+  if HeaderMap.is_empty pol then
     K.Id
   else
-    let (h, v) = HdrMap.min_binding pol in
-    let pol' = HdrMap.remove h pol in
-    let f h v pol' = K.Seq (K.Set (h, v), pol') in
-    HdrMap.fold f pol' (K.Set (h, v))
+    let (h, v) = HeaderMap.min_binding pol in
+    let pol' = HeaderMap.remove h pol in
+    let f h v pol' = K.Seq (K.Mod (h, v), pol') in
+    HeaderMap.fold f pol' (K.Mod  (h, v))
 
-let sum_to_netkat (pol : sum) : K.pol = 
+let sum_to_netkat (pol : sum) : K.policy = 
   (* avoid printing trailing K.Drop if it is unnecessary *)
-  if HdrValSet.is_empty pol then
+  if HeaderValMapSet.is_empty pol then
     K.Drop
   else
     let f seq pol' = K.Par (seq_to_netkat seq, pol') in
-    let seq = HdrValSet.min_elt pol in
-    let pol' = HdrValSet.remove seq pol in
-    HdrValSet.fold f pol' (seq_to_netkat seq)
+    let seq = HeaderValMapSet.min_elt pol in
+    let pol' = HeaderValMapSet.remove seq pol in
+    HeaderValMapSet.fold f pol' (seq_to_netkat seq)
 
-let rec to_netkat (pol : local) : K.pol = match pol with
+let rec to_netkat (pol : local) : K.policy = match pol with
   | Action sum -> sum_to_netkat sum
   | ITE (pred, sum, pol') ->
     let pr = pred_to_netkat pred in

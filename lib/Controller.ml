@@ -1,39 +1,39 @@
 module Platform = SDN
-module SDN = SDN_types
+module SDN = SDN_Types
 module NetKAT = NetKAT_Types
 module Stream = NetCore_Stream
 
 let pred_to_pattern (sw : SDN.fieldVal) (pred : ONF.pred) : SDN.pattern option =
-	let f (h : NetKAT.hdr) (v : NetKAT.hdrVal) (pat : SDN.pattern) =
+	let f (h : NetKAT.header) (v : NetKAT.header_val) (pat : SDN.pattern) =
 	  match h with
 	    | NetKAT.Switch -> pat (* already tested for this *)
-      | NetKAT.Hdr h' -> SDN.FieldMap.add h' v pat in
-	if NetKAT.HdrMap.mem NetKAT.Switch pred &&
-	   NetKAT.HdrMap.find NetKAT.Switch pred <> sw then
+      | NetKAT.Header h' -> SDN.FieldMap.add h' v pat in
+	if NetKAT.HeaderMap.mem NetKAT.Switch pred &&
+	   NetKAT.HeaderMap.find NetKAT.Switch pred <> sw then
 	   None
   else 
-    Some (NetKAT.HdrMap.fold f pred SDN.FieldMap.empty)
+    Some (NetKAT.HeaderMap.fold f pred SDN.FieldMap.empty)
 
 (* Take care to emit the packet last. All other updates can happen in
    any order. Signals an exception if the switch is being updated. No
    error if an un-updatable field is updated. That error occurs later, while
    translating to specific versions of OpenFlow. *)
 let seq_to_action (seq : ONF.seq) : SDN.action =
-  if not (NetKAT.HdrMap.mem (NetKAT.Hdr SDN.InPort) seq) then
+  if not (NetKAT.HeaderMap.mem (NetKAT.Header SDN.InPort) seq) then
     SDN.EmptyAction
   else
-    let port = NetKAT.HdrMap.find (NetKAT.Hdr SDN.InPort) seq in
-    let mods = NetKAT.HdrMap.remove (NetKAT.Hdr SDN.InPort) seq in
-    let mk_mod (h : NetKAT.hdr) (v : NetKAT.hdrVal) (action : SDN.action) =
+    let port = NetKAT.HeaderMap.find (NetKAT.Header SDN.InPort) seq in
+    let mods = NetKAT.HeaderMap.remove (NetKAT.Header SDN.InPort) seq in
+    let mk_mod (h : NetKAT.header) (v : NetKAT.header_val) (action : SDN.action) =
       match h with
       | NetKAT.Switch -> raise (Invalid_argument "seq_to_action got switch update")
-      | NetKAT.Hdr h' ->  SDN.Seq (SDN.SetField (h', v), action) in
-    NetKAT.HdrMap.fold mk_mod mods (SDN.OutputPort port)
+      | NetKAT.Header h' ->  SDN.Seq (SDN.SetField (h', v), action) in
+    NetKAT.HeaderMap.fold mk_mod mods (SDN.OutputPort port)
 
 let sum_to_action (sum : ONF.sum) : SDN.action =
   let f (seq : ONF.seq) (action : SDN.action) =
     SDN.Par (seq_to_action seq, action) in
-  ONF.HdrValSet.fold f sum SDN.EmptyAction
+  ONF.HeaderValMapSet.fold f sum SDN.EmptyAction
 
 let simpl_flow (p : SDN.pattern) (a : SDN.action) : SDN.flow = {
   SDN.pattern = p;
@@ -64,7 +64,7 @@ let switch_thread
   lwt () = config_switch (Stream.now onf_stream) in
   Lwt_stream.iter_s config_switch (Stream.to_stream onf_stream)
 
-let rec start ~port ~pol =
-  let onf_stream = Stream.map ONF.compile pol in
+let rec start ~port ~pols =
+  let onf_stream = Stream.map ONF.compile pols in
   lwt (stop_accept, new_switches) = Platform.accept_switches port  in
   Lwt_stream.iter_p (switch_thread onf_stream) new_switches

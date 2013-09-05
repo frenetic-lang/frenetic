@@ -1,82 +1,83 @@
-type hdr =
-  | Hdr of SDN_types.field
+type header =
+  | Header of SDN_Types.field
   | Switch
 
-type hdrVal = VInt.t
+type header_val = VInt.t
 
-type pol =
+type policy =
   | Drop
   | Id
-  | Test of hdr * hdrVal
-  | Set of hdr * hdrVal 
-  | Neg of pol
-  | Par of pol * pol
-  | Seq of pol * pol
+  | Test of header * header_val
+  | Mod of header * header_val
+  | Neg of policy
+  | Par of policy * policy
+  | Seq of policy * policy
 
-module HdrMap = Map.Make (struct
-    type t = hdr
+module HeaderMap = Map.Make (struct
+    type t = header
     let compare = Pervasives.compare
   end)
 
-type hdrValMap = hdrVal HdrMap.t
+type header_val_map = header_val HeaderMap.t
 
-type pkt = {
-  headers : hdrValMap;
-  payload : SDN_types.payload
+type packet = {
+  headers : header_val_map;
+  payload : SDN_Types.payload
 }
 
-module PktSet = Set.Make (struct
-    type t = pkt
+module PacketSet = Set.Make (struct
+    type t = packet
 
     (* First compare by headers, then payload. The payload comparison is a
        little questionable. However, this is safe to use in eval, since
        all output packets have the same payload as the input packet. *)
     let compare x y =
-      let cmp = HdrMap.compare Pervasives.compare x.headers y.headers in
+      let cmp = HeaderMap.compare Pervasives.compare x.headers y.headers in
       if cmp != 0 then
         cmp
       else
         Pervasives.compare x.payload y.payload
   end)
 
-let rec eval (pkt : pkt) (pol : pol) : PktSet.t = match pol with
-  | Drop -> PktSet.empty
-  | Id -> PktSet.singleton pkt
+let rec eval (pkt:packet) (pol:policy) : PacketSet.t = match pol with
+  | Drop -> PacketSet.empty
+  | Id -> PacketSet.singleton pkt
   | Test (h, v) -> 
-    if HdrMap.find h pkt.headers = v then
-      PktSet.singleton pkt
+    if HeaderMap.find h pkt.headers = v then
+      PacketSet.singleton pkt
     else
-      PktSet.empty
-  | Set (h, v) ->
-    if HdrMap.mem h pkt.headers then
-      PktSet.singleton { pkt with headers = HdrMap.add h v pkt.headers }
+      PacketSet.empty
+  | Mod (h, v) ->
+    if HeaderMap.mem h pkt.headers then
+      PacketSet.singleton { pkt with headers = HeaderMap.add h v pkt.headers }
     else
       raise Not_found (* for consistency with Test *)
   | Neg p ->
-    PktSet.diff (PktSet.singleton pkt) (eval pkt p)
+    PacketSet.diff (PacketSet.singleton pkt) (eval pkt p)
   | Par (pol1, pol2) ->
-    PktSet.union (eval pkt pol1) (eval pkt pol2)
+    PacketSet.union (eval pkt pol1) (eval pkt pol2)
   | Seq (pol1, pol2) ->
-    let f pkt' set = PktSet.union (eval pkt' pol2) set in
-    PktSet.fold f (eval pkt pol1) PktSet.empty
+    let f pkt' set = PacketSet.union (eval pkt' pol2) set in
+    PacketSet.fold f (eval pkt pol1) PacketSet.empty
 
 module Formatting = struct
 
   open Format
 
-  let hdr (fmt : formatter) (h : hdr) : unit = match h with
-    | Hdr h' -> SDN_types.format_field fmt h'
+  let header (fmt : formatter) (h : header) : unit = match h with
+    | Header h' -> SDN_Types.format_field fmt h'
     | Switch -> pp_print_string fmt "switch"
 
   (* The type of the immediately surrounding context, which guides parenthesis-
      intersion. *)
-  type cxt = SEQ | PAR | NEG | PAREN
+  (* JNF: YES. This is the Right Way to pretty print. *)
+  type context = SEQ | PAR | NEG | PAREN
 
-  let rec pol (cxt : cxt) (fmt : formatter) (p : pol) : unit = match p with
+  let rec pol (cxt : context) (fmt : formatter) (p : policy) : unit = match p with
     | Drop -> fprintf fmt "@[drop@]"
     | Id -> fprintf fmt "@[id@]"
-    | Test (h, v) -> fprintf fmt "@[%a = %a@]" hdr h VInt.format v
-    | Set (h, v) -> fprintf fmt "@[%a <- %a@]" hdr h VInt.format v
+    | Test (h, v) -> fprintf fmt "@[%a = %a@]" header h VInt.format v
+    | Mod (h, v) -> fprintf fmt "@[%a <- %a@]" header h VInt.format v
     | Neg p' -> begin match cxt with
         | PAREN -> fprintf fmt "@[!%a@]" (pol NEG) p'
         | _ -> fprintf fmt "@[!@[(%a)@]@]" (pol PAREN) p'
@@ -104,6 +105,6 @@ let make_string_of formatter x =
   fprintf fmt "@?";
   Buffer.contents buf
 
-let format_pol = Formatting.pol Formatting.PAREN
+let format_policy = Formatting.pol Formatting.PAREN
 
-let string_of_pol = make_string_of format_pol
+let string_of_policy = make_string_of format_policy
