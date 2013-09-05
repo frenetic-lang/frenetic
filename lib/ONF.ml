@@ -241,6 +241,12 @@ let rec negate (pred : local) : local = match pred with
     else
       failwith "not a predicate"
 
+let rec star_local (a:local) : local = match a with 
+  | Action s -> 
+    a (* TODO: stub *)
+  | ITE(p, s, b) -> 
+    a (* TODO: stub *)
+
 and local_normalize (pol : K.policy) : local = match pol with
   | K.Drop ->
     Action drop (* missing from appendix *)
@@ -260,7 +266,9 @@ and local_normalize (pol : K.policy) : local = match pol with
     par_local_local (local_normalize pol1) (local_normalize pol2)
   | K.Seq (pol1, pol2) ->
     seq_local_local (local_normalize pol1) (local_normalize pol2)
-
+  | K.Star pol -> 
+    star_local (local_normalize pol)
+      
 let compile = local_normalize
 
 let pred_to_netkat pr =

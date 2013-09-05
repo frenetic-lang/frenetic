@@ -237,6 +237,8 @@ module Verify = struct
 	let pkt' = fresh SPacket in
 	ZAnd [forwards p1 pkt1 pkt';
 	      forwards p2 pkt' pkt2]
+      | Star p1 -> 
+	failwith "NetKAT Kleene star is not yet implemented"
 
   let rec forwards_star (k:int) (pol:policy) (topo:policy) (pkt1:zVar) (pkt2:zVar) : zFormula = 
     if k = 0 then 

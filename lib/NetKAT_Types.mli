@@ -36,6 +36,7 @@ type policy =
   | Neg of policy
   | Par of policy * policy
   | Seq of policy * policy
+  | Star of policy
 
 (** {2 Packets} 
 

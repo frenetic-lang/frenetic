@@ -12,6 +12,7 @@ type policy =
   | Neg of policy
   | Par of policy * policy
   | Seq of policy * policy
+  | Star of policy
 
 module HeaderMap = Map.Make (struct
     type t = header
@@ -59,6 +60,12 @@ let rec eval (pkt:packet) (pol:policy) : PacketSet.t = match pol with
   | Seq (pol1, pol2) ->
     let f pkt' set = PacketSet.union (eval pkt' pol2) set in
     PacketSet.fold f (eval pkt pol1) PacketSet.empty
+  | Star pol -> 
+    let rec loop acc = 
+      let f pkt' set = PacketSet.union (eval pkt' pol) set in 
+      let acc' = PacketSet.fold f acc PacketSet.empty in 
+      if PacketSet.equal acc acc' then acc else loop acc' in 
+    loop (PacketSet.singleton pkt)
 
 module Formatting = struct
 
@@ -71,29 +78,41 @@ module Formatting = struct
   (* The type of the immediately surrounding context, which guides parenthesis-
      intersion. *)
   (* JNF: YES. This is the Right Way to pretty print. *)
-  type context = SEQ | PAR | NEG | PAREN
+  type context = SEQ | PAR | STAR | NEG | PAREN
 
   let rec pol (cxt : context) (fmt : formatter) (p : policy) : unit = match p with
-    | Drop -> fprintf fmt "@[drop@]"
-    | Id -> fprintf fmt "@[id@]"
-    | Test (h, v) -> fprintf fmt "@[%a = %a@]" header h VInt.format v
-    | Mod (h, v) -> fprintf fmt "@[%a <- %a@]" header h VInt.format v
-    | Neg p' -> begin match cxt with
+    | Drop -> 
+      fprintf fmt "@[drop@]"
+    | Id -> 
+      fprintf fmt "@[id@]"
+    | Test (h, v) -> 
+      fprintf fmt "@[%a = %a@]" header h VInt.format v
+    | Mod (h, v) -> 
+      fprintf fmt "@[%a <- %a@]" header h VInt.format v
+    | Neg p' -> 
+      begin match cxt with
         | PAREN -> fprintf fmt "@[!%a@]" (pol NEG) p'
         | _ -> fprintf fmt "@[!@[(%a)@]@]" (pol PAREN) p'
       end
-    | Par (p1, p2) -> begin match cxt with
+    | Star p' -> 
+      begin match cxt with
+        | PAREN 
+	| STAR ->  fprintf fmt "@[%a*@]" (pol STAR) p' 
+        | _ -> fprintf fmt "@[@[(%a)*@]@]" (pol PAREN) p'
+      end
+    | Par (p1, p2) -> 
+      begin match cxt with
         | PAREN
         | PAR -> fprintf fmt "@[%a + %a@]" (pol PAR) p1 (pol PAR) p2
         | _ -> fprintf fmt "@[(@[%a + %a@])@]" (pol PAR) p1 (pol PAR) p2
       end
-    | Seq (p1, p2) -> begin match cxt with
+    | Seq (p1, p2) -> 
+      begin match cxt with
         | PAREN
         | SEQ
         | PAR -> fprintf fmt "@[%a ; %a@]" (pol SEQ) p1 (pol SEQ) p2
         | _ -> fprintf fmt "@[(@[%a ; %a@])@]" (pol SEQ) p1 (pol SEQ) p2
-      end
-
+       end
 end
 
 let make_string_of formatter x =
