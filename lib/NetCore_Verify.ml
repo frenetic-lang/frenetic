@@ -168,6 +168,33 @@ module Sat = struct
     Buffer.contents b = "sat\n"
 end
 
+module NetKAT_Graph = struct
+  open Sat
+  open SDN_Types
+  open NetKAT_Types
+
+    (* note: this is brittle *)
+    (* assumes input is of the form (p;t)* *)
+    (* assumes t is of the form:
+       switch = n, port = m, switch=n', port=m' + t *)
+
+  (* dummy, waiting for BASU.  BASU!!! *)
+  let build_graph a b = 4
+
+  let parse_graph pol = 
+    let rec parse_graph pol = 
+      match pol with
+	| Seq
+	      (Seq (Seq (Test (Switch, switch1), Test (Header InPort, port1)), 
+	       (Seq (Mod (Switch ,switch2) , Mod (Header InPort, port2)))), t)
+		-> (build_graph (switch1, port1) (switch2, port2))::(parse_graph t)
+	| _ -> failwith "unimplemented" in
+    match pol with
+      | Star (Seq (p, t)) -> parse_graph t
+      | _ -> failwith "graph parsing assumes input is of the form (p;t)*"
+
+end
+
 
 module Verify = struct
   open Sat
@@ -237,8 +264,8 @@ module Verify = struct
 	let pkt' = fresh SPacket in
 	ZAnd [forwards p1 pkt1 pkt';
 	      forwards p2 pkt' pkt2]
-      | Star p1 -> 
-	failwith "NetKAT Kleene star is not yet implemented"
+      | Star p1 -> failwith "NetKAT program not in form (p;t)*"
+
 
   let rec forwards_star (k:int) (pol:policy) (topo:policy) (pkt1:zVar) (pkt2:zVar) : zFormula = 
     if k = 0 then 
@@ -257,7 +284,7 @@ let check str inp pol outp oko =
   let y = Sat.fresh Sat.SPacket in 
   let prog = 
     Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards inp x x)
-                 ; Sat.ZAssertDeclare (Verify.forwards_star (* TODO: dummy *) 3 pol NetKAT_Types.Drop x y)
+                 ; Sat.ZAssertDeclare (Verify.forwards_star (* TODO: dummy *) 14 pol NetKAT_Types.Drop x y)
                  ; Sat.ZAssertDeclare (Verify.forwards outp y y) ] in 
   match oko, Sat.solve prog with 
   | Some ok, sat -> 
