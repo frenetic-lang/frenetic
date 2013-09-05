@@ -1,8 +1,8 @@
 module Switch = HighLevelSwitch
 
-type switchId = SDN_types.switchId
-type flowTable = SDN_types.flowTable
-type switchFeatures = SDN_types.switchFeatures
+type switchId = SDN_Types.switchId
+type flowTable = SDN_Types.flowTable
+type switchFeatures = SDN_Types.switchFeatures
 
 let switches : (switchId, Switch.t) Hashtbl.t = Hashtbl.create 100
 
@@ -19,7 +19,7 @@ let rec accept_switch
   match_lwt Switch.initialize fd with
   | Some sw -> 
     let features = Switch.features sw in
-    Hashtbl.add switches features.SDN_types.switch_id sw;
+    Hashtbl.add switches features.SDN_Types.switch_id sw;
     push_switch (Some features);
     accept_switch server_fd push_switch
   | None ->

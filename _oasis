@@ -39,7 +39,7 @@ Library openflow
     OpenFlow0x04_Misc,
     OpenFlow0x01_Switch,
     OpenFlow0x01_TxSwitch,
-    SDN_types,
+    SDN_Types,
     SDN
 
 Document doc
