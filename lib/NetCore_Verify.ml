@@ -186,7 +186,7 @@ module Sat = struct
 end
 
 module NetKAT_Graph = struct
-  open Merlin_Digraph
+  (* open Merlin_Digraph *)
   open Sat
   open SDN_Types
   open NetKAT_Types
