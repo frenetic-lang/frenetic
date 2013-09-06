@@ -129,6 +129,7 @@ module Sat = struct
     | ZAssertDeclare(f) -> 
       Printf.sprintf "(assert %s)" (serialize_formula f)
 
+
   let init_decls : zDeclaration list = 
     [ ZSortDeclare
         ("Packet", [("packet", [ ("PSwitch", SInt)
@@ -140,9 +141,25 @@ module Sat = struct
     ; ZVarDeclare
         ("InPort", SFunction(SPacket, SInt))
     ; ZVarDeclare
-        ("DlSrc", SFunction(SPacket, SInt))
+        ("EthSrc", SFunction(SPacket, SInt))
     ; ZVarDeclare
-        ("DlDst", SFunction(SPacket, SInt))
+        ("EthDst", SFunction(SPacket, SInt))
+    ; ZVarDeclare
+        ("EthType", SFunction(SPacket, SInt))
+    ; ZVarDeclare
+        ("Vlan", SFunction(SPacket, SInt))
+    ; ZVarDeclare
+        ("VlanPcp", SFunction(SPacket, SInt))
+    ; ZVarDeclare
+        ("IPProto", SFunction(SPacket, SInt))
+    ; ZVarDeclare
+        ("IP4Src", SFunction(SPacket, SInt))
+    ; ZVarDeclare
+        ("IP4Dst", SFunction(SPacket, SInt))
+    ; ZVarDeclare
+        ("TCPSrcPort", SFunction(SPacket, SInt))
+    ; ZVarDeclare
+        ("TCPDstPort", SFunction(SPacket, SInt))
     ]
 
   let serialize_program (ZProgram (decls)) = 
@@ -169,6 +186,7 @@ module Sat = struct
 end
 
 module NetKAT_Graph = struct
+  open Merlin_Digraph
   open Sat
   open SDN_Types
   open NetKAT_Types
@@ -187,7 +205,7 @@ module NetKAT_Graph = struct
 	| Seq
 	      (Seq (Seq (Test (Switch, switch1), Test (Header InPort, port1)), 
 	       (Seq (Mod (Switch ,switch2) , Mod (Header InPort, port2)))), t)
-		-> (build_graph (switch1, port1) (switch2, port2))::(parse_graph t)
+		-> ( (switch1, port1), (switch2, port2))::(parse_graph t)
 	| _ -> failwith "unimplemented" in
     match pol with
       | Star (Seq (p, t)) -> parse_graph t
@@ -220,16 +238,16 @@ module Verify = struct
   let encode_header (header: header) (pkt: zVar): zTerm =
     match header with
       | Header InPort -> TApp ("InPort", TVar pkt)
-      | Header EthType -> assert false
-      | Header EthSrc -> TApp ("DlSrc", TVar pkt)
-      | Header EthDst -> TApp ("DlDst", TVar pkt)
-      | Header Vlan -> assert false
-      | Header VlanPcp -> assert false
-      | Header IPProto -> assert false
-      | Header IP4Src -> assert false
-      | Header IP4Dst -> assert false
-      | Header TCPSrcPort -> assert false
-      | Header TCPDstPort -> assert false
+      | Header EthType ->  TApp ("EthType", TVar pkt)
+      | Header EthSrc -> TApp ("EthSrc", TVar pkt)
+      | Header EthDst -> TApp ("EthDst", TVar pkt)
+      | Header Vlan ->  TApp ("Vlan", TVar pkt)
+      | Header VlanPcp ->  TApp ("VlanPcp", TVar pkt)
+      | Header IPProto ->  TApp ("IPProto", TVar pkt)
+      | Header IP4Src ->  TApp ("IP4Src", TVar pkt)
+      | Header IP4Dst ->  TApp ("IP4Dst", TVar pkt)
+      | Header TCPSrcPort ->  TApp ("TCPSrcPort", TVar pkt)
+      | Header TCPDstPort ->  TApp ("TCPDstPort", TVar pkt)
       | Switch -> TApp ("Switch", TVar pkt)
 
   let equal_field (pkt1: zVar) (pkt2: zVar) (except_fields:header list): zFormula =
@@ -285,19 +303,19 @@ end
    outp: fully-transformed packet (megatron!)
    oko: optionof bool.  has to be Some.  True if you think it should be satisfiable.
 *)
-let check str inp pol outp (oko : bool option) = 
+let check str inp pol outp (oko : bool option) : bool = 
   let x = Sat.fresh Sat.SPacket in 
   let y = Sat.fresh Sat.SPacket in 
   let prog = 
     Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards inp x x)
-                 ; Sat.ZAssertDeclare (Verify.forwards_star (* TODO: dummy *) 14 pol NetKAT_Types.Drop x y)
+                 ; Sat.ZAssertDeclare (Verify.forwards_star (* TODO: dummy *) 3 pol NetKAT_Types.Drop x y)
                  ; Sat.ZAssertDeclare (Verify.forwards outp y y) ] in 
   match oko, Sat.solve prog with 
   | Some ok, sat -> 
     if ok = sat then 
-      ()
+      true
     else
-      Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat
+      (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; false)
   | None, sat -> 
-    Printf.printf "[Verify.check %s: %b]\n%!" str sat
+    (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)
 

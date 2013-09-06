@@ -63,3 +63,4 @@ TEST "same field, two values = drop" =
   test_compile
     (Seq (Test (Header SDN.EthSrc, Int48 1L), Test (Header SDN.EthSrc, Int48 0L)))
     (ite (Test (Header SDN.EthSrc, Int48 1L)) Drop Drop)
+
