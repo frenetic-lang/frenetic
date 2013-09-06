@@ -152,7 +152,7 @@ module Sat = struct
       (intercalate serialize_declaration "\n" (!fresh_cell))
       (intercalate serialize_declaration "\n" decls) 
 
-  let solve prog = 
+  let solve prog : bool = 
     let s = serialize_program prog in 
     let z3_out,z3_in = open_process "z3 -in -smt2 -nw" in 
     let _ = output_string z3_in s in
@@ -279,7 +279,13 @@ module Verify = struct
             forwards_star (k-1) pol topo pkt1 pkt2 ]
 end
 
-let check str inp pol outp oko = 
+(* str: name of your test (unique ID)  
+   inp: initial packet
+   pol: policy to test
+   outp: fully-transformed packet (megatron!)
+   oko: optionof bool.  has to be Some.  True if you think it should be satisfiable.
+*)
+let check str inp pol outp (oko : bool option) = 
   let x = Sat.fresh Sat.SPacket in 
   let y = Sat.fresh Sat.SPacket in 
   let prog = 
