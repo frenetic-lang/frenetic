@@ -45,6 +45,8 @@ sig
   val queries : t -> e list
 end
 
+module Bool : ACTION with type t = bool
+
 module Output : 
 sig
   include ACTION
