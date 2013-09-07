@@ -193,9 +193,9 @@ module NetKAT_Graph = struct
 
 module Node =
 struct
-  type t = int64 * int64
+  type t = VInt.t * VInt.t
   let compare = Pervasives.compare
-  let to_dot (a, b) = Printf.sprintf " {%d,%d} " a b
+  let to_dot n = Printf.sprintf " we've not yet defined this completely. " 
   let to_string = to_dot
 end
 
@@ -206,19 +206,19 @@ struct
   module V = Node
   type v = Node.t
   type l = {
-    switchA : int64;
-    portA : int64;
-    switchB : int64;
-    portB : int64;
+    switchA : VInt.t;
+    portA : VInt.t;
+    switchB : VInt.t;
+    portB : VInt.t;
   }
   type t = v * v * l
 
   let compare = Pervasives.compare
   let blank = {
-    switchA = Int64.zero;
-    portA = Int64.zero;
-    switchB = Int64.zero;
-    portB = Int64.max_int
+    switchA = Int64 Int64.zero;
+    portA = Int64 Int64.zero;
+    switchB = Int64 Int64.zero;
+    portB = Int64 Int64.zero
   }
 
   (* Constructors and mutators *)
@@ -234,8 +234,8 @@ struct
     Printf.sprintf "%s_%s" (Node.to_string s) (Node.to_string d)
   let string_of_label (s,d, l) =
     Printf.sprintf "{srcswtch = %Ld; srcprt = %Ld; dstswtch = %Ld; dstprt = %Ld;}"
-      l.switchA l.portA l.switchB l.portB
-  let to_dot ( s, d,l) =
+      (get_int64 l.switchA) (get_int64 l.portA) (get_int64 l.switchB) (get_int64 l.portB)
+  let to_dot (s, d,l) =
     let s = Node.to_dot s in
     let d = Node.to_dot d in
     Printf.sprintf "%s -> %s [label=\"%s\"]" s d (string_of_label (s,d,l))
@@ -247,6 +247,32 @@ module EdgeOrd = struct
   let compare = Pervasives.compare
 end
 
+module type Topology_S = sig
+  type t
+  val create : unit -> t
+  val get_vertices : t -> Node.t list
+  val get_edges : t -> Link.t list
+  val add_edge : t -> Link.t -> t
+  val add_edges : t -> Link.t list -> t
+  val add_vertex : t -> Node.t -> t
+  val del_vertex : t -> Node.t -> t
+  val merge : t -> t -> t
+  val incoming : t -> Node.t -> Link.t list
+  val outgoing : t -> Node.t -> Link.t list
+  val to_dotty : string -> t -> string
+end
+
+module Topology : Topology_S = struct
+  include Digraph.Make(Link)
+
+  let to_dotty s g =
+    let es = get_edges g in
+    let strs = Merlin_Util.list_intercalate (fun e ->
+      Link.to_dot e
+    ) "\n" es
+    in
+    Printf.sprintf "digraph %s {\n%s\n}" s strs
+end
 
 
 module EdgeSet = Merlin_Util.Setplus.Make(EdgeOrd)
@@ -261,16 +287,30 @@ module EdgeMap = Merlin_Util.Mapplus.Make(EdgeOrd)
   (* dummy, waiting for BASU.  BASU!!! *)
   let build_graph a b = 4
 
+  let assert_vint (vint : VInt.t) : VInt.t = vint
+
   let parse_graph pol = 
-    let rec parse_graph pol = 
+	let graph = Topology.create() in
+    let rec parse_links (pol: policy): Link.t list = 
       match pol with
-	| Seq
-	      (Seq (Seq (Test (Switch, switch1), Test (Header InPort, port1)), 
-	       (Seq (Mod (Switch ,switch2) , Mod (Header InPort, port2)))), t)
-		-> ( (switch1, port1), (switch2, port2))::(parse_graph t)
-	| _ -> failwith "unimplemented" in
+		| Seq
+			(Seq (Seq (Test (Switch, switch1), Test (Header InPort, port1)), 
+				  (Seq (Mod (Switch ,switch2) , Mod (Header InPort, port2)))), t)
+		  -> let (node1: Node.t) = (assert_vint switch1, assert_vint port1) in
+			 let (node2: Node.t) = (assert_vint switch2, assert_vint port2) in
+			 let (label: Link.l) = {Link.switchA=switch1;
+						  Link.portA=port1;
+						  Link.switchB=switch2;
+						  Link.portB=port2 } in
+			 let (link: Link.t) = (node1, node2, label) in
+			 link :: (parse_links t)
+		| _ -> failwith "unimplemented"
+
+(*END INNER FUNCTION*)
+
+	in
     match pol with
-      | Star (Seq (p, t)) -> parse_graph t
+      | Star (Seq (p, t)) -> Topology.add_edges graph (parse_links t)
       | _ -> failwith "graph parsing assumes input is of the form (p;t)*"
 
 end
