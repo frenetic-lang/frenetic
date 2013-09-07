@@ -292,18 +292,24 @@ module EdgeMap = Merlin_Util.Mapplus.Make(EdgeOrd)
   let parse_graph pol = 
 	let graph = Topology.create() in
     let rec parse_links (pol: policy): Link.t list = 
+	  let assemble switch1 port1 switch2 port2 : Link.t= 
+		let (node1: Node.t) = (assert_vint switch1, assert_vint port1) in
+			 let (node2: Node.t) = (assert_vint switch2, assert_vint port2) in
+			 let (label: Link.l) = {Link.switchA=switch1;
+									Link.portA=port1;
+									Link.switchB=switch2;
+									Link.portB=port2 } in
+			 (node1, node2, label)
+	  in
       match pol with
+		| Seq (Seq (Test (Switch, switch1), Test (Header InPort, port1)), 
+			   (Seq (Mod (Switch ,switch2) , Mod (Header InPort, port2))))
+		  -> (assemble switch1 port1 switch2 port2) :: []
+		  
 		| Seq
 			(Seq (Seq (Test (Switch, switch1), Test (Header InPort, port1)), 
 				  (Seq (Mod (Switch ,switch2) , Mod (Header InPort, port2)))), t)
-		  -> let (node1: Node.t) = (assert_vint switch1, assert_vint port1) in
-			 let (node2: Node.t) = (assert_vint switch2, assert_vint port2) in
-			 let (label: Link.l) = {Link.switchA=switch1;
-						  Link.portA=port1;
-						  Link.switchB=switch2;
-						  Link.portB=port2 } in
-			 let (link: Link.t) = (node1, node2, label) in
-			 link :: (parse_links t)
+		  -> (assemble switch1 port1 switch2 port2):: (parse_links t)
 		| _ -> failwith "unimplemented"
 
 (*END INNER FUNCTION*)
@@ -408,6 +414,7 @@ end
 let check str inp pol outp (oko : bool option) : bool = 
   let x = Sat.fresh Sat.SPacket in 
   let y = Sat.fresh Sat.SPacket in 
+  let graph = NetKAT_Graph.parse_graph pol in
   let prog = 
     Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards inp x x)
                  ; Sat.ZAssertDeclare (Verify.forwards_star (* TODO: dummy *) 3 pol NetKAT_Types.Drop x y)
