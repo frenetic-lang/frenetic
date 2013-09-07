@@ -414,7 +414,7 @@ end
 let check str inp p_t_star outp (oko : bool option) : bool = 
   let x = Sat.fresh Sat.SPacket in 
   let y = Sat.fresh Sat.SPacket in 
-  (*let graph = NetKAT_Graph.parse_graph pol in*)
+  let graph = NetKAT_Graph.parse_graph p_t_star in
   let prog = 
     Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards inp x x)
                  ; Sat.ZAssertDeclare (Verify.forwards_star 3 p_t_star x y )
