@@ -45,6 +45,46 @@ sig
   val queries : t -> e list
 end
 
+module Bool = struct
+  type t = bool
+  type e = bool
+
+  let atoms b = [b]
+
+  let drop = false
+
+  let pass = true
+
+  let to_action b = b
+
+  let apply_atom b lp = if b then Some lp else None
+
+  let apply_action action lp = 
+    List.fold_right 
+      (fun a acc -> match apply_atom a lp with 
+          None -> acc
+        | Some a' -> a'::acc) 
+      (atoms action) []
+
+  let par_action b1 b2 = b1 || b2
+
+  let seq_action b1 b2 = b1 && b2
+
+  let alt_action b1 b2 =
+    failwith "NYI: alt_action"
+
+  let sequence_range b p = p
+
+  let domain b = NetCore_Pattern.all
+
+  let string_of_action b = if b then "true" else "false"
+
+  let is_equal x y = x = y
+
+  let atom_is_equal x y = x = y
+
+end
+
 module Output =
 struct
   open List
