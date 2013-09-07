@@ -393,7 +393,7 @@ module Verify = struct
       | Star p1 -> failwith "NetKAT program not in form (p;t)*"
 
 
-  let rec forwards_star (k:int) (pol:policy) (topo:policy) (pkt1:zVar) (pkt2:zVar) : zFormula = 
+  let rec forwards_star (k:int) (Star (Seq (pol, topo))) (pkt1:zVar) (pkt2:zVar) : zFormula = 
     if k = 0 then 
       ZEquals (TVar pkt1, TVar pkt2)
     else
@@ -401,8 +401,8 @@ module Verify = struct
       let pkt'' = fresh SPacket in 
       ZOr [ ZAnd [ forwards pol pkt1 pkt';
                    forwards topo pkt' pkt'';
-                   forwards_star (k-1) pol topo pkt'' pkt2 ];
-            forwards_star (k-1) pol topo pkt1 pkt2 ]
+                   forwards_star (k-1) (Star (Seq (pol, topo))) pkt'' pkt2 ];
+            forwards_star (k-1) (Star (Seq (pol, topo))) pkt1 pkt2 ]
 end
 
 (* str: name of your test (unique ID)  
@@ -411,13 +411,13 @@ end
    outp: fully-transformed packet (megatron!)
    oko: optionof bool.  has to be Some.  True if you think it should be satisfiable.
 *)
-let check str inp pol outp (oko : bool option) : bool = 
+let check str inp p_t_star outp (oko : bool option) : bool = 
   let x = Sat.fresh Sat.SPacket in 
   let y = Sat.fresh Sat.SPacket in 
-  let graph = NetKAT_Graph.parse_graph pol in
+  (*let graph = NetKAT_Graph.parse_graph pol in*)
   let prog = 
     Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards inp x x)
-                 ; Sat.ZAssertDeclare (Verify.forwards_star (* TODO: dummy *) 3 pol NetKAT_Types.Drop x y)
+                 ; Sat.ZAssertDeclare (Verify.forwards_star 3 p_t_star x y )
                  ; Sat.ZAssertDeclare (Verify.forwards outp y y) ] in 
   match oko, Sat.solve prog with 
   | Some ok, sat -> 
@@ -428,3 +428,4 @@ let check str inp pol outp (oko : bool option) : bool =
   | None, sat -> 
     (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)
 
+(*  let rec forwards_star (k:int) (Star (Seq (pol, topo)) (pkt1:zVar) (pkt2:zVar) : zFormula =  *)
