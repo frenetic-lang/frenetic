@@ -18,6 +18,11 @@ sig
     NetCore_Types.pol 
     -> OpenFlow0x01.switchId 
     -> OutputClassifier.t
+
+  val compile_pred :
+    NetCore_Types.pred
+    -> OpenFlow0x01.switchId
+    -> OutputClassifier.t
 end
 
 module type MAKE = functor (Output : NetCore_Action.COMPILER_ACTION0x01) ->
@@ -67,6 +72,11 @@ module NetCoreCompiler : sig
     NetCore_Types.pol 
     -> OpenFlow0x01.switchId 
     -> OutputClassifier.t
+
+  val compile_pred :
+    NetCore_Types.pred
+    -> OpenFlow0x01.switchId
+    -> OutputClassifier.t
 end
 
 
@@ -88,5 +98,10 @@ module NetCoreGroupCompiler : sig
   val compile_pol : 
     NetCore_Types.pol 
     -> OpenFlow0x01.switchId 
+    -> OutputClassifier.t
+
+  val compile_pred :
+    NetCore_Types.pred
+    -> OpenFlow0x01.switchId
     -> OutputClassifier.t
 end
