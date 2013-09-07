@@ -30,7 +30,6 @@ Library netcore
     Frenetic_List,
     NetCore_Action,
     NetCore_Classifier,
-    NetCore_Compiler,
     NetCore_Compat,
     NetCore_Desugar,
     NetCore_Gensym,
@@ -42,6 +41,7 @@ Library netcore
     ONF,
     Controller
   Modules:
+    NetCore_Compiler,
     NetCore_Controller,
     NetCore_Controller0x04,
     NetCore_ConsistentUpdates,
@@ -94,6 +94,7 @@ Document doc
   Type: ocamlbuild (0.3)
   XOCamlBuildPath: lib
   XOCamlBuildModules:
+    NetCore_Compiler,
     NetCore_Controller,
     NetCore_ConsistentUpdates,
     NetCore_Pretty,

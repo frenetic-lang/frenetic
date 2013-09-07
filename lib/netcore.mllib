@@ -1,5 +1,6 @@
 # OASIS_START
-# DO NOT EDIT (digest: 2e2ea4a3435d1da8f87d2a5288ad2b7b)
+# DO NOT EDIT (digest: 42ccc0c4ac21aaf6b5438fcd417bce10)
+NetCore_Compiler
 NetCore_Controller
 NetCore_Controller0x04
 NetCore_ConsistentUpdates
@@ -19,7 +20,6 @@ NetCore_Wildcard
 Frenetic_List
 NetCore_Action
 NetCore_Classifier
-NetCore_Compiler
 NetCore_Compat
 NetCore_Desugar
 NetCore_Gensym
