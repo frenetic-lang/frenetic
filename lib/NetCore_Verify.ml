@@ -306,7 +306,7 @@ module EdgeMap = Merlin_Util.Mapplus.Make(EdgeOrd)
 			   (Seq (Mod (Switch ,switch2) , Mod (Header InPort, port2))))
 		  -> (assemble switch1 port1 switch2 port2) :: []
 		  
-		| Seq
+		| Par
 			(Seq (Seq (Test (Switch, switch1), Test (Header InPort, port1)), 
 				  (Seq (Mod (Switch ,switch2) , Mod (Header InPort, port2)))), t)
 		  -> (assemble switch1 port1 switch2 port2):: (parse_links t)
