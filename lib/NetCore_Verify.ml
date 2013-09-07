@@ -191,6 +191,68 @@ module NetKAT_Graph = struct
   open SDN_Types
   open NetKAT_Types
 
+module Node =
+struct
+  type t = int64 * int64
+  let compare = Pervasives.compare
+  let to_dot (a, b) = Printf.sprintf " {%d,%d} " a b
+  let to_string = to_dot
+end
+
+module Link =
+struct
+  open VInt
+
+  module V = Node
+  type v = Node.t
+  type l = {
+    switchA : int64;
+    portA : int64;
+    switchB : int64;
+    portB : int64;
+  }
+  type t = v * v * l
+
+  let compare = Pervasives.compare
+  let blank = {
+    switchA = Int64.zero;
+    portA = Int64.zero;
+    switchB = Int64.zero;
+    portB = Int64.max_int
+  }
+
+  (* Constructors and mutators *)
+  let mk_edge s d l = (s,d,l)
+
+  (* Accessors *)
+  let src (s,d,l) = s
+  let dst (s,d,l) = d
+  let label (s,d,l) = l
+
+
+  let name (s,d,_) =
+    Printf.sprintf "%s_%s" (Node.to_string s) (Node.to_string d)
+  let string_of_label (s,d, l) =
+    Printf.sprintf "{srcswtch = %Ld; srcprt = %Ld; dstswtch = %Ld; dstprt = %Ld;}"
+      l.switchA l.portA l.switchB l.portB
+  let to_dot ( s, d,l) =
+    let s = Node.to_dot s in
+    let d = Node.to_dot d in
+    Printf.sprintf "%s -> %s [label=\"%s\"]" s d (string_of_label (s,d,l))
+  let to_string = to_dot
+end
+
+module EdgeOrd = struct
+  type t = Link.t
+  let compare = Pervasives.compare
+end
+
+
+
+module EdgeSet = Merlin_Util.Setplus.Make(EdgeOrd)
+
+module EdgeMap = Merlin_Util.Mapplus.Make(EdgeOrd)
+
     (* note: this is brittle *)
     (* assumes input is of the form (p;t)* *)
     (* assumes t is of the form:
