@@ -27,7 +27,6 @@ Library netcore
     str,
     packet,openflow
   InternalModules:
-    Frenetic_List,
     NetCore_Action,
     NetCore_Classifier,
     NetCore_Compat,
@@ -41,6 +40,7 @@ Library netcore
     ONF,
     Controller
   Modules:
+    NetCore_Util,
     NetCore_Compiler,
     NetCore_Controller,
     NetCore_Controller0x04,
@@ -53,6 +53,7 @@ Library netcore
     NetCore_StatefulFirewall,
     NetCore_Topo,
     NetCore_Graph,
+    NetCore_Digraph,
     NetCore_Types,
     NetCore_Parsing,
     NetCore_Pattern,

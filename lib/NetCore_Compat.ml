@@ -89,7 +89,7 @@ struct
     | ControllerQuery _ -> []
 
   let as_actionSequence inp act = 
-    let of_atoms = Frenetic_List.concat_map (atom_to_of inp) act in
+    let of_atoms = NetCore_Util.concat_map (atom_to_of inp) act in
     let controller_atoms, not_controller_atoms =
       List.partition
         (function | Output (Controller _) -> true | _ -> false)
@@ -318,7 +318,7 @@ struct
     | ControllerQuery _ -> []
 
   let as_actionSequence1 inp act = 
-    let of_atoms = Frenetic_List.concat_map (atom_to_of inp) act in
+    let of_atoms = NetCore_Util.concat_map (atom_to_of inp) act in
     let controller_atoms, not_controller_atoms =
       List.partition
         (function | Output (Controller _) -> true | _ -> false)
