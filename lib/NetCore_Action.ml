@@ -273,7 +273,7 @@ struct
     | ControllerQuery _ -> []
 
   and apply_action act lp = 
-    Frenetic_List.concat_map (fun a -> apply_atom a lp) act
+    NetCore_Util.concat_map (fun a -> apply_atom a lp) act
 
   let seq_port pt1 pt2 = match (pt1, pt2) with
     | Here, _ -> pt2
@@ -321,7 +321,7 @@ struct
   | _ -> None
 
   let cross lst1 lst2 = 
-    Frenetic_List.concat_map (fun a -> map (fun b -> (a, b)) lst2) lst1
+    NetCore_Util.concat_map (fun a -> map (fun b -> (a, b)) lst2) lst1
 
   let rec seq_action_atom atom1 atom2 = match (atom1, atom2) with
     | SwitchAction out1, SwitchAction out2 -> 
@@ -350,7 +350,7 @@ struct
         (ControllerAction
            (fun sw pt pk ->
               let atoms1 = f sw pt pk in
-              Frenetic_List.filter_none
+              NetCore_Util.filter_none
                 (List.map
                    (fun at1 -> seq_action_atom at1 (SwitchAction out))
                    atoms1)))
@@ -362,7 +362,7 @@ struct
       Some atom2
 
   let seq_action act1 act2 =
-    Frenetic_List.filter_map
+    NetCore_Util.filter_map
       (fun (o1,o2) -> seq_action_atom o1 o2)
       (cross act1 act2)
 
@@ -544,7 +544,7 @@ module Group = struct
   let apply_action actions lp = match actions with
     | [] -> []
     | act :: actions -> 
-      Frenetic_List.concat_map (fun a -> apply_atom a lp) act
+      NetCore_Util.concat_map (fun a -> apply_atom a lp) act
 
   (* let rec prod lst1 lst2 = match lst1 with *)
   (*   | [] -> [] *)
