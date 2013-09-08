@@ -186,7 +186,7 @@ module Sat = struct
 end
 
 module NetKAT_Graph = struct
-  open Merlin_Digraph
+  open NetCore_Digraph
   open Sat
   open SDN_Types
   open NetKAT_Types
@@ -267,7 +267,7 @@ module Topology : Topology_S = struct
 
   let to_dotty s g =
     let es = get_edges g in
-    let strs = Merlin_Util.list_intercalate (fun e ->
+    let strs = NetCore_Util.list_intercalate (fun e ->
       Link.to_dot e
     ) "\n" es
     in
@@ -275,9 +275,9 @@ module Topology : Topology_S = struct
 end
 
 
-module EdgeSet = Merlin_Util.Setplus.Make(EdgeOrd)
+module EdgeSet = NetCore_Util.Setplus.Make(EdgeOrd)
 
-module EdgeMap = Merlin_Util.Mapplus.Make(EdgeOrd)
+module EdgeMap = NetCore_Util.Mapplus.Make(EdgeOrd)
 
     (* note: this is brittle *)
     (* assumes input is of the form (p;t)* *)
