@@ -412,12 +412,13 @@ end
    oko: optionof bool.  has to be Some.  True if you think it should be satisfiable.
 *)
 let check str inp p_t_star outp (oko : bool option) : bool = 
+  Sat.fresh_cell := []; 
   let x = Sat.fresh Sat.SPacket in 
   let y = Sat.fresh Sat.SPacket in 
   let graph = NetKAT_Graph.parse_graph p_t_star in
   let prog = 
     Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards inp x x)
-                 ; Sat.ZAssertDeclare (Verify.forwards_star 3 p_t_star x y )
+                 ; Sat.ZAssertDeclare (Verify.forwards_star 1 p_t_star x y )
                  ; Sat.ZAssertDeclare (Verify.forwards outp y y) ] in 
   match oko, Sat.solve prog with 
   | Some ok, sat -> 
