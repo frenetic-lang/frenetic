@@ -1,6 +1,6 @@
 open Packet
 open NetCore_Types
-open Frenetic_List
+open NetCore_Util
 open Unix
 
 module W = NetCore_Wildcard

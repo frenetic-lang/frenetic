@@ -100,7 +100,7 @@ module CompilePol (Output : NetCore_Action.COMPILER_ACTION0x01) = struct
 	| false ->
           OutputClassifier.sequence
             [(pat, Output.pass)] else_tbl in
-      Frenetic_List.concat_map seq_then_else (compile_pred pred sw)
+      NetCore_Util.concat_map seq_then_else (compile_pred pred sw)
     | Choice _ -> 
       failwith "compile_pol: not yet implemented"
 
@@ -172,7 +172,7 @@ module NetCoreGroupCompiler = struct
 	  | false ->
             OutputClassifier.sequence
               [(pat, Output.pass)] else_tbl in
-	Frenetic_List.concat_map seq_then_else (compile_pred pred sw)
+	NetCore_Util.concat_map seq_then_else (compile_pred pred sw)
       | Choice (pol1, pol2) ->
         OutputClassifier.choice
           (compile_pol pol1 sw) 

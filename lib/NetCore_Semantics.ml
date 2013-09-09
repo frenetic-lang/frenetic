@@ -35,7 +35,7 @@ let rec eval pol pkt = match pol with
     (eval p1 pkt) @ (eval p2 pkt)
   | Seq (pol1, pol2) -> 
     let pkts' = eval pol1 pkt in
-    Frenetic_List.concat_map (eval pol2) pkts'
+    NetCore_Util.concat_map (eval pol2) pkts'
   | ITE (pred, then_pol, else_pol) ->
     let Pkt (sw, pt, pk, buf) = pkt in
     if match_pred pred sw pt pk then

@@ -1,5 +1,6 @@
 # OASIS_START
-# DO NOT EDIT (digest: 42ccc0c4ac21aaf6b5438fcd417bce10)
+# DO NOT EDIT (digest: e70e443594f8a6e602c8dba451d6af7d)
+NetCore_Util
 NetCore_Compiler
 NetCore_Controller
 NetCore_Controller0x04
@@ -12,12 +13,12 @@ NetCore_Stream
 NetCore_StatefulFirewall
 NetCore_Topo
 NetCore_Graph
+NetCore_Digraph
 NetCore_Types
 NetCore_Parsing
 NetCore_Pattern
 NetCore_Verify
 NetCore_Wildcard
-Frenetic_List
 NetCore_Action
 NetCore_Classifier
 NetCore_Compat
