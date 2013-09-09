@@ -460,6 +460,7 @@ module Action = struct
     | SetNwTos _ -> OFPAT_SET_NW_TOS
     | SetTpSrc _ -> OFPAT_SET_TP_SRC
     | SetTpDst _ -> OFPAT_SET_TP_DST
+    | Enqueue _ -> OFPAT_ENQUEUE
 
   let size_of (a : t) =
     let h = sizeof_ofp_action_header in
@@ -476,7 +477,7 @@ module Action = struct
         | SetNwTos _ -> sizeof_ofp_action_nw_tos
         | SetTpSrc _
         | SetTpDst _ -> sizeof_ofp_action_tp_port
-        in
+        | Enqueue _ -> sizeof_ofp_action_enqueue in 
     h + body
 
   let size_of_sequence acts = List.fold_left (+) 0 (List.map size_of acts)
@@ -485,28 +486,29 @@ module Action = struct
     set_ofp_action_header_typ bits (ofp_action_type_to_int (type_code a));
     set_ofp_action_header_len bits (size_of a);
     let bits' = Cstruct.shift bits sizeof_ofp_action_header in
-    begin
-      match a with
-        | Output pp ->
-          set_ofp_action_output_port bits' (PseudoPort.marshal pp);
-          set_ofp_action_output_max_len bits'
-            (match pp with
-              | Controller w -> w
-              | _ -> 0)
-        | SetNwSrc addr
-        | SetNwDst addr -> set_ofp_action_nw_addr_nw_addr bits' addr
-        | SetTpSrc pt
-        | SetTpDst pt -> set_ofp_action_tp_port_tp_port bits' pt
-        | SetDlVlan (Some vid) -> set_ofp_action_vlan_vid_vlan_vid bits' vid
-        | SetDlVlan None -> ()
-        | SetDlVlanPcp n -> set_ofp_action_vlan_pcp_vlan_pcp bits' n
-        | SetNwTos n -> set_ofp_action_nw_tos_nw_tos bits' n
-        | SetDlSrc mac
-        | SetDlDst mac ->
-          set_ofp_action_dl_addr_dl_addr (Packet.bytes_of_mac mac) 0 bits'
+    begin match a with
+      | Output pp ->
+        set_ofp_action_output_port bits' (PseudoPort.marshal pp);
+        set_ofp_action_output_max_len bits'
+          (match pp with
+            | Controller w -> w
+            | _ -> 0)
+      | SetNwSrc addr
+      | SetNwDst addr -> set_ofp_action_nw_addr_nw_addr bits' addr
+      | SetTpSrc pt
+      | SetTpDst pt -> set_ofp_action_tp_port_tp_port bits' pt
+      | SetDlVlan (Some vid) -> set_ofp_action_vlan_vid_vlan_vid bits' vid
+      | SetDlVlan None -> ()
+      | SetDlVlanPcp n -> set_ofp_action_vlan_pcp_vlan_pcp bits' n
+      | SetNwTos n -> set_ofp_action_nw_tos_nw_tos bits' n
+      | SetDlSrc mac
+      | SetDlDst mac ->
+        set_ofp_action_dl_addr_dl_addr (Packet.bytes_of_mac mac) 0 bits'
+      | Enqueue (pp, qid) -> 
+	set_ofp_action_enqueue_port bits' (PseudoPort.marshal pp);
+	set_ofp_action_enqueue_queue_id bits' qid
     end;
     size_of a
-
 
   let is_to_controller (act : t) : bool = match act with
     | Output (Controller _) -> true
@@ -528,6 +530,7 @@ module Action = struct
     | SetNwTos d -> sprintf "SetNwTos %x" d
     | SetTpSrc n -> sprintf "SetTpSrc %d" n
     | SetTpDst n -> sprintf "SetTpDst %d" n
+    | Enqueue(pp,n) -> sprintf "Enqueue %s %s" (PseudoPort.to_string pp) (Int32.to_string n)
 
   let sequence_to_string (lst : sequence) : string =
     "[" ^ (String.concat "; " (List.map to_string lst)) ^ "]"
@@ -570,11 +573,13 @@ module Action = struct
         SetTpSrc (get_ofp_action_tp_port_tp_port bits')
       | Some OFPAT_SET_TP_DST ->
         SetTpDst (get_ofp_action_tp_port_tp_port bits')
-      | Some OFPAT_ENQUEUE
+      | Some OFPAT_ENQUEUE -> 
+	let ofp_port_code = get_ofp_action_enqueue_port bits' in 
+	Enqueue(PseudoPort.make ofp_port_code 0 (* TODO(jnf): replace with non-dummy *), 
+		get_ofp_action_enqueue_queue_id bits')
       | None ->
         raise (Unparsable
-                 (sprintf "unrecognized ofpat_action_type (%d)" ofp_action_code))
-    in
+                 (sprintf "unrecognized ofpat_action_type (%d)" ofp_action_code)) in 
     (Cstruct.shift bits length, act)
 
   let parse bits = snd (_parse bits)

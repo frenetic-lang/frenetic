@@ -75,7 +75,7 @@ type action =
   | SetNwTos of nwTos (** Set IP ToS. *)
   | SetTpSrc of tpPort (** Set TCP/UDP source port. *)
   | SetTpDst of tpPort (** Set TCP/UDP destination port. *)
-
+  | Enqueue of pseudoPort * queueId (** Enqueue to a switch queue *)
 
 (** The type of flow rule timeouts.  See Section 5.3.3 of the OpenFlow 1.0
     specification. *)

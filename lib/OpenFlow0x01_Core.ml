@@ -20,8 +20,7 @@ type pattern =
     ; nwTos : nwTos option
     ; tpSrc : tpPort option
     ; tpDst : tpPort option
-    ; inPort : portId option
-    }
+    ; inPort : portId option }
 
 type pseudoPort =
   | PhysicalPort of portId
@@ -41,6 +40,7 @@ type action =
   | SetNwTos of nwTos
   | SetTpSrc of tpPort
   | SetTpDst of tpPort
+  | Enqueue of pseudoPort * queueId
 
 type timeout =
   | Permanent
