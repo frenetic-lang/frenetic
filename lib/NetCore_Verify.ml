@@ -162,15 +162,16 @@ module Sat = struct
         ("TCPDstPort", SFunction(SPacket, SInt))
     ]
 
-  let serialize_program (ZProgram (decls)) = 
+  let serialize_program (ZProgram (decls)) global= 
     Printf.sprintf 
-      "%s\n%s\n%s\n(check-sat)"
+      "%s\n%s\n%s\n%s\n(check-sat)"
       (intercalate serialize_declaration "\n" init_decls)
       (intercalate serialize_declaration "\n" (!fresh_cell))
-      (intercalate serialize_declaration "\n" decls) 
+      (intercalate serialize_declaration "\n" decls)
+      (intercalate serialize_declaration "\n" global)
 
-  let solve prog : bool = 
-    let s = serialize_program prog in 
+  let solve prog global : bool = 
+    let s = serialize_program prog global in 
     let z3_out,z3_in = open_process "z3 -in -smt2 -nw" in 
     let _ = output_string z3_in s in
     let _ = flush z3_in in 
@@ -182,7 +183,7 @@ module Sat = struct
          Buffer.add_char b '\n';
        done
      with End_of_file -> ());
-	(*Printf.eprintf "%s" s;*)
+	Printf.eprintf "%s" s;
     Buffer.contents b = "sat\n"
 end
 
@@ -370,6 +371,8 @@ module Verify = struct
 
   let encode_vint (v: VInt.t): zTerm = TInt (VInt.get_int64 v)
 
+let global = ref []
+
 (* some optimizations to make output more readable may be questionable form. *)
   let rec forwards (pol:policy) (pkt1:zVar) (pkt2: zVar): zFormula =
 	let test_action hdr v pkt = ZEquals (encode_header hdr pkt, encode_vint v) in
@@ -380,29 +383,21 @@ module Verify = struct
 		if pkt1 = pkt2 then ZTrue else 
 		  ZEquals (TVar pkt1, TVar pkt2)
       | Test (hdr, v) -> 
-		let hdr_test = test_action hdr v pkt1
-		in
-		if pkt1 = pkt2 then hdr_test else
-		  ZAnd [hdr_test; ZEquals (TVar pkt1, TVar pkt2)]
+		let hdr_test = test_action hdr v pkt1 in
+		global := (ZEquals (TVar pkt1, TVar pkt2))::!global;
+		hdr_test
       | Mod (hdr, v) -> 
 	ZAnd [ZEquals (encode_header hdr pkt2, encode_vint v);
 	      equal_field pkt1 pkt2 [hdr]]
       | Neg p ->
-            (match p with
-	      | Test (hdr, v) -> ZAnd [ ZNot (test_action hdr v pkt1); ZEquals (TVar pkt1, TVar pkt2) ]
-	      | _ -> ZNot (forwards p pkt1 pkt2) )
+            ZNot (forwards p pkt1 pkt2)
       | Par (p1, p2) -> 
 	ZOr [forwards p1 pkt1 pkt2;
 	     forwards p2 pkt1 pkt2]
       | Seq (p1, p2) -> 
-		(*I'm special-casing for debugging purposes *)
-		(match p1, p2 with 
-		  | Test (hdr, v), Test (hdr2, v2) -> ZAnd [ test_action hdr v pkt1;  test_action hdr2 v2 pkt1 ]
-		  | Test (hdr, v), _ -> ZAnd [ test_action hdr v pkt1;  forwards p2 pkt1 pkt2]
-		  | _, Test (hdr,v) -> ZAnd [ forwards p1 pkt1 pkt2; test_action hdr v pkt2]
-		  | _ -> let pkt' = fresh SPacket in
+		  let pkt' = fresh SPacket in
 					ZAnd [forwards p1 pkt1 pkt';
-						  forwards p2 pkt' pkt2] )
+						  forwards p2 pkt' pkt2] 
 	  | Star p1 -> failwith "NetKAT program not in form (p;t)*"
 
 
@@ -432,8 +427,10 @@ let check str inp p_t_star outp (oko : bool option) : bool =
   let prog = 
     Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards inp x x)
                  ; Sat.ZAssertDeclare (Verify.forwards_star 1 p_t_star x y )
-                 ; Sat.ZAssertDeclare (Verify.forwards outp y y) ] in 
-  match oko, Sat.solve prog with 
+                 ; Sat.ZAssertDeclare (Verify.forwards outp y y) ] in
+  let global_eq =
+    [Sat.ZAssertDeclare (Sat.ZAnd !Verify.global)] in
+  match oko, Sat.solve prog global_eq with 
   | Some ok, sat -> 
     if ok = sat then 
       true
