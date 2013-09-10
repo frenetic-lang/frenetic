@@ -241,6 +241,20 @@ let rec negate (pred : local) : local = match pred with
     else
       failwith "not a predicate"
 
+let rec pred_local (pr : K.pred) : local = match pr with
+  | K.Drop ->
+    Action drop (* missing from appendix *)
+  | K.Id ->
+    Action (HeaderValMapSet.singleton HeaderMap.empty) (* missing from appendix *)
+  | K.Neg p ->
+    negate (pred_local p)
+  | K.Test (h, v) ->
+    ITE (HeaderMap.singleton h v, HeaderValMapSet.singleton id, Action drop)
+  | K.And (pr1, pr2) ->
+    failwith "pred_local doesn't handle And predicates"
+  | K.Or (pr1, pr2) ->
+    failwith "pred_local doesn't handle Or predicates"
+
 let rec star_local (a:local) : local = match a with 
   | Action s -> 
     a (* TODO: stub *)
@@ -248,14 +262,7 @@ let rec star_local (a:local) : local = match a with
     a (* TODO: stub *)
 
 and local_normalize (pol : K.policy) : local = match pol with
-  | K.Drop ->
-    Action drop (* missing from appendix *)
-  | K.Id ->
-    Action (HeaderValMapSet.singleton HeaderMap.empty) (* missing from appendix *)
-  | K.Neg p ->
-    negate (local_normalize p)
-  | K.Test (h, v) ->
-    ITE (HeaderMap.singleton h v, HeaderValMapSet.singleton id, Action drop)
+  | K.Filter pr -> pred_local pr
   | K.Mod (K.Switch, _) ->
     failwith "unexpected Switch in local_normalize"
   | K.Mod (h, v) ->
@@ -278,13 +285,13 @@ let pred_to_netkat pr =
   else
     let (h, v) = HeaderMap.min_binding pr in
     let pr' = HeaderMap.remove h pr in
-    let f h v pol = K.Seq (K.Test (h, v), pol) in
-    HeaderMap.fold f pr' (K.Test (h, v))
+    let f h v pol = K.And (K.Test (h, v), pol) in
+    (HeaderMap.fold f pr' (K.Test (h, v)))
 
 let seq_to_netkat (pol : seq) : K.policy =
   (* avoid printing trailing K.Id if it is unnecessary *)
   if HeaderMap.is_empty pol then
-    K.Id
+    K.Filter K.Id
   else
     let (h, v) = HeaderMap.min_binding pol in
     let pol' = HeaderMap.remove h pol in
@@ -294,7 +301,7 @@ let seq_to_netkat (pol : seq) : K.policy =
 let sum_to_netkat (pol : sum) : K.policy = 
   (* avoid printing trailing K.Drop if it is unnecessary *)
   if HeaderValMapSet.is_empty pol then
-    K.Drop
+    K.Filter K.Drop
   else
     let f seq pol' = K.Par (seq_to_netkat seq, pol') in
     let seq = HeaderValMapSet.min_elt pol in
@@ -305,5 +312,5 @@ let rec to_netkat (pol : local) : K.policy = match pol with
   | Action sum -> sum_to_netkat sum
   | ITE (pred, sum, pol') ->
     let pr = pred_to_netkat pred in
-    K.Par (K.Seq (pr, sum_to_netkat sum),
-           K.Seq (K.Neg pr, to_netkat pol'))
+    K.Par (K.Seq (K.Filter pr, sum_to_netkat sum),
+           K.Seq (K.Filter (K.Neg pr), to_netkat pol'))

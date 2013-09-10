@@ -203,7 +203,7 @@ module NetKAT_Graph = struct
     let rec parse_graph pol = 
       match pol with
 	| Seq
-	      (Seq (Seq (Test (Switch, switch1), Test (Header InPort, port1)), 
+	      (Seq (Seq (Filter (Test (Switch, switch1)), Filter (Test (Header InPort, port1))), 
 	       (Seq (Mod (Switch ,switch2) , Mod (Header InPort, port2)))), t)
 		-> ( (switch1, port1), (switch2, port2))::(parse_graph t)
 	| _ -> failwith "unimplemented" in
@@ -261,8 +261,8 @@ module Verify = struct
 
   let encode_vint (v: VInt.t): zTerm = TInt (VInt.get_int64 v)
 
-  let rec forwards (pol:policy) (pkt1:zVar) (pkt2: zVar): zFormula =
-    match pol with
+  let rec forwards_pred (pr:pred) (pkt1:zVar) (pkt2: zVar): zFormula =
+    match pr with
       | Drop -> 
 	ZFalse
       | Id -> 
@@ -270,11 +270,19 @@ module Verify = struct
       | Test (hdr, v) -> 
 	ZAnd [ZEquals (encode_header hdr pkt1, encode_vint v);
 	      ZEquals (TVar pkt1, TVar pkt2)]
+      | Neg p -> 
+	ZNot (forwards_pred p pkt1 pkt2)
+      | And (p1, p2) -> ZAnd [forwards_pred p1 pkt1 pkt2; 
+                              forwards_pred p2 pkt1 pkt2]
+      | Or (p1, p2) -> ZOr [forwards_pred p1 pkt1 pkt2;
+                            forwards_pred p2 pkt1 pkt2]
+    
+  let rec forwards (pol:policy) (pkt1:zVar) (pkt2: zVar): zFormula =
+    match pol with
+      | Filter pr -> forwards_pred pr pkt1 pkt2
       | Mod (hdr, v) -> 
 	ZAnd [ZEquals (encode_header hdr pkt2, encode_vint v);
 	      equal_field pkt1 pkt2 [hdr]]
-      | Neg p -> 
-	ZNot (forwards p pkt1 pkt2)
       | Par (p1, p2) -> 
 	ZOr [forwards p1 pkt1 pkt2;
 	     forwards p2 pkt1 pkt2]
@@ -308,7 +316,7 @@ let check str inp pol outp (oko : bool option) : bool =
   let y = Sat.fresh Sat.SPacket in 
   let prog = 
     Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards inp x x)
-                 ; Sat.ZAssertDeclare (Verify.forwards_star (* TODO: dummy *) 3 pol NetKAT_Types.Drop x y)
+                 ; Sat.ZAssertDeclare (Verify.forwards_star (* TODO: dummy *) 3 pol (NetKAT_Types.Filter NetKAT_Types.Drop) x y)
                  ; Sat.ZAssertDeclare (Verify.forwards outp y y) ] in 
   match oko, Sat.solve prog with 
   | Some ok, sat -> 

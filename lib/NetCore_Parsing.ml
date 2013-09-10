@@ -115,9 +115,9 @@ let rec compile_top (env : env) = function
       | _ -> failwith "unexpected value" in 
     NetCore_Verify.check str 
       (* TODO: dummy values *) 
-      NetKAT_Types.Id 
-      NetKAT_Types.Id 
-      NetKAT_Types.Id 
+      (NetKAT_Types.Filter NetKAT_Types.Id)
+      (NetKAT_Types.Filter NetKAT_Types.Id)
+      (NetKAT_Types.Filter NetKAT_Types.Id)
       oko;
     compile_top env exp
   | Include _ -> 

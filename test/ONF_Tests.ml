@@ -13,54 +13,54 @@ let test_compile lhs rhs =
        format_policy lhs format_policy lhs' format_policy rhs;
      false)
 
-let ite (pred : policy) (then_pol : policy) (else_pol : policy) : policy =
-  Par (Seq (pred, then_pol), Seq (Neg pred, else_pol))
+let ite (pred : pred) (then_pol : policy) (else_pol : policy) : policy =
+  Par (Seq (Filter pred, then_pol), Seq (Filter (Neg pred), else_pol))
 
 TEST "compile drop" =
-  compile Drop = Drop
+  compile (Filter Drop) = (Filter Drop)
 
 TEST "compile test" =
   let pr = Test (Header SDN.EthSrc, Int48 100L) in
-  test_compile pr (ite pr Id Drop)
+  test_compile (Filter pr) (ite pr (Filter Id) (Filter Drop))
 
 TEST "compile negation" =
   let pr = Test (Header SDN.EthSrc, Int48 200L) in
-  test_compile (Neg pr) (ite pr Drop Id)
+  test_compile (Filter (Neg pr)) (ite pr (Filter Drop) (Filter Id))
 
 TEST "compile negation of sum" =
-  let pr = Seq (Test (Header SDN.EthSrc, Int48 0L), Test (Header SDN.EthDst, Int48 0L)) in
+  let pr = And (Test (Header SDN.EthSrc, Int48 0L), Test (Header SDN.EthDst, Int48 0L)) in
   test_compile
-    (Neg pr)
+    (Filter (Neg pr))
     (* order flipped, a canonical ordering from to_netkat would be great *)
-    (ite (Seq (Test (Header SDN.EthDst, Int48 0L), Test (Header SDN.EthSrc, Int48 0L)))
-       Drop
+    (ite (And (Test (Header SDN.EthDst, Int48 0L), Test (Header SDN.EthSrc, Int48 0L)))
+       (Filter Drop)
        (* trivial optimization *)
-       (ite (Test (Header SDN.EthSrc, Int48 0L)) Id Id))
+       (ite (Test (Header SDN.EthSrc, Int48 0L)) (Filter Id) (Filter Id)))
 
 (* TODO(arjun): Prove that this is true using the axioms of NetKAT. *)
 TEST "commute test annihilator" =
   test_compile
-    (Seq (Mod (Header SDN.EthSrc, Int48 1L), Test (Header SDN.EthSrc, Int48 0L)))
-    Drop
+    (Seq (Mod (Header SDN.EthSrc, Int48 1L), Filter (Test (Header SDN.EthSrc, Int48 0L))))
+    (Filter Drop)
 
 TEST "commute test different fields" =
   test_compile
-    (Seq (Mod (Header SDN.EthSrc, Int48 1L), Test (Header SDN.EthDst, Int48 0L)))
+    (Seq (Mod (Header SDN.EthSrc, Int48 1L), Filter (Test (Header SDN.EthDst, Int48 0L))))
     (ite (Test (Header SDN.EthDst, Int48 0L))
        (Mod (Header SDN.EthSrc, Int48 1L))
-       Drop)
+       (Filter Drop))
 
 (* trivial optimization possible *)
 TEST "commute same field" =
   test_compile
-    (Seq (Mod (Header SDN.EthSrc, Int48 1L), Test (Header SDN.EthSrc, Int48 1L)))
+    (Seq (Mod (Header SDN.EthSrc, Int48 1L), Filter (Test (Header SDN.EthSrc, Int48 1L))))
     (ite Id
        (Mod (Header SDN.EthSrc, Int48 1L))
-       Drop)
+       (Filter Drop))
 
 (* trivial optimization possible *)
 TEST "same field, two values = drop" =
   test_compile
-    (Seq (Test (Header SDN.EthSrc, Int48 1L), Test (Header SDN.EthSrc, Int48 0L)))
-    (ite (Test (Header SDN.EthSrc, Int48 1L)) Drop Drop)
+    (Filter (And (Test (Header SDN.EthSrc, Int48 1L), Test (Header SDN.EthSrc, Int48 0L))))
+    (ite (Test (Header SDN.EthSrc, Int48 1L)) (Filter Drop) (Filter Drop))
 
