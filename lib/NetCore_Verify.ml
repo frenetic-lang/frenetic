@@ -182,6 +182,7 @@ module Sat = struct
          Buffer.add_char b '\n';
        done
      with End_of_file -> ());
+	Printf.eprintf "%s" s;
     Buffer.contents b = "sat\n"
 end
 
@@ -289,7 +290,7 @@ module EdgeMap = NetCore_Util.Mapplus.Make(EdgeOrd)
 
   let assert_vint (vint : VInt.t) : VInt.t = vint
 
-  let parse_graph pol = 
+  let parse_graph ptstar = 
 	let graph = Topology.create() in
     let rec parse_links (pol: policy): Link.t list = 
 	  let assemble switch1 port1 switch2 port2 : Link.t= 
@@ -315,7 +316,7 @@ module EdgeMap = NetCore_Util.Mapplus.Make(EdgeOrd)
 (*END INNER FUNCTION*)
 
 	in
-    match pol with
+    match ptstar with
       | Star (Seq (p, t)) -> Topology.add_edges graph (parse_links t)
       | _ -> failwith "graph parsing assumes input is of the form (p;t)*"
 
@@ -369,15 +370,20 @@ module Verify = struct
 
   let encode_vint (v: VInt.t): zTerm = TInt (VInt.get_int64 v)
 
+(* some optimizations to make output more readable may be questionable form. *)
   let rec forwards (pol:policy) (pkt1:zVar) (pkt2: zVar): zFormula =
+	let test_action hdr v = ZEquals (encode_header hdr pkt1, encode_vint v) in
     match pol with
       | Drop -> 
 	ZFalse
       | Id -> 
-	ZEquals (TVar pkt1, TVar pkt2)
+		if pkt1 = pkt2 then ZTrue else 
+		  ZEquals (TVar pkt1, TVar pkt2)
       | Test (hdr, v) -> 
-	ZAnd [ZEquals (encode_header hdr pkt1, encode_vint v);
-	      ZEquals (TVar pkt1, TVar pkt2)]
+		let hdr_test = test_action hdr v
+		in
+		if pkt1 = pkt2 then hdr_test else
+		  ZAnd [hdr_test; ZEquals (TVar pkt1, TVar pkt2)]
       | Mod (hdr, v) -> 
 	ZAnd [ZEquals (encode_header hdr pkt2, encode_vint v);
 	      equal_field pkt1 pkt2 [hdr]]
@@ -387,10 +393,13 @@ module Verify = struct
 	ZOr [forwards p1 pkt1 pkt2;
 	     forwards p2 pkt1 pkt2]
       | Seq (p1, p2) -> 
-	let pkt' = fresh SPacket in
-	ZAnd [forwards p1 pkt1 pkt';
-	      forwards p2 pkt' pkt2]
-      | Star p1 -> failwith "NetKAT program not in form (p;t)*"
+		(*I'm special-casing for debugging purposes *)
+		(match p1 with 
+		  | Test (hdr, v) -> ZAnd [ test_action hdr v;  forwards p2 pkt1 pkt2]
+		  | _ -> let pkt' = fresh SPacket in
+					ZAnd [forwards p1 pkt1 pkt';
+						  forwards p2 pkt' pkt2] )
+	  | Star p1 -> failwith "NetKAT program not in form (p;t)*"
 
 
   let rec forwards_star (k:int) (Star (Seq (pol, topo))) (pkt1:zVar) (pkt2:zVar) : zFormula = 
