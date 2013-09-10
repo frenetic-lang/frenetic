@@ -183,7 +183,7 @@ module Sat = struct
          Buffer.add_char b '\n';
        done
      with End_of_file -> ());
-	Printf.eprintf "%s" s;
+	(*Printf.eprintf "%s" s;*)
     Buffer.contents b = "sat\n"
 end
 
