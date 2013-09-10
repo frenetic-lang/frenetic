@@ -63,12 +63,6 @@ struct
                         (unset out.outTpSrc (fun x -> SetTpSrc x)
                            (unset out.outTpDst (fun x -> SetTpDst x) []))))))))
 
-  let nc_port_to_of p = match p with
-    | P.Physical p -> PhysicalPort (to_of_portId p)
-    | P.All -> AllPorts
-    | P.Here -> InPort
-    | _ -> failwith "nc_port_to_of: Don't know how to handle this port type"
-
   let output_to_of inp out = match out.outPort with
     | P.Here -> [] (* Fishy, IMO. Shouldn't this be InPort? *)
     | P.All -> modify out @ (Output AllPorts)
@@ -81,6 +75,14 @@ struct
             | _ ->
               Output (PhysicalPort (to_of_portId pt))) ::
            (unmodify out))
+    | P.Queue (pt,qid) -> 
+      modify out @ 
+	(( match inp with 
+	  | Some pt' when (=) pt' pt -> 
+	    Enqueue (InPort, qid)
+	  | _ -> 
+	    Enqueue (PhysicalPort (to_of_portId pt), qid)) ::
+	   (unmodify out))
     | _ -> failwith "output_to_of: Don't know how to handle this port type"
 
   let atom_to_of inp atom = match atom with
@@ -291,12 +293,6 @@ struct
             (unset out.outDlVlanPcp (fun x -> SetField (OxmVlanPcp x))
                (unset out.outNwSrc (fun x -> SetField (OxmIP4Src (val_to_mask x)))
                   (unset out.outNwDst (fun x -> SetField (OxmIP4Dst (val_to_mask x))) [])))))
-
-  let nc_port_to_of p = match p with
-    | P.Physical p -> PhysicalPort (to_of_portId p)
-    | P.All -> AllPorts
-    | P.Here -> InPort
-    | _ -> failwith "nc_port_to_of: Don't know how to handle this port type"
 
   let output_to_of inp out = match out.outPort with
     | P.Here -> [] (* Fishy, IMO. Shouldn't this be InPort? *)
