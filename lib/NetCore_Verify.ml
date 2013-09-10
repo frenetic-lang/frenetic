@@ -182,7 +182,7 @@ module Sat = struct
          Buffer.add_char b '\n';
        done
      with End_of_file -> ());
-	Printf.eprintf "%s" s;
+	(*Printf.eprintf "%s" s;*)
     Buffer.contents b = "sat\n"
 end
 
@@ -372,7 +372,7 @@ module Verify = struct
 
 (* some optimizations to make output more readable may be questionable form. *)
   let rec forwards (pol:policy) (pkt1:zVar) (pkt2: zVar): zFormula =
-	let test_action hdr v = ZEquals (encode_header hdr pkt1, encode_vint v) in
+	let test_action hdr v pkt = ZEquals (encode_header hdr pkt, encode_vint v) in
     match pol with
       | Drop -> 
 	ZFalse
@@ -380,22 +380,26 @@ module Verify = struct
 		if pkt1 = pkt2 then ZTrue else 
 		  ZEquals (TVar pkt1, TVar pkt2)
       | Test (hdr, v) -> 
-		let hdr_test = test_action hdr v
+		let hdr_test = test_action hdr v pkt1
 		in
 		if pkt1 = pkt2 then hdr_test else
 		  ZAnd [hdr_test; ZEquals (TVar pkt1, TVar pkt2)]
       | Mod (hdr, v) -> 
 	ZAnd [ZEquals (encode_header hdr pkt2, encode_vint v);
 	      equal_field pkt1 pkt2 [hdr]]
-      | Neg p -> 
-	ZNot (forwards p pkt1 pkt2)
+      | Neg p ->
+            (match p with
+	      | Test (hdr, v) -> ZAnd [ ZNot (test_action hdr v pkt1); ZEquals (TVar pkt1, TVar pkt2) ]
+	      | _ -> ZNot (forwards p pkt1 pkt2) )
       | Par (p1, p2) -> 
 	ZOr [forwards p1 pkt1 pkt2;
 	     forwards p2 pkt1 pkt2]
       | Seq (p1, p2) -> 
 		(*I'm special-casing for debugging purposes *)
-		(match p1 with 
-		  | Test (hdr, v) -> ZAnd [ test_action hdr v;  forwards p2 pkt1 pkt2]
+		(match p1, p2 with 
+		  | Test (hdr, v), Test (hdr2, v2) -> ZAnd [ test_action hdr v pkt1;  test_action hdr2 v2 pkt1 ]
+		  | Test (hdr, v), _ -> ZAnd [ test_action hdr v pkt1;  forwards p2 pkt1 pkt2]
+		  | _, Test (hdr,v) -> ZAnd [ forwards p1 pkt1 pkt2; test_action hdr v pkt2]
 		  | _ -> let pkt' = fresh SPacket in
 					ZAnd [forwards p1 pkt1 pkt';
 						  forwards p2 pkt' pkt2] )

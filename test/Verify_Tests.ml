@@ -24,34 +24,25 @@ TEST "we love switch 2" =
 	  (starify (Test (Switch, make_vint 2)) (make_transition (1, 1) (2,1)))
 	  (make_packet_2 2 1)
 	  false
-
-(* BAD these shouldn't both be true *)	
+	
 TEST "neg has no effect" = 
-	let strt = (make_packet_2 1 1) in
-	let fnsh = (make_packet_2 2 1) in
+	let strt = (make_packet_1 1) in
+	let fnsh = (make_packet_1 2) in
 	let topo = make_transition (1,1) (2,1) in
 	(verify "we hate switch 1"
-	  strt
-	  (starify 
-		 (Test (Switch, make_vint 1))
-		 topo)
-	  fnsh
-	  true) &&
-	  (verify "we hate switch 1"
 		 strt
 		 (starify 
 			(Neg (Test (Switch, make_vint 1)))
 			topo)
 		 fnsh
-		 true)
+		 false)
 
 TEST "simple-check-false" = 
   verify "are tests even running" 
 	(make_packet_2 1 1)
 	(make_simple_topology (make_transition (1, 1) (2, 1)))
 	(make_packet_2 2 2)
-	false
-	  
+	false 
 	
 (*
 TEST "restrict" = 

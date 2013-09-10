@@ -33,6 +33,9 @@ let rec make_packet (headers_values : (header * 'a) list )=
 	| (hdr, valu)::tl -> Seq (Test (hdr, make_vint valu), make_packet tl)
 	| [] -> Id
 
+let make_packet_1 switch = 
+  Test (Switch, make_vint switch)
+
 let make_packet_2 switch port = 
   Seq (Test (Switch, make_vint switch), Test (Header SDN_Types.InPort, make_vint port))
 
