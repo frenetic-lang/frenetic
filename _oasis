@@ -25,6 +25,7 @@ Library netcore
     cstruct,
     lwt.syntax,
     str,
+    ocamlgraph,
     packet,openflow
   InternalModules:
     NetCore_Action,
@@ -36,6 +37,7 @@ Library netcore
     NetCore_Monitoring,
     NetCore_Parser,
     NetCore_SurfaceSyntax,
+    NetCore_Topology,
     NetKAT_Types,
     ONF,
     Controller
