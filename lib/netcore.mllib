@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: e70e443594f8a6e602c8dba451d6af7d)
+# DO NOT EDIT (digest: d95ed52a3b1ba07e36408b0c75e1417f)
 NetCore_Util
 NetCore_Compiler
 NetCore_Controller
@@ -13,7 +13,6 @@ NetCore_Stream
 NetCore_StatefulFirewall
 NetCore_Topo
 NetCore_Graph
-NetCore_Digraph
 NetCore_Types
 NetCore_Parsing
 NetCore_Pattern
