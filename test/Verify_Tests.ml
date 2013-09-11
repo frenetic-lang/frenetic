@@ -79,7 +79,7 @@ let pol_topo = starify pol topo
 	 (make_packet [])
 	 pol_topo
 	 (make_packet_2 3 1)
-	 true 5)
+	 true 0)
 
 
 	TEST "restrict4" = 
@@ -90,4 +90,18 @@ let pol_topo = starify pol topo
 	 true 1)
 
 
+
+	TEST "restrict5" = 
+  (verify "restrict5"
+	 (make_packet_4 1 1 1 2)
+	 pol_topo
+	 (make_packet_2 2 1)
+	 true 3)
+
+	TEST "restrict6" = 
+  (verify "restrict6"
+	 (make_packet_2 1 1)
+	 pol_topo
+	 (make_packet_2 3 1)
+	 true 3)
 

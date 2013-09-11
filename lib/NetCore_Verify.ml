@@ -17,6 +17,7 @@ let map_option f = function
 module Sat = struct
 
   type zVar = string
+  let zvar (s : string) : zVar = s
 
   type zSort = 
     | SPacket
@@ -52,10 +53,10 @@ module Sat = struct
     let l = !fresh_cell in  
     let n = List.length l in 
     let x = match sort with
-      | SPacket -> Printf.sprintf "_pkt%d" n 
-      | SInt -> Printf.sprintf "_n%d" n
-      | SFunction _ -> Printf.sprintf "_f%d" n
-      | SRelation _ -> Printf.sprintf "_R%d" n in 
+      | SPacket -> zvar (Printf.sprintf "_pkt%d" n )
+      | SInt -> zvar (Printf.sprintf "_n%d" n)
+      | SFunction _ -> zvar (Printf.sprintf "_f%d" n)
+      | SRelation _ -> zvar (Printf.sprintf "_R%d" n) in 
     fresh_cell := ZVarDeclare(x,sort)::l;
     x
 
@@ -79,16 +80,19 @@ module Sat = struct
       Printf.sprintf "(%s)"
         (intercalate serialize_sort " " sorts)
 
-  let rec serialize_term = function 
-    | TVar x -> 
-      x
-    | TPkt (sw,pt,pkt) -> 
-      serialize_located_packet (sw,pt,pkt)
-    | TInt n -> 
-      Printf.sprintf "%s" 
-        (Int64.to_string n)
-    | TApp (f, term) -> 
-      Printf.sprintf "(%s %s)" f (serialize_term term)
+  let rec serialize_var (v : zVar) : string = v
+
+  let rec serialize_term term : string = 
+	match term with 
+      | TVar x -> 
+		serialize_var x
+      | TPkt (sw,pt,pkt) -> 
+		serialize_located_packet (sw,pt,pkt)
+      | TInt n -> 
+		Printf.sprintf "%s" 
+          (Int64.to_string n)
+      | TApp (f, term) -> 
+		Printf.sprintf "(%s %s)" (serialize_var f) (serialize_term term)
 
   let rec serialize_formula = function
     | ZTrue -> 
@@ -112,15 +116,20 @@ module Sat = struct
     | ZOr(f::fs) -> 
       Printf.sprintf "(or %s %s)" (serialize_formula f) (serialize_formula (ZOr(fs)))
 
+(*ZSortDeclare of zVar * (zVar * (zVar * zSort) list) list *)
   let serialize_declaration = function
     | ZSortDeclare (name, constructorList) ->
+	  let name  = serialize_var name in 
       let serialize_field (field,sort) = 
-        Printf.sprintf "(%s %s)" field (serialize_sort sort) in
+        Printf.sprintf "(%s %s)" (serialize_var field) 
+		  (serialize_sort sort) in
       let serialize_constructor (name, fields) = 
-        Printf.sprintf "(%s %s)" name (intercalate serialize_field " " fields) in 
+        Printf.sprintf "(%s %s)" (serialize_var name) 
+		  (intercalate serialize_field " " fields) in 
       Printf.sprintf "(declare-datatypes () ((%s %s)))" 
         name (intercalate serialize_constructor " " constructorList)
     | ZVarDeclare (x, sort) ->
+	  let x = serialize_var x in
       let decl = match sort with 
         | SFunction _ -> "fun"
         | SRelation _ -> "rel"
@@ -132,34 +141,34 @@ module Sat = struct
 
   let init_decls : zDeclaration list = 
     [ ZSortDeclare
-        ("Packet", [("packet", [ ("PSwitch", SInt)
-                               ; ("PInPort", SInt)
-                               ; ("PDlSrc", SInt)
-                               ; ("PDlDst", SInt) ])])
+        (zvar "Packet", [(zvar "packet", [ (zvar "PSwitch", SInt)
+                               ; (zvar "PInPort", SInt)
+                               ; (zvar "PDlSrc", SInt)
+                               ; (zvar "PDlDst", SInt) ])])
     ; ZVarDeclare
-        ("Switch", SFunction(SPacket, SInt))
+        (zvar "Switch", SFunction(SPacket, SInt))
     ; ZVarDeclare
-        ("InPort", SFunction(SPacket, SInt))
+        (zvar "InPort", SFunction(SPacket, SInt))
     ; ZVarDeclare
-        ("EthSrc", SFunction(SPacket, SInt))
+        (zvar "EthSrc", SFunction(SPacket, SInt))
     ; ZVarDeclare
-        ("EthDst", SFunction(SPacket, SInt))
+        (zvar "EthDst", SFunction(SPacket, SInt))
     ; ZVarDeclare
-        ("EthType", SFunction(SPacket, SInt))
+        (zvar "EthType", SFunction(SPacket, SInt))
     ; ZVarDeclare
-        ("Vlan", SFunction(SPacket, SInt))
+        (zvar "Vlan", SFunction(SPacket, SInt))
     ; ZVarDeclare
-        ("VlanPcp", SFunction(SPacket, SInt))
+        (zvar "VlanPcp", SFunction(SPacket, SInt))
     ; ZVarDeclare
-        ("IPProto", SFunction(SPacket, SInt))
+        (zvar "IPProto", SFunction(SPacket, SInt))
     ; ZVarDeclare
-        ("IP4Src", SFunction(SPacket, SInt))
+        (zvar "IP4Src", SFunction(SPacket, SInt))
     ; ZVarDeclare
-        ("IP4Dst", SFunction(SPacket, SInt))
+        (zvar "IP4Dst", SFunction(SPacket, SInt))
     ; ZVarDeclare
-        ("TCPSrcPort", SFunction(SPacket, SInt))
+        (zvar "TCPSrcPort", SFunction(SPacket, SInt))
     ; ZVarDeclare
-        ("TCPDstPort", SFunction(SPacket, SInt))
+        (zvar "TCPDstPort", SFunction(SPacket, SInt))
     ]
 
   let serialize_program (ZProgram (decls)) global= 
@@ -349,18 +358,18 @@ module Verify = struct
   (* Bring header field names inline with SDN types*)
   let encode_header (header: header) (pkt: zVar): zTerm =
     match header with
-      | Header InPort -> TApp ("InPort", TVar pkt)
-      | Header EthType ->  TApp ("EthType", TVar pkt)
-      | Header EthSrc -> TApp ("EthSrc", TVar pkt)
-      | Header EthDst -> TApp ("EthDst", TVar pkt)
-      | Header Vlan ->  TApp ("Vlan", TVar pkt)
-      | Header VlanPcp ->  TApp ("VlanPcp", TVar pkt)
-      | Header IPProto ->  TApp ("IPProto", TVar pkt)
-      | Header IP4Src ->  TApp ("IP4Src", TVar pkt)
-      | Header IP4Dst ->  TApp ("IP4Dst", TVar pkt)
-      | Header TCPSrcPort ->  TApp ("TCPSrcPort", TVar pkt)
-      | Header TCPDstPort ->  TApp ("TCPDstPort", TVar pkt)
-      | Switch -> TApp ("Switch", TVar pkt)
+      | Header InPort -> TApp (zvar "InPort", TVar pkt)
+      | Header EthType ->  TApp (zvar "EthType", TVar pkt)
+      | Header EthSrc -> TApp (zvar "EthSrc", TVar pkt)
+      | Header EthDst -> TApp (zvar "EthDst", TVar pkt)
+      | Header Vlan ->  TApp (zvar "Vlan", TVar pkt)
+      | Header VlanPcp ->  TApp (zvar "VlanPcp", TVar pkt)
+      | Header IPProto ->  TApp (zvar "IPProto", TVar pkt)
+      | Header IP4Src ->  TApp (zvar "IP4Src", TVar pkt)
+      | Header IP4Dst ->  TApp (zvar "IP4Dst", TVar pkt)
+      | Header TCPSrcPort ->  TApp (zvar "TCPSrcPort", TVar pkt)
+      | Header TCPDstPort ->  TApp (zvar "TCPDstPort", TVar pkt)
+      | Switch -> TApp (zvar "Switch", TVar pkt)
 
   let equal_field (pkt1: zVar) (pkt2: zVar) (except_fields:header list): zFormula =
     ZAnd (List.fold_left 
@@ -394,6 +403,7 @@ module Verify = struct
 
   let forwards_pred_bind (pr:pred) (pkt1:zVar) (pkt2: zVar): zFormula =
 	global_bindings := (ZEquals (TVar pkt1, TVar pkt2))::!global_bindings;
+	(*pkt2 := !pkt1;*)
 	forwards_pred pr pkt1
 		
   let rec forwards (pol:policy) (pkt1:zVar) (pkt2: zVar): zFormula =
@@ -443,7 +453,9 @@ let check_specific_k str inp p_t_star outp oko (k : int) : bool =
                  ; Sat.ZAssertDeclare (Verify.forwards_star k p_t_star x y )
                  ; Sat.ZAssertDeclare (Verify.forwards_pred outp y) ] in
   let global_eq =
-    [Sat.ZAssertDeclare (Sat.ZAnd !Verify.global_bindings)] in
+	match !Verify.global_bindings with
+	  | [] -> []
+	  | _ -> [Sat.ZAssertDeclare (Sat.ZAnd !Verify.global_bindings)] in
   match oko, Sat.solve prog global_eq with 
   | Some ok, sat -> 
     if ok = sat then 
