@@ -37,7 +37,6 @@ Library netcore
     NetCore_Monitoring,
     NetCore_Parser,
     NetCore_SurfaceSyntax,
-    NetCore_Topology,
     NetKAT_Types,
     ONF,
     Controller
@@ -53,9 +52,8 @@ Library netcore
     NetCore_Semantics,
     NetCore_Stream,
     NetCore_StatefulFirewall,
-    NetCore_Topo,
-    NetCore_Graph,
     NetCore_Types,
+    NetCore_Topology,
     NetCore_Parsing,
     NetCore_Pattern,
     NetCore_Verify,
