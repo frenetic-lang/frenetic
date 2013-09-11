@@ -11,7 +11,7 @@
 *)
 
 (* A set of maps from header names to header values *)
-module HeaderValMapSet : Set.S
+module ActSet : Set.S
   with type elt = NetKAT_Types.header_val_map
 
 (** A conjunction of tests, where each test tests a distinct field and all
@@ -22,23 +22,23 @@ module HeaderValMapSet : Set.S
     [pred ::= h_1 = v_1 ; .. ; h_k = v_k]
 
     where all [k] headers are tested. *)
-type pred = NetKAT_Types.header_val_map
+type pat = NetKAT_Types.header_val_map
 
 (** A sequence of updates, where each update affects a distinct field.
     Therefore, they all commute with each other and can be represented by
     a set. Formally:
 
-    [seq  ::= h_1 -> v_1 ; ... ; h_1 -> v_n]
+    [act  ::= h_1 -> v_1 ; ... ; h_1 -> v_n]
 
     where all headers [h] are distinct. *)
-type seq = NetKAT_Types.header_val_map
+type act = NetKAT_Types.header_val_map
 
 (** A sum of update sequences, where each sequence is distinct. Formally:
 
-    	[sum ::= seq_1; ...; seq_n]
+    	[acts ::= act_1; ...; act_n]
 
     where all subterms [seq] are distinct. *)
-type sum = HeaderValMapSet.t
+type acts = ActSet.t
 
 (** A cascase of [if .. then .. else] expressions nested under the [else]
     branch.
@@ -47,8 +47,8 @@ type sum = HeaderValMapSet.t
 
 *)
 type local =
-  | Action of sum
-  | ITE of pred * sum * local
+  | Action of acts
+  | ITE of pat * acts * local
 
 (** {2 NetKAT Compiler}
 

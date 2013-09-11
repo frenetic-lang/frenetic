@@ -1,49 +1,57 @@
 module K = NetKAT_Types
 
-module HeaderMap = K.HeaderMap
+type pat = K.header_val_map
 
-module HeaderValMapSet = Set.Make (struct
-    type t = K.header_val HeaderMap.t
-    let compare x y = HeaderMap.compare Pervasives.compare x y
-  end)
+type act = K.header_val_map
 
-type pred = K.header_val_map
+module ActSet = Set.Make (struct
+    type t = act
+    let compare = K.HeaderMap.compare Pervasives.compare
+end)
 
-type seq = K.header_val_map
-
-type sum = HeaderValMapSet.t
+type acts = ActSet.t
 
 type local =
-  | Action of sum
-  | ITE of pred * sum * local
+  | Action of acts
+  | ITE of pat * acts * local
 
-let id : seq = HeaderMap.empty
+let id : act = K.HeaderMap.empty
 
-let drop : sum = HeaderValMapSet.empty
+(* there is only one element, and it is the empty sequence of updates *)
+let is_id (pol : acts) : bool =
+  not (ActSet.is_empty pol) && K.HeaderMap.is_empty (ActSet.choose pol)
+
+let drop : acts = ActSet.empty
+
+let is_drop (pol : acts) : bool = ActSet.is_empty pol
 
 (* Only used by and_pred *)
-exception Empty_pred
+exception Empty_pat
 
-(* map_sum f (seq_1 + ... + seq_n) = f seq_1 + ... + f seq_n *)
-let map_sum (f : seq -> seq) (pol : sum) =
-  let g seq pol' = HeaderValMapSet.add (f seq) pol' in
-  HeaderValMapSet.fold g pol drop
+(* map_acts f (act_1 + ... + act_n) = f act_1 + ... + f act_n *)
+let map_acts (f : act -> act) (pol : acts) =
+  let g seq pol' = ActSet.add (f seq) pol' in
+  ActSet.fold g pol drop
 
 (* Some (pr1 ; pr2) unless the conjunct in empty, in which case, return None. *)
-let rec and_pred (pr1 : pred) (pr2 : pred) : pred option =
+let rec and_pat (pr1 : pat) (pr2 : pat) : pat option =
   let f hdr val1 val2 = match (val1, val2) with
-    | (Some v1, Some v2) -> if v1 <> v2 then raise Empty_pred else Some v1
-    | (Some v1, None) -> Some v1
-    | (None, Some v2) -> Some v2
-    | (None, None) -> failwith "and_pred impossible case" in
+    | (Some v1, Some v2) -> 
+      if v1 <> v2 then raise Empty_pat else Some v1
+    | (Some v1, None) -> 
+      Some v1
+    | (None, Some v2) -> 
+      Some v2
+    | (None, None) -> 
+      raise Empty_pat in 
   try 
-    Some (HeaderMap.merge f pr1 pr2)
+    Some (K.HeaderMap.merge f pr1 pr2)
   with
-    Empty_pred -> None
+    Empty_pat -> None
 
 (* s1 + s2 *)
-let rec par_sum_sum (s1 : sum) (s2 : sum) : sum = 
-  HeaderValMapSet.union s1 s2
+let rec par_acts_acts (s1 : acts) (s2 : acts) : acts = 
+  ActSet.union s1 s2
 
 (* Lemma 1: if Y then S + S' else (S + A') = S + (if Y then S' else A')
 
@@ -54,14 +62,13 @@ let rec par_sum_sum (s1 : sum) (s2 : sum) : sum =
    = 1;S + (Y;S' + !Y;A')                                excluded middle
    = S + (Y;S' + !Y;A')                                  *1
    = S + (if Y then S' else A')                          if-then-else
-
    QED
 *)
 
 (* simpl_par_sum_local S A = S + A *)
-let rec simpl_par_sum_local (s : sum) (l : local) : local = match l with
+let rec simpl_par_acts_local (s : acts) (l : local) : local = match l with
   (* Case A = S' is trivial *)
-  | Action s' -> Action (par_sum_sum s s')
+  | Action s' -> Action (par_acts_acts s s')
   (* Case A = if Y then S' else A'
 
        if Y then S + S' else [simpl_par_sum_local S A']    RHS below
@@ -69,17 +76,17 @@ let rec simpl_par_sum_local (s : sum) (l : local) : local = match l with
      = S + (if Y then S' else A')                          Lemma 1
      = S + A                                               substitution
   *)
-  | ITE (y, s', a') -> ITE (y, par_sum_sum s s', simpl_par_sum_local s a')
+  | ITE (y, s', a') -> ITE (y, par_acts_acts s s', simpl_par_acts_local s a')
 
 (* par_sum_local X S A B = if X then S + A else B *)
-let rec par_sum_local (x : pred) (s : sum) (a : local) (b : local) : local = 
+let rec par_acts_local (x : pat) (s : acts) (a : local) (b : local) : local = 
   match a with
   (* Case A = S'
 
        if X then S + S' else B                                        RHS below
      = if X then S + A else B                                      substitution
   *)
-  | Action s' -> ITE(x, par_sum_sum s s', b)
+  | Action s' -> ITE(x, par_acts_acts s s', b)
   (* Case A = if Y then S' else A'
 
        if X; Y then S + S' else [par_sum_local X S A' B]              RHS below
@@ -99,18 +106,19 @@ let rec par_sum_local (x : pred) (s : sum) (a : local) (b : local) : local =
      = if X then (S + A) else B                                    substitution
   *)
   | ITE (y, s', a') -> 
-    let else_branch = par_sum_local x s a' b in
-    match and_pred x y with
-    | None -> else_branch
+    let else_branch = par_acts_local x s a' b in
+    match and_pat x y with
+    | None -> 
+      else_branch
     | Some x_and_y ->
-      ITE (x_and_y, par_sum_sum s s', else_branch)
+      ITE (x_and_y, par_acts_acts s s', else_branch)
 
 (* par_local_local A B = A + B *)
 let rec par_local_local (a : local) (b : local) : local = match (a, b) with
   (* Immediate *)
-  | (_ , Action s) -> simpl_par_sum_local s a
+  | (_ , Action s) -> simpl_par_acts_local s a
   (* Commutativity, then immediate *)
-  | (Action s, _) -> simpl_par_sum_local s b
+  | (Action s, _) -> simpl_par_acts_local s b
   (* Case A = if X then A' else B'
 
        par_sum_local X A' B (par_local_local B' B)                    RHS below
@@ -119,29 +127,30 @@ let rec par_local_local (a : local) (b : local) : local = match (a, b) with
      = (if X then A' else B') + B                                       Lemma 1
      = A + B                                                       substitution
   *)
-  | (ITE (x, a', b'), _) ->  par_sum_local x a' b (par_local_local b' b)
+  | (ITE (x, a', b'), _) ->  par_acts_local x a' b (par_local_local b' b)
 
-(* seq_seq H V SEQ = H<-V; SEQ *)
-let seq_seq (h : K.header) (v : K.header_val) (seq : seq) : seq = 
-  if HeaderMap.mem h seq then
+(* seq_act H V SEQ = H<-V; SEQ *)
+let seq_act (h : K.header) (v : K.header_val) (seq : act) : act = 
+  if K.HeaderMap.mem h seq then
     seq
   else
-    HeaderMap.add h v seq
+    K.HeaderMap.add h v seq
 
-(* commute_sum H V S = H <- V; S *)
-let commute_sum (h : K.header) (v : K.header_val) (s : sum) : sum =
-  map_sum (seq_seq h v) s (* distributivity *)
+(* commute_acts H V S = H <- V; S *)
+let commute_acts (h : K.header) (v : K.header_val) (s : acts) : acts =
+  map_acts (seq_act h v) s (* distributivity *)
 
 (* pr is a conjunct, so if h is not bound, then it is matches h = v *)
-let rec pred_matches (h : K.header) (v : K.header_val) (pr : pred) : bool =
-  not (HeaderMap.mem h pr) || HeaderMap.find h pr = v
+let rec pat_matches (h : K.header) (v : K.header_val) (pt : pat) : bool =
+  not (K.HeaderMap.mem h pt) || K.HeaderMap.find h pt = v
 
-let rec pred_wildcard (h : K.header) (pr : pred) : pred =
-  HeaderMap.remove h pr
+let rec pat_wildcard (h : K.header) (pt : pat) : pat =
+  K.HeaderMap.remove h pt
 
 (* commute H V P = H<-V; P *)
-let rec commute (h : K.header) (v : K.header_val) (p : local) : local = match p with
-  | Action sum -> Action (commute_sum h v sum)
+let rec commute (h : K.header) (v : K.header_val) (p : local) : local = 
+  match p with
+    | Action s -> Action (commute_acts h v s)
   (* Case P = if X then S else Q
 
        H <- V; if X then S else Q
@@ -149,44 +158,44 @@ let rec commute (h : K.header) (v : K.header_val) (p : local) : local = match p 
      = H<-V;H=V;if X then S else Q + H<-V;!H=V;if X then S else Q 
      = CONTINUE
   *)
-  | ITE (pr, sum, pol) ->
-    match pred_matches h v pr with
-    | false -> commute h v pol
-    | true -> ITE (pred_wildcard h pr, commute_sum h v sum, commute h v pol)
+  | ITE (pt, s, pol) ->
+    if not (pat_matches h v pt) then
+      commute h v pol
+    else 
+      ITE (pat_wildcard h pt, commute_acts h v s, commute h v pol)
 
 (* returns a term equivalent to [if pr then pol1 else pol2] *)
-let rec norm_ite (pr : pred) (pol1 : local) (pol2 : local) : local =
+let rec norm_ite (pt : pat) (pol1 : local) (pol2 : local) : local =
   match pol1 with
-  | Action sum1 -> ITE (pr, sum1, pol2)
-  | ITE (pr1', sum1', pol1') ->
-    match and_pred pr pr1' with
-    | None -> norm_ite pr pol1' pol2
-    | Some pr1_and_pr1' -> ITE (pr1_and_pr1', sum1', norm_ite pr pol1' pol2)
+    | Action sum1 -> 
+      ITE (pt, sum1, pol2)
+    | ITE (pt1', sum1', pol1') ->
+      begin match and_pat pt pt1' with
+	| None -> 
+	  norm_ite pt pol1' pol2
+	| Some pt1_and_pt1' -> 
+	  ITE (pt1_and_pt1', sum1', norm_ite pt pol1' pol2)
+      end
 
-let seq_seq_local (p1 : seq) (p2 : local) : local = 
-  HeaderMap.fold commute  p1 p2
+let seq_act_local (p1 : act) (p2 : local) : local = 
+  K.HeaderMap.fold commute p1 p2
 
 (* p1; p2 *)
-let seq_sum_local (p1 : sum) (p2 : local) : local = 
-  let lst = HeaderValMapSet.fold (fun elt lst -> elt :: lst) p1 [] in
+let seq_acts_local (p1 : acts) (p2 : local) : local = 
+  let lst = ActSet.fold (fun elt lst -> elt :: lst) p1 [] in
   let rec loop lst = match lst with
-    | [] -> Action drop
+    | [] -> 
+      Action drop
     | seq :: lst' ->
-      par_local_local (seq_seq_local seq p2) (loop lst') in
+      par_local_local (seq_act_local seq p2) (loop lst') in
   loop lst
 
-let rec seq_local_local (pol1 : local) (pol2 : local) : local = match pol1 with
-  | Action sum1 -> seq_sum_local sum1 pol2
-  | ITE (pred1, sum1, pol1') ->
-    norm_ite pred1 (seq_sum_local sum1 pol2) (seq_local_local pol1' pol2)
-
-
-let is_drop (pol : sum) : bool =
-  HeaderValMapSet.is_empty pol
-
-(* there is only one element, and it is the empty sequence of updates *)
-let is_id (pol : sum) : bool =
-  not (HeaderValMapSet.is_empty pol) && HeaderMap.is_empty (HeaderValMapSet.choose pol)
+let rec seq_local_local (pol1 : local) (pol2 : local) : local = 
+  match pol1 with
+    | Action sum1 -> 
+      seq_acts_local sum1 pol2
+    | ITE (pred1, sum1, pol1') ->
+      norm_ite pred1 (seq_acts_local sum1 pol2) (seq_local_local pol1' pol2)
 
 (*
     !(if A then X else IND)
@@ -224,7 +233,7 @@ let is_id (pol : sum) : bool =
 let rec negate (pred : local) : local = match pred with
   | Action sum ->
     if is_drop sum then
-      Action (HeaderValMapSet.singleton id)
+      Action (ActSet.singleton id)
     else if is_id sum then
       Action drop
     else
@@ -232,41 +241,53 @@ let rec negate (pred : local) : local = match pred with
   | ITE (a, x, ind) ->
     if is_drop x then
       par_local_local 
-        (ITE (a, HeaderValMapSet.singleton id, Action drop))
+        (ITE (a, ActSet.singleton id, Action drop))
         (negate ind)
     else if is_id x then
       seq_local_local
-        (ITE (a, drop, Action (HeaderValMapSet.singleton id)))
+        (ITE (a, drop, Action (ActSet.singleton id)))
         (negate ind)
     else
       failwith "not a predicate"
 
 let rec pred_local (pr : K.pred) : local = match pr with
-  | K.Drop ->
+  | K.True ->
+    Action (ActSet.singleton id) (* missing from appendix *)
+  | K.False ->
     Action drop (* missing from appendix *)
-  | K.Id ->
-    Action (HeaderValMapSet.singleton HeaderMap.empty) (* missing from appendix *)
   | K.Neg p ->
     negate (pred_local p)
   | K.Test (h, v) ->
-    ITE (HeaderMap.singleton h v, HeaderValMapSet.singleton id, Action drop)
+    ITE (K.HeaderMap.singleton h v, ActSet.singleton id, Action drop)
   | K.And (pr1, pr2) ->
-    failwith "pred_local doesn't handle And predicates"
+    seq_local_local (pred_local pr1) (pred_local pr2)
   | K.Or (pr1, pr2) ->
-    failwith "pred_local doesn't handle Or predicates"
+    par_local_local (pred_local pr1) (pred_local pr2)
 
-let rec star_local (a:local) : local = match a with 
-  | Action s -> 
-    a (* TODO: stub *)
-  | ITE(p, s, b) -> 
-    a (* TODO: stub *)
+let rec eq_local (a:local) (b:local) : bool = match a,b with 
+    | Action s1, Action s2 -> 
+      ActSet.equal s1 s2
+    | ITE(p1,s1,b1),ITE(p2,s2,b2) -> 
+      K.HeaderMap.compare Pervasives.compare p1 p2 = 0 && 
+      ActSet.equal s1 s2 &&
+      eq_local b1 b2
+    | _ -> false
 
-and local_normalize (pol : K.policy) : local = match pol with
-  | K.Filter pr -> pred_local pr
+let star_local (a:local) : local = 
+  let rec loop (acc:local) : local = 
+    let seq' = seq_local_local acc a in 
+    let acc' = par_local_local acc seq' in 
+    if eq_local acc acc' then acc 
+    else loop acc' in 
+  loop (Action (ActSet.singleton id))
+ 
+let rec local_normalize (pol : K.policy) : local = match pol with
+  | K.Filter pr -> 
+    pred_local pr
   | K.Mod (K.Switch, _) ->
     failwith "unexpected Switch in local_normalize"
   | K.Mod (h, v) ->
-    Action (HeaderValMapSet.singleton (HeaderMap.singleton h v))
+    Action (ActSet.singleton (K.HeaderMap.singleton h v))
   | K.Par (pol1, pol2) ->
     (* In Lemma 30, cases 2--4 p,q should be written using if..then..else
        shorthand. *)
@@ -274,43 +295,47 @@ and local_normalize (pol : K.policy) : local = match pol with
   | K.Seq (pol1, pol2) ->
     seq_local_local (local_normalize pol1) (local_normalize pol2)
   | K.Star pol -> 
-    star_local (local_normalize pol)
+    Printf.printf "START \n%!";
+    let res = star_local (local_normalize pol) in 
+    Printf.printf "FINISH \n%!";
+    res
       
 let compile = local_normalize
 
-let pred_to_netkat pr =
+let pat_to_netkat pt =
   (* avoid printing trailing K.Id if it is unnecessary *)
-  if HeaderMap.is_empty pr then
-    K.Id
+  if K.HeaderMap.is_empty pt then
+    K.True
   else
-    let (h, v) = HeaderMap.min_binding pr in
-    let pr' = HeaderMap.remove h pr in
+    let (h, v) = K.HeaderMap.min_binding pt in
+    let pt' = K.HeaderMap.remove h pt in
     let f h v pol = K.And (K.Test (h, v), pol) in
-    (HeaderMap.fold f pr' (K.Test (h, v)))
+    (K.HeaderMap.fold f pt' (K.Test (h, v)))
 
-let seq_to_netkat (pol : seq) : K.policy =
+let act_to_netkat (pol : act) : K.policy =
   (* avoid printing trailing K.Id if it is unnecessary *)
-  if HeaderMap.is_empty pol then
-    K.Filter K.Id
+  if K.HeaderMap.is_empty pol then
+    K.Filter K.True
   else
-    let (h, v) = HeaderMap.min_binding pol in
-    let pol' = HeaderMap.remove h pol in
+    let (h, v) = K.HeaderMap.min_binding pol in
+    let pol' = K.HeaderMap.remove h pol in
     let f h v pol' = K.Seq (K.Mod (h, v), pol') in
-    HeaderMap.fold f pol' (K.Mod  (h, v))
+    K.HeaderMap.fold f pol' (K.Mod  (h, v))
 
-let sum_to_netkat (pol : sum) : K.policy = 
+let acts_to_netkat (pol : acts) : K.policy = 
   (* avoid printing trailing K.Drop if it is unnecessary *)
-  if HeaderValMapSet.is_empty pol then
-    K.Filter K.Drop
+  if ActSet.is_empty pol then
+    K.Filter K.False
   else
-    let f seq pol' = K.Par (seq_to_netkat seq, pol') in
-    let seq = HeaderValMapSet.min_elt pol in
-    let pol' = HeaderValMapSet.remove seq pol in
-    HeaderValMapSet.fold f pol' (seq_to_netkat seq)
+    let f seq pol' = K.Par (act_to_netkat seq, pol') in
+    let seq = ActSet.min_elt pol in
+    let pol' = ActSet.remove seq pol in
+    ActSet.fold f pol' (act_to_netkat seq)
 
 let rec to_netkat (pol : local) : K.policy = match pol with
-  | Action sum -> sum_to_netkat sum
+  | Action s -> 
+    acts_to_netkat s
   | ITE (pred, sum, pol') ->
-    let pr = pred_to_netkat pred in
-    K.Par (K.Seq (K.Filter pr, sum_to_netkat sum),
+    let pr = pat_to_netkat pred in 
+    K.Par (K.Seq (K.Filter pr, acts_to_netkat sum),
            K.Seq (K.Filter (K.Neg pr), to_netkat pol'))
