@@ -23,17 +23,19 @@ type header_val = VInt.t
 
 (** {2 Policies}
 
-    In the spirit of KAT, predicates are formed with [Drop], [Id], [Par], [Seq],
-    and [Neg].
-
 *)
 
-type policy =
+type pred = 
   | Drop
   | Id
   | Test of header * header_val
+  | And of pred*pred
+  | Or of pred*pred
+  | Neg of pred
+
+type policy =
+  | Filter of pred
   | Mod of header * header_val
-  | Neg of policy
   | Par of policy * policy
   | Seq of policy * policy
   | Star of policy

@@ -304,13 +304,15 @@ module EdgeMap = NetCore_Util.Mapplus.Make(EdgeOrd)
 			 (node1, node2, label)
 	  in
       match pol with
-		| Seq (Seq (Test (Switch, switch1), Test (Header InPort, port1)), 
-			   (Seq (Mod (Switch ,switch2) , Mod (Header InPort, port2))))
+		| Seq (Seq (Filter (Test (Switch, switch1)), 
+					Filter (Test (Header InPort, port1))),
+			   Seq (Mod (Switch, switch2), Mod (Header InPort, port2)))
 		  -> (assemble switch1 port1 switch2 port2) :: []
 		  
 		| Par
-			(Seq (Seq (Test (Switch, switch1), Test (Header InPort, port1)), 
-				  (Seq (Mod (Switch ,switch2) , Mod (Header InPort, port2)))), t)
+			(Seq (Seq (Filter (Test (Switch, switch1)), 
+					   Filter (Test (Header InPort, port1))),
+				  Seq (Mod (Switch, switch2), Mod (Header InPort, port2))), t)
 		  -> (assemble switch1 port1 switch2 port2):: (parse_links t)
 		| _ -> failwith "unimplemented"
 
@@ -374,11 +376,11 @@ module Verify = struct
 let global = ref []
 
 (* some optimizations to make output more readable may be questionable form. *)
-  let rec forwards (pol:policy) (pkt1:zVar) (pkt2: zVar): zFormula =
+  let rec forwards_pred (pr:pred) (pkt1:zVar) (pkt2: zVar): zFormula =
 	let test_action hdr v pkt = ZEquals (encode_header hdr pkt, encode_vint v) in
-    match pol with
+    match pr with
       | Drop -> 
-	ZFalse
+		ZFalse
       | Id -> 
 		if pkt1 = pkt2 then ZTrue else 
 		  ZEquals (TVar pkt1, TVar pkt2)
@@ -386,33 +388,44 @@ let global = ref []
 		let hdr_test = test_action hdr v pkt1 in
 		global := (ZEquals (TVar pkt1, TVar pkt2))::!global;
 		hdr_test
-      | Mod (hdr, v) -> 
-	ZAnd [ZEquals (encode_header hdr pkt2, encode_vint v);
-	      equal_field pkt1 pkt2 [hdr]]
       | Neg p ->
-            ZNot (forwards p pkt1 pkt2)
+        ZNot (forwards_pred p pkt1 pkt2)
+      | And (p1, p2) -> ZAnd [forwards_pred p1 pkt1 pkt2; 
+                              forwards_pred p2 pkt1 pkt2]
+      | Or (p1, p2) -> ZOr [forwards_pred p1 pkt1 pkt2;
+                            forwards_pred p2 pkt1 pkt2]
+		
+  let rec forwards (pol:policy) (pkt1:zVar) (pkt2: zVar): zFormula =
+    match pol with
+      | Filter pr -> forwards_pred pr pkt1 pkt2
+      | Mod (hdr, v) -> 
+		ZAnd [ZEquals (encode_header hdr pkt2, encode_vint v);
+			  equal_field pkt1 pkt2 [hdr]]
       | Par (p1, p2) -> 
-	ZOr [forwards p1 pkt1 pkt2;
-	     forwards p2 pkt1 pkt2]
+		ZOr [forwards p1 pkt1 pkt2;
+			 forwards p2 pkt1 pkt2]
       | Seq (p1, p2) -> 
-		  let pkt' = fresh SPacket in
-					ZAnd [forwards p1 pkt1 pkt';
-						  forwards p2 pkt' pkt2] 
+		let pkt' = fresh SPacket in
+		ZAnd [forwards p1 pkt1 pkt';
+			  forwards p2 pkt' pkt2] 
 	  | Star p1 -> failwith "NetKAT program not in form (p;t)*"
+		
 
+  let rec forwards_star (k:int) p_t_star (pkt1:zVar) (pkt2:zVar) : zFormula = 
+	match p_t_star with 
+	  | (Star (Seq (pol, topo))) -> 
+		if k = 0 then 
+		  ZEquals (TVar pkt1, TVar pkt2)
+		else
+		  let pkt' = fresh SPacket in 
+		  let pkt'' = fresh SPacket in 
+		  ZOr [ ZAnd [ forwards pol pkt1 pkt';
+					   forwards topo pkt' pkt'';
+					   forwards_star (k-1) (Star (Seq (pol, topo))) pkt'' pkt2 ];
+				forwards_star (k-1) (Star (Seq (pol, topo))) pkt1 pkt2 ]
+	  | _ -> failwith "not in form pt* in forwards_star"
 
-  let rec forwards_star (k:int) (Star (Seq (pol, topo))) (pkt1:zVar) (pkt2:zVar) : zFormula = 
-    if k = 0 then 
-      ZEquals (TVar pkt1, TVar pkt2)
-    else
-      let pkt' = fresh SPacket in 
-      let pkt'' = fresh SPacket in 
-      ZOr [ ZAnd [ forwards pol pkt1 pkt';
-                   forwards topo pkt' pkt'';
-                   forwards_star (k-1) (Star (Seq (pol, topo))) pkt'' pkt2 ];
-            forwards_star (k-1) (Star (Seq (pol, topo))) pkt1 pkt2 ]
 end
-
 (* str: name of your test (unique ID)  
    inp: initial packet
    pol: policy to test
@@ -423,7 +436,7 @@ let check str inp p_t_star outp (oko : bool option) : bool =
   Sat.fresh_cell := []; 
   let x = Sat.fresh Sat.SPacket in 
   let y = Sat.fresh Sat.SPacket in 
-  let graph = NetKAT_Graph.parse_graph p_t_star in
+  (*let graph = NetKAT_Graph.parse_graph p_t_star in*)
   let prog = 
     Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards inp x x)
                  ; Sat.ZAssertDeclare (Verify.forwards_star 1 p_t_star x y )
