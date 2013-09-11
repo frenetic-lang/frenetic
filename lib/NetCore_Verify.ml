@@ -379,9 +379,9 @@ let global = ref []
   let rec forwards_pred (pr:pred) (pkt1:zVar) (pkt2: zVar): zFormula =
 	let test_action hdr v pkt = ZEquals (encode_header hdr pkt, encode_vint v) in
     match pr with
-      | Drop -> 
+      | False -> 
 		ZFalse
-      | Id -> 
+      | True -> 
 		if pkt1 = pkt2 then ZTrue else 
 		  ZEquals (TVar pkt1, TVar pkt2)
       | Test (hdr, v) -> 
