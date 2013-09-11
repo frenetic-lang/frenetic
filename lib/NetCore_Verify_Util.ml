@@ -3,7 +3,7 @@ open NetKAT_Types
 open VInt
 open NetCore_Verify
 
-let verify (description: string) (initial_state: policy) (program: policy) (final_state: policy) (desired_outcome: bool) k : bool = 
+let verify (description: string) (initial_state: pred) (program: policy) (final_state: pred) (desired_outcome: bool) k : bool = 
 	check_specific_k description initial_state program final_state (Some desired_outcome) k
 
 let make_vint v = VInt.Int64 (Int64.of_int v)
@@ -27,22 +27,22 @@ let starify pred (topo : policy) : policy = Star (Seq (Filter pred, topo))
 (*will take a policy, a topology, and add it to the kleene-star *)
 let compose_topo p t p_t_star : policy = Filter True
 
-let rec make_packet (headers_values : (header * 'a) list ) : policy= 
+let rec make_packet (headers_values : (header * 'a) list ) = 
   match headers_values with
-	| (hdr, valu)::[] -> Filter (Test (hdr, make_vint valu))
-	| (hdr, valu)::tl -> Seq (Filter (Test (hdr, make_vint valu)), 
+	| (hdr, valu)::[] -> Test (hdr, make_vint valu)
+	| (hdr, valu)::tl -> And (Test (hdr, make_vint valu), 
 							  make_packet tl)
-	| [] -> Filter True
+	| [] -> True
 
-let make_packet_1 switch : policy= 
-  Filter (Test (Switch, make_vint switch))
+let make_packet_1 switch = 
+  Test (Switch, make_vint switch)
 
-let make_packet_2 switch port : policy = 
-  Filter (And (Test (Switch, make_vint switch), Test (Header SDN_Types.InPort, make_vint port)))
+let make_packet_2 switch port  = 
+  And (Test (Switch, make_vint switch), Test (Header SDN_Types.InPort, make_vint port))
 
-let make_packet_3 switch port ethsrc : policy = 
-  Seq ((make_packet_2 switch port), Filter (Test (Header SDN_Types.EthSrc, make_vint ethsrc)))
+let make_packet_3 switch port ethsrc  = 
+  And ((make_packet_2 switch port), Test (Header SDN_Types.EthSrc, make_vint ethsrc))
 
-let make_packet_4 switch port ethsrc ethdst : policy = 
-  Seq ((make_packet_3 switch port ethsrc), Filter (Test (Header SDN_Types.EthDst, make_vint ethdst)))
+let make_packet_4 switch port ethsrc ethdst  = 
+  And ((make_packet_3 switch port ethsrc), Test (Header SDN_Types.EthDst, make_vint ethdst))
 
