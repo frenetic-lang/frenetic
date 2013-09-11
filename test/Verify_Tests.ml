@@ -9,21 +9,21 @@ TEST "simple-check" =
 	(make_packet_2 1 1)
 	(make_simple_topology (make_transition (1, 1) (2, 1)))
 	(make_packet_2 2 1)
-	true
+	true 1
 
 TEST "we care about p in (p;t)*" = 
 	verify "we care about p in (p;t)*"
 	(make_packet_2 1 1)
 	(starify Drop (make_transition (1, 1) (2,1)))
 	(make_packet_2 2 1)
-	false
+	false 1
 
 TEST "we love switch 2" = 
 	verify "we love switch 2"
 	  (make_packet_2 1 1)
 	  (starify (Test (Switch, make_vint 2)) (make_transition (1, 1) (2,1)))
 	  (make_packet_2 2 1)
-	  false
+	  false 1
 	
 TEST "neg has no effect" = 
 	let strt = (make_packet_1 1) in
@@ -35,18 +35,18 @@ TEST "neg has no effect" =
 			(Neg (Test (Switch, make_vint 1)))
 			topo)
 		 fnsh
-		 false)
+		 false 1)
 
 TEST "simple-check-false" = 
   verify "are tests even running" 
 	(make_packet_2 1 1)
 	(make_simple_topology (make_transition (1, 1) (2, 1)))
 	(make_packet_2 2 2)
-	false 
+	false 1
 	
-(*
+
 TEST "restrict" = 
-	let pol = (Seq (Test (Header SDN_Types.EthSrc, make_vint 1), Neg (Test (Switch, make_vint 2)))) in
+	let pol = (And (Test (Header SDN_Types.EthSrc, make_vint 1), Neg (Test (Switch, make_vint 2)))) in
 	let tran1 = make_transition (1, 2) (2, 1) in
 	let tran2 = make_transition (2, 3) (3, 2) in
 	let tran3 = make_transition (3, 1) (1, 3) in
@@ -57,11 +57,11 @@ TEST "restrict" =
 	   (make_packet_4 1 2 1 2)
 	   pol_topo
 	   (make_packet_2 2 1)
-	   false)  &&
+	   false 3)  &&
 	  (verify "restrict2"
 		 (make_packet_4 1 3 1 2)
 		 pol_topo
 		 (make_packet_2 3 1)
-		 true)
+		 true 3)
 	  
-*)
+
