@@ -6,7 +6,7 @@ open NetCore_Pattern
 open NetCore_Pretty
 open OUnit
 open ONF_Tests
-(* open Verify_Tests *) (*JNF: Rebecca and Matt, did you forget to commit this file? *)
+open Verify_Tests
 
 let string_of_list f lst = String.concat "," (List.map f lst)
 
