@@ -129,7 +129,8 @@ module Formatting = struct
   (* JNF: YES. This is the Right Way to pretty print. *)
   type context = SEQ | PAR | STAR | NEG | PAREN
 
-  let rec pred (cxt : context) (fmt : formatter) (pr : pred) : unit = match pr with
+  let rec pred (cxt : context) (fmt : formatter) (pr : pred) : unit = 
+    match pr with
     | Drop -> 
       fprintf fmt "@[drop@]"
     | Id -> 
@@ -155,7 +156,8 @@ module Formatting = struct
         | _ -> fprintf fmt "@[(@[%a ; %a@])@]" (pred SEQ) p1 (pred SEQ) p2
        end
 
-  let rec pol (cxt : context) (fmt : formatter) (p : policy) : unit = match p with
+  let rec pol (cxt : context) (fmt : formatter) (p : policy) : unit =
+    match p with
     | Filter pr -> pred cxt fmt pr
     | Mod (h, v) -> 
       fprintf fmt "@[%a <- %a@]" header h VInt.format v
