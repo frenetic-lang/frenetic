@@ -250,10 +250,10 @@ let rec pred_local (pr : K.pred) : local = match pr with
     negate (pred_local p)
   | K.Test (h, v) ->
     ITE (HeaderMap.singleton h v, HeaderValMapSet.singleton id, Action drop)
-  | K.And (pr1, pr2) ->
-    failwith "pred_local doesn't handle And predicates"
   | K.Or (pr1, pr2) ->
-    failwith "pred_local doesn't handle Or predicates"
+    par_local_local (pred_local pr1) (pred_local pr2)
+  | K.And (pr1, pr2) ->
+    seq_local_local (pred_local pr1) (pred_local pr2)
 
 let rec star_local (a:local) : local = match a with 
   | Action s -> 
