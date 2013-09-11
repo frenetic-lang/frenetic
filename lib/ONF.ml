@@ -252,7 +252,7 @@ let rec negate (pred : local) : local = match pred with
 
 let rec pred_local (pr : K.pred) : local = match pr with
   | K.True ->
-    Action (ActSet.singleton K.HeaderMap.empty) (* missing from appendix *)
+    Action (ActSet.singleton id) (* missing from appendix *)
   | K.False ->
     Action drop (* missing from appendix *)
   | K.Neg p ->
@@ -264,13 +264,23 @@ let rec pred_local (pr : K.pred) : local = match pr with
   | K.Or (pr1, pr2) ->
     par_local_local (pred_local pr1) (pred_local pr2)
 
-let rec star_local (a:local) : local = match a with 
-  | Action s -> 
-    a (* TODO: stub *)
-  | ITE(p, s, b) -> 
-    a (* TODO: stub *)
+let rec eq_local (a:local) (b:local) : bool = match a,b with 
+    | Action s1, Action s2 -> 
+      ActSet.equal s1 s2
+    | ITE(p1,s1,b1),ITE(p2,s2,b2) -> 
+      K.HeaderMap.compare Pervasives.compare p1 p2 = 0 && 
+      ActSet.equal s1 s2 &&
+      eq_local b1 b2
+    | _ -> false
 
-and local_normalize (pol : K.policy) : local = match pol with
+let star_local (a:local) : local = 
+  let rec loop (acc:local) : local = 
+    let acc' = par_local_local acc (seq_local_local a acc) in 
+    if eq_local acc acc' then acc 
+    else loop acc' in 
+  loop (Action (ActSet.singleton id))
+ 
+let rec local_normalize (pol : K.policy) : local = match pol with
   | K.Filter pr -> 
     pred_local pr
   | K.Mod (K.Switch, _) ->

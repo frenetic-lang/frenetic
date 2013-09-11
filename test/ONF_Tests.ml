@@ -64,3 +64,19 @@ TEST "same field, two values = drop" =
     (Filter (And (Test (Header SDN.EthSrc, Int48 1L), Test (Header SDN.EthSrc, Int48 0L))))
     (ite (Test (Header SDN.EthSrc, Int48 1L)) (Filter False) (Filter False))
 
+TEST "star id" = 
+  test_compile
+    (Star (Filter True))
+    (Filter True)
+
+TEST "star drop" = 
+  test_compile
+    (Star (Filter False))
+    (Filter True)
+
+TEST "star modify" = 
+  test_compile
+    (Star (Mod (Header SDN.EthSrc, Int48 1L)))
+    (Par (Mod (Header SDN.EthSrc, Int48 1L), Filter True))
+
+
