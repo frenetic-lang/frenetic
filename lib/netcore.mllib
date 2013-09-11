@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 55ec7612e0df1a97ce030f7bc1bba26d)
+# DO NOT EDIT (digest: a42c30e3c0c829df2f33a1c3fc6ba392)
 NetCore_Util
 NetCore_Compiler
 NetCore_Controller
@@ -21,6 +21,7 @@ NetCore_Action
 NetCore_Classifier
 NetCore_Compat
 NetCore_Desugar
+NetCore_Digraph
 NetCore_Gensym
 NetCore_Lexer
 NetCore_Monitoring
