@@ -1,4 +1,5 @@
 open NetCore_Types
+open NetCore_Topology
 
 module W = NetCore_Wildcard
 module P = NetCore_Pattern
@@ -17,7 +18,8 @@ let prOr = List.fold_left (fun pr1 pr2 -> Or(pr1, pr2)) Nothing
 let ingressPort pt = Hdr {P.all with P.ptrnInPort = pt}
 
 let strip_policy ver switches extPorts =
-  ITE(prOr (List.map (fun sw -> (And(prOr (List.map (fun p -> ingressPort (W.WildcardExact (P.Physical p))) (extPorts sw)), OnSwitch sw))) switches), 
+  ITE(prOr (List.map (fun sw -> (And(prOr (List.map (fun p -> ingressPort
+  (W.WildcardExact (P.Physical p))) (extPorts sw)), OnSwitch (Node.id_of_switch sw)))) switches), 
       Action [SwitchAction {id with outPort = P.Here; outDlVlan = Some (Some ver, None)}], 
       Action [SwitchAction {id with outPort = P.Here}])
 

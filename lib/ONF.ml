@@ -275,7 +275,8 @@ let rec eq_local (a:local) (b:local) : bool = match a,b with
 
 let star_local (a:local) : local = 
   let rec loop (acc:local) : local = 
-    let acc' = par_local_local acc (seq_local_local a acc) in 
+    let seq' = seq_local_local acc a in 
+    let acc' = par_local_local acc seq' in 
     if eq_local acc acc' then acc 
     else loop acc' in 
   loop (Action (ActSet.singleton id))
@@ -294,7 +295,10 @@ let rec local_normalize (pol : K.policy) : local = match pol with
   | K.Seq (pol1, pol2) ->
     seq_local_local (local_normalize pol1) (local_normalize pol2)
   | K.Star pol -> 
-    star_local (local_normalize pol)
+    Printf.printf "START \n%!";
+    let res = star_local (local_normalize pol) in 
+    Printf.printf "FINISH \n%!";
+    res
       
 let compile = local_normalize
 

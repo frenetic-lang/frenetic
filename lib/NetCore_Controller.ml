@@ -614,7 +614,7 @@ module MakeConsistent = struct
     Lwt.async (fun () -> switch_thread feats pol_stream topo);
     accept_switches pol_stream topo
 
-  let make_extPorts topo sw = NetCore_Graph.Graph.edge_ports_of_switch topo sw
+  let make_extPorts topo sw = NetCore_Topology.Topology.edge_ports_of_switch topo sw
 
   module GenSym = (* TODO(arjun): consider NetCore_Gensym *)
   struct
@@ -625,9 +625,9 @@ module MakeConsistent = struct
   let rec accept_policies push_pol sugared_pol_stream genSym topo =
     lwt pol = Lwt_stream.next sugared_pol_stream in
     let ver = GenSym.next_val genSym in
-    let switches = NetCore_Graph.Graph.get_switches topo in
-    let int_pol,ext_pol = 
-      match switches with 
+    let switches = NetCore_Topology.Topology.get_switches topo in
+    let int_pol,ext_pol =
+      match switches with
       | [] -> (pol, pol)
       | _ -> gen_update_pols pol ver switches (make_extPorts topo) in
     Queries.stop () >>
