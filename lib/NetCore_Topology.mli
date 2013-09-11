@@ -68,12 +68,18 @@ sig
   val get_switches : t -> V.t list
   val get_switchids : t -> switchId list
   val ports_of_switch : t -> V.t -> portId list
+  val edge_ports_of_switch : t -> V.t -> portId list
   val next_hop : t -> V.t -> portId -> V.t
 
   (* Utility functions *)
+  val shortest_path : t -> V.t -> V.t -> E.t list
   val to_dot : t -> string
   val to_string : t -> string
   val to_mininet : t -> string
+
+  (* Exceptions *)
+  exception NotFound of string
+  exception NoPath of string * string
 end
 
 module Node : NODE

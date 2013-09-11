@@ -80,3 +80,11 @@ struct
       List.fold_left (fun acc e -> add e acc) empty ls
   end
 end
+
+module Int32Ord = struct
+  type t = Int32.t
+  let compare = Pervasives.compare
+end
+
+module Int32Set = Setplus.Make(Int32Ord)
+module Int32Map = Mapplus.Make(Int32Ord)

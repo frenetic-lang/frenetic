@@ -70,12 +70,18 @@ sig
   val get_switches : t -> V.t list
   val get_switchids : t -> switchId list
   val ports_of_switch : t -> V.t -> portId list
+  val edge_ports_of_switch : t -> V.t -> portId list
   val next_hop : t -> V.t -> portId -> V.t
 
   (* Utility functions *)
+  val shortest_path : t -> V.t -> V.t -> E.t list
   val to_dot : t -> string
   val to_string : t -> string
   val to_mininet : t -> string
+
+  (* Exceptions *)
+  exception NotFound of string
+  exception NoPath of string * string
 end
 
 (***** Concrete types for network topology *****)
@@ -174,36 +180,85 @@ module EdgeMap = Mapplus.Make(EdgeOrd)
 
 module Topology =
 struct
-  include Persistent.Digraph.ConcreteBidirectionalLabeled(Node)(Link)
-
+  module G = Persistent.Digraph.ConcreteBidirectionalLabeled(Node)(Link)
+  include G
+  module Dij = Path.Dijkstra(G)(struct
+      type t = int
+      type label = Link.t
+      let weight _ = 1
+      let compare = Pervasives.compare
+      let add = Pervasives.(+)
+      let zero = 0
+  end)
   (* Functions to mimic NetCore's graph interface circa frenetic-lang/frenetic:master
      commit 52f490eb24fd42f427a46fb814cc9bc9341d1318 *)
 
+  exception NotFound of string
+  exception NoPath of string * string
+
+  (* Alias for add_vertex *)
   let add_node (g:t) (n:Node.t) : t =
     add_vertex g n
 
+  (* Add a host, given its name, to the graph *)
   let add_host (g:t) (h:string) : t =
     add_vertex g (Node.Host h)
 
+
+  (* Add a switch (from it's name and id) to the graph *)
   let add_switch (g:t) (s:string) (i:switchId) : t =
     add_vertex g (Node.Switch(s,i))
 
+
+  (* Add an edge between particular ports on two switches *)
   let add_switch_edge (g:t) (s:Node.t) (sp:portId) (d:Node.t) (dp:portId) : t =
     let l = {Link.default with Link.srcport = sp; Link.dstport = dp} in
     add_edge_e g (s,l,d)
 
+
+  (****** Accessors ******)
+  (* Get a list of all the vertices in the graph *)
   let get_vertices (g:t) : (V.t list) =
     fold_vertex (fun v acc -> v::acc) g []
 
+
+  (* Get a list of all the edges in the graph. *)
   let get_edges (g:t) : (E.t list) =
     fold_edges_e (fun e acc -> e::acc) g []
 
-  let get_ports (g:t) (s:Node.t) (d:Node.t) : (portId*portId) =
+
+  (* For a given pair of nodes in the graph, return the list of port pairs that
+     connect them.
+     Raise NotFound if there are the two nodes are not connected *)
+  let get_ports (g:t) (s:Node.t) (d:Node.t) : (portId * portId) =
     let es = find_all_edges g s d in
-    if List.length es = 0 then (0l,0l)
+    if List.length es = 0
+    then raise (NotFound (Printf.sprintf "Can't find %s to get_ports to %s\n"
+                            (Node.to_string s) (Node.to_string d)))
     else let e = List.hd es in
          (Link.srcport e, Link.dstport e)
 
+
+  (* Get a list of the hosts out in the graph. Returns an empty list if
+     there are no hosts.  *)
+  let get_hosts (g:t) : (Node.t list) =
+    fold_vertex (fun v acc -> match v with
+      | Node.Host(_) -> v::acc
+      | _ -> acc
+    ) g []
+
+
+  (* Get a list of the switches out in the graph. Returns an empty list if
+     there are no switches.  *)
+  let get_switches (g:t) : (Node.t list) =
+    fold_vertex (fun v acc -> match v with
+      | Node.Switch(_,_) -> v::acc
+      | _ -> acc
+    ) g []
+
+
+  (* Get a list of the switch IDs in the graph. Returns an empty list if
+     there are no switches.  *)
   let get_switchids (g:t) : (switchId list) =
     fold_vertex (
       fun v acc -> match v with
@@ -211,20 +266,14 @@ struct
         | _ -> acc
     ) g []
 
-  let get_hosts (g:t) : (Node.t list) =
-    fold_vertex (fun v acc -> match v with
-      | Node.Host(_) -> v::acc
-      | _ -> acc
-    ) g []
 
-  let get_switches (g:t) : (Node.t list) =
-    fold_vertex (fun v acc -> match v with
-      | Node.Switch(_,_) -> v::acc
-      | _ -> acc
-    ) g []
-
+  (* For a given node, return all its connected ports.
+     Raise NotFound if the node is not in the graph *)
   let ports_of_switch (g:t) (s:Node.t) : portId list =
-    let ss = succ_e g s in
+    let ss = try (succ_e g s)
+      with Not_found -> raise (NotFound(Printf.sprintf
+                                          "Can't find %s to get ports_of_switch\n"
+                                          (Node.to_string s))) in
     let sports = List.map
       (fun l -> Link.srcport l) ss in
     let ps = pred_e g s in
@@ -232,12 +281,54 @@ struct
       (fun l -> Link.srcport l) ps in
     sports @ pports
 
-  let next_hop (g:t) (n:Node.t) (p:portId) : Node.t =
-    let ss = succ_e g n in
-    let (_,_,d) = List.hd
-      (List.filter (fun e -> Link.srcport e = p) ss) in
-    d
 
+  (* For a given switch, return the ports that are connected to hosts.
+     Raise NotFound if either the node is not in the graph. *)
+  let edge_ports_of_switch (g:t) (s:Node.t) : portId list =
+    let ss = try (succ_e g s)
+      with Not_found -> raise (NotFound(Printf.sprintf
+                                          "Can't find %s to get ports_of_switch\n"
+                                          (Node.to_string s))) in
+    let sports = List.fold_left
+      (fun acc l -> match (Link.dst l) with
+        | Node.Host(_) -> Int32Set.add (Link.srcport l) acc
+        | _ -> acc
+      ) Int32Set.empty ss in
+    let ps = pred_e g s in
+    let pports = List.fold_left
+      (fun acc l -> match (Link.src l) with
+        | Node.Host(_) -> Int32Set.add (Link.dstport l) acc
+        | _ -> acc
+      ) sports ps in
+    Int32Set.elements pports
+
+
+  (* Get the next hop node for a given node and port. Raise NotFound if either
+  the given node is not in the graph, or if the given port is not connected to
+  another node.  *)
+  let next_hop (g:t) (n:Node.t) (p:portId) : Node.t =
+    let ss = try (succ_e g n)
+      with Not_found -> raise (NotFound(Printf.sprintf
+                                          "Can't find %s to get next_hop\n"
+                                          (Node.to_string n))) in
+    let (_,_,d) = try (List.hd
+                         (List.filter (fun e -> Link.srcport e = p) ss))
+      with Failure hd -> raise (NotFound(Printf.sprintf
+                                           "next_hop: Port %ld is not connected\n" p))
+    in d
+
+
+  (* Find the shortest path between two nodes using Dijkstra's algorithm,
+     returning the list of edges making up the path. The implementation is from
+     the ocamlgraph library.
+     Raise NoPath if there is no such path. *)
+  let shortest_path (g:t) (src:Node.t) (dst:Node.t) : E.t list =
+    let p,_ = Dij.shortest_path g src dst in
+    if p = [] then raise (NoPath(Node.to_string src, Node.to_string dst))
+    else p
+
+
+  (* Produce a dot representation of the topology, usable by Graphviz *)
   let to_dot g =
     let edges = get_edges g in
     let es = list_intercalate Link.to_dot "\n" edges in
@@ -245,6 +336,8 @@ struct
 
   let to_string = to_dot
 
+
+  (* Produce a Mininet script that implements the given topology *)
   let to_mininet (g:t) : string =
     (* Load static strings (maybe there's a better way to do this?) *)
     let prologue = load_file "examples/mn_prologue.txt" in
