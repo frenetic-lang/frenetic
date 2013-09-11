@@ -162,15 +162,16 @@ module Sat = struct
         ("TCPDstPort", SFunction(SPacket, SInt))
     ]
 
-  let serialize_program (ZProgram (decls)) = 
+  let serialize_program (ZProgram (decls)) global= 
     Printf.sprintf 
-      "%s\n%s\n%s\n(check-sat)"
+      "%s\n%s\n%s\n%s\n(check-sat)"
       (intercalate serialize_declaration "\n" init_decls)
       (intercalate serialize_declaration "\n" (!fresh_cell))
-      (intercalate serialize_declaration "\n" decls) 
+      (intercalate serialize_declaration "\n" decls)
+      (intercalate serialize_declaration "\n" global)
 
-  let solve prog : bool = 
-    let s = serialize_program prog in 
+  let solve prog global : bool = 
+    let s = serialize_program prog global in 
     let z3_out,z3_in = open_process "z3 -in -smt2 -nw" in 
     let _ = output_string z3_in s in
     let _ = flush z3_in in 
@@ -182,14 +183,103 @@ module Sat = struct
          Buffer.add_char b '\n';
        done
      with End_of_file -> ());
+	(*Printf.eprintf "%s" s;*)
     Buffer.contents b = "sat\n"
 end
 
 module NetKAT_Graph = struct
-  (* open Merlin_Digraph *)
+  open NetCore_Digraph
   open Sat
   open SDN_Types
   open NetKAT_Types
+
+module Node =
+struct
+  type t = VInt.t * VInt.t
+  let compare = Pervasives.compare
+  let to_dot n = Printf.sprintf " we've not yet defined this completely. " 
+  let to_string = to_dot
+end
+
+module Link =
+struct
+  open VInt
+
+  module V = Node
+  type v = Node.t
+  type l = {
+    switchA : VInt.t;
+    portA : VInt.t;
+    switchB : VInt.t;
+    portB : VInt.t;
+  }
+  type t = v * v * l
+
+  let compare = Pervasives.compare
+  let blank = {
+    switchA = Int64 Int64.zero;
+    portA = Int64 Int64.zero;
+    switchB = Int64 Int64.zero;
+    portB = Int64 Int64.zero
+  }
+
+  (* Constructors and mutators *)
+  let mk_edge s d l = (s,d,l)
+
+  (* Accessors *)
+  let src (s,d,l) = s
+  let dst (s,d,l) = d
+  let label (s,d,l) = l
+
+
+  let name (s,d,_) =
+    Printf.sprintf "%s_%s" (Node.to_string s) (Node.to_string d)
+  let string_of_label (s,d, l) =
+    Printf.sprintf "{srcswtch = %Ld; srcprt = %Ld; dstswtch = %Ld; dstprt = %Ld;}"
+      (get_int64 l.switchA) (get_int64 l.portA) (get_int64 l.switchB) (get_int64 l.portB)
+  let to_dot (s, d,l) =
+    let s = Node.to_dot s in
+    let d = Node.to_dot d in
+    Printf.sprintf "%s -> %s [label=\"%s\"]" s d (string_of_label (s,d,l))
+  let to_string = to_dot
+end
+
+module EdgeOrd = struct
+  type t = Link.t
+  let compare = Pervasives.compare
+end
+
+module type Topology_S = sig
+  type t
+  val create : unit -> t
+  val get_vertices : t -> Node.t list
+  val get_edges : t -> Link.t list
+  val add_edge : t -> Link.t -> t
+  val add_edges : t -> Link.t list -> t
+  val add_vertex : t -> Node.t -> t
+  val del_vertex : t -> Node.t -> t
+  val merge : t -> t -> t
+  val incoming : t -> Node.t -> Link.t list
+  val outgoing : t -> Node.t -> Link.t list
+  val to_dotty : string -> t -> string
+end
+
+module Topology : Topology_S = struct
+  include Digraph.Make(Link)
+
+  let to_dotty s g =
+    let es = get_edges g in
+    let strs = NetCore_Util.list_intercalate (fun e ->
+      Link.to_dot e
+    ) "\n" es
+    in
+    Printf.sprintf "digraph %s {\n%s\n}" s strs
+end
+
+
+module EdgeSet = NetCore_Util.Setplus.Make(EdgeOrd)
+
+module EdgeMap = NetCore_Util.Mapplus.Make(EdgeOrd)
 
     (* note: this is brittle *)
     (* assumes input is of the form (p;t)* *)
@@ -199,16 +289,38 @@ module NetKAT_Graph = struct
   (* dummy, waiting for BASU.  BASU!!! *)
   let build_graph a b = 4
 
-  let parse_graph pol = 
-    let rec parse_graph pol = 
+  let assert_vint (vint : VInt.t) : VInt.t = vint
+
+  let parse_graph ptstar = 
+	let graph = Topology.create() in
+    let rec parse_links (pol: policy): Link.t list = 
+	  let assemble switch1 port1 switch2 port2 : Link.t= 
+		let (node1: Node.t) = (assert_vint switch1, assert_vint port1) in
+			 let (node2: Node.t) = (assert_vint switch2, assert_vint port2) in
+			 let (label: Link.l) = {Link.switchA=switch1;
+									Link.portA=port1;
+									Link.switchB=switch2;
+									Link.portB=port2 } in
+			 (node1, node2, label)
+	  in
       match pol with
-	| Seq
-	      (Seq (Seq (Filter (Test (Switch, switch1)), Filter (Test (Header InPort, port1))), 
-	       (Seq (Mod (Switch ,switch2) , Mod (Header InPort, port2)))), t)
-		-> ( (switch1, port1), (switch2, port2))::(parse_graph t)
-	| _ -> failwith "unimplemented" in
-    match pol with
-      | Star (Seq (p, t)) -> parse_graph t
+		| Seq (Seq (Filter (Test (Switch, switch1)), 
+					Filter (Test (Header InPort, port1))),
+			   Seq (Mod (Switch, switch2), Mod (Header InPort, port2)))
+		  -> (assemble switch1 port1 switch2 port2) :: []
+		  
+		| Par
+			(Seq (Seq (Filter (Test (Switch, switch1)), 
+					   Filter (Test (Header InPort, port1))),
+				  Seq (Mod (Switch, switch2), Mod (Header InPort, port2))), t)
+		  -> (assemble switch1 port1 switch2 port2):: (parse_links t)
+		| _ -> failwith "unimplemented"
+
+(*END INNER FUNCTION*)
+
+	in
+    match ptstar with
+      | Star (Seq (p, t)) -> Topology.add_edges graph (parse_links t)
       | _ -> failwith "graph parsing assumes input is of the form (p;t)*"
 
 end
@@ -261,64 +373,77 @@ module Verify = struct
 
   let encode_vint (v: VInt.t): zTerm = TInt (VInt.get_int64 v)
 
+let global = ref []
+
+(* some optimizations to make output more readable may be questionable form. *)
   let rec forwards_pred (pr:pred) (pkt1:zVar) (pkt2: zVar): zFormula =
+	let test_action hdr v pkt = ZEquals (encode_header hdr pkt, encode_vint v) in
     match pr with
       | Drop -> 
-	ZFalse
+		ZFalse
       | Id -> 
-	ZEquals (TVar pkt1, TVar pkt2)
+		if pkt1 = pkt2 then ZTrue else 
+		  ZEquals (TVar pkt1, TVar pkt2)
       | Test (hdr, v) -> 
-	ZAnd [ZEquals (encode_header hdr pkt1, encode_vint v);
-	      ZEquals (TVar pkt1, TVar pkt2)]
-      | Neg p -> 
-	ZNot (forwards_pred p pkt1 pkt2)
+		let hdr_test = test_action hdr v pkt1 in
+		global := (ZEquals (TVar pkt1, TVar pkt2))::!global;
+		hdr_test
+      | Neg p ->
+        ZNot (forwards_pred p pkt1 pkt2)
       | And (p1, p2) -> ZAnd [forwards_pred p1 pkt1 pkt2; 
                               forwards_pred p2 pkt1 pkt2]
       | Or (p1, p2) -> ZOr [forwards_pred p1 pkt1 pkt2;
                             forwards_pred p2 pkt1 pkt2]
-    
+		
   let rec forwards (pol:policy) (pkt1:zVar) (pkt2: zVar): zFormula =
     match pol with
       | Filter pr -> forwards_pred pr pkt1 pkt2
       | Mod (hdr, v) -> 
-	ZAnd [ZEquals (encode_header hdr pkt2, encode_vint v);
-	      equal_field pkt1 pkt2 [hdr]]
+		ZAnd [ZEquals (encode_header hdr pkt2, encode_vint v);
+			  equal_field pkt1 pkt2 [hdr]]
       | Par (p1, p2) -> 
-	ZOr [forwards p1 pkt1 pkt2;
-	     forwards p2 pkt1 pkt2]
+		ZOr [forwards p1 pkt1 pkt2;
+			 forwards p2 pkt1 pkt2]
       | Seq (p1, p2) -> 
-	let pkt' = fresh SPacket in
-	ZAnd [forwards p1 pkt1 pkt';
-	      forwards p2 pkt' pkt2]
-      | Star p1 -> failwith "NetKAT program not in form (p;t)*"
+		let pkt' = fresh SPacket in
+		ZAnd [forwards p1 pkt1 pkt';
+			  forwards p2 pkt' pkt2] 
+	  | Star p1 -> failwith "NetKAT program not in form (p;t)*"
+		
 
+  let rec forwards_star (k:int) p_t_star (pkt1:zVar) (pkt2:zVar) : zFormula = 
+	match p_t_star with 
+	  | (Star (Seq (pol, topo))) -> 
+		if k = 0 then 
+		  ZEquals (TVar pkt1, TVar pkt2)
+		else
+		  let pkt' = fresh SPacket in 
+		  let pkt'' = fresh SPacket in 
+		  ZOr [ ZAnd [ forwards pol pkt1 pkt';
+					   forwards topo pkt' pkt'';
+					   forwards_star (k-1) (Star (Seq (pol, topo))) pkt'' pkt2 ];
+				forwards_star (k-1) (Star (Seq (pol, topo))) pkt1 pkt2 ]
+	  | _ -> failwith "not in form pt* in forwards_star"
 
-  let rec forwards_star (k:int) (pol:policy) (topo:policy) (pkt1:zVar) (pkt2:zVar) : zFormula = 
-    if k = 0 then 
-      ZEquals (TVar pkt1, TVar pkt2)
-    else
-      let pkt' = fresh SPacket in 
-      let pkt'' = fresh SPacket in 
-      ZOr [ ZAnd [ forwards pol pkt1 pkt';
-                   forwards topo pkt' pkt'';
-                   forwards_star (k-1) pol topo pkt'' pkt2 ];
-            forwards_star (k-1) pol topo pkt1 pkt2 ]
 end
-
 (* str: name of your test (unique ID)  
    inp: initial packet
    pol: policy to test
    outp: fully-transformed packet (megatron!)
    oko: optionof bool.  has to be Some.  True if you think it should be satisfiable.
 *)
-let check str inp pol outp (oko : bool option) : bool = 
+let check str inp p_t_star outp (oko : bool option) : bool = 
+  Sat.fresh_cell := []; 
   let x = Sat.fresh Sat.SPacket in 
   let y = Sat.fresh Sat.SPacket in 
+  (*let graph = NetKAT_Graph.parse_graph p_t_star in*)
   let prog = 
     Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards inp x x)
-                 ; Sat.ZAssertDeclare (Verify.forwards_star (* TODO: dummy *) 3 pol (NetKAT_Types.Filter NetKAT_Types.Drop) x y)
-                 ; Sat.ZAssertDeclare (Verify.forwards outp y y) ] in 
-  match oko, Sat.solve prog with 
+                 ; Sat.ZAssertDeclare (Verify.forwards_star 1 p_t_star x y )
+                 ; Sat.ZAssertDeclare (Verify.forwards outp y y) ] in
+  let global_eq =
+    [Sat.ZAssertDeclare (Sat.ZAnd !Verify.global)] in
+  match oko, Sat.solve prog global_eq with 
   | Some ok, sat -> 
     if ok = sat then 
       true
@@ -327,3 +452,4 @@ let check str inp pol outp (oko : bool option) : bool =
   | None, sat -> 
     (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)
 
+(*  let rec forwards_star (k:int) (Star (Seq (pol, topo)) (pkt1:zVar) (pkt2:zVar) : zFormula =  *)
