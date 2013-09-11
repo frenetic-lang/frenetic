@@ -74,9 +74,20 @@ TEST "star drop" =
     (Star (Filter False))
     (Filter True)
 
-TEST "star modify" = 
+TEST "star modify1" = 
   test_compile
     (Star (Mod (Header SDN.EthSrc, Int48 1L)))
     (Par (Mod (Header SDN.EthSrc, Int48 1L), Filter True))
+
+TEST "star modify2" = 
+  test_compile
+    (Star (Par(Mod (Header SDN.EthSrc, Int48 1L),
+	       ite 
+		 (Test (Header SDN.EthSrc, Int48 1L))
+		 (Mod (Header SDN.EthSrc, Int48 2L))
+		 (Mod (Header SDN.EthSrc, Int48 3L)))))
+    (Par (Par(Mod (Header SDN.EthSrc, Int48 2L),
+	      Mod (Header SDN.EthSrc, Int48 2L)), 
+	  Filter True))
 
 
