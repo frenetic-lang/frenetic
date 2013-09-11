@@ -375,29 +375,30 @@ module Verify = struct
 
   let global_bindings = ref []
 
-(* some optimizations to make output more readable may be questionable form. *)
-  let rec forwards_pred (pr:pred) (pkt1:zVar) (pkt2: zVar): zFormula =
-	let test_action hdr v pkt = ZEquals (encode_header hdr pkt, encode_vint v) in
+
+  let rec forwards_pred (pr : pred) (pkt : zVar) : zFormula = 
     match pr with
       | False -> 
 		ZFalse
       | True -> 
-		if pkt1 = pkt2 then ZTrue else 
-		  ZEquals (TVar pkt1, TVar pkt2)
+		ZTrue
       | Test (hdr, v) -> 
-		let hdr_test = test_action hdr v pkt1 in
-		global_bindings := (ZEquals (TVar pkt1, TVar pkt2))::!global_bindings;
-		hdr_test
+		ZEquals (encode_header hdr pkt, encode_vint v)
       | Neg p ->
-        ZNot (forwards_pred p pkt1 pkt2)
-      | And (p1, p2) -> ZAnd [forwards_pred p1 pkt1 pkt2; 
-                              forwards_pred p2 pkt1 pkt2]
-      | Or (p1, p2) -> ZOr [forwards_pred p1 pkt1 pkt2;
-                            forwards_pred p2 pkt1 pkt2]
+        ZNot (forwards_pred p pkt)
+      | And (p1, p2) -> ZAnd [forwards_pred p1 pkt; 
+                              forwards_pred p2 pkt]
+      | Or (p1, p2) -> ZOr [forwards_pred p1 pkt;
+                            forwards_pred p2 pkt]
+	
+
+  let forwards_pred_bind (pr:pred) (pkt1:zVar) (pkt2: zVar): zFormula =
+	global_bindings := (ZEquals (TVar pkt1, TVar pkt2))::!global_bindings;
+	forwards_pred pr pkt1
 		
   let rec forwards (pol:policy) (pkt1:zVar) (pkt2: zVar): zFormula =
     match pol with
-      | Filter pr -> forwards_pred pr pkt1 pkt2
+      | Filter pr -> forwards_pred_bind pr pkt1 pkt2
       | Mod (hdr, v) -> 
 		ZAnd [ZEquals (encode_header hdr pkt2, encode_vint v);
 			  equal_field pkt1 pkt2 [hdr]]
@@ -407,7 +408,7 @@ module Verify = struct
       | Seq (p1, p2) -> 
 		let pkt' = fresh SPacket in
 		ZAnd [forwards p1 pkt1 pkt';
-			  forwards p2 pkt' pkt2] 
+			  forwards p2 pkt' pkt2] 				  
 	  | Star p1 -> failwith "NetKAT program not in form (p;t)*"
 		
 
@@ -438,9 +439,9 @@ let check_specific_k str inp p_t_star outp oko (k : int) : bool =
   let x = Sat.fresh Sat.SPacket in 
   let y = Sat.fresh Sat.SPacket in 
   let prog = 
-    Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards inp x x)
+    Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards_pred inp x)
                  ; Sat.ZAssertDeclare (Verify.forwards_star k p_t_star x y )
-                 ; Sat.ZAssertDeclare (Verify.forwards outp y y) ] in
+                 ; Sat.ZAssertDeclare (Verify.forwards_pred outp y) ] in
   let global_eq =
     [Sat.ZAssertDeclare (Sat.ZAnd !Verify.global_bindings)] in
   match oko, Sat.solve prog global_eq with 

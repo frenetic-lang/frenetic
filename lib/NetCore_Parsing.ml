@@ -116,9 +116,9 @@ let rec compile_top (env : env) = function
     let _ = 
       NetCore_Verify.check str 
       (* TODO: dummy values *) 
+	NetKAT_Types.True
 	(NetKAT_Types.Filter NetKAT_Types.True)
-	(NetKAT_Types.Filter NetKAT_Types.True)
-	(NetKAT_Types.Filter NetKAT_Types.True)
+	NetKAT_Types.True
 	oko in 
     compile_top env exp
   | Include _ -> 
