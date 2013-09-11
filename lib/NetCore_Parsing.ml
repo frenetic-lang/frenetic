@@ -110,15 +110,16 @@ let rec compile_top (env : env) = function
     compile_top (Env.add x (compile env exp) env) rest
   | Main (pos, exp) -> compile env exp
   | Check (pos, str, inp, pol, outp, oko, exp) -> 
-    let pol' = match compile env pol with 
+    let _ = match compile env pol with 
       | Pol pol' -> pol'
       | _ -> failwith "unexpected value" in 
-    NetCore_Verify.check str 
+    let _ = 
+      NetCore_Verify.check str 
       (* TODO: dummy values *) 
-      (NetKAT_Types.Filter NetKAT_Types.Id)
-      (NetKAT_Types.Filter NetKAT_Types.Id)
-      (NetKAT_Types.Filter NetKAT_Types.Id)
-      oko;
+	(NetKAT_Types.Filter NetKAT_Types.True)
+	(NetKAT_Types.Filter NetKAT_Types.True)
+	(NetKAT_Types.Filter NetKAT_Types.True)
+	oko in 
     compile_top env exp
   | Include _ -> 
     failwith "unexpected include"

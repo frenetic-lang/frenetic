@@ -14,7 +14,7 @@ TEST "simple-check" =
 TEST "we care about p in (p;t)*" = 
 	verify "we care about p in (p;t)*"
 	(make_packet_2 1 1)
-	(starify Drop (make_transition (1, 1) (2,1)))
+	(starify False (make_transition (1, 1) (2,1)))
 	(make_packet_2 2 1)
 	false
 

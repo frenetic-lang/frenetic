@@ -1,6 +1,5 @@
 (** NetKAT syntax and semantics. *)
 
-
 (** {2 Headers} 
 
     We use the same packet headers that OpenFlow 1.0 supports. Refer to the
@@ -26,8 +25,8 @@ type header_val = VInt.t
 *)
 
 type pred = 
-  | Drop
-  | Id
+  | True
+  | False
   | Test of header * header_val
   | And of pred*pred
   | Or of pred*pred
@@ -39,6 +38,9 @@ type policy =
   | Par of policy * policy
   | Seq of policy * policy
   | Star of policy
+
+val id : policy
+val drop : policy
 
 (** {2 Packets} 
 

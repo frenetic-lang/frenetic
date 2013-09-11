@@ -17,15 +17,15 @@ let ite (pred : pred) (then_pol : policy) (else_pol : policy) : policy =
   Par (Seq (Filter pred, then_pol), Seq (Filter (Neg pred), else_pol))
 
 TEST "compile drop" =
-  compile (Filter Drop) = (Filter Drop)
+  compile (Filter False) = (Filter False)
 
 TEST "compile test" =
   let pr = Test (Header SDN.EthSrc, Int48 100L) in
-  test_compile (Filter pr) (ite pr (Filter Id) (Filter Drop))
+  test_compile (Filter pr) (ite pr (Filter True) (Filter False))
 
 TEST "compile negation" =
   let pr = Test (Header SDN.EthSrc, Int48 200L) in
-  test_compile (Filter (Neg pr)) (ite pr (Filter Drop) (Filter Id))
+  test_compile (Filter (Neg pr)) (ite pr (Filter False) (Filter True))
 
 TEST "compile negation of sum" =
   let pr = And (Test (Header SDN.EthSrc, Int48 0L), Test (Header SDN.EthDst, Int48 0L)) in
@@ -33,34 +33,34 @@ TEST "compile negation of sum" =
     (Filter (Neg pr))
     (* order flipped, a canonical ordering from to_netkat would be great *)
     (ite (And (Test (Header SDN.EthDst, Int48 0L), Test (Header SDN.EthSrc, Int48 0L)))
-       (Filter Drop)
+       (Filter False)
        (* trivial optimization *)
-       (ite (Test (Header SDN.EthSrc, Int48 0L)) (Filter Id) (Filter Id)))
+       (ite (Test (Header SDN.EthSrc, Int48 0L)) (Filter True) (Filter True)))
 
 (* TODO(arjun): Prove that this is true using the axioms of NetKAT. *)
 TEST "commute test annihilator" =
   test_compile
     (Seq (Mod (Header SDN.EthSrc, Int48 1L), Filter (Test (Header SDN.EthSrc, Int48 0L))))
-    (Filter Drop)
+    (Filter False)
 
 TEST "commute test different fields" =
   test_compile
     (Seq (Mod (Header SDN.EthSrc, Int48 1L), Filter (Test (Header SDN.EthDst, Int48 0L))))
     (ite (Test (Header SDN.EthDst, Int48 0L))
        (Mod (Header SDN.EthSrc, Int48 1L))
-       (Filter Drop))
+       (Filter False))
 
 (* trivial optimization possible *)
 TEST "commute same field" =
   test_compile
     (Seq (Mod (Header SDN.EthSrc, Int48 1L), Filter (Test (Header SDN.EthSrc, Int48 1L))))
-    (ite Id
+    (ite True
        (Mod (Header SDN.EthSrc, Int48 1L))
-       (Filter Drop))
+       (Filter False))
 
 (* trivial optimization possible *)
 TEST "same field, two values = drop" =
   test_compile
     (Filter (And (Test (Header SDN.EthSrc, Int48 1L), Test (Header SDN.EthSrc, Int48 0L))))
-    (ite (Test (Header SDN.EthSrc, Int48 1L)) (Filter Drop) (Filter Drop))
+    (ite (Test (Header SDN.EthSrc, Int48 1L)) (Filter False) (Filter False))
 

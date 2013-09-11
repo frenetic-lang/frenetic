@@ -251,10 +251,10 @@ let rec negate (pred : local) : local = match pred with
       failwith "not a predicate"
 
 let rec pred_local (pr : K.pred) : local = match pr with
-  | K.Drop ->
-    Action drop (* missing from appendix *)
-  | K.Id ->
+  | K.True ->
     Action (ActSet.singleton K.HeaderMap.empty) (* missing from appendix *)
+  | K.False ->
+    Action drop (* missing from appendix *)
   | K.Neg p ->
     negate (pred_local p)
   | K.Test (h, v) ->
@@ -291,7 +291,7 @@ let compile = local_normalize
 let pat_to_netkat pt =
   (* avoid printing trailing K.Id if it is unnecessary *)
   if K.HeaderMap.is_empty pt then
-    K.Id
+    K.True
   else
     let (h, v) = K.HeaderMap.min_binding pt in
     let pt' = K.HeaderMap.remove h pt in
@@ -301,7 +301,7 @@ let pat_to_netkat pt =
 let act_to_netkat (pol : act) : K.policy =
   (* avoid printing trailing K.Id if it is unnecessary *)
   if K.HeaderMap.is_empty pol then
-    K.Filter K.Id
+    K.Filter K.True
   else
     let (h, v) = K.HeaderMap.min_binding pol in
     let pol' = K.HeaderMap.remove h pol in
@@ -311,7 +311,7 @@ let act_to_netkat (pol : act) : K.policy =
 let acts_to_netkat (pol : acts) : K.policy = 
   (* avoid printing trailing K.Drop if it is unnecessary *)
   if ActSet.is_empty pol then
-    K.Filter K.Drop
+    K.Filter K.False
   else
     let f seq pol' = K.Par (act_to_netkat seq, pol') in
     let seq = ActSet.min_elt pol in

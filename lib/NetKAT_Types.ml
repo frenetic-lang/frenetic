@@ -5,8 +5,8 @@ type header =
 type header_val = VInt.t
 
 type pred = 
-  | Drop
-  | Id
+  | True
+  | False
   | Test of header * header_val
   | And of pred*pred
   | Or of pred*pred
@@ -19,6 +19,9 @@ type policy =
   | Seq of policy * policy
   | Star of policy
 
+let id = Filter True
+let drop = Filter False
+
 (* i;(p;t)^*;e 
    where 
    i = t = v | h = v | t <- v | i + i | i ; i
@@ -28,8 +31,8 @@ type policy =
 *)
 
 type header_pred = 
-  | HDrop 
-  | HId
+  | HTrue
+  | HFalse
   | HTest of SDN_Types.field * header_val
   | HNeg of header_pred
   | HAnd of header_pred * header_pred
@@ -86,8 +89,8 @@ module PacketSet = Set.Make (struct
   end)
 
 let rec eval_pred (pkt:packet) (pr:pred) : bool = match pr with
-  | Drop -> false
-  | Id -> true
+  | True -> true
+  | False -> false
   | Test (h, v) -> 
     if HeaderMap.find h pkt.headers = v then
       true
@@ -98,7 +101,11 @@ let rec eval_pred (pkt:packet) (pr:pred) : bool = match pr with
   | Neg pr1 -> not (eval_pred pkt pr1)
 
 let rec eval (pkt:packet) (pol:policy) : PacketSet.t = match pol with
-  | Filter pr -> if eval_pred pkt pr then PacketSet.singleton pkt else PacketSet.empty
+  | Filter pr -> 
+    if eval_pred pkt pr then 
+      PacketSet.singleton pkt 
+    else 
+      PacketSet.empty
   | Mod (h, v) ->
     if HeaderMap.mem h pkt.headers then
       PacketSet.singleton { pkt with headers = HeaderMap.add h v pkt.headers }
@@ -131,10 +138,10 @@ module Formatting = struct
 
   let rec pred (cxt : context) (fmt : formatter) (pr : pred) : unit = 
     match pr with
-    | Drop -> 
-      fprintf fmt "@[drop@]"
-    | Id -> 
-      fprintf fmt "@[id@]"
+    | True -> 
+      fprintf fmt "@[true@]"
+    | False -> 
+      fprintf fmt "@[false@]"
     | (Test (h, v)) -> 
       fprintf fmt "@[%a = %a@]" header h VInt.format v
     | Neg p' -> 
@@ -158,7 +165,8 @@ module Formatting = struct
 
   let rec pol (cxt : context) (fmt : formatter) (p : policy) : unit =
     match p with
-    | Filter pr -> pred cxt fmt pr
+    | Filter pr -> 
+      pred cxt fmt pr
     | Mod (h, v) -> 
       fprintf fmt "@[%a <- %a@]" header h VInt.format v
     | Star p' -> 
