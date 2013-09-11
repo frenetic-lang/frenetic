@@ -373,7 +373,7 @@ module Verify = struct
 
   let encode_vint (v: VInt.t): zTerm = TInt (VInt.get_int64 v)
 
-let global = ref []
+  let global_bindings = ref []
 
 (* some optimizations to make output more readable may be questionable form. *)
   let rec forwards_pred (pr:pred) (pkt1:zVar) (pkt2: zVar): zFormula =
@@ -386,7 +386,7 @@ let global = ref []
 		  ZEquals (TVar pkt1, TVar pkt2)
       | Test (hdr, v) -> 
 		let hdr_test = test_action hdr v pkt1 in
-		global := (ZEquals (TVar pkt1, TVar pkt2))::!global;
+		global_bindings := (ZEquals (TVar pkt1, TVar pkt2))::!global_bindings;
 		hdr_test
       | Neg p ->
         ZNot (forwards_pred p pkt1 pkt2)
@@ -432,17 +432,17 @@ end
    outp: fully-transformed packet (megatron!)
    oko: optionof bool.  has to be Some.  True if you think it should be satisfiable.
 *)
-let check str inp p_t_star outp (oko : bool option) : bool = 
+let check_specific_k str inp p_t_star outp oko (k : int) : bool = 
   Sat.fresh_cell := []; 
+  Verify.global_bindings := [];
   let x = Sat.fresh Sat.SPacket in 
   let y = Sat.fresh Sat.SPacket in 
-  (*let graph = NetKAT_Graph.parse_graph p_t_star in*)
   let prog = 
     Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards inp x x)
-                 ; Sat.ZAssertDeclare (Verify.forwards_star 1 p_t_star x y )
+                 ; Sat.ZAssertDeclare (Verify.forwards_star k p_t_star x y )
                  ; Sat.ZAssertDeclare (Verify.forwards outp y y) ] in
   let global_eq =
-    [Sat.ZAssertDeclare (Sat.ZAnd !Verify.global)] in
+    [Sat.ZAssertDeclare (Sat.ZAnd !Verify.global_bindings)] in
   match oko, Sat.solve prog global_eq with 
   | Some ok, sat -> 
     if ok = sat then 
@@ -452,4 +452,8 @@ let check str inp p_t_star outp (oko : bool option) : bool =
   | None, sat -> 
     (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)
 
-(*  let rec forwards_star (k:int) (Star (Seq (pol, topo)) (pkt1:zVar) (pkt2:zVar) : zFormula =  *)
+let check str inp p_t_star outp (oko : bool option) : bool = 
+ (*let graph = NetKAT_Graph.parse_graph p_t_star in*)
+  (*TODO: use dijkstra*)
+  check_specific_k str inp p_t_star outp oko 1
+

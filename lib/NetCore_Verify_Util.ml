@@ -3,8 +3,8 @@ open NetKAT_Types
 open VInt
 open NetCore_Verify
 
-let verify (description: string) (initial_state: policy) (program: policy) (final_state: policy) (desired_outcome: bool): bool = 
-	check description initial_state program final_state (Some desired_outcome)
+let verify (description: string) (initial_state: policy) (program: policy) (final_state: policy) (desired_outcome: bool) k : bool = 
+	check_specific_k description initial_state program final_state (Some desired_outcome) k
 
 let make_vint v = VInt.Int64 (Int64.of_int v)
 
