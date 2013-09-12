@@ -48,14 +48,12 @@ module Mapplus =
 struct
   module type S = sig
     include Map.S
-    val map : 'a t -> ('a -> 'b) -> 'b t
     val keys : 'a t -> key list
     val values : 'a t -> 'a list
   end
   module Make (Ord:OrderedType) =
   struct
     include Map.Make(Ord)
-    let map f m = fold (fun k v acc -> add k (f v) acc) m empty
     let keys m = let ks,_ = List.split (bindings m) in ks
     let values m = let _,vs = List.split (bindings m) in vs
   end
@@ -82,3 +80,11 @@ struct
       List.fold_left (fun acc e -> add e acc) empty ls
   end
 end
+
+module Int32Ord = struct
+  type t = Int32.t
+  let compare = Pervasives.compare
+end
+
+module Int32Set = Setplus.Make(Int32Ord)
+module Int32Map = Mapplus.Make(Int32Ord)

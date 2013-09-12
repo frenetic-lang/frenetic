@@ -11,9 +11,10 @@ Prerequisites:
 - OCaml 4.0 or higher <http://caml.inria.fr/download.en.html>
 - OPAM <http://opam.ocamlpro.com>
 - The following OCaml libraries, available from OPAM:
-  - cstruct 
+  - cstruct
   - lwt
   - ocamlfind
+  - ocamlgraph
   - openflow
   - oUnit
   - pa_ounit
@@ -21,7 +22,7 @@ Prerequisites:
   Instal them using the following command:
 
   ```
-  $ opam install cstruct lwt ocamlfind ounit pa_ounit
+  $ opam install cstruct lwt ocamlfind ocamlgraph ounit pa_ounit
   ```
 
 - The following OCaml libraries that we recommend you compile from source:
