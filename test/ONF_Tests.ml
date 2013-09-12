@@ -64,6 +64,21 @@ TEST "same field, two values = drop" =
     (Filter (And (Test (Header SDN.EthSrc, Int48 1L), Test (Header SDN.EthSrc, Int48 0L))))
     (ite (Test (Header SDN.EthSrc, Int48 1L)) (Filter False) (Filter False))
 
+
+TEST "par1" = 
+  test_compile
+    (Par(Mod (Header SDN.EthSrc, Int48 1L),
+	 ite 
+	   (Test (Header SDN.EthSrc, Int48 1L))
+	   (Mod (Header SDN.EthSrc, Int48 2L))
+	   (Mod (Header SDN.EthSrc, Int48 3L))))
+    (ite 
+       (Test (Header SDN.EthSrc, Int48 1L))
+       (Par (Mod (Header SDN.EthSrc, Int48 1L),
+	     Mod (Header SDN.EthSrc, Int48 2L)))
+       (Par (Mod (Header SDN.EthSrc, Int48 1L),
+	     Mod (Header SDN.EthSrc, Int48 3L))))
+       
 TEST "star id" = 
   test_compile
     (Star (Filter True))
@@ -77,17 +92,14 @@ TEST "star drop" =
 TEST "star modify1" = 
   test_compile
     (Star (Mod (Header SDN.EthSrc, Int48 1L)))
-    (Par (Mod (Header SDN.EthSrc, Int48 1L), Filter True))
+    (Par (Filter True, Mod (Header SDN.EthSrc, Int48 1L)))
 
-TEST "star modify2" = 
+TEST "star modify2" =
   test_compile
     (Star (Par(Mod (Header SDN.EthSrc, Int48 1L),
-	       ite 
+	       ite
 		 (Test (Header SDN.EthSrc, Int48 1L))
 		 (Mod (Header SDN.EthSrc, Int48 2L))
 		 (Mod (Header SDN.EthSrc, Int48 3L)))))
-    (Par (Par(Mod (Header SDN.EthSrc, Int48 2L),
-	      Mod (Header SDN.EthSrc, Int48 2L)), 
-	  Filter True))
-
+    (Filter False)
 

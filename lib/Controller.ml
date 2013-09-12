@@ -46,9 +46,9 @@ let simpl_flow (p : SDN.pattern) (a : SDN.action) : SDN.flow = {
 (* Prunes out rules that apply to other switches. *)
 let rec local_to_tbl (sw : SDN.fieldVal) (local : ONF.local) : SDN.flowTable =
   match local with
-  | ONF.Action sum -> 
-    [simpl_flow SDN.FieldMap.empty (acts_to_action sum)]
-  | ONF.ITE (if_, then_, else_) ->
+  | [] -> 
+    [] (* TODO (jnf, arjun): is it okay to produce an empty table? *)
+  | (if_, then_)::else_ ->
     (match pred_to_pattern sw if_ with
      | None -> local_to_tbl sw else_
      | Some pat ->

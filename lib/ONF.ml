@@ -1,8 +1,25 @@
+(* metavariable conventions
+  - a, b, c, actions
+  - s, t, u, action sets
+  - x, y, z, patterns
+  - p, q, r, local
+*)
+
 module K = NetKAT_Types
 
-type pat = K.header_val_map
+type pat = K.header_val_map (* f1 = n1 & ... & fk = nk *)
 
-type act = K.header_val_map
+let tru : pat = K.HeaderMap.empty
+
+let is_tru (x:pat) : bool = K.HeaderMap.is_empty x
+
+let rec pat_matches (h : K.header) (v : K.header_val) (pt : pat) : bool =
+  not (K.HeaderMap.mem h pt) || K.HeaderMap.find h pt = v
+
+let rec pat_wildcard (h : K.header) (pt : pat) : pat =
+  K.HeaderMap.remove h pt
+
+type act = K.header_val_map (* f1 := n1; ... ; fk := nk *)
 
 module ActSet = Set.Make (struct
     type t = act
@@ -11,31 +28,66 @@ end)
 
 type acts = ActSet.t
 
-type local =
-  | Action of acts
-  | ITE of pat * acts * local
+type local = (pat * acts) list 
+
+(* ugly printing *)
+let header_val_map_to_string eq sep m = 
+  K.HeaderMap.fold
+    (fun h v acc -> 
+      Printf.sprintf "%s%s%s%s" 
+	(K.string_of_header h) 
+	eq 
+	(K.string_of_vint v) 
+	(if acc = "" then "" else sep ^ acc))
+    m ""
+
+let pat_to_string pt = 
+  if K.HeaderMap.is_empty pt then "true" 
+  else Printf.sprintf "%s" (header_val_map_to_string "=" ", " pt)
+
+let act_to_string a = 
+  if K.HeaderMap.is_empty a then "id"
+  else Printf.sprintf "%s" (header_val_map_to_string ":=" "; " a)
+
+let acts_to_string s = 
+  Printf.sprintf "{%s}"
+    (ActSet.fold
+       (fun a acc -> act_to_string a ^ if acc = "" then "" else ", " ^ acc)
+       s "")
+    
+let rec to_string (p:local) = 
+  match p with 
+    | [] -> 
+      Printf.sprintf "drop"
+    | ((x,s)::q) -> 
+      Printf.sprintf "if %s then %s \nelse %s"
+	(pat_to_string x)
+	(acts_to_string s)
+	(to_string q)
+
+(* constants *)
 
 let id : act = K.HeaderMap.empty
 
 (* there is only one element, and it is the empty sequence of updates *)
-let is_id (pol : acts) : bool =
-  not (ActSet.is_empty pol) && K.HeaderMap.is_empty (ActSet.choose pol)
+let is_id (s : acts) : bool =
+  not (ActSet.is_empty s) && K.HeaderMap.is_empty (ActSet.choose s)
 
 let drop : acts = ActSet.empty
 
-let is_drop (pol : acts) : bool = ActSet.is_empty pol
+let is_drop (s : acts) : bool = ActSet.is_empty s
 
 (* Only used by and_pred *)
 exception Empty_pat
 
 (* map_acts f (act_1 + ... + act_n) = f act_1 + ... + f act_n *)
-let map_acts (f : act -> act) (pol : acts) =
-  let g seq pol' = ActSet.add (f seq) pol' in
-  ActSet.fold g pol drop
+let map_acts (f : act -> act) (s : acts) =
+  let g a s' = ActSet.add (f a) s' in
+  ActSet.fold g s drop
 
-(* Some (pr1 ; pr2) unless the conjunct in empty, in which case, return None. *)
-let rec and_pat (pr1 : pat) (pr2 : pat) : pat option =
-  let f hdr val1 val2 = match (val1, val2) with
+(* Some (x ; y) unless the conjunct is empty, in which case, return None. *)
+let rec and_pat (x : pat) (y : pat) : pat option =
+  let f h vo1 vo2 = match (vo1, vo2) with
     | (Some v1, Some v2) -> 
       if v1 <> v2 then raise Empty_pat else Some v1
     | (Some v1, None) -> 
@@ -45,7 +97,7 @@ let rec and_pat (pr1 : pat) (pr2 : pat) : pat option =
     | (None, None) -> 
       raise Empty_pat in 
   try 
-    Some (K.HeaderMap.merge f pr1 pr2)
+    Some (K.HeaderMap.merge f x y)
   with
     Empty_pat -> None
 
@@ -53,252 +105,170 @@ let rec and_pat (pr1 : pat) (pr2 : pat) : pat option =
 let rec par_acts_acts (s1 : acts) (s2 : acts) : acts = 
   ActSet.union s1 s2
 
-(* Lemma 1: if Y then S + S' else (S + A') = S + (if Y then S' else A')
-
-     if Y then S + S' else (S + A')                      
-   = Y;(S + S') + !Y;(S + A')                            if-then-else
-   = Y;S + !Y;S + Y;S' + !Y;A'                           distributivity
-   = (Y+!Y);S + (Y;S' + !Y;A')                           commutativity
-   = 1;S + (Y;S' + !Y;A')                                excluded middle
-   = S + (Y;S' + !Y;A')                                  *1
-   = S + (if Y then S' else A')                          if-then-else
-   QED
-*)
-
-(* simpl_par_sum_local S A = S + A *)
-let rec simpl_par_acts_local (s : acts) (l : local) : local = match l with
-  (* Case A = S' is trivial *)
-  | Action s' -> Action (par_acts_acts s s')
-  (* Case A = if Y then S' else A'
-
-       if Y then S + S' else [simpl_par_sum_local S A']    RHS below
-     = if Y then S + S' else (S + A')                      induction
-     = S + (if Y then S' else A')                          Lemma 1
-     = S + A                                               substitution
-  *)
-  | ITE (y, s', a') -> ITE (y, par_acts_acts s s', simpl_par_acts_local s a')
-
-(* par_sum_local X S A B = if X then S + A else B *)
-let rec par_acts_local (x : pat) (s : acts) (a : local) (b : local) : local = 
-  match a with
-  (* Case A = S'
-
-       if X then S + S' else B                                        RHS below
-     = if X then S + A else B                                      substitution
-  *)
-  | Action s' -> ITE(x, par_acts_acts s s', b)
-  (* Case A = if Y then S' else A'
-
-       if X; Y then S + S' else [par_sum_local X S A' B]              RHS below
-     = if X; Y then S + S' else if X then S + A' else B               induction
-     = X;Y;(S + S') + !(X;Y);(if X then S + A' else B)             if-then-else
-     = X;Y;(S + S') + (!X+!Y);(if X then S + A' else B)          de Morgans law
-     = X;Y;(S + S') + !X;(if X then S + A' else B)               distributivity
-                    + !Y;(if X then S + A' else B)         
-     = X;Y;(S + S') + !X;B + !Y;(if X then S + A' else B)         contradiction
-     = X;Y;(S + S') + !X;B + !Y;(X;(S+A') + !X;B)                  if-then-else
-     = X;Y;(S + S') + !X;B + !Y;X;(S+A') + !Y;!X;B               distributivity
-     = X;Y;(S + S') + !Y;X;(S+A') + (1+!Y);!X;B                  distributivity
-     = X;Y;(S + S') + !Y;X;(S+A') + !X;B                                    b+1             
-     = if X then Y;(S + S') + !Y;(S + A') else B                   if-then-else
-     = if X then (if Y then S + S' else S + A') else B             if-then-else
-     = if X then (S + if Y then S' else A') else B                      Lemma 1
-     = if X then (S + A) else B                                    substitution
-  *)
-  | ITE (y, s', a') -> 
-    let else_branch = par_acts_local x s a' b in
-    match and_pat x y with
-    | None -> 
-      else_branch
-    | Some x_and_y ->
-      ITE (x_and_y, par_acts_acts s s', else_branch)
-
-(* par_local_local A B = A + B *)
-let rec par_local_local (a : local) (b : local) : local = match (a, b) with
-  (* Immediate *)
-  | (_ , Action s) -> simpl_par_acts_local s a
-  (* Commutativity, then immediate *)
-  | (Action s, _) -> simpl_par_acts_local s b
-  (* Case A = if X then A' else B'
-
-       par_sum_local X A' B (par_local_local B' B)                    RHS below
-     = par_sum_local X A' B (B' + B)                                  induction
-     = if X then A' + B else B' + B                               par_sum_local
-     = (if X then A' else B') + B                                       Lemma 1
-     = A + B                                                       substitution
-  *)
-  | (ITE (x, a', b'), _) ->  par_acts_local x a' b (par_local_local b' b)
-
-(* seq_act H V SEQ = H<-V; SEQ *)
-let seq_act (h : K.header) (v : K.header_val) (seq : act) : act = 
-  if K.HeaderMap.mem h seq then
-    seq
-  else
-    K.HeaderMap.add h v seq
-
-(* commute_acts H V S = H <- V; S *)
-let commute_acts (h : K.header) (v : K.header_val) (s : acts) : acts =
-  map_acts (seq_act h v) s (* distributivity *)
-
-(* pr is a conjunct, so if h is not bound, then it is matches h = v *)
-let rec pat_matches (h : K.header) (v : K.header_val) (pt : pat) : bool =
-  not (K.HeaderMap.mem h pt) || K.HeaderMap.find h pt = v
-
-let rec pat_wildcard (h : K.header) (pt : pat) : pat =
-  K.HeaderMap.remove h pt
-
-(* commute H V P = H<-V; P *)
-let rec commute (h : K.header) (v : K.header_val) (p : local) : local = 
-  match p with
-    | Action s -> Action (commute_acts h v s)
-  (* Case P = if X then S else Q
-
-       H <- V; if X then S else Q
-     = H <- V; (H=V + !H=V); if X then S else Q
-     = H<-V;H=V;if X then S else Q + H<-V;!H=V;if X then S else Q 
-     = CONTINUE
-  *)
-  | ITE (pt, s, pol) ->
-    if not (pat_matches h v pt) then
-      commute h v pol
-    else 
-      ITE (pat_wildcard h pt, commute_acts h v s, commute h v pol)
-
-(* returns a term equivalent to [if pr then pol1 else pol2] *)
-let rec norm_ite (pt : pat) (pol1 : local) (pol2 : local) : local =
-  match pol1 with
-    | Action sum1 -> 
-      ITE (pt, sum1, pol2)
-    | ITE (pt1', sum1', pol1') ->
-      begin match and_pat pt pt1' with
-	| None -> 
-	  norm_ite pt pol1' pol2
-	| Some pt1_and_pt1' -> 
-	  ITE (pt1_and_pt1', sum1', norm_ite pt pol1' pol2)
-      end
-
-let seq_act_local (p1 : act) (p2 : local) : local = 
-  K.HeaderMap.fold commute p1 p2
-
-(* p1; p2 *)
-let seq_acts_local (p1 : acts) (p2 : local) : local = 
-  let lst = ActSet.fold (fun elt lst -> elt :: lst) p1 [] in
-  let rec loop lst = match lst with
+(* simpl_par_acts_local S P = S + P *)
+let rec simpl_par_acts_local (s : acts) (p : local) : local = 
+  match p with 
     | [] -> 
-      Action drop
-    | seq :: lst' ->
-      par_local_local (seq_act_local seq p2) (loop lst') in
-  loop lst
+      [tru, s]
+    | ((x,s')::q) -> 
+      (x, par_acts_acts s s')::simpl_par_acts_local s q
 
-let rec seq_local_local (pol1 : local) (pol2 : local) : local = 
-  match pol1 with
-    | Action sum1 -> 
-      seq_acts_local sum1 pol2
-    | ITE (pred1, sum1, pol1') ->
-      norm_ite pred1 (seq_acts_local sum1 pol2) (seq_local_local pol1' pol2)
+(* par_sum_local X S P Q = if X then S + P else Q *)
+let rec par_acts_local (x : pat) (s : acts) (p : local) (q : local) : local =
+  match p with
+  | [] -> 
+    q
+  | (y, s')::p' ->
+    let q' = par_acts_local x s p' q in
+    begin match and_pat x y with
+      | None ->
+	q'
+      | Some x_and_y ->
+	(x_and_y, par_acts_acts s s')::q'
+    end
 
-(*
-    !(if A then X else IND)
-  = !(A; X + !A; IND)           by definition of if .. then .. else
-  = !(A; X) ; !(!A; IND)        de Morgan's law
+(* par_local_local P Q = P + Q *)
+let rec par_local_local (p : local) (q : local) : local =
+  match (p, q) with
+    | [],_ -> 
+      q
+    | _,[] -> 
+      p
+    | (x1,s1)::p1, (x2,s2)::q2 -> 
+      let s12 = par_acts_acts s1 s2 in
+      let p1q2 = par_local_local p1 q2 in
+      if K.HeaderMap.compare Pervasives.compare x1 x2 = 0 then
+	(x1,s12)::p1q2
+      else
+	let p12 = (x1,s1)::(x2, s2)::p1q2 in 
+	begin match and_pat x1 x2 with
+	  | Some x1_and_x2 ->
+	    (x1_and_x2, par_acts_acts s1 s2)::p12
+	  | None ->
+	    p12
+      end
+  	
+(* seq_act H V A = H<-V; A *)
+let seq_mod_act (h : K.header) (v : K.header_val) (a : act) : act =
+  if K.HeaderMap.mem h a then
+    a
+  else
+    K.HeaderMap.add h v a
 
-  Case X = 1:
+(* seq_mod_acts H V S = H <- V; S *)
+let seq_mod_acts (h : K.header) (v : K.header_val) (s : acts) : acts =
+  map_acts (seq_mod_act h v) s
 
-      !(A; X) ; !(!A; IND)       from above
-    = !(A; 1) ; !(!A; IND)       substitute X = 1
-    = !A; !(!A; IND)             identity
-    = !A; (!!A + !IND)           de Morgan's law
-    = !A; (A + !IND)             double negation
-    = !A; A + !A; !IND           distributivity
-    = 0 + !A; !IND               excluded middle
-    = if A then 0 else 1; !IND   by defn. of if-then-else
+(* seq_mod_local H V P = H<-V; P *)
+let rec seq_mod_local (h : K.header) (v : K.header_val) (p : local) : local =
+  match p with
+    | [] -> 
+      []
+    | (x, s)::p' ->
+      let hvp' = seq_mod_local h v p' in
+      let hvs = seq_mod_acts h v s in
+      if K.HeaderMap.mem h x then
+	if K.HeaderMap.find h x = v then
+	  (pat_wildcard h x, hvs)::hvp'
+	else
+	  hvp'
+      else
+	(x, hvs)::hvp'
+	  
+(* returns a term equivalent to [if pr then pol1 else pol2] *)
+let rec norm_ite (x : pat) (p1 : local) (p2 : local) : local =
+  match p1 with
+    | [] ->
+      (x,drop)::p2
+    | (x1', s1')::p1' ->
+      if x = x1' then
+	(x, s1')::p2
+      else
+	let p12 = norm_ite x p1' p2 in
+	begin match and_pat x x1' with
+	  | None ->
+	    p12
+	  | Some x_and_x1' ->
+	    (x_and_x1', s1')::p12
+	end
 
-    !IND can be normalized by induction and the product can be normalized
-    by the seq_local_local function.
+let seq_act_local (a : act) (p : local) : local =
+  K.HeaderMap.fold seq_mod_local a p
 
-  Case X = 0:
-
-      !(A; X) ; !(!A; IND)       from above
-    = !(A; 0) ; !(!A; IND)       substitute X = 0
-    = !0      ; !(!A; IND)       zero
-    = 1; !(!A; IND)              negation
-    = !(!A; IND)                 identity
-    = !!A + !IND                 de Morgan's law
-    = A + !IND                   double negation
-    = if A then 1 else 0 + !IND  by defn. of if-then-else
-
-    !IND can be normalized by induction and the sum can be normalized
-    by the par_local_local function.
-*)
-let rec negate (pred : local) : local = match pred with
-  | Action sum ->
-    if is_drop sum then
-      Action (ActSet.singleton id)
-    else if is_id sum then
-      Action drop
-    else
-      failwith "not a predicate"
-  | ITE (a, x, ind) ->
-    if is_drop x then
-      par_local_local 
-        (ITE (a, ActSet.singleton id, Action drop))
-        (negate ind)
-    else if is_id x then
+let seq_acts_local (s1 : acts) (p2 : local) : local =
+  ActSet.fold (fun a p -> par_local_local (seq_act_local a p2) p) s1 []
+ 
+let rec seq_local_local (p1 : local) (p2 : local) : local =
+  let res = match p1,p2 with
+    | [],_ | _,[] -> 
+      [] 
+    | (x1, s1)::p1',_ ->
+      norm_ite x1 (seq_acts_local s1 p2) (seq_local_local p1' p2) in
+  Printf.printf "SEQ_LOCAL_LOCAL\n  P1=%s\n  P2=%s\n RES=%s\n%!"
+    (to_string p1) (to_string p2) (to_string res);
+  res
+      
+let rec negate (p : local) : local = match p with
+  | [] -> 
+    [(tru, ActSet.singleton id)]
+  | (x,s)::p' ->
+    if is_id s then
       seq_local_local
-        (ITE (a, drop, Action (ActSet.singleton id)))
-        (negate ind)
-    else
+        ((x, drop)::(tru,ActSet.singleton id)::[])
+        (negate p')
+    else if is_drop s then
+      par_local_local
+        [(x, ActSet.singleton id)]
+        (negate p')
+    else 
       failwith "not a predicate"
 
 let rec pred_local (pr : K.pred) : local = match pr with
   | K.True ->
-    Action (ActSet.singleton id) (* missing from appendix *)
+    [(tru,ActSet.singleton id)]
   | K.False ->
-    Action drop (* missing from appendix *)
+    []
   | K.Neg p ->
     negate (pred_local p)
   | K.Test (h, v) ->
-    ITE (K.HeaderMap.singleton h v, ActSet.singleton id, Action drop)
+    [(K.HeaderMap.singleton h v, ActSet.singleton id)]
   | K.And (pr1, pr2) ->
     seq_local_local (pred_local pr1) (pred_local pr2)
   | K.Or (pr1, pr2) ->
     par_local_local (pred_local pr1) (pred_local pr2)
 
-let rec eq_local (a:local) (b:local) : bool = match a,b with 
-    | Action s1, Action s2 -> 
-      ActSet.equal s1 s2
-    | ITE(p1,s1,b1),ITE(p2,s2,b2) -> 
-      K.HeaderMap.compare Pervasives.compare p1 p2 = 0 && 
-      ActSet.equal s1 s2 &&
-      eq_local b1 b2
-    | _ -> false
+let rec eq_local (p:local) (q:local) : bool = match p,q with
+  | [],[] -> 
+    true
+  | (x1,s1)::p1,(x2,s2)::q2 -> 
+    K.HeaderMap.compare Pervasives.compare x1 x2 = 0 &&
+    ActSet.equal s1 s2 &&
+    eq_local p1 q2
+  | _ -> false
 
-let star_local (a:local) : local = 
-  let rec loop (acc:local) : local = 
-    let seq' = seq_local_local acc a in 
-    let acc' = par_local_local acc seq' in 
-    if eq_local acc acc' then acc 
-    else loop acc' in 
-  loop (Action (ActSet.singleton id))
+let star_local (p:local) : local =
+  Format.printf "STAR\n%s\n%!" (to_string p);
+  let rec loop (acc:local) : local =
+    Format.printf "--- ACC ---\n%s\n%!" (to_string acc);
+    let seq' = seq_local_local acc p in
+    let acc' = par_local_local acc seq' in
+    if eq_local acc acc' then acc
+    else loop acc' in
+  loop [(tru,ActSet.singleton id)]
  
 let rec local_normalize (pol : K.policy) : local = match pol with
-  | K.Filter pr -> 
+  | K.Filter pr ->
     pred_local pr
   | K.Mod (K.Switch, _) ->
     failwith "unexpected Switch in local_normalize"
   | K.Mod (h, v) ->
-    Action (ActSet.singleton (K.HeaderMap.singleton h v))
+    [(tru, ActSet.singleton (K.HeaderMap.singleton h v))]
   | K.Par (pol1, pol2) ->
-    (* In Lemma 30, cases 2--4 p,q should be written using if..then..else
-       shorthand. *)
     par_local_local (local_normalize pol1) (local_normalize pol2)
   | K.Seq (pol1, pol2) ->
     seq_local_local (local_normalize pol1) (local_normalize pol2)
-  | K.Star pol -> 
-    Printf.printf "START \n%!";
-    let res = star_local (local_normalize pol) in 
-    Printf.printf "FINISH \n%!";
-    res
+  | K.Star pol ->
+    star_local (local_normalize pol)
       
 let compile = local_normalize
 
@@ -317,25 +287,25 @@ let act_to_netkat (pol : act) : K.policy =
   if K.HeaderMap.is_empty pol then
     K.Filter K.True
   else
-    let (h, v) = K.HeaderMap.min_binding pol in
+    let (h, v) = K.HeaderMap.max_binding pol in
     let pol' = K.HeaderMap.remove h pol in
     let f h v pol' = K.Seq (K.Mod (h, v), pol') in
     K.HeaderMap.fold f pol' (K.Mod  (h, v))
 
-let acts_to_netkat (pol : acts) : K.policy = 
+let acts_to_netkat (pol : acts) : K.policy =
   (* avoid printing trailing K.Drop if it is unnecessary *)
   if ActSet.is_empty pol then
     K.Filter K.False
   else
     let f seq pol' = K.Par (act_to_netkat seq, pol') in
-    let seq = ActSet.min_elt pol in
+    let seq = ActSet.max_elt pol in
     let pol' = ActSet.remove seq pol in
     ActSet.fold f pol' (act_to_netkat seq)
 
-let rec to_netkat (pol : local) : K.policy = match pol with
-  | Action s -> 
-    acts_to_netkat s
-  | ITE (pred, sum, pol') ->
-    let pr = pat_to_netkat pred in 
-    K.Par (K.Seq (K.Filter pr, acts_to_netkat sum),
-           K.Seq (K.Filter (K.Neg pr), to_netkat pol'))
+let rec to_netkat (p : local) : K.policy = match p with
+  | [] ->
+    K.Filter K.False
+  | (x,s)::p' -> 
+    let pr = pat_to_netkat x in
+    K.Par (K.Seq (K.Filter pr, acts_to_netkat s),
+           K.Seq (K.Filter (K.Neg pr), to_netkat p'))

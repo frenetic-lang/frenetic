@@ -80,6 +80,10 @@ val eval : packet -> policy -> PacketSet.t
 
 (** {2 Utilities} *)
 
+val string_of_header : header -> string
+
+val string_of_vint : VInt.t -> string
+
 val format_policy : Format.formatter -> policy -> unit
 
 val string_of_policy : policy -> string

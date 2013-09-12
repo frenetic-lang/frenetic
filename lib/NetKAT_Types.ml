@@ -199,6 +199,10 @@ let make_string_of formatter x =
   fprintf fmt "@?";
   Buffer.contents buf
 
+let string_of_vint = make_string_of VInt.format 
+
+let string_of_header = make_string_of Formatting.header
+
 let format_policy = Formatting.pol Formatting.PAREN
 
 let string_of_policy = make_string_of format_policy
