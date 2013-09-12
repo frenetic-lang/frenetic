@@ -43,12 +43,10 @@ type acts = ActSet.t
 (** A cascase of [if .. then .. else] expressions nested under the [else]
     branch.
 
-    [local ::= sum | if pred then sum else sum]
+    [local ::= (pat,acts) list]
 
 *)
-type local =
-  | Action of acts
-  | ITE of pat * acts * local
+type local = (pat * acts) list
 
 (** {2 NetKAT Compiler}
 
