@@ -16,6 +16,11 @@ let is_tru (x:pat) : bool = K.HeaderMap.is_empty x
 let rec pat_matches (h : K.header) (v : K.header_val) (pt : pat) : bool =
   not (K.HeaderMap.mem h pt) || K.HeaderMap.find h pt = v
 
+let pat_shadows (x:pat) (y:pat) = 
+  K.HeaderMap.fold 
+    (fun h v b -> b && (not (K.HeaderMap.mem h x) || K.HeaderMap.find h x = v))
+    y true
+
 let rec pat_wildcard (h : K.header) (pt : pat) : pat =
   K.HeaderMap.remove h pt
 
@@ -30,15 +35,32 @@ type acts = ActSet.t
 
 type local = (pat * acts) list 
 
+(* constants *)
+let id : act = K.HeaderMap.empty
+
+let is_id (s : acts) : bool =
+  not (ActSet.is_empty s) && K.HeaderMap.is_empty (ActSet.choose s)
+
+let drop : acts = ActSet.empty
+
+let is_drop (s : acts) : bool = ActSet.is_empty s
+
+(* normalizing constructor *)    
+let mk (x:pat) (s:acts) (p:local) : local = 
+  if is_tru x && is_drop s then 
+    []
+  else
+    (x,s)::List.filter (fun (y,_) -> pat_shadows x y) p  
+
 (* ugly printing *)
 let header_val_map_to_string eq sep m = 
   K.HeaderMap.fold
     (fun h v acc -> 
       Printf.sprintf "%s%s%s%s" 
+	(if acc = "" then "" else acc ^ sep)
 	(K.string_of_header h) 
 	eq 
-	(K.string_of_vint v) 
-	(if acc = "" then "" else sep ^ acc))
+	(K.string_of_vint v))
     m ""
 
 let pat_to_string pt = 
@@ -55,27 +77,18 @@ let acts_to_string s =
        (fun a acc -> act_to_string a ^ if acc = "" then "" else ", " ^ acc)
        s "")
     
-let rec to_string (p:local) = 
-  match p with 
+let to_string (p:local) = 
+  let rec loop (b:bool) = function
     | [] -> 
-      Printf.sprintf "drop"
+      Printf.sprintf "{}"
+    | [(x,s)] when b && is_tru x -> 
+      acts_to_string s
     | ((x,s)::q) -> 
       Printf.sprintf "if %s then %s \nelse %s"
 	(pat_to_string x)
 	(acts_to_string s)
-	(to_string q)
-
-(* constants *)
-
-let id : act = K.HeaderMap.empty
-
-(* there is only one element, and it is the empty sequence of updates *)
-let is_id (s : acts) : bool =
-  not (ActSet.is_empty s) && K.HeaderMap.is_empty (ActSet.choose s)
-
-let drop : acts = ActSet.empty
-
-let is_drop (s : acts) : bool = ActSet.is_empty s
+	(loop true q) in 
+  loop false p
 
 (* Only used by and_pred *)
 exception Empty_pat
@@ -111,7 +124,7 @@ let rec simpl_par_acts_local (s : acts) (p : local) : local =
     | [] -> 
       [tru, s]
     | ((x,s')::q) -> 
-      (x, par_acts_acts s s')::simpl_par_acts_local s q
+      mk x (par_acts_acts s s') (simpl_par_acts_local s q)
 
 (* par_sum_local X S P Q = if X then S + P else Q *)
 let rec par_acts_local (x : pat) (s : acts) (p : local) (q : local) : local =
@@ -124,7 +137,7 @@ let rec par_acts_local (x : pat) (s : acts) (p : local) (q : local) : local =
       | None ->
 	q'
       | Some x_and_y ->
-	(x_and_y, par_acts_acts s s')::q'
+	mk x_and_y (par_acts_acts s s') q'
     end
 
 (* par_local_local P Q = P + Q *)
@@ -134,20 +147,14 @@ let rec par_local_local (p : local) (q : local) : local =
       q
     | _,[] -> 
       p
-    | (x1,s1)::p1, (x2,s2)::q2 -> 
-      let s12 = par_acts_acts s1 s2 in
-      let p1q2 = par_local_local p1 q2 in
-      if K.HeaderMap.compare Pervasives.compare x1 x2 = 0 then
-	(x1,s12)::p1q2
-      else
-	let p12 = (x1,s1)::(x2, s2)::p1q2 in 
-	begin match and_pat x1 x2 with
-	  | Some x1_and_x2 ->
-	    (x1_and_x2, par_acts_acts s1 s2)::p12
-	  | None ->
-	    p12
+    | (x1,s1)::p1,(x2,s2)::q2 -> 
+      begin match and_pat x1 x2 with 
+	| Some x1_and_x2 -> 
+	  mk x1_and_x2 (par_acts_acts s1 s2) (par_local_local p1 q2)
+  	| None -> 
+	  mk x1 s1 (mk x2 s2 (par_local_local p1 q2))
       end
-  	
+
 (* seq_act H V A = H<-V; A *)
 let seq_mod_act (h : K.header) (v : K.header_val) (a : act) : act =
   if K.HeaderMap.mem h a then
@@ -169,27 +176,23 @@ let rec seq_mod_local (h : K.header) (v : K.header_val) (p : local) : local =
       let hvs = seq_mod_acts h v s in
       if K.HeaderMap.mem h x then
 	if K.HeaderMap.find h x = v then
-	  (pat_wildcard h x, hvs)::hvp'
+	  mk (pat_wildcard h x) hvs hvp'
 	else
 	  hvp'
       else
-	(x, hvs)::hvp'
+	mk x hvs hvp'
 	  
 (* returns a term equivalent to [if pr then pol1 else pol2] *)
 let rec norm_ite (x : pat) (p1 : local) (p2 : local) : local =
   match p1 with
     | [] ->
-      (x,drop)::p2
+      mk x drop p2
     | (x1', s1')::p1' ->
-      if x = x1' then
-	(x, s1')::p2
-      else
-	let p12 = norm_ite x p1' p2 in
-	begin match and_pat x x1' with
-	  | None ->
-	    p12
-	  | Some x_and_x1' ->
-	    (x_and_x1', s1')::p12
+      begin match and_pat x x1' with
+	| None ->
+	  norm_ite x p1' p2
+	| Some x_and_x1' ->
+	  mk x_and_x1' s1' (norm_ite x p1' p2)
 	end
 
 let seq_act_local (a : act) (p : local) : local =
@@ -199,14 +202,11 @@ let seq_acts_local (s1 : acts) (p2 : local) : local =
   ActSet.fold (fun a p -> par_local_local (seq_act_local a p2) p) s1 []
  
 let rec seq_local_local (p1 : local) (p2 : local) : local =
-  let res = match p1,p2 with
+  match p1,p2 with
     | [],_ | _,[] -> 
       [] 
     | (x1, s1)::p1',_ ->
-      norm_ite x1 (seq_acts_local s1 p2) (seq_local_local p1' p2) in
-  Printf.printf "SEQ_LOCAL_LOCAL\n  P1=%s\n  P2=%s\n RES=%s\n%!"
-    (to_string p1) (to_string p2) (to_string res);
-  res
+      norm_ite x1 (seq_acts_local s1 p2) (seq_local_local p1' p2) 
       
 let rec negate (p : local) : local = match p with
   | [] -> 
@@ -214,7 +214,7 @@ let rec negate (p : local) : local = match p with
   | (x,s)::p' ->
     if is_id s then
       seq_local_local
-        ((x, drop)::(tru,ActSet.singleton id)::[])
+        (mk x drop (mk tru s []))
         (negate p')
     else if is_drop s then
       par_local_local
@@ -305,6 +305,10 @@ let acts_to_netkat (pol : acts) : K.policy =
 let rec to_netkat (p : local) : K.policy = match p with
   | [] ->
     K.Filter K.False
+  | [(x,s)] -> 
+    if is_id s then K.Filter (pat_to_netkat x)
+    else if is_tru x then acts_to_netkat s
+    else K.Seq (K.Filter (pat_to_netkat x), acts_to_netkat s)
   | (x,s)::p' -> 
     let pr = pat_to_netkat x in
     K.Par (K.Seq (K.Filter pr, acts_to_netkat s),
