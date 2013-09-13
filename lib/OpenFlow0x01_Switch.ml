@@ -1,4 +1,4 @@
-module Socket = Frenetic_Socket
+module Socket = Socket
 module OF = OpenFlow0x01
 module OFC = OpenFlow0x01_Core
 module Message = OF.Message

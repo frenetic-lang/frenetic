@@ -7,7 +7,7 @@
     [PLATFORM]. But, see [NetCore] for a higher-level abstraction.
 *)
 module Log = Lwt_log
-module Socket = Frenetic_Socket
+module Socket = Socket
 module OF = OpenFlow0x01
 module Message = OF.Message
 module Switch = OpenFlow0x01_Switch

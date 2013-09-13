@@ -1,7 +1,7 @@
 # OASIS_START
-# DO NOT EDIT (digest: c4d32106ebe33b9131e0a697acef8c6b)
+# DO NOT EDIT (digest: 84b5c2a2f2c3f2bd4b92f890bc5efbb2)
 VInt
-Frenetic_Socket
+Socket
 OpenFlow0x01
 OpenFlow0x01_Core
 OpenFlow0x01_Stats
@@ -15,7 +15,7 @@ OpenFlow0x04_Switch
 OpenFlow0x01_TxSwitch
 SDN_Types
 SDN
-Frenetic_Misc
+Misc
 ModComposition
 HighLevelSwitch
 HighLevelSwitch0x01

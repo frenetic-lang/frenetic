@@ -1,4 +1,4 @@
-open Frenetic_Socket
+open Socket
 open OpenFlow0x04_Core
 open OpenFlow0x04
 

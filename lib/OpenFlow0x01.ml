@@ -680,8 +680,8 @@ module FlowMod = struct
     (Timeout.to_string m.idle_timeout)
     (Timeout.to_string m.hard_timeout)
     m.notify_when_removed
-    (Frenetic_Misc.string_of_option Int32.to_string m.apply_to_packet)
-    (Frenetic_Misc.string_of_option PseudoPort.to_string m.out_port)
+    (Misc.string_of_option Int32.to_string m.apply_to_packet)
+    (Misc.string_of_option PseudoPort.to_string m.out_port)
     m.check_overlap
 
   let size_of msg =
@@ -869,7 +869,7 @@ module PacketOut = struct
 
   let to_string out = Printf.sprintf
     "{ payload = ...; port_id = %s; actions = %s }"
-    (Frenetic_Misc.string_of_option string_of_portId out.port_id)
+    (Misc.string_of_option string_of_portId out.port_id)
     (Action.sequence_to_string out.apply_actions)
 
   let parse bits = 
@@ -1408,7 +1408,7 @@ module SwitchFeatures = struct
     feats.num_tables
     (Capabilities.to_string feats.supported_capabilities)
     (SupportedActions.to_string feats.supported_actions)
-    (Frenetic_Misc.string_of_list PortDescription.to_string feats.ports)
+    (Misc.string_of_list PortDescription.to_string feats.ports)
 
   let parse (buf : Cstruct.t) : t =
     let switch_id = get_ofp_switch_features_datapath_id buf in
@@ -1747,7 +1747,7 @@ module StatsReply = struct
       stats.byte_count
       (Action.sequence_to_string stats.actions)
 
-    let sequence_to_string = Frenetic_Misc.string_of_list to_string
+    let sequence_to_string = Misc.string_of_list to_string
 
     let _parse_individual_stats bits =
       (* length = flow stats + actions *)
