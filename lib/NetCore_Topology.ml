@@ -322,10 +322,14 @@ struct
      returning the list of edges making up the path. The implementation is from
      the ocamlgraph library.
      Raise NoPath if there is no such path. *)
-  let shortest_path (g:t) (src:Node.t) (dst:Node.t) : E.t list =
+
+  let shortest_path (g:t) (src:Node.t) (dst:Node.t) : E.t list = 
+	let ret,_ = Dij.shortest_path g src dst in ret
+
+(*  let shortest_path (g:t) (src:Node.t) (dst:Node.t) : E.t list =
     let p,_ = Dij.shortest_path g src dst in
     if p = [] then raise (NoPath(Node.to_string src, Node.to_string dst))
-    else p
+    else p *)
 
 
   (* Produce a dot representation of the topology, usable by Graphviz *)
