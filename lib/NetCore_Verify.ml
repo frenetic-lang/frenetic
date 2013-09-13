@@ -215,7 +215,39 @@ module Verify_Graph = struct
 	in
 	List.fold_left longest_shortest_lambda 0 vertices
 
-
+  let unfold_graph graph =
+	let edges = Topology.get_edges graph in
+	let src_port_vals h=
+	  let swSrc =
+	    (match Link.src h with
+		  | Node.Switch (str, id) -> VInt.Int64 id
+		  | _ -> failwith "Switch not in proper form" ) in
+	  let swDst =
+		(match Link.dst h with
+		  | Node.Switch (str, id) -> VInt.Int64 id
+		  | _ -> failwith"Switch not in proper form" ) in
+	  let prtSrc = 
+		let val64 = Int64.of_int32 (Link.srcport h) in
+		VInt.Int64 val64
+	  in
+	  let prtDst = 
+		let val64 = Int64.of_int32 (Link.dstport h) in
+		VInt.Int64 val64 in
+	  (swSrc, prtSrc, swDst, prtDst) in
+	let rec create_pol edgeList =
+	  match edgeList with
+		| h::[] ->
+		  let (swSrc, prtSrc, swDst, prtDst) = src_port_vals h in
+		  Seq ( Seq (Filter (Test (Switch, swSrc)),
+					 Filter (Test( Header S.InPort, prtSrc))),
+				Seq (Mod (Switch, swDst), Mod (Header S.InPort, prtDst)))
+		| h::t -> 
+		  let (swSrc, prtSrc, swDst, prtDst) = src_port_vals h in
+		  Seq ( Seq ( Seq (Filter (Test (Switch, swSrc)), 
+						   Filter (Test (Header SDN_Types.InPort, prtSrc))),
+					  Seq (Mod (Switch, swDst), Mod (Header S.InPort, prtDst))),
+				create_pol t) in
+	create_pol edges
 
   let parse_graph ptstar = 
 	(
