@@ -61,6 +61,7 @@ sig
   val add_host : t -> string -> t
   val add_switch : t -> string -> switchId -> t
   val add_switch_edge : t -> V.t -> portId -> V.t -> portId -> t
+  val add_edges_e : t ->E.t list -> t
 
   (* Accessors *)
   val get_vertices : t -> V.t list
@@ -215,6 +216,8 @@ struct
     let l = {Link.default with Link.srcport = sp; Link.dstport = dp} in
     add_edge_e g (s,l,d)
 
+  let add_edges_e (g:t) (es:E.t list) : t =
+    List.fold_left add_edge_e g es
 
   (****** Accessors ******)
   (* Get a list of all the vertices in the graph *)

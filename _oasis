@@ -28,7 +28,6 @@ Library netcore
     ocamlgraph,
     packet,openflow
   InternalModules:
-    NetCore_Action,
     NetCore_Classifier,
     NetCore_Compat,
     NetCore_Desugar,
@@ -43,6 +42,7 @@ Library netcore
     Controller
   Modules:
     NetCore_Util,
+    NetCore_Action,
     NetCore_Compiler,
     NetCore_Controller,
     NetCore_Controller0x04,
