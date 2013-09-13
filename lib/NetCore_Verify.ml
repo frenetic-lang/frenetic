@@ -202,49 +202,32 @@ module Verify_Graph = struct
   module S = SDN_Types
 
 	
-  (*let longest_shortest graph = 
+  let longest_shortest graph = 
 	let vertices = Topology.get_vertices graph in
 	let longest_shortest_lambda (best_guess : int) vertex : int = 
-	  List.fold_left (fun acc ver2 -> 
-		try 
-		  let edges = Topology.shortest_path graph vertex ver2 in
-		  let length = List.length edges in
-		  (Printf.eprintf "%s" "we do reach this sometimes";
-		   if length > acc then length else acc)
+	  List.fold_left (fun (acc : int) ver2 -> 
+		try
+		  let verts = Topology.shortest_path graph vertex ver2 in
+		  let length = List.length verts in
+		  (if length > acc then length else acc)
 		with _ -> 0
 	  ) 0 vertices
 	in
 	List.fold_left longest_shortest_lambda 0 vertices
-  *)
 
-  let longest_shortest graph = 
-	let vertices = Topology.get_vertices graph in
-	let rec get_longest vertices acc =
-	  match vertices with
-		| [] -> acc
-		| h::t -> 
-		  get_longest t (List.fold_left 
-						   (fun a v -> 
-							 try
-							   let edges = Topology.shortest_path graph v h in
-							   let len = List.length edges in
-							   (Printf.eprintf "%s" "Finally! We have not thrown a no path error";
-							   if len > a then len else a)
-							 with _ -> 0) 0 vertices)
-	in
-	get_longest vertices 0
-
-			
 
 
   let parse_graph ptstar = 
 	(
 	  let graph = Topology.empty in (
 		let rec parse_links (graph: Topology.t) (pol: policy): Topology.t = 
-		  let assemble switch1 (VInt.Int64 port1) switch2 (VInt.Int64 port2) : Topology.t =
-			let (node1: Node.t) = Node.Switch ("fresh tag", VInt.get_int64 switch1) in
-			let (node2: Node.t) = Node.Switch ("fresh tag", VInt.get_int64 switch2) in
-			Topology.add_switch_edge graph node1 (Int64.to_int32 port1) node1 (Int64.to_int32 port2)
+		  let assemble switch1 port1 switch2 port2 : Topology.t =
+			match port1, port2 with 
+			  | VInt.Int64 port1, VInt.Int64 port2 -> 
+				let (node1: Node.t) = Node.Switch ("fresh tag", VInt.get_int64 switch1) in
+				let (node2: Node.t) = Node.Switch ("fresh tag", VInt.get_int64 switch2) in
+				Topology.add_switch_edge graph node1 (Int64.to_int32 port1) node2 (Int64.to_int32 port2)
+			  | _,_ -> failwith "need int64 people"
 		  in
 		  match pol with
 			| Seq (Seq (Filter (Test (Switch, switch1)), 
@@ -398,7 +381,7 @@ let check_specific_k str inp p_t_star outp oko (k : int) : bool =
 
 let check str inp p_t_star outp (oko : bool option) : bool = 
   let res_graph = Verify_Graph.parse_graph p_t_star in
-  Printf.eprintf "%s" (NetCore_Topology.Topology.to_dot res_graph);
+  (*Printf.eprintf "%s" (NetCore_Topology.Topology.to_dot res_graph);*)
   let longest_shortest_path = Verify_Graph.longest_shortest
 	res_graph in
   (*TODO: use dijkstra*)
