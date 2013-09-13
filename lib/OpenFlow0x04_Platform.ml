@@ -11,9 +11,9 @@ let sprintf = Format.sprintf
 
 module type PLATFORM = sig
   exception SwitchDisconnected of switchId 
-  val send_to_switch : switchId -> xid -> message -> unit t
-  val recv_from_switch : switchId -> (xid * message) t
-  val accept_switch : unit -> (features * portDesc list) t
+  val send_to_switch : switchId -> xid -> Message.t -> unit t
+  val recv_from_switch : switchId -> (xid * Message.t) t
+  val accept_switch : unit -> (SwitchFeatures.t * portDesc list) t
 end
 
 module OpenFlowPlatform = struct
@@ -52,32 +52,30 @@ module OpenFlowPlatform = struct
 
   (** Receives an OpenFlow message from a raw file. Does not update
       any controller state. *)
-  let rec recv_from_switch_fd (sock : file_descr) : (xid * message) Lwt.t = 
-    let ofhdr_str = String.create sizeof_ofp_header in
-    lwt b = OpenFlow0x04_Misc.SafeSocket.recv sock ofhdr_str 0 sizeof_ofp_header in 
+  let rec recv_from_switch_fd (sock : file_descr) : (xid * Message.t) Lwt.t = 
+    let ofhdr_str = String.create Message.Header.size in
+    lwt b = OpenFlow0x04_Misc.SafeSocket.recv sock ofhdr_str 0 Message.Header.size in 
     if not b then 
       raise_lwt UnknownSwitchDisconnected
     else  
-      let bits = (Cstruct.of_string ofhdr_str) in
-      let sizeof_body = (get_ofp_header_length bits) - sizeof_ofp_header in
+      let hdr = Message.Header.parse ofhdr_str in
+      let sizeof_body = hdr.Message.Header.len - Message.Header.size in
       let body_str = String.create sizeof_body in
       lwt b = OpenFlow0x04_Misc.SafeSocket.recv sock body_str 0 sizeof_body in 
       if not b then 
 	raise_lwt UnknownSwitchDisconnected
       else
         begin
-          OpenFlow0x04_Misc.Log.printf "[platform] returning message with code %d\n%!" 
-	        (get_ofp_header_typ bits);
-          let bits = Cstruct.of_string (String.concat "" [ofhdr_str; body_str]) in
-	        lwt msg = Lwt.wrap (fun () -> Message.parse bits) in
-        return (get_ofp_header_xid bits, msg)
+          OpenFlow0x04_Misc.Log.printf "[platform] returning message with code %s\n%!" 
+	        (Message.string_of_msg_code hdr.Message.Header.typ);
+	  lwt msg = Lwt.wrap (fun () -> Message.parse hdr body_str) in
+        return msg
         end
   
-  let send_to_switch_fd (sock : file_descr) (xid : xid) (msg : message) = 
+  let send_to_switch_fd (sock : file_descr) (xid : xid) (msg : Message.t) = 
     try_lwt
-      let buf = Cstruct.create (Message.sizeof msg) in
-      lwt len = Lwt.wrap2 Message.marshal buf msg in
-      let out = Cstruct.to_string buf in
+      lwt out = Lwt.wrap2 Message.marshal xid msg in
+      let len = String.length out in
       lwt n = write sock out 0 len in
       if n <> len then
         raise_lwt (Internal "[send_to_switch] not enough bytes written")
@@ -121,7 +119,8 @@ module OpenFlowPlatform = struct
     | None -> 
        ()
 
-  let switch_handshake (fd : file_descr) : (features * portDesc list) Lwt.t = 
+  let switch_handshake (fd : file_descr) : (SwitchFeatures.t * portDesc list) Lwt.t = 
+    let open Message in
     OpenFlow0x04_Misc.Log.printf "[platform] switch_handshake\n%!";
     lwt _ = send_to_switch_fd fd 0l Hello in
     OpenFlow0x04_Misc.Log.printf "[platform] trying to read Hello\n%!";
@@ -134,9 +133,9 @@ module OpenFlowPlatform = struct
         begin
           match msg with
             | FeaturesReply feats ->
-              Hashtbl.add switch_fds feats.datapath_id fd;
+              Hashtbl.add switch_fds feats.SwitchFeatures.datapath_id fd;
               OpenFlow0x04_Misc.Log.printf "[platform] switch %Ld connected\n%!"
-                feats.datapath_id;
+                feats.SwitchFeatures.datapath_id;
               OpenFlow0x04_Misc.Log.printf "[platform] sending Ports Request\n%!";
               lwt _ = send_to_switch_fd fd 0l portsDescRequest in
               lwt (_, msg) = recv_from_switch_fd fd in
@@ -150,7 +149,7 @@ module OpenFlowPlatform = struct
         end 
       | _ -> raise_lwt (Internal "expected Hello")
 
-  let send_to_switch (sw_id : switchId) (xid : xid) (msg : message) : unit t = 
+  let send_to_switch (sw_id : switchId) (xid : xid) (msg : Message.t) : unit t = 
     OpenFlow0x04_Misc.Log.printf "[platform] send_to_switch\n%!";
     let fd = fd_of_switch_id sw_id in
     try_lwt 
@@ -161,7 +160,7 @@ module OpenFlowPlatform = struct
 
   (* By handling echoes here, we do not respond to echoes during the
      handshake. *)
-  let rec recv_from_switch (sw_id : switchId) : (xid * message) t = 
+  let rec recv_from_switch (sw_id : switchId) : (xid * Message.t) t = 
     OpenFlow0x04_Misc.Log.printf "[platform] recv_from_switch\n%!";
     let switch_fd = fd_of_switch_id sw_id in
     lwt (xid, msg) = 
@@ -180,8 +179,8 @@ module OpenFlowPlatform = struct
         OpenFlow0x04_Misc.Log.printf "[platform] other error\n%!";
           raise_lwt exn in 
     match msg with
-      | EchoRequest bytes -> 
-        send_to_switch sw_id xid (EchoReply bytes) >>
+      | Message.EchoRequest bytes -> 
+        send_to_switch sw_id xid (Message.EchoReply bytes) >>
         recv_from_switch sw_id
       | _ -> return (xid, msg)
 

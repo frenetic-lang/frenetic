@@ -25,7 +25,8 @@ Library openflow
     Frenetic_Misc,
     ModComposition,
     HighLevelSwitch,
-    HighLevelSwitch0x01
+    HighLevelSwitch0x01,
+    HighLevelSwitch0x04
   Modules:
     VInt,
     Frenetic_Socket,
@@ -38,6 +39,7 @@ Library openflow
     OpenFlow0x04_Platform,
     OpenFlow0x04_Misc,
     OpenFlow0x01_Switch,
+    OpenFlow0x04_Switch,
     OpenFlow0x01_TxSwitch,
     SDN_Types,
     SDN

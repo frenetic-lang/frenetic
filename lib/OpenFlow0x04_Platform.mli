@@ -22,7 +22,7 @@ module type PLATFORM = sig
 
   (** [send_to_switch switch_id xid msg] sends [msg] to the switch,
       blocking until the send completes. *)
-  val send_to_switch : switchId -> xid -> message -> unit Lwt.t
+  val send_to_switch : switchId -> xid -> Message.t -> unit Lwt.t
 
   (** [recv_from_switch switch_id] blocks until [switch_id] sends a
       message. 
@@ -30,12 +30,12 @@ module type PLATFORM = sig
       If the switch sends an [ECHO_REQUEST], [recv_from_switch] will
       itself respond with an [ECHO_REPLY] and block for the next
       message. *)
-  val recv_from_switch : switchId -> (xid * message) Lwt.t
+  val recv_from_switch : switchId -> (xid * Message.t) Lwt.t
 
   (** [accept_switch] blocks until a switch connects, handles the
       OpenFlow handshake, and returns after the switch sends a
       [FEATURES_REPLY] message. *)
-  val accept_switch : unit -> (features * portDesc list) Lwt.t
+  val accept_switch : unit -> (SwitchFeatures.t * portDesc list) Lwt.t
 
 end
 

@@ -213,20 +213,6 @@ val queue_stats : capabilities -> bool
 
 val port_blocked : capabilities -> bool
 
-type features = { datapath_id : int64; num_buffers : int32;
-                  num_tables : int8; aux_id : int8;
-                  supported_capabilities : capabilities }
-
-val datapath_id : features -> int64
-
-val num_buffers : features -> int32
-
-val num_tables : features -> int8
-
-val aux_id : features -> int8
-
-val supported_capabilities : features -> capabilities
-
 type packetOut = { po_in_port : pseudoPort;
                    po_actions : actionSequence; po_payload : payload }
 
@@ -240,21 +226,3 @@ type multipartRequest =
 
 type multipartReply = 
   | PortsDescReply of portDesc list
-
-type message =
-| Hello
-| EchoRequest of bytes
-| EchoReply of bytes
-| FeaturesRequest
-| FeaturesReply of features
-| FlowModMsg of flowMod
-| GroupModMsg of groupMod
-| PacketInMsg of packetIn
-| PacketOutMsg of packetOut
-| PortStatusMsg of portStatus
-| MultipartReq of multipartRequest
-| MultipartReply of multipartReply
-| BarrierRequest
-| BarrierReply
-
-val portsDescRequest : message

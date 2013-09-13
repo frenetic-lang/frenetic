@@ -19,14 +19,6 @@ type switchId = OpenFlow0x04_Core.switchId
 
 
 (* OKAY *)
-cstruct ofp_header {
-  uint8_t version;    
-  uint8_t typ;   
-  uint16_t length;    
-  uint32_t xid
-} as big_endian
-
-(* OKAY *)
 cenum msg_code {
   HELLO;
   ERROR;
@@ -1162,9 +1154,14 @@ module Capabilities = struct
 
 end
 
-module Features = struct
+module SwitchFeatures = struct
 
-  let parse (bits : Cstruct.t) : features =
+  type t = { datapath_id : int64; num_buffers : int32;
+             num_tables : int8; aux_id : int8;
+             supported_capabilities : capabilities }
+
+
+  let parse (bits : Cstruct.t) : t =
     let datapath_id = get_ofp_switch_features_datapath_id bits in 
     let num_buffers = get_ofp_switch_features_n_buffers bits in
     let num_tables = get_ofp_switch_features_n_tables bits in
@@ -1408,7 +1405,89 @@ end
 
 module Message = struct
 
-  let msg_code_of_message (msg : message) : msg_code = match msg with
+  type t =
+    | Hello
+    | EchoRequest of bytes
+    | EchoReply of bytes
+    | FeaturesRequest
+    | FeaturesReply of SwitchFeatures.t
+    | FlowModMsg of flowMod
+    | GroupModMsg of groupMod
+    | PacketInMsg of packetIn
+    | PacketOutMsg of packetOut
+    | PortStatusMsg of portStatus
+    | MultipartReq of multipartRequest
+    | MultipartReply of multipartReply
+    | BarrierRequest
+    | BarrierReply
+
+
+  let string_of_msg_code (msg : msg_code) : string = match msg with
+    | HELLO -> "HELLO"
+    | ECHO_REQ -> "ECHO_REQ"
+    | ECHO_RESP -> "ECHO_RESP"
+    | FEATURES_REQ -> "FEATURES_REQ"
+    | FEATURES_RESP -> "FEATURES_RESP"
+    | FLOW_MOD -> "FLOW_MOD"
+    | GROUP_MOD -> "GROUP_MOD"
+    | PACKET_IN -> "PACKET_IN"
+    | PACKET_OUT -> "PACKET_OUT"
+    | PORT_STATUS -> "PORT_STATUS"
+    | MULTIPART_REQ -> "MULTIPART_REQ"
+    | MULTIPART_RESP -> "MULTIPART_RESP"
+    | BARRIER_REQ -> "BARRIER_REQ"
+    | BARRIER_RESP -> "BARRIER_RESP"
+
+  module Header = struct
+
+    let ver : int = 0x04
+
+    type t = 
+        { ver : int;
+          typ : msg_code;
+          len : int;
+          xid : int32 }
+
+      (* OKAY *)
+      cstruct ofp_header {
+        uint8_t version;    
+        uint8_t typ;   
+        uint16_t length;    
+        uint32_t xid
+      } as big_endian
+
+    let size = sizeof_ofp_header
+    let size_of _ = size
+    let len hdr = hdr.len
+
+    let marshal hdr out =
+      set_ofp_header_version out hdr.ver;
+      set_ofp_header_typ out (msg_code_to_int hdr.typ);
+      set_ofp_header_length out hdr.len;
+      set_ofp_header_xid out hdr.xid;
+      size_of hdr
+
+    (** [parse buf] assumes that [buf] has size [sizeof_ofp_header]. *)
+    let parse buf_str =
+      let buf = Cstruct.of_string buf_str in
+      { ver = get_ofp_header_version buf;
+        typ = begin match int_to_msg_code (get_ofp_header_typ buf) with
+          | Some typ -> typ
+          | None -> raise (Unparsable "unrecognized message code")
+        end;
+        len = get_ofp_header_length buf;
+        xid = get_ofp_header_xid buf
+      }
+
+    let to_string hdr =
+      Printf.sprintf "{ %d, %s, len = %d, xid = %d }"
+        hdr.ver
+        (string_of_msg_code hdr.typ)
+        hdr.len
+        (Int32.to_int hdr.xid)
+  end
+    
+  let msg_code_of_message (msg : t) : msg_code = match msg with
     | Hello -> HELLO
     | EchoRequest _ -> ECHO_REQ
     | EchoReply _ -> ECHO_RESP
@@ -1424,45 +1503,47 @@ module Message = struct
     | BarrierRequest ->   BARRIER_REQ
     | BarrierReply ->   BARRIER_RESP
 
-  let sizeof (msg : message) : int = match msg with
-    | Hello -> sizeof_ofp_header
-    | EchoRequest bytes -> sizeof_ofp_header + (String.length (Cstruct.to_string bytes))
-    | EchoReply bytes -> sizeof_ofp_header + (String.length (Cstruct.to_string bytes))
-    | FeaturesRequest -> sizeof_ofp_header
-    | FeaturesReply _ -> sizeof_ofp_header + sizeof_ofp_switch_features
-    | FlowModMsg fm -> sizeof_ofp_header + FlowMod.sizeof fm
-    | GroupModMsg gm -> sizeof_ofp_header + GroupMod.sizeof gm
+  let sizeof (msg : t) : int = match msg with
+    | Hello -> Header.size
+    | EchoRequest bytes -> Header.size + (String.length (Cstruct.to_string bytes))
+    | EchoReply bytes -> Header.size + (String.length (Cstruct.to_string bytes))
+    | FeaturesRequest -> Header.size
+    | FeaturesReply _ -> Header.size + sizeof_ofp_switch_features
+    | FlowModMsg fm -> Header.size + FlowMod.sizeof fm
+    | GroupModMsg gm -> Header.size + GroupMod.sizeof gm
     | PacketInMsg _ -> failwith "NYI: sizeof PacketInMsg"
-    | PacketOutMsg po -> sizeof_ofp_header + PacketOut.sizeof po
+    | PacketOutMsg po -> Header.size + PacketOut.sizeof po
     | PortStatusMsg _ -> failwith "NYI: sizeof PortStatusMsg"
-    | MultipartReq req -> sizeof_ofp_header + MultipartReq.sizeof req
+    | MultipartReq req -> Header.size + MultipartReq.sizeof req
     | MultipartReply _ -> failwith "NYI: sizeof MultipartReply"
     | BarrierRequest -> failwith "NYI: sizeof BarrierRequest"
     | BarrierReply -> failwith "NYI: sizeof BarrierReply"
 
-  let marshal (buf : Cstruct.t) (msg : message) : int =
-    let buf2 = (Cstruct.shift buf sizeof_ofp_header) in
-    set_ofp_header_version buf 0x04;
-    set_ofp_header_typ buf (msg_code_to_int (msg_code_of_message msg));
-    set_ofp_header_length buf (sizeof msg);
+  (* let marshal (buf : Cstruct.t) (msg : message) : int = *)
+  (*   let buf2 = (Cstruct.shift buf Header.size) in *)
+  (*   set_ofp_header_version buf 0x04; *)
+  (*   set_ofp_header_typ buf (msg_code_to_int (msg_code_of_message msg)); *)
+  (*   set_ofp_header_length buf (sizeof msg); *)
+
+  let blit_message (msg : t) (out : Cstruct.t) =
     match msg with
       | Hello ->
-        sizeof_ofp_header
-      | EchoRequest bytes 
+        Header.size
+      | EchoRequest bytes
       | EchoReply bytes ->
-        Cstruct.blit_from_string (Cstruct.to_string bytes) 0 buf2 0 (String.length (Cstruct.to_string bytes));
-        sizeof_ofp_header + String.length (Cstruct.to_string bytes)
+        Cstruct.blit_from_string (Cstruct.to_string bytes) 0 out 0 (String.length (Cstruct.to_string bytes));
+        Header.size + String.length (Cstruct.to_string bytes)
       | FeaturesRequest ->
-        sizeof_ofp_header
+        Header.size
       | FeaturesReply _ -> failwith "NYI: marshal FeaturesReply"
       | FlowModMsg fm ->
-	sizeof_ofp_header + FlowMod.marshal buf2 fm
+        Header.size + FlowMod.marshal out fm
       | GroupModMsg gm ->
-        sizeof_ofp_header + GroupMod.marshal buf2 gm
+        Header.size + GroupMod.marshal out gm
       | PacketOutMsg po ->
-        sizeof_ofp_header + PacketOut.marshal buf2 po
+        Header.size + PacketOut.marshal out po
       | MultipartReq mpr ->
-	sizeof_ofp_header + MultipartReq.marshal buf2 mpr
+        Header.size + MultipartReq.marshal out mpr
       | MultipartReply _ -> failwith "NYI: marshal MultipartReply"
       | BarrierRequest -> failwith "NYI: marshal BarrierRequest"
       | BarrierReply -> failwith "NYI: marshal BarrierReply"
@@ -1470,23 +1551,30 @@ module Message = struct
       | PortStatusMsg _ -> failwith "NYI: marshal PortStatusMsg"
 
 
-  let serialize (xid : xid) (msg : message) : string = 
-    let buf = Cstruct.create (sizeof msg) in
-    let _ = set_ofp_header_xid buf xid in
-    let _ = marshal buf msg in
+  let marshal (xid : xid) (msg : t) : string =
+    let hdr = let open Header in
+      {ver = ver; typ = msg_code_of_message msg; len = 0; xid = xid} in
+    let sizeof_buf = Header.size_of hdr + sizeof msg in
+    let hdr = {hdr with Header.len = sizeof_buf} in
+    let buf = Cstruct.create sizeof_buf in
+    let _ = Header.marshal hdr buf in
+    blit_message msg (Cstruct.shift buf (Header.size_of hdr));
     let str = Cstruct.to_string buf in
     str
 
-  let parse (bits : Cstruct.t) =
-    let typ = get_ofp_header_typ bits in
-    let body_bits = Cstruct.shift bits sizeof_ofp_header in
-    match int_to_msg_code typ with
-        | Some HELLO -> Hello
-        | Some ECHO_RESP -> EchoReply body_bits
-        | Some FEATURES_RESP -> FeaturesReply (Features.parse body_bits)
-        | Some PACKET_IN -> PacketInMsg (PacketIn.parse body_bits)
-	| Some ECHO_REQ -> EchoRequest body_bits
-	| Some PORT_STATUS -> PortStatusMsg (PortStatus.parse body_bits)
-	| Some MULTIPART_RESP -> MultipartReply (MultipartReply.parse body_bits)
-        | _ -> raise (Unparsable (Printf.sprintf "unrecognized message code %d" typ))
+  let parse (hdr : Header.t) (body_buf : string) : (xid * t) =
+    let body_bits = Cstruct.of_string body_buf in
+    let typ = hdr.Header.typ in
+    let msg = match typ with
+      | HELLO -> Hello
+      | ECHO_RESP -> EchoReply body_bits
+      | FEATURES_RESP -> FeaturesReply (SwitchFeatures.parse body_bits)
+      | PACKET_IN -> PacketInMsg (PacketIn.parse body_bits)
+      | ECHO_REQ -> EchoRequest body_bits
+      | PORT_STATUS -> PortStatusMsg (PortStatus.parse body_bits)
+      | MULTIPART_RESP -> MultipartReply (MultipartReply.parse body_bits)
+      | code -> raise (Unparsable (Printf.sprintf "unexpected message type %s" (string_of_msg_code typ))) in
+    (hdr.Header.xid, msg)
 end
+
+let portsDescRequest = Message.MultipartReq PortsDescReq

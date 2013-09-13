@@ -329,29 +329,6 @@ let queue_stats x = x.queue_stats
 
 let port_blocked x = x.port_blocked
 
-type features = { datapath_id : int64; num_buffers : int32;
-                  num_tables : int8; aux_id : int8;
-                  supported_capabilities : capabilities }
-
-(** val datapath_id : features -> int64 **)
-
-let datapath_id x = x.datapath_id
-
-(** val num_buffers : features -> int32 **)
-
-let num_buffers x = x.num_buffers
-
-(** val num_tables : features -> int8 **)
-
-let num_tables x = x.num_tables
-
-(** val aux_id : features -> int8 **)
-
-let aux_id x = x.aux_id
-
-(** val supported_capabilities : features -> capabilities **)
-
-let supported_capabilities x = x.supported_capabilities
 
 type packetOut = { po_in_port : pseudoPort;
                    po_actions : actionSequence; po_payload : payload }
@@ -371,21 +348,3 @@ type multipartRequest =
 
 type multipartReply = 
   | PortsDescReply of portDesc list
-
-type message =
-| Hello
-| EchoRequest of bytes
-| EchoReply of bytes
-| FeaturesRequest
-| FeaturesReply of features
-| FlowModMsg of flowMod
-| GroupModMsg of groupMod
-| PacketInMsg of packetIn
-| PacketOutMsg of packetOut
-| PortStatusMsg of portStatus
-| MultipartReq of multipartRequest
-| MultipartReply of multipartReply
-| BarrierRequest
-| BarrierReply
-
-let portsDescRequest = MultipartReq PortsDescReq
