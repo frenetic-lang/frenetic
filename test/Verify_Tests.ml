@@ -8,21 +8,21 @@ TEST "simple-check" =
 	(make_packet_2 1 1)
 	(make_simple_topology (make_transition (1, 1) (2, 1)))
 	(make_packet_2 2 1)
-	true 1
+	true 
 
 TEST "we care about p in (p;t)*" = 
 	verify "we care about p in (p;t)*"
 	(make_packet_2 1 1)
 	(starify False (make_transition (1, 1) (2,1)))
 	(make_packet_2 2 1)
-	false 1
+	false 
 
 TEST "we love switch 2" = 
 	verify "we love switch 2"
 	  (make_packet_2 1 1)
 	  (starify (Test (Switch, make_vint 2)) (make_transition (1, 1) (2,1)))
 	  (make_packet_2 2 1)
-	  false 1
+	  false 
 	
 TEST "neg has no effect" = 
 	let strt = (make_packet_1 1) in
@@ -34,14 +34,14 @@ TEST "neg has no effect" =
 			(Neg (Test (Switch, make_vint 1)))
 			topo)
 		 fnsh
-		 false 1)
+		 false )
 
 TEST "simple-check-false" = 
   verify "are tests even running" 
 	(make_packet_2 1 1)
 	(make_simple_topology (make_transition (1, 1) (2, 1)))
 	(make_packet_2 2 2)
-	false 1
+	false 
 
 
 
@@ -53,18 +53,21 @@ let tran2 = make_transition (2, 1) (3, 1)
 let topo = combine_topologies [tran1; tran2]
 let pol_topo = starify pol topo
 
+  TEST "dijkstra" = 
+  (dijkstra_test topo) = 2
+
   TEST "restrict0" = 
   (verify "restrict0"
 	 (make_packet_4 1 1 1 2)
 	 (make_simple_topology topo)
 	 (make_packet_2 2 1)
-	 true 3)
+	 true )
   TEST "restrict1" = 
   (verify "restrict1"
 	 (make_packet_4 1 1 1 3)
 	 (make_simple_topology topo)
 	 (make_packet_2 3 1)
-	 true 3)
+	 true )
 
 
 	TEST "restrict2" = 
@@ -72,14 +75,14 @@ let pol_topo = starify pol topo
 	 (make_packet_4 1 1 1 3)
 	 pol_topo
 	 (make_packet_2 3 1)
-	 false 3)
+	 false )
 
 	TEST "restrict3" = 
   (verify "restrict3"
 	 (make_packet [])
 	 pol_topo
 	 (make_packet_2 3 1)
-	 true 0)
+	 true )
 
 
 	TEST "restrict4" = 
@@ -87,7 +90,7 @@ let pol_topo = starify pol topo
 	 (make_packet_1 2)
 	 (make_simple_topology topo)
 	 (make_packet_2 3 1)
-	 true 1)
+	 true )
 
 
 
@@ -96,12 +99,12 @@ let pol_topo = starify pol topo
 	 (make_packet_4 1 1 1 2)
 	 pol_topo
 	 (make_packet_2 2 1)
-	 true 3)
+	 true )
 
 	TEST "restrict6" = 
   (verify "restrict6"
 	 (make_packet_2 1 1)
 	 pol_topo
 	 (make_packet_2 3 1)
-	 true 3)
+	 true )
 

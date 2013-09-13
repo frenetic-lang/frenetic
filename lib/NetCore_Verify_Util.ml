@@ -3,8 +3,11 @@ open NetKAT_Types
 open VInt
 open NetCore_Verify
 
-let verify (description: string) (initial_state: pred) (program: policy) (final_state: pred) (desired_outcome: bool) k : bool = 
-	check_specific_k description initial_state program final_state (Some desired_outcome) k
+let verify (description: string) (initial_state: pred) (program: policy) (final_state: pred) (desired_outcome: bool) : bool = 
+	check description initial_state program final_state (Some desired_outcome)
+
+let verify_specific_k (description: string) (initial_state: pred) (program: policy) (final_state: pred) (desired_outcome: bool) k : bool = 
+	check description initial_state program final_state (Some desired_outcome)
 
 let make_vint v = VInt.Int64 (Int64.of_int v)
 
@@ -45,4 +48,6 @@ let make_packet_3 switch port ethsrc  =
 
 let make_packet_4 switch port ethsrc ethdst  = 
   And ((make_packet_3 switch port ethsrc), Test (Header SDN_Types.EthDst, make_vint ethdst))
+
+let dijkstra_test topo = Verify_Graph.longest_shortest (Verify_Graph.parse_graph (make_simple_topology topo))
 

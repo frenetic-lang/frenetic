@@ -196,144 +196,75 @@ module Sat = struct
     Buffer.contents b = "sat\n"
 end
 
-module NetKAT_Graph = struct
-  open NetCore_Digraph
-  open Sat
-  open SDN_Types
+module Verify_Graph = struct
+  open NetCore_Topology
   open NetKAT_Types
+  module S = SDN_Types
 
-module Node =
-struct
-  type t = VInt.t * VInt.t
-  let compare = Pervasives.compare
-  let to_dot n = Printf.sprintf " we've not yet defined this completely. " 
-  let to_string = to_dot
-end
+	
+  (*let longest_shortest graph = 
+	let vertices = Topology.get_vertices graph in
+	let longest_shortest_lambda (best_guess : int) vertex : int = 
+	  List.fold_left (fun acc ver2 -> 
+		try 
+		  let edges = Topology.shortest_path graph vertex ver2 in
+		  let length = List.length edges in
+		  (Printf.eprintf "%s" "we do reach this sometimes";
+		   if length > acc then length else acc)
+		with _ -> 0
+	  ) 0 vertices
+	in
+	List.fold_left longest_shortest_lambda 0 vertices
+  *)
 
-module Link =
-struct
-  open VInt
+  let longest_shortest graph = 
+	let vertices = Topology.get_vertices graph in
+	let rec get_longest vertices acc =
+	  match vertices with
+		| [] -> acc
+		| h::t -> 
+		  get_longest t (List.fold_left 
+						   (fun a v -> 
+							 try
+							   let edges = Topology.shortest_path graph v h in
+							   let len = List.length edges in
+							   (Printf.eprintf "%s" "Finally! We have not thrown a no path error";
+							   if len > a then len else a)
+							 with _ -> 0) 0 vertices)
+	in
+	get_longest vertices 0
 
-  module V = Node
-  type v = Node.t
-  type l = {
-    switchA : VInt.t;
-    portA : VInt.t;
-    switchB : VInt.t;
-    portB : VInt.t;
-  }
-  type t = v * v * l
+			
 
-  let compare = Pervasives.compare
-  let blank = {
-    switchA = Int64 Int64.zero;
-    portA = Int64 Int64.zero;
-    switchB = Int64 Int64.zero;
-    portB = Int64 Int64.zero
-  }
-
-  (* Constructors and mutators *)
-  let mk_edge s d l = (s,d,l)
-
-  (* Accessors *)
-  let src (s,d,l) = s
-  let dst (s,d,l) = d
-  let label (s,d,l) = l
-
-
-  let name (s,d,_) =
-    Printf.sprintf "%s_%s" (Node.to_string s) (Node.to_string d)
-  let string_of_label (s,d, l) =
-    Printf.sprintf "{srcswtch = %Ld; srcprt = %Ld; dstswtch = %Ld; dstprt = %Ld;}"
-      (get_int64 l.switchA) (get_int64 l.portA) (get_int64 l.switchB) (get_int64 l.portB)
-  let to_dot (s, d,l) =
-    let s = Node.to_dot s in
-    let d = Node.to_dot d in
-    Printf.sprintf "%s -> %s [label=\"%s\"]" s d (string_of_label (s,d,l))
-  let to_string = to_dot
-end
-
-module EdgeOrd = struct
-  type t = Link.t
-  let compare = Pervasives.compare
-end
-
-module type Topology_S = sig
-  type t
-  val create : unit -> t
-  val get_vertices : t -> Node.t list
-  val get_edges : t -> Link.t list
-  val add_edge : t -> Link.t -> t
-  val add_edges : t -> Link.t list -> t
-  val add_vertex : t -> Node.t -> t
-  val del_vertex : t -> Node.t -> t
-  val merge : t -> t -> t
-  val incoming : t -> Node.t -> Link.t list
-  val outgoing : t -> Node.t -> Link.t list
-  val to_dotty : string -> t -> string
-end
-
-module Topology : Topology_S = struct
-  include Digraph.Make(Link)
-
-  let to_dotty s g =
-    let es = get_edges g in
-    let strs = NetCore_Util.list_intercalate (fun e ->
-      Link.to_dot e
-    ) "\n" es
-    in
-    Printf.sprintf "digraph %s {\n%s\n}" s strs
-end
-
-
-module EdgeSet = NetCore_Util.Setplus.Make(EdgeOrd)
-
-module EdgeMap = NetCore_Util.Mapplus.Make(EdgeOrd)
-
-    (* note: this is brittle *)
-    (* assumes input is of the form (p;t)* *)
-    (* assumes t is of the form:
-       switch = n, port = m, switch=n', port=m' + t *)
-
-  (* dummy, waiting for BASU.  BASU!!! *)
-  let build_graph a b = 4
-
-  let assert_vint (vint : VInt.t) : VInt.t = vint
 
   let parse_graph ptstar = 
-	let graph = Topology.create() in
-    let rec parse_links (pol: policy): Link.t list = 
-	  let assemble switch1 port1 switch2 port2 : Link.t= 
-		let (node1: Node.t) = (assert_vint switch1, assert_vint port1) in
-			 let (node2: Node.t) = (assert_vint switch2, assert_vint port2) in
-			 let (label: Link.l) = {Link.switchA=switch1;
-									Link.portA=port1;
-									Link.switchB=switch2;
-									Link.portB=port2 } in
-			 (node1, node2, label)
-	  in
-      match pol with
-		| Seq (Seq (Filter (Test (Switch, switch1)), 
-					Filter (Test (Header InPort, port1))),
-			   Seq (Mod (Switch, switch2), Mod (Header InPort, port2)))
-		  -> (assemble switch1 port1 switch2 port2) :: []
-		  
-		| Par
-			(Seq (Seq (Filter (Test (Switch, switch1)), 
-					   Filter (Test (Header InPort, port1))),
-				  Seq (Mod (Switch, switch2), Mod (Header InPort, port2))), t)
-		  -> (assemble switch1 port1 switch2 port2):: (parse_links t)
-		| _ -> failwith "unimplemented"
-
-(*END INNER FUNCTION*)
-
-	in
+	(
+	  let graph = Topology.empty in (
+		let rec parse_links (graph: Topology.t) (pol: policy): Topology.t = 
+		  let assemble switch1 (VInt.Int64 port1) switch2 (VInt.Int64 port2) : Topology.t =
+			let (node1: Node.t) = Node.Switch ("fresh tag", VInt.get_int64 switch1) in
+			let (node2: Node.t) = Node.Switch ("fresh tag", VInt.get_int64 switch2) in
+			Topology.add_switch_edge graph node1 (Int64.to_int32 port1) node1 (Int64.to_int32 port2)
+		  in
+		  match pol with
+			| Seq (Seq (Filter (Test (Switch, switch1)), 
+						Filter (Test (Header S.InPort, port1))),
+				   Seq (Mod (Switch, switch2), Mod (Header S.InPort, port2)))
+			  -> (assemble switch1 port1 switch2 port2)
+			  
+			| Par
+				(Seq (Seq (Filter (Test (Switch, switch1)), 
+						   Filter (Test (Header S.InPort, port1))),
+					  Seq (Mod (Switch, switch2), Mod (Header S.InPort, port2))), t)
+			  -> parse_links (assemble switch1 port1 switch2 port2) t
+			| _ -> failwith "unimplemented"
+		in
     match ptstar with
-      | Star (Seq (p, t)) -> Topology.add_edges graph (parse_links t)
+      | Star (Seq (p, t)) -> parse_links graph t
       | _ -> failwith "graph parsing assumes input is of the form (p;t)*"
-
+	  ))
 end
-
+  
 
 module Verify = struct
   open Sat
@@ -466,7 +397,10 @@ let check_specific_k str inp p_t_star outp oko (k : int) : bool =
     (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)
 
 let check str inp p_t_star outp (oko : bool option) : bool = 
- (*let graph = NetKAT_Graph.parse_graph p_t_star in*)
+  let res_graph = Verify_Graph.parse_graph p_t_star in
+  Printf.eprintf "%s" (NetCore_Topology.Topology.to_dot res_graph);
+  let longest_shortest_path = Verify_Graph.longest_shortest
+	res_graph in
   (*TODO: use dijkstra*)
-  check_specific_k str inp p_t_star outp oko 1
+  check_specific_k str inp p_t_star outp oko longest_shortest_path
 
