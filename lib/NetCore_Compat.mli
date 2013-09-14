@@ -14,7 +14,7 @@ end
 
 module Compat0x04 :
 sig
-  val to_nc_features : OpenFlow0x04_Core.features -> OpenFlow0x04_Core.portDesc list -> NetCore_Types.switchFeatures
+  val to_nc_features : OpenFlow0x04.SwitchFeatures.t -> OpenFlow0x04_Core.portDesc list -> NetCore_Types.switchFeatures
   val flow_table_of_policy : NetCore_Types.switchId -> NetCore_Types.pol -> (OpenFlow0x04_Core.oxmMatch * OpenFlow0x04_Core.action list list) list
 
   val as_actionSequence : NetCore_Types.portId option -> NetCore_Action.Group.t -> OpenFlow0x04_Core.action list list

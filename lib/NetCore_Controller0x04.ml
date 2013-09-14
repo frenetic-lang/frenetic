@@ -85,18 +85,18 @@ module Make (Platform : PLATFORM) = struct
   let configure_switch (sw : switchId) (pol : pol) : unit Lwt.t =
     lwt flow_table = Lwt.wrap2 Compat.flow_table_of_policy sw pol in
     let ft, gt = flowtable_to_group_table flow_table in
-    Platform.send_to_switch sw 0l (FlowModMsg delete_all_flows) >>
+    Platform.send_to_switch sw 0l (Message.FlowModMsg delete_all_flows) >>
     Lwt_list.iter_s
       (fun (gid, actions) ->
          Platform.send_to_switch sw 0l 
-           (GroupModMsg (AddGroup (FF, gid, acts_to_buckets actions))) >>
+           (Message.GroupModMsg (AddGroup (FF, gid, acts_to_buckets actions))) >>
          Lwt.return ())
       gt >>
     let prio = ref 65535 in
     Lwt_list.iter_s
       (fun (match_, actions) ->
          Platform.send_to_switch sw 0l 
-           (FlowModMsg (to_flow_mod !prio match_ actions 0)) >>
+           (Message.FlowModMsg (to_flow_mod !prio match_ actions 0)) >>
          (decr prio; Lwt.return ()))
       ft
 
@@ -156,7 +156,7 @@ module Make (Platform : PLATFORM) = struct
             | acts :: _ -> acts
             | [] -> []
         } in
-      Platform.send_to_switch sw 0l (PacketOutMsg out_payload)  
+      Platform.send_to_switch sw 0l (Message.PacketOutMsg out_payload)  
     with Unparsable _ -> 
       Log.warning_f "unparsable packet"
 
@@ -230,7 +230,7 @@ module Make (Platform : PLATFORM) = struct
         po_in_port = (Controller 0);
         po_actions = [Output (PhysicalPort pt)]
       } in
-      Platform.send_to_switch sw 0l (PacketOutMsg msg) in
+      Platform.send_to_switch sw 0l (Message.PacketOutMsg msg) in
     Lwt_stream.iter_s emit_pkt pkt_stream
 
   let start_controller pkt_stream pol = 
