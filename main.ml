@@ -66,6 +66,7 @@ let _ =
   Printf.printf "Attempting to topology from file: %s\n%!" fname;
   let ast = parse_file Parser.graph fname in
   let topo = topo_from_dot ast in
-  Printf.printf "Topology: \n%s\n" (Topology.to_dot topo);
+  Printf.printf "Dot Topology: \n%s\n" (Topology.to_dot topo);
+  Printf.printf "Mininet Script: \n%s\n" (Topology.to_mininet topo);
   topo
 

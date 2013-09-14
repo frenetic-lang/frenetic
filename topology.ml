@@ -343,8 +343,8 @@ struct
   (* Produce a Mininet script that implements the given topology *)
   let to_mininet (g:t) : string =
     (* Load static strings (maybe there's a better way to do this?) *)
-    let prologue = load_file "examples/mn_prologue.txt" in
-    let epilogue = load_file "examples/mn_epilogue.txt" in
+    let prologue = load_file "static/mn_prologue.txt" in
+    let epilogue = load_file "static/mn_epilogue.txt" in
 
     (* Check if an edge or its reverse has been added already *)
     let seen = ref EdgeSet.empty in
