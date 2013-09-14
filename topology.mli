@@ -1,9 +1,7 @@
 open Util
+open Types
 open Graph
 open Packet
-
-type switchId = int64
-type portId = int32
 
 module type NODE =
 sig
