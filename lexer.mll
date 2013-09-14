@@ -46,12 +46,11 @@
         t in
     raise (Lexing_error s)
 
-  let keywords = Hashtbl.create 25
+  let keywords = Hashtbl.create 10
   let _ =
     List.iter (fun (kw,tok) -> Hashtbl.add keywords kw tok)
       [
-        ("at", fun i -> AT i)
-        ; ("graph", fun i -> GRAPH i)
+        ("graph", fun i -> GRAPH i)
         ; ("sport", fun i -> SPORT i)
         ; ("dport", fun i -> DPORT i)
         ; ("type", fun i -> TYPE i)

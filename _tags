@@ -1,3 +1,3 @@
 <**/*.ml>: package(lwt.unix), package(ocamlgraph), package(lwt.syntax), package(openflow), syntax(camlp4o)
 <**/*.mli>: package(lwt.unix), package(ocamlgraph), package(lwt.syntax), package(openflow), syntax(camlp4o)
-"main.native": package(lwt.unix), package(ocamlgraph)
+"main.native": package(lwt.unix), package(ocamlgraph), package(str)

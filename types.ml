@@ -1,3 +1,4 @@
+open Util
 type info = (int * int) * (int * int)
 
 let string_of_info f ((l1,c1),(l2,c2)) =
@@ -6,6 +7,17 @@ let string_of_info f ((l1,c1),(l2,c2)) =
   else
     Printf.sprintf "File \"%s\", line %d, character %d, to line %d, character %d" f l1 c1 l2 c2
 
+module StringOrd = struct
+  type t = string
+  let compare = Pervasives.compare
+end
+
+module StringSet = Setplus.Make(StringOrd)
+module StringMap = Mapplus.Make(StringOrd)
+
+module Int32Set = Setplus.Make(Int32)
+module Int32Map = Mapplus.Make(Int32)
+module Int64Map = Mapplus.Make(Int64)
 
 type switchId = int64
 type portId = int32
