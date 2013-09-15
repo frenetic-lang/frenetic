@@ -30,12 +30,14 @@ let string_of_rate r =
 
 (* AST for DOT format prior to turning it to a graph *)
 type name = string
+
 type eattr_t =
   | SPort of portId
   | DPort of portId
   | Label of string
   | Cost of int64
   | Capacity of int64
+
 type nattr_t =
   | Kind of string
   | Id of int64
@@ -55,5 +57,8 @@ type nattr = {
 type dotstmt =
 | DotNode of name * nattr
 | DotEdge of name * name * eattr
+| DotDiedge of name * name * eattr
 
-type dotgraph = DotGraph of name * dotstmt list
+type dotgraph =
+  | DotGraph of name * dotstmt list
+  | DotDigraph of name * dotstmt list
