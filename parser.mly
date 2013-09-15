@@ -85,7 +85,7 @@
 %token<Types.info * int32> IPADDR
 %token<Types.info * float> FLOAT
 %token<Types.info * string> STRING IDENT
-%token<Types.info> GRAPH SPORT DPORT TYPE LABEL COST KIND ID CAPACITY
+%token<Types.info> GRAPH DIGRAPH SPORT DPORT TYPE LABEL COST KIND ID CAPACITY
 
 %left BAR
 %left STAR
@@ -102,6 +102,8 @@
 graph:
  | GRAPH IDENT LBRACE stmts RBRACE
      { let _,i = $2 in DotGraph(i, $4) }
+ | DIGRAPH IDENT LBRACE distmts RBRACE
+     { let _,i = $2 in DotDigraph(i, $4) }
 
 stmts:
  | stmt stmts
@@ -110,17 +112,37 @@ stmts:
      { [] }
 
 stmt:
- | dotedge
+ | edge
      { $1 }
- | dotnode
+ | node
      { $1 }
 
-dotedge:
+distmts:
+ | distmt distmts
+     { $1::$2}
+ |
+     { [] }
+
+distmt:
+ | diedge
+     { $1 }
+ | node
+     { $1 }
+
+edge:
  | IDENT MINUS MINUS IDENT eattrls
      {
        let _,s = $1 in
        let _,d = $4 in
        DotEdge (s, d, $5)
+     }
+
+diedge:
+ | IDENT ARROW IDENT eattrls
+     {
+       let _,s = $1 in
+       let _,d = $3 in
+       DotDiedge (s, d, $4)
      }
 
 eattrls:
@@ -168,7 +190,7 @@ rate:
         Int64.mul n  m
       }
 
-dotnode:
+node:
  | IDENT nattrls
      { let _,i = $1 in DotNode(i, $2) }
 

@@ -1,0 +1,5 @@
+digraph g1 {
+h1 -> s1 [sport=0, dport=0, cost=1, capacity=1Gbps]
+h2 -> s1 [sport=0, dport=1, cost=1, capacity=1Gbps]
+s1 -> h3 [sport=2, dport=0, cost=1, capacity=1Gbps]
+}

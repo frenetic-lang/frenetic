@@ -51,6 +51,7 @@
     List.iter (fun (kw,tok) -> Hashtbl.add keywords kw tok)
       [
         ("graph", fun i -> GRAPH i)
+        ; ("digraph", fun i -> DIGRAPH i)
         ; ("sport", fun i -> SPORT i)
         ; ("dport", fun i -> DPORT i)
         ; ("type", fun i -> TYPE i)
