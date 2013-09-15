@@ -1,11 +1,11 @@
 open Util
 type info = (int * int) * (int * int)
 
-let string_of_info f ((l1,c1),(l2,c2)) =
+let string_of_info ((l1,c1),(l2,c2)) =
   if l2=l1 then
-    Printf.sprintf "File \"%s\", line %d, characters %d-%d" f l1 c1 c2
+    Printf.sprintf "line %d, characters %d-%d" l1 c1 c2
   else
-    Printf.sprintf "File \"%s\", line %d, character %d, to line %d, character %d" f l1 c1 l2 c2
+    Printf.sprintf "line %d, character %d, to line %d, character %d" l1 c1 l2 c2
 
 module StringOrd = struct
   type t = string

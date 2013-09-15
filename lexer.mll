@@ -40,8 +40,8 @@
     let i = info lexbuf in
     let t = lexeme lexbuf in
     let s =
-      Printf.sprintf "%s: lexing error %s at %s\n"
-        (string_of_info !filename i)
+      Printf.sprintf "%s %s: lexing error %s at %s\n"
+        !filename (string_of_info i)
         msg
         t in
     raise (Lexing_error s)
