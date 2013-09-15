@@ -48,6 +48,9 @@
    else
      raise Parsing.Parse_error
 
+ let mk_node i =
+     "h" ^ (Int64.to_string i)
+
  let blank_nattr = {
    kind = "host"
    ; id = 0L
@@ -85,7 +88,7 @@
 %token<Types.info * int32> IPADDR
 %token<Types.info * float> FLOAT
 %token<Types.info * string> STRING IDENT
-%token<Types.info> GRAPH DIGRAPH SPORT DPORT TYPE LABEL COST KIND ID CAPACITY
+%token<Types.info> STRICT GRAPH DIGRAPH SPORT DPORT TYPE LABEL COST ID CAPACITY
 
 %left BAR
 %left STAR
@@ -100,10 +103,20 @@
 
 /* ----- DOT GRAPH LANGUAGE SPECIFICATION ----- */
 graph:
- | GRAPH IDENT LBRACE stmts RBRACE
-     { let _,i = $2 in DotGraph(i, $4) }
- | DIGRAPH IDENT LBRACE distmts RBRACE
-     { let _,i = $2 in DotDigraph(i, $4) }
+ | GRAPH name LBRACE stmts RBRACE
+     { DotGraph($2, $4) }
+ | DIGRAPH name LBRACE distmts RBRACE
+     { DotDigraph($2, $4) }
+ | STRICT GRAPH name LBRACE stmts RBRACE
+     { DotGraph($3, $5) }
+ | STRICT DIGRAPH name LBRACE distmts RBRACE
+     { DotDigraph($3, $5) }
+
+name:
+ | IDENT
+     { let _,i = $1 in i}
+ | STRING
+     { let _,i = $1 in i}
 
 stmts:
  | stmt stmts
@@ -112,9 +125,9 @@ stmts:
      { [] }
 
 stmt:
- | edge
+ | edge SEMI
      { $1 }
- | node
+ | node SEMI
      { $1 }
 
 distmts:
@@ -124,9 +137,9 @@ distmts:
      { [] }
 
 distmt:
- | diedge
+ | diedge SEMI
      { $1 }
- | node
+ | node SEMI
      { $1 }
 
 edge:
@@ -136,6 +149,12 @@ edge:
        let _,d = $4 in
        DotEdge (s, d, $5)
      }
+ | INT64 MINUS MINUS INT64 eattrls
+     {
+       let _,s = $1 in
+       let _,d = $4 in
+       DotEdge (mk_node s, mk_node d, $5)
+     }
 
 diedge:
  | IDENT ARROW IDENT eattrls
@@ -143,6 +162,12 @@ diedge:
        let _,s = $1 in
        let _,d = $3 in
        DotDiedge (s, d, $4)
+     }
+ | INT64 ARROW INT64 eattrls
+     {
+       let _,s = $1 in
+       let _,d = $3 in
+       DotDiedge (mk_node s, mk_node d, $4)
      }
 
 eattrls:
@@ -193,6 +218,8 @@ rate:
 node:
  | IDENT nattrls
      { let _,i = $1 in DotNode(i, $2) }
+ | INT64 nattrls
+     { let _,i = $1 in DotNode(mk_node i, $2)}
 
 nattrls:
  | LBRACK nattrs RBRACK
@@ -209,7 +236,7 @@ nattrs:
      { blank_nattr }
 
 nattr:
- | KIND EQUALS STRING
+ | TYPE EQUALS STRING
      { let _,s = $3 in Kind s }
  | ID EQUALS INT64
      { let _,i = $3 in Id i }

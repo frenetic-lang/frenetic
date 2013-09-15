@@ -52,13 +52,13 @@
       [
         ("graph", fun i -> GRAPH i)
         ; ("digraph", fun i -> DIGRAPH i)
+        ; ("strict", fun i -> STRICT i)
         ; ("sport", fun i -> SPORT i)
         ; ("dport", fun i -> DPORT i)
         ; ("type", fun i -> TYPE i)
         ; ("label", fun i -> LABEL i)
         ; ("cost", fun i -> COST i)
         ; ("capacity", fun i -> CAPACITY i)
-        ; ("kind", fun i -> KIND i)
         ; ("id", fun i -> ID i)
       ]
 
