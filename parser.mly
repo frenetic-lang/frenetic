@@ -66,7 +66,7 @@
    ; dport = 0l
    ; label = ""
    ; cost  = 0L
-   ; capacity = Int64.max_int
+   ; capacity = 134217728L
  }
 
  let update_eattr attr a =
