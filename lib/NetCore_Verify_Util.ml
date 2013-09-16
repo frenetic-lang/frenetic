@@ -15,8 +15,8 @@ let verify_specific_k (description: string) (initial_state: pred) (program: poli
 let make_vint v = VInt.Int64 (Int64.of_int v)
 
 let make_transition (switch1, port1) (switch2, port2) : policy = 
-  Seq (Seq (Filter (Test (Switch, make_vint switch1)), Filter (Test (Header SDN_Types.InPort, make_vint port1))), 
-	   (Seq (Mod (Switch ,make_vint switch2) , Mod (Header SDN_Types.InPort, make_vint port2))))
+  Seq (Filter (And (Test (Switch, make_vint switch1), Test (Header SDN_Types.InPort, make_vint port1))), 
+	   Seq (Mod (Switch ,make_vint switch2) , Mod (Header SDN_Types.InPort, make_vint port2)))
 
 let make_simple_topology topo : policy = Star (Seq (Filter True, topo))
 
@@ -59,7 +59,7 @@ let bool_to_predform b = if b then Sat.ZTrue else Sat.ZFalse
 let map_fun pred pkt = 
   Verify.forwards_pred pred pkt
 
-let fold_pred_and pred: (Sat.zVar list -> Sat.zFormula)= 
+let fold_pred_and pred: (Sat.zVar list -> Sat.zFormula) = 
   let ret l = 
 	Sat.ZAnd (List.map (map_fun pred) l)
   in ret
@@ -94,11 +94,18 @@ let fold_pred_and_with_counter (expr : int -> pred) : (Sat.zVar list -> Sat.zFor
   in
   ret
 
-let waypoint_expr waypoint_switchnum : (Sat.zVar list -> Sat.zFormula) = 
+let no_waypoint_expr waypoint_switchnum : (Sat.zVar list -> Sat.zFormula) = 
   let ret history = 
 	Sat.ZNot ((fold_pred_or (Test (Switch, make_vint waypoint_switchnum))) history)
   in 
   ret
+
+let equal_fields fieldname  : (Sat.zVar list -> Sat.zFormula) = 
+  (Verify.equal_single_field fieldname)
+
+let exists_waypoint_in_one_history waypoint_switchnum = 
+  let ret history = 
+	((fold_pred_or (Test (Switch, make_vint waypoint_switchnum))) history) in ret
 
 let noop_expr = 
   let ret history = 
