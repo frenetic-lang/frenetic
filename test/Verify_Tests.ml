@@ -108,3 +108,20 @@ let pol_topo = starify pol topo
 	 (make_packet_2 3 1)
 	 true )
 
+	TEST "restrict6-history" = 
+  (verify_history "restrict6-history"
+	 (make_packet_2 1 1)
+	 pol_topo
+	 noop_expr
+	 (make_packet_2 3 1)
+	 true )
+
+
+	TEST "restrict_waypoint1" = 
+  (verify_history "restrict_waypoint1"
+	 (make_packet_2 1 1)
+	 pol_topo
+	 (waypoint_expr 2)
+	 (make_packet_2 3 1)
+	 true)
+

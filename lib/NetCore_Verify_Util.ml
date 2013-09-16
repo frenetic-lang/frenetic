@@ -6,6 +6,9 @@ open NetCore_Verify
 let verify (description: string) (initial_state: pred) (program: policy) (final_state: pred) (desired_outcome: bool) : bool = 
 	check description initial_state program final_state (Some desired_outcome)
 
+let verify_history (description: string) (initial_state: pred) (program: policy) expr (final_state: pred) (desired_outcome: bool) : bool = 
+	check_with_history description initial_state program expr final_state (Some desired_outcome)
+
 let verify_specific_k (description: string) (initial_state: pred) (program: policy) (final_state: pred) (desired_outcome: bool) k : bool = 
 	check description initial_state program final_state (Some desired_outcome)
 
@@ -51,3 +54,54 @@ let make_packet_4 switch port ethsrc ethdst  =
 
 let dijkstra_test topo = Verify_Graph.longest_shortest (Verify_Graph.parse_graph (make_simple_topology topo))
 
+let bool_to_predform b = if b then Sat.ZTrue else Sat.ZFalse
+
+let map_fun pred pkt = 
+  Verify.forwards_pred pred pkt
+
+let fold_pred_and pred: (Sat.zVar list -> Sat.zFormula)= 
+  let ret l = 
+	Sat.ZAnd (List.map (map_fun pred) l)
+  in ret
+
+let fold_pred_or pred: (Sat.zVar list -> Sat.zFormula) = 
+  let ret l = 
+	Sat.ZOr (List.map (map_fun pred) l)
+  in ret
+
+let matches_history preds : (Sat.zVar list -> Sat.zFormula) = 
+  let ret l =  
+	let rec recr pktl predl =
+	  (match pktl with 
+		| [] -> (match predl with 
+			| [] -> bool_to_predform true
+			| _ -> bool_to_predform false)
+		| hd :: tl -> Sat.ZAnd [(Verify.forwards_pred (List.hd predl) hd); recr tl (List.tl predl) ])
+	in
+	recr l preds
+  in
+  ret
+
+let fold_pred_and_with_counter (expr : int -> pred) : (Sat.zVar list -> Sat.zFormula) = 
+  let ret l = 
+	let rec recr pktl f count = 
+	  match pktl with
+		| hd :: [] -> Verify.forwards_pred (f count) hd
+		| hd :: tl -> Sat.ZAnd [Verify.forwards_pred (f count) hd; recr tl f (count + 1)]
+		| [] -> Sat.ZTrue
+	in
+	recr l expr 0
+  in
+  ret
+
+let waypoint_expr waypoint_switchnum : (Sat.zVar list -> Sat.zFormula) = 
+  let ret history = 
+	Sat.ZNot ((fold_pred_or (Test (Switch, make_vint waypoint_switchnum))) history)
+  in 
+  ret
+
+let noop_expr = 
+  let ret history = 
+	Sat.ZTrue
+  in
+  ret

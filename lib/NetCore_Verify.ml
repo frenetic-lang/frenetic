@@ -246,7 +246,9 @@ module Verify_Graph = struct
 		  Seq ( Seq ( Seq (Filter (Test (Switch, swSrc)), 
 						   Filter (Test (Header SDN_Types.InPort, prtSrc))),
 					  Seq (Mod (Switch, swDst), Mod (Header S.InPort, prtDst))),
-				create_pol t) in
+				create_pol t)
+		| _ -> failwith "non-empty lists only for now."
+ in
 	create_pol edges
 
   let parse_graph ptstar = 
@@ -367,7 +369,7 @@ module Verify = struct
 			  forwards p2 pkt' pkt2] 				  
 	  | Star p1 -> failwith "NetKAT program not in form (p;t)*"
 		
-
+	
   let rec forwards_star (k:int) p_t_star (pkt1:zVar) (pkt2:zVar) : zFormula = 
 	match p_t_star with 
 	  | (Star (Seq (pol, topo))) -> 
@@ -381,15 +383,65 @@ module Verify = struct
 					   forwards_star (k-1) (Star (Seq (pol, topo))) pkt'' pkt2 ];
 				forwards_star (k-1) (Star (Seq (pol, topo))) pkt1 pkt2 ]
 	  | _ -> failwith "not in form pt* in forwards_star"
+		
+  let rec forwards_star_history current_history expr (k:int) p_t_star (pkt1:zVar) (pkt2:zVar) : zFormula = 
+	match p_t_star with 
+	  | (Star (Seq (pol, topo))) -> 
+		if k = 0 then 
+		  ZEquals (TVar pkt1, TVar pkt2)
+		else
+		  let pkt' = fresh SPacket in 
+		  let pkt'' = fresh SPacket in 
+		  ZOr [ ZAnd [ expr current_history;
+					   forwards pol pkt1 pkt';
+					   forwards topo pkt' pkt'';
+					   forwards_star_history (pkt1::current_history) expr (k-1) (Star (Seq (pol, topo))) pkt'' pkt2 ];
+				forwards_star_history current_history expr (k-1) (Star (Seq (pol, topo))) pkt1 pkt2 ]
+			
+	  | _ -> failwith "not in form pt* in forwards_star"
+
 
 end
+
+
+let check_specific_k_history str inp p_t_star expr outp oko (k : int) : bool = 
+  Sat.fresh_cell := []; 
+  Verify.global_bindings := [];
+  let x = Sat.fresh Sat.SPacket in 
+  let y = Sat.fresh Sat.SPacket in 
+  let prog = 
+    Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards_pred inp x)
+                 ; Sat.ZAssertDeclare (Verify.forwards_star_history [] expr k p_t_star x y )
+                 ; Sat.ZAssertDeclare (Verify.forwards_pred outp y) ] in
+  let global_eq =
+	match !Verify.global_bindings with
+	  | [] -> []
+	  | _ -> [Sat.ZAssertDeclare (Sat.ZAnd !Verify.global_bindings)] in
+  match oko, Sat.solve prog global_eq with 
+  | Some ok, sat -> 
+    if ok = sat then 
+      true
+    else
+      (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; false)
+  | None, sat -> 
+    (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)
+
+let check_with_history str inp p_t_star expr outp (oko : bool option) : bool = 
+  let res_graph = Verify_Graph.parse_graph p_t_star in
+  (*Printf.eprintf "%s" (NetCore_Topology.Topology.to_dot res_graph);*)
+  let longest_shortest_path = Verify_Graph.longest_shortest
+	res_graph in
+  check_specific_k_history str inp p_t_star expr outp oko longest_shortest_path
+
+
+
 (* str: name of your test (unique ID)  
    inp: initial packet
    pol: policy to test
-   outp: fully-transformed packet (megatron!)
-   oko: optionof bool.  has to be Some.  True if you think it should be satisfiable.
+   outp: fully-transformed packet 
+   oko: bool option.  has to be Some.  True if you think it should be satisfiable.
 *)
-let check_specific_k str inp p_t_star outp oko (k : int) : bool = 
+let check_specific_k str inp p_t_star (outp : NetKAT_Types.pred) oko (k : int) : bool = 
   Sat.fresh_cell := []; 
   Verify.global_bindings := [];
   let x = Sat.fresh Sat.SPacket in 
@@ -410,6 +462,7 @@ let check_specific_k str inp p_t_star outp oko (k : int) : bool =
       (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; false)
   | None, sat -> 
     (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)
+
 
 let check str inp p_t_star outp (oko : bool option) : bool = 
   let res_graph = Verify_Graph.parse_graph p_t_star in
