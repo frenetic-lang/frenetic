@@ -1,4 +1,3 @@
-open Util
 open Types
 open Graph
 open Packet
