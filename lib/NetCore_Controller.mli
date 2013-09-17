@@ -10,5 +10,5 @@ val start_controller :
 val start_consistent_controller : 
   (switchId * portId * bytes) Lwt_stream.t 
   -> pol NetCore_Stream.t
-  -> NetCore_Topology.Topology.t
+  -> Topology.Topology.t
   -> unit Lwt.t
