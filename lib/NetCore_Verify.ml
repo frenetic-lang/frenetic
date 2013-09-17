@@ -203,7 +203,7 @@ module Sat = struct
 end
 
 module Verify_Graph = struct
-  open NetCore_Topology
+  open Topology
   open NetKAT_Types
   module S = SDN_Types
 
