@@ -2,7 +2,7 @@ open NetKAT_Types
 open VInt
 open NetCore_Verify
 open NetCore_Verify_Util
-(*
+
 TEST "simple-check" = 
   verify "are tests even running" 
 	(make_packet_2 1 1)
@@ -43,7 +43,7 @@ TEST "simple-check-false" =
 	(make_packet_2 2 2)
 	false 
 
-	*)
+	
 
 let ethsrc_is_1 = Test (Header SDN_Types.EthSrc, make_vint 1)
 let switch_is_2 = Test (Switch, make_vint 2)
@@ -52,7 +52,7 @@ let tran1 = make_transition (1, 1) (2, 1)
 let tran2 = make_transition (2, 1) (3, 1)
 let topo = combine_topologies [tran1; tran2]
 let pol_topo = starify pol topo
-(*
+
   TEST "dijkstra" = 
   (dijkstra_test topo) = 2
 
@@ -147,15 +147,15 @@ let pol_topo = starify pol topo
 	 noop_expr
 	 (make_packet_2 3 1)
 	 true)
-  *)
+ 
 
 	TEST "restrict_waypoint1" = 
-(*  (verify_history "restrict_waypoint1.1"
+  (verify_history "restrict_waypoint1.1"
 	 (make_packet_2 1 1)
 	 pol_topo
 	 (no_waypoint_expr 2)
 	 (make_packet_2 3 1)
-	 false) && *)
+	 false) &&
 	(check_specific_k_history_debug "restrict_waypoint1.2"
 	   (make_packet_2 1 1)
 	   (*pol_topo*)
