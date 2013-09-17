@@ -1,5 +1,5 @@
-open Types
-open Parser
+open DOT_Types
+open DOT_Parser
 open Topology
 
 let _ =

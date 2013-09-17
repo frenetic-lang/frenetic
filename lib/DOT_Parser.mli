@@ -1,4 +1,4 @@
-open Types
+open DOT_Types
 open Topology
 
 val parse_dotfile : string -> dotgraph

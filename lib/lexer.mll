@@ -1,5 +1,5 @@
 {
-  open Types
+  open DOT_Types
   open Parser
 
   exception Lexing_error of string

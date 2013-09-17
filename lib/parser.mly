@@ -1,5 +1,5 @@
 %{
-  open Types
+  open DOT_Types
 
   let hex_of_int len n =
     let rec loop i n acc =
@@ -79,22 +79,22 @@
 
 %}
 
-%token<Types.info> EOF NEWLINE
-%token<Types.info> ARROW MAX MIN
+%token<DOT_Types.info> EOF NEWLINE
+%token<DOT_Types.info> ARROW MAX MIN
 
-%token<Types.info> LANGLE RANGLE LBRACK RBRACK LPAREN RPAREN LBRACE RBRACE SEMI
-%token<Types.info> EQUALS LEQ GEQ AMP BAR NOT TILDE BACKSLASH COMMA PLUS MINUS STAR DOT COLON
-%token<Types.info * int64> INT64 HEX MACADDR
-%token<Types.info * int32> IPADDR
-%token<Types.info * float> FLOAT
-%token<Types.info * string> STRING IDENT
-%token<Types.info> STRICT GRAPH DIGRAPH SPORT DPORT TYPE LABEL COST ID CAPACITY
+%token<DOT_Types.info> LANGLE RANGLE LBRACK RBRACK LPAREN RPAREN LBRACE RBRACE SEMI
+%token<DOT_Types.info> EQUALS LEQ GEQ AMP BAR NOT TILDE BACKSLASH COMMA PLUS MINUS STAR DOT COLON
+%token<DOT_Types.info * int64> INT64 HEX MACADDR
+%token<DOT_Types.info * int32> IPADDR
+%token<DOT_Types.info * float> FLOAT
+%token<DOT_Types.info * string> STRING IDENT
+%token<DOT_Types.info> STRICT GRAPH DIGRAPH SPORT DPORT TYPE LABEL COST ID CAPACITY
 
 %left BAR
 %left STAR
 %right NOT
 
-%type <Types.dotgraph> graph
+%type <DOT_Types.dotgraph> graph
 
 %start graph
 

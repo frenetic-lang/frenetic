@@ -1,5 +1,5 @@
 open Util
-open Types
+open DOT_Types
 open Graph
 
 module type NODE =
