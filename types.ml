@@ -7,13 +7,8 @@ let string_of_info ((l1,c1),(l2,c2)) =
   else
     Printf.sprintf "line %d, character %d, to line %d, character %d" l1 c1 l2 c2
 
-module StringOrd = struct
-  type t = string
-  let compare = Pervasives.compare
-end
-
-module StringSet = Set.Make(StringOrd)
-module StringMap = Map.Make(StringOrd)
+module StringSet = Set.Make(String)
+module StringMap = Map.Make(String)
 
 module Int32Set = Set.Make(Int32)
 module Int32Map = Map.Make(Int32)
