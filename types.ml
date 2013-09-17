@@ -12,12 +12,12 @@ module StringOrd = struct
   let compare = Pervasives.compare
 end
 
-module StringSet = Setplus.Make(StringOrd)
-module StringMap = Mapplus.Make(StringOrd)
+module StringSet = Set.Make(StringOrd)
+module StringMap = Map.Make(StringOrd)
 
-module Int32Set = Setplus.Make(Int32)
-module Int32Map = Mapplus.Make(Int32)
-module Int64Map = Mapplus.Make(Int64)
+module Int32Set = Set.Make(Int32)
+module Int32Map = Map.Make(Int32)
+module Int64Map = Map.Make(Int64)
 
 type switchId = int64
 type portId = int32

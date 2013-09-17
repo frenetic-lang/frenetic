@@ -173,9 +173,9 @@ module EdgeOrd = struct
   let compare = Pervasives.compare
 end
 
-module EdgeSet = Setplus.Make(EdgeOrd)
+module EdgeSet = Set.Make(EdgeOrd)
 
-module EdgeMap = Mapplus.Make(EdgeOrd)
+module EdgeMap = Map.Make(EdgeOrd)
 
 module Topology =
 struct

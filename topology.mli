@@ -87,6 +87,6 @@ module Node : NODE
 module Link : LINK with type v = Node.t
 module Topology : TOPO with type V.t = Node.t and type E.t = Link.e
 
-module EdgeOrd : OrderedType with type t = Link.e
-module EdgeSet : Setplus.S
-module EdgeMap : Mapplus.S with type key = Link.e
+module EdgeOrd : Set.OrderedType with type t = Link.e
+module EdgeSet : Set.S
+module EdgeMap : Map.S with type key = Link.e
