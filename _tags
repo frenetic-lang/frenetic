@@ -1,0 +1,30 @@
+# OASIS_START
+# DO NOT EDIT (digest: 4ac13d51b944e966fc2e737861f9caed)
+# Ignore VCS directories, you can use the same kind of rule outside 
+# OASIS_START/STOP if you want to exclude directories that contains 
+# useless stuff for the build process
+<**/.svn>: -traverse
+<**/.svn>: not_hygienic
+".bzr": -traverse
+".bzr": not_hygienic
+".hg": -traverse
+".hg": not_hygienic
+".git": -traverse
+".git": not_hygienic
+"_darcs": -traverse
+"_darcs": not_hygienic
+# Library topology
+"lib/topology.cmxs": use_topology
+<lib/*.ml{,i}>: pkg_ocamlgraph
+<lib/*.ml{,i}>: pkg_packet
+<lib/*.ml{,i}>: pkg_str
+# Executable topology
+"exe/main.byte": use_topology
+"exe/main.byte": pkg_ocamlgraph
+"exe/main.byte": pkg_packet
+"exe/main.byte": pkg_str
+<exe/*.ml{,i}>: use_topology
+<exe/*.ml{,i}>: pkg_ocamlgraph
+<exe/*.ml{,i}>: pkg_packet
+<exe/*.ml{,i}>: pkg_str
+# OASIS_STOP
