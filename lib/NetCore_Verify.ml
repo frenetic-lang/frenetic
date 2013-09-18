@@ -249,7 +249,7 @@ module Verify_Graph = struct
 				Seq (Mod (Switch, swDst), Mod (Header S.InPort, prtDst)))
 		| h::t -> 
 		  let (swSrc, prtSrc, swDst, prtDst) = src_port_vals h in
-		  Par ( Seq ( Filter (And (Test (Switch, swSrc), (Test (Header SDN_Types.InPort, prtSrc))),
+		  Par ( Seq ( Filter (And (Test (Switch, swSrc), Test (Header SDN_Types.InPort, prtSrc))),
 					  Seq (Mod (Switch, swDst), Mod (Header S.InPort, prtDst))), create_pol t)
 		| _ -> failwith "non-empty lists only for now."
  in

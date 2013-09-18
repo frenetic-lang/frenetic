@@ -60,9 +60,6 @@ let topo2 = combine_topologies [tran1;tran2;tran3;tran4]
   TEST "dijkstra" = 
   (dijkstra_test topo) = 2
 
-  TEST "graph" =
-  (graph_test topo2)
-
   TEST "restrict0" = 
   (verify "restrict0"
 	 (make_packet_4 1 1 1 2)
