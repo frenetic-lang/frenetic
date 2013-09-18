@@ -38,6 +38,7 @@ module Sat = struct
     | ZAnd of zFormula list
     | ZOr of zFormula list
     | ZEquals of zTerm * zTerm
+	| ZComment of string * zFormula
 
   type zDeclaration = 
     | ZVarDeclare of zVar * zSort
@@ -94,6 +95,9 @@ module Sat = struct
       | TApp (f, term) -> 
 		Printf.sprintf "(%s %s)" (serialize_var f) (serialize_term term)
 
+  let serialize_comment cmnt = 
+	Printf.sprintf "%s" cmnt
+
   let rec serialize_formula = function
     | ZTrue -> 
       Printf.sprintf "true"
@@ -115,6 +119,8 @@ module Sat = struct
       Printf.sprintf "%s" (serialize_formula f)
     | ZOr(f::fs) -> 
       Printf.sprintf "(or %s %s)" (serialize_formula f) (serialize_formula (ZOr(fs)))
+	| ZComment(cmnt, f) -> 
+	  Printf.sprintf "\n;%s\n%s" (serialize_comment cmnt) (serialize_formula f)
 
 (*ZSortDeclare of zVar * (zVar * (zVar * zSort) list) list *)
   let serialize_declaration = function
@@ -197,7 +203,7 @@ module Sat = struct
 end
 
 module Verify_Graph = struct
-  open NetCore_Topology
+  open Topology
   open NetKAT_Types
   module S = SDN_Types
 
@@ -246,7 +252,9 @@ module Verify_Graph = struct
 		  Seq ( Seq ( Seq (Filter (Test (Switch, swSrc)), 
 						   Filter (Test (Header SDN_Types.InPort, prtSrc))),
 					  Seq (Mod (Switch, swDst), Mod (Header S.InPort, prtDst))),
-				create_pol t) in
+				create_pol t)
+		| _ -> failwith "non-empty lists only for now."
+ in
 	create_pol edges
 
   let parse_graph ptstar = 
@@ -262,17 +270,15 @@ module Verify_Graph = struct
 			  | _,_ -> failwith "need int64 people"
 		  in
 		  match pol with
-			| Seq (Seq (Filter (Test (Switch, switch1)), 
-						Filter (Test (Header S.InPort, port1))),
+			| Seq (Filter(And (Test (Switch, switch1), Test (Header SDN_Types.InPort, port1))),
 				   Seq (Mod (Switch, switch2), Mod (Header S.InPort, port2)))
 			  -> (assemble switch1 port1 switch2 port2)
 			  
 			| Par
-				(Seq (Seq (Filter (Test (Switch, switch1)), 
-						   Filter (Test (Header S.InPort, port1))),
+				(Seq (Filter(And (Test (Switch, switch1), Test (Header SDN_Types.InPort, port1))),
 					  Seq (Mod (Switch, switch2), Mod (Header S.InPort, port2))), t)
 			  -> parse_links (assemble switch1 port1 switch2 port2) t
-			| _ -> failwith "unimplemented"
+			| _ -> failwith (Printf.sprintf "unimplemented" )
 		in
     match ptstar with
       | Star (Seq (p, t)) -> parse_links graph t
@@ -326,6 +332,15 @@ module Verify = struct
 		ZEquals (encode_header hd pkt1, encode_header hd pkt2)::acc) 
 	    [] all_fields )
 
+
+  let packet_field (field:string) (pkt:zVar) (num:zTerm) : zFormula =
+    ZEquals( TApp (field, TVar pkt), num)
+
+  let equal_single_field (field:string) (pkts : zVar list) : zFormula =
+    let num = TVar (fresh SInt) in
+	let f elem = packet_field field elem num in
+	ZAnd (List.map f pkts)
+	  
   let encode_vint (v: VInt.t): zTerm = TInt (VInt.get_int64 v)
 
   let global_bindings = ref []
@@ -354,49 +369,63 @@ module Verify = struct
 		
   let rec forwards (pol:policy) (pkt1:zVar) (pkt2: zVar): zFormula =
     match pol with
-      | Filter pr -> forwards_pred_bind pr pkt1 pkt2
+      | Filter pr -> ZComment ("Filter", (forwards_pred_bind pr pkt1 pkt2))
       | Mod (hdr, v) -> 
-		ZAnd [ZEquals (encode_header hdr pkt2, encode_vint v);
-			  equal_field pkt1 pkt2 [hdr]]
+		ZComment ("Mod", ZAnd [ZEquals (encode_header hdr pkt2, encode_vint v);
+			  equal_field pkt1 pkt2 [hdr]])
       | Par (p1, p2) -> 
-		ZOr [forwards p1 pkt1 pkt2;
-			 forwards p2 pkt1 pkt2]
+		ZComment ("Par", ZOr [forwards p1 pkt1 pkt2;
+			 forwards p2 pkt1 pkt2])
       | Seq (p1, p2) -> 
 		let pkt' = fresh SPacket in
-		ZAnd [forwards p1 pkt1 pkt';
-			  forwards p2 pkt' pkt2] 				  
+		ZComment ("Seq", ZAnd [forwards p1 pkt1 pkt';
+			  forwards p2 pkt' pkt2])
 	  | Star p1 -> failwith "NetKAT program not in form (p;t)*"
 		
+let noop_expr = 
+  let ret history = 
+	Sat.ZTrue
+  in
+  ret
 
-  let rec forwards_star (k:int) p_t_star (pkt1:zVar) (pkt2:zVar) : zFormula = 
-	match p_t_star with 
-	  | (Star (Seq (pol, topo))) -> 
-		if k = 0 then 
-		  ZEquals (TVar pkt1, TVar pkt2)
-		else
-		  let pkt' = fresh SPacket in 
-		  let pkt'' = fresh SPacket in 
-		  ZOr [ ZAnd [ forwards pol pkt1 pkt';
-					   forwards topo pkt' pkt'';
-					   forwards_star (k-1) (Star (Seq (pol, topo))) pkt'' pkt2 ];
-				forwards_star (k-1) (Star (Seq (pol, topo))) pkt1 pkt2 ]
-	  | _ -> failwith "not in form pt* in forwards_star"
+  let forwards_star_history expr k p_t_star pkt1 pkt2 : zFormula = 
+  let rec forwards_star_history (k:int) p_t_star (pkt1:zVar) (pkt2:zVar) : zFormula list  =
+    if k = 0 then
+      [ZEquals (TVar pkt1, TVar pkt2)]
+    else
+      let rec inner_forwards k p_t_star pkt1 pkt2 : zFormula * (zVar list) =
+        match p_t_star with
+          | (Star (Seq (pol, topo))) ->
+              if k = 0 then
+                ZEquals (TVar pkt1, TVar pkt2), [pkt2]
+              else
+                let pkt' = fresh SPacket in
+                let pkt'' = fresh SPacket in
+				let formula, histr = inner_forwards (k-1) (Star (Seq (pol, topo))) pkt'' pkt2 in
+				let new_history = pkt1 :: histr in
+                ZAnd [ forwards pol pkt1 pkt';
+                       forwards topo pkt' pkt'';
+                       formula ], new_history
+          | _ -> failwith "not in form pt* in forwards_star"
+      in
+	  let form, hist = inner_forwards k p_t_star pkt1 pkt2 in
+      (ZAnd [form; expr hist])::(forwards_star_history (k-1) p_t_star pkt1 pkt2)
+  in
+  ZOr (forwards_star_history k p_t_star pkt1 pkt2)
 
+
+  let forwards_star  = forwards_star_history noop_expr
 end
-(* str: name of your test (unique ID)  
-   inp: initial packet
-   pol: policy to test
-   outp: fully-transformed packet (megatron!)
-   oko: optionof bool.  has to be Some.  True if you think it should be satisfiable.
-*)
-let check_specific_k str inp p_t_star outp oko (k : int) : bool = 
+
+
+let check_specific_k_history expr str inp p_t_star outp oko (k : int) : bool = 
   Sat.fresh_cell := []; 
   Verify.global_bindings := [];
   let x = Sat.fresh Sat.SPacket in 
   let y = Sat.fresh Sat.SPacket in 
   let prog = 
     Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards_pred inp x)
-                 ; Sat.ZAssertDeclare (Verify.forwards_star k p_t_star x y )
+                 ; Sat.ZAssertDeclare (Verify.forwards_star_history expr k p_t_star x y )
                  ; Sat.ZAssertDeclare (Verify.forwards_pred outp y) ] in
   let global_eq =
 	match !Verify.global_bindings with
@@ -411,11 +440,22 @@ let check_specific_k str inp p_t_star outp oko (k : int) : bool =
   | None, sat -> 
     (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)
 
-let check str inp p_t_star outp (oko : bool option) : bool = 
+let check_with_history expr str inp p_t_star outp (oko : bool option) : bool = 
   let res_graph = Verify_Graph.parse_graph p_t_star in
   (*Printf.eprintf "%s" (NetCore_Topology.Topology.to_dot res_graph);*)
   let longest_shortest_path = Verify_Graph.longest_shortest
 	res_graph in
-  (*TODO: use dijkstra*)
-  check_specific_k str inp p_t_star outp oko longest_shortest_path
+  check_specific_k_history expr str inp p_t_star outp oko longest_shortest_path
+
+
+
+(* str: name of your test (unique ID)  
+   inp: initial packet
+   pol: policy to test
+   outp: fully-transformed packet 
+   oko: bool option.  has to be Some.  True if you think it should be satisfiable.
+*)
+let check_specific_k = check_specific_k_history Verify.noop_expr
+
+let check  = check_with_history Verify.noop_expr
 

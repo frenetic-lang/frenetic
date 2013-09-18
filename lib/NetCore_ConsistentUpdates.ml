@@ -1,5 +1,5 @@
 open NetCore_Types
-open NetCore_Topology
+open Topology
 
 module W = NetCore_Wildcard
 module P = NetCore_Pattern
