@@ -38,6 +38,7 @@ Library netcore
     NetCore_Parser,
     NetCore_SurfaceSyntax,
     NetKAT_Types,
+    NetKAT_Compiler,
     ONF,
     Controller
   Modules:

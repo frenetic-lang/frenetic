@@ -27,16 +27,16 @@ type header_val = VInt.t
 type pred = 
   | True
   | False
-  | Test of header * header_val
+  | Test of header*header_val
   | And of pred*pred
   | Or of pred*pred
   | Neg of pred
 
 type policy =
   | Filter of pred
-  | Mod of header * header_val
-  | Par of policy * policy
-  | Seq of policy * policy
+  | Mod of header*header_val
+  | Par of policy*policy
+  | Seq of policy*policy
   | Star of policy
 
 val id : policy
