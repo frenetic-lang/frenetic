@@ -54,7 +54,7 @@ let make_packet_4 switch port ethsrc ethdst  =
 
 let dijkstra_test topo = Verify_Graph.longest_shortest (Verify_Graph.parse_graph (make_simple_topology topo))
 
-let bool_to_predform b = if b then Sat.ZTrue else Sat.ZFalse
+let bool_to_z3 b = if b then Sat.ZTrue else Sat.ZFalse
 
 let map_fun pred pkt = 
   Verify.forwards_pred pred pkt
@@ -74,13 +74,39 @@ let matches_history preds : (Sat.zVar list -> Sat.zFormula) =
 	let rec recr pktl predl =
 	  (match pktl with 
 		| [] -> (match predl with 
-			| [] -> bool_to_predform true
-			| _ -> bool_to_predform false)
+			| [] -> bool_to_z3 true
+			| _ -> bool_to_z3 false)
 		| hd :: tl -> Sat.ZAnd [(Verify.forwards_pred (List.hd predl) hd); recr tl (List.tl predl) ])
 	in
 	recr l preds
   in
   ret
+
+let fold_pred_or_with_counter (expr : int -> pred) : (Sat.zVar list -> Sat.zFormula) = 
+  let ret l = 
+	let rec recr pktl f count = 
+	  match pktl with
+		| hd :: [] -> Verify.forwards_pred (f count) hd
+		| hd :: tl -> Sat.ZOr [Verify.forwards_pred (f count) hd; recr tl f (count + 1)]
+		| [] -> Sat.ZTrue
+	in
+	recr l expr 0
+  in
+  ret
+
+let junct_juncts_counter outer inner (exprs : (int -> pred) list ) : (Sat.zVar list -> Sat.zFormula) = 
+  let ret (l : 'a list) = 
+	let rec recr (count : int) (pktl : 'a list) (f : int -> pred) = 
+	  match pktl with
+		| hd :: [] -> Verify.forwards_pred (f count) hd
+		| hd :: tl -> inner [Verify.forwards_pred (f count) hd; recr (count + 1) tl f ]
+		| [] -> Sat.ZTrue
+	in
+	outer (List.map (recr 0 l) exprs)
+  in
+  ret
+
+let conjunct_disjuncts_counter = junct_juncts_counter (fun n -> Sat.ZAnd n) (fun n -> Sat.ZOr n)
 
 let fold_pred_and_with_counter (expr : int -> pred) : (Sat.zVar list -> Sat.zFormula) = 
   let ret l = 

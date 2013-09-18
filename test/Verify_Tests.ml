@@ -163,3 +163,38 @@ let pol_topo = starify pol topo
 	   (make_packet_2 3 1)
 	    true)
 
+	TEST "not_waypoint" = 
+  (fun () -> (* anonymous namespace, the only way I know how *)
+   let tran1 = make_transition (1, 1) (2 , 1) in
+   let tran2 = make_transition (2, 1) (3, 1) in
+   let tran3 = make_transition (1, 1) (4, 1) in
+   let tran4 = make_transition (4, 1) (3, 1) in
+   let topo = make_simple_topology ( combine_topologies [tran1; tran2; tran3; tran4]) in
+   (verify_history "not_waypoint_1"
+	  (make_packet_2 1 1)
+	  topo
+	  (no_waypoint_expr 2)
+	  (make_packet_2 3 1)
+	  true)
+  )()
+
+
+	TEST "exactly-two-hops" = 
+  (verify_history "exactly-two-hops"
+	 (make_packet_2 1 1)
+	 pol_topo
+	 (fun l -> if List.length l = 3 then bool_to_z3 true else bool_to_z3 false )
+	 (make_packet_2 3 1)
+	 true)
+
+
+	TEST "not-three-hops" = 
+  (verify_history "not-three-hops"
+	 (make_packet_2 1 1)
+	 pol_topo
+	 (fold_pred_or_with_counter 
+		(fun n -> 
+		  if n = 3 then True else False))
+	 (make_packet_2 3 1)
+	 false)
+
