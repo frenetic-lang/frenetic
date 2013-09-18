@@ -158,8 +158,7 @@ let pol_topo = starify pol topo
 	 false) &&
 	(verify_history "restrict_waypoint1.2"
 	   (make_packet_2 1 1)
-	   (*pol_topo*)
-	   (make_simple_topology topo)
+	   pol_topo
 	   (exists_waypoint_in_one_history 2)
 	   (make_packet_2 3 1)
 	    true)
