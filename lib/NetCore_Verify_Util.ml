@@ -107,8 +107,9 @@ let exists_waypoint_in_one_history waypoint_switchnum =
   let ret history = 
 	((fold_pred_or (Test (Switch, make_vint waypoint_switchnum))) history) in ret
 
-let noop_expr = 
-  let ret history = 
-	Sat.ZTrue
-  in
-  ret
+let noop_expr = Verify.noop_expr
+
+(* This is a really good idea: equivalence, where the packet history is reused.  We can absolutely hack that.  That sounds good.  Nope, this is wrong - it's intersection.  *)
+
+(* equivalence is easy: constrain packet1=packet1' packet2!=packet2' and run through the two topologies.*)
+

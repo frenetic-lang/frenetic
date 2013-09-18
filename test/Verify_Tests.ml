@@ -156,12 +156,11 @@ let pol_topo = starify pol topo
 	 (no_waypoint_expr 2)
 	 (make_packet_2 3 1)
 	 false) &&
-	(check_specific_k_history_debug "restrict_waypoint1.2"
+	(verify_history "restrict_waypoint1.2"
 	   (make_packet_2 1 1)
 	   (*pol_topo*)
 	   (make_simple_topology topo)
 	   (exists_waypoint_in_one_history 2)
 	   (make_packet_2 3 1)
-	   (Some true)
-	   2)
+	    true)
 

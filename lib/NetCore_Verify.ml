@@ -382,66 +382,14 @@ module Verify = struct
 			  forwards p2 pkt' pkt2])
 	  | Star p1 -> failwith "NetKAT program not in form (p;t)*"
 		
-
-  let forwards_star_2 k p_t_star pkt1 pkt2 : zFormula = 
-  let rec forwards_star_2 (k:int) p_t_star (pkt1:zVar) (pkt2:zVar) : zFormula list  =
-    if k = 0 then
-      [ZEquals (TVar pkt1, TVar pkt2)]
-    else
-      let rec inner_forwards k p_t_star pkt1 pkt2 : zFormula =
-        match p_t_star with
-          | (Star (Seq (pol, topo))) ->
-              if k = 0 then
-                ZEquals (TVar pkt1, TVar pkt2)
-              else
-                let pkt' = fresh SPacket in
-                let pkt'' = fresh SPacket in
-                ZAnd [ forwards pol pkt1 pkt';
-                       forwards topo pkt' pkt'';
-                       inner_forwards (k-1) (Star (Seq (pol, topo))) pkt'' pkt2 ];
-          | _ -> failwith "not in form pt* in forwards_star"
-      in
-      (inner_forwards k p_t_star pkt1 pkt2)::(forwards_star_2 (k-1) p_t_star pkt1 pkt2)
+let noop_expr = 
+  let ret history = 
+	Sat.ZTrue
   in
-  ZOr (forwards_star_2 k p_t_star pkt1 pkt2)
+  ret
 
-  let rec forwards_star_1 (k:int) p_t_star (pkt1:zVar) (pkt2:zVar) : zFormula = 
-	match p_t_star with 
-	  | (Star (Seq (pol, topo))) -> 
-		if k = 0 then 
-		  ZEquals (TVar pkt1, TVar pkt2)
-		else
-		  let pkt' = fresh SPacket in 
-		  let pkt'' = fresh SPacket in 
-		  ZOr [ ZAnd [ forwards pol pkt1 pkt';
-					   forwards topo pkt' pkt'';
-					   forwards_star_1 (k-1) (Star (Seq (pol, topo))) pkt'' pkt2 ];
-				forwards_star_1 (k-1) (Star (Seq (pol, topo))) pkt1 pkt2 ]
-	  | _ -> failwith "not in form pt* in forwards_star_1"
-
-  let forwards_star = forwards_star_2
-		
-  let rec forwards_star_history_1 expr (k:int) p_t_star (pkt1:zVar) (pkt2:zVar) : zFormula * (zVar list) = 
-	match p_t_star with 
-	  | (Star (Seq (pol, topo))) -> 
-		if k = 0 then 
-		  (ZAnd [ expr [pkt2]; ZEquals (TVar pkt1, TVar pkt2)]), [pkt2]
-		else
-		  let pkt' = fresh SPacket in 
-		  let pkt'' = fresh SPacket in 
-		  let formula, (histr : zVar list) = forwards_star_history_1 expr (k-1) (Star (Seq (pol, topo))) pkt'' pkt2 in
-		  let new_history = pkt1 :: histr in
-		  ((ZOr [ ZAnd [ expr new_history;
-					   forwards pol pkt1 pkt';
-					   forwards topo pkt' pkt'';
-					   formula];
-				  let otherform, otherhist = forwards_star_history_1 expr (k-1) (Star (Seq (pol, topo))) pkt1 pkt2 in otherform
-				]), new_history)
-			
-	  | _ -> failwith "not in form pt* in forwards_star"
-
-  let forwards_star_history_2 expr k p_t_star pkt1 pkt2 : zFormula = 
-  let rec forwards_star_history_2 (k:int) p_t_star (pkt1:zVar) (pkt2:zVar) : zFormula list  =
+  let forwards_star_history expr k p_t_star pkt1 pkt2 : zFormula = 
+  let rec forwards_star_history (k:int) p_t_star (pkt1:zVar) (pkt2:zVar) : zFormula list  =
     if k = 0 then
       [ZEquals (TVar pkt1, TVar pkt2)]
     else
@@ -461,31 +409,11 @@ module Verify = struct
           | _ -> failwith "not in form pt* in forwards_star"
       in
 	  let form, hist = inner_forwards k p_t_star pkt1 pkt2 in
-      (ZAnd [form; expr hist])::(forwards_star_history_2 (k-1) p_t_star pkt1 pkt2)
+      (ZAnd [form; expr hist])::(forwards_star_history (k-1) p_t_star pkt1 pkt2)
   in
-  ZOr (forwards_star_history_2 k p_t_star pkt1 pkt2)
+  ZOr (forwards_star_history k p_t_star pkt1 pkt2)
 
-
-  let forwards_star_history = forwards_star_history_2
-
-  let rec forwards_star_history_exact_k expr (k:int) p_t_star (pkt1:zVar) (pkt2:zVar) : zFormula * (zVar list) = 
-	match p_t_star with 
-	  | (Star (Seq (pol, topo))) -> 
-		if k = 0 then 
-		  (ZAnd [ expr [pkt2]; ZEquals (TVar pkt1, TVar pkt2)]), [pkt2]
-		else
-		  let pkt' = fresh SPacket in 
-		  let pkt'' = fresh SPacket in 
-		  let formula, (histr : zVar list) = forwards_star_history_exact_k expr (k-1) (Star (Seq (pol, topo))) pkt'' pkt2 in
-		  let new_history = pkt1 :: histr in
-		  ((ZAnd [ expr new_history;
-					   forwards pol pkt1 pkt';
-					   forwards topo pkt' pkt'';
-					   (ZComment ("Doing *", formula))];
-				  ), new_history)
-	  | _ -> failwith "not in form pt* in forwards_star"
-
-
+  let forwards_star  = forwards_star_history noop_expr
 end
 
 
@@ -510,28 +438,6 @@ let check_specific_k_history str inp p_t_star expr outp oko (k : int) : bool =
       (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; false)
   | None, sat -> 
     (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)
-
-let check_specific_k_history_debug str inp p_t_star expr outp oko (k : int) : bool =
-  Sat.fresh_cell := [];
-    Verify.global_bindings := [];
-    let x = Sat.fresh Sat.SPacket in
-    let y = Sat.fresh Sat.SPacket in
-	let prog =
-	  Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards_pred inp x)
-	               ; Sat.ZAssertDeclare (let formula, histr = (Verify.forwards_star_history_exact_k expr k p_t_star x y ) in formula)
-			       ; Sat.ZAssertDeclare (Verify.forwards_pred outp y) ] in
-	let global_eq =
-	  match !Verify.global_bindings with
-		| [] -> []
-		| _ -> [Sat.ZAssertDeclare (Sat.ZAnd !Verify.global_bindings)] in
-	match oko, Sat.solve prog global_eq with
-	  | Some ok, sat ->
-		if ok = sat then
-		  true
-		else
-		  (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; false)
-	  | None, sat ->
-		(Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)
 
 let check_with_history str inp p_t_star expr outp (oko : bool option) : bool = 
   let res_graph = Verify_Graph.parse_graph p_t_star in
