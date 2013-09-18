@@ -422,28 +422,51 @@ let noop_expr =
   let forwards_star  = forwards_star_history false noop_expr
 end
 
-
-let check_specific_k_history expect_dup expr str inp p_t_star outp oko (k : int) : bool = 
-  Sat.fresh_cell := []; 
-  Verify.global_bindings := [];
+let generate_program expect_dup expr inp p_t_star outp k= 
   let x = Sat.fresh Sat.SPacket in 
   let y = Sat.fresh Sat.SPacket in 
   let prog = 
     Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards_pred inp x)
                  ; Sat.ZAssertDeclare (Verify.forwards_star_history expect_dup expr k p_t_star x y )
-                 ; Sat.ZAssertDeclare (Verify.forwards_pred outp y) ] in
+                 ; Sat.ZAssertDeclare (Verify.forwards_pred outp y) ] in x, y, prog
+
+let run_solve oko prog str = 
   let global_eq =
 	match !Verify.global_bindings with
 	  | [] -> []
 	  | _ -> [Sat.ZAssertDeclare (Sat.ZAnd !Verify.global_bindings)] in
-  match oko, Sat.solve prog global_eq with 
-  | Some ok, sat -> 
-    if ok = sat then 
-      true
-    else
-      (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; false)
-  | None, sat -> 
-    (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)
+  let run_result = (
+	match oko, Sat.solve prog global_eq with 
+	  | Some ok, sat -> 
+		if ok = sat then 
+		  true
+		else
+		  (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; false)
+	  | None, sat -> 
+		(Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)) in
+  Sat.fresh_cell := []; Verify.global_bindings := []; run_result
+	
+let combine_programs progs = 
+  Sat.ZProgram (List.flatten (List.map (fun prog -> match prog with 
+	| Sat.ZProgram (asserts) -> asserts) progs))
+
+let check_equivalent pt1 pt2 str = 
+  	(*global_bindings := (ZEquals (TVar pkt1, TVar pkt2))::!global_bindings;*)
+  let graph1, graph2 = Verify_Graph.parse_graph pt1, Verify_Graph.parse_graph pt2 in
+  let length1, length2 = Verify_Graph.longest_shortest graph1, Verify_Graph.longest_shortest graph2 in
+  let k = if length1 > length2 then length1 else length2 in
+  let x1, y1, prog1 = generate_program false Verify.noop_expr NetKAT_Types.True pt1 NetKAT_Types.True k in
+  let x2, y2, prog2 = generate_program false Verify.noop_expr NetKAT_Types.True pt2 NetKAT_Types.True k in
+  let prog = combine_programs 
+	[Sat.ZProgram [Sat.ZAssertDeclare (Sat.ZEquals (Sat.TVar x1, Sat.TVar x2)); 
+				   Sat.ZAssertDeclare (Sat.ZNot (Sat.ZEquals (Sat.TVar y1, Sat.TVar y2)))]; 
+	 prog1; 
+	 prog2] in
+  run_solve (Some false) prog str
+
+let check_specific_k_history expect_dup expr str inp p_t_star outp oko (k : int) : bool = 
+  let x,y,prog = generate_program expect_dup expr inp p_t_star outp k in
+  run_solve oko prog str
 
 let check_maybe_dup expect_dup expr str inp p_t_star outp (oko : bool option) : bool = 
   let res_graph = Verify_Graph.parse_graph p_t_star in
