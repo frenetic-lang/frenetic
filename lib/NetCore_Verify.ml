@@ -413,11 +413,12 @@ let noop_expr =
   in
   ZOr (forwards_star_history k p_t_star pkt1 pkt2)
 
+
   let forwards_star  = forwards_star_history noop_expr
 end
 
 
-let check_specific_k_history str inp p_t_star expr outp oko (k : int) : bool = 
+let check_specific_k_history expr str inp p_t_star outp oko (k : int) : bool = 
   Sat.fresh_cell := []; 
   Verify.global_bindings := [];
   let x = Sat.fresh Sat.SPacket in 
@@ -439,12 +440,12 @@ let check_specific_k_history str inp p_t_star expr outp oko (k : int) : bool =
   | None, sat -> 
     (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)
 
-let check_with_history str inp p_t_star expr outp (oko : bool option) : bool = 
+let check_with_history expr str inp p_t_star outp (oko : bool option) : bool = 
   let res_graph = Verify_Graph.parse_graph p_t_star in
   (*Printf.eprintf "%s" (NetCore_Topology.Topology.to_dot res_graph);*)
   let longest_shortest_path = Verify_Graph.longest_shortest
 	res_graph in
-  check_specific_k_history str inp p_t_star expr outp oko longest_shortest_path
+  check_specific_k_history expr str inp p_t_star outp oko longest_shortest_path
 
 
 
@@ -454,34 +455,7 @@ let check_with_history str inp p_t_star expr outp (oko : bool option) : bool =
    outp: fully-transformed packet 
    oko: bool option.  has to be Some.  True if you think it should be satisfiable.
 *)
-let check_specific_k str inp p_t_star (outp : NetKAT_Types.pred) oko (k : int) : bool = 
-  Sat.fresh_cell := []; 
-  Verify.global_bindings := [];
-  let x = Sat.fresh Sat.SPacket in 
-  let y = Sat.fresh Sat.SPacket in 
-  let prog = 
-    Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards_pred inp x)
-                 ; Sat.ZAssertDeclare (Verify.forwards_star k p_t_star x y )
-                 ; Sat.ZAssertDeclare (Verify.forwards_pred outp y) ] in
-  let global_eq =
-	match !Verify.global_bindings with
-	  | [] -> []
-	  | _ -> [Sat.ZAssertDeclare (Sat.ZAnd !Verify.global_bindings)] in
-  match oko, Sat.solve prog global_eq with 
-  | Some ok, sat -> 
-    if ok = sat then 
-      true
-    else
-      (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; false)
-  | None, sat -> 
-    (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)
+let check_specific_k = check_specific_k_history Verify.noop_expr
 
-
-let check str inp p_t_star outp (oko : bool option) : bool = 
-  let res_graph = Verify_Graph.parse_graph p_t_star in
-  (*Printf.eprintf "%s" (NetCore_Topology.Topology.to_dot res_graph);*)
-  let longest_shortest_path = Verify_Graph.longest_shortest
-	res_graph in
-  (*TODO: use dijkstra*)
-  check_specific_k str inp p_t_star outp oko longest_shortest_path
+let check  = check_with_history Verify.noop_expr
 

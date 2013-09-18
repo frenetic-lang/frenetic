@@ -7,7 +7,7 @@ let verify (description: string) (initial_state: pred) (program: policy) (final_
 	check description initial_state program final_state (Some desired_outcome)
 
 let verify_history (description: string) (initial_state: pred) (program: policy) expr (final_state: pred) (desired_outcome: bool) : bool = 
-	check_with_history description initial_state program expr final_state (Some desired_outcome)
+	check_with_history expr description initial_state program final_state (Some desired_outcome)
 
 let verify_specific_k (description: string) (initial_state: pred) (program: policy) (final_state: pred) (desired_outcome: bool) k : bool = 
 	check description initial_state program final_state (Some desired_outcome)
