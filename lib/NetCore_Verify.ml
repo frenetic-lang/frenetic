@@ -388,44 +388,49 @@ let noop_expr =
   in
   ret
 
-  let forwards_star_history expr k p_t_star pkt1 pkt2 : zFormula = 
+  let forwards_star_history expect_dup expr k p_t_star pkt1 pkt2 : zFormula = 
   let rec forwards_star_history (k:int) p_t_star (pkt1:zVar) (pkt2:zVar) : zFormula list  =
     if k = 0 then
       [ZEquals (TVar pkt1, TVar pkt2)]
     else
       let rec inner_forwards k p_t_star pkt1 pkt2 : zFormula * (zVar list) =
-        match p_t_star with
-          | (Star (Seq (pol, topo))) ->
-              if k = 0 then
-                ZEquals (TVar pkt1, TVar pkt2), [pkt2]
-              else
-                let pkt' = fresh SPacket in
-                let pkt'' = fresh SPacket in
-				let formula, histr = inner_forwards (k-1) (Star (Seq (pol, topo))) pkt'' pkt2 in
-				let new_history = pkt1 :: histr in
-                ZAnd [ forwards pol pkt1 pkt';
-                       forwards topo pkt' pkt'';
-                       formula ], new_history
-          | _ -> failwith "not in form pt* in forwards_star"
+		let pol,topo = (match p_t_star with 
+		  | (Star (Seq (Seq (pol, topo), (*dup*) dup))) -> if expect_dup then pol,topo else failwith "dup present, but not expecting dup"
+		  | (Star (Seq (pol,topo))) -> if expect_dup then failwith "in form (p;t)*, expected form dup;(p;t;dup)*" else pol,topo
+		  | _ -> failwith "not in form pt* with or without dup (maybe you forgot to make Seqs left-aligned?)") in
+        if k = 0 then
+          ZEquals (TVar pkt1, TVar pkt2), [pkt2]
+        else
+          let pkt' = fresh SPacket in
+          let pkt'' = fresh SPacket in
+		  let formula, histr = inner_forwards (k-1) (Star (Seq (pol, topo))) pkt'' pkt2 in
+		  let new_history = pkt1 :: histr in
+          ZAnd [ forwards pol pkt1 pkt';
+                 forwards topo pkt' pkt'';
+                 formula ], new_history
       in
 	  let form, hist = inner_forwards k p_t_star pkt1 pkt2 in
       (ZAnd [form; expr hist])::(forwards_star_history (k-1) p_t_star pkt1 pkt2)
   in
+  let p_t_star = if expect_dup then (
+	match p_t_star with
+	  | _ (* when there is a dup, we'll make sure that it is present as the first term here *)
+		-> p_t_star ) else p_t_star in 
   ZOr (forwards_star_history k p_t_star pkt1 pkt2)
 
 
-  let forwards_star  = forwards_star_history noop_expr
+  let forwards_star  = forwards_star_history false noop_expr
 end
 
 
-let check_specific_k_history expr str inp p_t_star outp oko (k : int) : bool = 
+let check_specific_k_history expect_dup expr str inp p_t_star outp oko (k : int) : bool = 
   Sat.fresh_cell := []; 
   Verify.global_bindings := [];
   let x = Sat.fresh Sat.SPacket in 
   let y = Sat.fresh Sat.SPacket in 
   let prog = 
     Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards_pred inp x)
-                 ; Sat.ZAssertDeclare (Verify.forwards_star_history expr k p_t_star x y )
+                 ; Sat.ZAssertDeclare (Verify.forwards_star_history expect_dup expr k p_t_star x y )
                  ; Sat.ZAssertDeclare (Verify.forwards_pred outp y) ] in
   let global_eq =
 	match !Verify.global_bindings with
@@ -440,22 +445,23 @@ let check_specific_k_history expr str inp p_t_star outp oko (k : int) : bool =
   | None, sat -> 
     (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)
 
-let check_with_history expr str inp p_t_star outp (oko : bool option) : bool = 
+let check_maybe_dup expect_dup expr str inp p_t_star outp (oko : bool option) : bool = 
   let res_graph = Verify_Graph.parse_graph p_t_star in
   (*Printf.eprintf "%s" (NetCore_Topology.Topology.to_dot res_graph);*)
   let longest_shortest_path = Verify_Graph.longest_shortest
 	res_graph in
-  check_specific_k_history expr str inp p_t_star outp oko longest_shortest_path
+  check_specific_k_history expect_dup expr str inp p_t_star outp oko longest_shortest_path
 
 
-
+let check_with_history  = check_maybe_dup (*TODO: add dup support when I find it in the code*) false
+  
 (* str: name of your test (unique ID)  
    inp: initial packet
    pol: policy to test
    outp: fully-transformed packet 
    oko: bool option.  has to be Some.  True if you think it should be satisfiable.
 *)
-let check_specific_k = check_specific_k_history Verify.noop_expr
+let check_specific_k = check_specific_k_history false Verify.noop_expr
 
-let check  = check_with_history Verify.noop_expr
+let check  = check_maybe_dup false Verify.noop_expr
 
