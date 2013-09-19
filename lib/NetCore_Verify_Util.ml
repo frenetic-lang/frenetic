@@ -12,8 +12,6 @@ let verify_history (description: string) (initial_state: pred) (program: policy)
 let verify_specific_k (description: string) (initial_state: pred) (program: policy) (final_state: pred) (desired_outcome: bool) k : bool = 
 	check description initial_state program final_state (Some desired_outcome)
 
-let make_vint v = VInt.Int64 (Int64.of_int v)
-
 let make_transition (switch1, port1) (switch2, port2) : policy = 
   Seq (Filter (And (Test (Switch, make_vint switch1), Test (Header SDN_Types.InPort, make_vint port1))), 
 	   Seq (Mod (Switch ,make_vint switch2) , Mod (Header SDN_Types.InPort, make_vint port2)))
