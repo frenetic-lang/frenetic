@@ -120,7 +120,8 @@ module Sat = struct
     | ZOr(f::fs) -> 
       Printf.sprintf "(or %s %s)" (serialize_formula f) (serialize_formula (ZOr(fs)))
 	| ZComment(cmnt, f) -> 
-	  Printf.sprintf "\n;%s\n%s" (serialize_comment cmnt) (serialize_formula f)
+	  Printf.sprintf "\n;%s\n%s\n;%s\n" (serialize_comment cmnt) (serialize_formula f)
+		(String.concat "" ["END "; serialize_comment cmnt])
 
 (*ZSortDeclare of zVar * (zVar * (zVar * zSort) list) list *)
   let serialize_declaration = function
@@ -147,34 +148,19 @@ module Sat = struct
 
   let init_decls : zDeclaration list = 
     [ ZSortDeclare
-        (zvar "Packet", [(zvar "packet", [ (zvar "PSwitch", SInt)
-                               ; (zvar "PInPort", SInt)
-                               ; (zvar "PDlSrc", SInt)
-                               ; (zvar "PDlDst", SInt) ])])
-    ; ZVarDeclare
-        (zvar "Switch", SFunction(SPacket, SInt))
-    ; ZVarDeclare
-        (zvar "InPort", SFunction(SPacket, SInt))
-    ; ZVarDeclare
-        (zvar "EthSrc", SFunction(SPacket, SInt))
-    ; ZVarDeclare
-        (zvar "EthDst", SFunction(SPacket, SInt))
-    ; ZVarDeclare
-        (zvar "EthType", SFunction(SPacket, SInt))
-    ; ZVarDeclare
-        (zvar "Vlan", SFunction(SPacket, SInt))
-    ; ZVarDeclare
-        (zvar "VlanPcp", SFunction(SPacket, SInt))
-    ; ZVarDeclare
-        (zvar "IPProto", SFunction(SPacket, SInt))
-    ; ZVarDeclare
-        (zvar "IP4Src", SFunction(SPacket, SInt))
-    ; ZVarDeclare
-        (zvar "IP4Dst", SFunction(SPacket, SInt))
-    ; ZVarDeclare
-        (zvar "TCPSrcPort", SFunction(SPacket, SInt))
-    ; ZVarDeclare
-        (zvar "TCPDstPort", SFunction(SPacket, SInt))
+        (zvar "Packet", [(zvar "packet", [ (zvar "Switch", SInt)
+										 ; (zvar "EthDst", SInt)
+										 ; (zvar "EthType", SInt)
+										 ; (zvar "Vlan", SInt)
+										 ; (zvar "VlanPcp", SInt)
+										 ; (zvar "IPProto", SInt)
+										 ; (zvar "IP4Src", SInt)
+										 ; (zvar "IP4Dst", SInt)
+										 ; (zvar "TCPSrcPort", SInt)
+										 ; (zvar "TCPDstPort", SInt)
+										 ; (zvar "EthSrc", SInt)
+										 ; (zvar "InPort", SInt)
+										 ])])
     ]
 
   let serialize_program (ZProgram (decls)) global= 
@@ -391,11 +377,11 @@ let noop_expr =
   let forwards_star_history expect_dup expr k p_t_star pkt1 pkt2 : zFormula = 
   let rec forwards_star_history (k:int) p_t_star (pkt1:zVar) (pkt2:zVar) : zFormula list  =
     if k = 0 then
-      [ZEquals (TVar pkt1, TVar pkt2)]
+      [ZAnd [ZEquals (TVar pkt1, TVar pkt2); expr [pkt1]]]
     else
       let rec inner_forwards k p_t_star pkt1 pkt2 : zFormula * (zVar list) =
 		let pol,topo = (match p_t_star with 
-		  | (Star (Seq (Seq (pol, topo), (*dup*) dup))) -> if expect_dup then pol,topo else failwith "dup present, but not expecting dup"
+		  | (Star (Seq (Seq (pol, topo), (*TODO: dup*) dup))) -> if expect_dup then pol,topo else failwith "dup present, but not expecting dup"
 		  | (Star (Seq (pol,topo))) -> if expect_dup then failwith "in form (p;t)*, expected form dup;(p;t;dup)*" else pol,topo
 		  | _ -> failwith "not in form pt* with or without dup (maybe you forgot to make Seqs left-aligned?)") in
         if k = 0 then
@@ -422,13 +408,11 @@ let noop_expr =
   let forwards_star  = forwards_star_history false noop_expr
 end
 
-let generate_program expect_dup expr inp p_t_star outp k= 
-  let x = Sat.fresh Sat.SPacket in 
-  let y = Sat.fresh Sat.SPacket in 
+let generate_program expect_dup expr inp p_t_star outp k x y= 
   let prog = 
     Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards_pred inp x)
                  ; Sat.ZAssertDeclare (Verify.forwards_star_history expect_dup expr k p_t_star x y )
-                 ; Sat.ZAssertDeclare (Verify.forwards_pred outp y) ] in x, y, prog
+                 ; Sat.ZAssertDeclare (Verify.forwards_pred outp y) ] in prog
 
 let run_solve oko prog str = 
   let global_eq =
@@ -450,22 +434,31 @@ let combine_programs progs =
   Sat.ZProgram (List.flatten (List.map (fun prog -> match prog with 
 	| Sat.ZProgram (asserts) -> asserts) progs))
 
+let make_vint v = VInt.Int64 (Int64.of_int v)
+
 let check_equivalent pt1 pt2 str = 
   	(*global_bindings := (ZEquals (TVar pkt1, TVar pkt2))::!global_bindings;*)
   let graph1, graph2 = Verify_Graph.parse_graph pt1, Verify_Graph.parse_graph pt2 in
   let length1, length2 = Verify_Graph.longest_shortest graph1, Verify_Graph.longest_shortest graph2 in
   let k = if length1 > length2 then length1 else length2 in
-  let x1, y1, prog1 = generate_program false Verify.noop_expr NetKAT_Types.True pt1 NetKAT_Types.True k in
-  let x2, y2, prog2 = generate_program false Verify.noop_expr NetKAT_Types.True pt2 NetKAT_Types.True k in
+  let k_z3 = Sat.fresh Sat.SInt in
+  let x = Sat.fresh Sat.SPacket in
+  let y1 = Sat.fresh Sat.SPacket in
+  let y2 = Sat.fresh Sat.SPacket in
+  let fix_k = (fun n -> Sat.ZEquals (Sat.TVar k_z3, Verify.encode_vint (make_vint (List.length n)))) in
+  let prog1 = generate_program false fix_k NetKAT_Types.True pt1 NetKAT_Types.True k x y1 in
+  let prog2 = generate_program false fix_k  NetKAT_Types.True pt2 NetKAT_Types.True k x y2 in
   let prog = combine_programs 
-	[Sat.ZProgram [Sat.ZAssertDeclare (Sat.ZEquals (Sat.TVar x1, Sat.TVar x2)); 
+	[Sat.ZProgram [Sat.ZAssertDeclare (Sat.ZEquals (Sat.TVar x, Sat.TVar x)); 
 				   Sat.ZAssertDeclare (Sat.ZNot (Sat.ZEquals (Sat.TVar y1, Sat.TVar y2)))]; 
 	 prog1; 
 	 prog2] in
   run_solve (Some false) prog str
 
 let check_specific_k_history expect_dup expr str inp p_t_star outp oko (k : int) : bool = 
-  let x,y,prog = generate_program expect_dup expr inp p_t_star outp k in
+  let x = Sat.fresh Sat.SPacket in 
+  let y = Sat.fresh Sat.SPacket in 
+  let prog = generate_program expect_dup expr inp p_t_star outp k x y in
   run_solve oko prog str
 
 let check_maybe_dup expect_dup expr str inp p_t_star outp (oko : bool option) : bool = 

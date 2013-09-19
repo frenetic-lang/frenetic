@@ -178,8 +178,8 @@ let pol_topo = starify pol topo
 	  true)
   )()
 
-
-	TEST "exactly-two-hops" = 
+	
+TEST "exactly-two-hops" = 
   (verify_history "exactly-two-hops"
 	 (make_packet_2 1 1)
 	 pol_topo
@@ -198,3 +198,9 @@ let pol_topo = starify pol topo
 	 (make_packet_2 3 1)
 	 false)
 
+	TEST "check-equivalent-1" = 
+	(check "1" NetKAT_Types.True pol_topo NetKAT_Types.True (Some true))
+
+	TEST "trivial-check-equivalent" = 
+  (check_equivalent (make_simple_topology (make_transition (1, 1) (2,1) )) 
+	 (make_simple_topology (make_transition (1, 1) (2,1) ))  "trivial-check-equivalent")
