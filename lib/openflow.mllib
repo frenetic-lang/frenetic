@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 84b5c2a2f2c3f2bd4b92f890bc5efbb2)
+# DO NOT EDIT (digest: 616371cc8d614cc5f9ac484eaf118c8a)
 VInt
 Socket
 OpenFlow0x01
@@ -13,6 +13,7 @@ OpenFlow0x04_Misc
 OpenFlow0x01_Switch
 OpenFlow0x04_Switch
 OpenFlow0x01_TxSwitch
+OpenFlow0x04_TxSwitch
 SDN_Types
 SDN
 Misc

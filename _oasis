@@ -41,6 +41,7 @@ Library openflow
     OpenFlow0x01_Switch,
     OpenFlow0x04_Switch,
     OpenFlow0x01_TxSwitch,
+    OpenFlow0x04_TxSwitch,    
     SDN_Types,
     SDN
 
@@ -59,3 +60,9 @@ Document doc
     OpenFlow0x04_Core,
     OpenFlow0x04_Platform,
     OpenFlow0x04_Misc
+
+Executable test0
+  Path: test
+  Install: False
+  MainIs: Test0.ml
+  BuildDepends: openflow, lwt, lwt.syntax
