@@ -148,34 +148,19 @@ module Sat = struct
 
   let init_decls : zDeclaration list = 
     [ ZSortDeclare
-        (zvar "Packet", [(zvar "packet", [ (zvar "PSwitch", SInt)
-                               ; (zvar "PInPort", SInt)
-                               ; (zvar "PDlSrc", SInt)
-                               ; (zvar "PDlDst", SInt) ])])
-    ; ZVarDeclare
-        (zvar "Switch", SFunction(SPacket, SInt))
-    ; ZVarDeclare
-        (zvar "InPort", SFunction(SPacket, SInt))
-    ; ZVarDeclare
-        (zvar "EthSrc", SFunction(SPacket, SInt))
-    ; ZVarDeclare
-        (zvar "EthDst", SFunction(SPacket, SInt))
-    ; ZVarDeclare
-        (zvar "EthType", SFunction(SPacket, SInt))
-    ; ZVarDeclare
-        (zvar "Vlan", SFunction(SPacket, SInt))
-    ; ZVarDeclare
-        (zvar "VlanPcp", SFunction(SPacket, SInt))
-    ; ZVarDeclare
-        (zvar "IPProto", SFunction(SPacket, SInt))
-    ; ZVarDeclare
-        (zvar "IP4Src", SFunction(SPacket, SInt))
-    ; ZVarDeclare
-        (zvar "IP4Dst", SFunction(SPacket, SInt))
-    ; ZVarDeclare
-        (zvar "TCPSrcPort", SFunction(SPacket, SInt))
-    ; ZVarDeclare
-        (zvar "TCPDstPort", SFunction(SPacket, SInt))
+        (zvar "Packet", [(zvar "packet", [ (zvar "Switch", SInt)
+										 ; (zvar "EthDst", SInt)
+										 ; (zvar "EthType", SInt)
+										 ; (zvar "Vlan", SInt)
+										 ; (zvar "VlanPcp", SInt)
+										 ; (zvar "IPProto", SInt)
+										 ; (zvar "IP4Src", SInt)
+										 ; (zvar "IP4Dst", SInt)
+										 ; (zvar "TCPSrcPort", SInt)
+										 ; (zvar "TCPDstPort", SInt)
+										 ; (zvar "EthSrc", SInt)
+										 ; (zvar "InPort", SInt)
+										 ])])
     ]
 
   let serialize_program (ZProgram (decls)) global= 
