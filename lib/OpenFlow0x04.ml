@@ -1569,7 +1569,7 @@ module Message = struct
   let marshal (xid : xid) (msg : t) : string =
     let hdr = let open Header in
       {ver = ver; typ = msg_code_of_message msg; len = 0; xid = xid} in
-    let sizeof_buf = Header.size_of hdr + sizeof msg in
+    let sizeof_buf = sizeof msg in
     let hdr = {hdr with Header.len = sizeof_buf} in
     let buf = Cstruct.create sizeof_buf in
     let _ = Header.marshal hdr buf in
