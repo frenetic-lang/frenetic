@@ -46,16 +46,12 @@ TEST "simple-check-false" =
 	
 
 let ethsrc_is_1 = Test (Header SDN_Types.EthSrc, make_vint 1)
-let switch_is_2 = Test (Switch, make_vint 2) 
-let pol = Or (And (ethsrc_is_1, Neg (switch_is_2)), Neg (ethsrc_is_1)) 
+let switch_is_2 = Test (Switch, make_vint 2)
+let pol = Or (And (ethsrc_is_1, Neg (switch_is_2)), Neg (ethsrc_is_1) ) 
 let tran1 = make_transition (1, 1) (2, 1)
 let tran2 = make_transition (2, 1) (3, 1)
 let topo = combine_topologies [tran1; tran2]
 let pol_topo = starify pol topo
-
-let tran3 = make_transition (3, 1) (4, 2)
-let tran4 = make_transition (4,2) (1, 1)
-let topo2 = combine_topologies [tran1;tran2;tran3;tran4]
 
   TEST "dijkstra" = 
   (dijkstra_test topo) = 2

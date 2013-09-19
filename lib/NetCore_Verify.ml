@@ -249,11 +249,13 @@ module Verify_Graph = struct
 				Seq (Mod (Switch, swDst), Mod (Header S.InPort, prtDst)))
 		| h::t -> 
 		  let (swSrc, prtSrc, swDst, prtDst) = src_port_vals h in
-		  Par ( Seq ( Filter (And (Test (Switch, swSrc), Test (Header SDN_Types.InPort, prtSrc))),
-					  Seq (Mod (Switch, swDst), Mod (Header S.InPort, prtDst))), create_pol t)
+		  Seq ( Seq ( Seq (Filter (Test (Switch, swSrc)), 
+						   Filter (Test (Header SDN_Types.InPort, prtSrc))),
+					  Seq (Mod (Switch, swDst), Mod (Header S.InPort, prtDst))),
+				create_pol t)
 		| _ -> failwith "non-empty lists only for now."
  in
-	Star (Seq (Filter True, create_pol edges))
+	create_pol edges
 
   let parse_graph ptstar = 
 	(
@@ -271,7 +273,9 @@ module Verify_Graph = struct
 			| Seq (Filter(And (Test (Switch, switch1), Test (Header SDN_Types.InPort, port1))),
 				   Seq (Mod (Switch, switch2), Mod (Header S.InPort, port2)))
 			  -> (assemble switch1 port1 switch2 port2)
-			| Par (Seq (Filter(And (Test (Switch, switch1), Test (Header SDN_Types.InPort, port1))),
+			  
+			| Par
+				(Seq (Filter(And (Test (Switch, switch1), Test (Header SDN_Types.InPort, port1))),
 					  Seq (Mod (Switch, switch2), Mod (Header S.InPort, port2))), t)
 			  -> parse_links (assemble switch1 port1 switch2 port2) t
 			| _ -> failwith (Printf.sprintf "unimplemented" )

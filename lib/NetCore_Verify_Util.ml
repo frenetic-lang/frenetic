@@ -1,4 +1,4 @@
-open NetCore_Topology
+
 open NetKAT_Types
 open VInt
 open NetCore_Verify
@@ -55,8 +55,6 @@ let make_packet_4 switch port ethsrc ethdst  =
 let dijkstra_test topo = Verify_Graph.longest_shortest (Verify_Graph.parse_graph (make_simple_topology topo))
 
 let bool_to_z3 b = if b then Sat.ZTrue else Sat.ZFalse
-
-let bool_to_predform b = if b then Sat.ZTrue else Sat.ZFalse
 
 let map_fun pred pkt = 
   Verify.forwards_pred pred pkt
