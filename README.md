@@ -28,6 +28,7 @@ Prerequisites:
 - The following OCaml libraries that we recommend you compile from source:
   - [ocaml-packet][]
   - [ocaml-openflow][]
+  - [ocaml-topology][]
 
 Building:
 
