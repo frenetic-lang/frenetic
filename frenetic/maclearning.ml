@@ -12,6 +12,12 @@ let usage =
     "Usage: maclearning [OPTION]... FILE\n \
      Starts the Frenetic MAC learning controller, running the policy in FILE."
 
+let () =
+  Arg.parse
+    arg_spec
+    (fun _ -> ())
+    usage
+
 let () = 
   let main () = 
     OpenFlow0x01_Platform.init_with_port !listenPort >>
