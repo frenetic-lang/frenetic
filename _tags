@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: c900524b09b6b29fe45b0ad71caf125a)
+# DO NOT EDIT (digest: f49c37a8f798ca1fb823117b066796fd)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -69,6 +69,16 @@
 "frenetic/katnetic.byte": pkg_str
 "frenetic/katnetic.byte": pkg_ocamlgraph
 "frenetic/katnetic.byte": pkg_openflow
+# Executable maclearning
+"frenetic/maclearning.byte": use_netcore
+"frenetic/maclearning.byte": pkg_lwt
+"frenetic/maclearning.byte": pkg_lwt.syntax
+"frenetic/maclearning.byte": pkg_packet
+"frenetic/maclearning.byte": pkg_lwt.unix
+"frenetic/maclearning.byte": pkg_cstruct
+"frenetic/maclearning.byte": pkg_str
+"frenetic/maclearning.byte": pkg_ocamlgraph
+"frenetic/maclearning.byte": pkg_openflow
 <frenetic/*.ml{,i}>: use_netcore
 <frenetic/*.ml{,i}>: pkg_lwt
 <frenetic/*.ml{,i}>: pkg_lwt.syntax

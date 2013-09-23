@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 69295356286526f7dc5b1f20a679f0f9) *)
+(* DO NOT EDIT (digest: f81c7f4e9e5238347a8426464a5aaf2b) *)
 This is the INSTALL file for the frenetic distribution.
 
 This package uses OASIS to generate its build system. See section OASIS for
@@ -11,7 +11,8 @@ Dependencies
 In order to compile this package, you will need:
 * ocaml for all, test all_tests, doc doc
 * findlib
-* lwt for library netcore, executable frenetic, executable katnetic
+* lwt for library netcore, executable frenetic, executable katnetic,
+  executable maclearning
 * cstruct for library netcore
 * ocamlgraph for library netcore
 * packet for library netcore, executable testtool

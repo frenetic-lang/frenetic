@@ -90,6 +90,15 @@ Executable katnetic
     lwt.syntax,
     netcore
 
+Executable maclearning
+  Path: frenetic
+  MainIs: maclearning.ml
+  Install$: flag(installexec)
+  BuildDepends:
+    lwt,
+    lwt.syntax,
+    netcore
+
 Document doc
   Title: NetCore Documentation
   Type: ocamlbuild (0.3)
