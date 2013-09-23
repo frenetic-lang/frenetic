@@ -1,5 +1,3 @@
-module Controller = NetCore_Controller
-
 let listenPort = ref 6633
 
 let arg_spec =
@@ -24,7 +22,7 @@ let () =
       let (init,pol) = NetCore_MacLearning.make () in 
       let (gen_stream, stream) = NetCore_Stream.from_stream init pol in 
       let (pkt_stream, push_pkt) = Lwt_stream.create () in
-      Lwt.pick [gen_stream; Controller.start_controller pkt_stream stream] in
+      Lwt.pick [gen_stream; NetCore_Controller.start_controller pkt_stream stream] in
   Sys.catch_break true;
   Lwt_main.run (main ())
     
