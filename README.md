@@ -28,6 +28,7 @@ Prerequisites:
 - The following OCaml libraries that we recommend you compile from source:
   - [ocaml-packet][]
   - [ocaml-openflow][]
+  - [ocaml-topology][]
 
 Building:
 
@@ -53,3 +54,4 @@ DSL. The [API documentation][documentation] is also available online.
 [documentation]: http://frenetic-lang.github.io/frenetic/docs/index.html
 [ocaml-packet]: https://github.com/frenetic-lang/ocaml-packet
 [ocaml-openflow]: https://github.com/frenetic-lang/ocaml-openflow
+[ocaml-topology]: https://github.com/frenetic-lang/ocaml-topology

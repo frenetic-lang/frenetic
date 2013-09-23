@@ -26,7 +26,9 @@ Library netcore
     lwt.syntax,
     str,
     ocamlgraph,
-    packet,openflow
+    packet,
+    openflow,
+    topology
   InternalModules:
     NetCore_Classifier,
     NetCore_Compat,
@@ -38,6 +40,7 @@ Library netcore
     NetCore_Parser,
     NetCore_SurfaceSyntax,
     NetKAT_Types,
+    NetKAT_Compiler,
     ONF,
     Controller
   Modules:
@@ -54,7 +57,6 @@ Library netcore
     NetCore_Stream,
     NetCore_StatefulFirewall,
     NetCore_Types,
-    NetCore_Topology,
     NetCore_Parsing,
     NetCore_Pattern,
     NetCore_Verify,

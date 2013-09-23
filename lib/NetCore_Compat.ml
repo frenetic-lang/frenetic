@@ -138,10 +138,10 @@ struct
       port_blocked = caps.OpenFlow0x04_Core.port_blocked }
 
   let to_nc_features feats portDescs = 
-    { datapath_id = feats.OpenFlow0x04_Core.datapath_id;
-      num_buffers = Int32.to_int feats.OpenFlow0x04_Core.num_buffers;
-      num_tables = feats.OpenFlow0x04_Core.num_tables;
-      supported_capabilities = convert_of_caps_to_nc_caps feats.OpenFlow0x04_Core.supported_capabilities;
+    { datapath_id = feats.OpenFlow0x04.SwitchFeatures.datapath_id;
+      num_buffers = Int32.to_int feats.OpenFlow0x04.SwitchFeatures.num_buffers;
+      num_tables = feats.OpenFlow0x04.SwitchFeatures.num_tables;
+      supported_capabilities = convert_of_caps_to_nc_caps feats.OpenFlow0x04.SwitchFeatures.supported_capabilities;
       ports = List.map (fun x -> x.OpenFlow0x04_Core.port_no) portDescs}
 
   let as_actionSequence inp acts = match acts with

@@ -7,60 +7,20 @@ type header_val = VInt.t
 type pred = 
   | True
   | False
-  | Test of header * header_val
+  | Test of header*header_val
   | And of pred*pred
   | Or of pred*pred
   | Neg of pred
 
 type policy =
   | Filter of pred
-  | Mod of header * header_val
-  | Par of policy * policy
-  | Seq of policy * policy
+  | Mod of header*header_val
+  | Par of policy*policy
+  | Seq of policy*policy
   | Star of policy
 
 let id = Filter True
 let drop = Filter False
-
-(* i;(p;t)^*;e 
-   where 
-   i = t = v | h = v | t <- v | i + i | i ; i
-   p = t = v | h = v | t <- v | h <- v | p + p | p ; p | p*
-   t = sw = v | p = v | sw <- v | p <- v | t + t
-   e = i
-*)
-
-type header_pred = 
-  | HTrue
-  | HFalse
-  | HTest of SDN_Types.field * header_val
-  | HNeg of header_pred
-  | HAnd of header_pred * header_pred
-  | HOr of header_pred * header_pred
-
-type ingress_pol =
-  | IFilter of header_pred
-  | IMod of SDN_Types.field * header_val
-  | IPar of ingress_pol * ingress_pol
-  | ISeq of ingress_pol * ingress_pol
-
-type switch_pol =
-  | SFilter of header_pred
-  | SMod of SDN_Types.field * header_val
-  | SPar of switch_pol * switch_pol
-  | SSeq of switch_pol * switch_pol
-  | SStar of switch_pol
-
-type topo_header =
-  | TSwitch
-  | TPort
-
-type topo_pol = 
-  | TTest of topo_header * header_val
-  | SMod of topo_header * header_val
-  | TPar of topo_pol
-
-type restricted_pol = ingress_pol * switch_pol * topo_pol * ingress_pol
 
 module HeaderMap = Map.Make (struct
     type t = header

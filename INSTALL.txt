@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: f81c7f4e9e5238347a8426464a5aaf2b) *)
+(* DO NOT EDIT (digest: 14438167c8dc3907ea2bace81028fe83) *)
 This is the INSTALL file for the frenetic distribution.
 
 This package uses OASIS to generate its build system. See section OASIS for
@@ -17,6 +17,7 @@ In order to compile this package, you will need:
 * ocamlgraph for library netcore
 * packet for library netcore, executable testtool
 * openflow for library netcore
+* topology for library netcore
 * oUnit for executable testtool
 * pa_ounit for executable testtool
 

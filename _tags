@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: f49c37a8f798ca1fb823117b066796fd)
+# DO NOT EDIT (digest: 84d0c33713daf7126d9f1c32c4fada66)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -23,6 +23,7 @@
 <lib/*.ml{,i}>: pkg_str
 <lib/*.ml{,i}>: pkg_ocamlgraph
 <lib/*.ml{,i}>: pkg_openflow
+<lib/*.ml{,i}>: pkg_topology
 # Executable testtool
 "test/Test.byte": use_netcore
 "test/Test.byte": pkg_lwt
@@ -36,6 +37,7 @@
 "test/Test.byte": pkg_str
 "test/Test.byte": pkg_ocamlgraph
 "test/Test.byte": pkg_openflow
+"test/Test.byte": pkg_topology
 <test/*.ml{,i}>: use_netcore
 <test/*.ml{,i}>: pkg_lwt
 <test/*.ml{,i}>: pkg_lwt.syntax
@@ -48,6 +50,7 @@
 <test/*.ml{,i}>: pkg_str
 <test/*.ml{,i}>: pkg_ocamlgraph
 <test/*.ml{,i}>: pkg_openflow
+<test/*.ml{,i}>: pkg_topology
 # Executable frenetic
 "frenetic/frenetic.byte": use_netcore
 "frenetic/frenetic.byte": pkg_lwt
@@ -58,6 +61,7 @@
 "frenetic/frenetic.byte": pkg_str
 "frenetic/frenetic.byte": pkg_ocamlgraph
 "frenetic/frenetic.byte": pkg_openflow
+"frenetic/frenetic.byte": pkg_topology
 "frenetic/frenetic.byte": custom
 # Executable katnetic
 "frenetic/katnetic.byte": use_netcore
@@ -69,6 +73,7 @@
 "frenetic/katnetic.byte": pkg_str
 "frenetic/katnetic.byte": pkg_ocamlgraph
 "frenetic/katnetic.byte": pkg_openflow
+"frenetic/katnetic.byte": pkg_topology
 # Executable maclearning
 "frenetic/maclearning.byte": use_netcore
 "frenetic/maclearning.byte": pkg_lwt
@@ -79,6 +84,7 @@
 "frenetic/maclearning.byte": pkg_str
 "frenetic/maclearning.byte": pkg_ocamlgraph
 "frenetic/maclearning.byte": pkg_openflow
+"frenetic/maclearning.byte": pkg_topology
 <frenetic/*.ml{,i}>: use_netcore
 <frenetic/*.ml{,i}>: pkg_lwt
 <frenetic/*.ml{,i}>: pkg_lwt.syntax
@@ -88,6 +94,7 @@
 <frenetic/*.ml{,i}>: pkg_str
 <frenetic/*.ml{,i}>: pkg_ocamlgraph
 <frenetic/*.ml{,i}>: pkg_openflow
+<frenetic/*.ml{,i}>: pkg_topology
 # OASIS_STOP
 <lib/*.ml>: syntax_camlp4o
 <frenetic/*.ml>: syntax_camlp4o
