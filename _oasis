@@ -67,6 +67,12 @@ Executable testtool
   MainIs: Test.ml
   BuildDepends: packet,openflow,oUnit,pa_ounit,pa_ounit.syntax
 
+Executable test0
+  Path: test
+  Install: False
+  MainIs: Test0.ml
+  BuildDepends: packet,openflow,oUnit,pa_ounit,pa_ounit.syntax
+
 Test all_tests
   Command: $testtool inline-test-runner dummy
   Run$: flag(tests)
