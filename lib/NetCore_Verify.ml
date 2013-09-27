@@ -162,7 +162,7 @@ module Sat = struct
 					 ; (zvar "InPort", SInt)
 					 ])])
     ]
-      
+
   let serialize_program (ZProgram (decls)) global= 
     Printf.sprintf 
       "%s\n%s\n%s\n%s\n(check-sat)"
@@ -170,7 +170,7 @@ module Sat = struct
       (intercalate serialize_declaration "\n" (!fresh_cell))
       (intercalate serialize_declaration "\n" decls)
       (intercalate serialize_declaration "\n" global)
-      
+
   let solve prog global : bool = 
     let s = serialize_program prog global in 
     let z3_out,z3_in = open_process "z3 -in -smt2 -nw" in 
@@ -187,13 +187,13 @@ module Sat = struct
     (*Printf.eprintf "%s" s;*)
     Buffer.contents b = "sat\n"
 end
-  
+
 module Verify_Graph = struct
   open Topology
   open NetKAT_Types
   module S = SDN_Types
-    
-    
+
+
   let longest_shortest graph = 
     let vertices = Topology.get_vertices graph in
     let longest_shortest_lambda (best_guess : int) vertex : int = 
@@ -206,7 +206,7 @@ module Verify_Graph = struct
       ) 0 vertices
     in
     List.fold_left longest_shortest_lambda 0 vertices
-      
+
   let unfold_graph graph =
     let edges = Topology.get_edges graph in
     let src_port_vals h=
@@ -242,7 +242,7 @@ module Verify_Graph = struct
 	| _ -> failwith "non-empty lists only for now."
     in
     create_pol edges
-      
+
   let parse_graph ptstar = 
     (
       let graph = Topology.empty in (
@@ -259,7 +259,7 @@ module Verify_Graph = struct
 	    | Seq (Filter(And (Test (Switch, switch1), Test (Header SDN_Types.InPort, port1))),
 		   Seq (Mod (Switch, switch2), Mod (Header S.InPort, port2)))
 	      -> (assemble switch1 port1 switch2 port2)
-	      
+
 	    | Par
 		(Seq (Filter(And (Test (Switch, switch1), Test (Header SDN_Types.InPort, port1))),
 		      Seq (Mod (Switch, switch2), Mod (Header S.InPort, port2))), t)
@@ -271,13 +271,13 @@ module Verify_Graph = struct
 	  | _ -> failwith "graph parsing assumes input is of the form (p;t)*"
       ))
 end
-  
-  
+
+
 module Verify = struct
   open Sat
   open SDN_Types
   open NetKAT_Types
-    
+
   let all_fields =
     [ Header InPort 
     ; Header EthType
@@ -292,7 +292,7 @@ module Verify = struct
     ; Header TCPDstPort
     ; Switch 
     ]
-      
+
   (* Bring header field names inline with SDN types*)
   let encode_header (header: header) (pkt: zVar): zTerm =
     match header with
@@ -308,7 +308,7 @@ module Verify = struct
       | Header TCPSrcPort ->  TApp (zvar "TCPSrcPort", TVar pkt)
       | Header TCPDstPort ->  TApp (zvar "TCPDstPort", TVar pkt)
       | Switch -> TApp (zvar "Switch", TVar pkt)
-	
+
   let equal_field (pkt1: zVar) (pkt2: zVar) (except_fields:header list): zFormula =
     ZAnd (List.fold_left 
 	    (fun acc hd -> 
@@ -317,21 +317,21 @@ module Verify = struct
 	      else
 		ZEquals (encode_header hd pkt1, encode_header hd pkt2)::acc) 
 	    [] all_fields )
-      
-      
+
+
   let packet_field (field:string) (pkt:zVar) (num:zTerm) : zFormula =
     ZEquals( TApp (field, TVar pkt), num)
-      
+
   let equal_single_field (field:string) (pkts : zVar list) : zFormula =
     let num = TVar (fresh SInt) in
     let f elem = packet_field field elem num in
     ZAnd (List.map f pkts)
-      
+
   let encode_vint (v: VInt.t): zTerm = TInt (VInt.get_int64 v)
-    
+
   let global_bindings = ref []
-    
-    
+
+
   let rec forwards_pred (pr : pred) (pkt : zVar) : zFormula = 
     match pr with
       | False -> 
@@ -346,13 +346,13 @@ module Verify = struct
                               forwards_pred p2 pkt]
       | Or (p1, p2) -> ZOr [forwards_pred p1 pkt;
                             forwards_pred p2 pkt]
-	
-	
+
+
   let forwards_pred_bind (pr:pred) (pkt1:zVar) (pkt2: zVar): zFormula =
     global_bindings := (ZEquals (TVar pkt1, TVar pkt2))::!global_bindings;
     (forwards_pred pr pkt1)
   (*Zand [(forwards_pred pr pkt1);(ZEquals (TVar pkt1, TVar pkt2))]*)
-      
+
   let rec forwards (pol:policy) (pkt1:zVar) (pkt2: zVar): zFormula =
     match pol with
       | Filter pr -> ZComment ("Filter", (forwards_pred_bind pr pkt1 pkt2))
@@ -367,15 +367,15 @@ module Verify = struct
 	ZComment ("Seq", ZAnd [forwards p1 pkt1 pkt';
 			       forwards p2 pkt' pkt2])
       | Star p1 -> failwith "NetKAT program not in form (p;t)*"
-	
+
   let noop_expr = 
     let ret history = 
       Sat.ZTrue
     in
     ret
-      
+
   (* we really want the internal forwarding logic to be forced to be consistent *)
-      
+
   let forwards_star_history expect_dup expr k p_t_star pkt1 pkt2 : zFormula = 
     let rec forwards_star_history (k:int) p_t_star (pkt1:zVar) (pkt2:zVar) : zFormula list  =
       if k = 0 then
@@ -405,17 +405,17 @@ module Verify = struct
 	| _ (* when there is a dup, we'll make sure that it is present as the first term here *)
 	  -> p_t_star ) else p_t_star in 
     ZOr (forwards_star_history k p_t_star pkt1 pkt2)
-      
-      
+
+
   let forwards_star  = forwards_star_history false noop_expr
 end
-  
+
 let generate_program expect_dup expr inp p_t_star outp k x y= 
   let prog = 
     Sat.ZProgram [ Sat.ZAssertDeclare (Verify.forwards_pred inp x)
                  ; Sat.ZAssertDeclare (Verify.forwards_star_history expect_dup expr k p_t_star x y )
                  ; Sat.ZAssertDeclare (Verify.forwards_pred outp y) ] in prog
-								      
+
 let run_solve oko prog str = 
   let global_eq =
     match !Verify.global_bindings with
@@ -431,14 +431,14 @@ let run_solve oko prog str =
       | None, sat -> 
 	(Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)) in
   Sat.fresh_cell := []; Verify.global_bindings := []; run_result
-    
+
 let combine_programs progs = 
   Sat.ZProgram (List.flatten (List.map (fun prog -> match prog with 
     | Sat.ZProgram (asserts) -> asserts) progs))
-    
+
 let make_vint v = VInt.Int64 (Int64.of_int v)
-  
-  
+
+
 let friday_equiv pt1 pt2 str = 
   let open Sat in
       let k = 1 in
@@ -448,10 +448,10 @@ let friday_equiv pt1 pt2 str =
       let phi2 = (Verify.forwards_star_history false Verify.noop_expr k pt2 x y) in 
       let prog = Sat.ZProgram ([Sat.ZAssertDeclare(phi1); Sat.ZAssertDeclare(ZNot (phi2))]) in
       run_solve (Some false) prog str
-	
-	
-	
-	
+
+
+
+
 let check_equivalent pt1 pt2 str = 
   (*global_bindings := (ZEquals (TVar pkt1, TVar pkt2))::!global_bindings;*)
   let graph1, graph2 = Verify_Graph.parse_graph pt1, Verify_Graph.parse_graph pt2 in
@@ -470,23 +470,23 @@ let check_equivalent pt1 pt2 str =
      prog1; 
      prog2] in
   run_solve (Some false) prog str
-    
+
 let check_specific_k_history expect_dup expr str inp p_t_star outp oko (k : int) : bool = 
   let x = Sat.fresh Sat.SPacket in 
   let y = Sat.fresh Sat.SPacket in 
   let prog = generate_program expect_dup expr inp p_t_star outp k x y in
   run_solve oko prog str
-    
+
 let check_maybe_dup expect_dup expr str inp p_t_star outp (oko : bool option) : bool = 
   let res_graph = Verify_Graph.parse_graph p_t_star in
   (*Printf.eprintf "%s" (NetCore_Topology.Topology.to_dot res_graph);*)
   let longest_shortest_path = Verify_Graph.longest_shortest
     res_graph in
   check_specific_k_history expect_dup expr str inp p_t_star outp oko longest_shortest_path
-    
-    
+
+
 let check_with_history  = check_maybe_dup (*TODO: add dup support when I find it in the code*) false
-  
+
 (* str: name of your test (unique ID)  
    inp: initial packet
    pol: policy to test
@@ -494,7 +494,5 @@ let check_with_history  = check_maybe_dup (*TODO: add dup support when I find it
    oko: bool option.  has to be Some.  True if you think it should be satisfiable.
 *)
 let check_specific_k = check_specific_k_history false Verify.noop_expr
-  
+
 let check  = check_maybe_dup false Verify.noop_expr
-  
-  
