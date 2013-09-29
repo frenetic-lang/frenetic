@@ -16,9 +16,11 @@
 %token LCURLY
 %token RCURLY
 %token NOT
+/* XXX : Unused
 %token QMARK
 %token TRUE
 %token FALSE
+*/
 %token ALL
 %token FWD
 %token STAR
@@ -60,11 +62,13 @@
 %token ICMP
 %token TCP
 %token UDP
+/* TODO : 
 %token MONITOR_POL
 %token MONITOR_TBL
 %token MONITOR_LOAD
 %token MONITOR_PKTS
 %token <string> STRING
+*/
 %token EOF
 %token TICKTICKTICK /* only for Markdown */
 %token ASSIGN
@@ -72,24 +76,27 @@
 %token INCLUDE
 %token CHECK
 %token FW
+/* TODO : Come up with a symbol and define syntax and put in lexer */
 %token KLEEN_STAR
 
-
-/* kleen star binds tighter than semi, which binds tighter than plus */
-%left KLEEN_STAR
-%left SEMI
-%left PLUS
 
 /* To disambiguate let x = p1 in p2;x;p3 */
 %nonassoc IN
 
-
-%nonassoc NOT
-/* TODO : Check, the precedence is different than NetCore, but it matches the paper */
-%left AND
-%left OR
-
 %right THEN ELSE
+
+/* kleen star binds tighter than semi, which binds tighter than plus */
+%left PLUS
+%left SEMI
+%left KLEEN_STAR
+
+
+
+/* TODO : Check, the precedence is different than NetCore, but it matches the paper */
+%left OR
+%left AND
+%nonassoc NOT
+
 
 %start program
 
