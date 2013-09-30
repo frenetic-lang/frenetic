@@ -3,13 +3,16 @@
   open NetKAT_Types
 
   (* Ethernet frame types *)
-  let arp  = 0x806
-  let ip   = 0x800
+  let arp : int64  = Int64.of_int 0x806
+  let ip  : int64  = Int64.of_int 0x800
 
   (* Ip protocol types *)
-  let icmp = 0x01
-  let tcp  = 0x06
-  let udp  = 0x11
+  let icmp : int64 = Int64.of_int 0x01
+  let tcp  : int64 = Int64.of_int 0x06
+  let udp  : int64 = Int64.of_int 0x11
+
+  let vlan_none : int64 = Int64.minus_one
+
 
 %}
 
@@ -21,11 +24,9 @@
 %token LCURLY
 %token RCURLY
 %token NOT
-/* XXX : Unused as of now
 %token QMARK
 %token TRUE
 %token FALSE
-*/
 %token ALL
 %token FWD
 %token STAR
@@ -67,13 +68,11 @@
 %token ICMP
 %token TCP
 %token UDP
-/* TODO : 
 %token MONITOR_POL
 %token MONITOR_TBL
 %token MONITOR_LOAD
 %token MONITOR_PKTS
 %token <string> STRING
-*/
 %token EOF
 %token TICKTICKTICK /* only for Markdown */
 %token ASSIGN
@@ -111,71 +110,113 @@
 %%
 
 /*
- TODO : "field" can be further classified into "switch", "layer2" "layer3" which can match to better 'typechecked' rules. But it has been left for typechecker to verify. Is this correct?
+ TODO : Classification of fields has been done now, is it fine or do we need to defer it to typechecker stage?
 */
 
-field :
-  | SWITCH        { NetKAT_Types.header.Switch            }
-  | INPORT        { NetKAT_Types.header.Header.InPort     }
-  | SRCMAC        { NetKAT_Types.header.Header.EthSrc     }
-  | DSTMAC        { NetKAT_Types.header.Header.EthDst     }
-  | VLAN          { NetKAT_Types.header.Header.Vlan       }
-  | SRCIP         { NetKAT_Types.header.Header.IP4Src     }
-  | DSTIP         { NetKAT_Types.header.Header.IP4Dst     }
-  | TCPSRCPORT    { NetKAT_Types.header.Header.TCPSrcPort }
-  | TCPDSTPORT    { NetKAT_Types.header.Header.TCPDstPort }
-  | FRAMETYPE     { NetKAT_Types.header.Header.EthType    }
-  | PROTOCOLTYPE  { NetKAT_Types.header.Header.IPProto    }
+/* TODO : Interface warnings are coming due to directly using SDN_Types.field */
+switch_field : SWITCH { Switch }
 
-  
-  
-field_value :
+switch_value : INT64 { $1 }
+
+
+port_field :
+  | INPORT        { Header InPort     }
+  | TCPSRCPORT    { Header TCPSrcPort }
+  | TCPDSTPORT    { Header TCPDstPort }
+
+port_value : INT64 { $1 }
+
+
+
+mac_field :
+  | SRCMAC { Header EthSrc }
+  | DSTMAC { Header EthDst }
+
+
+mac_value : MACADDR { $1 }
+
+vlan_field: VLAN { Header Vlan }
+
+vlan_value : 
+/* XXX : Hack */
+  | NONE    { vlan_none  }
   | INT64   { $1 }
-  | NONE    { None  }
-  | MACADDR { $1 }
-  | IPADDR  { $1 }
+
+
+
+ip_field :
+  | SRCIP         { Header IP4Src     }
+  | DSTIP         { Header IP4Dst     }
+
+ip_value : IPADDR  { $1 }
+
+
+
+ether_frame_field : | FRAMETYPE     { Header EthType    }
+
+ether_frame_value :
   | ARP     { arp  }
   | IP      { ip   }
+  | INT64   { $1 }
+
+
+proto_frame_field :
+  | PROTOCOLTYPE  { Header IPProto    }
+
+proto_frame_value :
   | ICMP    { icmp }
   | TCP     { tcp  }
   | UDP     { udp  }
+  | INT64   { $1 }
+
+  
+  
+predicate_test :
+  | proto_frame_field EQUALS proto_frame_value { Test ($1, $3) }
+  | ether_frame_field EQUALS ether_frame_value { Test ($1, $3) }
+  | ip_field          EQUALS ip_value          { Test ($1, $3) }
+  | vlan_field        EQUALS vlan_value        { Test ($1, $3) }
+  | mac_field         EQUALS mac_value         { Test ($1, $3) }
+  | port_field        EQUALS port_value        { Test ($1, $3) }
+  | switch_field      EQUALS switch_value      { Test ($1, $3) }
+
 
 
 predicate :
   | LPAREN predicate RPAREN  { $2 }
-  | NOT predicate            { NetKAT_Types.pred.Neg $2 }
-  | STAR                     { pred.True }
-  | NONE                     { pred.False }
-  | field EQUALS field_value { NetKAT_Types.pred.Test ($1, $3) }
-  | predicate AND predicate  { NetKAT_Types.pred.And  ($1, $3) }
-  | predicate OR predicate   { NetKAT_Types.pred.Or   ($1, $3) }
+  | NOT predicate            { Neg $2 }
+  | STAR                     { True }
+  | NONE                     { False }
+  | predicate_test           { $1 }
+  | predicate AND predicate  { And ($1, $3) }
+  | predicate OR predicate   { Or  ($1, $3) }
 
 
   /* TODO : define a policy that is only an identifier */
 
 policy : 
-  | FILTER predicate         { NetKAT_Types.policy.Filter $2 }
+  | FILTER predicate         { Filter $2 }
 
+/*
   | field field_value ASSIGN field_value
     {
       (* Filter packets by $1 and then apply Mod to packets that filter out *)
-      policy.Seq (policy.Filter (pred.Test ($1, $2)), policy.Mod ($1, $4))
+      Seq (Filter (Test ($1, $2)), Mod ($1, $4))
     }
-
-
-  | policy PLUS policy { NetKAT_Types.policy.Par ($1, $3) }
-  | policy SEMI policy { NetKAT_Types.policy.Seq ($1, $3) }
-  | policy KLEEN_STAR  { NetKAT_Types.Star $1 }
-  | PASS               { NetKAT_Types.id   }
-  | DROP               { NetKAT_Types.drop }
+*/
+  | policy PLUS policy { Par ($1, $3) }
+  | policy SEMI policy { Seq ($1, $3) }
+  | policy KLEEN_STAR  { Star $1 }
+  | PASS               { id   }
+  | DROP               { drop }
   | LPAREN policy RPAREN { $2 }
   | BEGIN  policy END    { $2 }
 
 
-  | FWD LPAREN INT64 RPAREN          { policy.Mod (header.Header.InPort, $3) }
+  | FWD LPAREN INT64 RPAREN          { Mod (InPort, $3) }
 
   /* XXX : Last INT64 is ignored here, similar to NetCore Parser */
-  | FWD LPAREN INT64 RPAREN AT INT64 { policy.Mod (header.Header.InPort, $3) }
+  | FWD LPAREN INT64 RPAREN AT INT64 { Mod (InPort, $3) }
 
 
   /* TODO */
@@ -194,14 +235,14 @@ policy :
   | IF predicate THEN policy 
     { 
       (* ((Filter predicate);policy) + drop *)
-      policy.Par (policy.Seq ((policy.Filter $2), $4), drop)
+      Par (Seq ((Filter $2), $4), drop)
     }
 
   | IF predicate THEN policy ELSE policy
     {
       (* ((Filter predicate);pol1) + ((Filter (Not predicate));pol2) *)
-      policy.Par (policy.Seq ((policy.Filter $2), $4),
-                  policy.Seq ((policy.Filter (pred.Neg $2)), $6))
+      Par (Seq ((Filter $2), $4),
+                 Seq ((Filter (Neg $2)), $6))
     }
 
   | LET ID EQUALS policy IN policy %prec IN 
