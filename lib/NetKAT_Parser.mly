@@ -2,9 +2,14 @@
 
   open NetKAT_Types
 
+  (* Ethernet frame types *)
+  let arp  = 0x806
+  let ip   = 0x800
 
-
-
+  (* Ip protocol types *)
+  let icmp = 0x01
+  let tcp  = 0x06
+  let udp  = 0x11
 
 %}
 
@@ -16,7 +21,7 @@
 %token LCURLY
 %token RCURLY
 %token NOT
-/* XXX : Unused
+/* XXX : Unused as of now
 %token QMARK
 %token TRUE
 %token FALSE
@@ -92,7 +97,7 @@
 
 
 
-/* TODO : Check, the precedence is different than NetCore, but it matches the paper */
+/* TODO : Check, the precedence is different than NetCore, but it matches the NetKAT paper and boolean algebra */
 %left OR
 %left AND
 %nonassoc NOT
@@ -103,8 +108,6 @@
 
 %type <NetKAT_Types.policy> program
 
-
-
 %%
 
 /*
@@ -112,67 +115,101 @@
 */
 
 field :
-  | SWITCH        { NetKAT_Types.Switch }
-  | INPORT        { NetKAT_Types.Header.InPort }
-  | SRCMAC        {}
-  | DSTMAC        {}
-  | VLAN          {}
-  | SRCIP         {}
-  | DSTIP         {}
-  | TCPSRCPORT    {}
-  | TCPDSTPORT    {}
-  | FRAMETYPE     {}
-  | PROTOCOLTYPE  {}
+  | SWITCH        { NetKAT_Types.header.Switch            }
+  | INPORT        { NetKAT_Types.header.Header.InPort     }
+  | SRCMAC        { NetKAT_Types.header.Header.EthSrc     }
+  | DSTMAC        { NetKAT_Types.header.Header.EthDst     }
+  | VLAN          { NetKAT_Types.header.Header.Vlan       }
+  | SRCIP         { NetKAT_Types.header.Header.IP4Src     }
+  | DSTIP         { NetKAT_Types.header.Header.IP4Dst     }
+  | TCPSRCPORT    { NetKAT_Types.header.Header.TCPSrcPort }
+  | TCPDSTPORT    { NetKAT_Types.header.Header.TCPDstPort }
+  | FRAMETYPE     { NetKAT_Types.header.Header.EthType    }
+  | PROTOCOLTYPE  { NetKAT_Types.header.Header.IPProto    }
 
   
   
 field_value :
-  | INT64     {}
-  | NONE      {}
-  | MACADDR   {}
-  | IPADDR    {}
-/* esp for pred */
-  | ARP {}
-  | IP {}
-  | ICMP {}
-  | TCP  {}
-  | UDP  {}
-
-
+  | INT64   { $1 }
+  | NONE    { None  }
+  | MACADDR { $1 }
+  | IPADDR  { $1 }
+  | ARP     { arp  }
+  | IP      { ip   }
+  | ICMP    { icmp }
+  | TCP     { tcp  }
+  | UDP     { udp  }
 
 
 predicate :
-  | LPAREN predicate RPAREN { $2 }
-  | NOT predicate {}
-  | STAR {}
-  | NONE {}
-  | field EQUALS field_value {}
-  | predicate AND predicate {}
-  | predicate OR predicate {}
+  | LPAREN predicate RPAREN  { $2 }
+  | NOT predicate            { NetKAT_Types.pred.Neg $2 }
+  | STAR                     { pred.True }
+  | NONE                     { pred.False }
+  | field EQUALS field_value { NetKAT_Types.pred.Test ($1, $3) }
+  | predicate AND predicate  { NetKAT_Types.pred.And  ($1, $3) }
+  | predicate OR predicate   { NetKAT_Types.pred.Or   ($1, $3) }
 
-/* In paper 
-  | ID
-  | DROP
-*/
+
+  /* TODO : define a policy that is only an identifier */
 
 policy : 
-  | FILTER predicate         {}
-  | field field_value ASSIGN field_value {}
-  | policy PLUS policy {}
-  | policy SEMI policy {}
-  | policy KLEEN_STAR  { NetKAT_Types.Star $1 }
+  | FILTER predicate         { NetKAT_Types.policy.Filter $2 }
 
-  | PASS                     {}
-  | DROP                     {}
-  | LPAREN policy RPAREN     { $2 }
-  | BEGIN  policy END        { $2 }
-  | ALL                      {}
+  | field field_value ASSIGN field_value
+    {
+      (* Filter packets by $1 and then apply Mod to packets that filter out *)
+      policy.Seq (policy.Filter (pred.Test ($1, $2)), policy.Mod ($1, $4))
+    }
+
+
+  | policy PLUS policy { NetKAT_Types.policy.Par ($1, $3) }
+  | policy SEMI policy { NetKAT_Types.policy.Seq ($1, $3) }
+  | policy KLEEN_STAR  { NetKAT_Types.Star $1 }
+  | PASS               { NetKAT_Types.id   }
+  | DROP               { NetKAT_Types.drop }
+  | LPAREN policy RPAREN { $2 }
+  | BEGIN  policy END    { $2 }
+
+
+  | FWD LPAREN INT64 RPAREN          { policy.Mod (header.Header.InPort, $3) }
+
+  /* XXX : Last INT64 is ignored here, similar to NetCore Parser */
+  | FWD LPAREN INT64 RPAREN AT INT64 { policy.Mod (header.Header.InPort, $3) }
+
+
+  /* TODO */
+  | ALL
+    {
+      (* TODO : Forward to all ports in a switch except the one in which it arrived on *)
+      (* forall ports in switch
+           if (port != portin)
+             dup pk, modify portout = port
+      *)
+    }
+
   | LCURLY predicate RCURLY policy LCURLY predicate RCURLY {}
 
-/* TODO : Still possible for mismatched no of else as compared to original grammar */
-  | IF predicate THEN policy {}
-  | IF predicate THEN policy ELSE policy {}
-  | LET ID EQUALS policy IN policy %prec IN {}
+/* TODO : Still possible for mismatched number of else as compared to original grammar */
+  | IF predicate THEN policy 
+    { 
+      (* ((Filter predicate);policy) + drop *)
+      policy.Par (policy.Seq ((policy.Filter $2), $4), drop)
+    }
+
+  | IF predicate THEN policy ELSE policy
+    {
+      (* ((Filter predicate);pol1) + ((Filter (Not predicate));pol2) *)
+      policy.Par (policy.Seq ((policy.Filter $2), $4),
+                  policy.Seq ((policy.Filter (pred.Neg $2)), $6))
+    }
+
+  | LET ID EQUALS policy IN policy %prec IN 
+    {
+      (* TODO  Evaluate in environment, maybe a simple substitution would do *)
+      failwith "Not implemented yet"
+      
+    }
 
 /* TODO :
   | LET ID COMMA ID EQUALS ID LPAREN PUBLICIP EQUALS IPADDR RPAREN IN pol
@@ -191,8 +228,6 @@ policy :
 /* TODO : Dont Understand 
   | FW LPAREN INT64 COMMA INT64 COMMA INT64 RPAREN
   | cexp
-  | FWD LPAREN cexp RPAREN
-  | FWD LPAREN cexp RPAREN AT INT64
 */
 
 
