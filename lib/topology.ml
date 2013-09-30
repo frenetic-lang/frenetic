@@ -312,8 +312,9 @@ struct
                                           (Node.to_string n))) in
     let (_,_,d) = try (List.hd
                          (List.filter (fun e -> Link.srcport e = p) ss))
-      with Failure hd -> raise (NotFound(Printf.sprintf
-                                           "next_hop: Port %ld is not connected\n" p))
+      with Failure hd -> raise (NotFound(
+        Printf.sprintf "next_hop: Port %ld on %s is not connected\n"
+          p (Node.to_string n)))
     in d
 
 
