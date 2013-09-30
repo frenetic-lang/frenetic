@@ -8,6 +8,7 @@ sig
            | Switch of string * switchId
            | Mbox of string * string list
 
+  type label = t
   val equal : t -> t -> bool
   val compare : t -> t -> int
   val to_dot : t -> string
@@ -84,7 +85,8 @@ end
 
 module Node : NODE
 module Link : LINK with type v = Node.t
-module Topology : TOPO with type V.t = Node.t and type E.t = Link.e
+module Topology : TOPO with type V.t = Node.t and type E.t = Link.e and type V.label
+  = Node.label and type E.label = Link.t
 
 module EdgeOrd : Set.OrderedType with type t = Link.e
 module EdgeSet : Set.S

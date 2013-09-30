@@ -7,6 +7,7 @@ sig
   type t = Host of string
            | Switch of string * switchId
            | Mbox of string * string list
+  type label = t
 
   val equal : t -> t -> bool
   val compare : t -> t -> int
@@ -89,6 +90,7 @@ struct
   type t = Host of string
            | Switch of string * switchId
            | Mbox of string * string list
+  type label = t
   let equal = Pervasives.(=)
   let hash = Hashtbl.hash
   let compare = Pervasives.compare

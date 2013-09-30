@@ -1,6 +1,18 @@
 open Util
 open DOT_Types
 open Topology
+open Graph
+
+module TopoDot = struct
+  let node (i:Dot_ast.node_id) (ats:Dot_ast.attr list) : Topology.V.label =
+    Node.Host("none")
+
+  let edge (ats:Dot_ast.attr list) : Topology.E.label =
+    Link.default
+end
+
+
+module P = Graph.Dot.Parse(Graph.Builder.P(Topology))(TopoDot)
 
 exception ParseError of info * string
       (* Private utility functions *)
