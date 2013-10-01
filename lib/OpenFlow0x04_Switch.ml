@@ -45,48 +45,24 @@ let send_to_switch_fd (sock : file_descr) (xid : xid) (msg : msg) : bool Lwt.t =
 let switch_handshake (fd : file_descr) : (OF.SwitchFeatures.t * OFC.portDesc list) option Lwt.t =
   let open OF.Message in
       match_lwt send_to_switch_fd fd 0l Hello with
-        | true -> begin match_lwt recv_from_switch_fd fd with 
-            | Some (_, Hello) ->
-              begin 
-                match_lwt send_to_switch_fd fd 0l FeaturesRequest with
-                  | true ->
-                    begin match_lwt recv_from_switch_fd fd with 
-                      | Some (_,FeaturesReply feats) ->
-                        begin match_lwt send_to_switch_fd fd 0l OF.portsDescRequest with
-                          | true ->
-                            begin match_lwt recv_from_switch_fd fd with
-                              | Some (_, MultipartReply (OFC.PortsDescReply ports)) -> 
-		                Lwt.return (Some (feats, ports))
-		              | _ -> Lwt.return None
-                            end
-                          | false -> Lwt.return None
-                        end
-                      | _ -> Lwt.return None
-                    end 
-                  | _ -> Lwt.return None
-              end
-    (* | Some (_, error) -> *)
-    (*   let open OF.Error in *)
-    (*       begin match error with *)
-    (*         | ErrorMsg (Error (HelloFailed code, bytes)) -> *)
-    (*           let open HelloFailed in *)
-    (*               begin match code with *)
-    (*                 | Incompatible ->  *)
-    (*                   Log.error_f *)
-    (*                     "OFPET_HELLO_FAILED received (code: OFPHFC_INCOMPATIBLE)!\n" >> *)
-    (*                     Lwt.return None *)
-    (*                 | Eperm ->  *)
-    (*                   Log.error_f *)
-    (*                     "OFPET_HELLO_FAILED received (code: OFPHFC_EPERM)!\n" >> *)
-    (*                     Lwt.return None *)
-    (*               end *)
-    (*         | _ -> Lwt.return None *)
-    (*       end *)
-            | Some _ ->
-              Lwt.return None
-            | None ->
-              Lwt.return None
-        end 
+        | true ->
+          begin
+            match_lwt send_to_switch_fd fd 0l FeaturesRequest with
+            | true ->
+              begin match_lwt recv_from_switch_fd fd with 
+                | Some (_,FeaturesReply feats) ->
+                  begin match_lwt send_to_switch_fd fd 0l OF.portsDescRequest with
+                    | true ->
+                      begin match_lwt recv_from_switch_fd fd with
+                        | Some (_, MultipartReply (OFC.PortsDescReply ports)) -> Lwt.return (Some (feats, ports))
+                        | _ -> Lwt.return None
+                      end
+                    | false -> Lwt.return None
+                  end
+                | _ -> Lwt.return None
+              end 
+            | _ -> Lwt.return None
+          end 
         | false -> 
           Lwt.return None
 

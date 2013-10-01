@@ -1,4 +1,4 @@
-(** Manages a connection to a single OpenFlow 1.0 switch. *)
+(** Manages a connection to a single OpenFlow 1.3 switch. *)
 
 (** * Low-level switch connection *)
 
@@ -27,7 +27,7 @@ val features : t -> OpenFlow0x04.SwitchFeatures.t
 
 val ports : t -> OpenFlow0x04_Core.portDesc list
 
-(** Performs the OpenFlow 1.0 handshake and returns a handle to the switch.
+(** Performs the OpenFlow 1.3 handshake and returns a handle to the switch.
 
 	  [handshake] creates an LWT thread in the background that handles echo
 	  requests and echo replies. *)
