@@ -43,7 +43,8 @@
 %token INPORT
 %token <Int64.t> INT64
 %token <Int64.t> MACADDR
-%token <Int32.t> IPADDR
+/* %token <Int32.t> IPADDR */
+%token <Int64.t> IPADDR
 %token <float> FLOAT
 %token AND
 %token OR
@@ -109,114 +110,75 @@
 
 %%
 
-/*
- TODO : Classification of fields has been done now, is it fine or do we need to defer it to typechecker stage?
+/* TODO : Interface warnings are coming due to directly using SDN_Types.field */
+
+
+
+/* XXX : The following parser for field and field_values gives an impression that any value can be assigned to any field for example arp can be assigned to IP4Src since they have a similar type. The decision has been deferred to typechecker to check the correctness of integer values if valid integer width types have been assigned to corresponding fields
 */
 
-/* TODO : Interface warnings are coming due to directly using SDN_Types.field */
-switch_field : SWITCH { Switch }
-
-switch_value : INT64 { $1 }
-
-
-port_field :
-  | INPORT        { Header InPort     }
-  | TCPSRCPORT    { Header TCPSrcPort }
-  | TCPDSTPORT    { Header TCPDstPort }
-
-port_value : INT64 { $1 }
-
-
-
-mac_field :
-  | SRCMAC { Header EthSrc }
-  | DSTMAC { Header EthDst }
+field :
+  | SWITCH       { Switch            }
+  | INPORT       { Header InPort     }
+  | TCPSRCPORT   { Header TCPSrcPort }
+  | TCPDSTPORT   { Header TCPDstPort }
+  | SRCMAC       { Header EthSrc     }
+  | DSTMAC       { Header EthDst     }
+  | VLAN         { Header Vlan       }
+  | SRCIP        { Header IP4Src     }
+  | DSTIP        { Header IP4Dst     }
+  | FRAMETYPE    { Header EthType    }
+  | PROTOCOLTYPE { Header IPProto    }
 
 
-mac_value : MACADDR { $1 }
-
-vlan_field: VLAN { Header Vlan }
-
-vlan_value : 
-/* XXX : Hack */
-  | NONE    { vlan_none  }
-  | INT64   { $1 }
-
-
-
-ip_field :
-  | SRCIP         { Header IP4Src     }
-  | DSTIP         { Header IP4Dst     }
-
-ip_value : IPADDR  { $1 }
-
-
-
-ether_frame_field : | FRAMETYPE     { Header EthType    }
-
-ether_frame_value :
-  | ARP     { arp  }
-  | IP      { ip   }
-  | INT64   { $1 }
-
-
-proto_frame_field :
-  | PROTOCOLTYPE  { Header IPProto    }
-
-proto_frame_value :
-  | ICMP    { icmp }
-  | TCP     { tcp  }
-  | UDP     { udp  }
-  | INT64   { $1 }
+field_value :
+  | INT64   { $1        }
+  | MACADDR { $1        }
+  | NONE    { vlan_none }
+  | IPADDR  { $1        }
+  | ARP     { arp       }
+  | IP      { ip        }
+  | ICMP    { icmp      }
+  | TCP     { tcp       }
+  | UDP     { udp       }
 
   
-  
-predicate_test :
-  | proto_frame_field EQUALS proto_frame_value { Test ($1, $3) }
-  | ether_frame_field EQUALS ether_frame_value { Test ($1, $3) }
-  | ip_field          EQUALS ip_value          { Test ($1, $3) }
-  | vlan_field        EQUALS vlan_value        { Test ($1, $3) }
-  | mac_field         EQUALS mac_value         { Test ($1, $3) }
-  | port_field        EQUALS port_value        { Test ($1, $3) }
-  | switch_field      EQUALS switch_value      { Test ($1, $3) }
-
-
-
 predicate :
-  | LPAREN predicate RPAREN  { $2 }
-  | NOT predicate            { Neg $2 }
-  | STAR                     { True }
-  | NONE                     { False }
-  | predicate_test           { $1 }
-  | predicate AND predicate  { And ($1, $3) }
-  | predicate OR predicate   { Or  ($1, $3) }
+  | LPAREN predicate RPAREN  { $2                  }
+  | NOT predicate            { Neg $2              }
+  | STAR                     { True                }
+  | NONE                     { False               }
+  | field EQUALS field_value { Test ($1, Int64 $3) }
+  | predicate AND predicate  { And  ($1, $3)       }
+  | predicate OR predicate   { Or   ($1, $3)       }
 
 
   /* TODO : define a policy that is only an identifier */
 
+
 policy : 
   | FILTER predicate         { Filter $2 }
+  /* | ID { $1 } */
 
-/*
   | field field_value ASSIGN field_value
     {
       (* Filter packets by $1 and then apply Mod to packets that filter out *)
-      Seq (Filter (Test ($1, $2)), Mod ($1, $4))
+      Seq (Filter (Test ($1, Int64 $2)), Mod ($1, Int64 $4))
     }
-*/
-  | policy PLUS policy { Par ($1, $3) }
-  | policy SEMI policy { Seq ($1, $3) }
-  | policy KLEEN_STAR  { Star $1 }
-  | PASS               { id   }
-  | DROP               { drop }
-  | LPAREN policy RPAREN { $2 }
-  | BEGIN  policy END    { $2 }
+
+  | policy PLUS policy   { Par ($1, $3) }
+  | policy SEMI policy   { Seq ($1, $3) }
+  | policy KLEEN_STAR    { Star $1      }
+  | PASS                 { id           }
+  | DROP                 { drop         }
+  | LPAREN policy RPAREN { $2           }
+  | BEGIN  policy END    { $2           }
 
 
-  | FWD LPAREN INT64 RPAREN          { Mod (InPort, $3) }
+  | FWD LPAREN INT64 RPAREN          { Mod (Header InPort, Int64 $3) }
 
   /* XXX : Last INT64 is ignored here, similar to NetCore Parser */
-  | FWD LPAREN INT64 RPAREN AT INT64 { Mod (InPort, $3) }
+  | FWD LPAREN INT64 RPAREN AT INT64 { Mod (Header InPort, Int64 $3) }
 
 
   /* TODO */
@@ -227,9 +189,13 @@ policy :
            if (port != portin)
              dup pk, modify portout = port
       *)
+
+      (* XXX : For now, for the sake of completeness of parser *)
+      drop
     }
 
-  | LCURLY predicate RCURLY policy LCURLY predicate RCURLY {}
+  /* Not there in the documentation */
+  | LCURLY predicate RCURLY policy LCURLY predicate RCURLY { drop }
 
 /* TODO : Still possible for mismatched number of else as compared to original grammar */
   | IF predicate THEN policy 
@@ -248,9 +214,10 @@ policy :
   | LET ID EQUALS policy IN policy %prec IN 
     {
       (* TODO  Evaluate in environment, maybe a simple substitution would do *)
-      failwith "Not implemented yet"
-      
+      drop
     }
+
+
 
 /* TODO :
   | LET ID COMMA ID EQUALS ID LPAREN PUBLICIP EQUALS IPADDR RPAREN IN pol
@@ -273,6 +240,6 @@ policy :
 
 
 program : 
-  | policy EOF  {}
+  | policy EOF  { $1 }
 
 %%

@@ -3,7 +3,7 @@
   open NetKAT_Parser
 
   let parse_byte str = Int64.of_string ("0x" ^ str)
-  let parse_decbyte str = Int32.of_string str
+  let parse_decbyte str = Int64.of_string str
 
   type mode =
     | Code
@@ -121,7 +121,7 @@ and token = parse
   | float_ as f { FLOAT (float_of_string f) }
 
   | (decbyte as b4) "." (decbyte as b3) "." (decbyte as b2) "." (decbyte as b1)
-    { let open Int32 in
+    { let open Int64 in
       IPADDR 
         (logor (shift_left (parse_decbyte b4) 24)
            (logor (shift_left (parse_decbyte b3) 16)
