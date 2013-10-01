@@ -30,6 +30,8 @@ Prerequisites:
   - [ocaml-openflow][]
   - [ocaml-topology][]
 
+Optionally, install Z3 <http://z3.codeplex.com> if you want to use Frenetic's verification tools.
+
 Building:
 
 From the root directory of the repository, simply run `make`
