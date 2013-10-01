@@ -11,6 +11,7 @@
   let tcp  : int64 = Int64.of_int 0x06
   let udp  : int64 = Int64.of_int 0x11
 
+  (* hack for now *)
   let vlan_none : int64 = Int64.minus_one
 
 
@@ -85,7 +86,7 @@
 %token KLEEN_STAR
 
 
-/* To disambiguate let x = p1 in p2;x;p3 */
+/* To disambiguate "let x = p1 in p2;x;p3", SEQ binds tighter than  */
 %nonassoc IN
 
 %right THEN ELSE
@@ -97,7 +98,7 @@
 
 
 
-/* TODO : Check, the precedence is different than NetCore, but it matches the NetKAT paper and boolean algebra */
+/* TODO : Check, the precedence here is different than NetCore, but it matches the NetKAT paper and boolean algebra */
 %left OR
 %left AND
 %nonassoc NOT
@@ -114,7 +115,7 @@
 
 
 
-/* XXX : The following parser for field and field_values gives an impression that any value can be assigned to any field for example arp can be assigned to IP4Src since they have a similar type. The decision has been deferred to typechecker to check the correctness of integer values if valid integer width types have been assigned to corresponding fields
+/* XXX : The following parser for field and field_values gives an impression that any value can be assigned to any field. For example arp can be assigned to IP4Src since they have a similar type. The decision has been deferred to typechecker to check the correctness of integer values if valid integer width types have been assigned to corresponding fields
 */
 
 field :
@@ -153,11 +154,12 @@ predicate :
   | predicate OR predicate   { Or   ($1, $3)       }
 
 
-  /* TODO : define a policy that is only an identifier */
 
 
 policy : 
   | FILTER predicate         { Filter $2 }
+
+  /* TODO : define a policy that is only an identifier */
   /* | ID { $1 } */
 
   | field field_value ASSIGN field_value
