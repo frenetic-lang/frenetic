@@ -46,14 +46,14 @@ let simpl_flow (p : SDN.pattern) (a : SDN.action) : SDN.flow = {
 (* Prunes out rules that apply to other switches. *)
 let rec local_to_tbl (sw : SDN.fieldVal) (local : ONF.local) : SDN.flowTable =
   match local with
-  | [] -> 
-    [] (* TODO (jnf, arjun): is it okay to produce an empty table? *)
-  | (if_, then_)::else_ ->
-    (match pred_to_pattern sw if_ with
-     | None -> local_to_tbl sw else_
-     | Some pat ->
-        (simpl_flow pat (acts_to_action then_)) :: (local_to_tbl sw else_))
-
+    | ONF.Action acts -> 
+      [simpl_flow SDN_Types.FieldMap.empty (acts_to_action acts)]
+    | ONF.ITE(if_,then_,else_) -> 
+      (match pred_to_pattern sw if_ with
+        | None -> local_to_tbl sw else_
+        | Some pat ->
+          (simpl_flow pat (acts_to_action then_)) :: (local_to_tbl sw else_))
+        
 (* Keeps the switch configured with the latest policy on onf_stream. *)
 let switch_thread 
   (onf_stream : ONF.local Stream.t)
