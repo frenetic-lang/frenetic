@@ -8,9 +8,10 @@ val setup_flow_table : SDN_Types.switchId -> SDN_Types.flowTable -> unit Lwt.t
 *)
 
 let handle_switch (features : switchFeatures) : unit Lwt.t =
+  let act = Action (SeqP (Act OutputAllPorts ) ) in
   SDN.setup_flow_table features.switch_id
     [{ pattern = FieldMap.empty;
-       action = OutputAllPorts;
+       action = act;
        cookie = 0L;
        idle_timeout = Permanent;
        hard_timeout = Permanent

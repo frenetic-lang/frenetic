@@ -77,7 +77,7 @@ let from_pattern (pat : AL.pattern) : Core.oxmMatch * Core.portId option =
 
 (* Converts an abstract action into an OpenFlow 1.3 action. The operation may
    fail if the action in unrealizable. *)
-let rec from_action (inPort : Core.portId option) (act : AL.action) 
+let from_action (inPort : Core.portId option) (act : AL.action) 
   : Mod.t * Core.action list =
   let v_to_m = Core.val_to_mask in
   let open Core in
@@ -104,23 +104,53 @@ let rec from_action (inPort : Core.portId option) (act : AL.action)
     | SetField (TCPSrcPort, VInt.Int16 n) -> (Mod.tpSrc, [Core.SetField (OxmTCPSrc (v_to_m n))])
     | SetField (TCPDstPort, VInt.Int16 n) -> (Mod.tpDst, [Core.SetField (OxmTCPDst (v_to_m n))])
     | SetField _ -> raise (Invalid_argument "invalid SetField combination")
-    | Seq (a1, a2) -> 
-      let (mods1, seq1) = from_action inPort a1 in
-      let (mods2, seq2) = from_action inPort a2 in
-      (Mod.seq mods1 mods2, seq1 @ seq2)
-    | Par (a1, a2) ->
-      let (mods1, seq1) = from_action inPort a1 in
-      let (mods2, seq2) = from_action inPort a2 in
-      (Mod.par mods1 mods2, seq1 @ seq2)
-    (* MJR TODO: fix this *)
-    | Failover _ -> raise (Invalid_argument "cannot implement fast failover")
     | EmptyAction -> (Mod.none, [])
-      
+
+let rec from_seq (inPort : Core.portId option) (seq : AL.seq) 
+  : Mod.t * Core.action list =
+  let open SDN_Types in
+  let open OpenFlow0x01_Core in
+  match seq with
+  | Act act -> from_action inPort act
+  | Seq (act, s2) ->
+    let (mods1, seq1) = from_action inPort act in
+    let (mods2, seq2) = from_seq inPort s2 in
+    (Mod.par mods1 mods2, seq1 @ seq2)
+
+let rec from_par (inPort : Core.portId option) (par : AL.par) 
+  : Mod.t * Core.action list =
+  let open SDN_Types in
+  let open OpenFlow0x01_Core in
+  match par with
+  | SeqP seq -> from_seq inPort seq
+  | Par (seq, p2) ->
+    let (mods1, seq1) = from_seq inPort seq in
+    let (mods2, seq2) = from_par inPort p2 in
+    (Mod.par mods1 mods2, seq1 @ seq2)
+
+let from_group (inPort : Core.portId option) (act : AL.group) 
+  : Core.action list =
+  let open SDN_Types in
+  let open OpenFlow0x01_Core in
+  match act with
+  | Action par -> let (_, act2) = from_par inPort par in act2
+  (* MJR TODO: fix this *)
+  (* How do we allocated the group Id? *)
+  | Failover fo -> [Core.Group Int32.zero]
+
+(*
+  One set of actions per bucket.
+    begin
+      let groups = List.map (fun par -> let (_, act) = from_par inPort par in act) fo in
+    end
+*)
+  
 let from_timeout (timeout : AL.timeout) : Core.timeout =
   match timeout with
     | AL.Permanent -> Core.Permanent
     | AL.ExpiresAfter n -> Core.ExpiresAfter n
       
+(* TODO: in case of failover, the flow mod is a group action *)
 let from_flow (priority : int) (flow : AL.flow) : Core.flowMod = 
   let open AL in
       match flow with
@@ -130,7 +160,7 @@ let from_flow (priority : int) (flow : AL.flow) : Core.flowMod =
 	  { mfCommand = AddFlow;
   	    mfOfp_match = pat;
 	    mfPriority = priority;
-	    mfInstructions = (let (_, act) = from_action inport action in [Core.ApplyActions act]);
+      mfInstructions = [Core.ApplyActions (from_group inport action)];
 	    mfCookie = Core.val_to_mask cookie;
 	    mfIdle_timeout = from_timeout idle_timeout;
 	    mfHard_timeout = from_timeout hard_timeout;

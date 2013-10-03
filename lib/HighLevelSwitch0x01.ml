@@ -68,10 +68,10 @@ let from_pattern (pat : AL.pattern) : Core.pattern =
     Core.tpSrc = lookup VInt.get_int16 AL.TCPSrcPort;
     Core.tpDst = lookup VInt.get_int16 AL.TCPDstPort;
     Core.inPort = lookup VInt.get_int16 AL.InPort }
-    
+
 (* Converts an abstract action into an OpenFlow 1.0 action. The operation may
    fail if the action in unrealizable. *)
-let rec from_action (inPort : Core.portId option) (act : AL.action) 
+let from_action (inPort : Core.portId option) (act : AL.action) 
   : Mod.t * Core.action list =
   let open SDN_Types in
   let open OpenFlow0x01_Core in
@@ -96,16 +96,37 @@ let rec from_action (inPort : Core.portId option) (act : AL.action)
     | SetField (TCPSrcPort, VInt.Int16 n) -> (Mod.tpSrc, [SetTpSrc n])
     | SetField (TCPDstPort, VInt.Int16 n) -> (Mod.tpDst, [SetTpDst n])
     | SetField _ -> raise (Invalid_argument "invalid SetField combination")
-    | Seq (a1, a2) -> 
-      let (mods1, seq1) = from_action inPort a1 in
-      let (mods2, seq2) = from_action inPort a2 in
-      (Mod.seq mods1 mods2, seq1 @ seq2)
-    | Par (a1, a2) ->
-      let (mods1, seq1) = from_action inPort a1 in
-      let (mods2, seq2) = from_action inPort a2 in
-      (Mod.par mods1 mods2, seq1 @ seq2)
-    | Failover _ -> raise (Invalid_argument "cannot implement fast failover")
     | EmptyAction -> (Mod.none, [])
+
+let rec from_seq (inPort : Core.portId option) (seq : AL.seq) 
+  : Mod.t * Core.action list =
+  let open SDN_Types in
+  let open OpenFlow0x01_Core in
+  match seq with
+  | Act act -> from_action inPort act
+  | Seq (act, s2) ->
+    let (mods1, seq1) = from_action inPort act in
+    let (mods2, seq2) = from_seq inPort s2 in
+    (Mod.par mods1 mods2, seq1 @ seq2)
+
+let rec from_par (inPort : Core.portId option) (par : AL.par) 
+  : Mod.t * Core.action list =
+  let open SDN_Types in
+  let open OpenFlow0x01_Core in
+  match par with
+  | SeqP seq -> from_seq inPort seq
+  | Par (seq, p2) ->
+    let (mods1, seq1) = from_seq inPort seq in
+    let (mods2, seq2) = from_par inPort p2 in
+    (Mod.par mods1 mods2, seq1 @ seq2)
+
+let from_group (inPort : Core.portId option) (act : AL.group) 
+  : Mod.t * Core.action list =
+  let open SDN_Types in
+  let open OpenFlow0x01_Core in
+  match act with
+  | Action par -> from_par inPort par
+  | Failover _ -> raise (Invalid_argument "cannot implement fast failover")
       
 let from_timeout (timeout : AL.timeout) : Core.timeout =
   match timeout with
@@ -121,7 +142,7 @@ let from_flow (priority : int) (flow : AL.flow) : Core.flowMod =
 	  { command = AddFlow;
   	    pattern = pat;
 	    priority = priority;
-	    actions = (let (_, act) = from_action pat.inPort action in act);
+	    actions = (let (_, act) = from_group pat.inPort action in act);
 	    cookie = cookie;
 	    idle_timeout = from_timeout idle_timeout;
 	    hard_timeout = from_timeout hard_timeout;

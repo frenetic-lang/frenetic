@@ -48,10 +48,21 @@ type action =
   | OutputAllPorts
   | OutputPort of VInt.t
   | SetField of field * fieldVal
-  | Seq of action * action
-  | Par of action * action 
-  | Failover of VInt.t * action * action
   | EmptyAction
+
+type seq =
+  | Seq of action * seq (** directly corresponds to an _action sequence_ *)
+  | Act of action
+
+type par =
+  | Par of seq * par
+  | SeqP of seq
+
+type group =
+  | Action of par
+  | Failover of par list
+  (* <marco> I think par list is better than par * group *)
+  (* | Failover of par * group *)
 
 type timeout =
   | Permanent
@@ -59,7 +70,7 @@ type timeout =
 
 type flow = {
   pattern: pattern;
-  action: action;
+  action: group;
   cookie: int64;
   idle_timeout: timeout;
   hard_timeout: timeout
