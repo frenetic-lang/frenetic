@@ -20,20 +20,22 @@ TEST "compile drop" =
   compile (Filter False) = (Filter False)
 
 TEST "compile test" =
-  let pr = Test (Header SDN.EthSrc, Int48 142L) in
-  test_compile (Filter pr) (Filter pr)
+  let pr = Test (Header SDN.EthSrc, Int48 100L) in
+  test_compile (Filter pr) (ite pr (Filter True) (Filter False))
 
 TEST "compile negation" =
   let pr = Test (Header SDN.EthSrc, Int48 200L) in
   test_compile (Filter (Neg pr)) (ite pr (Filter False) (Filter True))
 
-TEST "compile negation of conjunction" =
+TEST "compile negation of sum" =
   let pr = And (Test (Header SDN.EthSrc, Int48 0L), Test (Header SDN.EthDst, Int48 0L)) in
   test_compile
     (Filter (Neg pr))
+    (* order flipped, a canonical ordering from to_netkat would be great *)
     (ite (And (Test (Header SDN.EthDst, Int48 0L), Test (Header SDN.EthSrc, Int48 0L)))
        (Filter False)
-       (Filter (Test (Header SDN.EthSrc, Int48 0L))))
+       (* trivial optimization *)
+       (ite (Test (Header SDN.EthSrc, Int48 0L)) (Filter True) (Filter True)))
 
 (* TODO(arjun): Prove that this is true using the axioms of NetKAT. *)
 TEST "commute test annihilator" =
@@ -44,57 +46,37 @@ TEST "commute test annihilator" =
 TEST "commute test different fields" =
   test_compile
     (Seq (Mod (Header SDN.EthSrc, Int48 1L), Filter (Test (Header SDN.EthDst, Int48 0L))))
-    (Seq (Filter (Test (Header SDN.EthDst, Int48 0L)), Mod (Header SDN.EthSrc, Int48 1L)))
+    (ite (Test (Header SDN.EthDst, Int48 0L))
+       (Mod (Header SDN.EthSrc, Int48 1L))
+       (Filter False))
 
 (* trivial optimization possible *)
 TEST "commute same field" =
   test_compile
     (Seq (Mod (Header SDN.EthSrc, Int48 1L), Filter (Test (Header SDN.EthSrc, Int48 1L))))
-    (Mod (Header SDN.EthSrc, Int48 1L))
+    (ite True
+       (Mod (Header SDN.EthSrc, Int48 1L))
+       (Filter False))
 
 (* trivial optimization possible *)
 TEST "same field, two values = drop" =
-  let pr1 = Test (Header SDN.EthSrc, Int48 1L) in 
-  let pr2 = Test (Header SDN.EthSrc, Int48 0L) in 
   test_compile
-    (Filter (And (pr1, pr2)))
-    (Seq (Filter pr1, Filter False))
+    (Filter (And (Test (Header SDN.EthSrc, Int48 1L), Test (Header SDN.EthSrc, Int48 0L))))
+    (ite (Test (Header SDN.EthSrc, Int48 1L)) (Filter False) (Filter False))
 
-TEST "par1" = 
+TEST "star id" = 
   test_compile
-    (Par(Mod (Header SDN.EthSrc, Int48 1L),
-	 ite 
-	   (Test (Header SDN.EthSrc, Int48 1L))
-	   (Mod (Header SDN.EthSrc, Int48 2L))
-	   (Mod (Header SDN.EthSrc, Int48 3L))))
-    (ite 
-       (Test (Header SDN.EthSrc, Int48 1L))
-       (Par (Mod (Header SDN.EthSrc, Int48 1L),
-	     Mod (Header SDN.EthSrc, Int48 2L)))
-       (Par (Mod (Header SDN.EthSrc, Int48 1L),
-	     Mod (Header SDN.EthSrc, Int48 3L))))
-       
-(* TEST "star id" =  *)
-(*   test_compile *)
-(*     (Star (Filter True)) *)
-(*     (Filter True) *)
+    (Star (Filter True))
+    (Filter True)
 
-(* TEST "star drop" =  *)
-(*   test_compile *)
-(*     (Star (Filter False)) *)
-(*     (Filter True) *)
+TEST "star drop" = 
+  test_compile
+    (Star (Filter False))
+    (Filter True)
 
-(* TEST "star modify1" =  *)
-(*   test_compile *)
-(*     (Star (Mod (Header SDN.EthSrc, Int48 1L))) *)
-(*     (Par (Filter True, Mod (Header SDN.EthSrc, Int48 1L))) *)
+TEST "star modify" = 
+  test_compile
+    (Star (Mod (Header SDN.EthSrc, Int48 1L)))
+    (Par (Mod (Header SDN.EthSrc, Int48 1L), Filter True))
 
-(* TEST "star modify2" = *)
-(*   test_compile *)
-(*     (Star (Par(Mod (Header SDN.EthSrc, Int48 1L), *)
-(* 	       ite *)
-(* 		 (Test (Header SDN.EthSrc, Int48 1L)) *)
-(* 		 (Mod (Header SDN.EthSrc, Int48 2L)) *)
-(* 		 (Mod (Header SDN.EthSrc, Int48 3L))))) *)
-(*     (Filter False) *)
 
