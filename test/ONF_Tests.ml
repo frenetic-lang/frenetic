@@ -67,10 +67,10 @@ TEST "par1" =
 	   (Mod (Header SDN.EthSrc, Int48 3L))))
     (ite
        (Test (Header SDN.EthSrc, Int48 1L))
-       (Par (Mod (Header SDN.EthSrc, Int48 1L),
-	     Mod (Header SDN.EthSrc, Int48 2L)))
-       (Par (Mod (Header SDN.EthSrc, Int48 1L),
-	     Mod (Header SDN.EthSrc, Int48 3L))))
+       (Par (Mod (Header SDN.EthSrc, Int48 2L),
+	     Mod (Header SDN.EthSrc, Int48 1L)))
+       (Par (Mod (Header SDN.EthSrc, Int48 3L),
+	     Mod (Header SDN.EthSrc, Int48 1L))))
        
 TEST "star id" =
   test_compile
@@ -85,7 +85,7 @@ TEST "star drop" =
 TEST "star modify1" =
   test_compile
     (Star (Mod (Header SDN.EthSrc, Int48 1L)))
-    (Par (Filter True, Mod (Header SDN.EthSrc, Int48 1L)))
+    (Par (Mod (Header SDN.EthSrc, Int48 1L), Filter True))
 
 (* TEST "star modify2" = *)
 (*   test_compile *)
