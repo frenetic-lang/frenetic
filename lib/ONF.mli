@@ -1,14 +1,9 @@
 (** Compiler for NetKAT *)
 
-(** {2 OpenFlow Normal Form}
+(** {2 OpenFlow Normal Form} *)
 
-    This is OpenFlow Normal Form, as defined in the NetKAT submission, with a
-    few differences: (1) there is no star-compilation, (2) the grammar is for
-    a particular switch, not all switches. Star compilation is forthcoming, but
-    a whole-network ONF depends on knowning all switches in advance, which is
-    not how we build our system.
+type pat = NetKAT_Types.header_val_map
 
-*)
 
 (* A set of maps from header names to header values *)
 module ActSet : Set.S
@@ -22,7 +17,6 @@ module ActSet : Set.S
     [pred ::= h_1 = v_1 ; .. ; h_k = v_k]
 
     where all [k] headers are tested. *)
-type pat = NetKAT_Types.header_val_map
 
 (** A sequence of updates, where each update affects a distinct field.
     Therefore, they all commute with each other and can be represented by
@@ -40,13 +34,8 @@ type act = NetKAT_Types.header_val_map
     where all subterms [seq] are distinct. *)
 type acts = ActSet.t
 
-(** A cascase of [if .. then .. else] expressions nested under the [else]
-    branch.
-
-    [local ::= (pat,acts) list]
-
-*)
-type local = (pat * acts) list
+(** A policy in local intermediate form *)
+type local
 
 (** {2 NetKAT Compiler}
 
@@ -65,3 +54,5 @@ val compile : NetKAT_Types.policy -> local
 (** Converts the ONF term to an isomorphic NetKAT term, but simplifies
     [x + Id] to [x] when possible. *)
 val to_netkat : local -> NetKAT_Types.policy
+
+val local_to_table : SDN_Types.fieldVal -> local -> SDN_Types.flowTable 
