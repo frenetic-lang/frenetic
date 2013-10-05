@@ -291,7 +291,7 @@ let pat_to_netkat x =
   else
     let (h, v) = K.HeaderMap.min_binding x in
     let x' = K.HeaderMap.remove h x in
-    let f h v pol = K.And (K.Test (h, v), pol) in
+    let f h v pol = K.And (pol, K.Test (h, v)) in
     (K.HeaderMap.fold f x' (K.Test (h, v)))
 
 let pats_to_netkat xs = 
@@ -300,7 +300,7 @@ let pats_to_netkat xs =
   else
     let x = PatSet.choose xs in 
     let xs' = PatSet.remove x xs in 
-    let f x pol = K.Or(pat_to_netkat x, pol) in 
+    let f x pol = K.Or(pol, pat_to_netkat x) in 
     PatSet.fold f xs' (pat_to_netkat x)
 
 let act_to_netkat (pol : act) : K.policy =
@@ -309,14 +309,14 @@ let act_to_netkat (pol : act) : K.policy =
   else
     let (h, v) = K.HeaderMap.min_binding pol in
     let pol' = K.HeaderMap.remove h pol in
-    let f h v pol' = K.Seq (K.Mod (h, v), pol') in
+    let f h v pol' = K.Seq (pol', K.Mod (h, v)) in
     K.HeaderMap.fold f pol' (K.Mod  (h, v))
 
 let acts_to_netkat (pol : acts) : K.policy =
   if ActSet.is_empty pol then
     K.Filter K.False
   else
-    let f seq pol' = K.Par (act_to_netkat seq, pol') in
+    let f seq pol' = K.Par (pol', act_to_netkat seq) in
     let seq = ActSet.min_elt pol in
     let pol' = ActSet.remove seq pol in
     ActSet.fold f pol' (act_to_netkat seq)
