@@ -386,12 +386,12 @@ let act_to_action (seq : act) : SDN_Types.action =
     let mk_mod (h : K.header) (v : K.header_val) (action : SDN_Types.action) =
       match h with
       | K.Switch -> raise (Invalid_argument "seq_to_action got switch update")
-      | K.Header h' ->  SDN_Types.Seq (SDN_Types.SetField (h', v), action) in
+      | K.Header h' ->  SDN_Types.Seq (action, SDN_Types.SetField (h', v)) in
     K.HeaderMap.fold mk_mod mods (SDN_Types.OutputPort port)
 
 let acts_to_action (sum : acts) : SDN_Types.action =
   let f (seq : act) (action : SDN_Types.action) =
-    SDN_Types.Par (act_to_action seq, action) in
+    SDN_Types.Par (action, act_to_action seq) in
   ActSet.fold f sum SDN_Types.EmptyAction
 
 (* Prunes out rules that apply to other switches. *)
