@@ -173,6 +173,16 @@ module EdgeOrd = struct
   let compare = Pervasives.compare
 end
 
+module Weight = struct
+  open Link
+  type t = int64
+  type label = Link.t
+  let weight l = l.cost
+  let compare = Int64.compare
+  let add = Int64.add
+  let zero = Int64.zero
+end
+
 module EdgeSet = Set.Make(EdgeOrd)
 
 module EdgeMap = Map.Make(EdgeOrd)
@@ -181,14 +191,7 @@ module Topology =
 struct
   module G = Persistent.Digraph.ConcreteBidirectionalLabeled(Node)(Link)
   include G
-  module Dij = Path.Dijkstra(G)(struct
-      type t = int
-      type label = Link.t
-      let weight _ = 1
-      let compare = Pervasives.compare
-      let add = Pervasives.(+)
-      let zero = 0
-  end)
+  module Dij = Path.Dijkstra(G)(Weight)
   (* Functions to mimic NetCore's graph interface circa frenetic-lang/frenetic:master
      commit 52f490eb24fd42f427a46fb814cc9bc9341d1318 *)
 
@@ -331,6 +334,71 @@ struct
     if p = [] then raise (NoPath(Node.to_string src, Node.to_string dst))
     else p *)
 
+  let floyd_warshall (g:t): ((V.t * V.t) * V.t list) list =
+    let make_matrix (g:t) = 
+      let n = nb_vertex g in
+      let nodes = Array.of_list (get_vertices g) in
+      Array.init n 
+        (fun i -> Array.init n
+          (fun j -> if i = j then (0, [nodes.(i)])
+            else try 
+              let _ = find_edge g nodes.(i) nodes.(j) in
+              (1,[nodes.(i);nodes.(j)])
+            with Not_found ->  (0,[]))) in
+    let matrix = make_matrix g in
+    let n = nb_vertex g in
+    let dist i j = 
+      let (d,_) = matrix.(i).(j) in d in
+    let path i j = 
+      let (_,p) = matrix.(i).(j) in p in
+    for k = 0 to n - 1 do
+      for i = 0 to n - 1 do
+        for j = 0 to n - 1 do
+          if dist i k + dist k j < dist i j then
+            matrix.(i).(j) <- (dist i k + dist k j, path i k @ List.tl (path k j))
+        done
+      done
+    done;
+    let paths = ref [] in
+    let vxs = Array.of_list (get_vertices g) in
+    Array.iteri (fun i array -> 
+      Array.iteri (fun j elt -> 
+        let (_, p) = elt in
+        paths := ((vxs.(i),vxs.(j)),p) :: !paths) array;) matrix;
+    !paths
+
+  let undirected_edges (g:t): E.t list = 
+    fold_edges_e (fun e acc -> 
+      let v1 = E.src e and v2 = E.dst e in
+      if V.compare v1 v2 < 0 then e::acc else acc) g []
+
+  let spanningtree (g:t): t = 
+    let tree = ref empty in
+    let vertices = get_vertices g in
+    match vertices with
+      [] -> !tree
+    | (vx::_) ->
+        tree := add_vertex (!tree) vx;
+        let visited_nodes = Hashtbl.create 16 in
+        Hashtbl.add visited_nodes vx 1;
+        let by_weight e1 e2 = Link.compare (Link.cost e1) (Link.cost e2) in
+        let edges = List.sort by_weight (undirected_edges g) in
+        let rec find_edge tbl l tree = match l with
+            [] -> failwith "It cannot happen"
+          | h::t -> let vx1 = E.src h and vx2 = E.dst h in
+                    if Hashtbl.mem tbl vx1 && not (Hashtbl.mem tbl vx2) then
+                    (Hashtbl.add tbl vx2 1; 
+                    tree := add_edge_e (!tree) h;
+                    tree := add_edge_e (!tree) (Link.reverse h))
+                    else if Hashtbl.mem tbl vx2 && not (Hashtbl.mem tbl vx1) then
+                    (Hashtbl.add tbl vx1 1;
+                    tree := add_edge_e (!tree) h;
+                    tree := (add_edge_e (!tree) (Link.reverse h)))
+                    else find_edge tbl t tree in
+        while Hashtbl.length visited_nodes = List.length vertices do
+          find_edge visited_nodes edges tree
+        done;
+        !tree
 
   (* Produce a dot representation of the topology, usable by Graphviz *)
   let to_dot g =
