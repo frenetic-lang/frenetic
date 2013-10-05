@@ -35,6 +35,8 @@ let tru : pat = K.HeaderMap.empty
 
 let is_tru (x:pat) : bool = K.HeaderMap.is_empty x
 
+let fls : atom = (PatSet.singleton tru,tru) 
+
 let rec pat_matches (h:K.header) (v:K.header_val) (x:pat) : bool =
   not (K.HeaderMap.mem h x) || K.HeaderMap.find h x = v
 
@@ -187,8 +189,8 @@ let to_string (p:local) =
 (* Compiler operations *)
 let extend (r:atom) (s:acts) (p:local) : local = 
   let (xs,x) = r in 
-  if PatSet.mem x xs then 
-    p 
+  if PatSet.mem tru xs || PatSet.mem x xs then 
+    p
   else if Local.mem r p then 
     Local.add r (ActSet.union s (Local.find r p)) p
   else
@@ -386,12 +388,17 @@ let act_to_action (seq : act) : SDN_Types.action =
     let mk_mod (h : K.header) (v : K.header_val) (action : SDN_Types.action) =
       match h with
       | K.Switch -> raise (Invalid_argument "seq_to_action got switch update")
-      | K.Header h' ->  SDN_Types.Seq (action, SDN_Types.SetField (h', v)) in
+      | K.Header h' ->  SDN_Types.Seq (SDN_Types.SetField (h', v), action) in
     K.HeaderMap.fold mk_mod mods (SDN_Types.OutputPort port)
 
 let acts_to_action (sum : acts) : SDN_Types.action =
+  let mk_par a1 a2 = 
+    match a1,a2 with
+      | SDN_Types.EmptyAction, _ -> a2
+      | _, SDN_Types.EmptyAction -> a1
+      | _ -> SDN_Types.Par(a1,a2) in 
   let f (seq : act) (action : SDN_Types.action) =
-    SDN_Types.Par (action, act_to_action seq) in
+    mk_par action (act_to_action seq) in 
   ActSet.fold f sum SDN_Types.EmptyAction
 
 (* Prunes out rules that apply to other switches. *)

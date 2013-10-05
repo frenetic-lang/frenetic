@@ -4,13 +4,27 @@ open VInt
 
 let compile (pol : policy) : policy = ONF.to_netkat (ONF.compile pol)
 
+let flowTable (pol:policy) : SDN.flowTable = ONF.local_to_table (Int64 0L) (ONF.compile pol)
+
 let test_compile lhs rhs =
-  let lhs' = compile lhs in
-  if lhs' = rhs then
+  let rhs' = compile lhs in
+  if rhs' = rhs then
     true
   else
     (Format.printf "compile @,%a@, produced %a@,,@,expected %a\n%!"
-       format_policy lhs format_policy lhs' format_policy rhs;
+       format_policy lhs format_policy rhs' format_policy rhs;
+     false)
+
+let format_table fmt l = 
+  Format.fprintf fmt
+
+let test_flowTable lhs rhs =
+  let rhs' = flowTable lhs in
+  if rhs' = rhs then
+    true
+  else
+    (Format.printf "compile @,%a@, produced %a@,,@,expected %a\n%!"
+       format_policy lhs SDN.format_flowTable rhs' SDN.format_flowTable rhs;
      false)
 
 let ite (pred : pred) (then_pol : policy) (else_pol : policy) : policy =
@@ -100,3 +114,19 @@ TEST "star modify2" =
        (testSrc 1L)
        (Par (Par (Filter True, modSrc 1L), modSrc 2L))
        (Par (Par (Par (Filter True, modSrc 1L), modSrc 2L), modSrc 3L)))
+
+TEST "star modify2" = 
+  test_compile
+    (Star (Par (modSrc 1L, 
+	        ite (testSrc 1L) (modSrc 2L) (modSrc 3L))))
+    (ite 
+       (testSrc 1L)
+       (Par (Par (Filter True, modSrc 1L), modSrc 2L))
+       (Par (Par (Par (Filter True, modSrc 1L), modSrc 2L), modSrc 3L)))
+
+(* TEST "star modify2 table" =  *)
+(*   test_flowTable *)
+(*     (Seq (Star (Par (modSrc 1L,  *)
+(* 	             ite (testSrc 1L) (modSrc 2L) (modSrc 3L))), *)
+(*           Mod (Header SDN.InPort, Int16 2))) *)
+(*     [] *)
