@@ -115,11 +115,11 @@ let seq_atom_act_atom (xs1,x1) a (xs2,x2) =
     | None -> 
       None       
   
-
 let id : act = K.HeaderMap.empty
 
-let is_id (s : acts) : bool =
-  not (ActSet.is_empty s) && K.HeaderMap.is_empty (ActSet.choose s)
+(* there is only one element, and it is the empty sequence of updates *)
+let is_id (pol : acts) : bool =
+  not (ActSet.is_empty pol) && K.HeaderMap.is_empty (ActSet.choose pol)
 
 let drop : acts = ActSet.empty
 
@@ -280,7 +280,7 @@ let star_local (p:local) : local =
     par_local_local (local_normalize pol1) (local_normalize pol2)
   | K.Seq (pol1, pol2) ->
     seq_local_local (local_normalize pol1) (local_normalize pol2)
-  | K.Star pol ->
+  | K.Star pol -> 
     star_local (local_normalize pol)
       
 let compile = local_normalize 
@@ -307,7 +307,7 @@ let act_to_netkat (pol : act) : K.policy =
   if K.HeaderMap.is_empty pol then
     K.Filter K.True
   else
-    let (h, v) = K.HeaderMap.max_binding pol in
+    let (h, v) = K.HeaderMap.min_binding pol in
     let pol' = K.HeaderMap.remove h pol in
     let f h v pol' = K.Seq (K.Mod (h, v), pol') in
     K.HeaderMap.fold f pol' (K.Mod  (h, v))
@@ -317,7 +317,7 @@ let acts_to_netkat (pol : acts) : K.policy =
     K.Filter K.False
   else
     let f seq pol' = K.Par (act_to_netkat seq, pol') in
-    let seq = ActSet.max_elt pol in
+    let seq = ActSet.min_elt pol in
     let pol' = ActSet.remove seq pol in
     ActSet.fold f pol' (act_to_netkat seq)
 
