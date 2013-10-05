@@ -87,11 +87,16 @@ TEST "star modify1" =
     (Star (Mod (Header SDN.EthSrc, Int48 1L)))
     (Par (Mod (Header SDN.EthSrc, Int48 1L), Filter True))
 
-(* TEST "star modify2" = *)
-(*   test_compile *)
-(*     (Star (Par(Mod (Header SDN.EthSrc, Int48 1L), *)
-(* 	       ite *)
-(* 		 (Test (Header SDN.EthSrc, Int48 1L)) *)
-(* 		 (Mod (Header SDN.EthSrc, Int48 2L)) *)
-(* 		 (Mod (Header SDN.EthSrc, Int48 3L))))) *)
-(* TODO(jnf): compiler is doing the right thing. Need to write this out. *)
+let testSrc n = Test (Header SDN.EthSrc, Int48 n) 
+let modSrc n = Mod (Header SDN.EthSrc, Int48 n) 
+let testDst n = Test (Header SDN.EthDst, Int48 n) 
+let modDst n = Mod (Header SDN.EthDst, Int48 n) 
+
+TEST "star modify2" = 
+  test_compile
+    (Star (Par (modSrc 1L, 
+	        ite (testSrc 1L) (modSrc 2L) (modSrc 3L))))
+    (ite 
+       (testSrc 1L)
+       (Par (modSrc 2L, Par (modSrc 1L, Filter True)))
+       (Par(modSrc 3L, Par(modSrc 2L, Par(modSrc 1L, Filter True)))))
