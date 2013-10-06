@@ -43,7 +43,6 @@ Library netcore
     NetKAT_Compiler,
     NetKAT_Lexer,
     NetKAT_Parser,
-    ONF,
     Controller
   Modules:
     NetCore_Util,
@@ -131,4 +130,5 @@ Document doc
     NetCore_Types,
     NetCore_Parsing,
     NetKAT_Types,
-    ONF
+    NetKAT_Compiler,
+    Controller

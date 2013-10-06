@@ -5,7 +5,7 @@ open NetCore_Semantics
 open NetCore_Pattern
 open NetCore_Pretty
 open OUnit
-(*open ONF_Tests*)
+open NetKAT_Test
 open Verify_Tests
 open NetKAT_Pretty_Tests
 
