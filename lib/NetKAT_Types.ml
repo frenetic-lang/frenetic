@@ -91,12 +91,10 @@ module Formatting = struct
     | Header h' -> SDN_Types.format_field fmt h'
     | Switch -> pp_print_string fmt "switch"
 
-  (* The type of the immediately surrounding context, which guides parenthesis-
-     intersion. *)
-  (* JNF: YES. This is the Right Way to pretty print. *)
-  type context = SEQ | PAR | STAR | NEG | PAREN
 
-  let rec pred (cxt : context) (fmt : formatter) (pr : pred) : unit = 
+  type predicate_context = OR_L | OR_R | AND_L | AND_R | NEG | PAREN  
+
+  let rec pred (cxt : predicate_context) (fmt : formatter) (pr : pred) : unit = 
     match pr with
     | True -> 
       fprintf fmt "@[true@]"
@@ -104,29 +102,41 @@ module Formatting = struct
       fprintf fmt "@[false@]"
     | (Test (h, v)) -> 
       fprintf fmt "@[%a = %a@]" header h VInt.format v
+
     | Neg p' -> 
       begin match cxt with
-        | PAREN -> fprintf fmt "@[!%a@]" (pred NEG) p'
+        | PAREN
+        | NEG -> fprintf fmt "@[!%a@]" (pred NEG) p'
         | _ -> fprintf fmt "@[!@[(%a)@]@]" (pred PAREN) p'
       end
-    | Or (p1, p2) -> 
-      begin match cxt with
-        | PAREN
-        | PAR -> fprintf fmt "@[%a + %a@]" (pred PAR) p1 (pred PAR) p2
-        | _ -> fprintf fmt "@[(@[%a + %a@])@]" (pred PAR) p1 (pred PAR) p2
-      end
+
     | And (p1, p2) -> 
       begin match cxt with
         | PAREN
-        | SEQ
-        | PAR -> fprintf fmt "@[%a ; %a@]" (pred SEQ) p1 (pred SEQ) p2
-        | _ -> fprintf fmt "@[(@[%a ; %a@])@]" (pred SEQ) p1 (pred SEQ) p2
-       end
+        | OR_L
+        | OR_R
+        | AND_L -> fprintf fmt "@[%a && %a@]" (pred AND_L) p1 (pred AND_R) p2
+        | _ -> fprintf fmt "@[(@[%a && %a@])@]" (pred AND_L) p1 (pred AND_R) p2
+      end
 
-  let rec pol (cxt : context) (fmt : formatter) (p : policy) : unit =
+    | Or (p1, p2) -> 
+      begin match cxt with
+        | PAREN
+        | OR_L -> fprintf fmt "@[%a || %a@]" (pred OR_L) p1 (pred OR_R) p2
+        | _ -> fprintf fmt "@[(@[%a || %a@])@]" (pred OR_L) p1 (pred OR_R) p2
+      end
+
+
+  (* The type of the immediately surrounding policy_context, which guides parenthesis-
+     intersion. *)
+  (* JNF: YES. This is the Right Way to pretty print. *)
+  type policy_context = SEQ_L | SEQ_R | PAR_L | PAR_R | STAR | PAREN
+
+
+  let rec pol (cxt : policy_context) (fmt : formatter) (p : policy) : unit =
     match p with
     | Filter pr -> 
-      pred cxt fmt pr
+      pred PAREN fmt pr
     | Mod (h, v) -> 
       fprintf fmt "@[%a <- %a@]" header h VInt.format v
     | Star p' -> 
@@ -135,19 +145,22 @@ module Formatting = struct
 	| STAR ->  fprintf fmt "@[%a*@]" (pol STAR) p' 
         | _ -> fprintf fmt "@[@[(%a)*@]@]" (pol PAREN) p'
       end
+
     | Par (p1, p2) -> 
       begin match cxt with
         | PAREN
-        | PAR -> fprintf fmt "@[%a + %a@]" (pol PAR) p1 (pol PAR) p2
-        | _ -> fprintf fmt "@[(@[%a + %a@])@]" (pol PAR) p1 (pol PAR) p2
+        | SEQ_L
+        | SEQ_R
+        | PAR_L -> fprintf fmt "@[%a + %a@]" (pol PAR_L) p1 (pol PAR_R) p2
+        | _ -> fprintf fmt "@[(@[%a + %a@])@]" (pol PAR_L) p1 (pol PAR_R) p2
       end
+
     | Seq (p1, p2) -> 
       begin match cxt with
         | PAREN
-        | SEQ
-        | PAR -> fprintf fmt "@[%a ; %a@]" (pol SEQ) p1 (pol SEQ) p2
-        | _ -> fprintf fmt "@[(@[%a ; %a@])@]" (pol SEQ) p1 (pol SEQ) p2
-       end
+        | SEQ_L -> fprintf fmt "@[%a ; %a@]" (pol SEQ_L) p1 (pol SEQ_R) p2
+        | _ -> fprintf fmt "@[(@[%a ; %a@])@]" (pol SEQ_L) p1 (pol SEQ_R) p2
+      end
 end
 
 let make_string_of formatter x =
