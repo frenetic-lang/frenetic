@@ -7,6 +7,7 @@ open NetCore_Pretty
 open OUnit
 (*open ONF_Tests*)
 open Verify_Tests
+open NetKAT_Pretty_Tests
 
 let string_of_list f lst = String.concat "," (List.map f lst)
 
