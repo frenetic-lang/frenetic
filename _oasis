@@ -41,7 +41,6 @@ Library netcore
     NetCore_SurfaceSyntax,
     NetKAT_Types,
     NetKAT_Compiler,
-    ONF,
     Controller
   Modules:
     NetCore_Util,
@@ -119,4 +118,5 @@ Document doc
     NetCore_Types,
     NetCore_Parsing,
     NetKAT_Types,
-    ONF
+    NetKAT_Compiler,
+    Controller

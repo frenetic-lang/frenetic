@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: b936fef408d7a0c4fed17bc577a5097f)
+# DO NOT EDIT (digest: 3c08243da165eb6e26a70fea251cd4ea)
 NetCore_Util
 NetCore_Action
 NetCore_Compiler
@@ -28,6 +28,5 @@ NetCore_Parser
 NetCore_SurfaceSyntax
 NetKAT_Types
 NetKAT_Compiler
-ONF
 Controller
 # OASIS_STOP

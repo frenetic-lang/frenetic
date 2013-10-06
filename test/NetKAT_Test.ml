@@ -1,5 +1,6 @@
 open NetKAT_Types
 module SDN = SDN_Types
+module ONF = NetKAT_Compiler.Local
 open VInt
 
 let compile (pol : policy) : policy = ONF.to_netkat (ONF.compile pol)
