@@ -117,7 +117,7 @@ module Formatting = struct
     | Switch -> pp_print_string fmt "switch"
 
 
-  type predicate_context = OR_L | OR_R | AND_L | AND_R | NEG | PAREN  
+  type predicate_context = OR_L | OR_R | AND_L | AND_R | NEG | PAREN_PR
 
   let rec pred (cxt : predicate_context) (fmt : formatter) (pr : pred) : unit = 
     match pr with
@@ -130,14 +130,14 @@ module Formatting = struct
 
     | Neg p' -> 
       begin match cxt with
-        | PAREN
+        | PAREN_PR
         | NEG -> fprintf fmt "@[!%a@]" (pred NEG) p'
-        | _ -> fprintf fmt "@[!@[(%a)@]@]" (pred PAREN) p'
+        | _ -> fprintf fmt "@[!@[(%a)@]@]" (pred PAREN_PR) p'
       end
 
     | And (p1, p2) -> 
       begin match cxt with
-        | PAREN
+        | PAREN_PR
         | OR_L
         | OR_R
         | AND_L -> fprintf fmt "@[%a && %a@]" (pred AND_L) p1 (pred AND_R) p2
@@ -146,7 +146,7 @@ module Formatting = struct
 
     | Or (p1, p2) -> 
       begin match cxt with
-        | PAREN
+        | PAREN_PR
         | OR_L -> fprintf fmt "@[%a || %a@]" (pred OR_L) p1 (pred OR_R) p2
         | _ -> fprintf fmt "@[(@[%a || %a@])@]" (pred OR_L) p1 (pred OR_R) p2
       end
@@ -163,8 +163,8 @@ module Formatting = struct
     | Filter pr -> 
       (match pr with
          | True 
-         | False -> pred PAREN fmt pr
-         | _ -> pp_print_string fmt "filter "; pred PAREN fmt pr)
+         | False -> pred PAREN_PR fmt pr
+         | _ -> pp_print_string fmt "filter "; pred PAREN_PR fmt pr)
 
     | Mod (h, v) -> 
       fprintf fmt "@[%a -> %a@]" header h format_field_value v
