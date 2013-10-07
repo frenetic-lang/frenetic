@@ -21,7 +21,7 @@ module Sat = struct
   type zSort = 
     | SPacket
     | SInt
-    | SSet of zSort 
+    | SSet 
     | SFunction of zSort * zSort
 
   type zTerm = 
@@ -58,7 +58,7 @@ module Sat = struct
         Printf.sprintf "_pkt%d" n
       | SInt -> 
         Printf.sprintf "_n%d" n
-      | SSet _ -> 
+      | SSet -> 
         Printf.sprintf "_s%d" n 
       | SFunction _ -> 
         Printf.sprintf "_f%d" n in 
@@ -81,9 +81,8 @@ module Sat = struct
       "Int"
     | SPacket -> 
       "Packet"
-    | SSet(sort1) -> 
-      Printf.sprintf "Set %s"
-        (serialize_sort sort1)
+    | SSet -> 
+      Printf.sprintf "Set"
     | SFunction(sort1,sort2) -> 
       Printf.sprintf "(%s) %s" 
         (serialize_sort sort1) 
@@ -142,7 +141,7 @@ module Sat = struct
 
   let pervasives : string = 
     "(declare-datatypes () (Packet ((packet (Switch Int) (EthSrc Int) (EthDst Int) (InPort Int)))))" ^ "\n" ^ 
-    "(define-sort Set (T) (Array T Bool))" ^ "\n" ^ 
+    "(define-sort Set () (Array Packet Bool))" ^ "\n" ^ 
     "(define-fun set_empty () Set ((as const Set) false))" ^ "\n" ^ 
     "(define-fun set_mem ((x Packet) (s Set)) Bool (select s x))" ^ "\n" ^ 
     "(define-fun set_add ((s Set) (x Packet)) Set  (store s x true))" ^ "\n" ^ 
@@ -329,22 +328,31 @@ module Verify = struct
       | Or (pred1, pred2) -> ZOr [forwards_pred pred1 pkt;
                                   forwards_pred pred2 pkt]
         
-  let rec forward_pol (pol:policy) (pkt1:zVar) (set2:zVar) : zFormula =
+  let rec forward_pol (pol:policy) (pkt:zVar) (set:zVar) : zFormula =
     match pol with
       | Filter pred ->
         ZComment("Filter",
-                 ZAnd [forwards_pred pred pkt1;
-                       ZEquals(TApp(TApp(TVar "set_add", TVar pkt1), 
+                 ZAnd [forwards_pred pred pkt;
+                       ZEquals(TApp(TApp(TVar "set_add", TVar pkt), 
                                     TApp(TVar "set_empty", TUnit)), 
-                               TVar set2)])
+                               TVar set)])
       | Mod(f,v) -> 
         let pkt' = fresh SPacket in 
         ZComment("Mod",
-                 ZAnd [encode_packet_equals pkt1 pkt' [f];
+                 ZAnd [encode_packet_equals pkt pkt' [f];
                        ZEquals(encode_header f pkt', encode_vint v);
                        ZEquals(TApp(TApp(TVar "set_add", TVar pkt'), 
                                     TApp(TVar "set_empty", TUnit)), 
-                               TVar set2)])
+                               TVar set)])
+      | Par(pol1,pol2) -> 
+        let set1 = fresh SSet in 
+        let set2 = fresh SSet in 
+        ZComment("Par", 
+                 ZAnd[forward_pol pol1 pkt set1;
+                      forward_pol pol2 pkt set2;
+                      ZEquals(TApp(TApp(TVar "set_union", TVar set1),
+                                   TVar set2),
+                              TVar set)])
       | _ -> 
         assert false
 			
