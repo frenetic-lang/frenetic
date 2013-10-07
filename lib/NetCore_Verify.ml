@@ -25,10 +25,11 @@ module Sat = struct
     | SFunction of zSort * zSort
 
   type zTerm = 
+    | TUnit 
     | TVar of zVar
     | TInt of Int64.t
     | TPkt of switchId * portId * packet
-    | TApp of zVar * zTerm
+    | TApp of zTerm * zTerm
 
   type zFormula =
     | ZTrue
@@ -90,6 +91,8 @@ module Sat = struct
 
   let rec serialize_term term : string = 
     match term with 
+      | TUnit -> 
+        "()"
       | TVar x -> 
 	x
       | TPkt (sw,pt,pkt) -> 
@@ -97,8 +100,8 @@ module Sat = struct
       | TInt n -> 
 	Printf.sprintf "%s" 
           (Int64.to_string n)
-      | TApp (f, term) -> 
-	Printf.sprintf "(%s %s)" f (serialize_term term)
+      | TApp (term1, term2) -> 
+	Printf.sprintf "(%s %s)" (serialize_term term1) (serialize_term term2)
 
   let serialize_comment c = 
     Printf.sprintf "%s" c
@@ -271,11 +274,11 @@ module Verify = struct
   let encode_header (header: header) (pkt:zVar) : zTerm =
     match header with
       | Header InPort -> 
-        TApp ("InPort", TVar pkt)
+        TApp (TVar "InPort", TVar pkt)
       | Header EthSrc -> 
-        TApp ("EthSrc", TVar pkt)
+        TApp (TVar "EthSrc", TVar pkt)
       | Header EthDst -> 
-        TApp ("EthDst", TVar pkt)
+        TApp (TVar "EthDst", TVar pkt)
       (* | Header EthType ->   *)
       (*   TApp ("EthType", TVar pkt) *)
       (* | Header Vlan ->   *)
@@ -293,7 +296,7 @@ module Verify = struct
       (* | Header TCPDstPort ->   *)
       (*   TApp ("TCPDstPort", TVar pkt) *)
       | Switch -> 
-        TApp ("Switch", TVar pkt)
+        TApp (TVar "Switch", TVar pkt)
       | _ -> 
         failwith "Not yet implemented"
 
@@ -307,9 +310,6 @@ module Verify = struct
 	    ZEquals (encode_header hd pkt1, encode_header hd pkt2)::acc) 
 	[] all_fields in 
     ZAnd(l)
-
-  let encode_header_equals (h:header) (pkt:zVar) (n:zTerm) : zFormula =
-    ZEquals(encode_header h pkt, n)
       
   let encode_vint (v: VInt.t): zTerm = 
     TInt (VInt.get_int64 v)
@@ -329,10 +329,24 @@ module Verify = struct
       | Or (pred1, pred2) -> ZOr [forwards_pred pred1 pkt;
                                   forwards_pred pred2 pkt]
         
-(*   let rec forward_pol (pol:policy) (pkt1:zVar) (set2:zVar) : zFormula = *)
-(*     match pol with *)
-(*       | Filter pr -> *)
-(*         ZComment("Filter", *)
+  let rec forward_pol (pol:policy) (pkt1:zVar) (set2:zVar) : zFormula =
+    match pol with
+      | Filter pred ->
+        ZComment("Filter",
+                 ZAnd [forwards_pred pred pkt1;
+                       ZEquals(TApp(TApp(TVar "set_add", TVar pkt1), 
+                                    TApp(TVar "set_empty", TUnit)), 
+                               TVar set2)])
+      | Mod(f,v) -> 
+        let pkt' = fresh SPacket in 
+        ZComment("Mod",
+                 ZAnd [encode_packet_equals pkt1 pkt' [f];
+                       ZEquals(encode_header f pkt', encode_vint v);
+                       ZEquals(TApp(TApp(TVar "set_add", TVar pkt'), 
+                                    TApp(TVar "set_empty", TUnit)), 
+                               TVar set2)])
+      | _ -> 
+        assert false
 			
 (*   let rec forwards (pol:policy) (pkt1:zVar) (pkt2: zVar) : zFormula = *)
 (*     match pol with *)
