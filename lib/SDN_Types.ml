@@ -111,6 +111,50 @@ let format_field (fmt : Format.formatter) (f : field) : unit =
       | TCPDstPort -> "TCPDstPort")
 
 
+let format_pattern (fmt:Format.formatter) (p:pattern) : unit = 
+  Format.fprintf fmt "@[{";
+  let _ = 
+    FieldMap.fold 
+      (fun f v b -> format_field fmt f; 
+        Format.fprintf fmt "="; 
+        VInt.format fmt v; 
+        if b then Format.fprintf fmt ",@,";
+        true)
+      p false in 
+  Format.fprintf fmt "@]"
+
+let rec format_action (fmt:Format.formatter) (a:action) : unit = 
+  match a with         
+  | OutputAllPorts -> Format.fprintf fmt "OutputAllPorts"
+  | OutputPort(n) -> Format.fprintf fmt "OutputPort(%a)" VInt.format n
+  | SetField(f,v) -> Format.fprintf fmt "SetField(%a,%a)" format_field f VInt.format v
+  | Seq(a1,a2) -> Format.fprintf fmt "Seq(%a,%a)" format_action a1 format_action a2 
+  | Par(a1,a2) -> Format.fprintf fmt "Par(%a,%a)" format_action a1 format_action a2 
+  | Failover(n,a1,a2) -> Format.fprintf fmt "Failover(%a,%a,%a)" VInt.format n format_action a1 format_action a2 
+  | EmptyAction -> Format.fprintf fmt "EmptyAction"
+  
+let format_timeout (fmt:Format.formatter) (t:timeout) : unit = 
+  match t with 
+    | Permanent -> Format.fprintf fmt "Permanent"
+    | ExpiresAfter(n) -> Format.fprintf fmt "ExpiresAfter(%d)" n
+
+let format_flow (fmt: Format.formatter) (f : flow) : unit = 
+  Format.fprintf fmt "@[{pattern=%a,@," format_pattern f.pattern;
+  Format.fprintf fmt "action=%a,@," format_action f.action;
+  Format.fprintf fmt "cookie=%s,@," (Int64.to_string f.cookie);
+  Format.fprintf fmt "idle_timeout=%a,@," format_timeout f.idle_timeout;
+  Format.fprintf fmt "hard_timeout=%a}@]" format_timeout f.hard_timeout
+    
+let format_flowTable (fmt:Format.formatter) (l:flowTable) : unit = 
+  Format.fprintf fmt "@[[";
+  let _ = 
+    List.fold_left
+      (fun b f -> 
+        if b then Format.fprintf fmt "@ ";
+        format_flow fmt f;
+        true) false l in 
+  Format.fprintf fmt "]@]"
+
 module type SWITCH = sig
   type t
   val setup_flow_table : t -> flowTable -> unit Lwt.t
