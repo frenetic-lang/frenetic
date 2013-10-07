@@ -138,9 +138,17 @@ module Sat = struct
         Printf.sprintf "(assert %s)" (serialize_formula f)
 
   let pervasives : string = 
-    "(define-sort Set (T) (Array T Bool)\n" ^ 
-    "(declare-datatypes () (Packet ((packet (Switch Int) (EthSrc Int) (EthDst Int) (InPort Int)))))"
-
+    "(declare-datatypes () (Packet ((packet (Switch Int) (EthSrc Int) (EthDst Int) (InPort Int)))))" ^ "\n" ^ 
+    "(define-sort Set (T) (Array T Bool))" ^ "\n" ^ 
+    "(define-fun set_empty () Set ((as const Set) false))" ^ "\n" ^ 
+    "(define-fun set_mem ((x Packet) (s Set)) Bool (select s x))" ^ "\n" ^ 
+    "(define-fun set_add ((s Set) (x Packet)) Set  (store s x true))" ^ "\n" ^ 
+    "(define-fun set_inter ((s1 Set) (s2 Set)) Set ((_ map and) s1 s2))" ^ "\n" ^ 
+    "(define-fun set_negate ((s1 Set)) Set ((_ map not) s1))" ^ "\n" ^ 
+    "(define-fun set_union ((s1 Set) (s2 Set)) Set ((_ map or) s1 s2))" ^ "\n" ^ 
+    "(define-fun set_diff ((s1 Set) (s2 Set)) Set (set_inter s1 (set_negate s2)))" ^ "\n" ^ 
+    "(define-fun set_subseteq ((s1 Set) (s2 Set)) Bool (= set_empty (set_diff s1 s2)))" ^ "\n" 
+      
   let serialize_program p g = 
     let ZProgram(ds) = p in 
     let ds' = List.flatten [!fresh_cell; ds; g] in 
@@ -247,216 +255,181 @@ module Verify = struct
 
   let all_fields =
       [ Header InPort 
-      ; Header EthType
       ; Header EthSrc
       ; Header EthDst
-      ; Header Vlan
-      ; Header VlanPcp
-      ; Header IPProto
-      ; Header IP4Src
-      ; Header IP4Dst
-      ; Header TCPSrcPort
-      ; Header TCPDstPort
+      (* ; Header EthType *)
+      (* ; Header Vlan *)
+      (* ; Header VlanPcp *)
+      (* ; Header IPProto *)
+      (* ; Header IP4Src *)
+      (* ; Header IP4Dst *)
+      (* ; Header TCPSrcPort *)
+      (* ; Header TCPDstPort *)
       ; Switch 
 ]
 
-  (* Bring header field names inline with SDN types*)
-  let encode_header (header: header) (pkt:zVar): zTerm =
+  let encode_header (header: header) (pkt:zVar) : zTerm =
     match header with
       | Header InPort -> 
         TApp ("InPort", TVar pkt)
-      | Header EthType ->  
-        TApp ("EthType", TVar pkt)
       | Header EthSrc -> 
         TApp ("EthSrc", TVar pkt)
       | Header EthDst -> 
         TApp ("EthDst", TVar pkt)
-      | Header Vlan ->  
-        TApp ("Vlan", TVar pkt)
-      | Header VlanPcp ->
-        TApp ("VlanPcp", TVar pkt)
-      | Header IPProto ->  
-        TApp ("IPProto", TVar pkt)
-      | Header IP4Src ->  
-        TApp ("IP4Src", TVar pkt)
-      | Header IP4Dst ->  
-        TApp ("IP4Dst", TVar pkt)
-      | Header TCPSrcPort ->  
-        TApp ("TCPSrcPort", TVar pkt)
-      | Header TCPDstPort ->  
-        TApp ("TCPDstPort", TVar pkt)
+      (* | Header EthType ->   *)
+      (*   TApp ("EthType", TVar pkt) *)
+      (* | Header Vlan ->   *)
+      (*   TApp ("Vlan", TVar pkt) *)
+      (* | Header VlanPcp -> *)
+      (*   TApp ("VlanPcp", TVar pkt) *)
+      (* | Header IPProto ->   *)
+      (*   TApp ("IPProto", TVar pkt) *)
+      (* | Header IP4Src ->   *)
+      (*   TApp ("IP4Src", TVar pkt) *)
+      (* | Header IP4Dst ->   *)
+      (*   TApp ("IP4Dst", TVar pkt) *)
+      (* | Header TCPSrcPort ->   *)
+      (*   TApp ("TCPSrcPort", TVar pkt) *)
+      (* | Header TCPDstPort ->   *)
+      (*   TApp ("TCPDstPort", TVar pkt) *)
       | Switch -> 
         TApp ("Switch", TVar pkt)
+      | _ -> 
+        failwith "Not yet implemented"
 
-  let equal_field (pkt1: zVar) (pkt2: zVar) (except_fields:header list): zFormula =
-    ZAnd (List.fold_left 
-	    (fun acc hd -> 
-	      if List.mem hd except_fields then 
-		acc 
-	      else
-		ZEquals (encode_header hd pkt1, encode_header hd pkt2)::acc) 
-	    [] all_fields )
+  let encode_packet_equals (pkt1: zVar) (pkt2: zVar) (excepts:header list) : zFormula =
+    let l = 
+      List.fold_left 
+	(fun acc hd -> 
+	  if List.mem hd excepts then 
+	    acc 
+	  else
+	    ZEquals (encode_header hd pkt1, encode_header hd pkt2)::acc) 
+	[] all_fields in 
+    ZAnd(l)
 
+  let encode_header_equals (h:header) (pkt:zVar) (n:zTerm) : zFormula =
+    ZEquals(encode_header h pkt, n)
+      
+  let encode_vint (v: VInt.t): zTerm = 
+    TInt (VInt.get_int64 v)
 
-  let packet_field (field:string) (pkt:zVar) (num:zTerm) : zFormula =
-    ZEquals( TApp (field, TVar pkt), num)
-
-  let equal_single_field (field:string) (pkts : zVar list) : zFormula =
-    let num = TVar (fresh SInt) in
-	let f elem = packet_field field elem num in
-	ZAnd (List.map f pkts)
-	  
-  let encode_vint (v: VInt.t): zTerm = TInt (VInt.get_int64 v)
-
-  let global_bindings = ref []
-
-
-  let rec forwards_pred (pr : pred) (pkt : zVar) : zFormula = 
-    match pr with
+  let rec forwards_pred (pred : pred) (pkt : zVar) : zFormula = 
+    match pred with
       | False -> 
-		ZFalse
+	ZFalse
       | True -> 
-		ZTrue
+	ZTrue
       | Test (hdr, v) -> 
-		ZEquals (encode_header hdr pkt, encode_vint v)
+	ZEquals (encode_header hdr pkt, encode_vint v)
       | Neg p ->
         ZNot (forwards_pred p pkt)
-      | And (p1, p2) -> ZAnd [forwards_pred p1 pkt; 
-                              forwards_pred p2 pkt]
-      | Or (p1, p2) -> ZOr [forwards_pred p1 pkt;
-                            forwards_pred p2 pkt]
-	
-
-  let forwards_pred_bind (pr:pred) (pkt1:zVar) (pkt2: zVar): zFormula =
-	global_bindings := (ZEquals (TVar pkt1, TVar pkt2))::!global_bindings;
-	(*pkt2 := !pkt1;*)
-	forwards_pred pr pkt1
+      | And (pred1, pred2) -> ZAnd [forwards_pred pred1 pkt; 
+                                    forwards_pred pred2 pkt]
+      | Or (pred1, pred2) -> ZOr [forwards_pred pred1 pkt;
+                                  forwards_pred pred2 pkt]
+        
+(*   let rec forward_pol (pol:policy) (pkt1:zVar) (set2:zVar) : zFormula = *)
+(*     match pol with *)
+(*       | Filter pr -> *)
+(*         ZComment("Filter", *)
+			
+(*   let rec forwards (pol:policy) (pkt1:zVar) (pkt2: zVar) : zFormula = *)
+(*     match pol with *)
+(*       | Filter pr ->  *)
+(*         ZComment ("Filter", (ZAnd[forwards_pred pr pkt1; encode_packet_equals pkt1 pkt2 []])) *)
+(*       | Mod (hdr, v) ->  *)
+(* 	ZComment ("Mod", ZAnd [ZEquals (encode_header hdr pkt2, encode_vint v); *)
+(* 			       encode_packet_equals pkt1 pkt2 [hdr]]) *)
+(*       | Par (p1, p2) ->  *)
+(* 	ZComment ("Par", ZOr [forwards p1 pkt1 pkt2; *)
+(* 			      forwards p2 pkt1 pkt2]) *)
+(*       | Seq (p1, p2) ->  *)
+(* 	let pkt' = fresh SPacket in *)
+(* 	ZComment ("Seq", ZAnd [forwards p1 pkt1 pkt'; *)
+(* 			       forwards p2 pkt' pkt2]) *)
+(*       | Star p1 -> failwith "NetKAT program not in form (p;t)*" *)
 		
-  let rec forwards (pol:policy) (pkt1:zVar) (pkt2: zVar): zFormula =
-    match pol with
-      | Filter pr -> ZComment ("Filter", (forwards_pred_bind pr pkt1 pkt2))
-      | Mod (hdr, v) -> 
-		ZComment ("Mod", ZAnd [ZEquals (encode_header hdr pkt2, encode_vint v);
-			  equal_field pkt1 pkt2 [hdr]])
-      | Par (p1, p2) -> 
-		ZComment ("Par", ZOr [forwards p1 pkt1 pkt2;
-			 forwards p2 pkt1 pkt2])
-      | Seq (p1, p2) -> 
-		let pkt' = fresh SPacket in
-		ZComment ("Seq", ZAnd [forwards p1 pkt1 pkt';
-			  forwards p2 pkt' pkt2])
-	  | Star p1 -> failwith "NetKAT program not in form (p;t)*"
-		
-let noop_expr = 
-  let ret history = 
-	Sat.ZTrue
-  in
-  ret
-
-  let forwards_star_history expect_dup expr k p_t_star pkt1 pkt2 : zFormula = 
-  let rec forwards_star_history (k:int) p_t_star (pkt1:zVar) (pkt2:zVar) : zFormula list  =
-    if k = 0 then
-      [ZAnd [ZEquals (TVar pkt1, TVar pkt2); expr [pkt1]]]
-    else
-      let rec inner_forwards k p_t_star pkt1 pkt2 : zFormula * (zVar list) =
-		let pol,topo = (match p_t_star with 
-		  | (Star (Seq (Seq (pol, topo), (*TODO: dup*) dup))) -> if expect_dup then pol,topo else failwith "dup present, but not expecting dup"
-		  | (Star (Seq (pol,topo))) -> if expect_dup then failwith "in form (p;t)*, expected form dup;(p;t;dup)*" else pol,topo
-		  | _ -> failwith "not in form pt* with or without dup (maybe you forgot to make Seqs left-aligned?)") in
-        if k = 0 then
-          ZEquals (TVar pkt1, TVar pkt2), [pkt2]
-        else
-          let pkt' = fresh SPacket in
-          let pkt'' = fresh SPacket in
-		  let formula, histr = inner_forwards (k-1) (Star (Seq (pol, topo))) pkt'' pkt2 in
-		  let new_history = pkt1 :: histr in
-          ZAnd [ forwards pol pkt1 pkt';
-                 forwards topo pkt' pkt'';
-                 formula ], new_history
-      in
-	  let form, hist = inner_forwards k p_t_star pkt1 pkt2 in
-      (ZAnd [form; expr hist])::(forwards_star_history (k-1) p_t_star pkt1 pkt2)
-  in
-  let p_t_star = if expect_dup then (
-	match p_t_star with
-	  | _ (* when there is a dup, we'll make sure that it is present as the first term here *)
-		-> p_t_star ) else p_t_star in 
-  ZOr (forwards_star_history k p_t_star pkt1 pkt2)
-
-
-  let forwards_star  = forwards_star_history false noop_expr
+(*   let forwards_star_history k p_t_star pkt1 pkt2 : zFormula =  *)
+(*     if k = 0 then  *)
+(*       ZEquals (TVar pkt1, TVar pkt2) *)
+(*     else  *)
+(*       let pkt' = fresh SPacket in *)
+(*       let pkt'' = fresh SPacket in *)
+(*       let formula, histr = forwards_star_history (k-1) p_t_star pkt'' pkt2 in *)
+(*       ZAnd [ forwards pol pkt1 pkt'; *)
+(*              forwards topo pkt' pkt''; *)
+(*              formula ], new_history in  *)
+(*       let form, hist = inner_forwards k p_t_star pkt1 pkt2 in *)
+(*       (ZAnd [form; expr hist])::(forwards_star_history (k-1) p_t_star pkt1 pkt2) in  *)
+(*   ZOr (forwards_star_history k p_t_star pkt1 pkt2) *)
+(*   let forwards_star  = forwards_star_history noop_expr *)
 end
 
-let generate_program expect_dup expr inp p_t_star outp k x y= 
-  let prog = 
-    Sat.ZProgram [ Sat.ZDeclareAssert (Verify.forwards_pred inp x)
-                 ; Sat.ZDeclareAssert (Verify.forwards_star_history expect_dup expr k p_t_star x y )
-                 ; Sat.ZDeclareAssert (Verify.forwards_pred outp y) ] in prog
+(* let generate_program expr inp p_t_star outp k x y=  *)
+(*   let prog =  *)
+(*     Sat.ZProgram [ Sat.ZDeclareAssert (Verify.forwards_pred inp x) *)
+(*                  ; Sat.ZDeclareAssert (Verify.forwards_star_history expr k p_t_star x y ) *)
+(*                  ; Sat.ZDeclareAssert (Verify.forwards_pred outp y) ] in prog *)
 
-let run_solve oko prog str = 
-  let global_eq =
-	match !Verify.global_bindings with
-	  | [] -> []
-	  | _ -> [Sat.ZDeclareAssert (Sat.ZAnd !Verify.global_bindings)] in
-  let run_result = (
-	match oko, Sat.solve prog global_eq with 
-	  | Some ok, sat -> 
-		if ok = sat then 
-		  true
-		else
-		  (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; false)
-	  | None, sat -> 
-		(Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)) in
-  Sat.fresh_cell := []; Verify.global_bindings := []; run_result
+(* let run_solve oko prog str = assert false *)
+(* (\*   let global_eq = *\) *)
+(* (\* 	match !Verify.global_bindings with *\) *)
+(* (\* 	  | [] -> [] *\) *)
+(* (\* 	  | _ -> [Sat.ZDeclareAssert (Sat.ZAnd !Verify.global_bindings)] in *\) *)
+(* (\*   let run_result = ( *\) *)
+(* (\* 	match oko, Sat.solve prog global_eq with  *\) *)
+(* (\* 	  | Some ok, sat ->  *\) *)
+(* (\* 		if ok = sat then  *\) *)
+(* (\* 		  true *\) *)
+(* (\* 		else *\) *)
+(* (\* 		  (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; false) *\) *)
+(* (\* 	  | None, sat ->  *\) *)
+(* (\* 		(Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)) in *\) *)
+(* (\*   Sat.fresh_cell := []; Verify.global_bindings := []; run_result *\) *)
 	
-let combine_programs progs = 
-  Sat.ZProgram (List.flatten (List.map (fun prog -> match prog with 
-	| Sat.ZProgram (asserts) -> asserts) progs))
+(* (\* let combine_programs progs =  *\) *)
+(* (\*   Sat.ZProgram (List.flatten (List.map (fun prog -> match prog with  *\) *)
+(* (\* 	| Sat.ZProgram (asserts) -> asserts) progs)) *\) *)
 
-let make_vint v = VInt.Int64 (Int64.of_int v)
+(* (\* let make_vint v = VInt.Int64 (Int64.of_int v) *\) *)
 
-let check_equivalent pt1 pt2 str = 
-  	(*global_bindings := (ZEquals (TVar pkt1, TVar pkt2))::!global_bindings;*)
-  let graph1, graph2 = Verify_Graph.parse_graph pt1, Verify_Graph.parse_graph pt2 in
-  let length1, length2 = Verify_Graph.longest_shortest graph1, Verify_Graph.longest_shortest graph2 in
-  let k = if length1 > length2 then length1 else length2 in
-  let k_z3 = Sat.fresh Sat.SInt in
-  let x = Sat.fresh Sat.SPacket in
-  let y1 = Sat.fresh Sat.SPacket in
-  let y2 = Sat.fresh Sat.SPacket in
-  let fix_k = (fun n -> Sat.ZEquals (Sat.TVar k_z3, Verify.encode_vint (make_vint (List.length n)))) in
-  let prog1 = generate_program false fix_k NetKAT_Types.True pt1 NetKAT_Types.True k x y1 in
-  let prog2 = generate_program false fix_k  NetKAT_Types.True pt2 NetKAT_Types.True k x y2 in
-  let prog = combine_programs 
-	[Sat.ZProgram [Sat.ZDeclareAssert (Sat.ZEquals (Sat.TVar x, Sat.TVar x)); 
-		       Sat.ZDeclareAssert (Sat.ZNot (Sat.ZEquals (Sat.TVar y1, Sat.TVar y2)))]; 
-	 prog1; 
-	 prog2] in
-  run_solve (Some false) prog str
+(* (\* let check_equivalent pt1 pt2 str =  *\) *)
+(* (\*   	(\\*global_bindings := (ZEquals (TVar pkt1, TVar pkt2))::!global_bindings;*\\) *\) *)
+(* (\*   let graph1, graph2 = Verify_Graph.parse_graph pt1, Verify_Graph.parse_graph pt2 in *\) *)
+(* (\*   let length1, length2 = Verify_Graph.longest_shortest graph1, Verify_Graph.longest_shortest graph2 in *\) *)
+(* (\*   let k = if length1 > length2 then length1 else length2 in *\) *)
+(* (\*   let k_z3 = Sat.fresh Sat.SInt in *\) *)
+(* (\*   let x = Sat.fresh Sat.SPacket in *\) *)
+(* (\*   let y1 = Sat.fresh Sat.SPacket in *\) *)
+(* (\*   let y2 = Sat.fresh Sat.SPacket in *\) *)
+(* (\*   let fix_k = (fun n -> Sat.ZEquals (Sat.TVar k_z3, Verify.encode_vint (make_vint (List.length n)))) in *\) *)
+(* (\*   let prog1 = generate_program false fix_k NetKAT_Types.True pt1 NetKAT_Types.True k x y1 in *\) *)
+(* (\*   let prog2 = generate_program false fix_k  NetKAT_Types.True pt2 NetKAT_Types.True k x y2 in *\) *)
+(* (\*   let prog = combine_programs  *\) *)
+(* (\* 	[Sat.ZProgram [Sat.ZDeclareAssert (Sat.ZEquals (Sat.TVar x, Sat.TVar x));  *\) *)
+(* (\* 		       Sat.ZDeclareAssert (Sat.ZNot (Sat.ZEquals (Sat.TVar y1, Sat.TVar y2)))];  *\) *)
+(* (\* 	 prog1;  *\) *)
+(* (\* 	 prog2] in *\) *)
+(* (\*   run_solve (Some false) prog str *\) *)
 
-let check_specific_k_history expect_dup expr str inp p_t_star outp oko (k : int) : bool = 
-  let x = Sat.fresh Sat.SPacket in 
-  let y = Sat.fresh Sat.SPacket in 
-  let prog = generate_program expect_dup expr inp p_t_star outp k x y in
-  run_solve oko prog str
+(* let check_specific_k_history expr str inp p_t_star outp oko (k : int) : bool =  *)
+(*   let x = Sat.fresh Sat.SPacket in  *)
+(*   let y = Sat.fresh Sat.SPacket in  *)
+(*   let prog = generate_program expr inp p_t_star outp k x y in *)
+(*   run_solve oko prog str *)
 
-let check_maybe_dup expect_dup expr str inp p_t_star outp (oko : bool option) : bool = 
-  let res_graph = Verify_Graph.parse_graph p_t_star in
-  (*Printf.eprintf "%s" (NetCore_Topology.Topology.to_dot res_graph);*)
-  let longest_shortest_path = Verify_Graph.longest_shortest
-	res_graph in
-  check_specific_k_history expect_dup expr str inp p_t_star outp oko longest_shortest_path
-
-
-let check_with_history  = check_maybe_dup (*TODO: add dup support when I find it in the code*) false
+(* let check_maybe_dup expr str inp p_t_star outp (oko : bool option) : bool =  *)
+(*   let res_graph = Verify_Graph.parse_graph p_t_star in *)
+(*   let longest_shortest_path = Verify_Graph.longest_shortest *)
+(*     res_graph in *)
+(*   check_specific_k_history expr str inp p_t_star outp oko longest_shortest_path *)
   
-(* str: name of your test (unique ID)  
-   inp: initial packet
-   pol: policy to test
-   outp: fully-transformed packet 
-   oko: bool option.  has to be Some.  True if you think it should be satisfiable.
-*)
-let check_specific_k = check_specific_k_history false Verify.noop_expr
-
-let check  = check_maybe_dup false Verify.noop_expr
+(* (\* str: name of your test (unique ID)   *)
+(*    inp: initial packet *)
+(*    pol: policy to test *)
+(*    outp: fully-transformed packet  *)
+(*    oko: bool option.  has to be Some.  True if you think it should be satisfiable. *)
+(* *\) *)
+let check = assert false
 
