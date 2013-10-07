@@ -340,9 +340,12 @@ end
 module StatsReply : sig
 
   type t = OpenFlow0x01_Stats.reply
-
+  
+  val parse : Cstruct.t -> t
+  
+  val marshal : t -> Cstruct.t -> int
+  
 end
-
 
 (** An error message.  See Section 5.4.4 of the OpenFlow 1.0 specification. *)
 module Error : sig
@@ -471,7 +474,11 @@ end
 module Vendor : sig
 
   type t = int32 * Cstruct.t
+  
+  val parse : Cstruct.t -> t
 
+  val marshal : t -> Cstruct.t  -> int
+  
 end
 
 (** A subset of the OpenFlow 1.0 messages defined in Section 5.1 of the 

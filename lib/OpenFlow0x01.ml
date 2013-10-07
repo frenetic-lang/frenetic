@@ -2260,7 +2260,7 @@ module Vendor = struct
   let marshal msg out =
     let (vendor, body) = msg in
     set_ofp_vendor_header_vendor out (vendor);
-    let out = Cstruct.shift out sizeof_ofp_vendor_header in 
+    let out = Cstruct.shift out sizeof_ofp_vendor_header in
     let _ = Cstruct.blit (body) 0 out 0 (Cstruct.len (body)) in
     12
     

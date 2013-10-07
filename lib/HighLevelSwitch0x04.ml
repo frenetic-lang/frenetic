@@ -9,9 +9,9 @@ module Fields = AL.FieldMap
 let from_buffer_id (bufId : AL.bufferId) : int32 =
   let open SDN_Types in
   match bufId with
-    | OF10BufferId n -> n
-    | OF13BufferId _ ->
-      raise (Invalid_argument "expected OpenFlow 1.0 buffer ID")
+    | OF13BufferId n -> n
+    | OF10BufferId _ ->
+      raise (Invalid_argument "expected OpenFlow 1.3 buffer ID")
 	
 let to_payload (pay : Core.payload) : AL.payload =
   let open Core in
@@ -75,7 +75,7 @@ let from_pattern (pat : AL.pattern) : Core.oxmMatch * Core.portId option =
      try Some (VInt.get_int32 (Fields.find AL.InPort pat))
      with Not_found -> None)
 
-(* Converts an abstract action into an OpenFlow 1.0 action. The operation may
+(* Converts an abstract action into an OpenFlow 1.3 action. The operation may
    fail if the action in unrealizable. *)
 let rec from_action (inPort : Core.portId option) (act : AL.action) 
   : Mod.t * Core.action list =
@@ -89,7 +89,7 @@ let rec from_action (inPort : Core.portId option) (act : AL.action)
 	(Mod.none, [Output Core.InPort])
       else
 	(Mod.none, [Output (Core.PhysicalPort n)])
-    | OutputPort _ -> raise (Invalid_argument "expected OpenFlow 1.0 port number")
+    | OutputPort _ -> raise (Invalid_argument "expected OpenFlow 1.3 port number")
     | SetField (AL.InPort, _) -> raise (Invalid_argument "cannot set input port")
     | SetField (EthType, _) -> raise (Invalid_argument "cannot set frame type")
     | SetField (EthSrc, VInt.Int48 n) -> (Mod.dlSrc, [Core.SetField (OxmEthSrc (v_to_m n))])
