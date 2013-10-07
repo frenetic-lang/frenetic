@@ -343,8 +343,8 @@ module Local = struct
             extend r1 s1 (extend r2 s2 acc)
           | Some r12 -> 
             extend r12 (ActSet.union s1 s2)
-              (negate_atoms r1 r2 s1
-                 (negate_atoms r2 r1 s2 acc)))
+              (diff_atoms r1 r2 s1
+                 (diff_atoms r2 r1 s2 acc)))
         p acc)
       q Local.empty
 
