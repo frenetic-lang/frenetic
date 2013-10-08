@@ -24,6 +24,7 @@ Library openflow
   InternalModules:
     Misc,
     ModComposition,
+    HighLevelSwitch_common,
     HighLevelSwitch,
     HighLevelSwitch0x01,
     HighLevelSwitch0x04

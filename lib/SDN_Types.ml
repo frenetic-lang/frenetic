@@ -44,25 +44,17 @@ end)
 
 type pattern = fieldVal FieldMap.t
 
+
 type action =
   | OutputAllPorts
   | OutputPort of VInt.t
   | SetField of field * fieldVal
-  | EmptyAction
 
-type seq =
-  | Seq of action * seq (** directly corresponds to an _action sequence_ *)
-  | Act of action
+type seq = action list
 
-type par =
-  | Par of seq * par
-  | SeqP of seq
+type par = seq list
 
-type group =
-  | Action of par
-  | Failover of par list
-  (* <marco> I think par list is better than par * group *)
-  (* | Failover of par * group *)
+type group = par list
 
 type timeout =
   | Permanent
@@ -139,24 +131,27 @@ let rec format_action (fmt:Format.formatter) (a:action) : unit =
   | OutputAllPorts -> Format.fprintf fmt "OutputAllPorts"
   | OutputPort(n) -> Format.fprintf fmt "OutputPort(%a)" VInt.format n
   | SetField(f,v) -> Format.fprintf fmt "SetField(%a,%a)" format_field f VInt.format v
-  | EmptyAction -> Format.fprintf fmt "EmptyAction"
 
 let rec format_seq (fmt : Format.formatter) (seq : seq) : unit =
   match seq with
-  | Seq (act, seq') -> Format.fprintf fmt "@[%a;@ %a@]" format_action act format_seq seq'
-  | Act act -> format_action fmt act
+  | [] -> ()
+  | [act] -> format_action fmt act
+  | (act :: act' :: seq') ->
+      Format.fprintf fmt "@[%a;@ %a@]" format_action act format_seq (act' :: seq')
 
 let rec format_par (fmt : Format.formatter) (par : par) : unit =
   match par with
-  | Par (seq, par') -> Format.fprintf fmt "@[%a +@ %a@]" format_seq seq format_par par'
-  | SeqP seq -> format_seq fmt seq
+  | [] -> ()
+  | [seq] -> format_seq fmt seq
+  | (seq :: seq' :: par') ->
+    Format.fprintf fmt "@[%a +@ %a@]" format_seq seq format_par (seq' :: par')
 
 let rec format_group (fmt : Format.formatter) (group : group) : unit =
   match group with
-  | Action par -> format_par fmt par
-  | Failover [] -> ()
-  | Failover (par :: pars) ->
-    Format.fprintf fmt "@[%a +@ %a@]" format_par par format_group group
+  | [] -> ()
+  | [par] -> format_par fmt par
+  | (par :: par' :: groups) ->
+    Format.fprintf fmt "@[%a +@ %a@]" format_par par format_group (par' :: group)
   
 let format_timeout (fmt:Format.formatter) (t:timeout) : unit = 
   match t with 
@@ -185,7 +180,7 @@ module type SWITCH = sig
   val setup_flow_table : t -> flowTable -> unit Lwt.t
   val flow_stats_request : t -> pattern -> flowStats list Lwt.t
   val packet_in : t -> pktIn Lwt_stream.t
-  val packet_out : t -> payload -> action -> unit Lwt.t
+  val packet_out : t -> payload -> par -> unit Lwt.t
   val disconnect : t -> unit Lwt.t
   val features : t -> switchFeatures  
 end

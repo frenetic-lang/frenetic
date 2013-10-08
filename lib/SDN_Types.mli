@@ -77,21 +77,12 @@ type action =
   | OutputAllPorts
   | OutputPort of VInt.t
   | SetField of field * fieldVal
-  | EmptyAction
 
-type seq =
-  | Seq of action * seq (** directly corresponds to an _action sequence_ *)
-  | Act of action
+type seq = action list
 
-type par =
-  | Par of seq * par
-  | SeqP of seq
+type par = seq list
 
-type group =
-  | Action of par
-  | Failover of par list
-  (* <marco> I think par list is better than par * group *)
-  (* | Failover of par * group *)
+type group = par list
 
 type timeout =
   | Permanent (** No timeout. *)
@@ -165,7 +156,7 @@ module type SWITCH = sig
   val setup_flow_table : t -> flowTable -> unit Lwt.t
   val flow_stats_request : t -> pattern -> flowStats list Lwt.t
   val packet_in : t -> pktIn Lwt_stream.t
-  val packet_out : t -> payload -> action -> unit Lwt.t
+  val packet_out : t -> payload -> par -> unit Lwt.t
   val disconnect : t -> unit Lwt.t
   val features : t -> switchFeatures
 end

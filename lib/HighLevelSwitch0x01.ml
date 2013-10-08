@@ -2,7 +2,6 @@ module Switch = OpenFlow0x01_Switch
 module TxSwitch = OpenFlow0x01_TxSwitch
 module AL = SDN_Types
 module Core = OpenFlow0x01_Core
-module Mod = ModComposition
 module Msg = OpenFlow0x01.Message
 module Fields = AL.FieldMap
 
@@ -69,64 +68,45 @@ let from_pattern (pat : AL.pattern) : Core.pattern =
     Core.tpDst = lookup VInt.get_int16 AL.TCPDstPort;
     Core.inPort = lookup VInt.get_int16 AL.InPort }
 
-(* Converts an abstract action into an OpenFlow 1.0 action. The operation may
-   fail if the action in unrealizable. *)
-let from_action (inPort : Core.portId option) (act : AL.action) 
-  : Mod.t * Core.action list =
-  let open SDN_Types in
-  let open OpenFlow0x01_Core in
-  match act with
-    | OutputAllPorts -> (Mod.none, [Output AllPorts])
-    | OutputPort (VInt.Int16 n) ->
-      if Some n = inPort then
-	(Mod.none, [Output InPort])
-      else
-	(Mod.none, [Output (PhysicalPort n)])
-    | OutputPort _ -> raise (Invalid_argument "expected OpenFlow 1.0 port number")
-    | SetField (AL.InPort, _) -> raise (Invalid_argument "cannot set input port")
-    | SetField (EthType, _) -> raise (Invalid_argument "cannot set frame type")
-    | SetField (EthSrc, VInt.Int48 n) -> (Mod.dlSrc, [SetDlSrc n])
-    | SetField (EthDst, VInt.Int48 n) -> (Mod.dlDst , [SetDlDst n])
-    | SetField (Vlan, VInt.Int16 0xFFFF) -> (Mod.dlVlan, [SetDlVlan None])
-    | SetField (Vlan, VInt.Int16 n) -> (Mod.dlVlan, [SetDlVlan (Some n)])
-    | SetField (VlanPcp, VInt.Int4 n) -> (Mod.dlVlanPcp, [SetDlVlanPcp n])
-    | SetField (IPProto, _) -> raise (Invalid_argument "cannot set IP protocol")
-    | SetField (IP4Src, VInt.Int32 n) -> (Mod.nwSrc, [SetNwSrc n])
-    | SetField (IP4Dst, VInt.Int32 n) -> (Mod.nwDst, [SetNwDst n])
-    | SetField (TCPSrcPort, VInt.Int16 n) -> (Mod.tpSrc, [SetTpSrc n])
-    | SetField (TCPDstPort, VInt.Int16 n) -> (Mod.tpDst, [SetTpDst n])
-    | SetField _ -> raise (Invalid_argument "invalid SetField combination")
-    | EmptyAction -> (Mod.none, [])
+module Common = HighLevelSwitch_common.Make (struct
+  type of_action = Core.action
+  type of_portId = Core.portId
 
-let rec from_seq (inPort : Core.portId option) (seq : AL.seq) 
-  : Mod.t * Core.action list =
-  let open SDN_Types in
-  let open OpenFlow0x01_Core in
-  match seq with
-  | Act act -> from_action inPort act
-  | Seq (act, s2) ->
-    let (mods1, seq1) = from_action inPort act in
-    let (mods2, seq2) = from_seq inPort s2 in
-    (Mod.par mods1 mods2, seq1 @ seq2)
+  module Mod = ModComposition
+  
+  let from_action (inPort : Core.portId option) (act : AL.action) 
+    : Mod.t * Core.action  =
+    let open SDN_Types in
+    let open OpenFlow0x01_Core in
+    match act with
+      | OutputAllPorts -> (Mod.none, Output AllPorts)
+      | OutputPort (VInt.Int16 n) ->
+        if Some n = inPort then
+          (Mod.none, Output InPort)
+        else
+          (Mod.none, Output (PhysicalPort n))
+      | OutputPort _ -> raise (Invalid_argument "expected OpenFlow 1.0 port number")
+      | SetField (AL.InPort, _) -> raise (Invalid_argument "cannot set input port")
+      | SetField (EthType, _) -> raise (Invalid_argument "cannot set frame type")
+      | SetField (EthSrc, VInt.Int48 n) -> (Mod.dlSrc, SetDlSrc n)
+      | SetField (EthDst, VInt.Int48 n) -> (Mod.dlDst , SetDlDst n)
+      | SetField (Vlan, VInt.Int16 0xFFFF) -> (Mod.dlVlan, SetDlVlan None)
+      | SetField (Vlan, VInt.Int16 n) -> (Mod.dlVlan, SetDlVlan (Some n))
+      | SetField (VlanPcp, VInt.Int4 n) -> (Mod.dlVlanPcp, SetDlVlanPcp n)
+      | SetField (IPProto, _) -> raise (Invalid_argument "cannot set IP protocol")
+      | SetField (IP4Src, VInt.Int32 n) -> (Mod.nwSrc, SetNwSrc n)
+      | SetField (IP4Dst, VInt.Int32 n) -> (Mod.nwDst, SetNwDst n)
+      | SetField (TCPSrcPort, VInt.Int16 n) -> (Mod.tpSrc, SetTpSrc n)
+      | SetField (TCPDstPort, VInt.Int16 n) -> (Mod.tpDst, SetTpDst n)
+      | SetField _ -> raise (Invalid_argument "invalid SetField combination")
 
-let rec from_par (inPort : Core.portId option) (par : AL.par) 
-  : Mod.t * Core.action list =
-  let open SDN_Types in
-  let open OpenFlow0x01_Core in
-  match par with
-  | SeqP seq -> from_seq inPort seq
-  | Par (seq, p2) ->
-    let (mods1, seq1) = from_seq inPort seq in
-    let (mods2, seq2) = from_par inPort p2 in
-    (Mod.par mods1 mods2, seq1 @ seq2)
+end)
 
-let from_group (inPort : Core.portId option) (act : AL.group) 
-  : Mod.t * Core.action list =
-  let open SDN_Types in
-  let open OpenFlow0x01_Core in
-  match act with
-  | Action par -> from_par inPort par
-  | Failover _ -> raise (Invalid_argument "cannot implement fast failover")
+let from_group (inPort : Core.portId option) (group : AL.group) : Core.action list =
+  match group with
+  | [] -> []
+  | [par] -> Common.flatten_par inPort par
+  | _ -> raise (SDN_Types.Unsupported "OpenFlow 1.0 does not support fast-failover")
       
 let from_timeout (timeout : AL.timeout) : Core.timeout =
   match timeout with
@@ -135,14 +115,14 @@ let from_timeout (timeout : AL.timeout) : Core.timeout =
       
 let from_flow (priority : int) (flow : AL.flow) : Core.flowMod = 
   let open AL in
-      match flow with
+  match flow with
 	| { pattern; action; cookie; idle_timeout; hard_timeout } ->
-	  let pat = from_pattern pattern in
+    let pat = from_pattern pattern in
 	  let open Core in 
 	  { command = AddFlow;
-  	    pattern = pat;
+	    pattern = pat;
 	    priority = priority;
-	    actions = (let (_, act) = from_group pat.inPort action in act);
+	    actions = from_group pat.inPort action;
 	    cookie = cookie;
 	    idle_timeout = from_timeout idle_timeout;
 	    hard_timeout = from_timeout hard_timeout;
@@ -195,9 +175,9 @@ let setup_flow_table (sw : t) (tbl : AL.flowTable) : unit Lwt.t =
 let packet_in (sw : t) =
   sw.packet_ins
     
-let packet_out (sw : t) (pay : AL.payload) (act : AL.action) : unit Lwt.t =
+let packet_out (sw : t) (pay : AL.payload) (act : AL.par) : unit Lwt.t =
   lwt pay = Lwt.wrap1 from_payload pay in
-  lwt (_, actions) = Lwt.wrap2 from_action None act in
+  lwt actions = Lwt.wrap1 (Common.flatten_par None) act in
   let pktOut = {
     Core.output_payload = pay;
     (* I believe port_id affects the semantics of action of the (Output InPort)

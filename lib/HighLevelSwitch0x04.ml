@@ -2,7 +2,6 @@ module Switch = OpenFlow0x04_Switch
 module TxSwitch = OpenFlow0x04_TxSwitch
 module AL = SDN_Types
 module Core = OpenFlow0x04_Core
-module Mod = ModComposition
 module Msg = OpenFlow0x04.Message
 module Fields = AL.FieldMap
 
@@ -75,68 +74,53 @@ let from_pattern (pat : AL.pattern) : Core.oxmMatch * Core.portId option =
      try Some (VInt.get_int32 (Fields.find AL.InPort pat))
      with Not_found -> None)
 
-(* Converts an abstract action into an OpenFlow 1.3 action. The operation may
-   fail if the action in unrealizable. *)
-let from_action (inPort : Core.portId option) (act : AL.action) 
-  : Mod.t * Core.action list =
-  let v_to_m = Core.val_to_mask in
-  let open Core in
-  let open SDN_Types in
-  match act with
-    | OutputAllPorts -> (Mod.none, [Output Core.AllPorts])
-    | OutputPort (VInt.Int32 n) ->
-      if Some n = inPort then
-	(Mod.none, [Output Core.InPort])
-      else
-	(Mod.none, [Output (Core.PhysicalPort n)])
-    | OutputPort _ -> raise (Invalid_argument "expected OpenFlow 1.3 port number")
-    | SetField (AL.InPort, _) -> raise (Invalid_argument "cannot set input port")
-    | SetField (EthType, _) -> raise (Invalid_argument "cannot set frame type")
-    | SetField (EthSrc, VInt.Int48 n) -> (Mod.dlSrc, [Core.SetField (OxmEthSrc (v_to_m n))])
-    | SetField (EthDst, VInt.Int48 n) -> (Mod.dlDst , [Core.SetField (OxmEthDst (v_to_m n))])
-    | SetField (Vlan, VInt.Int16 0xFFFF) -> (Mod.dlVlan, [Core.PopVlan])
-    | SetField (Vlan, VInt.Int16 n) -> (Mod.dlVlan, [Core.SetField (OxmVlanVId (v_to_m n))])
-    | SetField (VlanPcp, VInt.Int4 n) -> (Mod.dlVlanPcp, [Core.SetField (OxmVlanPcp n)])
-    (* MJR: This seems silly. OF 1.3 has no such restriction *)
-    | SetField (IPProto, _) -> raise (Invalid_argument "cannot set IP protocol")
-    | SetField (IP4Src, VInt.Int32 n) -> (Mod.nwSrc, [Core.SetField (OxmIP4Src (v_to_m n))])
-    | SetField (IP4Dst, VInt.Int32 n) -> (Mod.nwDst, [Core.SetField (OxmIP4Dst (v_to_m n))])
-    | SetField (TCPSrcPort, VInt.Int16 n) -> (Mod.tpSrc, [Core.SetField (OxmTCPSrc (v_to_m n))])
-    | SetField (TCPDstPort, VInt.Int16 n) -> (Mod.tpDst, [Core.SetField (OxmTCPDst (v_to_m n))])
-    | SetField _ -> raise (Invalid_argument "invalid SetField combination")
-    | EmptyAction -> (Mod.none, [])
 
-let rec from_seq (inPort : Core.portId option) (seq : AL.seq) 
-  : Mod.t * Core.action list =
-  let open SDN_Types in
-  let open OpenFlow0x01_Core in
-  match seq with
-  | Act act -> from_action inPort act
-  | Seq (act, s2) ->
-    let (mods1, seq1) = from_action inPort act in
-    let (mods2, seq2) = from_seq inPort s2 in
-    (Mod.par mods1 mods2, seq1 @ seq2)
+module Common = HighLevelSwitch_common.Make (struct
+  type of_action = Core.action
+  type of_portId = Core.portId
 
-let rec from_par (inPort : Core.portId option) (par : AL.par) 
-  : Mod.t * Core.action list =
-  let open SDN_Types in
-  let open OpenFlow0x01_Core in
-  match par with
-  | SeqP seq -> from_seq inPort seq
-  | Par (seq, p2) ->
-    let (mods1, seq1) = from_seq inPort seq in
-    let (mods2, seq2) = from_par inPort p2 in
-    (Mod.par mods1 mods2, seq1 @ seq2)
+  module Mod = ModComposition
+
+  let from_action (inPort : Core.portId option) (act : AL.action) 
+    : Mod.t * Core.action =
+    let v_to_m = Core.val_to_mask in
+    let open Core in
+    let open SDN_Types in
+    match act with
+      | OutputAllPorts -> (Mod.none, Output Core.AllPorts)
+      | OutputPort (VInt.Int32 n) ->
+        if Some n = inPort then
+  	(Mod.none, Output Core.InPort)
+        else
+  	(Mod.none, Output (Core.PhysicalPort n))
+      | OutputPort _ -> raise (Invalid_argument "expected OpenFlow 1.3 port number")
+      | SetField (AL.InPort, _) -> raise (Invalid_argument "cannot set input port")
+      | SetField (EthType, _) -> raise (Invalid_argument "cannot set frame type")
+      | SetField (EthSrc, VInt.Int48 n) -> (Mod.dlSrc, Core.SetField (OxmEthSrc (v_to_m n)))
+      | SetField (EthDst, VInt.Int48 n) -> (Mod.dlDst , Core.SetField (OxmEthDst (v_to_m n)))
+      | SetField (Vlan, VInt.Int16 0xFFFF) -> (Mod.dlVlan, Core.PopVlan)
+      | SetField (Vlan, VInt.Int16 n) -> (Mod.dlVlan, Core.SetField (OxmVlanVId (v_to_m n)))
+      | SetField (VlanPcp, VInt.Int4 n) -> (Mod.dlVlanPcp, Core.SetField (OxmVlanPcp n))
+      (* MJR: This seems silly. OF 1.3 has no such restriction *)
+      | SetField (IPProto, _) -> raise (Invalid_argument "cannot set IP protocol")
+      | SetField (IP4Src, VInt.Int32 n) -> (Mod.nwSrc, Core.SetField (OxmIP4Src (v_to_m n)))
+      | SetField (IP4Dst, VInt.Int32 n) -> (Mod.nwDst, Core.SetField (OxmIP4Dst (v_to_m n)))
+      | SetField (TCPSrcPort, VInt.Int16 n) -> (Mod.tpSrc, Core.SetField (OxmTCPSrc (v_to_m n)))
+      | SetField (TCPDstPort, VInt.Int16 n) -> (Mod.tpDst, Core.SetField (OxmTCPDst (v_to_m n)))
+      | SetField _ -> raise (Invalid_argument "invalid SetField combination")
+
+  end)
 
 let from_group (inPort : Core.portId option) (act : AL.group) 
   : Core.action list =
   let open SDN_Types in
   let open OpenFlow0x01_Core in
   match act with
-  | Action par -> let (_, act2) = from_par inPort par in act2
+  | [] -> []
+  | [par] -> Common.flatten_par inPort par
   (* MJR TODO: fix this *)
   (* How do we allocated the group Id? *)
-  | Failover fo -> [Core.Group Int32.zero]
+  |  pars -> failwith "omg please impelment me"
 
 (*
   One set of actions per bucket.
@@ -219,9 +203,9 @@ let setup_flow_table (sw : t) (tbl : AL.flowTable) : unit Lwt.t =
 let packet_in (sw : t) =
   sw.packet_ins
     
-let packet_out (sw : t) (pay : AL.payload) (act : AL.action) : unit Lwt.t =
+let packet_out (sw : t) (pay : AL.payload) (act : AL.par) : unit Lwt.t =
   lwt pay = Lwt.wrap1 from_payload pay in
-  lwt (_, actions) = Lwt.wrap2 from_action None act in
+  lwt actions = Lwt.wrap1 (Common.flatten_par None) act in
   let pktOut = {
     Core.po_payload = pay;
     (* I believe port_id affects the semantics of action of the (Output InPort)

@@ -17,4 +17,4 @@ val flow_stats_request : SDN_Types.switchId -> SDN_Types.pattern
 val packet_in : SDN_Types.switchId -> SDN_Types.pktIn Lwt_stream.t
 
 val packet_out : SDN_Types.switchId -> SDN_Types.payload
-  -> SDN_Types.action -> unit Lwt.t
+  -> SDN_Types.par -> unit Lwt.t
