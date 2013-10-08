@@ -520,20 +520,19 @@ module Local = struct
 
   let act_to_action (seq : act) : SDN_Types.seq =
     if not (K.HeaderMap.mem (K.Header SDN_Types.InPort) seq) then
-      SDN_Types.Act SDN_Types.EmptyAction
+      []
     else
       let port = K.HeaderMap.find (K.Header SDN_Types.InPort) seq in
       let mods = K.HeaderMap.remove (K.Header SDN_Types.InPort) seq in
       let mk_mod (h : K.header) (v : K.header_val) (action : SDN_Types.seq) =
         match h with
           | K.Switch -> raise (Invalid_argument "seq_to_action got switch update")
-          | K.Header h' ->  SDN_Types.Seq (SDN_Types.SetField (h', v), action) in
-      K.HeaderMap.fold mk_mod mods (SDN_Types.Act (SDN_Types.OutputPort port))
+          | K.Header h' ->  (SDN_Types.SetField (h', v)) :: action in
+      K.HeaderMap.fold mk_mod mods [SDN_Types.OutputPort port]
 
   let acts_to_action (sum : acts) : SDN_Types.par =
-    let f seq par = SDN_Types.Par (act_to_action seq, par) in
-    ActSet.fold f sum 
-      (SDN_Types.SeqP (SDN_Types.Act SDN_Types.EmptyAction))
+    let f seq par = act_to_action seq :: par in
+    ActSet.fold f sum []
 
 (* Prunes out rules that apply to other switches. *)
   let local_to_table (sw:SDN_Types.fieldVal) (p:local) : SDN_Types.flowTable =
@@ -541,7 +540,7 @@ module Local = struct
     let add_flow x s l = 
       match pred_to_pattern sw x with
         | None -> l
-        | Some pat -> simpl_flow pat (SDN_Types.Failover [acts_to_action s]) :: l in 
+        | Some pat -> simpl_flow pat [acts_to_action s] :: l in 
     let rec loop (p:local) acc cover = 
       if Local.is_empty p then 
         acc 
