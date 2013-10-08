@@ -179,8 +179,6 @@ module Formatting = struct
     | Par (p1, p2) -> 
       begin match cxt with
         | PAREN
-        | SEQ_L
-        | SEQ_R
         | PAR_L -> fprintf fmt "@[%a + %a@]" (pol PAR_L) p1 (pol PAR_R) p2
         | _ -> fprintf fmt "@[(@[%a + %a@])@]" (pol PAR_L) p1 (pol PAR_R) p2
       end
@@ -188,6 +186,8 @@ module Formatting = struct
     | Seq (p1, p2) -> 
       begin match cxt with
         | PAREN
+        | PAR_L
+        | PAR_R
         | SEQ_L -> fprintf fmt "@[%a ; %a@]" (pol SEQ_L) p1 (pol SEQ_R) p2
         | _ -> fprintf fmt "@[(@[%a ; %a@])@]" (pol SEQ_L) p1 (pol SEQ_R) p2
       end
