@@ -1,11 +1,32 @@
-(** A uniform interface for programming switches that can use both OpenFlow 1.0
-  and OpenFlow 1.3 as its back-end. *)
+(** A uniform interface to OpenFlow 1.0 and 1.3.
+
+  A high-level language, such as Frenetic, should support OpenFlow 1.0
+  and also exploit OpenFlow 1.3 features when possible. For example,
+  when two Frenetic actions are composed in parallel, they logically work
+  on two copies of a packet. Certain kinds of parallel composition cannot
+  be realized in OpenFlow 1.0, but they are trivial to implement with
+  group tables in OpenFlow 1.3.
+
+  Similarly, OpenFlow 1.3 can implement failover efficiently using fast-
+  failover groups. But, in OpenFlow 1.0, we have to incur a round-trip
+  to the controller.
+
+  Instead of creating two different versions of the Frenetic compiler, we
+  here define a high-level action data type. When targeting OpenFlow 1.0,
+  actions translates to 1.0 action sequences and controller round-trips
+  if needed. When targeting OpenFlow 1.3, action also builds group
+  tables to realize actions efficiently. This requires a global analysis
+  of all the actions in a flow table. Therefore, Frenetic needs to
+  supply the entire flow table at once and cannot add and remove flow table
+  entries individually. *)
 
 (** {1 OpenFlow Identifier Types}
 
   OpenFlow requires identifiers for switches, ports, transaction numbers, etc.
   The representation of these identifiers varies across different versions
   of OpenFlow, which is why they are abstract.
+
+
 *)
 
 type int8 = int
@@ -52,26 +73,6 @@ module FieldMap : Map.S
 (** WARNING: There are dependencies between different fields that must be met. *)
 type pattern = fieldVal FieldMap.t
 
-
-(** A high-level language, such as Frenetic, should support OpenFlow 1.0
-  and also exploit OpenFlow 1.3 features when possible. For example,
-  when two Frenetic actions are composed in parallel, they logically work
-  on two copies of a packet. Certain kinds of parallel composition cannot
-  be realized in OpenFlow 1.0, but they are trivial to implement with
-  group tables in OpenFlow 1.3.
-
-  Similarly, OpenFlow 1.3 can implement failover efficiently using fast-
-  failover groups. But, in OpenFlow 1.0, we have to incur a round-trip
-  to the controller.
-
-  Instead of creating two different versions of the Frenetic compiler, we
-  here define a high-level action data type. When targeting OpenFlow 1.0,
-  action translates to 1.0 action sequences and controller round-trips
-  if needed. When targeting OpenFlow 1.3, action also builds group
-    tables to realize actions efficiently. This requires a global analysis
-    of all the actions in a flow table. Therefore, Frenetic needs to
-    supply the entire flow table at once and cannot add and remove flow table
-  entries individually. *)
 type action =
   | OutputAllPorts
   | OutputPort of VInt.t
