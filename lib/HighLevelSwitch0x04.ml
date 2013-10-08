@@ -11,7 +11,7 @@ let from_buffer_id (bufId : AL.bufferId) : int32 =
     | OF13BufferId n -> n
     | OF10BufferId _ ->
       raise (Invalid_argument "expected OpenFlow 1.3 buffer ID")
-	
+  
 let to_payload (pay : Core.payload) : AL.payload =
   let open Core in
   match pay with
@@ -19,7 +19,7 @@ let to_payload (pay : Core.payload) : AL.payload =
       AL.Buffered (AL.OF10BufferId buf_id, Cstruct.to_string ct)
     | NotBuffered ct ->
       AL.NotBuffered (Cstruct.to_string ct)
-	
+  
 let from_payload (pay : AL.payload) : Core.payload =
   let open SDN_Types in
   match pay with
@@ -74,6 +74,10 @@ let from_pattern (pat : AL.pattern) : Core.oxmMatch * Core.portId option =
      try Some (VInt.get_int32 (Fields.find AL.InPort pat))
      with Not_found -> None)
 
+let from_timeout (timeout : AL.timeout) : Core.timeout =
+  match timeout with
+    | AL.Permanent -> Core.Permanent
+    | AL.ExpiresAfter n -> Core.ExpiresAfter n
 
 module Common = HighLevelSwitch_common.Make (struct
   type of_action = Core.action
@@ -90,9 +94,9 @@ module Common = HighLevelSwitch_common.Make (struct
       | OutputAllPorts -> (Mod.none, Output Core.AllPorts)
       | OutputPort (VInt.Int32 n) ->
         if Some n = inPort then
-  	(Mod.none, Output Core.InPort)
+    (Mod.none, Output Core.InPort)
         else
-  	(Mod.none, Output (Core.PhysicalPort n))
+    (Mod.none, Output (Core.PhysicalPort n))
       | OutputPort _ -> raise (Invalid_argument "expected OpenFlow 1.3 port number")
       | SetField (AL.InPort, _) -> raise (Invalid_argument "cannot set input port")
       | SetField (EthType, _) -> raise (Invalid_argument "cannot set frame type")
@@ -114,54 +118,45 @@ module Common = HighLevelSwitch_common.Make (struct
 let from_group (inPort : Core.portId option) (act : AL.group) 
   : Core.action list =
   let open SDN_Types in
-  let open OpenFlow0x01_Core in
   match act with
   | [] -> []
   | [par] -> Common.flatten_par inPort par
   (* MJR TODO: fix this *)
   (* How do we allocated the group Id? *)
   |  pars -> failwith "omg please impelment me"
-
-(*
-  One set of actions per bucket.
-    begin
-      let groups = List.map (fun par -> let (_, act) = from_par inPort par in act) fo in
-    end
-*)
-  
-let from_timeout (timeout : AL.timeout) : Core.timeout =
-  match timeout with
-    | AL.Permanent -> Core.Permanent
-    | AL.ExpiresAfter n -> Core.ExpiresAfter n
       
-(* TODO: in case of failover, the flow mod is a group action *)
 let from_flow (priority : int) (flow : AL.flow) : Core.flowMod = 
   let open AL in
-      match flow with
-	| { pattern; action; cookie; idle_timeout; hard_timeout } ->
-	  let pat,inport = from_pattern pattern in
-	  let open Core in 
-	  { mfCommand = AddFlow;
-  	    mfOfp_match = pat;
-	    mfPriority = priority;
+  match flow with
+  | { pattern; action; cookie; idle_timeout; hard_timeout } ->
+    let pat,inport = from_pattern pattern in
+    let open Core in 
+    { 
+      mfCommand = AddFlow;
+      mfOfp_match = pat;
+      mfPriority = priority;
       mfInstructions = [Core.ApplyActions (from_group inport action)];
-	    mfCookie = Core.val_to_mask cookie;
-	    mfIdle_timeout = from_timeout idle_timeout;
-	    mfHard_timeout = from_timeout hard_timeout;
-            mfTable_id = 0;
-            mfFlags = {fmf_send_flow_rem = false; 
-                       fmf_check_overlap = false;
-                       fmf_reset_counts = false;
-                       fmf_no_pkt_counts = false;
-                       fmf_no_byt_counts = false };
-	    mfBuffer_id = None;
-	    mfOut_port = None;
-            mfOut_group = None }
-	    
-type t =
-    { switch : Switch.t;
-      tx_switch : TxSwitch.t;
-      packet_ins : AL.pktIn Lwt_stream.t }
+      mfCookie = Core.val_to_mask cookie;
+      mfIdle_timeout = from_timeout idle_timeout;
+      mfHard_timeout = from_timeout hard_timeout;
+      mfTable_id = 0;
+      mfFlags = {
+        fmf_send_flow_rem = false; 
+        fmf_check_overlap = false;
+        fmf_reset_counts = false;
+        fmf_no_pkt_counts = false;
+        fmf_no_byt_counts = false
+      };
+      mfBuffer_id = None;
+      mfOut_port = None;
+      mfOut_group = None
+    }
+      
+type t = {
+  switch : Switch.t;
+  tx_switch : TxSwitch.t;
+  packet_ins : AL.pktIn Lwt_stream.t
+}
 
 let features (sw : t) : AL.switchFeatures =
   let feats = Switch.features sw.switch in
