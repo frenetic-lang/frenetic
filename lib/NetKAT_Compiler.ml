@@ -329,6 +329,13 @@ module Local = struct
       Local.add r s p
 
   let rec par_local_local (p:local) (q:local) : local =
+    let negate_atoms (xs1,x1) (xs2,x2) s1 p = 
+      PatSet.fold 
+        (fun x2i acc -> 
+          match seq_pat_pat x1 x2i with 
+            | None -> acc
+            | Some x12i -> extend (xs1,x12i) s1 acc) 
+        xs2 (extend (PatSet.add x2 xs1, x1) s1 p) in 
     Local.fold (fun ((xs1,x1) as r1) s1 acc -> 
       Local.fold (fun ((xs2,x2) as r2) s2 acc -> 
         match seq_atom_atom r1 r2 with 
@@ -336,8 +343,8 @@ module Local = struct
             extend r1 s1 (extend r2 s2 acc)
           | Some r12 -> 
             extend r12 (ActSet.union s1 s2)
-              (extend (PatSet.add x2 xs1, x1) s1
-                 (extend (PatSet.add x1 xs2, x2) s2 acc)))
+              (negate_atoms r1 r2 s1
+                 (negate_atoms r2 r1 s2 acc)))
         p acc)
       q Local.empty
 

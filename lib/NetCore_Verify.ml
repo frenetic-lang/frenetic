@@ -353,6 +353,8 @@ module Verify = struct
                       ZEquals(TApp(TApp(TVar "set_union", TVar set1),
                                    TVar set2),
                               TVar set)])
+      | Seq(pol1,pol2) -> 
+        assert false
       | _ -> 
         assert false
 			
