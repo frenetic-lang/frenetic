@@ -139,10 +139,24 @@ let rec format_action (fmt:Format.formatter) (a:action) : unit =
   | OutputAllPorts -> Format.fprintf fmt "OutputAllPorts"
   | OutputPort(n) -> Format.fprintf fmt "OutputPort(%a)" VInt.format n
   | SetField(f,v) -> Format.fprintf fmt "SetField(%a,%a)" format_field f VInt.format v
-  | Seq(a1,a2) -> Format.fprintf fmt "Seq(%a,%a)" format_action a1 format_action a2 
-  | Par(a1,a2) -> Format.fprintf fmt "Par(%a,%a)" format_action a1 format_action a2 
-  | Failover(n,a1,a2) -> Format.fprintf fmt "Failover(%a,%a,%a)" VInt.format n format_action a1 format_action a2 
   | EmptyAction -> Format.fprintf fmt "EmptyAction"
+
+let rec format_seq (fmt : Format.formatter) (seq : seq) : unit =
+  match seq with
+  | Seq (act, seq') -> Format.fprintf fmt "@[%a;@ %a@]" format_action act format_seq seq'
+  | Act act -> format_action fmt act
+
+let rec format_par (fmt : Format.formatter) (par : par) : unit =
+  match par with
+  | Par (seq, par') -> Format.fprintf fmt "@[%a +@ %a@]" format_seq seq format_par par'
+  | SeqP seq -> format_seq fmt seq
+
+let rec format_group (fmt : Format.formatter) (group : group) : unit =
+  match group with
+  | Action par -> format_par fmt par
+  | Failover [] -> ()
+  | Failover (par :: pars) ->
+    Format.fprintf fmt "@[%a +@ %a@]" format_par par format_group group
   
 let format_timeout (fmt:Format.formatter) (t:timeout) : unit = 
   match t with 
@@ -151,7 +165,7 @@ let format_timeout (fmt:Format.formatter) (t:timeout) : unit =
 
 let format_flow (fmt: Format.formatter) (f : flow) : unit = 
   Format.fprintf fmt "@[{pattern=%a,@," format_pattern f.pattern;
-  Format.fprintf fmt "action=%a,@," format_action f.action;
+  Format.fprintf fmt "action=%a,@," format_group f.action;
   Format.fprintf fmt "cookie=%s,@," (Int64.to_string f.cookie);
   Format.fprintf fmt "idle_timeout=%a,@," format_timeout f.idle_timeout;
   Format.fprintf fmt "hard_timeout=%a}@]" format_timeout f.hard_timeout
