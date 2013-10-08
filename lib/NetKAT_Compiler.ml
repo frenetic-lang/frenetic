@@ -329,7 +329,7 @@ module Local = struct
       Local.add r s p
 
   let rec par_local_local (p:local) (q:local) : local =
-    let negate_atoms (xs1,x1) (xs2,x2) s1 p = 
+    let diff_atoms (xs1,x1) (xs2,x2) s1 p = 
       PatSet.fold 
         (fun x2i acc -> 
           match seq_pat_pat x1 x2i with 
