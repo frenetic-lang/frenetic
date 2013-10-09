@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 2b9fb913709ab490cf0062ac504f6bbb)
+# DO NOT EDIT (digest: 928425b44e9cbef0edfbe90a017b2ecc)
 VInt
 Socket
 OpenFlow0x01
@@ -22,4 +22,5 @@ HighLevelSwitch_common
 HighLevelSwitch
 HighLevelSwitch0x01
 HighLevelSwitch0x04
+GroupTable0x04
 # OASIS_STOP
