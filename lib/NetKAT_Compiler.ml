@@ -129,7 +129,7 @@ let rec dehopify (p : explicit_topo_policy) : restricted_pol =
       failwith "Unimplemented" 
 
 
-module Local = struct
+module SwitchCompiler = struct
 (* metavariable conventions
    - a, b, c, actions
    - s, t, u, action sets
@@ -143,7 +143,7 @@ module Local = struct
 
   exception Empty_pat
 
-(* Patterns *)
+  (* key datatypes *)
   type pat = K.header_val_map 
 
   type act = K.header_val_map 
@@ -162,7 +162,24 @@ module Local = struct
 
   type atom = PatSet.t * pat
 
-(* constants *)
+  module Local = Map.Make (struct
+    type t = atom 
+    let compare (xs1,x1) (xs2,x2) = 
+      if PatSet.mem x2 xs1 then 1
+      else if PatSet.mem x1 xs2 then -1
+      else 
+        let cmp1 = PatSet.compare xs1 xs2 in 
+        if cmp1 = 0 then 
+          K.HeaderMap.compare Pervasives.compare x1 x2 
+        else
+          cmp1
+  end)
+
+  type t = acts Local.t
+
+  type local = t
+
+  (* constants *)
   let tru : pat = K.HeaderMap.empty
 
   let is_tru (x:pat) : bool = K.HeaderMap.is_empty x
@@ -260,21 +277,6 @@ module Local = struct
   let is_drop (s : acts) : bool = ActSet.is_empty s
 
 (* Local *)
-  module Local = Map.Make (struct
-    type t = atom 
-    let compare (xs1,x1) (xs2,x2) = 
-      if PatSet.mem x2 xs1 then 1
-      else if PatSet.mem x1 xs2 then -1
-      else 
-        let cmp1 = PatSet.compare xs1 xs2 in 
-        if cmp1 = 0 then 
-          K.HeaderMap.compare Pervasives.compare x1 x2 
-        else
-          cmp1
-  end)
-
-  type local = acts Local.t
-
 (* ugly printing *)
   let header_val_map_to_string eq sep m =
     K.HeaderMap.fold
@@ -541,7 +543,7 @@ module Local = struct
     ActSet.fold f sum SDN_Types.EmptyAction
 
 (* Prunes out rules that apply to other switches. *)
-  let local_to_table (sw:SDN_Types.fieldVal) (p:local) : SDN_Types.flowTable =
+  let to_table (sw:SDN_Types.fieldVal) (p:local) : SDN_Types.flowTable =
     Printf.printf "---- LOCAL ----\n%s\n%!" (to_string p);
     let add_flow x s l = 
       match pred_to_pattern sw x with

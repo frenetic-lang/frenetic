@@ -1,11 +1,11 @@
 open NetKAT_Types
 module SDN = SDN_Types
-module ONF = NetKAT_Compiler.Local
+module SwitchCompiler = NetKAT_Compiler.SwitchCompiler
 open VInt
 
-let compile (pol : policy) : policy = ONF.to_netkat (ONF.compile pol)
+let compile (pol : policy) : policy = SwitchCompiler.to_netkat (SwitchCompiler.compile pol)
 
-let flowTable (pol:policy) : SDN.flowTable = ONF.local_to_table (Int64 0L) (ONF.compile pol)
+let flowTable (pol:policy) : SDN.flowTable = SwitchCompiler.to_table (Int64 0L) (SwitchCompiler.compile pol)
 
 let test_compile lhs rhs =
   let rhs' = compile lhs in
