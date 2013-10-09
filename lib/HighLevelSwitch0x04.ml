@@ -205,17 +205,16 @@ let disconnect (t : t) : unit Lwt.t =
     
 let setup_flow_table (sw : t) (tbl : AL.flowTable) : unit Lwt.t =
   let priority = ref 65535 in
-  let send_flow_mod (flow : AL.flow) =
-    lwt flow_mod = Lwt.wrap2 (from_flow sw.group_table) !priority flow in
-    lwt _ = TxSwitch.send sw.tx_switch (Msg.FlowModMsg flow_mod) in
+  let mk_flow_mod (flow : AL.flow) =
+    let flow_mod = from_flow sw.group_table !priority flow in
     decr priority; (* TODO(arjun): range check *)
-    Lwt.return () in
+    Msg.FlowModMsg flow_mod in
   GroupTable0x04.clear_groups sw.group_table;
-  lwt _ = TxSwitch.send sw.tx_switch (Msg.FlowModMsg Core.delete_all_flows) in
-  (* TODO(arjun): muck with groups first *)
-  Lwt_list.iter_s send_flow_mod tbl >>
-  Lwt_list.iter_s (TxSwitch.send sw.tx_switch)
-    (GroupTable0x04.commit sw.group_table)
+  let flow_mods = List.map mk_flow_mod tbl in
+  let group_mods = GroupTable0x04.commit sw.group_table in
+  TxSwitch.send sw.tx_switch (Msg.FlowModMsg Core.delete_all_flows) >>
+  Lwt_list.iter_s (TxSwitch.send sw.tx_switch) group_mods >>
+  Lwt_list.iter_s (TxSwitch.send sw.tx_switch) flow_mods
       
 let packet_in (sw : t) =
   sw.packet_ins
