@@ -329,6 +329,13 @@ module Local = struct
       Local.add r s p
 
   let rec par_local_local (p:local) (q:local) : local =
+    let diff_atoms (xs1,x1) (xs2,x2) s1 p = 
+      PatSet.fold 
+        (fun x2i acc -> 
+          match seq_pat_pat x1 x2i with 
+            | None -> acc
+            | Some x12i -> extend (xs1,x12i) s1 acc) 
+        xs2 (extend (PatSet.add x2 xs1, x1) s1 p) in 
     Local.fold (fun ((xs1,x1) as r1) s1 acc -> 
       Local.fold (fun ((xs2,x2) as r2) s2 acc -> 
         match seq_atom_atom r1 r2 with 
@@ -336,8 +343,8 @@ module Local = struct
             extend r1 s1 (extend r2 s2 acc)
           | Some r12 -> 
             extend r12 (ActSet.union s1 s2)
-              (extend (PatSet.add x2 xs1, x1) s1
-                 (extend (PatSet.add x1 xs2, x2) s2 acc)))
+              (diff_atoms r1 r2 s1
+                 (diff_atoms r2 r1 s2 acc)))
         p acc)
       q Local.empty
 
@@ -503,7 +510,7 @@ module Local = struct
     else 
       Some (K.HeaderMap.fold f x SDN_Types.FieldMap.empty)
         
-  let simpl_flow (p : SDN_Types.pattern) (a : SDN_Types.action) : SDN_Types.flow = {
+  let simpl_flow (p : SDN_Types.pattern) (a : SDN_Types.group) : SDN_Types.flow = {
     SDN_Types.pattern = p;
     SDN_Types.action = a;
     SDN_Types.cookie = 0L;
@@ -511,27 +518,21 @@ module Local = struct
     SDN_Types.hard_timeout = SDN_Types.Permanent
   }
 
-  let act_to_action (seq : act) : SDN_Types.action =
+  let act_to_action (seq : act) : SDN_Types.seq =
     if not (K.HeaderMap.mem (K.Header SDN_Types.InPort) seq) then
-      SDN_Types.EmptyAction
+      []
     else
       let port = K.HeaderMap.find (K.Header SDN_Types.InPort) seq in
       let mods = K.HeaderMap.remove (K.Header SDN_Types.InPort) seq in
-      let mk_mod (h : K.header) (v : K.header_val) (action : SDN_Types.action) =
+      let mk_mod (h : K.header) (v : K.header_val) (action : SDN_Types.seq) =
         match h with
           | K.Switch -> raise (Invalid_argument "seq_to_action got switch update")
-          | K.Header h' ->  SDN_Types.Seq (SDN_Types.SetField (h', v), action) in
-      K.HeaderMap.fold mk_mod mods (SDN_Types.OutputPort port)
+          | K.Header h' ->  (SDN_Types.SetField (h', v)) :: action in
+      K.HeaderMap.fold mk_mod mods [SDN_Types.OutputPort port]
 
-  let acts_to_action (sum : acts) : SDN_Types.action =
-    let mk_par a1 a2 = 
-      match a1,a2 with
-        | SDN_Types.EmptyAction, _ -> a2
-        | _, SDN_Types.EmptyAction -> a1
-        | _ -> SDN_Types.Par(a1,a2) in 
-    let f (seq : act) (action : SDN_Types.action) =
-      mk_par action (act_to_action seq) in 
-    ActSet.fold f sum SDN_Types.EmptyAction
+  let acts_to_action (sum : acts) : SDN_Types.par =
+    let f seq par = act_to_action seq :: par in
+    ActSet.fold f sum []
 
 (* Prunes out rules that apply to other switches. *)
   let local_to_table (sw:SDN_Types.fieldVal) (p:local) : SDN_Types.flowTable =
@@ -539,7 +540,7 @@ module Local = struct
     let add_flow x s l = 
       match pred_to_pattern sw x with
         | None -> l
-        | Some pat -> simpl_flow pat (acts_to_action s) :: l in 
+        | Some pat -> simpl_flow pat [acts_to_action s] :: l in 
     let rec loop (p:local) acc cover = 
       if Local.is_empty p then 
         acc 
