@@ -115,17 +115,35 @@ module Common = HighLevelSwitch_common.Make (struct
 
   end)
 
-let from_group (inPort : Core.portId option) (act : AL.group) 
+(* calculates the watch port *)
+let rec auto_watch_port (actionSequence : Core.actionSequence) 
+  : Core.portId option = match actionSequence with
+  | [] -> None
+  | (Core.Output (Core.PhysicalPort n)) :: _ -> Some n
+  | _ :: rest -> auto_watch_port rest
+
+let auto_ff_bucket (inPort : Core.portId option) (par : AL.par) : Core.bucket = 
+  let open Core in
+  let bu_actions = Common.flatten_par inPort par in
+  let bu_watch_port = auto_watch_port bu_actions in
+  let bu_watch_group = None in
+  let bu_weight = 0 in
+  { bu_weight; bu_watch_port; bu_watch_group; bu_actions }
+  
+
+let from_group (groupTable : GroupTable0x04.t) (inPort : Core.portId option)
+  (act : AL.group) 
   : Core.action list =
   let open SDN_Types in
   match act with
   | [] -> []
   | [par] -> Common.flatten_par inPort par
-  (* MJR TODO: fix this *)
-  (* How do we allocated the group Id? *)
-  |  pars -> failwith "omg please impelment me"
-      
-let from_flow (priority : int) (flow : AL.flow) : Core.flowMod = 
+  | pars ->
+    let buckets = List.map (auto_ff_bucket inPort) pars in
+    let group_id = GroupTable0x04.add_group groupTable Core.FF buckets in
+    [Core.Group group_id]
+
+let from_flow (groupTable : GroupTable0x04.t) (priority : int) (flow : AL.flow) : Core.flowMod = 
   let open AL in
   match flow with
   | { pattern; action; cookie; idle_timeout; hard_timeout } ->
@@ -135,7 +153,7 @@ let from_flow (priority : int) (flow : AL.flow) : Core.flowMod =
       mfCommand = AddFlow;
       mfOfp_match = pat;
       mfPriority = priority;
-      mfInstructions = [Core.ApplyActions (from_group inport action)];
+      mfInstructions = [Core.ApplyActions (from_group groupTable inport action)];
       mfCookie = Core.val_to_mask cookie;
       mfIdle_timeout = from_timeout idle_timeout;
       mfHard_timeout = from_timeout hard_timeout;
@@ -155,7 +173,8 @@ let from_flow (priority : int) (flow : AL.flow) : Core.flowMod =
 type t = {
   switch : Switch.t;
   tx_switch : TxSwitch.t;
-  packet_ins : AL.pktIn Lwt_stream.t
+  packet_ins : AL.pktIn Lwt_stream.t;
+  group_table : GroupTable0x04.t;
 }
 
 let features (sw : t) : AL.switchFeatures =
@@ -169,6 +188,7 @@ let features (sw : t) : AL.switchFeatures =
 
 let from_handle (switch : Switch.t) : t =
   let tx_switch = TxSwitch.from_switch switch in
+  let group_table = GroupTable0x04.create () in
   let (packet_ins, send_pktIn) = Lwt_stream.create () in
   let switch_thread () =
     let recv_msg msg = match msg with
@@ -178,9 +198,7 @@ let from_handle (switch : Switch.t) : t =
   Lwt.async (fun () -> 
     Lwt.pick [ switch_thread (); 
                Switch.wait_disconnect switch ]);
-  { switch; 
-    tx_switch; 
-    packet_ins }
+  { switch; tx_switch; packet_ins; group_table }
     
 let disconnect (t : t) : unit Lwt.t = 
   Switch.disconnect t.switch
@@ -188,13 +206,17 @@ let disconnect (t : t) : unit Lwt.t =
 let setup_flow_table (sw : t) (tbl : AL.flowTable) : unit Lwt.t =
   let priority = ref 65535 in
   let send_flow_mod (flow : AL.flow) =
-    lwt flow_mod = Lwt.wrap2 from_flow !priority flow in
+    lwt flow_mod = Lwt.wrap2 (from_flow sw.group_table) !priority flow in
     lwt _ = TxSwitch.send sw.tx_switch (Msg.FlowModMsg flow_mod) in
     decr priority; (* TODO(arjun): range check *)
     Lwt.return () in
+  GroupTable0x04.clear_groups sw.group_table;
   lwt _ = TxSwitch.send sw.tx_switch (Msg.FlowModMsg Core.delete_all_flows) in
-  Lwt_list.iter_s send_flow_mod tbl
-    
+  (* TODO(arjun): muck with groups first *)
+  Lwt_list.iter_s send_flow_mod tbl >>
+  Lwt_list.iter_s (TxSwitch.send sw.tx_switch)
+    (GroupTable0x04.commit sw.group_table)
+      
 let packet_in (sw : t) =
   sw.packet_ins
     

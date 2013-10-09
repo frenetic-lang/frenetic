@@ -27,7 +27,8 @@ Library openflow
     HighLevelSwitch_common,
     HighLevelSwitch,
     HighLevelSwitch0x01,
-    HighLevelSwitch0x04
+    HighLevelSwitch0x04,
+    GroupTable0x04
   Modules:
     VInt,
     Socket,
