@@ -1401,7 +1401,29 @@ module MultipartReply = struct
       | _ -> raise (Unparsable (sprintf "NYI: can't parse this multipart reply"))
 
 end
-    
+
+module Error = struct
+
+  type t = {
+    typ : int16;
+    code : int16;
+  }
+
+  cstruct ofp_error_msg {
+    uint16_t typ;
+    uint16_t code
+  } as big_endian
+  
+  (* page 95 of OF 1.3.1 *)
+  let parse (bits : Cstruct.t) : t =
+    let typ = get_ofp_error_msg_typ bits in
+    let code = get_ofp_error_msg_code bits in
+    { typ; code }
+
+  let to_string (error : t) : string =
+    Format.sprintf "error type=%d, code=%d" error.typ error.code
+
+end
 
 module Message = struct
 
@@ -1420,6 +1442,7 @@ module Message = struct
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
+    | Error of Error.t
 
 
   let string_of_msg_code (msg : msg_code) : string = match msg with
@@ -1517,6 +1540,7 @@ module Message = struct
     | MultipartReply _ -> MULTIPART_RESP
     | BarrierRequest ->   BARRIER_REQ
     | BarrierReply ->   BARRIER_RESP
+    | Error _ -> ERROR
 
   let sizeof (msg : t) : int = match msg with
     | Hello -> Header.size
@@ -1533,6 +1557,7 @@ module Message = struct
     | MultipartReply _ -> failwith "NYI: sizeof MultipartReply"
     | BarrierRequest -> failwith "NYI: sizeof BarrierRequest"
     | BarrierReply -> failwith "NYI: sizeof BarrierReply"
+    | Error _ -> failwith "NYI: sizeof Error"
 
   (* let marshal (buf : Cstruct.t) (msg : message) : int = *)
   (*   let buf2 = (Cstruct.shift buf Header.size) in *)
@@ -1564,6 +1589,7 @@ module Message = struct
       | BarrierReply -> failwith "NYI: marshal BarrierReply"
       | PacketInMsg _ -> failwith "NYI: marshal PacketInMsg"
       | PortStatusMsg _ -> failwith "NYI: marshal PortStatusMsg"
+      | Error _ -> failwith "NYI: marshall Error"
 
 
   let marshal (xid : xid) (msg : t) : string =
@@ -1573,7 +1599,7 @@ module Message = struct
     let hdr = {hdr with Header.len = sizeof_buf} in
     let buf = Cstruct.create sizeof_buf in
     let _ = Header.marshal hdr buf in
-    blit_message msg (Cstruct.shift buf (Header.size_of hdr));
+    let _ = blit_message msg (Cstruct.shift buf (Header.size_of hdr)) in
     let str = Cstruct.to_string buf in
     str
 
@@ -1588,6 +1614,7 @@ module Message = struct
       | ECHO_REQ -> EchoRequest body_bits
       | PORT_STATUS -> PortStatusMsg (PortStatus.parse body_bits)
       | MULTIPART_RESP -> MultipartReply (MultipartReply.parse body_bits)
+      | ERROR -> Error (Error.parse body_bits)
       | code -> raise (Unparsable (Printf.sprintf "unexpected message type %s" (string_of_msg_code typ))) in
     (hdr.Header.xid, msg)
 end
