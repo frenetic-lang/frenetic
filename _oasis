@@ -28,6 +28,7 @@ Library netcore
     lwt.unix,
     cstruct,
     lwt.syntax,
+    lwt.syntax.log,
     str,
     ocamlgraph,
     packet,

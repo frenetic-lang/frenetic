@@ -42,7 +42,7 @@
 %token DSTIP
 %token TCPSRCPORT
 %token TCPDSTPORT
-%token INPORT
+%token PORT
 %token <Int64.t> INT64
 %token <Int64.t> MACADDR
 %token <Int64.t> IPADDR
@@ -55,13 +55,12 @@
 %token SEMI
 %token BAR
 %token PLUS
-%token <string> ID
 %token COMMA
 %token LET
 %token IN
 %token AT
 %token PUBLICIP
-%token PASS
+%token ID
 %token DROP
 %token FRAMETYPE
 %token PROTOCOLTYPE
@@ -113,7 +112,7 @@
 
 field :
   | SWITCH       { Switch            }
-  | INPORT       { Header SDN_Types.InPort     }
+  | PORT       { Header SDN_Types.InPort     }
   | TCPSRCPORT   { Header SDN_Types.TCPSrcPort }
   | TCPDSTPORT   { Header SDN_Types.TCPDstPort }
   | SRCMAC       { Header SDN_Types.EthSrc     }
@@ -152,7 +151,7 @@ policy :
   | policy PLUS policy   { Par ($1, $3) }
   | policy SEMI policy   { Seq ($1, $3) }
   | policy KLEEN_STAR    { Star $1      }
-  | PASS                 { id           }
+  | ID                   { id           }
   | DROP                 { drop         }
   | LPAREN policy RPAREN { $2           }
 
