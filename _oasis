@@ -67,7 +67,7 @@ Executable testtool
   Path: test
   Install: False
   MainIs: Test.ml
-  BuildDepends: packet,openflow,oUnit,pa_ounit,pa_ounit.syntax
+  BuildDepends: packet,openflow,oUnit,pa_ounit,pa_ounit.syntax,quickcheck
 
 Executable test0
   Path: test
