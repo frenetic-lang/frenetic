@@ -9,6 +9,30 @@ type queueId = OpenFlow0x01_Core.queueId
 
 type xid = OpenFlow0x01_Core.xid
 
+module Wildcards : sig
+
+    type t = {
+      in_port: bool;
+      dl_vlan: bool;
+      dl_src: bool;
+      dl_dst: bool;
+      dl_type: bool;
+      nw_proto: bool;
+      tp_src: bool;
+      tp_dst: bool;
+      nw_src: int; (* XXX *)
+      nw_dst: int; (* XXX *)
+      dl_vlan_pcp: bool;
+      nw_tos: bool;
+    }
+
+    val to_string : t -> string
+
+    val marshal : t -> int32
+    val parse : int32 -> t
+
+end
+
 module Match : sig
 
   type t = pattern
