@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 199b97d2a99792fc5fa6e08f19b24aa4) *)
+(* DO NOT EDIT (digest: 93e608aec6b316ddac6d4670bc01d5c2) *)
 This is the INSTALL file for the openflow distribution.
 
 This package uses OASIS to generate its build system. See section OASIS for
@@ -14,9 +14,9 @@ In order to compile this package, you will need:
 * lwt for library openflow
 * cstruct for library openflow
 * packet
+* quickcheck for library openflow, executable testtool
 * oUnit for executable test0, executable testtool
 * pa_ounit for executable test0, executable testtool
-* quickcheck for executable testtool
 
 Installing
 ==========

@@ -20,7 +20,8 @@ Library openflow
     cstruct,
     cstruct.syntax,
     lwt.syntax,
-    packet
+    packet,
+    quickcheck
   InternalModules:
     Misc,
     ModComposition,
@@ -28,7 +29,8 @@ Library openflow
     HighLevelSwitch,
     HighLevelSwitch0x01,
     HighLevelSwitch0x04,
-    GroupTable0x04
+    GroupTable0x04,
+    QuickCheck_util
   Modules:
     VInt,
     Socket,

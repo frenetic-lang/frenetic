@@ -1,8 +1,8 @@
 # OASIS_START
-# DO NOT EDIT (digest: 9e4883db84afd8122fa6a6a73095bffd)
+# DO NOT EDIT (digest: 13624f3dbe1874c8df3b382e4aca5a48)
 version = "0.1.1"
 description = "Serialization library for OpenFlow"
-requires = "lwt lwt.unix cstruct cstruct.syntax lwt.syntax packet"
+requires = "lwt lwt.unix cstruct cstruct.syntax lwt.syntax packet quickcheck"
 archive(byte) = "openflow.cma"
 archive(byte, plugin) = "openflow.cma"
 archive(native) = "openflow.cmxa"

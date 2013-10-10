@@ -110,6 +110,37 @@ module Wildcards = struct
       dl_vlan = test_bit 1 bits;
       in_port = test_bit 0 bits;
     }
+
+  let arbitrary =
+    let open QuickCheck in
+    let open QuickCheck_gen in
+    let open OpenFlow_QuickCheck in
+    arbitrary_bool >>= fun in_port ->
+    arbitrary_bool >>= fun dl_vlan ->
+    arbitrary_bool >>= fun dl_src ->
+    arbitrary_bool >>= fun dl_dst ->
+    arbitrary_bool >>= fun dl_type ->
+    arbitrary_bool >>= fun nw_proto ->
+    arbitrary_bool >>= fun tp_src ->
+    arbitrary_bool >>= fun tp_dst ->
+    arbitrary_uint >>= fun nw_src ->
+    arbitrary_uint >>= fun nw_dst ->
+    arbitrary_bool >>= fun dl_vlan_pcp ->
+    arbitrary_bool >>= fun nw_tos ->
+        ret_gen {
+            in_port = in_port;
+            dl_vlan = dl_vlan;
+            dl_src = dl_src;
+            dl_dst = dl_dst;
+            dl_type = dl_type;
+            nw_proto = nw_proto;
+            tp_src = tp_src;
+            tp_dst = tp_dst;
+            nw_src = nw_src;
+            nw_dst = nw_dst;
+            dl_vlan_pcp = dl_vlan_pcp;
+            nw_tos = nw_tos
+        }
 end
 
 module Match = struct
