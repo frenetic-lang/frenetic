@@ -1,8 +1,6 @@
 open Packet
 open OpenFlow0x01_Core
 
-open QuickCheck
-
 type switchId = OpenFlow0x01_Core.switchId
 
 type portId = OpenFlow0x01_Core.portId
@@ -13,14 +11,25 @@ type xid = OpenFlow0x01_Core.xid
 
 module Wildcards : sig
 
-    type t
+    type t = {
+      in_port: bool;
+      dl_vlan: bool;
+      dl_src: bool;
+      dl_dst: bool;
+      dl_type: bool;
+      nw_proto: bool;
+      tp_src: bool;
+      tp_dst: bool;
+      nw_src: int; (* XXX: unsigned *)
+      nw_dst: int; (* XXX: unsigned *)
+      dl_vlan_pcp: bool;
+      nw_tos: bool;
+    }
 
     val to_string : t -> string
 
     val marshal : t -> int32
     val parse : int32 -> t
-
-    val arbitrary : t QuickCheck_gen.gen
 
 end
 

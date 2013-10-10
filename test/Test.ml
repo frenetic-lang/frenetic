@@ -2,6 +2,7 @@ open OpenFlow0x01
 open OpenFlow0x01_Stats
 
 open QuickCheck
+
 module Gen = QuickCheck_gen
 
 (* Test that `parse` is the left inverse of `marshal` *)
@@ -10,18 +11,52 @@ let prop_roundtrip parse marshal e =
 
 (* Setup a quickCheck for a serlalizable OpenFlow datatype *)
 let openflow_quickCheck arbitrary show parse marshal = 
-    let testable = testable_fun arbitrary show testable_bool in
-    match quickCheck testable (prop_roundtrip parse marshal) with
+    let test = testable_fun arbitrary show testable_bool in
+    match quickCheck test (prop_roundtrip parse marshal) with
       | Success -> true
       | Failure _ -> failwith "No failure expected"
       | Exhausted _ -> failwith "No exhaustion expected"
 
+(* arbitrary instance for usigned integers. Still uses the `int` type. *)
+let arbitrary_uint = Gen.sized (fun n -> Gen.choose_int (0, n))
+
+module OpenFlow0x01_Wildcards = struct
+    let gen_wildcards =
+        let open Gen in
+        let open Wildcards in
+        arbitrary_bool >>= fun in_port ->
+        arbitrary_bool >>= fun dl_vlan ->
+        arbitrary_bool >>= fun dl_src ->
+        arbitrary_bool >>= fun dl_dst ->
+        arbitrary_bool >>= fun dl_type ->
+        arbitrary_bool >>= fun nw_proto ->
+        arbitrary_bool >>= fun tp_src ->
+        arbitrary_bool >>= fun tp_dst ->
+        arbitrary_uint >>= fun nw_src ->
+        arbitrary_uint >>= fun nw_dst ->
+        arbitrary_bool >>= fun dl_vlan_pcp ->
+        arbitrary_bool >>= fun nw_tos ->
+            ret_gen {
+                in_port = in_port;
+                dl_vlan = dl_vlan;
+                dl_src = dl_src;
+                dl_dst = dl_dst;
+                dl_type = dl_type;
+                nw_proto = nw_proto;
+                tp_src = tp_src;
+                tp_dst = tp_dst;
+                nw_src = nw_src;
+                nw_dst = nw_dst;
+                dl_vlan_pcp = dl_vlan_pcp;
+                nw_tos = nw_tos
+            }
+
+    TEST "OpenFlow0x01 Wildcards RoundTrip" =
+        (openflow_quickCheck gen_wildcards 
+            Wildcards.to_string Wildcards.parse Wildcards.marshal)
+end
 
 module RoundTripping = struct
-  TEST "OpenFlow0x01 Wildcards RoundTrip" =
-      (openflow_quickCheck Wildcards.arbitrary
-          Wildcards.to_string Wildcards.parse Wildcards.marshal)
-
   TEST "OpenFlow Hello Test 1" = 
     let open Message in 
     let bs = Cstruct.create 101 in
