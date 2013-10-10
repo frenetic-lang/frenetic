@@ -1,13 +1,15 @@
-open NetKAT_Types
+module NetworkCompiler = struct
 
-type explicit_topo_policy =
-  | Filter of pred
-  | Mod of SDN_Types.field * header_val
-      (* switch, port -> switch, port *)
-  | Link of header_val*header_val*header_val*header_val
-  | Par of explicit_topo_policy * explicit_topo_policy
-  | Seq of explicit_topo_policy * explicit_topo_policy
-  | Star of explicit_topo_policy
+  open NetKAT_Types
+
+  type explicit_topo_policy =
+    | Filter of pred
+    | Mod of SDN_Types.field * header_val
+  (* switch, port -> switch, port *)
+    | Link of header_val*header_val*header_val*header_val
+    | Par of explicit_topo_policy * explicit_topo_policy
+    | Seq of explicit_topo_policy * explicit_topo_policy
+    | Star of explicit_topo_policy
 
 (* i;(p;t)^*;e 
    where 
@@ -17,64 +19,64 @@ type explicit_topo_policy =
    e = i
 *)
 
-type restricted_header = 
-  | PHeader of SDN_Types.field
-  | VHeader of int * int
+  type restricted_header = 
+    | PHeader of SDN_Types.field
+    | VHeader of int * int
 
-type header_pred = 
-  | HTrue
-  | HFalse
-  | HTest of restricted_header * header_val
-  | HTTest of header_val
-  | HNeg of header_pred
-  | HAnd of header_pred * header_pred
-  | HOr of header_pred * header_pred
+  type header_pred = 
+    | HTrue
+    | HFalse
+    | HTest of restricted_header * header_val
+    | HTTest of header_val
+    | HNeg of header_pred
+    | HAnd of header_pred * header_pred
+    | HOr of header_pred * header_pred
 
-type ingress_pol =
-  | IFilter of header_pred
-  | IMod of restricted_header * header_val
-  | IPar of ingress_pol * ingress_pol
-  | ISeq of ingress_pol * ingress_pol
-  | IPass
-  | IDrop
+  type ingress_pol =
+    | IFilter of header_pred
+    | IMod of restricted_header * header_val
+    | IPar of ingress_pol * ingress_pol
+    | ISeq of ingress_pol * ingress_pol
+    | IPass
+    | IDrop
 
-type switch_pol =
-  | SFilter of header_pred
-  | SMod of restricted_header * header_val
-  | SPar of switch_pol * switch_pol
-  | SSeq of switch_pol * switch_pol
-  | SStar of switch_pol
-  | SPass
-  | SDrop
+  type switch_pol =
+    | SFilter of header_pred
+    | SMod of restricted_header * header_val
+    | SPar of switch_pol * switch_pol
+    | SSeq of switch_pol * switch_pol
+    | SStar of switch_pol
+    | SPass
+    | SDrop
 
-type topo_header =
-  | TSwitch
-  | TPort
+  type topo_header =
+    | TSwitch
+    | TPort
 
-type topo_pol = 
-  | TTest of topo_header * header_val
-  | TMod of topo_header * header_val
-  | TPar of topo_pol * topo_pol
-  | TSeq of topo_pol * topo_pol
-  | TDrop
+  type topo_pol = 
+    | TTest of topo_header * header_val
+    | TMod of topo_header * header_val
+    | TPar of topo_pol * topo_pol
+    | TSeq of topo_pol * topo_pol
+    | TDrop
 
-type restricted_pol = ingress_pol * switch_pol * topo_pol * ingress_pol
+  type restricted_pol = ingress_pol * switch_pol * topo_pol * ingress_pol
 
-let vheader_count = ref 0
+  let vheader_count = ref 0
 
-let gen_header size =
-  incr vheader_count;
-  VHeader(!vheader_count, size)
+  let gen_header size =
+    incr vheader_count;
+    VHeader(!vheader_count, size)
 
-let rec pred_to_ipred pr = 
-  match pr with
-  | True -> HTrue
-  | False -> HFalse
-  | Test (Switch, v) -> HTTest(v)
-  | Test (Header h, v) -> HTest (PHeader h, v)
-  | Neg p -> HNeg (pred_to_ipred p)
-  | And(a,b) -> HAnd (pred_to_ipred a, pred_to_ipred b)
-  | Or(a,b) -> HOr (pred_to_ipred a, pred_to_ipred b)
+  let rec pred_to_ipred pr = 
+    match pr with
+      | True -> HTrue
+      | False -> HFalse
+      | Test (Switch, v) -> HTTest(v)
+      | Test (Header h, v) -> HTest (PHeader h, v)
+      | Neg p -> HNeg (pred_to_ipred p)
+      | And(a,b) -> HAnd (pred_to_ipred a, pred_to_ipred b)
+      | Or(a,b) -> HOr (pred_to_ipred a, pred_to_ipred b)
 
 (* Compilation story: we have an unlimited number of header fields we
    can allocate on demand. Each header field has a specific number of
@@ -88,58 +90,58 @@ let rec pred_to_ipred pr =
    appropriately. We'd need some pretty good analysis to keep this
    from exploding.
 *)
-let rec dehopify (p : explicit_topo_policy) : restricted_pol =
-  match p with
-    | Filter pr -> IFilter (pred_to_ipred pr), SDrop, TDrop, IPass
-    | Mod (h, v) -> IMod (PHeader h, v), SDrop, TDrop, IPass
-    | Link (sw1,p1,sw2,p2) -> 
-      IPass, 
-      SPass, 
-      TSeq(TTest (TSwitch, sw1), 
-	   TSeq( TTest (TPort, p1), 
-		 TSeq (TMod (TSwitch, sw2),  
-		       TMod (TPort, p2)))), 
-      IPass
+  let rec dehopify (p : explicit_topo_policy) : restricted_pol =
+    match p with
+      | Filter pr -> IFilter (pred_to_ipred pr), SDrop, TDrop, IPass
+      | Mod (h, v) -> IMod (PHeader h, v), SDrop, TDrop, IPass
+      | Link (sw1,p1,sw2,p2) -> 
+        IPass, 
+        SPass, 
+        TSeq(TTest (TSwitch, sw1), 
+	     TSeq( TTest (TPort, p1), 
+		   TSeq (TMod (TSwitch, sw2),  
+		         TMod (TPort, p2)))), 
+        IPass
     (* Todo: add topo filter terms *)
-    | Par (p,q) -> let i_p,s_p,t_p,e_p = dehopify p in
-                   let i_q,s_q,t_q,e_q = dehopify q in
-                   let h = gen_header 6 in
-                   let h0 = VInt.Int16 0 in
-                   (ignore h0);
-                   let h1 = VInt.Int16 1 in
-                   let h2 = VInt.Int16 2 in
-                   let h3 = VInt.Int16 3 in
-                   (ignore h3);
-                   let h4 = VInt.Int16 4 in
-                   let h5 = VInt.Int16 5 in
-                   (IPar(
-                     IPar(
-                       IPar(ISeq(i_p, IMod (h,h1)), ISeq(i_p, IMod(h,h2))), 
-                       ISeq(i_q, IMod(h, h4))), 
-                     ISeq(i_q, IMod(h,h5))),
-		    SPar(SSeq(SFilter(HTest(h,h1)), s_p), 
-                         SPar(SSeq(SFilter(HTest(h, h1)), 
-                                   SSeq(s_p, SMod(h,h2))), 
-                              SPar(SSeq(SFilter(HTest(h,h4)), s_q), 
-                                   SSeq(SFilter(HTest(h,h4)), SSeq(s_q, SMod(h,h5)))))),
-                    TPar(t_p,t_q),
-                    IPar(ISeq(IFilter(HTest(h,h2)), e_p),
-                         ISeq(IFilter(HTest(h, h5)), e_q)))
-    | _ -> 
-      failwith "Unimplemented" 
-
+      | Par (p,q) -> let i_p,s_p,t_p,e_p = dehopify p in
+                     let i_q,s_q,t_q,e_q = dehopify q in
+                     let h = gen_header 6 in
+                     let h0 = VInt.Int16 0 in
+                     (ignore h0);
+                     let h1 = VInt.Int16 1 in
+                     let h2 = VInt.Int16 2 in
+                     let h3 = VInt.Int16 3 in
+                     (ignore h3);
+                     let h4 = VInt.Int16 4 in
+                     let h5 = VInt.Int16 5 in
+                     (IPar(
+                       IPar(
+                         IPar(ISeq(i_p, IMod (h,h1)), ISeq(i_p, IMod(h,h2))), 
+                         ISeq(i_q, IMod(h, h4))), 
+                       ISeq(i_q, IMod(h,h5))),
+		      SPar(SSeq(SFilter(HTest(h,h1)), s_p), 
+                           SPar(SSeq(SFilter(HTest(h, h1)), 
+                                     SSeq(s_p, SMod(h,h2))), 
+                                SPar(SSeq(SFilter(HTest(h,h4)), s_q), 
+                                     SSeq(SFilter(HTest(h,h4)), SSeq(s_q, SMod(h,h5)))))),
+                      TPar(t_p,t_q),
+                      IPar(ISeq(IFilter(HTest(h,h2)), e_p),
+                           ISeq(IFilter(HTest(h, h5)), e_q)))
+      | _ -> 
+        failwith "Unimplemented" 
+end
 
 module SwitchCompiler = struct
-(* metavariable conventions
-   - a, b, c, actions
-   - s, t, u, action sets
-   - x, y, z, patterns
-   - xs, ys, zs, pattern sets
-   - p, q, local
-   - r, atoms
-*)
-  
-  (* utility functions *)
+    (* metavariable conventions
+       - a, b, c, actions
+       - s, t, u, action sets
+       - x, y, z, patterns
+       - xs, ys, zs, pattern sets
+       - p, q, local
+       - r, atoms
+    *)
+    
+    (* utility functions *)
   let header_val_map_to_string eq sep m =
     NetKAT_Types.HeaderMap.fold
       (fun h v acc ->
@@ -219,9 +221,9 @@ module SwitchCompiler = struct
             | NetKAT_Types.Header h' ->  (SDN_Types.SetField (h', v)) :: act in
         NetKAT_Types.HeaderMap.fold mk_mod mods [SDN_Types.OutputPort port]
           
-  let set_to_action (s:Set.t) : SDN_Types.par =
-    let f a par = (to_action a)::par in
-    Set.fold f s []
+    let set_to_action (s:Set.t) : SDN_Types.par =
+      let f a par = (to_action a)::par in
+      Set.fold f s []
   end
 
   module Pattern = struct
@@ -258,7 +260,7 @@ module SwitchCompiler = struct
         | _ -> 
           vo1 in 
       NetKAT_Types.HeaderMap.merge f a x 
-      
+        
     let seq_pat (x : t) (y : t) : t option =
       let f h vo1 vo2 = match vo1, vo2 with
         | (Some v1, Some v2) ->
@@ -341,7 +343,7 @@ module SwitchCompiler = struct
           else
             cmp1
     end)
-          
+      
     let to_string ((xs,x):t) : string = 
       Printf.sprintf "%s,%s" 
         (Pattern.set_to_string xs) (Pattern.to_string x)
@@ -417,123 +419,123 @@ module SwitchCompiler = struct
           p acc)
         q Atom.Map.empty
 
-  (* TODO(jnf) this is a helper function; give it a different name? *)
-  let seq_atom_act_local_acc (r1:Atom.t) (a:Action.t) (p2:t) (q:t) : t = 
-    Atom.Map.fold
-      (fun r2 s2 acc -> 
-        match Atom.seq_act_atom r1 a r2 with
-          | None -> 
-            acc
-          | Some r12 -> 
-            extend r12 (Action.seq_acts a s2) acc)
-      p2 q
+      (* TODO(jnf) this is a helper function; give it a different name? *)
+    let seq_atom_act_local_acc (r1:Atom.t) (a:Action.t) (p2:t) (q:t) : t = 
+      Atom.Map.fold
+        (fun r2 s2 acc -> 
+          match Atom.seq_act_atom r1 a r2 with
+            | None -> 
+              acc
+            | Some r12 -> 
+              extend r12 (Action.seq_acts a s2) acc)
+        p2 q
 
-  let seq_local (p:t) (q:t) : t = 
-    Atom.Map.fold
-      (fun r1 s1 acc -> 
-        if Action.Set.is_empty s1 then 
-          extend r1 s1 acc 
+    let seq_local (p:t) (q:t) : t = 
+      Atom.Map.fold
+        (fun r1 s1 acc -> 
+          if Action.Set.is_empty s1 then 
+            extend r1 s1 acc 
+          else
+            Action.Set.fold 
+              (fun a acc -> seq_atom_act_local_acc r1 a q acc)
+              s1 acc)
+        p Atom.Map.empty
+        
+      (* pre: t is a predicate *)
+    let negate (p:t) : t = 
+      Atom.Map.fold
+        (fun r s acc -> 
+          if Action.Set.is_empty s then 
+            Atom.Map.add r Action.id acc
+          else
+            Atom.Map.add r Action.drop acc)
+        p Atom.Map.empty
+
+    let rec of_pred (pr:NetKAT_Types.pred) : t = 
+      match pr with
+        | NetKAT_Types.True ->
+          Atom.Map.singleton Atom.tru Action.id
+        | NetKAT_Types.False ->
+          Atom.Map.singleton Atom.tru Action.drop
+        | NetKAT_Types.Neg p ->
+          negate (of_pred p)
+        | NetKAT_Types.Test (h, v) ->
+          let p = NetKAT_Types.HeaderMap.singleton h v in 
+          Atom.Map.add (Pattern.Set.empty, p) Action.id
+            (Atom.Map.singleton (Pattern.Set.singleton p, Pattern.tru) Action.drop)
+        | NetKAT_Types.And (pr1, pr2) ->
+          seq_local (of_pred pr1) (of_pred pr2)
+        | NetKAT_Types.Or (pr1, pr2) ->
+          par_local (of_pred pr1) (of_pred pr2)
+
+    let star_local (p:t) : t =
+      let rec loop acc = 
+        let seq' = seq_local acc p in
+        let acc' = par_local acc seq' in
+        if Atom.Map.compare Action.Set.compare acc acc' = 0 then
+          acc
+        else 
+          loop acc' in
+      loop (Atom.Map.singleton Atom.tru Action.id)
+
+    let rec of_policy (pol:NetKAT_Types.policy) : t = 
+      match pol with
+        | NetKAT_Types.Filter pr ->
+          of_pred pr
+        | NetKAT_Types.Mod (NetKAT_Types.Switch, _) ->
+          failwith "unexpected Switch in local_normalize"
+        | NetKAT_Types.Mod (h, v) ->
+          Atom.Map.singleton Atom.tru (Action.Set.singleton (NetKAT_Types.HeaderMap.singleton h v))
+        | NetKAT_Types.Par (pol1, pol2) ->
+          par_local (of_policy pol1) (of_policy pol2)
+        | NetKAT_Types.Seq (pol1, pol2) ->
+          seq_local (of_policy pol1) (of_policy pol2)
+        | NetKAT_Types.Star pol -> 
+          star_local (of_policy pol)
+
+    let to_netkat (p:t) : NetKAT_Types.policy = 
+        (* "smart" constructors *)
+      let mk_par nc1 nc2 = 
+        match nc1, nc2 with 
+          | NetKAT_Types.Filter NetKAT_Types.False, _ -> nc2
+          | _, NetKAT_Types.Filter NetKAT_Types.False -> nc1
+          | _ -> NetKAT_Types.Par(nc1,nc2) in       
+      let mk_seq nc1 nc2 = 
+        match nc1, nc2 with
+          | NetKAT_Types.Filter NetKAT_Types.True, _ -> nc2
+          | _, NetKAT_Types.Filter NetKAT_Types.True -> nc1
+          | NetKAT_Types.Filter NetKAT_Types.False, _ -> nc1
+          | _, NetKAT_Types.Filter NetKAT_Types.False -> nc2 
+          | _ -> NetKAT_Types.Seq(nc1,nc2) in 
+      let mk_and pat1 pat2 = 
+        match pat1,pat2 with 
+          | NetKAT_Types.False,_ -> pat1
+          | _,NetKAT_Types.False -> pat2
+          | NetKAT_Types.True,_ -> pat2
+          | _,NetKAT_Types.True -> pat1
+          | _ -> NetKAT_Types.And(pat1,pat2) in 
+      let mk_not pat = 
+        match pat with 
+          | NetKAT_Types.False -> NetKAT_Types.True
+          | NetKAT_Types.True -> NetKAT_Types.False
+          | _ -> NetKAT_Types.Neg(pat) in 
+      let rec loop p = 
+        if Atom.Map.is_empty p then 
+          NetKAT_Types.Filter NetKAT_Types.False
         else
-          Action.Set.fold 
-            (fun a acc -> seq_atom_act_local_acc r1 a q acc)
-            s1 acc)
-      p Atom.Map.empty
-      
-  (* pre: t is a predicate *)
-  let negate (p:t) : t = 
-    Atom.Map.fold
-      (fun r s acc -> 
-        if Action.Set.is_empty s then 
-          Atom.Map.add r Action.id acc
-        else
-          Atom.Map.add r Action.drop acc)
-      p Atom.Map.empty
-
-  let rec of_pred (pr:NetKAT_Types.pred) : t = 
-    match pr with
-      | NetKAT_Types.True ->
-        Atom.Map.singleton Atom.tru Action.id
-      | NetKAT_Types.False ->
-        Atom.Map.singleton Atom.tru Action.drop
-      | NetKAT_Types.Neg p ->
-        negate (of_pred p)
-      | NetKAT_Types.Test (h, v) ->
-        let p = NetKAT_Types.HeaderMap.singleton h v in 
-        Atom.Map.add (Pattern.Set.empty, p) Action.id
-          (Atom.Map.singleton (Pattern.Set.singleton p, Pattern.tru) Action.drop)
-      | NetKAT_Types.And (pr1, pr2) ->
-        seq_local (of_pred pr1) (of_pred pr2)
-      | NetKAT_Types.Or (pr1, pr2) ->
-        par_local (of_pred pr1) (of_pred pr2)
-
-  let star_local (p:t) : t =
-    let rec loop acc = 
-      let seq' = seq_local acc p in
-      let acc' = par_local acc seq' in
-      if Atom.Map.compare Action.Set.compare acc acc' = 0 then
-        acc
-      else 
-        loop acc' in
-    loop (Atom.Map.singleton Atom.tru Action.id)
-
-  let rec of_policy (pol:NetKAT_Types.policy) : t = 
-    match pol with
-      | NetKAT_Types.Filter pr ->
-        of_pred pr
-      | NetKAT_Types.Mod (NetKAT_Types.Switch, _) ->
-        failwith "unexpected Switch in local_normalize"
-      | NetKAT_Types.Mod (h, v) ->
-        Atom.Map.singleton Atom.tru (Action.Set.singleton (NetKAT_Types.HeaderMap.singleton h v))
-      | NetKAT_Types.Par (pol1, pol2) ->
-        par_local (of_policy pol1) (of_policy pol2)
-      | NetKAT_Types.Seq (pol1, pol2) ->
-        seq_local (of_policy pol1) (of_policy pol2)
-      | NetKAT_Types.Star pol -> 
-        star_local (of_policy pol)
-
-  let to_netkat (p:t) : NetKAT_Types.policy = 
-    (* "smart" constructors *)
-    let mk_par nc1 nc2 = 
-      match nc1, nc2 with 
-        | NetKAT_Types.Filter NetKAT_Types.False, _ -> nc2
-        | _, NetKAT_Types.Filter NetKAT_Types.False -> nc1
-        | _ -> NetKAT_Types.Par(nc1,nc2) in       
-    let mk_seq nc1 nc2 = 
-      match nc1, nc2 with
-        | NetKAT_Types.Filter NetKAT_Types.True, _ -> nc2
-        | _, NetKAT_Types.Filter NetKAT_Types.True -> nc1
-        | NetKAT_Types.Filter NetKAT_Types.False, _ -> nc1
-        | _, NetKAT_Types.Filter NetKAT_Types.False -> nc2 
-        | _ -> NetKAT_Types.Seq(nc1,nc2) in 
-    let mk_and pat1 pat2 = 
-      match pat1,pat2 with 
-        | NetKAT_Types.False,_ -> pat1
-        | _,NetKAT_Types.False -> pat2
-        | NetKAT_Types.True,_ -> pat2
-        | _,NetKAT_Types.True -> pat1
-        | _ -> NetKAT_Types.And(pat1,pat2) in 
-    let mk_not pat = 
-      match pat with 
-        | NetKAT_Types.False -> NetKAT_Types.True
-        | NetKAT_Types.True -> NetKAT_Types.False
-        | _ -> NetKAT_Types.Neg(pat) in 
-    let rec loop p = 
-      if Atom.Map.is_empty p then 
-        NetKAT_Types.Filter NetKAT_Types.False
-      else
-        let r,s = Atom.Map.min_binding p in
-        let p' = Atom.Map.remove r p in 
-        let (xs,x) = r in 
-        let nc_pred = mk_and (mk_not (Pattern.set_to_netkat xs)) (Pattern.to_netkat x) in 
-        let nc_pred_acts = mk_seq (NetKAT_Types.Filter nc_pred) (Action.set_to_netkat s) in 
-        mk_par nc_pred_acts (loop p') in 
-    loop p
+          let r,s = Atom.Map.min_binding p in
+          let p' = Atom.Map.remove r p in 
+          let (xs,x) = r in 
+          let nc_pred = mk_and (mk_not (Pattern.set_to_netkat xs)) (Pattern.to_netkat x) in 
+          let nc_pred_acts = mk_seq (NetKAT_Types.Filter nc_pred) (Action.set_to_netkat s) in 
+          mk_par nc_pred_acts (loop p') in 
+      loop p
   end
 
   module RunTime = struct
 
     type i = Local.t
-      
+        
     let compile (pol:NetKAT_Types.policy) : i = 
       Local.of_policy pol
 
@@ -548,7 +550,7 @@ module SwitchCompiler = struct
       SDN_Types.hard_timeout = SDN_Types.Permanent
     }
 
-  (* Prunes out rules that apply to other switches. *)
+      (* Prunes out rules that apply to other switches. *)
     let to_table (sw:SDN_Types.fieldVal) (p:i) : SDN_Types.flowTable =
       let add_flow x s l = 
         match Pattern.to_pattern sw x with
