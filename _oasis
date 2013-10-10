@@ -17,6 +17,10 @@ Flag installexec
   Description: install the Frenetic executable
   Default: True
 
+Flag quickcheck
+  Description: build the frenetic.quickcheck library
+  Default: false
+
 Library netcore
   Path: lib
   BuildDepends:
@@ -63,10 +67,27 @@ Library netcore
     NetCore_Verify,
     NetCore_Wildcard
 
+Library quickcheck
+  Findlibparent: netcore
+  Findlibname: quickcheck
+  Path: quickcheck
+  BuildDepends:
+    quickcheck,
+    netcore
+  Modules:
+    NetKAT_Arbitrary
+
+
 Executable testtool
   Path: test
   MainIs: Test.ml
-  BuildDepends: oUnit,packet,netcore,pa_ounit,pa_ounit.syntax
+  BuildDepends: 
+    oUnit,packet,
+    netcore,
+    pa_ounit,
+    pa_ounit.syntax,
+    quickcheck,
+    netcore.quickcheck
   Install: False
 
 Test all_tests
