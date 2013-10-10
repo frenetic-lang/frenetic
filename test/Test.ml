@@ -2,7 +2,6 @@ open OpenFlow0x01
 open OpenFlow0x01_Stats
 
 open QuickCheck
-module Gen = QuickCheck_gen
 
 (* Test that `parse` is the left inverse of `marshal` *)
 let prop_roundtrip parse marshal e =
