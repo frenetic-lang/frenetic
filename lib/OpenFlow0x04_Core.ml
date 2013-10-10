@@ -1,9 +1,5 @@
 open Packet
 
-(** val coq_VLAN_NONE : dlVlan **)
-
-let coq_VLAN_NONE = Some 65535
-
 type 'a mask = { m_value : 'a; m_mask : 'a option }
 
 type payload =
@@ -11,18 +7,8 @@ type payload =
     (** [Buffered (id, buf)] is a packet buffered on a switch. *)
   | NotBuffered of bytes
 
-(** val m_value : 'a1 mask -> 'a1 **)
-
-let m_value x = x.m_value
-
-(** val m_mask : 'a1 mask -> 'a1 option **)
-
-let m_mask x = x.m_mask
-
 type xid = int32
 type int12 = int16
-
-(** val val_to_mask : 'a1 -> 'a1 mask **)
 
 let val_to_mask v =
   { m_value = v; m_mask = None }
@@ -93,22 +79,6 @@ type instruction =
 type bucket = { bu_weight : int16; bu_watch_port : portId option;
                 bu_watch_group : groupId option; bu_actions : actionSequence }
 
-(** val bu_weight : bucket -> int16 **)
-
-let bu_weight x = x.bu_weight
-
-(** val bu_watch_port : bucket -> portId option **)
-
-let bu_watch_port x = x.bu_watch_port
-
-(** val bu_watch_group : bucket -> groupId option **)
-
-let bu_watch_group x = x.bu_watch_group
-
-(** val bu_actions : bucket -> actionSequence **)
-
-let bu_actions x = x.bu_actions
-
 type groupType =
 | All
 | Select
@@ -133,26 +103,6 @@ type flowModCommand =
 type flowModFlags = { fmf_send_flow_rem : bool; fmf_check_overlap : bool;
                       fmf_reset_counts : bool; fmf_no_pkt_counts : bool;
                       fmf_no_byt_counts : bool }
-
-(** val fmf_send_flow_rem : flowModFlags -> bool **)
-
-let fmf_send_flow_rem x = x.fmf_send_flow_rem
-
-(** val fmf_check_overlap : flowModFlags -> bool **)
-
-let fmf_check_overlap x = x.fmf_check_overlap
-
-(** val fmf_reset_counts : flowModFlags -> bool **)
-
-let fmf_reset_counts x = x.fmf_reset_counts
-
-(** val fmf_no_pkt_counts : flowModFlags -> bool **)
-
-let fmf_no_pkt_counts x = x.fmf_no_pkt_counts
-
-(** val fmf_no_byt_counts : flowModFlags -> bool **)
-
-let fmf_no_byt_counts x = x.fmf_no_byt_counts
 
 type flowMod = { mfCookie : int64 mask; mfTable_id : tableId;
                  mfCommand : flowModCommand; mfIdle_timeout : timeout;
@@ -199,54 +149,6 @@ let delete_all_flows =
   ; mfOfp_match = match_all
   ; mfInstructions = [] }
 
-(** val mfCookie : flowMod -> int64 mask **)
-
-let mfCookie x = x.mfCookie
-
-(** val mfTable_id : flowMod -> tableId **)
-
-let mfTable_id x = x.mfTable_id
-
-(** val mfCommand : flowMod -> flowModCommand **)
-
-let mfCommand x = x.mfCommand
-
-(** val mfIdle_timeout : flowMod -> timeout **)
-
-let mfIdle_timeout x = x.mfIdle_timeout
-
-(** val mfHard_timeout : flowMod -> timeout **)
-
-let mfHard_timeout x = x.mfHard_timeout
-
-(** val mfPriority : flowMod -> int16 **)
-
-let mfPriority x = x.mfPriority
-
-(** val mfBuffer_id : flowMod -> bufferId option **)
-
-let mfBuffer_id x = x.mfBuffer_id
-
-(** val mfOut_port : flowMod -> pseudoPort option **)
-
-let mfOut_port x = x.mfOut_port
-
-(** val mfOut_group : flowMod -> groupId option **)
-
-let mfOut_group x = x.mfOut_group
-
-(** val mfFlags : flowMod -> flowModFlags **)
-
-let mfFlags x = x.mfFlags
-
-(** val mfOfp_match : flowMod -> oxmMatch **)
-
-let mfOfp_match x = x.mfOfp_match
-
-(** val mfInstructions : flowMod -> instruction list **)
-
-let mfInstructions x = x.mfInstructions
-
 type packetInReason =
 | NoMatch
 | ExplicitSend
@@ -255,26 +157,6 @@ type packetIn = { pi_total_len : int16; pi_reason : packetInReason;
 		  pi_table_id : tableId; pi_cookie : int64;
 		  pi_ofp_match : oxmMatch; pi_payload : payload 
 		}
-
-(** val pi_total_len : packetIn -> int16 **)
-
-let pi_total_len x = x.pi_total_len
-
-(** val pi_reason : packetIn -> packetInReason **)
-
-let pi_reason x = x.pi_reason
-
-(** val pi_table_id : packetIn -> tableId **)
-
-let pi_table_id x = x.pi_table_id
-
-(** val pi_cookie : packetIn -> int64 **)
-
-let pi_cookie x = x.pi_cookie
-
-(** val pi_ofp_match : packetIn -> oxmMatch **)
-
-let pi_ofp_match x = x.pi_ofp_match
 
 type capabilities = { flow_stats : bool; table_stats : bool;
                       port_stats : bool; group_stats : bool; ip_reasm : 
@@ -301,46 +183,8 @@ type portReason =
 
 type portStatus = { reason : portReason; desc : portDesc }
 
-(** val flow_stats : capabilities -> bool **)
-
-let flow_stats x = x.flow_stats
-
-(** val table_stats : capabilities -> bool **)
-
-let table_stats x = x.table_stats
-
-(** val port_stats : capabilities -> bool **)
-
-let port_stats x = x.port_stats
-
-(** val group_stats : capabilities -> bool **)
-
-let group_stats x = x.group_stats
-
-(** val ip_reasm : capabilities -> bool **)
-
-let ip_reasm x = x.ip_reasm
-
-(** val queue_stats : capabilities -> bool **)
-
-let queue_stats x = x.queue_stats
-
-(** val port_blocked : capabilities -> bool **)
-
-let port_blocked x = x.port_blocked
-
-
 type packetOut = { po_in_port : pseudoPort;
                    po_actions : actionSequence; po_payload : payload }
-
-
-(** val po_in_port : packetOut -> pseudoPort **)
-
-let po_in_port x = x.po_in_port
-
-(** val po_actions : packetOut -> actionSequence **)
-
-let po_actions x = x.po_actions
 
 type multipartRequest = 
   | SwitchDescReq
