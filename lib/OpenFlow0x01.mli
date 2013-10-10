@@ -20,8 +20,8 @@ module Wildcards : sig
       nw_proto: bool;
       tp_src: bool;
       tp_dst: bool;
-      nw_src: int; (* XXX *)
-      nw_dst: int; (* XXX *)
+      nw_src: int; (* XXX: unsigned *)
+      nw_dst: int; (* XXX: unsigned *)
       dl_vlan_pcp: bool;
       nw_tos: bool;
     }
