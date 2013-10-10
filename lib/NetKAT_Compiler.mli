@@ -1,6 +1,12 @@
 module SwitchCompiler : sig
-  type t
-  val compile : NetKAT_Types.policy -> t
-  val to_netkat : t -> NetKAT_Types.policy
-  val to_table : SDN_Types.fieldVal -> t -> SDN_Types.flowTable 
+
+  (* TODO(jnf): many other modules we could expose ... *)
+
+  module RunTime : sig 
+    (* intermediate form *)
+    type i 
+    val compile : NetKAT_Types.policy -> i
+    val decompile : i -> NetKAT_Types.policy
+    val to_table : SDN_Types.fieldVal -> i -> SDN_Types.flowTable 
+  end
 end
