@@ -3,14 +3,6 @@ open NetCore_Types
 open NetCore_Util
 open Unix
 
-module W = NetCore_Wildcard
-module P = NetCore_Pattern
-
-(* JNF: This function really belongs somewhere else. *)
-let map_option f = function
-  | None -> None
-  | Some x -> Some (f x)
-
 (* The [Sat] module provides a representation of formulas in
    first-order logic, a representation of packets, and a function for
    testing their satisfiability. *)

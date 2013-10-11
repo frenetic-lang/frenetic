@@ -33,7 +33,6 @@ Library netcore
     NetCore_Classifier,
     NetCore_Compat,
     NetCore_Desugar,
-    NetCore_Digraph,
     NetCore_Gensym,
     NetCore_Lexer,
     NetCore_Monitoring,
