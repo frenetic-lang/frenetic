@@ -44,7 +44,7 @@ let prop_parse_pol_idempotent (p : NetKAT_Types.policy) : bool =
 
 
 let qc () =
-  let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 200 } in
+  let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 5 } in
   let _ = QuickCheck.check testable_pol_to_bool cfg prop_parse_pol_idempotent in
   ()
 
