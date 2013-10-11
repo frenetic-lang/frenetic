@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 9e4883db84afd8122fa6a6a73095bffd)
+# DO NOT EDIT (digest: 3b5c371261c51d8ddf5d9b9f4a1ee5d0)
 version = "0.1.1"
 description = "Serialization library for OpenFlow"
 requires = "lwt lwt.unix cstruct cstruct.syntax lwt.syntax packet"
@@ -8,5 +8,15 @@ archive(byte, plugin) = "openflow.cma"
 archive(native) = "openflow.cmxa"
 archive(native, plugin) = "openflow.cmxs"
 exists_if = "openflow.cma"
+package "quickcheck" (
+ version = "0.1.1"
+ description = "Serialization library for OpenFlow"
+ requires = "quickcheck openflow"
+ archive(byte) = "quickcheck.cma"
+ archive(byte, plugin) = "quickcheck.cma"
+ archive(native) = "quickcheck.cmxa"
+ archive(native, plugin) = "quickcheck.cmxs"
+ exists_if = "quickcheck.cma"
+)
 # OASIS_STOP
 

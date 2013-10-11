@@ -1,7 +1,29 @@
 open OpenFlow0x01
 open OpenFlow0x01_Stats
 
+open QuickCheck
+
+module Gen = QuickCheck_gen
+
+(* Test that `parse` is the left inverse of `marshal` *)
+let prop_roundtrip parse marshal e =
+    parse (marshal e) = e
+
+(* Setup a quickCheck for a serlalizable OpenFlow datatype *)
+let openflow_quickCheck arbitrary show parse marshal = 
+    let test = testable_fun arbitrary show testable_bool in
+    match quickCheck test (prop_roundtrip parse marshal) with
+      | Success -> true
+      | Failure _ -> failwith "No failure expected"
+      | Exhausted _ -> failwith "No exhaustion expected"
+
 module RoundTripping = struct
+  module Gen = OpenFlow0x01_Arbitrary
+
+  TEST "OpenFlow0x01 Wildcards RoundTrip" =
+      (openflow_quickCheck Gen.Wildcards.arbitrary
+          Gen.Wildcards.to_string Gen.Wildcards.parse Gen.Wildcards.marshal)
+
   TEST "OpenFlow Hello Test 1" = 
     let open Message in 
     let bs = Cstruct.create 101 in
