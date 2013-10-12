@@ -5,59 +5,53 @@ module NetworkCompiler = struct
   type explicit_topo_policy =
     | Filter of pred
     | Mod of SDN_Types.field * header_val
-  (* switch, port -> switch, port *)
+    (* switch, port -> switch, port *)
     | Link of header_val*header_val*header_val*header_val
     | Par of explicit_topo_policy * explicit_topo_policy
     | Seq of explicit_topo_policy * explicit_topo_policy
     | Star of explicit_topo_policy
 
-(* i;(p;t)^*;e 
+(* i;(p;t)^*;p;e 
    where 
-   i = t = v | h = v | t <- v | i + i | i ; i
+   i = t = v | t <- v | i + i | i ; i
    p = t = v | h = v | t <- v | h <- v | p + p | p ; p | p*
-   t = sw = v | p = v | sw <- v | p <- v | t + t
-   e = i
+   t = (sw,pt) -> (sw',pt') | t + t
+   e = t = v | i + i | i ; i
 *)
 
-  type restricted_header = 
-    | PHeader of SDN_Types.field
-    | VHeader of int * int
-
-  type header_pred = 
-    | HTrue
-    | HFalse
-    | HTest of restricted_header * header_val
-    | HTTest of header_val
-    | HNeg of header_pred
-    | HAnd of header_pred * header_pred
-    | HOr of header_pred * header_pred
+  type vheader = int * int
 
   type ingress_pol =
-    | IFilter of header_pred
-    | IMod of restricted_header * header_val
+    | ITest of vheader * header_val
+    | IMod of vheader * header_val
     | IPar of ingress_pol * ingress_pol
     | ISeq of ingress_pol * ingress_pol
     | IPass
-    | IDrop
+
+  type sPred = 
+    | STrue
+    | SFalse
+    | STest of header * header_val
+    | STTest of vheader * header_val
+    | SNeg of sPred
+    | SAnd of sPred * sPred
+    | SOr of sPred * sPred
+
 
   type switch_pol =
-    | SFilter of header_pred
-    | SMod of restricted_header * header_val
+    | SFilter of sPred
+    | SMod of SDN_Types.field * header_val
+    | STMod of vheader * header_val
     | SPar of switch_pol * switch_pol
     | SSeq of switch_pol * switch_pol
     | SStar of switch_pol
     | SPass
     | SDrop
 
-  type topo_header =
-    | TSwitch
-    | TPort
-
   type topo_pol = 
-    | TTest of topo_header * header_val
-    | TMod of topo_header * header_val
+    (* (sw,pt) -> (sw',pt') *)
+    | TLink of header_val * header_val * header_val * header_val
     | TPar of topo_pol * topo_pol
-    | TSeq of topo_pol * topo_pol
     | TDrop
 
   type restricted_pol = ingress_pol * switch_pol * topo_pol * ingress_pol
@@ -66,17 +60,24 @@ module NetworkCompiler = struct
 
   let gen_header size =
     incr vheader_count;
-    VHeader(!vheader_count, size)
+    (!vheader_count, size)
 
-  let rec pred_to_ipred pr = 
+  let rec pred_to_spred pr = 
     match pr with
-      | True -> HTrue
-      | False -> HFalse
-      | Test (Switch, v) -> HTTest(v)
-      | Test (Header h, v) -> HTest (PHeader h, v)
-      | Neg p -> HNeg (pred_to_ipred p)
-      | And(a,b) -> HAnd (pred_to_ipred a, pred_to_ipred b)
-      | Or(a,b) -> HOr (pred_to_ipred a, pred_to_ipred b)
+      | True -> STrue
+      | False -> SFalse
+      | Test (h, v) -> STest(h, v)
+      | And(a,b) -> SAnd (pred_to_spred a, pred_to_spred b)
+      | Or(a,b) -> SOr (pred_to_spred a, pred_to_spred b)
+      | Neg a -> SNeg (pred_to_spred a)
+
+  let rec ipol_to_spol p =
+    match p with
+    | ITest (h,v) -> SFilter(STTest(h,v))
+    | IMod (h,v) -> STMod(h,v)
+    | IPar (p1,p2) -> SPar(ipol_to_spol p1, ipol_to_spol p2)
+    | ISeq (p1,p2) -> SSeq(ipol_to_spol p1, ipol_to_spol p2)
+    | IPass -> SPass
 
 (* Compilation story: we have an unlimited number of header fields we
    can allocate on demand. Each header field has a specific number of
@@ -90,43 +91,157 @@ module NetworkCompiler = struct
    appropriately. We'd need some pretty good analysis to keep this
    from exploding.
 *)
+  let rec seqList ls =
+    match ls with
+      | [] -> SPass
+      | l :: ls -> SSeq(l, seqList ls)
+
+  let rec parList ls =
+    match ls with
+      | [] -> SDrop
+      | l :: ls -> SPar(l, parList ls)
+
+
   let rec dehopify (p : explicit_topo_policy) : restricted_pol =
     match p with
-      | Filter pr -> IFilter (pred_to_ipred pr), SDrop, TDrop, IPass
-      | Mod (h, v) -> IMod (PHeader h, v), SDrop, TDrop, IPass
+      | Filter pr -> 
+        let h = gen_header 2 in
+        let h0 = VInt.Int16 0 in
+        (ignore h0);
+        let h1 = VInt.Int16 1 in
+        IMod(h,h0), 
+        SSeq(SFilter(STTest(h,h0)), SSeq(SFilter (pred_to_spred pr), STMod(h,h1))),
+        TDrop, 
+        ITest(h,h1)
+      | Mod (h, v) -> 
+        let h = gen_header 2 in
+        let h0 = VInt.Int16 0 in
+        (ignore h0);
+        let h1 = VInt.Int16 1 in
+        IMod(h,h0), 
+        SSeq(SFilter(STTest(h,h0)), SSeq(STMod(h,v), STMod(h,h1))),
+        TDrop, 
+        ITest(h,h1)
       | Link (sw1,p1,sw2,p2) -> 
-        IPass, 
-        SPass, 
-        TSeq(TTest (TSwitch, sw1), 
-	     TSeq( TTest (TPort, p1), 
-		   TSeq (TMod (TSwitch, sw2),  
-		         TMod (TPort, p2)))), 
-        IPass
-    (* Todo: add topo filter terms *)
+        let h = gen_header 3 in
+        let h0 = VInt.Int16 0 in
+        (ignore h0);
+        let h1 = VInt.Int16 1 in
+        let h2 = VInt.Int16 2 in
+        IMod(h,h0),
+        SPar(SSeq(SFilter(STTest(h,h0)), SSeq(SSeq(SFilter(STest(Switch, sw1)),
+                                                   SFilter(STest(Header SDN_Types.InPort, p1))),
+                                              STMod(h,h1))),
+             SSeq(SFilter(STTest(h,h1)), SSeq(SSeq(SFilter(STest(Switch, sw2)),
+                                                   SFilter(STest(Header SDN_Types.InPort, p2))),
+                                              STMod(h,h2)))),
+        TLink(sw1,p1,sw2,p2),
+        ITest(h,h1)
       | Par (p,q) -> let i_p,s_p,t_p,e_p = dehopify p in
                      let i_q,s_q,t_q,e_q = dehopify q in
-                     let h = gen_header 6 in
+                     let h = gen_header 2 in
                      let h0 = VInt.Int16 0 in
-                     (ignore h0);
                      let h1 = VInt.Int16 1 in
-                     let h2 = VInt.Int16 2 in
-                     let h3 = VInt.Int16 3 in
-                     (ignore h3);
-                     let h4 = VInt.Int16 4 in
-                     let h5 = VInt.Int16 5 in
-                     (IPar(
-                       IPar(
-                         IPar(ISeq(i_p, IMod (h,h1)), ISeq(i_p, IMod(h,h2))), 
-                         ISeq(i_q, IMod(h, h4))), 
-                       ISeq(i_q, IMod(h,h5))),
-		      SPar(SSeq(SFilter(HTest(h,h1)), s_p), 
-                           SPar(SSeq(SFilter(HTest(h, h1)), 
-                                     SSeq(s_p, SMod(h,h2))), 
-                                SPar(SSeq(SFilter(HTest(h,h4)), s_q), 
-                                     SSeq(SFilter(HTest(h,h4)), SSeq(s_q, SMod(h,h5)))))),
-                      TPar(t_p,t_q),
-                      IPar(ISeq(IFilter(HTest(h,h2)), e_p),
-                           ISeq(IFilter(HTest(h, h5)), e_q)))
+                     IPar(ISeq(IMod(h,h0), i_p),
+                          ISeq(IMod(h,h1), i_q)),
+                     SPar(SSeq(SFilter(STTest(h,h0)),s_p),
+                          SSeq(SFilter(STTest(h,h1)),s_q)),
+                     TPar(t_p,t_q),
+                     IPar(ISeq(ITest(h,h0), e_p),
+                          ISeq(ITest(h,h1), e_q))
+      | Seq (p,q) -> let i_p,s_p,t_p,e_p = dehopify p in
+                     let i_q,s_q,t_q,e_q = dehopify q in
+                     let h = gen_header 8 in
+                     let h0 = VInt.Int16 0 in
+                     let h1 = VInt.Int16 1 in
+                     let h1' = VInt.Int16 2 in
+                     let h2 = VInt.Int16 3 in
+                     let h2' = VInt.Int16 4 in
+                     let h3 = VInt.Int16 5 in
+                     let h3' = VInt.Int16 6 in
+                     let h3'' = VInt.Int16 7 in
+                     let h4 = VInt.Int16 8 in
+                     ISeq(IPar(IMod(h,h0),
+                               IPar(IMod(h,h1),
+                                    IPar(IMod(h,h2),
+                                         IMod(h,h3)))),
+                          i_p),
+                     parList [seqList [SFilter(STTest(h,h0));
+                                       s_p;
+                                       ipol_to_spol(e_p);
+                                       ipol_to_spol(i_q);
+                                       s_q;
+                                       STMod(h,h4)];
+                              seqList [SFilter(STTest(h,h1));
+                                       s_p;
+                                       SPar(STMod(h,h1),
+                                            STMod(h,h1'))];
+                              seqList [SFilter(STTest(h,h1'));
+                                       s_p;
+                                       ipol_to_spol(e_p);
+                                       ipol_to_spol(i_q);
+                                       s_q;
+                                       STMod(h,h4)];
+                              seqList [SFilter(STTest(h,h2));
+                                       s_p;
+                                       ipol_to_spol(e_p);
+                                       ipol_to_spol(i_q);
+                                       s_q;
+                                       STMod(h,h2')];
+                              SSeq (SFilter(STTest(h,h2')), s_q);
+                              seqList [SFilter(STTest(h,h3));
+                                       s_p;
+                                       STMod(h,h3')];
+                              seqList [SFilter(STTest(h,h3'));
+                                       s_p;
+                                       SPar(SPass,
+                                            seqList [ipol_to_spol(e_p);
+                                                     ipol_to_spol(i_q);
+                                                     s_q;
+                                                     STMod(h, h3'')])];
+                              SSeq(SFilter(STTest(h,h3'')), s_q)],
+                     TPar(t_p,t_q),
+                     e_q
+      | Star p -> let i_p,s_p,t_p,e_p = dehopify p in
+                  let h = gen_header 7 in
+                  let h0 = VInt.Int16 0 in
+                  let h1 = VInt.Int16 1 in
+                  let h2 = VInt.Int16 2 in
+                  let h2' = VInt.Int16 3 in
+                  let h2'' = VInt.Int16 4 in
+                  let h3 = VInt.Int16 5 in
+                  let h4 = VInt.Int16 6 in
+                  IPar(IPar(IMod(h,h0),
+                            IMod(h,h1)),
+                       IMod(h,h2)),
+                  parList [ SSeq(SFilter(STTest(h,h0)),
+                                 STMod(h,h3));
+                            seqList [SFilter(STTest(h,h1));
+                                     ipol_to_spol(i_p);
+                                     s_p;
+                                     SStar(seqList [ipol_to_spol(e_p);ipol_to_spol(i_p);s_p]);
+                                     STMod(h,h4)];
+                            seqList [SFilter(STTest(h,h2));
+                                     ipol_to_spol(i_p);
+                                     s_p;
+                                     SStar(seqList [ipol_to_spol(e_p);ipol_to_spol(i_p);s_p]);
+                                     SPar(STMod(h,h2'),
+                                          STMod(h,h2''))];
+                            seqList [SFilter(STTest(h,h2'));
+                                     s_p;
+                                     SPar(STMod(h,h2'),
+                                          STMod(h,h2''))];
+                            seqList [SFilter(STTest(h,h2''));
+                                     s_p;
+                                     SStar(seqList [ipol_to_spol(e_p);ipol_to_spol(i_p);s_p]);                                     
+                                     SPar(STMod(h,h2'),
+                                          STMod(h,h2''))]],
+                  t_p,
+                  IPar(ISeq(IPar(ITest(h,h2'),
+                                 IPar(ITest(h,h2''),
+                                      ITest(h,h4))),
+                            e_p),
+                       ITest(h,h3))
       | _ -> 
         failwith "Unimplemented" 
 end
