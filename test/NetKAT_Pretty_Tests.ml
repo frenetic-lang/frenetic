@@ -32,19 +32,25 @@ TEST "assoc par"     = test_pretty p_str3 = true
 
 
 
-
 let testable_pol_to_bool = 
-  QuickCheck.testable_fun (QuickCheck_gen.resize 10 NetKAT_Arbitrary.arbitrary_pol) NetKAT_Types.string_of_policy QuickCheck.testable_bool
+  let open QuickCheck in
+  let open QuickCheck_gen in
+  let open NetKAT_Arbitrary in
+    testable_fun 
+      (resize 10
+         arbitrary_pol) string_of_policy testable_bool
 
 
 let prop_parse_pol_idempotent (p : NetKAT_Types.policy) : bool =
   let p_str = string_of_policy p in 
+  (* Printf.printf "Original policy : %s \n\n\n\n" p_str; *)
   let p' = policy_parse (p_str) in
   p' = p
 
 
 let qc () =
-  let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 5 } in
+  Format.printf "quicheck NetKAT : \n";
+  let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 1000 } in
   let _ = QuickCheck.check testable_pol_to_bool cfg prop_parse_pol_idempotent in
   ()
 

@@ -10,7 +10,6 @@ let arbitrary_header  =
       (Header (SDN_Types.EthSrc));
       (Header (SDN_Types.EthDst));
       (Header (SDN_Types.Vlan));
-      (Header (SDN_Types.VlanPcp));
       (Header (SDN_Types.IPProto));
       (Header (SDN_Types.IP4Src));
       (Header (SDN_Types.IP4Dst));
@@ -28,32 +27,41 @@ let arbitrary_headerval = let open QuickCheck_gen in
 
 let gen_atom_pred : pred QuickCheck_gen.gen = 
   let open QuickCheck_gen in 
-    oneof [
-      ret_gen (True);
-      ret_gen (False);
-      arbitrary_header >>= fun h ->
-        arbitrary_headerval >>= fun v ->
-          ret_gen (Test (h, v));
-          ]
+    arbitrary_header >>= fun h ->
+      arbitrary_headerval >>= fun v ->
+        ret_gen (Test (h, v))
 
 
-let rec gen_composite_pred (size : int) : pred QuickCheck_gen.gen =
+let rec gen_composite_pred () : pred QuickCheck_gen.gen =
   let open QuickCheck_gen in
-    oneof [
-        gen_pred (size - 1) >>= fun pr1 ->
-          gen_pred (size - 1) >>= fun pr2 ->
-            ret_gen (And (pr1, pr2));
-        gen_pred (size - 1) >>= fun pr1 ->
-          gen_pred (size - 1) >>= fun pr2 ->
-            ret_gen (Or (pr1, pr2));
-        gen_pred (size - 1) >>= fun pr ->
-          ret_gen (Neg (pr))
-      ]
+    sized (fun n -> resize (n - 1)
+      (frequency [
+          (3, gen_pred_ctor () >>= fun pr1 ->
+                gen_pred_ctor () >>= fun pr2 ->
+                  ret_gen (And (pr1, pr2)));
+          (3, gen_pred_ctor () >>= fun pr1 ->
+                gen_pred_ctor () >>= fun pr2 ->
+                  ret_gen (Or (pr1, pr2)));
+          (1, gen_pred_ctor () >>= fun pr ->
+                ret_gen (Neg (pr)))
+        ]))
 
-and gen_pred (size : int) : pred QuickCheck_gen.gen =
-  if size < 1
-  then gen_atom_pred
-  else QuickCheck_gen.oneof [gen_atom_pred; gen_composite_pred size]
+and gen_pred_ctor () : pred QuickCheck_gen.gen =
+  let open QuickCheck_gen in
+    sized (fun n -> resize (n - 1)
+      (frequency [ (1, gen_atom_pred);
+                   (n - 1, gen_composite_pred ())
+                 ]))
+
+    
+
+let gen_pred : pred QuickCheck_gen.gen =
+  let open QuickCheck_gen in
+    frequency [
+      (1, ret_gen (True));
+      (1, ret_gen (False));
+      (3, resize (Random.int 20) (gen_pred_ctor ()))
+      ]
 
 
 let gen_atom_pol : policy QuickCheck_gen.gen = 
@@ -62,27 +70,31 @@ let gen_atom_pol : policy QuickCheck_gen.gen =
     arbitrary_header >>= fun h -> 
       arbitrary_headerval >>= fun v ->
         ret_gen (Mod (h, v));
-    gen_pred (Random.int 20) >>= fun pr ->
+    gen_pred >>= fun pr ->
       ret_gen (Filter (pr))
         ]
 
-let rec gen_composite_pol (size : int) : policy QuickCheck_gen.gen =
+let rec gen_composite_pol () : policy QuickCheck_gen.gen =
   let open QuickCheck_gen in 
-      oneof [
-        gen_pol (size - 1) >>= fun p1 ->
-          gen_pol (size - 1) >>= fun p2 ->
-            ret_gen (Par (p1, p2));
-        gen_pol (size - 1) >>= fun p1 ->
-          gen_pol (size - 1) >>= fun p2 ->
-            ret_gen (Seq (p1, p2));
-        gen_pol (size - 1) >>= fun p ->
-          ret_gen (Star p)
-        ]
+      sized (fun n -> resize (n - 1)
+       (frequency [
+          (3, gen_pol () >>= fun p1 ->
+                gen_pol () >>= fun p2 ->
+                  ret_gen (Par (p1, p2)));
+          (3, gen_pol () >>= fun p1 ->
+                gen_pol () >>= fun p2 ->
+                  ret_gen (Seq (p1, p2)));
+          (1, gen_pol () >>= fun p ->
+                ret_gen (Star p))
+        ]))
 
-and gen_pol (size : int ) : policy QuickCheck_gen.gen =
-  if size < 1
-  then gen_atom_pol
-  else QuickCheck_gen.oneof [gen_atom_pol; gen_composite_pol size]
+and gen_pol () : policy QuickCheck_gen.gen =
+  let open QuickCheck_gen in
+    sized (fun n ->
+      frequency [
+                  (1, gen_atom_pol);
+                  (n - 1, gen_composite_pol ())
+                ])
 
 
-let arbitrary_pol = QuickCheck_gen.sized gen_pol
+let arbitrary_pol = gen_pol ()
