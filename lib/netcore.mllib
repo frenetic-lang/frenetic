@@ -27,5 +27,7 @@ NetCore_Parser
 NetCore_SurfaceSyntax
 NetKAT_Types
 NetKAT_Compiler
+NetKAT_Lexer
+NetKAT_Parser
 Controller
 # OASIS_STOP

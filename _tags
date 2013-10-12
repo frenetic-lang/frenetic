@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 84d0c33713daf7126d9f1c32c4fada66)
+# DO NOT EDIT (digest: 71d1dff4484c9056004b59777df34904)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -24,7 +24,21 @@
 <lib/*.ml{,i}>: pkg_ocamlgraph
 <lib/*.ml{,i}>: pkg_openflow
 <lib/*.ml{,i}>: pkg_topology
+# Library quickcheck
+"quickcheck/quickcheck.cmxs": use_quickcheck
+<quickcheck/*.ml{,i}>: use_netcore
+<quickcheck/*.ml{,i}>: pkg_lwt
+<quickcheck/*.ml{,i}>: pkg_lwt.syntax
+<quickcheck/*.ml{,i}>: pkg_packet
+<quickcheck/*.ml{,i}>: pkg_quickcheck
+<quickcheck/*.ml{,i}>: pkg_lwt.unix
+<quickcheck/*.ml{,i}>: pkg_cstruct
+<quickcheck/*.ml{,i}>: pkg_str
+<quickcheck/*.ml{,i}>: pkg_ocamlgraph
+<quickcheck/*.ml{,i}>: pkg_openflow
+<quickcheck/*.ml{,i}>: pkg_topology
 # Executable testtool
+"test/Test.byte": use_quickcheck
 "test/Test.byte": use_netcore
 "test/Test.byte": pkg_lwt
 "test/Test.byte": pkg_lwt.syntax
@@ -32,12 +46,14 @@
 "test/Test.byte": pkg_packet
 "test/Test.byte": pkg_pa_ounit
 "test/Test.byte": pkg_pa_ounit.syntax
+"test/Test.byte": pkg_quickcheck
 "test/Test.byte": pkg_lwt.unix
 "test/Test.byte": pkg_cstruct
 "test/Test.byte": pkg_str
 "test/Test.byte": pkg_ocamlgraph
 "test/Test.byte": pkg_openflow
 "test/Test.byte": pkg_topology
+<test/*.ml{,i}>: use_quickcheck
 <test/*.ml{,i}>: use_netcore
 <test/*.ml{,i}>: pkg_lwt
 <test/*.ml{,i}>: pkg_lwt.syntax
@@ -45,6 +61,7 @@
 <test/*.ml{,i}>: pkg_packet
 <test/*.ml{,i}>: pkg_pa_ounit
 <test/*.ml{,i}>: pkg_pa_ounit.syntax
+<test/*.ml{,i}>: pkg_quickcheck
 <test/*.ml{,i}>: pkg_lwt.unix
 <test/*.ml{,i}>: pkg_cstruct
 <test/*.ml{,i}>: pkg_str
@@ -85,6 +102,17 @@
 "frenetic/maclearning.byte": pkg_ocamlgraph
 "frenetic/maclearning.byte": pkg_openflow
 "frenetic/maclearning.byte": pkg_topology
+# Executable netkat_test
+"frenetic/netkat_test.byte": use_netcore
+"frenetic/netkat_test.byte": pkg_lwt
+"frenetic/netkat_test.byte": pkg_lwt.syntax
+"frenetic/netkat_test.byte": pkg_packet
+"frenetic/netkat_test.byte": pkg_lwt.unix
+"frenetic/netkat_test.byte": pkg_cstruct
+"frenetic/netkat_test.byte": pkg_str
+"frenetic/netkat_test.byte": pkg_ocamlgraph
+"frenetic/netkat_test.byte": pkg_openflow
+"frenetic/netkat_test.byte": pkg_topology
 <frenetic/*.ml{,i}>: use_netcore
 <frenetic/*.ml{,i}>: pkg_lwt
 <frenetic/*.ml{,i}>: pkg_lwt.syntax
