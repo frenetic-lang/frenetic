@@ -18,3 +18,4 @@ module type OpenFlow0x01_Arbitrary = sig
 end
 
 module Wildcards : OpenFlow0x01_Arbitrary
+module Match : OpenFlow0x01_Arbitrary

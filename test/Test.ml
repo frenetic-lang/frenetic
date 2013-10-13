@@ -24,6 +24,10 @@ module RoundTripping = struct
       (openflow_quickCheck Gen.Wildcards.arbitrary
           Gen.Wildcards.to_string Gen.Wildcards.parse Gen.Wildcards.marshal)
 
+  TEST "OpenFlow0x01 Match RoundTrip" =
+      (openflow_quickCheck Gen.Match.arbitrary
+          Gen.Match.to_string Gen.Match.parse Gen.Match.marshal)
+
   TEST "OpenFlow Hello Test 1" = 
     let open Message in 
     let bs = Cstruct.create 101 in

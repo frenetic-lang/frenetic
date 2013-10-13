@@ -88,3 +88,48 @@ module Wildcards = struct
     let parse = Wildcards.parse
     let marshal = Wildcards.marshal
 end
+
+module Match = struct
+  type t = Match.t
+  type s = Cstruct.t
+
+  let arbitrary_dlVlan = arbitrary_option arbitrary_uint16
+
+  let arbitrary =
+    let open Gen in
+    let open OpenFlow0x01_Core in
+    arbitrary_option arbitrary_uint48 >>= fun dlSrc ->
+    arbitrary_option arbitrary_uint48 >>= fun dlDst ->
+    arbitrary_option arbitrary_uint16 >>= fun dlTyp ->
+    arbitrary_option arbitrary_dlVlan >>= fun dlVlan ->
+    arbitrary_option arbitrary_uint8 >>= fun dlVlanPcp ->
+    arbitrary_option arbitrary_uint32 >>= fun nwSrc ->
+    arbitrary_option arbitrary_uint32 >>= fun nwDst ->
+    arbitrary_option arbitrary_uint8 >>= fun nwProto ->
+    arbitrary_option arbitrary_uint8 >>= fun nwTos ->
+    arbitrary_option arbitrary_uint16 >>= fun tpSrc ->
+    arbitrary_option arbitrary_uint16 >>= fun tpDst ->
+    arbitrary_option arbitrary_uint16 >>= fun inPort ->
+        ret_gen {
+          dlSrc = dlSrc;
+          dlDst = dlDst;
+          dlTyp = dlTyp;
+          dlVlan = dlVlan;
+          dlVlanPcp = dlVlanPcp;
+          nwSrc = nwSrc;
+          nwDst = nwDst;
+          nwProto = nwProto;
+          nwTos = nwTos;
+          tpSrc = tpSrc;
+          tpDst = tpDst;
+          inPort= inPort
+        }
+
+  let to_string = Match.to_string
+
+  let parse = Match.parse
+
+  let marshal m =
+    let bytes = Cstruct.of_bigarray Bigarray.(Array1.create char c_layout 50)
+      in ignore (Match.marshal m bytes); bytes
+end
