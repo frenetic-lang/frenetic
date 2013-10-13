@@ -342,7 +342,7 @@ module PseudoPort = struct
      2. Everywhere else, it is actually (I think) an error to use Controller
         as a pseudo-port.
 
-     In summary, ontroller should be a type apart from the other pseudo-ports.
+     In summary, Controller should be a type apart from the other pseudo-ports.
   *)
   let marshal (t : t) : int = match t with
     | PhysicalPort p -> p
