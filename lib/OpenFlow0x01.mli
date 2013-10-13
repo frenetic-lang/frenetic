@@ -39,6 +39,9 @@ module Match : sig
 
   val to_string : t -> string
 
+  val marshal : t -> Cstruct.t -> int
+  val parse : Cstruct.t -> t
+
 end
 
 module PseudoPort : sig
