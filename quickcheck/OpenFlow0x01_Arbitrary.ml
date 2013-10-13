@@ -3,8 +3,39 @@ open OpenFlow0x01
 open QuickCheck
 module Gen = QuickCheck_gen
 
-(* arbitrary instance for usigned integers. Still uses the `int` type. *)
+(* arbitrary instance for usigned integers, using `int` type. *)
 let arbitrary_uint = Gen.sized (fun n -> Gen.choose_int (0, n))
+
+(* arbitrary instance for unsigned int8, using the `int` type. *)
+let arbitrary_uint8 = Gen.choose_int (0, 255)
+
+(* arbitrary instance for unsigned int16, using the `int` type. *)
+let arbitrary_uint16 =
+  let open Gen in
+  arbitrary_uint8 >>= fun a ->
+  arbitrary_uint8 >>= fun b ->
+    ret_gen (a + b)
+
+(* arbitrary instance for unsigned int32, using the `int32` type. *)
+let arbitrary_uint32 =
+  let open Gen in
+  arbitrary_uint16 >>= fun a ->
+  arbitrary_uint16 >>= fun b ->
+    ret_gen Int32.(add (of_int a) (of_int b))
+
+(* arbitrary instance for unsigned int48, using the `int64` type. *)
+let arbitrary_uint48 =
+  let open Gen in
+  arbitrary_uint32 >>= fun a ->
+  arbitrary_uint16 >>= fun b ->
+    ret_gen Int64.(add (of_int32 a) (of_int b))
+
+(* arbitrary instance for option type, favoring `Some` rather than `None` *)
+let arbitrary_option arb =
+  let open Gen in
+  frequency [
+      (1, ret_gen None);
+      (3, arb >>= fun e -> ret_gen (Some e)) ]
 
 module type OpenFlow0x01_Arbitrary = sig
     type t
