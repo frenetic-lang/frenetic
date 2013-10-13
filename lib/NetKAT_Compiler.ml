@@ -2,14 +2,14 @@ module NetworkCompiler = struct
 
   open NetKAT_Types
 
-  type explicit_topo_policy =
+  type explicit_topo_pol =
     | Filter of pred
     | Mod of SDN_Types.field * header_val
     (* switch, port -> switch, port *)
     | Link of header_val*header_val*header_val*header_val
-    | Par of explicit_topo_policy * explicit_topo_policy
-    | Seq of explicit_topo_policy * explicit_topo_policy
-    | Star of explicit_topo_policy
+    | Par of explicit_topo_pol * explicit_topo_pol
+    | Seq of explicit_topo_pol * explicit_topo_pol
+    | Star of explicit_topo_pol
 
 (* i;(p;t)^*;p;e 
    where 
@@ -28,18 +28,9 @@ module NetworkCompiler = struct
     | ISeq of ingress_pol * ingress_pol
     | IPass
 
-  type sPred = 
-    | STrue
-    | SFalse
-    | STest of header * header_val
-    | STTest of vheader * header_val
-    | SNeg of sPred
-    | SAnd of sPred * sPred
-    | SOr of sPred * sPred
-
-
   type switch_pol =
-    | SFilter of sPred
+    | SFilter of pred
+    | STTest of vheader * header_val
     | SMod of SDN_Types.field * header_val
     | STMod of vheader * header_val
     | SPar of switch_pol * switch_pol
@@ -56,28 +47,182 @@ module NetworkCompiler = struct
 
   type restricted_pol = ingress_pol * switch_pol * topo_pol * ingress_pol
 
+  module Formatting = struct
+
+    open Format
+
+    let header (fmt : formatter) (h : header) : unit = match h with
+      | Header h' -> SDN_Types.format_field fmt h'
+      | Switch -> pp_print_string fmt "switch"
+
+    let vheader (fmt : formatter) (h : vheader) : unit =
+      pp_print_string fmt (string_of_int (fst h))
+
+  (* The type of the immediately surrounding context, which guides parenthesis-
+     intersion. *)
+  (* JNF: YES. This is the Right Way to pretty print. *)
+    type context = SEQ | PAR | STAR | NEG | PAREN
+
+    let rec pred (cxt : context) (fmt : formatter) (pr : pred) : unit = 
+      match pr with
+        | True -> 
+          fprintf fmt "@[true@]"
+        | False -> 
+          fprintf fmt "@[false@]"
+        | (Test (h, v)) -> 
+          fprintf fmt "@[%a = %a@]" header h VInt.format v
+        | Neg p' -> 
+          begin match cxt with
+            | PAREN -> fprintf fmt "@[!%a@]" (pred NEG) p'
+            | _ -> fprintf fmt "@[!@[(%a)@]@]" (pred PAREN) p'
+          end
+        | Or (p1, p2) -> 
+          begin match cxt with
+            | PAREN
+            | PAR -> fprintf fmt "@[%a + %a@]" (pred PAR) p1 (pred PAR) p2
+            | _ -> fprintf fmt "@[(@[%a + %a@])@]" (pred PAR) p1 (pred PAR) p2
+          end
+        | And (p1, p2) -> 
+          begin match cxt with
+            | PAREN
+            | SEQ
+            | PAR -> fprintf fmt "@[%a ; %a@]" (pred SEQ) p1 (pred SEQ) p2
+            | _ -> fprintf fmt "@[(@[%a ; %a@])@]" (pred SEQ) p1 (pred SEQ) p2
+          end
+
+    let rec spol (cxt : context) (fmt : formatter) (p : switch_pol) : unit =
+      match p with
+        | SDrop -> fprintf fmt "@[false@]"
+        | SPass -> fprintf fmt "@[true@]"
+        | SFilter pr -> 
+          pred cxt fmt pr
+        | STTest (h,v) -> fprintf fmt "@[%a = %a@]" vheader h VInt.format v
+        | SMod (h, v) -> 
+          fprintf fmt "@[%a <- %a@]" SDN_Types.format_field h VInt.format v
+        | STMod (h, v) -> 
+          fprintf fmt "@[%a <- %a@]" vheader h VInt.format v
+        | SStar p' -> 
+          begin match cxt with
+            | PAREN 
+	    | STAR ->  fprintf fmt "@[%a*@]" (spol STAR) p' 
+            | _ -> fprintf fmt "@[@[(%a)*@]@]" (spol PAREN) p'
+          end
+        | SPar (p1, p2) -> 
+          begin match cxt with
+            | PAREN
+            | PAR -> fprintf fmt "@[%a + %a@]" (spol PAR) p1 (spol PAR) p2
+            | _ -> fprintf fmt "@[(@[%a + %a@])@]" (spol PAR) p1 (spol PAR) p2
+          end
+        | SSeq (p1, p2) -> 
+          begin match cxt with
+            | PAREN
+            | SEQ
+            | PAR -> fprintf fmt "@[%a ; %a@]" (spol SEQ) p1 (spol SEQ) p2
+            | _ -> fprintf fmt "@[(@[%a ; %a@])@]" (spol SEQ) p1 (spol SEQ) p2
+          end
+
+    let rec epol (cxt : context) (fmt : formatter) (p : explicit_topo_pol) : unit =
+      match p with
+        | Filter pr -> 
+          pred cxt fmt pr
+        | Mod (h, v) -> 
+          fprintf fmt "@[%a <- %a@]" SDN_Types.format_field h VInt.format v
+        | Link (sw,pt,sw',pt') -> 
+          let fmter = VInt.format in
+          fprintf fmt "@[(%a@@%a) -> (%a@@%a)@]" fmter sw fmter pt fmter sw' fmter pt'
+        | Star p' -> 
+          begin match cxt with
+            | PAREN 
+	    | STAR ->  fprintf fmt "@[%a*@]" (epol STAR) p' 
+            | _ -> fprintf fmt "@[@[(%a)*@]@]" (epol PAREN) p'
+          end
+        | Par (p1, p2) -> 
+          begin match cxt with
+            | PAREN
+            | PAR -> fprintf fmt "@[%a + %a@]" (epol PAR) p1 (epol PAR) p2
+            | _ -> fprintf fmt "@[(@[%a + %a@])@]" (epol PAR) p1 (epol PAR) p2
+          end
+        | Seq (p1, p2) -> 
+          begin match cxt with
+            | PAREN
+            | SEQ
+            | PAR -> fprintf fmt "@[%a ; %a@]" (epol SEQ) p1 (epol SEQ) p2
+            | _ -> fprintf fmt "@[(@[%a ; %a@])@]" (epol SEQ) p1 (epol SEQ) p2
+          end
+
+    let rec tpol (cxt : context) (fmt : formatter) (p : topo_pol) : unit =
+      match p with
+        | TDrop -> fprintf fmt "@[false@]"
+        | TLink (sw,pt,sw',pt') -> 
+          let fmter = VInt.format in
+          fprintf fmt "@[(%a@@%a) -> (%a@@%a)@]" fmter sw fmter pt fmter sw' fmter pt'
+        | TPar (p1, p2) -> 
+          begin match cxt with
+            | PAREN
+            | PAR -> fprintf fmt "@[%a + %a@]" (tpol PAR) p1 (tpol PAR) p2
+            | _ -> fprintf fmt "@[(@[%a + %a@])@]" (tpol PAR) p1 (tpol PAR) p2
+          end
+
+
+    let rec ipol (cxt : context) (fmt : formatter) (p : ingress_pol) : unit =
+      match p with
+        | IPass -> fprintf fmt "@[true@]"
+        | ITest (h,v) -> fprintf fmt "@[%a = %a@]" vheader h VInt.format v
+        | IMod (h, v) -> 
+          fprintf fmt "@[%a <- %a@]" vheader h VInt.format v
+        | IPar (p1, p2) -> 
+          begin match cxt with
+            | PAREN
+            | PAR -> fprintf fmt "@[%a + %a@]" (ipol PAR) p1 (ipol PAR) p2
+            | _ -> fprintf fmt "@[(@[%a + %a@])@]" (ipol PAR) p1 (ipol PAR) p2
+          end
+        | ISeq (p1, p2) -> 
+          begin match cxt with
+            | PAREN
+            | SEQ
+            | PAR -> fprintf fmt "@[%a ; %a@]" (ipol SEQ) p1 (ipol SEQ) p2
+            | _ -> fprintf fmt "@[(@[%a ; %a@])@]" (ipol SEQ) p1 (ipol SEQ) p2
+          end
+
+
+  end
+
+  let make_string_of formatter x =
+    let open Format in
+        let buf = Buffer.create 100 in
+        let fmt = formatter_of_buffer buf in
+        pp_set_margin fmt 80;
+        formatter fmt x;
+        fprintf fmt "@?";
+        Buffer.contents buf
+
+  let string_of_vint = make_string_of VInt.format 
+
+  let string_of_header = make_string_of Formatting.header
+
+  let format_spolicy = Formatting.spol Formatting.PAREN
+  let format_ipolicy = Formatting.ipol Formatting.PAREN
+  let format_tpolicy = Formatting.tpol Formatting.PAREN
+  let format_epolicy = Formatting.epol Formatting.PAREN
+
+  let string_of_ipolicy = make_string_of format_ipolicy
+  let string_of_spolicy = make_string_of format_spolicy
+  let string_of_tpolicy = make_string_of format_tpolicy
+  let string_of_epolicy = make_string_of format_epolicy
+
   let vheader_count = ref 0
 
   let gen_header size =
     incr vheader_count;
     (!vheader_count, size)
 
-  let rec pred_to_spred pr = 
-    match pr with
-      | True -> STrue
-      | False -> SFalse
-      | Test (h, v) -> STest(h, v)
-      | And(a,b) -> SAnd (pred_to_spred a, pred_to_spred b)
-      | Or(a,b) -> SOr (pred_to_spred a, pred_to_spred b)
-      | Neg a -> SNeg (pred_to_spred a)
-
   let rec ipol_to_spol p =
     match p with
-    | ITest (h,v) -> SFilter(STTest(h,v))
-    | IMod (h,v) -> STMod(h,v)
-    | IPar (p1,p2) -> SPar(ipol_to_spol p1, ipol_to_spol p2)
-    | ISeq (p1,p2) -> SSeq(ipol_to_spol p1, ipol_to_spol p2)
-    | IPass -> SPass
+      | ITest (h,v) -> STTest(h,v)
+      | IMod (h,v) -> STMod(h,v)
+      | IPar (p1,p2) -> SPar(ipol_to_spol p1, ipol_to_spol p2)
+      | ISeq (p1,p2) -> SSeq(ipol_to_spol p1, ipol_to_spol p2)
+      | IPass -> SPass
 
 (* Compilation story: we have an unlimited number of header fields we
    can allocate on demand. Each header field has a specific number of
@@ -102,7 +247,7 @@ module NetworkCompiler = struct
       | l :: ls -> SPar(l, parList ls)
 
 
-  let rec dehopify (p : explicit_topo_policy) : restricted_pol =
+  let rec dehopify (p : explicit_topo_pol) : restricted_pol =
     match p with
       | Filter pr -> 
         let h = gen_header 2 in
@@ -110,7 +255,7 @@ module NetworkCompiler = struct
         (ignore h0);
         let h1 = VInt.Int16 1 in
         IMod(h,h0), 
-        SSeq(SFilter(STTest(h,h0)), SSeq(SFilter (pred_to_spred pr), STMod(h,h1))),
+        SSeq(STTest(h,h0), SSeq(SFilter pr, STMod(h,h1))),
         TDrop, 
         ITest(h,h1)
       | Mod (h, v) -> 
@@ -119,7 +264,9 @@ module NetworkCompiler = struct
         (ignore h0);
         let h1 = VInt.Int16 1 in
         IMod(h,h0), 
-        SSeq(SFilter(STTest(h,h0)), SSeq(STMod(h,v), STMod(h,h1))),
+        seqList [STTest(h,h0);
+                 STMod(h,v);
+                 STMod(h,h1)],
         TDrop, 
         ITest(h,h1)
       | Link (sw1,p1,sw2,p2) -> 
@@ -129,12 +276,14 @@ module NetworkCompiler = struct
         let h1 = VInt.Int16 1 in
         let h2 = VInt.Int16 2 in
         IMod(h,h0),
-        SPar(SSeq(SFilter(STTest(h,h0)), SSeq(SSeq(SFilter(STest(Switch, sw1)),
-                                                   SFilter(STest(Header SDN_Types.InPort, p1))),
-                                              STMod(h,h1))),
-             SSeq(SFilter(STTest(h,h1)), SSeq(SSeq(SFilter(STest(Switch, sw2)),
-                                                   SFilter(STest(Header SDN_Types.InPort, p2))),
-                                              STMod(h,h2)))),
+        SPar(seqList [STTest(h,h0);
+                      SFilter(Test(Switch, sw1));
+                      SFilter(Test(Header SDN_Types.InPort, p1));
+                      STMod(h,h1)],
+             seqList [STTest(h,h1);
+                      SFilter(Test(Switch, sw2));
+                      SFilter(Test(Header SDN_Types.InPort, p2));
+                      STMod(h,h2)]),
         TLink(sw1,p1,sw2,p2),
         ITest(h,h1)
       | Par (p,q) -> let i_p,s_p,t_p,e_p = dehopify p in
@@ -144,8 +293,8 @@ module NetworkCompiler = struct
                      let h1 = VInt.Int16 1 in
                      IPar(ISeq(IMod(h,h0), i_p),
                           ISeq(IMod(h,h1), i_q)),
-                     SPar(SSeq(SFilter(STTest(h,h0)),s_p),
-                          SSeq(SFilter(STTest(h,h1)),s_q)),
+                     SPar(SSeq(STTest(h,h0),s_p),
+                          SSeq(STTest(h,h1),s_q)),
                      TPar(t_p,t_q),
                      IPar(ISeq(ITest(h,h0), e_p),
                           ISeq(ITest(h,h1), e_q))
@@ -166,40 +315,40 @@ module NetworkCompiler = struct
                                     IPar(IMod(h,h2),
                                          IMod(h,h3)))),
                           i_p),
-                     parList [seqList [SFilter(STTest(h,h0));
+                     parList [seqList [STTest(h,h0);
                                        s_p;
                                        ipol_to_spol(e_p);
                                        ipol_to_spol(i_q);
                                        s_q;
                                        STMod(h,h4)];
-                              seqList [SFilter(STTest(h,h1));
+                              seqList [STTest(h,h1);
                                        s_p;
                                        SPar(STMod(h,h1),
                                             STMod(h,h1'))];
-                              seqList [SFilter(STTest(h,h1'));
+                              seqList [STTest(h,h1');
                                        s_p;
                                        ipol_to_spol(e_p);
                                        ipol_to_spol(i_q);
                                        s_q;
                                        STMod(h,h4)];
-                              seqList [SFilter(STTest(h,h2));
+                              seqList [STTest(h,h2);
                                        s_p;
                                        ipol_to_spol(e_p);
                                        ipol_to_spol(i_q);
                                        s_q;
                                        STMod(h,h2')];
-                              SSeq (SFilter(STTest(h,h2')), s_q);
-                              seqList [SFilter(STTest(h,h3));
+                              SSeq (STTest(h,h2'), s_q);
+                              seqList [STTest(h,h3);
                                        s_p;
                                        STMod(h,h3')];
-                              seqList [SFilter(STTest(h,h3'));
+                              seqList [STTest(h,h3');
                                        s_p;
                                        SPar(SPass,
                                             seqList [ipol_to_spol(e_p);
                                                      ipol_to_spol(i_q);
                                                      s_q;
                                                      STMod(h, h3'')])];
-                              SSeq(SFilter(STTest(h,h3'')), s_q)],
+                              SSeq(STTest(h,h3''), s_q)],
                      TPar(t_p,t_q),
                      e_q
       | Star p -> let i_p,s_p,t_p,e_p = dehopify p in
@@ -214,24 +363,24 @@ module NetworkCompiler = struct
                   IPar(IPar(IMod(h,h0),
                             IMod(h,h1)),
                        IMod(h,h2)),
-                  parList [ SSeq(SFilter(STTest(h,h0)),
+                  parList [ SSeq(STTest(h,h0),
                                  STMod(h,h3));
-                            seqList [SFilter(STTest(h,h1));
+                            seqList [STTest(h,h1);
                                      ipol_to_spol(i_p);
                                      s_p;
                                      SStar(seqList [ipol_to_spol(e_p);ipol_to_spol(i_p);s_p]);
                                      STMod(h,h4)];
-                            seqList [SFilter(STTest(h,h2));
+                            seqList [STTest(h,h2);
                                      ipol_to_spol(i_p);
                                      s_p;
                                      SStar(seqList [ipol_to_spol(e_p);ipol_to_spol(i_p);s_p]);
                                      SPar(STMod(h,h2'),
                                           STMod(h,h2''))];
-                            seqList [SFilter(STTest(h,h2'));
+                            seqList [STTest(h,h2');
                                      s_p;
                                      SPar(STMod(h,h2'),
                                           STMod(h,h2''))];
-                            seqList [SFilter(STTest(h,h2''));
+                            seqList [STTest(h,h2'');
                                      s_p;
                                      SStar(seqList [ipol_to_spol(e_p);ipol_to_spol(i_p);s_p]);                                     
                                      SPar(STMod(h,h2'),
@@ -242,9 +391,124 @@ module NetworkCompiler = struct
                                       ITest(h,h4))),
                             e_p),
                        ITest(h,h3))
-      | _ -> 
-        failwith "Unimplemented" 
+
+(* Optimizations Observation: Virtual headers are semantically
+   meaningless if they aren't matched in the NetKAT code itself. Thus,
+   if we optimize away as many matches as possible, we can then drop
+   any headers that are not matched on.
+*)
+
+  let rec simplify_spol p =
+    match p with
+      | SSeq(SDrop, _) -> SDrop
+      | SSeq(_, SDrop) -> SDrop
+      | SSeq(SPass, p) -> simplify_spol p
+      | SSeq(p, SPass) -> simplify_spol p
+      | SSeq(p, q) -> let p' = simplify_spol p in
+                      let q' = simplify_spol q in
+                      begin
+                        match p',q' with
+                          | SDrop, _ -> SDrop
+                          | _, SDrop -> SDrop
+                          | SPass, q' -> q'
+                          | p', SPass -> p'
+                          | _ -> SSeq(p',q')
+                      end
+      | SPar(SDrop, p) -> simplify_spol p
+      | SPar(p, SDrop) -> simplify_spol p
+      | SPar(p,q) -> let p' = simplify_spol p in
+                     let q' = simplify_spol q in
+                     begin
+                       match p',q' with
+                         | SDrop, q -> q
+                         | p, SDrop -> p
+                         | p,q -> SPar(p,q)
+                     end
+      | SStar(SDrop) -> SPass
+      | SStar(SPass) -> SPass
+      | SStar(p) -> 
+        begin
+          match simplify_spol p with
+            | SDrop -> SPass
+            | SPass -> SPass
+            | p -> SStar p
+        end
+      | _ -> p
+
+  let rec spol_to_linear_spol p = 
+    match p with
+      | SPar (SPar (p,q), r) ->
+        spol_to_linear_spol (SPar (p, SPar(q,r)))
+      | SPar (p, q) ->
+        SPar(spol_to_linear_spol p, spol_to_linear_spol q)
+      | SSeq (SSeq (p,q), r) ->
+        spol_to_linear_spol (SSeq (p, SSeq (q,r)))
+      | SSeq (p,q) ->
+        SSeq(spol_to_linear_spol p, spol_to_linear_spol q)
+      | _ -> p
+
+    (* TODO: convert to normal form so that I can ignore assoc of seq *)
+  let rec remove_matches' p = 
+    match p with
+      | SSeq(STMod (h,v), STTest (h',v')) ->
+        if h = h' then
+          if v = v' then
+            STMod (h,v)
+          else
+            SDrop
+        else p
+      | SSeq(STMod (h,v), SSeq(STTest (h',v'), p)) ->
+        if h = h' then
+          if v = v' then
+            remove_matches' (SSeq(STMod (h,v), p))
+          else
+            SDrop
+        else SSeq(STMod(h,v), remove_matches' (SSeq(STTest (h',v'), p)))
+      | SSeq(STMod(h,v), STMod(h',v')) ->
+        if h = h' then STMod(h,v)
+        else p
+      | SSeq(STMod(h,v), SSeq(STMod(h',v'),p)) ->
+        if h = h' then remove_matches' (SSeq(STMod(h,v), p))
+        else p
+      | SSeq(STTest(h,v), STTest(h',v')) ->
+        if h = h' then
+          if v = v' then
+            STTest (h, v)
+          else
+            SDrop
+        else
+          p
+      | SSeq(STTest(h,v), SSeq(STTest(h',v'), p)) ->
+        if h = h' then
+          if v = v' then
+            remove_matches' (SSeq(STTest (h, v),p))
+          else
+            SDrop
+        else
+          SSeq(STTest(h,v), remove_matches' (SSeq(STTest(h',v'), p)))
+      | SSeq(p,q) -> let p' = remove_matches' p in
+                     let q' = remove_matches' q in
+                     if p = p' & q = q' then
+                       SSeq(p,q)
+                     else
+                       remove_matches' (SSeq(p',q'))
+      | SPar(p,q) -> SPar(remove_matches' p, remove_matches' q)
+      | SStar(p) -> SStar(remove_matches' p)
+      | p -> p
+
+  let remove_matches p = remove_matches' (spol_to_linear_spol p)
+          
+
+(* Test policy/topology *)
+(*  1 
+   / \
+  2   3
+   \ /
+    4
+*)
+
 end
+
 
 module SwitchCompiler = struct
     (* metavariable conventions
