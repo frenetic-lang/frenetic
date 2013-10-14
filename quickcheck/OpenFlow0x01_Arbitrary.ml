@@ -289,4 +289,43 @@ module FlowMod = struct
     let marshal = FlowMod.Timeout.to_int
     let parse = FlowMod.Timeout.of_int
   end
+
+  type t = FlowMod.t
+  type s = Cstruct.t
+
+  let to_string = FlowMod.to_string
+
+  let arbitrary =
+    let open Gen in
+    let open OpenFlow0x01_Core in
+      Command.arbitrary >>= fun command ->
+      Match.arbitrary >>= fun pattern ->
+      arbitrary_uint16 >>= fun priority ->
+      arbitrary_list Action.arbitrary >>= fun actions ->
+      arbitrary_uint48 >>= fun cookie ->
+      Timeout.arbitrary >>= fun idle_timeout ->
+      Timeout.arbitrary >>= fun hard_timeout ->
+      arbitrary_bool >>= fun notify_when_removed ->
+      arbitrary_option arbitrary_uint32 >>= fun apply_to_packet ->
+      arbitrary_option PseudoPort.arbitrary_nc >>= fun out_port ->
+      arbitrary_bool >>= fun check_overlap ->
+        ret_gen {
+          command = command;
+          pattern = pattern;
+          priority = priority;
+          actions = OpenFlow0x01.Action.move_controller_last actions;
+          cookie = cookie;
+          idle_timeout = idle_timeout;
+          hard_timeout = hard_timeout;
+          notify_when_removed = notify_when_removed;
+          apply_to_packet = apply_to_packet;
+          out_port = out_port;
+          check_overlap = check_overlap
+        }
+
+  let marshal = FlowMod.marshal
+  let parse = FlowMod.parse
+
+  let size_of = FlowMod.size_of
+
 end
