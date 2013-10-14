@@ -110,6 +110,9 @@ module FlowMod : sig
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
+    val to_int : t -> int16
+    val of_int : int16 -> t
+
   end
 
   type t = flowMod
