@@ -48,6 +48,36 @@ module type OpenFlow0x01_Arbitrary = sig
 
     val parse : s -> t
     val marshal : t -> s
+
+end
+
+module type OpenFlow0x01_ArbitraryCstruct = sig
+  type t
+
+  val arbitrary : t arbitrary
+
+  val to_string : t -> string
+
+  val parse : Cstruct.t -> t
+  val marshal : t -> Cstruct.t -> int
+
+  val size_of : t -> int
+
+end
+
+module OpenFlow0x01_Unsize(ArbC : OpenFlow0x01_ArbitraryCstruct) = struct
+  type t = ArbC.t
+  type s = Cstruct.t
+
+  let arbitrary = ArbC.arbitrary
+
+  let to_string = ArbC.to_string
+
+  let parse = ArbC.parse
+
+  let marshal m =
+    let bytes = Cstruct.of_bigarray Bigarray.(Array1.create char c_layout (ArbC.size_of m))
+      in ignore (ArbC.marshal m bytes); bytes
 end
 
 module Wildcards = struct
