@@ -38,6 +38,11 @@ module RoundTripping = struct
       (openflow_quickCheck GenAction.arbitrary
           GenAction.to_string GenAction.parse GenAction.marshal)
 
+  TEST "OpenFlow0x01 FlowMod.Command RoundTrip" =
+      let module GenCommand = Gen.FlowMod.Command in
+      (openflow_quickCheck GenCommand.arbitrary
+          GenCommand.to_string GenCommand.parse GenCommand.marshal)
+
   TEST "OpenFlow Hello Test 1" = 
     let open Message in 
     let bs = Cstruct.create 101 in

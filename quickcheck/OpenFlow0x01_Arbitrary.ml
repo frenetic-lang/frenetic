@@ -239,3 +239,28 @@ module Action = struct
   let size_of = Action.size_of
 
 end
+
+module FlowMod = struct
+
+  module Command = struct
+    type t = FlowMod.Command.t
+    type s = Packet.int16
+
+
+    let arbitrary =
+      let open Gen in
+      let open OpenFlow0x01_Core in
+      oneof [
+        ret_gen AddFlow;
+        ret_gen ModFlow;
+        ret_gen ModStrictFlow;
+        ret_gen DeleteFlow;
+        ret_gen DeleteStrictFlow
+      ]
+
+    let to_string = FlowMod.Command.to_string
+
+    let marshal = FlowMod.Command.to_int
+    let parse = FlowMod.Command.of_int
+  end
+end
