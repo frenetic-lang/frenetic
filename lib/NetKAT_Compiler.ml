@@ -461,6 +461,7 @@ module NetworkCompiler = struct
   (* Normalizes sequences by reordering mods/matches by the headers:
      h <- v; h' <- v' = h' <- v'; h <- v if h <> h'
      Assumes linearized seq
+     Equivalent to bubble sort. No, I don't care.
   *)
   let rec normalize_seq p =
     match p with
@@ -586,22 +587,51 @@ module NetworkCompiler = struct
 
   let elim_vmod p = fst (elim_vmod' p TagSet.empty)
 
+  (* Observation: we don't have to reorder the mods/tests to be next
+     to each other to eliminate them. Instead, we can do a dataflow
+     analysis, tracking the current values of headers/tags. This should
+     be way more efficient than (quadratically) sorting the terms
+     repeatedly. The only problem is that reducing p + p' (when p = p')
+     still requires normalizing *)
   let rec optimize' p = 
     let renorm = vpol_to_linear_vpol in
     let simpl = simplify_vpol in
-    let p' = elim_vmod (elim_vtest (renorm (remove_matches (normalize_seq (renorm (distribute_seq (simpl p))))))) in
+    let p' = elim_vmod (elim_vtest (renorm (remove_matches (renorm (distribute_seq (simpl p)))))) in
     if p' = p then p'
     else optimize' p'
-  let optimize p = optimize' p
-          
+      
+  let optimize p = 
+    let renorm = vpol_to_linear_vpol in
+    let simpl = simplify_vpol in
+    optimize' (normalize_seq (renorm (distribute_seq (simpl p))))
+      
+  (* First pass: collect all the tags used in the program
+     Construct the cross product. I.e. if we had tag (h,v) in the original program, then that corresponds to the set of tags {(t,(v,v',v'',\ldots)} where v',v'',... are possible values for the other tags appearing in the program.
+     Second pass: *)
+  let rec collect_tags' p tags =
+    match p with
+      | VMod(Tag h,_) -> TagSet.add h tags
+      | VTest(h, _) -> TagSet.add h tags
+      | VPar(p,q) -> TagSet.union (collect_tags' p tags) (collect_tags' q tags)
+      | VSeq(p,q) -> TagSet.union (collect_tags' p tags) (collect_tags' q tags)
+      | VStar(p) -> collect_tags' p tags
+      | _ -> tags
 
-(* Test policy/topology *)
-(*  1 
-   / \
-  2   3
-   \ /
-    4
-*)
+  let collect_tags p = collect_tags' p TagSet.empty
+
+  (* Assume we have a list of lists H, where the elements of H[i] are the values of h_i. Now, for each H[i][j], we want to compute a list representing each possible tuple containing value j in position i. We'll do this in several steps. First, represent this as [[[int]]] *)
+
+  let singletons = List.fold_left (fun acc x -> [x]::acc) []
+
+  let rec prod elems lst = 
+    match elems with
+      | []  -> []
+      | elem :: elems -> (List.map (fun x -> elem :: x) lst) @ prod elems lst
+
+  let rec make_tuples lst =
+    match lst with
+      | [elems] -> singletons elems
+      | elems :: lst -> prod elems (make_tuples lst)
 
 end
 
