@@ -19,33 +19,22 @@ module NetworkCompiler = struct
    e = t = v | i + i | i ; i
 *)
 
-  type vheader = int * int
+  type vtag = int*int
+  type vheader = 
+    | Field of SDN_Types.field
+    | Tag of vtag
 
-  type ingress_pol =
-    | ITest of vheader * header_val
-    | IMod of vheader * header_val
-    | IPar of ingress_pol * ingress_pol
-    | ISeq of ingress_pol * ingress_pol
-    | IPass
-
-  type switch_pol =
-    | SFilter of pred
-    | STTest of vheader * header_val
-    | SMod of SDN_Types.field * header_val
-    | STMod of vheader * header_val
-    | SPar of switch_pol * switch_pol
-    | SSeq of switch_pol * switch_pol
-    | SStar of switch_pol
-    | SPass
-    | SDrop
-
-  type topo_pol = 
-    (* (sw,pt) -> (sw',pt') *)
-    | TLink of header_val * header_val * header_val * header_val
-    | TPar of topo_pol * topo_pol
-    | TDrop
-
-  type restricted_pol = ingress_pol * switch_pol * topo_pol * ingress_pol
+  type virtual_pol =
+    | VFilter of pred
+    | VTest of vtag*header_val
+    | VMod of vheader * header_val
+    (* switch, port -> switch, port *)
+    | VLink of header_val*header_val*header_val*header_val
+    | VPar of virtual_pol * virtual_pol
+    | VSeq of virtual_pol * virtual_pol
+    | VStar of virtual_pol
+      
+  type restricted_pol = virtual_pol * virtual_pol * virtual_pol * virtual_pol
 
   module Formatting = struct
 
@@ -55,8 +44,9 @@ module NetworkCompiler = struct
       | Header h' -> SDN_Types.format_field fmt h'
       | Switch -> pp_print_string fmt "switch"
 
-    let vheader (fmt : formatter) (h : vheader) : unit =
-      pp_print_string fmt (string_of_int (fst h))
+    let vheader (fmt : formatter) (h : vheader) : unit = match h with
+      | Field h' -> SDN_Types.format_field fmt h'
+      | Tag (h,_) -> pp_print_string fmt (string_of_int h)
 
   (* The type of the immediately surrounding context, which guides parenthesis-
      intersion. *)
@@ -90,35 +80,34 @@ module NetworkCompiler = struct
             | _ -> fprintf fmt "@[(@[%a ; %a@])@]" (pred SEQ) p1 (pred SEQ) p2
           end
 
-    let rec spol (cxt : context) (fmt : formatter) (p : switch_pol) : unit =
+    let rec vpol (cxt : context) (fmt : formatter) (p : virtual_pol) : unit =
       match p with
-        | SDrop -> fprintf fmt "@[false@]"
-        | SPass -> fprintf fmt "@[true@]"
-        | SFilter pr -> 
+        | VFilter pr -> 
           pred cxt fmt pr
-        | STTest (h,v) -> fprintf fmt "@[%a = %a@]" vheader h VInt.format v
-        | SMod (h, v) -> 
-          fprintf fmt "@[%a <- %a@]" SDN_Types.format_field h VInt.format v
-        | STMod (h, v) -> 
+        | VTest (h,v) -> fprintf fmt "@[%a = %a@]" vheader (Tag h) VInt.format v
+        | VMod (h, v) -> 
           fprintf fmt "@[%a <- %a@]" vheader h VInt.format v
-        | SStar p' -> 
+        | VStar p' -> 
           begin match cxt with
             | PAREN 
-	    | STAR ->  fprintf fmt "@[%a*@]" (spol STAR) p' 
-            | _ -> fprintf fmt "@[@[(%a)*@]@]" (spol PAREN) p'
+	    | STAR ->  fprintf fmt "@[%a*@]" (vpol STAR) p' 
+            | _ -> fprintf fmt "@[@[(%a)*@]@]" (vpol PAREN) p'
           end
-        | SPar (p1, p2) -> 
+        | VLink (sw,pt,sw',pt') ->
+          let fmter = VInt.format in
+          fprintf fmt "@[(%a@@%a) -> (%a@%a)@]" fmter sw fmter pt fmter sw' fmter pt'
+        | VPar (p1, p2) -> 
           begin match cxt with
             | PAREN
-            | PAR -> fprintf fmt "@[%a + %a@]" (spol PAR) p1 (spol PAR) p2
-            | _ -> fprintf fmt "@[(@[%a + %a@])@]" (spol PAR) p1 (spol PAR) p2
+            | PAR -> fprintf fmt "@[%a + %a@]" (vpol PAR) p1 (vpol PAR) p2
+            | _ -> fprintf fmt "@[(@[%a + %a@])@]" (vpol PAR) p1 (vpol PAR) p2
           end
-        | SSeq (p1, p2) -> 
+        | VSeq (p1, p2) -> 
           begin match cxt with
             | PAREN
             | SEQ
-            | PAR -> fprintf fmt "@[%a ; %a@]" (spol SEQ) p1 (spol SEQ) p2
-            | _ -> fprintf fmt "@[(@[%a ; %a@])@]" (spol SEQ) p1 (spol SEQ) p2
+            | PAR -> fprintf fmt "@[%a ; %a@]" (vpol SEQ) p1 (vpol SEQ) p2
+            | _ -> fprintf fmt "@[(@[%a ; %a@])@]" (vpol SEQ) p1 (vpol SEQ) p2
           end
 
     let rec epol (cxt : context) (fmt : formatter) (p : explicit_topo_pol) : unit =
@@ -149,42 +138,6 @@ module NetworkCompiler = struct
             | PAR -> fprintf fmt "@[%a ; %a@]" (epol SEQ) p1 (epol SEQ) p2
             | _ -> fprintf fmt "@[(@[%a ; %a@])@]" (epol SEQ) p1 (epol SEQ) p2
           end
-
-    let rec tpol (cxt : context) (fmt : formatter) (p : topo_pol) : unit =
-      match p with
-        | TDrop -> fprintf fmt "@[false@]"
-        | TLink (sw,pt,sw',pt') -> 
-          let fmter = VInt.format in
-          fprintf fmt "@[(%a@@%a) -> (%a@@%a)@]" fmter sw fmter pt fmter sw' fmter pt'
-        | TPar (p1, p2) -> 
-          begin match cxt with
-            | PAREN
-            | PAR -> fprintf fmt "@[%a + %a@]" (tpol PAR) p1 (tpol PAR) p2
-            | _ -> fprintf fmt "@[(@[%a + %a@])@]" (tpol PAR) p1 (tpol PAR) p2
-          end
-
-
-    let rec ipol (cxt : context) (fmt : formatter) (p : ingress_pol) : unit =
-      match p with
-        | IPass -> fprintf fmt "@[true@]"
-        | ITest (h,v) -> fprintf fmt "@[%a = %a@]" vheader h VInt.format v
-        | IMod (h, v) -> 
-          fprintf fmt "@[%a <- %a@]" vheader h VInt.format v
-        | IPar (p1, p2) -> 
-          begin match cxt with
-            | PAREN
-            | PAR -> fprintf fmt "@[%a + %a@]" (ipol PAR) p1 (ipol PAR) p2
-            | _ -> fprintf fmt "@[(@[%a + %a@])@]" (ipol PAR) p1 (ipol PAR) p2
-          end
-        | ISeq (p1, p2) -> 
-          begin match cxt with
-            | PAREN
-            | SEQ
-            | PAR -> fprintf fmt "@[%a ; %a@]" (ipol SEQ) p1 (ipol SEQ) p2
-            | _ -> fprintf fmt "@[(@[%a ; %a@])@]" (ipol SEQ) p1 (ipol SEQ) p2
-          end
-
-
   end
 
   let make_string_of formatter x =
@@ -200,14 +153,10 @@ module NetworkCompiler = struct
 
   let string_of_header = make_string_of Formatting.header
 
-  let format_spolicy = Formatting.spol Formatting.PAREN
-  let format_ipolicy = Formatting.ipol Formatting.PAREN
-  let format_tpolicy = Formatting.tpol Formatting.PAREN
+  let format_vpolicy = Formatting.vpol Formatting.PAREN
   let format_epolicy = Formatting.epol Formatting.PAREN
 
-  let string_of_ipolicy = make_string_of format_ipolicy
-  let string_of_spolicy = make_string_of format_spolicy
-  let string_of_tpolicy = make_string_of format_tpolicy
+  let string_of_vpolicy = make_string_of format_vpolicy
   let string_of_epolicy = make_string_of format_epolicy
 
   let vheader_count = ref 0
@@ -215,14 +164,6 @@ module NetworkCompiler = struct
   let gen_header size =
     incr vheader_count;
     (!vheader_count, size)
-
-  let rec ipol_to_spol p =
-    match p with
-      | ITest (h,v) -> STTest(h,v)
-      | IMod (h,v) -> STMod(h,v)
-      | IPar (p1,p2) -> SPar(ipol_to_spol p1, ipol_to_spol p2)
-      | ISeq (p1,p2) -> SSeq(ipol_to_spol p1, ipol_to_spol p2)
-      | IPass -> SPass
 
 (* Compilation story: we have an unlimited number of header fields we
    can allocate on demand. Each header field has a specific number of
@@ -238,13 +179,13 @@ module NetworkCompiler = struct
 *)
   let rec seqList ls =
     match ls with
-      | [] -> SPass
-      | l :: ls -> SSeq(l, seqList ls)
+      | [] -> VFilter True
+      | l :: ls -> VSeq(l, seqList ls)
 
   let rec parList ls =
     match ls with
-      | [] -> SDrop
-      | l :: ls -> SPar(l, parList ls)
+      | [] -> VFilter False
+      | l :: ls -> VPar(l, parList ls)
 
 
   let rec dehopify (p : explicit_topo_pol) : restricted_pol =
@@ -252,52 +193,49 @@ module NetworkCompiler = struct
       | Filter pr -> 
         let h = gen_header 2 in
         let h0 = VInt.Int16 0 in
-        (ignore h0);
         let h1 = VInt.Int16 1 in
-        IMod(h,h0), 
-        SSeq(STTest(h,h0), SSeq(SFilter pr, STMod(h,h1))),
-        TDrop, 
-        ITest(h,h1)
+        VMod(Tag h,h0), 
+        VSeq(VTest(h,h0), VSeq(VFilter pr, VMod(Tag h,h1))),
+        VFilter False, 
+        VTest(h,h1)
       | Mod (h, v) -> 
         let h = gen_header 2 in
         let h0 = VInt.Int16 0 in
-        (ignore h0);
         let h1 = VInt.Int16 1 in
-        IMod(h,h0), 
-        seqList [STTest(h,h0);
-                 STMod(h,v);
-                 STMod(h,h1)],
-        TDrop, 
-        ITest(h,h1)
+        VMod(Tag h,h0), 
+        seqList [VTest(h,h0);
+                 VMod(Tag h,v);
+                 VMod(Tag h,h1)],
+        VFilter False, 
+        VTest(h,h1)
       | Link (sw1,p1,sw2,p2) -> 
         let h = gen_header 3 in
         let h0 = VInt.Int16 0 in
-        (ignore h0);
         let h1 = VInt.Int16 1 in
         let h2 = VInt.Int16 2 in
-        IMod(h,h0),
-        SPar(seqList [STTest(h,h0);
-                      SFilter(Test(Switch, sw1));
-                      SFilter(Test(Header SDN_Types.InPort, p1));
-                      STMod(h,h1)],
-             seqList [STTest(h,h1);
-                      SFilter(Test(Switch, sw2));
-                      SFilter(Test(Header SDN_Types.InPort, p2));
-                      STMod(h,h2)]),
-        TLink(sw1,p1,sw2,p2),
-        ITest(h,h1)
+        VMod(Tag h,h0),
+        VPar(seqList [VTest(h,h0);
+                      VFilter(Test(Switch, sw1));
+                      VFilter(Test(Header SDN_Types.InPort, p1));
+                      VMod(Tag h,h1)],
+             seqList [VTest(h,h1);
+                      VFilter(Test(Switch, sw2));
+                      VFilter(Test(Header SDN_Types.InPort, p2));
+                      VMod(Tag h,h2)]),
+        VLink(sw1,p1,sw2,p2),
+        VTest(h,h1)
       | Par (p,q) -> let i_p,s_p,t_p,e_p = dehopify p in
                      let i_q,s_q,t_q,e_q = dehopify q in
                      let h = gen_header 2 in
                      let h0 = VInt.Int16 0 in
                      let h1 = VInt.Int16 1 in
-                     IPar(ISeq(IMod(h,h0), i_p),
-                          ISeq(IMod(h,h1), i_q)),
-                     SPar(SSeq(STTest(h,h0),s_p),
-                          SSeq(STTest(h,h1),s_q)),
-                     TPar(t_p,t_q),
-                     IPar(ISeq(ITest(h,h0), e_p),
-                          ISeq(ITest(h,h1), e_q))
+                     VPar(VSeq(VMod(Tag h,h0), i_p),
+                          VSeq(VMod(Tag h,h1), i_q)),
+                     VPar(VSeq(VTest(h,h0),s_p),
+                          VSeq(VTest(h,h1),s_q)),
+                     VPar(t_p,t_q),
+                     VPar(VSeq(VTest(h,h0), e_p),
+                          VSeq(VTest(h,h1), e_q))
       | Seq (p,q) -> let i_p,s_p,t_p,e_p = dehopify p in
                      let i_q,s_q,t_q,e_q = dehopify q in
                      let h = gen_header 8 in
@@ -310,46 +248,46 @@ module NetworkCompiler = struct
                      let h3' = VInt.Int16 6 in
                      let h3'' = VInt.Int16 7 in
                      let h4 = VInt.Int16 8 in
-                     ISeq(IPar(IMod(h,h0),
-                               IPar(IMod(h,h1),
-                                    IPar(IMod(h,h2),
-                                         IMod(h,h3)))),
+                     VSeq(VPar(VMod(Tag h,h0),
+                               VPar(VMod(Tag h,h1),
+                                    VPar(VMod(Tag h,h2),
+                                         VMod(Tag h,h3)))),
                           i_p),
-                     parList [seqList [STTest(h,h0);
+                     parList [seqList [VTest(h,h0);
                                        s_p;
-                                       ipol_to_spol(e_p);
-                                       ipol_to_spol(i_q);
+                                       e_p;
+                                       i_q;
                                        s_q;
-                                       STMod(h,h4)];
-                              seqList [STTest(h,h1);
+                                       VMod(Tag h,h4)];
+                              seqList [VTest(h,h1);
                                        s_p;
-                                       SPar(STMod(h,h1),
-                                            STMod(h,h1'))];
-                              seqList [STTest(h,h1');
+                                       VPar(VMod(Tag h,h1),
+                                            VMod(Tag h,h1'))];
+                              seqList [VTest(h,h1');
                                        s_p;
-                                       ipol_to_spol(e_p);
-                                       ipol_to_spol(i_q);
+                                       e_p;
+                                       i_q;
                                        s_q;
-                                       STMod(h,h4)];
-                              seqList [STTest(h,h2);
+                                       VMod(Tag h,h4)];
+                              seqList [VTest(h,h2);
                                        s_p;
-                                       ipol_to_spol(e_p);
-                                       ipol_to_spol(i_q);
+                                       e_p;
+                                       i_q;
                                        s_q;
-                                       STMod(h,h2')];
-                              SSeq (STTest(h,h2'), s_q);
-                              seqList [STTest(h,h3);
+                                       VMod(Tag h,h2')];
+                              VSeq (VTest(h,h2'), s_q);
+                              seqList [VTest(h,h3);
                                        s_p;
-                                       STMod(h,h3')];
-                              seqList [STTest(h,h3');
+                                       VMod(Tag h,h3')];
+                              seqList [VTest(h,h3');
                                        s_p;
-                                       SPar(SPass,
-                                            seqList [ipol_to_spol(e_p);
-                                                     ipol_to_spol(i_q);
+                                       VPar(VFilter True,
+                                            seqList [e_p;
+                                                     i_q;
                                                      s_q;
-                                                     STMod(h, h3'')])];
-                              SSeq(STTest(h,h3''), s_q)],
-                     TPar(t_p,t_q),
+                                                     VMod(Tag h, h3'')])];
+                              VSeq(VTest(h,h3''), s_q)],
+                     VPar(t_p,t_q),
                      e_q
       | Star p -> let i_p,s_p,t_p,e_p = dehopify p in
                   let h = gen_header 7 in
@@ -360,37 +298,37 @@ module NetworkCompiler = struct
                   let h2'' = VInt.Int16 4 in
                   let h3 = VInt.Int16 5 in
                   let h4 = VInt.Int16 6 in
-                  IPar(IPar(IMod(h,h0),
-                            IMod(h,h1)),
-                       IMod(h,h2)),
-                  parList [ SSeq(STTest(h,h0),
-                                 STMod(h,h3));
-                            seqList [STTest(h,h1);
-                                     ipol_to_spol(i_p);
+                  VPar(VPar(VMod(Tag h,h0),
+                            VMod(Tag h,h1)),
+                       VMod(Tag h,h2)),
+                  parList [ VSeq(VTest(h,h0),
+                                 VMod(Tag h,h3));
+                            seqList [VTest(h,h1);
+                                     i_p;
                                      s_p;
-                                     SStar(seqList [ipol_to_spol(e_p);ipol_to_spol(i_p);s_p]);
-                                     STMod(h,h4)];
-                            seqList [STTest(h,h2);
-                                     ipol_to_spol(i_p);
+                                     VStar(seqList [e_p;i_p;s_p]);
+                                     VMod(Tag h,h4)];
+                            seqList [VTest(h,h2);
+                                     i_p;
                                      s_p;
-                                     SStar(seqList [ipol_to_spol(e_p);ipol_to_spol(i_p);s_p]);
-                                     SPar(STMod(h,h2'),
-                                          STMod(h,h2''))];
-                            seqList [STTest(h,h2');
+                                     VStar(seqList [e_p;i_p;s_p]);
+                                     VPar(VMod(Tag h,h2'),
+                                          VMod(Tag h,h2''))];
+                            seqList [VTest(h,h2');
                                      s_p;
-                                     SPar(STMod(h,h2'),
-                                          STMod(h,h2''))];
-                            seqList [STTest(h,h2'');
+                                     VPar(VMod(Tag h,h2'),
+                                          VMod(Tag h,h2''))];
+                            seqList [VTest(h,h2'');
                                      s_p;
-                                     SStar(seqList [ipol_to_spol(e_p);ipol_to_spol(i_p);s_p]);                                     
-                                     SPar(STMod(h,h2'),
-                                          STMod(h,h2''))]],
+                                     VStar(seqList [e_p;i_p;s_p]);                                     
+                                     VPar(VMod(Tag h,h2'),
+                                          VMod(Tag h,h2''))]],
                   t_p,
-                  IPar(ISeq(IPar(ITest(h,h2'),
-                                 IPar(ITest(h,h2''),
-                                      ITest(h,h4))),
+                  VPar(VSeq(VPar(VTest(h,h2'),
+                                 VPar(VTest(h,h2''),
+                                      VTest(h,h4))),
                             e_p),
-                       ITest(h,h3))
+                       VTest(h,h3))
 
 (* Optimizations Observation: Virtual headers are semantically
    meaningless if they aren't matched in the NetKAT code itself. Thus,
@@ -398,105 +336,105 @@ module NetworkCompiler = struct
    any headers that are not matched on.
 *)
 
-  let rec simplify_spol p =
+  let rec simplify_vpol p =
     match p with
-      | SSeq(SDrop, _) -> SDrop
-      | SSeq(_, SDrop) -> SDrop
-      | SSeq(SPass, p) -> simplify_spol p
-      | SSeq(p, SPass) -> simplify_spol p
-      | SSeq(p, q) -> let p' = simplify_spol p in
-                      let q' = simplify_spol q in
+      | VSeq(VFilter False, _) -> VFilter False
+      | VSeq(_, VFilter False) -> VFilter False
+      | VSeq(VFilter True, p) -> simplify_vpol p
+      | VSeq(p, VFilter True) -> simplify_vpol p
+      | VSeq(p, q) -> let p' = simplify_vpol p in
+                      let q' = simplify_vpol q in
                       begin
                         match p',q' with
-                          | SDrop, _ -> SDrop
-                          | _, SDrop -> SDrop
-                          | SPass, q' -> q'
-                          | p', SPass -> p'
-                          | _ -> SSeq(p',q')
+                          | VFilter False, _ -> VFilter False
+                          | _, VFilter False -> VFilter False
+                          | VFilter True, q' -> q'
+                          | p', VFilter True -> p'
+                          | _ -> VSeq(p',q')
                       end
-      | SPar(SDrop, p) -> simplify_spol p
-      | SPar(p, SDrop) -> simplify_spol p
-      | SPar(p,q) -> let p' = simplify_spol p in
-                     let q' = simplify_spol q in
+      | VPar(VFilter False, p) -> simplify_vpol p
+      | VPar(p, VFilter False) -> simplify_vpol p
+      | VPar(p,q) -> let p' = simplify_vpol p in
+                     let q' = simplify_vpol q in
                      begin
                        match p',q' with
-                         | SDrop, q -> q
-                         | p, SDrop -> p
-                         | p,q -> SPar(p,q)
+                         | VFilter False, q -> q
+                         | p, VFilter False -> p
+                         | p,q -> VPar(p,q)
                      end
-      | SStar(SDrop) -> SPass
-      | SStar(SPass) -> SPass
-      | SStar(p) -> 
+      | VStar(VFilter False) -> VFilter True
+      | VStar(VFilter True) -> VFilter True
+      | VStar(p) -> 
         begin
-          match simplify_spol p with
-            | SDrop -> SPass
-            | SPass -> SPass
-            | p -> SStar p
+          match simplify_vpol p with
+            | VFilter False -> VFilter True
+            | VFilter True -> VFilter True
+            | p -> VStar p
         end
       | _ -> p
 
-  let rec spol_to_linear_spol p = 
+  let rec vpol_to_linear_vpol p = 
     match p with
-      | SPar (SPar (p,q), r) ->
-        spol_to_linear_spol (SPar (p, SPar(q,r)))
-      | SPar (p, q) ->
-        SPar(spol_to_linear_spol p, spol_to_linear_spol q)
-      | SSeq (SSeq (p,q), r) ->
-        spol_to_linear_spol (SSeq (p, SSeq (q,r)))
-      | SSeq (p,q) ->
-        SSeq(spol_to_linear_spol p, spol_to_linear_spol q)
+      | VPar (VPar (p,q), r) ->
+        vpol_to_linear_vpol (VPar (p, VPar(q,r)))
+      | VPar (p, q) ->
+        VPar(vpol_to_linear_vpol p, vpol_to_linear_vpol q)
+      | VSeq (VSeq (p,q), r) ->
+        vpol_to_linear_vpol (VSeq (p, VSeq (q,r)))
+      | VSeq (p,q) ->
+        VSeq(vpol_to_linear_vpol p, vpol_to_linear_vpol q)
       | _ -> p
 
     (* TODO: convert to normal form so that I can ignore assoc of seq *)
   let rec remove_matches' p = 
     match p with
-      | SSeq(STMod (h,v), STTest (h',v')) ->
+      | VSeq(VMod(Tag h,v), VTest (h',v')) ->
         if h = h' then
           if v = v' then
-            STMod (h,v)
+            VMod (Tag h,v)
           else
-            SDrop
+            VFilter False
         else p
-      | SSeq(STMod (h,v), SSeq(STTest (h',v'), p)) ->
+      | VSeq(VMod (Tag h,v), VSeq(VTest (h',v'), p)) ->
         if h = h' then
           if v = v' then
-            remove_matches' (SSeq(STMod (h,v), p))
+            remove_matches' (VSeq(VMod(Tag h,v), p))
           else
-            SDrop
-        else SSeq(STMod(h,v), remove_matches' (SSeq(STTest (h',v'), p)))
-      | SSeq(STMod(h,v), STMod(h',v')) ->
-        if h = h' then STMod(h,v)
+            VFilter False
+        else VSeq(VMod(Tag h,v), remove_matches' (VSeq(VTest (h',v'), p)))
+      | VSeq(VMod(h,v), VMod(h',v')) ->
+        if h = h' then VMod(h,v)
         else p
-      | SSeq(STMod(h,v), SSeq(STMod(h',v'),p)) ->
-        if h = h' then remove_matches' (SSeq(STMod(h,v), p))
+      | VSeq(VMod(h,v), VSeq(VMod(h',v'),p)) ->
+        if h = h' then remove_matches' (VSeq(VMod(h,v), p))
         else p
-      | SSeq(STTest(h,v), STTest(h',v')) ->
+      | VSeq(VTest(h,v), VTest(h',v')) ->
         if h = h' then
           if v = v' then
-            STTest (h, v)
+            VTest (h, v)
           else
-            SDrop
+            VFilter False
         else
           p
-      | SSeq(STTest(h,v), SSeq(STTest(h',v'), p)) ->
+      | VSeq(VTest(h,v), VSeq(VTest(h',v'), p)) ->
         if h = h' then
           if v = v' then
-            remove_matches' (SSeq(STTest (h, v),p))
+            remove_matches' (VSeq(VTest (h, v),p))
           else
-            SDrop
+            VFilter False
         else
-          SSeq(STTest(h,v), remove_matches' (SSeq(STTest(h',v'), p)))
-      | SSeq(p,q) -> let p' = remove_matches' p in
+          VSeq(VTest(h,v), remove_matches' (VSeq(VTest(h',v'), p)))
+      | VSeq(p,q) -> let p' = remove_matches' p in
                      let q' = remove_matches' q in
                      if p = p' & q = q' then
-                       SSeq(p,q)
+                       VSeq(p,q)
                      else
-                       remove_matches' (SSeq(p',q'))
-      | SPar(p,q) -> SPar(remove_matches' p, remove_matches' q)
-      | SStar(p) -> SStar(remove_matches' p)
+                       remove_matches' (VSeq(p',q'))
+      | VPar(p,q) -> VPar(remove_matches' p, remove_matches' q)
+      | VStar(p) -> VStar(remove_matches' p)
       | p -> p
 
-  let remove_matches p = remove_matches' (spol_to_linear_spol p)
+  let remove_matches p = remove_matches' (vpol_to_linear_vpol p)
           
 
 (* Test policy/topology *)
