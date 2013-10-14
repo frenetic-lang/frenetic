@@ -29,7 +29,7 @@ module NetworkCompiler : sig
 
   val dehopify : explicit_topo_pol -> restricted_pol
   val simplify_vpol : virtual_pol -> virtual_pol
-  val remove_matches : virtual_pol -> virtual_pol
+  val optimize : virtual_pol -> virtual_pol
 
   val string_of_vpolicy : virtual_pol -> string
   val string_of_epolicy : explicit_topo_pol -> string

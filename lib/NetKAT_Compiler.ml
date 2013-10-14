@@ -198,13 +198,13 @@ module NetworkCompiler = struct
         VSeq(VTest(h,h0), VSeq(VFilter pr, VMod(Tag h,h1))),
         VFilter False, 
         VTest(h,h1)
-      | Mod (h, v) -> 
+      | Mod (h', v) -> 
         let h = gen_header 2 in
         let h0 = VInt.Int16 0 in
         let h1 = VInt.Int16 1 in
         VMod(Tag h,h0), 
         seqList [VTest(h,h0);
-                 VMod(Tag h,v);
+                 VMod(Field h',v);
                  VMod(Tag h,h1)],
         VFilter False, 
         VTest(h,h1)
@@ -354,14 +354,17 @@ module NetworkCompiler = struct
                       end
       | VPar(VFilter False, p) -> simplify_vpol p
       | VPar(p, VFilter False) -> simplify_vpol p
-      | VPar(p,q) -> let p' = simplify_vpol p in
-                     let q' = simplify_vpol q in
-                     begin
-                       match p',q' with
-                         | VFilter False, q -> q
-                         | p, VFilter False -> p
-                         | p,q -> VPar(p,q)
-                     end
+      | VPar(p,q) -> 
+        if p = q then p
+        else
+          let p' = simplify_vpol p in
+          let q' = simplify_vpol q in
+          begin
+            match p',q' with
+              | VFilter False, q -> q
+              | p, VFilter False -> p
+              | p,q -> VPar(p,q)
+          end
       | VStar(VFilter False) -> VFilter True
       | VStar(VFilter True) -> VFilter True
       | VStar(p) -> 
@@ -383,9 +386,28 @@ module NetworkCompiler = struct
         vpol_to_linear_vpol (VSeq (p, VSeq (q,r)))
       | VSeq (p,q) ->
         VSeq(vpol_to_linear_vpol p, vpol_to_linear_vpol q)
+      | VStar p -> VStar (vpol_to_linear_vpol p)
       | _ -> p
 
-    (* TODO: convert to normal form so that I can ignore assoc of seq *)
+  let rec distribute_seq p =
+    match p with
+      | VSeq(VPar(p,q), r) -> distribute_seq (VPar(VSeq(p,r), VSeq(q,r)))
+      | VSeq(p, VPar(q,r)) -> distribute_seq (VPar(VSeq(p,q), VSeq(p,r)))
+      | VSeq(p,q) -> let p' = distribute_seq p in
+                     let q' = distribute_seq q in
+                     if p = p' & q = q' then
+                       VSeq(p',q')
+                     else
+                       distribute_seq(VSeq(p',q'))
+      | VPar(p,q) -> let p' = distribute_seq p in
+                     let q' = distribute_seq q in
+                     if p = p' & q = q' then
+                       VPar(p',q')
+                     else
+                       distribute_seq(VPar(p',q'))
+      | VStar(p) -> VStar(distribute_seq p)
+      | _ -> p
+
   let rec remove_matches' p = 
     match p with
       | VSeq(VMod(Tag h,v), VTest (h',v')) ->
@@ -434,7 +456,9 @@ module NetworkCompiler = struct
       | VStar(p) -> VStar(remove_matches' p)
       | p -> p
 
-  let remove_matches p = remove_matches' (vpol_to_linear_vpol p)
+  let rec optimize p = let p' = remove_matches' (vpol_to_linear_vpol (distribute_seq (simplify_vpol p))) in
+                   if p' = p then p'
+                   else optimize p'
           
 
 (* Test policy/topology *)
