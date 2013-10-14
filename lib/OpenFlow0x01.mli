@@ -47,7 +47,11 @@ end
 module PseudoPort : sig
 
   type t = pseudoPort
+
   val to_string : t -> string
+
+  val marshal : t -> int
+  val make : int -> int -> t
 
 end
 
