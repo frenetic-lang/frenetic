@@ -195,7 +195,9 @@ module NetworkCompiler = struct
         let h0 = VInt.Int16 0 in
         let h1 = VInt.Int16 1 in
         VMod(Tag h,h0), 
-        VSeq(VTest(h,h0), VSeq(VFilter pr, VMod(Tag h,h1))),
+        seqList [VTest(h,h0);
+                 VFilter pr;
+                 VMod(Tag h,h1)],
         VFilter False, 
         VTest(h,h1)
       | Mod (h', v) -> 
@@ -224,111 +226,114 @@ module NetworkCompiler = struct
                       VMod(Tag h,h2)]),
         VLink(sw1,p1,sw2,p2),
         VTest(h,h1)
-      | Par (p,q) -> let i_p,s_p,t_p,e_p = dehopify p in
-                     let i_q,s_q,t_q,e_q = dehopify q in
-                     let h = gen_header 2 in
-                     let h0 = VInt.Int16 0 in
-                     let h1 = VInt.Int16 1 in
-                     VPar(VSeq(VMod(Tag h,h0), i_p),
-                          VSeq(VMod(Tag h,h1), i_q)),
-                     VPar(VSeq(VTest(h,h0),s_p),
-                          VSeq(VTest(h,h1),s_q)),
-                     VPar(t_p,t_q),
-                     VPar(VSeq(VTest(h,h0), e_p),
-                          VSeq(VTest(h,h1), e_q))
-      | Seq (p,q) -> let i_p,s_p,t_p,e_p = dehopify p in
-                     let i_q,s_q,t_q,e_q = dehopify q in
-                     let h = gen_header 8 in
-                     let h0 = VInt.Int16 0 in
-                     let h1 = VInt.Int16 1 in
-                     let h1' = VInt.Int16 2 in
-                     let h2 = VInt.Int16 3 in
-                     let h2' = VInt.Int16 4 in
-                     let h3 = VInt.Int16 5 in
-                     let h3' = VInt.Int16 6 in
-                     let h3'' = VInt.Int16 7 in
-                     let h4 = VInt.Int16 8 in
-                     VSeq(VPar(VMod(Tag h,h0),
-                               VPar(VMod(Tag h,h1),
-                                    VPar(VMod(Tag h,h2),
-                                         VMod(Tag h,h3)))),
-                          i_p),
-                     parList [seqList [VTest(h,h0);
-                                       s_p;
-                                       e_p;
-                                       i_q;
-                                       s_q;
-                                       VMod(Tag h,h4)];
-                              seqList [VTest(h,h1);
-                                       s_p;
-                                       VPar(VMod(Tag h,h1),
-                                            VMod(Tag h,h1'))];
-                              seqList [VTest(h,h1');
-                                       s_p;
-                                       e_p;
-                                       i_q;
-                                       s_q;
-                                       VMod(Tag h,h4)];
-                              seqList [VTest(h,h2);
-                                       s_p;
-                                       e_p;
-                                       i_q;
-                                       s_q;
-                                       VMod(Tag h,h2')];
-                              VSeq (VTest(h,h2'), s_q);
-                              seqList [VTest(h,h3);
-                                       s_p;
-                                       VMod(Tag h,h3')];
-                              seqList [VTest(h,h3');
-                                       s_p;
-                                       VPar(VFilter True,
-                                            seqList [e_p;
-                                                     i_q;
-                                                     s_q;
-                                                     VMod(Tag h, h3'')])];
-                              VSeq(VTest(h,h3''), s_q)],
-                     VPar(t_p,t_q),
-                     e_q
-      | Star p -> let i_p,s_p,t_p,e_p = dehopify p in
-                  let h = gen_header 7 in
-                  let h0 = VInt.Int16 0 in
-                  let h1 = VInt.Int16 1 in
-                  let h2 = VInt.Int16 2 in
-                  let h2' = VInt.Int16 3 in
-                  let h2'' = VInt.Int16 4 in
-                  let h3 = VInt.Int16 5 in
-                  let h4 = VInt.Int16 6 in
-                  VPar(VPar(VMod(Tag h,h0),
-                            VMod(Tag h,h1)),
-                       VMod(Tag h,h2)),
-                  parList [ VSeq(VTest(h,h0),
-                                 VMod(Tag h,h3));
-                            seqList [VTest(h,h1);
-                                     i_p;
-                                     s_p;
-                                     VStar(seqList [e_p;i_p;s_p]);
-                                     VMod(Tag h,h4)];
-                            seqList [VTest(h,h2);
-                                     i_p;
-                                     s_p;
-                                     VStar(seqList [e_p;i_p;s_p]);
-                                     VPar(VMod(Tag h,h2'),
-                                          VMod(Tag h,h2''))];
-                            seqList [VTest(h,h2');
-                                     s_p;
-                                     VPar(VMod(Tag h,h2'),
-                                          VMod(Tag h,h2''))];
-                            seqList [VTest(h,h2'');
-                                     s_p;
-                                     VStar(seqList [e_p;i_p;s_p]);                                     
-                                     VPar(VMod(Tag h,h2'),
-                                          VMod(Tag h,h2''))]],
-                  t_p,
-                  VPar(VSeq(VPar(VTest(h,h2'),
-                                 VPar(VTest(h,h2''),
-                                      VTest(h,h4))),
-                            e_p),
-                       VTest(h,h3))
+      | Par (p,q) -> 
+        let i_p,s_p,t_p,e_p = dehopify p in
+        let i_q,s_q,t_q,e_q = dehopify q in
+        let h = gen_header 2 in
+        let h0 = VInt.Int16 0 in
+        let h1 = VInt.Int16 1 in
+        VPar(VSeq(VMod(Tag h,h0), i_p),
+             VSeq(VMod(Tag h,h1), i_q)),
+        VPar(VSeq(VTest(h,h0),s_p),
+             VSeq(VTest(h,h1),s_q)),
+        VPar(t_p,t_q),
+        VPar(VSeq(VTest(h,h0), e_p),
+             VSeq(VTest(h,h1), e_q))
+      | Seq (p,q) -> 
+        let i_p,s_p,t_p,e_p = dehopify p in
+        let i_q,s_q,t_q,e_q = dehopify q in
+        let h = gen_header 8 in
+        let h0 = VInt.Int16 0 in
+        let h1 = VInt.Int16 1 in
+        let h1' = VInt.Int16 2 in
+        let h2 = VInt.Int16 3 in
+        let h2' = VInt.Int16 4 in
+        let h3 = VInt.Int16 5 in
+        let h3' = VInt.Int16 6 in
+        let h3'' = VInt.Int16 7 in
+        let h4 = VInt.Int16 8 in
+        VSeq(parList [VMod(Tag h,h0);
+                      VMod(Tag h,h1);
+                      VMod(Tag h,h2);
+                      VMod(Tag h,h3)],
+             i_p),
+        parList [seqList [VTest(h,h0);
+                          s_p;
+                          e_p;
+                          i_q;
+                          s_q;
+                          VMod(Tag h,h4)];
+                 seqList [VTest(h,h1);
+                          s_p;
+                          VPar(VMod(Tag h,h1),
+                               VMod(Tag h,h1'))];
+                 seqList [VTest(h,h1');
+                          s_p;
+                          e_p;
+                          i_q;
+                          s_q;
+                          VMod(Tag h,h4)];
+                 seqList [VTest(h,h2);
+                          s_p;
+                          e_p;
+                          i_q;
+                          s_q;
+                          VMod(Tag h,h2')];
+                 VSeq (VTest(h,h2'), s_q);
+                 seqList [VTest(h,h3);
+                          s_p;
+                          VMod(Tag h,h3')];
+                 seqList [VTest(h,h3');
+                          s_p;
+                          VPar(VFilter True,
+                               seqList [e_p;
+                                        i_q;
+                                        s_q;
+                                        VMod(Tag h, h3'')])];
+                 VSeq(VTest(h,h3''), s_q)],
+        VPar(t_p,t_q),
+        e_q
+      | Star p -> 
+        let i_p,s_p,t_p,e_p = dehopify p in
+        let h = gen_header 7 in
+        let h0 = VInt.Int16 0 in
+        let h1 = VInt.Int16 1 in
+        let h2 = VInt.Int16 2 in
+        let h2' = VInt.Int16 3 in
+        let h2'' = VInt.Int16 4 in
+        let h3 = VInt.Int16 5 in
+        let h4 = VInt.Int16 6 in
+        parList [VMod(Tag h,h0);
+                 VMod(Tag h,h1);
+                 VMod(Tag h,h2)],
+        parList [ VSeq(VTest(h,h0),
+                       VMod(Tag h,h3));
+                  seqList [VTest(h,h1);
+                           i_p;
+                           s_p;
+                           VStar(seqList [e_p;i_p;s_p]);
+                           VMod(Tag h,h4)];
+                  seqList [VTest(h,h2);
+                           i_p;
+                           s_p;
+                           VStar(seqList [e_p;i_p;s_p]);
+                           VPar(VMod(Tag h,h2'),
+                                VMod(Tag h,h2''))];
+                  seqList [VTest(h,h2');
+                           s_p;
+                           VPar(VMod(Tag h,h2'),
+                                VMod(Tag h,h2''))];
+                  seqList [VTest(h,h2'');
+                           s_p;
+                           VStar(seqList [e_p;i_p;s_p]);                                     
+                           VPar(VMod(Tag h,h2'),
+                                VMod(Tag h,h2''))]],
+        t_p,
+        VPar(VSeq(VPar(VTest(h,h2'),
+                       VPar(VTest(h,h2''),
+                            VTest(h,h4))),
+                  e_p),
+             VTest(h,h3))
 
 (* Optimizations Observation: Virtual headers are semantically
    meaningless if they aren't matched in the NetKAT code itself. Thus,
@@ -354,6 +359,13 @@ module NetworkCompiler = struct
                       end
       | VPar(VFilter False, p) -> simplify_vpol p
       | VPar(p, VFilter False) -> simplify_vpol p
+      | VPar(p, VPar(q,r)) ->
+        if p = q then simplify_vpol (VPar(q,r))
+        else let p' = simplify_vpol p in
+             if p' = p then
+               VPar(p, simplify_vpol (VPar(q,r)))
+             else
+               simplify_vpol (VPar(p', VPar(q,r)))
       | VPar(p,q) -> 
         if p = q then p
         else
@@ -361,9 +373,9 @@ module NetworkCompiler = struct
           let q' = simplify_vpol q in
           begin
             match p',q' with
-              | VFilter False, q -> q
-              | p, VFilter False -> p
-              | p,q -> VPar(p,q)
+              | VFilter False, q' -> q'
+              | p', VFilter False -> p'
+              | p',q' -> VPar(p',q')
           end
       | VStar(VFilter False) -> VFilter True
       | VStar(VFilter True) -> VFilter True
@@ -376,89 +388,176 @@ module NetworkCompiler = struct
         end
       | _ -> p
 
+  (* Linearizes seqs *)
   let rec vpol_to_linear_vpol p = 
     match p with
+      (* (p | q) | r = p (q | r) *)
       | VPar (VPar (p,q), r) ->
         vpol_to_linear_vpol (VPar (p, VPar(q,r)))
       | VPar (p, q) ->
-        VPar(vpol_to_linear_vpol p, vpol_to_linear_vpol q)
+        let p' = vpol_to_linear_vpol p in
+        let q' = vpol_to_linear_vpol q in
+        if p' = p && q' = q then
+          VPar(p,q)
+        else vpol_to_linear_vpol (VPar(p',q'))
+      (* (p;q);r = p;(q;r) *)
       | VSeq (VSeq (p,q), r) ->
         vpol_to_linear_vpol (VSeq (p, VSeq (q,r)))
       | VSeq (p,q) ->
-        VSeq(vpol_to_linear_vpol p, vpol_to_linear_vpol q)
+        let p' = vpol_to_linear_vpol p in
+        let q' = vpol_to_linear_vpol q in
+        if p' = p && q' = q then
+          VSeq(p,q)
+        else vpol_to_linear_vpol (VSeq(p',q'))
       | VStar p -> VStar (vpol_to_linear_vpol p)
       | _ -> p
 
   let rec distribute_seq p =
     match p with
-      | VSeq(VPar(p,q), r) -> distribute_seq (VPar(VSeq(p,r), VSeq(q,r)))
-      | VSeq(p, VPar(q,r)) -> distribute_seq (VPar(VSeq(p,q), VSeq(p,r)))
+      (* (p|q);r = p;r | q;r *)
+      | VSeq(VPar(p,q), r) -> 
+        VPar(distribute_seq (VSeq(p,r)), distribute_seq(VSeq(q,r)))
+      (* p;(q|r) = p;q | p;r *)
+      | VSeq(p, VPar(q,r)) -> 
+        VPar(distribute_seq (VSeq(p,q)), distribute_seq(VSeq(p,r)))
       | VSeq(p,q) -> let p' = distribute_seq p in
                      let q' = distribute_seq q in
                      if p = p' & q = q' then
                        VSeq(p',q')
                      else
                        distribute_seq(VSeq(p',q'))
-      | VPar(p,q) -> let p' = distribute_seq p in
-                     let q' = distribute_seq q in
-                     if p = p' & q = q' then
-                       VPar(p',q')
-                     else
-                       distribute_seq(VPar(p',q'))
+      | VPar(p,q) -> VPar(distribute_seq p,distribute_seq q)
       | VStar(p) -> VStar(distribute_seq p)
       | _ -> p
 
-  let rec remove_matches' p = 
+  let reorder_seq p q =
+    match p,q with
+      | VMod(h,v), VMod(h',v') ->
+        if h' < h then q,p else p,q
+      | VMod(h,v), VTest(h',v') ->
+        if (Tag h') < h then q,p else p,q
+      | VTest(h,v), VMod(h',v') ->
+        if h' < (Tag h) then q,p else p,q
+      | VTest(h,v), VTest(h',v') ->
+        if h' < h then q,p else p,q
+      (* Because preds can't match on tags, they always commute with a tag mod *)
+      | VFilter a, VMod (Tag h, v) ->
+        q,p
+      (* Because preds can't match on tags, they always commute with a tag test *)
+      | VFilter a, VTest (h, v) ->
+        q,p
+      | _ -> p,q
+
+  (* Normalizes sequences by reordering mods/matches by the headers:
+     h <- v; h' <- v' = h' <- v'; h <- v if h <> h'
+     Assumes linearized seq
+  *)
+  let rec normalize_seq p =
     match p with
-      | VSeq(VMod(Tag h,v), VTest (h',v')) ->
-        if h = h' then
-          if v = v' then
-            VMod (Tag h,v)
-          else
-            VFilter False
-        else p
-      | VSeq(VMod (Tag h,v), VSeq(VTest (h',v'), p)) ->
-        if h = h' then
-          if v = v' then
-            remove_matches' (VSeq(VMod(Tag h,v), p))
-          else
-            VFilter False
-        else VSeq(VMod(Tag h,v), remove_matches' (VSeq(VTest (h',v'), p)))
-      | VSeq(VMod(h,v), VMod(h',v')) ->
-        if h = h' then VMod(h,v)
-        else p
-      | VSeq(VMod(h,v), VSeq(VMod(h',v'),p)) ->
-        if h = h' then remove_matches' (VSeq(VMod(h,v), p))
-        else p
-      | VSeq(VTest(h,v), VTest(h',v')) ->
-        if h = h' then
-          if v = v' then
-            VTest (h, v)
-          else
-            VFilter False
+      | VSeq(p, VSeq(q,r)) ->
+        let p', q' = reorder_seq p q in
+        if p' = p then
+          let s = VSeq(q, r) in
+          let s' = normalize_seq s in
+          if s = s' then VSeq(p, s)
+          else normalize_seq (VSeq(p, s'))
         else
-          p
-      | VSeq(VTest(h,v), VSeq(VTest(h',v'), p)) ->
+          normalize_seq (VSeq(p',VSeq(q',r)))
+      | VSeq(p,q) ->
+        let p',q' = reorder_seq p q in
+        VSeq(p',q')
+      | VPar(p,q) -> let p' = normalize_seq p in
+                     let q' = normalize_seq q in
+                     if q' < p' then
+                       normalize_seq (VPar(q',p'))
+                     else
+                       VPar(p',q')
+      | VStar(p) -> VStar(normalize_seq p)
+      | _ -> p
+
+  let reduce_seq p q =
+    match p,q with
+      | VMod(Tag h,v), VTest (h',v') ->
         if h = h' then
           if v = v' then
-            remove_matches' (VSeq(VTest (h, v),p))
+            p,VFilter True
           else
-            VFilter False
+            VFilter False,VFilter False
+        else p,q
+      | VTest (h,v), VMod(Tag h',v') ->
+        if h = h' && v = v' then p, VFilter True
+        else p,q
+      | VTest (h,v), VTest(h',v') ->
+        if h = h' then
+          if v = v' then
+            p, VFilter True
+          else
+            VFilter False, VFilter False
+        else p,q
+      | VMod(h,v), VMod(h',v') ->
+        if h = h' then
+          VFilter True, q
+        else p,q
+      | _ -> p,q
+    
+  (* Assumes linearized seqs *)        
+  let rec remove_matches p = 
+    match p with
+      | VSeq(p, VSeq(q, r)) ->
+        let p', q' = reduce_seq p q in
+        let p'' = remove_matches p' in
+        if p'' = p && q' = q then
+          VSeq(p, remove_matches (VSeq(q,r)))
         else
-          VSeq(VTest(h,v), remove_matches' (VSeq(VTest(h',v'), p)))
-      | VSeq(p,q) -> let p' = remove_matches' p in
-                     let q' = remove_matches' q in
-                     if p = p' & q = q' then
+          remove_matches (VSeq(p'', VSeq(q',r)))
+      | VSeq(p,q) -> let p', q' = reduce_seq p q in
+                     let p'' = remove_matches p' in
+                     let q'' = remove_matches q' in
+                     if p = p'' & q = q'' then
                        VSeq(p,q)
                      else
-                       remove_matches' (VSeq(p',q'))
-      | VPar(p,q) -> VPar(remove_matches' p, remove_matches' q)
-      | VStar(p) -> VStar(remove_matches' p)
+                       remove_matches (VSeq(p'',q''))
+      | VPar(p,q) -> VPar(remove_matches p, remove_matches q)
+      | VStar(p) -> VStar(remove_matches p)
       | p -> p
 
-  let rec optimize p = let p' = remove_matches' (vpol_to_linear_vpol (distribute_seq (simplify_vpol p))) in
-                   if p' = p then p'
-                   else optimize p'
+  module TagSet = Set.Make (struct
+    type t = vtag
+    let compare = Pervasives.compare
+  end)
+
+  (* Because we are using virtual headers, and no one else gets to use
+     them, we know that the headers have no values until we initialize
+     them. Thus, any match on a virtual header that is not preceded by a
+     mod on the same header is "dead code", and can be eliminated
+     (replaced by VFilter False) *)
+    
+  let elim_tags_helper p live_headers =
+    match p with
+      | VMod(Tag h,v) -> p, TagSet.add h live_headers
+      | VTest(h,v) -> 
+        if TagSet.mem h live_headers then p,live_headers
+        else VFilter False, live_headers
+      | _ -> p, live_headers
+
+  let rec elim_dead_tags p live_headers = 
+    match p with
+      | VSeq(p,q) ->
+        let p', live_headers' = elim_tags_helper p live_headers in
+        VSeq(elim_dead_tags p' live_headers, elim_dead_tags q live_headers')
+      | VPar(p,q) ->
+        let p', _  = elim_tags_helper p live_headers in        
+        let q', _ = elim_tags_helper q live_headers in
+        VPar(elim_dead_tags p' live_headers, elim_dead_tags q' live_headers)
+      | _ -> p
+        
+  let rec optimize' p = 
+    let renorm = vpol_to_linear_vpol in
+    let simpl = simplify_vpol in
+    let p' = elim_dead_tags (renorm (remove_matches (renorm (distribute_seq (simpl p))))) TagSet.empty in
+    if p' = p then p'
+    else optimize' p'
+  let optimize p = optimize' (normalize_seq (vpol_to_linear_vpol (distribute_seq (simplify_vpol p))))
           
 
 (* Test policy/topology *)
