@@ -96,6 +96,9 @@ module FlowMod : sig
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
+    val to_int : t -> int16
+    val of_int : int16 -> t
+
   end
 
   (** The type of flow rule timeouts.  See Section 5.3.3 of the OpenFlow 1.0
