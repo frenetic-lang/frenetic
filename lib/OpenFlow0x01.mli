@@ -121,6 +121,11 @@ module FlowMod : sig
   (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
 
+  val marshal : t -> Cstruct.t -> int
+  val parse : Cstruct.t -> t
+
+  val size_of : t -> int
+
 end
 
 
