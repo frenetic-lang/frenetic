@@ -188,7 +188,7 @@ module PseudoPort = struct
         ret_gen AllPorts;
         ret_gen InPort;
         ret_gen Flood;
-        arbitrary_int >>= (fun l -> ret_gen (Controller l))
+        arbitrary_uint >>= (fun l -> ret_gen (Controller l))
       ]
 
   let to_string = PseudoPort.to_string
