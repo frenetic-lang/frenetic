@@ -432,12 +432,20 @@ module NetworkCompiler = struct
 
   let reorder_seq p q =
     match p,q with
+      | VMod(Tag h,v), VMod(Tag h',v') ->
+        if h' < h then q,p else p,q
+      | VMod(h,v), VMod(Tag h',v') ->
+        q,p
+      | VMod(Tag h,v), VMod(h',v') ->
+        p,q
       | VMod(h,v), VMod(h',v') ->
         if h' < h then q,p else p,q
-      | VMod(h,v), VTest(h',v') ->
-        if (Tag h') < h then q,p else p,q
-      | VTest(h,v), VMod(h',v') ->
-        if h' < (Tag h) then q,p else p,q
+      | VMod(Tag h,v), VTest(h',v') ->
+        if h' < h then q,p else p,q
+      | VTest(h,v),VMod(Tag h',v') ->
+        if h' < h then q,p else p,q
+      | VMod(h',v'),VTest(h,v) ->
+        q,p
       | VTest(h,v), VTest(h',v') ->
         if h' < h then q,p else p,q
       (* Because preds can't match on tags, they always commute with a tag mod *)
@@ -532,7 +540,7 @@ module NetworkCompiler = struct
      mod on the same header is "dead code", and can be eliminated
      (replaced by VFilter False) *)
     
-  let elim_tags_helper p live_headers =
+  let elim_vtest_helper p live_headers =
     match p with
       | VMod(Tag h,v) -> p, TagSet.add h live_headers
       | VTest(h,v) -> 
@@ -540,24 +548,49 @@ module NetworkCompiler = struct
         else VFilter False, live_headers
       | _ -> p, live_headers
 
-  let rec elim_dead_tags p live_headers = 
+  let rec elim_vtest' p live_headers = 
     match p with
       | VSeq(p,q) ->
-        let p', live_headers' = elim_tags_helper p live_headers in
-        VSeq(elim_dead_tags p' live_headers, elim_dead_tags q live_headers')
+        let p', live_headers' = elim_vtest_helper p live_headers in
+        VSeq(elim_vtest' p' live_headers, elim_vtest' q live_headers')
       | VPar(p,q) ->
-        let p', _  = elim_tags_helper p live_headers in        
-        let q', _ = elim_tags_helper q live_headers in
-        VPar(elim_dead_tags p' live_headers, elim_dead_tags q' live_headers)
+        let p', _  = elim_vtest_helper p live_headers in        
+        let q', _ = elim_vtest_helper q live_headers in
+        VPar(elim_vtest' p' live_headers, elim_vtest' q' live_headers)
       | _ -> p
-        
+
+  let elim_vtest p = elim_vtest' p TagSet.empty
+
+  (* Similarly, if we know that a virtual header is never read, we can eliminate the mod *)
+  let elim_vmod_helper p live_headers =
+    match p with
+      | VTest(h,v) -> p, TagSet.add h live_headers
+      | VMod(Tag h,v) -> 
+        if TagSet.mem h live_headers then p,live_headers
+        else VFilter True, live_headers
+      | _ -> p, live_headers
+
+  let rec elim_vmod' p live_headers = 
+    match p with
+      | VSeq(p,q) ->
+        let q', live_headers' = elim_vmod' q live_headers in
+        let p', live_headers'' = elim_vmod_helper p live_headers' in
+        VSeq(p',q'), live_headers''
+      | VPar(p,q) ->
+        let p', live_headers' = elim_vmod' p live_headers in
+        let q', live_headers'' = elim_vmod' q live_headers in
+        VPar(p', q'), TagSet.union live_headers' live_headers''
+      | _ -> elim_vmod_helper p live_headers
+
+  let elim_vmod p = fst (elim_vmod' p TagSet.empty)
+
   let rec optimize' p = 
     let renorm = vpol_to_linear_vpol in
     let simpl = simplify_vpol in
-    let p' = elim_dead_tags (renorm (remove_matches (renorm (distribute_seq (simpl p))))) TagSet.empty in
+    let p' = elim_vmod (elim_vtest (renorm (remove_matches (normalize_seq (renorm (distribute_seq (simpl p))))))) in
     if p' = p then p'
     else optimize' p'
-  let optimize p = optimize' (normalize_seq (vpol_to_linear_vpol (distribute_seq (simplify_vpol p))))
+  let optimize p = optimize' p
           
 
 (* Test policy/topology *)
