@@ -191,6 +191,17 @@ module PseudoPort = struct
         arbitrary_uint >>= (fun l -> ret_gen (Controller l))
       ]
 
+  (* Use in cases where a `Controller` port is invalid input *)
+  let arbitrary_nc =
+    let open Gen in
+    let open OpenFlow0x01_Core in
+      oneof [
+        arbitrary_uint16 >>= (fun p -> ret_gen (PhysicalPort p));
+        ret_gen AllPorts;
+        ret_gen InPort;
+        ret_gen Flood;
+      ]
+
   let to_string = PseudoPort.to_string
 
   let parse (p, l) = 
@@ -225,10 +236,8 @@ module Action = struct
       Match.arbitrary_nwTos >>= (fun nwTos -> ret_gen (SetNwTos nwTos));
       Match.arbitrary_tpPort >>= (fun tpSrc -> ret_gen (SetTpSrc tpSrc));
       Match.arbitrary_tpPort >>= (fun tpDst -> ret_gen (SetTpDst tpDst));
-      (* TODO(seliopou): NYI, figure out its status.
-      PseudoPort.arbitrary >>= (fun p ->
+      PseudoPort.arbitrary_nc >>= (fun p ->
           arbitrary_uint32 >>= (fun g -> ret_gen (Enqueue (p, g))))
-      *)
     ]
 
   let to_string = Action.to_string
@@ -245,7 +254,6 @@ module FlowMod = struct
   module Command = struct
     type t = FlowMod.Command.t
     type s = Packet.int16
-
 
     let arbitrary =
       let open Gen in
