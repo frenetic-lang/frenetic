@@ -38,6 +38,7 @@ let arbitrary_option arb =
       (3, arb >>= fun e -> ret_gen (Some e)) ]
 
 module type OpenFlow0x01_Arbitrary = sig
+
     type t
     type s
 
