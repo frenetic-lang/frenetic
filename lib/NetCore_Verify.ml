@@ -131,13 +131,30 @@ module Sat = struct
       | ZDeclareAssert(f) -> 
         Printf.sprintf "(assert %s)" (serialize_formula f)
 
+	  
+  let define_z3_fun (name : string) (arglist : (string * string) list)  (rettype : string) (body : string) : string = 
+    let argtypes : string  = String.concat " " (List.map (fun (argname, argtype) -> argtype ) arglist ) in
+    let argnames : string = String.concat " " (List.map (fun (argname, argtype) -> argname ) arglist ) in
+    let argtuples : string = String.concat "" (List.map (fun (argname, argtype) -> Printf.sprintf "(%s %s) " argname argtype ) 
+						 arglist ) in
+    Printf.sprintf "(declare-fun %s (%s) %s) (assert (forall (%s) (= (%s %s) %s)))"
+      name 
+      argtypes
+      rettype 
+      argtuples
+      name 
+      argnames
+      body
+
   let pervasives : string = 
-    "(declare-datatypes () (Packet ((packet (Switch Int) (EthSrc Int) (EthDst Int) (InPort Int)))))" ^ "\n" ^ 
+    "(declare-datatypes () (Packet ((nopacket) (packet (Switch Int) (EthSrc Int) (EthDst Int) (InPort Int)))))" ^ "\n" ^ 
     "(define-sort Set () (Array Packet Bool))" ^ "\n" ^ 
-    "(define-fun set_empty () Set ((as const Set) false))" ^ "\n" ^ 
-    "(define-fun set_mem ((x Packet) (s Set)) Bool (select s x))" ^ "\n" ^ 
-    "(define-fun set_add ((s Set) (x Packet)) Set  (store s x true))" ^ "\n" ^ 
-    "(define-fun set_inter ((s1 Set) (s2 Set)) Set ((_ map and) s1 s2))" ^ "\n" ^ 
+      define_z3_fun "packet_and"  [("x", "Packet"); ("y", "Packet")] "Packet" "(and (not (= x nopacket)) (= x y))" ^ "\n" ^ 
+      define_z3_fun "packet_or"  [("x", "Packet"); ("y", "Packet")] "Packet" "(ite (= x nopacket) y x)" ^ "\n" ^ 
+      define_z3_fun "set_empty" [] "Set" "((as const Set) nopacket)" ^ "\n" ^ 
+      define_z3_fun "set_mem" [("x", "Packet"); ("s", "Set")] "Bool" "(not (= (select s x) nopacket))" ^ "\n" ^ 
+      define_z3_fun "set_add" [("s", "Set"); ("x", "Packet")] "Set"  "(store s x x)" ^ "\n" ^ 
+      define_z3_fun "set_inter" [("s1", "Set"); ("s2", "Set")] "Set" "((_ map packet_and) s1 s2)" ^ "\n" ^ 
     "(define-fun set_negate ((s1 Set)) Set ((_ map not) s1))" ^ "\n" ^ 
     "(define-fun set_union ((s1 Set) (s2 Set)) Set ((_ map or) s1 s2))" ^ "\n" ^ 
     "(define-fun set_diff ((s1 Set) (s2 Set)) Set (set_inter s1 (set_negate s2)))" ^ "\n" ^ 
