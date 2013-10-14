@@ -341,6 +341,7 @@ module NetworkCompiler = struct
    any headers that are not matched on.
 *)
 
+  (* reduces policies by using identities (drop;p = drop, etc) *)
   let rec simplify_vpol p =
     match p with
       | VSeq(VFilter False, _) -> VFilter False
@@ -412,6 +413,7 @@ module NetworkCompiler = struct
       | VStar p -> VStar (vpol_to_linear_vpol p)
       | _ -> p
 
+  (* distributes seq over par *)
   let rec distribute_seq p =
     match p with
       (* (p|q);r = p;r | q;r *)
