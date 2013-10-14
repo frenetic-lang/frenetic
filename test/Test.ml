@@ -25,8 +25,9 @@ module RoundTripping = struct
           Gen.Wildcards.to_string Gen.Wildcards.parse Gen.Wildcards.marshal)
 
   TEST "OpenFlow0x01 Match RoundTrip" =
-      (openflow_quickCheck Gen.Match.arbitrary
-          Gen.Match.to_string Gen.Match.parse Gen.Match.marshal)
+      let module GenMatch = Gen.OpenFlow0x01_Unsize(Gen.Match) in
+      (openflow_quickCheck GenMatch.arbitrary
+          GenMatch.to_string GenMatch.parse GenMatch.marshal)
 
   TEST "OpenFlow0x01 PseudoPort RoundTrip" =
       (openflow_quickCheck Gen.PseudoPort.arbitrary

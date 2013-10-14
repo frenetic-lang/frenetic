@@ -53,5 +53,5 @@ module OpenFlow0x01_Unsize : functor (ArbS : OpenFlow0x01_ArbitraryCstruct) ->
                            and type s = Cstruct.t)
 
 module Wildcards : OpenFlow0x01_Arbitrary
-module Match : OpenFlow0x01_Arbitrary
+module Match : OpenFlow0x01_ArbitraryCstruct
 module PseudoPort : OpenFlow0x01_Arbitrary

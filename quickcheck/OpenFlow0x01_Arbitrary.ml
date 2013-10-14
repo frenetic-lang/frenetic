@@ -159,10 +159,10 @@ module Match = struct
   let to_string = Match.to_string
 
   let parse = Match.parse
+  let marshal = Match.marshal
 
-  let marshal m =
-    let bytes = Cstruct.of_bigarray Bigarray.(Array1.create char c_layout 50)
-      in ignore (Match.marshal m bytes); bytes
+  let size_of = Match.size_of
+
 end
 
 module PseudoPort = struct

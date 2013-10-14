@@ -42,6 +42,8 @@ module Match : sig
   val marshal : t -> Cstruct.t -> int
   val parse : Cstruct.t -> t
 
+  val size_of : t -> int
+
 end
 
 module PseudoPort : sig
