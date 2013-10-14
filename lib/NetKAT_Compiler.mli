@@ -9,41 +9,29 @@ module NetworkCompiler : sig
     | Seq of explicit_topo_pol * explicit_topo_pol
     | Star of explicit_topo_pol
 
-  type vheader = int * int
+  type vtag = int*int
 
-  type ingress_pol =
-    | ITest of vheader * header_val
-    | IMod of vheader * header_val
-    | IPar of ingress_pol * ingress_pol
-    | ISeq of ingress_pol * ingress_pol
-    | IPass
+  type vheader = 
+    | Field of SDN_Types.field
+    | Tag of vtag
 
-  type switch_pol =
-    | SFilter of pred
-    | STTest of vheader * header_val
-    | SMod of SDN_Types.field * header_val
-    | STMod of vheader * header_val
-    | SPar of switch_pol * switch_pol
-    | SSeq of switch_pol * switch_pol
-    | SStar of switch_pol
-    | SPass
-    | SDrop
-
-  type topo_pol = 
-      (* (sw,pt) -> (sw',pt') *)
-    | TLink of header_val * header_val * header_val * header_val
-    | TPar of topo_pol * topo_pol
-    | TDrop
-
-  type restricted_pol = ingress_pol * switch_pol * topo_pol * ingress_pol
+  type virtual_pol =
+    | VFilter of pred
+    | VTest of vtag*header_val
+    | VMod of vheader * header_val
+    (* switch, port -> switch, port *)
+    | VLink of header_val*header_val*header_val*header_val
+    | VPar of virtual_pol * virtual_pol
+    | VSeq of virtual_pol * virtual_pol
+    | VStar of virtual_pol
+      
+  type restricted_pol = virtual_pol * virtual_pol * virtual_pol * virtual_pol
 
   val dehopify : explicit_topo_pol -> restricted_pol
-  val simplify_spol : switch_pol -> switch_pol
-  val remove_matches : switch_pol -> switch_pol
+  val simplify_vpol : virtual_pol -> virtual_pol
+  val remove_matches : virtual_pol -> virtual_pol
 
-  val string_of_spolicy : switch_pol -> string
-  val string_of_ipolicy : ingress_pol -> string
-  val string_of_tpolicy : topo_pol -> string
+  val string_of_vpolicy : virtual_pol -> string
   val string_of_epolicy : explicit_topo_pol -> string
 end
 
