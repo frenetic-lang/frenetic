@@ -58,4 +58,5 @@ module PseudoPort : OpenFlow0x01_Arbitrary
 module Action : OpenFlow0x01_ArbitraryCstruct
 module FlowMod : sig
   module Command : OpenFlow0x01_Arbitrary
+  module Timeout : OpenFlow0x01_Arbitrary
 end

@@ -263,4 +263,22 @@ module FlowMod = struct
     let marshal = FlowMod.Command.to_int
     let parse = FlowMod.Command.of_int
   end
+
+  module Timeout = struct
+    type t = FlowMod.Timeout.t
+    type s = Packet.int16
+
+    let arbitrary =
+      let open Gen in
+      let open OpenFlow0x01_Core in
+      oneof [
+        ret_gen Permanent;
+        arbitrary_uint16 >>= (fun n -> ret_gen (ExpiresAfter n))
+      ]
+
+    let to_string = FlowMod.Timeout.to_string
+
+    let marshal = FlowMod.Timeout.to_int
+    let parse = FlowMod.Timeout.of_int
+  end
 end
