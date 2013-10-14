@@ -727,7 +727,10 @@ module FlowMod = struct
       out_port = 
 	(let open PseudoPort in 
 	 if ofp_port_to_int OFPP_NONE = out_port then None
-	 else Some (PhysicalPort out_port));
+     (* XXX(seliopou) does not expect a Controller port, so passing the dummy 0
+      * respects the spec.
+      *)
+     else Some (make out_port 0));
       check_overlap = check_overlap_of_flags flags }
 
   let marshal m bits =
