@@ -1,8 +1,15 @@
 open NetKAT_Types
 open VInt
 open NetCore_Verify
-open NetCore_Verify_Util
+(*open NetCore_Verify_Util*)
 
+TEST "setup-works" = 
+    Sat.solve (Sat.ZProgram ([])) []
+
+TEST "declare-var-works" = 
+    Sat.solve (let _ = Sat.fresh Sat.SPacket in Sat.ZProgram ([])) []
+
+(*
 TEST "simple-check" = 
   verify "are tests even running" 
 	(make_packet_2 1 1)
@@ -204,3 +211,4 @@ TEST "exactly-two-hops" =
 	TEST "trivial-check-equivalent" = 
   (check_equivalent (make_simple_topology (make_transition (1, 1) (2,1) )) 
 	 (make_simple_topology (make_transition (1, 1) (2,1) ))  "trivial-check-equivalent")
+*)

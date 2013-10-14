@@ -57,6 +57,8 @@ module Sat = struct
     fresh_cell := ZDeclareVar(x,s)::l;
     x
 
+
+
   let reset () = 
     fresh_cell := []
 
@@ -124,14 +126,34 @@ module Sat = struct
   let serialize_declare d = 
     match d with 
       | ZDeclareVar (x, s) ->
-        let decl = match s with 
-          | SFunction _ -> "fun"
-          | _ -> "var" in 
-        Printf.sprintf "(declare-%s %s %s)" decl x (serialize_sort s)
+        (match s with 
+          | SFunction _ -> Printf.sprintf "(declare-fun %s %s)" x (serialize_sort s)
+	  | SPacket -> ";; declaring packet "^x^"\n" ^
+	    "(declare-var "^x^" "^(serialize_sort s)^")" ^
+	    "(declare-var "^x^"-int1 Int)" ^ 
+	    "(declare-var "^x^"-int2 Int)" ^
+	    "(declare-var "^x^"-int3 Int)" ^
+	    "(declare-var "^x^"-int4 Int)" ^
+	    "(declare-var "^x^"-int5 Int)" ^
+	    "(declare-var "^x^"-int6 Int)" ^
+	    "(declare-var "^x^"-int7 Int)" ^
+	    "(declare-var "^x^"-int8 Int)" ^
+	    "(declare-var "^x^"-int9 Int)" ^
+	    "(declare-var "^x^"-int10 Int)" ^
+	    "(declare-var "^x^"-int11 Int)" ^
+	    "(declare-var "^x^"-int12 Int)" ^
+	    "(assert (= "^x^"" ^
+		"(packet "^x^"-int11 "^x^"-int10 "^x^"-int9" ^
+		  " "^x^"-int8 "^x^"-int7 "^x^"-int6" ^
+		  " "^x^"-int5 "^x^"-int12 "^x^"-int4" ^
+		  " "^x^"-int3 "^x^"-int2 "^x^"-int1)))\n" ^
+	    ";; end declaration"
+          | _ -> Printf.sprintf "(declare-var %s %s)" x (serialize_sort s)
+	)
       | ZDeclareAssert(f) -> 
         Printf.sprintf "(assert %s)" (serialize_formula f)
 
-	  
+
   let define_z3_fun (name : string) (arglist : (string * string) list)  (rettype : string) (body : string) : string = 
     let argtypes : string  = String.concat " " (List.map (fun (argname, argtype) -> argtype ) arglist ) in
     let argnames : string = String.concat " " (List.map (fun (argname, argtype) -> argname ) arglist ) in
@@ -146,28 +168,48 @@ module Sat = struct
       argnames
       body
 
+
   let pervasives : string = 
-    "(declare-datatypes () (Packet ((nopacket) (packet (Switch Int) (EthSrc Int) (EthDst Int) (InPort Int)))))" ^ "\n" ^ 
-    "(define-sort Set () (Array Packet Bool))" ^ "\n" ^ 
-      define_z3_fun "packet_and"  [("x", "Packet"); ("y", "Packet")] "Packet" "(and (not (= x nopacket)) (= x y))" ^ "\n" ^ 
+    "(declare-datatypes 
+ () 
+ ((Packet 
+   (nopacket )
+   (packet 
+    (Switch Int) 
+    (EthDst Int) 
+    (EthType Int) 
+    (Vlan Int) 
+    (VlanPcp Int) 
+    (IPProto Int) 
+    (IP4Src Int) 
+    (IP4Dst Int) 
+    (TCPSrcPort Int) 
+    (TCPDstPort Int) 
+    (EthSrc Int) 
+    (InPort Int)))))" ^ "\n" ^ 
+    "(define-sort Set () (Array Packet Packet))" ^ "\n (check-sat) \n"^ 
+      define_z3_fun "packet_and"  [("x", "Packet"); ("y", "Packet")] "Packet" 
+      "(ite (and (not (= x nopacket)) (= x y)) x nopacket)" ^ "\n" ^ 
       define_z3_fun "packet_or"  [("x", "Packet"); ("y", "Packet")] "Packet" "(ite (= x nopacket) y x)" ^ "\n" ^ 
-      define_z3_fun "set_empty" [] "Set" "((as const Set) nopacket)" ^ "\n" ^ 
+      define_z3_fun "packet_diff"  [("x", "Packet"); ("y", "Packet")] "Packet" "(ite (= x y) nopacket x)" ^ "\n" ^ 
+      "(define-fun set_empty () Set ((as const Set) nopacket))" ^ "\n" ^
       define_z3_fun "set_mem" [("x", "Packet"); ("s", "Set")] "Bool" "(not (= (select s x) nopacket))" ^ "\n" ^ 
       define_z3_fun "set_add" [("s", "Set"); ("x", "Packet")] "Set"  "(store s x x)" ^ "\n" ^ 
       define_z3_fun "set_inter" [("s1", "Set"); ("s2", "Set")] "Set" "((_ map packet_and) s1 s2)" ^ "\n" ^ 
-    "(define-fun set_negate ((s1 Set)) Set ((_ map not) s1))" ^ "\n" ^ 
-    "(define-fun set_union ((s1 Set) (s2 Set)) Set ((_ map or) s1 s2))" ^ "\n" ^ 
-    "(define-fun set_diff ((s1 Set) (s2 Set)) Set (set_inter s1 (set_negate s2)))" ^ "\n" ^ 
-    "(define-fun set_subseteq ((s1 Set) (s2 Set)) Bool (= set_empty (set_diff s1 s2)))" ^ "\n" 
+      (*define_z3_fun "set_negate" [("s1", "Set")] "Set" "(_ map not) s1))" ^ "\n" ^ *)
+      define_z3_fun "set_union" [("s1", "Set"); ("s2", "Set")] "Set" "((_ map packet_or) s1 s2)" ^ "\n" ^ 
+      define_z3_fun "set_diff" [("s1", "Set"); ("s2", "Set")] "Set" "((_ map packet_diff) s1 s2)" ^ "\n" ^ 
+      define_z3_fun "set_subseteq" [("s1", "Set"); ("s2", "Set")] "Bool" "(= set_empty (set_diff s1 s2))" ^ "\n" 
       
-  let serialize_program p g = 
+  let serialize_program p g : string = 
     let ZProgram(ds) = p in 
     let ds' = List.flatten [!fresh_cell; ds; g] in 
-    Printf.sprintf "%s%s\n(check-sat)"
+    Printf.sprintf "%s%s\n(check-sat)\n"
       pervasives (intercalate serialize_declare "\n" ds') 
 
   let solve prog global : bool = 
     let s = serialize_program prog global in 
+    (*Printf.eprintf "%s" s;*)
     let z3_out,z3_in = open_process "z3 -in -smt2 -nw" in 
     let _ = output_string z3_in s in
     let _ = flush z3_in in 
@@ -179,7 +221,7 @@ module Sat = struct
          Buffer.add_char b '\n';
        done
      with End_of_file -> ());
-    Buffer.contents b = "sat\n"
+    Buffer.contents b = "sat\nsat\n"
 end
 
 module Verify_Graph = struct
@@ -268,14 +310,14 @@ module Verify = struct
       [ Header InPort 
       ; Header EthSrc
       ; Header EthDst
-      (* ; Header EthType *)
-      (* ; Header Vlan *)
-      (* ; Header VlanPcp *)
-      (* ; Header IPProto *)
-      (* ; Header IP4Src *)
-      (* ; Header IP4Dst *)
-      (* ; Header TCPSrcPort *)
-      (* ; Header TCPDstPort *)
+      ; Header EthType
+      ; Header Vlan
+      ; Header VlanPcp
+      ; Header IPProto
+      ; Header IP4Src
+      ; Header IP4Dst
+      ; Header TCPSrcPort
+      ; Header TCPDstPort
       ; Switch 
 ]
 
@@ -287,26 +329,24 @@ module Verify = struct
         TApp (TVar "EthSrc", TVar pkt)
       | Header EthDst -> 
         TApp (TVar "EthDst", TVar pkt)
-      (* | Header EthType ->   *)
-      (*   TApp ("EthType", TVar pkt) *)
-      (* | Header Vlan ->   *)
-      (*   TApp ("Vlan", TVar pkt) *)
-      (* | Header VlanPcp -> *)
-      (*   TApp ("VlanPcp", TVar pkt) *)
-      (* | Header IPProto ->   *)
-      (*   TApp ("IPProto", TVar pkt) *)
-      (* | Header IP4Src ->   *)
-      (*   TApp ("IP4Src", TVar pkt) *)
-      (* | Header IP4Dst ->   *)
-      (*   TApp ("IP4Dst", TVar pkt) *)
-      (* | Header TCPSrcPort ->   *)
-      (*   TApp ("TCPSrcPort", TVar pkt) *)
-      (* | Header TCPDstPort ->   *)
-      (*   TApp ("TCPDstPort", TVar pkt) *)
+      | Header EthType ->  
+        TApp (TVar "EthType", TVar pkt)
+      | Header Vlan ->  
+        TApp (TVar "Vlan", TVar pkt)
+      | Header VlanPcp ->
+        TApp (TVar "VlanPcp", TVar pkt)
+      | Header IPProto ->  
+        TApp (TVar "IPProto", TVar pkt)
+      | Header IP4Src ->  
+        TApp (TVar "IP4Src", TVar pkt)
+      | Header IP4Dst ->  
+        TApp (TVar "IP4Dst", TVar pkt)
+      | Header TCPSrcPort ->  
+        TApp (TVar "TCPSrcPort", TVar pkt)
+      | Header TCPDstPort ->  
+        TApp (TVar "TCPDstPort", TVar pkt)
       | Switch -> 
         TApp (TVar "Switch", TVar pkt)
-      | _ -> 
-        failwith "Not yet implemented"
 
   let encode_packet_equals (pkt1: zVar) (pkt2: zVar) (excepts:header list) : zFormula =
     let l = 
@@ -464,5 +504,5 @@ end
 (*    outp: fully-transformed packet  *)
 (*    oko: bool option.  has to be Some.  True if you think it should be satisfiable. *)
 (* *\) *)
-let check = assert false
+let check a b c d e = assert true
 
