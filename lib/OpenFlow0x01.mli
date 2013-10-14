@@ -76,6 +76,11 @@ module Action : sig
   (** [sequence_to_string v] pretty-prints an action sequence. *)
   val sequence_to_string : sequence -> string
 
+  val marshal : t -> Cstruct.t -> int
+  val parse : Cstruct.t -> t
+
+  val size_of : t -> int
+
 end
 
 (** A flow modification data structure.  See Section 5.3.3 of the OpenFlow 1.0
