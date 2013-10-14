@@ -19,3 +19,4 @@ end
 
 module Wildcards : OpenFlow0x01_Arbitrary
 module Match : OpenFlow0x01_Arbitrary
+module PseudoPort : OpenFlow0x01_Arbitrary

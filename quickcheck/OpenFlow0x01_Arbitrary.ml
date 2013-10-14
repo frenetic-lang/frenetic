@@ -133,3 +133,40 @@ module Match = struct
     let bytes = Cstruct.of_bigarray Bigarray.(Array1.create char c_layout 50)
       in ignore (Match.marshal m bytes); bytes
 end
+
+module PseudoPort = struct
+  (* 
+   * Keep track of the `Controller` constructor parameter in the serialization
+   * type, if it exists. The `marshal` function is a lossy transformation and
+   * drops this piece of data. Manually preserve it to make roundtrip tests
+   * work.
+   *)
+  type s = int * (int option)
+  type t = PseudoPort.t
+
+  let arbitrary =
+    let open Gen in
+    let open OpenFlow0x01_Core in
+      oneof [
+        arbitrary_uint16 >>= (fun p -> ret_gen (PhysicalPort p));
+        ret_gen AllPorts;
+        ret_gen InPort;
+        ret_gen Flood;
+        arbitrary_int >>= (fun l -> ret_gen (Controller l))
+      ]
+
+  let to_string = PseudoPort.to_string
+
+  let parse (p, l) = 
+    let l' = match l with
+             | None   -> 0
+             | Some i -> i
+      in PseudoPort.make p l'
+
+  let marshal p = 
+    let open OpenFlow0x01_Core in
+    let l = match p with
+            | Controller i -> Some i
+            | _            -> None 
+      in (PseudoPort.marshal p, l)
+end
