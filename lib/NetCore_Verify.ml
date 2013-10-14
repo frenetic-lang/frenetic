@@ -14,26 +14,31 @@ module Sat = struct
     | SPacket
     | SInt
     | SSet 
-    | SFunction of zSort * zSort
+    | SFunction of (zSort list) * zSort
+    | SMacro of ((zVar * zSort) list) * zSort
 
   type zTerm = 
     | TUnit 
     | TVar of zVar
     | TInt of Int64.t
     | TPkt of switchId * portId * packet
-    | TApp of zTerm * zTerm
+    | TApp of zTerm * (zTerm list)
 
   type zFormula =
+    | ZTerm of zTerm
     | ZTrue
     | ZFalse 
     | ZNot of zFormula
     | ZAnd of zFormula list
     | ZOr of zFormula list
-    | ZEquals of zTerm * zTerm
+    | ZEquals of zFormula * zFormula
     | ZComment of string * zFormula
+    | ZForall of ((zVar * zSort) list) * zFormula
+    | ZIf of zFormula * zFormula * zFormula
 
   type zDeclare = 
     | ZDeclareVar of zVar * zSort
+    | ZDefineVar of zVar * zSort * zFormula
     | ZDeclareAssert of zFormula
 
   type zProgram = 
@@ -53,7 +58,8 @@ module Sat = struct
       | SSet -> 
         Printf.sprintf "_s%d" n 
       | SFunction _ -> 
-        Printf.sprintf "_f%d" n in 
+        Printf.sprintf "_f%d" n 
+      | _ -> failwith "not implemented in fresh" in 
     fresh_cell := ZDeclareVar(x,s)::l;
     x
 
@@ -70,6 +76,7 @@ module Sat = struct
       (Int64.to_string pkt.dlSrc)
       (Int64.to_string pkt.dlDst)
 
+
   let rec serialize_sort = function
     | SInt -> 
       "Int"
@@ -77,10 +84,21 @@ module Sat = struct
       "Packet"
     | SSet -> 
       Printf.sprintf "Set"
-    | SFunction(sort1,sort2) -> 
+    | SFunction(sortlist,sort2) -> 
       Printf.sprintf "(%s) %s" 
-        (serialize_sort sort1) 
+        (intercalate serialize_sort " " sortlist)
         (serialize_sort sort2)
+    | SMacro(args,ret) -> 
+      let serialize_arglist args = 
+	(intercalate (fun (a, t) -> Printf.sprintf "(%s %s)" a (serialize_sort t)) " " args) in
+      Printf.sprintf "(%s) %s"
+	(serialize_arglist args)
+	(serialize_sort ret)
+
+  let serialize_arglist args = 
+    (intercalate (fun (a, t) -> Printf.sprintf "(%s %s)" a (serialize_sort t)) " " args)
+
+	 
 
   let rec serialize_term term : string = 
     match term with 
@@ -93,8 +111,8 @@ module Sat = struct
       | TInt n -> 
 	Printf.sprintf "%s" 
           (Int64.to_string n)
-      | TApp (term1, term2) -> 
-	Printf.sprintf "(%s %s)" (serialize_term term1) (serialize_term term2)
+      | TApp (term1, terms) -> 
+	Printf.sprintf "(%s %s)" (serialize_term term1) (intercalate serialize_term " " terms)
 
   let serialize_comment c = 
     Printf.sprintf "%s" c
@@ -107,7 +125,7 @@ module Sat = struct
     | ZNot f1 -> 
       Printf.sprintf "(not %s)" (serialize_formula f1)
     | ZEquals (t1, t2) -> 
-      Printf.sprintf "(equals %s %s)" (serialize_term t1) (serialize_term t2)
+      Printf.sprintf "(equals %s %s)" (serialize_formula t1) (serialize_formula t2)
     | ZAnd([]) -> 
       Printf.sprintf "true"
     | ZAnd([f]) -> 
@@ -122,12 +140,20 @@ module Sat = struct
       Printf.sprintf "(or %s %s)" (serialize_formula f) (serialize_formula (ZOr(fs)))
     | ZComment(c, f) -> 
       Printf.sprintf "\n;%s\n%s\n; END %s\n" c (serialize_formula f) c
+    | ZForall (args, form) ->
+      Printf.sprintf "(forall (%s) %s)" (serialize_arglist args) (serialize_formula form)
+    | ZTerm t -> serialize_term t
+    | ZIf (i, t, e) -> Printf.sprintf "(ite %s %s %s)" 
+      (serialize_formula i) (serialize_formula t) (serialize_formula e)
 
   let serialize_declare d = 
     match d with 
+      | ZDefineVar (x, s, b) -> 
+	Printf.sprintf "(define-fun %s %s %s)" x (serialize_sort s) (serialize_formula b)
       | ZDeclareVar (x, s) ->
         (match s with 
           | SFunction _ -> Printf.sprintf "(declare-fun %s %s)" x (serialize_sort s)
+	  | SMacro _ -> failwith "macros should be in ZDefineVar"
 	  | SPacket -> ";; declaring packet "^x^"\n" ^
 	    "(declare-var "^x^" "^(serialize_sort s)^")" ^
 	    "(declare-var "^x^"-int1 Int)" ^ 
@@ -154,19 +180,21 @@ module Sat = struct
         Printf.sprintf "(assert %s)" (serialize_formula f)
 
 
-  let define_z3_fun (name : string) (arglist : (string * string) list)  (rettype : string) (body : string) : string = 
-    let argtypes : string  = String.concat " " (List.map (fun (argname, argtype) -> argtype ) arglist ) in
-    let argnames : string = String.concat " " (List.map (fun (argname, argtype) -> argname ) arglist ) in
-    let argtuples : string = String.concat "" (List.map (fun (argname, argtype) -> Printf.sprintf "(%s %s) " argname argtype ) 
-						 arglist ) in
-    Printf.sprintf "(declare-fun %s (%s) %s) (assert (forall (%s) (= (%s %s) %s)))"
-      name 
-      argtypes
-      rettype 
-      argtuples
-      name 
-      argnames
-      body
+  let define_z3_fun (name : string) (arglist : (zVar * zSort) list)  (rettype : zSort) (body : zFormula)  = 
+    let args = List.map (fun (a, t) -> TVar a) arglist in
+    let argtypes = List.map (fun (a, t) -> t) arglist in
+    [ZDeclareVar (name, SFunction (argtypes, rettype)); ZDeclareAssert (ZForall (arglist, ZEquals (ZTerm (TApp ((TVar name), args)), body))) ]
+
+  let foo = 4
+
+  let define_z3_macro (name : string) (arglist : (zVar * zSort) list)  (rettype : zSort) (body : zFormula)  = 
+    [ZDefineVar (name, SMacro (arglist, rettype), body)]
+
+
+  let z3_fun (name : string) (arglist : (zVar * zSort) list)  (rettype : zSort) (body : zFormula) : zTerm = 
+    let l = !fresh_cell in
+    fresh_cell := (define_z3_fun name arglist rettype body) @ l;
+    TVar name
 
 
   let pervasives : string = 
@@ -188,18 +216,42 @@ module Sat = struct
     (EthSrc Int) 
     (InPort Int)))))" ^ "\n" ^ 
     "(define-sort Set () (Array Packet Packet))" ^ "\n (check-sat) \n"^ 
-      define_z3_fun "packet_and"  [("x", "Packet"); ("y", "Packet")] "Packet" 
-      "(ite (and (not (= x nopacket)) (= x y)) x nopacket)" ^ "\n" ^ 
-      define_z3_fun "packet_or"  [("x", "Packet"); ("y", "Packet")] "Packet" "(ite (= x nopacket) y x)" ^ "\n" ^ 
+      (intercalate serialize_declare "\n" (define_z3_fun "packet_and"  [("x", SPacket); ("y", SPacket)] SPacket
+      (ZIf (ZAnd [ZNot (ZEquals (ZTerm (TVar "x"), ZTerm (TVar "nopacket"))); ZEquals (ZTerm (TVar "x"), ZTerm (TVar "y"))], (ZTerm (TVar "x")), (ZTerm (TVar "nopacket"))) )))^ "\n" (*^ 
+      (intercalate serialize_declare (define_z3_fun "packet_or"  [("x", "Packet"); ("y", "Packet")] "Packet" "(ite (= x nopacket) y x)" ))^ "\n" ^ 
       define_z3_fun "packet_diff"  [("x", "Packet"); ("y", "Packet")] "Packet" "(ite (= x y) nopacket x)" ^ "\n" ^ 
       "(define-fun set_empty () Set ((as const Set) nopacket))" ^ "\n" ^
-      define_z3_fun "set_mem" [("x", "Packet"); ("s", "Set")] "Bool" "(not (= (select s x) nopacket))" ^ "\n" ^ 
-      define_z3_fun "set_add" [("s", "Set"); ("x", "Packet")] "Set"  "(store s x x)" ^ "\n" ^ 
-      define_z3_fun "set_inter" [("s1", "Set"); ("s2", "Set")] "Set" "((_ map packet_and) s1 s2)" ^ "\n" ^ 
+      define_z3_macro "set_mem" [("x", "Packet"); ("s", "Set")] "Bool" "(not (= (select s x) nopacket))" ^ "\n" ^ 
+      define_z3_macro "set_add" [("s", "Set"); ("x", "Packet")] "Set"  "(store s x x)" ^ "\n" ^ 
+      define_z3_macro "set_inter" [("s1", "Set"); ("s2", "Set")] "Set" "((_ map packet_and) s1 s2)" ^ "\n" ^ 
       (*define_z3_fun "set_negate" [("s1", "Set")] "Set" "(_ map not) s1))" ^ "\n" ^ *)
-      define_z3_fun "set_union" [("s1", "Set"); ("s2", "Set")] "Set" "((_ map packet_or) s1 s2)" ^ "\n" ^ 
-      define_z3_fun "set_diff" [("s1", "Set"); ("s2", "Set")] "Set" "((_ map packet_diff) s1 s2)" ^ "\n" ^ 
-      define_z3_fun "set_subseteq" [("s1", "Set"); ("s2", "Set")] "Bool" "(= set_empty (set_diff s1 s2))" ^ "\n" 
+      define_z3_macro "set_union" [("s1", "Set"); ("s2", "Set")] "Set" "((_ map packet_or) s1 s2)" ^ "\n" ^ 
+      define_z3_macro "set_diff" [("s1", "Set"); ("s2", "Set")] "Set" "((_ map packet_diff) s1 s2)" ^ "\n" ^ 
+      define_z3_macro "set_subseteq" [("s1", "Set"); ("s2", "Set")] "Bool" "(= (set_empty) (set_diff s1 s2))" ^ "\n" ^
+
+      
+      (*forwards_pred *)
+      define_z3_macro "forwards_pred_false" [] "Bool" (serialize_formula ZFalse) ^
+      define_z3_macro "forwards_pred_true" [] "Bool" (serialize_formula ZTrue) 
+      (*define_z3_macro "forwads_pred_test []" ZEquals (encode_header hdr pkt, encode_vint v)*)
+(*
+        let rec forwards_pred (pred : pred) (pkt : zVar) : zFormula = 
+    match pred with
+      | Test (hdr, v) -> 
+	
+      | Neg p ->
+        ZNot (forwards_pred p pkt)
+      | And (pred1, pred2) -> ZAnd [forwards_pred pred1 pkt; 
+                                    forwards_pred pred2 pkt]
+      | Or (pred1, pred2) -> ZOr [forwards_pred pred1 pkt;
+                                  forwards_pred pred2 pkt]
+*)
+
+      
+      
+      (* forwards_pol *)
+    *)
+      
       
   let serialize_program p g : string = 
     let ZProgram(ds) = p in 
@@ -324,29 +376,29 @@ module Verify = struct
   let encode_header (header: header) (pkt:zVar) : zTerm =
     match header with
       | Header InPort -> 
-        TApp (TVar "InPort", TVar pkt)
+        TApp (TVar "InPort", [TVar pkt])
       | Header EthSrc -> 
-        TApp (TVar "EthSrc", TVar pkt)
+        TApp (TVar "EthSrc", [TVar pkt])
       | Header EthDst -> 
-        TApp (TVar "EthDst", TVar pkt)
+        TApp (TVar "EthDst", [TVar pkt])
       | Header EthType ->  
-        TApp (TVar "EthType", TVar pkt)
+        TApp (TVar "EthType", [TVar pkt])
       | Header Vlan ->  
-        TApp (TVar "Vlan", TVar pkt)
+        TApp (TVar "Vlan", [TVar pkt])
       | Header VlanPcp ->
-        TApp (TVar "VlanPcp", TVar pkt)
+        TApp (TVar "VlanPcp", [TVar pkt])
       | Header IPProto ->  
-        TApp (TVar "IPProto", TVar pkt)
+        TApp (TVar "IPProto", [TVar pkt])
       | Header IP4Src ->  
-        TApp (TVar "IP4Src", TVar pkt)
+        TApp (TVar "IP4Src", [TVar pkt])
       | Header IP4Dst ->  
-        TApp (TVar "IP4Dst", TVar pkt)
+        TApp (TVar "IP4Dst", [TVar pkt])
       | Header TCPSrcPort ->  
-        TApp (TVar "TCPSrcPort", TVar pkt)
+        TApp (TVar "TCPSrcPort", [TVar pkt])
       | Header TCPDstPort ->  
-        TApp (TVar "TCPDstPort", TVar pkt)
+        TApp (TVar "TCPDstPort", [TVar pkt])
       | Switch -> 
-        TApp (TVar "Switch", TVar pkt)
+        TApp (TVar "Switch", [TVar pkt])
 
   let encode_packet_equals (pkt1: zVar) (pkt2: zVar) (excepts:header list) : zFormula =
     let l = 
@@ -355,7 +407,7 @@ module Verify = struct
 	  if List.mem hd excepts then 
 	    acc 
 	  else
-	    ZEquals (encode_header hd pkt1, encode_header hd pkt2)::acc) 
+	    ZEquals (ZTerm (encode_header hd pkt1), ZTerm( encode_header hd pkt2))::acc) 
 	[] all_fields in 
     ZAnd(l)
       
@@ -369,7 +421,7 @@ module Verify = struct
       | True -> 
 	ZTrue
       | Test (hdr, v) -> 
-	ZEquals (encode_header hdr pkt, encode_vint v)
+	ZEquals (ZTerm (encode_header hdr pkt), ZTerm (encode_vint v))
       | Neg p ->
         ZNot (forwards_pred p pkt)
       | And (pred1, pred2) -> ZAnd [forwards_pred pred1 pkt; 
@@ -382,26 +434,26 @@ module Verify = struct
       | Filter pred ->
         ZComment("Filter",
                  ZAnd [forwards_pred pred pkt;
-                       ZEquals(TApp(TApp(TVar "set_add", TVar pkt), 
-                                    TApp(TVar "set_empty", TUnit)), 
-                               TVar set)])
+                       ZEquals(ZTerm (TApp(TVar "set_add", [TVar pkt; 
+                                    TApp(TVar "set_empty", [])])), 
+                               ZTerm (TVar set))])
       | Mod(f,v) -> 
         let pkt' = fresh SPacket in 
         ZComment("Mod",
                  ZAnd [encode_packet_equals pkt pkt' [f];
-                       ZEquals(encode_header f pkt', encode_vint v);
-                       ZEquals(TApp(TApp(TVar "set_add", TVar pkt'), 
-                                    TApp(TVar "set_empty", TUnit)), 
-                               TVar set)])
+                       ZEquals(ZTerm (encode_header f pkt'), ZTerm (encode_vint v));
+                       ZEquals(ZTerm (TApp(TVar "set_add", [TVar pkt'; 
+                                    TApp(TVar "set_empty", [])])), 
+                               ZTerm(TVar set))])
       | Par(pol1,pol2) -> 
         let set1 = fresh SSet in 
         let set2 = fresh SSet in 
         ZComment("Par", 
                  ZAnd[forward_pol pol1 pkt set1;
                       forward_pol pol2 pkt set2;
-                      ZEquals(TApp(TApp(TVar "set_union", TVar set1),
-                                   TVar set2),
-                              TVar set)])
+                      ZEquals(ZTerm (TApp(TVar "set_union", [TVar set1;
+                                   TVar set2])),
+                              ZTerm (TVar set))])
       | Seq(pol1,pol2) -> 
         assert false
       | _ -> 
