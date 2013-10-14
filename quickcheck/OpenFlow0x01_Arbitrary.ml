@@ -206,3 +206,36 @@ module PseudoPort = struct
             | _            -> None 
       in (PseudoPort.marshal p, l)
 end
+
+module Action = struct
+  type t = Action.t
+  type s = Cstruct.t
+
+  let arbitrary =
+    let open Gen in
+    let open OpenFlow0x01_Core in
+    oneof [
+      PseudoPort.arbitrary >>= (fun p -> ret_gen (Output p));
+      Match.arbitrary_dlVlan >>= (fun dlVal -> ret_gen (SetDlVlan dlVal));
+      Match.arbitrary_dlVlanPcp >>= (fun dlValPcp -> ret_gen (SetDlVlanPcp dlValPcp));
+      Match.arbitrary_dlAddr >>= (fun dlSrc -> ret_gen (SetDlSrc dlSrc));
+      Match.arbitrary_dlAddr >>= (fun dlDst -> ret_gen (SetDlDst dlDst));
+      Match.arbitrary_nwAddr >>= (fun nwSrc -> ret_gen (SetNwSrc nwSrc));
+      Match.arbitrary_nwAddr >>= (fun nwDst -> ret_gen (SetNwDst nwDst));
+      Match.arbitrary_nwTos >>= (fun nwTos -> ret_gen (SetNwTos nwTos));
+      Match.arbitrary_tpPort >>= (fun tpSrc -> ret_gen (SetTpSrc tpSrc));
+      Match.arbitrary_tpPort >>= (fun tpDst -> ret_gen (SetTpDst tpDst));
+      (* TODO(seliopou): NYI, figure out its status.
+      PseudoPort.arbitrary >>= (fun p ->
+          arbitrary_uint32 >>= (fun g -> ret_gen (Enqueue (p, g))))
+      *)
+    ]
+
+  let to_string = Action.to_string
+
+  let marshal = Action.marshal
+  let parse = Action.parse
+
+  let size_of = Action.size_of
+
+end
