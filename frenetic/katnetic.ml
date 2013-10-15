@@ -4,6 +4,7 @@ module Example = struct
   open SDN_Types
   open VInt
   open NetKAT_Types
+  open SDN_Headers
 
   let fwd_by_port sw src dst =
     Seq (Filter (And (Test (Switch, Int64 sw), Test (Header InPort, Int16 src))),
