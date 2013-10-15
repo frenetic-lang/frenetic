@@ -11,13 +11,13 @@ module NetworkCompiler = struct
     | Seq of explicit_topo_pol * explicit_topo_pol
     | Star of explicit_topo_pol
 
-(* i;(p;t)^*;p;e 
-   where 
-   i = t = v | t <- v | i + i | i ; i
-   p = t = v | h = v | t <- v | h <- v | p + p | p ; p | p*
-   t = (sw,pt) -> (sw',pt') | t + t
-   e = t = v | i + i | i ; i
-*)
+  (* i;(p;t)^*;p;e 
+     where 
+     i = t = v | t <- v | i + i | i ; i
+     p = t = v | h = v | t <- v | h <- v | p + p | p ; p | p*
+     t = (sw,pt) -> (sw',pt') | t + t
+     e = t = v | i + i | i ; i
+  *)
 
   type vtag = int*int
   type vheader = 
@@ -33,7 +33,7 @@ module NetworkCompiler = struct
     | VPar of virtual_pol * virtual_pol
     | VSeq of virtual_pol * virtual_pol
     | VStar of virtual_pol
-      
+        
   type restricted_pol = virtual_pol * virtual_pol * virtual_pol * virtual_pol
 
   module Formatting = struct
@@ -48,9 +48,9 @@ module NetworkCompiler = struct
       | Field h' -> SDN_Types.format_field fmt h'
       | Tag (h,_) -> pp_print_string fmt (string_of_int h)
 
-  (* The type of the immediately surrounding context, which guides parenthesis-
-     intersion. *)
-  (* JNF: YES. This is the Right Way to pretty print. *)
+    (* The type of the immediately surrounding context, which guides parenthesis-
+       intersion. *)
+    (* JNF: YES. This is the Right Way to pretty print. *)
     type context = SEQ | PAR | STAR | NEG | PAREN
 
     let rec pred (cxt : context) (fmt : formatter) (pr : pred) : unit = 
@@ -165,18 +165,18 @@ module NetworkCompiler = struct
     incr vheader_count;
     (!vheader_count, size)
 
-(* Compilation story: we have an unlimited number of header fields we
-   can allocate on demand. Each header field has a specific number of
-   entries. At a later stage, we inject the multiple header fields into a
-   single header that allows arbitrary bitmasking. There should be some
-   analysis/optimizations we can do (ala the earlier slices compiler) to
-   reduce the number of unique entries required.
+  (* Compilation story: we have an unlimited number of header fields we
+     can allocate on demand. Each header field has a specific number of
+     entries. At a later stage, we inject the multiple header fields into a
+     single header that allows arbitrary bitmasking. There should be some
+     analysis/optimizations we can do (ala the earlier slices compiler) to
+     reduce the number of unique entries required.
 
-   Alternatively, lacking a bitmaskable field, we could simply expand
-   all possible combinations of values and match/set them
-   appropriately. We'd need some pretty good analysis to keep this
-   from exploding.
-*)
+     Alternatively, lacking a bitmaskable field, we could simply expand
+     all possible combinations of values and match/set them
+     appropriately. We'd need some pretty good analysis to keep this
+     from exploding.
+  *)
   let rec seqList ls =
     match ls with
       | [] -> VFilter True
@@ -265,7 +265,7 @@ module NetworkCompiler = struct
                           VMod(Tag h,h4)];
                  seqList [VTest(h,h1);
                           s_p;
-                          VPar(VMod(Tag h,h1),
+                          VPar(VFilter True,
                                VMod(Tag h,h1'))];
                  seqList [VTest(h,h1');
                           s_p;
@@ -278,7 +278,8 @@ module NetworkCompiler = struct
                           e_p;
                           i_q;
                           s_q;
-                          VMod(Tag h,h2')];
+                          VPar(VMod(Tag h,h2'),
+                               VMod(Tag h, h4))];
                  VSeq (VTest(h,h2'), s_q);
                  seqList [VTest(h,h3);
                           s_p;
@@ -289,10 +290,14 @@ module NetworkCompiler = struct
                                seqList [e_p;
                                         i_q;
                                         s_q;
-                                        VMod(Tag h, h3'')])];
-                 VSeq(VTest(h,h3''), s_q)],
+                                        VPar(VMod(Tag h, h3''),
+                                               VMod(Tag h, h4))])];
+                 seqList [VTest(h,h3'');
+                          s_q;
+                          VPar(VFilter True,
+                               VMod(Tag h, h4))]],
         VPar(t_p,t_q),
-        e_q
+        VSeq(VTest(h, h4), e_q)
       | Star p -> 
         let i_p,s_p,t_p,e_p = dehopify p in
         let h = gen_header 7 in
@@ -335,11 +340,11 @@ module NetworkCompiler = struct
                   e_p),
              VTest(h,h3))
 
-(* Optimizations Observation: Virtual headers are semantically
-   meaningless if they aren't matched in the NetKAT code itself. Thus,
-   if we optimize away as many matches as possible, we can then drop
-   any headers that are not matched on.
-*)
+  (* Optimizations Observation: Virtual headers are semantically
+     meaningless if they aren't matched in the NetKAT code itself. Thus,
+     if we optimize away as many matches as possible, we can then drop
+     any headers that are not matched on.
+  *)
 
   (* reduces policies by using identities (drop;p = drop, etc) *)
   let rec simplify_vpol p =
@@ -510,7 +515,7 @@ module NetworkCompiler = struct
           VFilter True, q
         else p,q
       | _ -> p,q
-    
+        
   (* Assumes linearized seqs *)        
   let rec remove_matches p = 
     match p with
@@ -617,22 +622,79 @@ module NetworkCompiler = struct
       | VStar(p) -> collect_tags' p tags
       | _ -> tags
 
-  let collect_tags p = collect_tags' p TagSet.empty
+  let rec range n = 
+    if n <= 0 then
+      [VInt.Int16 0]
+    else (VInt.Int16 n) :: (range (n - 1))
+
+  let collect_tags p = TagSet.fold (fun (h,rng) acc -> ((h,rng), range rng) :: acc) (collect_tags' p TagSet.empty) []
 
   (* Assume we have a list of lists H, where the elements of H[i] are the values of h_i. Now, for each H[i][j], we want to compute a list representing each possible tuple containing value j in position i. We'll do this in several steps. First, represent this as [[[int]]] *)
 
-  let singletons = List.fold_left (fun acc x -> [x]::acc) []
+  let singletons h = List.fold_left (fun acc x -> [(h,x)]::acc) []
 
-  let rec prod elems lst = 
+  let rec prod h elems lst = 
     match elems with
       | []  -> []
-      | elem :: elems -> (List.map (fun x -> elem :: x) lst) @ prod elems lst
+      | elem :: elems -> (List.map (fun x -> (h, elem) :: x) lst) @ prod h elems lst
 
   let rec make_tuples lst =
     match lst with
-      | [elems] -> singletons elems
-      | elems :: lst -> prod elems (make_tuples lst)
+      | [] -> []
+      | [(h,elems)] -> singletons h elems
+      | (h,elems) :: lst -> prod h elems (make_tuples lst)
 
+  (* Need a function that takes an old tag/value, and returns every
+     matching new tag. *)
+  (* Store the tag array as an alist, indexed by headers *)
+  (* Can't keep old members around, key must have pre-existing value *)
+  let update_alist alist k v =
+    List.map (fun (k',v') -> if k' = k then (k,v) else (k',v')) alist
+
+    (* returns a list of alists, where each alist represents a tuple *)
+  let rec compute_matching_tuples tag_alist h v =
+    make_tuples (update_alist tag_alist h [v])
+
+  (* Takes an old value (h <- v), and returns a list of tuples (a,b)
+     where b is a new value equivalent to (h=v)*)
+  let rec get_new_values tag_alist h v = 
+    let old_vals = List.fold_left 
+      (fun acc v' -> if v = v' 
+        then acc else compute_matching_tuples tag_alist h v' @ acc) []
+      (List.assoc h tag_alist) in
+    List.map (fun old_val -> (old_val, update_alist old_val h v)) old_vals
+
+  let tuple_hashTbl = Hashtbl.create 100 
+  let tuple_cnter = ref 0
+  let tuple_to_int tpl =
+    if Hashtbl.mem tuple_hashTbl tpl
+    then VInt.Int16 (Hashtbl.find tuple_hashTbl tpl)
+    else 
+      let _ = incr tuple_cnter in
+      let _ = Hashtbl.add tuple_hashTbl tpl !tuple_cnter in
+      VInt.Int16 !tuple_cnter
+
+  open NetKAT_Types
+  let rec convert_tag_to_hdr tag_alist h p =
+    match p with
+      | VFilter pr -> Filter pr
+      | VMod (Tag h', v') -> let tuples = get_new_values tag_alist h' v' in
+                             List.fold_left (fun acc (old_v, new_v) ->
+                               Par(Seq(Filter(Test(Header h, tuple_to_int old_v)), Mod(Header h, tuple_to_int new_v)), acc)) (Filter False) tuples
+      | VTest(h',v') -> let tuples = compute_matching_tuples tag_alist h' v' in
+                        List.fold_left (fun acc new_v -> Par(Filter(Test (Header h, tuple_to_int new_v)), acc)) (Filter False) tuples
+      | VMod (Field h', v') -> Mod (Header h', v')
+      | VSeq(p,q) -> Seq(convert_tag_to_hdr tag_alist h p, convert_tag_to_hdr tag_alist h q)
+      | VPar(p,q) -> Par(convert_tag_to_hdr tag_alist h p, convert_tag_to_hdr tag_alist h q)
+      | VStar(p) -> Star(convert_tag_to_hdr tag_alist h p)
+      | VLink(sw,pt,sw',pt') -> Seq(Seq(Filter(Test(Switch, sw)), Filter(Test(Header SDN_Types.InPort, pt))),
+                                    Seq(Mod(Switch, sw'), Mod(Header SDN_Types.InPort, pt')))
+      
+  let dehop_policy p =
+    let (i,s,t,e) = dehopify p in
+    let p' = optimize (VSeq(i, VSeq(VStar(VSeq(s,t)), VSeq(s,e)))) in
+    convert_tag_to_hdr (collect_tags p') SDN_Types.Vlan p'
+    
 end
 
 

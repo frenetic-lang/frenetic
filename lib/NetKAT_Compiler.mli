@@ -9,29 +9,7 @@ module NetworkCompiler : sig
     | Seq of explicit_topo_pol * explicit_topo_pol
     | Star of explicit_topo_pol
 
-  type vtag = int*int
-
-  type vheader = 
-    | Field of SDN_Types.field
-    | Tag of vtag
-
-  type virtual_pol =
-    | VFilter of pred
-    | VTest of vtag*header_val
-    | VMod of vheader * header_val
-    (* switch, port -> switch, port *)
-    | VLink of header_val*header_val*header_val*header_val
-    | VPar of virtual_pol * virtual_pol
-    | VSeq of virtual_pol * virtual_pol
-    | VStar of virtual_pol
-      
-  type restricted_pol = virtual_pol * virtual_pol * virtual_pol * virtual_pol
-
-  val dehopify : explicit_topo_pol -> restricted_pol
-  val simplify_vpol : virtual_pol -> virtual_pol
-  val optimize : virtual_pol -> virtual_pol
-
-  val string_of_vpolicy : virtual_pol -> string
+  val dehop_policy : explicit_topo_pol -> NetKAT_Types.policy
   val string_of_epolicy : explicit_topo_pol -> string
 end
 
