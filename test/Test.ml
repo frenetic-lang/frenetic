@@ -24,6 +24,35 @@ module RoundTripping = struct
       (openflow_quickCheck Gen.Wildcards.arbitrary
           Gen.Wildcards.to_string Gen.Wildcards.parse Gen.Wildcards.marshal)
 
+  TEST "OpenFlow0x01 Match RoundTrip" =
+      let module GenMatch = Gen.OpenFlow0x01_Unsize(Gen.Match) in
+      (openflow_quickCheck GenMatch.arbitrary
+          GenMatch.to_string GenMatch.parse GenMatch.marshal)
+
+  TEST "OpenFlow0x01 PseudoPort RoundTrip" =
+      (openflow_quickCheck Gen.PseudoPort.arbitrary
+          Gen.PseudoPort.to_string Gen.PseudoPort.parse Gen.PseudoPort.marshal)
+
+  TEST "OpenFlow0x01 Action RoundTrip" =
+      let module GenAction = Gen.OpenFlow0x01_Unsize(Gen.Action) in
+      (openflow_quickCheck GenAction.arbitrary
+          GenAction.to_string GenAction.parse GenAction.marshal)
+
+  TEST "OpenFlow0x01 FlowMod.Command RoundTrip" =
+      let module GenCommand = Gen.FlowMod.Command in
+      (openflow_quickCheck GenCommand.arbitrary
+          GenCommand.to_string GenCommand.parse GenCommand.marshal)
+
+  TEST "OpenFlow0x01 FlowMod.Timeout RoundTrip" =
+      let module GenTimeout = Gen.FlowMod.Timeout in
+      (openflow_quickCheck GenTimeout.arbitrary
+          GenTimeout.to_string GenTimeout.parse GenTimeout.marshal)
+
+  TEST "OpenFlow0x01 FlowMod RoundTrip" =
+      let module GenFlowMod = Gen.OpenFlow0x01_Unsize(Gen.FlowMod) in
+      (openflow_quickCheck GenFlowMod.arbitrary
+          GenFlowMod.to_string GenFlowMod.parse GenFlowMod.marshal)
+
   TEST "OpenFlow Hello Test 1" = 
     let open Message in 
     let bs = Cstruct.create 101 in

@@ -39,12 +39,21 @@ module Match : sig
 
   val to_string : t -> string
 
+  val marshal : t -> Cstruct.t -> int
+  val parse : Cstruct.t -> t
+
+  val size_of : t -> int
+
 end
 
 module PseudoPort : sig
 
   type t = pseudoPort
+
   val to_string : t -> string
+
+  val marshal : t -> int
+  val make : int -> int -> t
 
 end
 
@@ -67,6 +76,11 @@ module Action : sig
   (** [sequence_to_string v] pretty-prints an action sequence. *)
   val sequence_to_string : sequence -> string
 
+  val marshal : t -> Cstruct.t -> int
+  val parse : Cstruct.t -> t
+
+  val size_of : t -> int
+
 end
 
 (** A flow modification data structure.  See Section 5.3.3 of the OpenFlow 1.0
@@ -82,6 +96,9 @@ module FlowMod : sig
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
+    val to_int : t -> int16
+    val of_int : int16 -> t
+
   end
 
   (** The type of flow rule timeouts.  See Section 5.3.3 of the OpenFlow 1.0
@@ -93,6 +110,9 @@ module FlowMod : sig
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
+    val to_int : t -> int16
+    val of_int : int16 -> t
+
   end
 
   type t = flowMod
@@ -100,6 +120,11 @@ module FlowMod : sig
 
   (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
+
+  val marshal : t -> Cstruct.t -> int
+  val parse : Cstruct.t -> t
+
+  val size_of : t -> int
 
 end
 
