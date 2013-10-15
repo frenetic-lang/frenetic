@@ -1,5 +1,6 @@
   open NetKAT_Types
-
+  open SDN_Headers
+  
   type explicit_topo_policy =
     | Filter of pred
     | Mod of SDN_Types.field * header_val

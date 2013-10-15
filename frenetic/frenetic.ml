@@ -1,5 +1,5 @@
 module Controller = NetCore_Controller
-
+open SDN_Headers
 type modeType =
   | ControllerMode (* start as a controller *)
   | ParseMode      (* only parse (for testing) *)

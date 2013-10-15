@@ -76,15 +76,15 @@ module Action = struct
       Set.fold f pol' (to_netkat seq)
 
   let to_action (a:t) : SDN_Types.seq =
-    if not (NetKAT_Types.HeaderMap.mem (NetKAT_Types.Header SDN_Types.InPort) a) then
+    if not (NetKAT_Types.HeaderMap.mem (SDN_Headers.Header SDN_Types.InPort) a) then
       []
     else
-      let port = NetKAT_Types.HeaderMap.find (NetKAT_Types.Header SDN_Types.InPort) a in  
-      let mods = NetKAT_Types.HeaderMap.remove (NetKAT_Types.Header SDN_Types.InPort) a in
+      let port = NetKAT_Types.HeaderMap.find (SDN_Headers.Header SDN_Types.InPort) a in  
+      let mods = NetKAT_Types.HeaderMap.remove (SDN_Headers.Header SDN_Types.InPort) a in
       let mk_mod h v act = 
         match h with
-          | NetKAT_Types.Switch -> raise (Invalid_argument "Action.to_action got switch update")
-          | NetKAT_Types.Header h' ->  (SDN_Types.SetField (h', v)) :: act in
+          | SDN_Headers.Switch -> raise (Invalid_argument "Action.to_action got switch update")
+          | SDN_Headers.Header h' ->  (SDN_Types.SetField (h', v)) :: act in
       NetKAT_Types.HeaderMap.fold mk_mod mods [SDN_Types.OutputPort port]
         
   let set_to_action (s:Set.t) : SDN_Types.par =
@@ -184,10 +184,10 @@ module Pattern = struct
   let to_pattern (sw : SDN_Types.fieldVal) (x:t) : SDN_Types.pattern option =
     let f (h : NetKAT_Types.header) (v : NetKAT_Types.header_val) (pat : SDN_Types.pattern) =
       match h with
-        | NetKAT_Types.Switch -> pat (* already tested for this *)
-        | NetKAT_Types.Header h' -> SDN_Types.FieldMap.add h' v pat in
-    if NetKAT_Types.HeaderMap.mem NetKAT_Types.Switch x &&
-      NetKAT_Types.HeaderMap.find NetKAT_Types.Switch x <> sw then
+        | SDN_Headers.Switch -> pat (* already tested for this *)
+        | SDN_Headers.Header h' -> SDN_Types.FieldMap.add h' v pat in
+    if NetKAT_Types.HeaderMap.mem SDN_Headers.Switch x &&
+      NetKAT_Types.HeaderMap.find SDN_Headers.Switch x <> sw then
       None
     else 
       Some (NetKAT_Types.HeaderMap.fold f x SDN_Types.FieldMap.empty)
@@ -348,7 +348,7 @@ module Local = struct
     match pol with
       | NetKAT_Types.Filter pr ->
         of_pred pr
-      | NetKAT_Types.Mod (NetKAT_Types.Switch, _) ->
+      | NetKAT_Types.Mod (SDN_Headers.Switch, _) ->
         failwith "unexpected Switch in local_normalize"
       | NetKAT_Types.Mod (h, v) ->
         Atom.Map.singleton Atom.tru (Action.Set.singleton (NetKAT_Types.HeaderMap.singleton h v))

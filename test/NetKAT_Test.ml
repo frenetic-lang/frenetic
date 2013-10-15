@@ -1,4 +1,5 @@
 open NetKAT_Types
+open SDN_Headers
 module SDN = SDN_Types
 open VInt
 

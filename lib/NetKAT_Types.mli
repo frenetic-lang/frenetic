@@ -14,9 +14,8 @@
 
 *)
 
-type header =
-  | Header of SDN_Types.field
-  | Switch
+
+type header = SDN_Headers.header
 
 type header_val = VInt.t
 

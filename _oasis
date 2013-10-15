@@ -47,7 +47,9 @@ Library netcore
     Dehop,
     NetKAT_Lexer,
     NetKAT_Parser,
-    Controller
+    Controller,
+    Semantics,
+    SDN_Headers
   Modules:
     NetCore_Util,
     NetCore_Action,

@@ -1,5 +1,5 @@
 open NetKAT_Types
-
+open SDN_Headers
 
 let arbitrary_header  = 
   let open QuickCheck_gen in
@@ -15,7 +15,7 @@ let arbitrary_header  =
       (Header (SDN_Types.IP4Dst));
       (Header (SDN_Types.TCPSrcPort));
       (Header (SDN_Types.TCPDstPort));
-      (NetKAT_Types.Switch)
+      Switch
     ] 
 
 
