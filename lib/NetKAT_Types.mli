@@ -19,6 +19,8 @@ type header = SDN_Headers.header
 
 type header_val = VInt.t
 
+type payload = SDN_Types.payload
+
 (** {2 Policies}
 
 *)
