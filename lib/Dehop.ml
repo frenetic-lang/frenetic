@@ -1,4 +1,5 @@
 open NetKAT_Types
+open SDN_Headers
 
 type explicit_topo_pol =
   | Filter of pred
@@ -673,24 +674,39 @@ let tuple_to_int tpl =
     VInt.Int16 !tuple_cnter
 
 open NetKAT_Types
-let rec convert_tag_to_hdr tag_alist h p =
+
+(* We have to be careful here. The very first time we write the tag,
+   we won't have any pre-existing values, so we can't match upon them *)
+let rec convert_tag_to_hdr tag_alist h p written =
   match p with
-    | VFilter pr -> Filter pr
-    | VMod (Tag h', v') -> let tuples = get_new_values tag_alist h' v' in
-                           List.fold_left (fun acc (old_v, new_v) ->
-                             Par(Seq(Filter(Test(Header h, tuple_to_int old_v)), Mod(Header h, tuple_to_int new_v)), acc)) (Filter False) tuples
+    | VFilter pr -> Filter pr, written
+    | VMod (Tag h', v') -> 
+      let tuples = get_new_values tag_alist h' v' in
+      if written then
+        (List.fold_left (fun acc (old_v, new_v) ->
+          Par(Seq(Filter(Test(Header h, tuple_to_int old_v)), Mod(Header h, tuple_to_int new_v)), acc)) (Filter False) tuples,
+         written)
+      else
+        (* Just pick one legal tuple and use that. We always
+           initialize other tags before matching on them, so the other
+           values don't matter *)
+        Mod(Header h, tuple_to_int (update_alist (fst (List.hd tuples)) h' v')), true
     | VTest(h',v') -> let tuples = compute_matching_tuples tag_alist h' v' in
-                      List.fold_left (fun acc new_v -> Par(Filter(Test (Header h, tuple_to_int new_v)), acc)) (Filter False) tuples
-    | VMod (Field h', v') -> Mod (Header h', v')
-    | VSeq(p,q) -> Seq(convert_tag_to_hdr tag_alist h p, convert_tag_to_hdr tag_alist h q)
-    | VPar(p,q) -> Par(convert_tag_to_hdr tag_alist h p, convert_tag_to_hdr tag_alist h q)
-    | VStar(p) -> Star(convert_tag_to_hdr tag_alist h p)
+                      List.fold_left (fun acc new_v -> Par(Filter(Test (Header h, tuple_to_int new_v)), acc)) (Filter False) tuples, written
+    | VMod (Field h', v') -> Mod (Header h', v'), written
+    | VSeq(p,q) -> let p', written = convert_tag_to_hdr tag_alist h p written in
+                   let q', written = convert_tag_to_hdr tag_alist h q written in
+                   Seq(p',q'), written
+    | VPar(p,q) -> let p', written' = convert_tag_to_hdr tag_alist h p written in
+                   let q', written'' = convert_tag_to_hdr tag_alist h q written in
+                   Par(p',q'), written' || written''
+    | VStar(p) -> let p',written = convert_tag_to_hdr tag_alist h p written in
+                  Star(p'), written
     | VLink(sw,pt,sw',pt') -> Seq(Seq(Filter(Test(Switch, sw)), Filter(Test(Header SDN_Types.InPort, pt))),
-                                  Seq(Mod(Switch, sw'), Mod(Header SDN_Types.InPort, pt')))
+                                  Seq(Mod(Switch, sw'), Mod(Header SDN_Types.InPort, pt'))), written
+
       
 let dehop_policy p =
   let (i,s,t,e) = dehopify p in
-  let p' = optimize (VSeq(i, VSeq(VStar(VSeq(s,t)), VSeq(s,e)))) in
-  convert_tag_to_hdr (collect_tags p') SDN_Types.Vlan p'
-    
-end
+  let p' = (VSeq(i, VSeq(VStar(VSeq(s,t)), VSeq(s,e)))) in
+  fst (convert_tag_to_hdr (collect_tags p') SDN_Types.Vlan p' false)
