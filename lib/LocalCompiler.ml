@@ -74,22 +74,6 @@ module Action = struct
       let seq = Set.min_elt pol in
       let pol' = Set.remove seq pol in
       Set.fold f pol' (to_netkat seq)
-
-  let to_action (a:t) : SDN_Types.seq =
-    if not (NetKAT_Types.HeaderMap.mem (SDN_Headers.Header SDN_Types.InPort) a) then
-      []
-    else
-      let port = NetKAT_Types.HeaderMap.find (SDN_Headers.Header SDN_Types.InPort) a in  
-      let mods = NetKAT_Types.HeaderMap.remove (SDN_Headers.Header SDN_Types.InPort) a in
-      let mk_mod h v act = 
-        match h with
-          | SDN_Headers.Switch -> raise (Invalid_argument "Action.to_action got switch update")
-          | SDN_Headers.Header h' ->  (SDN_Types.SetField (h', v)) :: act in
-      NetKAT_Types.HeaderMap.fold mk_mod mods [SDN_Types.OutputPort port]
-        
-  let set_to_action (s:Set.t) : SDN_Types.par =
-    let f a par = (to_action a)::par in
-    Set.fold f s []
 end
 
 module Pattern = struct
@@ -181,16 +165,6 @@ module Pattern = struct
       let f x pol = NetKAT_Types.Or(pol, to_netkat x) in 
       Set.fold f xs' (to_netkat x)
 
-  let to_pattern (sw : SDN_Types.fieldVal) (x:t) : SDN_Types.pattern option =
-    let f (h : NetKAT_Types.header) (v : NetKAT_Types.header_val) (pat : SDN_Types.pattern) =
-      match h with
-        | SDN_Headers.Switch -> pat (* already tested for this *)
-        | SDN_Headers.Header h' -> SDN_Types.FieldMap.add h' v pat in
-    if NetKAT_Types.HeaderMap.mem SDN_Headers.Switch x &&
-      NetKAT_Types.HeaderMap.find SDN_Headers.Switch x <> sw then
-      None
-    else 
-      Some (NetKAT_Types.HeaderMap.fold f x SDN_Types.FieldMap.empty)
 end
 
 module Atom = struct
@@ -396,9 +370,37 @@ module Local = struct
         let nc_pred_acts = mk_seq (NetKAT_Types.Filter nc_pred) (Action.set_to_netkat s) in 
         mk_par nc_pred_acts (loop p') in 
     loop p
+
 end
 
 module RunTime = struct
+
+  let to_action (a:Action.t) : SDN_Types.seq =
+    if not (NetKAT_Types.HeaderMap.mem (SDN_Headers.Header SDN_Types.InPort) a) then
+      []
+    else
+      let port = NetKAT_Types.HeaderMap.find (SDN_Headers.Header SDN_Types.InPort) a in  
+      let mods = NetKAT_Types.HeaderMap.remove (SDN_Headers.Header SDN_Types.InPort) a in
+      let mk_mod h v act = 
+        match h with
+          | SDN_Headers.Switch -> raise (Invalid_argument "Action.to_action got switch update")
+          | SDN_Headers.Header h' ->  (SDN_Types.SetField (h', v)) :: act in
+      NetKAT_Types.HeaderMap.fold mk_mod mods [SDN_Types.OutputPort port]
+        
+  let set_to_action (s:Action.Set.t) : SDN_Types.par =
+    let f a par = (to_action a)::par in
+    Action.Set.fold f s []
+
+  let to_pattern (sw : SDN_Types.fieldVal) (x:Pattern.t) : SDN_Types.pattern option =
+    let f (h : NetKAT_Types.header) (v : NetKAT_Types.header_val) (pat : SDN_Types.pattern) =
+      match h with
+        | SDN_Headers.Switch -> pat (* already tested for this *)
+        | SDN_Headers.Header h' -> SDN_Types.FieldMap.add h' v pat in
+    if NetKAT_Types.HeaderMap.mem SDN_Headers.Switch x &&
+      NetKAT_Types.HeaderMap.find SDN_Headers.Switch x <> sw then
+      None
+    else 
+      Some (NetKAT_Types.HeaderMap.fold f x SDN_Types.FieldMap.empty)
 
   type i = Local.t
       
@@ -419,9 +421,9 @@ module RunTime = struct
     (* Prunes out rules that apply to other switches. *)
   let to_table (sw:SDN_Types.fieldVal) (p:i) : SDN_Types.flowTable =
     let add_flow x s l = 
-      match Pattern.to_pattern sw x with
+      match to_pattern sw x with
         | None -> l
-        | Some pat -> simpl_flow pat [Action.set_to_action s] :: l in 
+        | Some pat -> simpl_flow pat [set_to_action s] :: l in 
     let rec loop (p:i) acc cover = 
       if Atom.Map.is_empty p then 
         acc 

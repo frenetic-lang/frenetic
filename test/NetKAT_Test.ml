@@ -4,7 +4,7 @@ module SDN = SDN_Types
 open VInt
 
 let compile (pol : policy) : policy = 
-  LocalCompiler.RunTime.decompile (LocalCompiler.RunTime.compile pol)
+  LocalCompiler.Local.to_netkat (LocalCompiler.Local.of_policy pol)
 
 let flowTable (pol:policy) : SDN.flowTable = 
   LocalCompiler.RunTime.to_table (Int64 0L) (LocalCompiler.RunTime.compile pol)

@@ -1,3 +1,9 @@
+module Local : sig
+  type t
+  val of_policy : NetKAT_Types.policy -> t
+  val to_netkat : t -> NetKAT_Types.policy
+end
+
 module RunTime : sig 
   (* intermediate form *)
   type i 
