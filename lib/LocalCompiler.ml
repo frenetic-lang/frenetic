@@ -18,7 +18,22 @@ let header_val_map_to_string eq sep m =
   (NetKAT_Types.string_of_vint v))
     m ""
 
-module Action = struct
+module Action : sig
+  type t = NetKAT_Types.header_val_map 
+
+  module Set : Set.S with type elt = t
+
+  val set_to_string : Set.t -> string
+
+  val seq_acts : t -> Set.t -> Set.t
+
+  val id : Set.t
+
+  val drop : Set.t
+
+  val set_to_netkat : Set.t -> NetKAT_Types.policy
+
+end = struct
   type t = NetKAT_Types.header_val_map 
 
   module Set = Set.Make (struct
@@ -76,7 +91,27 @@ module Action = struct
       Set.fold f pol' (to_netkat seq)
 end
 
-module Pattern = struct
+module Pattern : sig
+  type t = NetKAT_Types.header_val_map
+
+  module Set : Set.S with type elt = t
+
+  val set_to_string : Set.t -> string
+
+  val to_string : t -> string
+
+  val tru : t
+
+  val apply_act : t -> Action.t -> t
+
+  val seq_pat : t -> t -> t option
+
+  val seq_act_pat : t -> Action.t -> t -> t option
+
+  val set_to_netkat : Set.t -> NetKAT_Types.pred
+
+  val to_netkat : t -> NetKAT_Types.pred
+end = struct
   exception Empty_pat
 
   type t = NetKAT_Types.header_val_map 
@@ -167,7 +202,15 @@ module Pattern = struct
 
 end
 
-module Atom = struct
+module Atom : sig
+  type t = Pattern.Set.t * Pattern.t
+  module Map : Map.S with type key = t
+  val to_string : t -> string
+  val seq_atom : t -> t -> t option
+  val seq_act_atom : t -> Action.t -> t -> t option
+  val tru : t
+  val fls : t
+end = struct
   type t = Pattern.Set.t * Pattern.t
 
   module Map = Map.Make (struct
@@ -219,7 +262,11 @@ module Atom = struct
         None       
 end
 
-module Local = struct
+module Local : sig
+  type t = Action.Set.t Atom.Map.t
+  val of_policy : NetKAT_Types.policy -> t
+  val to_netkat : t -> NetKAT_Types.policy
+end = struct
   type t = Action.Set.t Atom.Map.t
 
   let to_string (p:t) : string =
