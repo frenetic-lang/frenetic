@@ -43,3 +43,12 @@ let write_to_file filename text_to_write =
 let list_intercalate f sep l =
   List.fold_left
     (fun acc li -> Printf.sprintf "%s%s%s" acc (if acc = "" then "" else sep) (f li)) "" l
+
+let make_string_of formatter x =
+  let open Format in
+  let buf = Buffer.create 100 in
+  let fmt = formatter_of_buffer buf in
+  pp_set_margin fmt 80;
+  formatter fmt x;
+  fprintf fmt "@?";
+  Buffer.contents buf

@@ -1,6 +1,7 @@
 %{
 
   open NetKAT_Types
+  open SDN_Headers
 
   (* Ethernet frame types *)
   let arp : int64  = Int64.of_int 0x806
