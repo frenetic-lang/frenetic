@@ -1,16 +1,39 @@
-open NetKAT_Types
-module SDN = SDN_Types
-module SwitchCompiler = NetKAT_Compiler.SwitchCompiler
-open VInt
+module QCGen = QuickCheck_gen
 
-let compile (pol : policy) : policy = 
-  SwitchCompiler.RunTime.decompile (SwitchCompiler.RunTime.compile pol)
+module TestHeaders = struct
+  type header = Src | Dst
+  type value = A | B | C | D
+  type payload = unit
 
-let flowTable (pol:policy) : SDN.flowTable = 
-  SwitchCompiler.RunTime.to_table (Int64 0L) (SwitchCompiler.RunTime.compile pol)
+  let header_to_string h = match h with
+      | Src -> "Src"
+      | Dst -> "Dst"
+
+  let value_to_string v = match v with
+    | A -> "A"
+    | B -> "B"
+    | C -> "C"
+    | D -> "D"
+
+  let format_header fmt x = Format.pp_print_string fmt (header_to_string x)
+  let format_value fmt x = Format.pp_print_string fmt (value_to_string x)
+  let compare_header = Pervasives.compare
+
+  let all_headers = [ Src; Dst ]
+  let arbitrary_header = QCGen.elements all_headers
+  let arbitrary_headerval = QCGen.elements [ A; B; C; D ]
+  let arbitrary_payload = QCGen.ret_gen ()
+end
+
+module NetKAT = Semantics.Make (TestHeaders)
+module Compiler = LocalCompiler.Make (TestHeaders) (NetKAT)
+module NetKATArb = NetKAT_Arbitrary.Make (NetKAT) (TestHeaders)
+
+open NetKAT
+open TestHeaders
 
 let test_compile lhs rhs =
-  let rhs' = compile lhs in
+  let rhs' = Compiler.Local.to_netkat (Compiler.Local.of_policy lhs) in
   if rhs' = rhs then
     true
   else
@@ -18,76 +41,64 @@ let test_compile lhs rhs =
        format_policy lhs format_policy rhs' format_policy rhs;
      false)
 
-let format_table fmt l = 
-  Format.fprintf fmt
-
-let test_flowTable lhs rhs =
-  let rhs' = flowTable lhs in
-  if rhs' = rhs then
-    true
-  else
-    (Format.printf "compile @,%a@, produced %a@,,@,expected %a\n%!"
-       format_policy lhs SDN.format_flowTable rhs' SDN.format_flowTable rhs;
-     false)
-
 let ite (pred : pred) (then_pol : policy) (else_pol : policy) : policy =
   Par (Seq (Filter pred, then_pol), Seq (Filter (Neg pred), else_pol))
 
 TEST "compile drop" =
-  compile (Filter False) = (Filter False)
+  test_compile (Filter False) (Filter False)
 
 TEST "compile test" =
-  let pr = Test (Header SDN.EthSrc, Int48 142L) in
+  let pr = Test (Src, A) in
   test_compile (Filter pr) (Filter pr)
 
 TEST "compile negation" =
-  let pr = Test (Header SDN.EthSrc, Int48 200L) in
+  let pr = Test (Src, A) in
   test_compile (Filter (Neg pr)) (Filter (Neg pr))
 
 TEST "compile negation of conjunction" =
-  let pr = And (Test (Header SDN.EthSrc, Int48 0L), Test (Header SDN.EthDst, Int48 0L)) in
+  let pr = And (Test (Src, A), Test (Dst, A)) in
   test_compile
     (Filter (Neg pr))
-    (Par (Filter (And (Neg (Test (Header SDN.EthDst, Int48 0L)), Test (Header SDN.EthSrc, Int48 0L))),
-          Filter (Neg (Test (Header SDN.EthSrc, Int48 0L)))))
+    (Par (Filter (And (Neg (Test (Dst, A)), Test (Src, A))),
+          Filter (Neg (Test (Src, A)))))
 
 TEST "commute test annihilator" =
   test_compile
-    (Seq (Mod (Header SDN.EthSrc, Int48 1L), Filter (Test (Header SDN.EthSrc, Int48 0L))))
+    (Seq (Mod (Src, B), Filter (Test (Src, A))))
     (Filter False)
 
 TEST "commute test different fields" =
   test_compile
-    (Seq (Mod (Header SDN.EthSrc, Int48 1L), Filter (Test (Header SDN.EthDst, Int48 0L))))
-    (Seq (Filter (Test (Header SDN.EthDst, Int48 0L)), Mod (Header SDN.EthSrc, Int48 1L)))
+    (Seq (Mod (Src, B), Filter (Test (Dst, A))))
+    (Seq (Filter (Test (Dst, A)), Mod (Src, B)))
 
 (* trivial optimization possible *)
 TEST "commute same field" =
   test_compile
-    (Seq (Mod (Header SDN.EthSrc, Int48 1L), Filter (Test (Header SDN.EthSrc, Int48 1L))))
-    (Mod (Header SDN.EthSrc, Int48 1L))
+    (Seq (Mod (Src, B), Filter (Test (Src, B))))
+    (Mod (Src, B))
 
 (* trivial optimization possible *)
 TEST "same field, two values = drop" =
-  let pr1 = Test (Header SDN.EthSrc, Int48 1L) in
-  let pr2 = Test (Header SDN.EthSrc, Int48 0L) in
+  let pr1 = Test (Src, B) in
+  let pr2 = Test (Src, A) in
   test_compile
     (Filter (And (pr1, pr2)))
     (Filter False)
 
 TEST "par1" =
   test_compile
-    (Par(Mod (Header SDN.EthSrc, Int48 1L),
+    (Par(Mod (Src, B),
 	 ite
-	   (Test (Header SDN.EthSrc, Int48 1L))
-	   (Mod (Header SDN.EthSrc, Int48 2L))
-	   (Mod (Header SDN.EthSrc, Int48 3L))))
+	   (Test (Src, B))
+	   (Mod (Src, C))
+	   (Mod (Src, D))))
     (ite
-       (Test (Header SDN.EthSrc, Int48 1L))
-       (Par (Mod (Header SDN.EthSrc, Int48 1L),
-	     Mod (Header SDN.EthSrc, Int48 2L)))
-       (Par (Mod (Header SDN.EthSrc, Int48 1L),
-	     Mod (Header SDN.EthSrc, Int48 3L))))
+       (Test (Src, B))
+       (Par (Mod (Src, B),
+	     Mod (Src, C)))
+       (Par (Mod (Src, B),
+	     Mod (Src, D))))
        
 TEST "star id" =
   test_compile
@@ -101,35 +112,64 @@ TEST "star drop" =
 
 TEST "star modify1" =
   test_compile
-    (Star (Mod (Header SDN.EthSrc, Int48 1L)))
-    (Par (Filter True, Mod (Header SDN.EthSrc, Int48 1L)))
+    (Star (Mod (Src, B)))
+    (Par (Filter True, Mod (Src, B)))
 
-let testSrc n = Test (Header SDN.EthSrc, Int48 n) 
-let modSrc n = Mod (Header SDN.EthSrc, Int48 n) 
-let testDst n = Test (Header SDN.EthDst, Int48 n) 
-let modDst n = Mod (Header SDN.EthDst, Int48 n) 
-
-TEST "star modify2" = 
-  test_compile
-    (Star (Par (modSrc 1L, 
-	        ite (testSrc 1L) (modSrc 2L) (modSrc 3L))))
-    (ite 
-       (testSrc 1L)
-       (Par (Par (Filter True, modSrc 1L), modSrc 2L))
-       (Par (Par (Par (Filter True, modSrc 1L), modSrc 2L), modSrc 3L)))
+let testSrc n = Test (Src, n) 
+let modSrc n = Mod (Src, n) 
+let testDst n = Test (Dst, n) 
+let modDst n = Mod (Dst, n) 
 
 TEST "star modify2" = 
   test_compile
-    (Star (Par (modSrc 1L, 
-	        ite (testSrc 1L) (modSrc 2L) (modSrc 3L))))
+    (Star (Par (modSrc A, 
+	        ite (testSrc A) (modSrc B) (modSrc C))))
     (ite 
-       (testSrc 1L)
-       (Par (Par (Filter True, modSrc 1L), modSrc 2L))
-       (Par (Par (Par (Filter True, modSrc 1L), modSrc 2L), modSrc 3L)))
+       (testSrc A)
+       (Par (Par (Filter True, modSrc A), modSrc B))
+       (Par (Par (Par (Filter True, modSrc A), modSrc B), modSrc C)))
 
-(* TEST "star modify2 table" =  *)
-(*   test_flowTable *)
-(*     (Seq (Star (Par (modSrc 1L,  *)
-(* 	             ite (testSrc 1L) (modSrc 2L) (modSrc 3L))), *)
-(*           Mod (Header SDN.InPort, Int16 2))) *)
-(*     [] *)
+TEST "star modify2" = 
+  test_compile
+    (Star (Par (modSrc A, 
+	        ite (testSrc A) (modSrc B) (modSrc C))))
+    (ite 
+       (testSrc A)
+       (Par (Par (Filter True, modSrc A), modSrc B))
+       (Par (Par (Par (Filter True, modSrc A), modSrc B), modSrc C)))
+(* 
+TEST "policy that caused stack overflow on 10/16/2013" =
+  test_compile
+    (Par (Seq (Filter (Or (Test (Dst, B), And (Test (Dst, B), Test (Src, A)))),
+            Par (Mod (Dst, A), Filter (And (Or (Test (Src, C), Test (Dst, B)),
+                                          Test (Dst, A))))),
+         Seq (drop, Mod (Src, B))))
+    id *)
+
+(*  Src -> A ; (filter Src = C + Dst -> C) *)
+TEST "quickcheck failure on 10/16/2013" =
+  test_compile
+    (Seq (Mod (Src, A), Par (Filter (Test (Src, C)), Mod (Dst, C))))
+    (Seq (Mod (Src, A), Mod (Src, C)))
+
+TEST "quickcheck local compiler" =
+  let testable_pol_pkt_to_bool =
+    let open QuickCheck in
+    let open QCGen in
+    testable_fun 
+      (resize 4
+       (NetKATArb.arbitrary_policy >>= fun pol ->
+          NetKATArb.arbitrary_packet >>= fun pkt ->
+            Format.eprintf "Policy: %s\n%!" (NetKAT.string_of_policy pol);
+            ret_gen (pol, pkt)))
+      (fun (pol,pkt) -> NetKAT.string_of_policy pol)
+      testable_bool in
+  let prop_compile_ok (pol, pkt) = 
+    let open NetKAT in
+    NetKAT.PacketSet.compare
+      (NetKAT.eval pkt pol)
+      (NetKAT.eval pkt (Compiler.Local.to_netkat (Compiler.Local.of_policy pol))) = 0 in
+  let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 1000 } in
+  match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
+    | QuickCheck.Success -> true
+    | _ -> failwith "quickchecking failed"
