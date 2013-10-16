@@ -28,10 +28,11 @@ module Formatting = struct
         | SDN_Types.TCPSrcPort -> "tcpSrcPort"
         | SDN_Types.TCPDstPort -> "tcpDstPort")
 
-    let value (fmt : formatter) (v : VInt.t) : unit =
-      if (Int64.of_int (-1) = VInt.get_int64 v) then pp_print_string fmt "<none>"
-      else VInt.format fmt v
-
+  let value (fmt : formatter) (v : VInt.t) : unit =
+    match v with
+      | VInt.Int64 n -> if (Int64.of_int (-1) = n) then pp_print_string fmt "<none>"
+        else VInt.format fmt v
+      | _ -> VInt.format fmt v
 
     let header (fmt : formatter) (h : header) : unit = match h with
       | Header h' -> format_field fmt h'
