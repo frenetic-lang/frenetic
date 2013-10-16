@@ -15,11 +15,11 @@ XStdFilesAUTHORS: False
 
 Flag installexec
   Description: install the Frenetic executable
-  Default: True
+  Default: False
 
 Flag quickcheck
   Description: build the frenetic.quickcheck library
-  Default: false
+  Default: False
 
 Library netcore
   Path: lib
