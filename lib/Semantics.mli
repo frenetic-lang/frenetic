@@ -32,6 +32,7 @@ module type S = sig
     | Filter of pred
     | Mod of header * header_val
     | Par of policy * policy
+    | Choice of policy * policy
     | Seq of policy * policy
     | Star of policy
 
