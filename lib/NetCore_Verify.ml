@@ -3,6 +3,7 @@ open NetCore_Types
 open NetCore_Util
 open Unix
 
+
 (* The [Sat] module provides a representation of formulas in
    first-order logic, a representation of packets, and a function for
    testing their satisfiability. *)
@@ -14,6 +15,7 @@ module Sat = struct
     | SPacket
     | SInt
     | SSet 
+    | SBool
     | SFunction of (zSort list) * zSort
     | SMacro of ((zVar * zSort) list) * zSort
 
@@ -82,6 +84,8 @@ module Sat = struct
       "Int"
     | SPacket -> 
       "Packet"
+    | SBool ->
+      "Bool"
     | SSet -> 
       Printf.sprintf "Set"
     | SFunction(sortlist,sort2) -> 
@@ -196,6 +200,91 @@ module Sat = struct
     fresh_cell := (define_z3_fun name arglist rettype body) @ l;
     TVar name
 
+  let camlp4_test = [<'3;'4;'5;'6>]
+
+  let z3_static =
+
+    (*some convenience functions to make z3 function definitions more readable*)
+
+    let x = (ZTerm (TVar "x")) in
+    let y = (ZTerm (TVar "y")) in
+    let s = (ZTerm (TVar "s")) in
+    let s1 = (ZTerm (TVar "s1")) in
+    let s2 = (ZTerm (TVar "s2")) in
+    let z3app2 f = 
+      (fun sp xp -> match sp, xp with 
+	| (ZTerm (TVar s)), (ZTerm (TVar x)) -> ZTerm (TApp ((TVar f ), [(TVar s);(TVar x)]))
+	| _ -> failwith "need to apply functions to variables as of right now.") in
+    let z3app3 f = (fun sp xp yp -> match sp, xp, yp with 
+      | (ZTerm (TVar s)), (ZTerm (TVar x)), (ZTerm (TVar y)) -> ZTerm (TApp ((TVar f ), [(TVar s);(TVar x); (TVar y)]))
+      | _ -> failwith "need to apply functions to variables as of right now.") in
+    let select = z3app2 "select" in
+    let store = z3app3 "store" in
+    let set_diff = z3app2 "set_diff" in
+    let map = (fun fp l1p l2p -> match fp, l1p, l2p with 
+      | f, (ZTerm (TVar l1)), ZTerm (TVar l2) -> ZTerm (TApp ( (TApp (TVar "_", [TVar "map"; TVar f]  )), [(TVar l1); (TVar l2)]))
+      | _ -> failwith "need to apply functions to variables as of right now.") in
+    let nopacket = (ZTerm (TVar "nopacket")) in
+    let set_empty = (ZTerm (TVar "set_empty")) in
+    
+    (* actual z3 function definitions *)
+
+    (define_z3_fun "packet_and"  [("x", SPacket); ("y", SPacket)] SPacket
+       (ZIf (ZAnd 
+	       [ZNot (ZEquals (x, nopacket)); 
+		ZEquals (x, y)], 
+	     x, nopacket))) @  
+
+      define_z3_fun "packet_or" [("x", SPacket); ("y", SPacket)] SPacket
+       (ZIf (ZEquals (x, nopacket), y, x)) @
+
+      define_z3_fun "packet_diff" [("x", SPacket); ("y", SPacket)] SPacket
+       (ZIf (ZEquals (x,y), nopacket, x)) @
+
+      define_z3_macro "set_mem" [("x", SPacket); ("s", SSet)] SBool
+       (ZNot (ZEquals ((select s x), nopacket))) @
+
+      define_z3_macro "set_add" [("s", SSet); ("x", SPacket)] SSet 
+       (store s x x) @
+
+      define_z3_macro "set_inter" [("s1", SSet); ("s2", SSet)] SSet
+       (map "packet_and" s1 s2) @
+
+      define_z3_macro "set_union" [("s1", SSet); ("s2", SSet)] SSet
+       (map "packet_or" s1 s2) @ 
+
+      define_z3_macro "set_diff" [("s1", SSet); ("s2", SSet)] SSet 
+       (map "packet_diff" s1 s2) @
+
+      define_z3_macro "set_subseteq" [("s1", SSet); ("s2", SSet)] SBool 
+       (ZEquals (set_empty, (set_diff s1 s2))) @
+
+      (*forwards_pred z3 functions*)
+
+      define_z3_macro "forwards_pred_false" [] SBool ZFalse @
+      define_z3_macro "forwards_pred_true" [] SBool ZTrue
+      (*define_z3_macro "forwads_pred_test []" ZEquals (encode_header hdr pkt, encode_vint v)*)
+
+(*^ 
+
+
+(*
+        let rec forwards_pred (pred : pred) (pkt : zVar) : zFormula = 
+    match pred with
+      | Test (hdr, v) -> 
+	
+      | Neg p ->
+        ZNot (forwards_pred p pkt)
+      | And (pred1, pred2) -> ZAnd [forwards_pred pred1 pkt; 
+                                    forwards_pred pred2 pkt]
+      | Or (pred1, pred2) -> ZOr [forwards_pred pred1 pkt;
+                                  forwards_pred pred2 pkt]
+*)
+
+      
+      
+      (* forwards_pol *)
+    *)
 
   let pervasives : string = 
     "(declare-datatypes 
@@ -215,42 +304,9 @@ module Sat = struct
     (TCPDstPort Int) 
     (EthSrc Int) 
     (InPort Int)))))" ^ "\n" ^ 
-    "(define-sort Set () (Array Packet Packet))" ^ "\n (check-sat) \n"^ 
-      (intercalate serialize_declare "\n" (define_z3_fun "packet_and"  [("x", SPacket); ("y", SPacket)] SPacket
-      (ZIf (ZAnd [ZNot (ZEquals (ZTerm (TVar "x"), ZTerm (TVar "nopacket"))); ZEquals (ZTerm (TVar "x"), ZTerm (TVar "y"))], (ZTerm (TVar "x")), (ZTerm (TVar "nopacket"))) )))^ "\n" (*^ 
-      (intercalate serialize_declare (define_z3_fun "packet_or"  [("x", "Packet"); ("y", "Packet")] "Packet" "(ite (= x nopacket) y x)" ))^ "\n" ^ 
-      define_z3_fun "packet_diff"  [("x", "Packet"); ("y", "Packet")] "Packet" "(ite (= x y) nopacket x)" ^ "\n" ^ 
+      "(define-sort Set () (Array Packet Packet))" ^ "\n (check-sat) \n"^ 
       "(define-fun set_empty () Set ((as const Set) nopacket))" ^ "\n" ^
-      define_z3_macro "set_mem" [("x", "Packet"); ("s", "Set")] "Bool" "(not (= (select s x) nopacket))" ^ "\n" ^ 
-      define_z3_macro "set_add" [("s", "Set"); ("x", "Packet")] "Set"  "(store s x x)" ^ "\n" ^ 
-      define_z3_macro "set_inter" [("s1", "Set"); ("s2", "Set")] "Set" "((_ map packet_and) s1 s2)" ^ "\n" ^ 
-      (*define_z3_fun "set_negate" [("s1", "Set")] "Set" "(_ map not) s1))" ^ "\n" ^ *)
-      define_z3_macro "set_union" [("s1", "Set"); ("s2", "Set")] "Set" "((_ map packet_or) s1 s2)" ^ "\n" ^ 
-      define_z3_macro "set_diff" [("s1", "Set"); ("s2", "Set")] "Set" "((_ map packet_diff) s1 s2)" ^ "\n" ^ 
-      define_z3_macro "set_subseteq" [("s1", "Set"); ("s2", "Set")] "Bool" "(= (set_empty) (set_diff s1 s2))" ^ "\n" ^
-
-      
-      (*forwards_pred *)
-      define_z3_macro "forwards_pred_false" [] "Bool" (serialize_formula ZFalse) ^
-      define_z3_macro "forwards_pred_true" [] "Bool" (serialize_formula ZTrue) 
-      (*define_z3_macro "forwads_pred_test []" ZEquals (encode_header hdr pkt, encode_vint v)*)
-(*
-        let rec forwards_pred (pred : pred) (pkt : zVar) : zFormula = 
-    match pred with
-      | Test (hdr, v) -> 
-	
-      | Neg p ->
-        ZNot (forwards_pred p pkt)
-      | And (pred1, pred2) -> ZAnd [forwards_pred pred1 pkt; 
-                                    forwards_pred pred2 pkt]
-      | Or (pred1, pred2) -> ZOr [forwards_pred pred1 pkt;
-                                  forwards_pred pred2 pkt]
-*)
-
-      
-      
-      (* forwards_pol *)
-    *)
+      (intercalate serialize_declare "\n" z3_static)^ "\n" 
       
       
   let serialize_program p g : string = 
