@@ -3,6 +3,7 @@ open NetCore_Types
 open NetCore_Util
 open SDN_Headers
 open Unix
+open NetCore_Gensym
 
 (* The [Sat] module provides a representation of formulas in
    first-order logic, a representation of packets, and a function for
@@ -195,10 +196,20 @@ module Sat = struct
     [ZDefineVar (name, SMacro (arglist, rettype), body)]
 
 
-  let z3_fun (name : string) (arglist : (zVar * zSort) list)  (rettype : zSort) (body : zFormula) : zTerm = 
+  let zApp x = (fun l -> ZTerm (TApp (x, l)))
+
+  let z3_funB (arglist : (zVar * zSort) list) (body : zFormula) : zTerm = 
     let l = !fresh_cell in
-    fresh_cell := (define_z3_fun name arglist rettype body) @ l;
+    let name = to_string (gensym ()) in
+    fresh_cell := (define_z3_fun name arglist SBool body) @ l;
     TVar name
+
+  let z3_macroB (arglist : (zVar * zSort) list) (body : zFormula) : zTerm = 
+    let l = !fresh_cell in
+    let name = to_string (gensym ()) in
+    fresh_cell := (define_z3_macro name arglist SBool body) @ l;
+    TVar name
+
 
   let camlp4_test = [<'3;'4;'5;'6>]
 
@@ -257,34 +268,8 @@ module Sat = struct
        (map "packet_diff" s1 s2) @
 
       define_z3_macro "set_subseteq" [("s1", SSet); ("s2", SSet)] SBool 
-       (ZEquals (set_empty, (set_diff s1 s2))) @
+       (ZEquals (set_empty, (set_diff s1 s2))) 
 
-      (*forwards_pred z3 functions*)
-
-      define_z3_macro "forwards_pred_false" [] SBool ZFalse @
-      define_z3_macro "forwards_pred_true" [] SBool ZTrue
-      (*define_z3_macro "forwads_pred_test []" ZEquals (encode_header hdr pkt, encode_vint v)*)
-
-(*^ 
-
-
-(*
-        let rec forwards_pred (pred : pred) (pkt : zVar) : zFormula = 
-    match pred with
-      | Test (hdr, v) -> 
-	
-      | Neg p ->
-        ZNot (forwards_pred p pkt)
-      | And (pred1, pred2) -> ZAnd [forwards_pred pred1 pkt; 
-                                    forwards_pred pred2 pkt]
-      | Or (pred1, pred2) -> ZOr [forwards_pred pred1 pkt;
-                                  forwards_pred pred2 pkt]
-*)
-
-      
-      
-      (* forwards_pol *)
-    *)
 
   let pervasives : string = 
     "(declare-datatypes 
@@ -470,20 +455,43 @@ module Verify = struct
   let encode_vint (v: VInt.t): zTerm = 
     TInt (VInt.get_int64 v)
 
-  let rec forwards_pred (pred : pred) (pkt : zVar) : zFormula = 
+  let forwards_pred_z3_functions = 
+      (*forwards_pred z3 functions*)
+    
+      define_z3_macro "forwards_pred_false" [] SBool ZFalse @
+      define_z3_macro "forwards_pred_true" [] SBool ZTrue (*@
+      define_z3_macro "forwads_pred_test" [] SBool (ZEquals (encode_header hdr pkt, encode_vint v))
+
+        let rec forwards_pred (pred : pred) (pkt : zVar) : zFormula = 
     match pred with
-      | False -> 
-	ZFalse
-      | True -> 
-	ZTrue
       | Test (hdr, v) -> 
-	ZEquals (ZTerm (encode_header hdr pkt), ZTerm (encode_vint v))
+	
       | Neg p ->
         ZNot (forwards_pred p pkt)
       | And (pred1, pred2) -> ZAnd [forwards_pred pred1 pkt; 
                                     forwards_pred pred2 pkt]
       | Or (pred1, pred2) -> ZOr [forwards_pred pred1 pkt;
                                   forwards_pred pred2 pkt]
+*)
+
+
+  let rec forwards_pred (pred : pred) (pkt : zVar) : zFormula = 
+    let wrap (expr : zFormula) = (zApp (z3_macroB [] expr) []) in 
+    match pred with
+      | False -> 
+	wrap ZFalse
+      | True -> 
+	wrap ZTrue
+      | Test (hdr, v) -> 
+	wrap (ZEquals (ZTerm (encode_header hdr pkt), ZTerm (encode_vint v)))
+      | Neg p ->
+        wrap (ZNot (forwards_pred p pkt))
+      | And (pred1, pred2) -> wrap 
+	(ZAnd [forwards_pred pred1 pkt; 
+	       forwards_pred pred2 pkt])
+      | Or (pred1, pred2) -> wrap (
+	ZOr [forwards_pred pred1 pkt;
+             forwards_pred pred2 pkt])
         
   let rec forward_pol (pol:policy) (pkt:zVar) (set:zVar) : zFormula =
     match pol with
