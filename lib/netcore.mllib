@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 3c08243da165eb6e26a70fea251cd4ea)
+# DO NOT EDIT (digest: f2988e8ecec223542a214fce1fa1e9a6)
 NetCore_Util
 NetCore_Action
 NetCore_Compiler
@@ -20,13 +20,17 @@ NetCore_Wildcard
 NetCore_Classifier
 NetCore_Compat
 NetCore_Desugar
-NetCore_Digraph
 NetCore_Gensym
 NetCore_Lexer
 NetCore_Monitoring
 NetCore_Parser
 NetCore_SurfaceSyntax
 NetKAT_Types
-NetKAT_Compiler
+LocalCompiler
+Dehop
+NetKAT_Lexer
+NetKAT_Parser
 Controller
+Semantics
+SDN_Headers
 # OASIS_STOP

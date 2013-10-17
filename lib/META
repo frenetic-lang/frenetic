@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: f5f5db5ab73ce04935301cb0c2760c34)
+# DO NOT EDIT (digest: d55cf2efe6ef543ffcafccf5ba6ab065)
 version = "1.0.2"
 description = "The Frenetic Compiler and Runtime System"
 requires =
@@ -9,5 +9,15 @@ archive(byte, plugin) = "netcore.cma"
 archive(native) = "netcore.cmxa"
 archive(native, plugin) = "netcore.cmxs"
 exists_if = "netcore.cma"
+package "quickcheck" (
+ version = "1.0.2"
+ description = "The Frenetic Compiler and Runtime System"
+ requires = "quickcheck netcore"
+ archive(byte) = "quickcheck.cma"
+ archive(byte, plugin) = "quickcheck.cma"
+ archive(native) = "quickcheck.cmxa"
+ archive(native, plugin) = "quickcheck.cmxs"
+ exists_if = "quickcheck.cma"
+)
 # OASIS_STOP
 

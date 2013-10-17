@@ -15,7 +15,11 @@ XStdFilesAUTHORS: False
 
 Flag installexec
   Description: install the Frenetic executable
-  Default: True
+  Default: False
+
+Flag quickcheck
+  Description: build the frenetic.quickcheck library
+  Default: False
 
 Library netcore
   Path: lib
@@ -33,15 +37,19 @@ Library netcore
     NetCore_Classifier,
     NetCore_Compat,
     NetCore_Desugar,
-    NetCore_Digraph,
     NetCore_Gensym,
     NetCore_Lexer,
     NetCore_Monitoring,
     NetCore_Parser,
     NetCore_SurfaceSyntax,
     NetKAT_Types,
-    NetKAT_Compiler,
-    Controller
+    LocalCompiler,
+    Dehop,
+    NetKAT_Lexer,
+    NetKAT_Parser,
+    Controller,
+    Semantics,
+    SDN_Headers
   Modules:
     NetCore_Util,
     NetCore_Action,
@@ -61,10 +69,27 @@ Library netcore
     NetCore_Verify,
     NetCore_Wildcard
 
+Library quickcheck
+  Findlibparent: netcore
+  Findlibname: quickcheck
+  Path: quickcheck
+  BuildDepends:
+    quickcheck,
+    netcore
+  Modules:
+    NetKAT_Arbitrary
+
+
 Executable testtool
   Path: test
   MainIs: Test.ml
-  BuildDepends: oUnit,packet,netcore,pa_ounit,pa_ounit.syntax
+  BuildDepends: 
+    oUnit,packet,
+    netcore,
+    pa_ounit,
+    pa_ounit.syntax,
+    quickcheck,
+    netcore.quickcheck
   Install: False
 
 Test all_tests
@@ -99,6 +124,16 @@ Executable maclearning
     lwt,
     lwt.syntax,
     netcore
+
+Executable netkat_test
+  Path: frenetic
+  MainIs: netkat_test.ml
+  Install$: flag(installexec)
+  BuildDepends:
+    lwt,
+    lwt.syntax,
+    netcore
+
 
 Document doc
   Title: NetCore Documentation

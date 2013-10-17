@@ -14,11 +14,12 @@
 
 *)
 
-type header =
-  | Header of SDN_Types.field
-  | Switch
+
+type header = SDN_Headers.header
 
 type header_val = VInt.t
+
+type payload = SDN_Types.payload
 
 (** {2 Policies}
 
@@ -36,6 +37,7 @@ type policy =
   | Filter of pred
   | Mod of header*header_val
   | Par of policy*policy
+  | Choice of policy*policy
   | Seq of policy*policy
   | Star of policy
 

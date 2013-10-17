@@ -18,11 +18,12 @@ Prerequisites:
   - openflow
   - oUnit
   - pa_ounit
+  - quickcheck
 
   Instal them using the following command:
 
   ```
-  $ opam install cstruct lwt ocamlfind ocamlgraph ounit pa_ounit
+  $ opam install cstruct lwt ocamlfind ocamlgraph ounit pa_ounit quickcheck
   ```
 
 - The following OCaml libraries that we recommend you compile from source:
