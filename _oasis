@@ -14,7 +14,7 @@ XStdFilesAUTHORS: False
 
 Flag quickcheck
     Description: build the openflow.quickcheck library
-    Default: false
+    Default: False
 
 Library openflow
   Path: lib

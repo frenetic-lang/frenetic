@@ -127,7 +127,7 @@ module Match = struct
   let arbitrary_dlAddr = arbitrary_uint48
   let arbitrary_dlVlan = arbitrary_option arbitrary_uint16
   let arbitrary_dlVlanPcp = arbitrary_uint8
-  let arbitrary_nwAddr = arbitrary_uint32
+  let arbitrary_nwAddr = arbitrary_int32
   let arbitrary_nwTos = arbitrary_uint8
   let arbitrary_tpPort = arbitrary_uint16
 
@@ -237,7 +237,7 @@ module Action = struct
       Match.arbitrary_tpPort >>= (fun tpSrc -> ret_gen (SetTpSrc tpSrc));
       Match.arbitrary_tpPort >>= (fun tpDst -> ret_gen (SetTpDst tpDst));
       PseudoPort.arbitrary_nc >>= (fun p ->
-          arbitrary_uint32 >>= (fun g -> ret_gen (Enqueue (p, g))))
+          arbitrary_int32 >>= (fun g -> ret_gen (Enqueue (p, g))))
     ]
 
   let to_string = Action.to_string
