@@ -78,7 +78,9 @@ type packet = {
 module PacketSet : Set.S
   with type elt = packet
 
-val eval : packet -> policy -> PacketSet.t
+module PacketSetSet : Set.S with type elt = PacketSet.t
+
+val eval : packet -> policy -> PacketSetSet.t
 
 (** {2 Utilities} *)
 
