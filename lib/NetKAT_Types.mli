@@ -37,6 +37,7 @@ type policy =
   | Filter of pred
   | Mod of header*header_val
   | Par of policy*policy
+  | Choice of policy*policy
   | Seq of policy*policy
   | Star of policy
 
@@ -77,7 +78,9 @@ type packet = {
 module PacketSet : Set.S
   with type elt = packet
 
-val eval : packet -> policy -> PacketSet.t
+module PacketSetSet : Set.S with type elt = PacketSet.t
+
+val eval : packet -> policy -> PacketSetSet.t
 
 (** {2 Utilities} *)
 

@@ -28,6 +28,7 @@ module type S = sig
     | Filter of pred
     | Mod of header * header_val
     | Par of policy * policy
+    | Choice of policy * policy
     | Seq of policy * policy
     | Star of policy
 
@@ -47,7 +48,10 @@ module type S = sig
   module PacketSet : Set.S
     with type elt = packet
 
-  val eval : packet -> policy -> PacketSet.t
+  module PacketSetSet : Set.S
+    with type elt = PacketSet.t
+
+  val eval : packet -> policy -> PacketSetSet.t
 
   val format_policy : Format.formatter -> policy -> unit
 
@@ -73,6 +77,7 @@ module Make (Headers : HEADERS) = struct
     | Filter of pred
     | Mod of header * header_val
     | Par of policy * policy
+    | Choice of policy * policy
     | Seq of policy * policy
     | Star of policy
 
@@ -105,6 +110,8 @@ module Make (Headers : HEADERS) = struct
         Pervasives.compare x.payload y.payload
   end)
 
+  module PacketSetSet = Set.Make(PacketSet)
+
   let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
     | True -> true
     | False -> false
@@ -117,28 +124,37 @@ module Make (Headers : HEADERS) = struct
     | Or (pr1, pr2) -> eval_pred pkt pr1 || eval_pred pkt pr2
     | Neg pr1 -> not (eval_pred pkt pr1)
 
-  let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
+  let rec eval (pkt : packet) (pol : policy) : PacketSetSet.t = match pol with
     | Filter pr -> 
       if eval_pred pkt pr then 
-        PacketSet.singleton pkt 
+        PacketSetSet.singleton (PacketSet.singleton pkt)
       else 
-        PacketSet.empty
+        PacketSetSet.empty
     | Mod (h, v) ->
       if HeaderMap.mem h pkt.headers then
-        PacketSet.singleton { pkt with headers = HeaderMap.add h v pkt.headers }
+        PacketSetSet.singleton (PacketSet.singleton { pkt with headers = HeaderMap.add h v pkt.headers })
       else
         raise Not_found (* for consistency with Test *)
     | Par (pol1, pol2) ->
-      PacketSet.union (eval pkt pol1) (eval pkt pol2)
+      let cartesian_product s1 s2 =
+        let f x y setset = PacketSetSet.add (PacketSet.union x y) setset in
+        let g x setset = PacketSetSet.fold (f x) s2 setset in
+        PacketSetSet.fold g s1 PacketSetSet.empty in
+      cartesian_product (eval pkt pol1) (eval pkt pol2)
     | Seq (pol1, pol2) ->
-      let f pkt' set = PacketSet.union (eval pkt' pol2) set in
-      PacketSet.fold f (eval pkt pol1) PacketSet.empty
-    | Star pol -> 
-      let rec loop acc = 
+      let f pkt' setset = PacketSetSet.union (eval pkt' pol2) setset in
+      let g pktset = PacketSet.fold f pktset PacketSetSet.empty in
+      let h pktset setset = PacketSetSet.union (g pktset) setset in
+      PacketSetSet.fold h (eval pkt pol1) PacketSetSet.empty
+    | Star pol -> raise Not_found (* MARCO: Can't figure this out :( *)
+      (*let rec loop acc = 
         let f pkt' set = PacketSet.union (eval pkt' pol) set in 
         let acc' = PacketSet.fold f acc PacketSet.empty in 
         if PacketSet.equal acc acc' then acc else loop acc' in 
-      loop (PacketSet.singleton pkt)
+      loop (PacketSet.singleton pkt)*)
+    | Choice (pol1, pol2) ->
+      PacketSetSet.union (eval pkt pol1) (eval pkt pol2)
+
 
   module Formatting = struct
 
@@ -180,7 +196,7 @@ module Make (Headers : HEADERS) = struct
           | _ -> fprintf fmt "@[(@[%a || %a@])@]" (pred OR_L) p1 (pred OR_R) p2
         end
 
-    type policy_context = SEQ_L | SEQ_R | PAR_L | PAR_R | STAR | PAREN
+    type policy_context = SEQ_L | SEQ_R | PAR_L | PAR_R | CHOICE_L | CHOICE_R | STAR | PAREN
 
     let rec pol (cxt : policy_context) (fmt : formatter) (p : policy) : unit =
       match p with
@@ -214,6 +230,13 @@ module Make (Headers : HEADERS) = struct
           | PAR_R
           | SEQ_L -> fprintf fmt "@[%a ; %a@]" (pol SEQ_L) p1 (pol SEQ_R) p2
           | _ -> fprintf fmt "@[(@[%a ; %a@])@]" (pol SEQ_L) p1 (pol SEQ_R) p2
+        end
+
+      | Choice (p1, p2) -> (* MARCO: WHAT SYMBOL DO WE USE? *)
+        begin match cxt with
+          | PAREN
+          | CHOICE_L -> fprintf fmt "@[%a + %a@]" (pol CHOICE_L) p1 (pol CHOICE_R) p2
+          | _ -> fprintf fmt "@[(@[%a + %a@])@]" (pol CHOICE_L) p1 (pol CHOICE_R) p2
         end
   end
 

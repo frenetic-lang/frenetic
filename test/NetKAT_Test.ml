@@ -158,7 +158,7 @@ TEST "quickcheck local compiler" =
       testable_bool in
   let prop_compile_ok (pol, pkt) =
     let open NetKAT in
-    NetKAT.PacketSet.compare
+    NetKAT.PacketSetSet.compare
       (NetKAT.eval pkt pol)
       (NetKAT.eval pkt (Compiler.Local.to_netkat (Compiler.Local.of_policy pol))) = 0 in
   let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 1000 } in
