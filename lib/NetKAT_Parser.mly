@@ -148,7 +148,8 @@ predicate :
 policy : 
   | FILTER predicate         { Filter $2 }
   | field ASSIGN field_value { Mod ($1, VInt.Int64 $3) }
-  | policy PLUS policy   { Par ($1, $3) }
+  | policy PLUS policy { Choice ($1, $3) }
+  | policy BAR policy   { Par ($1, $3) }
   | policy SEMI policy   { Seq ($1, $3) }
   | policy KLEEN_STAR    { Star $1      }
   | ID                   { id           }
