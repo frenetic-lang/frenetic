@@ -185,7 +185,7 @@ module Make
         | [s] -> 
           set_to_netkat s
         | s::g' -> 
-          let f pol' s = Syntax.Choice (pol', set_to_netkat s) in
+          let f pol' s = Syntax.Choice (set_to_netkat s, pol') in
           List.fold_left f (set_to_netkat s) g'
   end
 
