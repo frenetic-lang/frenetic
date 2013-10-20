@@ -144,6 +144,16 @@ TEST "quickcheck failure on 10/16/2013" =
     (Seq (Mod (Src, A), Par (Filter (Test (Src, C)), Mod (Dst, C))))
     (Seq (Mod (Src, A), Mod (Dst, C)))
 
+TEST "choice1" = 
+  test_compile
+    (Choice (Mod (Src, A), Mod(Src, B)))
+    (Choice (Mod (Src, A), Mod(Src, B)))
+
+TEST "choice1" = 
+  test_compile
+    (Seq (Filter (Test(Src,C)), Choice (Mod (Src, A), Mod(Src, B))))
+    (Seq (Filter (Test(Src,C)), Choice (Mod (Src, A), Mod(Src, B))))
+
 (* TEST "quickcheck local compiler" = *)
 (*   let testable_pol_pkt_to_bool = *)
 (*     let open QuickCheck in *)
