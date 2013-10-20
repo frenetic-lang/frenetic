@@ -7,28 +7,62 @@ type t =
   | Int4 of int
 
 let get_int64 (v : t) : Int64.t = match v with
-  | Int64 n -> n
-  | _ -> raise (Invalid_argument "get_int64")
+  | Int64 n
+  | Int48 n -> n
+  | Int32 n -> Int64.of_int32 n
+  | Int16 n
+  | Int8 n
+  | Int4 n -> Int64.of_int n
 
 let get_int48 (v : t) : Int64.t = match v with
+  | Int64 n -> if n > 0xFFFFFFFFFFFFL then 
+                    raise (Invalid_argument "get_int48")
+               else
+                 n
   | Int48 n -> n
-  | _ -> raise (Invalid_argument "get_int48")
+  | Int32 n -> Int64.of_int32 n
+  | Int16 n
+  | Int8 n
+  | Int4 n -> Int64.of_int n
 
 let get_int32 (v : t) : Int32.t = match v with
+  | Int64 n | Int48 n ->
+    if n > 0xFFFFFFFFL then raise (Invalid_argument "get_int32")
+    else Int64.to_int32 n
   | Int32 n -> n
-  | _ -> raise (Invalid_argument "get_int32")
+  | Int16 n | Int8 n | Int4 n -> Int32.of_int n
 
-let get_int16 (v : t) : int = match v with
-  | Int16 n -> n
-  | _ -> raise (Invalid_argument "get_int16")
+let int64_to_int (n : Int64.t) : int =
+    if n > Int64.of_int max_int then
+      raise (Invalid_argument "int64_to_int")
+    else
+      Int64.to_int n
 
-let get_int8 (v : t) : int = match v with
-  | Int8 n -> n
-  | _ -> raise (Invalid_argument "get_int8")
+let int32_to_int (n : Int32.t) : int =
+    if n > Int32.of_int max_int then
+      raise (Invalid_argument "int32_to_int")
+    else
+      Int32.to_int n
 
-let get_int4 (v : t) : int = match v with
-  | Int4 n -> n
-  | _ -> raise (Invalid_argument "get_int4")
+let vint_to_int (v : t) : int = match v with
+  | Int64 n | Int48 n -> int64_to_int n
+  | Int32 n -> int32_to_int n
+  | Int16 n | Int8 n | Int4 n -> n
+
+let get_int16 (v : t) : int =
+  let n = vint_to_int v in
+  if n > 0xFFFF then raise (Invalid_argument "get_int16")
+  else n
+
+let get_int8 (v : t) : int =
+  let n = vint_to_int v in
+  if n > 0xFF then raise (Invalid_argument "get_int8")
+  else n
+
+let get_int4 (v : t) : int =
+  let n = vint_to_int v in
+  if n > 0xF then raise (Invalid_argument "get_int4")
+  else n
 
 let format (fmt : Format.formatter) (v : t) : unit = 
 	let open Format in
