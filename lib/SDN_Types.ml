@@ -151,7 +151,7 @@ let rec format_group (fmt : Format.formatter) (group : group) : unit =
   | [] -> ()
   | [par] -> format_par fmt par
   | (par :: par' :: groups) ->
-    Format.fprintf fmt "@[%a +@ %a@]" format_par par format_group (par' :: group)
+    Format.fprintf fmt "@[%a +@ %a@]" format_par par format_group (par' :: groups)
   
 let format_timeout (fmt:Format.formatter) (t:timeout) : unit = 
   match t with 
