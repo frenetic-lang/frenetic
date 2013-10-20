@@ -6,11 +6,17 @@ module type S = sig
   module Action : sig
     type t = header_val_map
     module Set : Set.S with type elt = t
+    type group = Set.t list
+    val to_string : t -> string
     val set_to_string : Set.t -> string
+    val group_to_string : group -> string
+    val group_compare : group -> group -> int
+    val group_crossproduct : group -> group -> group
+    val group_union : group -> group -> group
     val seq_acts : t -> Set.t -> Set.t
     val id : Set.t
     val drop : Set.t
-    val set_to_netkat : Set.t -> policy
+    val group_to_netkat : group -> policy
   end
 
   module Pattern : sig
@@ -29,15 +35,18 @@ module type S = sig
   module Atom : sig
     type t = Pattern.Set.t * Pattern.t
     module Map : Map.S with type key = t
+    module Set : Set.S with type elt = t
     val to_string : t -> string
+    val set_to_string : Set.t -> string
     val seq_atom : t -> t -> t option
     val seq_act_atom : t -> Action.t -> t -> t option
+    val diff_atom : t -> t -> Set.t
     val tru : t
     val fls : t
   end 
 
   module Local : sig
-    type t = Action.Set.t Atom.Map.t
+    type t = Action.group Atom.Map.t
     val of_policy : policy -> t
     val to_netkat : t -> policy
   end

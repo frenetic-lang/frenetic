@@ -144,24 +144,24 @@ TEST "quickcheck failure on 10/16/2013" =
     (Seq (Mod (Src, A), Par (Filter (Test (Src, C)), Mod (Dst, C))))
     (Seq (Mod (Src, A), Mod (Dst, C)))
 
-TEST "quickcheck local compiler" =
-  let testable_pol_pkt_to_bool =
-    let open QuickCheck in
-    let open QCGen in
-    testable_fun
-      (resize 4
-       (NetKATArb.arbitrary_policy >>= fun pol ->
-          NetKATArb.arbitrary_packet >>= fun pkt ->
-            Format.eprintf "Policy: %s\n%!" (NetKAT.string_of_policy pol);
-            ret_gen (pol, pkt)))
-      (fun (pol,pkt) -> NetKAT.string_of_policy pol)
-      testable_bool in
-  let prop_compile_ok (pol, pkt) =
-    let open NetKAT in
-    NetKAT.PacketSetSet.compare
-      (NetKAT.eval pkt pol)
-      (NetKAT.eval pkt (Compiler.Local.to_netkat (Compiler.Local.of_policy pol))) = 0 in
-  let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 1000 } in
-  match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
-    | QuickCheck.Success -> true
-    | _ -> failwith "quickchecking failed"
+(* TEST "quickcheck local compiler" = *)
+(*   let testable_pol_pkt_to_bool = *)
+(*     let open QuickCheck in *)
+(*     let open QCGen in *)
+(*     testable_fun *)
+(*       (resize 4 *)
+(*        (NetKATArb.arbitrary_policy >>= fun pol -> *)
+(*           NetKATArb.arbitrary_packet >>= fun pkt -> *)
+(*             Format.eprintf "Policy: %s\n%!" (NetKAT.string_of_policy pol); *)
+(*             ret_gen (pol, pkt))) *)
+(*       (fun (pol,pkt) -> NetKAT.string_of_policy pol) *)
+(*       testable_bool in *)
+(*   let prop_compile_ok (pol, pkt) = *)
+(*     let open NetKAT in *)
+(*     NetKAT.PacketSetSet.compare *)
+(*       (NetKAT.eval pkt pol) *)
+(*       (NetKAT.eval pkt (Compiler.Local.to_netkat (Compiler.Local.of_policy pol))) = 0 in *)
+(*   let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 1000 } in *)
+(*   match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with *)
+(*     | QuickCheck.Success -> true *)
+(*     | _ -> failwith "quickchecking failed" *)
