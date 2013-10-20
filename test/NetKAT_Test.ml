@@ -115,29 +115,21 @@ TEST "star modify1" =
     (Star (Mod (Src, B)))
     (Par (Filter True, Mod (Src, B)))
 
-let testSrc n = Test (Src, n) 
-let modSrc n = Mod (Src, n) 
-let testDst n = Test (Dst, n) 
-let modDst n = Mod (Dst, n) 
+let testSrc n = Test (Src, n)
+let modSrc n = Mod (Src, n)
+let testDst n = Test (Dst, n)
+let modDst n = Mod (Dst, n)
 
-TEST "star modify2" = 
+TEST "star modify2" =
   test_compile
-    (Star (Par (modSrc A, 
+    (Star (Par (modSrc A,
 	        ite (testSrc A) (modSrc B) (modSrc C))))
-    (ite 
+    (ite
        (testSrc A)
-       (Par (Par (Filter True, modSrc A), modSrc B))
+       (Par (Par (Par (Filter True, modSrc A), modSrc B), modSrc C))
        (Par (Par (Par (Filter True, modSrc A), modSrc B), modSrc C)))
 
-TEST "star modify2" = 
-  test_compile
-    (Star (Par (modSrc A, 
-	        ite (testSrc A) (modSrc B) (modSrc C))))
-    (ite 
-       (testSrc A)
-       (Par (Par (Filter True, modSrc A), modSrc B))
-       (Par (Par (Par (Filter True, modSrc A), modSrc B), modSrc C)))
-(* 
+(*
 TEST "policy that caused stack overflow on 10/16/2013" =
   test_compile
     (Par (Seq (Filter (Or (Test (Dst, B), And (Test (Dst, B), Test (Src, A)))),
@@ -150,13 +142,13 @@ TEST "policy that caused stack overflow on 10/16/2013" =
 TEST "quickcheck failure on 10/16/2013" =
   test_compile
     (Seq (Mod (Src, A), Par (Filter (Test (Src, C)), Mod (Dst, C))))
-    (Seq (Mod (Src, A), Mod (Src, C)))
+    (Seq (Mod (Src, A), Mod (Dst, C)))
 
 TEST "quickcheck local compiler" =
   let testable_pol_pkt_to_bool =
     let open QuickCheck in
     let open QCGen in
-    testable_fun 
+    testable_fun
       (resize 4
        (NetKATArb.arbitrary_policy >>= fun pol ->
           NetKATArb.arbitrary_packet >>= fun pkt ->
@@ -164,7 +156,7 @@ TEST "quickcheck local compiler" =
             ret_gen (pol, pkt)))
       (fun (pol,pkt) -> NetKAT.string_of_policy pol)
       testable_bool in
-  let prop_compile_ok (pol, pkt) = 
+  let prop_compile_ok (pol, pkt) =
     let open NetKAT in
     NetKAT.PacketSet.compare
       (NetKAT.eval pkt pol)

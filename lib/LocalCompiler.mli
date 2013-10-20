@@ -19,7 +19,7 @@ module type S = sig
     val set_to_string : Set.t -> string
     val to_string : t -> string
     val tru : t
-    val apply_act : t -> Action.t -> t
+    val is_tru : t -> bool
     val seq_pat : t -> t -> t option
     val seq_act_pat : t -> Action.t -> t -> t option
     val set_to_netkat : Set.t -> pred
