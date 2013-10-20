@@ -1,18 +1,14 @@
-(* KATNetic is a more civilized name than what Nate suggested. *)
+let help args =
+	  Format.printf "Unknown command\n"
 
-module Example = struct
-  open SDN_Types
-  open VInt
-  open NetKAT_Types
-  open SDN_Headers
+let run args = match args with
+  | [ filename ] ->
+    let cin = open_in filename in
+    let exp = NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel cin) in
+    Lwt_main.run (Controller.start 6633 (NetCore_Stream.constant exp))
+  | _ -> help [ "run" ]
 
-  let fwd_by_port sw src dst =
-    Seq (Filter (And (Test (Switch, Int64 sw), Test (Header InPort, Int16 src))),
-    	   Mod (Header InPort, Int16 dst))
-
-  let pol = Par (fwd_by_port 1L 1 2, fwd_by_port 1L 2 1)
-
-end
-
-let () =
-  Lwt_main.run (Controller.start 6633 (NetCore_Stream.constant Example.pol))
+let () = 
+  match Array.to_list Sys.argv with
+    | (_ :: "run" :: args) ->  run args
+    | _ -> help []
