@@ -413,6 +413,28 @@ module Optimization = struct
       | VStar p -> VStar (vpol_to_linear_vpol p)
       | _ -> p
 
+  let rec atomic p = match p with
+    | VTest _ -> true
+    | VMod _ -> true
+    | VFilter _ -> true
+    | VLink _ -> true
+    | _ -> false
+
+  let rec seq_atomic p = match p with
+    | VStar _ -> true
+    | VSeq(p,q) -> seq_atomic p && seq_atomic q
+    | _ -> atomic p
+
+  let rec par_seq_atomic p = match p with
+    | VPar(p,q) -> par_seq_atomic p && par_seq_atomic q
+    | VStar _ -> true
+    | _ -> seq_atomic p
+
+  let rec choice_par_seq_atomic p = match p with
+    | VStar _ -> true
+    | VChoice(p,q) -> choice_par_seq_atomic p && choice_par_seq_atomic q
+    | _ -> par_seq_atomic p
+
   (* Normal form: choice of unions of sequences *)
   let rec distribute_seq p =
     match p with
@@ -420,31 +442,34 @@ module Optimization = struct
         VChoice(distribute_seq (VSeq(p,r)), distribute_seq (VSeq(q,r)))
       | VSeq(p, VChoice(q,r)) ->
         VChoice(distribute_seq (VSeq(p,q)), distribute_seq (VSeq(p,r)))
-      (* (p|q);r = p;r | q;r *)
+        (* (p|q);r = p;r | q;r *)
       | VSeq(VPar(p,q), r) -> 
         let p_r = distribute_seq (VSeq(p,r)) in
         let q_r = distribute_seq (VSeq(q,r)) in
         begin
           match p_r,q_r with
-            | VChoice _,_ -> distribute_seq (VPar(p_r,q_r))
-            | _, VChoice _ -> distribute_seq (VPar(p_r,q_r))
+            | VChoice _,_
+            | _, VChoice _ -> let () = Printf.printf "VSeq_VPar p_r: %s\n\t q_r %s\n%!" (string_of_vpolicy p_r) (string_of_vpolicy q_r) in
+                              distribute_seq (VPar(p_r,q_r))
             | _,_ -> VPar(p_r, q_r)
         end
-      (* p;(q|r) = p;q | p;r *)
+        (* p;(q|r) = p;q | p;r *)
       | VSeq(p, VPar(q,r)) -> 
         let p_q = distribute_seq (VSeq(p,q)) in
         let p_r = distribute_seq (VSeq(p,r)) in
         begin
           match p_q,p_r with
-            | VChoice _,_ -> distribute_seq (VPar(p_q,p_r))
-            | _, VChoice _ -> distribute_seq (VPar(p_q,p_r))
+            | VChoice _,_ 
+            | _, VChoice _ -> let () = Printf.printf "VSeq_VPar p_q: %s\n\t p_r %s\n%!" (string_of_vpolicy p_q) (string_of_vpolicy p_r) in
+                              distribute_seq (VPar(p_q,p_r))
             | _,_ -> VPar(p_q, p_r)
         end
       | VSeq(p,q) -> let p' = distribute_seq p in
                      let q' = distribute_seq q in
-                     if p = p' & q = q' then
+                     if seq_atomic p' & seq_atomic q' then
                        VSeq(p',q')
                      else
+                       let () = Printf.printf "VSeq \tp': %s\n\t q' %s\n%!" (string_of_vpolicy p') (string_of_vpolicy q') in
                        distribute_seq(VSeq(p',q'))
       | VPar(VChoice(p,q), r) ->
         let p_r = distribute_seq (VPar(p,r)) in
@@ -456,13 +481,15 @@ module Optimization = struct
         VChoice(p_q, p_r)
       | VPar(p,q) -> let p' = distribute_seq p in
                      let q' = distribute_seq q in 
-                     if p' = p && q' = q then
+                     if par_seq_atomic p' && par_seq_atomic q' then
                        VPar(p',q')
                      else
+                       let () = Printf.printf "VPar p': %s\n\t q' %s\n%!" (string_of_vpolicy p') (string_of_vpolicy q') in
                        distribute_seq (VPar(p',q'))
       | VChoice(p,q) -> VChoice(distribute_seq p, distribute_seq q)
       | VStar(p) -> VStar(distribute_seq p)
       | _ -> p
+
 
   (* Dataflow-esque analysis that tracks current possible values for
      header fields. Useful for dead-code elimination/simplification *)
@@ -692,8 +719,12 @@ module Optimization = struct
   let optimize p = 
     let renorm = vpol_to_linear_vpol in
     let simpl = simplify_vpol in
-    let p'' = simpl (remove_dead_mods (elim_vtest (optimize' (distribute_seq (vpol_to_linear_vpol (simpl (remove_dead_matches p))))))) in
-    p''
+    let p' = (simpl (remove_dead_matches p)) in
+    let () = Printf.printf "p': %s\n%!" (string_of_vpolicy p') in
+    let p'' = p' in
+    (* let () = Printf.printf "p'':\n%!" in     *)
+    let p''' = simpl (remove_dead_mods (elim_vtest (optimize' p''))) in
+    p'''
 
 end  
 
@@ -825,5 +856,7 @@ let dehop_policy p =
 let dehop_policy_opt p =
   let (i,s,t,e) = dehopify p in
   let p' = (VSeq(i, VSeq(VStar(VSeq(s,t)), VSeq(s,e)))) in
+  (* let () = Printf.printf "dehop: %s\n%!" (string_of_vpolicy p') in *)
   let p'' = Optimization.optimize p' in
+  let () = Printf.printf "optimized %s\n%!" (string_of_vpolicy p'') in
   fst (convert_tag_to_hdr (collect_tags p') SDN_Types.Vlan p'' false)
