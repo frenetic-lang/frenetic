@@ -320,13 +320,13 @@ let rec dehopify (p : explicit_topo_pol) : restricted_pol =
 
 module Optimization = struct
 
-(* Optimizations Observation: Virtual headers are semantically
-   meaningless if they aren't matched in the NetKAT code itself. Thus,
-   if we optimize away as many matches as possible, we can then drop
-   any headers that are not matched on.
-*)
+  (* Optimizations Observation: Virtual headers are semantically
+     meaningless if they aren't matched in the NetKAT code itself. Thus,
+     if we optimize away as many matches as possible, we can then drop
+     any headers that are not matched on.
+  *)
 
-(* reduces policies by using identities (drop;p = drop, etc) *)
+  (* reduces policies by using identities (drop;p = drop, etc) *)
   let rec simplify_vpol p =
     match p with
       | VSeq(VFilter False, _) -> VFilter False
@@ -383,10 +383,10 @@ module Optimization = struct
         end
       | _ -> p
 
-(* Linearizes seqs *)
+  (* Linearizes seqs *)
   let rec vpol_to_linear_vpol p = 
     match p with
-    (* (p | q) | r = p (q | r) *)
+      (* (p | q) | r = p (q | r) *)
       | VPar (VPar (p,q), r) ->
         vpol_to_linear_vpol (VPar (p, VPar(q,r)))
       | VPar (p, q) ->
@@ -395,7 +395,7 @@ module Optimization = struct
         if p' = p && q' = q then
           VPar(p,q)
         else vpol_to_linear_vpol (VPar(p',q'))
-    (* (p;q);r = p;(q;r) *)
+      (* (p;q);r = p;(q;r) *)
       | VSeq (VSeq (p,q), r) ->
         vpol_to_linear_vpol (VSeq (p, VSeq (q,r)))
       | VSeq (p,q) ->
@@ -413,14 +413,14 @@ module Optimization = struct
       | VStar p -> VStar (vpol_to_linear_vpol p)
       | _ -> p
 
-(* Normal form: choice of unions of sequences *)
+  (* Normal form: choice of unions of sequences *)
   let rec distribute_seq p =
     match p with
       | VSeq(VChoice(p,q), r) ->
         VChoice(distribute_seq (VSeq(p,r)), distribute_seq (VSeq(q,r)))
       | VSeq(p, VChoice(q,r)) ->
         VChoice(distribute_seq (VSeq(p,q)), distribute_seq (VSeq(p,r)))
-    (* (p|q);r = p;r | q;r *)
+      (* (p|q);r = p;r | q;r *)
       | VSeq(VPar(p,q), r) -> 
         let p_r = distribute_seq (VSeq(p,r)) in
         let q_r = distribute_seq (VSeq(q,r)) in
@@ -430,7 +430,7 @@ module Optimization = struct
             | _, VChoice _ -> distribute_seq (VPar(p_r,q_r))
             | _,_ -> VPar(p_r, q_r)
         end
-    (* p;(q|r) = p;q | p;r *)
+      (* p;(q|r) = p;q | p;r *)
       | VSeq(p, VPar(q,r)) -> 
         let p_q = distribute_seq (VSeq(p,q)) in
         let p_r = distribute_seq (VSeq(p,r)) in
@@ -464,26 +464,56 @@ module Optimization = struct
       | VStar(p) -> VStar(distribute_seq p)
       | _ -> p
 
-(* Dataflow-esque analysis that tracks current possible values for
-   header fields. Useful for dead-code elimination/simplification *)
+  (* Dataflow-esque analysis that tracks current possible values for
+     header fields. Useful for dead-code elimination/simplification *)
         
-(* Hashtbl from headers to possible values. If a header isn't in the
-   hashtbl, it hasn't been set or checked yet. *)
+  (* Hashtbl from headers to possible values. If a header isn't in the
+     hashtbl, it hasn't been set or checked yet. *)
 
   module ValSet = Set.Make (struct
     type t = header_val
     let compare = Pervasives.compare
   end)
 
-  type pos_dataflow_vals =
+  type dataflow_vals =
+    | NoVal
     | AnyVal
     | ExactVal of header_val
     | PossibleVals of ValSet.t
 
-(* We keep our alist sorted by keys. This doesn't speed up lookup
-   (much), but it does reduce merging from O(n^2) to O(n) 
-   Sorted in descending order
-*)
+  let join dv dv' =
+    match dv,dv' with
+      | NoVal, _ -> dv'
+      | _, NoVal -> dv
+      | AnyVal, _ -> AnyVal
+      | _, AnyVal -> AnyVal
+      | ExactVal v, ExactVal v' -> if v = v' then ExactVal v else PossibleVals (ValSet.add v (ValSet.singleton v'))
+      | ExactVal v, PossibleVals v' -> PossibleVals (ValSet.add v v')
+      | PossibleVals v, ExactVal v' -> PossibleVals (ValSet.add v' v)
+      | PossibleVals v, PossibleVals v' -> PossibleVals (ValSet.union v v')
+
+  let meet dv dv' =
+    match dv,dv' with
+      | NoVal, _ -> NoVal
+      | _, NoVal -> NoVal
+      | AnyVal, _ -> dv'
+      | _, AnyVal -> dv
+      | ExactVal v, ExactVal v' -> if v = v' then ExactVal v else NoVal
+      | ExactVal v, PossibleVals v' -> if ValSet.mem v v' then ExactVal v else NoVal
+      | PossibleVals v, ExactVal v' -> if ValSet.mem v' v then ExactVal v' else NoVal
+      | PossibleVals v, PossibleVals v' -> 
+        let u = (ValSet.inter v v') in
+        begin
+          match ValSet.cardinal u with
+            | 0 -> NoVal
+            | 1 -> ExactVal (ValSet.choose u)
+            | _ -> PossibleVals u
+        end
+
+  (* We keep our alist sorted by keys. This doesn't speed up lookup
+     (much), but it does reduce merging from O(n^2) to O(n) 
+     Sorted in descending order
+  *)
   let lookup' default alist k =
     List.fold_left (fun acc (k',v') -> if k' = k then v' else acc) default alist
 
@@ -499,64 +529,27 @@ module Optimization = struct
                           else
                             (k,v) :: (k',v') :: alist
                               
-  let add inserter alist k v = 
-    List.fold_left (fun acc (k',v') -> if k' = k then (k', inserter v v') :: acc else (k',v') :: acc) [] alist
-
-  let insert_dataflow_val v v' =
-    match v' with
-      | AnyVal -> AnyVal
-      | ExactVal v'' -> PossibleVals (ValSet.add v (ValSet.singleton v''))
-      | PossibleVals vs -> PossibleVals (ValSet.add v vs)
-
-  let merge_dataflow_val v v' =
-    match v,v' with
-      | AnyVal,_ -> AnyVal
-      | _,AnyVal -> AnyVal
-      | ExactVal v, ExactVal v' -> 
-        if v = v' then
-          ExactVal v
-        else
-          PossibleVals (ValSet.add v' (ValSet.singleton v) )
-      | ExactVal v, PossibleVals vs -> PossibleVals (ValSet.add v vs)
-      | PossibleVals vs, ExactVal v -> PossibleVals (ValSet.add v vs)
-      | PossibleVals vs, PossibleVals vs' -> PossibleVals (ValSet.union vs vs')
-
-  let add_val = add insert_dataflow_val
-
-(* If a value is missing, then it is implicitly "AnyVal" *)
   let rec merge' merger default alist1 alist2 = match alist1,alist2 with
     | [],_ -> alist2
     | _, [] -> alist1
     | (k,v):: alist1, (k',v') :: alist2 ->
       let cmp = Pervasives.compare k k' in
       if cmp < 0 then
-        (k', default) :: (merge' merger default ((k,v):: alist1) alist2)
+        (k', merger v' default) :: (merge' merger default ((k,v):: alist1) alist2)
       else if cmp = 0 then
         (k, merger v v') :: (merge' merger default alist1 alist2)
       else
-        (k, default) :: (merge' merger default alist1 ((k',v') :: alist2))
+        (k, merger v default) :: (merge' merger default alist1 ((k',v') :: alist2))
 
   let merge a b = match a,b with
     | [], _ -> []
     | _, [] -> []
-    | _,_  -> merge' merge_dataflow_val AnyVal a b
+    | _,_  -> merge' join AnyVal a b
 
-  let rec star_merge' merger alist1 alist2 = match alist1,alist2 with
-    | [],_ -> alist2
-    | _, [] -> alist1
-    | (k,v):: alist1, (k',v') :: alist2 ->
-      let cmp = Pervasives.compare k k' in
-      if cmp < 0 then
-        (k', v') :: (star_merge' merger ((k,v):: alist1) alist2)
-      else if cmp = 0 then
-        (k, merger v v') :: (star_merge' merger alist1 alist2)
-      else
-        (k, v) :: (star_merge' merger alist1 ((k',v') :: alist2))
+  let star_merge a b = merge' join NoVal a b
 
-  let star_merge a b = star_merge' merge_dataflow_val a b
-
-(* Removes tests shadowed by mods: (h <- v; ...; h = v) and (h <- v;
-   ...; h = v') where ".." doesn't contain a mod to 'h' and v' <> v *)
+  (* Removes tests shadowed by mods: (h <- v; ...; h = v) and (h <- v;
+     ...; h = v') where ".." doesn't contain a mod to 'h' and v' <> v *)
   let rec remove_dead_matches' p tbl =
     match p with
       | VMod(Tag h, v) -> begin
@@ -579,6 +572,7 @@ module Optimization = struct
               else
                 VFilter False, tbl
             | AnyVal -> VTest(h,v), insert tbl h (ExactVal v)
+            | NoVal -> failwith "NoVal is not legal value in this analysis"
         end
       | VSeq(p,q) ->
         let p', tbl' = remove_dead_matches' p tbl in
@@ -615,10 +609,10 @@ module Optimization = struct
       | _, Used -> Used
       | _,_ -> Unused
 
-  let join = merge' merge_var_use Unused
+  let var_join = merge' merge_var_use Unused
 
-(* Remove unread mods: i.e (h <- v; ...; h <- v') where "..." does not
-   read the value of h *)
+  (* Remove unread mods: i.e (h <- v; ...; h <- v') where "..." does not
+     read the value of h *)
   let rec remove_dead_mods' p tbl =
     match p with
       | VSeq(p,q) -> let q', tbl' = remove_dead_mods' q tbl in
@@ -626,7 +620,7 @@ module Optimization = struct
                      VSeq(p',q'), tbl''
       | VPar(p,q) -> let p', tbl' = remove_dead_mods' p tbl in
                      let q', tbl'' = remove_dead_mods' q tbl in
-                     VPar(p',q'), join tbl' tbl''
+                     VPar(p',q'), var_join tbl' tbl''
       | VMod(Tag h, v) -> 
         begin
           match lookup' Unused tbl h with
@@ -635,47 +629,33 @@ module Optimization = struct
         end
       | VTest(h,v) -> VTest(h,v), insert tbl h Used
       | VStar(p) -> let _, tbl' = remove_dead_mods' p tbl in
-                    let tbl'' = join tbl' tbl in
+                    let tbl'' = var_join tbl' tbl in
                     let p', _ = remove_dead_mods' p tbl'' in
                     VStar(p'), tbl''
       | VChoice(p,q) -> let p', tbl' = remove_dead_mods' p tbl in
                         let q', tbl'' = remove_dead_mods' q tbl in
-                        VChoice(p',q'), join tbl' tbl''
+                        VChoice(p',q'), var_join tbl' tbl''
       | _ -> p, tbl
 
   let remove_dead_mods p = fst (remove_dead_mods' p [])
 
-  module TagSet = Set.Make (struct
-    type t = vtag
-    let compare = Pervasives.compare
-  end)
+  (* Because we are using virtual headers, and no one else gets to use
+     them, we know that the headers have no values until we initialize
+     them. Thus, any match on a virtual header that is not preceded by a
+     mod on the same header is "dead code", and can be eliminated
+     (replaced by VFilter False) *)
 
-(* Because we are using virtual headers, and no one else gets to use
-   them, we know that the headers have no values until we initialize
-   them. Thus, any match on a virtual header that is not preceded by a
-   mod on the same header is "dead code", and can be eliminated
-   (replaced by VFilter False) *)
-
-  type neg_dataflow_vals =
-    | NoVal
-    | SomeVal
-
-  let merge_neg_val v v' =
-    match v,v' with
-      | SomeVal,_ -> SomeVal
-      | _,SomeVal -> SomeVal
-      | _,_ -> NoVal
-
-  let merge_neg = merge' merge_neg_val SomeVal
+  let merge_neg = merge' join AnyVal
 
   let rec elim_vtest' p tbl =
     match p with
-      | VMod(Tag h, v) -> VMod(Tag h, v), insert tbl h SomeVal
+      | VMod(Tag h, v) -> VMod(Tag h, v), insert tbl h AnyVal
       | VTest(h,v) -> 
         begin
           match lookup' NoVal tbl h with
-            | SomeVal -> VTest(h,v) , tbl
+            | AnyVal -> VTest(h,v) , tbl
             | NoVal -> VFilter False, tbl
+            | _ -> failwith "This is not a legal value in this analysis"
         end
       | VSeq(p,q) ->
         let p', tbl' = elim_vtest' p tbl in
@@ -685,10 +665,10 @@ module Optimization = struct
         let p', tbl' = elim_vtest' p tbl in
         let q', tbl'' = elim_vtest' q tbl in
         VPar(p',q'), merge_neg tbl' tbl''
-    (* Overapproximation *)
+      (* Overapproximation *)
       | VStar(p) -> let _, tbl' = elim_vtest' p tbl in
                     VStar(p), tbl'
-    (* Overapproximation: pretend both branches get executed (like union) *)
+      (* Overapproximation: pretend both branches get executed (like union) *)
       | VChoice(p,q) ->
         let p', tbl' = elim_vtest' p tbl in
         let q', tbl'' = elim_vtest' q tbl in
@@ -704,7 +684,6 @@ module Optimization = struct
      repeatedly. The only problem is that reducing p + p' (when p = p')
      still requires normalizing *)
   let rec optimize' p = 
-    let renorm = vpol_to_linear_vpol in
     let simpl = simplify_vpol in
     let p' =  remove_dead_mods (remove_dead_matches (simpl p)) in
     if p' = p then p'
@@ -713,10 +692,7 @@ module Optimization = struct
   let optimize p = 
     let renorm = vpol_to_linear_vpol in
     let simpl = simplify_vpol in
-    let p' = simpl (remove_dead_matches p) in
-    let () = Printf.printf "%s\n%!" (string_of_vpolicy p') in
-    let p'' = simpl (remove_dead_mods (elim_vtest (optimize' (distribute_seq (renorm p'))))) in
-    let () = Printf.printf "%s\n%!" (string_of_vpolicy p'') in
+    let p'' = simpl (remove_dead_mods (elim_vtest (optimize' (distribute_seq (vpol_to_linear_vpol (simpl (remove_dead_matches p))))))) in
     p''
 
 end  
