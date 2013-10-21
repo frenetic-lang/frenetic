@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: be5ae090a9c58ec04062ed4508d361b1)
+# DO NOT EDIT (digest: 630d3eccf16f506acfd6db12d1d1ccb3)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -72,19 +72,6 @@
 <test/*.ml{,i}>: pkg_ocamlgraph
 <test/*.ml{,i}>: pkg_openflow
 <test/*.ml{,i}>: pkg_topology
-# Executable frenetic
-"frenetic/frenetic.byte": use_netcore
-"frenetic/frenetic.byte": pkg_lwt
-"frenetic/frenetic.byte": pkg_lwt.syntax
-"frenetic/frenetic.byte": pkg_packet
-"frenetic/frenetic.byte": pkg_lwt.unix
-"frenetic/frenetic.byte": pkg_cstruct
-"frenetic/frenetic.byte": pkg_lwt.syntax.log
-"frenetic/frenetic.byte": pkg_str
-"frenetic/frenetic.byte": pkg_ocamlgraph
-"frenetic/frenetic.byte": pkg_openflow
-"frenetic/frenetic.byte": pkg_topology
-"frenetic/frenetic.byte": custom
 # Executable katnetic
 "frenetic/katnetic.byte": use_netcore
 "frenetic/katnetic.byte": pkg_lwt
@@ -97,18 +84,6 @@
 "frenetic/katnetic.byte": pkg_ocamlgraph
 "frenetic/katnetic.byte": pkg_openflow
 "frenetic/katnetic.byte": pkg_topology
-# Executable maclearning
-"frenetic/maclearning.byte": use_netcore
-"frenetic/maclearning.byte": pkg_lwt
-"frenetic/maclearning.byte": pkg_lwt.syntax
-"frenetic/maclearning.byte": pkg_packet
-"frenetic/maclearning.byte": pkg_lwt.unix
-"frenetic/maclearning.byte": pkg_cstruct
-"frenetic/maclearning.byte": pkg_lwt.syntax.log
-"frenetic/maclearning.byte": pkg_str
-"frenetic/maclearning.byte": pkg_ocamlgraph
-"frenetic/maclearning.byte": pkg_openflow
-"frenetic/maclearning.byte": pkg_topology
 # Executable netkat_test
 "frenetic/netkat_test.byte": use_netcore
 "frenetic/netkat_test.byte": pkg_lwt
