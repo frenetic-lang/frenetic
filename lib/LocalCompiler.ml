@@ -69,7 +69,7 @@ module Make
   with type policy = Syntax.policy
    and type pred = Syntax.pred
    and type header_val_map = Syntax.header_val_map = struct
-   type policy = Syntax.policy
+     type policy = Syntax.policy
    type pred = Syntax.pred
    type header_val_map = Syntax.header_val_map
 
@@ -78,10 +78,10 @@ module Make
     Syntax.HeaderMap.fold
       (fun h v acc ->
         Printf.sprintf "%s%s%s%s"
-    (if acc = "" then "" else acc ^ sep)
     (Headers.header_to_string h)
     eq
-    (Headers.value_to_string v))
+    (Headers.value_to_string v)
+    (if acc = "" then "" else sep ^ acc))
       m ""
 
   module Action = struct
@@ -93,6 +93,12 @@ module Make
       let compare = Syntax.HeaderMap.compare Pervasives.compare
     end)
 
+    module Hash = Hashtbl.Make (struct
+      type t = Set.t
+      let hash = Hashtbl.hash
+      let equal s1 s2 = Set.compare s1 s2 = 0
+    end)
+
     type group = Set.t list 
 
     let to_string (a:t) : string =
@@ -102,14 +108,28 @@ module Make
     let set_to_string (s:Set.t) : string =
       Printf.sprintf "{%s}"
         (Set.fold
-           (fun a acc -> to_string a ^ if acc = "" then "" else ", " ^ acc)
+           (fun a acc -> (if acc = "" then "" else acc ^ ", ") ^ to_string a)
            s "")
 
     let group_to_string (g:group) : string = 
       Printf.sprintf "[%s]"
         (List.fold_left 
-           (fun acc s -> set_to_string s ^ if acc = "" then "" else "; " ^ acc)
+           (fun acc s -> set_to_string s ^ (if acc = "" then "" else "; " ^ acc))
            "" g)
+
+    let mk_group (g:group) : group = 
+      let h = Hash.create 17 in 
+      List.rev 
+	(List.fold_left 
+	   (fun acc si -> 
+	     if Hash.mem h si then 
+	       acc
+	     else 
+	       begin
+		 Hash.add h si ();
+		 si::acc
+	       end)
+	   [] g)
 
     (* TODO(jnf): surely this is a library function? *)
     let rec group_compare (g1:group) (g2:group) : int = 
@@ -123,17 +143,18 @@ module Make
           else group_compare h1 h2
 
     let group_crossproduct (g1:group) (g2:group) : group = 
-      List.rev
-        (List.fold_left 
-           (fun acc s1i -> 
-             List.fold_left 
-               (fun acc s2j -> 
-                 Set.union s1i s2j::acc)
-               acc g2)
-           [] g1)  
+      mk_group
+	(List.rev
+           (List.fold_left 
+              (fun acc s1i -> 
+		List.fold_left 
+		  (fun acc s2j -> 
+                    Set.union s1i s2j::acc)
+		  acc g2)
+              [] g1)) 
 
     let group_union (g1:group) (g2:group) : group = 
-      g1 @ g2
+      mk_group (g1 @ g2) 
  
     let id : Set.t = 
       Set.singleton (Syntax.HeaderMap.empty)
@@ -207,7 +228,7 @@ module Make
     let set_to_string (xs:Set.t) : string =
       Printf.sprintf "{%s}"
         (Set.fold
-           (fun x acc -> to_string x ^ if acc = "" then "" else ", " ^ acc)
+           (fun x acc -> (if acc = "" then "" else acc ^ ", ") ^ to_string x)
            xs "")
 
     let tru : t = Syntax.HeaderMap.empty
@@ -277,6 +298,8 @@ module Make
   end
 
   module Atom = struct
+    exception Empty_atom
+
     type t = Pattern.Set.t * Pattern.t
 
     let compare (xs1,x1) (xs2,x2) = 
@@ -309,7 +332,7 @@ module Make
     let set_to_string (rs:Set.t) : string = 
       Printf.sprintf "{%s}"
         (Set.fold
-           (fun ri acc -> to_string ri ^ if acc = "" then acc else acc ^ ", ")
+           (fun ri acc -> (if acc = "" then acc else acc ^ ", ") ^ to_string ri)
            rs "")
 
     let tru : t = 
@@ -320,11 +343,23 @@ module Make
 
     (* "smart" constructor *)
     let mk ((xs,x):t) : t option = 
-      if Pattern.Set.mem x xs then 
-        None
-      else 
-        Some (xs,x)
-        
+      try 
+	let xs' = 
+	  Pattern.Set.fold
+	    (fun xi acc -> 
+	      match Pattern.seq_pat x xi with
+		| None -> 
+		  acc
+		| Some x_xi -> 
+		  if Syntax.HeaderMap.compare Pervasives.compare x x_xi = 0 then
+		    raise Empty_atom
+		  else
+		    Pattern.Set.add xi acc)
+	    xs Pattern.Set.empty in 
+	Some (xs',x)
+      with Empty_atom -> 
+	None
+	            
     let seq_atom ((xs1,x1):t) ((xs2,x2):t) : t option = 
       match Pattern.seq_pat x1 x2 with 
         | Some x12 -> 
@@ -349,18 +384,25 @@ module Make
           None 
 
       let diff_atom ((xs1,x1):t) ((xs2,x2):t) : Set.t = 
-        Pattern.Set.fold
+	let acc0 = 
+          match mk (Pattern.Set.add x2 xs1, x1) with 
+            | None -> 
+	      Set.empty
+            | Some r -> 
+	      Set.singleton r in 
+	Pattern.Set.fold
           (fun x2i acc ->
             match Pattern.seq_pat x1 x2i with
-              | None -> acc
-              | Some x12i ->
-                match mk (xs1, x12i) with 
-                  | None -> acc
-                  | Some ri -> Set.add ri acc)
-          xs2
-          (match mk (Pattern.Set.add x2 xs1, x1) with 
-            | None -> Set.empty
-            | Some r -> Set.singleton r)
+	      | None -> 
+		acc
+	      | Some x12i ->
+                begin match mk (xs1, x12i) with 
+                  | None -> 
+		    acc
+                  | Some ri -> 
+		    Set.add ri acc
+		end)
+          xs2 acc0
   end
 
   module Local = struct
@@ -374,16 +416,16 @@ module Make
             (Atom.to_string r) (Action.group_to_string g))
         p ""
 
-    let extend (r:Atom.t) (g:Action.group) (p:t) : t = 
+    let extend (op:Action.group -> Action.group -> Action.group) (r:Atom.t) (g:Action.group) (p:t) : t = 
       match Atom.mk r with
         | None -> 
           p
         | Some (xs,x) -> 
           if Pattern.Set.mem Pattern.tru xs then 
-            p
-          else if Atom.Map.mem r p then 
-            let g_old = Atom.Map.find r p in 
-            Atom.Map.add r (Action.group_crossproduct g_old g) p
+	    p
+          else if Atom.Map.mem r p then
+            let g_old = Atom.Map.find r p in
+            Atom.Map.add r (op g_old g) p
           else
             Atom.Map.add r g p
 
@@ -392,22 +434,30 @@ module Make
           Atom.Map.fold (fun ((xs2,x2) as r2) g2 acc ->
             match Atom.seq_atom r1 r2 with
               | None ->
-                extend r1 g1 (extend r2 g2 acc)  
+		extend op r1 g1 (extend op r2 g2 acc) 
               | Some r1_seq_r2 ->
+                let f gi = (fun ri acc -> extend op ri gi acc) in 
                 let r1_diff_r2 = Atom.diff_atom r1 r2 in 
                 let r2_diff_r1 = Atom.diff_atom r2 r1 in 
-                let f gi = (fun ri acc -> extend ri gi acc) in 
-                extend r1_seq_r2 (op g1 g2)
+		extend op r1_seq_r2 (op g1 g2)
                   (Atom.Set.fold (f g1) r1_diff_r2
                      (Atom.Set.fold (f g2) r2_diff_r1 acc)))
             p acc)
           q Atom.Map.empty 
 
     let par_local (p:t) (q:t) : t = 
-      bin_local Action.group_crossproduct p q
+      let r = bin_local Action.group_crossproduct p q in 
+      (* Printf.printf  *)
+      (* 	"PAR_LOCAL\n%s\n%s\n%s\n\n" *)
+      (* 	(to_string p) (to_string q) (to_string r); *)
+      r
 
     let choice_local (p:t) (q:t) : t =
-      bin_local Action.group_union p q
+      let r = bin_local Action.group_union p q in 
+      (* Printf.printf  *)
+      (* 	"CHOICE_LOCAL\n%s\n%s\n%s\n\n" *)
+      (* 	(to_string p) (to_string q) (to_string r); *)
+      r
         
     (* TODO(jnf) this is a helper function; give it a different name? *)
     let seq_atom_act_local (r1:Atom.t) (a:Action.t) (q:t) (acc:t) : t = 
@@ -417,7 +467,7 @@ module Make
             | None ->
               acc
             | Some r12 ->
-              extend r12 (Action.seq_group a g2) acc)
+              extend Action.group_crossproduct r12 (Action.seq_group a g2) acc)
         q acc
 
     let seq_atom_acts_local_acc (r1:Atom.t) (s1:Action.Set.t) (q:t) (acc:t) : t = 
@@ -426,18 +476,23 @@ module Make
         s1 acc
 
     let seq_local (p:t) (q:t) : t = 
-      Atom.Map.fold
-        (fun r1 g1 acc ->
-          match g1 with
-            | [] -> 
-              assert false
-            | [s1] when Action.Set.is_empty s1 -> 
-              extend r1 [s1] acc
-            | _ -> 
-              List.fold_left
-                (fun acc si -> seq_atom_acts_local_acc r1 si q acc)
-                acc g1)
-        p Atom.Map.empty
+      let r = 
+	Atom.Map.fold
+          (fun r1 g1 acc ->
+            match g1 with
+              | [] -> 
+		assert false
+              | [s1] when Action.Set.is_empty s1 -> 
+		extend Action.group_crossproduct r1 [s1] acc
+              | _ -> 
+		List.fold_left
+                  (fun acc si -> seq_atom_acts_local_acc r1 si q acc)
+                  acc g1)
+          p Atom.Map.empty in 
+      (* Printf.printf  *)
+      (* 	"SEQ_LOCAL\n%s\n%s\n%s\n\n" *)
+      (* 	(to_string p) (to_string q) (to_string r); *)
+      r
         
     (* precondition: t is a predicate *)
     let negate (p:t) : t = 

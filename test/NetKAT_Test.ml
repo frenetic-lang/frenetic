@@ -149,10 +149,21 @@ TEST "choice1" =
     (Choice (Mod (Src, A), Mod(Src, B)))
     (Choice (Mod (Src, A), Mod(Src, B)))
 
-TEST "choice1" = 
+TEST "choice2" = 
   test_compile
     (Seq (Filter (Test(Src,C)), Choice (Mod (Src, A), Mod(Src, B))))
     (Seq (Filter (Test(Src,C)), Choice (Mod (Src, A), Mod(Src, B))))
+
+TEST "choice3" = 
+  test_compile
+    (Par (Seq (Filter (Test(Src,C)), Choice (Mod (Src, A), Mod(Src, B))),
+          Par (Seq (Filter (Test(Src,A)), Mod (Src,C)),
+	       Seq (Filter (Test(Src,B)), Mod (Src,C)))))
+    (Par (Seq (Filter (Test(Src,A)), Mod (Src, C)),
+     Par (Seq (Filter (Test(Src,B)), Mod (Src, C)),
+	 (Seq (Filter (Test(Src,C)), Choice(Mod(Src,A), 
+				     Choice(Par(Mod(Src,A), Mod(Src,B)),
+					    Mod(Src,B))))))))
 
 (* TEST "quickcheck local compiler" = *)
 (*   let testable_pol_pkt_to_bool = *)
