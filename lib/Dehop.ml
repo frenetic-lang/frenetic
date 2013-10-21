@@ -557,8 +557,8 @@ module Optimization = struct
                             (k,v) :: (k',v') :: alist
                               
   let rec merge' merger default alist1 alist2 = match alist1,alist2 with
-    | [],_ -> alist2
-    | _, [] -> alist1
+    | [],_ -> List.map (fun (h, v) -> (h, merger v default)) alist2
+    | _, [] -> List.map (fun (h, v) -> (h, merger v default)) alist1
     | (k,v):: alist1, (k',v') :: alist2 ->
       let cmp = Pervasives.compare k k' in
       if cmp < 0 then
@@ -571,7 +571,7 @@ module Optimization = struct
   let merge a b = match a,b with
     | [], _ -> []
     | _, [] -> []
-    | _,_  -> merge' join AnyVal a b
+    | _, _ -> merge' join AnyVal a b
 
   let star_merge a b = merge' join NoVal a b
 
