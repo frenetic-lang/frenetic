@@ -7,8 +7,10 @@ type explicit_topo_pol =
     (* switch, port -> switch, port *)
   | Link of header_val*header_val*header_val*header_val
   | Par of explicit_topo_pol * explicit_topo_pol
+  | Choice of explicit_topo_pol * explicit_topo_pol
   | Seq of explicit_topo_pol * explicit_topo_pol
   | Star of explicit_topo_pol
 
 val dehop_policy : explicit_topo_pol -> NetKAT_Types.policy
+val dehop_policy_opt : explicit_topo_pol -> NetKAT_Types.policy
 val string_of_epolicy : explicit_topo_pol -> string
