@@ -198,20 +198,17 @@ module Sat = struct
 
   let zApp x = (fun l -> ZTerm (TApp (x, l)))
 
-  let z3_funB (arglist : (zVar * zSort) list) (body : zFormula) : zTerm = 
+  let z3_fun (arglist : (zVar * zSort) list) (rettype : zSort) (body : zFormula) : zTerm = 
     let l = !fresh_cell in
     let name = to_string (gensym ()) in
-    fresh_cell := (define_z3_fun name arglist SBool body) @ l;
+    fresh_cell := (define_z3_fun name arglist rettype body) @ l;
     TVar name
 
-  let z3_macroB (arglist : (zVar * zSort) list) (body : zFormula) : zTerm = 
+  let z3_macro (name : string) (arglist : (zVar * zSort) list) (rettype : zSort)(body : zFormula) : zTerm = 
     let l = !fresh_cell in
-    let name = to_string (gensym ()) in
-    fresh_cell := (define_z3_macro name arglist SBool body) @ l;
+    let name = name ^ "_" ^ to_string (gensym ()) in
+    fresh_cell := (define_z3_macro name arglist rettype body) @ l;
     TVar name
-
-
-  let camlp4_test = [<'3;'4;'5;'6>]
 
   let z3_static =
 
@@ -272,7 +269,8 @@ module Sat = struct
 
 
   let pervasives : string = 
-    "(declare-datatypes 
+    "(set-option :macro-finder true)
+(declare-datatypes 
  () 
  ((Packet 
    (nopacket )
@@ -302,7 +300,7 @@ module Sat = struct
 
   let solve prog global : bool = 
     let s = serialize_program prog global in 
-    (*Printf.eprintf "%s" s;*)
+    (* Printf.eprintf "%s" s; *)
     let z3_out,z3_in = open_process "z3 -in -smt2 -nw" in 
     let _ = output_string z3_in s in
     let _ = flush z3_in in 
@@ -441,42 +439,35 @@ module Verify = struct
       | Switch -> 
         TApp (TVar "Switch", [TVar pkt])
 
-  let encode_packet_equals (pkt1: zVar) (pkt2: zVar) (excepts:header list) : zFormula =
-    let l = 
-      List.fold_left 
-	(fun acc hd -> 
-	  if List.mem hd excepts then 
-	    acc 
-	  else
-	    ZEquals (ZTerm (encode_header hd pkt1), ZTerm( encode_header hd pkt2))::acc) 
-	[] all_fields in 
-    ZAnd(l)
+  let encode_packet_equals = 
+    let hash = Hashtbl.create 0 in 
+    (fun (pkt1: zVar) (pkt2: zVar) (except :header)  -> 
+      ZTerm (TApp (
+	(if false && Hashtbl.mem hash except
+	 then
+	    Hashtbl.find hash except
+	 else
+	    let l = 
+	      List.fold_left 
+		(fun acc hd -> 
+		  if  hd = except then 
+		    acc 
+		  else
+		    ZEquals (ZTerm (encode_header hd "x"), ZTerm( encode_header hd "y"))::acc) 
+		[] all_fields in 
+	    let new_except = (z3_macro ("packet_equals_except_" ^ (*todo: how to serialize headers? serialize_ except*) "" ) 
+				[("x", SPacket);("y", SPacket)] SBool  
+				(ZAnd(l))) in
+	    Hashtbl.add hash except new_except;
+	    new_except), 
+	[TVar pkt1; TVar pkt2])))
       
   let encode_vint (v: VInt.t): zTerm = 
     TInt (VInt.get_int64 v)
 
-  let forwards_pred_z3_functions = 
-      (*forwards_pred z3 functions*)
-    
-      define_z3_macro "forwards_pred_false" [] SBool ZFalse @
-      define_z3_macro "forwards_pred_true" [] SBool ZTrue (*@
-      define_z3_macro "forwads_pred_test" [] SBool (ZEquals (encode_header hdr pkt, encode_vint v))
-
-        let rec forwards_pred (pred : pred) (pkt : zVar) : zFormula = 
-    match pred with
-      | Test (hdr, v) -> 
-	
-      | Neg p ->
-        ZNot (forwards_pred p pkt)
-      | And (pred1, pred2) -> ZAnd [forwards_pred pred1 pkt; 
-                                    forwards_pred pred2 pkt]
-      | Or (pred1, pred2) -> ZOr [forwards_pred pred1 pkt;
-                                  forwards_pred pred2 pkt]
-*)
-
 
   let rec forwards_pred (pred : pred) (pkt : zVar) : zFormula = 
-    let wrap (expr : zFormula) = (zApp (z3_macroB [] expr) []) in 
+    let wrap (expr : zFormula) = (zApp (z3_macro "forwards_pred" [] SBool expr) []) in 
     match pred with
       | False -> 
 	wrap ZFalse
@@ -486,42 +477,63 @@ module Verify = struct
 	wrap (ZEquals (ZTerm (encode_header hdr pkt), ZTerm (encode_vint v)))
       | Neg p ->
         wrap (ZNot (forwards_pred p pkt))
-      | And (pred1, pred2) -> wrap 
+      | And (pred1, pred2) -> 
 	(ZAnd [forwards_pred pred1 pkt; 
 	       forwards_pred pred2 pkt])
-      | Or (pred1, pred2) -> wrap (
-	ZOr [forwards_pred pred1 pkt;
-             forwards_pred pred2 pkt])
-        
+      | Or (pred1, pred2) -> 
+	(ZOr [forwards_pred pred1 pkt;
+              forwards_pred pred2 pkt])
+
   let rec forward_pol (pol:policy) (pkt:zVar) (set:zVar) : zFormula =
+    let parg1 = TVar "parg1" in let parg2 = TVar "parg2" in let sarg1 = TVar "sarg1" in let sarg2 = TVar "sarg2" in let sarg3 = TVar "sarg3" in
+    let wrap s pkts sets expr = 
+      let args = (List.map (fun pkt -> pkt, SPacket) pkts) @ (List.map (fun set -> set, SSet) sets) in
+      (zApp (z3_macro ("forwards_pol_" ^ s) args SBool expr) (List.map (fun e -> TVar e) (pkts@sets))) in 
+    
     match pol with
       | Filter pred ->
-        ZComment("Filter",
-                 ZAnd [forwards_pred pred pkt;
-                       ZEquals(ZTerm (TApp(TVar "set_add", [TVar pkt; 
+        wrap "Filter" [pkt] [set]
+                 (ZAnd [forwards_pred pred "parg1";
+                       ZEquals(ZTerm (TApp(TVar "set_add", [parg1; 
                                     TApp(TVar "set_empty", [])])), 
-                               ZTerm (TVar set))])
+                               ZTerm sarg1)])
       | Mod(f,v) -> 
         let pkt' = fresh SPacket in 
-        ZComment("Mod",
-                 ZAnd [encode_packet_equals pkt pkt' [f];
-                       ZEquals(ZTerm (encode_header f pkt'), ZTerm (encode_vint v));
-                       ZEquals(ZTerm (TApp(TVar "set_add", [TVar pkt'; 
+        wrap "Mod" [pkt;pkt'] [set]
+                 (ZAnd [encode_packet_equals "parg1" "parg2" f;
+                       ZEquals(ZTerm (encode_header f "parg2"), ZTerm (encode_vint v));
+                       ZEquals(ZTerm (TApp(TVar "set_add", [parg2; 
                                     TApp(TVar "set_empty", [])])), 
-                               ZTerm(TVar set))])
+                               ZTerm(sarg1))])
       | Par(pol1,pol2) -> 
         let set1 = fresh SSet in 
         let set2 = fresh SSet in 
-        ZComment("Par", 
-                 ZAnd[forward_pol pol1 pkt set1;
-                      forward_pol pol2 pkt set2;
-                      ZEquals(ZTerm (TApp(TVar "set_union", [TVar set1;
-                                   TVar set2])),
-                              ZTerm (TVar set))])
+        wrap "Par" [pkt] [set1;set2;set]
+          (ZAnd[forward_pol pol1 "parg1" "sarg1";
+                forward_pol pol2 "parg1" "sarg2";
+                ZEquals(ZTerm (TApp(TVar "set_union", [sarg1;
+						       sarg2])),
+                        ZTerm (sarg3))])
       | Seq(pol1,pol2) -> 
-        assert false
-      | _ -> 
-        assert false
+	let set' = fresh SSet in 
+	    let map = (fun fp l1p -> match fp, l1p with 
+	      | (TVar f), l1 -> ZTerm (TApp ( (TApp (TVar "_", [TVar "map"; TVar f]  )), [(TVar l1)]))
+	      | _ -> failwith "need to apply functions to variables as of right now.") in
+	    let x = ZTerm (TVar "x") in
+	    let nopacket = (ZTerm (TVar "nopacket")) in
+	    let subset _ _ = ZFalse in (*TODO: implement subset*)
+	    
+	      
+            (ZAnd [forward_pol pol1 pkt set';  
+		   (ZEquals ((map 
+		      (z3_fun [("x", SPacket)] SPacket 
+			 (ZIf ((subset (forward_pol pol2 "x" "s") set), x, nopacket )))
+		      (*nOt quite, but you're getting there.  This filters the inital set to only contain elements which will yield the final set.
+		      Too bad z3 has no fold concept.*)
+		      set'), ZTerm (TVar set)))
+		  ])  
+      | Star _  -> failwith "NetKAT program not in form (p;t)*"
+      | Choice _-> failwith "I'm not rightly sure what a \"choice\" is "
 			
 (*   let rec forwards (pol:policy) (pkt1:zVar) (pkt2: zVar) : zFormula = *)
 (*     match pol with *)
