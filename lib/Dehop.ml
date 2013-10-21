@@ -19,7 +19,7 @@ type explicit_topo_pol =
      e = t = v | i + i | i ; i
   *)
 
-type vtag = int*int
+type vtag = int
 type vheader = 
   | Field of SDN_Types.field
   | Tag of vtag
@@ -47,7 +47,7 @@ module Formatting = struct
 
   let vheader (fmt : formatter) (h : vheader) : unit = match h with
     | Field h' -> SDN_Types.format_field fmt h'
-    | Tag (h,_) -> pp_print_string fmt (string_of_int h)
+    | Tag h -> pp_print_string fmt (string_of_int h)
 
     (* The type of the immediately surrounding context, which guides parenthesis-
        intersion. *)
@@ -168,6 +168,7 @@ let make_string_of formatter x =
 let string_of_vint = make_string_of VInt.format 
 
 let string_of_header = make_string_of Formatting.header
+let string_of_vheader = make_string_of Formatting.vheader
 
 let format_vpolicy = Formatting.vpol Formatting.PAREN
 let format_epolicy = Formatting.epol Formatting.PAREN
@@ -179,7 +180,7 @@ let vheader_count = ref 0
 
 let gen_header size =
   incr vheader_count;
-  (!vheader_count, size)
+  !vheader_count
 
   (* Compilation story: we have an unlimited number of header fields we
      can allocate on demand. Each header field has a specific number of
@@ -241,7 +242,7 @@ let rec dehopify (p : explicit_topo_pol) : restricted_pol =
                     VFilter(Test(Header SDN_Types.InPort, p2));
                     VMod(Tag h,h2)]),
       VLink(sw1,p1,sw2,p2),
-      VTest(h,h1)
+      VTest(h,h2)
     | Par (p,q) -> 
       let i_p,s_p,t_p,e_p = dehopify p in
       let i_q,s_q,t_q,e_q = dehopify q in
@@ -275,7 +276,7 @@ let rec dehopify (p : explicit_topo_pol) : restricted_pol =
       let h1 = VInt.Int16 0 in
       let h2 = VInt.Int16 1 in
       let h2' = VInt.Int16 2 in
-      let h4 = VInt.Int16 3 in
+      let h3 = VInt.Int16 3 in
       VSeq(parList [VMod(Tag h,h1);
                     VMod(Tag h,h2)],
            i_p),
@@ -285,39 +286,31 @@ let rec dehopify (p : explicit_topo_pol) : restricted_pol =
                               VMod(Tag h,h2))];
                seqList [VTest(h,h2);
                         s_p;
-                        VPar(VFilter True,
-                             seqList [
-                               e_p;
-                               i_q;
-                               s_q;
-                               VPar(VMod(Tag h,h2'),
-                                    VMod(Tag h, h4))])];
+                        e_p;
+                        i_q;
+                        s_q;
+                        VPar(VMod(Tag h,h2'),
+                             VMod(Tag h, h3))];
                seqList [VTest(h,h2');
                         s_q;
                         VPar(VFilter True, 
-                             VMod(Tag h, h4))]],
+                             VMod(Tag h, h3))]],
       VPar(t_p,t_q),
-      VSeq(VTest(h, h4), e_q)
+      VSeq(VTest(h, h3), e_q)
     | Star p -> 
       let i_p,s_p,t_p,e_p = dehopify p in
-      let h = gen_header 5 in
+      let h = gen_header 4 in
       let h0 = VInt.Int16 0 in
       let h1 = VInt.Int16 1 in
-      let h1' = VInt.Int16 2 in
-      let h2 = VInt.Int16 3 in
-      let h3 = VInt.Int16 4 in
+      let h2 = VInt.Int16 2 in
+      let h3 = VInt.Int16 3 in
       parList [VMod(Tag h,h0);
-               VMod(Tag h,h1)],
+               VSeq(VMod(Tag h,h1), i_p)],
       parList [ VSeq(VTest(h,h0),
                      VMod(Tag h,h2));
                 seqList [VTest(h,h1);
-                         i_p;
                          s_p;
                          VStar(seqList [e_p;i_p;s_p]);
-                         VPar(VMod(Tag h, h1'),
-                              VMod(Tag h,h3))];
-                seqList [VTest(h,h1');
-                         s_p;
                          VPar(VFilter True,
                               VMod(Tag h,h3))]],
       t_p,
@@ -340,14 +333,10 @@ let rec simplify_vpol p =
     | VSeq(p, VFilter True) -> simplify_vpol p
     | VSeq(p, q) -> let p' = simplify_vpol p in
                     let q' = simplify_vpol q in
-                    begin
-                      match p',q' with
-                        | VFilter False, _ -> VFilter False
-                        | _, VFilter False -> VFilter False
-                        | VFilter True, q' -> q'
-                        | p', VFilter True -> p'
-                        | _ -> VSeq(p',q')
-                    end
+                    if p' = p & q' = q then
+                      VSeq(p',q')
+                    else
+                      simplify_vpol (VSeq(p',q'))
     | VPar(VFilter False, p) -> simplify_vpol p
     | VPar(p, VFilter False) -> simplify_vpol p
     | VPar(p, VPar(q,r)) ->
@@ -362,12 +351,10 @@ let rec simplify_vpol p =
       else
         let p' = simplify_vpol p in
         let q' = simplify_vpol q in
-        begin
-          match p',q' with
-            | VFilter False, q' -> q'
-            | p', VFilter False -> p'
-            | p',q' -> VPar(p',q')
-        end
+        if p' = p & q' = q then
+          VPar(p',q')
+        else
+          simplify_vpol (VPar(p',q'))
     | VChoice(p, VChoice(q,r)) ->
       if p = q then simplify_vpol (VChoice(q,r))
       else let p' = simplify_vpol p in
@@ -380,7 +367,9 @@ let rec simplify_vpol p =
       else
         let p' = simplify_vpol p in
         let q' = simplify_vpol q in
-        if p' = q' then p' else VChoice(p',q')
+        if p' = p & q' = q
+        then VChoice(p',q')
+        else simplify_vpol (VChoice(p',q'))
     | VStar(VFilter False) -> VFilter True
     | VStar(VFilter True) -> VFilter True
     | VStar(p) -> 
@@ -472,6 +461,191 @@ let rec distribute_seq p =
     | VChoice(p,q) -> VChoice(distribute_seq p, distribute_seq q)
     | VStar(p) -> VStar(distribute_seq p)
     | _ -> p
+
+(* Dataflow-esque analysis that tracks current possible values for
+   header fields. Useful for dead-code elimination/simplification *)
+      
+(* Hashtbl from headers to possible values. If a header isn't in the
+   hashtbl, it hasn't been set or checked yet. *)
+
+module ValSet = Set.Make (struct
+  type t = header_val
+  let compare = Pervasives.compare
+end)
+
+type pos_dataflow_vals =
+  | AnyVal
+  | ExactVal of header_val
+  | PossibleVals of ValSet.t
+
+(* We keep our alist sorted by keys. This doesn't speed up lookup
+   (much), but it does reduce merging from O(n^2) to O(n) 
+   Sorted in descending order
+*)
+let lookup' default alist k =
+  List.fold_left (fun acc (k',v') -> if k' = k then v' else acc) default alist
+
+let lookup = lookup' AnyVal
+
+let rec insert alist k v = match alist with
+  | [] -> [(k, v)]
+  | (k',v') :: alist -> let cmp = Pervasives.compare k k' in
+                        if cmp < 0 then
+                          (k',v') :: insert alist k v
+                        else if cmp = 0 then
+                          (k, v) :: alist
+                        else
+                          (k,v) :: (k',v') :: alist
+                            
+let add inserter alist k v = 
+  List.fold_left (fun acc (k',v') -> if k' = k then (k', inserter v v') :: acc else (k',v') :: acc) [] alist
+
+let insert_dataflow_val v v' =
+  match v' with
+    | AnyVal -> AnyVal
+    | ExactVal v'' -> PossibleVals (ValSet.add v (ValSet.singleton v''))
+    | PossibleVals vs -> PossibleVals (ValSet.add v vs)
+
+let merge_dataflow_val v v' =
+  match v,v' with
+    | AnyVal,_ -> AnyVal
+    | _,AnyVal -> AnyVal
+    | ExactVal v, ExactVal v' -> 
+      if v = v' then
+        ExactVal v
+      else
+        PossibleVals (ValSet.add v' (ValSet.singleton v) )
+    | ExactVal v, PossibleVals vs -> PossibleVals (ValSet.add v vs)
+    | PossibleVals vs, ExactVal v -> PossibleVals (ValSet.add v vs)
+    | PossibleVals vs, PossibleVals vs' -> PossibleVals (ValSet.union vs vs')
+
+let add_val = add insert_dataflow_val
+
+(* If a value is missing, then it is implicitly "AnyVal" *)
+let rec merge' merger default alist1 alist2 = match alist1,alist2 with
+  | [],_ -> alist2
+  | _, [] -> alist1
+  | (k,v):: alist1, (k',v') :: alist2 ->
+    let cmp = Pervasives.compare k k' in
+    if cmp < 0 then
+      (k', default) :: (merge' merger default ((k,v):: alist1) alist2)
+    else if cmp = 0 then
+      (k, merger v v') :: (merge' merger default alist1 alist2)
+    else
+      (k, default) :: (merge' merger default alist1 ((k',v') :: alist2))
+
+let merge a b = match a,b with
+  | [], _ -> []
+  | _, [] -> []
+  | _,_  -> merge' merge_dataflow_val AnyVal a b
+
+let rec star_merge' merger alist1 alist2 = match alist1,alist2 with
+  | [],_ -> alist2
+  | _, [] -> alist1
+  | (k,v):: alist1, (k',v') :: alist2 ->
+    let cmp = Pervasives.compare k k' in
+    if cmp < 0 then
+      (k', v') :: (star_merge' merger ((k,v):: alist1) alist2)
+    else if cmp = 0 then
+      (k, merger v v') :: (star_merge' merger alist1 alist2)
+    else
+      (k, v) :: (star_merge' merger alist1 ((k',v') :: alist2))
+
+let star_merge a b = star_merge' merge_dataflow_val a b
+
+(* Can't keep old members around, key must have pre-existing value *)
+let update_alist alist k v =
+  List.map (fun (k',v') -> if k' = k then (k,v) else (k',v')) alist
+
+(* Removes tests shadowed by mods: (h <- v; ...; h = v) and (h <- v;
+   ...; h = v') where ".." doesn't contain a mod to 'h' and v' <> v *)
+let rec remove_dead_matches' p tbl =
+  match p with
+    | VMod(Tag h, v) -> begin
+      match lookup tbl h with
+        | ExactVal v'  -> if v' = v then
+            VFilter True, tbl
+          else
+            VMod(Tag h, v), insert tbl h (ExactVal v)
+        | _ -> VMod(Tag h, v), insert tbl h (ExactVal v)
+    end
+    | VTest(h,v) -> 
+      begin
+        match lookup tbl h with
+          | ExactVal v' -> if v' = v then
+              VFilter True, tbl
+            else
+              VFilter False, tbl
+          | PossibleVals set -> if ValSet.mem v set then
+              VTest(h,v), insert tbl h (ExactVal v)
+            else
+              VFilter False, tbl
+          | AnyVal -> VTest(h,v), insert tbl h (ExactVal v)
+      end
+    | VSeq(p,q) ->
+      let p', tbl' = remove_dead_matches' p tbl in
+      let q', tbl'' = remove_dead_matches' q tbl' in
+      VSeq(p', q'), tbl''
+    | VPar(p,q) ->
+      let p', tbl' = remove_dead_matches' p tbl in
+      let q', tbl'' = remove_dead_matches' q tbl in
+      VPar(p',q'), merge tbl' tbl''
+    (* Overapproximation: any value is possible *)
+    | VStar(p) -> 
+      (* Overapproximate by assuming any possible entry value, thus
+         deriving every possible exit value. Then, recompute by combining
+         actual possible entry values w/ all possible exit
+         values. Finally, to avoid losing precision, combine *)
+      let p', tbl' = remove_dead_matches' p [] in
+      let p'', tbl'' = remove_dead_matches' p' (star_merge tbl' tbl) in
+      (* let _, tbl''' = remove_dead_matches' p' tbl in *)
+      VStar(p''), merge tbl'' tbl
+    (* Overapproximation: pretend both branches get executed (like union)*)
+    | VChoice(p,q) ->
+      let p', tbl' = remove_dead_matches' p tbl in
+      let q', tbl'' = remove_dead_matches' q tbl in
+      VChoice(p',q'), merge tbl' tbl''
+    | _ -> p,tbl
+
+let remove_dead_matches p = fst (remove_dead_matches' p [])
+
+type var_use = Used | Unused
+
+let merge_var_use u u' =
+  match u,u' with
+    | Used,_ -> Used
+    | _, Used -> Used
+    | _,_ -> Unused
+
+let join = merge' merge_var_use Unused
+
+(* Remove unread mods: i.e (h <- v; ...; h <- v') where "..." does not
+   read the value of h *)
+let rec remove_dead_mods' p tbl =
+  match p with
+    | VSeq(p,q) -> let q', tbl' = remove_dead_mods' q tbl in
+                   let p', tbl'' = remove_dead_mods' p tbl' in
+                   VSeq(p',q'), tbl''
+    | VPar(p,q) -> let p', tbl' = remove_dead_mods' p tbl in
+                   let q', tbl'' = remove_dead_mods' q tbl in
+                   VPar(p',q'), join tbl' tbl''
+    | VMod(Tag h, v) -> 
+      begin
+        match lookup' Unused tbl h with
+          | Unused -> VFilter True, tbl
+          | Used -> VMod(Tag h, v), insert tbl h Unused
+      end
+    | VTest(h,v) -> VTest(h,v), insert tbl h Used
+    | VStar(p) -> let _, tbl' = remove_dead_mods' p tbl in
+                  let tbl'' = join tbl' tbl in
+                  let p', _ = remove_dead_mods' p tbl'' in
+                  VStar(p'), tbl''
+    | VChoice(p,q) -> let p', tbl' = remove_dead_mods' p tbl in
+                      let q', tbl'' = remove_dead_mods' q tbl in
+                      VChoice(p',q'), join tbl' tbl''
+    | _ -> p, tbl
+
+let remove_dead_mods p = fst (remove_dead_mods' p [])
 
 let reorder_seq p q =
   match p,q with
@@ -590,31 +764,72 @@ end)
      them. Thus, any match on a virtual header that is not preceded by a
      mod on the same header is "dead code", and can be eliminated
      (replaced by VFilter False) *)
-  
-let elim_vtest_helper p live_headers =
+
+type neg_dataflow_vals =
+  | NoVal
+  | SomeVal
+
+let merge_neg_val v v' =
+  match v,v' with
+    | SomeVal,_ -> SomeVal
+    | _,SomeVal -> SomeVal
+    | _,_ -> NoVal
+
+let merge_neg = merge' merge_neg_val SomeVal
+
+let rec elim_vtest' p tbl =
   match p with
-    | VMod(Tag h,v) -> p, TagSet.add h live_headers
+    | VMod(Tag h, v) -> VMod(Tag h, v), insert tbl h SomeVal
     | VTest(h,v) -> 
-      if TagSet.mem h live_headers then p,live_headers
-      else VFilter False, live_headers
-    | _ -> p, live_headers
-
-let rec elim_vtest' p live_headers = 
-  match p with
+      begin
+        match lookup' NoVal tbl h with
+          | SomeVal -> VTest(h,v) , tbl
+          | NoVal -> VFilter False, tbl
+      end
     | VSeq(p,q) ->
-      let p', live_headers' = elim_vtest_helper p live_headers in
-      VSeq(elim_vtest' p' live_headers, elim_vtest' q live_headers')
+      let p', tbl' = elim_vtest' p tbl in
+      let q', tbl'' = elim_vtest' q tbl' in
+      VSeq(p', q'), tbl''
     | VPar(p,q) ->
-      let p', _  = elim_vtest_helper p live_headers in        
-      let q', _ = elim_vtest_helper q live_headers in
-      VPar(elim_vtest' p' live_headers, elim_vtest' q' live_headers)
+      let p', tbl' = elim_vtest' p tbl in
+      let q', tbl'' = elim_vtest' q tbl in
+      VPar(p',q'), merge_neg tbl' tbl''
+    (* Overapproximation *)
+    | VStar(p) -> let _, tbl' = elim_vtest' p tbl in
+                    VStar(p), tbl'
+    (* Overapproximation: pretend both branches get executed (like union) *)
     | VChoice(p,q) ->
-      let p', _  = elim_vtest_helper p live_headers in        
-      let q', _ = elim_vtest_helper q live_headers in
-      VChoice(elim_vtest' p' live_headers, elim_vtest' q' live_headers)
-    | _ -> p
+      let p', tbl' = elim_vtest' p tbl in
+      let q', tbl'' = elim_vtest' q tbl in
+      VChoice(p',q'), merge_neg tbl' tbl''
+    | _ -> p,tbl
 
-let elim_vtest p = elim_vtest' p TagSet.empty
+let elim_vtest p = fst (elim_vtest' p [])
+  
+(* let elim_vtest_helper p live_headers = *)
+(*   match p with *)
+(*     | VMod(Tag h,v) -> p, TagSet.add h live_headers *)
+(*     | VTest(h,v) ->  *)
+(*       if TagSet.mem h live_headers then p,live_headers *)
+(*       else VFilter False, live_headers *)
+(*     | _ -> p, live_headers *)
+
+(* let rec elim_vtest' p live_headers =  *)
+(*   match p with *)
+(*     | VSeq(p,q) -> *)
+(*       let p', live_headers' = elim_vtest_helper p live_headers in *)
+(*       VSeq(elim_vtest' p' live_headers, elim_vtest' q live_headers') *)
+(*     | VPar(p,q) -> *)
+(*       let p', _  = elim_vtest_helper p live_headers in         *)
+(*       let q', _ = elim_vtest_helper q live_headers in *)
+(*       VPar(elim_vtest' p' live_headers, elim_vtest' q' live_headers) *)
+(*     | VChoice(p,q) -> *)
+(*       let p', _  = elim_vtest_helper p live_headers in         *)
+(*       let q', _ = elim_vtest_helper q live_headers in *)
+(*       VChoice(elim_vtest' p' live_headers, elim_vtest' q' live_headers) *)
+(*     | _ -> p *)
+
+(* let elim_vtest p = elim_vtest' p TagSet.empty *)
 
   (* Similarly, if we know that a virtual header is never read, we can eliminate the mod *)
 let elim_vmod_helper p live_headers =
@@ -629,7 +844,7 @@ let rec elim_vmod' p live_headers =
   match p with
     | VSeq(p,q) ->
       let q', live_headers' = elim_vmod' q live_headers in
-      let p', live_headers'' = elim_vmod_helper p live_headers' in
+      let p', live_headers'' = elim_vmod' p live_headers' in
       VSeq(p',q'), live_headers''
     | VPar(p,q) ->
       let p', live_headers' = elim_vmod' p live_headers in
@@ -652,36 +867,52 @@ let elim_vmod p = fst (elim_vmod' p TagSet.empty)
 let rec optimize' p = 
   let renorm = vpol_to_linear_vpol in
   let simpl = simplify_vpol in
-  let p' = elim_vmod (elim_vtest (renorm (remove_matches (renorm (distribute_seq (simpl p)))))) in
+  let p' =  remove_dead_mods (remove_dead_matches (simpl p)) in
   if p' = p then p'
   else optimize' p'
     
 let optimize p = 
   let renorm = vpol_to_linear_vpol in
   let simpl = simplify_vpol in
-  optimize' (normalize_seq (renorm (distribute_seq (simpl p))))
+  let p' = simpl (remove_dead_matches p) in
+  let () = Printf.printf "%s\n%!" (string_of_vpolicy p') in
+  let p'' = simpl (remove_dead_mods (elim_vtest (optimize' (distribute_seq (renorm p'))))) in
+  let () = Printf.printf "%s\n%!" (string_of_vpolicy p'') in
+  p''
+
+let add_tag_value htbl h v = 
+  if Hashtbl.mem htbl h then 
+    Hashtbl.replace htbl h (ValSet.add v (Hashtbl.find htbl h))
+  else 
+    Hashtbl.add htbl h (ValSet.singleton v)
     
-  (* First pass: collect all the tags used in the program
-     Construct the cross product. I.e. if we had tag (h,v) in the original program, then that corresponds to the set of tags {(t,(v,v',v'',\ldots)} where v',v'',... are possible values for the other tags appearing in the program.
-     Second pass: *)
 let rec collect_tags' p tags =
   match p with
-    | VMod(Tag h,_) -> TagSet.add h tags
-    | VTest(h, _) -> TagSet.add h tags
-    | VPar(p,q) -> TagSet.union (collect_tags' p tags) (collect_tags' q tags)
-    | VSeq(p,q) -> TagSet.union (collect_tags' p tags) (collect_tags' q tags)
-    | VChoice(p,q) -> TagSet.union (collect_tags' p tags) (collect_tags' q tags)
+    | VMod(Tag h,v) -> add_tag_value tags h v
+    | VTest(h, v) -> add_tag_value tags h v
+    | VPar(p,q) -> let () = collect_tags' p tags in
+                   collect_tags' q tags
+    | VSeq(p,q) -> let () = collect_tags' p tags in
+                   collect_tags' q tags
+    | VChoice(p,q) -> let () = collect_tags' p tags in
+                      collect_tags' q tags
     | VStar(p) -> collect_tags' p tags
-    | _ -> tags
+    | _ -> ()
 
-let rec range n = 
-  if n <= 0 then
-    [VInt.Int16 0]
-  else (VInt.Int16 n) :: (range (n - 1))
+(* let rec range n =  *)
+(*   if n <= 0 then *)
+(*     [VInt.Int16 0] *)
+(*   else (VInt.Int16 n) :: (range (n - 1)) *)
 
-let collect_tags p = TagSet.fold (fun (h,rng) acc -> ((h,rng), range rng) :: acc) (collect_tags' p TagSet.empty) []
+let collect_tags p = let htbl = Hashtbl.create 20 in
+                     let () = collect_tags' p htbl in
+                     Hashtbl.fold (fun h valset acc -> (h, ValSet.elements valset) :: acc) htbl []
 
-  (* Assume we have a list of lists H, where the elements of H[i] are the values of h_i. Now, for each H[i][j], we want to compute a list representing each possible tuple containing value j in position i. We'll do this in several steps. First, represent this as [[[int]]] *)
+(* Assume we have a list of lists H, where the elements of H[i] are
+   the values of h_i. Now, for each H[i][j], we want to compute a list
+   representing each possible tuple containing value j in position
+   i. We'll do this in several steps. First, represent this as
+   [[[int]]] *)
 
 let singletons h = List.fold_left (fun acc x -> [(h,x)]::acc) []
 
@@ -699,16 +930,13 @@ let rec make_tuples lst =
   (* Need a function that takes an old tag/value, and returns every
      matching new tag. *)
   (* Store the tag array as an alist, indexed by headers *)
-  (* Can't keep old members around, key must have pre-existing value *)
-let update_alist alist k v =
-  List.map (fun (k',v') -> if k' = k then (k,v) else (k',v')) alist
 
   (* returns a list of alists, where each alist represents a tuple *)
 let rec compute_matching_tuples tag_alist h v =
   make_tuples (update_alist tag_alist h [v])
 
   (* Takes an old value (h <- v), and returns a list of tuples (a,b)
-     where b is a new value equivalent to (h=v)*)
+     where b is a new value equivalent to (h=v) *)
 let rec get_new_values tag_alist h v = 
   let old_vals = List.fold_left 
     (fun acc v' -> if v = v' 
@@ -770,5 +998,7 @@ let dehop_policy p =
 
 let dehop_policy_opt p =
   let (i,s,t,e) = dehopify p in
-  let p' = optimize (VSeq(i, VSeq(VStar(VSeq(s,t)), VSeq(s,e)))) in
-  fst (convert_tag_to_hdr (collect_tags p') SDN_Types.Vlan p' false)
+  let p' = simplify_vpol (VSeq(i, VSeq(VStar(VSeq(s,t)), VSeq(s,e)))) in
+  (* let () = Printf.printf "%s\n%!" (string_of_vpolicy p') in *)
+  let p'' = optimize p' in
+  fst (convert_tag_to_hdr (collect_tags p') SDN_Types.Vlan p'' false)
