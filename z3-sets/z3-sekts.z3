@@ -77,6 +77,15 @@ SFUN2(set-union, s1, s2, ((_ map packet-or) s1 s2))
 SFUN2(set-diff, s1, s2, ((_ map packet-diff) s1 s2))
 SFUN2ret(set-subseteq, s1, s2, Bool, (= set_empty (set-diff s1 s2)))
 
+PFUN2(convenient-map-test, x, y, (ite (= (Switch x) (+ 3 (Switch y))) y nopacket ))
+
+(push)
+(declare-var set1 Set)
+(declare-var set2 Set)
+(assert (= ((_ map convenient-map-test) set1 set2) set2))
+
+(check-sat)
+(pop)
 
 fresh_packet(pkt1)
 (assert (= (packet-or pkt1 nopacket) pkt1 ))
