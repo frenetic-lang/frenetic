@@ -529,14 +529,15 @@ module Make
           par_local (of_pred pr1) (of_pred pr2)
       
     let star_local (p:t) : t =
-      let rec loop acc = 
-        let seq' = seq_local acc p in
-        let acc' = par_local acc seq' in
+      let rec loop acc pi =
+        let psucci = seq_local p pi in
+        let acc' = par_local acc psucci in
         if Atom.Map.compare Action.group_compare acc acc' = 0 then
           acc
-        else 
-          loop acc' in
-      loop (Atom.Map.singleton Atom.tru [Action.id])
+        else
+          loop acc' psucci in
+      let p0 = Atom.Map.singleton Atom.tru [Action.id] in
+      loop p0 p0
 
     let rec of_policy (pol:Syntax.policy) : t = 
       match pol with
