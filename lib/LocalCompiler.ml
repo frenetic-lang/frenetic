@@ -552,8 +552,11 @@ module Make
           seq_local (of_policy pol1) (of_policy pol2)
         | Syntax.Star pol -> 
           star_local (of_policy pol)
-	| _ -> 
-	  (* TODO(jnf): fix me *)
+	| Syntax.Link(sw,pt,sw',pt') -> 
+	  failwith "Not yet implemented"
+	| Syntax.PushVlan -> 
+	  failwith "Not yet implemented"
+	| Syntax.PopVlan -> 
 	  failwith "Not yet implemented"
 
     let to_netkat (p:t) : Syntax.policy = 
