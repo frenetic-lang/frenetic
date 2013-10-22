@@ -413,83 +413,6 @@ module Optimization = struct
       | VStar p -> VStar (vpol_to_linear_vpol p)
       | _ -> p
 
-  let rec atomic p = match p with
-    | VTest _ -> true
-    | VMod _ -> true
-    | VFilter _ -> true
-    | VLink _ -> true
-    | _ -> false
-
-  let rec seq_atomic p = match p with
-    | VStar _ -> true
-    | VSeq(p,q) -> seq_atomic p && seq_atomic q
-    | _ -> atomic p
-
-  let rec par_seq_atomic p = match p with
-    | VPar(p,q) -> par_seq_atomic p && par_seq_atomic q
-    | VStar _ -> true
-    | _ -> seq_atomic p
-
-  let rec choice_par_seq_atomic p = match p with
-    | VStar _ -> true
-    | VChoice(p,q) -> choice_par_seq_atomic p && choice_par_seq_atomic q
-    | _ -> par_seq_atomic p
-
-  (* Normal form: choice of unions of sequences *)
-  let rec distribute_seq p =
-    match p with
-      | VSeq(VChoice(p,q), r) ->
-        VChoice(distribute_seq (VSeq(p,r)), distribute_seq (VSeq(q,r)))
-      | VSeq(p, VChoice(q,r)) ->
-        VChoice(distribute_seq (VSeq(p,q)), distribute_seq (VSeq(p,r)))
-        (* (p|q);r = p;r | q;r *)
-      | VSeq(VPar(p,q), r) -> 
-        let p_r = distribute_seq (VSeq(p,r)) in
-        let q_r = distribute_seq (VSeq(q,r)) in
-        begin
-          match p_r,q_r with
-            | VChoice _,_
-            | _, VChoice _ -> let () = Printf.printf "VSeq_VPar p_r: %s\n\t q_r %s\n%!" (string_of_vpolicy p_r) (string_of_vpolicy q_r) in
-                              distribute_seq (VPar(p_r,q_r))
-            | _,_ -> VPar(p_r, q_r)
-        end
-        (* p;(q|r) = p;q | p;r *)
-      | VSeq(p, VPar(q,r)) -> 
-        let p_q = distribute_seq (VSeq(p,q)) in
-        let p_r = distribute_seq (VSeq(p,r)) in
-        begin
-          match p_q,p_r with
-            | VChoice _,_ 
-            | _, VChoice _ -> let () = Printf.printf "VSeq_VPar p_q: %s\n\t p_r %s\n%!" (string_of_vpolicy p_q) (string_of_vpolicy p_r) in
-                              distribute_seq (VPar(p_q,p_r))
-            | _,_ -> VPar(p_q, p_r)
-        end
-      | VSeq(p,q) -> let p' = distribute_seq p in
-                     let q' = distribute_seq q in
-                     if seq_atomic p' & seq_atomic q' then
-                       VSeq(p',q')
-                     else
-                       let () = Printf.printf "VSeq \tp': %s\n\t q' %s\n%!" (string_of_vpolicy p') (string_of_vpolicy q') in
-                       distribute_seq(VSeq(p',q'))
-      | VPar(VChoice(p,q), r) ->
-        let p_r = distribute_seq (VPar(p,r)) in
-        let q_r = distribute_seq (VPar(q,r)) in
-        VChoice(p_r, q_r)
-      | VPar(p, VChoice(q,r)) ->
-        let p_q = distribute_seq (VPar(p,q)) in
-        let p_r = distribute_seq (VPar(p,r)) in
-        VChoice(p_q, p_r)
-      | VPar(p,q) -> let p' = distribute_seq p in
-                     let q' = distribute_seq q in 
-                     if par_seq_atomic p' && par_seq_atomic q' then
-                       VPar(p',q')
-                     else
-                       let () = Printf.printf "VPar p': %s\n\t q' %s\n%!" (string_of_vpolicy p') (string_of_vpolicy q') in
-                       distribute_seq (VPar(p',q'))
-      | VChoice(p,q) -> VChoice(distribute_seq p, distribute_seq q)
-      | VStar(p) -> VStar(distribute_seq p)
-      | _ -> p
-
 
   (* Dataflow-esque analysis that tracks current possible values for
      header fields. Useful for dead-code elimination/simplification *)
@@ -630,41 +553,48 @@ module Optimization = struct
 
   type var_use = Used | Unused
 
-  let merge_var_use u u' =
+  let var_join u u' =
     match u,u' with
-      | Used,_ -> Used
+      | Used, _ -> Used
       | _, Used -> Used
-      | _,_ -> Unused
+      | _, _ -> Unused
 
-  let var_join = merge' merge_var_use Unused
+  let var_meet u u' =
+    match u,u' with
+      | Unused, _ -> Unused
+      | _, Unused -> Unused
+      | _, _ -> Used
 
   (* Remove unread mods: i.e (h <- v; ...; h <- v') where "..." does not
      read the value of h *)
-  let rec remove_dead_mods' p tbl =
+  let rec remove_dead_mods' merge default p tbl =
     match p with
-      | VSeq(p,q) -> let q', tbl' = remove_dead_mods' q tbl in
-                     let p', tbl'' = remove_dead_mods' p tbl' in
+      | VSeq(p,q) -> let q', tbl' = remove_dead_mods' merge default q tbl in
+                     let p', tbl'' = remove_dead_mods' merge default p tbl' in
                      VSeq(p',q'), tbl''
-      | VPar(p,q) -> let p', tbl' = remove_dead_mods' p tbl in
-                     let q', tbl'' = remove_dead_mods' q tbl in
-                     VPar(p',q'), var_join tbl' tbl''
+      | VPar(p,q) -> let p', tbl' = remove_dead_mods' merge default p tbl in
+                     let q', tbl'' = remove_dead_mods' merge default q tbl in
+                     VPar(p',q'), merge tbl' tbl''
       | VMod(Tag h, v) -> 
         begin
-          match lookup' Unused tbl h with
+          match lookup' default tbl h with
             | Unused -> VFilter True, tbl
             | Used -> VMod(Tag h, v), insert tbl h Unused
         end
       | VTest(h,v) -> VTest(h,v), insert tbl h Used
-      | VStar(p) -> let _, tbl' = remove_dead_mods' p tbl in
-                    let tbl'' = var_join tbl' tbl in
-                    let p', _ = remove_dead_mods' p tbl'' in
+      (* Probably has a bug, still needs to be properly tested *)
+      | VStar(p) -> let _, tbl' = remove_dead_mods' merge default p tbl in
+                    let tbl'' = merge tbl' tbl in
+                    let p', _ = remove_dead_mods' merge default p tbl'' in
                     VStar(p'), tbl''
-      | VChoice(p,q) -> let p', tbl' = remove_dead_mods' p tbl in
-                        let q', tbl'' = remove_dead_mods' q tbl in
-                        VChoice(p',q'), var_join tbl' tbl''
+      | VChoice(p,q) -> let p', tbl' = remove_dead_mods' merge default p tbl in
+                        let q', tbl'' = remove_dead_mods' merge default q tbl in
+                        VChoice(p',q'), merge tbl' tbl''
       | _ -> p, tbl
 
-  let remove_dead_mods p = fst (remove_dead_mods' p [])
+  let remove_dead_mods p = fst (remove_dead_mods' (merge' var_join Unused) Unused p [])
+
+  let remove_dead_mods_safe p = fst (remove_dead_mods' (merge' var_join Used) Used p [])
 
   (* Because we are using virtual headers, and no one else gets to use
      them, we know that the headers have no values until we initialize
@@ -715,13 +645,97 @@ module Optimization = struct
     let p' =  remove_dead_mods (remove_dead_matches (simpl p)) in
     if p' = p then p'
     else optimize' p'
+
+  let rec optimize_safe p = 
+    let simpl = simplify_vpol in
+    let p' =  remove_dead_mods_safe (remove_dead_matches (simpl p)) in
+    if p' = p then p'
+    else optimize' p'
+
+  let rec atomic p = match p with
+    | VTest _ -> true
+    | VMod _ -> true
+    | VFilter _ -> true
+    | VLink _ -> true
+    | _ -> false
+
+  let rec seq_atomic p = match p with
+    | VStar _ -> true
+    | VSeq(p,q) -> seq_atomic p && seq_atomic q
+    | _ -> atomic p
+
+  let rec par_seq_atomic p = match p with
+    | VPar(p,q) -> par_seq_atomic p && par_seq_atomic q
+    | VStar _ -> true
+    | _ -> seq_atomic p
+
+  let rec choice_par_seq_atomic p = match p with
+    | VStar _ -> true
+    | VChoice(p,q) -> choice_par_seq_atomic p && choice_par_seq_atomic q
+    | _ -> par_seq_atomic p
+
+  (* Normal form: choice of unions of sequences *)
+  let rec distribute_seq p =
+    let ret = match p with
+      | VSeq(VChoice(p,q), r) ->
+        VChoice(distribute_seq (VSeq(p,r)), distribute_seq (VSeq(q,r)))
+      | VSeq(p, VChoice(q,r)) ->
+        VChoice(distribute_seq (VSeq(p,q)), distribute_seq (VSeq(p,r)))
+      (* (p|q);r = p;r | q;r *)
+      | VSeq(VPar(p,q), r) -> 
+        let p_r = distribute_seq (VSeq(p,r)) in
+        let q_r = distribute_seq (VSeq(q,r)) in
+        begin
+          match p_r,q_r with
+            | VChoice _,_
+            | _, VChoice _ -> (* let () = Printf.printf "VSeq_VPar p_r: %s\n\t q_r %s\n%!" (string_of_vpolicy p_r) (string_of_vpolicy q_r) in *)
+              distribute_seq (VPar(p_r,q_r))
+            | _,_ -> VPar(p_r, q_r)
+        end
+      (* p;(q|r) = p;q | p;r *)
+      | VSeq(p, VPar(q,r)) -> 
+        let p_q = distribute_seq (VSeq(p,q)) in
+        let p_r = distribute_seq (VSeq(p,r)) in
+        begin
+          match p_q,p_r with
+            | VChoice _,_ 
+            | _, VChoice _ -> (* let () = Printf.printf "VSeq_VPar p_q: %s\n\t p_r %s\n%!" (string_of_vpolicy p_q) (string_of_vpolicy p_r) in *)
+              distribute_seq (VPar(p_q,p_r))
+            | _,_ -> VPar(p_q, p_r)
+        end
+      | VSeq(p,q) -> let p' = distribute_seq p in
+                     let q' = distribute_seq q in
+                     if seq_atomic p' & seq_atomic q' then
+                       VSeq(p',q')
+                     else
+                       (* let () = Printf.printf "VSeq \tp': %s\n\t q' %s\n%!" (string_of_vpolicy p') (string_of_vpolicy q') in *)
+                       distribute_seq(VSeq(p',q'))
+      | VPar(VChoice(p,q), r) ->
+        let p_r = distribute_seq (VPar(p,r)) in
+        let q_r = distribute_seq (VPar(q,r)) in
+        VChoice(p_r, q_r)
+      | VPar(p, VChoice(q,r)) ->
+        let p_q = distribute_seq (VPar(p,q)) in
+        let p_r = distribute_seq (VPar(p,r)) in
+        VChoice(p_q, p_r)
+      | VPar(p,q) -> let p' = distribute_seq p in
+                     let q' = distribute_seq q in 
+                     if par_seq_atomic p' && par_seq_atomic q' then
+                       VPar(p',q')
+                     else
+                       (* let () = Printf.printf "VPar p': %s\n\t q' %s\n%!" (string_of_vpolicy p') (string_of_vpolicy q') in *)
+                       distribute_seq (VPar(p',q'))
+      | VChoice(p,q) -> VChoice(distribute_seq p, distribute_seq q)
+      | VStar(p) -> VStar(distribute_seq p)
+      | _ -> p in
+    optimize_safe ret
     
   let optimize p = 
     let renorm = vpol_to_linear_vpol in
     let simpl = simplify_vpol in
     let p' = (simpl (remove_dead_matches p)) in
-    let () = Printf.printf "p': %s\n%!" (string_of_vpolicy p') in
-    let p'' = p' in
+    (* let () = Printf.printf "p': %s\n%!" (string_of_vpolicy p') in *)
+    let p'' = distribute_seq p' in
     (* let () = Printf.printf "p'':\n%!" in     *)
     let p''' = simpl (remove_dead_mods (elim_vtest (optimize' p''))) in
     p'''
