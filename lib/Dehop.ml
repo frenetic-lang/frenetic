@@ -529,17 +529,17 @@ module Optimization = struct
         let p', tbl' = remove_dead_matches' p tbl in
         let q', tbl'' = remove_dead_matches' q tbl in
         VPar(p',q'), merge tbl' tbl''
-    (* Overapproximation: any value is possible *)
+      (* Overapproximation: any value is possible *)
       | VStar(p) -> 
-      (* Overapproximate by assuming any possible entry value, thus
-         deriving every possible exit value. Then, recompute by combining
-         actual possible entry values w/ all possible exit
-         values. Finally, to avoid losing precision, combine *)
+        (* Overapproximate by assuming any possible entry value, thus
+           deriving every possible exit value. Then, recompute by combining
+           actual possible entry values w/ all possible exit
+           values. Finally, to avoid losing precision, combine *)
         let p', tbl' = remove_dead_matches' p [] in
         let p'', tbl'' = remove_dead_matches' p' (star_merge tbl' tbl) in
-      (* let _, tbl''' = remove_dead_matches' p' tbl in *)
+        (* let _, tbl''' = remove_dead_matches' p' tbl in *)
         VStar(p''), merge tbl'' tbl
-    (* Overapproximation: pretend both branches get executed (like union)*)
+      (* Overapproximation: pretend both branches get executed (like union)*)
       | VChoice(p,q) ->
         let p', tbl' = remove_dead_matches' p tbl in
         let q', tbl'' = remove_dead_matches' q tbl in
@@ -644,7 +644,7 @@ module Optimization = struct
 
   let rec optimize_safe p = 
     let simpl = simplify_vpol in
-    let p' =  remove_dead_mods_safe (remove_dead_matches (simpl p)) in
+    let p' =  (* remove_dead_mods_safe *) ((* remove_dead_matches *) (simpl p)) in
     if p' = p then p'
     else optimize' p'
 
