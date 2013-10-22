@@ -225,8 +225,8 @@ module Make (Headers : HEADERS) = struct
       | Neg p' -> 
         begin match cxt with
           | PAREN_PR
-          | NEG -> fprintf fmt "@[!%a@]" (pred NEG) p'
-          | _ -> fprintf fmt "@[!@[(%a)@]@]" (pred PAREN_PR) p'
+          | NEG -> fprintf fmt "@[not %a@]" (pred NEG) p'
+          | _ -> fprintf fmt "@[not@ @[(%a)@]@]" (pred PAREN_PR) p'
         end
 
       | And (p1, p2) -> 
@@ -234,15 +234,15 @@ module Make (Headers : HEADERS) = struct
           | PAREN_PR
           | OR_L
           | OR_R
-          | AND_L -> fprintf fmt "@[%a && %a@]" (pred AND_L) p1 (pred AND_R) p2
-          | _ -> fprintf fmt "@[(@[%a && %a@])@]" (pred AND_L) p1 (pred AND_R) p2
+          | AND_L -> fprintf fmt "@[%a and %a@]" (pred AND_L) p1 (pred AND_R) p2
+          | _ -> fprintf fmt "@[(@[%a and %a@])@]" (pred AND_L) p1 (pred AND_R) p2
         end
 
       | Or (p1, p2) -> 
         begin match cxt with
           | PAREN_PR
-          | OR_L -> fprintf fmt "@[%a || %a@]" (pred OR_L) p1 (pred OR_R) p2
-          | _ -> fprintf fmt "@[(@[%a || %a@])@]" (pred OR_L) p1 (pred OR_R) p2
+          | OR_L -> fprintf fmt "@[%a or %a@]" (pred OR_L) p1 (pred OR_R) p2
+          | _ -> fprintf fmt "@[(@[%a or %a@])@]" (pred OR_L) p1 (pred OR_R) p2
         end
 
     type policy_context = SEQ_L | SEQ_R | PAR_L | PAR_R | CHOICE_L | CHOICE_R | STAR | PAREN
@@ -256,8 +256,8 @@ module Make (Headers : HEADERS) = struct
          | _ -> pp_print_string fmt "filter "; pred PAREN_PR fmt pr)
 
       | Mod (h, v) -> 
-        fprintf fmt "@[%a -> %a@]" Headers.format_header h
-          Headers.format_value v
+        fprintf fmt "@[%a := %a@]" Headers.format_header h
+                                   Headers.format_value v
       | Star p' -> 
         begin match cxt with
           | PAREN 

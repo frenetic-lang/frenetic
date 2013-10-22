@@ -25,14 +25,14 @@ module Formatting = struct
       pp_print_string fmt
       (match f with
         | SDN_Types.InPort ->     "port"
-        | SDN_Types.EthType ->    "ethTyp"
         | SDN_Types.EthSrc ->     "ethSrc"
         | SDN_Types.EthDst ->     "ethDst"
+        | SDN_Types.EthType ->    "ethTyp"
         | SDN_Types.Vlan ->       "vlanId"
         | SDN_Types.VlanPcp ->    "vlanPcp"
-        | SDN_Types.IPProto ->    "ipProto"
         | SDN_Types.IP4Src ->     "ipSrc"
         | SDN_Types.IP4Dst ->     "ipDst"
+        | SDN_Types.IPProto ->    "ipProto"
         | SDN_Types.TCPSrcPort -> "tcpSrcPort"
         | SDN_Types.TCPDstPort -> "tcpDstPort")
 
