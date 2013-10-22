@@ -162,6 +162,12 @@ module Make
     let drop : Set.t = 
       Set.empty
 
+    let is_id (s:Set.t) : bool = 
+      Set.cardinal s = 1 && Syntax.HeaderMap.is_empty (Set.choose s)
+
+    let is_drop (s:Set.t) : bool = 
+      Set.is_empty s
+
     let seq_act (a:t) (b:t) : t =
       let f h vo1 vo2 = match vo1, vo2 with
         | (_, Some v2) ->
@@ -482,7 +488,7 @@ module Make
             match g1 with
               | [] -> 
 		assert false
-              | [s1] when Action.Set.is_empty s1 -> 
+              | [s1] when Action.is_drop s1 ->
 		extend Action.group_crossproduct r1 [s1] acc
               | _ -> 
 		List.fold_left
@@ -499,7 +505,7 @@ module Make
       Atom.Map.fold
         (fun r g acc -> 
           match g with 
-            | [s] when Action.Set.is_empty s -> 
+            | [s] when Action.is_drop s -> 
               Atom.Map.add r [Action.id] acc
             | _ -> 
               Atom.Map.add r [Action.drop] acc)
