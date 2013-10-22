@@ -465,19 +465,26 @@ module Verify = struct
   let encode_vint (v: VInt.t): zTerm = 
     TInt (VInt.get_int64 v)
 
+  let z3_map_expr (s : string) (vars : zVar list) (expr : zFormula) (lists : zTerm list) = 
+    let params = (List.map (fun v -> (v, SPacket)) vars) in
+    let fun2map = (z3_fun ("forwards_pol_" ^ s) params SPacket expr) in
+    ZTerm (TApp ( (TApp (TVar "_", [TVar "map"; fun2map]  )), lists)) 
+  
+  let range = ( fun i j ->
+    let rec aux n acc =
+      if n < i then acc else aux (n-1) (n :: acc) in
+    aux j ([]) )
 
   let rec forwards_pred (pred : pred) (pkt : zVar) : zFormula = 
-    let wrap (expr : zFormula) = (zApp (z3_macro "forwards_pred" [] SBool expr) []) in 
-    
     match pred with
       | False -> 
-	wrap ZFalse
+	ZFalse
       | True -> 
-	wrap ZTrue
+	ZTrue
       | Test (hdr, v) -> 
-	wrap (ZEquals (ZTerm (encode_header hdr "x"), ZTerm (encode_vint v)))
+	(ZEquals (ZTerm (encode_header hdr "x"), ZTerm (encode_vint v)))
       | Neg p ->
-        wrap (ZNot (forwards_pred p pkt))
+        (ZNot (forwards_pred p pkt))
       | And (pred1, pred2) -> 
 	(ZAnd [forwards_pred pred1 pkt; 
 	       forwards_pred pred2 pkt])
@@ -486,10 +493,6 @@ module Verify = struct
               forwards_pred pred2 pkt])
 
   let rec forward_pol (pol:policy) (inset:zVar) (outset:zVar) : zFormula =
-    let map_expr (s : string) (vars : zVar list) (expr : zFormula) (lists : zTerm list) = 
-      let params = (List.map (fun v -> (v, SPacket)) vars) in
-      let fun2map = (z3_fun ("forwards_pol_" ^ s) params SPacket expr) in
-      ZTerm (TApp ( (TApp (TVar "_", [TVar "map"; fun2map]  )), lists)) in 
     let nopacket = (ZTerm (TVar "nopacket")) in 
     let x = (ZTerm (TVar "x")) in
     let y = (ZTerm (TVar "y")) in
@@ -498,10 +501,10 @@ module Verify = struct
     
     match pol with
       | Filter pred ->
-        ZEquals(map_expr "Filter"  ["x"] (ZIf (forwards_pred pred "x", x, nopacket)) [(TVar inset)], outset_f)
+        ZEquals(z3_map_expr "Filter"  ["x"] (ZIf (forwards_pred pred "x", x, nopacket)) [(TVar inset)], outset_f)
 
       | Mod(f,v) -> 
-	let map_result = (map_expr "mod" ["x";"y"]  
+	let map_result = (z3_map_expr "mod" ["x";"y"]  
 			    (ZIf 
 			       ((ZAnd [
 				 encode_packet_equals "x" "y" f;
@@ -525,22 +528,18 @@ module Verify = struct
 	      forward_pol pol2 set' outset])
       | Star _  -> failwith "NetKAT program not in form (p;t)*"
       | Choice _-> failwith "I'm not rightly sure what a \"choice\" is "
-			
-(*   let rec forwards (pol:policy) (pkt1:zVar) (pkt2: zVar) : zFormula = *)
-(*     match pol with *)
-(*       | Filter pr ->  *)
-(*         ZComment ("Filter", (ZAnd[forwards_pred pr pkt1; encode_packet_equals pkt1 pkt2 []])) *)
-(*       | Mod (hdr, v) ->  *)
-(* 	ZComment ("Mod", ZAnd [ZEquals (encode_header hdr pkt2, encode_vint v); *)
-(* 			       encode_packet_equals pkt1 pkt2 [hdr]]) *)
-(*       | Par (p1, p2) ->  *)
-(* 	ZComment ("Par", ZOr [forwards p1 pkt1 pkt2; *)
-(* 			      forwards p2 pkt1 pkt2]) *)
-(*       | Seq (p1, p2) ->  *)
-(* 	let pkt' = fresh SPacket in *)
-(* 	ZComment ("Seq", ZAnd [forwards p1 pkt1 pkt'; *)
-(* 			       forwards p2 pkt' pkt2]) *)
-(*       | Star p1 -> failwith "NetKAT program not in form (p;t)*" *)
+
+  let rec forwards_k p_t_star set1 set2 k : zFormula = 
+    if k = 0 then
+      ZEquals (ZTerm (TVar set1), ZTerm (TVar set2))
+    else
+      let set' = fresh SSet in 
+      ZAnd [forwards_k p_t_star set1 set' (k-1);
+	    forward_pol p_t_star set' set2]
+
+  let forwards_star p_t_star set1 set2 k : zFormula = 
+    let forwards_k = forwards_k p_t_star set1 set2 in
+    ZOr (List.map forwards_k (range 0 k))
 		
 (*   let forwards_star_history k p_t_star pkt1 pkt2 : zFormula =  *)
 (*     if k = 0 then  *)
