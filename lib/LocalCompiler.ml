@@ -5,6 +5,7 @@
    - xs, ys, zs, pattern sets
    - p, q, local
    - r, atoms
+   - g, groups
 *)
 
 module type S = sig
@@ -427,9 +428,7 @@ module Make
         | None -> 
           p
         | Some (xs,x) -> 
-          if Pattern.Set.mem Pattern.tru xs then 
-	    p
-          else if Atom.Map.mem r p then
+	  if Atom.Map.mem r p then
             let g_old = Atom.Map.find r p in
             Atom.Map.add r (op g_old g) p
           else
@@ -440,7 +439,8 @@ module Make
           Atom.Map.fold (fun ((xs2,x2) as r2) g2 acc ->
             match Atom.seq_atom r1 r2 with
               | None ->
-		extend op r1 g1 (extend op r2 g2 acc) 
+		extend op r1 g1 
+		  (extend op r2 g2 acc) 
               | Some r1_seq_r2 ->
                 let f gi = (fun ri acc -> extend op ri gi acc) in 
                 let r1_diff_r2 = Atom.diff_atom r1 r2 in 
