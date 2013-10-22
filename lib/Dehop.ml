@@ -50,7 +50,7 @@ module Formatting = struct
     | Tag h -> pp_print_string fmt (string_of_int h)
 
     (* The type of the immediately surrounding context, which guides parenthesis-
-       intersion. *)
+       insertion. *)
     (* JNF: YES. This is the Right Way to pretty print. *)
   type context = SEQ | PAR | CHOICE | STAR | NEG | PAREN
 
@@ -383,7 +383,7 @@ module Optimization = struct
         end
       | _ -> p
 
-  (* Linearizes seqs *)
+  (* Linearizes seqs (i.e. Seq(Seq(a,b),c) => Seq(a,Seq(b,c) *)
   let rec vpol_to_linear_vpol p = 
     match p with
       (* (p | q) | r = p (q | r) *)
@@ -417,9 +417,6 @@ module Optimization = struct
   (* Dataflow-esque analysis that tracks current possible values for
      header fields. Useful for dead-code elimination/simplification *)
         
-  (* Hashtbl from headers to possible values. If a header isn't in the
-     hashtbl, it hasn't been set or checked yet. *)
-
   module ValSet = Set.Make (struct
     type t = header_val
     let compare = Pervasives.compare
@@ -565,8 +562,6 @@ module Optimization = struct
       | _, Unused -> Unused
       | _, _ -> Used
 
-  (* Remove unread mods: i.e (h <- v; ...; h <- v') where "..." does not
-     read the value of h *)
   let rec remove_dead_mods' merge default p tbl =
     match p with
       | VSeq(p,q) -> let q', tbl' = remove_dead_mods' merge default q tbl in
@@ -592,17 +587,24 @@ module Optimization = struct
                         VChoice(p',q'), merge tbl' tbl''
       | _ -> p, tbl
 
+  (* Remove unread mods: i.e (h <- v; ...; h <- v') where "..." does
+     not read the value of h 
+     Warning: Do NOT call this on arbitrary
+     locations inside of a policy! This can only be called at the top
+     level on the final policy. Instead, use remove_dead_mods_safe *)
+
   let remove_dead_mods p = fst (remove_dead_mods' (merge' var_join Unused) Unused p [])
 
+  (* Safe to call on arbitrary policies *)
   let remove_dead_mods_safe p = fst (remove_dead_mods' (merge' var_join Used) Used p [])
+
+  let merge_neg = merge' join AnyVal
 
   (* Because we are using virtual headers, and no one else gets to use
      them, we know that the headers have no values until we initialize
      them. Thus, any match on a virtual header that is not preceded by a
      mod on the same header is "dead code", and can be eliminated
      (replaced by VFilter False) *)
-
-  let merge_neg = merge' join AnyVal
 
   let rec elim_vtest' p tbl =
     match p with
@@ -634,12 +636,6 @@ module Optimization = struct
 
   let elim_vtest p = fst (elim_vtest' p [])
 
-  (* Observation: we don't have to reorder the mods/tests to be next
-     to each other to eliminate them. Instead, we can do a dataflow
-     analysis, tracking the current values of headers/tags. This should
-     be way more efficient than (quadratically) sorting the terms
-     repeatedly. The only problem is that reducing p + p' (when p = p')
-     still requires normalizing *)
   let rec optimize' p = 
     let simpl = simplify_vpol in
     let p' =  remove_dead_mods (remove_dead_matches (simpl p)) in
