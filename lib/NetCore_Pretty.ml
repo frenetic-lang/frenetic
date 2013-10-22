@@ -121,7 +121,8 @@ module Format = struct
     | Union _
     | Seq _
     | ITE _ -> fprintf fmt "@[(%a)@]" pol p
-
+    | Choice _ -> failwith "Not yet implemented"
+      
 end
 
 let format_pol = Format.pol

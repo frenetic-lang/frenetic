@@ -19,6 +19,11 @@ type header = SDN_Headers.header
 
 type header_val = VInt.t
 
+val switch : header
+val port : header
+val vlan : header
+val zero : header_val
+
 type payload = SDN_Types.payload
 
 (** {2 Policies}
@@ -40,8 +45,12 @@ type policy =
   | Choice of policy*policy
   | Seq of policy*policy
   | Star of policy
+  | Link of header_val * header_val * header_val * header_val
+  | PushVlan
+  | PopVlan
 
 val id : policy
+
 val drop : policy
 
 (** {2 Packets} 
@@ -65,6 +74,7 @@ type packet = {
       they are not found, we signal an error. An OpenFlow switch will never
       look for a header that does not exist. So, it is safe to assume that
        unused headers are set to zero or some other default value. *)
+  vlan_stack : header_val list;
   payload : SDN_Types.payload
 }
 

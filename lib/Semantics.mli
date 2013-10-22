@@ -5,6 +5,10 @@ module type HEADERS = sig
   type value
   type payload
 
+  val switch : header
+  val port : header
+  val vlan : header
+  val zero : value
   val format_header : Format.formatter -> header -> unit
   val format_value : Format.formatter -> value -> unit
   val header_to_string : header -> string
@@ -17,6 +21,11 @@ module type S = sig
   type header
   type header_val
   type payload
+
+  val switch : header
+  val port : header
+  val vlan : header
+  val zero : header_val
 
   (** {2 Policies} *)
 
@@ -35,8 +44,12 @@ module type S = sig
     | Choice of policy * policy
     | Seq of policy * policy
     | Star of policy
+    | Link of header_val * header_val * header_val * header_val
+    | PushVlan
+    | PopVlan
 
   val id : policy
+
   val drop : policy
 
   (** {2 Packets} 
@@ -60,6 +73,7 @@ module type S = sig
         they are not found, we signal an error. An OpenFlow switch will never
         look for a header that does not exist. So, it is safe to assume that
          unused headers are set to zero or some other default value. *)
+    vlan_stack : header_val list;
     payload : payload
   }
 

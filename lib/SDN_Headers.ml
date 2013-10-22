@@ -2,6 +2,14 @@ type header =
   | Header of SDN_Types.field
   | Switch
 
+let switch = Switch
+
+let port = Header SDN_Types.InPort
+
+let vlan = Header SDN_Types.Vlan
+
+let zero = VInt.Int16 0x000
+
 type value = VInt.t
 
 type payload = SDN_Types.payload
@@ -16,15 +24,15 @@ module Formatting = struct
   let format_field (fmt : formatter) (f : SDN_Types.field) : unit =
       pp_print_string fmt
       (match f with
-        | SDN_Types.InPort ->     "inPort"
-        | SDN_Types.EthType ->    "dlTyp"
-        | SDN_Types.EthSrc ->     "dlSrc"
-        | SDN_Types.EthDst ->     "dlDst"
-        | SDN_Types.Vlan ->       "vlan"
+        | SDN_Types.InPort ->     "port"
+        | SDN_Types.EthType ->    "ethTyp"
+        | SDN_Types.EthSrc ->     "ethSrc"
+        | SDN_Types.EthDst ->     "ethDst"
+        | SDN_Types.Vlan ->       "vlanId"
         | SDN_Types.VlanPcp ->    "vlanPcp"
-        | SDN_Types.IPProto ->    "nwProto"
-        | SDN_Types.IP4Src ->     "srcIP"
-        | SDN_Types.IP4Dst ->     "dstIP"
+        | SDN_Types.IPProto ->    "ipProto"
+        | SDN_Types.IP4Src ->     "ipSrc"
+        | SDN_Types.IP4Dst ->     "ipDst"
         | SDN_Types.TCPSrcPort -> "tcpSrcPort"
         | SDN_Types.TCPDstPort -> "tcpDstPort")
 

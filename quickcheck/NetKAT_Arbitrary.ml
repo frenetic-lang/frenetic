@@ -107,10 +107,13 @@ module Make
 
   let arbitrary_packet : packet QuickCheck_gen.gen = 
     let open QuickCheck_gen in
+    let open QuickCheck in
     listN num_hdrs arbitrary_headerval >>= fun vals ->
       arbitrary_payload >>= fun payload ->
+      arbitrary_list arbitrary_headerval >>= fun vlan_stack ->
       ret_gen {
         headers = List.fold_right2 HeaderMap.add all_headers vals HeaderMap.empty;
+	vlan_stack = vlan_stack;
         payload = payload
       }
 
