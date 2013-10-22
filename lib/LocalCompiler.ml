@@ -466,7 +466,7 @@ module Make
       r
         
     (* TODO(jnf) this is a helper function; give it a different name? *)
-    let seq_atom_act_local (r1:Atom.t) (a:Action.t) (q:t) (acc:t) : t = 
+    let seq_atom_act_local_acc (r1:Atom.t) (a:Action.t) (q:t) (acc:t) : t =
       Atom.Map.fold
         (fun r2 g2 acc ->
           match Atom.seq_act_atom r1 a r2 with
@@ -478,7 +478,7 @@ module Make
 
     let seq_atom_acts_local_acc (r1:Atom.t) (s1:Action.Set.t) (q:t) (acc:t) : t = 
       Action.Set.fold
-        (fun a acc -> seq_atom_act_local r1 a q acc)
+        (fun a acc -> seq_atom_act_local_acc r1 a q acc)
         s1 acc
 
     let seq_local (p:t) (q:t) : t = 
