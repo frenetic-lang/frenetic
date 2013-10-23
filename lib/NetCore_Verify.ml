@@ -164,7 +164,8 @@ module Sat = struct
 	  | SMacro _ -> failwith "macros should be in ZDefineVar"
 	  | SPacket -> ";; declaring packet "^x^"\n" ^
 	    "(declare-var "^x^" "^(serialize_sort s)^")" ^
-	    "(declare-var "^x^"-int1 Int)" ^ 
+	    "" ^ "(assert (not (= "^x^" nopacket))) " ^
+	    (*"(declare-var "^x^"-int1 Int)" ^ 
 	    "(declare-var "^x^"-int2 Int)" ^
 	    "(declare-var "^x^"-int3 Int)" ^
 	    "(declare-var "^x^"-int4 Int)" ^
@@ -180,7 +181,7 @@ module Sat = struct
 		"(packet "^x^"-int11 "^x^"-int10 "^x^"-int9" ^
 		  " "^x^"-int8 "^x^"-int7 "^x^"-int6" ^
 		  " "^x^"-int5 "^x^"-int12 "^x^"-int4" ^
-		  " "^x^"-int3 "^x^"-int2 "^x^"-int1)))\n" ^
+	    " "^x^"-int3 "^x^"-int2 "^x^"-int1)))\n" ^ *)
 	    ";; end declaration"
           | _ -> Printf.sprintf "(declare-var %s %s)" x (serialize_sort s)
 	)
@@ -214,65 +215,67 @@ module Sat = struct
     let name = name ^ "_" ^ to_string (gensym ()) in
     fresh_cell := (define_z3_macro name arglist rettype body) @ l;
     TVar name
+      
+  module Z3macro = struct
+    let x = (ZTerm (TVar "x")) 
+    let y = (ZTerm (TVar "y")) 
+    let s = (ZTerm (TVar "s")) 
+    let s1 = (ZTerm (TVar "s1")) 
+    let s2 = (ZTerm (TVar "s2")) 
+    let z3app2 f =
+      (fun sp xp -> match sp, xp with 
+	| (ZTerm (TVar s)), (ZTerm (TVar x)) -> ZTerm (TApp ((TVar f ), [(TVar s);(TVar x)]))
+	| _ -> failwith "need to apply functions to variables as of right now.") 
+    let z3app3 f = (fun sp xp yp -> match sp, xp, yp with 
+      | (ZTerm (TVar s)), (ZTerm (TVar x)), (ZTerm (TVar y)) -> ZTerm (TApp ((TVar f ), [(TVar s);(TVar x); (TVar y)]))
+      | _ -> failwith "need to apply functions to variables as of right now.") 
+    let select = z3app2 "select" 
+    let store = z3app3 "store" 
+    let set_diff = z3app2 "set_diff" 
+    let map = (fun fp l1p l2p -> match fp, l1p, l2p with 
+      | f, (ZTerm (TVar l1)), ZTerm (TVar l2) -> ZTerm (TApp ( (TApp (TVar "_", [TVar "map"; TVar f]  )), [(TVar l1); (TVar l2)]))
+      | _ -> failwith "need to apply functions to variables as of right now.") 
+    let nopacket = (ZTerm (TVar "nopacket"))  
+    let set_empty = (ZTerm (TVar "set_empty")) 
+  end
+  open Z3macro
 
   let z3_static =
 
     (*some convenience functions to make z3 function definitions more readable*)
 
-    let x = (ZTerm (TVar "x")) in
-    let y = (ZTerm (TVar "y")) in
-    let s = (ZTerm (TVar "s")) in
-    let s1 = (ZTerm (TVar "s1")) in
-    let s2 = (ZTerm (TVar "s2")) in
-    let z3app2 f = 
-      (fun sp xp -> match sp, xp with 
-	| (ZTerm (TVar s)), (ZTerm (TVar x)) -> ZTerm (TApp ((TVar f ), [(TVar s);(TVar x)]))
-	| _ -> failwith "need to apply functions to variables as of right now.") in
-    let z3app3 f = (fun sp xp yp -> match sp, xp, yp with 
-      | (ZTerm (TVar s)), (ZTerm (TVar x)), (ZTerm (TVar y)) -> ZTerm (TApp ((TVar f ), [(TVar s);(TVar x); (TVar y)]))
-      | _ -> failwith "need to apply functions to variables as of right now.") in
-    let select = z3app2 "select" in
-    let store = z3app3 "store" in
-    let set_diff = z3app2 "set_diff" in
-    let map = (fun fp l1p l2p -> match fp, l1p, l2p with 
-      | f, (ZTerm (TVar l1)), ZTerm (TVar l2) -> ZTerm (TApp ( (TApp (TVar "_", [TVar "map"; TVar f]  )), [(TVar l1); (TVar l2)]))
-      | _ -> failwith "need to apply functions to variables as of right now.") in
-    let nopacket = (ZTerm (TVar "nopacket")) in
-    let set_empty = (ZTerm (TVar "set_empty")) in
-    
     (* actual z3 function definitions *)
-
+    
     (define_z3_fun "packet_and"  [("x", SPacket); ("y", SPacket)] SPacket
        (ZIf (ZAnd 
 	       [ZNot (ZEquals (x, nopacket)); 
 		ZEquals (x, y)], 
 	     x, nopacket))) @  
-
+      
       define_z3_fun "packet_or" [("x", SPacket); ("y", SPacket)] SPacket
-       (ZIf (ZEquals (x, nopacket), y, x)) @
-
+      (ZIf (ZEquals (x, nopacket), y, x)) @
+      
       define_z3_fun "packet_diff" [("x", SPacket); ("y", SPacket)] SPacket
-       (ZIf (ZEquals (x,y), nopacket, x)) @
-
+      (ZIf (ZEquals (x,y), nopacket, x)) @
+      
       define_z3_macro "set_mem" [("x", SPacket); ("s", SSet)] SBool
-       (ZNot (ZEquals ((select s x), nopacket))) @
-
+      (ZNot (ZEquals ((select s x), nopacket))) @
+      
       define_z3_macro "set_add" [("s", SSet); ("x", SPacket)] SSet 
-       (store s x x) @
-
+      (store s x x) @
+      
       define_z3_macro "set_inter" [("s1", SSet); ("s2", SSet)] SSet
-       (map "packet_and" s1 s2) @
-
+      (map "packet_and" s1 s2) @
+      
       define_z3_macro "set_union" [("s1", SSet); ("s2", SSet)] SSet
-       (map "packet_or" s1 s2) @ 
-
+      (map "packet_or" s1 s2) @ 
+      
       define_z3_macro "set_diff" [("s1", SSet); ("s2", SSet)] SSet 
-       (map "packet_diff" s1 s2) @
-
+      (map "packet_diff" s1 s2) @
+      
       define_z3_macro "set_subseteq" [("s1", SSet); ("s2", SSet)] SBool 
-       (ZEquals (set_empty, (set_diff s1 s2))) 
-
-
+      (ZEquals (set_empty, (set_diff s1 s2)))
+      
   let pervasives : string = 
     "(set-option :macro-finder true)
 (declare-datatypes 
@@ -299,7 +302,7 @@ module Sat = struct
       
   let serialize_program p : string = 
     let ZProgram(ds) = p in 
-    let ds' = List.flatten [!fresh_cell; ds] in 
+    let ds' = List.flatten [!fresh_cell; [ZToplevelComment("End Definitions, Commence SAT expressions\n")]; ds] in 
     Printf.sprintf "%s%s\n(check-sat)\n"
       pervasives (intercalate serialize_declare "\n" ds') 
 
@@ -317,8 +320,8 @@ module Sat = struct
          Buffer.add_char b '\n';
        done
      with End_of_file -> ());
-    if Buffer.contents b = "sat\nsat\n" then true else 
-      (Printf.eprintf "%s\n%s" s (Buffer.contents b); false)
+    Printf.eprintf "%s\n%s" s (Buffer.contents b); 
+    Buffer.contents b = "sat\nsat\n"
 end
 
 module Verify_Graph = struct
@@ -503,8 +506,8 @@ module Verify = struct
 	(ZOr [forwards_pred pred1 pkt;
               forwards_pred pred2 pkt])
 
+  open Z3macro
   let rec forwards_pol (pol:policy) (inset:zVar) (outset:zVar) : zFormula =
-    let nopacket = (ZTerm (TVar "nopacket")) in 
     let x = (ZTerm (TVar "x")) in
     let y = (ZTerm (TVar "y")) in
     let outset_f = (ZTerm (TVar outset)) in 
@@ -559,8 +562,18 @@ module Verify = struct
   let forwards_star p_t_star set1 set2 k : zFormula = 
     let forwards_k = forwards_k p_t_star set1 set2 in
     ZOr (List.map forwards_k (range 0 k))
+
+  open Sat.Z3macro
+  let non_empty_set () =  
+    let ret = fresh SSet in
+    let s = ZTerm (TVar (ret)) in
+    let assertvar = ZTerm (TVar (fresh SPacket)) in
+    fresh_cell := !fresh_cell @ [(ZDeclareAssert (ZNot (ZEquals (select s assertvar, nopacket))))];
+    ret
+
 		
 end
+
 
   let generate_program inp p_t_star outp k x y =  
     Sat.ZProgram [ Sat.ZDeclareAssert (Verify.forwards_pol (NetKAT_Types.Filter inp) x x) 
@@ -593,8 +606,8 @@ oko: bool option. has to be Some. True if you think it should be satisfiable.
 *)
   let check_reachability  str inp pol outp oko =
   let k = Verify_Graph.longest_shortest (Verify_Graph.parse_graph pol) in
-  let x = Sat.fresh Sat.SSet in
-  let y = Sat.fresh Sat.SSet in
+  let x = Verify.non_empty_set () in
+  let y = Verify.non_empty_set () in
   let prog = generate_program inp pol outp k x y in
   run_solve oko prog str
 

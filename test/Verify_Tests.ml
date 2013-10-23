@@ -3,6 +3,7 @@ open VInt
 open NetCore_Verify
 open NetCore_Verify_Util
 
+(*
 TEST "setup-works" = 
     Sat.solve (Sat.ZProgram ([])) 
 
@@ -16,7 +17,7 @@ TEST "simple-check" =
 	(make_simple_topology (make_transition (1, 1) (2, 1)))
 	(make_packet_2 2 1)
 	true 
-
+*)
 TEST "we care about p in (p;t)*" = 
 	verify "we care about p in (p;t)*"
 	(make_packet_2 1 1)
