@@ -37,7 +37,9 @@ module Sat = struct
     | ZEquals of zFormula * zFormula
     | ZComment of string * zFormula
     | ZForall of ((zVar * zSort) list) * zFormula
+    | ZExists of ((zVar * zSort) list) * zFormula
     | ZIf of zFormula * zFormula * zFormula
+    | ZApp of zFormula * (zFormula list)
 
   type zDeclare = 
     | ZDeclareVar of zVar * zSort
@@ -148,9 +150,13 @@ module Sat = struct
       Printf.sprintf "\n;%s\n%s\n; END %s\n" c (serialize_formula f) c
     | ZForall (args, form) ->
       Printf.sprintf "(forall (%s) %s)" (serialize_arglist args) (serialize_formula form)
+    | ZExists (args, form) ->
+      Printf.sprintf "(exists (%s) %s)" (serialize_arglist args) (serialize_formula form)
     | ZTerm t -> serialize_term t
     | ZIf (i, t, e) -> Printf.sprintf "(ite %s %s %s)" 
       (serialize_formula i) (serialize_formula t) (serialize_formula e)
+    | ZApp (term1, terms) -> 
+      Printf.sprintf "(%s %s)" (serialize_formula term1) (intercalate serialize_formula " " terms)
 
   let serialize_declare d = 
     match d with 
@@ -215,6 +221,18 @@ module Sat = struct
     let name = name ^ "_" ^ to_string (gensym ()) in
     fresh_cell := (define_z3_macro name arglist rettype body) @ l;
     TVar name
+
+  let z3_macro_app (s : string) (vars : zVar list) (expr : zFormula) (args : zFormula list) = 
+    let params = (List.map (fun v -> (v, SPacket)) vars) in
+    let fun2map = (z3_fun ("forwards_pol_" ^ s) params SPacket expr) in
+    (ZApp (ZTerm fun2map, args))
+    
+  let z3_map_expr (s : string) (vars : zVar list) (expr : zFormula) (lists : zTerm list) = 
+    let params = (List.map (fun v -> (v, SPacket)) vars) in
+    let fun2map = (z3_fun ("forwards_pol_" ^ s) params SPacket expr) in
+    ZTerm (TApp ( (TApp (TVar "_", [TVar "map"; fun2map]  )), lists))
+
+
       
   module Z3macro = struct
     let x = (ZTerm (TVar "x")) 
@@ -479,10 +497,6 @@ module Verify = struct
   let encode_vint (v: VInt.t): zTerm = 
     TInt (VInt.get_int64 v)
 
-  let z3_map_expr (s : string) (vars : zVar list) (expr : zFormula) (lists : zTerm list) = 
-    let params = (List.map (fun v -> (v, SPacket)) vars) in
-    let fun2map = (z3_fun ("forwards_pol_" ^ s) params SPacket expr) in
-    ZTerm (TApp ( (TApp (TVar "_", [TVar "map"; fun2map]  )), lists)) 
   
   let range = ( fun i j ->
     let rec aux n acc =
@@ -510,14 +524,28 @@ module Verify = struct
   let rec forwards_pol (pol:policy) (inset:zVar) (outset:zVar) : zFormula =
     let x = (ZTerm (TVar "x")) in
     let y = (ZTerm (TVar "y")) in
+    let inset_f = (ZTerm (TVar outset)) in 
     let outset_f = (ZTerm (TVar outset)) in 
+   
 
-    
+    (*(assert (not (exists ((x Packet)) (not (equals (forwards_pol_Filter_2 (select _s0 x)) x))))) *)
     match pol with
       | Filter pred ->
-        ZEquals(
-	  z3_map_expr "Filter"  ["x"] (ZIf (forwards_pred pred "x", x, nopacket)) [(TVar inset)], 
-	  outset_f)
+	(ZNot (ZExists ([("y", SPacket)],
+		 (ZNot
+		    (ZIf (ZEquals ((z3_macro_app "filter" ["x"] (ZIf (forwards_pred pred "x", x, nopacket)) [(select inset_f y)]),y),
+			  ZEquals (select outset_f y, y),
+			  ZEquals (select outset_f y, nopacket)))))))
+			  
+	(* (not (exists ((y Packet)) 
+		(not 
+		   (ite (equals (z3_macro_app "filter" ["x"] (ZIf (forwards_pred pred "x", x, nopacket)) [(select inset y)]) y)
+		      (equals (select outset y) y)
+		      (equals (select outset y) nopacket)
+		   ))))
+        old version ZEquals(
+	  (z3_map_expr "Filter"  ["x"] (ZIf (forwards_pred pred "x", x, nopacket)) [(TVar inset)]), 
+	  outset_f) *)
 
       | Mod(f,v) -> 
 	let expr_to_map = 
@@ -568,7 +596,8 @@ module Verify = struct
     let ret = fresh SSet in
     let s = ZTerm (TVar (ret)) in
     let assertvar = ZTerm (TVar (fresh SPacket)) in
-    fresh_cell := !fresh_cell @ [(ZDeclareAssert (ZNot (ZEquals (select s assertvar, nopacket))))];
+    fresh_cell := !fresh_cell @ [(ZToplevelComment "asserting non-empty set");
+				 (ZDeclareAssert (ZNot (ZEquals (select s assertvar, nopacket))))];
     ret
 
 		
