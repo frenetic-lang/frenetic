@@ -22,6 +22,10 @@ let switch_thread
   Lwt_stream.iter_s config_switch (Stream.to_stream local_stream)
 
 let rec start ~port ~pols =
-  let local_stream = Stream.map LocalCompiler.RunTime.compile pols in
+  let local_stream = Stream.map (fun p -> let d = (Dehop.dehop_policy_opt p) in
+                                          let l = LocalCompiler.RunTime.compile d in
+                                          let () = Printf.printf "l: \n%!" in
+                                          l)
+                                            pols in
   lwt (stop_accept, new_switches) = Platform.accept_switches port  in
   Lwt_stream.iter_p (switch_thread local_stream) new_switches

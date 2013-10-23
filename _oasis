@@ -106,6 +106,15 @@ Executable katnetic
     lwt.syntax,
     netcore
 
+Executable dehop_test
+  Path: frenetic
+  MainIs: dehop_test.ml
+  Install$: flag(installexec)
+  BuildDepends:
+    lwt,
+    lwt.syntax,
+    netcore
+
 Executable netkat_test
   Path: frenetic
   MainIs: netkat_test.ml
