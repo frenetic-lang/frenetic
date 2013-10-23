@@ -39,9 +39,14 @@ type eattr = {
 }
 
 type nattr = {
-  kind: string
+  ntype: string
   ; id : int64
+  ; ip : string
 }
+
+val defnattr : nattr
+val defeattr : eattr
+
 type dotstmt =
 | DotNode of name * nattr
 | DotEdge of name * name * eattr

@@ -16,9 +16,7 @@ Library topology
     ocamlgraph,
     packet
   InternalModules:
-    Util,
-    Lexer,
-    Parser
+    Util
   Modules:
     DOT_Types,
     Topology,

@@ -46,9 +46,11 @@ type eattr = {
 }
 
 type nattr = {
-  kind: string
+  ntype: string
   ; id : int64
+  ; ip : string
 }
+
 type dotstmt =
 | DotNode of name * nattr
 | DotEdge of name * name * eattr
@@ -57,3 +59,6 @@ type dotstmt =
 type dotgraph =
   | DotGraph of name * dotstmt list
   | DotDigraph of name * dotstmt list
+
+let defnattr = {ntype = "host"; id = 0L; ip = "0.0.0.0"}
+let defeattr = {sport = 0l; dport = 0l; cost = 1L; capacity = 1L; label = ""}
