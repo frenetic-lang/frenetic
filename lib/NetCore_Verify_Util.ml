@@ -1,20 +1,25 @@
 
+open SDN_Types
+open SDN_Headers
 open NetKAT_Types
 open VInt
 open NetCore_Verify
+open Sat
 
 let verify (description: string) (initial_state: pred) (program: policy) (final_state: pred) (desired_outcome: bool) : bool = 
 	check description initial_state program final_state (Some desired_outcome)
 
-let verify_history (description: string) (initial_state: pred) (program: policy) expr (final_state: pred) (desired_outcome: bool) : bool = 
+(* let verify_history (description: string) (initial_state: pred) (program: policy) expr (final_state: pred) (desired_outcome: bool) : bool = 
 	check_with_history expr description initial_state program final_state (Some desired_outcome)
 
 let verify_specific_k (description: string) (initial_state: pred) (program: policy) (final_state: pred) (desired_outcome: bool) k : bool = 
-	check description initial_state program final_state (Some desired_outcome)
+	check description initial_state program final_state (Some desired_outcome) *)
+
 
 let make_transition (switch1, port1) (switch2, port2) : policy = 
+
   Seq (Filter (And (Test (Switch, make_vint switch1), Test (Header SDN_Types.InPort, make_vint port1))), 
-	   Seq (Mod (Switch ,make_vint switch2) , Mod (Header SDN_Types.InPort, make_vint port2)))
+       Seq (Mod (Switch ,make_vint switch2) , Mod (Header SDN_Types.InPort, make_vint port2)))
 
 let make_simple_topology topo : policy = Star (Seq (Filter True, topo))
 
@@ -124,16 +129,12 @@ let no_waypoint_expr waypoint_switchnum : (Sat.zVar list -> Sat.zFormula) =
   in 
   ret
 
-let equal_fields fieldname  : (Sat.zVar list -> Sat.zFormula) = 
-  (Verify.equal_single_field fieldname)
+(* let equal_fields fieldname  : (Sat.zVar list -> Sat.zFormula) = 
+  (Verify.equal_single_field fieldname) *)
 
 let exists_waypoint_in_one_history waypoint_switchnum = 
   let ret history = 
 	((fold_pred_or (Test (Switch, make_vint waypoint_switchnum))) history) in ret
 
-let noop_expr = Verify.noop_expr
 
-(* This is a really good idea: equivalence, where the packet history is reused.  We can absolutely hack that.  That sounds good.  Nope, this is wrong - it's intersection.  *)
-
-(* equivalence is easy: constrain packet1=packet1' packet2!=packet2' and run through the two topologies.*)
 

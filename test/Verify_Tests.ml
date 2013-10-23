@@ -1,7 +1,7 @@
 open NetKAT_Types
 open VInt
 open NetCore_Verify
-(*open NetCore_Verify_Util*)
+open NetCore_Verify_Util
 
 TEST "setup-works" = 
     Sat.solve (Sat.ZProgram ([])) 
@@ -9,7 +9,7 @@ TEST "setup-works" =
 TEST "declare-var-works" = 
     Sat.solve (let _ = Sat.fresh Sat.SPacket in Sat.ZProgram ([])) 
 
-(*
+
 TEST "simple-check" = 
   verify "are tests even running" 
 	(make_packet_2 1 1)
@@ -23,7 +23,7 @@ TEST "we care about p in (p;t)*" =
 	(starify False (make_transition (1, 1) (2,1)))
 	(make_packet_2 2 1)
 	false 
-
+(*
 TEST "we love switch 2" = 
 	verify "we love switch 2"
 	  (make_packet_2 1 1)

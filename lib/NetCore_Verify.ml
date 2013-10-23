@@ -43,6 +43,7 @@ module Sat = struct
     | ZDeclareVar of zVar * zSort
     | ZDefineVar of zVar * zSort * zFormula
     | ZDeclareAssert of zFormula
+    | ZToplevelComment of string
 
   type zProgram = 
     | ZProgram of zDeclare list
@@ -153,6 +154,8 @@ module Sat = struct
 
   let serialize_declare d = 
     match d with 
+      | ZToplevelComment(c) -> 
+	Printf.sprintf "\n;%s" c 
       | ZDefineVar (x, s, b) -> 
 	Printf.sprintf "(define-fun %s %s %s)" x (serialize_sort s) (serialize_formula b)
       | ZDeclareVar (x, s) ->
@@ -201,7 +204,9 @@ module Sat = struct
   let z3_fun (name : string) (arglist : (zVar * zSort) list) (rettype : zSort) (body : zFormula) : zTerm = 
     let l = !fresh_cell in
     let name = name ^ "_" ^ to_string (gensym ()) in
-    fresh_cell := (define_z3_fun name arglist rettype body) @ l;
+    (match (define_z3_fun name arglist rettype body) with
+      | [decl; def] -> fresh_cell := decl :: (l @ [ZToplevelComment "defined with z3_fun"; def])
+      | _ -> assert false);
     TVar name
 
   let z3_macro (name : string) (arglist : (zVar * zSort) list) (rettype : zSort)(body : zFormula) : zTerm = 
@@ -289,7 +294,7 @@ module Sat = struct
     (InPort Int)))))" ^ "\n" ^ 
       "(define-sort Set () (Array Packet Packet))" ^ "\n (check-sat) \n"^ 
       "(define-fun set_empty () Set ((as const Set) nopacket))" ^ "\n" ^
-      (intercalate serialize_declare "\n" z3_static)^ "\n" 
+      (intercalate serialize_declare "\n" z3_static)^ "\n;;end libraries\n\n\n;;begin code\n" 
       
       
   let serialize_program p : string = 
@@ -312,7 +317,8 @@ module Sat = struct
          Buffer.add_char b '\n';
        done
      with End_of_file -> ());
-    Buffer.contents b = "sat\nsat\n"
+    if Buffer.contents b = "sat\nsat\n" then true else 
+      (Printf.eprintf "%s\n%s" s (Buffer.contents b); false)
 end
 
 module Verify_Graph = struct
@@ -439,29 +445,34 @@ module Verify = struct
       | Switch -> 
         TApp (TVar "Switch", [TVar pkt])
 
-  let encode_packet_equals = 
-    let hash = Hashtbl.create 0 in 
-    (fun (pkt1: zVar) (pkt2: zVar) (except :header)  -> 
-      ZTerm (TApp (
-	(if false && Hashtbl.mem hash except
-	 then
-	    Hashtbl.find hash except
-	 else
-	    let l = 
-	      List.fold_left 
-		(fun acc hd -> 
-		  if  hd = except then 
-		    acc 
-		  else
+  let encode_packet_equals, reset_state = 
+    let encode_packet_equals_2 = 
+      let hash = Hashtbl.create 0 in 
+      (fun (reset : bool) (pkt1: zVar) (pkt2: zVar) (except :header)  -> 
+	if reset then (Hashtbl.clear hash; (ZTerm (TVar "nopacket"))) else 
+	  ZTerm (TApp (
+	    (if Hashtbl.mem hash except
+	     then
+		Hashtbl.find hash except
+	     else
+		let l = 
+		  List.fold_left 
+		    (fun acc hd -> 
+		      if  hd = except then 
+			acc 
+		      else
 		    ZEquals (ZTerm (encode_header hd "x"), ZTerm( encode_header hd "y"))::acc) 
-		[] all_fields in 
-	    let new_except = (z3_macro ("packet_equals_except_" ^ (*todo: how to serialize headers? serialize_ except*) "" ) 
-				[("x", SPacket);("y", SPacket)] SBool  
-				(ZAnd(l))) in
-	    Hashtbl.add hash except new_except;
-	    new_except), 
-	[TVar pkt1; TVar pkt2])))
-      
+		    [] all_fields in 
+		let new_except = (z3_macro ("packet_equals_except_" ^ (*todo: how to serialize headers? serialize_ except*) "" ) 
+				    [("x", SPacket);("y", SPacket)] SBool  
+				    (ZAnd(l))) in
+		Hashtbl.add hash except new_except;
+		new_except), 
+	    [TVar pkt1; TVar pkt2]))) in
+    let encode_packet_equals = encode_packet_equals_2 false in
+    let reset_state () = let _ = encode_packet_equals_2 true "" "" Switch in (); fresh_cell := [] in
+    encode_packet_equals, reset_state
+
   let encode_vint (v: VInt.t): zTerm = 
     TInt (VInt.get_int64 v)
 
@@ -482,7 +493,7 @@ module Verify = struct
       | True -> 
 	ZTrue
       | Test (hdr, v) -> 
-	(ZEquals (ZTerm (encode_header hdr "x"), ZTerm (encode_vint v)))
+	(ZEquals (ZTerm (encode_header hdr pkt), ZTerm (encode_vint v)))
       | Neg p ->
         (ZNot (forwards_pred p pkt))
       | And (pred1, pred2) -> 
@@ -552,7 +563,7 @@ module Verify = struct
 end
 
   let generate_program inp p_t_star outp k x y =  
-    Sat.ZProgram [ Sat.ZDeclareAssert (Verify.forwards_pred inp x) 
+    Sat.ZProgram [ Sat.ZDeclareAssert (Verify.forwards_pol (NetKAT_Types.Filter inp) x x) 
                  ; Sat.ZDeclareAssert (Verify.forwards_star p_t_star x y k ) 
                  ; Sat.ZDeclareAssert (Verify.forwards_pol (NetKAT_Types.Filter outp) y y) ]
 
@@ -566,7 +577,7 @@ end
             (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; false)
 	| None, sat ->
           (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)) in
-    Sat.fresh_cell := []; run_result
+    Verify.reset_state (); run_result
 
   let combine_programs progs =
   Sat.ZProgram (List.flatten (List.map (fun prog -> match prog with
@@ -582,7 +593,7 @@ oko: bool option. has to be Some. True if you think it should be satisfiable.
 *)
   let check_reachability  str inp pol outp oko =
   let k = Verify_Graph.longest_shortest (Verify_Graph.parse_graph pol) in
-  let x = Sat.fresh Sat.SPacket in
+  let x = Sat.fresh Sat.SSet in
   let y = Sat.fresh Sat.SSet in
   let prog = generate_program inp pol outp k x y in
   run_solve oko prog str
