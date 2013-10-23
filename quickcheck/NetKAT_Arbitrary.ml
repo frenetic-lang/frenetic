@@ -75,13 +75,14 @@ module Make
         arbitrary_headerval >>= fun v ->
            ret_gen (Mod (h, v)));
       (gen_pred >>= fun pr ->
-         ret_gen (Filter (pr)));
-      (arbitrary_headerval >>= fun sw1 -> 
-       arbitrary_headerval >>= fun pt1 -> 
-       arbitrary_headerval >>= fun sw2 -> 
-       arbitrary_headerval >>= fun pt2 -> 
-       ret_gen (Link(sw1,pt1,sw2,pt2)))]
-
+         ret_gen (Filter (pr))) ]
+(* TODO(jnf): add support for local and global policies. *)
+(* ; *)
+(*       (arbitrary_headerval >>= fun sw1 ->  *)
+(*        arbitrary_headerval >>= fun pt1 ->  *)
+(*        arbitrary_headerval >>= fun sw2 ->  *)
+(*        arbitrary_headerval >>= fun pt2 ->  *)
+(*        ret_gen (Link(sw1,pt1,sw2,pt2)))] *)
 
   let rec gen_composite_pol () : policy QuickCheck_gen.gen =
     let open QuickCheck_gen in 

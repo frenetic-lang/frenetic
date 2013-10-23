@@ -559,7 +559,7 @@ module Make
         | Syntax.Star pol ->
           star_local (of_policy pol)
 	| Syntax.Link(sw,pt,sw',pt') ->
-	  failwith "Not yet implemented"
+	  failwith "Not a local policy"
 
     let to_netkat (p:t) : Syntax.policy =
       (* "smart" constructors *)
