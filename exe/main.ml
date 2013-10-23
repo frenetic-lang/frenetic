@@ -19,13 +19,14 @@ let arg_spec =
 let usage = Printf.sprintf "usage: %s [OPTIONS] filename" Sys.argv.(0)
 
 let _ =
-  Arg.parse
-    arg_spec
-    (fun fn -> infname := fn)
-    usage ;
+  Arg.parse arg_spec (fun fn -> infname := fn) usage ;
   Printf.printf "Attempting to topology from file: %s\n%!" !infname;
   let topo = match !mode with
-    | DotMode -> Printf.printf "Entering DotMode\n"; DOT_Parser.dot_parse !infname
-    | DefaultMode -> DOT_Parser.dot_parse !infname
+    | DotMode ->
+      Printf.printf "Parsing file as DOT format\n";
+      DOT_Parser.dot_parse !infname
+    | DefaultMode ->
+      Printf.printf "Unspecified file format. Parsing as DOT\n";
+      DOT_Parser.dot_parse !infname
   in
-  Printf.printf "\n\nDOT representation: %s\n" (Topology.to_dot topo)
+  Printf.printf "DOT representation: %s\n" (Topology.to_dot topo)

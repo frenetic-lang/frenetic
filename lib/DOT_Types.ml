@@ -23,42 +23,10 @@ let string_of_rate r =
   let Rate(min,max) = r in
   Printf.sprintf "min(%Ld Bps) max(%Ld Bps)" min max
 
-(* AST for DOT format prior to turning it to a graph *)
-type name = string
-
-type eattr_t =
-  | SPort of portId
-  | DPort of portId
-  | Label of string
-  | Cost of int64
-  | Capacity of int64
-
-type nattr_t =
-  | Kind of string
-  | Id of int64
-
-type eattr = {
-  sport : portId
-  ; dport : portId
-  ; label : string
-  ; cost : int64
-  ; capacity : int64
-}
-
 type nattr = {
   ntype: string
   ; id : int64
   ; ip : string
 }
 
-type dotstmt =
-| DotNode of name * nattr
-| DotEdge of name * name * eattr
-| DotDiedge of name * name * eattr
-
-type dotgraph =
-  | DotGraph of name * dotstmt list
-  | DotDigraph of name * dotstmt list
-
 let defnattr = {ntype = "host"; id = 0L; ip = "0.0.0.0"}
-let defeattr = {sport = 0l; dport = 0l; cost = 1L; capacity = 1L; label = ""}
