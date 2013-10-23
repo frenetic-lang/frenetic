@@ -23,13 +23,14 @@ rule token = parse
   | eof { EOF }
   | "," { COMMA }
   | "in" { IN }
-  | "at" { AT }
+  | "@" { AT }
   | "(" { LPAREN }
   | ")" { RPAREN }
   | "{" { LCURLY }
   | "}" { RCURLY }
   | "?" { QMARK }
   | "*" { STAR }
+  | "=>" { DBLARROW }
   | "true" { TRUE }
   | "false" { FALSE }
   | "all" { ALL }

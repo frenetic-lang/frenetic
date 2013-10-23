@@ -258,7 +258,7 @@ module Make (Headers : HEADERS) = struct
           | _ -> fprintf fmt "@[(@[%a + %a@])@]" (pol CHOICE_L) p1 (pol CHOICE_R) p2
         end
       | Link (sw,pt,sw',pt') -> 
-        fprintf fmt "@[%a@%a => %a@%a@]"
+        fprintf fmt "@[%a@@%a =>@ %a@@%a@]"
           Headers.format_value sw Headers.format_value pt
           Headers.format_value sw' Headers.format_value pt'
   end

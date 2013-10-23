@@ -75,8 +75,13 @@ module Make
         arbitrary_headerval >>= fun v ->
            ret_gen (Mod (h, v)));
       (gen_pred >>= fun pr ->
-         ret_gen (Filter (pr)))
-          ]
+         ret_gen (Filter (pr)));
+      (arbitrary_headerval >>= fun sw1 -> 
+       arbitrary_headerval >>= fun pt1 -> 
+       arbitrary_headerval >>= fun sw2 -> 
+       arbitrary_headerval >>= fun pt2 -> 
+       ret_gen (Link(sw1,pt1,sw2,pt2)))]
+
 
   let rec gen_composite_pol () : policy QuickCheck_gen.gen =
     let open QuickCheck_gen in 
@@ -110,7 +115,6 @@ module Make
     let open QuickCheck in
     listN num_hdrs arbitrary_headerval >>= fun vals ->
       arbitrary_payload >>= fun payload ->
-      arbitrary_list arbitrary_headerval >>= fun vlan_stack ->
       ret_gen {
         headers = List.fold_right2 HeaderMap.add all_headers vals HeaderMap.empty;
         payload = payload
