@@ -28,6 +28,7 @@ Library netcore
     lwt.unix,
     cstruct,
     lwt.syntax,
+    lwt.syntax.log,
     str,
     ocamlgraph,
     packet,
@@ -79,7 +80,6 @@ Library quickcheck
   Modules:
     NetKAT_Arbitrary
 
-
 Executable testtool
   Path: test
   MainIs: Test.ml
@@ -97,28 +97,9 @@ Test all_tests
   Run$: flag(tests)
   TestTools: testtool
 
-Executable frenetic
-  Path: frenetic
-  MainIs: frenetic.ml
-  Custom: true
-  Install$: flag(installexec)
-  BuildDepends:
-    lwt,
-    lwt.syntax,
-    netcore
-
 Executable katnetic
   Path: frenetic
   MainIs: katnetic.ml
-  Install$: flag(installexec)
-  BuildDepends:
-    lwt,
-    lwt.syntax,
-    netcore
-
-Executable maclearning
-  Path: frenetic
-  MainIs: maclearning.ml
   Install$: flag(installexec)
   BuildDepends:
     lwt,
@@ -133,7 +114,6 @@ Executable netkat_test
     lwt,
     lwt.syntax,
     netcore
-
 
 Document doc
   Title: NetCore Documentation

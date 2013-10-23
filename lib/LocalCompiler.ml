@@ -1,11 +1,11 @@
-  (* metavariable conventions
-     - a, b, c, actions
-     - s, t, u, action sets
-     - x, y, z, patterns
-     - xs, ys, zs, pattern sets
-     - p, q, local
-     - r, atoms
-  *)
+(* metavariable conventions
+   - a, b, c, actions
+   - s, t, u, action sets
+   - x, y, z, patterns
+   - xs, ys, zs, pattern sets
+   - p, q, local
+   - r, atoms
+*)
 
 module type S = sig
   type policy
@@ -28,7 +28,7 @@ module type S = sig
     val set_to_string : Set.t -> string
     val to_string : t -> string
     val tru : t
-    val apply_act : t -> Action.t -> t
+    val is_tru : t -> bool
     val seq_pat : t -> t -> t option
     val seq_act_pat : t -> Action.t -> t -> t option
     val set_to_netkat : Set.t -> pred
@@ -52,7 +52,8 @@ module type S = sig
   end
 end
 
-module Make (Headers : Semantics.HEADERS) 
+module Make 
+  (Headers : Semantics.HEADERS) 
   (Syntax : Semantics.S with type header = Headers.header
                          and type header_val = Headers.value
                          and type payload = Headers.payload) : S
@@ -63,7 +64,7 @@ module Make (Headers : Semantics.HEADERS)
    type pred = Syntax.pred
    type header_val_map = Syntax.header_val_map
 
-    (* utility functions *)
+  (* utility function *)
   let header_val_map_to_string eq sep m =
     Syntax.HeaderMap.fold
       (fun h v acc ->
@@ -112,14 +113,13 @@ module Make (Headers : Semantics.HEADERS)
         (fun b acc -> Set.add (seq_act a b) acc) 
         s Set.empty
 
-
     let to_netkat (pol:t) : Syntax.policy =
       if Syntax.HeaderMap.is_empty pol then
         Syntax.Filter Syntax.True
       else
+        let f h v pol' = Syntax.Seq (pol', Syntax.Mod (h, v)) in
         let (h, v) = Syntax.HeaderMap.min_binding pol in
         let pol' = Syntax.HeaderMap.remove h pol in
-        let f h v pol' = Syntax.Seq (pol', Syntax.Mod (h, v)) in
         Syntax.HeaderMap.fold f pol' (Syntax.Mod  (h, v))
           
     let set_to_netkat (pol:Set.t) : Syntax.policy =
@@ -155,17 +155,12 @@ module Make (Headers : Semantics.HEADERS)
 
     let tru : t = Syntax.HeaderMap.empty
 
+    let is_tru (x:t) : bool = 
+      Syntax.HeaderMap.is_empty x
+
     let matches (h:Syntax.header) (v:Syntax.header_val) (x:t) : bool =
       not (Syntax.HeaderMap.mem h x) 
       || Syntax.HeaderMap.find h x = v
-
-    let apply_act (x:t) (a:t) : t = 
-      let f h vo1 vo2 = match vo1,vo2 with 
-        | _, Some v2 -> 
-          Some v2
-        | _ -> 
-          vo1 in 
-      Syntax.HeaderMap.merge f a x 
         
     let seq_pat (x : t) (y : t) : t option =
       let f h vo1 vo2 = match vo1, vo2 with
@@ -185,16 +180,18 @@ module Make (Headers : Semantics.HEADERS)
     let rec seq_act_pat (x:t) (a:Action.t) (y:t) : t option =
       let f h vo1 vo2 = match vo1, vo2 with
         | Some (vo11, Some v12), Some v2 ->
-          if v12 <> v2 then raise Empty_pat else vo11
+          if v12 <> v2 then raise Empty_pat 
+          else vo11
         | Some (vo11, Some v12), None -> 
           vo11 
         | Some (Some v11, None), Some v2 -> 
-          if v11 <> v2 then raise Empty_pat else Some v11
-        | Some (Some v11, None), None ->
-          Some v11
+          if v11 <> v2 then raise Empty_pat 
+          else Some v11
+        | Some (vo11, None), None ->
+          vo11
         | _, Some v2 -> 
           Some v2
-        | _, None ->
+        | None, None ->
           None in 
       let g h vo1 vo2 = Some (vo1, vo2) in 
       try
@@ -207,9 +204,9 @@ module Make (Headers : Semantics.HEADERS)
       if Syntax.HeaderMap.is_empty x then
         Syntax.True
       else
+        let f h v pol' = Syntax.And (pol', Syntax.Test (h, v)) in
         let (h, v) = Syntax.HeaderMap.min_binding x in
         let x' = Syntax.HeaderMap.remove h x in
-        let f h v pol = Syntax.And (pol, Syntax.Test (h, v)) in
         (Syntax.HeaderMap.fold f x' (Syntax.Test (h, v)))
 
     let set_to_netkat (xs:Set.t) : Syntax.pred = 
@@ -220,7 +217,6 @@ module Make (Headers : Semantics.HEADERS)
         let xs' = Set.remove x xs in 
         let f x pol = Syntax.Or(pol, to_netkat x) in 
         Set.fold f xs' (to_netkat x)
-
   end
 
   module Atom = struct
@@ -233,13 +229,13 @@ module Make (Headers : Semantics.HEADERS)
         if Pattern.Set.mem x2 xs1 then 1
         else if Pattern.Set.mem x1 xs2 then -1
         else 
-          let cmp1 = Pattern.Set.compare xs1 xs2 in 
-          if cmp1 = 0 then 
+          let cmp = Pattern.Set.compare xs1 xs2 in 
+          if cmp = 0 then 
             Syntax.HeaderMap.compare Pervasives.compare x1 x2 
           else
-            cmp1
+            cmp
     end)
-      
+
     let to_string ((xs,x):t) : string = 
       Printf.sprintf "%s,%s" 
         (Pattern.set_to_string xs) (Pattern.to_string x)
@@ -250,27 +246,33 @@ module Make (Headers : Semantics.HEADERS)
     let fls : t = 
       (Pattern.Set.singleton Pattern.tru, Pattern.tru) 
 
-    let check ((xs,x) as r:t) = 
+    (* "smart" constructor *)
+    let mk ((xs,x):t) : t option = 
       if Pattern.Set.mem x xs then 
         None
       else 
-        Some r
-
-    let apply_act ((xs,x):t) (a:Action.t) : t = 
-      let x' = Pattern.apply_act x a in 
-      (Pattern.Set.remove x' xs, x')
+        Some (xs,x)
         
     let seq_atom ((xs1,x1):t) ((xs2,x2):t) : t option = 
       match Pattern.seq_pat x1 x2 with 
         | Some x12 -> 
-          check (Pattern.Set.union xs1 xs2, x12)
+          mk (Pattern.Set.union xs1 xs2, x12)
         | None -> 
           None
 
     let seq_act_atom ((xs1,x1):t) (a:Action.t) ((xs2,x2):t) : t option = 
       match Pattern.seq_act_pat x1 a x2 with 
-        | Some x12 -> 
-          check (Pattern.Set.union xs1 xs2, x12)
+        | Some x1ax2 -> 
+          let xs = 
+            Pattern.Set.fold 
+              (fun x2i acc -> 
+                match Pattern.seq_act_pat Pattern.tru a x2i with
+                  | Some truax2i -> 
+                    Pattern.Set.add truax2i acc
+                  | None -> 
+                    acc)
+              xs2 xs1 in 
+          mk (xs, x1ax2)
         | None -> 
           None       
   end
@@ -314,9 +316,9 @@ module Make (Headers : Semantics.HEADERS)
                 (diff_atoms r1 r2 s1
                    (diff_atoms r2 r1 s2 acc)))
           p acc)
-        q Atom.Map.empty
-
-      (* TODO(jnf) this is a helper function; give it a different name? *)
+        q Atom.Map.empty  
+        
+    (* TODO(jnf) this is a helper function; give it a different name? *)
     let seq_atom_act_local_acc (r1:Atom.t) (a:Action.t) (p2:t) (q:t) : t = 
       Atom.Map.fold
         (fun r2 s2 acc -> 
@@ -336,9 +338,9 @@ module Make (Headers : Semantics.HEADERS)
             Action.Set.fold 
               (fun a acc -> seq_atom_act_local_acc r1 a q acc)
               s1 acc)
-        p Atom.Map.empty
+        p Atom.Map.empty  
         
-      (* pre: t is a predicate *)
+    (* pre: t is a predicate *)
     let negate (p:t) : t = 
       Atom.Map.fold
         (fun r s acc -> 
@@ -389,7 +391,7 @@ module Make (Headers : Semantics.HEADERS)
           star_local (of_policy pol)
 
     let to_netkat (p:t) : Syntax.policy = 
-        (* "smart" constructors *)
+      (* "smart" constructors *)
       let mk_par nc1 nc2 = 
         match nc1, nc2 with 
           | Syntax.Filter Syntax.False, _ -> nc2
@@ -430,9 +432,7 @@ module Make (Headers : Semantics.HEADERS)
 end
 
 module Compiler = Make (SDN_Headers) (NetKAT_Types)
-
 module Local = Compiler.Local
-
 module Action = Compiler.Action
 module Pattern = Compiler.Pattern
 module Atom = Compiler.Atom
@@ -482,7 +482,7 @@ module RunTime = struct
     SDN_Types.hard_timeout = SDN_Types.Permanent
   }
 
-    (* Prunes out rules that apply to other switches. *)
+  (* Prunes out rules that apply to other switches. *)
   let to_table (sw:SDN_Types.fieldVal) (p:i) : SDN_Types.flowTable =
     let add_flow x s l = 
       match to_pattern sw x with

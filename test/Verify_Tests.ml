@@ -4,10 +4,10 @@ open NetCore_Verify
 (*open NetCore_Verify_Util*)
 
 TEST "setup-works" = 
-    Sat.solve (Sat.ZProgram ([])) []
+    Sat.solve (Sat.ZProgram ([])) 
 
 TEST "declare-var-works" = 
-    Sat.solve (let _ = Sat.fresh Sat.SPacket in Sat.ZProgram ([])) []
+    Sat.solve (let _ = Sat.fresh Sat.SPacket in Sat.ZProgram ([])) 
 
 (*
 TEST "simple-check" = 

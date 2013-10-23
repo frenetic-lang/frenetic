@@ -70,7 +70,7 @@ and token = parse
   | "<none>" { NONE }
   | "filter" { FILTER }
   | "=" { EQUALS }
-  | "->" { ASSIGN }
+  | ":=" { ASSIGN }
   | "switch" { SWITCH }
   | "include" { INCLUDE }
   | "check" { CHECK }
@@ -88,7 +88,7 @@ and token = parse
   | "icmp" { ICMP }
   | "tcp" { TCP }
   | "udp" { UDP }
-  | "inPort" { INPORT }
+  | "port" { PORT }
   | "&&" { AND }
   | "||" { OR }
   | "begin" { BEGIN }
@@ -96,7 +96,7 @@ and token = parse
   | "if" { IF }
   | "then" { THEN }
   | "else" { ELSE }
-  | "pass" { PASS }
+  | "id" { ID }
   | "drop" { DROP }
   | "monitorPolicy" { MONITOR_POL }
   | "monitorTable" { MONITOR_TBL }
@@ -132,7 +132,6 @@ and token = parse
   | hex as n { INT64 (Int64.of_string n) }
   | "let" { LET }
   | '"' (string_body as s) '"' { STRING s }
-  | id as x { ID x } (* by going last, we lex to LEARN, NAT, etc. instead *)
 
 and block_comment = parse
   | "*)" {  token lexbuf }
