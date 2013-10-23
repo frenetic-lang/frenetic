@@ -644,9 +644,9 @@ module Optimization = struct
 
   let rec optimize_safe p = 
     let simpl = simplify_vpol in
-    let p' =  (* remove_dead_mods_safe *) ((* remove_dead_matches *) (simpl p)) in
+    let p' =  remove_dead_mods_safe (remove_dead_matches (simpl (vpol_to_linear_vpol p))) in
     if p' = p then p'
-    else optimize' p'
+    else optimize_safe p'
 
   let rec atomic p = match p with
     | VTest _ -> true
