@@ -5,8 +5,6 @@ module type HEADERS = sig
 
   val switch : header
   val port : header
-  val vlan : header
-  val zero : value
   val format_header : Format.formatter -> header -> unit
   val format_value : Format.formatter -> value -> unit
   val header_to_string : header -> string
@@ -22,8 +20,6 @@ module type S = sig
 
   val switch : header
   val port : header
-  val vlan : header
-  val zero : header_val
 
   type pred = 
     | True
@@ -41,8 +37,6 @@ module type S = sig
     | Seq of policy * policy
     | Star of policy
     | Link of header_val * header_val * header_val * header_val
-    | PushVlan
-    | PopVlan
 
   val id : policy
 
@@ -55,7 +49,6 @@ module type S = sig
 
   type packet = {
     headers : header_val_map;
-    vlan_stack : header_val list;
     payload : payload
   }
 
@@ -81,8 +74,6 @@ module Make (Headers : HEADERS) = struct
 
   let switch = Headers.switch
   let port = Headers.port
-  let vlan = Headers.vlan
-  let zero = Headers.zero
 
   type pred = 
     | True
@@ -100,8 +91,6 @@ module Make (Headers : HEADERS) = struct
     | Seq of policy * policy
     | Star of policy
     | Link of header_val * header_val * header_val * header_val
-    | PushVlan
-    | PopVlan
 
   let id = Filter True
 
@@ -116,7 +105,6 @@ module Make (Headers : HEADERS) = struct
 
   type packet = {
     headers : header_val_map;
-    vlan_stack : header_val list;
     payload : payload
   }
 
@@ -139,14 +127,7 @@ module Make (Headers : HEADERS) = struct
   let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
     | True -> true
     | False -> false
-    | Test (h, v) when Headers.vlan <> h -> 
-      HeaderMap.find h pkt.headers = v
-    | Test (h, v) -> 
-      begin
-        match pkt.vlan_stack with
-        | [] -> false (* TODO(jnf): think about this *)
-        | v'::_ -> v = v'
-      end
+    | Test (h, v) -> HeaderMap.find h pkt.headers = v
     | And (pr1, pr2) -> eval_pred pkt pr1 && eval_pred pkt pr2
     | Or (pr1, pr2) -> eval_pred pkt pr1 || eval_pred pkt pr2
     | Neg pr1 -> not (eval_pred pkt pr1)
@@ -194,17 +175,6 @@ module Make (Headers : HEADERS) = struct
         with Not_found -> 
           raise Not_found
       end
-    | PushVlan -> 
-      (* TODO(jnf): push something else? *)
-      PacketSetSet.singleton 
-        (PacketSet.singleton { pkt with vlan_stack = Headers.zero::pkt.vlan_stack })
-    | PopVlan -> 
-      match pkt.vlan_stack with 
-      | [] -> 
-        failwith "eval: empty vlan stack"
-      | _::rest -> 
-        PacketSetSet.singleton 
-          (PacketSet.singleton { pkt with vlan_stack = rest })
 
   module Formatting = struct
     open Format
@@ -291,10 +261,6 @@ module Make (Headers : HEADERS) = struct
         fprintf fmt "@[%a@%a => %a@%a@]"
           Headers.format_value sw Headers.format_value pt
           Headers.format_value sw' Headers.format_value pt'
-      | PushVlan ->
-        fprintf fmt "@[pushVlan@]"
-      | PopVlan ->
-        fprintf fmt "@[popVlan@]"
   end
 
   let format_policy = Formatting.pol Formatting.PAREN

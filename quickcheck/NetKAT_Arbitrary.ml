@@ -113,7 +113,6 @@ module Make
       arbitrary_list arbitrary_headerval >>= fun vlan_stack ->
       ret_gen {
         headers = List.fold_right2 HeaderMap.add all_headers vals HeaderMap.empty;
-	vlan_stack = vlan_stack;
         payload = payload
       }
 

@@ -22,8 +22,6 @@ type payload = SDN_Types.payload
 
 val switch : header
 val port : header
-val vlan : header
-val zero : value
 
 val format_header : Format.formatter -> header -> unit
 

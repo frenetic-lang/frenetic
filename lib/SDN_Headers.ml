@@ -6,14 +6,9 @@ let switch = Switch
 
 let port = Header SDN_Types.InPort
 
-let vlan = Header SDN_Types.Vlan
-
-let zero = VInt.Int16 0x000
-
 type value = VInt.t
 
 type payload = SDN_Types.payload
-
 
 module Formatting = struct
 

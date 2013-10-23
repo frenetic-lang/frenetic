@@ -1,21 +1,18 @@
 module QCGen = QuickCheck_gen
 
 module TestHeaders = struct
-  type header = Src | Dst | Switch | Port | Vlan
+  type header = Switch | Port | Src | Dst
   type value = A | B | C | D
   type payload = unit
 
-  let zero = A
   let switch = Switch
   let port = Port
-  let vlan = Vlan
 
   let header_to_string h = match h with
-      | Src -> "Src"
-      | Dst -> "Dst"
-      | Switch -> "Switch"
-      | Port -> "Port"
-      | Vlan -> "Vlan"
+    | Switch -> "Switch"
+    | Port -> "Port"
+    | Src -> "Src"
+    | Dst -> "Dst"
 
   let value_to_string v = match v with
     | A -> "A"
