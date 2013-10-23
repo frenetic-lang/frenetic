@@ -501,19 +501,22 @@ module Verify = struct
     
     match pol with
       | Filter pred ->
-        ZEquals(z3_map_expr "Filter"  ["x"] (ZIf (forwards_pred pred "x", x, nopacket)) [(TVar inset)], outset_f)
+        ZEquals(
+	  z3_map_expr "Filter"  ["x"] (ZIf (forwards_pred pred "x", x, nopacket)) [(TVar inset)], 
+	  outset_f)
 
       | Mod(f,v) -> 
-	let map_result = (z3_map_expr "mod" ["x";"y"]  
-			    (ZIf 
-			       ((ZAnd [
-				 encode_packet_equals "x" "y" f;
-				 ZEquals(ZTerm (encode_header f "y"), ZTerm (encode_vint v))]), 
-			     y, 
-			     nopacket))
-			    [TVar inset; TVar outset]) in
-	  ZEquals(map_result, outset_f)
-          
+	let expr_to_map = 
+	  (ZIf 
+	     ((ZAnd [
+	       encode_packet_equals "x" "y" f;
+	       ZEquals(ZTerm (encode_header f "y"), ZTerm (encode_vint v))]), 
+	       (* then *) y, 
+	       (* else *) nopacket)) in
+	let map_result = 
+	  (z3_map_expr "mod" ["x";"y"]  expr_to_map [TVar inset; TVar outset]) in
+	ZEquals(map_result, outset_f)
+
       | Par(pol1,pol2) -> 
         let set1 = fresh SSet in 
         let set2 = fresh SSet in 
@@ -530,12 +533,17 @@ module Verify = struct
       | Choice _-> failwith "I'm not rightly sure what a \"choice\" is "
 
   let rec forwards_k p_t_star set1 set2 k : zFormula = 
-    if k = 0 then
-      ZEquals (ZTerm (TVar set1), ZTerm (TVar set2))
-    else
-      let set' = fresh SSet in 
-      ZAnd [forwards_k p_t_star set1 set' (k-1);
-	    forwards_pol p_t_star set' set2]
+    match p_t_star with
+      | Star( Seq (p, t)) -> 
+	if k = 0 then
+	  ZEquals (ZTerm (TVar set1), ZTerm (TVar set2))
+	else
+	  let set' = fresh SSet in 
+	  let set'' = fresh SSet in 
+	  ZAnd [forwards_k p_t_star set1 set' (k-1);
+		forwards_pol p set' set'';
+		forwards_pol t set'' set2]
+      | _ -> failwith "NetKAT program not in form (p;t)*"
 
   let forwards_star p_t_star set1 set2 k : zFormula = 
     let forwards_k = forwards_k p_t_star set1 set2 in
