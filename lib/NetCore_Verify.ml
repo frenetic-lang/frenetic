@@ -292,14 +292,14 @@ module Sat = struct
       (intercalate serialize_declare "\n" z3_static)^ "\n" 
       
       
-  let serialize_program p g : string = 
+  let serialize_program p : string = 
     let ZProgram(ds) = p in 
-    let ds' = List.flatten [!fresh_cell; ds; g] in 
+    let ds' = List.flatten [!fresh_cell; ds] in 
     Printf.sprintf "%s%s\n(check-sat)\n"
       pervasives (intercalate serialize_declare "\n" ds') 
 
-  let solve prog global : bool = 
-    let s = serialize_program prog global in 
+  let solve prog : bool = 
+    let s = serialize_program prog in 
     (* Printf.eprintf "%s" s; *)
     let z3_out,z3_in = open_process "z3 -in -smt2 -nw" in 
     let _ = output_string z3_in s in
@@ -492,7 +492,7 @@ module Verify = struct
 	(ZOr [forwards_pred pred1 pkt;
               forwards_pred pred2 pkt])
 
-  let rec forward_pol (pol:policy) (inset:zVar) (outset:zVar) : zFormula =
+  let rec forwards_pol (pol:policy) (inset:zVar) (outset:zVar) : zFormula =
     let nopacket = (ZTerm (TVar "nopacket")) in 
     let x = (ZTerm (TVar "x")) in
     let y = (ZTerm (TVar "y")) in
@@ -517,15 +517,15 @@ module Verify = struct
       | Par(pol1,pol2) -> 
         let set1 = fresh SSet in 
         let set2 = fresh SSet in 
-          (ZAnd[forward_pol pol1 inset set1;
-                forward_pol pol2 inset set2;
+          (ZAnd[forwards_pol pol1 inset set1;
+                forwards_pol pol2 inset set2;
                 ZEquals(ZTerm (TApp(TVar "set_union", [TVar set1;
 						       TVar set2])),
                         outset_f)])
       | Seq(pol1,pol2) -> 
 	let set' = fresh SSet in
-	(ZAnd[forward_pol pol1 inset set'; 
-	      forward_pol pol2 set' outset])
+	(ZAnd[forwards_pol pol1 inset set'; 
+	      forwards_pol pol2 set' outset])
       | Star _  -> failwith "NetKAT program not in form (p;t)*"
       | Choice _-> failwith "I'm not rightly sure what a \"choice\" is "
 
@@ -535,92 +535,48 @@ module Verify = struct
     else
       let set' = fresh SSet in 
       ZAnd [forwards_k p_t_star set1 set' (k-1);
-	    forward_pol p_t_star set' set2]
+	    forwards_pol p_t_star set' set2]
 
   let forwards_star p_t_star set1 set2 k : zFormula = 
     let forwards_k = forwards_k p_t_star set1 set2 in
     ZOr (List.map forwards_k (range 0 k))
 		
-(*   let forwards_star_history k p_t_star pkt1 pkt2 : zFormula =  *)
-(*     if k = 0 then  *)
-(*       ZEquals (TVar pkt1, TVar pkt2) *)
-(*     else  *)
-(*       let pkt' = fresh SPacket in *)
-(*       let pkt'' = fresh SPacket in *)
-(*       let formula, histr = forwards_star_history (k-1) p_t_star pkt'' pkt2 in *)
-(*       ZAnd [ forwards pol pkt1 pkt'; *)
-(*              forwards topo pkt' pkt''; *)
-(*              formula ], new_history in  *)
-(*       let form, hist = inner_forwards k p_t_star pkt1 pkt2 in *)
-(*       (ZAnd [form; expr hist])::(forwards_star_history (k-1) p_t_star pkt1 pkt2) in  *)
-(*   ZOr (forwards_star_history k p_t_star pkt1 pkt2) *)
-(*   let forwards_star  = forwards_star_history noop_expr *)
 end
 
-(* let generate_program expr inp p_t_star outp k x y=  *)
-(*   let prog =  *)
-(*     Sat.ZProgram [ Sat.ZDeclareAssert (Verify.forwards_pred inp x) *)
-(*                  ; Sat.ZDeclareAssert (Verify.forwards_star_history expr k p_t_star x y ) *)
-(*                  ; Sat.ZDeclareAssert (Verify.forwards_pred outp y) ] in prog *)
+  let generate_program inp p_t_star outp k x y =  
+    Sat.ZProgram [ Sat.ZDeclareAssert (Verify.forwards_pred inp x) 
+                 ; Sat.ZDeclareAssert (Verify.forwards_star p_t_star x y k ) 
+                 ; Sat.ZDeclareAssert (Verify.forwards_pol (NetKAT_Types.Filter outp) y y) ]
 
-(* let run_solve oko prog str = assert false *)
-(* (\*   let global_eq = *\) *)
-(* (\* 	match !Verify.global_bindings with *\) *)
-(* (\* 	  | [] -> [] *\) *)
-(* (\* 	  | _ -> [Sat.ZDeclareAssert (Sat.ZAnd !Verify.global_bindings)] in *\) *)
-(* (\*   let run_result = ( *\) *)
-(* (\* 	match oko, Sat.solve prog global_eq with  *\) *)
-(* (\* 	  | Some ok, sat ->  *\) *)
-(* (\* 		if ok = sat then  *\) *)
-(* (\* 		  true *\) *)
-(* (\* 		else *\) *)
-(* (\* 		  (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; false) *\) *)
-(* (\* 	  | None, sat ->  *\) *)
-(* (\* 		(Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)) in *\) *)
-(* (\*   Sat.fresh_cell := []; Verify.global_bindings := []; run_result *\) *)
-	
-(* (\* let combine_programs progs =  *\) *)
-(* (\*   Sat.ZProgram (List.flatten (List.map (fun prog -> match prog with  *\) *)
-(* (\* 	| Sat.ZProgram (asserts) -> asserts) progs)) *\) *)
+  let run_solve oko prog str : bool =
+    let run_result = (
+      match oko, Sat.solve prog with
+	| Some (ok : bool), (sat : bool) ->
+          if ok = sat then
+            true
+          else
+            (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; false)
+	| None, sat ->
+          (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)) in
+    Sat.fresh_cell := []; run_result
 
-(* (\* let make_vint v = VInt.Int64 (Int64.of_int v) *\) *)
+  let combine_programs progs =
+  Sat.ZProgram (List.flatten (List.map (fun prog -> match prog with
+    | Sat.ZProgram (asserts) -> asserts) progs))
 
-(* (\* let check_equivalent pt1 pt2 str =  *\) *)
-(* (\*   	(\\*global_bindings := (ZEquals (TVar pkt1, TVar pkt2))::!global_bindings;*\\) *\) *)
-(* (\*   let graph1, graph2 = Verify_Graph.parse_graph pt1, Verify_Graph.parse_graph pt2 in *\) *)
-(* (\*   let length1, length2 = Verify_Graph.longest_shortest graph1, Verify_Graph.longest_shortest graph2 in *\) *)
-(* (\*   let k = if length1 > length2 then length1 else length2 in *\) *)
-(* (\*   let k_z3 = Sat.fresh Sat.SInt in *\) *)
-(* (\*   let x = Sat.fresh Sat.SPacket in *\) *)
-(* (\*   let y1 = Sat.fresh Sat.SPacket in *\) *)
-(* (\*   let y2 = Sat.fresh Sat.SPacket in *\) *)
-(* (\*   let fix_k = (fun n -> Sat.ZEquals (Sat.TVar k_z3, Verify.encode_vint (make_vint (List.length n)))) in *\) *)
-(* (\*   let prog1 = generate_program false fix_k NetKAT_Types.True pt1 NetKAT_Types.True k x y1 in *\) *)
-(* (\*   let prog2 = generate_program false fix_k  NetKAT_Types.True pt2 NetKAT_Types.True k x y2 in *\) *)
-(* (\*   let prog = combine_programs  *\) *)
-(* (\* 	[Sat.ZProgram [Sat.ZDeclareAssert (Sat.ZEquals (Sat.TVar x, Sat.TVar x));  *\) *)
-(* (\* 		       Sat.ZDeclareAssert (Sat.ZNot (Sat.ZEquals (Sat.TVar y1, Sat.TVar y2)))];  *\) *)
-(* (\* 	 prog1;  *\) *)
-(* (\* 	 prog2] in *\) *)
-(* (\*   run_solve (Some false) prog str *\) *)
+  let make_vint v = VInt.Int64 (Int64.of_int v)
 
-(* let check_specific_k_history expr str inp p_t_star outp oko (k : int) : bool =  *)
-(*   let x = Sat.fresh Sat.SPacket in  *)
-(*   let y = Sat.fresh Sat.SPacket in  *)
-(*   let prog = generate_program expr inp p_t_star outp k x y in *)
-(*   run_solve oko prog str *)
+(* str: name of your test (unique ID)
+inp: initial packet
+   pol: policy to test
+outp: fully-transformed packet
+oko: bool option. has to be Some. True if you think it should be satisfiable.
+*)
+  let check_reachability  str inp pol outp oko =
+  let k = Verify_Graph.longest_shortest (Verify_Graph.parse_graph pol) in
+  let x = Sat.fresh Sat.SPacket in
+  let y = Sat.fresh Sat.SSet in
+  let prog = generate_program inp pol outp k x y in
+  run_solve oko prog str
 
-(* let check_maybe_dup expr str inp p_t_star outp (oko : bool option) : bool =  *)
-(*   let res_graph = Verify_Graph.parse_graph p_t_star in *)
-(*   let longest_shortest_path = Verify_Graph.longest_shortest *)
-(*     res_graph in *)
-(*   check_specific_k_history expr str inp p_t_star outp oko longest_shortest_path *)
-  
-(* (\* str: name of your test (unique ID)   *)
-(*    inp: initial packet *)
-(*    pol: policy to test *)
-(*    outp: fully-transformed packet  *)
-(*    oko: bool option.  has to be Some.  True if you think it should be satisfiable. *)
-(* *\) *)
-let check a b c d e = assert true
-
+  let check = check_reachability
