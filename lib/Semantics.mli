@@ -5,6 +5,8 @@ module type HEADERS = sig
   type value
   type payload
 
+  val switch : header
+  val port : header
   val format_header : Format.formatter -> header -> unit
   val format_value : Format.formatter -> value -> unit
   val header_to_string : header -> string
@@ -17,6 +19,9 @@ module type S = sig
   type header
   type header_val
   type payload
+
+  val switch : header
+  val port : header
 
   (** {2 Policies} *)
 
@@ -35,8 +40,10 @@ module type S = sig
     | Choice of policy * policy
     | Seq of policy * policy
     | Star of policy
+    | Link of header_val * header_val * header_val * header_val
 
   val id : policy
+
   val drop : policy
 
   (** {2 Packets} 
@@ -73,7 +80,9 @@ module type S = sig
   module PacketSet : Set.S
     with type elt = packet
 
-  val eval : packet -> policy -> PacketSet.t
+  module PacketSetSet : Set.S with type elt = PacketSet.t
+
+  val eval : packet -> policy -> PacketSetSet.t
 
   (** {2 Utilities} *)
 

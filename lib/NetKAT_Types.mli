@@ -19,6 +19,9 @@ type header = SDN_Headers.header
 
 type header_val = VInt.t
 
+val switch : header
+val port : header
+
 type payload = SDN_Types.payload
 
 (** {2 Policies}
@@ -40,8 +43,10 @@ type policy =
   | Choice of policy*policy
   | Seq of policy*policy
   | Star of policy
+  | Link of header_val * header_val * header_val * header_val
 
 val id : policy
+
 val drop : policy
 
 (** {2 Packets} 
@@ -78,7 +83,9 @@ type packet = {
 module PacketSet : Set.S
   with type elt = packet
 
-val eval : packet -> policy -> PacketSet.t
+module PacketSetSet : Set.S with type elt = PacketSet.t
+
+val eval : packet -> policy -> PacketSetSet.t
 
 (** {2 Utilities} *)
 

@@ -20,6 +20,9 @@ type value = VInt.t
 
 type payload = SDN_Types.payload
 
+val switch : header
+val port : header
+
 val format_header : Format.formatter -> header -> unit
 
 val format_value : Format.formatter -> value -> unit

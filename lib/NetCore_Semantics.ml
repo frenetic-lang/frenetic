@@ -42,6 +42,8 @@ let rec eval pol pkt = match pol with
       eval then_pol pkt
     else
       eval else_pol pkt
+  | _ -> 
+    failwith "Not yet implemented"
 
 (* Interprets a predicate as a predicate on switches. Hdr returns true *)
 let rec sw_pred sw = function
@@ -71,6 +73,8 @@ let rec apply_switch_events evt = function
     else
       apply_switch_events evt pol2
   | HandleSwitchEvent handler -> handler evt; true (* return boolean? *)
+  | _ -> 
+    failwith "Not yet implemented"
 
 let handle_switch_events evt pol =
   let _ = apply_switch_events evt pol in
