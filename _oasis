@@ -48,6 +48,7 @@ Library netcore
     Dehop,
     NetKAT_Lexer,
     NetKAT_Parser,
+    NetKAT_Automaton,
     Controller,
     Semantics,
     SDN_Headers
