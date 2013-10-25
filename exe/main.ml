@@ -14,12 +14,16 @@ let arg_spec =
   [
     ("--dot",
      Arg.Unit (fun () -> mode := DotMode),
-     "\tParse a file in DOT format"
-    )
+     "\tParse a file in DOT format")
     ; ("--gml",
      Arg.Unit (fun () -> mode := GmlMode),
-     "\tParse a file in GML format"
-    )
+     "\tParse a file in GML format")
+    ; ("--help",
+       Arg.Unit (fun () -> mode := DefaultMode),
+       "\tDisplay this list of options")
+    ; ("-help",
+       Arg.Unit (fun () -> mode := DefaultMode),
+       "\tDisplay this list of options")
 ]
 
 let usage = Printf.sprintf "usage: %s [OPTIONS] filename" Sys.argv.(0)
@@ -41,7 +45,11 @@ let _ =
       Printf.printf "Parsing file as GML format\n";
       from_gmlfile !infname
     | DefaultMode ->
-      Printf.printf "Unspecified file format. Inferring format.\n";
-      from_extension !infname
+      if ( !infname = "" ) then begin
+        Arg.usage arg_spec usage;
+        exit 1 end
+      else  begin
+        Printf.printf "Unspecified file format. Inferring format.\n";
+        from_extension !infname end
   in
   Printf.printf "\nMininet script: %s\n\n" (Topology.to_mininet topo)
