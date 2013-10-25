@@ -27,6 +27,9 @@ let arg_spec =
     ; ("--gml",
      Arg.Unit (fun () -> if !outmode then outft := GmlFile else inft := GmlFile ),
      "\tRead or write a file in GML format")
+    ; ("--mn",
+     Arg.Unit (fun () -> if !outmode then outft := MnFile else inft := MnFile ),
+     "\tWrite a Mininet script to model the given topology")
     ; ("-o",
        Arg.String (fun s -> mode := WriteMode; outmode := true ; outfname := s ),
        "\tWrite topology to a file")
@@ -45,6 +48,13 @@ let from_extension fname =
   else if check_suffix fname ".gml" then from_gmlfile fname
   else failwith "Cannot parse given file type"
 
+let to_extension fname topo =
+  if check_suffix fname ".dot" then Topology.to_dot topo
+  else if check_suffix fname ".gml" then
+    failwith "\nWriting to GML format not supported yet\n"
+  else if check_suffix fname ".py" then
+    Topology.to_mininet topo
+  else failwith "Cannot parse given file type"
 
 let _ =
   Arg.parse arg_spec (fun fn -> infname := fn) usage ;
@@ -66,12 +76,13 @@ let _ =
         Printf.printf "Unspecified file format. Inferring format.\n";
         from_extension !infname end
   in
-  if !outmode then match !outft with
-    | DotFile ->
-      Printf.printf "\nDotfile: %s\n\n" (Topology.to_dot topo)
-    | GmlFile ->
-      Printf.printf "\nWriting to GML format not supported yet\n"
-    | _ ->
-      Printf.printf "\nMininet script: %s\n\n" (Topology.to_mininet topo)
+  if !outmode then
+    let s = match !outft with
+      | DotFile -> Topology.to_dot topo
+      | GmlFile -> failwith "\nWriting to GML format not supported yet\n"
+      | MnFile -> Topology.to_mininet topo
+      | _ -> to_extension !outfname topo
+    in
+    Util.write_to_file !outfname s
   else
     Printf.printf "\nMininet script: %s\n\n" (Topology.to_mininet topo)
