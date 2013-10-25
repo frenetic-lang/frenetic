@@ -153,7 +153,7 @@ module Make (Headers : HEADERS) = struct
     let rec pred (cxt : predicate_context) (fmt : formatter) (pr : pred) : unit = 
       match pr with
       | True -> 
-        fprintf fmt "@[pass@]"
+        fprintf fmt "@[id@]"
       | False -> 
         fprintf fmt "@[drop@]"
       | (Test (h, v)) -> 
@@ -193,7 +193,7 @@ module Make (Headers : HEADERS) = struct
            | _ -> pp_print_string fmt "filter "; pred PAREN_PR fmt pr)
 
       | Mod (h, v) -> 
-        fprintf fmt "@[%a -> %a@]" Headers.format_header h
+        fprintf fmt "@[%a := %a@]" Headers.format_header h
                                    Headers.format_value v
       | Star p' -> 
         begin match cxt with

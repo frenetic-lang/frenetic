@@ -16,7 +16,7 @@ module Formatting = struct
   let format_field (fmt : formatter) (f : SDN_Types.field) : unit =
       pp_print_string fmt
       (match f with
-        | SDN_Types.InPort ->     "inPort"
+        | SDN_Types.InPort ->     "port"
         | SDN_Types.EthType ->    "dlTyp"
         | SDN_Types.EthSrc ->     "dlSrc"
         | SDN_Types.EthDst ->     "dlDst"
