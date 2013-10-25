@@ -22,6 +22,7 @@ type regex =
 
 type inter =
   | TP of (lf_policy option -> inter)
+  (* TODO(seliopou): This should be `lf_policy link either` *)
   | NL of (lf_policy option -> link option -> inter)
   | S of regex (* this is only in the star case *)
 
@@ -32,91 +33,89 @@ let is_none m =
 
 let regex_of_policy (p : policy) : regex =
 
-  let of_mlink (ml : link option) : regex =
+  let rec of_mlink (ml : link option) : inter =
     match ml with
-      | None   -> failwith "NL forced without a link"
-      | Some l -> Char(Filter NetKAT_Types.True, l) in
+      | None   -> NL(fun mp ml -> assert (is_none mp); of_mlink ml)
+      | Some l -> S(Char(Filter NetKAT_Types.True, l)) in
   let mk_seq (mp : lf_policy option) (q : lf_policy) : lf_policy=
     match mp with
       | None -> q
       | Some p -> Seq(p, q) in
-  let mp_seq (mp : lf_policy option) (mq : lf_policy option) : lf_policy option =
-    match mq with
-      | Some q -> Some (mk_seq mp q)
-      | None   -> mp in
 
   let rec rpc (p : policy) : inter = 
     begin match p with
       | NetKAT_Types.Filter(q) ->
-        NL(fun mp ml -> e_nl_seq_trans (Some(mk_seq mp (Filter q))) ml)
+        NL(e_nl_seq_trans (Filter q))
       | NetKAT_Types.Mod(h, v) ->
-        NL(fun mp ml -> e_nl_seq_trans (Some(mk_seq mp (Mod(h, v)))) ml)
+        NL(e_nl_seq_trans (Mod(h, v)))
       | NetKAT_Types.Link(sw1, pt1, sw2, pt2) ->
-        TP(fun mq -> e_tp_seq_trans mq (sw1, pt1, sw2, pt2))
+        TP(e_tp_seq_trans (sw1, pt1, sw2, pt2))
       | NetKAT_Types.Seq(p1, p2) ->
-        begin match rpc p1, rpc p2 with
-          | TP f1, NL f2 -> NL(fun mp ml -> Cat(f1 mp, run_with f2 ml))
-          | TP f1, i -> let r = run i in TP(fun mp -> tp_seq_trans (f1 mp) r)
-          | NL f1, TP f2 -> TP(failwith "nyi")
-          | NL f1, NL f2 -> NL(failwith "nyi")
-          | NL f1, S  s2 -> failwith "Cat(NL, Star) can't be represented"
-          | S  s1, i -> s_trans s1 i (fun x y -> Cat(x, y))
-        end
+        rpc_seq (rpc p1) (rpc p2)
       | NetKAT_Types.Par(p1, p2) ->
-        begin match rpc p1, rpc p2 with
-          | TP f1, TP f2 -> TP(fun mp    -> Alt(f1 mp, f2 mp))
-          | TP f1, NL f2 -> NL(fun mp ml -> Alt(Cat(f1 mp, of_mlink ml), f2 mp ml))
-          | TP f1, S  s2 -> S(Alt(run f1, s2))
-          | NL f1, TP f2 -> NL(fun mp ml -> Alt(f1 mp ml, Cat(f1 mp, of_mlink ml)))
-          | NL f1, NL f2 -> NL(fun mp ml -> Alt(f1 mp ml, f2 mp ml))
-          | NL f1, S  s2 -> NL(failwith "nyi")
-          | S  s1, i -> s_trans s1 i (fun x y -> Alt(x, y))
-        end
-      | NetKAT_Types.Star(q) -> S(Kleene(run (rpc q)))
+        rpc_par (rpc p1) (rpc p2)
+      | NetKAT_Types.Choice(_, _) -> failwith "nyi"
+      | NetKAT_Types.Star(q) ->
+        S(Kleene(run (rpc q)))
     end
 
-  and e_nl_seq_trans (mq : lf_policy option) (ml : link option) =
+  and rpc_seq i j =
+    begin match i, j with
+      | TP f1, NL f2 -> NL(fun mp ml -> rpc_seq (f1 mp) (f2 None ml))
+      | TP f1, i -> let r = run i in TP(fun mp -> rpc_seq (f1 mp) (S(r)))
+      | NL f1, TP f2 -> TP(failwith "nyi")
+      | NL f1, NL f2 -> NL(fun mp ml -> rpc_seq (f1 mp None) (f2 None ml))
+      | NL f1, S  s2 -> failwith "Cat(NL, Star) can't be represented"
+      | S  s1, i -> s_trans s1 i (fun x y -> Cat(x, y))
+    end
+
+  and rpc_par i j =
+    begin match i, j with
+      | TP f1, TP f2 -> TP(fun mp -> rpc_par (f1 mp) (f2 mp))
+      | TP f1, NL f2 -> NL(fun mp ml -> 
+                            rpc_par (rpc_seq (f1 mp) (of_mlink ml)) (f2 mp ml))
+      | TP f1, S  s2 -> S(Alt(run (TP f1), s2))
+      | NL f1, TP f2 -> NL(fun mp ml ->
+                            rpc_par (f1 mp ml) (rpc_seq (f2 mp) (of_mlink ml)))
+      | NL f1, NL f2 -> NL(fun mp ml -> rpc_par (f1 mp ml) (f2 mp ml))
+      | NL f1, S  s2 -> NL(fun mp ml ->
+                            rpc_par (f1 mp ml) (rpc_seq (S(s2)) (of_mlink ml)))
+      | S  s1, i -> s_trans s1 i (fun x y -> Alt(x, y))
+    end
+
+  and e_nl_seq_trans (q : lf_policy) (mp : lf_policy option) (ml : link option) =
     begin match ml with
-      | None -> 
-        NL(fun mp ml' -> e_nl_seq_trans (mp_seq mp mq) ml')
+      | None -> NL(e_nl_seq_trans (mk_seq mp q))
       | Some(sw1, pt1, sw2, pt2) ->
-        TP(fun mp -> e_tp_seq_trans mp (sw1, pt1, sw2, pt2))
+        e_tp_seq_trans (sw1, pt1, sw2, pt2) (Some(mk_seq mp q))
     end
 
-  and e_tp_seq_trans (mq : lf_policy option) (l : link) =
+  and e_tp_seq_trans (l : link) (mq : lf_policy option) =
     begin match mq with
       | None ->
         S(Char(Filter NetKAT_Types.True, l))
       | Some q ->
-        TP(fun mp -> e_tp_seq_trans (Some(mk_seq mp q)) l)
-    end
-
-  and tp_seq_trans (mp : lf_policy option) (r : regex) =
-    begin match mq with
-      | None ->
-        S(Cat(mp, r))
-      | Some q ->
-        TP(fun mp -> tp_seq_trans mp r)
+        TP(fun mp -> e_tp_seq_trans l (Some(mk_seq mp q)))
     end
 
   and s_trans (r : regex) (i : inter) c =
     begin match i with
-      | NL _ ->
-        NL(fun mp ml -> assert (is_none mp); S(c r (run (run_with i ml))))
+      | NL f ->
+        NL(fun mp ml -> assert (is_none mp); S(c r (run (f None ml))))
       | _ ->
         S(c r (run i))
     end
 
-  and run_with (i : inter) (ml : link option) : inter =
+  and run_with (i : inter) (mp : lf_policy option) (ml : link option) : inter =
     begin match i with
-      | TP f -> f None
-      | NL f -> f None ml
+      | TP f -> f mp
+      | NL f -> f mp ml
       | S  r -> S(r)
     end
 
   and run (i : inter) : regex =
-    begin match run_with i None with
-      | TP f -> failwith "should not happen"
+    begin match run_with i None None with
+      | TP _ -> failwith "should not happen"
       | NL _ -> failwith "need a link in there"
       | S  r -> r
     end in
