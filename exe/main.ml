@@ -44,4 +44,4 @@ let _ =
       Printf.printf "Unspecified file format. Inferring format.\n";
       from_extension !infname
   in
-  Printf.printf "DOT representation: %s\n" (Topology.to_dot topo)
+  Printf.printf "\nMininet script: %s\n\n" (Topology.to_mininet topo)
