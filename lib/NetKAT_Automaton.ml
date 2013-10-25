@@ -55,9 +55,8 @@ let regex_of_policy (p : policy) : regex =
         TP(fun mq -> e_tp_seq_trans mq (sw1, pt1, sw2, pt2))
       | NetKAT_Types.Seq(p1, p2) ->
         begin match rpc p1, rpc p2 with
-          | TP f1, TP f2 -> TP(fun mp    -> Cat(f1 mp, run f2))
-          | TP f1, NL f2 -> NL(fun mp ml -> Cat(f1 mp, run f2))
-          | TP f1, S  s2 -> TP(fun mp    -> Cat(f1 mp, s2))
+          | TP f1, NL f2 -> NL(fun mp ml -> Cat(f1 mp, run_with f2 ml))
+          | TP f1, i -> let r = run i in TP(fun mp -> tp_seq_trans (f1 mp) r)
           | NL f1, TP f2 -> TP(failwith "nyi")
           | NL f1, NL f2 -> NL(failwith "nyi")
           | NL f1, S  s2 -> failwith "Cat(NL, Star) can't be represented"
@@ -90,6 +89,14 @@ let regex_of_policy (p : policy) : regex =
         S(Char(Filter NetKAT_Types.True, l))
       | Some q ->
         TP(fun mp -> e_tp_seq_trans (Some(mk_seq mp q)) l)
+    end
+
+  and tp_seq_trans (mp : lf_policy option) (r : regex) =
+    begin match mq with
+      | None ->
+        S(Cat(mp, r))
+      | Some q ->
+        TP(fun mp -> tp_seq_trans mp r)
     end
 
   and s_trans (r : regex) (i : inter) c =
