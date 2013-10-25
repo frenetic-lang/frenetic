@@ -83,7 +83,8 @@ module TopoDot = struct
     let (id, popt) = i in
     let name = string_of_id id in
     let at = List.hd ats in
-    let nat = List.fold_left update_nattr defnattr at in
+    let nat = List.fold_left update_nattr
+        {defnattr with ntype = "switch"} at in
     if nat.ntype = "host" then
       Node.Host(name)
     else if nat.ntype = "switch" then
@@ -130,7 +131,7 @@ module TopoGML = struct
 
     let node (vs:Gml.value_list) : Topology.V.label =
       let nat = List.fold_left update_nattr
-        {defnattr with name = "switch"} vs in
+        {defnattr with ntype = "switch"} vs in
       if nat.ntype = "host" then
         Node.Host(nat.name)
       else if nat.ntype = "switch" then
