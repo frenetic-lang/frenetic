@@ -20,7 +20,8 @@ Library topology
   Modules:
     DOT_Types,
     Topology,
-    DOT_Parser
+    DOT_Parser,
+    GML_Parser
 
 Executable topology
   Path: exe

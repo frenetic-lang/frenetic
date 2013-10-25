@@ -25,8 +25,9 @@ let string_of_rate r =
 
 type nattr = {
   ntype: string
+  ; name : string
   ; id : int64
   ; ip : string
 }
 
-let defnattr = {ntype = "host"; id = 0L; ip = "0.0.0.0"}
+let defnattr = {ntype = "host"; name = ""; id = 0L; ip = "0.0.0.0"}

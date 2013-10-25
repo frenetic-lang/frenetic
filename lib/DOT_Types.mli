@@ -18,6 +18,7 @@ val string_of_rate : rate -> string
 
 type nattr = {
   ntype: string
+  ; name : string
   ; id : int64
   ; ip : string
 }

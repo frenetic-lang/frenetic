@@ -119,7 +119,7 @@ struct
   let default = {
     srcport = Int32.zero;
     dstport = Int32.zero;
-    cost = Int64.zero;
+    cost = Int64.one;
     capacity = Int64.max_int
   }
 
