@@ -1,5 +1,4 @@
 open Filename
-open Parsers
 open Topology
 
 type modeType =
@@ -41,7 +40,7 @@ let arg_spec =
        "\tDisplay this list of options")
 ]
 
-let usage = Printf.sprintf "usage: %s [--dot|--gml] filename -o [--dot|--mn] filename" Sys.argv.(0)
+let usage = Printf.sprintf "usage: %s [--dot|--gml] filename -o filename [--dot|--mn]" Sys.argv.(0)
 
 let from_extension fname =
   if check_suffix fname ".dot" then from_dotfile fname
@@ -58,7 +57,6 @@ let to_extension fname topo =
 
 let _ =
   Arg.parse arg_spec (fun fn -> infname := fn) usage ;
-  Printf.printf "Attempting to topology from file: %s\n%!" !infname;
   let topo = match !inft with
      | DotFile ->
       Printf.printf "Parsing file as DOT format\n";

@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 4ac13d51b944e966fc2e737861f9caed)
+# DO NOT EDIT (digest: 022dc58d959c5fc69f98060429ffd785)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -18,7 +18,7 @@
 <lib/*.ml{,i}>: pkg_ocamlgraph
 <lib/*.ml{,i}>: pkg_packet
 <lib/*.ml{,i}>: pkg_str
-# Executable topology
+# Executable otopo
 "exe/main.byte": use_topology
 "exe/main.byte": pkg_ocamlgraph
 "exe/main.byte": pkg_packet

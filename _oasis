@@ -16,19 +16,20 @@ Library topology
     ocamlgraph,
     packet
   InternalModules:
-    Util
+    Core,
+    Util,
+    Parsers
   Modules:
-    Parsers,
     Topology
 
-Executable topology
+Executable otopo
   Path: exe
   MainIs: main.ml
   BuildDepends:
     ocamlgraph,
     packet,
     topology
-  Install: False
+  Install: True
 
 Document doc
   Title: NetCore Documentation

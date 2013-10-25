@@ -1,5 +1,4 @@
 open Util
-open Topology
 open Graph
 
 type nattr = {
@@ -72,30 +71,30 @@ module TopoDot = struct
   (* Update the record for an edge *)
   let update_eattr edge (key,valopt) =
     match key with
-      | Dot_ast.Ident("sport") -> {edge with Link.srcport = int32_of_id valopt}
-      | Dot_ast.Ident("dport") -> {edge with Link.dstport = int32_of_id valopt}
-      | Dot_ast.Ident("cost") -> {edge with Link.cost = int64_of_id valopt}
-      | Dot_ast.Ident("capacity") -> {edge with Link.capacity = capacity_of_id valopt}
+      | Dot_ast.Ident("sport") -> {edge with Core.Link.srcport = int32_of_id valopt}
+      | Dot_ast.Ident("dport") -> {edge with Core.Link.dstport = int32_of_id valopt}
+      | Dot_ast.Ident("cost") -> {edge with Core.Link.cost = int64_of_id valopt}
+      | Dot_ast.Ident("capacity") -> {edge with Core.Link.capacity = capacity_of_id valopt}
       | _ -> failwith "Unknown node attribute\n"
 
   (* Generate a node from the id and attributes *)
-  let node (i:Dot_ast.node_id) (ats:Dot_ast.attr list) : Topology.V.label =
+  let node (i:Dot_ast.node_id) (ats:Dot_ast.attr list) : Core.Topology.V.label =
     let (id, popt) = i in
     let name = string_of_id id in
     let at = List.hd ats in
     let nat = List.fold_left update_nattr
         {defnattr with ntype = "switch"} at in
     if nat.ntype = "host" then
-      Node.Host(name)
+      Core.Node.Host(name)
     else if nat.ntype = "switch" then
-      Node.Switch(name, nat.id)
+      Core.Node.Switch(name, nat.id)
     else
-      Node.Mbox(name,[])
+      Core.Node.Mbox(name,[])
 
   (* Generate a link from the attributes *)
-  let edge (ats:Dot_ast.attr list) : Topology.E.label =
+  let edge (ats:Dot_ast.attr list) : Core.Topology.E.label =
     let at = List.hd ats in
-    let link = List.fold_left update_eattr Link.default at in
+    let link = List.fold_left update_eattr Core.Link.default at in
     link
 
 end
@@ -125,27 +124,27 @@ module TopoGML = struct
        simple, since most Topology Zoo graphs don't seem to have port
        information *)
     let update_eattr edge (key, value) = match key with
-      | "source" -> {edge with Link.dstport = int32_of_value value}
-      | "target" -> {edge with Link.srcport = int32_of_value value}
+      | "source" -> {edge with Core.Link.dstport = int32_of_value value}
+      | "target" -> {edge with Core.Link.srcport = int32_of_value value}
       | _ -> edge
 
-    let node (vs:Gml.value_list) : Topology.V.label =
+    let node (vs:Gml.value_list) : Core.Topology.V.label =
       let nat = List.fold_left update_nattr
         {defnattr with ntype = "switch"} vs in
       if nat.ntype = "host" then
-        Node.Host(nat.name)
+        Core.Node.Host(nat.name)
       else if nat.ntype = "switch" then
-        Node.Switch(nat.name, nat.id)
+        Core.Node.Switch(nat.name, nat.id)
       else
-        Node.Mbox(nat.name,[])
+        Core.Node.Mbox(nat.name,[])
 
 
-    let edge (vs:Gml.value_list) : Topology.E.label =
-      let link = List.fold_left update_eattr Link.default vs in
+    let edge (vs:Gml.value_list) : Core.Topology.E.label =
+      let link = List.fold_left update_eattr Core.Link.default vs in
       link
 end
 
-module B = Graph.Builder.P(Topology)
+module B = Graph.Builder.P(Core.Topology)
 module GML = Graph.Gml.Parse(B)(TopoGML)
 module DOT = Graph.Dot.Parse(B)(TopoDot)
 
