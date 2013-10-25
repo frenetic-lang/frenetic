@@ -234,7 +234,7 @@ module Make
 
     let to_string (x:t) : string =
       if Syntax.HeaderMap.is_empty x then "true"
-      else Printf.sprintf "%s" (header_val_map_to_string "=" ", " x)
+      else Printf.sprintf "<%s>" (header_val_map_to_string "=" ", " x)
 
     let set_to_string (xs:Set.t) : string =
       Printf.sprintf "{%s}"
@@ -250,7 +250,23 @@ module Make
     let matches (h:Syntax.header) (v:Syntax.header_val) (x:t) : bool =
       not (Syntax.HeaderMap.mem h x)
       || Syntax.HeaderMap.find h x = v
-
+      
+    let subseteq_pat (x:t) (y:t) : bool = 
+      let f h vo1 vo2 = match vo1,vo2 with 
+	| Some v1, Some v2 -> 
+	  if v1 <> v2 then raise Empty_pat else Some ()
+	| Some v1, None -> 
+	  Some ()
+	| None, Some v1 -> 
+	  raise Empty_pat
+	| None, None -> 
+	  Some () in 
+      try 
+	let _ = Syntax.HeaderMap.merge f x y in 
+	true
+      with Empty_pat -> 
+	false
+	  
     let seq_pat (x : t) (y : t) : t option =
       let f h vo1 vo2 = match vo1, vo2 with
         | (Some v1, Some v2) ->
@@ -365,6 +381,14 @@ module Make
 		| Some x_xi ->
 		  if Syntax.HeaderMap.compare Pervasives.compare x x_xi = 0 then
 		    raise Empty_atom
+		  else if 
+		      Pattern.Set.exists 
+			(fun xj -> 
+			  Syntax.HeaderMap.compare Pervasives.compare xi xj <> 0 &&
+			    Pattern.subseteq_pat xi xj) 
+			xs 
+		  then 
+		    acc
 		  else
 		    Pattern.Set.add xi acc)
 	    xs Pattern.Set.empty in
@@ -429,10 +453,11 @@ module Make
         p ""
 
     let extend (op:Action.group -> Action.group -> Action.group) (r:Atom.t) (g:Action.group) (p:t) : t =
-      match Atom.mk r with
-        | None ->
-          p
-        | Some (xs,x) ->
+      match g, Atom.mk r with 
+	| [s],_ when Action.is_drop s -> p
+	| _, None -> 
+	  p
+        | _, Some (xs,x) ->
 	  if Atom.Map.mem r p then
             let g_old = Atom.Map.find r p in
             Atom.Map.add r (op g_old g) p
@@ -440,6 +465,9 @@ module Make
             Atom.Map.add r g p
 
     let rec bin_local (op:Action.group -> Action.group -> Action.group) (p:t) (q:t) : t =
+      if Atom.Map.is_empty p then q
+      else if Atom.Map.is_empty q then p 
+      else
         Atom.Map.fold (fun ((xs1,x1) as r1) g1 acc ->
           Atom.Map.fold (fun ((xs2,x2) as r2) g2 acc ->
             match Atom.seq_atom r1 r2 with
@@ -458,14 +486,14 @@ module Make
 
     let par_local (p:t) (q:t) : t =
       let r = bin_local Action.group_crossproduct p q in
-      (* Printf.printf  *)
+      (* Printf.printf *)
       (* 	"PAR_LOCAL\n%s\n%s\n%s\n\n" *)
       (* 	(to_string p) (to_string q) (to_string r); *)
       r
 
     let choice_local (p:t) (q:t) : t =
       let r = bin_local Action.group_union p q in
-      (* Printf.printf  *)
+      (* Printf.printf *)
       (* 	"CHOICE_LOCAL\n%s\n%s\n%s\n\n" *)
       (* 	(to_string p) (to_string q) (to_string r); *)
       r
@@ -507,27 +535,26 @@ module Make
 
     (* precondition: t is a predicate *)
     let negate (p:t) : t =
-      Atom.Map.fold
-        (fun r g acc ->
-          match g with
-            | [s] when Action.is_drop s ->
-              Atom.Map.add r [Action.id] acc
-            | _ ->
-              Atom.Map.add r [Action.drop] acc)
-        p Atom.Map.empty
+      let rs = 
+	Atom.Map.fold
+          (fun r g acc ->
+	    Atom.Set.fold
+	      (fun ri acc -> Atom.Set.union (Atom.diff_atom ri r) acc)
+	      acc Atom.Set.empty)
+	  p (Atom.Set.singleton Atom.tru) in 
+      Atom.Set.fold (fun ri acc -> extend Action.group_crossproduct ri [Action.id] acc) rs Atom.Map.empty
 
     let rec of_pred (pr:Syntax.pred) : t =
       match pr with
         | Syntax.True ->
           Atom.Map.singleton Atom.tru [Action.id]
         | Syntax.False ->
-          Atom.Map.singleton Atom.tru [Action.drop]
+          Atom.Map.empty
         | Syntax.Neg p ->
           negate (of_pred p)
         | Syntax.Test (h, v) ->
           let p = Syntax.HeaderMap.singleton h v in
-          Atom.Map.add (Pattern.Set.empty, p) [Action.id]
-            (Atom.Map.singleton (Pattern.Set.singleton p, Pattern.tru) [Action.drop])
+          Atom.Map.singleton (Pattern.Set.empty, p) [Action.id]
         | Syntax.And (pr1, pr2) ->
           seq_local (of_pred pr1) (of_pred pr2)
         | Syntax.Or (pr1, pr2) ->

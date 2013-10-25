@@ -22,10 +22,15 @@ let switch_thread
   Lwt_stream.iter_s config_switch (Stream.to_stream local_stream)
 
 let rec start ~port ~pols =
-  let local_stream = Stream.map (fun p -> let d = (Dehop.dehop_policy_opt p) in
-                                          let l = LocalCompiler.RunTime.compile d in
-                                          let () = Printf.printf "l: \n%!" in
-                                          l)
-                                            pols in
+  let local_stream = 
+    Stream.map 
+      (fun p -> 
+	let () = Printf.printf "p: %s\n%!" (NetKAT.string_of_policy p) in 
+	let d = (Dehop.dehop_policy_opt p) in
+	let () = Printf.printf "d: %s\n%!" (NetKAT.string_of_policy d) in 
+        let l = LocalCompiler.RunTime.compile d in
+        let () = Printf.printf "l: %s\n%!" (NetKAT.string_of_policy (LocalCompiler.RunTime.decompile l)) in 
+        l)
+      pols in
   lwt (stop_accept, new_switches) = Platform.accept_switches port  in
   Lwt_stream.iter_p (switch_thread local_stream) new_switches
