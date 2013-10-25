@@ -437,8 +437,11 @@ struct
       (fun v acc ->
         let add = match v with
           | Node.Host(n) -> Printf.sprintf "    %s = net.addHost(\'%s\')\n" n n
-          | Node.Switch(s,_) -> Printf.sprintf
-            "    %s = net.addSwitch(\'%s\')\n" s s
+          | Node.Switch(s,i) ->
+            let name = Str.global_replace (Str.regexp "[ ,]") "" s in
+            let sid = "s" ^ Int64.to_string i in
+            Printf.sprintf
+            "    %s = net.addSwitch(\'%s\')\n" name sid
           | Node.Mbox(s,_) -> Printf.sprintf
             "    %s = net.addSwitch(\'%s\')\n" s s in
         acc ^ add
@@ -451,9 +454,12 @@ struct
         let add =
           if (not_printable e) then ""  (* Mininet links are bidirectional *)
           else
+            let src = Str.global_replace (Str.regexp "[ ,]") ""
+              (Node.to_string (E.src e)) in
+            let dst = Str.global_replace (Str.regexp "[ ,]") ""
+              (Node.to_string (E.dst e)) in
             Printf.sprintf "    net.addLink(%s, %s, %ld, %ld)\n"
-              (Node.to_string (E.src e)) (Node.to_string (E.dst e))
-              (Link.srcport e) (Link.dstport e)
+              src dst (Link.srcport e) (Link.dstport e)
         in
         seen := EdgeSet.add e !seen;
         acc ^ add
