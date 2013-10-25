@@ -26,9 +26,12 @@ let rec start ~port ~pols =
     Stream.map 
       (fun p -> 
 	let () = Printf.printf "p: %s\n%!" (NetKAT.string_of_policy p) in 
-	let d = (Dehop.dehop_policy_opt p) in
-	let () = Printf.printf "d: %s\n%!" (NetKAT.string_of_policy d) in 
-        let l = LocalCompiler.RunTime.compile d in
+	let i,s,t,e = Dehop.dehop_policy p in
+	let () = Printf.printf "i: %s\n%!" (NetKAT.string_of_policy i) in 
+	let () = Printf.printf "s: %s\n%!" (NetKAT.string_of_policy s) in 
+	let () = Printf.printf "t: %s\n%!" (NetKAT.string_of_policy t) in 
+	let () = Printf.printf "e: %s\n%!" (NetKAT.string_of_policy e) in 
+        let l = LocalCompiler.RunTime.compile s in
         let () = Printf.printf "l: %s\n%!" (NetKAT.string_of_policy (LocalCompiler.RunTime.decompile l)) in 
         l)
       pols in

@@ -52,5 +52,5 @@ open Dehop
 
 let () =
   Printf.printf "test_pol: %s\n%!" (string_of_policy Example.test_pol);
-  let dehop = dehop_policy_opt Example.test_pol in
-  Printf.printf "%s\n%!" (NetKAT_Types.string_of_policy dehop)
+  let i,s,t,e = dehop_policy Example.test_pol in
+  Printf.printf "%s\n%!" (NetKAT_Types.string_of_policy s)
