@@ -1,3 +1,4 @@
+open Filename
 open Parsers
 open Topology
 
@@ -23,6 +24,12 @@ let arg_spec =
 
 let usage = Printf.sprintf "usage: %s [OPTIONS] filename" Sys.argv.(0)
 
+let from_extension fname =
+  if check_suffix fname ".dot" then from_dotfile fname
+  else if check_suffix fname ".gml" then from_gmlfile fname
+  else failwith "Cannot parse given file type"
+
+
 let _ =
   Arg.parse arg_spec (fun fn -> infname := fn) usage ;
   Printf.printf "Attempting to topology from file: %s\n%!" !infname;
@@ -34,7 +41,7 @@ let _ =
       Printf.printf "Parsing file as GML format\n";
       from_gmlfile !infname
     | DefaultMode ->
-      Printf.printf "Unspecified file format. Parsing as DOT\n";
-      from_dotfile !infname
+      Printf.printf "Unspecified file format. Inferring format.\n";
+      from_extension !infname
   in
   Printf.printf "DOT representation: %s\n" (Topology.to_dot topo)
