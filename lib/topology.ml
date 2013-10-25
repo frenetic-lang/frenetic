@@ -1,6 +1,13 @@
 open Util
-open DOT_Types
 open Graph
+
+type switchId = int64
+type portId = int32
+type rate = Rate of int64 * int64
+
+let string_of_rate r =
+  let Rate(min,max) = r in
+  Printf.sprintf "min(%Ld Bps) max(%Ld Bps)" min max
 
 module type NODE =
 sig

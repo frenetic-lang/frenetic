@@ -39,3 +39,10 @@ let write_to_file filename text_to_write =
 let list_intercalate f sep l =
   List.fold_left
     (fun acc li -> Printf.sprintf "%s%s%s" acc (if acc = "" then "" else sep) (f li)) "" l
+
+module StringSet = Set.Make(String)
+module StringMap = Map.Make(String)
+
+module Int32Set = Set.Make(Int32)
+module Int32Map = Map.Make(Int32)
+module Int64Map = Map.Make(Int64)

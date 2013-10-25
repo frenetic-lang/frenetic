@@ -18,10 +18,8 @@ Library topology
   InternalModules:
     Util
   Modules:
-    DOT_Types,
-    Topology,
-    DOT_Parser,
-    GML_Parser
+    Parsers,
+    Topology
 
 Executable topology
   Path: exe

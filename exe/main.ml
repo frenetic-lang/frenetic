@@ -1,5 +1,4 @@
-open GML_Parser
-open DOT_Types
+open Parsers
 open Topology
 
 type modeType =
@@ -30,12 +29,12 @@ let _ =
   let topo = match !mode with
      | DotMode ->
       Printf.printf "Parsing file as DOT format\n";
-      DOT_Parser.dot_parse !infname
+      from_dotfile !infname
      | GmlMode ->
       Printf.printf "Parsing file as GML format\n";
-      GML_Parser.gml_parse !infname
+      from_gmlfile !infname
     | DefaultMode ->
       Printf.printf "Unspecified file format. Parsing as DOT\n";
-      DOT_Parser.dot_parse !infname
+      from_dotfile !infname
   in
   Printf.printf "DOT representation: %s\n" (Topology.to_dot topo)

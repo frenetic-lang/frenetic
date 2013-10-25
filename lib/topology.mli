@@ -1,6 +1,11 @@
-open DOT_Types
 open Graph
 open Packet
+
+type switchId = int64
+type portId = int32
+type rate = Rate of int64 * int64
+val string_of_rate : rate -> string
+
 
 module type NODE =
 sig

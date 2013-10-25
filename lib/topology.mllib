@@ -1,8 +1,6 @@
 # OASIS_START
-# DO NOT EDIT (digest: f00f431c5bf4694c11b8e5e7da0ade7c)
-DOT_Types
+# DO NOT EDIT (digest: 858bc185dad5064f5273abf14f171d14)
+Parsers
 Topology
-DOT_Parser
-GML_Parser
 Util
 # OASIS_STOP
