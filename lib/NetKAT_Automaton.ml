@@ -63,8 +63,11 @@ let rec mk_tp (l : link) (macc : lf_policy option) : link_provider =
           | None     -> Filter(NetKAT_Types.True)
           | Some acc -> acc in
         S(Char(lfp, l))
-      | Some _ -> 
-        TP(fun mlfp -> mk_tp l (lift_option2 (fun x y -> Seq(x, y)) mlfq macc) mlfp)
+      | Some lfq ->
+        let lfp = match macc with
+          | None     -> lfq
+          | Some acc -> Seq(lfq, acc) in
+        TP(fun mlfp -> mk_tp l (Some(lfp)) mlfp)
 
 let regex_of_policy (p : policy) : regex =
 
