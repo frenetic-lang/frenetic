@@ -152,7 +152,7 @@ let regex_of_policy (p : policy) : regex =
         NL(fun cstr mp ml ->
             match ml with
               | None   -> rpc_par (f1 cstr mp ml) (f2 cstr mp ml)
-              | Some l -> f2 par None (Some(fun mlfp -> f1 par mlfp (Some(l)))))
+              | Some l -> f1 par None (Some(fun mlfp -> f2 par mlfp (Some(l)))))
       | NL f1, S  s2 -> NL(fun cstr mp ml ->
                             rpc_par (f1 par mp ml) (rpc_seq (S(s2)) (of_mlink ml)))
       | S  s1, i -> s_trans s1 i (fun x y -> Alt(x, y))
