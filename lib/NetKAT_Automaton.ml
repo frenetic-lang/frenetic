@@ -3,21 +3,21 @@ type pred = NetKAT_Types.pred
 type header = NetKAT_Types.header
 type header_val = NetKAT_Types.header_val
 
-(* BEGIN HELPER FUNCTIONS --------------------------------------------------- *)
-
-let lift_option2 f m1 m2 = 
-  match m1, m2 with
-    | None, _ 
-    | _   , None       -> None
-    | Some e1, Some e2 -> Some(f e1 e2)
+(* BEGIN GENERIC HELPER FUNCTIONS ------------------------------------------- *)
 
 let is_none m =
   match m with
     | None   -> true
     | Some _ -> false
 
-(* END HELPER FUNCTIONS ----------------------------------------------------- *)
+(* END GENERIC HELPER FUNCTIONS --------------------------------------------- *)
 
+
+(* BEGIN DATA TYPES --------------------------------------------------------- *)
+
+(* A link-free policy is—as the name suggests—a NetKAT policy that does not
+ * contain links. 
+ *)
 type lf_policy =
   | Filter of pred
   | Mod of header * header_val
@@ -26,8 +26,14 @@ type lf_policy =
   | Seq of lf_policy * lf_policy
   | Star of lf_policy
 
+(* A separate datatype to represent links.
+ *
+ *   link = (sw1, pt1, sw2, pt2)
+ *)
 type link = header_val * header_val * header_val * header_val
 
+
+(* A regular expression over link-free policy, link pairs. *)
 type regex =
   | Char of lf_policy * link
   | Alt of regex * regex
@@ -35,11 +41,24 @@ type regex =
   | Kleene of regex
   | Empty
 
+(* An intermediate representation for the conversion from a NetKAT policy to a
+ * regex. inter is a continuation with three cases. 
+ *
+ *   - The TP case can accept link-free policies and create a new continuation
+ *   from that.
+ *
+ *   - The NL policy needs a link_provider to transition to another type of
+ *   continuation, but can optionally accumulate link-free policies in the mean
+ *   time.
+ *
+ *   - An S is a fully-formed regular expression. At this point, the computation
+ *   is done, as the continuation cannot accept new link-free policies or links.
+ *)
 type inter =
-  | TP of link_provider
-  | NL of link_consumer
-  | S  of regex (* this is only in the star case *)
-and link_provider = lf_policy option -> inter
+    | TP of link_provider
+    | NL of link_consumer
+    | S  of regex (* this is only in the star case *)
+and link_provider = lf_policy option -> inter 
 and link_consumer = lf_policy option -> link_provider option -> inter
 
 
@@ -48,6 +67,10 @@ let rec mk_seq (mp : lf_policy option) (q : lf_policy) =
     | None   -> q
     | Some p -> Seq(p, q)
 
+(* Constructor for a link_consumer. Requires a link-free policy as the basis for
+ * its accumulator so that if it passes its link-free policy to a link_provider,
+ * it will not force the link_provider to transition to a regex.
+ *)
 let rec mk_nl (lfp : lf_policy) : link_consumer =
   fun mlfp mlp ->
     let lfp' = mk_seq mlfp lfp in
@@ -55,6 +78,11 @@ let rec mk_nl (lfp : lf_policy) : link_consumer =
       | None    -> NL(mk_nl lfp')
       | Some lp -> lp (Some(lfp'))
 
+(* Constructor for link_provider. Requires a link and an optional link-free
+ * policy that acts as an accumulator. If the link provider receives a `None`,
+ * it will transition to a regex. If it receives `Some lfp` then it will
+ * continue taking policies.
+ *)
 let rec mk_tp (l : link) (macc : lf_policy option) : link_provider =
   fun mlfq ->
     match mlfq with
@@ -67,7 +95,9 @@ let rec mk_tp (l : link) (macc : lf_policy option) : link_provider =
         let lfp = match macc with
           | None     -> lfq
           | Some acc -> Seq(lfq, acc) in
-        TP(fun mlfp -> mk_tp l (Some(lfp)) mlfp)
+        TP(mk_tp l (Some(lfp)))
+
+(* END DATA TYPES ----------------------------------------------------------- *)
 
 let regex_of_policy (p : policy) : regex =
 
