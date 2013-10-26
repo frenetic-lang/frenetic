@@ -59,7 +59,7 @@ type regex =
  *
  *   - The NL policy needs a link_provider to transition to another type of
  *   continuation, but can optionally accumulate link-free policies in the mean
- *   time.
+ *   time. Accumulator is combined using the cstr function.
  *
  *   - An S is a fully-formed regular expression. At this point, the computation
  *   is done, as the continuation cannot accept new link-free policies or links.
@@ -68,24 +68,23 @@ type inter =
     | TP of link_provider
     | NL of link_consumer
     | S  of regex (* this is only in the star case *)
+and cstr = lf_policy -> lf_policy -> lf_policy 
 and link_provider = lf_policy option -> inter 
-and link_consumer = lf_policy option -> link_provider option -> inter
+and link_consumer = cstr -> lf_policy option -> link_provider option -> inter
 
+let seq (p : lf_policy) (q : lf_policy) : lf_policy = Seq(p, q)
+let par (p : lf_policy) (q : lf_policy) : lf_policy = Par(p, q)
 
-let rec mk_seq (mp : lf_policy option) (q : lf_policy) =
-  optional q (fun p -> Seq(p, q)) mp
-
-let rec mk_par (mp : lf_policy option) (q : lf_policy) =
-  optional q (fun p -> Par(p, q)) mp
-
+let mk_mcstr c mp q =
+  optional q (fun x -> c x q) mp
 
 (* Constructor for a link_consumer. Requires a link-free policy as the basis for
  * its accumulator so that if it passes its link-free policy to a link_provider,
  * it will not force the link_provider to transition to a regex.
  *)
 let rec mk_nl (lfp : lf_policy) : link_consumer =
-  fun mlfp mlp ->
-    let lfp' = mk_seq mlfp lfp in
+  fun cstr mlfp mlp ->
+    let lfp' = mk_mcstr cstr mlfp lfp in
     match mlp with
       | None    -> NL(mk_nl lfp')
       | Some lp -> lp (Some(lfp'))
@@ -111,7 +110,7 @@ let regex_of_policy (p : policy) : regex =
 
   let rec of_mlink (mlp : link_provider option) : inter =
     match mlp with
-      | None    -> NL(fun mp mlp -> assert (is_none mp); of_mlink mlp)
+      | None    -> NL(fun cstr mp mlp -> assert (is_none mp); of_mlink mlp)
       | Some lp -> lp None in
 
   let rec rpc (p : policy) : inter =
@@ -133,10 +132,10 @@ let regex_of_policy (p : policy) : regex =
 
   and rpc_seq i j =
     begin match i, j with
-      | TP f1, NL f2 -> NL(fun mp ml -> rpc_seq (f1 mp) (f2 None ml))
+      | TP f1, NL f2 -> NL(fun cstr mp ml -> rpc_seq (f1 mp) (f2 cstr None ml))
       | TP f1, i -> let r = run i in TP(fun mp -> rpc_seq (f1 mp) (S(r)))
-      | NL f1, TP f2 -> f1 None (Some f2)
-      | NL f1, NL f2 -> NL(fun mp ml -> rpc_seq (f1 mp None) (f2 None ml))
+      | NL f1, TP f2 -> f1 seq None (Some f2)
+      | NL f1, NL f2 -> NL(fun cstr mp ml -> rpc_seq (f1 cstr mp None) (f2 cstr None ml))
       | NL f1, S  s2 -> failwith "Cat(NL, Star) can't be represented"
       | S  s1, i -> s_trans s1 i (fun x y -> Cat(x, y))
     end
@@ -144,21 +143,25 @@ let regex_of_policy (p : policy) : regex =
   and rpc_par i j =
     begin match i, j with
       | TP f1, TP f2 -> TP(fun mp -> rpc_par (f1 mp) (f2 mp))
-      | TP f1, NL f2 -> NL(fun mp ml -> 
-                            rpc_par (rpc_seq (f1 mp) (of_mlink ml)) (f2 mp ml))
+      | TP f1, NL f2 -> NL(fun cstr mp ml -> 
+                            rpc_par (rpc_seq (f1 mp) (of_mlink ml)) (f2 cstr mp ml))
       | TP f1, S  s2 -> S(Alt(run (TP f1), s2))
-      | NL f1, TP f2 -> NL(fun mp ml ->
-                            rpc_par (f1 mp ml) (rpc_seq (f2 mp) (of_mlink ml)))
-      | NL f1, NL f2 -> NL(fun mp ml -> rpc_par (f1 mp ml) (f2 mp ml))
-      | NL f1, S  s2 -> NL(fun mp ml ->
-                            rpc_par (f1 mp ml) (rpc_seq (S(s2)) (of_mlink ml)))
+      | NL f1, TP f2 -> NL(fun cstr mp ml ->
+                            rpc_par (f1 cstr mp ml) (rpc_seq (f2 mp) (of_mlink ml)))
+      | NL f1, NL f2 -> 
+        NL(fun cstr mp ml ->
+            match ml with
+              | None   -> rpc_par (f1 cstr mp ml) (f2 cstr mp ml)
+              | Some l -> f2 par None (Some(fun mlfp -> f1 par mlfp (Some(l)))))
+      | NL f1, S  s2 -> NL(fun cstr mp ml ->
+                            rpc_par (f1 par mp ml) (rpc_seq (S(s2)) (of_mlink ml)))
       | S  s1, i -> s_trans s1 i (fun x y -> Alt(x, y))
     end
 
   and s_trans (r : regex) (i : inter) c =
     begin match i with
       | NL f ->
-        NL(fun mp ml -> assert (is_none mp); S(c r (run (f None ml))))
+        NL(fun cstr mp ml -> assert (is_none mp); S(c r (run (f cstr None ml))))
       | _ ->
         S(c r (run i))
     end
@@ -166,7 +169,7 @@ let regex_of_policy (p : policy) : regex =
   and run_with (i : inter) (mp : lf_policy option) (mlp : link_provider option) : inter =
     begin match i with
       | TP f -> f mp
-      | NL f -> f mp mlp
+      | NL f -> f seq mp mlp
       | S  r -> S(r)
     end
 
