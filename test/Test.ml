@@ -6,6 +6,7 @@ open NetCore_Pattern
 open NetCore_Pretty
 open OUnit
 open NetKAT_Test
+open NetKAT_Automaton_Test
 open NetKAT_Pretty_Tests
 (* open Verify_Tests *)
 
