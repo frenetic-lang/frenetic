@@ -21,6 +21,20 @@ let switch_thread
   lwt () = config_switch (Stream.now local_stream) in
   Lwt_stream.iter_s config_switch (Stream.to_stream local_stream)
 
+(* We analyze the topology (currently from 't'), and compute the edge
+   switches. For edge locations L_e, the policy is (filter L_e;i | filter ~L_e); (p | e). But, it is probably better to instead use the internal locations L_i, making it (filter ~L_i;i | filter L_i); (p | e)
+*)
+
+let rec extract_internal_locs t = 
+  let open NetKAT_Types in
+      match t with
+        | Seq(p,q) -> Or (extract_internal_locs p, extract_internal_locs q)
+        | Par(p,q) -> Or (extract_internal_locs p, extract_internal_locs q)
+        | Choice(p,q) -> Or (extract_internal_locs p, extract_internal_locs q)
+        | Link(sw,pt,sw',pt') -> Or (And (Test (switch, sw), Test (switch, pt)),
+                                     And (Test (switch, sw'), Test (switch, pt')))
+        | _ -> False
+
 let rec start ~port ~pols =
   let local_stream = 
     Stream.map 
@@ -31,9 +45,13 @@ let rec start ~port ~pols =
 	let () = Printf.printf "s: %s\n%!" (NetKAT.string_of_policy s) in 
 	let () = Printf.printf "t: %s\n%!" (NetKAT.string_of_policy t) in 
 	let () = Printf.printf "e: %s\n%!" (NetKAT.string_of_policy e) in 
-        let l = LocalCompiler.RunTime.compile s in
+        let l_i = extract_internal_locs t in
+        let open NetKAT_Types in
+        let l = LocalCompiler.RunTime.compile (Seq (Par (Seq (Filter l_i, i),
+                                                         Filter (Neg l_i)),
+                                                    Par (s,e))) in
         let () = Printf.printf "l: %s\n%!" (NetKAT.string_of_policy (LocalCompiler.RunTime.decompile l)) in 
         l)
       pols in
   lwt (stop_accept, new_switches) = Platform.accept_switches port  in
-  Lwt_stream.iter_p (switch_thread local_stream) new_switches
+Lwt_stream.iter_p (switch_thread local_stream) new_switches
