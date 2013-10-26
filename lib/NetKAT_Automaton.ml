@@ -138,8 +138,8 @@ let regex_of_policy (p : policy) : regex =
       | NL f1, NL f2 ->
         NL(fun cstr mp ml ->
             match ml with
-              | None   -> rpc_seq (f1 cstr mp None) (f2 cstr None ml)
-              | Some l -> f1 seq mp (Some(fun mlfp -> f2 seq mlfp (Some(l)))))
+              | None   -> rpc_seq (f1 cstr mp None) (f2 cstr None None)
+              | Some l -> f1 cstr mp (Some(fun mlfp -> f2 seq mlfp (Some(l)))))
       | NL f1, S  s2 -> failwith "Cat(NL, Star) can't be represented"
       | S  s1, i -> s_trans s1 i (fun x y -> Cat(x, y))
     end
@@ -152,11 +152,11 @@ let regex_of_policy (p : policy) : regex =
       | TP f1, S  s2 -> S(Alt(run (TP f1), s2))
       | NL f1, TP f2 -> NL(fun cstr mp ml ->
                             rpc_par (f1 cstr mp ml) (rpc_seq (f2 mp) (of_mlink ml)))
-      | NL f1, NL f2 -> 
+      | NL f1, NL f2 ->
         NL(fun cstr mp ml ->
             match ml with
-              | None   -> rpc_par (f1 cstr mp ml) (f2 cstr mp ml)
-              | Some l -> f1 par mp (Some(fun mlfp -> f2 par mlfp (Some(l)))))
+              | None   -> rpc_par (f1 cstr mp None) (f2 cstr mp None)
+              | Some l -> f1 cstr mp (Some(fun mlfp -> f2 par mlfp (Some(l)))))
       | NL f1, S  s2 -> NL(fun cstr mp ml ->
                             rpc_par (f1 par mp ml) (rpc_seq (S(s2)) (of_mlink ml)))
       | S  s1, i -> s_trans s1 i (fun x y -> Alt(x, y))
