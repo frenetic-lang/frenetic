@@ -10,6 +10,16 @@ let is_none m =
     | None   -> true
     | Some _ -> false
 
+let from_option a m =
+  match m with
+    | None   -> a
+    | Some b -> b
+
+let optional a f m =
+  match m with
+    | None   -> a
+    | Some e -> f e
+
 (* END GENERIC HELPER FUNCTIONS --------------------------------------------- *)
 
 
@@ -63,9 +73,11 @@ and link_consumer = lf_policy option -> link_provider option -> inter
 
 
 let rec mk_seq (mp : lf_policy option) (q : lf_policy) =
-  match mp with
-    | None   -> q
-    | Some p -> Seq(p, q)
+  optional q (fun p -> Seq(p, q)) mp
+
+let rec mk_par (mp : lf_policy option) (q : lf_policy) =
+  optional q (fun p -> Par(p, q)) mp
+
 
 (* Constructor for a link_consumer. Requires a link-free policy as the basis for
  * its accumulator so that if it passes its link-free policy to a link_provider,
@@ -87,14 +99,10 @@ let rec mk_tp (l : link) (macc : lf_policy option) : link_provider =
   fun mlfq ->
     match mlfq with
       | None -> 
-        let lfp = match macc with
-          | None     -> Filter(NetKAT_Types.True)
-          | Some acc -> acc in
+        let lfp = from_option (Filter(NetKAT_Types.True)) macc in
         S(Char(lfp, l))
       | Some lfq ->
-        let lfp = match macc with
-          | None     -> lfq
-          | Some acc -> Seq(lfq, acc) in
+        let lfp = optional lfq (fun acc -> Seq(lfq, acc)) macc in
         TP(mk_tp l (Some(lfp)))
 
 (* END DATA TYPES ----------------------------------------------------------- *)
