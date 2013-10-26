@@ -11,11 +11,11 @@ let test_pretty p_str =
   let p_ast2 = NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string p_str') in
   p_ast1 = p_ast2
 
-let p_str1 = "filter inPort = 1"
-let p_str2 = "filter inPort = 1 ; inPort -> 2"
-let p_str3 = "filter switch = 1 ; filter inPort = 1 ; inPort -> 2 + 
-              (filter switch = 1 ; filter inPort = 2 ; inPort -> 1 +
-               filter switch = 2 ; filter inPort = 1 ; inPort -> 2)"
+let p_str1 = "filter port = 1"
+let p_str2 = "filter port = 1 ; port := 2"
+let p_str3 = "filter switch = 1 ; filter port = 1 ; port := 2 + 
+              (filter switch = 1 ; filter port = 2 ; port := 1 +
+               filter switch = 2 ; filter port = 1 ; port := 2)"
 
 TEST "simple filter" = test_pretty p_str1 = true
 TEST "simple SEQ"    = test_pretty p_str2 = true
