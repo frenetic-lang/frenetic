@@ -44,14 +44,18 @@ type lf_policy =
  *)
 type link = header_val * header_val * header_val * header_val
 
+type 'a aregex =
+  | Char of 'a
+  | Alt of 'a aregex * 'a aregex
+  | Cat of 'a aregex * 'a aregex
+  | Kleene of 'a aregex
+  | Empty
+
+
+type pchar = lf_policy * link
 
 (* A regular expression over link-free policy, link pairs. *)
-type regex =
-  | Char of lf_policy * link
-  | Alt of regex * regex
-  | Cat of regex * regex
-  | Kleene of regex
-  | Empty
+type regex = pchar aregex
 
 (* END DATA TYPES ----------------------------------------------------------- *)
 
@@ -241,4 +245,26 @@ let regex_of_policy (p : policy) : regex =
 
   run (rpc p)
 
-(* END OF POLICY ------------------------------------------------------------ *)
+let regex_to_aregex (r : regex) : (int aregex) * ((int,  pchar) Hashtbl.t) =
+  (* like an ST monad lol *)
+  let htbl = Hashtbl.create 20 in
+  let intg = ref 0 in
+  let next () = let n = !intg in intg := n + 1; n in
+  let add c   = let i = next () in Hashtbl.add htbl i c; i in
+
+  let rec go r =
+    match r with
+      | Char(c) -> Char(add c)
+      | Alt(r1, r2) -> Alt(go r1, go r2)
+      | Cat(r1, r2) -> Cat(go r1, go r2)
+      | Kleene(s) -> Kleene(go s)
+      | Empty -> Empty in
+  (go r, htbl)
+
+let rec regex_of_aregex (r : int aregex) (htbl : (int, pchar) Hashtbl.t) : regex =
+  match r with
+    | Char(c) -> Char(Hashtbl.find htbl c)
+    | Alt(r1, r2) -> Alt(regex_of_aregex r1 htbl, regex_of_aregex r2 htbl)
+    | Cat(r1, r2) -> Cat(regex_of_aregex r1 htbl, regex_of_aregex r2 htbl)
+    | Kleene(s) -> Kleene(regex_of_aregex s htbl)
+    | Empty -> Empty
