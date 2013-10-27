@@ -9,6 +9,7 @@ end
 module type S = sig
   type policy
   type packet
+  val arbitrary_link : policy QuickCheck.arbitrary
   val arbitrary_policy : policy QuickCheck.arbitrary
   val arbitrary_packet : packet QuickCheck.arbitrary
 end
@@ -67,6 +68,13 @@ module Make
         (3, resize (Random.int 20) (gen_pred_ctor ()))
         ]
 
+  let arbitrary_link : policy QuickCheck_gen.gen = 
+    let open QuickCheck_gen in
+    arbitrary_headerval >>= fun sw1 ->
+    arbitrary_headerval >>= fun pt1 ->
+    arbitrary_headerval >>= fun sw2 ->
+    arbitrary_headerval >>= fun pt2 ->
+      ret_gen (Link(sw1,pt1,sw2,pt2))
 
   let gen_atom_pol : policy QuickCheck_gen.gen = 
     let open QuickCheck_gen in
@@ -156,4 +164,9 @@ end
 
 module SDNArb = Make (NetKAT_Types) (SDNHeaders)
 
+let arbitrary_link = SDNArb.arbitrary_link
+(* TODO(seliopou): link-free policies and regular policies coincide right now.
+ * They should be implemented separately
+ *)
+let arbitrary_lf_pol = SDNArb.arbitrary_policy
 let arbitrary_pol = SDNArb.arbitrary_policy
