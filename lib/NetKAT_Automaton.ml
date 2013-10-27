@@ -51,6 +51,13 @@ type 'a aregex =
   | Kleene of 'a aregex
   | Empty
 
+let rec fmap_aregex (f : 'a -> 'b) (r : 'a aregex) : 'b aregex =
+  match r with
+    | Char(c) -> Char(f c)
+    | Alt(r1, r2) -> Alt(fmap_aregex f r1, fmap_aregex f r2)
+    | Cat(r1, r2) -> Cat(fmap_aregex f r1, fmap_aregex f r2)
+    | Kleene(s) -> Kleene(fmap_aregex f s)
+    | Empty -> Empty
 
 type pchar = lf_policy * link
 
@@ -252,19 +259,7 @@ let regex_to_aregex (r : regex) : (int aregex) * ((int,  pchar) Hashtbl.t) =
   let next () = let n = !intg in intg := n + 1; n in
   let add c   = let i = next () in Hashtbl.add htbl i c; i in
 
-  let rec go r =
-    match r with
-      | Char(c) -> Char(add c)
-      | Alt(r1, r2) -> Alt(go r1, go r2)
-      | Cat(r1, r2) -> Cat(go r1, go r2)
-      | Kleene(s) -> Kleene(go s)
-      | Empty -> Empty in
-  (go r, htbl)
+  (fmap_aregex add r, htbl)
 
 let rec regex_of_aregex (r : int aregex) (htbl : (int, pchar) Hashtbl.t) : regex =
-  match r with
-    | Char(c) -> Char(Hashtbl.find htbl c)
-    | Alt(r1, r2) -> Alt(regex_of_aregex r1 htbl, regex_of_aregex r2 htbl)
-    | Cat(r1, r2) -> Cat(regex_of_aregex r1 htbl, regex_of_aregex r2 htbl)
-    | Kleene(s) -> Kleene(regex_of_aregex s htbl)
-    | Empty -> Empty
+  fmap_aregex (Hashtbl.find htbl) r
