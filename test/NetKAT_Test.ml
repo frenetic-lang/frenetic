@@ -178,7 +178,7 @@ TEST "quickcheck local compiler" =
     let open QCGen in
     testable_fun
       (resize 3
-       (NetKATArb.arbitrary_policy >>= fun pol ->
+       (NetKATArb.arbitrary_lf_policy >>= fun pol ->
           NetKATArb.arbitrary_packet >>= fun pkt ->
             Format.eprintf "Policy: %s\n%!" (NetKAT.string_of_policy pol);
             ret_gen (pol, pkt)))

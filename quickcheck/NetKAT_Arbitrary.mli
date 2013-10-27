@@ -11,6 +11,7 @@ module type S = sig
   type policy
   type packet
   val arbitrary_link : policy QuickCheck.arbitrary
+  val arbitrary_lf_policy : policy QuickCheck.arbitrary
   val arbitrary_policy : policy QuickCheck.arbitrary
   val arbitrary_packet : packet QuickCheck.arbitrary
 end
@@ -25,8 +26,5 @@ module Make
        and type packet = Syntax.packet
 
 val arbitrary_link : NetKAT_Types.policy QuickCheck.arbitrary
-(* TODO(seliopou): link-free policies and regular policies coincide right now.
- * They should be implemented separately
- *)
 val arbitrary_lf_pol : NetKAT_Types.policy QuickCheck.arbitrary
 val arbitrary_pol : NetKAT_Types.policy QuickCheck.arbitrary

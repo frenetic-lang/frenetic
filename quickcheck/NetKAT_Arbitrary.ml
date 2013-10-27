@@ -10,6 +10,7 @@ module type S = sig
   type policy
   type packet
   val arbitrary_link : policy QuickCheck.arbitrary
+  val arbitrary_lf_policy : policy QuickCheck.arbitrary
   val arbitrary_policy : policy QuickCheck.arbitrary
   val arbitrary_packet : packet QuickCheck.arbitrary
 end
@@ -36,7 +37,6 @@ module Make
         arbitrary_headerval >>= fun v ->
           ret_gen (Test (h, v))
 
-
   let rec gen_composite_pred () : pred QuickCheck_gen.gen =
     let open QuickCheck_gen in
       sized (fun n -> resize (n - 1)
@@ -58,13 +58,12 @@ module Make
                      (n - 1, gen_composite_pred ())
                    ]))
 
-      
-
   let gen_pred : pred QuickCheck_gen.gen =
     let open QuickCheck_gen in
       frequency [
         (1, ret_gen (True));
         (1, ret_gen (False));
+        (* XXX(seliopou) this should be a function of the size. *)
         (3, resize (Random.int 20) (gen_pred_ctor ()))
         ]
 
@@ -76,6 +75,15 @@ module Make
     arbitrary_headerval >>= fun pt2 ->
       ret_gen (Link(sw1,pt1,sw2,pt2))
 
+  let gen_lf_atom_pol : policy QuickCheck_gen.gen  =
+    let open QuickCheck_gen in
+    oneof [
+      (arbitrary_header >>= fun h -> 
+        arbitrary_headerval >>= fun v ->
+           ret_gen (Mod (h, v)));
+      (gen_pred >>= fun pr ->
+          ret_gen (Filter (pr))) ]
+
   let gen_atom_pol : policy QuickCheck_gen.gen = 
     let open QuickCheck_gen in
     oneof [
@@ -83,39 +91,34 @@ module Make
         arbitrary_headerval >>= fun v ->
            ret_gen (Mod (h, v)));
       (gen_pred >>= fun pr ->
-         ret_gen (Filter (pr))) ]
-(* TODO(jnf): add support for local and global policies. *)
-(* ; *)
-(*       (arbitrary_headerval >>= fun sw1 ->  *)
-(*        arbitrary_headerval >>= fun pt1 ->  *)
-(*        arbitrary_headerval >>= fun sw2 ->  *)
-(*        arbitrary_headerval >>= fun pt2 ->  *)
-(*        ret_gen (Link(sw1,pt1,sw2,pt2)))] *)
+          ret_gen (Filter (pr)));
+      arbitrary_link ]
 
-  let rec gen_composite_pol () : policy QuickCheck_gen.gen =
+
+  let rec gen_composite_pol arbitrary_atom : policy QuickCheck_gen.gen =
     let open QuickCheck_gen in 
         sized (fun n -> resize (n - 1)
          (frequency [
-            (3, gen_pol () >>= fun p1 ->
-                  gen_pol () >>= fun p2 ->
-                    ret_gen (Par (p1, p2)));
-            (3, gen_pol () >>= fun p1 ->
-                  gen_pol () >>= fun p2 ->
-                    ret_gen (Seq (p1, p2)));
-            (1, gen_pol () >>= fun p ->
-                  ret_gen (Star p))
+            (3, gen_pol arbitrary_atom >>= fun p1 ->
+                gen_pol arbitrary_atom >>= fun p2 ->
+                ret_gen (Par (p1, p2)));
+            (3, gen_pol arbitrary_atom>>= fun p1 ->
+                gen_pol arbitrary_atom >>= fun p2 ->
+                ret_gen (Seq (p1, p2)));
+            (1, gen_pol arbitrary_atom >>= fun p ->
+                ret_gen (Star p))
           ]))
 
-  and gen_pol () : policy QuickCheck_gen.gen =
+  and gen_pol arbitrary_atom : policy QuickCheck_gen.gen =
     let open QuickCheck_gen in
       sized (fun n ->
         frequency [
-                    (1, gen_atom_pol);
-                    (n - 1, gen_composite_pol ())
-                  ])
+            (1, arbitrary_atom);
+            (n - 1, gen_composite_pol arbitrary_atom) ])
 
 
-  let arbitrary_policy = gen_pol ()
+  let arbitrary_policy = gen_pol gen_atom_pol
+  let arbitrary_lf_policy = gen_pol gen_lf_atom_pol
 
   let num_hdrs = List.length all_headers
 
@@ -165,8 +168,5 @@ end
 module SDNArb = Make (NetKAT_Types) (SDNHeaders)
 
 let arbitrary_link = SDNArb.arbitrary_link
-(* TODO(seliopou): link-free policies and regular policies coincide right now.
- * They should be implemented separately
- *)
-let arbitrary_lf_pol = SDNArb.arbitrary_policy
+let arbitrary_lf_pol = SDNArb.arbitrary_lf_policy
 let arbitrary_pol = SDNArb.arbitrary_policy
