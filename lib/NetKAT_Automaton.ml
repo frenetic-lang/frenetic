@@ -195,7 +195,7 @@ let regex_of_policy (p : policy) : regex =
   and rpc_seq i j =
     begin match i, j with
       | TP f1, NL f2 -> NL(fun c mlf_p mlp -> rpc_seq (f1 c mlf_p) (f2 c None mlp))
-      | TP f1, _     -> let r = run i in TP(fun c mp -> rpc_seq (f1 c mp) (S(r)))
+      | TP f1, _     -> let r = run j in TP(fun c mp -> rpc_seq (f1 c mp) (S(r)))
       | NL f1, TP f2 -> f1 seq None (Some f2)
       | NL f1, NL f2 -> f1 seq None (Some(fun c mlf_q -> f2 c mlf_q None))
       | NL f1, S  r  -> failwith "Cat(NL, Star) can't be represented"
