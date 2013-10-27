@@ -987,6 +987,19 @@ let rec separate_e p = match p with
 
 let separate_policy p = separate_i p, separate_p p, separate_t p, separate_e p
 
+let strip_vlan = Mod (Header SDN_Types.Vlan,VInt.Int16 0xFFFF)
+
+(* I'm unclear about the precise semantics of forwarding to hosts that
+   aren't represented in the topology. To be safe, I'm stripping VLAN as soon as we forward out any port in e *)
+
+let rec strip_vlans p = match p with
+  | Mod(Header port, _) -> Seq(strip_vlan, p)
+  | Seq(p,q) -> Seq(strip_vlans p, strip_vlans q)
+  | Par(p,q) -> Par(strip_vlans p, strip_vlans q)
+  | Choice(p,q) -> Choice(strip_vlans p, strip_vlans q)
+  | Star(p) -> Star(strip_vlans p)
+  | _ -> p
+
 (* let dehop_policy p = *)
 (*   let (i,s,t,e) = dehopify p in *)
 (*   let p' = (VSeq(i, VSeq(VStar(VSeq(s,t)), e))) in *)
@@ -999,4 +1012,4 @@ let dehop_policy p =
   let p''' = pol_to_linear_pol (simplify_pol (fst (convert_tag_to_hdr (collect_tags p') SDN_Types.Vlan p'' false))) in
   let i',s',t',e' = separate_policy p''' in
   let i'',s'',t'',e'' = simplify_pol i', simplify_pol s', simplify_pol t', simplify_pol e' in
-  (i'', s'', t'', e'')
+  (i'', s'', t'', Seq(strip_vlans e'', strip_vlan))
