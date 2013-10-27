@@ -28,6 +28,10 @@ module Make
   open Syntax
   open Headers
 
+  let treesize n x =
+    if n <= 0
+      then x
+      else QuickCheck_gen.resize (n / (1 + Random.int n)) x
 
   let gen_atom_pred : pred QuickCheck_gen.gen = 
     let open QuickCheck_gen in 
@@ -38,7 +42,7 @@ module Make
 
   let rec gen_composite_pred () : pred QuickCheck_gen.gen =
     let open QuickCheck_gen in
-      sized (fun n -> resize (n - 1)
+      sized (fun n -> treesize n
         (frequency [
             (3, gen_pred_ctor () >>= fun pr1 ->
                   gen_pred_ctor () >>= fun pr2 ->
@@ -52,9 +56,9 @@ module Make
 
   and gen_pred_ctor () : pred QuickCheck_gen.gen =
     let open QuickCheck_gen in
-      sized (fun n -> resize (n - 1)
+      sized (fun n -> treesize n
         (frequency [ (1, gen_atom_pred);
-                     (n - 1, gen_composite_pred ())
+                     (max 0 (n - 1), gen_composite_pred ())
                    ]))
 
       
@@ -64,7 +68,7 @@ module Make
       frequency [
         (1, ret_gen (True));
         (1, ret_gen (False));
-        (3, resize (Random.int 20) (gen_pred_ctor ()))
+        (3, gen_pred_ctor ())
         ]
 
 
@@ -80,7 +84,7 @@ module Make
 
   let rec gen_composite_pol () : policy QuickCheck_gen.gen =
     let open QuickCheck_gen in 
-        sized (fun n -> resize (n - 1)
+        sized (fun n -> treesize n
          (frequency [
             (3, gen_pol () >>= fun p1 ->
                   gen_pol () >>= fun p2 ->
@@ -96,9 +100,8 @@ module Make
     let open QuickCheck_gen in
       sized (fun n ->
         frequency [
-                    (1, gen_atom_pol);
-                    (n - 1, gen_composite_pol ())
-                  ])
+            (1, arbitrary_atom);
+            (max 0 (n - 1), gen_composite_pol ()) ])
 
 
   let arbitrary_policy = gen_pol ()
