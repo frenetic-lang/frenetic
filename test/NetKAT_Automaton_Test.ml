@@ -114,3 +114,11 @@ TEST "regression test #3" =
   let open NetKAT_Automaton in
   let pol = policy_parse "id ; id ; (filter tcpSrcPort = 144 or tcpSrcPort = 71 ; ethSrc := 68) ; 0@59 => 18@85" in
   QuickChecking.prop_roundtrip pol
+
+TEST "end-to-end test" =
+  let open NetKAT_Automaton in
+  let text = "0@0 => 1@1; 1@1 => 2@2; 2@2 => 1@1; 1@1 => 0@0" in
+  let pol = policy_parse (String.concat "; " [text; text; text; text]) in
+  let pol' = switch_policies_to_policy (compile pol) in
+  print_endline (string_of_policy pol');
+  false
