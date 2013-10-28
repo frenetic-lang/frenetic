@@ -60,15 +60,15 @@ module Formatting = struct
           | OR_L
           | OR_R
           | AND_L -> 
-	    fprintf fmt "@[%a and %a@]" (pred AND_L) p1 (pred AND_R) p2
+	    fprintf fmt "@[%a and@ %a@]" (pred AND_L) p1 (pred AND_R) p2
           | _ -> 
-	    fprintf fmt "@[(@[%a and %a@])@]" (pred AND_L) p1 (pred AND_R) p2
+	    fprintf fmt "@[(@[%a and@ %a@])@]" (pred AND_L) p1 (pred AND_R) p2
         end
       | Or (p1, p2) -> 
         begin match cxt with
           | PAREN_PR
-          | OR_L -> fprintf fmt "@[%a or %a@]" (pred OR_L) p1 (pred OR_R) p2
-          | _ -> fprintf fmt "@[(@[%a or %a@])@]" (pred OR_L) p1 (pred OR_R) p2
+          | OR_L -> fprintf fmt "@[%a or@ %a@]" (pred OR_L) p1 (pred OR_R) p2
+          | _ -> fprintf fmt "@[(@[%a or@ %a@])@]" (pred OR_L) p1 (pred OR_R) p2
         end
 
   type policy_context = 
@@ -95,24 +95,26 @@ module Formatting = struct
       | Par (p1, p2) -> 
         begin match cxt with
           | PAREN
-          | PAR_L -> fprintf fmt "@[%a | %a@]" (pol PAR_L) p1 (pol PAR_R) p2
-          | _ -> fprintf fmt "@[(@[%a | %a@])@]" (pol PAR_L) p1 (pol PAR_R) p2
+          | PAR_L -> fprintf fmt "@[%a |@ %a@]" (pol PAR_L) p1 (pol PAR_R) p2
+          | _ -> fprintf fmt "@[(@[%a |@ %a@])@]" (pol PAR_L) p1 (pol PAR_R) p2
         end
       | Seq (p1, p2) -> 
         begin match cxt with
           | PAREN
           | PAR_L
           | PAR_R
-          | SEQ_L -> fprintf fmt "@[%a ; %a@]" (pol SEQ_L) p1 (pol SEQ_R) p2
-          | _ -> fprintf fmt "@[(@[%a ; %a@])@]" (pol SEQ_L) p1 (pol SEQ_R) p2
+	  | CHOICE_L
+	  | CHOICE_R 
+          | SEQ_L -> fprintf fmt "@[%a;@ %a@]" (pol SEQ_L) p1 (pol SEQ_R) p2
+          | _ -> fprintf fmt "@[(@[%a;@ %a@])@]" (pol SEQ_L) p1 (pol SEQ_R) p2
         end
       | Choice (p1, p2) -> 
         begin match cxt with
           | PAREN
-          | CHOICE_L -> 
-	    fprintf fmt "@[%a + %a@]" (pol CHOICE_L) p1 (pol CHOICE_R) p2
+          | CHOICE_L ->  
+	    fprintf fmt "@[%a +@ %a@]" (pol CHOICE_L) p1 (pol CHOICE_R) p2
           | _ -> 
-	    fprintf fmt "@[(@[%a + %a@])@]" (pol CHOICE_L) p1 (pol CHOICE_R) p2
+	    fprintf fmt "@[(@[%a +@ %a@])@]" (pol CHOICE_L) p1 (pol CHOICE_R) p2
         end
       | Link (sw,pt,sw',pt') -> 
         fprintf fmt "@[%a@@%a =>@ %a@@%a@]"
@@ -124,8 +126,33 @@ let format_policy = Formatting.pol Formatting.PAREN
   
 let format_header = Formatting.format_header
   
-let header_to_string = NetCore_Util.make_string_of Formatting.format_header
+ let header_to_string = NetCore_Util.make_string_of Formatting.format_header
   
 let value_to_string = NetCore_Util.make_string_of Formatting.format_value
   
 let string_of_policy = NetCore_Util.make_string_of format_policy
+
+let rec pretty_assoc (p : policy) : policy = match p with
+  | Filter _ -> p
+  | Mod _ -> p
+  | Link _ -> p
+  | Par (p1, p2) -> pretty_assoc_par p
+  | Seq (p1, p2) -> pretty_assoc_seq p
+  | Choice (p1, p2) -> pretty_assoc_choice p
+  | Star p' -> Star (pretty_assoc p')
+and pretty_assoc_par (p : policy) : policy = match p with
+  | Par (p1, Par (p2, p3)) ->
+    Par (pretty_assoc_par (Par (p1, p2)), pretty_assoc_par p3)
+  | Par (p1, p2) -> Par (pretty_assoc p1, pretty_assoc p2)
+  | _ -> pretty_assoc p
+and pretty_assoc_seq (p : policy) : policy = match p with
+  | Seq (p1, Seq (p2, p3)) ->
+    Seq (pretty_assoc_seq (Seq (p1, p2)), pretty_assoc_seq p3)
+  | Seq (p1, p2) -> Seq (pretty_assoc p1, pretty_assoc p2)
+  | _ -> pretty_assoc p
+and pretty_assoc_choice (p : policy) : policy = match p with
+  | Choice (p1, Choice (p2, p3)) ->
+    Choice (pretty_assoc_choice (Choice (p1, p2)), pretty_assoc_choice p3)
+  | Choice (p1, p2) -> Choice (pretty_assoc p1, pretty_assoc p2)
+  | _ -> pretty_assoc p
+    
