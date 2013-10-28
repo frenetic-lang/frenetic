@@ -1,6 +1,6 @@
 module Platform = SDN
 module SDN = SDN_Types
-module NetKAT = NetKAT_Types
+module NetKAT = Types
 module Stream = NetCore_Stream
 module Log = Lwt_log
 
@@ -26,33 +26,33 @@ let switch_thread
 *)
 
 let rec extract_internal_locs t = 
-  let open NetKAT_Types in
+  let open Types in
       match t with
         | Seq(p,q) -> Or (extract_internal_locs p, extract_internal_locs q)
         | Par(p,q) -> Or (extract_internal_locs p, extract_internal_locs q)
         | Choice(p,q) -> Or (extract_internal_locs p, extract_internal_locs q)
-        | Link(sw,pt,sw',pt') -> Or (And (Test (switch, sw), Test (switch, pt)),
-                                     And (Test (switch, sw'), Test (switch, pt')))
+        | Link(sw,pt,sw',pt') -> Or (And (Test (Switch, sw), Test (Switch, pt)),
+                                     And (Test (Switch, sw'), Test (Switch, pt')))
         | _ -> False
 
 let rec start ~port ~pols =
   let local_stream = 
     Stream.map 
       (fun p -> 
-        Printf.printf "p: %s\n%!" (NetKAT.string_of_policy p);
+        Printf.printf "p: %s\n%!" (Pretty.string_of_policy p);
 	let i,s,t,e = Dehop.dehop_policy p in
-        Printf.printf "i: %s\n%!" (NetKAT.string_of_policy i);
-	Printf.printf "s: %s\n%!" (NetKAT.string_of_policy s);
-	Printf.printf "t: %s\n%!" (NetKAT.string_of_policy t);
-        Printf.printf "e: %s\n%!" (NetKAT.string_of_policy e);
+        Printf.printf "i: %s\n%!" (Pretty.string_of_policy i);
+	Printf.printf "s: %s\n%!" (Pretty.string_of_policy s);
+	Printf.printf "t: %s\n%!" (Pretty.string_of_policy t);
+        Printf.printf "e: %s\n%!" (Pretty.string_of_policy e);
         let l_i = extract_internal_locs t in
-        let open NetKAT_Types in
+        let open Types in
             let p' = (Seq (Par (Seq (Filter (Neg l_i), i),
                                 Filter l_i),
                            Par (s,e))) in
-        Printf.printf "p': %s\n%!" (NetKAT.string_of_policy p');
+        Printf.printf "p': %s\n%!" (Pretty.string_of_policy p');
         let l = LocalCompiler.RunTime.compile p' in
-        Printf.printf "l: %s\n%!" (NetKAT.string_of_policy (LocalCompiler.RunTime.decompile l));
+        Printf.printf "l: %s\n%!" (Pretty.string_of_policy (LocalCompiler.RunTime.decompile l));
         l)
       pols in
   lwt (stop_accept, new_switches) = Platform.accept_switches port  in
