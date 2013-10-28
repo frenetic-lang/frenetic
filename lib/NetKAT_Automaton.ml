@@ -434,7 +434,7 @@ let switch_policies_to_policy (sm : policy SwitchMap.t) : policy =
   SwitchMap.fold (fun sw p acc -> NetKAT_Types.(Par(acc, p)))
     sm NetKAT_Types.drop
 
-let regex_to_switch_policies (r : regex) : policy SwitchMap.t =
+let regex_to_switch_lf_policies (r : regex) : (lf_policy SwitchMap.t * link list) =
   let (aregex, chash) = regex_to_aregex r in
   let auto = NFA.regex_to_t aregex in
 
@@ -460,26 +460,27 @@ let regex_to_switch_policies (r : regex) : policy SwitchMap.t =
       (all_delta m.delta q) acc)
     m m.s SwitchMap.empty in
 
-  let to_lf_policy (q, (lf_p, l), q') : lf_policy = 
+  let links = ref [] in
+
+  let to_lf_policy (q, (lf_p, l), q') : lf_policy =
+    links := l :: !links;
     let ingress =
         Seq(
           Filter(NetKAT_Types.(Test(SDN_Headers.Header SDN_Types.Vlan, VInt.Int16 q))),
           Filter(NetKAT_Types.(Test(SDN_Headers.Switch, switch_of_pchar (lf_p, l))))) in
-    let egress = 
+    let egress =
         Mod(SDN_Headers.Header(SDN_Types.Vlan), VInt.Int16 q') in
     Seq(ingress, Seq(lf_p, egress)) in
 
   let edges_to_lf_policy (es : EdgeSet.t) : lf_policy =
     let start = EdgeSet.choose es in
-    EdgeSet.fold (fun e acc -> 
+    EdgeSet.fold (fun e acc ->
       Par(acc, to_lf_policy e))
     (EdgeSet.remove start es) (to_lf_policy start) in
 
-  let edge_map = to_edge_map auto in
+  (SwitchMap.map edges_to_lf_policy (to_edge_map auto), !links)
 
-  SwitchMap.map 
-    (fun es -> lf_policy_to_policy (edges_to_lf_policy es)) 
-    edge_map
-
-let compile (p : policy) : policy SwitchMap.t =
-  regex_to_switch_policies (regex_of_policy p)
+let dehopify (p : policy) : (policy SwitchMap.t * link list) =
+  (* Man, it's times like these that you really wish you had arrows lol *)
+  let (lf_pm, ls) = regex_to_switch_lf_policies (regex_of_policy p) in
+  (SwitchMap.map lf_policy_to_policy lf_pm, ls)

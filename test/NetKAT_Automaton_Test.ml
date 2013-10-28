@@ -119,6 +119,6 @@ TEST "end-to-end test" =
   let open NetKAT_Automaton in
   let text = "0@0 => 1@1; 1@1 => 2@2; 2@2 => 1@1; 1@1 => 0@0" in
   let pol = policy_parse (String.concat "; " [text; text; text; text]) in
-  let pol' = switch_policies_to_policy (compile pol) in
+  let pol' = switch_policies_to_policy (fst (dehopify pol)) in
   print_endline (string_of_policy pol');
   false

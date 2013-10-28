@@ -27,7 +27,6 @@ val regex_of_aregex : int aregex -> (int, pchar) Hashtbl.t -> regex
 module SwitchMap : Map.S
   with type key = VInt.t
 
-val regex_to_switch_policies : regex -> policy SwitchMap.t
+val regex_to_switch_lf_policies : regex -> (lf_policy SwitchMap.t * link list)
 val switch_policies_to_policy : policy SwitchMap.t -> policy
-val compile : policy -> policy SwitchMap.t
-
+val dehopify : policy -> (policy SwitchMap.t * link list)
