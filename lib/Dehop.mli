@@ -1,4 +1,4 @@
-open NetKAT_Types
+open Types
 open SDN_Headers
 
 val dehop_policy : policy -> policy

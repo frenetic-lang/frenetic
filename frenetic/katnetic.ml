@@ -4,7 +4,7 @@ let help args =
 let run args = match args with
   | [ filename ] ->
     let cin = open_in filename in
-    let exp = NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel cin) in
+    let exp = Parser.program Lexer.token (Lexing.from_channel cin) in
     Lwt_main.run (Controller.start 6633 (NetCore_Stream.constant exp))
   | _ -> help [ "run" ]
 

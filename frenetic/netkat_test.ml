@@ -1,5 +1,3 @@
-
-
 (*
 open NetKAT_Parser
 open NetKAT_Types
@@ -76,5 +74,5 @@ end
 
 let () =
   print_string (Example.pol_str ^ "\n\n");
-  let pol = NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string Example.pol_str) in
+  let pol = Parser.program Lexer.token (Lexing.from_string Example.pol_str) in
   Lwt_main.run (Controller.start 6633 (NetCore_Stream.constant pol))

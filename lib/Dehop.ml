@@ -1,11 +1,14 @@
 open SDN_Headers
-open NetKAT_Types
+open Types
+open Pretty
+
+(* JNF: why are we duplicating so much code? *)
 
 (* i;(p;t)^*;e *)
 
 type vtag = int
 type vheader = 
-  | Field of NetKAT_Types.header
+  | Field of Types.header
   | Tag of vtag
 
 type virtual_pol =
@@ -28,8 +31,8 @@ module Formatting = struct
   let header = format_header
 
   let vheader (fmt : formatter) (h : vheader) : unit = match h with
-    | Field h' -> SDN_Headers.format_header fmt h'
-    | Tag h -> pp_print_string fmt (string_of_int h)
+    | Field h' -> format_header fmt h'
+    | Tag h -> fprintf fmt "%s" (string_of_int h)
 
     (* The type of the immediately surrounding context, which guides parenthesis-
        insertion. *)
@@ -602,6 +605,8 @@ module Optimization = struct
   let string_of_var_val v = match v with
     | AnyVal -> "AnyVal"
     | NoVal -> "NoVal"
+    | _ -> 
+      failwith "Not yet implemented"
 
   (* Because we are using virtual headers, and no one else gets to use
      them, we know that the headers have no values until we initialize
@@ -733,7 +738,7 @@ module Optimization = struct
     optimize_safe ret
 
   let optimize p = 
-    let renorm = vpol_to_linear_vpol in
+    (* let renorm = vpol_to_linear_vpol in *)
     let simpl = simplify_vpol in
     let p' = (simpl (remove_dead_matches p)) in
     (* let () = Printf.printf "p': %s\n%!" (string_of_vpolicy p') in *)
@@ -826,8 +831,6 @@ let tuple_to_int tpl =
     let _ = incr tuple_cnter in
     let _ = Hashtbl.add tuple_hashTbl tpl !tuple_cnter in
     VInt.Int16 !tuple_cnter
-
-open NetKAT_Types
 
 (* We have to be careful here. The very first time we write the tag,
    we won't have any pre-existing values, so we can't match upon them *)

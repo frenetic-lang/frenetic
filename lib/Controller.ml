@@ -1,6 +1,6 @@
 module Platform = SDN
 module SDN = SDN_Types
-module NetKAT = NetKAT_Types
+module NetKAT = Types
 module Stream = NetCore_Stream
 module Log = Lwt_log
 
@@ -25,11 +25,11 @@ let rec start ~port ~pols =
   let local_stream = 
     Stream.map 
       (fun p -> 
-	let () = Printf.printf "p: %s\n%!" (NetKAT.string_of_policy p) in 
+	let () = Printf.printf "p: %s\n%!" (Pretty.string_of_policy p) in 
 	let d = (Dehop.dehop_policy_opt p) in
-	let () = Printf.printf "d: %s\n%!" (NetKAT.string_of_policy d) in 
+	let () = Printf.printf "d: %s\n%!" (Pretty.string_of_policy d) in 
         let l = LocalCompiler.RunTime.compile d in
-        let () = Printf.printf "l: %s\n%!" (NetKAT.string_of_policy (LocalCompiler.RunTime.decompile l)) in 
+        let () = Printf.printf "l: %s\n%!" (Pretty.string_of_policy (LocalCompiler.RunTime.decompile l)) in 
         l)
       pols in
   lwt (stop_accept, new_switches) = Platform.accept_switches port  in

@@ -43,14 +43,15 @@ Library netcore
     NetCore_Monitoring,
     NetCore_Parser,
     NetCore_SurfaceSyntax,
-    NetKAT_Types,
+    Types,
+    Lexer,
+    Parser,
+    Semantics,
+    Pretty,
     LocalCompiler,
     Dehop,
-    NetKAT_Lexer,
-    NetKAT_Parser,
-    Controller,
-    Semantics,
-    SDN_Headers
+    Controller
+
   Modules:
     NetCore_Util,
     NetCore_Action,
