@@ -47,8 +47,8 @@ let rec start ~port ~pols =
 	let () = Printf.printf "e: %s\n%!" (NetKAT.string_of_policy e) in 
         let l_i = extract_internal_locs t in
         let open NetKAT_Types in
-        let l = LocalCompiler.RunTime.compile (Seq (Par (Seq (Filter l_i, i),
-                                                         Filter (Neg l_i)),
+        let l = LocalCompiler.RunTime.compile (Seq (Par (Seq (Filter (Neg l_i), i),
+                                                         Filter l_i),
                                                     Par (s,e))) in
         let () = Printf.printf "l: %s\n%!" (NetKAT.string_of_policy (LocalCompiler.RunTime.decompile l)) in 
         l)

@@ -951,7 +951,7 @@ let rec simplify_pol p =
 let rec separate_i p = match p with
   | Seq(Star _, p) -> Filter True
   | Seq(p,q) -> Seq(p, separate_i q)
-  | _ -> Filter True
+  | _ -> p
 
 let rec separate_t_from_pt p = match p with
   | Seq(p, Link (sw,pt,sw',pt')) -> Link (sw,pt,sw',pt')
@@ -971,14 +971,14 @@ let rec separate_p_from_pt p = match p with
 let rec separate_p p = match p with
   | Star(p) -> separate_p_from_pt p
   | Seq(Star(p), _) -> separate_p_from_pt p
-  | Seq(p,q) -> Seq(p, separate_p q)
-  | _ -> Filter True
+  | Seq(p,q) -> separate_p q
+  | _ -> Filter False
 
 let rec separate_t p = match p with
   | Star(p) -> separate_t_from_pt p
   | Seq(Star(p), q) -> separate_t_from_pt p
   | Seq(p,q) -> separate_t q
-  | _ -> Filter True
+  | _ -> Filter False
 
 let rec separate_e p = match p with
   | Seq(Star _, p) -> p
@@ -1008,8 +1008,15 @@ let rec strip_vlans p = match p with
 let dehop_policy p =
   let (i,s,t,e) = dehopify (simplify_pol p) in
   let p' = Optimization.simplify_vpol (VSeq(i, VSeq(VStar(VSeq(s,t)), e))) in
+  let () = Printf.printf "p': %s\n%!" (string_of_vpolicy p') in
   let p'' = Optimization.optimize p' in
-  let p''' = pol_to_linear_pol (simplify_pol (fst (convert_tag_to_hdr (collect_tags p') SDN_Types.Vlan p'' false))) in
+  let () = Printf.printf "p'': %s\n%!" (string_of_vpolicy p'') in
+  let p''' = pol_to_linear_pol (simplify_pol (fst (convert_tag_to_hdr (collect_tags p'') SDN_Types.Vlan p'' false))) in
+  let () = Printf.printf "p''': %s\n%!" (string_of_policy p''') in
   let i',s',t',e' = separate_policy p''' in
+  let () = Printf.printf "i': %s\n%!" (string_of_policy i') in
+  let () = Printf.printf "e': %s\n%!" (string_of_policy e') in
+  let () = Printf.printf "s': %s\n%!" (string_of_policy s') in
+  let () = Printf.printf "t': %s\n%!" (string_of_policy t') in
   let i'',s'',t'',e'' = simplify_pol i', simplify_pol s', simplify_pol t', simplify_pol e' in
   (i'', s'', t'', Seq(strip_vlans e'', strip_vlan))
