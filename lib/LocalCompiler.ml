@@ -8,7 +8,6 @@
    - g, groups
 *)
 
-
 (* utility function *)
 let header_val_map_to_string eq sep m =
   Types.HeaderMap.fold
@@ -123,14 +122,19 @@ module Action = struct
          [] g)
 
   let to_netkat (a:t) : Types.policy =
-    if Types.HeaderMap.is_empty a then
+    let h_port = Types.Header SDN_Types.InPort in 
+    if Types.HeaderMap.is_empty a then 
       Types.Filter Types.True
-    else
-      let f h v pol' = Types.Seq (pol', Types.Mod (h, v)) in
+    else 
+      let f h v pol' = 
+	if h = h_port then 
+	  Types.Seq (pol', Types.Mod (h, v)) 
+	else 
+	  Types.Seq (Types.Mod (h, v), pol') in
       let (h, v) = Types.HeaderMap.min_binding a in
       let a' = Types.HeaderMap.remove h a in
-      Types.HeaderMap.fold f a' (Types.Mod  (h, v))
-
+      Types.HeaderMap.fold f a' (Types.Mod (h, v))
+	
   let set_to_netkat (s:Set.t) : Types.policy =
     if Set.is_empty s then
       Types.Filter Types.False
@@ -564,12 +568,12 @@ module RunTime = struct
 
   let to_action (a:Action.t) : SDN_Types.seq =
     if not (Types.HeaderMap.mem (Types.Header SDN_Types.InPort) a) then
-      []
+      [] 
     else
-      let port = Types.HeaderMap.find (Types.Header SDN_Types.InPort) a in
+      let port = Types.HeaderMap.find (Types.Header SDN_Types.InPort) a in 
       let mods = Types.HeaderMap.remove (Types.Header SDN_Types.InPort) a in
       let mk_mod h v act =
-        match h with
+	match h with
           | Types.Switch -> 
 	    raise (Invalid_argument "Action.to_action got switch update")
           | Types.Header h' -> 

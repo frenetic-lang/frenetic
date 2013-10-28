@@ -1,4 +1,4 @@
-module QCGen = QuickCheck_gen
+1module QCGen = QuickCheck_gen
 
 open SDN_Types
 open Types
@@ -11,6 +11,16 @@ let test_compile lhs rhs =
   else
     (Format.printf "compile @,%a@, produced %a@,,@,expected %a\n%!"
        format_policy lhs format_policy rhs' format_policy rhs;
+     false)
+
+let test_compile_table pol tbl = 
+  let open LocalCompiler.RunTime in 
+  let tbl' = to_table (VInt.Int64 0L) (compile pol) in 
+  if tbl = tbl' then 
+    true
+  else
+    (Format.printf "compile @,%a@, produced %a@,,@,expected %a\n%!"
+       format_policy pol format_flowTable tbl' format_flowTable tbl;
      false)
 
 let ite (pred : pred) (then_pol : policy) (else_pol : policy) : policy =
@@ -113,7 +123,7 @@ TEST "policy that caused stack overflow on 10/16/2013" =
 TEST "quickcheck failure on 10/16/2013" =
   test_compile
     (Seq (modSrc 0, Par (Filter (testSrc 2), modDst 2)))
-    (Seq (modSrc 0, modDst 2))
+    (Seq (modDst 2, modSrc 0))
 
 TEST "choice1" =
   test_compile
@@ -137,6 +147,23 @@ TEST "choice3" =
 			  Choice (Par (modSrc 0, modSrc 1),
 				  modSrc 1))))))
     
+TEST "vlan" =
+  let test_vlan_none = Test (Header Vlan, VInt.Int16 0xFFF) in
+  let mod_vlan_none = Mod (Header Vlan, VInt.Int16 0xFFF) in
+  let mod_port1 = Mod (Header InPort, VInt.Int16 1) in 
+  let id = Filter True in
+  let pol =
+    Seq (ite 
+	   test_vlan_none 
+	   id
+	   (Seq(id, mod_vlan_none)), 
+	 mod_port1) in
+  let pol' = 
+    ite test_vlan_none
+      mod_port1
+      (Seq (mod_vlan_none, mod_port1)) in 
+  test_compile pol pol'
+
 (* TEST "quickcheck local compiler" = *)
 (*   let testable_pol_pkt_to_bool = *)
 (*     let open QuickCheck in *)
