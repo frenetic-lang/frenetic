@@ -207,7 +207,38 @@ let from_handle (switch : Switch.t) : t =
 let disconnect (t : t) : unit Lwt.t = 
   Switch.disconnect t.switch
     
+(* Compiler may generate code that pops vlans w/o matching for vlan
+   tags. We have to enforce that pop_vlan is only called on vlan tagged
+   packets *)
+let contains_vlan_pop (act : SDN_Types.group) = 
+  let vlan_pop a = match a with
+    | SDN_Types.SetField (SDN_Types.Vlan, VInt.Int16 0xFFFF) -> true
+    | _ -> false in
+  List.exists (List.exists (List.exists vlan_pop)) act
+
+let contains_vlan = SDN_Types.FieldMap.mem SDN_Types.Vlan
+
+let strip_vlan_pop = List.map (List.map (List.fold_left (fun acc a -> match a with
+  | SDN_Types.SetField (SDN_Types.Vlan, VInt.Int16 0xFFFF) -> acc
+  | _ -> a :: acc) []))
+
+let fix_vlan_in_flow fl =
+  let open SDN_Types in
+  if contains_vlan_pop fl.action && not (contains_vlan fl.pattern) then
+    (* match on vlan_none, then drop the strip_vlan *)
+    [{fl with pattern = FieldMap.add Vlan (VInt.Int16 0xFFFF) fl.pattern;
+      action = strip_vlan_pop fl.action}] @
+    (* match on vlan_any, use the same actions *)
+      [{fl with pattern = FieldMap.add Vlan (VInt.Int16 (-1)) fl.pattern}]
+  else
+    [fl]
+
+let rec fix_vlan_in_table tbl = match tbl with
+  | [] -> []
+  | fl :: tbl -> fix_vlan_in_flow fl @ fix_vlan_in_table tbl
+ 
 let setup_flow_table (sw : t) (tbl : AL.flowTable) : unit Lwt.t =
+  let tbl = fix_vlan_in_table tbl in
   let priority = ref 65535 in
   let mk_flow_mod (flow : AL.flow) =
     let flow_mod = from_flow sw.group_table !priority flow in
