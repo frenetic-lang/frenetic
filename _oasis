@@ -43,14 +43,15 @@ Library netcore
     NetCore_Monitoring,
     NetCore_Parser,
     NetCore_SurfaceSyntax,
-    NetKAT_Types,
+    Types,
+    Lexer,
+    Parser,
+    Semantics,
+    Pretty,
     LocalCompiler,
     Dehop,
-    NetKAT_Lexer,
-    NetKAT_Parser,
-    Controller,
-    Semantics,
-    SDN_Headers
+    Controller
+
   Modules:
     NetCore_Util,
     NetCore_Action,
@@ -80,7 +81,6 @@ Library quickcheck
   Modules:
     NetKAT_Arbitrary
 
-
 Executable testtool
   Path: test
   MainIs: Test.ml
@@ -98,16 +98,6 @@ Test all_tests
   Run$: flag(tests)
   TestTools: testtool
 
-Executable frenetic
-  Path: frenetic
-  MainIs: frenetic.ml
-  Custom: true
-  Install$: flag(installexec)
-  BuildDepends:
-    lwt,
-    lwt.syntax,
-    netcore
-
 Executable katnetic
   Path: frenetic
   MainIs: katnetic.ml
@@ -117,9 +107,9 @@ Executable katnetic
     lwt.syntax,
     netcore
 
-Executable maclearning
+Executable dehop_test
   Path: frenetic
-  MainIs: maclearning.ml
+  MainIs: dehop_test.ml
   Install$: flag(installexec)
   BuildDepends:
     lwt,
@@ -134,7 +124,6 @@ Executable netkat_test
     lwt,
     lwt.syntax,
     netcore
-
 
 Document doc
   Title: NetCore Documentation

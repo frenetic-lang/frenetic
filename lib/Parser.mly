@@ -1,5 +1,5 @@
 %{
-  open NetKAT_Types
+  open Types
   open SDN_Headers
 
   (* Ethernet frame types *)
@@ -43,7 +43,7 @@
 
 %start program
 
-%type <NetKAT_Types.policy> program
+%type <Types.policy> program
 
 %%
 

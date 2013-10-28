@@ -1,7 +1,6 @@
 open Packet
 open NetCore_Types
 open NetCore_Util
-open SDN_Headers
 open Unix
 
 (* The [Sat] module provides a representation of formulas in

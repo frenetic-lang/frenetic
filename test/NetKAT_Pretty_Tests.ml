@@ -1,14 +1,15 @@
-open NetKAT_Types
-module SDN = SDN_Types
+open Types
+open Pretty
 open VInt
+module SDN = SDN_Types
 
-let policy_parse (p : string) : NetKAT_Types.policy =
-  NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string p)
+let policy_parse (p : string) : Types.policy =
+  Parser.program Lexer.token (Lexing.from_string p)
 
 let test_pretty str =
-  let pol1 = NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string str) in
+  let pol1 = Parser.program Lexer.token (Lexing.from_string str) in
   let str' = string_of_policy pol1 in
-  let pol2 = NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string str') in
+  let pol2 = Parser.program Lexer.token (Lexing.from_string str') in
   pol1 = pol2
 
 let str1 = "filter port = 1"
@@ -24,11 +25,12 @@ TEST "assoc par" = test_pretty str3 = true
 let testable_pol_to_bool = 
   let open QuickCheck in
   let open QuickCheck_gen in
-   let open NetKAT_Arbitrary in
-    testable_fun 
-      (resize 11 arbitrary_pol) string_of_policy testable_bool
+  let open NetKAT_Arbitrary in
+  testable_fun 
+    (resize 11 arbitrary_policy) 
+    string_of_policy testable_bool
 
-let prop_parse_pol_idempotent (p : NetKAT_Types.policy) : bool =
+let prop_parse_pol_idempotent (p : Types.policy) : bool =
   try policy_parse (string_of_policy p) = p
   with _ -> 
     Printf.printf "POL: %s\n" (string_of_policy p);
