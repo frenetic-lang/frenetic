@@ -27,6 +27,7 @@ Library netcore
     lwt,
     lwt.unix,
     cstruct,
+    dprle,
     lwt.syntax,
     lwt.syntax.log,
     str,

@@ -23,3 +23,11 @@ val lf_policy_to_string : lf_policy -> string
 
 val regex_to_aregex : regex -> int aregex * ((int, pchar) Hashtbl.t)
 val regex_of_aregex : int aregex -> (int, pchar) Hashtbl.t -> regex
+
+module SwitchMap : Map.S
+  with type key = VInt.t
+
+val regex_to_switch_policies : regex -> policy SwitchMap.t
+val switch_policies_to_policy : policy SwitchMap.t -> policy
+val compile : policy -> policy SwitchMap.t
+

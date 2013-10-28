@@ -263,3 +263,225 @@ let regex_to_aregex (r : regex) : (int aregex) * ((int,  pchar) Hashtbl.t) =
 
 let rec regex_of_aregex (r : int aregex) (htbl : (int, pchar) Hashtbl.t) : regex =
   fmap_aregex (Hashtbl.find htbl) r
+
+module NFA = struct
+  open Nfa
+
+  type t = nfa
+
+  type state = Nfa.state
+
+  type edge = state * charset * state 
+
+  module EdgeSet = Set.Make(struct
+    type t = edge
+    let compare = Pervasives.compare
+  end)
+
+  module StateSet = Nfa.StateSet
+
+  module CharSet = struct
+    type t = Charset.set
+    let mem = Charset.mem 
+    let iter = Charset.iter 
+    let fold = Charset.fold 
+  end
+
+  let to_dot m = nfa_to_dot m
+
+  let state_equal q1 q2 = 
+    q1 = q2
+
+  let state_accept m q = 
+    StateSet.mem m.f (eps_closure m q) 
+
+  let state_init m q = 
+    m.s = q
+
+    (*
+  let to_string m = 
+    forward_fold_nfa
+      (fun q acc -> 
+	Hashtbl.fold (fun q' ns acc -> 
+	  CharSet.fold (fun n acc -> 
+	    try 
+	      let string_of_state q = 
+            if state_init m q then "<q" ^ string_of_int q ^ ">"
+            else if state_accept m q then "[q" ^ string_of_int q ^ "]"
+            else " q" ^ string_of_int q ^ " " in 		
+	      let (s,fo) = SymbolHash.find symbol_to_code n in 
+	      acc ^ (Printf.sprintf "%s ==(%s,%s)==> %s\n" 
+		       (string_of_state q)
+		       s 
+		       (match fo with None -> "_" | Some f -> f) 
+		       (string_of_state q'))
+	    with Not_found -> 
+	      acc ^ (Printf.sprintf "q%d -???-> q%d\n" q q'))
+	    ns acc)
+	  (all_delta m.delta q) acc)
+      m m.s "\n" 
+      *)
+
+  let state_name s = Printf.sprintf "%d" s
+
+  let edge_symbols (_,ns,_) = 
+    ns
+
+  let edge_name (q1,_,q2) = 
+    Printf.sprintf "%d_%d" q1 q2
+
+  let edge_src (q,_,_) = 
+    q
+
+  let edge_dst (_,_,q) = 
+    q
+
+  let states m = 
+    Hashset.fold StateSet.add m.q StateSet.empty
+
+  let inits m = 
+    StateSet.singleton m.s
+  
+  let accepts m = 
+    StateSet.filter (state_accept m) (states m)
+  
+  let edges m = 
+    forward_fold_nfa 
+      (fun q acc -> 
+	Hashtbl.fold 
+	  (fun q' ns acc -> EdgeSet.add (q,ns,q') acc)
+	  (all_delta m.delta q) acc)
+      m m.s EdgeSet.empty  
+  
+  let outgoing m q = 
+    Hashtbl.fold 
+      (fun q' ns acc -> EdgeSet.add (q,ns,q') acc)
+      (all_delta m.delta q)
+      EdgeSet.empty  
+      
+  let eps_eliminate m =
+    let qi,qf = 0,1 in 
+    let m' = new_nfa_states qi qf in 
+    let h_eps = Hashtbl.create 17 in 
+    let h_r = Hashtbl.create 17 in 
+    let () = 
+      Hashset.iter 
+	(fun q -> 
+	  let qs = eps_closure m q in 
+	  Hashtbl.add h_eps q qs;
+	  if q = m.s then 
+	    Hashtbl.add h_r qs qi 
+	  else if StateSet.mem m.f qs then 
+	    let r = new_state m' in 
+	    Hashtbl.add h_r qs r;
+	    add_trans m' r Epsilon qf
+	  else if not (Hashtbl.mem h_r qs) then 
+	    let r = new_state m' in 
+	    Hashtbl.add h_r qs r)
+	m.q in 
+    let () = 
+      forward_fold_nfa 
+	(fun q () -> 
+	  let qs = Hashtbl.find h_eps q in 
+	  let r = Hashtbl.find h_r qs in 
+	  StateSet.iter
+	    (fun qi -> 
+	      Hashtbl.iter
+		(fun q' ns -> 	      
+		  let qs' = Hashtbl.find h_eps q' in 
+		  let r' = Hashtbl.find h_r qs' in 
+		  add_set_trans m' r ns r')
+		(all_delta m.delta qi))
+	    qs)
+	m m.s () in 
+    m'
+
+  let subseteq = nfa_subseteq
+
+  let regex_to_t r = 
+    let create () = new_nfa_states 0 1 in 
+    let rec loop r = 
+      match r with 
+      | Char n -> 
+        let m = create () in 
+        add_trans m m.s (Character n) m.f;
+        m
+      | Alt(r1,r2) ->
+        union (loop r1) (loop r2)
+      | Cat(r1,r2) ->
+        simple_concat (loop r1) (loop r2)
+      | Kleene(r) -> 
+        let m = loop r in 
+        add_trans m m.s Epsilon m.f;
+        add_trans m m.f Epsilon m.s;
+        m
+      | Empty ->
+        create () in 
+        let m = eps_eliminate (loop r) in 
+        elim_dead_states m; 
+        m
+end
+
+module SwitchMap = Map.Make(struct
+  type t = VInt.t
+  let compare = Pervasives.compare
+end)
+
+module EdgeSet = Set.Make(struct
+  type t = NFA.state * pchar * NFA.state
+  let compare = Pervasives.compare
+end)
+
+let switch_policies_to_policy (sm : policy SwitchMap.t) : policy =
+  SwitchMap.fold (fun sw p acc -> NetKAT_Types.(Par(acc, p)))
+    sm NetKAT_Types.drop
+
+let regex_to_switch_policies (r : regex) : policy SwitchMap.t =
+  let (aregex, chash) = regex_to_aregex r in
+  let auto = NFA.regex_to_t aregex in
+
+  let switch_of_pchar (_, (sw, _, _, _)) = sw in
+
+  let add (sw : VInt.t) e (m : EdgeSet.t SwitchMap.t) =
+    try
+       SwitchMap.add sw (EdgeSet.add e (SwitchMap.find sw m)) m
+    with Not_found ->
+      SwitchMap.add sw (EdgeSet.singleton e) m in
+
+  let add_all ((q, ns, q') : NFA.edge) (m : EdgeSet.t SwitchMap.t) =
+    Hashtbl.fold (fun i () acc ->
+      let pchar = Hashtbl.find chash i in
+      add (switch_of_pchar pchar) (q, pchar, q') acc)
+    ns m in
+
+  let to_edge_map (m : NFA.t) : EdgeSet.t SwitchMap.t =
+    let open Nfa in 
+    forward_fold_nfa (fun q acc ->
+      Hashtbl.fold (fun q' ns acc -> 
+        add_all (q,ns,q') acc)
+      (all_delta m.delta q) acc)
+    m m.s SwitchMap.empty in
+
+  let to_lf_policy (q, (lf_p, l), q') : lf_policy = 
+    let ingress =
+        Seq(
+          Filter(NetKAT_Types.(Test(SDN_Headers.Header SDN_Types.Vlan, VInt.Int16 q))),
+          Filter(NetKAT_Types.(Test(SDN_Headers.Switch, switch_of_pchar (lf_p, l))))) in
+    let egress = 
+        Mod(SDN_Headers.Header(SDN_Types.Vlan), VInt.Int16 q') in
+    Seq(ingress, Seq(lf_p, egress)) in
+
+  let edges_to_lf_policy (es : EdgeSet.t) : lf_policy =
+    let start = EdgeSet.choose es in
+    EdgeSet.fold (fun e acc -> 
+      Par(to_lf_policy e, acc))
+    (EdgeSet.remove start es) (to_lf_policy start) in
+
+  let edge_map = to_edge_map auto in
+
+  SwitchMap.map 
+    (fun es -> lf_policy_to_policy (edges_to_lf_policy es)) 
+    edge_map
+
+let compile (p : policy) : policy SwitchMap.t =
+  regex_to_switch_policies (regex_of_policy p)
