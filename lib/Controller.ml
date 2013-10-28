@@ -39,18 +39,20 @@ let rec start ~port ~pols =
   let local_stream = 
     Stream.map 
       (fun p -> 
-	let () = Printf.printf "p: %s\n%!" (NetKAT.string_of_policy p) in 
+        Printf.printf "p: %s\n%!" (NetKAT.string_of_policy p);
 	let i,s,t,e = Dehop.dehop_policy p in
-	let () = Printf.printf "i: %s\n%!" (NetKAT.string_of_policy i) in 
-	let () = Printf.printf "s: %s\n%!" (NetKAT.string_of_policy s) in 
-	let () = Printf.printf "t: %s\n%!" (NetKAT.string_of_policy t) in 
-	let () = Printf.printf "e: %s\n%!" (NetKAT.string_of_policy e) in 
+        Printf.printf "i: %s\n%!" (NetKAT.string_of_policy i);
+	Printf.printf "s: %s\n%!" (NetKAT.string_of_policy s);
+	Printf.printf "t: %s\n%!" (NetKAT.string_of_policy t);
+        Printf.printf "e: %s\n%!" (NetKAT.string_of_policy e);
         let l_i = extract_internal_locs t in
         let open NetKAT_Types in
-        let l = LocalCompiler.RunTime.compile (Seq (Par (Seq (Filter (Neg l_i), i),
-                                                         Filter l_i),
-                                                    Par (s,e))) in
-        let () = Printf.printf "l: %s\n%!" (NetKAT.string_of_policy (LocalCompiler.RunTime.decompile l)) in 
+            let p' = (Seq (Par (Seq (Filter (Neg l_i), i),
+                                Filter l_i),
+                           Par (s,e))) in
+        Printf.printf "p': %s\n%!" (NetKAT.string_of_policy p');
+        let l = LocalCompiler.RunTime.compile p' in
+        Printf.printf "l: %s\n%!" (NetKAT.string_of_policy (LocalCompiler.RunTime.decompile l));
         l)
       pols in
   lwt (stop_accept, new_switches) = Platform.accept_switches port  in
