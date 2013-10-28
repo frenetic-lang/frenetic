@@ -989,6 +989,8 @@ let separate_policy p = separate_i p, separate_p p, separate_t p, separate_e p
 
 let strip_vlan = Mod (Header SDN_Types.Vlan,VInt.Int16 0xFFFF)
 
+let vlan_none = Test (Header SDN_Types.Vlan,VInt.Int16 0xFFFF)
+
 (* I'm unclear about the precise semantics of forwarding to hosts that
    aren't represented in the topology. To be safe, I'm stripping VLAN as soon as we forward out any port in e *)
 
@@ -1019,4 +1021,4 @@ let dehop_policy p =
   let () = Printf.printf "s': %s\n%!" (string_of_policy s') in
   let () = Printf.printf "t': %s\n%!" (string_of_policy t') in
   let i'',s'',t'',e'' = simplify_pol i', simplify_pol s', simplify_pol t', simplify_pol e' in
-  (i'', s'', t'', Seq(strip_vlans e'', strip_vlan))
+  (i'', s'', t'', Par (Seq (Filter vlan_none, e''), Seq(Filter (Neg vlan_none), Seq(strip_vlans e'', strip_vlan))))
