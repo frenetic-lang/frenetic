@@ -65,9 +65,7 @@ let gen_pred : pred QuickCheck_gen.gen =
         (1, ret_gen (True));
         (1, ret_gen (False));
         (3, gen_pred_ctor ())
-<<<<<<< HEAD
       ]
-
 
 let gen_atom_pol : policy QuickCheck_gen.gen = 
   let open QuickCheck_gen in
