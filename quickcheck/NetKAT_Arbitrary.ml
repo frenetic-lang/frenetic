@@ -100,7 +100,7 @@ module Make
     let open QuickCheck_gen in
       sized (fun n ->
         frequency [
-            (1, arbitrary_atom);
+            (1, gen_atom_pol);
             (max 0 (n - 1), gen_composite_pol ()) ])
 
 
