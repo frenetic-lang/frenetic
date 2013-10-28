@@ -69,10 +69,6 @@ type regex = pchar aregex
 
 (* BEGIN TO POLICY ---------------------------------------------------------- *)
 
-(*
- * Helper function for `regex_of_policy`. Straight up replace constructors from
- * this module with the identically-named constructors from `NetKAT_Types`.
- *)
 let rec lf_policy_to_policy (lfp : lf_policy) : policy =
   match lfp with
     | Filter(p) -> NetKAT_Types.Filter(p)
@@ -86,7 +82,6 @@ let rec lf_policy_to_policy (lfp : lf_policy) : policy =
     | Star(p) ->
       NetKAT_Types.Star(lf_policy_to_policy p)
 
-(* Helper function for `regex_of_policy`. Take care of link translation *)
 let link_to_policy ((sw1, pt1, sw2, pt2) : link) : policy =
   NetKAT_Types.Link(sw1, pt1, sw2, pt2)
 
@@ -107,9 +102,6 @@ let regex_to_string (r : regex) : string =
 
 let lf_policy_to_string (lf_p : lf_policy) : string =
   NetKAT_Types.string_of_policy (lf_policy_to_policy lf_p)
-
-let mlf_policy_to_string (mp : lf_policy option) : string =
-  optional "<no lf_p>" lf_policy_to_string mp
 
 (* END TO POLICY ------------------------------------------------------------ *)
 
