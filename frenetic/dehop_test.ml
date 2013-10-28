@@ -1,7 +1,6 @@
 (* KATNetic is a more civilized name than what Nate suggested. *)
 open Types
 module Example = struct
-  open SDN_Headers
   open Dehop
 
   let rec par_list lst =

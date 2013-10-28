@@ -1,4 +1,3 @@
-open SDN_Headers
 open Types
 open Pretty
 
