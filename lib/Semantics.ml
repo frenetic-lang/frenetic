@@ -51,8 +51,8 @@ module type S = sig
   val eval : packet -> policy -> PacketSet.t
 
   val format_policy : Format.formatter -> policy -> unit
-
   val string_of_policy : policy -> string
+  val pretty_assoc : policy -> policy
 
 end
 
@@ -171,15 +171,15 @@ module Make (Headers : HEADERS) = struct
           | PAREN_PR
           | OR_L
           | OR_R
-          | AND_L -> fprintf fmt "@[%a && %a@]" (pred AND_L) p1 (pred AND_R) p2
-          | _ -> fprintf fmt "@[(@[%a && %a@])@]" (pred AND_L) p1 (pred AND_R) p2
+          | AND_L -> fprintf fmt "@[%a &&@ %a@]" (pred AND_L) p1 (pred AND_R) p2
+          | _ -> fprintf fmt "@[(@[%a &&@ %a@])@]" (pred AND_L) p1 (pred AND_R) p2
         end
 
       | Or (p1, p2) -> 
         begin match cxt with
           | PAREN_PR
-          | OR_L -> fprintf fmt "@[%a || %a@]" (pred OR_L) p1 (pred OR_R) p2
-          | _ -> fprintf fmt "@[(@[%a || %a@])@]" (pred OR_L) p1 (pred OR_R) p2
+          | OR_L -> fprintf fmt "@[%a ||@ %a@]" (pred OR_L) p1 (pred OR_R) p2
+          | _ -> fprintf fmt "@[(@[%a ||@ %a@])@]" (pred OR_L) p1 (pred OR_R) p2
         end
 
     type policy_context = SEQ_L | SEQ_R | PAR_L | PAR_R | STAR | PAREN
@@ -205,8 +205,8 @@ module Make (Headers : HEADERS) = struct
       | Par (p1, p2) -> 
         begin match cxt with
           | PAREN
-          | PAR_L -> fprintf fmt "@[%a + %a@]" (pol PAR_L) p1 (pol PAR_R) p2
-          | _ -> fprintf fmt "@[(@[%a + %a@])@]" (pol PAR_L) p1 (pol PAR_R) p2
+          | PAR_L -> fprintf fmt "@[%a +@ %a@]" (pol PAR_L) p1 (pol PAR_R) p2
+          | _ -> fprintf fmt "@[(@[%a +@ %a@])@]" (pol PAR_L) p1 (pol PAR_R) p2
         end
 
       | Seq (p1, p2) -> 
@@ -214,13 +214,36 @@ module Make (Headers : HEADERS) = struct
           | PAREN
           | PAR_L
           | PAR_R
-          | SEQ_L -> fprintf fmt "@[%a ; %a@]" (pol SEQ_L) p1 (pol SEQ_R) p2
-          | _ -> fprintf fmt "@[(@[%a ; %a@])@]" (pol SEQ_L) p1 (pol SEQ_R) p2
+          | SEQ_L -> fprintf fmt "@[%a;@ %a@]" (pol SEQ_L) p1 (pol SEQ_R) p2
+          | _ -> fprintf fmt "@[(@[%a;@ %a@])@]" (pol SEQ_L) p1 (pol SEQ_R) p2
         end
   end
 
   let format_policy = Formatting.pol Formatting.PAREN
 
   let string_of_policy = NetCore_Util.make_string_of format_policy
+
+  let rec pretty_assoc (p : policy) : policy = match p with
+    | Filter _ -> p
+    | Mod _ -> p
+    | Par (p1, p2) -> pretty_assoc_par p
+    | Seq (p1, p2) -> pretty_assoc_seq p
+    | Choice (p1, p2) -> pretty_assoc_choice p
+    | Star p' -> Star (pretty_assoc p')
+  and pretty_assoc_par (p : policy) : policy = match p with
+  | Par (p1, Par (p2, p3)) ->
+    Par (pretty_assoc_par (Par (p1, p2)), pretty_assoc_par p3)
+  | Par (p1, p2) -> Par (pretty_assoc p1, pretty_assoc p2)
+  | _ -> pretty_assoc p
+  and pretty_assoc_seq (p : policy) : policy = match p with
+  | Seq (p1, Seq (p2, p3)) ->
+    Seq (pretty_assoc_seq (Seq (p1, p2)), pretty_assoc_seq p3)
+  | Seq (p1, p2) -> Seq (pretty_assoc p1, pretty_assoc p2)
+  | _ -> pretty_assoc p
+  and pretty_assoc_choice (p : policy) : policy = match p with
+  | Choice (p1, Choice (p2, p3)) ->
+    Choice (pretty_assoc_choice (Choice (p1, p2)), pretty_assoc_choice p3)
+  | Choice (p1, p2) -> Choice (pretty_assoc p1, pretty_assoc p2)
+  | _ -> pretty_assoc p
 
 end
