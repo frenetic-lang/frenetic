@@ -166,16 +166,22 @@ let rec mk_tp (l : link) (macc : lf_policy option) : link_provider =
         (* print_string ("mk_tp with lf_p: " ^ (lf_policy_to_string lf_p) ^ "\n"); *)
         TP(mk_tp l (Some(mk_mcstr (flip cstr) macc lf_p)))
 
+(* Turn an optional link_provider into an inter. Call in the case where
+ * a link is needed, and link-free policies can no longer be accepted. The inter
+ * this function produces will ensure that it never receives further link-free
+ * policies, and will continue to produce an NL continuation until some context
+ * provides it with a valid (non-None) link-provider.
+ *)
+let rec mk_inter_of_mlp (c : cstr) (mlp : link_provider option) : inter =
+  match mlp with
+    | None    -> NL(fun c mp mlp -> assert (is_none mp); mk_inter_of_mlp c mlp)
+    | Some lp -> lp c None
+
 
 (* END DATA TYPES ----------------------------------------------------------- *)
 
 
 let regex_of_policy (p : policy) : regex =
-
-  let rec of_mlink (c : cstr) (mlp : link_provider option) : inter =
-    match mlp with
-      | None    -> NL(fun cstr mp mlp -> assert (is_none mp); of_mlink cstr mlp)
-      | Some lp -> lp c None in
 
   let rec rpc (p : policy) : inter =
     (* print_string ((NetKAT_Types.string_of_policy p) ^ "\n"); *)
@@ -209,12 +215,12 @@ let regex_of_policy (p : policy) : regex =
     begin match i, j with
       | TP f1, TP f2 -> TP(fun c mlp -> rpc_par (f1 c mlp) (f2 c mlp))
       | TP f1, NL f2 -> NL(fun c mlf_p mlp ->
-                            rpc_par (rpc_seq (f1 c mlf_p) (of_mlink c mlp))
+                            rpc_par (rpc_seq (f1 c mlf_p) (mk_inter_of_mlp c mlp))
                                     (f2 c mlf_p mlp))
       | TP f1, S  r  -> S(Alt(run i, r))
       | NL f1, TP f2 -> NL(fun c mlf_p mlp ->
                             rpc_par (f1 c mlf_p mlp)
-                                    (rpc_seq (f2 c mlf_p) (of_mlink c mlp)))
+                                    (rpc_seq (f2 c mlf_p) (mk_inter_of_mlp c mlp)))
       | NL f1, NL f2 -> f1 par None (Some(fun c mlf_q -> f2 c mlf_q None))
       | NL f1, S  r  -> s_trans r i (fun x y -> Alt(y, x))
       | S   r, _     -> s_trans r j (fun x y -> Alt(x, y))
