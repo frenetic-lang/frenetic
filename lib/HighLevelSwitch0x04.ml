@@ -97,7 +97,11 @@ module Common = HighLevelSwitch_common.Make (struct
     (Mod.none, Output Core.InPort)
         else
     (Mod.none, Output (Core.PhysicalPort n))
-      | OutputPort _ -> raise (Invalid_argument "expected OpenFlow 1.3 port number")
+      | OutputPort n -> let n = VInt.get_int32 n in
+                        if Some n = inPort then
+                          (Mod.none, Output Core.InPort)
+                        else
+                          (Mod.none, Output (Core.PhysicalPort n))
       | SetField (AL.InPort, _) -> raise (Invalid_argument "cannot set input port")
       | SetField (EthType, _) -> raise (Invalid_argument "cannot set frame type")
       | SetField (EthSrc, VInt.Int48 n) -> (Mod.dlSrc, Core.SetField (OxmEthSrc (v_to_m n)))
