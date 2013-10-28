@@ -474,7 +474,7 @@ let regex_to_switch_policies (r : regex) : policy SwitchMap.t =
   let edges_to_lf_policy (es : EdgeSet.t) : lf_policy =
     let start = EdgeSet.choose es in
     EdgeSet.fold (fun e acc -> 
-      Par(to_lf_policy e, acc))
+      Par(acc, to_lf_policy e))
     (EdgeSet.remove start es) (to_lf_policy start) in
 
   let edge_map = to_edge_map auto in
