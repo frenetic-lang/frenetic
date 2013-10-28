@@ -54,17 +54,18 @@ let rec gen_composite_pred () : pred QuickCheck_gen.gen =
 
   and gen_pred_ctor () : pred QuickCheck_gen.gen =
     let open QuickCheck_gen in
-	sized (fun n -> treesize n
-          (frequency [ (1, gen_atom_pred);
-                       (max 0 (n - 1), gen_composite_pred ())
-                     ]))
-
+      sized (fun n -> treesize n
+        (frequency [ (1, gen_atom_pred);
+                     (max 0 (n - 1), gen_composite_pred ())
+                   ]))
+      
 let gen_pred : pred QuickCheck_gen.gen =
   let open QuickCheck_gen in
       frequency [
         (1, ret_gen (True));
         (1, ret_gen (False));
         (3, gen_pred_ctor ())
+<<<<<<< HEAD
       ]
 
 

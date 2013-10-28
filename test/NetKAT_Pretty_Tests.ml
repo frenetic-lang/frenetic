@@ -33,6 +33,13 @@ TEST "line wrap" =
   filter port = 1; filter port = 1; filter port = 1; filter port = 1" in
   parse_pretty str = str
 
+TEST "pretty printing should wrap long lines nicely" =
+  let str = "\
+  filter port = 1; filter port = 1; filter port = 1; filter port = 1 +\n\
+  filter port = 1; filter port = 1; filter port = 1; filter port = 1 +\n\
+  filter port = 1; filter port = 1; filter port = 1; filter port = 1" in
+  parse_pretty str = str
+
 let testable_pol_to_bool = 
   let open QuickCheck in
   let open QuickCheck_gen in
