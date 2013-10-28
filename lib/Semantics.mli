@@ -81,6 +81,10 @@ module type S = sig
 
   val string_of_policy : policy -> string
 
+  (** re-associates constructors so that pretty-printing produces as few
+      parentheses as possible *)
+  val pretty_assoc : policy -> policy
+
 end
 
 module Make : functor (Headers : HEADERS) -> S

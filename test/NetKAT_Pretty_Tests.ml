@@ -5,6 +5,10 @@ open VInt
 let policy_parse (p : string) : NetKAT_Types.policy =
   NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string p)
 
+let parse_pretty str = 
+  string_of_policy
+    (NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string str))
+  
 let test_pretty p_str =
   let p_ast1 = NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string p_str) in
   let p_str' = string_of_policy p_ast1 in
@@ -20,6 +24,13 @@ let p_str3 = "filter switch = 1 ; filter port = 1 ; port := 2 +
 TEST "simple filter" = test_pretty p_str1 = true
 TEST "simple SEQ"    = test_pretty p_str2 = true
 TEST "assoc par"     = test_pretty p_str3 = true
+
+TEST "pretty printing should wrap long lines nicely" =
+  let str = "\
+  filter port = 1; filter port = 1; filter port = 1; filter port = 1 +\n\
+  filter port = 1; filter port = 1; filter port = 1; filter port = 1 +\n\
+  filter port = 1; filter port = 1; filter port = 1; filter port = 1" in
+  parse_pretty str = str
 
 let testable_pol_to_bool = 
   let open QuickCheck in
