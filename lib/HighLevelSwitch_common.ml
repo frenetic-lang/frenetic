@@ -31,23 +31,22 @@ module type S = sig
   type of_action = OF.of_action
   type of_portId = OF.of_portId
 
-
 	(* Converts an abstract action sequence to an OpenFlow action sequence *)
 	let rec from_seq (inPort : OF.of_portId option) (seq : SDN.seq) 
 	  : Mod.t * OF.of_action list =
-	  let f act (mods, of_seq) = 
+	  let f (mods, of_seq) act= 
 	    let (mods', of_act) = OF.from_action inPort act in
-	    (Mod.seq mods' mods, of_act :: of_seq) in
-	  List.fold_right f seq (Mod.none, [])
+	    (Mod.seq mods mods', of_act :: of_seq) in
+	  List.fold_left f (Mod.none, []) seq 
 
 	(* Converts abstract action union to an OF 1.0 action sequence. This may
 	   trigger exceptions if the parallel composition is unrealizable. *)
 	let rec from_par (inPort : OF.of_portId option) (par : SDN.par) :
 	  Mod.t * OF.of_action list =
-	  let f act (mods, of_seq) =
+	  let f (mods, of_seq) act =
 	    let (mods', of_act) = from_seq inPort act in
-	    (Mod.par mods' mods, of_act @ of_seq) in
-	  List.fold_right f par (Mod.none, [])
+	    (Mod.par mods mods', of_act @ of_seq) in
+	  List.fold_left f (Mod.none, []) par 
 
 	let rec flatten_par (inPort : OF.of_portId option) (par : SDN.par) 
 	  : OF.of_action list =

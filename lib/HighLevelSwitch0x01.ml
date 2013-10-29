@@ -80,26 +80,27 @@ module Common = HighLevelSwitch_common.Make (struct
     let open OpenFlow0x01_Core in
     match act with
       | OutputAllPorts -> (Mod.none, Output AllPorts)
-      | OutputPort (VInt.Int16 n) ->
+      | OutputPort n ->
+	let n = VInt.get_int16 n in 
         if Some n = inPort then
           (Mod.none, Output InPort)
         else
           (Mod.none, Output (PhysicalPort n))
-      | OutputPort _ -> raise (Invalid_argument "expected OpenFlow 1.0 port number")
       | SetField (AL.InPort, _) -> raise (Invalid_argument "cannot set input port")
       | SetField (EthType, _) -> raise (Invalid_argument "cannot set frame type")
-      | SetField (EthSrc, VInt.Int48 n) -> (Mod.dlSrc, SetDlSrc n)
-      | SetField (EthDst, VInt.Int48 n) -> (Mod.dlDst , SetDlDst n)
-      | SetField (Vlan, VInt.Int16 0xFFFF) -> (Mod.dlVlan, SetDlVlan None)
-      | SetField (Vlan, VInt.Int16 n) -> (Mod.dlVlan, SetDlVlan (Some n))
-      | SetField (VlanPcp, VInt.Int4 n) -> (Mod.dlVlanPcp, SetDlVlanPcp n)
+      | SetField (EthSrc, n) -> (Mod.dlSrc, SetDlSrc (VInt.get_int48 n))
+      | SetField (EthDst, n) -> (Mod.dlDst , SetDlDst (VInt.get_int48 n))
+      | SetField (Vlan, n) -> 
+	begin match VInt.get_int16 n with 
+	  | 0xFFFF -> (Mod.dlVlan, SetDlVlan None)
+	  | n -> (Mod.dlVlan, SetDlVlan (Some n))
+	end
+      | SetField (VlanPcp, n) -> (Mod.dlVlanPcp, SetDlVlanPcp (VInt.get_int4 n))
       | SetField (IPProto, _) -> raise (Invalid_argument "cannot set IP protocol")
-      | SetField (IP4Src, VInt.Int32 n) -> (Mod.nwSrc, SetNwSrc n)
-      | SetField (IP4Dst, VInt.Int32 n) -> (Mod.nwDst, SetNwDst n)
-      | SetField (TCPSrcPort, VInt.Int16 n) -> (Mod.tpSrc, SetTpSrc n)
-      | SetField (TCPDstPort, VInt.Int16 n) -> (Mod.tpDst, SetTpDst n)
-      | SetField _ -> raise (Invalid_argument "invalid SetField combination")
-
+      | SetField (IP4Src, n) -> (Mod.nwSrc, SetNwSrc (VInt.get_int32 n))
+      | SetField (IP4Dst, n) -> (Mod.nwDst, SetNwDst (VInt.get_int32 n))
+      | SetField (TCPSrcPort, n) -> (Mod.tpSrc, SetTpSrc (VInt.get_int16 n))
+      | SetField (TCPDstPort, n) -> (Mod.tpDst, SetTpDst (VInt.get_int16 n))
 end)
 
 let from_group (inPort : Core.portId option) (group : AL.group) : Core.action list =
