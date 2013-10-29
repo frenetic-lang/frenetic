@@ -83,7 +83,6 @@ struct
 	  | _ -> 
 	    Enqueue (PhysicalPort (to_of_portId pt), qid)) ::
 	   (unmodify out))
-    | _ -> failwith "output_to_of: Don't know how to handle this port type"
 
   let atom_to_of inp atom = match atom with
     | SwitchAction out -> output_to_of inp out
@@ -205,7 +204,7 @@ struct
     | OF10.SetNwDst dst -> [SetField (OxmIP4Dst (val_to_mask dst))]
     | OF10.SetTpSrc src -> [SetField (OxmTCPSrc (val_to_mask src))]
     | OF10.SetTpDst dst -> [SetField (OxmTCPDst (val_to_mask dst))]
-    | OF10.SetNwTos _ -> failwith "NYI: translate_action SetNwTos"
+    | _ -> failwith "Not yet implemented"
 
   (** val to_flow_mod : priority -> Pattern.pattern -> act list -> flowMod **)
 

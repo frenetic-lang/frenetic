@@ -43,14 +43,15 @@ Library netcore
     NetCore_Monitoring,
     NetCore_Parser,
     NetCore_SurfaceSyntax,
-    NetKAT_Types,
+    Types,
+    Lexer,
+    Parser,
+    Semantics,
+    Pretty,
     LocalCompiler,
     Dehop,
-    NetKAT_Lexer,
-    NetKAT_Parser,
-    Controller,
-    Semantics,
-    SDN_Headers
+    Controller
+
   Modules:
     NetCore_Util,
     NetCore_Action,
@@ -100,6 +101,15 @@ Test all_tests
 Executable katnetic
   Path: frenetic
   MainIs: katnetic.ml
+  Install$: flag(installexec)
+  BuildDepends:
+    lwt,
+    lwt.syntax,
+    netcore
+
+Executable dehop_test
+  Path: frenetic
+  MainIs: dehop_test.ml
   Install$: flag(installexec)
   BuildDepends:
     lwt,

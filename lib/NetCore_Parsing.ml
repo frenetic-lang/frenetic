@@ -113,13 +113,6 @@ let rec compile_top (env : env) = function
     let _ = match compile env pol with 
       | Pol pol' -> pol'
       | _ -> failwith "unexpected value" in 
-    let _ = 
-      NetCore_Verify.check str 
-      (* TODO: dummy values *) 
-	NetKAT_Types.True
-	(NetKAT_Types.Filter NetKAT_Types.True)
-	NetKAT_Types.True
-	oko in 
     compile_top env exp
   | Include _ -> 
     failwith "unexpected include"
