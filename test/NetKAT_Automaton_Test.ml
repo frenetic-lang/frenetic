@@ -53,6 +53,10 @@ module QuickChecking = struct
   TEST "sequence a link-free policy with a link" =
     netkat_quickCheck arbitrary_char string_of_policy prop_roundtrip
 
+  TEST "roundtrip property for regex policy" =
+    netkat_quickCheck arbitrary_regex_policy_no_star string_of_policy
+      prop_roundtrip
+
   TEST "sequence a link-free policy with a regex policy (no star)" =
     let open QuickCheck_gen in
     let module Gen = NetKAT_Arbitrary in

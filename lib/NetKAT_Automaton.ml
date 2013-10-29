@@ -90,7 +90,7 @@ let rec regex_to_policy (r : regex) : policy =
     | Char(lfp, l) ->
       NetKAT_Types.Seq(lf_policy_to_policy lfp, link_to_policy l)
     | Alt(r1, r2) ->
-      NetKAT_Types.Choice(regex_to_policy r1, regex_to_policy r2)
+      NetKAT_Types.Par(regex_to_policy r1, regex_to_policy r2)
     | Cat(r1, r2) ->
       NetKAT_Types.Seq(regex_to_policy r1, regex_to_policy r2)
     | Kleene(r) ->
