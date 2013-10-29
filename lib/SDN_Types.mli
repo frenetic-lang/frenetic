@@ -152,6 +152,10 @@ val format_field : Format.formatter -> field -> unit
 val format_flow : Format.formatter -> flow -> unit
 val format_flowTable : Format.formatter -> flowTable -> unit
 
+val string_of_flowTable : flowTable -> string
+val string_of_flow : flow -> string
+val string_of_par : par -> string
+
 module type SWITCH = sig
 
   type t

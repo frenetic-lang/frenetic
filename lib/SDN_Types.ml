@@ -175,6 +175,19 @@ let format_flowTable (fmt:Format.formatter) (l:flowTable) : unit =
         true) false l in 
   Format.fprintf fmt "]@]"
 
+let make_string_of formatter x =
+  let open Format in
+  let buf = Buffer.create 100 in
+  let fmt = formatter_of_buffer buf in
+  pp_set_margin fmt 80;
+  formatter fmt x;
+  fprintf fmt "@?";
+  Buffer.contents buf
+
+let string_of_flowTable = make_string_of format_flowTable
+let string_of_flow = make_string_of format_flow
+let string_of_par = make_string_of format_par
+
 module type SWITCH = sig
   type t
   val setup_flow_table : t -> flowTable -> unit Lwt.t
