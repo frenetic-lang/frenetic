@@ -107,9 +107,14 @@ module Common = HighLevelSwitch_common.Make (struct
       | SetField (EthType, _) -> raise (Invalid_argument "cannot set frame type")
       | SetField (EthSrc, VInt.Int48 n) -> (Mod.dlSrc, Core.SetField (OxmEthSrc (v_to_m n)))
       | SetField (EthDst, VInt.Int48 n) -> (Mod.dlDst , Core.SetField (OxmEthDst (v_to_m n)))
-      | SetField (Vlan, VInt.Int16 0xFFFF) -> (Mod.dlVlan, Core.PopVlan)
-      | SetField (Vlan, VInt.Int16 n) -> (Mod.dlVlan, Core.SetField (OxmVlanVId (v_to_m n)))
-      | SetField (VlanPcp, VInt.Int4 n) -> (Mod.dlVlanPcp, Core.SetField (OxmVlanPcp n))
+      | SetField (Vlan, n) -> let n = VInt.get_int16 n in
+                              begin
+                                match n with
+                                  | 0xFFFF -> (Mod.dlVlan, Core.PopVlan)
+                                  | _ -> (Mod.dlVlan, Core.SetField (OxmVlanVId (v_to_m n)))
+                              end
+      | SetField (VlanPcp, n) -> let n = VInt.get_int4 n in
+                                 (Mod.dlVlanPcp, Core.SetField (OxmVlanPcp n))
       (* MJR: This seems silly. OF 1.3 has no such restriction *)
       | SetField (IPProto, _) -> raise (Invalid_argument "cannot set IP protocol")
       | SetField (IP4Src, VInt.Int32 n) -> (Mod.nwSrc, Core.SetField (OxmIP4Src (v_to_m n)))
