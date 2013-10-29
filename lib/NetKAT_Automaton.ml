@@ -199,7 +199,7 @@ let regex_of_policy (p : policy) : regex =
       | NetKAT_Types.Seq(p1, p2) ->
         rpc_seq (rpc p1) (rpc p2)
       | NetKAT_Types.Par(p1, p2) ->
-        rpc_par (rpc p1) (rpc p2)
+        rpc_branchy par (fun x y -> Alt(x, y)) (rpc p1) (rpc p2)
       | NetKAT_Types.Choice(_, _) -> failwith "nyi"
       | NetKAT_Types.Star(q) ->
         S(Kleene(run (rpc q)))
@@ -215,19 +215,21 @@ let regex_of_policy (p : policy) : regex =
       | S   r, _     -> s_trans r j (fun x y -> Cat(x, y))
     end
 
-  and rpc_par i j =
+  and rpc_branchy cp cr i j =
     begin match i, j with
-      | TP f1, TP f2 -> TP(fun c mlp -> rpc_par (f1 c mlp) (f2 c mlp))
+      | TP f1, TP f2 -> TP(fun c mlp -> rpc_branchy cp cr (f1 c mlp) (f2 c mlp))
       | TP f1, NL f2 -> NL(fun c mlf_p mlp ->
-                            rpc_par (rpc_seq (f1 c mlf_p) (mk_inter_of_mlp c mlp))
-                                    (f2 c mlf_p mlp))
+                            rpc_branchy cp cr
+                                (rpc_seq (f1 c mlf_p) (mk_inter_of_mlp c mlp))
+                                (f2 c mlf_p mlp))
       | TP f1, S  r  -> S(Alt(run i, r))
       | NL f1, TP f2 -> NL(fun c mlf_p mlp ->
-                            rpc_par (f1 c mlf_p mlp)
-                                    (rpc_seq (f2 c mlf_p) (mk_inter_of_mlp c mlp)))
-      | NL f1, NL f2 -> f1 par None (Some(fun c mlf_q -> f2 c mlf_q None))
-      | NL f1, S  r  -> s_trans r i (fun x y -> Alt(y, x))
-      | S   r, _     -> s_trans r j (fun x y -> Alt(x, y))
+                            rpc_branchy cp cr
+                                (f1 c mlf_p mlp)
+                                (rpc_seq (f2 c mlf_p) (mk_inter_of_mlp c mlp)))
+      | NL f1, NL f2 -> f1 cp None (Some(fun c mlf_q -> f2 c mlf_q None))
+      | NL f1, S  r  -> s_trans r i (flip cr)
+      | S   r, _     -> s_trans r j cr
     end
 
   and s_trans (r : regex) (i : inter) c =
