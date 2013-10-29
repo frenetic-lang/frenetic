@@ -434,7 +434,7 @@ module NFA = struct
 end
 
 module SwitchMap = Map.Make(struct
-  type t = VInt.t
+  type t = VInt.t * VInt.t
   let compare = Pervasives.compare
 end)
 
@@ -449,25 +449,32 @@ module EdgeSet = Set.Make(struct
 end)
 
 let switch_policies_to_policy (sm : policy SwitchMap.t) : policy =
-  SwitchMap.fold (fun sw p acc -> NetKAT_Types.(Par(acc, p)))
-    sm NetKAT_Types.drop
+  let open NetKAT_Types in
+  SwitchMap.fold (fun (sw, pt) p acc ->
+    let sw_f = Filter(Test(SDN_Headers.Switch, sw)) in
+    let pt_f = Filter(Test(SDN_Headers.Header SDN_Types.InPort, pt)) in
+    let p' = Seq(sw_f, Seq(pt_f, p)) in
+    if acc = drop
+      then p'
+      else Par(acc, p'))
+  sm NetKAT_Types.drop
 
 let regex_to_switch_lf_policies (r : regex) : (lf_policy SwitchMap.t * LinkSet.t) =
   let (aregex, chash) = regex_to_aregex r in
   let auto = NFA.regex_to_t aregex in
 
-  let switch_of_pchar (_, (sw, _, _, _)) = sw in
+  let switch_port_of_pchar (_, (sw, pt, _, _)) = (sw, pt) in
 
-  let add (sw : VInt.t) e (m : EdgeSet.t SwitchMap.t) =
+  let add (sw_pt : VInt.t * VInt.t) e (m : EdgeSet.t SwitchMap.t) =
     try
-       SwitchMap.add sw (EdgeSet.add e (SwitchMap.find sw m)) m
+       SwitchMap.add sw_pt (EdgeSet.add e (SwitchMap.find sw_pt m)) m
     with Not_found ->
-      SwitchMap.add sw (EdgeSet.singleton e) m in
+      SwitchMap.add sw_pt (EdgeSet.singleton e) m in
 
   let add_all ((q, ns, q') : NFA.edge) (m : EdgeSet.t SwitchMap.t) =
     Hashtbl.fold (fun i () acc ->
       let pchar = Hashtbl.find chash i in
-      add (switch_of_pchar pchar) (q, pchar, q') acc)
+      add (switch_port_of_pchar pchar) (q, pchar, q') acc)
     ns m in
 
   let to_edge_map (m : NFA.t) : EdgeSet.t SwitchMap.t =
@@ -483,9 +490,7 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy SwitchMap.t * LinkSet.t
   let to_lf_policy (q, (lf_p, l), q') : lf_policy =
     links := LinkSet.add l !links;
     let ingress =
-        Seq(
-          Filter(NetKAT_Types.(Test(SDN_Headers.Header SDN_Types.Vlan, VInt.Int16 q))),
-          Filter(NetKAT_Types.(Test(SDN_Headers.Switch, switch_of_pchar (lf_p, l))))) in
+        Filter(NetKAT_Types.(Test(SDN_Headers.Header SDN_Types.Vlan, VInt.Int16 q))) in
     let egress =
         Mod(SDN_Headers.Header(SDN_Types.Vlan), VInt.Int16 q') in
     Seq(ingress, Seq(lf_p, egress)) in
