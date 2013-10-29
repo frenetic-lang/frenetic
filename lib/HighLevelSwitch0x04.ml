@@ -238,6 +238,7 @@ let rec fix_vlan_in_table tbl = match tbl with
   | fl :: tbl -> fix_vlan_in_flow fl @ fix_vlan_in_table tbl
  
 let setup_flow_table (sw : t) (tbl : AL.flowTable) : unit Lwt.t =
+  let tbl = fix_vlan_in_table tbl in
   let priority = ref 65535 in
   let mk_flow_mod (flow : AL.flow) =
     let flow_mod = from_flow sw.group_table !priority flow in
