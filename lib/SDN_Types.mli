@@ -144,7 +144,12 @@ type flowStats = {
 
 (* {1 Pretty-printing } *)
 
+val format_action : Format.formatter -> action -> unit
+val format_seq : Format.formatter -> seq -> unit
+val format_par : Format.formatter -> par -> unit
+val format_group : Format.formatter -> group -> unit
 val format_field : Format.formatter -> field -> unit
+val format_flow : Format.formatter -> flow -> unit
 val format_flowTable : Format.formatter -> flowTable -> unit
 
 module type SWITCH = sig
