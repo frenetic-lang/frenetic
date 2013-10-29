@@ -434,6 +434,11 @@ module SwitchMap = Map.Make(struct
   let compare = Pervasives.compare
 end)
 
+module LinkSet = Set.Make(struct
+  type t = link
+  let compare = Pervasives.compare
+end)
+
 module EdgeSet = Set.Make(struct
   type t = NFA.state * pchar * NFA.state
   let compare = Pervasives.compare
@@ -443,7 +448,7 @@ let switch_policies_to_policy (sm : policy SwitchMap.t) : policy =
   SwitchMap.fold (fun sw p acc -> NetKAT_Types.(Par(acc, p)))
     sm NetKAT_Types.drop
 
-let regex_to_switch_lf_policies (r : regex) : (lf_policy SwitchMap.t * link list) =
+let regex_to_switch_lf_policies (r : regex) : (lf_policy SwitchMap.t * LinkSet.t) =
   let (aregex, chash) = regex_to_aregex r in
   let auto = NFA.regex_to_t aregex in
 
@@ -469,10 +474,10 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy SwitchMap.t * link list
       (all_delta m.delta q) acc)
     m m.s SwitchMap.empty in
 
-  let links = ref [] in
+  let links = ref LinkSet.empty in
 
   let to_lf_policy (q, (lf_p, l), q') : lf_policy =
-    links := l :: !links;
+    links := LinkSet.add l !links;
     let ingress =
         Seq(
           Filter(NetKAT_Types.(Test(SDN_Headers.Header SDN_Types.Vlan, VInt.Int16 q))),
@@ -489,7 +494,7 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy SwitchMap.t * link list
 
   (SwitchMap.map edges_to_lf_policy (to_edge_map auto), !links)
 
-let dehopify (p : policy) : (policy SwitchMap.t * link list) =
+let dehopify (p : policy) : (policy SwitchMap.t * LinkSet.t) =
   (* Man, it's times like these that you really wish you had arrows lol *)
   let (lf_pm, ls) = regex_to_switch_lf_policies (regex_of_policy p) in
   (SwitchMap.map lf_policy_to_policy lf_pm, ls)
