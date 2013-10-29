@@ -378,6 +378,10 @@ module NFA = struct
 	  if q = m.s then 
 	    Hashtbl.add h_r qs qi 
 	  else if StateSet.mem m.f qs then 
+        (* There is only one final state allowed by Dprle, so epsilon
+         * elimination can never get rid of all epsilons, namely the ones that
+         * transition to the unique final state.
+         *)
 	    let r = new_state m' in 
 	    Hashtbl.add h_r qs r;
 	    add_trans m' r Epsilon qf
