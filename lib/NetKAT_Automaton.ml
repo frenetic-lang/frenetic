@@ -46,6 +46,7 @@ type link = header_val * header_val * header_val * header_val
 
 type 'a aregex =
   | Char of 'a
+  | Pick of 'a aregex * 'a aregex
   | Alt of 'a aregex * 'a aregex
   | Cat of 'a aregex * 'a aregex
   | Kleene of 'a aregex
@@ -54,6 +55,7 @@ type 'a aregex =
 let rec fmap_aregex (f : 'a -> 'b) (r : 'a aregex) : 'b aregex =
   match r with
     | Char(c) -> Char(f c)
+    | Pick(r1, r2) -> Pick(fmap_aregex f r1, fmap_aregex f r2)
     | Alt(r1, r2) -> Alt(fmap_aregex f r1, fmap_aregex f r2)
     | Cat(r1, r2) -> Cat(fmap_aregex f r1, fmap_aregex f r2)
     | Kleene(s) -> Kleene(fmap_aregex f s)
@@ -89,6 +91,8 @@ let rec regex_to_policy (r : regex) : policy =
   match r with
     | Char(lfp, l) ->
       NetKAT_Types.Seq(lf_policy_to_policy lfp, link_to_policy l)
+    | Pick(r1, r2) ->
+      NetKAT_Types.Choice(regex_to_policy r1, regex_to_policy r2)
     | Alt(r1, r2) ->
       NetKAT_Types.Par(regex_to_policy r1, regex_to_policy r2)
     | Cat(r1, r2) ->
@@ -404,6 +408,7 @@ module NFA = struct
         let m = create () in 
         add_trans m m.s (Character n) m.f;
         m
+      | Pick(r1, r2) -> failwith "nyi"
       | Alt(r1,r2) ->
         union (loop r1) (loop r2)
       | Cat(r1,r2) ->
