@@ -48,19 +48,19 @@ let seq (m1 : t) (m2 : t) = {
 }
 
 let override (x : bool) (y : bool) : bool =
-	match (x, y) with
-	  | (true, false) -> raise (Invalid_argument "unrealizable modification")
-	  | (true, true) -> true
-	  | (false, _) -> y
+  match (x, y) with
+    | (true, false) -> 
+      raise (Invalid_argument "unrealizable modification")
+    | (true, true) -> true
+    | (false, _) -> y
 
 let par (m1 : t) (m2 : t) = {
-	dlSrc = override m1.dlSrc m2.dlSrc;
-	dlDst = override m2.dlDst m2.dlDst;
-	dlVlan = override m1.dlVlan m2.dlVlan;
-	dlVlanPcp = override m1.dlVlanPcp m2.dlVlanPcp;
-	nwSrc = override m1.nwSrc m2.nwSrc;
-	nwDst = override m1.nwDst m2.nwDst;
-	tpSrc = override m1.tpSrc m2.tpSrc;
-	tpDst = override m1.tpDst m2.tpDst
-	
+  dlSrc = override m1.dlSrc m2.dlSrc;
+  dlDst = override m1.dlDst m2.dlDst;
+  dlVlan = override m1.dlVlan m2.dlVlan;
+  dlVlanPcp = override m1.dlVlanPcp m2.dlVlanPcp;
+  nwSrc = override m1.nwSrc m2.nwSrc;
+  nwDst = override m1.nwDst m2.nwDst;
+  tpSrc = override m1.tpSrc m2.tpSrc;
+  tpDst = override m1.tpDst m2.tpDst
 }
