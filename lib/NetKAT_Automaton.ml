@@ -201,7 +201,7 @@ let regex_of_policy (p : policy) : regex =
         rpc_seq (rpc p1) (rpc p2)
       | NetKAT_Types.Par(p1, p2) ->
         rpc_branchy par (fun x y -> Alt(x, y)) (rpc p1) (rpc p2)
-      | NetKAT_Types.Choice(_, _) ->
+      | NetKAT_Types.Choice(p1, p2) ->
         rpc_branchy pick (fun x y -> Pick(x, y)) (rpc p1) (rpc p2)
       | NetKAT_Types.Star(q) ->
         S(Kleene(run (rpc q)))
