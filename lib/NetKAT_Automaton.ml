@@ -140,6 +140,7 @@ and link_consumer = cstr -> lf_policy option -> link_provider option -> inter
 
 let seq (p : lf_policy) (q : lf_policy) : lf_policy = Seq(p, q)
 let par (p : lf_policy) (q : lf_policy) : lf_policy = Par(p, q)
+let pick (p : lf_policy) (q : lf_policy) : lf_policy = Choice(p, q)
 
 let mk_mcstr c mp q =
   optional q (fun p -> c p q) mp
@@ -200,7 +201,8 @@ let regex_of_policy (p : policy) : regex =
         rpc_seq (rpc p1) (rpc p2)
       | NetKAT_Types.Par(p1, p2) ->
         rpc_branchy par (fun x y -> Alt(x, y)) (rpc p1) (rpc p2)
-      | NetKAT_Types.Choice(_, _) -> failwith "nyi"
+      | NetKAT_Types.Choice(_, _) ->
+        rpc_branchy pick (fun x y -> Pick(x, y)) (rpc p1) (rpc p2)
       | NetKAT_Types.Star(q) ->
         S(Kleene(run (rpc q)))
     end
