@@ -14,9 +14,7 @@ let switch_thread
   let sw_id = feats.SDN.switch_id in
   Lwt_log.info_f ~section "switch connected" >>
   let config_switch local = 
-    lwt () = Lwt_log.info_f ~section "About to here" in
     let table = LocalCompiler.RunTime.to_table sw_id local in
-    Format.eprintf "Flow table is\n%a\n%!" SDN.format_flowTable table;
     Platform.setup_flow_table sw_id table in 
   lwt () = config_switch (Stream.now local_stream) in
   Lwt_stream.iter_s config_switch (Stream.to_stream local_stream)
