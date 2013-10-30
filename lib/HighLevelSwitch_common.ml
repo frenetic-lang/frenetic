@@ -34,7 +34,7 @@ module type S = sig
 	(* Converts an abstract action sequence to an OpenFlow action sequence *)
 	let rec from_seq (inPort : OF.of_portId option) (seq : SDN.seq) 
 	  : Mod.t * OF.of_action list =
-	  let f act (mods, of_seq) = 
+	  let f (mods, of_seq) act= 
 	    let (mods', of_act) = OF.from_action inPort act in
 	    (Mod.seq mods mods', of_act :: of_seq) in
 	  List.fold_right f seq (Mod.none, [])  
