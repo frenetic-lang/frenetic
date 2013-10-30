@@ -14,6 +14,7 @@ Library topology
   BuildDepends:
     str,
     ocamlgraph,
+    openflow,
     packet
   InternalModules:
     Core,
@@ -27,12 +28,13 @@ Executable otopo
   MainIs: main.ml
   BuildDepends:
     ocamlgraph,
+    openflow,
     packet,
     topology
-  Install: True
+  Install: False
 
 Document doc
-  Title: NetCore Documentation
+  Title: Topology Documentation
   Type: ocamlbuild (0.3)
   XOCamlBuildPath: lib
   XOCamlBuildModules:

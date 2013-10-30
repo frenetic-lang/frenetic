@@ -1,8 +1,20 @@
 open Util
 open Graph
 
-type switchId = int64
-type portId = int32
+let string_of_vint v = 
+  (* TODO(jnf): move somewhere sensible *)
+  let make_string_of formatter x =
+    let open Format in
+	let buf = Buffer.create 100 in
+	let fmt = formatter_of_buffer buf in
+	pp_set_margin fmt 80;
+	formatter fmt x;
+	fprintf fmt "@?";
+	Buffer.contents buf in
+  make_string_of VInt.format v
+
+type switchId = SDN_Types.switchId
+type portId = VInt.t
 type rate = Rate of int64 * int64
 
 let string_of_rate r =
@@ -30,8 +42,8 @@ sig
   type t = {
     srcport : portId;
     dstport : portId;
-    cost : int64;
-    capacity : int64;
+    cost : VInt.t;
+    capacity : VInt.t;
   }
   type e = (v * t * v)
   val default : t
@@ -77,11 +89,13 @@ sig
   val get_switches : t -> V.t list
   val get_switchids : t -> switchId list
   val ports_of_switch : t -> V.t -> portId list
-  val edge_ports_of_switch : t -> V.t -> portId list
+  (* TODO(basus): remove this? *)
+  (* val edge_ports_of_switch : t -> V.t -> portId list *)
   val next_hop : t -> V.t -> portId -> V.t
 
   (* Utility functions *)
   val shortest_path : t -> V.t -> V.t -> E.t list
+  val floyd_warshall : t -> ((V.t * V.t) * V.t list) list
   val to_dot : t -> string
   val to_string : t -> string
   val to_mininet : t -> string
@@ -118,16 +132,16 @@ struct
   type t = {
     srcport : portId;
     dstport : portId;
-    cost : int64;
-    capacity : int64;
+    cost : VInt.t;
+    capacity : VInt.t;
   }
   type e = v * t * v
   let compare = Pervasives.compare
   let default = {
-    srcport = Int32.zero;
-    dstport = Int32.zero;
-    cost = Int64.one;
-    capacity = Int64.max_int
+    srcport = VInt.Int32 0l;
+    dstport = VInt.Int32 0l;
+    cost = VInt.Int64 1L;
+    capacity = VInt.Int64 Int64.max_int
   }
 
   (* Constructors and mutators *)
@@ -135,14 +149,18 @@ struct
 
   let mk_link s sp d dp cap cost =
     ( s,
-     {srcport = Int32.of_int sp; dstport = Int32.of_int dp;
-      cost = cost; capacity = cap;},
+     { srcport = VInt.Int32 (Int32.of_int sp); 
+       dstport = VInt.Int32 (Int32.of_int dp);
+       cost = VInt.Int64 cost; 
+       capacity = VInt.Int64 cap;},
     d)
 
   let reverse (s,d,l) =
     ( d, s,
-      { srcport = l.dstport; dstport = l.srcport;
-        cost = l.cost; capacity = l.capacity }
+      { srcport = l.dstport; 
+	dstport = l.srcport;
+        cost = l.cost; 
+	capacity = l.capacity }
     )
 
   (* Accessors *)
@@ -150,10 +168,10 @@ struct
   let dst (s,l,d) = d
   let label (s,l,d) = l
 
-  let capacity (s,l,d) = l.capacity
-  let cost (s,l,d) = l.cost
-  let srcport (s,l,d) = l.srcport
-  let dstport (s,l,d) = l.dstport
+  let capacity (s,l,d) = VInt.get_int64 l.capacity
+  let cost (s,l,d) = VInt.get_int64 l.cost
+  let srcport (s,l,d) = VInt.get_int32 l.srcport
+  let dstport (s,l,d) = VInt.get_int32 l.dstport
 
   let reverse (s,l,d) =
     ( d,
@@ -165,8 +183,11 @@ struct
   let name (s,_,d) =
     Printf.sprintf "%s_%s" (Node.to_string s) (Node.to_string d)
   let string_of_label (s,l,d) =
-    Printf.sprintf "{srcport = %ld; dstport = %ld; cost = %Ld; capacity = %Ld;}"
-      l.srcport l.dstport l.cost l.capacity
+    Printf.sprintf "{srcport = %s; dstport = %s; cost = %s; capacity = %s;}"
+      (string_of_vint l.srcport)
+      (string_of_vint l.dstport)
+      (string_of_vint l.cost)
+      (string_of_vint l.capacity)
   let to_dot (s,l,d) =
     let s = Node.to_dot s in
     let d = Node.to_dot d in
@@ -184,9 +205,9 @@ end
 
 module Weight = struct
   open Link
-  type t = int64
+  type t = Int64.t
   type label = Link.t
-  let weight l = l.cost
+  let weight l = VInt.get_int64 l.cost
   let compare = Int64.compare
   let add = Int64.add
   let zero = Int64.zero
@@ -247,7 +268,8 @@ struct
     then raise (NotFound (Printf.sprintf "Can't find %s to get_ports to %s\n"
                             (Node.to_string s) (Node.to_string d)))
     else let e = List.hd es in
-         (Link.srcport e, Link.dstport e)
+         (VInt.Int32 (Link.srcport e), 
+	  VInt.Int32 (Link.dstport e))
 
 
   (* Get a list of the hosts out in the graph. Returns an empty list if
@@ -286,33 +308,33 @@ struct
                                           "Can't find %s to get ports_of_switch\n"
                                           (Node.to_string s))) in
     let sports = List.map
-      (fun l -> Link.srcport l) ss in
+      (fun l -> VInt.Int32 (Link.srcport l)) ss in
     let ps = pred_e g s in
     let pports = List.map
-      (fun l -> Link.srcport l) ps in
+      (fun l -> VInt.Int32 (Link.srcport l)) ps in
     sports @ pports
 
 
-  (* For a given switch, return the ports that are connected to hosts.
-     Raise NotFound if either the node is not in the graph. *)
-  let edge_ports_of_switch (g:t) (s:Node.t) : portId list =
-    let ss = try (succ_e g s)
-      with Not_found -> raise (NotFound(Printf.sprintf
-                                          "Can't find %s to get ports_of_switch\n"
-                                          (Node.to_string s))) in
-    let sports = List.fold_left
-      (fun acc l -> match (Link.dst l) with
-        | Node.Host(_) -> Int32Set.add (Link.srcport l) acc
-        | _ -> acc
-      ) Int32Set.empty ss in
-    let ps = pred_e g s in
-    let pports = List.fold_left
-      (fun acc l -> match (Link.src l) with
-        | Node.Host(_) -> Int32Set.add (Link.dstport l) acc
-        | _ -> acc
-      ) sports ps in
-    Int32Set.elements pports
-
+  (* (\* For a given switch, return the ports that are connected to hosts. *)
+  (*    Raise NotFound if either the node is not in the graph. *\) *)
+  (* let edge_ports_of_switch (g:t) (s:Node.t) : portId list = *)
+  (*   let ss = try (succ_e g s) *)
+  (*     with Not_found -> raise (NotFound(Printf.sprintf *)
+  (*                                         "Can't find %s to get ports_of_switch\n" *)
+  (*                                         (Node.to_string s))) in *)
+  (*   let sports = List.fold_left *)
+  (*     (fun acc l -> match (Link.dst l) with *)
+  (*       | Node.Host(_) ->  *)
+  (* 	  Int32Set.add (Link.srcport l) acc *)
+  (*       | _ -> acc *)
+  (*     ) Int32Set.empty ss in *)
+  (*   let ps = pred_e g s in *)
+  (*   let pports = List.fold_left *)
+  (*     (fun acc l -> match (Link.src l) with *)
+  (*       | Node.Host(_) -> Int32Set.add (Link.dstport l) acc *)
+  (*       | _ -> acc *)
+  (*     ) sports ps in *)
+  (*   Int32Set.elements pports *)
 
   (* Get the next hop node for a given node and port. Raise NotFound if either
   the given node is not in the graph, or if the given port is not connected to
@@ -323,12 +345,11 @@ struct
                                           "Can't find %s to get next_hop\n"
                                           (Node.to_string n))) in
     let (_,_,d) = try (List.hd
-                         (List.filter (fun e -> Link.srcport e = p) ss))
+                         (List.filter (fun e -> VInt.Int32 (Link.srcport e) = p) ss))
       with Failure hd -> raise (NotFound(
-        Printf.sprintf "next_hop: Port %ld on %s is not connected\n"
-          p (Node.to_string n)))
+        Printf.sprintf "next_hop: Port %s on %s is not connected\n"
+          (string_of_vint p) (Node.to_string n)))
     in d
-
 
   (* Find the shortest path between two nodes using Dijkstra's algorithm,
      returning the list of edges making up the path. The implementation is from
@@ -439,7 +460,7 @@ struct
           | Node.Host(n) -> Printf.sprintf "    %s = net.addHost(\'%s\')\n" n n
           | Node.Switch(s,i) ->
             let name = Str.global_replace (Str.regexp "[ ,]") "" s in
-            let sid = "s" ^ Int64.to_string i in
+            let sid = "s" ^ (string_of_vint i) in 
             Printf.sprintf
             "    %s = net.addSwitch(\'%s\')\n" name sid
           | Node.Mbox(s,_) -> Printf.sprintf
@@ -459,7 +480,9 @@ struct
             let dst = Str.global_replace (Str.regexp "[ ,]") ""
               (Node.to_string (E.dst e)) in
             Printf.sprintf "    net.addLink(%s, %s, %ld, %ld)\n"
-              src dst (Link.srcport e) (Link.dstport e)
+              src dst 
+	      (Link.srcport e)
+	      (Link.dstport e)
         in
         seen := EdgeSet.add e !seen;
         acc ^ add
