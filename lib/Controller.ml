@@ -57,3 +57,15 @@ let rec start ~port ~pols =
       pols in
   lwt (stop_accept, new_switches) = Platform.accept_switches port  in
 Lwt_stream.iter_p (switch_thread local_stream) new_switches
+
+let rec start_no_dehop ~port ~pols =
+  let local_stream = 
+    Stream.map 
+      (fun p -> 
+        Printf.printf "p: %s\n%!" (Pretty.string_of_policy p);
+        let l = LocalCompiler.RunTime.compile p in
+        Printf.printf "l: %s\n%!" (Pretty.string_of_policy (LocalCompiler.RunTime.decompile l));
+        l)
+      pols in
+  lwt (stop_accept, new_switches) = Platform.accept_switches port  in
+Lwt_stream.iter_p (switch_thread local_stream) new_switches
