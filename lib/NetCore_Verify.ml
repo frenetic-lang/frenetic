@@ -249,12 +249,13 @@ module Sat = struct
       | (ZTerm (TVar s)), (ZTerm (TVar x)), (ZTerm (TVar y)) -> ZTerm (TApp ((TVar f ), [(TVar s);(TVar x); (TVar y)]))
       | _ -> failwith "need to apply functions to variables as of right now.") 
     let select = z3app2 "select" 
-    let rec select_chain set pkt_list = match pkt_list with
-      | [] -> failwith "please use select_chain with non-empty list"
-      | pkt::[] -> select set pkt
-      | pkt::rest -> select (select_chain set rest) pkt      
     let store = z3app3 "store" 
     let set_add = z3app2 "set_add"
+    let rec set_add_chain set pkt_list = match pkt_list with
+      | [] -> failwith "please use set_add_chain with non-empty list"
+      | pkt::[] -> set_add set pkt
+      | pkt::rest -> set_add (set_add_chain set rest) pkt      
+
     let set_diff = z3app2 "set_diff" 
     let map = (fun fp l1p l2p -> match fp, l1p, l2p with 
       | f, (ZTerm (TVar l1)), ZTerm (TVar l2) -> ZTerm (TApp ( (TApp (TVar "_", [TVar "map"; TVar f]  )), [(TVar l1); (TVar l2)]))
@@ -587,7 +588,9 @@ module Verify = struct
       | Star _  -> failwith "NetKAT program not in form (p;t)*"
       | Choice _-> failwith "I'm not rightly sure what a \"choice\" is "
     in
-    ZAnd [ZEquals(select_chain set_empty (List.map (fun v -> ZTerm (TVar v)) inset_pkts), inset_f); formu], outset_pkts
+    ZAnd [ZEquals(set_add_chain set_empty (List.map (fun v -> ZTerm (TVar v)) inset_pkts), inset_f); 
+	  
+	  formu], outset_pkts
 
   let rec forwards_k p_t_star set1 pkts1 set2 k : zFormula * (zVar list) = 
     match p_t_star with
@@ -608,7 +611,7 @@ module Verify = struct
     let combine_results x = 
       let form,pkts2 = forwards_k x in
       ZAnd[form;
-	   ZEquals (select_chain set_empty (List.map (fun v -> ZTerm (TVar v)) pkts2), 
+	   ZEquals (set_add_chain set_empty (List.map (fun v -> ZTerm (TVar v)) pkts2), 
 	   (ZTerm (TVar set2)))] in
     ZOr (List.map combine_results (range 0 k))
 
