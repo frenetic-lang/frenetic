@@ -13,7 +13,7 @@ let hosts (g : t) : VInt.t list =
 	 | Node.Mbox _ -> acc)
        [] (Topology.get_vertices g))
     
-let hosts (g : t) : SDN_Types.switchId list =
+let switches (g : t) : SDN_Types.switchId list =
   List.rev 
     (List.fold_left 
        (fun acc node -> match node with
