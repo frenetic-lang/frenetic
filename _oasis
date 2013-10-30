@@ -43,14 +43,11 @@ Library netcore
     NetCore_Monitoring,
     NetCore_Parser,
     NetCore_SurfaceSyntax,
-    Types,
     Lexer,
     Parser,
     Semantics,
-    Pretty,
     LocalCompiler,
-    Dehop,
-    Controller
+    Dehop
 
   Modules:
     NetCore_Util,
@@ -69,7 +66,10 @@ Library netcore
     NetCore_Parsing,
     NetCore_Pattern,
     NetCore_Verify,
-    NetCore_Wildcard
+    NetCore_Wildcard,
+    Controller,
+    Pretty,
+    Types
 
 Library quickcheck
   Findlibparent: netcore

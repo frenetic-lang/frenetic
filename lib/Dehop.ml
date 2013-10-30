@@ -741,7 +741,7 @@ module Optimization = struct
     let simpl = simplify_vpol in
     let p' = (simpl (remove_dead_matches p)) in
     (* let () = Printf.printf "p': %s\n%!" (string_of_vpolicy p') in *)
-    let p'' = distribute_seq p' in
+    let p'' = (* distribute_seq *) p' in
     (* let () = Printf.printf "p'':\n%!" in     *)
     let p''' = simpl (remove_dead_mods (elim_vtest (optimize' (normalize_seq p'')))) in
     p'''
@@ -816,8 +816,7 @@ let rec compute_matching_tuples tag_alist h v =
      where b is a new value equivalent to (h=v) *)
 let rec get_new_values tag_alist h v = 
   let old_vals = List.fold_left 
-    (fun acc v' -> if v = v' 
-      then acc else compute_matching_tuples tag_alist h v' @ acc) []
+    (fun acc v' -> compute_matching_tuples tag_alist h v' @ acc) []
     (List.assoc h tag_alist) in
   List.map (fun old_val -> (old_val, update_alist old_val h v)) old_vals
 
@@ -861,8 +860,7 @@ let rec convert_tag_to_hdr tag_alist h p written =
                       Choice(p',q'), written' || written''
     | VStar(p) -> let p',written = convert_tag_to_hdr tag_alist h p written in
                   Star(p'), written
-    | VLink(sw,pt,sw',pt') -> Seq(Seq(Filter(Test(Switch, sw)), Filter(Test(Header SDN_Types.InPort, pt))),
-                                  Seq(Mod(Switch, sw'), Mod(Header SDN_Types.InPort, pt'))), written
+    | VLink(sw,pt,sw',pt') -> Link(sw,pt,sw',pt'), written
 
 (* reduces policies by using identities (drop;p = drop, etc) *)
 let rec simplify_pol p =
@@ -920,16 +918,109 @@ let rec simplify_pol p =
           | p -> Star p
       end
     | _ -> p
-      
-let dehop_policy p =
-  let (i,s,t,e) = dehopify p in
-  let p' = (VSeq(i, VSeq(VStar(VSeq(s,t)), e))) in
-  fst (convert_tag_to_hdr (collect_tags p') SDN_Types.Vlan p' false)
 
-let dehop_policy_opt p =
+  (* Linearizes seqs (i.e. Seq(Seq(a,b),c) => Seq(a,Seq(b,c) *)
+  let rec pol_to_linear_pol p = 
+    match p with
+      (* (p | q) | r = p (q | r) *)
+      | Par (Par (p,q), r) ->
+        pol_to_linear_pol (Par (p, Par(q,r)))
+      | Par (p, q) ->
+        let p' = pol_to_linear_pol p in
+        let q' = pol_to_linear_pol q in
+        if p' = p && q' = q then
+          Par(p,q)
+        else pol_to_linear_pol (Par(p',q'))
+      (* (p;q);r = p;(q;r) *)
+      | Seq (Seq (p,q), r) ->
+        pol_to_linear_pol (Seq (p, Seq (q,r)))
+      | Seq (p,q) ->
+        let p' = pol_to_linear_pol p in
+        let q' = pol_to_linear_pol q in
+        if p' = p && q' = q then
+          Seq(p,q)
+        else pol_to_linear_pol (Seq(p',q'))
+      | Choice(p,q) ->
+        let p' = pol_to_linear_pol p in
+        let q' = pol_to_linear_pol q in
+        if p' = p && q' = q then
+          Choice(p,q)
+        else pol_to_linear_pol (Choice(p',q'))
+      | Star p -> Star (pol_to_linear_pol p)
+      | _ -> p
+
+(* These assume linear pols *)
+let rec separate_i p = match p with
+  | Seq(Star _, p) -> Filter True
+  | Seq(p,q) -> Seq(p, separate_i q)
+  | _ -> p
+
+let rec separate_t_from_pt p = match p with
+  | Seq(p, Link (sw,pt,sw',pt')) -> Link (sw,pt,sw',pt')
+  | Seq(p, Par (q,r)) -> Par (q,r)
+  | Seq(p, q) -> separate_t_from_pt q
+  | Link _ -> p
+  | Filter True -> p
+  | Filter False -> p
+  | _ -> failwith (Printf.sprintf "unexpected t pol: %s" (string_of_policy p))
+
+let rec separate_p_from_pt p = match p with
+  | Seq(p, Link _) -> p
+  | Seq(p, Par (q,r)) -> p
+  | Seq(p,q) -> Seq(p, separate_t_from_pt q)
+  | Filter True -> p
+
+let rec separate_p p = match p with
+  | Star(p) -> separate_p_from_pt p
+  | Seq(Star(p), _) -> separate_p_from_pt p
+  | Seq(p,q) -> separate_p q
+  | _ -> Filter False
+
+let rec separate_t p = match p with
+  | Star(p) -> separate_t_from_pt p
+  | Seq(Star(p), q) -> separate_t_from_pt p
+  | Seq(p,q) -> separate_t q
+  | _ -> Filter False
+
+let rec separate_e p = match p with
+  | Seq(Star _, p) -> p
+  | Seq(p, q) -> separate_e q
+  | _ -> Filter True
+
+let separate_policy p = separate_i p, separate_p p, separate_t p, separate_e p
+
+let strip_vlan = Mod (Header SDN_Types.Vlan,VInt.Int16 0xFFFF)
+
+let vlan_none = Test (Header SDN_Types.Vlan,VInt.Int16 0xFFFF)
+
+(* I'm unclear about the precise semantics of forwarding to hosts that
+   aren't represented in the topology. To be safe, I'm stripping VLAN as soon as we forward out any port in e *)
+
+let rec strip_vlans p = match p with
+  | Mod(Header port, _) -> Seq(strip_vlan, p)
+  | Seq(p,q) -> Seq(strip_vlans p, strip_vlans q)
+  | Par(p,q) -> Par(strip_vlans p, strip_vlans q)
+  | Choice(p,q) -> Choice(strip_vlans p, strip_vlans q)
+  | Star(p) -> Star(strip_vlans p)
+  | _ -> p
+
+(* let dehop_policy p = *)
+(*   let (i,s,t,e) = dehopify p in *)
+(*   let p' = (VSeq(i, VSeq(VStar(VSeq(s,t)), e))) in *)
+(*   fst (convert_tag_to_hdr (collect_tags p') SDN_Types.Vlan p' false) *)
+
+let dehop_policy p =
   let (i,s,t,e) = dehopify (simplify_pol p) in
   let p' = Optimization.simplify_vpol (VSeq(i, VSeq(VStar(VSeq(s,t)), e))) in
+  let () = Printf.printf "p': %s\n%!" (string_of_vpolicy p') in
   let p'' = Optimization.optimize p' in
-  let p''' = simplify_pol (fst (convert_tag_to_hdr (collect_tags p') SDN_Types.Vlan p'' false)) in
-  (* let () = Printf.printf "dehopped policy: %s\n%!" (string_of_policy p''') in *)
-  p'''
+  let () = Printf.printf "p'': %s\n%!" (string_of_vpolicy p'') in
+  let p''' = pol_to_linear_pol (simplify_pol (fst (convert_tag_to_hdr (collect_tags p'') SDN_Types.Vlan p'' false))) in
+  let () = Printf.printf "p''': %s\n%!" (string_of_policy p''') in
+  let i',s',t',e' = separate_policy p''' in
+  let () = Printf.printf "i': %s\n%!" (string_of_policy i') in
+  let () = Printf.printf "e': %s\n%!" (string_of_policy e') in
+  let () = Printf.printf "s': %s\n%!" (string_of_policy s') in
+  let () = Printf.printf "t': %s\n%!" (string_of_policy t') in
+  let i'',s'',t'',e'' = simplify_pol i', simplify_pol s', simplify_pol t', simplify_pol e' in
+  (i'', s'', t'', Par (Seq (Filter vlan_none, e''), Seq(Filter (Neg vlan_none), Seq(strip_vlans e'', strip_vlan))))
