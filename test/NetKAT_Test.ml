@@ -146,6 +146,11 @@ TEST "choice3" =
 		  Choice (modSrc 0, 
 			  Choice (Par (modSrc 0, modSrc 1),
 				  modSrc 1))))))
+
+TEST "choice_id" = 
+  test_compile
+    (Seq(Choice (modSrc 0, modSrc 1), Filter True))
+    (Choice (modSrc 0, modSrc 1))
     
 TEST "vlan" =
   let test_vlan_none = Test (Header Vlan, VInt.Int16 0xFFF) in
