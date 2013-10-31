@@ -126,3 +126,11 @@ TEST "end-to-end test" =
   let pol' = switch_policies_to_policy (fst (dehopify pol)) in
   print_endline (string_of_policy pol');
   false
+
+TEST "choice test" =
+  let open NetKAT_Automaton in
+  let text = "0@0 => 1@1; (1@1 => 2@2 + 1@1 => 3@3)" in
+  let pol = policy_parse text in
+  let pol' = switch_policies_to_policy (fst (dehopify pol)) in
+  print_endline (string_of_policy pol');
+  false

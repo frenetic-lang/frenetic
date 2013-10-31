@@ -363,52 +363,83 @@ module NFA = struct
     Hashtbl.fold 
       (fun q' ns acc -> EdgeSet.add (q,ns,q') acc)
       (all_delta m.delta q)
-      EdgeSet.empty  
+      EdgeSet.empty
+
+  (* copypasta'd from dprle, with modifications *)
+  let eps_closure_upto (pred : state -> bool) (n : nfa) (q : state) : stateset =
+    let visited = ref StateSet.empty in
+    let rec walk (queue : state list) : unit = match queue with
+      | x::xs when (not (StateSet.mem x !visited)) ->
+        let to_enqueue = if pred x
+            then Hashset.to_list (which_states ~create:false n.epsilon x)
+            else [] in
+	      visited := StateSet.add x !visited;
+	      walk (List.rev_append xs to_enqueue)
+      | x::xs -> walk xs
+      | _ -> ()
+    in
+      walk [q];
+      !visited
       
-  let eps_eliminate m =
+  let eps_eliminate m is_pick_state =
     let qi,qf = 0,1 in 
     let m' = new_nfa_states qi qf in 
+    (* cache of state's epsilon closure *)
     let h_eps = Hashtbl.create 17 in 
+    (* maps sets of states (that are epsilon-closed) to a state of the new
+     * automaton *)
     let h_r = Hashtbl.create 17 in 
+    let () =
+      Hashset.iter (fun q ->
+        let qs = if is_pick_state q
+          then eps_closure_upto is_pick_state m q
+          else eps_closure_upto (fun q -> not (is_pick_state q)) m q
+        in
+          Hashtbl.add h_eps q qs;
+          if q = m.s then
+            Hashtbl.add h_r qs qi
+          else if StateSet.mem m.f qs then
+            (* There is only one final state allowed by Dprle, so epsilon
+             * elimination can never get rid of all epsilons, namely the ones that
+             * transition to the unique final state.
+             *)
+            let r = new_state m' in
+            Hashtbl.add h_r qs r;
+            add_trans m' r Epsilon qf
+          else if not (Hashtbl.mem h_r qs) then
+            let r = new_state m' in
+            Hashtbl.add h_r qs r
+        else ())
+      m.q in
     let () = 
-      Hashset.iter 
-	(fun q -> 
-	  let qs = eps_closure m q in 
-	  Hashtbl.add h_eps q qs;
-	  if q = m.s then 
-	    Hashtbl.add h_r qs qi 
-	  else if StateSet.mem m.f qs then 
-        (* There is only one final state allowed by Dprle, so epsilon
-         * elimination can never get rid of all epsilons, namely the ones that
-         * transition to the unique final state.
-         *)
-	    let r = new_state m' in 
-	    Hashtbl.add h_r qs r;
-	    add_trans m' r Epsilon qf
-	  else if not (Hashtbl.mem h_r qs) then 
-	    let r = new_state m' in 
-	    Hashtbl.add h_r qs r)
-	m.q in 
-    let () = 
-      forward_fold_nfa 
-	(fun q () -> 
-	  let qs = Hashtbl.find h_eps q in 
-	  let r = Hashtbl.find h_r qs in 
-	  StateSet.iter
-	    (fun qi -> 
-	      Hashtbl.iter
-		(fun q' ns -> 	      
-		  let qs' = Hashtbl.find h_eps q' in 
-		  let r' = Hashtbl.find h_r qs' in 
-		  add_set_trans m' r ns r')
-		(all_delta m.delta qi))
-	    qs)
-	m m.s () in 
+      forward_fold_nfa (fun q () ->
+        let qs = Hashtbl.find h_eps q in
+        let r = Hashtbl.find h_r qs in
+
+        StateSet.iter (fun qi ->
+          (* Note that choice nodes by construction only have epsilon
+           * transitions coming out of them. The code below relies on that, as
+           * it would otherwise miss non-epsilon transitions from choice nodes.
+           *)
+          if is_pick_state qi
+            then
+              let qs' = Hashtbl.find h_eps qi in
+              let r' = Hashtbl.find h_r qs' in
+              add_trans m' r Epsilon r'
+            else
+              Hashtbl.iter (fun q' ns ->
+              let qs' = Hashtbl.find h_eps q' in
+              let r' = Hashtbl.find h_r qs' in
+              add_set_trans m' r ns r')
+            (all_delta m.delta qi))
+        qs)
+      m m.s () in
     m'
 
   let subseteq = nfa_subseteq
 
   let regex_to_t r = 
+    let pick_states = Hashtbl.create 17 in
     let create () = new_nfa_states 0 1 in 
     let rec loop r = 
       match r with 
@@ -416,7 +447,10 @@ module NFA = struct
         let m = create () in 
         add_trans m m.s (Character n) m.f;
         m
-      | Pick(r1, r2) -> failwith "nyi"
+      | Pick(r1, r2) ->
+        let m = union (loop r1) (loop r2) in
+          Hashtbl.add pick_states m.s ();
+          m
       | Alt(r1,r2) ->
         union (loop r1) (loop r2)
       | Cat(r1,r2) ->
@@ -428,9 +462,9 @@ module NFA = struct
         m
       | Empty ->
         create () in 
-        let m = eps_eliminate (loop r) in 
-        elim_dead_states m; 
-        m
+    let m = eps_eliminate (loop r) (Hashtbl.mem pick_states) in
+      elim_dead_states m;
+      (m, pick_states)
 end
 
 module SwitchMap = Map.Make(struct
@@ -461,7 +495,7 @@ let switch_policies_to_policy (sm : policy SwitchMap.t) : policy =
 
 let regex_to_switch_lf_policies (r : regex) : (lf_policy SwitchMap.t * LinkSet.t) =
   let (aregex, chash) = regex_to_aregex r in
-  let auto = NFA.regex_to_t aregex in
+  let (auto, pick_states) = NFA.regex_to_t aregex in
 
   let switch_port_of_pchar (_, (sw, pt, _, _)) = (sw, pt) in
 
@@ -485,14 +519,24 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy SwitchMap.t * LinkSet.t
       (all_delta m.delta q) acc)
     m m.s SwitchMap.empty in
 
+  let mk_mod q = Mod(SDN_Headers.Header(SDN_Types.Vlan), VInt.Int16 q) in
   let links = ref LinkSet.empty in
 
   let to_lf_policy (q, (lf_p, l), q') : lf_policy =
     links := LinkSet.add l !links;
+
+    let next_states =
+        if Hashtbl.mem pick_states q'
+          then Nfa.StateSet.elements (NFA.eps_closure_upto (fun x -> Hashtbl.mem pick_states x) auto q')
+          else [q']
+    in
+
     let ingress =
-        Filter(NetKAT_Types.(Test(SDN_Headers.Header SDN_Types.Vlan, VInt.Int16 q))) in
-    let egress =
-        Mod(SDN_Headers.Header(SDN_Types.Vlan), VInt.Int16 q') in
+      Filter(NetKAT_Types.(Test(SDN_Headers.Header SDN_Types.Vlan, VInt.Int16 q))) in
+    let egress = List.(fold_right (fun e acc ->
+        Choice(acc, mk_mod e))
+      (tl next_states) (mk_mod (hd next_states))) in
+
     Seq(ingress, Seq(lf_p, egress)) in
 
   let edges_to_lf_policy (es : EdgeSet.t) : lf_policy =
@@ -501,6 +545,11 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy SwitchMap.t * LinkSet.t
       Par(acc, to_lf_policy e))
     (EdgeSet.remove start es) (to_lf_policy start) in
 
+  (* TODO(seliopou): Check that the NFA's state state is a choice node. If it
+   * is, create a network-wide ingress policty and return it.
+   *
+   * TODO(seliopou): add egress, if at final state, pop vlan
+   *)
   (SwitchMap.map edges_to_lf_policy (to_edge_map auto), !links)
 
 let dehopify (p : policy) : (policy SwitchMap.t * LinkSet.t) =
