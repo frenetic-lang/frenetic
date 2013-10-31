@@ -1,8 +1,8 @@
 # OASIS_START
-# DO NOT EDIT (digest: 020d5719cb6ad1f87f96288a64df29c7)
+# DO NOT EDIT (digest: e1b88b8c5164f78b3440606e5c9f2a73)
 version = "0.9"
 description = "Topology for networks"
-requires = "str ocamlgraph packet"
+requires = "str ocamlgraph openflow packet"
 archive(byte) = "topology.cma"
 archive(byte, plugin) = "topology.cma"
 archive(native) = "topology.cmxa"

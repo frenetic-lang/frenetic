@@ -1,8 +1,8 @@
 open Graph
 open Packet
 
-type switchId = int64
-type portId = int32
+type switchId = SDN_Types.switchId
+type portId = VInt.t
 type rate = Rate of int64 * int64
 val string_of_rate : rate -> string
 
@@ -27,8 +27,8 @@ sig
   type t = {
     srcport : portId;
     dstport : portId;
-    cost : int64;
-    capacity : int64;
+    cost : VInt.t;
+    capacity : VInt.t;
   }
   type e = (v * t * v)
   val default : t
@@ -74,11 +74,13 @@ sig
   val get_switches : t -> V.t list
   val get_switchids : t -> switchId list
   val ports_of_switch : t -> V.t -> portId list
-  val edge_ports_of_switch : t -> V.t -> portId list
+  (* TODO(basus): remove this? *)
+  (* val edge_ports_of_switch : t -> V.t -> portId list *)
   val next_hop : t -> V.t -> portId -> V.t
 
   (* Utility functions *)
   val shortest_path : t -> V.t -> V.t -> E.t list
+  val floyd_warshall : t -> ((V.t * V.t) * V.t list) list
   val to_dot : t -> string
   val to_string : t -> string
   val to_mininet : t -> string

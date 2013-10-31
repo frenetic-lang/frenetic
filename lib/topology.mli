@@ -1,17 +1,18 @@
 open Graph
 open Packet
 
-type switchId = int64
-type portId = int32
-
+type switchId = SDN_Types.switchId
+type portId = VInt.t
 
 module type NODE =
 sig
-  type t = Host of string
-           | Switch of string * switchId
-           | Mbox of string * string list
-
+  type t = 
+    | Host of string
+    | Switch of string * switchId
+    | Mbox of string * string list
+	
   type label = t
+
   val equal : t -> t -> bool
   val compare : t -> t -> int
   val to_dot : t -> string
@@ -25,8 +26,8 @@ sig
   type t = {
     srcport : portId;
     dstport : portId;
-    cost : int64;
-    capacity : int64;
+    cost : VInt.t;
+    capacity : VInt.t;
   }
   type e = (v * t * v)
   val default : t
@@ -72,11 +73,13 @@ sig
   val get_switches : t -> V.t list
   val get_switchids : t -> switchId list
   val ports_of_switch : t -> V.t -> portId list
-  val edge_ports_of_switch : t -> V.t -> portId list
+  (* TODO(basus): remove this? *)
+  (* val edge_ports_of_switch : t -> V.t -> portId list *)
   val next_hop : t -> V.t -> portId -> V.t
 
   (* Utility functions *)
   val shortest_path : t -> V.t -> V.t -> E.t list
+  val floyd_warshall : t -> ((V.t * V.t) * V.t list) list
   val to_dot : t -> string
   val to_string : t -> string
   val to_mininet : t -> string

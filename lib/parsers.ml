@@ -71,10 +71,10 @@ module TopoDot = struct
   (* Update the record for an edge *)
   let update_eattr edge (key,valopt) =
     match key with
-      | Dot_ast.Ident("sport") -> {edge with Core.Link.srcport = int32_of_id valopt}
-      | Dot_ast.Ident("dport") -> {edge with Core.Link.dstport = int32_of_id valopt}
-      | Dot_ast.Ident("cost") -> {edge with Core.Link.cost = int64_of_id valopt}
-      | Dot_ast.Ident("capacity") -> {edge with Core.Link.capacity = capacity_of_id valopt}
+      | Dot_ast.Ident("sport") -> {edge with Core.Link.srcport = VInt.Int32 (int32_of_id valopt)}
+      | Dot_ast.Ident("dport") -> {edge with Core.Link.dstport = VInt.Int32 (int32_of_id valopt)}
+      | Dot_ast.Ident("cost") -> {edge with Core.Link.cost = VInt.Int64 (int64_of_id valopt) }
+      | Dot_ast.Ident("capacity") -> {edge with Core.Link.capacity = VInt.Int64 (capacity_of_id valopt)}
       | _ -> failwith "Unknown node attribute\n"
 
   (* Generate a node from the id and attributes *)
@@ -87,7 +87,7 @@ module TopoDot = struct
     if nat.ntype = "host" then
       Core.Node.Host(name)
     else if nat.ntype = "switch" then
-      Core.Node.Switch(name, nat.id)
+      Core.Node.Switch(name, VInt.Int64 nat.id)
     else
       Core.Node.Mbox(name,[])
 
@@ -124,8 +124,8 @@ module TopoGML = struct
        simple, since most Topology Zoo graphs don't seem to have port
        information *)
     let update_eattr edge (key, value) = match key with
-      | "source" -> {edge with Core.Link.dstport = int32_of_value value}
-      | "target" -> {edge with Core.Link.srcport = int32_of_value value}
+      | "source" -> {edge with Core.Link.dstport = VInt.Int32 (int32_of_value value)}
+      | "target" -> {edge with Core.Link.srcport = VInt.Int32 (int32_of_value value)}
       | _ -> edge
 
     let node (vs:Gml.value_list) : Core.Topology.V.label =
@@ -134,7 +134,7 @@ module TopoGML = struct
       if nat.ntype = "host" then
         Core.Node.Host(nat.name)
       else if nat.ntype = "switch" then
-        Core.Node.Switch(nat.name, nat.id)
+        Core.Node.Switch(nat.name, VInt.Int64 nat.id)
       else
         Core.Node.Mbox(nat.name,[])
 
@@ -150,3 +150,23 @@ module DOT = Graph.Dot.Parse(B)(TopoDot)
 
 let from_dotfile = DOT.parse
 let from_gmlfile = GML.parse
+
+(* TODO(basus): add a mininet parser *)
+
+(* let from_mininet_raw (lst : (node * portId * node) list) = *)
+(*   let open Node in  *)
+(*   let g = Topology.empty in *)
+(*   let len = 500 in *)
+(*   let weight x y = match (x, y) with *)
+(*     | (Host _, Host _) -> 1 *)
+(*     | (Host _, Switch _) -> len *)
+(*     | (Switch _, Host _) -> len *)
+(*     | (Switch _, Switch _) -> 1 in *)
+(*   List.iter  *)
+(*     (fun (src,portId,dst) ->   *)
+(*       Topology.add_edge g src portId (weight src dst) dst)  *)
+(*     lst; *)
+(*   g *)
+
+(* let from_mininet filename =  *)
+(*   from_mininet_raw (Mininet.parse_from_chan (open_in filename) filename) *)
