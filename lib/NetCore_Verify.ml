@@ -52,6 +52,7 @@ module Sat = struct
 
   (* fresh variables *)
   let fresh_cell = ref []
+  let decl_list = ref []
 
   let fresh s = 
     let l = !fresh_cell in  
@@ -71,8 +72,6 @@ module Sat = struct
 
 
 
-  let reset () = 
-    fresh_cell := []
 
   (* serialization *)
   let serialize_located_packet (sw,pt,pkt) = 
@@ -194,44 +193,51 @@ module Sat = struct
       | ZDeclareAssert(f) -> 
         Printf.sprintf "(assert %s)" (serialize_formula f)
 
-
+(*
   let define_z3_fun (name : string) (arglist : (zVar * zSort) list)  (rettype : zSort) (body : zFormula)  = 
     let args = List.map (fun (a, t) -> TVar a) arglist in
     let argtypes = List.map (fun (a, t) -> t) arglist in
     [ZDeclareVar (name, SFunction (argtypes, rettype)); ZDeclareAssert (ZForall (arglist, ZEquals (ZTerm (TApp ((TVar name), args)), body))) ]
-
-  let foo = 4
+*)
 
   let define_z3_macro (name : string) (arglist : (zVar * zSort) list)  (rettype : zSort) (body : zFormula)  = 
     [ZDefineVar (name, SMacro (arglist, rettype), body)]
 
 
   let zApp x = (fun l -> ZTerm (TApp (x, l)))
-
+(*
   let z3_fun (name : string) (arglist : (zVar * zSort) list) (rettype : zSort) (body : zFormula) : zTerm = 
     let l = !fresh_cell in
     let name = name ^ "_" ^ to_string (gensym ()) in
     (match (define_z3_fun name arglist rettype body) with
       | [decl; def] -> fresh_cell := decl :: (l @ [ZToplevelComment "defined with z3_fun"; def])
       | _ -> assert false);
-    TVar name
+    TVar name *)
 
-  let z3_macro (name : string) (arglist : (zVar * zSort) list) (rettype : zSort)(body : zFormula) : zTerm = 
+  let z3_macro_picklocation put_at_top (name : string) (arglist : (zVar * zSort) list) (rettype : zSort)(body : zFormula) : zTerm = 
     let l = !fresh_cell in
     let name = name ^ "_" ^ to_string (gensym ()) in
-    fresh_cell := (define_z3_macro name arglist rettype body) @ l;
+    let new_macro = (define_z3_macro name arglist rettype body) in
+    (if put_at_top then
+	fresh_cell := new_macro @ l
+     else
+	decl_list := new_macro @ (!decl_list));
     TVar name
+      
+  let z3_macro = z3_macro_picklocation false
+  let z3_macro_top = z3_macro_picklocation true
 
   let z3_macro_app (s : string) (vars : zVar list) (expr : zFormula) (args : zFormula list) = 
     let params = (List.map (fun v -> (v, SPacket)) vars) in
-    let fun2map = (z3_fun ("forwards_pol_" ^ s) params SPacket expr) in
+    let fun2map = (z3_macro ("forwards_pol_" ^ s) params SPacket expr) in
     (ZApp (ZTerm fun2map, args))
-    
+
+(*    
   let z3_map_expr (s : string) (vars : zVar list) (expr : zFormula) (lists : zTerm list) = 
     let params = (List.map (fun v -> (v, SPacket)) vars) in
     let fun2map = (z3_fun ("forwards_pol_" ^ s) params SPacket expr) in
     ZTerm (TApp ( (TApp (TVar "_", [TVar "map"; fun2map]  )), lists))
-
+*)
 
       
   module Z3macro = struct
@@ -248,8 +254,7 @@ module Sat = struct
     let z3app3 f = (fun sp xp yp -> match sp, xp, yp with 
       | (ZTerm (TVar s)), (ZTerm (TVar x)), (ZTerm (TVar y)) -> ZTerm (TApp ((TVar f ), [(TVar s);(TVar x); (TVar y)]))
       | _ -> failwith "need to apply functions to variables as of right now.") 
-    let select = z3app2 "select" 
-    let store = z3app3 "store" 
+    let set_mem = z3app2 "set_mem"
     let set_add = z3app2 "set_add"
     let rec set_add_chain set pkt_list = match pkt_list with
       | [] -> failwith "please use set_add_chain with non-empty list"
@@ -271,7 +276,7 @@ module Sat = struct
 
     (* actual z3 function definitions *)
     
-    (define_z3_fun "packet_and"  [("x", SPacket); ("y", SPacket)] SPacket
+    (*(define_z3_fun "packet_and"  [("x", SPacket); ("y", SPacket)] SPacket
        (ZIf (ZAnd 
 	       [ZNot (ZEquals (x, nopacket)); 
 		ZEquals (x, y)], 
@@ -281,15 +286,16 @@ module Sat = struct
       (ZIf (ZEquals (x, nopacket), y, x)) @
       
       define_z3_fun "packet_diff" [("x", SPacket); ("y", SPacket)] SPacket
-      (ZIf (ZEquals (x,y), nopacket, x)) @
+      (ZIf (ZEquals (x,y), nopacket, x)) @ *)
       
-      define_z3_macro "set_mem" [("x", SPacket); ("s", SSet)] SBool
-      (ZNot (ZEquals ((select s x), nopacket))) @
+      define_z3_macro "set_mem" [("s", SSet); ("x", SPacket)] SBool
+      (ZEquals (((z3app2 "select") s x), x)) @
       
       define_z3_macro "set_add" [("s", SSet); ("x", SPacket)] SSet 
-      (store s x x) @
-      
-      define_z3_macro "set_inter" [("s1", SSet); ("s2", SSet)] SSet
+      ((z3app3 "store") s x x)
+(*      
+	@
+    define_z3_macro "set_inter" [("s1", SSet); ("s2", SSet)] SSet
       (map "packet_and" s1 s2) @
       
       define_z3_macro "set_union" [("s1", SSet); ("s2", SSet)] SSet
@@ -300,6 +306,7 @@ module Sat = struct
       
       define_z3_macro "set_subseteq" [("s1", SSet); ("s2", SSet)] SBool 
       (ZEquals (set_empty, (set_diff s1 s2)))
+*)
       
   let pervasives : string = 
     "
@@ -327,7 +334,11 @@ module Sat = struct
       
   let serialize_program p : string = 
     let ZProgram(ds) = p in 
-    let ds' = List.flatten [!fresh_cell; [ZToplevelComment("End Definitions, Commence SAT expressions\n")]; ds] in 
+    let ds' = List.flatten [!fresh_cell; 
+			    [ZToplevelComment("end initial declarations, commence dependent declarations\n")];
+			    !decl_list;
+			    [ZToplevelComment("End Definitions, Commence SAT expressions\n")]; 
+			    ds] in 
     Printf.sprintf "%s%s\n(check-sat)\n"
       pervasives (intercalate serialize_declare "\n" ds') 
 
@@ -491,14 +502,14 @@ module Verify = struct
 		      else
 		    ZEquals (ZTerm (encode_header hd "x"), ZTerm( encode_header hd "y"))::acc) 
 		    [] all_fields in 
-		let new_except = (z3_macro ("packet_equals_except_" ^ (*todo: how to serialize headers? serialize_ except*) "" ) 
+		let new_except = (z3_macro_top ("packet_equals_except_" ^ (*todo: how to serialize headers? serialize_ except*) "" ) 
 				    [("x", SPacket);("y", SPacket)] SBool  
 				    (ZAnd(l))) in
 		Hashtbl.add hash except new_except;
 		new_except), 
 	    [TVar pkt1; TVar pkt2]))) in
     let encode_packet_equals = encode_packet_equals_2 false in
-    let reset_state () = let _ = encode_packet_equals_2 true "" "" Switch in (); fresh_cell := [] in
+    let reset_state () = let _ = encode_packet_equals_2 true "" "" Switch in (); fresh_cell := []; decl_list := [] in
     encode_packet_equals, reset_state
 
   let encode_vint (v: VInt.t): zTerm = 
@@ -530,10 +541,17 @@ module Verify = struct
   open Z3macro
   let rec forwards_pol (pol:policy) (inset:zVar) (inset_pkts : zVar list) (outset:zVar) : zFormula * (zVar list)  =
     let x = (ZTerm (TVar "x")) in
-    let y = (ZTerm (TVar "y")) in
+    (* let y = (ZTerm (TVar "y")) in *)
     (* let inset_f = (ZTerm (TVar outset)) in  *)
     let outset_f = (ZTerm (TVar outset)) in 
     let inset_f = (ZTerm (TVar inset)) in 
+    let ocaml_map_macro macro = 
+      	let outset_pkts = List.map (fun _ -> fresh SPacket) inset_pkts in
+	ZAnd (List.map2 (fun arg out ->  ZEquals (out, ZApp (ZTerm macro, [arg]))) 
+		(List.map (fun t -> ZTerm (TVar t)) inset_pkts)
+		(List.map (fun t -> ZTerm (TVar t)) outset_pkts)
+	), outset_pkts in
+
 
     let (formu : zFormula), outset_pkts = match pol with
       | Filter pred ->
@@ -542,33 +560,22 @@ module Verify = struct
 	  (z3_map_expr "Filter"  ["x"] expr_to_map [(TVar inset)]), 
 	  outset_f) *)
 	let macro_to_map = z3_macro "Filter" [("x", SPacket)] SPacket expr_to_map in 
-	let outset_pkts = List.map (fun _ -> fresh SPacket) inset_pkts in
-	ZAnd (List.map2 (fun arg out ->  ZEquals (out, ZApp (ZTerm macro_to_map, [arg]))) 
-		(List.map (fun t -> ZTerm (TVar t)) inset_pkts)
-		(List.map (fun t -> ZTerm (TVar t)) outset_pkts)
-	), outset_pkts
-	  
+	ocaml_map_macro macro_to_map
       | Mod(f,v) -> 
 	let expr_to_map = 
-	  (ZIf 
-	     ((ZAnd [
-	       encode_packet_equals "x" "y" f;
-	       ZEquals(ZTerm (encode_header f "y"), ZTerm (encode_vint v))]), 
-	       (* then *) y, 
-	       (* else *) nopacket)) in
-
+	  (ZAnd [
+	    encode_packet_equals "x" "y" f;
+	    ZEquals(ZTerm (encode_header f "y"), ZTerm (encode_vint v))]) in
+	let macro_to_map = z3_macro "mod" [("x", SPacket); ("y", SPacket)] SBool expr_to_map in
+      	let outset_pkts = List.map (fun _ -> fresh SPacket) inset_pkts in
+	ZAnd (List.map2 (fun arg out ->  ZApp (ZTerm macro_to_map, [arg; out])) 
+		(List.map (fun t -> ZTerm (TVar t)) inset_pkts)
+		(List.map (fun t -> ZTerm (TVar t)) outset_pkts)
+	), outset_pkts 
 (*	let map_result = 
 	  (z3_map_expr "mod" ["x";"y"]  expr_to_map [TVar inset; TVar outset]) in
 	ZEquals(map_result, outset_f) *)
-
-	let macro_to_map = z3_macro "mod" [("x", SPacket); ("y", SPacket)] SPacket expr_to_map in
-	let outset_pkts = List.map (fun _ -> fresh SPacket) inset_pkts in
-	ZAnd (List.map2 (fun arg out ->  ZEquals (out, ZApp (ZTerm macro_to_map, [arg]))) 
-		(List.map (fun t -> ZTerm (TVar t)) inset_pkts)
-		(List.map (fun t -> ZTerm (TVar t)) outset_pkts)
-	), outset_pkts
-
-	  
+  
       | Par(pol1,pol2) -> 
         let set1 = fresh SSet in 
         let set2 = fresh SSet in 
@@ -621,7 +628,7 @@ module Verify = struct
     let s = ZTerm (TVar (ret)) in
     let assertvar = ZTerm (TVar (fresh SPacket)) in
     fresh_cell := !fresh_cell @ [(ZToplevelComment "asserting non-empty set");
-				 (ZDeclareAssert (ZNot (ZEquals (select s assertvar, nopacket))))];
+				 (ZDeclareAssert(set_mem s assertvar))];
     ret
 
   let one_element_set elem = 
@@ -668,11 +675,11 @@ oko: bool option. has to be Some. True if you think it should be satisfiable.
   let y = Sat.fresh Sat.SPacket in
   let yset = Verify.non_empty_set () in
   let prog =     Sat.ZProgram [ 
-    Sat.ZDeclareAssert (Sat.Z3macro.select (Sat.ZTerm (Sat.TVar xset)) (Sat.ZTerm (Sat.TVar x))) 
+    Sat.ZDeclareAssert (Sat.Z3macro.set_mem (Sat.ZTerm (Sat.TVar xset)) (Sat.ZTerm (Sat.TVar x))) 
     ; Sat.ZDeclareAssert (Verify.forwards_pred inp x)
     ; Sat.ZDeclareAssert (Verify.forwards_star pol xset [x] yset k )
     ; Sat.ZDeclareAssert (Verify.forwards_pred outp y)
-    ; Sat.ZDeclareAssert (Sat.ZEquals ((Sat.ZTerm (Sat.TVar y)), Sat.Z3macro.select (Sat.ZTerm (Sat.TVar yset)) (Sat.ZTerm (Sat.TVar y))))] in
+    ; Sat.ZDeclareAssert (Sat.Z3macro.set_mem (Sat.ZTerm (Sat.TVar yset)) (Sat.ZTerm (Sat.TVar y)))] in
   run_solve oko prog str
 
   let check = check_reachability
