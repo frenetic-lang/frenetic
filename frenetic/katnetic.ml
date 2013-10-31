@@ -1,3 +1,5 @@
+open PolicyGenerator
+
 let help args =
   match args with 
     | [ "run" ] -> 

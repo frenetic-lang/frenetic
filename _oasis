@@ -50,7 +50,8 @@ Library netcore
     Pretty,
     LocalCompiler,
     Dehop,
-    Controller
+    Controller,
+    PolicyGenerator
 
   Modules:
     NetCore_Util,

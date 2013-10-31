@@ -614,7 +614,8 @@ module MakeConsistent = struct
     Lwt.async (fun () -> switch_thread feats pol_stream topo);
     accept_switches pol_stream topo
 
-  let make_extPorts topo sw = Topology.Topology.edge_ports_of_switch topo sw
+  (* TODO(jnf): evil, evil, make this die *)
+  let make_extPorts topo sw = [] (* Topology.Topology.edge_ports_of_switch topo sw *)
 
   module GenSym = (* TODO(arjun): consider NetCore_Gensym *)
   struct
