@@ -432,35 +432,44 @@ module Local = struct
       (* 	(to_string p) (to_string q) (to_string r); *)
     r
 
-    (* TODO(jnf) this is a helper function; give it a different name? *)
-  let seq_atom_act_local_acc (r1:Atom.t) (a:Action.t) (q:t) (acc:t) : t =
-    Atom.Map.fold
-      (fun r2 g2 acc ->
-        match Atom.seq_act_atom r1 a r2 with
-          | None ->
-            acc
-          | Some r12 ->
-            extend Action.group_crossproduct r12 (Action.seq_group a g2) acc)
-      q acc
+  let cross_merge _ g1o g2o =
+    match g1o, g2o with
+      | Some g1, None -> Some g1
+      | None, Some g2 -> Some g2
+      | Some g1, Some g2 -> Some (Action.group_crossproduct g1 g2)
+      | None, None -> None 
 
-  let seq_atom_acts_local_acc (r1:Atom.t) (s1:Action.Set.t) (q:t) (acc:t) : t =
+  let union_merge _ g1o g2o =
+    match g1o, g2o with
+      | Some g1, None -> Some g1
+      | None, Some g2 -> Some g2
+      | Some g1, Some g2 -> Some (Action.group_union g1 g2)
+      | None, None -> None 
+      
+  let seq_atom_acts_local (r1:Atom.t) (s1:Action.Set.t) (q:t) : t =
+    let group_fail (g1:Action.group) (g2:Action.group) : Action.group = 
+      failwith "LocalCompiler.Local.group_combine_fail" in 
+    let seq_act (a:Action.t) : t =
+      Atom.Map.fold
+	(fun r2 g2 acc ->
+          match Atom.seq_act_atom r1 a r2 with
+            | None ->
+              acc
+            | Some r12 ->
+              extend group_fail r12 (Action.seq_group a g2) acc)
+	q Atom.Map.empty in 
     Action.Set.fold
-      (fun a acc -> seq_atom_act_local_acc r1 a q acc)
-      s1 acc
-
+      (fun a acc -> Atom.Map.merge cross_merge acc (seq_act a))
+      s1 Atom.Map.empty
+	  
   let seq_local (p:t) (q:t) : t =
     let r =
       Atom.Map.fold
         (fun r1 g1 acc ->
-          match g1 with
-            | [] ->
-	      assert false
-            | [s1] when Action.is_drop s1 ->
-	      extend Action.group_crossproduct r1 [s1] acc
-            | _ ->
-	      List.fold_left
-                (fun acc si -> seq_atom_acts_local_acc r1 si q acc)
-                acc g1)
+	  List.fold_left
+            (fun acc si -> 
+	      Atom.Map.merge union_merge acc (seq_atom_acts_local r1 si q))
+            acc g1)
         p Atom.Map.empty in
       (* Printf.printf *)
       (* 	"SEQ_LOCAL\n%s\n%s\n%s\n\n" *)
