@@ -439,32 +439,45 @@ module NFA = struct
   let subseteq = nfa_subseteq
 
   let regex_to_t r = 
-    let pick_states = Hashtbl.create 17 in
     let create () = new_nfa_states 0 1 in 
-    let rec loop r = 
-      match r with 
-      | Char n -> 
+
+    let update s m = Hashtbl.iter (fun q r ->
+      Hashtbl.remove  s q;
+      Hashtbl.replace s r ()) m; s in
+
+    let combine op (m, lhs) (n, rhs) =
+      let (ml, mr, m') = op m n lhs rhs in
+      let lhs' = update lhs ml in
+      let rhs' = update rhs mr in
+        Hashtbl.iter (Hashtbl.replace lhs') rhs';
+        (m', lhs') in
+
+    let rec loop r =
+      match r with
+      | Char n ->
         let m = create () in 
         add_trans m m.s (Character n) m.f;
-        m
+        (m, Hashtbl.create 7)
       | Pick(r1, r2) ->
-        let m = union (loop r1) (loop r2) in
+        let (m, pick_states) = combine union (loop r1) (loop r2) in
           Hashtbl.add pick_states m.s ();
-          m
+          (m, pick_states)
       | Alt(r1,r2) ->
-        union (loop r1) (loop r2)
+         combine union (loop r1) (loop r2)
       | Cat(r1,r2) ->
-        simple_concat (loop r1) (loop r2)
+         combine concat (loop r1) (loop r2)
       | Kleene(r) -> 
-        let m = loop r in 
+        let (m, pick_states) = loop r in
         add_trans m m.s Epsilon m.f;
         add_trans m m.f Epsilon m.s;
-        m
+        (m, pick_states)
       | Empty ->
-        create () in 
-    let m = eps_eliminate (loop r) (Hashtbl.mem pick_states) in
-      elim_dead_states m;
-      (m, pick_states)
+        (create (), Hashtbl.create 7) in
+    let (m, pick_states) = loop r in
+    let m' = eps_eliminate m (Hashtbl.mem pick_states) in
+      elim_dead_states m';
+      print_endline (Nfa.nfa_to_dot m');
+      (m', pick_states)
 end
 
 module SwitchMap = Map.Make(struct
@@ -527,9 +540,10 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy SwitchMap.t * LinkSet.t
 
     let next_states =
         if Hashtbl.mem pick_states q'
-          then Nfa.StateSet.elements (NFA.eps_closure_upto (fun x -> Hashtbl.mem pick_states x) auto q')
-          else [q']
-    in
+          then Nfa.neighbors auto q'
+          else [q'] in
+
+    Printf.printf "working on state %d with %d next states\n" q (List.length next_states);
 
     let ingress =
       Filter(NetKAT_Types.(Test(SDN_Headers.Header SDN_Types.Vlan, VInt.Int16 q))) in
