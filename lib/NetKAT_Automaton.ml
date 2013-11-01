@@ -382,60 +382,78 @@ module NFA = struct
       !visited
       
   let eps_eliminate m is_pick_state =
+    Printf.printf "--- EPS_ELIMINATE ---\n%s\n" (Nfa.nfa_to_dot m);
     let qi,qf = 0,1 in 
     let m' = new_nfa_states qi qf in 
-    (* cache of state's epsilon closure *)
+    (* epsilon closure cache *)
     let h_eps = Hashtbl.create 17 in 
-    (* maps sets of states (that are epsilon-closed) to a state of the new
-     * automaton *)
+    (* maps sets of epsilon-closed states to new automaton states *)
     let h_r = Hashtbl.create 17 in 
-    let () =
-      Hashset.iter (fun q ->
-        let qs = if is_pick_state q
-          then eps_closure_upto is_pick_state m q
-          else eps_closure_upto (fun q -> not (is_pick_state q)) m q
-        in
-          Hashtbl.add h_eps q qs;
-          if q = m.s then
-            Hashtbl.add h_r qs qi
-          else if StateSet.mem m.f qs then
-            (* There is only one final state allowed by Dprle, so epsilon
-             * elimination can never get rid of all epsilons, namely the ones that
-             * transition to the unique final state.
-             *)
-            let r = new_state m' in
-            Hashtbl.add h_r qs r;
-            add_trans m' r Epsilon qf
-          else if not (Hashtbl.mem h_r qs) then
-            let r = new_state m' in
-            Hashtbl.add h_r qs r
-        else ())
-      m.q in
-    let () = 
-      forward_fold_nfa (fun q () ->
-        let qs = Hashtbl.find h_eps q in
-        let r = Hashtbl.find h_r qs in
-
-        StateSet.iter (fun qi ->
-          (* Note that choice nodes by construction only have epsilon
-           * transitions coming out of them. The code below relies on that, as
-           * it would otherwise miss non-epsilon transitions from choice nodes.
-           *)
-          if is_pick_state qi
-            then
-              let qs' = Hashtbl.find h_eps qi in
-              let r' = Hashtbl.find h_r qs' in
-              add_trans m' r Epsilon r'
-            else
-              Hashtbl.iter (fun q' ns ->
-              let qs' = Hashtbl.find h_eps q' in
-              let r' = Hashtbl.find h_r qs' in
-              add_set_trans m' r ns r')
-            (all_delta m.delta qi))
-        qs)
-      m m.s () in
-    m'
-
+    (* new automaton pick states *)
+    let h_pick = Hashtbl.create 5 in 
+    (* helper function: convert old state to epsilon closure and new state *)
+    let lookup_state qi = 
+      let qsi = Hashtbl.find h_eps qi in 
+      (qsi, Hashtbl.find h_r qsi) in 
+    (* Phase I: initialize new automaton states *)
+    Hashset.iter 
+      (fun q ->
+	let qs = 
+	  if is_pick_state q then 
+	    eps_closure_upto is_pick_state m q
+	  else 
+	    eps_closure_upto (fun q' -> not (is_pick_state q')) m q in 
+	Hashtbl.add h_eps q qs;
+	if q = m.s then 
+	  Hashtbl.add h_r qs qi
+	else if not (Hashtbl.mem h_r qs) then
+          Hashtbl.add h_r qs (new_state m')
+	else ())
+      m.q;
+    (* Phase II: initialize new automaton transitions *)
+    forward_fold_nfa (fun q () ->
+      let qs,r = lookup_state q in 
+      Printf.printf "Processing q%d\t[%b]\tr%d\t{%s} {%s}\n" q (is_pick_state q) r 
+	(StateSet.fold 
+	   (fun qi acc -> 
+	     Printf.sprintf "%sq%d" 
+	       (if acc = "" then "" else acc ^ ", ") qi) qs "")
+	(StateSet.fold 
+	   (fun qi acc -> 
+	     Printf.sprintf "%sr%d" 
+	       (if acc = "" then "" else acc ^ ", ") (let _,ri = lookup_state qi in ri)) qs "");
+      if StateSet.mem m.f qs then 
+	add_trans m' r Epsilon qf;
+      if is_pick_state q then 
+	(* Case: q is a pick node *)
+	begin 
+	  Hashtbl.add h_pick r ();
+	  StateSet.iter 
+	    (fun q' -> 
+	      let _,r' = lookup_state q' in 
+	      add_trans m' r Epsilon r')
+	    (StateSet.remove q qs)
+	end
+      else 
+	(* Case: q is not a pick node *)
+	StateSet.iter 
+	  (fun qi -> 
+	    Hashtbl.iter 
+	      (fun q' ns -> 
+		let qs',r' = lookup_state q' in 
+		add_set_trans m' r ns r';
+		StateSet.iter
+		  (fun qi' -> 
+		    if is_pick_state qi' then 
+		      let _,ri' = lookup_state qi' in 
+		      add_set_trans m' r ns ri')
+		  qs')
+	      (all_delta m.delta qi))
+	  qs)
+      m m.s ();
+    (* Final result *)
+    (m', h_pick)
+      
   let subseteq = nfa_subseteq
 
   let regex_to_t r = 
@@ -474,10 +492,10 @@ module NFA = struct
       | Empty ->
         (create (), Hashtbl.create 7) in
     let (m, pick_states) = loop r in
-    let m' = eps_eliminate m (Hashtbl.mem pick_states) in
-      elim_dead_states m';
-      print_endline (Nfa.nfa_to_dot m');
-      (m', pick_states)
+    let m', pick_states' = eps_eliminate m (Hashtbl.mem pick_states) in
+    elim_dead_states m';
+    print_endline (Nfa.nfa_to_dot m');
+    (m', pick_states')
 end
 
 module SwitchMap = Map.Make(struct
@@ -536,6 +554,7 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy SwitchMap.t * LinkSet.t
   let links = ref LinkSet.empty in
 
   let to_lf_policy (q, (lf_p, l), q') : lf_policy =
+    Printf.printf "Working on q%d -> q%d\n" q q';
     links := LinkSet.add l !links;
 
     let next_states =
@@ -543,7 +562,8 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy SwitchMap.t * LinkSet.t
           then Nfa.neighbors auto q'
           else [q'] in
 
-    Printf.printf "working on state %d with %d next states\n" q (List.length next_states);
+    Printf.printf "working on state %d with next states [%s]\n" q 
+      (List.fold_left (fun acc qi -> Printf.sprintf "q%d(%b)%s" qi (Hashtbl.mem pick_states qi) (if acc = "" then "" else ", " ^ acc)) "" next_states);
 
     let ingress =
       Filter(NetKAT_Types.(Test(SDN_Headers.Header SDN_Types.Vlan, VInt.Int16 q))) in
@@ -564,6 +584,7 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy SwitchMap.t * LinkSet.t
    *
    * TODO(seliopou): add egress, if at final state, pop vlan
    *)
+  Printf.printf "AUTO: %s\n" (Nfa.nfa_to_dot auto);
   (SwitchMap.map edges_to_lf_policy (to_edge_map auto), !links)
 
 let dehopify (p : policy) : (policy SwitchMap.t * LinkSet.t) =
