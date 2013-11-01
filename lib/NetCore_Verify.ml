@@ -249,8 +249,8 @@ module Sat = struct
     let set_empty = (ZTerm (TVar "set_empty"))
     let z3app2 f =
       (fun sp xp -> match sp, xp with 
-	| (ZTerm (TVar s)), (ZTerm (TVar x)) -> ZTerm (TApp ((TVar f ), [(TVar s);(TVar x)]))
-	| _ -> failwith "need to apply functions to variables as of right now.") 
+	| s, x -> ZApp ( (ZTerm (TVar f)), [s;x]))
+
     let z3app3 f = (fun sp xp yp -> match sp, xp, yp with 
       | (ZTerm (TVar s)), (ZTerm (TVar x)), (ZTerm (TVar y)) -> ZTerm (TApp ((TVar f ), [(TVar s);(TVar x); (TVar y)]))
       | _ -> failwith "need to apply functions to variables as of right now.") 
@@ -356,7 +356,7 @@ module Sat = struct
          Buffer.add_char b '\n';
        done
      with End_of_file -> ());
-    Printf.eprintf "%s\n%s" s (Buffer.contents b); 
+(*    Printf.eprintf "%s\n%s" s (Buffer.contents b);*)
     Buffer.contents b = "sat\nsat\n"
 end
 
@@ -581,11 +581,12 @@ module Verify = struct
         let set2 = fresh SSet in 
 	let pol1form,pol1outs = forwards_pol pol1 inset inset_pkts set1 in
 	let pol2form,pol2outs = forwards_pol pol2 inset inset_pkts set2 in
-        (ZAnd[pol1form;
+        (ZOr[pol1form;
               pol2form;
+	      (*I don't really know that this is necessary...
               ZEquals(ZTerm (TApp(TVar "set_union", [TVar set1;
 						     TVar set2])),
-                      outset_f)]), pol1outs@pol2outs
+                      outset_f) *)]), pol1outs@pol2outs
       | Seq(pol1,pol2) -> 
 	let set' = fresh SSet in
 	let form,pkts' = forwards_pol pol1 inset inset_pkts set' in
@@ -595,9 +596,12 @@ module Verify = struct
       | Star _  -> failwith "NetKAT program not in form (p;t)*"
       | Choice _-> failwith "I'm not rightly sure what a \"choice\" is "
     in
-    ZAnd [ZEquals(set_add_chain set_empty (List.map (fun v -> ZTerm (TVar v)) inset_pkts), inset_f); 
-	  
-	  formu], outset_pkts
+    (* decl_list := ((!decl_list) @ 
+		     [ZDeclareAssert 
+			 (ZComment 
+			    ("Manually binding packets to set.", 
+			     ZEquals(set_add_chain set_empty (List.map (fun v -> ZTerm (TVar v)) inset_pkts), inset_f)))]); *)
+    formu, outset_pkts
 
   let rec forwards_k p_t_star set1 pkts1 set2 k : zFormula * (zVar list) = 
     match p_t_star with
@@ -617,9 +621,10 @@ module Verify = struct
     let forwards_k = forwards_k p_t_star set1 pkts1 set2 in
     let combine_results x = 
       let form,pkts2 = forwards_k x in
-      ZAnd[form;
-	   ZEquals (set_add_chain set_empty (List.map (fun v -> ZTerm (TVar v)) pkts2), 
-	   (ZTerm (TVar set2)))] in
+      ZComment ( Printf.sprintf "Attempting to forward in %u hops" x,
+		 ZAnd[form;
+		      ZEquals (set_add_chain set_empty (List.map (fun v -> ZTerm (TVar v)) pkts2), 
+			       (ZTerm (TVar set2)))]) in
     ZOr (List.map combine_results (range 0 k))
 
   open Sat.Z3macro
