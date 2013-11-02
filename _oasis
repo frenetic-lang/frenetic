@@ -46,8 +46,8 @@ Library netcore
     PolicyGenerator
 
   Modules:
-    NetCore_Util,
-    NetCore_Stream
+    Util,
+    Stream
 
 Library quickcheck
   Findlibparent: netcore
