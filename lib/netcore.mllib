@@ -1,7 +1,7 @@
 # OASIS_START
-# DO NOT EDIT (digest: 30fdde52b6de2c1be287ef7d6eb2e47e)
-NetCore_Util
-NetCore_Stream
+# DO NOT EDIT (digest: 76907723857a7d968713be0e702bf914)
+Util
+Stream
 Types
 Lexer
 Parser

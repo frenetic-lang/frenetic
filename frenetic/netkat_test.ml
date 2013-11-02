@@ -75,4 +75,4 @@ end
 let () =
   print_string (Example.pol_str ^ "\n\n");
   let pol = Parser.program Lexer.token (Lexing.from_string Example.pol_str) in
-  Lwt_main.run (Controller.start 6633 (NetCore_Stream.constant pol))
+  Lwt_main.run (Controller.start 6633 (Stream.constant pol))

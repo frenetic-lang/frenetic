@@ -126,11 +126,11 @@ let format_policy = Formatting.pol Formatting.PAREN
   
 let format_header = Formatting.format_header
   
- let header_to_string = NetCore_Util.make_string_of Formatting.format_header
+ let header_to_string = Util.make_string_of Formatting.format_header
   
-let value_to_string = NetCore_Util.make_string_of Formatting.format_value
+let value_to_string = Util.make_string_of Formatting.format_value
   
-let string_of_policy = NetCore_Util.make_string_of format_policy
+let string_of_policy = Util.make_string_of format_policy
 
 let rec pretty_assoc (p : policy) : policy = match p with
   | Filter _ -> p
