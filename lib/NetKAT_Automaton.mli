@@ -1,4 +1,4 @@
-type policy = NetKAT_Types.policy
+open Types
 type lf_policy
 type link
 

@@ -1,7 +1,6 @@
 open Packet
 open NetCore_Types
 open NetCore_Util
-open SDN_Headers
 open Unix
 
 (* The [Sat] module provides a representation of formulas in
@@ -168,7 +167,6 @@ end
 
 module Verify_Graph = struct
   open Topology
-  open NetKAT_Types
   module S = SDN_Types
 	
   let longest_shortest graph = 
@@ -188,11 +186,11 @@ module Verify_Graph = struct
     let src_port_vals h =
       let swSrc =
 	(match Link.src h with
-	  | Node.Switch (str, id) -> VInt.Int64 id
+	  | Node.Switch (str, id) -> id
 	  | _ -> failwith "Switch not in proper form" ) in
       let swDst =
 	(match Link.dst h with
-	  | Node.Switch (str, id) -> VInt.Int64 id
+	  | Node.Switch (str, id) -> id
 	  | _ -> failwith"Switch not in proper form" ) in
       let prtSrc = 
 	let val64 = Int64.of_int32 (Link.srcport h) in
@@ -206,11 +204,13 @@ module Verify_Graph = struct
       match edgeList with
 	| h::[] ->
 	  let (swSrc, prtSrc, swDst, prtDst) = src_port_vals h in
+      let open Types in
 	  Seq ( Seq (Filter (Test (Switch, swSrc)),
 		     Filter (Test( Header S.InPort, prtSrc))),
 		Seq (Mod (Switch, swDst), Mod (Header S.InPort, prtDst)))
 	| h::t -> 
 	  let (swSrc, prtSrc, swDst, prtDst) = src_port_vals h in
+      let open Types in
 	  Seq ( Seq ( Seq (Filter (Test (Switch, swSrc)), 
 			   Filter (Test (Header SDN_Types.InPort, prtSrc))),
 		      Seq (Mod (Switch, swDst), Mod (Header S.InPort, prtDst))),
@@ -219,14 +219,15 @@ module Verify_Graph = struct
     create_pol edges
 
   let parse_graph ptstar = 
+    let open Types in
     let graph = Topology.empty in 
     let rec parse_links (graph: Topology.t) (pol: policy): Topology.t = 
       let assemble switch1 port1 switch2 port2 : Topology.t =
 	match port1, port2 with 
 	  | VInt.Int64 port1, VInt.Int64 port2 -> 
-	    let (node1: Node.t) = Node.Switch ("fresh tag", VInt.get_int64 switch1) in
-	    let (node2: Node.t) = Node.Switch ("fresh tag", VInt.get_int64 switch2) in
-	    Topology.add_switch_edge graph node1 (Int64.to_int32 port1) node2 (Int64.to_int32 port2)
+	    let (node1: Node.t) = Node.Switch ("fresh tag", switch1) in
+	    let (node2: Node.t) = Node.Switch ("fresh tag", switch2) in
+	    Topology.add_switch_edge graph node1 (VInt.Int64 port1) node2 (VInt.Int64 port2)
 	  | _,_ -> failwith "need int64 people" in 
       match pol with
 	| Seq (Filter(And (Test (Switch, switch1), Test (Header SDN_Types.InPort, port1))),
@@ -246,7 +247,7 @@ end
 module Verify = struct
   open Sat
   open SDN_Types
-  open NetKAT_Types
+  open Types
 
   let all_fields =
       [ Header InPort 

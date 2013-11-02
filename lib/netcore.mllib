@@ -1,37 +1,15 @@
 # OASIS_START
-# DO NOT EDIT (digest: 4611b94ef1fb48e32f0e2e16b34fb041)
+# DO NOT EDIT (digest: 41f3582368eebe4be28bbd820ada9919)
 NetCore_Util
-NetCore_Action
-NetCore_Compiler
-NetCore_Controller
-NetCore_Controller0x04
-NetCore_ConsistentUpdates
-NetCore_Pretty
-NetCore_MacLearning
-NetCore_NAT
-NetCore_Semantics
 NetCore_Stream
-NetCore_StatefulFirewall
-NetCore_Types
-NetCore_Parsing
-NetCore_Pattern
-NetCore_Verify
-NetCore_Wildcard
-NetCore_Classifier
-NetCore_Compat
-NetCore_Desugar
-NetCore_Gensym
-NetCore_Lexer
-NetCore_Monitoring
-NetCore_Parser
-NetCore_SurfaceSyntax
-NetKAT_Types
+Types
+Lexer
+Parser
+Semantics
+Pretty
 LocalCompiler
 Dehop
-NetKAT_Lexer
-NetKAT_Parser
 NetKAT_Automaton
 Controller
-Semantics
-SDN_Headers
+PolicyGenerator
 # OASIS_STOP

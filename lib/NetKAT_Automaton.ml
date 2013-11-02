@@ -1,7 +1,4 @@
-type policy = NetKAT_Types.policy
-type pred = NetKAT_Types.pred
-type header = NetKAT_Types.header
-type header_val = NetKAT_Types.header_val
+open Types
 
 (* BEGIN GENERIC HELPER FUNCTIONS ------------------------------------------- *)
 
@@ -73,39 +70,39 @@ type regex = pchar aregex
 
 let rec lf_policy_to_policy (lfp : lf_policy) : policy =
   match lfp with
-    | Filter(p) -> NetKAT_Types.Filter(p)
-    | Mod(h, v) -> NetKAT_Types.Mod(h, v)
+    | Filter(p) -> Types.Filter(p)
+    | Mod(h, v) -> Types.Mod(h, v)
     | Par(p1, p2) ->
-      NetKAT_Types.Par(lf_policy_to_policy p1, lf_policy_to_policy p2)
+      Types.Par(lf_policy_to_policy p1, lf_policy_to_policy p2)
     | Choice(p1, p2) ->
-      NetKAT_Types.Choice(lf_policy_to_policy p1, lf_policy_to_policy p2)
+      Types.Choice(lf_policy_to_policy p1, lf_policy_to_policy p2)
     | Seq(p1, p2) ->
-      NetKAT_Types.Seq(lf_policy_to_policy p1, lf_policy_to_policy p2)
+      Types.Seq(lf_policy_to_policy p1, lf_policy_to_policy p2)
     | Star(p) ->
-      NetKAT_Types.Star(lf_policy_to_policy p)
+      Types.Star(lf_policy_to_policy p)
 
 let link_to_policy ((sw1, pt1, sw2, pt2) : link) : policy =
-  NetKAT_Types.Link(sw1, pt1, sw2, pt2)
+  Types.Link(sw1, pt1, sw2, pt2)
 
 let rec regex_to_policy (r : regex) : policy =
   match r with
     | Char(lfp, l) ->
-      NetKAT_Types.Seq(lf_policy_to_policy lfp, link_to_policy l)
+      Types.Seq(lf_policy_to_policy lfp, link_to_policy l)
     | Pick(r1, r2) ->
-      NetKAT_Types.Choice(regex_to_policy r1, regex_to_policy r2)
+      Types.Choice(regex_to_policy r1, regex_to_policy r2)
     | Alt(r1, r2) ->
-      NetKAT_Types.Par(regex_to_policy r1, regex_to_policy r2)
+      Types.Par(regex_to_policy r1, regex_to_policy r2)
     | Cat(r1, r2) ->
-      NetKAT_Types.Seq(regex_to_policy r1, regex_to_policy r2)
+      Types.Seq(regex_to_policy r1, regex_to_policy r2)
     | Kleene(r) ->
-      NetKAT_Types.Star(regex_to_policy r)
-    | Empty -> NetKAT_Types.Filter(NetKAT_Types.True)
+      Types.Star(regex_to_policy r)
+    | Empty -> Types.Filter(Types.True)
 
 let regex_to_string (r : regex) : string =
-  NetKAT_Types.string_of_policy (regex_to_policy r)
+  Pretty.string_of_policy (regex_to_policy r)
 
 let lf_policy_to_string (lf_p : lf_policy) : string =
-  NetKAT_Types.string_of_policy (lf_policy_to_policy lf_p)
+  Pretty.string_of_policy (lf_policy_to_policy lf_p)
 
 (* END TO POLICY ------------------------------------------------------------ *)
 
@@ -166,7 +163,7 @@ let rec mk_tp (l : link) (macc : lf_policy option) : link_provider =
   fun cstr mlf_p ->
     match mlf_p with
       | None -> 
-        S(Char(from_option (Filter(NetKAT_Types.True)) macc, l))
+        S(Char(from_option (Filter(Types.True)) macc, l))
       | Some lf_p ->
         (* print_string ("mk_tp with lf_p: " ^ (lf_policy_to_string lf_p) ^ "\n"); *)
         TP(mk_tp l (Some(mk_mcstr (flip cstr) macc lf_p)))
@@ -189,21 +186,21 @@ let rec mk_inter_of_mlp (c : cstr) (mlp : link_provider option) : inter =
 let regex_of_policy (p : policy) : regex =
 
   let rec rpc (p : policy) : inter =
-    (* print_string ((NetKAT_Types.string_of_policy p) ^ "\n"); *)
+    (* print_string ((Types.string_of_policy p) ^ "\n"); *)
     begin match p with
-      | NetKAT_Types.Filter(q) ->
+      | Types.Filter(q) ->
         NL(mk_nl (Filter q))
-      | NetKAT_Types.Mod(h, v) ->
+      | Types.Mod(h, v) ->
         NL(mk_nl (Mod(h, v)))
-      | NetKAT_Types.Link(sw1, pt1, sw2, pt2) ->
+      | Types.Link(sw1, pt1, sw2, pt2) ->
         TP(mk_tp (sw1, pt1, sw2, pt2) None)
-      | NetKAT_Types.Seq(p1, p2) ->
+      | Types.Seq(p1, p2) ->
         rpc_seq (rpc p1) (rpc p2)
-      | NetKAT_Types.Par(p1, p2) ->
+      | Types.Par(p1, p2) ->
         rpc_branchy par (fun x y -> Alt(x, y)) (rpc p1) (rpc p2)
-      | NetKAT_Types.Choice(p1, p2) ->
+      | Types.Choice(p1, p2) ->
         rpc_branchy pick (fun x y -> Pick(x, y)) (rpc p1) (rpc p2)
-      | NetKAT_Types.Star(q) ->
+      | Types.Star(q) ->
         S(Kleene(run (rpc q)))
     end
 
@@ -504,15 +501,15 @@ module EdgeSet = Set.Make(struct
 end)
 
 let switch_policies_to_policy (sm : policy SwitchMap.t) : policy =
-  let open NetKAT_Types in
+  let open Types in
   SwitchMap.fold (fun (sw, pt) p acc ->
-    let sw_f = Filter(Test(SDN_Headers.Switch, sw)) in
-    let pt_f = Filter(Test(SDN_Headers.Header SDN_Types.InPort, pt)) in
+    let sw_f = Filter(Test(Switch, sw)) in
+    let pt_f = Filter(Test(Header SDN_Types.InPort, pt)) in
     let p' = Seq(sw_f, Seq(pt_f, p)) in
     if acc = drop
       then p'
       else Par(acc, p'))
-  sm NetKAT_Types.drop
+  sm Types.drop
 
 let regex_to_switch_lf_policies (r : regex) : (lf_policy * (lf_policy SwitchMap.t) * LinkSet.t) =
   let (aregex, chash) = regex_to_aregex r in
@@ -540,8 +537,8 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy * (lf_policy SwitchMap.
       (all_delta m.delta q) acc)
     m m.s SwitchMap.empty in
 
-  let mk_test q = Filter(NetKAT_Types.(Test(SDN_Headers.Header SDN_Types.Vlan, VInt.Int16 q))) in
-  let mk_mod q = Mod(SDN_Headers.Header(SDN_Types.Vlan), VInt.Int16 q) in
+  let mk_test q = Filter(Types.(Test(Header SDN_Types.Vlan, VInt.Int16 q))) in
+  let mk_mod q = Mod(Header(SDN_Types.Vlan), VInt.Int16 q) in
   let links = ref LinkSet.empty in
 
   let to_lf_policy (q, (lf_p, l), q') : lf_policy =
@@ -572,7 +569,7 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy * (lf_policy SwitchMap.
       NFA.StateSet.(fold (fun q acc ->
         Choice(acc, mk_test q))
       (remove fq qs) (mk_test fq))
-    else Filter(NetKAT_Types.True) in
+    else Filter(Types.True) in
 
   (* Printf.printf "AUTO: %s\n" (Nfa.nfa_to_dot auto); *)
   (ingress, SwitchMap.map edges_to_lf_policy (to_edge_map auto), !links)
