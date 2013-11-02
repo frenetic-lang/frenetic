@@ -524,7 +524,7 @@ let switch_policies_to_policy (sm : policy SwitchMap.t) : policy =
       else Par(acc, p'))
   sm NetKAT_Types.drop
 
-let regex_to_switch_lf_policies (r : regex) : (lf_policy SwitchMap.t * LinkSet.t) =
+let regex_to_switch_lf_policies (r : regex) : (lf_policy * (lf_policy SwitchMap.t) * LinkSet.t) =
   let (aregex, chash) = regex_to_aregex r in
   let (auto, pick_states) = NFA.regex_to_t aregex in
 
@@ -550,6 +550,7 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy SwitchMap.t * LinkSet.t
       (all_delta m.delta q) acc)
     m m.s SwitchMap.empty in
 
+  let mk_test q = Filter(NetKAT_Types.(Test(SDN_Headers.Header SDN_Types.Vlan, VInt.Int16 q))) in
   let mk_mod q = Mod(SDN_Headers.Header(SDN_Types.Vlan), VInt.Int16 q) in
   let links = ref LinkSet.empty in
 
@@ -557,16 +558,14 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy SwitchMap.t * LinkSet.t
     Printf.printf "Working on q%d -> q%d\n" q q';
     links := LinkSet.add l !links;
 
-    let next_states =
-        if Hashtbl.mem pick_states q'
-          then Nfa.neighbors auto q'
-          else [q'] in
+    let next_states = if Hashtbl.mem pick_states q'
+      then Nfa.neighbors auto q'
+      else [q'] in
 
     Printf.printf "working on state %d with next states [%s]\n" q 
       (List.fold_left (fun acc qi -> Printf.sprintf "q%d(%b)%s" qi (Hashtbl.mem pick_states qi) (if acc = "" then "" else ", " ^ acc)) "" next_states);
 
-    let ingress =
-      Filter(NetKAT_Types.(Test(SDN_Headers.Header SDN_Types.Vlan, VInt.Int16 q))) in
+    let ingress = mk_test q in
     let egress = List.(fold_right (fun e acc ->
         Choice(acc, mk_mod e))
       (tl next_states) (mk_mod (hd next_states))) in
@@ -579,15 +578,19 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy SwitchMap.t * LinkSet.t
       Par(acc, to_lf_policy e))
     (EdgeSet.remove start es) (to_lf_policy start) in
 
-  (* TODO(seliopou): Check that the NFA's state state is a choice node. If it
-   * is, create a network-wide ingress policty and return it.
-   *
-   * TODO(seliopou): add egress, if at final state, pop vlan
-   *)
-  Printf.printf "AUTO: %s\n" (Nfa.nfa_to_dot auto);
-  (SwitchMap.map edges_to_lf_policy (to_edge_map auto), !links)
+  let ingress = if Hashtbl.mem pick_states Nfa.(auto.s)
+    then
+      let qs = NFA.eps_closure_upto (Hashtbl.mem pick_states) auto Nfa.(auto.s) in
+      let fq = NFA.StateSet.choose qs in
+      NFA.StateSet.(fold (fun q acc ->
+        Choice(acc, mk_test q))
+      (remove fq qs) (mk_test fq))
+    else Filter(NetKAT_Types.True) in
 
-let dehopify (p : policy) : (policy SwitchMap.t * LinkSet.t) =
+  Printf.printf "AUTO: %s\n" (Nfa.nfa_to_dot auto);
+  (ingress, SwitchMap.map edges_to_lf_policy (to_edge_map auto), !links)
+
+let dehopify (p : policy) : (policy * (policy SwitchMap.t) * LinkSet.t) =
   (* Man, it's times like these that you really wish you had arrows lol *)
-  let (lf_pm, ls) = regex_to_switch_lf_policies (regex_of_policy p) in
-  (SwitchMap.map lf_policy_to_policy lf_pm, ls)
+  let (ing, lf_pm, ls) = regex_to_switch_lf_policies (regex_of_policy p) in
+  (lf_policy_to_policy ing, SwitchMap.map lf_policy_to_policy lf_pm, ls)
