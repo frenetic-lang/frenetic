@@ -37,7 +37,7 @@ module type S = sig
 	  let f (mods, of_seq) act= 
 	    let (mods', of_act) = OF.from_action inPort act in
 	    (Mod.seq mods mods', of_act :: of_seq) in
-	  List.fold_left f (Mod.none, []) seq 
+	  List.fold_right f seq (Mod.none, [])  
 
 	(* Converts abstract action union to an OF 1.0 action sequence. This may
 	   trigger exceptions if the parallel composition is unrealizable. *)
