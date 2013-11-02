@@ -136,3 +136,12 @@ TEST "choice test" =
   let pol' = switch_policies_to_policy swpol in
   print_endline (string_of_policy pol');
   false
+
+TEST "choice test++" =
+  let open NetKAT_Automaton in
+  let text = "0@0 => 1@1; 1@1 => 0@0; 0@0 => 1@1; (1@1 => 2@2 + 1@1 => 3@3); (2@2 => 0@0 + 3@3 => 0@0)" in
+  let pol = policy_parse text in
+  let (_, swpol, _) = dehopify pol in
+  let pol' = switch_policies_to_policy swpol in
+  print_endline (string_of_policy pol');
+  false
