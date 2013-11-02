@@ -382,7 +382,7 @@ module NFA = struct
       !visited
       
   let eps_eliminate m is_pick_state =
-    Printf.printf "--- EPS_ELIMINATE ---\n%s\n" (Nfa.nfa_to_dot m);
+    (* Printf.printf "--- EPS_ELIMINATE ---\n%s\n" (Nfa.nfa_to_dot m); *)
     let qi,qf = 0,1 in 
     let m' = new_nfa_states qi qf in 
     (* epsilon closure cache *)
@@ -413,15 +413,6 @@ module NFA = struct
     (* Phase II: initialize new automaton transitions *)
     forward_fold_nfa (fun q () ->
       let qs,r = lookup_state q in 
-      Printf.printf "Processing q%d\t[%b]\tr%d\t{%s} {%s}\n" q (is_pick_state q) r 
-	(StateSet.fold 
-	   (fun qi acc -> 
-	     Printf.sprintf "%sq%d" 
-	       (if acc = "" then "" else acc ^ ", ") qi) qs "")
-	(StateSet.fold 
-	   (fun qi acc -> 
-	     Printf.sprintf "%sr%d" 
-	       (if acc = "" then "" else acc ^ ", ") (let _,ri = lookup_state qi in ri)) qs "");
       if StateSet.mem m.f qs then 
 	add_trans m' r Epsilon qf;
       if is_pick_state q then 
@@ -494,7 +485,6 @@ module NFA = struct
     let (m, pick_states) = loop r in
     let m', pick_states' = eps_eliminate m (Hashtbl.mem pick_states) in
     elim_dead_states m';
-    print_endline (Nfa.nfa_to_dot m');
     (m', pick_states')
 end
 
@@ -555,15 +545,12 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy * (lf_policy SwitchMap.
   let links = ref LinkSet.empty in
 
   let to_lf_policy (q, (lf_p, l), q') : lf_policy =
-    Printf.printf "Working on q%d -> q%d\n" q q';
+    (* Printf.printf "Working on q%d -> q%d\n" q q'; *)
     links := LinkSet.add l !links;
 
     let next_states = if Hashtbl.mem pick_states q'
       then Nfa.neighbors auto q'
       else [q'] in
-
-    Printf.printf "working on state %d with next states [%s]\n" q 
-      (List.fold_left (fun acc qi -> Printf.sprintf "q%d(%b)%s" qi (Hashtbl.mem pick_states qi) (if acc = "" then "" else ", " ^ acc)) "" next_states);
 
     let ingress = mk_test q in
     let egress = List.(fold_right (fun e acc ->
@@ -587,7 +574,7 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy * (lf_policy SwitchMap.
       (remove fq qs) (mk_test fq))
     else Filter(NetKAT_Types.True) in
 
-  Printf.printf "AUTO: %s\n" (Nfa.nfa_to_dot auto);
+  (* Printf.printf "AUTO: %s\n" (Nfa.nfa_to_dot auto); *)
   (ingress, SwitchMap.map edges_to_lf_policy (to_edge_map auto), !links)
 
 let dehopify (p : policy) : (policy * (policy SwitchMap.t) * LinkSet.t) =
