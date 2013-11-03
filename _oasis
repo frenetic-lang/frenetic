@@ -27,6 +27,7 @@ Library netcore
     lwt,
     lwt.unix,
     cstruct,
+    dprle,
     lwt.syntax,
     lwt.syntax.log,
     str,
@@ -42,6 +43,7 @@ Library netcore
     Pretty,
     LocalCompiler,
     Dehop,
+    NetKAT_Automaton,
     Controller,
     PolicyGenerator
 
