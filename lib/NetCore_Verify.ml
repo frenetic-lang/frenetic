@@ -356,7 +356,7 @@ module Sat = struct
          Buffer.add_char b '\n';
        done
      with End_of_file -> ());
-(*    Printf.eprintf "%s\n%s" s (Buffer.contents b);*)
+    Printf.eprintf "%s\n%s" s (Buffer.contents b);
     Buffer.contents b = "sat\nsat\n"
 end
 
@@ -539,6 +539,25 @@ module Verify = struct
               forwards_pred pred2 pkt])
 
   open Z3macro
+
+  let mod_fun,reset_mod_fun = 
+    let hashmap = Hashtbl.create 0 in
+    let mod_fun f =  
+      let packet_equals_fun = encode_packet_equals "x" "y" f in
+      try ZTerm (Hashtbl.find hashmap packet_equals_fun)
+      with Not_found -> 
+	let macro = z3_macro "mod" [("x", SPacket); ("y", SPacket); ("v", SInt)] SBool 
+	  (
+	    ZAnd [packet_equals_fun;
+		  ZEquals(ZTerm (encode_header f "y"), ZTerm (TVar "v"))]) in
+	Hashtbl.add hashmap packet_equals_fun macro; 
+	ZTerm (Hashtbl.find hashmap packet_equals_fun) in	
+    let reset_mod_fun () = Hashtbl.clear hashmap in
+    mod_fun,reset_mod_fun
+
+
+    
+
   let rec forwards_pol (pol:policy) (inset:zVar) (inset_pkts : zVar list) (outset:zVar) : zFormula * (zVar list)  =
     let x = (ZTerm (TVar "x")) in
     (* let y = (ZTerm (TVar "y")) in *)
@@ -562,13 +581,8 @@ module Verify = struct
 	let macro_to_map = z3_macro "Filter" [("x", SPacket)] SPacket expr_to_map in 
 	ocaml_map_macro macro_to_map
       | Mod(f,v) -> 
-	let expr_to_map = 
-	  (ZAnd [
-	    encode_packet_equals "x" "y" f;
-	    ZEquals(ZTerm (encode_header f "y"), ZTerm (encode_vint v))]) in
-	let macro_to_map = z3_macro "mod" [("x", SPacket); ("y", SPacket)] SBool expr_to_map in
       	let outset_pkts = List.map (fun _ -> fresh SPacket) inset_pkts in
-	ZAnd (List.map2 (fun arg out ->  ZApp (ZTerm macro_to_map, [arg; out])) 
+	ZAnd (List.map2 (fun arg out ->  ZApp (mod_fun f, [arg; out; ZTerm (encode_vint v)]))
 		(List.map (fun t -> ZTerm (TVar t)) inset_pkts)
 		(List.map (fun t -> ZTerm (TVar t)) outset_pkts)
 	), outset_pkts 
@@ -659,7 +673,7 @@ end
             (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; false)
 	| None, sat ->
           (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)) in
-    Verify.reset_state (); run_result
+    Verify.reset_state (); Verify.reset_mod_fun (); run_result
 
   let combine_programs progs =
   Sat.ZProgram (List.flatten (List.map (fun prog -> match prog with
