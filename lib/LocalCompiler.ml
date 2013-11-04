@@ -403,44 +403,43 @@ module Local = struct
         else
           Atom.Map.add r g p
 
+  let intersect (op:Action.group -> Action.group -> Action.group) (p:t) (q:t) : t =
+    if Atom.Map.is_empty p || Atom.Map.is_empty q then
+      Atom.Map.empty
+    else
+      Atom.Map.fold (fun r1 g1 acc ->
+        Atom.Map.fold (fun r2 g2 acc ->
+          match Atom.seq_atom r1 r2 with
+            | None ->
+              acc
+            | Some r1_seq_r2 ->
+              extend r1_seq_r2 (op g1 g2) acc)
+          q acc)
+        p Atom.Map.empty
+
+  let difference (p:t) (q:t) : t =
+    if Atom.Map.is_empty q then
+      p
+    else
+      Atom.Map.fold (fun r1 g1 acc ->
+        let rs = Atom.Map.fold (fun r12i _ acc ->
+          Atom.Set.fold (fun r1j acc ->
+            Atom.Set.union (Atom.diff_atom r1j r12i) acc)
+            acc Atom.Set.empty)
+          q (Atom.Set.singleton r1) in
+        Atom.Set.fold (fun r1i acc -> extend r1i g1 acc) rs Atom.Map.empty)
+      p Atom.Map.empty
+
   let rec bin_local (op:Action.group -> Action.group -> Action.group) (p:t) (q:t) : t =
     if Atom.Map.is_empty p then 
       q
     else if Atom.Map.is_empty q then 
       p 
     else 
-      let p_inter_q = 
-        Atom.Map.fold (fun r1 g1 acc ->
-          Atom.Map.fold (fun r2 g2 acc ->
-            match Atom.seq_atom r1 r2 with
-              | None ->
-                acc
-              | Some r1_seq_r2 ->
-                extend r1_seq_r2 (op g1 g2) acc)
-            q acc)
-          p Atom.Map.empty in 
-      let p_only = 
-        if Atom.Map.is_empty p_inter_q then p 
-        else 
-            Atom.Map.fold (fun r1 g1 acc -> 
-              let rs = Atom.Map.fold (fun r12i _ acc -> 
-                Atom.Set.fold (fun r1j acc -> 
-                  Atom.Set.union (Atom.diff_atom r1j r12i) acc)
-                  acc Atom.Set.empty)
-                p_inter_q (Atom.Set.singleton r1) in 
-              Atom.Set.fold (fun r1i acc -> extend r1i g1 acc) rs Atom.Map.empty)
-            p Atom.Map.empty in 
-      let q_only = 
-        if Atom.Map.is_empty p_inter_q then q 
-        else 
-            Atom.Map.fold (fun r2 g2 acc -> 
-              let rs = Atom.Map.fold (fun r12i _ acc -> 
-                Atom.Set.fold (fun r2j acc -> 
-                  Atom.Set.union (Atom.diff_atom r2j r12i) acc)
-                  acc Atom.Set.empty)
-                p_inter_q (Atom.Set.singleton r2) in 
-              Atom.Set.fold (fun r2i acc -> extend r2i g2 acc) rs Atom.Map.empty)
-            q Atom.Map.empty in 
+      let p_inter_q = intersect op p q in
+      let p_only = difference p p_inter_q in
+      let q_only = difference q p_inter_q in
+
       let f r vo1 vo2 = 
         match vo1,vo2 with 
           | Some _, None -> vo1
