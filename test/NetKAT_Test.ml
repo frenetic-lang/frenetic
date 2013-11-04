@@ -1,4 +1,4 @@
-1module QCGen = QuickCheck_gen
+module QCGen = QuickCheck_gen
 
 open SDN_Types
 open Types
