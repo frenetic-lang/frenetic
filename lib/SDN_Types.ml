@@ -118,10 +118,11 @@ let format_pattern (fmt:Format.formatter) (p:pattern) : unit =
   Format.fprintf fmt "@[{";
   let _ = 
     FieldMap.fold 
-      (fun f v b -> format_field fmt f; 
+      (fun f v b ->
+        if b then Format.fprintf fmt ",@,";
+        format_field fmt f;
         Format.fprintf fmt "="; 
         VInt.format fmt v; 
-        if b then Format.fprintf fmt ",@,";
         true)
       p false in 
   Format.fprintf fmt "@]"
