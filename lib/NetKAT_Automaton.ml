@@ -515,7 +515,9 @@ let switch_policies_to_policy (sm : policy SwitchMap.t) : policy =
       else Par(acc, p'))
   sm Types.drop
 
-let regex_to_switch_lf_policies (r : regex) : (lf_policy * (lf_policy SwitchMap.t) * LinkSet.t) =
+let regex_to_switch_lf_policies (r : regex) :
+    (lf_policy * (lf_policy SwitchMap.t) * LinkSet.t * lf_policy) =
+
   let (aregex, chash) = regex_to_aregex r in
   let (auto, pick_states) = NFA.regex_to_t aregex in
 
@@ -550,8 +552,8 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy * (lf_policy SwitchMap.
       (all_delta m.delta q) acc)
     m m.s SwitchMap.empty in
 
-  let mk_test q = Filter(Types.(Test(Header SDN_Types.Vlan, VInt.Int16 (convert q)))) in
-  let mk_mod q = Mod(Header(SDN_Types.Vlan), VInt.Int16 (convert q)) in
+  let mk_test q = Filter(Types.Test(Header SDN_Types.Vlan, VInt.Int16 (convert q))) in
+  let mk_mod q = Mod(Header SDN_Types.Vlan, VInt.Int16 (convert q)) in
   let mk_choice qs = foldl1_map pick mk_mod qs in
 
   let links = ref LinkSet.empty in
@@ -575,18 +577,39 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy * (lf_policy SwitchMap.
       Par(acc, to_lf_policy e))
     (EdgeSet.remove start es) (to_lf_policy start) in
 
+  (* All packets entering the network are on vlan 0. Detect these packets and
+   * set their vlan to the initial state of the automaton. If the initial state
+   * is not a choice state, then is straightforward (the second case). If the
+   * initial state is a choice state, then the packet will immediately
+   * transition to another non-choice state via an epsilon transition, by the
+   * construction of the automaton. In this case, skip the choice state and
+   * chose between the epsilon transition reachable states as the initial state.
+   * *)
+  let check_outside = Filter(Types.Test(Header SDN_Types.Vlan, VInt.Int16 0)) in
   let ingress = if Hashtbl.mem pick_states Nfa.(auto.s)
     then
       let qs = NFA.eps_closure_upto (Hashtbl.mem pick_states) auto Nfa.(auto.s) in
       let choice = mk_choice (NFA.StateSet.elements qs) in
-      Seq(mk_test Nfa.(auto.s), choice)
+      Seq(check_outside, choice)
     else
-      Filter(Types.True) in
+      Seq(check_outside, mk_mod Nfa.(auto.s)) in
+
+  (* Once a packet has reached a state that is backwards reachable from the
+   * final state, it will immediately transition to the final state via an
+   * epsilon transition, by the construction of the automaton. At that point,
+   * the packet is existing the network and is no longer subject to the policy,
+   * so its vlan header should be set back to 0.
+   * *)
+  let final_qs = Hashset.to_list
+    (Hashtbl.find (Nfa.backward_mapping auto) auto.Nfa.f) in
+  let go_outside = Mod(Header SDN_Types.Vlan, VInt.Int16 0) in
+  let egress = Seq(foldl1_map par mk_test final_qs, go_outside) in
 
   (* Printf.printf "AUTO: %s\n" (Nfa.nfa_to_dot auto); *)
-  (ingress, SwitchMap.map edges_to_lf_policy (to_edge_map auto), !links)
+  (ingress, SwitchMap.map edges_to_lf_policy (to_edge_map auto), !links, egress)
 
-let dehopify (p : policy) : (policy * (policy SwitchMap.t) * LinkSet.t) =
-  (* Man, it's times like these that you really wish you had arrows lol *)
-  let (ing, lf_pm, ls) = regex_to_switch_lf_policies (regex_of_policy p) in
-  (lf_policy_to_policy ing, SwitchMap.map lf_policy_to_policy lf_pm, ls)
+let dehopify (p : policy) : (policy * (policy SwitchMap.t) * LinkSet.t * policy) =
+  let lfp_to_p = lf_policy_to_policy in
+  let (ing, lf_pm, ls, egr) = regex_to_switch_lf_policies (regex_of_policy p) in
+
+  (lfp_to_p ing, SwitchMap.map lfp_to_p lf_pm, ls, lfp_to_p egr)
