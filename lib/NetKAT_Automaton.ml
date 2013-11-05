@@ -384,7 +384,13 @@ module NFA = struct
       
   let eps_eliminate m is_pick_state =
     (* Printf.printf "--- EPS_ELIMINATE ---\n%s\n" (Nfa.nfa_to_dot m); *)
-    let qi,qf = 0,1 in 
+    (* NOTE(seliopou): The initial state should not be 0! Code below does not
+     * directly depend on this, but it does make debugging it much easier when
+     * you can assume that the start state will never be 0. That way, you can
+     * assume packets outside of the network are on vlan 0 and you don't have to
+     * renumber states.
+     * *)
+    let qi,qf = 1,2 in
     let m' = new_nfa_states qi qf in 
     (* epsilon closure cache *)
     let h_eps = Hashtbl.create 17 in 
@@ -524,7 +530,8 @@ let regex_to_switch_lf_policies (r : regex) :
   let switch_port_of_pchar (_, (sw, pt, _, _)) = (sw, pt) in
 
   (* Used to compress state space to sequential integers. Note that the state 0
-   * is never used (unless there's an overlfow ;) *)
+   * is never used (unless there's an overlfow ;) Note that for debugging
+   * purposes you should change convert to be the identity function. *)
   let curq = ref 1 in
   let qmap = Hashtbl.create (Hashset.size Nfa.(auto.q)) in
   let convert q =
