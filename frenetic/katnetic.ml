@@ -16,7 +16,7 @@ let run args = match args with
   | [ filename ] ->
     let cin = open_in filename in
     let exp = Parser.program Lexer.token (Lexing.from_channel cin) in
-    Lwt_main.run (Controller.start 6633 (Stream.constant exp))
+    Lwt_main.run (Controller.start 6633 (NetKAT_Stream.constant exp))
   | _ -> help [ "run" ]
 
 let dump args = match args with 
