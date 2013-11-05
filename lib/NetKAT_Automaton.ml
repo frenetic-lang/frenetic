@@ -517,16 +517,16 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy * (lf_policy SwitchMap.
 
   let switch_port_of_pchar (_, (sw, pt, _, _)) = (sw, pt) in
 
-  let add (sw_pt : VInt.t * VInt.t) e (m : EdgeSet.t SwitchMap.t) =
-    try
-       SwitchMap.add sw_pt (EdgeSet.add e (SwitchMap.find sw_pt m)) m
-    with Not_found ->
-      SwitchMap.add sw_pt (EdgeSet.singleton e) m in
 
   let add_all ((q, ns, q') : NFA.edge) (m : EdgeSet.t SwitchMap.t) =
     Hashtbl.fold (fun i () acc ->
       let pchar = Hashtbl.find chash i in
-      add (switch_port_of_pchar pchar) (q, pchar, q') acc)
+      let sw_pt = switch_port_of_pchar pchar in
+      let edge = (q, pchar, q') in
+      try
+        SwitchMap.add sw_pt (EdgeSet.add edge (SwitchMap.find sw_pt m)) m
+      with Not_found ->
+        SwitchMap.add sw_pt (EdgeSet.singleton edge) m)
     ns m in
 
   let to_edge_map (m : NFA.t) : EdgeSet.t SwitchMap.t =
