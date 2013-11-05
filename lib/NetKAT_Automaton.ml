@@ -517,7 +517,6 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy * (lf_policy SwitchMap.
 
   let switch_port_of_pchar (_, (sw, pt, _, _)) = (sw, pt) in
 
-
   let add_all ((q, ns, q') : NFA.edge) (m : EdgeSet.t SwitchMap.t) =
     Hashtbl.fold (fun i () acc ->
       let pchar = Hashtbl.find chash i in
@@ -566,10 +565,12 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy * (lf_policy SwitchMap.
     then
       let qs = NFA.eps_closure_upto (Hashtbl.mem pick_states) auto Nfa.(auto.s) in
       let fq = NFA.StateSet.choose qs in
-      NFA.StateSet.(fold (fun q acc ->
-        Choice(acc, mk_test q))
-      (remove fq qs) (mk_test fq))
-    else Filter(Types.True) in
+      let choice = NFA.StateSet.(fold (fun q acc ->
+          Choice(acc, mk_mod q))
+        (remove fq qs) (mk_mod fq)) in
+      Seq(mk_test Nfa.(auto.s), choice)
+    else
+      Filter(Types.True) in
 
   (* Printf.printf "AUTO: %s\n" (Nfa.nfa_to_dot auto); *)
   (ingress, SwitchMap.map edges_to_lf_policy (to_edge_map auto), !links)
