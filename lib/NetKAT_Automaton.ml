@@ -521,6 +521,16 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy * (lf_policy SwitchMap.
 
   let switch_port_of_pchar (_, (sw, pt, _, _)) = (sw, pt) in
 
+  (* Used to compress state space to sequential integers. Note that the state 0
+   * is never used (unless there's an overlfow ;) *)
+  let curq = ref 1 in
+  let qmap = Hashtbl.create (Hashset.size Nfa.(auto.q)) in
+  let convert q =
+    try Hashtbl.find qmap q with Not_found ->
+      Hashtbl.replace qmap q !curq;
+      incr curq;
+      (!curq - 1) in
+
   let add_all ((q, ns, q') : NFA.edge) (m : EdgeSet.t SwitchMap.t) =
     Hashtbl.fold (fun i () acc ->
       let pchar = Hashtbl.find chash i in
@@ -540,8 +550,8 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy * (lf_policy SwitchMap.
       (all_delta m.delta q) acc)
     m m.s SwitchMap.empty in
 
-  let mk_test q = Filter(Types.(Test(Header SDN_Types.Vlan, VInt.Int16 q))) in
-  let mk_mod q = Mod(Header(SDN_Types.Vlan), VInt.Int16 q) in
+  let mk_test q = Filter(Types.(Test(Header SDN_Types.Vlan, VInt.Int16 (convert q)))) in
+  let mk_mod q = Mod(Header(SDN_Types.Vlan), VInt.Int16 (convert q)) in
   let mk_choice qs = foldl1_map pick mk_mod qs in
 
   let links = ref LinkSet.empty in
