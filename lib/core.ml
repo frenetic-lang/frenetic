@@ -1,4 +1,4 @@
-open Util
+open Topology_util
 open Graph
 
 let string_of_vint v = 
