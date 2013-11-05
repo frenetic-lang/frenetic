@@ -143,9 +143,7 @@ TEST "choice3" =
      (Par(Seq(Filter (testSrc 0), modSrc 2),
 	  Par(Seq(Filter (testSrc 1), modSrc 2),
 	      Seq(Filter (testSrc 3), 
-		  Choice (modSrc 0, 
-			  Choice (Par (modSrc 0, modSrc 1),
-				  modSrc 1))))))
+		  Choice (modSrc 0, modSrc 1)))))
 
 TEST "regression test for sequencing choice with id" = 
   test_compile
