@@ -19,6 +19,10 @@ let optional a f m =
 
 let flip f a b = f b a
 
+let foldl1_map (f : 'b -> 'b -> 'b) (g : 'a -> 'b) (xs : 'a list) : 'b =
+  List.(fold_left (fun acc e -> f acc (g e))
+    (g (hd xs)) (tl xs))
+
 (* END GENERIC HELPER FUNCTIONS --------------------------------------------- *)
 
 
@@ -538,6 +542,8 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy * (lf_policy SwitchMap.
 
   let mk_test q = Filter(Types.(Test(Header SDN_Types.Vlan, VInt.Int16 q))) in
   let mk_mod q = Mod(Header(SDN_Types.Vlan), VInt.Int16 q) in
+  let mk_choice qs = foldl1_map pick mk_mod qs in
+
   let links = ref LinkSet.empty in
 
   let to_lf_policy (q, (lf_p, l), q') : lf_policy =
@@ -549,9 +555,7 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy * (lf_policy SwitchMap.
       else [q'] in
 
     let ingress = mk_test q in
-    let egress = List.(fold_right (fun e acc ->
-        Choice(acc, mk_mod e))
-      (tl next_states) (mk_mod (hd next_states))) in
+    let egress = mk_choice next_states in
 
     Seq(ingress, Seq(lf_p, egress)) in
 
@@ -564,10 +568,7 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy * (lf_policy SwitchMap.
   let ingress = if Hashtbl.mem pick_states Nfa.(auto.s)
     then
       let qs = NFA.eps_closure_upto (Hashtbl.mem pick_states) auto Nfa.(auto.s) in
-      let fq = NFA.StateSet.choose qs in
-      let choice = NFA.StateSet.(fold (fun q acc ->
-          Choice(acc, mk_mod q))
-        (remove fq qs) (mk_mod fq)) in
+      let choice = mk_choice (NFA.StateSet.elements qs) in
       Seq(mk_test Nfa.(auto.s), choice)
     else
       Filter(Types.True) in
