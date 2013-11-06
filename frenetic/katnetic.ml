@@ -25,19 +25,13 @@ let dump args = match args with
     let cin = open_in filename in
     let pol = Parser.program Lexer.token (Lexing.from_channel cin) in
     let i,m,_,e = NetKAT_Automaton.dehopify pol in
+    let switch_policies =
+        NetKAT_Automaton.switch_port_policies_to_switch_policies m in
     let pol0 = 
       let open Types in 
       let open SDN_Types in 
-      NetKAT_Automaton.SwitchPortMap.fold
-        (fun (swi,pti) poli acc -> 
-          if sw = swi then 
-            Par(Seq(Filter (And(Test(Switch, swi), 
-                                Test(Header InPort, pti))),
-                    poli),
-                acc)
-          else 
-            acc) 
-        m Types.drop in 
+      Seq(Filter(Test(Switch, sw)),
+          NetKAT_Automaton.SwitchMap.find sw switch_policies) in
     let pol0' = Types.(Seq(Seq(Par(i, id),pol0),Par(e, id))) in
     let ifm0 = LocalCompiler.RunTime.compile pol0' in 
     let tbl0 = LocalCompiler.RunTime.to_table sw ifm0 in 

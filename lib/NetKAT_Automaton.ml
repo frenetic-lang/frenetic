@@ -500,6 +500,11 @@ module SwitchPortMap = Map.Make(struct
   let compare = Pervasives.compare
 end)
 
+module SwitchMap = Map.Make(struct
+  type t = VInt.t
+  let compare = Pervasives.compare
+end)
+
 module LinkSet = Set.Make(struct
   type t = link
   let compare = Pervasives.compare
@@ -512,7 +517,7 @@ end)
 
 type 'a dehopified = 'a * ('a SwitchPortMap.t) * LinkSet.t * 'a
 
-let switch_policies_to_policy (sm : policy SwitchPortMap.t) : policy =
+let switch_port_policies_to_policy (sm : policy SwitchPortMap.t) : policy =
   let open Types in
   SwitchPortMap.fold (fun (sw, pt) p acc ->
     let sw_f = Filter(Test(Switch, sw)) in
@@ -522,6 +527,18 @@ let switch_policies_to_policy (sm : policy SwitchPortMap.t) : policy =
       then p'
       else Par(acc, p'))
   sm Types.drop
+
+let switch_port_policies_to_switch_policies (spm : policy SwitchPortMap.t) :
+    policy SwitchMap.t =
+  let open Types in
+  SwitchPortMap.fold (fun (sw, pt) p acc ->
+    let pt_f = Filter(Test(Header SDN_Types.InPort, pt)) in
+    let p' = Seq(pt_f, p) in
+    try
+      SwitchMap.(add sw (Par(find sw acc, p')) acc)
+    with Not_found ->
+      SwitchMap.add sw p' acc)
+  spm SwitchMap.empty
 
 let regex_to_switch_lf_policies (r : regex) : lf_policy dehopified =
   let (aregex, chash) = regex_to_aregex r in
