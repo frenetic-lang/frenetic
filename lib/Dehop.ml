@@ -969,6 +969,7 @@ let rec separate_p_from_pt p = match p with
   | Seq(p, Par (q,r)) -> p
   | Seq(p,q) -> Seq(p, separate_t_from_pt q)
   | Filter True -> p
+  | _ -> failwith (Printf.sprintf "unexpected p pol: %s" (string_of_policy p))
 
 let rec separate_p p = match p with
   | Star(p) -> separate_p_from_pt p
