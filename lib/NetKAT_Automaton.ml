@@ -510,6 +510,8 @@ module EdgeSet = Set.Make(struct
   let compare = Pervasives.compare
 end)
 
+type 'a dehopified = 'a * ('a SwitchMap.t) * LinkSet.t * 'a
+
 let switch_policies_to_policy (sm : policy SwitchMap.t) : policy =
   let open Types in
   SwitchMap.fold (fun (sw, pt) p acc ->
@@ -521,9 +523,7 @@ let switch_policies_to_policy (sm : policy SwitchMap.t) : policy =
       else Par(acc, p'))
   sm Types.drop
 
-let regex_to_switch_lf_policies (r : regex) :
-    (lf_policy * (lf_policy SwitchMap.t) * LinkSet.t * lf_policy) =
-
+let regex_to_switch_lf_policies (r : regex) : lf_policy dehopified =
   let (aregex, chash) = regex_to_aregex r in
   let (auto, pick_states) = NFA.regex_to_t aregex in
 
@@ -615,7 +615,7 @@ let regex_to_switch_lf_policies (r : regex) :
   (* Printf.printf "AUTO: %s\n" (Nfa.nfa_to_dot auto); *)
   (ingress, SwitchMap.map edges_to_lf_policy (to_edge_map auto), !links, egress)
 
-let dehopify (p : policy) : (policy * (policy SwitchMap.t) * LinkSet.t * policy) =
+let dehopify (p : policy) : policy dehopified =
   let lfp_to_p = lf_policy_to_policy in
   let (ing, lf_pm, ls, egr) = regex_to_switch_lf_policies (regex_of_policy p) in
 

@@ -31,6 +31,9 @@ module SwitchMap : Map.S
 module LinkSet : Set.S
   with type elt = link
 
-val regex_to_switch_lf_policies : regex -> (lf_policy * (lf_policy SwitchMap.t) * LinkSet.t * lf_policy)
+type 'a dehopified = 'a * ('a SwitchMap.t) * LinkSet.t * 'a
+
+val regex_to_switch_lf_policies : regex -> lf_policy dehopified
 val switch_policies_to_policy : policy SwitchMap.t -> policy
-val dehopify : policy -> (policy * (policy SwitchMap.t) * LinkSet.t * policy)
+
+val dehopify : policy -> policy dehopified
