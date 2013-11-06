@@ -28,7 +28,7 @@ let dump args = match args with
     let pol0 = 
       let open Types in 
       let open SDN_Types in 
-      NetKAT_Automaton.SwitchMap.fold 
+      NetKAT_Automaton.SwitchPortMap.fold
         (fun (swi,pti) poli acc -> 
           if sw = swi then 
             Par(Seq(Filter (And(Test(Switch, swi), 

@@ -495,7 +495,7 @@ module NFA = struct
     (m', pick_states')
 end
 
-module SwitchMap = Map.Make(struct
+module SwitchPortMap = Map.Make(struct
   type t = VInt.t * VInt.t
   let compare = Pervasives.compare
 end)
@@ -510,11 +510,11 @@ module EdgeSet = Set.Make(struct
   let compare = Pervasives.compare
 end)
 
-type 'a dehopified = 'a * ('a SwitchMap.t) * LinkSet.t * 'a
+type 'a dehopified = 'a * ('a SwitchPortMap.t) * LinkSet.t * 'a
 
-let switch_policies_to_policy (sm : policy SwitchMap.t) : policy =
+let switch_policies_to_policy (sm : policy SwitchPortMap.t) : policy =
   let open Types in
-  SwitchMap.fold (fun (sw, pt) p acc ->
+  SwitchPortMap.fold (fun (sw, pt) p acc ->
     let sw_f = Filter(Test(Switch, sw)) in
     let pt_f = Filter(Test(Header SDN_Types.InPort, pt)) in
     let p' = Seq(sw_f, Seq(pt_f, p)) in
@@ -540,24 +540,24 @@ let regex_to_switch_lf_policies (r : regex) : lf_policy dehopified =
       incr curq;
       (!curq - 1) in
 
-  let add_all ((q, ns, q') : NFA.edge) (m : EdgeSet.t SwitchMap.t) =
+  let add_all ((q, ns, q') : NFA.edge) (m : EdgeSet.t SwitchPortMap.t) =
     Hashtbl.fold (fun i () acc ->
       let pchar = Hashtbl.find chash i in
       let sw_pt = switch_port_of_pchar pchar in
       let edge = (q, pchar, q') in
       try
-        SwitchMap.add sw_pt (EdgeSet.add edge (SwitchMap.find sw_pt m)) m
+        SwitchPortMap.(add sw_pt (EdgeSet.add edge (find sw_pt m)) m)
       with Not_found ->
-        SwitchMap.add sw_pt (EdgeSet.singleton edge) m)
+        SwitchPortMap.add sw_pt (EdgeSet.singleton edge) m)
     ns m in
 
-  let to_edge_map (m : NFA.t) : EdgeSet.t SwitchMap.t =
+  let to_edge_map (m : NFA.t) : EdgeSet.t SwitchPortMap.t =
     let open Nfa in 
     forward_fold_nfa (fun q acc ->
       Hashtbl.fold (fun q' ns acc -> 
         add_all (q,ns,q') acc)
       (all_delta m.delta q) acc)
-    m m.s SwitchMap.empty in
+    m m.s SwitchPortMap.empty in
 
   let mk_test q = Filter(Types.Test(Header SDN_Types.Vlan, VInt.Int16 (convert q))) in
   let mk_mod q = Mod(Header SDN_Types.Vlan, VInt.Int16 (convert q)) in
@@ -613,10 +613,10 @@ let regex_to_switch_lf_policies (r : regex) : lf_policy dehopified =
   let egress = Seq(foldl1_map par mk_test final_qs, go_outside) in
 
   (* Printf.printf "AUTO: %s\n" (Nfa.nfa_to_dot auto); *)
-  (ingress, SwitchMap.map edges_to_lf_policy (to_edge_map auto), !links, egress)
+  (ingress, SwitchPortMap.map edges_to_lf_policy (to_edge_map auto), !links, egress)
 
 let dehopify (p : policy) : policy dehopified =
   let lfp_to_p = lf_policy_to_policy in
   let (ing, lf_pm, ls, egr) = regex_to_switch_lf_policies (regex_of_policy p) in
 
-  (lfp_to_p ing, SwitchMap.map lfp_to_p lf_pm, ls, lfp_to_p egr)
+  (lfp_to_p ing, SwitchPortMap.map lfp_to_p lf_pm, ls, lfp_to_p egr)
