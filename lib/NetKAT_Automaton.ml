@@ -19,6 +19,10 @@ let optional a f m =
 
 let flip f a b = f b a
 
+let foldl1_map (f : 'b -> 'b -> 'b) (g : 'a -> 'b) (xs : 'a list) : 'b =
+  List.(fold_left (fun acc e -> f acc (g e))
+    (g (hd xs)) (tl xs))
+
 (* END GENERIC HELPER FUNCTIONS --------------------------------------------- *)
 
 
@@ -380,7 +384,13 @@ module NFA = struct
       
   let eps_eliminate m is_pick_state =
     (* Printf.printf "--- EPS_ELIMINATE ---\n%s\n" (Nfa.nfa_to_dot m); *)
-    let qi,qf = 0,1 in 
+    (* NOTE(seliopou): The initial state should not be 0! Code below does not
+     * directly depend on this, but it does make debugging it much easier when
+     * you can assume that the start state will never be 0. That way, you can
+     * assume packets outside of the network are on vlan 0 and you don't have to
+     * renumber states.
+     * *)
+    let qi,qf = 1,2 in
     let m' = new_nfa_states qi qf in 
     (* epsilon closure cache *)
     let h_eps = Hashtbl.create 17 in 
@@ -485,8 +495,13 @@ module NFA = struct
     (m', pick_states')
 end
 
-module SwitchMap = Map.Make(struct
+module SwitchPortMap = Map.Make(struct
   type t = VInt.t * VInt.t
+  let compare = Pervasives.compare
+end)
+
+module SwitchMap = Map.Make(struct
+  type t = VInt.t
   let compare = Pervasives.compare
 end)
 
@@ -500,9 +515,11 @@ module EdgeSet = Set.Make(struct
   let compare = Pervasives.compare
 end)
 
-let switch_policies_to_policy (sm : policy SwitchMap.t) : policy =
+type 'a dehopified = 'a * ('a SwitchPortMap.t) * LinkSet.t * 'a
+
+let switch_port_policies_to_policy (sm : policy SwitchPortMap.t) : policy =
   let open Types in
-  SwitchMap.fold (fun (sw, pt) p acc ->
+  SwitchPortMap.fold (fun (sw, pt) p acc ->
     let sw_f = Filter(Test(Switch, sw)) in
     let pt_f = Filter(Test(Header SDN_Types.InPort, pt)) in
     let p' = Seq(sw_f, Seq(pt_f, p)) in
@@ -511,34 +528,58 @@ let switch_policies_to_policy (sm : policy SwitchMap.t) : policy =
       else Par(acc, p'))
   sm Types.drop
 
-let regex_to_switch_lf_policies (r : regex) : (lf_policy * (lf_policy SwitchMap.t) * LinkSet.t) =
+let switch_port_policies_to_switch_policies (spm : policy SwitchPortMap.t) :
+    policy SwitchMap.t =
+  let open Types in
+  SwitchPortMap.fold (fun (sw, pt) p acc ->
+    let pt_f = Filter(Test(Header SDN_Types.InPort, pt)) in
+    let p' = Seq(pt_f, p) in
+    try
+      SwitchMap.(add sw (Par(find sw acc, p')) acc)
+    with Not_found ->
+      SwitchMap.add sw p' acc)
+  spm SwitchMap.empty
+
+let regex_to_switch_lf_policies (r : regex) : lf_policy dehopified =
   let (aregex, chash) = regex_to_aregex r in
   let (auto, pick_states) = NFA.regex_to_t aregex in
 
   let switch_port_of_pchar (_, (sw, pt, _, _)) = (sw, pt) in
 
-  let add (sw_pt : VInt.t * VInt.t) e (m : EdgeSet.t SwitchMap.t) =
-    try
-       SwitchMap.add sw_pt (EdgeSet.add e (SwitchMap.find sw_pt m)) m
-    with Not_found ->
-      SwitchMap.add sw_pt (EdgeSet.singleton e) m in
+  (* Used to compress state space to sequential integers. Note that the state 0
+   * is never used (unless there's an overflow ;) Note that for debugging
+   * purposes you should change convert to be the identity function. *)
+  let curq = ref 1 in
+  let qmap = Hashtbl.create (Hashset.size Nfa.(auto.q)) in
+  let convert q =
+    try Hashtbl.find qmap q with Not_found ->
+      Hashtbl.replace qmap q !curq;
+      incr curq;
+      (!curq - 1) in
 
-  let add_all ((q, ns, q') : NFA.edge) (m : EdgeSet.t SwitchMap.t) =
+  let add_all ((q, ns, q') : NFA.edge) (m : EdgeSet.t SwitchPortMap.t) =
     Hashtbl.fold (fun i () acc ->
       let pchar = Hashtbl.find chash i in
-      add (switch_port_of_pchar pchar) (q, pchar, q') acc)
+      let sw_pt = switch_port_of_pchar pchar in
+      let edge = (q, pchar, q') in
+      try
+        SwitchPortMap.(add sw_pt (EdgeSet.add edge (find sw_pt m)) m)
+      with Not_found ->
+        SwitchPortMap.add sw_pt (EdgeSet.singleton edge) m)
     ns m in
 
-  let to_edge_map (m : NFA.t) : EdgeSet.t SwitchMap.t =
+  let to_edge_map (m : NFA.t) : EdgeSet.t SwitchPortMap.t =
     let open Nfa in 
     forward_fold_nfa (fun q acc ->
       Hashtbl.fold (fun q' ns acc -> 
         add_all (q,ns,q') acc)
       (all_delta m.delta q) acc)
-    m m.s SwitchMap.empty in
+    m m.s SwitchPortMap.empty in
 
-  let mk_test q = Filter(Types.(Test(Header SDN_Types.Vlan, VInt.Int16 q))) in
-  let mk_mod q = Mod(Header(SDN_Types.Vlan), VInt.Int16 q) in
+  let mk_test q = Filter(Types.Test(Header SDN_Types.Vlan, VInt.Int16 (convert q))) in
+  let mk_mod q = Mod(Header SDN_Types.Vlan, VInt.Int16 (convert q)) in
+  let mk_choice qs = foldl1_map pick mk_mod qs in
+
   let links = ref LinkSet.empty in
 
   let to_lf_policy (q, (lf_p, l), q') : lf_policy =
@@ -550,9 +591,7 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy * (lf_policy SwitchMap.
       else [q'] in
 
     let ingress = mk_test q in
-    let egress = List.(fold_right (fun e acc ->
-        Choice(acc, mk_mod e))
-      (tl next_states) (mk_mod (hd next_states))) in
+    let egress = mk_choice next_states in
 
     Seq(ingress, Seq(lf_p, egress)) in
 
@@ -562,19 +601,39 @@ let regex_to_switch_lf_policies (r : regex) : (lf_policy * (lf_policy SwitchMap.
       Par(acc, to_lf_policy e))
     (EdgeSet.remove start es) (to_lf_policy start) in
 
+  (* All packets entering the network are on vlan 0. Detect these packets and
+   * set their vlan to the initial state of the automaton. If the initial state
+   * is not a choice state, then is straightforward (the second case). If the
+   * initial state is a choice state, then the packet will immediately
+   * transition to another non-choice state via an epsilon transition, by the
+   * construction of the automaton. In this case, skip the choice state and
+   * chose between the epsilon transition reachable states as the initial state.
+   * *)
+  let check_outside = Filter(Types.Test(Header SDN_Types.Vlan, VInt.Int16 0)) in
   let ingress = if Hashtbl.mem pick_states Nfa.(auto.s)
     then
       let qs = NFA.eps_closure_upto (Hashtbl.mem pick_states) auto Nfa.(auto.s) in
-      let fq = NFA.StateSet.choose qs in
-      NFA.StateSet.(fold (fun q acc ->
-        Choice(acc, mk_test q))
-      (remove fq qs) (mk_test fq))
-    else Filter(Types.True) in
+      let choice = mk_choice (NFA.StateSet.elements qs) in
+      Seq(check_outside, choice)
+    else
+      Seq(check_outside, mk_mod Nfa.(auto.s)) in
+
+  (* Once a packet has reached a state that is backwards reachable from the
+   * final state, it will immediately transition to the final state via an
+   * epsilon transition, by the construction of the automaton. At that point,
+   * the packet is exiting the network and is no longer subject to the policy,
+   * so its vlan header should be set back to 0.
+   * *)
+  let final_qs = Hashset.to_list
+    (Hashtbl.find (Nfa.backward_mapping auto) auto.Nfa.f) in
+  let go_outside = Mod(Header SDN_Types.Vlan, VInt.Int16 0) in
+  let egress = Seq(foldl1_map par mk_test final_qs, go_outside) in
 
   (* Printf.printf "AUTO: %s\n" (Nfa.nfa_to_dot auto); *)
-  (ingress, SwitchMap.map edges_to_lf_policy (to_edge_map auto), !links)
+  (ingress, SwitchPortMap.map edges_to_lf_policy (to_edge_map auto), !links, egress)
 
-let dehopify (p : policy) : (policy * (policy SwitchMap.t) * LinkSet.t) =
-  (* Man, it's times like these that you really wish you had arrows lol *)
-  let (ing, lf_pm, ls) = regex_to_switch_lf_policies (regex_of_policy p) in
-  (lf_policy_to_policy ing, SwitchMap.map lf_policy_to_policy lf_pm, ls)
+let dehopify (p : policy) : policy dehopified =
+  let lfp_to_p = lf_policy_to_policy in
+  let (ing, lf_pm, ls, egr) = regex_to_switch_lf_policies (regex_of_policy p) in
+
+  (lfp_to_p ing, SwitchPortMap.map lfp_to_p lf_pm, ls, lfp_to_p egr)

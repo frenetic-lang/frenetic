@@ -25,12 +25,19 @@ val lf_policy_to_string : lf_policy -> string
 val regex_to_aregex : regex -> int aregex * ((int, pchar) Hashtbl.t)
 val regex_of_aregex : int aregex -> (int, pchar) Hashtbl.t -> regex
 
-module SwitchMap : Map.S
+module SwitchPortMap : Map.S
   with type key = VInt.t * VInt.t
+
+module SwitchMap : Map.S
+  with type key = VInt.t
 
 module LinkSet : Set.S
   with type elt = link
 
-val regex_to_switch_lf_policies : regex -> (lf_policy * (lf_policy SwitchMap.t) * LinkSet.t)
-val switch_policies_to_policy : policy SwitchMap.t -> policy
-val dehopify : policy -> (policy * (policy SwitchMap.t) * LinkSet.t)
+type 'a dehopified = 'a * ('a SwitchPortMap.t) * LinkSet.t * 'a
+
+val regex_to_switch_lf_policies : regex -> lf_policy dehopified
+val switch_port_policies_to_policy : policy SwitchPortMap.t -> policy
+val switch_port_policies_to_switch_policies : policy SwitchPortMap.t -> policy SwitchMap.t
+
+val dehopify : policy -> policy dehopified
