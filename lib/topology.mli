@@ -3,11 +3,13 @@ open Packet
 
 type switchId = SDN_Types.switchId
 type portId = VInt.t
+type addrMAC = string
+type addrIP = string
 
 module type NODE =
 sig
   type t = 
-    | Host of string
+    | Host of string * addrMAC * addrIP
     | Switch of string * switchId
     | Mbox of string * string list
 	
@@ -61,7 +63,7 @@ sig
 
   (* Constructors *)
   val add_node : t -> V.t -> t
-  val add_host : t -> string -> t
+  val add_host : t -> string -> addrMAC -> addrIP -> t
   val add_switch : t -> string -> switchId -> t
   val add_switch_edge : t -> V.t -> portId -> V.t -> portId -> t
 

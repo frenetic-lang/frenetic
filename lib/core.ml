@@ -1,4 +1,4 @@
-open Util
+open Topology_util
 open Graph
 
 let string_of_vint v = 
@@ -16,6 +16,8 @@ let string_of_vint v =
 type switchId = SDN_Types.switchId
 type portId = VInt.t
 type rate = Rate of int64 * int64
+type addrMAC = string
+type addrIP = string
 
 let string_of_rate r =
   let Rate(min,max) = r in
@@ -23,7 +25,7 @@ let string_of_rate r =
 
 module type NODE =
 sig
-  type t = Host of string
+  type t = Host of string * addrMAC * addrIP
            | Switch of string * switchId
            | Mbox of string * string list
   type label = t
@@ -77,7 +79,7 @@ sig
 
   (* Constructors *)
   val add_node : t -> V.t -> t
-  val add_host : t -> string -> t
+  val add_host : t -> string -> addrMAC -> addrIP -> t
   val add_switch : t -> string -> switchId -> t
   val add_switch_edge : t -> V.t -> portId -> V.t -> portId -> t
 
@@ -108,7 +110,7 @@ end
 (***** Concrete types for network topology *****)
 module Node =
 struct
-  type t = Host of string
+  type t = Host of string * addrMAC * addrIP
            | Switch of string * switchId
            | Mbox of string * string list
   type label = t
@@ -116,7 +118,7 @@ struct
   let hash = Hashtbl.hash
   let compare = Pervasives.compare
   let to_dot n = match n with
-    | Host(s) -> s
+    | Host(s,m,i) -> s
     | Switch(s,i) -> s
     | Mbox(s,_) -> s
   let to_string = to_dot
@@ -232,9 +234,9 @@ struct
   let add_node (g:t) (n:Node.t) : t =
     add_vertex g n
 
-  (* Add a host, given its name, to the graph *)
-  let add_host (g:t) (h:string) : t =
-    add_vertex g (Node.Host h)
+  (* Add a host, given its name, MAC address and IP, to the graph *)
+  let add_host (g:t) (h:string) (m:addrMAC) (i:addrIP) : t =
+    add_vertex g (Node.Host(h,m,i))
 
 
   (* Add a switch (from it's name and id) to the graph *)
@@ -468,7 +470,7 @@ struct
     let add_hosts = fold_vertex
       (fun v acc ->
         let add = match v with
-          | Node.Host(n) -> Printf.sprintf "    %s = net.addHost(\'%s\')\n" n n
+          | Node.Host(n,m,i) -> Printf.sprintf "    %s = net.addHost(\'%s\', mac=\'%s\', ip=\'%s\')\n" n n m i
           | Node.Switch(s,i) ->
             let name = Str.global_replace (Str.regexp "[ ,]") "" s in
             let sid = "s" ^ (string_of_vint i) in 

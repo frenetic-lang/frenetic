@@ -81,6 +81,6 @@ let _ =
       | MnFile -> Topology.to_mininet topo
       | _ -> to_extension !outfname topo
     in
-    Util.write_to_file !outfname s
+    Topology_util.write_to_file !outfname s
   else
     Printf.printf "\nMininet script: %s\n\n" (Topology.to_mininet topo)
