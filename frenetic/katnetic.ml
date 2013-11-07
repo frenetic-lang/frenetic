@@ -3,7 +3,7 @@ open PolicyGenerator
 let help args =
   match args with 
     | [ "run" ] -> 
-      Format.printf "usage: katnetic run [filename] \n"
+      Format.printf "usage: katnetic run [local|classic] [filename] \n"
     | [ "dump" ] -> 
       Format.printf "usage: katnetic dump [filename] \n"
     | _ -> 
@@ -12,14 +12,32 @@ let help args =
 			  "  dump   Compile and dump flow table\n")
 
 
-let run args = match args with
-  | [ filename ] ->
-    let cin = open_in filename in
-    let exp = Parser.program Lexer.token (Lexing.from_channel cin) in
-    Lwt_main.run (Controller.start 6633 (NetKAT_Stream.constant exp))
-  | _ -> help [ "run" ]
+let run_with_channel f chan =
+  let exp = Parser.program Lexer.token (Lexing.from_channel chan) in
+  Lwt_main.run (Controller.start f 6633 (NetKAT_Stream.constant exp))
 
-let dump args = match args with 
+let run_with_file f filename =
+  run_with_channel f (open_in filename)
+
+let run args =
+  let open LocalCompiler.RunTime in
+
+  let local p =
+    let i = compile p in
+    (fun sw -> to_table sw i) in
+
+  let classic p =
+    let p' = Dehop.dehop_policy p in
+    let i = compile p' in
+    (fun sw -> to_table sw i) in
+
+  match args with
+    | [filename]
+    | ("local"   :: [filename]) -> run_with_file local filename
+    | ("classic" :: [filename]) -> run_with_file classic filename
+    | _ -> help [ "run" ]
+
+let dump args = match args with
   | [ filename ] ->
     let cin = open_in filename in
     let pol = Parser.program Lexer.token (Lexing.from_channel cin) in
