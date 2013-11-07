@@ -24,7 +24,7 @@ def generate(fanout,depth):
     switches = ['s'+ str(i) for i in range(1, ((2*L + 1) * (p ** L)+1))]
     hosts = ['h' + str(i) for i in range(1, 2 * (p ** (L+1)) + 1)]
     nodes = switches + hosts
-    graph = nx.Graph()
+    graph = nx.DiGraph()
     for node in switches:
         graph.add_node(node, type='switch', id=int(node[1:]))
     for node in hosts:
@@ -43,6 +43,8 @@ def generate(fanout,depth):
             hostnode = hosts[j]
             graph.add_edge(hostnode, node,
                 attr_dict={'sport':1,'dport':c,'capacity':'1Gbps','cost':'1'})
+            graph.add_edge(node, hostnode,
+                attr_dict={'sport':c,'dport':1,'capacity':'1Gbps','cost':'1'})
             #print "dport: %d" % (c)
             c += 1
 
@@ -82,6 +84,8 @@ def generate(fanout,depth):
                     #print "dport: %d" % (dport)
                     graph.add_edge(node, parentnode,
                         attr_dict={'sport':sport,'dport':dport,'capacity':'1Gbps','cost':'1'})
+                    graph.add_edge(parentnode, node,
+                        attr_dict={'sport':dport,'dport':sport,'capacity':'1Gbps','cost':'1'})
     return graph
 
 def rec_routing_downwards(graph, node, host, level):
@@ -117,8 +121,8 @@ def to_netkat_set_of_tables(graph):
             continue
         topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
         topo.append(topoterm)
-        topoterm = "%s@%d => %s@%d" % (graph.node[dst]['id'], ed['dport'], graph.node[src]['id'], ed['sport'])
-        topo.append(topoterm)
+        #topoterm = "%s@%d => %s@%d" % (graph.node[dst]['id'], ed['dport'], graph.node[src]['id'], ed['sport'])
+        #topo.append(topoterm)
 
 
     return "(\n%s\n);\n(\n%s\n)" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
@@ -127,21 +131,15 @@ def find_next_node(graph, node, outport):
     #print "find_next_node", node, outport
     for src, dst, ed in graph.edges_iter([node], data=True):
         assert src == node
-        if graph.node[src]['type'] == 'host':
-            if ed['sport'] == outport:
-                return (dst, ed['dport'])
         if graph.node[dst]['type'] == 'host':
             continue
-        if graph.node[src]['level'] < graph.node[dst]['level']:
-            if ed['sport'] == outport:
-                return (dst, ed['dport'])
-        else:
-            if ed['dport'] == outport:
-                return (dst, ed['sport'])
+        if ed['sport'] == outport:
+            return (dst, ed['dport'])
 
-def rec_set_of_paths_next_hop(graph, node, inport, dst, srchost, dsthost):
+def rec_set_of_paths_next_hop(graph, node, inport, dst, srchost, dsthost, switches):
     path = []
     flt = "filter switch = %d" % (graph.node[node]['id'])
+    switches.add(node)
     if node == dst:
         assert dsthost in graph.node[dst]['routes']
 
@@ -156,11 +154,12 @@ def rec_set_of_paths_next_hop(graph, node, inport, dst, srchost, dsthost):
     if node != dst:
         nextnode, nextinport = find_next_node(graph, node, v)
         #print "next", nextnode, nextinport
-        path.extend(rec_set_of_paths_next_hop(graph, nextnode, nextinport, dst, srchost, dsthost))
+        path.extend(rec_set_of_paths_next_hop(graph, nextnode, nextinport, dst, srchost, dsthost, switches))
     return path
 
 def to_netkat_set_of_paths_for_hosts(graph, hosts):
     policy = []
+    switches = set()
     for srchost in hosts:
         src = graph.neighbors(srchost)[0]
         nextnode, inport = find_next_node(graph, srchost, 1)
@@ -171,17 +170,19 @@ def to_netkat_set_of_paths_for_hosts(graph, hosts):
             dst = graph.neighbors(dsthost)[0]
             flt = "filter ethSrc = %s; filter ethDst = %s" % (graph.node[srchost]['mac'], graph.node[dsthost]['mac'])
             #print "path", srchost, dsthost
-            path = rec_set_of_paths_next_hop(graph, src, inport, dst, srchost, dsthost)
+            path = rec_set_of_paths_next_hop(graph, src, inport, dst, srchost, dsthost, switches)
             #print string.join(path, " | ")
             policy.append("(%s; ( %s ))" % (flt, string.join(path, " | ")))
     topo = []
     for src, dst, ed in graph.edges_iter(data=True):
         if src in graph.hosts or dst in graph.hosts:
             continue
+        if src not in switches or dst not in switches:
+            continue
         topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
         topo.append(topoterm)
-        topoterm = "%s@%d => %s@%d" % (graph.node[dst]['id'], ed['dport'], graph.node[src]['id'], ed['sport'])
-        topo.append(topoterm)
+        #topoterm = "%s@%d => %s@%d" % (graph.node[dst]['id'], ed['dport'], graph.node[src]['id'], ed['sport'])
+        #topo.append(topoterm)
 
 
     return "(\n%s\n);\n(\n%s\n)" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
@@ -191,6 +192,9 @@ def to_netkat_set_of_paths(graph):
 
 def to_netkat_test_set_of_paths(graph):
     return to_netkat_set_of_paths_for_hosts(graph, graph.hosts[0:2])
+
+def to_netkat_test_set_of_paths2(graph):
+    return to_netkat_set_of_paths_for_hosts(graph, graph.hosts[0:3])
 
 def to_netkat(graph, kattype, katfile):
     for node in graph.switches:
@@ -210,6 +214,8 @@ def to_netkat(graph, kattype, katfile):
         policy = to_netkat_set_of_paths(graph)
     elif kattype == 'testpaths':
         policy = to_netkat_test_set_of_paths(graph)
+    elif kattype == 'testpaths2':
+        policy = to_netkat_test_set_of_paths2(graph)
     if katfile:
         with open(katfile, 'w') as f:
             f.write(policy)
@@ -232,7 +238,7 @@ def parse_args():
                         help='KAT policy type',
                         dest='kattype',
                         action='store',
-                        choices=['tables', 'paths', 'testpaths'],
+                        choices=['tables', 'paths', 'testpaths', 'testpaths2'],
                         default='tables',
                         type=str)
 

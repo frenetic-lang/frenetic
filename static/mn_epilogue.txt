@@ -11,5 +11,6 @@
     output("Network ready\n")
     output("Press Ctrl-d or type exit to quit\n")
     CLI(net)
+    net.stop()
 
 start()

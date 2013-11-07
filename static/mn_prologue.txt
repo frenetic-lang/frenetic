@@ -5,7 +5,7 @@ import sys
 # Mininet imports
 from mininet.log import lg, info, error, debug, output
 from mininet.util import quietRun
-from mininet.node import  Host, UserSwitch, RemoteController
+from mininet.node import Host, UserSwitch, RemoteController
 from mininet.cli import CLI
 from mininet.net import Mininet
 
