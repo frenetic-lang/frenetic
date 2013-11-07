@@ -18,7 +18,7 @@ Library topology
     packet
   InternalModules:
     Core,
-    Util,
+    Topology_util,
     Parsers
   Modules:
     Topology
