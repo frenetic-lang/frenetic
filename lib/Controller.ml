@@ -19,14 +19,26 @@ let switch_thread
   Lwt_stream.iter_s config_switch (NetKAT_Stream.to_stream local_stream)
 
 let rec start ~port ~pols =
-  let local_stream = 
+  let local_stream =
     NetKAT_Stream.map 
       (fun p -> 
-	let () = Printf.printf "p: %s\n%!" (Pretty.string_of_policy p) in 
-	let d = (Dehop.dehop_policy_opt p) in
-	let () = Printf.printf "d: %s\n%!" (Pretty.string_of_policy d) in 
-        let l = LocalCompiler.RunTime.compile d in
-        let () = Printf.printf "l: %s\n%!" (Pretty.string_of_policy (LocalCompiler.RunTime.decompile l)) in 
+        Printf.printf "p: %s\n%!" (Pretty.string_of_policy p);
+        let p' = Dehop.dehop_policy p in
+        Printf.printf "p': %s\n%!" (Pretty.string_of_policy p');
+        let l = LocalCompiler.RunTime.compile p' in
+        Printf.printf "l: %s\n%!" (Pretty.string_of_policy (LocalCompiler.RunTime.decompile l));
+        l)
+      pols in
+  lwt (stop_accept, new_switches) = Platform.accept_switches port  in
+  Lwt_stream.iter_p (switch_thread local_stream) new_switches
+
+let rec start_no_dehop ~port ~pols =
+  let local_stream =
+    NetKAT_Stream.map
+      (fun p ->
+        Printf.printf "p: %s\n%!" (Pretty.string_of_policy p);
+        let l = LocalCompiler.RunTime.compile p in
+        Printf.printf "l: %s\n%!" (Pretty.string_of_policy (LocalCompiler.RunTime.decompile l));
         l)
       pols in
   lwt (stop_accept, new_switches) = Platform.accept_switches port  in

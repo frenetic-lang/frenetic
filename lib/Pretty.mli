@@ -10,4 +10,6 @@ val value_to_string : header_val -> string
   
 val string_of_policy : policy -> string
 
+val string_of_pred : pred -> string
+
 val pretty_assoc : policy -> policy
