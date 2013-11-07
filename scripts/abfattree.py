@@ -123,22 +123,71 @@ def to_netkat_set_of_tables(graph):
 
     return "(\n%s\n);\n(\n%s\n)" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
 
-def rec_set_of_paths_next_hop(graph, src, dst, srchost, dsthost):
+def find_next_node(graph, node, outport):
+    #print "find_next_node", node, outport
+    for src, dst, ed in graph.edges_iter([node], data=True):
+        assert src == node
+        if graph.node[src]['type'] == 'host':
+            if ed['sport'] == outport:
+                return (dst, ed['dport'])
+        if graph.node[dst]['type'] == 'host':
+            continue
+        if graph.node[src]['level'] < graph.node[dst]['level']:
+            if ed['sport'] == outport:
+                return (dst, ed['dport'])
+        else:
+            if ed['dport'] == outport:
+                return (dst, ed['sport'])
+
+def rec_set_of_paths_next_hop(graph, node, inport, dst, srchost, dsthost):
     path = []
-    #if src == dst:
+    flt = "filter switch = %d" % (graph.node[node]['id'])
+    if node == dst:
+        assert dsthost in graph.node[dst]['routes']
+
+    if dsthost in graph.node[node]['routes']:
+        v = graph.node[node]['routes'][dsthost]
+        path = [string.join((flt, "port := %d" % (v)), "; ")]
+    else:
+        assert inport in graph.node[node]['routes']
+        #print "inport", inport
+        v = graph.node[node]['routes'][inport]
+        path = [string.join((flt, "port := %d" % (v)), "; ")]
+    if node != dst:
+        nextnode, nextinport = find_next_node(graph, node, v)
+        #print "next", nextnode, nextinport
+        path.extend(rec_set_of_paths_next_hop(graph, nextnode, nextinport, dst, srchost, dsthost))
+    return path
 
 def to_netkat_set_of_paths(graph):
     policy = []
     for srchost in graph.hosts:
-        src = graph.neighbors(src)[0]
+        src = graph.neighbors(srchost)[0]
+        nextnode, inport = find_next_node(graph, srchost, 1)
+        assert src == nextnode
         for dsthost in graph.hosts:
             if srchost == dsthost:
                 continue
-            dst = graph.neighbors(dst)[0]
-            path = rec_set_of_paths_next_hop(graph, src, dst, srchost, dsthost)
+            dst = graph.neighbors(dsthost)[0]
+            flt = "filter ethSrc = %s; filter ethDst = %s" % (graph.node[srchost]['mac'], graph.node[dsthost]['mac'])
+            #print "path", srchost, dsthost
+            path = rec_set_of_paths_next_hop(graph, src, inport, dst, srchost, dsthost)
+            #print string.join(path, " | ")
+            policy.append("(%s; ( %s ))" % (flt, string.join(path, " | ")))
+    topo = []
+    for src, dst, ed in graph.edges_iter(data=True):
+        if src in graph.hosts or dst in graph.hosts:
+            continue
+        topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
+        topo.append(topoterm)
+        topoterm = "%s@%d => %s@%d" % (graph.node[dst]['id'], ed['dport'], graph.node[src]['id'], ed['sport'])
+        topo.append(topoterm)
 
 
-def to_netkat(graph, katfile):
+    return "(\n%s\n);\n(\n%s\n)" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
+
+
+def to_netkat(graph, kattype, katfile):
     for node in graph.switches:
         graph.node[node]['routes'] = {}
         l = (graph.node[node]['id'] - 1) / (2*graph.p**graph.L)
@@ -150,7 +199,10 @@ def to_netkat(graph, katfile):
     for node in noncore_switches:
         routing_upwards(graph, node)
     #print nx.to_agraph(graph)
-    policy = to_netkat_set_of_tables(graph)
+    if kattype == 'tables':
+        policy = to_netkat_set_of_tables(graph)
+    elif kattype == 'paths':
+        policy = to_netkat_set_of_paths(graph)
     if katfile:
         with open(katfile, 'w') as f:
             f.write(policy)
@@ -169,6 +221,13 @@ def parse_args():
     parser.add_argument("-k", "--kat", dest='katfile', action='store',
                         default=None,
                         help='file to write to')
+    parser.add_argument("-t", "--type",
+                        help='KAT policy type',
+                        dest='kattype',
+                        action='store',
+                        choices=['tables', 'paths'],
+                        default='tables',
+                        type=str)
 
     return parser.parse_args()
 
@@ -181,4 +240,4 @@ if __name__ == "__main__":
         nx.write_dot(graph,args.output)
     else:
         print nx.to_agraph(graph)
-    to_netkat(graph, args.katfile)
+    to_netkat(graph, args.kattype, args.katfile)
