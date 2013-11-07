@@ -547,7 +547,7 @@ let regex_to_switch_lf_policies (r : regex) : lf_policy dehopified =
   let switch_port_of_pchar (_, (sw, pt, _, _)) = (sw, pt) in
 
   (* Used to compress state space to sequential integers. Note that the state 0
-   * is never used (unless there's an overlfow ;) Note that for debugging
+   * is never used (unless there's an overflow ;) Note that for debugging
    * purposes you should change convert to be the identity function. *)
   let curq = ref 1 in
   let qmap = Hashtbl.create (Hashset.size Nfa.(auto.q)) in
@@ -621,7 +621,7 @@ let regex_to_switch_lf_policies (r : regex) : lf_policy dehopified =
   (* Once a packet has reached a state that is backwards reachable from the
    * final state, it will immediately transition to the final state via an
    * epsilon transition, by the construction of the automaton. At that point,
-   * the packet is existing the network and is no longer subject to the policy,
+   * the packet is exiting the network and is no longer subject to the policy,
    * so its vlan header should be set back to 0.
    * *)
   let final_qs = Hashset.to_list
