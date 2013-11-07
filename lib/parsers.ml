@@ -1,4 +1,4 @@
-open Util
+open Topology_util
 open Graph
 
 type nattr = {

@@ -1,4 +1,4 @@
-open Util
+open Topology_util
 open Graph
 
 let string_of_vint v = 
@@ -367,27 +367,38 @@ struct
     else p *)
 
   let floyd_warshall (g:t): ((V.t * V.t) * V.t list) list =
+    let add_opt o1 o2 = 
+      match o1, o2 with 
+        | Some n1, Some n2 -> Some (n1 + n2)
+        | _ -> None in 
+    let lt_opt o1 o2 = 
+      match o1, o2 with 
+        | Some n1, Some n2 -> n1 < n2
+        | Some _, None -> true
+        | None, Some _ -> false
+        | None, None -> false in 
     let make_matrix (g:t) = 
       let n = nb_vertex g in
       let nodes = Array.of_list (get_vertices g) in
       Array.init n 
         (fun i -> Array.init n
-          (fun j -> if i = j then (0, [nodes.(i)])
-            else try 
-              let _ = find_edge g nodes.(i) nodes.(j) in
-              (1,[nodes.(i);nodes.(j)])
-            with Not_found ->  (0,[]))) in
+          (fun j -> if i = j then (Some 0, [nodes.(i)])
+            else 
+              try 
+                let _ = find_edge g nodes.(i) nodes.(j) in
+                (Some 1, [nodes.(i); nodes.(j)])
+            with Not_found -> 
+              (None,[]))) in
     let matrix = make_matrix g in
     let n = nb_vertex g in
-    let dist i j = 
-      let (d,_) = matrix.(i).(j) in d in
-    let path i j = 
-      let (_,p) = matrix.(i).(j) in p in
+    let dist i j = fst (matrix.(i).(j)) in
+    let path i j = snd (matrix.(i).(j)) in 
     for k = 0 to n - 1 do
       for i = 0 to n - 1 do
         for j = 0 to n - 1 do
-          if dist i k + dist k j < dist i j then
-            matrix.(i).(j) <- (dist i k + dist k j, path i k @ List.tl (path k j))
+          let dist_ikj = add_opt (dist i k) (dist k j) in 
+          if lt_opt dist_ikj (dist i j) then
+            matrix.(i).(j) <- (dist_ikj, path i k @ List.tl (path k j))
         done
       done
     done;
