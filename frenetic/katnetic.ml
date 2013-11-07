@@ -3,7 +3,7 @@ open PolicyGenerator
 let help args =
   match args with 
     | [ "run" ] -> 
-      Format.printf "usage: katnetic run [local|classic] [filename] \n"
+      Format.printf "usage: katnetic run [local|classic|automaton] [filename] \n"
     | [ "dump" ] -> 
       Format.printf "usage: katnetic dump [filename] \n"
     | _ -> 
@@ -31,10 +31,21 @@ let run args =
     let i = compile p' in
     (fun sw -> to_table sw i) in
 
+  let automaton p =
+    let open NetKAT_Automaton in
+    let open Types in
+    let i,m,_,e = dehopify p in
+    let switch_policies = switch_port_policies_to_switch_policies m in
+    (fun sw ->
+      let sw_p  = SwitchMap.find sw switch_policies in
+      let sw_p' = Types.(Seq(Seq(Par(i,id),sw_p),Par(e,id))) in
+      to_table sw (compile sw_p')) in
+
   match args with
     | [filename]
-    | ("local"   :: [filename]) -> run_with_file local filename
-    | ("classic" :: [filename]) -> run_with_file classic filename
+    | ("local"     :: [filename]) -> run_with_file local filename
+    | ("classic"   :: [filename]) -> run_with_file classic filename
+    | ("automaton" :: [filename]) -> run_with_file automaton filename
     | _ -> help [ "run" ]
 
 
@@ -53,10 +64,8 @@ let dump args =
     let switch_policies = switch_port_policies_to_switch_policies m in
     SwitchMap.iter (fun sw p ->
       let open Types in
-      let open SDN_Types in
-      let pol0 =
-        Seq(Filter(Test(Switch, sw)), SwitchMap.find sw switch_policies) in
-      let pol0' = Types.(Seq(Seq(Par(i, id),pol0),Par(e, id))) in
+      let pol0  = SwitchMap.find sw switch_policies in
+      let pol0' = Seq(Seq(Par(i,id),pol0),Par(e,id)) in
       let tbl0 = to_table sw (compile pol0') in
       Format.printf "@[%a\n%a@\n\n@]%!"
         Pretty.format_policy pol0'
