@@ -26,12 +26,7 @@ let rec start ~port ~pols =
     Stream.map 
       (fun p -> 
         Printf.printf "p: %s\n%!" (Pretty.string_of_policy p);
-        let (i,s,t,e) as dehopd = Dehop.dehop_policy p in
-        Printf.printf "i: %s\n%!" (Pretty.string_of_policy i);
-        Printf.printf "s: %s\n%!" (Pretty.string_of_policy s);
-        Printf.printf "t: %s\n%!" (Pretty.string_of_policy t);
-        Printf.printf "e: %s\n%!" (Pretty.string_of_policy e);
-        let p' = Dehop.dehop_policy_to_policy dehopd in
+        let p' = Dehop.dehop_policy p in
         Printf.printf "p': %s\n%!" (Pretty.string_of_policy p');
         let l = LocalCompiler.RunTime.compile p' in
         Printf.printf "l: %s\n%!" (Pretty.string_of_policy (LocalCompiler.RunTime.decompile l));

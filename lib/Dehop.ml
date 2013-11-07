@@ -1010,7 +1010,7 @@ let rec strip_vlans p = match p with
 (*   let p' = (VSeq(i, VSeq(VStar(VSeq(s,t)), e))) in *)
 (*   fst (convert_tag_to_hdr (collect_tags p') SDN_Types.Vlan p' false) *)
 
-let dehop_policy p =
+let policy_to_dehopd_policy p =
   let (i,s,t,e) = dehopify (simplify_pol p) in
   let p' = Optimization.simplify_vpol (VSeq(i, VSeq(VStar(VSeq(s,t)), e))) in
   let () = Printf.printf "p': %s\n%!" (string_of_vpolicy p') in
@@ -1026,7 +1026,7 @@ let dehop_policy p =
   let i'',s'',t'',e'' = simplify_pol i', simplify_pol s', simplify_pol t', simplify_pol e' in
   (i'', s'', t'', Par (Seq (Filter vlan_none, e''), Seq(Filter (Neg vlan_none), Seq(strip_vlans e'', strip_vlan))))
 
-let dehop_policy_to_policy ((i,p,t,e) : policy * policy * policy * policy) : policy =
+let dehopd_policy_to_policy ((i,p,t,e) : policy * policy * policy * policy) : policy =
   let open Types in
 
   (* We analyze the topology (currently from 't'), and compute the edge
@@ -1059,3 +1059,6 @@ let dehop_policy_to_policy ((i,p,t,e) : policy * policy * policy * policy) : pol
   let l_i = extract_internal_locs t in
   Seq(Par(Seq(Filter(Neg l_i), i), Filter l_i),
       Par(p, e))
+
+let dehop_policy (p:policy) : policy =
+  dehopd_policy_to_policy (policy_to_dehopd_policy p)
