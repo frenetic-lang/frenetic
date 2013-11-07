@@ -35,9 +35,9 @@ let all_pairs_shortest_paths (g : t) =
   List.fold_left
     (fun pol p ->
       match p with
-        | ((Node.Host src, Node.Host dst), []) -> 
+        | ((Node.Host(src,"",""), Node.Host(dst, "","")), []) -> 
 	  pol
-        | ((Node.Host src, Node.Host dst), v::path) -> 
+        | ((Node.Host(src,"",""), Node.Host(dst,"","")), v::path) -> 
 	  (* TODO(basus): replace with MAC address *)
 	  let src = VInt.Int48 0L in 
 	  let dst = VInt.Int48 1L in 
