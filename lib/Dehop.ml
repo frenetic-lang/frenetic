@@ -1025,3 +1025,37 @@ let dehop_policy p =
   let () = Printf.printf "t': %s\n%!" (string_of_policy t') in
   let i'',s'',t'',e'' = simplify_pol i', simplify_pol s', simplify_pol t', simplify_pol e' in
   (i'', s'', t'', Par (Seq (Filter vlan_none, e''), Seq(Filter (Neg vlan_none), Seq(strip_vlans e'', strip_vlan))))
+
+let dehop_policy_to_policy ((i,p,t,e) : policy * policy * policy * policy) : policy =
+  let open Types in
+
+  (* We analyze the topology (currently from 't'), and compute the edge
+   * switches. For edge locations L_e, the policy is
+   *
+   *   (filter L_e;i | filter ~L_e); (p | e).
+   *
+   * But, it is probably better to instead use the internal locations L_i,
+   * making it
+   *
+   *   (filter ~L_i;i | filter L_i); (p | e)
+   * *)
+  let rec extract_internal_locs t =
+    let open SDN_Types in
+    match t with
+      | Seq(p,q) -> mk_loc_pred p q
+      | Par(p,q) -> mk_loc_pred p q
+      | Choice(p,q) -> mk_loc_pred p q
+      | Link(sw,pt,sw',pt') ->
+        Or (And (Test (Switch, sw),  Test (Header InPort, pt)),
+            And (Test (Switch, sw'), Test (Header InPort, pt')))
+      | _ -> False
+
+  and mk_loc_pred a b =
+    match extract_internal_locs a, extract_internal_locs b with
+      | False, bp    -> bp
+      | ap   , False -> ap
+      | ap   , bp    -> Or(ap, bp) in
+
+  let l_i = extract_internal_locs t in
+  Seq(Par(Seq(Filter(Neg l_i), i), Filter l_i),
+      Par(p, e))
