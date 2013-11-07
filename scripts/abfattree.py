@@ -111,24 +111,32 @@ def to_netkat_set_of_tables(graph):
             table.append(s)
         #pprint.pprint(table)
         policy.extend(table)
+    topo = []
     for src, dst, ed in graph.edges_iter(data=True):
         if src in graph.hosts or dst in graph.hosts:
             continue
         topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
-        policy.append(topoterm)
+        topo.append(topoterm)
         topoterm = "%s@%d => %s@%d" % (graph.node[dst]['id'], ed['dport'], graph.node[src]['id'], ed['sport'])
-        policy.append(topoterm)
+        topo.append(topoterm)
 
 
-    return string.join(policy, " |\n")
+    return "(\n%s\n);\n(\n%s\n)" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
 
-
-
+def rec_set_of_paths_next_hop(graph, src, dst, srchost, dsthost):
+    path = []
+    #if src == dst:
 
 def to_netkat_set_of_paths(graph):
-    for src in graph.hosts:
-        for dst in graph.hosts:
-            pass
+    policy = []
+    for srchost in graph.hosts:
+        src = graph.neighbors(src)[0]
+        for dsthost in graph.hosts:
+            if srchost == dsthost:
+                continue
+            dst = graph.neighbors(dst)[0]
+            path = rec_set_of_paths_next_hop(graph, src, dst, srchost, dsthost)
+
 
 def to_netkat(graph, katfile):
     for node in graph.switches:
