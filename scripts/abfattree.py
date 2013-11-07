@@ -159,13 +159,13 @@ def rec_set_of_paths_next_hop(graph, node, inport, dst, srchost, dsthost):
         path.extend(rec_set_of_paths_next_hop(graph, nextnode, nextinport, dst, srchost, dsthost))
     return path
 
-def to_netkat_set_of_paths(graph):
+def to_netkat_set_of_paths_for_hosts(graph, hosts):
     policy = []
-    for srchost in graph.hosts:
+    for srchost in hosts:
         src = graph.neighbors(srchost)[0]
         nextnode, inport = find_next_node(graph, srchost, 1)
         assert src == nextnode
-        for dsthost in graph.hosts:
+        for dsthost in hosts:
             if srchost == dsthost:
                 continue
             dst = graph.neighbors(dsthost)[0]
@@ -186,6 +186,11 @@ def to_netkat_set_of_paths(graph):
 
     return "(\n%s\n);\n(\n%s\n)" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
 
+def to_netkat_set_of_paths(graph):
+    return to_netkat_set_of_paths_for_hosts(graph, graph.hosts)
+
+def to_netkat_test_set_of_paths(graph):
+    return to_netkat_set_of_paths_for_hosts(graph, graph.hosts[0:2])
 
 def to_netkat(graph, kattype, katfile):
     for node in graph.switches:
@@ -203,6 +208,8 @@ def to_netkat(graph, kattype, katfile):
         policy = to_netkat_set_of_tables(graph)
     elif kattype == 'paths':
         policy = to_netkat_set_of_paths(graph)
+    elif kattype == 'testpaths':
+        policy = to_netkat_test_set_of_paths(graph)
     if katfile:
         with open(katfile, 'w') as f:
             f.write(policy)
@@ -225,7 +232,7 @@ def parse_args():
                         help='KAT policy type',
                         dest='kattype',
                         action='store',
-                        choices=['tables', 'paths'],
+                        choices=['tables', 'paths', 'testpaths'],
                         default='tables',
                         type=str)
 
