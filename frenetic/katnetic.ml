@@ -37,27 +37,35 @@ let run args =
     | ("classic" :: [filename]) -> run_with_file classic filename
     | _ -> help [ "run" ]
 
-let dump args = match args with
-  | [ filename ] ->
-    let cin = open_in filename in
-    let pol = Parser.program Lexer.token (Lexing.from_channel cin) in
-    let i,m,_,e = NetKAT_Automaton.dehopify pol in
-    let switch_policies =
-        NetKAT_Automaton.switch_port_policies_to_switch_policies m in
-    NetKAT_Automaton.SwitchMap.iter (fun sw p ->
+
+let dump_with_channel f chan =
+  f (Parser.program Lexer.token (Lexing.from_channel chan))
+
+let dump_with_file f filename =
+  dump_with_channel f (open_in filename)
+
+let dump args =
+  let open LocalCompiler.RunTime in
+
+  let automaton p =
+    let open NetKAT_Automaton in
+    let i,m,_,e = dehopify p in
+    let switch_policies = switch_port_policies_to_switch_policies m in
+    SwitchMap.iter (fun sw p ->
+      let open Types in
+      let open SDN_Types in
       let pol0 =
-        let open Types in
-        let open SDN_Types in
-        Seq(Filter(Test(Switch, sw)),
-            NetKAT_Automaton.SwitchMap.find sw switch_policies) in
+        Seq(Filter(Test(Switch, sw)), SwitchMap.find sw switch_policies) in
       let pol0' = Types.(Seq(Seq(Par(i, id),pol0),Par(e, id))) in
-      let ifm0 = LocalCompiler.RunTime.compile pol0' in
-      let tbl0 = LocalCompiler.RunTime.to_table sw ifm0 in
+      let tbl0 = to_table sw (compile pol0') in
       Format.printf "@[%a\n%a@\n\n@]%!"
         Pretty.format_policy pol0'
         SDN_Types.format_flowTable tbl0)
-    switch_policies
-  | _ -> help [ "dump" ]
+    switch_policies in
+
+  match args with
+    | [ filename ] -> dump_with_file automaton filename
+    | _ -> help [ "dump" ]
 
 let () = 
   match Array.to_list Sys.argv with
