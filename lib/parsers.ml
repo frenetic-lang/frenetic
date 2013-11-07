@@ -6,9 +6,10 @@ type nattr = {
   ; name : string
   ; id : int64
   ; ip : string
+  ; mac : string
 }
 
-let defnattr = {ntype = "host"; name = ""; id = 0L; ip = "0.0.0.0"}
+let defnattr = {ntype = "host"; name = ""; id = 0L; ip = "0.0.0.0"; mac = "00:00:00:00:00:00"}
 
 module TopoDot = struct
 
@@ -62,10 +63,14 @@ module TopoDot = struct
     let ip_of vo = match maybe vo with
           | Dot_ast.String(s) -> s
           | _ -> failwith "IPs must be represented as a string (in quotes)\n" in
+    let mac_of vo = match maybe vo with
+          | Dot_ast.String(s) -> s
+          | _ -> failwith "MAC must be represented as a string (in quotes)\n" in
     match k with
       | Dot_ast.Ident("type") -> {n with ntype = ntype_of vo}
       | Dot_ast.Ident("id") -> {n with id = int64_of_id vo}
       | Dot_ast.Ident("ip") -> {n with ip = ip_of vo}
+      | Dot_ast.Ident("mac") -> {n with mac = mac_of vo}
       | _ -> failwith "Unknown node attribute\n"
 
   (* Update the record for an edge *)
@@ -75,7 +80,7 @@ module TopoDot = struct
       | Dot_ast.Ident("dport") -> {edge with Core.Link.dstport = VInt.Int32 (int32_of_id valopt)}
       | Dot_ast.Ident("cost") -> {edge with Core.Link.cost = VInt.Int64 (int64_of_id valopt) }
       | Dot_ast.Ident("capacity") -> {edge with Core.Link.capacity = VInt.Int64 (capacity_of_id valopt)}
-      | _ -> failwith "Unknown node attribute\n"
+      | _ -> failwith "Unknown edge attribute\n"
 
   (* Generate a node from the id and attributes *)
   let node (i:Dot_ast.node_id) (ats:Dot_ast.attr list) : Core.Topology.V.label =
@@ -85,7 +90,7 @@ module TopoDot = struct
     let nat = List.fold_left update_nattr
         {defnattr with ntype = "switch"} at in
     if nat.ntype = "host" then
-      Core.Node.Host(name)
+      Core.Node.Host(name, nat.mac, nat.ip)
     else if nat.ntype = "switch" then
       Core.Node.Switch(name, VInt.Int64 nat.id)
     else
@@ -116,6 +121,8 @@ module TopoGML = struct
     let update_nattr n (key, value) = match key with
       | "id" -> {n with id = int64_of_value value}
       | "label" -> {n with name = string_of_value value}
+      | "mac" -> {n with mac = string_of_value value}
+      | "ip" -> {n with ip = string_of_value value}
       | _ -> n
 
     (* The Src and Dst nodes are handled by Ocamlgraph. So we use the source and
@@ -132,7 +139,7 @@ module TopoGML = struct
       let nat = List.fold_left update_nattr
         {defnattr with ntype = "switch"} vs in
       if nat.ntype = "host" then
-        Core.Node.Host(nat.name)
+        Core.Node.Host(nat.name, nat.mac, nat.ip)
       else if nat.ntype = "switch" then
         Core.Node.Switch(nat.name, VInt.Int64 nat.id)
       else
