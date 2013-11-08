@@ -313,7 +313,7 @@ struct
       (fun l -> VInt.Int32 (Link.srcport l)) ss in
     let ps = pred_e g s in
     let pports = List.map
-      (fun l -> VInt.Int32 (Link.srcport l)) ps in
+      (fun l -> VInt.Int32 (Link.dstport l)) ps in
     sports @ pports
 
 
