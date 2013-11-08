@@ -533,7 +533,7 @@ let switch_port_policies_to_switch_policies (spm : policy SwitchPortMap.t) :
   let open Types in
   SwitchPortMap.fold (fun (sw, pt) p acc ->
     let pt_f = Filter(Test(Header SDN_Types.InPort, pt)) in
-    let p' = Seq(pt_f, p) in
+    let p' = Seq(p, pt_f) in
     try
       SwitchMap.(add sw (Par(find sw acc, p')) acc)
     with Not_found ->
