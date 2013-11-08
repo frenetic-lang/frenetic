@@ -125,7 +125,7 @@ def to_netkat_set_of_tables(graph):
         #topo.append(topoterm)
 
 
-    return "(\n%s\n);\n(\n%s\n)" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
+    return "((\n%s\n);\n(\n%s\n))*" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
 
 def find_next_node(graph, node, outport):
     #print "find_next_node", node, outport
@@ -185,7 +185,7 @@ def to_netkat_set_of_paths_for_hosts(graph, hosts):
         #topo.append(topoterm)
 
 
-    return "(\n%s\n);\n(\n%s\n)" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
+    return "((\n%s\n);\n(\n%s\n))*" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
 
 def to_netkat_set_of_paths(graph):
     return to_netkat_set_of_paths_for_hosts(graph, graph.hosts)
@@ -250,7 +250,7 @@ def to_netkat_regular(graph):
         topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
         topo.append(topoterm)
 
-    return "(\n%s\n);\n(\n%s\n)" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
+    return "((\n%s\n);\n(\n%s\n))*" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
 
 
 
