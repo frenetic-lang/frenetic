@@ -12,7 +12,7 @@ sig
     | Host of string * addrMAC * addrIP
     | Switch of string * switchId
     | Mbox of string * string list
-	
+
   type label = t
 
   val equal : t -> t -> bool
@@ -91,9 +91,9 @@ sig
   exception NoPath of string * string
 end
 
-module Node : Core.NODE
-module Link : Core.LINK with type v = Node.t
-module Topology : Core.TOPO with type V.t = Node.t and type E.t = Link.e and type V.label
+module Node : NODE
+module Link : LINK with type v = Node.t
+module Topology : TOPO with type V.t = Node.t and type E.t = Link.e and type V.label
   = Node.label and type E.label = Link.t
 
 val from_dotfile : string -> Topology.t
