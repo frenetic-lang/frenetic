@@ -196,6 +196,64 @@ def to_netkat_test_set_of_paths(graph):
 def to_netkat_test_set_of_paths2(graph):
     return to_netkat_set_of_paths_for_hosts(graph, graph.hosts[0:3])
 
+def to_netkat_regular(graph):
+    # succint program that exploits regularity
+    policy = []
+    n = len(graph.switches)
+    nc = graph.p**graph.L
+    core_switches = graph.switches[(n-nc):]
+    ne = 2*graph.p**graph.L
+    edge_switches = graph.switches[0:ne]
+    agg_switches = graph.switches[ne:(n-nc)]
+    assert len(core_switches) + len(edge_switches) + len(agg_switches) == len(graph.switches)
+
+    core_flt = []
+    for sw in core_switches:
+        flt = "filter switch = %d" % (graph.node[sw]['id'])
+        core_flt.append(flt)
+
+    core_policy = []
+    for host in graph.hosts:
+        port = ((int(host[1:]) - 1) / graph.p) + 1
+        s = string.join(("filter ethDst = %s" % (graph.node[host]['mac']), "port := %d" % (port)), "; ")
+        core_policy.append(s)
+
+    policy.append("((%s); (%s))" % (string.join(core_flt, " | "), string.join(core_policy, " | ")))
+
+    agg_flt = []
+    for sw in agg_switches:
+        flt = "filter switch = %d" % (graph.node[sw]['id'])
+        agg_flt.append(flt)
+
+    agg_policy = []
+    # every agg sw has the same port-based filters; use the first
+    sw = agg_switches[0]
+    for k, v in graph.node[sw]['routes'].iteritems():
+        if isinstance(k, int):
+            s = string.join(("filter port = %d" % (k), "port := %d" % (v)), "; ")
+            agg_policy.append(s)
+
+    policy.append("((%s); (%s))" % (string.join(agg_flt, " | "), string.join(agg_policy, " | ")))
+
+    # every agg sw has the same port-based filters; use the first
+    for sw in edge_switches:
+        flt = "filter switch = %d" % (graph.node[sw]['id'])
+        for k, v in graph.node[sw]['routes'].iteritems():
+            if k in graph.hosts:
+                s = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
+                policy.append("(%s)" % (s))
+
+    topo = []
+    for src, dst, ed in graph.edges_iter(data=True):
+        if src in graph.hosts or dst in graph.hosts:
+            continue
+        topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
+        topo.append(topoterm)
+
+    return "(\n%s\n);\n(\n%s\n)" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
+
+
+
 def to_netkat(graph, kattype, katfile):
     for node in graph.switches:
         graph.node[node]['routes'] = {}
@@ -212,6 +270,8 @@ def to_netkat(graph, kattype, katfile):
         policy = to_netkat_set_of_tables(graph)
     elif kattype == 'paths':
         policy = to_netkat_set_of_paths(graph)
+    elif kattype == 'regular':
+        policy = to_netkat_regular(graph)
     elif kattype == 'testpaths':
         policy = to_netkat_test_set_of_paths(graph)
     elif kattype == 'testpaths2':
@@ -238,7 +298,7 @@ def parse_args():
                         help='KAT policy type',
                         dest='kattype',
                         action='store',
-                        choices=['tables', 'paths', 'testpaths', 'testpaths2'],
+                        choices=['tables', 'paths', 'regular', 'testpaths', 'testpaths2'],
                         default='tables',
                         type=str)
 
