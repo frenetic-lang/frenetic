@@ -18,17 +18,21 @@ def start(ip="127.0.0.1",port=6633):
     ####### End of static Mininet prologue ######
 
     h1 = net.addHost('h1', mac='00:00:00:00:00:01', ip='10.0.0.1')
+    h2 = net.addHost('h2', mac='00:00:00:00:00:02', ip='10.0.0.2')
+    h3 = net.addHost('h3', mac='00:00:00:00:00:03', ip='10.0.0.3')
     h4 = net.addHost('h4', mac='00:00:00:00:00:04', ip='10.0.0.4')
     s1 = net.addSwitch('s1')
     s10 = net.addSwitch('s10')
     s2 = net.addSwitch('s2')
     s9 = net.addSwitch('s9')
     net.addLink(h1, s1, 1, 1)
+    net.addLink(h2, s1, 1, 2)
+    net.addLink(h3, s2, 1, 1)
     net.addLink(h4, s2, 1, 2)
-    net.addLink(s1, s10, 4, 1)
     net.addLink(s1, s9, 3, 1)
-    net.addLink(s10, s2, 2, 4)
+    net.addLink(s1, s10, 4, 1)
     net.addLink(s2, s9, 3, 2)
+    net.addLink(s2, s10, 4, 2)
 
     ###### Start of static Mininet epilogue ######
     # Set up logging etc.
