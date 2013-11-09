@@ -58,6 +58,19 @@ let dump_with_file f filename =
 let dump args =
   let open LocalCompiler.RunTime in
 
+  let local p =
+    Format.printf "@[%a\n\n@]%!" Pretty.format_policy p;
+    let i = compile p in
+    (* NOTE(seliopou): This may not catch all ports, but it'll catch some of
+     * 'em! Also, lol for loop.
+     * *)
+    for sw = 0 to 40 do
+      let table = to_table (VInt.Int64 (Int64.of_int sw)) i in
+      if List.length table > 0 then
+        Format.printf "@[flowtable for switch %d:\n%a@\n\n@]%!" sw
+          SDN_Types.format_flowTable table;
+    done in
+
   let automaton p =
     let open NetKAT_Automaton in
     let i,m,_,e = dehopify p in
@@ -73,7 +86,9 @@ let dump args =
     switch_policies in
 
   match args with
-    | [ filename ] -> dump_with_file automaton filename
+    | [filename]
+    | ("local"    :: [filename]) -> dump_with_file local filename
+    | ("automaton" :: [filename]) -> dump_with_file automaton filename
     | _ -> help [ "dump" ]
 
 let () = 
