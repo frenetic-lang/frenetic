@@ -121,11 +121,8 @@ def to_netkat_set_of_tables(graph):
             continue
         topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
         topo.append(topoterm)
-        #topoterm = "%s@%d => %s@%d" % (graph.node[dst]['id'], ed['dport'], graph.node[src]['id'], ed['sport'])
-        #topo.append(topoterm)
 
-
-    return "((\n%s\n);\n(\n%s\n))*" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
+    return "((\n%s\n);\n(\n%s\n))*\n" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
 
 def find_next_node(graph, node, outport):
     #print "find_next_node", node, outport
@@ -157,7 +154,7 @@ def rec_set_of_paths_next_hop(graph, node, inport, dst, srchost, dsthost, switch
         path.extend(rec_set_of_paths_next_hop(graph, nextnode, nextinport, dst, srchost, dsthost, switches))
     return path
 
-def to_netkat_set_of_paths_for_hosts(graph, hosts):
+def to_netkat_set_of_paths_for_hosts(graph, hosts, withTopo=True):
     policy = []
     switches = set()
     for srchost in hosts:
@@ -173,19 +170,20 @@ def to_netkat_set_of_paths_for_hosts(graph, hosts):
             path = rec_set_of_paths_next_hop(graph, src, inport, dst, srchost, dsthost, switches)
             #print string.join(path, " | ")
             policy.append("(%s; ( %s ))" % (flt, string.join(path, " | ")))
-    topo = []
-    for src, dst, ed in graph.edges_iter(data=True):
-        if src in graph.hosts or dst in graph.hosts:
-            continue
-        if src not in switches or dst not in switches:
-            continue
-        topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
-        topo.append(topoterm)
-        #topoterm = "%s@%d => %s@%d" % (graph.node[dst]['id'], ed['dport'], graph.node[src]['id'], ed['sport'])
-        #topo.append(topoterm)
 
+    if withTopo:
+        topo = []
+        for src, dst, ed in graph.edges_iter(data=True):
+            if src in graph.hosts or dst in graph.hosts:
+                continue
+            if src not in switches or dst not in switches:
+                continue
+            topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
+            topo.append(topoterm)
 
-    return "((\n%s\n);\n(\n%s\n))*" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
+        return "((\n%s\n);\n(\n%s\n))*\n" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
+    else:
+        return string.join(policy, " |\n")
 
 def to_netkat_set_of_paths(graph):
     return to_netkat_set_of_paths_for_hosts(graph, graph.hosts)
@@ -194,7 +192,10 @@ def to_netkat_test_set_of_paths(graph):
     return to_netkat_set_of_paths_for_hosts(graph, graph.hosts[0:2])
 
 def to_netkat_test_set_of_paths2(graph):
-    return to_netkat_set_of_paths_for_hosts(graph, graph.hosts[0:3])
+    return to_netkat_set_of_paths_for_hosts(graph, [graph.hosts[0], graph.hosts[3]])
+
+def to_netkat_local(graph):
+    return to_netkat_set_of_paths_for_hosts(graph, graph.hosts, withTopo=False)
 
 def to_netkat_regular(graph):
     # succint program that exploits regularity
@@ -250,7 +251,7 @@ def to_netkat_regular(graph):
         topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
         topo.append(topoterm)
 
-    return "((\n%s\n);\n(\n%s\n))*" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
+    return "((\n%s\n);\n(\n%s\n))*\n" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
 
 
 
@@ -276,6 +277,8 @@ def to_netkat(graph, kattype, katfile):
         policy = to_netkat_test_set_of_paths(graph)
     elif kattype == 'testpaths2':
         policy = to_netkat_test_set_of_paths2(graph)
+    elif kattype == 'local':
+        policy = to_netkat_local(graph)
     if katfile:
         with open(katfile, 'w') as f:
             f.write(policy)
@@ -298,7 +301,7 @@ def parse_args():
                         help='KAT policy type',
                         dest='kattype',
                         action='store',
-                        choices=['tables', 'paths', 'regular', 'testpaths', 'testpaths2'],
+                        choices=['tables', 'paths', 'regular', 'local', 'testpaths', 'testpaths2'],
                         default='tables',
                         type=str)
 
