@@ -9,10 +9,12 @@ from mininet.node import  Host, UserSwitch, RemoteController
 from mininet.cli import CLI
 from mininet.net import Mininet
 
+from vlanintf import VLANIntf
+
 def start(ip="127.0.0.1",port=6633):
 
     ctrlr = lambda n: RemoteController(n, defaultIP=ip, port=port, inNamespace=False)
-    net = Mininet(switch=UserSwitch, controller=ctrlr, autoStaticArp=True)
+    net = Mininet(switch=UserSwitch, controller=ctrlr, intf=VLANIntf, autoStaticArp=True)
     c1 = net.addController('c1')
 
     ####### End of static Mininet prologue ######
