@@ -384,13 +384,13 @@ module NFA = struct
       
   let eps_eliminate m is_pick_state =
     (* Printf.printf "--- EPS_ELIMINATE ---\n%s\n" (Nfa.nfa_to_dot m); *)
-    (* NOTE(seliopou): The initial state should not be 0! Code below does not
+    (* NOTE(seliopou): The initial state should not be 0 or 1! Code below does not
      * directly depend on this, but it does make debugging it much easier when
-     * you can assume that the start state will never be 0. That way, you can
+     * you can assume that the start state will never be 0 or 1. That way, you can
      * assume packets outside of the network are on vlan 1 and you don't have to
      * renumber states.
      * *)
-    let qi,qf = 1,2 in
+    let qi,qf = 2,3 in
     let m' = new_nfa_states qi qf in 
     (* epsilon closure cache *)
     let h_eps = Hashtbl.create 17 in 
