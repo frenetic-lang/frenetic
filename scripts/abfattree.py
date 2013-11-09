@@ -35,6 +35,13 @@ def generate(fanout,depth):
     graph.hosts = hosts
     graph.p = p
     graph.L = L
+    n = len(switches)
+    nc = p**L
+    graph.core_switches = switches[(n-nc):]
+    ne = 2*p**L
+    graph.edge_switches = switches[0:ne]
+    graph.agg_switches = switches[ne:(n-nc)]
+    assert len(graph.core_switches) + len(graph.edge_switches) + len(graph.agg_switches) == len(switches)
 
     for idx in range(2 * (p ** (depth-1))):
         node = nodes[idx]
@@ -124,6 +131,93 @@ def to_netkat_set_of_tables(graph):
 
     return "((\n%s\n);\n(\n%s\n))*\n" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
 
+def to_netkat_set_of_tables_failover(graph):
+    policy = []
+    # edge
+    for node in graph.edge_switches:
+        table = []
+        flt = "filter switch = %d" % (graph.node[node]['id'])
+        #pprint.pprint(graph.node[node]['routes'])
+        for k, v in graph.node[node]['routes'].iteritems():
+            if k in graph.hosts:
+                s = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
+            else:
+                v2 = ((v - graph.p) % graph.p) + 1 + graph.p
+                s = string.join((flt, "filter port = %d" % (k), "(port := %d + port := %d)" % (v, v2)), "; ")
+            table.append(s)
+        #pprint.pprint(table)
+        policy.extend(table)
+
+    # agg
+    for node in graph.agg_switches:
+        table = []
+        flt = "filter switch = %d" % (graph.node[node]['id'])
+        #pprint.pprint(graph.node[node]['routes'])
+        for k, v in graph.node[node]['routes'].iteritems():
+            if k in graph.hosts:
+                assert v <= graph.p
+                v2 = (v % graph.p) + 1
+                #print v2
+                dst, tmp = find_next_node(graph, node, v2)
+                #print dst
+                ed = graph.get_edge_data(node, dst)
+                hop1 = "%s@%d => %s@%d" % (graph.node[node]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
+                nextagg = find_next_sibling_node(graph, dst, node)
+                #print nextagg
+                ed = graph.get_edge_data(dst, nextagg)
+                #hop2 = "%s@%d => %s@%d" % (graph.node[dst]['id'], ed['sport'], graph.node[nextagg]['id'], ed['dport'])
+
+                reroute = "port := %d; %s; filter switch = %d; port := %d" % (v2, hop1, graph.node[dst]['id'], ed['sport'])
+
+                s = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "(port := %d + (%s))" % (v, reroute)), "; ")
+                #s = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
+            else:
+                v2 = ((v - graph.p) % graph.p) + 1 + graph.p
+                s = string.join((flt, "filter port = %d" % (k), "(port := %d + port := %d)" % (v, v2)), "; ")
+            table.append(s)
+        #pprint.pprint(table)
+        policy.extend(table)
+
+    # core
+    for node in graph.core_switches:
+        table = []
+        flt = "filter switch = %d" % (graph.node[node]['id'])
+        #pprint.pprint(graph.node[node]['routes'])
+        for k, v in graph.node[node]['routes'].iteritems():
+            assert k in graph.hosts
+
+            v2 = (v % (2 * graph.p)) + 1
+            #print v2
+            dst, tmp = find_next_node(graph, node, v2)
+            #print dst
+            ed = graph.get_edge_data(node, dst)
+            hop1 = "%s@%d => %s@%d" % (graph.node[node]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
+            nextcore = find_next_sibling_node(graph, dst, node)
+            #print nextcore
+            ed = graph.get_edge_data(dst, nextcore)
+            #hop2 = "%s@%d => %s@%d" % (graph.node[dst]['id'], ed['sport'], graph.node[nextcore]['id'], ed['dport'])
+
+            reroute = "port := %d; %s; filter switch = %d; port := %d" % (v2, hop1, graph.node[dst]['id'], ed['sport'])
+
+            s = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "(port := %d + (%s))" % (v, reroute)), "; ")
+            table.append(s)
+        #pprint.pprint(table)
+        policy.extend(table)
+
+    topo = []
+    for src, dst, ed in graph.edges_iter(data=True):
+        if src in graph.hosts or dst in graph.hosts:
+            continue
+        topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
+        topo.append(topoterm)
+
+    return "((\n%s\n);\n(\n%s\n))*\n" % (string.join(map(lambda x: "(%s)" % (x), policy), " |\n"), string.join(topo, " |\n"))
+
+def find_next_sibling_node(graph, node, src):
+    for k in graph.neighbors_iter(node):
+        if k in graph.switches and graph.node[k]['level'] == graph.node[src]['level'] and k != src:
+            return k
+
 def find_next_node(graph, node, outport):
     #print "find_next_node", node, outport
     for src, dst, ed in graph.edges_iter([node], data=True):
@@ -170,6 +264,8 @@ def to_netkat_set_of_paths_for_hosts(graph, hosts, withTopo=True):
             path = rec_set_of_paths_next_hop(graph, src, inport, dst, srchost, dsthost, switches)
             #print string.join(path, " | ")
             policy.append("(%s; ( %s ))" % (flt, string.join(path, " | ")))
+            switches.add(src)
+            switches.add(dst)
 
     if withTopo:
         topo = []
@@ -180,7 +276,9 @@ def to_netkat_set_of_paths_for_hosts(graph, hosts, withTopo=True):
                 continue
             topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
             topo.append(topoterm)
+        withTopo = len(topo) > 0
 
+    if withTopo:
         return "((\n%s\n);\n(\n%s\n))*\n" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
     else:
         return string.join(policy, " |\n")
@@ -200,16 +298,9 @@ def to_netkat_local(graph):
 def to_netkat_regular(graph):
     # succint program that exploits regularity
     policy = []
-    n = len(graph.switches)
-    nc = graph.p**graph.L
-    core_switches = graph.switches[(n-nc):]
-    ne = 2*graph.p**graph.L
-    edge_switches = graph.switches[0:ne]
-    agg_switches = graph.switches[ne:(n-nc)]
-    assert len(core_switches) + len(edge_switches) + len(agg_switches) == len(graph.switches)
 
     core_flt = []
-    for sw in core_switches:
+    for sw in graph.core_switches:
         flt = "filter switch = %d" % (graph.node[sw]['id'])
         core_flt.append(flt)
 
@@ -222,13 +313,13 @@ def to_netkat_regular(graph):
     policy.append("((%s); (%s))" % (string.join(core_flt, " | "), string.join(core_policy, " | ")))
 
     agg_flt = []
-    for sw in agg_switches:
+    for sw in graph.agg_switches:
         flt = "filter switch = %d" % (graph.node[sw]['id'])
         agg_flt.append(flt)
 
     agg_policy = []
     # every agg sw has the same port-based filters; use the first
-    sw = agg_switches[0]
+    sw = graph.agg_switches[0]
     for k, v in graph.node[sw]['routes'].iteritems():
         if isinstance(k, int):
             s = string.join(("filter port = %d" % (k), "port := %d" % (v)), "; ")
@@ -237,7 +328,7 @@ def to_netkat_regular(graph):
     policy.append("((%s); (%s))" % (string.join(agg_flt, " | "), string.join(agg_policy, " | ")))
 
     # every agg sw has the same port-based filters; use the first
-    for sw in edge_switches:
+    for sw in graph.edge_switches:
         flt = "filter switch = %d" % (graph.node[sw]['id'])
         for k, v in graph.node[sw]['routes'].iteritems():
             if k in graph.hosts:
@@ -255,7 +346,7 @@ def to_netkat_regular(graph):
 
 
 
-def to_netkat(graph, kattype, katfile):
+def to_netkat(graph, kattype, katfile, failover):
     for node in graph.switches:
         graph.node[node]['routes'] = {}
         l = (graph.node[node]['id'] - 1) / (2*graph.p**graph.L)
@@ -267,18 +358,23 @@ def to_netkat(graph, kattype, katfile):
     for node in noncore_switches:
         routing_upwards(graph, node)
     #print nx.to_agraph(graph)
-    if kattype == 'tables':
-        policy = to_netkat_set_of_tables(graph)
-    elif kattype == 'paths':
-        policy = to_netkat_set_of_paths(graph)
-    elif kattype == 'regular':
-        policy = to_netkat_regular(graph)
-    elif kattype == 'testpaths':
-        policy = to_netkat_test_set_of_paths(graph)
-    elif kattype == 'testpaths2':
-        policy = to_netkat_test_set_of_paths2(graph)
-    elif kattype == 'local':
-        policy = to_netkat_local(graph)
+    if failover:
+        if kattype == 'tables':
+            policy = to_netkat_set_of_tables_failover(graph)
+    else:
+        if kattype == 'tables':
+            policy = to_netkat_set_of_tables(graph)
+        elif kattype == 'paths':
+            policy = to_netkat_set_of_paths(graph)
+        elif kattype == 'regular':
+            policy = to_netkat_regular(graph)
+        elif kattype == 'testpaths':
+            policy = to_netkat_test_set_of_paths(graph)
+        elif kattype == 'testpaths2':
+            policy = to_netkat_test_set_of_paths2(graph)
+        elif kattype == 'local':
+            policy = to_netkat_local(graph)
+
     if katfile:
         with open(katfile, 'w') as f:
             f.write(policy)
@@ -297,6 +393,10 @@ def parse_args():
     parser.add_argument("-k", "--kat", dest='katfile', action='store',
                         default=None,
                         help='file to write to')
+    parser.add_argument("-f", "--ft", dest='failover', action='store',
+                        default=False,
+                        type=bool,
+                        help='output failover')
     parser.add_argument("-t", "--type",
                         help='KAT policy type',
                         dest='kattype',
@@ -316,4 +416,4 @@ if __name__ == "__main__":
         nx.write_dot(graph,args.output)
     else:
         print nx.to_agraph(graph)
-    to_netkat(graph, args.kattype, args.katfile)
+    to_netkat(graph, args.kattype, args.katfile, args.failover)
