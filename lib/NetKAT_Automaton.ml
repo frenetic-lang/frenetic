@@ -209,11 +209,29 @@ let regex_of_policy (p : policy) : regex =
     end
 
   and rpc_seq i j =
+    (* The following match impelements this "truth table" for the inter type:
+     *
+     *    a  | b  | a ; b
+     *   ----+----+-------
+     *    TP | TP | TP
+     *    TP | NL | NL
+     *    TP | S  | TP
+     *    NL | TP | TP
+     *    NL | NL | NL
+     *    NL | S  | <<error>>
+     *    S  | TP | S
+     *    S  | NL | NL
+     *    S  | S  | S
+     *
+     *  Note that in the NL, TP case below, calling f1 with None as the second
+     *  argument will force a transition to TP, thus satisfying the truth table
+     *  above.
+     * *)
     begin match i, j with
       | TP f1, NL f2 -> NL(fun c mlf_p mlp -> rpc_seq (f1 c mlf_p) (f2 c None mlp))
       | TP f1, _     -> let r = run j in TP(fun c mp -> rpc_seq (f1 c mp) (S(r)))
       | NL f1, TP f2 -> f1 seq None (Some f2)
-      | NL f1, NL f2 -> f1 seq None (Some(fun c mlf_q -> f2 c mlf_q None))
+      | NL f1, NL f2 -> NL(fun c mlf_p mlp -> f1 seq mlf_p (Some(fun c mlf_q -> f2 c mlf_q mlp)))
       | NL f1, S  r  -> failwith "Cat(NL, Star) can't be represented"
       | S   r, _     -> s_trans r j (fun x y -> Cat(x, y))
     end
