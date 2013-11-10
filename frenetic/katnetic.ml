@@ -23,13 +23,11 @@ let run args =
   let open LocalCompiler.RunTime in
 
   let local p =
-    let i = compile p in
-    (fun sw -> to_table sw i) in
+    (fun sw -> to_table (compile sw p)) in  
 
   let classic p =
     let p' = Dehop.dehop_policy p in
-    let i = compile p' in
-    (fun sw -> to_table sw i) in
+    local p' in 
 
   let automaton p =
     let open NetKAT_Automaton in
@@ -39,7 +37,7 @@ let run args =
     (fun sw ->
       let sw_p  = SwitchMap.find sw switch_policies in
       let sw_p' = Types.(Seq(Seq(Par(i,id),sw_p),Par(e,id))) in
-      to_table sw (compile sw_p')) in
+      local sw_p' sw) in 
 
   match args with
     | [filename]
@@ -60,12 +58,13 @@ let dump args =
 
   let local p =
     Format.printf "@[%a\n\n@]%!" Pretty.format_policy p;
-    let i = compile p in
     (* NOTE(seliopou): This may not catch all ports, but it'll catch some of
      * 'em! Also, lol for loop.
      * *)
     for sw = 0 to 40 do
-      let table = to_table (VInt.Int64 (Int64.of_int sw)) i in
+      let vs = VInt.Int64 (Int64.of_int sw) in 
+      let sw_p = Types.(Seq(Filter(Test(Switch,vs)), p)) in 
+      let table = to_table (compile vs sw_p) in 
       if List.length table > 0 then
         Format.printf "@[flowtable for switch %d:\n%a@\n\n@]%!" sw
           SDN_Types.format_flowTable table;
@@ -79,7 +78,7 @@ let dump args =
       let open Types in
       let pol0  = SwitchMap.find sw switch_policies in
       let pol0' = Seq(Seq(Par(i,id),pol0),Par(e,id)) in
-      let tbl0 = to_table sw (compile pol0') in
+      let tbl0 = to_table (compile sw pol0') in
       Format.printf "@[%a\n%a@\n\n@]%!"
         Pretty.format_policy pol0'
         SDN_Types.format_flowTable tbl0)
