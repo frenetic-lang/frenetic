@@ -127,16 +127,17 @@ module Common = HighLevelSwitch_common.Make (struct
   end)
 
 (* calculates the watch port *)
-let rec auto_watch_port (actionSequence : Core.actionSequence) 
+let rec auto_watch_port (actionSequence : Core.actionSequence) (inPort : Core.portId option)
   : Core.portId option = match actionSequence with
   | [] -> None
   | (Core.Output (Core.PhysicalPort n)) :: _ -> Some n
-  | _ :: rest -> auto_watch_port rest
+  | (Core.Output Core.InPort) :: _ -> inPort
+  | _ :: rest -> auto_watch_port rest inPort
 
 let auto_ff_bucket (inPort : Core.portId option) (par : AL.par) : Core.bucket = 
   let open Core in
   let bu_actions = Common.flatten_par inPort par in
-  let bu_watch_port = auto_watch_port bu_actions in
+  let bu_watch_port = auto_watch_port bu_actions inPort in
   let bu_watch_group = None in
   let bu_weight = 0 in
   { bu_weight; bu_watch_port; bu_watch_group; bu_actions }
