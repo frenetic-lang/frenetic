@@ -402,13 +402,13 @@ module NFA = struct
       
   let eps_eliminate m is_pick_state =
     (* Printf.printf "--- EPS_ELIMINATE ---\n%s\n" (Nfa.nfa_to_dot m); *)
-    (* NOTE(seliopou): The initial state should not be 0! Code below does not
+    (* NOTE(seliopou): The initial state should not be 0 or 1! Code below does not
      * directly depend on this, but it does make debugging it much easier when
-     * you can assume that the start state will never be 0. That way, you can
-     * assume packets outside of the network are on vlan 0 and you don't have to
+     * you can assume that the start state will never be 0 or 1. That way, you can
+     * assume packets outside of the network are on vlan 1 and you don't have to
      * renumber states.
      * *)
-    let qi,qf = 1,2 in
+    let qi,qf = 2,3 in
     let m' = new_nfa_states qi qf in 
     (* epsilon closure cache *)
     let h_eps = Hashtbl.create 17 in 
@@ -567,7 +567,7 @@ let regex_to_switch_lf_policies (r : regex) : lf_policy dehopified =
   (* Used to compress state space to sequential integers. Note that the state 0
    * is never used (unless there's an overflow ;) Note that for debugging
    * purposes you should change convert to be the identity function. *)
-  let curq = ref 1 in
+  let curq = ref 2 in
   let qmap = Hashtbl.create (Hashset.size Nfa.(auto.q)) in
   let convert q =
     try Hashtbl.find qmap q with Not_found ->
@@ -619,7 +619,7 @@ let regex_to_switch_lf_policies (r : regex) : lf_policy dehopified =
       Par(acc, to_lf_policy e))
     (EdgeSet.remove start es) (to_lf_policy start) in
 
-  (* All packets entering the network are on vlan 0. Detect these packets and
+  (* All packets entering the network are on vlan 1. Detect these packets and
    * set their vlan to the initial state of the automaton. If the initial state
    * is not a choice state, then is straightforward (the second case). If the
    * initial state is a choice state, then the packet will immediately
@@ -627,7 +627,7 @@ let regex_to_switch_lf_policies (r : regex) : lf_policy dehopified =
    * construction of the automaton. In this case, skip the choice state and
    * chose between the epsilon transition reachable states as the initial state.
    * *)
-  let check_outside = Filter(Types.Test(Header SDN_Types.Vlan, VInt.Int16 0)) in
+  let check_outside = Filter(Types.Test(Header SDN_Types.Vlan, VInt.Int16 1)) in
   let ingress = if Hashtbl.mem pick_states Nfa.(auto.s)
     then
       let qs = NFA.eps_closure_upto (Hashtbl.mem pick_states) auto Nfa.(auto.s) in
@@ -640,11 +640,11 @@ let regex_to_switch_lf_policies (r : regex) : lf_policy dehopified =
    * final state, it will immediately transition to the final state via an
    * epsilon transition, by the construction of the automaton. At that point,
    * the packet is exiting the network and is no longer subject to the policy,
-   * so its vlan header should be set back to 0.
+   * so its vlan header should be set back to 1.
    * *)
   let final_qs = Hashset.to_list
     (Hashtbl.find (Nfa.backward_mapping auto) auto.Nfa.f) in
-  let go_outside = Mod(Header SDN_Types.Vlan, VInt.Int16 0) in
+  let go_outside = Mod(Header SDN_Types.Vlan, VInt.Int16 1) in
   let egress = Seq(foldl1_map par mk_test final_qs, go_outside) in
 
   (* Printf.printf "AUTO: %s\n" (Nfa.nfa_to_dot auto); *)
