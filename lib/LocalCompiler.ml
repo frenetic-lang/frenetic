@@ -422,12 +422,13 @@ module Local = struct
       p
     else
       Atom.Map.fold (fun r1 g1 acc ->
-        let rs = Atom.Map.fold (fun r12i _ acc ->
-          Atom.Set.fold (fun r1j acc ->
-            Atom.Set.union (Atom.diff_atom r1j r12i) acc)
-            acc Atom.Set.empty)
-          q (Atom.Set.singleton r1) in
-        Atom.Set.fold (fun r1i acc -> extend r1i g1 acc) rs Atom.Map.empty)
+        let rs = 
+          Atom.Map.fold (fun r2 _ rs -> 
+            Atom.Set.fold 
+              (fun r1i acc -> Atom.Set.union (Atom.diff_atom r1i r2) acc)
+              rs Atom.Set.empty)
+            q (Atom.Set.singleton r1) in 
+        Atom.Set.fold (fun r1i acc -> extend r1i g1 acc) rs acc)
       p Atom.Map.empty
 
   let rec bin_local (op:Action.group -> Action.group -> Action.group) (p:t) (q:t) : t =
@@ -649,7 +650,11 @@ module RunTime = struct
   type i = Local.t
 
   let compile (pol:Types.policy) : i =
-    Local.of_policy pol
+    let r = Local.of_policy pol in 
+    (* Printf.printf "COMPILE\n%s\n%s\n" *)
+    (*   (Pretty.string_of_policy pol) *)
+    (*   (Local.to_string r); *)
+    r
 
   let decompile (p:i) : Types.policy =
     Local.to_netkat p
