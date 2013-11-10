@@ -142,10 +142,11 @@ def to_netkat_set_of_tables_failover(graph, withTopo=True):
             if k in graph.hosts:
                 s = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
             else:
-                host = find_host(graph, node, k)
-                s1 = string.join((flt, "filter port = %d" % (k), "filter not ethDst = %s" % (graph.node[host]['mac']), "port := %d" % (v)), "; ")
+                hosts = find_all_hosts_below(graph, node)
+                fltouthosts = string.join(map(lambda x: "filter not ethDst = %s" % (graph.node[x]['mac']), hosts), "; ")
+                s1 = string.join((flt, "filter port = %d" % (k), fltouthosts, "port := %d" % (v)), "; ")
                 v2 = ((v - graph.p) % graph.p) + 1 + graph.p
-                s2 = string.join((flt, "filter port = %d" % (k), "filter not ethDst = %s" % (graph.node[host]['mac']), "port := %d" % (v2)), "; ")
+                s2 = string.join((flt, "filter port = %d" % (k), fltouthosts, "port := %d" % (v2)), "; ")
                 s = "(%s) + (%s)" % (s1, s2)
             table.append(s)
         #pprint.pprint(table)
@@ -183,9 +184,11 @@ def to_netkat_set_of_tables_failover(graph, withTopo=True):
                         "port := %d" % (outport)), "; ")
                 table.append(s)
             else:
-                s1 = string.join((flt, "filter port = %d" % (k), "port := %d" % (v)), "; ")
+                hosts = find_all_hosts_below(graph, node)
+                fltouthosts = string.join(map(lambda x: "filter not ethDst = %s" % (graph.node[x]['mac']), hosts), "; ")
+                s1 = string.join((flt, "filter port = %d" % (k), fltouthosts, "port := %d" % (v)), "; ")
                 v2 = ((v - graph.p) % graph.p) + 1 + graph.p
-                s2 = string.join((flt, "filter port = %d" % (k), "port := %d" % (v2)), "; ")
+                s2 = string.join((flt, "filter port = %d" % (k), fltouthosts, "port := %d" % (v2)), "; ")
                 s = "(%s) + (%s)" % (s1, s2)
                 table.append(s)
         #pprint.pprint(table)
@@ -262,6 +265,14 @@ def find_host(graph, node, outport):
         if ed['sport'] == outport:
             return dst
 
+def find_all_hosts_below(graph, node):
+    hosts = []
+    for k in graph.neighbors_iter(node):
+        if graph.node[k]['type'] == 'host':
+            hosts.append(k)
+        if k in graph.switches and graph.node[k]['level'] < graph.node[node]['level']:
+            hosts.extend(find_all_hosts_below(graph, k))
+    return hosts
 
 def rec_set_of_paths_next_hop(graph, node, inport, dst, srchost, dsthost, switches):
     path = []
