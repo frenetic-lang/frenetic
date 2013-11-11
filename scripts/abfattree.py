@@ -315,7 +315,7 @@ def rec_set_of_paths_next_hop(graph, node, inport, dst, srchost, dsthost, switch
         path.extend(rec_set_of_paths_next_hop(graph, nextnode, nextinport, dst, srchost, dsthost, switches))
     return path
 
-def to_netkat_set_of_paths_for_hosts(graph, hosts, withTopo=True):
+def to_netkat_set_of_paths_for_hosts(graph, hosts, withTopo=True, withHostsTopo=True):
     policy = []
     switches = set()
     for srchost in hosts:
@@ -343,6 +343,12 @@ def to_netkat_set_of_paths_for_hosts(graph, hosts, withTopo=True):
                 continue
             topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
             topo.append(topoterm)
+        if withHostsTopo:
+            for host in graph.hosts:
+                dst = graph.neighbors(host)[0]
+                ed = graph.get_edge_data(host, dst)
+                topoterm = "%s@%d => 0@0" % (graph.node[dst]['id'], ed['dport'])
+                topo.append(topoterm)
         withTopo = len(topo) > 0
 
     if withTopo:
