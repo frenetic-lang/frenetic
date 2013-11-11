@@ -81,7 +81,8 @@ let dump args =
       let pol0' = Seq(Seq(Par(i,id),pol0),Par(e,id)) in
       let tbl0 = to_table sw (compile pol0') in
       let open VInt in
-      Format.printf "@[%a\nflowtable for switch %ld:\n%a@\n\n@]%!"
+      Format.printf "@[policy for switch %ld:\n%!%a\n\nflowtable for switch %ld:\n%!%a@\n\n@]%!"
+        (get_int32 sw)
         Pretty.format_policy pol0'
         (get_int32 sw)
         SDN_Types.format_flowTable tbl0)
