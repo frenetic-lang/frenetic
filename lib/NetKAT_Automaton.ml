@@ -682,7 +682,8 @@ let regex_to_switch_lf_policies (r : regex) : lf_policy dehopified =
       (all_delta m.delta q) acc)
     m m.s SwitchPortMap.empty in
 
-  let mk_test q = Filter(Types.Test(Header SDN_Types.Vlan, VInt.Int16 (convert q))) in
+  let mk_test q = Types.Test(Header SDN_Types.Vlan, VInt.Int16 (convert q)) in
+  let mk_filter q = Filter(mk_test q) in
   let mk_mod q = Mod(Header SDN_Types.Vlan, VInt.Int16 (convert q)) in
   let mk_choice qs = foldl1_map pick mk_mod qs in
 
@@ -696,7 +697,7 @@ let regex_to_switch_lf_policies (r : regex) : lf_policy dehopified =
       then Nfa.neighbors auto q'
       else [q'] in
 
-    let ingress = mk_test q in
+    let ingress = mk_filter q in
     let egress = mk_choice next_states in
 
     Seq(ingress, Seq(lf_p, egress)) in
@@ -714,26 +715,36 @@ let regex_to_switch_lf_policies (r : regex) : lf_policy dehopified =
    * transition to another non-choice state via an epsilon transition, by the
    * construction of the automaton. In this case, skip the choice state and
    * chose between the epsilon transition reachable states as the initial state.
+   *
+   * Packets that are not on vlan 1 are considered in the network and may pass.
    * *)
-  let check_outside = Filter(Types.Test(Header SDN_Types.Vlan, VInt.Int16 1)) in
-  let ingress = if Hashtbl.mem pick_states Nfa.(auto.s)
+  let check_outside = Types.Test(Header SDN_Types.Vlan, VInt.Int16 1) in
+  let ingress_mod = if Hashtbl.mem pick_states Nfa.(auto.s)
     then
       let qs = NFA.eps_closure_upto (Hashtbl.mem pick_states) auto Nfa.(auto.s) in
-      let choice = mk_choice (NFA.StateSet.elements qs) in
-      Seq(check_outside, choice)
+      mk_choice (NFA.StateSet.elements qs)
     else
-      Seq(check_outside, mk_mod Nfa.(auto.s)) in
+      mk_mod Nfa.(auto.s) in
+  let ingress =
+    Par(Seq(Filter(check_outside), ingress_mod),
+        Seq(Filter(Types.Neg(check_outside)), Filter(Types.True))) in
 
   (* Once a packet has reached a state that is backwards reachable from the
    * final state, it will immediately transition to the final state via an
    * epsilon transition, by the construction of the automaton. At that point,
    * the packet is exiting the network and is no longer subject to the policy,
    * so its vlan header should be set back to 1.
+   *
+   * Packets that are not on an egress vlan are considered still inthe network
+   * and may pass.
    * *)
   let final_qs = Hashset.to_list
     (Hashtbl.find (Nfa.backward_mapping auto) auto.Nfa.f) in
   let go_outside = Mod(Header SDN_Types.Vlan, VInt.Int16 1) in
-  let egress = Seq(foldl1_map par mk_test final_qs, go_outside) in
+  let egress_test = foldl1_map (fun x y -> Types.Or(x, y)) mk_test final_qs in
+  let egress =
+    Par(Seq(Filter(egress_test), go_outside),
+        Seq(Filter(Types.Neg(egress_test)), Filter(Types.True))) in
 
   (* Printf.printf "AUTO: %s\n" (Nfa.nfa_to_dot auto); *)
   (ingress, SwitchPortMap.map edges_to_lf_policy (to_edge_map auto), !links, egress)
