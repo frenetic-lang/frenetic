@@ -327,7 +327,7 @@ let regex_of_policy (p: policy) : regex =
                             rpc_branchy cp cr
                                 (rpc_seq (f1 mlf_p) (mk_inter_of_mlp mlp))
                                 (f2 c mlf_p mlp))
-      | TP f1, S  r  -> S(Alt(run i, r))
+      | TP f1, S  r  -> S(cr (run i) r)
       | NL f1, TP f2 -> NL(fun c mlf_p mlp ->
                             rpc_branchy cp cr
                                 (f1 c mlf_p mlp)
