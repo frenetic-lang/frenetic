@@ -131,7 +131,7 @@ def to_netkat_set_of_tables(graph):
 
     return "((\n%s\n);\n(\n%s\n))*\n" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
 
-def to_netkat_set_of_tables_failover(graph, withTopo=True):
+def to_netkat_set_of_tables_failover(graph, withTopo=True, specializeInPort=True):
     policy = []
     # edge
     for node in graph.edge_switches:
@@ -161,11 +161,21 @@ def to_netkat_set_of_tables_failover(graph, withTopo=True):
             if k in graph.hosts:
                 assert v <= graph.p
 
-                s1 = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
-                v2 = (v % graph.p) + 1
-                s2 = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v2)), "; ")
-                s = "(%s) + (%s)" % (s1, s2)
-                table.append(s)
+                if specializeInPort:
+                    for port in range(1, graph.p*2+1):
+                        if v == port:
+                            continue
+                        s1 = string.join((flt, "filter port = %d" % (port), "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
+                        v2 = (v % graph.p) + 1
+                        s2 = string.join((flt, "filter port = %d" % (port), "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v2)), "; ")
+                        s = "(%s) + (%s)" % (s1, s2)
+                        table.append(s)
+                else:
+                    s1 = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
+                    v2 = (v % graph.p) + 1
+                    s2 = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v2)), "; ")
+                    s = "(%s) + (%s)" % (s1, s2)
+                    table.append(s)
 
                 #print v2
                 reroute = (find_next_node(graph, node, v2))[0]
@@ -202,11 +212,21 @@ def to_netkat_set_of_tables_failover(graph, withTopo=True):
         for k, v in graph.node[node]['routes'].iteritems():
             assert k in graph.hosts
 
-            s1 = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
-            v2 = (v % (2 * graph.p)) + 1
-            s2 = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v2)), "; ")
-            s = "(%s) + (%s)" % (s1, s2)
-            table.append(s)
+            if specializeInPort:
+                for port in range(1, graph.p*2+1):
+                    if v == port:
+                        continue
+                    s1 = string.join((flt, "filter port = %d" % (port), "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
+                    v2 = (v % (2 * graph.p)) + 1
+                    s2 = string.join((flt, "filter port = %d" % (port), "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v2)), "; ")
+                    s = "(%s) + (%s)" % (s1, s2)
+                    table.append(s)
+            else:
+                s1 = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
+                v2 = (v % (2 * graph.p)) + 1
+                s2 = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v2)), "; ")
+                s = "(%s) + (%s)" % (s1, s2)
+                table.append(s)
 
             #print v2
             reroute = (find_next_node(graph, node, v2))[0]
