@@ -201,15 +201,20 @@ type inter =
 
 and cstr = lf_policy -> lf_policy -> lf_policy 
 
-and link_provider = cstr -> lf_policy option -> inter 
+and link_provider = lf_policy option -> inter
 and link_consumer = cstr -> lf_policy option -> link_provider option -> inter
 
 let seq (p : lf_policy) (q : lf_policy) : lf_policy = Seq(p, q)
 let par (p : lf_policy) (q : lf_policy) : lf_policy = Par(p, q)
 let pick (p : lf_policy) (q : lf_policy) : lf_policy = Choice(p, q)
 
-let mk_mcstr c mp q =
+let mk_mcstr (c : cstr) mp q =
   optional q (fun p -> c p q) mp
+
+let mk_mmcstr (c : cstr) mp mq =
+  match mq with
+    | None -> mp
+    | Some q -> Some(mk_mcstr c mp q)
 
 (* Constructor for a link_consumer. Requires a link-free policy as the basis for
  * its accumulator so that if it passes its link-free policy to a link_provider,
@@ -221,7 +226,7 @@ let rec mk_nl (lf_p : lf_policy) : link_consumer =
     (* print_string ("mk_nl with lfp': " ^ (lf_policy_to_string lfp') ^ "\n"); *)
     match mlp with
       | None    -> NL(mk_nl lfp')
-      | Some lp -> lp cstr (Some(lfp'))
+      | Some lp -> lp (Some(lfp'))
 
 (* Constructor for link_provider. Requires a link and an optional link-free
  * policy that acts as an accumulator. If the link provider receives a `None`,
@@ -243,10 +248,10 @@ let rec mk_tp (macc : lf_policy option) (l : link) : link_provider =
  * policies, and will continue to produce an NL continuation until some context
  * provides it with a valid (non-None) link-provider.
  *)
-let rec mk_inter_of_mlp (c : cstr) (mlp : link_provider option) : inter =
+let rec mk_inter_of_mlp (mlp : link_provider option) : inter =
   match mlp with
-    | None    -> NL(fun c mp mlp -> assert (is_none mp); mk_inter_of_mlp c mlp)
-    | Some lp -> lp c None
+    | None    -> NL(fun _ mp mlp -> assert (is_none mp); mk_inter_of_mlp mlp)
+    | Some lp -> lp None
 
 let regex_of_policy (p: policy) : regex =
   let open TRegex in
@@ -317,10 +322,10 @@ let regex_of_policy (p: policy) : regex =
      *    S  | S  | S
      * *)
     begin match i, j with
-      | TP f1, TP f2 -> TP(fun c mlp -> rpc_branchy cp cr (f1 c mlp) (f2 c mlp))
+      | TP f1, TP f2 -> TP(fun mlp -> rpc_branchy cp cr (f1 mlp) (f2 mlp))
       | TP f1, NL f2 -> NL(fun c mlf_p mlp ->
                             rpc_branchy cp cr
-                                (rpc_seq (f1 c mlf_p) (mk_inter_of_mlp c mlp))
+                                (rpc_seq (f1 mlf_p) (mk_inter_of_mlp mlp))
                                 (f2 c mlf_p mlp))
       | TP f1, S  r  -> S(Alt(run i, r))
       | NL f1, TP f2 -> NL(fun c mlf_p mlp ->
@@ -345,7 +350,7 @@ let regex_of_policy (p: policy) : regex =
 
   and run_with (i : inter) (mp : lf_policy option) (mlp : link_provider option) : inter =
     begin match i with
-      | TP f -> f seq mp
+      | TP f -> f mp
       | NL f -> f seq mp mlp
       | S  r -> S(r)
     end
