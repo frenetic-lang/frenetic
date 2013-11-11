@@ -214,18 +214,20 @@ module Sat = struct
       | _ -> assert false);
     TVar name *)
 
-  let z3_macro_picklocation put_at_top (name : string) (arglist : (zVar * zSort) list) (rettype : zSort)(body : zFormula) : zTerm = 
-    let l = !fresh_cell in
-    let name = name ^ "_" ^ to_string (gensym ()) in
-    let new_macro = (define_z3_macro name arglist rettype body) in
-    (if put_at_top then
+  let z3_macro, z3_macro_top = 
+    let z3_macro_picklocation put_at_top (name : string) (arglist : (zVar * zSort) list) (rettype : zSort)(body : zFormula) : zTerm = 
+      let l = !fresh_cell in
+      let name = name ^ "_" ^ to_string (gensym ()) in
+      let new_macro = (define_z3_macro name arglist rettype body) in
+      (if put_at_top then
 	fresh_cell := new_macro @ l
-     else
-	decl_list := new_macro @ (!decl_list));
-    TVar name
+       else
+	  decl_list := new_macro @ (!decl_list));
+      TVar name in
       
-  let z3_macro = z3_macro_picklocation false
-  let z3_macro_top = z3_macro_picklocation true
+    let z3_macro = z3_macro_picklocation false in
+    let z3_macro_top = z3_macro_picklocation true in
+    z3_macro, z3_macro_top
 
   let z3_macro_app (s : string) (vars : zVar list) (expr : zFormula) (args : zFormula list) = 
     let params = (List.map (fun v -> (v, SPacket)) vars) in
@@ -251,9 +253,8 @@ module Sat = struct
       (fun sp xp -> match sp, xp with 
 	| s, x -> ZApp ( (ZTerm (TVar f)), [s;x]))
 
-    let z3app3 f = (fun sp xp yp -> match sp, xp, yp with 
-      | (ZTerm (TVar s)), (ZTerm (TVar x)), (ZTerm (TVar y)) -> ZTerm (TApp ((TVar f ), [(TVar s);(TVar x); (TVar y)]))
-      | _ -> failwith "need to apply functions to variables as of right now.") 
+    let z3app3 f = (fun (s : zFormula) x y ->
+      (ZApp (ZTerm (TVar f ), [ s; x; y])))
     let set_mem = z3app2 "set_mem"
     let set_add = z3app2 "set_add"
     let rec set_add_chain set pkt_list = match pkt_list with
@@ -289,24 +290,27 @@ module Sat = struct
       (ZIf (ZEquals (x,y), nopacket, x)) @ *)
       
       define_z3_macro "set_mem" [("s", SSet); ("x", SPacket)] SBool
-      (ZEquals (((z3app2 "select") s x), x)) @
+      (ZEquals (((z3app2 "select") s x), ZTrue)) @
       
       define_z3_macro "set_add" [("s", SSet); ("x", SPacket)] SSet 
-      ((z3app3 "store") s x x)
-(*      
+      ((z3app3 "store") s x ZTrue)
+      
 	@
     define_z3_macro "set_inter" [("s1", SSet); ("s2", SSet)] SSet
-      (map "packet_and" s1 s2) @
+      (map "and" s1 s2) @
       
       define_z3_macro "set_union" [("s1", SSet); ("s2", SSet)] SSet
-      (map "packet_or" s1 s2) @ 
+      (map "or" s1 s2) 
+
+	(*
+    @ 
       
       define_z3_macro "set_diff" [("s1", SSet); ("s2", SSet)] SSet 
       (map "packet_diff" s1 s2) @
       
       define_z3_macro "set_subseteq" [("s1", SSet); ("s2", SSet)] SBool 
-      (ZEquals (set_empty, (set_diff s1 s2)))
-*)
+      (ZEquals (set_empty, (set_diff s1 s2))) *)
+
       
   let pervasives : string = 
     "
@@ -327,8 +331,8 @@ module Sat = struct
     (TCPDstPort Int) 
     (EthSrc Int) 
     (InPort Int)))))" ^ "\n" ^ 
-      "(define-sort Set () (Array Packet Packet))" ^ "\n (check-sat) \n"^ 
-      "(define-fun set_empty () Set ((as const Set) nopacket))" ^ "\n" ^
+      "(define-sort Set () (Array Packet Bool))" ^ "\n (check-sat) \n"^ 
+      "(define-fun set_empty () Set ((as const Set) false))" ^ "\n" ^
       (intercalate serialize_declare "\n" z3_static)^ "\n;;end libraries\n\n\n;;begin code\n" 
       
       
@@ -356,7 +360,7 @@ module Sat = struct
          Buffer.add_char b '\n';
        done
      with End_of_file -> ());
-    Printf.eprintf "%s\n%s" s (Buffer.contents b);
+    (*Printf.eprintf "%s\n%s" s (Buffer.contents b);*)
     Buffer.contents b = "sat\nsat\n"
 end
 
@@ -431,7 +435,7 @@ module Verify_Graph = struct
 	    (Seq (Filter(And (Test (Switch, switch1), Test (Header SDN_Types.InPort, port1))),
 		  Seq (Mod (Switch, switch2), Mod (Header S.InPort, port2))), t)
 	  -> parse_links (assemble switch1 port1 switch2 port2) t
-	| _ -> failwith (Printf.sprintf "unimplemented") in 
+	| _ -> failwith (Printf.sprintf "unimplemented composition pattern") in 
     match ptstar with
       | Star (Seq (p, t)) -> parse_links graph t
       | _ -> failwith "graph parsing assumes input is of the form (p;t)*"
@@ -597,10 +601,10 @@ module Verify = struct
 	let pol2form,pol2outs = forwards_pol pol2 inset inset_pkts set2 in
         (ZOr[pol1form;
               pol2form;
-	      (*I don't really know that this is necessary...
+	      (*I don't really know that this is necessary...*)
               ZEquals(ZTerm (TApp(TVar "set_union", [TVar set1;
 						     TVar set2])),
-                      outset_f) *)]), pol1outs@pol2outs
+                      outset_f) ]), pol1outs@pol2outs
       | Seq(pol1,pol2) -> 
 	let set' = fresh SSet in
 	let form,pkts' = forwards_pol pol1 inset inset_pkts set' in
@@ -610,11 +614,11 @@ module Verify = struct
       | Star _  -> failwith "NetKAT program not in form (p;t)*"
       | Choice _-> failwith "I'm not rightly sure what a \"choice\" is "
     in
-    (* decl_list := ((!decl_list) @ 
+    decl_list := ((!decl_list) @ 
 		     [ZDeclareAssert 
 			 (ZComment 
 			    ("Manually binding packets to set.", 
-			     ZEquals(set_add_chain set_empty (List.map (fun v -> ZTerm (TVar v)) inset_pkts), inset_f)))]); *)
+			     ZEquals(set_add_chain set_empty (List.map (fun v -> ZTerm (TVar v)) inset_pkts), inset_f)))]); 
     formu, outset_pkts
 
   let rec forwards_k p_t_star set1 pkts1 set2 k : zFormula * (zVar list) = 
@@ -687,8 +691,8 @@ inp: initial packet
 outp: fully-transformed packet
 oko: bool option. has to be Some. True if you think it should be satisfiable.
 *)
-  let check_reachability  str inp pol outp oko =
-  let k = Verify_Graph.longest_shortest (Verify_Graph.parse_graph pol) in
+
+  let check_reachability_k  k str inp pol outp oko =
   let x = Sat.fresh Sat.SPacket in
   let xset = Verify.one_element_set x in
   let y = Sat.fresh Sat.SPacket in
@@ -700,5 +704,10 @@ oko: bool option. has to be Some. True if you think it should be satisfiable.
     ; Sat.ZDeclareAssert (Verify.forwards_pred outp y)
     ; Sat.ZDeclareAssert (Sat.Z3macro.set_mem (Sat.ZTerm (Sat.TVar yset)) (Sat.ZTerm (Sat.TVar y)))] in
   run_solve oko prog str
+
+  let check_reachability str inp pol outp oko = 
+    check_reachability_k (Verify_Graph.longest_shortest (Verify_Graph.parse_graph pol))
+      str inp pol outp oko
+
 
   let check = check_reachability

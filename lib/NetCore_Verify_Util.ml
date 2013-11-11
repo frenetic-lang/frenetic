@@ -9,6 +9,9 @@ open Sat
 let verify (description: string) (initial_state: pred) (program: policy) (final_state: pred) (desired_outcome: bool) : bool = 
 	check description initial_state program final_state (Some desired_outcome)
 
+let verify_k k (description: string) (initial_state: pred) (program: policy) (final_state: pred) (desired_outcome: bool) : bool = 
+	check_reachability_k k description initial_state program final_state (Some desired_outcome)
+
 (* let verify_history (description: string) (initial_state: pred) (program: policy) expr (final_state: pred) (desired_outcome: bool) : bool = 
 	check_with_history expr description initial_state program final_state (Some desired_outcome)
 
