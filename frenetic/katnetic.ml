@@ -36,7 +36,8 @@ let run args =
     let switch_policies = switch_port_policies_to_switch_policies m in
     (fun sw ->
       let sw_p  = SwitchMap.find sw switch_policies in
-      let sw_p' = Types.(Seq(Seq(Par(i,id),sw_p),Par(e,id))) in
+      let sw_f  = Types.Filter(Test(Switch, sw)) in
+      let sw_p' = Types.(Seq(Seq(Par(i,id),Seq(sw_f, sw_p)),Par(e,id))) in
       local sw_p' sw) in 
 
   match args with
@@ -77,7 +78,8 @@ let dump args =
     SwitchMap.iter (fun sw p ->
       let open Types in
       let pol0  = SwitchMap.find sw switch_policies in
-      let pol0' = Seq(Seq(Par(i,id),pol0),Par(e,id)) in
+      let sw_f  = Types.Filter(Test(Switch, sw)) in
+      let pol0' = Seq(Seq(Par(i,id),Seq(sw_f,pol0)),Par(e,id)) in
       let tbl0 = to_table (compile sw pol0') in
       let open VInt in
       Format.printf "@[policy for switch %ld:\n%!%a\n\nflowtable for switch %ld:\n%!%a@\n\n@]%!"

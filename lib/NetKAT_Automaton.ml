@@ -113,6 +113,71 @@ let lf_policy_to_string (lf_p : lf_policy) : string =
 
 (* BEGIN OF POLICY ---------------------------------------------------------- *)
 
+module TRegex = struct
+  type pl_char =
+    | PChar of lf_policy
+    | LChar of lf_policy option * link
+
+  type tregex = pl_char aregex
+
+  let rec of_policy (p : policy) : tregex =
+    begin match p with
+      | Types.Filter(q) ->
+        Char(PChar(Filter q))
+      | Types.Mod(h, v) ->
+        Char(PChar(Mod(h, v)))
+      | Types.Link(sw1, pt1, sw2, pt2) ->
+        Char(LChar(None, (sw1, pt1, sw2, pt2)))
+      | Types.Seq(p1, p2) ->
+        let p1' = of_policy p1 in
+        let p2' = of_policy p2 in
+        begin match p1', p2' with
+          | Char(PChar(lfp1)), Char(PChar(lfp2)) ->
+            Char(PChar(Seq(lfp1, lfp2)))
+          | Char(PChar(lfp1)), Char(LChar(mlfp2, l)) ->
+            let mlfp = optional lfp1 (fun x -> Seq(lfp1,x)) mlfp2 in
+            Char(LChar(Some(mlfp), l))
+          | _, _ -> Cat(p1', p2')
+        end
+      | Types.Par(p1, p2) ->
+        let p1' = of_policy p1 in
+        let p2' = of_policy p2 in
+        begin match p1', p2' with
+          | Char(PChar(lfp1)), Char(PChar(lfp2)) ->
+            Char(PChar(Par(lfp1, lfp2)))
+          | _ , _ -> Alt(p1', p2')
+        end
+      | Types.Choice(p1, p2) ->
+        let p1' = of_policy p1 in
+        let p2' = of_policy p2 in
+        begin match p1', p2' with
+          | Char(PChar(lfp1)), Char(PChar(lfp2)) ->
+            Char(PChar(Choice(lfp1, lfp2)))
+          | _ , _ -> Pick(p1', p2')
+        end
+      | Types.Star(q) ->
+        Kleene(of_policy q)
+    end
+
+  let rec to_policy (r : tregex) : policy =
+    begin match r with
+      | Char(PChar(lfp)) ->
+        lf_policy_to_policy lfp
+      | Char(LChar(mlfp, l)) ->
+        let link = link_to_policy l in
+        optional link (fun x -> Types.Seq(lf_policy_to_policy x, link)) mlfp
+      | Pick(r1, r2) ->
+        Types.Choice(to_policy r1, to_policy r2)
+      | Alt(r1, r2) ->
+        Types.Par(to_policy r1, to_policy r2)
+      | Cat(r1, r2) ->
+        Types.Seq(to_policy r1, to_policy r2)
+      | Kleene(r) ->
+        Types.Star(to_policy r)
+      | Empty -> Types.Filter(Types.True)
+    end
+end
+
 (* An intermediate representation for the conversion from a NetKAT policy to a
  * regex. inter is a continuation with three cases. 
  *
@@ -130,21 +195,26 @@ let lf_policy_to_string (lf_p : lf_policy) : string =
  * policies, if necessary.
  *)
 type inter =
-    | TP of link_provider
-    | NL of link_consumer
-    | S  of regex
+  | TP of link_provider
+  | NL of link_consumer
+  | S  of regex
 
 and cstr = lf_policy -> lf_policy -> lf_policy 
 
-and link_provider = cstr -> lf_policy option -> inter 
+and link_provider = lf_policy option -> inter
 and link_consumer = cstr -> lf_policy option -> link_provider option -> inter
 
 let seq (p : lf_policy) (q : lf_policy) : lf_policy = Seq(p, q)
 let par (p : lf_policy) (q : lf_policy) : lf_policy = Par(p, q)
 let pick (p : lf_policy) (q : lf_policy) : lf_policy = Choice(p, q)
 
-let mk_mcstr c mp q =
+let mk_mcstr (c : cstr) mp q =
   optional q (fun p -> c p q) mp
+
+let mk_mmcstr (c : cstr) mp mq =
+  match mq with
+    | None -> mp
+    | Some q -> Some(mk_mcstr c mp q)
 
 (* Constructor for a link_consumer. Requires a link-free policy as the basis for
  * its accumulator so that if it passes its link-free policy to a link_provider,
@@ -156,21 +226,21 @@ let rec mk_nl (lf_p : lf_policy) : link_consumer =
     (* print_string ("mk_nl with lfp': " ^ (lf_policy_to_string lfp') ^ "\n"); *)
     match mlp with
       | None    -> NL(mk_nl lfp')
-      | Some lp -> lp cstr (Some(lfp'))
+      | Some lp -> lp (Some(lfp'))
 
 (* Constructor for link_provider. Requires a link and an optional link-free
  * policy that acts as an accumulator. If the link provider receives a `None`,
  * it will transition to a regex. If it receives `Some lfp` then it will
  * continue taking policies.
  *)
-let rec mk_tp (l : link) (macc : lf_policy option) : link_provider =
-  fun cstr mlf_p ->
+let rec mk_tp (macc : lf_policy option) (l : link) : link_provider =
+  fun mlf_p ->
     match mlf_p with
       | None -> 
         S(Char(from_option (Filter(Types.True)) macc, l))
       | Some lf_p ->
         (* print_string ("mk_tp with lf_p: " ^ (lf_policy_to_string lf_p) ^ "\n"); *)
-        TP(mk_tp l (Some(mk_mcstr (flip cstr) macc lf_p)))
+        TP(mk_tp (Some(mk_mcstr (flip seq) macc lf_p)) l)
 
 (* Turn an optional link_provider into an inter. Call in the case where
  * a link is needed, and link-free policies can no longer be accepted. The inter
@@ -178,34 +248,30 @@ let rec mk_tp (l : link) (macc : lf_policy option) : link_provider =
  * policies, and will continue to produce an NL continuation until some context
  * provides it with a valid (non-None) link-provider.
  *)
-let rec mk_inter_of_mlp (c : cstr) (mlp : link_provider option) : inter =
+let rec mk_inter_of_mlp (mlp : link_provider option) : inter =
   match mlp with
-    | None    -> NL(fun c mp mlp -> assert (is_none mp); mk_inter_of_mlp c mlp)
-    | Some lp -> lp c None
+    | None    -> NL(fun _ mp mlp -> assert (is_none mp); mk_inter_of_mlp mlp)
+    | Some lp -> lp None
 
+let regex_of_policy (p: policy) : regex =
+  let open TRegex in
 
-(* END DATA TYPES ----------------------------------------------------------- *)
-
-
-let regex_of_policy (p : policy) : regex =
-
-  let rec rpc (p : policy) : inter =
+  let rec rpc (tregex : tregex) : inter =
     (* print_string ((Types.string_of_policy p) ^ "\n"); *)
-    begin match p with
-      | Types.Filter(q) ->
-        NL(mk_nl (Filter q))
-      | Types.Mod(h, v) ->
-        NL(mk_nl (Mod(h, v)))
-      | Types.Link(sw1, pt1, sw2, pt2) ->
-        TP(mk_tp (sw1, pt1, sw2, pt2) None)
-      | Types.Seq(p1, p2) ->
+    begin match tregex with
+      | Char(PChar(lfp)) ->
+        NL(mk_nl lfp)
+      | Char(LChar(mlfp, l)) ->
+        TP(mk_tp mlfp l)
+      | Cat(p1, p2) ->
         rpc_seq (rpc p1) (rpc p2)
-      | Types.Par(p1, p2) ->
+      | Alt(p1, p2) ->
         rpc_branchy par (fun x y -> Alt(x, y)) (rpc p1) (rpc p2)
-      | Types.Choice(p1, p2) ->
+      | Pick(p1, p2) ->
         rpc_branchy pick (fun x y -> Pick(x, y)) (rpc p1) (rpc p2)
-      | Types.Star(q) ->
+      | Kleene(q) ->
         S(Kleene(run (rpc q)))
+      | Empty -> S(Empty)
     end
 
   and rpc_seq i j =
@@ -227,28 +293,49 @@ let regex_of_policy (p : policy) : regex =
      *  argument will force a transition to TP, thus satisfying the truth table
      *  above.
      * *)
-    begin match i, j with
-      | TP f1, NL f2 -> NL(fun c mlf_p mlp -> rpc_seq (f1 c mlf_p) (f2 c None mlp))
-      | TP f1, _     -> let r = run j in TP(fun c mp -> rpc_seq (f1 c mp) (S(r)))
-      | NL f1, TP f2 -> f1 seq None (Some f2)
-      | NL f1, NL f2 -> NL(fun c mlf_p mlp -> f1 seq mlf_p (Some(fun c mlf_q -> f2 c mlf_q mlp)))
-      | NL f1, S  r  -> failwith "Cat(NL, Star) can't be represented"
-      | S   r, _     -> s_trans r j (fun x y -> Cat(x, y))
-    end
+    match i, j with
+      | TP f1, NL f2 ->
+        NL(fun c mlf_p mlp -> rpc_seq (f1 mlf_p) (f2 c None mlp))
+      | TP f1, _     ->
+        let r = run j in TP(fun mp -> rpc_seq (f1 mp) (S(r)))
+      | NL f1, TP f2 -> f1 seq None (Some(f2))
+      | NL f1, NL f2 ->
+        NL(fun c mlf_p mlp ->
+           let c' x y = mk_mcstr c mlf_p (seq x y) in
+           f1 seq None (Some(fun mlf_q -> f2 c' mlf_q mlp)))
+      | NL _ , S _   -> failwith "Cat(NL, S) can't be represented"
+      | S  r , _     -> s_trans r j (fun x y -> Cat(x, y))
 
   and rpc_branchy cp cr i j =
+    (* The following match impelements this "truth table" for the inter type:
+     *
+     *    a  | b  | a U/+ b
+     *   ----+----+---------
+     *    TP | TP | TP
+     *    TP | NL | NL
+     *    TP | S  | S
+     *    NL | TP | NL
+     *    NL | NL | NL
+     *    NL | S  | NL
+     *    S  | TP | S
+     *    S  | NL | NL
+     *    S  | S  | S
+     * *)
     begin match i, j with
-      | TP f1, TP f2 -> TP(fun c mlp -> rpc_branchy cp cr (f1 c mlp) (f2 c mlp))
+      | TP f1, TP f2 -> TP(fun mlp -> rpc_branchy cp cr (f1 mlp) (f2 mlp))
       | TP f1, NL f2 -> NL(fun c mlf_p mlp ->
                             rpc_branchy cp cr
-                                (rpc_seq (f1 c mlf_p) (mk_inter_of_mlp c mlp))
+                                (rpc_seq (f1 mlf_p) (mk_inter_of_mlp mlp))
                                 (f2 c mlf_p mlp))
       | TP f1, S  r  -> S(Alt(run i, r))
       | NL f1, TP f2 -> NL(fun c mlf_p mlp ->
                             rpc_branchy cp cr
                                 (f1 c mlf_p mlp)
-                                (rpc_seq (f2 c mlf_p) (mk_inter_of_mlp c mlp)))
-      | NL f1, NL f2 -> f1 cp None (Some(fun c mlf_q -> f2 c mlf_q None))
+                                (rpc_seq (f2 mlf_p) (mk_inter_of_mlp mlp)))
+      | NL f1, NL f2 ->
+        NL(fun c mlf_p mlp ->
+           let c' x y = mk_mcstr c mlf_p (cp x y) in
+           f1 cp None (Some(fun mlf_q -> f2 c' mlf_q mlp)))
       | NL f1, S  r  -> s_trans r i (flip cr)
       | S   r, _     -> s_trans r j cr
     end
@@ -263,19 +350,19 @@ let regex_of_policy (p : policy) : regex =
 
   and run_with (i : inter) (mp : lf_policy option) (mlp : link_provider option) : inter =
     begin match i with
-      | TP f -> f seq mp
+      | TP f -> f mp
       | NL f -> f seq mp mlp
       | S  r -> S(r)
     end
 
   and run (i : inter) : regex =
     begin match run_with i None None with
-      | TP _ -> failwith "should not happen"
+      | TP f -> failwith "shouldn't happen"
       | NL _ -> failwith "need a link in there"
       | S  r -> r
     end in
 
-  run (rpc p)
+  run (rpc (TRegex.of_policy p))
 
 let regex_to_aregex (r : regex) : (int aregex) * ((int,  pchar) Hashtbl.t) =
   (* like an ST monad lol *)
