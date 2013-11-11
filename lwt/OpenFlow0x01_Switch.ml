@@ -40,7 +40,12 @@ let send_to_switch_fd (sock : file_descr) (xid : xid) (msg : msg) : bool Lwt.t =
   lwt msg_buf = Lwt.wrap2 Message.marshal xid msg in
   let msg_len = String.length msg_buf in
   lwt sent = Lwt_unix.write sock msg_buf 0 msg_len in
-  Lwt.return (sent = msg_len)
+  try_lwt
+    Lwt.return (sent = msg_len)
+  with Unix.Unix_error (err, fn, arg) ->
+    Printf.printf "[platform0x01] error sending: %s (in %s)\n%!"
+      (Unix.error_message err) fn;
+    Lwt.return (false)
 
 let switch_handshake_finish (fd : file_descr) : OF.SwitchFeatures.t option Lwt.t = 
   match_lwt send_to_switch_fd fd 0l Message.SwitchFeaturesRequest with
