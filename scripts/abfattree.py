@@ -108,7 +108,7 @@ def routing_upwards(graph, node):
     for port in range(1, graph.p+1):
         graph.node[node]['routes'][port] = graph.p + port
 
-def to_netkat_set_of_tables(graph, withHostsTopo=True):
+def to_netkat_set_of_tables(graph, withTopo=True, withHostsTopo=True):
     policy = []
     for node in graph.switches:
         table = []
@@ -124,20 +124,25 @@ def to_netkat_set_of_tables(graph, withHostsTopo=True):
             table.append(s)
         #pprint.pprint(table)
         policy.extend(table)
-    topo = []
-    for src, dst, ed in graph.edges_iter(data=True):
-        if src in graph.hosts or dst in graph.hosts:
-            continue
-        topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
-        topo.append(topoterm)
-    if withHostsTopo:
-        for host in graph.hosts:
-            dst = graph.neighbors(host)[0]
-            ed = graph.get_edge_data(host, dst)
-            topoterm = "%s@%d => 0@0" % (graph.node[dst]['id'], ed['dport'])
-            topo.append(topoterm)
 
-    return "((\n%s\n);\n(\n%s\n))*\n" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
+    if withTopo:
+        topo = []
+        for src, dst, ed in graph.edges_iter(data=True):
+            if src in graph.hosts or dst in graph.hosts:
+                continue
+            topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
+            topo.append(topoterm)
+        if withHostsTopo:
+            for host in graph.hosts:
+                dst = graph.neighbors(host)[0]
+                ed = graph.get_edge_data(host, dst)
+                topoterm = "%s@%d => 0@0" % (graph.node[dst]['id'], ed['dport'])
+                topo.append(topoterm)
+
+    if withTopo:
+        return "((\n%s\n);\n(\n%s\n))*\n" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
+    else:
+        return string.join(policy, " |\n")
 
 def to_netkat_set_of_tables_failover(graph, withTopo=True, specializeInPort=True):
     policy = []
@@ -268,9 +273,6 @@ def to_netkat_set_of_tables_failover(graph, withTopo=True, specializeInPort=True
     else:
         return string.join(map(lambda x: "(%s)" % (x), policy), " |\n")
 
-def to_netkat_set_of_tables_failover_local(graph):
-    return to_netkat_set_of_tables_failover(graph, withTopo=False)
-
 def find_next_sibling_node(graph, node, src):
     for k in graph.neighbors_iter(node):
         if k in graph.switches and graph.node[k]['level'] == graph.node[src]['level'] and k != src:
@@ -364,19 +366,16 @@ def to_netkat_set_of_paths_for_hosts(graph, hosts, withTopo=True, withHostsTopo=
     else:
         return string.join(policy, " |\n")
 
-def to_netkat_set_of_paths(graph):
-    return to_netkat_set_of_paths_for_hosts(graph, graph.hosts)
+def to_netkat_set_of_paths(graph, withTopo):
+    return to_netkat_set_of_paths_for_hosts(graph, graph.hosts, withTopo=withTopo)
 
-def to_netkat_test_set_of_paths(graph):
-    return to_netkat_set_of_paths_for_hosts(graph, graph.hosts[0:2])
+def to_netkat_test_set_of_paths(graph, withTopo):
+    return to_netkat_set_of_paths_for_hosts(graph, graph.hosts[0:2], withTopo=withTopo)
 
-def to_netkat_test_set_of_paths2(graph):
-    return to_netkat_set_of_paths_for_hosts(graph, [graph.hosts[0], graph.hosts[3]])
+def to_netkat_test_set_of_paths2(graph, withTopo):
+    return to_netkat_set_of_paths_for_hosts(graph, [graph.hosts[0], graph.hosts[3]], withTopo=withTopo)
 
-def to_netkat_local(graph):
-    return to_netkat_set_of_paths_for_hosts(graph, graph.hosts, withTopo=False)
-
-def to_netkat_regular(graph):
+def to_netkat_regular(graph, withTopo=True):
     # succint program that exploits regularity
     policy = []
 
@@ -416,18 +415,22 @@ def to_netkat_regular(graph):
                 s = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
                 policy.append("(%s)" % (s))
 
-    topo = []
-    for src, dst, ed in graph.edges_iter(data=True):
-        if src in graph.hosts or dst in graph.hosts:
-            continue
-        topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
-        topo.append(topoterm)
+    if withTopo:
+        topo = []
+        for src, dst, ed in graph.edges_iter(data=True):
+            if src in graph.hosts or dst in graph.hosts:
+                continue
+            topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
+            topo.append(topoterm)
 
-    return "((\n%s\n);\n(\n%s\n))*\n" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
+    if withTopo:
+        return "((\n%s\n);\n(\n%s\n))*\n" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
+    else:
+        return string.join(policy, " |\n")
 
 
 
-def to_netkat(graph, kattype, katfile, failover):
+def to_netkat(graph, kattype, katfile, failover, local):
     for node in graph.switches:
         graph.node[node]['routes'] = {}
         l = (graph.node[node]['id'] - 1) / (2*graph.p**graph.L)
@@ -439,28 +442,25 @@ def to_netkat(graph, kattype, katfile, failover):
     for node in noncore_switches:
         routing_upwards(graph, node)
     #print nx.to_agraph(graph)
+    withTopo = not local
     if failover:
         if kattype == 'tables':
-            policy = to_netkat_set_of_tables_failover(graph)
-        elif kattype == 'local':
-            policy = to_netkat_set_of_tables_failover_local(graph)
+            policy = to_netkat_set_of_tables_failover(graph, withTopo=withTopo)
         else:
-            print "Unsupported"
+            raise "Unsupported"
     else:
         if kattype == 'tables':
-            policy = to_netkat_set_of_tables(graph)
+            policy = to_netkat_set_of_tables(graph, withTopo=withTopo)
         elif kattype == 'paths':
-            policy = to_netkat_set_of_paths(graph)
+            policy = to_netkat_set_of_paths(graph, withTopo=withTopo)
         elif kattype == 'regular':
-            policy = to_netkat_regular(graph)
+            policy = to_netkat_regular(graph, withTopo=withTopo)
         elif kattype == 'testpaths':
-            policy = to_netkat_test_set_of_paths(graph)
+            policy = to_netkat_test_set_of_paths(graph, withTopo=withTopo)
         elif kattype == 'testpaths2':
-            policy = to_netkat_test_set_of_paths2(graph)
-        elif kattype == 'local':
-            policy = to_netkat_local(graph)
+            policy = to_netkat_test_set_of_paths2(graph, withTopo=withTopo)
         else:
-            print "Unsupported"
+            raise "Unsupported"
 
     if katfile:
         with open(katfile, 'w') as f:
@@ -484,6 +484,10 @@ def parse_args():
                         default=False,
                         type=bool,
                         help='output failover')
+    parser.add_argument("-l", "--local", dest='local', action='store',
+                        default=False,
+                        type=bool,
+                        help='output local')
     parser.add_argument("-t", "--type",
                         help='KAT policy type',
                         dest='kattype',
@@ -503,4 +507,4 @@ if __name__ == "__main__":
         nx.write_dot(graph,args.output)
     else:
         print nx.to_agraph(graph)
-    to_netkat(graph, args.kattype, args.katfile, args.failover)
+    to_netkat(graph, args.kattype, args.katfile, args.failover, args.local)
