@@ -42,14 +42,14 @@ end
   
 module Local : sig
   type t = Action.group Atom.Map.t
-  val of_policy : Types.policy -> t
+  val of_policy : SDN_Types.fieldVal -> Types.policy -> t
   val to_netkat : t -> Types.policy
 end
 
 module RunTime : sig 
   (* intermediate form *)
   type i 
-  val compile : Types.policy -> i
+  val compile : SDN_Types.fieldVal -> Types.policy -> i
   val decompile : i -> Types.policy
-  val to_table : SDN_Types.fieldVal -> i -> SDN_Types.flowTable 
+  val to_table : i -> SDN_Types.flowTable 
 end
