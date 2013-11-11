@@ -143,8 +143,13 @@ let seq (p : lf_policy) (q : lf_policy) : lf_policy = Seq(p, q)
 let par (p : lf_policy) (q : lf_policy) : lf_policy = Par(p, q)
 let pick (p : lf_policy) (q : lf_policy) : lf_policy = Choice(p, q)
 
-let mk_mcstr c mp q =
+let mk_mcstr (c : cstr) mp q =
   optional q (fun p -> c p q) mp
+
+let mk_mmcstr (c : cstr) mp mq =
+  match mq with
+    | None -> mp
+    | Some q -> Some(mk_mcstr c mp q)
 
 (* Constructor for a link_consumer. Requires a link-free policy as the basis for
  * its accumulator so that if it passes its link-free policy to a link_provider,
@@ -183,6 +188,11 @@ let rec mk_inter_of_mlp (mlp : link_provider option) : inter =
     | None    -> NL(fun _ mp mlp -> assert (is_none mp); mk_inter_of_mlp mlp)
     | Some lp -> lp None
 
+let rec add_left (cstr : cstr) (mlf_q : lf_policy option) (i : inter) : inter =
+  match i with
+   | TP f -> TP(fun mlf_p -> f (mk_mmcstr cstr mlf_p mlf_q))
+   | NL f -> NL(fun c mlf_p lfp -> add_left c mlf_p (f cstr mlf_q lfp))
+   | S _  -> failwith "can't add_left to a regex"
 
 (* END DATA TYPES ----------------------------------------------------------- *)
 
@@ -228,11 +238,12 @@ let regex_of_policy (p : policy) : regex =
      *  above.
      * *)
     begin match i, j with
-      | TP f1, NL f2 -> NL(fun c mlf_p mlp -> rpc_seq (f1 mlf_p) (f2 c None mlp))
+      | TP _ , NL f2 -> NL(fun c mlf_p mlp ->
+                            add_left c mlf_p (rpc_seq i (f2 c None mlp)))
       | TP f1, _     -> let r = run j in TP(fun mp -> rpc_seq (f1 mp) (S(r)))
-      | NL f1, TP f2 -> f1 seq None (Some f2)
-      | NL f1, NL f2 -> f1 seq None (Some(fun mlf_q -> f2 seq mlf_q None))
-      | NL f1, S  r  -> failwith "Cat(NL, Star) can't be represented"
+      | NL f1, TP f2 -> f1 seq None (Some(f2))
+      | NL f1, NL f2 -> f1 seq None (Some(fun mlf_p -> f2 seq mlf_p None))
+      | NL f1, S  r  -> failwith "Cat(NL, S) can't be represented"
       | S   r, _     -> s_trans r j (fun x y -> Cat(x, y))
     end
 
@@ -270,7 +281,7 @@ let regex_of_policy (p : policy) : regex =
 
   and run (i : inter) : regex =
     begin match run_with i None None with
-      | TP _ -> failwith "should not happen"
+      | TP f -> run (TP f)
       | NL _ -> failwith "need a link in there"
       | S  r -> r
     end in
