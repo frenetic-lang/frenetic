@@ -97,12 +97,28 @@ TEST "distributes across links" =
     | Alt(Char(_), Char(_)) -> true
     | _                     -> false
 
+TEST "distributes across complex links" =
+  let open NetKAT_Automaton in
+  let pol = policy_parse "filter port = 10; ((filter ethDst = 2; 0@1 => 1@1) | 2@1 => 1@1)" in
+  let re  = regex_of_policy pol in
+  match re with
+    | Alt(Char(_), Char(_)) -> true
+    | _                     -> false
+
 TEST "does not distribute across link-free policies" =
   let open NetKAT_Automaton in
   let pol = policy_parse "(filter port = 9 | filter port = 10); (0@1 => 1@1 | 2@1 => 1@1)" in
   let re  = regex_of_policy pol in
   match re with
     | Alt(Char(_), Char(_)) -> true
+    | _                     -> false
+
+TEST "associativity of seq" =
+  let open NetKAT_Automaton in
+  let pol = policy_parse "(filter switch = 1; port := 1 ; (1@1 => 2@1; filter switch = 2; port := 4)); 9@2 => 2@3" in
+  let re  = regex_of_policy pol in
+  match re with
+    | Cat(Char(_), Char(_)) -> true
     | _                     -> false
 
 TEST "regression test #1" =
