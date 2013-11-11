@@ -108,7 +108,7 @@ def routing_upwards(graph, node):
     for port in range(1, graph.p+1):
         graph.node[node]['routes'][port] = graph.p + port
 
-def to_netkat_set_of_tables(graph):
+def to_netkat_set_of_tables(graph, withHostsTopo=True):
     policy = []
     for node in graph.switches:
         table = []
@@ -118,7 +118,9 @@ def to_netkat_set_of_tables(graph):
             if k in graph.hosts:
                 s = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
             else:
-                s = string.join((flt, "filter port = %d" % (k), "port := %d" % (v)), "; ")
+                hosts = find_all_hosts_below(graph, node)
+                fltouthosts = string.join(map(lambda x: "filter not ethDst = %s" % (graph.node[x]['mac']), hosts), "; ")
+                s = string.join((flt, "filter port = %d" % (k), fltouthosts, "port := %d" % (v)), "; ")
             table.append(s)
         #pprint.pprint(table)
         policy.extend(table)
@@ -128,6 +130,12 @@ def to_netkat_set_of_tables(graph):
             continue
         topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
         topo.append(topoterm)
+    if withHostsTopo:
+        for host in graph.hosts:
+            dst = graph.neighbors(host)[0]
+            ed = graph.get_edge_data(host, dst)
+            topoterm = "%s@%d => 0@0" % (graph.node[dst]['id'], ed['dport'])
+            topo.append(topoterm)
 
     return "((\n%s\n);\n(\n%s\n))*\n" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
 
