@@ -28,7 +28,7 @@ def generate(fanout,depth):
     for node in switches:
         graph.add_node(node, type='switch', id=int(node[1:]))
     for node in hosts:
-        graph.add_node(node, type='host', mac="00:00:00:00:00:%02x" % (int(node[1:])), ip="10.0.0.%d" % (int(node[1:])))
+        graph.add_node(node, type='host', id=int(node[1:]), mac="00:00:00:00:00:%02x" % (int(node[1:])), ip="10.0.0.%d" % (int(node[1:])))
 
 
     graph.switches = switches
@@ -110,12 +110,15 @@ def routing_upwards(graph, node):
 
 def to_netkat_set_of_tables(graph, withTopo=True, withHostsTopo=True):
     policy = []
+    edge_policy = []
     for node in graph.switches:
         table = []
         flt = "filter switch = %d" % (graph.node[node]['id'])
         #pprint.pprint(graph.node[node]['routes'])
         for k, v in graph.node[node]['routes'].iteritems():
             if k in graph.hosts:
+                if graph.node[node]['level'] == 0:
+                    continue
                 s = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
             else:
                 hosts = find_all_hosts_below(graph, node)
@@ -125,6 +128,15 @@ def to_netkat_set_of_tables(graph, withTopo=True, withHostsTopo=True):
         #pprint.pprint(table)
         policy.extend(table)
 
+    for node in graph.edge_switches:
+        table = []
+        flt = "filter switch = %d" % (graph.node[node]['id'])
+        for k, v in graph.node[node]['routes'].iteritems():
+            if k in graph.hosts:
+                s = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
+                table.append(s)
+        edge_policy.extend(table)
+
     if withTopo:
         topo = []
         for src, dst, ed in graph.edges_iter(data=True):
@@ -132,17 +144,21 @@ def to_netkat_set_of_tables(graph, withTopo=True, withHostsTopo=True):
                 continue
             topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
             topo.append(topoterm)
-        if withHostsTopo:
-            for host in graph.hosts:
-                dst = graph.neighbors(host)[0]
-                ed = graph.get_edge_data(host, dst)
-                topoterm = "%s@%d => 0@0" % (graph.node[dst]['id'], ed['dport'])
-                topo.append(topoterm)
 
     if withTopo:
-        return "((\n%s\n);\n(\n%s\n))*\n" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
+        edge_topo = []
+        for host in graph.hosts:
+            dst = graph.neighbors(host)[0]
+            ed = graph.get_edge_data(host, dst)
+            topoterm = "%s@%d => 0@%d" % (graph.node[dst]['id'], ed['dport'], graph.node[host]['id'])
+            edge_topo.append(topoterm)
+
+    if withTopo:
+        return "((\n%s\n);\n(\n%s\n))*;\n((\n%s\n);\n(\n%s\n))" % \
+            (string.join(policy, " |\n"), string.join(topo, " |\n"),
+             string.join(edge_policy, " |\n"), string.join(edge_topo, " |\n"))
     else:
-        return string.join(policy, " |\n")
+        return "((\n%s\n);\n(\n%s\n))\n" % (string.join(policy, " |\n"), string.join(edge_policy, " |\n"))
 
 def to_netkat_set_of_tables_failover(graph, withTopo=True, specializeInPort=True):
     policy = []
