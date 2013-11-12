@@ -165,14 +165,20 @@ def to_netkat_test_set_of_tables(graph, withTopo=True):
 
 def to_netkat_set_of_tables_failover(graph, withTopo=True, specializeInPort=True):
     policy = []
+    edge_policy = []
     # edge
     for node in graph.edge_switches:
         table = []
+        edge_table = []
         flt = "filter switch = %d" % (graph.node[node]['id'])
         #pprint.pprint(graph.node[node]['routes'])
         for k, v in graph.node[node]['routes'].iteritems():
             if k in graph.hosts:
                 s = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
+                if graph.node[node]['level'] == 0:
+                    edge_table.append(s)
+                else:
+                    table.append(s)
             else:
                 hosts = find_all_hosts_below(graph, node)
                 fltouthosts = string.join(map(lambda x: "filter not ethDst = %s" % (graph.node[x]['mac']), hosts), "; ")
@@ -180,9 +186,10 @@ def to_netkat_set_of_tables_failover(graph, withTopo=True, specializeInPort=True
                 v2 = ((v - graph.p) % graph.p) + 1 + graph.p
                 s2 = string.join((flt, "filter port = %d" % (k), fltouthosts, "port := %d" % (v2)), "; ")
                 s = "(%s) + (%s)" % (s1, s2)
-            table.append(s)
+                table.append(s)
         #pprint.pprint(table)
         policy.extend(table)
+        edge_policy.extend(edge_table)
 
     # agg
     for node in graph.agg_switches:
@@ -287,10 +294,19 @@ def to_netkat_set_of_tables_failover(graph, withTopo=True, specializeInPort=True
             topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
             topo.append(topoterm)
 
+        edge_topo = []
+        for host in graph.hosts:
+            dst = graph.neighbors(host)[0]
+            ed = graph.get_edge_data(host, dst)
+            topoterm = "%s@%d => 0@%d" % (graph.node[dst]['id'], ed['dport'], graph.node[host]['id'])
+            edge_topo.append(topoterm)
+
     if withTopo:
-        return "((\n%s\n);\n(\n%s\n))*\n" % (string.join(map(lambda x: "(%s)" % (x), policy), " |\n"), string.join(topo, " |\n"))
+        return "((\n%s\n);\n(\n%s\n))*;\n((\n%s\n);\n(\n%s\n))" % \
+            (string.join(map(lambda x: "(%s)" % (x), policy), " |\n"), string.join(topo, " |\n"), 
+             string.join(edge_policy, " |\n"), string.join(edge_topo, " |\n"))
     else:
-        return string.join(map(lambda x: "(%s)" % (x), policy), " |\n")
+        return "((\n%s\n);\n(\n%s\n))\n" % (string.join(map(lambda x: "(%s)" % (x), policy), " |\n"), string.join(edge_policy, " |\n"))
 
 def find_next_sibling_node(graph, node, src):
     for k in graph.neighbors_iter(node):
