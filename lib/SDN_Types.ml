@@ -101,17 +101,17 @@ type flowStats = {
 let format_field (fmt : Format.formatter) (f : field) : unit =
   Format.pp_print_string fmt
     (match f with
-      | InPort -> "InPort"
-      | EthType -> "EthType"
-      | EthSrc -> "EthSrc"
-      | EthDst -> "EthDst"
-      | Vlan -> "Vlan"
-      | VlanPcp -> "VlanPcp"
-      | IPProto -> "IPProto"
-      | IP4Src -> "IP4Src"
-      | IP4Dst -> "IP4Dst"
-      | TCPSrcPort -> "TCPSrcPort"
-      | TCPDstPort -> "TCPDstPort")
+      | InPort -> "port"
+      | EthType -> "ethTyp"
+      | EthSrc -> "ethSrc"
+      | EthDst -> "ethDst"
+      | Vlan -> "vlanId"
+      | VlanPcp -> "vlanPcp"
+      | IPProto -> "ipProto"
+      | IP4Src -> "ipSrc"
+      | IP4Dst -> "ipDst"
+      | TCPSrcPort -> "tcpSrcPort"
+      | TCPDstPort -> "tcpDstPort")
 
 
 let format_pattern (fmt:Format.formatter) (p:pattern) : unit = 
