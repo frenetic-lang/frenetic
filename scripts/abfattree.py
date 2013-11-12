@@ -113,30 +113,24 @@ def to_netkat_set_of_tables_for_switches(graph, switches, withTopo=True):
     edge_policy = []
     for node in switches:
         table = []
+        edge_table = []
         flt = "filter switch = %d" % (graph.node[node]['id'])
         #pprint.pprint(graph.node[node]['routes'])
         for k, v in graph.node[node]['routes'].iteritems():
             if k in graph.hosts:
-                if graph.node[node]['level'] == 0:
-                    continue
                 s = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
+                if graph.node[node]['level'] == 0:
+                    edge_table.append(s)
+                else:
+                    table.append(s)
             else:
                 hosts = find_all_hosts_below(graph, node)
                 fltouthosts = string.join(map(lambda x: "filter not ethDst = %s" % (graph.node[x]['mac']), hosts), "; ")
                 s = string.join((flt, "filter port = %d" % (k), fltouthosts, "port := %d" % (v)), "; ")
-            table.append(s)
+                table.append(s)
         #pprint.pprint(table)
         policy.extend(table)
-
-    for node in graph.edge_switches:
-        if node in switches:
-            table = []
-            flt = "filter switch = %d" % (graph.node[node]['id'])
-            for k, v in graph.node[node]['routes'].iteritems():
-                if k in graph.hosts:
-                    s = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
-                    table.append(s)
-            edge_policy.extend(table)
+        edge_policy.extend(edge_table)
 
     if withTopo:
         topo = []
