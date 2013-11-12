@@ -19,26 +19,27 @@ let run_with_channel f chan =
 let run_with_file f filename =
   run_with_channel f (open_in filename)
 
+let local p =
+  let open LocalCompiler.RunTime in
+  (fun sw -> to_table (compile sw p))
+
+let classic p =
+  let p' = Dehop.dehop_policy p in
+  local p'
+
+let automaton p =
+  let open NetKAT_Automaton in
+  let open Types in
+  let i,m,_,e = dehopify p in
+  let switch_policies = switch_port_policies_to_switch_policies m in
+  (fun sw ->
+    let sw_p  = SwitchMap.find sw switch_policies in
+    let sw_f  = Types.Filter(Test(Switch, sw)) in
+    let sw_p' = Types.(Seq(Seq(Par(i,id),Seq(sw_f, sw_p)),Par(e,id))) in
+    local sw_p' sw)
+
 let run args =
   let open LocalCompiler.RunTime in
-
-  let local p =
-    (fun sw -> to_table (compile sw p)) in  
-
-  let classic p =
-    let p' = Dehop.dehop_policy p in
-    local p' in 
-
-  let automaton p =
-    let open NetKAT_Automaton in
-    let open Types in
-    let i,m,_,e = dehopify p in
-    let switch_policies = switch_port_policies_to_switch_policies m in
-    (fun sw ->
-      let sw_p  = SwitchMap.find sw switch_policies in
-      let sw_f  = Types.Filter(Test(Switch, sw)) in
-      let sw_p' = Types.(Seq(Seq(Par(i,id),Seq(sw_f, sw_p)),Par(e,id))) in
-      local sw_p' sw) in 
 
   match args with
     | [filename]
@@ -95,8 +96,20 @@ let dump args =
     | ("automaton" :: [filename]) -> dump_with_file automaton filename
     | _ -> help [ "dump" ]
 
+
+let run_template args = match args with
+  | [ filename ] ->
+    let cin = open_in filename in
+    let template_exp = Template_Parser.program Template_Lexer.token (Lexing.from_channel cin)
+    in if TemplateTypeChecker.type_check template_exp TemplateSyntax.TPol
+       then let exp = TemplateSyntax.eval template_exp in
+            Lwt_main.run (Controller.start local 6633 (NetKAT_Stream.constant exp))
+       else Format.printf "Invalid Program"
+  | _ -> help [ "run" ]
+
 let () = 
   match Array.to_list Sys.argv with
     | (_ :: "run" :: args) ->  run args
     | (_ :: "dump" :: args) -> dump args
+    | (_ :: "runtemplate" :: args) ->  run_template args
     | _ -> help []

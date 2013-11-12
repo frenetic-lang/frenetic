@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 081552686e41011aefd434172d370fa2) *)
+(* DO NOT EDIT (digest: 2b491b8ce603086e70b697467fdb51fc) *)
 This is the INSTALL file for the frenetic distribution.
 
 This package uses OASIS to generate its build system. See section OASIS for
@@ -11,8 +11,7 @@ Dependencies
 In order to compile this package, you will need:
 * ocaml for all, test all_tests, doc doc
 * findlib
-* lwt for library netcore, executable dehop_test, executable katnetic,
-  executable netkat_test
+* lwt for library netcore, executable dehop_test, executable katnetic
 * cstruct for library netcore
 * dprle for library netcore
 * ocamlgraph for library netcore

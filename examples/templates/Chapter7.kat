@@ -1,0 +1,23 @@
+let h1 = 00:00:00:00:00:01 in
+let h2 = 00:00:00:00:00:02 in
+let h3 = 00:00:00:00:00:03 in
+let h4 = 00:00:00:00:00:04 in
+
+let forwarding = 
+  if ethDst = h1 then port := 1
+  else if ethDst = h2 then port := 2
+  else if ethDst = h3 then port := 3
+  else if ethDst = h4 then port := 4
+  else drop in 
+
+let isHTTP = fun (h1 : macAddr, h2 : macAddr) : pred ->
+  (tcpDstPort = 80 || tcpSrcPort = 80) &&
+  ((ethSrc = h1 && ethDst = h2) || (ethSrc = h2 && ethDst = h1)) in
+
+let isICMP = fun (h1 : macAddr, h2 : macAddr) : pred ->
+  (ipProto = icmp) && 
+  ((ethSrc = h1 && ethDst = h2) || (ethSrc = h2 && ethDst = h1)) in
+
+let firewall = isHTTP (h1, h2) || isICMP (h3, h4) in
+
+firewall; forwarding

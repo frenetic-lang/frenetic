@@ -1,0 +1,3 @@
+(* simple repeater *)
+
+if port = 1 then port := 2 else port := 1

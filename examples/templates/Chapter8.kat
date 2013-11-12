@@ -1,0 +1,37 @@
+(* Multi-switch programming *)
+
+let h1 = 00:00:00:00:00:01 in
+let h2 = 00:00:00:00:00:02 in
+let h3 = 00:00:00:00:00:03 in
+let h4 = 00:00:00:00:00:04 in
+
+let fwd = fun (dst : macAddr, out_port : port) : pol ->
+  ethDst = dst; port := out_port in
+
+let switch_pol = fun (h4_port : port, h3_port : port,
+                      h2_port : port, h1_port : port) : pol ->
+
+  fwd (h4, h4_port) + fwd (h3, h3_port) +
+  fwd (h2, h2_port) + fwd (h1, h1_port) +
+  drop in
+
+let bind_pol = fun (sw : switch, p : pol) : pol -> switch = sw; p in
+
+let forwarding = 
+  bind_pol (1, switch_pol (2,2,1,1)) +
+  bind_pol (2, switch_pol (3,3,2,1)) +
+  bind_pol (3, switch_pol (2,1,3,3)) +
+  drop in
+
+(* Firewall *)
+let isHTTP = fun (h1 : macAddr, h2 : macAddr) : pred ->
+  (tcpDstPort = 80 || tcpSrcPort = 80) &&
+  ((ethSrc = h1 && ethDst = h2) || (ethSrc = h2 && ethDst = h1)) in
+
+let isICMP = fun (h1 : macAddr, h2 : macAddr) : pred ->
+  (ipProto = icmp) && 
+  ((ethSrc = h1 && ethDst = h2) || (ethSrc = h2 && ethDst = h1)) in
+
+let firewall = isHTTP (h1, h2) || isICMP (h3, h4) in
+
+firewall; forwarding

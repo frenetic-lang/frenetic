@@ -45,11 +45,14 @@ Library netcore
     Dehop,
     NetKAT_Automaton,
     Controller,
-    PolicyGenerator
-
+    PolicyGenerator,
+    Template_Lexer,
+    Template_Parser
   Modules:
     Util,
-    NetKAT_Stream
+    NetKAT_Stream,
+    TemplateSyntax,
+    TemplateTypeChecker
 
 Library quickcheck
   Findlibparent: netcore
@@ -90,15 +93,6 @@ Executable katnetic
 Executable dehop_test
   Path: frenetic
   MainIs: dehop_test.ml
-  Install$: flag(installexec)
-  BuildDepends:
-    lwt,
-    lwt.syntax,
-    netcore
-
-Executable netkat_test
-  Path: frenetic
-  MainIs: netkat_test.ml
   Install$: flag(installexec)
   BuildDepends:
     lwt,
