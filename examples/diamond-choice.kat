@@ -1,0 +1,13 @@
+((
+(filter switch = 1; filter ethDst = 00:00:00:00:00:02; (port := 1 + port := 2)) |
+(filter switch = 2; filter ethDst = 00:00:00:00:00:02; port := 2) |
+(filter switch = 3; filter ethDst = 00:00:00:00:00:02; port := 2) |
+(filter switch = 4; filter ethDst = 00:00:00:00:00:02; port := 3)
+);
+(
+1@1 => 2@1 |
+1@2 => 3@1 |
+2@2 => 4@1 |
+3@2 => 4@2 |
+4@3 => 0@0
+))*
