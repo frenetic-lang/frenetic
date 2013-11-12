@@ -34,11 +34,12 @@ let run args =
     let open Types in
     let i,m,_,e = dehopify p in
     let switch_policies = switch_port_policies_to_switch_policies m in
-    (fun sw ->
-      let sw_p  = SwitchMap.find sw switch_policies in
+    let cache = SwitchMap.mapi (fun sw sw_p ->
       let sw_f  = Types.Filter(Test(Switch, sw)) in
       let sw_p' = Types.(Seq(Seq(i,Seq(sw_f, sw_p)),e)) in
-      local sw_p' sw) in 
+      to_table (compile sw sw_p'))
+    switch_policies in
+    (fun sw -> SwitchMap.find sw cache) in
 
   match args with
     | [filename]
