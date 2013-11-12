@@ -80,11 +80,19 @@ let dump args =
       let pol0  = SwitchMap.find sw switch_policies in
       let sw_f  = Types.Filter(Test(Switch, sw)) in
       let pol0' = Seq(Seq(i,Seq(sw_f,pol0)),e) in
-      let tbl0 = to_table (compile sw pol0') in
-      let open VInt in
+
+      (* let _ = Printf.printf "Compiling switch %ld..." (VInt.get_int32 sw) in  *)
+      (* let t1 = Unix.gettimeofday () in  *)
+      let i = compile sw pol0' in 
+      (* let t2 = Unix.gettimeofday () in  *)
+      let tbl0 = to_table i in 
+      (* let t3 = Unix.gettimeofday () in  *)
+      (* let _ =  *)
+      (* 	Printf.printf "Done [size: %d ctime: %fs ttime:%fs]\n%!" (Semantics.size pol0')  *)
+      (*   (t2 -. t1) (t3 -. t2) in *)
       Format.printf "@[%a\nflowtable for switch %ld:\n%a@\n\n@]%!"
-        Pretty.format_policy pol0'
-        (get_int32 sw)
+      Pretty.format_policy pol0'
+        (VInt.get_int32 sw)
         SDN_Types.format_flowTable tbl0)
     switch_policies in
 
