@@ -108,10 +108,10 @@ def routing_upwards(graph, node):
     for port in range(1, graph.p+1):
         graph.node[node]['routes'][port] = graph.p + port
 
-def to_netkat_set_of_tables(graph, withTopo=True, withHostsTopo=True):
+def to_netkat_set_of_tables_for_switches(graph, switches, withTopo=True):
     policy = []
     edge_policy = []
-    for node in graph.switches:
+    for node in switches:
         table = []
         flt = "filter switch = %d" % (graph.node[node]['id'])
         #pprint.pprint(graph.node[node]['routes'])
@@ -129,29 +129,32 @@ def to_netkat_set_of_tables(graph, withTopo=True, withHostsTopo=True):
         policy.extend(table)
 
     for node in graph.edge_switches:
-        table = []
-        flt = "filter switch = %d" % (graph.node[node]['id'])
-        for k, v in graph.node[node]['routes'].iteritems():
-            if k in graph.hosts:
-                s = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
-                table.append(s)
-        edge_policy.extend(table)
+        if node in switches:
+            table = []
+            flt = "filter switch = %d" % (graph.node[node]['id'])
+            for k, v in graph.node[node]['routes'].iteritems():
+                if k in graph.hosts:
+                    s = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
+                    table.append(s)
+            edge_policy.extend(table)
 
     if withTopo:
         topo = []
         for src, dst, ed in graph.edges_iter(data=True):
             if src in graph.hosts or dst in graph.hosts:
                 continue
-            topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
-            topo.append(topoterm)
+            if src in switches or dst in switches:
+                topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
+                topo.append(topoterm)
 
     if withTopo:
         edge_topo = []
         for host in graph.hosts:
             dst = graph.neighbors(host)[0]
-            ed = graph.get_edge_data(host, dst)
-            topoterm = "%s@%d => 0@%d" % (graph.node[dst]['id'], ed['dport'], graph.node[host]['id'])
-            edge_topo.append(topoterm)
+            if dst in switches:
+                ed = graph.get_edge_data(host, dst)
+                topoterm = "%s@%d => 0@%d" % (graph.node[dst]['id'], ed['dport'], graph.node[host]['id'])
+                edge_topo.append(topoterm)
 
     if withTopo:
         return "((\n%s\n);\n(\n%s\n))*;\n((\n%s\n);\n(\n%s\n))" % \
@@ -159,6 +162,12 @@ def to_netkat_set_of_tables(graph, withTopo=True, withHostsTopo=True):
              string.join(edge_policy, " |\n"), string.join(edge_topo, " |\n"))
     else:
         return "((\n%s\n);\n(\n%s\n))\n" % (string.join(policy, " |\n"), string.join(edge_policy, " |\n"))
+
+def to_netkat_set_of_tables(graph, withTopo=True):
+    return to_netkat_set_of_tables_for_switches(graph, graph.switches) 
+
+def to_netkat_test_set_of_tables(graph, withTopo=True):
+    return to_netkat_set_of_tables_for_switches(graph, (graph.switches[0], graph.switches[1], graph.switches[8], graph.switches[9])) 
 
 def to_netkat_set_of_tables_failover(graph, withTopo=True, specializeInPort=True):
     policy = []
@@ -467,6 +476,8 @@ def to_netkat(graph, kattype, katfile, failover, local):
     else:
         if kattype == 'tables':
             policy = to_netkat_set_of_tables(graph, withTopo=withTopo)
+        elif kattype == 'testtables':
+            policy = to_netkat_test_set_of_tables(graph, withTopo=withTopo)
         elif kattype == 'paths':
             policy = to_netkat_set_of_paths(graph, withTopo=withTopo)
         elif kattype == 'regular':
@@ -508,7 +519,7 @@ def parse_args():
                         help='KAT policy type',
                         dest='kattype',
                         action='store',
-                        choices=['tables', 'paths', 'regular', 'local', 'testpaths', 'testpaths2'],
+                        choices=['tables', 'paths', 'regular', 'local', 'testpaths', 'testpaths2', 'testtables'],
                         default='tables',
                         type=str)
 
