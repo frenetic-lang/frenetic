@@ -145,7 +145,7 @@ let rec format_par (fmt : Format.formatter) (par : par) : unit =
   | [] -> ()
   | [seq] -> format_seq fmt seq
   | (seq :: seq' :: par') ->
-    Format.fprintf fmt "@[%a +@ %a@]" format_seq seq format_par (seq' :: par')
+    Format.fprintf fmt "@[%a |@ %a@]" format_seq seq format_par (seq' :: par')
 
 let rec format_group (fmt : Format.formatter) (group : group) : unit =
   match group with
