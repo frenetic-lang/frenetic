@@ -1,36 +1,20 @@
 ((
-(filter switch = 1; filter ethDst = 00:00:00:00:00:02; port := 2) |
 ((filter switch = 1; filter port = 1; filter not ethDst = 00:00:00:00:00:02; filter not ethDst = 00:00:00:00:00:01; port := 3) + (filter switch = 1; filter port = 1; filter not ethDst = 00:00:00:00:00:02; filter not ethDst = 00:00:00:00:00:01; port := 4)) |
 ((filter switch = 1; filter port = 2; filter not ethDst = 00:00:00:00:00:02; filter not ethDst = 00:00:00:00:00:01; port := 4) + (filter switch = 1; filter port = 2; filter not ethDst = 00:00:00:00:00:02; filter not ethDst = 00:00:00:00:00:01; port := 3)) |
-(filter switch = 1; filter ethDst = 00:00:00:00:00:01; port := 1) |
-(filter switch = 2; filter ethDst = 00:00:00:00:00:03; port := 1) |
 ((filter switch = 2; filter port = 2; filter not ethDst = 00:00:00:00:00:03; filter not ethDst = 00:00:00:00:00:04; port := 4) + (filter switch = 2; filter port = 2; filter not ethDst = 00:00:00:00:00:03; filter not ethDst = 00:00:00:00:00:04; port := 3)) |
-(filter switch = 2; filter ethDst = 00:00:00:00:00:04; port := 2) |
 ((filter switch = 2; filter port = 1; filter not ethDst = 00:00:00:00:00:03; filter not ethDst = 00:00:00:00:00:04; port := 3) + (filter switch = 2; filter port = 1; filter not ethDst = 00:00:00:00:00:03; filter not ethDst = 00:00:00:00:00:04; port := 4)) |
 ((filter switch = 3; filter port = 1; filter not ethDst = 00:00:00:00:00:06; filter not ethDst = 00:00:00:00:00:05; port := 3) + (filter switch = 3; filter port = 1; filter not ethDst = 00:00:00:00:00:06; filter not ethDst = 00:00:00:00:00:05; port := 4)) |
 ((filter switch = 3; filter port = 2; filter not ethDst = 00:00:00:00:00:06; filter not ethDst = 00:00:00:00:00:05; port := 4) + (filter switch = 3; filter port = 2; filter not ethDst = 00:00:00:00:00:06; filter not ethDst = 00:00:00:00:00:05; port := 3)) |
-(filter switch = 3; filter ethDst = 00:00:00:00:00:06; port := 2) |
-(filter switch = 3; filter ethDst = 00:00:00:00:00:05; port := 1) |
 ((filter switch = 4; filter port = 1; filter not ethDst = 00:00:00:00:00:08; filter not ethDst = 00:00:00:00:00:07; port := 3) + (filter switch = 4; filter port = 1; filter not ethDst = 00:00:00:00:00:08; filter not ethDst = 00:00:00:00:00:07; port := 4)) |
-(filter switch = 4; filter ethDst = 00:00:00:00:00:08; port := 2) |
 ((filter switch = 4; filter port = 2; filter not ethDst = 00:00:00:00:00:08; filter not ethDst = 00:00:00:00:00:07; port := 4) + (filter switch = 4; filter port = 2; filter not ethDst = 00:00:00:00:00:08; filter not ethDst = 00:00:00:00:00:07; port := 3)) |
-(filter switch = 4; filter ethDst = 00:00:00:00:00:07; port := 1) |
-(filter switch = 5; filter ethDst = 00:00:00:00:00:0a; port := 2) |
 ((filter switch = 5; filter port = 1; filter not ethDst = 00:00:00:00:00:0a; filter not ethDst = 00:00:00:00:00:09; port := 3) + (filter switch = 5; filter port = 1; filter not ethDst = 00:00:00:00:00:0a; filter not ethDst = 00:00:00:00:00:09; port := 4)) |
 ((filter switch = 5; filter port = 2; filter not ethDst = 00:00:00:00:00:0a; filter not ethDst = 00:00:00:00:00:09; port := 4) + (filter switch = 5; filter port = 2; filter not ethDst = 00:00:00:00:00:0a; filter not ethDst = 00:00:00:00:00:09; port := 3)) |
-(filter switch = 5; filter ethDst = 00:00:00:00:00:09; port := 1) |
-(filter switch = 6; filter ethDst = 00:00:00:00:00:0b; port := 1) |
-(filter switch = 6; filter ethDst = 00:00:00:00:00:0c; port := 2) |
 ((filter switch = 6; filter port = 2; filter not ethDst = 00:00:00:00:00:0b; filter not ethDst = 00:00:00:00:00:0c; port := 4) + (filter switch = 6; filter port = 2; filter not ethDst = 00:00:00:00:00:0b; filter not ethDst = 00:00:00:00:00:0c; port := 3)) |
 ((filter switch = 6; filter port = 1; filter not ethDst = 00:00:00:00:00:0b; filter not ethDst = 00:00:00:00:00:0c; port := 3) + (filter switch = 6; filter port = 1; filter not ethDst = 00:00:00:00:00:0b; filter not ethDst = 00:00:00:00:00:0c; port := 4)) |
 ((filter switch = 7; filter port = 1; filter not ethDst = 00:00:00:00:00:0d; filter not ethDst = 00:00:00:00:00:0e; port := 3) + (filter switch = 7; filter port = 1; filter not ethDst = 00:00:00:00:00:0d; filter not ethDst = 00:00:00:00:00:0e; port := 4)) |
 ((filter switch = 7; filter port = 2; filter not ethDst = 00:00:00:00:00:0d; filter not ethDst = 00:00:00:00:00:0e; port := 4) + (filter switch = 7; filter port = 2; filter not ethDst = 00:00:00:00:00:0d; filter not ethDst = 00:00:00:00:00:0e; port := 3)) |
-(filter switch = 7; filter ethDst = 00:00:00:00:00:0d; port := 1) |
-(filter switch = 7; filter ethDst = 00:00:00:00:00:0e; port := 2) |
 ((filter switch = 8; filter port = 1; filter not ethDst = 00:00:00:00:00:0f; filter not ethDst = 00:00:00:00:00:10; port := 3) + (filter switch = 8; filter port = 1; filter not ethDst = 00:00:00:00:00:0f; filter not ethDst = 00:00:00:00:00:10; port := 4)) |
 ((filter switch = 8; filter port = 2; filter not ethDst = 00:00:00:00:00:0f; filter not ethDst = 00:00:00:00:00:10; port := 4) + (filter switch = 8; filter port = 2; filter not ethDst = 00:00:00:00:00:0f; filter not ethDst = 00:00:00:00:00:10; port := 3)) |
-(filter switch = 8; filter ethDst = 00:00:00:00:00:0f; port := 1) |
-(filter switch = 8; filter ethDst = 00:00:00:00:00:10; port := 2) |
 ((filter switch = 9; filter port = 1; filter not ethDst = 00:00:00:00:00:03; filter not ethDst = 00:00:00:00:00:04; filter not ethDst = 00:00:00:00:00:02; filter not ethDst = 00:00:00:00:00:01; port := 3) + (filter switch = 9; filter port = 1; filter not ethDst = 00:00:00:00:00:03; filter not ethDst = 00:00:00:00:00:04; filter not ethDst = 00:00:00:00:00:02; filter not ethDst = 00:00:00:00:00:01; port := 4)) |
 ((filter switch = 9; filter port = 2; filter not ethDst = 00:00:00:00:00:03; filter not ethDst = 00:00:00:00:00:04; filter not ethDst = 00:00:00:00:00:02; filter not ethDst = 00:00:00:00:00:01; port := 4) + (filter switch = 9; filter port = 2; filter not ethDst = 00:00:00:00:00:03; filter not ethDst = 00:00:00:00:00:04; filter not ethDst = 00:00:00:00:00:02; filter not ethDst = 00:00:00:00:00:01; port := 3)) |
 ((filter switch = 9; filter port = 2; filter ethDst = 00:00:00:00:00:02; port := 1) + (filter switch = 9; filter port = 2; filter ethDst = 00:00:00:00:00:02; port := 2)) |
@@ -497,4 +481,40 @@
 20@1 => 10@4 |
 20@4 => 16@4 |
 20@3 => 14@4
-))*
+))*;
+((
+filter switch = 1; filter ethDst = 00:00:00:00:00:02; port := 2 |
+filter switch = 1; filter ethDst = 00:00:00:00:00:01; port := 1 |
+filter switch = 2; filter ethDst = 00:00:00:00:00:03; port := 1 |
+filter switch = 2; filter ethDst = 00:00:00:00:00:04; port := 2 |
+filter switch = 3; filter ethDst = 00:00:00:00:00:06; port := 2 |
+filter switch = 3; filter ethDst = 00:00:00:00:00:05; port := 1 |
+filter switch = 4; filter ethDst = 00:00:00:00:00:08; port := 2 |
+filter switch = 4; filter ethDst = 00:00:00:00:00:07; port := 1 |
+filter switch = 5; filter ethDst = 00:00:00:00:00:0a; port := 2 |
+filter switch = 5; filter ethDst = 00:00:00:00:00:09; port := 1 |
+filter switch = 6; filter ethDst = 00:00:00:00:00:0b; port := 1 |
+filter switch = 6; filter ethDst = 00:00:00:00:00:0c; port := 2 |
+filter switch = 7; filter ethDst = 00:00:00:00:00:0d; port := 1 |
+filter switch = 7; filter ethDst = 00:00:00:00:00:0e; port := 2 |
+filter switch = 8; filter ethDst = 00:00:00:00:00:0f; port := 1 |
+filter switch = 8; filter ethDst = 00:00:00:00:00:10; port := 2
+);
+(
+1@1 => 0@1 |
+1@2 => 0@2 |
+2@1 => 0@3 |
+2@2 => 0@4 |
+3@1 => 0@5 |
+3@2 => 0@6 |
+4@1 => 0@7 |
+4@2 => 0@8 |
+5@1 => 0@9 |
+5@2 => 0@10 |
+6@1 => 0@11 |
+6@2 => 0@12 |
+7@1 => 0@13 |
+7@2 => 0@14 |
+8@1 => 0@15 |
+8@2 => 0@16
+))
