@@ -1,18 +1,6 @@
 open Topology_util
 open Graph
 
-let string_of_vint v =
-  (* TODO(jnf): move somewhere sensible *)
-  let make_string_of formatter x =
-    let open Format in
-	let buf = Buffer.create 100 in
-	let fmt = formatter_of_buffer buf in
-	pp_set_margin fmt 80;
-	formatter fmt x;
-	fprintf fmt "@?";
-	Buffer.contents buf in
-  make_string_of VInt.format v
-
 type switchId = SDN_Types.switchId
 type portId = VInt.t
 type rate = Rate of int64 * int64
@@ -188,10 +176,10 @@ struct
 
   let string_of_label (s,l,d) =
     Printf.sprintf "{srcport = %s; dstport = %s; cost = %s; capacity = %s;}"
-      (string_of_vint l.srcport)
-      (string_of_vint l.dstport)
-      (string_of_vint l.cost)
-      (string_of_vint l.capacity)
+      (VInt.get_string l.srcport)
+      (VInt.get_string l.dstport)
+      (VInt.get_string l.cost)
+      (VInt.get_string l.capacity)
 
   let to_dot (s,l,d) =
     let s = Node.to_dot s in
@@ -352,7 +340,7 @@ struct
                          (List.filter (fun e -> (Link.srcport e) = p) ss))
       with Failure hd -> raise (NotFound(
         Printf.sprintf "next_hop: Port %s on %s is not connected\n"
-          (string_of_vint p) (Node.to_string n)))
+          (VInt.get_string p) (Node.to_string n)))
     in d
 
   (* Find the shortest path between two nodes using Dijkstra's algorithm,
@@ -475,10 +463,10 @@ struct
           | Node.Host(n,m,i) ->
             Printf.sprintf "    %s = net.addHost(\'%s\', mac=\'%s\', ip=\'%s\')\n"
               n n
-              (string_of_vint m) (string_of_vint i)
+              (VInt.get_string m) (VInt.get_string i)
           | Node.Switch(s,i) ->
             let name = Str.global_replace (Str.regexp "[ ,]") "" s in
-            let sid = "s" ^ (string_of_vint i) in 
+            let sid = "s" ^ (VInt.get_string i) in 
             Printf.sprintf
             "    %s = net.addSwitch(\'%s\')\n" name sid
           | Node.Mbox(s,_) -> Printf.sprintf
@@ -499,8 +487,8 @@ struct
               (Node.to_string (E.dst e)) in
             Printf.sprintf "    net.addLink(%s, %s, %s, %s)\n"
               src dst
-	      (string_of_vint (Link.srcport e))
-	      (string_of_vint (Link.dstport e))
+	      (VInt.get_string (Link.srcport e))
+	      (VInt.get_string (Link.dstport e))
         in
         seen := EdgeSet.add e !seen;
         acc ^ add
