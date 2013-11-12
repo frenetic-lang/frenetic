@@ -150,7 +150,6 @@ def to_netkat_set_of_tables_for_switches(graph, switches, withTopo=True):
                 topoterm = "%s@%d => 0@%d" % (graph.node[dst]['id'], ed['dport'], graph.node[host]['id'])
                 edge_topo.append(topoterm)
 
-    if withTopo:
         return "((\n%s\n);\n(\n%s\n))*;\n((\n%s\n);\n(\n%s\n))" % \
             (string.join(policy, " |\n"), string.join(topo, " |\n"),
              string.join(edge_policy, " |\n"), string.join(edge_topo, " |\n"))
