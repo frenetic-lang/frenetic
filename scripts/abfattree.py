@@ -156,10 +156,10 @@ def to_netkat_set_of_tables_for_switches(graph, switches, withTopo=True):
         return "((\n%s\n);\n(\n%s\n))\n" % (string.join(policy, " |\n"), string.join(edge_policy, " |\n"))
 
 def to_netkat_set_of_tables(graph, withTopo=True):
-    return to_netkat_set_of_tables_for_switches(graph, graph.switches) 
+    return to_netkat_set_of_tables_for_switches(graph, graph.switches, withTopo) 
 
 def to_netkat_test_set_of_tables(graph, withTopo=True):
-    return to_netkat_set_of_tables_for_switches(graph, (graph.switches[0], graph.switches[1], graph.switches[8], graph.switches[9])) 
+    return to_netkat_set_of_tables_for_switches(graph, (graph.switches[0], graph.switches[1], graph.switches[8], graph.switches[9]), withTopo) 
 
 def to_netkat_set_of_tables_failover_for_switches(graph, switches, withTopo=True, specializeInPort=True):
     policy = []
@@ -314,10 +314,10 @@ def to_netkat_set_of_tables_failover_for_switches(graph, switches, withTopo=True
         return "((\n%s\n);\n(\n%s\n))\n" % (string.join(map(lambda x: "(%s)" % (x), policy), " |\n"), string.join(edge_policy, " |\n"))
 
 def to_netkat_set_of_tables_failover(graph, withTopo=True):
-    return to_netkat_set_of_tables_failover_for_switches(graph, graph.switches) 
+    return to_netkat_set_of_tables_failover_for_switches(graph, graph.switches, withTopo) 
 
 def to_netkat_test_set_of_tables_failover(graph, withTopo=True):
-    return to_netkat_set_of_tables_failover_for_switches(graph, (graph.switches[0], graph.switches[1], graph.switches[8], graph.switches[9]))
+    return to_netkat_set_of_tables_failover_for_switches(graph, (graph.switches[0], graph.switches[1], graph.switches[8], graph.switches[9]), withTopo)
 
 def find_next_sibling_node(graph, node, src):
     for k in graph.neighbors_iter(node):
