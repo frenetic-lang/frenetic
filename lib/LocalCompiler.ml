@@ -280,13 +280,13 @@ module Atom = struct
   let compare (xs1,x1) (xs2,x2) =    
     let r = 
       if not (Pattern.Set.mem x1 xs2) && Pattern.Set.mem x2 xs1 then 
-        -1
-      else if not (Pattern.Set.mem x1 xs2) && Pattern.Set.mem x1 xs2 then
         1
+      else if not (Pattern.Set.mem x1 xs2) && Pattern.Set.mem x1 xs2 then
+        -1
       else 
-        let cmp = Pattern.compare x1 x2 in 
+        let cmp = Pattern.Set.compare xs1 xs2 in 
         if cmp = 0 then 
-          Pattern.Set.compare xs1 xs2 
+          Pattern.compare x1 x2 
         else 
           cmp in 
     (* Printf.printf "COMPARE %s %s = %d\n%!" (to_string (xs1,x1)) (to_string (xs2,x2)) r; *)
@@ -734,11 +734,13 @@ module RunTime = struct
         with Not_found -> 
           None in 
       simpl_flow (to_pattern x) (group_to_action g pto) :: l in
+    (* Printf.printf "\nLOOP\n%s\n\n" (Local.to_string p); *)
     let rec loop (p:i) acc cover =
       if Atom.Map.is_empty p then
         acc
       else
         let r,g = Atom.Map.min_binding p in
+        (* let _ = Printf.printf "R => G: %s => %s\n" (Atom.to_string r) (Action.group_to_string g) in  *)
         let (xs,x) = r in
         assert (not (Pattern.Set.mem x cover));
         let p' = Atom.Map.remove r p in
@@ -747,9 +749,9 @@ module RunTime = struct
         let acc'' = add_flow x g acc' in
         let cover' = Pattern.Set.add x (Pattern.Set.union ys cover) in
         assert (p <> p');
-        (* if Pattern.Set.is_empty ys then  *)
-        (*   ()  *)
-        (* else  *)
+        (* if Pattern.Set.is_empty ys then *)
+        (*   () *)
+        (* else *)
         (*   Printf.printf "COVR %s\n" (Pattern.set_to_string ys); *)
         (* Printf.printf "EMIT %s => %s\n" (Pattern.to_string x) (Action.group_to_string g); *)
         loop p' acc'' cover' in

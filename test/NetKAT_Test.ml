@@ -86,12 +86,12 @@ TEST "par1" =
 	   (testSrc 1)
 	   (modSrc 2)
 	   (modSrc 3)))
-    (inte
+    (ite
        (testSrc 1)
        (Par (modSrc 1,
-	     modSrc 3))
+	     modSrc 2))
        (Par (modSrc 1,
-	     modSrc 2)))
+	     modSrc 3)))
        
 TEST "star id" =
   test_compile
@@ -112,8 +112,9 @@ TEST "star modify2" =
   test_compile
     (Star (Par (modSrc 0,
 	        ite (testSrc 0) (modSrc 1) (modSrc 2))))
-    (Par (Seq(Filter (Neg (testSrc 0)), Par (Par (Par (Filter True, modSrc 0), modSrc 1), modSrc 2)),
-          Seq(Filter (testSrc 0), Par (Par (Par (Filter True, modSrc 0), modSrc 1), modSrc 2))))
+    (ite (testSrc 0)
+       (Par (Par (Par (Filter True, modSrc 0), modSrc 1), modSrc 2))
+       (Par (Par (Par (Filter True, modSrc 0), modSrc 1), modSrc 2)))
 
 (*
 TEST "policy that caused stack overflow on 10/16/2013" =
@@ -167,9 +168,9 @@ TEST "vlan" =
 	   (Seq(id, mod_vlan_none)), 
 	 mod_port1) in
   let pol' = 
-    inte test_vlan_none
-      (Seq (mod_vlan_none, mod_port1))
-      mod_port1 in 
+    ite test_vlan_none      
+      mod_port1 
+      (Seq (mod_vlan_none, mod_port1)) in 
   test_compile pol pol'
 
 (* TEST "quickcheck local compiler" = *)
