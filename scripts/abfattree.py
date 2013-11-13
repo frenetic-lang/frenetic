@@ -153,7 +153,8 @@ def to_netkat_set_of_tables_for_switches(graph, switches, withTopo=True):
             (string.join(policy, " |\n"), string.join(topo, " |\n"),
              string.join(edge_policy, " |\n"), string.join(edge_topo, " |\n"))
     else:
-        return "%s\n" % (string.join(policy.extend(edge_policy), " |\n"))
+        policy.extend(edge_policy)
+        return "%s\n" % (string.join(policy, " |\n"))
 
 def to_netkat_set_of_tables(graph, withTopo=True):
     return to_netkat_set_of_tables_for_switches(graph, graph.switches, withTopo) 
@@ -311,7 +312,8 @@ def to_netkat_set_of_tables_failover_for_switches(graph, switches, withTopo=True
             (string.join(map(lambda x: "(%s)" % (x), policy), " |\n"), string.join(topo, " |\n"), 
              string.join(edge_policy, " |\n"), string.join(edge_topo, " |\n"))
     else:
-        return "%s\n" % (string.join((map(lambda x: "(%s)" % (x), policy)).extend(edge_policy), " |\n"))
+        policy.extend(edge_policy)
+        return "%s\n" % (string.join(map(lambda x: "(%s)" % (x), policy), " |\n"))
 
 def to_netkat_set_of_tables_failover(graph, withTopo=True):
     return to_netkat_set_of_tables_failover_for_switches(graph, graph.switches, withTopo) 
