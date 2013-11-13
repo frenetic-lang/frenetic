@@ -33,12 +33,11 @@ let run args =
     let open NetKAT_Automaton in
     let open Types in
     let i,m,_,e = dehopify p in
-    let switch_policies = switch_port_policies_to_switch_policies m in
     let cache = SwitchMap.mapi (fun sw sw_p ->
       let sw_f  = Types.Filter(Test(Switch, sw)) in
       let sw_p' = Types.(Seq(Seq(i,Seq(sw_f, sw_p)),e)) in
       to_table (compile sw sw_p'))
-    switch_policies in
+    m in
     (fun sw -> SwitchMap.find sw cache) in
 
   match args with
@@ -75,13 +74,11 @@ let dump args =
   let automaton p =
     let open NetKAT_Automaton in
     let i,m,_,e = dehopify p in
-    let switch_policies = switch_port_policies_to_switch_policies m in
     SwitchMap.iter (fun sw p ->
       let open Types in
-      let pol0  = SwitchMap.find sw switch_policies in
+      let pol0  = SwitchMap.find sw m in
       let sw_f  = Types.Filter(Test(Switch, sw)) in
       let pol0' = Seq(Seq(i,Seq(sw_f,pol0)),e) in
-
       (* let _ = Printf.printf "Compiling switch %ld..." (VInt.get_int32 sw) in  *)
       (* let t1 = Unix.gettimeofday () in  *)
       let i = compile sw pol0' in 
@@ -89,13 +86,15 @@ let dump args =
       let tbl0 = to_table i in 
       (* let t3 = Unix.gettimeofday () in  *)
       (* let _ =  *)
-      (* 	Printf.printf "Done [size: %d ctime: %fs ttime:%fs]\n%!" (Semantics.size pol0')  *)
+      (*  Printf.printf "Done [size: %d ctime: %fs ttime:%fs]\n%!" (Semantics.size pol0')  *)
       (*   (t2 -. t1) (t3 -. t2) in *)
-      Format.printf "@[%a\nflowtable for switch %ld:\n%a@\n\n@]%!"
-      Pretty.format_policy pol0'
-        (VInt.get_int32 sw)
+      let open VInt in
+      Format.printf "@[policy for switch %ld:\n%!%a\n\nflowtable for switch %ld:\n%!%a@\n\n@]%!"
+        (get_int32 sw)
+        Pretty.format_policy pol0'
+        (get_int32 sw)
         SDN_Types.format_flowTable tbl0)
-    switch_policies in
+    m in
 
   match args with
     | [filename]
