@@ -24,7 +24,7 @@ let rec size (pol:policy) : int =
     | Choice(pol1, pol2) -> size pol1 + size pol2 + 1
     | Star(pol) -> size pol + 1
     | Link(_,_,_,_) -> 5
-  
+
 let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
   | True -> true
   | False -> false
@@ -32,7 +32,7 @@ let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
   | And (pr1, pr2) -> eval_pred pkt pr1 && eval_pred pkt pr2
   | Or (pr1, pr2) -> eval_pred pkt pr1 || eval_pred pkt pr2
   | Neg pr1 -> not (eval_pred pkt pr1)
-    
+  
 let rec eval (pkt : packet) (pol : policy) : PacketSetSet.t = match pol with
   | Filter pr -> 
     if eval_pred pkt pr then 

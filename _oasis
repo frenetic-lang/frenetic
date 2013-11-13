@@ -81,6 +81,7 @@ Test all_tests
 Executable katnetic
   Path: frenetic
   MainIs: katnetic.ml
+  CompiledObject: best
   Install$: flag(installexec)
   CompiledObject: best
   BuildDepends:
