@@ -5,9 +5,11 @@ open Types
 open Pretty
 
 let test_compile lhs rhs =
-  let rhs' = 
-    LocalCompiler.Local.to_netkat
-      (LocalCompiler.Local.of_policy (VInt.Int64 0L) lhs) in
+  (* Printf.printf "Compiling...\n%!"; *)
+  let i = LocalCompiler.Local.of_policy (VInt.Int64 0L) lhs in 
+  (* Printf.printf "Okay...\n%!"; *)
+  let rhs' = LocalCompiler.Local.to_netkat i in 
+  (* Printf.printf "Done!\n%!"; *)
   if rhs' = rhs then
     true
   else
@@ -27,6 +29,9 @@ let test_compile_table pol tbl =
 
 let ite (pred : pred) (then_pol : policy) (else_pol : policy) : policy =
   Par (Seq (Filter pred, then_pol), Seq (Filter (Neg pred), else_pol))
+
+let inte (pred : pred) (then_pol : policy) (else_pol : policy) : policy =
+  Par (Seq (Filter (Neg pred), then_pol), Seq (Filter pred, else_pol))
 
 let testSrc n = Test (Header EthSrc, VInt.Int64 (Int64.of_int n))
 let testDst n = Test (Header EthDst, VInt.Int64 (Int64.of_int n))
@@ -81,12 +86,12 @@ TEST "par1" =
 	   (testSrc 1)
 	   (modSrc 2)
 	   (modSrc 3)))
-    (ite
+    (inte
        (testSrc 1)
        (Par (modSrc 1,
-	     modSrc 2))
+	     modSrc 3))
        (Par (modSrc 1,
-	     modSrc 3)))
+	     modSrc 2)))
        
 TEST "star id" =
   test_compile
@@ -107,10 +112,8 @@ TEST "star modify2" =
   test_compile
     (Star (Par (modSrc 0,
 	        ite (testSrc 0) (modSrc 1) (modSrc 2))))
-    (ite
-       (testSrc 0)
-       (Par (Par (Par (Filter True, modSrc 0), modSrc 1), modSrc 2))
-       (Par (Par (Par (Filter True, modSrc 0), modSrc 1), modSrc 2)))
+    (Par (Seq(Filter (Neg (testSrc 0)), Par (Par (Par (Filter True, modSrc 0), modSrc 1), modSrc 2)),
+          Seq(Filter (testSrc 0), Par (Par (Par (Filter True, modSrc 0), modSrc 1), modSrc 2))))
 
 (*
 TEST "policy that caused stack overflow on 10/16/2013" =
@@ -164,9 +167,9 @@ TEST "vlan" =
 	   (Seq(id, mod_vlan_none)), 
 	 mod_port1) in
   let pol' = 
-    ite test_vlan_none
-      mod_port1
-      (Seq (mod_vlan_none, mod_port1)) in 
+    inte test_vlan_none
+      (Seq (mod_vlan_none, mod_port1))
+      mod_port1 in 
   test_compile pol pol'
 
 (* TEST "quickcheck local compiler" = *)
