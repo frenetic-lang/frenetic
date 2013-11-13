@@ -48,7 +48,7 @@ type nwProto = int8
 (** [nwTos] is the type of IPv4 types of service. *)
 type nwTos = int8
 
-(** [tpPort] is the type of TCP ports. *)
+(** [tpPort] is the type of transport protocol ports. *)
 type tpPort = int16
 
 (** TCP frame of a packet. *)
@@ -88,6 +88,18 @@ module Tcp : sig
 
 end
 
+(** UDP frame of a packet. *)
+module Udp : sig
+
+  type t =
+    { src : tpPort (** Source port. *)
+    ; dst : tpPort  (** Destination port. *)
+    ; chksum : int16  (** Checksum. *)
+    ; payload : bytes (** UDP payload. *)
+    }
+
+end
+
 (** ICMP frame of a packet. *)
 module Icmp : sig
 
@@ -104,11 +116,12 @@ end
 module Ip : sig
 
   (** [tp] is the type of protocol, which indicates which protocol is
-  encapsulated in the payload of the IPv4 frame.  At present, only TCP and ICMP
+  encapsulated in the payload of the IPv4 frame.  At present, only TCP, UDP and ICMP
   are explicitly supported; otherwise, the raw bytes and IPv4 protocol number
   are provided. *)
   type tp =
     | Tcp of Tcp.t
+    | Udp of Udp.t
     | Icmp of Icmp.t
     | Unparsable of (nwProto * bytes)
 
@@ -183,12 +196,12 @@ val nwTos : packet -> nwTos
 @raise Invalid_argument if the packet is not carrying an IP payload. *)
 val nwProto : packet -> nwProto
 
-(** [tpSrc pkt] returns the TCP source port of [pkt].
-@raise Invalid_argument if the packet is not carrying a TCP payload. *)
+(** [tpSrc pkt] returns the transport protocol source port of [pkt].
+@raise Invalid_argument if the packet is not carrying a TCP or UDP payload. *)
 val tpSrc : packet -> tpPort
 
-(** [tpDst pkt] returns the TCP destination port of [pkt].
-@raise Invalid_argument if the packet is not carrying a TCP payload. *)
+(** [tpDst pkt] returns the transport protocol destination port of [pkt].
+@raise Invalid_argument if the packet is not carrying a TCP or UDP payload. *)
 val tpDst : packet -> tpPort
 
 (** [arpOperation pkt] returns the ARP operation code of [pkt].
@@ -222,12 +235,12 @@ val setNwDst : packet -> nwAddr -> packet
 carries an IP payload.  Otherwise, it returns the packet unchanged. *)
 val setNwTos : packet -> nwTos -> packet
 
-(** [setTpSrc pkt] sets the TCP source port of [pkt] if the packet
-carries an TCP payload.  Otherwise, it returns the packet unchanged. *)
+(** [setTpSrc pkt] sets the transport protocol source port of [pkt] if the packet
+carries a TCP or UDP payload.  Otherwise, it returns the packet unchanged. *)
 val setTpSrc : packet -> tpPort -> packet
 
-(** [setTpDst pkt] sets the TCP destination port of [pkt] if the packet
-carries a TCP payload.  Otherwise, it returns the packet unchanged. *)
+(** [setTpDst pkt] sets the transport protocol destination port of [pkt] if the packet
+carries a TCP or UDP payload.  Otherwise, it returns the packet unchanged. *)
 val setTpDst : packet -> tpPort -> packet
 
 (** {9 Pretty Printing} *)
@@ -261,7 +274,7 @@ val string_of_nwProto : nwProto -> string
 (** [string_of_nwTos t] pretty-prints an IPv4 type of service. *)
 val string_of_nwTos : nwTos -> string
 
-(** [string_of_tpPort p] pretty-prints a TCP port number. *)
+(** [string_of_tpPort p] pretty-prints a transport protocol port number. *)
 val string_of_tpPort : tpPort -> string
 
 (** [bytes_of_mac mac] returns a bit-string representation of [mac]. *)
