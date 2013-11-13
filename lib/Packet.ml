@@ -202,6 +202,47 @@ module Tcp = struct
 
 end
 
+module Udp = struct
+
+  type t =
+    { src : tpPort
+    ; dst : tpPort
+    ; chksum : int16
+    ; payload : bytes }
+
+  let format fmt v =
+    let open Format in
+    fprintf fmt "@[tpSrc=%d;tpDst=%d@]" v.src v.dst
+
+  cstruct udp {
+    uint16_t src;
+    uint16_t dst;
+    uint16_t chksum
+  } as big_endian
+
+  let parse (bits : Cstruct.t) =
+    if Cstruct.len bits < sizeof_udp then
+      raise (UnparsablePacket "not enough bytes for UDP header");
+    let src = get_udp_src bits in
+    let dst = get_udp_dst bits in
+    let chksum = get_udp_chksum bits in
+    let payload = Cstruct.shift bits sizeof_udp in
+    { src = src;
+      dst = dst;
+      chksum = chksum;
+      payload = payload }
+
+  let len (pkt : t) = sizeof_udp + Cstruct.len pkt.payload
+
+  (* Assumes that bits has enough room *)
+  let marshal (bits : Cstruct.t) (pkt : t) =
+    set_udp_src bits pkt.src;
+    set_udp_dst bits pkt.dst;
+    let bits = Cstruct.shift bits sizeof_udp in
+    Cstruct.blit pkt.payload 0 bits 0 (Cstruct.len pkt.payload)
+
+end
+
 module Icmp = struct
 
   type t = {
@@ -249,6 +290,7 @@ module Ip = struct
 
   type tp =
     | Tcp of Tcp.t
+    | Udp of Udp.t
     | Icmp of Icmp.t
     | Unparsable of (nwProto * bytes)
 
@@ -288,6 +330,7 @@ module Ip = struct
 
   let format_tp fmt = function
     | Tcp tcp -> Tcp.format fmt tcp
+    | Udp udp -> Udp.format fmt udp
     | Icmp icmp -> Icmp.format fmt icmp
     | Unparsable (proto, _) -> Format.fprintf fmt "protocol=%d" proto
 
@@ -340,6 +383,7 @@ module Ip = struct
       try match int_to_ip_proto proto with 
         | Some IP_ICMP -> Icmp (Icmp.parse bits)
         | Some IP_TCP -> Tcp (Tcp.parse bits)
+        | Some IP_UDP -> Udp (Udp.parse bits)
         | _ -> Unparsable (proto, bits) 
       with UnparsablePacket _ -> Unparsable (proto, bits) in
     { tos = tos;
@@ -357,6 +401,7 @@ module Ip = struct
     let ip_len = sizeof_ip - 4 in (* cstruct for ip has options, hence hack *)
     let tp_len = match pkt.tp with 
       | Tcp tcp -> Tcp.len tcp
+      | Udp udp -> Udp.len udp
       | Icmp icmp -> Icmp.len icmp
       | Unparsable (_, data) -> Cstruct.len data in 
     ip_len + tp_len
@@ -373,6 +418,7 @@ module Ip = struct
     set_ip_ttl bits pkt.ttl;
     let proto = match pkt.tp with
       | Tcp _ -> tcp_code
+      | Udp _ -> udp_code
       | Icmp _ -> icmp_code
       | Unparsable (p, _) -> p in
     set_ip_proto bits proto;
@@ -383,6 +429,8 @@ module Ip = struct
     match pkt.tp with
       | Tcp tcp -> 
         Tcp.marshal bits tcp
+      | Udp udp ->
+        Udp.marshal bits udp
       | Icmp icmp -> 
         Icmp.marshal bits icmp
       | Unparsable (protocol, data) ->
@@ -527,6 +575,7 @@ let nwProto pkt = match pkt.nw with
   | Ip ip -> 
     begin match ip.Ip.tp with
       | Ip.Tcp _ -> 6
+      | Ip.Udp _ -> 17
       | Ip.Icmp _ -> 1
       | Ip.Unparsable (p, _) -> p
     end
@@ -542,6 +591,7 @@ let tpSrc pkt = match pkt.nw with
   | Ip ip ->
     (match ip.Ip.tp with
     | Ip.Tcp frg -> frg.Tcp.src
+    | Ip.Udp frg -> frg.Udp.src
     | Ip.Icmp _ -> raise (Invalid_argument "tpSrc: ICMP packet")
     | Ip.Unparsable _ -> 
       raise (Invalid_argument "tpSrc: cannot parse body of IP packet"))
@@ -552,6 +602,7 @@ let tpDst pkt = match pkt.nw with
   | Ip ip ->
     (match ip.Ip.tp with
     | Ip.Tcp frg -> frg.Tcp.dst
+    | Ip.Udp frg -> frg.Udp.dst
     | Ip.Icmp _ -> raise (Invalid_argument "tpDst: ICMP packet")
     | Ip.Unparsable _ -> 
       raise (Invalid_argument "tpDst: cannot parse body of IP packet"))
@@ -607,12 +658,16 @@ let setNwTos pkt nwTos =
 let tp_setTpSrc tp src = match tp with 
   | Ip.Tcp tcp ->
     Ip.Tcp { tcp with Tcp.src = src } (* JNF: checksum? *)
+  | Ip.Udp udp ->
+    Ip.Udp { udp with Udp.src = src }
   | tp -> 
     tp
 
 let tp_setTpDst tp dst = match tp with 
   | Ip.Tcp tcp ->
     Ip.Tcp { tcp with Tcp.dst = dst } (* JNF: checksum? *)
+  | Ip.Udp udp ->
+    Ip.Udp { udp with Udp.dst = dst }
   | tp -> 
     tp
 
