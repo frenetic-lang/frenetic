@@ -2,5 +2,9 @@
 (filter switch = 1; filter ethDst = 00:00:00:00:00:02; (port := 1 + port := 2)) |
 (filter switch = 2; filter ethDst = 00:00:00:00:00:02; port := 2) |
 (filter switch = 3; filter ethDst = 00:00:00:00:00:02; port := 2) |
-(filter switch = 4; filter ethDst = 00:00:00:00:00:02; port := 3)
+(filter switch = 4; filter ethDst = 00:00:00:00:00:02; port := 3) |
+(filter switch = 4; filter ethDst = 00:00:00:00:00:01; (port := 1 + port := 2)) |
+(filter switch = 2; filter ethDst = 00:00:00:00:00:01; port := 1) |
+(filter switch = 3; filter ethDst = 00:00:00:00:00:01; port := 1) |
+(filter switch = 1; filter ethDst = 00:00:00:00:00:01; port := 3)
 )
