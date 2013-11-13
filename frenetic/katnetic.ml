@@ -11,23 +11,22 @@ let help args =
 			  "  run    Compile and start the controller\n" ^ 
 			  "  dump   Compile and dump flow table\n")
 
+module Run = struct
+  open LocalCompiler.RunTime
 
-let run_with_channel f chan =
-  let exp = Parser.program Lexer.token (Lexing.from_channel chan) in
-  Lwt_main.run (Controller.start f 6633 (NetKAT_Stream.constant exp))
-
-let run_with_file f filename =
-  run_with_channel f (open_in filename)
-
-let run args =
-  let open LocalCompiler.RunTime in
+  let with_channel f chan =
+    let exp = Parser.program Lexer.token (Lexing.from_channel chan) in
+    Lwt_main.run (Controller.start f 6633 (NetKAT_Stream.constant exp))
+  
+  let with_file f filename =
+    with_channel f (open_in filename)
 
   let local p =
-    (fun sw -> to_table (compile sw p)) in  
+    (fun sw -> to_table (compile sw p))
 
   let classic p =
     let p' = Dehop.dehop_policy p in
-    local p' in 
+    local p'
 
   let automaton p =
     let open NetKAT_Automaton in
@@ -38,24 +37,25 @@ let run args =
       let sw_p' = Types.(Seq(Seq(i,Seq(sw_f, sw_p)),e)) in
       to_table (compile sw sw_p'))
     m in
-    (fun sw -> SwitchMap.find sw cache) in
+    (fun sw -> SwitchMap.find sw cache)
 
-  match args with
-    | [filename]
-    | ("local"     :: [filename]) -> run_with_file local filename
-    | ("classic"   :: [filename]) -> run_with_file classic filename
-    | ("automaton" :: [filename]) -> run_with_file automaton filename
-    | _ -> help [ "run" ]
+  let main args = 
+    match args with
+      | [filename]
+      | ("local"     :: [filename]) -> with_file local filename
+      | ("classic"   :: [filename]) -> with_file classic filename
+      | ("automaton" :: [filename]) -> with_file automaton filename
+      | _ -> help [ "run" ]
+end
 
+module Dump = struct
+  open LocalCompiler.RunTime
 
-let dump_with_channel f chan =
-  f (Parser.program Lexer.token (Lexing.from_channel chan))
-
-let dump_with_file f filename =
-  dump_with_channel f (open_in filename)
-
-let dump args =
-  let open LocalCompiler.RunTime in
+  let with_channel f chan =
+    f (Parser.program Lexer.token (Lexing.from_channel chan))
+  
+  let with_file f filename =
+    with_channel f (open_in filename)
 
   let local p =
     Format.printf "@[%a\n\n@]%!" Pretty.format_policy p;
@@ -69,7 +69,7 @@ let dump args =
       if List.length table > 0 then
         Format.printf "@[flowtable for switch %d:\n%a@\n\n@]%!" sw
           SDN_Types.format_flowTable table;
-    done in
+    done
 
   let automaton p =
     let open NetKAT_Automaton in
@@ -86,16 +86,19 @@ let dump args =
         Pretty.format_policy pol0'
         (get_int32 sw)
         SDN_Types.format_flowTable tbl0)
-    m in
+    m
 
-  match args with
-    | [filename]
-    | ("local"    :: [filename]) -> dump_with_file local filename
-    | ("automaton" :: [filename]) -> dump_with_file automaton filename
-    | _ -> help [ "dump" ]
+  let main args  =
+    match args with
+      | [filename]
+      | ("local"    :: [filename]) -> with_file local filename
+      | ("automaton" :: [filename]) -> with_file automaton filename
+      | _ -> help [ "dump" ]
+
+end
 
 let () = 
   match Array.to_list Sys.argv with
-    | (_ :: "run" :: args) ->  run args
-    | (_ :: "dump" :: args) -> dump args
+    | (_ :: "run"  :: args) -> Run.main args
+    | (_ :: "dump" :: args) -> Dump.main args
     | _ -> help []
