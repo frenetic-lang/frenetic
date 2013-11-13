@@ -17,6 +17,7 @@ import argparse
 import pprint
 import string
 import networkx as nx
+from mininet.util import macColonHex, ipAdd
 
 def generate(fanout,depth):
     L = depth - 1
@@ -28,7 +29,10 @@ def generate(fanout,depth):
     for node in switches:
         graph.add_node(node, type='switch', id=int(node[1:]))
     for node in hosts:
-        graph.add_node(node, type='host', id=int(node[1:]), mac="00:00:00:00:00:%02x" % (int(node[1:])), ip="10.0.0.%d" % (int(node[1:])))
+        graph.add_node(node, type='host',
+            id=int(node[1:]),
+            mac=macColonHex( int(node[1:]) ),
+            ip=ipAdd( int(node[1:]) ) )
 
 
     graph.switches = switches
@@ -455,13 +459,39 @@ def to_netkat_regular(graph, withTopo=True):
 
     policy.append("((%s); (%s))" % (string.join(agg_flt, " | "), string.join(agg_policy, " | ")))
 
+    edge_flt = []
+    for sw in graph.edge_switches:
+        flt = "filter switch = %d" % (graph.node[sw]['id'])
+        edge_flt.append(flt)
+
+    edge_policy = []
     # every agg sw has the same port-based filters; use the first
+    sw = graph.edge_switches[0]
+    for k, v in graph.node[sw]['routes'].iteritems():
+        if isinstance(k, int):
+            s = string.join(("filter port = %d" % (k), "port := %d" % (v)), "; ")
+            edge_policy.append(s)
+
+    policy.append("((%s); (%s))" % (string.join(edge_flt, " | "), string.join(edge_policy, " | ")))
+
+    agg_policy = []
+    for sw in graph.agg_switches:
+        flt = "filter switch = %d" % (graph.node[sw]['id'])
+        for k, v in graph.node[sw]['routes'].iteritems():
+            if k in graph.hosts:
+                s = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
+                agg_policy.append("(%s)" % (s))
+
+    policy.extend(agg_policy)
+
+    # every agg sw has the same port-based filters; use the first
+    edge_policy = []
     for sw in graph.edge_switches:
         flt = "filter switch = %d" % (graph.node[sw]['id'])
         for k, v in graph.node[sw]['routes'].iteritems():
             if k in graph.hosts:
                 s = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
-                policy.append("(%s)" % (s))
+                edge_policy.append("(%s)" % (s))
 
     if withTopo:
         topo = []
@@ -471,11 +501,20 @@ def to_netkat_regular(graph, withTopo=True):
             topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
             topo.append(topoterm)
 
-    if withTopo:
-        return "((\n%s\n);\n(\n%s\n))*\n" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
-    else:
-        return string.join(policy, " |\n")
+        edge_topo = []
+        for host in graph.hosts:
+            dst = graph.neighbors(host)[0]
+            ed = graph.get_edge_data(host, dst)
+            topoterm = "%s@%d => 0@%d" % (graph.node[dst]['id'], ed['dport'], graph.node[host]['id'])
+            edge_topo.append(topoterm)
 
+    if withTopo:
+        return "((\n%s\n);\n(\n%s\n))*;\n((\n%s\n);\n(\n%s\n))" % \
+            (string.join(policy, " |\n"), string.join(topo, " |\n"),
+             string.join(edge_policy, " |\n"), string.join(edge_topo, " |\n"))
+    else:
+        policy.extend(edge_policy)
+        return "%s\n" % (string.join(policy, " |\n"))
 
 
 def to_netkat(graph, kattype, katfile, failover, local):
