@@ -141,7 +141,6 @@ def to_netkat_set_of_tables_for_switches(graph, switches, withTopo=True):
                 topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
                 topo.append(topoterm)
 
-    if withTopo:
         edge_topo = []
         for host in graph.hosts:
             dst = graph.neighbors(host)[0]
@@ -162,11 +161,13 @@ def to_netkat_set_of_tables(graph, withTopo=True):
 def to_netkat_test_set_of_tables(graph, withTopo=True):
     return to_netkat_set_of_tables_for_switches(graph, (graph.switches[0], graph.switches[1], graph.switches[8], graph.switches[9])) 
 
-def to_netkat_set_of_tables_failover(graph, withTopo=True, specializeInPort=True):
+def to_netkat_set_of_tables_failover_for_switches(graph, switches, withTopo=True, specializeInPort=True):
     policy = []
     edge_policy = []
     # edge
     for node in graph.edge_switches:
+        if not node in switches:
+            continue
         table = []
         edge_table = []
         flt = "filter switch = %d" % (graph.node[node]['id'])
@@ -192,6 +193,8 @@ def to_netkat_set_of_tables_failover(graph, withTopo=True, specializeInPort=True
 
     # agg
     for node in graph.agg_switches:
+        if not node in switches:
+            continue
         table = []
         flt = "filter switch = %d" % (graph.node[node]['id'])
         #pprint.pprint(graph.node[node]['routes'])
@@ -244,6 +247,8 @@ def to_netkat_set_of_tables_failover(graph, withTopo=True, specializeInPort=True
 
     # core
     for node in graph.core_switches:
+        if not node in switches:
+            continue
         table = []
         flt = "filter switch = %d" % (graph.node[node]['id'])
         #pprint.pprint(graph.node[node]['routes'])
@@ -290,22 +295,29 @@ def to_netkat_set_of_tables_failover(graph, withTopo=True, specializeInPort=True
         for src, dst, ed in graph.edges_iter(data=True):
             if src in graph.hosts or dst in graph.hosts:
                 continue
-            topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
-            topo.append(topoterm)
+            if src in switches or dst in switches:
+                topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
+                topo.append(topoterm)
 
         edge_topo = []
         for host in graph.hosts:
             dst = graph.neighbors(host)[0]
-            ed = graph.get_edge_data(host, dst)
-            topoterm = "%s@%d => 0@%d" % (graph.node[dst]['id'], ed['dport'], graph.node[host]['id'])
-            edge_topo.append(topoterm)
+            if dst in switches:
+                ed = graph.get_edge_data(host, dst)
+                topoterm = "%s@%d => 0@%d" % (graph.node[dst]['id'], ed['dport'], graph.node[host]['id'])
+                edge_topo.append(topoterm)
 
-    if withTopo:
         return "((\n%s\n);\n(\n%s\n))*;\n((\n%s\n);\n(\n%s\n))" % \
             (string.join(map(lambda x: "(%s)" % (x), policy), " |\n"), string.join(topo, " |\n"), 
              string.join(edge_policy, " |\n"), string.join(edge_topo, " |\n"))
     else:
         return "((\n%s\n);\n(\n%s\n))\n" % (string.join(map(lambda x: "(%s)" % (x), policy), " |\n"), string.join(edge_policy, " |\n"))
+
+def to_netkat_set_of_tables_failover(graph, withTopo=True):
+    return to_netkat_set_of_tables_failover_for_switches(graph, graph.switches) 
+
+def to_netkat_test_set_of_tables_failover(graph, withTopo=True):
+    return to_netkat_set_of_tables_failover_for_switches(graph, (graph.switches[0], graph.switches[1], graph.switches[8], graph.switches[9]))
 
 def find_next_sibling_node(graph, node, src):
     for k in graph.neighbors_iter(node):
@@ -480,6 +492,8 @@ def to_netkat(graph, kattype, katfile, failover, local):
     if failover:
         if kattype == 'tables':
             policy = to_netkat_set_of_tables_failover(graph, withTopo=withTopo)
+        elif kattype == 'testtables':
+            policy = to_netkat_test_set_of_tables_failover(graph, withTopo=withTopo)
         else:
             raise "Unsupported"
     else:
