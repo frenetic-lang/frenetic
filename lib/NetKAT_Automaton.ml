@@ -705,12 +705,37 @@ let regex_to_switch_policies (r : regex) : policy dehopified =
    * Packets that are not on vlan 1 are considered in the network and may pass.
    * *)
   let check_outside = Types.Test(Header SDN_Types.Vlan, VInt.Int16 1) in
-  let ingress_mod = if Hashtbl.mem pick_states Nfa.(auto.s)
-    then
-      let qs = NFA.eps_closure_upto (Hashtbl.mem pick_states) auto Nfa.(auto.s) in
-      mk_choice (NFA.StateSet.elements qs)
+  let ingress_mod =
+    let open NFA.StateSet in
+    let choice_closure = NFA.eps_closure_upto (Hashtbl.mem pick_states) auto in
+    if Hashtbl.mem pick_states Nfa.(auto.s) then
+      (* A choice node may be an initial state. In this case, all states that
+       * are reachable by epsilon transitions from that initial states are
+       * potential start states and the ingress policy must choose between them.
+       * *)
+      mk_choice (elements (choice_closure Nfa.(auto.s)))
     else
-      mk_mod Nfa.(auto.s) in
+      (* The initial state may not be a choice node, but a choice node may be
+       * reachable from the initial state by epsilon transitions. In that case,
+       * find all the states that are reachable from those choice nodes via
+       * epsilon transition. The ingress policy must choose between these, but
+       * may also in parallel perform other character transitions from the
+       * initial state.
+       * *)
+      let open List in
+      let neighbor_qs = Nfa.(neighbors auto auto.s) in
+      let choice_qs0 = filter (Hashtbl.mem pick_states) neighbor_qs in
+      let choice_qs1 = concat (map (fun x -> elements (choice_closure x)) choice_qs0) in
+      match choice_qs1 with
+        | [] -> mk_mod Nfa.(auto.s)
+        | _  -> if length neighbor_qs = length choice_qs0
+                  then assert false (* If all the neighbors are choice nodes,
+                                     * then the start node should just be a 
+                                     * choice node.
+                                     * *)
+                  else Types.Par(mk_choice choice_qs1, mk_mod Nfa.(auto.s)) in
+
+
   let ingress =
     Types.(Par(Seq(Filter(check_outside), ingress_mod),
                Seq(Filter(Neg(check_outside)), Filter(True)))) in
@@ -735,7 +760,12 @@ let regex_to_switch_policies (r : regex) : policy dehopified =
   let swpm = switch_port_policies_to_switch_policies
     (SwitchPortMap.map edges_to_policy (to_edge_map auto)) in
 
+  (* Printf.printf "%s\n" (regex_to_string r); *)
   (* Printf.printf "AUTO: %s\n" (Nfa.nfa_to_dot auto); *)
+  (* Hashtbl.iter (fun i (lf_p, l) -> *)
+  (*   Printf.printf "%d: %s; %s\n" *)
+  (*    i (lf_policy_to_string lf_p) (Pretty.string_of_policy (link_to_policy l))) *)
+  (* chash; *)
   (ingress, swpm, !links, egress)
 
 let dehopify (p : policy) : policy dehopified =
