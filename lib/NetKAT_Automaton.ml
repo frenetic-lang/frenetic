@@ -530,10 +530,15 @@ module NFA = struct
 	    (StateSet.remove q qs)
 	end
       else 
-	(* Case: q is not a pick node *)
-	StateSet.iter 
-	  (fun qi -> 
-	    Hashtbl.iter 
+        (* Case: q is not a pick node *)
+        StateSet.iter 
+          (fun qi -> 
+            (if is_pick_state qi then 
+              let _,ri' = lookup_state qi in 
+              add_trans m' r Epsilon ri'
+            else ());
+
+          Hashtbl.iter 
 	      (fun q' ns -> 
 		let qs',r' = lookup_state q' in 
 		add_set_trans m' r ns r';
