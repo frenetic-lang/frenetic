@@ -438,6 +438,156 @@ def to_netkat_test_set_of_paths(graph, withTopo):
 def to_netkat_test_set_of_paths2(graph, withTopo):
     return to_netkat_set_of_paths_for_hosts(graph, [graph.hosts[0], graph.hosts[3]], withTopo=withTopo)
 
+#########
+#REAL_PATHS
+#########
+def rec_real_paths_next_hop(graph, node, inport, dst, srchost, dsthost, switches):
+    path = []
+    flt = "filter switch = %d" % (graph.node[node]['id'])
+    switches.add(node)
+    if node == dst:
+        return []
+
+    if dsthost in graph.node[node]['routes']:
+        v = graph.node[node]['routes'][dsthost]
+        s = string.join((flt, "port := %d" % (v)), "; ")
+    else:
+        assert inport in graph.node[node]['routes']
+        #print "inport", inport
+        v = graph.node[node]['routes'][inport]
+        s = string.join((flt, "port := %d" % (v)), "; ")
+
+    nextnode, nextinport = find_next_node(graph, node, v)
+    ed = graph.get_edge_data(node, nextnode)
+    topoterm = "%s@%d => %d@%d" % (graph.node[node]['id'], v, graph.node[nextnode]['id'], ed['dport'])
+    path = [s + "; " + topoterm]
+    #print "next", nextnode, nextinport
+    if nextnode != dst:
+        p = rec_real_paths_next_hop(graph, nextnode, nextinport, dst, srchost, dsthost, switches)
+        path.extend(p)
+    return path
+
+def to_netkat_real_paths_for_hosts(graph, hosts, withTopo=True):
+    policy = ["id"]
+    edge_policy = []
+    switches = set()
+    for srchost in hosts:
+        src = graph.neighbors(srchost)[0]
+        nextnode, inport = find_next_node(graph, srchost, 1)
+        assert src == nextnode
+        for dsthost in hosts:
+            if srchost == dsthost:
+                continue
+            dst = graph.neighbors(dsthost)[0]
+            flt = "filter ethSrc = %s; filter ethDst = %s" % (graph.node[srchost]['mac'], graph.node[dsthost]['mac'])
+            #print "path", srchost, dsthost
+            path = rec_real_paths_next_hop(graph, src, inport, dst, srchost, dsthost, switches)
+            #print string.join(path, " | ")
+            if len(path) > 0:
+                policy.append("(%s; %s)" % (flt, string.join(path, "; ")))
+            switches.add(src)
+            switches.add(dst)
+
+    # edge
+    for node in graph.edge_switches:
+        edge_table = []
+        flt = "filter switch = %d" % (graph.node[node]['id'])
+        #pprint.pprint(graph.node[node]['routes'])
+        for k, v in graph.node[node]['routes'].iteritems():
+            if k in graph.hosts:
+                s = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
+                edge_table.append(s)
+        edge_policy.extend(edge_table)
+
+    if withTopo:
+        edge_topo = []
+        for host in graph.hosts:
+            dst = graph.neighbors(host)[0]
+            if dst in switches:
+                ed = graph.get_edge_data(host, dst)
+                topoterm = "%s@%d => 0@%d" % (graph.node[dst]['id'], ed['dport'], graph.node[host]['id'])
+                edge_topo.append(topoterm)
+
+        return "(\n%s\n);\n((\n%s\n);\n(\n%s\n))" % \
+                (string.join(policy, " |\n"),
+                 string.join(edge_policy, " |\n"), string.join(edge_topo, " |\n"))
+    else:
+        policy.extend(edge_policy)
+        return "%s\n" % (string.join(policy, " |\n"))
+
+def to_netkat_real_paths(graph, withTopo):
+    return to_netkat_real_paths_for_hosts(graph, graph.hosts, withTopo=withTopo)
+
+def to_netkat_test_real_paths(graph, withTopo):
+    return to_netkat_real_paths_for_hosts(graph, graph.hosts[0:2], withTopo=withTopo)
+
+def to_netkat_test_real_paths2(graph, withTopo):
+    return to_netkat_real_paths_for_hosts(graph, [graph.hosts[0], graph.hosts[3]], withTopo=withTopo)
+
+#########
+#REAL_PATHS_NO_ID
+#########
+def rec_realnoid_paths_next_hop(graph, node, inport, dst, srchost, dsthost, switches):
+    path = []
+    flt = "filter switch = %d" % (graph.node[node]['id'])
+    switches.add(node)
+    if node == dst:
+        assert dsthost in graph.node[dst]['routes']
+
+    if dsthost in graph.node[node]['routes']:
+        v = graph.node[node]['routes'][dsthost]
+        s = string.join((flt, "port := %d" % (v)), "; ")
+        if node == dst:
+            topoterm = "%s@%d => 0@%d" % (graph.node[node]['id'], v, graph.node[dsthost]['id'])
+            return [s + "; " + topoterm]
+    else:
+        assert inport in graph.node[node]['routes']
+        #print "inport", inport
+        v = graph.node[node]['routes'][inport]
+        s = string.join((flt, "port := %d" % (v)), "; ")
+
+    nextnode, nextinport = find_next_node(graph, node, v)
+    ed = graph.get_edge_data(node, nextnode)
+    topoterm = "%s@%d => %d@%d" % (graph.node[node]['id'], v, graph.node[nextnode]['id'], ed['dport'])
+    path = [s + "; " + topoterm]
+    #print "next", nextnode, nextinport
+    p = rec_realnoid_paths_next_hop(graph, nextnode, nextinport, dst, srchost, dsthost, switches)
+    path.extend(p)
+    return path
+
+def to_netkat_realnoid_paths_for_hosts(graph, hosts, withTopo=True):
+    policy = []
+    switches = set()
+    for srchost in hosts:
+        src = graph.neighbors(srchost)[0]
+        nextnode, inport = find_next_node(graph, srchost, 1)
+        assert src == nextnode
+        for dsthost in hosts:
+            if srchost == dsthost:
+                continue
+            dst = graph.neighbors(dsthost)[0]
+            flt = "filter ethSrc = %s; filter ethDst = %s" % (graph.node[srchost]['mac'], graph.node[dsthost]['mac'])
+            #print "path", srchost, dsthost
+            path = rec_realnoid_paths_next_hop(graph, src, inport, dst, srchost, dsthost, switches)
+            #print string.join(path, " | ")
+            if len(path) > 0:
+                policy.append("(%s; %s)" % (flt, string.join(path, "; ")))
+            switches.add(src)
+            switches.add(dst)
+
+    return "%s\n" % (string.join(policy, " |\n"))
+
+def to_netkat_realnoid_paths(graph, withTopo):
+    return to_netkat_realnoid_paths_for_hosts(graph, graph.hosts, withTopo=withTopo)
+
+def to_netkat_test_realnoid_paths(graph, withTopo):
+    return to_netkat_realnoid_paths_for_hosts(graph, graph.hosts[0:2], withTopo=withTopo)
+
+def to_netkat_test_realnoid_paths2(graph, withTopo):
+    return to_netkat_realnoid_paths_for_hosts(graph, [graph.hosts[0], graph.hosts[3]], withTopo=withTopo)
+
+#########
+
 def to_netkat_regular(graph, withTopo=True):
     # succinct program that exploits regularity
     policy = []
@@ -555,12 +705,24 @@ def to_netkat(graph, kattype, katfile, failover, local):
             policy = to_netkat_test_set_of_tables(graph, withTopo=withTopo)
         elif kattype == 'paths':
             policy = to_netkat_set_of_paths(graph, withTopo=withTopo)
-        elif kattype == 'regular':
-            policy = to_netkat_regular(graph, withTopo=withTopo)
         elif kattype == 'testpaths':
             policy = to_netkat_test_set_of_paths(graph, withTopo=withTopo)
         elif kattype == 'testpaths2':
             policy = to_netkat_test_set_of_paths2(graph, withTopo=withTopo)
+        elif kattype == 'regular':
+            policy = to_netkat_regular(graph, withTopo=withTopo)
+        elif kattype == 'realpaths':
+            policy = to_netkat_real_paths(graph, withTopo=withTopo)
+        elif kattype == 'testrealpaths':
+            policy = to_netkat_test_real_paths(graph, withTopo=withTopo)
+        elif kattype == 'testrealpaths2':
+            policy = to_netkat_test_real_paths2(graph, withTopo=withTopo)
+        elif kattype == 'realnoidpaths':
+            policy = to_netkat_realnoid_paths(graph, withTopo=withTopo)
+        elif kattype == 'testnoidrealpaths':
+            policy = to_netkat_test_realnoid_paths(graph, withTopo=withTopo)
+        elif kattype == 'testnoidrealpaths2':
+            policy = to_netkat_test_realnoid_paths2(graph, withTopo=withTopo)
         else:
             raise "Unsupported"
 
@@ -596,7 +758,7 @@ def parse_args():
                         help='KAT policy type',
                         dest='kattype',
                         action='store',
-                        choices=['tables', 'paths', 'regular', 'local', 'testpaths', 'testpaths2', 'testtables'],
+                        choices=['tables', 'paths', 'regular', 'realpaths', 'realnoidpaths', 'testpaths', 'testpaths2', 'testrealpaths', 'testrealpaths2', 'testnoidrealpaths', 'testnoidrealpaths2', 'testtables'],
                         default='tables',
                         type=str)
 
