@@ -439,7 +439,7 @@ def to_netkat_test_set_of_paths2(graph, withTopo):
     return to_netkat_set_of_paths_for_hosts(graph, [graph.hosts[0], graph.hosts[3]], withTopo=withTopo)
 
 def to_netkat_regular(graph, withTopo=True):
-    # succint program that exploits regularity
+    # succinct program that exploits regularity
     policy = []
 
     core_flt = []
@@ -449,7 +449,7 @@ def to_netkat_regular(graph, withTopo=True):
 
     core_policy = []
     for host in graph.hosts:
-        port = ((int(host[1:]) - 1) / graph.p) + 1
+        port = ((int(host[1:]) - 1) / (2*graph.p)) + 1
         s = string.join(("filter ethDst = %s" % (graph.node[host]['mac']), "port := %d" % (port)), "; ")
         core_policy.append(s)
 
