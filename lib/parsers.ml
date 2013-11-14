@@ -92,7 +92,7 @@ module TopoDot = struct
     if nat.ntype = "host" then
       Core.Node.Host(name, VInt.of_mac nat.mac, VInt.of_ip nat.ip)
     else if nat.ntype = "switch" then
-      Core.Node.Switch(name, VInt.Int64 nat.id)
+      Core.Node.Switch(VInt.Int64 nat.id)
     else
       Core.Node.Mbox(name,[])
 
@@ -141,7 +141,7 @@ module TopoGML = struct
       if nat.ntype = "host" then
         Core.Node.Host(nat.name, VInt.of_mac nat.mac, VInt.of_ip nat.ip)
       else if nat.ntype = "switch" then
-        Core.Node.Switch(nat.name, VInt.Int64 nat.id)
+        Core.Node.Switch(VInt.Int64 nat.id)
       else
         Core.Node.Mbox(nat.name,[])
 

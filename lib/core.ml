@@ -15,7 +15,7 @@ let string_of_rate r =
 module type NODE =
 sig
   type t = Host of string * addrMAC * addrIP
-           | Switch of string * switchId
+           | Switch of switchId
            | Mbox of string * string list
   type label = t
 
@@ -69,7 +69,7 @@ sig
   (* Constructors *)
   val add_node : t -> V.t -> t
   val add_host : t -> string -> addrMAC -> addrIP -> t
-  val add_switch : t -> string -> switchId -> t
+  val add_switch : t -> switchId -> t
   val add_switch_edge : t -> V.t -> portId -> V.t -> portId -> t
 
   (* Accessors *)
@@ -100,7 +100,7 @@ end
 module Node =
 struct
   type t = Host of string * addrMAC * addrIP
-           | Switch of string * switchId
+           | Switch of switchId
            | Mbox of string * string list
   type label = t
   let equal = Pervasives.(=)
@@ -108,12 +108,12 @@ struct
   let compare = Pervasives.compare
   let to_dot n = match n with
     | Host(s,m,i) -> s
-    | Switch(s,i) -> s
+    | Switch i -> VInt.get_string i
     | Mbox(s,_) -> s
   let to_string = to_dot
   let id_of_switch n =
     match n with
-      | Switch(_,i) -> i
+      | Switch i -> i
       | _ -> failwith "Not a switch"
 end
 
@@ -231,8 +231,8 @@ struct
 
 
   (* Add a switch (from it's name and id) to the graph *)
-  let add_switch (g:t) (s:string) (i:switchId) : t =
-    add_vertex g (Node.Switch(s,i))
+  let add_switch (g:t) (i:switchId) : t =
+    add_vertex g (Node.Switch i)
 
 
   (* Add an edge between particular ports on two switches *)
@@ -277,7 +277,7 @@ struct
      there are no switches.  *)
   let get_switches (g:t) : (Node.t list) =
     fold_vertex (fun v acc -> match v with
-      | Node.Switch(_,_) -> v::acc
+      | Node.Switch _ -> v::acc
       | _ -> acc
     ) g []
 
@@ -287,7 +287,7 @@ struct
   let get_switchids (g:t) : (switchId list) =
     fold_vertex (
       fun v acc -> match v with
-        | Node.Switch(_,i) -> i::acc
+        | Node.Switch i -> i::acc
         | _ -> acc
     ) g []
 
@@ -464,11 +464,10 @@ struct
             Printf.sprintf "    %s = net.addHost(\'%s\', mac=\'%s\', ip=\'%s\')\n"
               n n
               (VInt.get_string m) (VInt.get_string i)
-          | Node.Switch(s,i) ->
-            let name = Str.global_replace (Str.regexp "[ ,]") "" s in
-            let sid = "s" ^ (VInt.get_string i) in 
+          | Node.Switch i ->
+            let sid = "s" ^ (VInt.get_string i) in
             Printf.sprintf
-            "    %s = net.addSwitch(\'%s\')\n" name sid
+            "    %s = net.addSwitch(\'%s\')\n" sid sid
           | Node.Mbox(s,_) -> Printf.sprintf
             "    %s = net.addSwitch(\'%s\')\n" s s in
         acc ^ add

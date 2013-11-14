@@ -9,7 +9,7 @@ type addrIP = VInt.t
 module type NODE =
 sig
   type t = Host of string * addrMAC * addrIP
-           | Switch of string * switchId
+           | Switch of switchId
            | Mbox of string * string list
   type label = t
 
@@ -63,7 +63,7 @@ sig
   (* Constructors *)
   val add_node : t -> V.t -> t
   val add_host : t -> string -> addrMAC -> addrIP -> t
-  val add_switch : t -> string -> switchId -> t
+  val add_switch : t -> switchId -> t
   val add_switch_edge : t -> V.t -> portId -> V.t -> portId -> t
 
   (* Accessors *)
