@@ -108,7 +108,7 @@ struct
   let compare = Pervasives.compare
   let to_dot n = match n with
     | Host(s,m,i) -> s
-    | Switch i -> VInt.get_string i
+    | Switch i -> "s" ^ VInt.get_string i
     | Mbox(s,_) -> s
   let to_string = to_dot
   let id_of_switch n =
