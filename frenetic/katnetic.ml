@@ -93,13 +93,12 @@ let dump args =
       let _ = Printf.printf "Done [ctime: %fs ttime:%fs]\n%!" 
         (t2 -. t1) (t3 -. t2) in
       let open VInt in
-      let open VInt in
       Format.printf "@[policy for switch %ld:\n%!%a\n\nflowtable for switch %ld:\n%!%a@\n\n@]%!"
         (get_int32 sw)
         Pretty.format_policy pol0'
         (get_int32 sw)
         SDN_Types.format_flowTable tbl0)
-    m in
+      m in
 
   match args with
     | [filename]
