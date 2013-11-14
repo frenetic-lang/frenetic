@@ -366,19 +366,23 @@ def rec_set_of_paths_next_hop(graph, node, inport, dst, srchost, dsthost, switch
     if dsthost in graph.node[node]['routes']:
         v = graph.node[node]['routes'][dsthost]
         path = [string.join((flt, "port := %d" % (v)), "; ")]
+        if node == dst:
+            return ([], path)
     else:
         assert inport in graph.node[node]['routes']
         #print "inport", inport
         v = graph.node[node]['routes'][inport]
         path = [string.join((flt, "port := %d" % (v)), "; ")]
-    if node != dst:
-        nextnode, nextinport = find_next_node(graph, node, v)
-        #print "next", nextnode, nextinport
-        path.extend(rec_set_of_paths_next_hop(graph, nextnode, nextinport, dst, srchost, dsthost, switches))
-    return path
 
-def to_netkat_set_of_paths_for_hosts(graph, hosts, withTopo=True, withHostsTopo=True):
+    nextnode, nextinport = find_next_node(graph, node, v)
+    #print "next", nextnode, nextinport
+    p, edge = rec_set_of_paths_next_hop(graph, nextnode, nextinport, dst, srchost, dsthost, switches)
+    path.extend(p)
+    return path, edge
+
+def to_netkat_set_of_paths_for_hosts(graph, hosts, withTopo=True):
     policy = []
+    edge_policy = []
     switches = set()
     for srchost in hosts:
         src = graph.neighbors(srchost)[0]
@@ -390,9 +394,11 @@ def to_netkat_set_of_paths_for_hosts(graph, hosts, withTopo=True, withHostsTopo=
             dst = graph.neighbors(dsthost)[0]
             flt = "filter ethSrc = %s; filter ethDst = %s" % (graph.node[srchost]['mac'], graph.node[dsthost]['mac'])
             #print "path", srchost, dsthost
-            path = rec_set_of_paths_next_hop(graph, src, inport, dst, srchost, dsthost, switches)
+            path, edge = rec_set_of_paths_next_hop(graph, src, inport, dst, srchost, dsthost, switches)
             #print string.join(path, " | ")
-            policy.append("(%s; ( %s ))" % (flt, string.join(path, " | ")))
+            if len(path) > 0:
+                policy.append("(%s; ( %s ))" % (flt, string.join(path, " | ")))
+            edge_policy.extend(edge)
             switches.add(src)
             switches.add(dst)
 
@@ -405,18 +411,23 @@ def to_netkat_set_of_paths_for_hosts(graph, hosts, withTopo=True, withHostsTopo=
                 continue
             topoterm = "%s@%d => %s@%d" % (graph.node[src]['id'], ed['sport'], graph.node[dst]['id'], ed['dport'])
             topo.append(topoterm)
-        if withHostsTopo:
-            for host in graph.hosts:
-                dst = graph.neighbors(host)[0]
-                ed = graph.get_edge_data(host, dst)
-                topoterm = "%s@%d => 0@0" % (graph.node[dst]['id'], ed['dport'])
-                topo.append(topoterm)
-        withTopo = len(topo) > 0
+        if len(topo) == 0:
+            topo = ["id"]
 
-    if withTopo:
-        return "((\n%s\n);\n(\n%s\n))*\n" % (string.join(policy, " |\n"), string.join(topo, " |\n"))
+        edge_topo = []
+        for host in graph.hosts:
+            dst = graph.neighbors(host)[0]
+            if dst in switches:
+                ed = graph.get_edge_data(host, dst)
+                topoterm = "%s@%d => 0@%d" % (graph.node[dst]['id'], ed['dport'], graph.node[host]['id'])
+                edge_topo.append(topoterm)
+
+        return "((\n%s\n);\n(\n%s\n))*;\n((\n%s\n);\n(\n%s\n))" % \
+                (string.join(policy, " |\n"), string.join(topo, " |\n"),
+                 string.join(edge_policy, " |\n"), string.join(edge_topo, " |\n"))
     else:
-        return string.join(policy, " |\n")
+        policy.extend(edge_policy)
+        return "%s\n" % (string.join(policy, " |\n"))
 
 def to_netkat_set_of_paths(graph, withTopo):
     return to_netkat_set_of_paths_for_hosts(graph, graph.hosts, withTopo=withTopo)
