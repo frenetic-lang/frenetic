@@ -84,7 +84,7 @@ module Dump = struct
 
     let main args =
       match args with
-        | filename :: [sw_num] -> with_file (local (int_of_string sw_num)) filename
+        | sw_num :: [filename] -> with_file (local (int_of_string sw_num)) filename
         | _ -> 
           print_endline "usage: katnetic dump local <number of switches> <filename>"
   end
