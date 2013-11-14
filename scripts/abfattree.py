@@ -367,7 +367,7 @@ def rec_set_of_paths_next_hop(graph, node, inport, dst, srchost, dsthost, switch
         v = graph.node[node]['routes'][dsthost]
         path = [string.join((flt, "port := %d" % (v)), "; ")]
         if node == dst:
-            return ([], path)
+            return ([], path[0])
     else:
         assert inport in graph.node[node]['routes']
         #print "inport", inport
@@ -398,7 +398,7 @@ def to_netkat_set_of_paths_for_hosts(graph, hosts, withTopo=True):
             #print string.join(path, " | ")
             if len(path) > 0:
                 policy.append("(%s; ( %s ))" % (flt, string.join(path, " | ")))
-            edge_policy.extend(edge)
+            edge_policy.append("(%s; %s)" % (flt, edge))
             switches.add(src)
             switches.add(dst)
 
