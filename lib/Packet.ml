@@ -1,4 +1,5 @@
 let icmp_code = 0x01
+let igmp_code = 0x02
 let tcp_code = 0x06
 let udp_code = 0x11
 
@@ -291,12 +292,228 @@ module Icmp = struct
   
 end
 
+module Igmp1and2 = struct
+
+  type t = {
+    mrt: int8;
+    chksum : int16;
+    addr : nwAddr;
+  }
+
+  cstruct igmp1and2 {
+    uint8_t mrt;
+    uint16_t chksum;
+    uint32_t addr
+  } as big_endian
+
+  let format fmt v =
+    let open Format in
+    fprintf fmt "@[mrt=%x;addr=%s@]" v.mrt (string_of_ip v.addr)
+
+  let parse (bits : Cstruct.t) =
+    if Cstruct.len bits < sizeof_igmp1and2 then
+      raise (UnparsablePacket "not enough bytes for IGMPv1/2 header");
+    let mrt = get_igmp1and2_mrt bits in
+    let chksum = get_igmp1and2_chksum bits in
+    let addr = get_igmp1and2_addr bits in
+    { mrt = mrt; chksum = chksum; addr = addr; }
+
+  let len (msg: t) = sizeof_igmp1and2
+
+  (* Assumes that bits has enough room. *)
+  let marshal (bits : Cstruct.t) (msg : t) =
+    set_igmp1and2_mrt bits msg.mrt;
+    set_igmp1and2_chksum bits msg.chksum;
+    set_igmp1and2_addr bits msg.addr;
+
+end
+
+let rec indicies_maker n = if n = 0 then [] else [n]@(indicies_maker (n-1));;
+
+module Igmp3 = struct
+
+  (* IGMP v3 Group Records *)
+  module GroupRec = struct
+
+    type t = {
+      typ : int8;
+      addr : nwAddr;
+      sources : nwAddr list;
+    }
+
+    cstruct grouprec {
+      uint8_t typ;
+      uint8_t aux_len;
+      uint16_t num_sources;
+      uint32_t addr
+      (* followed by sources (if any) *)
+    } as big_endian
+
+    let format fmt v =
+      let open Format in
+      fprintf fmt "@[;(typ=%x;addr=%s;sources=%s)@]"
+          v.typ
+          (string_of_ip v.addr)
+          (String.concat "," (List.map string_of_ip v.sources))
+
+    let parse (bits : Cstruct.t) =
+      if Cstruct.len bits < sizeof_grouprec then
+        raise (UnparsablePacket "not enough bytes for IGMPv3 group record");
+      let typ = get_grouprec_typ bits in
+      let num_sources = get_grouprec_num_sources bits in
+      let addr = get_grouprec_addr bits in
+      let indices = indicies_maker num_sources in
+      let get_source = fun i -> Cstruct.BE.get_uint32 bits (sizeof_grouprec + ((i-1) * 4)) in
+      let sources = List.map get_source indices in
+      { typ = typ; addr = addr; sources = sources }
+
+    let len (gr : t) = sizeof_grouprec + (4 * List.length gr.sources)
+
+    let marshal (bits : Cstruct.t) (gr : t) =
+      set_grouprec_typ bits gr.typ;
+      set_grouprec_num_sources bits (List.length gr.sources);
+      set_grouprec_addr bits gr.addr;
+      let bits = Cstruct.shift bits sizeof_grouprec in
+      List.iteri (fun i v -> Cstruct.BE.set_uint32 bits (i * 4) v) gr.sources;
+      Cstruct.shift bits (4 * List.length gr.sources)
+
+  end
+
+  type t = {
+    chksum : int16;
+    grs : GroupRec.t list;
+  }
+
+  cstruct igmp3 {
+    uint8_t reserved1;
+    uint16_t chksum;
+    uint16_t reserved2;
+    uint16_t num_records
+    (* followed by group records (if any) *)
+  } as big_endian
+
+  let format fmt v =
+    let open Format in
+    fprintf fmt "@[num_records=%d@]"
+        (List.length v.grs);
+    List.iter (GroupRec.format fmt) v.grs
+
+  let parse (bits : Cstruct.t) =
+    if Cstruct.len bits < sizeof_igmp3 then
+      raise (UnparsablePacket "not enough bytes for IGMPv3 header");
+    let chksum = get_igmp3_chksum bits in
+    let num_records = get_igmp3_num_records bits in
+    let indices = indicies_maker num_records in
+    let offset = ref (sizeof_igmp3) in
+    let get_gr = (fun i ->  let bits = Cstruct.shift bits (!offset) in
+                            let gr = GroupRec.parse bits in
+                            offset := (!offset + GroupRec.len gr);
+                            gr) in
+    let grs = List.map get_gr indices in
+    { chksum = chksum; grs = grs}
+
+  let len (msg: t) =
+    let grs_len = List.fold_left (fun acc gr -> acc + (GroupRec.len gr)) 0 msg.grs in
+    sizeof_igmp3 + grs_len
+
+  (* Assumes that bits has enough room. *)
+  let marshal (bits : Cstruct.t) (msg : t) =
+    set_igmp3_chksum bits msg.chksum;
+    set_igmp3_num_records bits (List.length msg.grs);
+    let bits = Cstruct.shift bits sizeof_igmp3 in
+    ignore (List.fold_left GroupRec.marshal bits msg.grs)
+
+end
+
+module Igmp = struct
+
+  type msg =
+    | Igmp1and2 of Igmp1and2.t
+    | Igmp3 of Igmp3.t
+    | Unparsable of (int8 * bytes)
+
+  type t = {
+    ver_and_typ : int8;
+    msg : msg
+  }
+
+  cenum igmp_msg_type {
+    IGMP_MSG_QUERY = 0x11;
+    IGMP_v1_REPORT = 0x12;
+    IGMP_v2_REPORT = 0x16;
+    IGMP_v2_LEAVE = 0x17;
+    IGMP_v3_REPORT = 0x22
+  } as uint8_t
+
+  cstruct igmp {
+    uint8_t ver_and_typ (* version implicit in type. facepalm. *)
+  } as big_endian
+
+  let format_msg fmt = function
+    | Igmp1and2 igmp1and2 -> Igmp1and2.format fmt igmp1and2
+    | Igmp3 igmp3 -> Igmp3.format fmt igmp3
+    | Unparsable (_, bytes) -> Format.fprintf fmt "msg_len=%d" (Cstruct.len bytes)
+
+  let format_ver_and_typ fmt v =
+    let open Format in
+    match v with
+      | 0x11 -> fprintf fmt "IGMP Membership Query";
+      | 0x12 -> fprintf fmt "IGMP v1 Membership Report"
+      | 0x16 -> fprintf fmt "IGMP v2 Membership Report"
+      | 0x17 -> fprintf fmt "IGMP v2 Leave Group"
+      | 0x22 -> fprintf fmt "IGMP v3 Membership Report"
+      | n -> fprintf fmt "IGMP ver_and_type=%d" n
+
+  let format fmt v =
+    let open Format in
+    fprintf fmt "@[%a@,%a@]"
+      format_ver_and_typ v.ver_and_typ
+      format_msg v.msg
+
+  let parse (bits : Cstruct.t) =
+    if Cstruct.len bits < sizeof_igmp then
+      raise (UnparsablePacket "not enough bytes for IGMP header");
+    let ver_and_typ = get_igmp_ver_and_typ bits in
+    let bits = Cstruct.shift bits sizeof_igmp in
+    let msg =
+      try match int_to_igmp_msg_type ver_and_typ with
+        | Some IGMP_MSG_QUERY -> Igmp1and2 (Igmp1and2.parse bits)
+        | Some IGMP_v1_REPORT -> Igmp1and2 (Igmp1and2.parse bits)
+        | Some IGMP_v2_REPORT -> Igmp1and2 (Igmp1and2.parse bits)
+        | Some IGMP_v2_LEAVE -> Igmp1and2 (Igmp1and2.parse bits)
+        | Some IGMP_v3_REPORT -> Igmp3 (Igmp3.parse bits)
+        | _ -> Unparsable (ver_and_typ, bits)
+      with UnparsablePacket _ -> Unparsable (ver_and_typ, bits) in
+    { ver_and_typ = ver_and_typ; msg = msg }
+
+  let len (pkt: t) =
+    let msg_len = match pkt.msg with
+      | Igmp1and2 igmp1and2 -> Igmp1and2.len igmp1and2
+      | Igmp3 igmp3 -> Igmp3.len igmp3
+      | Unparsable (_, data) -> Cstruct.len data in
+    sizeof_igmp + msg_len
+
+  (* Assumes that bits has enough room. *)
+  let marshal (bits : Cstruct.t) (pkt : t) =
+    set_igmp_ver_and_typ bits pkt.ver_and_typ;
+    let bits = Cstruct.shift bits sizeof_igmp in
+    match pkt.msg with
+      | Igmp1and2 igmp1and2 ->
+        Igmp1and2.marshal bits igmp1and2
+      | Igmp3 igmp3 ->
+        Igmp3.marshal bits igmp3
+      | Unparsable (_, data) ->
+        Cstruct.blit data 0 bits 0 (Cstruct.len data)
+
+end
+
 module Ip = struct
 
   type tp =
     | Tcp of Tcp.t
     | Udp of Udp.t
     | Icmp of Icmp.t
+    | Igmp of Igmp.t
     | Unparsable of (nwProto * bytes)
 
   module Flags = struct
@@ -337,6 +554,7 @@ module Ip = struct
     | Tcp tcp -> Tcp.format fmt tcp
     | Udp udp -> Udp.format fmt udp
     | Icmp icmp -> Icmp.format fmt icmp
+    | Igmp igmp -> Igmp.format fmt igmp
     | Unparsable (proto, _) -> Format.fprintf fmt "protocol=%d" proto
 
   let format fmt v =
@@ -348,6 +566,7 @@ module Ip = struct
 
   cenum ip_proto { 
     IP_ICMP = 0x01;
+    IP_IGMP = 0x02;
     IP_TCP = 0x06;
     IP_UDP = 0x11
   } as uint8_t
@@ -387,6 +606,7 @@ module Ip = struct
     let tp = 
       try match int_to_ip_proto proto with 
         | Some IP_ICMP -> Icmp (Icmp.parse bits)
+        | Some IP_IGMP -> Igmp (Igmp.parse bits)
         | Some IP_TCP -> Tcp (Tcp.parse bits)
         | Some IP_UDP -> Udp (Udp.parse bits)
         | _ -> Unparsable (proto, bits) 
@@ -408,6 +628,7 @@ module Ip = struct
       | Tcp tcp -> Tcp.len tcp
       | Udp udp -> Udp.len udp
       | Icmp icmp -> Icmp.len icmp
+      | Igmp igmp -> Igmp.len igmp
       | Unparsable (_, data) -> Cstruct.len data in 
     ip_len + tp_len
 
@@ -425,6 +646,7 @@ module Ip = struct
       | Tcp _ -> tcp_code
       | Udp _ -> udp_code
       | Icmp _ -> icmp_code
+      | Igmp _ -> igmp_code
       | Unparsable (p, _) -> p in
     set_ip_proto bits proto;
     set_ip_chksum bits pkt.chksum;
@@ -438,6 +660,8 @@ module Ip = struct
         Udp.marshal bits udp
       | Icmp icmp -> 
         Icmp.marshal bits icmp
+      | Igmp igmp ->
+        Igmp.marshal bits igmp
       | Unparsable (protocol, data) ->
         Cstruct.blit data 0 bits 0 (Cstruct.len data)
 
@@ -583,6 +807,7 @@ let nwProto pkt = match pkt.nw with
       | Ip.Tcp _ -> 6
       | Ip.Udp _ -> 17
       | Ip.Icmp _ -> 1
+      | Ip.Igmp _ -> 2
       | Ip.Unparsable (p, _) -> p
     end
   | Arp _ -> raise (Invalid_argument "nwProto: ARP packet")
@@ -599,6 +824,7 @@ let tpSrc pkt = match pkt.nw with
     | Ip.Tcp frg -> frg.Tcp.src
     | Ip.Udp frg -> frg.Udp.src
     | Ip.Icmp _ -> raise (Invalid_argument "tpSrc: ICMP packet")
+    | Ip.Igmp _ -> raise (Invalid_argument "tpSrc: IGMP packet")
     | Ip.Unparsable _ -> 
       raise (Invalid_argument "tpSrc: cannot parse body of IP packet"))
   | Arp _ -> raise (Invalid_argument "tpSrc: ARP packet")
@@ -610,6 +836,7 @@ let tpDst pkt = match pkt.nw with
     | Ip.Tcp frg -> frg.Tcp.dst
     | Ip.Udp frg -> frg.Udp.dst
     | Ip.Icmp _ -> raise (Invalid_argument "tpDst: ICMP packet")
+    | Ip.Igmp _ -> raise (Invalid_argument "tpDst: IGMP packet")
     | Ip.Unparsable _ -> 
       raise (Invalid_argument "tpDst: cannot parse body of IP packet"))
   | Arp _ -> raise (Invalid_argument "tpDst: ARP packet")
@@ -721,6 +948,7 @@ let string_of_nwAddr = string_of_ip
 
 let string_of_nwProto = function
   | 0x01 -> "icmp"
+  | 0x02 -> "igmp"
   | 0x06 -> "tcp"
   | 0x11 -> "udp"
   | v -> string_of_int v
