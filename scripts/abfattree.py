@@ -572,12 +572,14 @@ def parse_args():
                         default=None,
                         help='file to write to')
     parser.add_argument("-f", "--ft", dest='failover', action='store',
-                        default=False,
-                        type=bool,
+                        default='nofail',
+						type = str,
+                        choices=['nofail', 'fail'],
                         help='output failover')
     parser.add_argument("-l", "--local", dest='local', action='store',
-                        default=False,
-                        type=bool,
+                        default='full',
+						type = str,
+                        choices=['full', 'local'],
                         help='output local')
     parser.add_argument("-t", "--type",
                         help='KAT policy type',
@@ -598,4 +600,4 @@ if __name__ == "__main__":
         nx.write_dot(graph,args.output)
     else:
         print nx.to_agraph(graph)
-    to_netkat(graph, args.kattype, args.katfile, args.failover, args.local)
+    to_netkat(graph, args.kattype, args.katfile, args.failover == 'fail', args.local == 'local')
