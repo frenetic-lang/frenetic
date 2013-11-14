@@ -3,9 +3,10 @@ open PolicyGenerator
 let help args =
   match args with 
     | [ "run" ] -> 
-      Format.printf "usage: katnetic run [local|classic|automaton] filename \n"
+      Format.printf "usage: katnetic run [local|classic|automaton] <filename> \n"
     | [ "dump" ] -> 
-      Format.printf "usage: katnetic dump [local|automaton] filename \n"
+      Format.printf "usage: katnetic dump automaton [all|policies|flowtables] <filename> \n";
+      Format.printf "usage: katnetic dump local <number of switches> <filename> \n"
     | _ -> 
       Format.printf "%s" ("usage: katnetic <command> \n" ^
 			  "  run    Compile and start the controller\n" ^ 
@@ -57,19 +58,28 @@ module Dump = struct
   let with_file f filename =
     with_channel f (open_in filename)
 
-  let local p =
-    Format.printf "@[%a\n\n@]%!" Pretty.format_policy p;
-    (* NOTE(seliopou): This may not catch all ports, but it'll catch some of
-     * 'em! Also, lol for loop.
-     * *)
-    for sw = 0 to 40 do
-      let vs = VInt.Int64 (Int64.of_int sw) in
-      let sw_p = Types.(Seq(Filter(Test(Switch,vs)), p)) in
-      let table = to_table (compile vs sw_p) in
-      if List.length table > 0 then
-        Format.printf "@[flowtable for switch %d:\n%a@\n\n@]%!" sw
-          SDN_Types.format_flowTable table;
-    done
+  module Local = struct
+
+    let local sw_num p =
+      Format.printf "@[%a\n\n@]%!" Pretty.format_policy p;
+      (* NOTE(seliopou): This may not catch all ports, but it'll catch some of
+       * 'em! Also, lol for loop.
+       * *)
+      for sw = 0 to sw_num do
+        let vs = VInt.Int64 (Int64.of_int sw) in
+        let sw_p = Types.(Seq(Filter(Test(Switch,vs)), p)) in
+        let table = to_table (compile vs sw_p) in
+        if List.length table > 0 then
+          Format.printf "@[flowtable for switch %d:\n%a@\n\n@]%!" sw
+            SDN_Types.format_flowTable table;
+      done
+
+    let main args =
+      match args with
+        | filename :: [sw_num] -> with_file (local (int_of_string sw_num)) filename
+        | _ -> 
+          print_endline "usage: katnetic dump local <number of switches> <filename>"
+  end
 
   module Automaton = struct
     open NetKAT_Automaton
@@ -104,15 +114,14 @@ module Dump = struct
         | ("all"        :: [filename]) -> with_file (with_dehop all) filename
         | ("policies"   :: [filename]) -> with_file (with_dehop policy) filename
         | ("flowtables" :: [filename]) -> with_file (with_dehop flowtable) filename
-        | _ ->
-          print_endline "usage: katnetic dump automaton [all|policies|flowtables] filename"
+        | _ -> 
+          print_endline "usage: katnetic dump automaton [all|policies|flowtables] <filename>"
   end
 
   let main args  =
     match args with
-      | [filename]
-      | ("local"     :: [filename]) -> with_file local filename
-      | ("automaton" :: args')      -> Automaton.main args'
+      | ("local"     :: args') -> Local.main args'
+      | ("automaton" :: args') -> Automaton.main args'
       | _ -> help [ "dump" ]
 
 end
