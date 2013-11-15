@@ -154,8 +154,7 @@ module Tcp = struct
     uint8_t flags; 
     uint16_t window;
     uint16_t chksum;
-    uint16_t urgent;
-    uint32_t options (* options and padding *)
+    uint16_t urgent
   } as big_endian
 
   let parse (bits : Cstruct.t) = 
@@ -196,7 +195,8 @@ module Tcp = struct
     set_tcp_offset bits pkt.offset;
     set_tcp_flags bits (Flags.to_int pkt.flags);
     set_tcp_window bits pkt.window;
-    set_tcp_window bits pkt.window;
+    set_tcp_chksum bits pkt.chksum;
+    set_tcp_urgent bits pkt.urgent;
     let bits = Cstruct.shift bits sizeof_tcp in 
     Cstruct.blit pkt.payload 0 bits 0 (Cstruct.len pkt.payload)
 
@@ -357,8 +357,7 @@ module Ip = struct
     uint8_t proto;
     uint16_t chksum;
     uint32_t src;
-    uint32_t dst;
-    uint32_t options (* options and padding *)
+    uint32_t dst
   } as big_endian
 
   let  parse (bits : Cstruct.t) = 
@@ -397,14 +396,12 @@ module Ip = struct
       tp = tp }
 
   let len (pkt : t) = 
-    (* JNF hack *)
-    let ip_len = sizeof_ip - 4 in (* cstruct for ip has options, hence hack *)
     let tp_len = match pkt.tp with 
       | Tcp tcp -> Tcp.len tcp
       | Udp udp -> Udp.len udp
       | Icmp icmp -> Icmp.len icmp
       | Unparsable (_, data) -> Cstruct.len data in 
-    ip_len + tp_len
+    sizeof_ip + tp_len
 
   (* Assumes there is enough space *)
   let marshal (bits : Cstruct.t) (pkt:t) =
@@ -425,7 +422,7 @@ module Ip = struct
     set_ip_chksum bits pkt.chksum;
     set_ip_src bits pkt.src;
     set_ip_dst bits pkt.dst;
-    let bits = Cstruct.shift bits sizeof_ip in 
+    let bits = Cstruct.shift bits sizeof_ip in
     match pkt.tp with
       | Tcp tcp -> 
         Tcp.marshal bits tcp
