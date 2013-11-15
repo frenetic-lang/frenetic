@@ -122,15 +122,17 @@ def to_netkat_set_of_tables_for_switches(graph, switches, withTopo=True):
         #pprint.pprint(graph.node[node]['routes'])
         for k, v in graph.node[node]['routes'].iteritems():
             if k in graph.hosts:
-                s = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
+                s = string.join((flt, "ethDst = %s" % (graph.node[k]['mac'])), " and ")
+                s = string.join((s, "port := %d" % (v)), "; ")
                 if graph.node[node]['level'] == 0:
                     edge_table.append(s)
                 else:
                     table.append(s)
             else:
                 hosts = find_all_hosts_below(graph, node)
-                fltouthosts = string.join(map(lambda x: "filter not ethDst = %s" % (graph.node[x]['mac']), hosts), "; ")
-                s = string.join((flt, "filter port = %d" % (k), fltouthosts, "port := %d" % (v)), "; ")
+                fltouthosts = string.join(map(lambda x: "not ethDst = %s" % (graph.node[x]['mac']), hosts), " and ")
+                s = string.join((flt, "port = %d" % (k), fltouthosts), " and ")
+                s = string.join((s, "port := %d" % (v)), "; ")
                 table.append(s)
         #pprint.pprint(table)
         policy.extend(table)
@@ -179,18 +181,18 @@ def to_netkat_set_of_tables_failover_for_switches(graph, switches, withTopo=True
         #pprint.pprint(graph.node[node]['routes'])
         for k, v in graph.node[node]['routes'].iteritems():
             if k in graph.hosts:
-                s = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
+                s = string.join((flt, "ethDst = %s" % (graph.node[k]['mac'])), " and ")
+                s = string.join((s, "port := %d" % (v)), "; ")
                 if graph.node[node]['level'] == 0:
                     edge_table.append(s)
                 else:
                     table.append(s)
             else:
                 hosts = find_all_hosts_below(graph, node)
-                fltouthosts = string.join(map(lambda x: "filter not ethDst = %s" % (graph.node[x]['mac']), hosts), "; ")
-                s1 = string.join((flt, "filter port = %d" % (k), fltouthosts, "port := %d" % (v)), "; ")
+                fltouthosts = string.join(map(lambda x: "not ethDst = %s" % (graph.node[x]['mac']), hosts), " and ")
+                s = string.join((flt, "port = %d" % (k), fltouthosts), " and ")
                 v2 = ((v - graph.p) % graph.p) + 1 + graph.p
-                s2 = string.join((flt, "filter port = %d" % (k), fltouthosts, "port := %d" % (v2)), "; ")
-                s = "(%s) + (%s)" % (s1, s2)
+                s = string.join((s, "(port := %d + port := %d)" % (v, v2)), "; ")
                 table.append(s)
         #pprint.pprint(table)
         policy.extend(table)
@@ -211,16 +213,14 @@ def to_netkat_set_of_tables_failover_for_switches(graph, switches, withTopo=True
                     for port in range(1, graph.p*2+1):
                         if v == port:
                             continue
-                        s1 = string.join((flt, "filter port = %d" % (port), "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
+                        s = string.join((flt, "port = %d" % (port), "ethDst = %s" % (graph.node[k]['mac'])), " and ")
                         v2 = (v % graph.p) + 1
-                        s2 = string.join((flt, "filter port = %d" % (port), "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v2)), "; ")
-                        s = "(%s) + (%s)" % (s1, s2)
+                        s = string.join((s, "(port := %d + port := %d)" % (v, v2)), "; ")
                         table.append(s)
                 else:
-                    s1 = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
+                    s = string.join((flt, "ethDst = %s" % (graph.node[k]['mac'])), " and ")
                     v2 = (v % graph.p) + 1
-                    s2 = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v2)), "; ")
-                    s = "(%s) + (%s)" % (s1, s2)
+                    s = string.join((s, "(port := %d + port := %d)" % (v, v2)), "; ")
                     table.append(s)
 
                 #print v2
@@ -234,19 +234,18 @@ def to_netkat_set_of_tables_failover_for_switches(graph, switches, withTopo=True
                 ed = graph.get_edge_data(reroute, nextagg)
                 outport = ed['sport']
 
-                s = string.join(("filter switch = %d" % (graph.node[reroute]['id']),
-                        "filter port = %d" % (inport),
-                        "filter ethDst = %s" % (graph.node[k]['mac']),
-                        "port := %d" % (outport)), "; ")
+                s = string.join(("filter switch = %d" % (graph.node[reroute]['id']), "port = %d" % (inport),
+                        "ethDst = %s" % (graph.node[k]['mac'])), " and ")
+                s = string.join((s, "port := %d" % (outport)), "; ")
                 table.append(s)
             else:
                 hosts = find_all_hosts_below(graph, node)
-                fltouthosts = string.join(map(lambda x: "filter not ethDst = %s" % (graph.node[x]['mac']), hosts), "; ")
-                s1 = string.join((flt, "filter port = %d" % (k), fltouthosts, "port := %d" % (v)), "; ")
+                fltouthosts = string.join(map(lambda x: "not ethDst = %s" % (graph.node[x]['mac']), hosts), " and ")
+                s = string.join((flt, "port = %d" % (k), fltouthosts), " and ")
                 v2 = ((v - graph.p) % graph.p) + 1 + graph.p
-                s2 = string.join((flt, "filter port = %d" % (k), fltouthosts, "port := %d" % (v2)), "; ")
-                s = "(%s) + (%s)" % (s1, s2)
+                s = string.join((s, "(port := %d + port := %d)" % (v, v2)), "; ")
                 table.append(s)
+
         #pprint.pprint(table)
         policy.extend(table)
 
@@ -264,16 +263,14 @@ def to_netkat_set_of_tables_failover_for_switches(graph, switches, withTopo=True
                 for port in range(1, graph.p*2+1):
                     if v == port:
                         continue
-                    s1 = string.join((flt, "filter port = %d" % (port), "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
+                    s = string.join((flt, "port = %d" % (port), "ethDst = %s" % (graph.node[k]['mac'])), " and ")
                     v2 = (v % (2 * graph.p)) + 1
-                    s2 = string.join((flt, "filter port = %d" % (port), "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v2)), "; ")
-                    s = "(%s) + (%s)" % (s1, s2)
+                    s = string.join((s, "(port := %d + port := %d)" % (v, v2)), "; ")
                     table.append(s)
             else:
-                s1 = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v)), "; ")
+                s = string.join((flt, "ethDst = %s" % (graph.node[k]['mac'])), " and ")
                 v2 = (v % (2 * graph.p)) + 1
-                s2 = string.join((flt, "filter ethDst = %s" % (graph.node[k]['mac']), "port := %d" % (v2)), "; ")
-                s = "(%s) + (%s)" % (s1, s2)
+                s = string.join((s, "(port := %d + port := %d)" % (v, v2)), "; ")
                 table.append(s)
 
             #print v2
@@ -287,10 +284,9 @@ def to_netkat_set_of_tables_failover_for_switches(graph, switches, withTopo=True
             ed = graph.get_edge_data(reroute, nextcore)
             outport = ed['sport']
 
-            s = string.join(("filter switch = %d" % (graph.node[reroute]['id']),
-                    "filter port = %d" % (inport),
-                    "filter ethDst = %s" % (graph.node[k]['mac']),
-                    "port := %d" % (outport)), "; ")
+            s = string.join(("filter switch = %d" % (graph.node[reroute]['id']), "port = %d" % (inport),
+                    "ethDst = %s" % (graph.node[k]['mac'])), " and ")
+            s = string.join((s, "port := %d" % (outport)), "; ")
             table.append(s)
         #pprint.pprint(table)
         policy.extend(table)
