@@ -12,6 +12,8 @@ type nattr = {
 let defnattr = {ntype = "host"; name = ""; id = 0L; ip = "0.0.0.0"; mac = "00:00:00:00:00:00"}
 
 module TopoDot = struct
+    let attrtbl = ref (Hashtbl.create 100)
+    let index = ref 0
 
   (* Utility functions *)
   let parse_rate (r:string) : Int64.t =
@@ -84,6 +86,9 @@ module TopoDot = struct
 
   (* Generate a node from the id and attributes *)
   let node (i:Dot_ast.node_id) (ats:Dot_ast.attr list) : Core.Topology.V.label =
+    let n = !index in
+    Hashtbl.add !attrtbl n (n+1);
+    index := n + 1;
     let (id, popt) = i in
     let name = string_of_id id in
     let at = List.hd ats in
@@ -154,6 +159,9 @@ end
 module B = Graph.Builder.P(Core.Topology)
 module GML = Graph.Gml.Parse(B)(TopoGML)
 module DOT = Graph.Dot.Parse(B)(TopoDot)
+
+let from_dotfile_tbl s =
+  (DOT.parse s, !TopoDot.attrtbl)
 
 let from_dotfile = DOT.parse
 let from_gmlfile = GML.parse
