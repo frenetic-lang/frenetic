@@ -20,7 +20,8 @@ Flag quickcheck
 Library packet
   Path: lib
   BuildDepends: str, cstruct, cstruct.syntax
-  Modules: Packet
+  Modules: Packet, Checksum
+  CSources: checksum_stubs.c
 
 Document doc
   Title: Packet documentation
