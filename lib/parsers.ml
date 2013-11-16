@@ -1,5 +1,6 @@
 open Topology_util
 open Graph
+open Core
 
 type nattr = {
   ntype: string
@@ -86,20 +87,19 @@ module TopoDot = struct
 
   (* Generate a node from the id and attributes *)
   let node (i:Dot_ast.node_id) (ats:Dot_ast.attr list) : Core.Topology.V.label =
-    let n = !index in
-    Hashtbl.add !attrtbl n (n+1);
-    index := n + 1;
     let (id, popt) = i in
     let name = string_of_id id in
     let at = List.hd ats in
     let nat = List.fold_left update_nattr
-        {defnattr with ntype = "switch"} at in
+        {defnattr with ntype = "switch"; name = name} at in
+    Hashtbl.replace !attrtbl name nat;
     if nat.ntype = "host" then
       Core.Node.Host(name, VInt.of_mac nat.mac, VInt.of_ip nat.ip)
     else if nat.ntype = "switch" then
       Core.Node.Switch(VInt.Int64 nat.id)
     else
       Core.Node.Mbox(name,[])
+
 
   (* Generate a link from the attributes *)
   let edge (ats:Dot_ast.attr list) : Core.Topology.E.label =

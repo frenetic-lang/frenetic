@@ -60,8 +60,7 @@ let _ =
   let topo = match !inft with
      | DotFile ->
       Printf.printf "Parsing file as DOT format\n";
-      let g, tbl = from_dotfile_tbl !infname in
-      Hashtbl.iter (Printf.printf "Key: %d Value: %d\n") tbl ; g
+      from_dotfile !infname
      | GmlFile ->
       Printf.printf "Parsing file as GML format\n";
       from_gmlfile !infname

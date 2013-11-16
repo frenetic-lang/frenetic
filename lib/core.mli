@@ -10,7 +10,6 @@ val string_of_rate : rate -> string
 type addrMAC = VInt.t
 type addrIP = VInt.t
 
-
 module type NODE =
 sig
   type t = Host of string * addrMAC * addrIP

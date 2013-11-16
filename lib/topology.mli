@@ -6,6 +6,14 @@ type portId = VInt.t
 type addrMAC = VInt.t
 type addrIP = VInt.t
 
+type nattr = {
+  ntype: string
+  ; name : string
+  ; id : int64
+  ; ip : string
+  ; mac : string
+}
+
 module type NODE =
 sig
   type t = Host of string * addrMAC * addrIP
@@ -95,6 +103,6 @@ module Link : LINK with type v = Node.t
 module Topology : TOPO with type V.t = Node.t and type E.t = Link.e and type V.label
   = Node.label and type E.label = Link.t
 
-val from_dotfile_tbl : string -> (Topology.t * (int, int) Hashtbl.t)
+val from_dotfile_tbl : string -> (Topology.t * (string, nattr) Hashtbl.t)
 val from_dotfile : string -> Topology.t
 val from_gmlfile : string -> Topology.t
