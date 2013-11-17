@@ -241,6 +241,21 @@ module Sat = struct
     ZTerm (TApp ( (TApp (TVar "_", [TVar "map"; fun2map]  )), lists))
 *)
 
+(*
+
+things we thought of this morning: 
+ - explicit set creation function (with list of packets for it to contain). memoized.
+ - swap the reset construction with a getter for the lists built in the memoized functions.
+ - set_map function, which checks to see if the set has 1 element (sets now need metadata)
+   and then actually does a map over the number of elements in the set by constructing new
+   explicit maybe-packets.  
+ - maybe-packets n, a function which creates n Packets which could be nopacket.
+ - how to do a C++/Java - style object in Ocaml?  If we had that, then a set would consist of 
+    - z3 identifier
+    - size
+    - list of packets constrained to be within this set. (maybe not on this.  We'll think about it).
+
+*)
       
   module Z3macro = struct
     let x = (ZTerm (TVar "x")) 
