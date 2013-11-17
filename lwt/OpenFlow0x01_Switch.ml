@@ -39,8 +39,8 @@ let rec recv_from_switch_fd (sock : file_descr) : (xid * msg) option Lwt.t =
 let send_to_switch_fd (sock : file_descr) (xid : xid) (msg : msg) : bool Lwt.t =
   lwt msg_buf = Lwt.wrap2 Message.marshal xid msg in
   let msg_len = String.length msg_buf in
-  lwt sent = Lwt_unix.write sock msg_buf 0 msg_len in
   try_lwt
+    lwt sent = Lwt_unix.write sock msg_buf 0 msg_len in
     Lwt.return (sent = msg_len)
   with Unix.Unix_error (err, fn, arg) ->
     Printf.printf "[platform0x01] error sending: %s (in %s)\n%!"
