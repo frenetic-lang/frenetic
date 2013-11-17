@@ -537,6 +537,7 @@ module Igmp1and2 = struct
   (* Assumes that bits has enough room. *)
   let marshal (bits : Cstruct.t) (msg : t) =
     set_igmp1and2_mrt bits msg.mrt;
+    set_igmp1and2_chksum bits 0;
     set_igmp1and2_addr bits msg.addr;
     (* ADF: hack since Igmp.sizeof_igmp not defined at this point *)
     let igmp_hdr = Cstruct.sub bits (-1) (1 + sizeof_igmp1and2) in
@@ -635,6 +636,7 @@ module Igmp3 = struct
 
   (* Assumes that bits has enough room. *)
   let marshal (bits : Cstruct.t) (msg : t) =
+    set_igmp3_chksum bits 0;
     set_igmp3_num_records bits (List.length msg.grs);
     let gr_bits = Cstruct.shift bits sizeof_igmp3 in
     ignore (List.fold_left GroupRec.marshal gr_bits msg.grs);
@@ -875,6 +877,7 @@ module Ip = struct
     set_ip_src bits pkt.src;
     set_ip_dst bits pkt.dst;
     Cstruct.blit pkt.options 0 bits sizeof_ip (Cstruct.len pkt.options);
+    set_ip_chksum bits 0;
     let chksum = Checksum.ones_complement (Cstruct.sub bits 0 header_len) in
     set_ip_chksum bits chksum;
     let bits = Cstruct.shift bits header_len in
