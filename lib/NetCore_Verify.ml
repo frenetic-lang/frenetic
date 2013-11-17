@@ -251,8 +251,8 @@ module Sat = struct
          Buffer.add_char b '\n';
        done
      with End_of_file -> ());
-    (*Printf.eprintf "%s\n%s" s (Buffer.contents b);*)
-    Buffer.contents b = "sat\nsat\n"
+     Printf.eprintf "%s\n%s" s (Buffer.contents b); 
+    Buffer.contents b = "sat\n"
 end
 
 module Verify_Graph = struct
@@ -414,14 +414,29 @@ module Verify = struct
       if n < i then acc else aux (n-1) (n :: acc) in
     aux j ([]) )
 
+  let pred_test,reset_pred_test = 
+    let hashmap = Hashtbl.create 0 in
+    let pred_test f =  
+      try (Hashtbl.find hashmap f)
+      with Not_found -> 
+	let macro = z3_macro "pred_test" [("x", SPacket); ("v", SInt)] SBool 
+	  (
+	    ZAnd [ZNot (ZEquals (ZTerm (TVar "x"), Z3macro.nopacket));
+		  ZEquals(ZTerm (encode_header f "x"), ZTerm (TVar "v"))]) in
+	Hashtbl.add hashmap f macro; 
+	(Hashtbl.find hashmap f) in	
+    let reset_pred_test () = Hashtbl.clear hashmap in
+    pred_test, reset_pred_test
+
+
   let rec forwards_pred (pred : pred) (pkt : zVar) : zFormula = 
+
     match pred with
       | False -> 
 	ZFalse
       | True -> 
 	ZTrue
-      | Test (hdr, v) -> 
-	(ZEquals (ZTerm (encode_header hdr pkt), ZTerm (encode_vint v)))
+      | Test (hdr, v) -> ZTerm (TApp (pred_test hdr, [TVar pkt; encode_vint v]))
       | Neg p ->
         (ZNot (forwards_pred p pkt))
       | And (pred1, pred2) -> 
@@ -441,7 +456,10 @@ module Verify = struct
       with Not_found -> 
 	let macro = z3_macro "mod" [("x", SPacket); ("y", SPacket); ("v", SInt)] SBool 
 	  (
-	    ZAnd [packet_equals_fun;
+	    ZAnd [ZIf ((ZEquals (ZTerm (TVar "x"), nopacket)), 
+		       (ZEquals (ZTerm (TVar "y"), nopacket)),
+		       (ZNot (ZEquals (ZTerm (TVar "y"), nopacket))));
+		  packet_equals_fun;
 		  ZEquals(ZTerm (encode_header f "y"), ZTerm (TVar "v"))]) in
 	Hashtbl.add hashmap packet_equals_fun macro; 
 	ZTerm (Hashtbl.find hashmap packet_equals_fun) in	
@@ -478,7 +496,9 @@ module Verify = struct
       | Star _  -> failwith "NetKAT program not in form (p;t)*"
       | Choice _-> failwith "I'm not rightly sure what a \"choice\" is "
 	
-  let exists typ list func : zFormula = assert false (*belongs in z3macro *)
+  let exists (list : zVar list) func : zFormula = 
+    ZOr (List.map (fun pkt -> func pkt) list)
+      
 
   let rec forwards_k p_t_star inpkt outpkt k : zFormula =
     match p_t_star with
@@ -488,7 +508,7 @@ module Verify = struct
 	else
 	  let pol_form, polout = forwards_pol p inpkt in
 	  let topo_form, topo_out = unzip_list_tuple (List.map (fun mpkt -> forwards_pol t mpkt) polout) in
-	  let rest_of_links = (exists SPacket topo_out (fun x -> forwards_k p_t_star x outpkt (k-1))) in
+	  let rest_of_links = (exists (List.flatten topo_out) (fun x -> forwards_k p_t_star x outpkt (k-1))) in
 	  ZAnd ([pol_form; rest_of_links] @ topo_form)
       | _ -> failwith "NetKAT program not in form (p;t)*"
 
