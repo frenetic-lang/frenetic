@@ -290,11 +290,43 @@ module Icmp = struct
 end
 
 (* TODO - enhance type & parsing with individual flags, like TCP or IP *)
-(* TODO - Resource Records parsing, marshaling, etc. *)
 (* TODO - add & expose some helpful constants such as A, MX, AAAA, etc. *)
-(* TODO - DNS oddities: UTF-8, Punycode, DNS string compression *)
+(* TODO - DNS oddities: UTF-8 support, Punycode, & DNS string compression *)
+(* TODO - create type hierarchy for RData: A, AAAA, NS, PTR, CNAME, MX, etc. *)
 
 module Dns = struct
+
+  (* Helper to get the RLE-encoded, NULL-terminated names in DNS records *)
+  let get_dns_name bits =
+    let get_piece = (fun bits ->
+                      let len = Cstruct.get_uint8 bits 0 in
+                      Cstruct.copy bits 1 len) in
+    let rec get_pieces = (fun bits acc ->
+                            let piece = get_piece bits in
+                            let acc = acc @ [piece] in
+                            let len = String.length piece in
+                            let bits = Cstruct.shift bits (len + 1) in
+                            if len > 0 then get_pieces bits acc
+                            else acc) in
+    String.concat "." (get_pieces bits []);;
+
+  (* DNS string encoding requires 1 byte per '.' separated piece; since the
+     '.' is not included, we gain 1 for the first piece, plus NULL term *)
+  let dns_name_len (name : string) =  (String.length name) + 2
+
+  (* Helper to set a DNS name; does not use the (optional) compression scheme.
+     Return 'bits' located at next write location. *)
+  let set_dns_name (bits : Cstruct.t) (name : string) =
+    let pieces = Str.split (Str.regexp "\\.") name in
+    let helper = (fun acc piece ->
+                  let len = String.length piece in
+                  Cstruct.set_uint8 bits acc len;
+                  Cstruct.blit_from_string piece 0 bits (acc + 1) len;
+                  (acc + len + 1)) in
+    let end_pos = List.fold_left helper 0 pieces in
+    Cstruct.set_uint8 bits end_pos 0; (* NULL terminator *)
+    Cstruct.shift bits (end_pos + 1)
+
 
   (* DNS Question Description Records *)
   module Qd = struct
@@ -306,77 +338,106 @@ module Dns = struct
     }
 
     cstruct qd {
-      (* preceeded by RLE-encoded, NULL-terminated name *)
+      (* preceeded by name *)
       uint16_t typ;
       uint16_t class_
     } as big_endian
 
     let format fmt v =
       let open Format in
-      fprintf fmt "@[;(typ=%x;class=%x;name=%s)@]"
-          v.typ v.class_ v.name
+      fprintf fmt "@[;(name=%s;typ=0x%x;class=0x%x)@]"
+          v.name v.typ v.class_
 
     let parse (bits : Cstruct.t) =
-      if Cstruct.len bits <= 0 then
-        raise (UnparsablePacket "not enough bytes for QD record");
-
-      let get_piece = (fun bits ->
-                        let len = Cstruct.get_uint8 bits 0 in
-                        Cstruct.copy bits 1 len) in
-      let rec get_pieces = (fun bits acc ->
-                              let piece = get_piece bits in
-                              let acc = acc @ [piece] in
-                              let len = String.length piece in
-                              let bits = Cstruct.shift bits (len + 1) in
-                              if len > 0 then get_pieces bits acc
-                              else acc) in
-      let name = String.concat "." (get_pieces bits []) in
-
-      let bits = Cstruct.shift bits ((String.length name) + 2) in
+      let name = get_dns_name bits in
+      let bits = Cstruct.shift bits (dns_name_len name) in
       if Cstruct.len bits < sizeof_qd then
         raise (UnparsablePacket "not enough bytes for QD record");
       let typ = get_qd_typ bits in
       let class_ = get_qd_class_ bits in
       { name = name; typ = typ; class_ = class_ }
 
-    let len (qd : t) =
-      (* string encoding requires 1 byte per '.' separated piece; since the
-         '.' is not included, we gain 1 for the first piece, plus NULL term *)
-      let string_len = String.length qd.name + 2 in
-      sizeof_qd + string_len
+    let len (qd : t) = (dns_name_len qd.name) + sizeof_qd
 
-    (* Marshal DNS strings without compression;
-       Return 'bits' located at next write location *)
     let marshal (bits : Cstruct.t) (qd : t) =
-      let pieces = Str.split (Str.regexp "\\.") qd.name in
-
-      let helper = (fun acc piece ->
-                    let len = String.length piece in
-                    Cstruct.set_uint8 bits acc len;
-                    Cstruct.blit_from_string piece 0 bits (acc + 1) len;
-                    (acc + len + 1)) in
-
-      let end_pos = List.fold_left helper 0 pieces in
-      Cstruct.set_uint8 bits end_pos 0; (* NULL terminator *)
-
-      let bits = Cstruct.shift bits (end_pos + 1) in
+      let bits = set_dns_name bits qd.name in
       set_qd_typ bits qd.typ;
       set_qd_class_ bits qd.class_;
       Cstruct.shift bits sizeof_qd
 
   end
 
+  (* DNS Resource Records *)
+  module Rr = struct
+
+    type t = {
+      name : string;
+      typ : int16;
+      class_ : int16;
+      ttl : int; (* TTL is signed 32-bit int *)
+      rdata : bytes
+    }
+
+    cstruct rr {
+      (* preceeded by name *)
+      uint16_t typ;
+      uint16_t class_;
+      int32_t ttl;
+      uint16_t rdlen
+      (* followed by variable-length RData *)
+    } as big_endian
+
+    let format fmt v =
+      let open Format in
+      fprintf fmt "@[;(name=%s;typ=0x%x;class=0x%x;ttl=%d)@]"
+          v.name v.typ v.class_ v.ttl
+
+    let parse (bits : Cstruct.t) =
+      let name = get_dns_name bits in
+      let bits = Cstruct.shift bits (dns_name_len name) in
+      if Cstruct.len bits < sizeof_rr then
+        raise (UnparsablePacket "not enough bytes for RR record");
+      let typ = get_rr_typ bits in
+      let class_ = get_rr_class_ bits in
+      let ttl = Int32.to_int (get_rr_ttl bits) in
+      let rdlen = get_rr_rdlen bits in
+      let rdata = Cstruct.sub bits sizeof_rr rdlen in
+      { name = name; typ = typ; class_ = class_;
+        ttl = ttl; rdata = rdata }
+
+    let len (rr : t) =
+       (dns_name_len rr.name) + sizeof_rr + (Cstruct.len rr.rdata)
+
+    let marshal (bits : Cstruct.t) (rr : t) =
+      let bits = set_dns_name bits rr.name in
+      set_rr_typ bits rr.typ;
+      set_rr_class_ bits rr.class_;
+      set_rr_ttl bits (Int32.of_int rr.ttl);
+      let rdlen = Cstruct.len rr.rdata in
+      set_rr_rdlen bits rdlen;
+      Cstruct.blit rr.rdata 0 bits sizeof_rr rdlen;
+      Cstruct.shift bits (sizeof_rr + rdlen)
+
+  end
+
+
+  (* DNS Packet *)
   type t =
     { id : int16
     ; flags : int16
     ; questions : Qd.t list
-    (*; answers : DnsRR.t list
-    ; authority : DnsRR.t list
-    ; additional : DnsRR.t list *) }
+    ; answers : Rr.t list
+    ; authority : Rr.t list
+    ; additional : Rr.t list }
 
-  let format fmt v = (* TODO - questions, etc. *)
+  let format fmt v =
     let open Format in
-    fprintf fmt "@[id=%x;flags=%x@]" v.id v.flags
+    fprintf fmt "@[id=%x;flags=%x@]" v.id v.flags;
+    List.iter (Qd.format fmt) v.questions;
+    List.iter (Rr.format fmt) v.answers;
+    List.iter (Rr.format fmt) v.authority;
+    List.iter (Rr.format fmt) v.additional
+
 
   cstruct dns {
     uint16_t id;
@@ -389,37 +450,47 @@ module Dns = struct
     (* followed by resource records (if any) *)
   } as big_endian
 
-  let parse_questions (bits : Cstruct.t) =
-    let num = get_dns_qdcount bits in
+  let parse_helper (bits : Cstruct.t) (num : int) pf lf off =
     let indices = indicies_maker num in
-    let offset = ref (sizeof_dns) in
-    let get_qd = (fun i -> let bits = Cstruct.shift bits (!offset) in
-                           let qd = Qd.parse bits in
-                           offset := (!offset + Qd.len qd);
-                           qd) in
-    List.map get_qd indices
+    let offset = ref (sizeof_dns + off) in
+    let get_x = (fun i -> let bits = Cstruct.shift bits (!offset) in
+                          let x = pf bits in
+                          offset := (!offset + lf x);
+                          x) in
+    (List.map get_x indices, !offset)
 
   let parse (bits : Cstruct.t) =
     if Cstruct.len bits < sizeof_dns then
       raise (UnparsablePacket "not enough bytes for DNS header");
     let id = get_dns_id bits in
     let flags = get_dns_flags bits in
-    let questions = parse_questions bits in
-    { id = id; flags = flags; questions = questions (* ;
-      answers = []; authority = []; additional = [] *) }
+    let (qd, off) = parse_helper bits (get_dns_qdcount bits) Qd.parse Qd.len 0 in
+    let (an, off) = parse_helper bits (get_dns_ancount bits) Rr.parse Rr.len off in
+    let (ns, off) = parse_helper bits (get_dns_nscount bits) Rr.parse Rr.len off in
+    let (ar, off) = parse_helper bits (get_dns_arcount bits) Rr.parse Rr.len off in
+
+    { id = id; flags = flags; questions = qd;
+      answers = an; authority = ns; additional = ar }
 
   let len (pkt : t) =
-    let qd_len = List.fold_left (fun acc qd ->
-                                  acc + (Qd.len qd)) 0 pkt.questions in
-    sizeof_dns + qd_len
+    let tally = fun lfun lst ->
+                    List.fold_left (fun acc x -> acc + (lfun x)) 0 lst in
+    let qd_len = tally Qd.len pkt.questions in
+    let an_len = tally Rr.len pkt.answers in
+    let ns_len = tally Rr.len pkt.authority in
+    let ar_len = tally Rr.len pkt.additional in
+    sizeof_dns + qd_len + an_len + ns_len + ar_len
 
   (* Assumes that bits has enough room *)
   let marshal (bits : Cstruct.t) (pkt : t) =
     set_dns_id bits pkt.id;
     set_dns_flags bits pkt.flags;
     set_dns_qdcount bits (List.length pkt.questions);
-    let qd_bits = Cstruct.shift bits sizeof_dns in
-    ignore (List.fold_left Qd.marshal qd_bits pkt.questions)
+    let bits = Cstruct.shift bits sizeof_dns in
+    let bits = List.fold_left Qd.marshal bits pkt.questions in
+    let bits = List.fold_left Rr.marshal bits pkt.answers in
+    let bits = List.fold_left Rr.marshal bits pkt.authority in
+    ignore (List.fold_left Rr.marshal bits pkt.additional)
 
   let serialize (dns : t) =
     let bits = Cstruct.create (len dns) in

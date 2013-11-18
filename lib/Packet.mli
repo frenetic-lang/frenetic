@@ -124,10 +124,24 @@ module Dns : sig
       }
   end
 
+  (* DNS Resource Records *)
+  module Rr : sig
+    type t =
+      { name : string
+      ; typ : int16
+      ; class_ : int16
+      ; ttl : int (* TTL is a signed 32-bit int *)
+      ; rdata : bytes
+      }
+  end
+
   type t =
     { id : int16
     ; flags : int16
     ; questions : Qd.t list
+    ; answers : Rr.t list
+    ; authority : Rr.t list
+    ; additional : Rr.t list
     }
 
   (** [serialize pkt] serializes [pkt] into a bit sequence, suitable
