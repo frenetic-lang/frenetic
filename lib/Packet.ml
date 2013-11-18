@@ -416,6 +416,7 @@ module Ip = struct
     let vhl = (v lsl 4) lor ihl in
     set_ip_vhl bits vhl;
     set_ip_tos bits pkt.tos;
+    set_ip_len bits (len pkt);
     set_ip_ident bits pkt.tos;
     set_ip_frag bits ((Flags.to_int pkt.flags) lor (pkt.frag lsl 13));
     set_ip_ttl bits pkt.ttl;
