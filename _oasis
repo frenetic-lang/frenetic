@@ -13,6 +13,10 @@ BuildTools:
 XStdFilesREADME: False
 XStdFilesAUTHORS: FAlse
 
+Flag quickcheck
+    Description: build the packet.quickcheck library
+    Default: False
+
 Library packet
   Path: lib
   BuildDepends: cstruct, cstruct.syntax
@@ -24,3 +28,32 @@ Document doc
   XOCamlBuildPath: lib
   XOCamlBuildModules:
     Packet
+
+Library quickcheck
+  Findlibparent: packet
+  Findlibname: quickcheck
+  Path: quickcheck
+  Build$: flag(quickcheck)
+  BuildDepends:
+    packet,
+    quickcheck
+  Modules:
+    Packet_Arbitrary
+
+Executable testtool
+  Path: test
+  Install: False
+  Build$: flag(tests) && flag(quickcheck)
+  MainIs: Test.ml
+  BuildDepends:
+    oUnit,
+    pa_ounit,
+    pa_ounit.syntax,
+    packet,
+    packet.quickcheck,
+    quickcheck
+
+Test all_tests
+  Command: $testtool inline-test-runner dummy
+  Run$: flag(tests) && flag(quickcheck)
+  TestTools: testtool

@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 2dca310655179dec98a35d1f1e2b522a)
+# DO NOT EDIT (digest: 5eb0e8e13f4cf15ee2914ba348676bb3)
 version = "0.1.1"
 description =
 "Serialization for some common network packets, including ethernet frames, IP, TCP, and ARP."
@@ -9,5 +9,16 @@ archive(byte, plugin) = "packet.cma"
 archive(native) = "packet.cmxa"
 archive(native, plugin) = "packet.cmxs"
 exists_if = "packet.cma"
+package "quickcheck" (
+ version = "0.1.1"
+ description =
+ "Serialization for some common network packets, including ethernet frames, IP, TCP, and ARP."
+ requires = "packet quickcheck"
+ archive(byte) = "quickcheck.cma"
+ archive(byte, plugin) = "quickcheck.cma"
+ archive(native) = "quickcheck.cmxa"
+ archive(native, plugin) = "quickcheck.cmxs"
+ exists_if = "quickcheck.cma"
+)
 # OASIS_STOP
 
