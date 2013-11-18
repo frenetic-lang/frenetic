@@ -488,6 +488,9 @@ module Dns = struct
     set_dns_id bits pkt.id;
     set_dns_flags bits pkt.flags;
     set_dns_qdcount bits (List.length pkt.questions);
+    set_dns_ancount bits (List.length pkt.answers);
+    set_dns_nscount bits (List.length pkt.authority);
+    set_dns_arcount bits (List.length pkt.additional);
     let bits = Cstruct.shift bits sizeof_dns in
     let bits = List.fold_left Qd.marshal bits pkt.questions in
     let bits = List.fold_left Rr.marshal bits pkt.answers in
