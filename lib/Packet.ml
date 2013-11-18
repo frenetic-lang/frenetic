@@ -75,6 +75,8 @@ type dlVlan = int16 option
 
 type dlVlanPcp = int8
 
+type dlVlanDei = bool
+
 type nwAddr = int32
 
 type nwProto = int8
@@ -539,6 +541,7 @@ type packet = {
   dlSrc : dlAddr;
   dlDst : dlAddr; 
   dlVlan : dlVlan;
+  dlVlanDei : dlVlanDei;
   dlVlanPcp : dlVlanPcp;
   nw : nw
 }
@@ -712,6 +715,8 @@ let string_of_dlVlan = function
 
 let string_of_dlVlanPcp = string_of_int
 
+let string_of_dlVlanDei = string_of_bool
+
 let string_of_nwAddr = string_of_ip
 
 let string_of_nwProto = function
@@ -735,7 +740,7 @@ cstruct vlan {
   uint8_t dst[6];
   uint8_t src[6];
   uint16_t hdr; (* 0x8100 *)
-  uint16_t tag; (* tag and pcp *)
+  uint16_t tag; (* pcp, dei, and tag *)
   uint16_t typ
 } as big_endian
 
@@ -746,7 +751,8 @@ cenum eth_typ {
 } as uint16_t
 
 let vlan_mask = 0xfff
-let vlan_pcp_mask = 0x7 lsl 9
+let vlan_pcp_mask = 0x7 lsl 13
+let vlan_dei_mask = 0x1000
 
 (* Transport *)
 
@@ -762,16 +768,17 @@ let parse (bits : Cstruct.t) =
   let src = Cstruct.to_string (get_eth_src bits) in
   let dst = Cstruct.to_string (get_eth_dst bits) in
   let typ = get_eth_typ bits in 
-  let (vlan_tag, vlan_pcp, typ, offset) = 
+  let (vlan_tag, vlan_dei, vlan_pcp, typ, offset) =
     match int_to_eth_typ typ with 
       | Some ETHTYP_VLAN -> 
         let tag_and_pcp = get_vlan_tag bits in 
         let vlan_tag = tag_and_pcp land 0xfff in 
+        let vlan_dei = (tag_and_pcp land 0x1000) > 0 in
         let vlan_pcp = tag_and_pcp lsr 13 in 
         let typ = get_vlan_typ bits in 
-        (Some vlan_tag, vlan_pcp, typ, sizeof_vlan)
+        (Some vlan_tag, vlan_dei, vlan_pcp, typ, sizeof_vlan)
       | _ -> 
-        (None, 0x0, typ, sizeof_eth) in 
+        (None, false, 0x0, typ, sizeof_eth) in
   let bits = Cstruct.shift bits offset in
   let nw_header = 
     try match int_to_eth_typ typ with 
@@ -789,6 +796,7 @@ let parse (bits : Cstruct.t) =
   { dlSrc = mac_of_bytes src;
     dlDst = mac_of_bytes dst;
     dlVlan = vlan_tag;
+    dlVlanDei = vlan_dei;
     dlVlanPcp = vlan_pcp;
     nw = nw_header }
 
@@ -821,7 +829,9 @@ let marshal_helper (bits : Cstruct.t) (pkt : packet) =
     match pkt.dlVlan with
       | Some v ->
         set_vlan_hdr bits 0x8100;
-        set_vlan_tag bits ((pkt.dlVlanPcp lsl 13) lor v);
+        let tag = (if pkt.dlVlanDei then vlan_dei_mask else 0x0)
+                    lor (pkt.dlVlanPcp lsl 13) lor v in
+        set_vlan_tag bits tag;
         set_vlan_typ bits dlTyp;
         Cstruct.shift bits sizeof_vlan
       | None ->

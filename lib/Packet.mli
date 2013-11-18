@@ -39,6 +39,9 @@ type dlVlan = int16 option
 (** [dlVlanPcp] is the type of 802.1Q (VLAN) priorities. *)
 type dlVlanPcp = int8
 
+(** [dlVlanDei] is the type of 802.1Q (VLAN) drop eligible indicator. *)
+type dlVlanDei = bool
+
 (** [nwAddr] is the type of IPv4 addresses. *)
 type nwAddr = int32
 
@@ -170,6 +173,8 @@ type packet =
   { dlSrc : dlAddr (** Ethernet source address. *)
   ; dlDst : dlAddr (** Ethernet destination address. *)
   ; dlVlan : dlVlan (** 802.1Q VLAN identifier, if any. *)
+  ; dlVlanDei : dlVlanDei (** 802.1Q VLAN Drop Eligible Indciator.  Ignored if
+                           [dlVlan] is [None] *)
   ; dlVlanPcp : dlVlanPcp (** 802.1Q VLAN priority.  Ignored if [dlVlan] is 
                           [None]. *)
   ; nw : nw (** Ethernet payload. *)
@@ -261,6 +266,10 @@ val string_of_dlVlan : dlVlan -> string
 
 (** [string_of_dlVlanPcp p] pretty-prints an 802.1Q VLAN priority. *)
 val string_of_dlVlanPcp : dlVlanPcp -> string
+
+(** [string_of_dlVlanDei p] pretty-prints an 802.1Q VLAN Drop Eligible
+Indicator. *)
+val string_of_dlVlanDei : dlVlanDei -> string
 
 (** [string_of_ip ip] pretty-prints an IPv4 address. *)
 val string_of_ip : nwAddr -> string
