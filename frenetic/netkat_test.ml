@@ -74,7 +74,7 @@ end
 
 let () =
   let local p =
-    (fun sw -> LocalCompiler.RunTime.to_table 
+    (fun sw -> LocalCompiler.RunTime.to_table
       (LocalCompiler.RunTime.compile sw p)) in
   print_string (Example.pol_str ^ "\n\n");
   let pol = Parser.program Lexer.token (Lexing.from_string Example.pol_str) in

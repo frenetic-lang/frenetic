@@ -531,21 +531,21 @@ module NFA = struct
 	end
       else 
         (* Case: q is not a pick node *)
-        StateSet.iter 
-          (fun qi -> 
-            (if is_pick_state qi then 
-              let _,ri' = lookup_state qi in 
+        StateSet.iter
+          (fun qi ->
+            (if is_pick_state qi then
+              let _,ri' = lookup_state qi in
               add_trans m' r Epsilon ri'
             else ());
 
-          Hashtbl.iter 
-	      (fun q' ns -> 
-		let qs',r' = lookup_state q' in 
+          Hashtbl.iter
+	      (fun q' ns ->
+		let qs',r' = lookup_state q' in
 		add_set_trans m' r ns r';
 		StateSet.iter
-		  (fun qi' -> 
-		    if is_pick_state qi' then 
-		      let _,ri' = lookup_state qi' in 
+		  (fun qi' ->
+		    if is_pick_state qi' then
+		      let _,ri' = lookup_state qi' in
 		      add_set_trans m' r ns ri')
 		  qs')
 	      (all_delta m.delta qi))
@@ -730,7 +730,7 @@ let regex_to_switch_policies (r : regex) : policy dehopified =
         | [] -> mk_mod Nfa.(auto.s)
         | _  -> if length neighbor_qs = length choice_qs0
                   then assert false (* If all the neighbors are choice nodes,
-                                     * then the start node should just be a 
+                                     * then the start node should just be a
                                      * choice node.
                                      * *)
                   else Types.Par(mk_choice choice_qs1, mk_mod Nfa.(auto.s)) in

@@ -51,5 +51,5 @@ module RunTime : sig
   type i 
   val compile : SDN_Types.fieldVal -> Types.policy -> i
   val decompile : i -> Types.policy
-  val to_table : i -> SDN_Types.flowTable 
+  val to_table : i -> SDN_Types.flowTable
 end

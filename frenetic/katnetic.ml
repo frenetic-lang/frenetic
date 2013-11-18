@@ -17,7 +17,7 @@ module Run = struct
   let with_channel f chan =
     let exp = Parser.program Lexer.token (Lexing.from_channel chan) in
     Lwt_main.run (Controller.start f 6633 (NetKAT_Stream.constant exp))
-  
+
   let with_file f filename =
     with_channel f (open_in filename)
 
@@ -39,7 +39,7 @@ module Run = struct
     m in
     (fun sw -> SwitchMap.find sw cache)
 
-  let main args = 
+  let main args =
     match args with
       | [filename]
       | ("local"     :: [filename]) -> with_file local filename
@@ -53,7 +53,7 @@ module Dump = struct
 
   let with_channel f chan =
     f (Parser.program Lexer.token (Lexing.from_channel chan))
-  
+
   let with_file f filename =
     with_channel f (open_in filename)
 
@@ -63,9 +63,9 @@ module Dump = struct
      * 'em! Also, lol for loop.
      * *)
     for sw = 0 to 40 do
-      let vs = VInt.Int64 (Int64.of_int sw) in 
-      let sw_p = Types.(Seq(Filter(Test(Switch,vs)), p)) in 
-      let table = to_table (compile vs sw_p) in 
+      let vs = VInt.Int64 (Int64.of_int sw) in
+      let sw_p = Types.(Seq(Filter(Test(Switch,vs)), p)) in
+      let table = to_table (compile vs sw_p) in
       if List.length table > 0 then
         Format.printf "@[flowtable for switch %d:\n%a@\n\n@]%!" sw
           SDN_Types.format_flowTable table;
@@ -104,7 +104,7 @@ module Dump = struct
         | ("all"        :: [filename]) -> with_file (with_dehop all) filename
         | ("policies"   :: [filename]) -> with_file (with_dehop policy) filename
         | ("flowtables" :: [filename]) -> with_file (with_dehop flowtable) filename
-        | _ -> 
+        | _ ->
           print_endline "usage: katnetic dump automaton [all|policies|flowtables] filename"
   end
 

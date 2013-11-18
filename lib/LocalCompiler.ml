@@ -51,7 +51,7 @@ module Action = struct
          "" g)
 
   let mk_group (g:group) : group =
-    let r = 
+    let r =
       List.rev
 	(List.fold_left
 	   (fun acc si ->
@@ -422,12 +422,12 @@ module Local = struct
       p
     else
       Atom.Map.fold (fun r1 g1 acc ->
-        let rs = 
-          Atom.Map.fold (fun r2 _ rs -> 
-            Atom.Set.fold 
+        let rs =
+          Atom.Map.fold (fun r2 _ rs ->
+            Atom.Set.fold
               (fun r1i acc -> Atom.Set.union (Atom.diff_atom r1i r2) acc)
               rs Atom.Set.empty)
-            q (Atom.Set.singleton r1) in 
+            q (Atom.Set.singleton r1) in
         Atom.Set.fold (fun r1i acc -> extend r1i g1 acc) rs acc)
       p Atom.Map.empty
 
@@ -534,10 +534,10 @@ module Local = struct
       | Types.Neg p ->
         negate (of_pred sw p)
       | Types.Test (Types.Switch, v) ->
-        if v = sw then 
+        if v = sw then
           of_pred sw Types.True
         else
-          of_pred sw Types.False 
+          of_pred sw Types.False
       | Types.Test (h, v) ->
         let p = Types.HeaderMap.singleton h v in
         Atom.Map.singleton (Pattern.Set.empty, p) [Action.id]
@@ -644,7 +644,7 @@ module RunTime = struct
   let to_pattern (x:Pattern.t) : SDN_Types.pattern =
     let f (h : Types.header) (v : Types.header_val) (pat : SDN_Types.pattern) =
       match h with
-        | Types.Switch -> 
+        | Types.Switch ->
           raise (Invalid_argument "RunTime.to_pattern: unexpected switch")
         | Types.Header h' -> SDN_Types.FieldMap.add h' v pat in
     Types.HeaderMap.fold f x SDN_Types.FieldMap.empty
@@ -652,7 +652,7 @@ module RunTime = struct
   type i = Local.t
 
   let compile (sw:SDN_Types.fieldVal) (pol:Types.policy) : i =
-    let r = Local.of_policy sw pol in 
+    let r = Local.of_policy sw pol in
     (* Printf.printf "COMPILE\n%s\n%s\n" *)
     (*   (Pretty.string_of_policy pol) *)
     (*   (Local.to_string r); *)
