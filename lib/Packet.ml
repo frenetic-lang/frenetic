@@ -289,6 +289,8 @@ module Icmp = struct
   
 end
 
+let rec indicies_maker n = if n = 0 then [] else [n]@(indicies_maker (n-1));;
+
 (* TODO - enhance type & parsing with individual flags, like TCP or IP *)
 (* TODO - add & expose some helpful constants such as A, MX, AAAA, etc. *)
 (* TODO - DNS oddities: UTF-8 support, Punycode, & DNS string compression *)
