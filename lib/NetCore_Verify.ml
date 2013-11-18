@@ -207,6 +207,7 @@ module Sat = struct
 (declare-datatypes 
  () 
  ((Packet
+   (nopacket)
    (packet 
     (Switch Int) 
     (EthDst Int) 
@@ -440,10 +441,10 @@ module Verify = struct
     let pred_test f =  
       try (Hashtbl.find hashmap f)
       with Not_found -> 
-	let macro = z3_macro ("pred_test_" ^ (serialize_header f)) [("x", SPacket); ("v", SInt)] SBool 
-	    (*(ZAnd [ZNot (ZEquals (ZTerm (TVar "x"), Z3macro.nopacket));*)
-	  (ZEquals (ZTerm (encode_header f "x"), ZTerm (TVar "v")))
-	   (* ]) *)
+	let macro = z3_macro ((serialize_header f) ^ "-equals") [("x", SPacket); ("v", SInt)] SBool 
+	  (ZAnd [ZNot (ZEquals (ZTerm (TVar "x"), Z3macro.nopacket));
+		 (ZEquals (ZTerm (encode_header f "x"), ZTerm (TVar "v")))
+		]) 
 	in
 	Hashtbl.add hashmap f macro; 
 	(Hashtbl.find hashmap f) in	
@@ -484,9 +485,9 @@ module Verify = struct
 	let macro = z3_macro ("mod_" ^ (serialize_header f)) [("x", SPacket); ("y", SPacket); ("v", SInt)] SBool 
 	  (
 	    ZAnd [
-	      (* ZIf ((ZEquals (ZTerm (TVar "x"), nopacket)), 
-		       (ZEquals (ZTerm (TVar "y"), nopacket)),
-		       (ZNot (ZEquals (ZTerm (TVar "y"), nopacket)))); *)
+	      ZIf ((ZEquals (ZTerm (TVar "x"), nopacket)), 
+		   (ZEquals (ZTerm (TVar "y"), nopacket)),
+		   (ZNot (ZEquals (ZTerm (TVar "y"), nopacket))));
 		  packet_equals_fun;
 		  ZEquals(ZTerm (encode_header f "y"), ZTerm (TVar "v"))]) in
 	Hashtbl.add hashmap packet_equals_fun macro; 
@@ -504,20 +505,21 @@ module Verify = struct
     
   let rec forwards_pol (pol : policy) (inpkt : zVar) : zFormula * (zVar list) = 
     let inpkt_t = ZTerm (TVar inpkt) in
-    let nullinput = ZFalse (* ZEquals (inpkt_t, nopacket)  *)
-    in
+    (* let nullinput = ZEquals (inpkt_t, nopacket) in *)
     match pol with 
       | Filter pred -> 
-	ZOr[forwards_pred pred inpkt; nullinput], [inpkt]
+	ZOr[forwards_pred pred inpkt(*; nullinput*)], [inpkt]
       | Mod(f,v) -> 
 	let outpkt = fresh SPacket in
 	let outpkt_t = ZTerm (TVar outpkt) in
 	let modfn = mod_fun f in
-	ZOr [ZApp (modfn, [inpkt_t; outpkt_t; ZTerm (encode_vint v)]); nullinput], [outpkt]
+	ZOr [ZApp (modfn, [inpkt_t; outpkt_t; ZTerm (encode_vint v)])(*; nullinput*)], [outpkt]
       | Par (pol1, pol2) -> 
 	let formu1, out1 = forwards_pol pol1 inpkt in
 	let formu2, out2 = forwards_pol pol2 inpkt in
-	ZOr[formu1; formu2], out1@out2
+	ZAnd[
+	  ZOr[formu1; ZAnd (List.map (fun x -> ZEquals (ZTerm (TVar x), nopacket)) out1)];
+	  ZOr[formu2; ZAnd (List.map (fun x -> ZEquals (ZTerm (TVar x), nopacket)) out2)]], out1@out2
       | Seq (pol1, pol2) -> 
 	let formu', midpkts = forwards_pol pol1 inpkt in
 	let outformu, outpkts = unzip_list_tuple (List.map (fun mpkt -> forwards_pol pol2 mpkt) midpkts) in
@@ -537,9 +539,10 @@ module Verify = struct
 	else
 	  let pol_form, polout = forwards_pol p inpkt in
 	  let topo_form, topo_out = unzip_list_tuple (List.map (fun mpkt -> forwards_pol t mpkt) polout) in
-	  let rest_of_links = ZComment ("forwards_k: recur",
-	    (exists (List.flatten topo_out) (fun x -> forwards_k p_t_star x outpkt (k-1)))) in
-	  ZAnd ((pol_form :: topo_form)@[rest_of_links])
+	  let rest_of_links = (exists (List.flatten topo_out) (fun x -> forwards_k p_t_star x outpkt (k-1))) in
+	  ZAnd[(ZComment ("forwards_k: pol_form",pol_form));
+	       ZComment ("forwards_k: topo_form", ZAnd topo_form);
+	       ZComment ("forward_k: recur", rest_of_links)]
       | _ -> failwith "NetKAT program not in form (p;t)*"
 
   let forwards_star p_t_star inpkt outpkt k : zFormula = 
