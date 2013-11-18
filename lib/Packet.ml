@@ -239,7 +239,7 @@ module Udp = struct
   let marshal (bits : Cstruct.t) (pkt : t) =
     set_udp_src bits pkt.src;
     set_udp_dst bits pkt.dst;
-    set_udp_len bits (Cstruct.len pkt.payload);
+    set_udp_len bits (sizeof_udp + (Cstruct.len pkt.payload));
     set_udp_chksum bits 0; (* UDP checksum is optional in IPv4 *)
     let bits = Cstruct.shift bits sizeof_udp in
     Cstruct.blit pkt.payload 0 bits 0 (Cstruct.len pkt.payload)
