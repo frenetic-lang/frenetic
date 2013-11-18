@@ -371,6 +371,7 @@ module Igmp3 = struct
 
     let marshal (bits : Cstruct.t) (gr : t) =
       set_grouprec_typ bits gr.typ;
+      set_grouprec_aux_len bits 0;
       set_grouprec_num_sources bits (List.length gr.sources);
       set_grouprec_addr bits gr.addr;
       let bits = Cstruct.shift bits sizeof_grouprec in
