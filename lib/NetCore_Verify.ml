@@ -211,7 +211,6 @@ module Sat = struct
 (declare-datatypes 
  () 
  ((Packet
-   (nopacket)
    (packet 
     (Switch Int) 
     (EthDst Int) 
@@ -239,7 +238,6 @@ module Sat = struct
 
   let solve prog : bool = 
     let s = serialize_program prog in 
-    (* Printf.eprintf "%s" s; *)
     let z3_out,z3_in = open_process "z3 -in -smt2 -nw" in 
     let _ = output_string z3_in s in
     let _ = flush z3_in in 
@@ -251,7 +249,6 @@ module Sat = struct
          Buffer.add_char b '\n';
        done
      with End_of_file -> ());
-     Printf.eprintf "%s\n%s" s (Buffer.contents b); 
     Buffer.contents b = "sat\n"
 end
 
@@ -379,9 +376,9 @@ module Verify = struct
       | Switch -> 
         TApp (TVar "Switch", [TVar pkt])
 
-  let encode_packet_equals, reset_state = 
+  let encode_packet_equals, reset_state_encode_packet_equals = 
     let hash = Hashtbl.create 0 in 
-    let reset_state () = Hashtbl.clear hash; fresh_cell := []; decl_list := [] in
+    let reset_state () = Hashtbl.clear hash; in
     let encode_packet_equals = 
       (fun (pkt1: zVar) (pkt2: zVar) (except :header)  -> 
 	ZTerm (TApp (
@@ -420,14 +417,20 @@ module Verify = struct
       try (Hashtbl.find hashmap f)
       with Not_found -> 
 	let macro = z3_macro "pred_test" [("x", SPacket); ("v", SInt)] SBool 
-	  (
-	    ZAnd [ZNot (ZEquals (ZTerm (TVar "x"), Z3macro.nopacket));
-		  ZEquals(ZTerm (encode_header f "x"), ZTerm (TVar "v"))]) in
+	    (*(ZAnd [ZNot (ZEquals (ZTerm (TVar "x"), Z3macro.nopacket));*)
+	  (ZEquals (ZTerm (encode_header f "x"), ZTerm (TVar "v")))
+	   (* ]) *)
+	in
 	Hashtbl.add hashmap f macro; 
 	(Hashtbl.find hashmap f) in	
     let reset_pred_test () = Hashtbl.clear hashmap in
     pred_test, reset_pred_test
 
+  let reset_state () = 
+    reset_state_encode_packet_equals (); 
+    fresh_cell := []; 
+    decl_list := [];
+    reset_pred_test ()
 
   let rec forwards_pred (pred : pred) (pkt : zVar) : zFormula = 
 
@@ -456,9 +459,10 @@ module Verify = struct
       with Not_found -> 
 	let macro = z3_macro "mod" [("x", SPacket); ("y", SPacket); ("v", SInt)] SBool 
 	  (
-	    ZAnd [ZIf ((ZEquals (ZTerm (TVar "x"), nopacket)), 
+	    ZAnd [
+	      (* ZIf ((ZEquals (ZTerm (TVar "x"), nopacket)), 
 		       (ZEquals (ZTerm (TVar "y"), nopacket)),
-		       (ZNot (ZEquals (ZTerm (TVar "y"), nopacket))));
+		       (ZNot (ZEquals (ZTerm (TVar "y"), nopacket)))); *)
 		  packet_equals_fun;
 		  ZEquals(ZTerm (encode_header f "y"), ZTerm (TVar "v"))]) in
 	Hashtbl.add hashmap packet_equals_fun macro; 
@@ -476,7 +480,8 @@ module Verify = struct
     
   let rec forwards_pol (pol : policy) (inpkt : zVar) : zFormula * (zVar list) = 
     let inpkt_t = ZTerm (TVar inpkt) in
-    let nullinput = ZEquals (inpkt_t, nopacket) in
+    let nullinput = ZFalse (* ZEquals (inpkt_t, nopacket)  *)
+    in
     match pol with 
       | Filter pred -> 
 	ZOr[forwards_pred pred inpkt; nullinput], [inpkt]
@@ -508,8 +513,9 @@ module Verify = struct
 	else
 	  let pol_form, polout = forwards_pol p inpkt in
 	  let topo_form, topo_out = unzip_list_tuple (List.map (fun mpkt -> forwards_pol t mpkt) polout) in
-	  let rest_of_links = (exists (List.flatten topo_out) (fun x -> forwards_k p_t_star x outpkt (k-1))) in
-	  ZAnd ([pol_form; rest_of_links] @ topo_form)
+	  let rest_of_links = ZComment ("forwards_k: recur",
+	    (exists (List.flatten topo_out) (fun x -> forwards_k p_t_star x outpkt (k-1)))) in
+	  ZAnd ((pol_form :: topo_form)@[rest_of_links])
       | _ -> failwith "NetKAT program not in form (p;t)*"
 
   let forwards_star p_t_star inpkt outpkt k : zFormula = 
@@ -530,7 +536,13 @@ end
           if ok = sat then
             true
           else
-            (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; false)
+            (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; 
+	     Printf.printf "Offending program is in debug-%s.rkt\n" (to_string (gensym ()));
+	     (let file = "debug.rkt" in
+	      let oc = open_out file in 
+	      Printf.fprintf oc "%s\n" (Sat.serialize_program prog);
+	      close_out oc);
+	     false)
 	| None, sat ->
           (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)) in
     Verify.reset_state (); Verify.reset_mod_fun (); run_result
