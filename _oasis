@@ -15,7 +15,7 @@ XStdFilesAUTHORS: FAlse
 
 Library packet
   Path: lib
-  BuildDepends: cstruct, cstruct.syntax
+  BuildDepends: cstruct, cstruct.syntax, str
   Modules: Packet
 
 Document doc
