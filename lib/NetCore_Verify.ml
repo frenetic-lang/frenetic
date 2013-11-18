@@ -183,7 +183,7 @@ module Sat = struct
   let z3_macro, z3_macro_top = 
     let z3_macro_picklocation put_at_top (name : string) (arglist : (zVar * zSort) list) (rettype : zSort)(body : zFormula) : zTerm = 
       let l = !fresh_cell in
-      let name = name ^ "_" ^ to_string (gensym ()) in
+      let name = name (* ^ "_" ^ to_string (gensym ()) *) in
       let new_macro = (define_z3_macro name arglist rettype body) in
       (if put_at_top then
 	fresh_cell := new_macro @ l
@@ -195,10 +195,6 @@ module Sat = struct
     let z3_macro_top = z3_macro_picklocation true in
     z3_macro, z3_macro_top
 
-  let z3_macro_app (s : string) (vars : zVar list) (expr : zFormula) (args : zFormula list) = 
-    let params = (List.map (fun v -> (v, SPacket)) vars) in
-    let fun2map = (z3_macro ("forwards_pol_" ^ s) params SPacket expr) in
-    (ZApp (ZTerm fun2map, args))
 
     
   module Z3macro = struct
@@ -349,32 +345,60 @@ module Verify = struct
       ; Switch 
 ]
 
+  let serialize_header (header: header) : string = 
+    match header with
+      | Header InPort -> 
+	"InPort"
+      | Header EthSrc -> 
+	"EthSrc"
+      | Header EthDst -> 
+	"EthDst"
+      | Header EthType ->  
+	"EthType"
+      | Header Vlan ->  
+	"Vlan"
+      | Header VlanPcp ->
+	"VlanPcp"
+      | Header IPProto ->  
+	"IPProto"
+      | Header IP4Src ->  
+	"IP4Src"
+      | Header IP4Dst ->  
+	"IP4Dst"
+      | Header TCPSrcPort ->  
+	"TCPSrcPort"
+      | Header TCPDstPort ->  
+	"TCPDstPort"
+      | Switch -> 
+	"Switch"
+    
+
   let encode_header (header: header) (pkt:zVar) : zTerm =
     match header with
       | Header InPort -> 
-        TApp (TVar "InPort", [TVar pkt])
+        TApp (TVar (serialize_header header), [TVar pkt])
       | Header EthSrc -> 
-        TApp (TVar "EthSrc", [TVar pkt])
+        TApp (TVar (serialize_header header), [TVar pkt])
       | Header EthDst -> 
-        TApp (TVar "EthDst", [TVar pkt])
+        TApp (TVar (serialize_header header), [TVar pkt])
       | Header EthType ->  
-        TApp (TVar "EthType", [TVar pkt])
+        TApp (TVar (serialize_header header), [TVar pkt])
       | Header Vlan ->  
-        TApp (TVar "Vlan", [TVar pkt])
+        TApp (TVar (serialize_header header), [TVar pkt])
       | Header VlanPcp ->
-        TApp (TVar "VlanPcp", [TVar pkt])
+        TApp (TVar (serialize_header header), [TVar pkt])
       | Header IPProto ->  
-        TApp (TVar "IPProto", [TVar pkt])
+        TApp (TVar (serialize_header header), [TVar pkt])
       | Header IP4Src ->  
-        TApp (TVar "IP4Src", [TVar pkt])
+        TApp (TVar (serialize_header header), [TVar pkt])
       | Header IP4Dst ->  
-        TApp (TVar "IP4Dst", [TVar pkt])
+        TApp (TVar (serialize_header header), [TVar pkt])
       | Header TCPSrcPort ->  
-        TApp (TVar "TCPSrcPort", [TVar pkt])
+        TApp (TVar (serialize_header header), [TVar pkt])
       | Header TCPDstPort ->  
-        TApp (TVar "TCPDstPort", [TVar pkt])
+        TApp (TVar (serialize_header header), [TVar pkt])
       | Switch -> 
-        TApp (TVar "Switch", [TVar pkt])
+        TApp (TVar (serialize_header header), [TVar pkt])
 
   let encode_packet_equals, reset_state_encode_packet_equals = 
     let hash = Hashtbl.create 0 in 
@@ -394,7 +418,7 @@ module Verify = struct
 		    else
 		      ZEquals (ZTerm (encode_header hd "x"), ZTerm( encode_header hd "y"))::acc) 
 		  [] all_fields in 
-	      let new_except = (z3_macro_top ("packet_equals_except_" ^ (*todo: how to serialize headers? serialize_ except*) "" ) 
+	      let new_except = (z3_macro_top ("packet_equals_except_" ^ (serialize_header except) )
 				  [("x", SPacket);("y", SPacket)] SBool  
 				  (ZAnd(l))) in
 	      Hashtbl.add hash except new_except;
@@ -416,7 +440,7 @@ module Verify = struct
     let pred_test f =  
       try (Hashtbl.find hashmap f)
       with Not_found -> 
-	let macro = z3_macro "pred_test" [("x", SPacket); ("v", SInt)] SBool 
+	let macro = z3_macro ("pred_test_" ^ (serialize_header f)) [("x", SPacket); ("v", SInt)] SBool 
 	    (*(ZAnd [ZNot (ZEquals (ZTerm (TVar "x"), Z3macro.nopacket));*)
 	  (ZEquals (ZTerm (encode_header f "x"), ZTerm (TVar "v")))
 	   (* ]) *)
@@ -457,7 +481,7 @@ module Verify = struct
       let packet_equals_fun = encode_packet_equals "x" "y" f in
       try ZTerm (Hashtbl.find hashmap packet_equals_fun)
       with Not_found -> 
-	let macro = z3_macro "mod" [("x", SPacket); ("y", SPacket); ("v", SInt)] SBool 
+	let macro = z3_macro ("mod_" ^ (serialize_header f)) [("x", SPacket); ("y", SPacket); ("v", SInt)] SBool 
 	  (
 	    ZAnd [
 	      (* ZIf ((ZEquals (ZTerm (TVar "x"), nopacket)), 
@@ -537,11 +561,11 @@ end
             true
           else
             (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; 
-	     Printf.printf "Offending program is in debug-%s.rkt\n" (to_string (gensym ()));
-	     (let file = "debug.rkt" in
-	      let oc = open_out file in 
-	      Printf.fprintf oc "%s\n" (Sat.serialize_program prog);
-	      close_out oc);
+	     (let file = "debug-" ^ (to_string (gensym ())) ^ ".rkt" in
+		(Printf.printf "Offending program is in %s.rkt\n" file;
+		 let oc = open_out file in 
+		 Printf.fprintf oc "%s\n" (Sat.serialize_program prog);
+		 close_out oc));
 	     false)
 	| None, sat ->
           (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)) in
