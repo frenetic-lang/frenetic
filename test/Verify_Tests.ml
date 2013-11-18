@@ -57,8 +57,8 @@ TEST "simple-check-false" =
 	(make_packet_2 2 2)
 	false 
 
-TEST "narrowing down" = 
-  verify "narrowing down"
+TEST "narrowing down1" = 
+  verify "narrowing down1"
     (make_packet_2 1 1)
     (starify 
        (Neg (Test (Switch, make_vint 1))) 
@@ -70,8 +70,8 @@ TEST "narrowing down" =
     false
 
 
-TEST "narrowing down" = 
-  verify_k 1 "narrowing down"
+TEST "narrowing down2" = 
+  verify_k 1 "narrowing down2"
     (make_packet_2 1 1)
     (starify 
        (Test (Switch, make_vint 1)) 
@@ -133,8 +133,6 @@ let pol_topo = starify pol topo
 	 (make_packet_2 3 1)
 	 true )
 
-
-
 	TEST "restrict5" = 
   (verify "restrict5"
 	 (make_packet_4 1 1 1 2)
@@ -148,6 +146,20 @@ let pol_topo = starify pol topo
 	 pol_topo
 	 (make_packet_2 3 1)
 	 true )
+
+    TEST "restrict7" = 
+  (verify "restrict7"
+     (make_packet_2 1 1)
+     pol_topo
+     (make_packet_2 4 1)
+     false)
+
+    TEST "real-restrict" = 
+  (verify "real-restrict"
+     (make_packet_3 1 1 1)
+     pol_topo
+     (make_packet_2 3 1)
+     false )
 
 (*
 	TEST "restrict6-history" = 
