@@ -35,7 +35,6 @@ type lf_policy =
   | Filter of pred
   | Mod of header * header_val
   | Par of lf_policy * lf_policy
-  | Choice of lf_policy * lf_policy
   | Seq of lf_policy * lf_policy
   | Star of lf_policy
 
@@ -78,8 +77,6 @@ let rec lf_policy_to_policy (lfp : lf_policy) : policy =
     | Mod(h, v) -> Types.Mod(h, v)
     | Par(p1, p2) ->
       Types.Par(lf_policy_to_policy p1, lf_policy_to_policy p2)
-    | Choice(p1, p2) ->
-      Types.Choice(lf_policy_to_policy p1, lf_policy_to_policy p2)
     | Seq(p1, p2) ->
       Types.Seq(lf_policy_to_policy p1, lf_policy_to_policy p2)
     | Star(p) ->
@@ -113,6 +110,65 @@ let lf_policy_to_string (lf_p : lf_policy) : string =
 
 (* BEGIN OF POLICY ---------------------------------------------------------- *)
 
+module TRegex = struct
+  type pl_char =
+    | PChar of lf_policy
+    | LChar of lf_policy option * link
+
+  type tregex = pl_char aregex
+
+  let rec of_policy (p : policy) : tregex =
+    begin match p with
+      | Types.Filter(q) ->
+        Char(PChar(Filter q))
+      | Types.Mod(h, v) ->
+        Char(PChar(Mod(h, v)))
+      | Types.Link(sw1, pt1, sw2, pt2) ->
+        Char(LChar(None, (sw1, pt1, sw2, pt2)))
+      | Types.Seq(p1, p2) ->
+        let p1' = of_policy p1 in
+        let p2' = of_policy p2 in
+        begin match p1', p2' with
+          | Char(PChar(lfp1)), Char(PChar(lfp2)) ->
+            Char(PChar(Seq(lfp1, lfp2)))
+          | Char(PChar(lfp1)), Char(LChar(mlfp2, l)) ->
+            let mlfp = optional lfp1 (fun x -> Seq(lfp1,x)) mlfp2 in
+            Char(LChar(Some(mlfp), l))
+          | _, _ -> Cat(p1', p2')
+        end
+      | Types.Par(p1, p2) ->
+        let p1' = of_policy p1 in
+        let p2' = of_policy p2 in
+        begin match p1', p2' with
+          | Char(PChar(lfp1)), Char(PChar(lfp2)) ->
+            Char(PChar(Par(lfp1, lfp2)))
+          | _ , _ -> Alt(p1', p2')
+        end
+      | Types.Choice(p1, p2) ->
+        Pick(of_policy p1, of_policy p2)
+      | Types.Star(q) ->
+        Kleene(of_policy q)
+    end
+
+  let rec to_policy (r : tregex) : policy =
+    begin match r with
+      | Char(PChar(lfp)) ->
+        lf_policy_to_policy lfp
+      | Char(LChar(mlfp, l)) ->
+        let link = link_to_policy l in
+        optional link (fun x -> Types.Seq(lf_policy_to_policy x, link)) mlfp
+      | Pick(r1, r2) ->
+        Types.Choice(to_policy r1, to_policy r2)
+      | Alt(r1, r2) ->
+        Types.Par(to_policy r1, to_policy r2)
+      | Cat(r1, r2) ->
+        Types.Seq(to_policy r1, to_policy r2)
+      | Kleene(r) ->
+        Types.Star(to_policy r)
+      | Empty -> Types.Filter(Types.True)
+    end
+end
+
 (* An intermediate representation for the conversion from a NetKAT policy to a
  * regex. inter is a continuation with three cases. 
  *
@@ -130,21 +186,26 @@ let lf_policy_to_string (lf_p : lf_policy) : string =
  * policies, if necessary.
  *)
 type inter =
-    | TP of link_provider
-    | NL of link_consumer
-    | S  of regex
+  | TP of link_provider
+  | NL of link_consumer
+  | S  of regex
 
 and cstr = lf_policy -> lf_policy -> lf_policy 
 
-and link_provider = cstr -> lf_policy option -> inter 
+and link_provider = lf_policy option -> inter
 and link_consumer = cstr -> lf_policy option -> link_provider option -> inter
 
 let seq (p : lf_policy) (q : lf_policy) : lf_policy = Seq(p, q)
 let par (p : lf_policy) (q : lf_policy) : lf_policy = Par(p, q)
-let pick (p : lf_policy) (q : lf_policy) : lf_policy = Choice(p, q)
+(* let pick (p : lf_policy) (q : lf_policy) : lf_policy = Choice(p, q) *)
 
-let mk_mcstr c mp q =
+let mk_mcstr (c : cstr) mp q =
   optional q (fun p -> c p q) mp
+
+let mk_mmcstr (c : cstr) mp mq =
+  match mq with
+    | None -> mp
+    | Some q -> Some(mk_mcstr c mp q)
 
 (* Constructor for a link_consumer. Requires a link-free policy as the basis for
  * its accumulator so that if it passes its link-free policy to a link_provider,
@@ -156,21 +217,21 @@ let rec mk_nl (lf_p : lf_policy) : link_consumer =
     (* print_string ("mk_nl with lfp': " ^ (lf_policy_to_string lfp') ^ "\n"); *)
     match mlp with
       | None    -> NL(mk_nl lfp')
-      | Some lp -> lp cstr (Some(lfp'))
+      | Some lp -> lp (Some(lfp'))
 
 (* Constructor for link_provider. Requires a link and an optional link-free
  * policy that acts as an accumulator. If the link provider receives a `None`,
  * it will transition to a regex. If it receives `Some lfp` then it will
  * continue taking policies.
  *)
-let rec mk_tp (l : link) (macc : lf_policy option) : link_provider =
-  fun cstr mlf_p ->
+let rec mk_tp (macc : lf_policy option) (l : link) : link_provider =
+  fun mlf_p ->
     match mlf_p with
       | None -> 
         S(Char(from_option (Filter(Types.True)) macc, l))
       | Some lf_p ->
         (* print_string ("mk_tp with lf_p: " ^ (lf_policy_to_string lf_p) ^ "\n"); *)
-        TP(mk_tp l (Some(mk_mcstr (flip cstr) macc lf_p)))
+        TP(mk_tp (Some(mk_mcstr (flip seq) macc lf_p)) l)
 
 (* Turn an optional link_provider into an inter. Call in the case where
  * a link is needed, and link-free policies can no longer be accepted. The inter
@@ -178,59 +239,95 @@ let rec mk_tp (l : link) (macc : lf_policy option) : link_provider =
  * policies, and will continue to produce an NL continuation until some context
  * provides it with a valid (non-None) link-provider.
  *)
-let rec mk_inter_of_mlp (c : cstr) (mlp : link_provider option) : inter =
+let rec mk_inter_of_mlp (mlp : link_provider option) : inter =
   match mlp with
-    | None    -> NL(fun c mp mlp -> assert (is_none mp); mk_inter_of_mlp c mlp)
-    | Some lp -> lp c None
+    | None    -> NL(fun _ mp mlp -> assert (is_none mp); mk_inter_of_mlp mlp)
+    | Some lp -> lp None
 
+let regex_of_policy (p: policy) : regex =
+  let open TRegex in
 
-(* END DATA TYPES ----------------------------------------------------------- *)
-
-
-let regex_of_policy (p : policy) : regex =
-
-  let rec rpc (p : policy) : inter =
+  let rec rpc (tregex : tregex) : inter =
     (* print_string ((Types.string_of_policy p) ^ "\n"); *)
-    begin match p with
-      | Types.Filter(q) ->
-        NL(mk_nl (Filter q))
-      | Types.Mod(h, v) ->
-        NL(mk_nl (Mod(h, v)))
-      | Types.Link(sw1, pt1, sw2, pt2) ->
-        TP(mk_tp (sw1, pt1, sw2, pt2) None)
-      | Types.Seq(p1, p2) ->
+    begin match tregex with
+      | Char(PChar(lfp)) ->
+        NL(mk_nl lfp)
+      | Char(LChar(mlfp, l)) ->
+        TP(mk_tp mlfp l)
+      | Cat(p1, p2) ->
         rpc_seq (rpc p1) (rpc p2)
-      | Types.Par(p1, p2) ->
-        rpc_branchy par (fun x y -> Alt(x, y)) (rpc p1) (rpc p2)
-      | Types.Choice(p1, p2) ->
-        rpc_branchy pick (fun x y -> Pick(x, y)) (rpc p1) (rpc p2)
-      | Types.Star(q) ->
+      | Alt(p1, p2) ->
+        rpc_branchy (fun p q -> Alt(p, q)) (rpc p1) (rpc p2)
+      | Pick(p1, p2) ->
+        rpc_branchy (fun p q -> Pick(p, q)) (rpc p1) (rpc p2)
+      | Kleene(q) ->
         S(Kleene(run (rpc q)))
+      | Empty -> S(Empty)
     end
 
   and rpc_seq i j =
-    begin match i, j with
-      | TP f1, NL f2 -> NL(fun c mlf_p mlp -> rpc_seq (f1 c mlf_p) (f2 c None mlp))
-      | TP f1, _     -> let r = run j in TP(fun c mp -> rpc_seq (f1 c mp) (S(r)))
-      | NL f1, TP f2 -> f1 seq None (Some f2)
-      | NL f1, NL f2 -> f1 seq None (Some(fun c mlf_q -> f2 c mlf_q None))
-      | NL f1, S  r  -> failwith "Cat(NL, Star) can't be represented"
-      | S   r, _     -> s_trans r j (fun x y -> Cat(x, y))
-    end
+    (* The following match impelements this "truth table" for the inter type:
+     *
+     *    a  | b  | a ; b
+     *   ----+----+-------
+     *    TP | TP | TP
+     *    TP | NL | NL
+     *    TP | S  | TP
+     *    NL | TP | TP
+     *    NL | NL | NL
+     *    NL | S  | <<error>>
+     *    S  | TP | S
+     *    S  | NL | NL
+     *    S  | S  | S
+     *
+     *  Note that in the NL, TP case below, calling f1 with None as the second
+     *  argument will force a transition to TP, thus satisfying the truth table
+     *  above.
+     * *)
+    match i, j with
+      | TP f1, NL f2 ->
+        NL(fun c mlf_p mlp -> rpc_seq (f1 mlf_p) (f2 c None mlp))
+      | TP f1, _     ->
+        let r = run j in TP(fun mp -> rpc_seq (f1 mp) (S(r)))
+      | NL f1, TP f2 -> f1 seq None (Some(f2))
+      | NL f1, NL f2 ->
+        NL(fun c mlf_p mlp ->
+           let c' x y = mk_mcstr c mlf_p (seq x y) in
+           f1 seq None (Some(fun mlf_q -> f2 c' mlf_q mlp)))
+      | NL _ , S _   -> failwith "Cat(NL, S) can't be represented"
+      | S  r , _     -> s_trans r j (fun x y -> Cat(x, y))
 
-  and rpc_branchy cp cr i j =
+  and rpc_branchy cr i j =
+    (* The following match impelements this "truth table" for the inter type:
+     *
+     *    a  | b  | a U/+ b
+     *   ----+----+---------
+     *    TP | TP | TP
+     *    TP | NL | NL
+     *    TP | S  | S
+     *    NL | TP | NL
+     *    NL | NL | NL
+     *    NL | S  | NL
+     *    S  | TP | S
+     *    S  | NL | NL
+     *    S  | S  | S
+     * *)
     begin match i, j with
-      | TP f1, TP f2 -> TP(fun c mlp -> rpc_branchy cp cr (f1 c mlp) (f2 c mlp))
+      | TP f1, TP f2 -> TP(fun mlp -> rpc_branchy cr (f1 mlp) (f2 mlp))
       | TP f1, NL f2 -> NL(fun c mlf_p mlp ->
-                            rpc_branchy cp cr
-                                (rpc_seq (f1 c mlf_p) (mk_inter_of_mlp c mlp))
+                            rpc_branchy cr
+                                (rpc_seq (f1 mlf_p) (mk_inter_of_mlp mlp))
                                 (f2 c mlf_p mlp))
-      | TP f1, S  r  -> S(Alt(run i, r))
+      | TP f1, S  r  -> S(cr (run i) r)
       | NL f1, TP f2 -> NL(fun c mlf_p mlp ->
-                            rpc_branchy cp cr
+                            rpc_branchy cr
                                 (f1 c mlf_p mlp)
-                                (rpc_seq (f2 c mlf_p) (mk_inter_of_mlp c mlp)))
-      | NL f1, NL f2 -> f1 cp None (Some(fun c mlf_q -> f2 c mlf_q None))
+                                (rpc_seq (f2 mlf_p) (mk_inter_of_mlp mlp)))
+      | NL f1, NL f2 ->
+        NL(fun c mlf_p mlp ->
+           rpc_branchy cr
+             (f1 c mlf_p mlp)
+             (f2 c mlf_p mlp))
       | NL f1, S  r  -> s_trans r i (flip cr)
       | S   r, _     -> s_trans r j cr
     end
@@ -245,19 +342,19 @@ let regex_of_policy (p : policy) : regex =
 
   and run_with (i : inter) (mp : lf_policy option) (mlp : link_provider option) : inter =
     begin match i with
-      | TP f -> f seq mp
+      | TP f -> f mp
       | NL f -> f seq mp mlp
       | S  r -> S(r)
     end
 
   and run (i : inter) : regex =
     begin match run_with i None None with
-      | TP _ -> failwith "should not happen"
+      | TP f -> failwith "shouldn't happen"
       | NL _ -> failwith "need a link in there"
       | S  r -> r
     end in
 
-  run (rpc p)
+  run (rpc (TRegex.of_policy p))
 
 let regex_to_aregex (r : regex) : (int aregex) * ((int,  pchar) Hashtbl.t) =
   (* like an ST monad lol *)
@@ -384,13 +481,13 @@ module NFA = struct
       
   let eps_eliminate m is_pick_state =
     (* Printf.printf "--- EPS_ELIMINATE ---\n%s\n" (Nfa.nfa_to_dot m); *)
-    (* NOTE(seliopou): The initial state should not be 0! Code below does not
+    (* NOTE(seliopou): The initial state should not be 0 or 1! Code below does not
      * directly depend on this, but it does make debugging it much easier when
-     * you can assume that the start state will never be 0. That way, you can
-     * assume packets outside of the network are on vlan 0 and you don't have to
+     * you can assume that the start state will never be 0 or 1. That way, you can
+     * assume packets outside of the network are on vlan 1 and you don't have to
      * renumber states.
      * *)
-    let qi,qf = 1,2 in
+    let qi,qf = 2,3 in
     let m' = new_nfa_states qi qf in 
     (* epsilon closure cache *)
     let h_eps = Hashtbl.create 17 in 
@@ -433,17 +530,22 @@ module NFA = struct
 	    (StateSet.remove q qs)
 	end
       else 
-	(* Case: q is not a pick node *)
-	StateSet.iter 
-	  (fun qi -> 
-	    Hashtbl.iter 
-	      (fun q' ns -> 
-		let qs',r' = lookup_state q' in 
+        (* Case: q is not a pick node *)
+        StateSet.iter
+          (fun qi ->
+            (if is_pick_state qi then
+              let _,ri' = lookup_state qi in
+              add_trans m' r Epsilon ri'
+            else ());
+
+          Hashtbl.iter
+	      (fun q' ns ->
+		let qs',r' = lookup_state q' in
 		add_set_trans m' r ns r';
 		StateSet.iter
-		  (fun qi' -> 
-		    if is_pick_state qi' then 
-		      let _,ri' = lookup_state qi' in 
+		  (fun qi' ->
+		    if is_pick_state qi' then
+		      let _,ri' = lookup_state qi' in
 		      add_set_trans m' r ns ri')
 		  qs')
 	      (all_delta m.delta qi))
@@ -515,18 +617,7 @@ module EdgeSet = Set.Make(struct
   let compare = Pervasives.compare
 end)
 
-type 'a dehopified = 'a * ('a SwitchPortMap.t) * LinkSet.t * 'a
-
-let switch_port_policies_to_policy (sm : policy SwitchPortMap.t) : policy =
-  let open Types in
-  SwitchPortMap.fold (fun (sw, pt) p acc ->
-    let sw_f = Filter(Test(Switch, sw)) in
-    let pt_f = Filter(Test(Header SDN_Types.InPort, pt)) in
-    let p' = Seq(sw_f, Seq(pt_f, p)) in
-    if acc = drop
-      then p'
-      else Par(acc, p'))
-  sm Types.drop
+type 'a dehopified = 'a * ('a SwitchMap.t) * LinkSet.t * 'a
 
 let switch_port_policies_to_switch_policies (spm : policy SwitchPortMap.t) :
     policy SwitchMap.t =
@@ -540,7 +631,7 @@ let switch_port_policies_to_switch_policies (spm : policy SwitchPortMap.t) :
       SwitchMap.add sw p' acc)
   spm SwitchMap.empty
 
-let regex_to_switch_lf_policies (r : regex) : lf_policy dehopified =
+let regex_to_switch_policies (r : regex) : policy dehopified =
   let (aregex, chash) = regex_to_aregex r in
   let (auto, pick_states) = NFA.regex_to_t aregex in
 
@@ -549,7 +640,7 @@ let regex_to_switch_lf_policies (r : regex) : lf_policy dehopified =
   (* Used to compress state space to sequential integers. Note that the state 0
    * is never used (unless there's an overflow ;) Note that for debugging
    * purposes you should change convert to be the identity function. *)
-  let curq = ref 1 in
+  let curq = ref 2 in
   let qmap = Hashtbl.create (Hashset.size Nfa.(auto.q)) in
   let convert q =
     try Hashtbl.find qmap q with Not_found ->
@@ -576,13 +667,14 @@ let regex_to_switch_lf_policies (r : regex) : lf_policy dehopified =
       (all_delta m.delta q) acc)
     m m.s SwitchPortMap.empty in
 
-  let mk_test q = Filter(Types.Test(Header SDN_Types.Vlan, VInt.Int16 (convert q))) in
-  let mk_mod q = Mod(Header SDN_Types.Vlan, VInt.Int16 (convert q)) in
-  let mk_choice qs = foldl1_map pick mk_mod qs in
+  let mk_test q = Types.Test(Header SDN_Types.Vlan, VInt.Int16 (convert q)) in
+  let mk_filter q = Types.Filter(mk_test q) in
+  let mk_mod q = Types.Mod(Header SDN_Types.Vlan, VInt.Int16 (convert q)) in
+  let mk_choice qs = foldl1_map (fun p q -> Types.Choice(p, q)) mk_mod qs in
 
   let links = ref LinkSet.empty in
 
-  let to_lf_policy (q, (lf_p, l), q') : lf_policy =
+  let to_policy (q, (lf_p, l), q') : policy =
     (* Printf.printf "Working on q%d -> q%d\n" q q'; *)
     links := LinkSet.add l !links;
 
@@ -590,50 +682,91 @@ let regex_to_switch_lf_policies (r : regex) : lf_policy dehopified =
       then Nfa.neighbors auto q'
       else [q'] in
 
-    let ingress = mk_test q in
+    let ingress = mk_filter q in
+    let p = lf_policy_to_policy lf_p in
     let egress = mk_choice next_states in
 
-    Seq(ingress, Seq(lf_p, egress)) in
+    Types.Seq(ingress, Types.Seq(p, egress)) in
 
-  let edges_to_lf_policy (es : EdgeSet.t) : lf_policy =
+  let edges_to_policy (es : EdgeSet.t) : policy =
     let start = EdgeSet.choose es in
     EdgeSet.fold (fun e acc ->
-      Par(acc, to_lf_policy e))
-    (EdgeSet.remove start es) (to_lf_policy start) in
+      Types.Par(acc, to_policy e))
+    (EdgeSet.remove start es) (to_policy start) in
 
-  (* All packets entering the network are on vlan 0. Detect these packets and
+  (* All packets entering the network are on vlan 1. Detect these packets and
    * set their vlan to the initial state of the automaton. If the initial state
    * is not a choice state, then is straightforward (the second case). If the
    * initial state is a choice state, then the packet will immediately
    * transition to another non-choice state via an epsilon transition, by the
    * construction of the automaton. In this case, skip the choice state and
    * chose between the epsilon transition reachable states as the initial state.
+   *
+   * Packets that are not on vlan 1 are considered in the network and may pass.
    * *)
-  let check_outside = Filter(Types.Test(Header SDN_Types.Vlan, VInt.Int16 0)) in
-  let ingress = if Hashtbl.mem pick_states Nfa.(auto.s)
-    then
-      let qs = NFA.eps_closure_upto (Hashtbl.mem pick_states) auto Nfa.(auto.s) in
-      let choice = mk_choice (NFA.StateSet.elements qs) in
-      Seq(check_outside, choice)
+  let check_outside = Types.Test(Header SDN_Types.Vlan, VInt.Int16 1) in
+  let ingress_mod =
+    let open NFA.StateSet in
+    let choice_closure = NFA.eps_closure_upto (Hashtbl.mem pick_states) auto in
+    if Hashtbl.mem pick_states Nfa.(auto.s) then
+      (* A choice node may be an initial state. In this case, all states that
+       * are reachable by epsilon transitions from that initial states are
+       * potential start states and the ingress policy must choose between them.
+       * *)
+      mk_choice (elements (choice_closure Nfa.(auto.s)))
     else
-      Seq(check_outside, mk_mod Nfa.(auto.s)) in
+      (* The initial state may not be a choice node, but a choice node may be
+       * reachable from the initial state by epsilon transitions. In that case,
+       * find all the states that are reachable from those choice nodes via
+       * epsilon transition. The ingress policy must choose between these, but
+       * may also in parallel perform other character transitions from the
+       * initial state.
+       * *)
+      let open List in
+      let neighbor_qs = Nfa.(neighbors auto auto.s) in
+      let choice_qs0 = filter (Hashtbl.mem pick_states) neighbor_qs in
+      let choice_qs1 = concat (map (fun x -> elements (choice_closure x)) choice_qs0) in
+      match choice_qs1 with
+        | [] -> mk_mod Nfa.(auto.s)
+        | _  -> if length neighbor_qs = length choice_qs0
+                  then assert false (* If all the neighbors are choice nodes,
+                                     * then the start node should just be a
+                                     * choice node.
+                                     * *)
+                  else Types.Par(mk_choice choice_qs1, mk_mod Nfa.(auto.s)) in
+
+
+  let ingress =
+    Types.(Par(Seq(Filter(check_outside), ingress_mod),
+               Seq(Filter(Neg(check_outside)), Filter(True)))) in
 
   (* Once a packet has reached a state that is backwards reachable from the
    * final state, it will immediately transition to the final state via an
    * epsilon transition, by the construction of the automaton. At that point,
    * the packet is exiting the network and is no longer subject to the policy,
-   * so its vlan header should be set back to 0.
+   * so its vlan header should be set back to 1.
+   *
+   * Packets that are not on an egress vlan are considered still inthe network
+   * and may pass.
    * *)
   let final_qs = Hashset.to_list
     (Hashtbl.find (Nfa.backward_mapping auto) auto.Nfa.f) in
-  let go_outside = Mod(Header SDN_Types.Vlan, VInt.Int16 0) in
-  let egress = Seq(foldl1_map par mk_test final_qs, go_outside) in
+  let go_outside = Types.Mod(Header SDN_Types.Vlan, VInt.Int16 1) in
+  let egress_test = foldl1_map (fun x y -> Types.Or(x, y)) mk_test final_qs in
+  let egress =
+    Types.(Par(Seq(Filter(egress_test), go_outside),
+               Seq(Filter(Types.Neg(egress_test)), Filter(Types.True)))) in
 
+  let swpm = switch_port_policies_to_switch_policies
+    (SwitchPortMap.map edges_to_policy (to_edge_map auto)) in
+
+  (* Printf.printf "%s\n" (regex_to_string r); *)
   (* Printf.printf "AUTO: %s\n" (Nfa.nfa_to_dot auto); *)
-  (ingress, SwitchPortMap.map edges_to_lf_policy (to_edge_map auto), !links, egress)
+  (* Hashtbl.iter (fun i (lf_p, l) -> *)
+  (*   Printf.printf "%d: %s; %s\n" *)
+  (*    i (lf_policy_to_string lf_p) (Pretty.string_of_policy (link_to_policy l))) *)
+  (* chash; *)
+  (ingress, swpm, !links, egress)
 
 let dehopify (p : policy) : policy dehopified =
-  let lfp_to_p = lf_policy_to_policy in
-  let (ing, lf_pm, ls, egr) = regex_to_switch_lf_policies (regex_of_policy p) in
-
-  (lfp_to_p ing, SwitchPortMap.map lfp_to_p lf_pm, ls, lfp_to_p egr)
+  regex_to_switch_policies (regex_of_policy p)

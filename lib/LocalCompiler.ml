@@ -51,7 +51,7 @@ module Action = struct
          "" g)
 
   let mk_group (g:group) : group =
-    let r = 
+    let r =
       List.rev
 	(List.fold_left
 	   (fun acc si ->
@@ -422,12 +422,13 @@ module Local = struct
       p
     else
       Atom.Map.fold (fun r1 g1 acc ->
-        let rs = Atom.Map.fold (fun r12i _ acc ->
-          Atom.Set.fold (fun r1j acc ->
-            Atom.Set.union (Atom.diff_atom r1j r12i) acc)
-            acc Atom.Set.empty)
-          q (Atom.Set.singleton r1) in
-        Atom.Set.fold (fun r1i acc -> extend r1i g1 acc) rs Atom.Map.empty)
+        let rs =
+          Atom.Map.fold (fun r2 _ rs ->
+            Atom.Set.fold
+              (fun r1i acc -> Atom.Set.union (Atom.diff_atom r1i r2) acc)
+              rs Atom.Set.empty)
+            q (Atom.Set.singleton r1) in
+        Atom.Set.fold (fun r1i acc -> extend r1i g1 acc) rs acc)
       p Atom.Map.empty
 
   let rec bin_local (op:Action.group -> Action.group -> Action.group) (p:t) (q:t) : t =
@@ -524,21 +525,26 @@ module Local = struct
       (fun ri acc -> extend ri [Action.id] acc) 
       rs Atom.Map.empty
 
-  let rec of_pred (pr:Types.pred) : t =
+  let rec of_pred (sw:SDN_Types.fieldVal) (pr:Types.pred) : t =
     match pr with
       | Types.True ->
         Atom.Map.singleton Atom.tru [Action.id]
       | Types.False ->
         Atom.Map.empty
       | Types.Neg p ->
-        negate (of_pred p)
+        negate (of_pred sw p)
+      | Types.Test (Types.Switch, v) ->
+        if v = sw then
+          of_pred sw Types.True
+        else
+          of_pred sw Types.False
       | Types.Test (h, v) ->
         let p = Types.HeaderMap.singleton h v in
         Atom.Map.singleton (Pattern.Set.empty, p) [Action.id]
       | Types.And (pr1, pr2) ->
-        seq_local (of_pred pr1) (of_pred pr2)
+        seq_local (of_pred sw pr1) (of_pred sw pr2)
       | Types.Or (pr1, pr2) ->
-        par_local (of_pred pr1) (of_pred pr2)
+        par_local (of_pred sw pr1) (of_pred sw pr2)
 
   let star_local (p:t) : t =
     let rec loop acc pi =
@@ -551,20 +557,20 @@ module Local = struct
     let p0 = Atom.Map.singleton Atom.tru [Action.id] in
     loop p0 p0
 
-  let rec of_policy (pol:Types.policy) : t =
+  let rec of_policy (sw:SDN_Types.fieldVal) (pol:Types.policy) : t =
     match pol with
       | Types.Filter pr ->
-        of_pred pr
+        of_pred sw pr
       | Types.Mod (h, v) ->
         Atom.Map.singleton Atom.tru [Action.Set.singleton (Types.HeaderMap.singleton h v)]
       | Types.Par (pol1, pol2) ->
-        par_local (of_policy pol1) (of_policy pol2)
+        par_local (of_policy sw pol1) (of_policy sw pol2)
       | Types.Choice (pol1, pol2) ->
-        choice_local (of_policy pol1) (of_policy pol2)
+        choice_local (of_policy sw pol1) (of_policy sw pol2)
       | Types.Seq (pol1, pol2) ->
-        seq_local (of_policy pol1) (of_policy pol2)
+        seq_local (of_policy sw pol1) (of_policy sw pol2)
       | Types.Star pol ->
-        star_local (of_policy pol)
+        star_local (of_policy sw pol)
       | Types.Link(sw,pt,sw',pt') ->
 	failwith "Not a local policy"
 
@@ -635,21 +641,22 @@ module RunTime = struct
   let group_to_action (g:Action.group) (pto:VInt.t option) : SDN_Types.group =
     List.map (fun s -> set_to_action s pto) g
 
-  let to_pattern (sw : SDN_Types.fieldVal) (x:Pattern.t) : SDN_Types.pattern option =
+  let to_pattern (x:Pattern.t) : SDN_Types.pattern =
     let f (h : Types.header) (v : Types.header_val) (pat : SDN_Types.pattern) =
       match h with
-        | Types.Switch -> pat (* already tested for this *)
+        | Types.Switch ->
+          raise (Invalid_argument "RunTime.to_pattern: unexpected switch")
         | Types.Header h' -> SDN_Types.FieldMap.add h' v pat in
-    if Types.HeaderMap.mem Types.Switch x &&
-      Types.HeaderMap.find Types.Switch x <> sw then
-      None
-    else
-      Some (Types.HeaderMap.fold f x SDN_Types.FieldMap.empty)
+    Types.HeaderMap.fold f x SDN_Types.FieldMap.empty
 
   type i = Local.t
 
-  let compile (pol:Types.policy) : i =
-    Local.of_policy pol
+  let compile (sw:SDN_Types.fieldVal) (pol:Types.policy) : i =
+    let r = Local.of_policy sw pol in
+    (* Printf.printf "COMPILE\n%s\n%s\n" *)
+    (*   (Pretty.string_of_policy pol) *)
+    (*   (Local.to_string r); *)
+    r
 
   let decompile (p:i) : Types.policy =
     Local.to_netkat p
@@ -663,18 +670,14 @@ module RunTime = struct
   }
 
   (* Prunes out rules that apply to other switches. *)
-  let to_table (sw:SDN_Types.fieldVal) (p:i) : SDN_Types.flowTable =
+  let to_table (p:i) : SDN_Types.flowTable =
     let add_flow x g l =
       let pto = 
         try 
           Some (Types.HeaderMap.find (Types.Header SDN_Types.InPort) x) 
         with Not_found -> 
           None in 
-      match to_pattern sw x with
-        | None ->
-          l
-        | Some pat ->
-          simpl_flow pat (group_to_action g pto) :: l in
+      simpl_flow (to_pattern x) (group_to_action g pto) :: l in
     let rec loop (p:i) acc cover =
       if Atom.Map.is_empty p then
         acc

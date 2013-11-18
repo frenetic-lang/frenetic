@@ -74,8 +74,8 @@ end
 
 let () =
   let local p =
-    let i = LocalCompiler.RunTime.compile p in
-    (fun sw -> LocalCompiler.RunTime.to_table sw i) in
+    (fun sw -> LocalCompiler.RunTime.to_table
+      (LocalCompiler.RunTime.compile sw p)) in
   print_string (Example.pol_str ^ "\n\n");
   let pol = Parser.program Lexer.token (Lexing.from_string Example.pol_str) in
   Lwt_main.run (Controller.start local 6633 (NetKAT_Stream.constant pol))
