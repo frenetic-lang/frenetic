@@ -26,6 +26,7 @@ def convert(graph):
     for node,attrs in graph.nodes_iter(data=True):
         digraph.add_node(node,attrs)
 
+    digraph.graph['name'] = graph.graph['name']
     return digraph
 
 def parse_args():
