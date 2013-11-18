@@ -263,15 +263,29 @@ TEST "exactly-two-hops" =
 		  if n = 3 then True else False))
 	 (make_packet_2 3 1)
 	 false)
-
-	TEST "check-equivalent-1" = 
-	(check "1" NetKAT_Types.True pol_topo NetKAT_Types.True (Some true))
-
-	TEST "trivial-check-equivalent" = 
-  (check_equivalent (make_simple_topology (make_transition (1, 1) (2,1) )) 
-	 (make_simple_topology (make_transition (1, 1) (2,1) ))  "trivial-check-equivalent")
-
-
-
-
 *)
+
+
+    
+    TEST "trivial-check-equivalent" = 
+  (check_equivalence      "trivial-check-equivalent" 
+     (make_simple_topology (make_transition (1, 1) (2,1) )) 
+     (make_simple_topology (make_transition (1, 1) (2,1) ))
+     (Some true))
+    
+    TEST "trivial-check-equivalent2" = 
+  (check_equivalence      "trivial-check-equivalent2" 
+     (make_simple_topology (combine_topologies
+			      [(make_transition (1, 1) (2,1) );
+			      (make_transition (2, 1) (3,1) )]))
+     (make_simple_topology (combine_topologies
+			      [(make_transition (1, 1) (2,1) );
+			      (make_transition (2, 1) (3,1) )]))
+     (Some true))
+
+    TEST "trivial-check-equivalent3" = 
+  (check_equivalence      "trivial-check-equivalent3" 
+     (make_simple_topology (make_transition (1, 1) (2,1) )) 
+     (make_simple_topology (make_transition (1, 1) (2,2) ))
+     (Some false))
+

@@ -28,6 +28,7 @@ module Sat = struct
     | TApp of zTerm * (zTerm list)
 
   type zFormula =
+    | ZNoop
     | ZTerm of zTerm
     | ZTrue
     | ZFalse 
@@ -125,6 +126,7 @@ module Sat = struct
     Printf.sprintf "%s" c
 
   let rec serialize_formula = function
+    | ZNoop -> ""
     | ZTrue -> 
       Printf.sprintf "true"
     | ZFalse -> 
@@ -505,7 +507,8 @@ module Verify = struct
 	  
 
     
-  let rec forwards_pol (pol : policy) (inpkt : zVar) : zFormula * (zVar list) = 
+  let rec forwards_pol (forall_on : bool) (pol : policy) (inpkt : zVar) : zFormula * (zVar list) = 
+    let forwards_pol = forwards_pol forall_on in
     let inpkt_t = ZTerm (TVar inpkt) in
     (* let nullinput = ZEquals (inpkt_t, nopacket) in *)
     match pol with 
@@ -519,9 +522,12 @@ module Verify = struct
       | Par (pol1, pol2) -> 
 	let formu1, out1 = forwards_pol pol1 inpkt in
 	let formu2, out2 = forwards_pol pol2 inpkt in
-	ZAnd[
-	  ZOr[formu1; ZAnd (List.map (fun x -> ZEquals (ZTerm (TVar x), nopacket)) out1)];
-	  ZOr[formu2; ZAnd (List.map (fun x -> ZEquals (ZTerm (TVar x), nopacket)) out2)]], out1@out2
+	if forall_on then
+	  ZOr[formu1;formu2], out1@out2
+	else
+	  ZAnd[
+	    ZOr[formu1; ZAnd (List.map (fun x -> ZEquals (ZTerm (TVar x), nopacket)) out1)];
+	    ZOr[formu2; ZAnd (List.map (fun x -> ZEquals (ZTerm (TVar x), nopacket)) out2)]], out1@out2
       | Seq (pol1, pol2) -> 
 	let formu', midpkts = forwards_pol pol1 inpkt in
 	let outformu, outpkts = unzip_list_tuple (List.map (fun mpkt -> forwards_pol pol2 mpkt) midpkts) in
@@ -537,28 +543,40 @@ module Verify = struct
 
   let packet_equals p1 p2 = ZEquals(ZTerm (TVar p1), ZTerm (TVar p2))
 
-  let rec forwards_k p_t_star inpkt k : zFormula * (zVar list) = 
+  let rec forwards_k forall p_t_star inpkt k : zFormula * (zVar list) = 
+    let forwards_k = forwards_k forall in
     match p_t_star with 
       | Star (Seq (p, t)) -> 
-	if k = 0 then ZTrue, [inpkt]
-	else
-	  let pol_form, polout = forwards_pol p inpkt in
-	  let topo_form, topo_out = unzip_list_tuple (List.map (fun mpkt -> forwards_pol t mpkt) polout) in
-	  let rest_of_links, final_out = unzip_list_tuple 
-	    (List.map (fun x -> forwards_k p_t_star x (k-1)) (List.flatten topo_out)) in
-	  ZAnd[(ZComment ("forwards_k: pol_form",pol_form));
-	       ZComment ("forwards_k: topo_form", ZAnd topo_form);
-	       ZComment ("forward_k_set: recur", ZAnd rest_of_links)], List.flatten final_out
+	let pol_form, polout = forwards_pol forall p inpkt in
+	let topo_form, topo_out = unzip_list_tuple (List.map (fun mpkt -> forwards_pol forall t mpkt) polout) in
+	(match k with 
+	  | 0 -> (if forall then ZNoop else ZTrue), [inpkt]
+	  | 1 -> ZAnd[(ZComment ("forwards_k: pol_form",pol_form));
+	       ZComment ("forwards_k: topo_form", ZAnd topo_form)], List.flatten topo_out
+	  | _ -> 
+	    let rest_of_links, final_out = unzip_list_tuple 
+	      (List.map (fun x -> forwards_k p_t_star x (k-1)) (List.flatten topo_out)) in
+	    ZAnd[(ZComment ("forwards_k: pol_form",pol_form));
+		 ZComment ("forwards_k: topo_form", ZAnd topo_form);
+		 ZComment ("forward_k_set: recur", ZAnd rest_of_links)], List.flatten final_out )
       | _ -> failwith "NetKAT program not in form (p;t)*"
 
   let forwards_star p_t_star inpkt k : zFormula * (zVar list) = 
-    let forwards_k = forwards_k p_t_star inpkt  in
+    let forwards_k =  forwards_k false p_t_star inpkt  in
     let combine_results x = 
       let form,set = forwards_k x in
       let form = ZOr[form; ZAnd (List.map (fun x -> ZEquals (ZTerm (TVar x), nopacket)) set)] in
       ZComment ( Printf.sprintf "Attempting to forward in %u hops" x, form ), set in
     let forms, finalset = unzip_list_tuple ((List.map combine_results (range 0 k))) in
     ZAnd forms, List.flatten finalset
+
+  let forwards_star_forall p_t_star inpkt k : zFormula * (zVar list) = 
+    let forwards_k = forwards_k true p_t_star inpkt  in
+    let combine_results x = 
+      let form,set = forwards_k x in
+      ZComment ( Printf.sprintf "Attempting to forward in %u hops" x, form ), set in
+    let forms, finalset = unzip_list_tuple ((List.map combine_results (range 0 k))) in
+    ZOr forms, List.flatten finalset
   
       
 end
@@ -606,8 +624,8 @@ oko: bool option. has to be Some. True if you think it should be satisfiable.
     
   let check_equivalence_k str k1 pol1 k2 pol2 oko = 
     let x = Sat.fresh Sat.SPacket in
-    let forwards_star_pol1_formula, forwards_star_pol1_result = Verify.forwards_star pol1 x k1 in
-    let forwards_star_pol2_formula, forwards_star_pol2_result = Verify.forwards_star pol2 x k2 in
+    let forwards_star_pol1_formula, forwards_star_pol1_result = Verify.forwards_star_forall pol1 x k1 in
+    let forwards_star_pol2_formula, forwards_star_pol2_result = Verify.forwards_star_forall pol2 x k2 in
     let prog = Sat.ZProgram [
       Sat.ZDeclareAssert (Sat.ZNot (Sat.ZEquals(Sat.ZTerm (Sat.TVar x), Sat.Z3macro.nopacket)))
       ; Sat.ZDeclareAssert forwards_star_pol1_formula
