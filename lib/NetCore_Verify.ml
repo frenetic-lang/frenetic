@@ -531,29 +531,35 @@ module Verify = struct
 	
   let exists (list : zVar list) func : zFormula = 
     ZOr (List.map (fun pkt -> func pkt) list)
-      
 
-  let rec forwards_k p_t_star inpkt outpkt k : zFormula =
-    match p_t_star with
-      | Star( Seq (p, t)) -> 
-	if k = 0 then
-	  ZEquals (ZTerm (TVar inpkt), ZTerm (TVar outpkt))
+  let forall (list : zVar list) func : zFormula = 
+    ZAnd (List.map (fun pkt -> func pkt) list)
+
+  let packet_equals p1 p2 = ZEquals(ZTerm (TVar p1), ZTerm (TVar p2))
+
+  let rec forwards_k p_t_star inpkt k : zFormula * (zVar list) = 
+    match p_t_star with 
+      | Star (Seq (p, t)) -> 
+	if k = 0 then ZTrue, [inpkt]
 	else
 	  let pol_form, polout = forwards_pol p inpkt in
 	  let topo_form, topo_out = unzip_list_tuple (List.map (fun mpkt -> forwards_pol t mpkt) polout) in
-	  let rest_of_links = (exists (List.flatten topo_out) (fun x -> forwards_k p_t_star x outpkt (k-1))) in
+	  let rest_of_links, final_out = unzip_list_tuple 
+	    (List.map (fun x -> forwards_k p_t_star x (k-1)) (List.flatten topo_out)) in
 	  ZAnd[(ZComment ("forwards_k: pol_form",pol_form));
 	       ZComment ("forwards_k: topo_form", ZAnd topo_form);
-	       ZComment ("forward_k: recur", rest_of_links)]
+	       ZComment ("forward_k_set: recur", ZAnd rest_of_links)], List.flatten final_out
       | _ -> failwith "NetKAT program not in form (p;t)*"
 
-  let forwards_star p_t_star inpkt outpkt k : zFormula = 
-    let forwards_k = forwards_k p_t_star inpkt outpkt  in
+  let forwards_star p_t_star inpkt k : zFormula * (zVar list) = 
+    let forwards_k = forwards_k p_t_star inpkt  in
     let combine_results x = 
-      let form = forwards_k x in
-      ZComment ( Printf.sprintf "Attempting to forward in %u hops" x, form ) in
-    ZOr (List.map combine_results (range 0 k))
-      
+      let form,set = forwards_k x in
+      let form = ZOr[form; ZAnd (List.map (fun x -> ZEquals (ZTerm (TVar x), nopacket)) set)] in
+      ZComment ( Printf.sprintf "Attempting to forward in %u hops" x, form ), set in
+    let forms, finalset = unzip_list_tuple ((List.map combine_results (range 0 k))) in
+    ZAnd forms, List.flatten finalset
+  
       
 end
 
@@ -591,16 +597,38 @@ oko: bool option. has to be Some. True if you think it should be satisfiable.
 
   let check_reachability_k  k str inp pol outp oko =
   let x = Sat.fresh Sat.SPacket in
-  let y = Sat.fresh Sat.SPacket in
+  let forwards_star_formula, forwards_star_result = Verify.forwards_star pol x k in
   let prog =     Sat.ZProgram [ 
     Sat.ZDeclareAssert (Verify.forwards_pred inp x)
-    ; Sat.ZDeclareAssert (Verify.forwards_star pol x y k )
-    ; Sat.ZDeclareAssert (Verify.forwards_pred outp y)] in
+    ; Sat.ZDeclareAssert forwards_star_formula
+    ; Sat.ZDeclareAssert (Verify.exists forwards_star_result (fun y -> Verify.forwards_pred outp y))] in 
   run_solve oko prog str
     
+  let check_equivalence_k str k1 pol1 k2 pol2 oko = 
+    let x = Sat.fresh Sat.SPacket in
+    let forwards_star_pol1_formula, forwards_star_pol1_result = Verify.forwards_star pol1 x k1 in
+    let forwards_star_pol2_formula, forwards_star_pol2_result = Verify.forwards_star pol2 x k2 in
+    let prog = Sat.ZProgram [
+      Sat.ZDeclareAssert (Sat.ZNot (Sat.ZEquals(Sat.ZTerm (Sat.TVar x), Sat.Z3macro.nopacket)))
+      ; Sat.ZDeclareAssert forwards_star_pol1_formula
+      ; Sat.ZDeclareAssert forwards_star_pol2_formula
+      ; Sat.ZDeclareAssert 
+	(Verify.forall forwards_star_pol1_result 
+	   (fun x -> Verify.exists forwards_star_pol2_result
+	     (fun y -> 
+	       Verify.packet_equals x y )))] in
+      run_solve oko prog str
+
   let check_reachability str inp pol outp oko = 
     check_reachability_k (Verify_Graph.longest_shortest (Verify_Graph.parse_graph pol))
       str inp pol outp oko
+
+  let check_equivalence str pol1 pol2 oko = 
+    check_equivalence_k str 
+      (Verify_Graph.longest_shortest (Verify_Graph.parse_graph pol1)) pol1
+      (Verify_Graph.longest_shortest (Verify_Graph.parse_graph pol2)) pol2
+      oko
+    
 
 
   let check = check_reachability
