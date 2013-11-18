@@ -24,7 +24,7 @@ def convert(graph):
     # Need to add in nodes explicitly, because there might be unconnected nodes
     # in the original
     for node,attrs in graph.nodes_iter(data=True):
-        digraph.add_node(attrs)
+        digraph.add_node(node,attrs)
 
     return digraph
 
@@ -47,10 +47,13 @@ if __name__ == "__main__":
     if not args.input:
         print "Need to specify an input file with -i or --in"
         exit(1)
-    if not args.output:
-        print "Need to specify an output file with -o or --out"
-        exit(1)
 
     graph = nx.Graph(nx.read_dot(args.input))
     digraph = convert(graph)
-    nx.write_dot(digraph,args.output)
+
+    if not args.output:
+        print "You can specify an output file with -o or --out"
+        print nx.to_agraph(digraph)
+        exit(1)
+    else:
+        nx.write_dot(digraph,args.output)
