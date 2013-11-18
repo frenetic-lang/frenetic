@@ -82,6 +82,18 @@ TEST "narrowing down2" =
     (make_packet_2 3 3)
     false
 
+TEST "narrowing down3" = 
+  verify "narrowing down2"
+    (make_packet_2 1 1)
+    (starify 
+       (Test (Switch, make_vint 1)) 
+       (combine_topologies 
+	  [(make_transition (1, 1) (2, 2)); 
+	   (make_transition (2, 2) (3, 3))]
+       ))
+    (make_packet_2 3 3)
+    false
+
 let ethsrc_is_1 = Test (Header SDN_Types.EthSrc, make_vint 1)
 let switch_is_2 = Test (Switch, make_vint 2)
 let pol = Or (And (ethsrc_is_1, Neg (switch_is_2)), Neg (ethsrc_is_1) ) 

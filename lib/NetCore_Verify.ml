@@ -209,6 +209,7 @@ module Sat = struct
  ((Packet
    (nopacket)
    (packet 
+    (PreviousPacket Packet)
     (Switch Int) 
     (EthDst Int) 
     (EthType Int) 
@@ -221,6 +222,7 @@ module Sat = struct
     (TCPDstPort Int) 
     (EthSrc Int) 
     (InPort Int)))))" ^ "\n" 
+      
       
       
   let serialize_program p : string = 
