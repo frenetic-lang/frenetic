@@ -19,8 +19,6 @@ module RoundTrip = struct
 
   let udp_eq e1 e2 =
     let open Udp in
-    if e1.chksum <> e2.chksum
-      then Printf.printf "chksum not equal %d %d\n" e1.chksum e2.chksum;
     e1.src = e2.src &&
     e1.dst = e2.dst &&
     e1.chksum = e2.chksum &&
@@ -76,7 +74,7 @@ module RoundTrip = struct
     (packet_quickCheck (mk_ip Arb.arbitrary_ip_unparsable)
       (prop_roundtrip parse marshal))
 
-  TEST "Roundtrip property for ARP packets" =
+  TEST "Roundtrip property for UDP packets" =
     let udp = Gen.map_gen (fun x -> Ip.Udp(x))
           (Arb.arbitrary_udp (Arb.arbitrary_payload 65507)) in
     (packet_quickCheck (mk_ip udp)
