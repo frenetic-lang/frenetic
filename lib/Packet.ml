@@ -330,6 +330,7 @@ module Ip = struct
     chksum : int16;
     src : nwAddr;
     dst : nwAddr;
+    options : bytes;
     tp : tp
   }
 
@@ -382,6 +383,8 @@ module Ip = struct
     let chksum = get_ip_chksum bits in 
     let src = get_ip_src bits in 
     let dst = get_ip_dst bits in 
+    let options_len = (ihl * 4) - sizeof_ip in
+    let options = Cstruct.sub bits sizeof_ip options_len in
     let bits = Cstruct.shift bits (ihl * 4) in 
     let tp = 
       try match int_to_ip_proto proto with 
@@ -398,20 +401,23 @@ module Ip = struct
       chksum = chksum;
       src = src;
       dst = dst;     
+      options = options;
       tp = tp }
 
   let len (pkt : t) = 
+    let options_len = Cstruct.len pkt.options in
     let tp_len = match pkt.tp with 
       | Tcp tcp -> Tcp.len tcp
       | Udp udp -> Udp.len udp
       | Icmp icmp -> Icmp.len icmp
       | Unparsable (_, data) -> Cstruct.len data in 
-    sizeof_ip + tp_len
+    sizeof_ip + options_len + tp_len
 
   (* Assumes there is enough space *)
   let marshal (bits : Cstruct.t) (pkt:t) =
+    let header_len = sizeof_ip + (Cstruct.len pkt.options) in
     let v = 4 in (* IP version 4. *)
-    let ihl = 5 in (* We don't support IPv4 options at the moment. *)
+    let ihl = header_len / 4 in
     let vhl = (v lsl 4) lor ihl in
     set_ip_vhl bits vhl;
     set_ip_tos bits pkt.tos;
@@ -428,7 +434,8 @@ module Ip = struct
     set_ip_chksum bits pkt.chksum;
     set_ip_src bits pkt.src;
     set_ip_dst bits pkt.dst;
-    let bits = Cstruct.shift bits sizeof_ip in
+    Cstruct.blit pkt.options 0 bits sizeof_ip (Cstruct.len pkt.options);
+    let bits = Cstruct.shift bits header_len in
     match pkt.tp with
       | Tcp tcp -> 
         Tcp.marshal bits tcp
