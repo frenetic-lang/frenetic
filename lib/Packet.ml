@@ -152,8 +152,7 @@ module Tcp = struct
     uint16_t dst;
     uint32_t seq;
     uint32_t ack;
-    uint8_t offset; (* offset and reserved *)
-    uint8_t flags; 
+    uint16_t offset_flags; (* offset, reserved, and flags *)
     uint16_t window;
     uint16_t chksum;
     uint16_t urgent
@@ -166,10 +165,10 @@ module Tcp = struct
     let dst = get_tcp_dst bits in 
     let seq = get_tcp_seq bits in 
     let ack = get_tcp_ack bits in 
-    let offset = get_tcp_offset bits in 
-    let offset = offset lsr 4 in 
+    let offset = get_tcp_offset_flags bits in
+    let offset = offset lsr 12 in
     let _ = offset land 0x0f in 
-    let flags = Flags.of_int (Int32.of_int (get_tcp_flags bits)) in 
+    let flags = Flags.of_int (Int32.of_int (get_tcp_offset_flags bits)) in
     let window = get_tcp_window bits in 
     let chksum = get_tcp_chksum bits in 
     let urgent = get_tcp_urgent bits in 
@@ -194,8 +193,8 @@ module Tcp = struct
     set_tcp_dst bits pkt.dst;
     set_tcp_seq bits pkt.seq;
     set_tcp_ack bits pkt.ack;
-    set_tcp_offset bits pkt.offset;
-    set_tcp_flags bits (Flags.to_int pkt.flags);
+    let offset_flags = (pkt.offset lsl 12) lor (Flags.to_int pkt.flags) in
+    set_tcp_offset_flags bits offset_flags;
     set_tcp_window bits pkt.window;
     set_tcp_chksum bits pkt.chksum;
     set_tcp_urgent bits pkt.urgent;

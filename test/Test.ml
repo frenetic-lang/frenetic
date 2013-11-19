@@ -24,6 +24,19 @@ module RoundTrip = struct
     e1.chksum = e2.chksum &&
     compare (Cstruct.to_string e1.payload) (Cstruct.to_string e2.payload) = 0
 
+  let tcp_eq e1 e2 =
+    let open Tcp in
+    e1.src = e2.src &&
+    e1.dst = e2.dst &&
+    e1.seq = e2.seq &&
+    e1.ack = e2.ack &&
+    e1.offset = e2.offset &&
+    e1.flags = e2.flags &&
+    e1.window = e2.window &&
+    e1.chksum = e2.chksum &&
+    e1.urgent = e2.urgent &&
+    compare (Cstruct.to_string e1.payload) (Cstruct.to_string e2.payload) = 0
+
   let ip_eq e1 e2 =
     let open Ip in
     e1.tos = e2.tos &&
@@ -39,6 +52,8 @@ module RoundTrip = struct
         unparsable_eq u1 u2
       | Udp p1, Udp p2 ->
         udp_eq p1 p2
+      | Tcp p1, Tcp p2 ->
+        tcp_eq p1 p2
       | _, _ ->
         e1 = e2
 
@@ -78,6 +93,12 @@ module RoundTrip = struct
     let udp = Gen.map_gen (fun x -> Ip.Udp(x))
           (Arb.arbitrary_udp (Arb.arbitrary_payload 65507)) in
     (packet_quickCheck (mk_ip udp)
+      (prop_roundtrip parse marshal))
+
+  TEST "Roundtrip property for TCP packets" =
+    let tcp = Gen.map_gen (fun x -> Ip.Tcp(x))
+          (Arb.arbitrary_tcp (Arb.arbitrary_payload (65507 - 128))) in
+    (packet_quickCheck (mk_ip tcp)
       (prop_roundtrip parse marshal))
 
 end

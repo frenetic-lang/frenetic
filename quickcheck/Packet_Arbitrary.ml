@@ -132,17 +132,69 @@ let arbitrary_ip arbitrary_tp =
       ; tp = tp
     }
 
+let arbitrary_tpPort = Gen.map_gen Int32.to_int arbitrary_uint16
+
+let arbitrary_tcp_flags =
+  let open Gen in
+  let open Tcp.Flags in
+  arbitrary_bool >>= fun ns ->
+  arbitrary_bool >>= fun cwr ->
+  arbitrary_bool >>= fun ece ->
+  arbitrary_bool >>= fun urg ->
+  arbitrary_bool >>= fun ack ->
+  arbitrary_bool >>= fun psh ->
+  arbitrary_bool >>= fun rst ->
+  arbitrary_bool >>= fun syn ->
+  arbitrary_bool >>= fun fin ->
+    ret_gen {
+        ns = ns
+      ; cwr = cwr
+      ; ece = ece
+      ; urg = urg
+      ; ack = ack
+      ; psh = psh
+      ; rst = rst
+      ; syn = syn
+      ; fin = fin
+    }
+
 (* Arbitrary UPD packet *)
 let arbitrary_udp arbitrary_payload =
   let open Gen in
   let open Udp in
-  arbitrary_uint16 >>= fun src ->
-  arbitrary_uint16 >>= fun dst ->
+  arbitrary_tpPort >>= fun src ->
+  arbitrary_tpPort >>= fun dst ->
   arbitrary_payload >>= fun payload ->
     ret_gen {
-        src = Int32.to_int src
-      ; dst = Int32.to_int dst
+        src = src
+      ; dst = dst
       (* Dummy checksum, as the library currently does not verify it *)
       ; chksum = 0
+      ; payload = payload
+    }
+
+(* Arbitrary TCP packet *)
+let arbitrary_tcp arbitrary_payload =
+  let open Gen in
+  let open Tcp in
+  arbitrary_tpPort >>= fun src ->
+  arbitrary_tpPort >>= fun dst ->
+  arbitrary_uint32 >>= fun seq ->
+  arbitrary_uint32 >>= fun ack ->
+  arbitrary_uint4 >>= fun offset ->
+  arbitrary_tcp_flags >>= fun flags ->
+  arbitrary_uint16 >>= fun window ->
+  arbitrary_uint8 >>= fun urgent ->
+  arbitrary_payload >>= fun payload ->
+    ret_gen {
+        src = src
+      ; dst = dst
+      ; seq = seq
+      ; ack = ack
+      ; offset = Int32.to_int offset
+      ; flags = flags
+      ; window = Int32.to_int window
+      ; chksum = 0
+      ; urgent = Int32.to_int urgent
       ; payload = payload
     }
