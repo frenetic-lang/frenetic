@@ -87,14 +87,15 @@ let arbitrary_arp =
               ret_gen (Arp.Reply(dlSrc, nwSrc, dlDst, nwDst)))
           ]
 
-let arbitrary_ip_unparsable_len l =
-  let li = Int32.to_int l in
-  Gen.ret_gen (Ip.Unparsable(2, Cstruct.create li))
+let arbitrary_payload max_len =
+  let open Gen in
+  choose_int32 (Int32.zero, Int32.of_int max_len) >>= fun l ->
+    ret_gen (Cstruct.create (Int32.to_int l))
 
 let arbitrary_ip_unparsable =
   let open Gen in
-  Gen.choose_int32 (Int32.zero, Int32.of_int (65535 - 20))
-    >>= arbitrary_ip_unparsable_len
+  arbitrary_payload (65535 - 20) >>= fun payload ->
+    ret_gen (Ip.Unparsable(2, payload))
 
 let arbitrary_ip_frag =
   Gen.choose_int32 (Int32.zero, Int32.of_int 0b111111111111)
