@@ -131,3 +131,18 @@ let arbitrary_ip arbitrary_tp =
       ; dst = nwDst
       ; tp = tp
     }
+
+(* Arbitrary UPD packet *)
+let arbitrary_udp arbitrary_payload =
+  let open Gen in
+  let open Udp in
+  arbitrary_uint16 >>= fun src ->
+  arbitrary_uint16 >>= fun dst ->
+  arbitrary_payload >>= fun payload ->
+    ret_gen {
+        src = Int32.to_int src
+      ; dst = Int32.to_int dst
+      (* Dummy checksum, as the library currently does not verify it *)
+      ; chksum = 0
+      ; payload = payload
+    }
