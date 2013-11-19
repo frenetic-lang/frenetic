@@ -29,4 +29,8 @@ module RoundTrip = struct
   TEST "Roundtrip property for unparsable Ethernet frames" =
     (packet_quickCheck (Arb.arbitrary_packet Arb.arbitrary_unparsable)
       (prop_roundtrip parse marshal))
+
+  TEST "Roundtrip property for ARP packets" =
+    (packet_quickCheck (Arb.arbitrary_packet Arb.arbitrary_arp)
+      (prop_roundtrip parse marshal))
 end
