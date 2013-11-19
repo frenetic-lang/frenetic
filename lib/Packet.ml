@@ -372,8 +372,6 @@ module Ip = struct
     if vhl lsr 4 <> 4 then
       raise (UnparsablePacket "expected IPv4 header");
     let ihl = vhl land 0x0f in 
-    if ihl <> 5 then
-      raise (UnparsablePacket "IPv4 options not supported");
     let tos = get_ip_tos bits in 
     let frag = get_ip_frag bits in 
     let flags = Flags.of_int (Int32.of_int (frag lsr 13)) in
@@ -384,6 +382,8 @@ module Ip = struct
     let chksum = get_ip_chksum bits in 
     let src = get_ip_src bits in 
     let dst = get_ip_dst bits in 
+    (* NOTE(seliopou): This will silently drop any IPv4 options at the end of
+     * the header. *)
     let bits = Cstruct.shift bits (ihl * 4) in 
     let tp = 
       try match int_to_ip_proto proto with 
