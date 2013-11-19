@@ -53,14 +53,14 @@ let arbitrary_dlVlan =
           ret_gen (Some (Int32.to_int w16), b, Int32.to_int w4)
   end
 
-let arbitrary_unparsable_len l =
+let arbitrary_dl_unparsable_len l =
   let li = Int32.to_int l in
   Gen.ret_gen (Unparsable(li, Cstruct.create li))
 
-let arbitrary_unparsable =
+let arbitrary_dl_unparsable =
   let open Gen in
   Gen.choose_int32 (Int32.zero, Int32.of_int 0x05DC)
-    >>= arbitrary_unparsable_len
+    >>= arbitrary_dl_unparsable_len
 
 let arbitrary_packet arbitrary_nw =
   let open Gen in
@@ -82,7 +82,51 @@ let arbitrary_arp =
   arbitrary_dlAddr >>= fun dlSrc ->
   arbitrary_nwAddr >>= fun nwSrc ->
   arbitrary_nwAddr >>= fun nwDst ->
-    oneof [ (ret_gen (Arp(Arp.Query(dlSrc, nwSrc, nwDst))))
+    oneof [ (ret_gen (Arp.Query(dlSrc, nwSrc, nwDst)))
           ; (arbitrary_dlAddr >>= fun dlDst ->
-              ret_gen (Arp(Arp.Reply(dlSrc, nwSrc, dlDst, nwDst))))
+              ret_gen (Arp.Reply(dlSrc, nwSrc, dlDst, nwDst)))
           ]
+
+let arbitrary_ip_unparsable_len l =
+  let li = Int32.to_int l in
+  Gen.ret_gen (Ip.Unparsable(2, Cstruct.create li))
+
+let arbitrary_ip_unparsable =
+  let open Gen in
+  Gen.choose_int32 (Int32.zero, Int32.of_int (65535 - 20))
+    >>= arbitrary_ip_unparsable_len
+
+let arbitrary_ip_frag =
+  Gen.choose_int32 (Int32.zero, Int32.of_int 0b111111111111)
+
+let arbitrary_ip_flags =
+  let open Gen in
+  arbitrary_bool >>= fun df ->
+  arbitrary_bool >>= fun mf ->
+    ret_gen { Ip.Flags.df = df; Ip.Flags.mf = mf }
+
+(* Arbitrary IPv4 packet without options. *)
+let arbitrary_ip arbitrary_tp =
+  let open Gen in
+  let open Ip in
+  arbitrary_uint8 >>= fun tos ->
+  arbitrary_uint16 >>= fun ident ->
+  arbitrary_ip_flags >>= fun flags ->
+  arbitrary_ip_frag >>= fun frag ->
+  arbitrary_uint8 >>= fun ttl ->
+  arbitrary_uint16 >>= fun chksum ->
+  arbitrary_nwAddr >>= fun nwSrc ->
+  arbitrary_nwAddr >>= fun nwDst ->
+  arbitrary_tp >>= fun tp ->
+    ret_gen {
+        tos = Int32.to_int tos
+      ; ident = Int32.to_int ident
+      ; flags = flags
+      ; frag = Int32.to_int frag
+      ; ttl = Int32.to_int ttl
+      (* Dummy checksum, as the library currently does not verify it *)
+      ; chksum = Int32.to_int chksum
+      ; src = nwSrc
+      ; dst = nwDst
+      ; tp = tp
+    }

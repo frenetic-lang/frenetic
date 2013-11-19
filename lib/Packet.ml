@@ -365,13 +365,15 @@ module Ip = struct
     uint32_t dst
   } as big_endian
 
-  let  parse (bits : Cstruct.t) = 
+  let parse (bits : Cstruct.t) =
     if Cstruct.len bits < sizeof_ip then
       raise (UnparsablePacket "not enough bytes for IP header");
     let vhl = get_ip_vhl bits in 
     if vhl lsr 4 <> 4 then
       raise (UnparsablePacket "expected IPv4 header");
     let ihl = vhl land 0x0f in 
+    if ihl <> 5 then
+      raise (UnparsablePacket "IPv4 options not supported");
     let tos = get_ip_tos bits in 
     let frag = get_ip_frag bits in 
     let flags = Flags.of_int (Int32.of_int (frag lsr 13)) in
@@ -416,8 +418,8 @@ module Ip = struct
     set_ip_vhl bits vhl;
     set_ip_tos bits pkt.tos;
     set_ip_len bits (len pkt);
-    set_ip_ident bits pkt.tos;
-    set_ip_frag bits ((Flags.to_int pkt.flags) lor (pkt.frag lsl 13));
+    set_ip_ident bits pkt.ident;
+    set_ip_frag bits (((Flags.to_int pkt.flags) lsl 13) lor pkt.frag);
     set_ip_ttl bits pkt.ttl;
     let proto = match pkt.tp with
       | Tcp _ -> tcp_code

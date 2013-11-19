@@ -1,6 +1,8 @@
 open Packet
 open QuickCheck
 
+module Gen = QuickCheck_gen
+
 (* Setup a quickCheck for a serlalizable OpenFlow datatype *)
 let packet_quickCheck arbitrary pred = 
     let test = testable_fun arbitrary to_string testable_bool in
@@ -12,25 +14,53 @@ let packet_quickCheck arbitrary pred =
 module RoundTrip = struct
   module Arb = Packet_Arbitrary
 
-  let packet_eq e1 e2 =
+  let unparsable_eq (l1, b1) (l2, b2) =
+    l1 = l2 && compare (Cstruct.to_string b1) (Cstruct.to_string b2) = 0
+
+  let ip_eq e1 e2 =
+    let open Ip in
+    e1.tos = e2.tos &&
+    e1.ident = e2.ident &&
+    e1.flags = e2.flags &&
+    e1.frag = e2.frag &&
+    e1.ttl = e2.ttl &&
+    e1.chksum = e2.chksum &&
+    e1.src = e2.src &&
+    e1.dst = e2.dst &&
+    match e1.tp, e2.tp with
+      | Unparsable u1, Unparsable u2 ->
+        unparsable_eq u1 u2
+      | _, _ ->
+        e1 = e2
+
+  let dl_eq e1 e2 =
     e1.dlSrc = e2.dlSrc &&
     e1.dlDst = e2.dlDst &&
     e1.dlVlan = e2.dlVlan &&
     e1.dlVlanPcp = e2.dlVlanPcp &&
     match e1.nw, e2.nw with
-      | Unparsable (l1, b1), Unparsable (l2, b2) ->
-        l1 = l2 && compare (Cstruct.to_string b1) (Cstruct.to_string b2) = 0
+      | Unparsable u1, Unparsable u2 ->
+        unparsable_eq u1 u2
+      | Ip nw1, Ip nw2 ->
+        ip_eq nw1 nw2
       | _, _ ->
         e1 = e2
 
   let prop_roundtrip parse marshal e =
-    packet_eq (parse (marshal e)) e
+    dl_eq (parse (marshal e)) e
 
   TEST "Roundtrip property for unparsable Ethernet frames" =
-    (packet_quickCheck (Arb.arbitrary_packet Arb.arbitrary_unparsable)
+    (packet_quickCheck (Arb.arbitrary_packet Arb.arbitrary_dl_unparsable)
       (prop_roundtrip parse marshal))
 
   TEST "Roundtrip property for ARP packets" =
-    (packet_quickCheck (Arb.arbitrary_packet Arb.arbitrary_arp)
+    let arp = Gen.map_gen (fun x -> Arp(x)) Arb.arbitrary_arp in
+    (packet_quickCheck (Arb.arbitrary_packet arp)
+      (prop_roundtrip parse marshal))
+
+  TEST "Roundtrip property for unparsable IP packets" =
+    let ip_unparsable = Gen.map_gen (fun x -> Ip(x))
+          (Arb.arbitrary_ip Arb.arbitrary_ip_unparsable) in
+    (packet_quickCheck (Arb.arbitrary_packet ip_unparsable)
       (prop_roundtrip parse marshal))
 end
