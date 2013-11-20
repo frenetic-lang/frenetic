@@ -17,8 +17,8 @@ module QuickChecking = struct
 
   let rec same_same (r : regex) (s : policy) : bool =
     begin match r, s with
-      | Char(lf_p, link), Seq(s1, Link(sw3, pt3, sw4, pt4)) ->
-          (link_to_policy link) = (Link(sw3, pt3, sw4, pt4))
+      | Char(lf_p, switch), Seq(s1, Link(sw3, pt3, sw4, pt4)) ->
+          (switch_to_policy switch) = (Link(sw3, pt3, sw4, pt4))
       | Alt(r1, r2), Par(s1, s2) -> (same_same r1 s1) && (same_same r2 s2)
       | Cat(r1, r2), Seq(s1, s2) -> (same_same r1 s1) && (same_same r2 s2)
       | Kleene(r1) , Star(s1)    -> same_same r1 s1
