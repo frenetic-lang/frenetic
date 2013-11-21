@@ -136,10 +136,72 @@ module Dump = struct
           print_endline "usage: katnetic dump automaton [all|policies|flowtables] <filename>"
   end
 
+  module Classic = struct
+    open Dehop
+
+    module SwitchSet = Set.Make (struct
+      type t = VInt.t
+      let compare = Pervasives.compare
+    end)
+
+    let rec get_switches t =
+      let open Types in match t with
+        | Par(p,q) -> SwitchSet.union (get_switches p) (get_switches q)
+        | Link(sw,_,sw',p) -> SwitchSet.add sw (SwitchSet.singleton sw')
+        | _ -> SwitchSet.empty
+
+    let with_dehop f p =
+      let _ = Printf.printf "Dehopify...%!" in
+      let t1 = Unix.gettimeofday () in
+      let i,p,t,e = policy_to_dehopd_policy p in
+      let switches = get_switches t in
+      let _ = Printf.printf "Done [size: %d time: %fs]\n%!" (Semantics.size p)
+        (Unix.gettimeofday () -. t1) in
+      SwitchSet.iter (fun sw ->
+        let open Types in
+        let sw_f  = Filter(Test(Switch, sw)) in
+        let p' = Seq(Seq(i,Seq(sw_f,p)),e) in
+        f sw p')
+      switches
+
+    let policy (sw : VInt.t) (p : Types.policy) : unit =
+      Format.printf "@[policy for switch %ld:\n%!%a\n\n@]%!"
+        (VInt.get_int32 sw)
+        Pretty.format_policy p
+
+    let flowtable (sw : VInt.t) (p : Types.policy) : unit =
+      let _ = Printf.printf "Compiling switch %ld [size=%d]...%!"
+        (VInt.get_int32 sw) (Semantics.size p) in
+      let t1 = Unix.gettimeofday () in
+      let i = compile sw p in
+      let t2 = Unix.gettimeofday () in
+      let t = to_table i in
+      let t3 = Unix.gettimeofday () in
+      let _ = Printf.printf "Done [ctime: %fs ttime:%fs]\n%!"
+        (t2 -. t1) (t3 -. t2) in
+      Format.printf "@[flowtable for switch %ld:\n%!%a\n\n@]%!"
+        (VInt.get_int32 sw)
+        SDN_Types.format_flowTable t
+
+    let all (sw : VInt.t) (p : Types.policy) : unit =
+      policy sw p;
+      flowtable sw p
+
+    let main args =
+      match args with
+        | [filename]
+        | ("all"        :: [filename]) -> with_file (with_dehop all) filename
+        | ("policies"   :: [filename]) -> with_file (with_dehop policy) filename
+        | ("flowtables" :: [filename]) -> with_file (with_dehop flowtable) filename
+        | _ ->
+          print_endline "usage: katnetic dump automaton [all|policies|flowtables] <filename>"
+  end
+
   let main args  =
     match args with
       | ("local"     :: args') -> Local.main args'
       | ("automaton" :: args') -> Automaton.main args'
+      | ("classic" :: args') -> Classic.main args'
       | _ -> help [ "dump" ]
 
 end
