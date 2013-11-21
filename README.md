@@ -41,3 +41,12 @@ Run `make install` from the root directory of the repository.
   $ make install
   ```
 
+Testing:
+
+Enable and run tests from the root directory of the repository:
+
+  ```
+  $ ocaml setup.ml -configure --enable-quickcheck
+  ...
+  $ make test
+  ```

@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 600ddc8ce4a0def7b0d56d3b7381a56a) *)
+(* DO NOT EDIT (digest: 60f8c1cb1f91d97cca464985db76a220) *)
 This is the INSTALL file for the packet distribution.
 
 This package uses OASIS to generate its build system. See section OASIS for
@@ -9,9 +9,12 @@ Dependencies
 ============
 
 In order to compile this package, you will need:
-* ocaml for all, doc doc
+* ocaml for all, test all_tests, doc doc
 * findlib
-* cstruct
+* cstruct for library packet
+* quickcheck for library quickcheck, executable testtool
+* oUnit for executable testtool
+* pa_ounit for executable testtool
 
 Installing
 ==========
