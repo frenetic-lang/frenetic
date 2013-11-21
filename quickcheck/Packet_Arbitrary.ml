@@ -2,22 +2,21 @@ open Packet
 open QuickCheck
 module Gen = QuickCheck_gen
 
+(* arbitrary first `b` bits set in an Int32 *)
+let arbitrary_uint32_bits b =
+  Gen.choose_int32 (Int32.zero, Int32.of_int ((0x1 lsl b) - 1) )
 
-(* arbitrary instance for uint4, using the `int32` type. *)
-let arbitrary_uint4 =
-  Gen.choose_int32 (Int32.zero, Int32.of_int 0x7)
+(* arbitrary instance for uint3, using the `int32` type. *)
+let arbitrary_uint4 = arbitrary_uint32_bits 4
 
 (* arbitrary instance for uint8, using the `int32` type. *)
-let arbitrary_uint8 =
-  Gen.choose_int32 (Int32.zero, Int32.of_int 0xff)
+let arbitrary_uint8 = arbitrary_uint32_bits 8
 
 (* arbitrary instance for uint12, using the `int32` type. *)
-let arbitrary_uint12 =
-  Gen.choose_int32 (Int32.zero, Int32.of_int 0xfff)
+let arbitrary_uint12 = arbitrary_uint32_bits 12
 
 (* arbitrary instance for uint16, using the `int32` type. *)
-let arbitrary_uint16 =
-  Gen.choose_int32 (Int32.zero, Int32.of_int 0xffff)
+let arbitrary_uint16 = arbitrary_uint32_bits 16
 
 (* arbitrary instance for uint32, using the `int32` type. *)
 let arbitrary_uint32 =
@@ -48,7 +47,7 @@ let arbitrary_dlVlan =
   begin match m_w16 with
     | None     -> ret_gen (None, false, 0x0)
     | Some w16 ->
-      arbitrary_uint4 >>= fun w4 ->
+      arbitrary_uint32_bits 3 >>= fun w4 ->
       arbitrary_bool >>=  fun b ->
           ret_gen (Some (Int32.to_int w16), b, Int32.to_int w4)
   end
