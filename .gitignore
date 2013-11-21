@@ -5,6 +5,7 @@ _build
 *.out
 *.cmi
 *.cma
+*~
 .DS_Store
 setup.data
 setup.log
