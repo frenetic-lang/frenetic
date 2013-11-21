@@ -18,7 +18,7 @@ module Run = struct
   let with_channel f chan =
     let exp = Parser.program Lexer.token (Lexing.from_channel chan) in
     Lwt_main.run (Controller.start f 6633 (NetKAT_Stream.constant exp))
-  
+
   let with_file f filename =
     with_channel f (open_in filename)
 
@@ -34,13 +34,12 @@ module Run = struct
     let open Types in
     let i,m,_,e = dehopify p in
     let cache = SwitchMap.mapi (fun sw sw_p ->
-      let sw_f  = Types.Filter(Test(Switch, sw)) in
-      let sw_p' = Types.(Seq(Seq(i,Seq(sw_f, sw_p)),e)) in
+      let sw_p' = Types.(Seq(Seq(i,sw_p),e)) in
       to_table (compile sw sw_p'))
     m in
     (fun sw -> SwitchMap.find sw cache)
 
-  let main args = 
+  let main args =
     match args with
       | [filename]
       | ("local"     :: [filename]) -> with_file local filename
@@ -54,7 +53,7 @@ module Dump = struct
 
   let with_channel f chan =
     f (Parser.program Lexer.token (Lexing.from_channel chan))
-  
+
   let with_file f filename =
     with_channel f (open_in filename)
 
@@ -100,8 +99,7 @@ module Dump = struct
         (Unix.gettimeofday () -. t1) in 
       SwitchMap.iter (fun sw pol0 ->
         let open Types in
-        let sw_f  = Filter(Test(Switch, sw)) in
-        let pol0' = Seq(Seq(i,Seq(sw_f,pol0)),e) in
+        let pol0' = Seq(Seq(i,pol0),e) in
         f sw pol0')
       m
 

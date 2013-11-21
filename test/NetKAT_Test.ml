@@ -19,7 +19,7 @@ let test_compile lhs rhs =
 
 let test_compile_table pol tbl = 
   let open LocalCompiler.RunTime in 
-  let tbl' = to_table (compile (VInt.Int64 0L) pol) in 
+  let tbl' = to_table (compile (VInt.Int64 0L) pol) in
   if tbl = tbl' then 
     true
   else
