@@ -60,6 +60,21 @@ module Dump = struct
 
   module Local = struct
 
+    let flowtable (sw : VInt.t) (p : Types.policy) : unit =
+      let _ = Printf.printf "Compiling switch %ld [size=%d]...%!"
+        (VInt.get_int32 sw) (Semantics.size p) in
+      let t1 = Unix.gettimeofday () in
+      let i = compile sw p in
+      let t2 = Unix.gettimeofday () in
+      let t = to_table i in
+      let t3 = Unix.gettimeofday () in
+      let _ = Printf.printf "Done [ctime: %fs ttime:%fs]\n%!"
+        (t2 -. t1) (t3 -. t2) in
+      (if List.length t > 0 then
+        Format.printf "@[flowtable for switch %ld:\n%a@\n\n@]%!"
+          (VInt.get_int32 sw)
+          SDN_Types.format_flowTable t;)
+
     let local sw_num p =
       Format.printf "@[%a\n\n@]%!" Pretty.format_policy p;
       (* NOTE(seliopou): This may not catch all ports, but it'll catch some of
@@ -68,18 +83,7 @@ module Dump = struct
       for sw = 0 to sw_num do
         let vs = VInt.Int64 (Int64.of_int sw) in 
         let sw_p = Types.(Seq(Filter(Test(Switch,vs)), p)) in 
-        let _ = Printf.printf "Compiling switch %d [size=%d]...%!" 
-          sw (Semantics.size p) in 
-        let t1 = Unix.gettimeofday () in 
-        let i = compile vs sw_p in 
-        let t2 = Unix.gettimeofday () in 
-        let t = to_table i in 
-        let t3 = Unix.gettimeofday () in 
-        let _ = Printf.printf "Done [ctime: %fs ttime:%fs]\n%!" 
-          (t2 -. t1) (t3 -. t2) in
-        if List.length t > 0 then
-          Format.printf "@[flowtable for switch %d:\n%a@\n\n@]%!" sw
-            SDN_Types.format_flowTable t;
+        flowtable vs sw_p
       done
 
     let main args =
@@ -107,10 +111,7 @@ module Dump = struct
         Pretty.format_policy p
 
     let flowtable (sw : VInt.t) (p : Types.policy) : unit =
-      let t = to_table (compile sw p) in
-      Format.printf "@[policy for switch %ld:\n%!%a\n\n@]%!"
-        (VInt.get_int32 sw)
-        SDN_Types.format_flowTable t
+      Local.flowtable sw p
 
     let all (sw : VInt.t) (p : Types.policy) : unit =
       policy sw p;
@@ -160,18 +161,7 @@ module Dump = struct
         Pretty.format_policy p
 
     let flowtable (sw : VInt.t) (p : Types.policy) : unit =
-      let _ = Printf.printf "Compiling switch %ld [size=%d]...%!"
-        (VInt.get_int32 sw) (Semantics.size p) in
-      let t1 = Unix.gettimeofday () in
-      let i = compile sw p in
-      let t2 = Unix.gettimeofday () in
-      let t = to_table i in
-      let t3 = Unix.gettimeofday () in
-      let _ = Printf.printf "Done [ctime: %fs ttime:%fs]\n%!"
-        (t2 -. t1) (t3 -. t2) in
-      Format.printf "@[flowtable for switch %ld:\n%!%a\n\n@]%!"
-        (VInt.get_int32 sw)
-        SDN_Types.format_flowTable t
+      Local.flowtable sw p
 
     let all (sw : VInt.t) (p : Types.policy) : unit =
       policy sw p;
