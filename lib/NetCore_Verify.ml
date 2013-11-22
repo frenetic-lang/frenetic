@@ -489,9 +489,9 @@ module Verify = struct
 	let macro = z3_macro ("mod_" ^ (serialize_header f)) [("x", SPacket); ("y", SPacket); ("v", SInt)] SBool 
 	  (
 	    ZAnd [
-	      ZIf ((ZEquals (ZTerm (TVar "x"), nopacket)), 
+	      (*ZIf ((ZEquals (ZTerm (TVar "x"), nopacket)), 
 		   (ZEquals (ZTerm (TVar "y"), nopacket)),
-		   (ZNot (ZEquals (ZTerm (TVar "y"), nopacket))));
+		   (ZNot (ZEquals (ZTerm (TVar "y"), nopacket))));*)
 		  packet_equals_fun;
 		  ZEquals(ZTerm (encode_header f "y"), ZTerm (TVar "v"))]) in
 	Hashtbl.add hashmap packet_equals_fun macro; 
@@ -513,12 +513,12 @@ module Verify = struct
     (* let nullinput = ZEquals (inpkt_t, nopacket) in *)
     match pol with 
       | Filter pred -> 
-	ZOr[forwards_pred pred inpkt(*; nullinput*)], [inpkt]
+	forwards_pred pred inpkt, [inpkt]
       | Mod(f,v) -> 
 	let outpkt = fresh SPacket in
 	let outpkt_t = ZTerm (TVar outpkt) in
 	let modfn = mod_fun f in
-	ZOr [ZApp (modfn, [inpkt_t; outpkt_t; ZTerm (encode_vint v)])(*; nullinput*)], [outpkt]
+	ZApp (modfn, [inpkt_t; outpkt_t; ZTerm (encode_vint v)]),  [outpkt]
       | Par (pol1, pol2) -> 
 	let formu1, out1 = forwards_pol pol1 inpkt in
 	let formu2, out2 = forwards_pol pol2 inpkt in
@@ -530,7 +530,14 @@ module Verify = struct
 	    ZOr[formu2; ZAnd (List.map (fun x -> ZEquals (ZTerm (TVar x), nopacket)) out2)]], out1@out2
       | Seq (pol1, pol2) -> 
 	let formu', midpkts = forwards_pol pol1 inpkt in
-	let outformu, outpkts = unzip_list_tuple (List.map (fun mpkt -> forwards_pol pol2 mpkt) midpkts) in
+	let outformu, outpkts = unzip_list_tuple 
+	  (List.map 
+	     (fun mpkt -> 
+	       let packet_formula, output = forwards_pol pol2 mpkt in
+	       ZIf (ZEquals (ZTerm (TVar mpkt), nopacket), 
+		    ZAnd (List.map (fun nopkt -> ZEquals(ZTerm (TVar nopkt), nopacket)) output),
+		    packet_formula), output )
+	     midpkts) in
 	ZAnd (formu'::outformu), List.flatten outpkts
       | Star _  -> failwith "NetKAT program not in form (p;t)*"
       | Choice _-> failwith "I'm not rightly sure what a \"choice\" is "
@@ -622,26 +629,31 @@ oko: bool option. has to be Some. True if you think it should be satisfiable.
     ; Sat.ZDeclareAssert (Verify.exists forwards_star_result (fun y -> Verify.forwards_pred outp y))] in 
   run_solve oko prog str
     
+  let invert_optional_boolean oko = match oko with 
+    | Some true -> Some false
+    | Some false -> Some true
+    | _ -> oko
+
   let check_equivalence_k str inpkt k1 pol1 k2 pol2 oko = 
     let x = Sat.fresh Sat.SPacket in
-    let forwards_star_pol1_formula, forwards_star_pol1_result = Verify.forwards_star_forall pol1 x k1 in
-    let forwards_star_pol2_formula, forwards_star_pol2_result = Verify.forwards_star_forall pol2 x k2 in
+    let y = Sat.fresh Sat.SPacket in
+    let forwards_star_pol1_formula, forwards_star_pol1_result = Verify.forwards_star pol1 x k1 in
+    let forwards_star_pol2_formula, forwards_star_pol2_result = Verify.forwards_star pol2 x k2 in
     let prog = Sat.ZProgram [
-      Sat.ZDeclareAssert (Sat.ZNot (Sat.ZEquals(Sat.ZTerm (Sat.TVar x), Sat.Z3macro.nopacket)))
+      Sat.ZToplevelComment "Establish input and output packet"
+      ; Sat.ZDeclareAssert (Sat.ZNot (Sat.ZEquals(Sat.ZTerm (Sat.TVar x), Sat.Z3macro.nopacket)))
+      ; Sat.ZDeclareAssert (Sat.ZNot (Sat.ZEquals(Sat.ZTerm (Sat.TVar y), Sat.Z3macro.nopacket)))
       ; Sat.ZDeclareAssert (Verify.forwards_pred inpkt x)
+      ; Sat.ZToplevelComment "reachability from x to y via pol1"
+      (* y reachable from x via pol1 *)
       ; Sat.ZDeclareAssert forwards_star_pol1_formula
+      ; Sat.ZDeclareAssert (Verify.exists forwards_star_pol1_result (fun y' -> Verify.packet_equals y y'))
+	(* end *)
+      ; Sat.ZToplevelComment "reachability from x to y via pol2"
       ; Sat.ZDeclareAssert forwards_star_pol2_formula
-      ; Sat.ZDeclareAssert 
-	(Verify.forall forwards_star_pol1_result 
-	   (fun x' -> Verify.exists forwards_star_pol2_result
-	     (fun y' -> 
-	       Verify.packet_equals x' y' )))
-      ;Sat.ZDeclareAssert 
-	(Verify.forall forwards_star_pol2_result 
-	   (fun x' -> Verify.exists forwards_star_pol1_result
-	     (fun y' -> 
-	       Verify.packet_equals x' y' )))] in
-      run_solve oko prog str
+      ; Sat.ZDeclareAssert (Sat.ZNot (Verify.exists forwards_star_pol2_result (fun y' -> Verify.packet_equals y y')))
+    ] in
+      run_solve (invert_optional_boolean oko ) prog str
 
   let check_reachability str inp pol outp oko = 
     check_reachability_k (Verify_Graph.longest_shortest (Verify_Graph.parse_graph pol))
