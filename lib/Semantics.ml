@@ -5,6 +5,25 @@ open Types
   [eval pkt pol] raises [Not_found] if it tests or updates a header that  [pkt]
   does not have. This behavior is different from OpenFlow, which fails  silently
   in both cases. *)
+
+let rec size_pred (pr:pred) : int = 
+  match pr with
+    | True -> 1
+    | False -> 1
+    | Test(_,_) -> 3
+    | And(pr1,pr2) -> size_pred pr1 + size_pred pr2 + 1
+    | Or(pr1,pr2) -> size_pred pr1 + size_pred pr2 + 1
+    | Neg(pr) -> size_pred pr + 1
+  
+let rec size (pol:policy) : int = 
+  match pol with
+    | Filter pr -> size_pred pr + 1
+    | Mod(_,_) -> 3
+    | Par(pol1, pol2) -> size pol1 + size pol2 + 1
+    | Seq(pol1, pol2) -> size pol1 + size pol2 + 1
+    | Choice(pol1, pol2) -> size pol1 + size pol2 + 1
+    | Star(pol) -> size pol + 1
+    | Link(_,_,_,_) -> 5
   
 let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
   | True -> true
