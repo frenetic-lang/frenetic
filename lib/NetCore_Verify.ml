@@ -622,27 +622,33 @@ oko: bool option. has to be Some. True if you think it should be satisfiable.
     ; Sat.ZDeclareAssert (Verify.exists forwards_star_result (fun y -> Verify.forwards_pred outp y))] in 
   run_solve oko prog str
     
-  let check_equivalence_k str k1 pol1 k2 pol2 oko = 
+  let check_equivalence_k str inpkt k1 pol1 k2 pol2 oko = 
     let x = Sat.fresh Sat.SPacket in
     let forwards_star_pol1_formula, forwards_star_pol1_result = Verify.forwards_star_forall pol1 x k1 in
     let forwards_star_pol2_formula, forwards_star_pol2_result = Verify.forwards_star_forall pol2 x k2 in
     let prog = Sat.ZProgram [
       Sat.ZDeclareAssert (Sat.ZNot (Sat.ZEquals(Sat.ZTerm (Sat.TVar x), Sat.Z3macro.nopacket)))
+      ; Sat.ZDeclareAssert (Verify.forwards_pred inpkt x)
       ; Sat.ZDeclareAssert forwards_star_pol1_formula
       ; Sat.ZDeclareAssert forwards_star_pol2_formula
       ; Sat.ZDeclareAssert 
 	(Verify.forall forwards_star_pol1_result 
-	   (fun x -> Verify.exists forwards_star_pol2_result
-	     (fun y -> 
-	       Verify.packet_equals x y )))] in
+	   (fun x' -> Verify.exists forwards_star_pol2_result
+	     (fun y' -> 
+	       Verify.packet_equals x' y' )))
+      ;Sat.ZDeclareAssert 
+	(Verify.forall forwards_star_pol2_result 
+	   (fun x' -> Verify.exists forwards_star_pol1_result
+	     (fun y' -> 
+	       Verify.packet_equals x' y' )))] in
       run_solve oko prog str
 
   let check_reachability str inp pol outp oko = 
     check_reachability_k (Verify_Graph.longest_shortest (Verify_Graph.parse_graph pol))
       str inp pol outp oko
 
-  let check_equivalence str pol1 pol2 oko = 
-    check_equivalence_k str 
+  let check_equivalence str inpkt pol1 pol2 oko = 
+    check_equivalence_k str inpkt
       (Verify_Graph.longest_shortest (Verify_Graph.parse_graph pol1)) pol1
       (Verify_Graph.longest_shortest (Verify_Graph.parse_graph pol2)) pol2
       oko
