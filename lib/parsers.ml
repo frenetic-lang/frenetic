@@ -1,5 +1,6 @@
 open Topology_util
 open Graph
+open Core
 
 type nattr = {
   ntype: string
@@ -12,6 +13,8 @@ type nattr = {
 let defnattr = {ntype = "host"; name = ""; id = 0L; ip = "0.0.0.0"; mac = "00:00:00:00:00:00"}
 
 module TopoDot = struct
+    let attrtbl = ref (Hashtbl.create 100)
+    let index = ref 0
 
   (* Utility functions *)
   let parse_rate (r:string) : Int64.t =
@@ -88,13 +91,15 @@ module TopoDot = struct
     let name = string_of_id id in
     let at = List.hd ats in
     let nat = List.fold_left update_nattr
-        {defnattr with ntype = "switch"} at in
+        {defnattr with ntype = "switch"; name = name} at in
+    Hashtbl.replace !attrtbl name nat;
     if nat.ntype = "host" then
-      Core.Node.Host(name, nat.mac, nat.ip)
+      Core.Node.Host(name, VInt.of_mac nat.mac, VInt.of_ip nat.ip)
     else if nat.ntype = "switch" then
-      Core.Node.Switch(name, VInt.Int64 nat.id)
+      Core.Node.Switch(VInt.Int64 nat.id)
     else
       Core.Node.Mbox(name,[])
+
 
   (* Generate a link from the attributes *)
   let edge (ats:Dot_ast.attr list) : Core.Topology.E.label =
@@ -139,9 +144,9 @@ module TopoGML = struct
       let nat = List.fold_left update_nattr
         {defnattr with ntype = "switch"} vs in
       if nat.ntype = "host" then
-        Core.Node.Host(nat.name, nat.mac, nat.ip)
+        Core.Node.Host(nat.name, VInt.of_mac nat.mac, VInt.of_ip nat.ip)
       else if nat.ntype = "switch" then
-        Core.Node.Switch(nat.name, VInt.Int64 nat.id)
+        Core.Node.Switch(VInt.Int64 nat.id)
       else
         Core.Node.Mbox(nat.name,[])
 
@@ -154,6 +159,9 @@ end
 module B = Graph.Builder.P(Core.Topology)
 module GML = Graph.Gml.Parse(B)(TopoGML)
 module DOT = Graph.Dot.Parse(B)(TopoDot)
+
+let from_dotfile_tbl s =
+  (DOT.parse s, !TopoDot.attrtbl)
 
 let from_dotfile = DOT.parse
 let from_gmlfile = GML.parse

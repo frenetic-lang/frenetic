@@ -4,15 +4,16 @@ open Packet
 type switchId = SDN_Types.switchId
 type portId = VInt.t
 type rate = Rate of int64 * int64
-val string_of_rate : rate -> string
-type addrMAC = string
-type addrIP = string
 
+val string_of_rate : rate -> string
+
+type addrMAC = VInt.t
+type addrIP = VInt.t
 
 module type NODE =
 sig
   type t = Host of string * addrMAC * addrIP
-           | Switch of string * switchId
+           | Switch of switchId
            | Mbox of string * string list
 
   type label = t
@@ -38,7 +39,7 @@ sig
 
   (* Constructors *)
   val mk_edge : v -> v -> t -> e
-  val mk_link : v -> int -> v -> int -> int64 -> int64 -> e
+  val mk_link : v -> VInt.t -> v -> VInt.t -> VInt.t -> VInt.t -> e
   val reverse : e -> e
 
   (* Accesssors *)
@@ -46,10 +47,10 @@ sig
   val dst : e -> v
   val label : e -> t
 
-  val capacity : e -> Int64.t
-  val cost : e -> Int64.t
-  val srcport : e -> Int32.t
-  val dstport : e -> Int32.t
+  val capacity : e -> VInt.t
+  val cost : e -> VInt.t
+  val srcport : e -> VInt.t
+  val dstport : e -> VInt.t
 
   (* Utilities *)
   val name : e -> string
@@ -65,7 +66,7 @@ sig
   (* Constructors *)
   val add_node : t -> V.t -> t
   val add_host : t -> string -> addrMAC -> addrIP -> t
-  val add_switch : t -> string -> switchId -> t
+  val add_switch : t -> switchId -> t
   val add_switch_edge : t -> V.t -> portId -> V.t -> portId -> t
 
   (* Accessors *)
