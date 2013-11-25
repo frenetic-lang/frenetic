@@ -73,3 +73,38 @@ let format (fmt : Format.formatter) (v : t) : unit =
   | Int16 n -> fprintf fmt "%d" n
   | Int8 n -> fprintf fmt "%d" n
   | Int4 n -> fprintf fmt "%d" n
+
+
+let get_string v =
+  let make_string_of formatter x =
+    let open Format in
+	let buf = Buffer.create 100 in
+	let fmt = formatter_of_buffer buf in
+	pp_set_margin fmt 80;
+	formatter fmt x;
+	fprintf fmt "@?";
+	Buffer.contents buf in
+  make_string_of format v
+
+let of_ip s =
+  let bytes = Str.split (Str.regexp "\\.") s in
+  let n =
+    let open Int32 in
+        (logor (shift_left (of_string (List.nth bytes 0)) 24)
+           (logor (shift_left (of_string (List.nth bytes 1)) 16)
+              (logor (shift_left (of_string (List.nth bytes 2)) 8)
+                 (of_string (List.nth bytes 3))))) in
+    Int32 n
+
+let of_mac s =
+  let bytes = Str.split (Str.regexp ":") s in
+  let parse_byte str = Int64.of_string ("0x" ^ str) in
+  let n =
+    let open Int64 in
+        (logor (shift_left (parse_byte (List.nth bytes 0)) 40)
+           (logor (shift_left (parse_byte (List.nth bytes 1)) 32)
+              (logor (shift_left (parse_byte (List.nth bytes 2)) 24)
+                 (logor (shift_left (parse_byte (List.nth bytes 3)) 16)
+                    (logor (shift_left (parse_byte (List.nth bytes 4)) 8)
+                       (parse_byte (List.nth bytes 5))))))) in
+    Int64 n

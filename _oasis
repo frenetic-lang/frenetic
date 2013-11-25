@@ -19,6 +19,7 @@ Flag quickcheck
 Library openflow
   Path: lib
   BuildDepends:
+    str,
     lwt,
     lwt.unix,
     cstruct,
