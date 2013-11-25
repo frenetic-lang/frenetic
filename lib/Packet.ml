@@ -846,3 +846,22 @@ let marshal (pkt:packet) : Cstruct.t =
   let bits = Cstruct.create (len pkt) in 
   let () = marshal_helper bits pkt in 
   bits
+
+let ip_of_string (s : string) : nwAddr =
+  let bytes = Str.split (Str.regexp "\\.") s in
+  let open Int32 in
+      (logor (shift_left (of_string (List.nth bytes 0)) 24)
+         (logor (shift_left (of_string (List.nth bytes 1)) 16)
+            (logor (shift_left (of_string (List.nth bytes 2)) 8)
+               (of_string (List.nth bytes 3)))))
+
+let mac_of_string (s : string) : dlAddr =
+  let bytes = Str.split (Str.regexp ":") s in
+  let parse_byte str = Int64.of_string ("0x" ^ str) in
+  let open Int64 in
+      (logor (shift_left (parse_byte (List.nth bytes 0)) 40)
+         (logor (shift_left (parse_byte (List.nth bytes 1)) 32)
+            (logor (shift_left (parse_byte (List.nth bytes 2)) 24)
+               (logor (shift_left (parse_byte (List.nth bytes 3)) 16)
+                  (logor (shift_left (parse_byte (List.nth bytes 4)) 8)
+                     (parse_byte (List.nth bytes 5)))))))
