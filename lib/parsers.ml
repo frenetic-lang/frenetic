@@ -13,7 +13,8 @@ type nattr = {
 let defnattr = {ntype = "host"; name = ""; id = 0L; ip = "0.0.0.0"; mac = "00:00:00:00:00:00"}
 
 module TopoDot = struct
-    let attrtbl = ref (Hashtbl.create 100)
+    let name2attrs = ref (Hashtbl.create 100)
+    let id2attrs = ref (Hashtbl.create 100)
     let index = ref 0
 
   (* Utility functions *)
@@ -92,11 +93,12 @@ module TopoDot = struct
     let at = List.hd ats in
     let nat = List.fold_left update_nattr
         {defnattr with ntype = "switch"; name = name} at in
-    Hashtbl.replace !attrtbl name nat;
+    Hashtbl.replace !name2attrs name nat;
     if nat.ntype = "host" then
       Core.Node.Host(name, VInt.of_mac nat.mac, VInt.of_ip nat.ip)
-    else if nat.ntype = "switch" then
-      Core.Node.Switch(VInt.Int64 nat.id)
+    else if nat.ntype = "switch" then begin
+      Hashtbl.replace !id2attrs (VInt.Int64 nat.id) nat;
+      Core.Node.Switch(VInt.Int64 nat.id) end
     else
       Core.Node.Mbox(name,[])
 
@@ -161,7 +163,7 @@ module GML = Graph.Gml.Parse(B)(TopoGML)
 module DOT = Graph.Dot.Parse(B)(TopoDot)
 
 let from_dotfile_tbl s =
-  (DOT.parse s, !TopoDot.attrtbl)
+  (DOT.parse s, !TopoDot.name2attrs, !TopoDot.id2attrs)
 
 let from_dotfile = DOT.parse
 let from_gmlfile = GML.parse
