@@ -19,7 +19,7 @@ Flag quickcheck
 
 Library packet
   Path: lib
-  BuildDepends: cstruct, cstruct.syntax
+  BuildDepends: str, cstruct, cstruct.syntax
   Modules: Packet
 
 Document doc
