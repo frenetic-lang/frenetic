@@ -82,6 +82,7 @@ Executable katnetic
   Path: frenetic
   MainIs: katnetic.ml
   Install$: flag(installexec)
+  CompiledObject: best
   BuildDepends:
     lwt,
     lwt.syntax,

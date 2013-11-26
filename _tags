@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: e80a4658ba066dc9cd0056c38aa01191)
+# DO NOT EDIT (digest: af27ee8d069b33ee0b9ad4645a8c77e1)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -77,18 +77,18 @@
 <test/*.ml{,i}>: pkg_openflow
 <test/*.ml{,i}>: pkg_topology
 # Executable katnetic
-"frenetic/katnetic.byte": use_netcore
-"frenetic/katnetic.byte": pkg_lwt
-"frenetic/katnetic.byte": pkg_lwt.syntax
-"frenetic/katnetic.byte": pkg_packet
-"frenetic/katnetic.byte": pkg_lwt.unix
-"frenetic/katnetic.byte": pkg_cstruct
-"frenetic/katnetic.byte": pkg_dprle
-"frenetic/katnetic.byte": pkg_lwt.syntax.log
-"frenetic/katnetic.byte": pkg_str
-"frenetic/katnetic.byte": pkg_ocamlgraph
-"frenetic/katnetic.byte": pkg_openflow
-"frenetic/katnetic.byte": pkg_topology
+<frenetic/katnetic.{native,byte}>: use_netcore
+<frenetic/katnetic.{native,byte}>: pkg_lwt
+<frenetic/katnetic.{native,byte}>: pkg_lwt.syntax
+<frenetic/katnetic.{native,byte}>: pkg_packet
+<frenetic/katnetic.{native,byte}>: pkg_lwt.unix
+<frenetic/katnetic.{native,byte}>: pkg_cstruct
+<frenetic/katnetic.{native,byte}>: pkg_dprle
+<frenetic/katnetic.{native,byte}>: pkg_lwt.syntax.log
+<frenetic/katnetic.{native,byte}>: pkg_str
+<frenetic/katnetic.{native,byte}>: pkg_ocamlgraph
+<frenetic/katnetic.{native,byte}>: pkg_openflow
+<frenetic/katnetic.{native,byte}>: pkg_topology
 # Executable dehop_test
 "frenetic/dehop_test.byte": use_netcore
 "frenetic/dehop_test.byte": pkg_lwt
