@@ -29,6 +29,12 @@
 ;; NetKAT Equivalence
 (declare-rel Eq (Policy Policy)) 
 
+;; NetKAT Equivalence
+(declare-rel Leq (Policy Policy)) 
+(assert 
+  (forall ((p Policy) (q Policy))
+    (iff (Leq p q) (Eq (PoUnion p q) q))))
+
 ;; KA-Plus-Assoc
 (assert 
   (forall ((p Policy) (q Policy) (r Policy)) 
@@ -90,15 +96,23 @@
     (Eq (PoStar p) (PoUnion (PoFilter PrTrue) (PoSeq p (PoStar p))))))
 
 ;; KA-LFP-L
+
 ;; (assert 
 ;;   (forall ((p Policy) (q Policy) (r Policy)) 
-;;     (implies (Eq (PoUnion (PoUnion q (PoSeq p r)) r) r)
-;;              (Eq (PoUnion (PoSeq (PoStar p) q) r) r))))
+;;     (implies (Leq (PoUnion q (PoSeq p r)) r)
+;;              (Leq (PoSeq (PoStar p) q) r))))
 
 ;; KA-Unroll-R
 (assert 
   (forall ((p Policy))
     (Eq (PoStar p) (PoUnion (PoFilter PrTrue) (PoSeq (PoStar p) p)))))
+
+;; KA-LFP-R
+
+;; (assert 
+;;   (forall ((p Policy) (q Policy) (r Policy)) 
+;;     (implies (Leq (PoUnion p (PoSeq q r)) q)
+;;              (Leq (PoSeq p (PoStar r)) q))))
 
 (check-sat)
 (get-model)
