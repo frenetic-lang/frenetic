@@ -7,3 +7,5 @@ open Types
   in both cases. *)
   
 val eval : packet -> policy -> PacketSetSet.t
+
+val size: policy -> int
