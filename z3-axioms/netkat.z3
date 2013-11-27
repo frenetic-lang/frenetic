@@ -14,8 +14,8 @@
       PrFalse 
       (PrTest (prTestField Field) (prTestValue Int)) 
       (PrAnd (prAnd1 Predicate) (prAnd2 Predicate)) 
-      (PrOr (prAnd1 Predicate) (prAnd2 Predicate)) 
-      (PrNot (pr1 Predicate)))))
+      (PrOr (prOr1 Predicate) (prOr2 Predicate)) 
+      (PrNot (prNot Predicate)))))
 
 ;; Policies
 (declare-datatypes () 
