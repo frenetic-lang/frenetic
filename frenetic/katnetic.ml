@@ -97,7 +97,11 @@ module Dump = struct
     open NetKAT_Automaton
 
     let with_dehop f p =
+      let _ = Printf.printf "Dehopify...%!" in
+      let t1 = Unix.gettimeofday () in
       let i,m,_,e = dehopify p in
+      let _ = Printf.printf "Done [size: %d time: %fs]\n%!" (Semantics.size p)
+        (Unix.gettimeofday () -. t1) in
       SwitchMap.iter (fun sw pol0 ->
         let open Types in
         let sw_f  = Filter(Test(Switch, sw)) in
