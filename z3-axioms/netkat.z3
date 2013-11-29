@@ -17,7 +17,7 @@
   ((Predicate 
       PrTrue 
       PrFalse 
-      (PrTest (prTestField Field) (prTestValue Int)) 
+      (PrTest (prTestField Field) (prTestValue (_ BitVec 3)))
       (PrAnd (prAnd1 Predicate) (prAnd2 Predicate)) 
       (PrOr (prOr1 Predicate) (prOr2 Predicate)) 
       (PrNot (prNot Predicate)))))
@@ -26,7 +26,7 @@
 (declare-datatypes () 
   ((Policy 
      (PoFilter (pred Predicate)) 
-     (PoModify (poModifyField Field) (poModifyValue Int)) 
+     (PoModify (poModifyField Field) (poModifyValue (_ BitVec 3)))
      (PoUnion (poUnion1 Policy) (poUnion2 Policy)) 
      (PoSeq (poSeq1 Policy) (poSeq2 Policy)) 
      (PoStar (poStar Policy)) PoDup)))
@@ -46,14 +46,14 @@
     (Eq p p)))
 
 ;; Symmetric
-(assert 
-  (forall ((p Policy) (q Policy))
-    (implies (Eq p q) (Eq q p))))
+;; (assert 
+;;   (forall ((p Policy) (q Policy))
+;;     (implies (Eq p q) (Eq q p))))
 
 ;; Transitive
-(assert 
-  (forall ((p Policy) (q Policy) (r Policy))
-    (implies (and (Eq p q) (Eq q r)) (Eq p r))))
+;; (assert 
+;;   (forall ((p Policy) (q Policy) (r Policy))
+;;     (implies (and (Eq p q) (Eq q r)) (Eq p r))))
 
 ;; Congruence PoUnion
 (assert 
@@ -131,10 +131,10 @@
     (Eq (PoStar p) (PoUnion (PoFilter PrTrue) (PoSeq p (PoStar p))))))
 
 ;; KA-LFP-L
-(assert 
-  (forall ((p Policy) (q Policy) (r Policy)) 
-    (implies (Leq (PoUnion q (PoSeq p r)) r)
-             (Leq (PoSeq (PoStar p) q) r))))
+;; (assert 
+;;   (forall ((p Policy) (q Policy) (r Policy)) 
+;;     (implies (Leq (PoUnion q (PoSeq p r)) r)
+;;              (Leq (PoSeq (PoStar p) q) r))))
 
 ;; KA-Unroll-R
 (assert 
@@ -142,9 +142,9 @@
     (Eq (PoStar p) (PoUnion (PoFilter PrTrue) (PoSeq (PoStar p) p)))))
 
 ;; KA-LFP-R
-(assert 
-  (forall ((p Policy) (q Policy) (r Policy)) 
-    (implies (Leq (PoUnion p (PoSeq q r)) q)
-             (Leq (PoSeq p (PoStar r)) q))))
+;; (assert 
+;;   (forall ((p Policy) (q Policy) (r Policy)) 
+;;     (implies (Leq (PoUnion p (PoSeq q r)) q)
+;;              (Leq (PoSeq p (PoStar r)) q))))
 
 (check-sat)
