@@ -1,4 +1,4 @@
-open Topology_util
+open Topology_Util
 open Graph
 
 type switchId = SDN_Types.switchId

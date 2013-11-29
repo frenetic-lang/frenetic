@@ -1,4 +1,3 @@
-
 type nattr = {
   ntype: string
   ; name : string
@@ -7,8 +6,8 @@ type nattr = {
   ; mac : string
 }
 
-val from_dotfile_tbl : string -> (Core.Topology.t *
+val from_dotfile_tbl : string -> (Topology_Core.Topology.t *
                                     (string, nattr) Hashtbl.t *
                                     (VInt.t, nattr) Hashtbl.t)
-val from_dotfile : string -> Core.Topology.t
-val from_gmlfile : string -> Core.Topology.t
+val from_dotfile : string -> Topology_Core.Topology.t
+val from_gmlfile : string -> Topology_Core.Topology.t
