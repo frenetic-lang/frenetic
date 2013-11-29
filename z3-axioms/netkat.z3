@@ -1,11 +1,16 @@
-;; Packets
-(declare-datatypes () 
-  ((Packet 
-     (Packet (src Int) (dst Int)))))
-
 ;; Fields
 (declare-datatypes () 
-  ((Field Src Dst)))
+  ((Field Switch Port 
+      EthType 
+      EthSrc 
+      EthDst 
+      Vlan 
+      VlanPcp 
+      IPProto 
+      IP4Src 
+      IP4Dst 
+      TCPSrcPort 
+      TCPDstPort)))
 
 ;; Predicates
 (declare-datatypes () 
@@ -29,11 +34,41 @@
 ;; NetKAT Equivalence
 (declare-rel Eq (Policy Policy)) 
 
-;; NetKAT Equivalence
+;; NetKAT Natural Order
 (declare-rel Leq (Policy Policy)) 
 (assert 
   (forall ((p Policy) (q Policy))
     (iff (Leq p q) (Eq (PoUnion p q) q))))
+
+;; Reflexive
+(assert 
+  (forall ((p Policy))
+    (Eq p p)))
+
+;; Symmetric
+(assert 
+  (forall ((p Policy) (q Policy))
+    (implies (Eq p q) (Eq q p))))
+
+;; Transitive
+(assert 
+  (forall ((p Policy) (q Policy) (r Policy))
+    (implies (and (Eq p q) (Eq q r)) (Eq p r))))
+
+;; Congruence PoUnion
+(assert 
+  (forall ((p Policy) (q Policy) (r Policy))
+    (implies (Eq p q) (Eq (PoUnion p r) (PoUnion q r)))))
+
+;; Congruence PoSeq
+(assert 
+  (forall ((p Policy) (q Policy) (r Policy))
+    (implies (Eq p q) (Eq (PoSeq p r) (PoSeq q r)))))
+
+;; Congruence PoStar
+(assert 
+  (forall ((p Policy) (q Policy))
+    (implies (Eq p q) (Eq (PoStar p) (PoStar q)))))
 
 ;; KA-Plus-Assoc
 (assert 
@@ -96,11 +131,10 @@
     (Eq (PoStar p) (PoUnion (PoFilter PrTrue) (PoSeq p (PoStar p))))))
 
 ;; KA-LFP-L
-
-;; (assert 
-;;   (forall ((p Policy) (q Policy) (r Policy)) 
-;;     (implies (Leq (PoUnion q (PoSeq p r)) r)
-;;              (Leq (PoSeq (PoStar p) q) r))))
+(assert 
+  (forall ((p Policy) (q Policy) (r Policy)) 
+    (implies (Leq (PoUnion q (PoSeq p r)) r)
+             (Leq (PoSeq (PoStar p) q) r))))
 
 ;; KA-Unroll-R
 (assert 
@@ -108,11 +142,9 @@
     (Eq (PoStar p) (PoUnion (PoFilter PrTrue) (PoSeq (PoStar p) p)))))
 
 ;; KA-LFP-R
-
-;; (assert 
-;;   (forall ((p Policy) (q Policy) (r Policy)) 
-;;     (implies (Leq (PoUnion p (PoSeq q r)) q)
-;;              (Leq (PoSeq p (PoStar r)) q))))
+(assert 
+  (forall ((p Policy) (q Policy) (r Policy)) 
+    (implies (Leq (PoUnion p (PoSeq q r)) q)
+             (Leq (PoSeq p (PoStar r)) q))))
 
 (check-sat)
-(get-model)
