@@ -22,3 +22,9 @@ val get_int8 : t -> int
 val get_int4 : t -> int
 
 val format : Format.formatter -> t -> unit
+
+val get_string : t -> string
+
+val of_ip : string -> t
+
+val of_mac : string -> t
