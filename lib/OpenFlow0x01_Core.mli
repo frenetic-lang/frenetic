@@ -164,6 +164,8 @@ val match_all : pattern
     zero, etc. *)
 val add_flow : int16 -> pattern -> action list -> flowMod
 
+val delete_flow_strict : pattern -> pseudoPort option -> flowMod
+
 val delete_all_flows : flowMod
 
 (** {2 Printing and Debugging} *)

@@ -102,6 +102,20 @@ let add_flow prio pat actions =
     check_overlap = false
   }
 
+let delete_flow_strict pat port =
+  { command = DeleteStrictFlow
+  ; pattern = pat
+  ; priority = 0
+  ; actions = []
+  ; cookie = 0L
+  ; idle_timeout = Permanent
+  ; hard_timeout = Permanent
+  ; notify_when_removed = false
+  ; apply_to_packet = None
+  ; out_port = port
+  ; check_overlap = false
+  }
+
 let match_all = {
   dlSrc = None;
   dlDst = None;
