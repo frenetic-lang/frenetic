@@ -73,3 +73,15 @@ let format (fmt : Format.formatter) (v : t) : unit =
   | Int16 n -> fprintf fmt "%d" n
   | Int8 n -> fprintf fmt "%d" n
   | Int4 n -> fprintf fmt "%d" n
+
+
+let get_string v =
+  let make_string_of formatter x =
+    let open Format in
+        let buf = Buffer.create 100 in
+        let fmt = formatter_of_buffer buf in
+        pp_set_margin fmt 80;
+        formatter fmt x;
+        fprintf fmt "@?";
+        Buffer.contents buf in
+  make_string_of format v
