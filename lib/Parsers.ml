@@ -96,7 +96,8 @@ module TopoDot = struct
         {defnattr with ntype = "switch"; name = name} at in
     Hashtbl.replace !name2attrs name nat;
     if nat.ntype = "host" then
-      Core.Node.Host(name, VInt.of_mac nat.mac, VInt.of_ip nat.ip)
+      Core.Node.Host(name, VInt.Int64 (Packet.mac_of_string nat.mac),
+                     VInt.Int32 (Packet.ip_of_string nat.ip))
     else if nat.ntype = "switch" then begin
       Hashtbl.replace !id2attrs (VInt.Int64 nat.id) nat;
       Core.Node.Switch(VInt.Int64 nat.id) end
@@ -147,7 +148,8 @@ module TopoGML = struct
       let nat = List.fold_left update_nattr
         {defnattr with ntype = "switch"} vs in
       if nat.ntype = "host" then
-        Core.Node.Host(nat.name, VInt.of_mac nat.mac, VInt.of_ip nat.ip)
+        Core.Node.Host(nat.name, VInt.Int64 (Packet.mac_of_string nat.mac),
+                       VInt.Int32 (Packet.ip_of_string nat.ip))
       else if nat.ntype = "switch" then
         Core.Node.Switch(VInt.Int64 nat.id)
       else
