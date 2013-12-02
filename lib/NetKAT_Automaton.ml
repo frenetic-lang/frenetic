@@ -110,18 +110,27 @@ type regex = pchar aregex
 
 (* BEGIN TO POLICY ---------------------------------------------------------- *)
 
-let rec lf_policy_to_policy (lfp : lf_policy) : policy =
-  match lfp with
-    | Filter(p) -> Types.Filter(p)
-    | Mod(h, v) -> Types.Mod(h, v)
-    | Par(p1, p2) ->
-      Types.Par(lf_policy_to_policy p1, lf_policy_to_policy p2)
-    | Choice(p1, p2) ->
-      Types.Choice(lf_policy_to_policy p1, lf_policy_to_policy p2)
-    | Seq(p1, p2) ->
-      Types.Seq(lf_policy_to_policy p1, lf_policy_to_policy p2)
-    | Star(p) ->
-      Types.Star(lf_policy_to_policy p)
+let lf_policy_to_policy (lfp : lf_policy) : policy =
+  let rec lf_policy_to_policy_k lfp k =
+    match lfp with
+      | Filter(p) -> k (Types.Filter(p))
+      | Mod(h, v) -> k (Types.Mod(h, v))
+      | Par(p1, p2) ->
+        lf_policy_to_policy_k p1 (fun p1' ->
+        lf_policy_to_policy_k p2 (fun p2' ->
+          k (Types.Par(p1', p2'))))
+      | Choice(p1, p2) ->
+        lf_policy_to_policy_k p1 (fun p1' ->
+        lf_policy_to_policy_k p2 (fun p2' ->
+          k (Types.Choice(p1', p2'))))
+      | Seq(p1, p2) ->
+        lf_policy_to_policy_k p1 (fun p1' ->
+        lf_policy_to_policy_k p2 (fun p2' ->
+          k (Types.Seq(p1', p2'))))
+      | Star(p) ->
+        lf_policy_to_policy_k p (fun p' ->
+          k (Types.Star(p')))
+  in lf_policy_to_policy_k lfp (fun x -> x)
 
 let topology_to_policy (topo : topology) : policy =
   SwitchMap.fold (fun sw1 pt_m acc ->
@@ -167,49 +176,52 @@ module TRegex = struct
 
   type tregex = pl_char aregex
 
-  let rec of_policy (p : policy) : tregex =
-    begin match p with
-      | Types.Filter(q) ->
-        Char(PChar(Filter q))
-      | Types.Mod(h, v) ->
-        Char(PChar(Mod(h, v)))
-      | Types.Link(sw1, pt1, sw2, pt2) ->
-        let dst = SwitchPort(sw2, pt2) in
-        let topo = SwitchMap.singleton sw1 (PortMap.singleton pt1 dst) in
-        Char(TChar(None, topo))
-      | Types.Seq(p1, p2) ->
-        let p1' = of_policy p1 in
-        let p2' = of_policy p2 in
-        begin match p1', p2' with
-          | Char(PChar(lfp1)), Char(PChar(lfp2)) ->
-            Char(PChar(Seq(lfp1, lfp2)))
-          | Char(PChar(lfp1)), Char(TChar(mlfp2, sw)) ->
-            let mlfp = optional lfp1 (fun x -> Seq(lfp1,x)) mlfp2 in
-            Char(TChar(Some(mlfp), sw))
-          | _, _ -> Cat(p1', p2')
-        end
-      | Types.Par(p1, p2) ->
-        let p1' = of_policy p1 in
-        let p2' = of_policy p2 in
-        begin match p1', p2' with
-          | Char(PChar(lfp1)), Char(PChar(lfp2)) ->
-            Char(PChar(Par(lfp1, lfp2)))
-          | Char(TChar(None, topo1)), Char(TChar(None, topo2)) ->
-            let topo3 = SwitchMap.merge merge_topologies topo1 topo2 in
-            Char(TChar(None, topo3))
-          | _ , _ -> Alt(p1', p2')
-        end
-      | Types.Choice(p1, p2) ->
-        let p1' = of_policy p1 in
-        let p2' = of_policy p2 in
-        begin match p1', p2' with
-          | Char(PChar(lfp1)), Char(PChar(lfp2)) ->
-            Char(PChar(Choice(lfp1, lfp2)))
-          | _ , _ -> Pick(p1', p2')
-        end
-      | Types.Star(q) ->
-        Kleene(of_policy q)
-    end
+  let of_policy (p : policy) : tregex =
+    let rec of_policy_k p k =
+      begin match p with
+        | Types.Filter(q) ->
+          k (Char(PChar(Filter q)))
+        | Types.Mod(h, v) ->
+          k (Char(PChar(Mod(h, v))))
+        | Types.Link(sw1, pt1, sw2, pt2) ->
+          let dst = SwitchPort(sw2, pt2) in
+          let topo = SwitchMap.singleton sw1 (PortMap.singleton pt1 dst) in
+          k (Char(TChar(None, topo)))
+        | Types.Seq(p1, p2) ->
+          of_policy_k p1 (fun p1' ->
+          of_policy_k p2 (fun p2' ->
+            k (begin match p1', p2' with
+              | Char(PChar(lfp1)), Char(PChar(lfp2)) ->
+                Char(PChar(Seq(lfp1, lfp2)))
+              | Char(PChar(lfp1)), Char(TChar(mlfp2, sw)) ->
+                let mlfp = optional lfp1 (fun x -> Seq(lfp1,x)) mlfp2 in
+                Char(TChar(Some(mlfp), sw))
+              | _, _ -> Cat(p1', p2')
+            end)))
+        | Types.Par(p1, p2) ->
+          of_policy_k p1 (fun p1' ->
+          of_policy_k p2 (fun p2' ->
+            k (begin match p1', p2' with
+              | Char(PChar(lfp1)), Char(PChar(lfp2)) ->
+                Char(PChar(Par(lfp1, lfp2)))
+              | Char(TChar(None, topo1)), Char(TChar(None, topo2)) ->
+                let topo3 = SwitchMap.merge merge_topologies topo1 topo2 in
+                Char(TChar(None, topo3))
+              | _ , _ -> Alt(p1', p2')
+            end)))
+        | Types.Choice(p1, p2) ->
+          of_policy_k p1 (fun p1' ->
+          of_policy_k p2 (fun p2' ->
+            k (begin match p1', p2' with
+              | Char(PChar(lfp1)), Char(PChar(lfp2)) ->
+                Char(PChar(Choice(lfp1, lfp2)))
+              | _ , _ -> Pick(p1', p2')
+            end)))
+        | Types.Star(q) ->
+          of_policy_k q (fun q' ->
+            k (Kleene(q')))
+      end
+    in of_policy_k p (fun x -> x)
 
   let rec to_policy (r : tregex) : policy =
     begin match r with
@@ -660,7 +672,7 @@ module NFA = struct
 end
 
 module EdgeSet = Set.Make(struct
-  type t = NFA.state * pchar * NFA.state
+  type t = NFA.state * (Types.policy * topology) * NFA.state
   let compare = Pervasives.compare
 end)
 
@@ -683,8 +695,9 @@ let regex_to_switch_policies (r : regex) : policy dehopified =
 
   let add_all ((q, ns, q') : NFA.edge) (m : EdgeSet.t SwitchMap.t) =
     Hashtbl.fold (fun i () acc ->
-      let _, topo as pchar = Hashtbl.find chash i in
-      let edge = (q, pchar, q') in
+      let lfp, topo = Hashtbl.find chash i in
+      let p = lf_policy_to_policy lfp in
+      let edge = (q, (p, topo), q') in
       SwitchMap.merge (fun _ -> lift_maybe2 EdgeSet.union)
         (SwitchMap.map (fun _ -> EdgeSet.singleton edge) topo) acc)
     ns m in
@@ -704,7 +717,7 @@ let regex_to_switch_policies (r : regex) : policy dehopified =
 
   let topology = ref SwitchMap.empty in
 
-  let to_policy sw (q, ((lf_p, topo) : pchar), q') : policy =
+  let to_policy sw (q, (p, topo), q') : policy =
     (* Printf.printf "Working on q%d -> q%d\n" q q'; *)
     topology := SwitchMap.merge merge_topologies topo !topology;
     let pt_m = SwitchMap.find sw topo in
@@ -719,7 +732,6 @@ let regex_to_switch_policies (r : regex) : policy dehopified =
       else [q'] in
 
     let ingress = Types.Seq(switch_f, mk_filter q) in
-    let p = lf_policy_to_policy lf_p in
     let egress = Types.Seq(ports_f, mk_choice next_states) in
 
     Types.Seq(ingress, Types.Seq(p, egress)) in
@@ -793,7 +805,7 @@ let regex_to_switch_policies (r : regex) : policy dehopified =
     Types.(Par(Seq(Filter(egress_test), go_outside),
                Seq(Filter(Types.Neg(egress_test)), Filter(Types.True)))) in
 
-  let swpm = (SwitchMap.mapi edges_to_policy (to_edge_map auto)) in
+  let swpm = SwitchMap.mapi edges_to_policy (to_edge_map auto) in
 
   (* Printf.printf "%s\n" (regex_to_string r); *)
   (* Printf.printf "AUTO: %s\n" (Nfa.nfa_to_dot auto); *)
