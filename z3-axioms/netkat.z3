@@ -1,3 +1,6 @@
+;; Values
+(define-sort Value () (_ BitVec 64))
+
 ;; Fields
 (declare-datatypes () 
   ((Field Switch Port 
@@ -13,138 +16,251 @@
       TCPDstPort)))
 
 ;; Predicates
-(declare-datatypes () 
-  ((Predicate 
-      PrTrue 
-      PrFalse 
-      (PrTest (prTestField Field) (prTestValue (_ BitVec 3)))
-      (PrAnd (prAnd1 Predicate) (prAnd2 Predicate)) 
-      (PrOr (prOr1 Predicate) (prOr2 Predicate)) 
-      (PrNot (prNot Predicate)))))
+(declare-sort Predicate)
+(declare-fun Tru () Predicate)
+(declare-fun Fls () Predicate)
+(declare-fun Test (Field Value) Predicate)
+(declare-fun And (Predicate Predicate) Predicate)
+(declare-fun Or (Predicate Predicate) Predicate)
+(declare-fun Neg (Predicate) Predicate)
 
 ;; Policies
-(declare-datatypes () 
-  ((Policy 
-     (PoFilter (pred Predicate)) 
-     (PoModify (poModifyField Field) (poModifyValue (_ BitVec 3)))
-     (PoUnion (poUnion1 Policy) (poUnion2 Policy)) 
-     (PoSeq (poSeq1 Policy) (poSeq2 Policy)) 
-     (PoStar (poStar Policy)) PoDup)))
+(declare-sort Policy)
+(declare-fun Filter (Predicate) Policy)
+(declare-fun Modify (Field Value) Policy)
+(declare-fun Union (Policy Policy) Policy)
+(declare-fun Sequence (Policy Policy) Policy)
+(declare-fun Star (Policy) Policy)
+(declare-fun Dup () Policy)
 
-;; NetKAT Equivalence
-(declare-rel Eq (Policy Policy)) 
-
-;; NetKAT Natural Order
-(declare-rel Leq (Policy Policy)) 
-(assert 
+(declare-rel Leq (Policy Policy))
+(assert
   (forall ((p Policy) (q Policy))
-    (iff (Leq p q) (Eq (PoUnion p q) q))))
+     (iff (Leq p q) (= (Union p q) q))))
 
-;; Reflexive
+;;;;;;;;;;;;;;;;;;;;;
+;; Boolean Algebra ;;
+;;;;;;;;;;;;;;;;;;;;;
+
+;; BA-Plus-Assoc
 (assert 
-  (forall ((p Policy))
-    (Eq p p)))
+  (forall ((a Predicate) (b Predicate) (c Predicate)) 
+    (= (Or (Or a b) c) (Or a (Or b c)))))
 
-;; Symmetric
-;; (assert 
-;;   (forall ((p Policy) (q Policy))
-;;     (implies (Eq p q) (Eq q p))))
-
-;; Transitive
-;; (assert 
-;;   (forall ((p Policy) (q Policy) (r Policy))
-;;     (implies (and (Eq p q) (Eq q r)) (Eq p r))))
-
-;; Congruence PoUnion
+;; BA-Plus-Comm
 (assert 
-  (forall ((p Policy) (q Policy) (r Policy))
-    (implies (Eq p q) (Eq (PoUnion p r) (PoUnion q r)))))
+  (forall ((a Predicate) (b Predicate))
+    (= (Or a b) (Or b a))))
 
-;; Congruence PoSeq
+;; BA-Plus-Zero
 (assert 
-  (forall ((p Policy) (q Policy) (r Policy))
-    (implies (Eq p q) (Eq (PoSeq p r) (PoSeq q r)))))
+  (forall ((a Predicate))
+    (= (Or a Fls) a)))
 
-;; Congruence PoStar
+;; BA-Plus-Idem
 (assert 
-  (forall ((p Policy) (q Policy))
-    (implies (Eq p q) (Eq (PoStar p) (PoStar q)))))
+  (forall ((a Predicate))
+    (= (Or a a) a)))
+
+;; BA-Seq-Assoc
+(assert 
+  (forall ((a Predicate) (b Predicate) (c Predicate)) 
+    (= (And (And a b) c) (And a (And b c)))))
+
+;; BA-Seq-One
+(assert 
+  (forall ((a Predicate))
+    (= (And a Tru) a)))
+
+;; BA-One-Seq
+(assert 
+  (forall ((a Predicate))
+    (= (And Tru a) a)))
+
+;; BA-Seq-Dist-L
+(assert 
+  (forall ((a Predicate) (b Predicate) (c Predicate)) 
+     (= (And a (Or b c)) (Or (And a b) (And a c)))))
+
+;; BA-Seq-Dist-R
+(assert 
+  (forall ((a Predicate) (b Predicate) (c Predicate)) 
+     (= (And (Or a b) c) (Or (And a c) (And b c)))))
+
+;; BA-Seq-Zero
+(assert 
+  (forall ((a Predicate))
+    (= (And a Fls) Fls)))
+
+;; BA-Zero-Seq
+(assert 
+  (forall ((a Predicate))
+    (= (And Fls a) Fls)))
+
+;; BA-Plus-Dist
+(assert 
+  (forall ((a Predicate) (b Predicate) (c Predicate)) 
+     (= (Or a (And b c)) (And (Or a b) (Or a c)))))
+
+;; BA-Plus-One
+(assert 
+  (forall ((a Predicate))
+    (= (Or a Tru) Tru)))
+
+;; BA-Excl-Mid
+(assert 
+  (forall ((a Predicate))
+    (= (Or a (Neg a)) Tru)))
+
+;; BA-Seq-Comm
+(assert 
+  (forall ((a Predicate) (b Predicate))
+    (= (And a b) (And b a))))
+
+;; BA-Contra
+(assert 
+  (forall ((a Predicate))
+    (= (And a (Neg a)) Fls)))
+
+;; BA-Seq-Idem
+(assert 
+  (forall ((a Predicate))
+    (= (And a a) a)))
+
+;;;;;;;;;;;;;;;;;;;;
+;; Kleene Algebra ;;
+;;;;;;;;;;;;;;;;;;;;
 
 ;; KA-Plus-Assoc
 (assert 
   (forall ((p Policy) (q Policy) (r Policy)) 
-    (Eq (PoUnion (PoUnion p q) r) (PoUnion p (PoUnion q r)))))
+    (= (Union (Union p q) r) (Union p (Union q r)))))
 
 ;; KA-Plus-Comm
 (assert 
   (forall ((p Policy) (q Policy))
-    (Eq (PoUnion p q) (PoUnion q p))))
+    (= (Union p q) (Union q p))))
 
 ;; KA-Plus-Zero
 (assert 
   (forall ((p Policy))
-    (Eq (PoUnion p (PoFilter PrFalse)) p)))
+    (= (Union p (Filter Fls)) p)))
 
 ;; KA-Plus-Idem
 (assert 
   (forall ((p Policy))
-    (Eq (PoUnion p p) p)))
+    (= (Union p p) p)))
 
 ;; KA-Seq-Assoc
 (assert 
   (forall ((p Policy) (q Policy) (r Policy)) 
-    (Eq (PoSeq (PoSeq p q) r) (PoSeq p (PoSeq q r)))))
+    (= (Sequence (Sequence p q) r) (Sequence p (Sequence q r)))))
 
 ;; KA-Seq-One
 (assert 
   (forall ((p Policy))
-    (Eq (PoSeq p (PoFilter PrTrue)) p)))
+    (= (Sequence p (Filter Tru)) p)))
 
 ;; KA-One-Seq
 (assert 
   (forall ((p Policy))
-    (Eq (PoSeq (PoFilter PrTrue) p) p)))
+    (= (Sequence (Filter Tru) p) p)))
 
 ;; KA-Seq-Dist-L
 (assert 
   (forall ((p Policy) (q Policy) (r Policy)) 
-     (Eq (PoSeq p (PoUnion q r)) (PoUnion (PoSeq p q) (PoSeq p r)))))
+     (= (Sequence p (Union q r)) (Union (Sequence p q) (Sequence p r)))))
 
 ;; KA-Seq-Dist-R
 (assert 
   (forall ((p Policy) (q Policy) (r Policy)) 
-     (Eq (PoSeq (PoUnion p q) r) (PoUnion (PoSeq p r) (PoSeq q r)))))
+     (= (Sequence (Union p q) r) (Union (Sequence p r) (Sequence q r)))))
 
 ;; KA-Seq-Zero
 (assert 
   (forall ((p Policy))
-    (Eq (PoSeq p (PoFilter PrFalse)) (PoFilter PrFalse))))
+    (= (Sequence p (Filter Fls)) (Filter Fls))))
 
 ;; KA-Zero-Seq
 (assert 
   (forall ((p Policy))
-    (Eq (PoSeq (PoFilter PrFalse) p) (PoFilter PrFalse))))
+    (= (Sequence (Filter Fls) p) (Filter Fls))))
 
 ;; KA-Unroll-L
 (assert 
   (forall ((p Policy))
-    (Eq (PoStar p) (PoUnion (PoFilter PrTrue) (PoSeq p (PoStar p))))))
+    (= (Star p) (Union (Filter Tru) (Sequence p (Star p))))))
 
-;; KA-LFP-L
-;; (assert 
-;;   (forall ((p Policy) (q Policy) (r Policy)) 
-;;     (implies (Leq (PoUnion q (PoSeq p r)) r)
-;;              (Leq (PoSeq (PoStar p) q) r))))
+;;KA-LFP-L
+(assert 
+  (forall ((p Policy) (q Policy) (r Policy)) 
+    (implies (Leq (Union q (Sequence p r)) r)
+             (Leq (Sequence (Star p) q) r))))
 
 ;; KA-Unroll-R
 (assert 
   (forall ((p Policy))
-    (Eq (PoStar p) (PoUnion (PoFilter PrTrue) (PoSeq (PoStar p) p)))))
+    (= (Star p) (Union (Filter Tru) (Sequence (Star p) p)))))
 
-;; KA-LFP-R
-;; (assert 
-;;   (forall ((p Policy) (q Policy) (r Policy)) 
-;;     (implies (Leq (PoUnion p (PoSeq q r)) q)
-;;              (Leq (PoSeq p (PoStar r)) q))))
+;;KA-LFP-R
+(assert 
+  (forall ((p Policy) (q Policy) (r Policy)) 
+    (implies (Leq (Union p (Sequence q r)) q)
+             (Leq (Sequence p (Star r)) q))))
+
+;;;;;;;;;;;;;;;;;;;;
+;; Packet Algebra ;;
+;;;;;;;;;;;;;;;;;;;;
+
+;; PA-Mod-Mod-Comm
+(assert 
+  (forall ((f1 Field) (v1 Value) (f2 Field) (v2 Value))
+    (implies (not (= f1 f2))
+             (= (Sequence (Filter (Test f1 v1)) (Filter (Test f2 v2)))
+                (Sequence (Filter (Test f2 v2)) (Filter (Test f1 v1)))))))
+
+;; PA-Mod-Filter-Comm
+(assert 
+  (forall ((f1 Field) (v1 Value) (f2 Field) (v2 Value))
+    (implies (not (= f1 f2))
+             (= (Sequence (Filter (Test f1 v1)) (Modify f2 v2))
+                (Sequence (Modify f2 v2) (Filter (Test f1 v1)))))))
+
+;; PA-Dup-Filter-Comm
+(assert 
+  (forall ((f Field) (v Value))
+     (= (Sequence Dup (Filter (Test f v)))
+        (Sequence (Filter (Test f v)) Dup))))
+
+;; PA-Mod-Filter
+(assert 
+  (forall ((f Field) (v Value))
+    (= (Sequence (Modify f v) (Filter (Test f v)))
+       (Modify f v))))
+
+;; PA-Filter-Mod
+(assert 
+  (forall ((f Field) (v Value))
+    (= (Sequence (Filter (Test f v)) (Modify f v))
+       (Filter (Test f v)))))
+
+;; PA-Mod-Mod
+(assert 
+  (forall ((f Field) (v1 Value) (v2 Value))
+    (= (Sequence (Modify f v1) (Modify f v2))
+       (Modify f v2))))
+
+;; PA-Contra
+(assert 
+  (forall ((f Field) (v1 Value) (v2 Value))
+    (implies (not (= v1 v2))
+       (Sequence (Filter (Test f v1)) (Filter (Test f v2)))
+       (Filter Fls))))
+
+;; PA-Match-All
+;; (forall ((f Field))
+;;   (= (Union (Filter (Test f v))) (Filter Tru)))
+;; punting for now... need to sum over all v!
 
 (check-sat)
+(get-model)
