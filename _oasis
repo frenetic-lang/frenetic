@@ -17,8 +17,8 @@ Library topology
     openflow,
     packet
   InternalModules:
-    Core,
-    Topology_util,
+    Topology_Core,
+    Topology_Util,
     Parsers
   Modules:
     Topology

@@ -1,6 +1,7 @@
-open Topology_util
+open Topology_Util
 open Graph
-open Core
+module Core = Topology_Core
+open Core 
 
 type nattr = {
   ntype: string
