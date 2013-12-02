@@ -672,7 +672,7 @@ module NFA = struct
 end
 
 module EdgeSet = Set.Make(struct
-  type t = NFA.state * pchar * NFA.state
+  type t = NFA.state * (Types.policy * topology) * NFA.state
   let compare = Pervasives.compare
 end)
 
@@ -695,8 +695,9 @@ let regex_to_switch_policies (r : regex) : policy dehopified =
 
   let add_all ((q, ns, q') : NFA.edge) (m : EdgeSet.t SwitchMap.t) =
     Hashtbl.fold (fun i () acc ->
-      let _, topo as pchar = Hashtbl.find chash i in
-      let edge = (q, pchar, q') in
+      let lfp, topo = Hashtbl.find chash i in
+      let p = lf_policy_to_policy lfp in
+      let edge = (q, (p, topo), q') in
       SwitchMap.merge (fun _ -> lift_maybe2 EdgeSet.union)
         (SwitchMap.map (fun _ -> EdgeSet.singleton edge) topo) acc)
     ns m in
@@ -716,7 +717,7 @@ let regex_to_switch_policies (r : regex) : policy dehopified =
 
   let topology = ref SwitchMap.empty in
 
-  let to_policy sw (q, ((lf_p, topo) : pchar), q') : policy =
+  let to_policy sw (q, (p, topo), q') : policy =
     (* Printf.printf "Working on q%d -> q%d\n" q q'; *)
     topology := SwitchMap.merge merge_topologies topo !topology;
     let pt_m = SwitchMap.find sw topo in
@@ -731,7 +732,6 @@ let regex_to_switch_policies (r : regex) : policy dehopified =
       else [q'] in
 
     let ingress = Types.Seq(switch_f, mk_filter q) in
-    let p = lf_policy_to_policy lf_p in
     let egress = Types.Seq(ports_f, mk_choice next_states) in
 
     Types.Seq(ingress, Types.Seq(p, egress)) in
@@ -805,7 +805,7 @@ let regex_to_switch_policies (r : regex) : policy dehopified =
     Types.(Par(Seq(Filter(egress_test), go_outside),
                Seq(Filter(Types.Neg(egress_test)), Filter(Types.True)))) in
 
-  let swpm = (SwitchMap.mapi edges_to_policy (to_edge_map auto)) in
+  let swpm = SwitchMap.mapi edges_to_policy (to_edge_map auto) in
 
   (* Printf.printf "%s\n" (regex_to_string r); *)
   (* Printf.printf "AUTO: %s\n" (Nfa.nfa_to_dot auto); *)
