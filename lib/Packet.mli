@@ -115,6 +115,44 @@ module Icmp : sig
 
 end
 
+(** Basic DNS packet type. *)
+module Dns : sig
+
+  (* DNS Question Description Records *)
+  module Qd : sig
+    type t =
+      { name : string
+      ; typ : int16
+      ; class_ : int16
+      }
+  end
+
+  (* DNS Resource Records *)
+  module Rr : sig
+    type t =
+      { name : string
+      ; typ : int16
+      ; class_ : int16
+      ; ttl : int (* TTL is a signed 32-bit int *)
+      ; rdata : bytes
+      }
+  end
+
+  type t =
+    { id : int16
+    ; flags : int16
+    ; questions : Qd.t list
+    ; answers : Rr.t list
+    ; authority : Rr.t list
+    ; additional : Rr.t list
+    }
+
+  (** [serialize pkt] serializes [pkt] into a bit sequence, suitable
+      for placing in a UDP or TCP payload. *)
+  val serialize : t -> Cstruct.t
+
+end
+
 (** IPv4 frame of a packet. *)
 module Ip : sig
 
