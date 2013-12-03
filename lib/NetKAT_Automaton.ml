@@ -37,11 +37,11 @@ let foldl1_map (f : 'b -> 'b -> 'b) (g : 'a -> 'b) (xs : 'a list) : 'b =
 
 (* The different sorts of things a port on a switch can be connected to *)
 type port_dst =
-  | SwitchPort of VInt.t * VInt.t
+  | SwitchPort of SDN_Types.switchId * VInt.t
   | Outside
 
 module SwitchMap = Map.Make(struct
-  type t = VInt.t
+  type t = SDN_Types.switchId
   let compare = Pervasives.compare
 end)
 
