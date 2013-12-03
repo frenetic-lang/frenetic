@@ -506,7 +506,7 @@ module Dns = struct
 
   end
 
-  module Igmp1and2 = struct
+module Igmp1and2 = struct
 
   type t = {
     mrt: int8;
@@ -542,8 +542,6 @@ module Dns = struct
 
 end
 
-let rec indicies_maker n = if n = 0 then [] else [n]@(indicies_maker (n-1));;
-
 module Igmp3 = struct
 
   (* IGMP v3 Group Records *)
@@ -565,10 +563,10 @@ module Igmp3 = struct
 
     let format fmt v =
       let open Format in
-          fprintf fmt "@[;(typ=%x;addr=%s;sources=%s)@]"
-            v.typ
-            (string_of_ip v.addr)
-            (String.concat "," (List.map string_of_ip v.sources))
+      fprintf fmt "@[;(typ=%x;addr=%s;sources=%s)@]"
+        v.typ
+        (string_of_ip v.addr)
+        (String.concat "," (List.map string_of_ip v.sources))
 
     let parse (bits : Cstruct.t) =
       if Cstruct.len bits < sizeof_grouprec then
