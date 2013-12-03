@@ -219,7 +219,10 @@ module TRegex = struct
             end)))
         | Types.Star(q) ->
           of_policy_k q (fun q' ->
-            k (Kleene(q')))
+            k (begin match q' with
+              | Char(PChar(lfq)) -> Char(PChar(Star(lfq)))
+              | _ -> Kleene(q')
+            end))
       end
     in of_policy_k p (fun x -> x)
 
