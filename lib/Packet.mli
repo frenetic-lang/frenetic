@@ -147,6 +147,7 @@ module Ip : sig
     ; chksum : int16 (** Header checksum. *)
     ; src : nwAddr (** IP source address. *)
     ; dst : nwAddr (** IP destination address. *)
+    ; options : bytes (** Uninterpreted IP options. *)
     ; tp : tp (** Packet payload. *)
     }
 
