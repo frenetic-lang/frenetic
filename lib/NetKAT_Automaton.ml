@@ -50,6 +50,7 @@ module PortMap = Map.Make(struct
   let compare = Pervasives.compare
 end)
 
+(* XXX: Fix this name clash *)
 type portmap = port_dst PortMap.t
 
 (* A topology maps switches to a portmap *)
@@ -100,6 +101,7 @@ let rec fmap_aregex (f : 'a -> 'b) (r : 'a aregex) : 'b aregex =
     | Kleene(s) -> Kleene(fmap_aregex f s)
     | Empty -> Empty
 
+(* This is a "policy" character for use in the regular expression above. *)
 type pchar = lf_policy * topology
 
 (* A regular expression over link-free policy, link pairs. *)
@@ -170,6 +172,7 @@ let lf_policy_to_string (lf_p : lf_policy) : string =
 (* BEGIN OF POLICY ---------------------------------------------------------- *)
 
 module TRegex = struct
+  (* This is a "policy-link" character for regex. *)
   type pl_char =
     | PChar of lf_policy
     | TChar of lf_policy option * topology
