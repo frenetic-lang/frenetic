@@ -105,6 +105,9 @@ let arbitrary_ip_flags =
   arbitrary_bool >>= fun mf ->
     ret_gen { Ip.Flags.df = df; Ip.Flags.mf = mf }
 
+
+let empty_bytes = Cstruct.create 0
+
 (* Arbitrary IPv4 packet without options. *)
 let arbitrary_ip arbitrary_tp =
   let open Gen in
@@ -129,6 +132,7 @@ let arbitrary_ip arbitrary_tp =
       ; src = nwSrc
       ; dst = nwDst
       ; tp = tp
+      ; options = empty_bytes
     }
 
 let arbitrary_tpPort = Gen.map_gen Int32.to_int arbitrary_uint16
