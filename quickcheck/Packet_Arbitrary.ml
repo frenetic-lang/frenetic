@@ -94,7 +94,7 @@ let arbitrary_payload max_len =
 let arbitrary_ip_unparsable =
   let open Gen in
   arbitrary_payload (65535 - 20) >>= fun payload ->
-    ret_gen (Ip.Unparsable(2, payload))
+    ret_gen (Ip.Unparsable(12, payload))
 
 let arbitrary_ip_frag =
   Gen.choose_int32 (Int32.zero, Int32.of_int 0b111111111111)

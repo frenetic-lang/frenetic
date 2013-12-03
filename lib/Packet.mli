@@ -150,6 +150,49 @@ module Dns : sig
   (** [serialize pkt] serializes [pkt] into a bit sequence, suitable
       for placing in a UDP or TCP payload. *)
   val serialize : t -> Cstruct.t
+end
+
+(** IGMP v1 and v2 message type. *)
+module Igmp1and2 : sig
+
+  type t = {
+    mrt: int8; (** Maximum response time. *)
+    chksum : int16; (** Checksum. *)
+    addr : nwAddr; (** IGMP group address. *)
+  }
+
+end
+
+(** IGMP v3 message type. *)
+module Igmp3 : sig
+
+  module GroupRec : sig
+    type t = {
+      typ : int8; (** Group Record type. *)
+      addr : nwAddr; (** Multicast Group. *)
+      sources : nwAddr list; (** List of sources addresses. *)
+    }
+  end
+
+  type t = {
+    chksum : int16; (** Checksum. *)
+    grs : GroupRec.t list; (** Group records. *)
+  }
+
+end
+
+(** IGMP frame of a packet. *)
+module Igmp : sig
+
+  type msg =
+    | Igmp1and2 of Igmp1and2.t
+    | Igmp3 of Igmp3.t
+    | Unparsable of (int8 * bytes)
+
+  type t = {
+    ver_and_typ : int8; (** IGMP version/type. *)
+    msg : msg (** enclosed IGMP message *)
+  }
 
 end
 
@@ -157,13 +200,14 @@ end
 module Ip : sig
 
   (** [tp] is the type of protocol, which indicates which protocol is
-  encapsulated in the payload of the IPv4 frame.  At present, only TCP, UDP and ICMP
+  encapsulated in the payload of the IPv4 frame.  At present, only TCP, UDP, ICMP and IGMP
   are explicitly supported; otherwise, the raw bytes and IPv4 protocol number
   are provided. *)
   type tp =
     | Tcp of Tcp.t
     | Udp of Udp.t
     | Icmp of Icmp.t
+    | Igmp of Igmp.t
     | Unparsable of (nwProto * bytes)
 
   module Flags : sig
