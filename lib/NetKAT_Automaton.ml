@@ -156,7 +156,7 @@ let rec regex_to_policy (r : regex) : policy =
       Types.Seq(regex_to_policy r1, regex_to_policy r2)
     | Kleene(r) ->
       Types.Star(regex_to_policy r)
-    | Empty -> Types.Filter(Types.True)
+    | Empty -> Types.Filter(Types.False)
 
 let regex_to_string (r : regex) : string =
   Pretty.string_of_policy (regex_to_policy r)
@@ -238,7 +238,7 @@ module TRegex = struct
         Types.Seq(to_policy r1, to_policy r2)
       | Kleene(r) ->
         Types.Star(to_policy r)
-      | Empty -> Types.Filter(Types.True)
+      | Empty -> Types.Filter(Types.False)
     end
 end
 
