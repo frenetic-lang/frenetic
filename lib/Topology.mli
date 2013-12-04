@@ -87,6 +87,7 @@ sig
   val next_hop : t -> V.t -> portId -> V.t
 
   (* Utility functions *)
+  val spanningtree : t -> t
   val shortest_path : t -> V.t -> V.t -> E.t list
   val floyd_warshall : t -> ((V.t * V.t) * V.t list) list
   val to_dot : t -> string
