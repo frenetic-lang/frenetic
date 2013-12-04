@@ -44,7 +44,6 @@ module RoundTrip = struct
     e1.flags = e2.flags &&
     e1.frag = e2.frag &&
     e1.ttl = e2.ttl &&
-    e1.chksum = e2.chksum &&
     e1.src = e2.src &&
     e1.dst = e2.dst &&
     match e1.tp, e2.tp with

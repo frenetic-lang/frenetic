@@ -46,7 +46,7 @@ Testing:
 Enable and run tests from the root directory of the repository:
 
   ```
-  $ ocaml setup.ml -configure --enable-quickcheck
+  $ ocaml setup.ml -configure --enable-quickcheck --enable-tests
   ...
   $ make test
   ```
