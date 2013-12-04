@@ -161,7 +161,7 @@ let arbitrary_tcp_flags =
       ; fin = fin
     }
 
-(* Arbitrary UPD packet *)
+(* Arbitrary UDP packet *)
 let arbitrary_udp arbitrary_payload =
   let open Gen in
   let open Udp in
