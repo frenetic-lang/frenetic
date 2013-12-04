@@ -5,473 +5,660 @@
    - xs, ys, zs, pattern sets
    - p, q, local
    - r, atoms
+   - g, groups
 *)
 
-module type S = sig
-  type policy
-  type pred
-  type header_val_map
+(* utility function *)
+let header_val_map_to_string eq sep m =
+  Types.HeaderMap.fold
+    (fun h v acc ->
+      Printf.sprintf "%s%s%s%s"
+	(Pretty.header_to_string h)
+	eq
+	(Pretty.value_to_string v)
+	(if acc = "" then "" else sep ^ acc))
+    m ""
 
-  module Action : sig
-    type t = header_val_map
-    module Set : Set.S with type elt = t
-    val set_to_string : Set.t -> string
-    val seq_acts : t -> Set.t -> Set.t
-    val id : Set.t
-    val drop : Set.t
-    val set_to_netkat : Set.t -> policy
-  end
+module Action = struct
+  type t = Types.header_val_map
 
-  module Pattern : sig
-    type t = header_val_map
-    module Set : Set.S with type elt = t
-    val set_to_string : Set.t -> string
-    val to_string : t -> string
-    val tru : t
-    val is_tru : t -> bool
-    val seq_pat : t -> t -> t option
-    val seq_act_pat : t -> Action.t -> t -> t option
-    val set_to_netkat : Set.t -> pred
-    val to_netkat : t -> pred
-  end
+  type this_t = t
 
-  module Atom : sig
-    type t = Pattern.Set.t * Pattern.t
-    module Map : Map.S with type key = t
-    val to_string : t -> string
-    val seq_atom : t -> t -> t option
-    val seq_act_atom : t -> Action.t -> t -> t option
-    val tru : t
-    val fls : t
-  end 
+  module Set = Set.Make (struct
+    type t = this_t
 
-  module Local : sig
-    type t = Action.Set.t Atom.Map.t
-    val of_policy : policy -> t
-    val to_netkat : t -> policy
-  end
+    let compare (a1:t) (a2:t) =
+      Types.HeaderMap.compare Pervasives.compare a1 a2
+  end)
+
+  type group = Set.t list
+
+  let to_string (a:t) : string =
+    if Types.HeaderMap.is_empty a then "id"
+    else Printf.sprintf "%s" (header_val_map_to_string ":=" ", " a)
+
+  let set_to_string (s:Set.t) : string =
+    Printf.sprintf "{%s}"
+      (Set.fold
+         (fun a acc -> (if acc = "" then "" else acc ^ ", ") ^ to_string a)
+         s "")
+
+  let group_to_string (g:group) : string =
+    Printf.sprintf "[%s]"
+      (List.fold_left
+         (fun acc s -> 
+           (if acc = "" then "" else acc ^ "; ") ^ set_to_string s)
+         "" g)
+
+  let mk_group (g:group) : group =
+    let r =
+      List.rev
+	(List.fold_left
+	   (fun acc si ->
+	     if List.exists (Set.equal si) acc then 
+	       acc
+	     else
+	       si::acc)
+	   [] g) in 
+    (* Printf.printf "MK_GROUP\n%s\n%s\n\n" *)
+    (*   (group_to_string g) *)
+    (*   (group_to_string r); *)
+    r
+
+  (* TODO(jnf): surely this is a library function? *)
+  let rec group_compare (g1:group) (g2:group) : int =
+    match g1,g2 with
+      | [],[] -> 0
+      | [],_ -> -1
+      | _,[] -> 1
+      | s1::h1,s2::h2 ->
+        let cmp = Set.compare s1 s2 in
+        if cmp <> 0 then cmp
+        else group_compare h1 h2
+
+  let group_crossproduct (g1:group) (g2:group) : group =
+    mk_group
+      (List.rev
+         (List.fold_left
+            (fun acc s1i ->
+	      List.fold_left
+		(fun acc s2j ->
+                  Set.union s1i s2j::acc)
+		acc g2)
+            [] g1))
+
+  let group_union (g1:group) (g2:group) : group =
+    let r = mk_group (g1 @ g2) in 
+    (* Printf.printf "GROUP_UNION\n%s\n%s\n%s\n\n"  *)
+    (*   (group_to_string g1) (group_to_string g2) (group_to_string r); *)
+    r
+
+  let id : Set.t =
+    Set.singleton (Types.HeaderMap.empty)
+
+  let drop : Set.t =
+    Set.empty
+
+  let is_id (s:Set.t) : bool =
+    Set.cardinal s = 1 &&
+    (Types.HeaderMap.is_empty (Set.choose s))
+
+  let is_drop (s:Set.t) : bool =
+    Set.is_empty s
+
+  let seq_act (a1:t) (a2:t) : t =
+    let f h vo1 vo2 = match vo1, vo2 with
+      | (_, Some v2) ->
+        Some v2
+      | _ ->
+        vo1 in
+    Types.HeaderMap.merge f a1 a2
+
+  let seq_acts (a:t) (s:Set.t) : Set.t =
+    Set.fold
+      (fun b acc -> Set.add (seq_act a b) acc)
+      s Set.empty
+
+  let seq_group (a:t) (g:group) : group =
+    List.rev
+      (List.fold_left
+         (fun acc si -> seq_acts a si::acc)
+         [] g)
+
+  let to_netkat (a:t) : Types.policy =
+    let h_port = Types.Header SDN_Types.InPort in 
+    if Types.HeaderMap.is_empty a then 
+      Types.Filter Types.True
+    else 
+      let f h v pol' = 
+	if h = h_port then 
+	  Types.Seq (pol', Types.Mod (h, v)) 
+	else 
+	  Types.Seq (Types.Mod (h, v), pol') in
+      let (h, v) = Types.HeaderMap.min_binding a in
+      let a' = Types.HeaderMap.remove h a in
+      Types.HeaderMap.fold f a' (Types.Mod (h, v))
+	
+  let set_to_netkat (s:Set.t) : Types.policy =
+    if Set.is_empty s then
+      Types.Filter Types.False
+    else
+      let f a pol' = Types.Par (pol', to_netkat a) in
+      let a = Set.min_elt s in
+      let s' = Set.remove a s in
+      Set.fold f s' (to_netkat a)
+
+  let group_to_netkat (g:group) : Types.policy =
+    match g with
+      | [] ->
+        Types.Filter Types.False
+      | [s] ->
+        set_to_netkat s
+      | s::g' ->
+        let f pol' s = Types.Choice (pol', set_to_netkat s) in
+        List.fold_left f (set_to_netkat s) g'
 end
 
-module Make 
-  (Headers : Semantics.HEADERS) 
-  (Syntax : Semantics.S with type header = Headers.header
-                         and type header_val = Headers.value
-                         and type payload = Headers.payload) : S
-  with type policy = Syntax.policy
-   and type pred = Syntax.pred
-   and type header_val_map = Syntax.header_val_map = struct
-   type policy = Syntax.policy
-   type pred = Syntax.pred
-   type header_val_map = Syntax.header_val_map
+module Pattern = struct
+  exception Empty_pat
 
-  (* utility function *)
-  let header_val_map_to_string eq sep m =
-    Syntax.HeaderMap.fold
-      (fun h v acc ->
-        Printf.sprintf "%s%s%s%s"
-    (if acc = "" then "" else acc ^ sep)
-    (Headers.header_to_string h)
-    eq
-    (Headers.value_to_string v))
-      m ""
+  type t = Types.header_val_map
 
-  module Action = struct
-    type t = Syntax.header_val_map 
+  module Set = Set.Make(struct
+    type t = Types.header_val_map
 
-    module Set = Set.Make (struct
-      type t = Syntax.header_val_map
+    let compare = Types.HeaderMap.compare Pervasives.compare
+  end)
 
-      let compare = Syntax.HeaderMap.compare Pervasives.compare
-    end)
+  let to_string (x:t) : string =
+    if Types.HeaderMap.is_empty x then "true"
+    else Printf.sprintf "<%s>" (header_val_map_to_string "=" ", " x)
 
-    let to_string (a:t) : string =
-      if Syntax.HeaderMap.is_empty a then "id"
-      else Printf.sprintf "%s" (header_val_map_to_string ":=" ", " a)
-        
-    let set_to_string (s:Set.t) : string =
-      Printf.sprintf "{%s}"
-        (Set.fold
-           (fun a acc -> to_string a ^ if acc = "" then "" else ", " ^ acc)
-           s "")
-        
-    let id : Set.t = 
-      Set.singleton (Syntax.HeaderMap.empty)
+  let set_to_string (xs:Set.t) : string =
+    Printf.sprintf "{%s}"
+      (Set.fold
+         (fun x acc -> (if acc = "" then "" else acc ^ ", ") ^ to_string x)
+         xs "")
 
-    let drop : Set.t = 
-      Set.empty
+  let tru : t = Types.HeaderMap.empty
 
-    let seq_act (a:t) (b:t) : t =
-      let f h vo1 vo2 = match vo1, vo2 with
-        | (_, Some v2) ->
-          Some v2
-        | _ -> 
-          vo1 in
-      Syntax.HeaderMap.merge f a b
+  let is_tru (x:t) : bool =
+    Types.HeaderMap.is_empty x
 
-    let seq_acts (a:t) (s:Set.t) : Set.t = 
-      Set.fold 
-        (fun b acc -> Set.add (seq_act a b) acc) 
-        s Set.empty
+  let matches (h:Types.header) (v:Types.header_val) (x:t) : bool =
+    not (Types.HeaderMap.mem h x)
+    || Types.HeaderMap.find h x = v
+    
+  let subseteq_pat (x:t) (y:t) : bool = 
+    let f h vo1 vo2 = match vo1,vo2 with 
+      | Some v1, Some v2 -> 
+	if v1 <> v2 then raise Empty_pat else Some ()
+      | Some v1, None -> 
+	Some ()
+      | None, Some v1 -> 
+	raise Empty_pat
+      | None, None -> 
+	Some () in 
+    try 
+      let _ = Types.HeaderMap.merge f x y in 
+      true
+    with Empty_pat -> 
+      false
+	
+  let seq_pat (x : t) (y : t) : t option =
+    let f h vo1 vo2 = match vo1, vo2 with
+      | (Some v1, Some v2) ->
+        if v1 <> v2 then raise Empty_pat else Some v1
+      | (Some v1, None) ->
+        Some v1
+      | (None, Some v2) ->
+        Some v2
+      | (None, None) ->
+        None in
+    try
+      Some (Types.HeaderMap.merge f x y)
+    with Empty_pat ->
+      None
 
-    let to_netkat (pol:t) : Syntax.policy =
-      if Syntax.HeaderMap.is_empty pol then
-        Syntax.Filter Syntax.True
+  let rec seq_act_pat (x:t) (a:Action.t) (y:t) : t option =
+    let f h vo1 vo2 = match vo1, vo2 with
+      | Some (vo11, Some v12), Some v2 ->
+        if v12 <> v2 then raise Empty_pat
+        else vo11
+      | Some (vo11, Some v12), None ->
+        vo11
+      | Some (Some v11, None), Some v2 ->
+        if v11 <> v2 then raise Empty_pat
+        else Some v11
+      | Some (vo11, None), None ->
+        vo11
+      | Some(None,None), Some v2
+      | None, Some v2 ->
+        Some v2
+      | None, None ->
+        None in
+    let g h vo1 vo2 = Some (vo1, vo2) in
+    try
+      Some (Types.HeaderMap.merge f
+              (Types.HeaderMap.merge g x a) y)
+    with Empty_pat ->
+      None
+
+  let to_netkat (x:t) : Types.pred =
+    if Types.HeaderMap.is_empty x then
+      Types.True
+    else
+      let f h v pol' = Types.And (pol', Types.Test (h, v)) in
+      let (h, v) = Types.HeaderMap.min_binding x in
+      let x' = Types.HeaderMap.remove h x in
+      (Types.HeaderMap.fold f x' (Types.Test (h, v)))
+
+  let set_to_netkat (xs:Set.t) : Types.pred =
+    if Set.is_empty xs then
+      Types.False
+    else
+      let x = Set.choose xs in
+      let xs' = Set.remove x xs in
+      let f x pol = Types.Or(pol, to_netkat x) in
+      Set.fold f xs' (to_netkat x)
+end
+
+module Atom = struct
+  exception Empty_atom
+
+  type t = Pattern.Set.t * Pattern.t
+
+  let compare (xs1,x1) (xs2,x2) =
+    if Pattern.Set.mem x2 xs1 then 1
+    else if Pattern.Set.mem x1 xs2 then -1
+    else
+      let cmp = Pattern.Set.compare xs1 xs2 in
+      if cmp = 0 then
+        Types.HeaderMap.compare Pervasives.compare x1 x2
       else
-        let f h v pol' = Syntax.Seq (pol', Syntax.Mod (h, v)) in
-        let (h, v) = Syntax.HeaderMap.min_binding pol in
-        let pol' = Syntax.HeaderMap.remove h pol in
-        Syntax.HeaderMap.fold f pol' (Syntax.Mod  (h, v))
-          
-    let set_to_netkat (pol:Set.t) : Syntax.policy =
-      if Set.is_empty pol then
-        Syntax.Filter Syntax.False
-      else
-        let f seq pol' = Syntax.Par (pol', to_netkat seq) in
-        let seq = Set.min_elt pol in
-        let pol' = Set.remove seq pol in
-        Set.fold f pol' (to_netkat seq)
-  end
+        cmp
 
-  module Pattern = struct
-    exception Empty_pat
-
-    type t = Syntax.header_val_map 
-
-    module Set = Set.Make(struct
-      type t = Syntax.header_val_map 
-          
-      let compare = Syntax.HeaderMap.compare Pervasives.compare
-    end)
-
-    let to_string (x:t) : string =
-      if Syntax.HeaderMap.is_empty x then "true"
-      else Printf.sprintf "%s" (header_val_map_to_string "=" ", " x)
-        
-    let set_to_string (xs:Set.t) : string =
-      Printf.sprintf "{%s}"
-        (Set.fold
-           (fun x acc -> to_string x ^ if acc = "" then "" else ", " ^ acc)
-           xs "")
-
-    let tru : t = Syntax.HeaderMap.empty
-
-    let is_tru (x:t) : bool = 
-      Syntax.HeaderMap.is_empty x
-
-    let matches (h:Syntax.header) (v:Syntax.header_val) (x:t) : bool =
-      not (Syntax.HeaderMap.mem h x) 
-      || Syntax.HeaderMap.find h x = v
-        
-    let seq_pat (x : t) (y : t) : t option =
-      let f h vo1 vo2 = match vo1, vo2 with
-        | (Some v1, Some v2) ->
-          if v1 <> v2 then raise Empty_pat else Some v1
-        | (Some v1, None) ->
-          Some v1
-        | (None, Some v2) ->
-          Some v2
-        | (None, None) ->
-          None in
-      try
-        Some (Syntax.HeaderMap.merge f x y)
-      with Empty_pat -> 
-        None
-
-    let rec seq_act_pat (x:t) (a:Action.t) (y:t) : t option =
-      let f h vo1 vo2 = match vo1, vo2 with
-        | Some (vo11, Some v12), Some v2 ->
-          if v12 <> v2 then raise Empty_pat 
-          else vo11
-        | Some (vo11, Some v12), None -> 
-          vo11 
-        | Some (Some v11, None), Some v2 -> 
-          if v11 <> v2 then raise Empty_pat 
-          else Some v11
-        | Some (vo11, None), None ->
-          vo11
-        | _, Some v2 -> 
-          Some v2
-        | None, None ->
-          None in 
-      let g h vo1 vo2 = Some (vo1, vo2) in 
-      try
-        Some (Syntax.HeaderMap.merge f 
-                (Syntax.HeaderMap.merge g x a) y)
-      with Empty_pat -> 
-        None
-
-    let to_netkat (x:t) : Syntax.pred =  
-      if Syntax.HeaderMap.is_empty x then
-        Syntax.True
-      else
-        let f h v pol' = Syntax.And (pol', Syntax.Test (h, v)) in
-        let (h, v) = Syntax.HeaderMap.min_binding x in
-        let x' = Syntax.HeaderMap.remove h x in
-        (Syntax.HeaderMap.fold f x' (Syntax.Test (h, v)))
-
-    let set_to_netkat (xs:Set.t) : Syntax.pred = 
-      if Set.is_empty xs then 
-        Syntax.False
-      else
-        let x = Set.choose xs in 
-        let xs' = Set.remove x xs in 
-        let f x pol = Syntax.Or(pol, to_netkat x) in 
-        Set.fold f xs' (to_netkat x)
-  end
-
-  module Atom = struct
+  module Set = Set.Make (struct
     type t = Pattern.Set.t * Pattern.t
 
-    module Map = Map.Make (struct
-      type t = Pattern.Set.t * Pattern.t 
+    let compare = compare
+  end)
 
-      let compare (xs1,x1) (xs2,x2) = 
-        if Pattern.Set.mem x2 xs1 then 1
-        else if Pattern.Set.mem x1 xs2 then -1
-        else 
-          let cmp = Pattern.Set.compare xs1 xs2 in 
-          if cmp = 0 then 
-            Syntax.HeaderMap.compare Pervasives.compare x1 x2 
-          else
-            cmp
-    end)
 
-    let to_string ((xs,x):t) : string = 
-      Printf.sprintf "%s,%s" 
-        (Pattern.set_to_string xs) (Pattern.to_string x)
+  module Map = Map.Make (struct
+    type t = Pattern.Set.t * Pattern.t
 
-    let tru : t = 
-      (Pattern.Set.empty, Pattern.tru)
+    let compare = compare
+  end)
 
-    let fls : t = 
-      (Pattern.Set.singleton Pattern.tru, Pattern.tru) 
+  let to_string ((xs,x):t) : string =
+    Printf.sprintf "%s,%s"
+      (Pattern.set_to_string xs) (Pattern.to_string x)
+
+  let set_to_string (rs:Set.t) : string =
+    Printf.sprintf "{%s}"
+      (Set.fold
+         (fun ri acc -> (if acc = "" then acc else acc ^ ", ") ^ to_string ri)
+         rs "")
+
+  let tru : t =
+    (Pattern.Set.empty, Pattern.tru)
+
+  let fls : t =
+    (Pattern.Set.singleton Pattern.tru, Pattern.tru)
 
     (* "smart" constructor *)
-    let mk ((xs,x):t) : t option = 
-      if Pattern.Set.mem x xs then 
+  let mk ((xs,x):t) : t option =
+    try
+      let xs' =
+	Pattern.Set.fold
+	  (fun xi acc ->
+	    match Pattern.seq_pat x xi with
+	      | None ->
+		acc
+	      | Some x_xi ->
+		if Types.HeaderMap.compare Pervasives.compare x x_xi = 0 then
+		  raise Empty_atom
+		else if 
+		    Pattern.Set.exists 
+		      (fun xj -> 
+			Types.HeaderMap.compare Pervasives.compare xi xj <> 0 &&
+			  Pattern.subseteq_pat xi xj) 
+		      xs 
+		then 
+		  acc
+		else
+		  Pattern.Set.add xi acc)
+	  xs Pattern.Set.empty in
+      Some (xs',x)
+    with Empty_atom ->
+      None
+
+  let seq_atom ((xs1,x1):t) ((xs2,x2):t) : t option =
+    match Pattern.seq_pat x1 x2 with
+      | Some x12 ->
+        mk (Pattern.Set.union xs1 xs2, x12)
+      | None ->
         None
-      else 
-        Some (xs,x)
-        
-    let seq_atom ((xs1,x1):t) ((xs2,x2):t) : t option = 
-      match Pattern.seq_pat x1 x2 with 
-        | Some x12 -> 
-          mk (Pattern.Set.union xs1 xs2, x12)
-        | None -> 
-          None
 
-    let seq_act_atom ((xs1,x1):t) (a:Action.t) ((xs2,x2):t) : t option = 
-      match Pattern.seq_act_pat x1 a x2 with 
-        | Some x1ax2 -> 
-          let xs = 
-            Pattern.Set.fold 
-              (fun x2i acc -> 
-                match Pattern.seq_act_pat Pattern.tru a x2i with
-                  | Some truax2i -> 
-                    Pattern.Set.add truax2i acc
-                  | None -> 
-                    acc)
-              xs2 xs1 in 
-          mk (xs, x1ax2)
-        | None -> 
-          None       
-  end
+  let seq_act_atom ((xs1,x1):t) (a:Action.t) ((xs2,x2):t) : t option =
+    match Pattern.seq_act_pat x1 a x2 with
+      | Some x1ax2 ->
+        let xs =
+          Pattern.Set.fold
+            (fun xs2i acc ->
+              match Pattern.seq_act_pat Pattern.tru a xs2i with
+                | Some truaxs2i ->
+                  Pattern.Set.add truaxs2i acc
+                | None ->
+                  acc)
+            xs2 xs1 in
+        mk (xs, x1ax2)
+      | None ->
+        None
 
-  module Local = struct
-    type t = Action.Set.t Atom.Map.t
-
-    let to_string (p:t) : string =
-      Atom.Map.fold
-        (fun r s acc -> 
-          Printf.sprintf "%s(%s) => %s\n"
-            (if acc = "" then "" else "" ^ acc)
-            (Atom.to_string r) (Action.set_to_string s))
-        p ""
-
-    (* extend r s t = (r --> s) U t *)
-    let extend (r:Atom.t) (s:Action.Set.t) (p:t) : t = 
-      let (xs,x) = r in 
-      if Pattern.Set.mem Pattern.tru xs || Pattern.Set.mem x xs then 
-        p
-      else if Atom.Map.mem r p then 
-        Atom.Map.add r (Action.Set.union s (Atom.Map.find r p)) p
-      else
-        Atom.Map.add r s p
-          
-    let rec par_local (p:t) (q:t) : t =
-      let diff_atoms ((xs1,x1):Atom.t) ((xs2,x2):Atom.t) (s1:Action.Set.t) (p:t) : t = 
-        Pattern.Set.fold 
-          (fun x2i acc -> 
-            match Pattern.seq_pat x1 x2i with 
-              | None -> acc
-              | Some x12i -> extend (xs1,x12i) s1 acc) 
-          xs2 (extend (Pattern.Set.add x2 xs1, x1) s1 p) in 
-      Atom.Map.fold (fun ((xs1,x1) as r1) s1 acc -> 
-        Atom.Map.fold (fun ((xs2,x2) as r2) s2 acc -> 
-          match Atom.seq_atom r1 r2 with 
-            | None -> 
-              extend r1 s1 (extend r2 s2 acc)
-            | Some r12 -> 
-              extend r12 (Action.Set.union s1 s2)
-                (diff_atoms r1 r2 s1
-                   (diff_atoms r2 r1 s2 acc)))
-          p acc)
-        q Atom.Map.empty  
-        
-    (* TODO(jnf) this is a helper function; give it a different name? *)
-    let seq_atom_act_local_acc (r1:Atom.t) (a:Action.t) (p2:t) (q:t) : t = 
-      Atom.Map.fold
-        (fun r2 s2 acc -> 
-          match Atom.seq_act_atom r1 a r2 with
-            | None -> 
-              acc
-            | Some r12 -> 
-              extend r12 (Action.seq_acts a s2) acc)
-        p2 q
-
-    let seq_local (p:t) (q:t) : t = 
-      Atom.Map.fold
-        (fun r1 s1 acc -> 
-          if Action.Set.is_empty s1 then 
-            extend r1 s1 acc 
-          else
-            Action.Set.fold 
-              (fun a acc -> seq_atom_act_local_acc r1 a q acc)
-              s1 acc)
-        p Atom.Map.empty  
-        
-    (* pre: t is a predicate *)
-    let negate (p:t) : t = 
-      Atom.Map.fold
-        (fun r s acc -> 
-          if Action.Set.is_empty s then 
-            Atom.Map.add r Action.id acc
-          else
-            Atom.Map.add r Action.drop acc)
-        p Atom.Map.empty
-
-    let rec of_pred (pr:Syntax.pred) : t = 
-      match pr with
-        | Syntax.True ->
-          Atom.Map.singleton Atom.tru Action.id
-        | Syntax.False ->
-          Atom.Map.singleton Atom.tru Action.drop
-        | Syntax.Neg p ->
-          negate (of_pred p)
-        | Syntax.Test (h, v) ->
-          let p = Syntax.HeaderMap.singleton h v in 
-          Atom.Map.add (Pattern.Set.empty, p) Action.id
-            (Atom.Map.singleton (Pattern.Set.singleton p, Pattern.tru) Action.drop)
-        | Syntax.And (pr1, pr2) ->
-          seq_local (of_pred pr1) (of_pred pr2)
-        | Syntax.Or (pr1, pr2) ->
-          par_local (of_pred pr1) (of_pred pr2)
-
-    let star_local (p:t) : t =
-      let rec loop acc = 
-        let seq' = seq_local acc p in
-        let acc' = par_local acc seq' in
-        if Atom.Map.compare Action.Set.compare acc acc' = 0 then
-          acc
-        else 
-          loop acc' in
-      loop (Atom.Map.singleton Atom.tru Action.id)
-
-    let rec of_policy (pol:Syntax.policy) : t = 
-      match pol with
-        | Syntax.Filter pr ->
-          of_pred pr
-        | Syntax.Mod (h, v) ->
-          Atom.Map.singleton Atom.tru (Action.Set.singleton (Syntax.HeaderMap.singleton h v))
-        | Syntax.Par (pol1, pol2) ->
-          par_local (of_policy pol1) (of_policy pol2)
-        | Syntax.Seq (pol1, pol2) ->
-          seq_local (of_policy pol1) (of_policy pol2)
-        | Syntax.Star pol -> 
-          star_local (of_policy pol)
-
-    let to_netkat (p:t) : Syntax.policy = 
-      (* "smart" constructors *)
-      let mk_par nc1 nc2 = 
-        match nc1, nc2 with 
-          | Syntax.Filter Syntax.False, _ -> nc2
-          | _, Syntax.Filter Syntax.False -> nc1
-          | _ -> Syntax.Par(nc1,nc2) in       
-      let mk_seq nc1 nc2 = 
-        match nc1, nc2 with
-          | Syntax.Filter Syntax.True, _ -> nc2
-          | _, Syntax.Filter Syntax.True -> nc1
-          | Syntax.Filter Syntax.False, _ -> nc1
-          | _, Syntax.Filter Syntax.False -> nc2 
-          | _ -> Syntax.Seq(nc1,nc2) in 
-      let mk_and pat1 pat2 = 
-        match pat1,pat2 with 
-          | Syntax.False,_ -> pat1
-          | _,Syntax.False -> pat2
-          | Syntax.True,_ -> pat2
-          | _,Syntax.True -> pat1
-          | _ -> Syntax.And(pat1,pat2) in 
-      let mk_not pat = 
-        match pat with 
-          | Syntax.False -> Syntax.True
-          | Syntax.True -> Syntax.False
-          | _ -> Syntax.Neg(pat) in 
-      let rec loop p = 
-        if Atom.Map.is_empty p then 
-          Syntax.Filter Syntax.False
-        else
-          let r,s = Atom.Map.min_binding p in
-          let p' = Atom.Map.remove r p in 
-          let (xs,x) = r in 
-          let nc_pred = mk_and (mk_not (Pattern.set_to_netkat xs)) (Pattern.to_netkat x) in 
-          let nc_pred_acts = mk_seq (Syntax.Filter nc_pred) (Action.set_to_netkat s) in 
-          mk_par nc_pred_acts (loop p') in 
-      loop p
-
-  end
+  let diff_atom ((xs1,x1):t) ((xs2,x2):t) : Set.t =
+    let acc0 =
+      match mk (Pattern.Set.add x2 xs1, x1) with
+        | None ->
+	  Set.empty
+        | Some r ->
+	  Set.singleton r in
+    Pattern.Set.fold
+      (fun x2i acc ->
+        match Pattern.seq_pat x1 x2i with
+	  | None ->
+	    acc
+	  | Some x12i ->
+            begin match mk (xs1, x12i) with
+              | None ->
+		acc
+              | Some ri ->
+		Set.add ri acc
+	    end)
+      xs2 acc0
 end
 
-module Compiler = Make (SDN_Headers) (NetKAT_Types)
-module Local = Compiler.Local
-module Action = Compiler.Action
-module Pattern = Compiler.Pattern
-module Atom = Compiler.Atom
+module Local = struct
+  type t = Action.group Atom.Map.t
+
+  let to_string (p:t) : string =
+    Atom.Map.fold
+      (fun r g acc ->
+        Printf.sprintf "%s(%s) => %s\n"
+          (if acc = "" then "" else "" ^ acc)
+          (Atom.to_string r) (Action.group_to_string g))
+      p ""
+
+  let extend (r:Atom.t) (g:Action.group) (p:t) : t =
+    match g, Atom.mk r with 
+      | [s],_ when Action.is_drop s -> p
+      | _, None -> 
+	p
+      | _, Some (xs,x) ->
+	if Atom.Map.mem r p then
+          let msg = 
+            Printf.sprintf "Local.extend: overlap on atom %s" (Atom.to_string r) in 
+          failwith msg
+        else
+          Atom.Map.add r g p
+
+  let intersect (op:Action.group -> Action.group -> Action.group) (p:t) (q:t) : t =
+    if Atom.Map.is_empty p || Atom.Map.is_empty q then
+      Atom.Map.empty
+    else
+      Atom.Map.fold (fun r1 g1 acc ->
+        Atom.Map.fold (fun r2 g2 acc ->
+          match Atom.seq_atom r1 r2 with
+            | None ->
+              acc
+            | Some r1_seq_r2 ->
+              extend r1_seq_r2 (op g1 g2) acc)
+          q acc)
+        p Atom.Map.empty
+
+  let difference (p:t) (q:t) : t =
+    if Atom.Map.is_empty q then
+      p
+    else
+      Atom.Map.fold (fun r1 g1 acc ->
+        let rs =
+          Atom.Map.fold (fun r2 _ rs ->
+            Atom.Set.fold
+              (fun r1i acc -> Atom.Set.union (Atom.diff_atom r1i r2) acc)
+              rs Atom.Set.empty)
+            q (Atom.Set.singleton r1) in
+        Atom.Set.fold (fun r1i acc -> extend r1i g1 acc) rs acc)
+      p Atom.Map.empty
+
+  let rec bin_local (op:Action.group -> Action.group -> Action.group) (p:t) (q:t) : t =
+    if Atom.Map.is_empty p then 
+      q
+    else if Atom.Map.is_empty q then 
+      p 
+    else 
+      let p_inter_q = intersect op p q in
+      let p_only = difference p p_inter_q in
+      let q_only = difference q p_inter_q in
+
+      let f r vo1 vo2 = 
+        match vo1,vo2 with 
+          | Some _, None -> vo1
+          | None, Some _ -> vo2
+          | Some _, Some _ -> 
+            let msg = 
+              Printf.sprintf "Local.bin_local: overlap on %s in bin_local"
+                (Atom.to_string r) in 
+            failwith msg
+          | None, None -> None in 
+      (* Printf.printf "BIN_LOCAL\nP\n%s\nQ\n%s\nP_INTER_Q\n%s\nP_ONLY\n%s\nQ_ONLY\n%s\n\n%!" *)
+      (*   (to_string p) (to_string q) *)
+      (*   (to_string p_inter_q) (to_string p_only) (to_string q_only); *)
+      Atom.Map.merge f (Atom.Map.merge f p_only q_only) p_inter_q
+
+  let par_local (p:t) (q:t) : t =
+    let r = bin_local Action.group_crossproduct p q in
+      (* Printf.printf *)
+      (* 	"PAR_LOCAL\n%s\n%s\n%s\n\n" *)
+      (* 	(to_string p) (to_string q) (to_string r); *)
+    r
+
+  let choice_local (p:t) (q:t) : t =
+    let r = bin_local Action.group_union p q in
+      (* Printf.printf *)
+      (* 	"CHOICE_LOCAL\n%s\n%s\n%s\n\n" *)
+      (* 	(to_string p) (to_string q) (to_string r); *)
+    r
+
+  let cross_merge _ g1o g2o =
+    match g1o, g2o with
+      | Some g1, None -> Some g1
+      | None, Some g2 -> Some g2
+      | Some g1, Some g2 -> Some (Action.group_crossproduct g1 g2)
+      | None, None -> None 
+
+  let union_merge _ g1o g2o =
+    match g1o, g2o with
+      | Some g1, None -> Some g1
+      | None, Some g2 -> Some g2
+      | Some g1, Some g2 -> Some (Action.group_union g1 g2)
+      | None, None -> None 
+      
+  let seq_atom_acts_local (r1:Atom.t) (s1:Action.Set.t) (q:t) : t =
+    let seq_act (a:Action.t) : t =
+      Atom.Map.fold
+	(fun r2 g2 acc ->
+          match Atom.seq_act_atom r1 a r2 with
+            | None ->
+              acc
+            | Some r12 ->
+              extend r12 (Action.seq_group a g2) acc)
+	q Atom.Map.empty in 
+    Action.Set.fold
+      (fun a acc -> Atom.Map.merge cross_merge acc (seq_act a))
+      s1 Atom.Map.empty
+	  
+  let seq_local (p:t) (q:t) : t =
+    let r =
+      Atom.Map.fold
+        (fun r1 g1 acc ->
+	  List.fold_left
+            (fun acc si -> 
+	      Atom.Map.merge union_merge acc (seq_atom_acts_local r1 si q))
+            acc g1)
+        p Atom.Map.empty in
+      (* Printf.printf *)
+      (* 	"SEQ_LOCAL\n%s\n%s\n%s\n\n" *)
+      (* 	(to_string p) (to_string q) (to_string r); *)
+    r
+
+    (* precondition: t is a predicate *)
+  let negate (p:t) : t =
+    let rs = 
+      Atom.Map.fold
+        (fun r g acc ->
+	  Atom.Set.fold
+	    (fun ri acc -> Atom.Set.union (Atom.diff_atom ri r) acc)
+	    acc Atom.Set.empty)
+	p (Atom.Set.singleton Atom.tru) in 
+    Atom.Set.fold 
+      (fun ri acc -> extend ri [Action.id] acc) 
+      rs Atom.Map.empty
+
+  let rec of_pred (sw:SDN_Types.fieldVal) (pr:Types.pred) : t =
+    match pr with
+      | Types.True ->
+        Atom.Map.singleton Atom.tru [Action.id]
+      | Types.False ->
+        Atom.Map.empty
+      | Types.Neg p ->
+        negate (of_pred sw p)
+      | Types.Test (Types.Switch, v) ->
+        if v = sw then
+          of_pred sw Types.True
+        else
+          of_pred sw Types.False
+      | Types.Test (h, v) ->
+        let p = Types.HeaderMap.singleton h v in
+        Atom.Map.singleton (Pattern.Set.empty, p) [Action.id]
+      | Types.And (pr1, pr2) ->
+        seq_local (of_pred sw pr1) (of_pred sw pr2)
+      | Types.Or (pr1, pr2) ->
+        par_local (of_pred sw pr1) (of_pred sw pr2)
+
+  let star_local (p:t) : t =
+    let rec loop acc pi =
+      let psucci = seq_local p pi in
+      let acc' = par_local acc psucci in
+      if Atom.Map.compare Action.group_compare acc acc' = 0 then
+        acc
+      else
+        loop acc' psucci in
+    let p0 = Atom.Map.singleton Atom.tru [Action.id] in
+    loop p0 p0
+
+  let rec of_policy (sw:SDN_Types.fieldVal) (pol:Types.policy) : t =
+    match pol with
+      | Types.Filter pr ->
+        of_pred sw pr
+      | Types.Mod (h, v) ->
+        Atom.Map.singleton Atom.tru [Action.Set.singleton (Types.HeaderMap.singleton h v)]
+      | Types.Par (pol1, pol2) ->
+        par_local (of_policy sw pol1) (of_policy sw pol2)
+      | Types.Choice (pol1, pol2) ->
+        choice_local (of_policy sw pol1) (of_policy sw pol2)
+      | Types.Seq (pol1, pol2) ->
+        seq_local (of_policy sw pol1) (of_policy sw pol2)
+      | Types.Star pol ->
+        star_local (of_policy sw pol)
+      | Types.Link(sw,pt,sw',pt') ->
+	failwith "Not a local policy"
+
+  let to_netkat (p:t) : Types.policy =
+    (* "smart" constructors *)
+    let mk_par nc1 nc2 =
+      match nc1, nc2 with
+        | Types.Filter Types.False, _ -> nc2
+        | _, Types.Filter Types.False -> nc1
+        | _ -> Types.Par(nc1,nc2) in
+    let mk_seq nc1 nc2 =
+      match nc1, nc2 with
+        | Types.Filter Types.True, _ -> nc2
+        | _, Types.Filter Types.True -> nc1
+        | Types.Filter Types.False, _ -> nc1
+        | _, Types.Filter Types.False -> nc2
+        | _ -> Types.Seq(nc1,nc2) in
+    let mk_and pat1 pat2 =
+      match pat1,pat2 with
+        | Types.False,_ -> pat1
+        | _,Types.False -> pat2
+        | Types.True,_ -> pat2
+        | _,Types.True -> pat1
+        | _ -> Types.And(pat1,pat2) in
+    let mk_not pat =
+      match pat with
+        | Types.False -> Types.True
+        | Types.True -> Types.False
+        | _ -> Types.Neg(pat) in
+    let rec loop p =
+      if Atom.Map.is_empty p then
+        Types.Filter Types.False
+      else
+        let r,g = Atom.Map.min_binding p in
+        let p' = Atom.Map.remove r p in
+        let (xs,x) = r in
+        let nc_pred = mk_and (mk_not (Pattern.set_to_netkat xs)) (Pattern.to_netkat x) in
+        let nc_pred_acts = mk_seq (Types.Filter nc_pred) (Action.group_to_netkat g) in
+        mk_par nc_pred_acts (loop p') in
+    loop p
+
+end
 
 module RunTime = struct
 
-  let to_action (a:Action.t) : SDN_Types.seq =
-    if not (NetKAT_Types.HeaderMap.mem (SDN_Headers.Header SDN_Types.InPort) a) then
-      []
-    else
-      let port = NetKAT_Types.HeaderMap.find (SDN_Headers.Header SDN_Types.InPort) a in  
-      let mods = NetKAT_Types.HeaderMap.remove (SDN_Headers.Header SDN_Types.InPort) a in
-      let mk_mod h v act = 
-        match h with
-          | SDN_Headers.Switch -> raise (Invalid_argument "Action.to_action got switch update")
-          | SDN_Headers.Header h' ->  (SDN_Types.SetField (h', v)) :: act in
-      NetKAT_Types.HeaderMap.fold mk_mod mods [SDN_Types.OutputPort port]
-        
-  let set_to_action (s:Action.Set.t) : SDN_Types.par =
-    let f a par = (to_action a)::par in
+  let to_action (a:Action.t) (pto: VInt.t option) : SDN_Types.seq =
+    let port = 
+      try 
+        Types.HeaderMap.find (Types.Header SDN_Types.InPort) a 
+      with Not_found -> 
+        begin match pto with 
+          | Some pt -> pt
+          | None -> raise (Invalid_argument "Action.to_action: indeterminate port")
+        end in 
+    let mods = Types.HeaderMap.remove (Types.Header SDN_Types.InPort) a in
+    let mk_mod h v act =
+      match h with
+        | Types.Switch -> 
+	  raise (Invalid_argument "Action.to_action: got switch update")
+        | Types.Header h' -> 
+	  (SDN_Types.SetField (h', v)) :: act in
+      Types.HeaderMap.fold mk_mod mods [SDN_Types.OutputPort port]  
+
+  let set_to_action (s:Action.Set.t) (pto : VInt.t option) : SDN_Types.par =
+    let f a par = (to_action a pto)::par in
     Action.Set.fold f s []
 
-  let to_pattern (sw : SDN_Types.fieldVal) (x:Pattern.t) : SDN_Types.pattern option =
-    let f (h : NetKAT_Types.header) (v : NetKAT_Types.header_val) (pat : SDN_Types.pattern) =
+  let group_to_action (g:Action.group) (pto:VInt.t option) : SDN_Types.group =
+    List.map (fun s -> set_to_action s pto) g
+
+  let to_pattern (x:Pattern.t) : SDN_Types.pattern =
+    let f (h : Types.header) (v : Types.header_val) (pat : SDN_Types.pattern) =
       match h with
-        | SDN_Headers.Switch -> pat (* already tested for this *)
-        | SDN_Headers.Header h' -> SDN_Types.FieldMap.add h' v pat in
-    if NetKAT_Types.HeaderMap.mem SDN_Headers.Switch x &&
-      NetKAT_Types.HeaderMap.find SDN_Headers.Switch x <> sw then
-      None
-    else 
-      Some (NetKAT_Types.HeaderMap.fold f x SDN_Types.FieldMap.empty)
+        | Types.Switch ->
+          raise (Invalid_argument "RunTime.to_pattern: unexpected switch")
+        | Types.Header h' -> SDN_Types.FieldMap.add h' v pat in
+    Types.HeaderMap.fold f x SDN_Types.FieldMap.empty
 
   type i = Local.t
-      
-  let compile (pol:NetKAT_Types.policy) : i = 
-    Local.of_policy pol
 
-  let decompile (p:i) : NetKAT_Types.policy = 
+  let compile (sw:SDN_Types.fieldVal) (pol:Types.policy) : i =
+    let r = Local.of_policy sw pol in
+    (* Printf.printf "COMPILE\n%s\n%s\n" *)
+    (*   (Pretty.string_of_policy pol) *)
+    (*   (Local.to_string r); *)
+    r
+
+  let decompile (p:i) : Types.policy =
     Local.to_netkat p
 
   let simpl_flow (p : SDN_Types.pattern) (a : SDN_Types.group) : SDN_Types.flow = {
@@ -483,22 +670,25 @@ module RunTime = struct
   }
 
   (* Prunes out rules that apply to other switches. *)
-  let to_table (sw:SDN_Types.fieldVal) (p:i) : SDN_Types.flowTable =
-    let add_flow x s l = 
-      match to_pattern sw x with
-        | None -> l
-        | Some pat -> simpl_flow pat [set_to_action s] :: l in 
-    let rec loop (p:i) acc cover = 
-      if Atom.Map.is_empty p then 
-        acc 
+  let to_table (p:i) : SDN_Types.flowTable =
+    let add_flow x g l =
+      let pto = 
+        try 
+          Some (Types.HeaderMap.find (Types.Header SDN_Types.InPort) x) 
+        with Not_found -> 
+          None in 
+      simpl_flow (to_pattern x) (group_to_action g pto) :: l in
+    let rec loop (p:i) acc cover =
+      if Atom.Map.is_empty p then
+        acc
       else
-        let r,s = Atom.Map.min_binding p in 
-        let (xs,x) = r in 
-        let p' = Atom.Map.remove r p in 
-        let ys = Pattern.Set.diff xs cover in 
-        let acc' = Pattern.Set.fold (fun x acc -> add_flow x Action.Set.empty acc) ys acc in 
-        let acc'' = add_flow x s acc' in 
-        let cover' = Pattern.Set.add x (Pattern.Set.union xs cover) in 
-        loop p' acc'' cover' in 
+        let r,g = Atom.Map.min_binding p in
+        let (xs,x) = r in
+        let p' = Atom.Map.remove r p in
+        let ys = Pattern.Set.diff xs cover in
+        let acc' = Pattern.Set.fold (fun x acc -> add_flow x [Action.drop] acc) ys acc in
+        let acc'' = add_flow x g acc' in
+        let cover' = Pattern.Set.add x (Pattern.Set.union xs cover) in
+        loop p' acc'' cover' in
     List.rev (loop p [] Pattern.Set.empty)
 end

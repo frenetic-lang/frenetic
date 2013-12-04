@@ -27,6 +27,7 @@ Library netcore
     lwt,
     lwt.unix,
     cstruct,
+    dprle,
     lwt.syntax,
     lwt.syntax.log,
     str,
@@ -35,40 +36,20 @@ Library netcore
     openflow,
     topology
   InternalModules:
-    NetCore_Classifier,
-    NetCore_Compat,
-    NetCore_Desugar,
-    NetCore_Gensym,
-    NetCore_Lexer,
-    NetCore_Monitoring,
-    NetCore_Parser,
-    NetCore_SurfaceSyntax,
-    NetKAT_Types,
+    Types,
+    Lexer,
+    Parser,
+    Pretty,
+    Semantics,
     LocalCompiler,
     Dehop,
-    NetKAT_Lexer,
-    NetKAT_Parser,
+    NetKAT_Automaton,
     Controller,
-    Semantics,
-    SDN_Headers
+    PolicyGenerator
+
   Modules:
-    NetCore_Util,
-    NetCore_Action,
-    NetCore_Compiler,
-    NetCore_Controller,
-    NetCore_Controller0x04,
-    NetCore_ConsistentUpdates,
-    NetCore_Pretty,
-    NetCore_MacLearning,
-    NetCore_NAT,
-    NetCore_Semantics,
-    NetCore_Stream,
-    NetCore_StatefulFirewall,
-    NetCore_Types,
-    NetCore_Parsing,
-    NetCore_Pattern,
-    NetCore_Verify,
-    NetCore_Wildcard
+    Util,
+    NetKAT_Stream
 
 Library quickcheck
   Findlibparent: netcore
@@ -100,6 +81,15 @@ Test all_tests
 Executable katnetic
   Path: frenetic
   MainIs: katnetic.ml
+  Install$: flag(installexec)
+  BuildDepends:
+    lwt,
+    lwt.syntax,
+    netcore
+
+Executable dehop_test
+  Path: frenetic
+  MainIs: dehop_test.ml
   Install$: flag(installexec)
   BuildDepends:
     lwt,

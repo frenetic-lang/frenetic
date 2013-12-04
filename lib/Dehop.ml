@@ -1,27 +1,13 @@
-open NetKAT_Types
-open SDN_Headers
+open Types
+open Pretty
 
-type explicit_topo_pol =
-  | Filter of pred
-  | Mod of SDN_Types.field * header_val
-    (* switch, port -> switch, port *)
-  | Link of header_val*header_val*header_val*header_val
-  | Par of explicit_topo_pol * explicit_topo_pol
-  | Choice of explicit_topo_pol * explicit_topo_pol
-  | Seq of explicit_topo_pol * explicit_topo_pol
-  | Star of explicit_topo_pol
+(* JNF: why are we duplicating so much code? *)
 
-  (* i;(p;t)^*;p;e 
-     where 
-     i = t = v | t <- v | i + i | i ; i
-     p = t = v | h = v | t <- v | h <- v | p + p | p ; p | p*
-     t = (sw,pt) -> (sw',pt') | t + t
-     e = t = v | i + i | i ; i
-  *)
+(* i;(p;t)^*;e *)
 
 type vtag = int
 type vheader = 
-  | Field of SDN_Types.field
+  | Field of Types.header
   | Tag of vtag
 
 type virtual_pol =
@@ -41,13 +27,11 @@ module Formatting = struct
 
   open Format
 
-  let header (fmt : formatter) (h : header) : unit = match h with
-    | Header h' -> SDN_Types.format_field fmt h'
-    | Switch -> pp_print_string fmt "switch"
+  let header = format_header
 
   let vheader (fmt : formatter) (h : vheader) : unit = match h with
-    | Field h' -> SDN_Types.format_field fmt h'
-    | Tag h -> pp_print_string fmt (string_of_int h)
+    | Field h' -> format_header fmt h'
+    | Tag h -> fprintf fmt "%s" (string_of_int h)
 
     (* The type of the immediately surrounding context, which guides parenthesis-
        insertion. *)
@@ -119,41 +103,6 @@ module Formatting = struct
           | _ -> fprintf fmt "@[(@[%a ; %a@])@]" (vpol SEQ) p1 (vpol SEQ) p2
         end
 
-  let rec epol (cxt : context) (fmt : formatter) (p : explicit_topo_pol) : unit =
-    match p with
-      | Filter pr -> 
-        pred cxt fmt pr
-      | Mod (h, v) -> 
-        fprintf fmt "@[%a <- %a@]" SDN_Types.format_field h VInt.format v
-      | Link (sw,pt,sw',pt') -> 
-        let fmter = VInt.format in
-        fprintf fmt "@[(%a@@%a) -> (%a@@%a)@]" fmter sw fmter pt fmter sw' fmter pt'
-      | Star p' -> 
-        begin match cxt with
-          | PAREN 
-	  | STAR ->  fprintf fmt "@[%a*@]" (epol STAR) p' 
-          | _ -> fprintf fmt "@[@[(%a)*@]@]" (epol PAREN) p'
-        end
-      | Par (p1, p2) -> 
-        begin match cxt with
-          | PAREN
-          | PAR -> fprintf fmt "@[%a | %a@]" (epol PAR) p1 (epol PAR) p2
-          | _ -> fprintf fmt "@[(@[%a | %a@])@]" (epol PAR) p1 (epol PAR) p2
-        end
-      | Choice (p1, p2) -> 
-        begin match cxt with
-          | PAREN
-          | CHOICE -> fprintf fmt "@[%a + %a@]" (epol CHOICE) p1 (epol CHOICE) p2
-          | _ -> fprintf fmt "@[(@[%a + %a@])@]" (epol CHOICE) p1 (epol CHOICE) p2
-        end
-      | Seq (p1, p2) -> 
-        begin match cxt with
-          | PAREN
-          | SEQ
-          | CHOICE
-          | PAR -> fprintf fmt "@[%a ; %a@]" (epol SEQ) p1 (epol SEQ) p2
-          | _ -> fprintf fmt "@[(@[%a ; %a@])@]" (epol SEQ) p1 (epol SEQ) p2
-        end
 end
 
 let make_string_of formatter x =
@@ -171,14 +120,12 @@ let string_of_header = make_string_of Formatting.header
 let string_of_vheader = make_string_of Formatting.vheader
 
 let format_vpolicy = Formatting.vpol Formatting.PAREN
-let format_epolicy = Formatting.epol Formatting.PAREN
 
 let string_of_vpolicy = make_string_of format_vpolicy
-let string_of_epolicy = make_string_of format_epolicy
 
 let vheader_count = ref 0
 
-let gen_header size =
+let gen_header () =
   incr vheader_count;
   !vheader_count
 
@@ -205,48 +152,29 @@ let rec parList ls =
     | l :: ls -> VPar(l, parList ls)
 
 
-let rec dehopify (p : explicit_topo_pol) : restricted_pol =
+let rec dehopify (p : policy) : restricted_pol =
   match p with
     | Filter pr -> 
-      let h = gen_header 2 in
-      let h0 = VInt.Int16 0 in
-      let h1 = VInt.Int16 1 in
-      VMod(Tag h,h0), 
-      seqList [VTest(h,h0);
-               VFilter pr;
-               VMod(Tag h,h1)],
+      VFilter(pr),
+      VFilter False,
       VFilter False, 
-      VTest(h,h1)
+      VFilter True
     | Mod (h', v) -> 
-      let h = gen_header 2 in
-      let h0 = VInt.Int16 0 in
-      let h1 = VInt.Int16 1 in
-      VMod(Tag h,h0), 
-      seqList [VTest(h,h0);
-               VMod(Field h',v);
-               VMod(Tag h,h1)],
+      VMod(Field h', v),
+      VFilter False,
       VFilter False, 
-      VTest(h,h1)
+      VFilter True
     | Link (sw1,p1,sw2,p2) -> 
-      let h = gen_header 3 in
-      let h0 = VInt.Int16 0 in
-      let h1 = VInt.Int16 1 in
-      let h2 = VInt.Int16 2 in
-      VMod(Tag h,h0),
-      VPar(seqList [VTest(h,h0);
-                    VFilter(Test(Switch, sw1));
-                    VFilter(Test(Header SDN_Types.InPort, p1));
-                    VMod(Tag h,h1)],
-           seqList [VTest(h,h1);
-                    VFilter(Test(Switch, sw2));
-                    VFilter(Test(Header SDN_Types.InPort, p2));
-                    VMod(Tag h,h2)]),
+      VSeq(VFilter(Test(Switch, sw1)),
+           VFilter(Test(Header SDN_Types.InPort, p1))),
+      VFilter True,
       VLink(sw1,p1,sw2,p2),
-      VTest(h,h2)
+      VSeq(VFilter(Test(Switch, sw2)),
+        VFilter(Test(Header SDN_Types.InPort, p2)))
     | Par (p,q) -> 
       let i_p,s_p,t_p,e_p = dehopify p in
       let i_q,s_q,t_q,e_q = dehopify q in
-      let h = gen_header 2 in
+      let h = gen_header () in
       let h0 = VInt.Int16 0 in
       let h1 = VInt.Int16 1 in
       VPar(VSeq(VMod(Tag h,h0), i_p),
@@ -259,7 +187,7 @@ let rec dehopify (p : explicit_topo_pol) : restricted_pol =
     | Choice (p,q) -> 
       let i_p,s_p,t_p,e_p = dehopify p in
       let i_q,s_q,t_q,e_q = dehopify q in
-      let h = gen_header 2 in
+      let h = gen_header () in
       let h0 = VInt.Int16 0 in
       let h1 = VInt.Int16 1 in
       VChoice(VSeq(VMod(Tag h,h0), i_p),
@@ -272,51 +200,40 @@ let rec dehopify (p : explicit_topo_pol) : restricted_pol =
     | Seq (p,q) -> 
       let i_p,s_p,t_p,e_p = dehopify p in
       let i_q,s_q,t_q,e_q = dehopify q in
-      let h = gen_header 4 in
+      let h = gen_header () in
       let h1 = VInt.Int16 0 in
       let h2 = VInt.Int16 1 in
-      let h2' = VInt.Int16 2 in
-      let h3 = VInt.Int16 3 in
-      VSeq(parList [VMod(Tag h,h1);
-                    VMod(Tag h,h2)],
+      VSeq(VMod(Tag h,h1),
            i_p),
       parList [ seqList [VTest(h,h1);
-                         s_p;
-                         VPar(VFilter True,
-                              VMod(Tag h,h2))];
-               seqList [VTest(h,h2);
-                        s_p;
+                         s_p];
+               seqList [VTest(h,h1);
                         e_p;
                         i_q;
                         s_q;
-                        VPar(VMod(Tag h,h2'),
-                             VMod(Tag h, h3))];
-               seqList [VTest(h,h2');
-                        s_q;
-                        VPar(VFilter True, 
-                             VMod(Tag h, h3))]],
+                        VMod(Tag h,h2)];
+               seqList [VTest(h,h2);
+                        s_q]],
       VPar(t_p,t_q),
-      VSeq(VTest(h, h3), e_q)
+      parList [seqList [VTest(h,h1);
+                        e_p;
+                        i_q;
+                        e_q];
+               VSeq(VTest(h, h2), e_q)]
     | Star p -> 
       let i_p,s_p,t_p,e_p = dehopify p in
-      let h = gen_header 4 in
+      let h = gen_header () in
       let h0 = VInt.Int16 0 in
       let h1 = VInt.Int16 1 in
-      let h2 = VInt.Int16 2 in
-      let h3 = VInt.Int16 3 in
       parList [VMod(Tag h,h0);
                VSeq(VMod(Tag h,h1), i_p)],
-      parList [ VSeq(VTest(h,h0),
-                     VMod(Tag h,h2));
-                seqList [VTest(h,h1);
-                         s_p;
-                         VStar(seqList [e_p;i_p;s_p]);
-                         VPar(VFilter True,
-                              VMod(Tag h,h3))]],
+      seqList [VTest(h,h1);
+               VStar(VSeq (e_p,i_p));
+               s_p],
       t_p,
-      VPar(VSeq(VTest(h,h3),
+      VPar(VSeq(VTest(h,h1),
                 e_p),
-           VTest(h,h2))
+           VTest(h,h0))
 
 module Optimization = struct
 
@@ -413,6 +330,65 @@ module Optimization = struct
       | VStar p -> VStar (vpol_to_linear_vpol p)
       | _ -> p
 
+  let reorder_seq p q =
+    match p,q with
+      | VMod(Tag h,v), VMod(Tag h',v') ->
+        if h' < h then q,p else p,q
+      | VMod(h,v), VMod(Tag h',v') ->
+        q,p
+      | VMod(Tag h,v), VMod(h',v') ->
+        p,q
+      | VMod(h,v), VMod(h',v') ->
+        if h' < h then q,p else p,q
+      | VMod(Tag h,v), VTest(h',v') ->
+        if h' < h then q,p else p,q
+      | VTest(h,v),VMod(Tag h',v') ->
+        if h' < h then q,p else p,q
+      | VMod(h',v'),VTest(h,v) ->
+        q,p
+      | VTest(h,v), VTest(h',v') ->
+        if h' < h then q,p else p,q
+      (* Because preds can't match on tags, they always commute with a tag mod *)
+      | VFilter a, VMod (Tag h, v) ->
+        q,p
+      (* Because preds can't match on tags, they always commute with a tag test *)
+      | VFilter a, VTest (h, v) ->
+        q,p
+      | _ -> p,q
+
+  (* Normalizes sequences by reordering mods/matches by the headers:
+     h <- v; h' <- v' = h' <- v'; h <- v if h <> h'
+     Assumes linearized seq
+     Equivalent to bubble sort. No, I don't care.
+  *)
+  let rec normalize_seq p =
+    match p with
+      | VSeq(p, VSeq(q,r)) ->
+        let p', q' = reorder_seq p q in
+        if p' = p then
+          let s = VSeq(q, r) in
+          let s' = normalize_seq s in
+          if s = s' then VSeq(p, s)
+          else normalize_seq (VSeq(p, s'))
+        else
+          normalize_seq (VSeq(p',VSeq(q',r)))
+      | VSeq(p,q) ->
+        let p',q' = reorder_seq p q in
+        VSeq(p',q')
+      | VPar(p,q) -> let p' = normalize_seq p in
+                     let q' = normalize_seq q in
+                     if q' < p' then
+                       normalize_seq (VPar(q',p'))
+                     else
+                       VPar(p',q')
+      | VChoice(p,q) -> let p' = normalize_seq p in
+                        let q' = normalize_seq q in
+                        if q' < p' then
+                          normalize_seq (VChoice(q',p'))
+                        else
+                          VChoice(p',q')
+      | VStar(p) -> VStar(normalize_seq p)
+      | _ -> p
 
   (* Dataflow-esque analysis that tracks current possible values for
      header fields. Useful for dead-code elimination/simplification *)
@@ -427,6 +403,12 @@ module Optimization = struct
     | AnyVal
     | ExactVal of header_val
     | PossibleVals of ValSet.t
+
+  let string_of_dataflow_val v = match v with
+    | NoVal -> "NoVal"
+    | AnyVal -> "AnyVal"
+    | ExactVal v' -> Printf.sprintf "ExactVal %s" (string_of_vint v')
+    | PossibleVals vs -> Printf.sprintf "PossibleVals {%s}" (String.concat ";" (List.map string_of_vint (ValSet.elements vs)))
 
   let join dv dv' =
     match dv,dv' with
@@ -488,12 +470,23 @@ module Optimization = struct
       else
         (k, merger v default) :: (merge' merger default alist1 ((k',v') :: alist2))
 
-  let merge a b = match a,b with
-    | [], _ -> []
-    | _, [] -> []
-    | _, _ -> merge' join AnyVal a b
+  let merge a b = merge' join AnyVal a b
 
   let star_merge a b = merge' join NoVal a b
+
+  let dataflow_val_eq v1 v2 = match v1,v2 with
+    | AnyVal,AnyVal -> true
+    | NoVal, NoVal -> true
+    | ExactVal v1, ExactVal v2 -> v1 = v2
+    | PossibleVals v1s, PossibleVals v2s -> ValSet.equal v1s v2s
+    | _ -> false
+
+  let rec val_list_eq ls1 ls2 =
+    match ls1, ls2 with
+      | [],[] -> true
+      | [],_ -> false
+      | _,[] -> false
+      | (h,a) :: ls1, (h',b) :: ls2 -> h = h' && dataflow_val_eq a b && val_list_eq ls1 ls2
 
   (* Removes tests shadowed by mods: (h <- v; ...; h = v) and (h <- v;
      ...; h = v') where ".." doesn't contain a mod to 'h' and v' <> v *)
@@ -531,14 +524,17 @@ module Optimization = struct
         VPar(p',q'), merge tbl' tbl''
       (* Overapproximation: any value is possible *)
       | VStar(p) -> 
-        (* Overapproximate by assuming any possible entry value, thus
-           deriving every possible exit value. Then, recompute by combining
-           actual possible entry values w/ all possible exit
-           values. Finally, to avoid losing precision, combine *)
-        let p', tbl' = remove_dead_matches' p [] in
-        let p'', tbl'' = remove_dead_matches' p' (star_merge tbl' tbl) in
-        (* let _, tbl''' = remove_dead_matches' p' tbl in *)
-        VStar(p''), merge tbl'' tbl
+        (* First we obtain the most precise value table by iterating p
+           until we reach a fix point, then we analyze p with that
+           table *)
+        let rec compute_value_table tbl' = 
+          let p', tbl'' = remove_dead_matches' p tbl' in
+          let tbl''' = (merge tbl' tbl'') in
+          if val_list_eq tbl' tbl''' then 
+            p',tbl'''
+          else compute_value_table tbl''' in
+        let p', tbl' = compute_value_table tbl in
+        VStar(p'), merge tbl' tbl
       (* Overapproximation: pretend both branches get executed (like union)*)
       | VChoice(p,q) ->
         let p', tbl' = remove_dead_matches' p tbl in
@@ -546,7 +542,11 @@ module Optimization = struct
         VChoice(p',q'), merge tbl' tbl''
       | _ -> p,tbl
 
-  let remove_dead_matches p = fst (remove_dead_matches' p [])
+  let remove_dead_matches p = 
+    (* let () = Printf.printf "remove_dead_matches in: %s\n%!" (string_of_vpolicy p) in *)
+    let ret = fst (remove_dead_matches' p []) in
+    (* let () = Printf.printf "remove_dead_matches out: %s\n%!" (string_of_vpolicy ret) in *)
+    ret
 
   type var_use = Used | Unused
 
@@ -577,8 +577,7 @@ module Optimization = struct
             | Used -> VMod(Tag h, v), insert tbl h Unused
         end
       | VTest(h,v) -> VTest(h,v), insert tbl h Used
-      (* Probably has a bug, still needs to be properly tested *)
-      | VStar(p) -> let _, tbl' = remove_dead_mods' merge default p tbl in
+      | VStar(p) -> let _, tbl' = remove_dead_mods' merge default p [] in
                     let tbl'' = merge tbl' tbl in
                     let p', _ = remove_dead_mods' merge default p tbl'' in
                     VStar(p'), tbl''
@@ -593,12 +592,20 @@ module Optimization = struct
      locations inside of a policy! This can only be called at the top
      level on the final policy. Instead, use remove_dead_mods_safe *)
 
-  let remove_dead_mods p = fst (remove_dead_mods' (merge' var_join Unused) Unused p [])
+  let remove_dead_mods p = 
+    let ret = fst (remove_dead_mods' (merge' var_join Unused) Unused p []) in
+    ret
 
   (* Safe to call on arbitrary policies *)
   let remove_dead_mods_safe p = fst (remove_dead_mods' (merge' var_join Used) Used p [])
 
   let merge_neg = merge' join AnyVal
+
+  let string_of_var_val v = match v with
+    | AnyVal -> "AnyVal"
+    | NoVal -> "NoVal"
+    | _ -> 
+      failwith "Not yet implemented"
 
   (* Because we are using virtual headers, and no one else gets to use
      them, we know that the headers have no values until we initialize
@@ -634,7 +641,10 @@ module Optimization = struct
         VChoice(p',q'), merge_neg tbl' tbl''
       | _ -> p,tbl
 
-  let elim_vtest p = fst (elim_vtest' p [])
+  let elim_vtest p = (* let () = Printf.printf "elim_vtest in: %s\n%!" (string_of_vpolicy p) in *)
+                     let ret = fst (elim_vtest' p []) in
+                     (* let () = Printf.printf "remove_dead_mods out: %s\n%!" (string_of_vpolicy ret) in *)
+                     ret
 
   let rec optimize' p = 
     let simpl = simplify_vpol in
@@ -644,9 +654,9 @@ module Optimization = struct
 
   let rec optimize_safe p = 
     let simpl = simplify_vpol in
-    let p' =  (* remove_dead_mods_safe *) ((* remove_dead_matches *) (simpl p)) in
+    let p' =  remove_dead_mods_safe (remove_dead_matches (simpl (vpol_to_linear_vpol p))) in
     if p' = p then p'
-    else optimize' p'
+    else optimize_safe p'
 
   let rec atomic p = match p with
     | VTest _ -> true
@@ -725,15 +735,15 @@ module Optimization = struct
       | VStar(p) -> VStar(distribute_seq p)
       | _ -> p in
     optimize_safe ret
-    
+
   let optimize p = 
-    let renorm = vpol_to_linear_vpol in
+    (* let renorm = vpol_to_linear_vpol in *)
     let simpl = simplify_vpol in
     let p' = (simpl (remove_dead_matches p)) in
     (* let () = Printf.printf "p': %s\n%!" (string_of_vpolicy p') in *)
-    let p'' = distribute_seq p' in
+    let p'' = (* distribute_seq *) p' in
     (* let () = Printf.printf "p'':\n%!" in     *)
-    let p''' = simpl (remove_dead_mods (elim_vtest (optimize' p''))) in
+    let p''' = simpl (remove_dead_mods (elim_vtest (optimize' (normalize_seq p'')))) in
     p'''
 
 end  
@@ -806,8 +816,7 @@ let rec compute_matching_tuples tag_alist h v =
      where b is a new value equivalent to (h=v) *)
 let rec get_new_values tag_alist h v = 
   let old_vals = List.fold_left 
-    (fun acc v' -> if v = v' 
-      then acc else compute_matching_tuples tag_alist h v' @ acc) []
+    (fun acc v' -> compute_matching_tuples tag_alist h v' @ acc) []
     (List.assoc h tag_alist) in
   List.map (fun old_val -> (old_val, update_alist old_val h v)) old_vals
 
@@ -820,8 +829,6 @@ let tuple_to_int tpl =
     let _ = incr tuple_cnter in
     let _ = Hashtbl.add tuple_hashTbl tpl !tuple_cnter in
     VInt.Int16 !tuple_cnter
-
-open NetKAT_Types
 
 (* We have to be careful here. The very first time we write the tag,
    we won't have any pre-existing values, so we can't match upon them *)
@@ -841,7 +848,7 @@ let rec convert_tag_to_hdr tag_alist h p written =
         Mod(Header h, tuple_to_int (update_alist (fst (List.hd tuples)) h' v')), true
     | VTest(h',v') -> let tuples = compute_matching_tuples tag_alist h' v' in
                       List.fold_left (fun acc new_v -> Par(Filter(Test (Header h, tuple_to_int new_v)), acc)) (Filter False) tuples, written
-    | VMod (Field h', v') -> Mod (Header h', v'), written
+    | VMod (Field h', v') -> Mod (h', v'), written
     | VSeq(p,q) -> let p', written = convert_tag_to_hdr tag_alist h p written in
                    let q', written = convert_tag_to_hdr tag_alist h q written in
                    Seq(p',q'), written
@@ -853,20 +860,205 @@ let rec convert_tag_to_hdr tag_alist h p written =
                       Choice(p',q'), written' || written''
     | VStar(p) -> let p',written = convert_tag_to_hdr tag_alist h p written in
                   Star(p'), written
-    | VLink(sw,pt,sw',pt') -> Seq(Seq(Filter(Test(Switch, sw)), Filter(Test(Header SDN_Types.InPort, pt))),
-                                  Seq(Mod(Switch, sw'), Mod(Header SDN_Types.InPort, pt'))), written
+    | VLink(sw,pt,sw',pt') -> Link(sw,pt,sw',pt'), written
 
-      
-let dehop_policy p =
-  let (i,s,t,e) = dehopify p in
-  let p' = (VSeq(i, VSeq(VStar(VSeq(s,t)), VSeq(s,e)))) in
-  let () = Printf.printf "%s\n%!" (string_of_vpolicy p') in
-  fst (convert_tag_to_hdr (collect_tags p') SDN_Types.Vlan p' false)
+(* reduces policies by using identities (drop;p = drop, etc) *)
+let rec simplify_pol p =
+  match p with
+    | Seq(Filter False, _) -> Filter False
+    | Seq(_, Filter False) -> Filter False
+    | Seq(Filter True, p) -> simplify_pol p
+    | Seq(p, Filter True) -> simplify_pol p
+    | Seq(p, q) -> let p' = simplify_pol p in
+                    let q' = simplify_pol q in
+                    if p' = p & q' = q then
+                      Seq(p',q')
+                    else
+                      simplify_pol (Seq(p',q'))
+    | Par(Filter False, p) -> simplify_pol p
+    | Par(p, Filter False) -> simplify_pol p
+    | Par(p, Par(q,r)) ->
+      if p = q then simplify_pol (Par(q,r))
+      else let p' = simplify_pol p in
+           if p' = p then
+             Par(p, simplify_pol (Par(q,r)))
+           else
+             simplify_pol (Par(p', Par(q,r)))
+    | Par(p,q) -> 
+      if p = q then p
+      else
+        let p' = simplify_pol p in
+        let q' = simplify_pol q in
+        if p' = p & q' = q then
+          Par(p',q')
+        else
+          simplify_pol (Par(p',q'))
+    | Choice(p, Choice(q,r)) ->
+      if p = q then simplify_pol (Choice(q,r))
+      else let p' = simplify_pol p in
+           if p' = p then
+             Choice(p, simplify_pol (Choice(q,r)))
+           else
+             simplify_pol (Choice(p', Choice(q,r)))
+    | Choice(p,q) ->
+      if p = q then p
+      else
+        let p' = simplify_pol p in
+        let q' = simplify_pol q in
+        if p' = p & q' = q
+        then Choice(p',q')
+        else simplify_pol (Choice(p',q'))
+    | Star(Filter False) -> Filter True
+    | Star(Filter True) -> Filter True
+    | Star(p) -> 
+      begin
+        match simplify_pol p with
+          | Filter False -> Filter True
+          | Filter True -> Filter True
+          | p -> Star p
+      end
+    | _ -> p
 
-let dehop_policy_opt p =
-  let (i,s,t,e) = dehopify p in
-  let p' = (VSeq(i, VSeq(VStar(VSeq(s,t)), VSeq(s,e)))) in
-  (* let () = Printf.printf "dehop: %s\n%!" (string_of_vpolicy p') in *)
+  (* Linearizes seqs (i.e. Seq(Seq(a,b),c) => Seq(a,Seq(b,c) *)
+  let rec pol_to_linear_pol p =
+    match p with
+      (* (p | q) | r = p (q | r) *)
+      | Par (Par (p,q), r) ->
+        pol_to_linear_pol (Par (p, Par(q,r)))
+      | Par (p, q) ->
+        let p' = pol_to_linear_pol p in
+        let q' = pol_to_linear_pol q in
+        if p' = p && q' = q then
+          Par(p,q)
+        else pol_to_linear_pol (Par(p',q'))
+      (* (p;q);r = p;(q;r) *)
+      | Seq (Seq (p,q), r) ->
+        pol_to_linear_pol (Seq (p, Seq (q,r)))
+      | Seq (p,q) ->
+        let p' = pol_to_linear_pol p in
+        let q' = pol_to_linear_pol q in
+        if p' = p && q' = q then
+          Seq(p,q)
+        else pol_to_linear_pol (Seq(p',q'))
+      | Choice(p,q) ->
+        let p' = pol_to_linear_pol p in
+        let q' = pol_to_linear_pol q in
+        if p' = p && q' = q then
+          Choice(p,q)
+        else pol_to_linear_pol (Choice(p',q'))
+      | Star p -> Star (pol_to_linear_pol p)
+      | _ -> p
+
+(* These assume linear pols *)
+let rec separate_i p = match p with
+  | Seq(Star _, p) -> Filter True
+  | Seq(p,q) -> Seq(p, separate_i q)
+  | _ -> p
+
+let rec separate_t_from_pt p = match p with
+  | Seq(p, Link (sw,pt,sw',pt')) -> Link (sw,pt,sw',pt')
+  | Seq(p, Par (q,r)) -> Par (q,r)
+  | Seq(p, q) -> separate_t_from_pt q
+  | Link _ -> p
+  | Filter True -> p
+  | Filter False -> p
+  | _ -> failwith (Printf.sprintf "unexpected t pol: %s" (string_of_policy p))
+
+let rec separate_p_from_pt p = match p with
+  | Seq(p, Link _) -> p
+  | Seq(p, Par (q,r)) -> p
+  | Seq(p,q) -> Seq(p, separate_t_from_pt q)
+  | Filter True -> p
+  | _ -> failwith (Printf.sprintf "unexpected p pol: %s" (string_of_policy p))
+
+let rec separate_p p = match p with
+  | Star(p) -> separate_p_from_pt p
+  | Seq(Star(p), _) -> separate_p_from_pt p
+  | Seq(p,q) -> separate_p q
+  | _ -> Filter False
+
+let rec separate_t p = match p with
+  | Star(p) -> separate_t_from_pt p
+  | Seq(Star(p), q) -> separate_t_from_pt p
+  | Seq(p,q) -> separate_t q
+  | _ -> Filter False
+
+let rec separate_e p = match p with
+  | Seq(Star _, p) -> p
+  | Seq(p, q) -> separate_e q
+  | _ -> Filter True
+
+let separate_policy p = separate_i p, separate_p p, separate_t p, separate_e p
+
+let strip_vlan = Mod (Header SDN_Types.Vlan,VInt.Int16 0xFFFF)
+
+let vlan_none = Test (Header SDN_Types.Vlan,VInt.Int16 0xFFFF)
+
+(* I'm unclear about the precise semantics of forwarding to hosts that
+   aren't represented in the topology. To be safe, I'm stripping VLAN as soon as we forward out any port in e *)
+
+let rec strip_vlans p = match p with
+  | Mod(Header port, _) -> Seq(strip_vlan, p)
+  | Seq(p,q) -> Seq(strip_vlans p, strip_vlans q)
+  | Par(p,q) -> Par(strip_vlans p, strip_vlans q)
+  | Choice(p,q) -> Choice(strip_vlans p, strip_vlans q)
+  | Star(p) -> Star(strip_vlans p)
+  | _ -> p
+
+(* let dehop_policy p = *)
+(*   let (i,s,t,e) = dehopify p in *)
+(*   let p' = (VSeq(i, VSeq(VStar(VSeq(s,t)), e))) in *)
+(*   fst (convert_tag_to_hdr (collect_tags p') SDN_Types.Vlan p' false) *)
+
+let policy_to_dehopd_policy p =
+  let (i,s,t,e) = dehopify (simplify_pol p) in
+  let p' = Optimization.simplify_vpol (VSeq(i, VSeq(VStar(VSeq(s,t)), e))) in
+  let () = Printf.printf "p': %s\n%!" (string_of_vpolicy p') in
   let p'' = Optimization.optimize p' in
-  let () = Printf.printf "optimized %s\n%!" (string_of_vpolicy p'') in
-  fst (convert_tag_to_hdr (collect_tags p') SDN_Types.Vlan p'' false)
+  let () = Printf.printf "p'': %s\n%!" (string_of_vpolicy p'') in
+  let p''' = pol_to_linear_pol (simplify_pol (fst (convert_tag_to_hdr (collect_tags p'') SDN_Types.Vlan p'' false))) in
+  let () = Printf.printf "p''': %s\n%!" (string_of_policy p''') in
+  let i',s',t',e' = separate_policy p''' in
+  let () = Printf.printf "i': %s\n%!" (string_of_policy i') in
+  let () = Printf.printf "e': %s\n%!" (string_of_policy e') in
+  let () = Printf.printf "s': %s\n%!" (string_of_policy s') in
+  let () = Printf.printf "t': %s\n%!" (string_of_policy t') in
+  let i'',s'',t'',e'' = simplify_pol i', simplify_pol s', simplify_pol t', simplify_pol e' in
+  (i'', s'', t'', Par (Seq (Filter vlan_none, e''), Seq(Filter (Neg vlan_none), Seq(strip_vlans e'', strip_vlan))))
+
+let dehopd_policy_to_policy ((i,p,t,e) : policy * policy * policy * policy) : policy =
+  let open Types in
+
+  (* We analyze the topology (currently from 't'), and compute the edge
+   * switches. For edge locations L_e, the policy is
+   *
+   *   (filter L_e;i | filter ~L_e); (p | e).
+   *
+   * But, it is probably better to instead use the internal locations L_i,
+   * making it
+   *
+   *   (filter ~L_i;i | filter L_i); (p | e)
+   * *)
+  let rec extract_internal_locs t =
+    let open SDN_Types in
+    match t with
+      | Seq(p,q) -> mk_loc_pred p q
+      | Par(p,q) -> mk_loc_pred p q
+      | Choice(p,q) -> mk_loc_pred p q
+      | Link(sw,pt,sw',pt') ->
+        Or (And (Test (Switch, sw),  Test (Header InPort, pt)),
+            And (Test (Switch, sw'), Test (Header InPort, pt')))
+      | _ -> False
+
+  and mk_loc_pred a b =
+    match extract_internal_locs a, extract_internal_locs b with
+      | False, bp    -> bp
+      | ap   , False -> ap
+      | ap   , bp    -> Or(ap, bp) in
+
+  let l_i = extract_internal_locs t in
+  Seq(Par(Seq(Filter(Neg l_i), i), Filter l_i),
+      Par(p, e))
+
+let dehop_policy (p:policy) : policy =
+  dehopd_policy_to_policy (policy_to_dehopd_policy p)

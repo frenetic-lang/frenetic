@@ -1,3 +1,3 @@
 (** Implements a controller for ONF. *)
 
-val start : port:int -> pols:NetKAT_Types.policy NetCore_Stream.t -> unit Lwt.t
+val start : f:('a -> VInt.t -> SDN_Types.flowTable) -> port:int -> pols:'a NetKAT_Stream.t -> unit Lwt.t
