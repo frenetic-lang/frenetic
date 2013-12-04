@@ -90,39 +90,35 @@ module Common = HighLevelSwitch_common.Make (struct
     : Mod.t * Core.action =
     let v_to_m = Core.val_to_mask in
     let open Core in
-    let open SDN_Types in
     match act with
-      | OutputAllPorts -> (Mod.none, Output Core.AllPorts)
-      | OutputPort (VInt.Int32 n) ->
-        if Some n = inPort then
-    (Mod.none, Output Core.InPort)
-        else
-    (Mod.none, Output (Core.PhysicalPort n))
-      | OutputPort n -> let n = VInt.get_int32 n in
+      | AL.OutputAllPorts -> (Mod.none, Output Core.AllPorts)
+      | AL.OutputPort n -> let n = VInt.get_int32 n in
                         if Some n = inPort then
                           (Mod.none, Output Core.InPort)
                         else
                           (Mod.none, Output (Core.PhysicalPort n))
-      | SetField (AL.InPort, _) -> raise (Invalid_argument "cannot set input port")
-      | SetField (EthType, _) -> raise (Invalid_argument "cannot set frame type")
-      | SetField (EthSrc, VInt.Int48 n) -> (Mod.dlSrc, Core.SetField (OxmEthSrc (v_to_m n)))
-      | SetField (EthDst, VInt.Int48 n) -> (Mod.dlDst , Core.SetField (OxmEthDst (v_to_m n)))
-      | SetField (Vlan, n) -> let n = VInt.get_int16 n in
+      | AL.Enqueue(m,n) -> 
+        raise (Invalid_argument "cannot enqueue")
+      | AL.SetField (AL.InPort, _) -> raise (Invalid_argument "cannot set input port")
+      | AL.SetField (AL.EthType, _) -> raise (Invalid_argument "cannot set frame type")
+      | AL.SetField (AL.EthSrc, VInt.Int48 n) -> (Mod.dlSrc, Core.SetField (OxmEthSrc (v_to_m n)))
+      | AL.SetField (AL.EthDst, VInt.Int48 n) -> (Mod.dlDst , Core.SetField (OxmEthDst (v_to_m n)))
+      | AL.SetField (AL.Vlan, n) -> let n = VInt.get_int16 n in
                               begin
                                 match n with
                                   | 0xFFFF -> (Mod.dlVlan, Core.PopVlan)
                                   | -1 -> (Mod.dlVlan, Core.PushVlan)
                                   | _ -> (Mod.dlVlan, Core.SetField (OxmVlanVId (v_to_m (n lor 0x1000 (*OFPVID_PRESENT*) ))))
                               end
-      | SetField (VlanPcp, n) -> let n = VInt.get_int4 n in
+      | AL.SetField (AL.VlanPcp, n) -> let n = VInt.get_int4 n in
                                  (Mod.dlVlanPcp, Core.SetField (OxmVlanPcp n))
       (* MJR: This seems silly. OF 1.3 has no such restriction *)
-      | SetField (IPProto, _) -> raise (Invalid_argument "cannot set IP protocol")
-      | SetField (IP4Src, VInt.Int32 n) -> (Mod.nwSrc, Core.SetField (OxmIP4Src (v_to_m n)))
-      | SetField (IP4Dst, VInt.Int32 n) -> (Mod.nwDst, Core.SetField (OxmIP4Dst (v_to_m n)))
-      | SetField (TCPSrcPort, VInt.Int16 n) -> (Mod.tpSrc, Core.SetField (OxmTCPSrc (v_to_m n)))
-      | SetField (TCPDstPort, VInt.Int16 n) -> (Mod.tpDst, Core.SetField (OxmTCPDst (v_to_m n)))
-      | SetField _ -> raise (Invalid_argument "invalid SetField combination")
+      | AL.SetField (AL.IPProto, _) -> raise (Invalid_argument "cannot set IP protocol")
+      | AL.SetField (AL.IP4Src, VInt.Int32 n) -> (Mod.nwSrc, Core.SetField (OxmIP4Src (v_to_m n)))
+      | AL.SetField (AL.IP4Dst, VInt.Int32 n) -> (Mod.nwDst, Core.SetField (OxmIP4Dst (v_to_m n)))
+      | AL.SetField (AL.TCPSrcPort, VInt.Int16 n) -> (Mod.tpSrc, Core.SetField (OxmTCPSrc (v_to_m n)))
+      | AL.SetField (AL.TCPDstPort, VInt.Int16 n) -> (Mod.tpDst, Core.SetField (OxmTCPDst (v_to_m n)))
+      | AL.SetField _ -> raise (Invalid_argument "invalid SetField combination")
 
   end)
 

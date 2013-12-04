@@ -12,6 +12,8 @@ type int48 = Int64.t
 type bytes = string
 
 type switchId = VInt.t
+type portId = VInt.t
+type queueId = VInt.t
 
 type bufferId =
   | OF10BufferId of int32
@@ -44,10 +46,10 @@ end)
 
 type pattern = fieldVal FieldMap.t
 
-
 type action =
   | OutputAllPorts
-  | OutputPort of VInt.t
+  | OutputPort of portId
+  | Enqueue of portId * queueId
   | SetField of field * fieldVal
 
 type seq = action list
@@ -129,9 +131,14 @@ let format_pattern (fmt:Format.formatter) (p:pattern) : unit =
 
 let rec format_action (fmt:Format.formatter) (a:action) : unit = 
   match a with         
-  | OutputAllPorts -> Format.fprintf fmt "OutputAllPorts"
-  | OutputPort(n) -> Format.fprintf fmt "OutputPort(%a)" VInt.format n
-  | SetField(f,v) -> Format.fprintf fmt "SetField(%a,%a)" format_field f VInt.format v
+  | OutputAllPorts -> 
+    Format.fprintf fmt "OutputAllPorts"
+  | OutputPort(n) -> 
+    Format.fprintf fmt "OutputPort(%a)" VInt.format n
+  | Enqueue(m,n) -> 
+    Format.fprintf fmt "Enqueue(%a,%a)" VInt.format m VInt.format n
+  | SetField(f,v) -> 
+    Format.fprintf fmt "SetField(%a,%a)" format_field f VInt.format v
 
 let rec format_seq (fmt : Format.formatter) (seq : seq) : unit =
   match seq with

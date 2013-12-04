@@ -38,6 +38,8 @@ type int48 = Int64.t
 type bytes = string
 
 type switchId = VInt.t
+type portId = VInt.t
+type queueId = VInt.t
 
 type bufferId =
   | OF10BufferId of int32
@@ -48,7 +50,7 @@ exception Unsupported of string
 (** {1 Packet Forwarding} *)
 
 type port =
-  | PhysicalPort of VInt.t
+  | PhysicalPort of portId
   | AllPorts
   | Controller of int
 
@@ -75,9 +77,10 @@ type pattern = fieldVal FieldMap.t
 
 type action =
   | OutputAllPorts
-  | OutputPort of VInt.t
+  | OutputPort of portId
+  | Enqueue of portId * queueId
   | SetField of field * fieldVal
-
+ 
 type seq = action list
 
 type par = seq list
