@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 060bea229e83818b711c8c245ad18a8c)
+# DO NOT EDIT (digest: 9ef107969592eae54aeeb1aaea360b12)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -15,6 +15,11 @@
 "_darcs": not_hygienic
 # Library packet
 "lib/packet.cmxs": use_packet
+<lib/*.ml{,i}>: oasis_library_packet_ccopt
+"lib/checksum_stubs.c": oasis_library_packet_ccopt
+<lib/packet.{cma,cmxa}>: oasis_library_packet_byte
+<lib/*.ml{,i}>: oasis_library_packet_byte
+"lib/checksum_stubs.c": oasis_library_packet_byte
 <lib/packet.{cma,cmxa}>: use_libpacket_stubs
 <lib/*.ml{,i}>: pkg_str
 <lib/*.ml{,i}>: pkg_cstruct
