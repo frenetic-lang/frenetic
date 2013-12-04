@@ -26,6 +26,7 @@ opam init
 opam install ${OPAM_DEPENDS}
 
 eval `opam config env`
+export CAML_LD_LIBRARY_PATH="`pwd`/_build/lib:$CAML_LD_LIBRARY_PATH"
 ocaml setup.ml -configure --enable-tests --enable-quickcheck
 make
 make test
