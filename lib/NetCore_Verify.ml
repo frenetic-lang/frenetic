@@ -619,9 +619,9 @@ end
             true
           else
             (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; 
-	     (let file = "debug-" ^ (to_string (gensym ())) ^ ".rkt" in
+	     (let file = (Filename.get_temp_dir_name ()) ^ Filename.dir_sep ^ "debug-" ^ (to_string (gensym ()))  in
 		(Printf.printf "Offending program is in %s.rkt\n" file;
-		 let oc = open_out file in 
+		 let oc = open_out (file) in 
 		 Printf.fprintf oc "%s\n" (Sat.serialize_program prog);
 		 close_out oc));
 	     false)
