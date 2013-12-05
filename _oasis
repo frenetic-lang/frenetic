@@ -81,7 +81,7 @@ Document doc
 Executable testtool
   Path: test
   Install: False
-  Build$: flag(quickcheck)
+  Build$: flag(quickcheck) && flag(tests)
   MainIs: Test.ml
   BuildDepends:
     packet,
@@ -96,11 +96,11 @@ Executable testtool
 Executable test0
   Path: test
   Install: False
-  Build$: flag(quickcheck)
+  Build$: flag(quickcheck) && flag(tests)
   MainIs: Test0.ml
   BuildDepends: packet,openflow,oUnit,pa_ounit,pa_ounit.syntax
 
 Test all_tests
   Command: $testtool inline-test-runner dummy
-  Run$: flag(tests)
+  Run$:  flag(quickcheck) && flag(tests)
   TestTools: testtool
