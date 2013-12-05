@@ -3,6 +3,8 @@ OCaml Packet
 
 This library includes serializers for ethernet, TCP, IP, ARP, ICMP, and others.
 
+[![Build Status](https://travis-ci.org/frenetic-lang/ocaml-packet.png)](https://travis-ci.org/frenetic-lang/ocaml-packet)
+
 Building from Source
 --------------------
 
