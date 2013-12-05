@@ -89,8 +89,8 @@ let rec accept_switch () =
   lwt server_fd = get_fd () in 
   lwt (fd, sa) = Lwt_unix.accept server_fd in
   match_lwt Switch.handshake fd with
-  | Some handle -> 
-    Hashtbl.add switch_handles (Switch.id handle) handle;
-    Lwt.return (Switch.features handle)
+    | Some handle -> 
+      Hashtbl.add switch_handles (Switch.id handle) handle;
+      Lwt.return (Switch.features handle)
   | None ->
     accept_switch ()
