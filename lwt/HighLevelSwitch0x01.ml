@@ -16,16 +16,16 @@ let to_payload (pay : Core.payload) : AL.payload =
   let open Core in
   match pay with
     | Buffered (buf_id, ct) ->
-      AL.Buffered (AL.OF10BufferId buf_id, Cstruct.to_string ct)
+      AL.Buffered (AL.OF10BufferId buf_id, ct)
     | NotBuffered ct ->
-      AL.NotBuffered (Cstruct.to_string ct)
+      AL.NotBuffered ct
 	
 let from_payload (pay : AL.payload) : Core.payload =
   let open SDN_Types in
   match pay with
     | Buffered (buf_id, bytes) ->
-      Core.Buffered (from_buffer_id buf_id, Cstruct.of_string bytes)
-    | NotBuffered bytes -> Core.NotBuffered (Cstruct.of_string bytes)
+      Core.Buffered (from_buffer_id buf_id, bytes)
+    | NotBuffered bytes -> Core.NotBuffered bytes
       
 let from_port (port : AL.port) : Core.pseudoPort =
   let open SDN_Types in

@@ -9,7 +9,7 @@ type int16 = int
 type int32 = Int32.t
 type int64 = Int64.t
 type int48 = Int64.t
-type bytes = string
+type bytes = Cstruct.t
 
 type switchId = VInt.t
 type portId = VInt.t
