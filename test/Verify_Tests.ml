@@ -1,9 +1,8 @@
-open NetKAT_Types
+open Types
 open VInt
 open NetCore_Verify
 open NetCore_Verify_Util
 open SDN_Types
-open SDN_Headers
 open Sat
 
 
@@ -271,72 +270,3 @@ TEST "exactly-two-hops" =
 	 (make_packet_2 3 1)
 	 false)
 *)
-
-
-    
-    TEST "trivial-check-equivalent" = 
-  (check_equivalence      "trivial-check-equivalent" 
-     (make_packet_2 1 1)
-     (make_simple_topology (make_transition (1, 1) (2,1) )) 
-     (make_simple_topology (make_transition (1, 1) (2,1) ))
-     (Some true))
-    
-    TEST "trivial-check-equivalent2" = 
-  (check_equivalence      "trivial-check-equivalent2" 
-     (make_packet_2 1 1)
-     (make_simple_topology (combine_topologies
-			      [(make_transition (1, 1) (2,1) );
-			      (make_transition (2, 1) (3,1) )]))
-     (make_simple_topology (combine_topologies
-			      [(make_transition (1, 1) (2,1) );
-			      (make_transition (2, 1) (3,1) )]))
-     (Some true))
-
-    TEST "trivial-check-equivalent3" = 
-  (check_equivalence      "trivial-check-equivalent3" 
-     (make_packet_2 1 1)
-     (make_simple_topology (make_transition (1, 1) (2,1) )) 
-     (make_simple_topology (make_transition (1, 1) (2,2) ))
-     (Some false))
-
-    TEST "trivial-check-equivalent4" = 
-  (check_equivalence      "trivial-check-equivalent4" 
-     (make_packet_2 1 1)
-     (make_simple_topology (combine_topologies
-			      [(make_transition (2, 1) (3,1) );
-			      (make_transition (1, 1) (2,1) )]))
-     (make_simple_topology (combine_topologies
-			      [(make_transition (1, 1) (2,1) );
-			      (make_transition (2, 1) (3,1) )]))
-     (Some true))
-
-
-    TEST "trivial-check-equivalent5" = 
-  (check_equivalence      "trivial-check-equivalent5" 
-     (make_packet_2 1 1)
-     (make_simple_topology (combine_topologies
-			      [(make_transition (2, 1) (3,1) );
-			      (make_transition (1, 1) (2,1) )]))
-     (make_simple_topology (combine_topologies
-			      [(make_transition (1, 1) (2,1) );
-			      (make_transition (2, 2) (3,1) )]))
-     (Some true))
-
-    TEST "restrict-check-equivalence1" = 
-  (check_equivalence "restrict-check-equivalence1"
-     (make_packet_2 1 1)
-     pol_topo pol_topo 
-     (Some true))
-
-    TEST "restrict-check-equivalence2" = 
-  (check_equivalence "restrict-check-equivalence2"
-     (make_packet_2 1 1)
-     pol_topo (make_simple_topology topo)
-     (Some true))
-
-    TEST "restrict-check-equivalence3" = 
-  (check_equivalence "restrict-check-equivalence3"
-     (make_packet_3 1 1 1)
-     pol_topo (make_simple_topology topo)
-     (Some false))
-

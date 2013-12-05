@@ -1,8 +1,28 @@
 open Packet
-open NetCore_Types
+open Types
 open Util
 open Unix
+
+module NetCore_Gensym = struct
+
+  type t = string ref
+    
+  let next_int = ref 0
+    
+  let gensym () =
+    let n = !next_int in
+    incr next_int;
+    ref ("gensym" ^ string_of_int n)
+      
+  let gensym_printing str =
+    ref str
+      
+  let to_string sym = !sym
+
+end
+
 open NetCore_Gensym
+
 
 (* The [Sat] module provides a representation of formulas in
    first-order logic, a representation of packets, and a function for
@@ -23,7 +43,7 @@ module Sat = struct
     | TUnit 
     | TVar of zVar
     | TInt of Int64.t
-    | TPkt of switchId * portId * packet
+    | TPkt of Topology.switchId * Topology.portId * Packet.packet
     | TApp of zTerm * (zTerm list)
 
   type zFormula =
@@ -76,8 +96,8 @@ module Sat = struct
   (* serialization *)
   let serialize_located_packet (sw,pt,pkt) = 
     Printf.sprintf "(Packet %s %s %s %s)" 
-      (Int64.to_string sw) 
-      (Int32.to_string pt)
+      (Int64.to_string (VInt.get_int64 sw)) 
+      (Int32.to_string (VInt.get_int32 pt))
       (Int64.to_string pkt.dlSrc)
       (Int64.to_string pkt.dlDst)
 
@@ -273,18 +293,18 @@ module Verify_Graph = struct
     let src_port_vals h =
       let swSrc =
 	(match Link.src h with
-	  | Node.Switch (str, id) -> id
+	  | Node.Switch ( id) -> id
 	  | _ -> failwith "Switch not in proper form" ) in
       let swDst =
 	(match Link.dst h with
-	  | Node.Switch (str, id) -> id
+	  | Node.Switch ( id) -> id
 	  | _ -> failwith"Switch not in proper form" ) in
       let prtSrc = 
-	let val64 = Int64.of_int32 (Link.srcport h) in
+	let val64 = VInt.get_int64 (Link.srcport h) in
 	VInt.Int64 val64
       in
       let prtDst = 
-	let val64 = Int64.of_int32 (Link.dstport h) in
+	let val64 = VInt.get_int64 (Link.dstport h) in
 	VInt.Int64 val64 in
       (swSrc, prtSrc, swDst, prtDst) in
     let rec create_pol edgeList =
@@ -312,8 +332,8 @@ module Verify_Graph = struct
       let assemble switch1 port1 switch2 port2 : Topology.t =
 	match port1, port2 with 
 	  | VInt.Int64 port1, VInt.Int64 port2 -> 
-	    let (node1: Node.t) = Node.Switch ("fresh tag", switch1) in
-	    let (node2: Node.t) = Node.Switch ("fresh tag", switch2) in
+	    let (node1: Node.t) = Node.Switch (switch1) in
+	    let (node2: Node.t) = Node.Switch (switch2) in
 	    Topology.add_switch_edge graph node1 (VInt.Int64 port1) node2 (VInt.Int64 port2)
 	  | _,_ -> failwith "need int64 people" in 
       match pol with
@@ -542,6 +562,7 @@ module Verify = struct
 	ZAnd (formu'::outformu), List.flatten outpkts
       | Star _  -> failwith "NetKAT program not in form (p;t)*"
       | Choice _-> failwith "I'm not rightly sure what a \"choice\" is "
+      | Link _ -> failwith "wait, link is a special form now?  What's going on?"
 	
   let exists (list : zVar list) func : zFormula = 
     ZOr (List.map (fun pkt -> func pkt) list)
@@ -635,36 +656,10 @@ oko: bool option. has to be Some. True if you think it should be satisfiable.
     | Some false -> Some true
     | _ -> oko
 
-  let check_equivalence_k str inpkt k1 pol1 k2 pol2 oko = 
-    let x = Sat.fresh Sat.SPacket in
-    let y = Sat.fresh Sat.SPacket in
-    let forwards_star_pol1_formula, forwards_star_pol1_result = Verify.forwards_star pol1 x k1 in
-    let forwards_star_pol2_formula, forwards_star_pol2_result = Verify.forwards_star pol2 x k2 in
-    let prog = Sat.ZProgram [
-      Sat.ZToplevelComment "Establish input and output packet"
-      ; Sat.ZDeclareAssert (Sat.ZNot (Sat.ZEquals(Sat.ZTerm (Sat.TVar x), Sat.Z3macro.nopacket)))
-      ; Sat.ZDeclareAssert (Sat.ZNot (Sat.ZEquals(Sat.ZTerm (Sat.TVar y), Sat.Z3macro.nopacket)))
-      ; Sat.ZDeclareAssert (Verify.forwards_pred inpkt x)
-      ; Sat.ZToplevelComment "reachability from x to y via pol1"
-      (* y reachable from x via pol1 *)
-      ; Sat.ZDeclareAssert forwards_star_pol1_formula
-      ; Sat.ZDeclareAssert (Verify.exists forwards_star_pol1_result (fun y' -> Verify.packet_equals y y'))
-	(* end *)
-      ; Sat.ZToplevelComment "reachability from x to y via pol2"
-      ; Sat.ZDeclareAssert forwards_star_pol2_formula
-      ; Sat.ZDeclareAssert (Sat.ZNot (Verify.exists forwards_star_pol2_result (fun y' -> Verify.packet_equals y y')))
-    ] in
-      run_solve (invert_optional_boolean oko ) prog str
 
   let check_reachability str inp pol outp oko = 
     check_reachability_k (Verify_Graph.longest_shortest (Verify_Graph.parse_graph pol))
       str inp pol outp oko
-
-  let check_equivalence str inpkt pol1 pol2 oko = 
-    check_equivalence_k str inpkt
-      (Verify_Graph.longest_shortest (Verify_Graph.parse_graph pol1)) pol1
-      (Verify_Graph.longest_shortest (Verify_Graph.parse_graph pol2)) pol2
-      oko
     
 
 

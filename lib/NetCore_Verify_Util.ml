@@ -1,7 +1,6 @@
 
 open SDN_Types
-open SDN_Headers
-open NetKAT_Types
+open Types
 open VInt
 open NetCore_Verify
 open Sat
