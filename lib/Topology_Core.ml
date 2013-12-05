@@ -85,6 +85,7 @@ sig
   val next_hop : t -> V.t -> portId -> V.t
 
   (* Utility functions *)
+  val spanningtree : t -> t
   val shortest_path : t -> V.t -> V.t -> E.t list
   val floyd_warshall : t -> ((V.t * V.t) * V.t list) list
   val to_dot : t -> string
@@ -420,7 +421,7 @@ struct
             [] -> failwith "It cannot happen"
           | h::t -> let vx1 = E.src h and vx2 = E.dst h in
                     if Hashtbl.mem tbl vx1 && not (Hashtbl.mem tbl vx2) then
-                    (Hashtbl.add tbl vx2 1; 
+                    (Hashtbl.add tbl vx2 1;
                     tree := add_edge_e (!tree) h;
                     tree := add_edge_e (!tree) (Link.reverse h))
                     else if Hashtbl.mem tbl vx2 && not (Hashtbl.mem tbl vx1) then
@@ -428,7 +429,7 @@ struct
                     tree := add_edge_e (!tree) h;
                     tree := (add_edge_e (!tree) (Link.reverse h)))
                     else find_edge tbl t tree in
-        while Hashtbl.length visited_nodes = List.length vertices do
+        while Hashtbl.length visited_nodes != List.length vertices do
           find_edge visited_nodes edges tree
         done;
         !tree
