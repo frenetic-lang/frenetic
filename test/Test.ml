@@ -5,3 +5,4 @@ open NetKAT_Automaton_Test
 open NetKAT_Pretty_Tests
 open PolicyGenerator_Test
 (* open Verify_Tests *)
+

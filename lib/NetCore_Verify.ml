@@ -1,7 +1,28 @@
 open Packet
-open NetCore_Types
+open Types
 open Util
 open Unix
+
+module NetCore_Gensym = struct
+
+  type t = string ref
+    
+  let next_int = ref 0
+    
+  let gensym () =
+    let n = !next_int in
+    incr next_int;
+    ref ("gensym" ^ string_of_int n)
+      
+  let gensym_printing str =
+    ref str
+      
+  let to_string sym = !sym
+
+end
+
+open NetCore_Gensym
+
 
 (* The [Sat] module provides a representation of formulas in
    first-order logic, a representation of packets, and a function for
@@ -14,33 +35,44 @@ module Sat = struct
     | SPacket
     | SInt
     | SSet 
-    | SFunction of zSort * zSort
+    | SBool
+    | SFunction of (zSort list) * zSort
+    | SMacro of ((zVar * zSort) list) * zSort
 
   type zTerm = 
     | TUnit 
     | TVar of zVar
     | TInt of Int64.t
-    | TPkt of switchId * portId * packet
-    | TApp of zTerm * zTerm
+    | TPkt of Topology.switchId * Topology.portId * Packet.packet
+    | TApp of zTerm * (zTerm list)
 
   type zFormula =
+    | ZNoop
+    | ZTerm of zTerm
     | ZTrue
     | ZFalse 
     | ZNot of zFormula
     | ZAnd of zFormula list
     | ZOr of zFormula list
-    | ZEquals of zTerm * zTerm
+    | ZEquals of zFormula * zFormula
     | ZComment of string * zFormula
+    | ZForall of ((zVar * zSort) list) * zFormula
+(*    | ZExists of ((zVar * zSort) list) * zFormula *)
+    | ZIf of zFormula * zFormula * zFormula
+    | ZApp of zFormula * (zFormula list)
 
   type zDeclare = 
     | ZDeclareVar of zVar * zSort
+    | ZDefineVar of zVar * zSort * zFormula
     | ZDeclareAssert of zFormula
+    | ZToplevelComment of string
 
   type zProgram = 
     | ZProgram of zDeclare list
 
   (* fresh variables *)
   let fresh_cell = ref []
+  let decl_list = ref []
 
   let fresh s = 
     let l = !fresh_cell in  
@@ -53,32 +85,47 @@ module Sat = struct
       | SSet -> 
         Printf.sprintf "_s%d" n 
       | SFunction _ -> 
-        Printf.sprintf "_f%d" n in 
+        Printf.sprintf "_f%d" n 
+      | _ -> failwith "not implemented in fresh" in 
     fresh_cell := ZDeclareVar(x,s)::l;
     x
 
-  let reset () = 
-    fresh_cell := []
+
+
 
   (* serialization *)
   let serialize_located_packet (sw,pt,pkt) = 
     Printf.sprintf "(Packet %s %s %s %s)" 
-      (Int64.to_string sw) 
-      (Int32.to_string pt)
+      (Int64.to_string (VInt.get_int64 sw)) 
+      (Int32.to_string (VInt.get_int32 pt))
       (Int64.to_string pkt.dlSrc)
       (Int64.to_string pkt.dlDst)
+
 
   let rec serialize_sort = function
     | SInt -> 
       "Int"
     | SPacket -> 
       "Packet"
+    | SBool ->
+      "Bool"
     | SSet -> 
       Printf.sprintf "Set"
-    | SFunction(sort1,sort2) -> 
+    | SFunction(sortlist,sort2) -> 
       Printf.sprintf "(%s) %s" 
-        (serialize_sort sort1) 
+        (intercalate serialize_sort " " sortlist)
         (serialize_sort sort2)
+    | SMacro(args,ret) -> 
+      let serialize_arglist args = 
+	(intercalate (fun (a, t) -> Printf.sprintf "(%s %s)" a (serialize_sort t)) " " args) in
+      Printf.sprintf "(%s) %s"
+	(serialize_arglist args)
+	(serialize_sort ret)
+
+  let serialize_arglist args = 
+    (intercalate (fun (a, t) -> Printf.sprintf "(%s %s)" a (serialize_sort t)) " " args)
+
+	 
 
   let rec serialize_term term : string = 
     match term with 
@@ -91,13 +138,14 @@ module Sat = struct
       | TInt n -> 
 	Printf.sprintf "%s" 
           (Int64.to_string n)
-      | TApp (term1, term2) -> 
-	Printf.sprintf "(%s %s)" (serialize_term term1) (serialize_term term2)
+      | TApp (term1, terms) -> 
+	Printf.sprintf "(%s %s)" (serialize_term term1) (intercalate serialize_term " " terms)
 
   let serialize_comment c = 
     Printf.sprintf "%s" c
 
   let rec serialize_formula = function
+    | ZNoop -> ""
     | ZTrue -> 
       Printf.sprintf "true"
     | ZFalse -> 
@@ -105,7 +153,7 @@ module Sat = struct
     | ZNot f1 -> 
       Printf.sprintf "(not %s)" (serialize_formula f1)
     | ZEquals (t1, t2) -> 
-      Printf.sprintf "(equals %s %s)" (serialize_term t1) (serialize_term t2)
+      Printf.sprintf "(equals %s %s)" (serialize_formula t1) (serialize_formula t2)
     | ZAnd([]) -> 
       Printf.sprintf "true"
     | ZAnd([f]) -> 
@@ -120,37 +168,96 @@ module Sat = struct
       Printf.sprintf "(or %s %s)" (serialize_formula f) (serialize_formula (ZOr(fs)))
     | ZComment(c, f) -> 
       Printf.sprintf "\n;%s\n%s\n; END %s\n" c (serialize_formula f) c
+    | ZForall (args, form) ->
+      Printf.sprintf "(forall (%s) %s)" (serialize_arglist args) (serialize_formula form)
+(*    | ZExists (args, form) ->
+      Printf.sprintf "(exists (%s) %s)" (serialize_arglist args) (serialize_formula form) *)
+    | ZTerm t -> serialize_term t
+    | ZIf (i, t, e) -> Printf.sprintf "(ite %s %s %s)" 
+      (serialize_formula i) (serialize_formula t) (serialize_formula e)
+    | ZApp (term1, terms) -> 
+      Printf.sprintf "(%s %s)" (serialize_formula term1) (intercalate serialize_formula " " terms)
 
   let serialize_declare d = 
     match d with 
+      | ZToplevelComment(c) -> 
+	Printf.sprintf "\n;%s" c 
+      | ZDefineVar (x, s, b) -> 
+	Printf.sprintf "(define-fun %s %s %s)" x (serialize_sort s) (serialize_formula b)
       | ZDeclareVar (x, s) ->
-        let decl = match s with 
-          | SFunction _ -> "fun"
-          | _ -> "var" in 
-        Printf.sprintf "(declare-%s %s %s)" decl x (serialize_sort s)
+        (match s with 
+          | SFunction _ -> Printf.sprintf "(declare-fun %s %s)" x (serialize_sort s)
+	  | SMacro _ -> failwith "macros should be in ZDefineVar"
+	  | SPacket -> 
+	    "(declare-var "^x^" "^(serialize_sort s)^")" 
+          | _ -> Printf.sprintf "(declare-var %s %s)" x (serialize_sort s)
+	)
       | ZDeclareAssert(f) -> 
         Printf.sprintf "(assert %s)" (serialize_formula f)
 
-  let pervasives : string = 
-    "(declare-datatypes () (Packet ((packet (Switch Int) (EthSrc Int) (EthDst Int) (InPort Int)))))" ^ "\n" ^ 
-    "(define-sort Set () (Array Packet Bool))" ^ "\n" ^ 
-    "(define-fun set_empty () Set ((as const Set) false))" ^ "\n" ^ 
-    "(define-fun set_mem ((x Packet) (s Set)) Bool (select s x))" ^ "\n" ^ 
-    "(define-fun set_add ((s Set) (x Packet)) Set  (store s x true))" ^ "\n" ^ 
-    "(define-fun set_inter ((s1 Set) (s2 Set)) Set ((_ map and) s1 s2))" ^ "\n" ^ 
-    "(define-fun set_negate ((s1 Set)) Set ((_ map not) s1))" ^ "\n" ^ 
-    "(define-fun set_union ((s1 Set) (s2 Set)) Set ((_ map or) s1 s2))" ^ "\n" ^ 
-    "(define-fun set_diff ((s1 Set) (s2 Set)) Set (set_inter s1 (set_negate s2)))" ^ "\n" ^ 
-    "(define-fun set_subseteq ((s1 Set) (s2 Set)) Bool (= set_empty (set_diff s1 s2)))" ^ "\n" 
+  let define_z3_macro (name : string) (arglist : (zVar * zSort) list)  (rettype : zSort) (body : zFormula)  = 
+    [ZDefineVar (name, SMacro (arglist, rettype), body)]
+
+
+  let zApp x = (fun l -> ZTerm (TApp (x, l)))
+
+  let z3_macro, z3_macro_top = 
+    let z3_macro_picklocation put_at_top (name : string) (arglist : (zVar * zSort) list) (rettype : zSort)(body : zFormula) : zTerm = 
+      let l = !fresh_cell in
+      let name = name (* ^ "_" ^ to_string (gensym ()) *) in
+      let new_macro = (define_z3_macro name arglist rettype body) in
+      (if put_at_top then
+	fresh_cell := new_macro @ l
+       else
+	  decl_list := new_macro @ (!decl_list));
+      TVar name in
       
-  let serialize_program p g = 
+    let z3_macro = z3_macro_picklocation false in
+    let z3_macro_top = z3_macro_picklocation true in
+    z3_macro, z3_macro_top
+
+
+    
+  module Z3macro = struct
+    let nopacket = (ZTerm (TVar "nopacket")) 
+  end
+  open Z3macro
+      
+  let pervasives : string = 
+    "
+(declare-datatypes 
+ () 
+ ((Packet
+   (nopacket)
+   (packet 
+    (PreviousPacket Packet)
+    (Switch Int) 
+    (EthDst Int) 
+    (EthType Int) 
+    (Vlan Int) 
+    (VlanPcp Int) 
+    (IPProto Int) 
+    (IP4Src Int) 
+    (IP4Dst Int) 
+    (TCPSrcPort Int) 
+    (TCPDstPort Int) 
+    (EthSrc Int) 
+    (InPort Int)))))" ^ "\n" 
+      
+      
+      
+  let serialize_program p : string = 
     let ZProgram(ds) = p in 
-    let ds' = List.flatten [!fresh_cell; ds; g] in 
-    Printf.sprintf "%s%s\n(check-sat)"
+    let ds' = List.flatten [!fresh_cell; 
+			    [ZToplevelComment("end initial declarations, commence dependent declarations\n")];
+			    !decl_list;
+			    [ZToplevelComment("End Definitions, Commence SAT expressions\n")]; 
+			    ds] in 
+    Printf.sprintf "%s%s\n(check-sat)\n"
       pervasives (intercalate serialize_declare "\n" ds') 
 
-  let solve prog global : bool = 
-    let s = serialize_program prog global in 
+  let solve prog : bool = 
+    let s = serialize_program prog in 
     let z3_out,z3_in = open_process "z3 -in -smt2 -nw" in 
     let _ = output_string z3_in s in
     let _ = flush z3_in in 
@@ -186,18 +293,18 @@ module Verify_Graph = struct
     let src_port_vals h =
       let swSrc =
 	(match Link.src h with
-	  | Node.Switch (str, id) -> id
+	  | Node.Switch ( id) -> id
 	  | _ -> failwith "Switch not in proper form" ) in
       let swDst =
 	(match Link.dst h with
-	  | Node.Switch (str, id) -> id
+	  | Node.Switch ( id) -> id
 	  | _ -> failwith"Switch not in proper form" ) in
       let prtSrc = 
-	let val64 = Int64.of_int32 (Link.srcport h) in
+	let val64 = VInt.get_int64 (Link.srcport h) in
 	VInt.Int64 val64
       in
       let prtDst = 
-	let val64 = Int64.of_int32 (Link.dstport h) in
+	let val64 = VInt.get_int64 (Link.dstport h) in
 	VInt.Int64 val64 in
       (swSrc, prtSrc, swDst, prtDst) in
     let rec create_pol edgeList =
@@ -225,8 +332,8 @@ module Verify_Graph = struct
       let assemble switch1 port1 switch2 port2 : Topology.t =
 	match port1, port2 with 
 	  | VInt.Int64 port1, VInt.Int64 port2 -> 
-	    let (node1: Node.t) = Node.Switch ("fresh tag", switch1) in
-	    let (node2: Node.t) = Node.Switch ("fresh tag", switch2) in
+	    let (node1: Node.t) = Node.Switch (switch1) in
+	    let (node2: Node.t) = Node.Switch (switch2) in
 	    Topology.add_switch_edge graph node1 (VInt.Int64 port1) node2 (VInt.Int64 port2)
 	  | _,_ -> failwith "need int64 people" in 
       match pol with
@@ -238,7 +345,7 @@ module Verify_Graph = struct
 	    (Seq (Filter(And (Test (Switch, switch1), Test (Header SDN_Types.InPort, port1))),
 		  Seq (Mod (Switch, switch2), Mod (Header S.InPort, port2))), t)
 	  -> parse_links (assemble switch1 port1 switch2 port2) t
-	| _ -> failwith (Printf.sprintf "unimplemented") in 
+	| _ -> failwith (Printf.sprintf "unimplemented composition pattern") in 
     match ptstar with
       | Star (Seq (p, t)) -> parse_links graph t
       | _ -> failwith "graph parsing assumes input is of the form (p;t)*"
@@ -253,201 +360,309 @@ module Verify = struct
       [ Header InPort 
       ; Header EthSrc
       ; Header EthDst
-      (* ; Header EthType *)
-      (* ; Header Vlan *)
-      (* ; Header VlanPcp *)
-      (* ; Header IPProto *)
-      (* ; Header IP4Src *)
-      (* ; Header IP4Dst *)
-      (* ; Header TCPSrcPort *)
-      (* ; Header TCPDstPort *)
+      ; Header EthType
+      ; Header Vlan
+      ; Header VlanPcp
+      ; Header IPProto
+      ; Header IP4Src
+      ; Header IP4Dst
+      ; Header TCPSrcPort
+      ; Header TCPDstPort
       ; Switch 
 ]
+
+  let serialize_header (header: header) : string = 
+    match header with
+      | Header InPort -> 
+	"InPort"
+      | Header EthSrc -> 
+	"EthSrc"
+      | Header EthDst -> 
+	"EthDst"
+      | Header EthType ->  
+	"EthType"
+      | Header Vlan ->  
+	"Vlan"
+      | Header VlanPcp ->
+	"VlanPcp"
+      | Header IPProto ->  
+	"IPProto"
+      | Header IP4Src ->  
+	"IP4Src"
+      | Header IP4Dst ->  
+	"IP4Dst"
+      | Header TCPSrcPort ->  
+	"TCPSrcPort"
+      | Header TCPDstPort ->  
+	"TCPDstPort"
+      | Switch -> 
+	"Switch"
+    
 
   let encode_header (header: header) (pkt:zVar) : zTerm =
     match header with
       | Header InPort -> 
-        TApp (TVar "InPort", TVar pkt)
+        TApp (TVar (serialize_header header), [TVar pkt])
       | Header EthSrc -> 
-        TApp (TVar "EthSrc", TVar pkt)
+        TApp (TVar (serialize_header header), [TVar pkt])
       | Header EthDst -> 
-        TApp (TVar "EthDst", TVar pkt)
-      (* | Header EthType ->   *)
-      (*   TApp ("EthType", TVar pkt) *)
-      (* | Header Vlan ->   *)
-      (*   TApp ("Vlan", TVar pkt) *)
-      (* | Header VlanPcp -> *)
-      (*   TApp ("VlanPcp", TVar pkt) *)
-      (* | Header IPProto ->   *)
-      (*   TApp ("IPProto", TVar pkt) *)
-      (* | Header IP4Src ->   *)
-      (*   TApp ("IP4Src", TVar pkt) *)
-      (* | Header IP4Dst ->   *)
-      (*   TApp ("IP4Dst", TVar pkt) *)
-      (* | Header TCPSrcPort ->   *)
-      (*   TApp ("TCPSrcPort", TVar pkt) *)
-      (* | Header TCPDstPort ->   *)
-      (*   TApp ("TCPDstPort", TVar pkt) *)
+        TApp (TVar (serialize_header header), [TVar pkt])
+      | Header EthType ->  
+        TApp (TVar (serialize_header header), [TVar pkt])
+      | Header Vlan ->  
+        TApp (TVar (serialize_header header), [TVar pkt])
+      | Header VlanPcp ->
+        TApp (TVar (serialize_header header), [TVar pkt])
+      | Header IPProto ->  
+        TApp (TVar (serialize_header header), [TVar pkt])
+      | Header IP4Src ->  
+        TApp (TVar (serialize_header header), [TVar pkt])
+      | Header IP4Dst ->  
+        TApp (TVar (serialize_header header), [TVar pkt])
+      | Header TCPSrcPort ->  
+        TApp (TVar (serialize_header header), [TVar pkt])
+      | Header TCPDstPort ->  
+        TApp (TVar (serialize_header header), [TVar pkt])
       | Switch -> 
-        TApp (TVar "Switch", TVar pkt)
-      | _ -> 
-        failwith "Not yet implemented"
+        TApp (TVar (serialize_header header), [TVar pkt])
 
-  let encode_packet_equals (pkt1: zVar) (pkt2: zVar) (excepts:header list) : zFormula =
-    let l = 
-      List.fold_left 
-	(fun acc hd -> 
-	  if List.mem hd excepts then 
-	    acc 
-	  else
-	    ZEquals (encode_header hd pkt1, encode_header hd pkt2)::acc) 
-	[] all_fields in 
-    ZAnd(l)
-      
+  let encode_packet_equals, reset_state_encode_packet_equals = 
+    let hash = Hashtbl.create 0 in 
+    let reset_state () = Hashtbl.clear hash; in
+    let encode_packet_equals = 
+      (fun (pkt1: zVar) (pkt2: zVar) (except :header)  -> 
+	ZTerm (TApp (
+	  (if Hashtbl.mem hash except
+	   then
+	      Hashtbl.find hash except
+	   else
+	      let l = 
+		List.fold_left 
+		  (fun acc hd -> 
+		    if  hd = except then 
+		      acc 
+		    else
+		      ZEquals (ZTerm (encode_header hd "x"), ZTerm( encode_header hd "y"))::acc) 
+		  [] all_fields in 
+	      let new_except = (z3_macro_top ("packet_equals_except_" ^ (serialize_header except) )
+				  [("x", SPacket);("y", SPacket)] SBool  
+				  (ZAnd(l))) in
+	      Hashtbl.add hash except new_except;
+	      new_except), 
+	  [TVar pkt1; TVar pkt2]))) in
+    encode_packet_equals, reset_state
+
   let encode_vint (v: VInt.t): zTerm = 
     TInt (VInt.get_int64 v)
 
+  
+  let range = ( fun i j ->
+    let rec aux n acc =
+      if n < i then acc else aux (n-1) (n :: acc) in
+    aux j ([]) )
+
+  let pred_test,reset_pred_test = 
+    let hashmap = Hashtbl.create 0 in
+    let pred_test f =  
+      try (Hashtbl.find hashmap f)
+      with Not_found -> 
+	let macro = z3_macro ((serialize_header f) ^ "-equals") [("x", SPacket); ("v", SInt)] SBool 
+	  (ZAnd [ZNot (ZEquals (ZTerm (TVar "x"), Z3macro.nopacket));
+		 (ZEquals (ZTerm (encode_header f "x"), ZTerm (TVar "v")))
+		]) 
+	in
+	Hashtbl.add hashmap f macro; 
+	(Hashtbl.find hashmap f) in	
+    let reset_pred_test () = Hashtbl.clear hashmap in
+    pred_test, reset_pred_test
+
+  let reset_state () = 
+    reset_state_encode_packet_equals (); 
+    fresh_cell := []; 
+    decl_list := [];
+    reset_pred_test ()
+
   let rec forwards_pred (pred : pred) (pkt : zVar) : zFormula = 
+
     match pred with
       | False -> 
 	ZFalse
       | True -> 
 	ZTrue
-      | Test (hdr, v) -> 
-	ZEquals (encode_header hdr pkt, encode_vint v)
+      | Test (hdr, v) -> ZTerm (TApp (pred_test hdr, [TVar pkt; encode_vint v]))
       | Neg p ->
-        ZNot (forwards_pred p pkt)
-      | And (pred1, pred2) -> ZAnd [forwards_pred pred1 pkt; 
-                                    forwards_pred pred2 pkt]
-      | Or (pred1, pred2) -> ZOr [forwards_pred pred1 pkt;
-                                  forwards_pred pred2 pkt]
-        
-  let rec forward_pol (pol:policy) (pkt:zVar) (set:zVar) : zFormula =
-    match pol with
-      | Filter pred ->
-        ZComment("Filter",
-                 ZAnd [forwards_pred pred pkt;
-                       ZEquals(TApp(TApp(TVar "set_add", TVar pkt), 
-                                    TApp(TVar "set_empty", TUnit)), 
-                               TVar set)])
+        (ZNot (forwards_pred p pkt))
+      | And (pred1, pred2) -> 
+	(ZAnd [forwards_pred pred1 pkt; 
+	       forwards_pred pred2 pkt])
+      | Or (pred1, pred2) -> 
+	(ZOr [forwards_pred pred1 pkt;
+              forwards_pred pred2 pkt])
+
+  open Z3macro
+
+  let mod_fun,reset_mod_fun = 
+    let hashmap = Hashtbl.create 0 in
+    let mod_fun f =  
+      let packet_equals_fun = encode_packet_equals "x" "y" f in
+      try ZTerm (Hashtbl.find hashmap packet_equals_fun)
+      with Not_found -> 
+	let macro = z3_macro ("mod_" ^ (serialize_header f)) [("x", SPacket); ("y", SPacket); ("v", SInt)] SBool 
+	  (
+	    ZAnd [
+	      (*ZIf ((ZEquals (ZTerm (TVar "x"), nopacket)), 
+		   (ZEquals (ZTerm (TVar "y"), nopacket)),
+		   (ZNot (ZEquals (ZTerm (TVar "y"), nopacket))));*)
+		  packet_equals_fun;
+		  ZEquals(ZTerm (encode_header f "y"), ZTerm (TVar "v"))]) in
+	Hashtbl.add hashmap packet_equals_fun macro; 
+	ZTerm (Hashtbl.find hashmap packet_equals_fun) in	
+    let reset_mod_fun () = Hashtbl.clear hashmap in
+    mod_fun,reset_mod_fun
+
+  let rec unzip_list_tuple (t : ('a * 'b) list) : ('a list * 'b list) = 
+    match t with 
+      | (hdl,hdr)::tl -> 
+	let retl, retr = unzip_list_tuple tl in (hdl::retl), (hdr::retr)
+      | [] -> ([],[])
+	  
+
+    
+  let rec forwards_pol (forall_on : bool) (pol : policy) (inpkt : zVar) : zFormula * (zVar list) = 
+    let forwards_pol = forwards_pol forall_on in
+    let inpkt_t = ZTerm (TVar inpkt) in
+    (* let nullinput = ZEquals (inpkt_t, nopacket) in *)
+    match pol with 
+      | Filter pred -> 
+	forwards_pred pred inpkt, [inpkt]
       | Mod(f,v) -> 
-        let pkt' = fresh SPacket in 
-        ZComment("Mod",
-                 ZAnd [encode_packet_equals pkt pkt' [f];
-                       ZEquals(encode_header f pkt', encode_vint v);
-                       ZEquals(TApp(TApp(TVar "set_add", TVar pkt'), 
-                                    TApp(TVar "set_empty", TUnit)), 
-                               TVar set)])
-      | Par(pol1,pol2) -> 
-        let set1 = fresh SSet in 
-        let set2 = fresh SSet in 
-        ZComment("Par", 
-                 ZAnd[forward_pol pol1 pkt set1;
-                      forward_pol pol2 pkt set2;
-                      ZEquals(TApp(TApp(TVar "set_union", TVar set1),
-                                   TVar set2),
-                              TVar set)])
-      | Seq(pol1,pol2) -> 
-        assert false
-      | _ -> 
-        assert false
-			
-(*   let rec forwards (pol:policy) (pkt1:zVar) (pkt2: zVar) : zFormula = *)
-(*     match pol with *)
-(*       | Filter pr ->  *)
-(*         ZComment ("Filter", (ZAnd[forwards_pred pr pkt1; encode_packet_equals pkt1 pkt2 []])) *)
-(*       | Mod (hdr, v) ->  *)
-(* 	ZComment ("Mod", ZAnd [ZEquals (encode_header hdr pkt2, encode_vint v); *)
-(* 			       encode_packet_equals pkt1 pkt2 [hdr]]) *)
-(*       | Par (p1, p2) ->  *)
-(* 	ZComment ("Par", ZOr [forwards p1 pkt1 pkt2; *)
-(* 			      forwards p2 pkt1 pkt2]) *)
-(*       | Seq (p1, p2) ->  *)
-(* 	let pkt' = fresh SPacket in *)
-(* 	ZComment ("Seq", ZAnd [forwards p1 pkt1 pkt'; *)
-(* 			       forwards p2 pkt' pkt2]) *)
-(*       | Star p1 -> failwith "NetKAT program not in form (p;t)*" *)
-		
-(*   let forwards_star_history k p_t_star pkt1 pkt2 : zFormula =  *)
-(*     if k = 0 then  *)
-(*       ZEquals (TVar pkt1, TVar pkt2) *)
-(*     else  *)
-(*       let pkt' = fresh SPacket in *)
-(*       let pkt'' = fresh SPacket in *)
-(*       let formula, histr = forwards_star_history (k-1) p_t_star pkt'' pkt2 in *)
-(*       ZAnd [ forwards pol pkt1 pkt'; *)
-(*              forwards topo pkt' pkt''; *)
-(*              formula ], new_history in  *)
-(*       let form, hist = inner_forwards k p_t_star pkt1 pkt2 in *)
-(*       (ZAnd [form; expr hist])::(forwards_star_history (k-1) p_t_star pkt1 pkt2) in  *)
-(*   ZOr (forwards_star_history k p_t_star pkt1 pkt2) *)
-(*   let forwards_star  = forwards_star_history noop_expr *)
+	let outpkt = fresh SPacket in
+	let outpkt_t = ZTerm (TVar outpkt) in
+	let modfn = mod_fun f in
+	ZApp (modfn, [inpkt_t; outpkt_t; ZTerm (encode_vint v)]),  [outpkt]
+      | Par (pol1, pol2) -> 
+	let formu1, out1 = forwards_pol pol1 inpkt in
+	let formu2, out2 = forwards_pol pol2 inpkt in
+	if forall_on then
+	  ZOr[formu1;formu2], out1@out2
+	else
+	  ZAnd[
+	    ZOr[formu1; ZAnd (List.map (fun x -> ZEquals (ZTerm (TVar x), nopacket)) out1)];
+	    ZOr[formu2; ZAnd (List.map (fun x -> ZEquals (ZTerm (TVar x), nopacket)) out2)]], out1@out2
+      | Seq (pol1, pol2) -> 
+	let formu', midpkts = forwards_pol pol1 inpkt in
+	let outformu, outpkts = unzip_list_tuple 
+	  (List.map 
+	     (fun mpkt -> 
+	       let packet_formula, output = forwards_pol pol2 mpkt in
+	       ZIf (ZEquals (ZTerm (TVar mpkt), nopacket), 
+		    ZAnd (List.map (fun nopkt -> ZEquals(ZTerm (TVar nopkt), nopacket)) output),
+		    packet_formula), output )
+	     midpkts) in
+	ZAnd (formu'::outformu), List.flatten outpkts
+      | Star _  -> failwith "NetKAT program not in form (p;t)*"
+      | Choice _-> failwith "I'm not rightly sure what a \"choice\" is "
+      | Link _ -> failwith "wait, link is a special form now?  What's going on?"
+	
+  let exists (list : zVar list) func : zFormula = 
+    ZOr (List.map (fun pkt -> func pkt) list)
+
+  let forall (list : zVar list) func : zFormula = 
+    ZAnd (List.map (fun pkt -> func pkt) list)
+
+  let packet_equals p1 p2 = ZEquals(ZTerm (TVar p1), ZTerm (TVar p2))
+
+  let rec forwards_k forall p_t_star inpkt k : zFormula * (zVar list) = 
+    let forwards_k = forwards_k forall in
+    match p_t_star with 
+      | Star (Seq (p, t)) -> 
+	let pol_form, polout = forwards_pol forall p inpkt in
+	let topo_form, topo_out = unzip_list_tuple (List.map (fun mpkt -> forwards_pol forall t mpkt) polout) in
+	(match k with 
+	  | 0 -> (if forall then ZNoop else ZTrue), [inpkt]
+	  | 1 -> ZAnd[(ZComment ("forwards_k: pol_form",pol_form));
+	       ZComment ("forwards_k: topo_form", ZAnd topo_form)], List.flatten topo_out
+	  | _ -> 
+	    let rest_of_links, final_out = unzip_list_tuple 
+	      (List.map (fun x -> forwards_k p_t_star x (k-1)) (List.flatten topo_out)) in
+	    ZAnd[(ZComment ("forwards_k: pol_form",pol_form));
+		 ZComment ("forwards_k: topo_form", ZAnd topo_form);
+		 ZComment ("forward_k_set: recur", ZAnd rest_of_links)], List.flatten final_out )
+      | _ -> failwith "NetKAT program not in form (p;t)*"
+
+  let forwards_star p_t_star inpkt k : zFormula * (zVar list) = 
+    let forwards_k =  forwards_k false p_t_star inpkt  in
+    let combine_results x = 
+      let form,set = forwards_k x in
+      let form = ZOr[form; ZAnd (List.map (fun x -> ZEquals (ZTerm (TVar x), nopacket)) set)] in
+      ZComment ( Printf.sprintf "Attempting to forward in %u hops" x, form ), set in
+    let forms, finalset = unzip_list_tuple ((List.map combine_results (range 0 k))) in
+    ZAnd forms, List.flatten finalset
+
+  let forwards_star_forall p_t_star inpkt k : zFormula * (zVar list) = 
+    let forwards_k = forwards_k true p_t_star inpkt  in
+    let combine_results x = 
+      let form,set = forwards_k x in
+      ZComment ( Printf.sprintf "Attempting to forward in %u hops" x, form ), set in
+    let forms, finalset = unzip_list_tuple ((List.map combine_results (range 0 k))) in
+    ZOr forms, List.flatten finalset
+  
+      
 end
 
-(* let generate_program expr inp p_t_star outp k x y=  *)
-(*   let prog =  *)
-(*     Sat.ZProgram [ Sat.ZDeclareAssert (Verify.forwards_pred inp x) *)
-(*                  ; Sat.ZDeclareAssert (Verify.forwards_star_history expr k p_t_star x y ) *)
-(*                  ; Sat.ZDeclareAssert (Verify.forwards_pred outp y) ] in prog *)
 
-(* let run_solve oko prog str = assert false *)
-(* (\*   let global_eq = *\) *)
-(* (\* 	match !Verify.global_bindings with *\) *)
-(* (\* 	  | [] -> [] *\) *)
-(* (\* 	  | _ -> [Sat.ZDeclareAssert (Sat.ZAnd !Verify.global_bindings)] in *\) *)
-(* (\*   let run_result = ( *\) *)
-(* (\* 	match oko, Sat.solve prog global_eq with  *\) *)
-(* (\* 	  | Some ok, sat ->  *\) *)
-(* (\* 		if ok = sat then  *\) *)
-(* (\* 		  true *\) *)
-(* (\* 		else *\) *)
-(* (\* 		  (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; false) *\) *)
-(* (\* 	  | None, sat ->  *\) *)
-(* (\* 		(Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)) in *\) *)
-(* (\*   Sat.fresh_cell := []; Verify.global_bindings := []; run_result *\) *)
-	
-(* (\* let combine_programs progs =  *\) *)
-(* (\*   Sat.ZProgram (List.flatten (List.map (fun prog -> match prog with  *\) *)
-(* (\* 	| Sat.ZProgram (asserts) -> asserts) progs)) *\) *)
+  let run_solve oko prog str : bool =
+    let run_result = (
+      match oko, Sat.solve prog with
+	| Some (ok : bool), (sat : bool) ->
+          if ok = sat then
+            true
+          else
+            (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; 
+	     (let file = (Filename.get_temp_dir_name ()) ^ Filename.dir_sep ^ "debug-" ^ (to_string (gensym ()))  in
+		(Printf.printf "Offending program is in %s.rkt\n" file;
+		 let oc = open_out (file) in 
+		 Printf.fprintf oc "%s\n" (Sat.serialize_program prog);
+		 close_out oc));
+	     false)
+	| None, sat ->
+          (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)) in
+    Verify.reset_state (); Verify.reset_mod_fun (); run_result
 
-(* (\* let make_vint v = VInt.Int64 (Int64.of_int v) *\) *)
+  let combine_programs progs =
+  Sat.ZProgram (List.flatten (List.map (fun prog -> match prog with
+    | Sat.ZProgram (asserts) -> asserts) progs))
 
-(* (\* let check_equivalent pt1 pt2 str =  *\) *)
-(* (\*   	(\\*global_bindings := (ZEquals (TVar pkt1, TVar pkt2))::!global_bindings;*\\) *\) *)
-(* (\*   let graph1, graph2 = Verify_Graph.parse_graph pt1, Verify_Graph.parse_graph pt2 in *\) *)
-(* (\*   let length1, length2 = Verify_Graph.longest_shortest graph1, Verify_Graph.longest_shortest graph2 in *\) *)
-(* (\*   let k = if length1 > length2 then length1 else length2 in *\) *)
-(* (\*   let k_z3 = Sat.fresh Sat.SInt in *\) *)
-(* (\*   let x = Sat.fresh Sat.SPacket in *\) *)
-(* (\*   let y1 = Sat.fresh Sat.SPacket in *\) *)
-(* (\*   let y2 = Sat.fresh Sat.SPacket in *\) *)
-(* (\*   let fix_k = (fun n -> Sat.ZEquals (Sat.TVar k_z3, Verify.encode_vint (make_vint (List.length n)))) in *\) *)
-(* (\*   let prog1 = generate_program false fix_k NetKAT_Types.True pt1 NetKAT_Types.True k x y1 in *\) *)
-(* (\*   let prog2 = generate_program false fix_k  NetKAT_Types.True pt2 NetKAT_Types.True k x y2 in *\) *)
-(* (\*   let prog = combine_programs  *\) *)
-(* (\* 	[Sat.ZProgram [Sat.ZDeclareAssert (Sat.ZEquals (Sat.TVar x, Sat.TVar x));  *\) *)
-(* (\* 		       Sat.ZDeclareAssert (Sat.ZNot (Sat.ZEquals (Sat.TVar y1, Sat.TVar y2)))];  *\) *)
-(* (\* 	 prog1;  *\) *)
-(* (\* 	 prog2] in *\) *)
-(* (\*   run_solve (Some false) prog str *\) *)
+  let make_vint v = VInt.Int64 (Int64.of_int v)
 
-(* let check_specific_k_history expr str inp p_t_star outp oko (k : int) : bool =  *)
-(*   let x = Sat.fresh Sat.SPacket in  *)
-(*   let y = Sat.fresh Sat.SPacket in  *)
-(*   let prog = generate_program expr inp p_t_star outp k x y in *)
-(*   run_solve oko prog str *)
+(* str: name of your test (unique ID)
+inp: initial packet
+   pol: policy to test
+outp: fully-transformed packet
+oko: bool option. has to be Some. True if you think it should be satisfiable.
+*)
 
-(* let check_maybe_dup expr str inp p_t_star outp (oko : bool option) : bool =  *)
-(*   let res_graph = Verify_Graph.parse_graph p_t_star in *)
-(*   let longest_shortest_path = Verify_Graph.longest_shortest *)
-(*     res_graph in *)
-(*   check_specific_k_history expr str inp p_t_star outp oko longest_shortest_path *)
-  
-(* (\* str: name of your test (unique ID)   *)
-(*    inp: initial packet *)
-(*    pol: policy to test *)
-(*    outp: fully-transformed packet  *)
-(*    oko: bool option.  has to be Some.  True if you think it should be satisfiable. *)
-(* *\) *)
-let check = assert false
+  let check_reachability_k  k str inp pol outp oko =
+  let x = Sat.fresh Sat.SPacket in
+  let forwards_star_formula, forwards_star_result = Verify.forwards_star pol x k in
+  let prog =     Sat.ZProgram [ 
+    Sat.ZDeclareAssert (Verify.forwards_pred inp x)
+    ; Sat.ZDeclareAssert forwards_star_formula
+    ; Sat.ZDeclareAssert (Verify.exists forwards_star_result (fun y -> Verify.forwards_pred outp y))] in 
+  run_solve oko prog str
+    
+  let invert_optional_boolean oko = match oko with 
+    | Some true -> Some false
+    | Some false -> Some true
+    | _ -> oko
+
+
+  let check_reachability str inp pol outp oko = 
+    check_reachability_k (Verify_Graph.longest_shortest (Verify_Graph.parse_graph pol))
+      str inp pol outp oko
+    
+
+
+  let check = check_reachability
+    
 
