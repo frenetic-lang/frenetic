@@ -112,7 +112,7 @@ module Common = HighLevelSwitch_common.Make (struct
                                 match n with
                                   | 0xFFFF -> (Mod.dlVlan, Core.PopVlan)
                                   | -1 -> (Mod.dlVlan, Core.PushVlan)
-                                  | _ -> (Mod.dlVlan, Core.SetField (OxmVlanVId (v_to_m n)))
+                                  | _ -> (Mod.dlVlan, Core.SetField (OxmVlanVId (v_to_m (n lor 0x1000 (*OFPVID_PRESENT*) ))))
                               end
       | SetField (VlanPcp, n) -> let n = VInt.get_int4 n in
                                  (Mod.dlVlanPcp, Core.SetField (OxmVlanPcp n))
