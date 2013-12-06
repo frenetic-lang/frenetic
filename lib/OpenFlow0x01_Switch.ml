@@ -52,20 +52,6 @@ let switch_handshake_finish (fd : file_descr) : OF.SwitchFeatures.t option Lwt.t
       end
     | false ->
       Lwt.return None
-	
-let switch_handshake (fd : file_descr) : OF.SwitchFeatures.t option Lwt.t =
-  let open Message in
-  match_lwt send_to_switch_fd fd 0l (Hello (Cstruct.of_string "")) with
-  | true -> 
-    begin match_lwt recv_from_switch_fd fd with
-      | Some (_, Hello _) -> 
-	begin 
-	  switch_handshake_finish fd 
-	end
-      | _ -> Lwt.return None
-    end
-  | false -> 
-    Lwt.return None
 
 let switch_handshake_reply (fd : file_descr) : OF.SwitchFeatures.t option Lwt.t =
   let open Message in
@@ -76,30 +62,33 @@ let switch_handshake_reply (fd : file_descr) : OF.SwitchFeatures.t option Lwt.t 
     end
   | false -> 
     Lwt.return None
-
-(* Failed Hello handling no longer done here *)
-(*
-    | Some (_, error) ->
-      let open OF.Error in
-      begin match error with
-      | ErrorMsg (Error (HelloFailed code, bytes)) ->
-        let open HelloFailed in
-        begin match code with
-        | Incompatible -> 
-          Log.error_f
-            "OFPET_HELLO_FAILED received (code: OFPHFC_INCOMPATIBLE)!\n" >>
-          Lwt.return None
-        | Eperm -> 
-          Log.error_f
-            "OFPET_HELLO_FAILED received (code: OFPHFC_EPERM)!\n" >>
-          Lwt.return None
-        end
-      | _ -> Lwt.return None
-      end
-      | None ->
+	
+let switch_handshake (fd : file_descr) : OF.SwitchFeatures.t option Lwt.t =
+  let open Message in
+  match_lwt recv_from_switch_fd fd with
+  | Some (_, Hello _) ->
+    begin
+      switch_handshake_reply fd
+    end
+  | Some (_, error) ->
+    let open OF.Error in
+    begin match error with
+    | ErrorMsg (Error (HelloFailed code, bytes)) ->
+      let open HelloFailed in
+      begin match code with
+      | Incompatible -> 
+        Log.error_f
+          "OFPET_HELLO_FAILED received (code: OFPHFC_INCOMPATIBLE)!\n" >>
         Lwt.return None
-    end 
-*)
+      | Eperm -> 
+        Log.error_f
+          "OFPET_HELLO_FAILED received (code: OFPHFC_EPERM)!\n" >>
+        Lwt.return None
+      end
+    | _ -> Lwt.return None
+    end
+  | None ->
+    Lwt.return None
 
 (******************************************************************************)
 
