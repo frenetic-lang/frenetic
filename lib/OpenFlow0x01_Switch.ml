@@ -42,44 +42,52 @@ let send_to_switch_fd (sock : file_descr) (xid : xid) (msg : msg) : bool Lwt.t =
   lwt sent = Lwt_unix.write sock msg_buf 0 msg_len in
   Lwt.return (sent = msg_len)
 
-let switch_handshake (fd : file_descr) : OF.SwitchFeatures.t option Lwt.t =
+let switch_handshake_finish (fd : file_descr) : OF.SwitchFeatures.t option Lwt.t = 
+  match_lwt send_to_switch_fd fd 0l Message.SwitchFeaturesRequest with
+    | true ->
+      begin match_lwt recv_from_switch_fd fd with 
+        | Some (_, Message.SwitchFeaturesReply feats) ->
+          Lwt.return (Some feats)
+        | _ -> Lwt.return None
+      end
+    | false ->
+      Lwt.return None
+
+let switch_handshake_reply (fd : file_descr) : OF.SwitchFeatures.t option Lwt.t =
   let open Message in
   match_lwt send_to_switch_fd fd 0l (Hello (Cstruct.of_string "")) with
-  | true -> begin
-    match_lwt send_to_switch_fd fd 0l SwitchFeaturesRequest with
-      | true ->
-        begin match_lwt recv_from_switch_fd fd with 
-          | Some (_,SwitchFeaturesReply feats) ->
-            Lwt.return (Some feats)
-          | _ -> Lwt.return None
-        end
-      | false ->
-        Lwt.return None
+  | true -> 
+    begin 
+      switch_handshake_finish fd 
     end
-(* Failed Hello handling no longer done here *)
-(*
-    | Some (_, error) ->
-      let open OF.Error in
-      begin match error with
-      | ErrorMsg (Error (HelloFailed code, bytes)) ->
-        let open HelloFailed in
-        begin match code with
-        | Incompatible -> 
-          Log.error_f
-            "OFPET_HELLO_FAILED received (code: OFPHFC_INCOMPATIBLE)!\n" >>
-          Lwt.return None
-        | Eperm -> 
-          Log.error_f
-            "OFPET_HELLO_FAILED received (code: OFPHFC_EPERM)!\n" >>
-          Lwt.return None
-        end
-      | _ -> Lwt.return None
-      end
-      | None ->
-        Lwt.return None
-    end 
-*)
   | false -> 
+    Lwt.return None
+	
+let switch_handshake (fd : file_descr) : OF.SwitchFeatures.t option Lwt.t =
+  let open Message in
+  match_lwt recv_from_switch_fd fd with
+  | Some (_, Hello _) ->
+    begin
+      switch_handshake_reply fd
+    end
+  | Some (_, error) ->
+    let open OF.Error in
+    begin match error with
+    | ErrorMsg (Error (HelloFailed code, bytes)) ->
+      let open HelloFailed in
+      begin match code with
+      | Incompatible -> 
+        Log.error_f
+          "OFPET_HELLO_FAILED received (code: OFPHFC_INCOMPATIBLE)!\n" >>
+        Lwt.return None
+      | Eperm -> 
+        Log.error_f
+          "OFPET_HELLO_FAILED received (code: OFPHFC_EPERM)!\n" >>
+        Lwt.return None
+      end
+    | _ -> Lwt.return None
+    end
+  | None ->
     Lwt.return None
 
 (******************************************************************************)
@@ -90,6 +98,7 @@ type t = {
   send : (xid * msg) option -> unit;
   recv_stream : (xid * msg) Lwt_stream.t;
   wait_disconnect : unit Lwt.t; (* sleeps until woken by disconnect *)
+
   disconnect : unit Lwt.u;
 }
 
@@ -128,22 +137,30 @@ let rec send_thread
   | true -> send_thread send_stream switch
   | false -> disconnect switch
 
-let handshake (fd : file_descr) : t option Lwt.t = 
-  match_lwt switch_handshake fd with
+let handshake_aux (hs: file_descr -> OF.SwitchFeatures.t option Lwt.t) (fd : file_descr) 
+  : t option Lwt.t 
+  = match_lwt hs fd with
   | None ->
-  	Lwt.return None
+    Lwt.return None
   | Some features -> 
     let (send_stream, send) = Lwt_stream.create () in
     let (recv_stream, recv) = Lwt_stream.create () in
     let (wait_disconnect, disconnect) = Lwt.wait () in
-    let switch = { fd; features; send; recv_stream;
-                   wait_disconnect; disconnect } in
+    let switch = { fd; 
+		   features; 
+		   send; 
+		   recv_stream;
+                   wait_disconnect; 
+		   disconnect } in
     Lwt.async (fun () ->
       Lwt.pick [ send_thread send_stream switch;
                  recv_thread recv switch;
                  switch.wait_disconnect ]);
     Lwt.return (Some switch)
 
+let handshake = handshake_aux switch_handshake 
+
+let handshake_reply = handshake_aux switch_handshake_reply
 
 let send (switch : t) (xid : xid) (msg : msg) : unit Lwt.t =
   switch.send (Some (xid, msg));

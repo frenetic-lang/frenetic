@@ -31,6 +31,14 @@ val features : t -> OpenFlow0x01.SwitchFeatures.t
 	  requests and echo replies. *)
 val handshake : Lwt_unix.file_descr -> t option Lwt.t
 
+
+(** Performs the OpenFlow 1.0 handshake and returns a handle to the
+    switch after the initial [Hello] has been received.
+
+    [handshake_reply] creates an LWT thread in the background that handles echo
+    requests and echo replies. *)
+val handshake_reply : Lwt_unix.file_descr -> t option Lwt.t
+
 (** [send switch_id xid msg] sends [msg] to [switch_id],
     blocking until the send completes. *)
 val send : t 

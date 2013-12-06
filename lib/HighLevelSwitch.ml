@@ -63,7 +63,7 @@ module OFHandshake = struct
         match Header.ver hdr with
         | 0x01 ->
           begin
-            match_lwt OpenFlow0x01_Switch.handshake fd with
+            match_lwt OpenFlow0x01_Switch.handshake_reply fd with
           	| None -> Lwt.return None
           	| Some h -> Lwt.return (Some (OF0x01 (HighLevelSwitch0x01.from_handle h)))
           end
