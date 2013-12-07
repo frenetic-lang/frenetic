@@ -258,9 +258,16 @@
        (Filter Fls))))
 
 ;; PA-Match-All
-;; (forall ((f Field))
-;;   (= (Union (Filter (Test f v))) (Filter Tru)))
-;; punting for now... need to sum over all v!
+(forall ((f Field))
+  (= (Union (Filter (Test f (_ bv64 0)))
+     (Union (Filter (Test f (_ bv64 1)))
+     (Union (Filter (Test f (_ bv64 2)))
+     (Union (Filter (Test f (_ bv64 3)))
+     (Union (Filter (Test f (_ bv64 4)))
+     (Union (Filter (Test f (_ bv64 5)))
+     (Union (Filter (Test f (_ bv64 6)))
+     (Union (Filter (Test f (_ bv64 7)))))))))))
+     (Filter Tru)))
 
 (check-sat)
 (get-model)
