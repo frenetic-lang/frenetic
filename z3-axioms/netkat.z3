@@ -3,7 +3,9 @@
 
 ;; Fields
 (declare-datatypes () 
-  ((Field Switch Port 
+  ((Field 
+      Switch 
+      Port 
       EthType 
       EthSrc 
       EthDst 
@@ -258,16 +260,10 @@
        (Filter Fls))))
 
 ;; PA-Match-All
-(forall ((f Field))
-  (= (Union (Filter (Test f (_ bv64 0)))
-     (Union (Filter (Test f (_ bv64 1)))
-     (Union (Filter (Test f (_ bv64 2)))
-     (Union (Filter (Test f (_ bv64 3)))
-     (Union (Filter (Test f (_ bv64 4)))
-     (Union (Filter (Test f (_ bv64 5)))
-     (Union (Filter (Test f (_ bv64 6)))
-     (Union (Filter (Test f (_ bv64 7)))))))))))
-     (Filter Tru)))
+;; (assert 
+;;     (= (Union (Filter (Test Switch (_ bv0 2)))
+;;               (Filter (Test Switch (_ bv1 2))))
+;;        (Filter Tru)))
 
 (check-sat)
 (get-model)
