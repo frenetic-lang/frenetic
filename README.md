@@ -3,6 +3,8 @@ OCaml OpenFlow
 
 This library supports almost all of OpenFlow 1.0 and also has some experimental support for OpenFlow 1.3.
 
+[![Build Status](https://travis-ci.org/frenetic-lang/ocaml-openflow.png)](https://travis-ci.org/frenetic-lang/ocaml-openflow)
+
 Building from Source
 --------------------
 
