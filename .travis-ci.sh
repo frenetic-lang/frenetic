@@ -30,7 +30,7 @@ eval `opam config env`
 
 for dep in ${GITHUB_DEPENDS}; do
     git clone "https://github.com/frenetic-lang/$dep" &&
-        (cd "$dep" && echo "$dep HEAD" && git show --pretty="format:%H" &&
+        (cd "$dep" && echo "$dep HEAD" && git rev-parse HEAD &&
          ocaml setup.ml -configure && make && make install)
 done
 
