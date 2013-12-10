@@ -158,6 +158,7 @@ val format_flowTable : Format.formatter -> flowTable -> unit
 val string_of_flowTable : flowTable -> string
 val string_of_flow : flow -> string
 val string_of_par : par -> string
+val string_of_action : action -> string
 
 module type SWITCH = sig
 
