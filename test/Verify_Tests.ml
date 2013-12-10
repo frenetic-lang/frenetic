@@ -3,15 +3,15 @@ open VInt
 open NetCore_Verify
 open NetCore_Verify_Util
 open SDN_Types
-open Sat
+open NetKAT_Sat.Sat
 
 
 
 TEST "setup-works" = 
-    Sat.solve (Sat.ZProgram ([])) 
+    solve (ZProgram ([])) 
 
 TEST "declare-var-works" = 
-    Sat.solve (let _ = Sat.fresh Sat.SPacket in Sat.ZProgram ([])) 
+    solve (let _ = fresh SPacket in ZProgram ([])) 
 
 
 TEST "simple-check" = 

@@ -3,7 +3,10 @@ open SDN_Types
 open Types
 open VInt
 open NetCore_Verify
-open Sat
+open NetKAT_Sat.Sat
+open NetKAT_Dehop_Graph
+
+let make_vint v = VInt.Int64 (Int64.of_int v)
 
 let verify (description: string) (initial_state: pred) (program: policy) (final_state: pred) (desired_outcome: bool) : bool = 
 	check description initial_state program final_state (Some desired_outcome)
@@ -57,81 +60,81 @@ let make_packet_3 switch port ethsrc  =
 let make_packet_4 switch port ethsrc ethdst  = 
   And ((make_packet_3 switch port ethsrc), Test (Header SDN_Types.EthDst, make_vint ethdst))
 
-let dijkstra_test topo = Verify_Graph.longest_shortest (Verify_Graph.parse_graph (make_simple_topology topo))
+let dijkstra_test topo = longest_shortest (parse_graph (make_simple_topology topo))
 
-let bool_to_z3 b = if b then Sat.ZTrue else Sat.ZFalse
+let bool_to_z3 b = if b then ZTrue else ZFalse
 
 let map_fun pred pkt = 
   Verify.forwards_pred pred pkt
 
-let fold_pred_and pred: (Sat.zVar list -> Sat.zFormula) = 
+let fold_pred_and pred: (zVar list -> zFormula) = 
   let ret l = 
-	Sat.ZAnd (List.map (map_fun pred) l)
+	ZAnd (List.map (map_fun pred) l)
   in ret
 
-let fold_pred_or pred: (Sat.zVar list -> Sat.zFormula) = 
+let fold_pred_or pred: (zVar list -> zFormula) = 
   let ret l = 
-	Sat.ZOr (List.map (map_fun pred) l)
+	ZOr (List.map (map_fun pred) l)
   in ret
 
-let matches_history preds : (Sat.zVar list -> Sat.zFormula) = 
+let matches_history preds : (zVar list -> zFormula) = 
   let ret l =  
 	let rec recr pktl predl =
 	  (match pktl with 
 		| [] -> (match predl with 
 			| [] -> bool_to_z3 true
 			| _ -> bool_to_z3 false)
-		| hd :: tl -> Sat.ZAnd [(Verify.forwards_pred (List.hd predl) hd); recr tl (List.tl predl) ])
+		| hd :: tl -> ZAnd [(Verify.forwards_pred (List.hd predl) hd); recr tl (List.tl predl) ])
 	in
 	recr l preds
   in
   ret
 
-let fold_pred_or_with_counter (expr : int -> pred) : (Sat.zVar list -> Sat.zFormula) = 
+let fold_pred_or_with_counter (expr : int -> pred) : (zVar list -> zFormula) = 
   let ret l = 
 	let rec recr pktl f count = 
 	  match pktl with
 		| hd :: [] -> Verify.forwards_pred (f count) hd
-		| hd :: tl -> Sat.ZOr [Verify.forwards_pred (f count) hd; recr tl f (count + 1)]
-		| [] -> Sat.ZTrue
+		| hd :: tl -> ZOr [Verify.forwards_pred (f count) hd; recr tl f (count + 1)]
+		| [] -> ZTrue
 	in
 	recr l expr 0
   in
   ret
 
-let junct_juncts_counter outer inner (exprs : (int -> pred) list ) : (Sat.zVar list -> Sat.zFormula) = 
+let junct_juncts_counter outer inner (exprs : (int -> pred) list ) : (zVar list -> zFormula) = 
   let ret (l : 'a list) = 
 	let rec recr (count : int) (pktl : 'a list) (f : int -> pred) = 
 	  match pktl with
 		| hd :: [] -> Verify.forwards_pred (f count) hd
 		| hd :: tl -> inner [Verify.forwards_pred (f count) hd; recr (count + 1) tl f ]
-		| [] -> Sat.ZTrue
+		| [] -> ZTrue
 	in
 	outer (List.map (recr 0 l) exprs)
   in
   ret
 
-let conjunct_disjuncts_counter = junct_juncts_counter (fun n -> Sat.ZAnd n) (fun n -> Sat.ZOr n)
+let conjunct_disjuncts_counter = junct_juncts_counter (fun n -> ZAnd n) (fun n -> ZOr n)
 
-let fold_pred_and_with_counter (expr : int -> pred) : (Sat.zVar list -> Sat.zFormula) = 
+let fold_pred_and_with_counter (expr : int -> pred) : (zVar list -> zFormula) = 
   let ret l = 
 	let rec recr pktl f count = 
 	  match pktl with
 		| hd :: [] -> Verify.forwards_pred (f count) hd
-		| hd :: tl -> Sat.ZAnd [Verify.forwards_pred (f count) hd; recr tl f (count + 1)]
-		| [] -> Sat.ZTrue
+		| hd :: tl -> ZAnd [Verify.forwards_pred (f count) hd; recr tl f (count + 1)]
+		| [] -> ZTrue
 	in
 	recr l expr 0
   in
   ret
 
-let no_waypoint_expr waypoint_switchnum : (Sat.zVar list -> Sat.zFormula) = 
+let no_waypoint_expr waypoint_switchnum : (zVar list -> zFormula) = 
   let ret history = 
-	Sat.ZNot ((fold_pred_or (Test (Switch, make_vint waypoint_switchnum))) history)
+	ZNot ((fold_pred_or (Test (Switch, make_vint waypoint_switchnum))) history)
   in 
   ret
 
-(* let equal_fields fieldname  : (Sat.zVar list -> Sat.zFormula) = 
+(* let equal_fields fieldname  : (zVar list -> zFormula) = 
   (Verify.equal_single_field fieldname) *)
 
 let exists_waypoint_in_one_history waypoint_switchnum = 
