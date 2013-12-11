@@ -195,6 +195,7 @@ let make_string_of formatter x =
 let string_of_flowTable = make_string_of format_flowTable
 let string_of_flow = make_string_of format_flow
 let string_of_par = make_string_of format_par
+let string_of_action = make_string_of format_action
 
 module type SWITCH = sig
   type t
