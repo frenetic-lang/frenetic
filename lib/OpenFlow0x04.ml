@@ -4,7 +4,6 @@ open Printf
 open Cstruct
 open Cstruct.BE
 open OpenFlow0x04_Core
-open OpenFlow0x04_Misc
 open List
 open Packet
 

@@ -1,0 +1,16 @@
+# OASIS_START
+# DO NOT EDIT (digest: 3f900b94e35614b191785b4365be9bd8)
+OpenFlow0x01_Platform
+OpenFlow0x04_Platform
+OpenFlow0x01_Switch
+OpenFlow0x04_Switch
+OpenFlow0x01_TxSwitch
+OpenFlow0x04_TxSwitch
+OpenFlow0x04_Misc
+Socket
+SDN
+HighLevelSwitch
+HighLevelSwitch_common
+HighLevelSwitch0x01
+HighLevelSwitch0x04
+# OASIS_STOP

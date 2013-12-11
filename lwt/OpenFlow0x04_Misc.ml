@@ -7,7 +7,7 @@ module Lwt_channel =
 
     let of_pushed_stream stream push = { stream; push }
 
-    let create () = 
+    let create () =
       let (stream, push) = Lwt_stream.create () in
       of_pushed_stream stream push
 

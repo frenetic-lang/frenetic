@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 656ec4af9d741089372d0b19d785f894) *)
+(* DO NOT EDIT (digest: fd6918c1d1ab5c6880a05f8f6677de23) *)
 This is the INSTALL file for the openflow distribution.
 
 This package uses OASIS to generate its build system. See section OASIS for
@@ -11,9 +11,9 @@ Dependencies
 In order to compile this package, you will need:
 * ocaml for all, test all_tests, doc doc
 * findlib
-* lwt for library openflow
 * cstruct for library openflow
 * packet for library openflow, executable test0, executable testtool
+* lwt for library lwt
 * quickcheck for library quickcheck, executable testtool
 * oUnit for executable test0, executable testtool
 * pa_ounit for executable test0, executable testtool

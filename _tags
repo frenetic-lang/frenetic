@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: fc7b5a1f93c24b9fcbc80683f7afd19c)
+# DO NOT EDIT (digest: 12ae6cb25c71b68d2df632994a6ecf0b)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -17,22 +17,26 @@
 "lib/openflow.cmxs": use_openflow
 <lib/*.ml{,i}>: pkg_packet
 <lib/*.ml{,i}>: pkg_str
-<lib/*.ml{,i}>: pkg_lwt
-<lib/*.ml{,i}>: pkg_lwt.unix
 <lib/*.ml{,i}>: pkg_cstruct
 <lib/*.ml{,i}>: pkg_cstruct.syntax
-<lib/*.ml{,i}>: pkg_lwt.syntax
+# Library lwt
+"lwt/lwt.cmxs": use_lwt
+<lwt/*.ml{,i}>: use_openflow
+<lwt/*.ml{,i}>: pkg_packet
+<lwt/*.ml{,i}>: pkg_lwt
+<lwt/*.ml{,i}>: pkg_lwt.unix
+<lwt/*.ml{,i}>: pkg_lwt.syntax
+<lwt/*.ml{,i}>: pkg_str
+<lwt/*.ml{,i}>: pkg_cstruct
+<lwt/*.ml{,i}>: pkg_cstruct.syntax
 # Library quickcheck
 "quickcheck/quickcheck.cmxs": use_quickcheck
 <quickcheck/*.ml{,i}>: use_openflow
 <quickcheck/*.ml{,i}>: pkg_packet
 <quickcheck/*.ml{,i}>: pkg_quickcheck
 <quickcheck/*.ml{,i}>: pkg_str
-<quickcheck/*.ml{,i}>: pkg_lwt
-<quickcheck/*.ml{,i}>: pkg_lwt.unix
 <quickcheck/*.ml{,i}>: pkg_cstruct
 <quickcheck/*.ml{,i}>: pkg_cstruct.syntax
-<quickcheck/*.ml{,i}>: pkg_lwt.syntax
 # Executable testtool
 "test/Test.byte": use_quickcheck
 "test/Test.byte": use_openflow
@@ -42,37 +46,37 @@
 "test/Test.byte": pkg_pa_ounit.syntax
 "test/Test.byte": pkg_quickcheck
 "test/Test.byte": pkg_str
-"test/Test.byte": pkg_lwt
-"test/Test.byte": pkg_lwt.unix
 "test/Test.byte": pkg_cstruct
 "test/Test.byte": pkg_cstruct.syntax
-"test/Test.byte": pkg_lwt.syntax
 <test/*.ml{,i}>: use_quickcheck
 <test/*.ml{,i}>: pkg_quickcheck
 # Executable test0
+"test/Test0.byte": use_lwt
 "test/Test0.byte": use_openflow
 "test/Test0.byte": pkg_packet
 "test/Test0.byte": pkg_oUnit
 "test/Test0.byte": pkg_pa_ounit
 "test/Test0.byte": pkg_pa_ounit.syntax
-"test/Test0.byte": pkg_str
 "test/Test0.byte": pkg_lwt
 "test/Test0.byte": pkg_lwt.unix
+"test/Test0.byte": pkg_lwt.syntax
+"test/Test0.byte": pkg_str
 "test/Test0.byte": pkg_cstruct
 "test/Test0.byte": pkg_cstruct.syntax
-"test/Test0.byte": pkg_lwt.syntax
+<test/*.ml{,i}>: use_lwt
 <test/*.ml{,i}>: use_openflow
 <test/*.ml{,i}>: pkg_packet
 <test/*.ml{,i}>: pkg_oUnit
 <test/*.ml{,i}>: pkg_pa_ounit
 <test/*.ml{,i}>: pkg_pa_ounit.syntax
-<test/*.ml{,i}>: pkg_str
 <test/*.ml{,i}>: pkg_lwt
 <test/*.ml{,i}>: pkg_lwt.unix
+<test/*.ml{,i}>: pkg_lwt.syntax
+<test/*.ml{,i}>: pkg_str
 <test/*.ml{,i}>: pkg_cstruct
 <test/*.ml{,i}>: pkg_cstruct.syntax
-<test/*.ml{,i}>: pkg_lwt.syntax
 # OASIS_STOP
 <lib/*.ml>: syntax_camlp4o
+<lwt/*.ml>: syntax_camlp4o
 <test/*.ml>: syntax_camlp4o
 <of13test/*.ml>: syntax_camlp4o
