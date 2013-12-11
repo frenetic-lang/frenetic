@@ -3,19 +3,17 @@ Name:        packet
 Version:     0.1.1
 Synopsis:    Serialization for some common network packets, including
              ethernet frames, IP, TCP, and ARP.
-Authors:     Nate Foster, Arjun Guha, Mark Reitblatt, and Cole Schlesinger
+Authors:     Spiridon Eliopoulos, Andrew Ferguson, Nate Foster, Arjun Guha,
+             Mark Reitblatt, and Cole Schlesinger
 License:     LGPL
-Plugins:     META (0.3), StdFiles (0.3), DevFiles (0.3)
+Plugins:     META (0.3), DevFiles (0.3)
 BuildTools:
   ocamlbuild,
   ocamldoc
 
-XStdFilesREADME: False
-XStdFilesAUTHORS: FAlse
-
 Flag quickcheck
-    Description: build the packet.quickcheck library
-    Default: False
+  Description: build the packet.quickcheck library
+  Default: False
 
 Library packet
   Path: lib
@@ -26,7 +24,8 @@ Library packet
 Document doc
   Title: Packet documentation
   Type: ocamlbuild (0.3)
-  XOCamlBuildPath: lib
+  XOCamlBuildPath:
+    lib
   XOCamlBuildModules:
     Packet
 
