@@ -1,13 +1,3 @@
-module Log : sig
-
-  val set_log_file : bool -> string -> unit
-
-  val get_log_chan : unit -> out_channel
-
-  val printf : ('a, out_channel, unit) format -> 'a
-
-end
-
 (** [Lwt_channel] is a cleaner than [Lwt_stream]. *)
 module Lwt_channel : sig
 

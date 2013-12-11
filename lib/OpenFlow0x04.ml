@@ -952,7 +952,7 @@ module FlowModCommand = struct
   let n = ref 0L
 
   let marshal (t : t) : int = match t with
-    | AddFlow -> n := Int64.succ !n; OpenFlow0x04_Misc.Log.printf "created %Ld flow table entries.\n%!" !n;  ofp_flow_mod_command_to_int OFPFC_ADD
+    | AddFlow -> n := Int64.succ !n; ofp_flow_mod_command_to_int OFPFC_ADD
     | ModFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY
     | ModStrictFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY_STRICT
     | DeleteFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE
@@ -1265,7 +1265,6 @@ module PacketIn = struct
       | None -> NotBuffered pkt_bits
       | Some n -> Buffered (n,pkt_bits)
     in
-    let _ = OpenFlow0x04_Misc.Log.printf "[PacketIn] okay \n%!" in 
     { pi_total_len = total_len;
       pi_reason = reason;
       pi_table_id = table_id;
