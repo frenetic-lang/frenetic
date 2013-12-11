@@ -22,12 +22,12 @@ let test_bit (n:int) (x:int32) : bool =
 
 let get_byte32 (n : Int32.t) (i : int) : int = 
   let open Int32 in
-  if i < 0 or i > 3 then
+  if i < 0 || i > 3 then
     raise (Invalid_argument "get_byte32 index out of range");
   to_int (logand 0xFFl (shift_right_logical n (8 * i)))
 
 let get_byte (n:int64) (i:int) : int =
-  if i < 0 or i > 5 then
+  if i < 0 || i > 5 then
     raise (Invalid_argument "Int64.get_byte index out of range");
   Int64.to_int (Int64.logand 0xFFL (Int64.shift_right_logical n (8 * i)))
 
