@@ -27,12 +27,6 @@ module Lwt_channel : sig
   val to_stream : 'a t -> 'a Lwt_stream.t
 
 end
-  
-
-val test_bit : int -> Int32.t -> bool
-val clear_bit : int -> Int32.t -> Int32.t
-val set_bit : int -> Int32.t -> Int32.t
-val bit : Int32.t -> int -> bool -> Int32.t
 
 module type SAFESOCKET = sig
   type t = Lwt_unix.file_descr

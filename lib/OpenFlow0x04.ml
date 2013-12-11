@@ -1143,13 +1143,13 @@ end
 module Capabilities = struct
 
   let parse (bits : int32) : capabilities =
-    { port_blocked = test_bit 7 bits; 
-      queue_stats = test_bit 6 bits; 
-      ip_reasm = test_bit 5 bits; 
-      group_stats = test_bit 3 bits; 
-      port_stats = test_bit 2 bits; 
-      table_stats = test_bit 1 bits; 
-      flow_stats = test_bit 0 bits;
+    { port_blocked = Bits.test_bit 7 bits;
+      queue_stats = Bits.test_bit 6 bits;
+      ip_reasm = Bits.test_bit 5 bits;
+      group_stats = Bits.test_bit 3 bits;
+      port_stats = Bits.test_bit 2 bits;
+      table_stats = Bits.test_bit 1 bits;
+      flow_stats = Bits.test_bit 0 bits;
     }
 
 end
@@ -1180,9 +1180,9 @@ end
 module PortState = struct
 
   let parse bits : portState =
-    { link_down = test_bit 0 bits;
-      blocked = test_bit 1 bits;
-      live = test_bit 2 bits
+    { link_down = Bits.test_bit 0 bits;
+      blocked = Bits.test_bit 1 bits;
+      live = Bits.test_bit 2 bits
     }
 end
 

@@ -27,6 +27,7 @@ Library openflow
     lwt.syntax,
     packet
   InternalModules:
+    Bits,
     Misc,
     ModComposition,
     HighLevelSwitch_common,
