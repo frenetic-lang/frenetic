@@ -20,6 +20,8 @@ Library packet
   BuildDepends: str, cstruct, cstruct.syntax
   Modules: Packet, Checksum
   CSources: checksum_stubs.c
+  CCOpt: -g
+  ByteOpt: -g
 
 Document doc
   Title: Packet documentation
