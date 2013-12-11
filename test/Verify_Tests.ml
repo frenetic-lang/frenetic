@@ -1,7 +1,7 @@
 open Types
 open VInt
-open NetCore_Verify
-open NetCore_Verify_Util
+open NetKAT_Verify_Reachability
+open NetKAT_Verify_Tools
 open SDN_Types
 open NetKAT_Sat.Sat
 
@@ -17,8 +17,8 @@ TEST "declare-var-works" =
 TEST "simple-check" = 
   verify "are tests even running" 
 	(make_packet_2 1 1)
-	(make_simple_topology (make_transition (1, 1) (2, 1)))
-	(make_packet_2 2 1)
+	(make_simple_topology (make_transition (1, 1) (2, 2)))
+	(make_packet_2 2 2)
 	true 
 
 

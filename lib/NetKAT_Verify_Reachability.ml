@@ -57,7 +57,7 @@ module Verify = struct
     let hash = Hashtbl.create 0 in 
     let reset_state () = Hashtbl.clear hash; in
     let encode_packet_equals = 
-      (fun (pkt1: zVar) (pkt2: zVar) (except :header)  -> 
+      (fun (pkt1: zTerm) (pkt2: zTerm) (except :header)  -> 
 	ZTerm (TApp (
 	  (if Hashtbl.mem hash except
 	   then
@@ -76,7 +76,7 @@ module Verify = struct
 				  (ZAnd(l))) in
 	      Hashtbl.add hash except new_except;
 	      new_except), 
-	  [TVar pkt1; TVar pkt2]))) in
+	  [pkt1; pkt2]))) in
     encode_packet_equals, reset_state
 
   let encode_vint (v: VInt.t): zTerm = 
@@ -131,7 +131,7 @@ module Verify = struct
   let mod_fun,reset_mod_fun = 
     let hashmap = Hashtbl.create 0 in
     let mod_fun f =  
-      let packet_equals_fun = encode_packet_equals "x" "y" f in
+      let packet_equals_fun = encode_packet_equals (TVar "x") (TVar "y") f in
       try ZTerm (Hashtbl.find hashmap packet_equals_fun)
       with Not_found -> 
 	let macro = z3_macro ("mod_" ^ (serialize_header f)) [("x", SPacket); ("y", SPacket); ("v", SInt)] SBool 
@@ -146,6 +146,9 @@ module Verify = struct
 	ZTerm (Hashtbl.find hashmap packet_equals_fun) in	
     let reset_mod_fun () = Hashtbl.clear hashmap in
     mod_fun,reset_mod_fun
+
+  let test_previous_packet curr prev = 
+    ZEquals( prev, (ZApp (ZTerm (TVar "PreviousPacket"), [curr])))
 
   let rec unzip_list_tuple (t : ('a * 'b) list) : ('a list * 'b list) = 
     match t with 
@@ -166,16 +169,24 @@ module Verify = struct
 	let outpkt = fresh SPacket in
 	let outpkt_t = ZTerm (TVar outpkt) in
 	let modfn = mod_fun f in
-	ZApp (modfn, [inpkt_t; outpkt_t; ZTerm (encode_vint v)]),  [outpkt]
+	let hist_contraint = test_previous_packet outpkt_t inpkt_t in
+	ZAnd [hist_contraint; 
+	      ZApp (modfn, [inpkt_t; outpkt_t; ZTerm (encode_vint v)])],  [outpkt]
       | Par (pol1, pol2) -> 
 	let formu1, out1 = forwards_pol pol1 inpkt in
 	let formu2, out2 = forwards_pol pol2 inpkt in
 	if forall_on then
 	  ZOr[formu1;formu2], out1@out2
 	else
+	  let blacklisting_comment l = 
+	    Printf.sprintf "blacklisting %s " (List.fold_left (fun x a -> Printf.sprintf "%s %s" x a) "" l) in
 	  ZAnd[
-	    ZOr[formu1; ZAnd (List.map (fun x -> ZEquals (ZTerm (TVar x), nopacket)) out1)];
-	    ZOr[formu2; ZAnd (List.map (fun x -> ZEquals (ZTerm (TVar x), nopacket)) out2)]], out1@out2
+	    ZOr[formu1; ZComment 
+	      ( blacklisting_comment out1,
+		(ZAnd (List.map (fun x -> ZEquals (ZTerm (TVar x), nopacket)) out1)))];
+	    ZOr[formu2; ZComment 
+	      ( blacklisting_comment out2, 
+		ZAnd (List.map (fun x -> ZEquals (ZTerm (TVar x), nopacket)) out2))]], out1@out2
       | Seq (pol1, pol2) -> 
 	let formu', midpkts = forwards_pol pol1 inpkt in
 	let outformu, outpkts = unzip_list_tuple 
@@ -201,6 +212,7 @@ module Verify = struct
 
   let rec forwards_k forall p_t_star inpkt k : zFormula * (zVar list) = 
     let forwards_k = forwards_k forall in
+   
     match p_t_star with 
       | Star (Seq (p, t)) -> 
 	let pol_form, polout = forwards_pol forall p inpkt in
@@ -218,23 +230,17 @@ module Verify = struct
       | _ -> failwith "NetKAT program not in form (p;t)*"
 
   let forwards_star p_t_star inpkt k : zFormula * (zVar list) = 
+    let blacklisting_comment l = 
+      Printf.sprintf "blacklisting %s " (List.fold_left (fun x a -> Printf.sprintf "%s %s" x a) "" l) in
     let forwards_k =  forwards_k false p_t_star inpkt  in
     let combine_results x = 
       let form,set = forwards_k x in
-      let form = ZOr[form; ZAnd (List.map (fun x -> ZEquals (ZTerm (TVar x), nopacket)) set)] in
+      let form = ZOr[form; ZComment (blacklisting_comment set,
+	ZAnd (List.map (fun x -> ZEquals (ZTerm (TVar x), nopacket)) set))] in
       ZComment ( Printf.sprintf "Attempting to forward in %u hops" x, form ), set in
     let forms, finalset = unzip_list_tuple ((List.map combine_results (range 0 k))) in
     ZAnd forms, List.flatten finalset
 
-  let forwards_star_forall p_t_star inpkt k : zFormula * (zVar list) = 
-    let forwards_k = forwards_k true p_t_star inpkt  in
-    let combine_results x = 
-      let form,set = forwards_k x in
-      ZComment ( Printf.sprintf "Attempting to forward in %u hops" x, form ), set in
-    let forms, finalset = unzip_list_tuple ((List.map combine_results (range 0 k))) in
-    ZOr forms, List.flatten finalset
-  
-      
 end
 
 module NetCore_Gensym = struct
@@ -266,8 +272,9 @@ open NetCore_Gensym
             true
           else
             (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; 
-	     (let file = (Filename.get_temp_dir_name ()) ^ Filename.dir_sep ^ "debug-" ^ (to_string (gensym ()))  in
-		(Printf.printf "Offending program is in %s.rkt\n" file;
+	     (let file = (Filename.get_temp_dir_name ()) ^ Filename.dir_sep ^ "debug-" ^ 
+		(to_string (gensym ())) ^ ".rkt" in
+		(Printf.printf "Offending program is in %s\n" file;
 		 let oc = open_out (file) in 
 		 Printf.fprintf oc "%s\n" (Sat.serialize_program prog);
 		 close_out oc));
@@ -285,10 +292,15 @@ oko: bool option. has to be Some. True if you think it should be satisfiable.
 
   let check_reachability_k  k str inp pol outp oko =
   let x = Sat.fresh Sat.SPacket in
+  let clean_history = Verify.test_previous_packet (Sat.ZTerm (Sat.TVar x)) Sat.Z3macro.nopacket in
   let forwards_star_formula, forwards_star_result = Verify.forwards_star pol x k in
   let prog =     Sat.ZProgram [ 
     Sat.ZDeclareAssert (Verify.forwards_pred inp x)
+    ; Sat.ZDeclareAssert clean_history
     ; Sat.ZDeclareAssert forwards_star_formula
+    ; Sat.ZToplevelComment (Printf.sprintf "We are choosing between %s " 
+			      (List.fold_left (fun x a -> Printf.sprintf "%s %s" x a) "" 
+				 forwards_star_result))
     ; Sat.ZDeclareAssert (Verify.exists forwards_star_result (fun y -> Verify.forwards_pred outp y))] in 
   run_solve oko prog str
 

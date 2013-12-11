@@ -2,7 +2,7 @@
 open SDN_Types
 open Types
 open VInt
-open NetCore_Verify
+open NetKAT_Verify_Reachability
 open NetKAT_Sat.Sat
 open NetKAT_Dehop_Graph
 

@@ -54,6 +54,22 @@ module Sat = struct
   let fresh_cell = ref []
   let decl_list = ref []
 
+  let fresh_named s str = 
+    let l = !fresh_cell in  
+    let x = match s with
+      | SPacket -> 
+        Printf.sprintf "_pkt%s" str
+      | SInt -> 
+        Printf.sprintf "_n%s" str
+      | SSet -> 
+        Printf.sprintf "_s%s" str
+      | SFunction _ -> 
+        Printf.sprintf "_f%s" str 
+      | _ -> failwith "not implemented in fresh" in 
+    fresh_cell := ZDeclareVar(x,s)::l;
+    x
+
+
   let fresh s = 
     let l = !fresh_cell in  
     let n = List.length l in 
@@ -230,6 +246,7 @@ module Sat = struct
     
   module Z3macro = struct
     let nopacket = (ZTerm (TVar "nopacket")) 
+
   end
   open Z3macro
       
