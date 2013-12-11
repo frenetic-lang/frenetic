@@ -179,6 +179,17 @@ let pol_topo = starify pol topo
      (make_packet_2 3 1)
      true )
 
+    TEST "why isn't this over-constraining?" = 
+  (verify "why isn't this over-constraining?"
+     (make_packet_2 1 1)
+     (make_simple_topology
+	(combine_topologies 
+	   [(make_transition (1, 1) (2, 2));
+	    (make_transition (1, 1) (3, 3))]))
+     (make_packet_2 2 2)
+     true
+  )
+
 (*
 	TEST "restrict6-history" = 
   (verify_history "restrict6-history"
