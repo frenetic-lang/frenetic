@@ -348,6 +348,17 @@ oko: bool option. has to be Some. True if you think it should be satisfiable.
     check_reachability_k k
       str inp pol outp [(fun y -> Sat.ZComment ("waypoint check", Verify.not_in_history waypoint y k))] (Some (not oko))
 
+  (*slow version*)
+  let check_slice_isolation str inpts pol outpts not_in_slice oko = 
+    List.map
+    (fun inpt -> 
+      List.map 
+	(fun outp -> 
+	  List.map 
+	    (fun not_in_slice -> check_waypoint str inpt pol outp not_in_slice (not oko)) not_in_slice)
+	outpts)
+      inpts
+
   let check = check_reachability
     
 
