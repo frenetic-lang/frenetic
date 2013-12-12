@@ -34,6 +34,6 @@ for dep in ${GITHUB_DEPENDS}; do
          ocaml setup.ml -configure && make && make install)
 done
 
-ocaml setup.ml -configure --enable-tests --enable-quickcheck
+ocaml setup.ml -configure --enable-tests --enable-quickcheck --enable-lwt
 make
 make test
