@@ -38,6 +38,8 @@ type int48 = Int64.t
 type bytes = string
 
 type switchId = VInt.t
+type portId = VInt.t
+type queueId = VInt.t
 
 type bufferId =
   | OF10BufferId of int32
@@ -48,7 +50,7 @@ exception Unsupported of string
 (** {1 Packet Forwarding} *)
 
 type port =
-  | PhysicalPort of VInt.t
+  | PhysicalPort of portId
   | AllPorts
   | Controller of int
 
@@ -75,9 +77,10 @@ type pattern = fieldVal FieldMap.t
 
 type action =
   | OutputAllPorts
-  | OutputPort of VInt.t
+  | OutputPort of portId
+  | Enqueue of portId * queueId
   | SetField of field * fieldVal
-
+ 
 type seq = action list
 
 type par = seq list
@@ -155,17 +158,4 @@ val format_flowTable : Format.formatter -> flowTable -> unit
 val string_of_flowTable : flowTable -> string
 val string_of_flow : flow -> string
 val string_of_par : par -> string
-
-module type SWITCH = sig
-
-  type t
-  (** [setup_flow_table sw tbl] returns after [sw] is configured to implement 
-      [tbl]. [setup_flow_table] fails if [sw] runs a version of OpenFlow that
-      does not support the features that [tbl] requires. *)
-  val setup_flow_table : t -> flowTable -> unit Lwt.t
-  val flow_stats_request : t -> pattern -> flowStats list Lwt.t
-  val packet_in : t -> pktIn Lwt_stream.t
-  val packet_out : t -> payload -> par -> unit Lwt.t
-  val disconnect : t -> unit Lwt.t
-  val features : t -> switchFeatures
-end
+val string_of_action : action -> string

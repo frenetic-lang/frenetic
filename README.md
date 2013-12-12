@@ -1,48 +1,37 @@
 OCaml OpenFlow
-========
+==============
 
-This library supports almost all of OpenFlow 1.0 and also has some experimental support for OpenFlow 1.3.
+A serialization library for OpenFlow, with support for writing Lwt-based
+OpenFlow controllers.
+
+
+This library supports almost all of OpenFlow 1.0 and also has some experimental
+support for OpenFlow 1.3.
+
+[![Build Status](https://travis-ci.org/frenetic-lang/ocaml-openflow.png)](https://travis-ci.org/frenetic-lang/ocaml-openflow)
+
 
 Building from Source
 --------------------
 
-Prerequisites:
+If you want to write a lwt-based controller:
 
-- OCaml 4.0 or higher <http://caml.inria.fr/download.en.html>
+    $ opam install openflow lwt
 
-- OPAM <http://opam.ocamlpro.com>
+This installed the `openflow.lwt` subpackage.
 
-- The following OCaml libraries:
+If you just want serialization support:
 
-  - ocamlfind
-  - lwt
-  - cstruct 
-  - oUnit
-  - pa_oUnit
-  - quickcheck
+    $ opam install openflow
 
-  These are available on OPAM:
 
-  ```
-  $ opam install ocamlfind cstruct lwt ounit quickcheck pa_ounit
-  ```
+Hacking
+-------
 
-- The [ocaml-packet](https://github.com/frenetic-lang/ocaml-packet) library.
-  It is recommended that you build this from source as well.
+The `_oasis` file specifies all the dependencies. If you're hacking on the
+library, you should install the dependencies needed to build the main
+library, the sub-packages, and the test suite.
 
-Building:
-
-From the root directory of the repository, simply run `make`
-
-  ```
-  $ make
-  ```
-
-Installing:
-
-Run `make install` from the root directory of the repository.
-
-  ```
-  $ make install
-  ```
+    $ opam install ocamlfind cstruct quickcheck ounit pa_ounit lwt
+    $ ./configure --enable-tests --enable-quickcheck --enable-lwt
 

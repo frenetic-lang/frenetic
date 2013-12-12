@@ -12,6 +12,8 @@ type int48 = Int64.t
 type bytes = string
 
 type switchId = VInt.t
+type portId = VInt.t
+type queueId = VInt.t
 
 type bufferId =
   | OF10BufferId of int32
@@ -44,10 +46,10 @@ end)
 
 type pattern = fieldVal FieldMap.t
 
-
 type action =
   | OutputAllPorts
-  | OutputPort of VInt.t
+  | OutputPort of portId
+  | Enqueue of portId * queueId
   | SetField of field * fieldVal
 
 type seq = action list
@@ -129,9 +131,14 @@ let format_pattern (fmt:Format.formatter) (p:pattern) : unit =
 
 let rec format_action (fmt:Format.formatter) (a:action) : unit = 
   match a with         
-  | OutputAllPorts -> Format.fprintf fmt "OutputAllPorts"
-  | OutputPort(n) -> Format.fprintf fmt "OutputPort(%a)" VInt.format n
-  | SetField(f,v) -> Format.fprintf fmt "SetField(%a,%a)" format_field f VInt.format v
+  | OutputAllPorts -> 
+    Format.fprintf fmt "OutputAllPorts"
+  | OutputPort(n) -> 
+    Format.fprintf fmt "OutputPort(%a)" VInt.format n
+  | Enqueue(m,n) -> 
+    Format.fprintf fmt "Enqueue(%a,%a)" VInt.format m VInt.format n
+  | SetField(f,v) -> 
+    Format.fprintf fmt "SetField(%a,%a)" format_field f VInt.format v
 
 let rec format_seq (fmt : Format.formatter) (seq : seq) : unit =
   match seq with
@@ -188,13 +195,4 @@ let make_string_of formatter x =
 let string_of_flowTable = make_string_of format_flowTable
 let string_of_flow = make_string_of format_flow
 let string_of_par = make_string_of format_par
-
-module type SWITCH = sig
-  type t
-  val setup_flow_table : t -> flowTable -> unit Lwt.t
-  val flow_stats_request : t -> pattern -> flowStats list Lwt.t
-  val packet_in : t -> pktIn Lwt_stream.t
-  val packet_out : t -> payload -> par -> unit Lwt.t
-  val disconnect : t -> unit Lwt.t
-  val features : t -> switchFeatures  
-end
+let string_of_action = make_string_of format_action

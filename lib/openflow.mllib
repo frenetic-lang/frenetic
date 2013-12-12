@@ -1,26 +1,14 @@
 # OASIS_START
-# DO NOT EDIT (digest: 928425b44e9cbef0edfbe90a017b2ecc)
+# DO NOT EDIT (digest: ab0739819ca2e421dce152ae0cffcfc3)
 VInt
-Socket
 OpenFlow0x01
 OpenFlow0x01_Core
 OpenFlow0x01_Stats
-OpenFlow0x01_Platform
 OpenFlow0x04
 OpenFlow0x04_Core
-OpenFlow0x04_Platform
-OpenFlow0x04_Misc
-OpenFlow0x01_Switch
-OpenFlow0x04_Switch
-OpenFlow0x01_TxSwitch
-OpenFlow0x04_TxSwitch
 SDN_Types
-SDN
+Bits
 Misc
 ModComposition
-HighLevelSwitch_common
-HighLevelSwitch
-HighLevelSwitch0x01
-HighLevelSwitch0x04
 GroupTable0x04
 # OASIS_STOP

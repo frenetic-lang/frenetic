@@ -1,61 +1,75 @@
 OASISFormat: 0.3
 Name:        openflow
-Version:     0.1.1
+Version:     0.2.0
 Synopsis:    Serialization library for OpenFlow
 Authors:     Marco Canini, Nate Foster, Arjun Guha, Mark Reitblatt,
              Cole Schlesinger, and Laurent Vanbever
 License:     LGPL
-Plugins:     META (0.3), StdFiles (0.3), DevFiles (0.3)
+Plugins:     META (0.3), DevFiles (0.3)
 BuildTools:
   ocamlbuild,
   ocamldoc
-XStdFilesREADME: False
-XStdFilesAUTHORS: False
 
 Flag quickcheck
     Description: build the openflow.quickcheck library
+    Default: False
+
+Flag lwt
+    Description: build the openflow.lwt library
     Default: False
 
 Library openflow
   Path: lib
   BuildDepends:
     str,
-    lwt,
-    lwt.unix,
     cstruct,
     cstruct.syntax,
-    lwt.syntax,
     packet
   InternalModules:
+    Bits,
     Misc,
     ModComposition,
-    HighLevelSwitch_common,
-    HighLevelSwitch,
-    HighLevelSwitch0x01,
-    HighLevelSwitch0x04,
     GroupTable0x04
   Modules:
     VInt,
-    Socket,
     OpenFlow0x01,
     OpenFlow0x01_Core,
     OpenFlow0x01_Stats,
-    OpenFlow0x01_Platform,
     OpenFlow0x04,
     OpenFlow0x04_Core,
+    SDN_Types
+
+Library lwt
+  Findlibparent: openflow
+  Findlibname: lwt
+  Path: lwt
+  Build$: flag(lwt)
+  BuildDepends:
+    lwt,
+    lwt.unix,
+    lwt.syntax,
+    openflow
+  InternalModules:
+    HighLevelSwitch,
+    HighLevelSwitch_common,
+    HighLevelSwitch0x01,
+    HighLevelSwitch0x04
+  Modules:
+    OpenFlow0x01_Platform,
     OpenFlow0x04_Platform,
-    OpenFlow0x04_Misc,
     OpenFlow0x01_Switch,
     OpenFlow0x04_Switch,
     OpenFlow0x01_TxSwitch,
     OpenFlow0x04_TxSwitch,    
-    SDN_Types,
+    OpenFlow0x04_Misc,
+    Socket,
     SDN
 
 Library quickcheck
     Findlibparent: openflow
     Findlibname: quickcheck
     Path: quickcheck
+    Build$: flag(quickcheck)
     BuildDepends:
         quickcheck,
         openflow
@@ -81,6 +95,7 @@ Document doc
 Executable testtool
   Path: test
   Install: False
+  Build$: flag(quickcheck) && flag(tests)
   MainIs: Test.ml
   BuildDepends:
     packet,
@@ -95,10 +110,11 @@ Executable testtool
 Executable test0
   Path: test
   Install: False
+  Build$: flag(quickcheck) && flag(tests)
   MainIs: Test0.ml
-  BuildDepends: packet,openflow,oUnit,pa_ounit,pa_ounit.syntax
+  BuildDepends: packet,openflow,openflow.lwt,oUnit,pa_ounit,pa_ounit.syntax
 
 Test all_tests
   Command: $testtool inline-test-runner dummy
-  Run$: flag(tests)
+  Run$:  flag(quickcheck) && flag(tests)
   TestTools: testtool

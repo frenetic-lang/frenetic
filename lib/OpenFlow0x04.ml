@@ -4,7 +4,6 @@ open Printf
 open Cstruct
 open Cstruct.BE
 open OpenFlow0x04_Core
-open OpenFlow0x04_Misc
 open List
 open Packet
 
@@ -952,7 +951,7 @@ module FlowModCommand = struct
   let n = ref 0L
 
   let marshal (t : t) : int = match t with
-    | AddFlow -> n := Int64.succ !n; OpenFlow0x04_Misc.Log.printf "created %Ld flow table entries.\n%!" !n;  ofp_flow_mod_command_to_int OFPFC_ADD
+    | AddFlow -> n := Int64.succ !n; ofp_flow_mod_command_to_int OFPFC_ADD
     | ModFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY
     | ModStrictFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY_STRICT
     | DeleteFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE
@@ -1143,13 +1142,13 @@ end
 module Capabilities = struct
 
   let parse (bits : int32) : capabilities =
-    { port_blocked = test_bit 7 bits; 
-      queue_stats = test_bit 6 bits; 
-      ip_reasm = test_bit 5 bits; 
-      group_stats = test_bit 3 bits; 
-      port_stats = test_bit 2 bits; 
-      table_stats = test_bit 1 bits; 
-      flow_stats = test_bit 0 bits;
+    { port_blocked = Bits.test_bit 7 bits;
+      queue_stats = Bits.test_bit 6 bits;
+      ip_reasm = Bits.test_bit 5 bits;
+      group_stats = Bits.test_bit 3 bits;
+      port_stats = Bits.test_bit 2 bits;
+      table_stats = Bits.test_bit 1 bits;
+      flow_stats = Bits.test_bit 0 bits;
     }
 
 end
@@ -1180,9 +1179,9 @@ end
 module PortState = struct
 
   let parse bits : portState =
-    { link_down = test_bit 0 bits;
-      blocked = test_bit 1 bits;
-      live = test_bit 2 bits
+    { link_down = Bits.test_bit 0 bits;
+      blocked = Bits.test_bit 1 bits;
+      live = Bits.test_bit 2 bits
     }
 end
 
@@ -1265,7 +1264,6 @@ module PacketIn = struct
       | None -> NotBuffered pkt_bits
       | Some n -> Buffered (n,pkt_bits)
     in
-    let _ = OpenFlow0x04_Misc.Log.printf "[PacketIn] okay \n%!" in 
     { pi_total_len = total_len;
       pi_reason = reason;
       pi_table_id = table_id;

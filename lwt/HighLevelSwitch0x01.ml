@@ -76,31 +76,38 @@ module Common = HighLevelSwitch_common.Make (struct
   
   let from_action (inPort : Core.portId option) (act : AL.action) 
     : Mod.t * Core.action  =
-    let open SDN_Types in
     let open OpenFlow0x01_Core in
     match act with
-      | OutputAllPorts -> (Mod.none, Output AllPorts)
-      | OutputPort n ->
+      | AL.OutputAllPorts -> 
+        (Mod.none, Output AllPorts)
+      | AL.OutputPort n ->
 	let n = VInt.get_int16 n in 
         if Some n = inPort then
           (Mod.none, Output InPort)
         else
           (Mod.none, Output (PhysicalPort n))
-      | SetField (AL.InPort, _) -> raise (Invalid_argument "cannot set input port")
-      | SetField (EthType, _) -> raise (Invalid_argument "cannot set frame type")
-      | SetField (EthSrc, n) -> (Mod.dlSrc, SetDlSrc (VInt.get_int48 n))
-      | SetField (EthDst, n) -> (Mod.dlDst , SetDlDst (VInt.get_int48 n))
-      | SetField (Vlan, n) -> 
+      | AL.Enqueue (m,n) -> 
+        let m = VInt.get_int16 m in 
+        let n = VInt.get_int32 n in 
+        if Some m = inPort then 
+          (Mod.none, Enqueue(InPort, n))
+        else 
+          (Mod.none, Enqueue (PhysicalPort m, n))
+      | AL.SetField (AL.InPort, _) -> raise (Invalid_argument "cannot set input port")
+      | AL.SetField (AL.EthType, _) -> raise (Invalid_argument "cannot set frame type")
+      | AL.SetField (AL.EthSrc, n) -> (Mod.dlSrc, SetDlSrc (VInt.get_int48 n))
+      | AL.SetField (AL.EthDst, n) -> (Mod.dlDst , SetDlDst (VInt.get_int48 n))
+      | AL.SetField (AL.Vlan, n) -> 
 	begin match VInt.get_int16 n with 
 	  | 0xFFFF -> (Mod.dlVlan, SetDlVlan None)
 	  | n -> (Mod.dlVlan, SetDlVlan (Some n))
 	end
-      | SetField (VlanPcp, n) -> (Mod.dlVlanPcp, SetDlVlanPcp (VInt.get_int4 n))
-      | SetField (IPProto, _) -> raise (Invalid_argument "cannot set IP protocol")
-      | SetField (IP4Src, n) -> (Mod.nwSrc, SetNwSrc (VInt.get_int32 n))
-      | SetField (IP4Dst, n) -> (Mod.nwDst, SetNwDst (VInt.get_int32 n))
-      | SetField (TCPSrcPort, n) -> (Mod.tpSrc, SetTpSrc (VInt.get_int16 n))
-      | SetField (TCPDstPort, n) -> (Mod.tpDst, SetTpDst (VInt.get_int16 n))
+      | AL.SetField (AL.VlanPcp, n) -> (Mod.dlVlanPcp, SetDlVlanPcp (VInt.get_int4 n))
+      | AL.SetField (AL.IPProto, _) -> raise (Invalid_argument "cannot set IP protocol")
+      | AL.SetField (AL.IP4Src, n) -> (Mod.nwSrc, SetNwSrc (VInt.get_int32 n))
+      | AL.SetField (AL.IP4Dst, n) -> (Mod.nwDst, SetNwDst (VInt.get_int32 n))
+      | AL.SetField (AL.TCPSrcPort, n) -> (Mod.tpSrc, SetTpSrc (VInt.get_int16 n))
+      | AL.SetField (AL.TCPDstPort, n) -> (Mod.tpDst, SetTpDst (VInt.get_int16 n))
 end)
 
 let from_group (inPort : Core.portId option) (group : AL.group) : Core.action list =
