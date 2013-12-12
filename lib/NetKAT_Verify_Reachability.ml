@@ -322,7 +322,7 @@ oko: bool option. has to be Some. True if you think it should be satisfiable.
   let check_reachability_k  k str inp pol outp extra_conditions oko =
   let x = Sat.fresh Sat.SPacket in
   let clean_history = Verify.test_previous_packet x Sat.Z3macro.nopacket_s in
-  let forwards_star_formula, forwards_star_result = Verify.forwards_star pol x k in
+  let forwards_star_formula, forwards_star_result = Verify.forwards_star (Sat.remove_links pol) x k in
   let prog =     Sat.ZProgram [ 
     Sat.ZDeclareAssert (Verify.forwards_pred inp x)
     ; Sat.ZDeclareAssert (Sat.ZTerm (clean_history))

@@ -273,7 +273,20 @@ module Sat = struct
     (EthSrc Int) 
     (InPort Int)))))" ^ "\n" 
       
-      
+
+  let rec remove_links (pol : 'a) : 'a = 
+    let make_transition (switch1, port1) (switch2, port2) : policy =     
+      Seq (Filter (And (Test (Switch, switch1), Test (Header SDN_Types.InPort, port1))), 
+	   Seq (Mod (Switch , switch2) , Mod (Header SDN_Types.InPort, port2))) in
+    match pol with 
+      | Link (s1,p1,s2,p2) -> make_transition (s1, p1) (s2, p2)
+      | Filter _ -> pol
+      | Mod _ -> pol
+      | Par (l, r) -> Par (remove_links l, remove_links r)
+      | Seq (f, s) -> Seq (remove_links f, remove_links s)
+      | Star p -> Star (remove_links p)
+      | Choice _ -> failwith "choice not supported"
+
       
   let serialize_program p : string = 
     let ZProgram(ds) = p in 

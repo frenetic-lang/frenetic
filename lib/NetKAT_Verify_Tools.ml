@@ -22,11 +22,7 @@ let verify_waypoint = check_waypoint
 let verify_specific_k (description: string) (initial_state: pred) (program: policy) (final_state: pred) (desired_outcome: bool) k : bool = 
 	check description initial_state program final_state (Some desired_outcome) *)
 
-
-let make_transition (switch1, port1) (switch2, port2) : policy = 
-
-  Seq (Filter (And (Test (Switch, make_vint switch1), Test (Header SDN_Types.InPort, make_vint port1))), 
-       Seq (Mod (Switch ,make_vint switch2) , Mod (Header SDN_Types.InPort, make_vint port2)))
+let make_transition (s1, p1) (s2, p2) = remove_links (Link (make_vint s1, make_vint p1, make_vint s2, make_vint p2))
 
 let make_simple_topology topo : policy = Star (Seq (Filter True, topo))
 
