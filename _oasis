@@ -16,6 +16,10 @@ Flag quickcheck
     Description: build the openflow.quickcheck library
     Default: False
 
+Flag lwt
+    Description: build the openflow.lwt library
+    Default: False
+
 Library openflow
   Path: lib
   BuildDepends:
@@ -41,6 +45,7 @@ Library lwt
   Findlibparent: openflow
   Findlibname: lwt
   Path: lwt
+  Build$: flag(lwt)
   BuildDepends:
     lwt,
     lwt.unix,
