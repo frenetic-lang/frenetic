@@ -34,8 +34,7 @@ module Run = struct
     let open Types in
     let i,m,_,e = dehopify p in
     let cache = SwitchMap.mapi (fun sw sw_p ->
-      let sw_f  = Types.Filter(Test(Switch, sw)) in
-      let sw_p' = Types.(Seq(Seq(i,Seq(sw_f, sw_p)),e)) in
+      let sw_p' = Types.(Seq(Seq(i,sw_p),e)) in
       to_table (compile sw sw_p'))
     m in
     (fun sw -> SwitchMap.find sw cache)
@@ -100,8 +99,7 @@ module Dump = struct
       let i,m,_,e = dehopify p in
       SwitchMap.iter (fun sw pol0 ->
         let open Types in
-        let sw_f  = Filter(Test(Switch, sw)) in
-        let pol0' = Seq(Seq(i,Seq(sw_f,pol0)),e) in
+        let pol0' = Seq(Seq(i,pol0),e) in
         f sw pol0')
       m
 

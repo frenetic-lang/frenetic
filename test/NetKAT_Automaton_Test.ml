@@ -17,8 +17,8 @@ module QuickChecking = struct
 
   let rec same_same (r : regex) (s : policy) : bool =
     begin match r, s with
-      | Char(lf_p, link), Seq(s1, Link(sw3, pt3, sw4, pt4)) ->
-          (link_to_policy link) = (Link(sw3, pt3, sw4, pt4))
+      | Char(lf_p, switch), Seq(s1, Link(sw3, pt3, sw4, pt4)) ->
+          (topology_to_policy switch) = (Link(sw3, pt3, sw4, pt4))
       | Alt(r1, r2), Par(s1, s2) -> (same_same r1 s1) && (same_same r2 s2)
       | Cat(r1, r2), Seq(s1, s2) -> (same_same r1 s1) && (same_same r2 s2)
       | Kleene(r1) , Star(s1)    -> same_same r1 s1
@@ -89,13 +89,13 @@ TEST "the simplest test II" =
     | Cat(Char(_), Char(_)) -> true
     | _                     -> false
 
-TEST "distributes across links" =
+TEST "does not distribute across links" =
   let open NetKAT_Automaton in
   let pol = policy_parse "filter port = 10; (0@1 => 1@1 | 2@1 => 1@1)" in
   let re  = regex_of_policy pol in
   match re with
-    | Alt(Char(_), Char(_)) -> true
-    | _                     -> false
+    | Char(_) -> true
+    | _       -> false
 
 TEST "distributes across complex links" =
   let open NetKAT_Automaton in
@@ -110,8 +110,8 @@ TEST "does not distribute across link-free policies" =
   let pol = policy_parse "(filter port = 9 | filter port = 10); (0@1 => 1@1 | 2@1 => 1@1)" in
   let re  = regex_of_policy pol in
   match re with
-    | Alt(Char(_), Char(_)) -> true
-    | _                     -> false
+    | Char(_) -> true
+    | _       -> false
 
 TEST "associativity of seq" =
   let open NetKAT_Automaton in
