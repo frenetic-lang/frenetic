@@ -223,15 +223,48 @@ let pol_topo = starify pol topo
 	 (make_packet_2 3 1)
 	 true)
 
-	TEST "retrict-waypoint-sanity" = 
-  (verify_history "restrict_waypoint-sanity"
+  )()
+
+	
+TEST "exactly-two-hops" = 
+  (verify_history "exactly-two-hops"
 	 (make_packet_2 1 1)
 	 pol_topo
-	 noop_expr
+	 (fun l -> if List.length l = 3 then bool_to_z3 true else bool_to_z3 false )
 	 (make_packet_2 3 1)
 	 true)
- 
 
+
+	TEST "not-three-hops" = 
+  (verify_history "not-three-hops"
+	 (make_packet_2 1 1)
+	 pol_topo
+	 (fold_pred_or_with_counter 
+		(fun n -> 
+		  if n = 3 then True else False))
+	 (make_packet_2 3 1)
+	 false)
+*)
+	TEST "retrict-waypoint-sanity" = 
+  (verify_waypoint "restrict_waypoint-sanity"
+	 (make_packet_2 1 1)
+	 (make_simple_topology
+	    (make_transition (1,1) (2,2)))
+	 (make_packet_2 2 2)
+	 (make_packet_2 3 3)
+	 false)
+
+	TEST "retrict-waypoint-sanity2" = 
+  (verify_waypoint "restrict_waypoint-sanity2"
+	 (make_packet_2 1 1)
+	 (make_simple_topology
+	    (make_transition (1,1) (2,2)))
+	 (make_packet_2 2 2)
+	 (make_packet_2 1 1)
+	 true
+  ) 
+ 
+(*
 	TEST "restrict_waypoint1" = 
   (verify_history "restrict_waypoint1.1"
 	 (make_packet_2 1 1)
@@ -259,25 +292,4 @@ let pol_topo = starify pol topo
 	  (no_waypoint_expr 2)
 	  (make_packet_2 3 1)
 	  true)
-  )()
-
-	
-TEST "exactly-two-hops" = 
-  (verify_history "exactly-two-hops"
-	 (make_packet_2 1 1)
-	 pol_topo
-	 (fun l -> if List.length l = 3 then bool_to_z3 true else bool_to_z3 false )
-	 (make_packet_2 3 1)
-	 true)
-
-
-	TEST "not-three-hops" = 
-  (verify_history "not-three-hops"
-	 (make_packet_2 1 1)
-	 pol_topo
-	 (fold_pred_or_with_counter 
-		(fun n -> 
-		  if n = 3 then True else False))
-	 (make_packet_2 3 1)
-	 false)
 *)

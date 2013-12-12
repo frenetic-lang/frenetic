@@ -221,14 +221,38 @@ module Verify = struct
       | Star _  -> failwith "NetKAT program not in form (p;t)*"
       | Choice _-> failwith "I'm not rightly sure what a \"choice\" is "
       | Link _ -> failwith "wait, link is a special form now?  What's going on?"
+
+  let rec fold_in_and expr = 
+    match expr with 
+      | ZAnd l -> 
+	let new_list = List.map fold_in_and l in
+	ZAnd ((List.flatten (List.map (fun x -> 
+	  match x with
+	    | ZAnd l -> List.map fold_in_and l
+	    | _ -> failwith "filter failed")
+			       (List.filter 
+				  (fun x -> match x with 
+				    | ZAnd l -> true
+				    | _ -> false) new_list))) @ 
+		 (List.filter (fun x -> match x with | ZAnd l -> false | _ -> true) new_list))
+      | _ -> expr
+
 	
   let exists (list : zVar list) func : zFormula = 
     ZOr (List.map (fun pkt -> func pkt) list)
 
   let forall (list : zVar list) func : zFormula = 
-    ZAnd (List.map (fun pkt -> func pkt) list)
-
+    fold_in_and (ZAnd (List.map (fun pkt -> func pkt) list))
+      
   let packet_equals p1 p2 = ZEquals(ZTerm (TVar p1), ZTerm (TVar p2))
+   	  
+  let not_in_history waypoint pkt k = 
+    let rec not_in_history waypoint pkt k = 
+      match k with 
+	| 0 -> ZNot (forwards_pred waypoint pkt)
+	| _ -> ZAnd [ZNot (forwards_pred waypoint pkt); not_in_history waypoint (previous_packet pkt) (k-1)] in
+    fold_in_and (not_in_history waypoint pkt (k * 2))
+
 
   let rec forwards_k p_t_star inpkt k : zFormula * (zVar list) = 
     match p_t_star with 
@@ -237,9 +261,6 @@ module Verify = struct
 	let topo_form, topo_out = unzip_list_tuple (List.map (fun mpkt -> forwards_pol t mpkt) polout) in
 	let topo_out = List.flatten topo_out in
 	(* set inpkt to be history element of all in topo_out *)
-	let history_constraint = ZAnd (List.map (fun x -> 
-	  ZTerm (test_previous_packet x inpkt)
-	) topo_out) in
 
 	(match k with 
 	  | 0 -> ZTrue, [inpkt]
@@ -297,27 +318,35 @@ outp: fully-transformed packet
 oko: bool option. has to be Some. True if you think it should be satisfiable.
 *)
 
-  let check_reachability_k  k str inp pol outp oko =
+
+  let check_reachability_k  k str inp pol outp extra_conditions oko =
   let x = Sat.fresh Sat.SPacket in
   let clean_history = Verify.test_previous_packet x Sat.Z3macro.nopacket_s in
   let forwards_star_formula, forwards_star_result = Verify.forwards_star pol x k in
   let prog =     Sat.ZProgram [ 
     Sat.ZDeclareAssert (Verify.forwards_pred inp x)
-    (* ; Sat.ZDeclareAssert (Sat.ZTerm (clean_history))*)
+    ; Sat.ZDeclareAssert (Sat.ZTerm (clean_history))
     ; Sat.ZDeclareAssert forwards_star_formula
     ; Sat.ZToplevelComment (Printf.sprintf "We are choosing between %s " 
 			      (List.fold_left (fun x a -> Printf.sprintf "%s %s" x a) "" 
 				 forwards_star_result))
-    ; Sat.ZDeclareAssert (Verify.exists forwards_star_result (fun y -> Verify.forwards_pred outp y))] in 
+    ; Sat.ZDeclareAssert (Verify.exists forwards_star_result 
+			    (fun y -> 
+			      Sat.ZAnd
+				((Verify.forwards_pred outp y) :: 
+				    (List.map (fun f -> f y) extra_conditions))))] in 
   run_solve oko prog str
 
   open NetKAT_Dehop_Graph
     
   let check_reachability str inp pol outp oko = 
     check_reachability_k (longest_shortest (parse_graph pol))
-      str inp pol outp oko
+      str inp pol outp [] oko
     
-
+  let check_waypoint str inp pol outp waypoint oko= 
+    let k = (longest_shortest (parse_graph pol)) in
+    check_reachability_k k
+      str inp pol outp [(fun y -> Sat.ZComment ("waypoint check", Verify.not_in_history waypoint y k))] (Some (not oko))
 
   let check = check_reachability
     

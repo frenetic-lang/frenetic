@@ -247,6 +247,7 @@ module Sat = struct
   module Z3macro = struct
     let nopacket_s = "nopacket"
     let nopacket = (ZTerm (TVar nopacket_s)) 
+    let previous_packet x = "(PreviousPacket " ^ x^ ")"
 
   end
   open Z3macro
