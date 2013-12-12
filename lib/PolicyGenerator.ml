@@ -61,6 +61,25 @@ let all_pairs_shortest_paths (g : t) =
         | _ -> pol)
     drop all_paths
 
+(* generates a policy that 
+  a) spans only the hosts in host_list (if empty, uses all hosts)
+  b) avoids links in link_list (if empty, uses all links)
+  c) is from the spanning tree is spanning_tree is true *)
+let generate_policy (g:t) (host_list:Node.t list) (link_list: Link.e list) (spanning_tree: bool) = 
+  let ll = Topology.get_edges g in
+  let good_links = List.filter (fun x -> not (List.mem x link_list)) ll in
+  let g = 
+    if host_list = [] then g 
+    else 
+      let g = Topology.empty in
+      List.fold_left (fun graph host -> Topology.add_node graph host) g host_list in
+  let g = List.fold_left (fun graph link -> Topology.add_edge_e graph link) g good_links in
+  let g = 
+    if spanning_tree then 
+      Topology.spanningtree g
+    else g in
+  all_pairs_shortest_paths g
+
 (* (\** [g] must be a tree or this will freeze. *\) *)
 (* let broadcast (g : G.t) (src : hostAddr) : policy =  *)
 (*   let pred = And (DlSrc src, DlDst 0xFFFFFFFFFFFFL) in *)

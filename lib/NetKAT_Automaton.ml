@@ -37,11 +37,11 @@ let foldl1_map (f : 'b -> 'b -> 'b) (g : 'a -> 'b) (xs : 'a list) : 'b =
 
 (* The different sorts of things a port on a switch can be connected to *)
 type port_dst =
-  | SwitchPort of VInt.t * VInt.t
+  | SwitchPort of SDN_Types.switchId * VInt.t
   | Outside
 
 module SwitchMap = Map.Make(struct
-  type t = VInt.t
+  type t = SDN_Types.switchId
   let compare = Pervasives.compare
 end)
 
@@ -50,6 +50,7 @@ module PortMap = Map.Make(struct
   let compare = Pervasives.compare
 end)
 
+(* XXX: Fix this name clash *)
 type portmap = port_dst PortMap.t
 
 (* A topology maps switches to a portmap *)
@@ -100,6 +101,7 @@ let rec fmap_aregex (f : 'a -> 'b) (r : 'a aregex) : 'b aregex =
     | Kleene(s) -> Kleene(fmap_aregex f s)
     | Empty -> Empty
 
+(* This is a "policy" character for use in the regular expression above. *)
 type pchar = lf_policy * topology
 
 (* A regular expression over link-free policy, link pairs. *)
@@ -156,7 +158,7 @@ let rec regex_to_policy (r : regex) : policy =
       Types.Seq(regex_to_policy r1, regex_to_policy r2)
     | Kleene(r) ->
       Types.Star(regex_to_policy r)
-    | Empty -> Types.Filter(Types.True)
+    | Empty -> Types.Filter(Types.False)
 
 let regex_to_string (r : regex) : string =
   Pretty.string_of_policy (regex_to_policy r)
@@ -170,6 +172,7 @@ let lf_policy_to_string (lf_p : lf_policy) : string =
 (* BEGIN OF POLICY ---------------------------------------------------------- *)
 
 module TRegex = struct
+  (* This is a "policy-link" character for regex. *)
   type pl_char =
     | PChar of lf_policy
     | TChar of lf_policy option * topology
@@ -219,7 +222,10 @@ module TRegex = struct
             end)))
         | Types.Star(q) ->
           of_policy_k q (fun q' ->
-            k (Kleene(q')))
+            k (begin match q' with
+              | Char(PChar(lfq)) -> Char(PChar(Star(lfq)))
+              | _ -> Kleene(q')
+            end))
       end
     in of_policy_k p (fun x -> x)
 
@@ -238,7 +244,7 @@ module TRegex = struct
         Types.Seq(to_policy r1, to_policy r2)
       | Kleene(r) ->
         Types.Star(to_policy r)
-      | Empty -> Types.Filter(Types.True)
+      | Empty -> Types.Filter(Types.False)
     end
 end
 

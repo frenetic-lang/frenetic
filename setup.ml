@@ -5848,16 +5848,17 @@ let setup_t =
                       bs_compiled_object = Best;
                       bs_build_depends =
                         [
-                           FindlibPackage ("lwt", None);
-                           FindlibPackage ("lwt.unix", None);
                            FindlibPackage ("cstruct", None);
                            FindlibPackage ("dprle", None);
+                           FindlibPackage ("lwt", None);
                            FindlibPackage ("lwt.syntax", None);
                            FindlibPackage ("lwt.syntax.log", None);
+                           FindlibPackage ("lwt.unix", None);
                            FindlibPackage ("str", None);
                            FindlibPackage ("ocamlgraph", None);
-                           FindlibPackage ("packet", None);
                            FindlibPackage ("openflow", None);
+                           FindlibPackage ("openflow.lwt", None);
+                           FindlibPackage ("packet", None);
                            FindlibPackage ("topology", None)
                         ];
                       bs_build_tools =

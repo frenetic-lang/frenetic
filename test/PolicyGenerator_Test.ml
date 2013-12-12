@@ -53,22 +53,19 @@ let generate_random_graph num_hosts num_switches edge_prob =
   gen_edges_btw switches hosts graph edge_prob;
   !graph
 
-let shortest_path_test g v1 v2 l=
-  let paths = Topology.floyd_warshall g in
-  try
+let spanningtree_test paths v1 v2 tree = 
+  let paths = Topology.floyd_warshall tree in
+  try 
     let path = List.assoc (v1,v2) paths in
-    if path = l || List.length path = List.length l then
-      true
-    else
-      (let n1 = Node.to_string v1 in
-      let n2 = Node.to_string v2 in
-      let p1 = List.fold_left (fun acc v -> acc ^ "," ^ (Node.to_string v)) "" path in
-      let p2 = List.fold_left (fun acc v -> acc ^ "," ^(Node.to_string v)) "" l in
-      Format.printf "Shortest path from %s to %s in graph \n%s\n Floyd_warshall produced \n%s\n Dijkstra produced \n%s\n"
-        n1 n2 (Topology.to_string g) p1 p2;
-        false)
+    if List.length path > 0 
+      then 
+        true
+      else
+        false
   with Not_found ->
-    print_endline "should not happen"; false
+    Format.printf "Spanning tree is \n%s\n, and path from %s to %s is not found, expected to exist."
+      (Topology.to_string tree) (Node.to_string v1) (Node.to_string v2);
+      false
 
 let edge_list_to_vertex_list el=
   let rec helper el acc = match el with
@@ -77,7 +74,28 @@ let edge_list_to_vertex_list el=
     | [] -> acc in
   helper el []
 
-let test_n_times n num_hosts num_switches edge_prob =
+let shortest_path_test g v1 v2 paths =
+  let l = ref [] in 
+  (try
+    l := edge_list_to_vertex_list (Topology.shortest_path g v1 v2)
+  with Not_found ->
+    l := []);
+  try
+    let path = List.assoc (v1,v2) paths in
+    if path = (!l) || List.length path = List.length (!l) then
+      true
+    else
+      (let n1 = Node.to_string v1 in
+      let n2 = Node.to_string v2 in
+      let p1 = List.fold_left (fun acc v -> acc ^ "," ^ (Node.to_string v)) "" path in
+      let p2 = List.fold_left (fun acc v -> acc ^ "," ^(Node.to_string v)) "" (!l) in
+      Format.printf "Shortest path from %s to %s in graph \n%s\n Floyd_warshall produced \n%s\n Dijkstra produced \n%s\n"
+        n1 n2 (Topology.to_string g) p1 p2;
+        false)
+  with Not_found ->
+    print_endline "should not happen"; false
+
+let test_n_times test_name n num_hosts num_switches edge_prob f2 =
   let count = ref n in
   let b = ref true in
   while !count > 0 do
@@ -88,12 +106,8 @@ let test_n_times n num_hosts num_switches edge_prob =
       for j = 0 to len-1 do
         let v1 = nodes.(i) and v2 = nodes.(j) in
         if v1 != v2 then
-          (try
-            let l = Topology.shortest_path g v1 v2 in
-            let l = edge_list_to_vertex_list l in
-            b := (!b) && (shortest_path_test g v1 v2 l);
-          with Not_found ->
-            b := (!b) && (shortest_path_test g v1 v2 []))
+            (let lst = f2 g in
+            b := (!b) && (test_name g v1 v2 lst))
         else
           ()
       done;
@@ -123,4 +137,7 @@ TEST "Graph with no links" =
   (drop)) *)
 
 TEST "test floyd_warshall works" =
-  (test_n_times 10 5 5 0.3)
+  (test_n_times shortest_path_test 10 5 5 0.3 Topology.floyd_warshall)
+
+TEST "Spanning Tree Sanity Check" = 
+  (test_n_times spanningtree_test 10 3 3 1.0 Topology.spanningtree)

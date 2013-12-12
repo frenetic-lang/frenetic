@@ -3,6 +3,8 @@ Frenetic
 
 The [**Frenetic Tutorial**][tutorial] is now available.
 
+[![Build Status](https://travis-ci.org/frenetic-lang/frenetic.png)](https://travis-ci.org/frenetic-lang/frenetic)
+
 Building from Source
 --------------------
 

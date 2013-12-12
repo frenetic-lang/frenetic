@@ -1,7 +1,18 @@
-open NetKAT_Types
+open Types
 open VInt
 open NetCore_Verify
 open NetCore_Verify_Util
+open SDN_Types
+open Sat
+
+
+
+TEST "setup-works" = 
+    Sat.solve (Sat.ZProgram ([])) 
+
+TEST "declare-var-works" = 
+    Sat.solve (let _ = Sat.fresh Sat.SPacket in Sat.ZProgram ([])) 
+
 
 TEST "simple-check" = 
   verify "are tests even running" 
@@ -9,6 +20,8 @@ TEST "simple-check" =
 	(make_simple_topology (make_transition (1, 1) (2, 1)))
 	(make_packet_2 2 1)
 	true 
+
+
 
 TEST "we care about p in (p;t)*" = 
 	verify "we care about p in (p;t)*"
@@ -23,7 +36,7 @@ TEST "we love switch 2" =
 	  (starify (Test (Switch, make_vint 2)) (make_transition (1, 1) (2,1)))
 	  (make_packet_2 2 1)
 	  false 
-	
+
 TEST "neg has no effect" = 
 	let strt = (make_packet_1 1) in
 	let fnsh = (make_packet_1 2) in
@@ -43,7 +56,42 @@ TEST "simple-check-false" =
 	(make_packet_2 2 2)
 	false 
 
-	
+TEST "narrowing down1" = 
+  verify "narrowing down1"
+    (make_packet_2 1 1)
+    (starify 
+       (Neg (Test (Switch, make_vint 1))) 
+       (combine_topologies 
+	  [(make_transition (1, 1) (2, 1)); 
+	   (make_transition (2, 1) (3, 1))]
+       ))
+    (make_packet_2 3 1)
+    false
+
+
+TEST "narrowing down2" = 
+  verify_k 1 "narrowing down2"
+    (make_packet_2 1 1)
+    (starify 
+       (Test (Switch, make_vint 1)) 
+       (combine_topologies 
+	  [(make_transition (1, 1) (2, 2)); 
+	   (make_transition (2, 2) (3, 3))]
+       ))
+    (make_packet_2 3 3)
+    false
+
+TEST "narrowing down3" = 
+  verify "narrowing down2"
+    (make_packet_2 1 1)
+    (starify 
+       (Test (Switch, make_vint 1)) 
+       (combine_topologies 
+	  [(make_transition (1, 1) (2, 2)); 
+	   (make_transition (2, 2) (3, 3))]
+       ))
+    (make_packet_2 3 3)
+    false
 
 let ethsrc_is_1 = Test (Header SDN_Types.EthSrc, make_vint 1)
 let switch_is_2 = Test (Switch, make_vint 2)
@@ -53,26 +101,30 @@ let tran2 = make_transition (2, 1) (3, 1)
 let topo = combine_topologies [tran1; tran2]
 let pol_topo = starify pol topo
 
+  TEST "range" = 
+  List.length (Verify.range 0 5) = 6
+
   TEST "dijkstra" = 
   (dijkstra_test topo) = 2
 
   TEST "restrict0" = 
   (verify "restrict0"
-	 (make_packet_4 1 1 1 2)
+	 (make_packet_2 1 1)
 	 (make_simple_topology topo)
 	 (make_packet_2 2 1)
 	 true )
+
   TEST "restrict1" = 
   (verify "restrict1"
 	 (make_packet_4 1 1 1 3)
 	 (make_simple_topology topo)
 	 (make_packet_2 3 1)
 	 true )
-
+  
 
 	TEST "restrict2" = 
   (verify "restrict2"
-	 (make_packet_4 1 1 1 3)
+	 (make_packet_4 2 1 1 3)
 	 pol_topo
 	 (make_packet_2 3 1)
 	 false )
@@ -92,8 +144,6 @@ let pol_topo = starify pol topo
 	 (make_packet_2 3 1)
 	 true )
 
-
-
 	TEST "restrict5" = 
   (verify "restrict5"
 	 (make_packet_4 1 1 1 2)
@@ -108,6 +158,28 @@ let pol_topo = starify pol topo
 	 (make_packet_2 3 1)
 	 true )
 
+    TEST "restrict7" = 
+  (verify "restrict7"
+     (make_packet_2 1 1)
+     pol_topo
+     (make_packet_2 4 1)
+     false)
+
+    TEST "real-restrict" = 
+  (verify "real-restrict"
+     (make_packet_3 1 1 1)
+     pol_topo
+     (make_packet_2 3 1)
+     false )
+
+    TEST "real-restrict2" = 
+  (verify "real-restrict"
+     (make_packet_3 1 1 2)
+     pol_topo
+     (make_packet_2 3 1)
+     true )
+
+(*
 	TEST "restrict6-history" = 
   (verify_history "restrict6-history"
 	 (make_packet_2 1 1)
@@ -197,10 +269,4 @@ TEST "exactly-two-hops" =
 		  if n = 3 then True else False))
 	 (make_packet_2 3 1)
 	 false)
-
-	TEST "check-equivalent-1" = 
-	(check "1" NetKAT_Types.True pol_topo NetKAT_Types.True (Some true))
-
-	TEST "trivial-check-equivalent" = 
-  (check_equivalent (make_simple_topology (make_transition (1, 1) (2,1) )) 
-	 (make_simple_topology (make_transition (1, 1) (2,1) ))  "trivial-check-equivalent")
+*)
