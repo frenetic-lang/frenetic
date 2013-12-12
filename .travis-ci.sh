@@ -1,5 +1,4 @@
 OPAM_DEPENDS="lwt cstruct ocamlgraph ounit pa_ounit quickcheck"
-GITHUB_DEPENDS="ocaml-packet ocaml-openflow ocaml-topology dprle"
 
 case "$OCAML_VERSION,$OPAM_VERSION" in
 3.12.1,1.0.0) ppa=avsm/ocaml312+opam10 ;;
@@ -28,11 +27,16 @@ opam install ${OPAM_DEPENDS}
 
 eval `opam config env`
 
-for dep in ${GITHUB_DEPENDS}; do
-    git clone "https://github.com/frenetic-lang/$dep" &&
-        (cd "$dep" && echo "$dep HEAD" && git rev-parse HEAD &&
-         ocaml setup.ml -configure && make && make install)
-done
+function github_install {
+    git clone "https://github.com/frenetic-lang/$1" &&
+        (cd "$1" && echo "$1 HEAD" && git rev-parse HEAD &&
+         ocaml setup.ml -configure ${@:2} && make && make install)
+}
+
+github_install ocaml-packet
+github_install ocaml-openflow --enable-lwt
+github_install ocaml-topology
+github_install dprle
 
 ocaml setup.ml -configure --enable-tests --enable-quickcheck
 make
