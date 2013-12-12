@@ -263,6 +263,61 @@ TEST "exactly-two-hops" =
 	 (make_packet_2 1 1)
 	 true
   ) 
+
+
+	TEST "retrict-waypoint-sanity2" = 
+  (verify_waypoint "restrict_waypoint-sanity2"
+	 (make_packet_2 1 1)
+	 (make_simple_topology
+	    (combine_topologies
+	    [(make_transition (1,1) (2,2));
+	     (make_transition (2,2) (3,3))]))
+	 (make_packet_2 3 3)
+	 (make_packet_2 2 2)
+	 true
+  )
+
+	TEST "retrict-waypoint1" = 
+  (verify_waypoint "restrict_waypoint1"
+	 (make_packet_2 1 1)
+	 (make_simple_topology
+	    (combine_topologies
+	    [(make_transition (1,1) (2,2));
+	     (make_transition (2,2) (3,3));
+	     (make_transition (1,1) (3,3))]))
+	 (make_packet_2 3 3)
+	 (make_packet_2 2 2)
+	 false
+  )
+
+	TEST "retrict-waypoint2" = 
+  (verify_waypoint "restrict_waypoint2"
+	 (make_packet_2 1 1)
+	 (make_simple_topology
+	    (combine_topologies
+	    [(make_transition (1,1) (2,2));
+	     (make_transition (2,2) (4,4));
+	     (make_transition (1,1) (3,3));
+	     (make_transition (3,3) (4,4))]))
+	 (make_packet_2 4 4)
+	 (make_packet_2 3 3)
+	 false
+  )
+
+	TEST "retrict-waypoint3" = 
+  (verify_waypoint "restrict_waypoint3"
+	 (make_packet_2 1 1)
+	 (starify
+	    (Neg switch_is_2)
+	    (combine_topologies
+	    [(make_transition (1,1) (2,2));
+	     (make_transition (2,2) (4,4));
+	     (make_transition (1,1) (3,3));
+	     (make_transition (3,3) (4,4))]))
+	 (make_packet_2 4 4)
+	 (make_packet_2 3 3)
+	 true
+  )
  
 (*
 	TEST "restrict_waypoint1" = 
