@@ -24,16 +24,17 @@ Flag quickcheck
 Library netcore
   Path: lib
   BuildDepends:
-    lwt,
-    lwt.unix,
     cstruct,
     dprle,
+    lwt,
     lwt.syntax,
     lwt.syntax.log,
+    lwt.unix,
     str,
     ocamlgraph,
-    packet,
     openflow,
+    openflow.lwt,
+    packet,
     topology
   InternalModules:
     Types,
