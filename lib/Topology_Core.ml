@@ -79,6 +79,7 @@ sig
   val get_hosts : t -> V.t list
   val get_switches : t -> V.t list
   val get_switchids : t -> switchId list
+  val unit_cost : t -> t
   val ports_of_switch : t -> V.t -> portId list
   (* TODO(basus): remove this? *)
   (* val edge_ports_of_switch : t -> V.t -> portId list *)
@@ -249,14 +250,6 @@ struct
   let get_edges (g:t) : (E.t list) =
     fold_edges_e (fun e acc -> e::acc) g []
 
-  (* Compute a topology with unit cost *)
-  let unit_cost (g0:t) : t = 
-    let f (n1,l,n2) g : t = 
-      add_edge_e g (n1, { l with Link.cost = VInt.Int16 1 }, n2) in 
-    let g = fold_vertex (fun v g -> add_vertex g v) g0 empty in 
-    let g = fold_edges_e (fun e g -> f e g) g0 g in 
-    g
-
   (* For a given pair of nodes in the graph, return the list of port pairs that
      connect them.
      Raise NotFound if there are the two nodes are not connected *)
@@ -267,7 +260,6 @@ struct
                             (Node.to_string s) (Node.to_string d)))
     else let e = List.hd es in
          (Link.srcport e, Link.dstport e)
-
 
   (* Get a list of the hosts out in the graph. Returns an empty list if
      there are no hosts.  *)
@@ -296,6 +288,13 @@ struct
         | _ -> acc
     ) g []
 
+  (* Compute a topology with unit cost *)
+  let unit_cost (g0:t) : t =
+    let f (n1,l,n2) g : t =
+      add_edge_e g (n1, { l with Link.cost = VInt.Int16 1 }, n2) in
+    let g = fold_vertex (fun v g -> add_vertex g v) g0 empty in
+    let g = fold_edges_e (fun e g -> f e g) g0 g in
+    g
 
   (* For a given node, return all its connected ports.
      Raise NotFound if the node is not in the graph *)
