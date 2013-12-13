@@ -6,7 +6,7 @@ let help args =
       Format.printf "usage: katnetic run [local|classic|automaton] <filename> \n"
     | [ "dump" ] -> 
       Format.printf "usage: katnetic dump automaton [all|policies|flowtables] <filename> \n";
-      Format.printf "usage: katnetic dump local <number of switches> <filename> \n"
+      Format.printf "usage: katnetic dump local [all|policies|flowtables] <number of switches> <filename> \n"
     | _ -> 
       Format.printf "%s" ("usage: katnetic <command> \n" ^
 			  "  run    Compile and start the controller\n" ^ 
@@ -98,7 +98,7 @@ module Dump = struct
         | ("policies" :: [sw_num; filename]) -> with_file policy filename
         | ("flowtables" :: [sw_num; filename]) -> with_file (local (int_of_string sw_num)) filename
         | _ -> 
-          print_endline "usage: katnetic dump local <number of switches> <filename>"
+          print_endline "usage: katnetic dump local [all|policies|flowtables] <number of switches> <filename>"
   end
 
   module Automaton = struct
