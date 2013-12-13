@@ -6,6 +6,18 @@ type t =
   | Int8 of int
   | Int4 of int
 
+let get_int (v : t) : int =
+  try
+    match v with
+      | Int64 n -> Int64.to_int n
+      | Int48 n -> Int64.to_int n
+      | Int32 n -> Int32.to_int n
+      | Int16 n -> n
+      | Int8 n -> n
+      | Int4 n -> n
+  with _ ->
+    raise (Invalid_argument "get_int")
+
 let get_int64 (v : t) : Int64.t = match v with
   | Int64 n
   | Int48 n -> n
