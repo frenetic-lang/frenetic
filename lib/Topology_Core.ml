@@ -357,7 +357,7 @@ struct
     if p = [] then raise (NoPath(Node.to_string src, Node.to_string dst))
     else p *)
 
-  let floyd_warshall (g:t): ((V.t * V.t) * V.t list) list =
+  let floyd_warshall (g:t) : ((V.t * V.t) * V.t list) list =
     let add_opt o1 o2 = 
       match o1, o2 with 
         | Some n1, Some n2 -> Some (n1 + n2)
@@ -376,8 +376,8 @@ struct
           (fun j -> if i = j then (Some 0, [nodes.(i)])
             else 
               try 
-                let _ = find_edge g nodes.(i) nodes.(j) in
-                (Some 1, [nodes.(i); nodes.(j)])
+                let l = find_edge g nodes.(i) nodes.(j) in
+                (Some (VInt.get_int (Link.cost l)), [nodes.(i); nodes.(j)])
             with Not_found -> 
               (None,[]))) in
     let matrix = make_matrix g in
