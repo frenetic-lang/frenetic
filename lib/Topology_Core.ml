@@ -235,23 +235,27 @@ struct
   let add_switch (g:t) (i:switchId) : t =
     add_vertex g (Node.Switch i)
 
-
   (* Add an edge between particular ports on two switches *)
   let add_switch_edge (g:t) (s:Node.t) (sp:portId) (d:Node.t) (dp:portId) : t =
     let l = {Link.default with Link.srcport = sp; Link.dstport = dp} in
     add_edge_e g (s,l,d)
-
 
   (****** Accessors ******)
   (* Get a list of all the vertices in the graph *)
   let get_vertices (g:t) : (V.t list) =
     fold_vertex (fun v acc -> v::acc) g []
 
-
   (* Get a list of all the edges in the graph. *)
   let get_edges (g:t) : (E.t list) =
     fold_edges_e (fun e acc -> e::acc) g []
 
+  (* Compute a topology with unit cost *)
+  let unit_cost (g0:t) : t = 
+    let f (n1,l,n2) g : t = 
+      add_edge_e g (n1, { l with Link.cost = VInt.Int16 1 }, n2) in 
+    let g = fold_vertex (fun v g -> add_vertex g v) g0 empty in 
+    let g = fold_edges_e (fun e g -> f e g) g0 g in 
+    g
 
   (* For a given pair of nodes in the graph, return the list of port pairs that
      connect them.
