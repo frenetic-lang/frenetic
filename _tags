@@ -92,6 +92,7 @@
 <frenetic/katnetic.{native,byte}>: pkg_str
 <frenetic/katnetic.{native,byte}>: pkg_ocamlgraph
 <frenetic/katnetic.{native,byte}>: pkg_openflow
+<frenetic/katnetic.{native,byte}>: pkg_openflow.lwt
 <frenetic/katnetic.{native,byte}>: pkg_topology
 # Executable dehop_test
 "frenetic/dehop_test.byte": use_netcore
