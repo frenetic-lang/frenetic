@@ -102,10 +102,10 @@ let add_flow prio pat actions =
     check_overlap = false
   }
 
-let delete_flow_strict pat port =
+let delete_flow_strict prio pat port =
   { command = DeleteStrictFlow
   ; pattern = pat
-  ; priority = 0
+  ; priority = prio
   ; actions = []
   ; cookie = 0L
   ; idle_timeout = Permanent
