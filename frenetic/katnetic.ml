@@ -94,9 +94,9 @@ module Dump = struct
     let main args =
       match args with
         | (sw_num :: [filename])
-        | ("all" :: sw_num :: [filename]) -> with_file (all (int_of_string sw_num)) filename
-        | ("policies" :: sw_num :: [filename]) -> with_file policy filename
-        | ("flowtables" :: sw_num :: [filename]) -> with_file (local (int_of_string sw_num)) filename
+        | ("all" :: [sw_num; filename]) -> with_file (all (int_of_string sw_num)) filename
+        | ("policies" :: [sw_num; filename]) -> with_file policy filename
+        | ("flowtables" :: [sw_num; filename]) -> with_file (local (int_of_string sw_num)) filename
         | _ -> 
           print_endline "usage: katnetic dump local <number of switches> <filename>"
   end
