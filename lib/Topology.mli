@@ -81,6 +81,7 @@ sig
   val get_hosts : t -> V.t list
   val get_switches : t -> V.t list
   val get_switchids : t -> switchId list
+  val unit_cost : t -> t
   val ports_of_switch : t -> V.t -> portId list
   (* TODO(basus): remove this? *)
   (* val edge_ports_of_switch : t -> V.t -> portId list *)
