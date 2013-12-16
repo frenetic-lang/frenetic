@@ -6,6 +6,22 @@ type t =
   | Int8 of int
   | Int4 of int
 
+let get_int (v : t) : int =
+  match v with
+    | Int64 n | Int48 n -> 
+      if n > Int64.of_int max_int then
+        raise (Invalid_argument "get_int")
+      else 
+        Int64.to_int n
+    | Int32 n -> 
+      if n > Int32.of_int max_int then 
+        raise (Invalid_argument "get_int")
+      else 
+        Int32.to_int n
+    | Int16 n -> n
+    | Int8 n -> n
+    | Int4 n -> n
+
 let get_int64 (v : t) : Int64.t = match v with
   | Int64 n
   | Int48 n -> n
