@@ -49,6 +49,8 @@ let rec make_packet (headers_values : (header * 'a) list ) =
 let make_packet_1 switch = 
   Test (Switch, make_vint switch)
 
+let make_switch = make_packet_1
+
 let make_packet_2 switch port  = 
   And (Test (Switch, make_vint switch), Test (Header SDN_Types.InPort, make_vint port))
 
@@ -139,5 +141,22 @@ let exists_waypoint_in_one_history waypoint_switchnum =
   let ret history = 
 	((fold_pred_or (Test (Switch, make_vint waypoint_switchnum))) history) in ret
 
+let rec print_predicate p = 
+  match p with 
+    | False  -> "False"
+    | True -> "True"
+    | Test (hdr, v) -> Printf.sprintf "%s = %d" (serialize_header hdr) (Int64.to_int (VInt.get_int64 v))
+    | Neg p -> "!(p)"
+    | And (p1, p2) -> Printf.sprintf "(%s) && (%s)" (print_predicate p1) (print_predicate p2)
+    | Or (p1, p2) -> Printf.sprintf "(%s) || (%s)" (print_predicate p1) (print_predicate p2)
 
-
+let rec print_program p = 
+  match p with
+    | Filter pred -> Printf.sprintf "Test (%s)" (print_predicate pred)
+    | Mod (hdr, value) -> Printf.sprintf "%s <- %d" (serialize_header hdr) (Int64.to_int (VInt.get_int64 value))
+    | Par (p1, p2) -> Printf.sprintf "(%s) | (%s)" (print_program p1) (print_program p2)
+    | Seq (p1, p2) -> Printf.sprintf "%s; %s" (print_program p1)  (print_program p2)
+    | Star s -> Printf.sprintf "(%s)*" (print_program s)
+    | Link _ -> failwith "no links please"
+    | Choice _ -> failwith "no choices please"
+      
