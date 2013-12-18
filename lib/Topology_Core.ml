@@ -88,6 +88,7 @@ sig
   (* Utility functions *)
   val spanningtree : t -> t
   val shortest_path : t -> V.t -> V.t -> E.t list
+  val stitch : E.t list -> (portId option * V.t * portId option) list
   val floyd_warshall : t -> ((V.t * V.t) * V.t list) list
   val to_dot : t -> string
   val to_string : t -> string
@@ -359,6 +360,21 @@ struct
     let p,_ = Dij.shortest_path g src dst in
     if p = [] then raise (NoPath(Node.to_string src, Node.to_string dst))
     else p *)
+
+  let stitch (path:E.t list) : (portId option * Node.t * portId option) list =
+    let hops = List.fold_left (fun acc e -> match acc with
+      | [] ->
+        [ (None, Link.src e, Some(Link.srcport e))
+        ; (Some(Link.dstport e), Link.dst e , None) ]
+      | (inp, srcnode, outp)::tl ->
+        let srcport = Some (Link.srcport e) in
+        let dstport = Some (Link.dstport e) in
+        let dstnode = Link.dst e in
+        let src = (inp, srcnode, srcport) in
+        let dst = (dstport, dstnode, None) in
+        dst::src::tl
+  ) [] path in
+  List.rev hops
 
   let floyd_warshall (g:t) : ((V.t * V.t) * V.t list) list =
     let add_opt o1 o2 = 
