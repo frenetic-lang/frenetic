@@ -2,7 +2,7 @@ type t =
   | Int64 of Int64.t
   | Int48 of Int64.t
   | Int32 of Int32.t
-  | Int32m of Int32.t * Int32.t
+  | Int32m of Int32.t * Int32.t (* value, mask *)
   | Int16 of int
   | Int8 of int
   | Int4 of int
@@ -57,11 +57,12 @@ let get_int32 (v : t) : Int32.t = match v with
   | Int32m (n, _) -> n
   | Int16 n | Int8 n | Int4 n -> Int32.of_int n
 
+(* Returns a (value, mask) pair of 32-bit ints *)
 let get_int32m (v : t) : Int32.t * Int32.t = match v with
   | Int64 n | Int48 n ->
     if n > 0xFFFFFFFFL then raise (Invalid_argument "get_int32")
     else (Int64.to_int32 n, 0l)
-  | Int32 n -> (n, 0l)
+  | Int32 n -> (n, 0l) (* TODO(adf): maybe should be 32l ? depends on our design *)
   | Int32m (n, m) -> (n, m)
   | Int16 n | Int8 n | Int4 n -> (Int32.of_int n, 0l)
 
