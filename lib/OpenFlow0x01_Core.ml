@@ -1,5 +1,7 @@
 open Packet
 
+type 'a mask = { m_value : 'a; m_mask : 'a option }
+
 type switchId = int64
 
 type portId = int16
@@ -14,8 +16,8 @@ type pattern =
     ; dlTyp : dlTyp option
     ; dlVlan : dlVlan option
     ; dlVlanPcp : dlVlanPcp option
-    ; nwSrc : nwAddr option
-    ; nwDst : nwAddr option
+    ; nwSrc : nwAddr mask option
+    ; nwDst : nwAddr mask option
     ; nwProto : nwProto option
     ; nwTos : nwTos option
     ; tpSrc : tpPort option

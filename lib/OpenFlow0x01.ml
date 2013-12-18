@@ -131,6 +131,10 @@ module Match = struct
     | None -> true
     | Some _ -> false
 
+  let mask_bits x = match x with
+    | None -> 32
+    | Some x -> Int32.to_int x.m_value (* TODO(adf): 32 - x.m_value ? *)
+
   let wildcards_of_match (m : t) : Wildcards.t =
     { Wildcards.in_port = is_none m.inPort;
       Wildcards.dl_vlan = 
@@ -145,9 +149,9 @@ module Match = struct
       Wildcards.tp_src = is_none m.tpSrc;
       Wildcards.tp_dst = is_none m.tpDst;
       (* Oversimplified, since we don't support IP prefixes *)
-      Wildcards.nw_src = if is_none m.nwSrc then 32 else 0x0;
+      Wildcards.nw_src = mask_bits m.nwSrc;
       (* Oversimplified, since we don't support IP prefixes *)
-      Wildcards.nw_dst = if is_none m.nwDst then 32 else 0x0;
+      Wildcards.nw_dst = mask_bits m.nwDst;
       Wildcards.dl_vlan_pcp = is_none m.dlVlanPcp;
       Wildcards.nw_tos = is_none m.nwTos;
     }
@@ -160,8 +164,8 @@ module Match = struct
     | Some n -> n
     | None -> 0
 
-  let if_some32 x = match x with
-    | Some n -> n
+  let if_some32mask x = match x with
+    | Some x -> x.m_value
     | None -> 0l
 
   let if_word48 x = match x with
@@ -182,8 +186,8 @@ module Match = struct
     set_ofp_match_dl_type bits (if_some16 m.dlTyp);
     set_ofp_match_nw_tos bits (if_some8 m.nwTos);
     set_ofp_match_nw_proto bits (if_some8 m.nwProto);
-    set_ofp_match_nw_src bits (if_some32 m.nwSrc);
-    set_ofp_match_nw_dst bits (if_some32 m.nwDst);
+    set_ofp_match_nw_src bits (if_some32mask m.nwSrc);
+    set_ofp_match_nw_dst bits (if_some32mask m.nwDst);
     set_ofp_match_tp_src bits (if_some16 m.tpSrc);
     set_ofp_match_tp_dst bits (if_some16 m.tpDst);
     sizeof_ofp_match
@@ -228,13 +232,15 @@ module Match = struct
         if w.Wildcards.nw_src >= 32 then 
           None
         else
-          Some (get_ofp_match_nw_src bits);
+          Some {m_value = (get_ofp_match_nw_src bits);
+                 m_mask = Some (Int32.of_int w.Wildcards.nw_src)}; (* TODO(adf): 32 - value? *)
       nwDst =
         (* Oversimplified, since we don't support IP prefixes *)
         if w.Wildcards.nw_dst >= 32 then
           None
         else
-          Some (get_ofp_match_nw_dst bits);
+          Some {m_value = (get_ofp_match_nw_dst bits);
+                m_mask = Some (Int32.of_int w.Wildcards.nw_dst)}; (* TODO(adf): 32 - value? *)
       nwProto =
         if w.Wildcards.nw_proto then
           None
@@ -269,6 +275,11 @@ module Match = struct
       | None -> None
       | Some a -> Some (sprintf "%s = %s" lbl (pr a))
 
+  let mask_pr (pr : 'a -> string) (pr2 : 'a -> string) (v : 'a mask) : string =
+    match v.m_mask with
+      | None -> sprintf "%s" (pr v.m_value)
+      | Some a -> sprintf "%s/%s" (pr v.m_value) (pr2 a)
+
   let to_string (x : t) : string =
     let all_fields =
       [ fld_str "dlSrc" string_of_mac x.dlSrc;
@@ -279,8 +290,8 @@ module Match = struct
           | Some None -> Some "dlVlan = none"
           | Some (Some vlan) -> fld_str "dlVlan" string_of_int (Some vlan));
         fld_str "dlVlanPcp" Packet.string_of_dlVlanPcp x.dlVlanPcp;
-        fld_str "nwSrc" Packet.string_of_nwAddr x.nwSrc;
-        fld_str "nwDst" Packet.string_of_nwAddr x.nwDst;
+        fld_str "nwSrc" (mask_pr Packet.string_of_nwAddr Int32.to_string) x.nwSrc;
+        fld_str "nwDst" (mask_pr Packet.string_of_nwAddr Int32.to_string) x.nwDst;
         fld_str "nwProto" Packet.string_of_nwProto x.nwProto;
         fld_str "nwTos" Packet.string_of_nwTos x.nwTos;
         fld_str "tpSrc" Packet.string_of_tpPort x.tpSrc;

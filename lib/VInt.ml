@@ -2,6 +2,7 @@ type t =
   | Int64 of Int64.t
   | Int48 of Int64.t
   | Int32 of Int32.t
+  | Int32m of Int32.t * Int32.t
   | Int16 of int
   | Int8 of int
   | Int4 of int
@@ -18,6 +19,11 @@ let get_int (v : t) : int =
         raise (Invalid_argument "get_int")
       else 
         Int32.to_int n
+    | Int32m (n, _) ->
+      if n > Int32.of_int max_int then
+        raise (Invalid_argument "get_int")
+      else
+        Int32.to_int n
     | Int16 n -> n
     | Int8 n -> n
     | Int4 n -> n
@@ -26,6 +32,7 @@ let get_int64 (v : t) : Int64.t = match v with
   | Int64 n
   | Int48 n -> n
   | Int32 n -> Int64.of_int32 n
+  | Int32m (n, _) -> Int64.of_int32 n
   | Int16 n
   | Int8 n
   | Int4 n -> Int64.of_int n
@@ -37,6 +44,7 @@ let get_int48 (v : t) : Int64.t = match v with
                  n
   | Int48 n -> n
   | Int32 n -> Int64.of_int32 n
+  | Int32m (n, _) -> Int64.of_int32 n
   | Int16 n
   | Int8 n
   | Int4 n -> Int64.of_int n
@@ -46,7 +54,16 @@ let get_int32 (v : t) : Int32.t = match v with
     if n > 0xFFFFFFFFL then raise (Invalid_argument "get_int32")
     else Int64.to_int32 n
   | Int32 n -> n
+  | Int32m (n, _) -> n
   | Int16 n | Int8 n | Int4 n -> Int32.of_int n
+
+let get_int32m (v : t) : Int32.t * Int32.t = match v with
+  | Int64 n | Int48 n ->
+    if n > 0xFFFFFFFFL then raise (Invalid_argument "get_int32")
+    else (Int64.to_int32 n, 0l)
+  | Int32 n -> (n, 0l)
+  | Int32m (n, m) -> (n, m)
+  | Int16 n | Int8 n | Int4 n -> (Int32.of_int n, 0l)
 
 let int64_to_int (n : Int64.t) : int =
     if n > Int64.of_int max_int then
@@ -63,6 +80,7 @@ let int32_to_int (n : Int32.t) : int =
 let vint_to_int (v : t) : int = match v with
   | Int64 n | Int48 n -> int64_to_int n
   | Int32 n -> int32_to_int n
+  | Int32m (n, _) -> int32_to_int n
   | Int16 n | Int8 n | Int4 n -> n
 
 let get_int16 (v : t) : int =
@@ -86,6 +104,7 @@ let format (fmt : Format.formatter) (v : t) : unit =
   | Int64 n -> fprintf fmt "%Ld" n
   | Int48 n -> fprintf fmt "%Ld" n
   | Int32 n -> fprintf fmt "%ld" n
+  | Int32m (n, m) -> fprintf fmt "%ld/%ld" n m
   | Int16 n -> fprintf fmt "%d" n
   | Int8 n -> fprintf fmt "%d" n
   | Int4 n -> fprintf fmt "%d" n

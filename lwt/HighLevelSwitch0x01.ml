@@ -48,6 +48,7 @@ let to_packetIn (pktIn : Core.packetIn) : AL.pktIn =
       (to_payload input_payload, total_len, VInt.Int16 port, to_reason reason)
 
 let from_pattern (pat : AL.pattern) : Core.pattern = 
+  let pair_to_mask conv x = let (m, n) = conv x in { Core.m_value = m; m_mask = Some n } in
   let lookup conv field =
     try Some (conv (Fields.find field pat))
     with Not_found -> None in
@@ -60,8 +61,8 @@ let from_pattern (pat : AL.pattern) : Core.pattern =
 	| x -> Some (Some x)
        with Not_found -> None);
     Core.dlVlanPcp = lookup VInt.get_int4 AL.VlanPcp;
-    Core.nwSrc = lookup VInt.get_int32 AL.IP4Src;
-    Core.nwDst = lookup VInt.get_int32 AL.IP4Dst;
+    Core.nwSrc = lookup (pair_to_mask VInt.get_int32m) AL.IP4Src;
+    Core.nwDst = lookup (pair_to_mask VInt.get_int32m) AL.IP4Dst;
     Core.nwProto = lookup VInt.get_int8 AL.IPProto;
     Core.nwTos = None; (* Forgot to define it at the abstraction layer *)
     Core.tpSrc = lookup VInt.get_int16 AL.TCPSrcPort;
