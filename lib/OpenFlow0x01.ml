@@ -132,10 +132,10 @@ module Match = struct
     | Some _ -> false
 
   let mask_bits x = match x with
-    | None -> 32
+    | None -> 32 (* WildcardAll *)
     | Some x -> match x.m_mask with
-                  | None -> 0
-                  | Some m -> Int32.to_int m (* TODO(adf): 32 - m ? *)
+                  | None -> 0 (* WildcardExact *)
+                  | Some m -> Int32.to_int m
 
   let wildcards_of_match (m : t) : Wildcards.t =
     { Wildcards.in_port = is_none m.inPort;
@@ -150,9 +150,7 @@ module Match = struct
       Wildcards.nw_proto = is_none m.nwProto;
       Wildcards.tp_src = is_none m.tpSrc;
       Wildcards.tp_dst = is_none m.tpDst;
-      (* Oversimplified, since we don't support IP prefixes *)
       Wildcards.nw_src = mask_bits m.nwSrc;
-      (* Oversimplified, since we don't support IP prefixes *)
       Wildcards.nw_dst = mask_bits m.nwDst;
       Wildcards.dl_vlan_pcp = is_none m.dlVlanPcp;
       Wildcards.nw_tos = is_none m.nwTos;
@@ -235,14 +233,14 @@ module Match = struct
           None
         else
           Some {m_value = (get_ofp_match_nw_src bits);
-                 m_mask = Some (Int32.of_int w.Wildcards.nw_src)}; (* TODO(adf): 32 - value? *)
+                 m_mask = Some (Int32.of_int w.Wildcards.nw_src)};
       nwDst =
         (* Oversimplified, since we don't support IP prefixes *)
         if w.Wildcards.nw_dst >= 32 then
           None
         else
           Some {m_value = (get_ofp_match_nw_dst bits);
-                m_mask = Some (Int32.of_int w.Wildcards.nw_dst)}; (* TODO(adf): 32 - value? *)
+                m_mask = Some (Int32.of_int w.Wildcards.nw_dst)};
       nwProto =
         if w.Wildcards.nw_proto then
           None

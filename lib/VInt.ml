@@ -57,12 +57,15 @@ let get_int32 (v : t) : Int32.t = match v with
   | Int32m (n, _) -> n
   | Int16 n | Int8 n | Int4 n -> Int32.of_int n
 
-(* Returns a (value, mask) pair of 32-bit ints *)
+(* Returns a (value, mask) pair of 32-bit ints
+   Remember: mask = 0 means don't mask any bits.
+             this is the opposite of CIDR convention.
+ *)
 let get_int32m (v : t) : Int32.t * Int32.t = match v with
   | Int64 n | Int48 n ->
     if n > 0xFFFFFFFFL then raise (Invalid_argument "get_int32")
     else (Int64.to_int32 n, 0l)
-  | Int32 n -> (n, 0l) (* TODO(adf): maybe should be 32l ? depends on our design *)
+  | Int32 n -> (n, 0l)
   | Int32m (n, m) -> (n, m)
   | Int16 n | Int8 n | Int4 n -> (Int32.of_int n, 0l)
 
