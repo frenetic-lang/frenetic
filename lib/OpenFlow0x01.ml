@@ -133,7 +133,9 @@ module Match = struct
 
   let mask_bits x = match x with
     | None -> 32
-    | Some x -> Int32.to_int x.m_value (* TODO(adf): 32 - x.m_value ? *)
+    | Some x -> match x.m_mask with
+                  | None -> 0
+                  | Some m -> Int32.to_int m (* TODO(adf): 32 - m ? *)
 
   let wildcards_of_match (m : t) : Wildcards.t =
     { Wildcards.in_port = is_none m.inPort;
