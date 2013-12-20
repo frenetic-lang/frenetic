@@ -1,5 +1,3 @@
-OPAM_DEPENDS="cstruct quickcheck ounit pa_ounit"
-
 case "$OCAML_VERSION,$OPAM_VERSION" in
 3.12.1,1.0.0) ppa=avsm/ocaml312+opam10 ;;
 3.12.1,1.1.0) ppa=avsm/ocaml312+opam11 ;;
@@ -23,10 +21,18 @@ opam --version
 opam --git-version
 
 opam init
+eval `opam config env`
+export CAML_LD_LIBRARY_PATH="$EXTRA_LD_LIBRARY_PATH:$CAML_LD_LIBRARY_PATH"
 opam install ${OPAM_DEPENDS}
 
-eval `opam config env`
-export CAML_LD_LIBRARY_PATH="`pwd`/_build/lib:$CAML_LD_LIBRARY_PATH"
-ocaml setup.ml -configure --enable-tests --enable-quickcheck
+for fdep in $FRENETIC_DEPENDS; do
+    echo $fdep HEAD
+    curl "https://api.github.com/repos/frenetic-lang/$fdep/git/refs/heads/master" 2>/dev/null \
+      | grep sha | cut -d\" -f4
+done
+opam repository add frenetic-opam https://github.com/frenetic-lang/opam-bleeding.git
+opam install ${FRENETIC_DEPENDS//ocaml-/}
+
+ocaml setup.ml -configure ${CONFIG_FLAGS}
 make
 make test
