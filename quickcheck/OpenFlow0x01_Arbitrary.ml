@@ -37,6 +37,19 @@ let arbitrary_option arb =
       (1, ret_gen None);
       (3, arb >>= fun e -> ret_gen (Some e)) ]
 
+let arbitrary_32mask =
+  let open Gen in
+  (choose_int (1, 32)) >>= fun a ->
+    ret_gen (Int32.of_int a)
+
+let arbitrary_masked arb arb_mask =
+  let open OpenFlow0x01_Core in
+  let open Gen in
+  frequency [
+    (1, arb >>= fun v -> ret_gen {OpenFlow0x01_Core.m_value = v; m_mask = None});
+    (3, arb >>= fun v ->
+        arb_mask >>= fun m -> ret_gen {OpenFlow0x01_Core.m_value = v; m_mask = Some m}) ]
+
 module type OpenFlow0x01_Arbitrary = sig
 
     type t
@@ -139,8 +152,8 @@ module Match = struct
     arbitrary_option arbitrary_uint16 >>= fun dlTyp ->
     arbitrary_option arbitrary_dlVlan >>= fun dlVlan ->
     arbitrary_option arbitrary_dlVlanPcp >>= fun dlVlanPcp ->
-    arbitrary_option arbitrary_nwAddr >>= fun nwSrc ->
-    arbitrary_option arbitrary_nwAddr >>= fun nwDst ->
+    arbitrary_option (arbitrary_masked arbitrary_nwAddr arbitrary_32mask) >>= fun nwSrc ->
+    arbitrary_option (arbitrary_masked arbitrary_nwAddr arbitrary_32mask) >>= fun nwDst ->
     arbitrary_option arbitrary_uint8 >>= fun nwProto ->
     arbitrary_option arbitrary_nwTos >>= fun nwTos ->
     arbitrary_option arbitrary_tpPort >>= fun tpSrc ->

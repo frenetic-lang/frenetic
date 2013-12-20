@@ -232,15 +232,21 @@ module Match = struct
         if w.Wildcards.nw_src >= 32 then 
           None
         else
-          Some {m_value = (get_ofp_match_nw_src bits);
-                 m_mask = Some (Int32.of_int w.Wildcards.nw_src)};
+          if w.Wildcards.nw_src = 0 then
+            Some {m_value = (get_ofp_match_nw_src bits); m_mask = None}
+          else
+            Some {m_value = (get_ofp_match_nw_src bits);
+                   m_mask = Some (Int32.of_int w.Wildcards.nw_src)};
       nwDst =
         (* Oversimplified, since we don't support IP prefixes *)
         if w.Wildcards.nw_dst >= 32 then
           None
         else
-          Some {m_value = (get_ofp_match_nw_dst bits);
-                m_mask = Some (Int32.of_int w.Wildcards.nw_dst)};
+          if w.Wildcards.nw_dst = 0 then
+            Some {m_value = (get_ofp_match_nw_dst bits); m_mask = None}
+          else
+            Some {m_value = (get_ofp_match_nw_dst bits);
+                  m_mask = Some (Int32.of_int w.Wildcards.nw_dst)};
       nwProto =
         if w.Wildcards.nw_proto then
           None
