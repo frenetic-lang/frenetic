@@ -603,10 +603,10 @@ end
     defined therein.  This section defines pretty printers for top-level types.
 *)
 
-(** [string_of_switchId sw] pretty-prints [sw]. *)
+(** [string_of_switchId sw] pretty-prints [sw] in hex. *)
 val string_of_switchId : switchId -> string
 
-(** [string_of_switchId p] pretty-prints [p]. *)
+(** [string_of_portId p] pretty-prints [p]. *)
 val string_of_portId : portId -> string
 
 (** [string_of_queueId q] pretty-prints [q]. *)

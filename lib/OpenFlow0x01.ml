@@ -10,7 +10,7 @@ type portId = int16
 type queueId = int32
 type xid = int32
 
-let string_of_switchId = Int64.to_string
+let string_of_switchId = Printf.sprintf "0x%Lx"
 let string_of_portId = string_of_int
 let string_of_queueId =  Int32.to_string
 
