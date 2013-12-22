@@ -15,6 +15,8 @@ open Packet
     specification.
 *)
 
+type 'a mask = { m_value : 'a; m_mask : 'a option }
+
 (** [switchId] is the type of switch identifiers received as part of
 [SwitchFeature] replies. *)
 type switchId = int64
@@ -38,8 +40,8 @@ type pattern =
     ; dlTyp : dlTyp option (** Ethernet frame type. *)
     ; dlVlan : dlVlan option (** Input VLAN id. *)
     ; dlVlanPcp : dlVlanPcp option (** Input VLAN priority. *)
-    ; nwSrc : nwAddr option (** IP source address. *)
-    ; nwDst : nwAddr option (** IP destination address. *)
+    ; nwSrc : nwAddr mask option (** IP source address. *)
+    ; nwDst : nwAddr mask option (** IP destination address. *)
     ; nwProto : nwProto option (** IP protocol. *)
     ; nwTos : nwTos option (** IP ToS. *)
     ; tpSrc : tpPort option (** TCP/UDP source port. *)
