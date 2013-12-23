@@ -90,6 +90,23 @@ type packetOut =
     ; apply_actions : action list
     }
 
+type flowRemovedReason =
+  | IdleTimeout
+  | HardTimeout
+  | Delete
+
+type flowRemoved =
+    { pattern : pattern
+    ; cookie : int64
+    ; priority : int16
+    ; reason : flowRemovedReason
+    ; duration_sec : int32
+    ; duration_nsec : int32
+    ; idle_timeout : timeout
+    ; packet_count : int64
+    ; byte_count : int64
+    }
+
 let add_flow prio pat actions = 
   { command = AddFlow;
     pattern = pat;
