@@ -286,7 +286,7 @@ module FlowMod = struct
   end
 
   module Timeout = struct
-    type t = FlowMod.Timeout.t
+    type t = OpenFlow0x01.Timeout.t
     type s = Packet.int16
 
     let arbitrary =
@@ -297,10 +297,10 @@ module FlowMod = struct
         arbitrary_uint16 >>= (fun n -> ret_gen (ExpiresAfter n))
       ]
 
-    let to_string = FlowMod.Timeout.to_string
+    let to_string = OpenFlow0x01.Timeout.to_string
 
-    let marshal = FlowMod.Timeout.to_int
-    let parse = FlowMod.Timeout.of_int
+    let marshal = OpenFlow0x01.Timeout.to_int
+    let parse = OpenFlow0x01.Timeout.of_int
   end
 
   type t = FlowMod.t
