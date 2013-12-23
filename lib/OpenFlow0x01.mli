@@ -83,6 +83,19 @@ module Action : sig
 
 end
 
+(** The type of flow rule timeouts.  See Section 5.3.3 of the OpenFlow 1.0
+specification. *)
+module Timeout : sig
+
+  type t = timeout
+
+  (** [to_string v] pretty-prints [v]. *)
+  val to_string : t -> string
+
+  val to_int : t -> int16
+  val of_int : int16 -> t
+end
+
 (** A flow modification data structure.  See Section 5.3.3 of the OpenFlow 1.0
 specification. *)
 module FlowMod : sig
@@ -92,20 +105,6 @@ module FlowMod : sig
   module Command : sig
 
     type t = flowModCommand
-
-    (** [to_string v] pretty-prints [v]. *)
-    val to_string : t -> string
-
-    val to_int : t -> int16
-    val of_int : int16 -> t
-
-  end
-
-  (** The type of flow rule timeouts.  See Section 5.3.3 of the OpenFlow 1.0
-  specification. *)
-  module Timeout : sig
-
-    type t = timeout
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
@@ -144,6 +143,19 @@ module PacketIn : sig
   end
 
   type t = packetIn
+
+end
+
+(** Flow removed data structure. See section 5.4.3 of the OpenFlow 1.0 specification. *)
+module FlowRemoved : sig
+
+  module Reason : sig
+
+    type t = flowRemovedReason
+
+  end
+
+  type t = flowRemoved
 
 end
 
@@ -565,6 +577,7 @@ module Message : sig
     | SwitchFeaturesReply of SwitchFeatures.t
     | FlowModMsg of FlowMod.t
     | PacketInMsg of PacketIn.t
+    | FlowRemovedMsg of FlowRemoved.t
     | PortStatusMsg of PortStatus.t
     | PacketOutMsg of PacketOut.t
     | BarrierRequest

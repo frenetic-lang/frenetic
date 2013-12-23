@@ -139,6 +139,25 @@ type packetIn =
     ; reason : packetInReason (** Reason packet is being sent. *)
     }
 
+type flowRemovedReason =
+  | IdleTimeout
+  | HardTimeout
+  | Delete
+
+(** A flow-removed message.  See Section 5.4.2 of the OpenFlow 1.0
+    specification. *)
+type flowRemoved =
+    { pattern : pattern;
+      cookie : int64;
+      priority : int16;
+      reason : flowRemovedReason;
+      duration_sec : int32;
+      duration_nsec : int32;
+      idle_timeout : timeout;
+      packet_count : int64;
+      byte_count : int64
+    }
+
 (** A send-packet message.  See Section 5.3.6 of the OpenFlow 1.0
     specification. *)
 type packetOut =
