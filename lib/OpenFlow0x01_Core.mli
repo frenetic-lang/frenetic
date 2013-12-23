@@ -147,10 +147,10 @@ type flowRemovedReason =
 (** A flow-removed message.  See Section 5.4.2 of the OpenFlow 1.0
     specification. *)
 type flowRemoved =
-    { removed_pattern : pattern;
-      removed_cookie : int64;
-      removed_priority : int16;
-      removed_reason : flowRemovedReason;
+    { pattern : pattern;
+      cookie : int64;
+      priority : int16;
+      reason : flowRemovedReason;
       duration_sec : int32;
       duration_nsec : int32;
       idle_timeout : timeout;
