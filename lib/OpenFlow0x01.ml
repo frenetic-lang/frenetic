@@ -676,7 +676,7 @@ module FlowMod = struct
     uint16_t flags
   } as big_endian
 
-  let to_string m = Printf.sprintf
+  let to_string (m:t) = Printf.sprintf
     "{ command = %s; match = %s; priority = %d; actions = %s; cookie = %Ld;\
        idle_timeout = %s; hard_timeout = %s; notify_when_removed = %B;\
        apply_to_packet = %s; out_port = %s; check_overlap = %B }"
