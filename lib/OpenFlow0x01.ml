@@ -927,10 +927,10 @@ module FlowRemoved = struct
     let idle_timeout = Timeout.of_int (get_ofp_flow_removed_idle_timeout bits) in
     let packet_count = get_ofp_flow_removed_packet_count bits in
     let byte_count = get_ofp_flow_removed_byte_count bits in
-    { pattern = pattern
-    ; cookie = cookie
-    ; priority = priority
-    ; reason = reason
+    { removed_pattern = pattern
+    ; removed_cookie = cookie
+    ; removed_priority = priority
+    ; removed_reason = reason
     ; duration_sec = duration_sec
     ; duration_nsec = duration_nsec
     ; idle_timeout = idle_timeout
@@ -938,12 +938,12 @@ module FlowRemoved = struct
     ; byte_count = byte_count }
 
   let to_string msg = Printf.sprintf
-    "{ pattern = %s; cookie  = %Ld; priority = %d; reason = %s; duration_sec = %ld;\
+    "{ flow = %s; cookie  = %Ld; priority = %d; reason = %s; duration_sec = %ld;\
        duration_nsec = %ld; idle_timeout = %s; packet_count = %Ld; byte_count = %Ld }"
-    (Match.to_string msg.pattern)
-    msg.cookie
-    msg.priority
-    (Reason.to_string msg.reason)
+    (Match.to_string msg.removed_pattern)
+    msg.removed_cookie
+    msg.removed_priority
+    (Reason.to_string msg.removed_reason)
     msg.duration_sec
     msg.duration_nsec
     (Timeout.to_string msg.idle_timeout)
@@ -954,10 +954,10 @@ module FlowRemoved = struct
     sizeof_ofp_flow_removed
 
   let marshal (msg:t) (bits:Cstruct.t) : int =
-    let bits = Cstruct.shift bits (Match.marshal msg.pattern bits) in
-    set_ofp_flow_removed_cookie bits (msg.cookie);
-    set_ofp_flow_removed_priority bits (msg.priority);
-    set_ofp_flow_removed_reason bits (Reason.to_int msg.reason);
+    let bits = Cstruct.shift bits (Match.marshal msg.removed_pattern bits) in
+    set_ofp_flow_removed_cookie bits (msg.removed_cookie);
+    set_ofp_flow_removed_priority bits (msg.removed_priority);
+    set_ofp_flow_removed_reason bits (Reason.to_int msg.removed_reason);
     set_ofp_flow_removed_duration_sec bits (msg.duration_sec);
     set_ofp_flow_removed_duration_nsec bits (msg.duration_nsec);
     set_ofp_flow_removed_idle_timeout bits (Timeout.to_int msg.idle_timeout);

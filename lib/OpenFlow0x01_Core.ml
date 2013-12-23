@@ -96,10 +96,10 @@ type flowRemovedReason =
   | Delete
 
 type flowRemoved =
-    { pattern : pattern
-    ; cookie : int64
-    ; priority : int16
-    ; reason : flowRemovedReason
+    { removed_pattern : pattern
+    ; removed_cookie : int64
+    ; removed_priority : int16
+    ; removed_reason : flowRemovedReason
     ; duration_sec : int32
     ; duration_nsec : int32
     ; idle_timeout : timeout
