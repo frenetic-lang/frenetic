@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: f604aa3fa16b77850057655c3d78e2e3)
+# DO NOT EDIT (digest: 118351b0344e5a1e7841289accb00d5d)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -19,6 +19,17 @@
 <lib/*.ml{,i}>: package(str)
 <lib/*.ml{,i}>: package(cstruct)
 <lib/*.ml{,i}>: package(cstruct.syntax)
+# Library async
+"async/async.cmxs": use_async
+<async/*.ml{,i}>: use_openflow
+<async/*.ml{,i}>: package(packet)
+<async/*.ml{,i}>: package(async)
+<async/*.ml{,i}>: package(cstruct.async)
+<async/*.ml{,i}>: package(threads)
+<async/*.ml{,i}>: package(textutils)
+<async/*.ml{,i}>: package(str)
+<async/*.ml{,i}>: package(cstruct)
+<async/*.ml{,i}>: package(cstruct.syntax)
 # Library lwt
 "lwt/lwt.cmxs": use_lwt
 <lwt/*.ml{,i}>: use_openflow

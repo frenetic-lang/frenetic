@@ -19,6 +19,10 @@ Flag lwt
     Description: build the openflow.lwt library
     Default: false
 
+Flag async
+    Description: build the openflow.async library
+    Default: false
+
 Library openflow
   Path: lib
   BuildDepends:
@@ -43,6 +47,21 @@ Library openflow
     OpenFlow0x04,
     OpenFlow0x04_Core,
     SDN_Types    
+
+Library async
+  Findlibparent: openflow
+  Findlibname: async
+  Path: async
+  Build$: flag(async)
+  BuildDepends:
+    async,
+    openflow,
+    cstruct.async,
+    threads,
+    textutils
+  Modules:
+    Async_OpenFlow_Log,
+    Async_OpenFlow_Platform
 
 Library lwt
   Findlibparent: openflow
