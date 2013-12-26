@@ -1,5 +1,6 @@
 open OpenFlow0x01
 open OpenFlow0x01_Stats
+module Header = OpenFlow_Header
 
 open QuickCheck
 
@@ -19,6 +20,11 @@ let openflow_quickCheck arbitrary show parse marshal =
 
 module RoundTripping = struct
   module Gen = OpenFlow0x01_Arbitrary
+
+  TEST "OpenFlow_Header RoundTrip" =
+    let module GenHeader = Gen.OpenFlow0x01_Unsize(OpenFlow_Arbitrary.Header) in
+      (openflow_quickCheck GenHeader.arbitrary
+          GenHeader.to_string GenHeader.parse GenHeader.marshal)
 
   TEST "OpenFlow0x01 Wildcards RoundTrip" =
       (openflow_quickCheck Gen.Wildcards.arbitrary
@@ -59,8 +65,8 @@ module RoundTripping = struct
     let m = Hello bs in 
     let x = 42l in 
     let s = marshal x m in  
-    let h = Header.parse s in 
-    let s' = String.sub s Header.size (Header.len h - Header.size) in 
+    let h = Header.parse (Cstruct.of_string s) in 
+    let s' = String.sub s Header.size (h.Header.length - Header.size) in 
     let x',m' = parse h s' in 
     let xid_ok = x = x' in 
     let msg_ok = 

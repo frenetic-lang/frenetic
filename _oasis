@@ -78,6 +78,7 @@ Library quickcheck
         quickcheck,
         openflow
     Modules:
+        OpenFlow_Arbitrary,
         OpenFlow0x01_Arbitrary
 
 Document doc
