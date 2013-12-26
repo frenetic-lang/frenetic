@@ -107,13 +107,13 @@ type flowRemoved =
     ; byte_count : int64
     }
 
-let add_flow prio pat actions = 
+let add_flow prio pat ?(idle_to = Permanent) actions =
   { command = AddFlow;
     pattern = pat;
     priority = prio;
     actions = actions;
     cookie = 0L;
-    idle_timeout = Permanent;
+    idle_timeout = idle_to;
     hard_timeout = Permanent;
     notify_when_removed = false;
     out_port =  None;
