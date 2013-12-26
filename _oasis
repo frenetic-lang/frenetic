@@ -30,7 +30,10 @@ Library openflow
     Bits,
     Misc,
     ModComposition,
-    GroupTable0x04
+    GroupTable0x04,
+    SDN_OpenFlow0x01,
+    SDN_OpenFlow0x04,
+    HighLevelSwitch_common    
   Modules:
     VInt,
     OpenFlow0x01,
@@ -38,7 +41,7 @@ Library openflow
     OpenFlow0x01_Stats,
     OpenFlow0x04,
     OpenFlow0x04_Core,
-    SDN_Types
+    SDN_Types    
 
 Library lwt
   Findlibparent: openflow
@@ -52,7 +55,6 @@ Library lwt
     openflow
   InternalModules:
     HighLevelSwitch,
-    HighLevelSwitch_common,
     HighLevelSwitch0x01,
     HighLevelSwitch0x04
   Modules:
