@@ -546,27 +546,6 @@ end
 specification. *)
 module Message : sig
 
-  (** A message header. *)
-  module Header : sig
-
-    type t
-
-    (** Size in bytes of a serialized OpenFlow header structure (struct 
-        ofp_header). *)
-    val size : int
-
-    (** Length in bytes of the serialized OpenFlow message with this header. *)
-    val len : t -> int
-
-    (** [to_string hdr] pretty-prints [hdr]. *)
-    val to_string : t -> string
-
-    (** [parse bits] parses [bits].
-        @raise Unparsable if [bits] cannot be parsed. *)
-    val parse : string -> t
-
-  end
-
   type t =
     | Hello of bytes
     | ErrorMsg of Error.t
@@ -599,7 +578,7 @@ module Message : sig
       @raise Unparsable if [bits] cannot be parsed.
       @raise Ignored if [bits] contains a valid OpenFlow message that the 
              parser does not yet handle. *)
-  val parse : Header.t -> string -> (xid * t)
+  val parse : OpenFlow_Header.t -> string -> (xid * t)
 
   (** [marshal xid msg] serializes [msg], giving it a transaction ID [xid]. *)
   val marshal : xid -> t -> string
