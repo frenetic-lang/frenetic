@@ -1,8 +1,10 @@
+type xid = Int32.t
+
 type t = {
   version: int;
   type_code: int;
   length: int;
-  xid: Int32.t
+  xid: xid
 }
 
 val size : int
