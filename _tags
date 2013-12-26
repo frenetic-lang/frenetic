@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: f67bf63e760b489a07a3561d1e1b9dad)
+# DO NOT EDIT (digest: f604aa3fa16b77850057655c3d78e2e3)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -49,29 +49,12 @@
 "test/Test.byte": package(cstruct)
 "test/Test.byte": package(cstruct.syntax)
 <test/*.ml{,i}>: use_quickcheck
-<test/*.ml{,i}>: package(quickcheck)
-# Executable test0
-"test/Test0.byte": use_lwt
-"test/Test0.byte": use_openflow
-"test/Test0.byte": package(packet)
-"test/Test0.byte": package(oUnit)
-"test/Test0.byte": package(pa_ounit)
-"test/Test0.byte": package(pa_ounit.syntax)
-"test/Test0.byte": package(lwt)
-"test/Test0.byte": package(lwt.unix)
-"test/Test0.byte": package(lwt.syntax)
-"test/Test0.byte": package(str)
-"test/Test0.byte": package(cstruct)
-"test/Test0.byte": package(cstruct.syntax)
-<test/*.ml{,i}>: use_lwt
 <test/*.ml{,i}>: use_openflow
 <test/*.ml{,i}>: package(packet)
 <test/*.ml{,i}>: package(oUnit)
 <test/*.ml{,i}>: package(pa_ounit)
 <test/*.ml{,i}>: package(pa_ounit.syntax)
-<test/*.ml{,i}>: package(lwt)
-<test/*.ml{,i}>: package(lwt.unix)
-<test/*.ml{,i}>: package(lwt.syntax)
+<test/*.ml{,i}>: package(quickcheck)
 <test/*.ml{,i}>: package(str)
 <test/*.ml{,i}>: package(cstruct)
 <test/*.ml{,i}>: package(cstruct.syntax)
