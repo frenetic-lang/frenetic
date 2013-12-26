@@ -36,6 +36,7 @@ Library openflow
     HighLevelSwitch_common    
   Modules:
     VInt,
+    OpenFlow_Header,
     OpenFlow0x01,
     OpenFlow0x01_Core,
     OpenFlow0x01_Stats,
