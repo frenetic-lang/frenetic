@@ -73,9 +73,10 @@ module Make (M : Message.Message) : S with type t = M.t = struct
                 'a Deferred.t) 
     : 'a Deferred.t =
     Tcp.with_connection addr (fun sock sock_reader sock_writer ->
+      let sock_str = Socket.Address.to_string (Socket.getsockname sock) in
       Log.info ~tags:[("openflow", "socket")] 
         "new connection %s (peer is %s)"
-        (Socket.Address.to_string (Socket.getsockname sock))
+        sock_str
         (Socket.Address.to_string (Socket.getpeername sock));
       handler sock (deserialize ~label:sock_str sock_reader)
                      (serializer ~label:sock_str sock_writer))
