@@ -58,30 +58,7 @@ module Make(Message : Message) = struct
     module Client_message = Message
     module Server_message = Message
 
-    let deserialize (raw_reader : Reader.t) : [ `Eof | `Ok of m] Deferred.t = 
-      let ofhdr_str = String.create Header.size in
-      Reader.really_read raw_reader ofhdr_str
-      >>= function
-      | `Eof _ -> 
-        Log.info ~tags:[("openflow", "serialization")]
-          "EOF reading OpenFlow header";
-        return `Eof
-      | `Ok ->
-        let hdr = Header.parse (Cstruct.of_string ofhdr_str) in
-        let body_len = hdr.Header.length - Header.size in
-        let body_buf = String.create body_len in
-        Reader.really_read raw_reader body_buf
-        >>= function
-        | `Eof _ ->
-          Log.info ~tags:[("openflow", "serialization")]         
-            "EOF reading message body (expected %d bytes)"
-            body_len;
-          return `Eof
-        | `Ok ->
-          let m = Message.parse hdr (Cstruct.of_string body_buf) in
-          Log.of_lazy ~level:`Debug ~tags:[("openflow", "serialization")] 
-            (lazy (sprintf "read message: %s" (Message.to_string m)));
-          return (`Ok m)
+    module Serialization = Async_OpenFlow_Message.MakeSerializers (Message)
 
     module Transport = struct
 
@@ -93,12 +70,9 @@ module Make(Message : Message) = struct
 
       let flushed_time ((_, w) : t) = Writer.flushed_time w
 
-      let read ((r, _) : t) = deserialize r
+      let read ((r, _) : t) = Serialization.deserialize r
 
-      let write ((_, w) : t) (m : m) : unit =
-        let buf = Cstruct.create (Message.header_of m).Header.length in
-        let _ = Message.marshal m buf in
-        Async_cstruct.schedule_write w buf     
+      let write ((_, w) : t) (m : m) : unit = Serialization.serialize w m
 
     end
   

@@ -1,9 +1,10 @@
 # OASIS_START
-# DO NOT EDIT (digest: 96a3a08819265b942ab40406bdc8761a)
+# DO NOT EDIT (digest: 3015a69a902e8154fc41aab059c782ab)
 Async_OpenFlow
 Async_OpenFlow_Log
 Async_OpenFlow_Message
 Async_OpenFlow_Platform
+Async_OpenFlow_ClientServer
 Async_OpenFlow0x01
 Async_OpenFlow0x04
 Async_OpenFlowChunk

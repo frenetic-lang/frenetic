@@ -64,6 +64,31 @@ module Platform : sig
 
 end
 
+(** Lower-level interface. *)
+module ClientServer : sig
+
+  module type S = sig
+
+    type t
+
+    val listen
+      : ([< Socket.Address.t ] as 'a, 'b) Tcp.Where_to_listen.t
+      -> (t Pipe.Reader.t -> t Pipe.Writer.t -> unit Deferred.t)
+      -> ('a, 'b) Tcp.Server.t Deferred.t
+         
+    val connect
+      :  'addr Tcp.where_to_connect
+      -> (([ `Active ], 'addr) Socket.t -> t Pipe.Reader.t -> t Pipe.Writer.t -> 
+          'a Deferred.t)
+      -> 'a Deferred.t
+
+  end
+
+  module Make (M : Message) : S with type t = M.t
+
+end
+
+
 module OpenFlow0x01 : sig
 
   module Message : Message

@@ -64,6 +64,7 @@ Library async
     Async_OpenFlow_Log,
     Async_OpenFlow_Message,
     Async_OpenFlow_Platform,
+    Async_OpenFlow_ClientServer,
     Async_OpenFlow0x01,
     Async_OpenFlow0x04,
     Async_OpenFlowChunk
