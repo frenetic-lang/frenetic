@@ -2,7 +2,7 @@ language: c
 script: bash -ex .travis-ci.sh
 env:
   global:
-    - OPAM_DEPENDS="lwt cstruct quickcheck ounit pa_ounit"
+    - OPAM_DEPENDS="lwt cstruct quickcheck ounit pa_ounit textutils"
     - CONFIG_FLAGS="--enable-tests --enable-quickcheck --enable-lwt"
     - FRENETIC_DEPENDS="ocaml-packet"
   matrix:
