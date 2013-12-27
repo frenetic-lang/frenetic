@@ -146,3 +146,16 @@ Test all_tests
   Command: $testtool inline-test-runner openflow
   Run$:  flag(quickcheck) && flag(tests)
   TestTools: testtool
+
+Executable Hypervisor
+  Path: examples
+  MainIs: Hypervisor.ml
+  Install: False
+  BuildDepends:
+    threads,
+    core,
+    async,
+    packet,
+    cstruct.async,
+    openflow,
+    openflow.async
