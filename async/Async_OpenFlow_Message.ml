@@ -12,7 +12,7 @@ module type Message = sig
 
   val parse : OpenFlow_Header.t -> Cstruct.t -> t
 
-  val marshal : t -> Cstruct.t -> int
+  val marshal : t -> Cstruct.t -> unit
 
   val to_string : t -> string
 end
@@ -52,8 +52,10 @@ module MakeSerializers (M : Message) = struct
 
   let serialize ?(tags : (string * string) list = []) ?(label : string = "")
     (raw_writer : Writer.t) (m : M.t) : unit =
-    let buf = Cstruct.create (M.header_of m).Header.length in
-    let _ = M.marshal m buf in
+    let hdr = M.header_of m in
+    let buf = Cstruct.create hdr.Header.length in
+    Header.marshal buf hdr;
+    let _ = M.marshal m (Cstruct.shift buf Header.size) in
     Async_cstruct.schedule_write raw_writer buf;
     Log.of_lazy ~level:`Debug ~tags:tags
       (lazy (sprintf "[%s] wrote message hash=%s" 

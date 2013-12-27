@@ -1548,6 +1548,10 @@ module Message = struct
     { version = 0x04; type_code = msg_code_to_int (msg_code_of_message msg);
       length = sizeof msg; xid = xid }
 
+  let marshal_body (msg : t) (buf : Cstruct.t) =
+    let _ = blit_message msg buf in
+    ()
+    
   let marshal (xid : xid) (msg : t) : string =
     let sizeof_buf = sizeof msg in
     let hdr = header_of xid msg in

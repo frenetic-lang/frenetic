@@ -108,7 +108,7 @@ end
 module OpenFlow0x01 : sig
 
   module Message : Message
-   with type t = (OpenFlow_Header.xid * OpenFlow0x01.Message.t)
+    with type t = (OpenFlow_Header.xid * OpenFlow0x01.Message.t)
 
 end
 

@@ -2606,11 +2606,14 @@ module Message = struct
     { version = 0x01; type_code = msg_code_to_int (msg_code_of_message msg);
       length = sizeof_buf; xid = xid }
 
+  let marshal_body (msg : t) (buf : Cstruct.t) : unit = 
+    blit_message msg buf
+
   let marshal (xid : xid) (msg : t) : string =
     let sizeof_buf = Header.size + sizeof_body msg in
     let hdr = header_of xid msg in
     let buf = Cstruct.create sizeof_buf in
     Header.marshal buf hdr;
-    blit_message msg (Cstruct.shift buf Header.size);
+    marshal_body msg (Cstruct.shift buf Header.size);
     Cstruct.to_string buf
 end

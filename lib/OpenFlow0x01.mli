@@ -582,6 +582,8 @@ module Message : sig
              parser does not yet handle. *)
   val parse : OpenFlow_Header.t -> string -> (xid * t)
 
+  val marshal_body : t -> Cstruct.t -> unit
+  
   (** [marshal xid msg] serializes [msg], giving it a transaction ID [xid]. *)
   val marshal : xid -> t -> string
 

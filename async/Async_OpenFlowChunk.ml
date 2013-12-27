@@ -12,10 +12,8 @@ module Message : Platform.Message with type t = (Header.t * Cstruct.t) = struct
 
   let parse hdr buf = (hdr, Cstruct.set_len buf (hdr.Header.length - Header.size))
 
-  let marshal (hdr, body) buf = 
-    Header.marshal buf hdr;
-    Cstruct.blit body 0 buf Header.size (hdr.Header.length - Header.size);
-    hdr.Header.length
+  let marshal (hdr, body) buf =
+    Cstruct.blit body 0 buf 0 (hdr.Header.length - Header.size)
 
   let to_string x = Sexp.to_string_hum (sexp_of_t x)
 
