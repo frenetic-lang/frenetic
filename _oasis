@@ -29,7 +29,10 @@ Library openflow
     str,
     cstruct,
     cstruct.syntax,
-    packet
+    packet,
+    core,
+    sexplib.syntax,
+    threads
   InternalModules:
     Bits,
     Misc,
@@ -140,6 +143,6 @@ Executable testtool
     quickcheck
 
 Test all_tests
-  Command: $testtool inline-test-runner dummy
+  Command: $testtool inline-test-runner openflow
   Run$:  flag(quickcheck) && flag(tests)
   TestTools: testtool

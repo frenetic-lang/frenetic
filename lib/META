@@ -1,8 +1,8 @@
 # OASIS_START
-# DO NOT EDIT (digest: 838f428c0abb104e7270ae6aa9b68c12)
+# DO NOT EDIT (digest: 47045b75633fd0d78677e2b6d8e12648)
 version = "0.2.0"
 description = "Serialization library for OpenFlow"
-requires = "str cstruct cstruct.syntax packet"
+requires = "str cstruct cstruct.syntax packet core sexplib.syntax threads"
 archive(byte) = "openflow.cma"
 archive(byte, plugin) = "openflow.cma"
 archive(native) = "openflow.cmxa"
