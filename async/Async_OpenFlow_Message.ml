@@ -19,13 +19,18 @@ end
 
 module MakeSerializers (M : Message) = struct
 
-  let deserialize (raw_reader : Reader.t) : [ `Eof | `Ok of M.t] Deferred.t = 
+  (* Uses OCaml's built-in digest module *)
+  let readable_md5 (buf : string) : string =
+    Digest.to_hex (Digest.string buf)
+
+  let deserialize ?(tags : (string * string) list = []) ?(label : string = "")
+    (raw_reader : Reader.t) : [ `Eof | `Ok of M.t] Deferred.t = 
+    let log msg = Log.of_lazy ~level:`Debug ~tags:tags msg in
     let ofhdr_str = String.create Header.size in
     Reader.really_read raw_reader ofhdr_str
     >>= function
     | `Eof _ -> 
-      Log.info ~tags:[("openflow", "serialization")]
-        "EOF reading OpenFlow header";
+      log (lazy (sprintf "[%s] EOF reading header" label));
       return `Eof
     | `Ok ->
       let hdr = Header.parse (Cstruct.of_string ofhdr_str) in
@@ -34,19 +39,24 @@ module MakeSerializers (M : Message) = struct
       Reader.really_read raw_reader body_buf
       >>= function
       | `Eof _ ->
-        Log.info ~tags:[("openflow", "serialization")]         
-          "EOF reading message body (expected %d bytes)"
-          body_len;
+        log (lazy (sprintf "[%s] EOF reading body (expected %d bytes)" 
+                     label body_len));
         return `Eof
       | `Ok ->
         let m = M.parse hdr (Cstruct.of_string body_buf) in
-        Log.of_lazy ~level:`Debug ~tags:[("openflow", "serialization")] 
-          (lazy (sprintf "read message: %s" (M.to_string m)));
+        log (lazy (sprintf "[%s] read message header=%s; body hash=%s"
+                     label
+                     (Header.to_string hdr)
+                     (readable_md5 (ofhdr_str ^ body_buf))));
         return (`Ok m)
 
-  let serialize (raw_writer : Writer.t) (m : M.t) : unit =
+  let serialize ?(tags : (string * string) list = []) ?(label : string = "")
+    (raw_writer : Writer.t) (m : M.t) : unit =
     let buf = Cstruct.create (M.header_of m).Header.length in
     let _ = M.marshal m buf in
-    Async_cstruct.schedule_write raw_writer buf
+    Async_cstruct.schedule_write raw_writer buf;
+    Log.of_lazy ~level:`Debug ~tags:tags
+      (lazy (sprintf "[%s] wrote message hash=%s" 
+               label (readable_md5 (Cstruct.to_string buf))))
 
 end
