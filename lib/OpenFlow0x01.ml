@@ -1273,6 +1273,11 @@ end
 
 module PortStatus = struct
 
+  cstruct ofp_port_status {
+      uint8_t reason;               (* One of OFPPR_* *)
+      uint8_t pad[7]
+  } as big_endian
+
   module ChangeReason = struct
 
     type t =
@@ -1309,7 +1314,7 @@ module PortStatus = struct
         | Delete -> "Delete"
         | Modify -> "Modify"
 
-    let size_of _ = 1
+    let size_of _ = sizeof_ofp_port_status
 
   end
 
@@ -1317,10 +1322,6 @@ module PortStatus = struct
     { reason : ChangeReason.t;
       desc : PortDescription.t }
 
-  cstruct ofp_port_status {
-      uint8_t reason;               (* One of OFPPR_* *)
-      uint8_t pad[7]
-  } as big_endian
 
   let to_string status = Printf.sprintf
     "{ reason = %s; desc = %s }"
