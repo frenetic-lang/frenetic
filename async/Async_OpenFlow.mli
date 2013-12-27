@@ -128,4 +128,3 @@ module OpenFlow0x04 : sig
        [`Ok of Message.t | `Chunk of Chunk.Message.t] Pipe.Writer.t
 
 end
-
