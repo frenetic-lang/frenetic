@@ -98,6 +98,12 @@ module ClientServer : sig
 
 end
 
+module Chunk : sig
+
+  module Message : Message
+    with type t = (OpenFlow_Header.t * Cstruct.t)
+
+end
 
 module OpenFlow0x01 : sig
 
@@ -113,9 +119,3 @@ module OpenFlow0x04 : sig
 
 end
 
-module Chunk : sig
-
-  module Message : Message
-    with type t = (OpenFlow_Header.t * Cstruct.t)
-
-end
