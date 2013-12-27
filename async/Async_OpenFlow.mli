@@ -1,20 +1,20 @@
 open Core.Std
 open Async.Std
 
+module type Message = sig
+  type t
+  include Sexpable with type t := t
+
+  val header_of : t -> OpenFlow_Header.t
+
+  val parse : OpenFlow_Header.t -> Cstruct.t -> t
+
+  val marshal : t -> Cstruct.t -> int
+
+  val to_string : t -> string
+end
+
 module Platform : sig
-
-  module type Message = sig
-    type t
-    include Sexpable with type t := t
-
-    val header_of : t -> OpenFlow_Header.t
-
-    val parse : OpenFlow_Header.t -> Cstruct.t -> t
-
-    val marshal : t -> Cstruct.t -> int
-
-    val to_string : t -> string
-  end
 
   module type S = sig
 
@@ -66,21 +66,21 @@ end
 
 module OpenFlow0x01 : sig
 
-  module Message : Platform.Message
+  module Message : Message
    with type t = (OpenFlow_Header.xid * OpenFlow0x01.Message.t)
 
 end
 
 module OpenFlow0x04 : sig
 
-  module Message : Platform.Message
+  module Message : Message
     with type t = (OpenFlow_Header.xid * OpenFlow0x04.Message.t)
 
 end
 
 module Chunk : sig
 
-  module Message : Platform.Message
+  module Message : Message
     with type t = (OpenFlow_Header.t * Cstruct.t)
 
 end
