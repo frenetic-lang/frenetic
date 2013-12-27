@@ -61,4 +61,29 @@ module MakeSerializers (M : Message) = struct
       (lazy (sprintf "[%s] wrote message hash=%s" 
                label (readable_md5 (Cstruct.to_string buf))))
 
+
+  (* Converts back and forth between streams of messsages with parsed bodies
+     and "chunks", which are header * raw_body pairs. *)
+  let chunk_conv (chunk_reader, chunk_writer) =
+      let of_reader = Pipe.map chunk_reader
+        ~f:(fun (hdr, body) ->
+            if hdr.Header.version = 0x01 then
+              try 
+                `Ok (M.parse hdr body)
+              (* TODO(arjun): exception eaten? *)
+              with _ -> `Chunk (hdr, body)
+            else
+              `Chunk (hdr, body)) in
+      let (of_writer_r, of_writer) = Pipe.create () in
+      let _ = Pipe.iter_without_pushback of_writer_r
+        ~f:(function
+            | `Ok m ->
+              let hdr = M.header_of m in
+              let body_len = hdr.Header.length - Header.size in
+              let body_buf = Cstruct.create body_len in
+              M.marshal m body_buf;
+              Pipe.write_without_pushback chunk_writer (hdr, body_buf)
+            | `Chunk chunk ->
+              Pipe.write_without_pushback chunk_writer chunk) in
+      (of_reader, of_writer)
 end

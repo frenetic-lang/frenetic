@@ -15,3 +15,5 @@ module Message : Platform.Message with type t = (OpenFlow0x01.xid * M.t) = struc
   let to_string (_, m) = M.to_string m
 
 end
+
+include Async_OpenFlow_Message.MakeSerializers (Message)

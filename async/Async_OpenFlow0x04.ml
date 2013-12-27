@@ -14,3 +14,5 @@ module Message : Platform.Message with type t = (Header.xid * M.t) = struct
   let to_string _ = "we do not have an implementation of to_string for 1.3"
 
 end
+
+include Async_OpenFlow_Message.MakeSerializers (Message)

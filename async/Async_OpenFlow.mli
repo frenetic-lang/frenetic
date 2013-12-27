@@ -110,12 +110,22 @@ module OpenFlow0x01 : sig
   module Message : Message
     with type t = (OpenFlow_Header.xid * OpenFlow0x01.Message.t)
 
+  val chunk_conv
+    :  Chunk.Message.t Pipe.Reader.t * Chunk.Message.t Pipe.Writer.t
+    -> [`Ok of Message.t | `Chunk of Chunk.Message.t] Pipe.Reader.t * 
+       [`Ok of Message.t | `Chunk of Chunk.Message.t] Pipe.Writer.t
+
 end
 
 module OpenFlow0x04 : sig
 
   module Message : Message
     with type t = (OpenFlow_Header.xid * OpenFlow0x04.Message.t)
+
+  val chunk_conv
+    :  Chunk.Message.t Pipe.Reader.t * Chunk.Message.t Pipe.Writer.t
+    -> [`Ok of Message.t | `Chunk of Chunk.Message.t] Pipe.Reader.t * 
+       [`Ok of Message.t | `Chunk of Chunk.Message.t] Pipe.Writer.t
 
 end
 
