@@ -570,6 +570,8 @@ module Message : sig
   (** [size_of msg] returns the size of [msg] in bytes when serialized. *)
   val size_of : t -> int
 
+  val header_of : xid -> t -> OpenFlow_Header.t
+
   (** [parse hdr bits] parses the body of a message with header [hdr] from
       buffer [bits]. 
       @param hdr Header of the message to be parsed from [bits].
