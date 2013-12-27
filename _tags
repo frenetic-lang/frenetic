@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 118351b0344e5a1e7841289accb00d5d)
+# DO NOT EDIT (digest: 3b874d40d96e75d63a34cfe36dc92e80)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -27,6 +27,7 @@
 <async/*.ml{,i}>: package(cstruct.async)
 <async/*.ml{,i}>: package(threads)
 <async/*.ml{,i}>: package(textutils)
+<async/*.ml{,i}>: package(sexplib.syntax)
 <async/*.ml{,i}>: package(str)
 <async/*.ml{,i}>: package(cstruct)
 <async/*.ml{,i}>: package(cstruct.syntax)
@@ -72,5 +73,6 @@
 # OASIS_STOP
 <lib/*.ml>: syntax_camlp4o
 <lwt/*.ml>: syntax_camlp4o
+<async/*.ml>: syntax_camlp4o
 <test/*.ml>: syntax_camlp4o
 <of13test/*.ml>: syntax_camlp4o

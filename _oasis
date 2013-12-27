@@ -58,10 +58,14 @@ Library async
     openflow,
     cstruct.async,
     threads,
-    textutils
+    textutils,
+    sexplib.syntax
   Modules:
     Async_OpenFlow_Log,
-    Async_OpenFlow_Platform
+    Async_OpenFlow_Platform,
+    Async_OpenFlow0x01,
+    Async_OpenFlow0x04,
+    Async_OpenFlowChunk
 
 Library lwt
   Findlibparent: openflow

@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: b000dc5095e0f734594d86eac7a9d438)
+# DO NOT EDIT (digest: 838f428c0abb104e7270ae6aa9b68c12)
 version = "0.2.0"
 description = "Serialization library for OpenFlow"
 requires = "str cstruct cstruct.syntax packet"
@@ -33,7 +33,7 @@ package "lwt" (
 package "async" (
  version = "0.2.0"
  description = "Serialization library for OpenFlow"
- requires = "async openflow cstruct.async threads textutils"
+ requires = "async openflow cstruct.async threads textutils sexplib.syntax"
  archive(byte) = "async.cma"
  archive(byte, plugin) = "async.cma"
  archive(native) = "async.cmxa"
