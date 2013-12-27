@@ -159,3 +159,16 @@ Executable Hypervisor
     cstruct.async,
     openflow,
     openflow.async
+
+Executable learning_switch
+  Path: examples
+  MainIs: Learning_Switch.ml
+  Install: false
+  BuildDepends:
+    threads,
+    core,
+    async,
+    packet,
+    cstruct.async,
+    openflow,
+    openflow.async
