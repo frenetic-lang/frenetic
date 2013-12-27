@@ -1,3 +1,4 @@
+module Log = Async_OpenFlow_Log
 module type Message = Async_OpenFlow_Message.Message
 module Platform = Async_OpenFlow_Platform
 module ClientServer = Async_OpenFlow_ClientServer

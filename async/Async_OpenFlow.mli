@@ -1,6 +1,16 @@
 open Core.Std
 open Async.Std
 
+(** By default, displays untagged info messages on stderr. *)
+module Log : sig
+
+  include Log.Global_intf
+
+  val make_colored_filtered_output : (string * string) list ->
+    Log.Output.t
+
+end
+
 module type Message = sig
   type t
   include Sexpable with type t := t
