@@ -42,7 +42,6 @@ module Controller = struct
     >>= function
       | `Sent _ ->
         t.handshakes <- SwitchTable.add t.handshakes c_id AwaitHello;
-        print_endline "NITIALIAZED HANDSHAKE";
         return None
       | `Drop exn -> raise exn
 
