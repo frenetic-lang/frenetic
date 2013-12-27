@@ -1,7 +1,7 @@
 # OASIS_START
-# DO NOT EDIT (digest: af27ee8d069b33ee0b9ad4645a8c77e1)
-# Ignore VCS directories, you can use the same kind of rule outside 
-# OASIS_START/STOP if you want to exclude directories that contains 
+# DO NOT EDIT (digest: 651d82d513641129080e87c4915de157)
+# Ignore VCS directories, you can use the same kind of rule outside
+# OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
 <**/.svn>: -traverse
 <**/.svn>: not_hygienic
@@ -85,10 +85,10 @@
 <frenetic/katnetic.{native,byte}>: pkg_lwt
 <frenetic/katnetic.{native,byte}>: pkg_lwt.syntax
 <frenetic/katnetic.{native,byte}>: pkg_packet
-<frenetic/katnetic.{native,byte}>: pkg_lwt.unix
 <frenetic/katnetic.{native,byte}>: pkg_cstruct
 <frenetic/katnetic.{native,byte}>: pkg_dprle
 <frenetic/katnetic.{native,byte}>: pkg_lwt.syntax.log
+<frenetic/katnetic.{native,byte}>: pkg_lwt.unix
 <frenetic/katnetic.{native,byte}>: pkg_str
 <frenetic/katnetic.{native,byte}>: pkg_ocamlgraph
 <frenetic/katnetic.{native,byte}>: pkg_openflow
