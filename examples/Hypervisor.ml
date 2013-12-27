@@ -11,8 +11,8 @@ type chunk = OFAsync.Chunk.Message.t
 let _ = Log.set_level `Debug
 
 let _ = Log.set_output 
-  [Log.make_colored_filtered_output [("openflow", "socket")(*;
-                                     ("openflow", "serialization")*)]]
+  [Log.make_colored_filtered_output [("openflow", "socket");
+                                     ("openflow", "serialization"))]]
 
 let openflow_parser = OFAsync.OpenFlow0x01.chunk_conv
 
