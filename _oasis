@@ -60,12 +60,14 @@ Library async
     threads,
     textutils,
     sexplib.syntax
-  Modules:
+  InternalModules:
     Async_OpenFlow_Log,
     Async_OpenFlow_Platform,
     Async_OpenFlow0x01,
     Async_OpenFlow0x04,
     Async_OpenFlowChunk
+  Modules:
+    Async_OpenFlow
 
 Library lwt
   Findlibparent: openflow
