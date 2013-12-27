@@ -67,7 +67,7 @@ Library quickcheck
 Executable testtool
   Path: test
   MainIs: Test.ml
-  Build$: flag(quickcheck)
+  Build$: flag(quickcheck) && flag(tests)
   BuildDepends: 
     oUnit,packet,
     netcore,
