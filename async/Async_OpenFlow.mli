@@ -19,7 +19,7 @@ module type Message = sig
 
   val parse : OpenFlow_Header.t -> Cstruct.t -> t
 
-  val marshal : t -> Cstruct.t -> int
+  val marshal : t -> Cstruct.t -> unit
 
   val to_string : t -> string
 end

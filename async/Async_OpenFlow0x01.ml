@@ -1,4 +1,5 @@
 open Core.Std
+open Async.Std
 
 module Platform = Async_OpenFlow_Platform
 module Header = OpenFlow_Header
