@@ -1362,15 +1362,6 @@ end
 
 module PortsDescriptionReply = struct
     
-    cstruct ofp_multipart_reply {
-      uint16_t typ; (* One of the OFPMP_* constants. *)
-      uint16_t flags; (* OFPMPF_REQ_* flags. *)
-      uint8_t pad0;
-      uint8_t pad1;
-      uint8_t pad2;
-      uint8_t pad3
-    } as big_endian
-
   let parse (bits : Cstruct.t) : multipartReply =
     let portIter =
       Cstruct.iter
@@ -1383,15 +1374,6 @@ end
 
 module MultipartReply = struct
     
-    cstruct ofp_multipart_reply {
-      uint16_t typ; (* One of the OFPMP_* constants. *)
-      uint16_t flags; (* OFPMPF_REQ_* flags. *)
-      uint8_t pad0;
-      uint8_t pad1;
-      uint8_t pad2;
-      uint8_t pad3
-    } as big_endian
-
   let parse (bits : Cstruct.t) : multipartReply =
     let ofp_body_bits = Cstruct.shift bits sizeof_ofp_multipart_reply in
     match int_to_ofp_multipart_types (get_ofp_multipart_reply_typ bits) with
