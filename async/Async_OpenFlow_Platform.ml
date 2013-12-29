@@ -115,3 +115,20 @@ module Make(Message : Message) = struct
   let listening_port = Impl.port
 
 end
+
+module Trans = struct
+  type ('t, 'a, 'b) stage = 't -> 'a -> 'b option Deferred.t
+
+  let compose (f : ('t, 'b, 'c) stage) (g : ('t, 'a, 'b) stage) : ('t, 'a, 'c) stage =
+    fun t e ->
+      g t e
+      >>= function
+        | Some e' -> f t e'
+        | None -> return None
+
+  let (>=>) f g = compose g f
+  let (<=<) f g = compose f g
+
+  let run (f : ('t, 'a, 'b) stage) (t : 't) (r : 'a Pipe.Reader.t) : 'b Pipe.Reader.t =
+    Pipe.filter_map' r ~f:(f t)
+end
