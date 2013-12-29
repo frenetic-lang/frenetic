@@ -7,7 +7,7 @@ type payload =
     (** [Buffered (id, buf)] is a packet buffered on a switch. *)
   | NotBuffered of bytes
 
-type xid = int32
+type xid = OpenFlow_Header.xid
 type int12 = int16
 
 let val_to_mask v =

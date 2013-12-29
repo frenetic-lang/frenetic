@@ -8,7 +8,7 @@ type portId = int16
 
 type queueId = int32
 
-type xid = int32
+type xid = OpenFlow_Header.xid
 
 type pattern =  
     { dlSrc : dlAddr option

@@ -14,7 +14,7 @@ module OFHandshake = struct
       { ver : int;
         typ : int;
         len : int;
-        xid : int32 }
+        xid : OpenFlow_Header.xid }
 
     cstruct ofp_header {
       uint8_t version;    

@@ -8,7 +8,7 @@ exception Ignored of string
 type switchId = int64
 type portId = int16
 type queueId = int32
-type xid = int32
+type xid = OpenFlow0x01_Core.xid
 
 let string_of_switchId = Printf.sprintf "0x%Lx"
 let string_of_portId = string_of_int

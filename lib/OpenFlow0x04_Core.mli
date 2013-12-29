@@ -2,13 +2,13 @@ open Packet
 
 type 'a mask = { m_value : 'a; m_mask : 'a option }
 
-type xid = int32
-type int12 = int16
-
 type payload =
   | Buffered of int32 * bytes 
     (** [Buffered (id, buf)] is a packet buffered on a switch. *)
   | NotBuffered of bytes
+
+type xid = OpenFlow_Header.xid
+type int12 = int16
 
 val val_to_mask : 'a1 -> 'a1 mask
 
