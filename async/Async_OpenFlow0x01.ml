@@ -63,7 +63,7 @@ module Controller = struct
         return (Some(`Connect c_id))
       | _, _ -> raise (Handshake (c_id, "unknown handshake state"))
 
-  let handshake t msg =
+  let handshake (t : t) msg =
     match msg with
       | `Connect s_id -> init_handshake t s_id
       | `Disconnect (s_id, e) ->
@@ -79,6 +79,13 @@ module Controller = struct
             end
         end
 
+  let echo (t : t) evt =
+    let open OpenFlow0x01.Message in
+    match evt with
+      | `Message (s_id, (t_id, EchoRequest bytes)) ->
+        Platform.send t.platform s_id (t_id, EchoReply bytes) >>| (fun _ -> None)
+      | _ -> return (Some(evt))
+
   let create ?max_pending_connections ?verbose ?log_disconnects ?buffer_age_limit ~port =
     Platform.create ?max_pending_connections ?verbose ?log_disconnects
       ?buffer_age_limit ~port
@@ -89,7 +96,8 @@ module Controller = struct
     }
 
   let listen t =
-    Pipe.filter_map' (Platform.listen t.platform) (handshake t)
+    let open Async_OpenFlow_Platform.Trans in
+    run (handshake >=> echo) t (Platform.listen t.platform)
 
   let close t = Platform.close t.platform
   let has_switch_id t s_id = SwitchTable.find t.switches s_id

@@ -95,8 +95,6 @@ let switch
     | `Message (c_id, msg) ->
       let t_id, msg = msg in
       begin match msg with
-        | EchoRequest bytes ->
-          OF0x01Controller.send ctl c_id (t_id, EchoReply bytes) >>= ensure tbl
         | PacketInMsg pi ->
           learn c_id pi
             >>= (function
