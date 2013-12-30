@@ -1,5 +1,4 @@
 open Core.Std
-open Async.Std
 
 module Platform = Async_OpenFlow_Platform
 module Header = OpenFlow_Header
@@ -26,90 +25,44 @@ end
 include Async_OpenFlow_Message.MakeSerializers (Message)
 
 module Controller = struct
-  module Platform = Platform.Make(Message)
-  module Switch_id = Platform.Switch_id
+  open Async.Std
+
+  module ChunkController = Async_OpenFlowChunk.Controller
+  module Switch_id = ChunkController.Switch_id
 
   module SwitchTable = Map.Make(Switch_id)
-
-  type h =
-    | AwaitHello
-    | AwaitFeatures
 
   exception Handshake of Switch_id.t * string
 
   type t = {
-    platform : Platform.t;
-    mutable switches : OpenFlow0x01.SwitchFeatures.t SwitchTable.t;
-    mutable handshakes : h SwitchTable.t
+    sub : ChunkController.t;
   }
 
-  let init_handshake t (c_id : Switch_id.t)  =
-    let open OpenFlow0x01.Message in
-    Platform.send t.platform c_id (0l, Hello (Cstruct.of_string ""))
-    >>= function
-      | `Sent _ ->
-        t.handshakes <- SwitchTable.add t.handshakes c_id AwaitHello;
-        return None
-      | `Drop exn -> raise exn
-
-  let handshake t (c_id : Switch_id.t) (h : h) (msg : Platform.m) =
-    let open OpenFlow0x01.Message in
-    match h, msg with
-      | AwaitHello, (_, Hello _) ->
-        Platform.send t.platform c_id (0l, SwitchFeaturesRequest)
-        >>= (function
-          | `Sent _ ->
-            t.handshakes <- SwitchTable.add t.handshakes c_id AwaitFeatures;
-            return None
-          | `Drop exn ->
-            t.handshakes <- SwitchTable.remove t.handshakes c_id;
-            raise exn)
-      | AwaitFeatures, (_, SwitchFeaturesReply feats) ->
-        t.switches <- SwitchTable.add t.switches c_id feats;
-        t.handshakes <- SwitchTable.remove t.handshakes c_id;
-        return (Some(`Connect c_id))
-      | _, _ -> raise (Handshake (c_id, "unknown handshake state"))
-
-  let handshake (t : t) msg =
-    match msg with
-      | `Connect s_id -> init_handshake t s_id
-      | `Disconnect (s_id, e) ->
-        t.switches <- SwitchTable.remove t.switches s_id;
-        return (Some(`Disconnect(s_id, e)))
-      | `Message (s_id, msg') ->
-        begin match SwitchTable.find t.switches s_id with
-          | Some _ -> return (Some(`Message(s_id, msg')))
-          | None ->
-            begin match SwitchTable.find t.handshakes s_id with
-              | Some h -> handshake t s_id h msg'
-              | None -> raise (Handshake (s_id, "received message from unknown switch"))
-            end
-        end
-
-  let echo (t : t) evt =
-    let open OpenFlow0x01.Message in
+  let openflow0x01 _ evt =
     match evt with
-      | `Message (s_id, (t_id, EchoRequest bytes)) ->
-        Platform.send t.platform s_id (t_id, EchoReply bytes) >>| (fun _ -> None)
-      | _ -> return (Some(evt))
+      | `Message (s_id, (hdr, bits)) ->
+        return (Some(`Message (s_id, Message.parse hdr bits)))
+      | `Connect e -> return (Some(`Connect e))
+      | `Disconnect e -> return (Some(`Disconnect e))
 
   let create ?max_pending_connections ?verbose ?log_disconnects ?buffer_age_limit ~port =
-    Platform.create ?max_pending_connections ?verbose ?log_disconnects
+    ChunkController.create ?max_pending_connections ?verbose ?log_disconnects
       ?buffer_age_limit ~port
-    >>| function t -> {
-      platform = t;
-      switches = SwitchTable.empty;
-      handshakes = SwitchTable.empty
-    }
+    >>| function t -> { sub = t }
 
   let listen t =
     let open Async_OpenFlow_Platform.Trans in
-    run (handshake >=> echo) t (Platform.listen t.platform)
+    let open ChunkController in
+    let stages =
+      (local (fun t -> t.sub)
+        (handshake 0x01 >=> echo))
+      >=> openflow0x01 in
+    run stages t (listen t.sub)
 
-  let close t = Platform.close t.platform
-  let has_switch_id t s_id = SwitchTable.find t.switches s_id
-  let send t = Platform.send t.platform
-  let send_to_all t = Platform.send_to_all t.platform
-  let client_addr_port t = Platform.client_addr_port t.platform
-  let listening_port t = Platform.listening_port t.platform
+  let close t = ChunkController.close t.sub
+  let has_switch_id t = ChunkController.has_switch_id t.sub
+  let send t s_id msg = ChunkController.send t.sub s_id (Message.marshal' msg)
+  let send_to_all t msg = ChunkController.send_to_all t.sub (Message.marshal' msg)
+  let client_addr_port t = ChunkController.client_addr_port t.sub
+  let listening_port t = ChunkController.listening_port t.sub
 end
