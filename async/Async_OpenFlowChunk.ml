@@ -15,6 +15,8 @@ module Message : Platform.Message with type t = (Header.t * Cstruct.t) = struct
   let marshal (hdr, body) buf =
     Cstruct.blit body 0 buf 0 (hdr.Header.length - Header.size)
 
+  let marshal' x = x
+
   let to_string x = Sexp.to_string_hum (sexp_of_t x)
 
 end

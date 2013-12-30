@@ -21,6 +21,8 @@ module type Message = sig
 
   val marshal : t -> Cstruct.t -> unit
 
+  val marshal' : t -> (OpenFlow_Header.t * Cstruct.t)
+
   val to_string : t -> string
 end
 

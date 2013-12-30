@@ -13,6 +13,7 @@ module type Message = sig
   val parse : OpenFlow_Header.t -> Cstruct.t -> t
 
   val marshal : t -> Cstruct.t -> unit
+  val marshal' : t -> (Header.t * Cstruct.t)
 
   val to_string : t -> string
 end
@@ -67,6 +68,7 @@ module MakeSerializers (M : Message) = struct
   let chunk_conv (chunk_reader, chunk_writer) =
       let of_reader = Pipe.map chunk_reader
         ~f:(fun (hdr, body) ->
+            (* XXX(seliopou): What's the deal with this version check? *)
             if hdr.Header.version = 0x01 then
               try 
                 `Ok (M.parse hdr body)
@@ -78,11 +80,7 @@ module MakeSerializers (M : Message) = struct
       let _ = Pipe.iter_without_pushback of_writer_r
         ~f:(function
             | `Ok m ->
-              let hdr = M.header_of m in
-              let body_len = hdr.Header.length - Header.size in
-              let body_buf = Cstruct.create body_len in
-              M.marshal m body_buf;
-              Pipe.write_without_pushback chunk_writer (hdr, body_buf)
+              Pipe.write_without_pushback chunk_writer (M.marshal' m)
             | `Chunk chunk ->
               Pipe.write_without_pushback chunk_writer chunk) in
       (of_reader, of_writer)

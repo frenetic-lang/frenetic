@@ -14,6 +14,13 @@ module Message : Platform.Message with type t = (OpenFlow0x01.xid * M.t) = struc
   let marshal (xid, m) buf = M.marshal_body m buf
   let to_string (_, m) = M.to_string m
 
+  let marshal' msg =
+    let hdr = header_of msg in
+    let body_len = hdr.Header.length - Header.size in
+    let body_buf = Cstruct.create body_len in
+    marshal msg body_buf;
+    (hdr, body_buf)
+
 end
 
 include Async_OpenFlow_Message.MakeSerializers (Message)
