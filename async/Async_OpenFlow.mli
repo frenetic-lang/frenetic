@@ -79,6 +79,7 @@ module Platform : sig
     val (>=>) : ('t, 'a, 'b) stage -> ('t, 'b, 'c) stage -> ('t, 'a, 'c) stage
     val (<=<) : ('t, 'b, 'c) stage -> ('t, 'a, 'b) stage -> ('t, 'a, 'c) stage
 
+    val local : ('t1 -> 't2) -> ('t2, 'a, 'b) stage -> ('t1, 'a, 'b) stage
     val run : ('t, 'a, 'b) stage -> 't -> 'a Pipe.Reader.t -> 'b Pipe.Reader.t
   end
 end

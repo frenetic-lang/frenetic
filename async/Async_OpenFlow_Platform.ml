@@ -129,6 +129,9 @@ module Trans = struct
   let (>=>) f g = compose g f
   let (<=<) f g = compose f g
 
+  let local (l : 't1 -> 't2) (f : ('t2, 'a, 'b) stage) : ('t1, 'a, 'b) stage =
+    fun t e -> f (l t) e
+
   let run (f : ('t, 'a, 'b) stage) (t : 't) (r : 'a Pipe.Reader.t) : 'b Pipe.Reader.t =
     Pipe.filter_map' r ~f:(f t)
 end
