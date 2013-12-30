@@ -31,8 +31,6 @@ module Controller = struct
 
   module SwitchTable = Map.Make(Switch_id)
 
-  exception Handshake of Switch_id.t * string
-
   type t = {
     sub : ChunkController.t;
   }
