@@ -38,3 +38,8 @@ let marshal (buf : Cstruct.t) (t : t) : unit =
 let to_string hdr =
   Format.sprintf "{ version = %x, code = %d, len = %d, xid = %ld }"
     hdr.version hdr.type_code hdr.length hdr.xid
+
+let type_code_hello = 0
+let type_code_error = 1
+let type_code_echo_request = 2
+let type_code_echo_reply = 3
