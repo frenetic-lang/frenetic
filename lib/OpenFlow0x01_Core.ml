@@ -107,7 +107,7 @@ type flowRemoved =
     ; byte_count : int64
     }
 
-let add_flow prio pat ?(idle_to = Permanent) actions =
+let add_flow prio pat ?(idle_to = Permanent) ?(notify_removed = false) actions =
   { command = AddFlow;
     pattern = pat;
     priority = prio;
@@ -115,7 +115,7 @@ let add_flow prio pat ?(idle_to = Permanent) actions =
     cookie = 0L;
     idle_timeout = idle_to;
     hard_timeout = Permanent;
-    notify_when_removed = false;
+    notify_when_removed = notify_removed;
     out_port =  None;
     apply_to_packet = None;
     check_overlap = false
