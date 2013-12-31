@@ -183,7 +183,7 @@ val match_all : pattern
 
     The entry is permanent (i.e., does not timeout), its cookie is
     zero, etc. *)
-val add_flow : int16 -> pattern -> ?idle_to:timeout -> action list -> flowMod
+val add_flow : int16 -> pattern -> ?idle_to:timeout -> ?notify_removed:bool -> action list -> flowMod
 
 val delete_flow_strict : int16 -> pattern -> pseudoPort option -> flowMod
 
