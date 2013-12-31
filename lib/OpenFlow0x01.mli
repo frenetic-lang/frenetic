@@ -153,9 +153,13 @@ module FlowRemoved : sig
 
     type t = flowRemovedReason
 
+    val to_string : t -> string
+
   end
 
   type t = flowRemoved
+
+  val to_string : t -> string
 
 end
 
