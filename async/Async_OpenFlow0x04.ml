@@ -27,9 +27,9 @@ module Controller = struct
   open Async.Std
 
   module ChunkController = Async_OpenFlowChunk.Controller
-  module Switch_id = ChunkController.Switch_id
+  module Client_id = ChunkController.Client_id
 
-  module SwitchTable = Map.Make(Switch_id)
+  module SwitchTable = Map.Make(Client_id)
 
   type t = {
     sub : ChunkController.t;

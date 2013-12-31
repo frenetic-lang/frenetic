@@ -33,12 +33,12 @@ module Platform : sig
     type t
     type m
 
-    module Switch_id: Unique_id
+    module Client_id : Unique_id
 
     type result = [
-      | `Connect of Switch_id.t
-      | `Disconnect of Switch_id.t * Sexp.t
-      | `Message of Switch_id.t * m
+      | `Connect of Client_id .t
+      | `Disconnect of Client_id .t * Sexp.t
+      | `Message of Client_id .t * m
     ]
 
     val create
@@ -51,13 +51,13 @@ module Platform : sig
 
     val listen : t -> result Pipe.Reader.t
 
-    val close : t -> Switch_id.t -> unit
+    val close : t -> Client_id .t -> unit
 
-    val has_switch_id : t -> Switch_id.t -> bool
+    val has_switch_id : t -> Client_id .t -> bool
 
     val send
       :  t
-      -> Switch_id.t
+      -> Client_id .t
       -> m
       -> [ `Drop of exn | `Sent of Time.t ] Deferred.t
 
@@ -65,7 +65,7 @@ module Platform : sig
 
     val client_addr_port
       :  t
-      -> Switch_id.t
+      -> Client_id .t
       -> (Unix.Inet_addr.t * int) option
 
     val listening_port : t -> int
