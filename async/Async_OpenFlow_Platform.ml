@@ -8,6 +8,7 @@ module type Message = Async_OpenFlow_Message.Message
 module type S = sig
 
   type t 
+
   type m
 
   module Switch_id: Unique_id

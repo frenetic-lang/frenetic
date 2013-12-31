@@ -36,10 +36,10 @@ module Controller = struct
     sub : ChunkController.t;
   }
 
-  let openflow0x01 _ evt =
+  let openflow0x01 _ evt = 
     match evt with
       | `Message (s_id, (hdr, bits)) ->
-        return (Some(`Message (s_id, Message.parse hdr bits)))
+         return (Some(`Message (s_id, Message.parse hdr bits)))
       | `Connect e -> return (Some(`Connect e))
       | `Disconnect e -> return (Some(`Disconnect e))
 

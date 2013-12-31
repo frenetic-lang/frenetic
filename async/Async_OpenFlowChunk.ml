@@ -5,7 +5,8 @@ module Platform = Async_OpenFlow_Platform
 module Header = OpenFlow_Header
 module M = OpenFlow0x04.Message
 
-module Message : Platform.Message with type t = (Header.t * Cstruct.t) = struct
+module Message : Platform.Message 
+  with type t = (Header.t * Cstruct.t) = struct
 
   type t = (Header.t * Cstruct.t) sexp_opaque with sexp
 
