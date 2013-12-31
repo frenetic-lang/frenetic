@@ -1,13 +1,12 @@
 open Core.Std
 
-type xid = Int32.t
+type xid = Int32.t with sexp
 
 type t = {
   version: int;
   type_code: int;
   length: int;
-  xid: Int32.t (* if xid, then with sexp complains. The .mli can use xid
-                  here without any problem. *)
+  xid: xid
 } with sexp
 
 cstruct ofp_header {
