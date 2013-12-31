@@ -21,3 +21,5 @@ val type_code_hello : int
 val type_code_error : int
 val type_code_echo_request : int
 val type_code_echo_reply : int
+val type_code_features_request : int
+val type_code_features_reply : int

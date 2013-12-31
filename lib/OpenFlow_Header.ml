@@ -42,3 +42,5 @@ let type_code_hello = 0
 let type_code_error = 1
 let type_code_echo_request = 2
 let type_code_echo_reply = 3
+let type_code_features_request = 5
+let type_code_features_reply = 6
