@@ -25,11 +25,11 @@ end
 
 module Controller = struct
   module Platform = Platform.Make(Message)
-  module Switch_id = Platform.Switch_id
+  module Client_id = Platform.Client_id
 
-  module SwitchSet = Set.Make(Switch_id)
+  module SwitchSet = Set.Make(Client_id)
 
-  exception Handshake of Switch_id.t * string
+  exception Handshake of Client_id.t * string
 
   type t = {
     platform : Platform.t;

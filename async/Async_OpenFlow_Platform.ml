@@ -11,12 +11,12 @@ module type S = sig
 
   type m
 
-  module Switch_id: Unique_id
+  module Client_id : Unique_id
 
   type result = [
-    | `Connect of Switch_id.t
-    | `Disconnect of Switch_id.t * Sexp.t
-    | `Message of Switch_id.t * m
+    | `Connect of Client_id.t
+    | `Disconnect of Client_id.t * Sexp.t
+    | `Message of Client_id.t * m
   ]
 
   val create
@@ -29,13 +29,13 @@ module type S = sig
 
   val listen : t -> result Pipe.Reader.t
 
-  val close : t -> Switch_id.t -> unit
+  val close : t -> Client_id.t -> unit
 
-  val has_switch_id : t -> Switch_id.t -> bool
+  val has_switch_id : t -> Client_id.t -> bool
 
   val send 
     : t
-    -> Switch_id.t
+    -> Client_id.t
     -> m
     -> [ `Drop of exn | `Sent of Time.t ] Deferred.t
 
@@ -43,7 +43,7 @@ module type S = sig
 
   val client_addr_port 
     :  t 
-    -> Switch_id.t
+    -> Client_id.t
     -> (Unix.Inet_addr.t * int) option
 
   val listening_port : t -> int
@@ -81,12 +81,12 @@ module Make(Message : Message) = struct
 
   type t = Impl.t
 
-  module Switch_id =  Impl.Client_id
+  module Client_id =  Impl.Client_id
 
   type result = [
-    | `Connect of Switch_id.t
-    | `Disconnect of Switch_id.t * Sexp.t
-    | `Message of Switch_id.t * m
+    | `Connect of Client_id.t
+    | `Disconnect of Client_id.t * Sexp.t
+    | `Message of Client_id.t * m
   ]
 
   let create ?max_pending_connections ?verbose ?log_disconnects
