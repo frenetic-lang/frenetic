@@ -16,7 +16,6 @@ type uint48 = uint64
 type uint12 = uint16
 type switchId = OpenFlow0x04_Core.switchId
 
-
 (* OKAY *)
 cenum msg_code {
   HELLO;
