@@ -1,11 +1,14 @@
+open Sexplib.Conv 
+
 type t =
-  | Int64 of Int64.t
-  | Int48 of Int64.t
-  | Int32 of Int32.t
-  | Int32m of Int32.t * Int32.t (* value, mask *)
+  | Int64 of Int64.t sexp_opaque 
+  | Int48 of Int64.t sexp_opaque
+  | Int32 of Int32.t sexp_opaque
+  | Int32m of (Int32.t * Int32.t) sexp_opaque (* value, mask *)
   | Int16 of int
-  | Int8 of int
-  | Int4 of int
+  | Int8 of int 
+  | Int4 of int 
+ with sexp
 
 let get_int (v : t) : int =
   match v with
@@ -124,3 +127,40 @@ let get_string v =
         fprintf fmt "@?";
         Buffer.contents buf in
   make_string_of format v
+
+let compare v1 v2 = 
+  match v1,v2 with 
+  | Int64 n,_ ->
+     Int64.compare n (get_int64 v2)
+  | _, Int64 n -> 
+     Int64.compare (get_int64 v1) n
+  | Int48 n,_ ->
+     Int64.compare n (get_int48 v2)
+  | _, Int48 n -> 
+     Int64.compare (get_int48 v1) n
+  | Int32m(n1,m1),_ ->
+     let n2,m2 = get_int32m v2 in 
+     let cmp1 = Int32.compare n1 n2 in 
+     if cmp1 <> 0 then cmp1 
+     else Int32.compare m1 m2 
+  | _,Int32m(n2,m2) ->
+     let n1,m1 = get_int32m v1 in 
+     let cmp1 = Int32.compare n1 n2 in 
+     if cmp1 <> 0 then cmp1 
+     else Int32.compare m1 m2 
+  | Int32 n,_ ->
+     Int32.compare n (get_int32 v2)
+  | _, Int32 n -> 
+     Int32.compare (get_int32 v1) n
+  | Int16 n,_ ->
+     Pervasives.compare n (get_int16 v2)
+  | _, Int16 n -> 
+     Pervasives.compare (get_int16 v1) n
+  | Int8 n,_ ->
+     Pervasives.compare n (get_int8 v2)
+  | _, Int8 n -> 
+     Pervasives.compare (get_int8 v1) n
+  | Int4 n,_ ->
+     Pervasives.compare n (get_int4 v2)
+
+let hash = Hashtbl.hash

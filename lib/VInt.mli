@@ -1,13 +1,12 @@
 (** Variable-width integers. *)
-
 type t =
-  | Int64 of Int64.t
-  | Int48 of Int64.t
-  | Int32 of Int32.t
-  | Int32m of Int32.t * Int32.t (* value, mask *)
+  | Int64 of Int64.t  
+  | Int48 of Int64.t 
+  | Int32 of Int32.t 
+  | Int32m of (Int32.t * Int32.t) (* value, mask *)
   | Int16 of int
-  | Int8 of int
-  | Int4 of int
+  | Int8 of int 
+  | Int4 of int 
 
 (** [get_int v] raises [Invalid_argument] if [v] cannot be coerced to an [int] *)
 val get_int : t -> int
@@ -30,3 +29,11 @@ val get_int4 : t -> int
 val format : Format.formatter -> t -> unit
 
 val get_string : t -> string
+
+val compare : t -> t -> int
+
+val hash : t -> int
+
+val sexp_of_t : t -> Sexplib.Sexp.t
+
+val t_of_sexp : Sexplib.Sexp.t -> t
