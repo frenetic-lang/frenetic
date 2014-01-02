@@ -116,14 +116,14 @@ Executable testtool
 
 Executable test0
   Path: test
-  Install$: flag(tests)
+  Install$: false
   Build$: flag(tests) && flag(lwt)
   MainIs: Test0.ml
   BuildDepends: packet,openflow,openflow.lwt,oUnit,pa_ounit,pa_ounit.syntax
 
 Executable ping_test
   Path: test
-  Install$: flag(end_test)
+  Install$: false
   Build$: flag(end_test) && flag(lwt)
   MainIs: PingTest.ml
   BuildDepends: packet,openflow,openflow.lwt,oUnit,pa_ounit,pa_ounit.syntax
