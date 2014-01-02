@@ -22,6 +22,14 @@ Flag quickcheck
   Description: build the frenetic.quickcheck library
   Default: False
 
+Flag lwt
+    Description: build the netcore.lwt library
+    Default: false
+
+Flag async
+    Description: build the netcore.async library
+    Default: false
+
 Library netcore
   Path: lib
   BuildDepends:
@@ -34,10 +42,9 @@ Library netcore
     str,
     ocamlgraph,
     openflow,
-    openflow.lwt,
     packet,
     topology
-  InternalModules:
+  Modules:
     Types,
     Lexer,
     Parser,
@@ -46,12 +53,37 @@ Library netcore
     LocalCompiler,
     Dehop,
     NetKAT_Automaton,
-    Controller,
-    PolicyGenerator
-
-  Modules:
+    PolicyGenerator,
     Util,
     NetKAT_Stream
+
+Library async
+  Findlibparent: netcore
+  Findlibname: async
+  Path: async
+  Build$: flag(async)
+  BuildDepends:
+    async,
+    core,
+    cstruct,
+    cstruct.async,
+    dprle,
+    lwt,
+    lwt.syntax,
+    lwt.syntax.log,
+    lwt.unix,
+    str,
+    netcore,
+    ocamlgraph,
+    openflow,
+    openflow.async,
+    packet,
+    threads,
+    textutils
+    topology,
+    sexplib.syntax
+  Modules:
+    Async_Controller
 
 Library quickcheck
   Findlibparent: netcore
@@ -87,9 +119,10 @@ Executable katnetic
   MainIs: katnetic.ml
   Install$: flag(installexec)
   BuildDepends:
-    lwt,
-    lwt.syntax,
-    netcore
+    async,
+    core,
+    netcore,
+    netcore.async
 
 Executable dehop_test
   Path: frenetic
@@ -107,7 +140,10 @@ Executable netkat_test
   BuildDepends:
     lwt,
     lwt.syntax,
-    netcore
+    async,
+    core,
+    netcore,
+    netcore.async
 
 Document doc
   Title: NetCore Documentation
@@ -127,5 +163,4 @@ Document doc
     NetCore_Types,
     NetCore_Parsing,
     NetKAT_Types,
-    NetKAT_Compiler,
-    Controller
+    NetKAT_Compiler

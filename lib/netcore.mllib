@@ -1,7 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 6f7f0a9076e5665bc3f283fa9c93d6ae)
-Util
-NetKAT_Stream
+# DO NOT EDIT (digest: 26ac7a191beffbca60175b753a27e28b)
 Types
 Lexer
 Parser
@@ -10,6 +8,7 @@ Semantics
 LocalCompiler
 Dehop
 NetKAT_Automaton
-Controller
 PolicyGenerator
+Util
+NetKAT_Stream
 # OASIS_STOP
