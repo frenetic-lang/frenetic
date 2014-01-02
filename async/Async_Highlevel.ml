@@ -19,7 +19,7 @@ let _ = Log.set_output
              [("openflow", "socket");
               ("openflow", "serialization")]]
 
-module Platform = Async_OpenFlow_Platform.Make(Async_OpenFlowChunk.Message)
+module Platform = Async_OpenFlowChunk.Controller
 
 module Clients = Hashtbl.Make(Platform.Client_id)
 
@@ -29,17 +29,13 @@ exception Handshake of Platform.Client_id.t * string
 
 (* helper functions to pattern match on OpenFlow type_code *)
 type message_code = 
-  | Hello
-  | EchoRequest
   | FeaturesReply
   | MultipartReply
   | Other
 
 let int_to_message_code n = 
   let open Header in 
-  if n = type_code_echo_request then EchoRequest
-  else if n = type_code_hello then Hello
-  else if n = type_code_features_reply then FeaturesReply
+  if n = type_code_features_reply then FeaturesReply
   else if n = OF4.msg_code_to_int OF4.MULTIPART_REQ then MultipartReply
   else Other
 
@@ -48,7 +44,6 @@ let max_version = 0x04
 
 (* handshake protocol state *)
 type handshake_state = 
-  | SentHello
   | SentFeaturesRequest0x01
   | SentFeaturesRequest0x04 
   | SentPortDescriptionRequest0x04 of VInt.t
@@ -71,26 +66,10 @@ let get_platform () =
      t
 
 (* helpers to construct OpenFlow messages *)
-let hello_msg version : Platform.m  =  
-  let open Header in 
-  ({ version = version; 
-    type_code = type_code_hello;
-    length = size; 
-    xid = 0l; },
-   Cstruct.of_string "")
-
 let features_request_msg version : Platform.m = 
   let open Header in 
   ({ version = version;
     type_code = type_code_features_request;
-    length = size;
-    xid = 0l; }, 
-   Cstruct.of_string "")
-
-let echo_reply_msg version : Platform.m = 
-  let open Header in 
-  ({ version = version;
-    type_code = type_code_echo_reply;
     length = size;
     xid = 0l; }, 
    Cstruct.of_string "")
@@ -115,13 +94,20 @@ let send t c_id msg =
     | `Sent _ -> None
     | `Drop exn -> raise exn
         
-let handshake evt = 
+let features t evt =
   let open Header in 
   match evt with 
-  | `Connect c_id -> 
-     Log.info "Client connected";
-     ignore (Clients.add clients c_id SentHello);
-     send (get_platform ()) c_id (hello_msg max_version)
+  | `Connect (c_id, version) ->
+    Log.info "SentHello";
+    let next_handshake_state =
+       match version with
+       | 0x01 -> SentFeaturesRequest0x01
+       | 0x04 -> SentFeaturesRequest0x04
+       | _ ->
+          handshake_error c_id
+            (Printf.sprintf "unexpected version: %d%!" version) in
+     Clients.replace clients c_id next_handshake_state;
+     send t c_id (features_request_msg version)
   | `Disconnect (c_id,_) -> 
      Log.info "Client disconnected";
      (match Clients.find clients c_id with 
@@ -139,21 +125,6 @@ let handshake evt =
      let handshake_state = Clients.find clients c_id in 
      begin 
        match of_type_code, handshake_state with
-       | EchoRequest, Some _ -> 
-          Log.info "? (EchoRequest)";
-          send (get_platform ()) c_id (echo_reply_msg hdr.version)
-       | Hello, Some SentHello ->           
-          Log.info "SentHello";
-          let version = min hdr.version max_version in 
-          let next_handshake_state = 
-            match version with 
-            | 0x01 -> SentFeaturesRequest0x01
-            | 0x04 -> SentFeaturesRequest0x04
-            | _ -> 
-               handshake_error c_id 
-                 (Printf.sprintf "unexpected version %d in header: %s%!" version (to_string hdr)) in 
-          Clients.replace clients c_id next_handshake_state;
-          send (get_platform ()) c_id (features_request_msg version)
        | FeaturesReply, Some SentFeaturesRequest0x01 -> 
           Log.info "SentFeaturesRequest0x01";
           begin 
@@ -178,7 +149,7 @@ let handshake evt =
           | (_, M4.FeaturesReply feats) -> 
              let switch_id = VInt.Int64 feats.OF4.SwitchFeatures.datapath_id in 
              Clients.replace clients c_id (SentPortDescriptionRequest0x04 switch_id);
-             send (get_platform ()) c_id (port_description_request_msg hdr.version)
+             send t c_id (port_description_request_msg hdr.version)
           | _ -> 
              handshake_error c_id 
                (Printf.sprintf "expected features reply in %s%!" (to_string hdr))
@@ -208,10 +179,12 @@ let handshake evt =
      end
 
 let accept_switches port = 
+  let open Async_OpenFlow_Platform.Trans in
+  let open Platform in
   Log.info "accept switches %d" port;
-  Platform.create port >>= fun t -> 
-  platform := Some t;
-  return (Pipe.filter_map' (Platform.listen t) ~f:handshake)
+  create port >>| fun t ->
+    platform := Some t;
+    run (handshake 0x04 >=> echo >=> features) t (listen t)
 
 let send_msg0x01 c_id msg =
   let msg_c = Async_OpenFlow0x01.Message.marshal' (0l, msg) in
