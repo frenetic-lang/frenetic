@@ -212,7 +212,13 @@ let send_msg0x01 c_id msg =
   let hdr = M1.header_of 0l msg in 
   let bits = Cstruct.create (M1.size_of msg - Header.size) in 
   M1.marshal_body msg bits; 
-  send (get_platform ()) c_id (hdr,bits) 
+  Deferred.ignore (send (get_platform ()) c_id (hdr,bits))
+
+let send_msg0x04 c_id msg = 
+  let hdr = M4.header_of 0l msg in 
+  let bits = Cstruct.create (M4.sizeof msg - Header.size) in 
+  M4.marshal_body msg bits; 
+  Deferred.ignore (send (get_platform ()) c_id (hdr,bits))
 
 let setup_flow_table (sw:S.switchId) (tbl:S.flowTable) = 
   let c_id = match Switches.find switches sw with
@@ -225,10 +231,23 @@ let setup_flow_table (sw:S.switchId) (tbl:S.flowTable) =
      let priority = ref 65536 in
      let send_flow_mod (fl : S.flow) : unit Deferred.t =
        decr priority;
-       Deferred.ignore (send_msg0x01 c_id (M1.FlowModMsg (SDN_OpenFlow0x01.from_flow !priority fl))) in 
-     send_msg0x01 c_id (M1.FlowModMsg OF1_Core.delete_all_flows) >>= fun _ -> 
-     Deferred.all_ignore (List.map tbl ~f:send_flow_mod)
+       send_msg0x01 c_id (M1.FlowModMsg (SDN_OpenFlow0x01.from_flow !priority fl)) in 
+     let delete_flows = send_msg0x01 c_id (M1.FlowModMsg OF1_Core.delete_all_flows) in 
+     let flow_mods = List.map tbl ~f:send_flow_mod in 
+     delete_flows >>= fun _ -> 
+     Deferred.all_ignore flow_mods
   | Some Connected0x04 _ -> 
-     failwith "NYI"
+     let tbl = SDN_OpenFlow0x04.fix_vlan_in_table tbl in 
+     let priority = ref 65536 in
+     let group_table = GroupTable0x04.create () in 
+     let send_flow_mod (fl : S.flow) : unit Deferred.t =
+       decr priority;
+       send_msg0x04 c_id (M4.FlowModMsg (SDN_OpenFlow0x04.from_flow group_table !priority fl)) in 
+     let delete_flows = send_msg0x01 c_id (M1.FlowModMsg OF1_Core.delete_all_flows) in 
+     let group_mods = List.map (GroupTable0x04.commit group_table) ~f:(send_msg0x04 c_id) in 
+     let flow_mods = List.map tbl ~f:send_flow_mod in 
+     delete_flows >>= fun _ -> 
+     Deferred.all_ignore group_mods >>= fun _ -> 
+     Deferred.all_ignore flow_mods
   | _ -> 
      failwith "Switch not connected"

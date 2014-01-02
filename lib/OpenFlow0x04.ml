@@ -1,3 +1,5 @@
+(* TODO(???): rename sizeof to size_of for consistency with 0x01 stuff. *)
+
 (** OpenFlow 1.3 (protocol version 0x04) *)
 
 open Printf
