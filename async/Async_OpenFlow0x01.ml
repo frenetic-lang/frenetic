@@ -36,11 +36,19 @@ module Controller = struct
     sub : ChunkController.t;
   }
 
-  let openflow0x01 _ evt = 
+  let openflow0x01 t evt =
     match evt with
       | `Message (s_id, (hdr, bits)) ->
          return (Some(`Message (s_id, Message.parse hdr bits)))
-      | `Connect e -> return (Some(`Connect e))
+      | `Connect (c_id, version) ->
+        if version = 0x01 then
+          return (Some(`Connect c_id))
+        else begin
+          ChunkController.close t.sub c_id;
+          raise (ChunkController.Handshake (c_id, Printf.sprintf
+                    "Negotiated switch version mismatch: expected %d but got %d%!"
+                    0x01 version))
+        end
       | `Disconnect e -> return (Some(`Disconnect e))
 
   let create ?max_pending_connections ?verbose ?log_disconnects ?buffer_age_limit ~port =

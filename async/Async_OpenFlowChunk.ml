@@ -31,6 +31,8 @@ module Controller = struct
 
   exception Handshake of Client_id.t * string
 
+  type m = Platform.m
+
   type t = {
     platform : Platform.t;
     mutable handshakes : SwitchSet.t
@@ -60,18 +62,14 @@ module Controller = struct
             raise (Handshake (s_id, Printf.sprintf
                       "Expected 0 code in header: %s%!"
                       (Header.to_string hdr)))
-          end else if hdr.version < v then begin
-            Platform.close t.platform s_id;
-            raise (Handshake (s_id, Printf.sprintf
-                      "Switch version too low (expected >= %d): %s" v
-                      (Header.to_string hdr)))
           end
         end;
-        return (Some(`Connect s_id))
+        return (Some(`Connect (s_id, min hdr.version v)))
+      | `Message x -> return(Some(`Message x))
       | `Disconnect (s_id, _) when SwitchSet.mem t.handshakes s_id ->
         t.handshakes <- SwitchSet.remove t.handshakes s_id;
         return None
-      | _ -> return(Some(evt))
+      | `Disconnect x -> return(Some(`Disconnect x))
 
   let echo t evt =
     let open Header in
