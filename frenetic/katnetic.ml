@@ -6,7 +6,7 @@ let help args =
       Format.printf "usage: katnetic run [local|classic|automaton] <filename> \n"
     | [ "dump" ] -> 
       Format.printf "usage: katnetic dump automaton [all|policies|flowtables] <filename> \n";
-      Format.printf "usage: katnetic dump local <number of switches> <filename> \n"
+      Format.printf "usage: katnetic dump local [all|policies|flowtables] <number of switches> <filename> \n"
     | _ -> 
       Format.printf "%s" ("usage: katnetic <command> \n" ^
 			  "  run    Compile and start the controller\n" ^ 
@@ -74,8 +74,10 @@ module Dump = struct
           (VInt.get_int32 sw)
           SDN_Types.format_flowTable t;)
 
+    let policy p =
+      Format.printf "@[%a\n\n@]%!" Pretty.format_policy p
+
     let local sw_num p =
-      Format.printf "@[%a\n\n@]%!" Pretty.format_policy p;
       (* NOTE(seliopou): This may not catch all ports, but it'll catch some of
        * 'em! Also, lol for loop.
        * *)
@@ -85,11 +87,18 @@ module Dump = struct
         flowtable vs sw_p
       done
 
+    let all sw_num p =
+      policy p;
+      local sw_num p
+
     let main args =
       match args with
-        | sw_num :: [filename] -> with_file (local (int_of_string sw_num)) filename
+        | (sw_num :: [filename])
+        | ("all" :: [sw_num; filename]) -> with_file (all (int_of_string sw_num)) filename
+        | ("policies" :: [sw_num; filename]) -> with_file policy filename
+        | ("flowtables" :: [sw_num; filename]) -> with_file (local (int_of_string sw_num)) filename
         | _ -> 
-          print_endline "usage: katnetic dump local <number of switches> <filename>"
+          print_endline "usage: katnetic dump local [all|policies|flowtables] <number of switches> <filename>"
   end
 
   module Automaton = struct
