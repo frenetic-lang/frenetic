@@ -19,6 +19,10 @@ Flag lwt
     Description: build the openflow.lwt library
     Default: False
 
+Flag end_test
+     Description: install executable for end-to-end test
+     Default: False
+
 Library openflow
   Path: lib
   BuildDepends:
@@ -112,9 +116,16 @@ Executable testtool
 
 Executable test0
   Path: test
-  Install: False
-  Build$: flag(quickcheck) && flag(tests)
+  Install$: flag(tests)
+  Build$: flag(tests) && flag(lwt)
   MainIs: Test0.ml
+  BuildDepends: packet,openflow,openflow.lwt,oUnit,pa_ounit,pa_ounit.syntax
+
+Executable ping_test
+  Path: test
+  Install$: flag(end_test)
+  Build$: flag(end_test) && flag(lwt)
+  MainIs: PingTest.ml
   BuildDepends: packet,openflow,openflow.lwt,oUnit,pa_ounit,pa_ounit.syntax
 
 Test all_tests
