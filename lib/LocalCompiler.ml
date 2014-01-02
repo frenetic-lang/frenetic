@@ -526,25 +526,27 @@ module Local = struct
       rs Atom.Map.empty
 
   let rec of_pred (sw:SDN_Types.fieldVal) (pr:Types.pred) : t =
-    match pr with
+    let rec loop pr k = 
+      match pr with
       | Types.True ->
-        Atom.Map.singleton Atom.tru [Action.id]
+        k (Atom.Map.singleton Atom.tru [Action.id])
       | Types.False ->
-        Atom.Map.empty
-      | Types.Neg p ->
-        negate (of_pred sw p)
+        k (Atom.Map.empty)
+      | Types.Neg pr ->
+        loop pr (fun p -> k (negate p))
       | Types.Test (Types.Switch, v) ->
-        if v = sw then
-          of_pred sw Types.True
+        if v = sw then 
+          loop Types.True k
         else
-          of_pred sw Types.False
+          loop Types.False k
       | Types.Test (h, v) ->
         let p = Types.HeaderMap.singleton h v in
-        Atom.Map.singleton (Pattern.Set.empty, p) [Action.id]
+        k (Atom.Map.singleton (Pattern.Set.empty, p) [Action.id])
       | Types.And (pr1, pr2) ->
-        seq_local (of_pred sw pr1) (of_pred sw pr2)
+        loop pr1 (fun p1 -> loop pr2 (fun p2 -> k (seq_local p1 p2)))
       | Types.Or (pr1, pr2) ->
-        par_local (of_pred sw pr1) (of_pred sw pr2)
+        loop pr1 (fun p1 -> loop pr2 (fun p2 -> k (par_local p1 p2))) in 
+    loop pr (fun x -> x)
 
   let star_local (p:t) : t =
     let rec loop acc pi =
@@ -557,22 +559,26 @@ module Local = struct
     let p0 = Atom.Map.singleton Atom.tru [Action.id] in
     loop p0 p0
 
-  let rec of_policy (sw:SDN_Types.fieldVal) (pol:Types.policy) : t =
-    match pol with
-      | Types.Filter pr ->
-        of_pred sw pr
-      | Types.Mod (h, v) ->
-        Atom.Map.singleton Atom.tru [Action.Set.singleton (Types.HeaderMap.singleton h v)]
-      | Types.Par (pol1, pol2) ->
-        par_local (of_policy sw pol1) (of_policy sw pol2)
-      | Types.Choice (pol1, pol2) ->
-        choice_local (of_policy sw pol1) (of_policy sw pol2)
-      | Types.Seq (pol1, pol2) ->
-        seq_local (of_policy sw pol1) (of_policy sw pol2)
-      | Types.Star pol ->
-        star_local (of_policy sw pol)
-      | Types.Link(sw,pt,sw',pt') ->
-	failwith "Not a local policy"
+  let of_policy (sw:SDN_Types.fieldVal) (pol:Types.policy) : t =
+    let rec loop pol k =  
+      match pol with
+        | Types.Filter pr ->
+          k (of_pred sw pr)
+        | Types.Mod (h, v) ->
+          k (Atom.Map.singleton Atom.tru [Action.Set.singleton (Types.HeaderMap.singleton h v)])
+        | Types.Par (pol1, pol2) ->
+          loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (par_local p1 p2)))
+        | Types.Choice (pol1, pol2) ->
+          loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (choice_local p1 p2)))
+        | Types.Seq (pol1, pol2) ->
+          loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (seq_local p1 p2)))
+        | Types.Star pol ->
+          loop pol (fun p -> k (star_local p))
+        | Types.Link(sw,pt,sw',pt') ->
+          failwith "Not a local policy" in 
+    loop pol (fun x -> 
+      (* Printf.printf "### DONE ###\n%!";  *)
+      x)
 
   let to_netkat (p:t) : Types.policy =
     (* "smart" constructors *)
