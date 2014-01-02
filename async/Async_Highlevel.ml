@@ -10,6 +10,15 @@ module OF4 = OpenFlow0x04
 module OF4_Core = OpenFlow0x04_Core
 module M4 = OpenFlow0x04.Message
 
+module Log = Async_OpenFlow.Log
+
+let _ = Log.set_level `Debug
+
+let _ = Log.set_output 
+          [Log.make_colored_filtered_output 
+             [("openflow", "socket");
+              ("openflow", "serialization")]]
+
 module Platform = Async_OpenFlow_Platform.Make(struct
   type t = (Header.t * Cstruct.t) sexp_opaque with sexp
 
@@ -61,6 +70,7 @@ type handshake_state =
   | SentPortDescriptionRequest0x04 of VInt.t
   | Connected0x01 of VInt.t
   | Connected0x04 of VInt.t
+  with sexp 
 
 (* global state *)
 let clients = Clients.create ()
@@ -125,9 +135,11 @@ let handshake evt =
   let open Header in 
   match evt with 
   | `Connect c_id -> 
+     Log.info "Client connected";
      ignore (Clients.add clients c_id SentHello);
      send (get_platform ()) c_id (hello_msg max_version)
   | `Disconnect (c_id,_) -> 
+     Log.info "Client disconnected";
      (match Clients.find clients c_id with 
      | Some (Connected0x01 switch_id) -> 
         ignore (Clients.remove clients c_id);
@@ -144,8 +156,10 @@ let handshake evt =
      begin 
        match of_type_code, handshake_state with
        | EchoRequest, Some _ -> 
+          Log.info "? (EchoRequest)";
           send (get_platform ()) c_id (echo_reply_msg hdr.version)
        | Hello, Some SentHello ->           
+          Log.info "SentHello";
           let version = min hdr.version max_version in 
           let next_handshake_state = 
             match version with 
@@ -154,9 +168,10 @@ let handshake evt =
             | _ -> 
                handshake_error c_id 
                  (Printf.sprintf "unexpected version %d in header: %s%!" version (to_string hdr)) in 
-          ignore (Clients.add clients c_id next_handshake_state);
+          Clients.replace clients c_id next_handshake_state;
           send (get_platform ()) c_id (features_request_msg version)
        | FeaturesReply, Some SentFeaturesRequest0x01 -> 
+          Log.info "SentFeaturesRequest0x01";
           begin 
             match M1.parse hdr (Cstruct.to_string bits) with 
             | (_, M1.SwitchFeaturesReply feats) -> 
@@ -165,7 +180,7 @@ let handshake evt =
                let switch_ports = List.map feats.OF1.SwitchFeatures.ports ~f:get_port in 
                let feats = { S.switch_id = switch_id;
                              S.switch_ports = switch_ports } in 
-               ignore (Clients.add clients c_id (Connected0x01 switch_id));
+               Clients.replace clients c_id (Connected0x01 switch_id);
                ignore (Switches.add switches switch_id c_id);
                return (Some feats)
             | _ -> 
@@ -173,17 +188,19 @@ let handshake evt =
                  (Printf.sprintf "expected features reply in %s%!" (to_string hdr))
           end
      | FeaturesReply, Some SentFeaturesRequest0x04 ->
+        Log.info "SentFeaturesRequest0x04";
         begin 
           match M4.parse hdr (Cstruct.to_string bits) with
           | (_, M4.FeaturesReply feats) -> 
              let switch_id = VInt.Int64 feats.OF4.SwitchFeatures.datapath_id in 
-             ignore (Clients.add clients c_id (SentPortDescriptionRequest0x04 switch_id));
+             Clients.replace clients c_id (SentPortDescriptionRequest0x04 switch_id);
              send (get_platform ()) c_id (port_description_request_msg hdr.version)
           | _ -> 
              handshake_error c_id 
                (Printf.sprintf "expected features reply in %s%!" (to_string hdr))
         end
      | MultipartReply, Some (SentPortDescriptionRequest0x04 switch_id) -> 
+        Log.info "SentPortDescriptionRequest0x04";
         begin
           match M4.parse hdr (Cstruct.to_string bits) with 
           | (_, M4.MultipartReply (OF4_Core.PortsDescReply ports)) -> 
@@ -191,19 +208,23 @@ let handshake evt =
              let switch_ports = List.map ports ~f:get_port in 
              let feats = { S.switch_id = switch_id;
                            S.switch_ports = switch_ports } in 
-             ignore (Clients.add clients c_id (Connected0x04 switch_id));
+             Clients.replace clients c_id (Connected0x04 switch_id);
              ignore (Switches.add switches switch_id c_id);
              return (Some feats)
           | _ -> 
              handshake_error c_id 
                (Printf.sprintf "expected port description reply in %s%!" (to_string hdr))
         end
-     | _ -> 
-        (* TODO(jnf): error checking and/or logging here? *)
+     | _, Some state -> 
+        Log.info "Something %s" (Sexp.to_string (sexp_of_handshake_state state));
+        return None
+     | _, None -> 
+        Log.info "Nothing";
         return None
      end
 
 let accept_switches port = 
+  Log.info "accept switches %d" port;
   Platform.create port >>= fun t -> 
   platform := Some t;
   return (Pipe.filter_map' (Platform.listen t) ~f:handshake)
@@ -221,6 +242,7 @@ let send_msg0x04 c_id msg =
   Deferred.ignore (send (get_platform ()) c_id (hdr,bits))
 
 let setup_flow_table (sw:S.switchId) (tbl:S.flowTable) = 
+  Log.info "setup_flow_table";
   let c_id = match Switches.find switches sw with
     | Some c_id -> 
        c_id
