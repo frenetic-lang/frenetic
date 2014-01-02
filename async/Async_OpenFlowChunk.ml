@@ -41,7 +41,7 @@ module Controller = struct
       | `Sent _ -> None
       | `Drop exn -> raise exn
 
-  let init_handshake v t evt =
+  let handshake v t evt =
     let open Header in
     match evt with
       | `Connect s_id ->
@@ -50,11 +50,6 @@ module Controller = struct
         Platform.send t.platform s_id (header, Cstruct.of_string "")
         >>| ensure
         >>| (fun e -> t.handshakes <- SwitchSet.add t.handshakes s_id; e)
-      | _ -> return (Some(evt))
-
-  let finish_handshake v t evt =
-    let open Header in
-    match evt with
       | `Message (s_id, msg) when SwitchSet.mem t.handshakes s_id ->
         let hdr, bits = msg in
         begin
@@ -77,10 +72,6 @@ module Controller = struct
         t.handshakes <- SwitchSet.remove t.handshakes s_id;
         return None
       | _ -> return(Some(evt))
-
-  let handshake v =
-    let open Async_OpenFlow_Platform.Trans in
-    init_handshake v >=> finish_handshake v
 
   let echo t evt =
     let open Header in
