@@ -19,23 +19,7 @@ let _ = Log.set_output
              [("openflow", "socket");
               ("openflow", "serialization")]]
 
-module Platform = Async_OpenFlow_Platform.Make(struct
-  type t = (Header.t * Cstruct.t) sexp_opaque with sexp
-
-  let header_of (hdr, _) = 
-    hdr
-
-  let parse hdr buf = 
-    (hdr, Cstruct.set_len buf (hdr.Header.length - Header.size))
-
-  let marshal (hdr, body) buf =
-    Cstruct.blit body 0 buf 0 (hdr.Header.length - Header.size)
-
-  let marshal' x = x
-
-  let to_string x = 
-    Sexp.to_string_hum (sexp_of_t x)
-end)
+module Platform = Async_OpenFlow_Platform.Make(Async_OpenFlowChunk.Message)
 
 module Clients = Hashtbl.Make(Platform.Client_id)
 
@@ -229,17 +213,13 @@ let accept_switches port =
   platform := Some t;
   return (Pipe.filter_map' (Platform.listen t) ~f:handshake)
 
-let send_msg0x01 c_id msg = 
-  let hdr = M1.header_of 0l msg in 
-  let bits = Cstruct.create (M1.size_of msg - Header.size) in 
-  M1.marshal_body msg bits; 
-  Deferred.ignore (send (get_platform ()) c_id (hdr,bits))
+let send_msg0x01 c_id msg =
+  let msg_c = Async_OpenFlow0x01.Message.marshal' (0l, msg) in
+  Deferred.ignore (send (get_platform ()) c_id msg_c)
 
 let send_msg0x04 c_id msg = 
-  let hdr = M4.header_of 0l msg in 
-  let bits = Cstruct.create (M4.sizeof msg - Header.size) in 
-  M4.marshal_body msg bits; 
-  Deferred.ignore (send (get_platform ()) c_id (hdr,bits))
+  let msg_c = Async_OpenFlow0x04.Message.marshal' (0l, msg) in
+  Deferred.ignore (send (get_platform ()) c_id msg_c)
 
 let setup_flow_table (sw:S.switchId) (tbl:S.flowTable) = 
   Log.info "setup_flow_table";
@@ -255,7 +235,7 @@ let setup_flow_table (sw:S.switchId) (tbl:S.flowTable) =
        decr priority;
        send_msg0x01 c_id (M1.FlowModMsg (SDN_OpenFlow0x01.from_flow !priority fl)) in 
      let delete_flows = send_msg0x01 c_id (M1.FlowModMsg OF1_Core.delete_all_flows) in 
-     let flow_mods = List.map tbl ~f:send_flow_mod in 
+     let flow_mods = List.map tbl ~f:send_flow_mod in
      delete_flows >>= fun _ -> 
      Deferred.all_ignore flow_mods
   | Some Connected0x04 _ -> 
@@ -267,7 +247,7 @@ let setup_flow_table (sw:S.switchId) (tbl:S.flowTable) =
        send_msg0x04 c_id (M4.FlowModMsg (SDN_OpenFlow0x04.from_flow group_table !priority fl)) in 
      let delete_flows = send_msg0x01 c_id (M1.FlowModMsg OF1_Core.delete_all_flows) in 
      let group_mods = List.map (GroupTable0x04.commit group_table) ~f:(send_msg0x04 c_id) in 
-     let flow_mods = List.map tbl ~f:send_flow_mod in 
+     let flow_mods = List.map tbl ~f:send_flow_mod in
      delete_flows >>= fun _ -> 
      Deferred.all_ignore group_mods >>= fun _ -> 
      Deferred.all_ignore flow_mods
