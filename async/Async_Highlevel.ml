@@ -218,7 +218,7 @@ let setup_flow_table (sw:S.switchId) (tbl:S.flowTable) =
      let send_flow_mod (fl : S.flow) : unit Deferred.t =
        decr priority;
        send_msg0x04 c_id (M4.FlowModMsg (SDN_OpenFlow0x04.from_flow group_table !priority fl)) in 
-     let delete_flows = send_msg0x01 c_id (M1.FlowModMsg OF1_Core.delete_all_flows) in 
+     let delete_flows = send_msg0x04 c_id (M4.FlowModMsg OF4_Core.delete_all_flows) in
      let group_mods = List.map (GroupTable0x04.commit group_table) ~f:(send_msg0x04 c_id) in 
      let flow_mods = List.map tbl ~f:send_flow_mod in
      delete_flows >>= fun _ -> 
