@@ -27,6 +27,9 @@ Library netcore
   BuildDepends:
     cstruct,
     dprle,
+    core,
+    sexplib,
+    sexplib.syntax,
     lwt,
     lwt.syntax,
     lwt.syntax.log,
@@ -35,6 +38,7 @@ Library netcore
     ocamlgraph,
     openflow,
     openflow.lwt,
+    threads,
     packet,
     topology
   InternalModules:
