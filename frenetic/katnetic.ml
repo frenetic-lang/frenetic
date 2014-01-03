@@ -3,14 +3,14 @@ open PolicyGenerator
 let help args =
   match args with 
     | [ "run" ] -> 
-      Format.printf "usage: katnetic run [local|classic|automaton] <filename> \n"
+      Format.printf "usage: katnetic run [local|classic|automaton] <filename> @\n"
     | [ "dump" ] -> 
-      Format.printf "usage: katnetic dump automaton [all|policies|flowtables] <filename> \n";
-      Format.printf "usage: katnetic dump local [all|policies|flowtables] <number of switches> <filename> \n"
+      Format.printf "usage: katnetic dump automaton [all|policies|flowtables] <filename> @\n";
+      Format.printf "usage: katnetic dump local [all|policies|flowtables] <number of switches> <filename> @\n"
     | _ -> 
-      Format.printf "%s" ("usage: katnetic <command> \n" ^
-			  "  run    Compile and start the controller\n" ^ 
-			  "  dump   Compile and dump flow table\n")
+      Format.printf "%s" ("usage: katnetic <command> @\n" ^
+			  "  run    Compile and start the controller@\n" ^ 
+			  "  dump   Compile and dump flow table@\n")
 
 module Run = struct
   open LocalCompiler.RunTime
@@ -67,18 +67,18 @@ module Dump = struct
       let t2 = Unix.gettimeofday () in
       let t = to_table i in
       let t3 = Unix.gettimeofday () in
-      let _ = Printf.printf "Done [ctime=%fs ttime=%fs tsize=%d]\n%!"
+      let _ = Printf.printf "Done [ctime=%fs ttime=%fs tsize=%d]@\n%!"
         (t2 -. t1) (t3 -. t2) (List.length t) in
       t
 
     let flowtable (sw : VInt.t) t =
       if List.length t > 0 then
-        Format.printf "@[flowtable for switch %ld:\n%a@\n\n@]%!"
+        Format.printf "@[flowtable for switch %ld:@\n%a@\n@\n@]%!"
           (VInt.get_int32 sw)
           SDN_Types.format_flowTable t
 
     let policy p =
-      Format.printf "@[%a\n\n@]%!" Pretty.format_policy p
+      Format.printf "@[%a@\n@\n@]%!" Pretty.format_policy p
 
     let local f sw_num p =
       (* NOTE(seliopou): This may not catch all ports, but it'll catch some of
@@ -116,7 +116,7 @@ module Dump = struct
       let _ = Printf.printf "Dehopify...%!" in
       let t1 = Unix.gettimeofday () in
       let i,m,_,e = dehopify p in
-      let _ = Printf.printf "Done [size=%d time=%fs]\n%!" (Semantics.size p)
+      let _ = Printf.printf "Done [size=%d time=%fs]@\n%!" (Semantics.size p)
         (Unix.gettimeofday () -. t1) in
       SwitchMap.iter (fun sw pol0 ->
         let open Types in
@@ -125,7 +125,7 @@ module Dump = struct
       m
 
     let policy (sw : VInt.t) (p : Types.policy) : unit =
-      Format.printf "@[policy for switch %ld:\n%!%a\n\n@]%!"
+      Format.printf "@[policy for switch %ld:@\n%!%a@\n@\n@]%!"
         (VInt.get_int32 sw)
         Pretty.format_policy p
 
@@ -171,7 +171,7 @@ module Dump = struct
       let t1 = Unix.gettimeofday () in
       let i,p,t,e = policy_to_dehopd_policy p in
       let switches = get_switches t in
-      let _ = Printf.printf "Done [size=%d time=%fs]\n%!" (Semantics.size p)
+      let _ = Printf.printf "Done [size=%d time=%fs]@\n%!" (Semantics.size p)
         (Unix.gettimeofday () -. t1) in
       SwitchSet.iter (fun sw ->
         let open Types in
@@ -181,7 +181,7 @@ module Dump = struct
       switches
 
     let policy (sw : VInt.t) (p : Types.policy) : unit =
-      Format.printf "@[policy for switch %ld:\n%!%a\n\n@]%!"
+      Format.printf "@[policy for switch %ld:@\n%!%a@\n@\n@]%!"
         (VInt.get_int32 sw)
         Pretty.format_policy p
 
