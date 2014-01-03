@@ -85,7 +85,7 @@ Library quickcheck
 
 Document doc
   Title: OpenFlow documentation
-  Type: ocamlbuild (0.3)
+  Type: OCamlbuild (0.3)
   XOCamlBuildPath: lib
   XOCamlBuildModules:
     OpenFlow0x01,
