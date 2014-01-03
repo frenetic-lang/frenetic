@@ -111,7 +111,7 @@ Executable netkat_test
 
 Document doc
   Title: NetCore Documentation
-  Type: ocamlbuild (0.3)
+  Type: OCamlbuild (0.3)
   XOCamlBuildPath: lib
   XOCamlBuildModules:
     NetCore_Compiler,
