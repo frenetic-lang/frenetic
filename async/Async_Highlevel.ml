@@ -149,7 +149,7 @@ let features t evt =
           | (_, M4.FeaturesReply feats) -> 
              let switch_id = VInt.Int64 feats.OF4.SwitchFeatures.datapath_id in 
              Clients.replace clients c_id (SentPortDescriptionRequest0x04 switch_id);
-             send t c_id (port_description_request_msg hdr.version)
+             send t c_id port_description_request_msg
           | _ -> 
              handshake_error c_id 
                (Printf.sprintf "expected features reply in %s%!" (to_string hdr))
