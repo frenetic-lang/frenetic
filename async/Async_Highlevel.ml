@@ -74,7 +74,7 @@ let features_request_msg version : Platform.m =
     xid = 0l; }, 
    Cstruct.of_string "")
 
-let port_description_request_msg version : Platform.m = 
+let port_description_request_msg : Platform.m =
   let open Header in 
   let open OF4 in 
   let mpr = OF4_Core.PortsDescReq in 
