@@ -6,86 +6,107 @@
    - p, q, local
    - r, atoms
    - g, groups
+
+   - A = Action 
 *)
 
+open Core
+open Sexplib.Conv
+
 (* utility function *)
+let collection_to_string fold f sep x : string = 
+  fold 
+    x
+    ~init:""
+    ~f:(fun acc e -> 
+        f e ^ 
+        if acc = "" then "" else sep ^ acc)
+
 let header_val_map_to_string eq sep m =
   Types.HeaderMap.fold
     (fun h v acc ->
       Printf.sprintf "%s%s%s%s"
-	(Pretty.header_to_string h)
-	eq
-	(Pretty.value_to_string v)
-	(if acc = "" then "" else sep ^ acc))
+        (Pretty.header_to_string h)
+        eq
+        (Pretty.value_to_string v)
+        (if acc = "" then "" else sep ^ acc))
     m ""
 
 module Action = struct
-  type t = Types.header_val_map
+  type t = Types.header_val_map sexp_opaque with sexp 
+      
+  type this_t = t with sexp
 
-  type this_t = t
+  let this_compare = 
+    Types.HeaderMap.compare Pervasives.compare      
 
-  module Set = Set.Make (struct
-    type t = this_t
-
-    let compare (a1:t) (a2:t) =
-      Types.HeaderMap.compare Pervasives.compare a1 a2
+  let to_string (a:t) : string =
+    if Types.HeaderMap.is_empty a then 
+      "id"
+    else 
+      header_val_map_to_string ":=" "; " a
+    
+  module Set = Core_set.Make(struct
+    type t = this_t with sexp
+    let compare = this_compare
   end)
+
+  let set_to_string (s:Set.t) : string =
+    Printf.sprintf "{%s}" 
+      (collection_to_string 
+         Set.fold 
+         to_string 
+         ", " 
+         s)
 
   type group = Set.t list
 
-  let to_string (a:t) : string =
-    if Types.HeaderMap.is_empty a then "id"
-    else Printf.sprintf "%s" (header_val_map_to_string ":=" ", " a)
-
-  let set_to_string (s:Set.t) : string =
-    Printf.sprintf "{%s}"
-      (Set.fold
-         (fun a acc -> (if acc = "" then "" else acc ^ ", ") ^ to_string a)
-         s "")
-
-  let group_to_string (g:group) : string =
+  let group_compare (g1:group) (g2:group) : int = 
+    Core_list.compare g1 g2 ~cmp:Set.compare
+        
+  let group_to_string (g:group) : string =    
     Printf.sprintf "[%s]"
-      (List.fold_left
-         (fun acc s -> 
-           (if acc = "" then "" else acc ^ "; ") ^ set_to_string s)
-         "" g)
+      (collection_to_string
+         Core_list.fold_left
+         set_to_string
+         "; "
+         g)
 
+  let set_union (s1:Set.t) (s2:Set.t) = 
+    Set.union s1 s2 
+ 
   let mk_group (g:group) : group =
-    let r =
-      List.rev
-	(List.fold_left
-	   (fun acc si ->
-	     if List.exists (Set.equal si) acc then 
-	       acc
-	     else
-	       si::acc)
-	   [] g) in 
-    (* Printf.printf "MK_GROUP\n%s\n%s\n\n" *)
-    (*   (group_to_string g) *)
-    (*   (group_to_string r); *)
-    r
-
-  (* TODO(jnf): surely this is a library function? *)
-  let rec group_compare (g1:group) (g2:group) : int =
-    match g1,g2 with
-      | [],[] -> 0
-      | [],_ -> -1
-      | _,[] -> 1
-      | s1::h1,s2::h2 ->
-        let cmp = Set.compare s1 s2 in
-        if cmp <> 0 then cmp
-        else group_compare h1 h2
+    List.rev
+      (List.fold_left
+	 (fun acc si ->
+	   if List.exists (Set.equal si) acc then 
+	     acc
+	   else
+	     si::acc)
+	 [] g) 
 
   let group_crossproduct (g1:group) (g2:group) : group =
-    mk_group
-      (List.rev
-         (List.fold_left
-            (fun acc s1i ->
-	      List.fold_left
-		(fun acc s2j ->
-                  Set.union s1i s2j::acc)
-		acc g2)
-            [] g1))
+    let n1 = List.length g1 in 
+    let n2 = List.length g2 in 
+    if n1 >= n2 then 
+      mk_group
+        (List.rev
+           (List.fold_left
+              (fun acc s1i ->
+	        List.fold_left
+		  (fun acc s2j ->
+                    Set.union s1i s2j::acc)
+		  acc g2)
+              [] g1)) 
+    else 
+      mk_group
+        (List.fold_left
+           (fun acc s1i ->
+	     List.fold_left
+	       (fun acc s2j ->
+                 Set.union s1i s2j::acc)
+	       acc g2)
+           [] g1) 
 
   let group_union (g1:group) (g2:group) : group =
     let r = mk_group (g1 @ g2) in 
@@ -100,8 +121,8 @@ module Action = struct
     Set.empty
 
   let is_id (s:Set.t) : bool =
-    Set.cardinal s = 1 &&
-    (Types.HeaderMap.is_empty (Set.choose s))
+    Set.length s = 1 &&
+    (Types.HeaderMap.is_empty (Set.choose_exn s))
 
   let is_drop (s:Set.t) : bool =
     Set.is_empty s
@@ -115,9 +136,7 @@ module Action = struct
     Types.HeaderMap.merge f a1 a2
 
   let seq_acts (a:t) (s:Set.t) : Set.t =
-    Set.fold
-      (fun b acc -> Set.add (seq_act a b) acc)
-      s Set.empty
+    Set.map s (seq_act a) 
 
   let seq_group (a:t) (g:group) : group =
     List.rev
@@ -126,10 +145,10 @@ module Action = struct
          [] g)
 
   let to_netkat (a:t) : Types.policy =
-    let h_port = Types.Header SDN_Types.InPort in 
     if Types.HeaderMap.is_empty a then 
       Types.Filter Types.True
     else 
+      let h_port = Types.Header SDN_Types.InPort in 
       let f h v pol' = 
 	if h = h_port then 
 	  Types.Seq (pol', Types.Mod (h, v)) 
@@ -143,10 +162,10 @@ module Action = struct
     if Set.is_empty s then
       Types.Filter Types.False
     else
-      let f a pol' = Types.Par (pol', to_netkat a) in
-      let a = Set.min_elt s in
-      let s' = Set.remove a s in
-      Set.fold f s' (to_netkat a)
+      let f pol' a = Types.Par (pol', to_netkat a) in
+      let a = Set.min_elt_exn s in
+      let s' = Set.remove s a in
+      Set.fold s' ~f:f ~init:(to_netkat a)
 
   let group_to_netkat (g:group) : Types.policy =
     match g with
@@ -164,15 +183,20 @@ module Pattern = struct
 
   type t = Types.header_val_map
 
+  let compare = Types.HeaderMap.compare Pervasives.compare
+
   module Set = Set.Make(struct
     type t = Types.header_val_map
 
-    let compare = Types.HeaderMap.compare Pervasives.compare
+    let compare = compare
   end)
 
   let to_string (x:t) : string =
-    if Types.HeaderMap.is_empty x then "true"
-    else Printf.sprintf "<%s>" (header_val_map_to_string "=" ", " x)
+    if Types.HeaderMap.is_empty x then 
+      "true"
+    else 
+      Printf.sprintf "<%s>" 
+        (header_val_map_to_string "=" ", " x)
 
   let set_to_string (xs:Set.t) : string =
     Printf.sprintf "{%s}"
@@ -180,7 +204,8 @@ module Pattern = struct
          (fun x acc -> (if acc = "" then "" else acc ^ ", ") ^ to_string x)
          xs "")
 
-  let tru : t = Types.HeaderMap.empty
+  let tru : t = 
+    Types.HeaderMap.empty
 
   let is_tru (x:t) : bool =
     Types.HeaderMap.is_empty x
@@ -268,25 +293,55 @@ module Atom = struct
 
   type t = Pattern.Set.t * Pattern.t
 
-  let compare (xs1,x1) (xs2,x2) =
-    if Pattern.Set.mem x2 xs1 then 1
-    else if Pattern.Set.mem x1 xs2 then -1
-    else
-      let cmp = Pattern.Set.compare xs1 xs2 in
-      if cmp = 0 then
-        Types.HeaderMap.compare Pervasives.compare x1 x2
-      else
-        cmp
+  type this_t = t
+
+  let to_string ((xs,x):t) : string =
+    Printf.sprintf "%s,%s"
+      (Pattern.set_to_string xs) (Pattern.to_string x)
+
+  let shadows (xs1,x1) (xs2,x2) = 
+    let ys = 
+      Pattern.Set.fold
+        (fun xi acc -> 
+          match Pattern.seq_pat x1 xi with
+            | None -> acc
+            | Some x1_xi -> Pattern.Set.add x1_xi acc)
+        xs1 Pattern.Set.empty in 
+    Pattern.Set.mem x2 ys
+
+  let compare ((xs1,x1) as r1) ((xs2,x2) as r2) = 
+    let r = 
+      if shadows r2 r1 then 
+        -1
+      else if shadows r1 r2 then 
+        1
+      else 
+        let cmp = Pattern.Set.compare xs1 xs2 in 
+        if cmp = 0 then 
+          Pattern.compare x1 x2 
+        else 
+          cmp in 
+    (* Printf.printf "COMPARE %s %s = %d\n%!" (to_string (xs1,x1)) (to_string (xs2,x2)) r; *)
+    r
+
+  let subseteq (r1:t) (r2:t) = 
+    let (xs1,x1) = r1 in 
+    let (xs2,x2) = r2 in 
+    Pattern.subseteq_pat x1 x2 &&
+    Pattern.Set.for_all (fun x2j -> 
+      Pattern.Set.exists (fun x1i -> 
+        Pattern.subseteq_pat x2j x1i) 
+        xs1) 
+      xs2
 
   module Set = Set.Make (struct
-    type t = Pattern.Set.t * Pattern.t
+    type t = this_t
 
     let compare = compare
   end)
 
-
   module Map = Map.Make (struct
-    type t = Pattern.Set.t * Pattern.t
+    type t = this_t 
 
     let compare = compare
   end)
@@ -309,26 +364,30 @@ module Atom = struct
 
     (* "smart" constructor *)
   let mk ((xs,x):t) : t option =
+    let f _ vo1 vo2 = match vo1,vo2 with
+      | Some v1, Some v2 when v1 = v2 -> None
+      | _ -> vo2 in 
     try
       let xs' =
 	Pattern.Set.fold
 	  (fun xi acc ->
-	    match Pattern.seq_pat x xi with
+            let xi' = Types.HeaderMap.merge f x xi in 
+	    match Pattern.seq_pat x xi' with
 	      | None ->
 		acc
 	      | Some x_xi ->
-		if Types.HeaderMap.compare Pervasives.compare x x_xi = 0 then
+		if Pattern.compare x x_xi = 0 then
 		  raise Empty_atom
 		else if 
 		    Pattern.Set.exists 
 		      (fun xj -> 
-			Types.HeaderMap.compare Pervasives.compare xi xj <> 0 &&
-			  Pattern.subseteq_pat xi xj) 
+			Types.HeaderMap.compare Pervasives.compare xi' xj <> 0 &&
+			  Pattern.subseteq_pat xi' xj) 
 		      xs 
 		then 
 		  acc
 		else
-		  Pattern.Set.add xi acc)
+		  Pattern.Set.add xi' acc)
 	  xs Pattern.Set.empty in
       Some (xs',x)
     with Empty_atom ->
@@ -388,7 +447,7 @@ module Local = struct
         Printf.sprintf "%s(%s) => %s\n"
           (if acc = "" then "" else "" ^ acc)
           (Atom.to_string r) (Action.group_to_string g))
-      p ""
+      p ""  
 
   let extend (r:Atom.t) (g:Action.group) (p:t) : t =
     match g, Atom.mk r with 
@@ -397,8 +456,7 @@ module Local = struct
 	p
       | _, Some (xs,x) ->
 	if Atom.Map.mem r p then
-          let msg = 
-            Printf.sprintf "Local.extend: overlap on atom %s" (Atom.to_string r) in 
+          let msg = Printf.sprintf "Local.extend: overlap on atom %s" (Atom.to_string r) in 
           failwith msg
         else
           Atom.Map.add r g p
@@ -409,6 +467,7 @@ module Local = struct
     else
       Atom.Map.fold (fun r1 g1 acc ->
         Atom.Map.fold (fun r2 g2 acc ->
+          (* Printf.printf " .%!"; *)
           match Atom.seq_atom r1 r2 with
             | None ->
               acc
@@ -422,12 +481,12 @@ module Local = struct
       p
     else
       Atom.Map.fold (fun r1 g1 acc ->
-        let rs =
-          Atom.Map.fold (fun r2 _ rs ->
-            Atom.Set.fold
+        let rs = 
+          Atom.Map.fold (fun r2 _ rs -> 
+            Atom.Set.fold 
               (fun r1i acc -> Atom.Set.union (Atom.diff_atom r1i r2) acc)
               rs Atom.Set.empty)
-            q (Atom.Set.singleton r1) in
+            q (Atom.Set.singleton r1) in 
         Atom.Set.fold (fun r1i acc -> extend r1i g1 acc) rs acc)
       p Atom.Map.empty
 
@@ -440,33 +499,31 @@ module Local = struct
       let p_inter_q = intersect op p q in
       let p_only = difference p p_inter_q in
       let q_only = difference q p_inter_q in
-
       let f r vo1 vo2 = 
         match vo1,vo2 with 
           | Some _, None -> vo1
           | None, Some _ -> vo2
           | Some _, Some _ -> 
-            let msg = 
-              Printf.sprintf "Local.bin_local: overlap on %s in bin_local"
-                (Atom.to_string r) in 
+            let msg = Printf.sprintf "Local.bin_local: overlap on %s in bin_local" (Atom.to_string r) in 
             failwith msg
           | None, None -> None in 
-      (* Printf.printf "BIN_LOCAL\nP\n%s\nQ\n%s\nP_INTER_Q\n%s\nP_ONLY\n%s\nQ_ONLY\n%s\n\n%!" *)
-      (*   (to_string p) (to_string q) *)
-      (*   (to_string p_inter_q) (to_string p_only) (to_string q_only); *)
-      Atom.Map.merge f (Atom.Map.merge f p_only q_only) p_inter_q
+      let r = Atom.Map.merge f p_inter_q (Atom.Map.merge f p_only q_only) in 
+      r
+      
 
   let par_local (p:t) (q:t) : t =
+    (* Printf.printf "### PAR [%d %d] ###\n%!" (Atom.Map.cardinal p) (Atom.Map.cardinal q); *)
     let r = bin_local Action.group_crossproduct p q in
       (* Printf.printf *)
-      (* 	"PAR_LOCAL\n%s\n%s\n%s\n\n" *)
+      (* 	"PAR_LOCAL\n%s\n%s\n%s\n\n%!" *)
       (* 	(to_string p) (to_string q) (to_string r); *)
     r
 
   let choice_local (p:t) (q:t) : t =
+    (* Printf.printf "### CHOICE [%d %d] ###\n%!" (Atom.Map.cardinal p) (Atom.Map.cardinal q); *)
     let r = bin_local Action.group_union p q in
       (* Printf.printf *)
-      (* 	"CHOICE_LOCAL\n%s\n%s\n%s\n\n" *)
+      (* 	"CHOICE_LOCAL\n%s\n%s\n%s\n\n%!" *)
       (* 	(to_string p) (to_string q) (to_string r); *)
     r
 
@@ -495,10 +552,12 @@ module Local = struct
               extend r12 (Action.seq_group a g2) acc)
 	q Atom.Map.empty in 
     Action.Set.fold
-      (fun a acc -> Atom.Map.merge cross_merge acc (seq_act a))
-      s1 Atom.Map.empty
+      s1 
+      ~f:(fun acc a -> Atom.Map.merge cross_merge acc (seq_act a))
+      ~init:Atom.Map.empty
 	  
   let seq_local (p:t) (q:t) : t =
+    (* Printf.printf "### SEQ [%d %d] ###\n%!" (Atom.Map.cardinal p) (Atom.Map.cardinal q); *)
     let r =
       Atom.Map.fold
         (fun r1 g1 acc ->
@@ -508,11 +567,11 @@ module Local = struct
             acc g1)
         p Atom.Map.empty in
       (* Printf.printf *)
-      (* 	"SEQ_LOCAL\n%s\n%s\n%s\n\n" *)
+      (* 	"SEQ_LOCAL\n%s\n%s\n%s\n\n%!" *)
       (* 	(to_string p) (to_string q) (to_string r); *)
     r
 
-    (* precondition: t is a predicate *)
+  (* precondition: t is a predicate *)
   let negate (p:t) : t =
     let rs = 
       Atom.Map.fold
@@ -549,7 +608,9 @@ module Local = struct
     loop pr (fun x -> x)
 
   let star_local (p:t) : t =
+    (* Printf.printf "### STAR [%d] ###\n%!" (Atom.Map.cardinal p); *)
     let rec loop acc pi =
+      (* Printf.printf "### STAR LOOP ###\n%!"; *)
       let psucci = seq_local p pi in
       let acc' = par_local acc psucci in
       if Atom.Map.compare Action.group_compare acc acc' = 0 then
@@ -557,7 +618,12 @@ module Local = struct
       else
         loop acc' psucci in
     let p0 = Atom.Map.singleton Atom.tru [Action.id] in
-    loop p0 p0
+    let r = loop p0 p0 in 
+    (* Printf.printf *)
+    (*   "STAR_LOCAL\n%s\n%s\n\n%!" *)
+    (*   	(to_string p) (to_string r); *)
+    r
+
 
   let of_policy (sw:SDN_Types.fieldVal) (pol:Types.policy) : t =
     let rec loop pol k =  
@@ -575,7 +641,7 @@ module Local = struct
         | Types.Star pol ->
           loop pol (fun p -> k (star_local p))
         | Types.Link(sw,pt,sw',pt') ->
-          failwith "Not a local policy" in 
+	  failwith "Not a local policy" in 
     loop pol (fun x -> 
       (* Printf.printf "### DONE ###\n%!";  *)
       x)
@@ -612,12 +678,12 @@ module Local = struct
       else
         let r,g = Atom.Map.min_binding p in
         let p' = Atom.Map.remove r p in
+        let _ = assert (p <> p') in 
         let (xs,x) = r in
         let nc_pred = mk_and (mk_not (Pattern.set_to_netkat xs)) (Pattern.to_netkat x) in
         let nc_pred_acts = mk_seq (Types.Filter nc_pred) (Action.group_to_netkat g) in
-        mk_par nc_pred_acts (loop p') in
+        mk_par nc_pred_acts  (loop p') in
     loop p
-
 end
 
 module RunTime = struct
@@ -641,8 +707,8 @@ module RunTime = struct
       Types.HeaderMap.fold mk_mod mods [SDN_Types.OutputPort port]  
 
   let set_to_action (s:Action.Set.t) (pto : VInt.t option) : SDN_Types.par =
-    let f a par = (to_action a pto)::par in
-    Action.Set.fold f s []
+    let f par a = (to_action a pto)::par in
+    Action.Set.fold s ~f:f ~init:[]
 
   let group_to_action (g:Action.group) (pto:VInt.t option) : SDN_Types.group =
     List.map (fun s -> set_to_action s pto) g
@@ -650,7 +716,7 @@ module RunTime = struct
   let to_pattern (x:Pattern.t) : SDN_Types.pattern =
     let f (h : Types.header) (v : Types.header_val) (pat : SDN_Types.pattern) =
       match h with
-        | Types.Switch ->
+        | Types.Switch -> 
           raise (Invalid_argument "RunTime.to_pattern: unexpected switch")
         | Types.Header h' -> SDN_Types.FieldMap.add h' v pat in
     Types.HeaderMap.fold f x SDN_Types.FieldMap.empty
@@ -658,8 +724,8 @@ module RunTime = struct
   type i = Local.t
 
   let compile (sw:SDN_Types.fieldVal) (pol:Types.policy) : i =
-    let r = Local.of_policy sw pol in
-    (* Printf.printf "COMPILE\n%s\n%s\n" *)
+    let r = Local.of_policy sw pol in 
+    (* Printf.printf "COMPILE\n%s\n%s\n%!" *)
     (*   (Pretty.string_of_policy pol) *)
     (*   (Local.to_string r); *)
     r
@@ -684,17 +750,39 @@ module RunTime = struct
         with Not_found -> 
           None in 
       simpl_flow (to_pattern x) (group_to_action g pto) :: l in
+    (* Printf.printf "\nLOOP\n%s\n\n%!" (Local.to_string p); *)
     let rec loop (p:i) acc cover =
       if Atom.Map.is_empty p then
         acc
       else
         let r,g = Atom.Map.min_binding p in
+        (* let _ = Printf.printf "R => G\n   %s => %s\n" (Atom.to_string r) (Action.group_to_string g) in *)
         let (xs,x) = r in
+        assert (not (Pattern.Set.mem x cover));
         let p' = Atom.Map.remove r p in
-        let ys = Pattern.Set.diff xs cover in
-        let acc' = Pattern.Set.fold (fun x acc -> add_flow x [Action.drop] acc) ys acc in
+        let ys = Pattern.Set.fold
+          (fun xi acc -> 
+            match Pattern.seq_pat xi x with 
+              | None -> acc
+              | Some xi_x -> Pattern.Set.add xi_x acc)
+          xs Pattern.Set.empty in 
+        let zs = 
+          Pattern.Set.fold
+            (fun yi acc -> 
+              if Pattern.Set.exists (Pattern.subseteq_pat yi) cover then 
+                acc
+              else
+                Pattern.Set.add yi acc)
+            ys Pattern.Set.empty in 
+        let acc' = Pattern.Set.fold (fun x acc -> add_flow x [Action.drop] acc) zs acc in
         let acc'' = add_flow x g acc' in
-        let cover' = Pattern.Set.add x (Pattern.Set.union xs cover) in
+        let cover' = Pattern.Set.add x (Pattern.Set.union zs cover) in
+        assert (p <> p');
+        if Pattern.Set.is_empty ys then
+          ()
+        else
+          Printf.printf "COVR %s\n" (Pattern.set_to_string ys);
+        Printf.printf "EMIT %s => %s\n" (Pattern.to_string x) (Action.group_to_string g);
         loop p' acc'' cover' in
     List.rev (loop p [] Pattern.Set.empty)
 end
