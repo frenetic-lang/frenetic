@@ -1,12 +1,7 @@
-module Local : sig
-  type t
-  val of_policy : SDN_Types.fieldVal -> Types.policy -> t
-  val to_netkat : t -> Types.policy
-end
+open Types 
+open SDN_Types
 
-module RunTime : sig 
-  type i 
-  val compile : SDN_Types.fieldVal -> Types.policy -> i
-  val decompile : i -> Types.policy
-  val to_table : i -> SDN_Types.flowTable
-end
+type t 
+val compile : fieldVal -> policy -> t
+val decompile : t -> policy
+val to_table : t -> flowTable

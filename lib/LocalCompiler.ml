@@ -786,3 +786,9 @@ module RunTime = struct
         loop p' acc'' cover' in
     List.rev (loop p [] Pattern.Set.empty)
 end
+
+(* exports *)
+type t = RunTime.i
+let compile = RunTime.compile
+let decompile = RunTime.decompile
+let to_table = RunTime.to_table

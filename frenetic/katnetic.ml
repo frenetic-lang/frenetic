@@ -13,7 +13,7 @@ let help args =
 			  "  dump   Compile and dump flow table\n")
 
 module Run = struct
-  open LocalCompiler.RunTime
+  open LocalCompiler
 
   let with_channel f chan =
     let exp = Parser.program Lexer.token (Lexing.from_channel chan) in
@@ -49,7 +49,7 @@ module Run = struct
 end
 
 module Dump = struct
-  open LocalCompiler.RunTime
+  open LocalCompiler
 
   let with_channel f chan =
     f (Parser.program Lexer.token (Lexing.from_channel chan))
