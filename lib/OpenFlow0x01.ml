@@ -918,7 +918,6 @@ module FlowRemoved = struct
   let parse bits =
     let pattern = Match.parse bits in
     let bits = Cstruct.shift bits (Match.size_of pattern) in
-    let pattern = Match.parse bits in
     let cookie = get_ofp_flow_removed_cookie bits in
     let priority = get_ofp_flow_removed_priority bits in
     let reason = Reason.of_int (get_ofp_flow_removed_reason bits) in
