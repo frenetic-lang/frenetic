@@ -759,6 +759,9 @@ end
 
 (* exports *)
 type t = RunTime.i
+
+let of_policy = Local.of_policy
+let to_netkat = Local.to_netkat
 let compile = RunTime.compile
 let decompile = RunTime.decompile
 let to_table = RunTime.to_table
