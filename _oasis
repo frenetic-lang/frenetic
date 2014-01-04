@@ -82,7 +82,7 @@ Executable testtool
   Install: False
 
 Test all_tests
-  Command: $testtool inline-test-runner dummy
+  Command: $testtool inline-test-runner netkat
   Run$: flag(tests)
   TestTools: testtool
 

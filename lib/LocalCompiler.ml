@@ -63,6 +63,9 @@ module Action = struct
 
   let group_compare (g1:group) (g2:group) : int = 
     List.compare g1 g2 ~cmp:Set.compare
+
+  let group_equal (g1:group) (g2:group) : bool = 
+    group_compare g1 g2 = 0
         
   let group_to_string (g:group) : string =    
     Printf.sprintf "[%s]"
@@ -649,7 +652,7 @@ module Local = struct
           Types.Filter Types.False
         | Some (r,g) -> 
           let p' = Atom.Map.remove p r in
-          let _ = assert (p <> p') in 
+          let _ = assert (not (Atom.Map.equal Action.group_equal p p')) in 
           let (xs,x) = r in
           let nc_pred = mk_and (mk_not (Pattern.set_to_netkat xs)) (Pattern.to_netkat x) in
           let nc_pred_acts = mk_seq (Types.Filter nc_pred) (Action.group_to_netkat g) in
@@ -721,7 +724,7 @@ module RunTime = struct
         with Not_found -> 
           None in 
       simpl_flow (to_pattern x) (group_to_action g pto) :: l in
-    (* Printf.printf "\nLOOP\n%s\n\n%!" (Local.to_string p); *)
+    Printf.printf "\nLOOP\n%s\n\n%!" (Local.to_string p);
     let rec loop (p:i) acc cover =
       match Atom.Map.min_elt p with 
         | None -> 
@@ -747,12 +750,12 @@ module RunTime = struct
         let acc' = Pattern.Set.fold zs ~init:acc ~f:(fun acc x -> add_flow x [Action.drop] acc) in
         let acc'' = add_flow x g acc' in
         let cover' = Pattern.Set.add (Pattern.Set.union zs cover) x in
-        assert (p <> p');
+        assert (not (Atom.Map.equal Action.group_equal p p'));
         if Pattern.Set.is_empty ys then
           ()
         else
-          Printf.printf "COVR %s\n" (Pattern.set_to_string ys);
-        Printf.printf "EMIT %s => %s\n" (Pattern.to_string x) (Action.group_to_string g);
+          (Printf.printf "COVR %s\n" (Pattern.set_to_string ys);
+           Printf.printf "EMIT %s => %s\n" (Pattern.to_string x) (Action.group_to_string g));
         loop p' acc'' cover' in
     List.rev (loop p [] Pattern.Set.empty)
 end

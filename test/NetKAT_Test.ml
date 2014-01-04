@@ -1,3 +1,7 @@
+let _ =
+  Pa_ounit_lib.Runtime.unset_lib "dummy";
+  Pa_ounit_lib.Runtime.set_lib "netkat"
+
 module QCGen = QuickCheck_gen
 
 open SDN_Types
