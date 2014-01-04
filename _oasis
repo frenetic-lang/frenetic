@@ -57,7 +57,7 @@ Library quickcheck
   Findlibparent: netcore
   Findlibname: quickcheck
   Path: quickcheck
-  Build$: flag(quickcheck)
+  Build$: flag(quickcheck) || flag(tests)
   BuildDepends:
     quickcheck,
     netcore
@@ -67,7 +67,7 @@ Library quickcheck
 Executable testtool
   Path: test
   MainIs: Test.ml
-  Build$: flag(quickcheck) && flag(tests)
+  Build$: flag(tests)
   BuildDepends: 
     oUnit,packet,
     netcore,
