@@ -38,20 +38,30 @@ module RoundTripping = struct
       (openflow_quickCheck GenAction.arbitrary
           GenAction.to_string GenAction.parse GenAction.marshal)
 
+  TEST "OpenFlow0x01 Timeout RoundTrip" =
+      let module GenTimeout = Gen.Timeout in
+      (openflow_quickCheck GenTimeout.arbitrary
+          GenTimeout.to_string GenTimeout.parse GenTimeout.marshal)
+
   TEST "OpenFlow0x01 FlowMod.Command RoundTrip" =
       let module GenCommand = Gen.FlowMod.Command in
       (openflow_quickCheck GenCommand.arbitrary
           GenCommand.to_string GenCommand.parse GenCommand.marshal)
 
-  TEST "OpenFlow0x01 FlowMod.Timeout RoundTrip" =
-      let module GenTimeout = Gen.FlowMod.Timeout in
-      (openflow_quickCheck GenTimeout.arbitrary
-          GenTimeout.to_string GenTimeout.parse GenTimeout.marshal)
-
   TEST "OpenFlow0x01 FlowMod RoundTrip" =
       let module GenFlowMod = Gen.OpenFlow0x01_Unsize(Gen.FlowMod) in
       (openflow_quickCheck GenFlowMod.arbitrary
           GenFlowMod.to_string GenFlowMod.parse GenFlowMod.marshal)
+
+  TEST "OpenFlow0x01 FlowRemoved.Reason RoundTrip" =
+      let module GenReason = Gen.FlowRemoved.Reason in
+      (openflow_quickCheck GenReason.arbitrary
+          GenReason.to_string GenReason.parse GenReason.marshal)
+
+  TEST "OpenFlow0x01 FlowRemoved RoundTrip" =
+      let module GenFlowRemoved = Gen.OpenFlow0x01_Unsize(Gen.FlowRemoved) in
+      (openflow_quickCheck GenFlowRemoved.arbitrary
+          GenFlowRemoved.to_string GenFlowRemoved.parse GenFlowRemoved.marshal)
 
   TEST "OpenFlow Hello Test 1" = 
     let open Message in 

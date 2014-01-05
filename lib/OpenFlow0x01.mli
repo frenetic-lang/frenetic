@@ -155,11 +155,19 @@ module FlowRemoved : sig
 
     val to_string : t -> string
 
+    val to_int : t -> int16
+    val of_int : int16 -> t
+
   end
 
   type t = flowRemoved
 
   val to_string : t -> string
+
+  val marshal : t -> Cstruct.t -> int
+  val parse : Cstruct.t -> t
+
+  val size_of : t -> int
 
 end
 

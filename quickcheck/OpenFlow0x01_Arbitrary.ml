@@ -262,6 +262,24 @@ module Action = struct
 
 end
 
+module Timeout = struct
+  type t = OpenFlow0x01.Timeout.t
+  type s = Packet.int16
+
+  let arbitrary =
+    let open Gen in
+    let open OpenFlow0x01_Core in
+    oneof [
+      ret_gen Permanent;
+      arbitrary_uint16 >>= (fun n -> ret_gen (ExpiresAfter n))
+    ]
+
+  let to_string = OpenFlow0x01.Timeout.to_string
+
+  let marshal = OpenFlow0x01.Timeout.to_int
+  let parse = OpenFlow0x01.Timeout.of_int
+end
+
 module FlowMod = struct
 
   module Command = struct
@@ -283,24 +301,6 @@ module FlowMod = struct
 
     let marshal = FlowMod.Command.to_int
     let parse = FlowMod.Command.of_int
-  end
-
-  module Timeout = struct
-    type t = OpenFlow0x01.Timeout.t
-    type s = Packet.int16
-
-    let arbitrary =
-      let open Gen in
-      let open OpenFlow0x01_Core in
-      oneof [
-        ret_gen Permanent;
-        arbitrary_uint16 >>= (fun n -> ret_gen (ExpiresAfter n))
-      ]
-
-    let to_string = OpenFlow0x01.Timeout.to_string
-
-    let marshal = OpenFlow0x01.Timeout.to_int
-    let parse = OpenFlow0x01.Timeout.of_int
   end
 
   type t = FlowMod.t
@@ -340,5 +340,62 @@ module FlowMod = struct
   let parse = FlowMod.parse
 
   let size_of = FlowMod.size_of
+
+end
+
+module FlowRemoved = struct
+
+  module Reason = struct
+    type t = FlowRemoved.Reason.t
+    type s = Packet.int8
+
+    let arbitrary =
+      let open Gen in
+      let open OpenFlow0x01_Core in
+      oneof [
+        ret_gen IdleTimeout;
+        ret_gen HardTimeout;
+        ret_gen Delete;
+      ]
+
+    let to_string = FlowRemoved.Reason.to_string
+
+    let marshal = FlowRemoved.Reason.to_int
+    let parse = FlowRemoved.Reason.of_int
+  end
+
+  type t = FlowRemoved.t
+  type s = Cstruct.t
+
+  let arbitrary =
+    let open Gen in
+    let open OpenFlow0x01_Core in
+      Match.arbitrary >>= fun pattern ->
+      arbitrary_uint48 >>= fun cookie ->
+      arbitrary_uint16 >>= fun priority ->
+      Reason.arbitrary >>= fun reason ->
+      arbitrary_uint32 >>= fun duration_sec ->
+      arbitrary_uint32 >>= fun duration_nsec ->
+      Timeout.arbitrary >>= fun idle_timeout ->
+      arbitrary_uint48 >>= fun packet_count ->
+      arbitrary_uint48 >>= fun byte_count ->
+        ret_gen {
+          pattern = pattern;
+          cookie = cookie;
+          priority = priority;
+          reason = reason;
+          duration_sec = duration_sec;
+          duration_nsec = duration_nsec;
+          idle_timeout = idle_timeout;
+          packet_count = packet_count;
+          byte_count = byte_count
+        }
+
+  let to_string = FlowRemoved.to_string
+
+  let marshal = FlowRemoved.marshal
+  let parse = FlowRemoved.parse
+
+  let size_of = FlowRemoved.size_of
 
 end
