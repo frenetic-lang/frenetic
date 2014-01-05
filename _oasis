@@ -8,8 +8,7 @@ Authors:     Marco Canini, Nate Foster, Arjun Guha, Mark Reitblatt,
 License:     LGPL
 Plugins:     META (0.3), DevFiles (0.3)
 BuildTools:
-  ocamlbuild,
-  ocamldoc
+  ocamlbuild
 
 Flag quickcheck
     Description: build the openflow.quickcheck library
@@ -112,22 +111,6 @@ Library quickcheck
     Modules:
         OpenFlow_Arbitrary,
         OpenFlow0x01_Arbitrary
-
-Document doc
-  Title: OpenFlow documentation
-  Type: ocamlbuild (0.3)
-  XOCamlBuildPath: lib
-  XOCamlBuildModules:
-    OpenFlow0x01,
-    OpenFlow0x01_Core,
-    OpenFlow0x01_Stats,
-    OpenFlow0x01_Switch,
-    OpenFlow0x01_TxSwitch,
-    OpenFlow0x01_Platform,
-    OpenFlow0x04,
-    OpenFlow0x04_Core,
-    OpenFlow0x04_Platform,
-    OpenFlow0x04_Misc
 
 Executable testtool
   Path: test
