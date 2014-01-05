@@ -46,7 +46,8 @@ module MakeSerializers (M : Message) = struct
         return `Eof
       | `Ok ->
         let m = M.parse hdr (Cstruct.of_string body_buf) in
-        log (lazy (sprintf "[%s] read message header=%s; body hash=%s"
+        (* extra space left so read and write align in the log *)
+        log (lazy (sprintf "[%s] read  %s hash=%s"
                      label
                      (Header.to_string hdr)
                      (readable_md5 (ofhdr_str ^ body_buf))));
@@ -60,8 +61,8 @@ module MakeSerializers (M : Message) = struct
     let _ = M.marshal m (Cstruct.shift buf Header.size) in
     Async_cstruct.schedule_write raw_writer buf;
     Log.of_lazy ~level:`Debug ~tags:tags
-      (lazy (sprintf "[%s] wrote message xid=%ld, code=%d, hash=%s" 
-               label hdr.Header.xid hdr.Header.type_code
+      (lazy (sprintf "[%s] wrote %s hash=%s" 
+               label (Header.to_string hdr)
                (readable_md5 (Cstruct.to_string buf))))
 
 
