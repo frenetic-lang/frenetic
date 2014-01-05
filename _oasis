@@ -105,7 +105,7 @@ Library quickcheck
     Findlibparent: openflow
     Findlibname: quickcheck
     Path: quickcheck
-    Build$: flag(quickcheck)
+    Build$: flag(tests) || flag(quickcheck)
     BuildDepends:
         quickcheck,
         openflow
@@ -132,7 +132,7 @@ Document doc
 Executable testtool
   Path: test
   Install: False
-  Build$: flag(quickcheck) && flag(tests)
+  Build$: flag(tests)
   MainIs: Test.ml
   BuildDepends:
     packet,
