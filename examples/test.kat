@@ -1,1 +1,1 @@
-(filter port = 0; port := 1) | (filter port = 1; port := 0)
+(filter port = 1; port := 2) | (filter port = 2; port := 1)

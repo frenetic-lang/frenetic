@@ -12,6 +12,7 @@ let _ = Log.set_level `Debug
 let _ = Log.set_output 
           [Log.make_colored_filtered_output 
              [("openflow", "socket");
+              ("openflow", "platform");
               ("openflow", "serialization")]]
 
 let switch local_stream () feats : unit Deferred.t = 
