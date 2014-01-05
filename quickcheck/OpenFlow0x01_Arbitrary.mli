@@ -56,9 +56,16 @@ module Wildcards : OpenFlow0x01_Arbitrary
 module Match : OpenFlow0x01_ArbitraryCstruct
 module PseudoPort : OpenFlow0x01_Arbitrary
 module Action : OpenFlow0x01_ArbitraryCstruct
+module Timeout : OpenFlow0x01_Arbitrary
+
 module FlowMod : sig
   include OpenFlow0x01_ArbitraryCstruct
 
   module Command : OpenFlow0x01_Arbitrary
-  module Timeout : OpenFlow0x01_Arbitrary
+end
+
+module FlowRemoved : sig
+  include OpenFlow0x01_ArbitraryCstruct
+
+  module Reason : OpenFlow0x01_Arbitrary
 end
