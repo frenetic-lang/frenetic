@@ -15,8 +15,8 @@ build: setup.data setup.ml
 install: setup.data setup.ml
 	ocaml setup.ml -install
 
-test: setup.ml build
-	_build/test/Test.byte inline-test-runner openflow
+test:
+	@echo "Note that there are no tests..."
 
 reinstall: setup.ml
 	ocamlfind remove $(NAME) || true
