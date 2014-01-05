@@ -7,8 +7,7 @@ Authors:     Shrutarshi Basu, Arjun Guha
 License:     LGPL
 Plugins:     META (0.3), DevFiles (0.3)
 BuildTools:
-  ocamlbuild,
-  ocamldoc
+  ocamlbuild
 
 Library topology
   Path: lib
@@ -34,12 +33,3 @@ Executable otopo
     packet,
     topology
   Install: False
-
-Document doc
-  Title: Topology Documentation
-  Type: OCamlbuild (0.3)
-  XOCamlBuildPath: lib
-  XOCamlBuildModules:
-    DOT_Types,
-    Topology,
-    DOT_Parser
