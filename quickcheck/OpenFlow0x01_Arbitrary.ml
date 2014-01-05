@@ -347,7 +347,7 @@ module FlowRemoved = struct
 
   module Reason = struct
     type t = FlowRemoved.Reason.t
-    type s = Packet.int8 (* Cenum.t ? *)
+    type s = Packet.int8
 
     let arbitrary =
       let open Gen in
