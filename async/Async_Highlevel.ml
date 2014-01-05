@@ -14,11 +14,6 @@ module Log = Async_OpenFlow.Log
 
 let _ = Log.set_level `Debug
 
-let _ = Log.set_output 
-          [Log.make_colored_filtered_output 
-             [("openflow", "socket");
-              ("openflow", "serialization")]]
-
 module Platform = Async_OpenFlowChunk.Controller
 
 module Clients = Hashtbl.Make(Platform.Client_id)
