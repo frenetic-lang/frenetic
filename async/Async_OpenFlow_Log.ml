@@ -1,13 +1,13 @@
 open Core.Std
 open Async.Std
 
-let filter_by_tags (tags : (string * string) list) 
+let filter_by_tags (enabled_tags : (string * string) list) 
   (messages : Log.Message.t Queue.t) : Log.Message.t Queue.t =
   Queue.filter_map messages (fun msg ->
     match Log.Message.tags msg with
     | [] -> Some msg (* untagged messages are printed indiscriminately *)
-    | tags ->
-      if List.exists ~f:(List.mem tags) tags then
+    | msg_tags ->
+      if List.exists ~f:(List.mem enabled_tags) msg_tags then
         Some msg
       else
         None)
