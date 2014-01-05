@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: a41679af60bf464fefd13cdd218befd3)
+# DO NOT EDIT (digest: b609bcf1065f1598da20d4b07ae1e4e9)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -44,10 +44,9 @@
 <async/*.ml{,i}>: package(openflow)
 <async/*.ml{,i}>: package(openflow.async)
 <async/*.ml{,i}>: package(threads)
-<async/*.ml{,i}>: package(textutils
-topology)
-<async/*.ml{,i}>: package(sexplib.syntax)
+<async/*.ml{,i}>: package(textutils)
 <async/*.ml{,i}>: package(topology)
+<async/*.ml{,i}>: package(sexplib.syntax)
 # Library quickcheck
 "quickcheck/quickcheck.cmxs": use_quickcheck
 <quickcheck/*.ml{,i}>: use_netcore
@@ -116,10 +115,9 @@ topology)
 "frenetic/katnetic.byte": package(openflow)
 "frenetic/katnetic.byte": package(openflow.async)
 "frenetic/katnetic.byte": package(threads)
-"frenetic/katnetic.byte": package(textutils
-topology)
-"frenetic/katnetic.byte": package(sexplib.syntax)
+"frenetic/katnetic.byte": package(textutils)
 "frenetic/katnetic.byte": package(topology)
+"frenetic/katnetic.byte": package(sexplib.syntax)
 # Executable dehop_test
 "frenetic/dehop_test.byte": use_netcore
 "frenetic/dehop_test.byte": package(lwt)
@@ -151,10 +149,9 @@ topology)
 "frenetic/netkat_test.byte": package(openflow)
 "frenetic/netkat_test.byte": package(openflow.async)
 "frenetic/netkat_test.byte": package(threads)
-"frenetic/netkat_test.byte": package(textutils
-topology)
-"frenetic/netkat_test.byte": package(sexplib.syntax)
+"frenetic/netkat_test.byte": package(textutils)
 "frenetic/netkat_test.byte": package(topology)
+"frenetic/netkat_test.byte": package(sexplib.syntax)
 <frenetic/*.ml{,i}>: use_async
 <frenetic/*.ml{,i}>: use_netcore
 <frenetic/*.ml{,i}>: package(lwt)
@@ -172,10 +169,9 @@ topology)
 <frenetic/*.ml{,i}>: package(openflow)
 <frenetic/*.ml{,i}>: package(openflow.async)
 <frenetic/*.ml{,i}>: package(threads)
-<frenetic/*.ml{,i}>: package(textutils
-topology)
-<frenetic/*.ml{,i}>: package(sexplib.syntax)
+<frenetic/*.ml{,i}>: package(textutils)
 <frenetic/*.ml{,i}>: package(topology)
+<frenetic/*.ml{,i}>: package(sexplib.syntax)
 # OASIS_STOP
 <lib/*.ml>: syntax_camlp4o
 <frenetic/*.ml>: syntax_camlp4o

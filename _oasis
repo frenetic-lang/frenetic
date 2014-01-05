@@ -79,7 +79,7 @@ Library async
     openflow.async,
     packet,
     threads,
-    textutils
+    textutils,
     topology,
     sexplib.syntax
   Modules:
