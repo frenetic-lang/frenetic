@@ -1,38 +1,27 @@
-# OASIS_START
-# DO NOT EDIT (digest: 7b2408909643717852b95f994b273fee)
+all: build
 
-SETUP = ocaml setup.ml
+NAME=topology
+J=4
 
-build: setup.data
-	$(SETUP) -build $(BUILDFLAGS)
+setup.ml: _oasis
+	oasis setup
 
-doc: setup.data build
-	$(SETUP) -doc $(DOCFLAGS)
+setup.data: setup.ml
+	ocaml setup.ml -configure
 
-test: setup.data build
-	$(SETUP) -test $(TESTFLAGS)
+build: setup.data setup.ml
+	ocaml setup.ml -build -j $(J)
 
-all:
-	$(SETUP) -all $(ALLFLAGS)
+install: setup.data setup.ml
+	ocaml setup.ml -install
 
-install: setup.data
-	$(SETUP) -install $(INSTALLFLAGS)
+test: setup.ml build
+	_build/test/Test.byte inline-test-runner openflow
 
-uninstall: setup.data
-	$(SETUP) -uninstall $(UNINSTALLFLAGS)
-
-reinstall: setup.data
-	$(SETUP) -reinstall $(REINSTALLFLAGS)
+reinstall: setup.ml
+	ocamlfind remove $(NAME) || true
+	ocaml setup.ml -reinstall
 
 clean:
-	$(SETUP) -clean $(CLEANFLAGS)
-
-distclean:
-	$(SETUP) -distclean $(DISTCLEANFLAGS)
-
-setup.data:
-	$(SETUP) -configure $(CONFIGUREFLAGS)
-
-.PHONY: build doc test all install uninstall reinstall clean distclean configure
-
-# OASIS_STOP
+	ocamlbuild -clean
+	rm -f setup.data setup.log

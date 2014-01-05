@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 6250cbeda2d6f4bbc8c6fe0722d44e8a)
+# DO NOT EDIT (digest: 2e15809a16d9492810cd43ee53c78cd0)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -19,15 +19,18 @@
 <lib/*.ml{,i}>: package(openflow)
 <lib/*.ml{,i}>: package(packet)
 <lib/*.ml{,i}>: package(str)
+<lib/*.ml{,i}>: package(threads)
 # Executable otopo
 "exe/main.byte": use_topology
 "exe/main.byte": package(ocamlgraph)
 "exe/main.byte": package(openflow)
 "exe/main.byte": package(packet)
 "exe/main.byte": package(str)
+"exe/main.byte": package(threads)
 <exe/*.ml{,i}>: use_topology
 <exe/*.ml{,i}>: package(ocamlgraph)
 <exe/*.ml{,i}>: package(openflow)
 <exe/*.ml{,i}>: package(packet)
 <exe/*.ml{,i}>: package(str)
+<exe/*.ml{,i}>: package(threads)
 # OASIS_STOP

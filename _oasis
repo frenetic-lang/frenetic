@@ -5,7 +5,7 @@ Version:     0.9
 Synopsis:    Topology for networks
 Authors:     Shrutarshi Basu, Arjun Guha
 License:     LGPL
-Plugins:     META (0.3), DevFiles (0.3)
+Plugins:     META (0.3)
 BuildTools:
   ocamlbuild
 
