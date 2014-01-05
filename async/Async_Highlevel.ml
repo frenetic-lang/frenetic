@@ -32,7 +32,7 @@ type message_code =
 let int_to_message_code n = 
   let open Header in 
   if n = type_code_features_reply then FeaturesReply
-  else if n = OF4.msg_code_to_int OF4.MULTIPART_REQ then MultipartReply
+  else if n = OF4.msg_code_to_int OF4.MULTIPART_RESP then MultipartReply
   else Other
 
 (* constants *)
@@ -73,14 +73,8 @@ let features_request_msg version : Platform.m =
 let port_description_request_msg : Platform.m =
   let open Header in 
   let open OF4 in 
-  let mpr = OF4_Core.PortsDescReq in 
-  let bits = Cstruct.create (MultipartReq.sizeof mpr) in 
-  ignore (MultipartReq.marshal bits mpr);
-  ({ version = 0x04;
-    type_code = msg_code_to_int MULTIPART_REQ;
-    length = size;
-    xid = 0l; }, 
-   bits)
+  let mpr = (0l, Message.MultipartReq (OF4_Core.PortsDescReq)) in
+  Async_OpenFlow0x04.Message.marshal' mpr
   
 let handshake_error (c_id:Platform.Client_id.t) (str:string) : 'a = 
   raise (Handshake (c_id,str))
@@ -167,7 +161,9 @@ let features t evt =
                (Printf.sprintf "expected port description reply in %s%!" (to_string hdr))
         end
      | _, Some state -> 
-        Log.info ~tags "Something %s" (Sexp.to_string (sexp_of_handshake_state state));
+        Log.info ~tags "got %s in state %s" 
+          (Header.to_string hdr)
+          (Sexp.to_string (sexp_of_handshake_state state));
         return None
      | _, None -> 
         Log.info ~tags "Nothing";
