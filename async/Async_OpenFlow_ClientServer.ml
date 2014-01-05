@@ -9,6 +9,8 @@ module Message = Async_OpenFlow_Message
 let readable_md5 (buf : string) : string =
   Digest.to_hex (Digest.string buf)
 
+let tags = [("openflow", "socket")]
+
 module type S = sig
 
   type t
@@ -40,7 +42,7 @@ module Make (M : Message.Message) : S with type t = M.t = struct
       >>= function
       | `Eof ->
         Pipe.close msg_reader_w;
-        Log.info ~tags:[("openflow", "socket")]
+        Log.info ~tags
           "[%s] Socket reader closed, thus message also reader closed." label;
         return (`Finished ())
       | `Ok m -> Pipe.write_without_pushback msg_reader_w m; 
@@ -52,7 +54,7 @@ module Make (M : Message.Message) : S with type t = M.t = struct
     (* We close msg_writer_w, which prevents any further writes. *)
     Stream.iter (Monitor.errors (Writer.monitor raw_writer)) ~f:(fun exn -> 
       Pipe.close msg_writer_w; (* TODO(arjun): what if already closed? will error! *)
-      Log.error ~tags:[("openflow", "socket")]
+      Log.error ~tags
         "[%s] socket write failed, thus message writer also closed." label);
     let _ = Pipe.iter_without_pushback msg_writer_r (fun msg ->
       Serialization.serialize ~tags:[("openflow", "serialization")] ~label:label
@@ -62,7 +64,7 @@ module Make (M : Message.Message) : S with type t = M.t = struct
   let listen where_to_listen msg_handler_receiver =
     Tcp.Server.create ~on_handler_error:`Ignore where_to_listen (fun sock r w ->
       let sock_str = Socket.Address.to_string sock in
-      Log.info ~tags:[("openflow", "socket")] 
+      Log.info ~tags
         "new client %s" sock_str;
       msg_handler_receiver (deserialize ~label:sock_str r)
                            (serializer ~label:sock_str w))
@@ -74,7 +76,7 @@ module Make (M : Message.Message) : S with type t = M.t = struct
     : 'a Deferred.t =
     Tcp.with_connection addr (fun sock sock_reader sock_writer ->
       let sock_str = Socket.Address.to_string (Socket.getsockname sock) in
-      Log.info ~tags:[("openflow", "socket")] 
+      Log.info ~tags
         "new connection %s (peer is %s)"
         sock_str
         (Socket.Address.to_string (Socket.getpeername sock));

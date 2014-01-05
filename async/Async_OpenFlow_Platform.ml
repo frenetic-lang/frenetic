@@ -1,7 +1,6 @@
 open Async.Std
 open Core.Std
 
-module Log = Async_OpenFlow_Log
 module Header = OpenFlow_Header
 module type Message = Async_OpenFlow_Message.Message
 

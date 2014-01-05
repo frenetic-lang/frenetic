@@ -12,8 +12,6 @@ module M4 = OpenFlow0x04.Message
 
 module Log = Async_OpenFlow.Log
 
-let _ = Log.set_level `Debug
-
 module Platform = Async_OpenFlowChunk.Controller
 
 module Clients = Hashtbl.Make(Platform.Client_id)
@@ -21,6 +19,9 @@ module Clients = Hashtbl.Make(Platform.Client_id)
 module Switches = Hashtbl.Make(VInt)
 
 exception Handshake of Platform.Client_id.t * string
+
+(* Use this as the ~tags argument to Log.info, Log.debug, etc. *)
+let tags = [("openflow", "platform")]
 
 (* helper functions to pattern match on OpenFlow type_code *)
 type message_code = 
@@ -93,7 +94,7 @@ let features t evt =
   let open Header in 
   match evt with 
   | `Connect (c_id, version) ->
-    Log.info "SentHello";
+    Log.info ~tags "Sent Hello";
     let next_handshake_state =
        match version with
        | 0x01 -> SentFeaturesRequest0x01
@@ -104,7 +105,7 @@ let features t evt =
      Clients.replace clients c_id next_handshake_state;
      send t c_id (features_request_msg version)
   | `Disconnect (c_id,_) -> 
-     Log.info "Client disconnected";
+     Log.info ~tags "Client disconnected";
      (match Clients.find clients c_id with 
      | Some (Connected0x01 switch_id) -> 
         ignore (Clients.remove clients c_id);
@@ -121,7 +122,7 @@ let features t evt =
      begin 
        match of_type_code, handshake_state with
        | FeaturesReply, Some SentFeaturesRequest0x01 -> 
-          Log.info "SentFeaturesRequest0x01";
+          Log.info ~tags "SentFeaturesRequest0x01";
           begin 
             match M1.parse hdr (Cstruct.to_string bits) with 
             | (_, M1.SwitchFeaturesReply feats) -> 
@@ -138,7 +139,7 @@ let features t evt =
                  (Printf.sprintf "expected features reply in %s%!" (to_string hdr))
           end
      | FeaturesReply, Some SentFeaturesRequest0x04 ->
-        Log.info "SentFeaturesRequest0x04";
+        Log.info ~tags "SentFeaturesRequest0x04";
         begin 
           match M4.parse hdr (Cstruct.to_string bits) with
           | (_, M4.FeaturesReply feats) -> 
@@ -150,7 +151,7 @@ let features t evt =
                (Printf.sprintf "expected features reply in %s%!" (to_string hdr))
         end
      | MultipartReply, Some (SentPortDescriptionRequest0x04 switch_id) -> 
-        Log.info "SentPortDescriptionRequest0x04";
+        Log.info ~tags "SentPortDescriptionRequest0x04";
         begin
           match M4.parse hdr (Cstruct.to_string bits) with 
           | (_, M4.MultipartReply (OF4_Core.PortsDescReply ports)) -> 
@@ -166,17 +167,17 @@ let features t evt =
                (Printf.sprintf "expected port description reply in %s%!" (to_string hdr))
         end
      | _, Some state -> 
-        Log.info "Something %s" (Sexp.to_string (sexp_of_handshake_state state));
+        Log.info ~tags "Something %s" (Sexp.to_string (sexp_of_handshake_state state));
         return None
      | _, None -> 
-        Log.info "Nothing";
+        Log.info ~tags "Nothing";
         return None
      end
 
 let accept_switches port = 
   let open Async_OpenFlow_Platform.Trans in
   let open Platform in
-  Log.info "accept switches %d" port;
+  Log.info ~tags "accept switches %d" port;
   create port >>| fun t ->
     platform := Some t;
     run (handshake 0x04 >=> echo >=> features) t (listen t)
@@ -190,7 +191,7 @@ let send_msg0x04 c_id msg =
   Deferred.ignore (send (get_platform ()) c_id msg_c)
 
 let setup_flow_table (sw:S.switchId) (tbl:S.flowTable) = 
-  Log.info "setup_flow_table";
+  Log.info ~tags "setup_flow_table";
   let c_id = match Switches.find switches sw with
     | Some c_id -> 
        c_id
