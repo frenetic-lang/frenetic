@@ -949,8 +949,9 @@ module FlowRemoved = struct
     msg.packet_count
     msg.byte_count
 
-  let size_of _ =
-    sizeof_ofp_flow_removed
+  let size_of msg =
+    (Match.size_of msg.pattern)
+    + sizeof_ofp_flow_removed
 
   let marshal (msg:t) (bits:Cstruct.t) : int =
     let bits = Cstruct.shift bits (Match.marshal msg.pattern bits) in
