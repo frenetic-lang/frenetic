@@ -6,7 +6,7 @@ Synopsis:    Serialization library for OpenFlow
 Authors:     Marco Canini, Nate Foster, Arjun Guha, Mark Reitblatt,
              Cole Schlesinger, and Laurent Vanbever
 License:     LGPL
-Plugins:     META (0.3), DevFiles (0.3)
+Plugins:     META (0.3)
 BuildTools:
   ocamlbuild
 
