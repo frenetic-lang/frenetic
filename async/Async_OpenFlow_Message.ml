@@ -60,8 +60,9 @@ module MakeSerializers (M : Message) = struct
     let _ = M.marshal m (Cstruct.shift buf Header.size) in
     Async_cstruct.schedule_write raw_writer buf;
     Log.of_lazy ~level:`Debug ~tags:tags
-      (lazy (sprintf "[%s] wrote message hash=%s" 
-               label (readable_md5 (Cstruct.to_string buf))))
+      (lazy (sprintf "[%s] wrote message xid=%ld, code=%d, hash=%s" 
+               label hdr.Header.xid hdr.Header.type_code
+               (readable_md5 (Cstruct.to_string buf))))
 
 
   (* Converts back and forth between streams of messsages with parsed bodies
