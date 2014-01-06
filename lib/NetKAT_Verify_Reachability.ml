@@ -115,20 +115,37 @@ module Verify = struct
       if n < i then acc else aux (n-1) (n :: acc) in
     aux j ([]) )
 
-  let pred_test,reset_pred_test = 
+  let pred_test,pred_test_not,reset_pred_test = 
     let hashmap = Hashtbl.create 0 in
+    let false_hashmap = Hashtbl.create 0 in
     let pred_test f =  
       try (Hashtbl.find hashmap f)
       with Not_found -> 
 	let macro = z3_macro ((serialize_header f) ^ "-equals") [("x", SPacket); ("v", SInt)] SBool 
-	  (ZAnd [ZNot (ZEquals (ZTerm (TVar "x"), Z3macro.nopacket));
-		 (ZEquals (ZTerm (encode_header f "x"), ZTerm (TVar "v")))
-		]) 
+	  (ZIf (ZEquals (ZTerm (TVar "x"), Z3macro.nopacket), 
+		ZFalse,
+		(ZEquals (ZTerm (encode_header f "x"), ZTerm (TVar "v")))
+	   ))
 	in
 	Hashtbl.add hashmap f macro; 
 	(Hashtbl.find hashmap f) in	
-    let reset_pred_test () = Hashtbl.clear hashmap in
-    pred_test, reset_pred_test
+    let pred_test_not f = 
+      try (Hashtbl.find false_hashmap f)
+      with Not_found -> 
+	let macro = z3_macro ((serialize_header f) ^ "-not-equals") [("x", SPacket); ("v", SInt)] SBool 
+	  (ZIf (ZEquals (ZTerm (TVar "x"), Z3macro.nopacket),
+		ZTrue,
+		 (*ZNot (ZEquals (ZTerm (encode_header f "x"), ZTerm (TVar "v")))*)
+		 ZOr [(ZLessThan (ZTerm (encode_header f "x"), ZTerm (TVar "v")));
+		 (ZGreaterThan (ZTerm (encode_header f "x"), ZTerm (TVar "v")))]
+		
+	   )) 
+	in
+	Hashtbl.add false_hashmap f macro; 
+	(Hashtbl.find false_hashmap f) in	
+
+    let reset_pred_test () = Hashtbl.clear hashmap; Hashtbl.clear false_hashmap in
+    pred_test, pred_test_not, reset_pred_test
 
   let reset_state () = 
     reset_state_encode_packet_equals (); 
@@ -136,22 +153,30 @@ module Verify = struct
     decl_list := [];
     reset_pred_test ()
 
-  let rec forwards_pred (pred : pred) (pkt : zVar) : zFormula = 
-
-    match pred with
+  let rec forwards_pred (prd : pred) (pkt : zVar) : zFormula = 
+    let forwards_pred pr : zFormula = forwards_pred pr pkt in
+    let rec in_a_neg pred : zFormula = 
+      match pred with
+	| Neg p -> forwards_pred p
+	| False -> ZTrue
+	| True -> ZFalse
+	| Test (hdr, v) -> ZTerm (TApp (pred_test_not hdr, [TVar pkt; encode_vint v])) 
+	| And (pred1, pred2) -> ZOr [in_a_neg pred1; in_a_neg pred1]
+	| Or (pred1, pred2) -> ZAnd [in_a_neg pred1; in_a_neg pred2] in
+    match prd with
       | False -> 
 	ZFalse
       | True -> 
 	ZTrue
       | Test (hdr, v) -> ZTerm (TApp (pred_test hdr, [TVar pkt; encode_vint v]))
-      | Neg p ->
-        (ZNot (forwards_pred p pkt))
+      | Neg p -> in_a_neg p
       | And (pred1, pred2) -> 
-	(ZAnd [forwards_pred pred1 pkt; 
-	       forwards_pred pred2 pkt])
+	(ZAnd [forwards_pred pred1; 
+	       forwards_pred pred2])
       | Or (pred1, pred2) -> 
-	(ZOr [forwards_pred pred1 pkt;
-              forwards_pred pred2 pkt])
+	(ZOr [forwards_pred pred1;
+	      forwards_pred pred2]) 
+
 
   open Z3macro
 
@@ -188,6 +213,7 @@ module Verify = struct
 	  
 
     (* output is formula, set formula produces *)
+    (* why are we calling this explicitly on p and t as opposed to just on p;t? *)
   let rec forwards_pol (pol : policy) (inpkt : zVar) : zFormula * (Z3PacketSet.t) = 
     let inpkt_t = ZTerm (TVar inpkt) in
     (* let nullinput = ZEquals (inpkt_t, nopacket) in *)

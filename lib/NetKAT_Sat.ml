@@ -35,6 +35,8 @@ module Sat = struct
     | ZAnd of zFormula list
     | ZOr of zFormula list
     | ZEquals of zFormula * zFormula
+    | ZLessThan of zFormula * zFormula
+    | ZGreaterThan of zFormula * zFormula
     | ZComment of string * zFormula
     | ZForall of ((zVar * zSort) list) * zFormula
 (*    | ZExists of ((zVar * zSort) list) * zFormula *)
@@ -180,6 +182,10 @@ module Sat = struct
       Printf.sprintf "(not %s)" (serialize_formula f1)
     | ZEquals (t1, t2) -> 
       Printf.sprintf "(equals %s %s)" (serialize_formula t1) (serialize_formula t2)
+    | ZLessThan (t1, t2) -> 
+      Printf.sprintf "(< %s %s)" (serialize_formula t1) (serialize_formula t2)
+    | ZGreaterThan (t1, t2) -> 
+      Printf.sprintf "(> %s %s)" (serialize_formula t1) (serialize_formula t2)
     | ZAnd([]) -> 
       Printf.sprintf "true"
     | ZAnd([f]) -> 
