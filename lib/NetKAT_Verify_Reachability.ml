@@ -293,9 +293,12 @@ module Verify = struct
 
 
   let forwards_star p_t_star (inpkt : zVar) k : zFormula * (Z3PacketSet.t) = 
+    let blacklisting_comment l =
+      Printf.sprintf "blacklisting %s " ((fun x a -> Printf.sprintf "%s %s" x a) l "") in
     let forwards_k =  forwards_k p_t_star inpkt  in
     let combine_results x = 
       let form,res = forwards_k x in
+      let form = ZOr[form; ZComment (blacklisting_comment res, ZEquals (ZTerm (TVar res), nopacket))] in
       ZComment ( Printf.sprintf "Attempting to forward in %u hops" x, form ), res in
     let forms, finalres = unzip_list_tuple ((List.map combine_results (range 0 k))) in
     ZAnd forms, List.fold_left (fun x y -> Z3PacketSet.add y x) Z3PacketSet.empty finalres
