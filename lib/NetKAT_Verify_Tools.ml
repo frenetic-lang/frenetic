@@ -128,12 +128,13 @@ let fold_pred_and_with_counter (expr : int -> pred) : (zVar list -> zFormula) =
   in
   ret
 
+(*
 let no_waypoint_expr waypoint_switchnum : (zVar list -> zFormula) = 
   let ret history = 
 	ZNot ((fold_pred_or (Test (Switch, make_vint waypoint_switchnum))) history)
   in 
   ret
-
+  *)
 (* let equal_fields fieldname  : (zVar list -> zFormula) = 
   (Verify.equal_single_field fieldname) *)
 

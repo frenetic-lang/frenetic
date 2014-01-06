@@ -31,7 +31,6 @@ module Sat = struct
     | ZTerm of zTerm
     | ZTrue
     | ZFalse 
-    | ZNot of zFormula
     | ZAnd of zFormula list
     | ZOr of zFormula list
     | ZEquals of zFormula * zFormula
@@ -178,8 +177,6 @@ module Sat = struct
       Printf.sprintf "true"
     | ZFalse -> 
       Printf.sprintf "false"
-    | ZNot f1 -> 
-      Printf.sprintf "(not %s)" (serialize_formula f1)
     | ZEquals (t1, t2) -> 
       Printf.sprintf "(equals %s %s)" (serialize_formula t1) (serialize_formula t2)
     | ZLessThan (t1, t2) -> 

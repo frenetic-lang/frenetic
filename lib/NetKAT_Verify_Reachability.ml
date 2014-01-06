@@ -135,7 +135,6 @@ module Verify = struct
 	let macro = z3_macro ((serialize_header f) ^ "-not-equals") [("x", SPacket); ("v", SInt)] SBool 
 	  (ZIf (ZEquals (ZTerm (TVar "x"), Z3macro.nopacket),
 		ZTrue,
-		 (*ZNot (ZEquals (ZTerm (encode_header f "x"), ZTerm (TVar "v")))*)
 		 ZOr [(ZLessThan (ZTerm (encode_header f "x"), ZTerm (TVar "v")));
 		 (ZGreaterThan (ZTerm (encode_header f "x"), ZTerm (TVar "v")))]
 		
@@ -278,8 +277,8 @@ module Verify = struct
   let not_in_history waypoint pkt k = 
     let rec not_in_history waypoint pkt k = 
       match k with 
-	| 0 -> ZNot (forwards_pred waypoint pkt)
-	| _ -> ZAnd [ZNot (forwards_pred waypoint pkt); not_in_history waypoint (previous_packet pkt) (k-1)] in
+	| 0 -> (forwards_pred (Neg waypoint) pkt)
+	| _ -> ZAnd [(forwards_pred (Neg waypoint) pkt); not_in_history waypoint (previous_packet pkt) (k-1)] in
     fold_in_and (not_in_history waypoint pkt (k * 2))
 
 
