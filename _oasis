@@ -13,7 +13,7 @@ BuildTools:
 
 Flag quickcheck
   Description: build the packet.quickcheck library
-  Default: False
+  Default: false
 
 Library packet
   Path: lib
@@ -35,7 +35,7 @@ Library quickcheck
   Findlibparent: packet
   Findlibname: quickcheck
   Path: quickcheck
-  Build$: flag(quickcheck)
+  Build$: flag(tests) || flag(quickcheck)
   BuildDepends:
     packet,
     quickcheck
@@ -44,8 +44,8 @@ Library quickcheck
 
 Executable testtool
   Path: test
-  Install: False
-  Build$: flag(tests) && flag(quickcheck)
+  Install: false
+  Build$: flag(tests)
   MainIs: Test.ml
   BuildDepends:
     oUnit,
