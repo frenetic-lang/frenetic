@@ -213,64 +213,51 @@ module Verify = struct
 
     (* output is formula, set formula produces *)
     (* why are we calling this explicitly on p and t as opposed to just on p;t? *)
-  let rec forwards_pol (pol : policy) (inpkt : zVar) : zFormula * (Z3PacketSet.t) = 
+  let rec forwards_pol (pol : policy) (inpkt : zVar) : zFormula * zVar = 
     let inpkt_t = ZTerm (TVar inpkt) in
     (* let nullinput = ZEquals (inpkt_t, nopacket) in *)
     match pol with 
       | Filter pred -> 
-	forwards_pred pred inpkt, (Z3PacketSet.singleton inpkt)
+	forwards_pred pred inpkt, inpkt
       | Mod(f,v) -> 
 	let outpkt = fresh SPacket in
 	let outpkt_t = ZTerm (TVar outpkt) in
 	let modfn = mod_fun f in
 	ZAnd [ ZTerm (test_previous_packet outpkt inpkt);
-	  ZApp (modfn, [inpkt_t; outpkt_t; ZTerm (encode_vint v)])],  (Z3PacketSet.singleton outpkt)
+	  ZApp (modfn, [inpkt_t; outpkt_t; ZTerm (encode_vint v)])], outpkt
       | Par (pol1, pol2) -> 
 	let formu1, out1 = forwards_pol pol1 inpkt in
 	let formu2, out2 = forwards_pol pol2 inpkt in
-	let blacklisting_comment l = 
-	  Printf.sprintf "blacklisting %s " (Z3PacketSet.fold (fun x a -> Printf.sprintf "%s %s" x a) l "") in
-	ZAnd[
-	  ZOr[formu1; ZComment 
-	    ( blacklisting_comment out1,
-	      (ZAnd (Z3PacketSet.fold (fun x l -> (ZEquals (ZTerm (TVar x), nopacket))::l) out1 [])))];
-	  ZOr[formu2; ZComment 
-	    ( blacklisting_comment out2, 
-	      ZAnd (Z3PacketSet.fold (fun x l -> (ZEquals (ZTerm (TVar x), nopacket))::l) out2 []))]], (Z3PacketSet.union out1 out2)
+	ZAnd[ZOr[formu1;formu2]; ZEquals (ZTerm (TVar out1), ZTerm (TVar out2))], out1
       | Seq (pol1, pol2) -> 
-	let formu', midpkts = forwards_pol pol1 inpkt in
-	let outformu, outpkts = unzip_list_tuple 
-	  (Z3PacketSet.fold
-	     (fun mpkt l -> 
-	       let packet_formula, output = forwards_pol pol2 mpkt in
-	       (packet_formula, output)::l )
-	     midpkts []) in
-	ZAnd (formu'::outformu), (List.fold_left Z3PacketSet.union Z3PacketSet.empty outpkts)
+	let formu', midpkt = forwards_pol pol1 inpkt in
+	let outformu, outpkt = forwards_pol pol2 midpkt in 
+	ZAnd [formu';outformu], outpkt
       | Star _  -> failwith "NetKAT program not in form (p;t)*"
       | Choice _-> failwith "I'm not rightly sure what a \"choice\" is "
       | Link _ -> failwith "wait, link is a special form now?  What's going on?"
 
-  let rec fold_in_and expr = 
-    match expr with 
-      | ZAnd l -> 
-	let new_list = List.map fold_in_and l in
-	ZAnd ((List.flatten (List.map (fun x -> 
-	  match x with
-	    | ZAnd l -> List.map fold_in_and l
-	    | _ -> failwith "filter failed")
-			       (List.filter 
-				  (fun x -> match x with 
-				    | ZAnd l -> true
-				    | _ -> false) new_list))) @ 
-		 (List.filter (fun x -> match x with | ZAnd l -> false | _ -> true) new_list))
+	
+  let rec fold_in_and expr =
+    match expr with
+      | ZAnd l ->
+        let new_list = List.map fold_in_and l in
+        ZAnd ((List.flatten (List.map (fun x ->
+          match x with
+            | ZAnd l -> List.map fold_in_and l
+            | _ -> failwith "filter failed")
+                               (List.filter
+                                  (fun x -> match x with
+                                    | ZAnd l -> true
+                                    | _ -> false) new_list))) @
+                 (List.filter (fun x -> match x with | ZAnd l -> false | _ -> true) new_list))
       | _ -> expr
-
 	
   let exists (list : Z3PacketSet.t) func : zFormula = 
     ZOr (Z3PacketSet.fold (fun pkt l -> (func pkt)::l) list [])
-
+      
   let forall (list : Z3PacketSet.t) func : zFormula = 
-    fold_in_and (ZAnd (Z3PacketSet.fold (fun pkt l -> (func pkt)::l )  list []))
+    fold_in_and (ZAnd (Z3PacketSet.fold (fun pkt l -> (func pkt)::l ) list []))
       
   let packet_equals p1 p2 = ZEquals(ZTerm (TVar p1), ZTerm (TVar p2))
    	  
@@ -283,64 +270,35 @@ module Verify = struct
 
 
 (* the multi-input logic is wrong here *)
-  let rec forwards_k p_t_star (inpkts : Z3PacketSet.t) k : zFormula * (Z3PacketSet.t) = 
+  let rec forwards_k p_t_star (inpkt : zVar) k : zFormula * (zVar) = 
     match p_t_star with 
       | Star (Seq (p, t)) -> 
- 	let pol_form, polout = unzip_list_tuple (Z3PacketSet.fold (fun mpkt l -> (forwards_pol p mpkt)::l) inpkts []) in
-	let polout = List.fold_left Z3PacketSet.union Z3PacketSet.empty polout in
-	let topo_form, topo_out = unzip_list_tuple (Z3PacketSet.fold (fun mpkt l -> (forwards_pol t mpkt)::l) polout []) in
-	let topo_out = List.fold_left Z3PacketSet.union Z3PacketSet.empty topo_out in
+ 	let pol_form, polout = forwards_pol p inpkt in
+	let topo_form, topo_out = forwards_pol t polout in
 	(* set inpkt to be history element of all in topo_out *)
 
 	(match k with 
-	  | 0 -> ZTrue, inpkts
-	  | 1 -> ZAnd[(ZComment ("forwards_k: pol_form",ZAnd pol_form));
-	       ZComment ("forwards_k: topo_form", ZAnd topo_form)
+	  | 0 -> ZTrue, inpkt
+	  | 1 -> ZAnd[(ZComment ("forwards_k: pol_form",pol_form));
+	       ZComment ("forwards_k: topo_form", topo_form)
 	       (*;history_constraint*)
 		     ],  topo_out
 	  | _ -> 
 	    let rest_of_links, final_out = forwards_k p_t_star topo_out (k-1) in
-	    ZAnd[(ZComment ("forwards_k: pol_form",ZAnd pol_form));
-		 ZComment ("forwards_k: topo_form", ZAnd topo_form);
+	    ZAnd[(ZComment ("forwards_k: pol_form", pol_form));
+		 ZComment ("forwards_k: topo_form", topo_form);
 		 (*history_constraint;*)
 		 ZComment ("forward_k_set: recur", rest_of_links)], final_out )
       | _ -> failwith "NetKAT program not in form (p;t)*"
 
 
-(*
-  let forwards_star p_t_star inpkt k : zFormula * (Z3PacketSet.t) = 
-    let forwards_k = forwards_k p_t_star (Z3PacketSet.singleton inpkt) in
-    let blacklist_packets set = 
-      ZAnd (Z3PacketSet.fold (fun x l -> (ZEquals (ZTerm (TVar x), nopacket))::l) (Z3PacketSet.remove inpkt set) []) in
-    let rec build_up_forwards j prev_results = 
-      let form,set = forwards_k j in
-      let forward_comment e blacklist_set = 
-	ZComment (Printf.sprintf "attempting to forward in %d hops, output is %s, blacklisting %s" j 
-		    (Z3PacketSet.fold (fun pkt l -> Printf.sprintf "%s %s" pkt l ) set "")
-		    (Z3PacketSet.fold (fun pkt l -> Printf.sprintf "%s %s" pkt l ) blacklist_set ""), e) in
-      if (j = k) then 
-	ZOr[(forward_comment form prev_results); blacklist_packets prev_results], set
-      else
-	let rest_forwards,rest_set = build_up_forwards (j + 1) set in
-	let blacklist_set = (Z3PacketSet.diff (Z3PacketSet.union prev_results rest_set) set) in
-	let forward_comment e = forward_comment e blacklist_set in
-	ZOr [forward_comment (ZAnd[form; blacklist_packets blacklist_set]);
-	     rest_forwards], (Z3PacketSet.union set rest_set) in
-    let resform, resset = build_up_forwards 1 (Z3PacketSet.singleton inpkt) in
-    ZOr [resform; blacklist_packets (Z3PacketSet.remove inpkt resset)],Z3PacketSet.add inpkt resset 
-*)
-
   let forwards_star p_t_star (inpkt : zVar) k : zFormula * (Z3PacketSet.t) = 
-    let blacklisting_comment l = 
-      Printf.sprintf "blacklisting %s " (Z3PacketSet.fold (fun x a -> Printf.sprintf "%s %s" x a) l "") in
-    let forwards_k =  forwards_k p_t_star (Z3PacketSet.singleton inpkt)  in
+    let forwards_k =  forwards_k p_t_star inpkt  in
     let combine_results x = 
-      let form,set = forwards_k x in
-      let form = ZOr[form; ZComment (blacklisting_comment set,
-	ZAnd (Z3PacketSet.fold (fun x l -> (ZEquals (ZTerm (TVar x), nopacket))::l) set []))] in
-      ZComment ( Printf.sprintf "Attempting to forward in %u hops" x, form ), set in
-    let forms, finalset = unzip_list_tuple ((List.map combine_results (range 0 k))) in
-    ZAnd forms, List.fold_left Z3PacketSet.union Z3PacketSet.empty finalset
+      let form,res = forwards_k x in
+      ZComment ( Printf.sprintf "Attempting to forward in %u hops" x, form ), res in
+    let forms, finalres = unzip_list_tuple ((List.map combine_results (range 0 k))) in
+    ZAnd forms, List.fold_left (fun x y -> Z3PacketSet.add y x) Z3PacketSet.empty finalres
 
 end
 
