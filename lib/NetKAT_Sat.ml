@@ -250,7 +250,6 @@ module Sat = struct
   module Z3macro = struct
     let nopacket_s = "nopacket"
     let nopacket = (ZTerm (TVar nopacket_s)) 
-    let previous_packet x = "(PreviousPacket " ^ x^ ")"
 
   end
   open Z3macro
@@ -262,7 +261,6 @@ module Sat = struct
  ((Packet
    (nopacket)
    (packet 
-    (PreviousPacket Packet)
     (Switch Int) 
     (EthDst Int) 
     (EthType Int) 
@@ -274,7 +272,13 @@ module Sat = struct
     (TCPSrcPort Int) 
     (TCPDstPort Int) 
     (EthSrc Int) 
-    (InPort Int)))))" ^ "\n" 
+    (InPort Int)))))
+(declare-datatypes
+ ()
+ ((Hist 
+    (hist-singleton (packet Packet))
+    (hist (packet Packet) (rest-hist Hist))
+    )))" ^ "\n" 
       
 
   let rec remove_links (pol : 'a) : 'a = 

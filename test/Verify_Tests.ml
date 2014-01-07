@@ -244,7 +244,7 @@ TEST "exactly-two-hops" =
 		  if n = 3 then True else False))
 	 (make_packet_2 3 1)
 	 false)
-*)
+
 	TEST "retrict-waypoint-sanity" = 
   (verify_waypoint "restrict_waypoint-sanity"
 	 (make_packet_2 1 1)
@@ -330,7 +330,7 @@ TEST "exactly-two-hops" =
 	 (make_packet_2 3 3)
 	 true
   )
-
+*)
 
 (*  let check_slice_isolation str inpts pol outpts not_in_slice oko = 
     TEST "slice-isolation" = 

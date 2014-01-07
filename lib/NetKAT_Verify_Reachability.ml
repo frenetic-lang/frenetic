@@ -6,8 +6,6 @@ open NetKAT_Sat
 open NetKAT_Dehop_Graph
 
 module NetCore_Gensym = struct
-
-
     
   type t = string ref
     
@@ -146,11 +144,6 @@ module Verify = struct
     let reset_pred_test () = Hashtbl.clear hashmap; Hashtbl.clear false_hashmap in
     pred_test, pred_test_not, reset_pred_test
 
-  let reset_state () = 
-    reset_state_encode_packet_equals (); 
-    fresh_cell := []; 
-    decl_list := [];
-    reset_pred_test ()
 
   let rec forwards_pred (prd : pred) (pkt : zVar) : zFormula = 
     let forwards_pred pr : zFormula = forwards_pred pr pkt in
@@ -195,14 +188,14 @@ module Verify = struct
     let reset_mod_fun () = Hashtbl.clear hashmap in
     mod_fun,reset_mod_fun
 
-  let test_previous_packet curr prev = 
-    TApp((z3_macro ("test-previous-packet-" ^ curr ^ "-" ^ prev) [("x", SPacket); ("y"), SPacket] SBool
-	   (let x_t = ZTerm (TVar "x") in
-	    let y_t = ZTerm (TVar "y") in
-	    ZIf (ZEquals(x_t, Z3macro.nopacket), 
-		 ZEquals (y_t, Z3macro.nopacket),
-		 ZEquals( y_t, (ZApp (ZTerm (TVar "PreviousPacket"), [x_t])))))), 
-    [TVar curr; TVar prev])
+
+  let reset_state () = 
+    reset_state_encode_packet_equals (); 
+    fresh_cell := []; 
+    decl_list := [];
+    reset_pred_test ();
+    reset_mod_fun ()
+      
 
   let rec unzip_list_tuple (t : ('a * 'b) list) : ('a list * 'b list) = 
     match t with 
@@ -223,8 +216,7 @@ module Verify = struct
 	let outpkt = fresh SPacket in
 	let outpkt_t = ZTerm (TVar outpkt) in
 	let modfn = mod_fun f in
-	ZAnd [ ZTerm (test_previous_packet outpkt inpkt);
-	  ZApp (modfn, [inpkt_t; outpkt_t; ZTerm (encode_vint v)])], outpkt
+	ZApp (modfn, [inpkt_t; outpkt_t; ZTerm (encode_vint v)]), outpkt
       | Par (pol1, pol2) -> 
 	let formu1, out1 = forwards_pol pol1 inpkt in
 	let formu2, out2 = forwards_pol pol2 inpkt in
@@ -260,13 +252,6 @@ module Verify = struct
     fold_in_and (ZAnd (Z3PacketSet.fold (fun pkt l -> (func pkt)::l ) list []))
       
   let packet_equals p1 p2 = ZEquals(ZTerm (TVar p1), ZTerm (TVar p2))
-   	  
-  let not_in_history waypoint pkt k = 
-    let rec not_in_history waypoint pkt k = 
-      match k with 
-	| 0 -> (forwards_pred (Neg waypoint) pkt)
-	| _ -> ZAnd [(forwards_pred (Neg waypoint) pkt); not_in_history waypoint (previous_packet pkt) (k-1)] in
-    fold_in_and (not_in_history waypoint pkt (k * 2))
 
 
 (* the multi-input logic is wrong here *)
@@ -275,19 +260,16 @@ module Verify = struct
       | Star (Seq (p, t)) -> 
  	let pol_form, polout = forwards_pol p inpkt in
 	let topo_form, topo_out = forwards_pol t polout in
-	(* set inpkt to be history element of all in topo_out *)
 
 	(match k with 
 	  | 0 -> ZTrue, inpkt
 	  | 1 -> ZAnd[(ZComment ("forwards_k: pol_form",pol_form));
 	       ZComment ("forwards_k: topo_form", topo_form)
-	       (*;history_constraint*)
 		     ],  topo_out
 	  | _ -> 
 	    let rest_of_links, final_out = forwards_k p_t_star topo_out (k-1) in
 	    ZAnd[(ZComment ("forwards_k: pol_form", pol_form));
 		 ZComment ("forwards_k: topo_form", topo_form);
-		 (*history_constraint;*)
 		 ZComment ("forward_k_set: recur", rest_of_links)], final_out )
       | _ -> failwith "NetKAT program not in form (p;t)*"
 
@@ -335,11 +317,9 @@ oko: bool option. has to be Some. True if you think it should be satisfiable.
 
   let check_reachability_k  k str inp pol outp extra_conditions oko =
   let x = Sat.fresh Sat.SPacket in
-  let clean_history = Verify.test_previous_packet x Sat.Z3macro.nopacket_s in
   let forwards_star_formula, forwards_star_result = Verify.forwards_star (Sat.remove_links pol) x k in
   let prog =     Sat.ZProgram [ 
     Sat.ZDeclareAssert (Verify.forwards_pred inp x)
-    ; Sat.ZDeclareAssert (Sat.ZTerm (clean_history))
     ; Sat.ZDeclareAssert forwards_star_formula
     ; Sat.ZToplevelComment (Printf.sprintf "We are choosing between %s " 
 			      (Verify.Z3PacketSet.fold (fun x a -> Printf.sprintf "%s %s" x a) 
@@ -357,29 +337,6 @@ oko: bool option. has to be Some. True if you think it should be satisfiable.
     check_reachability_k (longest_shortest (parse_graph pol))
       str inp pol outp [] oko
     
-  let check_waypoint str inp pol outp waypoint oko= 
-    let k = (longest_shortest (parse_graph pol)) in
-    check_reachability_k k
-      str inp pol outp [(fun y -> Sat.ZComment ("waypoint check", Verify.not_in_history waypoint y k))] (Some (not oko))
-
-  (*slow version*)
-  let check_slice_isolation str inpts pol outpts not_in_slice oko : bool = 
-    List.fold_left (fun a b -> a && b) true
-    (List.map
-       (fun inpt -> 
-	 List.fold_left (fun a b -> a && b) true 
-	   (List.map 
-	      (fun outp -> 
-		List.fold_left (fun a b -> a && b) true 
-		  (List.map 
-		     (fun not_in_slice -> 
-		       let reachability_result : bool = check_reachability str inpt pol outp (Some true) in
-		       ((reachability_result 
-			 && (check_waypoint str inpt pol outp not_in_slice (not oko))) 
-			or (not reachability_result))
-		     ) not_in_slice))
-	      outpts))
-       inpts)
       
   let check = check_reachability
     
