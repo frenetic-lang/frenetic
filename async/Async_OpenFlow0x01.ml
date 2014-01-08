@@ -35,6 +35,13 @@ module Controller = struct
   type t = {
     sub : ChunkController.t;
   }
+  type m = Message.t
+
+  type result = [
+    | `Connect of Client_id.t
+    | `Disconnect of Client_id.t * Sexp.t
+    | `Message of Client_id.t * m
+  ]
 
   let openflow0x01 t evt =
     match evt with

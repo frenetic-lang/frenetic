@@ -36,9 +36,9 @@ module Platform : sig
     module Client_id : Unique_id
 
     type result = [
-      | `Connect of Client_id .t
-      | `Disconnect of Client_id .t * Sexp.t
-      | `Message of Client_id .t * m
+      | `Connect of Client_id.t
+      | `Disconnect of Client_id.t * Sexp.t
+      | `Message of Client_id.t * m
     ]
 
     val create
@@ -122,6 +122,9 @@ module OpenFlow0x01 : sig
   module Message : Message
     with type t = (OpenFlow_Header.xid * OpenFlow0x01.Message.t)
 
+  module Controller : Platform.S
+    with type m = Message.t
+
   val chunk_conv
     :  Chunk.Message.t Pipe.Reader.t * Chunk.Message.t Pipe.Writer.t
     -> [`Ok of Message.t | `Chunk of Chunk.Message.t] Pipe.Reader.t * 
@@ -133,6 +136,9 @@ module OpenFlow0x04 : sig
 
   module Message : Message
     with type t = (OpenFlow_Header.xid * OpenFlow0x04.Message.t)
+
+  module Controller : Platform.S
+    with type m = Message.t
 
   val chunk_conv
     :  Chunk.Message.t Pipe.Reader.t * Chunk.Message.t Pipe.Writer.t
