@@ -1,9 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: c1f9b4266e9c27d947a77791b611d305)
+# DO NOT EDIT (digest: a77c11c99cb0aa412a6db48c3e466621)
 version = "1.0.2"
 description = "The Frenetic Compiler and Runtime System"
 requires =
-"cstruct dprle lwt lwt.syntax lwt.syntax.log lwt.unix str ocamlgraph openflow openflow.lwt packet topology"
+"cstruct dprle core sexplib sexplib.syntax lwt lwt.syntax lwt.syntax.log lwt.unix str ocamlgraph openflow openflow.lwt threads packet topology"
 archive(byte) = "netcore.cma"
 archive(byte, plugin) = "netcore.cma"
 archive(native) = "netcore.cmxa"

@@ -1,3 +1,7 @@
+let _ =
+  Pa_ounit_lib.Runtime.unset_lib "dummy";
+  Pa_ounit_lib.Runtime.set_lib "netkat"
+
 module QCGen = QuickCheck_gen
 
 open SDN_Types
@@ -6,8 +10,8 @@ open Pretty
 
 let test_compile lhs rhs =
   let rhs' =
-    LocalCompiler.Local.to_netkat
-      (LocalCompiler.Local.of_policy (VInt.Int64 0L) lhs) in
+    LocalCompiler.to_netkat
+      (LocalCompiler.of_policy (VInt.Int64 0L) lhs) in
   if rhs' = rhs then
     true
   else
@@ -16,7 +20,7 @@ let test_compile lhs rhs =
      false)
 
 let test_compile_table pol tbl = 
-  let open LocalCompiler.RunTime in 
+  let open LocalCompiler in 
   let tbl' = to_table (compile (VInt.Int64 0L) pol) in
   if tbl = tbl' then 
     true
