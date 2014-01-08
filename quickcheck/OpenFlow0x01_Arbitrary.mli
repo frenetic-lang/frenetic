@@ -1,10 +1,6 @@
 open OpenFlow0x01
 open QuickCheck
 
-
-(* arbitrary instance for usigned integers. Still uses the `int` type. *)
-val arbitrary_uint : int arbitrary
-
 (** A serializable data structure suitable for roundtrip testing *)
 module type OpenFlow0x01_Arbitrary = sig
 
