@@ -44,7 +44,6 @@ Library netcore
     Pretty,
     Semantics,
     LocalCompiler,
-    Dehop,
     NetKAT_Automaton,
     Controller,
     PolicyGenerator
@@ -85,15 +84,6 @@ Test all_tests
 Executable katnetic
   Path: frenetic
   MainIs: katnetic.ml
-  Install$: flag(installexec)
-  BuildDepends:
-    lwt,
-    lwt.syntax,
-    netcore
-
-Executable dehop_test
-  Path: frenetic
-  MainIs: dehop_test.ml
   Install$: flag(installexec)
   BuildDepends:
     lwt,
