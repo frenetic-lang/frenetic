@@ -16,6 +16,7 @@ module Sat = struct
     | SInt
     | SSet 
     | SBool
+    | SRelation of (zSort list)
     | SFunction of (zSort list) * zSort
     | SMacro of ((zVar * zSort) list) * zSort
 
@@ -38,11 +39,11 @@ module Sat = struct
     | ZGreaterThan of zFormula * zFormula
     | ZComment of string * zFormula
     | ZForall of ((zVar * zSort) list) * zFormula
-(*    | ZExists of ((zVar * zSort) list) * zFormula *)
     | ZIf of zFormula * zFormula * zFormula
     | ZApp of zFormula * (zFormula list)
 
   type zDeclare = 
+    | ZDeclareRule of zVar * (zVar list) * zFormula
     | ZDeclareVar of zVar * zSort
     | ZDefineVar of zVar * zSort * zFormula
     | ZDeclareAssert of zFormula
@@ -83,6 +84,8 @@ module Sat = struct
         Printf.sprintf "_s%d" n 
       | SFunction _ -> 
         Printf.sprintf "_f%d" n 
+      | SRelation _ -> 
+	Printf.sprintf "_r%d" n
       | _ -> failwith "not implemented in fresh" in 
     fresh_cell := ZDeclareVar(x,s)::l;
     x
@@ -118,6 +121,9 @@ module Sat = struct
       Printf.sprintf "(%s) %s"
 	(serialize_arglist args)
 	(serialize_sort ret)
+    | SRelation (sortlist) ->
+      Printf.sprintf "(%s)"
+      (intercalate serialize_sort " " sortlist)
 
   let serialize_arglist args = 
     (intercalate (fun (a, t) -> Printf.sprintf "(%s %s)" a (serialize_sort t)) " " args)
@@ -216,6 +222,7 @@ module Sat = struct
       | ZDeclareVar (x, s) ->
         (match s with 
           | SFunction _ -> Printf.sprintf "(declare-fun %s %s)" x (serialize_sort s)
+	  | SRelation _ -> Printf.sprintf "(declare-rel %s %s)" x (serialize_sort s)
 	  | SMacro _ -> failwith "macros should be in ZDefineVar"
 	  | SPacket -> 
 	    "(declare-var "^x^" "^(serialize_sort s)^")" 
@@ -223,6 +230,11 @@ module Sat = struct
 	)
       | ZDeclareAssert(f) -> 
         Printf.sprintf "(assert %s)" (serialize_formula f)
+      | ZDeclareRule(sym, vars, body) ->
+	Printf.sprintf "(rule (=> %s (%s %s)))"
+	  (serialize_formula body)
+	  sym
+	  (intercalate (fun x -> x) " " vars)
 
   let define_z3_macro (name : string) (arglist : (zVar * zSort) list)  (rettype : zSort) (body : zFormula)  = 
     [ZDefineVar (name, SMacro (arglist, rettype), body)]
@@ -250,6 +262,12 @@ module Sat = struct
   module Z3macro = struct
     let nopacket_s = "nopacket"
     let nopacket = (ZTerm (TVar nopacket_s)) 
+    let start = "starting_packet"
+    let ending = "ending_packet"
+    let inpkt = "inpkt"
+    let midpkt = "midpkt"
+    let outpkt = "outpkt"
+    let q = "q"
 
   end
   open Z3macro
@@ -297,16 +315,27 @@ module Sat = struct
       
   let serialize_program p : string = 
     let ZProgram(ds) = p in 
-    let ds' = List.flatten [!fresh_cell; 
+    let ds' = List.flatten [[ZDeclareVar(Z3macro.start, SPacket);
+			     ZDeclareVar(Z3macro.ending, SPacket);
+			     ZDeclareVar(Z3macro.inpkt, SPacket);
+			     ZDeclareVar(Z3macro.midpkt, SPacket);
+			     ZDeclareVar(Z3macro.outpkt, SPacket);
+			     ZDeclareVar(Z3macro.q, SRelation([SPacket; SPacket]))];
+			    !fresh_cell; 
 			    [ZToplevelComment("end initial declarations, commence dependent declarations\n")];
 			    !decl_list;
 			    [ZToplevelComment("End Definitions, Commence SAT expressions\n")]; 
 			    ds] in 
-    Printf.sprintf "%s%s\n(check-sat)\n"
+    Printf.sprintf "%s%s\n%s\n"
       pervasives (intercalate serialize_declare "\n" ds') 
+      (Printf.sprintf "(query (q %s %s) 
+:default-relation smt_relation2
+:engine pdr
+:print-answer false)
+" Z3macro.start Z3macro.ending)
 
   let solve prog : bool = 
-    let s = serialize_program prog in 
+    let s = (serialize_program prog) in
     let z3_out,z3_in = open_process "z3 -in -smt2 -nw" in 
     let _ = output_string z3_in s in
     let _ = flush z3_in in 

@@ -189,14 +189,6 @@ module Verify = struct
     mod_fun,reset_mod_fun
 
 
-  let reset_state () = 
-    reset_state_encode_packet_equals (); 
-    fresh_cell := []; 
-    decl_list := [];
-    reset_pred_test ();
-    reset_mod_fun ()
-      
-
   let rec unzip_list_tuple (t : ('a * 'b) list) : ('a list * 'b list) = 
     match t with 
       | (hdl,hdr)::tl -> 
@@ -204,108 +196,78 @@ module Verify = struct
       | [] -> ([],[])
 	  
 
-    (* output is formula, set formula produces *)
-    (* why are we calling this explicitly on p and t as opposed to just on p;t? *)
-  let rec forwards_pol (pol : policy) (inpkt : zVar) : zFormula * zVar = 
-    let inpkt_t = ZTerm (TVar inpkt) in
-    (* let nullinput = ZEquals (inpkt_t, nopacket) in *)
-    match pol with 
-      | Filter pred -> 
-	forwards_pred pred inpkt, inpkt
-      | Mod(f,v) -> 
-	let outpkt = fresh SPacket in
-	let outpkt_t = ZTerm (TVar outpkt) in
-	let modfn = mod_fun f in
-	ZApp (modfn, [inpkt_t; outpkt_t; ZTerm (encode_vint v)]), outpkt
-      | Par (pol1, pol2) -> 
-	let formu1, out1 = forwards_pol pol1 inpkt in
-	let formu2, out2 = forwards_pol pol2 inpkt in
-	ZAnd[ZOr[formu1;formu2]; ZEquals (ZTerm (TVar out1), ZTerm (TVar out2))], out1
-      | Seq (pol1, pol2) -> 
-	let formu', midpkt = forwards_pol pol1 inpkt in
-	let outformu, outpkt = forwards_pol pol2 midpkt in 
-	ZAnd [formu';outformu], outpkt
-      | Star _  -> failwith "NetKAT program not in form (p;t)*"
-      | Choice _-> failwith "I'm not rightly sure what a \"choice\" is "
-      | Link _ -> failwith "wait, link is a special form now?  What's going on?"
-
-	
-  let rec fold_in_and expr =
-    match expr with
-      | ZAnd l ->
-        let new_list = List.map fold_in_and l in
-        ZAnd ((List.flatten (List.map (fun x ->
-          match x with
-            | ZAnd l -> List.map fold_in_and l
-            | _ -> failwith "filter failed")
-                               (List.filter
-                                  (fun x -> match x with
-                                    | ZAnd l -> true
-                                    | _ -> false) new_list))) @
-                 (List.filter (fun x -> match x with | ZAnd l -> false | _ -> true) new_list))
-      | _ -> expr
-	
-  let exists (list : Z3PacketSet.t) func : zFormula = 
-    ZOr (Z3PacketSet.fold (fun pkt l -> (func pkt)::l) list [])
-      
-  let forall (list : Z3PacketSet.t) func : zFormula = 
-    fold_in_and (ZAnd (Z3PacketSet.fold (fun pkt l -> (func pkt)::l ) list []))
-      
-  let packet_equals p1 p2 = ZEquals(ZTerm (TVar p1), ZTerm (TVar p2))
+  let define_relation, get_rules, reset_rules_table = 
+    let hashtbl = Hashtbl.create 0 in
+    let inpkt = Z3macro.inpkt in
+    let inpkt_t = TVar inpkt in
+    let outpkt = Z3macro.outpkt in
+    let outpkt_t = TVar outpkt in
+    let midpkt = Z3macro.midpkt in
+    let midpkt_t = TVar midpkt in
+    let rec define_relation pol = 
+      try 
+	fst (Hashtbl.find hashtbl pol)
+      with Not_found -> 
+	let sym = fresh (SRelation [SPacket; SPacket]) in
+	let rules = match pol with 
+	  | Filter pred -> 
+	    [ZDeclareRule (sym, [inpkt; outpkt], ZAnd [forwards_pred pred inpkt; ZEquals(ZTerm inpkt_t, ZTerm outpkt_t )])]
+	  | Mod(f,v) -> 
+	    let modfn = mod_fun f in
+	    [ZDeclareRule (sym, [inpkt; outpkt], ZApp (modfn, [ZTerm inpkt_t; ZTerm outpkt_t; ZTerm (encode_vint v)]))]
+	  | Par (pol1, pol2) -> 
+	    let pol1_sym = TVar (define_relation pol1) in
+	    let pol2_sym = TVar (define_relation pol2) in
+ 	    [ZDeclareRule (sym, [inpkt; outpkt], ZTerm (TApp (pol1_sym, [inpkt_t; outpkt_t]))); 
+	     ZDeclareRule (sym, [inpkt; outpkt], ZTerm (TApp (pol2_sym, [inpkt_t; outpkt_t])))]
+	  | Seq (pol1, pol2) -> 
+	    let pol1_sym = TVar (define_relation pol1) in
+	    let pol2_sym = TVar (define_relation pol2) in
+ 	    [ZDeclareRule (sym, [inpkt; outpkt], ZAnd[ ZTerm (TApp (pol1_sym, [inpkt_t; midpkt_t])); 
+						       ZTerm (TApp (pol2_sym, [midpkt_t; outpkt_t]))])]
+	  | Star pol1  -> 
+	    let pol1_sym = TVar (define_relation pol1) in
+	    [ZDeclareRule (sym, [inpkt; outpkt], ZEquals (ZTerm inpkt_t, ZTerm outpkt_t)); 
+	     ZDeclareRule (sym, [inpkt; outpkt], ZAnd[ ZTerm (TApp (pol1_sym, [inpkt_t; midpkt_t]) ); 
+						       ZTerm (TApp (TVar sym, [midpkt_t; outpkt_t]))])]
+	  | Choice _-> failwith "I'm not rightly sure what a \"choice\" is "
+	  | Link _ -> failwith "wait, link is a special form now?  What's going on?"
+	    
+	in
+	Hashtbl.add hashtbl pol (sym,rules); sym in
+    let get_rules () = Hashtbl.fold (fun _ rules a -> snd(rules)@a ) hashtbl [] in
+    let reset_rules_table () = Hashtbl.clear hashtbl in
+    define_relation, get_rules, reset_rules_table
 
 
-(* the multi-input logic is wrong here *)
-  let rec forwards_k p_t_star (inpkt : zVar) k : zFormula * (zVar) = 
-    match p_t_star with 
-      | Star (Seq (p, t)) -> 
- 	let pol_form, polout = forwards_pol p inpkt in
-	let topo_form, topo_out = forwards_pol t polout in
-
-	(match k with 
-	  | 0 -> ZTrue, inpkt
-	  | 1 -> ZAnd[(ZComment ("forwards_k: pol_form",pol_form));
-	       ZComment ("forwards_k: topo_form", topo_form)
-		     ],  topo_out
-	  | _ -> 
-	    let rest_of_links, final_out = forwards_k p_t_star topo_out (k-1) in
-	    ZAnd[(ZComment ("forwards_k: pol_form", pol_form));
-		 ZComment ("forwards_k: topo_form", topo_form);
-		 ZComment ("forward_k_set: recur", rest_of_links)], final_out )
-      | _ -> failwith "NetKAT program not in form (p;t)*"
-
-
-  let forwards_star p_t_star (inpkt : zVar) k : zFormula * (Z3PacketSet.t) = 
-    let blacklisting_comment l =
-      Printf.sprintf "blacklisting %s " ((fun x a -> Printf.sprintf "%s %s" x a) l "") in
-    let forwards_k =  forwards_k p_t_star inpkt  in
-    let combine_results x = 
-      let form,res = forwards_k x in
-      let form = ZOr[form; ZComment (blacklisting_comment res, ZEquals (ZTerm (TVar res), nopacket))] in
-      ZComment ( Printf.sprintf "Attempting to forward in %u hops" x, form ), res in
-    let forms, finalres = unzip_list_tuple ((List.map combine_results (range 0 k))) in
-    ZAnd forms, List.fold_left (fun x y -> Z3PacketSet.add y x) Z3PacketSet.empty finalres
-
+  let reset_state () = 
+    reset_state_encode_packet_equals (); 
+    fresh_cell := []; 
+    decl_list := [];
+    reset_pred_test ();
+    reset_rules_table ();
+    reset_mod_fun ()
 end
 
-
   let run_solve oko prog str : bool =
+    let file = (Filename.get_temp_dir_name ()) ^ Filename.dir_sep ^ "debug-" ^ 
+      (to_string (gensym ())) ^ ".rkt" in
+    let oc = open_out (file) in 
+    Printf.fprintf oc "%s\n" (Sat.serialize_program prog);
+    close_out oc;
     let run_result = (
       match oko, Sat.solve prog with
 	| Some (ok : bool), (sat : bool) ->
           if ok = sat then
-            true
+            ( Sys.remove file;
+	      true)
           else
             (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; 
-	     (let file = (Filename.get_temp_dir_name ()) ^ Filename.dir_sep ^ "debug-" ^ 
-		(to_string (gensym ())) ^ ".rkt" in
-		(Printf.printf "Offending program is in %s\n" file;
-		 let oc = open_out (file) in 
-		 Printf.fprintf oc "%s\n" (Sat.serialize_program prog);
-		 close_out oc));
+	     Printf.printf "Offending program is in %s\n" file;
 	     false)
 	| None, sat ->
           (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)) in
-    Verify.reset_state (); Verify.reset_mod_fun (); run_result
+    Verify.reset_state (); run_result
 
 (* str: name of your test (unique ID)
 inp: initial packet
@@ -315,27 +277,17 @@ oko: bool option. has to be Some. True if you think it should be satisfiable.
 *)
 
 
-  let check_reachability_k  k str inp pol outp extra_conditions oko =
-  let x = Sat.fresh Sat.SPacket in
-  let forwards_star_formula, forwards_star_result = Verify.forwards_star (Sat.remove_links pol) x k in
-  let prog =     Sat.ZProgram [ 
-    Sat.ZDeclareAssert (Verify.forwards_pred inp x)
-    ; Sat.ZDeclareAssert forwards_star_formula
-    ; Sat.ZToplevelComment (Printf.sprintf "We are choosing between %s " 
-			      (Verify.Z3PacketSet.fold (fun x a -> Printf.sprintf "%s %s" x a) 
-				 forwards_star_result ""))
-    ; Sat.ZDeclareAssert (Verify.exists forwards_star_result 
-			    (fun y -> 
-			      Sat.ZAnd
-				((Verify.forwards_pred outp y) :: 
-				    (List.map (fun f -> f y) extra_conditions))))] in 
-  run_solve oko prog str
+  let check_reachability  str inp pol outp oko =
+  let x = Sat.Z3macro.inpkt in
+  let y = Sat.Z3macro.outpkt in
+  let entry_sym = Verify.define_relation pol in
+  let last_rule = Sat.ZDeclareRule (Sat.Z3macro.q, [x;y], Sat.ZAnd[Verify.forwards_pred inp x; Verify.forwards_pred outp y; Sat.ZTerm (Sat.TApp (Sat.TVar entry_sym, [Sat.TVar x; Sat.TVar y]))] ) in
+  let prog = Sat.ZProgram ( Sat.ZToplevelComment("rule that puts it all together\n")::last_rule
+			    ::Sat.ZToplevelComment("syntactically-generated rules\n")::(Verify.get_rules()) ) in
+    run_solve oko prog str
 
   open NetKAT_Dehop_Graph
     
-  let check_reachability str inp pol outp oko = 
-    check_reachability_k (longest_shortest (parse_graph pol))
-      str inp pol outp [] oko
     
       
   let check = check_reachability
