@@ -12,21 +12,29 @@ let arbitrary_uint16 =
   let open Gen in
   arbitrary_uint8 >>= fun a ->
   arbitrary_uint8 >>= fun b ->
-    ret_gen (a + b)
+    ret_gen ((a lsl 8) lor b)
 
 (* arbitrary instance for unsigned int32, using the `int32` type. *)
 let arbitrary_uint32 =
   let open Gen in
   arbitrary_uint16 >>= fun a ->
   arbitrary_uint16 >>= fun b ->
-    ret_gen Int32.(add (of_int a) (of_int b))
+    let open Int32 in
+    let hi = shift_left (of_int a) 16 in
+    let lo = of_int b in
+    ret_gen (logor hi lo)
 
 (* arbitrary instance for unsigned int48, using the `int64` type. *)
 let arbitrary_uint48 =
   let open Gen in
-  arbitrary_uint32 >>= fun a ->
+  arbitrary_uint16 >>= fun a ->
   arbitrary_uint16 >>= fun b ->
-    ret_gen Int64.(add (of_int32 a) (of_int b))
+  arbitrary_uint16 >>= fun c ->
+    let open Int64 in
+    let hi = shift_left (of_int a) 16 in
+    let mid = shift_left (of_int b) 16 in
+    let lo = of_int c in
+    ret_gen Int64.(logor (logor hi mid) lo)
 
 (* arbitrary instance for option type, favoring `Some` rather than `None` *)
 let arbitrary_option arb =
