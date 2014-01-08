@@ -31,7 +31,7 @@ let arbitrary_uint48 =
   arbitrary_uint16 >>= fun b ->
   arbitrary_uint16 >>= fun c ->
     let open Int64 in
-    let hi = shift_left (of_int a) 16 in
+    let hi = shift_left (of_int a) 32 in
     let mid = shift_left (of_int b) 16 in
     let lo = of_int c in
     ret_gen Int64.(logor (logor hi mid) lo)
