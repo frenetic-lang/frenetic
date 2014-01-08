@@ -82,7 +82,8 @@ Library quickcheck
         openflow
     Modules:
         Extra_Arbitrary,
-        OpenFlow0x01_Arbitrary
+        OpenFlow0x01_Arbitrary,
+        SDN_Types_Arbitrary
 
 Document doc
   Title: OpenFlow documentation
