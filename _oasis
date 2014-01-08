@@ -1,6 +1,6 @@
 OASISFormat: 0.3
 Name:        packet
-Version:     0.1.1
+Version:     0.2.1
 Synopsis:    Serialization for some common network packets, including
              ethernet frames, IP, TCP, and ARP.
 Authors:     Spiridon Eliopoulos, Andrew Ferguson, Nate Foster, Arjun Guha,
