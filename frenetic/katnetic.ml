@@ -71,7 +71,7 @@ module Dump = struct
       let t2 = Unix.gettimeofday () in
       let t = to_table i in
       let t3 = Unix.gettimeofday () in
-      let _ = Printf.printf "@[Done [ctime=%fs ttime=%fs tsize=%d]@\n@]%!"
+      let _ = Format.printf "@[Done [ctime=%fs ttime=%fs tsize=%d]@\n@]%!"
         (t2 -. t1) (t3 -. t2) (List.length t) in
       t
 
@@ -169,7 +169,7 @@ module Dump = struct
         | _ -> SwitchSet.empty
 
     let with_dehop f p =
-      let _ = Printf.printf "Dehopify...%!" in
+      let _ = Format.printf "Dehopify...%!" in
       let t1 = Unix.gettimeofday () in
       let i,p,t,e = policy_to_dehopd_policy p in
       let switches = get_switches t in
