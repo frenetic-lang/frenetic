@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 6f7f0a9076e5665bc3f283fa9c93d6ae)
+# DO NOT EDIT (digest: 1dfda00d37e84284171d0574bf9140d7)
 Util
 NetKAT_Stream
 Types
@@ -8,7 +8,6 @@ Parser
 Pretty
 Semantics
 LocalCompiler
-Dehop
 NetKAT_Automaton
 Controller
 PolicyGenerator
