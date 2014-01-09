@@ -170,7 +170,11 @@ module Sat = struct
     | ZFalse -> 
       Printf.sprintf "false"
     | ZEquals (t1, t2) -> 
-      Printf.sprintf "(equals %s %s)" (serialize_term t1) (serialize_term t2)
+      (*readability hack: remove "= true" case *)
+      (match t1, t2 with
+	| TVar "true", t -> serialize_term t
+	| t, TVar "true" -> serialize_term t
+	| t1, t2 -> Printf.sprintf "(equals %s %s)" (serialize_term t1) (serialize_term t2))
     | ZLessThan (t1, t2) -> 
       Printf.sprintf "(bvult %s %s)" (serialize_term t1) (serialize_term t2)
     | ZGreaterThan (t1, t2) -> 
