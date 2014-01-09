@@ -228,7 +228,7 @@ end
     let file = Printf.sprintf "%s%sdebug-%s.rkt" (Filename.get_temp_dir_name ()) Filename.dir_sep str in
     let query = Verify.Pervasives.reachability_query in
     let oc = open_out (file) in 
-    Printf.fprintf oc "%s\n;This is the program corresponding to %s" (Sat.serialize_program prog query) str;
+    Printf.fprintf oc "%s\n;This is the program corresponding to %s\n" (Sat.serialize_program prog query) str;
     close_out oc;
     let run_result = (
       match oko, Sat.solve prog query with
@@ -255,20 +255,14 @@ oko: bool option. has to be Some. True if you think it should be satisfiable.
   let x = Verify.Pervasives.inpkt in
   let y = Verify.Pervasives.outpkt in
   let entry_sym = Verify.define_relation pol in
-  let last_rule = Sat.ZDeclareRule (Verify.Pervasives.qrule, [x;y], 
-				    Sat.ZAnd[Verify.forwards_pred inp x; 			   
-					     Verify.forwards_pred outp y; 
+  let last_rule = Sat.ZDeclareRule (Verify.Pervasives.qrule, [x;y],
+				    Sat.ZAnd[Verify.forwards_pred inp x;
+					     Verify.forwards_pred outp y;
 					     Verify.zterm (Sat.TApp (Sat.TVar entry_sym, [Sat.TVar x; Sat.TVar y]))] ) in
-  let prog = Sat.ZProgram ( List.flatten 
+  let prog = Sat.ZProgram ( List.flatten
 			      [Verify.Pervasives.declarations;
 			       Sat.ZToplevelComment("rule that puts it all together\n")::last_rule
 			       ::Sat.ZToplevelComment("syntactically-generated rules\n")::(Verify.get_rules())] ) in
-    run_solve oko prog str
-
-  open NetKAT_Dehop_Graph
+  run_solve oko prog str
     
-    
-      
   let check = check_reachability
-    
-
