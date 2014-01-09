@@ -47,19 +47,11 @@ type handshake_state =
   | Connected0x04 of VInt.t
   with sexp 
 
-(* global state *)
-let clients = Clients.create ()
-
-let switches = Switches.create ()
-
-let platform = ref None
-
-let get_platform () = 
-  match !platform with 
-  | None -> 
-     failwith "Not initialized"
-  | Some t -> 
-     t
+type t = {
+  sub : Platform.t;
+  clients : handshake_state Clients.t;
+  switches : Platform.Client_id.t Switches.t
+}
 
 (* helpers to construct OpenFlow messages *)
 let features_request_msg version : Platform.m = 
@@ -80,7 +72,7 @@ let handshake_error (c_id:Platform.Client_id.t) (str:string) : 'a =
   raise (Handshake (c_id,str))
 
 let send t c_id msg = 
-  Platform.send t c_id msg >>| function 
+  Platform.send t.sub c_id msg >>| function
     | `Sent _ -> None
     | `Drop exn -> raise exn
         
@@ -96,23 +88,23 @@ let features t evt =
        | _ ->
           handshake_error c_id
             (Printf.sprintf "unexpected version: %d%!" version) in
-     Clients.replace clients c_id next_handshake_state;
+     Clients.replace t.clients c_id next_handshake_state;
      send t c_id (features_request_msg version)
   | `Disconnect (c_id,_) -> 
      Log.info ~tags "Client disconnected";
-     (match Clients.find clients c_id with 
+     (match Clients.find t.clients c_id with
      | Some (Connected0x01 switch_id) -> 
-        ignore (Clients.remove clients c_id);
-        ignore (Switches.remove switches switch_id);
+        ignore (Clients.remove t.clients c_id);
+        ignore (Switches.remove t.switches switch_id);
         return None
      | Some _ ->  
-        ignore (Clients.remove clients c_id);
+        ignore (Clients.remove t.clients c_id);
         return None
      | None -> 
         return None)
   | `Message (c_id,(hdr,bits)) -> 
      let of_type_code = int_to_message_code hdr.type_code in 
-     let handshake_state = Clients.find clients c_id in 
+     let handshake_state = Clients.find t.clients c_id in
      begin 
        match of_type_code, handshake_state with
        | FeaturesReply, Some SentFeaturesRequest0x01 -> 
@@ -125,8 +117,8 @@ let features t evt =
                let switch_ports = List.map feats.OF1.SwitchFeatures.ports ~f:get_port in 
                let feats = { S.switch_id = switch_id;
                              S.switch_ports = switch_ports } in 
-               Clients.replace clients c_id (Connected0x01 switch_id);
-               ignore (Switches.add switches switch_id c_id);
+               Clients.replace t.clients c_id (Connected0x01 switch_id);
+               ignore (Switches.add t.switches switch_id c_id);
                return (Some feats)
             | _ -> 
                handshake_error c_id 
@@ -138,7 +130,7 @@ let features t evt =
           match M4.parse hdr (Cstruct.to_string bits) with
           | (_, M4.FeaturesReply feats) -> 
              let switch_id = VInt.Int64 feats.OF4.SwitchFeatures.datapath_id in 
-             Clients.replace clients c_id (SentPortDescriptionRequest0x04 switch_id);
+             Clients.replace t.clients c_id (SentPortDescriptionRequest0x04 switch_id);
              send t c_id port_description_request_msg
           | _ -> 
              handshake_error c_id 
@@ -153,8 +145,8 @@ let features t evt =
              let switch_ports = List.map ports ~f:get_port in 
              let feats = { S.switch_id = switch_id;
                            S.switch_ports = switch_ports } in 
-             Clients.replace clients c_id (Connected0x04 switch_id);
-             ignore (Switches.add switches switch_id c_id);
+             Clients.replace t.clients c_id (Connected0x04 switch_id);
+             ignore (Switches.add t.switches switch_id c_id);
              return (Some feats)
           | _ -> 
              handshake_error c_id 
@@ -170,36 +162,46 @@ let features t evt =
         return None
      end
 
-let accept_switches port = 
+let create (port:int) : t Deferred.t =
+  Platform.create port
+  >>| function t ->
+      Log.info ~tags "accepting switches on port %d" port;
+      { sub = t
+      ; clients = Clients.create ()
+      ; switches = Switches.create ()
+      }
+
+let accept_switches (t : t) =
   let open Async_OpenFlow_Platform.Trans in
   let open Platform in
-  Log.info ~tags "accept switches %d" port;
-  create port >>| fun t ->
-    platform := Some t;
-    run (handshake 0x04 >=> echo >=> features) t (listen t)
+  let stages =
+    (local (fun t -> t.sub)
+      (handshake max_version >=> echo))
+    >=> features in
+  run stages t (listen t.sub)
 
-let send_msg0x01 c_id msg =
+let send_msg0x01 t c_id msg =
   let msg_c = Async_OpenFlow0x01.Message.marshal' (0l, msg) in
-  Deferred.ignore (send (get_platform ()) c_id msg_c)
+  Deferred.ignore (send t c_id msg_c)
 
-let send_msg0x04 c_id msg = 
+let send_msg0x04 t c_id msg =
   let msg_c = Async_OpenFlow0x04.Message.marshal' (0l, msg) in
-  Deferred.ignore (send (get_platform ()) c_id msg_c)
+  Deferred.ignore (send t c_id msg_c)
 
-let setup_flow_table (sw:S.switchId) (tbl:S.flowTable) = 
+let setup_flow_table t (sw:S.switchId) (tbl:S.flowTable) =
   Log.info ~tags "setup_flow_table";
-  let c_id = match Switches.find switches sw with
+  let c_id = match Switches.find t.switches sw with
     | Some c_id -> 
        c_id
     | None -> 
        failwith "No such switch" in 
-  match Clients.find clients c_id with 
+  match Clients.find t.clients c_id with
   | Some Connected0x01 _ -> 
      let priority = ref 65536 in
      let send_flow_mod (fl : S.flow) : unit Deferred.t =
        decr priority;
-       send_msg0x01 c_id (M1.FlowModMsg (SDN_OpenFlow0x01.from_flow !priority fl)) in 
-     let delete_flows = send_msg0x01 c_id (M1.FlowModMsg OF1_Core.delete_all_flows) in 
+       send_msg0x01 t c_id (M1.FlowModMsg (SDN_OpenFlow0x01.from_flow !priority fl)) in
+     let delete_flows = send_msg0x01 t c_id (M1.FlowModMsg OF1_Core.delete_all_flows) in
      let flow_mods = List.map tbl ~f:send_flow_mod in
      delete_flows >>= fun _ -> 
      Deferred.all_ignore flow_mods
@@ -209,9 +211,9 @@ let setup_flow_table (sw:S.switchId) (tbl:S.flowTable) =
      let group_table = GroupTable0x04.create () in 
      let send_flow_mod (fl : S.flow) : unit Deferred.t =
        decr priority;
-       send_msg0x04 c_id (M4.FlowModMsg (SDN_OpenFlow0x04.from_flow group_table !priority fl)) in 
-     let delete_flows = send_msg0x04 c_id (M4.FlowModMsg OF4_Core.delete_all_flows) in
-     let group_mods = List.map (GroupTable0x04.commit group_table) ~f:(send_msg0x04 c_id) in 
+       send_msg0x04 t c_id (M4.FlowModMsg (SDN_OpenFlow0x04.from_flow group_table !priority fl)) in
+     let delete_flows = send_msg0x04 t c_id (M4.FlowModMsg OF4_Core.delete_all_flows) in
+     let group_mods = List.map (GroupTable0x04.commit group_table) ~f:(send_msg0x04 t c_id) in
      let flow_mods = List.map tbl ~f:send_flow_mod in
      delete_flows >>= fun _ -> 
      Deferred.all_ignore group_mods >>= fun _ -> 
