@@ -95,8 +95,6 @@ let tran2 = make_transition (2, 1) (3, 1)
 let topo = combine_topologies [tran1; tran2]
 let pol_topo = starify pol topo
 
-  TEST "range" = 
-  List.length (Verify.range 0 5) = 6
 
   TEST "dijkstra" = 
   (dijkstra_test topo) = 2

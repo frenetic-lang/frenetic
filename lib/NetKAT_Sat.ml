@@ -225,19 +225,9 @@ module Sat = struct
 
 
     
-  module Z3macro = struct
-    let start = "starting_packet"
-    let ending = "ending_packet"
-    let inpkt = "inpkt"
-    let midpkt = "midpkt"
-    let outpkt = "outpkt"
-    let q = "q"
-
-  end
-  open Z3macro
-      
-  let pervasives : string = 
-    "
+  module Pervasives = struct
+    let pervasives : string = 
+      "
 (declare-datatypes 
  () 
  ((Packet
@@ -260,8 +250,12 @@ module Sat = struct
     (hist-singleton (packet Packet))
     (hist (packet Packet) (rest-hist Hist))
     )))" ^ "\n" 
-      
 
+
+
+  end
+
+      
   let rec remove_links (pol : 'a) : 'a = 
     let make_transition (switch1, port1) (switch2, port2) : policy =     
       Seq (Filter (And (Test (Switch, switch1), Test (Header SDN_Types.InPort, port1))), 
@@ -276,30 +270,20 @@ module Sat = struct
       | Choice _ -> failwith "choice not supported"
 
       
-  let serialize_program p : string = 
+  let serialize_program p query: string = 
     let ZProgram(ds) = p in 
-    let ds' = List.flatten [[ZDeclareVar(Z3macro.start, SPacket);
-			     ZDeclareVar(Z3macro.ending, SPacket);
-			     ZDeclareVar(Z3macro.inpkt, SPacket);
-			     ZDeclareVar(Z3macro.midpkt, SPacket);
-			     ZDeclareVar(Z3macro.outpkt, SPacket);
-			     ZDeclareVar(Z3macro.q, SRelation([SPacket; SPacket]))];
-			    !fresh_cell;
+    let ds' = List.flatten [!fresh_cell;
 			    !macro_list_top;
 			    [ZToplevelComment("end initial declarations, commence dependent declarations\n")];
 			    !macro_list_bottom;
 			    [ZToplevelComment("End Definitions, Commence SAT expressions\n")]; 
 			    ds] in 
     Printf.sprintf "%s%s\n%s\n"
-      pervasives (intercalate serialize_declare "\n" ds') 
-      (Printf.sprintf "(query (q %s %s) 
-:default-relation smt_relation2
-:engine PDR
-:print-answer false)
-" Z3macro.start Z3macro.ending)
+      Pervasives.pervasives (intercalate serialize_declare "\n" ds') 
+      query
 
-  let solve prog : bool = 
-    let s = (serialize_program prog) in
+  let solve prog query: bool = 
+    let s = (serialize_program prog query) in
     let z3_out,z3_in = open_process "z3 -in -smt2 -nw" in 
     let _ = output_string z3_in s in
     let _ = flush z3_in in 

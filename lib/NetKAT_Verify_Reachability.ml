@@ -82,6 +82,26 @@ module Verify = struct
   let encode_vint (v: VInt.t): zTerm = 
     TInt (VInt.get_int64 v)
 
+  module Pervasives = struct
+    let startpkt = "starting_packet"
+    let endpkt = "ending_packet"
+    let inpkt = "inpkt"
+    let midpkt = "midpkt"
+    let outpkt = "outpkt"
+    let qrule = "q"
+    let declarations = [ZDeclareVar(startpkt, SPacket);
+			ZDeclareVar(endpkt, SPacket);
+			ZDeclareVar(inpkt, SPacket);
+			ZDeclareVar(midpkt, SPacket);
+			ZDeclareVar(outpkt, SPacket);
+			ZDeclareVar(qrule, SRelation([SPacket; SPacket]))]
+    let reachability_query = (Printf.sprintf "(query (q %s %s) 
+:default-relation smt_relation2
+:engine PDR
+:print-answer false)
+" startpkt endpkt)
+  end
+    
   let pred_test,pred_test_not,reset_pred_test = 
     let true_hashmap = Hashtbl.create 0 in
     let false_hashmap = Hashtbl.create 0 in
@@ -131,9 +151,6 @@ module Verify = struct
 	(ZOr [forwards_pred pred1;
 	      forwards_pred pred2]) 
 
-
-  open Z3macro
-
   let mod_fun,reset_mod_fun = 
     let hashmap = Hashtbl.create 0 in
     let mod_fun f =  
@@ -152,11 +169,11 @@ module Verify = struct
   let define_relation, get_rules, reset_rules_table = 
     let hashtbl = Hashtbl.create 0 in
     (*convenience names *)
-    let inpkt = Z3macro.inpkt in
+    let inpkt = Pervasives.inpkt in
     let inpkt_t = TVar inpkt in
-    let outpkt = Z3macro.outpkt in
+    let outpkt = Pervasives.outpkt in
     let outpkt_t = TVar outpkt in
-    let midpkt = Z3macro.midpkt in
+    let midpkt = Pervasives.midpkt in
     let midpkt_t = TVar midpkt in
     let rec define_relation pol = 
       try 
@@ -209,11 +226,12 @@ end
 
   let run_solve oko prog str : bool =
     let file = Printf.sprintf "%s%sdebug-%s.rkt" (Filename.get_temp_dir_name ()) Filename.dir_sep str in
+    let query = Verify.Pervasives.reachability_query in
     let oc = open_out (file) in 
-    Printf.fprintf oc "%s\n;This is the program corresponding to %s" (Sat.serialize_program prog) str;
+    Printf.fprintf oc "%s\n;This is the program corresponding to %s" (Sat.serialize_program prog query) str;
     close_out oc;
     let run_result = (
-      match oko, Sat.solve prog with
+      match oko, Sat.solve prog query with
 	| Some (ok : bool), (sat : bool) ->
           if ok = sat then
 	    true
@@ -234,15 +252,17 @@ oko: bool option. has to be Some. True if you think it should be satisfiable.
 
 
   let check_reachability  str inp pol outp oko =
-  let x = Sat.Z3macro.inpkt in
-  let y = Sat.Z3macro.outpkt in
+  let x = Verify.Pervasives.inpkt in
+  let y = Verify.Pervasives.outpkt in
   let entry_sym = Verify.define_relation pol in
-  let last_rule = Sat.ZDeclareRule (Sat.Z3macro.q, [x;y], 
+  let last_rule = Sat.ZDeclareRule (Verify.Pervasives.qrule, [x;y], 
 				    Sat.ZAnd[Verify.forwards_pred inp x; 			   
 					     Verify.forwards_pred outp y; 
 					     Verify.zterm (Sat.TApp (Sat.TVar entry_sym, [Sat.TVar x; Sat.TVar y]))] ) in
-  let prog = Sat.ZProgram ( Sat.ZToplevelComment("rule that puts it all together\n")::last_rule
-			    ::Sat.ZToplevelComment("syntactically-generated rules\n")::(Verify.get_rules()) ) in
+  let prog = Sat.ZProgram ( List.flatten 
+			      [Verify.Pervasives.declarations;
+			       Sat.ZToplevelComment("rule that puts it all together\n")::last_rule
+			       ::Sat.ZToplevelComment("syntactically-generated rules\n")::(Verify.get_rules())] ) in
     run_solve oko prog str
 
   open NetKAT_Dehop_Graph
