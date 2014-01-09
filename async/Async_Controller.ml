@@ -15,10 +15,10 @@ let _ = Log.set_output
               ("openflow", "platform");
               ("openflow", "serialization")]]
 
-let switch local_stream feats : unit Deferred.t =
+let switch t local_stream feats : unit Deferred.t =
   let sw_id = feats.SDN.switch_id in
   Log.info "setting up switch %d" (VInt.get_int sw_id);
-  let next local = Platform.setup_flow_table sw_id (local sw_id) in
+  let next local = Platform.setup_flow_table t sw_id (local sw_id) in
   Pipe.iter local_stream ~f:next
 
 let start ~f ~port ~init_pol ~pols =
@@ -39,8 +39,9 @@ let start ~f ~port ~init_pol ~pols =
     Bus.write bus !cur_pol;
     Bus.flushed bus) in
 
-  Platform.accept_switches port
-  >>= Pipe.iter ~f:(fun feats ->
+  Platform.create port
+  >>= function t ->
+  Pipe.iter (Platform.accept_switches t) ~f:(fun feats ->
     let pols = Pipe.init (fun w ->
       (* NB(seliopou): The without_pushback here is _very_ important. There can
        * be no opportunity for any other writes to happen to the bus between
@@ -51,7 +52,7 @@ let start ~f ~port ~init_pol ~pols =
       Pipe.write_without_pushback w !cur_pol;
       ignore (Bus.subscribe_exn bus (Pipe.write_without_pushback w));
       Deferred.unit) in
-    switch pols feats)
+    switch t pols feats)
 
 let start_static ~f ~port ~pol : unit Deferred.t =
   start f port pol (Async.Std.Pipe.of_list [])
