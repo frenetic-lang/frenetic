@@ -38,6 +38,6 @@ github_install ocaml-openflow --enable-lwt
 github_install ocaml-topology
 github_install dprle
 
-ocaml setup.ml -configure --enable-tests --enable-quickcheck
+ocaml setup.ml -configure --enable-tests --enable-quickcheck --enable-async
 make
 make test
