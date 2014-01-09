@@ -29,18 +29,14 @@ module Sat = struct
 
   type zFormula =
     | ZNoop
-    | ZTerm of zTerm
     | ZTrue
     | ZFalse 
     | ZAnd of zFormula list
     | ZOr of zFormula list
-    | ZEquals of zFormula * zFormula
-    | ZLessThan of zFormula * zFormula
-    | ZGreaterThan of zFormula * zFormula
+    | ZEquals of zTerm * zTerm
+    | ZLessThan of zTerm * zTerm
+    | ZGreaterThan of zTerm * zTerm
     | ZComment of string * zFormula
-    | ZForall of ((zVar * zSort) list) * zFormula
-    | ZIf of zFormula * zFormula * zFormula
-    | ZApp of zFormula * (zFormula list)
 
   type zDeclare = 
     | ZDeclareRule of zVar * (zVar list) * zFormula
@@ -104,7 +100,7 @@ module Sat = struct
 
   let rec serialize_sort = function
     | SInt -> 
-      "Int"
+      "(_ BitVec 8)"
     | SPacket -> 
       "Packet"
     | SBool ->
@@ -139,7 +135,7 @@ module Sat = struct
       | TPkt (sw,pt,pkt) -> 
 	serialize_located_packet (sw,pt,pkt)
       | TInt n -> 
-	Printf.sprintf "%s" 
+	Printf.sprintf "(_ bv%s 8)"
           (Int64.to_string n)
       | TApp (term1, terms) -> 
 	Printf.sprintf "(%s %s)" (serialize_term term1) (intercalate serialize_term " " terms)
@@ -184,11 +180,11 @@ module Sat = struct
     | ZFalse -> 
       Printf.sprintf "false"
     | ZEquals (t1, t2) -> 
-      Printf.sprintf "(equals %s %s)" (serialize_formula t1) (serialize_formula t2)
+      Printf.sprintf "(equals %s %s)" (serialize_term t1) (serialize_term t2)
     | ZLessThan (t1, t2) -> 
-      Printf.sprintf "(< %s %s)" (serialize_formula t1) (serialize_formula t2)
+      Printf.sprintf "(bvult %s %s)" (serialize_term t1) (serialize_term t2)
     | ZGreaterThan (t1, t2) -> 
-      Printf.sprintf "(> %s %s)" (serialize_formula t1) (serialize_formula t2)
+      Printf.sprintf "(bvugt %s %s)" (serialize_term t1) (serialize_term t2)
     | ZAnd([]) -> 
       Printf.sprintf "true"
     | ZAnd([f]) -> 
@@ -203,15 +199,6 @@ module Sat = struct
       Printf.sprintf "(or %s %s)" (serialize_formula f) (serialize_formula (ZOr(fs)))
     | ZComment(c, f) -> 
       Printf.sprintf "\n;%s\n%s\n; END %s\n" c (serialize_formula f) c
-    | ZForall (args, form) ->
-      Printf.sprintf "(forall (%s) %s)" (serialize_arglist args) (serialize_formula form)
-(*    | ZExists (args, form) ->
-      Printf.sprintf "(exists (%s) %s)" (serialize_arglist args) (serialize_formula form) *)
-    | ZTerm t -> serialize_term t
-    | ZIf (i, t, e) -> Printf.sprintf "(ite %s %s %s)" 
-      (serialize_formula i) (serialize_formula t) (serialize_formula e)
-    | ZApp (term1, terms) -> 
-      Printf.sprintf "(%s %s)" (serialize_formula term1) (intercalate serialize_formula " " terms)
 
   let serialize_declare d = 
     match d with 
@@ -239,9 +226,6 @@ module Sat = struct
   let define_z3_macro (name : string) (arglist : (zVar * zSort) list)  (rettype : zSort) (body : zFormula)  = 
     [ZDefineVar (name, SMacro (arglist, rettype), body)]
 
-
-  let zApp x = (fun l -> ZTerm (TApp (x, l)))
-
   let z3_macro, z3_macro_top = 
     let z3_macro_picklocation put_at_top (name : string) (arglist : (zVar * zSort) list) (rettype : zSort)(body : zFormula) : zTerm = 
       let l = !fresh_cell in
@@ -260,8 +244,6 @@ module Sat = struct
 
     
   module Z3macro = struct
-    let nopacket_s = "nopacket"
-    let nopacket = (ZTerm (TVar nopacket_s)) 
     let start = "starting_packet"
     let ending = "ending_packet"
     let inpkt = "inpkt"
@@ -277,20 +259,19 @@ module Sat = struct
 (declare-datatypes 
  () 
  ((Packet
-   (nopacket)
-   (packet 
-    (Switch Int) 
-    (EthDst Int) 
-    (EthType Int) 
-    (Vlan Int) 
-    (VlanPcp Int) 
-    (IPProto Int) 
-    (IP4Src Int) 
-    (IP4Dst Int) 
-    (TCPSrcPort Int) 
-    (TCPDstPort Int) 
-    (EthSrc Int) 
-    (InPort Int)))))
+   (packet
+    (Switch "^serialize_sort SInt ^")
+    (EthDst "^serialize_sort SInt ^")
+    (EthType "^serialize_sort SInt ^")
+    (Vlan "^serialize_sort SInt ^")
+    (VlanPcp "^serialize_sort SInt ^")
+    (IPProto "^serialize_sort SInt ^")
+    (IP4Src "^serialize_sort SInt ^")
+    (IP4Dst "^serialize_sort SInt ^")
+    (TCPSrcPort "^serialize_sort SInt ^")
+    (TCPDstPort "^serialize_sort SInt ^")
+    (EthSrc "^serialize_sort SInt ^")
+    (InPort "^serialize_sort SInt ^")))))
 (declare-datatypes
  ()
  ((Hist 
@@ -330,7 +311,7 @@ module Sat = struct
       pervasives (intercalate serialize_declare "\n" ds') 
       (Printf.sprintf "(query (q %s %s) 
 :default-relation smt_relation2
-:engine datalog
+:engine PDR
 :print-answer false)
 " Z3macro.start Z3macro.ending)
 

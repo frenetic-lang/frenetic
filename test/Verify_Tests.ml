@@ -856,8 +856,8 @@ TEST "benchmark" =
     let _ = (verify "1" inpt (make_simple_topology topology_0) outp false) in
     print_string (Printf.sprintf "time: %f\n" (Unix.time () -. start_time));
     let start_time : float = Unix.time () in 
-    let dmy = (verify (Printf.sprintf "10%f" start_time) inpt (make_simple_topology topology_10) outp true) in
-    print_string (Printf.sprintf "time: %f\n" (if dmy then 1.23 else (Unix.time () -. start_time)));
+    let _ = (verify "10" inpt (make_simple_topology topology_10) outp false) in
+    print_string (Printf.sprintf "time: %f\n" (Unix.time () -. start_time));
     let start_time : float = Unix.time () in 
     let _ = (verify "20" inpt (make_simple_topology topology_20) outp false) in
     print_string (Printf.sprintf "time: %f\n" (Unix.time () -. start_time));
