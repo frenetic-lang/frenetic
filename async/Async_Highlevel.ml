@@ -92,16 +92,14 @@ let features t evt =
      send t c_id (features_request_msg version)
   | `Disconnect (c_id,_) -> 
      Log.info ~tags "Client disconnected";
-     (match Clients.find t.clients c_id with
-     | Some (Connected0x01 switch_id) -> 
-        ignore (Clients.remove t.clients c_id);
-        ignore (Switches.remove t.switches switch_id);
-        return None
-     | Some _ ->  
-        ignore (Clients.remove t.clients c_id);
-        return None
-     | None -> 
-        return None)
+     begin match Clients.find t.clients c_id with
+       | Some (Connected0x01 switch_id)
+       | Some (Connected0x04 switch_id) ->
+          ignore (Switches.remove t.switches switch_id);
+       | _ -> ()
+     end;
+     ignore (Clients.remove t.clients c_id);
+     return None
   | `Message (c_id,(hdr,bits)) -> 
      let of_type_code = int_to_message_code hdr.type_code in 
      let handshake_state = Clients.find t.clients c_id in
