@@ -177,7 +177,10 @@ def to_netkat_set_of_tables_failover_for_switches(graph, switches, withTopo=True
             continue
         table = []
         edge_table = []
+        outhosts_table = []
         flt = "filter switch = %d" % (graph.node[node]['id'])
+        hosts = find_all_hosts_below(graph, node)
+        fltouthosts = "filter %s" % (string.join(map(lambda x: "not ethDst = %s" % (graph.node[x]['mac']), hosts), " and "))
         #pprint.pprint(graph.node[node]['routes'])
         for k, v in graph.node[node]['routes'].iteritems():
             if k in graph.hosts:
@@ -188,13 +191,13 @@ def to_netkat_set_of_tables_failover_for_switches(graph, switches, withTopo=True
                 else:
                     table.append(s)
             else:
-                hosts = find_all_hosts_below(graph, node)
-                fltouthosts = string.join(map(lambda x: "not ethDst = %s" % (graph.node[x]['mac']), hosts), " and ")
-                s = string.join((flt, "port = %d" % (k), fltouthosts), " and ")
+                s = string.join((flt, "port = %d" % (k)), " and ")
                 v2 = ((v - graph.p) % graph.p) + 1 + graph.p
                 s = string.join((s, "(port := %d + port := %d)" % (v, v2)), "; ")
-                table.append(s)
+                outhosts_table.append(s)
         #pprint.pprint(table)
+        outhosts = "%s; (%s)" % (fltouthosts, string.join(outhosts_table, " |\n"))
+        policy.append(outhosts)
         policy.extend(table)
         edge_policy.extend(edge_table)
 
@@ -203,7 +206,10 @@ def to_netkat_set_of_tables_failover_for_switches(graph, switches, withTopo=True
         if not node in switches:
             continue
         table = []
+        outhosts_table = []
         flt = "filter switch = %d" % (graph.node[node]['id'])
+        hosts = find_all_hosts_below(graph, node)
+        fltouthosts = "filter %s" % (string.join(map(lambda x: "not ethDst = %s" % (graph.node[x]['mac']), hosts), " and "))
         #pprint.pprint(graph.node[node]['routes'])
         for k, v in graph.node[node]['routes'].iteritems():
             if k in graph.hosts:
@@ -239,14 +245,14 @@ def to_netkat_set_of_tables_failover_for_switches(graph, switches, withTopo=True
                 s = string.join((s, "port := %d" % (outport)), "; ")
                 table.append(s)
             else:
-                hosts = find_all_hosts_below(graph, node)
-                fltouthosts = string.join(map(lambda x: "not ethDst = %s" % (graph.node[x]['mac']), hosts), " and ")
-                s = string.join((flt, "port = %d" % (k), fltouthosts), " and ")
+                s = string.join((flt, "port = %d" % (k)), " and ")
                 v2 = ((v - graph.p) % graph.p) + 1 + graph.p
                 s = string.join((s, "(port := %d + port := %d)" % (v, v2)), "; ")
-                table.append(s)
+                outhosts_table.append(s)
 
         #pprint.pprint(table)
+        outhosts = "%s; (%s)" % (fltouthosts, string.join(outhosts_table, " |\n"))
+        policy.append(outhosts)
         policy.extend(table)
 
     # core
