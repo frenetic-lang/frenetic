@@ -17,7 +17,7 @@ module Run = struct
 
   let with_channel f chan =
     let exp = Parser.program Lexer.token (Lexing.from_channel chan) in
-    let _ = Async_Controller.start f 6633 exp (Async.Std.Pipe.of_list []) in
+    let _ = Async_Controller.start_static f 6633 exp in
     Core.Std.never_returns (Async.Std.Scheduler.go ())
 
   let with_file f filename =

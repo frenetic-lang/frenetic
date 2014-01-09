@@ -21,7 +21,7 @@ let switch local_stream feats : unit Deferred.t =
   let next local = Platform.setup_flow_table sw_id (local sw_id) in
   Pipe.iter local_stream ~f:next
 
-let rec start ~f ~port ~init_pol ~pols =
+let start ~f ~port ~init_pol ~pols =
   let module Bus = Async_extra.Bus in
   let cur_pol = ref (f init_pol) in
   let bus = Async_extra.Bus.create true in
@@ -52,3 +52,6 @@ let rec start ~f ~port ~init_pol ~pols =
       ignore (Bus.subscribe_exn bus (Pipe.write_without_pushback w));
       Deferred.unit) in
     switch pols feats)
+
+let start_static ~f ~port ~pol : unit Deferred.t =
+  start f port pol (Async.Std.Pipe.of_list [])
