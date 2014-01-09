@@ -10,7 +10,7 @@ module OF4 = OpenFlow0x04
 module OF4_Core = OpenFlow0x04_Core
 module M4 = OpenFlow0x04.Message
 
-module Log = Async_OpenFlow.Log
+module Log = Async_OpenFlow_Log
 
 module Platform = Async_OpenFlowChunk.Controller
 
