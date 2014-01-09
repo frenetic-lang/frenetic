@@ -69,7 +69,7 @@ module Verify = struct
 		    if  hd = except then 
 		      acc 
 		    else
-		      ZEquals ( (encode_header hd "x"), ( encode_header hd "y"))::acc) 
+		      ZEquals ( (encode_header hd "x"), ( encode_header hd "y"))::acc)
 		  [] all_fields in 
 	      let new_except = (z3_macro_top ("packet_equals_except_" ^ (serialize_header except) )
 				  [("x", SPacket);("y", SPacket)] SBool  
@@ -82,35 +82,28 @@ module Verify = struct
   let encode_vint (v: VInt.t): zTerm = 
     TInt (VInt.get_int64 v)
 
-  
-  let range = ( fun i j ->
-    let rec aux n acc =
-      if n < i then acc else aux (n-1) (n :: acc) in
-    aux j ([]) )
-
   let pred_test,pred_test_not,reset_pred_test = 
-    let hashmap = Hashtbl.create 0 in
+    let true_hashmap = Hashtbl.create 0 in
     let false_hashmap = Hashtbl.create 0 in
-    let pred_test f =  
+    let pred_test want_true f =  
+      let hashmap = (if want_true then true_hashmap else false_hashmap) in
+      let name_suffix = (if want_true then "-equals" else "-not-equals") in
       try (Hashtbl.find hashmap f)
       with Not_found -> 
-	let macro = z3_macro ((serialize_header f) ^ "-equals") [("x", SPacket); ("v", SInt)] SBool 
-	  (ZEquals ( (encode_header f "x"),  (TVar "v")))
+	let macro = 
+	  z3_macro ((serialize_header f) ^ name_suffix)
+	    [("x", SPacket); ("v", SInt)] SBool 
+	    (if want_true 
+	     then
+		(ZEquals ( (encode_header f "x"),  (TVar "v")))
+	     else
+		(ZOr [(ZLessThan ( (encode_header f "x"),  (TVar "v")));
+		      (ZGreaterThan ( (encode_header f "x"),  (TVar "v")))]))
 	in
-	Hashtbl.add hashmap f macro; 
-	(Hashtbl.find hashmap f) in	
-    let pred_test_not f = 
-      try (Hashtbl.find false_hashmap f)
-      with Not_found -> 
-	let macro = z3_macro ((serialize_header f) ^ "-not-equals") [("x", SPacket); ("v", SInt)] SBool 
-	  (ZOr [(ZLessThan ( (encode_header f "x"),  (TVar "v")));
-		(ZGreaterThan ( (encode_header f "x"),  (TVar "v")))])
-	in
-	Hashtbl.add false_hashmap f macro; 
-	(Hashtbl.find false_hashmap f) in	
-
-    let reset_pred_test () = Hashtbl.clear hashmap; Hashtbl.clear false_hashmap in
-    pred_test, pred_test_not, reset_pred_test
+	Hashtbl.add hashmap f macro;
+	(Hashtbl.find hashmap f) in
+    let reset_pred_test () = Hashtbl.clear true_hashmap; Hashtbl.clear false_hashmap in
+    pred_test true, pred_test false, reset_pred_test
 
   let zterm x = ZEquals(x, TVar "true")
 
@@ -156,63 +149,51 @@ module Verify = struct
     let reset_mod_fun () = Hashtbl.clear hashmap in
     mod_fun,reset_mod_fun
 
-
-  let rec unzip_list_tuple (t : ('a * 'b) list) : ('a list * 'b list) = 
-    match t with 
-      | (hdl,hdr)::tl -> 
-	let retl, retr = unzip_list_tuple tl in (hdl::retl), (hdr::retr)
-      | [] -> ([],[])
-	  
-
   let define_relation, get_rules, reset_rules_table = 
     let hashtbl = Hashtbl.create 0 in
+    (*convenience names *)
     let inpkt = Z3macro.inpkt in
     let inpkt_t = TVar inpkt in
     let outpkt = Z3macro.outpkt in
     let outpkt_t = TVar outpkt in
     let midpkt = Z3macro.midpkt in
     let midpkt_t = TVar midpkt in
-    let define_relation pol = 
-      let counter = ref 0 in
-      let rec define_relation pol = 
-	try 
-	  fst (Hashtbl.find hashtbl pol)
-	with Not_found -> 
-	  let sym = fresh (SRelation [SPacket; SPacket]) in
-	  counter := ((!counter) +1);
-	  let local_counter = !counter in
-	  let rules = ZToplevelComment(Printf.sprintf "%d" local_counter)::
-	    ZToplevelComment (Pretty.string_of_policy pol)::
-	    (match pol with 
-	      | Filter pred -> 
-		[ZToplevelComment("this is a filter");
-		 ZDeclareRule (sym, [inpkt; outpkt], ZAnd [forwards_pred pred inpkt; ZEquals( inpkt_t,  outpkt_t )])]
-	      | Mod(f,v) -> 
-		let modfn = mod_fun f in
-		[ZToplevelComment("this is a mod");
-		 ZDeclareRule (sym, [inpkt; outpkt], zterm (TApp (modfn, [inpkt_t; outpkt_t; (encode_vint v)])))]
-	      | Par (pol1, pol2) -> 
-		let pol1_sym = TVar (define_relation pol1) in
-		let pol2_sym = TVar (define_relation pol2) in
- 		[ZToplevelComment("this is a par");
-		 ZDeclareRule (sym, [inpkt; outpkt], zterm (TApp (pol1_sym, [inpkt_t; outpkt_t]))); 
-		 ZDeclareRule (sym, [inpkt; outpkt], zterm (TApp (pol2_sym, [inpkt_t; outpkt_t])))]
-	      | Seq (pol1, pol2) -> 
-		let pol1_sym = TVar (define_relation pol1) in
-		let pol2_sym = TVar (define_relation pol2) in
- 		[ZToplevelComment("this is a seq");
-		 ZDeclareRule (sym, [inpkt; outpkt], ZAnd[ zterm (TApp (pol1_sym, [inpkt_t; midpkt_t])); 
-							   zterm (TApp (pol2_sym, [midpkt_t; outpkt_t]))])]
-	      | Star pol1  -> 
-		let pol1_sym = TVar (define_relation pol1) in
-		[ZToplevelComment("this is a star");
-		 ZDeclareRule (sym, [inpkt; outpkt], ZEquals (inpkt_t, outpkt_t)); 
-		 ZDeclareRule (sym, [inpkt; outpkt], ZAnd[ zterm (TApp (pol1_sym, [inpkt_t; midpkt_t]) ); 
-							   zterm (TApp (TVar sym, [midpkt_t; outpkt_t]))])]
-	      | Choice _-> failwith "I'm not rightly sure what a \"choice\" is "
-	      | Link _ -> failwith "wait, link is a special form now?  What's going on?") in
-	  Hashtbl.add hashtbl pol (sym,rules); sym in
-      define_relation pol in
+    let rec define_relation pol = 
+      try 
+	fst (Hashtbl.find hashtbl pol)
+      with Not_found -> 
+	let sym = fresh (SRelation [SPacket; SPacket]) in
+	let rules = 
+	  ZToplevelComment (Pretty.string_of_policy pol)::
+	  (match pol with 
+	    | Filter pred -> 
+	      [ZToplevelComment("this is a filter");
+	       ZDeclareRule (sym, [inpkt; outpkt], ZAnd [forwards_pred pred inpkt; ZEquals( inpkt_t,  outpkt_t )])]
+	    | Mod(f,v) -> 
+	      let modfn = mod_fun f in
+	      [ZToplevelComment("this is a mod");
+	       ZDeclareRule (sym, [inpkt; outpkt], zterm (TApp (modfn, [inpkt_t; outpkt_t; (encode_vint v)])))]
+	    | Par (pol1, pol2) -> 
+	      let pol1_sym = TVar (define_relation pol1) in
+	      let pol2_sym = TVar (define_relation pol2) in
+ 	      [ZToplevelComment("this is a par");
+	       ZDeclareRule (sym, [inpkt; outpkt], zterm (TApp (pol1_sym, [inpkt_t; outpkt_t]))); 
+	       ZDeclareRule (sym, [inpkt; outpkt], zterm (TApp (pol2_sym, [inpkt_t; outpkt_t])))]
+	    | Seq (pol1, pol2) -> 
+	      let pol1_sym = TVar (define_relation pol1) in
+	      let pol2_sym = TVar (define_relation pol2) in
+ 	      [ZToplevelComment("this is a seq");
+	       ZDeclareRule (sym, [inpkt; outpkt], ZAnd[ zterm (TApp (pol1_sym, [inpkt_t; midpkt_t])); 
+							 zterm (TApp (pol2_sym, [midpkt_t; outpkt_t]))])]
+	    | Star pol1  -> 
+	      let pol1_sym = TVar (define_relation pol1) in
+	      [ZToplevelComment("this is a star");
+	       ZDeclareRule (sym, [inpkt; outpkt], ZEquals (inpkt_t, outpkt_t)); 
+	       ZDeclareRule (sym, [inpkt; outpkt], ZAnd[ zterm (TApp (pol1_sym, [inpkt_t; midpkt_t]) ); 
+							 zterm (TApp (TVar sym, [midpkt_t; outpkt_t]))])]
+	    | Choice _-> failwith "I'm not rightly sure what a \"choice\" is "
+	    | Link _ -> failwith "wait, link is a special form now?  What's going on?") in
+	Hashtbl.add hashtbl pol (sym,rules); sym in
     let get_rules () = Hashtbl.fold (fun _ rules a -> snd(rules)@a ) hashtbl [] in
     let reset_rules_table () = Hashtbl.clear hashtbl in
     define_relation, get_rules, reset_rules_table
@@ -220,16 +201,14 @@ module Verify = struct
 
   let reset_state () = 
     reset_state_encode_packet_equals (); 
-    fresh_cell := []; 
-    decl_list := [];
+    Sat.reset_state ();
     reset_pred_test ();
     reset_rules_table ();
     reset_mod_fun ()
 end
 
   let run_solve oko prog str : bool =
-    let file = (Filename.get_temp_dir_name ()) ^ Filename.dir_sep ^ "debug-" ^ str ^ "-" ^
-       ".rkt" in
+    let file = Printf.sprintf "%s%sdebug-%s.rkt" (Filename.get_temp_dir_name ()) Filename.dir_sep str in
     let oc = open_out (file) in 
     Printf.fprintf oc "%s\n;This is the program corresponding to %s" (Sat.serialize_program prog) str;
     close_out oc;

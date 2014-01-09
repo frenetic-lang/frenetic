@@ -48,21 +48,10 @@ module Sat = struct
 
   (* fresh variables *)
   let fresh_cell = ref []
-  let decl_list = ref []
-
-  let fresh_named s str = 
-    let l = !fresh_cell in  
-    let x = match s with
-      | SPacket -> 
-        Printf.sprintf "_pkt%s" str
-      | SInt -> 
-        Printf.sprintf "_n%s" str
-      | SFunction _ -> 
-        Printf.sprintf "_f%s" str 
-      | _ -> failwith "not implemented in fresh" in 
-    fresh_cell := ZDeclareVar(x,s)::l;
-    x
-
+  let macro_list_top = ref []
+  let macro_list_bottom = ref []
+    
+  let reset_state () = fresh_cell := []; macro_list_top := []; macro_list_bottom := []
 
   let fresh s = 
     let l = !fresh_cell in  
@@ -222,13 +211,12 @@ module Sat = struct
 
   let z3_macro, z3_macro_top = 
     let z3_macro_picklocation put_at_top (name : string) (arglist : (zVar * zSort) list) (rettype : zSort)(body : zFormula) : zTerm = 
-      let l = !fresh_cell in
-      let name = name (* ^ "_" ^ to_string (gensym ()) *) in
+      let name = name in
       let new_macro = (define_z3_macro name arglist rettype body) in
       (if put_at_top then
-	fresh_cell := new_macro @ l
+	  macro_list_top := new_macro @ (!macro_list_top)
        else
-	  decl_list := new_macro @ (!decl_list));
+	  macro_list_bottom := new_macro @ (!macro_list_bottom));
       TVar name in
       
     let z3_macro = z3_macro_picklocation false in
@@ -296,9 +284,10 @@ module Sat = struct
 			     ZDeclareVar(Z3macro.midpkt, SPacket);
 			     ZDeclareVar(Z3macro.outpkt, SPacket);
 			     ZDeclareVar(Z3macro.q, SRelation([SPacket; SPacket]))];
-			    !fresh_cell; 
+			    !fresh_cell;
+			    !macro_list_top;
 			    [ZToplevelComment("end initial declarations, commence dependent declarations\n")];
-			    !decl_list;
+			    !macro_list_bottom;
 			    [ZToplevelComment("End Definitions, Commence SAT expressions\n")]; 
 			    ds] in 
     Printf.sprintf "%s%s\n%s\n"
