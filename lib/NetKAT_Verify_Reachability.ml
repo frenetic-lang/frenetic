@@ -204,37 +204,47 @@ module Verify = struct
     let outpkt_t = TVar outpkt in
     let midpkt = Z3macro.midpkt in
     let midpkt_t = TVar midpkt in
-    let rec define_relation pol = 
-      try 
-	fst (Hashtbl.find hashtbl pol)
-      with Not_found -> 
-	let sym = fresh (SRelation [SPacket; SPacket]) in
-	let rules = match pol with 
-	  | Filter pred -> 
-	    [ZDeclareRule (sym, [inpkt; outpkt], ZAnd [forwards_pred pred inpkt; ZEquals(ZTerm inpkt_t, ZTerm outpkt_t )])]
-	  | Mod(f,v) -> 
-	    let modfn = mod_fun f in
-	    [ZDeclareRule (sym, [inpkt; outpkt], ZApp (modfn, [ZTerm inpkt_t; ZTerm outpkt_t; ZTerm (encode_vint v)]))]
-	  | Par (pol1, pol2) -> 
-	    let pol1_sym = TVar (define_relation pol1) in
-	    let pol2_sym = TVar (define_relation pol2) in
- 	    [ZDeclareRule (sym, [inpkt; outpkt], ZTerm (TApp (pol1_sym, [inpkt_t; outpkt_t]))); 
-	     ZDeclareRule (sym, [inpkt; outpkt], ZTerm (TApp (pol2_sym, [inpkt_t; outpkt_t])))]
-	  | Seq (pol1, pol2) -> 
-	    let pol1_sym = TVar (define_relation pol1) in
-	    let pol2_sym = TVar (define_relation pol2) in
- 	    [ZDeclareRule (sym, [inpkt; outpkt], ZAnd[ ZTerm (TApp (pol1_sym, [inpkt_t; midpkt_t])); 
-						       ZTerm (TApp (pol2_sym, [midpkt_t; outpkt_t]))])]
-	  | Star pol1  -> 
-	    let pol1_sym = TVar (define_relation pol1) in
-	    [ZDeclareRule (sym, [inpkt; outpkt], ZEquals (ZTerm inpkt_t, ZTerm outpkt_t)); 
-	     ZDeclareRule (sym, [inpkt; outpkt], ZAnd[ ZTerm (TApp (pol1_sym, [inpkt_t; midpkt_t]) ); 
-						       ZTerm (TApp (TVar sym, [midpkt_t; outpkt_t]))])]
-	  | Choice _-> failwith "I'm not rightly sure what a \"choice\" is "
-	  | Link _ -> failwith "wait, link is a special form now?  What's going on?"
-	    
-	in
-	Hashtbl.add hashtbl pol (sym,rules); sym in
+    let define_relation pol = 
+      let counter = ref 0 in
+      let rec define_relation pol = 
+	try 
+	  fst (Hashtbl.find hashtbl pol)
+	with Not_found -> 
+	  let sym = fresh (SRelation [SPacket; SPacket]) in
+	  counter := ((!counter) +1);
+	  let local_counter = !counter in
+	  let rules = ZToplevelComment(Printf.sprintf "%d" local_counter)::
+	    ZToplevelComment (Pretty.string_of_policy pol)::
+	    (match pol with 
+	      | Filter pred -> 
+		[ZToplevelComment("this is a filter");
+		 ZDeclareRule (sym, [inpkt; outpkt], ZAnd [forwards_pred pred inpkt; ZEquals(ZTerm inpkt_t, ZTerm outpkt_t )])]
+	      | Mod(f,v) -> 
+		let modfn = mod_fun f in
+		[ZToplevelComment("this is a mod");
+		 ZDeclareRule (sym, [inpkt; outpkt], ZApp (modfn, [ZTerm inpkt_t; ZTerm outpkt_t; ZTerm (encode_vint v)]))]
+	      | Par (pol1, pol2) -> 
+		let pol1_sym = TVar (define_relation pol1) in
+		let pol2_sym = TVar (define_relation pol2) in
+ 		[ZToplevelComment("this is a par");
+		 ZDeclareRule (sym, [inpkt; outpkt], ZTerm (TApp (pol1_sym, [inpkt_t; outpkt_t]))); 
+		 ZDeclareRule (sym, [inpkt; outpkt], ZTerm (TApp (pol2_sym, [inpkt_t; outpkt_t])))]
+	      | Seq (pol1, pol2) -> 
+		let pol1_sym = TVar (define_relation pol1) in
+		let pol2_sym = TVar (define_relation pol2) in
+ 		[ZToplevelComment("this is a seq");
+		 ZDeclareRule (sym, [inpkt; outpkt], ZAnd[ ZTerm (TApp (pol1_sym, [inpkt_t; midpkt_t])); 
+							   ZTerm (TApp (pol2_sym, [midpkt_t; outpkt_t]))])]
+	      | Star pol1  -> 
+		let pol1_sym = TVar (define_relation pol1) in
+		[ZToplevelComment("this is a star");
+		 ZDeclareRule (sym, [inpkt; outpkt], ZEquals (ZTerm inpkt_t, ZTerm outpkt_t)); 
+		 ZDeclareRule (sym, [inpkt; outpkt], ZAnd[ ZTerm (TApp (pol1_sym, [inpkt_t; midpkt_t]) ); 
+							   ZTerm (TApp (TVar sym, [midpkt_t; outpkt_t]))])]
+	      | Choice _-> failwith "I'm not rightly sure what a \"choice\" is "
+	      | Link _ -> failwith "wait, link is a special form now?  What's going on?") in
+	  Hashtbl.add hashtbl pol (sym,rules); sym in
+      define_relation pol in
     let get_rules () = Hashtbl.fold (fun _ rules a -> snd(rules)@a ) hashtbl [] in
     let reset_rules_table () = Hashtbl.clear hashtbl in
     define_relation, get_rules, reset_rules_table
@@ -250,10 +260,10 @@ module Verify = struct
 end
 
   let run_solve oko prog str : bool =
-    let file = (Filename.get_temp_dir_name ()) ^ Filename.dir_sep ^ "debug-" ^ 
+    let file = (Filename.get_temp_dir_name ()) ^ Filename.dir_sep ^ "debug-" ^ str ^ "-" ^
       (to_string (gensym ())) ^ ".rkt" in
     let oc = open_out (file) in 
-    Printf.fprintf oc "%s\n" (Sat.serialize_program prog);
+    Printf.fprintf oc "%s\n;This is the program corresponding to %s" (Sat.serialize_program prog) str;
     close_out oc;
     let run_result = (
       match oko, Sat.solve prog with

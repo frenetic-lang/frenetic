@@ -216,7 +216,7 @@ module Sat = struct
   let serialize_declare d = 
     match d with 
       | ZToplevelComment(c) -> 
-	Printf.sprintf "\n;%s" c 
+	Printf.sprintf "\n;%s" (Str.global_replace (Str.regexp_string "\n") "\n;" c)
       | ZDefineVar (x, s, b) -> 
 	Printf.sprintf "(define-fun %s %s %s)" x (serialize_sort s) (serialize_formula b)
       | ZDeclareVar (x, s) ->
@@ -330,7 +330,7 @@ module Sat = struct
       pervasives (intercalate serialize_declare "\n" ds') 
       (Printf.sprintf "(query (q %s %s) 
 :default-relation smt_relation2
-:engine pdr
+:engine datalog
 :print-answer false)
 " Z3macro.start Z3macro.ending)
 
