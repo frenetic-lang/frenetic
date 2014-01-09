@@ -210,13 +210,13 @@ def to_netkat_set_of_tables_failover_for_switches(graph, switches, withTopo=True
                 assert v <= graph.p
 
                 if specializeInPort:
-                    for port in range(1, graph.p*2+1):
-                        if v == port:
-                            continue
-                        s = string.join((flt, "port = %d" % (port), "ethDst = %s" % (graph.node[k]['mac'])), " and ")
-                        v2 = (v % graph.p) + 1
-                        s = string.join((s, "(port := %d + port := %d)" % (v, v2)), "; ")
-                        table.append(s)
+                    ports = range(1, graph.p*2+1)
+                    ports.remove(v)
+                    portflt = string.join(["port = %d" % (port) for port in ports], " or ")
+                    s = string.join((flt, "(%s)" % (portflt), "ethDst = %s" % (graph.node[k]['mac'])), " and ")
+                    v2 = (v % graph.p) + 1
+                    s = string.join((s, "(port := %d + port := %d)" % (v, v2)), "; ")
+                    table.append(s)
                 else:
                     s = string.join((flt, "ethDst = %s" % (graph.node[k]['mac'])), " and ")
                     v2 = (v % graph.p) + 1
@@ -260,13 +260,13 @@ def to_netkat_set_of_tables_failover_for_switches(graph, switches, withTopo=True
             assert k in graph.hosts
 
             if specializeInPort:
-                for port in range(1, graph.p*2+1):
-                    if v == port:
-                        continue
-                    s = string.join((flt, "port = %d" % (port), "ethDst = %s" % (graph.node[k]['mac'])), " and ")
-                    v2 = (v % (2 * graph.p)) + 1
-                    s = string.join((s, "(port := %d + port := %d)" % (v, v2)), "; ")
-                    table.append(s)
+                ports = range(1, graph.p*2+1)
+                ports.remove(v)
+                portflt = string.join(["port = %d" % (port) for port in ports], " or ")
+                s = string.join((flt, "(%s)" % (portflt), "ethDst = %s" % (graph.node[k]['mac'])), " and ")
+                v2 = (v % (2 * graph.p)) + 1
+                s = string.join((s, "(port := %d + port := %d)" % (v, v2)), "; ")
+                table.append(s)
             else:
                 s = string.join((flt, "ethDst = %s" % (graph.node[k]['mac'])), " and ")
                 v2 = (v % (2 * graph.p)) + 1
