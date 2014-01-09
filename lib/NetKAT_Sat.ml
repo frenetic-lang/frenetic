@@ -14,7 +14,6 @@ module Sat = struct
   type zSort = 
     | SPacket
     | SInt
-    | SSet 
     | SBool
     | SRelation of (zSort list)
     | SFunction of (zSort list) * zSort
@@ -24,7 +23,6 @@ module Sat = struct
     | TUnit 
     | TVar of zVar
     | TInt of Int64.t
-    | TPkt of Topology.switchId * Topology.portId * Packet.packet
     | TApp of zTerm * (zTerm list)
 
   type zFormula =
@@ -59,8 +57,6 @@ module Sat = struct
         Printf.sprintf "_pkt%s" str
       | SInt -> 
         Printf.sprintf "_n%s" str
-      | SSet -> 
-        Printf.sprintf "_s%s" str
       | SFunction _ -> 
         Printf.sprintf "_f%s" str 
       | _ -> failwith "not implemented in fresh" in 
@@ -76,8 +72,6 @@ module Sat = struct
         Printf.sprintf "_pkt%d" n
       | SInt -> 
         Printf.sprintf "_n%d" n
-      | SSet -> 
-        Printf.sprintf "_s%d" n 
       | SFunction _ -> 
         Printf.sprintf "_f%d" n 
       | SRelation _ -> 
@@ -105,8 +99,6 @@ module Sat = struct
       "Packet"
     | SBool ->
       "Bool"
-    | SSet -> 
-      Printf.sprintf "Set"
     | SFunction(sortlist,sort2) -> 
       Printf.sprintf "(%s) %s" 
         (intercalate serialize_sort " " sortlist)
@@ -132,8 +124,6 @@ module Sat = struct
         "()"
       | TVar x -> 
 	x
-      | TPkt (sw,pt,pkt) -> 
-	serialize_located_packet (sw,pt,pkt)
       | TInt n -> 
 	Printf.sprintf "(_ bv%s 8)"
           (Int64.to_string n)
