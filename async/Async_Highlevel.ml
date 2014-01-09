@@ -151,12 +151,9 @@ let features t evt =
                (Printf.sprintf "expected port description reply in %s%!" (to_string hdr))
         end
      | _, Some state -> 
-        Log.info ~tags "got %s in state %s" 
-          (Header.to_string hdr)
-          (Sexp.to_string (sexp_of_handshake_state state));
         return None
      | _, None -> 
-        Log.info ~tags "Nothing";
+        Log.error ~tags "got %s in unknown state" (Header.to_string hdr);
         return None
      end
 
