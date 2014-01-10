@@ -32,8 +32,7 @@ module Sat = struct
     | ZAnd of zFormula list
     | ZOr of zFormula list
     | ZEquals of zTerm * zTerm
-    | ZLessThan of zTerm * zTerm
-    | ZGreaterThan of zTerm * zTerm
+    | ZNotEquals of zTerm * zTerm
     | ZComment of string * zFormula
 
   type zDeclare = 
@@ -70,20 +69,9 @@ module Sat = struct
     x
 
 
-
-
-  (* serialization *)
-  let serialize_located_packet (sw,pt,pkt) = 
-    Printf.sprintf "(Packet %s %s %s %s)" 
-      (Int64.to_string (VInt.get_int64 sw)) 
-      (Int32.to_string (VInt.get_int32 pt))
-      (Int64.to_string pkt.dlSrc)
-      (Int64.to_string pkt.dlDst)
-
-
   let rec serialize_sort = function
     | SInt -> 
-      "(_ BitVec 8)"
+      "Enumerated-Int"
     | SPacket -> 
       "Packet"
     | SBool ->
@@ -114,7 +102,7 @@ module Sat = struct
       | TVar x -> 
 	x
       | TInt n -> 
-	Printf.sprintf "(_ bv%s 8)"
+	Printf.sprintf "_i%s"
           (Int64.to_string n)
       | TApp (term1, terms) -> 
 	Printf.sprintf "(%s %s)" (serialize_term term1) (intercalate serialize_term " " terms)
@@ -164,10 +152,12 @@ module Sat = struct
 	| TVar "true", t -> serialize_term t
 	| t, TVar "true" -> serialize_term t
 	| t1, t2 -> Printf.sprintf "(equals %s %s)" (serialize_term t1) (serialize_term t2))
-    | ZLessThan (t1, t2) -> 
-      Printf.sprintf "(bvult %s %s)" (serialize_term t1) (serialize_term t2)
-    | ZGreaterThan (t1, t2) -> 
-      Printf.sprintf "(bvugt %s %s)" (serialize_term t1) (serialize_term t2)
+    | ZNotEquals (t1, t2) -> 
+      (*readability hack: remove "= true" case *)
+      (match t1, t2 with
+	| TVar "true", t -> serialize_term t
+	| t, TVar "true" -> serialize_term t
+	| t1, t2 -> Printf.sprintf "(not (equals %s %s))" (serialize_term t1) (serialize_term t2))
     | ZAnd([]) -> 
       Printf.sprintf "true"
     | ZAnd([f]) -> 
@@ -316,6 +306,15 @@ module Sat = struct
       | Star p -> Star (remove_links p)
       | Choice _ -> failwith "choice not supported"
 
+  let generate_enumerated_integers (l : (VInt.t list)) = 
+    Printf.sprintf
+      "(declare-datatypes
+        ()
+        ((Enumerated-Int
+         (rest-of-ints)
+%s)))\n"
+      (intercalate (fun x -> (Printf.sprintf "         %s") (serialize_term (encode_vint x))) "\n" l)
+
   let collect_constants pol : (VInt.t list) = 
     let module VInt_set = Set.Make(struct 
       let compare = Pervasives.compare
@@ -338,7 +337,7 @@ module Sat = struct
       in
       match pol with
 	| Link (s1, p1, s2, p2) -> elems [s1;p1;s2;p2]
-	| Filter pred -> collect_pred_constants pred	
+	| Filter pred -> collect_pred_constants pred
 	| Mod (_, v) -> single v
 	| Par (l, r) -> combine (collect_constants l) (collect_constants r)
 	| Seq (f, s) -> combine (collect_constants f) (collect_constants s)
@@ -347,7 +346,7 @@ module Sat = struct
     VInt_set.elements (collect_constants pol)
 
       
-  let serialize_program p query: string = 
+  let serialize_program p query ints: string = 
     let ZProgram(ds) = p in 
     let ds' = List.flatten [!fresh_cell;
 			    !macro_list_top;
@@ -355,12 +354,14 @@ module Sat = struct
 			    !macro_list_bottom;
 			    [ZToplevelComment("End Definitions, Commence SAT expressions\n")]; 
 			    ds] in 
-    Printf.sprintf "%s%s\n%s\n"
-      Z3Pervasives.pervasives (intercalate serialize_declare "\n" ds') 
+    Printf.sprintf "%s%s\n%s\n%s\n"
+      (generate_enumerated_integers ints)
+      Z3Pervasives.pervasives 
+      (intercalate serialize_declare "\n" ds') 
       query
 
-  let solve prog query: bool = 
-    let s = (serialize_program prog query) in
+  let solve prog query ints: bool = 
+    let s = (serialize_program prog query ints) in
     let z3_out,z3_in = open_process "z3 -in -smt2 -nw" in 
     let _ = output_string z3_in s in
     let _ = flush z3_in in 
