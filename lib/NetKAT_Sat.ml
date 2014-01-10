@@ -3,9 +3,9 @@ open Types
 open Util
 open Unix
 
-module type ParameterizedOnInt = 
+module type ParameterizedOnInts = 
 sig 
-  val size : int
+  val ints : VInt.t list
 end
 
 (* The [Sat] module provides a representation of formulas in
@@ -67,10 +67,13 @@ let rec remove_links (pol : 'a) : 'a =
 end
 
 module Sat = 
-  functor (Size : ParameterizedOnInt) -> struct
+  functor (Int_List : ParameterizedOnInts) -> struct
+      
       
     open Sat_Utils
-      
+
+    let bitvec_size = Sat_Utils.number_of_bits ((List.length Int_List.ints) + 1)
+
     type zVar = string
 	
     type zSort = 
@@ -132,7 +135,7 @@ module Sat =
 	
     let rec serialize_sort = function
       | SInt -> 
-	Printf.sprintf "(_ BitVec %d)" Size.size
+	Printf.sprintf "(_ BitVec %d)" bitvec_size
       | SPacket -> 
 	"Packet"
       | SBool ->
@@ -356,7 +359,6 @@ module Sat =
     end
 
     let generate_enumerated_integers (l : (VInt.t list)) = 
-      let bitvec_size = Size.size in
       (intercalate (fun x -> (Printf.sprintf "(define-fun %s () (_ BitVec %d) (_ bv%s %d))")
 	(tInt_to_string (encode_vint x))
 	(bitvec_size)
@@ -364,9 +366,9 @@ module Sat =
 	(bitvec_size)) "\n" l)
 	
 	
-    let serialize_program p query ints: string = 
+    let serialize_program p query: string = 
       let ZProgram(ds) = p in 
-      let bitvec_size = number_of_bits (1 + (List.length ints)) in
+      let bitvec_size = number_of_bits (1 + (List.length Int_List.ints)) in
       let ds' = List.flatten [!fresh_cell;
 			      !macro_list_top;
 			      [ZToplevelComment("end initial declarations, commence dependent declarations\n")];
@@ -374,13 +376,13 @@ module Sat =
 			      [ZToplevelComment("End Definitions, Commence SAT expressions\n")]; 
 			      ds] in 
       Printf.sprintf "%s%s\n%s\n%s\n"
-	(generate_enumerated_integers ints)
+	(generate_enumerated_integers Int_List.ints)
 	(Z3Pervasives.declare_datatypes bitvec_size)
 	(intercalate serialize_declare "\n" ds') 
 	query
 
-    let solve prog query ints: bool = 
-      let s = (serialize_program prog query ints) in
+    let solve prog query: bool = 
+      let s = (serialize_program prog query) in
       let z3_out,z3_in = open_process "z3 -in -smt2 -nw" in 
       let _ = output_string z3_in s in
       let _ = flush z3_in in 

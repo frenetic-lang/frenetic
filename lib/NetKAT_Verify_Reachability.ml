@@ -226,16 +226,15 @@ oko: bool option. has to be Some. True if you think it should be satisfiable.
 
   let check_reachability  str inp pol outp oko =
   let ints = (Sat_Utils.collect_constants (Seq (Seq (Filter inp,pol),Filter outp))) in
-  let bitvec_size = Sat_Utils.number_of_bits ((List.length ints) + 1) in
-  let module Sat = Sat(struct let size = bitvec_size end) in
+  let module Sat = Sat(struct let ints = ints end) in
   let module Verify = Verify(Sat) in
   let run_solve oko prog query ints str : bool =
     let file = Printf.sprintf "%s%sdebug-%s.rkt" (Filename.get_temp_dir_name ()) Filename.dir_sep str in
     let oc = open_out (file) in 
-    Printf.fprintf oc "%s\n;This is the program corresponding to %s\n" (Sat.serialize_program prog query ints) str;
+    Printf.fprintf oc "%s\n;This is the program corresponding to %s\n" (Sat.serialize_program prog query) str;
     close_out oc;
     let run_result = (
-      match oko, Sat.solve prog query ints with
+      match oko, Sat.solve prog query with
 	| Some (ok : bool), (sat : bool) ->
           if ok = sat then
 	    true
