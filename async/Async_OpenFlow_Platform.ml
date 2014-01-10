@@ -8,9 +8,14 @@ module type S = sig
 
   type t 
   type m
-  type e
 
   module Client_id : Unique_id
+
+  type e = [
+    | `Connect of Client_id.t
+    | `Disconnect of Client_id.t * Sexp.t
+    | `Message of Client_id.t * m
+  ]
 
   val create
     :  ?max_pending_connections:int
