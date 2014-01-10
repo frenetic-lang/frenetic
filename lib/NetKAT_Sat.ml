@@ -272,7 +272,7 @@ module Sat = struct
 
 
     
-  module Pervasives = struct
+  module Z3Pervasives = struct
     let pervasives : string = 
       "
 (declare-datatypes 
@@ -316,6 +316,36 @@ module Sat = struct
       | Star p -> Star (remove_links p)
       | Choice _ -> failwith "choice not supported"
 
+  let collect_constants pol : (VInt.t list) = 
+    let module VInt_set = Set.Make(struct 
+      let compare = Pervasives.compare
+      type t = VInt.t
+    end) in
+
+    let combine a b = VInt_set.union a b in
+    let empty = VInt_set.empty in
+    let single = VInt_set.singleton in
+    let elems l = List.fold_left (fun a x -> VInt_set.add x a) empty l in
+    let rec collect_constants pol = 
+      let rec collect_pred_constants pred = 
+	match pred with
+	  | True -> empty
+	  | False -> empty
+	  | Test (_, v) -> single v
+	  | And (a,b) -> combine (collect_pred_constants a) (collect_pred_constants b)
+	  | Or (a,b) -> combine (collect_pred_constants a) (collect_pred_constants b)
+	  | Neg p -> collect_pred_constants p
+      in
+      match pol with
+	| Link (s1, p1, s2, p2) -> elems [s1;p1;s2;p2]
+	| Filter pred -> collect_pred_constants pred	
+	| Mod (_, v) -> single v
+	| Par (l, r) -> combine (collect_constants l) (collect_constants r)
+	| Seq (f, s) -> combine (collect_constants f) (collect_constants s)
+	| Star p -> collect_constants p
+	| Choice (a, b) -> combine (collect_constants a) (collect_constants b) in
+    VInt_set.elements (collect_constants pol)
+
       
   let serialize_program p query: string = 
     let ZProgram(ds) = p in 
@@ -326,7 +356,7 @@ module Sat = struct
 			    [ZToplevelComment("End Definitions, Commence SAT expressions\n")]; 
 			    ds] in 
     Printf.sprintf "%s%s\n%s\n"
-      Pervasives.pervasives (intercalate serialize_declare "\n" ds') 
+      Z3Pervasives.pervasives (intercalate serialize_declare "\n" ds') 
       query
 
   let solve prog query: bool = 
