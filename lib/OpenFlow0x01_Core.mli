@@ -28,7 +28,7 @@ type portId = int16
 type queueId = int32
 
 (** Transaction ID of OpenFlow messages. *)
-type xid = int32
+type xid = OpenFlow_Header.xid
 
 (** A pattern that matches a packet headers.
 

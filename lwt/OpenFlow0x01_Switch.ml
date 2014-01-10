@@ -3,20 +3,22 @@ module OF = OpenFlow0x01
 module OFC = OpenFlow0x01_Core
 module Message = OF.Message
 module Log = Lwt_log
+module Header = OpenFlow_Header
 
 type file_descr = Lwt_unix.file_descr
 type xid = OFC.xid
 type msg = Message.t
 
+
 (* If this function cannot parse a message, it logs a warning and
    tries to receive and parse the next. *)
 let rec recv_from_switch_fd (sock : file_descr) : (xid * msg) option Lwt.t =
-  let ofhdr_str = String.create (2 * Message.Header.size) in (* JNF: why 2x? *)
-  match_lwt Socket.recv sock ofhdr_str 0 Message.Header.size with
+  let ofhdr_str = String.create (2 * Header.size) in (* JNF: why 2x? *)
+  match_lwt Socket.recv sock ofhdr_str 0 Header.size with
     | false -> Lwt.return None
     | true ->
-      lwt hdr = Lwt.wrap (fun () -> Message.Header.parse ofhdr_str) in
-      let body_len = Message.Header.len hdr - Message.Header.size in
+      lwt hdr = Lwt.wrap (fun () -> Header.parse (Cstruct.of_string ofhdr_str)) in
+      let body_len = hdr.Header.length - Header.size in
       let body_buf = String.create body_len in
       match_lwt Socket.recv sock body_buf 0 body_len with
         | false -> Lwt.return None

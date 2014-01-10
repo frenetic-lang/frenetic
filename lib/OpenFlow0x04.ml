@@ -1,3 +1,5 @@
+(* TODO(???): rename sizeof to size_of for consistency with 0x01 stuff. *)
+
 (** OpenFlow 1.3 (protocol version 0x04) *)
 
 open Printf
@@ -15,7 +17,6 @@ let sum (lst : int list) = List.fold_left (fun x y -> x + y) 0 lst
 type uint48 = uint64
 type uint12 = uint16
 type switchId = OpenFlow0x04_Core.switchId
-
 
 (* OKAY *)
 cenum msg_code {
@@ -1362,15 +1363,6 @@ end
 
 module PortsDescriptionReply = struct
     
-    cstruct ofp_multipart_reply {
-      uint16_t typ; (* One of the OFPMP_* constants. *)
-      uint16_t flags; (* OFPMPF_REQ_* flags. *)
-      uint8_t pad0;
-      uint8_t pad1;
-      uint8_t pad2;
-      uint8_t pad3
-    } as big_endian
-
   let parse (bits : Cstruct.t) : multipartReply =
     let portIter =
       Cstruct.iter
@@ -1383,15 +1375,6 @@ end
 
 module MultipartReply = struct
     
-    cstruct ofp_multipart_reply {
-      uint16_t typ; (* One of the OFPMP_* constants. *)
-      uint16_t flags; (* OFPMPF_REQ_* flags. *)
-      uint8_t pad0;
-      uint8_t pad1;
-      uint8_t pad2;
-      uint8_t pad3
-    } as big_endian
-
   let parse (bits : Cstruct.t) : multipartReply =
     let ofp_body_bits = Cstruct.shift bits sizeof_ofp_multipart_reply in
     match int_to_ofp_multipart_types (get_ofp_multipart_reply_typ bits) with
@@ -1474,55 +1457,8 @@ module Message = struct
     | GET_ASYNC_REP -> "GET_ASYNC_REP"
     | METER_MOD -> "METER_MOD"
 
-  module Header = struct
+  module Header = OpenFlow_Header
 
-    let ver : int = 0x04
-
-    type t = 
-        { ver : int;
-          typ : msg_code;
-          len : int;
-          xid : int32 }
-
-      (* OKAY *)
-      cstruct ofp_header {
-        uint8_t version;    
-        uint8_t typ;   
-        uint16_t length;    
-        uint32_t xid
-      } as big_endian
-
-    let size = sizeof_ofp_header
-    let size_of _ = size
-    let len hdr = hdr.len
-
-    let marshal hdr out =
-      set_ofp_header_version out hdr.ver;
-      set_ofp_header_typ out (msg_code_to_int hdr.typ);
-      set_ofp_header_length out hdr.len;
-      set_ofp_header_xid out hdr.xid;
-      size_of hdr
-
-    (** [parse buf] assumes that [buf] has size [sizeof_ofp_header]. *)
-    let parse buf_str =
-      let buf = Cstruct.of_string buf_str in
-      { ver = get_ofp_header_version buf;
-        typ = begin match int_to_msg_code (get_ofp_header_typ buf) with
-          | Some typ -> typ
-          | None -> raise (Unparsable "unrecognized message code")
-        end;
-        len = get_ofp_header_length buf;
-        xid = get_ofp_header_xid buf
-      }
-
-    let to_string hdr =
-      Printf.sprintf "{ %d, %s, len = %d, xid = %d }"
-        hdr.ver
-        (string_of_msg_code hdr.typ)
-        hdr.len
-        (Int32.to_int hdr.xid)
-  end
-    
   let msg_code_of_message (msg : t) : msg_code = match msg with
     | Hello -> HELLO
     | EchoRequest _ -> ECHO_REQ
@@ -1590,20 +1526,28 @@ module Message = struct
       | Error _ -> failwith "NYI: marshall Error"
 
 
+  let header_of xid msg =
+    let open Header in
+    { version = 0x04; type_code = msg_code_to_int (msg_code_of_message msg);
+      length = sizeof msg; xid = xid }
+
+  let marshal_body (msg : t) (buf : Cstruct.t) =
+    let _ = blit_message msg buf in
+    ()
+    
   let marshal (xid : xid) (msg : t) : string =
-    let hdr = let open Header in
-      {ver = ver; typ = msg_code_of_message msg; len = 0; xid = xid} in
     let sizeof_buf = sizeof msg in
-    let hdr = {hdr with Header.len = sizeof_buf} in
+    let hdr = header_of xid msg in
     let buf = Cstruct.create sizeof_buf in
-    let _ = Header.marshal hdr buf in
-    let _ = blit_message msg (Cstruct.shift buf (Header.size_of hdr)) in
-    let str = Cstruct.to_string buf in
-    str
+    Header.marshal buf hdr;
+    let _ = blit_message msg (Cstruct.shift buf Header.size) in
+    Cstruct.to_string buf
 
   let parse (hdr : Header.t) (body_buf : string) : (xid * t) =
     let body_bits = Cstruct.of_string body_buf in
-    let typ = hdr.Header.typ in
+    let typ = match int_to_msg_code hdr.Header.type_code with
+      | Some code -> code
+      | None -> raise (Unparsable "unknown message code") in
     let msg = match typ with
       | HELLO -> Hello
       | ECHO_RESP -> EchoReply body_bits

@@ -1,6 +1,7 @@
 # OASIS_START
-# DO NOT EDIT (digest: ed02887d1d3eeb41109feab172fcc58b)
+# DO NOT EDIT (digest: bfda94579279b59c7b44247136926854)
 VInt
+OpenFlow_Header
 OpenFlow0x01
 OpenFlow0x01_Core
 OpenFlow0x01_Stats

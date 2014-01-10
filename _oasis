@@ -6,10 +6,9 @@ Synopsis:    Serialization library for OpenFlow
 Authors:     Marco Canini, Nate Foster, Arjun Guha, Mark Reitblatt,
              Cole Schlesinger, and Laurent Vanbever
 License:     LGPL
-Plugins:     META (0.3), DevFiles (0.3)
+Plugins:     META (0.3)
 BuildTools:
-  ocamlbuild,
-  ocamldoc
+  ocamlbuild
 
 Flag quickcheck
     Description: build the openflow.quickcheck library
@@ -23,13 +22,20 @@ Flag end_test
      Description: install executable for end-to-end test
      Default: false
 
+Flag async
+    Description: build the openflow.async library
+    Default: false
+
 Library openflow
   Path: lib
   BuildDepends:
     str,
     cstruct,
     cstruct.syntax,
-    packet
+    packet,
+    core,
+    sexplib.syntax,
+    threads
   InternalModules:
     Bits,
     Misc,
@@ -40,12 +46,38 @@ Library openflow
     HighLevelSwitch_common    
   Modules:
     VInt,
+    OpenFlow_Header,
     OpenFlow0x01,
     OpenFlow0x01_Core,
     OpenFlow0x01_Stats,
     OpenFlow0x04,
     OpenFlow0x04_Core,
     SDN_Types    
+
+Library async
+  Findlibparent: openflow
+  Findlibname: async
+  Path: async
+  Build$: flag(async)
+  BuildDepends:
+    async,
+    openflow,
+    cstruct.async,
+    threads,
+    textutils,
+    sexplib.syntax
+  InternalModules:
+    Async_OpenFlow_Log,
+    Async_OpenFlow_Message,
+    Async_OpenFlow_Platform,
+    Async_OpenFlow_ClientServer,
+    Async_OpenFlow0x01,
+    Async_OpenFlow0x04,
+    Async_OpenFlowChunk,
+    Async_Highlevel
+  Modules:
+    Async_OpenFlow
+
 
 Library lwt
   Findlibparent: openflow
@@ -76,33 +108,18 @@ Library quickcheck
     Findlibparent: openflow
     Findlibname: quickcheck
     Path: quickcheck
-    Build$: flag(quickcheck)
+    Build$: flag(tests) || flag(quickcheck)
     BuildDepends:
         quickcheck,
         openflow
     Modules:
+        OpenFlow_Arbitrary,
         OpenFlow0x01_Arbitrary
-
-Document doc
-  Title: OpenFlow documentation
-  Type: OCamlbuild (0.3)
-  XOCamlBuildPath: lib
-  XOCamlBuildModules:
-    OpenFlow0x01,
-    OpenFlow0x01_Core,
-    OpenFlow0x01_Stats,
-    OpenFlow0x01_Switch,
-    OpenFlow0x01_TxSwitch,
-    OpenFlow0x01_Platform,
-    OpenFlow0x04,
-    OpenFlow0x04_Core,
-    OpenFlow0x04_Platform,
-    OpenFlow0x04_Misc
 
 Executable testtool
   Path: test
-  Install: false
-  Build$: flag(quickcheck) && flag(tests)
+  Install: False
+  Build$: flag(tests)
   MainIs: Test.ml
   BuildDepends:
     packet,
@@ -114,13 +131,6 @@ Executable testtool
     openflow.quickcheck,
     quickcheck
 
-Executable test0
-  Path: test
-  Install$: false
-  Build$: flag(tests) && flag(lwt)
-  MainIs: Test0.ml
-  BuildDepends: packet,openflow,openflow.lwt,oUnit,pa_ounit,pa_ounit.syntax
-
 Executable ping_test
   Path: test
   Install$: false
@@ -129,6 +139,32 @@ Executable ping_test
   BuildDepends: packet,openflow,openflow.lwt,oUnit,pa_ounit,pa_ounit.syntax
 
 Test all_tests
-  Command: $testtool inline-test-runner dummy
+  Command: $testtool inline-test-runner openflow
   Run$:  flag(quickcheck) && flag(tests)
   TestTools: testtool
+
+Executable Hypervisor
+  Path: examples
+  MainIs: Hypervisor.ml
+  Install: False
+  BuildDepends:
+    threads,
+    core,
+    async,
+    packet,
+    cstruct.async,
+    openflow,
+    openflow.async
+
+Executable learning_switch
+  Path: examples
+  MainIs: Learning_Switch.ml
+  Install: false
+  BuildDepends:
+    threads,
+    core,
+    async,
+    packet,
+    cstruct.async,
+    openflow,
+    openflow.async
