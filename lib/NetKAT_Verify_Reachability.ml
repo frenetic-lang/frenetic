@@ -80,8 +80,7 @@ module Verify = struct
 	     then
 		(ZEquals ( (encode_header f "x"),  (TVar "v")))
 	     else
-		(ZOr [(ZLessThan ( (encode_header f "x"),  (TVar "v")));
-		      (ZGreaterThan ( (encode_header f "x"),  (TVar "v")))]))
+		(ZNotEquals ((encode_header f "x"), (TVar "v"))))
 	in
 	Hashtbl.add hashmap f macro;
 	(Hashtbl.find hashmap f) in
@@ -180,13 +179,13 @@ module Verify = struct
 
 end
 
-  let run_solve oko prog query str : bool =
+  let run_solve oko prog query ints str : bool =
     let file = Printf.sprintf "%s%sdebug-%s.rkt" (Filename.get_temp_dir_name ()) Filename.dir_sep str in
     let oc = open_out (file) in 
-    Printf.fprintf oc "%s\n;This is the program corresponding to %s\n" (Sat.serialize_program prog query) str;
+    Printf.fprintf oc "%s\n;This is the program corresponding to %s\n" (Sat.serialize_program prog query ints) str;
     close_out oc;
     let run_result = (
-      match oko, Sat.solve prog query with
+      match oko, Sat.solve prog query ints with
 	| Some (ok : bool), (sat : bool) ->
           if ok = sat then
 	    true
@@ -219,6 +218,6 @@ oko: bool option. has to be Some. True if you think it should be satisfiable.
 			       Sat.ZToplevelComment("rule that puts it all together\n")::last_rule
 			       ::Sat.ZToplevelComment("syntactically-generated rules\n")::(Verify.get_rules())] ) in
 
-  run_solve oko prog Verify.Pervasives.reachability_query str
+  run_solve oko prog Verify.Pervasives.reachability_query (Sat.collect_constants (Seq (Seq (Filter inp,pol),Filter outp))) str
     
   let check = check_reachability
