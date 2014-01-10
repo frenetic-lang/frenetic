@@ -3,7 +3,7 @@ open VInt
 open NetKAT_Verify_Reachability
 open NetKAT_Verify_Tools
 open SDN_Types
-open NetKAT_Sat.Sat
+open NetKAT_Sat.Sat_Utils
 
 
 
