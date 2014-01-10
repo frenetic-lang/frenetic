@@ -32,12 +32,12 @@ module Controller = struct
 
   module SwitchTable = Map.Make(Client_id)
 
+  type m = Message.t
   type t = {
     sub : ChunkController.t;
   }
-  type m = Message.t
 
-  type result = [
+  type e = [
     | `Connect of Client_id.t
     | `Disconnect of Client_id.t * Sexp.t
     | `Message of Client_id.t * m

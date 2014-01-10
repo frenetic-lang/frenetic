@@ -1,5 +1,4 @@
 open Core.Std
-open Async.Std
 
 module Platform = Async_OpenFlow_Platform
 module Header = OpenFlow_Header
@@ -23,6 +22,8 @@ module Message : Platform.Message
 end
 
 module Controller = struct
+  open Async.Std
+
   module Platform = Platform.Make(Message)
   module Client_id = Platform.Client_id
 
@@ -31,11 +32,12 @@ module Controller = struct
   exception Handshake of Client_id.t * string
 
   type m = Platform.m
-
   type t = {
     platform : Platform.t;
     mutable handshakes : SwitchSet.t
   }
+
+  type e = Platform.e
 
   let ensure response =
     match response with

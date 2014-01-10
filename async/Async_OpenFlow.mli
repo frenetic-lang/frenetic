@@ -32,14 +32,9 @@ module Platform : sig
 
     type t
     type m
+    type e
 
     module Client_id : Unique_id
-
-    type result = [
-      | `Connect of Client_id.t
-      | `Disconnect of Client_id.t * Sexp.t
-      | `Message of Client_id.t * m
-    ]
 
     val create
       :  ?max_pending_connections:int
@@ -49,7 +44,7 @@ module Platform : sig
       -> port:int
       -> t Deferred.t
 
-    val listen : t -> result Pipe.Reader.t
+    val listen : t -> e Pipe.Reader.t
 
     val close : t -> Client_id .t -> unit
 
@@ -115,6 +110,9 @@ module Chunk : sig
   module Message : Message
     with type t = (OpenFlow_Header.t * Cstruct.t)
 
+  module Controller : Platform.S
+    with type m = Message.t
+
 end
 
 module OpenFlow0x01 : sig
@@ -124,6 +122,7 @@ module OpenFlow0x01 : sig
 
   module Controller : Platform.S
     with type m = Message.t
+     and type e = Async_OpenFlow0x01.Controller.e
 
   val chunk_conv
     :  Chunk.Message.t Pipe.Reader.t * Chunk.Message.t Pipe.Writer.t
@@ -139,6 +138,7 @@ module OpenFlow0x04 : sig
 
   module Controller : Platform.S
     with type m = Message.t
+     and type e = Async_OpenFlow0x04.Controller.e
 
   val chunk_conv
     :  Chunk.Message.t Pipe.Reader.t * Chunk.Message.t Pipe.Writer.t

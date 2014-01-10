@@ -7,16 +7,10 @@ module type Message = Async_OpenFlow_Message.Message
 module type S = sig
 
   type t 
-
   type m
+  type e
 
   module Client_id : Unique_id
-
-  type result = [
-    | `Connect of Client_id.t
-    | `Disconnect of Client_id.t * Sexp.t
-    | `Message of Client_id.t * m
-  ]
 
   val create
     :  ?max_pending_connections:int
@@ -26,7 +20,7 @@ module type S = sig
     -> port:int
     -> t Deferred.t
 
-  val listen : t -> result Pipe.Reader.t
+  val listen : t -> e Pipe.Reader.t
 
   val close : t -> Client_id.t -> unit
 
@@ -48,6 +42,7 @@ module type S = sig
   val listening_port : t -> int
 
 end
+
 
 module Make(Message : Message) = struct
 
@@ -82,7 +77,7 @@ module Make(Message : Message) = struct
 
   module Client_id =  Impl.Client_id
 
-  type result = [
+  type e = [
     | `Connect of Client_id.t
     | `Disconnect of Client_id.t * Sexp.t
     | `Message of Client_id.t * m
