@@ -22,10 +22,6 @@ Flag quickcheck
   Description: build the frenetic.quickcheck library
   Default: false
 
-Flag lwt
-    Description: build the netcore.lwt library
-    Default: false
-
 Flag async
     Description: build the netcore.async library
     Default: false
@@ -35,10 +31,6 @@ Library netcore
   BuildDepends:
     cstruct,
     dprle,
-    lwt,
-    lwt.syntax,
-    lwt.syntax.log,
-    lwt.unix,
     str,
     ocamlgraph,
     openflow,
@@ -54,8 +46,7 @@ Library netcore
     Dehop,
     NetKAT_Automaton,
     PolicyGenerator,
-    Util,
-    NetKAT_Stream
+    Util
 
 Library async
   Findlibparent: netcore
@@ -68,11 +59,6 @@ Library async
     cstruct,
     cstruct.async,
     dprle,
-    lwt,
-    lwt.syntax,
-    lwt.syntax.log,
-    lwt.unix,
-    str,
     netcore,
     ocamlgraph,
     openflow,
@@ -129,8 +115,6 @@ Executable dehop_test
   MainIs: dehop_test.ml
   Install$: flag(installexec)
   BuildDepends:
-    lwt,
-    lwt.syntax,
     netcore
 
 Executable netkat_test
@@ -138,8 +122,6 @@ Executable netkat_test
   MainIs: netkat_test.ml
   Install$: flag(installexec)
   BuildDepends:
-    lwt,
-    lwt.syntax,
     async,
     core,
     netcore,

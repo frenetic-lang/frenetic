@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: b609bcf1065f1598da20d4b07ae1e4e9)
+# DO NOT EDIT (digest: 2c27d976cfd12d732c08da5a873c7095)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -15,31 +15,22 @@
 "_darcs": not_hygienic
 # Library netcore
 "lib/netcore.cmxs": use_netcore
-<lib/*.ml{,i}>: package(lwt)
-<lib/*.ml{,i}>: package(lwt.syntax)
 <lib/*.ml{,i}>: package(packet)
 <lib/*.ml{,i}>: package(cstruct)
 <lib/*.ml{,i}>: package(dprle)
-<lib/*.ml{,i}>: package(lwt.syntax.log)
-<lib/*.ml{,i}>: package(lwt.unix)
-<lib/*.ml{,i}>: package(str)
 <lib/*.ml{,i}>: package(ocamlgraph)
 <lib/*.ml{,i}>: package(openflow)
 <lib/*.ml{,i}>: package(topology)
+<lib/*.ml{,i}>: package(str)
 # Library async
 "async/async.cmxs": use_async
 <async/*.ml{,i}>: use_netcore
-<async/*.ml{,i}>: package(lwt)
-<async/*.ml{,i}>: package(lwt.syntax)
 <async/*.ml{,i}>: package(async)
 <async/*.ml{,i}>: package(core)
 <async/*.ml{,i}>: package(packet)
 <async/*.ml{,i}>: package(cstruct)
 <async/*.ml{,i}>: package(cstruct.async)
 <async/*.ml{,i}>: package(dprle)
-<async/*.ml{,i}>: package(lwt.syntax.log)
-<async/*.ml{,i}>: package(lwt.unix)
-<async/*.ml{,i}>: package(str)
 <async/*.ml{,i}>: package(ocamlgraph)
 <async/*.ml{,i}>: package(openflow)
 <async/*.ml{,i}>: package(openflow.async)
@@ -47,26 +38,21 @@
 <async/*.ml{,i}>: package(textutils)
 <async/*.ml{,i}>: package(topology)
 <async/*.ml{,i}>: package(sexplib.syntax)
+<async/*.ml{,i}>: package(str)
 # Library quickcheck
 "quickcheck/quickcheck.cmxs": use_quickcheck
 <quickcheck/*.ml{,i}>: use_netcore
-<quickcheck/*.ml{,i}>: package(lwt)
-<quickcheck/*.ml{,i}>: package(lwt.syntax)
 <quickcheck/*.ml{,i}>: package(packet)
 <quickcheck/*.ml{,i}>: package(quickcheck)
 <quickcheck/*.ml{,i}>: package(cstruct)
 <quickcheck/*.ml{,i}>: package(dprle)
-<quickcheck/*.ml{,i}>: package(lwt.syntax.log)
-<quickcheck/*.ml{,i}>: package(lwt.unix)
-<quickcheck/*.ml{,i}>: package(str)
 <quickcheck/*.ml{,i}>: package(ocamlgraph)
 <quickcheck/*.ml{,i}>: package(openflow)
 <quickcheck/*.ml{,i}>: package(topology)
+<quickcheck/*.ml{,i}>: package(str)
 # Executable testtool
 "test/Test.byte": use_quickcheck
 "test/Test.byte": use_netcore
-"test/Test.byte": package(lwt)
-"test/Test.byte": package(lwt.syntax)
 "test/Test.byte": package(oUnit)
 "test/Test.byte": package(packet)
 "test/Test.byte": package(pa_ounit)
@@ -74,16 +60,12 @@
 "test/Test.byte": package(quickcheck)
 "test/Test.byte": package(cstruct)
 "test/Test.byte": package(dprle)
-"test/Test.byte": package(lwt.syntax.log)
-"test/Test.byte": package(lwt.unix)
-"test/Test.byte": package(str)
 "test/Test.byte": package(ocamlgraph)
 "test/Test.byte": package(openflow)
 "test/Test.byte": package(topology)
+"test/Test.byte": package(str)
 <test/*.ml{,i}>: use_quickcheck
 <test/*.ml{,i}>: use_netcore
-<test/*.ml{,i}>: package(lwt)
-<test/*.ml{,i}>: package(lwt.syntax)
 <test/*.ml{,i}>: package(oUnit)
 <test/*.ml{,i}>: package(packet)
 <test/*.ml{,i}>: package(pa_ounit)
@@ -91,26 +73,19 @@
 <test/*.ml{,i}>: package(quickcheck)
 <test/*.ml{,i}>: package(cstruct)
 <test/*.ml{,i}>: package(dprle)
-<test/*.ml{,i}>: package(lwt.syntax.log)
-<test/*.ml{,i}>: package(lwt.unix)
-<test/*.ml{,i}>: package(str)
 <test/*.ml{,i}>: package(ocamlgraph)
 <test/*.ml{,i}>: package(openflow)
 <test/*.ml{,i}>: package(topology)
+<test/*.ml{,i}>: package(str)
 # Executable katnetic
 "frenetic/katnetic.byte": use_async
 "frenetic/katnetic.byte": use_netcore
-"frenetic/katnetic.byte": package(lwt)
-"frenetic/katnetic.byte": package(lwt.syntax)
 "frenetic/katnetic.byte": package(async)
 "frenetic/katnetic.byte": package(core)
 "frenetic/katnetic.byte": package(packet)
 "frenetic/katnetic.byte": package(cstruct)
 "frenetic/katnetic.byte": package(cstruct.async)
 "frenetic/katnetic.byte": package(dprle)
-"frenetic/katnetic.byte": package(lwt.syntax.log)
-"frenetic/katnetic.byte": package(lwt.unix)
-"frenetic/katnetic.byte": package(str)
 "frenetic/katnetic.byte": package(ocamlgraph)
 "frenetic/katnetic.byte": package(openflow)
 "frenetic/katnetic.byte": package(openflow.async)
@@ -118,33 +93,25 @@
 "frenetic/katnetic.byte": package(textutils)
 "frenetic/katnetic.byte": package(topology)
 "frenetic/katnetic.byte": package(sexplib.syntax)
+"frenetic/katnetic.byte": package(str)
 # Executable dehop_test
 "frenetic/dehop_test.byte": use_netcore
-"frenetic/dehop_test.byte": package(lwt)
-"frenetic/dehop_test.byte": package(lwt.syntax)
 "frenetic/dehop_test.byte": package(packet)
 "frenetic/dehop_test.byte": package(cstruct)
 "frenetic/dehop_test.byte": package(dprle)
-"frenetic/dehop_test.byte": package(lwt.syntax.log)
-"frenetic/dehop_test.byte": package(lwt.unix)
-"frenetic/dehop_test.byte": package(str)
 "frenetic/dehop_test.byte": package(ocamlgraph)
 "frenetic/dehop_test.byte": package(openflow)
 "frenetic/dehop_test.byte": package(topology)
+"frenetic/dehop_test.byte": package(str)
 # Executable netkat_test
 "frenetic/netkat_test.byte": use_async
 "frenetic/netkat_test.byte": use_netcore
-"frenetic/netkat_test.byte": package(lwt)
-"frenetic/netkat_test.byte": package(lwt.syntax)
 "frenetic/netkat_test.byte": package(async)
 "frenetic/netkat_test.byte": package(core)
 "frenetic/netkat_test.byte": package(packet)
 "frenetic/netkat_test.byte": package(cstruct)
 "frenetic/netkat_test.byte": package(cstruct.async)
 "frenetic/netkat_test.byte": package(dprle)
-"frenetic/netkat_test.byte": package(lwt.syntax.log)
-"frenetic/netkat_test.byte": package(lwt.unix)
-"frenetic/netkat_test.byte": package(str)
 "frenetic/netkat_test.byte": package(ocamlgraph)
 "frenetic/netkat_test.byte": package(openflow)
 "frenetic/netkat_test.byte": package(openflow.async)
@@ -152,19 +119,15 @@
 "frenetic/netkat_test.byte": package(textutils)
 "frenetic/netkat_test.byte": package(topology)
 "frenetic/netkat_test.byte": package(sexplib.syntax)
+"frenetic/netkat_test.byte": package(str)
 <frenetic/*.ml{,i}>: use_async
 <frenetic/*.ml{,i}>: use_netcore
-<frenetic/*.ml{,i}>: package(lwt)
-<frenetic/*.ml{,i}>: package(lwt.syntax)
 <frenetic/*.ml{,i}>: package(async)
 <frenetic/*.ml{,i}>: package(core)
 <frenetic/*.ml{,i}>: package(packet)
 <frenetic/*.ml{,i}>: package(cstruct)
 <frenetic/*.ml{,i}>: package(cstruct.async)
 <frenetic/*.ml{,i}>: package(dprle)
-<frenetic/*.ml{,i}>: package(lwt.syntax.log)
-<frenetic/*.ml{,i}>: package(lwt.unix)
-<frenetic/*.ml{,i}>: package(str)
 <frenetic/*.ml{,i}>: package(ocamlgraph)
 <frenetic/*.ml{,i}>: package(openflow)
 <frenetic/*.ml{,i}>: package(openflow.async)
@@ -172,8 +135,7 @@
 <frenetic/*.ml{,i}>: package(textutils)
 <frenetic/*.ml{,i}>: package(topology)
 <frenetic/*.ml{,i}>: package(sexplib.syntax)
+<frenetic/*.ml{,i}>: package(str)
 # OASIS_STOP
-<lib/*.ml>: syntax_camlp4o
-<frenetic/*.ml>: syntax_camlp4o
 <test/*.ml>: syntax_camlp4o
 true: thread
