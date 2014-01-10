@@ -1,5 +1,5 @@
 ;; Values
-(define-sort Value () (_ BitVec 64))
+(define-sort Value () Bool)
 
 ;; Fields
 (declare-datatypes () 
@@ -15,7 +15,8 @@
       IP4Src 
       IP4Dst 
       TCPSrcPort 
-      TCPDstPort)))
+      TCPDstPort
+      )))
 
 ;; Predicates
 (declare-sort Predicate)
@@ -33,7 +34,7 @@
 (declare-fun Union (Policy Policy) Policy)
 (declare-fun Sequence (Policy Policy) Policy)
 (declare-fun Star (Policy) Policy)
-(declare-fun Dup () Policy)
+;; (declare-fun Dup () Policy)
 
 (declare-rel Leq (Policy Policy))
 (assert
@@ -43,6 +44,9 @@
 ;;;;;;;;;;;;;;;;;;;;;
 ;; Boolean Algebra ;;
 ;;;;;;;;;;;;;;;;;;;;;
+
+;; BA-Non_trivial
+;; (assert (not (= Tru Fls)))
 
 ;; BA-Plus-Assoc
 (assert 
@@ -132,6 +136,11 @@
 ;;;;;;;;;;;;;;;;;;;;
 ;; Kleene Algebra ;;
 ;;;;;;;;;;;;;;;;;;;;
+
+;; KA-Filter-Injective
+(assert 
+  (forall ((a Predicate) (b Predicate))
+     (implies (= (Filter a) (Filter b)) (= a b))))
 
 ;; KA-Plus-Assoc
 (assert 
@@ -229,10 +238,10 @@
                 (Sequence (Modify f2 v2) (Filter (Test f1 v1)))))))
 
 ;; PA-Dup-Filter-Comm
-(assert 
-  (forall ((f Field) (v Value))
-     (= (Sequence Dup (Filter (Test f v)))
-        (Sequence (Filter (Test f v)) Dup))))
+;; (assert 
+;;   (forall ((f Field) (v Value))
+;;      (= (Sequence Dup (Filter (Test f v)))
+;;         (Sequence (Filter (Test f v)) Dup))))
 
 ;; PA-Mod-Filter
 (assert 
@@ -260,10 +269,13 @@
        (Filter Fls))))
 
 ;; PA-Match-All
-;; (assert 
-;;     (= (Union (Filter (Test Switch (_ bv0 2)))
-;;               (Filter (Test Switch (_ bv1 2))))
-;;        (Filter Tru)))
+(assert
+  (forall ((f Field))
+     (= (Union (Filter (Test f true)) (Filter (Test f false))) 
+     (Filter Tru))))
+
+;; Examples
+;; ...
 
 (check-sat)
 (get-model)
