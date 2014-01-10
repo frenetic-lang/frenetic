@@ -71,8 +71,7 @@ Library async
     Async_OpenFlow0x04,
     Async_OpenFlowChunk
   Modules:
-    Async_OpenFlow,
-    Async_Highlevel
+    Async_OpenFlow
 
 
 Library lwt
