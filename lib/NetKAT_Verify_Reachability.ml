@@ -8,54 +8,19 @@ module Verify = struct
   open Sat
   open SDN_Types
   open Types
-  module Z3PacketSet = Set.Make(String)
 
-  let all_fields =
-      [ Header InPort 
-      ; Header EthSrc
-      ; Header EthDst
-      ; Header EthType
-      ; Header Vlan
-      ; Header VlanPcp
-      ; Header IPProto
-      ; Header IP4Src
-      ; Header IP4Dst
-      ; Header TCPSrcPort
-      ; Header TCPDstPort
-      ; Switch 
-]
-
-
-  let encode_header (header: header) (pkt:zVar) : zTerm =
-    match header with
-      | Header InPort -> 
-        TApp (TVar (serialize_header header), [TVar pkt])
-      | Header EthSrc -> 
-        TApp (TVar (serialize_header header), [TVar pkt])
-      | Header EthDst -> 
-        TApp (TVar (serialize_header header), [TVar pkt])
-      | Header EthType ->  
-        TApp (TVar (serialize_header header), [TVar pkt])
-      | Header Vlan ->  
-        TApp (TVar (serialize_header header), [TVar pkt])
-      | Header VlanPcp ->
-        TApp (TVar (serialize_header header), [TVar pkt])
-      | Header IPProto ->  
-        TApp (TVar (serialize_header header), [TVar pkt])
-      | Header IP4Src ->  
-        TApp (TVar (serialize_header header), [TVar pkt])
-      | Header IP4Dst ->  
-        TApp (TVar (serialize_header header), [TVar pkt])
-      | Header TCPSrcPort ->  
-        TApp (TVar (serialize_header header), [TVar pkt])
-      | Header TCPDstPort ->  
-        TApp (TVar (serialize_header header), [TVar pkt])
-      | Switch -> 
-        TApp (TVar (serialize_header header), [TVar pkt])
-
-  let encode_packet_equals, reset_state_encode_packet_equals = 
+  let reset_state, register_state = 
+    let state_tracked = ref [] in
+    let reset_state () = 
+      Sat.reset_state ();
+      List.iter (fun x -> x ()) (!state_tracked) in
+    let register_state st =
+      state_tracked := st::(!state_tracked) in
+    reset_state, register_state
+      
+  let encode_packet_equals = 
     let hash = Hashtbl.create 0 in 
-    let reset_state () = Hashtbl.clear hash; in
+    let reset_packet_equals () = Hashtbl.clear hash; in
     let encode_packet_equals = 
       (fun (pkt1: zTerm) (pkt2: zTerm) (except :header)  -> 
 	(TApp (
@@ -77,10 +42,8 @@ module Verify = struct
 	      Hashtbl.add hash except new_except;
 	      new_except), 
 	  [pkt1; pkt2]))) in
-    encode_packet_equals, reset_state
-
-  let encode_vint (v: VInt.t): zTerm = 
-    TInt (VInt.get_int64 v)
+    register_state reset_packet_equals; 
+    encode_packet_equals
 
   module Pervasives = struct
     let startpkt = "starting_packet"
@@ -101,8 +64,8 @@ module Verify = struct
 :print-answer false)
 " startpkt endpkt)
   end
-    
-  let pred_test,pred_test_not,reset_pred_test = 
+
+  let pred_test,pred_test_not = 
     let true_hashmap = Hashtbl.create 0 in
     let false_hashmap = Hashtbl.create 0 in
     let pred_test want_true f =  
@@ -123,7 +86,7 @@ module Verify = struct
 	Hashtbl.add hashmap f macro;
 	(Hashtbl.find hashmap f) in
     let reset_pred_test () = Hashtbl.clear true_hashmap; Hashtbl.clear false_hashmap in
-    pred_test true, pred_test false, reset_pred_test
+    register_state reset_pred_test; pred_test true, pred_test false
 
   let zterm x = ZEquals(x, TVar "true")
 
@@ -151,7 +114,7 @@ module Verify = struct
 	(ZOr [forwards_pred pred1;
 	      forwards_pred pred2]) 
 
-  let mod_fun,reset_mod_fun = 
+  let mod_fun = 
     let hashmap = Hashtbl.create 0 in
     let mod_fun f =  
       let packet_equals_fun = encode_packet_equals (TVar "x") (TVar "y") f in
@@ -164,9 +127,9 @@ module Verify = struct
 	Hashtbl.add hashmap packet_equals_fun macro; 
 	(Hashtbl.find hashmap packet_equals_fun) in	
     let reset_mod_fun () = Hashtbl.clear hashmap in
-    mod_fun,reset_mod_fun
+    register_state reset_mod_fun; mod_fun
 
-  let define_relation, get_rules, reset_rules_table = 
+  let define_relation, get_rules = 
     let hashtbl = Hashtbl.create 0 in
     (*convenience names *)
     let inpkt = Pervasives.inpkt in
@@ -213,20 +176,12 @@ module Verify = struct
 	Hashtbl.add hashtbl pol (sym,rules); sym in
     let get_rules () = Hashtbl.fold (fun _ rules a -> snd(rules)@a ) hashtbl [] in
     let reset_rules_table () = Hashtbl.clear hashtbl in
-    define_relation, get_rules, reset_rules_table
+    register_state reset_rules_table; define_relation, get_rules
 
-
-  let reset_state () = 
-    reset_state_encode_packet_equals (); 
-    Sat.reset_state ();
-    reset_pred_test ();
-    reset_rules_table ();
-    reset_mod_fun ()
 end
 
-  let run_solve oko prog str : bool =
+  let run_solve oko prog query str : bool =
     let file = Printf.sprintf "%s%sdebug-%s.rkt" (Filename.get_temp_dir_name ()) Filename.dir_sep str in
-    let query = Verify.Pervasives.reachability_query in
     let oc = open_out (file) in 
     Printf.fprintf oc "%s\n;This is the program corresponding to %s\n" (Sat.serialize_program prog query) str;
     close_out oc;
@@ -263,6 +218,7 @@ oko: bool option. has to be Some. True if you think it should be satisfiable.
 			      [Verify.Pervasives.declarations;
 			       Sat.ZToplevelComment("rule that puts it all together\n")::last_rule
 			       ::Sat.ZToplevelComment("syntactically-generated rules\n")::(Verify.get_rules())] ) in
-  run_solve oko prog str
+
+  run_solve oko prog Verify.Pervasives.reachability_query str
     
   let check = check_reachability

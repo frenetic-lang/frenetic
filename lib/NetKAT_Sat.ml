@@ -205,6 +205,53 @@ module Sat = struct
 	  (serialize_formula body)
 	  sym
 	  (intercalate (fun x -> x) " " vars)
+	  
+  let all_fields =
+    [ Header InPort 
+    ; Header EthSrc
+    ; Header EthDst
+    ; Header EthType
+    ; Header Vlan
+    ; Header VlanPcp
+    ; Header IPProto
+    ; Header IP4Src
+    ; Header IP4Dst
+    ; Header TCPSrcPort
+    ; Header TCPDstPort
+    ; Switch 
+    ]
+      
+      
+  let encode_header (header: header) (pkt:zVar) : zTerm =
+    match header with
+      | Header InPort -> 
+        TApp (TVar (serialize_header header), [TVar pkt])
+      | Header EthSrc -> 
+        TApp (TVar (serialize_header header), [TVar pkt])
+      | Header EthDst -> 
+        TApp (TVar (serialize_header header), [TVar pkt])
+      | Header EthType ->  
+        TApp (TVar (serialize_header header), [TVar pkt])
+      | Header Vlan ->  
+        TApp (TVar (serialize_header header), [TVar pkt])
+      | Header VlanPcp ->
+        TApp (TVar (serialize_header header), [TVar pkt])
+      | Header IPProto ->  
+        TApp (TVar (serialize_header header), [TVar pkt])
+      | Header IP4Src ->  
+        TApp (TVar (serialize_header header), [TVar pkt])
+      | Header IP4Dst ->  
+        TApp (TVar (serialize_header header), [TVar pkt])
+      | Header TCPSrcPort ->  
+        TApp (TVar (serialize_header header), [TVar pkt])
+      | Header TCPDstPort ->  
+        TApp (TVar (serialize_header header), [TVar pkt])
+      | Switch -> 
+        TApp (TVar (serialize_header header), [TVar pkt])
+
+  let encode_vint (v: VInt.t): zTerm = 
+    TInt (VInt.get_int64 v)
+
 
   let define_z3_macro (name : string) (arglist : (zVar * zSort) list)  (rettype : zSort) (body : zFormula)  = 
     [ZDefineVar (name, SMacro (arglist, rettype), body)]
