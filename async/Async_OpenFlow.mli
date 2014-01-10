@@ -110,6 +110,11 @@ module Chunk : sig
   module Message : Message
     with type t = (OpenFlow_Header.t * Cstruct.t)
 
+  (* XXX(seliopou): Due to the way that this was implemented, it is currently
+   * not clear how to expose the event type of the Chunk controller. Right now,
+   * it remains abstract, and therefore the Chunk controller is mostly (pretty
+   * much entirely) useless.
+   * *)
   module Controller : Platform.S
     with type m = Message.t
 
