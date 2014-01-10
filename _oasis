@@ -15,7 +15,8 @@ Library topology
     str,
     ocamlgraph,
     openflow,
-    packet
+    packet,
+    threads
   InternalModules:
     Topology_Core,
     Topology_Util,
