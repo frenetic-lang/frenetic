@@ -34,7 +34,7 @@ function github_install {
 }
 
 github_install ocaml-packet
-github_install ocaml-openflow --enable-lwt
+github_install ocaml-openflow --enable-lwt --enable-async
 github_install ocaml-topology
 github_install dprle
 
