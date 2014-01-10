@@ -38,6 +38,11 @@ module Controller = struct
   }
 
   type e = Platform.e
+  type h = [
+      | `Connect of Client_id.t * int
+      | `Disconnect of Client_id.t * Sexp.t
+      | `Message of Client_id.t * m
+    ]
 
   let ensure response =
     match response with

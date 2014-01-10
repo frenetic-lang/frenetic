@@ -120,8 +120,19 @@ module Chunk : sig
    * it remains abstract, and therefore the Chunk controller is mostly (pretty
    * much entirely) useless.
    * *)
-  module Controller : Platform.S
-    with type m = Message.t
+  module Controller : sig
+    include Platform.S
+      with type m = Message.t
+
+    type h = [
+      | `Connect of Client_id.t * int
+      | `Disconnect of Client_id.t * Sexp.t
+      | `Message of Client_id.t * m
+    ]
+
+    val echo : (t, e, e) Platform.Trans.stage
+    val handshake : int -> (t, e, h) Platform.Trans.stage
+  end
 
 end
 
