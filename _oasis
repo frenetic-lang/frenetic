@@ -69,7 +69,8 @@ Library async
     Async_OpenFlow_ClientServer,
     Async_OpenFlow0x01,
     Async_OpenFlow0x04,
-    Async_OpenFlowChunk
+    Async_OpenFlowChunk,
+    Async_Highlevel
   Modules:
     Async_OpenFlow
 
