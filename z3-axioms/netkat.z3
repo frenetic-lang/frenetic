@@ -34,7 +34,7 @@
 (declare-fun Union (Policy Policy) Policy)
 (declare-fun Sequence (Policy Policy) Policy)
 (declare-fun Star (Policy) Policy)
-;; (declare-fun Dup () Policy)
+(declare-fun Dup () Policy)
 
 (declare-rel Leq (Policy Policy))
 (assert
@@ -140,7 +140,8 @@
 ;; KA-Filter-Injective
 (assert 
   (forall ((a Predicate) (b Predicate))
-     (implies (= (Filter a) (Filter b)) (= a b))))
+     (implies (= (Filter a) (Filter b)) 
+              (= a b))))
 
 ;; KA-Plus-Assoc
 (assert 
@@ -238,10 +239,10 @@
                 (Sequence (Modify f2 v2) (Filter (Test f1 v1)))))))
 
 ;; PA-Dup-Filter-Comm
-;; (assert 
-;;   (forall ((f Field) (v Value))
-;;      (= (Sequence Dup (Filter (Test f v)))
-;;         (Sequence (Filter (Test f v)) Dup))))
+(assert 
+  (forall ((f Field) (v Value))
+     (= (Sequence Dup (Filter (Test f v)))
+        (Sequence (Filter (Test f v)) Dup))))
 
 ;; PA-Mod-Filter
 (assert 
@@ -264,9 +265,10 @@
 ;; PA-Contra
 (assert 
   (forall ((f Field) (v1 Value) (v2 Value))
-    (implies (not (= v1 v2))
-       (Sequence (Filter (Test f v1)) (Filter (Test f v2)))
-       (Filter Fls))))
+    (implies 
+       (not (= v1 v2))
+       (= (Sequence (Filter (Test f v1)) (Filter (Test f v2)))
+          (Filter Fls)))))
 
 ;; PA-Match-All
 (assert
@@ -275,7 +277,7 @@
      (Filter Tru))))
 
 ;; Examples
-;; ...
+;;
 
 (check-sat)
 (get-model)
