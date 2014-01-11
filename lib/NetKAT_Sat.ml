@@ -69,7 +69,6 @@ end
 module Sat = 
   functor (Int_List : ParameterizedOnInts) -> struct
       
-      
     open Sat_Utils
 
     let bitvec_size = Sat_Utils.number_of_bits ((List.length Int_List.ints) + 1)
@@ -114,8 +113,7 @@ module Sat =
     let fresh_cell = ref []
     let macro_list_top = ref []
     let macro_list_bottom = ref []
-      
-    let reset_state () = fresh_cell := []; macro_list_top := []; macro_list_bottom := []
+    
       
     let fresh s = 
       let l = !fresh_cell in  
@@ -157,9 +155,13 @@ module Sat =
     let serialize_arglist args = 
       (intercalate (fun (a, t) -> Printf.sprintf "(%s %s)" a (serialize_sort t)) " " args)
 	
-    let tInt_to_string = function
-      | TInt n -> (Printf.sprintf "_i%s" (Int64.to_string n))
-      | _ -> failwith "wasn't a tint"
+    let tInt_to_string = 
+      let numbers_map = Hashtbl.create 0 in
+      List.iteri (fun i x -> Hashtbl.add numbers_map (VInt.get_int64 x) i) Int_List.ints;
+      let tInt_to_string = function
+	| TInt n -> (Printf.sprintf "(_ bv%d %d)" (Hashtbl.find numbers_map n) bitvec_size)
+	| _ -> failwith "wasn't a tint" in
+      tInt_to_string
 	
     let rec serialize_term term : string = 
       match term with 
@@ -358,14 +360,6 @@ module Sat =
 
     end
 
-    let generate_enumerated_integers (l : (VInt.t list)) = 
-      (intercalate (fun x -> (Printf.sprintf "(define-fun %s () (_ BitVec %d) (_ bv%s %d))")
-	(tInt_to_string (encode_vint x))
-	(bitvec_size)
-	(VInt.get_string x)
-	(bitvec_size)) "\n" l)
-	
-	
     let serialize_program p query: string = 
       let ZProgram(ds) = p in 
       let bitvec_size = number_of_bits (1 + (List.length Int_List.ints)) in
@@ -375,8 +369,7 @@ module Sat =
 			      !macro_list_bottom;
 			      [ZToplevelComment("End Definitions, Commence SAT expressions\n")]; 
 			      ds] in 
-      Printf.sprintf "%s%s\n%s\n%s\n"
-	(generate_enumerated_integers Int_List.ints)
+      Printf.sprintf "%s\n%s\n%s\n"
 	(Z3Pervasives.declare_datatypes bitvec_size)
 	(intercalate serialize_declare "\n" ds') 
 	query
