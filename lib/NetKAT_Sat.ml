@@ -188,11 +188,14 @@ end
 module type Sat_description = 
 sig 
   val serialize_sort : Sat_Syntax.zSort -> string
+  val serialize_term : Sat_Syntax.zTerm -> string
   val z3_macro_top : string -> (Sat_Syntax.zVar * Sat_Syntax.zSort) list -> 
     Sat_Syntax.zSort -> Sat_Syntax.zFormula -> Sat_Syntax.zTerm
   val z3_macro : string -> (Sat_Syntax.zVar * Sat_Syntax.zSort) list -> 
     Sat_Syntax.zSort -> Sat_Syntax.zFormula -> Sat_Syntax.zTerm
   val fresh : Sat_Syntax.zSort -> Sat_Syntax.zVar
+  val bitvec_size : int
+  val bitvec_literal : int -> string
 end
 
 module Sat = 
@@ -248,6 +251,9 @@ module Sat =
 	  
     let serialize_arglist args = 
       (intercalate (fun (a, t) -> Printf.sprintf "(%s %s)" a (serialize_sort t)) " " args)
+	
+    let bitvec_literal n = 
+      (Printf.sprintf "(_ bv%u %u)" n bitvec_size)
 	
     let tInt_to_string = 
       let numbers_map = Hashtbl.create 0 in

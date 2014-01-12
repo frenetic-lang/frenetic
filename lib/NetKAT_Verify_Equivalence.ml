@@ -4,6 +4,29 @@ open Types
 
 module Equivalence = functor (Sat : Sat_description) -> struct
 
+(* (Union (Filter (Test f true)) (Filter (Test f false))) *)
+    
+  let all_possible_bitvecs size = 
+    let make_bitvec = Sat.bitvec_literal in
+    let rec all_possible_bitvecs size list  = 
+      if (size > 0)
+      then
+	match list with 
+	  | [] -> [1;0]
+	  | lst -> let starting_num = List.length lst in
+		   List.flatten [List.map (fun x -> (starting_num + x)) lst; lst]
+      else list in
+    List.map make_bitvec (all_possible_bitvecs size [])
+
+  let union_over_bitvec () = 
+    let (vals_to_union : string list) = all_possible_bitvecs Sat.bitvec_size in
+    let rec build_union (l : string list) : string = 
+      match l with 
+	| [] -> failwith "need at least one value!"
+	| hd::[] -> Printf.sprintf "(Filter (Test f %s))" hd
+	| hd::tl -> Printf.sprintf "(Union %s %s)" (build_union [hd]) (build_union tl) in
+    build_union vals_to_union
+
   let pervasive = "
 ;; Values
 (define-sort Value () "^(Sat.serialize_sort Sat_Syntax.SInt)^")
@@ -280,7 +303,7 @@ module Equivalence = functor (Sat : Sat_description) -> struct
 ;; PA-Match-All
 (assert
   (forall ((f Field))
-     (= (Union (Filter (Test f true)) (Filter (Test f false))) 
+     (= "^union_over_bitvec () ^"
      (Filter Tru))))
 
 ;; Examples
