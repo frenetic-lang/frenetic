@@ -314,36 +314,8 @@ module Sat =
 	    sym
 	    (intercalate (fun x -> x) " " vars)
 
-    module Z3Pervasives = struct
-      let declare_datatypes : string = 
-	"
-(declare-datatypes 
- () 
- ((Packet
-   (packet
-    (Switch "^serialize_sort SInt ^")
-    (EthDst "^serialize_sort SInt ^")
-    (EthType "^serialize_sort SInt ^")
-    (Vlan "^serialize_sort SInt ^")
-    (VlanPcp "^serialize_sort SInt ^")
-    (IPProto "^serialize_sort SInt ^")
-    (IP4Src "^serialize_sort SInt ^")
-    (IP4Dst "^serialize_sort SInt ^")
-    (TCPSrcPort "^serialize_sort SInt ^")
-    (TCPDstPort "^serialize_sort SInt ^")
-    (EthSrc "^serialize_sort SInt ^")
-    (InPort "^serialize_sort SInt ^")))))
-(declare-datatypes
- ()
- ((Hist 
-    (hist-singleton (packet Packet))
-    (hist (packet Packet) (rest-hist Hist))
-    )))" ^ "\n" 
 
-    end
-      
-
-    let serialize_program p query: string = 
+    let serialize_program pervasives p query: string = 
       let ZProgram(ds) = p in 
       let ds' = List.flatten [!fresh_cell;
 			      !macro_list_top;
@@ -352,7 +324,7 @@ module Sat =
 			      [ZToplevelComment("End Definitions, Commence SAT expressions\n")]; 
 			      ds] in 
       Printf.sprintf "%s\n%s\n%s\n"
-	Z3Pervasives.declare_datatypes
+	pervasives
 	(intercalate serialize_declare "\n" ds') 
 	query
 
@@ -374,8 +346,8 @@ module Sat =
       z3_macro, z3_macro_top
 
 
-    let solve prog query: bool = 
-      let s = (serialize_program prog query) in
+    let solve pervasives prog query: bool = 
+      let s = (serialize_program pervasives prog query) in
       let z3_out,z3_in = open_process "z3 -in -smt2 -nw" in 
       let _ = output_string z3_in s in
       let _ = flush z3_in in 

@@ -6,6 +6,7 @@ open NetKAT_Sat
 
 module type Sat_description = 
 sig 
+  val serialize_sort : Sat_Syntax.zSort -> string
   val z3_macro_top : string -> (Sat_Syntax.zVar * Sat_Syntax.zSort) list -> Sat_Syntax.zSort -> Sat_Syntax.zFormula -> Sat_Syntax.zTerm
   val z3_macro : string -> (Sat_Syntax.zVar * Sat_Syntax.zSort) list -> Sat_Syntax.zSort -> Sat_Syntax.zFormula -> Sat_Syntax.zTerm
   val fresh : Sat_Syntax.zSort -> Sat_Syntax.zVar
@@ -49,6 +50,37 @@ module Verify = struct
     open Sat_Syntax
     open Sat_Utils
     open Stateless
+
+    module Z3Pervasives = struct
+      open Sat
+      let declare_datatypes : string = 
+	"
+(declare-datatypes 
+ () 
+ ((Packet
+   (packet
+    (Switch "^serialize_sort SInt ^")
+    (EthDst "^serialize_sort SInt ^")
+    (EthType "^serialize_sort SInt ^")
+    (Vlan "^serialize_sort SInt ^")
+    (VlanPcp "^serialize_sort SInt ^")
+    (IPProto "^serialize_sort SInt ^")
+    (IP4Src "^serialize_sort SInt ^")
+    (IP4Dst "^serialize_sort SInt ^")
+    (TCPSrcPort "^serialize_sort SInt ^")
+    (TCPDstPort "^serialize_sort SInt ^")
+    (EthSrc "^serialize_sort SInt ^")
+    (InPort "^serialize_sort SInt ^")))))
+(declare-datatypes
+ ()
+ ((Hist 
+    (hist-singleton (packet Packet))
+    (hist (packet Packet) (rest-hist Hist))
+    )))" ^ "\n" 
+
+    end
+      
+
     
     let encode_packet_equals = 
       let open Sat in
@@ -234,7 +266,10 @@ let check_reachability  str inp pol outp oko =
 			      [Pervasives.declarations;
 			       ZToplevelComment("rule that puts it all together\n")::last_rule
 			       ::ZToplevelComment("syntactically-generated rules\n")::(Verify.get_rules())] ) in
-  run_solve oko prog Pervasives.reachability_query ints str Sat.serialize_program Sat.solve
-    
+  let query = Pervasives.reachability_query in
+  let pervasives = Verify.Z3Pervasives.declare_datatypes in
+  let serialize = (Sat.serialize_program pervasives) in
+  let solve = (Sat.solve pervasives) in
+  run_solve oko prog query ints str serialize solve
 
   let check = check_reachability
