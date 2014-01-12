@@ -12,7 +12,48 @@ end
    first-order logic, a representation of packets, and a function for
    testing their satisfiability. *)
 
+module Sat_Syntax = struct 
+
+    type zVar = string
+	
+    type zSort = 
+      | SPacket
+      | SInt
+      | SBool
+      | SRelation of (zSort list)
+      | SFunction of (zSort list) * zSort
+      | SMacro of ((zVar * zSort) list) * zSort
+	  
+    type zTerm = 
+      | TUnit 
+      | TVar of zVar
+      | TInt of Int64.t
+      | TApp of zTerm * (zTerm list)
+	  
+    type zFormula =
+      | ZNoop
+      | ZTrue
+      | ZFalse 
+      | ZAnd of zFormula list
+      | ZOr of zFormula list
+      | ZEquals of zTerm * zTerm
+      | ZNotEquals of zTerm * zTerm
+      | ZComment of string * zFormula
+	  
+    type zDeclare = 
+      | ZDeclareRule of zVar * (zVar list) * zFormula
+      | ZDeclareVar of zVar * zSort
+      | ZDefineVar of zVar * zSort * zFormula
+      | ZDeclareAssert of zFormula
+      | ZToplevelComment of string
+	  
+    type zProgram = 
+      | ZProgram of zDeclare list
+
+end
+
 module Sat_Utils = struct
+  open Sat_Syntax
     (*number of bits required to represent number *)
   let number_of_bits n = 
     let rec number_of_bits n acc = 
@@ -63,51 +104,93 @@ let rec remove_links (pol : 'a) : 'a =
     | Seq (f, s) -> Seq (remove_links f, remove_links s)
     | Star p -> Star (remove_links p)
     | Choice _ -> failwith "choice not supported"
-    
+
+    open SDN_Types
+    let serialize_header (header: header) : string = 
+      match header with
+	| Header InPort -> 
+	  "InPort"
+	| Header EthSrc -> 
+	  "EthSrc"
+	| Header EthDst -> 
+	  "EthDst"
+	| Header EthType ->  
+	  "EthType"
+	| Header Vlan ->  
+	  "Vlan"
+	| Header VlanPcp ->
+	  "VlanPcp"
+	| Header IPProto ->  
+	  "IPProto"
+	| Header IP4Src ->  
+	  "IP4Src"
+	| Header IP4Dst ->  
+	  "IP4Dst"
+	| Header TCPSrcPort ->  
+	  "TCPSrcPort"
+	| Header TCPDstPort ->  
+	  "TCPDstPort"
+	| Switch -> 
+	  "Switch"
+	    
+    let serialize_comment c = 
+      Printf.sprintf "%s" c
+	
+	    
+    let all_fields =
+      [ Header InPort 
+      ; Header EthSrc
+      ; Header EthDst
+      ; Header EthType
+      ; Header Vlan
+      ; Header VlanPcp
+      ; Header IPProto
+      ; Header IP4Src
+      ; Header IP4Dst
+      ; Header TCPSrcPort
+      ; Header TCPDstPort
+      ; Switch 
+      ]
+	
+    let encode_header (header: header) (pkt:zVar) : zTerm =
+      match header with
+	| Header InPort -> 
+          TApp (TVar (serialize_header header), [TVar pkt])
+	| Header EthSrc -> 
+          TApp (TVar (serialize_header header), [TVar pkt])
+	| Header EthDst -> 
+          TApp (TVar (serialize_header header), [TVar pkt])
+	| Header EthType ->  
+          TApp (TVar (serialize_header header), [TVar pkt])
+	| Header Vlan ->  
+          TApp (TVar (serialize_header header), [TVar pkt])
+	| Header VlanPcp ->
+          TApp (TVar (serialize_header header), [TVar pkt])
+	| Header IPProto ->  
+          TApp (TVar (serialize_header header), [TVar pkt])
+	| Header IP4Src ->  
+          TApp (TVar (serialize_header header), [TVar pkt])
+	| Header IP4Dst ->  
+          TApp (TVar (serialize_header header), [TVar pkt])
+	| Header TCPSrcPort ->  
+          TApp (TVar (serialize_header header), [TVar pkt])
+	| Header TCPDstPort ->  
+          TApp (TVar (serialize_header header), [TVar pkt])
+	| Switch -> 
+          TApp (TVar (serialize_header header), [TVar pkt])
+
+    let encode_vint (v: VInt.t): zTerm = 
+      TInt (VInt.get_int64 v)
+	    
 end
 
 module Sat = 
   functor (Int_List : ParameterizedOnInts) -> struct
       
     open Sat_Utils
+    open Sat_Syntax
 
     let bitvec_size = Sat_Utils.number_of_bits ((List.length Int_List.ints) + 1)
-
-    type zVar = string
-	
-    type zSort = 
-      | SPacket
-      | SInt
-      | SBool
-      | SRelation of (zSort list)
-      | SFunction of (zSort list) * zSort
-      | SMacro of ((zVar * zSort) list) * zSort
-	  
-    type zTerm = 
-      | TUnit 
-      | TVar of zVar
-      | TInt of Int64.t
-      | TApp of zTerm * (zTerm list)
-	  
-    type zFormula =
-      | ZNoop
-      | ZTrue
-      | ZFalse 
-      | ZAnd of zFormula list
-      | ZOr of zFormula list
-      | ZEquals of zTerm * zTerm
-      | ZNotEquals of zTerm * zTerm
-      | ZComment of string * zFormula
-	  
-    type zDeclare = 
-      | ZDeclareRule of zVar * (zVar list) * zFormula
-      | ZDeclareVar of zVar * zSort
-      | ZDefineVar of zVar * zSort * zFormula
-      | ZDeclareAssert of zFormula
-      | ZToplevelComment of string
-	  
-    type zProgram = 
-      | ZProgram of zDeclare list
 	  
     (* fresh variables *)
     let fresh_cell = ref []
@@ -173,41 +256,8 @@ module Sat =
 	  Printf.sprintf "%s"
             (tInt_to_string term)
 	| TApp (term1, terms) -> 
-	  Printf.sprintf "(%s %s)" (serialize_term term1) (intercalate serialize_term " " terms)
-	    
-    open SDN_Types
-    let serialize_header (header: header) : string = 
-      match header with
-	| Header InPort -> 
-	  "InPort"
-	| Header EthSrc -> 
-	  "EthSrc"
-	| Header EthDst -> 
-	  "EthDst"
-	| Header EthType ->  
-	  "EthType"
-	| Header Vlan ->  
-	  "Vlan"
-	| Header VlanPcp ->
-	  "VlanPcp"
-	| Header IPProto ->  
-	  "IPProto"
-	| Header IP4Src ->  
-	  "IP4Src"
-	| Header IP4Dst ->  
-	  "IP4Dst"
-	| Header TCPSrcPort ->  
-	  "TCPSrcPort"
-	| Header TCPDstPort ->  
-	  "TCPDstPort"
-	| Switch -> 
-	  "Switch"
-	    
-	    
-	    
-    let serialize_comment c = 
-      Printf.sprintf "%s" c
-	
+	  Printf.sprintf "(%s %s)" (serialize_term term1) (intercalate serialize_term " " terms)	    
+
     let rec serialize_formula = function
       | ZNoop -> ""
       | ZTrue -> 
@@ -263,75 +313,9 @@ module Sat =
 	    (serialize_formula body)
 	    sym
 	    (intercalate (fun x -> x) " " vars)
-	    
-    let all_fields =
-      [ Header InPort 
-      ; Header EthSrc
-      ; Header EthDst
-      ; Header EthType
-      ; Header Vlan
-      ; Header VlanPcp
-      ; Header IPProto
-      ; Header IP4Src
-      ; Header IP4Dst
-      ; Header TCPSrcPort
-      ; Header TCPDstPort
-      ; Switch 
-      ]
-	
-	
-    let encode_header (header: header) (pkt:zVar) : zTerm =
-      match header with
-	| Header InPort -> 
-          TApp (TVar (serialize_header header), [TVar pkt])
-	| Header EthSrc -> 
-          TApp (TVar (serialize_header header), [TVar pkt])
-	| Header EthDst -> 
-          TApp (TVar (serialize_header header), [TVar pkt])
-	| Header EthType ->  
-          TApp (TVar (serialize_header header), [TVar pkt])
-	| Header Vlan ->  
-          TApp (TVar (serialize_header header), [TVar pkt])
-	| Header VlanPcp ->
-          TApp (TVar (serialize_header header), [TVar pkt])
-	| Header IPProto ->  
-          TApp (TVar (serialize_header header), [TVar pkt])
-	| Header IP4Src ->  
-          TApp (TVar (serialize_header header), [TVar pkt])
-	| Header IP4Dst ->  
-          TApp (TVar (serialize_header header), [TVar pkt])
-	| Header TCPSrcPort ->  
-          TApp (TVar (serialize_header header), [TVar pkt])
-	| Header TCPDstPort ->  
-          TApp (TVar (serialize_header header), [TVar pkt])
-	| Switch -> 
-          TApp (TVar (serialize_header header), [TVar pkt])
 
-    let encode_vint (v: VInt.t): zTerm = 
-      TInt (VInt.get_int64 v)
-
-
-    let define_z3_macro (name : string) (arglist : (zVar * zSort) list)  (rettype : zSort) (body : zFormula)  = 
-      [ZDefineVar (name, SMacro (arglist, rettype), body)]
-
-    let z3_macro, z3_macro_top = 
-      let z3_macro_picklocation put_at_top (name : string) (arglist : (zVar * zSort) list) (rettype : zSort)(body : zFormula) : zTerm = 
-	let name = name in
-	let new_macro = (define_z3_macro name arglist rettype body) in
-	(if put_at_top then
-	    macro_list_top := new_macro @ (!macro_list_top)
-	 else
-	    macro_list_bottom := new_macro @ (!macro_list_bottom));
-	TVar name in
-      
-      let z3_macro = z3_macro_picklocation false in
-      let z3_macro_top = z3_macro_picklocation true in
-      z3_macro, z3_macro_top
-
-
-	
     module Z3Pervasives = struct
-      let declare_datatypes size : string = 
+      let declare_datatypes : string = 
 	"
 (declare-datatypes 
  () 
@@ -356,13 +340,11 @@ module Sat =
     (hist (packet Packet) (rest-hist Hist))
     )))" ^ "\n" 
 
-
-
     end
+      
 
     let serialize_program p query: string = 
       let ZProgram(ds) = p in 
-      let bitvec_size = number_of_bits (1 + (List.length Int_List.ints)) in
       let ds' = List.flatten [!fresh_cell;
 			      !macro_list_top;
 			      [ZToplevelComment("end initial declarations, commence dependent declarations\n")];
@@ -370,9 +352,27 @@ module Sat =
 			      [ZToplevelComment("End Definitions, Commence SAT expressions\n")]; 
 			      ds] in 
       Printf.sprintf "%s\n%s\n%s\n"
-	(Z3Pervasives.declare_datatypes bitvec_size)
+	Z3Pervasives.declare_datatypes
 	(intercalate serialize_declare "\n" ds') 
 	query
+
+
+    let define_z3_macro (name : string) (arglist : (zVar * zSort) list)  (rettype : zSort) (body : zFormula)  = 
+      [ZDefineVar (name, SMacro (arglist, rettype), body)]
+	
+    let z3_macro, z3_macro_top = 
+      let z3_macro_picklocation put_at_top (name : string) (arglist : (zVar * zSort) list) (rettype : zSort)(body : zFormula) : zTerm = 
+	let name = name in
+	let new_macro = (define_z3_macro name arglist rettype body) in
+	(if put_at_top then
+	    macro_list_top := new_macro @ (!macro_list_top)
+	 else
+	    macro_list_bottom := new_macro @ (!macro_list_bottom));
+	TVar name in      
+      let z3_macro = z3_macro_picklocation false in
+      let z3_macro_top = z3_macro_picklocation true in
+      z3_macro, z3_macro_top
+
 
     let solve prog query: bool = 
       let s = (serialize_program prog query) in

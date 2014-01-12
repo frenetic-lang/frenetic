@@ -6,61 +6,52 @@ open NetKAT_Sat
 
 module type Sat_description = 
 sig 
-  type zVar = string
-      
-  type zSort = 
-    | SPacket
-    | SInt
-    | SBool
-    | SRelation of (zSort list)
-    | SFunction of (zSort list) * zSort
-    | SMacro of ((zVar * zSort) list) * zSort
-	
-  type zTerm = 
-    | TUnit 
-    | TVar of zVar
-    | TInt of Int64.t
-    | TApp of zTerm * (zTerm list)
-	
-  type zFormula =
-    | ZNoop
-    | ZTrue
-    | ZFalse 
-    | ZAnd of zFormula list
-    | ZOr of zFormula list
-    | ZEquals of zTerm * zTerm
-    | ZNotEquals of zTerm * zTerm
-    | ZComment of string * zFormula
-	
-  type zDeclare = 
-    | ZDeclareRule of zVar * (zVar list) * zFormula
-    | ZDeclareVar of zVar * zSort
-    | ZDefineVar of zVar * zSort * zFormula
-    | ZDeclareAssert of zFormula
-    | ZToplevelComment of string
-	
-  type zProgram = 
-    | ZProgram of zDeclare list
-	
-  val encode_header : header -> zVar -> zTerm
-  val encode_vint : VInt.t -> zTerm
-  val all_fields : header list
-  val z3_macro_top : string -> (zVar * zSort) list -> zSort -> zFormula -> zTerm
-  val z3_macro : string -> (zVar * zSort) list -> zSort -> zFormula -> zTerm
-  val serialize_header : header -> string
-  val fresh : zSort -> zVar
-
+  val z3_macro_top : string -> (Sat_Syntax.zVar * Sat_Syntax.zSort) list -> Sat_Syntax.zSort -> Sat_Syntax.zFormula -> Sat_Syntax.zTerm
+  val z3_macro : string -> (Sat_Syntax.zVar * Sat_Syntax.zSort) list -> Sat_Syntax.zSort -> Sat_Syntax.zFormula -> Sat_Syntax.zTerm
+  val fresh : Sat_Syntax.zSort -> Sat_Syntax.zVar
 end
   
-module Verify = 
-  functor (Sat : Sat_description) -> struct
+module Verify = struct
+  module Stateless = struct
+    open Sat_Syntax
+    open Sat_Utils
+      
+      
+    module Pervasives = struct
+      let startpkt = "starting_packet"
+      let endpkt = "ending_packet"
+      let inpkt = "inpkt"
+      let midpkt = "midpkt"
+      let outpkt = "outpkt"
+      let qrule = "q"
+      let declarations = [ZDeclareVar(startpkt, SPacket);
+			  ZDeclareVar(endpkt, SPacket);
+			  ZDeclareVar(inpkt, SPacket);
+			  ZDeclareVar(midpkt, SPacket);
+			  ZDeclareVar(outpkt, SPacket);
+			  ZDeclareVar(qrule, SRelation([SPacket; SPacket]))]
+      let reachability_query = (Printf.sprintf "(query (q %s %s) 
+:default-relation smt_relation2
+:engine PDR
+:print-answer false)
+" startpkt endpkt)
+    end
+      
+      
+    let sint () = SInt
+      
+    let zterm x = ZEquals(x, TVar "true") 
+      
+  end
+  module Stateful = functor (Sat : Sat_description) -> struct
     open SDN_Types
     open Types
-    open Sat
-
-    let sint () = Sat.SInt
+    open Sat_Syntax
+    open Sat_Utils
+    open Stateless
     
     let encode_packet_equals = 
+      let open Sat in
       let hash = Hashtbl.create 0 in 
       let encode_packet_equals = 
 	(fun (pkt1: zTerm) (pkt2: zTerm) (except :header)  -> 
@@ -85,27 +76,8 @@ module Verify =
 	    [pkt1; pkt2]))) in
       encode_packet_equals 
 
-    module Pervasives = struct
-      let startpkt = "starting_packet"
-      let endpkt = "ending_packet"
-      let inpkt = "inpkt"
-      let midpkt = "midpkt"
-      let outpkt = "outpkt"
-      let qrule = "q"
-      let declarations = [ZDeclareVar(startpkt, SPacket);
-			  ZDeclareVar(endpkt, SPacket);
-			  ZDeclareVar(inpkt, SPacket);
-			  ZDeclareVar(midpkt, SPacket);
-			  ZDeclareVar(outpkt, SPacket);
-			  ZDeclareVar(qrule, SRelation([SPacket; SPacket]))]
-      let reachability_query = (Printf.sprintf "(query (q %s %s) 
-:default-relation smt_relation2
-:engine PDR
-:print-answer false)
-" startpkt endpkt)
-    end
-
     let pred_test,pred_test_not = 
+      let open Sat in
       let true_hashmap = Hashtbl.create 0 in
       let false_hashmap = Hashtbl.create 0 in
       let pred_test want_true f =  
@@ -125,8 +97,6 @@ module Verify =
 	  Hashtbl.add hashmap f macro;
 	  (Hashtbl.find hashmap f) in
       pred_test true, pred_test false 
-	
-    let zterm x = ZEquals(x, TVar "true") 
 
     let rec forwards_pred (prd : pred) (pkt : zVar) : zFormula = 
       let forwards_pred pr : zFormula = forwards_pred pr pkt in
@@ -151,8 +121,10 @@ module Verify =
 	| Or (pred1, pred2) -> 
 	  (ZOr [forwards_pred pred1;
 		forwards_pred pred2]) 
-
+	    
+	    
     let mod_fun = 
+      let open Sat in
       let hashmap = Hashtbl.create 0 in
       let mod_fun f =  
 	let packet_equals_fun = encode_packet_equals (TVar "x") (TVar "y") f in
@@ -167,6 +139,7 @@ module Verify =
       mod_fun 
 
     let define_relation, get_rules = 
+      let open Sat in
       let hashtbl = Hashtbl.create 0 in
     (*convenience names *)
       let inpkt = Pervasives.inpkt in
@@ -213,8 +186,10 @@ module Verify =
 	  Hashtbl.add hashtbl pol (sym,rules); sym in
       let get_rules () = Hashtbl.fold (fun _ rules a -> snd(rules)@a ) hashtbl [] in
       define_relation, get_rules
+
   end
-  
+
+end  
     
 (* str: name of your test (unique ID)
 inp: initial packet
@@ -223,40 +198,43 @@ outp: fully-transformed packet
 oko: bool option. has to be Some. True if you think it should be satisfiable.
 *)
 
-
-  let check_reachability  str inp pol outp oko =
-  let ints = (Sat_Utils.collect_constants (Seq (Seq (Filter inp,pol),Filter outp))) in
-  let module Sat = Sat(struct let ints = ints end) in
-  let module Verify = Verify(Sat) in
-  let run_solve oko prog query ints str : bool =
-    let file = Printf.sprintf "%s%sdebug-%s.rkt" (Filename.get_temp_dir_name ()) Filename.dir_sep str in
-    let oc = open_out (file) in 
-    Printf.fprintf oc "%s\n;This is the program corresponding to %s\n" (Sat.serialize_program prog query) str;
-    close_out oc;
-    let run_result = (
-      match oko, Sat.solve prog query with
-	| Some (ok : bool), (sat : bool) ->
-          if ok = sat then
-	    true
-          else
+let run_solve oko prog query ints str serialize_fun solve_fun : bool =
+  let file = Printf.sprintf "%s%sdebug-%s.rkt" (Filename.get_temp_dir_name ()) Filename.dir_sep str in
+  let oc = open_out (file) in 
+  Printf.fprintf oc "%s\n;This is the program corresponding to %s\n" (serialize_fun prog query) str;
+  close_out oc;
+  let run_result = (
+    match oko, solve_fun prog query with
+      | Some (ok : bool), (sat : bool) ->
+        if ok = sat then
+	  true
+        else
             (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; 
 	     Printf.printf "Offending program is in %s\n" file;
 	     false)
-	| None, sat ->
-          (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)) in
-    run_result in
-  let x = Verify.Pervasives.inpkt in
-  let y = Verify.Pervasives.outpkt in
-  let entry_sym = Verify.define_relation pol in
-  let last_rule = Sat.ZDeclareRule (Verify.Pervasives.qrule, [x;y],
-				    Sat.ZAnd[Verify.forwards_pred inp x;
-					     Verify.forwards_pred outp y;
-					     Verify.zterm (Sat.TApp (Sat.TVar entry_sym, [Sat.TVar x; Sat.TVar y]))] ) in
-  let prog = Sat.ZProgram ( List.flatten
-			      [Verify.Pervasives.declarations;
-			       Sat.ZToplevelComment("rule that puts it all together\n")::last_rule
-			       ::Sat.ZToplevelComment("syntactically-generated rules\n")::(Verify.get_rules())] ) in
+      | None, sat ->
+        (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)) in
+  run_result 
 
-  run_solve oko prog Verify.Pervasives.reachability_query ints str
+
+let check_reachability  str inp pol outp oko =
+  let ints = (Sat_Utils.collect_constants (Seq (Seq (Filter inp,pol),Filter outp))) in
+  let module Sat = Sat(struct let ints = ints end) in
+  let open Verify.Stateless in
+  let module Verify = Verify.Stateful(Sat) in
+  let x = Pervasives.inpkt in
+  let y = Pervasives.outpkt in
+  let open Sat_Syntax in
+  let entry_sym = Verify.define_relation pol in
+  let last_rule = ZDeclareRule (Pervasives.qrule, [x;y],
+				    ZAnd[Verify.forwards_pred inp x;
+					     Verify.forwards_pred outp y;
+					     zterm (TApp (TVar entry_sym, [TVar x; TVar y]))] ) in
+  let prog = ZProgram ( List.flatten
+			      [Pervasives.declarations;
+			       ZToplevelComment("rule that puts it all together\n")::last_rule
+			       ::ZToplevelComment("syntactically-generated rules\n")::(Verify.get_rules())] ) in
+  run_solve oko prog Pervasives.reachability_query ints str Sat.serialize_program Sat.solve
     
+
   let check = check_reachability
