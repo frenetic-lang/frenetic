@@ -3,6 +3,7 @@ open Types
 open Util
 open Unix
 
+
 module type ParameterizedOnInts = 
 sig 
   val ints : VInt.t list
@@ -184,6 +185,16 @@ let rec remove_links (pol : 'a) : 'a =
 	    
 end
 
+module type Sat_description = 
+sig 
+  val serialize_sort : Sat_Syntax.zSort -> string
+  val z3_macro_top : string -> (Sat_Syntax.zVar * Sat_Syntax.zSort) list -> 
+    Sat_Syntax.zSort -> Sat_Syntax.zFormula -> Sat_Syntax.zTerm
+  val z3_macro : string -> (Sat_Syntax.zVar * Sat_Syntax.zSort) list -> 
+    Sat_Syntax.zSort -> Sat_Syntax.zFormula -> Sat_Syntax.zTerm
+  val fresh : Sat_Syntax.zSort -> Sat_Syntax.zVar
+end
+
 module Sat = 
   functor (Int_List : ParameterizedOnInts) -> struct
       
@@ -360,4 +371,23 @@ module Sat =
 	 done
        with End_of_file -> ());
       Buffer.contents b = "sat\n"
+
+    let run_solve oko pervasives prog query str : bool =
+      let file = Printf.sprintf "%s%sdebug-%s.rkt" (Filename.get_temp_dir_name ()) Filename.dir_sep str in
+      let oc = open_out (file) in 
+      Printf.fprintf oc "%s\n;This is the program corresponding to %s\n" (serialize_program pervasives prog query) str;
+      close_out oc;
+      let run_result = (
+    match oko, solve pervasives prog query with
+      | Some (ok : bool), (sat : bool) ->
+        if ok = sat then
+	  true
+        else
+            (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; 
+	     Printf.printf "Offending program is in %s\n" file;
+	     false)
+      | None, sat ->
+        (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)) in
+      run_result 
+
   end

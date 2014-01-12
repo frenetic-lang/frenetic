@@ -4,13 +4,6 @@ open Util
 open Unix
 open NetKAT_Sat
 
-module type Sat_description = 
-sig 
-  val serialize_sort : Sat_Syntax.zSort -> string
-  val z3_macro_top : string -> (Sat_Syntax.zVar * Sat_Syntax.zSort) list -> Sat_Syntax.zSort -> Sat_Syntax.zFormula -> Sat_Syntax.zTerm
-  val z3_macro : string -> (Sat_Syntax.zVar * Sat_Syntax.zSort) list -> Sat_Syntax.zSort -> Sat_Syntax.zFormula -> Sat_Syntax.zTerm
-  val fresh : Sat_Syntax.zSort -> Sat_Syntax.zVar
-end
   
 module Verify = struct
   module Stateless = struct
@@ -230,24 +223,6 @@ outp: fully-transformed packet
 oko: bool option. has to be Some. True if you think it should be satisfiable.
 *)
 
-let run_solve oko prog query ints str serialize_fun solve_fun : bool =
-  let file = Printf.sprintf "%s%sdebug-%s.rkt" (Filename.get_temp_dir_name ()) Filename.dir_sep str in
-  let oc = open_out (file) in 
-  Printf.fprintf oc "%s\n;This is the program corresponding to %s\n" (serialize_fun prog query) str;
-  close_out oc;
-  let run_result = (
-    match oko, solve_fun prog query with
-      | Some (ok : bool), (sat : bool) ->
-        if ok = sat then
-	  true
-        else
-            (Printf.printf "[Verify.check %s: expected %b got %b]\n%!" str ok sat; 
-	     Printf.printf "Offending program is in %s\n" file;
-	     false)
-      | None, sat ->
-        (Printf.printf "[Verify.check %s: %b]\n%!" str sat; false)) in
-  run_result 
-
 
 let check_reachability  str inp pol outp oko =
   let ints = (Sat_Utils.collect_constants (Seq (Seq (Filter inp,pol),Filter outp))) in
@@ -267,9 +242,6 @@ let check_reachability  str inp pol outp oko =
 			       ZToplevelComment("rule that puts it all together\n")::last_rule
 			       ::ZToplevelComment("syntactically-generated rules\n")::(Verify.get_rules())] ) in
   let query = Pervasives.reachability_query in
-  let pervasives = Verify.Z3Pervasives.declare_datatypes in
-  let serialize = (Sat.serialize_program pervasives) in
-  let solve = (Sat.solve pervasives) in
-  run_solve oko prog query ints str serialize solve
+  Sat.run_solve oko Verify.Z3Pervasives.declare_datatypes prog query  str
 
   let check = check_reachability

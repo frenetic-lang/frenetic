@@ -4,9 +4,11 @@ open NetKAT_Verify_Reachability
 open NetKAT_Verify_Tools
 open SDN_Types
 open NetKAT_Sat.Sat_Utils
+open NetKAT_Verify_Equivalence
 
 
-
+TEST "simple-check-equivalence" = 
+    check_equivalence (Filter(True)) (Filter(True)) "simple-check-equivalence"
 
 TEST "simple-check" = 
   verify "are tests even running" 

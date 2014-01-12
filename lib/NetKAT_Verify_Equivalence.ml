@@ -1,8 +1,12 @@
-module Equivalence = struct
+open NetKAT_Sat
+open SDN_Types
+open Types
+
+module Equivalence = functor (Sat : Sat_description) -> struct
 
   let pervasive = "
 ;; Values
-(define-sort Value () Bool)
+(define-sort Value () "^(Sat.serialize_sort Sat_Syntax.SInt)^")
 
 ;; Fields
 (declare-datatypes () 
@@ -282,8 +286,16 @@ module Equivalence = struct
 ;; Examples
 ;;
 
-"
 
-  let query = "(get-model)"
+"
+  let equivalence_query = "(check-sat)"
 
 end
+
+let check_equivalence pol1 pol2 str = 
+  let ints = Sat_Utils.collect_constants (Seq (pol1, pol2)) in
+  let module Sat = Sat(struct let ints = ints end) in
+  let module Equivalence = Equivalence(Sat) in
+  let open Sat_Syntax in
+  let prog = ZProgram [ZDeclareAssert ZTrue] in
+  Sat.run_solve (Some true) Equivalence.pervasive prog Equivalence.equivalence_query str
