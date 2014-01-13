@@ -7,7 +7,7 @@ open OpenFlow0x01.Message
 
 module OF0x01Controller = Async_OpenFlow0x01.Controller
 
-module SwitchTable = OF0x01Controller.SwitchTable
+module SwitchTable = Map.Make(OF0x01Controller.Client_id)
 
 module EthTable = Map.Make(struct
   type t = Int64.t sexp_opaque with sexp
