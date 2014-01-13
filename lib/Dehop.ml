@@ -1,5 +1,5 @@
-open Types
-open Pretty
+open NetKAT_Types
+open NetKAT_Pretty
 
 (* JNF: why are we duplicating so much code? *)
 
@@ -7,7 +7,7 @@ open Pretty
 
 type vtag = int
 type vheader = 
-  | Field of Types.header
+  | Field of NetKAT_Types.header
   | Tag of vtag
 
 type virtual_pol =
@@ -1027,7 +1027,7 @@ let policy_to_dehopd_policy p =
   (i'', s'', t'', Par (Seq (Filter vlan_none, e''), Seq(Filter (Neg vlan_none), Seq(strip_vlans e'', strip_vlan))))
 
 let dehopd_policy_to_policy ((i,p,t,e) : policy * policy * policy * policy) : policy =
-  let open Types in
+  let open NetKAT_Types in
 
   (* We analyze the topology (currently from 't'), and compute the edge
    * switches. For edge locations L_e, the policy is

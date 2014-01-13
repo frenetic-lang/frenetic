@@ -1,5 +1,5 @@
 (* KATNetic is a more civilized name than what Nate suggested. *)
-open Types
+open NetKAT_Types
 module Example = struct
   open Dehop
 
@@ -50,6 +50,6 @@ end
 open Dehop
 
 let () =
-  Printf.printf "test_pol: %s\n%!" (Pretty.string_of_policy Example.test_pol);
+  Printf.printf "test_pol: %s\n%!" (NetKAT_Pretty.string_of_policy Example.test_pol);
   let i,s,t,e = policy_to_dehopd_policy Example.test_pol in
-  Printf.printf "%s\n%!" (Pretty.string_of_policy s)
+  Printf.printf "%s\n%!" (NetKAT_Pretty.string_of_policy s)

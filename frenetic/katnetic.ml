@@ -31,11 +31,11 @@ module Run = struct
 
   let automaton p =
     let open NetKAT_Automaton in
-    let open Types in
+    let open NetKAT_Types in
     let i,m,_,e = dehopify p in
     let cache = SwitchMap.mapi (fun sw sw_p ->
-      let sw_f  = Types.Filter(Test(Switch, sw)) in
-      let sw_p' = Types.(Seq(Seq(i,Seq(sw_f, sw_p)),e)) in
+      let sw_f  = NetKAT_Types.Filter(Test(Switch, sw)) in
+      let sw_p' = NetKAT_Types.(Seq(Seq(i,Seq(sw_f, sw_p)),e)) in
       to_table (compile sw sw_p'))
     m in
     (fun sw -> SwitchMap.find sw cache)
@@ -60,7 +60,7 @@ module Dump = struct
 
   module Local = struct
 
-    let flowtable (sw : VInt.t) (p : Types.policy) : unit =
+    let flowtable (sw : VInt.t) (p : NetKAT_Types.policy) : unit =
       let _ = Printf.printf "Compiling switch %ld [size=%d]...%!"
         (VInt.get_int32 sw) (Semantics.size p) in
       let t1 = Unix.gettimeofday () in
@@ -76,13 +76,13 @@ module Dump = struct
           SDN_Types.format_flowTable t;)
 
     let local sw_num p =
-      Format.printf "@[%a\n\n@]%!" Pretty.format_policy p;
+      Format.printf "@[%a\n\n@]%!" NetKAT_Pretty.format_policy p;
       (* NOTE(seliopou): This may not catch all ports, but it'll catch some of
        * 'em! Also, lol for loop.
        * *)
       for sw = 0 to sw_num do
         let vs = VInt.Int64 (Int64.of_int sw) in 
-        let sw_p = Types.(Seq(Filter(Test(Switch,vs)), p)) in 
+        let sw_p = NetKAT_Types.(Seq(Filter(Test(Switch,vs)), p)) in 
         flowtable vs sw_p
       done
 
@@ -99,21 +99,21 @@ module Dump = struct
     let with_dehop f p =
       let i,m,_,e = dehopify p in
       SwitchMap.iter (fun sw pol0 ->
-        let open Types in
+        let open NetKAT_Types in
         let sw_f  = Filter(Test(Switch, sw)) in
         let pol0' = Seq(Seq(i,Seq(sw_f,pol0)),e) in
         f sw pol0')
       m
 
-    let policy (sw : VInt.t) (p : Types.policy) : unit =
+    let policy (sw : VInt.t) (p : NetKAT_Types.policy) : unit =
       Format.printf "@[policy for switch %ld:\n%!%a\n\n@]%!"
         (VInt.get_int32 sw)
-        Pretty.format_policy p
+        NetKAT_Pretty.format_policy p
 
-    let flowtable (sw : VInt.t) (p : Types.policy) : unit =
+    let flowtable (sw : VInt.t) (p : NetKAT_Types.policy) : unit =
       Local.flowtable sw p
 
-    let all (sw : VInt.t) (p : Types.policy) : unit =
+    let all (sw : VInt.t) (p : NetKAT_Types.policy) : unit =
       policy sw p;
       flowtable sw p
 
@@ -136,7 +136,7 @@ module Dump = struct
     end)
 
     let rec get_switches t =
-      let open Types in match t with
+      let open NetKAT_Types in match t with
         | Par(p,q) -> SwitchSet.union (get_switches p) (get_switches q)
         | Link(sw,_,sw',p) -> SwitchSet.add sw (SwitchSet.singleton sw')
         | _ -> SwitchSet.empty
@@ -149,21 +149,21 @@ module Dump = struct
       let _ = Printf.printf "Done [size: %d time: %fs]\n%!" (Semantics.size p)
         (Unix.gettimeofday () -. t1) in
       SwitchSet.iter (fun sw ->
-        let open Types in
+        let open NetKAT_Types in
         let sw_f  = Filter(Test(Switch, sw)) in
         let p' = Seq(Seq(i,Seq(sw_f,p)),e) in
         f sw p')
       switches
 
-    let policy (sw : VInt.t) (p : Types.policy) : unit =
+    let policy (sw : VInt.t) (p : NetKAT_Types.policy) : unit =
       Format.printf "@[policy for switch %ld:\n%!%a\n\n@]%!"
         (VInt.get_int32 sw)
-        Pretty.format_policy p
+        NetKAT_Pretty.format_policy p
 
-    let flowtable (sw : VInt.t) (p : Types.policy) : unit =
+    let flowtable (sw : VInt.t) (p : NetKAT_Types.policy) : unit =
       Local.flowtable sw p
 
-    let all (sw : VInt.t) (p : Types.policy) : unit =
+    let all (sw : VInt.t) (p : NetKAT_Types.policy) : unit =
       policy sw p;
       flowtable sw p
 

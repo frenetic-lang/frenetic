@@ -1,6 +1,6 @@
 module Platform = SDN
 module SDN = SDN_Types
-module NetKAT = Types
+module NetKAT = NetKAT_Types
 module Log = Lwt_log
 
 let section = Log.Section.make "Controller"

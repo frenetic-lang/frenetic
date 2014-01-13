@@ -46,9 +46,9 @@ Library netcore
     PolicyGenerator
 
   Modules:
-    Pretty,
-    Types,
-    Util,
+    NetKAT_Pretty,
+    NetKAT_Types,
+    NetKAT_Util,
     NetKAT_Stream
 
 Library quickcheck

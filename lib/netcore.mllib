@@ -1,8 +1,8 @@
 # OASIS_START
-# DO NOT EDIT (digest: f8afb13777b9e9e429581a176131ba0c)
-Pretty
-Types
-Util
+# DO NOT EDIT (digest: 456120b890e2bbd6f7dc84b934d8b452)
+NetKAT_Pretty
+NetKAT_Types
+NetKAT_Util
 NetKAT_Stream
 Lexer
 Parser

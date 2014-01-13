@@ -30,7 +30,7 @@ let switches (g : t) : SDN_Types.switchId list =
 
 let all_pairs_shortest_paths (g : t) =
   let open SDN_Types in
-  let open Types in
+  let open NetKAT_Types in
   let all_paths = Topology.floyd_warshall g in
   List.fold_left
     (fun pol p ->

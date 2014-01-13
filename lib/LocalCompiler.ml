@@ -10,17 +10,17 @@
 
 (* utility function *)
 let header_val_map_to_string eq sep m =
-  Types.HeaderMap.fold
+  NetKAT_Types.HeaderMap.fold
     (fun h v acc ->
       Printf.sprintf "%s%s%s%s"
-	(Pretty.header_to_string h)
+	(NetKAT_Pretty.header_to_string h)
 	eq
-	(Pretty.value_to_string v)
+	(NetKAT_Pretty.value_to_string v)
 	(if acc = "" then "" else sep ^ acc))
     m ""
 
 module Action = struct
-  type t = Types.header_val_map
+  type t = NetKAT_Types.header_val_map
 
   type this_t = t
 
@@ -28,13 +28,13 @@ module Action = struct
     type t = this_t
 
     let compare (a1:t) (a2:t) =
-      Types.HeaderMap.compare Pervasives.compare a1 a2
+      NetKAT_Types.HeaderMap.compare Pervasives.compare a1 a2
   end)
 
   type group = Set.t list
 
   let to_string (a:t) : string =
-    if Types.HeaderMap.is_empty a then "id"
+    if NetKAT_Types.HeaderMap.is_empty a then "id"
     else Printf.sprintf "%s" (header_val_map_to_string ":=" ", " a)
 
   let set_to_string (s:Set.t) : string =
@@ -94,14 +94,14 @@ module Action = struct
     r
 
   let id : Set.t =
-    Set.singleton (Types.HeaderMap.empty)
+    Set.singleton (NetKAT_Types.HeaderMap.empty)
 
   let drop : Set.t =
     Set.empty
 
   let is_id (s:Set.t) : bool =
     Set.cardinal s = 1 &&
-    (Types.HeaderMap.is_empty (Set.choose s))
+    (NetKAT_Types.HeaderMap.is_empty (Set.choose s))
 
   let is_drop (s:Set.t) : bool =
     Set.is_empty s
@@ -112,7 +112,7 @@ module Action = struct
         Some v2
       | _ ->
         vo1 in
-    Types.HeaderMap.merge f a1 a2
+    NetKAT_Types.HeaderMap.merge f a1 a2
 
   let seq_acts (a:t) (s:Set.t) : Set.t =
     Set.fold
@@ -125,53 +125,53 @@ module Action = struct
          (fun acc si -> seq_acts a si::acc)
          [] g)
 
-  let to_netkat (a:t) : Types.policy =
-    let h_port = Types.Header SDN_Types.InPort in 
-    if Types.HeaderMap.is_empty a then 
-      Types.Filter Types.True
+  let to_netkat (a:t) : NetKAT_Types.policy =
+    let h_port = NetKAT_Types.Header SDN_Types.InPort in 
+    if NetKAT_Types.HeaderMap.is_empty a then 
+      NetKAT_Types.Filter NetKAT_Types.True
     else 
       let f h v pol' = 
 	if h = h_port then 
-	  Types.Seq (pol', Types.Mod (h, v)) 
+	  NetKAT_Types.Seq (pol', NetKAT_Types.Mod (h, v)) 
 	else 
-	  Types.Seq (Types.Mod (h, v), pol') in
-      let (h, v) = Types.HeaderMap.min_binding a in
-      let a' = Types.HeaderMap.remove h a in
-      Types.HeaderMap.fold f a' (Types.Mod (h, v))
+	  NetKAT_Types.Seq (NetKAT_Types.Mod (h, v), pol') in
+      let (h, v) = NetKAT_Types.HeaderMap.min_binding a in
+      let a' = NetKAT_Types.HeaderMap.remove h a in
+      NetKAT_Types.HeaderMap.fold f a' (NetKAT_Types.Mod (h, v))
 	
-  let set_to_netkat (s:Set.t) : Types.policy =
+  let set_to_netkat (s:Set.t) : NetKAT_Types.policy =
     if Set.is_empty s then
-      Types.Filter Types.False
+      NetKAT_Types.Filter NetKAT_Types.False
     else
-      let f a pol' = Types.Par (pol', to_netkat a) in
+      let f a pol' = NetKAT_Types.Par (pol', to_netkat a) in
       let a = Set.min_elt s in
       let s' = Set.remove a s in
       Set.fold f s' (to_netkat a)
 
-  let group_to_netkat (g:group) : Types.policy =
+  let group_to_netkat (g:group) : NetKAT_Types.policy =
     match g with
       | [] ->
-        Types.Filter Types.False
+        NetKAT_Types.Filter NetKAT_Types.False
       | [s] ->
         set_to_netkat s
       | s::g' ->
-        let f pol' s = Types.Choice (pol', set_to_netkat s) in
+        let f pol' s = NetKAT_Types.Choice (pol', set_to_netkat s) in
         List.fold_left f (set_to_netkat s) g'
 end
 
 module Pattern = struct
   exception Empty_pat
 
-  type t = Types.header_val_map
+  type t = NetKAT_Types.header_val_map
 
   module Set = Set.Make(struct
-    type t = Types.header_val_map
+    type t = NetKAT_Types.header_val_map
 
-    let compare = Types.HeaderMap.compare Pervasives.compare
+    let compare = NetKAT_Types.HeaderMap.compare Pervasives.compare
   end)
 
   let to_string (x:t) : string =
-    if Types.HeaderMap.is_empty x then "true"
+    if NetKAT_Types.HeaderMap.is_empty x then "true"
     else Printf.sprintf "<%s>" (header_val_map_to_string "=" ", " x)
 
   let set_to_string (xs:Set.t) : string =
@@ -180,14 +180,14 @@ module Pattern = struct
          (fun x acc -> (if acc = "" then "" else acc ^ ", ") ^ to_string x)
          xs "")
 
-  let tru : t = Types.HeaderMap.empty
+  let tru : t = NetKAT_Types.HeaderMap.empty
 
   let is_tru (x:t) : bool =
-    Types.HeaderMap.is_empty x
+    NetKAT_Types.HeaderMap.is_empty x
 
-  let matches (h:Types.header) (v:Types.header_val) (x:t) : bool =
-    not (Types.HeaderMap.mem h x)
-    || Types.HeaderMap.find h x = v
+  let matches (h:NetKAT_Types.header) (v:NetKAT_Types.header_val) (x:t) : bool =
+    not (NetKAT_Types.HeaderMap.mem h x)
+    || NetKAT_Types.HeaderMap.find h x = v
     
   let subseteq_pat (x:t) (y:t) : bool = 
     let f h vo1 vo2 = match vo1,vo2 with 
@@ -200,7 +200,7 @@ module Pattern = struct
       | None, None -> 
 	Some () in 
     try 
-      let _ = Types.HeaderMap.merge f x y in 
+      let _ = NetKAT_Types.HeaderMap.merge f x y in 
       true
     with Empty_pat -> 
       false
@@ -216,7 +216,7 @@ module Pattern = struct
       | (None, None) ->
         None in
     try
-      Some (Types.HeaderMap.merge f x y)
+      Some (NetKAT_Types.HeaderMap.merge f x y)
     with Empty_pat ->
       None
 
@@ -239,27 +239,27 @@ module Pattern = struct
         None in
     let g h vo1 vo2 = Some (vo1, vo2) in
     try
-      Some (Types.HeaderMap.merge f
-              (Types.HeaderMap.merge g x a) y)
+      Some (NetKAT_Types.HeaderMap.merge f
+              (NetKAT_Types.HeaderMap.merge g x a) y)
     with Empty_pat ->
       None
 
-  let to_netkat (x:t) : Types.pred =
-    if Types.HeaderMap.is_empty x then
-      Types.True
+  let to_netkat (x:t) : NetKAT_Types.pred =
+    if NetKAT_Types.HeaderMap.is_empty x then
+      NetKAT_Types.True
     else
-      let f h v pol' = Types.And (pol', Types.Test (h, v)) in
-      let (h, v) = Types.HeaderMap.min_binding x in
-      let x' = Types.HeaderMap.remove h x in
-      (Types.HeaderMap.fold f x' (Types.Test (h, v)))
+      let f h v pol' = NetKAT_Types.And (pol', NetKAT_Types.Test (h, v)) in
+      let (h, v) = NetKAT_Types.HeaderMap.min_binding x in
+      let x' = NetKAT_Types.HeaderMap.remove h x in
+      (NetKAT_Types.HeaderMap.fold f x' (NetKAT_Types.Test (h, v)))
 
-  let set_to_netkat (xs:Set.t) : Types.pred =
+  let set_to_netkat (xs:Set.t) : NetKAT_Types.pred =
     if Set.is_empty xs then
-      Types.False
+      NetKAT_Types.False
     else
       let x = Set.choose xs in
       let xs' = Set.remove x xs in
-      let f x pol = Types.Or(pol, to_netkat x) in
+      let f x pol = NetKAT_Types.Or(pol, to_netkat x) in
       Set.fold f xs' (to_netkat x)
 end
 
@@ -274,7 +274,7 @@ module Atom = struct
     else
       let cmp = Pattern.Set.compare xs1 xs2 in
       if cmp = 0 then
-        Types.HeaderMap.compare Pervasives.compare x1 x2
+        NetKAT_Types.HeaderMap.compare Pervasives.compare x1 x2
       else
         cmp
 
@@ -317,12 +317,12 @@ module Atom = struct
 	      | None ->
 		acc
 	      | Some x_xi ->
-		if Types.HeaderMap.compare Pervasives.compare x x_xi = 0 then
+		if NetKAT_Types.HeaderMap.compare Pervasives.compare x x_xi = 0 then
 		  raise Empty_atom
 		else if 
 		    Pattern.Set.exists 
 		      (fun xj -> 
-			Types.HeaderMap.compare Pervasives.compare xi xj <> 0 &&
+			NetKAT_Types.HeaderMap.compare Pervasives.compare xi xj <> 0 &&
 			  Pattern.subseteq_pat xi xj) 
 		      xs 
 		then 
@@ -525,25 +525,25 @@ module Local = struct
       (fun ri acc -> extend ri [Action.id] acc) 
       rs Atom.Map.empty
 
-  let rec of_pred (sw:SDN_Types.fieldVal) (pr:Types.pred) : t =
+  let rec of_pred (sw:SDN_Types.fieldVal) (pr:NetKAT_Types.pred) : t =
     match pr with
-      | Types.True ->
+      | NetKAT_Types.True ->
         Atom.Map.singleton Atom.tru [Action.id]
-      | Types.False ->
+      | NetKAT_Types.False ->
         Atom.Map.empty
-      | Types.Neg p ->
+      | NetKAT_Types.Neg p ->
         negate (of_pred sw p)
-      | Types.Test (Types.Switch, v) ->
+      | NetKAT_Types.Test (NetKAT_Types.Switch, v) ->
         if v = sw then
-          of_pred sw Types.True
+          of_pred sw NetKAT_Types.True
         else
-          of_pred sw Types.False
-      | Types.Test (h, v) ->
-        let p = Types.HeaderMap.singleton h v in
+          of_pred sw NetKAT_Types.False
+      | NetKAT_Types.Test (h, v) ->
+        let p = NetKAT_Types.HeaderMap.singleton h v in
         Atom.Map.singleton (Pattern.Set.empty, p) [Action.id]
-      | Types.And (pr1, pr2) ->
+      | NetKAT_Types.And (pr1, pr2) ->
         seq_local (of_pred sw pr1) (of_pred sw pr2)
-      | Types.Or (pr1, pr2) ->
+      | NetKAT_Types.Or (pr1, pr2) ->
         par_local (of_pred sw pr1) (of_pred sw pr2)
 
   let star_local (p:t) : t =
@@ -557,58 +557,58 @@ module Local = struct
     let p0 = Atom.Map.singleton Atom.tru [Action.id] in
     loop p0 p0
 
-  let rec of_policy (sw:SDN_Types.fieldVal) (pol:Types.policy) : t =
+  let rec of_policy (sw:SDN_Types.fieldVal) (pol:NetKAT_Types.policy) : t =
     match pol with
-      | Types.Filter pr ->
+      | NetKAT_Types.Filter pr ->
         of_pred sw pr
-      | Types.Mod (h, v) ->
-        Atom.Map.singleton Atom.tru [Action.Set.singleton (Types.HeaderMap.singleton h v)]
-      | Types.Par (pol1, pol2) ->
+      | NetKAT_Types.Mod (h, v) ->
+        Atom.Map.singleton Atom.tru [Action.Set.singleton (NetKAT_Types.HeaderMap.singleton h v)]
+      | NetKAT_Types.Par (pol1, pol2) ->
         par_local (of_policy sw pol1) (of_policy sw pol2)
-      | Types.Choice (pol1, pol2) ->
+      | NetKAT_Types.Choice (pol1, pol2) ->
         choice_local (of_policy sw pol1) (of_policy sw pol2)
-      | Types.Seq (pol1, pol2) ->
+      | NetKAT_Types.Seq (pol1, pol2) ->
         seq_local (of_policy sw pol1) (of_policy sw pol2)
-      | Types.Star pol ->
+      | NetKAT_Types.Star pol ->
         star_local (of_policy sw pol)
-      | Types.Link(sw,pt,sw',pt') ->
+      | NetKAT_Types.Link(sw,pt,sw',pt') ->
 	failwith "Not a local policy"
 
-  let to_netkat (p:t) : Types.policy =
+  let to_netkat (p:t) : NetKAT_Types.policy =
     (* "smart" constructors *)
     let mk_par nc1 nc2 =
       match nc1, nc2 with
-        | Types.Filter Types.False, _ -> nc2
-        | _, Types.Filter Types.False -> nc1
-        | _ -> Types.Par(nc1,nc2) in
+        | NetKAT_Types.Filter NetKAT_Types.False, _ -> nc2
+        | _, NetKAT_Types.Filter NetKAT_Types.False -> nc1
+        | _ -> NetKAT_Types.Par(nc1,nc2) in
     let mk_seq nc1 nc2 =
       match nc1, nc2 with
-        | Types.Filter Types.True, _ -> nc2
-        | _, Types.Filter Types.True -> nc1
-        | Types.Filter Types.False, _ -> nc1
-        | _, Types.Filter Types.False -> nc2
-        | _ -> Types.Seq(nc1,nc2) in
+        | NetKAT_Types.Filter NetKAT_Types.True, _ -> nc2
+        | _, NetKAT_Types.Filter NetKAT_Types.True -> nc1
+        | NetKAT_Types.Filter NetKAT_Types.False, _ -> nc1
+        | _, NetKAT_Types.Filter NetKAT_Types.False -> nc2
+        | _ -> NetKAT_Types.Seq(nc1,nc2) in
     let mk_and pat1 pat2 =
       match pat1,pat2 with
-        | Types.False,_ -> pat1
-        | _,Types.False -> pat2
-        | Types.True,_ -> pat2
-        | _,Types.True -> pat1
-        | _ -> Types.And(pat1,pat2) in
+        | NetKAT_Types.False,_ -> pat1
+        | _,NetKAT_Types.False -> pat2
+        | NetKAT_Types.True,_ -> pat2
+        | _,NetKAT_Types.True -> pat1
+        | _ -> NetKAT_Types.And(pat1,pat2) in
     let mk_not pat =
       match pat with
-        | Types.False -> Types.True
-        | Types.True -> Types.False
-        | _ -> Types.Neg(pat) in
+        | NetKAT_Types.False -> NetKAT_Types.True
+        | NetKAT_Types.True -> NetKAT_Types.False
+        | _ -> NetKAT_Types.Neg(pat) in
     let rec loop p =
       if Atom.Map.is_empty p then
-        Types.Filter Types.False
+        NetKAT_Types.Filter NetKAT_Types.False
       else
         let r,g = Atom.Map.min_binding p in
         let p' = Atom.Map.remove r p in
         let (xs,x) = r in
         let nc_pred = mk_and (mk_not (Pattern.set_to_netkat xs)) (Pattern.to_netkat x) in
-        let nc_pred_acts = mk_seq (Types.Filter nc_pred) (Action.group_to_netkat g) in
+        let nc_pred_acts = mk_seq (NetKAT_Types.Filter nc_pred) (Action.group_to_netkat g) in
         mk_par nc_pred_acts (loop p') in
     loop p
 
@@ -619,20 +619,20 @@ module RunTime = struct
   let to_action (a:Action.t) (pto: VInt.t option) : SDN_Types.seq =
     let port = 
       try 
-        Types.HeaderMap.find (Types.Header SDN_Types.InPort) a 
+        NetKAT_Types.HeaderMap.find (NetKAT_Types.Header SDN_Types.InPort) a 
       with Not_found -> 
         begin match pto with 
           | Some pt -> pt
           | None -> raise (Invalid_argument "Action.to_action: indeterminate port")
         end in 
-    let mods = Types.HeaderMap.remove (Types.Header SDN_Types.InPort) a in
+    let mods = NetKAT_Types.HeaderMap.remove (NetKAT_Types.Header SDN_Types.InPort) a in
     let mk_mod h v act =
       match h with
-        | Types.Switch -> 
+        | NetKAT_Types.Switch -> 
 	  raise (Invalid_argument "Action.to_action: got switch update")
-        | Types.Header h' -> 
+        | NetKAT_Types.Header h' -> 
 	  (SDN_Types.SetField (h', v)) :: act in
-      Types.HeaderMap.fold mk_mod mods [SDN_Types.OutputPort port]  
+      NetKAT_Types.HeaderMap.fold mk_mod mods [SDN_Types.OutputPort port]  
 
   let set_to_action (s:Action.Set.t) (pto : VInt.t option) : SDN_Types.par =
     let f a par = (to_action a pto)::par in
@@ -642,23 +642,23 @@ module RunTime = struct
     List.map (fun s -> set_to_action s pto) g
 
   let to_pattern (x:Pattern.t) : SDN_Types.pattern =
-    let f (h : Types.header) (v : Types.header_val) (pat : SDN_Types.pattern) =
+    let f (h : NetKAT_Types.header) (v : NetKAT_Types.header_val) (pat : SDN_Types.pattern) =
       match h with
-        | Types.Switch ->
+        | NetKAT_Types.Switch ->
           raise (Invalid_argument "RunTime.to_pattern: unexpected switch")
-        | Types.Header h' -> SDN_Types.FieldMap.add h' v pat in
-    Types.HeaderMap.fold f x SDN_Types.FieldMap.empty
+        | NetKAT_Types.Header h' -> SDN_Types.FieldMap.add h' v pat in
+    NetKAT_Types.HeaderMap.fold f x SDN_Types.FieldMap.empty
 
   type i = Local.t
 
-  let compile (sw:SDN_Types.fieldVal) (pol:Types.policy) : i =
+  let compile (sw:SDN_Types.fieldVal) (pol:NetKAT_Types.policy) : i =
     let r = Local.of_policy sw pol in
     (* Printf.printf "COMPILE\n%s\n%s\n" *)
-    (*   (Pretty.string_of_policy pol) *)
+    (*   (NetKAT_Pretty.string_of_policy pol) *)
     (*   (Local.to_string r); *)
     r
 
-  let decompile (p:i) : Types.policy =
+  let decompile (p:i) : NetKAT_Types.policy =
     Local.to_netkat p
 
   let simpl_flow (p : SDN_Types.pattern) (a : SDN_Types.group) : SDN_Types.flow = {
@@ -674,7 +674,7 @@ module RunTime = struct
     let add_flow x g l =
       let pto = 
         try 
-          Some (Types.HeaderMap.find (Types.Header SDN_Types.InPort) x) 
+          Some (NetKAT_Types.HeaderMap.find (NetKAT_Types.Header SDN_Types.InPort) x) 
         with Not_found -> 
           None in 
       simpl_flow (to_pattern x) (group_to_action g pto) :: l in

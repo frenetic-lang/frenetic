@@ -1,4 +1,4 @@
-open Types
+open NetKAT_Types
 
 val policy_to_dehopd_policy : policy -> policy * policy * policy * policy
 val dehopd_policy_to_policy : policy * policy * policy * policy -> policy

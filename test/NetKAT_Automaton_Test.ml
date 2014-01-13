@@ -1,5 +1,5 @@
-open Types
-open Pretty
+open NetKAT_Types
+open NetKAT_Pretty
 open QuickCheck
 
 let policy_parse (p : string) : policy =

@@ -1,6 +1,6 @@
 
-val arbitrary_link : Types.policy QuickCheck.arbitrary
-val arbitrary_lf_pol : Types.policy QuickCheck.arbitrary
+val arbitrary_link : NetKAT_Types.policy QuickCheck.arbitrary
+val arbitrary_lf_pol : NetKAT_Types.policy QuickCheck.arbitrary
 
-val arbitrary_policy : Types.policy QuickCheck.arbitrary
-val arbitrary_packet : Types.packet QuickCheck.arbitrary
+val arbitrary_policy : NetKAT_Types.policy QuickCheck.arbitrary
+val arbitrary_packet : NetKAT_Types.packet QuickCheck.arbitrary
