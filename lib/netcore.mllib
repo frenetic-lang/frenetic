@@ -1,11 +1,11 @@
 # OASIS_START
-# DO NOT EDIT (digest: 6f7f0a9076e5665bc3f283fa9c93d6ae)
+# DO NOT EDIT (digest: f8afb13777b9e9e429581a176131ba0c)
+Pretty
+Types
 Util
 NetKAT_Stream
-Types
 Lexer
 Parser
-Pretty
 Semantics
 LocalCompiler
 Dehop

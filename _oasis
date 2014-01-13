@@ -36,10 +36,8 @@ Library netcore
     openflow,
     topology
   InternalModules:
-    Types,
     Lexer,
     Parser,
-    Pretty,
     Semantics,
     LocalCompiler,
     Dehop,
@@ -48,6 +46,8 @@ Library netcore
     PolicyGenerator
 
   Modules:
+    Pretty,
+    Types,
     Util,
     NetKAT_Stream
 
