@@ -6,24 +6,28 @@ open NetKAT_Types
   does not have. This behavior is different from OpenFlow, which fails  silently
   in both cases. *)
 
-let rec size_pred (pr:pred) : int = 
-  match pr with
-    | True -> 1
-    | False -> 1
-    | Test(_,_) -> 3
-    | And(pr1,pr2) -> size_pred pr1 + size_pred pr2 + 1
-    | Or(pr1,pr2) -> size_pred pr1 + size_pred pr2 + 1
-    | Neg(pr) -> size_pred pr + 1
-  
-let rec size (pol:policy) : int = 
-  match pol with
-    | Filter pr -> size_pred pr + 1
-    | Mod(_,_) -> 3
-    | Par(pol1, pol2) -> size pol1 + size pol2 + 1
-    | Seq(pol1, pol2) -> size pol1 + size pol2 + 1
-    | Choice(pol1, pol2) -> size pol1 + size pol2 + 1
-    | Star(pol) -> size pol + 1
-    | Link(_,_,_,_) -> 5
+let size_pred (pr:pred) : int = 
+  let rec size_pred (pr:pred) f : int = 
+    match pr with
+      | True -> f 1
+      | False -> f 1
+      | Test(_,_) -> f 3
+      | And(pr1,pr2)
+      | Or(pr1,pr2) -> size_pred pr1 (fun spr1 -> size_pred pr2 (fun spr2 -> f (1 + spr1 + spr2)))
+      | Neg(pr) -> size_pred pr (fun spr -> f (1 + spr)) in
+  size_pred pr (fun spr -> spr)
+
+let size (pol:policy) : int = 
+  let rec size (pol:policy) f : int = 
+    match pol with
+      | Filter pr -> f (size_pred pr + 1)
+      | Mod(_,_) -> f 3
+      | Par(pol1, pol2)
+      | Seq(pol1, pol2)
+      | Choice(pol1, pol2) -> size pol1 (fun spol1 -> size pol2 (fun spol2 -> f (1 + spol1 + spol2)))
+      | Star(pol) -> size pol (fun spol -> f (1 + spol))
+      | Link(_,_,_,_) -> f 5 in
+  size pol (fun spol -> spol)
   
 let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
   | True -> true

@@ -1,4 +1,5 @@
 OASISFormat: 0.3
+OCamlVersion: >= 4.01.0
 Name:        frenetic
 Version:     1.0.2
 Synopsis:    The Frenetic Compiler and Runtime System
@@ -24,23 +25,23 @@ Flag quickcheck
 Library netcore
   Path: lib
   BuildDepends:
-    lwt,
-    lwt.unix,
     cstruct,
     dprle,
+    lwt,
     lwt.syntax,
     lwt.syntax.log,
+    lwt.unix,
     str,
     ocamlgraph,
-    packet,
     openflow,
+    openflow.lwt,
+    packet,
     topology
   InternalModules:
     Lexer,
     Parser,
     Semantics,
     LocalCompiler,
-    Dehop,
     NetKAT_Automaton,
     Controller,
     PolicyGenerator
@@ -55,6 +56,7 @@ Library quickcheck
   Findlibparent: netcore
   Findlibname: quickcheck
   Path: quickcheck
+  Build$: flag(quickcheck) || flag(tests)
   BuildDepends:
     quickcheck,
     netcore
@@ -64,6 +66,7 @@ Library quickcheck
 Executable testtool
   Path: test
   MainIs: Test.ml
+  Build$: flag(tests)
   BuildDepends: 
     oUnit,packet,
     netcore,
@@ -87,15 +90,6 @@ Executable katnetic
     lwt.syntax,
     netcore
 
-Executable dehop_test
-  Path: frenetic
-  MainIs: dehop_test.ml
-  Install$: flag(installexec)
-  BuildDepends:
-    lwt,
-    lwt.syntax,
-    netcore
-
 Executable netkat_test
   Path: frenetic
   MainIs: netkat_test.ml
@@ -107,7 +101,7 @@ Executable netkat_test
 
 Document doc
   Title: NetCore Documentation
-  Type: ocamlbuild (0.3)
+  Type: OCamlbuild (0.3)
   XOCamlBuildPath: lib
   XOCamlBuildModules:
     NetCore_Compiler,

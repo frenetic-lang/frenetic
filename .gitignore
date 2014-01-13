@@ -10,3 +10,4 @@ setup.data
 setup.log
 *~
 .*.sw[po]
+vagrant/.vagrant/*

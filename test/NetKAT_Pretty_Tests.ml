@@ -26,6 +26,8 @@ TEST "simple filter" = test_pretty p_str1 = true
 TEST "simple sequence" = test_pretty p_str2 = true
 TEST "assoc par" = test_pretty p_str3 = true
 
+TEST "conditional" = test_pretty "if port = 1 then drop else id" = true
+
 TEST "line wrap" =
   let str = "\
   filter port = 1; filter port = 1; filter port = 1; filter port = 1 +\n\

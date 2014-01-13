@@ -526,25 +526,27 @@ module Local = struct
       rs Atom.Map.empty
 
   let rec of_pred (sw:SDN_Types.fieldVal) (pr:NetKAT_Types.pred) : t =
-    match pr with
+    let rec loop pr k = 
+      match pr with
       | NetKAT_Types.True ->
-        Atom.Map.singleton Atom.tru [Action.id]
+        k (Atom.Map.singleton Atom.tru [Action.id])
       | NetKAT_Types.False ->
-        Atom.Map.empty
-      | NetKAT_Types.Neg p ->
-        negate (of_pred sw p)
+        k (Atom.Map.empty)
+      | NetKAT_Types.Neg pr ->
+        loop pr (fun p -> k (negate p))
       | NetKAT_Types.Test (NetKAT_Types.Switch, v) ->
-        if v = sw then
-          of_pred sw NetKAT_Types.True
+        if v = sw then 
+          loop NetKAT_Types.True k
         else
-          of_pred sw NetKAT_Types.False
+          loop NetKAT_Types.False k
       | NetKAT_Types.Test (h, v) ->
         let p = NetKAT_Types.HeaderMap.singleton h v in
-        Atom.Map.singleton (Pattern.Set.empty, p) [Action.id]
+        k (Atom.Map.singleton (Pattern.Set.empty, p) [Action.id])
       | NetKAT_Types.And (pr1, pr2) ->
-        seq_local (of_pred sw pr1) (of_pred sw pr2)
+        loop pr1 (fun p1 -> loop pr2 (fun p2 -> k (seq_local p1 p2)))
       | NetKAT_Types.Or (pr1, pr2) ->
-        par_local (of_pred sw pr1) (of_pred sw pr2)
+        loop pr1 (fun p1 -> loop pr2 (fun p2 -> k (par_local p1 p2))) in 
+    loop pr (fun x -> x)
 
   let star_local (p:t) : t =
     let rec loop acc pi =
@@ -557,22 +559,26 @@ module Local = struct
     let p0 = Atom.Map.singleton Atom.tru [Action.id] in
     loop p0 p0
 
-  let rec of_policy (sw:SDN_Types.fieldVal) (pol:NetKAT_Types.policy) : t =
-    match pol with
-      | NetKAT_Types.Filter pr ->
-        of_pred sw pr
-      | NetKAT_Types.Mod (h, v) ->
-        Atom.Map.singleton Atom.tru [Action.Set.singleton (NetKAT_Types.HeaderMap.singleton h v)]
-      | NetKAT_Types.Par (pol1, pol2) ->
-        par_local (of_policy sw pol1) (of_policy sw pol2)
-      | NetKAT_Types.Choice (pol1, pol2) ->
-        choice_local (of_policy sw pol1) (of_policy sw pol2)
-      | NetKAT_Types.Seq (pol1, pol2) ->
-        seq_local (of_policy sw pol1) (of_policy sw pol2)
-      | NetKAT_Types.Star pol ->
-        star_local (of_policy sw pol)
-      | NetKAT_Types.Link(sw,pt,sw',pt') ->
-	failwith "Not a local policy"
+  let of_policy (sw:SDN_Types.fieldVal) (pol:NetKAT_Types.policy) : t =
+    let rec loop pol k =  
+      match pol with
+        | NetKAT_Types.Filter pr ->
+          k (of_pred sw pr)
+        | NetKAT_Types.Mod (h, v) ->
+          k (Atom.Map.singleton Atom.tru [Action.Set.singleton (NetKAT_Types.HeaderMap.singleton h v)])
+        | NetKAT_Types.Par (pol1, pol2) ->
+          loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (par_local p1 p2)))
+        | NetKAT_Types.Choice (pol1, pol2) ->
+          loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (choice_local p1 p2)))
+        | NetKAT_Types.Seq (pol1, pol2) ->
+          loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (seq_local p1 p2)))
+        | NetKAT_Types.Star pol ->
+          loop pol (fun p -> k (star_local p))
+        | NetKAT_Types.Link(sw,pt,sw',pt') ->
+          failwith "Not a local policy" in 
+    loop pol (fun x -> 
+      (* Printf.printf "### DONE ###\n%!";  *)
+      x)
 
   let to_netkat (p:t) : NetKAT_Types.policy =
     (* "smart" constructors *)
