@@ -1,7 +1,7 @@
 open Core.Std
 open Async.Std
 
-module Platform = Async_Highlevel
+module Platform = Async_OpenFlow.Highlevel
 module SDN = SDN_Types
 module NetKAT = Types
 
