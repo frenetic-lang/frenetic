@@ -1493,6 +1493,23 @@ module Message = struct
     | BarrierReply -> failwith "NYI: sizeof BarrierReply"
     | Error _ -> failwith "NYI: sizeof Error"
 
+  let to_string (msg : t) : string = match msg with
+    | Hello -> "Hello"
+    | Error _ -> "Error"
+    | EchoRequest _ -> "EchoRequest"
+    | EchoReply _ -> "EchoReply"
+    | FeaturesRequest -> "FeaturesRequest"
+    | FeaturesReply _ -> "FeaturesReply"
+    | FlowModMsg _ -> "FlowMod"
+    | GroupModMsg _ -> "GroupMod"
+    | PacketInMsg _ -> "PacketIn"
+    | PacketOutMsg _ -> "PacketOut"
+    | PortStatusMsg _ -> "PortStatus"
+    | MultipartReq _ -> "MultipartRequest"
+    | MultipartReply _ -> "MultipartReply"
+    | BarrierRequest -> "BarrierRequest"
+    | BarrierReply -> "BarrierReply"
+
   (* let marshal (buf : Cstruct.t) (msg : message) : int = *)
   (*   let buf2 = (Cstruct.shift buf Header.size) in *)
   (*   set_ofp_header_version buf 0x04; *)

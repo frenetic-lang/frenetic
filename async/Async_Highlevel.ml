@@ -150,6 +150,14 @@ let features t evt =
              handshake_error c_id 
                (Printf.sprintf "expected port description reply in %s%!" (to_string hdr))
         end
+     | _, Some (Connected0x01 sw_id) -> 
+        let _, msg = M1.parse hdr (Cstruct.to_string bits) in
+        Log.error ~tags "received unhandled message %s" (M1.to_string msg);
+        return None
+     | _, Some (Connected0x04 sw_id) -> 
+        let _, msg = M4.parse hdr (Cstruct.to_string bits) in
+        Log.error ~tags "received unhandled message %s" (M4.to_string msg);
+        return None
      | _, Some state -> 
         return None
      | _, None -> 
@@ -180,6 +188,7 @@ let send_msg0x01 t c_id msg =
   Deferred.ignore (send t c_id msg_c)
 
 let send_msg0x04 t c_id msg =
+  Log.info ~tags "send_msg0x04 %s" (OF4.Message.to_string msg);
   let msg_c = Async_OpenFlow0x04.Message.marshal' (0l, msg) in
   Deferred.ignore (send t c_id msg_c)
 
@@ -202,16 +211,18 @@ let setup_flow_table t (sw:S.switchId) (tbl:S.flowTable) =
      Deferred.all_ignore flow_mods
   | Some Connected0x04 _ -> 
      let tbl = SDN_OpenFlow0x04.fix_vlan_in_table tbl in 
-     let priority = ref 65536 in
+     let priority = ref 65535 in
      let group_table = GroupTable0x04.create () in 
-     let send_flow_mod (fl : S.flow) : unit Deferred.t =
+     let mk_flow_mod (fl : S.flow) =
+      let flow_mod = SDN_OpenFlow0x04.from_flow group_table !priority fl in
        decr priority;
-       send_msg0x04 t c_id (M4.FlowModMsg (SDN_OpenFlow0x04.from_flow group_table !priority fl)) in
+       M4.FlowModMsg flow_mod in
      let delete_flows = send_msg0x04 t c_id (M4.FlowModMsg OF4_Core.delete_all_flows) in
-     let group_mods = List.map (GroupTable0x04.commit group_table) ~f:(send_msg0x04 t c_id) in
-     let flow_mods = List.map tbl ~f:send_flow_mod in
+     let flow_mods = List.map tbl ~f:mk_flow_mod in
+     let group_mods = GroupTable0x04.commit group_table in
+     GroupTable0x04.clear_groups group_table; (* TODO: make this a per-switch group table that persists across invocations *)
      delete_flows >>= fun _ -> 
-     Deferred.all_ignore group_mods >>= fun _ -> 
-     Deferred.all_ignore flow_mods
+     Deferred.List.iter group_mods ~f:(send_msg0x04 t c_id) >>= fun _ -> 
+     Deferred.List.iter flow_mods ~f:(send_msg0x04 t c_id)
   | _ -> 
      failwith "Switch not connected"
