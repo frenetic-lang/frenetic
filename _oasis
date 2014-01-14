@@ -32,6 +32,7 @@ Library netcore
     lwt.syntax.log,
     lwt.unix,
     str,
+    threads,
     ocamlgraph,
     openflow,
     openflow.lwt,
