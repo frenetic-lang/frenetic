@@ -1,3 +1,4 @@
+open OUnitHack
 open Types
 open Pretty
 open QuickCheck

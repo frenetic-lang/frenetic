@@ -1,5 +1,5 @@
+open OUnitHack
 module QCGen = QuickCheck_gen
-
 open SDN_Types
 open Types
 open Pretty
