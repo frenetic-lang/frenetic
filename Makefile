@@ -1,38 +1,31 @@
-# OASIS_START
-# DO NOT EDIT (digest: 7b2408909643717852b95f994b273fee)
+all: build
 
-SETUP = ocaml setup.ml
+ASYNC ?= $(shell if ocamlfind query async >/dev/null 2>&1; then echo --enable-async; else echo --disable-async; fi)
+# Implies --enable-quickcheck
+TESTS ?= $(shell if ocamlfind query quickcheck >/dev/null 2>&1; then echo --enable-tests; else echo --disable-tests; fi)
 
-build: setup.data
-	$(SETUP) -build $(BUILDFLAGS)
+NAME=netcore
+J=4
 
-doc: setup.data build
-	$(SETUP) -doc $(DOCFLAGS)
+setup.ml: _oasis
+	oasis setup
 
-test: setup.data build
-	$(SETUP) -test $(TESTFLAGS)
+setup.data: setup.ml
+	ocaml setup.ml -configure $(ASYNC) $(TESTS)
 
-all:
-	$(SETUP) -all $(ALLFLAGS)
+build: setup.data setup.ml
+	ocaml setup.ml -build -j $(J)
 
-install: setup.data
-	$(SETUP) -install $(INSTALLFLAGS)
+install: setup.data setup.ml
+	ocaml setup.ml -install
 
-uninstall: setup.data
-	$(SETUP) -uninstall $(UNINSTALLFLAGS)
+test: setup.ml build
+	_build/test/Test.byte inline-test-runner netcore
 
-reinstall: setup.data
-	$(SETUP) -reinstall $(REINSTALLFLAGS)
+reinstall: setup.ml
+	ocamlfind remove $(NAME) || true
+	ocaml setup.ml -reinstall
 
 clean:
-	$(SETUP) -clean $(CLEANFLAGS)
-
-distclean:
-	$(SETUP) -distclean $(DISTCLEANFLAGS)
-
-setup.data:
-	$(SETUP) -configure $(CONFIGUREFLAGS)
-
-.PHONY: build doc test all install uninstall reinstall clean distclean configure
-
-# OASIS_STOP
+	ocamlbuild -clean
+	rm -f setup.data setup.log

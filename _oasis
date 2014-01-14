@@ -6,17 +6,10 @@ Synopsis:    The Frenetic Compiler and Runtime System
 Authors:     Nate Foster, Arjun Guha, Mark Reitblatt, Cole Schlesinger, and
              David Walker
 License:     LGPL
-Plugins:     META (0.3), StdFiles (0.3), DevFiles (0.3)
+Plugins:     META (0.3)
 BuildTools:
   ocamlbuild,
   ocamldoc
-
-XStdFilesREADME: false
-XStdFilesAUTHORS: false
-
-Flag installexec
-  Description: install the Frenetic executable
-  Default: false
 
 Flag quickcheck
   Description: build the frenetic.quickcheck library
@@ -75,7 +68,7 @@ Library quickcheck
   Findlibparent: netcore
   Findlibname: quickcheck
   Path: quickcheck
-  Build$: flag(quickcheck)
+  Build$: flag(quickcheck) || flag(tests)
   BuildDepends:
     quickcheck,
     netcore
@@ -85,7 +78,8 @@ Library quickcheck
 Executable testtool
   Path: test
   MainIs: Test.ml
-  Build$: flag(quickcheck) && flag(tests)
+  Build$: flag(tests)
+  Install: False
   BuildDepends: 
     oUnit,packet,
     netcore,
@@ -93,7 +87,6 @@ Executable testtool
     pa_ounit.syntax,
     quickcheck,
     netcore.quickcheck
-  Install: False
 
 Test all_tests
   Command: $testtool inline-test-runner dummy
@@ -103,7 +96,8 @@ Test all_tests
 Executable katnetic
   Path: frenetic
   MainIs: katnetic.ml
-  Install$: flag(installexec)
+  Build$: flag(async)
+  Install: False
   BuildDepends:
     async,
     core,
@@ -113,36 +107,17 @@ Executable katnetic
 Executable dehop_test
   Path: frenetic
   MainIs: dehop_test.ml
-  Install$: flag(installexec)
+  Install: False
   BuildDepends:
     netcore
 
 Executable netkat_test
   Path: frenetic
   MainIs: netkat_test.ml
-  Install$: flag(installexec)
+  Build$: flag(async)
+  Install: False
   BuildDepends:
     async,
     core,
     netcore,
     netcore.async
-
-Document doc
-  Title: NetCore Documentation
-  Type: ocamlbuild (0.3)
-  XOCamlBuildPath: lib
-  XOCamlBuildModules:
-    NetCore_Compiler,
-    NetCore_Controller,
-    NetCore_ConsistentUpdates,
-    NetCore_Pretty,
-    NetCore_MacLearning,
-    NetCore_NAT,
-    NetCore_Semantics,
-    NetCore_Stream,
-    NetCore_StatefulFirewall,
-    NetCore_Topo,
-    NetCore_Types,
-    NetCore_Parsing,
-    NetKAT_Types,
-    NetKAT_Compiler
