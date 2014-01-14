@@ -9,7 +9,7 @@ type t = {
 
 let create () : t = {
 	table = Hashtbl.create 100;
-	next_group_id = 0l;
+	next_group_id = 1l;
   pending_messages = []
 }
 
@@ -25,7 +25,7 @@ let add_group (tbl : t) (typ : groupType) (buckets : bucket list) : groupId =
     id
 
 let clear_groups (tbl : t) : unit =
-	tbl.next_group_id <- 0l;
+	tbl.next_group_id <- 1l;
 	let rm_group (id : groupId) ((typ, _) : groupType * bucket list) : unit =
 	  let msg = Message.GroupModMsg (DeleteGroup (typ, id)) in
 	  tbl.pending_messages <-  msg :: tbl.pending_messages in

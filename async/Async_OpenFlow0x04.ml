@@ -11,7 +11,7 @@ module Message : Platform.Message with type t = (Header.xid * M.t) = struct
   let header_of (xid, m)= M.header_of xid m
   let parse hdr buf = M.parse hdr (Cstruct.to_string buf)
   let marshal (xid, m) buf = M.marshal_body m buf
-  let to_string _ = "we do not have an implementation of to_string for 1.3"
+  let to_string (_, m) = M.to_string m
 
   let marshal' msg =
     let hdr = header_of msg in
