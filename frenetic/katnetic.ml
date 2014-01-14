@@ -19,7 +19,7 @@ module Run = struct
   open LocalCompiler.RunTime
 
   let with_channel f chan =
-    let exp = Parser.program Lexer.token (Lexing.from_channel chan) in
+    let exp = NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan) in
     Lwt_main.run (Controller.start f 6633 (NetKAT_Stream.constant exp))
 
   let with_file f filename =
@@ -50,7 +50,7 @@ module Dump = struct
   open LocalCompiler.RunTime
 
   let with_channel f chan =
-    f (Parser.program Lexer.token (Lexing.from_channel chan))
+    f (NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan))
 
   let with_file f filename =
     with_channel f (open_in filename)

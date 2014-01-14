@@ -1,6 +1,6 @@
 {
   open Lexing
-  open Parser
+  open NetKAT_Parser
 
   let parse_byte str = Int64.of_string ("0x" ^ str)
   let parse_decbyte str = Int64.of_string str

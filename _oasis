@@ -46,8 +46,8 @@ Library netcore
     PolicyGenerator
 
   Modules:
-    Lexer,
-    Parser,
+    NetKAT_Lexer,
+    NetKAT_Parser,
     NetKAT_Pretty,
     NetKAT_Types,
     NetKAT_Util,
