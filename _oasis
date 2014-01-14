@@ -38,8 +38,6 @@ Library netcore
     packet,
     topology
   InternalModules:
-    Lexer,
-    Parser,
     Semantics,
     LocalCompiler,
     NetKAT_Automaton,
@@ -47,6 +45,8 @@ Library netcore
     PolicyGenerator
 
   Modules:
+    Lexer,
+    Parser,
     NetKAT_Pretty,
     NetKAT_Types,
     NetKAT_Util,

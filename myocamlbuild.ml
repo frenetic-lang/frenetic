@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 732ca526bd05eee82587242026c54eea) *)
+(* DO NOT EDIT (digest: 33a707b61b0db1bc7b9cbbd395fd0648) *)
 module OASISGettext = struct
 (* # 21 "/var/tmp/portage/dev-ml/oasis-0.3.0/work/oasis-0.3.0/src/oasis/OASISGettext.ml" *)
 
@@ -486,8 +486,8 @@ let package_default =
           ("test", ["lib"; "quickcheck"]);
           ("quickcheck", ["lib"]);
           ("frenetic", ["lib"])
-       ];
-     }
+       ]
+  }
   ;;
 
 let dispatch_default = MyOCamlbuildBase.dispatch_default package_default;;
