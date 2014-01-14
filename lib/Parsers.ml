@@ -27,15 +27,14 @@ module TopoDot = struct
     let n = Int64.of_string amt in
 
     let m = match rate with
-      | "Bps" -> 1L
-      | "kbps" -> 128L
-      | "kBps" -> 1024L
-      | "Mbps" -> 131072L
-      | "MBps" -> 1048576L
-      | "Gbps" -> 134217728L
-      | "GBps" -> 1073741824L
-      | "Tbps" -> 137438953472L
-      | "TBps" -> 1099511627776L
+      | "bps" -> 1L
+      | "Bps" -> 8L
+      | "kbps" -> 1024L
+      | "kBps" -> 8192L
+      | "Mbps" -> 1048576L
+      | "MBps" -> 8388608L
+      | "Gbps" -> 1073741824L
+      | "GBps" -> 8589934592L
       | _ -> failwith "Invalid rate specifier" in
     Int64.mul n m
 
