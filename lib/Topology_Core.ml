@@ -483,7 +483,7 @@ struct
           | Node.Host(n,m,i) ->
             Printf.sprintf "    %s = net.addHost(\'%s\', mac=\'%s\', ip=\'%s\')\n"
               n n
-              (VInt.get_string m) (VInt.get_string i)
+              (Packet.string_of_mac (VInt.get_int48 m)) (Packet.string_of_ip (VInt.get_int32 i))
           | Node.Switch i ->
             let sid = "s" ^ (VInt.get_string i) in
             Printf.sprintf
