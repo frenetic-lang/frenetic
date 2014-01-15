@@ -86,9 +86,12 @@ module Controller = struct
         >>| ensure
       | _ -> return (Some(evt))
 
-  let create ?max_pending_connections ?verbose ?log_disconnects ?buffer_age_limit ~port =
+  let create ?max_pending_connections
+      ?verbose
+      ?log_disconnects
+      ?buffer_age_limit ~port () =
     Platform.create ?max_pending_connections ?verbose ?log_disconnects
-      ?buffer_age_limit ~port
+      ?buffer_age_limit ~port ()
     >>| function t -> {
       platform = t;
       handshakes = SwitchSet.empty

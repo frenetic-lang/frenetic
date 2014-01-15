@@ -120,7 +120,7 @@ let switch
 
 let main () =
   let open OF0x01Controller in
-  create 6633
+  create 6633 ()
   >>= fun t ->
     Pipe.fold (listen t) ~init:SwitchTable.empty ~f:(switch t)
 

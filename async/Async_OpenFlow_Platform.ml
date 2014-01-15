@@ -23,6 +23,7 @@ module type S = sig
     -> ?log_disconnects:bool
     -> ?buffer_age_limit:[ `At_most of Time.Span.t | `Unlimited ]
     -> port:int
+    -> unit
     -> t Deferred.t
 
   val listen : t -> e Pipe.Reader.t
@@ -88,8 +89,10 @@ module Make(Message : Message) = struct
     | `Message of Client_id.t * m
   ]
 
-  let create ?max_pending_connections ?verbose ?log_disconnects
-    ?buffer_age_limit ~port =
+  let create ?max_pending_connections
+      ?verbose
+      ?log_disconnects
+      ?buffer_age_limit ~port () =
     Impl.create ?max_pending_connections ?verbose ?log_disconnects
       ?buffer_age_limit ~port ~auth:(fun _ _ -> return `Allow) ()
 
