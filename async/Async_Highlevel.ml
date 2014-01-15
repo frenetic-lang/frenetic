@@ -218,10 +218,11 @@ let setup_flow_table t (sw:S.switchId) (tbl:S.flowTable) =
        decr priority;
        M4.FlowModMsg flow_mod in
      let delete_flows = send_msg0x04 t c_id (M4.FlowModMsg OF4_Core.delete_all_flows) in
+     let delete_groups = send_msg0x04 t c_id (M4.GroupModMsg (OF4_Core.DeleteGroup (OF4_Core.All, 0xfffffffcl) )) in
      let flow_mods = List.map tbl ~f:mk_flow_mod in
      let group_mods = GroupTable0x04.commit group_table in
-     GroupTable0x04.clear_groups group_table; (* TODO: make this a per-switch group table that persists across invocations *)
      delete_flows >>= fun _ -> 
+     delete_groups >>= fun _ -> 
      Deferred.List.iter group_mods ~f:(send_msg0x04 t c_id) >>= fun _ -> 
      Deferred.List.iter flow_mods ~f:(send_msg0x04 t c_id)
   | _ -> 
