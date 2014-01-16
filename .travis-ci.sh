@@ -1,5 +1,3 @@
-OPAM_DEPENDS="lwt cstruct ocamlgraph ounit pa_ounit quickcheck"
-
 case "$OCAML_VERSION,$OPAM_VERSION" in
 3.12.1,1.0.0) ppa=avsm/ocaml312+opam10 ;;
 3.12.1,1.1.0) ppa=avsm/ocaml312+opam11 ;;
@@ -22,22 +20,20 @@ echo OPAM versions
 opam --version
 opam --git-version
 
+
 opam init
+eval `opam config env`
+export CAML_LD_LIBRARY_PATH="$EXTRA_LD_LIBRARY_PATH:$CAML_LD_LIBRARY_PATH"
 opam install ${OPAM_DEPENDS}
 
-eval `opam config env`
+for fdep in $FRENETIC_DEPENDS; do
+    echo $fdep HEAD
+    curl "https://api.github.com/repos/frenetic-lang/$fdep/git/refs/heads/master" 2>/dev/null \
+      | grep sha | cut -d\" -f4
+done
+opam repository add frenetic-opam https://github.com/frenetic-lang/opam-bleeding.git
+opam install ${FRENETIC_DEPENDS//ocaml-/}
 
-function github_install {
-    git clone "https://github.com/frenetic-lang/$1" &&
-        (cd "$1" && echo "$1 HEAD" && git rev-parse HEAD &&
-         ocaml setup.ml -configure ${@:2} && make && make install)
-}
-
-github_install ocaml-packet
-github_install ocaml-openflow --enable-lwt
-github_install ocaml-topology
-github_install dprle
-
-ocaml setup.ml -configure --enable-tests --enable-quickcheck
+ocaml setup.ml -configure ${CONFIG_FLAGS}
 make
 make test

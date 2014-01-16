@@ -32,16 +32,13 @@ Library netcore
     lwt.syntax.log,
     lwt.unix,
     str,
+    threads,
     ocamlgraph,
     openflow,
     openflow.lwt,
     packet,
     topology
   InternalModules:
-    Types,
-    Lexer,
-    Parser,
-    Pretty,
     Semantics,
     LocalCompiler,
     NetKAT_Automaton,
@@ -49,7 +46,11 @@ Library netcore
     PolicyGenerator
 
   Modules:
-    Util,
+    NetKAT_Lexer,
+    NetKAT_Parser,
+    NetKAT_Pretty,
+    NetKAT_Types,
+    NetKAT_Util,
     NetKAT_Stream
 
 Library quickcheck

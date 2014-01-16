@@ -1,3 +1,3 @@
 open Topology
 
-val all_pairs_shortest_paths : Topology.t -> Types.policy
+val all_pairs_shortest_paths : Topology.t -> NetKAT_Types.policy

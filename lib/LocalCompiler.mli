@@ -1,5 +1,5 @@
 module Action : sig
-  type t = Types.header_val_map
+  type t = NetKAT_Types.header_val_map
   module Set : Set.S with type elt = t
   type group = Set.t list
   val to_string : t -> string
@@ -11,11 +11,11 @@ module Action : sig
   val seq_acts : t -> Set.t -> Set.t
   val id : Set.t
   val drop : Set.t
-  val group_to_netkat : group -> Types.policy
+  val group_to_netkat : group -> NetKAT_Types.policy
 end
 
 module Pattern : sig
-  type t = Types.header_val_map
+  type t = NetKAT_Types.header_val_map
   module Set : Set.S with type elt = t
   val set_to_string : Set.t -> string
   val to_string : t -> string
@@ -23,8 +23,8 @@ module Pattern : sig
   val is_tru : t -> bool
   val seq_pat : t -> t -> t option
   val seq_act_pat : t -> Action.t -> t -> t option
-  val set_to_netkat : Set.t -> Types.pred
-  val to_netkat : t -> Types.pred
+  val set_to_netkat : Set.t -> NetKAT_Types.pred
+  val to_netkat : t -> NetKAT_Types.pred
 end
   
 module Atom : sig
@@ -42,14 +42,14 @@ end
   
 module Local : sig
   type t = Action.group Atom.Map.t
-  val of_policy : SDN_Types.fieldVal -> Types.policy -> t
-  val to_netkat : t -> Types.policy
+  val of_policy : SDN_Types.fieldVal -> NetKAT_Types.policy -> t
+  val to_netkat : t -> NetKAT_Types.policy
 end
 
 module RunTime : sig 
   (* intermediate form *)
   type i 
-  val compile : SDN_Types.fieldVal -> Types.policy -> i
-  val decompile : i -> Types.policy
+  val compile : SDN_Types.fieldVal -> NetKAT_Types.policy -> i
+  val decompile : i -> NetKAT_Types.policy
   val to_table : i -> SDN_Types.flowTable
 end

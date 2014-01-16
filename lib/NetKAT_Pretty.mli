@@ -1,4 +1,4 @@
-open Types
+open NetKAT_Types
 
 val format_policy : Format.formatter -> policy -> unit
 

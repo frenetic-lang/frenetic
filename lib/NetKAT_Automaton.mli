@@ -1,4 +1,4 @@
-open Types
+open NetKAT_Types
 type lf_policy
 
 type port_dst

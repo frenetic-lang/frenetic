@@ -1,5 +1,5 @@
 %{
-  open Types
+  open NetKAT_Types
 
   (* Ethernet frame types *)
   let arp : int64  = Int64.of_int 0x806
@@ -42,7 +42,7 @@
 
 %start program
 
-%type <Types.policy> program
+%type <NetKAT_Types.policy> program
 
 %%
 

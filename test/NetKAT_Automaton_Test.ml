@@ -1,9 +1,9 @@
-open Types
-open Pretty
+open NetKAT_Types
+open NetKAT_Pretty
 open QuickCheck
 
 let policy_parse (p : string) : policy =
-  Parser.program Lexer.token (Lexing.from_string p)
+  NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string p)
 
 let netkat_quickCheck arbitrary show pred =
   let test = testable_fun arbitrary show testable_bool in

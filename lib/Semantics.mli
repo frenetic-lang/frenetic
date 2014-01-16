@@ -1,4 +1,4 @@
-open Types
+open NetKAT_Types
     
 (** {2 Semantics}
  

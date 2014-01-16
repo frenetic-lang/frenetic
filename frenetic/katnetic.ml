@@ -19,7 +19,7 @@ module Run = struct
   open LocalCompiler.RunTime
 
   let with_channel f chan =
-    let exp = Parser.program Lexer.token (Lexing.from_channel chan) in
+    let exp = NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan) in
     Lwt_main.run (Controller.start f 6633 (NetKAT_Stream.constant exp))
 
   let with_file f filename =
@@ -30,10 +30,10 @@ module Run = struct
 
   let automaton p =
     let open NetKAT_Automaton in
-    let open Types in
+    let open NetKAT_Types in
     let i,m,_,e = dehopify p in
     let cache = SwitchMap.mapi (fun sw sw_p ->
-      let sw_p' = Types.(Seq(Seq(i,sw_p),e)) in
+      let sw_p' = NetKAT_Types.(Seq(Seq(i,sw_p),e)) in
       to_table (compile sw sw_p'))
     m in
     (fun sw -> SwitchMap.find sw cache)
@@ -50,14 +50,14 @@ module Dump = struct
   open LocalCompiler.RunTime
 
   let with_channel f chan =
-    f (Parser.program Lexer.token (Lexing.from_channel chan))
+    f (NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan))
 
   let with_file f filename =
     with_channel f (open_in filename)
 
   module Local = struct
 
-    let with_compile (sw : VInt.t) (p : Types.policy) =
+    let with_compile (sw : VInt.t) (p : NetKAT_Types.policy) =
       let _ = 
         Format.printf "@[Compiling switch %ld [size=%d]...@]%!"
           (VInt.get_int32 sw) (Semantics.size p) in
@@ -77,7 +77,7 @@ module Dump = struct
           SDN_Types.format_flowTable t
 
     let policy p =
-      Format.printf "@[%a@\n@\n@]%!" Pretty.format_policy p
+      Format.printf "@[%a@\n@\n@]%!" NetKAT_Pretty.format_policy p
 
     let local f sw_num p =
       (* NOTE(seliopou): This may not catch all ports, but it'll catch some of
@@ -85,7 +85,7 @@ module Dump = struct
        * *)
       for sw = 0 to sw_num do
         let vs = VInt.Int64 (Int64.of_int sw) in 
-        let sw_p = Types.(Seq(Filter(Test(Switch,vs)), p)) in 
+        let sw_p = NetKAT_Types.(Seq(Filter(Test(Switch,vs)), p)) in 
         let t = with_compile vs sw_p in
         f vs t
       done
@@ -115,25 +115,26 @@ module Dump = struct
     let with_dehop f p =
       let i,m,_,e = dehopify p in
       SwitchMap.iter (fun sw pol0 ->
-        let open Types in
+        let open NetKAT_Types in
         let pol0' = Seq(Seq(i,pol0),e) in
         f sw pol0')
       m
 
-    let policy (sw : VInt.t) (p : Types.policy) : unit =
+    let policy (sw : VInt.t) (p : NetKAT_Types.policy) : unit =
       Format.printf "@[policy for switch %ld:@\n%!%a@\n@\n@]%!"
         (VInt.get_int32 sw)
-        Pretty.format_policy p
+        NetKAT_Pretty.format_policy p
 
-    let flowtable (sw : VInt.t) (p : Types.policy) : unit =
+    let flowtable (sw : VInt.t) (p : NetKAT_Types.policy) : unit =
       let t = Local.with_compile sw p in
       Local.flowtable sw t
 
-    let all (sw : VInt.t) (p : Types.policy) : unit =
+    let all (sw : VInt.t) (p : NetKAT_Types.policy) : unit =
       policy sw p;
       flowtable sw p
 
-    let stats (sw : VInt.t) (p : Types.policy) : unit =
+
+    let stats (sw : VInt.t) (p : NetKAT_Types.policy) : unit =
       let _ = Local.with_compile sw p in
       ()
 
