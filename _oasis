@@ -146,6 +146,7 @@ Test all_tests
 Executable Hypervisor
   Path: examples
   MainIs: Hypervisor.ml
+  Build$: flag(async)
   Install: false
   BuildDepends:
     threads,
@@ -159,6 +160,7 @@ Executable Hypervisor
 Executable learning_switch
   Path: examples
   MainIs: Learning_Switch.ml
+  Build$: flag(async)
   Install: false
   BuildDepends:
     threads,
