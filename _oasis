@@ -118,7 +118,7 @@ Library quickcheck
 
 Executable testtool
   Path: test
-  Install: False
+  Install: false
   Build$: flag(tests)
   MainIs: Test.ml
   BuildDepends:
@@ -133,7 +133,7 @@ Executable testtool
 
 Executable ping_test
   Path: test
-  Install$: false
+  Install: false
   Build$: flag(end_test) && flag(lwt)
   MainIs: PingTest.ml
   BuildDepends: packet,openflow,openflow.lwt,oUnit,pa_ounit,pa_ounit.syntax
@@ -146,7 +146,7 @@ Test all_tests
 Executable Hypervisor
   Path: examples
   MainIs: Hypervisor.ml
-  Install: False
+  Install: false
   BuildDepends:
     threads,
     core,
