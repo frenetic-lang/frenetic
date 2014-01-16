@@ -137,7 +137,7 @@ let add_flow prio pat insts =
 
 let delete_all_flows =
   { mfCookie = val_to_mask 0L
-  ; mfTable_id = 0
+  ; mfTable_id = 0xff (* OFPTT_ALL *)
   ; mfCommand = DeleteFlow
   ; mfIdle_timeout = Permanent
   ; mfHard_timeout = Permanent
