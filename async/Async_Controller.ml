@@ -7,6 +7,8 @@ module NetKAT = Types
 
 module Log = Async_OpenFlow.Log
 
+let max_pending_connections = 64
+
 let _ = Log.set_level `Debug
 
 let _ = Log.set_output 
@@ -39,7 +41,7 @@ let start ~f ~port ~init_pol ~pols =
     Bus.write bus !cur_pol;
     Bus.flushed bus) in
 
-  Platform.create port
+  Platform.create ~max_pending_connections:max_pending_connections ~port ()
   >>= function t ->
   Pipe.iter (Platform.accept_switches t) ~f:(fun feats ->
     let pols = Pipe.init (fun w ->
