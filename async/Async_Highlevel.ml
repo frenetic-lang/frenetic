@@ -165,8 +165,12 @@ let features t evt =
         return None
      end
 
-let create (port:int) : t Deferred.t =
-  Platform.create port
+let create ?max_pending_connections
+    ?verbose
+    ?log_disconnects
+    ?buffer_age_limit ~port () =
+  Platform.create ?max_pending_connections ?verbose ?log_disconnects
+    ?buffer_age_limit ~port ()
   >>| function t ->
       Log.info ~tags "accepting switches on port %d" port;
       { sub = t

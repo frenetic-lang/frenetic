@@ -58,9 +58,12 @@ module Controller = struct
         end
       | `Disconnect e -> return (Some(`Disconnect e))
 
-  let create ?max_pending_connections ?verbose ?log_disconnects ?buffer_age_limit ~port =
+  let create ?max_pending_connections
+      ?verbose
+      ?log_disconnects
+      ?buffer_age_limit ~port () =
     ChunkController.create ?max_pending_connections ?verbose ?log_disconnects
-      ?buffer_age_limit ~port
+      ?buffer_age_limit ~port ()
     >>| function t -> { sub = t }
 
   let listen t =
