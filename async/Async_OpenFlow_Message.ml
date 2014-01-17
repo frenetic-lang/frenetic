@@ -75,7 +75,6 @@ module MakeSerializers (M : Message) = struct
     let (of_reader, of_reader_w) = Pipe.create () in
     let _ = Pipe.iter_without_pushback chunk_reader
         ~f:(fun (hdr, body) ->
-            Log.info "chunk_conv got message with code %d" hdr.Header.type_code;
             (* XXX(seliopou): What's the deal with this version check? *)
             let of_msg = if hdr.Header.version = 0x01 then
                 try   
