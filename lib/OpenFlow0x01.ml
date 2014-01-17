@@ -2507,7 +2507,7 @@ module Message = struct
 
   let to_string (msg : t) : string = match msg with
     | Hello _ -> "Hello"
-    | ErrorMsg _ -> "Error"
+    | ErrorMsg e -> Error.to_string e
     | EchoRequest _ -> "EchoRequest"
     | EchoReply _ -> "EchoReply"
     | VendorMsg _ -> "Vendor"
