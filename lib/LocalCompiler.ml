@@ -33,7 +33,7 @@ let header_val_map_to_string eq sep m =
     m ""
 
 module Action = struct
-  type t = NetKAT_Types.header_val_map sexp_opaque with sexp 
+  type t = NetKAT_Types.header_val_map sexp_opaque with sexp
       
   type this_t = t with sexp
 

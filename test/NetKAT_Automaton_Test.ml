@@ -1,6 +1,7 @@
+open OUnitHack
+open QuickCheck
 open NetKAT_Types
 open NetKAT_Pretty
-open QuickCheck
 
 let policy_parse (p : string) : policy =
   NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string p)

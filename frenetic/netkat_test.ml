@@ -78,4 +78,5 @@ let () =
       (LocalCompiler.compile sw p)) in
   print_string (Example.pol_str ^ "\n\n");
   let pol = NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string Example.pol_str) in
-  Lwt_main.run (Controller.start local 6633 (NetKAT_Stream.constant pol))
+  let _ = Async_Controller.start_static local 6633 pol in
+  Core.Std.never_returns (Async.Std.Scheduler.go ())

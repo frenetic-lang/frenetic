@@ -19,8 +19,11 @@ module Run = struct
   open LocalCompiler
 
   let with_channel f chan =
+    let open Core.Std in
+    let open Async.Std in
     let exp = NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan) in
-    Lwt_main.run (Controller.start f 6633 (NetKAT_Stream.constant exp))
+    let main () = ignore (Async_Controller.start_static f 6633 exp) in
+    never_returns (Scheduler.go_main ~max_num_open_file_descrs:4096 ~main ())
 
   let with_file f filename =
     with_channel f (open_in filename)

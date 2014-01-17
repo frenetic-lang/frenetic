@@ -1,0 +1,18 @@
+(* This policy works for
+
+  sudo mn  --controller=remote --topo=tree,2,2 --mac 
+
+  pingall should succeed
+*)
+filter ethTyp=0x806;
+  (filter (switch=2 or switch=3); (filter port=1; (port:=2 | port :=3)) |
+                                  (filter port=2; (port:=1 | port :=3)) |
+                                  (filter port=3; (port:=2 | port :=1))) |
+filter switch=1;(filter port=1;port:=2 |
+                 filter port=2;port:=1) |
+filter switch=2;(filter ethDst=1;port:=1 | 
+                 filter ethDst=2;port:=2 |
+                 filter (ethDst=3 or ethDst=4);port:=3) |
+filter switch=3;(filter ethDst=3;port:=1 | 
+                 filter ethDst=4;port:=2 |
+                 filter (ethDst=1 or ethDst=2);port:=3)

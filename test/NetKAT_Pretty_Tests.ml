@@ -1,3 +1,4 @@
+open OUnitHack
 open NetKAT_Types
 open NetKAT_Pretty
 open VInt

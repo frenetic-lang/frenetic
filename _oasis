@@ -6,56 +6,65 @@ Synopsis:    The Frenetic Compiler and Runtime System
 Authors:     Nate Foster, Arjun Guha, Mark Reitblatt, Cole Schlesinger, and
              David Walker
 License:     LGPL
-Plugins:     META (0.3), StdFiles (0.3), DevFiles (0.3)
+Plugins:     META (0.3)
 BuildTools:
   ocamlbuild,
   ocamldoc
 
-XStdFilesREADME: False
-XStdFilesAUTHORS: False
-
-Flag installexec
-  Description: install the Frenetic executable
-  Default: False
-
 Flag quickcheck
   Description: build the frenetic.quickcheck library
-  Default: False
+  Default: false
+
+Flag async
+    Description: build the netcore.async library
+    Default: false
 
 Library netcore
   Path: lib
   BuildDepends:
     cstruct,
     dprle,
-    core,
-    sexplib,
-    sexplib.syntax,
-    lwt,
-    lwt.syntax,
-    lwt.syntax.log,
-    lwt.unix,
     str,
     threads,
     ocamlgraph,
     openflow,
-    openflow.lwt,
-    threads,
     packet,
-    topology
-  InternalModules:
-    Semantics,
-    LocalCompiler,
-    NetKAT_Automaton,
-    Controller,
-    PolicyGenerator
-
+    topology,
+    sexplib,
+    sexplib.syntax
   Modules:
     NetKAT_Lexer,
     NetKAT_Parser,
     NetKAT_Pretty,
     NetKAT_Types,
     NetKAT_Util,
-    NetKAT_Stream
+    Semantics,
+    LocalCompiler,
+    NetKAT_Automaton,
+    PolicyGenerator
+
+Library async
+  Findlibparent: netcore
+  Findlibname: async
+  Path: async
+  Build$: flag(async)
+  BuildDepends:
+    async,
+    core,
+    cstruct,
+    cstruct.async,
+    dprle,
+    netcore,
+    ocamlgraph,
+    openflow,
+    openflow.async,
+    packet,
+    threads,
+    textutils,
+    topology,
+    sexplib.syntax
+  Modules:
+    Async_Controller
 
 Library quickcheck
   Findlibparent: netcore
@@ -72,6 +81,7 @@ Executable testtool
   Path: test
   MainIs: Test.ml
   Build$: flag(tests)
+  Install: false
   BuildDepends: 
     oUnit,packet,
     netcore,
@@ -79,7 +89,6 @@ Executable testtool
     pa_ounit.syntax,
     quickcheck,
     netcore.quickcheck
-  Install: False
 
 Test all_tests
   Command: $testtool inline-test-runner netkat
@@ -89,38 +98,21 @@ Test all_tests
 Executable katnetic
   Path: frenetic
   MainIs: katnetic.ml
-  Install$: flag(installexec)
+  Build$: flag(async)
+  Install: false
   BuildDepends:
-    lwt,
-    lwt.syntax,
-    netcore
+    async,
+    core,
+    netcore,
+    netcore.async
 
 Executable netkat_test
   Path: frenetic
   MainIs: netkat_test.ml
-  Install$: flag(installexec)
+  Build$: flag(async)
+  Install: false
   BuildDepends:
-    lwt,
-    lwt.syntax,
-    netcore
-
-Document doc
-  Title: NetCore Documentation
-  Type: OCamlbuild (0.3)
-  XOCamlBuildPath: lib
-  XOCamlBuildModules:
-    NetCore_Compiler,
-    NetCore_Controller,
-    NetCore_ConsistentUpdates,
-    NetCore_Pretty,
-    NetCore_MacLearning,
-    NetCore_NAT,
-    NetCore_Semantics,
-    NetCore_Stream,
-    NetCore_StatefulFirewall,
-    NetCore_Topo,
-    NetCore_Types,
-    NetCore_Parsing,
-    NetKAT_Types,
-    NetKAT_Compiler,
-    Controller
+    async,
+    core,
+    netcore,
+    netcore.async

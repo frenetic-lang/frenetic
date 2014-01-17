@@ -1,3 +1,4 @@
+open OUnitHack
 open VInt
 open NetKAT_Types
 open Topology
