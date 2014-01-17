@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 2c27d976cfd12d732c08da5a873c7095)
+# DO NOT EDIT (digest: 31dfffb5c3aa348a3fb8b1ad538d0172)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -20,8 +20,11 @@
 <lib/*.ml{,i}>: package(dprle)
 <lib/*.ml{,i}>: package(ocamlgraph)
 <lib/*.ml{,i}>: package(openflow)
+<lib/*.ml{,i}>: package(threads)
 <lib/*.ml{,i}>: package(topology)
+<lib/*.ml{,i}>: package(sexplib.syntax)
 <lib/*.ml{,i}>: package(str)
+<lib/*.ml{,i}>: package(sexplib)
 # Library async
 "async/async.cmxs": use_async
 <async/*.ml{,i}>: use_netcore
@@ -39,6 +42,7 @@
 <async/*.ml{,i}>: package(topology)
 <async/*.ml{,i}>: package(sexplib.syntax)
 <async/*.ml{,i}>: package(str)
+<async/*.ml{,i}>: package(sexplib)
 # Library quickcheck
 "quickcheck/quickcheck.cmxs": use_quickcheck
 <quickcheck/*.ml{,i}>: use_netcore
@@ -48,8 +52,11 @@
 <quickcheck/*.ml{,i}>: package(dprle)
 <quickcheck/*.ml{,i}>: package(ocamlgraph)
 <quickcheck/*.ml{,i}>: package(openflow)
+<quickcheck/*.ml{,i}>: package(threads)
 <quickcheck/*.ml{,i}>: package(topology)
+<quickcheck/*.ml{,i}>: package(sexplib.syntax)
 <quickcheck/*.ml{,i}>: package(str)
+<quickcheck/*.ml{,i}>: package(sexplib)
 # Executable testtool
 "test/Test.byte": use_quickcheck
 "test/Test.byte": use_netcore
@@ -62,8 +69,11 @@
 "test/Test.byte": package(dprle)
 "test/Test.byte": package(ocamlgraph)
 "test/Test.byte": package(openflow)
+"test/Test.byte": package(threads)
 "test/Test.byte": package(topology)
+"test/Test.byte": package(sexplib.syntax)
 "test/Test.byte": package(str)
+"test/Test.byte": package(sexplib)
 <test/*.ml{,i}>: use_quickcheck
 <test/*.ml{,i}>: use_netcore
 <test/*.ml{,i}>: package(oUnit)
@@ -75,8 +85,11 @@
 <test/*.ml{,i}>: package(dprle)
 <test/*.ml{,i}>: package(ocamlgraph)
 <test/*.ml{,i}>: package(openflow)
+<test/*.ml{,i}>: package(threads)
 <test/*.ml{,i}>: package(topology)
+<test/*.ml{,i}>: package(sexplib.syntax)
 <test/*.ml{,i}>: package(str)
+<test/*.ml{,i}>: package(sexplib)
 # Executable katnetic
 "frenetic/katnetic.byte": use_async
 "frenetic/katnetic.byte": use_netcore
@@ -94,15 +107,7 @@
 "frenetic/katnetic.byte": package(topology)
 "frenetic/katnetic.byte": package(sexplib.syntax)
 "frenetic/katnetic.byte": package(str)
-# Executable dehop_test
-"frenetic/dehop_test.byte": use_netcore
-"frenetic/dehop_test.byte": package(packet)
-"frenetic/dehop_test.byte": package(cstruct)
-"frenetic/dehop_test.byte": package(dprle)
-"frenetic/dehop_test.byte": package(ocamlgraph)
-"frenetic/dehop_test.byte": package(openflow)
-"frenetic/dehop_test.byte": package(topology)
-"frenetic/dehop_test.byte": package(str)
+"frenetic/katnetic.byte": package(sexplib)
 # Executable netkat_test
 "frenetic/netkat_test.byte": use_async
 "frenetic/netkat_test.byte": use_netcore
@@ -120,6 +125,7 @@
 "frenetic/netkat_test.byte": package(topology)
 "frenetic/netkat_test.byte": package(sexplib.syntax)
 "frenetic/netkat_test.byte": package(str)
+"frenetic/netkat_test.byte": package(sexplib)
 <frenetic/*.ml{,i}>: use_async
 <frenetic/*.ml{,i}>: use_netcore
 <frenetic/*.ml{,i}>: package(async)
@@ -136,6 +142,8 @@
 <frenetic/*.ml{,i}>: package(topology)
 <frenetic/*.ml{,i}>: package(sexplib.syntax)
 <frenetic/*.ml{,i}>: package(str)
+<frenetic/*.ml{,i}>: package(sexplib)
 # OASIS_STOP
 <test/*.ml>: syntax_camlp4o
+<lib/*.ml>: syntax_camlp4o
 true: thread

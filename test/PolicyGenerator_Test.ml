@@ -1,6 +1,6 @@
 open OUnitHack
 open VInt
-open Types
+open NetKAT_Types
 open Topology
 open PolicyGenerator
 
@@ -11,7 +11,7 @@ let topo_test g pol =
   else
     begin
       Format.printf "Generating shortest paths from\n%s\nproduced %a\nexpected\n%a\n%!"
-    (Topology.to_string g) Pretty.format_policy pol' Pretty.format_policy pol;
+    (Topology.to_string g) NetKAT_Pretty.format_policy pol' NetKAT_Pretty.format_policy pol;
       false
     end
 

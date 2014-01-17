@@ -1,5 +1,5 @@
 %{
-  open Types
+  open NetKAT_Types
 
   (* Ethernet frame types *)
   let arp : int64  = Int64.of_int 0x806
@@ -42,7 +42,7 @@
 
 %start program
 
-%type <Types.policy> program
+%type <NetKAT_Types.policy> program
 
 %%
 
@@ -130,8 +130,14 @@ policy :
       { $1 }
 
 spolicy:
-  | spolicy SEMI kpolicy 
+  | spolicy SEMI cpolicy 
       { Seq ($1, $3) }
+  | cpolicy 
+      { $1 }
+
+cpolicy:
+  | IF predicate THEN spolicy ELSE cpolicy 
+      { Par(Seq(Filter $2, $4), Seq(Filter(Neg $2), $6)) }
   | kpolicy 
       { $1 }
 

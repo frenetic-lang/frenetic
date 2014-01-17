@@ -25,21 +25,23 @@ Library netcore
     cstruct,
     dprle,
     str,
+    threads,
     ocamlgraph,
     openflow,
     packet,
-    topology
+    topology,
+    sexplib,
+    sexplib.syntax
   Modules:
-    Types,
-    Lexer,
-    Parser,
-    Pretty,
+    NetKAT_Lexer,
+    NetKAT_Parser,
+    NetKAT_Pretty,
+    NetKAT_Types,
+    NetKAT_Util,
     Semantics,
     LocalCompiler,
-    Dehop,
     NetKAT_Automaton,
-    PolicyGenerator,
-    Util
+    PolicyGenerator
 
 Library async
   Findlibparent: netcore
@@ -89,7 +91,7 @@ Executable testtool
     netcore.quickcheck
 
 Test all_tests
-  Command: $testtool inline-test-runner dummy
+  Command: $testtool inline-test-runner netkat
   Run$: flag(tests)
   TestTools: testtool
 
@@ -103,13 +105,6 @@ Executable katnetic
     core,
     netcore,
     netcore.async
-
-Executable dehop_test
-  Path: frenetic
-  MainIs: dehop_test.ml
-  Install: false
-  BuildDepends:
-    netcore
 
 Executable netkat_test
   Path: frenetic

@@ -24,7 +24,7 @@ let _  =
 module Example = struct
   open SDN_Types
   open VInt
-  open Types
+  open NetKAT_Types
 
   (* End to end connectivity via mac addresses routing, hard coded for a tree topo using 4 nodes *)
 
@@ -74,10 +74,9 @@ end
 
 let () =
   let local p =
-    (fun sw -> LocalCompiler.RunTime.to_table
-      (LocalCompiler.RunTime.compile sw p)) in
+    (fun sw -> LocalCompiler.to_table
+      (LocalCompiler.compile sw p)) in
   print_string (Example.pol_str ^ "\n\n");
-  let pol = Parser.program Lexer.token (Lexing.from_string Example.pol_str) in
+  let pol = NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string Example.pol_str) in
   let _ = Async_Controller.start_static local 6633 pol in
   Core.Std.never_returns (Async.Std.Scheduler.go ())
-                                             

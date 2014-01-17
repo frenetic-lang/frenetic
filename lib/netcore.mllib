@@ -1,13 +1,12 @@
 # OASIS_START
-# DO NOT EDIT (digest: da4b7a34c39202b8712b81f49387169f)
-Types
-Lexer
-Parser
-Pretty
+# DO NOT EDIT (digest: f654ef9460a82fcf8c6350d4f1dcb41c)
+NetKAT_Lexer
+NetKAT_Parser
+NetKAT_Pretty
+NetKAT_Types
+NetKAT_Util
 Semantics
 LocalCompiler
-Dehop
 NetKAT_Automaton
 PolicyGenerator
-Util
 # OASIS_STOP
