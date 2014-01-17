@@ -3,8 +3,7 @@ Name:        packet
 Version:     0.2.0
 Synopsis:    Serialization for some common network packets, including
              ethernet frames, IP, TCP, and ARP.
-Authors:     Spiridon Eliopoulos, Andrew Ferguson, Nate Foster, Arjun Guha,
-             Mark Reitblatt, and Cole Schlesinger
+Authors:     https://github.com/frenetic-lang/ocaml-packet/contributors
 License:     LGPL
 Plugins:     META (0.3), DevFiles (0.3)
 BuildTools:
