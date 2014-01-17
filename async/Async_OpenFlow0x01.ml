@@ -92,7 +92,8 @@ module Controller = struct
           | _ ->
             close t c_id;
             raise (ChunkController.Handshake (c_id,
-                    "Expected FEATURES_REPLY but received something else"))
+                    Printf.sprintf "Expected FEATURES_REPLY but received: %s"
+                    (M.to_string msg)))
         end
       | `Message (c_id, msg) -> return(Some(`Message(c_id, msg)))
       | `Disconnect (c_id, exn) ->
