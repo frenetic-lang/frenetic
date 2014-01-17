@@ -308,7 +308,7 @@ struct
       (fun l -> Link.srcport l) ss in
     let ps = pred_e g s in
     let pports = List.map
-      (fun l -> Link.srcport l) ps in
+      (fun l -> Link.dstport l) ps in
     sports @ pports
 
 
