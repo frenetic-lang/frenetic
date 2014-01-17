@@ -79,7 +79,7 @@ Executable testtool
   Path: test
   MainIs: Test.ml
   Build$: flag(tests)
-  Install: False
+  Install: false
   BuildDepends: 
     oUnit,packet,
     netcore,
@@ -97,7 +97,7 @@ Executable katnetic
   Path: frenetic
   MainIs: katnetic.ml
   Build$: flag(async)
-  Install: False
+  Install: false
   BuildDepends:
     async,
     core,
@@ -107,7 +107,7 @@ Executable katnetic
 Executable dehop_test
   Path: frenetic
   MainIs: dehop_test.ml
-  Install: False
+  Install: false
   BuildDepends:
     netcore
 
@@ -115,7 +115,7 @@ Executable netkat_test
   Path: frenetic
   MainIs: netkat_test.ml
   Build$: flag(async)
-  Install: False
+  Install: false
   BuildDepends:
     async,
     core,
