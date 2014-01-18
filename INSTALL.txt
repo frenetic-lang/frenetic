@@ -1,0 +1,12 @@
+Dependencies
+============
+
+In order to compile this package, you will need:
+* ocaml (>= 4.01.0)
+* findlib
+* opam
+
+Installing
+============
+
+1. Add the frenetic OPAM repository:
