@@ -2515,7 +2515,7 @@ module Message = struct
     | SwitchFeaturesReply _ -> "SwitchFeaturesReply"
     | FlowModMsg _ -> "FlowMod"
     | PacketOutMsg _ -> "PacketOut"
-    | PortStatusMsg _ -> "PortStatus"
+    | PortStatusMsg p -> PortStatus.to_string p
     | PacketInMsg _ -> "PacketIn"
     | FlowRemovedMsg _ -> "FlowRemoved"
     | BarrierRequest -> "BarrierRequest"
