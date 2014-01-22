@@ -1105,9 +1105,9 @@ module PortDescription = struct
        vectors. Only portStateDown is parsed correctly ATM *)
     let of_int d =
       { down = test_bit 0 d
-      ; stp_listen = false
-      ; stp_forward = false
-      ; stp_block = false }
+      ; stp_listen = test_bit 1 d
+      ; stp_forward = test_bit 2 d
+      ; stp_block = test_bit 3 d }
 
     let to_int d = 
       let bits = Int32.zero in
