@@ -1084,36 +1084,54 @@ module PortDescription = struct
 
   module PortState = struct
 
+    module StpState = struct
+      type t =
+        | Listen
+        | Learn
+        | Forward
+        | Block
+
+      let mask = Int32.shift_left 3l 8
+
+      let to_string t =
+        match t with
+          | Listen -> "LISTEN"
+          | Learn -> "LEARN"
+          | Forward -> "FORWARD"
+          | Block -> "BLOCK"
+
+      let to_int t =
+        Int32.shift_left
+          (match t with Listen -> 0l | Learn -> 1l | Forward -> 2l | Block -> 3l)
+          8
+
+      let of_int d =
+        let d_masked = Int32.logand d mask in
+        if d_masked = to_int Listen then Listen
+        else if d_masked = to_int Learn then Learn
+        else if d_masked = to_int Forward then Forward
+        else if d_masked = to_int Block then Block
+        else raise (Unparsable
+          (Printf.sprintf "Unexpected ofp_port_state for STP: %ld" d_masked))
+    end
+
     type t =
       { down : bool  (* No physical link present. *)
-      ; stp_listen : bool
-      ; stp_forward : bool
-      ; stp_block : bool }
+      ; stp_state : StpState.t } (* The state of the port wrt the spanning tree
+                                    algorithm. *)
 
     let to_string p = Printf.sprintf
       "{ down = %B; \
-         stp_listen = %B; \
-         stp_forward = %B; \
-         stp_block = %B }"
+         stp_state = %s }"
       p.down
-      p.stp_listen
-      p.stp_forward
-      p.stp_block
+      (StpState.to_string p.stp_state)
 
-    (* MJR: GAH, the enum values from OF1.0 make NO SENSE AT ALL. Two of
-       them have the SAME value, and the rest make no sense as bit
-       vectors. Only portStateDown is parsed correctly ATM *)
     let of_int d =
       { down = test_bit 0 d
-      ; stp_listen = test_bit 1 d
-      ; stp_forward = test_bit 2 d
-      ; stp_block = test_bit 3 d }
+      ; stp_state = StpState.of_int d }
 
     let to_int d = 
-      let bits = Int32.zero in
-      let bits = bit bits 3 d.stp_block in 
-      let bits = bit bits 2 d.stp_forward in 
-      let bits = bit bits 1 d.stp_listen in 
+      let bits = StpState.to_int d.stp_state in
       let bits = bit bits 0 d.down in 
       bits
 
