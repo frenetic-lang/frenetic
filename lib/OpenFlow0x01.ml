@@ -1349,17 +1349,17 @@ module PortStatus = struct
   let size_of ps = 
     ChangeReason.size_of ps.reason + PortDescription.size_of ps.desc
 
-  let parse bits =
-    let reason = ChangeReason.of_int (get_ofp_port_status_reason bits) in
-    let _ = Cstruct.shift bits sizeof_ofp_port_status in
-    let description = PortDescription.parse bits in
+  let parse bits0 =
+    let reason = ChangeReason.of_int (get_ofp_port_status_reason bits0) in
+    let bits1 = Cstruct.shift bits0 sizeof_ofp_port_status in
+    let description = PortDescription.parse bits1 in
     { reason = reason
     ; desc = description }
 
-  let marshal ps bits = 
-    set_ofp_port_status_reason bits (ChangeReason.to_int ps.reason);
-    let bits = Cstruct.shift bits sizeof_ofp_port_status in 
-    let _ = PortDescription.marshal ps.desc bits in 
+  let marshal ps bits0 =
+    set_ofp_port_status_reason bits0 (ChangeReason.to_int ps.reason);
+    let bits1 = Cstruct.shift bits0 sizeof_ofp_port_status in
+    let _ = PortDescription.marshal ps.desc bits1 in
     size_of ps
 end
 
