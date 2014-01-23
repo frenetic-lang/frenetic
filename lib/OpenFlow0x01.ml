@@ -1332,7 +1332,7 @@ module PortStatus = struct
         | Delete -> "Delete"
         | Modify -> "Modify"
 
-    let size_of _ = sizeof_ofp_port_status
+    let size_of t = sizeof_ofp_port_status
 
   end
 

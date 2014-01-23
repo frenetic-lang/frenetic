@@ -201,6 +201,9 @@ module PortDescription : sig
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
+
+    val to_int : t -> Int32.t
+    val of_int : Int32.t -> t
   end
 
   (** See the [ofp_port_state] enumeration in Section 5.2.1 of the OpenFlow 
@@ -233,6 +236,9 @@ module PortDescription : sig
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
+    val of_int : Int32.t -> t
+    val to_int : t -> Int32.t
+
   end
 
   (** See the [ofp_port_features] enumeration in Section 5.2.1 of the OpenFlow
@@ -257,6 +263,9 @@ module PortDescription : sig
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
+    val of_int : Int32.t -> t
+    val to_int : t -> Int32.t
+
   end
 
   type t =
@@ -273,6 +282,11 @@ module PortDescription : sig
 
   (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
+
+  val parse : Cstruct.t -> t
+  val marshal : t -> Cstruct.t -> int
+
+  val size_of : t -> int
 
 end
 
@@ -299,6 +313,11 @@ module PortStatus : sig
 
   (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
+
+  val parse : Cstruct.t -> t
+  val marshal : t -> Cstruct.t -> int
+
+  val size_of : t -> int
 
 end
 

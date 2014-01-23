@@ -88,6 +88,27 @@ module RoundTripping = struct
       (openflow_quickCheck GenFlowRemoved.arbitrary
           GenFlowRemoved.to_string GenFlowRemoved.parse GenFlowRemoved.marshal)
 
+  TEST "OpenFlow0x01 PortDescription.PortConfig RoundTrip" =
+      let module GenPortConfig = Gen.PortDescription.PortConfig in
+      (openflow_quickCheck GenPortConfig.arbitrary
+          GenPortConfig.to_string GenPortConfig.parse GenPortConfig.marshal)
+
+  TEST "OpenFlow0x01 PortDescription.PortState RoundTrip" =
+      let module GenPortState = Gen.PortDescription.PortState in
+      (openflow_quickCheck GenPortState.arbitrary
+          GenPortState.to_string GenPortState.parse GenPortState.marshal)
+
+  TEST "OpenFlow0x01 PortDescription RoundTrip" =
+      let module GenPortDescription = Gen.OpenFlow0x01_Unsize(Gen.PortDescription) in
+      (openflow_quickCheck GenPortDescription.arbitrary
+          GenPortDescription.to_string GenPortDescription.parse GenPortDescription.marshal)
+
+  TEST "OpenFlow0x01 PortStatus RoundTrip" =
+      let module GenPortStatus = Gen.OpenFlow0x01_Unsize(Gen.PortStatus) in
+      (openflow_quickCheck GenPortStatus.arbitrary
+          GenPortStatus.to_string GenPortStatus.parse GenPortStatus.marshal)
+
+
   TEST "OpenFlow Hello Test 1" = 
     let open Message in 
     let bs = Cstruct.create 101 in

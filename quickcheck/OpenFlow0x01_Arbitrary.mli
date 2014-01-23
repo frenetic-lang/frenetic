@@ -73,3 +73,13 @@ module FlowRemoved : sig
 
   module Reason : OpenFlow0x01_Arbitrary
 end
+
+module PortDescription : sig
+  include OpenFlow0x01_ArbitraryCstruct
+
+  module PortConfig : OpenFlow0x01_Arbitrary
+  module PortState : OpenFlow0x01_Arbitrary
+  module PortFeatures : OpenFlow0x01_Arbitrary
+end
+
+module PortStatus : OpenFlow0x01_ArbitraryCstruct
