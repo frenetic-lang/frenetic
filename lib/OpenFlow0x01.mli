@@ -201,6 +201,9 @@ module PortDescription : sig
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
+
+    val to_int : t -> Int32.t
+    val of_int : Int32.t -> t
   end
 
   (** See the [ofp_port_state] enumeration in Section 5.2.1 of the OpenFlow 
@@ -211,15 +214,30 @@ module PortDescription : sig
   [PortConfig.no_packet_in] to fully implement an 802.1D tree. *)
   module PortState : sig
 
+    module StpState : sig
+      type t =
+        | Listen (** Not learning or relaying frames *)
+        | Learn (** Learning but not relaying frames *)
+        | Forward (** Learning and relaying frames *)
+        | Block (** Not part of the spanning tree *)
+
+      val of_int : Int32.t -> t
+      val to_int : t -> Int32.t
+
+      val to_string : t -> string
+    end
+
     type t =
       { down : bool  (** No physical link present. *)
-      ; stp_listen : bool (** Not learning or relaying frames. *)
-      ; stp_forward : bool (** Learning but not relaying frames. *)
-      ; stp_block : bool (** Not part of spanning tree. *)
+      ; stp_state : StpState.t (** The state of the port wrt the spanning tree
+                                   algorithm *)
       }
 
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
+
+    val of_int : Int32.t -> t
+    val to_int : t -> Int32.t
 
   end
 
@@ -245,6 +263,9 @@ module PortDescription : sig
     (** [to_string v] pretty-prints [v]. *)
     val to_string : t -> string
 
+    val of_int : Int32.t -> t
+    val to_int : t -> Int32.t
+
   end
 
   type t =
@@ -261,6 +282,11 @@ module PortDescription : sig
 
   (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
+
+  val parse : Cstruct.t -> t
+  val marshal : t -> Cstruct.t -> int
+
+  val size_of : t -> int
 
 end
 
@@ -287,6 +313,11 @@ module PortStatus : sig
 
   (** [to_string v] pretty-prints [v]. *)
   val to_string : t -> string
+
+  val parse : Cstruct.t -> t
+  val marshal : t -> Cstruct.t -> int
+
+  val size_of : t -> int
 
 end
 

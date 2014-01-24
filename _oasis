@@ -41,7 +41,6 @@ Library openflow
     Misc,
     ModComposition,
     GroupTable0x04,
-    SDN_OpenFlow0x01,
     SDN_OpenFlow0x04,
     HighLevelSwitch_common    
   Modules:
@@ -52,6 +51,7 @@ Library openflow
     OpenFlow0x01_Stats,
     OpenFlow0x04,
     OpenFlow0x04_Core,
+    SDN_OpenFlow0x01,
     SDN_Types    
 
 Library async

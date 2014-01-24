@@ -399,3 +399,144 @@ module FlowRemoved = struct
   let size_of = FlowRemoved.size_of
 
 end
+
+module PortDescription = struct
+  module PortConfig = struct
+    open PortDescription
+
+    type t = PortConfig.t
+    type s = Int32.t
+
+    let arbitrary =
+      let open Gen in
+      let open PortConfig in
+      arbitrary_bool >>= fun down ->
+      arbitrary_bool >>= fun no_stp ->
+      arbitrary_bool >>= fun no_recv ->
+      arbitrary_bool >>= fun no_recv_stp ->
+      arbitrary_bool >>= fun no_flood ->
+      arbitrary_bool >>= fun no_fwd ->
+      arbitrary_bool >>= fun no_packet_in ->
+        ret_gen {
+          down; no_stp; no_recv; no_recv_stp; no_flood; no_fwd; no_packet_in
+        }
+
+    let to_string = PortConfig.to_string
+
+    let marshal = PortConfig.to_int
+    let parse = PortConfig.of_int
+  end
+
+  module PortState = struct
+    open PortDescription
+
+    module StpState = struct
+      open PortState
+
+      let arbitrary =
+        let open Gen in
+        elements StpState.([Listen; Learn; Forward; Block])
+    end
+
+    type t = PortState.t
+    type s = Int32.t
+
+    let arbitrary =
+      let open Gen in
+      arbitrary_bool >>= fun down ->
+      StpState.arbitrary >>= fun stp_state ->
+        let open PortState in
+        ret_gen { down; stp_state }
+
+    let to_string = PortState.to_string
+
+    let marshal = PortState.to_int
+    let parse = PortState.of_int
+  end
+
+  module PortFeatures = struct
+    open PortDescription
+
+    type t = PortFeatures.t
+    type s = Int32.t
+
+    let arbitrary =
+      let open Gen in
+      let open PortFeatures in
+      arbitrary_bool >>= fun f_10MBHD ->
+      arbitrary_bool >>= fun f_10MBFD ->
+      arbitrary_bool >>= fun f_100MBHD ->
+      arbitrary_bool >>= fun f_100MBFD ->
+      arbitrary_bool >>= fun f_1GBHD ->
+      arbitrary_bool >>= fun f_1GBFD ->
+      arbitrary_bool >>= fun f_10GBFD ->
+      arbitrary_bool >>= fun copper ->
+      arbitrary_bool >>= fun fiber ->
+      arbitrary_bool >>= fun autoneg ->
+      arbitrary_bool >>= fun pause ->
+      arbitrary_bool >>= fun pause_asym ->
+        ret_gen {
+          f_10MBHD; f_10MBFD; f_100MBHD; f_100MBFD; f_1GBHD; f_1GBFD; f_10GBFD;
+          copper; fiber; autoneg; pause; pause_asym
+        }
+
+    let to_string = PortFeatures.to_string
+
+    let marshal = PortFeatures.to_int
+    let parse = PortFeatures.of_int
+  end
+
+  type t = PortDescription.t
+  type s = Cstruct.t
+
+  let arbitrary =
+    let open Gen in
+    arbitrary_uint16 >>= fun port_no ->
+    arbitrary_uint48 >>= fun hw_addr ->
+    arbitrary_stringN 16 >>= fun name ->
+    PortConfig.arbitrary >>= fun config ->
+    PortState.arbitrary >>= fun state ->
+    PortFeatures.arbitrary >>= fun curr ->
+    PortFeatures.arbitrary >>= fun advertised ->
+    PortFeatures.arbitrary >>= fun supported ->
+    PortFeatures.arbitrary >>= fun peer ->
+      let open PortDescription in
+      ret_gen {
+        port_no; hw_addr; name; config; state; curr; advertised; supported; peer
+      }
+
+  let to_string = PortDescription.to_string
+
+  let marshal = PortDescription.marshal
+  let parse = PortDescription.parse
+
+  let size_of = PortDescription.size_of
+end
+
+module PortStatus = struct
+
+  module ChangeReason = struct
+    open PortStatus
+
+    let arbitrary =
+      let open Gen in
+      elements ChangeReason.([Add; Delete; Modify])
+  end
+
+  type t = PortStatus.t
+  type s = Cstruct.t
+
+  let arbitrary =
+    let open Gen in
+      ChangeReason.arbitrary >>= fun reason ->
+      PortDescription.arbitrary >>= fun desc ->
+        let open PortStatus in
+        ret_gen { reason; desc }
+
+  let to_string = PortStatus.to_string
+
+  let marshal = PortStatus.marshal
+  let parse = PortStatus.parse
+
+  let size_of = PortStatus.size_of
+end

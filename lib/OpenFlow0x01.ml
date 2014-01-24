@@ -1084,36 +1084,54 @@ module PortDescription = struct
 
   module PortState = struct
 
+    module StpState = struct
+      type t =
+        | Listen
+        | Learn
+        | Forward
+        | Block
+
+      let mask = Int32.shift_left 3l 8
+
+      let to_string t =
+        match t with
+          | Listen -> "LISTEN"
+          | Learn -> "LEARN"
+          | Forward -> "FORWARD"
+          | Block -> "BLOCK"
+
+      let to_int t =
+        Int32.shift_left
+          (match t with Listen -> 0l | Learn -> 1l | Forward -> 2l | Block -> 3l)
+          8
+
+      let of_int d =
+        let d_masked = Int32.logand d mask in
+        if d_masked = to_int Listen then Listen
+        else if d_masked = to_int Learn then Learn
+        else if d_masked = to_int Forward then Forward
+        else if d_masked = to_int Block then Block
+        else raise (Unparsable
+          (Printf.sprintf "Unexpected ofp_port_state for STP: %ld" d_masked))
+    end
+
     type t =
       { down : bool  (* No physical link present. *)
-      ; stp_listen : bool
-      ; stp_forward : bool
-      ; stp_block : bool }
+      ; stp_state : StpState.t } (* The state of the port wrt the spanning tree
+                                    algorithm. *)
 
     let to_string p = Printf.sprintf
       "{ down = %B; \
-         stp_listen = %B; \
-         stp_forward = %B; \
-         stp_block = %B }"
+         stp_state = %s }"
       p.down
-      p.stp_listen
-      p.stp_forward
-      p.stp_block
+      (StpState.to_string p.stp_state)
 
-    (* MJR: GAH, the enum values from OF1.0 make NO SENSE AT ALL. Two of
-       them have the SAME value, and the rest make no sense as bit
-       vectors. Only portStateDown is parsed correctly ATM *)
     let of_int d =
       { down = test_bit 0 d
-      ; stp_listen = false
-      ; stp_forward = false
-      ; stp_block = false }
+      ; stp_state = StpState.of_int d }
 
     let to_int d = 
-      let bits = Int32.zero in
-      let bits = bit bits 3 d.stp_block in 
-      let bits = bit bits 2 d.stp_forward in 
-      let bits = bit bits 1 d.stp_listen in 
+      let bits = StpState.to_int d.stp_state in
       let bits = bit bits 0 d.down in 
       bits
 
@@ -1314,7 +1332,7 @@ module PortStatus = struct
         | Delete -> "Delete"
         | Modify -> "Modify"
 
-    let size_of _ = sizeof_ofp_port_status
+    let size_of t = sizeof_ofp_port_status
 
   end
 
@@ -1331,17 +1349,17 @@ module PortStatus = struct
   let size_of ps = 
     ChangeReason.size_of ps.reason + PortDescription.size_of ps.desc
 
-  let parse bits =
-    let reason = ChangeReason.of_int (get_ofp_port_status_reason bits) in
-    let _ = Cstruct.shift bits sizeof_ofp_port_status in
-    let description = PortDescription.parse bits in
+  let parse bits0 =
+    let reason = ChangeReason.of_int (get_ofp_port_status_reason bits0) in
+    let bits1 = Cstruct.shift bits0 sizeof_ofp_port_status in
+    let description = PortDescription.parse bits1 in
     { reason = reason
     ; desc = description }
 
-  let marshal ps bits = 
-    set_ofp_port_status_reason bits (ChangeReason.to_int ps.reason);
-    let bits = Cstruct.shift bits sizeof_ofp_port_status in 
-    let _ = PortDescription.marshal ps.desc bits in 
+  let marshal ps bits0 =
+    set_ofp_port_status_reason bits0 (ChangeReason.to_int ps.reason);
+    let bits1 = Cstruct.shift bits0 sizeof_ofp_port_status in
+    let _ = PortDescription.marshal ps.desc bits1 in
     size_of ps
 end
 
@@ -2507,7 +2525,7 @@ module Message = struct
 
   let to_string (msg : t) : string = match msg with
     | Hello _ -> "Hello"
-    | ErrorMsg _ -> "Error"
+    | ErrorMsg e -> Error.to_string e
     | EchoRequest _ -> "EchoRequest"
     | EchoReply _ -> "EchoReply"
     | VendorMsg _ -> "Vendor"
@@ -2515,7 +2533,7 @@ module Message = struct
     | SwitchFeaturesReply _ -> "SwitchFeaturesReply"
     | FlowModMsg _ -> "FlowMod"
     | PacketOutMsg _ -> "PacketOut"
-    | PortStatusMsg _ -> "PortStatus"
+    | PortStatusMsg p -> PortStatus.to_string p
     | PacketInMsg _ -> "PacketIn"
     | FlowRemovedMsg _ -> "FlowRemoved"
     | BarrierRequest -> "BarrierRequest"

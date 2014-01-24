@@ -142,8 +142,18 @@ module OpenFlow0x01 : sig
   module Message : Message
     with type t = (OpenFlow_Header.xid * OpenFlow0x01.Message.t)
 
-  module Controller : Platform.S
-    with type m = Message.t
+  module Controller : sig
+    include Platform.S
+      with type m = Message.t
+
+    type f = [
+      | `Connect of Client_id.t * OpenFlow0x01.SwitchFeatures.t
+      | `Disconnect of Client_id.t * Sexp.t
+      | `Message of Client_id.t * m
+    ]
+
+    val features : (t, e, f) Platform.Trans.stage
+  end
 
   val chunk_conv
     :  Chunk.Message.t Pipe.Reader.t * Chunk.Message.t Pipe.Writer.t
