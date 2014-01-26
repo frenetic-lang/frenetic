@@ -364,8 +364,8 @@ struct
   let stitch (path:E.t list) : (portId option * Node.t * portId option) list =
     let hops = List.fold_left (fun acc e -> match acc with
       | [] ->
-        [ (None, Link.src e, Some(Link.srcport e))
-        ; (Some(Link.dstport e), Link.dst e , None) ]
+        [ (Some(Link.dstport e), Link.dst e , None)
+        ; (None, Link.src e, Some(Link.srcport e))]
       | (inp, srcnode, outp)::tl ->
         let srcport = Some (Link.srcport e) in
         let dstport = Some (Link.dstport e) in
