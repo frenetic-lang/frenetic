@@ -67,18 +67,23 @@ module MakeSerializers (M : Message) = struct
 
 
   (* Converts back and forth between streams of messsages with parsed bodies
-     and "chunks", which are header * raw_body pairs. *)
+     and "chunks", which are header * raw_body pairs.
+
+     Closing semantics: closing the returned readers and writers __does not
+     close__ the chunk readers and writers. *)
   let chunk_conv (chunk_reader, chunk_writer) =
-      let of_reader = Pipe.map chunk_reader
+    let (of_reader, of_reader_w) = Pipe.create () in
+    let _ = Pipe.iter_without_pushback chunk_reader
         ~f:(fun (hdr, body) ->
             (* XXX(seliopou): What's the deal with this version check? *)
-            if hdr.Header.version = 0x01 then
-              try 
-                `Ok (M.parse hdr body)
-              (* TODO(arjun): exception eaten? *)
-              with _ -> `Chunk (hdr, body)
-            else
-              `Chunk (hdr, body)) in
+            let of_msg = if hdr.Header.version = 0x01 then
+                try   
+                  `Ok (M.parse hdr body)
+                (* TODO(arjun): exception eaten? *)
+                with _ -> `Chunk (hdr, body)
+              else
+                `Chunk (hdr, body) in
+            Pipe.write_without_pushback of_reader_w of_msg) in
       let (of_writer_r, of_writer) = Pipe.create () in
       let _ = Pipe.iter_without_pushback of_writer_r
         ~f:(function
@@ -87,4 +92,5 @@ module MakeSerializers (M : Message) = struct
             | `Chunk chunk ->
               Pipe.write_without_pushback chunk_writer chunk) in
       (of_reader, of_writer)
+
 end
