@@ -131,6 +131,13 @@ Executable testtool
     openflow.quickcheck,
     quickcheck
 
+Executable ping_test
+  Path: test
+  Install: false
+  Build$: flag(end_test) && flag(lwt)
+  MainIs: PingTest.ml
+  BuildDepends: packet,openflow,openflow.lwt,oUnit,pa_ounit,pa_ounit.syntax
+
 Test all_tests
   Command: $testtool inline-test-runner openflow
   Run$:  flag(quickcheck) && flag(tests)
