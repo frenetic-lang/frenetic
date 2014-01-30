@@ -1,6 +1,6 @@
 open Graph
 
-type switchId = SDN_Types.switchId
+type switchId = int64
 type portId = int64
 type rate = Rate of int64 * int64
 

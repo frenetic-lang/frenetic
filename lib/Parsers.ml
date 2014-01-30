@@ -98,8 +98,8 @@ module TopoDot = struct
       Core.Node.Host(name, Packet.mac_of_string nat.mac,
                            Packet.ip_of_string nat.ip)
     else if nat.ntype = "switch" then begin
-      Hashtbl.replace !id2attrs (VInt.Int64 nat.id) nat;
-      Core.Node.Switch(VInt.Int64 nat.id) end
+      Hashtbl.replace !id2attrs nat.id nat;
+      Core.Node.Switch(nat.id) end
     else
       Core.Node.Mbox(name,[])
 
@@ -150,7 +150,7 @@ module TopoGML = struct
         Core.Node.Host(nat.name, Packet.mac_of_string nat.mac,
                                  Packet.ip_of_string nat.ip)
       else if nat.ntype = "switch" then
-        Core.Node.Switch(VInt.Int64 nat.id)
+        Core.Node.Switch(nat.id)
       else
         Core.Node.Mbox(nat.name,[])
 

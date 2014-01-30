@@ -1,7 +1,7 @@
 open Topology_Util
 open Graph
 
-type switchId = SDN_Types.switchId
+type switchId = int64
 type portId = int64
 type rate = Rate of int64 * int64
 
@@ -109,7 +109,7 @@ struct
   let compare = Pervasives.compare
   let to_dot n = match n with
     | Host(s,m,i) -> s
-    | Switch i -> "s" ^ VInt.get_string i
+    | Switch i -> "s" ^ Int64.to_string i
     | Mbox(s,_) -> s
   let to_string = to_dot
   let id_of_switch n =
@@ -483,7 +483,7 @@ struct
               n n
               (Packet.string_of_mac m) (Packet.string_of_ip i)
           | Node.Switch i ->
-            let sid = "s" ^ (VInt.get_string i) in
+            let sid = "s" ^ (Int64.to_string i) in
             Printf.sprintf
             "    %s = net.addSwitch(\'%s\')\n" sid sid
           | Node.Mbox(s,_) -> Printf.sprintf

@@ -1,6 +1,6 @@
 open Graph
 
-type switchId = SDN_Types.switchId
+type switchId = int64
 type portId = int64
 
 type nattr = {
@@ -105,6 +105,6 @@ module Topology : TOPO with type V.t = Node.t and type E.t = Link.e and type V.l
 
 val from_dotfile_tbl : string -> (Topology.t *
                                     (string, nattr) Hashtbl.t *
-                                    (VInt.t, nattr) Hashtbl.t)
+                                    (switchId, nattr) Hashtbl.t)
 val from_dotfile : string -> Topology.t
 val from_gmlfile : string -> Topology.t
