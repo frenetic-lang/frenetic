@@ -14,7 +14,6 @@ Library topology
   BuildDepends:
     str,
     ocamlgraph,
-    openflow,
     packet,
     threads
   InternalModules:
@@ -29,7 +28,6 @@ Executable otopo
   MainIs: main.ml
   BuildDepends:
     ocamlgraph,
-    openflow,
     packet,
     topology
   Install: False
