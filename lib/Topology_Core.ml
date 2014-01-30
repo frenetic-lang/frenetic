@@ -5,8 +5,6 @@ type switchId = SDN_Types.switchId
 type portId = VInt.t
 type rate = Rate of int64 * int64
 
-type addrMAC = VInt.t
-type addrIP = VInt.t
 
 let string_of_rate r =
   let Rate(min,max) = r in
@@ -14,7 +12,7 @@ let string_of_rate r =
 
 module type NODE =
 sig
-  type t = Host of string * addrMAC * addrIP
+  type t = Host of string * Packet.dlAddr * Packet.nwAddr
            | Switch of switchId
            | Mbox of string * string list
   type label = t
@@ -68,7 +66,7 @@ sig
 
   (* Constructors *)
   val add_node : t -> V.t -> t
-  val add_host : t -> string -> addrMAC -> addrIP -> t
+  val add_host : t -> string -> Packet.dlAddr -> Packet.nwAddr -> t
   val add_switch : t -> switchId -> t
   val add_switch_edge : t -> V.t -> portId -> V.t -> portId -> t
 
@@ -102,7 +100,7 @@ end
 (***** Concrete types for network topology *****)
 module Node =
 struct
-  type t = Host of string * addrMAC * addrIP
+  type t = Host of string * Packet.dlAddr * Packet.nwAddr
            | Switch of switchId
            | Mbox of string * string list
   type label = t
@@ -229,7 +227,7 @@ struct
     add_vertex g n
 
   (* Add a host, given its name, MAC address and IP, to the graph *)
-  let add_host (g:t) (h:string) (m:addrMAC) (i:addrIP) : t =
+  let add_host (g:t) (h:string) (m:Packet.dlAddr) (i:Packet.nwAddr) : t =
     add_vertex g (Node.Host(h,m,i))
 
 
@@ -483,7 +481,7 @@ struct
           | Node.Host(n,m,i) ->
             Printf.sprintf "    %s = net.addHost(\'%s\', mac=\'%s\', ip=\'%s\')\n"
               n n
-              (Packet.string_of_mac (VInt.get_int48 m)) (Packet.string_of_ip (VInt.get_int32 i))
+              (Packet.string_of_mac m) (Packet.string_of_ip i)
           | Node.Switch i ->
             let sid = "s" ^ (VInt.get_string i) in
             Printf.sprintf

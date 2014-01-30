@@ -1,5 +1,4 @@
 open Graph
-open Packet
 
 include Topology_Core
 include Parsers

@@ -1,10 +1,7 @@
 open Graph
-open Packet
 
 type switchId = SDN_Types.switchId
 type portId = VInt.t
-type addrMAC = VInt.t
-type addrIP = VInt.t
 
 type nattr = {
   ntype: string
@@ -16,7 +13,7 @@ type nattr = {
 
 module type NODE =
 sig
-  type t = Host of string * addrMAC * addrIP
+  type t = Host of string * Packet.dlAddr * Packet.nwAddr
            | Switch of switchId
            | Mbox of string * string list
   type label = t
@@ -70,7 +67,7 @@ sig
 
   (* Constructors *)
   val add_node : t -> V.t -> t
-  val add_host : t -> string -> addrMAC -> addrIP -> t
+  val add_host : t -> string -> Packet.dlAddr -> Packet.nwAddr -> t
   val add_switch : t -> switchId -> t
   val add_switch_edge : t -> V.t -> portId -> V.t -> portId -> t
 
