@@ -1,7 +1,7 @@
 open Graph
 
 type switchId = SDN_Types.switchId
-type portId = VInt.t
+type portId = int64
 
 type nattr = {
   ntype: string

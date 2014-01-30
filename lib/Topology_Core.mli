@@ -1,7 +1,7 @@
 open Graph
 
 type switchId = SDN_Types.switchId
-type portId = VInt.t
+type portId = int64
 type rate = Rate of int64 * int64
 
 val string_of_rate : rate -> string

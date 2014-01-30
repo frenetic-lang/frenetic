@@ -80,8 +80,8 @@ module TopoDot = struct
   (* Update the record for an edge *)
   let update_eattr edge (key,valopt) =
     match key with
-      | Dot_ast.Ident("sport") -> {edge with Core.Link.srcport = VInt.Int32 (int32_of_id valopt)}
-      | Dot_ast.Ident("dport") -> {edge with Core.Link.dstport = VInt.Int32 (int32_of_id valopt)}
+      | Dot_ast.Ident("sport") -> {edge with Core.Link.srcport = int64_of_id valopt}
+      | Dot_ast.Ident("dport") -> {edge with Core.Link.dstport = int64_of_id valopt}
       | Dot_ast.Ident("cost") -> {edge with Core.Link.cost = int64_of_id valopt }
       | Dot_ast.Ident("capacity") -> {edge with Core.Link.capacity = capacity_of_id valopt }
       | _ -> failwith "Unknown edge attribute\n"
@@ -139,8 +139,8 @@ module TopoGML = struct
        simple, since most Topology Zoo graphs don't seem to have port
        information *)
     let update_eattr edge (key, value) = match key with
-      | "source" -> {edge with Core.Link.dstport = VInt.Int32 (int32_of_value value)}
-      | "target" -> {edge with Core.Link.srcport = VInt.Int32 (int32_of_value value)}
+      | "source" -> {edge with Core.Link.dstport = int64_of_value value}
+      | "target" -> {edge with Core.Link.srcport = int64_of_value value}
       | _ -> edge
 
     let node (vs:Gml.value_list) : Core.Topology.V.label =

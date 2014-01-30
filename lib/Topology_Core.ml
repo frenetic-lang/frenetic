@@ -2,7 +2,7 @@ open Topology_Util
 open Graph
 
 type switchId = SDN_Types.switchId
-type portId = VInt.t
+type portId = int64
 type rate = Rate of int64 * int64
 
 
@@ -130,8 +130,8 @@ struct
   type e = v * t * v
   let compare = Pervasives.compare
   let default = {
-    srcport = VInt.Int32 0l;
-    dstport = VInt.Int32 0l;
+    srcport = 0L;
+    dstport = 0L;
     cost = 1L;
     capacity = Int64.max_int
   }
@@ -177,8 +177,8 @@ struct
 
   let string_of_label (s,l,d) =
     Printf.sprintf "{srcport = %s; dstport = %s; cost = %s; capacity = %s;}"
-      (VInt.get_string l.srcport)
-      (VInt.get_string l.dstport)
+      (Int64.to_string l.srcport)
+      (Int64.to_string l.dstport)
       (Int64.to_string l.cost)
       (Int64.to_string l.capacity)
 
@@ -343,7 +343,7 @@ struct
                          (List.filter (fun e -> (Link.srcport e) = p) ss))
       with Failure hd -> raise (NotFound(
         Printf.sprintf "next_hop: Port %s on %s is not connected\n"
-          (VInt.get_string p) (Node.to_string n)))
+          (Int64.to_string p) (Node.to_string n)))
     in d
 
   (* Find the shortest path between two nodes using Dijkstra's algorithm,
@@ -504,8 +504,8 @@ struct
               (Node.to_string (E.dst e)) in
             Printf.sprintf "    net.addLink(%s, %s, %s, %s)\n"
               src dst
-	      (VInt.get_string (Link.srcport e))
-	      (VInt.get_string (Link.dstport e))
+              (Int64.to_string (Link.srcport e))
+              (Int64.to_string (Link.dstport e))
         in
         seen := EdgeSet.add e !seen;
         acc ^ add
