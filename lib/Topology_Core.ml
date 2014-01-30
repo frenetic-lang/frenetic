@@ -42,7 +42,7 @@ sig
 
   (* Constructors *)
   val mk_edge : v -> v -> t -> e
-  val mk_link : v -> VInt.t -> v -> VInt.t -> VInt.t -> VInt.t -> e
+  val mk_link : v -> portId -> v -> portId -> VInt.t -> VInt.t -> e
   val reverse : e -> e
 
   (* Accesssors *)
@@ -52,8 +52,8 @@ sig
 
   val capacity : e -> VInt.t
   val cost : e -> VInt.t
-  val srcport : e -> VInt.t
-  val dstport : e -> VInt.t
+  val srcport : e -> portId
+  val dstport : e -> portId
 
   (* Utilities *)
   val name : e -> string
