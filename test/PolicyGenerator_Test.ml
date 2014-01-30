@@ -17,8 +17,8 @@ let topo_test g pol =
 
 let generate_random_graph num_hosts num_switches edge_prob =
   let hosts = Array.init num_hosts
-    (fun i -> Node.Host("h"^(string_of_int i),VInt.Int16 0, VInt.Int16 i)) in
-  let switches = Array.init num_switches (fun i -> Node.Switch (VInt.Int16 i)) in
+    (fun i -> Node.Host("h"^(string_of_int i), 0L, Int32.of_int i)) in
+  let switches = Array.init num_switches (fun i -> Node.Switch (Int64.of_int i)) in
   let g = Array.fold_left (fun g h -> Topology.add_node g h) Topology.empty hosts in
   let g = Array.fold_left (fun g s -> Topology.add_node g s) g switches in
   let graph = ref g in
@@ -31,7 +31,7 @@ let generate_random_graph num_hosts num_switches edge_prob =
             ()
           else
             gr := Topology.add_edge_e (!gr)
-              (Link.mk_link arr.(i) (VInt.Int16 0) arr.(j) (VInt.Int16 0) (VInt.Int16 1) (VInt.Int16 1))
+              (Link.mk_link arr.(i) 0L arr.(j) 0L 1L 1L)
       done;
     done
   in
@@ -44,7 +44,7 @@ let generate_random_graph num_hosts num_switches edge_prob =
             ()
           else
             gr := Topology.add_edge_e (!gr)
-              (Link.mk_link arr1.(i) (VInt.Int16 0) arr2.(j) (VInt.Int16 0) (VInt.Int16 1) (VInt.Int16 1))
+              (Link.mk_link arr1.(i) 0L arr2.(j) 0L 1L 1L)
       done;
     done
   in

@@ -18,7 +18,7 @@ let switches (g : t) : SDN_Types.switchId list =
     (List.fold_left
        (fun acc node -> match node with
      | Node.Host _ -> acc
-     | Node.Switch dpid -> dpid::acc
+     | Node.Switch dpid -> (VInt.Int64 dpid)::acc
      | Node.Mbox _ -> acc)
        [] (Topology.get_vertices g))
 
@@ -48,10 +48,10 @@ let all_pairs_shortest_paths (g : t) =
           | Node.Switch dpid ->
             let (_,e,_) = Topology.find_edge g v v' in
             let pol' =
-              Par(Seq(Filter(And(Test(Switch, dpid),
+              Par(Seq(Filter(And(Test(Switch, (VInt.Int64 dpid)),
                      And(Test(Header EthSrc, src),
                                  Test(Header EthDst, dst)))),
-                  Mod(Header InPort, e.Link.srcport)),
+                  Mod(Header InPort, VInt.Int64 e.Link.srcport)),
               pol) in
             (pol',v')
           | _ ->
