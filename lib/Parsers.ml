@@ -82,8 +82,8 @@ module TopoDot = struct
     match key with
       | Dot_ast.Ident("sport") -> {edge with Core.Link.srcport = VInt.Int32 (int32_of_id valopt)}
       | Dot_ast.Ident("dport") -> {edge with Core.Link.dstport = VInt.Int32 (int32_of_id valopt)}
-      | Dot_ast.Ident("cost") -> {edge with Core.Link.cost = VInt.Int64 (int64_of_id valopt) }
-      | Dot_ast.Ident("capacity") -> {edge with Core.Link.capacity = VInt.Int64 (capacity_of_id valopt)}
+      | Dot_ast.Ident("cost") -> {edge with Core.Link.cost = int64_of_id valopt }
+      | Dot_ast.Ident("capacity") -> {edge with Core.Link.capacity = capacity_of_id valopt }
       | _ -> failwith "Unknown edge attribute\n"
 
   (* Generate a node from the id and attributes *)

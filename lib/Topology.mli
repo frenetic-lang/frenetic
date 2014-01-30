@@ -35,8 +35,8 @@ sig
   type t = {
     srcport : portId;
     dstport : portId;
-    cost : VInt.t;
-    capacity : VInt.t;
+    cost : int64;
+    capacity : int64;
   }
   type e = (v * t * v)
   val default : t
@@ -44,7 +44,7 @@ sig
 
   (* Constructors *)
   val mk_edge : v -> v -> t -> e
-  val mk_link : v -> portId -> v -> portId -> VInt.t -> VInt.t -> e
+  val mk_link : v -> portId -> v -> portId -> int64 -> int64 -> e
   val reverse : e -> e
 
   (* Accesssors *)
@@ -52,8 +52,8 @@ sig
   val dst : e -> v
   val label : e -> t
 
-  val capacity : e -> VInt.t
-  val cost : e -> VInt.t
+  val capacity : e -> int64
+  val cost : e -> int64
   val srcport : e -> portId
   val dstport : e -> portId
 

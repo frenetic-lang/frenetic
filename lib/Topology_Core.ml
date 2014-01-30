@@ -33,8 +33,8 @@ sig
   type t = {
     srcport : portId;
     dstport : portId;
-    cost : VInt.t;
-    capacity : VInt.t;
+    cost : int64;
+    capacity : int64;
   }
   type e = (v * t * v)
   val default : t
@@ -42,7 +42,7 @@ sig
 
   (* Constructors *)
   val mk_edge : v -> v -> t -> e
-  val mk_link : v -> portId -> v -> portId -> VInt.t -> VInt.t -> e
+  val mk_link : v -> portId -> v -> portId -> int64 -> int64 -> e
   val reverse : e -> e
 
   (* Accesssors *)
@@ -50,8 +50,8 @@ sig
   val dst : e -> v
   val label : e -> t
 
-  val capacity : e -> VInt.t
-  val cost : e -> VInt.t
+  val capacity : e -> int64
+  val cost : e -> int64
   val srcport : e -> portId
   val dstport : e -> portId
 
@@ -126,16 +126,16 @@ struct
   type t = {
     srcport : portId;
     dstport : portId;
-    cost : VInt.t;
-    capacity : VInt.t;
+    cost : int64;
+    capacity : int64;
   }
   type e = v * t * v
   let compare = Pervasives.compare
   let default = {
     srcport = VInt.Int32 0l;
     dstport = VInt.Int32 0l;
-    cost = VInt.Int64 1L;
-    capacity = VInt.Int64 Int64.max_int
+    cost = 1L;
+    capacity = Int64.max_int
   }
 
   (* Constructors and mutators *)
@@ -181,8 +181,8 @@ struct
     Printf.sprintf "{srcport = %s; dstport = %s; cost = %s; capacity = %s;}"
       (VInt.get_string l.srcport)
       (VInt.get_string l.dstport)
-      (VInt.get_string l.cost)
-      (VInt.get_string l.capacity)
+      (Int64.to_string l.cost)
+      (Int64.to_string l.capacity)
 
   let to_dot (s,l,d) =
     let s = Node.to_dot s in
@@ -205,7 +205,7 @@ module Weight = struct
   open Link
   type t = Int64.t
   type label = Link.t
-  let weight l = VInt.get_int64 l.cost
+  let weight l = l.cost
   let compare = Int64.compare
   let add = Int64.add
   let zero = Int64.zero
@@ -292,7 +292,7 @@ struct
   (* Compute a topology with unit cost *)
   let unit_cost (g0:t) : t =
     let f (n1,l,n2) g : t =
-      add_edge_e g (n1, { l with Link.cost = VInt.Int16 1 }, n2) in
+      add_edge_e g (n1, { l with Link.cost = 1L }, n2) in
     let g = fold_vertex (fun v g -> add_vertex g v) g0 empty in
     let g = fold_edges_e (fun e g -> f e g) g0 g in
     g
@@ -379,7 +379,7 @@ struct
   let floyd_warshall (g:t) : ((V.t * V.t) * V.t list) list =
     let add_opt o1 o2 = 
       match o1, o2 with 
-        | Some n1, Some n2 -> Some (n1 + n2)
+        | Some n1, Some n2 -> Some (Int64.add n1 n2)
         | _ -> None in 
     let lt_opt o1 o2 = 
       match o1, o2 with 
@@ -392,11 +392,11 @@ struct
       let nodes = Array.of_list (get_vertices g) in
       Array.init n 
         (fun i -> Array.init n
-          (fun j -> if i = j then (Some 0, [nodes.(i)])
+          (fun j -> if i = j then (Some 0L, [nodes.(i)])
             else 
               try 
                 let l = find_edge g nodes.(i) nodes.(j) in
-                (Some (VInt.get_int (Link.cost l)), [nodes.(i); nodes.(j)])
+                (Some (Link.cost l), [nodes.(i); nodes.(j)])
             with Not_found -> 
               (None,[]))) in
     let matrix = make_matrix g in
