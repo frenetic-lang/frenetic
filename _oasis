@@ -132,7 +132,7 @@ Executable testtool
     quickcheck
 
 Executable ping_test
-  Path: test
+  Path: ping-test
   Install: false
   Build$: flag(end_test) && flag(lwt)
   MainIs: PingTest.ml
