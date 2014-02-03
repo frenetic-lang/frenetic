@@ -1,12 +1,10 @@
 open Topology_Util
 open Graph
 
-type switchId = SDN_Types.switchId
-type portId = VInt.t
+type switchId = int64
+type portId = int64
 type rate = Rate of int64 * int64
 
-type addrMAC = VInt.t
-type addrIP = VInt.t
 
 let string_of_rate r =
   let Rate(min,max) = r in
@@ -14,7 +12,7 @@ let string_of_rate r =
 
 module type NODE =
 sig
-  type t = Host of string * addrMAC * addrIP
+  type t = Host of string * Packet.dlAddr * Packet.nwAddr
            | Switch of switchId
            | Mbox of string * string list
   type label = t
@@ -33,8 +31,8 @@ sig
   type t = {
     srcport : portId;
     dstport : portId;
-    cost : VInt.t;
-    capacity : VInt.t;
+    cost : int64;
+    capacity : int64;
   }
   type e = (v * t * v)
   val default : t
@@ -42,7 +40,7 @@ sig
 
   (* Constructors *)
   val mk_edge : v -> v -> t -> e
-  val mk_link : v -> VInt.t -> v -> VInt.t -> VInt.t -> VInt.t -> e
+  val mk_link : v -> portId -> v -> portId -> int64 -> int64 -> e
   val reverse : e -> e
 
   (* Accesssors *)
@@ -50,10 +48,10 @@ sig
   val dst : e -> v
   val label : e -> t
 
-  val capacity : e -> VInt.t
-  val cost : e -> VInt.t
-  val srcport : e -> VInt.t
-  val dstport : e -> VInt.t
+  val capacity : e -> int64
+  val cost : e -> int64
+  val srcport : e -> portId
+  val dstport : e -> portId
 
   (* Utilities *)
   val name : e -> string
@@ -68,7 +66,7 @@ sig
 
   (* Constructors *)
   val add_node : t -> V.t -> t
-  val add_host : t -> string -> addrMAC -> addrIP -> t
+  val add_host : t -> string -> Packet.dlAddr -> Packet.nwAddr -> t
   val add_switch : t -> switchId -> t
   val add_switch_edge : t -> V.t -> portId -> V.t -> portId -> t
 
@@ -102,7 +100,7 @@ end
 (***** Concrete types for network topology *****)
 module Node =
 struct
-  type t = Host of string * addrMAC * addrIP
+  type t = Host of string * Packet.dlAddr * Packet.nwAddr
            | Switch of switchId
            | Mbox of string * string list
   type label = t
@@ -111,7 +109,7 @@ struct
   let compare = Pervasives.compare
   let to_dot n = match n with
     | Host(s,m,i) -> s
-    | Switch i -> "s" ^ VInt.get_string i
+    | Switch i -> "s" ^ Int64.to_string i
     | Mbox(s,_) -> s
   let to_string = to_dot
   let id_of_switch n =
@@ -126,16 +124,16 @@ struct
   type t = {
     srcport : portId;
     dstport : portId;
-    cost : VInt.t;
-    capacity : VInt.t;
+    cost : int64;
+    capacity : int64;
   }
   type e = v * t * v
   let compare = Pervasives.compare
   let default = {
-    srcport = VInt.Int32 0l;
-    dstport = VInt.Int32 0l;
-    cost = VInt.Int64 1L;
-    capacity = VInt.Int64 Int64.max_int
+    srcport = 0L;
+    dstport = 0L;
+    cost = 1L;
+    capacity = Int64.max_int
   }
 
   (* Constructors and mutators *)
@@ -179,10 +177,10 @@ struct
 
   let string_of_label (s,l,d) =
     Printf.sprintf "{srcport = %s; dstport = %s; cost = %s; capacity = %s;}"
-      (VInt.get_string l.srcport)
-      (VInt.get_string l.dstport)
-      (VInt.get_string l.cost)
-      (VInt.get_string l.capacity)
+      (Int64.to_string l.srcport)
+      (Int64.to_string l.dstport)
+      (Int64.to_string l.cost)
+      (Int64.to_string l.capacity)
 
   let to_dot (s,l,d) =
     let s = Node.to_dot s in
@@ -205,7 +203,7 @@ module Weight = struct
   open Link
   type t = Int64.t
   type label = Link.t
-  let weight l = VInt.get_int64 l.cost
+  let weight l = l.cost
   let compare = Int64.compare
   let add = Int64.add
   let zero = Int64.zero
@@ -229,7 +227,7 @@ struct
     add_vertex g n
 
   (* Add a host, given its name, MAC address and IP, to the graph *)
-  let add_host (g:t) (h:string) (m:addrMAC) (i:addrIP) : t =
+  let add_host (g:t) (h:string) (m:Packet.dlAddr) (i:Packet.nwAddr) : t =
     add_vertex g (Node.Host(h,m,i))
 
 
@@ -292,7 +290,7 @@ struct
   (* Compute a topology with unit cost *)
   let unit_cost (g0:t) : t =
     let f (n1,l,n2) g : t =
-      add_edge_e g (n1, { l with Link.cost = VInt.Int16 1 }, n2) in
+      add_edge_e g (n1, { l with Link.cost = 1L }, n2) in
     let g = fold_vertex (fun v g -> add_vertex g v) g0 empty in
     let g = fold_edges_e (fun e g -> f e g) g0 g in
     g
@@ -345,7 +343,7 @@ struct
                          (List.filter (fun e -> (Link.srcport e) = p) ss))
       with Failure hd -> raise (NotFound(
         Printf.sprintf "next_hop: Port %s on %s is not connected\n"
-          (VInt.get_string p) (Node.to_string n)))
+          (Int64.to_string p) (Node.to_string n)))
     in d
 
   (* Find the shortest path between two nodes using Dijkstra's algorithm,
@@ -379,7 +377,7 @@ struct
   let floyd_warshall (g:t) : ((V.t * V.t) * V.t list) list =
     let add_opt o1 o2 = 
       match o1, o2 with 
-        | Some n1, Some n2 -> Some (n1 + n2)
+        | Some n1, Some n2 -> Some (Int64.add n1 n2)
         | _ -> None in 
     let lt_opt o1 o2 = 
       match o1, o2 with 
@@ -392,11 +390,11 @@ struct
       let nodes = Array.of_list (get_vertices g) in
       Array.init n 
         (fun i -> Array.init n
-          (fun j -> if i = j then (Some 0, [nodes.(i)])
+          (fun j -> if i = j then (Some 0L, [nodes.(i)])
             else 
               try 
                 let l = find_edge g nodes.(i) nodes.(j) in
-                (Some (VInt.get_int (Link.cost l)), [nodes.(i); nodes.(j)])
+                (Some (Link.cost l), [nodes.(i); nodes.(j)])
             with Not_found -> 
               (None,[]))) in
     let matrix = make_matrix g in
@@ -483,9 +481,9 @@ struct
           | Node.Host(n,m,i) ->
             Printf.sprintf "    %s = net.addHost(\'%s\', mac=\'%s\', ip=\'%s\')\n"
               n n
-              (Packet.string_of_mac (VInt.get_int48 m)) (Packet.string_of_ip (VInt.get_int32 i))
+              (Packet.string_of_mac m) (Packet.string_of_ip i)
           | Node.Switch i ->
-            let sid = "s" ^ (VInt.get_string i) in
+            let sid = "s" ^ (Int64.to_string i) in
             Printf.sprintf
             "    %s = net.addSwitch(\'%s\')\n" sid sid
           | Node.Mbox(s,_) -> Printf.sprintf
@@ -506,8 +504,8 @@ struct
               (Node.to_string (E.dst e)) in
             Printf.sprintf "    net.addLink(%s, %s, %s, %s)\n"
               src dst
-	      (VInt.get_string (Link.srcport e))
-	      (VInt.get_string (Link.dstport e))
+              (Int64.to_string (Link.srcport e))
+              (Int64.to_string (Link.dstport e))
         in
         seen := EdgeSet.add e !seen;
         acc ^ add

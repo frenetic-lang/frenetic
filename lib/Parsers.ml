@@ -80,10 +80,10 @@ module TopoDot = struct
   (* Update the record for an edge *)
   let update_eattr edge (key,valopt) =
     match key with
-      | Dot_ast.Ident("sport") -> {edge with Core.Link.srcport = VInt.Int32 (int32_of_id valopt)}
-      | Dot_ast.Ident("dport") -> {edge with Core.Link.dstport = VInt.Int32 (int32_of_id valopt)}
-      | Dot_ast.Ident("cost") -> {edge with Core.Link.cost = VInt.Int64 (int64_of_id valopt) }
-      | Dot_ast.Ident("capacity") -> {edge with Core.Link.capacity = VInt.Int64 (capacity_of_id valopt)}
+      | Dot_ast.Ident("sport") -> {edge with Core.Link.srcport = int64_of_id valopt}
+      | Dot_ast.Ident("dport") -> {edge with Core.Link.dstport = int64_of_id valopt}
+      | Dot_ast.Ident("cost") -> {edge with Core.Link.cost = int64_of_id valopt }
+      | Dot_ast.Ident("capacity") -> {edge with Core.Link.capacity = capacity_of_id valopt }
       | _ -> failwith "Unknown edge attribute\n"
 
   (* Generate a node from the id and attributes *)
@@ -95,11 +95,11 @@ module TopoDot = struct
         {defnattr with ntype = "switch"; name = name} at in
     Hashtbl.replace !name2attrs name nat;
     if nat.ntype = "host" then
-      Core.Node.Host(name, VInt.Int64 (Packet.mac_of_string nat.mac),
-                     VInt.Int32 (Packet.ip_of_string nat.ip))
+      Core.Node.Host(name, Packet.mac_of_string nat.mac,
+                           Packet.ip_of_string nat.ip)
     else if nat.ntype = "switch" then begin
-      Hashtbl.replace !id2attrs (VInt.Int64 nat.id) nat;
-      Core.Node.Switch(VInt.Int64 nat.id) end
+      Hashtbl.replace !id2attrs nat.id nat;
+      Core.Node.Switch(nat.id) end
     else
       Core.Node.Mbox(name,[])
 
@@ -139,18 +139,18 @@ module TopoGML = struct
        simple, since most Topology Zoo graphs don't seem to have port
        information *)
     let update_eattr edge (key, value) = match key with
-      | "source" -> {edge with Core.Link.dstport = VInt.Int32 (int32_of_value value)}
-      | "target" -> {edge with Core.Link.srcport = VInt.Int32 (int32_of_value value)}
+      | "source" -> {edge with Core.Link.dstport = int64_of_value value}
+      | "target" -> {edge with Core.Link.srcport = int64_of_value value}
       | _ -> edge
 
     let node (vs:Gml.value_list) : Core.Topology.V.label =
       let nat = List.fold_left update_nattr
         {defnattr with ntype = "switch"} vs in
       if nat.ntype = "host" then
-        Core.Node.Host(nat.name, VInt.Int64 (Packet.mac_of_string nat.mac),
-                       VInt.Int32 (Packet.ip_of_string nat.ip))
+        Core.Node.Host(nat.name, Packet.mac_of_string nat.mac,
+                                 Packet.ip_of_string nat.ip)
       else if nat.ntype = "switch" then
-        Core.Node.Switch(VInt.Int64 nat.id)
+        Core.Node.Switch(nat.id)
       else
         Core.Node.Mbox(nat.name,[])
 
