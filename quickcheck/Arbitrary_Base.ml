@@ -36,6 +36,22 @@ let arbitrary_uint48 =
     let lo = of_int c in
     ret_gen Int64.(logor (logor hi mid) lo)
 
+(* arbitrary instance for unsigned int48, using the `int64` type. *)
+let arbitrary_uint64 =
+  let open Gen in
+  arbitrary_uint16 >>= fun a ->
+  arbitrary_uint16 >>= fun b ->
+  arbitrary_uint16 >>= fun c ->
+  arbitrary_uint16 >>= fun d ->
+    let open Int64 in
+    let hi = shift_left (of_int a) 48 in
+    let mid1 = shift_left (of_int b) 32 in
+    let mid2 = shift_left (of_int c) 16 in
+    let lo = of_int d in
+    ret_gen Int64.(logor (logor hi (logor mid1 mid2)) lo)
+
+
+
 (* arbitrary instance for option type, favoring `Some` rather than `None` *)
 let arbitrary_option arb =
   let open Gen in

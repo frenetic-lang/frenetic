@@ -15,5 +15,8 @@ val arbitrary_uint32 : int32 arbitrary
 (* arbitrary instance for unsigned int48, using the `int64` type. *)
 val arbitrary_uint48 : int64 arbitrary
 
+(* arbitrary instance for unsigned int64, using the `int64` type. *)
+val arbitrary_uint64 : int64 arbitrary
+
 (* arbitrary instance for option type, favoring `Some` rather than `None` *)
 val arbitrary_option : 'a arbitrary -> 'a option arbitrary
