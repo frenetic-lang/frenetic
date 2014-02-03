@@ -69,7 +69,7 @@ module Controller = struct
     match evt with
       | `Connect (c_id, version) ->
         if version = 0x01 then
-          return (Some(`Connect c_id))
+          return [`Connect c_id]
         else begin
           close t c_id;
           raise (ChunkController.Handshake (c_id, Printf.sprintf
@@ -77,8 +77,8 @@ module Controller = struct
                     0x01 version))
         end
       | `Message (c_id, (hdr, bits)) ->
-         return (Some(`Message (c_id, Message.parse hdr bits)))
-      | `Disconnect e -> return (Some(`Disconnect e))
+        return [`Message (c_id, Message.parse hdr bits)]
+      | `Disconnect e -> return [`Disconnect e]
 
   let features t evt =
     match evt with
@@ -88,17 +88,17 @@ module Controller = struct
       | `Message (c_id, (_, msg)) when SwitchSet.mem t.feat c_id ->
         t.feat <- SwitchSet.remove t.feat c_id;
         begin match msg with
-          | M.SwitchFeaturesReply fs -> return(Some(`Connect(c_id, fs)))
+          | M.SwitchFeaturesReply fs -> return [`Connect(c_id, fs)]
           | _ ->
             close t c_id;
             raise (ChunkController.Handshake (c_id,
                     Printf.sprintf "Expected FEATURES_REPLY but received: %s"
                     (M.to_string msg)))
         end
-      | `Message (c_id, msg) -> return(Some(`Message(c_id, msg)))
+      | `Message (c_id, msg) -> return [`Message(c_id, msg)]
       | `Disconnect (c_id, exn) ->
         t.feat <- SwitchSet.remove t.feat c_id;
-        return (Some(`Disconnect(c_id, exn)))
+        return [`Disconnect(c_id, exn)]
 
   let listen t =
     let open Async_OpenFlow_Platform.Trans in
