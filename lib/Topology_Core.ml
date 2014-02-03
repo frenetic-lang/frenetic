@@ -17,6 +17,7 @@ sig
            | Mbox of string * string list
   type label = t
 
+  val hash : t -> int
   val equal : t -> t -> bool
   val compare : t -> t -> int
   val to_dot : t -> string
@@ -86,6 +87,7 @@ sig
   (* Utility functions *)
   val spanningtree : t -> t
   val shortest_path : t -> V.t -> V.t -> E.t list
+  val shortest_path_v : t -> V.t -> V.t -> V.t list
   val stitch : E.t list -> (portId option * V.t * portId option) list
   val floyd_warshall : t -> ((V.t * V.t) * V.t list) list
   val to_dot : t -> string
@@ -351,8 +353,35 @@ struct
      the ocamlgraph library.
      Raise NoPath if there is no such path. *)
 
-  let shortest_path (g:t) (src:Node.t) (dst:Node.t) : E.t list = 
+  let shortest_path (g:t) (src:Node.t) (dst:Node.t) : E.t list =
 	let ret,_ = Dij.shortest_path g src dst in ret
+
+  let shortest_path_v (g:t) (src:Node.t) (dst:Node.t) : V.t list =
+    let visited = Hashtbl.create (nb_vertex g) in
+    let previous =  Hashtbl.create (nb_vertex g) in
+    let queue = Core.Std.Heap.create (fun (v,d) (v,d') -> compare d d') () in
+    Core.Std.Heap.add queue (src,0);
+
+    let rec mk_path current =
+      if current = src then [src] else
+        let prev = Hashtbl.find previous current in
+        current::(mk_path prev) in
+
+    let rec loop (current,distance) =
+      if current = dst then ()
+      else begin
+        iter_succ (fun next ->
+          if Hashtbl.mem visited next then ()
+          else
+            let next_dist = distance + 1 in
+            Hashtbl.replace previous next current;
+            Core.Std.Heap.add queue (next,next_dist)
+        ) g current;
+        Hashtbl.replace visited current 0;
+        loop (Core.Std.Heap.pop_exn queue) end in
+    loop (Core.Std.Heap.pop_exn queue);
+    mk_path dst
+
 
 (*  let shortest_path (g:t) (src:Node.t) (dst:Node.t) : E.t list =
     let p,_ = Dij.shortest_path g src dst in

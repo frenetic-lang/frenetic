@@ -13,6 +13,7 @@ Library topology
   Path: lib
   BuildDepends:
     str,
+    core,
     ocamlgraph,
     packet,
     threads
@@ -26,6 +27,16 @@ Library topology
 Executable otopo
   Path: exe
   MainIs: main.ml
+  BuildDepends:
+    ocamlgraph,
+    packet,
+    topology
+  Install: False
+
+Executable speed
+  Path: exe
+  MainIs: speed.ml
+  CompiledObject: native
   BuildDepends:
     ocamlgraph,
     packet,

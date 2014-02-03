@@ -1,7 +1,7 @@
 # OASIS_START
-# DO NOT EDIT (digest: 927e3bc2a0211c4dcc1692bd2507d70e)
-# Ignore VCS directories, you can use the same kind of rule outside
-# OASIS_START/STOP if you want to exclude directories that contains
+# DO NOT EDIT (digest: 64358ab39116908d1da375aad072c006)
+# Ignore VCS directories, you can use the same kind of rule outside 
+# OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
 <**/.svn>: -traverse
 <**/.svn>: not_hygienic
@@ -15,19 +15,29 @@
 "_darcs": not_hygienic
 # Library topology
 "lib/topology.cmxs": use_topology
-<lib/*.ml{,i}>: package(ocamlgraph)
-<lib/*.ml{,i}>: package(packet)
-<lib/*.ml{,i}>: package(str)
-<lib/*.ml{,i}>: package(threads)
+<lib/*.ml{,i}>: pkg_ocamlgraph
+<lib/*.ml{,i}>: pkg_packet
+<lib/*.ml{,i}>: pkg_str
+<lib/*.ml{,i}>: pkg_core
+<lib/*.ml{,i}>: pkg_threads
 # Executable otopo
 "exe/main.byte": use_topology
-"exe/main.byte": package(ocamlgraph)
-"exe/main.byte": package(packet)
-"exe/main.byte": package(str)
-"exe/main.byte": package(threads)
+"exe/main.byte": pkg_ocamlgraph
+"exe/main.byte": pkg_packet
+"exe/main.byte": pkg_str
+"exe/main.byte": pkg_core
+"exe/main.byte": pkg_threads
+# Executable speed
+"exe/speed.native": use_topology
+"exe/speed.native": pkg_ocamlgraph
+"exe/speed.native": pkg_packet
+"exe/speed.native": pkg_str
+"exe/speed.native": pkg_core
+"exe/speed.native": pkg_threads
 <exe/*.ml{,i}>: use_topology
-<exe/*.ml{,i}>: package(ocamlgraph)
-<exe/*.ml{,i}>: package(packet)
-<exe/*.ml{,i}>: package(str)
-<exe/*.ml{,i}>: package(threads)
+<exe/*.ml{,i}>: pkg_ocamlgraph
+<exe/*.ml{,i}>: pkg_packet
+<exe/*.ml{,i}>: pkg_str
+<exe/*.ml{,i}>: pkg_core
+<exe/*.ml{,i}>: pkg_threads
 # OASIS_STOP

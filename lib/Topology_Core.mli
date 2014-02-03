@@ -14,6 +14,7 @@ sig
            | Mbox of string * string list
 
   type label = t
+  val hash : t -> int
   val equal : t -> t -> bool
   val compare : t -> t -> int
   val to_dot : t -> string
@@ -82,6 +83,7 @@ sig
   (* Utility functions *)
   val spanningtree : t -> t
   val shortest_path : t -> V.t -> V.t -> E.t list
+  val shortest_path_v : t -> V.t -> V.t -> V.t list
   val stitch : E.t list -> (portId option * V.t * portId option) list
   val floyd_warshall : t -> ((V.t * V.t) * V.t list) list
   val to_dot : t -> string
