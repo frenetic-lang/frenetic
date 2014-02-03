@@ -1,5 +1,5 @@
 open OpenFlow0x01
-open Extra_Arbitrary
+open Arbitrary_Base
 
 open QuickCheck
 module Gen = QuickCheck_gen
@@ -152,7 +152,7 @@ module Match = struct
 end
 
 module PseudoPort = struct
-  (* 
+  (*
    * Keep track of the `Controller` constructor parameter in the serialization
    * type, if it exists. The `marshal` function is a lossy transformation and
    * drops this piece of data. Manually preserve it to make roundtrip tests
@@ -185,17 +185,17 @@ module PseudoPort = struct
 
   let to_string = PseudoPort.to_string
 
-  let parse (p, l) = 
+  let parse (p, l) =
     let l' = match l with
              | None   -> 0
              | Some i -> i
       in PseudoPort.make p l'
 
-  let marshal p = 
+  let marshal p =
     let open OpenFlow0x01_Core in
     let l = match p with
             | Controller i -> Some i
-            | _            -> None 
+            | _            -> None
       in (PseudoPort.marshal p, l)
 end
 

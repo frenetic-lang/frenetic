@@ -18,7 +18,7 @@ let openflow_quickCheck arbitrary show parse marshal =
       | Exhausted _ -> failwith "No exhaustion expected"
 
 module RoundTripping = struct
-  module Gen = OpenFlow0x01_Arbitrary
+  module Gen = Arbitrary_OpenFlow0x01
 
   TEST "OpenFlow0x01 Wildcards RoundTrip" =
       (openflow_quickCheck Gen.Wildcards.arbitrary
