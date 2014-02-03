@@ -1,5 +1,25 @@
+(* This is a hack to set the name of the test library to "openflow" instead of
+   "dummy", which is the default. Core ships with all its unit tests in the
+   dummy library. So, if we link to core, then we first run the core test suite
+   before we run ours (which takes time).
+
+   The advertised way to set the library name is to send "-pa-ounit-lib libname" 
+   as a flag to camlp4:
+
+   https://github.com/janestreet/pa_ounit/blob/master/readme.md#building-and-running-the-tests-outside-of-jane-street
+
+   But, this turns out to be hard/impossible to do with ocamlbuild:
+
+   http://caml.inria.fr/mantis/view.php?id=6103
+
+   The solution below works just fine. *)
+let _ = 
+  Pa_ounit_lib.Runtime.unset_lib "dummy";
+  Pa_ounit_lib.Runtime.set_lib "openflow"
+
 open OpenFlow0x01
 open OpenFlow0x01_Stats
+module Header = OpenFlow_Header
 
 open QuickCheck
 
@@ -19,6 +39,11 @@ let openflow_quickCheck arbitrary show parse marshal =
 
 module RoundTripping = struct
   module Gen = Arbitrary_OpenFlow0x01
+
+  TEST "OpenFlow_Header RoundTrip" =
+    let module GenHeader = Gen.OpenFlow0x01_Unsize(Arbitrary_OpenFlow.Header) in
+      (openflow_quickCheck GenHeader.arbitrary
+          GenHeader.to_string GenHeader.parse GenHeader.marshal)
 
   TEST "OpenFlow0x01 Wildcards RoundTrip" =
       (openflow_quickCheck Gen.Wildcards.arbitrary
@@ -63,14 +88,35 @@ module RoundTripping = struct
       (openflow_quickCheck GenFlowRemoved.arbitrary
           GenFlowRemoved.to_string GenFlowRemoved.parse GenFlowRemoved.marshal)
 
+  TEST "OpenFlow0x01 PortDescription.PortConfig RoundTrip" =
+      let module GenPortConfig = Gen.PortDescription.PortConfig in
+      (openflow_quickCheck GenPortConfig.arbitrary
+          GenPortConfig.to_string GenPortConfig.parse GenPortConfig.marshal)
+
+  TEST "OpenFlow0x01 PortDescription.PortState RoundTrip" =
+      let module GenPortState = Gen.PortDescription.PortState in
+      (openflow_quickCheck GenPortState.arbitrary
+          GenPortState.to_string GenPortState.parse GenPortState.marshal)
+
+  TEST "OpenFlow0x01 PortDescription RoundTrip" =
+      let module GenPortDescription = Gen.OpenFlow0x01_Unsize(Gen.PortDescription) in
+      (openflow_quickCheck GenPortDescription.arbitrary
+          GenPortDescription.to_string GenPortDescription.parse GenPortDescription.marshal)
+
+  TEST "OpenFlow0x01 PortStatus RoundTrip" =
+      let module GenPortStatus = Gen.OpenFlow0x01_Unsize(Gen.PortStatus) in
+      (openflow_quickCheck GenPortStatus.arbitrary
+          GenPortStatus.to_string GenPortStatus.parse GenPortStatus.marshal)
+
+
   TEST "OpenFlow Hello Test 1" = 
     let open Message in 
     let bs = Cstruct.create 101 in
     let m = Hello bs in 
     let x = 42l in 
     let s = marshal x m in  
-    let h = Header.parse s in 
-    let s' = String.sub s Header.size (Header.len h - Header.size) in 
+    let h = Header.parse (Cstruct.of_string s) in 
+    let s' = String.sub s Header.size (h.Header.length - Header.size) in 
     let x',m' = parse h s' in 
     let xid_ok = x = x' in 
     let msg_ok = 

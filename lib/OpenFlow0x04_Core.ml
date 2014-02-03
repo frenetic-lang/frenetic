@@ -7,7 +7,7 @@ type payload =
     (** [Buffered (id, buf)] is a packet buffered on a switch. *)
   | NotBuffered of bytes
 
-type xid = int32
+type xid = OpenFlow_Header.xid
 type int12 = int16
 
 let val_to_mask v =
@@ -137,14 +137,14 @@ let add_flow prio pat insts =
 
 let delete_all_flows =
   { mfCookie = val_to_mask 0L
-  ; mfTable_id = 0
+  ; mfTable_id = 0xff (* OFPTT_ALL *)
   ; mfCommand = DeleteFlow
   ; mfIdle_timeout = Permanent
   ; mfHard_timeout = Permanent
   ; mfPriority = 0
   ; mfBuffer_id = None
   ; mfOut_port = None
-  ; mfOut_group = None
+  ; mfOut_group = Some 0xffffffffl (* OFPG_ANY *)
   ; mfFlags = default_fm_flags
   ; mfOfp_match = match_all
   ; mfInstructions = [] }

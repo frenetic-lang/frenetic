@@ -15,8 +15,8 @@ let rec recv_from_switch_fd (sock : file_descr) : (xid * msg) option Lwt.t =
   match_lwt Socket.recv sock ofhdr_str 0 Message.Header.size with
     | false -> Lwt.return None
     | true ->
-      lwt hdr = Lwt.wrap (fun () -> Message.Header.parse ofhdr_str) in
-      let body_len = Message.Header.len hdr - Message.Header.size in
+      let hdr = Message.Header.parse (Cstruct.of_string ofhdr_str) in
+      let body_len = hdr.Message.Header.length - Message.Header.size in
       let body_buf = String.create body_len in
       match_lwt Socket.recv sock body_buf 0 body_len with
         | false -> Lwt.return None

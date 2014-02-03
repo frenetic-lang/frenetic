@@ -59,19 +59,19 @@ module OpenFlowPlatform = struct
     lwt b = OpenFlow0x04_Misc.SafeSocket.recv sock ofhdr_str 0 Message.Header.size in 
     if not b then 
       raise_lwt UnknownSwitchDisconnected
-    else  
-      let hdr = Message.Header.parse ofhdr_str in
-      let sizeof_body = hdr.Message.Header.len - Message.Header.size in
-      let body_str = String.create sizeof_body in
-      lwt b = OpenFlow0x04_Misc.SafeSocket.recv sock body_str 0 sizeof_body in 
+    else
+      let hdr = Message.Header.parse (Cstruct.of_string ofhdr_str) in
+      let body_len = hdr.Message.Header.length - Message.Header.size in
+      let body_buf = String.create body_len in
+      lwt b = OpenFlow0x04_Misc.SafeSocket.recv sock body_buf 0 body_len in
       if not b then 
         raise_lwt UnknownSwitchDisconnected
       else
         begin
+          lwt (xid, msg) = Lwt.wrap (fun () -> Message.parse hdr body_buf) in
           lwt () = Log.notice_f "[platform] returning message with code %s\n%!"
-            (Message.string_of_msg_code hdr.Message.Header.typ) in
-          lwt msg = Lwt.wrap (fun () -> Message.parse hdr body_str) in
-          return msg
+            Message.(string_of_msg_code (msg_code_of_message msg)) in
+          return (xid, msg)
         end
   
   let send_to_switch_fd (sock : file_descr) (xid : xid) (msg : Message.t) = 

@@ -8,7 +8,7 @@ exception Ignored of string
 type switchId = int64
 type portId = int16
 type queueId = int32
-type xid = int32
+type xid = OpenFlow0x01_Core.xid
 
 let string_of_switchId = Printf.sprintf "0x%Lx"
 let string_of_portId = string_of_int
@@ -1084,36 +1084,54 @@ module PortDescription = struct
 
   module PortState = struct
 
+    module StpState = struct
+      type t =
+        | Listen
+        | Learn
+        | Forward
+        | Block
+
+      let mask = Int32.shift_left 3l 8
+
+      let to_string t =
+        match t with
+          | Listen -> "LISTEN"
+          | Learn -> "LEARN"
+          | Forward -> "FORWARD"
+          | Block -> "BLOCK"
+
+      let to_int t =
+        Int32.shift_left
+          (match t with Listen -> 0l | Learn -> 1l | Forward -> 2l | Block -> 3l)
+          8
+
+      let of_int d =
+        let d_masked = Int32.logand d mask in
+        if d_masked = to_int Listen then Listen
+        else if d_masked = to_int Learn then Learn
+        else if d_masked = to_int Forward then Forward
+        else if d_masked = to_int Block then Block
+        else raise (Unparsable
+          (Printf.sprintf "Unexpected ofp_port_state for STP: %ld" d_masked))
+    end
+
     type t =
       { down : bool  (* No physical link present. *)
-      ; stp_listen : bool
-      ; stp_forward : bool
-      ; stp_block : bool }
+      ; stp_state : StpState.t } (* The state of the port wrt the spanning tree
+                                    algorithm. *)
 
     let to_string p = Printf.sprintf
       "{ down = %B; \
-         stp_listen = %B; \
-         stp_forward = %B; \
-         stp_block = %B }"
+         stp_state = %s }"
       p.down
-      p.stp_listen
-      p.stp_forward
-      p.stp_block
+      (StpState.to_string p.stp_state)
 
-    (* MJR: GAH, the enum values from OF1.0 make NO SENSE AT ALL. Two of
-       them have the SAME value, and the rest make no sense as bit
-       vectors. Only portStateDown is parsed correctly ATM *)
     let of_int d =
       { down = test_bit 0 d
-      ; stp_listen = false
-      ; stp_forward = false
-      ; stp_block = false }
+      ; stp_state = StpState.of_int d }
 
     let to_int d = 
-      let bits = Int32.zero in
-      let bits = bit bits 3 d.stp_block in 
-      let bits = bit bits 2 d.stp_forward in 
-      let bits = bit bits 1 d.stp_listen in 
+      let bits = StpState.to_int d.stp_state in
       let bits = bit bits 0 d.down in 
       bits
 
@@ -1273,6 +1291,11 @@ end
 
 module PortStatus = struct
 
+  cstruct ofp_port_status {
+      uint8_t reason;               (* One of OFPPR_* *)
+      uint8_t pad[7]
+  } as big_endian
+
   module ChangeReason = struct
 
     type t =
@@ -1309,7 +1332,7 @@ module PortStatus = struct
         | Delete -> "Delete"
         | Modify -> "Modify"
 
-    let size_of _ = 1
+    let size_of t = sizeof_ofp_port_status
 
   end
 
@@ -1317,10 +1340,6 @@ module PortStatus = struct
     { reason : ChangeReason.t;
       desc : PortDescription.t }
 
-  cstruct ofp_port_status {
-      uint8_t reason;               (* One of OFPPR_* *)
-      uint8_t pad[7]
-  } as big_endian
 
   let to_string status = Printf.sprintf
     "{ reason = %s; desc = %s }"
@@ -1330,17 +1349,17 @@ module PortStatus = struct
   let size_of ps = 
     ChangeReason.size_of ps.reason + PortDescription.size_of ps.desc
 
-  let parse bits =
-    let reason = ChangeReason.of_int (get_ofp_port_status_reason bits) in
-    let _ = Cstruct.shift bits sizeof_ofp_port_status in
-    let description = PortDescription.parse bits in
+  let parse bits0 =
+    let reason = ChangeReason.of_int (get_ofp_port_status_reason bits0) in
+    let bits1 = Cstruct.shift bits0 sizeof_ofp_port_status in
+    let description = PortDescription.parse bits1 in
     { reason = reason
     ; desc = description }
 
-  let marshal ps bits = 
-    set_ofp_port_status_reason bits (ChangeReason.to_int ps.reason);
-    let bits = Cstruct.shift bits sizeof_ofp_port_status in 
-    let _ = PortDescription.marshal ps.desc bits in 
+  let marshal ps bits0 =
+    set_ofp_port_status_reason bits0 (ChangeReason.to_int ps.reason);
+    let bits1 = Cstruct.shift bits0 sizeof_ofp_port_status in
+    let _ = PortDescription.marshal ps.desc bits1 in
     size_of ps
 end
 
@@ -2380,6 +2399,8 @@ end
 module Message = struct
 (* A subset of the OpenFlow 1.0 messages defined in Section 5.1 of the spec. *)
 
+  module Header = OpenFlow_Header
+
   cenum msg_code {
     HELLO;
     ERROR;
@@ -2429,54 +2450,6 @@ module Message = struct
     | QUEUE_GET_CONFIG_REQ -> "QUEUE_GET_CONFIG_REQ"
     | QUEUE_GET_CONFIG_RESP -> "QUEUE_GET_CONFIG_RESP"
 
-  module Header = struct
-
-    let ver : int = 0x01
-
-    type t =
-      { ver: int
-      ; typ: msg_code
-      ; len: int
-      ; xid: int32 }
-
-    cstruct ofp_header {
-      uint8_t version;
-      uint8_t typ;
-      uint16_t length;
-      uint32_t xid
-    } as big_endian
-
-    let size = sizeof_ofp_header
-    let size_of _ = size
-    let len hdr = hdr.len
-
-    let marshal hdr out =
-      set_ofp_header_version out hdr.ver;
-      set_ofp_header_typ out (msg_code_to_int hdr.typ);
-      set_ofp_header_length out hdr.len;
-      set_ofp_header_xid out hdr.xid;
-      size_of hdr
-
-    (** [parse buf] assumes that [buf] has size [sizeof_ofp_header]. *)
-    let parse body_buf =
-      let buf = Cstruct.of_string body_buf in
-      { ver = get_ofp_header_version buf;
-        typ = begin match int_to_msg_code (get_ofp_header_typ buf) with
-          | Some typ -> typ
-          | None -> raise (Unparsable "unrecognized message code")
-        end;
-        len = get_ofp_header_length buf;
-        xid = get_ofp_header_xid buf
-      }
-
-    let to_string hdr =
-      Printf.sprintf "{ %d, %s, len = %d, xid = %d }"
-        hdr.ver
-        (string_of_msg_code hdr.typ)
-        hdr.len
-        (Int32.to_int hdr.xid)
-  end
-
   type t =
     | Hello of bytes
     | ErrorMsg of Error.t
@@ -2500,7 +2473,10 @@ module Message = struct
 
   let parse (hdr : Header.t) (body_buf : string) : (xid * t) =
     let buf = Cstruct.of_string body_buf in
-    let msg = match hdr.Header.typ with
+    let code = match int_to_msg_code (hdr.Header.type_code) with
+      | Some code -> code
+      | None -> raise (Unparsable "unrecognized message code") in
+    let msg = match code with
       | HELLO -> Hello buf
       | ERROR -> ErrorMsg (Error.parse buf)
       | ECHO_REQ -> EchoRequest buf
@@ -2549,7 +2525,7 @@ module Message = struct
 
   let to_string (msg : t) : string = match msg with
     | Hello _ -> "Hello"
-    | ErrorMsg _ -> "Error"
+    | ErrorMsg e -> Error.to_string e
     | EchoRequest _ -> "EchoRequest"
     | EchoReply _ -> "EchoReply"
     | VendorMsg _ -> "Vendor"
@@ -2557,7 +2533,7 @@ module Message = struct
     | SwitchFeaturesReply _ -> "SwitchFeaturesReply"
     | FlowModMsg _ -> "FlowMod"
     | PacketOutMsg _ -> "PacketOut"
-    | PortStatusMsg _ -> "PortStatus"
+    | PortStatusMsg p -> PortStatus.to_string p
     | PacketInMsg _ -> "PacketIn"
     | FlowRemovedMsg _ -> "FlowRemoved"
     | BarrierRequest -> "BarrierRequest"
@@ -2643,14 +2619,20 @@ module Message = struct
 
   let size_of msg = Header.size + sizeof_body msg
 
+  let header_of xid msg =
+    let sizeof_buf = Header.size + sizeof_body msg in
+    let open Header in
+    { version = 0x01; type_code = msg_code_to_int (msg_code_of_message msg);
+      length = sizeof_buf; xid = xid }
+
+  let marshal_body (msg : t) (buf : Cstruct.t) : unit = 
+    blit_message msg buf
+
   let marshal (xid : xid) (msg : t) : string =
-    let hdr = let open Header in
-      {ver = ver; typ = msg_code_of_message msg; len = 0; xid = xid} in
-    let sizeof_buf = Header.size_of hdr + sizeof_body msg in
-    let hdr = {hdr with Header.len = sizeof_buf} in
+    let sizeof_buf = Header.size + sizeof_body msg in
+    let hdr = header_of xid msg in
     let buf = Cstruct.create sizeof_buf in
-    let _ = Header.marshal hdr buf in
-    blit_message msg (Cstruct.shift buf (Header.size_of hdr));
-    let str = Cstruct.to_string buf in
-    str
+    Header.marshal buf hdr;
+    marshal_body msg (Cstruct.shift buf Header.size);
+    Cstruct.to_string buf
 end
