@@ -11,7 +11,7 @@ type int64 = Int64.t
 type int48 = Int64.t
 type bytes = Cstruct.t
 
-type switchId = VInt.t
+type switchId = int64
 type portId = VInt.t
 type queueId = VInt.t
 

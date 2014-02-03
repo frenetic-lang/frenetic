@@ -16,7 +16,7 @@ let features (sw : t) : AL.switchFeatures =
   let open OpenFlow0x01.SwitchFeatures in
   let from_portDesc desc =
     VInt.Int16 desc.OpenFlow0x01.PortDescription.port_no in
-  { AL.switch_id = VInt.Int64 feats.switch_id;
+  { AL.switch_id = feats.switch_id;
     AL.switch_ports = List.map from_portDesc feats.ports }
 
 let from_handle (switch : Switch.t) : t =

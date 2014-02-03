@@ -16,7 +16,7 @@ module Platform = Async_OpenFlowChunk.Controller
 
 module Clients = Hashtbl.Make(Platform.Client_id)
 
-module Switches = Hashtbl.Make(VInt)
+module Switches = Hashtbl.Make(Int64)
 
 exception Handshake of Platform.Client_id.t * string
 
@@ -42,9 +42,9 @@ let max_version = 0x04
 type handshake_state = 
   | SentFeaturesRequest0x01
   | SentFeaturesRequest0x04 
-  | SentPortDescriptionRequest0x04 of VInt.t
-  | Connected0x01 of VInt.t
-  | Connected0x04 of VInt.t
+  | SentPortDescriptionRequest0x04 of S.switchId sexp_opaque
+  | Connected0x01 of S.switchId sexp_opaque
+  | Connected0x04 of S.switchId sexp_opaque
   with sexp 
 
 type t = {
@@ -111,7 +111,7 @@ let features t evt =
             match M1.parse hdr (Cstruct.to_string bits) with 
             | (_, M1.SwitchFeaturesReply feats) -> 
                let get_port pd = VInt.Int16 pd.OF1.PortDescription.port_no in 
-               let switch_id = VInt.Int64 feats.OF1.SwitchFeatures.switch_id in 
+               let switch_id = feats.OF1.SwitchFeatures.switch_id in
                let switch_ports = List.map feats.OF1.SwitchFeatures.ports ~f:get_port in 
                let feats = { S.switch_id = switch_id;
                              S.switch_ports = switch_ports } in 
@@ -127,7 +127,7 @@ let features t evt =
         begin 
           match M4.parse hdr (Cstruct.to_string bits) with
           | (_, M4.FeaturesReply feats) -> 
-             let switch_id = VInt.Int64 feats.OF4.SwitchFeatures.datapath_id in 
+             let switch_id = feats.OF4.SwitchFeatures.datapath_id in
              Clients.replace t.clients c_id (SentPortDescriptionRequest0x04 switch_id);
              send t c_id port_description_request_msg
           | _ -> 
