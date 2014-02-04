@@ -73,7 +73,8 @@ Library async
     Async_OpenFlow0x01,
     Async_OpenFlow0x04,
     Async_OpenFlowChunk,
-    Async_Highlevel
+    Async_Highlevel,
+    Nib
   Modules:
     Async_OpenFlow
 
