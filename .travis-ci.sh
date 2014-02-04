@@ -20,7 +20,7 @@ echo OPAM versions
 opam --version
 opam --git-version
 
-opam init
+(cd $HOME && curl "https://s3.amazonaws.com/opam-street/opam-street.tar.gz" | tar xz)
 eval `opam config env`
 opam install ${OPAM_DEPENDS}
 
