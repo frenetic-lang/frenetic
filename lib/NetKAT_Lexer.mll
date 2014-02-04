@@ -93,8 +93,8 @@ rule token = parse
               (logor (shift_left (parse_decbyte b2) 8)
                  (parse_decbyte b1)))) }
 
-  | decimal as n { INT64 (Int64.of_string n) } 
-  | hex as n { INT64 (Int64.of_string n) }
+  | decimal as n { Scanf.sscanf n "%Lu" (fun i -> INT64 i) }
+  | hex as n { Scanf.sscanf n "%Lx" (fun i -> INT64 i) }
   | '"' (string_body as s) '"' { STRING s }
 
 and block_comment = parse

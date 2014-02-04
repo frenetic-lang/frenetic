@@ -60,10 +60,10 @@ module Dump = struct
 
   module Local = struct
 
-    let with_compile (sw : VInt.t) (p : NetKAT_Types.policy) =
+    let with_compile (sw : SDN_Types.switchId) (p : NetKAT_Types.policy) =
       let _ = 
-        Format.printf "@[Compiling switch %ld [size=%d]...@]%!"
-          (VInt.get_int32 sw) (Semantics.size p) in
+        Format.printf "@[Compiling switch %Ld [size=%d]...@]%!"
+          sw (Semantics.size p) in
       let t1 = Unix.gettimeofday () in
       let i = compile sw p in
       let t2 = Unix.gettimeofday () in
@@ -73,10 +73,10 @@ module Dump = struct
         (t2 -. t1) (t3 -. t2) (List.length t) in
       t
 
-    let flowtable (sw : VInt.t) t =
+    let flowtable (sw : SDN_Types.switchId) t =
       if List.length t > 0 then
-        Format.printf "@[flowtable for switch %ld:@\n%a@\n@\n@]%!"
-          (VInt.get_int32 sw)
+        Format.printf "@[flowtable for switch %Ld:@\n%a@\n@\n@]%!"
+          sw
           SDN_Types.format_flowTable t
 
     let policy p =
@@ -87,8 +87,8 @@ module Dump = struct
        * 'em! Also, lol for loop.
        * *)
       for sw = 0 to sw_num do
-        let vs = VInt.Int64 (Int64.of_int sw) in 
-        let sw_p = NetKAT_Types.(Seq(Filter(Test(Switch,vs)), p)) in 
+        let vs = Int64.of_int sw in
+        let sw_p = NetKAT_Types.(Seq(Filter(Test(Switch, VInt.Int64 vs)), p)) in
         let t = with_compile vs sw_p in
         f vs t
       done
@@ -123,21 +123,21 @@ module Dump = struct
         f sw pol0')
       m
 
-    let policy (sw : VInt.t) (p : NetKAT_Types.policy) : unit =
-      Format.printf "@[policy for switch %ld:@\n%!%a@\n@\n@]%!"
-        (VInt.get_int32 sw)
+    let policy (sw : SDN_Types.switchId) (p : NetKAT_Types.policy) : unit =
+      Format.printf "@[policy for switch %Ld:@\n%!%a@\n@\n@]%!"
+        sw
         NetKAT_Pretty.format_policy p
 
-    let flowtable (sw : VInt.t) (p : NetKAT_Types.policy) : unit =
+    let flowtable (sw : SDN_Types.switchId) (p : NetKAT_Types.policy) : unit =
       let t = Local.with_compile sw p in
       Local.flowtable sw t
 
-    let all (sw : VInt.t) (p : NetKAT_Types.policy) : unit =
+    let all (sw : SDN_Types.switchId) (p : NetKAT_Types.policy) : unit =
       policy sw p;
       flowtable sw p
 
 
-    let stats (sw : VInt.t) (p : NetKAT_Types.policy) : unit =
+    let stats (sw : SDN_Types.switchId) (p : NetKAT_Types.policy) : unit =
       let _ = Local.with_compile sw p in
       ()
 

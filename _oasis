@@ -71,6 +71,7 @@ Library quickcheck
   Path: quickcheck
   Build$: flag(quickcheck) || flag(tests)
   BuildDepends:
+    openflow.quickcheck,
     quickcheck,
     netcore
   Modules:

@@ -73,12 +73,12 @@ let rec eval (pkt : packet) (pol : policy) : PacketSetSet.t = match pol with
     | Link(sw,pt,sw',pt') -> 
       begin 
         try 
-          if HeaderMap.find Switch pkt.headers = sw && 
+          if HeaderMap.find Switch pkt.headers = (VInt.Int64 sw) &&
             HeaderMap.find (Header SDN_Types.InPort) pkt.headers = pt then
             let pkt' = 
 	      { pkt with 
 		headers = 
-		  HeaderMap.add Switch sw' 
+          HeaderMap.add Switch (VInt.Int64 sw')
 		    (HeaderMap.add (Header SDN_Types.InPort) pt' 
 		       pkt.headers) } in 	
             PacketSetSet.singleton (PacketSet.singleton pkt')
