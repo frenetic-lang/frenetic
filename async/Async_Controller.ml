@@ -19,7 +19,7 @@ let _ = Log.set_output
 
 let switch t local_stream feats : unit Deferred.t =
   let sw_id = feats.SDN.switch_id in
-  Log.info "setting up switch %d" (VInt.get_int sw_id);
+  Log.info "setting up switch %Ld" sw_id;
   let next local = Platform.setup_flow_table t sw_id (local sw_id) in
   Pipe.iter local_stream ~f:next
 

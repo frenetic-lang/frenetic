@@ -568,7 +568,7 @@ module Local = struct
       | NetKAT_Types.Neg pr ->
         loop pr (fun p -> k (negate p))
       | NetKAT_Types.Test (NetKAT_Types.Switch, v) ->
-        if v = sw then 
+        if v = VInt.Int64 sw then
           loop NetKAT_Types.True k
         else
           loop NetKAT_Types.False k

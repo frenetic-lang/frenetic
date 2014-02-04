@@ -116,10 +116,10 @@ module Formatting = struct
           | _ -> 
 	    fprintf fmt "@[(@[%a +@ %a@])@]" (pol CHOICE_L) p1 (pol CHOICE_R) p2
         end
-      | Link (sw,pt,sw',pt') -> 
-        fprintf fmt "@[%a@@%a =>@ %a@@%a@]"
-          format_value sw format_value pt
-          format_value sw' format_value pt'
+      | Link (sw,pt,sw',pt') ->
+        fprintf fmt "@[%Lu@@%a =>@ %Lu@@%a@]"
+          sw format_value pt
+          sw' format_value pt'
 end
   
 let format_policy = Formatting.pol Formatting.PAREN

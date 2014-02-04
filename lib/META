@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 0b20034912a7ca3882d0db806634c669)
+# DO NOT EDIT (digest: 591811bad051f85ff0263f48a056151b)
 version = "1.0.2"
 description = "The Frenetic Compiler and Runtime System"
 requires =
@@ -12,7 +12,7 @@ exists_if = "netcore.cma"
 package "quickcheck" (
  version = "1.0.2"
  description = "The Frenetic Compiler and Runtime System"
- requires = "quickcheck netcore"
+ requires = "openflow.quickcheck quickcheck netcore"
  archive(byte) = "quickcheck.cma"
  archive(byte, plugin) = "quickcheck.cma"
  archive(native) = "quickcheck.cmxa"

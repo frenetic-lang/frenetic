@@ -157,7 +157,7 @@ xpolicy:
   | DROP 
       { drop }
   | INT64 AT INT64 DBLARROW INT64 AT INT64
-      { Link(VInt.Int64 $1, VInt.Int64 $3, VInt.Int64 $5, VInt.Int64 $7) }
+      { Link($1, VInt.Int64 $3, $5, VInt.Int64 $7) }
   | LPAREN policy RPAREN 
       { $2 }
 

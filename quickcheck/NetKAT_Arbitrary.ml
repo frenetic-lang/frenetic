@@ -71,9 +71,15 @@ let gen_pred : pred QuickCheck_gen.gen =
 
 let arbitrary_link : policy QuickCheck_gen.gen = 
   let open QuickCheck_gen in
-  arbitrary_headerval >>= fun sw1 ->
+  let open Arbitrary_Base in
+  (* XXX(seliopou): The range of switch ids is currently limited in tests
+   * because of a bug in OCaml's Scanf library, reported here:
+   *
+   *   http://caml.inria.fr/mantis/view.php?id=6316
+   *)
+  arbitrary_uint48 >>= fun sw1 ->
   arbitrary_headerval >>= fun pt1 ->
-  arbitrary_headerval >>= fun sw2 ->
+  arbitrary_uint48 >>= fun sw2 ->
   arbitrary_headerval >>= fun pt2 ->
     ret_gen (Link(sw1,pt1,sw2,pt2))
 

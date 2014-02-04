@@ -732,7 +732,7 @@ let regex_to_switch_policies (r : regex) : policy dehopified =
     let ports_f = foldl1_map (fun p q -> NetKAT_Types.Par(p, q))
         (fun (pt, _) -> NetKAT_Types.Filter(Test(Header SDN_Types.InPort, pt)))
       (PortMap.bindings pt_m) in
-    let switch_f = NetKAT_Types.Filter(Test(Switch, sw)) in
+    let switch_f = NetKAT_Types.Filter(Test(Switch, VInt.Int64 sw)) in
 
     let next_states = if Hashtbl.mem pick_states q'
       then Nfa.neighbors auto q'

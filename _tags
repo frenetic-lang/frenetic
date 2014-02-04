@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 31dfffb5c3aa348a3fb8b1ad538d0172)
+# DO NOT EDIT (digest: 2f5da24757ff9d9ba94473fea849c52a)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -48,6 +48,7 @@
 <quickcheck/*.ml{,i}>: use_netcore
 <quickcheck/*.ml{,i}>: package(packet)
 <quickcheck/*.ml{,i}>: package(quickcheck)
+<quickcheck/*.ml{,i}>: package(openflow.quickcheck)
 <quickcheck/*.ml{,i}>: package(cstruct)
 <quickcheck/*.ml{,i}>: package(dprle)
 <quickcheck/*.ml{,i}>: package(ocamlgraph)
@@ -65,6 +66,7 @@
 "test/Test.byte": package(pa_ounit)
 "test/Test.byte": package(pa_ounit.syntax)
 "test/Test.byte": package(quickcheck)
+"test/Test.byte": package(openflow.quickcheck)
 "test/Test.byte": package(cstruct)
 "test/Test.byte": package(dprle)
 "test/Test.byte": package(ocamlgraph)
@@ -81,6 +83,7 @@
 <test/*.ml{,i}>: package(pa_ounit)
 <test/*.ml{,i}>: package(pa_ounit.syntax)
 <test/*.ml{,i}>: package(quickcheck)
+<test/*.ml{,i}>: package(openflow.quickcheck)
 <test/*.ml{,i}>: package(cstruct)
 <test/*.ml{,i}>: package(dprle)
 <test/*.ml{,i}>: package(ocamlgraph)

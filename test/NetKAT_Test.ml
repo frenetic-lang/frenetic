@@ -7,7 +7,7 @@ open NetKAT_Pretty
 let test_compile lhs rhs =
   let rhs' =
     LocalCompiler.to_netkat
-      (LocalCompiler.of_policy (VInt.Int64 0L) lhs) in
+      (LocalCompiler.of_policy 0L lhs) in
   if rhs' = rhs then
     true
   else
@@ -17,7 +17,7 @@ let test_compile lhs rhs =
 
 let test_compile_table pol tbl = 
   let open LocalCompiler in 
-  let tbl' = to_table (compile (VInt.Int64 0L) pol) in
+  let tbl' = to_table (compile 0L pol) in
   if tbl = tbl' then 
     true
   else

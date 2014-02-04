@@ -18,7 +18,7 @@ let switches (g : t) : SDN_Types.switchId list =
     (List.fold_left
        (fun acc node -> match node with
      | Node.Host _ -> acc
-     | Node.Switch dpid -> (VInt.Int64 dpid)::acc
+     | Node.Switch dpid -> dpid::acc
      | Node.Mbox _ -> acc)
        [] (Topology.get_vertices g))
 
