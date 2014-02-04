@@ -61,3 +61,62 @@ module State = struct
     PortMap.find t.ends (n, p)
 
 end
+
+module Probe = struct
+
+  cstruct nib_payload {
+    uint64_t switch_id;
+    uint64_t port_id
+  } as big_endian
+
+  (* XXX(seliopou): Watch out for this. The protocol in etheret packets has two
+   * different meanings depending on the range of values that it falls into. If
+   * anything weird happens with probe sizes, look here.
+   *
+   * This is not the protocol, but in fact the size.
+   * *)
+  let protocol = 0x05ff
+  let mac = 0xffeabbadabbaL
+
+  exception Wrong_type
+
+  (* A probe consists of a switch_id and port_id, both represented as int64s
+   * regardless of the underlying OpenFlow protocol's representation.
+   * *)
+  type t =
+    { switch_id : int64
+    ; port_id : int64
+    }
+
+  let marshal t b =
+    set_nib_payload_switch_id b t.switch_id;
+    set_nib_payload_port_id b t.port_id;
+    sizeof_nib_payload
+
+  let marshal' t =
+    let b = Cstruct.create sizeof_nib_payload in
+    ignore (marshal t b);
+    b
+
+  let parse b =
+    { switch_id = get_nib_payload_switch_id b
+    ; port_id = get_nib_payload_port_id b
+    }
+
+  let of_packet p =
+    let open Packet in
+    match p.nw with
+      | Unparsable(proto, b)
+        when proto = protocol -> parse b
+      | _ -> raise Wrong_type
+
+  let to_packet t =
+    let open Packet in
+    { dlSrc = mac
+    ; dlDst = 0xffffffffffffL
+    ; dlVlan = None
+    ; dlVlanDei = false
+    ; dlVlanPcp = 0x0
+    ; nw = Unparsable(protocol, marshal' t)
+    }
+end
