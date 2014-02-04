@@ -62,6 +62,8 @@ module Controller = struct
   type t = {
     sub : ChunkController.t;
     mutable shakes : (Client_id.t * m) BBuffer.t SwitchMap.t;
+    mutable feats : SDN_Types.switchId SwitchMap.t;
+    mutable nib : Nib.Protocol.t
   }
 
   type e = [
@@ -76,20 +78,30 @@ module Controller = struct
     | `Message of Client_id.t * m
   ]
 
-  let create ?max_pending_connections
-      ?verbose
-      ?log_disconnects
-      ?buffer_age_limit ~port () =
-    ChunkController.create ?max_pending_connections ?verbose ?log_disconnects
-      ?buffer_age_limit ~port ()
-    >>| function t -> { sub = t; shakes = SwitchMap.empty }
-
   let close t = ChunkController.close t.sub
   let has_switch_id t = ChunkController.has_switch_id t.sub
   let send t s_id msg = ChunkController.send t.sub s_id (Message.marshal' msg)
   let send_to_all t msg = ChunkController.send_to_all t.sub (Message.marshal' msg)
   let client_addr_port t = ChunkController.client_addr_port t.sub
   let listening_port t = ChunkController.listening_port t.sub
+
+  let create ?max_pending_connections
+      ?verbose
+      ?log_disconnects
+      ?buffer_age_limit ~port () =
+    ChunkController.create ?max_pending_connections ?verbose ?log_disconnects
+      ?buffer_age_limit ~port ()
+    >>| function t ->
+        { sub = t
+        ; shakes = SwitchMap.empty
+        ; feats = SwitchMap.empty
+        ; nib = Nib.Protocol.create ()
+        }
+
+  let _send t c_id m =
+    send t c_id (0l, m) >>| function
+      | `Drop exn -> raise exn
+      | `Sent _ -> ()
 
   let openflow0x01 t evt =
     match evt with
@@ -126,6 +138,42 @@ module Controller = struct
       | `Disconnect (c_id, exn) ->
         t.shakes <- SwitchMap.remove t.shakes c_id;
         return [`Disconnect(c_id, exn)]
+
+  let topology t evt =
+    let open OpenFlow0x01 in
+    match evt with
+      | `Connect(c_id, feats) ->
+        let switch_id = feats.SwitchFeatures.switch_id in
+        Nib.Protocol.add_switch t.nib ~send:(_send t c_id) feats
+        >>= fun nib ->
+          t.feats <- SwitchMap.add t.feats c_id switch_id;
+          t.nib <- nib;
+          return [`Connect(c_id, feats)]
+      | `Disconnect(c_id, exn) ->
+        let switch_id = SwitchMap.find_exn t.feats c_id in
+        t.nib <- Nib.Protocol.remove_switch t.nib switch_id;
+        t.feats <- SwitchMap.remove t. feats c_id;
+        return [`Disconnect(c_id, exn)]
+      | `Message(c_id, msg) ->
+        let open Message in
+        begin match msg with
+          | xid, PacketInMsg pi ->
+            let switch_id = SwitchMap.find_exn t.feats c_id in
+            Nib.Protocol.handle_packet_in t.nib ~send:(_send t c_id) switch_id pi
+            >>= (function (nib, r) ->
+              t.nib <- nib;
+              match r with
+                | None -> return []
+                | Some(pi) -> return [`Message(c_id, (xid, PacketInMsg pi))])
+          | _, PortStatusMsg ps ->
+            let switch_id = SwitchMap.find_exn t.feats c_id in
+            Nib.Protocol.handle_port_status t.nib ~send:(_send t c_id) switch_id ps
+            >>= (function nib ->
+              t.nib <- nib;
+              return [`Message(c_id, msg)])
+          | _ ->
+            return [`Message(c_id, msg)]
+        end
 
   let listen t =
     let open Async_OpenFlow_Platform.Trans in
