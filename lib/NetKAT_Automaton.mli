@@ -4,7 +4,7 @@ type lf_policy
 type port_dst
 
 module SwitchMap : Map.S
-  with type key = VInt.t
+  with type key = SDN_Types.switchId
 
 module PortMap : Map.S
   with type key = VInt.t

@@ -558,7 +558,7 @@ module Local = struct
     Atom.Set.fold rs ~init:Atom.Map.empty
       ~f:(fun acc ri -> extend ri [Action.id] acc) 
 
-  let rec of_pred (sw:SDN_Types.fieldVal) (pr:NetKAT_Types.pred) : t =
+  let rec of_pred (sw:SDN_Types.switchId) (pr:NetKAT_Types.pred) : t =
     let rec loop pr k = 
       match pr with
       | NetKAT_Types.True ->
@@ -599,7 +599,7 @@ module Local = struct
     r
 
 
-  let of_policy (sw:SDN_Types.fieldVal) (pol:NetKAT_Types.policy) : t =
+  let of_policy (sw:SDN_Types.switchId) (pol:NetKAT_Types.policy) : t =
     let rec loop pol k =  
       match pol with
         | NetKAT_Types.Filter pr ->
@@ -697,7 +697,7 @@ module RunTime = struct
 
   type i = Local.t
 
-  let compile (sw:SDN_Types.fieldVal) (pol: NetKAT_Types.policy) : i =
+  let compile (sw:SDN_Types.switchId) (pol: NetKAT_Types.policy) : i =
     let r = Local.of_policy sw pol in 
     (* Printf.printf "COMPILE\n%s\n%s\n%!" *)
     (*   (NetKAT_Pretty.string_of_policy pol) *)

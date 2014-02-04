@@ -27,7 +27,7 @@ type policy =
   | Choice of policy * policy
   | Seq of policy * policy
   | Star of policy
-  | Link of header_val * header_val * header_val * header_val
+  | Link of SDN_Types.switchId * header_val * SDN_Types.switchId * header_val
       
 let id = Filter True
   
