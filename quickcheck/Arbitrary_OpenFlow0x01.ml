@@ -1,41 +1,9 @@
 open OpenFlow0x01
+open Arbitrary_Base
 
 open QuickCheck
 module Gen = QuickCheck_gen
 
-(* arbitrary instance for usigned integers, using `int` type. *)
-let arbitrary_uint = Gen.sized (fun n -> Gen.choose_int (0, n))
-
-(* arbitrary instance for unsigned int8, using the `int` type. *)
-let arbitrary_uint8 = Gen.choose_int (0, 255)
-
-(* arbitrary instance for unsigned int16, using the `int` type. *)
-let arbitrary_uint16 =
-  let open Gen in
-  arbitrary_uint8 >>= fun a ->
-  arbitrary_uint8 >>= fun b ->
-    ret_gen (a + b)
-
-(* arbitrary instance for unsigned int32, using the `int32` type. *)
-let arbitrary_uint32 =
-  let open Gen in
-  arbitrary_uint16 >>= fun a ->
-  arbitrary_uint16 >>= fun b ->
-    ret_gen Int32.(add (of_int a) (of_int b))
-
-(* arbitrary instance for unsigned int48, using the `int64` type. *)
-let arbitrary_uint48 =
-  let open Gen in
-  arbitrary_uint32 >>= fun a ->
-  arbitrary_uint16 >>= fun b ->
-    ret_gen Int64.(add (of_int32 a) (of_int b))
-
-(* arbitrary instance for option type, favoring `Some` rather than `None` *)
-let arbitrary_option arb =
-  let open Gen in
-  frequency [
-      (1, ret_gen None);
-      (3, arb >>= fun e -> ret_gen (Some e)) ]
 
 let arbitrary_32mask =
   let open Gen in
@@ -184,7 +152,7 @@ module Match = struct
 end
 
 module PseudoPort = struct
-  (* 
+  (*
    * Keep track of the `Controller` constructor parameter in the serialization
    * type, if it exists. The `marshal` function is a lossy transformation and
    * drops this piece of data. Manually preserve it to make roundtrip tests
@@ -217,17 +185,17 @@ module PseudoPort = struct
 
   let to_string = PseudoPort.to_string
 
-  let parse (p, l) = 
+  let parse (p, l) =
     let l' = match l with
              | None   -> 0
              | Some i -> i
       in PseudoPort.make p l'
 
-  let marshal p = 
+  let marshal p =
     let open OpenFlow0x01_Core in
     let l = match p with
             | Controller i -> Some i
-            | _            -> None 
+            | _            -> None
       in (PseudoPort.marshal p, l)
 end
 

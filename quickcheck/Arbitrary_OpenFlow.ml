@@ -1,5 +1,5 @@
 open QuickCheck
-open OpenFlow0x01_Arbitrary
+open Arbitrary_Base
 module Gen = QuickCheck_gen
 
 module Header = struct

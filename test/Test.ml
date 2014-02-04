@@ -38,10 +38,10 @@ let openflow_quickCheck arbitrary show parse marshal =
       | Exhausted _ -> failwith "No exhaustion expected"
 
 module RoundTripping = struct
-  module Gen = OpenFlow0x01_Arbitrary
+  module Gen = Arbitrary_OpenFlow0x01
 
   TEST "OpenFlow_Header RoundTrip" =
-    let module GenHeader = Gen.OpenFlow0x01_Unsize(OpenFlow_Arbitrary.Header) in
+    let module GenHeader = Gen.OpenFlow0x01_Unsize(Arbitrary_OpenFlow.Header) in
       (openflow_quickCheck GenHeader.arbitrary
           GenHeader.to_string GenHeader.parse GenHeader.marshal)
 

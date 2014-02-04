@@ -1,5 +1,7 @@
 # OASIS_START
-# DO NOT EDIT (digest: 1ca2ebdff1a9197029876867ccff22c9)
-OpenFlow_Arbitrary
-OpenFlow0x01_Arbitrary
+# DO NOT EDIT (digest: 08b02671e9195e0bb583589cf8fe1b3c)
+Arbitrary_Base
+Arbitrary_OpenFlow
+Arbitrary_OpenFlow0x01
+Arbitrary_SDN_Types
 # OASIS_STOP

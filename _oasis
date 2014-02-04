@@ -112,8 +112,10 @@ Library quickcheck
         quickcheck,
         openflow
     Modules:
-        OpenFlow_Arbitrary,
-        OpenFlow0x01_Arbitrary
+        Arbitrary_Base,
+        Arbitrary_OpenFlow,
+        Arbitrary_OpenFlow0x01,
+        Arbitrary_SDN_Types
 
 Executable testtool
   Path: test
