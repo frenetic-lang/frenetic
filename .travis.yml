@@ -3,7 +3,7 @@ script: bash -ex .travis-ci.sh
 env:
   global:
     - OPAM_DEPENDS="lwt cstruct quickcheck ounit pa_ounit textutils core async"
-    - CONFIG_FLAGS="--enable-tests --enable-quickcheck --enable-lwt --enable-async"
+    - CONFIG_FLAGS="--enable-tests --enable-quickcheck --enable-async"
     - FRENETIC_DEPENDS="ocaml-packet"
   matrix:
     - OCAML_VERSION=4.01.0 OPAM_VERSION=1.1.0
