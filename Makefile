@@ -1,6 +1,5 @@
 all: build
 
-LWT ?= $(shell if ocamlfind query lwt.unix >/dev/null 2>&1; then echo --enable-lwt; else echo --disable-lwt; fi)
 ASYNC ?= $(shell if ocamlfind query async >/dev/null 2>&1; then echo --enable-async; else echo --disable-async; fi)
 # Implies --enable-quickcheck
 TESTS ?= $(shell if ocamlfind query quickcheck >/dev/null 2>&1; then echo --enable-tests; else echo --disable-tests; fi)
@@ -12,7 +11,7 @@ setup.ml: _oasis
 	oasis setup
 
 setup.data: setup.ml
-	ocaml setup.ml -configure $(LWT) $(ASYNC) $(TESTS)
+	ocaml setup.ml -configure $(ASYNC) $(TESTS)
 
 build: setup.data setup.ml
 	ocaml setup.ml -build -j $(J)

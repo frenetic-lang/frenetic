@@ -1,25 +1,31 @@
+open Core.Std
+open Async.Std
+
 open SDN_Types
 open VInt
+open Async_OpenFlow
 
-let handle_switch (features : switchFeatures) : unit Lwt.t =
-  lwt () = SDN.setup_flow_table features.switch_id
-    [{ pattern = FieldMap.singleton InPort (Int32 1l);
-       action = [ [[OutputPort (Int32 2l)]] ];
+let handle_switch platform (features : switchFeatures) : unit Deferred.t =
+  Highlevel.setup_flow_table platform features.switch_id
+    [{ pattern = FieldMap.singleton InPort (Int16 1);
+       action = [ [[OutputPort (Int16 2)]] ];
        cookie = 0L;
        idle_timeout = Permanent;
        hard_timeout = Permanent
      };
-     { pattern = FieldMap.singleton InPort (Int32 2l);
-       action = [ [[OutputPort (Int32 1l)]] ];
+     { pattern = FieldMap.singleton InPort (Int16 2);
+       action = [ [[OutputPort (Int16 1)]] ];
        cookie = 0L;
        idle_timeout = Permanent;
        hard_timeout = Permanent
      }
-    ] in
-   Lwt.return (Printf.printf "Installed switch %s\n%!" (get_string features.switch_id))
+    ]
+  >>= fun () ->
+  (Printf.printf "Installed switch %Ld\n%!" features.switch_id;
+   return ())
 
-let main =
-	lwt (stop_accepting, new_switches) = SDN.accept_switches 6633 in
-	Lwt_stream.iter_p handle_switch new_switches
-
-let () = Lwt_main.run main
+let () =
+  let _ = Highlevel.create ~port:6633 ()
+          >>= fun platform ->
+          Pipe.iter (Highlevel.accept_switches platform) (handle_switch platform) 
+  in never_returns (Scheduler.go ())

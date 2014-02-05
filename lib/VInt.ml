@@ -1,4 +1,5 @@
 open Sexplib.Conv 
+open Format
 
 type t =
   | Int64 of Int64.t sexp_opaque 
@@ -80,7 +81,7 @@ let int64_to_int (n : Int64.t) : int =
 
 let int32_to_int (n : Int32.t) : int =
     if n > Int32.of_int max_int then
-      raise (Invalid_argument "int32_to_int")
+      raise (Invalid_argument (sprintf "int32_to_int applied to %lx" n))
     else
       Int32.to_int n
 

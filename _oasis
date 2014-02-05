@@ -13,14 +13,6 @@ Flag quickcheck
     Description: build the openflow.quickcheck library
     Default: false
 
-Flag lwt
-    Description: build the openflow.lwt library
-    Default: false
-
-Flag end_test
-     Description: install executable for end-to-end test
-     Default: false
-
 Flag async
     Description: build the openflow.async library
     Default: false
@@ -77,32 +69,6 @@ Library async
   Modules:
     Async_OpenFlow
 
-
-Library lwt
-  Findlibparent: openflow
-  Findlibname: lwt
-  Path: lwt
-  Build$: flag(lwt)
-  BuildDepends:
-    lwt,
-    lwt.unix,
-    lwt.syntax,
-    openflow
-  InternalModules:
-    HighLevelSwitch,
-    HighLevelSwitch0x01,
-    HighLevelSwitch0x04
-  Modules:
-    OpenFlow0x01_Platform,
-    OpenFlow0x04_Platform,
-    OpenFlow0x01_Switch,
-    OpenFlow0x04_Switch,
-    OpenFlow0x01_TxSwitch,
-    OpenFlow0x04_TxSwitch,    
-    OpenFlow0x04_Misc,
-    Socket,
-    SDN
-
 Library quickcheck
     Findlibparent: openflow
     Findlibname: quickcheck
@@ -135,9 +101,9 @@ Executable testtool
 Executable ping_test
   Path: ping-test
   Install: false
-  Build$: flag(end_test) && flag(lwt)
+  Build$: flag(tests) && flag(async)
   MainIs: PingTest.ml
-  BuildDepends: packet,openflow,openflow.lwt,oUnit,pa_ounit,pa_ounit.syntax
+  BuildDepends: packet,openflow,openflow.async,oUnit,pa_ounit,pa_ounit.syntax
 
 Test all_tests
   Command: $testtool inline-test-runner openflow
