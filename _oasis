@@ -172,3 +172,17 @@ Executable learning_switch
     cstruct.async,
     openflow,
     openflow.async
+
+Executable topology
+  Path: examples
+  MainIs: Topology.ml
+  Build$: flag(async)
+  Install: false
+  BuildDepends:
+    threads,
+    core,
+    async,
+    packet,
+    cstruct.async,
+    openflow,
+    openflow.async
