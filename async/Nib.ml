@@ -181,7 +181,7 @@ module Protocol : sig
     -> unit
     -> t
 
-  val add_switch
+  val setup_probe
     : t
     -> send:(OpenFlow0x01.Message.t -> unit Deferred.t)
     -> OpenFlow0x01.SwitchFeatures.t
@@ -199,7 +199,7 @@ module Protocol : sig
     -> OpenFlow0x01.PortStatus.t
     -> t Deferred.t
 
-  val handle_packet_in
+  val handle_probe
     : t
     -> send:(OpenFlow0x01.Message.t -> unit Deferred.t)
     -> SDN_Types.switchId
@@ -227,20 +227,6 @@ end = struct
     { nib; pending = SwitchMap.empty }
 
   open OpenFlow0x01
-
-  (* XXX(seliopou): Depending on how the switch is configured, these may not be
-   * strictly necessary. Also, see the comment below for notes on timing.
-   * *)
-  let setup_flows =
-    let open Message in
-    let open OpenFlow0x01_Core in
-    let nib_probe = { match_all
-      with dlTyp = Some(Probe.protocol)
-         ; dlSrc = Some(Probe.mac)
-         ; dlDst = Some(0xffffffffffffL)
-    } in
-    [ FlowModMsg (add_flow 65535 nib_probe  [Output(Controller(512))])
-    ]
 
   let port_useable descr =
     let open PortDescription in
@@ -305,12 +291,26 @@ end = struct
     ; pending = SwitchMap.add t.pending switch_id (PortSet.remove ports p)
     }
 
-  let add_switch t ~send feats =
+  let setup_probe t ~send feats =
+    (* XXX(seliopou): Depending on how the switch is configured, these may not be
+     * strictly necessary. Also, see the comment below for notes on timing.
+     *
+     * Also, mind the note on timing in `add_port`.
+     * *)
+    let probe_rule =
+      let open Message in
+      let open OpenFlow0x01_Core in
+      let nib_probe = { match_all
+        with dlTyp = Some(Probe.protocol)
+           ; dlSrc = Some(Probe.mac)
+           ; dlDst = Some(0xffffffffffffL)
+      } in
+      FlowModMsg (add_flow 65535 nib_probe  [Output(Controller(512))]) in
     let open SwitchFeatures in
     let switch_id = feats.switch_id in
     let ports = List.filter feats.ports ~f:port_useable in
     Log.info ~tags "switch(add): %Lu" switch_id;
-    Deferred.List.map ~how:`Parallel setup_flows ~f:send >>= fun _ ->
+    send probe_rule >>= fun _ ->
     Deferred.List.fold ports ~init:t ~f:(add_port ~send ~switch_id)
     >>| fun t' -> { t'
       with nib = State.add_switch t'.nib feats.switch_id }
@@ -331,7 +331,7 @@ end = struct
       | _ ->
         return t
 
-  let handle_packet_in t ~send switch_id pi =
+  let handle_probe t ~send switch_id pi =
     let open OpenFlow0x01_Core in
     let open Packet in
     match OpenFlow0x01_Core.parse_payload pi.input_payload with

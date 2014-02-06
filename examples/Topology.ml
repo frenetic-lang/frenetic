@@ -18,7 +18,7 @@ let main () =
   let open Async_OpenFlow0x01.Controller in
   create 6633 ()
   >>> fun t ->
-    Deferred.don't_wait_for (Pipe.iter (run (features >=> topology) t (listen t)) ~f:(fun _ ->
+    Deferred.don't_wait_for (Pipe.iter (run (features >=> switch_topology) t (listen t)) ~f:(fun _ ->
       return ()))
 
 let _ = main ()

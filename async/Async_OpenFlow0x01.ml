@@ -139,12 +139,12 @@ module Controller = struct
         t.shakes <- SwitchMap.remove t.shakes c_id;
         return [`Disconnect(c_id, exn)]
 
-  let topology t evt =
+  let switch_topology t evt =
     let open OpenFlow0x01 in
     match evt with
       | `Connect(c_id, feats) ->
         let switch_id = feats.SwitchFeatures.switch_id in
-        Nib.Protocol.add_switch t.nib ~send:(_send t c_id) feats
+        Nib.Protocol.setup_probe t.nib ~send:(_send t c_id) feats
         >>= fun nib ->
           t.feats <- SwitchMap.add t.feats c_id switch_id;
           t.nib <- nib;
@@ -159,7 +159,7 @@ module Controller = struct
         begin match msg with
           | xid, PacketInMsg pi ->
             let switch_id = SwitchMap.find_exn t.feats c_id in
-            Nib.Protocol.handle_packet_in t.nib ~send:(_send t c_id) switch_id pi
+            Nib.Protocol.handle_probe t.nib ~send:(_send t c_id) switch_id pi
             >>= (function (nib, r) ->
               t.nib <- nib;
               match r with
