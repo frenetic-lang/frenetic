@@ -175,6 +175,33 @@ module Controller = struct
             return [`Message(c_id, msg)]
         end
 
+  (* This must be installed after switch_discovery *)
+  let host_discovery t evt =
+    let open OpenFlow0x01 in
+    match evt with
+      | `Connect(c_id, feats) ->
+        Nib.Protocol.setup_arp t.nib ~send:(_send t c_id) >>= fun _ ->
+        return [`Connect(c_id, feats)]
+      | `Message(c_id, msg) ->
+        let open Message in
+        begin match msg with
+          | xid, PacketInMsg pi ->
+            let switch_id = SwitchMap.find_exn t.feats c_id in
+            Nib.Protocol.handle_arp t.nib ~send:(_send t c_id) switch_id pi
+            >>= (function (nib, r) ->
+              t.nib <- nib;
+              match r with
+                | None -> return []
+                | Some(pi) -> return [`Message(c_id, (xid, PacketInMsg pi))])
+          | _ ->
+            return [evt]
+        end
+      | _ -> return [evt]
+
+  let topology t evt =
+    let open Async_OpenFlow_Platform.Trans in
+    (switch_topology >=> host_discovery) t evt
+
   let listen t =
     let open Async_OpenFlow_Platform.Trans in
     let open ChunkController in
