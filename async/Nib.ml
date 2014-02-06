@@ -168,6 +168,9 @@ end = struct
   module SwitchMap = Map.Make(Int64)
   module PortSet = Set.Make(Int64)
 
+  module Log = Async_OpenFlow_Log
+  let tags = [("openflow", "topology")]
+
   type t =
     { nib : State.t
     ; pending : PortSet.t SwitchMap.t
@@ -211,6 +214,9 @@ end = struct
         assert (l = (n2, probe.port_id));
         t.nib
       | None ->
+        Log.info ~tags "link(add): %Lu@%Lu <=> %Lu@%Lu"
+          switch_id       port_id
+          probe.switch_id probe.port_id;
         State.add_link t.nib n1 port_id n2 probe.port_id in
     { nib
     ; pending = SwitchMap.add t.pending switch_id (PortSet.remove ports probe.port_id)
@@ -237,19 +243,30 @@ end = struct
       with pending = SwitchMap.add t.pending switch_id set }
 
   let remove_port t ~switch_id port =
-    let port_no = port.OpenFlow0x01.PortDescription.port_no in
-    { t with nib = State.remove_port t.nib (State.Switch switch_id) (Int64.of_int port_no) }
+    let n = State.Switch switch_id in
+    let p = Int64.of_int (port.OpenFlow0x01.PortDescription.port_no) in
+    begin match State.has_port t.nib n p with
+      | Some(State.Switch s2, p2) ->
+        Log.info ~tags "link(remove): %Lu@%Lu <=> %Lu@%Lu"
+          switch_id p
+          s2        p2
+      | None
+      | _ -> ()
+    end;
+    { t with nib = State.remove_port t.nib n p }
 
   let add_switch t ~send feats =
     let open SwitchFeatures in
     let switch_id = feats.switch_id in
     let ports = List.filter feats.ports ~f:port_useable in
+    Log.info ~tags "switch(add): %Lu" switch_id;
     Deferred.List.map ~how:`Parallel setup_flows ~f:send >>= fun _ ->
     Deferred.List.fold ports ~init:t ~f:(add_port ~send ~switch_id)
     >>| fun t' -> { t'
       with nib = State.add_node t'.nib (State.Switch feats.switch_id) }
 
   let remove_switch t switch_id =
+    Log.info ~tags "switch(remove): %Lu" switch_id;
     { t with nib = State.remove_node t.nib (State.Switch switch_id) }
 
   let handle_port_status t ~send switch_id port_status =
