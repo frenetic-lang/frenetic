@@ -244,6 +244,8 @@ end = struct
 
   let remove_port t ~switch_id port =
     let n = State.Switch switch_id in
+    let ports = try SwitchMap.find_exn t.pending switch_id
+      with Not_found -> PortSet.empty in
     let p = Int64.of_int (port.OpenFlow0x01.PortDescription.port_no) in
     begin match State.has_port t.nib n p with
       | Some(State.Switch s2, p2) ->
@@ -253,7 +255,9 @@ end = struct
       | None
       | _ -> ()
     end;
-    { t with nib = State.remove_port t.nib n p }
+    { nib = State.remove_port t.nib n p
+    ; pending = SwitchMap.add t.pending switch_id (PortSet.remove ports p)
+    }
 
   let add_switch t ~send feats =
     let open SwitchFeatures in
