@@ -187,6 +187,11 @@ module Protocol : sig
     -> OpenFlow0x01.SwitchFeatures.t
     -> t Deferred.t
 
+  val setup_arp
+    : t
+    -> send:(OpenFlow0x01.Message.t -> unit Deferred.t)
+    -> t Deferred.t
+
   val remove_switch
     : t
     -> SDN_Types.switchId
@@ -200,6 +205,13 @@ module Protocol : sig
     -> t Deferred.t
 
   val handle_probe
+    : t
+    -> send:(OpenFlow0x01.Message.t -> unit Deferred.t)
+    -> SDN_Types.switchId
+    -> OpenFlow0x01.PacketIn.t
+    -> (t * OpenFlow0x01.PacketIn.t option) Deferred.t
+
+  val handle_arp
     : t
     -> send:(OpenFlow0x01.Message.t -> unit Deferred.t)
     -> SDN_Types.switchId
@@ -250,6 +262,33 @@ end = struct
     { nib
     ; pending = SwitchMap.add t.pending switch_id (PortSet.remove ports probe.port_id)
     }
+
+  let handle_arp t switch_id port arp =
+    let ports = try SwitchMap.find_exn t.pending switch_id
+      with Not_found -> PortSet.empty in
+    let open Packet in
+    match arp with
+      | Arp.Query(dlSrc, nwSrc, _)
+      | Arp.Reply(dlSrc, nwSrc, _, _) ->
+        begin match State.other_end_of_host t.nib dlSrc nwSrc with
+          | Some (sw, pt) ->
+            (* XXX(seliopou): For now, the code assumes that the entire network
+             * is under the management of the controller, and that a host will
+             * go down before it comes up at another port, i.e., each MAC/IP is
+             * connected to a single port at any given time.
+             * *)
+            Log.info ~tags "arp: packet for known host %s/%s <=> %Lu@%Lu seen at %Lu@%Lu"
+              (Packet.string_of_ip nwSrc) (Packet.string_of_mac dlSrc)
+              sw                          pt
+              switch_id                   port
+          | None ->
+            Log.info ~tags "link(add): %Lu@%Lu <=> %s/%s"
+              switch_id                   port
+              (Packet.string_of_ip nwSrc) (Packet.string_of_mac dlSrc)
+        end;
+        { nib = State.add_host t.nib dlSrc nwSrc switch_id port
+        ; pending = SwitchMap.add t.pending switch_id (PortSet.remove ports port)
+        }
 
   let add_port t ~send ~switch_id port =
     let port_no = port.PortDescription.port_no in
@@ -315,6 +354,18 @@ end = struct
     >>| fun t' -> { t'
       with nib = State.add_switch t'.nib feats.switch_id }
 
+  let setup_arp t ~send =
+    (* XXX(seliopou): Depending on how the switch is configured, these may not be
+     * strictly necessary. Also, see the comment below for notes on timing.
+     * *)
+    let arp_rule =
+      let open Message in
+      let open OpenFlow0x01_Core in
+      let arp_packet = { match_all with dlTyp = Some(0x0806) } in
+      FlowModMsg (add_flow 65535 arp_packet [Output(Controller(512))]) in
+    send arp_rule >>= fun _ ->
+    return t
+
   let remove_switch t switch_id =
     Log.info ~tags "switch(remove): %Lu" switch_id;
     { t with nib = State.remove_switch t.nib switch_id }
@@ -339,6 +390,14 @@ end = struct
         when dlTyp = Probe.protocol && dlSrc = Probe.mac ->
           let t = receive_probe t switch_id (Int64.of_int pi.port) (Probe.parse bytes) in
           return (t, None)
+      | _ -> return (t, Some(pi))
+
+  let handle_arp t ~send switch_id pi =
+    let open OpenFlow0x01_Core in
+    let open Packet in
+    match OpenFlow0x01_Core.parse_payload pi.input_payload with
+      | { nw = Arp arp } ->
+        return (handle_arp t switch_id (Int64.of_int pi.port) arp, Some(pi))
       | _ -> return (t, Some(pi))
 
 end
