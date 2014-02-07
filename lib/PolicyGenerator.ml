@@ -48,7 +48,7 @@ let all_pairs_shortest_paths (g : t) =
           | Node.Switch dpid ->
             let (_,e,_) = Topology.find_edge g v v' in
             let pol' =
-              Par(Seq(Filter(And(Test(Switch, (VInt.Int64 dpid)),
+              Union(Seq(Filter(And(Test(Switch, (VInt.Int64 dpid)),
                      And(Test(Header EthSrc, src),
                                  Test(Header EthDst, dst)))),
                   Mod(Header InPort, VInt.Int64 e.Link.srcport)),
@@ -57,7 +57,7 @@ let all_pairs_shortest_paths (g : t) =
           | _ ->
             (pol,v'))
           (drop,v) path in
-          Par(path_pol,pol)
+          Union(path_pol,pol)
         | _ -> pol)
     drop all_paths
 

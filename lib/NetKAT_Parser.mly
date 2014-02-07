@@ -125,7 +125,7 @@ policy :
   | policy PLUS spolicy
       { Choice ($1, $3) }
   | policy BAR spolicy
-      { Par ($1, $3) }
+      { Union ($1, $3) }
   | spolicy 
       { $1 }
 
@@ -137,7 +137,7 @@ spolicy:
 
 cpolicy:
   | IF predicate THEN spolicy ELSE cpolicy 
-      { Par(Seq(Filter $2, $4), Seq(Filter(Neg $2), $6)) }
+      { Union(Seq(Filter $2, $4), Seq(Filter(Neg $2), $6)) }
   | kpolicy 
       { $1 }
 

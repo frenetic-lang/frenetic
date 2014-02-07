@@ -78,7 +78,7 @@ let merge_topologies _ =
 type lf_policy =
   | Filter of pred
   | Mod of header * header_val
-  | Par of lf_policy * lf_policy
+  | Union of lf_policy * lf_policy
   | Choice of lf_policy * lf_policy
   | Seq of lf_policy * lf_policy
   | Star of lf_policy
@@ -117,10 +117,10 @@ let lf_policy_to_policy (lfp : lf_policy) : policy =
     match lfp with
       | Filter(p) -> k (NetKAT_Types.Filter(p))
       | Mod(h, v) -> k (NetKAT_Types.Mod(h, v))
-      | Par(p1, p2) ->
+      | Union(p1, p2) ->
         lf_policy_to_policy_k p1 (fun p1' ->
         lf_policy_to_policy_k p2 (fun p2' ->
-          k (NetKAT_Types.Par(p1', p2'))))
+          k (NetKAT_Types.Union(p1', p2'))))
       | Choice(p1, p2) ->
         lf_policy_to_policy_k p1 (fun p1' ->
         lf_policy_to_policy_k p2 (fun p2' ->
@@ -142,7 +142,7 @@ let topology_to_policy (topo : topology) : policy =
         | Outside -> failwith "No policy representation for Outside entities" in
       if acc = NetKAT_Types.drop
         then link
-        else NetKAT_Types.Par(link, acc))
+        else NetKAT_Types.Union(link, acc))
     pt_m acc)
   topo NetKAT_Types.drop
 
@@ -153,7 +153,7 @@ let rec regex_to_policy (r : regex) : policy =
     | Pick(r1, r2) ->
       NetKAT_Types.Choice(regex_to_policy r1, regex_to_policy r2)
     | Alt(r1, r2) ->
-      NetKAT_Types.Par(regex_to_policy r1, regex_to_policy r2)
+      NetKAT_Types.Union(regex_to_policy r1, regex_to_policy r2)
     | Cat(r1, r2) ->
       NetKAT_Types.Seq(regex_to_policy r1, regex_to_policy r2)
     | Kleene(r) ->
@@ -201,12 +201,12 @@ module TRegex = struct
                 Char(TChar(Some(mlfp), sw))
               | _, _ -> Cat(p1', p2')
             end)))
-        | NetKAT_Types.Par(p1, p2) ->
+        | NetKAT_Types.Union(p1, p2) ->
           of_policy_k p1 (fun p1' ->
           of_policy_k p2 (fun p2' ->
             k (begin match p1', p2' with
               | Char(PChar(lfp1)), Char(PChar(lfp2)) ->
-                Char(PChar(Par(lfp1, lfp2)))
+                Char(PChar(Union(lfp1, lfp2)))
               | Char(TChar(None, topo1)), Char(TChar(None, topo2)) ->
                 let topo3 = SwitchMap.merge merge_topologies topo1 topo2 in
                 Char(TChar(None, topo3))
@@ -239,7 +239,7 @@ module TRegex = struct
       | Pick(r1, r2) ->
         NetKAT_Types.Choice(to_policy r1, to_policy r2)
       | Alt(r1, r2) ->
-        NetKAT_Types.Par(to_policy r1, to_policy r2)
+        NetKAT_Types.Union(to_policy r1, to_policy r2)
       | Cat(r1, r2) ->
         NetKAT_Types.Seq(to_policy r1, to_policy r2)
       | Kleene(r) ->
@@ -275,7 +275,7 @@ and link_provider = lf_policy option -> inter
 and link_consumer = cstr -> lf_policy option -> link_provider option -> inter
 
 let seq (p : lf_policy) (q : lf_policy) : lf_policy = Seq(p, q)
-let par (p : lf_policy) (q : lf_policy) : lf_policy = Par(p, q)
+let par (p : lf_policy) (q : lf_policy) : lf_policy = Union(p, q)
 (* let pick (p : lf_policy) (q : lf_policy) : lf_policy = Choice(p, q) *)
 
 let mk_mcstr (c : cstr) mp q =
@@ -729,7 +729,7 @@ let regex_to_switch_policies (r : regex) : policy dehopified =
     topology := SwitchMap.merge merge_topologies topo !topology;
     let pt_m = SwitchMap.find sw topo in
 
-    let ports_f = foldl1_map (fun p q -> NetKAT_Types.Par(p, q))
+    let ports_f = foldl1_map (fun p q -> NetKAT_Types.Union(p, q))
         (fun (pt, _) -> NetKAT_Types.Filter(Test(Header SDN_Types.InPort, pt)))
       (PortMap.bindings pt_m) in
     let switch_f = NetKAT_Types.Filter(Test(Switch, VInt.Int64 sw)) in
@@ -746,7 +746,7 @@ let regex_to_switch_policies (r : regex) : policy dehopified =
   let edges_to_policy sw (es : EdgeSet.t) : policy =
     let start = EdgeSet.choose es in
     EdgeSet.fold (fun e acc ->
-      NetKAT_Types.Par(acc, to_policy sw e))
+      NetKAT_Types.Union(acc, to_policy sw e))
     (EdgeSet.remove start es) (to_policy sw start) in
 
   (* All packets entering the network are on vlan 1. Detect these packets and
@@ -788,11 +788,11 @@ let regex_to_switch_policies (r : regex) : policy dehopified =
                                      * then the start node should just be a
                                      * choice node.
                                      * *)
-                  else NetKAT_Types.Par(mk_choice choice_qs1, mk_mod Nfa.(auto.s)) in
+                  else NetKAT_Types.Union(mk_choice choice_qs1, mk_mod Nfa.(auto.s)) in
 
 
   let ingress =
-    NetKAT_Types.(Par(Seq(Filter(check_outside), ingress_mod),
+    NetKAT_Types.(Union(Seq(Filter(check_outside), ingress_mod),
                Seq(Filter(Neg(check_outside)), Filter(True)))) in
 
   (* Once a packet has reached a state that is backwards reachable from the
@@ -809,7 +809,7 @@ let regex_to_switch_policies (r : regex) : policy dehopified =
   let go_outside = NetKAT_Types.Mod(Header SDN_Types.Vlan, VInt.Int16 1) in
   let egress_test = foldl1_map (fun x y -> NetKAT_Types.Or(x, y)) mk_test final_qs in
   let egress =
-    NetKAT_Types.(Par(Seq(Filter(egress_test), go_outside),
+    NetKAT_Types.(Union(Seq(Filter(egress_test), go_outside),
                Seq(Filter(NetKAT_Types.Neg(egress_test)), Filter(NetKAT_Types.True)))) in
 
   let swpm = SwitchMap.mapi edges_to_policy (to_edge_map auto) in
