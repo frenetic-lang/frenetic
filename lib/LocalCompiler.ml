@@ -159,7 +159,7 @@ module Action = struct
     if Set.is_empty s then
       NetKAT_Types.Filter NetKAT_Types.False
     else
-      let f pol' a = NetKAT_Types.Par (pol', to_netkat a) in
+      let f pol' a = NetKAT_Types.Union (pol', to_netkat a) in
       let a = Set.min_elt_exn s in
       let s' = Set.remove s a in
       Set.fold s' ~f:f ~init:(to_netkat a)
@@ -606,7 +606,7 @@ module Local = struct
           k (of_pred sw pr)
         | NetKAT_Types.Mod (h, v) ->
           k (Atom.Map.singleton Atom.tru [Action.Set.singleton (NetKAT_Types.HeaderMap.singleton h v)])
-        | NetKAT_Types.Par (pol1, pol2) ->
+        | NetKAT_Types.Union (pol1, pol2) ->
           loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (par_local p1 p2)))
         | NetKAT_Types.Choice (pol1, pol2) ->
           loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (choice_local p1 p2)))
@@ -626,7 +626,7 @@ module Local = struct
       match nc1, nc2 with
         | NetKAT_Types.Filter NetKAT_Types.False, _ -> nc2
         | _, NetKAT_Types.Filter NetKAT_Types.False -> nc1
-        | _ -> NetKAT_Types.Par(nc1,nc2) in
+        | _ -> NetKAT_Types.Union(nc1,nc2) in
     let mk_seq nc1 nc2 =
       match nc1, nc2 with
         | NetKAT_Types.Filter NetKAT_Types.True, _ -> nc2

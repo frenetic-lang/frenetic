@@ -119,7 +119,7 @@ let test_n_times test_name n num_hosts num_switches edge_prob f2 =
 TEST "empty topology" =
   (topo_test (Topology.empty) (Filter False))
 (*
-The result is Par(drop,drop) if I test for drop, and the result is drop if I test for Par(drop,drop). Not sure why.
+The result is Union(drop,drop) if I test for drop, and the result is drop if I test for Union(drop,drop). Not sure why.
 
 TEST "host only" =
   (let g = (Topology.add_host (Topology.empty) ("") ("00:00:00:00:00:01") ("192.168.0.1")) in

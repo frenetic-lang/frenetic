@@ -92,7 +92,7 @@ module Formatting = struct
           | STAR -> fprintf fmt "@[%a*@]" (pol STAR) p' 
           | _ -> fprintf fmt "@[@[(%a)*@]@]" (pol PAREN) p'
         end
-      | Par (p1, p2) -> 
+      | Union (p1, p2) -> 
         begin match cxt with
           | PAREN
           | PAR_L -> fprintf fmt "@[%a |@ %a@]" (pol PAR_L) p1 (pol PAR_R) p2
@@ -140,14 +140,14 @@ let rec pretty_assoc (p : policy) : policy = match p with
   | Filter _ -> p
   | Mod _ -> p
   | Link _ -> p
-  | Par (p1, p2) -> pretty_assoc_par p
+  | Union (p1, p2) -> pretty_assoc_par p
   | Seq (p1, p2) -> pretty_assoc_seq p
   | Choice (p1, p2) -> pretty_assoc_choice p
   | Star p' -> Star (pretty_assoc p')
 and pretty_assoc_par (p : policy) : policy = match p with
-  | Par (p1, Par (p2, p3)) ->
-    Par (pretty_assoc_par (Par (p1, p2)), pretty_assoc_par p3)
-  | Par (p1, p2) -> Par (pretty_assoc p1, pretty_assoc p2)
+  | Union (p1, Union (p2, p3)) ->
+    Union (pretty_assoc_par (Union (p1, p2)), pretty_assoc_par p3)
+  | Union (p1, p2) -> Union (pretty_assoc p1, pretty_assoc p2)
   | _ -> pretty_assoc p
 and pretty_assoc_seq (p : policy) : policy = match p with
   | Seq (p1, Seq (p2, p3)) ->
