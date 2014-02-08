@@ -45,17 +45,17 @@ module Controller = struct
   let openflow0x04 t evt =
     match evt with
       | `Message (s_id, (hdr, bits)) ->
-        return (Some(`Message (s_id, Message.parse hdr bits)))
+        return [`Message (s_id, Message.parse hdr bits)]
       | `Connect (c_id, version) ->
         if version = 0x04 then
-          return (Some(`Connect c_id))
+          return [`Connect c_id]
         else begin
           ChunkController.close t.sub c_id;
           raise (ChunkController.Handshake (c_id, Printf.sprintf
                     "Negotiated switch version mismatch: expected %d but got %d%!"
                     0x04 version))
         end
-      | `Disconnect e -> return (Some(`Disconnect e))
+      | `Disconnect e -> return [`Disconnect e]
 
   let create ?max_pending_connections
       ?verbose

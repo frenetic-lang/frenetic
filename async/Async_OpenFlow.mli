@@ -76,7 +76,7 @@ module Platform : sig
   module Make(Message : Message) : S with type m = Message.t
 
   module Trans : sig
-    type ('t, 'a, 'b) stage = 't -> 'a -> 'b option Deferred.t
+    type ('t, 'a, 'b) stage = 't -> 'a -> 'b list Deferred.t
 
     val compose : ('t, 'b, 'c) stage -> ('t, 'a, 'b) stage -> ('t, 'a, 'c) stage
     val (>=>) : ('t, 'a, 'b) stage -> ('t, 'b, 'c) stage -> ('t, 'a, 'c) stage

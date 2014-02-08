@@ -120,14 +120,11 @@ module Make(Message : Message) = struct
 end
 
 module Trans = struct
-  type ('t, 'a, 'b) stage = 't -> 'a -> 'b option Deferred.t
+  type ('t, 'a, 'b) stage = 't -> 'a -> 'b list Deferred.t
 
   let compose (f : ('t, 'b, 'c) stage) (g : ('t, 'a, 'b) stage) : ('t, 'a, 'c) stage =
-    fun t e ->
-      g t e
-      >>= function
-        | Some e' -> f t e'
-        | None -> return None
+    fun t e -> g t e >>= function es ->
+      Deferred.List.map ~f:(f t) es >>| List.concat
 
   let (>=>) f g = compose g f
   let (<=<) f g = compose f g
@@ -136,5 +133,8 @@ module Trans = struct
     fun t e -> f (l t) e
 
   let run (f : ('t, 'a, 'b) stage) (t : 't) (r : 'a Pipe.Reader.t) : 'b Pipe.Reader.t =
-    Pipe.filter_map' r ~f:(f t)
+    Pipe.init (fun w ->
+      Pipe.iter r ~f:(fun e ->
+        f t e >>| Queue.of_list
+              >>= Pipe.write' w))
 end

@@ -24,18 +24,44 @@ end
 
 include Async_OpenFlow_Message.MakeSerializers (Message)
 
+module BBuffer = struct
+  type 'a t = {
+    max_size : int;
+    mutable cur_size : int;
+    mutable elems : 'a list
+  }
+
+  let create ?(max_size=2) () =
+    { max_size
+    ; cur_size = 0
+    ; elems = []
+    }
+
+  let enqueue q e =
+    if q.max_size >= q.cur_size + 1 then
+      q.cur_size <- q.cur_size + 1;
+      q.elems <- e :: q.elems
+
+  let clear (q : 'a t) : 'a list =
+    let es = List.rev (q.elems) in
+    q.cur_size <- 0;
+    q.elems <- [];
+    es
+
+end
+
 module Controller = struct
   open Async.Std
 
   module ChunkController = Async_OpenFlowChunk.Controller
   module Client_id = ChunkController.Client_id
 
-  module SwitchSet = Set.Make(Client_id)
+  module SwitchMap = Map.Make(Client_id)
 
   type m = Message.t
   type t = {
     sub : ChunkController.t;
-    mutable feat : SwitchSet.t;
+    mutable shakes : (Client_id.t * m) BBuffer.t SwitchMap.t;
   }
 
   type e = [
@@ -56,7 +82,7 @@ module Controller = struct
       ?buffer_age_limit ~port () =
     ChunkController.create ?max_pending_connections ?verbose ?log_disconnects
       ?buffer_age_limit ~port ()
-    >>| function t -> { sub = t; feat = SwitchSet.empty }
+    >>| function t -> { sub = t; shakes = SwitchMap.empty }
 
   let close t = ChunkController.close t.sub
   let has_switch_id t = ChunkController.has_switch_id t.sub
@@ -69,7 +95,7 @@ module Controller = struct
     match evt with
       | `Connect (c_id, version) ->
         if version = 0x01 then
-          return (Some(`Connect c_id))
+          return [`Connect c_id]
         else begin
           close t c_id;
           raise (ChunkController.Handshake (c_id, Printf.sprintf
@@ -77,28 +103,29 @@ module Controller = struct
                     0x01 version))
         end
       | `Message (c_id, (hdr, bits)) ->
-         return (Some(`Message (c_id, Message.parse hdr bits)))
-      | `Disconnect e -> return (Some(`Disconnect e))
+        return [`Message (c_id, Message.parse hdr bits)]
+      | `Disconnect e -> return [`Disconnect e]
 
   let features t evt =
     match evt with
       | `Connect (c_id) ->
-        t.feat <- SwitchSet.add t.feat c_id;
+        t.shakes <- SwitchMap. add t.shakes c_id (BBuffer.create ());
         send t c_id (0l, M.SwitchFeaturesRequest) >>| ChunkController.ensure
-      | `Message (c_id, (_, msg)) when SwitchSet.mem t.feat c_id ->
-        t.feat <- SwitchSet.remove t.feat c_id;
+      | `Message (c_id, (xid, msg)) when SwitchMap.mem t.shakes c_id ->
+        let q = SwitchMap.find_exn t.shakes c_id in
         begin match msg with
-          | M.SwitchFeaturesReply fs -> return(Some(`Connect(c_id, fs)))
+          | M.SwitchFeaturesReply fs ->
+            t.shakes <- SwitchMap.remove t.shakes c_id;
+            return (`Connect(c_id, fs) :: (List.rev_map (BBuffer.clear q) (fun e -> `Message e)))
           | _ ->
-            close t c_id;
-            raise (ChunkController.Handshake (c_id,
-                    Printf.sprintf "Expected FEATURES_REPLY but received: %s"
-                    (M.to_string msg)))
+            BBuffer.enqueue q (c_id, (xid, msg));
+            return []
         end
-      | `Message (c_id, msg) -> return(Some(`Message(c_id, msg)))
+      | `Message (c_id, msg) ->
+        return [`Message(c_id, msg)]
       | `Disconnect (c_id, exn) ->
-        t.feat <- SwitchSet.remove t.feat c_id;
-        return (Some(`Disconnect(c_id, exn)))
+        t.shakes <- SwitchMap.remove t.shakes c_id;
+        return [`Disconnect(c_id, exn)]
 
   let listen t =
     let open Async_OpenFlow_Platform.Trans in
