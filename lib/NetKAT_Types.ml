@@ -184,4 +184,4 @@ type event =
 
 type packet_out = switchId * bytes * bufferId option * portId option * action list
 
-type result = packet_out list * policy
+type result = packet_out list * policy option

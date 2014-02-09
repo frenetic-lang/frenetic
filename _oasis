@@ -60,8 +60,10 @@ Library async
     threads,
     textutils,
     topology,
+    sexplib,
     sexplib.syntax
   Modules:
+    Async_NetKAT,
     Async_Controller
 
 Library quickcheck
