@@ -8,6 +8,7 @@ type int8 = SDN_Types.int8
 type int16 = SDN_Types.int16
 type int32 = SDN_Types.int32
 type int48 = SDN_Types.int48
+
 type switchId = SDN_Types.switchId
 type portId = SDN_Types.portId
 type payload = SDN_Types.payload
@@ -46,7 +47,7 @@ type policy =
   | Union of policy * policy
   | Seq of policy * policy
   | Star of policy
-  | Link of SDN_Types.switchId * portId * SDN_Types.switchId * portId
+  | Link of switchId * portId * switchId * portId
       
 let id = Filter True
   
