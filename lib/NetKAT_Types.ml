@@ -166,3 +166,22 @@ end)
   
 module PacketSetSet = Set.Make(PacketSet)
 
+(** {3 Applications} *)
+
+type action = SDN_Types.action
+
+type port = switchId * portId
+type bufferId = Int32.t (* XXX(seliopou): different than SDN_Types *)
+type bytes = Packet.bytes
+
+type event =
+  | PacketIn of string * switchId * portId * bytes * int * bufferId option
+  | Query of string * int64 * int64
+  | SwitchUp of switchId
+  | SwitchDown of switchId
+  | LinkUp of port * port
+  | LinkDown of port * port
+
+type packet_out = switchId * bytes * bufferId option * portId option * action list
+
+type result = packet_out list * policy
