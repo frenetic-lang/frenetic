@@ -54,7 +54,7 @@ module Platform : sig
 
     val close : t -> Client_id.t -> unit
 
-    val has_switch_id : t -> Client_id.t -> bool
+    val has_client_id : t -> Client_id.t -> bool
 
     val send
       :  t

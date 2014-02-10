@@ -100,7 +100,7 @@ module Controller = struct
   let listen t = Platform.listen t.platform
 
   let close t = Platform.close t.platform
-  let has_switch_id t = Platform.has_switch_id t.platform
+  let has_client_id t = Platform.has_client_id t.platform
   let send t = Platform.send t.platform
   let send_to_all t = Platform.send_to_all t.platform
   let client_addr_port t = Platform.client_addr_port t.platform
