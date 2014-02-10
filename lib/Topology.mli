@@ -72,6 +72,7 @@ sig
   val add_switch : t -> switchId -> t
   val add_ports_edge : t -> V.t -> portId -> V.t -> portId -> t
 
+  val remove_switch : t -> switchId -> t
   val remove_port : t -> V.t -> portId -> t
 
   (* Accessors *)
