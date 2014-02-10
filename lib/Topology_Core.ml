@@ -71,6 +71,8 @@ sig
   val add_switch : t -> switchId -> t
   val add_ports_edge : t -> V.t -> portId -> V.t -> portId -> t
 
+  val remove_port : t -> V.t -> portId -> t
+
   (* Accessors *)
   val get_vertices : t -> V.t list
   val get_edges : t -> E.t list
@@ -242,6 +244,15 @@ struct
   let add_ports_edge (g:t) (s:Node.t) (sp:portId) (d:Node.t) (dp:portId) : t =
     let l = {Link.default with Link.srcport = sp; Link.dstport = dp} in
     add_edge_e g (s,l,d)
+
+  let remove_port (g:t) (n:Node.t) (p:portId) : t =
+    let ss = try (succ_e g n)
+      with Not_found -> [] in
+    List.fold_left (fun acc e ->
+      if Link.srcport e = p
+        then remove_edge_e acc e
+        else acc)
+      g ss
 
   (****** Accessors ******)
   (* Get a list of all the vertices in the graph *)
