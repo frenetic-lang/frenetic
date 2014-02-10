@@ -82,6 +82,7 @@ sig
   val ports_of_switch : t -> V.t -> portId list
   (* TODO(basus): remove this? *)
   (* val edge_ports_of_switch : t -> V.t -> portId list *)
+  val next_hop_via : t -> V.t -> portId -> E.label * V.t
   val next_hop : t -> V.t -> portId -> V.t
 
   (* Utility functions *)
@@ -333,20 +334,32 @@ struct
   (*     ) sports ps in *)
   (*   Int32Set.elements pports *)
 
-  (* Get the next hop node for a given node and port. Raise NotFound if either
-  the given node is not in the graph, or if the given port is not connected to
-  another node.  *)
-  let next_hop (g:t) (n:Node.t) (p:portId) : Node.t =
-    let ss = try (succ_e g n)
+
+  (* Get the next hop node for a given node and port, returning along with it
+   * the link that was traversed to get there.
+   *
+   * Raise NotFound if either the given node is not in the graph, or if the
+   * given port is not connected to another node.  *)
+  let next_hop_via (g:t) (n:Node.t) (p:portId) : (Link.t * Node.t) =
+    let ss = try succ_e g n
       with Not_found -> raise (NotFound(Printf.sprintf
                                           "Can't find %s to get next_hop\n"
                                           (Node.to_string n))) in
-    let (_,_,d) = try (List.hd
-                         (List.filter (fun e -> (Link.srcport e) = p) ss))
-      with Failure hd -> raise (NotFound(
-        Printf.sprintf "next_hop: Port %s on %s is not connected\n"
-          (Int64.to_string p) (Node.to_string n)))
-    in d
+    match List.filter (fun e -> (Link.srcport e) = p) ss with
+      | [] ->
+        raise (NotFound(
+          Printf.sprintf "next_hop: Port %s on %s is not connected\n"
+            (Int64.to_string p) (Node.to_string n)))
+      | (_, l, d)::_ -> (l, d)
+
+
+  (* Get the next hop node for a given node and port.
+   *
+   * Raise NotFound if either the given node is not in the graph, or if the
+   * given port is not connected to another node.
+   * *)
+  let next_hop (g:t) (n:Node.t) (p:portId) : Node.t =
+    let (_, d) = next_hop_via g n p in d
 
   (* Find the shortest path between two nodes using Dijkstra's algorithm,
      returning the list of edges making up the path. The implementation is from
