@@ -7,5 +7,5 @@ type attributes = {
   ; name : string
   ; ip : nwAddr
   ; mac : dlAddr
-  ; id : int64
+  ; dev_id : int64
 }

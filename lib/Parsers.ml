@@ -9,7 +9,7 @@ let default = {
   ; name = ""
   ; ip = 0l
   ; mac = 0L
-  ; id = 0L
+  ; dev_id = 0L
 }
 
 module TopoDot = struct
@@ -76,7 +76,7 @@ module TopoDot = struct
           | _ -> failwith "MAC must be represented as a string (in quotes)\n" in
     match k with
       | Dot_ast.Ident("type") -> {n with node_type = ntype_of vo}
-      | Dot_ast.Ident("id") -> {n with id = int64_of_id vo}
+      | Dot_ast.Ident("id") -> {n with dev_id = int64_of_id vo}
       | Dot_ast.Ident("ip") -> {n with ip = ip_of vo}
       | Dot_ast.Ident("mac") -> {n with mac = mac_of vo}
       | _ -> failwith "Unknown node attribute\n"
@@ -98,12 +98,12 @@ module TopoDot = struct
     let nat = List.fold_left update_nattr
         {default with node_type = Switch ; name = name} at in
     Hashtbl.replace !name2attrs name nat;
-    match nat.node_type with
-      | Host -> Core.Node.Host(name, nat.mac, nat.ip)
-      | Switch ->  begin
-        Hashtbl.replace !id2attrs nat.id nat;
-        Core.Node.Switch(nat.id) end
-      | Middlebox -> Core.Node.Mbox(name,[])
+    let node = { Core.hash = None; Core.visited = false; Core.id = !index} in
+    index := !index + 1;
+    let _ = match nat.node_type with
+      | Switch -> Hashtbl.replace !id2attrs nat.dev_id nat
+      | _ -> () in
+    node
 
 
   (* Generate a link from the attributes *)
@@ -115,7 +115,7 @@ module TopoDot = struct
 end
 
 module TopoGML = struct
-
+    let index = ref 0
     let int32_of_value v = match v with
       | Gml.Int(i) -> Int32.of_int i
       | _ -> failwith "source and target require int values\n"
@@ -129,7 +129,7 @@ module TopoGML = struct
       | _ -> failwith "Label requires int value\n"
 
     let update_nattr n (key, value) = match key with
-      | "id" -> {n with id = int64_of_value value}
+      | "id" -> {n with dev_id = int64_of_value value}
       | "label" -> {n with name = string_of_value value}
       | "mac" -> {n with mac = Packet.mac_of_string (string_of_value value)}
       | "ip" -> {n with ip = Packet.ip_of_string (string_of_value value)}
@@ -148,10 +148,9 @@ module TopoGML = struct
     let node (vs:Gml.value_list) : Core.Topology.V.label =
       let nat = List.fold_left update_nattr
         {default with node_type = Switch} vs in
-      match nat.node_type with
-        | Host -> Core.Node.Host(nat.name, nat.mac, nat.ip)
-        | Switch -> Core.Node.Switch(nat.id)
-        | Middlebox -> Core.Node.Mbox(nat.name,[])
+      let node = { Core.hash = None ; Core.visited = false ; Core.id = !index} in
+      index := !index + 1;
+      node
 
 
     let edge (vs:Gml.value_list) : Core.Topology.E.label =

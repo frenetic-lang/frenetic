@@ -11,6 +11,7 @@ BuildTools:
 
 Library topology
   Path: lib
+  Pack: true
   BuildDepends:
     str,
     core,
@@ -18,12 +19,13 @@ Library topology
     packet,
     threads
   InternalModules:
-    Topology_Core,
-    Topology_Types,
-    Topology_Util,
     Parsers
   Modules:
-    Topology
+    Types,
+    Node,
+    Link,
+    Network
+
 
 Executable otopo
   Path: exe

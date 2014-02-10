@@ -6,13 +6,15 @@ type rate = Rate of int64 * int64
 
 val string_of_rate : rate -> string
 
+type node_record = {
+  mutable hash : int option ;
+  mutable visited : bool ;
+  id : int
+}
 
 module type NODE =
 sig
-  type t = Host of string * Packet.dlAddr * Packet.nwAddr
-           | Switch of switchId
-           | Mbox of string * string list
-
+  type t
   type label = t
   val hash : t -> int
   val equal : t -> t -> bool
@@ -95,7 +97,7 @@ sig
   exception NoPath of string * string
 end
 
-module Node : NODE
+module Node : NODE with type t = node_record
 module Link : LINK with type v = Node.t
 module Topology : TOPO with type V.t = Node.t and type E.t = Link.e and type V.label
   = Node.label and type E.label = Link.t

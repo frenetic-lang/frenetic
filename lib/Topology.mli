@@ -8,9 +8,7 @@ type attributes = Topology_Types.attributes
 
 module type NODE =
 sig
-  type t = Host of string * Packet.dlAddr * Packet.nwAddr
-           | Switch of switchId
-           | Mbox of string * string list
+  type t
   type label = t
 
   val hash : t -> int

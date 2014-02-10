@@ -1,4 +1,5 @@
 open Topology_Util
+open Topology_Types
 open Graph
 
 type switchId = int64
@@ -10,56 +11,11 @@ let string_of_rate r =
   let Rate(min,max) = r in
   Printf.sprintf "min(%Ld Bps) max(%Ld Bps)" min max
 
-module type NODE =
-sig
-  type t = Host of string * Packet.dlAddr * Packet.nwAddr
-           | Switch of switchId
-           | Mbox of string * string list
-  type label = t
-
-  val hash : t -> int
-  val equal : t -> t -> bool
-  val compare : t -> t -> int
-  val to_dot : t -> string
-  val to_string : t -> string
-
-  val id_of_switch : t -> switchId
-end
-
-module type LINK =
-sig
-  type v
-  type t = {
-    srcport : portId;
-    dstport : portId;
-    cost : int64;
-    capacity : int64;
-  }
-  type e = (v * t * v)
-  val default : t
-  val compare : t -> t -> int
-
-  (* Constructors *)
-  val mk_edge : v -> v -> t -> e
-  val mk_link : v -> portId -> v -> portId -> int64 -> int64 -> e
-  val reverse : e -> e
-
-  (* Accesssors *)
-  val src : e -> v
-  val dst : e -> v
-  val label : e -> t
-
-  val capacity : e -> int64
-  val cost : e -> int64
-  val srcport : e -> portId
-  val dstport : e -> portId
-
-  (* Utilities *)
-  val name : e -> string
-  val string_of_label : e -> string
-  val to_dot : e -> string
-  val to_string : e -> string
-end
+type node_record = {
+  mutable hash : int option ;
+  mutable visited : bool ;
+  id : int
+}
 
 module type TOPO =
 sig
@@ -99,99 +55,6 @@ sig
   exception NoPath of string * string
 end
 
-(***** Concrete types for network topology *****)
-module Node =
-struct
-  type t = Host of string * Packet.dlAddr * Packet.nwAddr
-           | Switch of switchId
-           | Mbox of string * string list
-  type label = t
-  let equal = Pervasives.(=)
-  let hash = Hashtbl.hash
-  let compare = Pervasives.compare
-  let to_dot n = match n with
-    | Host(s,m,i) -> s
-    | Switch i -> "s" ^ Int64.to_string i
-    | Mbox(s,_) -> s
-  let to_string = to_dot
-  let id_of_switch n =
-    match n with
-      | Switch i -> i
-      | _ -> failwith "Not a switch"
-end
-
-module Link =
-struct
-  type v = Node.t
-  type t = {
-    srcport : portId;
-    dstport : portId;
-    cost : int64;
-    capacity : int64;
-  }
-  type e = v * t * v
-  let compare = Pervasives.compare
-  let default = {
-    srcport = 0L;
-    dstport = 0L;
-    cost = 1L;
-    capacity = Int64.max_int
-  }
-
-  (* Constructors and mutators *)
-  let mk_edge s d l = (s,l,d)
-
-  let mk_link s sp d dp cap cost =
-    ( s,
-     { srcport = sp;
-       dstport = dp;
-       cost = cost;
-       capacity = cap;},
-    d)
-
-  let reverse (s,d,l) =
-    ( d, s,
-      { srcport = l.dstport;
-	    dstport = l.srcport;
-        cost = l.cost;
-	    capacity = l.capacity }
-    )
-
-  (* Accessors *)
-  let src (s,l,d) = s
-  let dst (s,l,d) = d
-  let label (s,l,d) = l
-
-  let capacity (s,l,d) = l.capacity
-  let cost (s,l,d)     = l.cost
-  let srcport (s,l,d)  = l.srcport
-  let dstport (s,l,d)  = l.dstport
-
-  let reverse (s,l,d) =
-    ( d,
-      { srcport = l.dstport; dstport = l.srcport;
-        cost = l.cost; capacity = l.capacity },
-      s
-    )
-
-  let name (s,_,d) =
-    Printf.sprintf "%s_%s" (Node.to_string s) (Node.to_string d)
-
-  let string_of_label (s,l,d) =
-    Printf.sprintf "{srcport = %s; dstport = %s; cost = %s; capacity = %s;}"
-      (Int64.to_string l.srcport)
-      (Int64.to_string l.dstport)
-      (Int64.to_string l.cost)
-      (Int64.to_string l.capacity)
-
-  let to_dot (s,l,d) =
-    let s = Node.to_dot s in
-    let d = Node.to_dot d in
-    Printf.sprintf "%s -> %s [label=\"%s\"]" s d (string_of_label (s,l,d))
-
-  let to_string = to_dot
-
-end
 
 module EdgeOrd = struct
   type t = Node.t * Link.t * Node.t
