@@ -19,6 +19,7 @@ Library topology
     packet,
     threads
   InternalModules:
+    Util,
     Parsers
   Modules:
     Types,

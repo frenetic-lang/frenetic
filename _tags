@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 08fc737b85b5c1a6110900ca82902815)
+# DO NOT EDIT (digest: ab2a72efc6b7153d9309e1cfc29b576d)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -19,6 +19,7 @@
 "lib/Node.cmx": for-pack(Topology)
 "lib/Link.cmx": for-pack(Topology)
 "lib/Network.cmx": for-pack(Topology)
+"lib/Util.cmx": for-pack(Topology)
 "lib/Parsers.cmx": for-pack(Topology)
 <lib/*.ml{,i}>: pkg_ocamlgraph
 <lib/*.ml{,i}>: pkg_packet
