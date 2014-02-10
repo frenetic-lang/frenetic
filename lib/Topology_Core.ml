@@ -248,7 +248,7 @@ struct
 
   let remove_port (g:t) (n:Node.t) (p:portId) : t =
     let ss = try (succ_e g n)
-      with Not_found -> [] in
+      with Invalid_argument(_) -> [] in
     List.fold_left (fun acc e ->
       if Link.srcport e = p
         then remove_edge_e acc e
@@ -317,7 +317,7 @@ struct
      Raise NotFound if the node is not in the graph *)
   let ports_of_node (g:t) (s:Node.t) : portId list =
     let ss = try (succ_e g s)
-      with Not_found -> raise (NotFound(Printf.sprintf
+      with Invalid_argument(_) -> raise (NotFound(Printf.sprintf
                                           "Can't find %s to get ports_of_node\n"
                                           (Node.to_string s))) in
     let sports = List.map
@@ -332,7 +332,7 @@ struct
   (*    Raise NotFound if either the node is not in the graph. *\) *)
   (* let edge_ports_of_switch (g:t) (s:Node.t) : portId list = *)
   (*   let ss = try (succ_e g s) *)
-  (*     with Not_found -> raise (NotFound(Printf.sprintf *)
+  (*     with Invalid_argument(_) -> raise (NotFound(Printf.sprintf *)
   (*                                         "Can't find %s to get ports_of_node\n" *)
   (*                                         (Node.to_string s))) in *)
   (*   let sports = List.fold_left *)
@@ -357,7 +357,7 @@ struct
    * given port is not connected to another node.  *)
   let next_hop_via (g:t) (n:Node.t) (p:portId) : (Link.t * Node.t) =
     let ss = try succ_e g n
-      with Not_found -> raise (NotFound(Printf.sprintf
+      with Invalid_argument(_) -> raise (NotFound(Printf.sprintf
                                           "Can't find %s to get next_hop\n"
                                           (Node.to_string n))) in
     match List.filter (fun e -> (Link.srcport e) = p) ss with
