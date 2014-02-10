@@ -153,6 +153,7 @@ module OpenFlow0x01 : sig
     ]
 
     val switch_id_of_client : t -> Client_id.t -> SDN_Types.switchId
+    val client_id_of_switch : t -> SDN_Types.switchId -> Client_id.t
 
     val features : (t, e, f) Platform.Trans.stage
     val topology : (t, f, f) Platform.Trans.stage

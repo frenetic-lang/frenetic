@@ -56,13 +56,15 @@ module Controller = struct
   module ChunkController = Async_OpenFlowChunk.Controller
   module Client_id = ChunkController.Client_id
 
-  module SwitchMap = Map.Make(Client_id)
+  module ClientMap = Map.Make(Client_id)
+  module SwitchMap = Map.Make(Int64)
 
   type m = Message.t
   type t = {
     sub : ChunkController.t;
-    mutable shakes : (Client_id.t * m) BBuffer.t SwitchMap.t;
-    mutable feats : SDN_Types.switchId SwitchMap.t;
+    mutable shakes : (Client_id.t * m) BBuffer.t ClientMap.t;
+    mutable feats : SDN_Types.switchId ClientMap.t;
+    mutable clients : Client_id.t SwitchMap.t;
     mutable nib : Nib.Protocol.t
   }
 
@@ -86,7 +88,8 @@ module Controller = struct
   let listening_port t = ChunkController.listening_port t.sub
 
   (* XXX(seliopou): Raises `Not_found` if the client is no longer connected. *)
-  let switch_id_of_client t c_id = SwitchMap.find_exn t.feats c_id
+  let switch_id_of_client t c_id = ClientMap.find_exn t.feats c_id
+  let client_id_of_switch t sw_id = SwitchMap.find_exn t.clients sw_id
 
   let create ?max_pending_connections
       ?verbose
@@ -96,8 +99,9 @@ module Controller = struct
       ?buffer_age_limit ~port ()
     >>| function t ->
         { sub = t
-        ; shakes = SwitchMap.empty
-        ; feats = SwitchMap.empty
+        ; shakes = ClientMap.empty
+        ; feats = ClientMap.empty
+        ; clients = SwitchMap.empty
         ; nib = Nib.Protocol.create ()
         }
 
@@ -124,15 +128,16 @@ module Controller = struct
   let features t evt =
     match evt with
       | `Connect (c_id) ->
-        t.shakes <- SwitchMap. add t.shakes c_id (BBuffer.create ());
+        t.shakes <- ClientMap. add t.shakes c_id (BBuffer.create ());
         send t c_id (0l, M.SwitchFeaturesRequest) >>| ChunkController.ensure
-      | `Message (c_id, (xid, msg)) when SwitchMap.mem t.shakes c_id ->
-        let q = SwitchMap.find_exn t.shakes c_id in
+      | `Message (c_id, (xid, msg)) when ClientMap.mem t.shakes c_id ->
+        let q = ClientMap.find_exn t.shakes c_id in
         begin match msg with
           | M.SwitchFeaturesReply fs ->
             let switch_id = fs.OpenFlow0x01.SwitchFeatures.switch_id in
-            t.feats <- SwitchMap.add t.feats c_id switch_id;
-            t.shakes <- SwitchMap.remove t.shakes c_id;
+            t.feats <- ClientMap.add t.feats c_id switch_id;
+            t.clients <- SwitchMap.add t.clients switch_id c_id;
+            t.shakes <- ClientMap.remove t.shakes c_id;
             return (`Connect(c_id, fs) :: (List.rev_map (BBuffer.clear q) (fun e -> `Message e)))
           | _ ->
             BBuffer.enqueue q (c_id, (xid, msg));
@@ -141,9 +146,10 @@ module Controller = struct
       | `Message (c_id, msg) ->
         return [`Message(c_id, msg)]
       | `Disconnect (c_id, exn) ->
-        let switch_id = SwitchMap.find_exn t.feats c_id in
-        t.shakes <- SwitchMap.remove t.shakes c_id;
-        t.feats <- SwitchMap.remove t. feats c_id;
+        let switch_id = ClientMap.find_exn t.feats c_id in
+        t.shakes <- ClientMap.remove t.shakes c_id;
+        t.feats <- ClientMap.remove t.feats c_id;
+        t.clients <- SwitchMap.remove t.clients switch_id;
         return [`Disconnect(c_id, switch_id, exn)]
 
   let switch_topology t evt =
@@ -161,7 +167,7 @@ module Controller = struct
         let open Message in
         begin match msg with
           | xid, PacketInMsg pi ->
-            let switch_id = SwitchMap.find_exn t.feats c_id in
+            let switch_id = ClientMap.find_exn t.feats c_id in
             Nib.Protocol.handle_probe t.nib ~send:(_send t c_id) switch_id pi
             >>= (function (nib, r) ->
               t.nib <- nib;
@@ -169,7 +175,7 @@ module Controller = struct
                 | None -> return []
                 | Some(pi) -> return [`Message(c_id, (xid, PacketInMsg pi))])
           | _, PortStatusMsg ps ->
-            let switch_id = SwitchMap.find_exn t.feats c_id in
+            let switch_id = ClientMap.find_exn t.feats c_id in
             Nib.Protocol.handle_port_status t.nib ~send:(_send t c_id) switch_id ps
             >>= (function nib ->
               t.nib <- nib;
@@ -189,7 +195,7 @@ module Controller = struct
         let open Message in
         begin match msg with
           | xid, PacketInMsg pi ->
-            let switch_id = SwitchMap.find_exn t.feats c_id in
+            let switch_id = ClientMap.find_exn t.feats c_id in
             Nib.Protocol.handle_arp t.nib ~send:(_send t c_id) switch_id pi
             >>= (function (nib, r) ->
               t.nib <- nib;
