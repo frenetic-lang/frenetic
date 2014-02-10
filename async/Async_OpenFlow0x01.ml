@@ -74,7 +74,7 @@ module Controller = struct
 
   type f = [
     | `Connect of Client_id.t * OpenFlow0x01.SwitchFeatures.t
-    | `Disconnect of Client_id.t * Sexp.t
+    | `Disconnect of Client_id.t * SDN_Types.switchId * Sexp.t
     | `Message of Client_id.t * m
   ]
 
@@ -84,6 +84,9 @@ module Controller = struct
   let send_to_all t msg = ChunkController.send_to_all t.sub (Message.marshal' msg)
   let client_addr_port t = ChunkController.client_addr_port t.sub
   let listening_port t = ChunkController.listening_port t.sub
+
+  (* XXX(seliopou): Raises `Not_found` if the client is no longer connected. *)
+  let switch_id_of_client t c_id = SwitchMap.find_exn t.feats c_id
 
   let create ?max_pending_connections
       ?verbose
@@ -127,6 +130,8 @@ module Controller = struct
         let q = SwitchMap.find_exn t.shakes c_id in
         begin match msg with
           | M.SwitchFeaturesReply fs ->
+            let switch_id = fs.OpenFlow0x01.SwitchFeatures.switch_id in
+            t.feats <- SwitchMap.add t.feats c_id switch_id;
             t.shakes <- SwitchMap.remove t.shakes c_id;
             return (`Connect(c_id, fs) :: (List.rev_map (BBuffer.clear q) (fun e -> `Message e)))
           | _ ->
@@ -136,24 +141,22 @@ module Controller = struct
       | `Message (c_id, msg) ->
         return [`Message(c_id, msg)]
       | `Disconnect (c_id, exn) ->
+        let switch_id = SwitchMap.find_exn t.feats c_id in
         t.shakes <- SwitchMap.remove t.shakes c_id;
-        return [`Disconnect(c_id, exn)]
+        t.feats <- SwitchMap.remove t. feats c_id;
+        return [`Disconnect(c_id, switch_id, exn)]
 
   let switch_topology t evt =
     let open OpenFlow0x01 in
     match evt with
       | `Connect(c_id, feats) ->
-        let switch_id = feats.SwitchFeatures.switch_id in
         Nib.Protocol.setup_probe t.nib ~send:(_send t c_id) feats
         >>= fun nib ->
-          t.feats <- SwitchMap.add t.feats c_id switch_id;
           t.nib <- nib;
           return [`Connect(c_id, feats)]
-      | `Disconnect(c_id, exn) ->
-        let switch_id = SwitchMap.find_exn t.feats c_id in
+      | `Disconnect(c_id, switch_id, exn) ->
         t.nib <- Nib.Protocol.remove_switch t.nib switch_id;
-        t.feats <- SwitchMap.remove t. feats c_id;
-        return [`Disconnect(c_id, exn)]
+        return [`Disconnect(c_id, switch_id, exn)]
       | `Message(c_id, msg) ->
         let open Message in
         begin match msg with

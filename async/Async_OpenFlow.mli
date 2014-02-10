@@ -148,9 +148,11 @@ module OpenFlow0x01 : sig
 
     type f = [
       | `Connect of Client_id.t * OpenFlow0x01.SwitchFeatures.t
-      | `Disconnect of Client_id.t * Sexp.t
+      | `Disconnect of Client_id.t * SDN_Types.switchId * Sexp.t
       | `Message of Client_id.t * m
     ]
+
+    val switch_id_of_client : t -> Client_id.t -> SDN_Types.switchId
 
     val features : (t, e, f) Platform.Trans.stage
     val topology : (t, f, f) Platform.Trans.stage
