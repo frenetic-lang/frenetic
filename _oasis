@@ -19,6 +19,7 @@ Library topology
     threads
   InternalModules:
     Topology_Core,
+    Topology_Types,
     Topology_Util,
     Parsers
   Modules:

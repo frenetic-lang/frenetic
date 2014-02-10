@@ -1,15 +1,10 @@
 open Graph
+open Packet
 
 type switchId = int64
 type portId = int64
 
-type nattr = {
-  ntype: string
-  ; name : string
-  ; id : int64
-  ; ip : string
-  ; mac : string
-}
+type attributes = Topology_Types.attributes
 
 module type NODE =
 sig
@@ -106,7 +101,7 @@ module Topology : TOPO with type V.t = Node.t and type E.t = Link.e and type V.l
   = Node.label and type E.label = Link.t
 
 val from_dotfile_tbl : string -> (Topology.t *
-                                    (string, nattr) Hashtbl.t *
-                                    (switchId, nattr) Hashtbl.t)
+                                    (string, attributes) Hashtbl.t *
+                                    (switchId, attributes) Hashtbl.t)
 val from_dotfile : string -> Topology.t
 val from_gmlfile : string -> Topology.t

@@ -1,17 +1,16 @@
-open Topology_Util
 open Graph
+open Topology_Util
+open Topology_Types
 module Core = Topology_Core
-open Core 
+open Core
 
-type nattr = {
-  ntype: string
-  ; name : string
-  ; id : int64
-  ; ip : string
-  ; mac : string
+let default = {
+  node_type = Host
+  ; name = ""
+  ; ip = 0l
+  ; mac = 0L
+  ; id = 0L
 }
-
-let defnattr = {ntype = "host"; name = ""; id = 0L; ip = "0.0.0.0"; mac = "00:00:00:00:00:00"}
 
 module TopoDot = struct
     let name2attrs = ref (Hashtbl.create 100)
@@ -63,15 +62,20 @@ module TopoDot = struct
 
   (* Update the record for a node *)
   let update_nattr n (k,vo) =
-    let ntype_of vo = string_of_id (maybe vo) in
+    let ntype_of vo = match string_of_id (maybe vo) with
+      | "host" -> Host
+      | "switch" -> Switch
+      | "middlebox" -> Middlebox
+      | s -> failwith (Printf.sprintf "Unknown node type: %s\n" s)
+    in
     let ip_of vo = match maybe vo with
-          | Dot_ast.String(s) -> s
+          | Dot_ast.String(s) -> Packet.ip_of_string s
           | _ -> failwith "IPs must be represented as a string (in quotes)\n" in
     let mac_of vo = match maybe vo with
-          | Dot_ast.String(s) -> s
+          | Dot_ast.String(s) -> Packet.mac_of_string s
           | _ -> failwith "MAC must be represented as a string (in quotes)\n" in
     match k with
-      | Dot_ast.Ident("type") -> {n with ntype = ntype_of vo}
+      | Dot_ast.Ident("type") -> {n with node_type = ntype_of vo}
       | Dot_ast.Ident("id") -> {n with id = int64_of_id vo}
       | Dot_ast.Ident("ip") -> {n with ip = ip_of vo}
       | Dot_ast.Ident("mac") -> {n with mac = mac_of vo}
@@ -92,16 +96,14 @@ module TopoDot = struct
     let name = string_of_id id in
     let at = List.hd ats in
     let nat = List.fold_left update_nattr
-        {defnattr with ntype = "switch"; name = name} at in
+        {default with node_type = Switch ; name = name} at in
     Hashtbl.replace !name2attrs name nat;
-    if nat.ntype = "host" then
-      Core.Node.Host(name, Packet.mac_of_string nat.mac,
-                           Packet.ip_of_string nat.ip)
-    else if nat.ntype = "switch" then begin
-      Hashtbl.replace !id2attrs nat.id nat;
-      Core.Node.Switch(nat.id) end
-    else
-      Core.Node.Mbox(name,[])
+    match nat.node_type with
+      | Host -> Core.Node.Host(name, nat.mac, nat.ip)
+      | Switch ->  begin
+        Hashtbl.replace !id2attrs nat.id nat;
+        Core.Node.Switch(nat.id) end
+      | Middlebox -> Core.Node.Mbox(name,[])
 
 
   (* Generate a link from the attributes *)
@@ -129,8 +131,8 @@ module TopoGML = struct
     let update_nattr n (key, value) = match key with
       | "id" -> {n with id = int64_of_value value}
       | "label" -> {n with name = string_of_value value}
-      | "mac" -> {n with mac = string_of_value value}
-      | "ip" -> {n with ip = string_of_value value}
+      | "mac" -> {n with mac = Packet.mac_of_string (string_of_value value)}
+      | "ip" -> {n with ip = Packet.ip_of_string (string_of_value value)}
       | _ -> n
 
     (* The Src and Dst nodes are handled by Ocamlgraph. So we use the source and
@@ -145,14 +147,11 @@ module TopoGML = struct
 
     let node (vs:Gml.value_list) : Core.Topology.V.label =
       let nat = List.fold_left update_nattr
-        {defnattr with ntype = "switch"} vs in
-      if nat.ntype = "host" then
-        Core.Node.Host(nat.name, Packet.mac_of_string nat.mac,
-                                 Packet.ip_of_string nat.ip)
-      else if nat.ntype = "switch" then
-        Core.Node.Switch(nat.id)
-      else
-        Core.Node.Mbox(nat.name,[])
+        {default with node_type = Switch} vs in
+      match nat.node_type with
+        | Host -> Core.Node.Host(nat.name, nat.mac, nat.ip)
+        | Switch -> Core.Node.Switch(nat.id)
+        | Middlebox -> Core.Node.Mbox(nat.name,[])
 
 
     let edge (vs:Gml.value_list) : Core.Topology.E.label =

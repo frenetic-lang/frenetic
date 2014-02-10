@@ -1,5 +1,6 @@
 open Graph
 
+include Topology_Types
 include Topology_Core
 include Parsers
 let from_dotfile_tbl = Parsers.from_dotfile_tbl
