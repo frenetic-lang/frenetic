@@ -153,6 +153,9 @@ module OpenFlow0x01 : sig
     ]
 
     val features : (t, e, f) Platform.Trans.stage
+    val topology : (t, f, f) Platform.Trans.stage
+    val switch_topology : (t, f, f) Platform.Trans.stage
+    val host_discovery  : (t, f, f) Platform.Trans.stage
   end
 
   val chunk_conv
