@@ -65,7 +65,7 @@ sig
   val add_node : t -> V.t -> t
   val add_host : t -> string -> Packet.dlAddr -> Packet.nwAddr -> t
   val add_switch : t -> switchId -> t
-  val add_switch_edge : t -> V.t -> portId -> V.t -> portId -> t
+  val add_ports_edge : t -> V.t -> portId -> V.t -> portId -> t
 
   (* Accessors *)
   val get_vertices : t -> V.t list

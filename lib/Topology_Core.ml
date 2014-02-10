@@ -69,7 +69,7 @@ sig
   val add_node : t -> V.t -> t
   val add_host : t -> string -> Packet.dlAddr -> Packet.nwAddr -> t
   val add_switch : t -> switchId -> t
-  val add_switch_edge : t -> V.t -> portId -> V.t -> portId -> t
+  val add_ports_edge : t -> V.t -> portId -> V.t -> portId -> t
 
   (* Accessors *)
   val get_vertices : t -> V.t list
@@ -239,7 +239,7 @@ struct
     add_vertex g (Node.Switch i)
 
   (* Add an edge between particular ports on two switches *)
-  let add_switch_edge (g:t) (s:Node.t) (sp:portId) (d:Node.t) (dp:portId) : t =
+  let add_ports_edge (g:t) (s:Node.t) (sp:portId) (d:Node.t) (dp:portId) : t =
     let l = {Link.default with Link.srcport = sp; Link.dstport = dp} in
     add_edge_e g (s,l,d)
 
