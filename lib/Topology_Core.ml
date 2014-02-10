@@ -79,7 +79,7 @@ sig
   val get_switches : t -> V.t list
   val get_switchids : t -> switchId list
   val unit_cost : t -> t
-  val ports_of_switch : t -> V.t -> portId list
+  val ports_of_node : t -> V.t -> portId list
   (* TODO(basus): remove this? *)
   (* val edge_ports_of_switch : t -> V.t -> portId list *)
   val next_hop_via : t -> V.t -> portId -> E.label * V.t
@@ -300,10 +300,10 @@ struct
 
   (* For a given node, return all its connected ports.
      Raise NotFound if the node is not in the graph *)
-  let ports_of_switch (g:t) (s:Node.t) : portId list =
+  let ports_of_node (g:t) (s:Node.t) : portId list =
     let ss = try (succ_e g s)
       with Not_found -> raise (NotFound(Printf.sprintf
-                                          "Can't find %s to get ports_of_switch\n"
+                                          "Can't find %s to get ports_of_node\n"
                                           (Node.to_string s))) in
     let sports = List.map
       (fun l -> Link.srcport l) ss in
@@ -318,7 +318,7 @@ struct
   (* let edge_ports_of_switch (g:t) (s:Node.t) : portId list = *)
   (*   let ss = try (succ_e g s) *)
   (*     with Not_found -> raise (NotFound(Printf.sprintf *)
-  (*                                         "Can't find %s to get ports_of_switch\n" *)
+  (*                                         "Can't find %s to get ports_of_node\n" *)
   (*                                         (Node.to_string s))) in *)
   (*   let sports = List.fold_left *)
   (*     (fun acc l -> match (Link.dst l) with *)

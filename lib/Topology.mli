@@ -80,7 +80,7 @@ sig
   val get_switches : t -> V.t list
   val get_switchids : t -> switchId list
   val unit_cost : t -> t
-  val ports_of_switch : t -> V.t -> portId list
+  val ports_of_node : t -> V.t -> portId list
   (* TODO(basus): remove this? *)
   (* val edge_ports_of_switch : t -> V.t -> portId list *)
   val next_hop_via : t -> V.t -> portId -> E.label * V.t
