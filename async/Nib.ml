@@ -1,110 +1,6 @@
 open Core.Std
+open Topology
 
-module State = struct
-
-  type host = { dl : Packet.dlAddr; nw : Packet.nwAddr }
-  type switch = SDN_Types.switchId
-
-  type port = int64
-    with sexp
-
-  type node =
-    | Host of host sexp_opaque
-    | Switch of switch sexp_opaque
-    with sexp
-
-  type end_ =
-    | SP of (switch * port) sexp_opaque
-    | H of host sexp_opaque
-    with sexp
-
-  module NodeSet = Set.Make(struct
-    type t = node with sexp
-    let compare = Pervasives.compare
-  end)
-
-  module EndMap = Map.Make(struct
-    type t = end_ with sexp
-    let compare = Pervasives.compare
-  end)
-
-  type t =
-    { nodes : NodeSet.t
-    ; ends : end_ EndMap.t
-    }
-
-  let empty =
-    { nodes = NodeSet.empty; ends = EndMap.empty }
-
-  let _add_node (t : t) (n : node) : t =
-    { t with nodes = NodeSet.add t.nodes n }
-
-  let _link_invariant (t : t) (e : end_) : bool =
-    match e with
-      | SP (sw, _) -> NodeSet.mem t.nodes (Switch sw)
-      | H h -> NodeSet.mem t.nodes (Host h)
-
-  let _add_link (t : t) (e1 : end_) (e2 : end_) : t =
-    assert (_link_invariant t e1);
-    assert (_link_invariant t e2);
-    let ends = EndMap.add t.ends e1 e2 in
-    let ends = EndMap.add ends   e2 e1 in
-    { t with ends }
-
-  let add_switch (t : t) (sw : switch) : t =
-    let n = Switch sw in
-    _add_node t n
-
-  let add_host (t : t) dl nw (sw : switch) (p : port) : t =
-    let n = Host { dl; nw } in
-    let e1, e2 = H { dl; nw }, SP(sw, p) in
-    _add_link (_add_node t n) e1 e2
-
-  let add_link (t : t) sw1 p1 sw2 p2 : t =
-    let e1, e2 = SP (sw1, p1), SP (sw2, p2) in
-    _add_link t e1 e2
-
-  let remove_switch (t : t) (sw : switch) : t =
-    let n = Switch sw in
-    assert (NodeSet.mem t.nodes n);
-    { nodes = NodeSet.remove t.nodes n
-    ; ends = EndMap.filter t.ends ~f:(fun ~key ~data ->
-        match key, data with
-          | SP (sw', _), _
-          | _, SP (sw', _)
-            when sw = sw' -> false
-          | _ -> true)
-    }
-
-  let remove_if_host (t : t) (e : end_) : t =
-    match e with
-      | SP _ -> t
-      | H h -> { t with nodes = NodeSet.remove t.nodes (Host h) }
-
-  let remove_port (t : t) (sw : switch) (p : port) : t =
-    let e = SP (sw, p) in
-    match EndMap.find t.ends e with
-      | Some(l) ->
-        { remove_if_host t l with
-          ends = EndMap.(remove (remove t.ends e) l) }
-      | None ->
-        t
-
-  let other_end_is_switch (t : t) (sw : switch) (p : port) =
-    match EndMap.find t.ends (SP (sw, p)) with
-      | Some(SP sw_p) -> Some(sw_p)
-      | _ -> None
-
-  let other_end_of_host (t : t) dl nw : (switch * port) option =
-    match EndMap.find t.ends (H { dl; nw }) with
-      | Some(SP sw_p) -> Some sw_p
-      | Some(H _) -> assert false
-      | None -> None
-
-  let other_end_for_switch (t : t) (sw : switch) (p : port) =
-    EndMap.find t.ends (SP (sw, p))
-
-end
 
 module Probe = struct
 
@@ -177,7 +73,7 @@ module Protocol : sig
     with type Elt.t = Int64.t
 
   val create
-    : ?nib:State.t
+    : ?nib:Topology.t
     -> unit
     -> t
 
@@ -228,14 +124,14 @@ end = struct
   let tags = [("openflow", "topology")]
 
   type t =
-    { nib : State.t
+    { nib : Topology.t
     ; pending : PortSet.t SwitchMap.t
     }
 
   let create ?nib () =
     let nib = match nib with
       | Some(n) -> n
-      | None -> State.empty in
+      | None -> Topology.empty in
     { nib; pending = SwitchMap.empty }
 
   open OpenFlow0x01
@@ -246,19 +142,53 @@ end = struct
        then false
        else not (descr.state.PortState.down)
 
+  let add_ports_edge (nib:Topology.t) n1 (p1:int64) n2 (p2:int64) =
+    Topology.(add_ports_edge
+      (add_ports_edge nib n1 p1 n2 p2)
+      n2 p2 n1 p1)
+
+  let add_host_edge (nib:Topology.t) s (p:int64) h =
+    add_ports_edge nib s p h 0L
+
+  let next_hop_via nib n port_id =
+    try Some(Topology.next_hop_via nib n port_id)
+      with Topology.NotFound(_) -> None
+
+  let next_switch_hop_via nib sw port_id =
+    match next_hop_via nib sw port_id with
+      | Some(l, Node.Switch sw) -> Some(l.Link.dstport, sw)
+      | _ -> None
+
+  let next_host_hop_via nib h =
+    match next_hop_via nib h 0L with
+      | Some(l, Node.Switch sw) -> Some(l.Link.dstport, sw)
+      | _ -> None
+
+  let remove_port nib n p =
+    match next_hop_via nib n p with
+      | Some(l, h') ->
+        Topology.(remove_port
+          (remove_port nib n p)
+          h' l.Link.dstport)
+      | None -> nib
+
   let receive_probe t switch_id port_id probe =
     let open Probe in
     let ports = try SwitchMap.find_exn t.pending probe.switch_id
       with Not_found -> PortSet.empty in
-    let nib = match State.other_end_is_switch t.nib switch_id port_id with
-      | Some(l) ->
-        assert (l = (probe.switch_id, probe.port_id));
+    let n1, n2 = Node.Switch switch_id, Node.Switch probe.switch_id in
+    let nib = match next_switch_hop_via t.nib n1 port_id with
+      | Some(p', sw') ->
+        assert (sw' = probe.switch_id);
+        assert (p'  = probe.port_id);
         t.nib
       | None ->
         Log.info ~tags "link(add): %Lu@%Lu <=> %Lu@%Lu"
           switch_id       port_id
           probe.switch_id probe.port_id;
-        State.add_link t.nib switch_id port_id probe.switch_id probe.port_id in
+        add_ports_edge t.nib
+          n1 port_id
+          n2 probe.port_id in
     { nib
     ; pending = SwitchMap.add t.pending switch_id (PortSet.remove ports probe.port_id)
     }
@@ -270,23 +200,27 @@ end = struct
     match arp with
       | Arp.Query(dlSrc, nwSrc, _)
       | Arp.Reply(dlSrc, nwSrc, _, _) ->
-        begin match State.other_end_of_host t.nib dlSrc nwSrc with
-          | Some (sw, pt) ->
+        let host_str = Printf.sprintf "%s/%s"
+          (Packet.string_of_ip nwSrc)
+          (Packet.string_of_mac dlSrc) in
+        let h, s = Node.Host(host_str, dlSrc, nwSrc), Node.Switch(switch_id) in
+        begin match next_host_hop_via t.nib h with
+          | Some (pt, sw) ->
             (* XXX(seliopou): For now, the code assumes that the entire network
              * is under the management of the controller, and that a host will
              * go down before it comes up at another port, i.e., each MAC/IP is
              * connected to a single port at any given time.
              * *)
-            Log.info ~tags "arp: packet for known host %s/%s <=> %Lu@%Lu seen at %Lu@%Lu"
-              (Packet.string_of_ip nwSrc) (Packet.string_of_mac dlSrc)
-              sw                          pt
-              switch_id                   port
+            Log.info ~tags "arp: packet for known host %s <=> %Lu@%Lu seen at %Lu@%Lu"
+              host_str
+              sw        pt
+              switch_id port
           | None ->
-            Log.info ~tags "link(add): %Lu@%Lu <=> %s/%s"
-              switch_id                   port
-              (Packet.string_of_ip nwSrc) (Packet.string_of_mac dlSrc)
+            Log.info ~tags "link(add): %Lu@%Lu <=> %s"
+              switch_id port
+              host_str
         end;
-        { nib = State.add_host t.nib dlSrc nwSrc switch_id port
+        { nib = add_host_edge t.nib s port h
         ; pending = SwitchMap.add t.pending switch_id (PortSet.remove ports port)
         }
 
@@ -310,23 +244,22 @@ end = struct
     >>| fun _ -> { t
       with pending = SwitchMap.add t.pending switch_id set }
 
-  let remove_port t ~switch_id port =
+  let handle_remove_port t ~switch_id port =
     let ports = try SwitchMap.find_exn t.pending switch_id
       with Not_found -> PortSet.empty in
     let p = Int64.of_int (port.OpenFlow0x01.PortDescription.port_no) in
-    let open State in
-    begin match State.other_end_for_switch t.nib switch_id p with
-      | Some(SP(s2, p2)) ->
+    begin match next_hop_via t.nib (Node.Switch switch_id) p with
+      | Some(l, Node.Switch s2) ->
         Log.info ~tags "link(remove): %Lu@%Lu <=> %Lu@%Lu"
           switch_id p
-          s2        p2
-      | Some(H { dl; nw }) ->
-        Log.info ~tags "link(remove): %Lu@%Lu <=> %s/%s"
-          switch_id                 p
-          (Packet.string_of_ip nw) (Packet.string_of_mac dl)
-      | None -> ()
+          s2        l.Link.dstport
+      | Some(l, Node.Host(h_str, dlAddr, nwAddr)) ->
+        Log.info ~tags "link(remove): %Lu@%Lu <=> %s"
+          switch_id l.Link.dstport
+          h_str
+      | _ -> ()
     end;
-    { nib = State.remove_port t.nib switch_id p
+    { nib = remove_port t.nib (Node.Switch switch_id) p
     ; pending = SwitchMap.add t.pending switch_id (PortSet.remove ports p)
     }
 
@@ -352,7 +285,7 @@ end = struct
     send probe_rule >>= fun _ ->
     Deferred.List.fold ports ~init:t ~f:(add_port ~send ~switch_id)
     >>| fun t' -> { t'
-      with nib = State.add_switch t'.nib feats.switch_id }
+      with nib = Topology.add_switch t'.nib feats.switch_id }
 
   let setup_arp t ~send =
     (* XXX(seliopou): Depending on how the switch is configured, these may not be
@@ -368,7 +301,7 @@ end = struct
 
   let remove_switch t switch_id =
     Log.info ~tags "switch(remove): %Lu" switch_id;
-    { t with nib = State.remove_switch t.nib switch_id }
+    { t with nib = Topology.remove_switch t.nib switch_id }
 
   let handle_port_status t ~send switch_id port_status =
     let open PortStatus in
@@ -378,7 +311,7 @@ end = struct
         add_port t ~switch_id port_status.desc ~send
       | ChangeReason.Delete, _
       | ChangeReason.Modify, false ->
-        return (remove_port t ~switch_id port_status.desc)
+        return (handle_remove_port t ~switch_id port_status.desc)
       | _ ->
         return t
 

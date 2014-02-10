@@ -61,6 +61,7 @@ Library async
   BuildDepends:
     async,
     openflow,
+    topology,
     cstruct.async,
     threads,
     textutils,

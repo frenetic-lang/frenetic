@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 665e22c5119f118202ca1e510b6cabd3)
+# DO NOT EDIT (digest: 1744d6a49aaea1c0fa689d3353fd21b0)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -30,6 +30,7 @@
 <async/*.ml{,i}>: package(async)
 <async/*.ml{,i}>: package(packet)
 <async/*.ml{,i}>: package(cstruct.async)
+<async/*.ml{,i}>: package(topology)
 <async/*.ml{,i}>: package(textutils)
 <async/*.ml{,i}>: package(sexplib.syntax)
 <async/*.ml{,i}>: package(str)
@@ -125,6 +126,7 @@
 "examples/Hypervisor.byte": package(async)
 "examples/Hypervisor.byte": package(packet)
 "examples/Hypervisor.byte": package(cstruct.async)
+"examples/Hypervisor.byte": package(topology)
 "examples/Hypervisor.byte": package(textutils)
 "examples/Hypervisor.byte": package(sexplib.syntax)
 "examples/Hypervisor.byte": package(str)
@@ -138,6 +140,7 @@
 "examples/Learning_Switch.byte": package(async)
 "examples/Learning_Switch.byte": package(packet)
 "examples/Learning_Switch.byte": package(cstruct.async)
+"examples/Learning_Switch.byte": package(topology)
 "examples/Learning_Switch.byte": package(textutils)
 "examples/Learning_Switch.byte": package(sexplib.syntax)
 "examples/Learning_Switch.byte": package(str)
@@ -151,6 +154,7 @@
 "examples/Topology.byte": package(async)
 "examples/Topology.byte": package(packet)
 "examples/Topology.byte": package(cstruct.async)
+"examples/Topology.byte": package(topology)
 "examples/Topology.byte": package(textutils)
 "examples/Topology.byte": package(sexplib.syntax)
 "examples/Topology.byte": package(str)
@@ -163,6 +167,7 @@
 <examples/*.ml{,i}>: package(async)
 <examples/*.ml{,i}>: package(packet)
 <examples/*.ml{,i}>: package(cstruct.async)
+<examples/*.ml{,i}>: package(topology)
 <examples/*.ml{,i}>: package(textutils)
 <examples/*.ml{,i}>: package(sexplib.syntax)
 <examples/*.ml{,i}>: package(str)
