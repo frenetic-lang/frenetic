@@ -1,8 +1,6 @@
 open Graph
-open Topology_Util
-open Topology_Types
-module Core = Topology_Core
-open Core
+open Util
+open Types
 
 let default = {
   node_type = Host
@@ -84,21 +82,21 @@ module TopoDot = struct
   (* Update the record for an edge *)
   let update_eattr edge (key,valopt) =
     match key with
-      | Dot_ast.Ident("sport") -> {edge with Core.Link.srcport = int64_of_id valopt}
-      | Dot_ast.Ident("dport") -> {edge with Core.Link.dstport = int64_of_id valopt}
-      | Dot_ast.Ident("cost") -> {edge with Core.Link.cost = int64_of_id valopt }
-      | Dot_ast.Ident("capacity") -> {edge with Core.Link.capacity = capacity_of_id valopt }
+      | Dot_ast.Ident("sport") -> {edge with Link.srcport = int64_of_id valopt}
+      | Dot_ast.Ident("dport") -> {edge with Link.dstport = int64_of_id valopt}
+      | Dot_ast.Ident("cost") -> {edge with Link.cost = int64_of_id valopt }
+      | Dot_ast.Ident("capacity") -> {edge with Link.capacity = capacity_of_id valopt }
       | _ -> failwith "Unknown edge attribute\n"
 
   (* Generate a node from the id and attributes *)
-  let node (i:Dot_ast.node_id) (ats:Dot_ast.attr list) : Core.Topology.V.label =
+  let node (i:Dot_ast.node_id) (ats:Dot_ast.attr list) : Network.G.V.label =
     let (id, popt) = i in
     let name = string_of_id id in
     let at = List.hd ats in
     let nat = List.fold_left update_nattr
         {default with node_type = Switch ; name = name} at in
     Hashtbl.replace !name2attrs name nat;
-    let node = { Core.hash = None; Core.visited = false; Core.id = !index} in
+    let node = Node.create !index in
     index := !index + 1;
     let _ = match nat.node_type with
       | Switch -> Hashtbl.replace !id2attrs nat.dev_id nat
@@ -107,9 +105,9 @@ module TopoDot = struct
 
 
   (* Generate a link from the attributes *)
-  let edge (ats:Dot_ast.attr list) : Core.Topology.E.label =
+  let edge (ats:Dot_ast.attr list) : Network.G.E.label =
     let at = List.hd ats in
-    let link = List.fold_left update_eattr Core.Link.default at in
+    let link = List.fold_left update_eattr Link.default at in
     link
 
 end
@@ -141,38 +139,38 @@ module TopoGML = struct
        simple, since most Topology Zoo graphs don't seem to have port
        information *)
     let update_eattr edge (key, value) = match key with
-      | "source" -> {edge with Core.Link.dstport = int64_of_value value}
-      | "target" -> {edge with Core.Link.srcport = int64_of_value value}
+      | "source" -> {edge with Link.dstport = int64_of_value value}
+      | "target" -> {edge with Link.srcport = int64_of_value value}
       | _ -> edge
 
-    let node (vs:Gml.value_list) : Core.Topology.V.label =
+    let node (vs:Gml.value_list) : Network.G.V.label =
       let nat = List.fold_left update_nattr
         {default with node_type = Switch} vs in
-      let node = { Core.hash = None ; Core.visited = false ; Core.id = !index} in
+      let node = Node.create !index in
       index := !index + 1;
       node
 
 
-    let edge (vs:Gml.value_list) : Core.Topology.E.label =
-      let link = List.fold_left update_eattr Core.Link.default vs in
+    let edge (vs:Gml.value_list) : Network.G.E.label =
+      let link = List.fold_left update_eattr Link.default vs in
       link
 end
 
-module B = Graph.Builder.P(Core.Topology)
+module B = Graph.Builder.P(Network.G)
 module GML = Graph.Gml.Parse(B)(TopoGML)
 module DOT = Graph.Dot.Parse(B)(TopoDot)
 
 let from_dotfile_tbl s =
-  (DOT.parse s, !TopoDot.name2attrs, !TopoDot.id2attrs)
+  ((DOT.parse s,Node.NodeHash.create 1), !TopoDot.name2attrs, !TopoDot.id2attrs)
 
-let from_dotfile = DOT.parse
-let from_gmlfile = GML.parse
+let from_dotfile s = (DOT.parse s, Node.NodeHash.create 1)
+let from_gmlfile s = (GML.parse s, Node.NodeHash.create 1)
 
 (* TODO(basus): add a mininet parser *)
 
 (* let from_mininet_raw (lst : (node * portId * node) list) = *)
 (*   let open Node in  *)
-(*   let g = Topology.empty in *)
+(*   let g = Network.G.empty in *)
 (*   let len = 500 in *)
 (*   let weight x y = match (x, y) with *)
 (*     | (Host _, Host _) -> 1 *)
@@ -181,7 +179,7 @@ let from_gmlfile = GML.parse
 (*     | (Switch _, Switch _) -> 1 in *)
 (*   List.iter  *)
 (*     (fun (src,portId,dst) ->   *)
-(*       Topology.add_edge g src portId (weight src dst) dst)  *)
+(*       Network.G.add_edge g src portId (weight src dst) dst)  *)
 (*     lst; *)
 (*   g *)
 

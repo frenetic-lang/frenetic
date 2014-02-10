@@ -1,5 +1,7 @@
 open Filename
 open Topology
+open Topology.Parsers
+open Topology.Node
 
 type modeType =
   | WriteMode
@@ -48,11 +50,11 @@ let from_extension fname =
   else failwith "Cannot parse given file type"
 
 let to_extension fname topo =
-  if check_suffix fname ".dot" then Topology.to_dot topo
+  if check_suffix fname ".dot" then Network.to_dot topo
   else if check_suffix fname ".gml" then
     failwith "\nWriting to GML format not supported yet\n"
   else if check_suffix fname ".py" then
-    Topology.to_mininet topo
+    Network.to_mininet topo
   else failwith "Cannot parse given file type"
 
 let _ =
@@ -76,11 +78,11 @@ let _ =
   in
   if !outmode then
     let s = match !outft with
-      | DotFile -> Topology.to_dot topo
+      | DotFile -> Network.to_dot topo
       | GmlFile -> failwith "\nWriting to GML format not supported yet\n"
-      | MnFile -> Topology.to_mininet topo
+      | MnFile -> Network.to_mininet topo
       | _ -> to_extension !outfname topo
     in
-    Topology_Util.write_to_file !outfname s
+    output_string (open_out !outfname) s
   else
-    Printf.printf "\nMininet script: %s\n\n" (Topology.to_mininet topo)
+    Printf.printf "\nMininet script: %s\n\n" (Network.to_mininet topo)

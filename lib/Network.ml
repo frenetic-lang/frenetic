@@ -339,3 +339,8 @@ let to_mininet ((g,tbl):t) : string =
     )
     g "" in
   prologue ^ add_hosts ^ links ^ epilogue
+
+
+(* let from_dotfile_tbl = Parsers.from_dotfile_tbl *)
+(* let from_dotfile = Parsers.from_dotfile *)
+(* let from_gmlfile = Parsers.from_gmlfile *)

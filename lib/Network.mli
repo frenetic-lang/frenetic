@@ -1,10 +1,12 @@
 open Types
 open Graph
 
-module G : Sig.G
+module G : Sig.P with type V.t = Node.t and type E.t = Link.e
+                 and type V.label = Node.label and type E.label = Link.t
 module V : Sig.VERTEX
 module E : Sig.EDGE
-type t
+type t= G.t * Node.attr_tbl
+
 (* Constructors *)
 val add_node : t -> V.t -> t
 val add_host : t -> string -> Packet.dlAddr -> Packet.nwAddr -> int -> t
@@ -32,6 +34,14 @@ val to_dot : t -> string
 val to_string : t -> string
 val to_mininet : t -> string
 
-  (* Exceptions *)
+(* Parsers *)
+
+(* val from_dotfile_tbl : string -> (Topology.t * *)
+(*                                     (string, attribute) Hashtbl.t * *)
+(*                                     (switchId, attribute) Hashtbl.t) *)
+(* val from_dotfile : string -> Topology.t *)
+(* val from_gmlfile : string -> Topology.t *)
+
+(* Exceptions *)
 exception NotFound of string
 exception NoPath of string * string
