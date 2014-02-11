@@ -151,6 +151,24 @@ let next_hop ((g,t):t) (n:Node.t) (p:portId) : Node.t =
         (Int64.to_string p) (to_string n t)))
   in d
 
+(* Just your basic breadth first search from a src to all destinations. Returns
+   a hashtable that maps each node to its predecessor in the path *)
+
+let all_paths ((g,_):t) (src:Node.t) : Node.t NodeHash.t =
+  let size = G.nb_vertex g in
+  let prevs = NH.create size in
+  let rec loop current =
+    G.iter_succ (fun v ->
+      if not (Node.visited v) then NH.replace prevs v current
+    ) g current;
+    Node.visit current;
+    G.iter_succ (fun v ->
+      if not (Node.visited v) then loop v
+    ) g current in
+
+  loop src;
+  prevs
+
 (* Find the shortest path between two nodes using Dijkstra's algorithm,
    returning the list of edges making up the path. The implementation is from
    the ocamlgraph library.

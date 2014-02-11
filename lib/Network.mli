@@ -23,8 +23,9 @@ val unit_cost : t -> t
 val ports_of_switch : t -> V.t -> Node.portId list
 val next_hop : t -> V.t -> Node.portId -> V.t
 
-  (* Utility functions *)
+(* Utility functions *)
 val spanningtree : t -> G.t
+val all_paths :t -> Node.t -> Node.t Node.NodeHash.t
 val shortest_path : t -> V.t -> V.t -> E.t list
 val all_shortest_paths : t -> Node.t
   -> (int64 Node.NodeHash.t * Node.t Node.NodeHash.t)
