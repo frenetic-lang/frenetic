@@ -14,22 +14,23 @@ Flag quickcheck
   Description: build the frenetic.quickcheck library
   Default: false
 
+Flag async
+    Description: build the netcore.async library
+    Default: false
+
 Library netcore
   Path: lib
   BuildDepends:
-    async,
     cstruct,
-    cstruct.async,
     dprle,
-    ocamlgraph,
-    openflow,
-    openflow.async,
-    packet,
-    sexplib,
-    sexplib.syntax,
     str,
     threads,
-    topology
+    ocamlgraph,
+    openflow,
+    packet,
+    topology,
+    sexplib,
+    sexplib.syntax
   Modules:
     NetKAT_Lexer,
     NetKAT_Parser,
@@ -39,30 +40,30 @@ Library netcore
     Semantics,
     LocalCompiler,
     NetKAT_Automaton,
-    PolicyGenerator,
-    Async_Controller
+    PolicyGenerator
 
-#Library async
-#  Findlibparent: netcore
-#  Findlibname: async
-#  Path: async
-#  Build$: flag(async)
-#  BuildDepends:
-#    async,
-#    core,
-#    cstruct,
-#    cstruct.async,
-#    dprle,
-#    netcore,
-#    ocamlgraph,
-#    openflow,
-#    openflow.async,
-#    packet,
-#    threads,
-#    textutils,
-#    topology,
-#    sexplib.syntax
-#  Modules:
+Library async
+  Findlibparent: netcore
+  Findlibname: async
+  Path: async
+  Build$: flag(async)
+  BuildDepends:
+    async,
+    core,
+    cstruct,
+    cstruct.async,
+    dprle,
+    netcore,
+    ocamlgraph,
+    openflow,
+    openflow.async,
+    packet,
+    threads,
+    textutils,
+    topology,
+    sexplib.syntax
+  Modules:
+    Async_Controller
 
 Library quickcheck
   Findlibparent: netcore
@@ -83,10 +84,10 @@ Executable testtool
   Install: false
   BuildDepends: 
     oUnit,packet,
+    netcore,
     pa_ounit,
     pa_ounit.syntax,
     quickcheck,
-    netcore,
     netcore.quickcheck
 
 Test all_tests
@@ -97,17 +98,21 @@ Test all_tests
 Executable katnetic
   Path: frenetic
   MainIs: katnetic.ml
+  Build$: flag(async)
   Install: false
   BuildDepends:
     async,
     core,
-    netcore
+    netcore,
+    netcore.async
 
 Executable netkat_test
   Path: frenetic
   MainIs: netkat_test.ml
+  Build$: flag(async)
   Install: false
   BuildDepends:
     async,
     core,
-    netcore
+    netcore,
+    netcore.async

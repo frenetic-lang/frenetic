@@ -1,6 +1,7 @@
 all: build
 
 # Implies --enable-quickcheck
+ASYNC ?= $(shell if ocamlfind query async >/dev/null 2>&1; then echo --enable-async; else echo --disable-async; fi)
 TESTS ?= $(shell if ocamlfind query quickcheck >/dev/null 2>&1; then echo --enable-tests; else echo --disable-tests; fi)
 
 NAME=netcore
@@ -10,7 +11,7 @@ setup.ml: _oasis
 	oasis setup
 
 setup.data: setup.ml
-	ocaml setup.ml -configure $(TESTS)
+	ocaml setup.ml -configure $(ASYNC) $(TESTS)
 
 build: setup.data setup.ml
 	ocaml setup.ml -build -j $(J)
