@@ -30,7 +30,7 @@ module type S = sig
 
   val close : t -> Client_id.t -> unit
 
-  val has_switch_id : t -> Client_id.t -> bool
+  val has_client_id : t -> Client_id.t -> bool
 
   val send 
     : t
@@ -107,7 +107,7 @@ module Make(Message : Message) = struct
 
   let close = Impl.close
 
-  let has_switch_id = Impl.has_client_id
+  let has_client_id = Impl.has_client_id
 
   let send = Impl.send
 
