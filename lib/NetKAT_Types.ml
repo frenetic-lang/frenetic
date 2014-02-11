@@ -23,7 +23,7 @@ type pred =
 type policy =
   | Filter of pred
   | Mod of header * header_val
-  | Par of policy * policy
+  | Union of policy * policy
   | Seq of policy * policy
   | Star of policy
   | Link of SDN_Types.switchId * header_val * SDN_Types.switchId * header_val

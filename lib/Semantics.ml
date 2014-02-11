@@ -22,6 +22,7 @@ let size (pol:policy) : int =
     match pol with
       | Filter pr -> f (size_pred pr + 1)
       | Mod(_,_) -> f 3
+      | Union(pol1, pol2)        
       | Par(pol1, pol2)
       | Seq(pol1, pol2) -> size pol1 (fun spol1 -> size pol2 (fun spol2 -> f (1 + spol1 + spol2)))
       | Star(pol) -> size pol (fun spol -> f (1 + spol))
@@ -49,7 +50,7 @@ let rec eval (pkt : packet) (pol : policy) : PacketSetSet.t = match pol with
 	   { pkt with headers = HeaderMap.add h v pkt.headers })
     else
       raise Not_found (* for consistency with Test *)
-    | Par (pol1, pol2) ->
+    | Union (pol1, pol2) ->
       let cartesian_product s1 s2 =
         let f x y setset = PacketSetSet.add (PacketSet.union x y) setset in
         let g x setset = PacketSetSet.fold (f x) s2 setset in

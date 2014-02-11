@@ -109,7 +109,7 @@ let rec gen_composite_pol arbitrary_atom : policy QuickCheck_gen.gen =
        (frequency [
           (3, gen_pol arbitrary_atom >>= fun p1 ->
               gen_pol arbitrary_atom >>= fun p2 ->
-              ret_gen (Par (p1, p2)));
+              ret_gen (Union (p1, p2)));
           (3, gen_pol arbitrary_atom>>= fun p1 ->
               gen_pol arbitrary_atom >>= fun p2 ->
               ret_gen (Seq (p1, p2)));

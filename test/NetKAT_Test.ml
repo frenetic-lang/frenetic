@@ -26,7 +26,7 @@ let test_compile_table pol tbl =
      false)
 
 let ite (pred : pred) (then_pol : policy) (else_pol : policy) : policy =
-  Par (Seq (Filter pred, then_pol), Seq (Filter (Neg pred), else_pol))
+  Union (Seq (Filter pred, then_pol), Seq (Filter (Neg pred), else_pol))
 
 let testSrc n = Test (Header EthSrc, VInt.Int64 (Int64.of_int n))
 let testDst n = Test (Header EthDst, VInt.Int64 (Int64.of_int n))
@@ -76,16 +76,16 @@ TEST "same field, two values = drop" =
 
 TEST "par1" =
   test_compile
-    (Par(modSrc 1,
+    (Union(modSrc 1,
 	 ite
 	   (testSrc 1)
 	   (modSrc 2)
 	   (modSrc 3)))
     (ite
        (testSrc 1)
-       (Par (modSrc 1,
+       (Union (modSrc 1,
 	     modSrc 2))
-       (Par (modSrc 1,
+       (Union (modSrc 1,
 	     modSrc 3)))
        
 TEST "star id" =
@@ -101,22 +101,22 @@ TEST "star drop" =
 TEST "star modify1" =
   test_compile
     (Star (modSrc 1))
-    (Par (Filter True, modSrc 1))
+    (Union (Filter True, modSrc 1))
 
 TEST "star modify2" =
   test_compile
-    (Star (Par (modSrc 0,
+    (Star (Union (modSrc 0,
 	        ite (testSrc 0) (modSrc 1) (modSrc 2))))
     (ite
        (testSrc 0)
-       (Par (Par (Par (Filter True, modSrc 0), modSrc 1), modSrc 2))
-       (Par (Par (Par (Filter True, modSrc 0), modSrc 1), modSrc 2)))
+       (Union (Union (Union (Filter True, modSrc 0), modSrc 1), modSrc 2))
+       (Union (Union (Union (Filter True, modSrc 0), modSrc 1), modSrc 2)))
 
 (*
 TEST "policy that caused stack overflow on 10/16/2013" =
   test_compile
-    (Par (Seq (Filter (Or (Test (Dst, 1), And (Test (Dst, 1), Test (Src, 0)))),
-            Par (Mod (Dst, 0), Filter (And (Or (Test (Src, 2), Test (Dst, 1)),
+    (Union (Seq (Filter (Or (Test (Dst, 1), And (Test (Dst, 1), Test (Src, 0)))),
+            Union (Mod (Dst, 0), Filter (And (Or (Test (Src, 2), Test (Dst, 1)),
                                           Test (Dst, 0))))),
          Seq (drop, Mod (Src, 1))))
     id *)
@@ -124,7 +124,7 @@ TEST "policy that caused stack overflow on 10/16/2013" =
 (*  Src -> A ; (filter Src = C + Dst -> C) *)
 TEST "quickcheck failure on 10/16/2013" =
   test_compile
-    (Seq (modSrc 0, Par (Filter (testSrc 2), modDst 2)))
+    (Seq (modSrc 0, Union (Filter (testSrc 2), modDst 2)))
     (Seq (modDst 2, modSrc 0))
 
     

@@ -20,7 +20,7 @@ module QuickChecking = struct
     begin match r, s with
       | Char(lf_p, switch), Seq(s1, Link(sw3, pt3, sw4, pt4)) ->
           (topology_to_policy switch) = (Link(sw3, pt3, sw4, pt4))
-      | Alt(r1, r2), Par(s1, s2) -> (same_same r1 s1) && (same_same r2 s2)
+      | Alt(r1, r2), Union(s1, s2) -> (same_same r1 s1) && (same_same r2 s2)
       | Cat(r1, r2), Seq(s1, s2) -> (same_same r1 s1) && (same_same r2 s2)
       | Kleene(r1) , Star(s1)    -> same_same r1 s1
       | _          , _           -> false
@@ -49,7 +49,7 @@ module QuickChecking = struct
         ret_gen (Seq(p, q)));
       (arbitrary_char >>= fun p ->
        arbitrary_char >>= fun q ->
-        ret_gen (Par(p, q)))
+        ret_gen (Union(p, q)))
     ]
 
   TEST "sequence a link-free policy with a link" =
