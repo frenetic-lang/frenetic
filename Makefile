@@ -1,7 +1,7 @@
 all: build
 
-ASYNC ?= $(shell if ocamlfind query async >/dev/null 2>&1; then echo --enable-async; else echo --disable-async; fi)
 # Implies --enable-quickcheck
+ASYNC ?= $(shell if ocamlfind query async >/dev/null 2>&1; then echo --enable-async; else echo --disable-async; fi)
 TESTS ?= $(shell if ocamlfind query quickcheck >/dev/null 2>&1; then echo --enable-tests; else echo --disable-tests; fi)
 
 NAME=netcore
@@ -28,4 +28,8 @@ reinstall: setup.ml
 
 clean:
 	ocamlbuild -clean
+	rm -f setup.data setup.log
+
+distclean:
+	ocaml setup.ml -distclean
 	rm -f setup.data setup.log

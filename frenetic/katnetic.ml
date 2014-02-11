@@ -1,3 +1,5 @@
+open Core.Std
+open Async.Std
 open PolicyGenerator
 
 let help args =
@@ -26,7 +28,7 @@ module Run = struct
     never_returns (Scheduler.go_main ~max_num_open_file_descrs:4096 ~main ())
 
   let with_file f filename =
-    with_channel f (open_in filename)
+    In_channel.with_file filename ~f:(with_channel f)
 
   let local p =
     (fun sw -> to_table (compile sw p))
@@ -44,8 +46,10 @@ module Run = struct
   let main args =
     match args with
       | [filename]
-      | ("local"     :: [filename]) -> with_file local filename
-      | ("automaton" :: [filename]) -> with_file automaton filename
+      | ("local"     :: [filename]) -> 
+        with_file local filename
+      | ("automaton" :: [filename]) -> 
+        with_file automaton filename
       | _ -> help [ "run" ]
 end
 
@@ -56,7 +60,7 @@ module Dump = struct
     f (NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan))
 
   let with_file f filename =
-    with_channel f (open_in filename)
+    In_channel.with_file filename ~f:(with_channel f)
 
   module Local = struct
 
@@ -87,10 +91,10 @@ module Dump = struct
        * 'em! Also, lol for loop.
        * *)
       for sw = 0 to sw_num do
-        let vs = Int64.of_int sw in
-        let sw_p = NetKAT_Types.(Seq(Filter(Test(Switch, VInt.Int64 vs)), p)) in
-        let t = with_compile vs sw_p in
-        f vs t
+        let swL = Int64.of_int sw in 
+        let sw_p = NetKAT_Types.(Seq(Filter(Test(Switch,VInt.Int64 swL)), p)) in 
+        let t = with_compile swL sw_p in
+        f swL t
       done
 
     let all sw_num p =
@@ -158,11 +162,13 @@ module Dump = struct
       | ("local"     :: args') -> Local.main args'
       | ("automaton" :: args') -> Automaton.main args'
       | _ -> help [ "dump" ]
-
 end
 
-let () = 
+let _ = 
   match Array.to_list Sys.argv with
-    | (_ :: "run"  :: args) -> Run.main args
-    | (_ :: "dump" :: args) -> Dump.main args
-    | _ -> help []
+    | (_ :: "run"  :: args) -> 
+      Run.main args
+    | (_ :: "dump" :: args) -> 
+      Dump.main args
+    | _ -> 
+      help []
