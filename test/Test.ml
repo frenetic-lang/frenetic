@@ -101,3 +101,5 @@ module RoundTrip = struct
       (prop_roundtrip parse marshal))
 
 end
+
+Pa_ounit_lib.Runtime.summarize ()
