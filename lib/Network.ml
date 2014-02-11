@@ -1,6 +1,6 @@
 open Util
-open Types
 open Graph
+open Node
 
 
 module EdgeOrd = struct
@@ -28,13 +28,13 @@ module EdgeMap = Map.Make(EdgeOrd)
 module G = Persistent.Digraph.ConcreteBidirectionalLabeled(Node)(Link)
 module V = G.V
 module E = G.E
-module NH = Node.NodeHash
+module NH = NodeHash
 module Dij = Path.Dijkstra(G)(Weight)
 
 exception NotFound of string
 exception NoPath of string * string
 
-type t = G.t * Node.attr_tbl
+type t = G.t * attr_tbl
 
 (* Alias for add_vertex *)
 let add_node ((g,t):t) (n:Node.t) : t =
@@ -43,8 +43,9 @@ let add_node ((g,t):t) (n:Node.t) : t =
 (* Add a host, given its name, MAC address and IP, to the graph *)
 let add_host ((g,t):t) (h:string) (m:Packet.dlAddr) (p:Packet.nwAddr) (i:int)
     : t =
+  let open Node in
   let attr = { node_type = Host; dev_id = 0L; name = h ; ip = p; mac = m} in
-  let node = Node.create i in
+  let node = create i in
   NH.replace t node attr;
   let g' = G.add_vertex g node in
   (g',t)
@@ -52,8 +53,9 @@ let add_host ((g,t):t) (h:string) (m:Packet.dlAddr) (p:Packet.nwAddr) (i:int)
 
 (* Add a switch (from it's name and id) to the graph *)
 let add_switch ((g,t):t) (s:switchId) (i:int) : t =
+  let open Node in
   let attr = {default with node_type = Switch ; dev_id = s} in
-  let node = Node.create i in
+  let node = create i in
   NH.replace t node attr;
   let g' = G.add_vertex g node in
   (g',t)
@@ -78,7 +80,7 @@ let get_ports ((g,t):t) (s:V.t) (d:V.t) : (portId * portId) =
   let es = G.find_all_edges g s d in
   if List.length es = 0
   then raise (NotFound (Printf.sprintf "Can't find %s to get_ports to %s\n"
-                          (Node.to_string s t) (Node.to_string d t)))
+                          (to_string s t) (to_string d t)))
   else let e = List.hd es in
        (Link.srcport e, Link.dstport e)
 
@@ -128,7 +130,7 @@ let ports_of_switch ((g,t):t) (s:Node.t) : portId list =
   let ss = try (G.succ_e g s)
     with Not_found -> raise (NotFound(Printf.sprintf
                                         "Can't find %s to get ports_of_switch\n"
-                                        (Node.to_string s t))) in
+                                        (to_string s t))) in
   let sports = List.map
     (fun l -> Link.srcport l) ss in
   let ps = G.pred_e g s in
@@ -140,12 +142,12 @@ let next_hop ((g,t):t) (n:Node.t) (p:portId) : Node.t =
   let ss = try (G.succ_e g n)
     with Not_found -> raise (NotFound(Printf.sprintf
                                         "Can't find %s to get next_hop\n"
-                                        (Node.to_string n t))) in
+                                        (to_string n t))) in
   let (_,_,d) = try (List.hd
                        (List.filter (fun e -> (Link.srcport e) = p) ss))
     with Failure hd -> raise (NotFound(
       Printf.sprintf "next_hop: Port %s on %s is not connected\n"
-        (Int64.to_string p) (Node.to_string n t)))
+        (Int64.to_string p) (to_string n t)))
   in d
 
 (* Find the shortest path between two nodes using Dijkstra's algorithm,
@@ -156,7 +158,7 @@ let next_hop ((g,t):t) (n:Node.t) (p:portId) : Node.t =
 let shortest_path ((g,_):t) (src:Node.t) (dst:Node.t) : E.t list =
   let ret,_ = Dij.shortest_path g src dst in ret
 
-(* let shortest_path_v (g:t) (src:Node.t) (dst:Node.t) : V.t list = *)
+(* let shortest_path_v (g:t) (src:t) (dst:t) : V.t list = *)
 (*   let visited = Hashtbl.create (nb_vertex g) in *)
 (*   let previous =  Hashtbl.create (nb_vertex g) in *)
 (*   let queue = Core.Std.Heap.create (fun (v,d) (v,d') -> compare d d') () in *)
@@ -183,9 +185,9 @@ let shortest_path ((g,_):t) (src:Node.t) (dst:Node.t) : E.t list =
 (*   mk_path dst *)
 
 
-  (*  let shortest_path (g:t) (src:Node.t) (dst:Node.t) : E.t list =
+  (*  let shortest_path (g:t) (src:t) (dst:t) : E.t list =
       let p,_ = Dij.shortest_path g src dst in
-      if p = [] then raise (NoPath(Node.to_string src, Node.to_string dst))
+      if p = [] then raise (NoPath(to_string src, to_string dst))
       else p *)
 
 let stitch (path:E.t list) : (portId option * Node.t * portId option) list =

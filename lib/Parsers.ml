@@ -1,14 +1,6 @@
 open Graph
 open Util
-open Types
 
-let default = {
-  node_type = Host
-  ; name = ""
-  ; ip = 0l
-  ; mac = 0L
-  ; dev_id = 0L
-}
 module NH = Node.NodeHash
 module TopoDot = struct
   let nodeinfo = NH.create 100
@@ -59,6 +51,7 @@ module TopoDot = struct
 
   (* Update the record for a node *)
   let update_nattr n (k,vo) =
+    let open Node in
     let ntype_of vo = match string_of_id (maybe vo) with
       | "host" -> Host
       | "switch" -> Switch
@@ -93,7 +86,7 @@ module TopoDot = struct
     let name = string_of_id id in
     let at = List.hd ats in
     let nattr = List.fold_left update_nattr
-        {default with name = name} at in
+        {Node.default with Node.name = name} at in
     let node = Node.create !index in
     index := !index + 1;
     NH.replace nodeinfo node nattr;
@@ -123,7 +116,8 @@ module TopoGML = struct
       | Gml.String(s) -> s
       | _ -> failwith "Label requires int value\n"
 
-    let update_nattr n (key, value) = match key with
+    let update_nattr n (key, value) =
+      let open Node in match key with
       | "id" -> {n with dev_id = int64_of_value value}
       | "label" -> {n with name = string_of_value value}
       | "mac" -> {n with mac = Packet.mac_of_string (string_of_value value)}
@@ -142,7 +136,7 @@ module TopoGML = struct
 
     let node (vs:Gml.value_list) : Network.G.V.label =
       let nat = List.fold_left update_nattr
-        default vs in
+        Node.default vs in
       let node = Node.create !index in
       index := !index + 1;
       NH.replace nodeinfo node nat;

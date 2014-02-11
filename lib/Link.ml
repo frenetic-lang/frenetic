@@ -1,9 +1,7 @@
-open Types
-
 type v = Node.t
 type t = {
-  srcport : portId;
-  dstport : portId;
+  srcport : Node.portId;
+  dstport : Node.portId;
   cost : int64;
   capacity : int64;
 }

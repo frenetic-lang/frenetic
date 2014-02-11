@@ -22,7 +22,6 @@ Library topology
     Util
   Modules:
     Parsers,
-    Types,
     Node,
     Link,
     Network

@@ -1,4 +1,3 @@
-open Types
 open Node
 
 type v = Node.t
