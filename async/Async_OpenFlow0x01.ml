@@ -53,6 +53,8 @@ end
 module Controller = struct
   open Async.Std
 
+  open Topology
+
   module ChunkController = Async_OpenFlowChunk.Controller
   module Client_id = ChunkController.Client_id
 
@@ -90,6 +92,8 @@ module Controller = struct
   (* XXX(seliopou): Raises `Not_found` if the client is no longer connected. *)
   let switch_id_of_client t c_id = ClientMap.find_exn t.feats c_id
   let client_id_of_switch t sw_id = SwitchMap.find_exn t.clients sw_id
+
+  let nib (t : t) : Topology.t = Nib.Protocol.state t.nib
 
   let create ?max_pending_connections
       ?verbose

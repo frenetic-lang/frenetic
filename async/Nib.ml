@@ -77,6 +77,9 @@ module Protocol : sig
     -> unit
     -> t
 
+  val state
+    : t -> Topology.t
+
   val setup_probe
     : t
     -> send:(OpenFlow0x01.Message.t -> unit Deferred.t)
@@ -133,6 +136,8 @@ end = struct
       | Some(n) -> n
       | None -> Topology.empty in
     { nib; pending = SwitchMap.empty }
+
+  let state (t : t) : Topology.t = t.nib
 
   open OpenFlow0x01
 
