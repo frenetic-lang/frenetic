@@ -6,6 +6,8 @@ val format_header : Format.formatter -> header -> unit
 
 val header_to_string : header -> string
 
+val string_of_field : SDN_Types.field -> string
+
 val value_to_string : header_val -> string
   
 val string_of_policy : policy -> string

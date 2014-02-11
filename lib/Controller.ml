@@ -8,7 +8,7 @@ let section = Log.Section.make "Controller"
 
 (* Keeps the switch configured with the latest policy on onf_stream. *)
 let switch_thread 
-  (local_stream : (VInt.t -> SDN.flowTable) NetKAT_Stream.t)
+  (local_stream : (SDN.switchId -> SDN.flowTable) NetKAT_Stream.t)
   (feats : SDN.switchFeatures) : unit Lwt.t = 
   let sw_id = feats.SDN.switch_id in
   Lwt_log.info_f ~section "switch connected" >>
