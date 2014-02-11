@@ -45,10 +45,12 @@ TEST "compile negation" =
   test_compile (Filter (Neg pr)) (Filter (Neg pr))
 
 TEST "compile negation of conjunction" =
-  let pr = And (testSrc 0, testDst 0) in
+  let pr1 = testSrc 0 in 
+  let pr2 = testDst 0 in 
+  let pr = And (pr1, pr2) in 
   test_compile
     (Filter (Neg pr))
-    (Filter (Neg pr))
+    (Union (Filter (Neg pr1), Filter(And(Neg pr2, pr1))))
 
 TEST "commute test annihilator" =
   test_compile

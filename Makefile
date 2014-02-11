@@ -1,6 +1,5 @@
 all: build
 
-ASYNC ?= $(shell if ocamlfind query async >/dev/null 2>&1; then echo --enable-async; else echo --disable-async; fi)
 # Implies --enable-quickcheck
 TESTS ?= $(shell if ocamlfind query quickcheck >/dev/null 2>&1; then echo --enable-tests; else echo --disable-tests; fi)
 
@@ -11,7 +10,7 @@ setup.ml: _oasis
 	oasis setup
 
 setup.data: setup.ml
-	ocaml setup.ml -configure $(ASYNC) $(TESTS)
+	ocaml setup.ml -configure $(TESTS)
 
 build: setup.data setup.ml
 	ocaml setup.ml -build -j $(J)
@@ -28,4 +27,8 @@ reinstall: setup.ml
 
 clean:
 	ocamlbuild -clean
+	rm -f setup.data setup.log
+
+distclean:
+	ocaml setup.ml -distclean
 	rm -f setup.data setup.log

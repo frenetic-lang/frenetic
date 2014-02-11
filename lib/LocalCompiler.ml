@@ -1,165 +1,331 @@
-(* metavariable conventions
-   - a, b, c, actions
-   - s, t, u, action sets
-   - x, y, z, patterns
-   - xs, ys, zs, pattern sets
-   - p, q, local
-   - r, atoms
-   - g, groups
-
-   - A = Action 
-*)
-
 open Core.Std
+open Async.Std
 open Sexplib.Conv
 
-(* utility function *)
-let collection_to_string fold f sep x : string = 
-  fold 
-    x
-    ~init:""
-    ~f:(fun acc e -> 
-        f e ^ 
-        if acc = "" then "" else sep ^ acc)
+let debug = Printf.printf
 
-let header_val_map_to_string eq sep m =
-  NetKAT_Types.HeaderMap.fold
-    (fun h v acc ->
-      Printf.sprintf "%s%s%s%s"
-        (NetKAT_Pretty.header_to_string h)
-        eq
-        (NetKAT_Pretty.value_to_string v)
-        (if acc = "" then "" else sep ^ acc))
-    m ""
+open SDN_Types
+  
+module type FIELDS = sig
+  type t = (field * fieldVal) list with sexp
+  module Set : Set.S with type Elt.t = t
+  val to_string : ?init:string -> ?sep:string -> t -> string
+  val set_to_string : ?init:string -> ?sep:string -> Set.t -> string
+  val compare : t -> t -> int    
+  val empty : t
+  val mk : field -> fieldVal -> t
+  val is_empty : t -> bool
+  val seq : t -> t -> t option
+  val diff : t -> t -> t
+  val subseteq : t -> t -> bool
+end
 
-module Action = struct
-  type t = NetKAT_Types.header_val_map sexp_opaque with sexp
-      
+module Fields : FIELDS = struct
+
+  type t = (field * fieldVal) list sexp_opaque with sexp
+        
+  let to_string ?init:(init="") ?sep:(sep="=") (x:t) : string =
+    match x with 
+      | [] -> 
+        init
+      | _ -> 
+        List.fold x ~init:""
+          ~f:(fun acc (f, v) ->
+            Printf.sprintf "%s%s%s%s"
+              (if acc = "" then "" else acc ^ ", ")
+              (NetKAT_Pretty.string_of_field f)
+              sep
+              (NetKAT_Pretty.value_to_string v))
+
   type this_t = t with sexp
 
-  let this_compare = 
-    NetKAT_Types.HeaderMap.compare Pervasives.compare      
+  let compare (x:t) (y:t) : int = 
+    List.compare x y 
+      ~cmp:(fun (f1,v1) (f2,v2) -> 
+          let cmp = compare f1 f2 in 
+          if cmp <> 0 then cmp 
+          else Pervasives.compare v1 v2)
 
-  let to_string (a:t) : string =
-    if NetKAT_Types.HeaderMap.is_empty a then 
-      "id"
-    else 
-      header_val_map_to_string ":=" "; " a
-    
   module Set = Set.Make(struct
     type t = this_t with sexp
-    let compare = this_compare
+    let compare = compare
   end)
 
-  let set_to_string (s:Set.t) : string =
-    Printf.sprintf "{%s}" 
-      (collection_to_string 
-         Set.fold 
-         to_string 
-         ", " 
-         s)
+  let set_to_string ?init:(init="[]") ?sep:(sep="=") (s:Set.t) : string =
+    Printf.sprintf "%s"
+      (Set.fold s
+         ~init:""
+         ~f:(fun acc x -> 
+           Printf.sprintf "%s%s"
+             (if acc = "" then "" else acc ^ ", ")
+             (to_string ~init:init ~sep:sep x)))
+
+  let empty : t = 
+    []
+
+  let is_empty (x:t) : bool = 
+    match x with 
+      | [] -> true
+      | _ -> false
+
+  let mk (f:field) (v:fieldVal) : t = 
+    [(f,v)]
+      
+  let rec subseteq (x:t) (y:t) : bool =  
+    match x,y with 
+      | _,[] -> true
+      | [],_::_ -> false
+      | (fx,vx)::xrest, (fy,vy)::yrest -> 
+        let cmp = Pervasives.compare fx fy in 
+        if cmp = 0 then 
+          vx = vy && subseteq xrest yrest
+        else if cmp < 0 then 
+          subseteq xrest y
+        else (* cmp > 0 *)
+          false 
+
+  (* module Memo = Hashtbl.Make(struct *)
+  (*   type t = this_t * this_t with sexp *)
+  (*   let compare (l11,l12) (l21,l22) =  *)
+  (*     let cmp = compare l11 l21 in  *)
+  (*     if cmp <> 0 then cmp  *)
+  (*     else compare l12 l22   *)
+  (*   let hash = Hashtbl.hash *)
+  (* end) *)
+
+  (* let memo = Memo.create () *)
+
+  let map_option f = function
+    | None -> None
+    | Some x -> Some (f x)  
+
+  let rec seq_loop x y k = 
+    match x,y with 
+      | _,[] -> 
+        k (Some x)
+      | [],_::_ -> 
+        k (Some y)
+      | (fx,vx)::xrest, (fy,vy)::yrest -> 
+        let cmp = Pervasives.compare fx fy in 
+        if cmp = 0 then 
+          begin 
+            if vx = vy then 
+              seq_loop xrest yrest 
+                (fun o -> k (map_option (fun l -> (fx,vx)::l) o))
+            else 
+              k None
+          end
+        else if cmp < 0 then 
+          seq_loop xrest y 
+            (fun o -> k (map_option (fun l -> (fx,vx)::l) o))
+        else (* cmp > 0 *)
+          seq_loop x yrest
+            (fun o -> k (map_option (fun l -> (fy,vy)::l) o))  
+      
+  let rec seq (x:t) (y:t) : t option = 
+    seq_loop x y (fun o -> o) 
+
+  let diff (x:t) (y:t) : t = 
+    let rec loop x y k = 
+      match x,y with 
+        | _,[] -> 
+          k x
+        | [],_::_ -> 
+          k x
+        | (fx,vx)::xrest, (fy,vy)::yrest -> 
+          let cmp = Pervasives.compare fx fy in 
+          if cmp = 0 then 
+            loop xrest yrest k 
+          else if cmp < 0 then 
+            loop xrest y (fun l -> (fx,vx)::l)
+          else (* cmp > 0 *)
+            loop x yrest k in 
+    loop x y (fun o -> o)
+end
+
+module type ACTION = sig
+  type t = Fields.t
+  module Set : Set.S with type Elt.t = t
+  type group = Set.t list
+  val to_string : t -> string
+  val set_to_string : Set.t -> string
+  val group_to_string : group -> string
+  val mk : field -> fieldVal -> t
+  val seq : t -> t -> t
+  val set_seq : t -> Set.t -> Set.t
+  val group_seq : t -> group -> group
+  val diff : t -> t -> t
+  val group_mk : Set.t -> group
+  val set_compare : Set.t -> Set.t -> int
+  val group_compare : group -> group -> int
+  val group_union : group -> group -> group
+  val group_cross : group -> group -> group
+  val id : Set.t 
+  val drop : Set.t 
+  val is_id : Set.t -> bool
+  val is_drop : Set.t -> bool
+  val group_id : group
+  val group_drop : group
+  val group_is_id : group -> bool
+  val group_is_drop : group -> bool
+  val to_netkat : t -> NetKAT_Types.policy
+  val set_to_netkat : Set.t -> NetKAT_Types.policy
+  val group_to_netkat : group -> NetKAT_Types.policy
+end
+
+module Action : ACTION = struct
+
+  type t = Fields.t with sexp
+
+  type this_t = t with sexp
+
+  module SetSet = Set.Make(Fields.Set)
+
+  module Set = Fields.Set
 
   type group = Set.t list
 
-  let group_compare (g1:group) (g2:group) : int = 
-    List.compare g1 g2 ~cmp:Set.compare
+  let compare = Fields.compare
 
-  let group_equal (g1:group) (g2:group) : bool = 
-    group_compare g1 g2 = 0
-        
-  let group_to_string (g:group) : string =    
+  let set_compare = Set.compare
+
+  let group_compare = List.compare ~cmp:set_compare
+
+  let to_string : t -> string = 
+    Fields.to_string ~init:"id" ~sep:":="
+
+  let set_to_string (s:Set.t) : string = 
+    if Set.is_empty s then "drop"
+    else Fields.set_to_string ~init:"id" ~sep:":=" s
+
+  let group_to_string (g:group) : string = 
     Printf.sprintf "[%s]"
-      (collection_to_string
-         List.fold_left
-         set_to_string
-         "; "
-         g)
+      (List.fold g
+         ~init:""
+         ~f:(fun acc s -> 
+           Printf.sprintf "%s%s"
+             (if acc = "" then "" else acc ^ " + ")
+             (set_to_string s)))
 
-  let set_union (s1:Set.t) (s2:Set.t) = 
-    Set.union s1 s2 
- 
-  let mk_group (g:group) : group =
-    List.rev
-      (List.fold g ~init:[]
-	 ~f:(fun acc si ->
-	   if List.exists acc ~f:(Set.equal si) then 
-	     acc
-	   else
-	     si::acc))
+  let mk (f:field) (v:VInt.t) : t = 
+    Fields.mk f v
 
-  let group_crossproduct (g1:group) (g2:group) : group =
-    let n1 = List.length g1 in 
-    let n2 = List.length g2 in 
-    if n1 >= n2 then 
-      mk_group
-        (List.rev
-           (List.fold g1 ~init:[]
-              ~f:(fun acc s1i ->
-	        List.fold g2 ~init:acc
-		  ~f:(fun acc s2j ->
-                    Set.union s1i s2j::acc))))
-    else 
-      mk_group
-        (List.fold g1 ~init:[]
-           ~f:(fun acc s1i ->
-	     List.fold g2 ~init:acc
-	       ~f:(fun acc s2j ->
-                 Set.union s1i s2j::acc)))
+  (* module Memo = Hashtbl.Make(struct *)
+  (*   type t = this_t * this_t with sexp *)
+  (*   let compare (l11,l12) (l21,l22) =  *)
+  (*     let cmp = compare l11 l21 in  *)
+  (*     if cmp <> 0 then cmp  *)
+  (*     else compare l12 l22   *)
+  (*   let hash = Hashtbl.hash *)
+  (* end) *)
 
-  let group_union (g1:group) (g2:group) : group =
-    let r = mk_group (g1 @ g2) in 
-    (* Printf.printf "GROUP_UNION\n%s\n%s\n%s\n\n"  *)
-    (*   (group_to_string g1) (group_to_string g2) (group_to_string r); *)
-    r
+  (* let memo = Memo.create ()  *)
 
-  let id : Set.t =
-    Set.singleton (NetKAT_Types.HeaderMap.empty)
+  let rec seq_loop a1 a2 k = 
+    match a1,a2 with 
+      | _,[] -> 
+        k a1
+      | [],_::_ -> 
+        k a2
+      | (f1,v1)::a1rest, (f2,v2)::a2rest -> 
+        let cmp = Pervasives.compare f1 f2 in 
+        if cmp = 0 then 
+          seq_loop a1rest a2rest (fun a -> k ((f2,v2)::a))
+        else if cmp < 0 then 
+          seq_loop a1rest a2 (fun a -> k ((f1,v1)::a))
+        else (* cmp > 0 *)
+          seq_loop a1 a2rest (fun a -> k ((f2,v2)::a))               
 
-  let drop : Set.t =
+  let seq a1 a2 = 
+    seq_loop a1 a2 (fun a -> a) 
+
+  let set_seq a s = 
+    Set.map s (seq a)
+
+  let group_seq a g = 
+    List.map g ~f:(set_seq a)
+
+  let diff : t -> t -> t = 
+    Fields.diff
+
+  let group_mk (s:Set.t) : group = 
+    [s]
+
+  let group_union (g1:group) (g2:group) : group = 
+    let ss = 
+      List.fold g2
+        ~init:SetSet.empty
+        ~f:SetSet.add in 
+    let rec loop g ss k = 
+      match g with 
+        | [] -> k g2
+        | s::grest -> 
+          loop grest ss (fun l -> k (s::l)) in 
+    loop g1 ss (fun l -> l)
+
+  let group_cross (g1:group) (g2:group) : group = 
+    fst (List.fold_right g1
+           ~init:([],SetSet.empty)
+           ~f:(fun s1i acc -> 
+                 List.fold_right g2
+                   ~init:acc
+                   ~f:(fun s2j acc -> 
+                         let g,ss = acc in 
+                         let s1is2j = Set.union s1i s2j in 
+                         if SetSet.mem ss s1is2j then acc
+                         else (s1is2j::g, SetSet.add ss s1is2j))))
+
+  let id : Set.t = 
+    Set.singleton (Fields.empty)
+
+  let drop : Set.t = 
     Set.empty
 
-  let is_id (s:Set.t) : bool =
-    Set.length s = 1 &&
-     NetKAT_Types.HeaderMap.is_empty (Set.choose_exn s)
+  let is_id (s:Set.t) : bool = 
+    Set.length s = 1 && 
+    match Set.min_elt s with 
+      | None -> false
+      | Some a -> Fields.is_empty a
 
-  let is_drop (s:Set.t) : bool =
-    Set.is_empty s
+  let is_drop (s:Set.t) : bool = 
+    Set.is_empty s 
 
-  let seq_act (a1:t) (a2:t) : t =
-    let f h vo1 vo2 = match vo1, vo2 with
-      | (_, Some v2) ->
-        Some v2
-      | _ ->
-        vo1 in
-    NetKAT_Types.HeaderMap.merge f a1 a2
+  let group_id : group = 
+    [id]
+      
+  let group_drop : group = 
+    [drop]
 
-  let seq_acts (a:t) (s:Set.t) : Set.t =
-    Set.map s (seq_act a) 
+  let group_is_id (g:group) : bool = 
+    match g with 
+      | [s] -> is_id s
+      | _ -> false
 
-  let seq_group (a:t) (g:group) : group =
-    List.rev
-      (List.fold g ~init:[]
-         ~f:(fun acc si -> seq_acts a si::acc))
+  let group_is_drop (g:group) : bool = 
+    match g with 
+      | [s] -> is_drop s
+      | _ -> false  
 
   let to_netkat (a:t) : NetKAT_Types.policy =
-    if NetKAT_Types.HeaderMap.is_empty a then 
-      NetKAT_Types.(Filter True)
-    else 
-      let h_port = NetKAT_Types.Header SDN_Types.InPort in 
-      let f h v pol' = 
-	if h = h_port then 
-	  NetKAT_Types.Seq (pol', NetKAT_Types.Mod (h, v)) 
-	else 
-	  NetKAT_Types.Seq (NetKAT_Types.Mod (h, v), pol') in
-      let (h, v) = NetKAT_Types.HeaderMap.min_binding a in
-      let a' = NetKAT_Types.HeaderMap.remove h a in
-      NetKAT_Types.HeaderMap.fold f a' (NetKAT_Types.Mod (h, v))
-	
+    let f pol (f,v)  = 
+      let pol' = NetKAT_Types.Mod (NetKAT_Types.Header f, v) in 
+      if f =  InPort then 
+	NetKAT_Types.Seq (pol, pol') 
+      else 
+	NetKAT_Types.Seq (pol', pol) in
+    match a with 
+      | [] -> 
+        NetKAT_Types.Filter NetKAT_Types.True
+      | (h,v)::arest -> 
+        List.fold arest
+          ~init:(NetKAT_Types.Mod(NetKAT_Types.Header h,v))
+          ~f:f
+
   let set_to_netkat (s:Set.t) : NetKAT_Types.policy =
     if Set.is_empty s then
       NetKAT_Types.Filter NetKAT_Types.False
     else
-      let f pol' a = NetKAT_Types.Union (pol', to_netkat a) in
+      let f pol a = NetKAT_Types.Union (pol, to_netkat a) in
       let a = Set.min_elt_exn s in
       let s' = Set.remove s a in
       Set.fold s' ~f:f ~init:(to_netkat a)
@@ -171,108 +337,83 @@ module Action = struct
       | [s] ->
         set_to_netkat s
       | s::g' ->
-        let f pol' s = NetKAT_Types.Choice (pol', set_to_netkat s) in
+        let f pol s = NetKAT_Types.Choice (pol, set_to_netkat s) in
         List.fold g' ~init:(set_to_netkat s) ~f:f
 end
 
-module Pattern = struct
-  exception Empty_pat
+module type PATTERN = sig
+  type t = Fields.t
+  module Set : Set.S with type Elt.t = t
+  val to_string : t -> string
+  val set_to_string : Set.t -> string
+  val compare : t -> t -> int
+  val mk : field -> fieldVal -> t
+  val seq : t -> t -> t option
+  val seq_act : t -> Action.t -> t -> t option
+  val diff : t -> t -> t
+  val subseteq : t -> t -> bool
+  val tru : t
+  val to_netkat : t -> NetKAT_Types.pred
+  val set_to_netkat : Set.t -> NetKAT_Types.pred
+end
 
-  type t = NetKAT_Types.header_val_map sexp_opaque with sexp
+module Pattern : PATTERN = struct
 
-  let compare = NetKAT_Types.HeaderMap.compare Pervasives.compare
+  type t = Fields.t
 
-  module Set = Set.Make(struct
-    type t = NetKAT_Types.header_val_map sexp_opaque with sexp
+  module Set = Fields.Set
 
-    let compare = compare
-  end)
+  let to_string : t -> string = 
+    Fields.to_string ~init:"true" ~sep:"="
 
-  let to_string (x:t) : string =
-    if NetKAT_Types.HeaderMap.is_empty x then 
-      "true"
-    else 
-      Printf.sprintf "<%s>" 
-        (header_val_map_to_string "=" ", " x)
-
-  let set_to_string (xs:Set.t) : string =
+  let set_to_string (xs:Set.t) : string = 
     Printf.sprintf "{%s}"
-      (Set.fold xs ~init:""
-         ~f:(fun acc x -> (if acc = "" then "" else acc ^ ", ") ^ to_string x))
+      (Fields.set_to_string ~init:"true" ~sep:"=" xs)
 
+  let compare : t -> t -> int = 
+    Fields.compare
+
+  let mk (f:field) (v:VInt.t) = 
+    Fields.mk f v
+
+  let seq : t -> t -> t option = 
+    Fields.seq
+
+  let seq_act x a y = 
+    (* TODO(jnf): can optimize into a single loop *)
+    (* Printf.printf "  SEQ_ACT\n  X=%s\n  A=%s\n  Y=%s\n  " *)
+    (*   (to_string x) *)
+    (*   (Action.to_string a) *)
+    (*   (to_string y); *)
+    match Fields.seq a y with 
+      | None -> 
+        (* Printf.printf "Z=None\n"; *)
+        None
+      | Some z -> 
+        (* Printf.printf "Z=Some (%s)\n  " (to_string z); *)
+        (* Printf.printf "D=%s\n  " (to_string (Fields.diff z a)); *)
+        (* Printf.printf "R=%s\n" (match (Fields.seq x (Fields.diff z a)) with None -> "None" | Some r -> to_string r); *)
+        Fields.seq x (Fields.diff z a)
+      
+  let diff : t -> t -> t = 
+    Fields.diff
+
+  let subseteq : t -> t -> bool = 
+    Fields.subseteq
+      
   let tru : t = 
-    NetKAT_Types.HeaderMap.empty
-
-  let is_tru (x:t) : bool =
-    NetKAT_Types.HeaderMap.is_empty x
-
-  let matches (h:NetKAT_Types.header) (v:NetKAT_Types.header_val) (x:t) : bool =
-    not (NetKAT_Types.HeaderMap.mem h x)
-    || NetKAT_Types.HeaderMap.find h x = v
-    
-  let subseteq_pat (x:t) (y:t) : bool = 
-    let f h vo1 vo2 = match vo1,vo2 with 
-      | Some v1, Some v2 -> 
-	if v1 <> v2 then raise Empty_pat else Some ()
-      | Some v1, None -> 
-	Some ()
-      | None, Some v1 -> 
-	raise Empty_pat
-      | None, None -> 
-	Some () in 
-    try 
-      let _ = NetKAT_Types.HeaderMap.merge f x y in 
-      true
-    with Empty_pat -> 
-      false
-	
-  let seq_pat (x : t) (y : t) : t option =
-    let f h vo1 vo2 = match vo1, vo2 with
-      | (Some v1, Some v2) ->
-        if v1 <> v2 then raise Empty_pat else Some v1
-      | (Some v1, None) ->
-        Some v1
-      | (None, Some v2) ->
-        Some v2
-      | (None, None) ->
-        None in
-    try
-      Some (NetKAT_Types.HeaderMap.merge f x y)
-    with Empty_pat ->
-      None
-
-  let rec seq_act_pat (x:t) (a:Action.t) (y:t) : t option =
-    let f h vo1 vo2 = match vo1, vo2 with
-      | Some (vo11, Some v12), Some v2 ->
-        if v12 <> v2 then raise Empty_pat
-        else vo11
-      | Some (vo11, Some v12), None ->
-        vo11
-      | Some (Some v11, None), Some v2 ->
-        if v11 <> v2 then raise Empty_pat
-        else Some v11
-      | Some (vo11, None), None ->
-        vo11
-      | Some(None,None), Some v2
-      | None, Some v2 ->
-        Some v2
-      | None, None ->
-        None in
-    let g h vo1 vo2 = Some (vo1, vo2) in
-    try
-      Some (NetKAT_Types.HeaderMap.merge f
-              (NetKAT_Types.HeaderMap.merge g x a) y)
-    with Empty_pat ->
-      None
+    Fields.empty
 
   let to_netkat (x:t) : NetKAT_Types.pred =
-    if NetKAT_Types.HeaderMap.is_empty x then
-      NetKAT_Types.True
-    else
-      let f h v pol' = NetKAT_Types.And (pol', NetKAT_Types.Test (h, v)) in
-      let (h, v) = NetKAT_Types.HeaderMap.min_binding x in
-      let x' = NetKAT_Types.HeaderMap.remove h x in
-      (NetKAT_Types.HeaderMap.fold f x' (NetKAT_Types.Test (h, v)))
+    let rec loop x k = 
+      match x with 
+        | [] -> 
+          k NetKAT_Types.True
+        | [(f,v)] -> 
+          k (NetKAT_Types.Test (NetKAT_Types.Header f,v))
+        | (f,v)::x1 -> 
+          loop x1 (fun pr -> NetKAT_Types.And(NetKAT_Types.Test(NetKAT_Types.Header f,v),pr)) in 
+    loop x (fun x -> x)
 
   let set_to_netkat (xs:Set.t) : NetKAT_Types.pred =
     match Set.choose xs with 
@@ -284,27 +425,39 @@ module Pattern = struct
         Set.fold xs' ~init:(to_netkat x) ~f:f
 end
 
-module Atom = struct
-  exception Empty_atom
+module type ATOM = sig
+  type t = Pattern.Set.t * Pattern.t
+  module Set : Set.S with type Elt.t = t
+  module DepMap : Map.S with type Key.t = t
+  module Map : Map.S with type Key.t = t
+  val to_string : t -> string
+  val compare : t -> t -> int 
+  val mk : Pattern.t -> t
+  val tru : t
+  val neg : t -> Set.t
+  val seq : t -> t -> t option 
+  val seq_act : t -> Action.t -> t -> t option
+end
 
-  type t = Pattern.Set.t * Pattern.t with sexp
+module Atom : ATOM = struct
 
-  type this_t = t with sexp
+  type t = (Pattern.Set.t * Pattern.t) sexp_opaque with sexp
 
-  let to_string ((xs,x):t) : string =
-    Printf.sprintf "%s,%s"
-      (Pattern.set_to_string xs) (Pattern.to_string x)
+  let compare ((xs1,x1):t) ((xs2,x2):t) : int = 
+    let cmp = Pattern.Set.compare xs1 xs2 in 
+    if cmp <> 0 then cmp
+    else Pattern.compare x1 x2  
 
   let shadows (xs1,x1) (xs2,x2) = 
     let ys = 
       Pattern.Set.fold xs1 ~init:Pattern.Set.empty 
         ~f:(fun acc xi -> 
-          match Pattern.seq_pat x1 xi with
+          match Pattern.seq x1 xi with
             | None -> acc
             | Some x1_xi -> Pattern.Set.add acc x1_xi) in 
     Pattern.Set.mem ys x2
 
-  let compare ((xs1,x1) as r1) ((xs2,x2) as r2) = 
+  let dep_compare ((xs1,x1) as r1) ((xs2,x2) as r2) = 
     let r = 
       if shadows r2 r1 then 
         -1
@@ -319,452 +472,509 @@ module Atom = struct
     (* Printf.printf "COMPARE %s %s = %d\n%!" (to_string (xs1,x1)) (to_string (xs2,x2)) r; *)
     r
 
-  let subseteq (r1:t) (r2:t) = 
-    let (xs1,x1) = r1 in 
-    let (xs2,x2) = r2 in 
-    Pattern.subseteq_pat x1 x2 &&
-    Pattern.Set.for_all xs2 ~f:(fun x2j -> 
-      Pattern.Set.exists xs1 ~f:(fun x1i -> 
-        Pattern.subseteq_pat x2j x1i))
+  type this_t = t with sexp
 
-  module Set = Set.Make (struct
+  module Set = Set.Make(struct
     type t = this_t with sexp
-
     let compare = compare
   end)
 
-  module Map = Map.Make (struct
+  module DepMap = Map.Make(struct
     type t = this_t with sexp
+    let compare = dep_compare
+  end)
 
+  module Map = Map.Make(struct
+    type t = this_t with sexp
     let compare = compare
   end)
 
-  let to_string ((xs,x):t) : string =
+  let to_string ((xs,x):t) : string = 
     Printf.sprintf "%s,%s"
-      (Pattern.set_to_string xs) (Pattern.to_string x)
+      (Pattern.set_to_string xs)
+      (Pattern.to_string x)
 
-  let set_to_string (rs:Set.t) : string =
-    Printf.sprintf "{%s}"
-      (Set.fold rs ~init:""
-         ~f:(fun acc ri -> (if acc = "" then acc else acc ^ ", ") ^ to_string ri))
+  let mk (x:Pattern.t) : t =
+    (Pattern.Set.empty, x)
 
-  let tru : t =
-    (Pattern.Set.empty, Pattern.tru)
+  let tru : t = 
+    mk Pattern.tru
 
-  let fls : t =
-    (Pattern.Set.singleton Pattern.tru, Pattern.tru)
-
-    (* "smart" constructor *)
-  let mk ((xs,x):t) : t option =
-    let f _ vo1 vo2 = match vo1,vo2 with
-      | Some v1, Some v2 when v1 = v2 -> None
-      | _ -> vo2 in 
-    try
-      let xs' =
-	Pattern.Set.fold xs ~init:Pattern.Set.empty
-	  ~f:(fun acc xi ->
-                let xi' = NetKAT_Types.HeaderMap.merge f x xi in 
-	        match Pattern.seq_pat x xi' with
-	          | None ->
-		    acc
-	          | Some x_xi ->
-		    if Pattern.compare x x_xi = 0 then
-		      raise Empty_atom
-		    else if 
-		        Pattern.Set.exists xs
-		          ~f:(fun xj -> 
-			    NetKAT_Types.HeaderMap.compare Pervasives.compare xi' xj <> 0 &&
-			      Pattern.subseteq_pat xi' xj) 
-		    then 
-		      acc
-		    else
-		      Pattern.Set.add acc xi') in 
-      Some (xs',x)
-    with Empty_atom ->
+  let check ((xs,x):t) : t option =
+    if Pattern.Set.exists xs (fun xi -> Pattern.subseteq x xi) then
       None
-
-  let seq_atom ((xs1,x1):t) ((xs2,x2):t) : t option =
-    match Pattern.seq_pat x1 x2 with
+    else 
+      let xs' = 
+        Pattern.Set.filter xs
+          ~f:(fun xi -> Pattern.seq x xi <> None) in 
+      Some (xs',x)
+    
+  let seq ((xs1,x1):t) ((xs2,x2):t) : t option =
+    match Pattern.seq x1 x2 with
       | Some x12 ->
-        mk (Pattern.Set.union xs1 xs2, x12)
+        check (Pattern.Set.union xs1 xs2, x12)
       | None ->
         None
 
-  let seq_act_atom ((xs1,x1):t) (a:Action.t) ((xs2,x2):t) : t option =
-    match Pattern.seq_act_pat x1 a x2 with
+  let seq_act (xs1,x1) a (xs2,x2) = 
+    match Pattern.seq_act x1 a x2 with
+      | None -> 
+        None
       | Some x1ax2 ->
         let xs =
-          Pattern.Set.fold xs2 ~init:xs1
+          Pattern.Set.fold xs2 
+            ~init:xs1
             ~f:(fun acc xs2i ->
-              match Pattern.seq_act_pat Pattern.tru a xs2i with
+              match Pattern.seq_act Pattern.tru a xs2i with
                 | Some truaxs2i ->
-                  Pattern.Set.add acc truaxs2i
+                  Pattern.Set.add acc truaxs2i 
                 | None ->
                   acc) in 
-        mk (xs, x1ax2)
-      | None ->
-        None
+        check (xs, x1ax2)  
 
-  let diff_atom ((xs1,x1):t) ((xs2,x2):t) : Set.t =
-    let acc0 =
-      match mk (Pattern.Set.add xs1 x2, x1) with
-        | None ->
-	  Set.empty
-        | Some r ->
-	  Set.singleton r in
-    Pattern.Set.fold xs2 ~init:acc0
-      ~f:(fun acc x2i ->
-        match Pattern.seq_pat x1 x2i with
-	  | None ->
-	    acc
-	  | Some x12i ->
-            begin match mk (xs1, x12i) with
-              | None ->
-		acc
-              | Some ri ->
-		Set.add acc ri
-	    end)
+  let neg (xs,x) : Set.t = 
+    let init = 
+      match check (Pattern.Set.singleton x, Pattern.tru) with 
+        | None -> Set.empty
+        | Some r -> Set.singleton r in 
+    Pattern.Set.fold xs
+      ~init:init
+      ~f:(fun acc xi -> Set.add acc (mk xi))
 end
 
-module Local = struct
-  type t = Action.group Atom.Map.t
+module type OPTIMIZE = sig
+  open NetKAT_Types 
+  val mk_and : pred -> pred -> pred
+  val mk_or : pred -> pred -> pred
+  val mk_not : pred -> pred
+  val mk_filter : pred -> policy
+  val mk_mod : field -> fieldVal -> policy
+  val mk_seq : policy -> policy -> policy
+  val mk_par : policy -> policy -> policy
+  val mk_star : policy -> policy
+  val specialize_pred : switchId -> pred -> pred
+  val specialize_policy : switchId -> policy -> policy
+end
 
-  let to_string (p:t) : string =
-    Atom.Map.fold p ~init:""
-      ~f:(fun ~key:r ~data:g acc ->
-        Printf.sprintf "%s(%s) => %s\n"
-          (if acc = "" then "" else "" ^ acc)
-          (Atom.to_string r) (Action.group_to_string g))
+module Optimize : OPTIMIZE = struct
+  let mk_and pr1 pr2 = 
+    match pr1, pr2 with 
+      | NetKAT_Types.True, _ -> 
+        pr2
+      | _, NetKAT_Types.True -> 
+        pr1
+      | NetKAT_Types.False, _ -> 
+        NetKAT_Types.False
+      | _, NetKAT_Types.False -> 
+        NetKAT_Types.False
+      | _ -> 
+        NetKAT_Types.And(pr1, pr2)
 
-  let extend (r:Atom.t) (g:Action.group) (p:t) : t =
-    match g, Atom.mk r with 
-      | [s],_ when Action.is_drop s -> p
-      | _, None -> 
-	p
-      | _, Some (xs,x) ->
-	if Atom.Map.mem p r then
-          let msg = Printf.sprintf "Local.extend: overlap on atom %s" (Atom.to_string r) in 
-          failwith msg
-        else
-          Atom.Map.add p r g
+  let mk_or pr1 pr2 = 
+    match pr1, pr2 with 
+      | NetKAT_Types.True, _ -> 
+        NetKAT_Types.True
+      | _, NetKAT_Types.True -> 
+        NetKAT_Types.True
+      | NetKAT_Types.False, _ -> 
+        pr2
+      | _, NetKAT_Types.False -> 
+        pr2
+      | _ -> 
+        NetKAT_Types.Or(pr1, pr2)
 
-  let intersect (op:Action.group -> Action.group -> Action.group) (p:t) (q:t) : t =
-    if Atom.Map.is_empty p || Atom.Map.is_empty q then
-      Atom.Map.empty
-    else
-      Atom.Map.fold p ~init:Atom.Map.empty
-        ~f:(fun ~key:r1 ~data:g1 acc ->
-          Atom.Map.fold q ~init:acc 
-            ~f:(fun ~key:r2 ~data:g2 acc ->
-              match Atom.seq_atom r1 r2 with
-                | None ->
-                  acc
-                | Some r1_seq_r2 ->
-                  extend r1_seq_r2 (op g1 g2) acc))  
+  let mk_not pat =
+    match pat with
+      | NetKAT_Types.False -> NetKAT_Types.True
+      | NetKAT_Types.True -> NetKAT_Types.False
+      | _ -> NetKAT_Types.Neg(pat) 
 
-  let difference (p:t) (q:t) : t =
-    if Atom.Map.is_empty q then
-      p
-    else
-      Atom.Map.fold p ~init:Atom.Map.empty
-        ~f:(fun ~key:r1 ~data:g1 acc ->
-          let rs =
-            Atom.Map.fold q ~init:(Atom.Set.singleton r1)
-              ~f:(fun ~key:r2 ~data:_ rs ->
-                Atom.Set.fold rs ~init:Atom.Set.empty
-                  ~f:(fun acc r1i -> Atom.Set.union (Atom.diff_atom r1i r2) acc)) in
-          Atom.Set.fold rs ~init:acc ~f:(fun acc r1i -> extend r1i g1 acc)) 
+  let mk_mod f v = 
+    NetKAT_Types.Mod (NetKAT_Types.Header f,v)
 
-  let rec bin_local (op:Action.group -> Action.group -> Action.group) (p:t) (q:t) : t =
-    if Atom.Map.is_empty p then 
-      q
-    else if Atom.Map.is_empty q then 
-      p 
-    else 
-      let p_inter_q = intersect op p q in
-      let p_only = difference p p_inter_q in
-      let q_only = difference q p_inter_q in
-      let f ~key:r v = 
-        match v with 
-          | `Left v1 -> Some v1
-          | `Right v2 -> Some v2
-          | `Both (v1,v2) -> 
-            failwith (Printf.sprintf "Local.bin_local: overlap on %s in bin_local" (Atom.to_string r)) in 
-      let r = Atom.Map.merge ~f:f p_inter_q (Atom.Map.merge ~f:f p_only q_only) in 
-      r  
+  let mk_filter pr = 
+    NetKAT_Types.Filter (pr)
 
-  let par_local (p:t) (q:t) : t =
-    (* Printf.printf "### PAR [%d %d] ###\n%!" (Atom.Map.cardinal p) (Atom.Map.cardinal q); *)
-    let r = bin_local Action.group_crossproduct p q in
-      (* Printf.printf *)
-      (* 	"PAR_LOCAL\n%s\n%s\n%s\n\n%!" *)
-      (* 	(to_string p) (to_string q) (to_string r); *)
-    r  
+  let mk_par pol1 pol2 = 
+    match pol1, pol2 with
+      | NetKAT_Types.Filter NetKAT_Types.False, _ -> 
+        pol2
+      | _, NetKAT_Types.Filter NetKAT_Types.False -> 
+        pol1
+      | _ -> 
+        NetKAT_Types.Union(pol1,pol2) 
 
-  let choice_local (p:t) (q:t) : t =
-    (* Printf.printf "### CHOICE [%d %d] ###\n%!" (Atom.Map.cardinal p) (Atom.Map.cardinal q); *)
-    let r = bin_local Action.group_union p q in
-      (* Printf.printf *)
-      (* 	"CHOICE_LOCAL\n%s\n%s\n%s\n\n%!" *)
-      (* 	(to_string p) (to_string q) (to_string r); *)
-    r
+  let mk_seq pol1 pol2 =
+    match pol1, pol2 with
+      | NetKAT_Types.Filter NetKAT_Types.True, _ -> 
+        pol2
+      | _, NetKAT_Types.Filter NetKAT_Types.True -> 
+        pol1
+      | NetKAT_Types.Filter NetKAT_Types.False, _ -> 
+        pol1
+      | _, NetKAT_Types.Filter NetKAT_Types.False -> 
+        pol2
+      | _ -> 
+        NetKAT_Types.Seq(pol1,pol2) 
 
-  let cross_merge ~key:_ v =
-    match v with 
-      | `Left g1 -> Some g1
-      | `Right g2 -> Some g2
-      | `Both (g1,g2) -> Some (Action.group_crossproduct g1 g2)
+  let mk_choice pol1 pol2 =
+    match pol1, pol2 with
+      | _ -> NetKAT_Types.Choice(pol1,pol2) 
 
-  let union_merge ~key:_ v = 
-    match v with 
-      | `Left g1 -> Some g1
-      | `Right g2 -> Some g2
-      | `Both (g1,g2) -> Some (Action.group_union g1 g2)
-      
-  let seq_atom_acts_local (r1:Atom.t) (s1:Action.Set.t) (q:t) : t =
-    let seq_act (a:Action.t) : t =
-      Atom.Map.fold q ~init:Atom.Map.empty
-        ~f:(fun ~key:r2 ~data:g2 acc ->
-          match Atom.seq_act_atom r1 a r2 with
-            | None ->
-              acc
-            | Some r12 ->
-              extend r12 (Action.seq_group a g2) acc) in 
-    Action.Set.fold
-      s1 
-      ~f:(fun acc a -> Atom.Map.merge ~f:cross_merge acc (seq_act a))
-      ~init:Atom.Map.empty
-	  
-  let seq_local (p:t) (q:t) : t =
-    (* Printf.printf "### SEQ [%d %d] ###\n%!" (Atom.Map.cardinal p) (Atom.Map.cardinal q); *)
-    let r =
-      Atom.Map.fold p ~init:Atom.Map.empty
-        ~f:(fun ~key:r1 ~data:g1 acc ->
-	  List.fold g1 ~init:acc
-            ~f:(fun acc si -> 
-	      Atom.Map.merge ~f:union_merge acc (seq_atom_acts_local r1 si q))) in 
-      (* Printf.printf *)
-      (* 	"SEQ_LOCAL\n%s\n%s\n%s\n\n%!" *)
-      (* 	(to_string p) (to_string q) (to_string r); *)
-    r
-
-  (* precondition: t is a predicate *)
-  let negate (p:t) : t =
-    let rs = 
-      Atom.Map.fold p ~init:(Atom.Set.singleton Atom.tru)
-        ~f:(fun ~key:r ~data:g acc ->
-	  Atom.Set.fold acc ~init:Atom.Set.empty
-	    ~f:(fun acc ri -> Atom.Set.union (Atom.diff_atom ri r) acc)) in 
-    Atom.Set.fold rs ~init:Atom.Map.empty
-      ~f:(fun acc ri -> extend ri [Action.id] acc) 
-
-  let rec of_pred (sw:SDN_Types.switchId) (pr:NetKAT_Types.pred) : t =
+  let mk_star pol = 
+    match pol with 
+      | NetKAT_Types.Filter NetKAT_Types.True -> 
+        pol
+      | NetKAT_Types.Filter NetKAT_Types.False -> 
+        NetKAT_Types.Filter NetKAT_Types.True
+      | NetKAT_Types.Star(pol1) -> pol
+      | _ -> NetKAT_Types.Star(pol)
+  
+  let specialize_pred sw pr = 
     let rec loop pr k = 
       match pr with
-      | NetKAT_Types.True ->
-        k (Atom.Map.singleton Atom.tru [Action.id])
-      | NetKAT_Types.False ->
-        k (Atom.Map.empty)
-      | NetKAT_Types.Neg pr ->
-        loop pr (fun p -> k (negate p))
-      | NetKAT_Types.Test (NetKAT_Types.Switch, v) ->
-        if v = VInt.Int64 sw then
-          loop NetKAT_Types.True k
-        else
-          loop NetKAT_Types.False k
-      | NetKAT_Types.Test (h, v) ->
-        let p = NetKAT_Types.HeaderMap.singleton h v in
-        k (Atom.Map.singleton (Pattern.Set.empty, p) [Action.id])
-      | NetKAT_Types.And (pr1, pr2) ->
-        loop pr1 (fun p1 -> loop pr2 (fun p2 -> k (seq_local p1 p2)))
-      | NetKAT_Types.Or (pr1, pr2) ->
-        loop pr1 (fun p1 -> loop pr2 (fun p2 -> k (par_local p1 p2))) in 
+        | NetKAT_Types.True ->
+          k pr
+        | NetKAT_Types.False ->
+          k pr
+        | NetKAT_Types.Neg pr1 ->
+          loop pr1 (fun pr -> k (mk_not pr))
+        | NetKAT_Types.Test (NetKAT_Types.Switch, v) ->
+          if v = VInt.Int64 sw then 
+            k NetKAT_Types.True
+          else
+            k NetKAT_Types.False
+        | NetKAT_Types.Test (h, v) ->
+          k pr
+        | NetKAT_Types.And (pr1, pr2) ->
+          loop pr1 (fun p1 -> loop pr2 (fun p2 -> k (mk_and p1 p2)))
+        | NetKAT_Types.Or (pr1, pr2) ->
+          loop pr1 (fun p1 -> loop pr2 (fun p2 -> k (mk_or p1 p2))) in 
     loop pr (fun x -> x)
 
-  let star_local (p:t) : t =
-    (* Printf.printf "### STAR [%d] ###\n%!" (Atom.Map.cardinal p); *)
+  let specialize_policy sw pol = 
+    let rec loop pol k = 
+      match pol with  
+        | NetKAT_Types.Filter pr ->
+          k (NetKAT_Types.Filter (specialize_pred sw pr))
+        | NetKAT_Types.Mod (h, v) ->
+          k pol 
+        | NetKAT_Types.Union (pol1, pol2) ->
+          loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (mk_par p1 p2)))
+        | NetKAT_Types.Choice (pol1, pol2) ->
+          loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (mk_choice p1 p2)))
+        | NetKAT_Types.Seq (pol1, pol2) ->
+          loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (mk_seq p1 p2)))
+        | NetKAT_Types.Star pol ->
+          loop pol (fun p -> k (mk_star p))
+        | NetKAT_Types.Link(sw,pt,sw',pt') ->
+	  failwith "Not a local policy" in 
+    loop pol (fun x -> x) 
+end
+
+module type LOCAL = sig
+  type t = Action.group Atom.Map.t
+  val to_string : t -> string
+  val of_pred : NetKAT_Types.pred -> t
+  val of_policy : NetKAT_Types.policy -> t
+  val to_netkat : t -> NetKAT_Types.policy
+end 
+
+module Local : LOCAL = struct
+
+  type t = Action.group Atom.Map.t
+
+  let compare p q = 
+    Atom.Map.compare Action.group_compare p q
+      
+  let to_string (m:t) : string = 
+    Printf.sprintf "%s"
+      (Atom.Map.fold m 
+         ~init:""
+         ~f:(fun ~key:r ~data:g acc ->
+             Printf.sprintf "%s(%s) => %s\n"
+               acc
+               (Atom.to_string r) 
+               (Action.group_to_string g)))
+
+  let extend (r:Atom.t) (g:Action.group) (m:t) : t = 
+    if Atom.Map.mem m r then
+      begin 
+        Printf.printf "OVERLAP\nM=\n%s\nR=\n%s\n"
+          (to_string m)
+          (Atom.to_string r);
+        failwith "Local.extend: overlap"
+      end
+    else
+      Atom.Map.add m r g
+
+  let intersect (op:Action.group -> Action.group -> Action.group) (p:t) (q:t) : t = 
+    Atom.Map.fold p
+      ~init:Atom.Map.empty
+      ~f:(fun ~key:r1 ~data:g1 acc ->
+        Atom.Map.fold q
+          ~init:acc
+          ~f:(fun ~key:r2 ~data:g2 acc ->
+            match Atom.seq r1 r2 with 
+              | None -> 
+                acc
+              | Some r1_r2 -> 
+                extend r1_r2 (op g1 g2) acc))  
+    
+  let par p q = 
+    let r = intersect Action.group_cross p q in 
+    (* debug "### PAR ###\n%s\n%s\n%s" *)
+    (*   (to_string p) *)
+    (*   (to_string q) *)
+    (*   (to_string r); *)
+    r
+      
+  let choice p q = 
+    let r = intersect Action.group_union p q in 
+    (* debug "### CHOICE ###\n%s\n%s\n%s" *)
+    (*   (to_string p) *)
+    (*   (to_string q) *)
+    (*   (to_string r); *)
+    r
+
+  let seq p q = 
+    let cross_merge ~key:_ v =
+      match v with 
+        | `Left g1 -> Some g1
+        | `Right g2 -> Some g2
+        | `Both (g1,g2) -> Some (Action.group_cross g1 g2) in 
+          
+    let union_merge ~key:_ v = 
+      match v with 
+        | `Left g1 -> Some g1
+        | `Right g2 -> Some g2
+        | `Both (g1,g2) -> Some (Action.group_union g1 g2) in 
+
+    let seq_act r1 a q = 
+      Atom.Map.fold q 
+        ~init:Atom.Map.empty 
+        ~f:(fun ~key:r2 ~data:g2 acc -> 
+          match Atom.seq_act r1 a r2 with
+            | None -> 
+              acc
+            | Some r12 -> 
+              extend r12 (Action.group_seq a g2) acc) in
+    
+    let seq_atom_acts_local r1 s1 q = 
+      if Action.Set.is_empty s1 then 
+        Atom.Map.singleton r1 (Action.group_mk s1)
+      else
+        Action.Set.fold s1
+          ~init:Atom.Map.empty
+          ~f:(fun acc a -> 
+            let acc' = seq_act r1 a q in 
+            Atom.Map.merge ~f:cross_merge acc acc') in 
+    
+    let r = 
+      Atom.Map.fold p 
+        ~init:Atom.Map.empty
+        ~f:(fun ~key:r1 ~data:g1 acc -> 
+          List.fold g1
+            ~init:acc
+            ~f:(fun acc si -> 
+              let acc' = seq_atom_acts_local r1 si q in 
+              Atom.Map.merge ~f:union_merge acc acc')) in 
+    (* debug "### SEQ ###\n%s\n%s\n%s" *)
+    (*   (to_string p) *)
+    (*   (to_string q) *)
+    (*   (to_string r); *)
+    r
+        
+  let neg (p:t) : t= 
+    let r =
+      Atom.Map.map p 
+        ~f:(fun g -> 
+          if Action.group_is_drop g then Action.group_id 
+          else if Action.group_is_id g then Action.group_drop
+          else failwith "neg: not a predicate") in 
+    (* debug "### NEGATE ###\n%s\n%s" *)
+    (*   (to_string p) *)
+    (*   (to_string r); *)
+    r
+
+  let star p = 
     let rec loop acc pi =
-      (* Printf.printf "### STAR LOOP ###\n%!"; *)
-      let psucci = seq_local p pi in
-      let acc' = par_local acc psucci in
-      if Atom.Map.compare Action.group_compare acc acc' = 0 then
+      let psucci = seq p pi in
+      let acc' = par acc psucci in
+      if compare acc acc' = 0 then
         acc
       else
         loop acc' psucci in
-    let p0 = Atom.Map.singleton Atom.tru [Action.id] in
+    let p0 = Atom.Map.singleton Atom.tru Action.group_id in
     let r = loop p0 p0 in 
-    (* Printf.printf *)
-    (*   "STAR_LOCAL\n%s\n%s\n\n%!" *)
-    (*   	(to_string p) (to_string r); *)
+    (* debug "### STAR ###\n%s\n%s" *)
+    (*   (to_string p) *)
+    (*   (to_string r); *)
     r
 
+  let rec of_pred (pr:NetKAT_Types.pred) : t =
+    let rec loop pr k = 
+      match pr with
+      | NetKAT_Types.True ->
+        k (Atom.Map.singleton Atom.tru Action.group_id) 
+      | NetKAT_Types.False ->
+        k (Atom.Map.singleton Atom.tru Action.group_drop) 
+      | NetKAT_Types.Neg pr ->
+        loop pr (fun (p:t) -> k (neg p))
+      | NetKAT_Types.Test (NetKAT_Types.Switch, v) ->
+        failwith "Not a local policy"
+      | NetKAT_Types.Test (NetKAT_Types.Header f, v) ->
+        let r = Atom.mk (Pattern.mk f v) in 
+        let m = 
+          Atom.Set.fold (Atom.neg r)
+            ~init:(Atom.Map.singleton r Action.group_id)
+            ~f:(fun acc r -> extend r Action.group_drop acc) in
+        k m
+      | NetKAT_Types.And (pr1, pr2) ->
+        loop pr1 (fun p1 -> loop pr2 (fun p2 -> k (seq p1 p2)))
+      | NetKAT_Types.Or (pr1, pr2) ->
+        loop pr1 (fun p1 -> loop pr2 (fun p2 -> k (par p1 p2))) in 
+    loop pr (fun x -> x)
 
-  let of_policy (sw:SDN_Types.switchId) (pol:NetKAT_Types.policy) : t =
+  let of_policy (pol:NetKAT_Types.policy) : t =
     let rec loop pol k =  
       match pol with
         | NetKAT_Types.Filter pr ->
-          k (of_pred sw pr)
-        | NetKAT_Types.Mod (h, v) ->
-          k (Atom.Map.singleton Atom.tru [Action.Set.singleton (NetKAT_Types.HeaderMap.singleton h v)])
+          k (of_pred pr)
+        | NetKAT_Types.Mod (NetKAT_Types.Switch, v) ->
+          failwith "Not a local policy"
+        | NetKAT_Types.Mod (NetKAT_Types.Header f, v) -> 
+          let a = Action.mk f v in 
+          let g = Action.group_mk (Action.Set.singleton a) in 
+          let m = Atom.Map.singleton Atom.tru g in 
+          k m
         | NetKAT_Types.Union (pol1, pol2) ->
-          loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (par_local p1 p2)))
+          loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (par p1 p2)))
         | NetKAT_Types.Choice (pol1, pol2) ->
-          loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (choice_local p1 p2)))
+          loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (choice p1 p2)))
         | NetKAT_Types.Seq (pol1, pol2) ->
-          loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (seq_local p1 p2)))
+          loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (seq p1 p2)))
         | NetKAT_Types.Star pol ->
-          loop pol (fun p -> k (star_local p))
+          loop pol (fun p -> k (star p))
         | NetKAT_Types.Link(sw,pt,sw',pt') ->
-          failwith "Not a local policy" in 
-    loop pol (fun x -> 
-      (* Printf.printf "### DONE ###\n%!";  *)
-      x)
+	  failwith "Not a local policy" in 
+    loop pol (fun p -> p)
 
-  let to_netkat (p:t) : NetKAT_Types.policy =
-    (* "smart" constructors *)
-    let mk_par nc1 nc2 =
-      match nc1, nc2 with
-        | NetKAT_Types.Filter NetKAT_Types.False, _ -> nc2
-        | _, NetKAT_Types.Filter NetKAT_Types.False -> nc1
-        | _ -> NetKAT_Types.Union(nc1,nc2) in
-    let mk_seq nc1 nc2 =
-      match nc1, nc2 with
-        | NetKAT_Types.Filter NetKAT_Types.True, _ -> nc2
-        | _, NetKAT_Types.Filter NetKAT_Types.True -> nc1
-        | NetKAT_Types.Filter NetKAT_Types.False, _ -> nc1
-        | _, NetKAT_Types.Filter NetKAT_Types.False -> nc2
-        | _ -> NetKAT_Types.Seq(nc1,nc2) in
-    let mk_and pat1 pat2 =
-      match pat1,pat2 with
-        | NetKAT_Types.False,_ -> pat1
-        | _,NetKAT_Types.False -> pat2
-        | NetKAT_Types.True,_ -> pat2
-        | _,NetKAT_Types.True -> pat1
-        | _ -> NetKAT_Types.And(pat1,pat2) in
-    let mk_not pat =
-      match pat with
-        | NetKAT_Types.False -> NetKAT_Types.True
-        | NetKAT_Types.True -> NetKAT_Types.False
-        | _ -> NetKAT_Types.Neg(pat) in
-    let rec loop p =
-      match Atom.Map.min_elt p with 
-        | None -> 
-          NetKAT_Types.(Filter False)
-        | Some (r,g) -> 
-          let p' = Atom.Map.remove p r in
-          let _ = assert (not (Atom.Map.equal Action.group_equal p p')) in 
-          let (xs,x) = r in
-          let nc_pred = mk_and (mk_not (Pattern.set_to_netkat xs)) (Pattern.to_netkat x) in
-          let nc_pred_acts = mk_seq (NetKAT_Types.Filter nc_pred) (Action.group_to_netkat g) in
-          mk_par nc_pred_acts  (loop p') in
-    loop p
+  let to_netkat (m:t) : NetKAT_Types.policy =
+    let open Optimize in 
+    let rec loop m =
+    match Atom.Map.min_elt m with 
+      | None -> 
+        NetKAT_Types.Filter NetKAT_Types.False
+      | Some (r,g) -> 
+        let m' = Atom.Map.remove m r in
+        let (xs,x) = r in
+        let nc_pred = mk_and (mk_not (Pattern.set_to_netkat xs)) (Pattern.to_netkat x) in
+        let nc_pred_acts = mk_seq (NetKAT_Types.Filter nc_pred) (Action.group_to_netkat g) in
+        mk_par nc_pred_acts  (loop m') in
+    loop m
 end
 
 module RunTime = struct
 
-  let to_action (a:Action.t) (pto: VInt.t option) : SDN_Types.seq =
+  let to_action (a:Action.t) (pto: fieldVal option) : seq =
     let port = 
-      try 
-        NetKAT_Types.HeaderMap.find (NetKAT_Types.Header SDN_Types.InPort) a 
-      with Not_found -> 
-        begin match pto with 
-          | Some pt -> pt
-          | None -> raise (Invalid_argument "Action.to_action: indeterminate port")
-        end in 
-    let mods = NetKAT_Types.HeaderMap.remove (NetKAT_Types.Header SDN_Types.InPort) a in
-    let mk_mod h v act =
-      match h with
-        | NetKAT_Types.Switch -> 
-	  raise (Invalid_argument "Action.to_action: got switch update")
-        | NetKAT_Types.Header h' -> 
-	  (SDN_Types.SetField (h', v)) :: act in
-      NetKAT_Types.HeaderMap.fold mk_mod mods [SDN_Types.OutputPort port]  
+      match List.Assoc.find a InPort, pto with 
+        | None, None -> 
+          failwith "indeterminate port"
+        | Some pt,_ -> pt
+        | _, Some pt -> pt in 
+    let mods = List.Assoc.remove a InPort in 
+    let mk_mod act (f, v) = SetField(f,v)::act in 
+    List.fold mods ~init:[OutputPort port] ~f:mk_mod
 
-  let set_to_action (s:Action.Set.t) (pto : VInt.t option) : SDN_Types.par =
+  let set_to_action (s:Action.Set.t) (pto : fieldVal option) : par =
     let f par a = (to_action a pto)::par in
     Action.Set.fold s ~f:f ~init:[]
 
-  let group_to_action (g:Action.group) (pto:VInt.t option) : SDN_Types.group =
-    List.map g ~f:(fun s -> set_to_action s pto) 
+  let group_to_action (g:Action.group) (pto:fieldVal option) : group =
+    List.map g ~f:(fun s -> set_to_action s pto)
 
-  let to_pattern (x:Pattern.t) : SDN_Types.pattern =
-    let f (h : NetKAT_Types.header) (v : NetKAT_Types.header_val) (pat : SDN_Types.pattern) =
-      match h with
-        | NetKAT_Types.Switch -> 
-          raise (Invalid_argument "RunTime.to_pattern: unexpected switch")
-        | NetKAT_Types.Header h' -> SDN_Types.FieldMap.add h' v pat in
-    NetKAT_Types.HeaderMap.fold f x SDN_Types.FieldMap.empty
-
+  let to_pattern (x:Pattern.t) : pattern =
+    List.fold x 
+      ~init:SDN_Types.FieldMap.empty
+      ~f:(fun acc (f,v) -> SDN_Types.FieldMap.add f v acc)
+      
   type i = Local.t
 
-  let compile (sw:SDN_Types.switchId) (pol: NetKAT_Types.policy) : i =
-    let r = Local.of_policy sw pol in 
-    (* Printf.printf "COMPILE\n%s\n%s\n%!" *)
-    (*   (NetKAT_Pretty.string_of_policy pol) *)
-    (*   (Local.to_string r); *)
-    r
+  let compile (sw:switchId) (pol:NetKAT_Types.policy) : i =
+    let pol' = Optimize.specialize_policy sw pol in 
+    let n,n' = Semantics.size pol, Semantics.size pol' in 
+    Printf.printf " [compression: %d -> %d = %.3f] " 
+      n n' (Float.of_int n' /. Float.of_int n);
+    Local.of_policy pol'
 
   let decompile (p:i) : NetKAT_Types.policy =
     Local.to_netkat p
 
-  let simpl_flow (p : SDN_Types.pattern) (a : SDN_Types.group) : SDN_Types.flow = {
-    SDN_Types.pattern = p;
-    SDN_Types.action = a;
-    SDN_Types.cookie = 0L;
-    SDN_Types.idle_timeout = SDN_Types.Permanent;
-    SDN_Types.hard_timeout = SDN_Types.Permanent
-  }
+  let simpl_flow (p : pattern) (a : group) : flow =
+    { pattern = p;
+      action = a;
+      cookie = 0L;
+      idle_timeout = Permanent;
+      hard_timeout = Permanent }
 
   (* Prunes out rules that apply to other switches. *)
-  let to_table (p:i) : SDN_Types.flowTable =
+  let to_table (m:i) : flowTable =
+    let dm = 
+      Atom.Map.fold m
+        ~init:Atom.DepMap.empty
+        ~f:(fun ~key:r ~data:g acc -> Atom.DepMap.add acc r g) in 
     let add_flow x g l =
-      let pto = 
-        try 
-          Some (NetKAT_Types.HeaderMap.find (NetKAT_Types.Header SDN_Types.InPort) x) 
-        with Not_found -> 
-          None in 
-      simpl_flow (to_pattern x) (group_to_action g pto) :: l in
-    Printf.printf "\nLOOP\n%s\n\n%!" (Local.to_string p);
-    let rec loop (p:i) acc cover =
-      match Atom.Map.min_elt p with 
+      let pat = to_pattern x in 
+      let act = group_to_action g (List.Assoc.find x InPort) in 
+      simpl_flow pat act::l in
+    let rec loop dm acc cover =
+      match Atom.DepMap.min_elt dm with 
         | None -> 
           acc 
         | Some (r,g) -> 
-          (* let _ = Printf.printf "R => G\n   %s => %s\n" (Atom.to_string r) (Action.group_to_string g) in *)
           let (xs,x) = r in
-          assert (not (Pattern.Set.mem cover x));
-          let p' = Atom.Map.remove p r in
-          let ys = Pattern.Set.fold
-            xs ~init:Pattern.Set.empty
-            ~f:(fun acc xi -> 
-              match Pattern.seq_pat xi x with 
-              | None -> acc
-              | Some xi_x -> Pattern.Set.add acc xi_x) in 
-        let zs = 
-          Pattern.Set.fold ys ~init:Pattern.Set.empty
-            ~f:(fun acc yi -> 
-              if Pattern.Set.exists cover ~f:(Pattern.subseteq_pat yi) then 
-                acc
-              else
-                Pattern.Set.add acc yi) in 
-        let acc' = Pattern.Set.fold zs ~init:acc ~f:(fun acc x -> add_flow x [Action.drop] acc) in
-        let acc'' = add_flow x g acc' in
-        let cover' = Pattern.Set.add (Pattern.Set.union zs cover) x in
-        assert (not (Atom.Map.equal Action.group_equal p p'));
-        if Pattern.Set.is_empty ys then
-          ()
-        else
-          (Printf.printf "COVR %s\n" (Pattern.set_to_string ys);
-           Printf.printf "EMIT %s => %s\n" (Pattern.to_string x) (Action.group_to_string g));
-        loop p' acc'' cover' in
-    List.rev (loop p [] Pattern.Set.empty)
+          let dm' = Atom.DepMap.remove dm r in
+          let ys = 
+            Pattern.Set.fold
+              xs ~init:Pattern.Set.empty
+              ~f:(fun acc xi -> 
+                match Pattern.seq xi x with 
+                  | None -> acc
+                  | Some xi_x -> Pattern.Set.add acc xi_x) in 
+          let zs = 
+            Pattern.Set.fold ys 
+              ~init:Pattern.Set.empty
+              ~f:(fun acc yi -> 
+                if Pattern.Set.exists cover ~f:(Pattern.subseteq yi) then 
+                  acc
+                else
+                  Pattern.Set.add acc yi) in 
+          let acc' = 
+            Pattern.Set.fold zs 
+              ~init:acc 
+              ~f:(fun acc x -> add_flow x Action.group_drop acc) in
+          let acc'' = add_flow x g acc' in
+          let cover' = Pattern.Set.add (Pattern.Set.union zs cover) x in
+          loop dm' acc'' cover' in
+    List.rev (loop dm [] Pattern.Set.empty)
 end
 
 (* exports *)
 type t = RunTime.i
 
-let of_policy = Local.of_policy
-let to_netkat = Local.to_netkat
-let compile = RunTime.compile
-let decompile = RunTime.decompile
-let to_table = RunTime.to_table
+let of_policy sw pol = 
+  Local.of_policy (Optimize.specialize_policy sw pol)
+
+let to_netkat = 
+  Local.to_netkat
+
+let compile = 
+  RunTime.compile
+
+let decompile = 
+  RunTime.decompile
+
+let to_table = 
+  RunTime.to_table

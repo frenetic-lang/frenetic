@@ -78,7 +78,7 @@ let rec eval (pkt : packet) (pol : policy) : PacketSetSet.t = match pol with
             let pkt' = 
 	      { pkt with 
 		headers = 
-          HeaderMap.add Switch (VInt.Int64 sw')
+                  HeaderMap.add Switch (VInt.Int64 sw')
 		    (HeaderMap.add (Header SDN_Types.InPort) pt' 
 		       pkt.headers) } in 	
             PacketSetSet.singleton (PacketSet.singleton pkt')
