@@ -26,7 +26,9 @@ val next_hop : t -> V.t -> Node.portId -> V.t
   (* Utility functions *)
 val spanningtree : t -> G.t
 val shortest_path : t -> V.t -> V.t -> E.t list
-(* val shortest_path_v : t -> V.t -> V.t -> V.t list *)
+val all_shortest_paths : t -> Node.t
+  -> (int64 Node.NodeHash.t * Node.t Node.NodeHash.t)
+
 val stitch : E.t list -> (Node.portId option * V.t * Node.portId option) list
 val floyd_warshall : t -> ((V.t * V.t) * V.t list) list
 val to_dot : t -> string

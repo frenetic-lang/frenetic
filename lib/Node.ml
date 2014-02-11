@@ -58,3 +58,9 @@ let to_dot n idtbl = let attr = NodeHash.find idtbl n in attr.name
 let to_string = to_dot
 
 let id_of_switch n idtbl = let attr = NodeHash.find idtbl n in attr.dev_id
+
+let visited n = n.visited
+
+let visit n = n.visited <- true
+
+let leave n = n.visited <- false

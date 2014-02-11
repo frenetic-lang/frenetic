@@ -33,6 +33,7 @@ module Dij = Path.Dijkstra(G)(Weight)
 
 exception NotFound of string
 exception NoPath of string * string
+exception NegativeCycle of E.t list
 
 type t = G.t * attr_tbl
 
@@ -158,37 +159,64 @@ let next_hop ((g,t):t) (n:Node.t) (p:portId) : Node.t =
 let shortest_path ((g,_):t) (src:Node.t) (dst:Node.t) : E.t list =
   let ret,_ = Dij.shortest_path g src dst in ret
 
-(* let shortest_path_v (g:t) (src:t) (dst:t) : V.t list = *)
-(*   let visited = Hashtbl.create (nb_vertex g) in *)
-(*   let previous =  Hashtbl.create (nb_vertex g) in *)
-(*   let queue = Core.Std.Heap.create (fun (v,d) (v,d') -> compare d d') () in *)
-(*   Core.Std.Heap.add queue (src,0); *)
-
-(*   let rec mk_path current = *)
-(*     if current = src then [src] else *)
-(*       let prev = Hashtbl.find previous current in *)
-(*       current::(mk_path prev) in *)
-
-(*   let rec loop (current,distance) = *)
-(*     if current = dst then () *)
-(*     else begin *)
-(*       iter_succ (fun next -> *)
-(*         if Hashtbl.mem visited next then () *)
-(*         else *)
-(*           let next_dist = distance + 1 in *)
-(*           Hashtbl.replace previous next current; *)
-(*           Core.Std.Heap.add queue (next,next_dist) *)
-(*       ) g current; *)
-(*       Hashtbl.replace visited current 0; *)
-(*       loop (Core.Std.Heap.pop_exn queue) end in *)
-(*   loop (Core.Std.Heap.pop_exn queue); *)
-(*   mk_path dst *)
-
-
-  (*  let shortest_path (g:t) (src:t) (dst:t) : E.t list =
-      let p,_ = Dij.shortest_path g src dst in
-      if p = [] then raise (NoPath(to_string src, to_string dst))
-      else p *)
+(* Implementation of Bellman-Ford algorithm, based on that in ocamlgraph's Path
+   library. Returns two hashtables: first maps each node to its distance from
+   the source, second maps each node to its predecessor in the path *)
+let all_shortest_paths ((g,t):t) (vs:Node.t)
+    : (int64 NodeHash.t * Node.t NodeHash.t) =
+  let size = G.nb_vertex g in
+  let dist = NH.create size in
+  let prev = NH.create size in
+  let admissible = NH.create size in
+  NH.replace dist vs Weight.zero;
+  let build_cycle_from x0 =
+    let rec traverse_parent x ret =
+      let e = NH.find admissible x in
+      let s = Link.src e in
+      if Node.equal s x0 then e :: ret else traverse_parent s (e :: ret)
+    in
+    traverse_parent x0 []
+  in
+  let find_cycle x0 =
+    let rec visit x =
+      if Node.visited x then
+        build_cycle_from x
+      else begin
+        Node.visit x;
+        let e = NH.find admissible x in
+        visit (Link.src e)
+      end
+    in
+    visit x0
+  in
+  let rec relax i =
+    let update = G.fold_edges_e
+      (fun e x ->
+        let ev1 = Link.src e in
+        let ev2 = Link.dst e in
+        try begin
+          let dev1 = NH.find dist ev1 in
+          let dev2 = Weight.add dev1 (Weight.weight (Link.label e)) in
+          let improvement =
+            try Weight.compare dev2 (NH.find dist ev2) < 0
+            with Not_found -> true
+          in
+          if improvement then begin
+            NH.replace prev ev2 ev1;
+            NH.replace dist ev2 dev2;
+            NH.replace admissible ev2 e;
+            Some ev2
+          end else x
+        end with Not_found -> x) g None in
+    match update with
+      | Some x ->
+        if i == G.nb_vertex g then raise (NegativeCycle (find_cycle x))
+        else relax (i + 1)
+      | None -> dist,prev
+  in
+  let r = relax 0 in
+  G.iter_vertex Node.leave g;
+  r
 
 let stitch (path:E.t list) : (portId option * Node.t * portId option) list =
   let hops = List.fold_left (fun acc e -> match acc with

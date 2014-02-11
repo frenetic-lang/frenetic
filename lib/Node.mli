@@ -1,8 +1,5 @@
 open Packet
 
-type t
-type label = t
-
 type switchId = int64
 type portId = int64
 
@@ -24,6 +21,9 @@ type node_record = {
   id : int
 }
 
+type t
+type label = t
+
 module NodeHash : Hashtbl.S with type key = t
 
 type attr_tbl = attributes NodeHash.t
@@ -34,5 +34,8 @@ val equal : t -> t -> bool
 val compare : t -> t -> int
 val to_dot : t -> attr_tbl -> string
 val to_string : t -> attr_tbl ->  string
+val visited : t -> bool
+val visit : t -> unit
+val leave : t -> unit
 
 val id_of_switch : t -> attr_tbl -> switchId
