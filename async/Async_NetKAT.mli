@@ -17,6 +17,8 @@ val create : ?pipes:PipeSet.t -> policy -> handler -> app
 val create_static : policy -> app
 val create_from_file : string -> app
 
+val default : app -> policy
+
 val run : app -> Topology.t -> event -> result Deferred.t
 
 val union : app -> app -> app

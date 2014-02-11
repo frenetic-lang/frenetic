@@ -33,6 +33,9 @@ let create_from_file (filename : string) : app =
     NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan)) in
   create_static pol
 
+let default (a : app) : policy =
+  a.default
+
 let run (a : app) (t : Topology.t) (e : event) : result Deferred.t =
   match e with
     | PacketIn(p, _, _, _, _, _) when not (PipeSet.mem a.pipes p) ->

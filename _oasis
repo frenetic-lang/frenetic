@@ -64,7 +64,7 @@ Library async
     sexplib.syntax
   Modules:
     Async_NetKAT,
-    Async_Controller
+    Async_NetKAT_Controller
 
 Library quickcheck
   Findlibparent: netcore
