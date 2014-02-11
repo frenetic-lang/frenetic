@@ -23,7 +23,6 @@ let size (pol:policy) : int =
       | Filter pr -> f (size_pred pr + 1)
       | Mod(_,_) -> f 3
       | Union(pol1, pol2)        
-      | Par(pol1, pol2)
       | Seq(pol1, pol2) -> size pol1 (fun spol1 -> size pol2 (fun spol2 -> f (1 + spol1 + spol2)))
       | Star(pol) -> size pol (fun spol -> f (1 + spol))
       | Link(_,_,_,_) -> f 5 in

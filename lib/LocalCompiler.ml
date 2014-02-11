@@ -171,7 +171,7 @@ module Action = struct
       | [s] ->
         set_to_netkat s
       | s::g' ->
-        let f pol' s = NetKAT_Types.Par (pol', set_to_netkat s) in
+        let f pol' s = NetKAT_Types.Union (pol', set_to_netkat s) in
         List.fold g' ~init:(set_to_netkat s) ~f:f
 end
 
