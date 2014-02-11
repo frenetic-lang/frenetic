@@ -53,6 +53,7 @@ Library async
   BuildDepends:
     async,
     openflow,
+    topology,
     cstruct.async,
     threads,
     textutils,
@@ -65,7 +66,8 @@ Library async
     Async_OpenFlow0x01,
     Async_OpenFlow0x04,
     Async_OpenFlowChunk,
-    Async_Highlevel
+    Async_Highlevel,
+    Nib
   Modules:
     Async_OpenFlow
 
@@ -127,6 +129,20 @@ Executable Hypervisor
 Executable learning_switch
   Path: examples
   MainIs: Learning_Switch.ml
+  Build$: flag(async)
+  Install: false
+  BuildDepends:
+    threads,
+    core,
+    async,
+    packet,
+    cstruct.async,
+    openflow,
+    openflow.async
+
+Executable topology
+  Path: examples
+  MainIs: Topology.ml
   Build$: flag(async)
   Install: false
   BuildDepends:

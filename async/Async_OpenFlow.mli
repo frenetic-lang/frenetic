@@ -1,6 +1,7 @@
 open Core.Std
 open Async.Std
 
+
 (** By default, displays untagged info messages on stderr. *)
 module Log : sig
 
@@ -54,7 +55,7 @@ module Platform : sig
 
     val close : t -> Client_id.t -> unit
 
-    val has_switch_id : t -> Client_id.t -> bool
+    val has_client_id : t -> Client_id.t -> bool
 
     val send
       :  t
@@ -76,7 +77,7 @@ module Platform : sig
   module Make(Message : Message) : S with type m = Message.t
 
   module Trans : sig
-    type ('t, 'a, 'b) stage = 't -> 'a -> 'b option Deferred.t
+    type ('t, 'a, 'b) stage = 't -> 'a -> 'b list Deferred.t
 
     val compose : ('t, 'b, 'c) stage -> ('t, 'a, 'b) stage -> ('t, 'a, 'c) stage
     val (>=>) : ('t, 'a, 'b) stage -> ('t, 'b, 'c) stage -> ('t, 'a, 'c) stage
@@ -138,6 +139,7 @@ module Chunk : sig
 end
 
 module OpenFlow0x01 : sig
+  open Topology
 
   module Message : Message
     with type t = (OpenFlow_Header.xid * OpenFlow0x01.Message.t)
@@ -148,11 +150,19 @@ module OpenFlow0x01 : sig
 
     type f = [
       | `Connect of Client_id.t * OpenFlow0x01.SwitchFeatures.t
-      | `Disconnect of Client_id.t * Sexp.t
+      | `Disconnect of Client_id.t * SDN_Types.switchId * Sexp.t
       | `Message of Client_id.t * m
     ]
 
+    val switch_id_of_client : t -> Client_id.t -> SDN_Types.switchId
+    val client_id_of_switch : t -> SDN_Types.switchId -> Client_id.t
+
+    val nib : t -> Topology.t
+
     val features : (t, e, f) Platform.Trans.stage
+    val topology : (t, f, f) Platform.Trans.stage
+    val switch_topology : (t, f, f) Platform.Trans.stage
+    val host_discovery  : (t, f, f) Platform.Trans.stage
   end
 
   val chunk_conv

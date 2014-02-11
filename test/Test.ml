@@ -163,3 +163,5 @@ module RoundTripping = struct
     | _ -> 
       false
 end
+
+Pa_ounit_lib.Runtime.summarize ()

@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 87ef16a01b93a8a867cb1ac9883d4022)
+# DO NOT EDIT (digest: b93e8af9277dacfb579b030013e9132d)
 version = "0.2.0"
 description = "Serialization library for OpenFlow"
 requires = "str cstruct cstruct.syntax packet core sexplib.syntax threads"
@@ -22,7 +22,8 @@ package "quickcheck" (
 package "async" (
  version = "0.2.0"
  description = "Serialization library for OpenFlow"
- requires = "async openflow cstruct.async threads textutils sexplib.syntax"
+ requires =
+ "async openflow topology cstruct.async threads textutils sexplib.syntax"
  archive(byte) = "async.cma"
  archive(byte, plugin) = "async.cma"
  archive(native) = "async.cmxa"

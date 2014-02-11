@@ -46,7 +46,7 @@ module Controller = struct
 
   let ensure response =
     match response with
-      | `Sent _ -> None
+      | `Sent _ -> []
       | `Drop exn -> raise exn
 
   let handshake v t evt =
@@ -70,12 +70,12 @@ module Controller = struct
                       (Header.to_string hdr)))
           end
         end;
-        return (Some(`Connect (s_id, min hdr.version v)))
-      | `Message x -> return(Some(`Message x))
+        return [`Connect (s_id, min hdr.version v)]
+      | `Message x -> return [`Message x]
       | `Disconnect (s_id, _) when SwitchSet.mem t.handshakes s_id ->
         t.handshakes <- SwitchSet.remove t.handshakes s_id;
-        return None
-      | `Disconnect x -> return(Some(`Disconnect x))
+        return []
+      | `Disconnect x -> return [`Disconnect x]
 
   let echo t evt =
     let open Header in
@@ -84,7 +84,7 @@ module Controller = struct
           when hdr.Header.type_code = type_code_echo_request ->
         Platform.send t.platform s_id ({ hdr with type_code = type_code_echo_reply }, bytes)
         >>| ensure
-      | _ -> return (Some(evt))
+      | _ -> return [evt]
 
   let create ?max_pending_connections
       ?verbose
@@ -100,7 +100,7 @@ module Controller = struct
   let listen t = Platform.listen t.platform
 
   let close t = Platform.close t.platform
-  let has_switch_id t = Platform.has_switch_id t.platform
+  let has_client_id t = Platform.has_client_id t.platform
   let send t = Platform.send t.platform
   let send_to_all t = Platform.send_to_all t.platform
   let client_addr_port t = Platform.client_addr_port t.platform

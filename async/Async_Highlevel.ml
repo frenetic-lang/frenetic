@@ -73,7 +73,7 @@ let handshake_error (c_id:Platform.Client_id.t) (str:string) : 'a =
 
 let send t c_id msg = 
   Platform.send t.sub c_id msg >>| function
-    | `Sent _ -> None
+    | `Sent _ -> []
     | `Drop exn -> raise exn
         
 let features t evt =
@@ -99,7 +99,7 @@ let features t evt =
        | _ -> ()
      end;
      ignore (Clients.remove t.clients c_id);
-     return None
+     return []
   | `Message (c_id,(hdr,bits)) -> 
      let of_type_code = int_to_message_code hdr.type_code in 
      let handshake_state = Clients.find t.clients c_id in
@@ -117,7 +117,7 @@ let features t evt =
                              S.switch_ports = switch_ports } in 
                Clients.replace t.clients c_id (Connected0x01 switch_id);
                ignore (Switches.add t.switches switch_id c_id);
-               return (Some feats)
+               return [feats]
             | _ -> 
                handshake_error c_id 
                  (Printf.sprintf "expected features reply in %s%!" (to_string hdr))
@@ -145,7 +145,7 @@ let features t evt =
                            S.switch_ports = switch_ports } in 
              Clients.replace t.clients c_id (Connected0x04 switch_id);
              ignore (Switches.add t.switches switch_id c_id);
-             return (Some feats)
+             return [feats]
           | _ -> 
              handshake_error c_id 
                (Printf.sprintf "expected port description reply in %s%!" (to_string hdr))
@@ -153,16 +153,16 @@ let features t evt =
      | _, Some (Connected0x01 sw_id) -> 
         let _, msg = M1.parse hdr (Cstruct.to_string bits) in
         Log.error ~tags "received unhandled message %s" (M1.to_string msg);
-        return None
+        return []
      | _, Some (Connected0x04 sw_id) -> 
         let _, msg = M4.parse hdr (Cstruct.to_string bits) in
         Log.error ~tags "received unhandled message %s" (M4.to_string msg);
-        return None
+        return []
      | _, Some state -> 
-        return None
+        return []
      | _, None -> 
         Log.error ~tags "got %s in unknown state" (Header.to_string hdr);
-        return None
+        return []
      end
 
 let create ?max_pending_connections
