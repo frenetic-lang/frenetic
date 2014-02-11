@@ -336,7 +336,7 @@ module Action : ACTION = struct
       | [s] ->
         set_to_netkat s
       | s::g' ->
-        let f pol s = NetKAT_Types.Choice (pol, set_to_netkat s) in
+        let f pol' s = NetKAT_Types.Union (pol', set_to_netkat s) in
         List.fold g' ~init:(set_to_netkat s) ~f:f
 end
 
@@ -616,10 +616,6 @@ module Optimize : OPTIMIZE = struct
       | _ -> 
         NetKAT_Types.Seq(pol1,pol2) 
 
-  let mk_choice pol1 pol2 =
-    match pol1, pol2 with
-      | _ -> NetKAT_Types.Choice(pol1,pol2) 
-
   let mk_star pol = 
     match pol with 
       | NetKAT_Types.Filter NetKAT_Types.True -> 
@@ -660,8 +656,6 @@ module Optimize : OPTIMIZE = struct
           k pol 
         | NetKAT_Types.Union (pol1, pol2) ->
           loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (mk_par p1 p2)))
-        | NetKAT_Types.Choice (pol1, pol2) ->
-          loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (mk_choice p1 p2)))
         | NetKAT_Types.Seq (pol1, pol2) ->
           loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (mk_seq p1 p2)))
         | NetKAT_Types.Star pol ->
@@ -728,14 +722,6 @@ module Local : LOCAL = struct
     (*   (to_string r); *)
     r
       
-  let choice p q = 
-    let r = intersect Action.group_union p q in 
-    (* debug "### CHOICE ###\n%s\n%s\n%s" *)
-    (*   (to_string p) *)
-    (*   (to_string q) *)
-    (*   (to_string r); *)
-    r
-
   let seq p q = 
     let cross_merge ~key:_ v =
       match v with 
@@ -849,8 +835,6 @@ module Local : LOCAL = struct
           k m
         | NetKAT_Types.Union (pol1, pol2) ->
           loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (par p1 p2)))
-        | NetKAT_Types.Choice (pol1, pol2) ->
-          loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (choice p1 p2)))
         | NetKAT_Types.Seq (pol1, pol2) ->
           loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (seq p1 p2)))
         | NetKAT_Types.Star pol ->

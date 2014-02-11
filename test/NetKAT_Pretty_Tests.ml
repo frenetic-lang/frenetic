@@ -19,8 +19,8 @@ let test_pretty p_str =
 
 let p_str1 = "filter port = 1"
 let p_str2 = "filter port = 1 ; port := 2"
-let p_str3 = "filter switch = 1 ; filter port = 1 ; port := 2 + 
-              (filter switch = 1 ; filter port = 2 ; port := 1 +
+let p_str3 = "filter switch = 1 ; filter port = 1 ; port := 2 | 
+              (filter switch = 1 ; filter port = 2 ; port := 1 |
                filter switch = 2 ; filter port = 1 ; port := 2)"
 
 TEST "simple filter" = test_pretty p_str1 = true
@@ -31,15 +31,15 @@ TEST "conditional" = test_pretty "if port = 1 then drop else id" = true
 
 TEST "line wrap" =
   let str = "\
-  filter port = 1; filter port = 1; filter port = 1; filter port = 1 +\n\
-  filter port = 1; filter port = 1; filter port = 1; filter port = 1 +\n\
+  filter port = 1; filter port = 1; filter port = 1; filter port = 1 |\n\
+  filter port = 1; filter port = 1; filter port = 1; filter port = 1 |\n\
   filter port = 1; filter port = 1; filter port = 1; filter port = 1" in
   parse_pretty str = str
 
 TEST "pretty printing should wrap long lines nicely" =
   let str = "\
-  filter port = 1; filter port = 1; filter port = 1; filter port = 1 +\n\
-  filter port = 1; filter port = 1; filter port = 1; filter port = 1 +\n\
+  filter port = 1; filter port = 1; filter port = 1; filter port = 1 |\n\
+  filter port = 1; filter port = 1; filter port = 1; filter port = 1 |\n\
   filter port = 1; filter port = 1; filter port = 1; filter port = 1" in
   parse_pretty str = str
 

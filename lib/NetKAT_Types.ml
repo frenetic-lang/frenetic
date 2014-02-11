@@ -24,7 +24,6 @@ type policy =
   | Filter of pred
   | Mod of header * header_val
   | Union of policy * policy
-  | Choice of policy * policy
   | Seq of policy * policy
   | Star of policy
   | Link of SDN_Types.switchId * header_val * SDN_Types.switchId * header_val
