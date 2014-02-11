@@ -6,10 +6,8 @@ let help args =
   match args with 
     | [ "run" ] -> 
       Format.printf 
-        "@[usage: katnetic run [local|automaton] <filename> @\n@]"
+        "@[usage: katnetic run local <filename> @\n@]"
     | [ "dump" ] -> 
-      Format.printf 
-        "@[usage: katnetic dump automaton [all|policies|flowtables] <filename> @\n@]";
       Format.printf 
         "@[usage: katnetic dump local [all|policies|flowtables] <number of switches> <filename> @\n@]"
     | _ -> 
@@ -33,23 +31,11 @@ module Run = struct
   let local p =
     (fun sw -> to_table (compile sw p))
 
-  let automaton p =
-    let open NetKAT_Automaton in
-    let open NetKAT_Types in
-    let i,m,_,e = dehopify p in
-    let cache = SwitchMap.mapi (fun sw sw_p ->
-      let sw_p' = NetKAT_Types.(Seq(Seq(i,sw_p),e)) in
-      to_table (compile sw sw_p'))
-    m in
-    (fun sw -> SwitchMap.find sw cache)
-
   let main args =
     match args with
       | [filename]
       | ("local"     :: [filename]) -> 
         with_file local filename
-      | ("automaton" :: [filename]) -> 
-        with_file automaton filename
       | _ -> help [ "run" ]
 end
 
@@ -116,51 +102,10 @@ module Dump = struct
             "@[usage: katnetic dump local [all|policies|flowtables|stats] <number of switches> <filename>@\n@]%!"
   end
 
-  module Automaton = struct
-    open NetKAT_Automaton
-
-    let with_dehop f p =
-      let i,m,_,e = dehopify p in
-      SwitchMap.iter (fun sw pol0 ->
-        let open NetKAT_Types in
-        let pol0' = Seq(Seq(i,pol0),e) in
-        f sw pol0')
-      m
-
-    let policy (sw : SDN_Types.switchId) (p : NetKAT_Types.policy) : unit =
-      Format.printf "@[policy for switch %Ld:@\n%!%a@\n@\n@]%!"
-        sw
-        NetKAT_Pretty.format_policy p
-
-    let flowtable (sw : SDN_Types.switchId) (p : NetKAT_Types.policy) : unit =
-      let t = Local.with_compile sw p in
-      Local.flowtable sw t
-
-    let all (sw : SDN_Types.switchId) (p : NetKAT_Types.policy) : unit =
-      policy sw p;
-      flowtable sw p
-
-
-    let stats (sw : SDN_Types.switchId) (p : NetKAT_Types.policy) : unit =
-      let _ = Local.with_compile sw p in
-      ()
-
-    let main args =
-      match args with
-        | [filename]
-        | ("all"        :: [filename]) -> with_file (with_dehop all) filename
-        | ("policies"   :: [filename]) -> with_file (with_dehop policy) filename
-        | ("flowtables" :: [filename]) -> with_file (with_dehop flowtable) filename
-        | ("stats"      :: [filename]) -> with_file (with_dehop stats) filename
-        | _ -> 
-          Format.printf 
-            "@[usage: katnetic dump automaton [all|policies|flowtables|stats] <filename>@\n@]%!"
-  end
 
   let main args  =
     match args with
       | ("local"     :: args') -> Local.main args'
-      | ("automaton" :: args') -> Automaton.main args'
       | _ -> help [ "dump" ]
 end
 

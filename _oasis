@@ -39,7 +39,6 @@ Library netcore
     NetKAT_Util,
     Semantics,
     LocalCompiler,
-    NetKAT_Automaton,
     PolicyGenerator
 
 Library async
