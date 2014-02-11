@@ -69,7 +69,10 @@ sig
   val add_node : t -> V.t -> t
   val add_host : t -> string -> Packet.dlAddr -> Packet.nwAddr -> t
   val add_switch : t -> switchId -> t
-  val add_switch_edge : t -> V.t -> portId -> V.t -> portId -> t
+  val add_ports_edge : t -> V.t -> portId -> V.t -> portId -> t
+
+  val remove_switch : t -> switchId -> t
+  val remove_port : t -> V.t -> portId -> t
 
   (* Accessors *)
   val get_vertices : t -> V.t list
@@ -79,9 +82,10 @@ sig
   val get_switches : t -> V.t list
   val get_switchids : t -> switchId list
   val unit_cost : t -> t
-  val ports_of_switch : t -> V.t -> portId list
+  val ports_of_node : t -> V.t -> portId list
   (* TODO(basus): remove this? *)
   (* val edge_ports_of_switch : t -> V.t -> portId list *)
+  val next_hop_via : t -> V.t -> portId -> E.label * V.t
   val next_hop : t -> V.t -> portId -> V.t
 
   (* Utility functions *)
@@ -238,9 +242,21 @@ struct
     add_vertex g (Node.Switch i)
 
   (* Add an edge between particular ports on two switches *)
-  let add_switch_edge (g:t) (s:Node.t) (sp:portId) (d:Node.t) (dp:portId) : t =
+  let add_ports_edge (g:t) (s:Node.t) (sp:portId) (d:Node.t) (dp:portId) : t =
     let l = {Link.default with Link.srcport = sp; Link.dstport = dp} in
     add_edge_e g (s,l,d)
+
+  let remove_port (g:t) (n:Node.t) (p:portId) : t =
+    let ss = try (succ_e g n)
+      with Invalid_argument(_) -> [] in
+    List.fold_left (fun acc e ->
+      if Link.srcport e = p
+        then remove_edge_e acc e
+        else acc)
+      g ss
+
+  let remove_switch (g:t) (sw:switchId) : t =
+    remove_vertex g (Node.Switch sw)
 
   (****** Accessors ******)
   (* Get a list of all the vertices in the graph *)
@@ -299,10 +315,10 @@ struct
 
   (* For a given node, return all its connected ports.
      Raise NotFound if the node is not in the graph *)
-  let ports_of_switch (g:t) (s:Node.t) : portId list =
+  let ports_of_node (g:t) (s:Node.t) : portId list =
     let ss = try (succ_e g s)
-      with Not_found -> raise (NotFound(Printf.sprintf
-                                          "Can't find %s to get ports_of_switch\n"
+      with Invalid_argument(_) -> raise (NotFound(Printf.sprintf
+                                          "Can't find %s to get ports_of_node\n"
                                           (Node.to_string s))) in
     let sports = List.map
       (fun l -> Link.srcport l) ss in
@@ -316,8 +332,8 @@ struct
   (*    Raise NotFound if either the node is not in the graph. *\) *)
   (* let edge_ports_of_switch (g:t) (s:Node.t) : portId list = *)
   (*   let ss = try (succ_e g s) *)
-  (*     with Not_found -> raise (NotFound(Printf.sprintf *)
-  (*                                         "Can't find %s to get ports_of_switch\n" *)
+  (*     with Invalid_argument(_) -> raise (NotFound(Printf.sprintf *)
+  (*                                         "Can't find %s to get ports_of_node\n" *)
   (*                                         (Node.to_string s))) in *)
   (*   let sports = List.fold_left *)
   (*     (fun acc l -> match (Link.dst l) with *)
@@ -333,20 +349,32 @@ struct
   (*     ) sports ps in *)
   (*   Int32Set.elements pports *)
 
-  (* Get the next hop node for a given node and port. Raise NotFound if either
-  the given node is not in the graph, or if the given port is not connected to
-  another node.  *)
-  let next_hop (g:t) (n:Node.t) (p:portId) : Node.t =
-    let ss = try (succ_e g n)
-      with Not_found -> raise (NotFound(Printf.sprintf
+
+  (* Get the next hop node for a given node and port, returning along with it
+   * the link that was traversed to get there.
+   *
+   * Raise NotFound if either the given node is not in the graph, or if the
+   * given port is not connected to another node.  *)
+  let next_hop_via (g:t) (n:Node.t) (p:portId) : (Link.t * Node.t) =
+    let ss = try succ_e g n
+      with Invalid_argument(_) -> raise (NotFound(Printf.sprintf
                                           "Can't find %s to get next_hop\n"
                                           (Node.to_string n))) in
-    let (_,_,d) = try (List.hd
-                         (List.filter (fun e -> (Link.srcport e) = p) ss))
-      with Failure hd -> raise (NotFound(
-        Printf.sprintf "next_hop: Port %s on %s is not connected\n"
-          (Int64.to_string p) (Node.to_string n)))
-    in d
+    match List.filter (fun e -> (Link.srcport e) = p) ss with
+      | [] ->
+        raise (NotFound(
+          Printf.sprintf "next_hop: Port %s on %s is not connected\n"
+            (Int64.to_string p) (Node.to_string n)))
+      | (_, l, d)::_ -> (l, d)
+
+
+  (* Get the next hop node for a given node and port.
+   *
+   * Raise NotFound if either the given node is not in the graph, or if the
+   * given port is not connected to another node.
+   * *)
+  let next_hop (g:t) (n:Node.t) (p:portId) : Node.t =
+    let (_, d) = next_hop_via g n p in d
 
   (* Find the shortest path between two nodes using Dijkstra's algorithm,
      returning the list of edges making up the path. The implementation is from

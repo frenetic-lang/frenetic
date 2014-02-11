@@ -65,7 +65,10 @@ sig
   val add_node : t -> V.t -> t
   val add_host : t -> string -> Packet.dlAddr -> Packet.nwAddr -> t
   val add_switch : t -> switchId -> t
-  val add_switch_edge : t -> V.t -> portId -> V.t -> portId -> t
+  val add_ports_edge : t -> V.t -> portId -> V.t -> portId -> t
+
+  val remove_switch : t -> switchId -> t
+  val remove_port : t -> V.t -> portId -> t
 
   (* Accessors *)
   val get_vertices : t -> V.t list
@@ -75,9 +78,10 @@ sig
   val get_switches : t -> V.t list
   val get_switchids : t -> switchId list
   val unit_cost : t -> t
-  val ports_of_switch : t -> V.t -> portId list
+  val ports_of_node : t -> V.t -> portId list
   (* TODO(basus): remove this? *)
   (* val edge_ports_of_switch : t -> V.t -> portId list *)
+  val next_hop_via : t -> V.t -> portId -> E.label * V.t
   val next_hop : t -> V.t -> portId -> V.t
 
   (* Utility functions *)
