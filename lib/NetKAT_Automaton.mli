@@ -19,7 +19,6 @@ val topology_to_policy : topology -> policy
 
 type 'a aregex =
   | Char of 'a
-  | Pick of 'a aregex * 'a aregex
   | Alt of 'a aregex * 'a aregex
   | Cat of 'a aregex * 'a aregex
   | Kleene of 'a aregex

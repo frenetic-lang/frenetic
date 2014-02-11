@@ -127,30 +127,6 @@ TEST "quickcheck failure on 10/16/2013" =
     (Seq (modSrc 0, Par (Filter (testSrc 2), modDst 2)))
     (Seq (modDst 2, modSrc 0))
 
-TEST "choice1" =
-  test_compile
-    (Choice (modSrc 0, modSrc 1))
-    (Choice (modSrc 0, modSrc 1))
-
-TEST "choice2" =
-  test_compile
-    (Seq (Filter (testSrc 2), Choice (modSrc 0, modSrc 1)))
-    (Seq (Filter (testSrc 2), Choice (modSrc 0, modSrc 1)))
-
-TEST "choice3" = 
-   test_compile
-     (Par (Seq (Filter (testSrc 3), Choice (modSrc 0, modSrc 1)),
-           Par (Seq (Filter (testSrc 0), modSrc 2),
-		Seq (Filter (testSrc 1), modSrc 2))))
-     (Par(Seq(Filter (testSrc 0), modSrc 2),
-	  Par(Seq(Filter (testSrc 1), modSrc 2),
-	      Seq(Filter (testSrc 3), 
-		  Choice (modSrc 0, modSrc 1)))))
-
-TEST "regression test for sequencing choice with id" = 
-  test_compile
-    (Seq(Choice (modSrc 0, modSrc 1), Filter True))
-    (Choice (modSrc 0, modSrc 1))
     
 TEST "vlan" =
   let test_vlan_none = Test (Header Vlan, VInt.Int16 0xFFF) in

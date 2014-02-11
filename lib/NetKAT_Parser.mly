@@ -122,8 +122,6 @@ xpredicate:
 
 /* TODO(jnf): should these be non-associative? */
 policy : 
-  | policy PLUS spolicy
-      { Choice ($1, $3) }
   | policy BAR spolicy
       { Par ($1, $3) }
   | spolicy 

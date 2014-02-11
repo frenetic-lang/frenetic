@@ -171,7 +171,7 @@ module Action = struct
       | [s] ->
         set_to_netkat s
       | s::g' ->
-        let f pol' s = NetKAT_Types.Choice (pol', set_to_netkat s) in
+        let f pol' s = NetKAT_Types.Par (pol', set_to_netkat s) in
         List.fold g' ~init:(set_to_netkat s) ~f:f
 end
 
@@ -608,8 +608,6 @@ module Local = struct
           k (Atom.Map.singleton Atom.tru [Action.Set.singleton (NetKAT_Types.HeaderMap.singleton h v)])
         | NetKAT_Types.Par (pol1, pol2) ->
           loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (par_local p1 p2)))
-        | NetKAT_Types.Choice (pol1, pol2) ->
-          loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (choice_local p1 p2)))
         | NetKAT_Types.Seq (pol1, pol2) ->
           loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (seq_local p1 p2)))
         | NetKAT_Types.Star pol ->

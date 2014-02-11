@@ -79,14 +79,12 @@ type lf_policy =
   | Filter of pred
   | Mod of header * header_val
   | Par of lf_policy * lf_policy
-  | Choice of lf_policy * lf_policy
   | Seq of lf_policy * lf_policy
   | Star of lf_policy
 
 
 type 'a aregex =
   | Char of 'a
-  | Pick of 'a aregex * 'a aregex
   | Alt of 'a aregex * 'a aregex
   | Cat of 'a aregex * 'a aregex
   | Kleene of 'a aregex
@@ -95,7 +93,6 @@ type 'a aregex =
 let rec fmap_aregex (f : 'a -> 'b) (r : 'a aregex) : 'b aregex =
   match r with
     | Char(c) -> Char(f c)
-    | Pick(r1, r2) -> Pick(fmap_aregex f r1, fmap_aregex f r2)
     | Alt(r1, r2) -> Alt(fmap_aregex f r1, fmap_aregex f r2)
     | Cat(r1, r2) -> Cat(fmap_aregex f r1, fmap_aregex f r2)
     | Kleene(s) -> Kleene(fmap_aregex f s)
@@ -121,10 +118,6 @@ let lf_policy_to_policy (lfp : lf_policy) : policy =
         lf_policy_to_policy_k p1 (fun p1' ->
         lf_policy_to_policy_k p2 (fun p2' ->
           k (NetKAT_Types.Par(p1', p2'))))
-      | Choice(p1, p2) ->
-        lf_policy_to_policy_k p1 (fun p1' ->
-        lf_policy_to_policy_k p2 (fun p2' ->
-          k (NetKAT_Types.Choice(p1', p2'))))
       | Seq(p1, p2) ->
         lf_policy_to_policy_k p1 (fun p1' ->
         lf_policy_to_policy_k p2 (fun p2' ->
@@ -150,8 +143,6 @@ let rec regex_to_policy (r : regex) : policy =
   match r with
     | Char(lfp, topo) ->
       NetKAT_Types.Seq(lf_policy_to_policy lfp, topology_to_policy topo)
-    | Pick(r1, r2) ->
-      NetKAT_Types.Choice(regex_to_policy r1, regex_to_policy r2)
     | Alt(r1, r2) ->
       NetKAT_Types.Par(regex_to_policy r1, regex_to_policy r2)
     | Cat(r1, r2) ->
@@ -212,14 +203,6 @@ module TRegex = struct
                 Char(TChar(None, topo3))
               | _ , _ -> Alt(p1', p2')
             end)))
-        | NetKAT_Types.Choice(p1, p2) ->
-          of_policy_k p1 (fun p1' ->
-          of_policy_k p2 (fun p2' ->
-            k (begin match p1', p2' with
-              | Char(PChar(lfp1)), Char(PChar(lfp2)) ->
-                Char(PChar(Choice(lfp1, lfp2)))
-              | _ , _ -> Pick(p1', p2')
-            end)))
         | NetKAT_Types.Star(q) ->
           of_policy_k q (fun q' ->
             k (begin match q' with
@@ -236,8 +219,6 @@ module TRegex = struct
       | Char(TChar(mlfp, topo)) ->
         let links = topology_to_policy topo in
         optional links (fun x -> NetKAT_Types.Seq(lf_policy_to_policy x, links)) mlfp
-      | Pick(r1, r2) ->
-        NetKAT_Types.Choice(to_policy r1, to_policy r2)
       | Alt(r1, r2) ->
         NetKAT_Types.Par(to_policy r1, to_policy r2)
       | Cat(r1, r2) ->
@@ -276,7 +257,6 @@ and link_consumer = cstr -> lf_policy option -> link_provider option -> inter
 
 let seq (p : lf_policy) (q : lf_policy) : lf_policy = Seq(p, q)
 let par (p : lf_policy) (q : lf_policy) : lf_policy = Par(p, q)
-(* let pick (p : lf_policy) (q : lf_policy) : lf_policy = Choice(p, q) *)
 
 let mk_mcstr (c : cstr) mp q =
   optional q (fun p -> c p q) mp
@@ -338,8 +318,6 @@ let regex_of_policy (p: policy) : regex =
         rpc_seq (rpc p1) (rpc p2)
       | Alt(p1, p2) ->
         rpc_branchy (fun p q -> Alt(p, q)) (rpc p1) (rpc p2)
-      | Pick(p1, p2) ->
-        rpc_branchy (fun p q -> Pick(p, q)) (rpc p1) (rpc p2)
       | Kleene(q) ->
         S(Kleene(run (rpc q)))
       | Empty -> S(Empty)
@@ -482,30 +460,6 @@ module NFA = struct
   let state_init m q = 
     m.s = q
 
-    (*
-  let to_string m = 
-    forward_fold_nfa
-      (fun q acc -> 
-	Hashtbl.fold (fun q' ns acc -> 
-	  CharSet.fold (fun n acc -> 
-	    try 
-	      let string_of_state q = 
-            if state_init m q then "<q" ^ string_of_int q ^ ">"
-            else if state_accept m q then "[q" ^ string_of_int q ^ "]"
-            else " q" ^ string_of_int q ^ " " in 		
-	      let (s,fo) = SymbolHash.find symbol_to_code n in 
-	      acc ^ (Printf.sprintf "%s ==(%s,%s)==> %s\n" 
-		       (string_of_state q)
-		       s 
-		       (match fo with None -> "_" | Some f -> f) 
-		       (string_of_state q'))
-	    with Not_found -> 
-	      acc ^ (Printf.sprintf "q%d -???-> q%d\n" q q'))
-	    ns acc)
-	  (all_delta m.delta q) acc)
-      m m.s "\n" 
-      *)
-
   let state_name s = Printf.sprintf "%d" s
 
   let edge_symbols (_,ns,_) = 
@@ -543,23 +497,7 @@ module NFA = struct
       (all_delta m.delta q)
       EdgeSet.empty
 
-  (* copypasta'd from dprle, with modifications *)
-  let eps_closure_upto (pred : state -> bool) (n : nfa) (q : state) : stateset =
-    let visited = ref StateSet.empty in
-    let rec walk (queue : state list) : unit = match queue with
-      | x::xs when (not (StateSet.mem x !visited)) ->
-        let to_enqueue = if pred x
-            then Hashset.to_list (which_states ~create:false n.epsilon x)
-            else [] in
-	      visited := StateSet.add x !visited;
-	      walk (List.rev_append xs to_enqueue)
-      | x::xs -> walk xs
-      | _ -> ()
-    in
-      walk [q];
-      !visited
-      
-  let eps_eliminate m is_pick_state =
+  let eps_eliminate m =
     (* Printf.printf "--- EPS_ELIMINATE ---\n%s\n" (Nfa.nfa_to_dot m); *)
     (* NOTE(seliopou): The initial state should not be 0 or 1! Code below does not
      * directly depend on this, but it does make debugging it much easier when
@@ -573,8 +511,6 @@ module NFA = struct
     let h_eps = Hashtbl.create 17 in 
     (* maps sets of epsilon-closed states to new automaton states *)
     let h_r = Hashtbl.create 17 in 
-    (* new automaton pick states *)
-    let h_pick = Hashtbl.create 5 in 
     (* helper function: convert old state to epsilon closure and new state *)
     let lookup_state qi = 
       let qsi = Hashtbl.find h_eps qi in 
@@ -583,10 +519,7 @@ module NFA = struct
     Hashset.iter 
       (fun q ->
 	let qs = 
-	  if is_pick_state q then 
-	    eps_closure_upto is_pick_state m q
-	  else 
-	    eps_closure_upto (fun q' -> not (is_pick_state q')) m q in 
+	    eps_closure m q in 
 	Hashtbl.add h_eps q qs;
 	if q = m.s then 
 	  Hashtbl.add h_r qs qi
@@ -599,82 +532,43 @@ module NFA = struct
       let qs,r = lookup_state q in 
       if StateSet.mem m.f qs then 
 	add_trans m' r Epsilon qf;
-      if is_pick_state q then 
-	(* Case: q is a pick node *)
-	begin 
-	  Hashtbl.add h_pick r ();
-	  StateSet.iter 
-	    (fun q' -> 
-	      let _,r' = lookup_state q' in 
-	      add_trans m' r Epsilon r')
-	    (StateSet.remove q qs)
-	end
-      else 
-        (* Case: q is not a pick node *)
-        StateSet.iter
-          (fun qi ->
-            (if is_pick_state qi then
-              let _,ri' = lookup_state qi in
-              add_trans m' r Epsilon ri'
-            else ());
-
           Hashtbl.iter
 	      (fun q' ns ->
 		let qs',r' = lookup_state q' in
-		add_set_trans m' r ns r';
-		StateSet.iter
-		  (fun qi' ->
-		    if is_pick_state qi' then
-		      let _,ri' = lookup_state qi' in
-		      add_set_trans m' r ns ri')
-		  qs')
+		add_set_trans m' r ns r')
 	      (all_delta m.delta qi))
-	  qs)
       m m.s ();
     (* Final result *)
-    (m', h_pick)
+    m'
       
   let subseteq = nfa_subseteq
 
   let regex_to_t r = 
     let create () = new_nfa_states 0 1 in 
 
-    let update s m = Hashtbl.iter (fun q r ->
-      Hashtbl.remove  s q;
-      Hashtbl.replace s r ()) m; s in
-
-    let combine op (m, lhs) (n, rhs) =
-      let (ml, mr, m') = op m n lhs rhs in
-      let lhs' = update lhs ml in
-      let rhs' = update rhs mr in
-        Hashtbl.iter (Hashtbl.replace lhs') rhs';
-        (m', lhs') in
-
     let rec loop r =
       match r with
       | Char n ->
         let m = create () in 
         add_trans m m.s (Character n) m.f;
-        (m, Hashtbl.create 7)
-      | Pick(r1, r2) ->
-        let (m, pick_states) = combine union (loop r1) (loop r2) in
-          Hashtbl.add pick_states m.s ();
-          (m, pick_states)
+        m
       | Alt(r1,r2) ->
-         combine union (loop r1) (loop r2)
+        let _,_,m = union (loop r1) (loop r2) (Hashtbl.create 1) (Hashtbl.create 1) in
+        m
       | Cat(r1,r2) ->
-         combine concat (loop r1) (loop r2)
+        let _,_,m = concat (loop r1) (loop r2) (Hashtbl.create 1) (Hashtbl.create 1) in
+        m
       | Kleene(r) -> 
-        let (m, pick_states) = loop r in
+        let m = loop r in
         add_trans m m.s Epsilon m.f;
         add_trans m m.f Epsilon m.s;
-        (m, pick_states)
+        m
       | Empty ->
-        (create (), Hashtbl.create 7) in
-    let (m, pick_states) = loop r in
-    let m', pick_states' = eps_eliminate m (Hashtbl.mem pick_states) in
+        create () in
+    let m = loop r in
+    let m' = eps_eliminate m in
     elim_dead_states m';
-    (m', pick_states')
+    m'
 end
 
 module EdgeSet = Set.Make(struct
@@ -687,7 +581,7 @@ type 'a dehopified = 'a * ('a SwitchMap.t) * topology * 'a
 
 let regex_to_switch_policies (r : regex) : policy dehopified =
   let (aregex, chash) = regex_to_aregex r in
-  let (auto, pick_states) = NFA.regex_to_t aregex in
+  let auto = NFA.regex_to_t aregex in
 
   (* Used to compress state space to sequential integers. Note that the state 0
    * is never used (unless there's an overflow ;) Note that for debugging
@@ -720,7 +614,6 @@ let regex_to_switch_policies (r : regex) : policy dehopified =
   let mk_test q = NetKAT_Types.Test(Header SDN_Types.Vlan, VInt.Int16 (convert q)) in
   let mk_filter q = NetKAT_Types.Filter(mk_test q) in
   let mk_mod q = NetKAT_Types.Mod(Header SDN_Types.Vlan, VInt.Int16 (convert q)) in
-  let mk_choice qs = foldl1_map (fun p q -> NetKAT_Types.Choice(p, q)) mk_mod qs in
 
   let topology = ref SwitchMap.empty in
 
@@ -733,13 +626,8 @@ let regex_to_switch_policies (r : regex) : policy dehopified =
         (fun (pt, _) -> NetKAT_Types.Filter(Test(Header SDN_Types.InPort, pt)))
       (PortMap.bindings pt_m) in
     let switch_f = NetKAT_Types.Filter(Test(Switch, VInt.Int64 sw)) in
-
-    let next_states = if Hashtbl.mem pick_states q'
-      then Nfa.neighbors auto q'
-      else [q'] in
-
     let ingress = NetKAT_Types.Seq(switch_f, mk_filter q) in
-    let egress = NetKAT_Types.Seq(ports_f, mk_choice next_states) in
+    let egress = NetKAT_Types.Seq(ports_f, mk_mod q') in
 
     NetKAT_Types.Seq(ingress, NetKAT_Types.Seq(p, egress)) in
 
@@ -762,33 +650,8 @@ let regex_to_switch_policies (r : regex) : policy dehopified =
   let check_outside = NetKAT_Types.Test(Header SDN_Types.Vlan, VInt.Int16 1) in
   let ingress_mod =
     let open NFA.StateSet in
-    let choice_closure = NFA.eps_closure_upto (Hashtbl.mem pick_states) auto in
-    if Hashtbl.mem pick_states Nfa.(auto.s) then
-      (* A choice node may be an initial state. In this case, all states that
-       * are reachable by epsilon transitions from that initial states are
-       * potential start states and the ingress policy must choose between them.
-       * *)
-      mk_choice (elements (choice_closure Nfa.(auto.s)))
-    else
-      (* The initial state may not be a choice node, but a choice node may be
-       * reachable from the initial state by epsilon transitions. In that case,
-       * find all the states that are reachable from those choice nodes via
-       * epsilon transition. The ingress policy must choose between these, but
-       * may also in parallel perform other character transitions from the
-       * initial state.
-       * *)
-      let open List in
-      let neighbor_qs = Nfa.(neighbors auto auto.s) in
-      let choice_qs0 = filter (Hashtbl.mem pick_states) neighbor_qs in
-      let choice_qs1 = concat (map (fun x -> elements (choice_closure x)) choice_qs0) in
-      match choice_qs1 with
-        | [] -> mk_mod Nfa.(auto.s)
-        | _  -> if length neighbor_qs = length choice_qs0
-                  then assert false (* If all the neighbors are choice nodes,
-                                     * then the start node should just be a
-                                     * choice node.
-                                     * *)
-                  else NetKAT_Types.Par(mk_choice choice_qs1, mk_mod Nfa.(auto.s)) in
+        mk_mod Nfa.(auto.s)        
+    in
 
 
   let ingress =

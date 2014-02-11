@@ -23,8 +23,7 @@ let size (pol:policy) : int =
       | Filter pr -> f (size_pred pr + 1)
       | Mod(_,_) -> f 3
       | Par(pol1, pol2)
-      | Seq(pol1, pol2)
-      | Choice(pol1, pol2) -> size pol1 (fun spol1 -> size pol2 (fun spol2 -> f (1 + spol1 + spol2)))
+      | Seq(pol1, pol2) -> size pol1 (fun spol1 -> size pol2 (fun spol2 -> f (1 + spol1 + spol2)))
       | Star(pol) -> size pol (fun spol -> f (1 + spol))
       | Link(_,_,_,_) -> f 5 in
   size pol (fun spol -> spol)
@@ -67,9 +66,6 @@ let rec eval (pkt : packet) (pol : policy) : PacketSetSet.t = match pol with
       let acc' = PacketSet.fold f acc PacketSet.empty in 
       if PacketSet.equal acc acc' then acc else loop acc' in 
       loop (PacketSet.singleton pkt)*)
-    | Choice (pol1, pol2) ->
-      PacketSetSet.union (eval pkt pol1) (eval pkt pol2)
-
     | Link(sw,pt,sw',pt') -> 
       begin 
         try 
