@@ -9,11 +9,10 @@ let default = {
   ; mac = 0L
   ; dev_id = 0L
 }
-
+module NH = Node.NodeHash
 module TopoDot = struct
-    let name2attrs = ref (Hashtbl.create 100)
-    let id2attrs = ref (Hashtbl.create 100)
-    let index = ref 0
+  let nodeinfo = NH.create 100
+  let index = ref 0
 
   (* Utility functions *)
   let parse_rate (r:string) : Int64.t =
@@ -93,14 +92,11 @@ module TopoDot = struct
     let (id, popt) = i in
     let name = string_of_id id in
     let at = List.hd ats in
-    let nat = List.fold_left update_nattr
-        {default with node_type = Switch ; name = name} at in
-    Hashtbl.replace !name2attrs name nat;
+    let nattr = List.fold_left update_nattr
+        {default with name = name} at in
     let node = Node.create !index in
     index := !index + 1;
-    let _ = match nat.node_type with
-      | Switch -> Hashtbl.replace !id2attrs nat.dev_id nat
-      | _ -> () in
+    NH.replace nodeinfo node nattr;
     node
 
 
@@ -113,6 +109,7 @@ module TopoDot = struct
 end
 
 module TopoGML = struct
+  let nodeinfo = NH.create 100
     let index = ref 0
     let int32_of_value v = match v with
       | Gml.Int(i) -> Int32.of_int i
@@ -145,9 +142,10 @@ module TopoGML = struct
 
     let node (vs:Gml.value_list) : Network.G.V.label =
       let nat = List.fold_left update_nattr
-        {default with node_type = Switch} vs in
+        default vs in
       let node = Node.create !index in
       index := !index + 1;
+      NH.replace nodeinfo node nat;
       node
 
 
@@ -160,28 +158,5 @@ module B = Graph.Builder.P(Network.G)
 module GML = Graph.Gml.Parse(B)(TopoGML)
 module DOT = Graph.Dot.Parse(B)(TopoDot)
 
-let from_dotfile_tbl s =
-  ((DOT.parse s,Node.NodeHash.create 1), !TopoDot.name2attrs, !TopoDot.id2attrs)
-
-let from_dotfile s = (DOT.parse s, Node.NodeHash.create 1)
-let from_gmlfile s = (GML.parse s, Node.NodeHash.create 1)
-
-(* TODO(basus): add a mininet parser *)
-
-(* let from_mininet_raw (lst : (node * portId * node) list) = *)
-(*   let open Node in  *)
-(*   let g = Network.G.empty in *)
-(*   let len = 500 in *)
-(*   let weight x y = match (x, y) with *)
-(*     | (Host _, Host _) -> 1 *)
-(*     | (Host _, Switch _) -> len *)
-(*     | (Switch _, Host _) -> len *)
-(*     | (Switch _, Switch _) -> 1 in *)
-(*   List.iter  *)
-(*     (fun (src,portId,dst) ->   *)
-(*       Network.G.add_edge g src portId (weight src dst) dst)  *)
-(*     lst; *)
-(*   g *)
-
-(* let from_mininet filename =  *)
-(*   from_mininet_raw (Mininet.parse_from_chan (open_in filename) filename) *)
+let from_dotfile s = (DOT.parse s, TopoDot.nodeinfo)
+let from_gmlfile s = (GML.parse s, TopoGML.nodeinfo)
