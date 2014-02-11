@@ -6,3 +6,4 @@ open NetKAT_Pretty_Tests
 open PolicyGenerator_Test
 (* open Verify_Tests *)
 
+Pa_ounit_lib.Runtime.summarize ()
