@@ -37,6 +37,21 @@ exception NegativeCycle of E.t list
 
 type t = G.t * attr_tbl
 
+(* Expose standard graph functions *)
+let empty () : t =
+  (G.empty, NH.create 1)
+
+let add_edge_e ((g,t):t) ((s,l,d):E.t) : t =
+  let g' = G.add_edge_e g (s,l,d) in
+  (g',t)
+
+let iter_succ f ((g,t):t) n = G.iter_succ f g n
+
+let fold_edges_e f (g,t) acc = G.fold_edges_e f g acc
+
+let find_edge (g,t) s d = G.find_edge g s d
+
+let nb_vertex (g,t) = G.nb_vertex g
 (* Alias for add_vertex *)
 let add_node ((g,t):t) (n:Node.t) : t =
   (G.add_vertex g n,t)
