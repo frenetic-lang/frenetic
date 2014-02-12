@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 37e032677a09b6d90b89e4c5a56ba0d0) *)
+(* DO NOT EDIT (digest: e55731d28dfe72908834e5aad8131d7a) *)
 module OASISGettext = struct
 (* # 22 "src/oasis/OASISGettext.ml" *)
 
@@ -559,7 +559,6 @@ let package_default =
        [
           ("openflow", ["lib"], []);
           ("async", ["async"], []);
-          ("lwt", ["lwt"], []);
           ("quickcheck", ["quickcheck"], [])
        ];
      lib_c = [];
@@ -568,8 +567,7 @@ let package_default =
        [
           ("test", ["lib"; "quickcheck"]);
           ("quickcheck", ["lib"]);
-          ("ping-test", ["lib"; "lwt"]);
-          ("lwt", ["lib"]);
+          ("ping-test", ["async"; "lib"]);
           ("examples", ["async"; "lib"]);
           ("async", ["lib"])
        ]
@@ -578,6 +576,6 @@ let package_default =
 
 let dispatch_default = MyOCamlbuildBase.dispatch_default package_default;;
 
-# 582 "myocamlbuild.ml"
+# 580 "myocamlbuild.ml"
 (* OASIS_STOP *)
 Ocamlbuild_plugin.dispatch dispatch_default;;

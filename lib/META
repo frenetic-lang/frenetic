@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: e43d8a15ee1d0325c4a9cbb7a192ba91)
+# DO NOT EDIT (digest: b93e8af9277dacfb579b030013e9132d)
 version = "0.2.0"
 description = "Serialization library for OpenFlow"
 requires = "str cstruct cstruct.syntax packet core sexplib.syntax threads"
@@ -17,17 +17,6 @@ package "quickcheck" (
  archive(native) = "quickcheck.cmxa"
  archive(native, plugin) = "quickcheck.cmxs"
  exists_if = "quickcheck.cma"
-)
-
-package "lwt" (
- version = "0.2.0"
- description = "Serialization library for OpenFlow"
- requires = "lwt lwt.unix lwt.syntax openflow"
- archive(byte) = "lwt.cma"
- archive(byte, plugin) = "lwt.cma"
- archive(native) = "lwt.cmxa"
- archive(native, plugin) = "lwt.cmxs"
- exists_if = "lwt.cma"
 )
 
 package "async" (
