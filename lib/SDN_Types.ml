@@ -19,11 +19,6 @@ type bufferId =
   | OF10BufferId of int32
   | OF13BufferId of OF13.bufferId
 
-type port =
-  | PhysicalPort of VInt.t
-  | AllPorts
-  | Controller of int
-
 type field =
   | InPort
   | EthType
@@ -49,6 +44,7 @@ type pattern = fieldVal FieldMap.t
 type action =
   | OutputAllPorts
   | OutputPort of portId
+  | Controller of int
   | Enqueue of portId * queueId
   | SetField of field * fieldVal
 
@@ -135,6 +131,8 @@ let rec format_action (fmt:Format.formatter) (a:action) : unit =
     Format.fprintf fmt "OutputAllPorts"
   | OutputPort(n) -> 
     Format.fprintf fmt "OutputPort(%a)" VInt.format n
+  | Controller(n) -> 
+    Format.fprintf fmt "Controller(%d)" n
   | Enqueue(m,n) -> 
     Format.fprintf fmt "Enqueue(%a,%a)" VInt.format m VInt.format n
   | SetField(f,v) -> 

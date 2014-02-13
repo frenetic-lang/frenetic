@@ -49,11 +49,6 @@ exception Unsupported of string
 
 (** {1 Packet Forwarding} *)
 
-type port =
-  | PhysicalPort of portId
-  | AllPorts
-  | Controller of int
-
 type field =
   | InPort
   | EthType
@@ -78,6 +73,7 @@ type pattern = fieldVal FieldMap.t
 type action =
   | OutputAllPorts
   | OutputPort of portId
+  | Controller of int
   | Enqueue of portId * queueId
   | SetField of field * fieldVal
  

@@ -25,14 +25,6 @@ let from_payload (pay : AL.payload) : Core.payload =
       Core.Buffered (from_buffer_id buf_id, bytes)
     | NotBuffered bytes -> Core.NotBuffered bytes
       
-let from_port (port : AL.port) : Core.pseudoPort =
-  let open SDN_Types in
-  match port with
-    | AllPorts -> Core.AllPorts
-    | Controller n -> Core.Controller n
-    | PhysicalPort (VInt.Int32 n) -> Core.PhysicalPort n
-    | PhysicalPort _ -> raise (Invalid_argument "expected OpenFlow 1.3 port ID")
-
 let to_reason (reason : Core.packetInReason) : AL.packetInReason =
   let open Core in
   match reason with
