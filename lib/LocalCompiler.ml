@@ -33,35 +33,8 @@ module HeadersCommon : HEADERSCOMMON = struct
 
   type t = Headers.t with sexp
 
-  let to_string ?init:(init="") ?sep:(sep="=") (x:t) : string =
-    let g pp acc f = match Field.get f x with
-      | None -> acc
-      | Some v ->
-        let s = Printf.sprintf "%s%s%s" (Field.name f) sep (pp v) in 
-        if acc = "" then s
-        else Printf.sprintf "%s, %s" acc s in 
-    let ppl l = match l with 
-      | NetKAT_Types.Physical x -> Printf.sprintf "%d" x
-      | NetKAT_Types.Pipe x -> x in 
-    let pp8 = Printf.sprintf "%d" in
-    let pp16 = Printf.sprintf "%d" in
-    let pp32 = Printf.sprintf "%ld" in
-    let pp48 = Printf.sprintf "%Ld" in
-    Headers.Fields.fold
-      ~init:""
-      ~location:(g ppl)
-      ~ethSrc:(g pp48)
-      ~ethDst:(g pp48)
-      ~vlan:(g pp16)
-      ~vlanPcp:(g pp8)
-      ~ethType:(g pp16)
-      ~ipProto:(g pp8)
-      ~ipSrc:(g pp32)
-      ~ipDst:(g pp32)
-      ~tcpSrcPort:(g pp16)
-      ~tcpDstPort:(g pp16)
-
   let compare (x:t) (y:t) : int = Headers.compare x y
+  let to_string ?init ?sep (x:t) = Headers.to_string ?init ?sep x
 
   type this_t = t with sexp
 

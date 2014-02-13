@@ -61,6 +61,7 @@ let drop = Filter False
 
 (** A map keyed by header names. *)
 module Headers = struct
+  open Core.Std
   (*
    * Note that this module uses the fieldslib library from Jane Street, a syntax
    * extension that generates several convenience functions, .e.g, fold, map,
@@ -110,6 +111,33 @@ module Headers = struct
   let mk_tcpSrcPort n = { empty with tcpSrcPort = Some n }
   let mk_tcpDstPort n = { empty with tcpDstPort = Some n }
 
+  let to_string ?init:(init="") ?sep:(sep="=") (x:t) : string =
+    let g pp acc f = match Field.get f x with
+      | None -> acc
+      | Some v ->
+        let s = Printf.sprintf "%s%s%s" (Field.name f) sep (pp v) in
+        if acc = "" then s
+        else Printf.sprintf "%s, %s" acc s in
+    let ppl l = match l with
+      | Physical x -> Printf.sprintf "%d" x
+      | Pipe x -> x in
+    let pp8 = Printf.sprintf "%d" in
+    let pp16 = Printf.sprintf "%d" in
+    let pp32 = Printf.sprintf "%ld" in
+    let pp48 = Printf.sprintf "%Ld" in
+    Fields.fold
+      ~init:""
+      ~location:(g ppl)
+      ~ethSrc:(g pp48)
+      ~ethDst:(g pp48)
+      ~vlan:(g pp16)
+      ~vlanPcp:(g pp8)
+      ~ethType:(g pp16)
+      ~ipProto:(g pp8)
+      ~ipSrc:(g pp32)
+      ~ipDst:(g pp32)
+      ~tcpSrcPort:(g pp16)
+      ~tcpDstPort:(g pp16)
 end
  
 type packet = {
