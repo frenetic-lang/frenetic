@@ -50,7 +50,7 @@ TEST "compile negation of conjunction" =
   let pr = And (pr1, pr2) in 
   test_compile
     (Filter (Neg pr))
-    (Union (Filter (Neg pr1), Filter(And(Neg pr2, pr1))))
+    (Union (Filter(And(Neg pr2, pr1)), Filter (Neg pr1)))
 
 TEST "commute test annihilator" =
   test_compile
@@ -128,12 +128,11 @@ TEST "quickcheck failure on 10/16/2013" =
   test_compile
     (Seq (modSrc 0, Union (Filter (testSrc 2), modDst 2)))
     (Seq (modDst 2, modSrc 0))
-
     
 TEST "vlan" =
-  let test_vlan_none = Test (Header Vlan, VInt.Int16 0xFFF) in
-  let mod_vlan_none = Mod (Header Vlan, VInt.Int16 0xFFF) in
-  let mod_port1 = Mod (Header InPort, VInt.Int16 1) in 
+  let test_vlan_none = Test (Header Vlan, VInt.Int64 (Int64.of_int 0xFFF)) in
+  let mod_vlan_none = Mod (Header Vlan, VInt.Int64 (Int64.of_int 0xFFF)) in
+  let mod_port1 = Mod (Header InPort, VInt.Int64 1L) in 
   let id = Filter True in
   let pol =
     Seq (ite 

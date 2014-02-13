@@ -4,46 +4,100 @@ open Sexplib.Conv
 let debug = Printf.printf
 
 open SDN_Types
+
+let map_option f = function
+  | None -> None
+  | Some x -> Some (f x)
+
+type location = 
+  | Physical of int16 
+  | Pipe of string 
   
-module type FIELDS = sig
-  type t = (field * fieldVal) list with sexp
+module type HEADERS = sig
+  type t = 
+      { location : location option;
+        ethSrc : int48 option;
+        ethDst : int48 option;
+        vlan : int16 option;
+        vlanPcp : int8 option;
+        ethType : int16 option;
+        ipProto : int8 option;
+        ipSrc : int32 option; 
+        ipDst : int32 option;
+        tcpSrcPort : int16 option;
+        tcpDstPort : int16 option 
+      } with sexp,fields
+
   module Set : Set.S with type Elt.t = t
   val to_string : ?init:string -> ?sep:string -> t -> string
   val set_to_string : ?init:string -> ?sep:string -> Set.t -> string
   val compare : t -> t -> int    
   val empty : t
-  val mk : field -> fieldVal -> t
+  val mk_location  : location -> t
+  val mk_ethSrc : int48 -> t
+  val mk_ethDst : int48 -> t
+  val mk_vlan : int16 -> t
+  val mk_vlanPcp: int8 -> t
+  val mk_ethType : int16 -> t
+  val mk_ipProto : int8 -> t
+  val mk_ipSrc : int32 -> t
+  val mk_ipDst : int32 -> t
+  val mk_tcpSrcPort : int16 -> t
+  val mk_tcpDstPort : int16 -> t
   val is_empty : t -> bool
   val seq : t -> t -> t option
   val diff : t -> t -> t
   val subseteq : t -> t -> bool
 end
 
-module Fields : FIELDS = struct
+module Headers : HEADERS = struct
 
-  type t = (field * fieldVal) list sexp_opaque with sexp
-        
+  type t = 
+      { location : location option sexp_opaque;
+        ethSrc : int48 option sexp_opaque;
+        ethDst : int48 option sexp_opaque;
+        vlan : int16 option sexp_opaque;
+        vlanPcp : int8 option sexp_opaque;
+        ethType : int16 option sexp_opaque;
+        ipProto : int8 option sexp_opaque;
+        ipSrc : int32 option sexp_opaque; 
+        ipDst : int32 option sexp_opaque;
+        tcpSrcPort : int16 option sexp_opaque;
+        tcpDstPort : int16 option sexp_opaque
+      } with sexp, fields
+
   let to_string ?init:(init="") ?sep:(sep="=") (x:t) : string =
-    match x with 
-      | [] -> 
-        init
-      | _ -> 
-        List.fold x ~init:""
-          ~f:(fun acc (f, v) ->
-            Printf.sprintf "%s%s%s%s"
-              (if acc = "" then "" else acc ^ ", ")
-              (NetKAT_Pretty.string_of_field f)
-              sep
-              (NetKAT_Pretty.value_to_string v))
+    let g pp acc f = match Field.get f x with
+      | None -> acc
+      | Some v ->
+        let s = Printf.sprintf "%s%s%s" (Field.name f) sep (pp v) in 
+        if acc = "" then s
+        else Printf.sprintf "%s, %s" acc s in 
+    let ppl l = match l with 
+      | Physical x -> Printf.sprintf "%d" x
+      | Pipe x -> x in 
+    let pp8 = Printf.sprintf "%d" in
+    let pp16 = Printf.sprintf "%d" in
+    let pp32 = Printf.sprintf "%ld" in
+    let pp48 = Printf.sprintf "%Ld" in
+    Fields.fold
+      ~init:""
+      ~location:(g ppl)
+      ~ethSrc:(g pp48)
+      ~ethDst:(g pp48)
+      ~vlan:(g pp16)
+      ~vlanPcp:(g pp8)
+      ~ethType:(g pp16)
+      ~ipProto:(g pp8)
+      ~ipSrc:(g pp32)
+      ~ipDst:(g pp32)
+      ~tcpSrcPort:(g pp16)
+      ~tcpDstPort:(g pp16)
+
+  let compare (x:t) (y:t) : int =
+    Pervasives.compare x y
 
   type this_t = t with sexp
-
-  let compare (x:t) (y:t) : int = 
-    List.compare x y 
-      ~cmp:(fun (f1,v1) (f2,v2) -> 
-          let cmp = compare f1 f2 in 
-          if cmp <> 0 then cmp 
-          else Pervasives.compare v1 v2)
 
   module Set = Set.Make(struct
     type t = this_t with sexp
@@ -54,102 +108,124 @@ module Fields : FIELDS = struct
     Printf.sprintf "%s"
       (Set.fold s
          ~init:""
-         ~f:(fun acc x -> 
+         ~f:(fun acc x ->
            Printf.sprintf "%s%s"
              (if acc = "" then "" else acc ^ ", ")
              (to_string ~init:init ~sep:sep x)))
 
-  let empty : t = 
-    []
+  let empty : t =
+    { location = None;
+      ethSrc = None;
+      ethDst = None;
+      vlan = None;
+      vlanPcp = None;
+      ethType = None;
+      ipProto = None;
+      ipSrc = None;
+      ipDst = None;
+      tcpSrcPort = None;
+      tcpDstPort = None }
 
-  let is_empty (x:t) : bool = 
-    match x with 
-      | [] -> true
-      | _ -> false
+  let is_empty (x:t) : bool =
+    x = empty
 
-  let mk (f:field) (v:fieldVal) : t = 
-    [(f,v)]
-      
-  let rec subseteq (x:t) (y:t) : bool =  
-    match x,y with 
-      | _,[] -> true
-      | [],_::_ -> false
-      | (fx,vx)::xrest, (fy,vy)::yrest -> 
-        let cmp = Pervasives.compare fx fy in 
-        if cmp = 0 then 
-          vx = vy && subseteq xrest yrest
-        else if cmp < 0 then 
-          subseteq xrest y
-        else (* cmp > 0 *)
-          false 
+  let mk_location l = { empty with location = Some l }
+  let mk_ethSrc n = { empty with ethSrc = Some n }
+  let mk_ethDst n = { empty with ethSrc = Some n }
+  let mk_vlan n = { empty with vlan = Some n }
+  let mk_vlanPcp n = { empty with vlanPcp = Some n }
+  let mk_ethType n = { empty with vlanPcp = Some n }
+  let mk_ipProto n = { empty with ipProto = Some n }
+  let mk_ipSrc n = { empty with ipSrc = Some n }
+  let mk_ipDst n = { empty with ipDst = Some n }
+  let mk_tcpSrcPort n = { empty with tcpSrcPort = Some n }
+  let mk_tcpDstPort n = { empty with tcpDstPort = Some n }
+       
+  let rec subseteq (x:t) (y:t) : bool =
+    let g f =
+      match Field.get f x, Field.get f y with
+        | None, Some _ -> false
+        | Some _, None -> true
+        | Some v1, Some v2 -> v1 = v2
+        | None, None -> true in
+    Fields.for_all
+      ~location:g
+      ~ethSrc:g
+      ~ethDst:g
+      ~vlan:g
+      ~vlanPcp:g
+      ~ethType:g
+      ~ipProto:g
+      ~ipSrc:g
+      ~ipDst:g
+      ~tcpSrcPort:g
+      ~tcpDstPort:g
 
-  (* module Memo = Hashtbl.Make(struct *)
-  (*   type t = this_t * this_t with sexp *)
-  (*   let compare (l11,l12) (l21,l22) =  *)
-  (*     let cmp = compare l11 l21 in  *)
-  (*     if cmp <> 0 then cmp  *)
-  (*     else compare l12 l22   *)
-  (*   let hash = Hashtbl.hash *)
-  (* end) *)
+  let rec seq (x:t) (y:t) : t option =
+    let g acc f =
+      match acc with
+        | None -> None
+        | Some z ->
+          match Field.get f x, Field.get f y with
+            | (Some v1 as o1), (Some v2) ->
+              if v1 = v2 then Some (Field.fset f z o1) else None
+            | (Some v1 as o1), None -> Some (Field.fset f z o1)
+            | None, (Some v2 as o2) -> Some (Field.fset f z o2)
+            | None, None -> Some z in
+    Fields.fold
+      ~init:(Some empty)
+      ~location:g
+      ~ethSrc:g
+      ~ethDst:g
+      ~vlan:g
+      ~vlanPcp:g
+      ~ethType:g
+      ~ipProto:g
+      ~ipSrc:g
+      ~ipDst:g
+      ~tcpSrcPort:g
+      ~tcpDstPort:g
 
-  (* let memo = Memo.create () *)
-
-  let map_option f = function
-    | None -> None
-    | Some x -> Some (f x)  
-
-  let rec seq_loop x y k = 
-    match x,y with 
-      | _,[] -> 
-        k (Some x)
-      | [],_::_ -> 
-        k (Some y)
-      | (fx,vx)::xrest, (fy,vy)::yrest -> 
-        let cmp = Pervasives.compare fx fy in 
-        if cmp = 0 then 
-          begin 
-            if vx = vy then 
-              seq_loop xrest yrest 
-                (fun o -> k (map_option (fun l -> (fx,vx)::l) o))
-            else 
-              k None
-          end
-        else if cmp < 0 then 
-          seq_loop xrest y 
-            (fun o -> k (map_option (fun l -> (fx,vx)::l) o))
-        else (* cmp > 0 *)
-          seq_loop x yrest
-            (fun o -> k (map_option (fun l -> (fy,vy)::l) o))  
-      
-  let rec seq (x:t) (y:t) : t option = 
-    seq_loop x y (fun o -> o) 
-
-  let diff (x:t) (y:t) : t = 
-    let rec loop x y k = 
-      match x,y with 
-        | _,[] -> 
-          k x
-        | [],_::_ -> 
-          k x
-        | (fx,vx)::xrest, (fy,vy)::yrest -> 
-          let cmp = Pervasives.compare fx fy in 
-          if cmp = 0 then 
-            loop xrest yrest k 
-          else if cmp < 0 then 
-            loop xrest y (fun l -> (fx,vx)::l)
-          else (* cmp > 0 *)
-            loop x yrest k in 
-    loop x y (fun o -> o)
+  let diff (x:t) (y:t) : t =
+    let g acc f =
+      match Field.get f x, Field.get f y with
+        | Some v1, Some v2 ->
+          if v1 = v2 then Field.fset f acc None
+          else acc
+        | _ -> acc in
+    Fields.fold
+      ~init:x
+      ~location:g
+      ~ethSrc:g
+      ~ethDst:g
+      ~vlan:g
+      ~vlanPcp:g
+      ~ethType:g
+      ~ipProto:g
+      ~ipSrc:g
+      ~ipDst:g
+      ~tcpSrcPort:g
+      ~tcpDstPort:g
 end
 
 module type ACTION = sig
-  type t = Fields.t
+  type t = Headers.t
   module Set : Set.S with type Elt.t = t
   type group = Set.t list
   val to_string : t -> string
   val set_to_string : Set.t -> string
   val group_to_string : group -> string
-  val mk : field -> fieldVal -> t
+  val mk_location : location -> t
+  val mk_ethSrc : int48 -> t
+  val mk_ethDst : int48 -> t
+  val mk_vlan : int16 -> t
+  val mk_vlanPcp: int8 -> t
+  val mk_ethType : int16 -> t
+  val mk_ipProto : int8 -> t
+  val mk_ipSrc : int32 -> t
+  val mk_ipDst : int32 -> t
+  val mk_tcpSrcPort : int16 -> t
+  val mk_tcpDstPort : int16 -> t
   val seq : t -> t -> t
   val set_seq : t -> Set.t -> Set.t
   val group_seq : t -> group -> group
@@ -159,8 +235,8 @@ module type ACTION = sig
   val group_compare : group -> group -> int
   val group_union : group -> group -> group
   val group_cross : group -> group -> group
-  val id : Set.t 
-  val drop : Set.t 
+  val id : Set.t
+  val drop : Set.t
   val is_id : Set.t -> bool
   val is_drop : Set.t -> bool
   val group_id : group
@@ -174,151 +250,172 @@ end
 
 module Action : ACTION = struct
 
-  type t = Fields.t with sexp
+  type t = Headers.t with sexp
 
   type this_t = t with sexp
 
-  module SetSet = Set.Make(Fields.Set)
+  module SetSet = Set.Make(Headers.Set)
 
-  module Set = Fields.Set
+  module Set = Headers.Set
 
   type group = Set.t list
 
-  let compare = Fields.compare
+  let compare = Headers.compare
 
   let set_compare = Set.compare
 
   let group_compare = List.compare ~cmp:set_compare
 
-  let to_string : t -> string = 
-    Fields.to_string ~init:"id" ~sep:":="
+  let to_string : t -> string =
+    Headers.to_string ~init:"id" ~sep:":="
 
-  let set_to_string (s:Set.t) : string = 
+  let set_to_string (s:Set.t) : string =
     if Set.is_empty s then "drop"
-    else Fields.set_to_string ~init:"id" ~sep:":=" s
+    else Headers.set_to_string ~init:"id" ~sep:":=" s
 
-  let group_to_string (g:group) : string = 
+  let group_to_string (g:group) : string =
     Printf.sprintf "[%s]"
       (List.fold g
          ~init:""
-         ~f:(fun acc s -> 
+         ~f:(fun acc s ->
            Printf.sprintf "%s%s"
              (if acc = "" then "" else acc ^ " + ")
              (set_to_string s)))
+      
+  let mk_location l = { Headers.empty with Headers.location = Some l }
+  let mk_ethSrc n = { Headers.empty with Headers.ethSrc = Some n }
+  let mk_ethDst n = { Headers.empty with Headers.ethSrc = Some n }
+  let mk_vlan n = { Headers.empty with Headers.vlan = Some n }
+  let mk_vlanPcp n = { Headers.empty with Headers.vlanPcp = Some n }
+  let mk_ethType n = { Headers.empty with Headers.vlanPcp = Some n }
+  let mk_ipProto n = { Headers.empty with Headers.ipProto = Some n }
+  let mk_ipSrc n = { Headers.empty with Headers.ipSrc = Some n }
+  let mk_ipDst n = { Headers.empty with Headers.ipDst = Some n }
+  let mk_tcpSrcPort n = { Headers.empty with Headers.tcpSrcPort = Some n }
+  let mk_tcpDstPort n = { Headers.empty with Headers.tcpDstPort = Some n }
 
-  let mk (f:field) (v:VInt.t) : t = 
-    Fields.mk f v
+  let seq (x:t) (y:t) : t =
+    let g acc f =
+      match Field.get f y with
+        | Some _ as o2 ->
+          Field.fset f acc o2
+        | _ -> acc in 
+    Headers.Fields.fold
+      ~init:x
+      ~location:g
+      ~ethSrc:g
+      ~ethDst:g
+      ~vlan:g
+      ~vlanPcp:g
+      ~ethType:g
+      ~ipProto:g
+      ~ipSrc:g
+      ~ipDst:g
+      ~tcpSrcPort:g
+      ~tcpDstPort:g
 
-  (* module Memo = Hashtbl.Make(struct *)
-  (*   type t = this_t * this_t with sexp *)
-  (*   let compare (l11,l12) (l21,l22) =  *)
-  (*     let cmp = compare l11 l21 in  *)
-  (*     if cmp <> 0 then cmp  *)
-  (*     else compare l12 l22   *)
-  (*   let hash = Hashtbl.hash *)
-  (* end) *)
-
-  (* let memo = Memo.create ()  *)
-
-  let rec seq_loop a1 a2 k = 
-    match a1,a2 with 
-      | _,[] -> 
-        k a1
-      | [],_::_ -> 
-        k a2
-      | (f1,v1)::a1rest, (f2,v2)::a2rest -> 
-        let cmp = Pervasives.compare f1 f2 in 
-        if cmp = 0 then 
-          seq_loop a1rest a2rest (fun a -> k ((f2,v2)::a))
-        else if cmp < 0 then 
-          seq_loop a1rest a2 (fun a -> k ((f1,v1)::a))
-        else (* cmp > 0 *)
-          seq_loop a1 a2rest (fun a -> k ((f2,v2)::a))               
-
-  let seq a1 a2 = 
-    seq_loop a1 a2 (fun a -> a) 
-
-  let set_seq a s = 
+  let set_seq a s =
     Set.map s (seq a)
 
-  let group_seq a g = 
+  let group_seq a g =
     List.map g ~f:(set_seq a)
 
-  let diff : t -> t -> t = 
-    Fields.diff
+  let diff : t -> t -> t =
+    Headers.diff
 
-  let group_mk (s:Set.t) : group = 
+  let group_mk (s:Set.t) : group =
     [s]
 
-  let group_union (g1:group) (g2:group) : group = 
-    let ss = 
+  let group_union (g1:group) (g2:group) : group =
+    let ss =
       List.fold g2
         ~init:SetSet.empty
-        ~f:SetSet.add in 
-    let rec loop g ss k = 
-      match g with 
+        ~f:SetSet.add in
+    let rec loop g ss k =
+      match g with
         | [] -> k g2
-        | s::grest -> 
-          loop grest ss (fun l -> k (s::l)) in 
+        | s::grest ->
+          loop grest ss (fun l -> k (s::l)) in
     loop g1 ss (fun l -> l)
 
-  let group_cross (g1:group) (g2:group) : group = 
+  let group_cross (g1:group) (g2:group) : group =
     fst (List.fold_right g1
            ~init:([],SetSet.empty)
-           ~f:(fun s1i acc -> 
+           ~f:(fun s1i acc ->
                  List.fold_right g2
                    ~init:acc
-                   ~f:(fun s2j acc -> 
-                         let g,ss = acc in 
-                         let s1is2j = Set.union s1i s2j in 
+                   ~f:(fun s2j acc ->
+                         let g,ss = acc in
+                         let s1is2j = Set.union s1i s2j in
                          if SetSet.mem ss s1is2j then acc
                          else (s1is2j::g, SetSet.add ss s1is2j))))
 
-  let id : Set.t = 
-    Set.singleton (Fields.empty)
+  let id : Set.t =
+    Set.singleton (Headers.empty)
 
-  let drop : Set.t = 
+  let drop : Set.t =
     Set.empty
 
-  let is_id (s:Set.t) : bool = 
-    Set.length s = 1 && 
-    match Set.min_elt s with 
+  let is_id (s:Set.t) : bool =
+    Set.length s = 1 &&
+    match Set.min_elt s with
       | None -> false
-      | Some a -> Fields.is_empty a
+      | Some a -> Headers.is_empty a
 
-  let is_drop (s:Set.t) : bool = 
-    Set.is_empty s 
+  let is_drop (s:Set.t) : bool =
+    Set.is_empty s
 
-  let group_id : group = 
+  let group_id : group =
     [id]
       
-  let group_drop : group = 
+  let group_drop : group =
     [drop]
 
-  let group_is_id (g:group) : bool = 
-    match g with 
+  let group_is_id (g:group) : bool =
+    match g with
       | [s] -> is_id s
       | _ -> false
 
-  let group_is_drop (g:group) : bool = 
-    match g with 
+  let group_is_drop (g:group) : bool =
+    match g with
       | [s] -> is_drop s
-      | _ -> false  
+      | _ -> false
 
   let to_netkat (a:t) : NetKAT_Types.policy =
-    let f pol (f,v)  = 
-      let pol' = NetKAT_Types.Mod (NetKAT_Types.Header f, v) in 
-      if f =  InPort then 
-	NetKAT_Types.Seq (pol, pol') 
-      else 
-	NetKAT_Types.Seq (pol', pol) in
-    match a with 
-      | [] -> 
-        NetKAT_Types.Filter NetKAT_Types.True
-      | (h,v)::arest -> 
-        List.fold arest
-          ~init:(NetKAT_Types.Mod(NetKAT_Types.Header h,v))
-          ~f:f
+    let i8 x = VInt.Int64 (Int64.of_int x) in 
+    let i16 x = VInt.Int64 (Int64.of_int x) in 
+    let i32 x = VInt.Int64 (Int64.of_int32 x) in 
+    let i48 x = VInt.Int64 x in 
+    let il x = match x with 
+      | Physical p -> i16 p
+      | Pipe p -> failwith "NYI" in 
+    let g h c pol f =
+      match Field.get f a with 
+        | None -> 
+          pol
+        | Some v -> 
+          let pol' = NetKAT_Types.Mod (NetKAT_Types.Header h, c v) in
+          match pol with 
+            | NetKAT_Types.Filter NetKAT_Types.True -> 
+              pol'
+            | _ -> 
+              if Field.name f = "port" then
+	        NetKAT_Types.Seq (pol, pol')
+              else
+	        NetKAT_Types.Seq (pol', pol) in
+    Headers.Fields.fold
+      ~init:(NetKAT_Types.Filter NetKAT_Types.True)
+      ~location:(g InPort il)
+      ~ethSrc:(g EthSrc i48)
+      ~ethDst:(g EthDst i48)
+      ~vlan:(g Vlan i16)
+      ~vlanPcp:(g VlanPcp i8)
+      ~ethType:(g EthType i16)
+      ~ipProto:(g IPProto i8)
+      ~ipSrc:(g IP4Src i32)
+      ~ipDst:(g IP4Src i32)
+      ~tcpSrcPort:(g TCPSrcPort i16)
+      ~tcpDstPort:(g TCPDstPort i16)
 
   let set_to_netkat (s:Set.t) : NetKAT_Types.policy =
     if Set.is_empty s then
@@ -341,12 +438,22 @@ module Action : ACTION = struct
 end
 
 module type PATTERN = sig
-  type t = Fields.t
+  type t = Headers.t with sexp
   module Set : Set.S with type Elt.t = t
   val to_string : t -> string
   val set_to_string : Set.t -> string
   val compare : t -> t -> int
-  val mk : field -> fieldVal -> t
+  val mk_location  : location -> t
+  val mk_ethSrc : int48 -> t
+  val mk_ethDst : int48 -> t
+  val mk_vlan : int16 -> t
+  val mk_vlanPcp: int8 -> t
+  val mk_ethType : int16 -> t
+  val mk_ipProto : int8 -> t
+  val mk_ipSrc : int32 -> t
+  val mk_ipDst : int32 -> t
+  val mk_tcpSrcPort : int16 -> t
+  val mk_tcpDstPort : int16 -> t
   val seq : t -> t -> t option
   val seq_act : t -> Action.t -> t -> t option
   val diff : t -> t -> t
@@ -358,67 +465,101 @@ end
 
 module Pattern : PATTERN = struct
 
-  type t = Fields.t
+  type t = Headers.t with sexp
 
-  module Set = Fields.Set
+  module Set = Headers.Set
 
-  let to_string : t -> string = 
-    Fields.to_string ~init:"true" ~sep:"="
+  let to_string : t -> string =
+    Headers.to_string ~init:"true" ~sep:"="
 
-  let set_to_string (xs:Set.t) : string = 
+  let set_to_string (xs:Set.t) : string =
     Printf.sprintf "{%s}"
-      (Fields.set_to_string ~init:"true" ~sep:"=" xs)
+      (Headers.set_to_string ~init:"true" ~sep:"=" xs)
 
-  let compare : t -> t -> int = 
-    Fields.compare
+  let compare : t -> t -> int =
+    Headers.compare
 
-  let mk (f:field) (v:VInt.t) = 
-    Fields.mk f v
+  let mk_location n = { Headers.empty with Headers.location = Some n }
+  let mk_ethSrc n = { Headers.empty with Headers.ethSrc = Some n }
+  let mk_ethDst n = { Headers.empty with Headers.ethDst = Some n }
+  let mk_vlan n = { Headers.empty with Headers.vlan = Some n }
+  let mk_vlanPcp n = { Headers.empty with Headers.vlanPcp = Some n }
+  let mk_ethType n = { Headers.empty with Headers.ethType = Some n }
+  let mk_ipProto n = { Headers.empty with Headers.ipProto = Some n }
+  let mk_ipSrc n = { Headers.empty with Headers.ipSrc = Some n }
+  let mk_ipDst n = { Headers.empty with Headers.ipDst = Some n }
+  let mk_tcpSrcPort n = { Headers.empty with Headers.tcpSrcPort = Some n }
+  let mk_tcpDstPort n = { Headers.empty with Headers.tcpDstPort = Some n }
 
-  let seq : t -> t -> t option = 
-    Fields.seq
+  let seq : t -> t -> t option =
+    Headers.seq
 
-  let seq_act x a y = 
+  let seq_act x a y =
     (* TODO(jnf): can optimize into a single loop *)
     (* Printf.printf "  SEQ_ACT\n  X=%s\n  A=%s\n  Y=%s\n  " *)
     (*   (to_string x) *)
     (*   (Action.to_string a) *)
     (*   (to_string y); *)
-    match Fields.seq a y with 
-      | None -> 
+    match Headers.seq a y with
+      | None ->
         (* Printf.printf "Z=None\n"; *)
         None
-      | Some z -> 
+      | Some z ->
         (* Printf.printf "Z=Some (%s)\n  " (to_string z); *)
         (* Printf.printf "D=%s\n  " (to_string (Fields.diff z a)); *)
         (* Printf.printf "R=%s\n" (match (Fields.seq x (Fields.diff z a)) with None -> "None" | Some r -> to_string r); *)
-        Fields.seq x (Fields.diff z a)
+        Headers.seq x (Headers.diff z a)
       
-  let diff : t -> t -> t = 
-    Fields.diff
+  let diff : t -> t -> t =
+    Headers.diff
 
-  let subseteq : t -> t -> bool = 
-    Fields.subseteq
+  let subseteq : t -> t -> bool =
+    Headers.subseteq
       
-  let tru : t = 
-    Fields.empty
+  let tru : t =
+    Headers.empty
 
-  let to_netkat (x:t) : NetKAT_Types.pred =
-    let rec loop x k = 
-      match x with 
-        | [] -> 
-          k NetKAT_Types.True
-        | [(f,v)] -> 
-          k (NetKAT_Types.Test (NetKAT_Types.Header f,v))
-        | (f,v)::x1 -> 
-          loop x1 (fun pr -> NetKAT_Types.And(NetKAT_Types.Test(NetKAT_Types.Header f,v),pr)) in 
-    loop x (fun x -> x)
+  let to_netkat (a:t) : NetKAT_Types.pred =
+    let i8 x = VInt.Int64 (Int64.of_int x) in 
+    let i16 x = VInt.Int64 (Int64.of_int x) in 
+    let i32 x = VInt.Int64 (Int64.of_int32 x) in 
+    let i48 x = VInt.Int64 x in 
+    let il x = match x with 
+      | Physical p -> VInt.Int64 (Int64.of_int p) 
+      | Pipe p -> failwith "Not yet implemented" in  
+    let g h c pr f =
+      match Field.get f a with 
+        | None -> 
+          pr
+        | Some v -> 
+          let pr' = NetKAT_Types.Test (NetKAT_Types.Header h, c v) in
+          match pr with 
+            | NetKAT_Types.True -> 
+              pr'
+            | _ -> 
+              if Field.name f = "port" then
+	        NetKAT_Types.And (pr, pr')
+              else
+	        NetKAT_Types.And (pr', pr) in 
+    Headers.Fields.fold
+      ~init:NetKAT_Types.True
+      ~location:(g InPort il)
+      ~ethSrc:(g EthSrc i48)
+      ~ethDst:(g EthDst i48)
+      ~vlan:(g Vlan i16)
+      ~vlanPcp:(g VlanPcp i8)
+      ~ethType:(g EthType i16)
+      ~ipProto:(g IPProto i8)
+      ~ipSrc:(g IP4Src i32)
+      ~ipDst:(g IP4Src i32)
+      ~tcpSrcPort:(g TCPSrcPort i16)
+      ~tcpDstPort:(g TCPDstPort i16)
 
   let set_to_netkat (xs:Set.t) : NetKAT_Types.pred =
-    match Set.choose xs with 
-      | None -> 
+    match Set.choose xs with
+      | None ->
         NetKAT_Types.False
-      | Some x -> 
+      | Some x ->
         let xs' = Set.remove xs x in
         let f pol x = NetKAT_Types.Or(pol, to_netkat x) in
         Set.fold xs' ~init:(to_netkat x) ~f:f
@@ -430,11 +571,11 @@ module type ATOM = sig
   module DepMap : Map.S with type Key.t = t
   module Map : Map.S with type Key.t = t
   val to_string : t -> string
-  val compare : t -> t -> int 
+  val compare : t -> t -> int
   val mk : Pattern.t -> t
   val tru : t
   val neg : t -> Set.t
-  val seq : t -> t -> t option 
+  val seq : t -> t -> t option
   val seq_act : t -> Action.t -> t -> t option
 end
 
@@ -442,32 +583,32 @@ module Atom : ATOM = struct
 
   type t = (Pattern.Set.t * Pattern.t) sexp_opaque with sexp
 
-  let compare ((xs1,x1):t) ((xs2,x2):t) : int = 
-    let cmp = Pattern.Set.compare xs1 xs2 in 
+  let compare ((xs1,x1):t) ((xs2,x2):t) : int =
+    let cmp = Pattern.Set.compare xs1 xs2 in
     if cmp <> 0 then cmp
-    else Pattern.compare x1 x2  
+    else Pattern.compare x1 x2
 
-  let shadows (xs1,x1) (xs2,x2) = 
-    let ys = 
-      Pattern.Set.fold xs1 ~init:Pattern.Set.empty 
-        ~f:(fun acc xi -> 
+  let shadows (xs1,x1) (xs2,x2) =
+    let ys =
+      Pattern.Set.fold xs1 ~init:Pattern.Set.empty
+        ~f:(fun acc xi ->
           match Pattern.seq x1 xi with
             | None -> acc
-            | Some x1_xi -> Pattern.Set.add acc x1_xi) in 
+            | Some x1_xi -> Pattern.Set.add acc x1_xi) in
     Pattern.Set.mem ys x2
 
-  let dep_compare ((xs1,x1) as r1) ((xs2,x2) as r2) = 
-    let r = 
-      if shadows r2 r1 then 
+  let dep_compare ((xs1,x1) as r1) ((xs2,x2) as r2) =
+    let r =
+      if shadows r2 r1 then
         -1
-      else if shadows r1 r2 then 
+      else if shadows r1 r2 then
         1
-      else 
-        let cmp = Pattern.Set.compare xs1 xs2 in 
-        if cmp = 0 then 
-          Pattern.compare x1 x2 
-        else 
-          cmp in 
+      else
+        let cmp = Pattern.Set.compare xs1 xs2 in
+        if cmp = 0 then
+          Pattern.compare x1 x2
+        else
+          cmp in
     (* Printf.printf "COMPARE %s %s = %d\n%!" (to_string (xs1,x1)) (to_string (xs2,x2)) r; *)
     r
 
@@ -488,7 +629,7 @@ module Atom : ATOM = struct
     let compare = compare
   end)
 
-  let to_string ((xs,x):t) : string = 
+  let to_string ((xs,x):t) : string =
     Printf.sprintf "%s,%s"
       (Pattern.set_to_string xs)
       (Pattern.to_string x)
@@ -496,16 +637,16 @@ module Atom : ATOM = struct
   let mk (x:Pattern.t) : t =
     (Pattern.Set.empty, x)
 
-  let tru : t = 
+  let tru : t =
     mk Pattern.tru
 
   let check ((xs,x):t) : t option =
     if Pattern.Set.exists xs (fun xi -> Pattern.subseteq x xi) then
       None
-    else 
-      let xs' = 
+    else
+      let xs' =
         Pattern.Set.filter xs
-          ~f:(fun xi -> Pattern.seq x xi <> None) in 
+          ~f:(fun xi -> Pattern.seq x xi <> None) in
       Some (xs',x)
     
   let seq ((xs1,x1):t) ((xs2,x2):t) : t option =
@@ -515,34 +656,34 @@ module Atom : ATOM = struct
       | None ->
         None
 
-  let seq_act (xs1,x1) a (xs2,x2) = 
+  let seq_act (xs1,x1) a (xs2,x2) =
     match Pattern.seq_act x1 a x2 with
-      | None -> 
+      | None ->
         None
       | Some x1ax2 ->
         let xs =
-          Pattern.Set.fold xs2 
+          Pattern.Set.fold xs2
             ~init:xs1
             ~f:(fun acc xs2i ->
               match Pattern.seq_act Pattern.tru a xs2i with
                 | Some truaxs2i ->
-                  Pattern.Set.add acc truaxs2i 
+                  Pattern.Set.add acc truaxs2i
                 | None ->
-                  acc) in 
-        check (xs, x1ax2)  
+                  acc) in
+        check (xs, x1ax2)
 
-  let neg (xs,x) : Set.t = 
-    let init = 
-      match check (Pattern.Set.singleton x, Pattern.tru) with 
+  let neg (xs,x) : Set.t =
+    let init =
+      match check (Pattern.Set.singleton x, Pattern.tru) with
         | None -> Set.empty
-        | Some r -> Set.singleton r in 
+        | Some r -> Set.singleton r in
     Pattern.Set.fold xs
       ~init:init
       ~f:(fun acc xi -> Set.add acc (mk xi))
 end
 
 module type OPTIMIZE = sig
-  open NetKAT_Types 
+  open NetKAT_Types
   val mk_and : pred -> pred -> pred
   val mk_or : pred -> pred -> pred
   val mk_not : pred -> pred
@@ -556,77 +697,77 @@ module type OPTIMIZE = sig
 end
 
 module Optimize : OPTIMIZE = struct
-  let mk_and pr1 pr2 = 
-    match pr1, pr2 with 
-      | NetKAT_Types.True, _ -> 
+  let mk_and pr1 pr2 =
+    match pr1, pr2 with
+      | NetKAT_Types.True, _ ->
         pr2
-      | _, NetKAT_Types.True -> 
+      | _, NetKAT_Types.True ->
         pr1
-      | NetKAT_Types.False, _ -> 
+      | NetKAT_Types.False, _ ->
         NetKAT_Types.False
-      | _, NetKAT_Types.False -> 
+      | _, NetKAT_Types.False ->
         NetKAT_Types.False
-      | _ -> 
+      | _ ->
         NetKAT_Types.And(pr1, pr2)
 
-  let mk_or pr1 pr2 = 
-    match pr1, pr2 with 
-      | NetKAT_Types.True, _ -> 
+  let mk_or pr1 pr2 =
+    match pr1, pr2 with
+      | NetKAT_Types.True, _ ->
         NetKAT_Types.True
-      | _, NetKAT_Types.True -> 
+      | _, NetKAT_Types.True ->
         NetKAT_Types.True
-      | NetKAT_Types.False, _ -> 
+      | NetKAT_Types.False, _ ->
         pr2
-      | _, NetKAT_Types.False -> 
+      | _, NetKAT_Types.False ->
         pr2
-      | _ -> 
+      | _ ->
         NetKAT_Types.Or(pr1, pr2)
 
   let mk_not pat =
     match pat with
       | NetKAT_Types.False -> NetKAT_Types.True
       | NetKAT_Types.True -> NetKAT_Types.False
-      | _ -> NetKAT_Types.Neg(pat) 
+      | _ -> NetKAT_Types.Neg(pat)
 
-  let mk_mod f v = 
+  let mk_mod f v =
     NetKAT_Types.Mod (NetKAT_Types.Header f,v)
 
-  let mk_filter pr = 
+  let mk_filter pr =
     NetKAT_Types.Filter (pr)
 
-  let mk_par pol1 pol2 = 
+  let mk_par pol1 pol2 =
     match pol1, pol2 with
-      | NetKAT_Types.Filter NetKAT_Types.False, _ -> 
+      | NetKAT_Types.Filter NetKAT_Types.False, _ ->
         pol2
-      | _, NetKAT_Types.Filter NetKAT_Types.False -> 
+      | _, NetKAT_Types.Filter NetKAT_Types.False ->
         pol1
-      | _ -> 
-        NetKAT_Types.Union(pol1,pol2) 
+      | _ ->
+        NetKAT_Types.Union(pol1,pol2)
 
   let mk_seq pol1 pol2 =
     match pol1, pol2 with
-      | NetKAT_Types.Filter NetKAT_Types.True, _ -> 
+      | NetKAT_Types.Filter NetKAT_Types.True, _ ->
         pol2
-      | _, NetKAT_Types.Filter NetKAT_Types.True -> 
+      | _, NetKAT_Types.Filter NetKAT_Types.True ->
         pol1
-      | NetKAT_Types.Filter NetKAT_Types.False, _ -> 
+      | NetKAT_Types.Filter NetKAT_Types.False, _ ->
         pol1
-      | _, NetKAT_Types.Filter NetKAT_Types.False -> 
+      | _, NetKAT_Types.Filter NetKAT_Types.False ->
         pol2
-      | _ -> 
-        NetKAT_Types.Seq(pol1,pol2) 
+      | _ ->
+        NetKAT_Types.Seq(pol1,pol2)
 
-  let mk_star pol = 
-    match pol with 
-      | NetKAT_Types.Filter NetKAT_Types.True -> 
+  let mk_star pol =
+    match pol with
+      | NetKAT_Types.Filter NetKAT_Types.True ->
         pol
-      | NetKAT_Types.Filter NetKAT_Types.False -> 
+      | NetKAT_Types.Filter NetKAT_Types.False ->
         NetKAT_Types.Filter NetKAT_Types.True
       | NetKAT_Types.Star(pol1) -> pol
       | _ -> NetKAT_Types.Star(pol)
   
-  let specialize_pred sw pr = 
-    let rec loop pr k = 
+  let specialize_pred sw pr =
+    let rec loop pr k =
       match pr with
         | NetKAT_Types.True ->
           k pr
@@ -635,7 +776,7 @@ module Optimize : OPTIMIZE = struct
         | NetKAT_Types.Neg pr1 ->
           loop pr1 (fun pr -> k (mk_not pr))
         | NetKAT_Types.Test (NetKAT_Types.Switch, v) ->
-          if v = VInt.Int64 sw then 
+          if v = VInt.Int64 sw then
             k NetKAT_Types.True
           else
             k NetKAT_Types.False
@@ -644,16 +785,16 @@ module Optimize : OPTIMIZE = struct
         | NetKAT_Types.And (pr1, pr2) ->
           loop pr1 (fun p1 -> loop pr2 (fun p2 -> k (mk_and p1 p2)))
         | NetKAT_Types.Or (pr1, pr2) ->
-          loop pr1 (fun p1 -> loop pr2 (fun p2 -> k (mk_or p1 p2))) in 
+          loop pr1 (fun p1 -> loop pr2 (fun p2 -> k (mk_or p1 p2))) in
     loop pr (fun x -> x)
 
-  let specialize_policy sw pol = 
-    let rec loop pol k = 
-      match pol with  
+  let specialize_policy sw pol =
+    let rec loop pol k =
+      match pol with
         | NetKAT_Types.Filter pr ->
           k (NetKAT_Types.Filter (specialize_pred sw pr))
         | NetKAT_Types.Mod (h, v) ->
-          k pol 
+          k pol
         | NetKAT_Types.Union (pol1, pol2) ->
           loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (mk_par p1 p2)))
         | NetKAT_Types.Seq (pol1, pol2) ->
@@ -661,8 +802,8 @@ module Optimize : OPTIMIZE = struct
         | NetKAT_Types.Star pol ->
           loop pol (fun p -> k (mk_star p))
         | NetKAT_Types.Link(sw,pt,sw',pt') ->
-	  failwith "Not a local policy" in 
-    loop pol (fun x -> x) 
+	  failwith "Not a local policy" in
+    loop pol (fun x -> x)
 end
 
 module type LOCAL = sig
@@ -671,28 +812,28 @@ module type LOCAL = sig
   val of_pred : NetKAT_Types.pred -> t
   val of_policy : NetKAT_Types.policy -> t
   val to_netkat : t -> NetKAT_Types.policy
-end 
+end
 
 module Local : LOCAL = struct
 
   type t = Action.group Atom.Map.t
 
-  let compare p q = 
+  let compare p q =
     Atom.Map.compare Action.group_compare p q
       
-  let to_string (m:t) : string = 
+  let to_string (m:t) : string =
     Printf.sprintf "%s"
-      (Atom.Map.fold m 
+      (Atom.Map.fold m
          ~init:""
          ~f:(fun ~key:r ~data:g acc ->
              Printf.sprintf "%s(%s) => %s\n"
                acc
-               (Atom.to_string r) 
+               (Atom.to_string r)
                (Action.group_to_string g)))
 
-  let extend (r:Atom.t) (g:Action.group) (m:t) : t = 
+  let extend (r:Atom.t) (g:Action.group) (m:t) : t =
     if Atom.Map.mem m r then
-      begin 
+      begin
         Printf.printf "OVERLAP\nM=\n%s\nR=\n%s\n"
           (to_string m)
           (Atom.to_string r);
@@ -701,88 +842,88 @@ module Local : LOCAL = struct
     else
       Atom.Map.add m r g
 
-  let intersect (op:Action.group -> Action.group -> Action.group) (p:t) (q:t) : t = 
+  let intersect (op:Action.group -> Action.group -> Action.group) (p:t) (q:t) : t =
     Atom.Map.fold p
       ~init:Atom.Map.empty
       ~f:(fun ~key:r1 ~data:g1 acc ->
         Atom.Map.fold q
           ~init:acc
           ~f:(fun ~key:r2 ~data:g2 acc ->
-            match Atom.seq r1 r2 with 
-              | None -> 
+            match Atom.seq r1 r2 with
+              | None ->
                 acc
-              | Some r1_r2 -> 
-                extend r1_r2 (op g1 g2) acc))  
+              | Some r1_r2 ->
+                extend r1_r2 (op g1 g2) acc))
     
-  let par p q = 
-    let r = intersect Action.group_cross p q in 
+  let par p q =
+    let r = intersect Action.group_cross p q in
     (* debug "### PAR ###\n%s\n%s\n%s" *)
     (*   (to_string p) *)
     (*   (to_string q) *)
     (*   (to_string r); *)
     r
       
-  let seq p q = 
+  let seq p q =
     let cross_merge ~key:_ v =
-      match v with 
+      match v with
         | `Left g1 -> Some g1
         | `Right g2 -> Some g2
-        | `Both (g1,g2) -> Some (Action.group_cross g1 g2) in 
+        | `Both (g1,g2) -> Some (Action.group_cross g1 g2) in
           
-    let union_merge ~key:_ v = 
-      match v with 
+    let union_merge ~key:_ v =
+      match v with
         | `Left g1 -> Some g1
         | `Right g2 -> Some g2
-        | `Both (g1,g2) -> Some (Action.group_union g1 g2) in 
+        | `Both (g1,g2) -> Some (Action.group_union g1 g2) in
 
-    let seq_act r1 a q = 
-      Atom.Map.fold q 
-        ~init:Atom.Map.empty 
-        ~f:(fun ~key:r2 ~data:g2 acc -> 
+    let seq_act r1 a q =
+      Atom.Map.fold q
+        ~init:Atom.Map.empty
+        ~f:(fun ~key:r2 ~data:g2 acc ->
           match Atom.seq_act r1 a r2 with
-            | None -> 
+            | None ->
               acc
-            | Some r12 -> 
+            | Some r12 ->
               extend r12 (Action.group_seq a g2) acc) in
     
-    let seq_atom_acts_local r1 s1 q = 
-      if Action.Set.is_empty s1 then 
+    let seq_atom_acts_local r1 s1 q =
+      if Action.Set.is_empty s1 then
         Atom.Map.singleton r1 (Action.group_mk s1)
       else
         Action.Set.fold s1
           ~init:Atom.Map.empty
-          ~f:(fun acc a -> 
-            let acc' = seq_act r1 a q in 
-            Atom.Map.merge ~f:cross_merge acc acc') in 
+          ~f:(fun acc a ->
+            let acc' = seq_act r1 a q in
+            Atom.Map.merge ~f:cross_merge acc acc') in
     
-    let r = 
-      Atom.Map.fold p 
+    let r =
+      Atom.Map.fold p
         ~init:Atom.Map.empty
-        ~f:(fun ~key:r1 ~data:g1 acc -> 
+        ~f:(fun ~key:r1 ~data:g1 acc ->
           List.fold g1
             ~init:acc
-            ~f:(fun acc si -> 
-              let acc' = seq_atom_acts_local r1 si q in 
-              Atom.Map.merge ~f:union_merge acc acc')) in 
+            ~f:(fun acc si ->
+              let acc' = seq_atom_acts_local r1 si q in
+              Atom.Map.merge ~f:union_merge acc acc')) in
     (* debug "### SEQ ###\n%s\n%s\n%s" *)
     (*   (to_string p) *)
     (*   (to_string q) *)
     (*   (to_string r); *)
     r
         
-  let neg (p:t) : t= 
+  let neg (p:t) : t=
     let r =
-      Atom.Map.map p 
-        ~f:(fun g -> 
-          if Action.group_is_drop g then Action.group_id 
+      Atom.Map.map p
+        ~f:(fun g ->
+          if Action.group_is_drop g then Action.group_id
           else if Action.group_is_id g then Action.group_drop
-          else failwith "neg: not a predicate") in 
+          else failwith "neg: not a predicate") in
     (* debug "### NEGATE ###\n%s\n%s" *)
     (*   (to_string p) *)
     (*   (to_string r); *)
     r
 
-  let star p = 
+  let star p =
     let rec loop acc pi =
       let psucci = seq p pi in
       let acc' = par acc psucci in
@@ -791,26 +932,38 @@ module Local : LOCAL = struct
       else
         loop acc' psucci in
     let p0 = Atom.Map.singleton Atom.tru Action.group_id in
-    let r = loop p0 p0 in 
+    let r = loop p0 p0 in
     (* debug "### STAR ###\n%s\n%s" *)
     (*   (to_string p) *)
     (*   (to_string r); *)
     r
 
   let rec of_pred (pr:NetKAT_Types.pred) : t =
-    let rec loop pr k = 
+    let rec loop pr k =
       match pr with
       | NetKAT_Types.True ->
-        k (Atom.Map.singleton Atom.tru Action.group_id) 
+        k (Atom.Map.singleton Atom.tru Action.group_id)
       | NetKAT_Types.False ->
-        k (Atom.Map.singleton Atom.tru Action.group_drop) 
+        k (Atom.Map.singleton Atom.tru Action.group_drop)
       | NetKAT_Types.Neg pr ->
         loop pr (fun (p:t) -> k (neg p))
       | NetKAT_Types.Test (NetKAT_Types.Switch, v) ->
         failwith "Not a local policy"
-      | NetKAT_Types.Test (NetKAT_Types.Header f, v) ->
-        let r = Atom.mk (Pattern.mk f v) in 
-        let m = 
+      | NetKAT_Types.Test (NetKAT_Types.Header h, v) ->
+        let x = match h with 
+          | InPort -> Pattern.mk_location (Physical (VInt.get_int16 v))
+          | EthType -> Pattern.mk_ethType (VInt.get_int16 v)
+          | EthSrc -> Pattern.mk_ethSrc (VInt.get_int48 v)
+          | EthDst -> Pattern.mk_ethDst (VInt.get_int48 v)
+          | Vlan -> Pattern.mk_vlan (VInt.get_int16 v)
+          | VlanPcp -> Pattern.mk_vlanPcp (VInt.get_int8 v)
+          | IPProto -> Pattern.mk_ipProto (VInt.get_int8 v)
+          | IP4Src -> Pattern.mk_ipSrc (VInt.get_int32 v)
+          | IP4Dst -> Pattern.mk_ipDst (VInt.get_int32 v)
+          | TCPSrcPort -> Pattern.mk_tcpSrcPort (VInt.get_int16 v)
+          | TCPDstPort -> Pattern.mk_tcpDstPort (VInt.get_int16 v) in 
+        let r = Atom.mk x in 
+        let m =
           Atom.Set.fold (Atom.neg r)
             ~init:(Atom.Map.singleton r Action.group_id)
             ~f:(fun acc r -> extend r Action.group_drop acc) in
@@ -818,20 +971,31 @@ module Local : LOCAL = struct
       | NetKAT_Types.And (pr1, pr2) ->
         loop pr1 (fun p1 -> loop pr2 (fun p2 -> k (seq p1 p2)))
       | NetKAT_Types.Or (pr1, pr2) ->
-        loop pr1 (fun p1 -> loop pr2 (fun p2 -> k (par p1 p2))) in 
+        loop pr1 (fun p1 -> loop pr2 (fun p2 -> k (par p1 p2))) in
     loop pr (fun x -> x)
 
   let of_policy (pol:NetKAT_Types.policy) : t =
-    let rec loop pol k =  
+    let rec loop pol k =
       match pol with
         | NetKAT_Types.Filter pr ->
           k (of_pred pr)
         | NetKAT_Types.Mod (NetKAT_Types.Switch, v) ->
           failwith "Not a local policy"
-        | NetKAT_Types.Mod (NetKAT_Types.Header f, v) -> 
-          let a = Action.mk f v in 
-          let g = Action.group_mk (Action.Set.singleton a) in 
-          let m = Atom.Map.singleton Atom.tru g in 
+        | NetKAT_Types.Mod (NetKAT_Types.Header f, v) ->
+          let a = match f with 
+            | InPort -> Pattern.mk_location (Physical (VInt.get_int16 v))
+            | EthType -> Pattern.mk_ethType (VInt.get_int16 v)
+            | EthSrc -> Pattern.mk_ethSrc (VInt.get_int48 v)
+            | EthDst -> Pattern.mk_ethDst (VInt.get_int48 v)
+            | Vlan -> Pattern.mk_vlan (VInt.get_int16 v)
+            | VlanPcp -> Pattern.mk_vlanPcp (VInt.get_int8 v)
+            | IPProto -> Pattern.mk_ipProto (VInt.get_int8 v)
+            | IP4Src -> Pattern.mk_ipSrc (VInt.get_int32 v)
+            | IP4Dst -> Pattern.mk_ipDst (VInt.get_int32 v)
+            | TCPSrcPort -> Pattern.mk_tcpSrcPort (VInt.get_int16 v)
+            | TCPDstPort -> Pattern.mk_tcpDstPort (VInt.get_int16 v) in 
+          let g = Action.group_mk (Action.Set.singleton a) in
+          let m = Atom.Map.singleton Atom.tru g in
           k m
         | NetKAT_Types.Union (pol1, pol2) ->
           loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (par p1 p2)))
@@ -840,16 +1004,16 @@ module Local : LOCAL = struct
         | NetKAT_Types.Star pol ->
           loop pol (fun p -> k (star p))
         | NetKAT_Types.Link(sw,pt,sw',pt') ->
-	  failwith "Not a local policy" in 
+	  failwith "Not a local policy" in
     loop pol (fun p -> p)
 
   let to_netkat (m:t) : NetKAT_Types.policy =
-    let open Optimize in 
+    let open Optimize in
     let rec loop m =
-    match Atom.Map.min_elt m with 
-      | None -> 
+    match Atom.Map.min_elt m with
+      | None ->
         NetKAT_Types.Filter NetKAT_Types.False
-      | Some (r,g) -> 
+      | Some (r,g) ->
         let m' = Atom.Map.remove m r in
         let (xs,x) = r in
         let nc_pred = mk_and (mk_not (Pattern.set_to_netkat xs)) (Pattern.to_netkat x) in
@@ -861,15 +1025,32 @@ end
 module RunTime = struct
 
   let to_action (a:Action.t) (pto: fieldVal option) : seq =
-    let port = 
-      match List.Assoc.find a InPort, pto with 
-        | None, None -> 
-          failwith "indeterminate port"
-        | Some pt,_ -> pt
-        | _, Some pt -> pt in 
-    let mods = List.Assoc.remove a InPort in 
-    let mk_mod act (f, v) = SetField(f,v)::act in 
-    List.fold mods ~init:[OutputPort port] ~f:mk_mod
+    let i8 x = VInt.Int64 (Int64.of_int x) in 
+    let i16 x = VInt.Int64 (Int64.of_int x) in 
+    let i32 x = VInt.Int64 (Int64.of_int32 x) in 
+    let i48 x = VInt.Int64 x in 
+    let port = match Headers.location a, pto with
+        | Some (Physical pt),_ -> VInt.Int16 pt
+        | _, Some pt -> pt 
+        | _, None ->
+          failwith "indeterminate port" in 
+    let g h c act f = 
+      match Field.get f a with 
+        | None -> act
+        | Some v -> SetField(h,c v)::act in 
+    Headers.Fields.fold
+      ~init:[OutputPort port] 
+      ~location:(fun act _ -> act)
+      ~ethSrc:(g EthSrc i48)
+      ~ethDst:(g EthDst i48)
+      ~vlan:(g Vlan i16)
+      ~vlanPcp:(g VlanPcp i8)
+      ~ethType:(g EthType i16)
+      ~ipProto:(g IPProto i8)
+      ~ipSrc:(g IP4Src i32)
+      ~ipDst:(g IP4Src i32)
+      ~tcpSrcPort:(g TCPSrcPort i16)
+      ~tcpDstPort:(g TCPDstPort i16)
 
   let set_to_action (s:Action.Set.t) (pto : fieldVal option) : par =
     let f par a = (to_action a pto)::par in
@@ -879,16 +1060,37 @@ module RunTime = struct
     List.map g ~f:(fun s -> set_to_action s pto)
 
   let to_pattern (x:Pattern.t) : pattern =
-    List.fold x 
-      ~init:SDN_Types.FieldMap.empty
-      ~f:(fun acc (f,v) -> SDN_Types.FieldMap.add f v acc)
-      
+    let i8 x = VInt.Int64 (Int64.of_int x) in 
+    let i16 x = VInt.Int64 (Int64.of_int x) in 
+    let i32 x = VInt.Int64 (Int64.of_int32 x) in 
+    let i48 x = VInt.Int64 x in 
+    let il x = match x with 
+      | Physical p -> VInt.Int64 (Int64.of_int p)
+      | Pipe p -> failwith "Not yet implemented" in 
+    let g h c act f = 
+      match Field.get f x with 
+        | None -> act
+        | Some v -> FieldMap.add h (c v) act in 
+    Headers.Fields.fold
+      ~init:FieldMap.empty
+      ~location:(g InPort il)
+      ~ethSrc:(g EthSrc i48)
+      ~ethDst:(g EthDst i48)
+      ~vlan:(g Vlan i16)
+      ~vlanPcp:(g VlanPcp i8)
+      ~ethType:(g EthType i16)
+      ~ipProto:(g IPProto i8)
+      ~ipSrc:(g IP4Src i32)
+      ~ipDst:(g IP4Src i32)
+      ~tcpSrcPort:(g TCPSrcPort i16)
+      ~tcpDstPort:(g TCPDstPort i16)
+
   type i = Local.t
 
   let compile (sw:switchId) (pol:NetKAT_Types.policy) : i =
-    let pol' = Optimize.specialize_policy sw pol in 
-    let n,n' = Semantics.size pol, Semantics.size pol' in 
-    Printf.printf " [compression: %d -> %d = %.3f] " 
+    let pol' = Optimize.specialize_policy sw pol in
+    let n,n' = Semantics.size pol, Semantics.size pol' in
+    Printf.printf " [compression: %d -> %d = %.3f] "
       n n' (Float.of_int n' /. Float.of_int n);
     Local.of_policy pol'
 
@@ -904,39 +1106,42 @@ module RunTime = struct
 
   (* Prunes out rules that apply to other switches. *)
   let to_table (m:i) : flowTable =
-    let dm = 
+    let dm =
       Atom.Map.fold m
         ~init:Atom.DepMap.empty
-        ~f:(fun ~key:r ~data:g acc -> Atom.DepMap.add acc r g) in 
+        ~f:(fun ~key:r ~data:g acc -> Atom.DepMap.add acc r g) in
     let add_flow x g l =
-      let pat = to_pattern x in 
-      let act = group_to_action g (List.Assoc.find x InPort) in 
+      let pat = to_pattern x in
+      let pto = match Headers.location x with 
+        | Some (Physical p) -> Some (VInt.Int64 (Int64.of_int p))
+        | _ -> None in  
+      let act = group_to_action g pto in 
       simpl_flow pat act::l in
     let rec loop dm acc cover =
-      match Atom.DepMap.min_elt dm with 
-        | None -> 
-          acc 
-        | Some (r,g) -> 
+      match Atom.DepMap.min_elt dm with
+        | None ->
+          acc
+        | Some (r,g) ->
           let (xs,x) = r in
           let dm' = Atom.DepMap.remove dm r in
-          let ys = 
+          let ys =
             Pattern.Set.fold
               xs ~init:Pattern.Set.empty
-              ~f:(fun acc xi -> 
-                match Pattern.seq xi x with 
+              ~f:(fun acc xi ->
+                match Pattern.seq xi x with
                   | None -> acc
-                  | Some xi_x -> Pattern.Set.add acc xi_x) in 
-          let zs = 
-            Pattern.Set.fold ys 
+                  | Some xi_x -> Pattern.Set.add acc xi_x) in
+          let zs =
+            Pattern.Set.fold ys
               ~init:Pattern.Set.empty
-              ~f:(fun acc yi -> 
-                if Pattern.Set.exists cover ~f:(Pattern.subseteq yi) then 
+              ~f:(fun acc yi ->
+                if Pattern.Set.exists cover ~f:(Pattern.subseteq yi) then
                   acc
                 else
-                  Pattern.Set.add acc yi) in 
-          let acc' = 
-            Pattern.Set.fold zs 
-              ~init:acc 
+                  Pattern.Set.add acc yi) in
+          let acc' =
+            Pattern.Set.fold zs
+              ~init:acc
               ~f:(fun acc x -> add_flow x Action.group_drop acc) in
           let acc'' = add_flow x g acc' in
           let cover' = Pattern.Set.add (Pattern.Set.union zs cover) x in
@@ -947,17 +1152,17 @@ end
 (* exports *)
 type t = RunTime.i
 
-let of_policy sw pol = 
+let of_policy sw pol =
   Local.of_policy (Optimize.specialize_policy sw pol)
 
-let to_netkat = 
+let to_netkat =
   Local.to_netkat
 
-let compile = 
+let compile =
   RunTime.compile
 
-let decompile = 
+let decompile =
   RunTime.decompile
 
-let to_table = 
+let to_table =
   RunTime.to_table
