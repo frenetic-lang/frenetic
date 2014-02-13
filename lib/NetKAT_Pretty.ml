@@ -38,7 +38,7 @@ module Formatting = struct
   let format_header_val (fmt : formatter) (hv : header_val) (asgn : string) : unit = match hv with
     | Switch(n) -> fprintf fmt "@[switch %s %Lu@]" asgn n
     | Location(Physical n) -> fprintf fmt "@[port %s %u@]" asgn n
-    | Location(Pipe x) -> fprintf fmt "@[location %s %s@]" asgn x
+    | Location(Pipe x) -> fprintf fmt "@[port %s %s@]" asgn x
     | EthSrc(n) -> fprintf fmt "@[ethSrc %s %Lu@]" asgn n
     | EthDst(n) -> fprintf fmt "@[ethDst %s %Lu@]" asgn n
     | Vlan(n) -> fprintf fmt "@[vlanId %s %d@]" asgn n

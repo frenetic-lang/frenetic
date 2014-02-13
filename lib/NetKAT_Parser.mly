@@ -38,6 +38,7 @@
 %token <Int64.t> IPADDR
 %token <float> FLOAT
 %token <string> STRING
+%token <string> IDENT
 %token EOF
 
 %start program
@@ -95,6 +96,8 @@ xpredicate:
       { Test(Switch $3) }
   | PORT EQUALS field_value
       { Test(Location(Physical (VInt.get_int16 (VInt.Int64 $3))))}
+  | PORT EQUALS IDENT
+      { Test(Location(Pipe $3)) }
   | SRCMAC EQUALS field_value
       { Test(EthSrc (VInt.get_int48 (VInt.Int64 $3))) }
   | DSTMAC EQUALS field_value
@@ -146,6 +149,8 @@ xpolicy:
       { Filter $2 }
   | PORT ASSIGN field_value
       { Mod(Location(Physical (VInt.get_int16 (VInt.Int64 $3))))}
+  | PORT ASSIGN IDENT
+      { Mod(Location(Pipe $3)) }
   | SRCMAC ASSIGN field_value
       { Mod(EthSrc (VInt.get_int48 (VInt.Int64 $3))) }
   | DSTMAC ASSIGN field_value

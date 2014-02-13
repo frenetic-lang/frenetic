@@ -2,18 +2,29 @@ open NetKAT_Types
 
 module AB = Arbitrary_Base
 
-let arbitrary_location =
+let arbitrary_id =
   let open QuickCheck_gen in
-  oneof [
-    map_gen (fun i -> NetKAT_Types.Physical i) AB.arbitrary_uint16;
-    map_gen (fun s -> NetKAT_Types.Pipe s) QuickCheck.arbitrary_string;
-  ]
+  let shared = [
+    map_gen (fun i -> Char.chr i) (choose_int (0x41, 0x5a));
+    map_gen (fun i -> Char.chr i) (choose_int (0x61, 0x7a));
+    ret_gen (Char.chr 0x5f);
+  ] in
+  let schr = oneof shared in
+  let chr = oneof ([
+    map_gen (fun i -> Char.chr i) (choose_int (0x30,0x39));
+  ] @ shared) in
+  schr >>= fun c ->
+  choose_int (0, 10) >>= fun l ->
+  QuickCheck.arbitrary_listN l chr >>= fun cs ->
+    ret_gen (QuickCheck_util.charlist_to_string (c::cs))
+
 
 let arbitrary_test, arbitrary_mod =
   let open QuickCheck_gen in
   let open NetKAT_Types in
   let shared = [
     map_gen (fun i -> Location (Physical i)) AB.arbitrary_uint16;
+    map_gen (fun s -> Location (Pipe s)) arbitrary_id;
     map_gen (fun i -> EthSrc i) AB.arbitrary_uint48;
     map_gen (fun i -> EthDst i) AB.arbitrary_uint48;
     map_gen (fun i -> EthType i) AB.arbitrary_uint16;
@@ -34,10 +45,6 @@ let arbitrary_test, arbitrary_mod =
     map_gen (fun i -> Switch i) AB.arbitrary_uint48;
   ] @ shared),
   oneof ([
-    (* XXX(seliopou): Currently not being tests:
-     *
-     *   controller "<pipe>"
-     * *)
   ] @ shared))
 
 let arbitrary_portId =
