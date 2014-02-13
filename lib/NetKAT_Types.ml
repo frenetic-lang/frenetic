@@ -83,6 +83,19 @@ module Headers = struct
         tcpDstPort : int16 option sexp_opaque
       } with sexp,fields
 
+  let empty =
+    { location = None;
+      ethSrc = None;
+      ethDst = None;
+      vlan = None;
+      vlanPcp = None;
+      ethType = None;
+      ipProto = None;
+      ipSrc = None;
+      ipDst = None;
+      tcpSrcPort = None;
+      tcpDstPort = None }
+
   let compare = Pervasives.compare
 end
  

@@ -79,19 +79,7 @@ module HeadersCommon : HEADERSCOMMON = struct
              (if acc = "" then "" else acc ^ ", ")
              (to_string ~init:init ~sep:sep x)))
 
-  let empty : t =
-    let open Headers in 
-    { location = None;
-      ethSrc = None;
-      ethDst = None;
-      vlan = None;
-      vlanPcp = None;
-      ethType = None;
-      ipProto = None;
-      ipSrc = None;
-      ipDst = None;
-      tcpSrcPort = None;
-      tcpDstPort = None }
+  let empty : t = Headers.empty
 
   let is_empty (x:t) : bool =
     x = empty
