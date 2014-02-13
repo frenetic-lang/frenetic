@@ -61,8 +61,7 @@ module HeadersCommon : HEADERSCOMMON = struct
       ~tcpSrcPort:(g pp16)
       ~tcpDstPort:(g pp16)
 
-  let compare (x:t) (y:t) : int =
-    Pervasives.compare x y
+  let compare (x:t) (y:t) : int = Headers.compare x y
 
   type this_t = t with sexp
 
