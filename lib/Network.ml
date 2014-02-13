@@ -169,12 +169,12 @@ let next_hop ((g,t):t) (n:Node.t) (p:portId) : Node.t =
 (* Just your basic breadth first search from a src to all destinations. Returns
    a hashtable that maps each node to its predecessor in the path *)
 
-let all_paths ((g,_):t) (src:Node.t) : Node.t NodeHash.t =
-  let size = G.nb_vertex g in
-  let prevs = NH.create size in
+let all_paths ((g,_):t) (src:Node.t) : Node.t list NodeHash.t =
+  let paths = NH.create (G.nb_vertex g) in
   let rec loop current =
+    let pathlet = try NH.find paths current with Not_found -> [current] in
     G.iter_succ (fun v ->
-      if not (Node.visited v) then NH.replace prevs v current
+      if not (Node.visited v) then NH.add paths v (v::pathlet)
     ) g current;
     Node.visit current;
     G.iter_succ (fun v ->
@@ -182,7 +182,22 @@ let all_paths ((g,_):t) (src:Node.t) : Node.t NodeHash.t =
     ) g current in
 
   loop src;
-  prevs
+  G.iter_vertex Node.leave g;
+  paths
+(* let all_paths ((g,_):t) (src:Node.t) : Node.t NodeHash.t = *)
+(*   let size = G.nb_vertex g in *)
+(*   let prevs = NH.create size in *)
+(*   let rec loop current = *)
+(*     G.iter_succ (fun v -> *)
+(*       if not (Node.visited v) then NH.replace prevs v current *)
+(*     ) g current; *)
+(*     Node.visit current; *)
+(*     G.iter_succ (fun v -> *)
+(*       if not (Node.visited v) then loop v *)
+(*     ) g current in *)
+(*   loop src; *)
+(*   G.iter_vertex Node.leave g; *)
+(*   prevs *)
 
 (* Find the shortest path between two nodes using Dijkstra's algorithm,
    returning the list of edges making up the path. The implementation is from
@@ -403,7 +418,3 @@ let to_mininet ((g,tbl):t) : string =
     g "" in
   prologue ^ add_hosts ^ links ^ epilogue
 
-
-(* let from_dotfile_tbl = Parsers.from_dotfile_tbl *)
-(* let from_dotfile = Parsers.from_dotfile *)
-(* let from_gmlfile = Parsers.from_gmlfile *)

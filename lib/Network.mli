@@ -33,7 +33,7 @@ val fold_edges_e : (E.t -> 'a -> 'a) -> t -> 'a -> 'a
 (* Utility functions *)
 val nb_vertex : t -> int
 val spanningtree : t -> G.t
-val all_paths :t -> Node.t -> Node.t Node.NodeHash.t
+val all_paths :t -> Node.t -> Node.t list Node.NodeHash.t
 val shortest_path : t -> V.t -> V.t -> E.t list
 val all_shortest_paths : t -> Node.t
   -> (int64 Node.NodeHash.t * Node.t Node.NodeHash.t)
