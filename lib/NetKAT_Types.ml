@@ -61,6 +61,14 @@ let drop = Filter False
 
 (** A map keyed by header names. *)
 module Headers = struct
+  (*
+   * Note that this module uses the fieldslib library from Jane Street, a syntax
+   * extension that generates several convenience functions, .e.g, fold, map,
+   * iter, getters, setters, etc., specialized for the record type.  More
+   * documentation can be found here:
+   *
+   *   https://github.com/janestreet/fieldslib
+   * *)
   type t = 
       { location : location option sexp_opaque;
         ethSrc : int48 option sexp_opaque;
