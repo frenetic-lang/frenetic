@@ -81,6 +81,7 @@ module Common = HighLevelSwitch_common.Make (struct
     let v_to_m = Core.val_to_mask in
     let open Core in
     match act with
+      | AL.Controller n -> (Mod.none, Output (Core.Controller n))
       | AL.OutputAllPorts -> (Mod.none, Output Core.AllPorts)
       | AL.OutputPort n -> let n = VInt.get_int32 n in
                         if Some n = inPort then
