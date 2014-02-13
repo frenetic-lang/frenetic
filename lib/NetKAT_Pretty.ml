@@ -36,19 +36,19 @@ module Formatting = struct
 
 
   let format_header_val (fmt : formatter) (hv : header_val) (asgn : string) : unit = match hv with
-    | Switch(n) -> fprintf fmt "@[switch %s %Ld@]" asgn n
-    | Location(Physical n) -> fprintf fmt "@[port %s %d@]" asgn n
+    | Switch(n) -> fprintf fmt "@[switch %s %Lu@]" asgn n
+    | Location(Physical n) -> fprintf fmt "@[port %s %u@]" asgn n
     | Location(Pipe x) -> fprintf fmt "@[location %s %s@]" asgn x
-    | EthSrc(n) -> fprintf fmt "@[ethSrc %s %Ld@]" asgn n
-    | EthDst(n) -> fprintf fmt "@[ethDst %s %Ld@]" asgn n
-    | Vlan(n) -> fprintf fmt "@[vlan %s %d@]" asgn n
-    | VlanPcp(n) -> fprintf fmt "@[vlanPcp %s %d@]" asgn n
-    | EthType(n) -> fprintf fmt "@[ethType %s %d@]" asgn n
-    | IPProto(n) -> fprintf fmt "@[ipProto %s %d@]" asgn n
-    | IP4Src(n) -> fprintf fmt "@[ipSrc %s %ld@]" asgn n
-    | IP4Dst(n) -> fprintf fmt "@[ipDst %s %ld@]" asgn n
-    | TCPSrcPort(n) -> fprintf fmt "@[tcpSrcPort %s %d@]" asgn n
-    | TCPDstPort(n) -> fprintf fmt "@[tcpDstPort %s %d@]" asgn n
+    | EthSrc(n) -> fprintf fmt "@[ethSrc %s %Lu@]" asgn n
+    | EthDst(n) -> fprintf fmt "@[ethDst %s %Lu@]" asgn n
+    | Vlan(n) -> fprintf fmt "@[vlanId %s %d@]" asgn n
+    | VlanPcp(n) -> fprintf fmt "@[vlanPcp %s %u@]" asgn n
+    | EthType(n) -> fprintf fmt "@[ethTyp %s %u@]" asgn n
+    | IPProto(n) -> fprintf fmt "@[ipProto %s %u@]" asgn n
+    | IP4Src(n) -> fprintf fmt "@[ipSrc %s %lu@]" asgn n
+    | IP4Dst(n) -> fprintf fmt "@[ipDst %s %lu@]" asgn n
+    | TCPSrcPort(n) -> fprintf fmt "@[tcpSrcPort %s %u@]" asgn n
+    | TCPDstPort(n) -> fprintf fmt "@[tcpDstPort %s %u@]" asgn n
 
   let rec pred (cxt : predicate_context) (fmt : formatter) (pr : pred) : unit = 
     match pr with
