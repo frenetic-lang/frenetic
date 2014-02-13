@@ -83,6 +83,8 @@ module Headers = struct
         tcpDstPort : int16 option sexp_opaque
       } with sexp,fields
 
+  let compare = Pervasives.compare
+
   let empty =
     { location = None;
       ethSrc = None;
@@ -96,7 +98,18 @@ module Headers = struct
       tcpSrcPort = None;
       tcpDstPort = None }
 
-  let compare = Pervasives.compare
+  let mk_location l = { empty with location = Some l }
+  let mk_ethSrc n = { empty with ethSrc = Some n }
+  let mk_ethDst n = { empty with ethDst = Some n }
+  let mk_vlan n = { empty with vlan = Some n }
+  let mk_vlanPcp n = { empty with vlanPcp = Some n }
+  let mk_ethType n = { empty with vlanPcp = Some n }
+  let mk_ipProto n = { empty with ipProto = Some n }
+  let mk_ipSrc n = { empty with ipSrc = Some n }
+  let mk_ipDst n = { empty with ipDst = Some n }
+  let mk_tcpSrcPort n = { empty with tcpSrcPort = Some n }
+  let mk_tcpDstPort n = { empty with tcpDstPort = Some n }
+
 end
  
 type packet = {

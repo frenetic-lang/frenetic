@@ -84,17 +84,17 @@ module HeadersCommon : HEADERSCOMMON = struct
   let is_empty (x:t) : bool =
     x = empty
 
-  let mk_location l = { empty with Headers.location = Some l }
-  let mk_ethSrc n = { empty with Headers.ethSrc = Some n }
-  let mk_ethDst n = { empty with Headers.ethDst = Some n }
-  let mk_vlan n = { empty with Headers.vlan = Some n }
-  let mk_vlanPcp n = { empty with Headers.vlanPcp = Some n }
-  let mk_ethType n = { empty with Headers.vlanPcp = Some n }
-  let mk_ipProto n = { empty with Headers.ipProto = Some n }
-  let mk_ipSrc n = { empty with Headers.ipSrc = Some n }
-  let mk_ipDst n = { empty with Headers.ipDst = Some n }
-  let mk_tcpSrcPort n = { empty with Headers.tcpSrcPort = Some n }
-  let mk_tcpDstPort n = { empty with Headers.tcpDstPort = Some n }
+  let mk_location l = Headers.mk_location l
+  let mk_ethSrc n = Headers.mk_ethSrc n
+  let mk_ethDst n = Headers.mk_ethDst n
+  let mk_vlan n = Headers.mk_vlan n
+  let mk_vlanPcp n = Headers.mk_vlanPcp n
+  let mk_ethType n = Headers.mk_ethType n
+  let mk_ipProto n = Headers.mk_ipProto n
+  let mk_ipSrc n = Headers.mk_ipSrc n
+  let mk_ipDst n = Headers.mk_ipDst n
+  let mk_tcpSrcPort n = Headers.mk_tcpSrcPort n
+  let mk_tcpDstPort n = Headers.mk_tcpDstPort n
        
   let rec subseteq (x:t) (y:t) : bool =
     let g f =
@@ -237,17 +237,17 @@ module Action : ACTION = struct
              (if acc = "" then "" else acc ^ " + ")
              (set_to_string s)))
       
-  let mk_location l = { HeadersCommon.empty with Headers.location = Some l }
-  let mk_ethSrc n = { HeadersCommon.empty with Headers.ethSrc = Some n }
-  let mk_ethDst n = { HeadersCommon.empty with Headers.ethDst = Some n }
-  let mk_vlan n = { HeadersCommon.empty with Headers.vlan = Some n }
-  let mk_vlanPcp n = { HeadersCommon.empty with Headers.vlanPcp = Some n }
-  let mk_ethType n = { HeadersCommon.empty with Headers.vlanPcp = Some n }
-  let mk_ipProto n = { HeadersCommon.empty with Headers.ipProto = Some n }
-  let mk_ipSrc n = { HeadersCommon.empty with Headers.ipSrc = Some n }
-  let mk_ipDst n = { HeadersCommon.empty with Headers.ipDst = Some n }
-  let mk_tcpSrcPort n = { HeadersCommon.empty with Headers.tcpSrcPort = Some n }
-  let mk_tcpDstPort n = { HeadersCommon.empty with Headers.tcpDstPort = Some n }
+  let mk_location l = HeadersCommon.mk_location l
+  let mk_ethSrc n = HeadersCommon.mk_ethSrc n
+  let mk_ethDst n = HeadersCommon.mk_ethDst n
+  let mk_vlan n = HeadersCommon.mk_vlan n
+  let mk_vlanPcp n = HeadersCommon.mk_vlanPcp n
+  let mk_ethType n = HeadersCommon.mk_ethType n
+  let mk_ipProto n = HeadersCommon.mk_ipProto n
+  let mk_ipSrc n = HeadersCommon.mk_ipSrc n
+  let mk_ipDst n = HeadersCommon.mk_ipDst n
+  let mk_tcpSrcPort n = HeadersCommon.mk_tcpSrcPort n
+  let mk_tcpDstPort n = HeadersCommon.mk_tcpDstPort n
 
   let seq (x:t) (y:t) : t =
     let g acc f =
@@ -428,17 +428,17 @@ module Pattern : PATTERN = struct
   let compare : t -> t -> int =
     HeadersCommon.compare
 
-  let mk_location n = { HeadersCommon.empty with Headers.location = Some n }
-  let mk_ethSrc n = { HeadersCommon.empty with Headers.ethSrc = Some n }
-  let mk_ethDst n = { HeadersCommon.empty with Headers.ethDst = Some n }
-  let mk_vlan n = { HeadersCommon.empty with Headers.vlan = Some n }
-  let mk_vlanPcp n = { HeadersCommon.empty with Headers.vlanPcp = Some n }
-  let mk_ethType n = { HeadersCommon.empty with Headers.ethType = Some n }
-  let mk_ipProto n = { HeadersCommon.empty with Headers.ipProto = Some n }
-  let mk_ipSrc n = { HeadersCommon.empty with Headers.ipSrc = Some n }
-  let mk_ipDst n = { HeadersCommon.empty with Headers.ipDst = Some n }
-  let mk_tcpSrcPort n = { HeadersCommon.empty with Headers.tcpSrcPort = Some n }
-  let mk_tcpDstPort n = { HeadersCommon.empty with Headers.tcpDstPort = Some n }
+  let mk_location l = HeadersCommon.mk_location l
+  let mk_ethSrc n = HeadersCommon.mk_ethSrc n
+  let mk_ethDst n = HeadersCommon.mk_ethDst n
+  let mk_vlan n = HeadersCommon.mk_vlan n
+  let mk_vlanPcp n = HeadersCommon.mk_vlanPcp n
+  let mk_ethType n = HeadersCommon.mk_ethType n
+  let mk_ipProto n = HeadersCommon.mk_ipProto n
+  let mk_ipSrc n = HeadersCommon.mk_ipSrc n
+  let mk_ipDst n = HeadersCommon.mk_ipDst n
+  let mk_tcpSrcPort n = HeadersCommon.mk_tcpSrcPort n
+  let mk_tcpDstPort n = HeadersCommon.mk_tcpDstPort n
 
   let seq : t -> t -> t option =
     HeadersCommon.seq
