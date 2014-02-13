@@ -6,6 +6,6 @@ open NetKAT_Types
   does not have. This behavior is different from OpenFlow, which fails  silently
   in both cases. *)
   
-val eval : packet -> policy -> PacketSetSet.t
+val eval : packet -> policy -> PacketSet.t
 
 val size: policy -> int

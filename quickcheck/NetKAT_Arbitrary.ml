@@ -1,32 +1,16 @@
 open NetKAT_Types
 
-let all_headers = 
-  [ Switch; 
-    Header SDN_Types.InPort; 
-    Header SDN_Types.EthSrc; 
-    Header SDN_Types.EthDst; 
-    Header SDN_Types.EthType;
-    Header SDN_Types.Vlan; 
-    Header SDN_Types.VlanPcp;
-    Header SDN_Types.IP4Src; 
-    Header SDN_Types.IP4Dst; 
-    Header SDN_Types.IPProto;
-    Header SDN_Types.TCPSrcPort; 
-    Header SDN_Types.TCPDstPort ]
-
-let arbitrary_header  = 
-  let open QuickCheck_gen in
-      elements all_headers
-
 let arbitrary_headerval =
-  let open QuickCheck_gen in 
-      choose_int0 200 >>= fun rint ->
-      ret_gen (VInt.Int64 (Int64.of_int rint))
+  QuickCheck_gen.Gen 
+    (fun _ -> failwith "arbitrary_headerval: not yet implemented")    
+
+(* let open QuickCheck_gen in  *)
+(*     choose_int0 200 >>= fun rint -> *)
+(*     ret_gen (VInt.Int64 (Int64.of_int rint)) *)
 
 let arbitrary_payload = 
   QuickCheck_gen.Gen 
-    (fun _ -> failwith "arbitrary_payload: not yet implemented")
-    
+    (fun _ -> failwith "arbitrary_payload: not yet implemented")    
 
 let treesize n x =
   if n <= 0
@@ -35,9 +19,8 @@ let treesize n x =
 
 let gen_atom_pred : pred QuickCheck_gen.gen = 
   let open QuickCheck_gen in 
-    arbitrary_header >>= fun h ->
-      arbitrary_headerval >>= fun v ->
-        ret_gen (Test (h, v))
+      arbitrary_headerval >>= fun hv ->
+        ret_gen (Test hv)
 
 let rec gen_composite_pred () : pred QuickCheck_gen.gen =
   let open QuickCheck_gen in
@@ -86,22 +69,19 @@ let arbitrary_link : policy QuickCheck_gen.gen =
 let gen_lf_atom_pol : policy QuickCheck_gen.gen  =
   let open QuickCheck_gen in
   oneof [
-    (arbitrary_header >>= fun h -> 
-      arbitrary_headerval >>= fun v ->
-         ret_gen (Mod (h, v)));
+    (arbitrary_headerval >>= fun hv -> 
+         ret_gen (Mod hv));
     (gen_pred >>= fun pr ->
         ret_gen (Filter (pr))) ]
 
 let gen_atom_pol : policy QuickCheck_gen.gen = 
   let open QuickCheck_gen in
   oneof [
-    (arbitrary_header >>= fun h -> 
-      arbitrary_headerval >>= fun v ->
-         ret_gen (Mod (h, v)));
+    (arbitrary_headerval >>= fun hv -> 
+        ret_gen (Mod hv));
     (gen_pred >>= fun pr ->
         ret_gen (Filter (pr)));
     arbitrary_link ]
-
 
 let rec gen_composite_pol arbitrary_atom : policy QuickCheck_gen.gen =
   let open QuickCheck_gen in 
@@ -129,14 +109,14 @@ let arbitrary_policy = gen_pol gen_atom_pol
 
 let arbitrary_lf_pol = gen_pol gen_lf_atom_pol
 
-let num_hdrs = List.length all_headers
-
 let arbitrary_packet : packet QuickCheck_gen.gen = 
-  let open QuickCheck_gen in
-  let open QuickCheck in
-  listN num_hdrs arbitrary_headerval >>= fun vals ->
-    arbitrary_payload >>= fun payload ->
-    ret_gen {
-      headers = List.fold_right2 HeaderMap.add all_headers vals HeaderMap.empty;
-      payload = payload
-    }
+  QuickCheck_gen.Gen 
+    (fun _ -> failwith "arbitrary_packet: not yet implemented")    
+  (* let open QuickCheck_gen in *)
+  (* let open QuickCheck in *)
+  (* listN num_hdrs arbitrary_headerval >>= fun vals -> *)
+  (*   arbitrary_payload >>= fun payload -> *)
+  (*   ret_gen { *)
+  (*     headers = List.fold_right2 HeaderMap.add all_headers vals HeaderMap.empty; *)
+  (*     payload = payload *)
+  (*   } *)

@@ -11,7 +11,7 @@ let size_pred (pr:pred) : int =
     match pr with
       | True -> f 1
       | False -> f 1
-      | Test(_,_) -> f 3
+      | Test(_) -> f 3
       | And(pr1,pr2)
       | Or(pr1,pr2) -> size_pred pr1 (fun spr1 -> size_pred pr2 (fun spr2 -> f (1 + spr1 + spr2)))
       | Neg(pr) -> size_pred pr (fun spr -> f (1 + spr)) in
@@ -21,7 +21,7 @@ let size (pol:policy) : int =
   let rec size (pol:policy) f : int = 
     match pol with
       | Filter pr -> f (size_pred pr + 1)
-      | Mod(_,_) -> f 3
+      | Mod(_) -> f 3
       | Union(pol1, pol2)        
       | Seq(pol1, pol2) -> size pol1 (fun spol1 -> size pol2 (fun spol2 -> f (1 + spol1 + spol2)))
       | Star(pol) -> size pol (fun spol -> f (1 + spol))
@@ -31,55 +31,61 @@ let size (pol:policy) : int =
 let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
   | True -> true
   | False -> false
-  | Test (h, v) -> HeaderMap.find h pkt.headers = v
+  | Test hv -> 
+    begin
+      let open Headers in 
+      match hv with 
+      | Switch n -> pkt.switch = n
+      | Location l -> pkt.headers.location = Some l
+      | EthSrc n -> pkt.headers.ethSrc = Some n 
+      | EthDst n -> pkt.headers.ethDst = Some n 
+      | Vlan n -> pkt.headers.vlan = Some n 
+      | VlanPcp n -> pkt.headers.vlanPcp = Some n 
+      | EthType n -> pkt.headers.ethType = Some n 
+      | IPProto n -> pkt.headers.ipProto = Some n 
+      | IP4Src n -> pkt.headers.ipSrc = Some n 
+      | IP4Dst n -> pkt.headers.ipDst = Some n 
+      | TCPSrcPort n -> pkt.headers.tcpSrcPort = Some n 
+      | TCPDstPort n -> pkt.headers.tcpDstPort = Some n 
+    end
   | And (pr1, pr2) -> eval_pred pkt pr1 && eval_pred pkt pr2
   | Or (pr1, pr2) -> eval_pred pkt pr1 || eval_pred pkt pr2
   | Neg pr1 -> not (eval_pred pkt pr1)
     
-let rec eval (pkt : packet) (pol : policy) : PacketSetSet.t = match pol with
+let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
   | Filter pr -> 
     if eval_pred pkt pr then 
-      PacketSetSet.singleton (PacketSet.singleton pkt)
+      (PacketSet.singleton pkt)
     else 
-      PacketSetSet.empty
-  | Mod (h, v) ->
-    if HeaderMap.mem h pkt.headers then
-      PacketSetSet.singleton 
-	(PacketSet.singleton 
-	   { pkt with headers = HeaderMap.add h v pkt.headers })
-    else
-      raise Not_found (* for consistency with Test *)
-    | Union (pol1, pol2) ->
-      let cartesian_product s1 s2 =
-        let f x y setset = PacketSetSet.add (PacketSet.union x y) setset in
-        let g x setset = PacketSetSet.fold (f x) s2 setset in
-        PacketSetSet.fold g s1 PacketSetSet.empty in
-      cartesian_product (eval pkt pol1) (eval pkt pol2)
-    | Seq (pol1, pol2) ->
-      let f pkt' setset = PacketSetSet.union (eval pkt' pol2) setset in
-      let g pktset = PacketSet.fold f pktset PacketSetSet.empty in
-      let h pktset setset = PacketSetSet.union (g pktset) setset in
-      PacketSetSet.fold h (eval pkt pol1) PacketSetSet.empty
-    | Star pol -> raise Not_found (* MARCO: Can't figure this out :( *)
-    (*let rec loop acc = 
+      PacketSet.empty
+  | Mod hv -> 
+    let open Headers in 
+    let pkt' = match hv with 
+      | Switch n -> { pkt with switch = n }
+      | Location l -> { pkt with headers = { pkt.headers with location = Some l }}
+      | EthSrc n -> { pkt with headers = { pkt.headers with ethSrc = Some n }}
+      | EthDst n -> { pkt with headers = { pkt.headers with ethDst = Some n }}
+      | Vlan n -> { pkt with headers = { pkt.headers with vlan = Some n }}
+      | VlanPcp n -> { pkt with headers = { pkt.headers with vlanPcp = Some n }}
+      | EthType n -> { pkt with headers = { pkt.headers with ethType = Some n }}
+      | IPProto n -> { pkt with headers = { pkt.headers with ipProto = Some n }}
+      | IP4Src n -> { pkt with headers = { pkt.headers with ipSrc = Some n }}
+      | IP4Dst n -> { pkt with headers = { pkt.headers with ipDst = Some n }}
+      | TCPSrcPort n -> { pkt with headers = { pkt.headers with tcpSrcPort = Some n }}
+      | TCPDstPort n -> { pkt with headers = { pkt.headers with tcpDstPort = Some n }} in 
+    PacketSet.singleton pkt'
+  | Union (pol1, pol2) ->
+    PacketSet.union (eval pkt pol1) (eval pkt pol2)
+  | Seq (pol1, pol2) ->
+    PacketSet.fold 
+      (fun pkt' set -> PacketSet.union set (eval pkt' pol2))
+      (eval pkt pol1) 
+      PacketSet.empty
+  | Star pol -> 
+    let rec loop acc = 
       let f pkt' set = PacketSet.union (eval pkt' pol) set in 
       let acc' = PacketSet.fold f acc PacketSet.empty in 
       if PacketSet.equal acc acc' then acc else loop acc' in 
-      loop (PacketSet.singleton pkt)*)
-    | Link(sw,pt,sw',pt') -> 
-      begin 
-        try 
-          if HeaderMap.find Switch pkt.headers = (VInt.Int64 sw) &&
-            HeaderMap.find (Header SDN_Types.InPort) pkt.headers = pt then
-            let pkt' = 
-	      { pkt with 
-		headers = 
-                  HeaderMap.add Switch (VInt.Int64 sw')
-		    (HeaderMap.add (Header SDN_Types.InPort) pt' 
-		       pkt.headers) } in 	
-            PacketSetSet.singleton (PacketSet.singleton pkt')
-          else
-            PacketSetSet.empty
-        with Not_found -> 
-          raise Not_found
-      end
+      loop (PacketSet.singleton pkt)
+  | Link(sw,pt,sw',pt') -> 
+    PacketSet.empty (* JNF *)

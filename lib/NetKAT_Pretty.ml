@@ -34,9 +34,21 @@ module Formatting = struct
 	  VInt.format fmt v
       | _ -> VInt.format fmt v
 
-  let format_header (fmt : formatter) (h : header) : unit = match h with
-    | Header h' -> format_field fmt h'
-    | Switch -> fprintf fmt "switch"
+
+  let format_header_val (fmt : formatter) (hv : header_val) : unit = match hv with
+    | Switch(n) -> fprintf fmt "@[switch = %Ld@]" n
+    | Location(Physical n) -> fprintf fmt "@[location = %d@]" n
+    | Location(Pipe x) -> fprintf fmt "@[location = %s@]" x
+    | EthSrc(n) -> fprintf fmt "@[ethSrc = %Ld@]" n
+    | EthDst(n) -> fprintf fmt "@[ethDst = %Ld@]" n
+    | Vlan(n) -> fprintf fmt "@[vlan = %d@]" n
+    | VlanPcp(n) -> fprintf fmt "@[vlanPcp = %d@]" n
+    | EthType(n) -> fprintf fmt "@[ethType = %d@]" n
+    | IPProto(n) -> fprintf fmt "@[ipProto = %d@]" n
+    | IP4Src(n) -> fprintf fmt "@[ipSrc = %ld@]" n
+    | IP4Dst(n) -> fprintf fmt "@[ipDst = %ld@]" n
+    | TCPSrcPort(n) -> fprintf fmt "@[tcpSrcPort = %d@]" n
+    | TCPDstPort(n) -> fprintf fmt "@[tcpDstPort = %d@]" n
 
   let rec pred (cxt : predicate_context) (fmt : formatter) (pr : pred) : unit = 
     match pr with
@@ -44,10 +56,8 @@ module Formatting = struct
         fprintf fmt "@[id@]"
       | False -> 
         fprintf fmt "@[drop@]"
-      | (Test (h, v)) -> 
-        fprintf fmt "@[%a = %a@]" 
-	  format_header h 
-	  format_value v
+      | (Test hv) -> 
+        format_header_val fmt hv 
       | Neg p' -> 
         begin match cxt with
           | PAREN_PR
@@ -83,8 +93,8 @@ module Formatting = struct
 	pred PAREN_PR fmt pr
       | Filter pr -> 
 	fprintf fmt "filter "; pred PAREN_PR fmt pr
-      | Mod (h, v) -> 
-        fprintf fmt "@[%a := %a@]" format_header h format_value v
+      | Mod hv -> 
+        format_header_val fmt hv
       | Star p' -> 
         begin match cxt with
           | PAREN 
@@ -114,15 +124,7 @@ end
 let format_policy = Formatting.pol Formatting.PAREN
 
 let format_pred = Formatting.pred Formatting.PAREN_PR
-  
-let format_header = Formatting.format_header
-
-let string_of_field = NetKAT_Util.make_string_of Formatting.format_field
-  
-let header_to_string = NetKAT_Util.make_string_of Formatting.format_header
-   
-let value_to_string = NetKAT_Util.make_string_of Formatting.format_value
-  
+    
 let string_of_policy = NetKAT_Util.make_string_of format_policy
 
 let string_of_pred = NetKAT_Util.make_string_of format_pred

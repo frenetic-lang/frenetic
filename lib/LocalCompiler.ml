@@ -1,39 +1,18 @@
 open Core.Std
 open Sexplib.Conv
-
-let debug = Printf.printf
-
 open SDN_Types
 
-let map_option f = function
-  | None -> None
-  | Some x -> Some (f x)
-
-type location = 
-  | Physical of int16 
-  | Pipe of string 
+type location = NetKAT_Types.location
+module Headers = NetKAT_Types.Headers
   
-module type HEADERS = sig
-  type t = 
-      { location : location option;
-        ethSrc : int48 option;
-        ethDst : int48 option;
-        vlan : int16 option;
-        vlanPcp : int8 option;
-        ethType : int16 option;
-        ipProto : int8 option;
-        ipSrc : int32 option; 
-        ipDst : int32 option;
-        tcpSrcPort : int16 option;
-        tcpDstPort : int16 option 
-      } with sexp,fields
-
+module type HEADERSCOMMON = sig
+  type t = Headers.t with sexp
   module Set : Set.S with type Elt.t = t
   val to_string : ?init:string -> ?sep:string -> t -> string
   val set_to_string : ?init:string -> ?sep:string -> Set.t -> string
   val compare : t -> t -> int    
   val empty : t
-  val mk_location  : location -> t
+  val mk_location : location -> t
   val mk_ethSrc : int48 -> t
   val mk_ethDst : int48 -> t
   val mk_vlan : int16 -> t
@@ -50,21 +29,9 @@ module type HEADERS = sig
   val subseteq : t -> t -> bool
 end
 
-module Headers : HEADERS = struct
+module HeadersCommon : HEADERSCOMMON = struct
 
-  type t = 
-      { location : location option sexp_opaque;
-        ethSrc : int48 option sexp_opaque;
-        ethDst : int48 option sexp_opaque;
-        vlan : int16 option sexp_opaque;
-        vlanPcp : int8 option sexp_opaque;
-        ethType : int16 option sexp_opaque;
-        ipProto : int8 option sexp_opaque;
-        ipSrc : int32 option sexp_opaque; 
-        ipDst : int32 option sexp_opaque;
-        tcpSrcPort : int16 option sexp_opaque;
-        tcpDstPort : int16 option sexp_opaque
-      } with sexp, fields
+  type t = Headers.t with sexp
 
   let to_string ?init:(init="") ?sep:(sep="=") (x:t) : string =
     let g pp acc f = match Field.get f x with
@@ -74,13 +41,13 @@ module Headers : HEADERS = struct
         if acc = "" then s
         else Printf.sprintf "%s, %s" acc s in 
     let ppl l = match l with 
-      | Physical x -> Printf.sprintf "%d" x
-      | Pipe x -> x in 
+      | NetKAT_Types.Physical x -> Printf.sprintf "%d" x
+      | NetKAT_Types.Pipe x -> x in 
     let pp8 = Printf.sprintf "%d" in
     let pp16 = Printf.sprintf "%d" in
     let pp32 = Printf.sprintf "%ld" in
     let pp48 = Printf.sprintf "%Ld" in
-    Fields.fold
+    Headers.Fields.fold
       ~init:""
       ~location:(g ppl)
       ~ethSrc:(g pp48)
@@ -114,6 +81,7 @@ module Headers : HEADERS = struct
              (to_string ~init:init ~sep:sep x)))
 
   let empty : t =
+    let open Headers in 
     { location = None;
       ethSrc = None;
       ethDst = None;
@@ -129,17 +97,17 @@ module Headers : HEADERS = struct
   let is_empty (x:t) : bool =
     x = empty
 
-  let mk_location l = { empty with location = Some l }
-  let mk_ethSrc n = { empty with ethSrc = Some n }
-  let mk_ethDst n = { empty with ethSrc = Some n }
-  let mk_vlan n = { empty with vlan = Some n }
-  let mk_vlanPcp n = { empty with vlanPcp = Some n }
-  let mk_ethType n = { empty with vlanPcp = Some n }
-  let mk_ipProto n = { empty with ipProto = Some n }
-  let mk_ipSrc n = { empty with ipSrc = Some n }
-  let mk_ipDst n = { empty with ipDst = Some n }
-  let mk_tcpSrcPort n = { empty with tcpSrcPort = Some n }
-  let mk_tcpDstPort n = { empty with tcpDstPort = Some n }
+  let mk_location l = { empty with Headers.location = Some l }
+  let mk_ethSrc n = { empty with Headers.ethSrc = Some n }
+  let mk_ethDst n = { empty with Headers.ethDst = Some n }
+  let mk_vlan n = { empty with Headers.vlan = Some n }
+  let mk_vlanPcp n = { empty with Headers.vlanPcp = Some n }
+  let mk_ethType n = { empty with Headers.vlanPcp = Some n }
+  let mk_ipProto n = { empty with Headers.ipProto = Some n }
+  let mk_ipSrc n = { empty with Headers.ipSrc = Some n }
+  let mk_ipDst n = { empty with Headers.ipDst = Some n }
+  let mk_tcpSrcPort n = { empty with Headers.tcpSrcPort = Some n }
+  let mk_tcpDstPort n = { empty with Headers.tcpDstPort = Some n }
        
   let rec subseteq (x:t) (y:t) : bool =
     let g f =
@@ -148,7 +116,7 @@ module Headers : HEADERS = struct
         | Some _, None -> true
         | Some v1, Some v2 -> v1 = v2
         | None, None -> true in
-    Fields.for_all
+    Headers.Fields.for_all
       ~location:g
       ~ethSrc:g
       ~ethDst:g
@@ -172,7 +140,7 @@ module Headers : HEADERS = struct
             | (Some v1 as o1), None -> Some (Field.fset f z o1)
             | None, (Some v2 as o2) -> Some (Field.fset f z o2)
             | None, None -> Some z in
-    Fields.fold
+    Headers.Fields.fold
       ~init:(Some empty)
       ~location:g
       ~ethSrc:g
@@ -193,7 +161,7 @@ module Headers : HEADERS = struct
           if v1 = v2 then Field.fset f acc None
           else acc
         | _ -> acc in
-    Fields.fold
+    Headers.Fields.fold
       ~init:x
       ~location:g
       ~ethSrc:g
@@ -254,9 +222,9 @@ module Action : ACTION = struct
 
   type this_t = t with sexp
 
-  module SetSet = Set.Make(Headers.Set)
+  module SetSet = Set.Make(HeadersCommon.Set)
 
-  module Set = Headers.Set
+  module Set = HeadersCommon.Set
 
   type group = Set.t list
 
@@ -267,11 +235,11 @@ module Action : ACTION = struct
   let group_compare = List.compare ~cmp:set_compare
 
   let to_string : t -> string =
-    Headers.to_string ~init:"id" ~sep:":="
+    HeadersCommon.to_string ~init:"id" ~sep:":="
 
   let set_to_string (s:Set.t) : string =
     if Set.is_empty s then "drop"
-    else Headers.set_to_string ~init:"id" ~sep:":=" s
+    else HeadersCommon.set_to_string ~init:"id" ~sep:":=" s
 
   let group_to_string (g:group) : string =
     Printf.sprintf "[%s]"
@@ -282,17 +250,17 @@ module Action : ACTION = struct
              (if acc = "" then "" else acc ^ " + ")
              (set_to_string s)))
       
-  let mk_location l = { Headers.empty with Headers.location = Some l }
-  let mk_ethSrc n = { Headers.empty with Headers.ethSrc = Some n }
-  let mk_ethDst n = { Headers.empty with Headers.ethSrc = Some n }
-  let mk_vlan n = { Headers.empty with Headers.vlan = Some n }
-  let mk_vlanPcp n = { Headers.empty with Headers.vlanPcp = Some n }
-  let mk_ethType n = { Headers.empty with Headers.vlanPcp = Some n }
-  let mk_ipProto n = { Headers.empty with Headers.ipProto = Some n }
-  let mk_ipSrc n = { Headers.empty with Headers.ipSrc = Some n }
-  let mk_ipDst n = { Headers.empty with Headers.ipDst = Some n }
-  let mk_tcpSrcPort n = { Headers.empty with Headers.tcpSrcPort = Some n }
-  let mk_tcpDstPort n = { Headers.empty with Headers.tcpDstPort = Some n }
+  let mk_location l = { HeadersCommon.empty with Headers.location = Some l }
+  let mk_ethSrc n = { HeadersCommon.empty with Headers.ethSrc = Some n }
+  let mk_ethDst n = { HeadersCommon.empty with Headers.ethDst = Some n }
+  let mk_vlan n = { HeadersCommon.empty with Headers.vlan = Some n }
+  let mk_vlanPcp n = { HeadersCommon.empty with Headers.vlanPcp = Some n }
+  let mk_ethType n = { HeadersCommon.empty with Headers.vlanPcp = Some n }
+  let mk_ipProto n = { HeadersCommon.empty with Headers.ipProto = Some n }
+  let mk_ipSrc n = { HeadersCommon.empty with Headers.ipSrc = Some n }
+  let mk_ipDst n = { HeadersCommon.empty with Headers.ipDst = Some n }
+  let mk_tcpSrcPort n = { HeadersCommon.empty with Headers.tcpSrcPort = Some n }
+  let mk_tcpDstPort n = { HeadersCommon.empty with Headers.tcpDstPort = Some n }
 
   let seq (x:t) (y:t) : t =
     let g acc f =
@@ -321,7 +289,7 @@ module Action : ACTION = struct
     List.map g ~f:(set_seq a)
 
   let diff : t -> t -> t =
-    Headers.diff
+    HeadersCommon.diff
 
   let group_mk (s:Set.t) : group =
     [s]
@@ -351,7 +319,7 @@ module Action : ACTION = struct
                          else (s1is2j::g, SetSet.add ss s1is2j))))
 
   let id : Set.t =
-    Set.singleton (Headers.empty)
+    Set.singleton (HeadersCommon.empty)
 
   let drop : Set.t =
     Set.empty
@@ -360,7 +328,7 @@ module Action : ACTION = struct
     Set.length s = 1 &&
     match Set.min_elt s with
       | None -> false
-      | Some a -> Headers.is_empty a
+      | Some a -> HeadersCommon.is_empty a
 
   let is_drop (s:Set.t) : bool =
     Set.is_empty s
@@ -382,40 +350,34 @@ module Action : ACTION = struct
       | _ -> false
 
   let to_netkat (a:t) : NetKAT_Types.policy =
-    let i8 x = VInt.Int64 (Int64.of_int x) in 
-    let i16 x = VInt.Int64 (Int64.of_int x) in 
-    let i32 x = VInt.Int64 (Int64.of_int32 x) in 
-    let i48 x = VInt.Int64 x in 
-    let il x = match x with 
-      | Physical p -> i16 p
-      | Pipe p -> failwith "NYI" in 
-    let g h c pol f =
+    let open NetKAT_Types in 
+    let g h pol f =
       match Field.get f a with 
         | None -> 
           pol
         | Some v -> 
-          let pol' = NetKAT_Types.Mod (NetKAT_Types.Header h, c v) in
+          let pol' = Mod (h v) in
           match pol with 
-            | NetKAT_Types.Filter NetKAT_Types.True -> 
+            | Filter True -> 
               pol'
             | _ -> 
               if Field.name f = "port" then
-	        NetKAT_Types.Seq (pol, pol')
+	        Seq (pol, pol')
               else
-	        NetKAT_Types.Seq (pol', pol) in
+	        Seq (pol', pol) in
     Headers.Fields.fold
-      ~init:(NetKAT_Types.Filter NetKAT_Types.True)
-      ~location:(g InPort il)
-      ~ethSrc:(g EthSrc i48)
-      ~ethDst:(g EthDst i48)
-      ~vlan:(g Vlan i16)
-      ~vlanPcp:(g VlanPcp i8)
-      ~ethType:(g EthType i16)
-      ~ipProto:(g IPProto i8)
-      ~ipSrc:(g IP4Src i32)
-      ~ipDst:(g IP4Src i32)
-      ~tcpSrcPort:(g TCPSrcPort i16)
-      ~tcpDstPort:(g TCPDstPort i16)
+      ~init:(Filter True)
+      ~location:(g (fun l -> Location l))
+      ~ethSrc:(g (fun n -> EthSrc n))
+      ~ethDst:(g (fun n -> EthDst n))
+      ~vlan:(g (fun n -> Vlan n))
+      ~vlanPcp:(g (fun n -> VlanPcp n))
+      ~ethType:(g (fun n -> EthType n))
+      ~ipProto:(g (fun n -> IPProto n))
+      ~ipSrc:(g (fun n -> IP4Src n))
+      ~ipDst:(g (fun n -> IP4Src n))
+      ~tcpSrcPort:(g (fun n -> TCPSrcPort n))
+      ~tcpDstPort:(g (fun n -> TCPDstPort n))
 
   let set_to_netkat (s:Set.t) : NetKAT_Types.policy =
     if Set.is_empty s then
@@ -467,32 +429,32 @@ module Pattern : PATTERN = struct
 
   type t = Headers.t with sexp
 
-  module Set = Headers.Set
+  module Set = HeadersCommon.Set
 
   let to_string : t -> string =
-    Headers.to_string ~init:"true" ~sep:"="
+    HeadersCommon.to_string ~init:"true" ~sep:"="
 
   let set_to_string (xs:Set.t) : string =
     Printf.sprintf "{%s}"
-      (Headers.set_to_string ~init:"true" ~sep:"=" xs)
+      (HeadersCommon.set_to_string ~init:"true" ~sep:"=" xs)
 
   let compare : t -> t -> int =
-    Headers.compare
+    HeadersCommon.compare
 
-  let mk_location n = { Headers.empty with Headers.location = Some n }
-  let mk_ethSrc n = { Headers.empty with Headers.ethSrc = Some n }
-  let mk_ethDst n = { Headers.empty with Headers.ethDst = Some n }
-  let mk_vlan n = { Headers.empty with Headers.vlan = Some n }
-  let mk_vlanPcp n = { Headers.empty with Headers.vlanPcp = Some n }
-  let mk_ethType n = { Headers.empty with Headers.ethType = Some n }
-  let mk_ipProto n = { Headers.empty with Headers.ipProto = Some n }
-  let mk_ipSrc n = { Headers.empty with Headers.ipSrc = Some n }
-  let mk_ipDst n = { Headers.empty with Headers.ipDst = Some n }
-  let mk_tcpSrcPort n = { Headers.empty with Headers.tcpSrcPort = Some n }
-  let mk_tcpDstPort n = { Headers.empty with Headers.tcpDstPort = Some n }
+  let mk_location n = { HeadersCommon.empty with Headers.location = Some n }
+  let mk_ethSrc n = { HeadersCommon.empty with Headers.ethSrc = Some n }
+  let mk_ethDst n = { HeadersCommon.empty with Headers.ethDst = Some n }
+  let mk_vlan n = { HeadersCommon.empty with Headers.vlan = Some n }
+  let mk_vlanPcp n = { HeadersCommon.empty with Headers.vlanPcp = Some n }
+  let mk_ethType n = { HeadersCommon.empty with Headers.ethType = Some n }
+  let mk_ipProto n = { HeadersCommon.empty with Headers.ipProto = Some n }
+  let mk_ipSrc n = { HeadersCommon.empty with Headers.ipSrc = Some n }
+  let mk_ipDst n = { HeadersCommon.empty with Headers.ipDst = Some n }
+  let mk_tcpSrcPort n = { HeadersCommon.empty with Headers.tcpSrcPort = Some n }
+  let mk_tcpDstPort n = { HeadersCommon.empty with Headers.tcpDstPort = Some n }
 
   let seq : t -> t -> t option =
-    Headers.seq
+    HeadersCommon.seq
 
   let seq_act x a y =
     (* TODO(jnf): can optimize into a single loop *)
@@ -500,7 +462,7 @@ module Pattern : PATTERN = struct
     (*   (to_string x) *)
     (*   (Action.to_string a) *)
     (*   (to_string y); *)
-    match Headers.seq a y with
+    match HeadersCommon.seq a y with
       | None ->
         (* Printf.printf "Z=None\n"; *)
         None
@@ -508,52 +470,46 @@ module Pattern : PATTERN = struct
         (* Printf.printf "Z=Some (%s)\n  " (to_string z); *)
         (* Printf.printf "D=%s\n  " (to_string (Fields.diff z a)); *)
         (* Printf.printf "R=%s\n" (match (Fields.seq x (Fields.diff z a)) with None -> "None" | Some r -> to_string r); *)
-        Headers.seq x (Headers.diff z a)
+        HeadersCommon.seq x (HeadersCommon.diff z a)
       
   let diff : t -> t -> t =
-    Headers.diff
+    HeadersCommon.diff
 
   let subseteq : t -> t -> bool =
-    Headers.subseteq
+    HeadersCommon.subseteq
       
   let tru : t =
-    Headers.empty
+    HeadersCommon.empty
 
   let to_netkat (a:t) : NetKAT_Types.pred =
-    let i8 x = VInt.Int64 (Int64.of_int x) in 
-    let i16 x = VInt.Int64 (Int64.of_int x) in 
-    let i32 x = VInt.Int64 (Int64.of_int32 x) in 
-    let i48 x = VInt.Int64 x in 
-    let il x = match x with 
-      | Physical p -> VInt.Int64 (Int64.of_int p) 
-      | Pipe p -> failwith "Not yet implemented" in  
-    let g h c pr f =
+    let open NetKAT_Types in 
+    let g h pol f =
       match Field.get f a with 
         | None -> 
-          pr
+          pol
         | Some v -> 
-          let pr' = NetKAT_Types.Test (NetKAT_Types.Header h, c v) in
-          match pr with 
-            | NetKAT_Types.True -> 
-              pr'
+          let pol' = Test (h v) in
+          match pol with 
+            | True -> 
+              pol'
             | _ -> 
               if Field.name f = "port" then
-	        NetKAT_Types.And (pr, pr')
+	        And (pol, pol')
               else
-	        NetKAT_Types.And (pr', pr) in 
+	        And (pol', pol) in
     Headers.Fields.fold
-      ~init:NetKAT_Types.True
-      ~location:(g InPort il)
-      ~ethSrc:(g EthSrc i48)
-      ~ethDst:(g EthDst i48)
-      ~vlan:(g Vlan i16)
-      ~vlanPcp:(g VlanPcp i8)
-      ~ethType:(g EthType i16)
-      ~ipProto:(g IPProto i8)
-      ~ipSrc:(g IP4Src i32)
-      ~ipDst:(g IP4Src i32)
-      ~tcpSrcPort:(g TCPSrcPort i16)
-      ~tcpDstPort:(g TCPDstPort i16)
+      ~init:True
+      ~location:(g (fun l -> Location l))
+      ~ethSrc:(g (fun n -> EthSrc n))
+      ~ethDst:(g (fun n -> EthDst n))
+      ~vlan:(g (fun n -> Vlan n))
+      ~vlanPcp:(g (fun n -> VlanPcp n))
+      ~ethType:(g (fun n -> EthType n))
+      ~ipProto:(g (fun n -> IPProto n))
+      ~ipSrc:(g (fun n -> IP4Src n))
+      ~ipDst:(g (fun n -> IP4Src n))
+      ~tcpSrcPort:(g (fun n -> TCPSrcPort n))
+      ~tcpDstPort:(g (fun n -> TCPDstPort n))
 
   let set_to_netkat (xs:Set.t) : NetKAT_Types.pred =
     match Set.choose xs with
@@ -688,7 +644,6 @@ module type OPTIMIZE = sig
   val mk_or : pred -> pred -> pred
   val mk_not : pred -> pred
   val mk_filter : pred -> policy
-  val mk_mod : field -> fieldVal -> policy
   val mk_seq : policy -> policy -> policy
   val mk_par : policy -> policy -> policy
   val mk_star : policy -> policy
@@ -728,9 +683,6 @@ module Optimize : OPTIMIZE = struct
       | NetKAT_Types.False -> NetKAT_Types.True
       | NetKAT_Types.True -> NetKAT_Types.False
       | _ -> NetKAT_Types.Neg(pat)
-
-  let mk_mod f v =
-    NetKAT_Types.Mod (NetKAT_Types.Header f,v)
 
   let mk_filter pr =
     NetKAT_Types.Filter (pr)
@@ -775,12 +727,12 @@ module Optimize : OPTIMIZE = struct
           k pr
         | NetKAT_Types.Neg pr1 ->
           loop pr1 (fun pr -> k (mk_not pr))
-        | NetKAT_Types.Test (NetKAT_Types.Switch, v) ->
-          if v = VInt.Int64 sw then
+        | NetKAT_Types.Test (NetKAT_Types.Switch v) -> 
+          if v = sw then
             k NetKAT_Types.True
           else
             k NetKAT_Types.False
-        | NetKAT_Types.Test (h, v) ->
+        | NetKAT_Types.Test _ -> 
           k pr
         | NetKAT_Types.And (pr1, pr2) ->
           loop pr1 (fun p1 -> loop pr2 (fun p2 -> k (mk_and p1 p2)))
@@ -793,7 +745,7 @@ module Optimize : OPTIMIZE = struct
       match pol with
         | NetKAT_Types.Filter pr ->
           k (NetKAT_Types.Filter (specialize_pred sw pr))
-        | NetKAT_Types.Mod (h, v) ->
+        | NetKAT_Types.Mod hv -> 
           k pol
         | NetKAT_Types.Union (pol1, pol2) ->
           loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (mk_par p1 p2)))
@@ -947,21 +899,32 @@ module Local : LOCAL = struct
         k (Atom.Map.singleton Atom.tru Action.group_drop)
       | NetKAT_Types.Neg pr ->
         loop pr (fun (p:t) -> k (neg p))
-      | NetKAT_Types.Test (NetKAT_Types.Switch, v) ->
-        failwith "Not a local policy"
-      | NetKAT_Types.Test (NetKAT_Types.Header h, v) ->
-        let x = match h with 
-          | InPort -> Pattern.mk_location (Physical (VInt.get_int16 v))
-          | EthType -> Pattern.mk_ethType (VInt.get_int16 v)
-          | EthSrc -> Pattern.mk_ethSrc (VInt.get_int48 v)
-          | EthDst -> Pattern.mk_ethDst (VInt.get_int48 v)
-          | Vlan -> Pattern.mk_vlan (VInt.get_int16 v)
-          | VlanPcp -> Pattern.mk_vlanPcp (VInt.get_int8 v)
-          | IPProto -> Pattern.mk_ipProto (VInt.get_int8 v)
-          | IP4Src -> Pattern.mk_ipSrc (VInt.get_int32 v)
-          | IP4Dst -> Pattern.mk_ipDst (VInt.get_int32 v)
-          | TCPSrcPort -> Pattern.mk_tcpSrcPort (VInt.get_int16 v)
-          | TCPDstPort -> Pattern.mk_tcpDstPort (VInt.get_int16 v) in 
+      | NetKAT_Types.Test hv -> 
+        let x = match hv with 
+          | NetKAT_Types.Switch n -> 
+            failwith "Not a local policy"
+          | NetKAT_Types.Location l ->  
+            Pattern.mk_location l
+          | NetKAT_Types.EthType n -> 
+            Pattern.mk_ethType n
+          | NetKAT_Types.EthSrc n -> 
+            Pattern.mk_ethSrc n
+          | NetKAT_Types.EthDst n -> 
+            Pattern.mk_ethDst n
+          | NetKAT_Types.Vlan n -> 
+            Pattern.mk_vlan n
+          | NetKAT_Types.VlanPcp n -> 
+            Pattern.mk_vlanPcp n
+          | NetKAT_Types.IPProto n -> 
+            Pattern.mk_ipProto n
+          | NetKAT_Types.IP4Src n -> 
+            Pattern.mk_ipSrc n
+          | NetKAT_Types.IP4Dst n -> 
+            Pattern.mk_ipDst n
+          | NetKAT_Types.TCPSrcPort n -> 
+            Pattern.mk_tcpSrcPort n
+          | NetKAT_Types.TCPDstPort n -> 
+            Pattern.mk_tcpDstPort n in 
         let r = Atom.mk x in 
         let m =
           Atom.Set.fold (Atom.neg r)
@@ -979,21 +942,32 @@ module Local : LOCAL = struct
       match pol with
         | NetKAT_Types.Filter pr ->
           k (of_pred pr)
-        | NetKAT_Types.Mod (NetKAT_Types.Switch, v) ->
-          failwith "Not a local policy"
-        | NetKAT_Types.Mod (NetKAT_Types.Header f, v) ->
-          let a = match f with 
-            | InPort -> Pattern.mk_location (Physical (VInt.get_int16 v))
-            | EthType -> Pattern.mk_ethType (VInt.get_int16 v)
-            | EthSrc -> Pattern.mk_ethSrc (VInt.get_int48 v)
-            | EthDst -> Pattern.mk_ethDst (VInt.get_int48 v)
-            | Vlan -> Pattern.mk_vlan (VInt.get_int16 v)
-            | VlanPcp -> Pattern.mk_vlanPcp (VInt.get_int8 v)
-            | IPProto -> Pattern.mk_ipProto (VInt.get_int8 v)
-            | IP4Src -> Pattern.mk_ipSrc (VInt.get_int32 v)
-            | IP4Dst -> Pattern.mk_ipDst (VInt.get_int32 v)
-            | TCPSrcPort -> Pattern.mk_tcpSrcPort (VInt.get_int16 v)
-            | TCPDstPort -> Pattern.mk_tcpDstPort (VInt.get_int16 v) in 
+        | NetKAT_Types.Mod hv -> 
+        let a = match hv with 
+          | NetKAT_Types.Switch n -> 
+            failwith "Not a local policy"
+          | NetKAT_Types.Location l ->  
+            Action.mk_location l
+          | NetKAT_Types.EthType n -> 
+            Action.mk_ethType n
+          | NetKAT_Types.EthSrc n -> 
+            Action.mk_ethSrc n
+          | NetKAT_Types.EthDst n -> 
+            Action.mk_ethDst n
+          | NetKAT_Types.Vlan n -> 
+            Action.mk_vlan n
+          | NetKAT_Types.VlanPcp n -> 
+            Action.mk_vlanPcp n
+          | NetKAT_Types.IPProto n -> 
+            Action.mk_ipProto n
+          | NetKAT_Types.IP4Src n -> 
+            Action.mk_ipSrc n
+          | NetKAT_Types.IP4Dst n -> 
+            Action.mk_ipDst n
+          | NetKAT_Types.TCPSrcPort n -> 
+            Action.mk_tcpSrcPort n
+          | NetKAT_Types.TCPDstPort n -> 
+            Action.mk_tcpDstPort n in 
           let g = Action.group_mk (Action.Set.singleton a) in
           let m = Atom.Map.singleton Atom.tru g in
           k m
@@ -1030,7 +1004,7 @@ module RunTime = struct
     let i32 x = VInt.Int64 (Int64.of_int32 x) in 
     let i48 x = VInt.Int64 x in 
     let port = match Headers.location a, pto with
-        | Some (Physical pt),_ -> VInt.Int16 pt
+        | Some (NetKAT_Types.Physical pt),_ -> VInt.Int16 pt
         | _, Some pt -> pt 
         | _, None ->
           failwith "indeterminate port" in 
@@ -1065,8 +1039,8 @@ module RunTime = struct
     let i32 x = VInt.Int64 (Int64.of_int32 x) in 
     let i48 x = VInt.Int64 x in 
     let il x = match x with 
-      | Physical p -> VInt.Int64 (Int64.of_int p)
-      | Pipe p -> failwith "Not yet implemented" in 
+      | NetKAT_Types.Physical p -> VInt.Int64 (Int64.of_int p)
+      | NetKAT_Types.Pipe p -> failwith "Not yet implemented" in 
     let g h c act f = 
       match Field.get f x with 
         | None -> act
@@ -1113,7 +1087,7 @@ module RunTime = struct
     let add_flow x g l =
       let pat = to_pattern x in
       let pto = match Headers.location x with 
-        | Some (Physical p) -> Some (VInt.Int64 (Int64.of_int p))
+        | Some (NetKAT_Types.Physical p) -> Some (VInt.Int64 (Int64.of_int p))
         | _ -> None in  
       let act = group_to_action g pto in 
       simpl_flow pat act::l in

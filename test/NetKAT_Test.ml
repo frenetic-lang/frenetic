@@ -28,10 +28,10 @@ let test_compile_table pol tbl =
 let ite (pred : pred) (then_pol : policy) (else_pol : policy) : policy =
   Union (Seq (Filter pred, then_pol), Seq (Filter (Neg pred), else_pol))
 
-let testSrc n = Test (Header EthSrc, VInt.Int64 (Int64.of_int n))
-let testDst n = Test (Header EthDst, VInt.Int64 (Int64.of_int n))
-let modSrc n = Mod (Header EthSrc, VInt.Int64 (Int64.of_int n))
-let modDst n = Mod (Header EthDst, VInt.Int64 (Int64.of_int n))
+let testSrc n = Test (EthSrc (Int64.of_int n))
+let testDst n = Test (EthDst (Int64.of_int n))
+let modSrc n = Mod (EthSrc (Int64.of_int n))
+let modDst n = Mod (EthDst (Int64.of_int n))
 
 TEST "compile drop" =
   test_compile (Filter False) (Filter False)
@@ -130,9 +130,9 @@ TEST "quickcheck failure on 10/16/2013" =
     (Seq (modDst 2, modSrc 0))
     
 TEST "vlan" =
-  let test_vlan_none = Test (Header Vlan, VInt.Int64 (Int64.of_int 0xFFF)) in
-  let mod_vlan_none = Mod (Header Vlan, VInt.Int64 (Int64.of_int 0xFFF)) in
-  let mod_port1 = Mod (Header InPort, VInt.Int64 1L) in 
+  let test_vlan_none = Test (Vlan 0xFFF) in
+  let mod_vlan_none = Mod (Vlan 0xFFF) in
+  let mod_port1 = Mod (Location (Physical 1)) in 
   let id = Filter True in
   let pol =
     Seq (ite 

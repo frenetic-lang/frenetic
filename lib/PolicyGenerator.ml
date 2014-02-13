@@ -39,8 +39,8 @@ let all_pairs_shortest_paths (g : t) =
       pol
         | ((Node.Host (src,_,_), Node.Host (dst,_,_)), v::path) ->
       (* TODO(basus): replace with MAC address *)
-      let src = VInt.Int48 0L in
-      let dst = VInt.Int48 1L in
+      let src = 0L in
+      let dst = 1L in
       let path_pol,_ =
         List.fold_left
           (fun (pol,v) v' ->
@@ -48,10 +48,10 @@ let all_pairs_shortest_paths (g : t) =
           | Node.Switch dpid ->
             let (_,e,_) = Topology.find_edge g v v' in
             let pol' =
-              Union(Seq(Filter(And(Test(Switch, (VInt.Int64 dpid)),
-                     And(Test(Header EthSrc, src),
-                                 Test(Header EthDst, dst)))),
-                  Mod(Header InPort, VInt.Int64 e.Link.srcport)),
+              Union(Seq(Filter(And(Test(Switch dpid),
+                                   And(Test(EthSrc src),
+                                       Test(EthDst dst)))),
+                        Mod(Location (Physical (Int64.to_int e.Link.srcport)))),
               pol) in
             (pol',v')
           | _ ->
