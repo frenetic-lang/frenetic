@@ -25,14 +25,6 @@ let from_payload (pay : AL.payload) : Core.payload =
       Core.Buffered (from_buffer_id buf_id, bytes)
     | NotBuffered bytes -> Core.NotBuffered bytes
       
-let from_port (port : AL.port) : Core.pseudoPort =
-  let open SDN_Types in
-  match port with
-    | AllPorts -> Core.AllPorts
-    | Controller n -> Core.Controller n
-    | PhysicalPort (VInt.Int32 n) -> Core.PhysicalPort n
-    | PhysicalPort _ -> raise (Invalid_argument "expected OpenFlow 1.3 port ID")
-
 let to_reason (reason : Core.packetInReason) : AL.packetInReason =
   let open Core in
   match reason with
@@ -89,6 +81,7 @@ module Common = HighLevelSwitch_common.Make (struct
     let v_to_m = Core.val_to_mask in
     let open Core in
     match act with
+      | AL.Controller n -> (Mod.none, Output (Core.Controller n))
       | AL.OutputAllPorts -> (Mod.none, Output Core.AllPorts)
       | AL.OutputPort n -> let n = VInt.get_int32 n in
                         if Some n = inPort then
