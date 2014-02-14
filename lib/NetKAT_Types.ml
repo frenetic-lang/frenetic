@@ -15,7 +15,7 @@ type payload = SDN_Types.payload
 (** {2 Policies} *)
   
 type location = 
-  | Physical of int16 
+  | Physical of int32
   | Pipe of string 
 
 type header_val = 
@@ -119,12 +119,12 @@ module Headers = struct
         if acc = "" then s
         else Printf.sprintf "%s, %s" acc s in
     let ppl l = match l with
-      | Physical x -> Printf.sprintf "%d" x
+      | Physical x -> Printf.sprintf "%lu" x
       | Pipe x -> x in
-    let pp8 = Printf.sprintf "%d" in
-    let pp16 = Printf.sprintf "%d" in
-    let pp32 = Printf.sprintf "%ld" in
-    let pp48 = Printf.sprintf "%Ld" in
+    let pp8 = Printf.sprintf "%u" in
+    let pp16 = Printf.sprintf "%u" in
+    let pp32 = Printf.sprintf "%lu" in
+    let pp48 = Printf.sprintf "%Lu" in
     Fields.fold
       ~init:""
       ~location:(g ppl)

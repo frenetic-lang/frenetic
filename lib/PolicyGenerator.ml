@@ -51,7 +51,7 @@ let all_pairs_shortest_paths (g : t) =
               Union(Seq(Filter(And(Test(Switch dpid),
                                    And(Test(EthSrc src),
                                        Test(EthDst dst)))),
-                        Mod(Location (Physical (Int64.to_int e.Link.srcport)))),
+                        Mod(Location (Physical (Int64.to_int32 e.Link.srcport)))),
               pol) in
             (pol',v')
           | _ ->

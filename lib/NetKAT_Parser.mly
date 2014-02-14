@@ -95,7 +95,7 @@ xpredicate:
   | SWITCH EQUALS field_value
       { Test(Switch $3) }
   | PORT EQUALS field_value
-      { Test(Location(Physical (VInt.get_int16 (VInt.Int64 $3))))}
+      { Test(Location(Physical (VInt.get_int32 (VInt.Int64 $3))))}
   | PORT EQUALS IDENT
       { Test(Location(Pipe $3)) }
   | SRCMAC EQUALS field_value
@@ -148,7 +148,7 @@ xpolicy:
   | FILTER predicate 
       { Filter $2 }
   | PORT ASSIGN field_value
-      { Mod(Location(Physical (VInt.get_int16 (VInt.Int64 $3))))}
+      { Mod(Location(Physical (VInt.get_int32 (VInt.Int64 $3))))}
   | PORT ASSIGN IDENT
       { Mod(Location(Pipe $3)) }
   | SRCMAC ASSIGN field_value

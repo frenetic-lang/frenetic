@@ -964,7 +964,7 @@ module RunTime = struct
     let i32 x = VInt.Int64 (Int64.of_int32 x) in 
     let i48 x = VInt.Int64 x in 
     let port = match Headers.location a, pto with
-        | Some (NetKAT_Types.Physical pt),_ -> VInt.Int16 pt
+        | Some (NetKAT_Types.Physical pt),_ -> VInt.Int32 pt
         | _, Some pt -> pt 
         | _, None ->
           failwith "indeterminate port" in 
@@ -999,7 +999,7 @@ module RunTime = struct
     let i32 x = VInt.Int64 (Int64.of_int32 x) in 
     let i48 x = VInt.Int64 x in 
     let il x = match x with 
-      | NetKAT_Types.Physical p -> VInt.Int64 (Int64.of_int p)
+      | NetKAT_Types.Physical p -> VInt.Int64 (Int64.of_int32 p)
       | NetKAT_Types.Pipe p -> failwith "Not yet implemented" in 
     let g h c act f = 
       match Field.get f x with 
@@ -1047,7 +1047,7 @@ module RunTime = struct
     let add_flow x g l =
       let pat = to_pattern x in
       let pto = match Headers.location x with 
-        | Some (NetKAT_Types.Physical p) -> Some (VInt.Int64 (Int64.of_int p))
+        | Some (NetKAT_Types.Physical p) -> Some (VInt.Int64 (Int64.of_int32 p))
         | _ -> None in  
       let act = group_to_action g pto in 
       simpl_flow pat act::l in

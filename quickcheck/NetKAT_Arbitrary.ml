@@ -23,7 +23,7 @@ let arbitrary_test, arbitrary_mod =
   let open QuickCheck_gen in
   let open NetKAT_Types in
   let shared = [
-    map_gen (fun i -> Location (Physical i)) AB.arbitrary_uint16;
+    map_gen (fun i -> Location (Physical i)) AB.arbitrary_uint32;
     map_gen (fun s -> Location (Pipe s)) arbitrary_id;
     map_gen (fun i -> EthSrc i) AB.arbitrary_uint48;
     map_gen (fun i -> EthDst i) AB.arbitrary_uint48;
