@@ -15,7 +15,7 @@ type payload = SDN_Types.payload
 (** {2 Policies} *)
   
 type location = 
-  | Physical of int16 
+  | Physical of int32
   | Pipe of string 
 
 type header_val = 
@@ -61,6 +61,15 @@ let drop = Filter False
 
 (** A map keyed by header names. *)
 module Headers = struct
+  open Core.Std
+  (*
+   * Note that this module uses the fieldslib library from Jane Street, a syntax
+   * extension that generates several convenience functions, .e.g, fold, map,
+   * iter, getters, setters, etc., specialized for the record type.  More
+   * documentation can be found here:
+   *
+   *   https://github.com/janestreet/fieldslib
+   * *)
   type t = 
       { location : location option sexp_opaque;
         ethSrc : int48 option sexp_opaque;
@@ -76,6 +85,59 @@ module Headers = struct
       } with sexp,fields
 
   let compare = Pervasives.compare
+
+  let empty =
+    { location = None;
+      ethSrc = None;
+      ethDst = None;
+      vlan = None;
+      vlanPcp = None;
+      ethType = None;
+      ipProto = None;
+      ipSrc = None;
+      ipDst = None;
+      tcpSrcPort = None;
+      tcpDstPort = None }
+
+  let mk_location l = { empty with location = Some l }
+  let mk_ethSrc n = { empty with ethSrc = Some n }
+  let mk_ethDst n = { empty with ethDst = Some n }
+  let mk_vlan n = { empty with vlan = Some n }
+  let mk_vlanPcp n = { empty with vlanPcp = Some n }
+  let mk_ethType n = { empty with vlanPcp = Some n }
+  let mk_ipProto n = { empty with ipProto = Some n }
+  let mk_ipSrc n = { empty with ipSrc = Some n }
+  let mk_ipDst n = { empty with ipDst = Some n }
+  let mk_tcpSrcPort n = { empty with tcpSrcPort = Some n }
+  let mk_tcpDstPort n = { empty with tcpDstPort = Some n }
+
+  let to_string ?init:(init="") ?sep:(sep="=") (x:t) : string =
+    let g pp acc f = match Field.get f x with
+      | None -> acc
+      | Some v ->
+        let s = Printf.sprintf "%s%s%s" (Field.name f) sep (pp v) in
+        if acc = "" then s
+        else Printf.sprintf "%s, %s" acc s in
+    let ppl l = match l with
+      | Physical x -> Printf.sprintf "%lu" x
+      | Pipe x -> x in
+    let pp8 = Printf.sprintf "%u" in
+    let pp16 = Printf.sprintf "%u" in
+    let pp32 = Printf.sprintf "%lu" in
+    let pp48 = Printf.sprintf "%Lu" in
+    Fields.fold
+      ~init:""
+      ~location:(g ppl)
+      ~ethSrc:(g pp48)
+      ~ethDst:(g pp48)
+      ~vlan:(g pp16)
+      ~vlanPcp:(g pp8)
+      ~ethType:(g pp16)
+      ~ipProto:(g pp8)
+      ~ipSrc:(g pp32)
+      ~ipDst:(g pp32)
+      ~tcpSrcPort:(g pp16)
+      ~tcpDstPort:(g pp16)
 end
  
 type packet = {

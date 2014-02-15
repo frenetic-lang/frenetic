@@ -1,16 +1,56 @@
 open NetKAT_Types
 
-let arbitrary_headerval =
-  QuickCheck_gen.Gen 
-    (fun _ -> failwith "arbitrary_headerval: not yet implemented")    
+module AB = Arbitrary_Base
 
-(* let open QuickCheck_gen in  *)
-(*     choose_int0 200 >>= fun rint -> *)
-(*     ret_gen (VInt.Int64 (Int64.of_int rint)) *)
+let arbitrary_id =
+  let open QuickCheck_gen in
+  let shared = [
+    map_gen (fun i -> Char.chr i) (choose_int (0x41, 0x5a));
+    map_gen (fun i -> Char.chr i) (choose_int (0x61, 0x7a));
+    ret_gen (Char.chr 0x5f);
+  ] in
+  let schr = oneof shared in
+  let chr = oneof ([
+    map_gen (fun i -> Char.chr i) (choose_int (0x30,0x39));
+  ] @ shared) in
+  schr >>= fun c ->
+  choose_int (0, 10) >>= fun l ->
+  QuickCheck.arbitrary_listN l chr >>= fun cs ->
+    ret_gen (QuickCheck_util.charlist_to_string (c::cs))
 
-let arbitrary_payload = 
-  QuickCheck_gen.Gen 
-    (fun _ -> failwith "arbitrary_payload: not yet implemented")    
+
+let arbitrary_test, arbitrary_mod =
+  let open QuickCheck_gen in
+  let open NetKAT_Types in
+  let shared = [
+    map_gen (fun i -> Location (Physical i)) AB.arbitrary_uint32;
+    map_gen (fun s -> Location (Pipe s)) arbitrary_id;
+    map_gen (fun i -> EthSrc i) AB.arbitrary_uint48;
+    map_gen (fun i -> EthDst i) AB.arbitrary_uint48;
+    map_gen (fun i -> EthType i) AB.arbitrary_uint16;
+    (* XXX(seliopou): Currently not being tested:
+     *
+     *   vlan, vlanPcp
+     * *)
+    map_gen (fun i -> IPProto i) AB.arbitrary_uint8;
+    map_gen (fun i -> IP4Src i) AB.arbitrary_uint32;
+    map_gen (fun i -> IP4Dst i) AB.arbitrary_uint32;
+    map_gen (fun i -> TCPSrcPort i) AB.arbitrary_uint16;
+    map_gen (fun i -> TCPDstPort i) AB.arbitrary_uint16;
+  ] in
+  (oneof ([
+    (* XXX(seliopou): Switch has a restricted range due to the printing bug
+     * mentioned in a comment below
+     * *)
+    map_gen (fun i -> Switch i) AB.arbitrary_uint48;
+  ] @ shared),
+  oneof ([
+  ] @ shared))
+
+let arbitrary_portId =
+  let open QuickCheck_gen in
+  let open Arbitrary_Base in
+  map_gen (fun i -> VInt.Int64 (Int64.of_int i)) arbitrary_uint16
 
 let treesize n x =
   if n <= 0
@@ -19,7 +59,7 @@ let treesize n x =
 
 let gen_atom_pred : pred QuickCheck_gen.gen = 
   let open QuickCheck_gen in 
-      arbitrary_headerval >>= fun hv ->
+      arbitrary_test >>= fun hv ->
         ret_gen (Test hv)
 
 let rec gen_composite_pred () : pred QuickCheck_gen.gen =
@@ -61,15 +101,15 @@ let arbitrary_link : policy QuickCheck_gen.gen =
    *   http://caml.inria.fr/mantis/view.php?id=6316
    *)
   arbitrary_uint48 >>= fun sw1 ->
-  arbitrary_headerval >>= fun pt1 ->
+  arbitrary_portId >>= fun pt1 ->
   arbitrary_uint48 >>= fun sw2 ->
-  arbitrary_headerval >>= fun pt2 ->
+  arbitrary_portId >>= fun pt2 ->
     ret_gen (Link(sw1,pt1,sw2,pt2))
 
 let gen_lf_atom_pol : policy QuickCheck_gen.gen  =
   let open QuickCheck_gen in
   oneof [
-    (arbitrary_headerval >>= fun hv -> 
+    (arbitrary_mod >>= fun hv ->
          ret_gen (Mod hv));
     (gen_pred >>= fun pr ->
         ret_gen (Filter (pr))) ]
@@ -77,7 +117,7 @@ let gen_lf_atom_pol : policy QuickCheck_gen.gen  =
 let gen_atom_pol : policy QuickCheck_gen.gen = 
   let open QuickCheck_gen in
   oneof [
-    (arbitrary_headerval >>= fun hv -> 
+    (arbitrary_mod >>= fun hv ->
         ret_gen (Mod hv));
     (gen_pred >>= fun pr ->
         ret_gen (Filter (pr)));
@@ -115,7 +155,7 @@ let arbitrary_packet : packet QuickCheck_gen.gen =
   (* let open QuickCheck_gen in *)
   (* let open QuickCheck in *)
   (* listN num_hdrs arbitrary_headerval >>= fun vals -> *)
-  (*   arbitrary_payload >>= fun payload -> *)
+  (*   Arbitrary_SDN_Types.arbitrary_payload >>= fun payload -> *)
   (*   ret_gen { *)
   (*     headers = List.fold_right2 HeaderMap.add all_headers vals HeaderMap.empty; *)
   (*     payload = payload *)

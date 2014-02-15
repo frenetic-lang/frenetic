@@ -33,36 +33,8 @@ module HeadersCommon : HEADERSCOMMON = struct
 
   type t = Headers.t with sexp
 
-  let to_string ?init:(init="") ?sep:(sep="=") (x:t) : string =
-    let g pp acc f = match Field.get f x with
-      | None -> acc
-      | Some v ->
-        let s = Printf.sprintf "%s%s%s" (Field.name f) sep (pp v) in 
-        if acc = "" then s
-        else Printf.sprintf "%s, %s" acc s in 
-    let ppl l = match l with 
-      | NetKAT_Types.Physical x -> Printf.sprintf "%d" x
-      | NetKAT_Types.Pipe x -> x in 
-    let pp8 = Printf.sprintf "%d" in
-    let pp16 = Printf.sprintf "%d" in
-    let pp32 = Printf.sprintf "%ld" in
-    let pp48 = Printf.sprintf "%Ld" in
-    Headers.Fields.fold
-      ~init:""
-      ~location:(g ppl)
-      ~ethSrc:(g pp48)
-      ~ethDst:(g pp48)
-      ~vlan:(g pp16)
-      ~vlanPcp:(g pp8)
-      ~ethType:(g pp16)
-      ~ipProto:(g pp8)
-      ~ipSrc:(g pp32)
-      ~ipDst:(g pp32)
-      ~tcpSrcPort:(g pp16)
-      ~tcpDstPort:(g pp16)
-
-  let compare (x:t) (y:t) : int =
-    Pervasives.compare x y
+  let compare (x:t) (y:t) : int = Headers.compare x y
+  let to_string ?init ?sep (x:t) = Headers.to_string ?init ?sep x
 
   type this_t = t with sexp
 
@@ -80,34 +52,22 @@ module HeadersCommon : HEADERSCOMMON = struct
              (if acc = "" then "" else acc ^ ", ")
              (to_string ~init:init ~sep:sep x)))
 
-  let empty : t =
-    let open Headers in 
-    { location = None;
-      ethSrc = None;
-      ethDst = None;
-      vlan = None;
-      vlanPcp = None;
-      ethType = None;
-      ipProto = None;
-      ipSrc = None;
-      ipDst = None;
-      tcpSrcPort = None;
-      tcpDstPort = None }
+  let empty : t = Headers.empty
 
   let is_empty (x:t) : bool =
     x = empty
 
-  let mk_location l = { empty with Headers.location = Some l }
-  let mk_ethSrc n = { empty with Headers.ethSrc = Some n }
-  let mk_ethDst n = { empty with Headers.ethDst = Some n }
-  let mk_vlan n = { empty with Headers.vlan = Some n }
-  let mk_vlanPcp n = { empty with Headers.vlanPcp = Some n }
-  let mk_ethType n = { empty with Headers.vlanPcp = Some n }
-  let mk_ipProto n = { empty with Headers.ipProto = Some n }
-  let mk_ipSrc n = { empty with Headers.ipSrc = Some n }
-  let mk_ipDst n = { empty with Headers.ipDst = Some n }
-  let mk_tcpSrcPort n = { empty with Headers.tcpSrcPort = Some n }
-  let mk_tcpDstPort n = { empty with Headers.tcpDstPort = Some n }
+  let mk_location l = Headers.mk_location l
+  let mk_ethSrc n = Headers.mk_ethSrc n
+  let mk_ethDst n = Headers.mk_ethDst n
+  let mk_vlan n = Headers.mk_vlan n
+  let mk_vlanPcp n = Headers.mk_vlanPcp n
+  let mk_ethType n = Headers.mk_ethType n
+  let mk_ipProto n = Headers.mk_ipProto n
+  let mk_ipSrc n = Headers.mk_ipSrc n
+  let mk_ipDst n = Headers.mk_ipDst n
+  let mk_tcpSrcPort n = Headers.mk_tcpSrcPort n
+  let mk_tcpDstPort n = Headers.mk_tcpDstPort n
        
   let rec subseteq (x:t) (y:t) : bool =
     let g f =
@@ -225,17 +185,17 @@ module Action : ACTION = struct
     if Set.is_empty s then "drop"
     else HeadersCommon.set_to_string ~init:"id" ~sep:":=" s
 
-  let mk_location l = { HeadersCommon.empty with Headers.location = Some l }
-  let mk_ethSrc n = { HeadersCommon.empty with Headers.ethSrc = Some n }
-  let mk_ethDst n = { HeadersCommon.empty with Headers.ethDst = Some n }
-  let mk_vlan n = { HeadersCommon.empty with Headers.vlan = Some n }
-  let mk_vlanPcp n = { HeadersCommon.empty with Headers.vlanPcp = Some n }
-  let mk_ethType n = { HeadersCommon.empty with Headers.vlanPcp = Some n }
-  let mk_ipProto n = { HeadersCommon.empty with Headers.ipProto = Some n }
-  let mk_ipSrc n = { HeadersCommon.empty with Headers.ipSrc = Some n }
-  let mk_ipDst n = { HeadersCommon.empty with Headers.ipDst = Some n }
-  let mk_tcpSrcPort n = { HeadersCommon.empty with Headers.tcpSrcPort = Some n }
-  let mk_tcpDstPort n = { HeadersCommon.empty with Headers.tcpDstPort = Some n }
+  let mk_location l = HeadersCommon.mk_location l
+  let mk_ethSrc n = HeadersCommon.mk_ethSrc n
+  let mk_ethDst n = HeadersCommon.mk_ethDst n
+  let mk_vlan n = HeadersCommon.mk_vlan n
+  let mk_vlanPcp n = HeadersCommon.mk_vlanPcp n
+  let mk_ethType n = HeadersCommon.mk_ethType n
+  let mk_ipProto n = HeadersCommon.mk_ipProto n
+  let mk_ipSrc n = HeadersCommon.mk_ipSrc n
+  let mk_ipDst n = HeadersCommon.mk_ipDst n
+  let mk_tcpSrcPort n = HeadersCommon.mk_tcpSrcPort n
+  let mk_tcpDstPort n = HeadersCommon.mk_tcpDstPort n
 
   let seq (x:t) (y:t) : t =
     let g acc f =
@@ -360,17 +320,17 @@ module Pattern : PATTERN = struct
   let compare : t -> t -> int =
     HeadersCommon.compare
 
-  let mk_location n = { HeadersCommon.empty with Headers.location = Some n }
-  let mk_ethSrc n = { HeadersCommon.empty with Headers.ethSrc = Some n }
-  let mk_ethDst n = { HeadersCommon.empty with Headers.ethDst = Some n }
-  let mk_vlan n = { HeadersCommon.empty with Headers.vlan = Some n }
-  let mk_vlanPcp n = { HeadersCommon.empty with Headers.vlanPcp = Some n }
-  let mk_ethType n = { HeadersCommon.empty with Headers.ethType = Some n }
-  let mk_ipProto n = { HeadersCommon.empty with Headers.ipProto = Some n }
-  let mk_ipSrc n = { HeadersCommon.empty with Headers.ipSrc = Some n }
-  let mk_ipDst n = { HeadersCommon.empty with Headers.ipDst = Some n }
-  let mk_tcpSrcPort n = { HeadersCommon.empty with Headers.tcpSrcPort = Some n }
-  let mk_tcpDstPort n = { HeadersCommon.empty with Headers.tcpDstPort = Some n }
+  let mk_location l = HeadersCommon.mk_location l
+  let mk_ethSrc n = HeadersCommon.mk_ethSrc n
+  let mk_ethDst n = HeadersCommon.mk_ethDst n
+  let mk_vlan n = HeadersCommon.mk_vlan n
+  let mk_vlanPcp n = HeadersCommon.mk_vlanPcp n
+  let mk_ethType n = HeadersCommon.mk_ethType n
+  let mk_ipProto n = HeadersCommon.mk_ipProto n
+  let mk_ipSrc n = HeadersCommon.mk_ipSrc n
+  let mk_ipDst n = HeadersCommon.mk_ipDst n
+  let mk_tcpSrcPort n = HeadersCommon.mk_tcpSrcPort n
+  let mk_tcpDstPort n = HeadersCommon.mk_tcpDstPort n
 
   let seq : t -> t -> t option =
     HeadersCommon.seq
@@ -909,7 +869,7 @@ module RunTime = struct
     let i32 x = VInt.Int64 (Int64.of_int32 x) in 
     let i48 x = VInt.Int64 x in 
     let port = match Headers.location a, pto with
-        | Some (NetKAT_Types.Physical pt),_ -> VInt.Int16 pt
+        | Some (NetKAT_Types.Physical pt),_ -> VInt.Int32 pt
         | _, Some pt -> pt 
         | _, None ->
           failwith "indeterminate port" in 
@@ -941,7 +901,7 @@ module RunTime = struct
     let i32 x = VInt.Int64 (Int64.of_int32 x) in 
     let i48 x = VInt.Int64 x in 
     let il x = match x with 
-      | NetKAT_Types.Physical p -> VInt.Int64 (Int64.of_int p)
+      | NetKAT_Types.Physical p -> VInt.Int64 (Int64.of_int32 p)
       | NetKAT_Types.Pipe p -> failwith "Not yet implemented" in 
     let g h c act f = 
       match Field.get f x with 
@@ -989,7 +949,7 @@ module RunTime = struct
     let add_flow x s l =
       let pat = to_pattern x in
       let pto = match Headers.location x with 
-        | Some (NetKAT_Types.Physical p) -> Some (VInt.Int64 (Int64.of_int p))
+        | Some (NetKAT_Types.Physical p) -> Some (VInt.Int64 (Int64.of_int32 p))
         | _ -> None in  
       let act = set_to_action s pto in 
       simpl_flow pat act::l in

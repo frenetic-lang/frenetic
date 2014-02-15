@@ -132,7 +132,7 @@ TEST "quickcheck failure on 10/16/2013" =
 TEST "vlan" =
   let test_vlan_none = Test (Vlan 0xFFF) in
   let mod_vlan_none = Mod (Vlan 0xFFF) in
-  let mod_port1 = Mod (Location (Physical 1)) in 
+  let mod_port1 = Mod (Location (Physical 1l)) in
   let id = Filter True in
   let pol =
     Seq (ite 

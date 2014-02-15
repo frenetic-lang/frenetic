@@ -35,20 +35,20 @@ module Formatting = struct
       | _ -> VInt.format fmt v
 
 
-  let format_header_val (fmt : formatter) (hv : header_val) : unit = match hv with
-    | Switch(n) -> fprintf fmt "@[switch = %Ld@]" n
-    | Location(Physical n) -> fprintf fmt "@[location = %d@]" n
-    | Location(Pipe x) -> fprintf fmt "@[location = %s@]" x
-    | EthSrc(n) -> fprintf fmt "@[ethSrc = %Ld@]" n
-    | EthDst(n) -> fprintf fmt "@[ethDst = %Ld@]" n
-    | Vlan(n) -> fprintf fmt "@[vlan = %d@]" n
-    | VlanPcp(n) -> fprintf fmt "@[vlanPcp = %d@]" n
-    | EthType(n) -> fprintf fmt "@[ethType = %d@]" n
-    | IPProto(n) -> fprintf fmt "@[ipProto = %d@]" n
-    | IP4Src(n) -> fprintf fmt "@[ipSrc = %ld@]" n
-    | IP4Dst(n) -> fprintf fmt "@[ipDst = %ld@]" n
-    | TCPSrcPort(n) -> fprintf fmt "@[tcpSrcPort = %d@]" n
-    | TCPDstPort(n) -> fprintf fmt "@[tcpDstPort = %d@]" n
+  let format_header_val (fmt : formatter) (hv : header_val) (asgn : string) : unit = match hv with
+    | Switch(n) -> fprintf fmt "@[switch %s %Lu@]" asgn n
+    | Location(Physical n) -> fprintf fmt "@[port %s %lu@]" asgn n
+    | Location(Pipe x) -> fprintf fmt "@[port %s %s@]" asgn x
+    | EthSrc(n) -> fprintf fmt "@[ethSrc %s %Lu@]" asgn n
+    | EthDst(n) -> fprintf fmt "@[ethDst %s %Lu@]" asgn n
+    | Vlan(n) -> fprintf fmt "@[vlanId %s %d@]" asgn n
+    | VlanPcp(n) -> fprintf fmt "@[vlanPcp %s %u@]" asgn n
+    | EthType(n) -> fprintf fmt "@[ethTyp %s %u@]" asgn n
+    | IPProto(n) -> fprintf fmt "@[ipProto %s %u@]" asgn n
+    | IP4Src(n) -> fprintf fmt "@[ipSrc %s %lu@]" asgn n
+    | IP4Dst(n) -> fprintf fmt "@[ipDst %s %lu@]" asgn n
+    | TCPSrcPort(n) -> fprintf fmt "@[tcpSrcPort %s %u@]" asgn n
+    | TCPDstPort(n) -> fprintf fmt "@[tcpDstPort %s %u@]" asgn n
 
   let rec pred (cxt : predicate_context) (fmt : formatter) (pr : pred) : unit = 
     match pr with
@@ -57,7 +57,7 @@ module Formatting = struct
       | False -> 
         fprintf fmt "@[drop@]"
       | (Test hv) -> 
-        format_header_val fmt hv 
+        format_header_val fmt hv "="
       | Neg p' -> 
         begin match cxt with
           | PAREN_PR
@@ -94,7 +94,7 @@ module Formatting = struct
       | Filter pr -> 
 	fprintf fmt "filter "; pred PAREN_PR fmt pr
       | Mod hv -> 
-        format_header_val fmt hv
+        format_header_val fmt hv ":="
       | Star p' -> 
         begin match cxt with
           | PAREN 
