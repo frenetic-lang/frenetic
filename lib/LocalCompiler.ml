@@ -301,6 +301,9 @@ end
 module type PATTERN = sig
   type t = Headers.t with sexp
   module Set : Set.S with type Elt.t = t
+
+  val matches : t -> NetKAT_Types.packet -> bool
+
   val to_string : t -> string
   val set_to_string : Set.t -> string
   val compare : t -> t -> int
@@ -351,6 +354,27 @@ module Pattern : PATTERN = struct
   let mk_ipDst n = HeadersCommon.mk_ipDst n
   let mk_tcpSrcPort n = HeadersCommon.mk_tcpSrcPort n
   let mk_tcpDstPort n = HeadersCommon.mk_tcpDstPort n
+
+  let matches (t:t) (packet:NetKAT_Types.packet) : bool =
+    let open NetKAT_Types in
+    let fn acc f =
+      acc && (match Field.get f t, Field.get f packet.headers with
+        | None, _      -> true
+        | Some _, None -> false
+        | Some e1, Some e2 -> e1 = e2) in
+    Headers.Fields.fold
+      ~init:true
+      ~location:(fun acc _ -> acc)
+      ~ethSrc:fn
+      ~ethDst:fn
+      ~vlan:fn
+      ~vlanPcp:fn
+      ~ethType:fn
+      ~ipProto:fn
+      ~ipSrc:fn
+      ~ipDst:fn
+      ~tcpSrcPort:fn
+      ~tcpDstPort:fn
 
   let seq : t -> t -> t option =
     HeadersCommon.seq
@@ -425,6 +449,9 @@ module type ATOM = sig
   module Set : Set.S with type Elt.t = t
   module DepMap : Map.S with type Key.t = t
   module Map : Map.S with type Key.t = t
+
+  val matches : t -> NetKAT_Types.packet -> bool
+
   val to_string : t -> string
   val compare : t -> t -> int
   val mk : Pattern.t -> t
@@ -466,6 +493,11 @@ module Atom : ATOM = struct
           cmp in
     (* Printf.printf "COMPARE %s %s = %d\n%!" (to_string (xs1,x1)) (to_string (xs2,x2)) r; *)
     r
+
+  let matches (t:t) (packet:NetKAT_Types.packet) : bool =
+    let ps_neg, p_pos = t in
+    Pattern.Set.for_all ps_neg ~f:(fun p -> not (Pattern.matches p packet))
+      && Pattern.matches p_pos packet
 
   type this_t = t with sexp
 
