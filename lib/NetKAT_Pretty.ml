@@ -34,9 +34,23 @@ module Formatting = struct
 	  VInt.format fmt v
       | _ -> VInt.format fmt v
 
-  let format_header (fmt : formatter) (h : header) : unit = match h with
-    | Header h' -> format_field fmt h'
-    | Switch -> fprintf fmt "switch"
+
+  let format_header_val (fmt : formatter) (hv : header_val) (asgn : string) : unit = match hv with
+    | Switch(n) -> fprintf fmt "@[switch %s %Lu@]" asgn n
+    | Location(Physical n) -> fprintf fmt "@[port %s %lu@]" asgn n
+    | Location(Pipe x) -> fprintf fmt "@[port %s %s@]" asgn x
+    | EthSrc(n) -> fprintf fmt "@[ethSrc %s %Lu@]" asgn n
+    | EthDst(n) -> fprintf fmt "@[ethDst %s %Lu@]" asgn n
+    | Vlan(n) -> fprintf fmt "@[vlanId %s %d@]" asgn n
+    | VlanPcp(n) -> fprintf fmt "@[vlanPcp %s %u@]" asgn n
+    | EthType(n) -> fprintf fmt "@[ethTyp %s %u@]" asgn n
+    | IPProto(n) -> fprintf fmt "@[ipProto %s %u@]" asgn n
+    | IP4Src(n,32) -> fprintf fmt "@[ipSrc %s %lu@]" asgn n
+    | IP4Dst(n,32) -> fprintf fmt "@[ipDst %s %lu@]" asgn n
+    | IP4Src(n,m) -> fprintf fmt "@[ipSrc %s %lu/%d@]" asgn n m
+    | IP4Dst(n,m) -> fprintf fmt "@[ipDst %s %lu/%d@]" asgn n m
+    | TCPSrcPort(n) -> fprintf fmt "@[tcpSrcPort %s %u@]" asgn n
+    | TCPDstPort(n) -> fprintf fmt "@[tcpDstPort %s %u@]" asgn n
 
   let rec pred (cxt : predicate_context) (fmt : formatter) (pr : pred) : unit = 
     match pr with
@@ -44,10 +58,8 @@ module Formatting = struct
         fprintf fmt "@[id@]"
       | False -> 
         fprintf fmt "@[drop@]"
-      | (Test (h, v)) -> 
-        fprintf fmt "@[%a = %a@]" 
-	  format_header h 
-	  format_value v
+      | (Test hv) -> 
+        format_header_val fmt hv "="
       | Neg p' -> 
         begin match cxt with
           | PAREN_PR
@@ -83,8 +95,8 @@ module Formatting = struct
 	pred PAREN_PR fmt pr
       | Filter pr -> 
 	fprintf fmt "filter "; pred PAREN_PR fmt pr
-      | Mod (h, v) -> 
-        fprintf fmt "@[%a := %a@]" format_header h format_value v
+      | Mod hv -> 
+        format_header_val fmt hv ":="
       | Star p' -> 
         begin match cxt with
           | PAREN 
@@ -114,15 +126,7 @@ end
 let format_policy = Formatting.pol Formatting.PAREN
 
 let format_pred = Formatting.pred Formatting.PAREN_PR
-  
-let format_header = Formatting.format_header
-
-let string_of_field = NetKAT_Util.make_string_of Formatting.format_field
-  
-let header_to_string = NetKAT_Util.make_string_of Formatting.format_header
-   
-let value_to_string = NetKAT_Util.make_string_of Formatting.format_value
-  
+    
 let string_of_policy = NetKAT_Util.make_string_of format_policy
 
 let string_of_pred = NetKAT_Util.make_string_of format_pred

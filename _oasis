@@ -23,6 +23,8 @@ Library netcore
   BuildDepends:
     cstruct,
     dprle,
+    fieldslib,
+    fieldslib.syntax,
     str,
     threads,
     ocamlgraph,
