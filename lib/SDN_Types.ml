@@ -120,7 +120,7 @@ let format_pattern (fmt:Format.formatter) (p:pattern) : unit =
         if b then Format.fprintf fmt ",@,";
         format_field fmt f;
         Format.fprintf fmt "="; 
-        VInt.format fmt v; 
+        VInt.format fmt v;
         true)
       p false in 
   Format.fprintf fmt "@]"
