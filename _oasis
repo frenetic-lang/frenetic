@@ -22,7 +22,6 @@ Library netcore
   Path: lib
   BuildDepends:
     cstruct,
-    dprle,
     str,
     threads,
     ocamlgraph,
@@ -51,7 +50,6 @@ Library async
     core,
     cstruct,
     cstruct.async,
-    dprle,
     netcore,
     ocamlgraph,
     openflow,
