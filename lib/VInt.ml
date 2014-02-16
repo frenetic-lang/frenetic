@@ -109,14 +109,13 @@ let get_int4 (v : t) : int =
 let format (fmt : Format.formatter) (v : t) : unit = 
 	let open Format in
 	match v with
-  | Int64 n -> fprintf fmt "%Ld" n
-  | Int48 n -> fprintf fmt "%Ld" n
-  | Int32 n -> fprintf fmt "%ld" n
-  | Int32m (n, m) -> fprintf fmt "%ld/%ld" n m
-  | Int16 n -> fprintf fmt "%d" n
-  | Int8 n -> fprintf fmt "%d" n
-  | Int4 n -> fprintf fmt "%d" n
-
+  | Int64 n -> fprintf fmt "%Lu" n
+  | Int48 n -> fprintf fmt "%Lu" n
+  | Int32 n -> fprintf fmt "%lu" n
+  | Int32m (n, m) -> fprintf fmt "%lu/%ld" n m
+  | Int16 n -> fprintf fmt "%u" n
+  | Int8 n -> fprintf fmt "%u" n
+  | Int4 n -> fprintf fmt "%u" n
 
 let get_string v =
   let make_string_of formatter x =
