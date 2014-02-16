@@ -24,7 +24,7 @@
 %token EQUALS
 %token SWITCH PORT SRCMAC DSTMAC FRAMETYPE VLAN VLANPCP SRCIP DSTIP PROTOCOLTYPE TCPSRCPORT TCPDSTPORT
 %token IF THEN ELSE
-%token SEMI AMP BAR PLUS COMMA
+%token SEMI AMP BAR PLUS COMMA SLASH
 %token LET IN
 %token FILTER
 %token ASSIGN
@@ -112,6 +112,10 @@ xpredicate:
       { Test(IP4Src (VInt.get_int32 (VInt.Int64 $3), 32)) }
   | DSTIP EQUALS field_value 
       { Test(IP4Dst (VInt.get_int32 (VInt.Int64 $3), 32)) }
+  | SRCIP EQUALS field_value SLASH field_value
+      { Test(IP4Src (VInt.get_int32 (VInt.Int64 $3), (VInt.get_int (VInt.Int64 $5)))) }
+  | DSTIP EQUALS field_value SLASH field_value
+      { Test(IP4Dst (VInt.get_int32 (VInt.Int64 $3), (VInt.get_int (VInt.Int64 $5)))) }
   | PROTOCOLTYPE EQUALS field_value 
       { Test(IPProto (VInt.get_int8 (VInt.Int64 $3))) }
   | TCPSRCPORT EQUALS field_value 

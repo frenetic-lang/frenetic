@@ -71,6 +71,7 @@ rule token = parse
   | ";" { SEMI }
   | "|" { BAR }
   | "+" { PLUS }
+  | "/" { SLASH }
 
   | (byte as n6) ":" (byte as n5) ":" (byte as n4) ":" (byte as n3) ":" 
     (byte as n2) ":" (byte as n1) 

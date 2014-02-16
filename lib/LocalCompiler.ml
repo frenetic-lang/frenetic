@@ -884,13 +884,15 @@ end
 module RunTime = struct
 
   let to_action (a:Action.t) (pto: fieldVal option) : seq =
-    let i8 x = VInt.Int64 (Int64.of_int x) in 
-    let i16 x = VInt.Int64 (Int64.of_int x) in 
-    let i32m (x,y) = VInt.Int64 (Int64.of_int32 x) in (* JNF *)
+    let i8 x = VInt.Int8 x in 
+    let i16 x = VInt.Int16 x in 
+    let i32m (x,y) = VInt.Int32 x in (* JNF *)
     let i48 x = VInt.Int64 x in 
     let port = match Headers.location a, pto with
-        | Some (NetKAT_Types.Physical pt),_ -> VInt.Int32 pt
-        | _, Some pt -> pt 
+        | Some (NetKAT_Types.Physical pt),_ -> 
+          VInt.Int32 pt
+        | _, Some pt -> 
+          pt 
         | _, None ->
           failwith "indeterminate port" in 
     let g h c act f = 
@@ -916,12 +918,12 @@ module RunTime = struct
     Action.Set.fold s ~f:f ~init:[]
 
   let to_pattern (x:Pattern.t) : pattern =
-    let i8 x = VInt.Int64 (Int64.of_int x) in 
-    let i16 x = VInt.Int64 (Int64.of_int x) in 
-    let i32m (x,y) = VInt.Int64 (Int64.of_int32 x) in (* JNF *)
+    let i8 x = VInt.Int8 x in 
+    let i16 x = VInt.Int16 x in 
+    let i32m (x,y) = VInt.Int32 x in (* JNF *)
     let i48 x = VInt.Int64 x in 
     let il x = match x with 
-      | NetKAT_Types.Physical p -> VInt.Int64 (Int64.of_int32 p)
+      | NetKAT_Types.Physical p -> VInt.Int32 p
       | NetKAT_Types.Pipe p -> failwith "Not yet implemented" in 
     let g h c act f = 
       match Field.get f x with 
