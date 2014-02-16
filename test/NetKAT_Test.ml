@@ -146,6 +146,51 @@ TEST "vlan" =
       (Seq (mod_vlan_none, mod_port1)) in 
   test_compile pol pol'
 
+module FromPipe = struct
+
+  let test_from_pipe pol pkt pipe =
+    let t = LocalCompiler.of_policy 0L pol in
+    try match LocalCompiler.from_pipe t pkt with
+      | None -> false
+      | Some(pipe') -> pipe' = pipe
+    with LocalCompiler.Ambiguous_pipes(_) -> false
+
+  TEST "all to controller" =
+    let pol = Mod(Location(Pipe("all"))) in
+    let pkt = {
+      switch = 0L;
+      headers = Headers.empty;
+      payload = SDN_Types.NotBuffered (Cstruct.create 0)
+    } in
+    test_from_pipe pol pkt "all"
+
+  TEST "left side" =
+    let pol = Union(
+                Seq(Filter(Test(EthSrc 1L)),
+                    Mod(Location(Pipe("left")))),
+                Seq(Filter(Test(EthSrc 2L)),
+                    Mod(Location(Pipe("right"))))) in
+    let pkt = {
+      switch = 0L;
+      headers = Headers.mk_ethSrc 1L;
+      payload = SDN_Types.NotBuffered (Cstruct.create 0)
+    } in
+    test_from_pipe pol pkt "left"
+
+  TEST "right side" =
+    let pol = Union(
+                Seq(Filter(Test(EthSrc 1L)),
+                    Mod(Location(Pipe("left")))),
+                Seq(Filter(Test(EthSrc 2L)),
+                    Mod(Location(Pipe("right"))))) in
+    let pkt = {
+      switch = 0L;
+      headers = Headers.mk_ethSrc 2L;
+      payload = SDN_Types.NotBuffered (Cstruct.create 0)
+    } in
+    test_from_pipe pol pkt "right"
+end
+
 (* TEST "quickcheck local compiler" = *)
 (*   let testable_pol_pkt_to_bool = *)
 (*     let open QuickCheck in *)

@@ -4,6 +4,8 @@ open SDN_Types
 
 type location = NetKAT_Types.location
 module Headers = NetKAT_Types.Headers
+
+exception Ambiguous_pipes of string list
   
 module type HEADERSCOMMON = sig
   type t = Headers.t with sexp
@@ -27,6 +29,7 @@ module type HEADERSCOMMON = sig
   val seq : t -> t -> t option
   val diff : t -> t -> t
   val subseteq : t -> t -> bool
+  val shadow : ?keep:bool -> t -> t -> t
 end
 
 module HeadersCommon : HEADERSCOMMON = struct
@@ -154,6 +157,28 @@ module HeadersCommon : HEADERSCOMMON = struct
       ~ipDst:(g cm)
       ~tcpSrcPort:(g c)
       ~tcpDstPort:(g c)
+
+  let shadow ?(keep=true) (x:t) (y:t) : t =
+    let g acc f =
+      match Field.get f acc, Field.get f y with
+        | Some v1, Some v2 ->
+          if v1 = v2
+            then acc
+            else Field.fset f acc (if keep then Some v2 else None)
+        | _, _ -> acc in
+    Headers.Fields.fold
+      ~init:x
+      ~location:g
+      ~ethSrc:g
+      ~ethDst:g
+      ~vlan:g
+      ~vlanPcp:g
+      ~ethType:g
+      ~ipProto:g
+      ~ipSrc:g
+      ~ipDst:g
+      ~tcpSrcPort:g
+      ~tcpDstPort:g
 end
 
 module type ACTION = sig
@@ -319,6 +344,7 @@ module type PATTERN = sig
   val mk_tcpSrcPort : int16 -> t
   val mk_tcpDstPort : int16 -> t
   val seq : t -> t -> t option
+  val seq_act : t -> Action.t -> t
   val seq_act_t : t -> Action.t -> t -> t option
   val diff : t -> t -> t
   val subseteq : t -> t -> bool
@@ -378,6 +404,12 @@ module Pattern : PATTERN = struct
 
   let seq : t -> t -> t option =
     HeadersCommon.seq
+
+  (**
+     Sequence a pattern with an Action.t, the effect of which is to modify the
+     pattern to match any fields that the Action.t assigns. *)
+  let seq_act (t:t) (act:Action.t) : t =
+    HeadersCommon.shadow t act
 
   let seq_act_t x a y =
     (* TODO(jnf): can optimize into a single loop *)
@@ -458,6 +490,7 @@ module type ATOM = sig
   val tru : t
   val neg : t -> Set.t
   val seq : t -> t -> t option
+  val seq_act : t -> Action.t -> t
   val seq_act_t : t -> Action.t -> t -> t option
 end
 
@@ -542,6 +575,10 @@ module Atom : ATOM = struct
         check (Pattern.Set.union xs1 xs2, x12)
       | None ->
         None
+
+  let seq_act (xs1, x1) act =
+    let xs1' = Pattern.Set.map xs1 ~f:(fun x -> HeadersCommon.shadow x act) in
+    (xs1', HeadersCommon.shadow x1 act)
 
   let seq_act_t (xs1,x1) a (xs2,x2) =
     match Pattern.seq_act_t x1 a x2 with
@@ -695,6 +732,8 @@ module type LOCAL = sig
   val of_pred : NetKAT_Types.pred -> t
   val of_policy : NetKAT_Types.policy -> t
   val to_netkat : t -> NetKAT_Types.policy
+
+  val from_pipe : t -> NetKAT_Types.packet -> string option
 end
 
 module Local : LOCAL = struct
@@ -911,6 +950,44 @@ module Local : LOCAL = struct
         let nc_pred_acts = mk_seq (NetKAT_Types.Filter nc_pred) (Action.set_to_netkat s) in
         mk_par nc_pred_acts  (loop m') in
     loop m
+
+  let from_pipe (t:t) (packet:NetKAT_Types.packet) : string option =
+    let open NetKAT_Types in
+    (* Determines the pipe that the packet belongs to. This may not be possible
+     * in general due to overlap of predicates and modifications of the packet
+     * on the switch before it is sent to the controller. If the pipe name
+     * cannot be uniquely-determined, this function will return `None`.
+     *
+     * Since Local.t is switch-specific, this function assumes but does not
+     * check that the packet came from the same switch as the given Local.t
+     * *)
+    let ct = Atom.Map.fold_right t ~init:[] ~f:(fun ~key ~data acc0 ->
+      let pairs = Action.Set.fold_right data ~init:[] ~f:(fun act acc1 ->
+        match act with
+          | { Headers.location = Some(Pipe(p)) } -> (key, act, p) :: acc1
+          | _ -> acc1) in
+      pairs @ acc0) in
+    (* At this point, ct is bound to a list of triples
+     *
+     *   (Atom.t, Action.t, string)
+     *
+     * Where the Action.t is the set of actions applied to the packet before it
+     * was sent to the controller, the Atom.t was the guarded pattern that
+     * was true before the actions were applied to the packet, and the string is
+     * the name of the pipe.
+     *
+     * The problem is now to determine whether the given packet matches a
+     * triple. Matching in this case means that treating the Action.t as as a
+     * pattern and checking if it matches the packet and that the Atom.t matches
+     * the packet with the exception of the field modified by the Action.t.
+     * *)
+    let ct' = List.filter ct ~f:(fun (atom, act, pipe) ->
+      let atom' = Atom.seq_act atom { act with Headers.location = None } in
+      Atom.matches atom' packet) in
+    match ct' with
+      | [] -> None
+      | [(_, _, p)] -> Some(p)
+      | _ -> raise (Ambiguous_pipes (List.map ct' (fun (_, _, p) -> p)))
 end
 
 module RunTime = struct
@@ -1037,6 +1114,7 @@ module RunTime = struct
           let cover' = Pattern.Set.add (Pattern.Set.union zs cover) x in
           loop dm' acc'' cover' in
     List.rev (loop dm [] Pattern.Set.empty)
+
 end
 
 (* exports *)
@@ -1056,3 +1134,6 @@ let decompile =
 
 let to_table =
   RunTime.to_table
+
+let from_pipe =
+  Local.from_pipe
