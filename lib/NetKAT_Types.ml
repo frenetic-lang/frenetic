@@ -27,8 +27,8 @@ type header_val =
   | VlanPcp of int8
   | EthType of int16
   | IPProto of int8
-  | IP4Src of int32
-  | IP4Dst of int32
+  | IP4Src of int32 * int
+  | IP4Dst of int32 * int
   | TCPSrcPort of int16
   | TCPDstPort of int16
 
@@ -78,8 +78,8 @@ module Headers = struct
         vlanPcp : int8 option sexp_opaque;
         ethType : int16 option sexp_opaque;
         ipProto : int8 option sexp_opaque;
-        ipSrc : int32 option sexp_opaque;
-        ipDst : int32 option sexp_opaque;
+        ipSrc : (int32 * int) option sexp_opaque;
+        ipDst : (int32 * int) option sexp_opaque;
         tcpSrcPort : int16 option sexp_opaque;
         tcpDstPort : int16 option sexp_opaque
       } with sexp,fields
@@ -106,8 +106,8 @@ module Headers = struct
   let mk_vlanPcp n = { empty with vlanPcp = Some n }
   let mk_ethType n = { empty with vlanPcp = Some n }
   let mk_ipProto n = { empty with ipProto = Some n }
-  let mk_ipSrc n = { empty with ipSrc = Some n }
-  let mk_ipDst n = { empty with ipDst = Some n }
+  let mk_ipSrc (n, m) = { empty with ipSrc = Some (n,m) }
+  let mk_ipDst (n, m) = { empty with ipDst = Some (n,m) }
   let mk_tcpSrcPort n = { empty with tcpSrcPort = Some n }
   let mk_tcpDstPort n = { empty with tcpDstPort = Some n }
 
@@ -123,7 +123,10 @@ module Headers = struct
       | Pipe x -> x in
     let pp8 = Printf.sprintf "%u" in
     let pp16 = Printf.sprintf "%u" in
-    let pp32 = Printf.sprintf "%lu" in
+    let pp32m (n, m) = 
+      match m with 
+        | 32 -> Printf.sprintf "%lu" n 
+        | _ -> Printf.sprintf "%lu/%d" n m in 
     let pp48 = Printf.sprintf "%Lu" in
     Fields.fold
       ~init:""
@@ -134,8 +137,8 @@ module Headers = struct
       ~vlanPcp:(g pp8)
       ~ethType:(g pp16)
       ~ipProto:(g pp8)
-      ~ipSrc:(g pp32)
-      ~ipDst:(g pp32)
+      ~ipSrc:(g pp32m)
+      ~ipDst:(g pp32m)
       ~tcpSrcPort:(g pp16)
       ~tcpDstPort:(g pp16)
 end

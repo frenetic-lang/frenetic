@@ -19,8 +19,8 @@ module type HEADERSCOMMON = sig
   val mk_vlanPcp: int8 -> t
   val mk_ethType : int16 -> t
   val mk_ipProto : int8 -> t
-  val mk_ipSrc : int32 -> t
-  val mk_ipDst : int32 -> t
+  val mk_ipSrc : int32 * int -> t
+  val mk_ipDst : int32 * int -> t
   val mk_tcpSrcPort : int16 -> t
   val mk_tcpDstPort : int16 -> t
   val is_empty : t -> bool
@@ -90,50 +90,70 @@ module HeadersCommon : HEADERSCOMMON = struct
       ~tcpDstPort:g
 
   let rec seq (x:t) (y:t) : t option =
-    let g acc f =
+    let g c acc f =
       match acc with
-        | None -> None
+        | None -> 
+          None
         | Some z ->
-          match Field.get f x, Field.get f y with
-            | (Some v1 as o1), (Some v2) ->
-              if v1 = v2 then Some (Field.fset f z o1) else None
-            | (Some v1 as o1), None -> Some (Field.fset f z o1)
-            | None, (Some v2 as o2) -> Some (Field.fset f z o2)
-            | None, None -> Some z in
+          (match Field.get f x, Field.get f y with
+            | Some v1, Some v2 ->
+              c f v1 v2 z
+            | (Some v1 as o1), None -> 
+              Some (Field.fset f z o1)
+            | None, (Some v2 as o2) -> 
+              Some (Field.fset f z o2)
+            | None, None -> 
+              Some z) in
+    let c f v1 v2 z = 
+      if v1 = v2 then Some (Field.fset f z (Some v1)) else None in 
+    let cm f (v1,m1) (v2,m2) z = 
+      let b = max 0 (max (32-m1) (32-m2)) in 
+      if Int32.shift_right v1 b = Int32.shift_right v2 b then 
+        Some (Field.fset f z (Some (v1,b))) 
+      else
+        None in 
     Headers.Fields.fold
       ~init:(Some empty)
-      ~location:g
-      ~ethSrc:g
-      ~ethDst:g
-      ~vlan:g
-      ~vlanPcp:g
-      ~ethType:g
-      ~ipProto:g
-      ~ipSrc:g
-      ~ipDst:g
-      ~tcpSrcPort:g
-      ~tcpDstPort:g
+      ~location:(g c)
+      ~ethSrc:(g c)
+      ~ethDst:(g c)
+      ~vlan:(g c)
+      ~vlanPcp:(g c)
+      ~ethType:(g c)
+      ~ipProto:(g c)
+      ~ipSrc:(g cm)
+      ~ipDst:(g cm)
+      ~tcpSrcPort:(g c)
+      ~tcpDstPort:(g c)
 
   let diff (x:t) (y:t) : t =
-    let g acc f =
+    let g c acc f =
       match Field.get f x, Field.get f y with
         | Some v1, Some v2 ->
-          if v1 = v2 then Field.fset f acc None
-          else acc
-        | _ -> acc in
+          c f v1 v2 acc
+        | _ -> 
+          acc in
+    let c f v1 v2 acc = 
+      if v1 = v2 then Field.fset f acc None else acc in 
+    let cm f (v1,m1) (v2,m2) acc = 
+      let b = max 0 (max (32-m1) (32-m2)) in 
+      if m2 >= m1 && Int32.shift_right v1 b = Int32.shift_right v2 b then 
+        Field.fset f acc None 
+      else 
+        acc in 
     Headers.Fields.fold
       ~init:x
-      ~location:g
-      ~ethSrc:g
-      ~ethDst:g
-      ~vlan:g
-      ~vlanPcp:g
-      ~ethType:g
-      ~ipProto:g
-      ~ipSrc:g
-      ~ipDst:g
-      ~tcpSrcPort:g
-      ~tcpDstPort:g
+      ~location:(g c)
+      ~ethSrc:(g c)
+      ~ethDst:(g c)
+      ~vlan:(g c)
+      ~vlanPcp:(g c)
+      ~ethType:(g c)
+      ~ipProto:(g c)
+      ~ipSrc:(g cm)
+      ~ipDst:(g cm)
+      ~tcpSrcPort:(g c)
+      ~tcpDstPort:(g c)
 end
 
 module type ACTION = sig
@@ -148,8 +168,8 @@ module type ACTION = sig
   val mk_vlanPcp: int8 -> t
   val mk_ethType : int16 -> t
   val mk_ipProto : int8 -> t
-  val mk_ipSrc : int32 -> t
-  val mk_ipDst : int32 -> t
+  val mk_ipSrc : int32 * int -> t
+  val mk_ipDst : int32 * int -> t
   val mk_tcpSrcPort : int16 -> t
   val mk_tcpDstPort : int16 -> t
   val seq : t -> t -> t
@@ -192,8 +212,8 @@ module Action : ACTION = struct
   let mk_vlanPcp n = HeadersCommon.mk_vlanPcp n
   let mk_ethType n = HeadersCommon.mk_ethType n
   let mk_ipProto n = HeadersCommon.mk_ipProto n
-  let mk_ipSrc n = HeadersCommon.mk_ipSrc n
-  let mk_ipDst n = HeadersCommon.mk_ipDst n
+  let mk_ipSrc (n,m) = HeadersCommon.mk_ipSrc (n,m)
+  let mk_ipDst (n,m) = HeadersCommon.mk_ipDst (n,m)
   let mk_tcpSrcPort n = HeadersCommon.mk_tcpSrcPort n
   let mk_tcpDstPort n = HeadersCommon.mk_tcpDstPort n
 
@@ -263,8 +283,8 @@ module Action : ACTION = struct
       ~vlanPcp:(g (fun n -> VlanPcp n))
       ~ethType:(g (fun n -> EthType n))
       ~ipProto:(g (fun n -> IPProto n))
-      ~ipSrc:(g (fun n -> IP4Src n))
-      ~ipDst:(g (fun n -> IP4Src n))
+      ~ipSrc:(g (fun (n,m) -> IP4Src (n,m)))
+      ~ipDst:(g (fun (n,m) -> IP4Dst (n,m)))
       ~tcpSrcPort:(g (fun n -> TCPSrcPort n))
       ~tcpDstPort:(g (fun n -> TCPDstPort n))
 
@@ -291,8 +311,8 @@ module type PATTERN = sig
   val mk_vlanPcp: int8 -> t
   val mk_ethType : int16 -> t
   val mk_ipProto : int8 -> t
-  val mk_ipSrc : int32 -> t
-  val mk_ipDst : int32 -> t
+  val mk_ipSrc : int32 * int -> t
+  val mk_ipDst : int32 * int -> t
   val mk_tcpSrcPort : int16 -> t
   val mk_tcpDstPort : int16 -> t
   val seq : t -> t -> t option
@@ -385,8 +405,8 @@ module Pattern : PATTERN = struct
       ~vlanPcp:(g (fun n -> VlanPcp n))
       ~ethType:(g (fun n -> EthType n))
       ~ipProto:(g (fun n -> IPProto n))
-      ~ipSrc:(g (fun n -> IP4Src n))
-      ~ipDst:(g (fun n -> IP4Src n))
+      ~ipSrc:(g (fun (n,m) -> IP4Src (n,32)))
+      ~ipDst:(g (fun (n,m) -> IP4Dst (n,32)))
       ~tcpSrcPort:(g (fun n -> TCPSrcPort n))
       ~tcpDstPort:(g (fun n -> TCPDstPort n))
 
@@ -782,10 +802,10 @@ module Local : LOCAL = struct
             Pattern.mk_vlanPcp n
           | NetKAT_Types.IPProto n -> 
             Pattern.mk_ipProto n
-          | NetKAT_Types.IP4Src n -> 
-            Pattern.mk_ipSrc n
-          | NetKAT_Types.IP4Dst n -> 
-            Pattern.mk_ipDst n
+          | NetKAT_Types.IP4Src (n,m) -> 
+            Pattern.mk_ipSrc (n,m)
+          | NetKAT_Types.IP4Dst (n,m) -> 
+            Pattern.mk_ipDst (n,m)
           | NetKAT_Types.TCPSrcPort n -> 
             Pattern.mk_tcpSrcPort n
           | NetKAT_Types.TCPDstPort n -> 
@@ -825,10 +845,10 @@ module Local : LOCAL = struct
             Action.mk_vlanPcp n
           | NetKAT_Types.IPProto n -> 
             Action.mk_ipProto n
-          | NetKAT_Types.IP4Src n -> 
-            Action.mk_ipSrc n
-          | NetKAT_Types.IP4Dst n -> 
-            Action.mk_ipDst n
+          | NetKAT_Types.IP4Src (n,m) -> 
+            Action.mk_ipSrc (n,m)
+          | NetKAT_Types.IP4Dst (n,m) -> 
+            Action.mk_ipDst (n,m)
           | NetKAT_Types.TCPSrcPort n -> 
             Action.mk_tcpSrcPort n
           | NetKAT_Types.TCPDstPort n -> 
@@ -866,7 +886,7 @@ module RunTime = struct
   let to_action (a:Action.t) (pto: fieldVal option) : seq =
     let i8 x = VInt.Int64 (Int64.of_int x) in 
     let i16 x = VInt.Int64 (Int64.of_int x) in 
-    let i32 x = VInt.Int64 (Int64.of_int32 x) in 
+    let i32m (x,y) = VInt.Int64 (Int64.of_int32 x) in (* JNF *)
     let i48 x = VInt.Int64 x in 
     let port = match Headers.location a, pto with
         | Some (NetKAT_Types.Physical pt),_ -> VInt.Int32 pt
@@ -886,8 +906,8 @@ module RunTime = struct
       ~vlanPcp:(g VlanPcp i8)
       ~ethType:(g EthType i16)
       ~ipProto:(g IPProto i8)
-      ~ipSrc:(g IP4Src i32)
-      ~ipDst:(g IP4Src i32)
+      ~ipSrc:(g IP4Src i32m)
+      ~ipDst:(g IP4Src i32m)
       ~tcpSrcPort:(g TCPSrcPort i16)
       ~tcpDstPort:(g TCPDstPort i16)
 
@@ -898,7 +918,7 @@ module RunTime = struct
   let to_pattern (x:Pattern.t) : pattern =
     let i8 x = VInt.Int64 (Int64.of_int x) in 
     let i16 x = VInt.Int64 (Int64.of_int x) in 
-    let i32 x = VInt.Int64 (Int64.of_int32 x) in 
+    let i32m (x,y) = VInt.Int64 (Int64.of_int32 x) in (* JNF *)
     let i48 x = VInt.Int64 x in 
     let il x = match x with 
       | NetKAT_Types.Physical p -> VInt.Int64 (Int64.of_int32 p)
@@ -916,8 +936,8 @@ module RunTime = struct
       ~vlanPcp:(g VlanPcp i8)
       ~ethType:(g EthType i16)
       ~ipProto:(g IPProto i8)
-      ~ipSrc:(g IP4Src i32)
-      ~ipDst:(g IP4Src i32)
+      ~ipSrc:(g IP4Src i32m)
+      ~ipDst:(g IP4Src i32m)
       ~tcpSrcPort:(g TCPSrcPort i16)
       ~tcpDstPort:(g TCPDstPort i16)
 

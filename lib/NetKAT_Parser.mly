@@ -109,9 +109,9 @@ xpredicate:
   | VLANPCP EQUALS field_value
       { Test(VlanPcp (VInt.get_int8 (VInt.Int64 $3))) }
   | SRCIP EQUALS field_value
-      { Test(IP4Src (VInt.get_int32 (VInt.Int64 $3))) }
+      { Test(IP4Src (VInt.get_int32 (VInt.Int64 $3), 32)) }
   | DSTIP EQUALS field_value 
-      { Test(IP4Dst (VInt.get_int32 (VInt.Int64 $3))) }
+      { Test(IP4Dst (VInt.get_int32 (VInt.Int64 $3), 32)) }
   | PROTOCOLTYPE EQUALS field_value 
       { Test(IPProto (VInt.get_int8 (VInt.Int64 $3))) }
   | TCPSRCPORT EQUALS field_value 
@@ -162,9 +162,9 @@ xpolicy:
   | VLANPCP ASSIGN field_value
       { Mod(VlanPcp (VInt.get_int8 (VInt.Int64 $3))) }
   | SRCIP ASSIGN field_value
-      { Mod(IP4Src (VInt.get_int32 (VInt.Int64 $3))) }
+      { Mod(IP4Src (VInt.get_int32 (VInt.Int64 $3),32)) }
   | DSTIP ASSIGN field_value 
-      { Mod(IP4Dst (VInt.get_int32 (VInt.Int64 $3))) }
+      { Mod(IP4Dst (VInt.get_int32 (VInt.Int64 $3),32)) }
   | PROTOCOLTYPE ASSIGN field_value 
       { Mod(IPProto (VInt.get_int8 (VInt.Int64 $3))) }
   | TCPSRCPORT ASSIGN field_value 

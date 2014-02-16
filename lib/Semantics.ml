@@ -43,8 +43,18 @@ let rec eval_pred (pkt : packet) (pr : pred) : bool = match pr with
       | VlanPcp n -> pkt.headers.vlanPcp = Some n 
       | EthType n -> pkt.headers.ethType = Some n 
       | IPProto n -> pkt.headers.ipProto = Some n 
-      | IP4Src n -> pkt.headers.ipSrc = Some n 
-      | IP4Dst n -> pkt.headers.ipDst = Some n 
+      | IP4Src (n,m) -> 
+        (match pkt.headers.ipSrc with 
+          | Some (n',_) -> 
+            let b = max 0 (32 - m) in 
+            Int32.shift_right n b = Int32.shift_right n' b
+          | None -> false)
+      | IP4Dst (n,m) -> 
+        (match pkt.headers.ipDst with 
+          | Some (n',_) -> 
+            let b = max 0 (32 - m) in 
+            Int32.shift_right n b = Int32.shift_right n' b
+          | None -> false)
       | TCPSrcPort n -> pkt.headers.tcpSrcPort = Some n 
       | TCPDstPort n -> pkt.headers.tcpDstPort = Some n 
     end
@@ -69,8 +79,12 @@ let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
       | VlanPcp n -> { pkt with headers = { pkt.headers with vlanPcp = Some n }}
       | EthType n -> { pkt with headers = { pkt.headers with ethType = Some n }}
       | IPProto n -> { pkt with headers = { pkt.headers with ipProto = Some n }}
-      | IP4Src n -> { pkt with headers = { pkt.headers with ipSrc = Some n }}
-      | IP4Dst n -> { pkt with headers = { pkt.headers with ipDst = Some n }}
+      | IP4Src(n,m) -> 
+        (* JNF: assert m = 32? *)
+        { pkt with headers = { pkt.headers with ipSrc = Some (n,m) }}
+      | IP4Dst(n,m) -> 
+        (* JNF: assert m = 32? *)
+        { pkt with headers = { pkt.headers with ipDst = Some (n,m) }}
       | TCPSrcPort n -> { pkt with headers = { pkt.headers with tcpSrcPort = Some n }}
       | TCPDstPort n -> { pkt with headers = { pkt.headers with tcpDstPort = Some n }} in 
     PacketSet.singleton pkt'

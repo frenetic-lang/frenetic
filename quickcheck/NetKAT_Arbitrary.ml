@@ -33,8 +33,8 @@ let arbitrary_test, arbitrary_mod =
      *   vlan, vlanPcp
      * *)
     map_gen (fun i -> IPProto i) AB.arbitrary_uint8;
-    map_gen (fun i -> IP4Src i) AB.arbitrary_uint32;
-    map_gen (fun i -> IP4Dst i) AB.arbitrary_uint32;
+    map_gen (fun i -> IP4Src (i,32)) AB.arbitrary_uint32;
+    map_gen (fun i -> IP4Dst (i,32)) AB.arbitrary_uint32;
     map_gen (fun i -> TCPSrcPort i) AB.arbitrary_uint16;
     map_gen (fun i -> TCPDstPort i) AB.arbitrary_uint16;
   ] in

@@ -45,8 +45,10 @@ module Formatting = struct
     | VlanPcp(n) -> fprintf fmt "@[vlanPcp %s %u@]" asgn n
     | EthType(n) -> fprintf fmt "@[ethTyp %s %u@]" asgn n
     | IPProto(n) -> fprintf fmt "@[ipProto %s %u@]" asgn n
-    | IP4Src(n) -> fprintf fmt "@[ipSrc %s %lu@]" asgn n
-    | IP4Dst(n) -> fprintf fmt "@[ipDst %s %lu@]" asgn n
+    | IP4Src(n,32) -> fprintf fmt "@[ipSrc %s %lu@]" asgn n
+    | IP4Dst(n,32) -> fprintf fmt "@[ipDst %s %lu@]" asgn n
+    | IP4Src(n,m) -> fprintf fmt "@[ipSrc %s %lu/%d@]" asgn n m
+    | IP4Dst(n,m) -> fprintf fmt "@[ipDst %s %lu/%d@]" asgn n m
     | TCPSrcPort(n) -> fprintf fmt "@[tcpSrcPort %s %u@]" asgn n
     | TCPDstPort(n) -> fprintf fmt "@[tcpDstPort %s %u@]" asgn n
 
