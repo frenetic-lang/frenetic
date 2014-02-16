@@ -316,7 +316,7 @@ module type PATTERN = sig
   val mk_tcpSrcPort : int16 -> t
   val mk_tcpDstPort : int16 -> t
   val seq : t -> t -> t option
-  val seq_act : t -> Action.t -> t -> t option
+  val seq_act_t : t -> Action.t -> t -> t option
   val diff : t -> t -> t
   val subseteq : t -> t -> bool
   val tru : t
@@ -355,7 +355,7 @@ module Pattern : PATTERN = struct
   let seq : t -> t -> t option =
     HeadersCommon.seq
 
-  let seq_act x a y =
+  let seq_act_t x a y =
     (* TODO(jnf): can optimize into a single loop *)
     (* Printf.printf "  SEQ_ACT\n  X=%s\n  A=%s\n  Y=%s\n  " *)
     (*   (to_string x) *)
@@ -431,7 +431,7 @@ module type ATOM = sig
   val tru : t
   val neg : t -> Set.t
   val seq : t -> t -> t option
-  val seq_act : t -> Action.t -> t -> t option
+  val seq_act_t : t -> Action.t -> t -> t option
 end
 
 module Atom : ATOM = struct
@@ -511,8 +511,8 @@ module Atom : ATOM = struct
       | None ->
         None
 
-  let seq_act (xs1,x1) a (xs2,x2) =
-    match Pattern.seq_act x1 a x2 with
+  let seq_act_t (xs1,x1) a (xs2,x2) =
+    match Pattern.seq_act_t x1 a x2 with
       | None ->
         None
       | Some x1ax2 ->
@@ -520,7 +520,7 @@ module Atom : ATOM = struct
           Pattern.Set.fold xs2
             ~init:xs1
             ~f:(fun acc xs2i ->
-              match Pattern.seq_act Pattern.tru a xs2i with
+              match Pattern.seq_act_t Pattern.tru a xs2i with
                 | Some truaxs2i ->
                   Pattern.Set.add acc truaxs2i
                 | None ->
@@ -716,11 +716,11 @@ module Local : LOCAL = struct
         | `Right s2 -> Some s2
         | `Both (s1,s2) -> Some (Action.Set.union s1 s2) in
 
-    let seq_act r1 a q =
+    let seq_act_t r1 a q =
       Atom.Map.fold q
         ~init:Atom.Map.empty
         ~f:(fun ~key:r2 ~data:s2 acc ->
-          match Atom.seq_act r1 a r2 with
+          match Atom.seq_act_t r1 a r2 with
             | None ->
               acc
             | Some r12 ->
@@ -733,9 +733,9 @@ module Local : LOCAL = struct
         Action.Set.fold s1
           ~init:Atom.Map.empty
           ~f:(fun acc a ->
-            let acc' = seq_act r1 a q in
+            let acc' = seq_act_t r1 a q in
             Atom.Map.merge ~f:merge acc acc') in
-
+    
     let r =
       Atom.Map.fold p
         ~init:Atom.Map.empty
