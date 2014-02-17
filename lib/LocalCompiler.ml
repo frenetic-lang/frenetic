@@ -978,9 +978,7 @@ module Local : LOCAL = struct
        * those packets (with the location cleared) along with the pipe they belong
        * to. *)
       match pkt.headers.Headers.location with
-        | Some(Pipe p) ->
-          let headers = { pkt.headers with Headers.location = None } in
-          (p, { pkt with headers }) :: acc
+        | Some(Pipe p) -> (p, pkt) :: acc
         | _ -> acc)
 end
 
