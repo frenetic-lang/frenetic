@@ -1,6 +1,7 @@
 open Sexplib.Conv
 
 (** NetKAT Syntax *)
+open Core.Std
 
 (** {2 Basics} *)
 
@@ -150,7 +151,7 @@ type packet = {
 }
 
 module PacketSet = Set.Make (struct
-  type t = packet
+  type t = packet sexp_opaque with sexp
       
   (* First compare by headers, then payload. The payload comparison is a
      little questionable. However, this is safe to use in eval, since
