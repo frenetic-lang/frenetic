@@ -22,6 +22,8 @@ Library netcore
   Path: lib
   BuildDepends:
     cstruct,
+    fieldslib,
+    fieldslib.syntax,
     str,
     threads,
     ocamlgraph,

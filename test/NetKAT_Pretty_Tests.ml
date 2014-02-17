@@ -53,12 +53,12 @@ let testable_pol_to_bool =
 
 let prop_parse_pol_idempotent (p : NetKAT_Types.policy) : bool =
   try policy_parse (string_of_policy p) = p
-  with _ -> 
+  with e ->
     Printf.printf "POL: %s\n" (string_of_policy p);
-    assert false
+    raise e
 
 TEST "testing parse-pretty roundtrip" =
   let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
   match QuickCheck.check testable_pol_to_bool cfg prop_parse_pol_idempotent with
     | QuickCheck.Success -> true
-    | _ -> failwith "quickchecking failed"
+    | _ -> false

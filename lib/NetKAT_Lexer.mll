@@ -71,6 +71,7 @@ rule token = parse
   | ";" { SEMI }
   | "|" { BAR }
   | "+" { PLUS }
+  | "/" { SLASH }
 
   | (byte as n6) ":" (byte as n5) ":" (byte as n4) ":" (byte as n3) ":" 
     (byte as n2) ":" (byte as n1) 
@@ -96,6 +97,7 @@ rule token = parse
   | decimal as n { Scanf.sscanf n "%Lu" (fun i -> INT64 i) }
   | hex as n { Scanf.sscanf n "%Lx" (fun i -> INT64 i) }
   | '"' (string_body as s) '"' { STRING s }
+  | id as s { IDENT s }
 
 and block_comment = parse
   | "*)" {  token lexbuf }

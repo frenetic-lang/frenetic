@@ -24,7 +24,7 @@
 %token EQUALS
 %token SWITCH PORT SRCMAC DSTMAC FRAMETYPE VLAN VLANPCP SRCIP DSTIP PROTOCOLTYPE TCPSRCPORT TCPDSTPORT
 %token IF THEN ELSE
-%token SEMI AMP BAR PLUS COMMA
+%token SEMI AMP BAR PLUS COMMA SLASH
 %token LET IN
 %token FILTER
 %token ASSIGN
@@ -38,6 +38,7 @@
 %token <Int64.t> IPADDR
 %token <float> FLOAT
 %token <string> STRING
+%token <string> IDENT
 %token EOF
 
 %start program
@@ -45,32 +46,6 @@
 %type <NetKAT_Types.policy> program
 
 %%
-
-field :
-  | SWITCH 
-      { Switch }
-  | PORT 
-      { Header SDN_Types.InPort }
-  | SRCMAC
-      { Header SDN_Types.EthSrc }
-  | DSTMAC
-      { Header SDN_Types.EthDst }
-  | FRAMETYPE
-      { Header SDN_Types.EthType }
-  | VLAN
-      { Header SDN_Types.Vlan }
-  | VLANPCP
-      { Header SDN_Types.VlanPcp }
-  | SRCIP
-      { Header SDN_Types.IP4Src }
-  | DSTIP 
-      { Header SDN_Types.IP4Dst }
-  | PROTOCOLTYPE 
-      { Header SDN_Types.IPProto }
-  | TCPSRCPORT 
-      { Header SDN_Types.TCPSrcPort }
-  | TCPDSTPORT 
-      { Header SDN_Types.TCPDstPort }
 
 field_value :
   | INT64   
@@ -117,8 +92,36 @@ xpredicate:
       { True }
   | NONE 
       { False }
-  | field EQUALS field_value 
-      { Test ($1, VInt.Int64 $3) }
+  | SWITCH EQUALS field_value
+      { Test(Switch $3) }
+  | PORT EQUALS field_value
+      { Test(Location(Physical (VInt.get_int32 (VInt.Int64 $3))))}
+  | PORT EQUALS IDENT
+      { Test(Location(Pipe $3)) }
+  | SRCMAC EQUALS field_value
+      { Test(EthSrc (VInt.get_int48 (VInt.Int64 $3))) }
+  | DSTMAC EQUALS field_value
+      { Test(EthDst (VInt.get_int48 (VInt.Int64 $3))) }
+  | FRAMETYPE EQUALS field_value
+      { Test(EthType (VInt.get_int16 (VInt.Int64 $3))) }
+  | VLAN EQUALS field_value
+      { Test(EthType (VInt.get_int16 (VInt.Int64 $3))) }
+  | VLANPCP EQUALS field_value
+      { Test(VlanPcp (VInt.get_int8 (VInt.Int64 $3))) }
+  | SRCIP EQUALS field_value
+      { Test(IP4Src (VInt.get_int32 (VInt.Int64 $3), 32)) }
+  | DSTIP EQUALS field_value 
+      { Test(IP4Dst (VInt.get_int32 (VInt.Int64 $3), 32)) }
+  | SRCIP EQUALS field_value SLASH field_value
+      { Test(IP4Src (VInt.get_int32 (VInt.Int64 $3), (VInt.get_int (VInt.Int64 $5)))) }
+  | DSTIP EQUALS field_value SLASH field_value
+      { Test(IP4Dst (VInt.get_int32 (VInt.Int64 $3), (VInt.get_int (VInt.Int64 $5)))) }
+  | PROTOCOLTYPE EQUALS field_value 
+      { Test(IPProto (VInt.get_int8 (VInt.Int64 $3))) }
+  | TCPSRCPORT EQUALS field_value 
+      { Test(TCPSrcPort (VInt.get_int16 (VInt.Int64 $3))) }
+  | TCPDSTPORT EQUALS field_value 
+      { Test(TCPDstPort (VInt.get_int16 (VInt.Int64 $3))) }
 
 /* TODO(jnf): should these be non-associative? */
 policy : 
@@ -148,8 +151,30 @@ kpolicy:
 xpolicy:
   | FILTER predicate 
       { Filter $2 }
-  | field ASSIGN field_value 
-      { Mod ($1, VInt.Int64 $3) }
+  | PORT ASSIGN field_value
+      { Mod(Location(Physical (VInt.get_int32 (VInt.Int64 $3))))}
+  | PORT ASSIGN IDENT
+      { Mod(Location(Pipe $3)) }
+  | SRCMAC ASSIGN field_value
+      { Mod(EthSrc (VInt.get_int48 (VInt.Int64 $3))) }
+  | DSTMAC ASSIGN field_value
+      { Mod(EthDst (VInt.get_int48 (VInt.Int64 $3))) }
+  | FRAMETYPE ASSIGN field_value
+      { Mod(EthType (VInt.get_int16 (VInt.Int64 $3))) }
+  | VLAN ASSIGN field_value
+      { Mod(EthType (VInt.get_int16 (VInt.Int64 $3))) }
+  | VLANPCP ASSIGN field_value
+      { Mod(VlanPcp (VInt.get_int8 (VInt.Int64 $3))) }
+  | SRCIP ASSIGN field_value
+      { Mod(IP4Src (VInt.get_int32 (VInt.Int64 $3),32)) }
+  | DSTIP ASSIGN field_value 
+      { Mod(IP4Dst (VInt.get_int32 (VInt.Int64 $3),32)) }
+  | PROTOCOLTYPE ASSIGN field_value 
+      { Mod(IPProto (VInt.get_int8 (VInt.Int64 $3))) }
+  | TCPSRCPORT ASSIGN field_value 
+      { Mod(TCPSrcPort (VInt.get_int16 (VInt.Int64 $3))) }
+  | TCPDSTPORT ASSIGN field_value 
+      { Mod(TCPDstPort (VInt.get_int16 (VInt.Int64 $3))) }
   | ID
       { id }
   | DROP 

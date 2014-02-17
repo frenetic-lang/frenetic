@@ -78,7 +78,7 @@ module Dump = struct
        * *)
       for sw = 0 to sw_num do
         let swL = Int64.of_int sw in 
-        let sw_p = NetKAT_Types.(Seq(Filter(Test(Switch,VInt.Int64 swL)), p)) in 
+        let sw_p = NetKAT_Types.(Seq(Filter(Test(Switch swL)), p)) in 
         let t = with_compile swL sw_p in
         f swL t
       done
