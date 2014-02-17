@@ -5,8 +5,6 @@ open SDN_Types
 type location = NetKAT_Types.location
 module Headers = NetKAT_Types.Headers
 
-exception Ambiguous_pipes of string list
-  
 module type HEADERSCOMMON = sig
   type t = Headers.t with sexp
   module Set : Set.S with type Elt.t = t
@@ -733,7 +731,7 @@ module type LOCAL = sig
   val of_policy : NetKAT_Types.policy -> t
   val to_netkat : t -> NetKAT_Types.policy
 
-  val from_pipe : t -> NetKAT_Types.packet -> string option
+  val from_pipes : t -> NetKAT_Types.packet -> string list
 end
 
 module Local : LOCAL = struct
@@ -951,12 +949,22 @@ module Local : LOCAL = struct
         mk_par nc_pred_acts  (loop m') in
     loop m
 
-  let from_pipe (t:t) (packet:NetKAT_Types.packet) : string option =
+  let from_pipes (t:t) (packet:NetKAT_Types.packet) : string list =
     let open NetKAT_Types in
-    (* Determines the pipe that the packet belongs to. This may not be possible
-     * in general due to overlap of predicates and modifications of the packet
-     * on the switch before it is sent to the controller. If the pipe name
-     * cannot be uniquely-determined, this function will return `None`.
+    (* Determines the pipes that the packet belongs to. Note that a packet may
+     * belong to several pipes for several reasons:
+     *
+     *   1. Multiple points of a single application wish to inspect the packet;
+     *   2. Multiple applications wish to inspect the packet; and
+     *   3. The switch makes modifications to the packet before it is sent to
+     *      the controller, making it impossible to disambiguate the pipe it
+     *      came from, e.g.:
+     *
+     *        (filter ethDst = 2; ethDst := 3; controller pipe1)
+     *        | (filter ethDst = 3; controller pipe2)
+     *
+     * The return value may contain duplicate pipe names. The pipe names appear
+     * in the list in decreasing order of their associated Atom.t's specificity.
      *
      * Since Local.t is switch-specific, this function assumes but does not
      * check that the packet came from the same switch as the given Local.t
@@ -979,15 +987,13 @@ module Local : LOCAL = struct
      * The problem is now to determine whether the given packet matches a
      * triple. Matching in this case means that treating the Action.t as as a
      * pattern and checking if it matches the packet and that the Atom.t matches
-     * the packet with the exception of the field modified by the Action.t.
+     * the packet with the exception of the fields modified by the Action.t.
      * *)
-    let ct' = List.filter ct ~f:(fun (atom, act, pipe) ->
+    List.filter_map ct ~f:(fun (atom, act, pipe) ->
       let atom' = Atom.seq_act atom { act with Headers.location = None } in
-      Atom.matches atom' packet) in
-    match ct' with
-      | [] -> None
-      | [(_, _, p)] -> Some(p)
-      | _ -> raise (Ambiguous_pipes (List.map ct' (fun (_, _, p) -> p)))
+      if Atom.matches atom' packet
+        then Some(pipe)
+        else None)
 end
 
 module RunTime = struct
@@ -1135,5 +1141,5 @@ let decompile =
 let to_table =
   RunTime.to_table
 
-let from_pipe =
-  Local.from_pipe
+let from_pipes =
+  Local.from_pipes

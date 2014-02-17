@@ -8,6 +8,4 @@ val compile : switchId -> policy -> t
 val decompile : t -> policy
 val to_table : t -> flowTable
 
-exception Ambiguous_pipes of string list
-
-val from_pipe : t -> packet -> string option
+val from_pipes : t -> packet -> string list

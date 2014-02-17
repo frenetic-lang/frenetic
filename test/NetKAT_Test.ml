@@ -148,21 +148,37 @@ TEST "vlan" =
 
 module FromPipe = struct
 
-  let test_from_pipe pol pkt pipe =
+  let test_from_pipes pol pkt pipes =
     let t = LocalCompiler.of_policy 0L pol in
-    try match LocalCompiler.from_pipe t pkt with
-      | None -> false
-      | Some(pipe') -> pipe' = pipe
-    with LocalCompiler.Ambiguous_pipes(_) -> false
+    LocalCompiler.from_pipes t pkt = pipes
+
+  let default_packet headers= {
+    switch = 0L;
+    headers;
+    payload = SDN_Types.NotBuffered (Cstruct.create 0)
+  }
 
   TEST "all to controller" =
     let pol = Mod(Location(Pipe("all"))) in
-    let pkt = {
-      switch = 0L;
-      headers = Headers.empty;
-      payload = SDN_Types.NotBuffered (Cstruct.create 0)
-    } in
-    test_from_pipe pol pkt "all"
+    let pkt = default_packet Headers.empty in
+    test_from_pipes pol pkt ["all"]
+
+  TEST "all to controller, twice" =
+    let pol = Union(
+                Mod(Location(Pipe("all1"))),
+                Mod(Location(Pipe("all2")))) in
+    let pkt = default_packet Headers.empty in
+    test_from_pipes pol pkt ["all1"; "all2"]
+
+  TEST "ambiguous pipes" =
+    let pol = Union(
+                Seq(Filter(Test(EthDst 2L)),
+                    Seq(Mod(EthDst 3L),
+                        Mod(Location(Pipe("pipe1"))))),
+                Seq(Filter(Test(EthDst 3L)),
+                    Mod(Location(Pipe("pipe2"))))) in
+    let pkt = default_packet (Headers.mk_ethDst 3L) in
+    test_from_pipes pol pkt ["pipe1"; "pipe2"]
 
   TEST "left side" =
     let pol = Union(
@@ -170,12 +186,8 @@ module FromPipe = struct
                     Mod(Location(Pipe("left")))),
                 Seq(Filter(Test(EthSrc 2L)),
                     Mod(Location(Pipe("right"))))) in
-    let pkt = {
-      switch = 0L;
-      headers = Headers.mk_ethSrc 1L;
-      payload = SDN_Types.NotBuffered (Cstruct.create 0)
-    } in
-    test_from_pipe pol pkt "left"
+    let pkt = default_packet (Headers.mk_ethSrc 1L) in
+    test_from_pipes pol pkt ["left"]
 
   TEST "right side" =
     let pol = Union(
@@ -183,12 +195,8 @@ module FromPipe = struct
                     Mod(Location(Pipe("left")))),
                 Seq(Filter(Test(EthSrc 2L)),
                     Mod(Location(Pipe("right"))))) in
-    let pkt = {
-      switch = 0L;
-      headers = Headers.mk_ethSrc 2L;
-      payload = SDN_Types.NotBuffered (Cstruct.create 0)
-    } in
-    test_from_pipe pol pkt "right"
+    let pkt = default_packet (Headers.mk_ethSrc 2L) in
+    test_from_pipes pol pkt ["right"]
 end
 
 (* TEST "quickcheck local compiler" = *)
