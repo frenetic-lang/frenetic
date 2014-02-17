@@ -91,14 +91,12 @@ let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
   | Union (pol1, pol2) ->
     PacketSet.union (eval pkt pol1) (eval pkt pol2)
   | Seq (pol1, pol2) ->
-    PacketSet.fold 
-      (fun pkt' set -> PacketSet.union set (eval pkt' pol2))
-      (eval pkt pol1) 
-      PacketSet.empty
+    PacketSet.fold (eval pkt pol1) ~init:PacketSet.empty
+      ~f:(fun set pkt' -> PacketSet.union set (eval pkt' pol2))
   | Star pol -> 
     let rec loop acc = 
-      let f pkt' set = PacketSet.union (eval pkt' pol) set in 
-      let acc' = PacketSet.fold f acc PacketSet.empty in 
+      let f set pkt' = PacketSet.union (eval pkt' pol) set in
+      let acc' = PacketSet.fold acc ~init:PacketSet.empty ~f in
       if PacketSet.equal acc acc' then acc else loop acc' in 
       loop (PacketSet.singleton pkt)
   | Link(sw,pt,sw',pt') -> 
