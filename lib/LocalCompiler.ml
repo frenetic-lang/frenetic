@@ -984,37 +984,46 @@ end
 
 module RunTime = struct
 
-  let to_action (a:Action.t) (pto: fieldVal option) : seq =
+  (* XXX(seliopou): the int32 should be a portId, once portId is no longer a
+   * VInt.t *)
+  let to_action (a:Action.t) (pto: int32 option) : seq =
     let i8 x = VInt.Int8 x in 
     let i16 x = VInt.Int16 x in 
     let i32m (x,y) = VInt.Int32 x in (* JNF *)
     let i48 x = VInt.Int64 x in 
-    let port = match Headers.location a, pto with
-        | Some (NetKAT_Types.Physical pt),_ -> 
-          VInt.Int32 pt
-        | _, Some pt -> 
-          pt 
-        | _, None ->
-          failwith "indeterminate port" in 
-    let g h c act f = 
-      match Field.get f a with 
-        | None -> act
-        | Some v -> SetField(h,c v)::act in 
-    Headers.Fields.fold
-      ~init:[OutputPort port] 
-      ~location:(fun act _ -> act)
-      ~ethSrc:(g EthSrc i48)
-      ~ethDst:(g EthDst i48)
-      ~vlan:(g Vlan i16)
-      ~vlanPcp:(g VlanPcp i8)
-      ~ethType:(g EthType i16)
-      ~ipProto:(g IPProto i8)
-      ~ipSrc:(g IP4Src i32m)
-      ~ipDst:(g IP4Src i32m)
-      ~tcpSrcPort:(g TCPSrcPort i16)
-      ~tcpDstPort:(g TCPDstPort i16)
+    (* If an action sets the location to a pipe, ignore all other modifications.
+     * They will be applied at the controller by Semantics.eval. Otherwise, the
+     * port must be determined either by the pattern or by the action. The pto
+     * is the port determined by the pattern, if it exists. If the port is not
+     * determinate, we fail though it is technically acceptable to send it out
+     * InPort... if SDN_Types exposed that.
+     * *)
+    match Headers.location a, pto with
+      | Some (NetKAT_Types.Pipe(_)), _ ->
+        [Controller 128]
+      | Some (NetKAT_Types.Physical pt), _
+      | None, Some pt ->
+        let g h c act f =
+          match Field.get f a with
+            | None -> act
+            | Some v -> SetField(h,c v)::act in
+        Headers.Fields.fold
+          ~init:[OutputPort (VInt.Int32 pt)]
+          ~location:(fun act _ -> act)
+          ~ethSrc:(g EthSrc i48)
+          ~ethDst:(g EthDst i48)
+          ~vlan:(g Vlan i16)
+          ~vlanPcp:(g VlanPcp i8)
+          ~ethType:(g EthType i16)
+          ~ipProto:(g IPProto i8)
+          ~ipSrc:(g IP4Src i32m)
+          ~ipDst:(g IP4Src i32m)
+          ~tcpSrcPort:(g TCPSrcPort i16)
+          ~tcpDstPort:(g TCPDstPort i16)
+      | None, None ->
+        failwith "indeterminate location"
 
-  let set_to_action (s:Action.Set.t) (pto : fieldVal option) : par =
+  let set_to_action (s:Action.Set.t) (pto : int32 option) : par =
     let f par a = (to_action a pto)::par in
     Action.Set.fold s ~f:f ~init:[]
 
@@ -1072,7 +1081,7 @@ module RunTime = struct
     let add_flow x s l =
       let pat = to_pattern x in
       let pto = match Headers.location x with 
-        | Some (NetKAT_Types.Physical p) -> Some (VInt.Int64 (Int64.of_int32 p))
+        | Some (NetKAT_Types.Physical p) -> Some p
         | _ -> None in  
       let act = set_to_action s pto in 
       simpl_flow pat act::l in
