@@ -21,5 +21,10 @@ val default : app -> policy
 
 val run : app -> Topology.t -> event -> result Deferred.t
 
+(** Union two apps together. *)
 val union : app -> app -> app
+
+(** Sequence two apps together. This may fail if the apps' PipeSets have a
+    non-empty intersection. In that case, this function will raise a
+    Sequence_error containing the two incompatible PipeSets. *)
 val seq : app -> app -> app

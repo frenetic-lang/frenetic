@@ -75,11 +75,11 @@ let update_table_for (t : Controller.t) (sw_id : switchId) pol =
   let to_flow_mod prio flow =
     OpenFlow0x01.Message.FlowModMsg (SDN_OpenFlow0x01.from_flow prio flow) in
   let c_id = Controller.client_id_of_switch t sw_id in
-  let table = LocalCompiler.(to_table (of_policy sw_id pol)) in
-  let priority = ref 65536 in
-  let open Deferred in
+  let local = LocalCompiler.of_policy sw_id pol in
   send t c_id (0l, delete_flows) >>= fun _ ->
-  ignore (List.map table ~f:(fun flow ->
+  let priority = ref 65536 in
+  let table = LocalCompiler.to_table local in
+  Deferred.ignore (Deferred.List.map table ~f:(fun flow ->
     decr priority;
     send t c_id (0l, to_flow_mod !priority flow)))
 

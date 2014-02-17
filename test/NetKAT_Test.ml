@@ -147,10 +147,18 @@ TEST "vlan" =
   test_compile pol pol'
 
 module FromPipe = struct
+  open Core.Std
+
+  module PipeSet = Set.Make(struct
+    type t = string with sexp
+    let compare = String.compare
+  end)
 
   let test_from_pipes pol pkt pipes =
     let t = LocalCompiler.of_policy 0L pol in
-    LocalCompiler.from_pipes t pkt = pipes
+    let p1 = PipeSet.of_list pipes in
+    let p2 = PipeSet.of_list (List.map ~f:fst (LocalCompiler.from_pipes t pkt)) in
+    PipeSet.equal p1 p2
 
   let default_packet headers= {
     switch = 0L;
@@ -171,14 +179,13 @@ module FromPipe = struct
     test_from_pipes pol pkt ["all1"; "all2"]
 
   TEST "ambiguous pipes" =
-    let pol = Union(
-                Seq(Filter(Test(EthDst 2L)),
-                    Seq(Mod(EthDst 3L),
-                        Mod(Location(Pipe("pipe1"))))),
-                Seq(Filter(Test(EthDst 3L)),
-                    Mod(Location(Pipe("pipe2"))))) in
-    let pkt = default_packet (Headers.mk_ethDst 3L) in
-    test_from_pipes pol pkt ["pipe1"; "pipe2"]
+    let pol = Seq(Filter(Test(EthDst 2L)),
+                  Union(Seq(Mod(EthDst 3L),
+                            Mod(Location(Pipe("pipe1")))),
+                        Seq(Mod(EthSrc 3L),
+                            Mod(Location(Pipe("pipe2")))))) in
+    let pkt = default_packet (Headers.mk_ethDst 2L) in
+    test_from_pipes pol pkt ["pipe2"; "pipe1"]
 
   TEST "left side" =
     let pol = Union(

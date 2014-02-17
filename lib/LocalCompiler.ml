@@ -245,7 +245,7 @@ module Action : ACTION = struct
       match Field.get f y with
         | Some _ as o2 ->
           Field.fset f acc o2
-        | _ -> acc in 
+        | _ -> acc in
     Headers.Fields.fold
       ~init:x
       ~location:g
@@ -725,13 +725,16 @@ module Optimize : OPTIMIZE = struct
 end
 
 module type LOCAL = sig
-  type t = Action.Set.t Atom.Map.t
-  val to_string : t -> string
-  val of_pred : NetKAT_Types.pred -> t
-  val of_policy : NetKAT_Types.policy -> t
-  val to_netkat : t -> NetKAT_Types.policy
+  open NetKAT_Types
 
-  val from_pipes : t -> NetKAT_Types.packet -> string list
+  type t = Action.Set.t Atom.Map.t
+
+  val to_string : t -> string
+  val of_pred : pred -> t
+  val of_policy : policy -> t
+  val to_netkat : t -> policy
+
+  val from_pipes : t -> packet -> (string * packet) list
 end
 
 module Local : LOCAL = struct
@@ -949,7 +952,7 @@ module Local : LOCAL = struct
         mk_par nc_pred_acts  (loop m') in
     loop m
 
-  let from_pipes (t:t) (packet:NetKAT_Types.packet) : string list =
+  let from_pipes (t:t) (packet:NetKAT_Types.packet) : (string * NetKAT_Types.packet) list =
     let open NetKAT_Types in
     (* Determines the pipes that the packet belongs to. Note that a packet may
      * belong to several pipes for several reasons:
@@ -963,37 +966,22 @@ module Local : LOCAL = struct
      *        (filter ethDst = 2; ethDst := 3; controller pipe1)
      *        | (filter ethDst = 3; controller pipe2)
      *
-     * The return value may contain duplicate pipe names. The pipe names appear
-     * in the list in decreasing order of their associated Atom.t's specificity.
+     * The return value may contain duplicate pipe names.
      *
      * Since Local.t is switch-specific, this function assumes but does not
-     * check that the packet came from the same switch as the given Local.t
-     * *)
-    let ct = Atom.Map.fold_right t ~init:[] ~f:(fun ~key ~data acc0 ->
-      let pairs = Action.Set.fold_right data ~init:[] ~f:(fun act acc1 ->
-        match act with
-          | { Headers.location = Some(Pipe(p)) } -> (key, act, p) :: acc1
-          | _ -> acc1) in
-      pairs @ acc0) in
-    (* At this point, ct is bound to a list of triples
-     *
-     *   (Atom.t, Action.t, string)
-     *
-     * Where the Action.t is the set of actions applied to the packet before it
-     * was sent to the controller, the Atom.t was the guarded pattern that
-     * was true before the actions were applied to the packet, and the string is
-     * the name of the pipe.
-     *
-     * The problem is now to determine whether the given packet matches a
-     * triple. Matching in this case means that treating the Action.t as as a
-     * pattern and checking if it matches the packet and that the Atom.t matches
-     * the packet with the exception of the fields modified by the Action.t.
-     * *)
-    List.filter_map ct ~f:(fun (atom, act, pipe) ->
-      let atom' = Atom.seq_act atom { act with Headers.location = None } in
-      if Atom.matches atom' packet
-        then Some(pipe)
-        else None)
+     * check that the packet came from the same switch as the given Local.t *)
+    let packets = Semantics.eval packet (to_netkat t) in
+    PacketSet.fold packets ~init:[] ~f:(fun acc pkt ->
+      (* Running the packet through the switch's policy will label the resultant
+       * packets with the pipe they belong to, if any. All that's left to do is
+       * pick out packets in the PacketSet.t that have a pipe location, and return
+       * those packets (with the location cleared) along with the pipe they belong
+       * to. *)
+      match pkt.headers.Headers.location with
+        | Some(Pipe p) ->
+          let headers = { pkt.headers with Headers.location = None } in
+          (p, { pkt with headers }) :: acc
+        | _ -> acc)
 end
 
 module RunTime = struct
