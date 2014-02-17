@@ -1030,11 +1030,13 @@ module RunTime = struct
   let to_pattern (x:Pattern.t) : pattern =
     let i8 x = VInt.Int8 x in 
     let i16 x = VInt.Int16 x in 
+    let il x = match x with
+        | NetKAT_Types.Physical pt -> VInt.Int32 pt
+        | NetKAT_Types.Pipe _ ->
+          (* This is impossble, given the check in to_table *)
+          failwith "to_pattern: OpenFlow can't match on pipes" in
     let i32m (x,y) = VInt.Int32 x in (* JNF *)
     let i48 x = VInt.Int64 x in 
-    let il x = match x with 
-      | NetKAT_Types.Physical p -> VInt.Int32 p
-      | NetKAT_Types.Pipe p -> failwith "Not yet implemented" in 
     let g h c act f = 
       match Field.get f x with 
         | None -> act
@@ -1079,12 +1081,15 @@ module RunTime = struct
         ~init:Atom.DepMap.empty
         ~f:(fun ~key:r ~data:s acc -> Atom.DepMap.add acc r s) in
     let add_flow x s l =
-      let pat = to_pattern x in
-      let pto = match Headers.location x with 
-        | Some (NetKAT_Types.Physical p) -> Some p
-        | _ -> None in  
-      let act = set_to_action s pto in 
-      simpl_flow pat act::l in
+      match Headers.location x with
+        | Some (NetKAT_Types.Pipe p) -> l
+        | _ ->
+          let pat = to_pattern x in
+          let pto = match Headers.location x with
+            | Some (NetKAT_Types.Physical p) -> Some p
+            | _ -> None in
+          let act = set_to_action s pto in
+          simpl_flow pat act::l in
     let rec loop dm acc cover =
       match Atom.DepMap.min_elt dm with
         | None ->
