@@ -18,24 +18,13 @@ let help args =
 module Run = struct
   open LocalCompiler
 
-  let with_channel f chan =
-    let open Core.Std in
-    let open Async.Std in
-    let exp = NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan) in
-    let main () = ignore (Async_Controller.start_static f 6633 exp) in
-    never_returns (Scheduler.go_main ~max_num_open_file_descrs:4096 ~main ())
-
-  let with_file f filename =
-    In_channel.with_file filename ~f:(with_channel f)
-
-  let local p =
-    (fun sw -> to_table (compile sw p))
-
   let main args =
     match args with
       | [filename]
-      | ("local"     :: [filename]) -> 
-        with_file local filename
+      | ("local" :: [filename]) ->
+        let static = Async_NetKAT.create_from_file filename in
+        let main () = Async_NetKAT_Controller.start static () in
+        never_returns (Scheduler.go_main ~max_num_open_file_descrs:4096 ~main ())
       | _ -> help [ "run" ]
 end
 

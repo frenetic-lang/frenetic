@@ -60,9 +60,11 @@ Library async
     threads,
     textutils,
     topology,
+    sexplib,
     sexplib.syntax
   Modules:
-    Async_Controller
+    Async_NetKAT,
+    Async_NetKAT_Controller
 
 Library quickcheck
   Findlibparent: netcore

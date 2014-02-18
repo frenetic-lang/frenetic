@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 8388d252254072a5eaa00c291d828bd0)
+# DO NOT EDIT (digest: cffb4113e5060bdcd755e1f1d5fb1832)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -21,11 +21,11 @@
 <lib/*.ml{,i}>: package(openflow)
 <lib/*.ml{,i}>: package(threads)
 <lib/*.ml{,i}>: package(topology)
+<lib/*.ml{,i}>: package(sexplib)
 <lib/*.ml{,i}>: package(sexplib.syntax)
 <lib/*.ml{,i}>: package(fieldslib)
 <lib/*.ml{,i}>: package(fieldslib.syntax)
 <lib/*.ml{,i}>: package(str)
-<lib/*.ml{,i}>: package(sexplib)
 # Library async
 "async/async.cmxs": use_async
 <async/*.ml{,i}>: use_netcore
@@ -40,11 +40,11 @@
 <async/*.ml{,i}>: package(threads)
 <async/*.ml{,i}>: package(textutils)
 <async/*.ml{,i}>: package(topology)
+<async/*.ml{,i}>: package(sexplib)
 <async/*.ml{,i}>: package(sexplib.syntax)
 <async/*.ml{,i}>: package(fieldslib)
 <async/*.ml{,i}>: package(fieldslib.syntax)
 <async/*.ml{,i}>: package(str)
-<async/*.ml{,i}>: package(sexplib)
 # Library quickcheck
 "quickcheck/quickcheck.cmxs": use_quickcheck
 <quickcheck/*.ml{,i}>: use_netcore
@@ -56,11 +56,11 @@
 <quickcheck/*.ml{,i}>: package(openflow)
 <quickcheck/*.ml{,i}>: package(threads)
 <quickcheck/*.ml{,i}>: package(topology)
+<quickcheck/*.ml{,i}>: package(sexplib)
 <quickcheck/*.ml{,i}>: package(sexplib.syntax)
 <quickcheck/*.ml{,i}>: package(fieldslib)
 <quickcheck/*.ml{,i}>: package(fieldslib.syntax)
 <quickcheck/*.ml{,i}>: package(str)
-<quickcheck/*.ml{,i}>: package(sexplib)
 # Executable testtool
 "test/Test.byte": use_quickcheck
 "test/Test.byte": use_netcore
@@ -75,11 +75,11 @@
 "test/Test.byte": package(openflow)
 "test/Test.byte": package(threads)
 "test/Test.byte": package(topology)
+"test/Test.byte": package(sexplib)
 "test/Test.byte": package(sexplib.syntax)
 "test/Test.byte": package(fieldslib)
 "test/Test.byte": package(fieldslib.syntax)
 "test/Test.byte": package(str)
-"test/Test.byte": package(sexplib)
 <test/*.ml{,i}>: use_quickcheck
 <test/*.ml{,i}>: use_netcore
 <test/*.ml{,i}>: package(oUnit)
@@ -93,11 +93,11 @@
 <test/*.ml{,i}>: package(openflow)
 <test/*.ml{,i}>: package(threads)
 <test/*.ml{,i}>: package(topology)
+<test/*.ml{,i}>: package(sexplib)
 <test/*.ml{,i}>: package(sexplib.syntax)
 <test/*.ml{,i}>: package(fieldslib)
 <test/*.ml{,i}>: package(fieldslib.syntax)
 <test/*.ml{,i}>: package(str)
-<test/*.ml{,i}>: package(sexplib)
 # Executable katnetic
 "frenetic/katnetic.byte": use_async
 "frenetic/katnetic.byte": use_netcore
@@ -112,11 +112,11 @@
 "frenetic/katnetic.byte": package(threads)
 "frenetic/katnetic.byte": package(textutils)
 "frenetic/katnetic.byte": package(topology)
+"frenetic/katnetic.byte": package(sexplib)
 "frenetic/katnetic.byte": package(sexplib.syntax)
 "frenetic/katnetic.byte": package(fieldslib)
 "frenetic/katnetic.byte": package(fieldslib.syntax)
 "frenetic/katnetic.byte": package(str)
-"frenetic/katnetic.byte": package(sexplib)
 # Executable netkat_test
 "frenetic/netkat_test.byte": use_async
 "frenetic/netkat_test.byte": use_netcore
@@ -131,11 +131,11 @@
 "frenetic/netkat_test.byte": package(threads)
 "frenetic/netkat_test.byte": package(textutils)
 "frenetic/netkat_test.byte": package(topology)
+"frenetic/netkat_test.byte": package(sexplib)
 "frenetic/netkat_test.byte": package(sexplib.syntax)
 "frenetic/netkat_test.byte": package(fieldslib)
 "frenetic/netkat_test.byte": package(fieldslib.syntax)
 "frenetic/netkat_test.byte": package(str)
-"frenetic/netkat_test.byte": package(sexplib)
 <frenetic/*.ml{,i}>: use_async
 <frenetic/*.ml{,i}>: use_netcore
 <frenetic/*.ml{,i}>: package(async)
@@ -149,12 +149,13 @@
 <frenetic/*.ml{,i}>: package(threads)
 <frenetic/*.ml{,i}>: package(textutils)
 <frenetic/*.ml{,i}>: package(topology)
+<frenetic/*.ml{,i}>: package(sexplib)
 <frenetic/*.ml{,i}>: package(sexplib.syntax)
 <frenetic/*.ml{,i}>: package(fieldslib)
 <frenetic/*.ml{,i}>: package(fieldslib.syntax)
 <frenetic/*.ml{,i}>: package(str)
-<frenetic/*.ml{,i}>: package(sexplib)
 # OASIS_STOP
 <test/*.ml>: syntax_camlp4o
 <lib/*.ml>: syntax_camlp4o
+<async/*.ml>: syntax_camlp4o
 true: thread
