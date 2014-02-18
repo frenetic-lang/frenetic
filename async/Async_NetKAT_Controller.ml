@@ -46,6 +46,30 @@ let bytes_to_headers port_id (bytes : Cstruct.t) =
   ; tcpDstPort = (try Some(tpDst pkt) with Invalid_argument(_) -> None)
   }
 
+let headers_to_actions port (h:NetKAT_Types.Headers.t) : SDN_Types.action list =
+  let open SDN_Types in
+  let g p acc f =
+    match Field.get f h with
+      | Some v -> (p v)::acc
+      | None -> acc in
+  let init = match h.NetKAT_Types.Headers.location with
+     | Some(NetKAT_Types.Pipe     _) -> assert false
+     | Some(NetKAT_Types.Physical p) -> [OutputPort(VInt.Int32 p)]
+     | None -> [OutputPort (VInt.Int32 (Int32.of_int_exn port))] in
+  NetKAT_Types.Headers.Fields.fold
+    ~init
+    ~location:(fun acc f -> acc)
+    ~ethSrc:(g (fun v -> SetField(EthSrc, VInt.Int48 v)))
+    ~ethDst:(g (fun v -> SetField(EthDst, VInt.Int48 v)))
+    ~vlan:(g (fun v -> SetField(Vlan, VInt.Int16 v)))
+    ~vlanPcp:(g (fun v -> SetField(VlanPcp, VInt.Int8 v)))
+    ~ethType:(g (fun v -> SetField(EthType, VInt.Int16 v)))
+    ~ipProto:(g (fun v -> SetField(IPProto, VInt.Int8 v)))
+    ~ipSrc:(g (fun (v, _) -> SetField(IP4Src, VInt.Int32 v)))
+    ~ipDst:(g (fun (v, _) -> SetField(IP4Dst, VInt.Int32 v)))
+    ~tcpSrcPort:(g (fun v -> SetField(TCPSrcPort, VInt.Int16 v)))
+    ~tcpDstPort:(g (fun v -> SetField(TCPDstPort, VInt.Int16 v)))
+
 let packet_out_to_message (_, bytes, buffer_id, port_id, actions) =
   let open OpenFlow0x01_Core in
   let output_payload = match buffer_id with
@@ -80,29 +104,36 @@ let to_event (t : t) evt =
           let buf_id, bytes = match pi.input_payload with
             | Buffered(n, bs) -> Some(n), bs
             | NotBuffered(bs) -> None, bs in
-          let local = SwitchMap.find_exn t.locals switch_id in
-          let packet = {
-            switch = switch_id;
-            headers = bytes_to_headers (Int32.of_int_exn pi.port) bytes;
-            payload = SDN_OpenFlow0x01.to_payload pi.input_payload
-          } in
-          begin
-            (* XXX(seliopou): What about non-application-related PacketIns? They
-             * may happen while initializing a switch.
-             *
-             * XXX(seliopou): Any packet_outs should be associated with this
-             * PacketIn.
-             *
-             * XXX(seliopou): What if the packet's modified? Should buf_id be
-             * exposed to the application?
-             * *)
-            let pis, phys = LocalCompiler.eval local packet in
-            let outs = Deferred.List.map phys ~f:(fun pkt ->
-              let po = (switch_id, bytes, buf_id, Some(port_id), []) in
-              send t.ctl c_id (0l, packet_out_to_message po)) in
-            Deferred.(don't_wait_for (ignore outs));
-            return (List.map pis ~f:(fun (p, pkt) ->
-              PacketIn(p, switch_id, port_id, bytes, pi.total_len, buf_id)))
+          begin match SwitchMap.find t.locals switch_id with
+            | None ->
+              (* The switch may be connected but has yet had rules installed on
+               * it. In that case, just drop the packet.
+               * *)
+              return []
+            | Some local ->
+              (* Eval the packet to get the list of packets that should go to
+               * pipes, and the list of packets that can be forwarded to physical
+               * locations.
+               * *)
+              let packet = {
+                switch = switch_id;
+                headers = bytes_to_headers (Int32.of_int_exn pi.port) bytes;
+                payload = SDN_OpenFlow0x01.to_payload pi.input_payload
+              } in
+              begin
+                (* XXX(seliopou): What if the packet's modified? Should buf_id be
+                 * exposed to the application?
+                 * *)
+                let pis, phys = LocalCompiler.eval local packet in
+                let outs = Deferred.List.map phys ~f:(fun packet1 ->
+                  let acts = headers_to_actions pi.port
+                    (Headers.diff packet1.headers packet.headers) in
+                  let po = (switch_id, bytes, buf_id, Some(port_id), acts) in
+                  send t.ctl c_id (0l, packet_out_to_message po)) in
+                Deferred.ignore outs >>= fun _ ->
+                return (List.map pis ~f:(fun (p, pkt) ->
+                  PacketIn(p, switch_id, port_id, bytes, pi.total_len, buf_id)))
+              end
           end
         | _ ->
           let sw_id = Controller.switch_id_of_client t.ctl c_id in

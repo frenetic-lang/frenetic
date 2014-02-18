@@ -143,6 +143,35 @@ module Headers = struct
       ~ipDst:(g pp32m)
       ~tcpSrcPort:(g pp16)
       ~tcpDstPort:(g pp16)
+
+  let diff (x:t) (y:t) : t =
+    let g c acc f =
+      match Field.get f x, Field.get f y with
+        | Some v1, Some v2 ->
+          c f v1 v2 acc
+        | _ ->
+          acc in
+    let c f v1 v2 acc =
+      if v1 = v2 then Field.fset f acc None else acc in
+    let cm f (v1,m1) (v2,m2) acc =
+      let b = max 0 (max (32-m1) (32-m2)) in
+      if m2 >= m1 && Int32.shift_right v1 b = Int32.shift_right v2 b then
+        Field.fset f acc None
+      else
+        acc in
+    Fields.fold
+      ~init:x
+      ~location:(g c)
+      ~ethSrc:(g c)
+      ~ethDst:(g c)
+      ~vlan:(g c)
+      ~vlanPcp:(g c)
+      ~ethType:(g c)
+      ~ipProto:(g c)
+      ~ipSrc:(g cm)
+      ~ipDst:(g cm)
+      ~tcpSrcPort:(g c)
+      ~tcpDstPort:(g c)
 end
  
 type packet = {
