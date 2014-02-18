@@ -1,4 +1,3 @@
-val from_buffer_id : SDN_Types.bufferId -> int32
 val to_payload : OpenFlow0x01_Core.payload -> SDN_Types.payload
 val from_payload : SDN_Types.payload -> OpenFlow0x01_Core.payload
 val to_reason : OpenFlow0x01_Core.packetInReason -> SDN_Types.packetInReason

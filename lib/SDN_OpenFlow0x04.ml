@@ -3,18 +3,12 @@ module Core = OpenFlow0x04_Core
 module Msg = OpenFlow0x04.Message
 module Fields = AL.FieldMap
 
-let from_buffer_id (bufId : AL.bufferId) : int32 =
-  let open SDN_Types in
-  match bufId with
-    | OF13BufferId n -> n
-    | OF10BufferId _ ->
-      raise (Invalid_argument "expected OpenFlow 1.3 buffer ID")
-  
+
 let to_payload (pay : Core.payload) : AL.payload =
   let open Core in
   match pay with
     | Buffered (buf_id, ct) ->
-      AL.Buffered (AL.OF10BufferId buf_id, ct)
+      AL.Buffered (buf_id, ct)
     | NotBuffered ct ->
       AL.NotBuffered ct
   
@@ -22,7 +16,7 @@ let from_payload (pay : AL.payload) : Core.payload =
   let open SDN_Types in
   match pay with
     | Buffered (buf_id, bytes) ->
-      Core.Buffered (from_buffer_id buf_id, bytes)
+      Core.Buffered (buf_id, bytes)
     | NotBuffered bytes -> Core.NotBuffered bytes
       
 let to_reason (reason : Core.packetInReason) : AL.packetInReason =
