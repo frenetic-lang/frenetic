@@ -156,9 +156,8 @@ module FromPipe = struct
 
   let test_from_pipes pol pkt pipes =
     let t = LocalCompiler.of_policy 0L pol in
-    let p1 = PipeSet.of_list pipes in
-    let p2 = PipeSet.of_list (List.map ~f:fst (LocalCompiler.from_pipes t pkt)) in
-    PipeSet.equal p1 p2
+    let ps, _ = LocalCompiler.eval t pkt in
+    PipeSet.(equal (of_list pipes) (of_list (List.map ~f:fst ps)))
 
   let default_packet headers= {
     switch = 0L;

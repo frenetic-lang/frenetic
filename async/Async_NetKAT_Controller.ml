@@ -29,7 +29,7 @@ type t = {
   mutable locals : LocalCompiler.t SwitchMap.t
 }
 
-let to_headers port_id (bytes : Cstruct.t) =
+let bytes_to_headers port_id (bytes : Cstruct.t) =
   let open NetKAT.Headers in
   let open Packet in
   let pkt = Packet.parse bytes in
@@ -45,46 +45,6 @@ let to_headers port_id (bytes : Cstruct.t) =
   ; tcpSrcPort = (try Some(tpSrc pkt) with Invalid_argument(_) -> None)
   ; tcpDstPort = (try Some(tpDst pkt) with Invalid_argument(_) -> None)
   }
-
-let to_event (t : t) evt =
-  let open NetKAT_Types in
-  return (match evt with
-    | `Connect (c_id, feats) ->
-      [SwitchUp feats.OpenFlow0x01.SwitchFeatures.switch_id]
-    | `Disconnect (c_id, switch_id, exn) ->
-      [SwitchDown switch_id]
-    | `Message (c_id, (xid, msg)) ->
-      let open OpenFlow0x01.Message in
-      begin match msg with
-        | PacketInMsg pi ->
-          let open OpenFlow0x01_Core in
-          let switch_id = Controller.switch_id_of_client t.ctl c_id in
-          let port_id = VInt.Int16 pi.port in
-          let buf_id, bytes = match pi.input_payload with
-            | Buffered(n, bs) -> Some(n), bs
-            | NotBuffered(bs) -> None, bs in
-          let local = SwitchMap.find_exn t.locals switch_id in
-          let packet = {
-            switch = switch_id;
-            headers = to_headers (Int32.of_int_exn pi.port) bytes;
-            payload = SDN_OpenFlow0x01.to_payload pi.input_payload
-          } in
-          (* XXX(seliopou): What about non-application-related PacketIns? They
-           * may happen while initializing a switch.
-           *
-           * XXX(seliopou): Any packet_outs should be associated with this
-           * PacketIn.
-           *
-           * XXX(seliopou): What if the packet's modified? Should buf_id be
-           * exposed to the application?
-           * *)
-          List.map (LocalCompiler.from_pipes local packet) ~f:(fun (p, pkt) ->
-            PacketIn(p, switch_id, port_id, bytes, pi.total_len, buf_id))
-        | _ ->
-          let sw_id = Controller.switch_id_of_client t.ctl c_id in
-          Log.debug ~tags "Dropped message from %Lu: %s" sw_id (to_string msg);
-          []
-      end)
 
 let packet_out_to_message (_, bytes, buffer_id, port_id, actions) =
   let open OpenFlow0x01_Core in
@@ -102,6 +62,53 @@ let send t c_id msg =
   >>| function
     | `Sent _ -> ()
     | `Drop exn -> raise exn
+
+let to_event (t : t) evt =
+  let open NetKAT_Types in
+  match evt with
+    | `Connect (c_id, feats) ->
+      return [SwitchUp feats.OpenFlow0x01.SwitchFeatures.switch_id]
+    | `Disconnect (c_id, switch_id, exn) ->
+      return [SwitchDown switch_id]
+    | `Message (c_id, (xid, msg)) ->
+      let open OpenFlow0x01.Message in
+      begin match msg with
+        | PacketInMsg pi ->
+          let open OpenFlow0x01_Core in
+          let switch_id = Controller.switch_id_of_client t.ctl c_id in
+          let port_id = VInt.Int16 pi.port in
+          let buf_id, bytes = match pi.input_payload with
+            | Buffered(n, bs) -> Some(n), bs
+            | NotBuffered(bs) -> None, bs in
+          let local = SwitchMap.find_exn t.locals switch_id in
+          let packet = {
+            switch = switch_id;
+            headers = bytes_to_headers (Int32.of_int_exn pi.port) bytes;
+            payload = SDN_OpenFlow0x01.to_payload pi.input_payload
+          } in
+          begin
+            (* XXX(seliopou): What about non-application-related PacketIns? They
+             * may happen while initializing a switch.
+             *
+             * XXX(seliopou): Any packet_outs should be associated with this
+             * PacketIn.
+             *
+             * XXX(seliopou): What if the packet's modified? Should buf_id be
+             * exposed to the application?
+             * *)
+            let pis, phys = LocalCompiler.eval local packet in
+            let outs = Deferred.List.map phys ~f:(fun pkt ->
+              let po = (switch_id, bytes, buf_id, Some(port_id), []) in
+              send t.ctl c_id (0l, packet_out_to_message po)) in
+            Deferred.(don't_wait_for (ignore outs));
+            return (List.map pis ~f:(fun (p, pkt) ->
+              PacketIn(p, switch_id, port_id, bytes, pi.total_len, buf_id)))
+          end
+        | _ ->
+          let sw_id = Controller.switch_id_of_client t.ctl c_id in
+          Log.debug ~tags "Dropped message from %Lu: %s" sw_id (to_string msg);
+          return []
+      end
 
 let update_table_for (t : t) (sw_id : switchId) pol =
   let delete_flows =

@@ -734,7 +734,7 @@ module type LOCAL = sig
   val of_policy : policy -> t
   val to_netkat : t -> policy
 
-  val from_pipes : t -> packet -> (string * packet) list
+  val eval : t -> packet -> (string * packet) list * packet list
 end
 
 module Local : LOCAL = struct
@@ -952,7 +952,8 @@ module Local : LOCAL = struct
         mk_par nc_pred_acts  (loop m') in
     loop m
 
-  let from_pipes (t:t) (packet:NetKAT_Types.packet) : (string * NetKAT_Types.packet) list =
+  let eval (t:t) (packet:NetKAT_Types.packet)
+    : (string * NetKAT_Types.packet) list * NetKAT_Types.packet list =
     let open NetKAT_Types in
     (* Determines the pipes that the packet belongs to. Note that a packet may
      * belong to several pipes for several reasons:
@@ -971,15 +972,15 @@ module Local : LOCAL = struct
      * Since Local.t is switch-specific, this function assumes but does not
      * check that the packet came from the same switch as the given Local.t *)
     let packets = Semantics.eval packet (to_netkat t) in
-    PacketSet.fold packets ~init:[] ~f:(fun acc pkt ->
+    PacketSet.fold packets ~init:([],[]) ~f:(fun (pi,phy) pkt ->
       (* Running the packet through the switch's policy will label the resultant
        * packets with the pipe they belong to, if any. All that's left to do is
        * pick out packets in the PacketSet.t that have a pipe location, and return
        * those packets (with the location cleared) along with the pipe they belong
        * to. *)
       match pkt.headers.Headers.location with
-        | Some(Pipe p) -> (p, pkt) :: acc
-        | _ -> acc)
+        | Some(Pipe p) -> ((p, pkt) :: pi, phy)
+        | _ -> (pi, pkt :: phy))
 end
 
 module RunTime = struct
@@ -1141,5 +1142,5 @@ let decompile =
 let to_table =
   RunTime.to_table
 
-let from_pipes =
-  Local.from_pipes
+let eval =
+  Local.eval
