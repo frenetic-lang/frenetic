@@ -41,9 +41,7 @@ type switchId = int64
 type portId = VInt.t
 type queueId = VInt.t
 
-type bufferId =
-  | OF10BufferId of int32
-  | OF13BufferId of OpenFlow0x04_Core.bufferId
+type bufferId = int32
 
 exception Unsupported of string
 

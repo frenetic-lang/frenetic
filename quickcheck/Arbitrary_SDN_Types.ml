@@ -8,12 +8,7 @@ let arbitrary_bytes max_len =
   choose_int32 (Int32.zero, Int32.of_int max_len) >>= fun l ->
     ret_gen (Cstruct.create (Int32.to_int l))
 
-let arbitrary_bufferId =
-  let open Gen in
-  arbitrary_int >>= (fun id ->
-    oneof [
-      ret_gen (SDN_Types.OF10BufferId (Int32.of_int id));
-      ret_gen (SDN_Types.OF13BufferId (Int32.of_int id))])
+let arbitrary_bufferId = Arbitrary_Base.arbitrary_uint32
 
 let arbitrary_payload =
   let open Gen in

@@ -15,9 +15,7 @@ type switchId = int64
 type portId = VInt.t
 type queueId = VInt.t
 
-type bufferId =
-  | OF10BufferId of int32
-  | OF13BufferId of OF13.bufferId
+type bufferId = int32
 
 type field =
   | InPort
