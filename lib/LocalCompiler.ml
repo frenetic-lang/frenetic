@@ -998,9 +998,17 @@ module RunTime = struct
       | None, None ->
         failwith "indeterminate location"
 
+  (* XXX(seliopou, jnf) unimplementable actions will still produce bogus
+   * outputs. For example, the following policy:
+   *
+   *   (f := 3; port := 1) | (g := 2; poirt := 2)
+   *
+   * requires two copies of the packet at the switch, which is not possible.
+   * Policies like these must be implemented at the controller.
+   * *)
   let set_to_action (s:Action.Set.t) (pto : int32 option) : par =
     let f par a = (to_action a pto)::par in
-    Action.Set.fold s ~f:f ~init:[]
+    List.dedup (Action.Set.fold s ~f:f ~init:[])
 
   let to_pattern (x:Pattern.t) : pattern =
     let i8 x = VInt.Int8 x in 
