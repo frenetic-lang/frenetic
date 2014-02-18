@@ -106,7 +106,7 @@ module Headers = struct
   let mk_ethDst n = { empty with ethDst = Some n }
   let mk_vlan n = { empty with vlan = Some n }
   let mk_vlanPcp n = { empty with vlanPcp = Some n }
-  let mk_ethType n = { empty with vlanPcp = Some n }
+  let mk_ethType n = { empty with ethType = Some n }
   let mk_ipProto n = { empty with ipProto = Some n }
   let mk_ipSrc (n, m) = { empty with ipSrc = Some (n,m) }
   let mk_ipDst (n, m) = { empty with ipDst = Some (n,m) }
