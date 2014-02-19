@@ -61,27 +61,30 @@ sig
     val iter_edges : (edge -> unit) -> t -> unit
     val fold_vertexes : (vertex -> 'a -> 'a) -> t -> 'a -> 'a
     val fold_edges : (edge -> 'a -> 'a) -> t -> 'a -> 'a
+  end
+  (* Traversals *)
+  module Traverse : sig
+    val bfs : (Topology.vertex -> unit) -> Topology.t -> unit
+    val dfs : (Topology.vertex -> unit) -> Topology.t -> unit
+  end
 
-    (* Traversals *)
-    val bfs : (vertex -> unit) -> t -> unit
-    val dfs : (vertex -> unit) -> t -> unit
-  end
-  
-  (* String Representations *)
-  module Pretty : sig
-    val to_string : Topology.t -> string
-    val to_dot : Topology.t -> string
-  end
-    
+  (* Paths *)
   module Path : sig
     type t = Topology.edge list
         
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
   end
 
+  (* Parsing *)
   module Parse : sig
     val from_dotfile : string -> Topology.t
     val from_gmlfile : string -> Topology.t
+  end
+
+  (* Pretty Printing *)
+  module Pretty : sig
+    val to_string : Topology.t -> string
+    val to_dot : Topology.t -> string
   end
 end
 
@@ -230,8 +233,11 @@ struct
 
     let iter_succ (f:edge -> unit) (t:t) (v:vertex) : unit = 
       P.iter_succ_e f t.graph v
+  end
 
-    (* Traversals *)
+  (* Traversals *)
+  module Traverse = struct
+    open Topology
     module Bfs = Graph.Traverse.Bfs(P)
     module Dfs = Graph.Traverse.Dfs(P)
       
@@ -241,25 +247,8 @@ struct
     let dfs (f:vertex -> unit) (t:t) = 
       Dfs.prefix f t.graph
   end
-
-  module Pretty = struct 
-    open Topology
-    let to_dot (t:t) =
-      Printf.sprintf "digraph G {\n%s\n}"
-        (EdgeSet.fold
-           (fun (v1,l,v2) acc -> 
-             Printf.sprintf "%s%s%d -> %d" 
-               acc 
-               (if acc = "" then "" else "\n") 
-               v1.VL.id 
-               v2.VL.id)
-           (edges t)
-           "")
     
-    let to_string (t:t) : string = 
-      to_dot t
-  end      
-
+  (* Paths *)
   module Path = struct
     open Topology
     module UnitWeight = struct
@@ -283,8 +272,13 @@ struct
         None
   end
 
+  (* Parsing *)
   module Parse = struct
     open Topology
+
+    (* TODO(jnf): this could be refactored into a functor that wraps a
+       G.t in an arbitrary type and lifts all other G operations over
+       that type. *)
     module Build = struct
       module G = struct
         module V = P.V
@@ -381,31 +375,50 @@ struct
       let next_edge = let r = ref 0 in fun _ -> incr r; !r         
       let node id attrs = 
         let open Topology.VL in 
-        { id = next_node ();
-          label = Vertex.parse_dot id attrs }
+            { id = next_node ();
+              label = Vertex.parse_dot id attrs }
       let edge attrs = 
         let open Topology.EL in 
-        { id = next_edge ();
-          label = Edge.parse_dot attrs;
-          src = 0l;
-          dst = 0l }
+            { id = next_edge ();
+              label = Edge.parse_dot attrs;
+              src = 0l;
+              dst = 0l }
     end)
     module Gml = Graph.Gml.Parse(Build)(struct
       let next_node = let r = ref 0 in fun _ -> incr r; !r 
       let next_edge = let r = ref 0 in fun _ -> incr r; !r         
       let node vs = 
         let open Topology.VL in   
-        { id = next_node ();
-          label = Vertex.parse_gml vs }
+            { id = next_node ();
+              label = Vertex.parse_gml vs }
       let edge vs = 
         let open Topology.EL in 
-        { id = next_edge ();
-          label = Edge.parse_gml vs;
-          src = 0l; 
-          dst = 0l }
+            { id = next_edge ();
+              label = Edge.parse_gml vs;
+              src = 0l; 
+              dst = 0l }
     end)
       
     let from_dotfile = Dot.parse
     let from_gmlfile = Gml.parse
   end
+
+  (* Pretty Printing *)
+  module Pretty = struct 
+    open Topology
+    let to_dot (t:t) =
+      Printf.sprintf "digraph G {\n%s\n}"
+        (EdgeSet.fold
+           (fun (v1,l,v2) acc -> 
+             Printf.sprintf "%s%s%d -> %d" 
+               acc 
+               (if acc = "" then "" else "\n") 
+               v1.VL.id 
+               v2.VL.id)
+           (edges t)
+           "")
+        
+    let to_string (t:t) : string = 
+      to_dot t
+  end      
 end

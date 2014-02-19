@@ -62,26 +62,31 @@ sig
     val fold_vertexes : (vertex -> 'a -> 'a) -> t -> 'a -> 'a
     val fold_edges : (edge -> 'a -> 'a) -> t -> 'a -> 'a
 
-    (* Traversals *)
-    val bfs : (vertex -> unit) -> t -> unit
-    val dfs : (vertex -> unit) -> t -> unit
   end
-  
-  (* String Representations *)
-  module Pretty : sig
-    val to_string : Topology.t -> string
-    val to_dot : Topology.t -> string
+
+  (* Traversals *)
+  module Traverse : sig
+    val bfs : (Topology.vertex -> unit) -> Topology.t -> unit
+    val dfs : (Topology.vertex -> unit) -> Topology.t -> unit
   end
-    
+
+  (* Paths *)
   module Path : sig
     type t = Topology.edge list
         
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
   end
 
+  (* Parsing *)
   module Parse : sig
     val from_dotfile : string -> Topology.t
     val from_gmlfile : string -> Topology.t
+  end
+
+  (* Pretty Printing *)
+  module Pretty : sig
+    val to_string : Topology.t -> string
+    val to_dot : Topology.t -> string
   end
 end
 
