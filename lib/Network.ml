@@ -2,7 +2,6 @@ module type VERTEX = sig
   type t
 
   val compare : t -> t -> int
-  val hash : t -> int
   val to_string : t -> string
   val parse_dot : Graph.Dot_ast.node_id -> Graph.Dot_ast.attr list -> t
   val parse_gml : Graph.Gml.value_list -> t
@@ -12,7 +11,6 @@ module type EDGE = sig
   type t
 
   val compare : t -> t -> int
-  val hash : t -> int
   val to_string : t -> string
   val parse_dot : Graph.Dot_ast.attr list -> t
   val parse_gml : Graph.Gml.value_list -> t
@@ -104,7 +102,7 @@ struct
             label : Vertex.t }
       let compare n1 n2 = Pervasives.compare n1.id n2.id 
       let hash n1 = Hashtbl.hash n1.id
-      let equal n1 n2 = n1.label = n2.label
+      let equal n1 n2 = n1.id = n2.id
     end
     module VertexSet = Set.Make(VL)
       
@@ -113,12 +111,9 @@ struct
                  label : Edge.t; 
                  src : port;
                  dst : port } 
-      let compare e1 e2 = 
-        Pervasives.compare e1.id e2.id 
-      let hash e1 = 
-        Hashtbl.hash e1.id 
-      let equal e1 e2 = 
-        e1.label = e2.label
+      let compare e1 e2 = Pervasives.compare e1.id e2.id
+      let hash e1 = Hashtbl.hash e1.id
+      let equal e1 e2 = e1.id = e2.id
       let default = 
         { id = 0;
           label = Edge.default; 

@@ -2,7 +2,6 @@ module type VERTEX = sig
   type t
 
   val compare : t -> t -> int
-  val hash : t -> int
   val to_string : t -> string
   val parse_dot : Graph.Dot_ast.node_id -> Graph.Dot_ast.attr list -> t
   val parse_gml : Graph.Gml.value_list -> t
@@ -12,7 +11,6 @@ module type EDGE = sig
   type t
 
   val compare : t -> t -> int
-  val hash : t -> int
   val to_string : t -> string
   val parse_dot : Graph.Dot_ast.attr list -> t
   val parse_gml : Graph.Gml.value_list -> t
