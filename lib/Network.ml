@@ -17,14 +17,16 @@ module type EDGE = sig
   val default : t
 end
 
-module type MAKE = functor (Vertex:VERTEX) -> functor (Edge:EDGE) ->
-sig
-  module Topology : sig 
+module type NETWORK = sig
+  module Topology : sig
     type t
 
     type vertex
     type edge
     type port = int32
+
+    module Vertex : VERTEX
+    module Edge : EDGE
 
     module EdgeSet : Set.S
       with type elt = edge
@@ -60,6 +62,7 @@ sig
     val fold_vertexes : (vertex -> 'a -> 'a) -> t -> 'a -> 'a
     val fold_edges : (edge -> 'a -> 'a) -> t -> 'a -> 'a
   end
+
   (* Traversals *)
   module Traverse : sig
     val bfs : (Topology.vertex -> unit) -> Topology.t -> unit
@@ -69,7 +72,7 @@ sig
   (* Paths *)
   module Path : sig
     type t = Topology.edge list
-        
+
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
   end
 
@@ -86,15 +89,21 @@ sig
   end
 end
 
+module type MAKE = functor (Vertex:VERTEX) -> functor (Edge:EDGE) -> NETWORK
+  with module Topology.Vertex = Vertex
+   and module Topology.Edge = Edge
+
 module Make : MAKE = 
   functor (Vertex:VERTEX) -> 
     functor (Edge:EDGE) -> 
 struct
   module Topology = struct
-      
     type port = int32 
     module PortSet = Set.Make(Int32)
     module PortMap = Map.Make(Int32)
+
+    module Vertex = Vertex
+    module Edge = Edge
       
     module VL = struct
       type t = 
@@ -256,7 +265,6 @@ struct
     end
 
     module Dijkstra = Graph.Path.Dijkstra(P)(UnitWeight)
-      
     type t = edge list
       
     let shortest_path (t:Topology.t) (v1:vertex) (v2:vertex) : t option = 
@@ -270,7 +278,6 @@ struct
   (* Parsing *)
   module Parse = struct
     open Topology
-
     (* TODO(jnf): this could be refactored into a functor that wraps a
        G.t in an arbitrary type and lifts all other G operations over
        that type. *)
@@ -280,9 +287,9 @@ struct
         module E = P.E
         type vertex = V.t
         type edge = E.t
-        type t = Topology.t 
+        type t = Topology.t
         let empty () = 
-          Topology.empty ()
+          empty ()
         let remove_vertex t v = 
           { t with graph = P.remove_vertex t.graph v }
         let remove_edge t v1 v2 = 
@@ -369,11 +376,11 @@ struct
       let next_node = let r = ref 0 in fun _ -> incr r; !r 
       let next_edge = let r = ref 0 in fun _ -> incr r; !r         
       let node id attrs = 
-        let open Topology.VL in 
+        let open VL in
             { id = next_node ();
               label = Vertex.parse_dot id attrs }
       let edge attrs = 
-        let open Topology.EL in 
+        let open EL in
             { id = next_edge ();
               label = Edge.parse_dot attrs;
               src = 0l;
@@ -383,11 +390,11 @@ struct
       let next_node = let r = ref 0 in fun _ -> incr r; !r 
       let next_edge = let r = ref 0 in fun _ -> incr r; !r         
       let node vs = 
-        let open Topology.VL in   
+        let open VL in
             { id = next_node ();
               label = Vertex.parse_gml vs }
       let edge vs = 
-        let open Topology.EL in 
+        let open EL in
             { id = next_edge ();
               label = Edge.parse_gml vs;
               src = 0l; 

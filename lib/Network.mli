@@ -17,14 +17,16 @@ module type EDGE = sig
   val default : t
 end
 
-module type MAKE = functor (Vertex:VERTEX) -> functor (Edge:EDGE) ->
-sig
-  module Topology : sig 
+module type NETWORK = sig
+  module Topology : sig
     type t
 
     type vertex
     type edge
     type port = int32
+
+    module Vertex : VERTEX
+    module Edge : EDGE
 
     module EdgeSet : Set.S
       with type elt = edge
@@ -59,7 +61,6 @@ sig
     val iter_edges : (edge -> unit) -> t -> unit
     val fold_vertexes : (vertex -> 'a -> 'a) -> t -> 'a -> 'a
     val fold_edges : (edge -> 'a -> 'a) -> t -> 'a -> 'a
-
   end
 
   (* Traversals *)
@@ -71,7 +72,7 @@ sig
   (* Paths *)
   module Path : sig
     type t = Topology.edge list
-        
+
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
   end
 
@@ -87,5 +88,9 @@ sig
     val to_dot : Topology.t -> string
   end
 end
+
+module type MAKE = functor (Vertex:VERTEX) -> functor (Edge:EDGE) -> NETWORK
+  with module Topology.Vertex = Vertex
+   and module Topology.Edge = Edge
 
 module Make : MAKE
