@@ -62,6 +62,7 @@ type pseudoPort =
               STP. *)
   | Controller of int (** Send to controller along with [n] (max 1024)
                           bytes of the packet. *)
+  | Table (** Send the packet out packet through the table *)
 
 (** Flow action data structure.  See Section 5.2.4 of the OpenFlow 1.0
     specification. *)

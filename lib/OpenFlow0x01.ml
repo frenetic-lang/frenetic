@@ -359,6 +359,7 @@ module PseudoPort = struct
     | AllPorts -> ofp_port_to_int OFPP_ALL
     (* see wall of text above *)
     | Controller _ -> ofp_port_to_int OFPP_CONTROLLER 
+    | Table -> ofp_port_to_int OFPP_TABLE
 
   let marshal_optional (t : t option) : int = match t with
     | None -> ofp_port_to_int OFPP_NONE
@@ -370,12 +371,14 @@ module PseudoPort = struct
     | Flood -> "Flood"
     | AllPorts -> "AllPorts"
     | Controller n -> sprintf "Controller<%d bytes>" n
+    | Table -> "Table"
 
   let make ofp_port_code len =
     match int_to_ofp_port ofp_port_code with
       | Some OFPP_IN_PORT -> InPort
       | Some OFPP_FLOOD -> Flood
       | Some OFPP_ALL -> AllPorts
+      | Some OFPP_TABLE -> Table
       | Some OFPP_CONTROLLER -> Controller len
       | _ ->
         if ofp_port_code <= (ofp_port_to_int OFPP_MAX) then

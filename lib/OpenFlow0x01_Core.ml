@@ -30,6 +30,7 @@ type pseudoPort =
   | InPort
   | Flood
   | Controller of int
+  | Table
 
 type action =
   | Output of pseudoPort
