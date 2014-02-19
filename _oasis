@@ -2,8 +2,8 @@ OASISFormat: 0.3
 OCamlVersion: >= 4.01.0
 Name:        topology
 Version:     0.9
-Synopsis:    Topology for networks
-Authors:     Shrutarshi Basu, Arjun Guha
+Synopsis:    Network topologies
+Authors:     https://github.com/frenetic-lang/ocaml-topology/contributors
 License:     LGPL
 Plugins:     META (0.3)
 BuildTools:
@@ -21,9 +21,6 @@ Library topology
   InternalModules:
     Util
   Modules:
-    Parsers,
-    Node,
-    Link,
     Network
 
 

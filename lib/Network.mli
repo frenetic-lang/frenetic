@@ -1,49 +1,94 @@
-open Graph
+module type VERTEX = sig
+  type t
 
-module G : Sig.P with type V.t = Node.t and type E.t = Link.e
-                 and type V.label = Node.label and type E.label = Link.t
-module V : Sig.VERTEX with type t = Node.t
-module E : Sig.EDGE with type t = Link.e and type vertex = Node.t
-type t = G.t * Node.attr_tbl
+  val compare : t -> t -> int
+  val hash : t -> int
+  val to_string : t -> string
+  val parse_dot : Graph.Dot_ast.node_id -> Graph.Dot_ast.attr list -> t
+  val parse_gml : Graph.Gml.value_list -> t
+end
 
-(* Constructors *)
-val empty : unit -> t
-val add_node : t -> V.t -> t
-val add_host : t -> string -> Packet.dlAddr -> Packet.nwAddr -> int -> t
-val add_switch : t -> Node.switchId -> int -> t
-val add_switch_edge : t -> V.t -> Node.portId -> V.t -> Node.portId -> t
-val add_edge_e : t -> E.t -> t
+module type EDGE = sig
+  type t
 
-(* Accessors *)
-val get_vertices : t -> V.t list
-val get_edges : t -> E.t list
-val get_ports : t -> V.t -> V.t -> (Node.portId * Node.portId)
-val get_hosts : t -> V.t list
-val get_switches : t -> V.t list
-val get_switchids : t -> Node.switchId list
-val unit_cost : t -> t
-val ports_of_switch : t -> V.t -> Node.portId list
-val next_hop : t -> V.t -> Node.portId -> V.t
-val find_edge : t -> V.t -> V.t -> E.t
+  val compare : t -> t -> int
+  val hash : t -> int
+  val to_string : t -> string
+  val parse_dot : Graph.Dot_ast.attr list -> t
+  val parse_gml : Graph.Gml.value_list -> t
+  val default : t
+end
 
-(* Iterators *)
-val iter_succ : (V.t -> unit) -> t -> V.t -> unit
-val fold_edges_e : (E.t -> 'a -> 'a) -> t -> 'a -> 'a
+module type MAKE = functor (Vertex:VERTEX) -> functor (Edge:EDGE) ->
+sig
+  module Topology : sig 
+    type t
 
-(* Utility functions *)
-val nb_vertex : t -> int
-val spanningtree : t -> G.t
-val all_paths :t -> Node.t -> Node.t list Node.NodeHash.t
-val shortest_path : t -> V.t -> V.t -> E.t list
-val all_shortest_paths : t -> Node.t
-  -> (int64 Node.NodeHash.t * Node.t Node.NodeHash.t)
+    type vertex
+    type edge
+    type port = int32
 
-val stitch : E.t list -> (Node.portId option * V.t * Node.portId option) list
-val floyd_warshall : t -> ((V.t * V.t) * V.t list) list
-val to_dot : t -> string
-val to_string : t -> string
-val to_mininet : t -> string
+    module EdgeSet : Set.S
+      with type elt = edge
+      
+    module VertexSet : Set.S
+      with type elt = vertex
+      
+    module PortSet : Set.S
+      with type elt = port
+    
+    module G : Graph.Sig.G
 
-(* Exceptions *)
-exception NotFound of string
-exception NoPath of string * string
+    val copy : t -> t
+
+    (* Constructors *)
+    val empty : unit -> t
+    val add_vertex : t -> vertex -> t
+    val add_edge : t -> vertex -> vertex -> t
+    val add_edge_e : t -> edge -> t
+    val remove_vertex : t -> vertex -> t
+    val remove_edge : t -> vertex -> vertex -> t
+    val remove_edge_e : t -> edge -> t
+
+    (* Special Accessors *)
+    val vertexes : t -> VertexSet.t
+    val edges : t -> EdgeSet.t
+    val vertex_to_ports : vertex -> PortSet.t
+    val next_hop : t -> vertex -> port -> vertex option
+    val endpoints : t -> edge -> (vertex * port * vertex * port)
+
+    (* Label Accessors *)
+    val vertex_to_label : t -> vertex -> Vertex.t
+    val edge_to_label : t -> edge -> Edge.t
+
+    (* Iterators *)
+    val iter_succ_e : (edge -> unit) -> t -> vertex -> unit
+    val iter_vertex : (vertex -> unit) -> t -> unit
+    val iter_edges_e : (edge -> unit) -> t -> unit
+    val fold_vertex : (vertex -> 'a -> 'a) -> t -> 'a -> 'a
+    val fold_edges_e : (edge -> 'a -> 'a) -> t -> 'a -> 'a
+
+    (* Traversals *)
+    val bfs : (vertex -> unit) -> t -> unit
+    val dfs : ?pre:(vertex -> unit) -> ?post:(vertex -> unit) -> t -> unit
+  end
+  
+  (* String Representations *)
+  module Pretty : sig
+    val to_string : Topology.t -> string
+    val to_dot : Topology.t -> string
+  end
+    
+  module Path : sig
+    type t = Topology.edge list
+        
+    val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
+  end
+
+  module Parse : sig
+    val from_dotfile : string -> Topology.t
+    val from_gmlfile : string -> Topology.t
+  end
+end
+
+module Make : MAKE

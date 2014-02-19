@@ -1,420 +1,313 @@
-open Util
-open Graph
-open Node
+module type VERTEX = sig
+  type t
 
-
-module EdgeOrd = struct
-  type t = Node.t * Link.t * Node.t
-  let src (s,_,_) = s
-  let dst (_,_,d) = d
-  let label (_,l,_) = l
-  let compare = Pervasives.compare
+  val compare : t -> t -> int
+  val hash : t -> int
+  val to_string : t -> string
+  val parse_dot : Graph.Dot_ast.node_id -> Graph.Dot_ast.attr list -> t
+  val parse_gml : Graph.Gml.value_list -> t
 end
 
-module Weight = struct
-  open Link
-  type t = Int64.t
-  type label = Link.t
-  let weight l = l.cost
-  let compare = Int64.compare
-  let add = Int64.add
-  let zero = Int64.zero
+module type EDGE = sig
+  type t
+
+  val compare : t -> t -> int
+  val hash : t -> int
+  val to_string : t -> string
+  val parse_dot : Graph.Dot_ast.attr list -> t
+  val parse_gml : Graph.Gml.value_list -> t
+  val default : t
 end
 
-module EdgeSet = Set.Make(EdgeOrd)
+module type MAKE = functor (Vertex:VERTEX) -> functor (Edge:EDGE) ->
+sig
+  module Topology : sig 
+    type t
 
-module EdgeMap = Map.Make(EdgeOrd)
+    type vertex
+    type edge
+    type port = int32
 
-module G = Persistent.Digraph.ConcreteBidirectionalLabeled(Node)(Link)
-module V = G.V
-module E = G.E
-module NH = NodeHash
-module Dij = Path.Dijkstra(G)(Weight)
-
-exception NotFound of string
-exception NoPath of string * string
-exception NegativeCycle of E.t list
-
-type t = G.t * attr_tbl
-
-(* Expose standard graph functions *)
-let empty () : t =
-  (G.empty, NH.create 1)
-
-let add_edge_e ((g,t):t) ((s,l,d):E.t) : t =
-  let g' = G.add_edge_e g (s,l,d) in
-  (g',t)
-
-let iter_succ f ((g,t):t) n = G.iter_succ f g n
-
-let fold_edges_e f (g,t) acc = G.fold_edges_e f g acc
-
-let find_edge (g,t) s d = G.find_edge g s d
-
-let nb_vertex (g,t) = G.nb_vertex g
-(* Alias for add_vertex *)
-let add_node ((g,t):t) (n:Node.t) : t =
-  (G.add_vertex g n,t)
-
-(* Add a host, given its name, MAC address and IP, to the graph *)
-let add_host ((g,t):t) (h:string) (m:Packet.dlAddr) (p:Packet.nwAddr) (i:int)
-    : t =
-  let open Node in
-  let attr = { node_type = Host; dev_id = 0L; name = h ; ip = p; mac = m} in
-  let node = create i in
-  NH.replace t node attr;
-  let g' = G.add_vertex g node in
-  (g',t)
+    module EdgeSet : Set.S
+      with type elt = edge
+      
+    module VertexSet : Set.S
+      with type elt = vertex
+      
+    module PortSet : Set.S
+      with type elt = port
+    
+    module G : Graph.Sig.G
 
 
-(* Add a switch (from it's name and id) to the graph *)
-let add_switch ((g,t):t) (s:switchId) (i:int) : t =
-  let open Node in
-  let attr = {default with node_type = Switch ; dev_id = s} in
-  let node = create i in
-  NH.replace t node attr;
-  let g' = G.add_vertex g node in
-  (g',t)
-
-(* Add an edge between particular ports on two switches *)
-let add_switch_edge ((g,t):t) (s:Node.t) (sp:portId) (d:Node.t) (dp:portId) : t =
-  let l = {Link.default with Link.srcport = sp; Link.dstport = dp} in
-  (G.add_edge_e g (s,l,d),t)
-
-(****** Accessors ******)
-(* Get a list of all the vertices in the graph *)
-let get_vertices ((g,_):t) : (V.t list) =
-  G.fold_vertex (fun v acc -> v::acc) g []
-
-  (* Get a list of all the edges in the graph. *)
-let get_edges ((g,_):t) : (E.t list) =
-  G.fold_edges_e (fun e acc -> e::acc) g []
-
-(* For a given pair of nodes in the graph, return the list of port pairs that
-   connect them. Raise NotFound if there are the two nodes are not connected *)
-let get_ports ((g,t):t) (s:V.t) (d:V.t) : (portId * portId) =
-  let es = G.find_all_edges g s d in
-  if List.length es = 0
-  then raise (NotFound (Printf.sprintf "Can't find %s to get_ports to %s\n"
-                          (to_string s t) (to_string d t)))
-  else let e = List.hd es in
-       (Link.srcport e, Link.dstport e)
-
-(* Get a list of the hosts out in the graph. Returns an empty list if
-   there are no hosts.  *)
-let get_hosts ((g,t):t) : (Node.t list) =
-  G.fold_vertex (fun v acc ->
-    let attr = NH.find t v in
-    match attr.node_type with
-    | Host -> v::acc
-    | _ -> acc
-  ) g []
+    (* Constructors *)
+    val copy : t -> t
+    val empty : unit -> t
+    val add_vertex : t -> vertex -> t
+    val add_edge : t -> vertex -> vertex -> t
+    val add_edge_e : t -> edge -> t
+    val remove_vertex : t -> vertex -> t
+    val remove_edge : t -> vertex -> vertex -> t
+    val remove_edge_e : t -> edge -> t
+    (* Special Constructors *)
 
 
-  (* Get a list of the switches out in the graph. Returns an empty list if
-     there are no switches.  *)
-let get_switches ((g,t):t) : (Node.t list) =
-  G.fold_vertex (fun v acc ->
-    let attr = NH.find t v in
-    match attr.node_type with
-    | Switch -> v::acc
-    | _ -> acc
-  ) g []
+    (* Special Accessors *)
+    val vertexes : t -> VertexSet.t
+    val edges : t -> EdgeSet.t
+    val vertex_to_ports : vertex -> PortSet.t
+    val next_hop : t -> vertex -> port -> vertex option
+    val endpoints : t -> edge -> (vertex * port * vertex * port)
 
+    (* Label Accessors *)
+    val vertex_to_label : t -> vertex -> Vertex.t
+    val edge_to_label : t -> edge -> Edge.t
 
-  (* Get a list of the switch IDs in the graph. Returns an empty list if
-     there are no switches.  *)
-let get_switchids ((g,t):t) : (switchId list) =
-  G.fold_vertex (fun v acc ->
-    let attr = NH.find t v in
-    match attr.node_type with
-    | Switch -> (attr.dev_id)::acc
-    | _ -> acc
-  ) g []
+    (* Iterators *)
+    val iter_succ_e : (edge -> unit) -> t -> vertex -> unit
+    val iter_vertex : (vertex -> unit) -> t -> unit
+    val iter_edges_e : (edge -> unit) -> t -> unit
+    val fold_vertex : (vertex -> 'a -> 'a) -> t -> 'a -> 'a
+    val fold_edges_e : (edge -> 'a -> 'a) -> t -> 'a -> 'a
 
-(* Compute a topology with unit cost *)
-let unit_cost ((g0,t):t) : t =
-  let f (n1,l,n2) g : G.t =
-    G.add_edge_e g (n1, { l with Link.cost = 1L }, n2) in
-  let g = G.fold_vertex (fun v g -> G.add_vertex g v) g0 G.empty in
-  let g = G.fold_edges_e (fun e g -> f e g) g0 g in
-  (g,t)
+    (* Traversals *)
+    val bfs : (vertex -> unit) -> t -> unit
+    val dfs : ?pre:(vertex -> unit) -> ?post:(vertex -> unit) -> t -> unit
+  end
+  
+  (* String Representations *)
+  module Pretty : sig
+    val to_string : Topology.t -> string
+    val to_dot : Topology.t -> string
+  end
+    
+  module Path : sig
+    type t = Topology.edge list
+        
+    val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
+  end
 
-  (* For a given node, return all its connected ports.
-     Raise NotFound if the node is not in the graph *)
-let ports_of_switch ((g,t):t) (s:Node.t) : portId list =
-  let ss = try (G.succ_e g s)
-    with Not_found -> raise (NotFound(Printf.sprintf
-                                        "Can't find %s to get ports_of_switch\n"
-                                        (to_string s t))) in
-  let sports = List.map
-    (fun l -> Link.srcport l) ss in
-  let ps = G.pred_e g s in
-  let pports = List.map
-    (fun l -> Link.dstport l) ps in
-  sports @ pports
+  module Parse : sig
+    val from_dotfile : string -> Topology.t
+    val from_gmlfile : string -> Topology.t
+  end
+end
 
-let next_hop ((g,t):t) (n:Node.t) (p:portId) : Node.t =
-  let ss = try (G.succ_e g n)
-    with Not_found -> raise (NotFound(Printf.sprintf
-                                        "Can't find %s to get next_hop\n"
-                                        (to_string n t))) in
-  let (_,_,d) = try (List.hd
-                       (List.filter (fun e -> (Link.srcport e) = p) ss))
-    with Failure hd -> raise (NotFound(
-      Printf.sprintf "next_hop: Port %s on %s is not connected\n"
-        (Int64.to_string p) (to_string n t)))
-  in d
+module Make : MAKE = 
+  functor (Vertex:VERTEX) -> 
+    functor (Edge:EDGE) -> 
+struct
+  module Topology = struct
+      
+    type port = int32 
+    module PortSet = Set.Make(Int32)
+    module PortMap = Map.Make(Int32)
+      
+    module VL = struct
+      type t = 
+          { id : int;
+            label : Vertex.t }
+      let compare n1 n2 = Pervasives.compare n1.id n2.id 
+      let hash n1 = Hashtbl.hash n1.id
+      let equal n1 n2 = n1.label = n2.label
+    end
+    module VertexSet = Set.Make(VL)
+      
+    module EL = struct
+      type t = { id : int;
+                 label : Edge.t; 
+                 src : port;
+                 dst : port } 
+      let compare e1 e2 = 
+        Pervasives.compare e1.id e2.id 
+      let hash e1 = 
+        Hashtbl.hash e1.id 
+      let equal e1 e2 = 
+        e1.label = e2.label
+      let default = 
+        { id = 0;
+          label = Edge.default; 
+          src = 0l; 
+          dst = 0l }
+    end
+    module EdgeSet = Set.Make(struct 
+      type t = VL.t * EL.t * VL.t
+      let compare (e1:t) (e2:t) : int = 
+        let (_,l1,_) = e1 in 
+        let (_,l2,_) = e2 in 
+        EL.compare l1 l2
+    end)
+      
+    module G = Graph.Persistent.Digraph.ConcreteBidirectionalLabeled(VL)(EL)
+      
+    type vertex = G.vertex
 
-(* Just your basic breadth first search from a src to all destinations. Returns
-   a hashtable that maps each node to its predecessor in the path *)
+    type edge = G.edge
 
-let all_paths ((g,_):t) (src:Node.t) : Node.t list NodeHash.t =
-  let paths = NH.create (G.nb_vertex g) in
-  let rec loop current =
-    let pathlet = try NH.find paths current with Not_found -> [current] in
-    G.iter_succ (fun v ->
-      if not (Node.visited v) then NH.add paths v (v::pathlet)
-    ) g current;
-    Node.visit current;
-    G.iter_succ (fun v ->
-      if not (Node.visited v) then loop v
-    ) g current in
+    type t = G.t
 
-  loop src;
-  G.iter_vertex Node.leave g;
-  paths
-(* let all_paths ((g,_):t) (src:Node.t) : Node.t NodeHash.t = *)
-(*   let size = G.nb_vertex g in *)
-(*   let prevs = NH.create size in *)
-(*   let rec loop current = *)
-(*     G.iter_succ (fun v -> *)
-(*       if not (Node.visited v) then NH.replace prevs v current *)
-(*     ) g current; *)
-(*     Node.visit current; *)
-(*     G.iter_succ (fun v -> *)
-(*       if not (Node.visited v) then loop v *)
-(*     ) g current in *)
-(*   loop src; *)
-(*   G.iter_vertex Node.leave g; *)
-(*   prevs *)
+    (* Constructors *)
+    let copy (t:t) : t = 
+      t
+        
+    let empty () : t = 
+      G.empty
+                    
+    let add_vertex (t:t) (v:vertex) : t = 
+      G.add_vertex t v
+        
+    let add_edge (t:t) (v1:vertex) (v2:vertex) : t = 
+      G.add_edge t v1 v2
 
-(* Find the shortest path between two nodes using Dijkstra's algorithm,
-   returning the list of edges making up the path. The implementation is from
-   the ocamlgraph library.
-   Raise NoPath if there is no such path. *)
+    let add_edge_e (t:t) (e:edge) : t = 
+      G.add_edge_e t e
 
-let shortest_path ((g,_):t) (src:Node.t) (dst:Node.t) : E.t list =
-  let ret,_ = Dij.shortest_path g src dst in ret
+    let remove_vertex (t:t) (v:vertex) : t = 
+      G.remove_vertex t v
 
-(* Implementation of Bellman-Ford algorithm, based on that in ocamlgraph's Path
-   library. Returns two hashtables: first maps each node to its distance from
-   the source, second maps each node to its predecessor in the path *)
-let all_shortest_paths ((g,t):t) (vs:Node.t)
-    : (int64 NodeHash.t * Node.t NodeHash.t) =
-  let size = G.nb_vertex g in
-  let dist = NH.create size in
-  let prev = NH.create size in
-  let admissible = NH.create size in
-  NH.replace dist vs Weight.zero;
-  let build_cycle_from x0 =
-    let rec traverse_parent x ret =
-      let e = NH.find admissible x in
-      let s = Link.src e in
-      if Node.equal s x0 then e :: ret else traverse_parent s (e :: ret)
-    in
-    traverse_parent x0 []
-  in
-  let find_cycle x0 =
-    let rec visit x =
-      if Node.visited x then
-        build_cycle_from x
-      else begin
-        Node.visit x;
-        let e = NH.find admissible x in
-        visit (Link.src e)
-      end
-    in
-    visit x0
-  in
-  let rec relax i =
-    let update = G.fold_edges_e
-      (fun e x ->
-        let ev1 = Link.src e in
-        let ev2 = Link.dst e in
-        try begin
-          let dev1 = NH.find dist ev1 in
-          let dev2 = Weight.add dev1 (Weight.weight (Link.label e)) in
-          let improvement =
-            try Weight.compare dev2 (NH.find dist ev2) < 0
-            with Not_found -> true
-          in
-          if improvement then begin
-            NH.replace prev ev2 ev1;
-            NH.replace dist ev2 dev2;
-            NH.replace admissible ev2 e;
-            Some ev2
-          end else x
-        end with Not_found -> x) g None in
-    match update with
-      | Some x ->
-        if i == G.nb_vertex g then raise (NegativeCycle (find_cycle x))
-        else relax (i + 1)
-      | None -> dist,prev
-  in
-  let r = relax 0 in
-  G.iter_vertex Node.leave g;
-  r
+    let remove_edge (t:t) (v1:vertex) (v2:vertex) : t = 
+      G.remove_edge t v1 v2 
 
-let stitch (path:E.t list) : (portId option * Node.t * portId option) list =
-  let hops = List.fold_left (fun acc e -> match acc with
-    | [] ->
-      [ (Some(Link.dstport e), Link.dst e , None)
-      ; (None, Link.src e, Some(Link.srcport e))]
-    | (inp, srcnode, outp)::tl ->
-      let srcport = Some (Link.srcport e) in
-      let dstport = Some (Link.dstport e) in
-      let dstnode = Link.dst e in
-      let src = (inp, srcnode, srcport) in
-      let dst = (dstport, dstnode, None) in
-      dst::src::tl
-  ) [] path in
-  List.rev hops
+    let remove_edge_e (t:t) (e:edge) : t = 
+      G.remove_edge_e t e
 
-let floyd_warshall ((g,t):t) : ((V.t * V.t) * V.t list) list =
-  let add_opt o1 o2 =
-    match o1, o2 with
-      | Some n1, Some n2 -> Some (Int64.add n1 n2)
-      | _ -> None in
-  let lt_opt o1 o2 =
-    match o1, o2 with
-      | Some n1, Some n2 -> n1 < n2
-      | Some _, None -> true
-      | None, Some _ -> false
-      | None, None -> false in
-  let make_matrix (g:G.t) =
-    let n = G.nb_vertex g in
-    let nodes = Array.of_list (get_vertices (g,t)) in
-    Array.init n
-      (fun i -> Array.init n
-        (fun j -> if i = j then (Some 0L, [nodes.(i)])
-          else
-            try
-              let l = G.find_edge g nodes.(i) nodes.(j) in
-              (Some (Link.cost l), [nodes.(i); nodes.(j)])
-            with Not_found ->
-              (None,[]))) in
-  let matrix = make_matrix g in
-  let n = G.nb_vertex g in
-  let dist i j = fst (matrix.(i).(j)) in
-  let path i j = snd (matrix.(i).(j)) in
-  for k = 0 to n - 1 do
-    for i = 0 to n - 1 do
-      for j = 0 to n - 1 do
-        let dist_ikj = add_opt (dist i k) (dist k j) in
-        if lt_opt dist_ikj (dist i j) then
-          matrix.(i).(j) <- (dist_ikj, path i k @ List.tl (path k j))
-      done
-    done
-  done;
-  let paths = ref [] in
-  let vxs = Array.of_list (get_vertices (g,t)) in
-  Array.iteri (fun i array ->
-    Array.iteri (fun j elt ->
-      let (_, p) = elt in
-      paths := ((vxs.(i),vxs.(j)),p) :: !paths) array;) matrix;
-  !paths
+    (* Special Constructors *)
+    let add_edge_p (t:t) (v1:vertex) (p1:port) (v2:vertex) (p2:port) : t = 
+      let open EL in 
+      let l = { default with id = G.nb_edges t; src = p1; dst = p2 } in 
+      let e = (v1,l,v2) in 
+      add_edge_e t e
 
-let undirected_edges ((g,_):t): E.t list =
-  G.fold_edges_e (fun e acc ->
-    let v1 = E.src e and v2 = E.dst e in
-    if V.compare v1 v2 < 0 then e::acc else acc) g []
+    (* Accessors *)
+    let fold_vertex (f:vertex -> 'a -> 'a) (t:t) (init:'a) : 'a = 
+      G.fold_vertex f t init
 
-let spanningtree ((g,t):t): G.t =
-  let tree = ref G.empty in
-  let vertices = get_vertices (g,t) in
-  match vertices with
-      [] -> !tree
-    | (vx::_) ->
-      tree := G.add_vertex (!tree) vx;
-      let visited_nodes = Hashtbl.create 16 in
-      Hashtbl.add visited_nodes vx 1;
-      let by_weight e1 e2 = Int64.compare (Link.cost e1) (Link.cost e2) in
-      let edges = List.sort by_weight (undirected_edges (g,t)) in
-      let rec find_edge tbl l tree = match l with
-          [] -> failwith "It cannot happen"
-        | h::t -> let vx1 = E.src h and vx2 = E.dst h in
-                  if Hashtbl.mem tbl vx1 && not (Hashtbl.mem tbl vx2) then
-                    (Hashtbl.add tbl vx2 1;
-                     tree := G.add_edge_e (!tree) h;
-                     tree := G.add_edge_e (!tree) (Link.reverse h))
-                  else if Hashtbl.mem tbl vx2 && not (Hashtbl.mem tbl vx1) then
-                    (Hashtbl.add tbl vx1 1;
-                     tree :=  G.add_edge_e (!tree) h;
-                     tree := ( G.add_edge_e (!tree) (Link.reverse h)))
-                  else find_edge tbl t tree in
-      while Hashtbl.length visited_nodes != List.length vertices do
-        find_edge visited_nodes edges tree
-      done;
-      !tree
+    let fold_edges_e (f:edge -> 'a -> 'a) (t:t) (init:'a) : 'a = 
+      G.fold_edges_e f t init
 
-  (* Produce a dot representation of the topology, usable by Graphviz *)
-let to_dot ((g,t):t) =
-  let edges = get_edges (g,t) in
-  let es = list_intercalate (fun l -> Link.to_dot l t) "\n" edges in
-  Printf.sprintf "digraph G {\n%s\n}" es
+    let iter_vertex (f:vertex -> unit) (t:t) : unit =
+      G.iter_vertex f t
 
-let to_string = to_dot
+    let iter_edges_e (f:edge -> unit) (t:t) : unit = 
+      G.iter_edges_e f t
 
+    let iter_succ_e (f:edge -> unit) (t:t) (v:vertex) : unit = 
+      G.iter_succ_e f t v
 
-  (* Produce a Mininet script that implements the given topology *)
-let to_mininet ((g,tbl):t) : string =
-    (* Load static strings (maybe there's a better way to do this?) *)
-  let prologue = load_file "static/mn_prologue.txt" in
-  let epilogue = load_file "static/mn_epilogue.txt" in
+    (* Special Accessors *)
+    let edges (t:t) : EdgeSet.t = 
+      G.fold_edges_e EdgeSet.add t EdgeSet.empty
 
-    (* Check if an edge or its reverse has been added already *)
-  let seen = ref EdgeSet.empty in
-  let not_printable e =
-    E.src e = E.dst e ||
-    EdgeSet.mem e !seen ||
-    EdgeSet.mem (Link.reverse e) !seen
-  in
+    let vertexes (t:t) : VertexSet.t = 
+      G.fold_vertex VertexSet.add t VertexSet.empty
+        
+    let edge_to_label (t:t) (e:edge) : Edge.t = 
+      let (_,l,_) = e in 
+      l.EL.label 
+        
+    let vertex_to_label (t:t) (v:vertex) : Vertex.t = 
+      v.VL.label 
+        
+    let endpoints (t:t) (e:edge) : (vertex * port * vertex * port) = 
+      let (v1,l,v2) = e in 
+      let p1 = l.EL.src in 
+      let p2 = l.EL.dst in 
+      (v1,p1,v2,p2)
 
-    (* Add the hosts and switches *)
-  let add_hosts = G.fold_vertex
-    (fun v acc ->
-      let attr = NH.find tbl v in
-      let add = match attr.node_type with
-        | Host ->
-          Printf.sprintf "    %s = net.addHost(\'%s\', mac=\'%s\', ip=\'%s\')\n"
-            attr.name attr.name
-            (Packet.string_of_mac attr.mac) (Packet.string_of_ip attr.ip)
-        | _ ->
-          Printf.sprintf
-            "    s%Ld = net.addSwitch(\'s%Ld\')\n" attr.dev_id attr.dev_id in
-      acc ^ add
-    )
-    g "" in
+    let next_hop (t:t) (v1:vertex) (p:port) : vertex option = 
+      List.fold_left
+        (fun a e -> 
+          match a,e with 
+            | Some _,_ -> a
+            | None,(_,l,v2) -> 
+              if l.EL.src = p then Some v2
+              else a)
+        None
+        (G.succ_e t v1)
 
-    (* Add links between them *)
-  let links = G.fold_edges_e
-    (fun e acc ->
-      let add =
-        if (not_printable e) then ""  (* Mininet links are bidirectional *)
-        else
-          let src = Str.global_replace (Str.regexp "[ ,]") ""
-            (Node.to_string (E.src e) tbl) in
-          let dst = Str.global_replace (Str.regexp "[ ,]") ""
-            (Node.to_string (E.dst e) tbl) in
-          Printf.sprintf "    net.addLink(%s, %s, %s, %s)\n"
-            src dst
-            (Int64.to_string (Link.srcport e))
-            (Int64.to_string (Link.dstport e))
-      in
-      seen := EdgeSet.add e !seen;
-      acc ^ add
-    )
-    g "" in
-  prologue ^ add_hosts ^ links ^ epilogue
+    let vertex_to_ports (v:vertex) : PortSet.t = 
+      v.VL.ports 
 
+    (* Traversals *)
+    module Bfs = Graph.Traverse.Bfs(G)
+    module Dfs = Graph.Traverse.Dfs(G)
+      
+    let bfs = Bfs.iter      
+    let dfs = Dfs.iter
+  end
+
+  module Pretty = struct 
+    open Topology
+    let to_dot (t:t) =
+      Printf.sprintf "digraph G {\n%s\n}"
+        (EdgeSet.fold
+           (fun (v1,l,v2) acc -> 
+             Printf.sprintf "%s%s%d -> %d" 
+               acc 
+               (if acc = "" then "" else "\n") 
+               v1.VL.id 
+               v2.VL.id)
+           (edges t)
+           "")
+    
+    let to_string (t:t) : string = 
+      to_dot t
+  end      
+
+  module Path = struct
+    open Topology
+    module UnitWeight = struct
+      type label = EL.t 
+      type t = int
+      let weight _ = 1
+      let compare = Pervasives.compare 
+      let add = (+)
+      let zero = 0
+    end
+
+    module Dijkstra = Graph.Path.Dijkstra(G)(UnitWeight)
+      
+    type t = edge list
+      
+    let shortest_path (t:Topology.t) (v1:vertex) (v2:vertex) : t option = 
+      try 
+        let pth,_ = Dijkstra.shortest_path t v1 v2 in 
+        Some pth
+      with Not_found -> 
+        None
+  end
+
+  module Parse = struct
+    module Dot = Graph.Dot.Parse(Topology)(struct
+      let next_node = let r = ref 0 in fun _ -> incr r; !r 
+      let next_edge = let r = ref 0 in fun _ -> incr r; !r         
+      let node id attrs = 
+        let open Topology.VL in 
+        { id = next_node ();
+          label = Vertex.parse_dot id attrs }
+      let edge attrs = 
+        let open Topology.EL in 
+        { id = next_edge ();
+          label = Edge.parse_dot attrs;
+          src = 0l;
+          dst = 0l }
+    end)
+    module Gml = Graph.Gml.Parse(Topology)(struct
+      let next_node = let r = ref 0 in fun _ -> incr r; !r 
+      let next_edge = let r = ref 0 in fun _ -> incr r; !r         
+      let node vs = 
+        let open Topology.VL in   
+        { id = next_node ();
+          label = Vertex.parse_gml vs }
+      let edge vs = 
+        let open Topology.EL in 
+        { id = next_edge ();
+          label = Edge.parse_gml vs;
+          src = 0l; 
+          dst = 0l }
+    end)
+      
+    let from_dotfile = Dot.parse
+    let from_gmlfile = Gml.parse
+  end
+end
