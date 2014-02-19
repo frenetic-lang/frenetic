@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: e1b3d2364cb442126bd779488498cc72)
+# DO NOT EDIT (digest: 9be6d2ea8c08ec54592fde38c21e590e)
 NetKAT_Lexer
 NetKAT_Parser
 NetKAT_Pretty
@@ -7,5 +7,4 @@ NetKAT_Types
 NetKAT_Util
 Semantics
 LocalCompiler
-PolicyGenerator
 # OASIS_STOP

@@ -39,8 +39,7 @@ Library netcore
     NetKAT_Types,
     NetKAT_Util,
     Semantics,
-    LocalCompiler,
-    PolicyGenerator
+    LocalCompiler
 
 Library async
   Findlibparent: netcore
