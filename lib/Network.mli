@@ -37,40 +37,34 @@ sig
     module PortSet : Set.S
       with type elt = port
     
-    module G : Graph.Sig.G
-
-    val copy : t -> t
-
     (* Constructors *)
+    val copy : t -> t
     val empty : unit -> t
-    val add_vertex : t -> vertex -> t
-    val add_edge : t -> vertex -> vertex -> t
-    val add_edge_e : t -> edge -> t
-    val remove_vertex : t -> vertex -> t
-    val remove_edge : t -> vertex -> vertex -> t
-    val remove_edge_e : t -> edge -> t
+    val add_vertex : t -> Vertex.t -> (t * vertex)
+    val add_edge : t -> vertex -> port -> Edge.t -> vertex -> port -> (t * edge)
 
     (* Special Accessors *)
     val vertexes : t -> VertexSet.t
     val edges : t -> EdgeSet.t
-    val vertex_to_ports : vertex -> PortSet.t
+    val neighbors : t -> vertex -> VertexSet.t
+    val vertex_to_ports : t -> vertex -> PortSet.t
     val next_hop : t -> vertex -> port -> vertex option
-    val endpoints : t -> edge -> (vertex * port * vertex * port)
+    val endpoints :  edge -> (vertex * port * vertex * port)
 
     (* Label Accessors *)
     val vertex_to_label : t -> vertex -> Vertex.t
     val edge_to_label : t -> edge -> Edge.t
 
     (* Iterators *)
-    val iter_succ_e : (edge -> unit) -> t -> vertex -> unit
-    val iter_vertex : (vertex -> unit) -> t -> unit
-    val iter_edges_e : (edge -> unit) -> t -> unit
-    val fold_vertex : (vertex -> 'a -> 'a) -> t -> 'a -> 'a
-    val fold_edges_e : (edge -> 'a -> 'a) -> t -> 'a -> 'a
+    val iter_succ : (edge -> unit) -> t -> vertex -> unit
+    val iter_vertexes : (vertex -> unit) -> t -> unit
+    val iter_edges : (edge -> unit) -> t -> unit
+    val fold_vertexes : (vertex -> 'a -> 'a) -> t -> 'a -> 'a
+    val fold_edges : (edge -> 'a -> 'a) -> t -> 'a -> 'a
 
     (* Traversals *)
     val bfs : (vertex -> unit) -> t -> unit
-    val dfs : ?pre:(vertex -> unit) -> ?post:(vertex -> unit) -> t -> unit
+    val dfs : (vertex -> unit) -> t -> unit
   end
   
   (* String Representations *)
@@ -90,5 +84,3 @@ sig
     val from_gmlfile : string -> Topology.t
   end
 end
-
-module Make : MAKE

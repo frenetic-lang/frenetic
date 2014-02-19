@@ -37,42 +37,34 @@ sig
     module PortSet : Set.S
       with type elt = port
     
-    module G : Graph.Sig.G
-
-
     (* Constructors *)
     val copy : t -> t
     val empty : unit -> t
-    val add_vertex : t -> vertex -> t
-    val add_edge : t -> vertex -> vertex -> t
-    val add_edge_e : t -> edge -> t
-    val remove_vertex : t -> vertex -> t
-    val remove_edge : t -> vertex -> vertex -> t
-    val remove_edge_e : t -> edge -> t
-    (* Special Constructors *)
-
+    val add_vertex : t -> Vertex.t -> (t * vertex)
+    val add_edge : t -> vertex -> port -> Edge.t -> vertex -> port -> (t * edge)
 
     (* Special Accessors *)
     val vertexes : t -> VertexSet.t
     val edges : t -> EdgeSet.t
-    val vertex_to_ports : vertex -> PortSet.t
+    val neighbors : t -> vertex -> VertexSet.t
+    val vertex_to_ports : t -> vertex -> PortSet.t
     val next_hop : t -> vertex -> port -> vertex option
-    val endpoints : t -> edge -> (vertex * port * vertex * port)
+    val endpoints :  edge -> (vertex * port * vertex * port)
 
     (* Label Accessors *)
     val vertex_to_label : t -> vertex -> Vertex.t
     val edge_to_label : t -> edge -> Edge.t
 
     (* Iterators *)
-    val iter_succ_e : (edge -> unit) -> t -> vertex -> unit
-    val iter_vertex : (vertex -> unit) -> t -> unit
-    val iter_edges_e : (edge -> unit) -> t -> unit
-    val fold_vertex : (vertex -> 'a -> 'a) -> t -> 'a -> 'a
-    val fold_edges_e : (edge -> 'a -> 'a) -> t -> 'a -> 'a
+    val iter_succ : (edge -> unit) -> t -> vertex -> unit
+    val iter_vertexes : (vertex -> unit) -> t -> unit
+    val iter_edges : (edge -> unit) -> t -> unit
+    val fold_vertexes : (vertex -> 'a -> 'a) -> t -> 'a -> 'a
+    val fold_edges : (edge -> 'a -> 'a) -> t -> 'a -> 'a
 
     (* Traversals *)
     val bfs : (vertex -> unit) -> t -> unit
-    val dfs : ?pre:(vertex -> unit) -> ?post:(vertex -> unit) -> t -> unit
+    val dfs : (vertex -> unit) -> t -> unit
   end
   
   (* String Representations *)
@@ -138,68 +130,58 @@ struct
         EL.compare l1 l2
     end)
       
-    module G = Graph.Persistent.Digraph.ConcreteBidirectionalLabeled(VL)(EL)
+    module P = Graph.Persistent.Digraph.ConcreteBidirectionalLabeled(VL)(EL)
       
-    type vertex = G.vertex
+    type vertex = P.vertex
 
-    type edge = G.edge
+    type edge = P.edge
 
-    type t = G.t
+    type t = 
+        { graph : P.t;
+          next_node : int;
+          next_edge : int }
 
     (* Constructors *)
     let copy (t:t) : t = 
       t
         
     let empty () : t = 
-      G.empty
-                    
-    let add_vertex (t:t) (v:vertex) : t = 
-      G.add_vertex t v
+      { graph = P.empty;
+        next_node = 0;
+        next_edge = 0 }
         
-    let add_edge (t:t) (v1:vertex) (v2:vertex) : t = 
-      G.add_edge t v1 v2
-
-    let add_edge_e (t:t) (e:edge) : t = 
-      G.add_edge_e t e
-
-    let remove_vertex (t:t) (v:vertex) : t = 
-      G.remove_vertex t v
-
-    let remove_edge (t:t) (v1:vertex) (v2:vertex) : t = 
-      G.remove_edge t v1 v2 
-
-    let remove_edge_e (t:t) (e:edge) : t = 
-      G.remove_edge_e t e
-
-    (* Special Constructors *)
-    let add_edge_p (t:t) (v1:vertex) (p1:port) (v2:vertex) (p2:port) : t = 
+    let add_vertex (t:t) (l:Vertex.t) : t * vertex = 
+      let open VL in 
+      let id = t.next_node + 1 in 
+      let v = { id = id; label = l } in 
+      ({ t with graph = P.add_vertex t.graph v; next_node = id}, v)
+        
+    let add_edge (t:t) (v1:vertex) (p1:port) (l:Edge.t) (v2:vertex) (p2:port) : t * edge = 
       let open EL in 
-      let l = { default with id = G.nb_edges t; src = p1; dst = p2 } in 
+      let id = t.next_edge + 1 in 
+      let l = { id = id;
+                label = l;
+                src = p1; 
+                dst = p2 } in 
       let e = (v1,l,v2) in 
-      add_edge_e t e
+      ({ t with graph = P.add_edge_e t.graph e; next_edge = id }, e)
 
-    (* Accessors *)
-    let fold_vertex (f:vertex -> 'a -> 'a) (t:t) (init:'a) : 'a = 
-      G.fold_vertex f t init
+    (* Mutators *)
+    let remove_vertex (t:t) (v:vertex) : t = 
+      { t with graph = P.remove_vertex t.graph v }
 
-    let fold_edges_e (f:edge -> 'a -> 'a) (t:t) (init:'a) : 'a = 
-      G.fold_edges_e f t init
-
-    let iter_vertex (f:vertex -> unit) (t:t) : unit =
-      G.iter_vertex f t
-
-    let iter_edges_e (f:edge -> unit) (t:t) : unit = 
-      G.iter_edges_e f t
-
-    let iter_succ_e (f:edge -> unit) (t:t) (v:vertex) : unit = 
-      G.iter_succ_e f t v
+    let remove_edge (t:t) (e:edge) : t = 
+      { t with graph = P.remove_edge_e t.graph e }
 
     (* Special Accessors *)
     let edges (t:t) : EdgeSet.t = 
-      G.fold_edges_e EdgeSet.add t EdgeSet.empty
+      P.fold_edges_e EdgeSet.add t.graph EdgeSet.empty
 
     let vertexes (t:t) : VertexSet.t = 
-      G.fold_vertex VertexSet.add t VertexSet.empty
+      P.fold_vertex VertexSet.add t.graph VertexSet.empty
+
+    let neighbors (t:t) (v:vertex) : VertexSet.t = 
+      P.fold_succ VertexSet.add t.graph v VertexSet.empty
         
     let edge_to_label (t:t) (e:edge) : Edge.t = 
       let (_,l,_) = e in 
@@ -208,7 +190,7 @@ struct
     let vertex_to_label (t:t) (v:vertex) : Vertex.t = 
       v.VL.label 
         
-    let endpoints (t:t) (e:edge) : (vertex * port * vertex * port) = 
+    let endpoints (e:edge) : (vertex * port * vertex * port) = 
       let (v1,l,v2) = e in 
       let p1 = l.EL.src in 
       let p2 = l.EL.dst in 
@@ -223,17 +205,41 @@ struct
               if l.EL.src = p then Some v2
               else a)
         None
-        (G.succ_e t v1)
+        (P.succ_e t.graph v1)
 
-    let vertex_to_ports (v:vertex) : PortSet.t = 
-      v.VL.ports 
+    let vertex_to_ports (t:t) (v1:vertex) : PortSet.t = 
+      List.fold_left 
+        (fun a e -> 
+          let _,l,_ = e in 
+          PortSet.add l.EL.src a)
+        PortSet.empty
+        (P.succ_e t.graph v1)
+
+    (* Folds *)
+    let fold_vertexes (f:vertex -> 'a -> 'a) (t:t) (init:'a) : 'a = 
+      P.fold_vertex f t.graph init
+
+    let fold_edges (f:edge -> 'a -> 'a) (t:t) (init:'a) : 'a = 
+      P.fold_edges_e f t.graph init
+
+    let iter_vertexes (f:vertex -> unit) (t:t) : unit =
+      P.iter_vertex f t.graph
+
+    let iter_edges (f:edge -> unit) (t:t) : unit = 
+      P.iter_edges_e f t.graph
+
+    let iter_succ (f:edge -> unit) (t:t) (v:vertex) : unit = 
+      P.iter_succ_e f t.graph v
 
     (* Traversals *)
-    module Bfs = Graph.Traverse.Bfs(G)
-    module Dfs = Graph.Traverse.Dfs(G)
+    module Bfs = Graph.Traverse.Bfs(P)
+    module Dfs = Graph.Traverse.Dfs(P)
       
-    let bfs = Bfs.iter      
-    let dfs = Dfs.iter
+    let bfs (f:vertex -> unit) (t:t) = 
+      Bfs.iter f t.graph
+
+    let dfs (f:vertex -> unit) (t:t) = 
+      Dfs.prefix f t.graph
   end
 
   module Pretty = struct 
@@ -265,20 +271,112 @@ struct
       let zero = 0
     end
 
-    module Dijkstra = Graph.Path.Dijkstra(G)(UnitWeight)
+    module Dijkstra = Graph.Path.Dijkstra(P)(UnitWeight)
       
     type t = edge list
       
     let shortest_path (t:Topology.t) (v1:vertex) (v2:vertex) : t option = 
       try 
-        let pth,_ = Dijkstra.shortest_path t v1 v2 in 
+        let pth,_ = Dijkstra.shortest_path t.graph v1 v2 in 
         Some pth
       with Not_found -> 
         None
   end
 
   module Parse = struct
-    module Dot = Graph.Dot.Parse(Topology)(struct
+    open Topology
+    module Build = struct
+      module G = struct
+        module V = P.V
+        module E = P.E
+        type vertex = V.t
+        type edge = E.t
+        type t = Topology.t 
+        let empty () = 
+          Topology.empty ()
+        let remove_vertex t v = 
+          { t with graph = P.remove_vertex t.graph v }
+        let remove_edge t v1 v2 = 
+          { t with graph = P.remove_edge t.graph v1 v2 }
+        let remove_edge_e t e = 
+          { t with graph = P.remove_edge_e t.graph e }
+        let add_vertex t v = 
+          { t with graph = P.add_vertex t.graph v }        
+        let add_edge t v1 v2 = 
+          { t with graph = P.add_edge t.graph v1 v2 }
+        let add_edge_e t e = 
+          { t with graph = P.add_edge_e t.graph e }
+        let fold_pred_e f t i = 
+          P.fold_pred_e f t.graph i
+        let iter_pred_e f t = 
+          P.iter_pred_e f t.graph
+        let fold_succ_e f t i = 
+          P.fold_succ_e f t.graph i 
+        let iter_succ f t v = 
+          P.iter_succ f t.graph v
+        let iter_succ_e f t v = 
+          P.iter_succ_e f t.graph v
+        let iter_edges f t = 
+          P.iter_edges f t.graph
+        let fold_pred f t v i = 
+          P.fold_pred f t.graph v i
+        let fold_succ f t v i = 
+          P.fold_succ f t.graph v i
+        let iter_pred f t v = 
+          P.iter_pred f t.graph v
+        let map_vertex f t = 
+          { t with graph = P.map_vertex f t.graph }
+        let fold_edges_e f t i = 
+          P.fold_edges_e f t.graph i
+        let iter_edges_e f t = 
+          P.iter_edges_e f t.graph
+        let fold_vertex f t i = 
+          P.fold_vertex f t.graph i
+        let fold_edges f t i = 
+          P.fold_edges f t.graph i
+        let iter_vertex f t = 
+          P.iter_vertex f t.graph
+        let pred_e t v  = 
+          P.pred_e t.graph v
+        let succ_e t v = 
+          P.succ_e t.graph v
+        let pred t v = 
+          P.pred t.graph v
+        let succ t v = 
+          P.succ t.graph v
+        let find_all_edges t v1 v2 = 
+          P.find_all_edges t.graph v1 v2
+        let find_edge t v1 v2 = 
+          P.find_edge t.graph v1 v2
+        let mem_edge_e t e = 
+          P.mem_edge_e t.graph e
+        let mem_edge t v1 v2 = 
+          P.mem_edge t.graph v1 v2
+        let mem_vertex t v = 
+          P.mem_vertex t.graph v
+        let in_degree t v = 
+          P.in_degree t.graph v
+        let out_degree t v = 
+          P.out_degree t.graph v
+        let nb_edges t = 
+          P.nb_edges t.graph
+        let nb_vertex t = 
+          P.nb_vertex t.graph
+        let is_empty t = 
+          P.is_empty t.graph
+        let is_directed = 
+          P.is_directed
+      end
+      let empty = G.empty
+      let remove_vertex = G.remove_vertex
+      let remove_edge = G.remove_edge
+      let remove_edge_e = G.remove_edge_e 
+      let add_vertex = G.add_vertex        
+      let add_edge = G.add_edge
+      let add_edge_e = G.add_edge_e
+      let copy t = t
+    end
+    module Dot = Graph.Dot.Parse(Build)(struct
       let next_node = let r = ref 0 in fun _ -> incr r; !r 
       let next_edge = let r = ref 0 in fun _ -> incr r; !r         
       let node id attrs = 
@@ -292,7 +390,7 @@ struct
           src = 0l;
           dst = 0l }
     end)
-    module Gml = Graph.Gml.Parse(Topology)(struct
+    module Gml = Graph.Gml.Parse(Build)(struct
       let next_node = let r = ref 0 in fun _ -> incr r; !r 
       let next_edge = let r = ref 0 in fun _ -> incr r; !r         
       let node vs = 
