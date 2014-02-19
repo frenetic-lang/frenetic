@@ -84,3 +84,5 @@ sig
     val from_gmlfile : string -> Topology.t
   end
 end
+
+module Make : MAKE
