@@ -70,6 +70,46 @@ let headers_to_actions port (h:NetKAT_Types.Headers.t) : SDN_Types.action list =
     ~tcpSrcPort:(g (fun v -> SetField(TCPSrcPort, VInt.Int16 v)))
     ~tcpDstPort:(g (fun v -> SetField(TCPDstPort, VInt.Int16 v)))
 
+exception Unsupported_mod of string
+
+let payload_bytes p = match p with
+  | SDN_Types.NotBuffered(bytes)
+  | SDN_Types.Buffered(_, bytes) -> bytes
+
+let packet_sync_headers (pkt:NetKAT_Types.packet) : NetKAT_Types.packet * bool =
+  let open NetKAT_Types in
+  let change = ref false in
+  let g p q acc f =
+    match Field.get f pkt.headers with
+      | Some v -> if p v acc then
+          acc
+        else begin
+          change := true;
+          q acc v
+        end
+      | None -> acc in
+  let fail field = (fun _ -> raise (Unsupported_mod field)) in
+  let packet = Packet.parse (payload_bytes pkt.payload) in
+  let packet' = Headers.Fields.fold
+    ~init:packet
+    ~location:(fun acc _ -> acc)
+    ~ethSrc:(g (fun v p -> v = p.Packet.dlSrc) Packet.setDlSrc)
+    ~ethDst:(g (fun v  p -> v = p.Packet.dlDst) Packet.setDlDst)
+    (* XXX(seliopou): Fix impls of: vlan, vlanPcp *)
+    ~vlan:(g (fail "vlan") (fail "vlan"))
+    ~vlanPcp:(g (fun _ _ -> true) (fail "vlanPcp"))
+    ~ipSrc:(g (fun (v, _) p -> v = Packet.nwSrc p) (fun acc (nw, _) -> Packet.setNwSrc acc nw))
+    ~ipDst:(g (fun (v, _) p -> v = Packet.nwDst p) (fun acc (nw, _) -> Packet.setNwDst acc nw))
+    ~tcpSrcPort:(g (fun v p -> v = Packet.tpSrc p) Packet.setTpSrc)
+    ~tcpDstPort:(g (fun v p -> v = Packet.tpDst p) Packet.setTpDst)
+    (* XXX(seliopou): currently does not support: *)
+    ~ethType:(g (fun _ _ -> true) (fail "ethType"))
+    ~ipProto:(g (fun _ _ -> true) (fail "ipProto")) in
+  ({ pkt with payload = match pkt.payload with
+    | SDN_Types.NotBuffered(_) -> SDN_Types.NotBuffered(Packet.marshal packet')
+    | SDN_Types.Buffered(n, _) -> SDN_Types.Buffered(n, Packet.marshal packet')
+  }, !change)
+
 let packet_out_to_message (_, bytes, buffer_id, port_id, actions) =
   let open OpenFlow0x01_Core in
   let output_payload = match buffer_id with
@@ -132,7 +172,12 @@ let to_event (t : t) evt =
                   send t.ctl c_id (0l, packet_out_to_message po)) in
                 Deferred.ignore outs >>= fun _ ->
                 return (List.map pis ~f:(fun (p, pkt) ->
-                  PacketIn(p, switch_id, port_id, bytes, pi.total_len, buf_id)))
+                  let pkt', changed = packet_sync_headers pkt in
+                  if changed then
+                    let bytes = payload_bytes pkt'.payload in
+                    PacketIn(p, switch_id, port_id, bytes, pi.total_len, None)
+                  else
+                    PacketIn(p, switch_id, port_id, bytes, pi.total_len, buf_id)))
               end
           end
         | _ ->
