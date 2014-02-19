@@ -13,22 +13,7 @@ Library topology
   Path: lib
   Pack: true
   BuildDepends:
-    str,
-    core,
     ocamlgraph,
-    packet,
     threads
-  InternalModules:
-    Util
   Modules:
     Network
-
-
-Executable otopo
-  Path: exe
-  MainIs: main.ml
-  BuildDepends:
-    ocamlgraph,
-    packet,
-    topology
-  Install: False

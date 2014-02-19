@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 8bb0fb958e721d88481a27fd49f88d94)
+# DO NOT EDIT (digest: 761b15aed0a76e189f573439ff66e8c2)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -16,23 +16,6 @@
 # Library topology
 "lib/topology.cmxs": use_topology
 "lib/Network.cmx": for-pack(Topology)
-"lib/Util.cmx": for-pack(Topology)
 <lib/*.ml{,i}>: pkg_ocamlgraph
-<lib/*.ml{,i}>: pkg_packet
-<lib/*.ml{,i}>: pkg_str
-<lib/*.ml{,i}>: pkg_core
 <lib/*.ml{,i}>: pkg_threads
-# Executable otopo
-"exe/main.byte": use_topology
-"exe/main.byte": pkg_ocamlgraph
-"exe/main.byte": pkg_packet
-"exe/main.byte": pkg_str
-"exe/main.byte": pkg_core
-"exe/main.byte": pkg_threads
-<exe/*.ml{,i}>: use_topology
-<exe/*.ml{,i}>: pkg_ocamlgraph
-<exe/*.ml{,i}>: pkg_packet
-<exe/*.ml{,i}>: pkg_str
-<exe/*.ml{,i}>: pkg_core
-<exe/*.ml{,i}>: pkg_threads
 # OASIS_STOP
