@@ -43,10 +43,6 @@ module type NETWORK = sig
     val add_vertex : t -> Vertex.t -> (t * vertex)
     val add_edge : t -> vertex -> port -> Edge.t -> vertex -> port -> (t * edge)
 
-    (* Mutators *)
-    val remove_vertex : t -> vertex -> t
-    val remove_edge : t -> edge -> t
-
     (* Special Accessors *)
     val vertexes : t -> VertexSet.t
     val edges : t -> EdgeSet.t
@@ -66,6 +62,11 @@ module type NETWORK = sig
     val iter_edges : (edge -> unit) -> t -> unit
     val fold_vertexes : (vertex -> 'a -> 'a) -> t -> 'a -> 'a
     val fold_edges : (edge -> 'a -> 'a) -> t -> 'a -> 'a
+
+    (* Mutators *)
+    val remove_vertex : t -> vertex -> t
+    val remove_edge : t -> edge -> t
+    val remove_endpoint : t -> (vertex * port) -> t
   end
 
   (* Traversals *)
@@ -178,13 +179,6 @@ struct
       let e = (v1,l,v2) in 
       ({ t with graph = P.add_edge_e t.graph e; next_edge = id }, e)
 
-    (* Mutators *)
-    let remove_vertex (t:t) (v:vertex) : t = 
-      { t with graph = P.remove_vertex t.graph v }
-
-    let remove_edge (t:t) (e:edge) : t = 
-      { t with graph = P.remove_edge_e t.graph e }
-
     (* Special Accessors *)
     let edges (t:t) : EdgeSet.t = 
       P.fold_edges_e EdgeSet.add t.graph EdgeSet.empty
@@ -227,7 +221,7 @@ struct
         PortSet.empty
         (P.succ_e t.graph v1)
 
-    (* Folds *)
+    (* Iterators *)
     let fold_vertexes (f:vertex -> 'a -> 'a) (t:t) (init:'a) : 'a = 
       P.fold_vertex f t.graph init
 
@@ -242,6 +236,21 @@ struct
 
     let iter_succ (f:edge -> unit) (t:t) (v:vertex) : unit = 
       P.iter_succ_e f t.graph v
+
+    (* Mutators *)
+    let remove_vertex (t:t) (v:vertex) : t =
+      { t with graph = P.remove_vertex t.graph v }
+
+    let remove_edge (t:t) (e:edge) : t =
+      { t with graph = P.remove_edge_e t.graph e }
+
+    let remove_endpoint (t:t) (ep : vertex * port) : t =
+      fold_edges (fun e acc ->
+        if edge_src e = ep || edge_dst e = ep
+          then remove_edge acc e
+          else acc)
+        t t
+
   end
 
   (* Traversals *)
