@@ -54,6 +54,7 @@ module type NETWORK = sig
 
     (* Label Accessors *)
     val vertex_to_label : t -> vertex -> Vertex.t
+    val vertex_of_label : t -> Vertex.t -> vertex
     val edge_to_label : t -> edge -> Edge.t
 
     (* Iterators *)
@@ -120,6 +121,7 @@ struct
       let equal n1 n2 = n1.id = n2.id
     end
     module VertexSet = Set.Make(VL)
+    module VertexMap = Map.Make(Vertex)
       
     module EL = struct
       type t = { id : int;
@@ -151,6 +153,7 @@ struct
 
     type t = 
         { graph : P.t;
+          node_labels : vertex VertexMap.t;
           next_node : int;
           next_edge : int }
 
@@ -160,23 +163,25 @@ struct
         
     let empty () : t = 
       { graph = P.empty;
+        node_labels = VertexMap.empty;
         next_node = 0;
         next_edge = 0 }
         
     let add_vertex (t:t) (l:Vertex.t) : t * vertex = 
-      let open VL in 
-      let id = t.next_node + 1 in 
-      let v = { id = id; label = l } in 
-      ({ t with graph = P.add_vertex t.graph v; next_node = id}, v)
+      let open VL in
+      try (t, VertexMap.find l t.node_labels)
+      with Not_found ->
+        let id = t.next_node + 1 in
+        let v = { id = id; label = l } in
+        let graph = P.add_vertex t.graph v in
+        let node_labels = VertexMap.add l v t.node_labels in
+        ({ t with graph; node_labels; next_node = id}, v)
         
     let add_edge (t:t) (v1:vertex) (p1:port) (l:Edge.t) (v2:vertex) (p2:port) : t * edge = 
-      let open EL in 
-      let id = t.next_edge + 1 in 
-      let l = { id = id;
-                label = l;
-                src = p1; 
-                dst = p2 } in 
-      let e = (v1,l,v2) in 
+      let open EL in
+      let id = t.next_edge + 1 in
+      let l = { id = id; label = l; src = p1; dst = p2 } in
+      let e = (v1,l,v2) in
       ({ t with graph = P.add_edge_e t.graph e; next_edge = id }, e)
 
     (* Special Accessors *)
@@ -192,9 +197,12 @@ struct
     let edge_to_label (t:t) (e:edge) : Edge.t = 
       let (_,l,_) = e in 
       l.EL.label 
-        
+
     let vertex_to_label (t:t) (v:vertex) : Vertex.t = 
       v.VL.label 
+
+    let vertex_of_label (t:t) (l:Vertex.t) : vertex =
+      VertexMap.find l t.node_labels
 
     let edge_src (e:edge) : (vertex * port) =
       let (v1,l,_) = e in
@@ -239,7 +247,9 @@ struct
 
     (* Mutators *)
     let remove_vertex (t:t) (v:vertex) : t =
-      { t with graph = P.remove_vertex t.graph v }
+      let graph = P.remove_vertex t.graph v in
+      let node_labels = VertexMap.remove v.VL.label t.node_labels in
+      { t with graph; node_labels }
 
     let remove_edge (t:t) (e:edge) : t =
       { t with graph = P.remove_edge_e t.graph e }

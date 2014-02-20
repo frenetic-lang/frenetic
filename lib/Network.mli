@@ -54,6 +54,7 @@ module type NETWORK = sig
 
     (* Label Accessors *)
     val vertex_to_label : t -> vertex -> Vertex.t
+    val vertex_of_label : t -> Vertex.t -> vertex
     val edge_to_label : t -> edge -> Edge.t
 
     (* Iterators *)
