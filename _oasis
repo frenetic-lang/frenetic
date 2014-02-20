@@ -11,7 +11,6 @@ BuildTools:
 
 Library topology
   Path: lib
-  Pack: true
   BuildDepends:
     ocamlgraph,
     threads
