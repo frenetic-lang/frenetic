@@ -49,7 +49,8 @@ module type NETWORK = sig
     val neighbors : t -> vertex -> VertexSet.t
     val vertex_to_ports : t -> vertex -> PortSet.t
     val next_hop : t -> vertex -> port -> edge option
-    val endpoints :  edge -> (vertex * port * vertex * port)
+    val edge_src : edge -> (vertex * port)
+    val edge_dst : edge -> (vertex * port)
 
     (* Label Accessors *)
     val vertex_to_label : t -> vertex -> Vertex.t

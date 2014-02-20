@@ -49,7 +49,8 @@ module type NETWORK = sig
     val neighbors : t -> vertex -> VertexSet.t
     val vertex_to_ports : t -> vertex -> PortSet.t
     val next_hop : t -> vertex -> port -> edge option
-    val endpoints :  edge -> (vertex * port * vertex * port)
+    val edge_src : edge -> (vertex * port)
+    val edge_dst : edge -> (vertex * port)
 
     (* Label Accessors *)
     val vertex_to_label : t -> vertex -> Vertex.t
@@ -196,12 +197,14 @@ struct
         
     let vertex_to_label (t:t) (v:vertex) : Vertex.t = 
       v.VL.label 
-        
-    let endpoints (e:edge) : (vertex * port * vertex * port) = 
-      let (v1,l,v2) = e in 
-      let p1 = l.EL.src in 
-      let p2 = l.EL.dst in 
-      (v1,p1,v2,p2)
+
+    let edge_src (e:edge) : (vertex * port) =
+      let (v1,l,_) = e in
+      (v1, l.EL.src)
+
+    let edge_dst (e:edge) : (vertex * port) =
+      let (_,l,v2) = e in
+      (v2, l.EL.dst)
 
     let next_hop (t:t) (v1:vertex) (p:port) : edge option =
       let rec loop es = match es with
