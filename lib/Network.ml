@@ -48,7 +48,7 @@ module type NETWORK = sig
     val edges : t -> EdgeSet.t
     val neighbors : t -> vertex -> VertexSet.t
     val vertex_to_ports : t -> vertex -> PortSet.t
-    val next_hop : t -> vertex -> port -> vertex option
+    val next_hop : t -> vertex -> port -> edge option
     val endpoints :  edge -> (vertex * port * vertex * port)
 
     (* Label Accessors *)
@@ -203,16 +203,14 @@ struct
       let p2 = l.EL.dst in 
       (v1,p1,v2,p2)
 
-    let next_hop (t:t) (v1:vertex) (p:port) : vertex option = 
-      List.fold_left
-        (fun a e -> 
-          match a,e with 
-            | Some _,_ -> a
-            | None,(_,l,v2) -> 
-              if l.EL.src = p then Some v2
-              else a)
-        None
-        (P.succ_e t.graph v1)
+    let next_hop (t:t) (v1:vertex) (p:port) : edge option =
+      let rec loop es = match es with
+        | [] -> None
+        | ((_,l,v2) as e)::es' ->
+          if l.EL.src = p
+            then Some e
+            else (loop es') in
+      loop (P.succ_e t.graph v1)
 
     let vertex_to_ports (t:t) (v1:vertex) : PortSet.t = 
       List.fold_left 
