@@ -43,6 +43,10 @@ module type NETWORK = sig
     val add_vertex : t -> Vertex.t -> (t * vertex)
     val add_edge : t -> vertex -> port -> Edge.t -> vertex -> port -> (t * edge)
 
+    (* Mutators *)
+    val remove_vertex : t -> vertex -> t
+    val remove_edge : t -> edge -> t
+
     (* Special Accessors *)
     val vertexes : t -> VertexSet.t
     val edges : t -> EdgeSet.t
