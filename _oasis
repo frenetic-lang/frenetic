@@ -71,7 +71,8 @@ Library quickcheck
   BuildDepends:
     openflow.quickcheck,
     quickcheck,
-    netcore
+    netcore,
+    packet.quickcheck
   Modules:
     NetKAT_Arbitrary
 
