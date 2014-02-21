@@ -146,6 +146,26 @@ TEST "vlan" =
       (Seq (mod_vlan_none, mod_port1)) in 
   test_compile pol pol'
 
+TEST "quickcheck ka-plus-zero" =
+  let testable_pol_pkt_to_bool =
+    let open QuickCheck in
+    let open QuickCheck_gen in
+    let open NetKAT_Arbitrary in
+    let open Packet_Arbitrary in
+    let open Packet in
+    testable_fun
+      (resize 11
+        (arbitrary_pair arbitrary_lf_pol NetKAT_Arbitrary.arbitrary_tcp))
+      (fun (p,_) -> string_of_policy p) testable_bool in
+  let prop_compile_ok (pol, pkt) =
+    let pol = Seq(Filter(Test(Location(Physical 0l))), pol) in
+    let open Semantics in
+    PacketSet.compare (eval pkt pol) (eval pkt (Union(pol, drop))) = 0 in
+  let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 1000 } in
+  match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
+    QuickCheck.Success -> true
+  | _ -> false
+
 (* TEST "quickcheck local compiler" = *)
 (*   let testable_pol_pkt_to_bool = *)
 (*     let open QuickCheck in *)
