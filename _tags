@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: e14b374cc9af065f33312a9ab35214d5)
+# DO NOT EDIT (digest: 185857d0d075f50482fac975ac8cf36d)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -52,6 +52,7 @@
 <quickcheck/*.ml{,i}>: package(packet)
 <quickcheck/*.ml{,i}>: package(quickcheck)
 <quickcheck/*.ml{,i}>: package(openflow.quickcheck)
+<quickcheck/*.ml{,i}>: package(packet.quickcheck)
 <quickcheck/*.ml{,i}>: package(cstruct)
 <quickcheck/*.ml{,i}>: package(ocamlgraph)
 <quickcheck/*.ml{,i}>: package(openflow)
@@ -71,6 +72,7 @@
 "test/Test.byte": package(pa_ounit.syntax)
 "test/Test.byte": package(quickcheck)
 "test/Test.byte": package(openflow.quickcheck)
+"test/Test.byte": package(packet.quickcheck)
 "test/Test.byte": package(cstruct)
 "test/Test.byte": package(ocamlgraph)
 "test/Test.byte": package(openflow)
@@ -89,6 +91,7 @@
 <test/*.ml{,i}>: package(pa_ounit.syntax)
 <test/*.ml{,i}>: package(quickcheck)
 <test/*.ml{,i}>: package(openflow.quickcheck)
+<test/*.ml{,i}>: package(packet.quickcheck)
 <test/*.ml{,i}>: package(cstruct)
 <test/*.ml{,i}>: package(ocamlgraph)
 <test/*.ml{,i}>: package(openflow)
