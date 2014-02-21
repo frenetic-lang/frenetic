@@ -1,12 +1,10 @@
 open Core.Std
-open Topology
-
 
 module Probe = struct
 
   cstruct nib_payload {
     uint64_t switch_id;
-    uint64_t port_id
+    uint32_t port_id
   } as big_endian
 
   (* XXX(seliopou): Watch out for this. The protocol in etheret packets has two
@@ -15,7 +13,7 @@ module Probe = struct
    *
    * This is not the protocol, but in fact the size.
    * *)
-  let protocol = 0x05ff
+  let protocol = 0x05fb
   let mac = 0xffeabbadabbaL
 
   exception Wrong_type
@@ -25,7 +23,7 @@ module Probe = struct
    * *)
   type t =
     { switch_id : int64
-    ; port_id : int64
+    ; port_id : int32
     }
 
   let marshal t b =
@@ -61,6 +59,37 @@ module Probe = struct
     }
 end
 
+module Node = struct
+  type t =
+    | Switch of SDN_Types.switchId
+    | Host of Packet.dlAddr * Packet.nwAddr
+
+  let compare = Pervasives.compare
+
+  let to_string t = match t with
+    | Switch(sw_id)       -> Printf.sprintf "switch %Lu" sw_id
+    | Host(dlAddr, nwAddr) -> Printf.sprintf "host %s/%s"
+        (Packet.string_of_nwAddr nwAddr)
+        (Packet.string_of_dlAddr dlAddr)
+
+  let parse_dot _ _ = failwith "NYI: Node.parse_dot"
+  let parse_gml _ = failwith "NYI: Node.parse_dot"
+end
+
+module Edge = struct
+  type t = unit
+
+  let compare = Pervasives.compare
+
+  let to_string () = "()"
+  let default = ()
+
+  let parse_dot _ = failwith "NYI: Edge.parse_dot"
+  let parse_gml _ = failwith "NYI: Edge.parse_dot"
+end
+
+module Net = Network.Make(Node)(Edge)
+
 module Protocol : sig
   open Async.Std
 
@@ -70,15 +99,15 @@ module Protocol : sig
     with type Key.t = SDN_Types.switchId
 
   module PortSet : Set.S
-    with type Elt.t = Int64.t
+    with type Elt.t = Int32.t
 
   val create
-    : ?nib:Topology.t
+    : ?nib:Net.Topology.t
     -> unit
     -> t
 
   val state
-    : t -> Topology.t
+    : t -> Net.Topology.t
 
   val setup_probe
     : t
@@ -121,23 +150,23 @@ end = struct
   open Async.Std
 
   module SwitchMap = Map.Make(Int64)
-  module PortSet = Set.Make(Int64)
+  module PortSet = Set.Make(Int32)
 
   module Log = Async_OpenFlow_Log
   let tags = [("openflow", "topology")]
 
   type t =
-    { nib : Topology.t
+    { nib : Net.Topology.t
     ; pending : PortSet.t SwitchMap.t
     }
 
   let create ?nib () =
     let nib = match nib with
       | Some(n) -> n
-      | None -> Topology.empty in
+      | None -> Net.Topology.empty () in
     { nib; pending = SwitchMap.empty }
 
-  let state (t : t) : Topology.t = t.nib
+  let state (t : t) : Net.Topology.t = t.nib
 
   open OpenFlow0x01
 
@@ -147,53 +176,61 @@ end = struct
        then false
        else not (descr.state.PortState.down)
 
-  let add_ports_edge (nib:Topology.t) n1 (p1:int64) n2 (p2:int64) =
-    Topology.(add_ports_edge
-      (add_ports_edge nib n1 p1 n2 p2)
-      n2 p2 n1 p1)
+  let add_ports_edge (nib:Net.Topology.t) n1 (p1:int32) n2 (p2:int32) =
+    let open Net.Topology in
+    let nib, v1 = try (nib, vertex_of_label nib n1)
+      with Not_found -> add_vertex nib n1 in
+    let nib, v2 = try (nib, vertex_of_label nib n2)
+      with Not_found -> add_vertex nib n2 in
+    let nib, _ = Net.Topology.add_edge nib v1 p1 () v2 p2 in
+    let nib, _ = Net.Topology.add_edge nib v2 p2 () v1 p1 in
+    nib
 
-  let add_host_edge (nib:Topology.t) s (p:int64) h =
-    add_ports_edge nib s p h 0L
+  let add_host_edge (nib:Net.Topology.t) s (p:int32) h =
+    add_ports_edge nib s p h 0l
 
-  let next_hop_via nib n port_id =
-    try Some(Topology.next_hop_via nib n port_id)
-      with Topology.NotFound(_) -> None
+  let next_hop_via (nib:Net.Topology.t) n1 p1 =
+    let open Net.Topology in
+    try
+      let v1 = vertex_of_label nib n1 in
+      Misc.map_option edge_dst (next_hop nib v1 p1)
+    with Not_found -> None
 
-  let next_switch_hop_via nib sw port_id =
-    match next_hop_via nib sw port_id with
-      | Some(l, Node.Switch sw) -> Some(l.Link.dstport, sw)
-      | _ -> None
+  let next_switch_hop_via (nib:Net.Topology.t) n1 p1 =
+    match next_hop_via nib n1 p1 with
+      | Some(v2, p2) ->
+        begin match Net.Topology.vertex_to_label nib v2 with
+          | Node.Switch(sw_id) -> Some(sw_id, p2)
+          | Node.Host _ -> None
+        end
+      | None -> None
 
-  let next_host_hop_via nib h =
-    match next_hop_via nib h 0L with
-      | Some(l, Node.Switch sw) -> Some(l.Link.dstport, sw)
-      | _ -> None
-
-  let remove_port nib n p =
-    match next_hop_via nib n p with
-      | Some(l, h') ->
-        Topology.(remove_port
-          (remove_port nib n p)
-          h' l.Link.dstport)
-      | None -> nib
+  let remove_endpoint (nib0 : Net.Topology.t) (n1, p1) =
+    let open Net.Topology in
+    let v1 = vertex_of_label nib0 n1 in
+    match next_hop nib0 v1 p1 with
+      | Some(e) ->
+        let nib1 = remove_endpoint nib0 (edge_src e) in
+        let nib2 = remove_endpoint nib1 (edge_dst e) in
+        nib2
+      | None -> nib0
 
   let receive_probe t switch_id port_id probe =
     let open Probe in
     let ports = try SwitchMap.find_exn t.pending probe.switch_id
       with Not_found -> PortSet.empty in
-    let n1, n2 = Node.Switch switch_id, Node.Switch probe.switch_id in
-    let nib = match next_switch_hop_via t.nib n1 port_id with
-      | Some(p', sw') ->
+    let nib = match next_switch_hop_via t.nib (Node.Switch switch_id) port_id with
+      | Some(sw', p') ->
         assert (sw' = probe.switch_id);
         assert (p'  = probe.port_id);
         t.nib
       | None ->
-        Log.info ~tags "link(add): %Lu@%Lu <=> %Lu@%Lu"
+        Log.info ~tags "link(add): %Lu@%lu <=> %Lu@%lu"
           switch_id       port_id
           probe.switch_id probe.port_id;
         add_ports_edge t.nib
-          n1 port_id
-          n2 probe.port_id in
+          (Node.Switch switch_id)       port_id
+          (Node.Switch probe.switch_id) probe.port_id in
     { nib
     ; pending = SwitchMap.add t.pending switch_id (PortSet.remove ports probe.port_id)
     }
@@ -205,40 +242,36 @@ end = struct
     match arp with
       | Arp.Query(dlSrc, nwSrc, _)
       | Arp.Reply(dlSrc, nwSrc, _, _) ->
-        let host_str = Printf.sprintf "%s/%s"
-          (Packet.string_of_ip nwSrc)
-          (Packet.string_of_mac dlSrc) in
-        let h, s = Node.Host(host_str, dlSrc, nwSrc), Node.Switch(switch_id) in
-        begin match next_host_hop_via t.nib h with
-          | Some (pt, sw) ->
+        let h, s = Node.Host(dlSrc, nwSrc), Node.Switch(switch_id) in
+        begin match next_switch_hop_via t.nib h 0l with
+          | Some (sw, pt) ->
             (* XXX(seliopou): For now, the code assumes that the entire network
              * is under the management of the controller, and that a host will
              * go down before it comes up at another port, i.e., each MAC/IP is
              * connected to a single port at any given time.
              * *)
-            Log.info ~tags "arp: packet for known host %s <=> %Lu@%Lu seen at %Lu@%Lu"
-              host_str
+            Log.info ~tags "arp: packet for known host %s@0 <=> %Lu@%lu seen at %Lu@%lu"
+              (Node.to_string h)
               sw        pt
               switch_id port
           | None ->
-            Log.info ~tags "link(add): %Lu@%Lu <=> %s"
+            Log.info ~tags "link(add): %Lu@%lu <=> %s"
               switch_id port
-              host_str
+              (Node.to_string h)
         end;
         { nib = add_host_edge t.nib s port h
         ; pending = SwitchMap.add t.pending switch_id (PortSet.remove ports port)
         }
 
   let add_port t ~send ~switch_id port =
-    let port_no = port.PortDescription.port_no in
-    let port_id = Int64.of_int port_no in
+    let port_id = Int32.of_int_exn (port.PortDescription.port_no) in
     let set = match SwitchMap.find t.pending switch_id with
       | Some(set0) -> PortSet.add set0 port_id
       | None -> PortSet.singleton port_id in
     let open OpenFlow0x01_Core in
     let output_payload =
       NotBuffered (Packet.marshal Probe.(to_packet { switch_id; port_id })) in
-    let apply_actions = [Output (PhysicalPort(port_no))] in
+    let apply_actions = [Output (PhysicalPort(Int32.to_int_exn port_id))] in
     (* XXX(seliopou): In addition to sending the initial probe, this function
      * should also start a timer that checks that the probe has been received by
      * the controller and, if it has not, should send another probe.
@@ -252,20 +285,17 @@ end = struct
   let handle_remove_port t ~switch_id port =
     let ports = try SwitchMap.find_exn t.pending switch_id
       with Not_found -> PortSet.empty in
-    let p = Int64.of_int (port.OpenFlow0x01.PortDescription.port_no) in
-    begin match next_hop_via t.nib (Node.Switch switch_id) p with
-      | Some(l, Node.Switch s2) ->
-        Log.info ~tags "link(remove): %Lu@%Lu <=> %Lu@%Lu"
-          switch_id p
-          s2        l.Link.dstport
-      | Some(l, Node.Host(h_str, dlAddr, nwAddr)) ->
-        Log.info ~tags "link(remove): %Lu@%Lu <=> %s"
-          switch_id l.Link.dstport
-          h_str
+    let p1 = Int32.of_int_exn (port.OpenFlow0x01.PortDescription.port_no) in
+    begin match next_hop_via t.nib (Node.Switch switch_id) p1 with
+      | Some(v,p2) ->
+        let n = Net.Topology.vertex_to_label t.nib v in
+        Log.info ~tags "link(remove): %Lu@%lu <=> %s@%lu"
+          switch_id          p1
+          (Node.to_string n) p2
       | _ -> ()
     end;
-    { nib = remove_port t.nib (Node.Switch switch_id) p
-    ; pending = SwitchMap.add t.pending switch_id (PortSet.remove ports p)
+    { nib = remove_endpoint t.nib (Node.Switch switch_id, p1)
+    ; pending = SwitchMap.add t.pending switch_id (PortSet.remove ports p1)
     }
 
   let setup_probe t ~send feats =
@@ -289,8 +319,9 @@ end = struct
     Log.info ~tags "switch(add): %Lu" switch_id;
     send probe_rule >>= fun _ ->
     Deferred.List.fold ports ~init:t ~f:(add_port ~send ~switch_id)
-    >>| fun t' -> { t'
-      with nib = Topology.add_switch t'.nib feats.switch_id }
+    >>| fun t' ->
+        let nib, _ = Net.Topology.add_vertex t'.nib (Node.Switch feats.switch_id) in
+        { t' with nib }
 
   let setup_arp t ~send =
     (* XXX(seliopou): Depending on how the switch is configured, these may not be
@@ -305,8 +336,10 @@ end = struct
     return t
 
   let remove_switch t switch_id =
+    let open Net.Topology in
     Log.info ~tags "switch(remove): %Lu" switch_id;
-    { t with nib = Topology.remove_switch t.nib switch_id }
+    let v = vertex_of_label t.nib (Node.Switch switch_id) in
+    { t with nib = remove_vertex t.nib v }
 
   let handle_port_status t ~send switch_id port_status =
     let open PortStatus in
@@ -326,7 +359,7 @@ end = struct
     match OpenFlow0x01_Core.parse_payload pi.input_payload with
       | { dlDst = 0xffffffffffffL; dlSrc; nw = Unparsable (dlTyp, bytes) }
         when dlTyp = Probe.protocol && dlSrc = Probe.mac ->
-          let t = receive_probe t switch_id (Int64.of_int pi.port) (Probe.parse bytes) in
+          let t = receive_probe t switch_id (Int32.of_int_exn pi.port) (Probe.parse bytes) in
           return (t, None)
       | _ -> return (t, Some(pi))
 
@@ -335,7 +368,7 @@ end = struct
     let open Packet in
     match OpenFlow0x01_Core.parse_payload pi.input_payload with
       | { nw = Arp arp } ->
-        return (handle_arp t switch_id (Int64.of_int pi.port) arp, Some(pi))
+        return (handle_arp t switch_id (Int32.of_int_exn pi.port) arp, Some(pi))
       | _ -> return (t, Some(pi))
 
 end

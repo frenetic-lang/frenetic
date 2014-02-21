@@ -138,8 +138,15 @@ module Chunk : sig
 
 end
 
+module Node : Network.VERTEX
+module Edge : Network.EDGE
+  with type t = unit
+
+module Net : Network.NETWORK
+  with module Topology.Vertex = Node
+   and module Topology.Edge = Edge
+
 module OpenFlow0x01 : sig
-  open Topology
 
   module Message : Message
     with type t = (OpenFlow_Header.xid * OpenFlow0x01.Message.t)
@@ -157,7 +164,7 @@ module OpenFlow0x01 : sig
     val switch_id_of_client : t -> Client_id.t -> SDN_Types.switchId
     val client_id_of_switch : t -> SDN_Types.switchId -> Client_id.t
 
-    val nib : t -> Topology.t
+    val nib : t -> Net.Topology.t
 
     val features : (t, e, f) Platform.Trans.stage
     val topology : (t, f, f) Platform.Trans.stage
