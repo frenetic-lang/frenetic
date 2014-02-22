@@ -11,6 +11,8 @@ module PipeSet : Set.S
 exception Sequence_error of PipeSet.t * PipeSet.t
 
 type app
+
+type result = packet_out list * policy option
 type handler = Topology.t -> event -> result Deferred.t
 
 val create : ?pipes:PipeSet.t -> policy -> handler -> app

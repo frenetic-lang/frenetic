@@ -213,5 +213,3 @@ type event =
   | LinkDown of port * port
 
 type packet_out = switchId * bytes * bufferId option * action list
-
-type result = packet_out list * policy option
