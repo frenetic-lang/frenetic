@@ -59,10 +59,12 @@ module Probe = struct
     }
 end
 
-module Node = struct
-  type t =
+type node = 
     | Switch of SDN_Types.switchId
     | Host of Packet.dlAddr * Packet.nwAddr
+
+module Node = struct
+  type t = node
 
   let compare = Pervasives.compare
 
@@ -200,8 +202,8 @@ end = struct
     match next_hop_via nib n1 p1 with
       | Some(v2, p2) ->
         begin match Net.Topology.vertex_to_label nib v2 with
-          | Node.Switch(sw_id) -> Some(sw_id, p2)
-          | Node.Host _ -> None
+          | Switch(sw_id) -> Some(sw_id, p2)
+          | Host _ -> None
         end
       | None -> None
 
@@ -219,7 +221,7 @@ end = struct
     let open Probe in
     let ports = try SwitchMap.find_exn t.pending probe.switch_id
       with Not_found -> PortSet.empty in
-    let nib = match next_switch_hop_via t.nib (Node.Switch switch_id) port_id with
+    let nib = match next_switch_hop_via t.nib (Switch switch_id) port_id with
       | Some(sw', p') ->
         assert (sw' = probe.switch_id);
         assert (p'  = probe.port_id);
@@ -229,8 +231,8 @@ end = struct
           switch_id       port_id
           probe.switch_id probe.port_id;
         add_ports_edge t.nib
-          (Node.Switch switch_id)       port_id
-          (Node.Switch probe.switch_id) probe.port_id in
+          (Switch switch_id)       port_id
+          (Switch probe.switch_id) probe.port_id in
     { nib
     ; pending = SwitchMap.add t.pending switch_id (PortSet.remove ports probe.port_id)
     }
@@ -242,7 +244,7 @@ end = struct
     match arp with
       | Arp.Query(dlSrc, nwSrc, _)
       | Arp.Reply(dlSrc, nwSrc, _, _) ->
-        let h, s = Node.Host(dlSrc, nwSrc), Node.Switch(switch_id) in
+        let h, s = Host(dlSrc, nwSrc), Switch(switch_id) in
         begin match next_switch_hop_via t.nib h 0l with
           | Some (sw, pt) ->
             (* XXX(seliopou): For now, the code assumes that the entire network
@@ -286,7 +288,7 @@ end = struct
     let ports = try SwitchMap.find_exn t.pending switch_id
       with Not_found -> PortSet.empty in
     let p1 = Int32.of_int_exn (port.OpenFlow0x01.PortDescription.port_no) in
-    begin match next_hop_via t.nib (Node.Switch switch_id) p1 with
+    begin match next_hop_via t.nib (Switch switch_id) p1 with
       | Some(v,p2) ->
         let n = Net.Topology.vertex_to_label t.nib v in
         Log.info ~tags "link(remove): %Lu@%lu <=> %s@%lu"
@@ -294,7 +296,7 @@ end = struct
           (Node.to_string n) p2
       | _ -> ()
     end;
-    { nib = remove_endpoint t.nib (Node.Switch switch_id, p1)
+    { nib = remove_endpoint t.nib (Switch switch_id, p1)
     ; pending = SwitchMap.add t.pending switch_id (PortSet.remove ports p1)
     }
 
@@ -320,7 +322,7 @@ end = struct
     send probe_rule >>= fun _ ->
     Deferred.List.fold ports ~init:t ~f:(add_port ~send ~switch_id)
     >>| fun t' ->
-        let nib, _ = Net.Topology.add_vertex t'.nib (Node.Switch feats.switch_id) in
+        let nib, _ = Net.Topology.add_vertex t'.nib (Switch feats.switch_id) in
         { t' with nib }
 
   let setup_arp t ~send =
@@ -338,7 +340,7 @@ end = struct
   let remove_switch t switch_id =
     let open Net.Topology in
     Log.info ~tags "switch(remove): %Lu" switch_id;
-    let v = vertex_of_label t.nib (Node.Switch switch_id) in
+    let v = vertex_of_label t.nib (Switch switch_id) in
     { t with nib = remove_vertex t.nib v }
 
   let handle_port_status t ~send switch_id port_status =

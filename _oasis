@@ -66,10 +66,10 @@ Library async
     Async_OpenFlow0x01,
     Async_OpenFlow0x04,
     Async_OpenFlowChunk,
-    Async_Highlevel,
-    Nib
+    Async_Highlevel
   Modules:
-    Async_OpenFlow
+    Async_OpenFlow,
+    Nib
 
 Library quickcheck
     Findlibparent: openflow
