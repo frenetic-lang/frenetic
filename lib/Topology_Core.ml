@@ -1,12 +1,10 @@
 open Topology_Util
 open Graph
 
-type switchId = SDN_Types.switchId
-type portId = VInt.t
+type switchId = int64
+type portId = int64
 type rate = Rate of int64 * int64
 
-type addrMAC = VInt.t
-type addrIP = VInt.t
 
 let string_of_rate r =
   let Rate(min,max) = r in
@@ -14,11 +12,12 @@ let string_of_rate r =
 
 module type NODE =
 sig
-  type t = Host of string * addrMAC * addrIP
+  type t = Host of string * Packet.dlAddr * Packet.nwAddr
            | Switch of switchId
            | Mbox of string * string list
   type label = t
 
+  val hash : t -> int
   val equal : t -> t -> bool
   val compare : t -> t -> int
   val to_dot : t -> string
@@ -33,8 +32,8 @@ sig
   type t = {
     srcport : portId;
     dstport : portId;
-    cost : VInt.t;
-    capacity : VInt.t;
+    cost : int64;
+    capacity : int64;
   }
   type e = (v * t * v)
   val default : t
@@ -42,7 +41,7 @@ sig
 
   (* Constructors *)
   val mk_edge : v -> v -> t -> e
-  val mk_link : v -> VInt.t -> v -> VInt.t -> VInt.t -> VInt.t -> e
+  val mk_link : v -> portId -> v -> portId -> int64 -> int64 -> e
   val reverse : e -> e
 
   (* Accesssors *)
@@ -50,10 +49,10 @@ sig
   val dst : e -> v
   val label : e -> t
 
-  val capacity : e -> VInt.t
-  val cost : e -> VInt.t
-  val srcport : e -> VInt.t
-  val dstport : e -> VInt.t
+  val capacity : e -> int64
+  val cost : e -> int64
+  val srcport : e -> portId
+  val dstport : e -> portId
 
   (* Utilities *)
   val name : e -> string
@@ -68,9 +67,12 @@ sig
 
   (* Constructors *)
   val add_node : t -> V.t -> t
-  val add_host : t -> string -> addrMAC -> addrIP -> t
+  val add_host : t -> string -> Packet.dlAddr -> Packet.nwAddr -> t
   val add_switch : t -> switchId -> t
-  val add_switch_edge : t -> V.t -> portId -> V.t -> portId -> t
+  val add_ports_edge : t -> V.t -> portId -> V.t -> portId -> t
+
+  val remove_switch : t -> switchId -> t
+  val remove_port : t -> V.t -> portId -> t
 
   (* Accessors *)
   val get_vertices : t -> V.t list
@@ -80,14 +82,16 @@ sig
   val get_switches : t -> V.t list
   val get_switchids : t -> switchId list
   val unit_cost : t -> t
-  val ports_of_switch : t -> V.t -> portId list
+  val ports_of_node : t -> V.t -> portId list
   (* TODO(basus): remove this? *)
   (* val edge_ports_of_switch : t -> V.t -> portId list *)
+  val next_hop_via : t -> V.t -> portId -> E.label * V.t
   val next_hop : t -> V.t -> portId -> V.t
 
   (* Utility functions *)
   val spanningtree : t -> t
   val shortest_path : t -> V.t -> V.t -> E.t list
+  val shortest_path_v : t -> V.t -> V.t -> V.t list
   val stitch : E.t list -> (portId option * V.t * portId option) list
   val floyd_warshall : t -> ((V.t * V.t) * V.t list) list
   val to_dot : t -> string
@@ -102,7 +106,7 @@ end
 (***** Concrete types for network topology *****)
 module Node =
 struct
-  type t = Host of string * addrMAC * addrIP
+  type t = Host of string * Packet.dlAddr * Packet.nwAddr
            | Switch of switchId
            | Mbox of string * string list
   type label = t
@@ -111,7 +115,7 @@ struct
   let compare = Pervasives.compare
   let to_dot n = match n with
     | Host(s,m,i) -> s
-    | Switch i -> "s" ^ VInt.get_string i
+    | Switch i -> "s" ^ Int64.to_string i
     | Mbox(s,_) -> s
   let to_string = to_dot
   let id_of_switch n =
@@ -126,16 +130,16 @@ struct
   type t = {
     srcport : portId;
     dstport : portId;
-    cost : VInt.t;
-    capacity : VInt.t;
+    cost : int64;
+    capacity : int64;
   }
   type e = v * t * v
   let compare = Pervasives.compare
   let default = {
-    srcport = VInt.Int32 0l;
-    dstport = VInt.Int32 0l;
-    cost = VInt.Int64 1L;
-    capacity = VInt.Int64 Int64.max_int
+    srcport = 0L;
+    dstport = 0L;
+    cost = 1L;
+    capacity = Int64.max_int
   }
 
   (* Constructors and mutators *)
@@ -179,10 +183,10 @@ struct
 
   let string_of_label (s,l,d) =
     Printf.sprintf "{srcport = %s; dstport = %s; cost = %s; capacity = %s;}"
-      (VInt.get_string l.srcport)
-      (VInt.get_string l.dstport)
-      (VInt.get_string l.cost)
-      (VInt.get_string l.capacity)
+      (Int64.to_string l.srcport)
+      (Int64.to_string l.dstport)
+      (Int64.to_string l.cost)
+      (Int64.to_string l.capacity)
 
   let to_dot (s,l,d) =
     let s = Node.to_dot s in
@@ -205,7 +209,7 @@ module Weight = struct
   open Link
   type t = Int64.t
   type label = Link.t
-  let weight l = VInt.get_int64 l.cost
+  let weight l = l.cost
   let compare = Int64.compare
   let add = Int64.add
   let zero = Int64.zero
@@ -229,7 +233,7 @@ struct
     add_vertex g n
 
   (* Add a host, given its name, MAC address and IP, to the graph *)
-  let add_host (g:t) (h:string) (m:addrMAC) (i:addrIP) : t =
+  let add_host (g:t) (h:string) (m:Packet.dlAddr) (i:Packet.nwAddr) : t =
     add_vertex g (Node.Host(h,m,i))
 
 
@@ -238,9 +242,21 @@ struct
     add_vertex g (Node.Switch i)
 
   (* Add an edge between particular ports on two switches *)
-  let add_switch_edge (g:t) (s:Node.t) (sp:portId) (d:Node.t) (dp:portId) : t =
+  let add_ports_edge (g:t) (s:Node.t) (sp:portId) (d:Node.t) (dp:portId) : t =
     let l = {Link.default with Link.srcport = sp; Link.dstport = dp} in
     add_edge_e g (s,l,d)
+
+  let remove_port (g:t) (n:Node.t) (p:portId) : t =
+    let ss = try (succ_e g n)
+      with Invalid_argument(_) -> [] in
+    List.fold_left (fun acc e ->
+      if Link.srcport e = p
+        then remove_edge_e acc e
+        else acc)
+      g ss
+
+  let remove_switch (g:t) (sw:switchId) : t =
+    remove_vertex g (Node.Switch sw)
 
   (****** Accessors ******)
   (* Get a list of all the vertices in the graph *)
@@ -292,23 +308,23 @@ struct
   (* Compute a topology with unit cost *)
   let unit_cost (g0:t) : t =
     let f (n1,l,n2) g : t =
-      add_edge_e g (n1, { l with Link.cost = VInt.Int16 1 }, n2) in
+      add_edge_e g (n1, { l with Link.cost = 1L }, n2) in
     let g = fold_vertex (fun v g -> add_vertex g v) g0 empty in
     let g = fold_edges_e (fun e g -> f e g) g0 g in
     g
 
   (* For a given node, return all its connected ports.
      Raise NotFound if the node is not in the graph *)
-  let ports_of_switch (g:t) (s:Node.t) : portId list =
+  let ports_of_node (g:t) (s:Node.t) : portId list =
     let ss = try (succ_e g s)
-      with Not_found -> raise (NotFound(Printf.sprintf
-                                          "Can't find %s to get ports_of_switch\n"
+      with Invalid_argument(_) -> raise (NotFound(Printf.sprintf
+                                          "Can't find %s to get ports_of_node\n"
                                           (Node.to_string s))) in
     let sports = List.map
       (fun l -> Link.srcport l) ss in
     let ps = pred_e g s in
     let pports = List.map
-      (fun l -> Link.srcport l) ps in
+      (fun l -> Link.dstport l) ps in
     sports @ pports
 
 
@@ -316,8 +332,8 @@ struct
   (*    Raise NotFound if either the node is not in the graph. *\) *)
   (* let edge_ports_of_switch (g:t) (s:Node.t) : portId list = *)
   (*   let ss = try (succ_e g s) *)
-  (*     with Not_found -> raise (NotFound(Printf.sprintf *)
-  (*                                         "Can't find %s to get ports_of_switch\n" *)
+  (*     with Invalid_argument(_) -> raise (NotFound(Printf.sprintf *)
+  (*                                         "Can't find %s to get ports_of_node\n" *)
   (*                                         (Node.to_string s))) in *)
   (*   let sports = List.fold_left *)
   (*     (fun acc l -> match (Link.dst l) with *)
@@ -333,28 +349,67 @@ struct
   (*     ) sports ps in *)
   (*   Int32Set.elements pports *)
 
-  (* Get the next hop node for a given node and port. Raise NotFound if either
-  the given node is not in the graph, or if the given port is not connected to
-  another node.  *)
-  let next_hop (g:t) (n:Node.t) (p:portId) : Node.t =
-    let ss = try (succ_e g n)
-      with Not_found -> raise (NotFound(Printf.sprintf
+
+  (* Get the next hop node for a given node and port, returning along with it
+   * the link that was traversed to get there.
+   *
+   * Raise NotFound if either the given node is not in the graph, or if the
+   * given port is not connected to another node.  *)
+  let next_hop_via (g:t) (n:Node.t) (p:portId) : (Link.t * Node.t) =
+    let ss = try succ_e g n
+      with Invalid_argument(_) -> raise (NotFound(Printf.sprintf
                                           "Can't find %s to get next_hop\n"
                                           (Node.to_string n))) in
-    let (_,_,d) = try (List.hd
-                         (List.filter (fun e -> (Link.srcport e) = p) ss))
-      with Failure hd -> raise (NotFound(
-        Printf.sprintf "next_hop: Port %s on %s is not connected\n"
-          (VInt.get_string p) (Node.to_string n)))
-    in d
+    match List.filter (fun e -> (Link.srcport e) = p) ss with
+      | [] ->
+        raise (NotFound(
+          Printf.sprintf "next_hop: Port %s on %s is not connected\n"
+            (Int64.to_string p) (Node.to_string n)))
+      | (_, l, d)::_ -> (l, d)
+
+
+  (* Get the next hop node for a given node and port.
+   *
+   * Raise NotFound if either the given node is not in the graph, or if the
+   * given port is not connected to another node.
+   * *)
+  let next_hop (g:t) (n:Node.t) (p:portId) : Node.t =
+    let (_, d) = next_hop_via g n p in d
 
   (* Find the shortest path between two nodes using Dijkstra's algorithm,
      returning the list of edges making up the path. The implementation is from
      the ocamlgraph library.
      Raise NoPath if there is no such path. *)
 
-  let shortest_path (g:t) (src:Node.t) (dst:Node.t) : E.t list = 
+  let shortest_path (g:t) (src:Node.t) (dst:Node.t) : E.t list =
 	let ret,_ = Dij.shortest_path g src dst in ret
+
+  let shortest_path_v (g:t) (src:Node.t) (dst:Node.t) : V.t list =
+    let visited = Hashtbl.create (nb_vertex g) in
+    let previous =  Hashtbl.create (nb_vertex g) in
+    let queue = Core.Std.Heap.create (fun (v,d) (v,d') -> compare d d') () in
+    Core.Std.Heap.add queue (src,0);
+
+    let rec mk_path current =
+      if current = src then [src] else
+        let prev = Hashtbl.find previous current in
+        current::(mk_path prev) in
+
+    let rec loop (current,distance) =
+      if current = dst then ()
+      else begin
+        iter_succ (fun next ->
+          if Hashtbl.mem visited next then ()
+          else
+            let next_dist = distance + 1 in
+            Hashtbl.replace previous next current;
+            Core.Std.Heap.add queue (next,next_dist)
+        ) g current;
+        Hashtbl.replace visited current 0;
+        loop (Core.Std.Heap.pop_exn queue) end in
+    loop (Core.Std.Heap.pop_exn queue);
+    mk_path dst
+
 
 (*  let shortest_path (g:t) (src:Node.t) (dst:Node.t) : E.t list =
     let p,_ = Dij.shortest_path g src dst in
@@ -364,8 +419,8 @@ struct
   let stitch (path:E.t list) : (portId option * Node.t * portId option) list =
     let hops = List.fold_left (fun acc e -> match acc with
       | [] ->
-        [ (None, Link.src e, Some(Link.srcport e))
-        ; (Some(Link.dstport e), Link.dst e , None) ]
+        [ (Some(Link.dstport e), Link.dst e , None)
+        ; (None, Link.src e, Some(Link.srcport e))]
       | (inp, srcnode, outp)::tl ->
         let srcport = Some (Link.srcport e) in
         let dstport = Some (Link.dstport e) in
@@ -379,7 +434,7 @@ struct
   let floyd_warshall (g:t) : ((V.t * V.t) * V.t list) list =
     let add_opt o1 o2 = 
       match o1, o2 with 
-        | Some n1, Some n2 -> Some (n1 + n2)
+        | Some n1, Some n2 -> Some (Int64.add n1 n2)
         | _ -> None in 
     let lt_opt o1 o2 = 
       match o1, o2 with 
@@ -392,11 +447,11 @@ struct
       let nodes = Array.of_list (get_vertices g) in
       Array.init n 
         (fun i -> Array.init n
-          (fun j -> if i = j then (Some 0, [nodes.(i)])
+          (fun j -> if i = j then (Some 0L, [nodes.(i)])
             else 
               try 
                 let l = find_edge g nodes.(i) nodes.(j) in
-                (Some (VInt.get_int (Link.cost l)), [nodes.(i); nodes.(j)])
+                (Some (Link.cost l), [nodes.(i); nodes.(j)])
             with Not_found -> 
               (None,[]))) in
     let matrix = make_matrix g in
@@ -483,9 +538,9 @@ struct
           | Node.Host(n,m,i) ->
             Printf.sprintf "    %s = net.addHost(\'%s\', mac=\'%s\', ip=\'%s\')\n"
               n n
-              (VInt.get_string m) (VInt.get_string i)
+              (Packet.string_of_mac m) (Packet.string_of_ip i)
           | Node.Switch i ->
-            let sid = "s" ^ (VInt.get_string i) in
+            let sid = "s" ^ (Int64.to_string i) in
             Printf.sprintf
             "    %s = net.addSwitch(\'%s\')\n" sid sid
           | Node.Mbox(s,_) -> Printf.sprintf
@@ -506,8 +561,8 @@ struct
               (Node.to_string (E.dst e)) in
             Printf.sprintf "    net.addLink(%s, %s, %s, %s)\n"
               src dst
-	      (VInt.get_string (Link.srcport e))
-	      (VInt.get_string (Link.dstport e))
+              (Int64.to_string (Link.srcport e))
+              (Int64.to_string (Link.dstport e))
         in
         seen := EdgeSet.add e !seen;
         acc ^ add

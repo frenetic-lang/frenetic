@@ -5,18 +5,18 @@ Version:     0.9
 Synopsis:    Topology for networks
 Authors:     https://github.com/frenetic-lang/ocaml-topology/contributors
 License:     LGPL
-Plugins:     META (0.3), DevFiles (0.3)
+Plugins:     META (0.3)
 BuildTools:
-  ocamlbuild,
-  ocamldoc
+  ocamlbuild
 
 Library topology
   Path: lib
   BuildDepends:
     str,
+    core,
     ocamlgraph,
-    openflow,
-    packet
+    packet,
+    threads
   InternalModules:
     Topology_Core,
     Topology_Util,
@@ -29,16 +29,6 @@ Executable otopo
   MainIs: main.ml
   BuildDepends:
     ocamlgraph,
-    openflow,
     packet,
     topology
   Install: False
-
-Document doc
-  Title: Topology Documentation
-  Type: OCamlbuild (0.3)
-  XOCamlBuildPath: lib
-  XOCamlBuildModules:
-    DOT_Types,
-    Topology,
-    DOT_Parser

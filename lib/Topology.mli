@@ -1,10 +1,7 @@
 open Graph
-open Packet
 
-type switchId = SDN_Types.switchId
-type portId = VInt.t
-type addrMAC = VInt.t
-type addrIP = VInt.t
+type switchId = int64
+type portId = int64
 
 type nattr = {
   ntype: string
@@ -16,11 +13,12 @@ type nattr = {
 
 module type NODE =
 sig
-  type t = Host of string * addrMAC * addrIP
+  type t = Host of string * Packet.dlAddr * Packet.nwAddr
            | Switch of switchId
            | Mbox of string * string list
   type label = t
 
+  val hash : t -> int
   val equal : t -> t -> bool
   val compare : t -> t -> int
   val to_dot : t -> string
@@ -35,8 +33,8 @@ sig
   type t = {
     srcport : portId;
     dstport : portId;
-    cost : VInt.t;
-    capacity : VInt.t;
+    cost : int64;
+    capacity : int64;
   }
   type e = (v * t * v)
   val default : t
@@ -44,7 +42,7 @@ sig
 
   (* Constructors *)
   val mk_edge : v -> v -> t -> e
-  val mk_link : v -> VInt.t -> v -> VInt.t -> VInt.t -> VInt.t -> e
+  val mk_link : v -> portId -> v -> portId -> int64 -> int64 -> e
   val reverse : e -> e
 
   (* Accesssors *)
@@ -52,10 +50,10 @@ sig
   val dst : e -> v
   val label : e -> t
 
-  val capacity : e -> VInt.t
-  val cost : e -> VInt.t
-  val srcport : e -> VInt.t
-  val dstport : e -> VInt.t
+  val capacity : e -> int64
+  val cost : e -> int64
+  val srcport : e -> portId
+  val dstport : e -> portId
 
   (* Utilities *)
   val name : e -> string
@@ -70,9 +68,12 @@ sig
 
   (* Constructors *)
   val add_node : t -> V.t -> t
-  val add_host : t -> string -> addrMAC -> addrIP -> t
+  val add_host : t -> string -> Packet.dlAddr -> Packet.nwAddr -> t
   val add_switch : t -> switchId -> t
-  val add_switch_edge : t -> V.t -> portId -> V.t -> portId -> t
+  val add_ports_edge : t -> V.t -> portId -> V.t -> portId -> t
+
+  val remove_switch : t -> switchId -> t
+  val remove_port : t -> V.t -> portId -> t
 
   (* Accessors *)
   val get_vertices : t -> V.t list
@@ -82,14 +83,16 @@ sig
   val get_switches : t -> V.t list
   val get_switchids : t -> switchId list
   val unit_cost : t -> t
-  val ports_of_switch : t -> V.t -> portId list
+  val ports_of_node : t -> V.t -> portId list
   (* TODO(basus): remove this? *)
   (* val edge_ports_of_switch : t -> V.t -> portId list *)
+  val next_hop_via : t -> V.t -> portId -> E.label * V.t
   val next_hop : t -> V.t -> portId -> V.t
 
   (* Utility functions *)
   val spanningtree : t -> t
   val shortest_path : t -> V.t -> V.t -> E.t list
+  val shortest_path_v : t -> V.t -> V.t -> V.t list
   val stitch : E.t list -> (portId option * V.t * portId option) list
   val floyd_warshall : t -> ((V.t * V.t) * V.t list) list
   val to_dot : t -> string
@@ -108,6 +111,6 @@ module Topology : TOPO with type V.t = Node.t and type E.t = Link.e and type V.l
 
 val from_dotfile_tbl : string -> (Topology.t *
                                     (string, nattr) Hashtbl.t *
-                                    (VInt.t, nattr) Hashtbl.t)
+                                    (switchId, nattr) Hashtbl.t)
 val from_dotfile : string -> Topology.t
 val from_gmlfile : string -> Topology.t

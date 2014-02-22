@@ -1,7 +1,7 @@
 # OASIS_START
-# DO NOT EDIT (digest: 6250cbeda2d6f4bbc8c6fe0722d44e8a)
-# Ignore VCS directories, you can use the same kind of rule outside
-# OASIS_START/STOP if you want to exclude directories that contains
+# DO NOT EDIT (digest: c95a0c5ad0533a5aae0245955ff10b16)
+# Ignore VCS directories, you can use the same kind of rule outside 
+# OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
 <**/.svn>: -traverse
 <**/.svn>: not_hygienic
@@ -15,19 +15,22 @@
 "_darcs": not_hygienic
 # Library topology
 "lib/topology.cmxs": use_topology
-<lib/*.ml{,i}>: package(ocamlgraph)
-<lib/*.ml{,i}>: package(openflow)
-<lib/*.ml{,i}>: package(packet)
-<lib/*.ml{,i}>: package(str)
+<lib/*.ml{,i}>: pkg_ocamlgraph
+<lib/*.ml{,i}>: pkg_packet
+<lib/*.ml{,i}>: pkg_str
+<lib/*.ml{,i}>: pkg_core
+<lib/*.ml{,i}>: pkg_threads
 # Executable otopo
 "exe/main.byte": use_topology
-"exe/main.byte": package(ocamlgraph)
-"exe/main.byte": package(openflow)
-"exe/main.byte": package(packet)
-"exe/main.byte": package(str)
+"exe/main.byte": pkg_ocamlgraph
+"exe/main.byte": pkg_packet
+"exe/main.byte": pkg_str
+"exe/main.byte": pkg_core
+"exe/main.byte": pkg_threads
 <exe/*.ml{,i}>: use_topology
-<exe/*.ml{,i}>: package(ocamlgraph)
-<exe/*.ml{,i}>: package(openflow)
-<exe/*.ml{,i}>: package(packet)
-<exe/*.ml{,i}>: package(str)
+<exe/*.ml{,i}>: pkg_ocamlgraph
+<exe/*.ml{,i}>: pkg_packet
+<exe/*.ml{,i}>: pkg_str
+<exe/*.ml{,i}>: pkg_core
+<exe/*.ml{,i}>: pkg_threads
 # OASIS_STOP
