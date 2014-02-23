@@ -2,7 +2,7 @@ open Core.Std
 open Async.Std
 
 open NetKAT_Types
-open Topology
+open Async_OpenFlow.Net
 
 module PipeSet = Set.Make(struct
   type t = string with sexp

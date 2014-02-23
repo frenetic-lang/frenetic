@@ -2,7 +2,7 @@ open Core.Std
 open Async.Std
 
 open NetKAT_Types
-open Topology
+open Async_OpenFlow.Net
 
 
 (** [app] is an opaque application type.  The user can use constructors and

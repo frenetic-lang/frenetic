@@ -1,11 +1,13 @@
 open Core.Std
 open Async.Std
 
-open Topology
+open Async_OpenFlow.Net
 
 module Controller = Async_OpenFlow.OpenFlow0x01.Controller
 module SDN = SDN_Types
 module NetKAT = NetKAT_Types
+
+type switchId = SDN_Types.switchId
 
 module SwitchMap = Map.Make(Int64)
 
@@ -195,6 +197,12 @@ let update_table_for (t : t) (sw_id : switchId) pol =
     decr priority;
     send t.ctl c_id (0l, to_flow_mod !priority flow)))
 
+let get_switchids nib =
+  Topology.fold_vertexes (fun v acc -> match Topology.vertex_to_label nib v with
+    | Nib.Switch id -> id::acc
+    | _ -> acc)
+  nib []
+
 let handler (t : t) app =
   let app' = Async_NetKAT.run app in
   fun e ->
@@ -207,7 +215,7 @@ let handler (t : t) app =
       send t.ctl c_id (0l, packet_out_to_message None po)) in
     let pols = match m_pol with
       | Some (pol) ->
-        ignore (List.map ~how:`Parallel (Topology.get_switchids nib) ~f:(fun sw_id ->
+        ignore (List.map ~how:`Parallel (get_switchids nib) ~f:(fun sw_id ->
           update_table_for t sw_id pol))
       | None ->
         let open NetKAT_Types in
