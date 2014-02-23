@@ -44,12 +44,17 @@ val default : app -> policy
 (** [run app] returns a [handler] that implements [app]. *)
 val run : app -> Topology.t -> event -> result Deferred.t
 
-(** [union app1 app2] returns the union of [app1] and [app2].
+(** [union ?how app1 app2] returns the union of [app1] and [app2].
 
     The returned app listens on the union of [app1] and [app2]'s [PipeSet.t]s,
     distributes events across the two apps, unions reactive updates to policies,
-    and concatenates the list of [packet_out]s that they produce. *)
-val union : app -> app -> app
+    and concatenates the list of [packet_out]s that they produce.
+
+    If the app produce side effects, you may want to control the order of their
+    execution using the optional [how] argument to sequence them from left to
+    right, or to have them run concurrently.
+    *)
+val union : ?how:[ `Parallel | `Sequential ] -> app -> app -> app
 
 exception Sequence_error of PipeSet.t * PipeSet.t
 
