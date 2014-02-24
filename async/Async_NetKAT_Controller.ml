@@ -214,15 +214,14 @@ let handler (t : t) app =
   let app' = Async_NetKAT.run app in
   fun e ->
     let open Deferred in
-    let nib = !(t.nib) in
-    app' nib e >>= fun (packet_outs, m_pol) ->
+    app' t.nib e >>= fun (packet_outs, m_pol) ->
     let outs = List.map packet_outs ~f:(fun ((sw_id,_,_,_,_) as po) ->
       (* XXX(seliopou): xid *)
       let c_id = Controller.client_id_of_switch t.ctl sw_id in
       send t.ctl c_id (0l, packet_out_to_message po)) in
     let pols = match m_pol with
       | Some (pol) ->
-        ignore (List.map ~how:`Parallel (get_switchids nib) ~f:(fun sw_id ->
+        ignore (List.map ~how:`Parallel (get_switchids !(t.nib)) ~f:(fun sw_id ->
           update_table_for t sw_id pol))
       | None ->
         let open NetKAT_Types in

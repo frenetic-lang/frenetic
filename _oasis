@@ -51,6 +51,7 @@ Library async
     core,
     cstruct,
     cstruct.async,
+    cstruct.syntax,
     netcore,
     ocamlgraph,
     openflow,

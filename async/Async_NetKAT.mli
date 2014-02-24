@@ -35,7 +35,7 @@ type result = packet_out list * policy option
 
 (** [handler] is a function that's used to both create basic reactive [app]s as
     well as run them. *)
-type handler = Net.Topology.t -> event -> result Deferred.t
+type handler = Net.Topology.t ref -> event -> result Deferred.t
 
 (** [create ?pipes pol handler] returns an [app] that listens to the pipes
     included in [pipes], uses [pol] as the initial default policy to install,
@@ -57,7 +57,7 @@ val create_from_file : string -> app
 val default : app -> policy
 
 (** [run app] returns a [handler] that implements [app]. *)
-val run : app -> Net.Topology.t -> event -> result Deferred.t
+val run : app -> Net.Topology.t ref -> event -> result Deferred.t
 
 (** [union ?how app1 app2] returns the union of [app1] and [app2].
 
