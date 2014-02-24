@@ -200,7 +200,10 @@ module PacketSetSet = Set.Make(PacketSet)
 
 type action = SDN_Types.action
 
-type port = switchId * portId
+
+type switch_port = switchId * portId
+type host = Packet.dlAddr * Packet.nwAddr
+
 type bufferId = Int32.t (* XXX(seliopou): different than SDN_Types *)
 type bytes = Packet.bytes
 
@@ -209,7 +212,11 @@ type event =
   | Query of string * int64 * int64
   | SwitchUp of switchId
   | SwitchDown of switchId
-  | LinkUp of port * port
-  | LinkDown of port * port
+  | PortUp of switch_port
+  | PortDown of switch_port
+  | LinkUp of switch_port * switch_port
+  | LinkDown of switch_port * switch_port
+  | HostUp of switch_port * host
+  | HostDown of switch_port * host
 
 type packet_out = switchId * bytes * bufferId option * portId option * action list
