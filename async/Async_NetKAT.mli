@@ -2,8 +2,23 @@ open Core.Std
 open Async.Std
 
 open NetKAT_Types
-open Async_OpenFlow.Net
 
+(** [node] is an entity in the network, currently either a switch with a
+    datapath id, or a host with a MAC and IPv4 address. *)
+type node =
+  | Switch of SDN_Types.switchId
+  | Host of Packet.dlAddr * Packet.nwAddr
+
+module Node : Network.VERTEX
+  with type t = node
+module Link : Network.EDGE
+  with type t = unit
+
+(** A representation of the network, with [node] as a label for vertices, and
+    [unit] as labels for edges. *)
+module Net : Network.NETWORK
+  with module Topology.Vertex = Node
+   and module Topology.Edge = Link
 
 (** [app] is an opaque application type.  The user can use constructors and
     combinators defined below to build up complex applications from simple
@@ -20,7 +35,7 @@ type result = packet_out list * policy option
 
 (** [handler] is a function that's used to both create basic reactive [app]s as
     well as run them. *)
-type handler = Topology.t -> event -> result Deferred.t
+type handler = Net.Topology.t -> event -> result Deferred.t
 
 (** [create ?pipes pol handler] returns an [app] that listens to the pipes
     included in [pipes], uses [pol] as the initial default policy to install,
@@ -42,7 +57,7 @@ val create_from_file : string -> app
 val default : app -> policy
 
 (** [run app] returns a [handler] that implements [app]. *)
-val run : app -> Topology.t -> event -> result Deferred.t
+val run : app -> Net.Topology.t -> event -> result Deferred.t
 
 (** [union ?how app1 app2] returns the union of [app1] and [app2].
 

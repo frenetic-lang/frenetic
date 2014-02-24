@@ -1,7 +1,7 @@
 open Core.Std
 open Async.Std
 
-open Async_OpenFlow.Net
+module Net = Async_NetKAT.Net
 
 module Controller = Async_OpenFlow.OpenFlow0x01.Controller
 module SDN = SDN_Types
@@ -28,6 +28,7 @@ let tags = [("openflow", "controller")]
 
 type t = {
   ctl : Controller.t;
+  nib : Net.Topology.t ref;
   mutable locals : LocalCompiler.t SwitchMap.t
 }
 
@@ -204,8 +205,8 @@ let update_table_for (t : t) (sw_id : switchId) pol =
     send t.ctl c_id (0l, to_flow_mod !priority flow)))
 
 let get_switchids nib =
-  Topology.fold_vertexes (fun v acc -> match Topology.vertex_to_label nib v with
-    | Switch id -> id::acc
+  Net.Topology.fold_vertexes (fun v acc -> match Net.Topology.vertex_to_label nib v with
+    | Async_NetKAT.Switch id -> id::acc
     | _ -> acc)
   nib []
 
@@ -213,7 +214,7 @@ let handler (t : t) app =
   let app' = Async_NetKAT.run app in
   fun e ->
     let open Deferred in
-    let nib = Controller.nib t.ctl in
+    let nib = !(t.nib) in
     app' nib e >>= fun (packet_outs, m_pol) ->
     let outs = List.map packet_outs ~f:(fun ((sw_id,_,_,_,_) as po) ->
       (* XXX(seliopou): xid *)
@@ -237,11 +238,15 @@ let start app ?(port=6633) () =
   let open Async_OpenFlow.Platform.Trans in
   let stages = let open Controller in
     (local (fun t -> t.ctl)
-      (features >=> topology))
+      features)
      >=> to_event in
 
   Controller.create ~max_pending_connections ~port ()
   >>> fun t ->
-    let t' = { ctl = t; locals = SwitchMap.empty } in
+    let t' = {
+      ctl = t;
+      nib = ref (Net.Topology.empty ());
+      locals = SwitchMap.empty
+    } in
     let events = run stages t' (Controller.listen t) in
     Deferred.don't_wait_for (Pipe.iter events ~f:(handler t' app))

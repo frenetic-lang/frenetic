@@ -2,7 +2,39 @@ open Core.Std
 open Async.Std
 
 open NetKAT_Types
-open Async_OpenFlow.Net
+
+type node =
+    | Switch of SDN_Types.switchId
+    | Host of Packet.dlAddr * Packet.nwAddr
+
+module Node = struct
+  type t = node
+
+  let compare = Pervasives.compare
+
+  let to_string t = match t with
+    | Switch(sw_id)       -> Printf.sprintf "switch %Lu" sw_id
+    | Host(dlAddr, nwAddr) -> Printf.sprintf "host %s/%s"
+        (Packet.string_of_nwAddr nwAddr)
+        (Packet.string_of_dlAddr dlAddr)
+
+  let parse_dot _ _ = failwith "NYI: Node.parse_dot"
+  let parse_gml _ = failwith "NYI: Node.parse_dot"
+end
+
+module Link = struct
+  type t = unit
+
+  let compare = Pervasives.compare
+
+  let to_string () = "()"
+  let default = ()
+
+  let parse_dot _ = failwith "NYI: Link.parse_dot"
+  let parse_gml _ = failwith "NYI: Link.parse_dot"
+end
+
+module Net = Network.Make(Node)(Link)
 
 module PipeSet = Set.Make(struct
   type t = string with sexp
@@ -12,7 +44,7 @@ end)
 exception Sequence_error of PipeSet.t * PipeSet.t
 
 type result = packet_out list * policy option
-type handler = Topology.t -> event -> result Deferred.t
+type handler = Net.Topology.t -> event -> result Deferred.t
 
 type app = {
   pipes : PipeSet.t;
@@ -37,7 +69,7 @@ let create_from_file (filename : string) : app =
 let default (a : app) : policy =
   a.default
 
-let run (a : app) (t : Topology.t) (e : event) : result Deferred.t =
+let run (a : app) (t : Net.Topology.t) (e : event) : result Deferred.t =
   match e with
     | PacketIn(p, _, _, _, _, _) when not (PipeSet.mem a.pipes p) ->
       return ([], None)
