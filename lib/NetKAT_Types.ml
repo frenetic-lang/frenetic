@@ -212,4 +212,4 @@ type event =
   | LinkUp of port * port
   | LinkDown of port * port
 
-type packet_out = switchId * bytes * bufferId option * action list
+type packet_out = switchId * bytes * bufferId option * portId option * action list

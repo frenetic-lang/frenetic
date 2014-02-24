@@ -112,13 +112,16 @@ let packet_sync_headers (pkt:NetKAT_Types.packet) : NetKAT_Types.packet * bool =
     | SDN_Types.Buffered(n, _) -> SDN_Types.Buffered(n, Packet.marshal packet')
   }, !change)
 
-let packet_out_to_message mpt (_, bytes, buffer_id, actions) =
+let packet_out_to_message (_, bytes, buffer_id, port_id, actions) =
   let open OpenFlow0x01_Core in
   let output_payload = match buffer_id with
     | Some(id) -> Buffered(id, bytes)
     | None -> NotBuffered bytes in
-  let apply_actions = SDN_OpenFlow0x01.from_group mpt [[actions]] in
-  OpenFlow0x01.Message.PacketOutMsg{ output_payload; port_id = None; apply_actions }
+  let port_id = match port_id with
+    | Some(vi) -> Some(VInt.get_int vi)
+    | None -> None in
+  let apply_actions = SDN_OpenFlow0x01.from_group port_id [[actions]] in
+  OpenFlow0x01.Message.PacketOutMsg{ output_payload; port_id; apply_actions }
 
 let send t c_id msg =
   Controller.send t c_id msg
@@ -139,6 +142,10 @@ let to_event (t : t) evt =
         | PacketInMsg pi ->
           let open OpenFlow0x01_Core in
           let switch_id = Controller.switch_id_of_client t.ctl c_id in
+          let port_id = VInt.Int16 pi.port in
+          let buf_id, bytes = match pi.input_payload with
+            | Buffered(n, bs) -> Some(n), bs
+            | NotBuffered(bs) -> None, bs in
           begin match SwitchMap.find t.locals switch_id with
             | None ->
               (* The switch may be connected but has yet had rules installed on
@@ -150,24 +157,23 @@ let to_event (t : t) evt =
                * pipes, and the list of packets that can be forwarded to physical
                * locations.
                * *)
-              let buf_id, bytes = match pi.input_payload with
-                | Buffered(n, bs) -> Some(n), bs
-                | NotBuffered(bs) -> None, bs in
               let packet = {
                 switch = switch_id;
                 headers = bytes_to_headers (Int32.of_int_exn pi.port) bytes;
                 payload = SDN_OpenFlow0x01.to_payload pi.input_payload
               } in
               begin
+                (* XXX(seliopou): What if the packet's modified? Should buf_id be
+                 * exposed to the application?
+                 * *)
                 let pis, phys = LocalCompiler.eval local packet in
                 let outs = Deferred.List.map phys ~f:(fun packet1 ->
                   let acts = headers_to_actions pi.port
                     (Headers.diff packet1.headers packet.headers) in
-                  let po = (switch_id, bytes, buf_id, acts) in
-                  send t.ctl c_id (0l, packet_out_to_message (Some pi.port) po)) in
+                  let po = (switch_id, bytes, buf_id, Some(port_id), acts) in
+                  send t.ctl c_id (0l, packet_out_to_message po)) in
                 Deferred.ignore outs >>= fun _ ->
                 return (List.map pis ~f:(fun (p, pkt) ->
-                  let port_id = VInt.Int16 pi.port in
                   let pkt', changed = packet_sync_headers pkt in
                   if changed then
                     let bytes = payload_bytes pkt'.payload in
@@ -199,7 +205,7 @@ let update_table_for (t : t) (sw_id : switchId) pol =
 
 let get_switchids nib =
   Topology.fold_vertexes (fun v acc -> match Topology.vertex_to_label nib v with
-    | Nib.Switch id -> id::acc
+    | Switch id -> id::acc
     | _ -> acc)
   nib []
 
@@ -209,10 +215,10 @@ let handler (t : t) app =
     let open Deferred in
     let nib = Controller.nib t.ctl in
     app' nib e >>= fun (packet_outs, m_pol) ->
-    let outs = List.map packet_outs ~f:(fun ((sw_id,_,_,_) as po) ->
+    let outs = List.map packet_outs ~f:(fun ((sw_id,_,_,_,_) as po) ->
       (* XXX(seliopou): xid *)
       let c_id = Controller.client_id_of_switch t.ctl sw_id in
-      send t.ctl c_id (0l, packet_out_to_message None po)) in
+      send t.ctl c_id (0l, packet_out_to_message po)) in
     let pols = match m_pol with
       | Some (pol) ->
         ignore (List.map ~how:`Parallel (get_switchids nib) ~f:(fun sw_id ->
