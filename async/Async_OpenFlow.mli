@@ -139,6 +139,7 @@ module Chunk : sig
 end
 
 module Node : Network.VERTEX
+  with type t = Nib.node
 module Edge : Network.EDGE
   with type t = unit
 
