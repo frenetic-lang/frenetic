@@ -28,7 +28,7 @@ let create () =
       | None -> OutputAllPorts
       | Some(p) -> OutputPort p in
 
-  let default = Mod(Location(Pipe "switch")) in
+  let default = Mod(Location(Pipe "learn")) in
 
   let gen_pol () =
     let drop = Filter False in
@@ -62,4 +62,4 @@ let create () =
       return pol 
     | _ -> return None in
       
-  create ~pipes:(PipeSet.singleton "switch") default handler
+  create ~pipes:(PipeSet.singleton "learn") default handler
