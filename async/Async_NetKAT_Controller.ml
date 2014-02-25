@@ -234,16 +234,12 @@ let get_switchids nib =
     | _ -> acc)
   nib []
 
-let handler (t : t) app =
+let handler (t : t) w app =
   let app' = Async_NetKAT.run app in
   fun e ->
     let open Deferred in
-    app' t.nib e >>= fun (packet_outs, m_pol) ->
-    let outs = List.iter packet_outs ~f:(fun ((sw_id,_,_,_,_) as po) ->
-      (* XXX(seliopou): xid *)
-      let c_id = Controller.client_id_of_switch t.ctl sw_id in
-      send t.ctl c_id (0l, packet_out_to_message po)) in
-    let pols = match m_pol with
+    app' t.nib w e >>= fun m_pol ->
+    match m_pol with
       | Some (pol) ->
         List.iter (get_switchids !(t.nib)) ~f:(fun sw_id ->
           update_table_for t sw_id pol)
@@ -253,9 +249,7 @@ let handler (t : t) app =
           | SwitchUp sw_id ->
             update_table_for t sw_id (Async_NetKAT.default app)
           | _ -> return ()
-        end in
-    outs >>= fun _ ->
-    pols
+        end
 
 let start app ?(port=6633) () =
   let open Async_OpenFlow.Platform.Trans in
@@ -272,4 +266,14 @@ let start app ?(port=6633) () =
       locals = SwitchMap.empty
     } in
     let events = run stages t' (Controller.listen t) in
-    Deferred.don't_wait_for (Pipe.iter events ~f:(handler t' app))
+
+    (* The pipe for packet_outs. The Pipe.iter below will run in its own logical
+     * thread, sending packet outs to the switch whenever it's scheduled.
+     * *)
+    let r_out, w_out = Pipe.create () in
+    Deferred.don't_wait_for (Pipe.iter r_out ~f:(fun out ->
+      let (sw_id, _, _, _, _) = out in
+      let c_id = Controller.client_id_of_switch t sw_id in
+      send t c_id (0l, packet_out_to_message out)));
+
+    Deferred.don't_wait_for (Pipe.iter events ~f:(handler t' w_out app))

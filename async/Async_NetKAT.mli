@@ -29,13 +29,15 @@ type app
 module PipeSet : Set.S
   with type Elt.t = string
 
-(** [result] is the result of a handler, a list of [packet_outs] to send to
-    switches, and an optional policy update. *)
-type result = packet_out list * policy option
+(** [result] is the result of a handler, which is just an optional policy. *)
+type result = policy option
 
 (** [handler] is a function that's used to both create basic reactive [app]s as
     well as run them. *)
-type handler = Net.Topology.t ref -> event -> result Deferred.t
+type handler = Net.Topology.t ref
+             -> packet_out Pipe.Writer.t
+             -> event
+             -> result Deferred.t
 
 (** [create ?pipes pol handler] returns an [app] that listens to the pipes
     included in [pipes], uses [pol] as the initial default policy to install,
@@ -57,7 +59,12 @@ val create_from_file : string -> app
 val default : app -> policy
 
 (** [run app] returns a [handler] that implements [app]. *)
-val run : app -> Net.Topology.t ref -> event -> result Deferred.t
+val run
+  :  app
+  -> Net.Topology.t ref
+  -> packet_out Pipe.Writer.t
+  -> event
+  -> result Deferred.t
 
 (** [union ?how app1 app2] returns the union of [app1] and [app2].
 
