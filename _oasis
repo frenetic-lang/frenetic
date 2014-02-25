@@ -62,6 +62,8 @@ Library async
     topology,
     sexplib,
     sexplib.syntax
+  InternalModules:
+    Discovery
   Modules:
     Async_NetKAT,
     Async_NetKAT_Controller

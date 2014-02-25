@@ -282,7 +282,6 @@ let start app ?(port=6633) () =
       nib = ref (Net.Topology.empty ());
       locals = SwitchMap.empty
     } in
-    let events = run stages t' (Controller.listen t) in
 
     (* The pipe for packet_outs. The Pipe.iter below will run in its own logical
      * thread, sending packet outs to the switch whenever it's scheduled.
@@ -292,5 +291,18 @@ let start app ?(port=6633) () =
       let (sw_id, _, _, _, _) = out in
       let c_id = Controller.client_id_of_switch t sw_id in
       send t c_id (0l, packet_out_to_message out)));
+
+    (* Build up the application by adding topology discovery into the mix. *)
+    let topo_events, topo = Discovery.create () in
+    let app = Async_NetKAT.union ~how:`Sequential topo (Discovery.guard app) in
+    let sdn_events = run stages t' (Controller.listen t) in
+    (* The discovery application itself will generate events, so the actual
+     * event stream must be a combination of switch events and synthetic
+     * topology discovery events. Pipe.interleave will wait until one of the
+     * pipes is readable, take a batch, and send it along.
+     *
+     * Whatever happens, happens. Can't stop won't stop.
+     * *)
+    let events = Pipe.interleave [topo_events; sdn_events] in
 
     Deferred.don't_wait_for (Pipe.iter events ~f:(handler t' w_out app))
