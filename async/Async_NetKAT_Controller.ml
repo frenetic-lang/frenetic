@@ -22,7 +22,8 @@ let _ = Log.set_output
              [("openflow", "socket");
               ("openflow", "platform");
               ("openflow", "serialization");
-              ("openflow", "controller")]]
+              ("openflow", "controller");
+              ("netkat", "topology.switch")]]
 
 let tags = [("openflow", "controller")]
 
@@ -217,7 +218,7 @@ let update_table_for (t : t) (sw_id : switchId) pol =
   let c_id = Controller.client_id_of_switch t.ctl sw_id in
   let local = LocalCompiler.of_policy sw_id pol in
   t.locals <- SwitchMap.add t.locals sw_id local;
-  send t.ctl c_id (0l, delete_flows) >>= fun _ ->
+  send t.ctl c_id (5l, delete_flows) >>= fun _ ->
   let priority = ref 65536 in
   let table = LocalCompiler.to_table local in
   if List.length table <= 0
@@ -238,14 +239,14 @@ let handler (t : t) app =
   fun e ->
     let open Deferred in
     app' t.nib e >>= fun (packet_outs, m_pol) ->
-    let outs = List.map packet_outs ~f:(fun ((sw_id,_,_,_,_) as po) ->
+    let outs = List.iter packet_outs ~f:(fun ((sw_id,_,_,_,_) as po) ->
       (* XXX(seliopou): xid *)
       let c_id = Controller.client_id_of_switch t.ctl sw_id in
       send t.ctl c_id (0l, packet_out_to_message po)) in
     let pols = match m_pol with
       | Some (pol) ->
-        ignore (List.map ~how:`Parallel (get_switchids !(t.nib)) ~f:(fun sw_id ->
-          update_table_for t sw_id pol))
+        List.iter (get_switchids !(t.nib)) ~f:(fun sw_id ->
+          update_table_for t sw_id pol)
       | None ->
         let open NetKAT_Types in
         begin match e with
@@ -253,8 +254,8 @@ let handler (t : t) app =
             update_table_for t sw_id (Async_NetKAT.default app)
           | _ -> return ()
         end in
-    ignore outs >>= fun _ ->
-    ignore pols
+    outs >>= fun _ ->
+    pols
 
 let start app ?(port=6633) () =
   let open Async_OpenFlow.Platform.Trans in
