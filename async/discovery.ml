@@ -162,6 +162,8 @@ module Switch = struct
             | Some(ports) -> Some(PortSet.remove pt_id' ports));
           let v = vertex_of_label !t (Switch sw_id) in
           let mh = next_hop !t v pt_id' in
+          (* Do not put the above line below the below line. The code needs to
+           * read the current view of the network before modifying it. *)
           t := remove_endpoint !t (v, pt_id');
           begin match mh with
             | None -> return ()
