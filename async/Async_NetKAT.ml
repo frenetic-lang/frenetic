@@ -3,6 +3,8 @@ open Async.Std
 
 open NetKAT_Types
 
+exception Assertion_failed of string
+
 type node =
     | Switch of SDN_Types.switchId
     | Host of Packet.dlAddr * Packet.nwAddr
@@ -99,7 +101,7 @@ let union ?(how=`Parallel) (a1 : app) (a2 : app) : app =
             | None, Some(pol2) ->
               return (packet_outs, Some(Union(a1.default, pol2)))
           end
-        | _ -> assert false
+        | _ -> raise (Assertion_failed "Async_NetKAT.union: impossible length list")
   }
 
 let seq (a1 : app) (a2: app) : app =

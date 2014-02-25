@@ -26,6 +26,8 @@ let _ = Log.set_output
 
 let tags = [("openflow", "controller")]
 
+exception Assertion_failed of string
+
 type t = {
   ctl : Controller.t;
   nib : Net.Topology.t ref;
@@ -56,7 +58,9 @@ let headers_to_actions port (h:NetKAT_Types.Headers.t) : SDN_Types.action list =
       | Some v -> (p v)::acc
       | None -> acc in
   let init = match h.NetKAT_Types.Headers.location with
-     | Some(NetKAT_Types.Pipe     _) -> assert false
+     | Some(NetKAT_Types.Pipe     p) ->
+       raise (Assertion_failed (Printf.sprintf
+         "Controller.headers_to_action: impossible pipe location \"%s\"" p))
      | Some(NetKAT_Types.Physical p) -> [OutputPort(VInt.Int32 p)]
      | None -> [OutputPort (VInt.Int32 (Int32.of_int_exn port))] in
   NetKAT_Types.Headers.Fields.fold
@@ -200,9 +204,12 @@ let update_table_for (t : t) (sw_id : switchId) pol =
   send t.ctl c_id (0l, delete_flows) >>= fun _ ->
   let priority = ref 65536 in
   let table = LocalCompiler.to_table local in
-  Deferred.ignore (Deferred.List.map table ~f:(fun flow ->
+  if List.length table <= 0
+    then raise (Assertion_failed (Printf.sprintf
+        "Controller.update_table_for: empty table for switch %Lu" sw_id));
+  Deferred.List.iter table ~f:(fun flow ->
     decr priority;
-    send t.ctl c_id (0l, to_flow_mod !priority flow)))
+    send t.ctl c_id (0l, to_flow_mod !priority flow))
 
 let get_switchids nib =
   Net.Topology.fold_vertexes (fun v acc -> match Net.Topology.vertex_to_label nib v with
