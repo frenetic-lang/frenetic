@@ -1,6 +1,5 @@
 open Core.Std
 open Async.Std
-open PolicyGenerator
 
 let help args =
   match args with 
