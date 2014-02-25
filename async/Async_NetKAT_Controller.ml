@@ -160,10 +160,10 @@ let to_event (t : t) evt =
       return [SwitchDown switch_id]
     | `Message (c_id, (xid, msg)) ->
       let open OpenFlow0x01.Message in
+      let switch_id = Controller.switch_id_of_client t.ctl c_id in
       begin match msg with
         | PacketInMsg pi ->
           let open OpenFlow0x01_Core in
-          let switch_id = Controller.switch_id_of_client t.ctl c_id in
           let port_id = VInt.Int16 pi.port in
           let buf_id, bytes = match pi.input_payload with
             | Buffered(n, bs) -> Some(n), bs
@@ -204,9 +204,22 @@ let to_event (t : t) evt =
                     PacketIn(p, switch_id, port_id, bytes, pi.total_len, buf_id)))
               end
           end
+        | PortStatusMsg ps ->
+          let open OpenFlow0x01.PortStatus in
+          begin match ps.reason, port_desc_useable ps.desc with
+            | ChangeReason.Add, true
+            | ChangeReason.Modify, true ->
+              let pt_id = Int32.of_int_exn (ps.desc.OpenFlow0x01.PortDescription.port_no) in
+              return [PortUp(switch_id, VInt.Int32 pt_id)]
+            | ChangeReason.Delete, _
+            | ChangeReason.Modify, false ->
+              let pt_id = Int32.of_int_exn (ps.desc.OpenFlow0x01.PortDescription.port_no) in
+              return [PortDown(switch_id, VInt.Int32 pt_id)]
+            | _ ->
+              return []
+          end
         | _ ->
-          let sw_id = Controller.switch_id_of_client t.ctl c_id in
-          Log.debug ~tags "Dropped message from %Lu: %s" sw_id (to_string msg);
+          Log.debug ~tags "Dropped message from %Lu: %s" switch_id (to_string msg);
           return []
       end
 
