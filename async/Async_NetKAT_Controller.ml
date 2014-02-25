@@ -134,11 +134,27 @@ let send t c_id msg =
     | `Sent _ -> ()
     | `Drop exn -> raise exn
 
+let port_desc_useable pd =
+  let open OpenFlow0x01.PortDescription in
+  if pd.config.PortConfig.down
+    then false
+    else not (pd.state.PortState.down)
+
 let to_event (t : t) evt =
   let open NetKAT_Types in
   match evt with
     | `Connect (c_id, feats) ->
-      return [SwitchUp feats.OpenFlow0x01.SwitchFeatures.switch_id]
+      let ports = feats.OpenFlow0x01.SwitchFeatures.ports in
+      let sw_id = feats.OpenFlow0x01.SwitchFeatures.switch_id in
+      (* Generate a SwitchUp event, and PortUp event for ever port that is
+       * useable. *)
+      return ((SwitchUp sw_id) :: (List.fold ports ~init:[] ~f:(fun acc pd ->
+        if port_desc_useable pd then
+          let open OpenFlow0x01.PortDescription in
+          let pt_id = VInt.Int32 (Int32.of_int_exn pd.port_no) in
+          PortUp(sw_id, pt_id)::acc
+        else
+          acc)))
     | `Disconnect (c_id, switch_id, exn) ->
       return [SwitchDown switch_id]
     | `Message (c_id, (xid, msg)) ->
