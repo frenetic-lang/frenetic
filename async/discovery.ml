@@ -111,9 +111,6 @@ module Switch = struct
                     "Discovery.handle_probe: probe inconsistent w/ topology"));
           return t
         | None ->
-          Log.info ~tags "Create LinkUp: %Lu@%lu <=> %Lu@%lu"
-            switch_id       port_id
-            probe.switch_id probe.port_id;
           let t, v1 = add_vertex t (Switch switch_id) in
           let t, v2 = add_vertex t (Switch probe.switch_id) in
           let t, _  = add_edge t v1 port_id () v2 probe.port_id in
@@ -164,10 +161,27 @@ module Switch = struct
             | None -> None
             | Some(ports) -> Some(PortSet.remove pt_id' ports));
           let v = vertex_of_label !t (Switch sw_id) in
+          let mh = next_hop !t v pt_id' in
           t := remove_endpoint !t (v, pt_id');
+          begin match mh with
+            | None -> return ()
+            | Some(e) ->
+              let (v2, pt_id2) = edge_dst e in
+              begin match vertex_to_label !t v2 with
+                | Switch(sw_id2) ->
+                  Pipe.write t_w (LinkDown((sw_id, pt_id), (sw_id2, VInt.Int32 pt_id2)))
+                | Host(dlAddr, nwAddr) ->
+                  Pipe.write t_w (HostDown((sw_id, pt_id), (dlAddr, nwAddr)))
+              end
+          end >>= fun _ ->
           return None
         | LinkUp ((sw1, pt1), (sw2, pt2)) ->
           Log.info ~tags "LinkUp: %Lu@%lu <=> %Lu@%lu"
+            sw1 (VInt.get_int32 pt1)
+            sw2 (VInt.get_int32 pt2);
+          return None
+        | LinkDown ((sw1, pt1), (sw2, pt2)) ->
+          Log.info ~tags "LinkDown: %Lu@%lu <=> %Lu@%lu"
             sw1 (VInt.get_int32 pt1)
             sw2 (VInt.get_int32 pt2);
           return None
