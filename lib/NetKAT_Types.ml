@@ -215,7 +215,6 @@ type event =
   | PortUp of switch_port
   | PortDown of switch_port
   | LinkUp of switch_port * switch_port
-  | LinkDown of switch_port * switch_port
   | HostUp of switch_port * host
   | HostDown of switch_port * host
 
