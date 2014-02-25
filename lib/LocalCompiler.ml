@@ -27,7 +27,6 @@ module type HEADERSCOMMON = sig
   val seq : t -> t -> t option
   val diff : t -> t -> t
   val subseteq : t -> t -> bool
-  val shadow : ?keep:bool -> t -> t -> t
 end
 
 module HeadersCommon : HEADERSCOMMON = struct
@@ -129,28 +128,6 @@ module HeadersCommon : HEADERSCOMMON = struct
 
   let diff (x:t) (y:t) : t =
     Headers.diff x y
-
-  let shadow ?(keep=true) (x:t) (y:t) : t =
-    let g acc f =
-      match Field.get f acc, Field.get f y with
-        | Some v1, Some v2 ->
-          if v1 = v2
-            then acc
-            else Field.fset f acc (if keep then Some v2 else None)
-        | _, _ -> acc in
-    Headers.Fields.fold
-      ~init:x
-      ~location:g
-      ~ethSrc:g
-      ~ethDst:g
-      ~vlan:g
-      ~vlanPcp:g
-      ~ethType:g
-      ~ipProto:g
-      ~ipSrc:g
-      ~ipDst:g
-      ~tcpSrcPort:g
-      ~tcpDstPort:g
 end
 
 module type ACTION = sig
@@ -316,7 +293,6 @@ module type PATTERN = sig
   val mk_tcpSrcPort : int16 -> t
   val mk_tcpDstPort : int16 -> t
   val seq : t -> t -> t option
-  val seq_act : t -> Action.t -> t
   val seq_act_t : t -> Action.t -> t -> t option
   val diff : t -> t -> t
   val subseteq : t -> t -> bool
@@ -376,12 +352,6 @@ module Pattern : PATTERN = struct
 
   let seq : t -> t -> t option =
     HeadersCommon.seq
-
-  (**
-     Sequence a pattern with an Action.t, the effect of which is to modify the
-     pattern to match any fields that the Action.t assigns. *)
-  let seq_act (t:t) (act:Action.t) : t =
-    HeadersCommon.shadow t act
 
   let seq_act_t x a y =
     (* TODO(jnf): can optimize into a single loop *)
@@ -462,7 +432,6 @@ module type ATOM = sig
   val tru : t
   val neg : t -> Set.t
   val seq : t -> t -> t option
-  val seq_act : t -> Action.t -> t
   val seq_act_t : t -> Action.t -> t -> t option
 end
 
@@ -547,10 +516,6 @@ module Atom : ATOM = struct
         check (Pattern.Set.union xs1 xs2, x12)
       | None ->
         None
-
-  let seq_act (xs1, x1) act =
-    let xs1' = Pattern.Set.map xs1 ~f:(fun x -> HeadersCommon.shadow x act) in
-    (xs1', HeadersCommon.shadow x1 act)
 
   let seq_act_t (xs1,x1) a (xs2,x2) =
     match Pattern.seq_act_t x1 a x2 with
