@@ -157,7 +157,11 @@ let to_event (t : t) evt =
         else
           acc)))
     | `Disconnect (c_id, switch_id, exn) ->
-      return [SwitchDown switch_id]
+      let open Net.Topology in
+      let v  = vertex_of_label !(t.nib) (Async_NetKAT.Switch switch_id) in
+      let ps = vertex_to_ports !(t.nib) v in
+      return (PortSet.fold (fun p acc -> (PortDown(switch_id, VInt.Int32 p))::acc)
+        ps [SwitchDown switch_id])
     | `Message (c_id, (xid, msg)) ->
       let open OpenFlow0x01.Message in
       let switch_id = Controller.switch_id_of_client t.ctl c_id in
