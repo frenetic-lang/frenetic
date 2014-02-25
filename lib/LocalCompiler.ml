@@ -4,7 +4,7 @@ open SDN_Types
 
 type location = NetKAT_Types.location
 module Headers = NetKAT_Types.Headers
-  
+
 module type HEADERSCOMMON = sig
   type t = Headers.t with sexp
   module Set : Set.S with type Elt.t = t
@@ -27,6 +27,7 @@ module type HEADERSCOMMON = sig
   val seq : t -> t -> t option
   val diff : t -> t -> t
   val subseteq : t -> t -> bool
+  val shadow : ?keep:bool -> t -> t -> t
 end
 
 module HeadersCommon : HEADERSCOMMON = struct
@@ -127,33 +128,29 @@ module HeadersCommon : HEADERSCOMMON = struct
       ~tcpDstPort:(g c)
 
   let diff (x:t) (y:t) : t =
-    let g c acc f =
-      match Field.get f x, Field.get f y with
+    Headers.diff x y
+
+  let shadow ?(keep=true) (x:t) (y:t) : t =
+    let g acc f =
+      match Field.get f acc, Field.get f y with
         | Some v1, Some v2 ->
-          c f v1 v2 acc
-        | _ -> 
-          acc in
-    let c f v1 v2 acc = 
-      if v1 = v2 then Field.fset f acc None else acc in 
-    let cm f (v1,m1) (v2,m2) acc = 
-      let b = max 0 (max (32-m1) (32-m2)) in 
-      if m2 >= m1 && Int32.shift_right v1 b = Int32.shift_right v2 b then 
-        Field.fset f acc None 
-      else 
-        acc in 
+          if v1 = v2
+            then acc
+            else Field.fset f acc (if keep then Some v2 else None)
+        | _, _ -> acc in
     Headers.Fields.fold
       ~init:x
-      ~location:(g c)
-      ~ethSrc:(g c)
-      ~ethDst:(g c)
-      ~vlan:(g c)
-      ~vlanPcp:(g c)
-      ~ethType:(g c)
-      ~ipProto:(g c)
-      ~ipSrc:(g cm)
-      ~ipDst:(g cm)
-      ~tcpSrcPort:(g c)
-      ~tcpDstPort:(g c)
+      ~location:g
+      ~ethSrc:g
+      ~ethDst:g
+      ~vlan:g
+      ~vlanPcp:g
+      ~ethType:g
+      ~ipProto:g
+      ~ipSrc:g
+      ~ipDst:g
+      ~tcpSrcPort:g
+      ~tcpDstPort:g
 end
 
 module type ACTION = sig
@@ -222,7 +219,7 @@ module Action : ACTION = struct
       match Field.get f y with
         | Some _ as o2 ->
           Field.fset f acc o2
-        | _ -> acc in 
+        | _ -> acc in
     Headers.Fields.fold
       ~init:x
       ~location:g
@@ -301,6 +298,9 @@ end
 module type PATTERN = sig
   type t = Headers.t with sexp
   module Set : Set.S with type Elt.t = t
+
+  val matches : t -> NetKAT_Types.packet -> bool
+
   val to_string : t -> string
   val set_to_string : Set.t -> string
   val compare : t -> t -> int
@@ -316,7 +316,8 @@ module type PATTERN = sig
   val mk_tcpSrcPort : int16 -> t
   val mk_tcpDstPort : int16 -> t
   val seq : t -> t -> t option
-  val seq_act : t -> Action.t -> t -> t option
+  val seq_act : t -> Action.t -> t
+  val seq_act_t : t -> Action.t -> t -> t option
   val diff : t -> t -> t
   val subseteq : t -> t -> bool
   val tru : t
@@ -352,10 +353,37 @@ module Pattern : PATTERN = struct
   let mk_tcpSrcPort n = HeadersCommon.mk_tcpSrcPort n
   let mk_tcpDstPort n = HeadersCommon.mk_tcpDstPort n
 
+  let matches (t:t) (packet:NetKAT_Types.packet) : bool =
+    let open NetKAT_Types in
+    let fn acc f =
+      acc && (match Field.get f t, Field.get f packet.headers with
+        | None, _      -> true
+        | Some _, None -> false
+        | Some e1, Some e2 -> e1 = e2) in
+    Headers.Fields.fold
+      ~init:true
+      ~location:(fun acc _ -> acc)
+      ~ethSrc:fn
+      ~ethDst:fn
+      ~vlan:fn
+      ~vlanPcp:fn
+      ~ethType:fn
+      ~ipProto:fn
+      ~ipSrc:fn
+      ~ipDst:fn
+      ~tcpSrcPort:fn
+      ~tcpDstPort:fn
+
   let seq : t -> t -> t option =
     HeadersCommon.seq
 
-  let seq_act x a y =
+  (**
+     Sequence a pattern with an Action.t, the effect of which is to modify the
+     pattern to match any fields that the Action.t assigns. *)
+  let seq_act (t:t) (act:Action.t) : t =
+    HeadersCommon.shadow t act
+
+  let seq_act_t x a y =
     (* TODO(jnf): can optimize into a single loop *)
     (* Printf.printf "  SEQ_ACT\n  X=%s\n  A=%s\n  Y=%s\n  " *)
     (*   (to_string x) *)
@@ -425,13 +453,17 @@ module type ATOM = sig
   module Set : Set.S with type Elt.t = t
   module DepMap : Map.S with type Key.t = t
   module Map : Map.S with type Key.t = t
+
+  val matches : t -> NetKAT_Types.packet -> bool
+
   val to_string : t -> string
   val compare : t -> t -> int
   val mk : Pattern.t -> t
   val tru : t
   val neg : t -> Set.t
   val seq : t -> t -> t option
-  val seq_act : t -> Action.t -> t -> t option
+  val seq_act : t -> Action.t -> t
+  val seq_act_t : t -> Action.t -> t -> t option
 end
 
 module Atom : ATOM = struct
@@ -466,6 +498,11 @@ module Atom : ATOM = struct
           cmp in
     (* Printf.printf "COMPARE %s %s = %d\n%!" (to_string (xs1,x1)) (to_string (xs2,x2)) r; *)
     r
+
+  let matches (t:t) (packet:NetKAT_Types.packet) : bool =
+    let ps_neg, p_pos = t in
+    Pattern.Set.for_all ps_neg ~f:(fun p -> not (Pattern.matches p packet))
+      && Pattern.matches p_pos packet
 
   type this_t = t with sexp
 
@@ -511,8 +548,12 @@ module Atom : ATOM = struct
       | None ->
         None
 
-  let seq_act (xs1,x1) a (xs2,x2) =
-    match Pattern.seq_act x1 a x2 with
+  let seq_act (xs1, x1) act =
+    let xs1' = Pattern.Set.map xs1 ~f:(fun x -> HeadersCommon.shadow x act) in
+    (xs1', HeadersCommon.shadow x1 act)
+
+  let seq_act_t (xs1,x1) a (xs2,x2) =
+    match Pattern.seq_act_t x1 a x2 with
       | None ->
         None
       | Some x1ax2 ->
@@ -520,7 +561,7 @@ module Atom : ATOM = struct
           Pattern.Set.fold xs2
             ~init:xs1
             ~f:(fun acc xs2i ->
-              match Pattern.seq_act Pattern.tru a xs2i with
+              match Pattern.seq_act_t Pattern.tru a xs2i with
                 | Some truaxs2i ->
                   Pattern.Set.add acc truaxs2i
                 | None ->
@@ -658,11 +699,16 @@ module Optimize : OPTIMIZE = struct
 end
 
 module type LOCAL = sig
+  open NetKAT_Types
+
   type t = Action.Set.t Atom.Map.t
+
   val to_string : t -> string
-  val of_pred : NetKAT_Types.pred -> t
-  val of_policy : NetKAT_Types.policy -> t
-  val to_netkat : t -> NetKAT_Types.policy
+  val of_pred : pred -> t
+  val of_policy : policy -> t
+  val to_netkat : t -> policy
+
+  val eval : t -> packet -> (string * packet) list * packet list
 end
 
 module Local : LOCAL = struct
@@ -716,11 +762,11 @@ module Local : LOCAL = struct
         | `Right s2 -> Some s2
         | `Both (s1,s2) -> Some (Action.Set.union s1 s2) in
 
-    let seq_act r1 a q =
+    let seq_act_t r1 a q =
       Atom.Map.fold q
         ~init:Atom.Map.empty
         ~f:(fun ~key:r2 ~data:s2 acc ->
-          match Atom.seq_act r1 a r2 with
+          match Atom.seq_act_t r1 a r2 with
             | None ->
               acc
             | Some r12 ->
@@ -733,9 +779,9 @@ module Local : LOCAL = struct
         Action.Set.fold s1
           ~init:Atom.Map.empty
           ~f:(fun acc a ->
-            let acc' = seq_act r1 a q in
+            let acc' = seq_act_t r1 a q in
             Atom.Map.merge ~f:merge acc acc') in
-
+    
     let r =
       Atom.Map.fold p
         ~init:Atom.Map.empty
@@ -879,52 +925,101 @@ module Local : LOCAL = struct
         let nc_pred_acts = mk_seq (NetKAT_Types.Filter nc_pred) (Action.set_to_netkat s) in
         mk_par nc_pred_acts  (loop m') in
     loop m
+
+  let eval (t:t) (packet:NetKAT_Types.packet)
+    : (string * NetKAT_Types.packet) list * NetKAT_Types.packet list =
+    let open NetKAT_Types in
+    (* Determines the pipes that the packet belongs to. Note that a packet may
+     * belong to several pipes for several reasons:
+     *
+     *   1. Multiple points of a single application wish to inspect the packet;
+     *   2. Multiple applications wish to inspect the packet; and
+     *   3. The switch makes modifications to the packet before it is sent to
+     *      the controller, making it impossible to disambiguate the pipe it
+     *      came from, e.g.:
+     *
+     *        (filter ethDst = 2; ethDst := 3; controller pipe1)
+     *        | (filter ethDst = 3; controller pipe2)
+     *
+     * The return value may contain duplicate pipe names.
+     *
+     * Since Local.t is switch-specific, this function assumes but does not
+     * check that the packet came from the same switch as the given Local.t *)
+    let packets = Semantics.eval packet (to_netkat t) in
+    PacketSet.fold packets ~init:([],[]) ~f:(fun (pi,phy) pkt ->
+      (* Running the packet through the switch's policy will label the resultant
+       * packets with the pipe they belong to, if any. All that's left to do is
+       * pick out packets in the PacketSet.t that have a pipe location, and return
+       * those packets (with the location cleared) along with the pipe they belong
+       * to. *)
+      match pkt.headers.Headers.location with
+        | Some(Pipe p) -> ((p, pkt) :: pi, phy)
+        | _ -> (pi, pkt :: phy))
 end
 
 module RunTime = struct
 
-  let to_action (a:Action.t) (pto: fieldVal option) : seq =
+  (* XXX(seliopou): the int32 should be a portId, once portId is no longer a
+   * VInt.t *)
+  let to_action (a:Action.t) (pto: int32 option) : seq =
     let i8 x = VInt.Int8 x in 
     let i16 x = VInt.Int16 x in 
     let i32m (x,y) = VInt.Int32 x in (* JNF *)
     let i48 x = VInt.Int64 x in 
-    let port = match Headers.location a, pto with
-        | Some (NetKAT_Types.Physical pt),_ -> 
-          VInt.Int32 pt
-        | _, Some pt -> 
-          pt 
-        | _, None ->
-          failwith "indeterminate port" in 
-    let g h c act f = 
-      match Field.get f a with 
-        | None -> act
-        | Some v -> SetField(h,c v)::act in 
-    Headers.Fields.fold
-      ~init:[OutputPort port] 
-      ~location:(fun act _ -> act)
-      ~ethSrc:(g EthSrc i48)
-      ~ethDst:(g EthDst i48)
-      ~vlan:(g Vlan i16)
-      ~vlanPcp:(g VlanPcp i8)
-      ~ethType:(g EthType i16)
-      ~ipProto:(g IPProto i8)
-      ~ipSrc:(g IP4Src i32m)
-      ~ipDst:(g IP4Src i32m)
-      ~tcpSrcPort:(g TCPSrcPort i16)
-      ~tcpDstPort:(g TCPDstPort i16)
+    (* If an action sets the location to a pipe, ignore all other modifications.
+     * They will be applied at the controller by Semantics.eval. Otherwise, the
+     * port must be determined either by the pattern or by the action. The pto
+     * is the port determined by the pattern, if it exists. If the port is not
+     * determinate, we fail though it is technically acceptable to send it out
+     * InPort... if SDN_Types exposed that.
+     * *)
+    match Headers.location a, pto with
+      | Some (NetKAT_Types.Pipe(_)), _ ->
+        [Controller 128]
+      | Some (NetKAT_Types.Physical pt), _
+      | None, Some pt ->
+        let g h c act f =
+          match Field.get f a with
+            | None -> act
+            | Some v -> SetField(h,c v)::act in
+        Headers.Fields.fold
+          ~init:[OutputPort (VInt.Int32 pt)]
+          ~location:(fun act _ -> act)
+          ~ethSrc:(g EthSrc i48)
+          ~ethDst:(g EthDst i48)
+          ~vlan:(g Vlan i16)
+          ~vlanPcp:(g VlanPcp i8)
+          ~ethType:(g EthType i16)
+          ~ipProto:(g IPProto i8)
+          ~ipSrc:(g IP4Src i32m)
+          ~ipDst:(g IP4Src i32m)
+          ~tcpSrcPort:(g TCPSrcPort i16)
+          ~tcpDstPort:(g TCPDstPort i16)
+      | None, None ->
+        failwith "indeterminate location"
 
-  let set_to_action (s:Action.Set.t) (pto : fieldVal option) : par =
+  (* XXX(seliopou, jnf) unimplementable actions will still produce bogus
+   * outputs. For example, the following policy:
+   *
+   *   (f := 3; port := 1) | (g := 2; poirt := 2)
+   *
+   * requires two copies of the packet at the switch, which is not possible.
+   * Policies like these must be implemented at the controller.
+   * *)
+  let set_to_action (s:Action.Set.t) (pto : int32 option) : par =
     let f par a = (to_action a pto)::par in
-    Action.Set.fold s ~f:f ~init:[]
+    List.dedup (Action.Set.fold s ~f:f ~init:[])
 
   let to_pattern (x:Pattern.t) : pattern =
     let i8 x = VInt.Int8 x in 
     let i16 x = VInt.Int16 x in 
+    let il x = match x with
+        | NetKAT_Types.Physical pt -> VInt.Int32 pt
+        | NetKAT_Types.Pipe _ ->
+          (* This is impossble, given the check in to_table *)
+          failwith "to_pattern: OpenFlow can't match on pipes" in
     let i32m (x,y) = VInt.Int32 x in (* JNF *)
     let i48 x = VInt.Int64 x in 
-    let il x = match x with 
-      | NetKAT_Types.Physical p -> VInt.Int32 p
-      | NetKAT_Types.Pipe p -> failwith "Not yet implemented" in 
     let g h c act f = 
       match Field.get f x with 
         | None -> act
@@ -969,12 +1064,15 @@ module RunTime = struct
         ~init:Atom.DepMap.empty
         ~f:(fun ~key:r ~data:s acc -> Atom.DepMap.add acc r s) in
     let add_flow x s l =
-      let pat = to_pattern x in
-      let pto = match Headers.location x with 
-        | Some (NetKAT_Types.Physical p) -> Some (VInt.Int64 (Int64.of_int32 p))
-        | _ -> None in  
-      let act = set_to_action s pto in 
-      simpl_flow pat act::l in
+      match Headers.location x with
+        | Some (NetKAT_Types.Pipe p) -> l
+        | _ ->
+          let pat = to_pattern x in
+          let pto = match Headers.location x with
+            | Some (NetKAT_Types.Physical p) -> Some p
+            | _ -> None in
+          let act = set_to_action s pto in
+          simpl_flow pat act::l in
     let rec loop dm acc cover =
       match Atom.DepMap.min_elt dm with
         | None ->
@@ -1005,6 +1103,7 @@ module RunTime = struct
           let cover' = Pattern.Set.add (Pattern.Set.union zs cover) x in
           loop dm' acc'' cover' in
     List.rev (loop dm [] Pattern.Set.empty)
+
 end
 
 (* exports *)
@@ -1024,3 +1123,6 @@ let decompile =
 
 let to_table =
   RunTime.to_table
+
+let eval =
+  Local.eval

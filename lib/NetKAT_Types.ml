@@ -9,6 +9,7 @@ type int8 = SDN_Types.int8
 type int16 = SDN_Types.int16
 type int32 = SDN_Types.int32
 type int48 = SDN_Types.int48
+
 type switchId = SDN_Types.switchId
 type portId = SDN_Types.portId
 type payload = SDN_Types.payload
@@ -47,7 +48,7 @@ type policy =
   | Union of policy * policy
   | Seq of policy * policy
   | Star of policy
-  | Link of SDN_Types.switchId * portId * SDN_Types.switchId * portId
+  | Link of switchId * portId * switchId * portId
       
 let id = Filter True
   
@@ -105,7 +106,7 @@ module Headers = struct
   let mk_ethDst n = { empty with ethDst = Some n }
   let mk_vlan n = { empty with vlan = Some n }
   let mk_vlanPcp n = { empty with vlanPcp = Some n }
-  let mk_ethType n = { empty with vlanPcp = Some n }
+  let mk_ethType n = { empty with ethType = Some n }
   let mk_ipProto n = { empty with ipProto = Some n }
   let mk_ipSrc (n, m) = { empty with ipSrc = Some (n,m) }
   let mk_ipDst (n, m) = { empty with ipDst = Some (n,m) }
@@ -142,6 +143,35 @@ module Headers = struct
       ~ipDst:(g pp32m)
       ~tcpSrcPort:(g pp16)
       ~tcpDstPort:(g pp16)
+
+  let diff (x:t) (y:t) : t =
+    let g c acc f =
+      match Field.get f x, Field.get f y with
+        | Some v1, Some v2 ->
+          c f v1 v2 acc
+        | _ ->
+          acc in
+    let c f v1 v2 acc =
+      if v1 = v2 then Field.fset f acc None else acc in
+    let cm f (v1,m1) (v2,m2) acc =
+      let b = max 0 (max (32-m1) (32-m2)) in
+      if m2 >= m1 && Int32.shift_right v1 b = Int32.shift_right v2 b then
+        Field.fset f acc None
+      else
+        acc in
+    Fields.fold
+      ~init:x
+      ~location:(g c)
+      ~ethSrc:(g c)
+      ~ethDst:(g c)
+      ~vlan:(g c)
+      ~vlanPcp:(g c)
+      ~ethType:(g c)
+      ~ipProto:(g c)
+      ~ipSrc:(g cm)
+      ~ipDst:(g cm)
+      ~tcpSrcPort:(g c)
+      ~tcpDstPort:(g c)
 end
  
 type packet = {
@@ -166,3 +196,20 @@ end)
   
 module PacketSetSet = Set.Make(PacketSet)
 
+(** {3 Applications} *)
+
+type action = SDN_Types.action
+
+type port = switchId * portId
+type bufferId = Int32.t (* XXX(seliopou): different than SDN_Types *)
+type bytes = Packet.bytes
+
+type event =
+  | PacketIn of string * switchId * portId * bytes * int * bufferId option
+  | Query of string * int64 * int64
+  | SwitchUp of switchId
+  | SwitchDown of switchId
+  | LinkUp of port * port
+  | LinkDown of port * port
+
+type packet_out = switchId * bytes * bufferId option * portId option * action list
