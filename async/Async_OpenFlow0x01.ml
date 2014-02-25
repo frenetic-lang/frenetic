@@ -53,8 +53,6 @@ end
 module Controller = struct
   open Async.Std
 
-  open Topology
-
   module ChunkController = Async_OpenFlowChunk.Controller
   module Client_id = ChunkController.Client_id
 
@@ -67,7 +65,6 @@ module Controller = struct
     mutable shakes : (Client_id.t * m) BBuffer.t ClientMap.t;
     mutable feats : SDN_Types.switchId ClientMap.t;
     mutable clients : Client_id.t SwitchMap.t;
-    mutable nib : Nib.Protocol.t
   }
 
   type e = [
@@ -93,8 +90,6 @@ module Controller = struct
   let switch_id_of_client t c_id = ClientMap.find_exn t.feats c_id
   let client_id_of_switch t sw_id = SwitchMap.find_exn t.clients sw_id
 
-  let nib (t : t) : Topology.t = Nib.Protocol.state t.nib
-
   let create ?max_pending_connections
       ?verbose
       ?log_disconnects
@@ -106,7 +101,6 @@ module Controller = struct
         ; shakes = ClientMap.empty
         ; feats = ClientMap.empty
         ; clients = SwitchMap.empty
-        ; nib = Nib.Protocol.create ()
         }
 
   let _send t c_id m =
@@ -156,65 +150,6 @@ module Controller = struct
         t.clients <- SwitchMap.remove t.clients switch_id;
         return [`Disconnect(c_id, switch_id, exn)]
 
-  let switch_topology t evt =
-    let open OpenFlow0x01 in
-    match evt with
-      | `Connect(c_id, feats) ->
-        Nib.Protocol.setup_probe t.nib ~send:(_send t c_id) feats
-        >>= fun nib ->
-          t.nib <- nib;
-          return [`Connect(c_id, feats)]
-      | `Disconnect(c_id, switch_id, exn) ->
-        t.nib <- Nib.Protocol.remove_switch t.nib switch_id;
-        return [`Disconnect(c_id, switch_id, exn)]
-      | `Message(c_id, msg) ->
-        let open Message in
-        begin match msg with
-          | xid, PacketInMsg pi ->
-            let switch_id = ClientMap.find_exn t.feats c_id in
-            Nib.Protocol.handle_probe t.nib ~send:(_send t c_id) switch_id pi
-            >>= (function (nib, r) ->
-              t.nib <- nib;
-              match r with
-                | None -> return []
-                | Some(pi) -> return [`Message(c_id, (xid, PacketInMsg pi))])
-          | _, PortStatusMsg ps ->
-            let switch_id = ClientMap.find_exn t.feats c_id in
-            Nib.Protocol.handle_port_status t.nib ~send:(_send t c_id) switch_id ps
-            >>= (function nib ->
-              t.nib <- nib;
-              return [`Message(c_id, msg)])
-          | _ ->
-            return [`Message(c_id, msg)]
-        end
-
-  (* This must be installed after switch_discovery *)
-  let host_discovery t evt =
-    let open OpenFlow0x01 in
-    match evt with
-      | `Connect(c_id, feats) ->
-        Nib.Protocol.setup_arp t.nib ~send:(_send t c_id) >>= fun _ ->
-        return [`Connect(c_id, feats)]
-      | `Message(c_id, msg) ->
-        let open Message in
-        begin match msg with
-          | xid, PacketInMsg pi ->
-            let switch_id = ClientMap.find_exn t.feats c_id in
-            Nib.Protocol.handle_arp t.nib ~send:(_send t c_id) switch_id pi
-            >>= (function (nib, r) ->
-              t.nib <- nib;
-              match r with
-                | None -> return []
-                | Some(pi) -> return [`Message(c_id, (xid, PacketInMsg pi))])
-          | _ ->
-            return [evt]
-        end
-      | _ -> return [evt]
-
-  let topology t evt =
-    let open Async_OpenFlow_Platform.Trans in
-    (switch_topology >=> host_discovery) t evt
-
   let listen t =
     let open Async_OpenFlow_Platform.Trans in
     let open ChunkController in
@@ -223,5 +158,4 @@ module Controller = struct
         (handshake 0x01 >=> echo))
       >=> openflow0x01 in
     run stages t (listen t.sub)
-
 end

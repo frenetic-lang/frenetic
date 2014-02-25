@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: c820ece0ba79f3c1bc8b841f642601b6)
+# DO NOT EDIT (digest: 9b4d102d0ace6c2c7745be83aeb79c7c)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -30,7 +30,6 @@
 <async/*.ml{,i}>: package(async)
 <async/*.ml{,i}>: package(packet)
 <async/*.ml{,i}>: package(cstruct.async)
-<async/*.ml{,i}>: package(topology)
 <async/*.ml{,i}>: package(textutils)
 <async/*.ml{,i}>: package(sexplib.syntax)
 <async/*.ml{,i}>: package(str)
@@ -85,7 +84,6 @@
 "ping-test/PingTest.byte": package(oUnit)
 "ping-test/PingTest.byte": package(pa_ounit)
 "ping-test/PingTest.byte": package(pa_ounit.syntax)
-"ping-test/PingTest.byte": package(topology)
 "ping-test/PingTest.byte": package(textutils)
 "ping-test/PingTest.byte": package(sexplib.syntax)
 "ping-test/PingTest.byte": package(str)
@@ -101,7 +99,6 @@
 <ping-test/*.ml{,i}>: package(oUnit)
 <ping-test/*.ml{,i}>: package(pa_ounit)
 <ping-test/*.ml{,i}>: package(pa_ounit.syntax)
-<ping-test/*.ml{,i}>: package(topology)
 <ping-test/*.ml{,i}>: package(textutils)
 <ping-test/*.ml{,i}>: package(sexplib.syntax)
 <ping-test/*.ml{,i}>: package(str)
@@ -115,7 +112,6 @@
 "examples/Hypervisor.byte": package(async)
 "examples/Hypervisor.byte": package(packet)
 "examples/Hypervisor.byte": package(cstruct.async)
-"examples/Hypervisor.byte": package(topology)
 "examples/Hypervisor.byte": package(textutils)
 "examples/Hypervisor.byte": package(sexplib.syntax)
 "examples/Hypervisor.byte": package(str)
@@ -129,26 +125,11 @@
 "examples/Learning_Switch.byte": package(async)
 "examples/Learning_Switch.byte": package(packet)
 "examples/Learning_Switch.byte": package(cstruct.async)
-"examples/Learning_Switch.byte": package(topology)
 "examples/Learning_Switch.byte": package(textutils)
 "examples/Learning_Switch.byte": package(sexplib.syntax)
 "examples/Learning_Switch.byte": package(str)
 "examples/Learning_Switch.byte": package(cstruct)
 "examples/Learning_Switch.byte": package(cstruct.syntax)
-# Executable topology
-"examples/Topology.byte": use_async
-"examples/Topology.byte": use_openflow
-"examples/Topology.byte": package(threads)
-"examples/Topology.byte": package(core)
-"examples/Topology.byte": package(async)
-"examples/Topology.byte": package(packet)
-"examples/Topology.byte": package(cstruct.async)
-"examples/Topology.byte": package(topology)
-"examples/Topology.byte": package(textutils)
-"examples/Topology.byte": package(sexplib.syntax)
-"examples/Topology.byte": package(str)
-"examples/Topology.byte": package(cstruct)
-"examples/Topology.byte": package(cstruct.syntax)
 <examples/*.ml{,i}>: use_async
 <examples/*.ml{,i}>: use_openflow
 <examples/*.ml{,i}>: package(threads)
@@ -156,7 +137,6 @@
 <examples/*.ml{,i}>: package(async)
 <examples/*.ml{,i}>: package(packet)
 <examples/*.ml{,i}>: package(cstruct.async)
-<examples/*.ml{,i}>: package(topology)
 <examples/*.ml{,i}>: package(textutils)
 <examples/*.ml{,i}>: package(sexplib.syntax)
 <examples/*.ml{,i}>: package(str)

@@ -83,6 +83,9 @@ module Platform : sig
     val (>=>) : ('t, 'a, 'b) stage -> ('t, 'b, 'c) stage -> ('t, 'a, 'c) stage
     val (<=<) : ('t, 'b, 'c) stage -> ('t, 'a, 'b) stage -> ('t, 'a, 'c) stage
 
+    val combine : ('t, 'a, 'b) stage -> ('t, 'a, 'b) stage -> ('t, 'a, 'b) stage
+    val (<|>) : ('t, 'a, 'b) stage -> ('t, 'a, 'b) stage -> ('t, 'a, 'b) stage
+
     val local : ('t1 -> 't2) -> ('t2, 'a, 'b) stage -> ('t1, 'a, 'b) stage
     val run : ('t, 'a, 'b) stage -> 't -> 'a Pipe.Reader.t -> 'b Pipe.Reader.t
   end
@@ -139,7 +142,6 @@ module Chunk : sig
 end
 
 module OpenFlow0x01 : sig
-  open Topology
 
   module Message : Message
     with type t = (OpenFlow_Header.xid * OpenFlow0x01.Message.t)
@@ -157,12 +159,7 @@ module OpenFlow0x01 : sig
     val switch_id_of_client : t -> Client_id.t -> SDN_Types.switchId
     val client_id_of_switch : t -> SDN_Types.switchId -> Client_id.t
 
-    val nib : t -> Topology.t
-
     val features : (t, e, f) Platform.Trans.stage
-    val topology : (t, f, f) Platform.Trans.stage
-    val switch_topology : (t, f, f) Platform.Trans.stage
-    val host_discovery  : (t, f, f) Platform.Trans.stage
   end
 
   val chunk_conv
