@@ -129,6 +129,14 @@ module Trans = struct
   let (>=>) f g = compose g f
   let (<=<) f g = compose f g
 
+  let combine (f : ('t, 'a, 'b) stage) (g : ('t, 'a, 'b) stage) : ('t, 'a, 'b) stage =
+    fun t e ->
+      f t e >>= fun es1 ->
+      g t e >>= fun es2 ->
+        return (es1 @ es2)
+
+  let (<|>) f g = combine f g
+
   let local (l : 't1 -> 't2) (f : ('t2, 'a, 'b) stage) : ('t1, 'a, 'b) stage =
     fun t e -> f (l t) e
 
