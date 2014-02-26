@@ -141,7 +141,7 @@ let port_desc_useable pd =
     then false
     else not (pd.state.PortState.down)
 
-let to_event (t : t) evt =
+let to_event w_out (t : t) evt =
   let open NetKAT_Types in
   match evt with
     | `Connect (c_id, feats) ->
@@ -193,12 +193,12 @@ let to_event (t : t) evt =
                  * exposed to the application?
                  * *)
                 let pis, phys = LocalCompiler.eval local packet in
-                let outs = Deferred.List.map phys ~f:(fun packet1 ->
+                let outs = Deferred.List.iter phys ~f:(fun packet1 ->
                   let acts = headers_to_actions pi.port
                     (Headers.diff packet1.headers packet.headers) in
-                  let po = (switch_id, bytes, buf_id, Some(port_id), acts) in
-                  send t.ctl c_id (0l, packet_out_to_message po)) in
-                Deferred.ignore outs >>= fun _ ->
+                  let out = (switch_id, bytes, buf_id, Some(port_id), acts) in
+                  Pipe.write w_out out) in
+                outs >>= fun _ ->
                 return (List.map pis ~f:(fun (p, pkt) ->
                   let pkt', changed = packet_sync_headers pkt in
                   if changed then
@@ -254,27 +254,20 @@ let get_switchids nib =
 let handler (t : t) w app =
   let app' = Async_NetKAT.run app in
   fun e ->
-    let open Deferred in
     app' t.nib w e >>= fun m_pol ->
     match m_pol with
       | Some (pol) ->
-        List.iter (get_switchids !(t.nib)) ~f:(fun sw_id ->
+        Deferred.List.iter (get_switchids !(t.nib)) ~f:(fun sw_id ->
           update_table_for t sw_id pol)
       | None ->
-        let open NetKAT_Types in
         begin match e with
-          | SwitchUp sw_id ->
+          | NetKAT_Types.SwitchUp sw_id ->
             update_table_for t sw_id (Async_NetKAT.default app)
           | _ -> return ()
         end
 
 let start app ?(port=6633) () =
   let open Async_OpenFlow.Platform.Trans in
-  let stages = let open Controller in
-    (local (fun t -> t.ctl)
-      features)
-     >=> to_event in
-
   Controller.create ~max_pending_connections ~port ()
   >>> fun t ->
     let t' = {
@@ -282,7 +275,6 @@ let start app ?(port=6633) () =
       nib = ref (Net.Topology.empty ());
       locals = SwitchMap.empty
     } in
-
     (* The pipe for packet_outs. The Pipe.iter below will run in its own logical
      * thread, sending packet outs to the switch whenever it's scheduled.
      * *)
@@ -291,6 +283,11 @@ let start app ?(port=6633) () =
       let (sw_id, _, _, _, _) = out in
       let c_id = Controller.client_id_of_switch t sw_id in
       send t c_id (0l, packet_out_to_message out)));
+
+    let stages = let open Controller in
+      (local (fun t -> t.ctl)
+        features)
+       >=> (to_event w_out) in
 
     (* Build up the application by adding topology discovery into the mix. *)
     let topo_events, topo = Discovery.create () in
