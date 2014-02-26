@@ -288,9 +288,9 @@ let handler (t : t) w app =
 let start app ?(port=6633) () =
   let open Async_OpenFlow.Platform.Trans in
   Controller.create ~max_pending_connections ~port ()
-  >>> fun t ->
-    let t' = {
-      ctl = t;
+  >>> fun ctl ->
+    let t = {
+      ctl = ctl;
       nib = ref (Net.Topology.empty ());
       locals = SwitchMap.empty
     } in
@@ -301,8 +301,8 @@ let start app ?(port=6633) () =
     Deferred.don't_wait_for (Pipe.iter r_out ~f:(fun out ->
       let (sw_id, _, _, _, _) = out in
       Monitor.try_with ~name:"packet_out" (fun () ->
-        let c_id = Controller.client_id_of_switch t sw_id in
-        send t c_id (0l, packet_out_to_message out))
+        let c_id = Controller.client_id_of_switch ctl sw_id in
+        send ctl c_id (0l, packet_out_to_message out))
       >>= function
         | Ok () -> return ()
         | Error exn_ ->
@@ -317,7 +317,7 @@ let start app ?(port=6633) () =
     (* Build up the application by adding topology discovery into the mix. *)
     let d_ctl, topo = Discovery.create () in
     let app = Async_NetKAT.union ~how:`Sequential topo (Discovery.guard app) in
-    let sdn_events = run stages t' (Controller.listen t) in
+    let sdn_events = run stages t (Controller.listen ctl) in
     (* The discovery application itself will generate events, so the actual
      * event stream must be a combination of switch events and synthetic
      * topology discovery events. Pipe.interleave will wait until one of the
@@ -327,4 +327,4 @@ let start app ?(port=6633) () =
      * *)
     let events = Pipe.interleave [Discovery.events d_ctl; sdn_events] in
 
-    Deferred.don't_wait_for (Pipe.iter events ~f:(handler t' w_out app))
+    Deferred.don't_wait_for (Pipe.iter events ~f:(handler t w_out app))
