@@ -39,8 +39,8 @@ module Formatting = struct
     | Switch(n) -> fprintf fmt "@[switch %s %Lu@]" asgn n
     | Location(Physical n) -> fprintf fmt "@[port %s %lu@]" asgn n
     | Location(Pipe x) -> fprintf fmt "@[port %s %s@]" asgn x
-    | EthSrc(n) -> fprintf fmt "@[ethSrc %s %Lu@]" asgn n
-    | EthDst(n) -> fprintf fmt "@[ethDst %s %Lu@]" asgn n
+    | EthSrc(n) -> fprintf fmt "@[ethSrc %s %s@]" asgn (Packet.string_of_mac n)
+    | EthDst(n) -> fprintf fmt "@[ethDst %s %s@]" asgn (Packet.string_of_mac n)
     | Vlan(n) -> fprintf fmt "@[vlanId %s %d@]" asgn n
     | VlanPcp(n) -> fprintf fmt "@[vlanPcp %s %u@]" asgn n
     | EthType(n) -> fprintf fmt "@[ethTyp %s %u@]" asgn n
