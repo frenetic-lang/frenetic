@@ -640,11 +640,11 @@ module FlowMod = struct
     let size_of _ = 2
 
     let to_string cmd = match cmd with
-      | AddFlow -> "AddFlow"
-      | ModFlow -> "ModFlow"
-      | ModStrictFlow -> "ModStrictFlow"
-      | DeleteFlow -> "DeleteFlow"
-      | DeleteStrictFlow -> "DeleteStrictFlow"
+      | AddFlow -> "ADD"
+      | ModFlow -> "MOD"
+      | ModStrictFlow -> "MOD_STRICT"
+      | DeleteFlow -> "DELETE"
+      | DeleteStrictFlow -> "DELETE_STRICT"
 
     let to_int t = match t with
       | AddFlow -> ofp_flow_mod_command_to_int OFPFC_ADD
@@ -816,8 +816,10 @@ module PacketIn = struct
       | ExplicitSend -> ofp_reason_to_int ACTION
 
     let to_string r = match r with
-      | NoMatch -> "NoMatch"
-      | ExplicitSend -> "ExplicitSend"
+      | NoMatch -> "NO_MATCH"
+      | ExplicitSend -> "EXPLICIT_SEND" (* XXX(seliopou): inconsistent naming
+                                           with respect to standard. Should be
+                                           ACTION *)
 
     let size_of _ = 1
 
@@ -895,9 +897,9 @@ module FlowRemoved = struct
       | Delete -> ofp_flow_removed_reason_to_int DELETE
 
     let to_string r = match r with
-      | IdleTimeout -> "IdleTimeout"
-      | HardTimeout -> "HardTimeout"
-      | Delete -> "Delete"
+      | IdleTimeout -> "IDLE_TIMEOUT"
+      | HardTimeout -> "HARD_TIMEOUT"
+      | Delete -> "DELETE"
 
     let size_of _ = 1
 
@@ -1331,9 +1333,9 @@ module PortStatus = struct
       ofp_port_reason_to_int reason_code
 
     let to_string reason = match reason with
-        | Add -> "Add"
-        | Delete -> "Delete"
-        | Modify -> "Modify"
+        | Add -> "ADD"
+        | Delete -> "DELETE"
+        | Modify -> "MODIFY"
 
     let size_of t = sizeof_ofp_port_status
 
