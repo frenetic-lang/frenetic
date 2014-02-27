@@ -22,6 +22,7 @@ let _ = Log.set_output
               ("openflow", "platform");
               ("openflow", "serialization");
               ("openflow", "controller");
+              ("openflow", "openflow0x01");
               ("netkat", "topology.switch")]]
 
 let tags = [("openflow", "controller")]
@@ -159,8 +160,8 @@ let to_event w_out (t : t) evt =
       (* Generate a SwitchUp event, and PortUp event for ever port that is
        * useable. *)
       return ((SwitchUp sw_id) :: (List.fold ports ~init:[] ~f:(fun acc pd ->
-        if port_desc_useable pd then
-          let open OpenFlow0x01.PortDescription in
+        let open OpenFlow0x01.PortDescription in
+        if port_desc_useable pd && pd.port_no < 0xff00 then
           let pt_id = VInt.Int32 (Int32.of_int_exn pd.port_no) in
           PortUp(sw_id, pt_id)::acc
         else
@@ -299,7 +300,7 @@ let start app ?(port=6633) () =
        >=> (to_event w_out) in
 
     (* Build up the application by adding topology discovery into the mix. *)
-    let topo_events, topo = Discovery.create () in
+    let d_ctl, topo = Discovery.create () in
     let app = Async_NetKAT.union ~how:`Sequential topo (Discovery.guard app) in
     let sdn_events = run stages t' (Controller.listen t) in
     (* The discovery application itself will generate events, so the actual
@@ -309,6 +310,6 @@ let start app ?(port=6633) () =
      *
      * Whatever happens, happens. Can't stop won't stop.
      * *)
-    let events = Pipe.interleave [topo_events; sdn_events] in
+    let events = Pipe.interleave [Discovery.events d_ctl; sdn_events] in
 
     Deferred.don't_wait_for (Pipe.iter events ~f:(handler t' w_out app))

@@ -67,6 +67,77 @@ module Switch = struct
 
   module SwitchMap = Map.Make(Int64)
 
+  module Ctl = struct
+    module PortSet = Async_NetKAT.Net.Topology.PortSet
+
+    type t = {
+      r_evts : NetKAT_Types.event Pipe.Reader.t;
+      w_outs : NetKAT_Types.packet_out Pipe.Writer.t;
+      mutable pending : PortSet.t SwitchMap.t;
+      mutable probe : bool;
+      mutable loop : unit Deferred.t
+    }
+
+    let to_out switch_id port_id =
+      let bytes = Packet.marshal
+        Probe.(to_packet { switch_id; port_id = port_id }) in
+      let port_id' = VInt.Int32 port_id in
+      let action = SDN_Types.OutputPort(port_id') in
+      (switch_id, bytes, None, Some(port_id'), [action])
+
+    let loop t =
+      Deferred.repeat_until_finished () (fun () ->
+        if t.probe then
+          Clock.after (Time.Span.of_sec 3.0)
+          >>= fun () ->
+          let outs = SwitchMap.fold t.pending ~init:[] ~f:(fun ~key ~data acc ->
+            PortSet.fold (fun pt_id acc -> (to_out key pt_id):: acc) data acc) in
+          Deferred.List.iter outs ~f:(Pipe.write t.w_outs)
+          >>| fun _ -> `Repeat ()
+        else
+          return (`Finished ()))
+
+    let events t =
+      t.r_evts
+
+    let add t switch_id port_id =
+      t.pending <- SwitchMap.change t.pending switch_id (function
+        | None -> Some(PortSet.singleton port_id)
+        | Some(ports) -> Some(PortSet.add port_id ports));
+      Pipe.write t.w_outs (to_out switch_id port_id)
+
+    let remove t switch_id port_id =
+      let removed = ref true in
+      t.pending <- SwitchMap.change t.pending switch_id (function
+        | None -> removed := false; None
+        | Some(ports) -> Some(PortSet.remove port_id ports));
+      !removed
+
+    let remove_switch t switch_id =
+      t.pending <- SwitchMap.remove t.pending switch_id
+
+    let pause t =
+      t.probe <- false;
+      t.loop
+      >>| fun () ->
+        t.loop <- return ()
+
+    let resume t =
+      t.probe <- true;
+      t.loop <- loop t
+
+    let create r_evts w_outs =
+      let t = {
+        r_evts;
+        w_outs;
+        pending = SwitchMap.empty;
+        probe = false;
+        loop = return ()
+      } in
+      resume t;
+      t
+  end
+
   let guard app =
     let open NetKAT_Types in
     let open Async_NetKAT in
@@ -77,31 +148,31 @@ module Switch = struct
   let create () =
     let open NetKAT_Types in
     let open Async_NetKAT in
-    (* Maps switch_ids to a set of ports that switch that haven't been matched
-     * up with their other end yet. *)
-    let pending = ref SwitchMap.empty in
     (* The default and static policy. This should be installed on all switches
      * and never change. *)
     let default = Seq(Filter(And(Test(EthType Probe.protocol),
                                  Test(EthSrc  Probe.mac))),
                       Mod(Location(Pipe("probe")))) in
     (* A pipe for topology events. *)
-    let t_r, t_w = Pipe.create () in
+    let e_r, e_w = Pipe.create () in
+    (* A pipe for packet_outs *)
+    let o_r, o_w = Pipe.create () in
+
+    (* Stores state for switch topology discovery, and manages the logical
+     * thread that sends probes to unknown ports *)
+    let ctl = Ctl.create e_r o_w in
 
     let handle_probe t switch_id port_id probe : Net.Topology.t Deferred.t =
       let open Probe in
       let open Net.Topology in
-      (* XXX(seliopou): symmetric case *)
-      pending := SwitchMap.change !pending probe.switch_id (function
-        | None -> raise (Assertion_failed (Printf.sprintf
-                    "Discovery.handle_probe: unknown switch %Lu" probe.switch_id));
-        | Some(ports) -> Some(PortSet.remove probe.port_id ports));
-      pending := SwitchMap.change !pending switch_id (function
-        | None -> None (* It is possible for the controller to receive PacketIn
-                          events from a switch before its probes are sent. It
-                          however should not be possible to get a PacketIn
-                          after a switch has disconnect. *)
-        | Some(ports) -> Some(PortSet.remove port_id ports));
+      begin if not (Ctl.remove ctl probe.switch_id probe.port_id) then
+        raise (Assertion_failed (Printf.sprintf
+            "Discovery.handle_probe: unknown switch %Lu" probe.switch_id));
+      end;
+      (* It is possible for the controller to receive PacketIn events from a
+       * switch before its probes are sent. It however should not be possible to
+       * get a PacketIn after a switch has disconnect. *)
+      ignore (Ctl.remove ctl switch_id port_id);
       let v = vertex_of_label t (Switch switch_id) in
       match next_hop t v port_id with
         | Some(e) ->
@@ -117,9 +188,12 @@ module Switch = struct
           let t, _  = add_edge t v2 probe.port_id () v1 port_id in
           let e1 = (switch_id, VInt.Int32 port_id) in
           let e2 = (probe.switch_id, VInt.Int32 probe.port_id) in
-          Pipe.write t_w (LinkUp (e1, e2)) >>| fun _ -> t in
+          Pipe.write e_w (LinkUp (e1, e2)) >>| fun _ -> t in
 
-    let handler t w () e : result Deferred.t =
+    let handler t w () : event -> result Deferred.t = fun e ->
+      (* Transfer all packet_outs from the Clt.t to the pipe passed to the
+       * handler. *)
+      Deferred.don't_wait_for (Pipe.transfer_id o_r w);
       let open Net.Topology in
       match e with
         | PacketIn(p, sw_id, pt_id, bytes, len, buf) ->
@@ -141,25 +215,19 @@ module Switch = struct
           return None
         | SwitchDown sw_id ->
           Log.info ~tags "SwitchDown: %Lu" sw_id;
+          Ctl.remove_switch ctl sw_id;
           t := remove_vertex !t (vertex_of_label !t (Switch sw_id));
           return None
         | PortUp (sw_id, pt_id) ->
           let pt_id' = VInt.get_int32 pt_id in
           Log.info ~tags "PortUp: %Lu@%lu" sw_id pt_id';
-          pending := SwitchMap.change !pending sw_id (function
-            | None -> Some(PortSet.singleton pt_id')
-            | Some(ports) -> Some(PortSet.add pt_id' ports));
-          let bytes = Packet.marshal
-            Probe.(to_packet { switch_id = sw_id; port_id = pt_id' }) in
-          let out = (sw_id, bytes, None, Some(pt_id), [SDN_Types.OutputPort(pt_id)]) in
-          Pipe.write w out >>= fun _ ->
-          return None
+          Ctl.add ctl sw_id pt_id'
+          >>| fun () ->
+            None
         | PortDown (sw_id, pt_id) ->
           let pt_id' = VInt.get_int32 pt_id in
           Log.info ~tags "PortDown: %Lu@%lu" sw_id pt_id';
-          pending := SwitchMap.change !pending sw_id (function
-            | None -> None
-            | Some(ports) -> Some(PortSet.remove pt_id' ports));
+          ignore (Ctl.remove ctl sw_id pt_id');
           let v = vertex_of_label !t (Switch sw_id) in
           let mh = next_hop !t v pt_id' in
           (* Do not put the above line below the below line. The code needs to
@@ -171,9 +239,9 @@ module Switch = struct
               let (v2, pt_id2) = edge_dst e in
               begin match vertex_to_label !t v2 with
                 | Switch(sw_id2) ->
-                  Pipe.write t_w (LinkDown((sw_id, pt_id), (sw_id2, VInt.Int32 pt_id2)))
+                  Pipe.write e_w (LinkDown((sw_id, pt_id), (sw_id2, VInt.Int32 pt_id2)))
                 | Host(dlAddr, nwAddr) ->
-                  Pipe.write t_w (HostDown((sw_id, pt_id), (dlAddr, nwAddr)))
+                  Pipe.write e_w (HostDown((sw_id, pt_id), (dlAddr, nwAddr)))
               end
           end >>= fun _ ->
           return None
@@ -193,13 +261,21 @@ module Switch = struct
           return None in
 
     let app = create ~pipes:(PipeSet.singleton "probe") default handler in
-    (t_r, app)
-
+    (ctl, app)
 end
 
 let guard app =
   Switch.guard app
 
+let events t =
+  Switch.Ctl.events t
+
 let create () =
   Switch.create ()
   (* Async_NetKAT.union (Host.create ()) (Switch.create()) *)
+
+let pause t =
+  Switch.Ctl.pause t
+
+let resume t =
+  Switch.Ctl.resume t
