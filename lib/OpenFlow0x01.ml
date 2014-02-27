@@ -2011,6 +2011,7 @@ module StatsReply = struct
     
 end
 
+(* See Section 5.4.4 of the OpenFlow 1.0 specification *)
 module Error = struct
   
   cstruct ofp_error_msg {
@@ -2095,8 +2096,8 @@ module Error = struct
         raise (Unparsable msg)
 
     let to_string e = match e with
-      | Incompatible -> "Incompatible"
-      | Eperm -> "Eperm"
+      | Incompatible -> "INCOMPATIBLE"
+      | Eperm -> "EPERM"
 
   end
 
@@ -2140,15 +2141,15 @@ module Error = struct
               raise (Unparsable msg)
 
     let to_string r = match r with
-      | BadVersion -> "BadVersion"
-      | BadType -> "BadType"
-      | BadStat -> "BadStat"
-      | BadVendor -> "BadVendor"
-      | BadSubType -> "BadSubType"
-      | Eperm -> "Eperm"
-      | BadLen -> "BadLen"
-      | BufferEmpty -> "BufferEmpty"
-      | BufferUnknown -> "BufferUnknown"
+      | BadVersion -> "BAD_VERSION"
+      | BadType -> "BAD_TYPE"
+      | BadStat -> "BAD_STAT"
+      | BadVendor -> "BAD_VENDOR"
+      | BadSubType -> "BAD_SUBTYPE"
+      | Eperm -> "EPERM"
+      | BadLen -> "BAD_LEN"
+      | BufferEmpty -> "BUFFER_EMPTY"
+      | BufferUnknown -> "BUFFER_UNKNOWN"
 
   end
 
@@ -2192,15 +2193,15 @@ module Error = struct
               raise (Unparsable msg)
 
     let to_string a = match a with
-      | BadType -> "BadType"
-      | BadLen -> "BadLen"
-      | BadVendor -> "BadVendor"
-      | BadVendorType -> "BadVendorType"
-      | BadOutPort -> "BadOutPort"
-      | BadArgument -> "BadArgument"
-      | Eperm -> "Eperm"
-      | TooMany -> "TooMany"
-      | BadQueue -> "BadQueue"
+      | BadType -> "BAD_TYPE"
+      | BadLen -> "BAD_LEN"
+      | BadVendor -> "BAD_VENDOR"
+      | BadVendorType -> "BAD_VENDORTYPE"
+      | BadOutPort -> "BAD_OUTPORT"
+      | BadArgument -> "BAD_ARGUMENT"
+      | Eperm -> "EPERM"
+      | TooMany -> "TOO_MANY"
+      | BadQueue -> "BAD_QUEUE"
 
   end
 
@@ -2235,12 +2236,12 @@ module Error = struct
               raise (Unparsable msg)
 
     let to_string f = match f with
-      | AllTablesFull -> "AllTablesFull"
-      | Overlap -> "Overlap"
-      | Eperm -> "Eperm"
-      | BadEmergTimeout -> "BadEmergTimeout"
-      | BadCommand -> "BadCommand"
-      | Unsupported -> "Unsupported"
+      | AllTablesFull -> "ALL_TABLES_FULL"
+      | Overlap -> "OVERLAP"
+      | Eperm -> "EPERM"
+      | BadEmergTimeout -> "BAD_EMERG_TIMEOUT"
+      | BadCommand -> "BAD_COMMAND"
+      | Unsupported -> "UNSUPPORTED"
 
   end
 
@@ -2263,8 +2264,8 @@ module Error = struct
               raise (Unparsable msg)
 
     let to_string = function
-      | BadPort -> "BadPort"
-      | BadHwAddr -> "BadHwAddr"
+      | BadPort -> "BAD_PORT"
+      | BadHwAddr -> "BAD_HW_ADDR"
 
   end
 
@@ -2290,9 +2291,9 @@ module Error = struct
               raise (Unparsable msg)
 
     let to_string = function
-      | BadPort -> "BadPort"
-      | BadQueue -> "BadQueue"
-      | Eperm -> "Eperm"
+      | BadPort -> "BAD_PORT"
+      | BadQueue -> "BAD_QUEUE"
+      | Eperm -> "EPERM"
 
   end
 
@@ -2359,20 +2360,24 @@ module Error = struct
     let _ = Cstruct.blit body 0 out 0 (Cstruct.len body) in 
       sizeof_ofp_error_msg + Cstruct.len body
 
-  let to_string (Error(code,_)) = 
-    match code with
-    | HelloFailed code -> 
-      "HelloFailed (" ^ (HelloFailed.to_string code) ^ ", <data>)"
-    | BadRequest code -> 
-      "BadRequest (" ^ (BadRequest.to_string code) ^ ", <data>)"
-    | BadAction code -> 
-      "BadAction (" ^ (BadAction.to_string code) ^ ", <data>)"
-    | FlowModFailed code -> 
-      "FlowModFailed (" ^ (FlowModFailed.to_string code) ^ ", <data>)"
-    | PortModFailed code ->
-      "PortModFailed (" ^ (PortModFailed.to_string code) ^ ", <data>)"
-    | QueueOpFailed code ->
-      "QueueOpFailed (" ^ (QueueOpFailed.to_string code) ^ ", <data>)"
+
+
+  let to_string (Error(code, body)) =
+    let len = Cstruct.len body in
+    let t, c = match code with
+      | HelloFailed code ->
+        ("HELLO_FAILED", HelloFailed.to_string code)
+      | BadRequest code ->
+        ("BAD_REQUEST", BadRequest.to_string code)
+      | BadAction code ->
+        ("BAD_ACTION", BadAction.to_string code)
+      | FlowModFailed code ->
+        ("FLOW_MOD_FAILED", FlowModFailed.to_string code)
+      | PortModFailed code ->
+        ("PORT_MOD_FAILED", PortModFailed.to_string code)
+      | QueueOpFailed code ->
+        ("QUEUE_OP_FAILED", QueueOpFailed.to_string code) in
+    Printf.sprintf "{ type = %s; code = %s; data = <bytes:%d> }" t c len
 end
 
 module Vendor = struct
@@ -2527,8 +2532,8 @@ module Message = struct
     | ConfigReplyMsg _ -> GET_CONFIG_RESP
 
   let to_string (msg : t) : string = match msg with
-    | Hello _ -> "Hello"
-    | ErrorMsg e -> Error.to_string e
+    | Hello _       -> "HELLO"
+    | ErrorMsg e    -> Printf.sprintf "ERROR %s" (Error.to_string e)
     | EchoRequest _ -> "EchoRequest"
     | EchoReply _ -> "EchoReply"
     | VendorMsg _ -> "Vendor"
