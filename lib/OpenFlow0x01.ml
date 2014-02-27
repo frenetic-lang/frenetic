@@ -640,11 +640,11 @@ module FlowMod = struct
     let size_of _ = 2
 
     let to_string cmd = match cmd with
-      | AddFlow -> "AddFlow"
-      | ModFlow -> "ModFlow"
-      | ModStrictFlow -> "ModStrictFlow"
-      | DeleteFlow -> "DeleteFlow"
-      | DeleteStrictFlow -> "DeleteStrictFlow"
+      | AddFlow -> "ADD"
+      | ModFlow -> "MOD"
+      | ModStrictFlow -> "MOD_STRICT"
+      | DeleteFlow -> "DELETE"
+      | DeleteStrictFlow -> "DELETE_STRICT"
 
     let to_int t = match t with
       | AddFlow -> ofp_flow_mod_command_to_int OFPFC_ADD
@@ -816,8 +816,10 @@ module PacketIn = struct
       | ExplicitSend -> ofp_reason_to_int ACTION
 
     let to_string r = match r with
-      | NoMatch -> "NoMatch"
-      | ExplicitSend -> "ExplicitSend"
+      | NoMatch -> "NO_MATCH"
+      | ExplicitSend -> "EXPLICIT_SEND" (* XXX(seliopou): inconsistent naming
+                                           with respect to standard. Should be
+                                           ACTION *)
 
     let size_of _ = 1
 
@@ -895,9 +897,9 @@ module FlowRemoved = struct
       | Delete -> ofp_flow_removed_reason_to_int DELETE
 
     let to_string r = match r with
-      | IdleTimeout -> "IdleTimeout"
-      | HardTimeout -> "HardTimeout"
-      | Delete -> "Delete"
+      | IdleTimeout -> "IDLE_TIMEOUT"
+      | HardTimeout -> "HARD_TIMEOUT"
+      | Delete -> "DELETE"
 
     let size_of _ = 1
 
@@ -1331,9 +1333,9 @@ module PortStatus = struct
       ofp_port_reason_to_int reason_code
 
     let to_string reason = match reason with
-        | Add -> "Add"
-        | Delete -> "Delete"
-        | Modify -> "Modify"
+        | Add -> "ADD"
+        | Delete -> "DELETE"
+        | Modify -> "MODIFY"
 
     let size_of t = sizeof_ofp_port_status
 
@@ -1583,62 +1585,6 @@ module SwitchFeatures = struct
 
 end
 
-module ConfigReply = struct
-    
-  module FragFlags = struct
-
-    type t = 
-      | FragNormal 
-      | FragDrop
-      | FragReassemble 
-
-    let of_int d = match d with 
-      | 0 -> FragNormal
-      | 1 -> FragDrop
-      | 2 -> FragReassemble
-      | _ -> raise (Unparsable "malformed frag flags")
-	
-    let to_int f = match f with 
-      | FragNormal -> 0
-      | FragDrop -> 1
-      | FragReassemble -> 2
-
-    let to_string f = match f with
-      | FragNormal -> "FragNormal"
-      | FragDrop -> "FragDrop"
-      | FragReassemble -> "FragReassemble"
-
-  end
-    
-  type t = { 
-    frag_flags : FragFlags.t; 
-    miss_send_len : int }
-
-  cstruct ofp_switch_config {
-    uint16_t flags;
-    uint16_t miss_send_len
-  } as big_endian
-
-  let size_of _ = sizeof_ofp_switch_config
-
-  let parse buf = 
-    let frag_flags = get_ofp_switch_config_flags buf in 
-    let miss_send_len = get_ofp_switch_config_miss_send_len buf in 
-    { frag_flags = FragFlags.of_int frag_flags;
-      miss_send_len = miss_send_len }
-
-  let marshal sc buf = 
-    set_ofp_switch_config_flags buf (FragFlags.to_int sc.frag_flags);
-    set_ofp_switch_config_miss_send_len buf sc.miss_send_len;
-    size_of sc
-      
-  let to_string sc = 
-    Printf.sprintf 
-      "{ frag_flags = %s; miss_send_len = %d }"
-      (FragFlags.to_string sc.frag_flags)
-      sc.miss_send_len
-end
-
 module SwitchConfig = struct
     
   module FragFlags = struct
@@ -1660,9 +1606,9 @@ module SwitchConfig = struct
       | FragReassemble -> 2
 
     let to_string f = match f with
-      | FragNormal -> "FragNormal"
-      | FragDrop -> "FragDrop"
-      | FragReassemble -> "FragReassemble"
+      | FragNormal -> "FRAG_NORMAL"
+      | FragDrop -> "FRAG_DROP"
+      | FragReassemble -> "FRAG_REASSEMBLE"
 
   end
     
@@ -2003,6 +1949,9 @@ module StatsReply = struct
         (** TODO: Support the marshaling of multiple action and multiple flows *)
         sizeof_ofp_stats_reply + sizeof_ofp_flow_stats
     end
+
+  let to_string (t : t) =
+    OpenFlow0x01_Stats.reply_to_string t
   
   let size_of (a : t) = match a with
     | DescriptionRep _ -> sizeof_ofp_stats_reply + sizeof_ofp_desc_stats
@@ -2011,6 +1960,7 @@ module StatsReply = struct
     
 end
 
+(* See Section 5.4.4 of the OpenFlow 1.0 specification *)
 module Error = struct
   
   cstruct ofp_error_msg {
@@ -2095,8 +2045,8 @@ module Error = struct
         raise (Unparsable msg)
 
     let to_string e = match e with
-      | Incompatible -> "Incompatible"
-      | Eperm -> "Eperm"
+      | Incompatible -> "INCOMPATIBLE"
+      | Eperm -> "EPERM"
 
   end
 
@@ -2140,15 +2090,15 @@ module Error = struct
               raise (Unparsable msg)
 
     let to_string r = match r with
-      | BadVersion -> "BadVersion"
-      | BadType -> "BadType"
-      | BadStat -> "BadStat"
-      | BadVendor -> "BadVendor"
-      | BadSubType -> "BadSubType"
-      | Eperm -> "Eperm"
-      | BadLen -> "BadLen"
-      | BufferEmpty -> "BufferEmpty"
-      | BufferUnknown -> "BufferUnknown"
+      | BadVersion -> "BAD_VERSION"
+      | BadType -> "BAD_TYPE"
+      | BadStat -> "BAD_STAT"
+      | BadVendor -> "BAD_VENDOR"
+      | BadSubType -> "BAD_SUBTYPE"
+      | Eperm -> "EPERM"
+      | BadLen -> "BAD_LEN"
+      | BufferEmpty -> "BUFFER_EMPTY"
+      | BufferUnknown -> "BUFFER_UNKNOWN"
 
   end
 
@@ -2192,15 +2142,15 @@ module Error = struct
               raise (Unparsable msg)
 
     let to_string a = match a with
-      | BadType -> "BadType"
-      | BadLen -> "BadLen"
-      | BadVendor -> "BadVendor"
-      | BadVendorType -> "BadVendorType"
-      | BadOutPort -> "BadOutPort"
-      | BadArgument -> "BadArgument"
-      | Eperm -> "Eperm"
-      | TooMany -> "TooMany"
-      | BadQueue -> "BadQueue"
+      | BadType -> "BAD_TYPE"
+      | BadLen -> "BAD_LEN"
+      | BadVendor -> "BAD_VENDOR"
+      | BadVendorType -> "BAD_VENDORTYPE"
+      | BadOutPort -> "BAD_OUTPORT"
+      | BadArgument -> "BAD_ARGUMENT"
+      | Eperm -> "EPERM"
+      | TooMany -> "TOO_MANY"
+      | BadQueue -> "BAD_QUEUE"
 
   end
 
@@ -2235,12 +2185,12 @@ module Error = struct
               raise (Unparsable msg)
 
     let to_string f = match f with
-      | AllTablesFull -> "AllTablesFull"
-      | Overlap -> "Overlap"
-      | Eperm -> "Eperm"
-      | BadEmergTimeout -> "BadEmergTimeout"
-      | BadCommand -> "BadCommand"
-      | Unsupported -> "Unsupported"
+      | AllTablesFull -> "ALL_TABLES_FULL"
+      | Overlap -> "OVERLAP"
+      | Eperm -> "EPERM"
+      | BadEmergTimeout -> "BAD_EMERG_TIMEOUT"
+      | BadCommand -> "BAD_COMMAND"
+      | Unsupported -> "UNSUPPORTED"
 
   end
 
@@ -2263,8 +2213,8 @@ module Error = struct
               raise (Unparsable msg)
 
     let to_string = function
-      | BadPort -> "BadPort"
-      | BadHwAddr -> "BadHwAddr"
+      | BadPort -> "BAD_PORT"
+      | BadHwAddr -> "BAD_HW_ADDR"
 
   end
 
@@ -2290,9 +2240,9 @@ module Error = struct
               raise (Unparsable msg)
 
     let to_string = function
-      | BadPort -> "BadPort"
-      | BadQueue -> "BadQueue"
-      | Eperm -> "Eperm"
+      | BadPort -> "BAD_PORT"
+      | BadQueue -> "BAD_QUEUE"
+      | Eperm -> "EPERM"
 
   end
 
@@ -2359,20 +2309,24 @@ module Error = struct
     let _ = Cstruct.blit body 0 out 0 (Cstruct.len body) in 
       sizeof_ofp_error_msg + Cstruct.len body
 
-  let to_string (Error(code,_)) = 
-    match code with
-    | HelloFailed code -> 
-      "HelloFailed (" ^ (HelloFailed.to_string code) ^ ", <data>)"
-    | BadRequest code -> 
-      "BadRequest (" ^ (BadRequest.to_string code) ^ ", <data>)"
-    | BadAction code -> 
-      "BadAction (" ^ (BadAction.to_string code) ^ ", <data>)"
-    | FlowModFailed code -> 
-      "FlowModFailed (" ^ (FlowModFailed.to_string code) ^ ", <data>)"
-    | PortModFailed code ->
-      "PortModFailed (" ^ (PortModFailed.to_string code) ^ ", <data>)"
-    | QueueOpFailed code ->
-      "QueueOpFailed (" ^ (QueueOpFailed.to_string code) ^ ", <data>)"
+
+
+  let to_string (Error(code, body)) =
+    let len = Cstruct.len body in
+    let t, c = match code with
+      | HelloFailed code ->
+        ("HELLO_FAILED", HelloFailed.to_string code)
+      | BadRequest code ->
+        ("BAD_REQUEST", BadRequest.to_string code)
+      | BadAction code ->
+        ("BAD_ACTION", BadAction.to_string code)
+      | FlowModFailed code ->
+        ("FLOW_MOD_FAILED", FlowModFailed.to_string code)
+      | PortModFailed code ->
+        ("PORT_MOD_FAILED", PortModFailed.to_string code)
+      | QueueOpFailed code ->
+        ("QUEUE_OP_FAILED", QueueOpFailed.to_string code) in
+    Printf.sprintf "{ type = %s; code = %s; data = <bytes:%d> }" t c len
 end
 
 module Vendor = struct
@@ -2396,6 +2350,9 @@ module Vendor = struct
     12
     
   let size_of _ = 12
+
+  let to_string (id, bytes) =
+    Printf.sprintf "{ vendor = %lu; data = <bytes:%d> }" id (Cstruct.len bytes)
   
 end
 
@@ -2472,7 +2429,7 @@ module Message = struct
     | StatsReplyMsg of StatsReply.t
     | SetConfig of SwitchConfig.t
     | ConfigRequestMsg
-    | ConfigReplyMsg of ConfigReply.t
+    | ConfigReplyMsg of SwitchConfig.t
 
   let parse (hdr : Header.t) (body_buf : string) : (xid * t) =
     let buf = Cstruct.of_string body_buf in
@@ -2497,7 +2454,7 @@ module Message = struct
       | PACKET_OUT -> PacketOutMsg (PacketOut.parse buf)
       | FLOW_MOD -> FlowModMsg (FlowMod.parse buf)
       | GET_CONFIG_REQ -> ConfigRequestMsg
-      | GET_CONFIG_RESP -> ConfigReplyMsg (ConfigReply.parse buf)
+      | GET_CONFIG_RESP -> ConfigReplyMsg (SwitchConfig.parse buf)
       | SET_CONFIG -> SetConfig (SwitchConfig.parse buf)
       | code -> raise (Ignored
         (Printf.sprintf "unexpected message type (%s)"
@@ -2527,25 +2484,26 @@ module Message = struct
     | ConfigReplyMsg _ -> GET_CONFIG_RESP
 
   let to_string (msg : t) : string = match msg with
-    | Hello _ -> "Hello"
-    | ErrorMsg e -> Error.to_string e
-    | EchoRequest _ -> "EchoRequest"
-    | EchoReply _ -> "EchoReply"
-    | VendorMsg _ -> "Vendor"
-    | SwitchFeaturesRequest -> "SwitchFeaturesRequest"
-    | SwitchFeaturesReply _ -> "SwitchFeaturesReply"
-    | FlowModMsg _ -> "FlowMod"
-    | PacketOutMsg _ -> "PacketOut"
-    | PortStatusMsg p -> PortStatus.to_string p
-    | PacketInMsg _ -> "PacketIn"
-    | FlowRemovedMsg _ -> "FlowRemoved"
-    | BarrierRequest -> "BarrierRequest"
-    | BarrierReply -> "BarrierReply"
-    | StatsRequestMsg _ -> "StatsRequest"
-    | StatsReplyMsg _ -> "StatsReply"
-    | SetConfig _ -> "SetConfig"
-    | ConfigRequestMsg -> "ConfigRequestMsg"
-    | ConfigReplyMsg _ -> "ConfigReplyMsg"
+    | Hello       b -> Printf.sprintf "HELLO { body = <bytes:%d> }" (Cstruct.len b)
+    | ErrorMsg    e -> Printf.sprintf "ERROR %s" (Error.to_string e)
+    | EchoRequest b -> Printf.sprintf "ECHO_REQUEST { body = <bytes:%d> }" (Cstruct.len b)
+    | EchoReply   b -> Printf.sprintf "ECHO_REPLY { body = <bytes:%d> }" (Cstruct.len b)
+    | VendorMsg   v -> Printf.sprintf "VENDOR %s" (Vendor.to_string v)
+    | SwitchFeaturesRequest -> "FEATURES_REQUEST"
+    | SwitchFeaturesReply f -> Printf.sprintf "FEATURES_REPLY %s"
+        (SwitchFeatures.to_string f)
+    | FlowModMsg m -> Printf.sprintf "FLOW_MOD %s" (FlowMod.to_string m)
+    | PacketOutMsg m -> Printf.sprintf "PACKET_OUT %s" (PacketOut.to_string m)
+    | PortStatusMsg m -> Printf.sprintf "PORT_STATUS %s" (PortStatus.to_string m)
+    | PacketInMsg m -> Printf.sprintf "PACKET_IN %s" (PacketIn.to_string m)
+    | FlowRemovedMsg m -> Printf.sprintf "FLOW_REMOVED %s" (FlowRemoved.to_string m)
+    | BarrierRequest -> Printf.sprintf "BARRIER_REQUEST"
+    | BarrierReply -> Printf.sprintf "BARRIER_REPLY"
+    | StatsRequestMsg m -> Printf.sprintf "STATS_REQUEST %s" (StatsRequest.to_string m)
+    | StatsReplyMsg m -> Printf.sprintf "STATS_REPLY %s" (StatsReply.to_string m)
+    | SetConfig m -> Printf.sprintf "SET_CONFIG %s" (SwitchConfig.to_string m)
+    | ConfigRequestMsg -> "CONFIG_REQUEST"
+    | ConfigReplyMsg m -> Printf.sprintf "CONFIG_REPLY %s" (SwitchConfig.to_string m)
 
   open Bigarray
 
@@ -2566,7 +2524,7 @@ module Message = struct
     | FlowRemovedMsg msg -> FlowRemoved.size_of msg
     | SetConfig msg -> SwitchConfig.size_of msg
     | ConfigRequestMsg -> 0
-    | ConfigReplyMsg msg -> ConfigReply.size_of msg
+    | ConfigReplyMsg msg -> SwitchConfig.size_of msg
     | PortStatusMsg msg -> PortStatus.size_of msg
     | ErrorMsg msg -> Error.size_of msg
     | StatsReplyMsg msg -> StatsReply.size_of msg
@@ -2608,7 +2566,7 @@ module Message = struct
       let _ = SwitchConfig.marshal msg out in 
       ()
     | ConfigReplyMsg msg ->
-      let _ = ConfigReply.marshal msg out in 
+      let _ = SwitchConfig.marshal msg out in
       ()
     | PortStatusMsg msg -> 
       let _ = PortStatus.marshal msg out in 
