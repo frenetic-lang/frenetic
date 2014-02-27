@@ -43,8 +43,8 @@ module Formatting = struct
     | EthDst(n) -> fprintf fmt "@[ethDst %s %s@]" asgn (Packet.string_of_mac n)
     | Vlan(n) -> fprintf fmt "@[vlanId %s %d@]" asgn n
     | VlanPcp(n) -> fprintf fmt "@[vlanPcp %s %u@]" asgn n
-    | EthType(n) -> fprintf fmt "@[ethTyp %s %s@]" asgn (Packet.string_of_dlTyp n)
-    | IPProto(n) -> fprintf fmt "@[ipProto %s %s@]" asgn (Packet.string_of_nwProto n)
+    | EthType(n) -> fprintf fmt "@[ethTyp %s 0x%x@]" asgn n
+    | IPProto(n) -> fprintf fmt "@[ipProto %s 0x%x@]" asgn n
     | IP4Src(n,32) -> fprintf fmt "@[ipSrc %s %s@]" asgn (Packet.string_of_ip n)
     | IP4Dst(n,32) -> fprintf fmt "@[ipDst %s %s@]" asgn (Packet.string_of_ip n)
     | IP4Src(n,m) -> fprintf fmt "@[ipSrc %s %s/%d@]" asgn (Packet.string_of_ip n) m
