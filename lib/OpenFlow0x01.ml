@@ -2533,10 +2533,10 @@ module Message = struct
 
   let to_string (msg : t) : string = match msg with
     | Hello       b -> Printf.sprintf "HELLO { body = <bytes:%d> }" (Cstruct.len b)
-    | ErrorMsg e    -> Printf.sprintf "ERROR %s" (Error.to_string e)
-    | EchoRequest _ -> "EchoRequest"
-    | EchoReply _ -> "EchoReply"
     | VendorMsg _ -> "Vendor"
+    | ErrorMsg    e -> Printf.sprintf "ERROR %s" (Error.to_string e)
+    | EchoRequest b -> Printf.sprintf "ECHO_REQUEST { body = <bytes:%d> }" (Cstruct.len b)
+    | EchoReply   b -> Printf.sprintf "ECHO_REPLY { body = <bytes:%d> }" (Cstruct.len b)
     | SwitchFeaturesRequest -> "SwitchFeaturesRequest"
     | SwitchFeaturesReply _ -> "SwitchFeaturesReply"
     | FlowModMsg _ -> "FlowMod"
