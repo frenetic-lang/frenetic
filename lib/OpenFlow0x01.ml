@@ -2532,7 +2532,7 @@ module Message = struct
     | ConfigReplyMsg _ -> GET_CONFIG_RESP
 
   let to_string (msg : t) : string = match msg with
-    | Hello _       -> "HELLO"
+    | Hello       b -> Printf.sprintf "HELLO { body = <bytes:%d> }" (Cstruct.len b)
     | ErrorMsg e    -> Printf.sprintf "ERROR %s" (Error.to_string e)
     | EchoRequest _ -> "EchoRequest"
     | EchoReply _ -> "EchoReply"
