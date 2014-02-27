@@ -109,6 +109,11 @@ let format_field (fmt : Format.formatter) (f : field) : unit =
       | TCPSrcPort -> "tcpSrcPort"
       | TCPDstPort -> "tcpDstPort")
 
+let format_value (fmt : Format.formatter) (f : field) (v : VInt.t) : unit =
+  match f with
+    | EthSrc
+    | EthDst -> Format.pp_print_string fmt (Packet.string_of_mac (VInt.get_int48 v))
+    | _ -> VInt.format fmt v
 
 let format_pattern (fmt:Format.formatter) (p:pattern) : unit = 
   Format.fprintf fmt "@[{";
@@ -118,7 +123,7 @@ let format_pattern (fmt:Format.formatter) (p:pattern) : unit =
         if b then Format.fprintf fmt ",@,";
         format_field fmt f;
         Format.fprintf fmt "="; 
-        VInt.format fmt v;
+        format_value fmt f v;
         true)
       p false in 
   Format.fprintf fmt "@]"
@@ -134,7 +139,7 @@ let rec format_action (fmt:Format.formatter) (a:action) : unit =
   | Enqueue(m,n) -> 
     Format.fprintf fmt "Enqueue(%a,%a)" VInt.format m VInt.format n
   | SetField(f,v) -> 
-    Format.fprintf fmt "SetField(%a,%a)" format_field f VInt.format v
+    Format.fprintf fmt "SetField(%a,%a)" format_field f (fun fmt -> format_value fmt f) v
 
 let rec format_seq (fmt : Format.formatter) (seq : seq) : unit =
   match seq with
