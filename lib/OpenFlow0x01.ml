@@ -2003,6 +2003,9 @@ module StatsReply = struct
         (** TODO: Support the marshaling of multiple action and multiple flows *)
         sizeof_ofp_stats_reply + sizeof_ofp_flow_stats
     end
+
+  let to_string (t : t) =
+    OpenFlow0x01_Stats.reply_to_string t
   
   let size_of (a : t) = match a with
     | DescriptionRep _ -> sizeof_ofp_stats_reply + sizeof_ofp_desc_stats
@@ -2401,6 +2404,9 @@ module Vendor = struct
     12
     
   let size_of _ = 12
+
+  let to_string (id, bytes) =
+    Printf.sprintf "{ vendor = %lu; data = <bytes:%d> }" id (Cstruct.len bytes)
   
 end
 
@@ -2533,24 +2539,25 @@ module Message = struct
 
   let to_string (msg : t) : string = match msg with
     | Hello       b -> Printf.sprintf "HELLO { body = <bytes:%d> }" (Cstruct.len b)
-    | VendorMsg _ -> "Vendor"
     | ErrorMsg    e -> Printf.sprintf "ERROR %s" (Error.to_string e)
     | EchoRequest b -> Printf.sprintf "ECHO_REQUEST { body = <bytes:%d> }" (Cstruct.len b)
     | EchoReply   b -> Printf.sprintf "ECHO_REPLY { body = <bytes:%d> }" (Cstruct.len b)
-    | SwitchFeaturesRequest -> "SwitchFeaturesRequest"
-    | SwitchFeaturesReply _ -> "SwitchFeaturesReply"
-    | FlowModMsg _ -> "FlowMod"
-    | PacketOutMsg _ -> "PacketOut"
-    | PortStatusMsg p -> PortStatus.to_string p
-    | PacketInMsg _ -> "PacketIn"
-    | FlowRemovedMsg _ -> "FlowRemoved"
-    | BarrierRequest -> "BarrierRequest"
-    | BarrierReply -> "BarrierReply"
-    | StatsRequestMsg _ -> "StatsRequest"
-    | StatsReplyMsg _ -> "StatsReply"
-    | SetConfig _ -> "SetConfig"
-    | ConfigRequestMsg -> "ConfigRequestMsg"
-    | ConfigReplyMsg _ -> "ConfigReplyMsg"
+    | VendorMsg   v -> Printf.sprintf "VENDOR %s" (Vendor.to_string v)
+    | SwitchFeaturesRequest -> "FEATURES_REQUEST"
+    | SwitchFeaturesReply f -> Printf.sprintf "FEATURES_REPLY %s"
+        (SwitchFeatures.to_string f)
+    | FlowModMsg m -> Printf.sprintf "FLOW_MOD %s" (FlowMod.to_string m)
+    | PacketOutMsg m -> Printf.sprintf "PACKET_OUT %s" (PacketOut.to_string m)
+    | PortStatusMsg m -> Printf.sprintf "PORT_STATUS %s" (PortStatus.to_string m)
+    | PacketInMsg m -> Printf.sprintf "PACKET_IN %s" (PacketIn.to_string m)
+    | FlowRemovedMsg m -> Printf.sprintf "FLOW_REMOVED %s" (FlowRemoved.to_string m)
+    | BarrierRequest -> Printf.sprintf "BARRIER_REQUEST"
+    | BarrierReply -> Printf.sprintf "BARRIER_REPLY"
+    | StatsRequestMsg m -> Printf.sprintf "STATS_REQUEST %s" (StatsRequest.to_string m)
+    | StatsReplyMsg m -> Printf.sprintf "STATS_REPLY %s" (StatsReply.to_string m)
+    | SetConfig m -> Printf.sprintf "SET_CONFIG %s" (SwitchConfig.to_string m)
+    | ConfigRequestMsg -> "CONFIG_REQUEST"
+    | ConfigReplyMsg m -> Printf.sprintf "CONFIG_REPLY %s" (ConfigReply.to_string m)
 
   open Bigarray
 
