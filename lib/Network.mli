@@ -30,13 +30,13 @@ module type NETWORK = sig
 
     module EdgeSet : Set.S
       with type elt = edge
-      
+
     module VertexSet : Set.S
       with type elt = vertex
-      
+
     module PortSet : Set.S
       with type elt = port
-    
+
     (* Constructors *)
     val copy : t -> t
     val empty : unit -> t
@@ -101,3 +101,6 @@ module type MAKE = functor (Vertex:VERTEX) -> functor (Edge:EDGE) -> NETWORK
    and module Topology.Edge = Edge
 
 module Make : MAKE
+
+module Physical : NETWORK with module Topology.Vertex = Concrete.Node
+                          and module Topology.Edge = Concrete.Link

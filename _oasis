@@ -12,7 +12,9 @@ BuildTools:
 Library topology
   Path: lib
   BuildDepends:
+    packet,
     ocamlgraph,
     threads
   Modules:
+    Concrete,
     Network
