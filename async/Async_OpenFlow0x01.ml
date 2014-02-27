@@ -24,45 +24,23 @@ end
 
 include Async_OpenFlow_Message.MakeSerializers (Message)
 
-module BBuffer = struct
-  type 'a t = {
-    max_size : int;
-    mutable cur_size : int;
-    mutable elems : 'a list
-  }
-
-  let create ?(max_size=2) () =
-    { max_size
-    ; cur_size = 0
-    ; elems = []
-    }
-
-  let enqueue q e =
-    if q.max_size >= q.cur_size + 1 then
-      q.cur_size <- q.cur_size + 1;
-      q.elems <- e :: q.elems
-
-  let clear (q : 'a t) : 'a list =
-    let es = List.rev (q.elems) in
-    q.cur_size <- 0;
-    q.elems <- [];
-    es
-
-end
-
 module Controller = struct
   open Async.Std
+
+  module Log = Async_OpenFlow_Log
+  let tags = [("openflow", "openflow0x01")]
 
   module ChunkController = Async_OpenFlowChunk.Controller
   module Client_id = ChunkController.Client_id
 
   module ClientMap = Map.Make(Client_id)
+  module ClientSet = Set.Make(Client_id)
   module SwitchMap = Map.Make(Int64)
 
   type m = Message.t
   type t = {
     sub : ChunkController.t;
-    mutable shakes : (Client_id.t * m) BBuffer.t ClientMap.t;
+    mutable shakes : ClientSet.t;
     mutable feats : SDN_Types.switchId ClientMap.t;
     mutable clients : Client_id.t SwitchMap.t;
   }
@@ -98,7 +76,7 @@ module Controller = struct
       ?buffer_age_limit ~port ()
     >>| function t ->
         { sub = t
-        ; shakes = ClientMap.empty
+        ; shakes = ClientSet.empty
         ; feats = ClientMap.empty
         ; clients = SwitchMap.empty
         }
@@ -126,26 +104,27 @@ module Controller = struct
   let features t evt =
     match evt with
       | `Connect (c_id) ->
-        t.shakes <- ClientMap. add t.shakes c_id (BBuffer.create ());
+        t.shakes <- ClientSet.add t.shakes c_id;
         send t c_id (0l, M.SwitchFeaturesRequest) >>| ChunkController.ensure
-      | `Message (c_id, (xid, msg)) when ClientMap.mem t.shakes c_id ->
-        let q = ClientMap.find_exn t.shakes c_id in
+      | `Message (c_id, (xid, msg)) when ClientSet.mem t.shakes c_id ->
         begin match msg with
           | M.SwitchFeaturesReply fs ->
             let switch_id = fs.OpenFlow0x01.SwitchFeatures.switch_id in
             t.feats <- ClientMap.add t.feats c_id switch_id;
             t.clients <- SwitchMap.add t.clients switch_id c_id;
-            t.shakes <- ClientMap.remove t.shakes c_id;
-            return (`Connect(c_id, fs) :: (List.rev_map (BBuffer.clear q) (fun e -> `Message e)))
+            t.shakes <- ClientSet.remove t.shakes c_id;
+            return [`Connect(c_id, fs)]
           | _ ->
-            BBuffer.enqueue q (c_id, (xid, msg));
+            Log.of_lazy ~tags ~level:`Debug (lazy
+              (Printf.sprintf "Dropped message during handshake: %s"
+                (Message.to_string (xid, msg))));
             return []
         end
       | `Message (c_id, msg) ->
         return [`Message(c_id, msg)]
       | `Disconnect (c_id, exn) ->
         let switch_id = ClientMap.find_exn t.feats c_id in
-        t.shakes <- ClientMap.remove t.shakes c_id;
+        t.shakes <- ClientSet.remove t.shakes c_id;
         t.feats <- ClientMap.remove t.feats c_id;
         t.clients <- SwitchMap.remove t.clients switch_id;
         return [`Disconnect(c_id, switch_id, exn)]
