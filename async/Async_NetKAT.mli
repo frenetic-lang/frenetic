@@ -33,9 +33,10 @@ module PipeSet : Set.S
 type result = policy option
 
 (** [handler] is a function that's used to both create basic reactive [app]s as
-    well as run them. *)
+    well as run them. The [unit] argument indicates a partial application point. *)
 type handler = Net.Topology.t ref
              -> packet_out Pipe.Writer.t
+             -> unit
              -> event
              -> result Deferred.t
 
@@ -58,11 +59,13 @@ val create_from_file : string -> app
     generated in response to an event.  *)
 val default : app -> policy
 
-(** [run app] returns a [handler] that implements [app]. *)
+(** [run app] returns a [handler] that implements [app]. The [unit] argument
+ * indicates a partial application point. *)
 val run
   :  app
   -> Net.Topology.t ref
   -> packet_out Pipe.Writer.t
+  -> unit
   -> event
   -> result Deferred.t
 

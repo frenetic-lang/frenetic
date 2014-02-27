@@ -46,7 +46,7 @@ end)
 exception Sequence_error of PipeSet.t * PipeSet.t
 
 type result = policy option
-type handler = Net.Topology.t ref -> packet_out Pipe.Writer.t -> event -> result Deferred.t
+type handler = Net.Topology.t ref -> packet_out Pipe.Writer.t -> unit -> event -> result Deferred.t
 
 type app = {
   pipes : PipeSet.t;
@@ -61,7 +61,7 @@ let create ?pipes (default : policy) (handler : handler) : app =
   { pipes; default; handler }
 
 let create_static (pol : policy) : app =
-  create pol (fun _ _ _ -> return None)
+  create pol (fun _ _ () _ -> return None)
 
 let create_from_file (filename : string) : app =
   let pol = In_channel.with_file filename ~f:(fun chan ->
@@ -75,13 +75,14 @@ let run
     (a : app)
     (t : Net.Topology.t ref)
     (w : packet_out Pipe.Writer.t)
-    (e : event)
-    : result Deferred.t =
-  match e with
+    (_ : unit)
+    : event -> result Deferred.t =
+  let a' = a.handler t w () in
+  fun e -> match e with
     | PacketIn(p, _, _, _, _, _) when not (PipeSet.mem a.pipes p) ->
       return None
     | _ ->
-      a.handler t w e >>| fun m_pol ->
+      a' e >>| fun m_pol ->
         begin match m_pol with
           | Some(pol) -> a.default <- pol
           | None -> ()
@@ -91,21 +92,24 @@ let run
 let union ?(how=`Parallel) (a1 : app) (a2 : app) : app =
   { pipes = PipeSet.union a1.pipes a2.pipes
   ; default = Union(a1.default, a2.default)
-  ; handler = fun t w e ->
-      Deferred.List.map ~how:how ~f:(fun a -> run a t w e) [a1; a2]
-      >>= function
-        | [m_pol1; m_pol2] ->
-          begin match m_pol1, m_pol2 with
-            | None, None ->
-              return None
-            | Some(pol1), Some(pol2) ->
-              return (Some(Union(pol1, pol2)))
-            | Some(pol1), None ->
-              return (Some(Union(pol1, a2.default)))
-            | None, Some(pol2) ->
-              return (Some(Union(a1.default, pol2)))
-          end
-        | _ -> raise (Assertion_failed "Async_NetKAT.union: impossible length list")
+  ; handler = fun t w () ->
+      fun e ->
+        let a1' = run a1 t w () in
+        let a2' = run a2 t w () in
+        Deferred.List.map ~how:how ~f:(fun a -> a e) [a1'; a2']
+        >>= function
+          | [m_pol1; m_pol2] ->
+            begin match m_pol1, m_pol2 with
+              | None, None ->
+                return None
+              | Some(pol1), Some(pol2) ->
+                return (Some(Union(pol1, pol2)))
+              | Some(pol1), None ->
+                return (Some(Union(pol1, a2.default)))
+              | None, Some(pol2) ->
+                return (Some(Union(a1.default, pol2)))
+            end
+          | _ -> raise (Assertion_failed "Async_NetKAT.union: impossible length list")
   }
 
 let seq (a1 : app) (a2: app) : app =
@@ -118,16 +122,19 @@ let seq (a1 : app) (a2: app) : app =
   end;
   { pipes = PipeSet.union a1.pipes a2.pipes
   ; default = Seq(a1.default, a2.default)
-  ; handler = fun t w e ->
-      run a1 t w e >>= fun m_pol1 ->
-      run a2 t w e >>= fun m_pol2 ->
-        match m_pol1, m_pol2 with
-          | None, None ->
-            return None
-          | Some(pol1), Some(pol2) ->
-            return (Some(Seq(pol1, pol2)))
-          | Some(pol1), None ->
-            return (Some(Seq(pol1, a2.default)))
-          | None, Some(pol2) ->
-            return (Some(Seq(a1.default, pol2)))
+  ; handler = fun t w () ->
+      let a1' = run a1 t w () in
+      let a2' = run a2 t w () in
+      fun e ->
+        a1' e >>= fun m_pol1 ->
+        a2' e >>= fun m_pol2 ->
+          match m_pol1, m_pol2 with
+            | None, None ->
+              return None
+            | Some(pol1), Some(pol2) ->
+              return (Some(Seq(pol1, pol2)))
+            | Some(pol1), None ->
+              return (Some(Seq(pol1, a2.default)))
+            | None, Some(pol2) ->
+              return (Some(Seq(a1.default, pol2)))
   }

@@ -119,7 +119,7 @@ module Switch = struct
           let e2 = (probe.switch_id, VInt.Int32 probe.port_id) in
           Pipe.write t_w (LinkUp (e1, e2)) >>| fun _ -> t in
 
-    let handler t w e : result Deferred.t =
+    let handler t w () e : result Deferred.t =
       let open Net.Topology in
       match e with
         | PacketIn(p, sw_id, pt_id, bytes, len, buf) ->

@@ -252,9 +252,9 @@ let get_switchids nib =
   nib []
 
 let handler (t : t) w app =
-  let app' = Async_NetKAT.run app in
+  let app' = Async_NetKAT.run app t.nib w () in
   fun e ->
-    app' t.nib w e >>= fun m_pol ->
+    app' e >>= fun m_pol ->
     match m_pol with
       | Some (pol) ->
         Deferred.List.iter (get_switchids !(t.nib)) ~f:(fun sw_id ->

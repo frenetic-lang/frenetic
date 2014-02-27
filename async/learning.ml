@@ -44,7 +44,7 @@ let create () =
                 Union(known, Seq(Filter(unknown_pred), default))),
             acc)) in
 
-  let handler t w e = match e with
+  let handler t w () e = match e with
     | SwitchUp(switch_id) ->
       state := SwitchMap.add !state switch_id MacMap.empty;
       return (Some(gen_pol ()))
