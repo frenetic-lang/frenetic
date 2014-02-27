@@ -111,10 +111,10 @@ let format_field (fmt : Format.formatter) (f : field) : unit =
 
 let format_value (fmt : Format.formatter) (f : field) (v : VInt.t) : unit =
   match f with
-    | EthType -> Format.pp_print_string fmt (Packet.string_of_dlTyp (VInt.get_int16 v))
+    | EthType -> Format.fprintf fmt "0x%x" (VInt.get_int16 v)
     | EthSrc
     | EthDst -> Format.pp_print_string fmt (Packet.string_of_mac (VInt.get_int48 v))
-    | IPProto -> Format.pp_print_string fmt (Packet.string_of_nwProto (VInt.get_int8 v))
+    | IPProto -> Format.fprintf fmt "0x%x" (VInt.get_int8 v)
     | IP4Src
     | IP4Dst -> Format.pp_print_string fmt (Packet.string_of_ip (VInt.get_int32 v))
     | _ -> VInt.format fmt v
