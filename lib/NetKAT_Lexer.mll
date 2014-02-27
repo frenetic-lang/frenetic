@@ -95,7 +95,7 @@ rule token = parse
                  (parse_decbyte b1)))) }
 
   | decimal as n { Scanf.sscanf n "%Lu" (fun i -> INT64 i) }
-  | hex as n { Scanf.sscanf n "%Lx" (fun i -> INT64 i) }
+  | hex as n { Scanf.sscanf n "0x%Lx" (fun i -> INT64 i) }
   | '"' (string_body as s) '"' { STRING s }
   | id as s { IDENT s }
 
