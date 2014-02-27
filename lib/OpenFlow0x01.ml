@@ -1583,62 +1583,6 @@ module SwitchFeatures = struct
 
 end
 
-module ConfigReply = struct
-    
-  module FragFlags = struct
-
-    type t = 
-      | FragNormal 
-      | FragDrop
-      | FragReassemble 
-
-    let of_int d = match d with 
-      | 0 -> FragNormal
-      | 1 -> FragDrop
-      | 2 -> FragReassemble
-      | _ -> raise (Unparsable "malformed frag flags")
-	
-    let to_int f = match f with 
-      | FragNormal -> 0
-      | FragDrop -> 1
-      | FragReassemble -> 2
-
-    let to_string f = match f with
-      | FragNormal -> "FragNormal"
-      | FragDrop -> "FragDrop"
-      | FragReassemble -> "FragReassemble"
-
-  end
-    
-  type t = { 
-    frag_flags : FragFlags.t; 
-    miss_send_len : int }
-
-  cstruct ofp_switch_config {
-    uint16_t flags;
-    uint16_t miss_send_len
-  } as big_endian
-
-  let size_of _ = sizeof_ofp_switch_config
-
-  let parse buf = 
-    let frag_flags = get_ofp_switch_config_flags buf in 
-    let miss_send_len = get_ofp_switch_config_miss_send_len buf in 
-    { frag_flags = FragFlags.of_int frag_flags;
-      miss_send_len = miss_send_len }
-
-  let marshal sc buf = 
-    set_ofp_switch_config_flags buf (FragFlags.to_int sc.frag_flags);
-    set_ofp_switch_config_miss_send_len buf sc.miss_send_len;
-    size_of sc
-      
-  let to_string sc = 
-    Printf.sprintf 
-      "{ frag_flags = %s; miss_send_len = %d }"
-      (FragFlags.to_string sc.frag_flags)
-      sc.miss_send_len
-end
-
 module SwitchConfig = struct
     
   module FragFlags = struct
@@ -1660,9 +1604,9 @@ module SwitchConfig = struct
       | FragReassemble -> 2
 
     let to_string f = match f with
-      | FragNormal -> "FragNormal"
-      | FragDrop -> "FragDrop"
-      | FragReassemble -> "FragReassemble"
+      | FragNormal -> "FRAG_NORMAL"
+      | FragDrop -> "FRAG_DROP"
+      | FragReassemble -> "FRAG_REASSEMBLE"
 
   end
     
@@ -2483,7 +2427,7 @@ module Message = struct
     | StatsReplyMsg of StatsReply.t
     | SetConfig of SwitchConfig.t
     | ConfigRequestMsg
-    | ConfigReplyMsg of ConfigReply.t
+    | ConfigReplyMsg of SwitchConfig.t
 
   let parse (hdr : Header.t) (body_buf : string) : (xid * t) =
     let buf = Cstruct.of_string body_buf in
@@ -2508,7 +2452,7 @@ module Message = struct
       | PACKET_OUT -> PacketOutMsg (PacketOut.parse buf)
       | FLOW_MOD -> FlowModMsg (FlowMod.parse buf)
       | GET_CONFIG_REQ -> ConfigRequestMsg
-      | GET_CONFIG_RESP -> ConfigReplyMsg (ConfigReply.parse buf)
+      | GET_CONFIG_RESP -> ConfigReplyMsg (SwitchConfig.parse buf)
       | SET_CONFIG -> SetConfig (SwitchConfig.parse buf)
       | code -> raise (Ignored
         (Printf.sprintf "unexpected message type (%s)"
@@ -2557,7 +2501,7 @@ module Message = struct
     | StatsReplyMsg m -> Printf.sprintf "STATS_REPLY %s" (StatsReply.to_string m)
     | SetConfig m -> Printf.sprintf "SET_CONFIG %s" (SwitchConfig.to_string m)
     | ConfigRequestMsg -> "CONFIG_REQUEST"
-    | ConfigReplyMsg m -> Printf.sprintf "CONFIG_REPLY %s" (ConfigReply.to_string m)
+    | ConfigReplyMsg m -> Printf.sprintf "CONFIG_REPLY %s" (SwitchConfig.to_string m)
 
   open Bigarray
 
@@ -2578,7 +2522,7 @@ module Message = struct
     | FlowRemovedMsg msg -> FlowRemoved.size_of msg
     | SetConfig msg -> SwitchConfig.size_of msg
     | ConfigRequestMsg -> 0
-    | ConfigReplyMsg msg -> ConfigReply.size_of msg
+    | ConfigReplyMsg msg -> SwitchConfig.size_of msg
     | PortStatusMsg msg -> PortStatus.size_of msg
     | ErrorMsg msg -> Error.size_of msg
     | StatsReplyMsg msg -> StatsReply.size_of msg
@@ -2620,7 +2564,7 @@ module Message = struct
       let _ = SwitchConfig.marshal msg out in 
       ()
     | ConfigReplyMsg msg ->
-      let _ = ConfigReply.marshal msg out in 
+      let _ = SwitchConfig.marshal msg out in
       ()
     | PortStatusMsg msg -> 
       let _ = PortStatus.marshal msg out in 
