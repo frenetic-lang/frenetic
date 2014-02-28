@@ -768,31 +768,49 @@ module RunTime = struct
     let i16 x = VInt.Int16 x in
     let i32 x = VInt.Int32 x in
     let i48 x = VInt.Int64 x in
-    let port = match HOV.location a, pto with
-      | Some (NetKAT_Types.Physical pt),_ ->
-        VInt.Int32 pt
-      | _, Some pt ->
-        pt
-      | _, None ->
-        failwith "indeterminate port" in
-    let g h c act f =
-      match Field.get f a with
-        | None -> act
-        | Some v -> SetField(h,c v)::act in
-    HOV.Fields.fold
-      ~init:[OutputPort port]
-      ~location:(fun act _ -> act)
-      ~ethSrc:(g EthSrc i48)
-      ~ethDst:(g EthDst i48)
-      ~vlan:(g Vlan i16)
-      ~vlanPcp:(g VlanPcp i8)
-      ~ethType:(g EthType i16)
-      ~ipProto:(g IPProto i8)
-      ~ipSrc:(g IP4Src i32)
-      ~ipDst:(g IP4Src i32)
-      ~tcpSrcPort:(g TCPSrcPort i16)
-      ~tcpDstPort:(g TCPDstPort i16)
+    let pto = match pto with
+      | Some(v) -> Some(VInt.get_int32 v)
+      | None -> None in
+    (* If an action sets the location to a pipe, ignore all other modifications.
+     * They will be applied at the controller by Semantics.eval. Otherwise, the
+     * port must be determined either by the pattern or by the action. The pto
+     * is the port determined by the pattern, if it exists. If the port is not
+     * determinate, we fail though it is technically acceptable to send it out
+     * InPort... if SDN_Types exposed that.
+     * *)
+    match HOV.location a, pto with
+      | Some (NetKAT_Types.Pipe(_)), _ ->
+        [Controller 128]
+      | Some (NetKAT_Types.Physical pt), _
+      | None, Some pt ->
+        let g h c act f =
+          match Field.get f a with
+            | None -> act
+            | Some v -> SetField(h,c v)::act in
+        HOV.Fields.fold
+          ~init:[OutputPort (VInt.Int32 pt)]
+          ~location:(fun act _ -> act)
+          ~ethSrc:(g EthSrc i48)
+          ~ethDst:(g EthDst i48)
+          ~vlan:(g Vlan i16)
+          ~vlanPcp:(g VlanPcp i8)
+          ~ethType:(g EthType i16)
+          ~ipProto:(g IPProto i8)
+          ~ipSrc:(g IP4Src i32)
+          ~ipDst:(g IP4Src i32)
+          ~tcpSrcPort:(g TCPSrcPort i16)
+          ~tcpDstPort:(g TCPDstPort i16)
+      | None, None ->
+        failwith "indeterminate location"
 
+  (* XXX(seliopou, jnf) unimplementable actions will still produce bogus
+   * outputs. For example, the following policy:
+   *
+   *   (f := 3; port := 1) | (g := 2; poirt := 2)
+   *
+   * requires two copies of the packet at the switch, which is not possible.
+   * Policies like these must be implemented at the controller.
+   * *)
   let set_to_action (s:Action.Set.t) (pto : fieldVal option) : par =
     let f par a = (to_action a pto)::par in
     Action.Set.fold s ~f:f ~init:[]
