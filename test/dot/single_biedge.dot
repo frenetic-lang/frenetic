@@ -1,0 +1,9 @@
+digraph g1 {
+
+h1[type=host,ip="10.0.0.1",mac="1:1:1:1:1:1",id=1];
+h2[type=host,ip="10.0.0.2",mac="2:2:2:2:2:2",id=2];
+
+h1 -> h2 [sport=0, dport=0, cost=1];
+h2 -> h1 [sport=0, dport=0, cost=1];
+
+}
