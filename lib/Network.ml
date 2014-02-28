@@ -399,6 +399,11 @@ struct
       let copy t = t
     end
     module Dot = Graph.Dot.Parse(Build)(struct
+      let get_port o = match o with
+        | Some(s) -> begin match s with
+            | Graph.Dot_ast.Number(i) -> Int64.of_string i
+            | _ -> failwith "Requires number" end
+        | None -> failwith "Requires value"
       let next_node = let r = ref 0 in fun _ -> incr r; !r
       let next_edge = let r = ref 0 in fun _ -> incr r; !r
       let node id attrs =
@@ -406,11 +411,19 @@ struct
             { id = next_node ();
               label = Vertex.parse_dot id attrs }
       let edge attrs =
+        (* This is a bit of a hack because we only look at the first list of attrs *)
+        let ats = List.hd attrs in
+        let src,dst,rest = List.fold_left (fun (src,dst,acc) (k,v) -> match k with
+          | Graph.Dot_ast.Ident("sport") -> (get_port v,dst,acc)
+          | Graph.Dot_ast.Ident("dport") -> (src, get_port v, acc)
+          | _ -> (src,dst,(k,v)::acc)
+        ) (0L,0L,[]) ats in
+        let attrs' = rest::(List.tl attrs) in
         let open EL in
             { id = next_edge ();
-              label = Edge.parse_dot attrs;
-              src = 0L;
-              dst = 0L }
+              label = Edge.parse_dot attrs';
+              src = src;
+              dst = dst }
     end)
     module Gml = Graph.Gml.Parse(Build)(struct
       let next_node = let r = ref 0 in fun _ -> incr r; !r
