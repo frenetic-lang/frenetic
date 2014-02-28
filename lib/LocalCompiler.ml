@@ -204,7 +204,7 @@ module Action = struct
         | Some v -> Seq (Mod (setter v), acc)
         | _ -> acc in    
     HOV.Fields.fold
-      ~init:id
+      ~init:id (* identity policy *)
       ~location:(g (fun v -> Location v))
       ~ethSrc:(g (fun v -> EthSrc v))
       ~ethDst:(g (fun v ->EthDst v))
@@ -218,6 +218,7 @@ module Action = struct
       ~tcpSrcPort:(g (fun v -> TCPSrcPort v))
       ~tcpDstPort:(g (fun v -> TCPDstPort v))
 
+  (* TODO(jnf): this is bogus. Arjun is just confused. *)
   let set_to_netkat (s:Set.t) : NetKAT_Types.policy =
     let open NetKAT_Types in  
     Set.fold s
@@ -1025,9 +1026,6 @@ let to_netkat =
 
 let compile =
   RunTime.compile
-
-let decompile _ =
-  failwith "NYI"
 
 let to_table =
   RunTime.to_table
