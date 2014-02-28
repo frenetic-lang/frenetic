@@ -15,8 +15,9 @@ Library topology
     packet,
     ocamlgraph,
     threads
+  InternalModules:
+    Concrete
   Modules:
-    Concrete,
     Network
 
 
