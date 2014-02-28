@@ -25,7 +25,7 @@ module type NETWORK = sig
 
     type vertex
     type edge
-    type port = int32
+    type port = int64
 
     module Vertex : VERTEX
     module Edge : EDGE

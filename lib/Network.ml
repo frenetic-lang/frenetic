@@ -25,7 +25,7 @@ module type NETWORK = sig
 
     type vertex
     type edge
-    type port = int32
+    type port = int64
 
     module Vertex : VERTEX
     module Edge : EDGE
@@ -107,9 +107,9 @@ module Make : MAKE =
     functor (Edge:EDGE) ->
 struct
   module Topology = struct
-    type port = int32
-    module PortSet = Set.Make(Int32)
-    module PortMap = Map.Make(Int32)
+    type port = int64
+    module PortSet = Set.Make(Int64)
+    module PortMap = Map.Make(Int64)
 
     module Vertex = Vertex
     module Edge = Edge
@@ -136,8 +136,8 @@ struct
       let default =
         { id = 0;
           label = Edge.default;
-          src = 0l;
-          dst = 0l }
+          src = 0L;
+          dst = 0L }
     end
     module EdgeSet = Set.Make(struct
       type t = VL.t * EL.t * VL.t
@@ -409,8 +409,8 @@ struct
         let open EL in
             { id = next_edge ();
               label = Edge.parse_dot attrs;
-              src = 0l;
-              dst = 0l }
+              src = 0L;
+              dst = 0L }
     end)
     module Gml = Graph.Gml.Parse(Build)(struct
       let next_node = let r = ref 0 in fun _ -> incr r; !r
@@ -423,8 +423,8 @@ struct
         let open EL in
             { id = next_edge ();
               label = Edge.parse_gml vs;
-              src = 0l;
-              dst = 0l }
+              src = 0L;
+              dst = 0L }
     end)
 
     let from_dotfile = Dot.parse
@@ -438,7 +438,7 @@ struct
       let es = (EdgeSet.fold (fun (s,l,d) acc ->
         let _,sport = edge_src (s,l,d) in
         let _,dport = edge_dst (s,l,d) in
-        Printf.sprintf "%s%s%s -> %s {sport = %ld; dport= %ld; %s}"
+        Printf.sprintf "%s%s%s -> %s {sport=%Ld; dport=%Ld; %s}"
           acc
           (if acc = "" then "" else "\n")
           (Vertex.to_string s.VL.label)
