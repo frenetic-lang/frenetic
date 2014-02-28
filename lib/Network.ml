@@ -36,6 +36,9 @@ module type NETWORK = sig
     module VertexSet : Set.S
       with type elt = vertex
 
+    module VertexHash : Hashtbl.S
+      with type key = vertex
+
     module PortSet : Set.S
       with type elt = port
 
@@ -124,6 +127,7 @@ struct
     end
     module VertexSet = Set.Make(VL)
     module VertexMap = Map.Make(Vertex)
+    module VertexHash = Hashtbl.Make(VL)
 
     module EL = struct
       type t = { id : int;
