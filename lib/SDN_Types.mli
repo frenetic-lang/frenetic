@@ -146,10 +146,13 @@ val format_seq : Format.formatter -> seq -> unit
 val format_par : Format.formatter -> par -> unit
 val format_group : Format.formatter -> group -> unit
 val format_field : Format.formatter -> field -> unit
+val format_pattern : Format.formatter -> pattern -> unit
 val format_flow : Format.formatter -> flow -> unit
 val format_flowTable : Format.formatter -> flowTable -> unit
 
 val string_of_flowTable : flowTable -> string
 val string_of_flow : flow -> string
+val string_of_pattern : pattern -> string
+val string_of_field : field -> string
 val string_of_par : par -> string
 val string_of_action : action -> string
