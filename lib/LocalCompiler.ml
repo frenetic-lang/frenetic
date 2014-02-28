@@ -69,6 +69,28 @@ module PosNeg (H:NetKAT_Types.Headers.HEADER) = struct
       | Neg _ ->
         false
   let is_wild = is_any
+  let is_ground y =
+    match y with
+      | Pos s ->
+        S.length s = 1
+      | Neg s ->
+        S.is_empty s
+  let to_option y =
+    match y with
+      | Pos s ->
+        Some (S.choose_exn s)
+      | Neg _ ->
+        None
+  let expand y =
+    match y with
+      | Pos s ->
+        S.fold s
+          ~init:[]
+          ~f:(fun acc x -> (Some x, true)::acc)
+      | Neg s ->
+        S.fold s
+          ~init:[(None,true)]
+          ~f:(fun acc x -> (Some x, false)::acc)
   let subseteq y1 y2 =
     match y1, y2 with
       | Pos s1, Pos s2 ->
@@ -148,14 +170,18 @@ module HeadersPosNeg =
 
 (* H to the izz-O, V to the izz-A... *)
 module HOV = HeadersOptionalValues
+module HOVSet = Set.Make(HOV)
+module HOVMap = Map.Make(HOV)
 
 module HPN = HeadersPosNeg
+module HPNSet = Set.Make(HPN)
+module HPNMap = Map.Make(HPN)
 
 module Action = struct
 
   type t = HOV.t with sexp
 
-  module Set = Set.Make(HOV)
+  module Set = HOVSet
 
   let to_string : t -> string =
     HOV.to_string ~init:"id" ~sep:":="
@@ -241,8 +267,8 @@ end
 module Pattern = struct
   type t = HPN.t with sexp
 
-  module Set = Set.Make(HPN)
-  module Map = Map.Make(HPN)
+  module Set = HPNSet
+  module Map = HPNMap
 
   let compare (x:t) (y:t) : int =
     HPN.compare x y
@@ -766,32 +792,65 @@ module RunTime = struct
     let f par a = (to_action a pto)::par in
     Action.Set.fold s ~f:f ~init:[]
 
-  let to_pattern (x:Pattern.t) : pattern =
+  let expand_rules (x:Pattern.t) (s:Action.Set.t) : (pattern * par) list =
     let i8 x = VInt.Int8 x in
     let i16 x = VInt.Int16 x in
-    let i32m (x,y) = VInt.Int32 x in (* JNF *)
+    let i32 x = VInt.Int32 x in
     let i48 x = VInt.Int64 x in
     let il x = match x with
-      | NetKAT_Types.Physical p -> VInt.Int32 p
-      | NetKAT_Types.Pipe p -> failwith "Not yet implemented" in
-    let g h c act f = act in
-      (* JNF *)
-      (* match Field.get f x with  *)
-      (*   | None -> act *)
-      (*   | Some v -> FieldMap.add h (c v) act in  *)
-    HPN.Fields.fold
-      ~init:FieldMap.empty
-      ~location:(g InPort il)
-      ~ethSrc:(g EthSrc i48)
-      ~ethDst:(g EthDst i48)
-      ~vlan:(g Vlan i16)
-      ~vlanPcp:(g VlanPcp i8)
-      ~ethType:(g EthType i16)
-      ~ipProto:(g IPProto i8)
-      ~ipSrc:(g IP4Src i32m)
-      ~ipDst:(g IP4Src i32m)
-      ~tcpSrcPort:(g TCPSrcPort i16)
-      ~tcpDstPort:(g TCPDstPort i16)
+      | NetKAT_Types.Pipe _ ->
+        failwith "indeterminate port"
+      | NetKAT_Types.Physical n ->
+        VInt.Int32 n in
+    let g os c h acc f =
+      let v = Field.get f x in
+      let l =
+        List.map (os v)
+          ~f:(fun (o,b) ->
+              match o with
+                | Some v -> (Some (c v), b)
+                | None -> (None, b)) in
+      FieldMap.add h l acc in
+    let m : ((fieldVal option * bool) list) FieldMap.t =
+      HPN.Fields.fold
+        ~init:FieldMap.empty
+        ~location:PNL.(g expand il InPort)
+        ~ethSrc:PN48.(g expand i48 EthSrc)
+        ~ethDst:PN48.(g expand i48 EthDst)
+        ~vlan:PN16.(g expand i16 Vlan)
+        ~vlanPcp:PN8.(g expand i8 VlanPcp)
+        ~ethType:PN16.(g expand i16 EthType)
+        ~ipProto:PN8.(g expand i8 IPProto)
+        ~ipSrc:PNIp.(g expand i32 IP4Src)
+        ~ipDst:PNIp.(g expand i32 IP4Dst)
+        ~tcpSrcPort:PN16.(g expand i16 TCPSrcPort)
+        ~tcpDstPort:PN16.(g expand i16 TCPDstPort) in
+    let rec loop m acc : (fieldVal option FieldMap.t * bool) list =
+      if FieldMap.is_empty m then
+        acc
+      else
+        let h,l = FieldMap.min_binding m in
+        let r = loop (FieldMap.remove h m) acc in
+        List.fold_left l
+          ~init:[]
+          ~f:(fun acc (o,b) ->
+               List.map r
+                 ~f:(fun (p,c) -> (FieldMap.add h o p, b && c))) in
+    let go l =
+      List.fold_left l
+        ~init:[]
+        ~f:(fun acc (x,b) ->
+          let pto = FieldMap.find InPort x in
+          let a = if b then set_to_action s pto else [] in
+          let y =
+            FieldMap.fold
+              (fun h o acc ->
+                match o with
+                  | None -> acc
+                  | Some v -> FieldMap.add h v acc)
+              x FieldMap.empty in
+          ((y,a)::acc)) in
+    go (loop m [])
 
   type i = Local.t
 
@@ -801,13 +860,6 @@ module RunTime = struct
     Printf.printf " [compression: %d -> %d = %.3f]\n\n"
       n n' (Float.of_int n' /. Float.of_int n);
     Local.of_policy pol'
-
-  let simpl_flow (p : pattern) (a : par) : flow =
-    { pattern = p;
-      action = [a];
-      cookie = 0L;
-      idle_timeout = Permanent;
-      hard_timeout = Permanent }
 
   let dep_compare (x1,s1) (x2,s2) : int =
     let pc = Pattern.compare x1 x2 in
@@ -833,48 +885,26 @@ module RunTime = struct
         ~f:(fun ~key:x ~data:s acc -> (x,s)::acc))
       ~cmp:dep_compare
 
+  let simpl_flow (p : pattern) (a : par) : flow =
+    { pattern = p;
+      action = [a];
+      cookie = 0L;
+      idle_timeout = Permanent;
+      hard_timeout = Permanent }
+
   let to_table (m:i) : flowTable =
-    let add_flow x s l =
-      let pat = to_pattern x in
-      let pto = None in (* JNF *)
-      let act = set_to_action s pto in
-      simpl_flow pat act::l in
-    let rec loop l acc cover =
-      List.iter l
-        ~f:(fun (x,s) ->
-          Printf.printf "%s => %s\n" (Pattern.to_string x) (Action.set_to_string s));
-      [] in
-      (* match l with  *)
-      (*   | [] -> *)
-      (*     acc *)
-      (*   | (r,s)::rest -> *)
-      (*     acc in  *)
-          (* let ys = *)
-          (*   Pattern.Set.fold *)
-          (*     xs ~init:Pattern.Set.empty *)
-          (*     ~f:(fun acc xi -> *)
-          (*       match Pattern.seq xi x with *)
-          (*         | None -> acc *)
-          (*         | Some xi_x -> Pattern.Set.add acc xi_x) in *)
-          (* let zs = *)
-          (*   Pattern.Set.fold ys *)
-          (*     ~init:Pattern.Set.empty *)
-          (*     ~f:(fun acc yi -> *)
-          (*       if Pattern.Set.exists cover ~f:(Pattern.subseteq yi) then *)
-          (*         acc *)
-          (*       else *)
-          (*         Pattern.Set.add acc yi) in *)
-          (* let acc' = *)
-          (*   Pattern.Set.fold zs *)
-          (*     ~init:acc *)
-          (*     ~f:(fun acc x ->  *)
-          (*       Printf.printf "  COVERING %s ~> drop\n%!" (Pattern.to_string x); *)
-          (*       add_flow x Action.drop acc) in *)
-          (* Printf.printf "  EMITTING %s ~> %s\n%!" (Pattern.to_string x) (Action.set_to_string s); *)
-          (* let acc'' = add_flow x s acc' in *)
-          (* let cover' = Pattern.Set.add (Pattern.Set.union zs cover) x in *)
-          (* loop dm' acc'' cover' in *)
-    List.rev (loop (dep_sort m) [] Pattern.Set.empty)
+    let rec loop l acc =
+      match l with
+        | [] ->
+          List.fold_left acc
+            ~init:[]
+            ~f:(fun acc r ->
+              List.fold_right r
+                ~init:acc
+                ~f:(fun (p,a) acc -> (simpl_flow p a)::acc))
+        | (p,s)::rest ->
+          loop rest (expand_rules p s::acc) in
+    loop (dep_sort m) []
 end
 
 (* exports *)
