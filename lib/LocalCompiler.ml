@@ -4,51 +4,156 @@ open SDN_Types
 
 type location = NetKAT_Types.location
 
+(* Option functor *)
+module Option (H:NetKAT_Types.Headers.HEADER) =
+struct
+  type t = H.t option with sexp
+  let compare o1 o2 =
+    match o1,o2 with
+      | Some x1, Some x2 -> H.compare x1 x2
+      | None, Some _ -> -1
+      | Some _, None -> 1
+      | None, None -> 0
+  let equal o1 o2 =
+    compare o1 o2 = 0
+  let to_string o =
+    match o with
+      | None -> "None"
+      | Some x -> Printf.sprintf "Some(%s)" (H.to_string x)
+  let is_wild o =
+    o = None
+end
+
+(* PosNeg functor *)
+module PosNeg (H:NetKAT_Types.Headers.HEADER) = struct
+  module S = Set.Make(H)
+  type t =
+      Pos of S.t
+    | Neg of S.t
+  with sexp
+  let singleton x = Pos (S.singleton x)
+  let compare y1 y2 = match y1,y2 with
+    | Pos _, Neg _ -> -1
+    | Neg _, Pos _ -> 1
+    | Pos s, Pos s' ->
+      S.compare s s'
+    | Neg s, Neg s' ->
+      -1 * (S.compare s s')
+  let equal y1 y2 =
+    compare y1 y2 = 0
+  let fold y = match y with
+    | Pos s -> S.fold s
+    | Neg s -> S.fold s
+  let to_string y =
+    let f acc v =
+      Printf.sprintf "%s%s"
+        (if acc = "" then acc else acc ^ ", ")
+        (H.to_string v) in
+    let c = match y with
+      | Pos s -> ""
+      | Neg s -> "~" in
+    Printf.sprintf "%s{%s}"
+      c (fold y ~init:"" ~f:f)
+  let any =
+    Neg (S.empty)
+  let is_any y =
+    match y with
+      | Neg s -> S.is_empty s
+      | Pos _ -> false
+  let empty =
+    Pos (S.empty)
+  let is_empty y =
+    match y with
+      | Pos s ->
+        S.is_empty s
+      | Neg _ ->
+        false
+  let is_wild = is_any
+  let subseteq y1 y2 =
+    match y1, y2 with
+      | Pos s1, Pos s2 ->
+        Set.subset s1 s2
+      | Pos s1, Neg s2 ->
+        Set.is_empty (Set.inter s1 s2)
+      | Neg _, Pos _ ->
+        false
+      | Neg s1, Neg s2 ->
+        Set.subset s2 s1
+  let shadows y1 y2 =
+    match y1, y2 with
+      | Pos s1, Pos s2 ->
+        Set.subset s2 s1
+      | Pos s1, Neg s2 ->
+        false
+      | Neg s1, _ ->
+        true
+  let inter y1 y2 =
+    match y1, y2 with
+      | Pos s1, Pos s2 ->
+        Pos (Set.inter s1 s2)
+      | Pos s1, Neg s2 ->
+        Pos (Set.diff s1 s2)
+      | Neg s1, Pos s2 ->
+        Pos (Set.diff s2 s1)
+      | Neg s1, Neg s2 ->
+        Neg (Set.union s1 s2)
+  let neg y =
+    match y with
+      | Pos s -> Neg s
+      | Neg s -> Pos s
+end
+
+module OL = Option(NetKAT_Types.LocationHeader)
+module O48 = Option(NetKAT_Types.Int64Header)
+module O32 = Option(NetKAT_Types.Int32Header)
+module O16 = Option(NetKAT_Types.IntHeader)
+module O8 = Option(NetKAT_Types.IntHeader)
+module OIp = Option(NetKAT_Types.Int32Header)
+
+module PNL = PosNeg(NetKAT_Types.LocationHeader)
+module PN48 = PosNeg(NetKAT_Types.Int64Header)
+module PN32 = PosNeg(NetKAT_Types.Int32Header)
+module PN16 = PosNeg(NetKAT_Types.IntHeader)
+module PN8 = PosNeg(NetKAT_Types.IntHeader)
+module PNIp = PosNeg(NetKAT_Types.Int32Header)
+
+module HeadersOptionalValues =
+  NetKAT_Types.Headers.Make
+    (OL)
+    (O48)
+    (O48)
+    (O16)
+    (O8)
+    (O16)
+    (O8)
+    (OIp)
+    (OIp)
+    (O16)
+    (O16)
+
+module HeadersPosNeg =
+  NetKAT_Types.Headers.Make
+    (PNL)
+    (PN48)
+    (PN48)
+    (PN16)
+    (PN8)
+    (PN16)
+    (PN8)
+    (PNIp)
+    (PNIp)
+    (PN16)
+    (PN16)
+
+
+(* H to the izz-O, V to the izz-A... *)
+module HOV = HeadersOptionalValues
+
+module HPN = HeadersPosNeg
+
 module Action = struct
 
-  module Option = functor(H:NetKAT_Types.Headers.HEADER) ->
-  struct
-    type t = H.t option with sexp
-    let compare o1 o2 =
-      match o1,o2 with
-        | Some x1, Some x2 -> H.compare x1 x2
-        | None, Some _ -> -1
-        | Some _, None -> 1
-        | None, None -> 0
-    let equal o1 o2 =
-      compare o1 o2 = 0
-    let to_string o =
-      match o with
-        | None -> "None"
-        | Some x -> Printf.sprintf "Some(%s)" (H.to_string x)
-    let is_wild o =
-      o = None
-  end
-
-  module OL = Option(NetKAT_Types.LocationHeader)
-  module O48 = Option(NetKAT_Types.Int64Header)
-  module O32 = Option(NetKAT_Types.Int32Header)
-  module O16 = Option(NetKAT_Types.IntHeader)
-  module O8 = Option(NetKAT_Types.IntHeader)
-  module OIp = Option(NetKAT_Types.Int32Header)
-
-  module HeadersOptionalValues =
-    NetKAT_Types.Headers.Make
-      (OL)
-      (O48)
-      (O48)
-      (O16)
-      (O8)
-      (O16)
-      (O8)
-      (OIp)
-      (OIp)
-      (O16)
-      (O16)
-
-  type t = HeadersOptionalValues.t with sexp
-
-  module HOV = HeadersOptionalValues
+  type t = HOV.t with sexp
 
   module Set = Set.Make(HOV)
 
@@ -134,108 +239,7 @@ module Action = struct
 end
 
 module Pattern = struct
-  module PosNeg (H:NetKAT_Types.Headers.HEADER) = struct
-    module S = Set.Make(H)
-    type t =
-        Pos of S.t
-      | Neg of S.t
-    with sexp
-    let singleton x = Pos (S.singleton x)
-    let compare y1 y2 = match y1,y2 with
-      | Pos _, Neg _ -> -1
-      | Neg _, Pos _ -> 1
-      | Pos s, Pos s' ->
-        S.compare s s'
-      | Neg s, Neg s' ->
-        -1 * (S.compare s s')
-    let equal y1 y2 =
-      compare y1 y2 = 0
-    let fold y = match y with
-      | Pos s -> S.fold s
-      | Neg s -> S.fold s
-    let to_string y =
-      let f acc v =
-        Printf.sprintf "%s%s"
-          (if acc = "" then acc else acc ^ ", ")
-          (H.to_string v) in
-      let c = match y with
-        | Pos s -> ""
-        | Neg s -> "~" in
-      Printf.sprintf "%s{%s}"
-        c (fold y ~init:"" ~f:f)
-    let any =
-      Neg (S.empty)
-    let is_any y =
-      match y with
-        | Neg s -> S.is_empty s
-        | Pos _ -> false
-    let empty =
-      Pos (S.empty)
-    let is_empty y =
-      match y with
-        | Pos s ->
-          S.is_empty s
-        | Neg _ ->
-          false
-    let is_wild = is_any
-    let subseteq y1 y2 =
-      match y1, y2 with
-        | Pos s1, Pos s2 ->
-          Set.subset s1 s2
-        | Pos s1, Neg s2 ->
-          Set.is_empty (Set.inter s1 s2)
-        | Neg _, Pos _ ->
-          false
-        | Neg s1, Neg s2 ->
-          Set.subset s2 s1
-    let shadows y1 y2 =
-      match y1, y2 with
-        | Pos s1, Pos s2 ->
-          Set.subset s2 s1
-        | Pos s1, Neg s2 ->
-          false
-        | Neg s1, _ ->
-          true
-    let inter y1 y2 =
-      match y1, y2 with
-        | Pos s1, Pos s2 ->
-          Pos (Set.inter s1 s2)
-        | Pos s1, Neg s2 ->
-          Pos (Set.diff s1 s2)
-        | Neg s1, Pos s2 ->
-          Pos (Set.diff s2 s1)
-        | Neg s1, Neg s2 ->
-          Neg (Set.union s1 s2)
-    let neg y =
-      match y with
-        | Pos s -> Neg s
-        | Neg s -> Pos s
-  end
-
-  module PNL = PosNeg(NetKAT_Types.LocationHeader)
-  module PN48 = PosNeg(NetKAT_Types.Int64Header)
-  module PN32 = PosNeg(NetKAT_Types.Int32Header)
-  module PN16 = PosNeg(NetKAT_Types.IntHeader)
-  module PN8 = PosNeg(NetKAT_Types.IntHeader)
-  module PNIp = PosNeg(NetKAT_Types.Int32Header)
-
-  module HeadersPosNeg =
-    NetKAT_Types.Headers.Make
-      (PNL)
-      (PN48)
-      (PN48)
-      (PN16)
-      (PN8)
-      (PN16)
-      (PN8)
-      (PNIp)
-      (PNIp)
-      (PN16)
-      (PN16)
-
-  type t = HeadersPosNeg.t with sexp
-
-  module HPN = HeadersPosNeg
+  type t = HPN.t with sexp
 
   module Set = Set.Make(HPN)
   module Map = Map.Make(HPN)
@@ -397,17 +401,17 @@ module Pattern = struct
           end in
     HPN.Fields.fold
       ~init:(Some any)
-      ~location:PNL.(g Action.HOV.location is_empty inter singleton)
-      ~ethSrc:PN48.(g Action.HOV.ethSrc is_empty inter singleton)
-      ~ethDst:PN48.(g Action.HOV.ethDst is_empty inter singleton)
-      ~vlan:PN16.(g Action.HOV.vlan is_empty inter singleton)
-      ~vlanPcp:PN8.(g Action.HOV.vlanPcp is_empty inter singleton)
-      ~ethType:PN16.(g Action.HOV.ethType is_empty inter singleton)
-      ~ipProto:PN8.(g Action.HOV.ipProto is_empty inter singleton)
-      ~ipSrc:PNIp.(g Action.HOV.ipSrc is_empty inter singleton)
-      ~ipDst:PNIp.(g Action.HOV.ipDst is_empty inter singleton)
-      ~tcpSrcPort:PN16.(g Action.HOV.tcpSrcPort is_empty inter singleton)
-      ~tcpDstPort:PN16.(g Action.HOV.tcpDstPort is_empty inter singleton)
+      ~location:PNL.(g HOV.location is_empty inter singleton)
+      ~ethSrc:PN48.(g HOV.ethSrc is_empty inter singleton)
+      ~ethDst:PN48.(g HOV.ethDst is_empty inter singleton)
+      ~vlan:PN16.(g HOV.vlan is_empty inter singleton)
+      ~vlanPcp:PN8.(g HOV.vlanPcp is_empty inter singleton)
+      ~ethType:PN16.(g HOV.ethType is_empty inter singleton)
+      ~ipProto:PN8.(g HOV.ipProto is_empty inter singleton)
+      ~ipSrc:PNIp.(g HOV.ipSrc is_empty inter singleton)
+      ~ipDst:PNIp.(g HOV.ipDst is_empty inter singleton)
+      ~tcpSrcPort:PN16.(g HOV.tcpSrcPort is_empty inter singleton)
+      ~tcpDstPort:PN16.(g HOV.tcpDstPort is_empty inter singleton)
 end
 
 module Optimize = struct
@@ -733,7 +737,7 @@ module RunTime = struct
     let i16 x = VInt.Int16 x in
     let i32 x = VInt.Int32 x in
     let i48 x = VInt.Int64 x in
-    let port = match Action.HOV.location a, pto with
+    let port = match HOV.location a, pto with
         | Some (NetKAT_Types.Physical pt),_ ->
           VInt.Int32 pt
         | _, Some pt ->
@@ -744,7 +748,7 @@ module RunTime = struct
       match Field.get f a with
         | None -> act
         | Some v -> SetField(h,c v)::act in
-    Action.HOV.Fields.fold
+    HOV.Fields.fold
       ~init:[OutputPort port]
       ~location:(fun act _ -> act)
       ~ethSrc:(g EthSrc i48)
@@ -775,7 +779,7 @@ module RunTime = struct
       (* match Field.get f x with  *)
       (*   | None -> act *)
       (*   | Some v -> FieldMap.add h (c v) act in  *)
-    Pattern.HPN.Fields.fold
+    HPN.Fields.fold
       ~init:FieldMap.empty
       ~location:(g InPort il)
       ~ethSrc:(g EthSrc i48)
