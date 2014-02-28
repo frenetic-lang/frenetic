@@ -7,7 +7,7 @@ open NetKAT_Pretty
 let test_compile lhs rhs =
   let rhs' =
     LocalCompiler.to_netkat
-      (LocalCompiler.of_policy 0L lhs) in
+      (LocalCompiler.compile 0L lhs) in
   if rhs' = rhs then
     true
   else
@@ -50,7 +50,7 @@ TEST "compile negation of conjunction" =
   let pr = And (pr1, pr2) in 
   test_compile
     (Filter (Neg pr))
-    (Union (Filter(And(Neg pr2, pr1)), Filter (Neg pr1)))
+    (Union (Filter(And(pr1, Neg pr2)), Filter (Neg pr1)))
 
 TEST "commute test annihilator" =
   test_compile
@@ -155,26 +155,41 @@ module FromPipe = struct
   end)
 
   let test_from_pipes pol pkt pipes =
-    let t = LocalCompiler.of_policy 0L pol in
+    let t = LocalCompiler.compile 0L pol in
     let ps, _ = LocalCompiler.eval t pkt in
     PipeSet.(equal (of_list pipes) (of_list (List.map ~f:fst ps)))
 
-  let default_packet headers= {
-    switch = 0L;
-    headers;
-    payload = SDN_Types.NotBuffered (Cstruct.create 0)
+  let default_headers =
+    let open NetKAT_Types.HeadersValues in
+    { location = Physical 0l;
+      ethSrc = 0L;
+      ethDst = 0L;
+      vlan = 0;
+      vlanPcp = 0;
+      ethType = 0;
+      ipProto = 0;
+      ipSrc = 0l;
+      ipDst = 0l;
+      tcpSrcPort = 0;
+      tcpDstPort = 0;
+    }
+
+  let default_packet headers =
+    { switch = 0L;
+      headers;
+      payload = SDN_Types.NotBuffered (Cstruct.create 0)
   }
 
   TEST "all to controller" =
     let pol = Mod(Location(Pipe("all"))) in
-    let pkt = default_packet Headers.empty in
+    let pkt = default_packet default_headers in
     test_from_pipes pol pkt ["all"]
 
   TEST "all to controller, twice" =
     let pol = Union(
                 Mod(Location(Pipe("all1"))),
                 Mod(Location(Pipe("all2")))) in
-    let pkt = default_packet Headers.empty in
+    let pkt = default_packet default_headers in
     test_from_pipes pol pkt ["all1"; "all2"]
 
   TEST "ambiguous pipes" =
@@ -183,7 +198,9 @@ module FromPipe = struct
                             Mod(Location(Pipe("pipe1")))),
                         Seq(Mod(EthSrc 3L),
                             Mod(Location(Pipe("pipe2")))))) in
-    let pkt = default_packet (Headers.mk_ethDst 2L) in
+    let open NetKAT_Types.HeadersValues in
+    let pkt = default_packet { default_headers
+      with ethDst = 2L } in
     test_from_pipes pol pkt ["pipe2"; "pipe1"]
 
   TEST "left side" =
@@ -192,7 +209,9 @@ module FromPipe = struct
                     Mod(Location(Pipe("left")))),
                 Seq(Filter(Test(EthSrc 2L)),
                     Mod(Location(Pipe("right"))))) in
-    let pkt = default_packet (Headers.mk_ethSrc 1L) in
+    let open NetKAT_Types.HeadersValues in
+    let pkt = default_packet { default_headers
+      with ethSrc = 1L } in
     test_from_pipes pol pkt ["left"]
 
   TEST "right side" =
@@ -201,7 +220,9 @@ module FromPipe = struct
                     Mod(Location(Pipe("left")))),
                 Seq(Filter(Test(EthSrc 2L)),
                     Mod(Location(Pipe("right"))))) in
-    let pkt = default_packet (Headers.mk_ethSrc 2L) in
+    let open NetKAT_Types.HeadersValues in
+    let pkt = default_packet { default_headers
+      with ethSrc = 2L } in
     test_from_pipes pol pkt ["right"]
 end
 

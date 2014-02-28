@@ -5,7 +5,6 @@ module Net = Async_NetKAT.Net
 
 module Controller = Async_OpenFlow.OpenFlow0x01.Controller
 module SDN = SDN_Types
-module NetKAT = NetKAT_Types
 
 type switchId = SDN_Types.switchId
 
@@ -36,35 +35,38 @@ type t = {
 }
 
 let bytes_to_headers port_id (bytes : Cstruct.t) =
-  let open NetKAT.Headers in
+  let open NetKAT_Types.HeadersValues in
   let open Packet in
   let pkt = Packet.parse bytes in
-  { location = Some(NetKAT.Physical port_id)
-  ; ethSrc = Some(pkt.dlSrc)
-  ; ethDst = Some(pkt.dlDst)
-  ; vlan = pkt.dlVlan
-  ; vlanPcp = Some(pkt.dlVlanPcp)
-  ; ethType = Some(dlTyp pkt)
-  ; ipProto = (try Some(nwProto pkt) with Invalid_argument(_) -> None)
-  ; ipSrc = (try Some((nwSrc pkt, 0)) with Invalid_argument(_) -> None)
-  ; ipDst = (try Some((nwDst pkt, 0)) with Invalid_argument(_) -> None)
-  ; tcpSrcPort = (try Some(tpSrc pkt) with Invalid_argument(_) -> None)
-  ; tcpDstPort = (try Some(tpDst pkt) with Invalid_argument(_) -> None)
+  { location = NetKAT_Types.Physical port_id
+  ; ethSrc = pkt.dlSrc
+  ; ethDst = pkt.dlDst
+  ; vlan = (match pkt.dlVlan with Some (v) -> v | None -> 0)
+  ; vlanPcp = pkt.dlVlanPcp
+  ; ethType = dlTyp pkt
+  ; ipProto = (try nwProto pkt with Invalid_argument(_) -> 0)
+  ; ipSrc = (try nwSrc pkt with Invalid_argument(_) -> 0l)
+  ; ipDst = (try nwDst pkt with Invalid_argument(_) -> 0l)
+  ; tcpSrcPort = (try tpSrc pkt with Invalid_argument(_) -> 0)
+  ; tcpDstPort = (try tpDst pkt with Invalid_argument(_) -> 0)
   }
 
-let headers_to_actions port (h:NetKAT_Types.Headers.t) : SDN_Types.action list =
+
+let headers_to_actions
+  (h_new:NetKAT_Types.HeadersValues.t)
+  (h_old:NetKAT_Types.HeadersValues.t)
+  : SDN_Types.action list =
   let open SDN_Types in
   let g p acc f =
-    match Field.get f h with
-      | Some v -> (p v)::acc
-      | None -> acc in
-  let init = match h.NetKAT_Types.Headers.location with
-     | Some(NetKAT_Types.Pipe     p) ->
+    if (Field.get f h_new) = (Field.get f h_old)
+      then acc
+      else (p (Field.get f h_new))::acc in
+  let init = match h_new.NetKAT_Types.HeadersValues.location with
+     | NetKAT_Types.Pipe p ->
        raise (Assertion_failed (Printf.sprintf
          "Controller.headers_to_action: impossible pipe location \"%s\"" p))
-     | Some(NetKAT_Types.Physical p) -> [OutputPort(VInt.Int32 p)]
-     | None -> [OutputPort (VInt.Int32 (Int32.of_int_exn port))] in
-  NetKAT_Types.Headers.Fields.fold
+     | NetKAT_Types.Physical p -> [OutputPort(VInt.Int32 p)] in
+  NetKAT_Types.HeadersValues.Fields.fold
     ~init
     ~location:(fun acc f -> acc)
     ~ethSrc:(g (fun v -> SetField(EthSrc, VInt.Int48 v)))
@@ -73,8 +75,8 @@ let headers_to_actions port (h:NetKAT_Types.Headers.t) : SDN_Types.action list =
     ~vlanPcp:(g (fun v -> SetField(VlanPcp, VInt.Int8 v)))
     ~ethType:(g (fun v -> SetField(EthType, VInt.Int16 v)))
     ~ipProto:(g (fun v -> SetField(IPProto, VInt.Int8 v)))
-    ~ipSrc:(g (fun (v, _) -> SetField(IP4Src, VInt.Int32 v)))
-    ~ipDst:(g (fun (v, _) -> SetField(IP4Dst, VInt.Int32 v)))
+    ~ipSrc:(g (fun v -> SetField(IP4Src, VInt.Int32 v)))
+    ~ipDst:(g (fun v -> SetField(IP4Dst, VInt.Int32 v)))
     ~tcpSrcPort:(g (fun v -> SetField(TCPSrcPort, VInt.Int16 v)))
     ~tcpDstPort:(g (fun v -> SetField(TCPDstPort, VInt.Int16 v)))
 
@@ -88,28 +90,35 @@ let packet_sync_headers (pkt:NetKAT_Types.packet) : NetKAT_Types.packet * bool =
   let open NetKAT_Types in
   let change = ref false in
   let g p q acc f =
-    match Field.get f pkt.headers with
-      | Some v -> if p v acc then
-          acc
-        else begin
-          change := true;
-          q acc v
-        end
-      | None -> acc in
+    let v = Field.get f pkt.headers in
+    if p v acc then
+      acc
+    else begin
+      change := true;
+      q acc v
+    end in
   let fail field = (fun _ -> raise (Unsupported_mod field)) in
   let packet = Packet.parse (payload_bytes pkt.payload) in
-  let packet' = Headers.Fields.fold
+  let packet' = HeadersValues.Fields.fold
     ~init:packet
     ~location:(fun acc _ -> acc)
     ~ethSrc:(g (fun v p -> v = p.Packet.dlSrc) Packet.setDlSrc)
-    ~ethDst:(g (fun v  p -> v = p.Packet.dlDst) Packet.setDlDst)
+    ~ethDst:(g (fun v p -> v = p.Packet.dlDst) Packet.setDlDst)
     (* XXX(seliopou): Fix impls of: vlan, vlanPcp *)
-    ~vlan:(g (fail "vlan") (fail "vlan"))
+    ~vlan:(g (fun _ _ -> true) (fail "vlan"))
     ~vlanPcp:(g (fun _ _ -> true) (fail "vlanPcp"))
-    ~ipSrc:(g (fun (v, _) p -> v = Packet.nwSrc p) (fun acc (nw, _) -> Packet.setNwSrc acc nw))
-    ~ipDst:(g (fun (v, _) p -> v = Packet.nwDst p) (fun acc (nw, _) -> Packet.setNwDst acc nw))
-    ~tcpSrcPort:(g (fun v p -> v = Packet.tpSrc p) Packet.setTpSrc)
-    ~tcpDstPort:(g (fun v p -> v = Packet.tpDst p) Packet.setTpDst)
+    ~ipSrc:(g
+      (fun v p -> try v = Packet.nwSrc p with Invalid_argument(_) -> true)
+      (fun acc nw -> Packet.setNwSrc acc nw))
+    ~ipDst:(g
+      (fun v p -> try v = Packet.nwDst p with Invalid_argument(_) -> true)
+      (fun acc nw -> Packet.setNwDst acc nw))
+    ~tcpSrcPort:(g
+      (fun v p -> try v= Packet.tpSrc p with Invalid_argument(_) -> true)
+      Packet.setTpSrc)
+    ~tcpDstPort:(g
+      (fun v p -> try v = Packet.tpDst p with Invalid_argument(_) -> true)
+      Packet.setTpDst)
     (* XXX(seliopou): currently does not support: *)
     ~ethType:(g (fun _ _ -> true) (fail "ethType"))
     ~ipProto:(g (fun _ _ -> true) (fail "ipProto")) in
@@ -194,8 +203,8 @@ let to_event w_out (t : t) evt =
                  * *)
                 let pis, phys = LocalCompiler.eval local packet in
                 let outs = Deferred.List.iter phys ~f:(fun packet1 ->
-                  let acts = headers_to_actions pi.port
-                    (Headers.diff packet1.headers packet.headers) in
+                  let acts = headers_to_actions
+                    packet1.headers packet.headers in
                   let out = (switch_id, bytes, buf_id, Some(port_id), acts) in
                   Pipe.write w_out out) in
                 outs >>= fun _ ->
@@ -233,7 +242,7 @@ let update_table_for (t : t) (sw_id : switchId) pol =
   let to_flow_mod prio flow =
     OpenFlow0x01.Message.FlowModMsg (SDN_OpenFlow0x01.from_flow prio flow) in
   let c_id = Controller.client_id_of_switch t.ctl sw_id in
-  let local = LocalCompiler.of_policy sw_id pol in
+  let local = LocalCompiler.compile sw_id pol in
   t.locals <- SwitchMap.add t.locals sw_id local;
   send t.ctl c_id (5l, delete_flows) >>= fun _ ->
   let priority = ref 65536 in
