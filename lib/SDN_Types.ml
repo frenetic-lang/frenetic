@@ -130,7 +130,7 @@ let format_pattern (fmt:Format.formatter) (p:pattern) : unit =
         format_value fmt f v;
         true)
       p false in 
-  Format.fprintf fmt "@]"
+  Format.fprintf fmt "}@]"
 
 let rec format_action (fmt:Format.formatter) (a:action) : unit = 
   match a with         
@@ -199,5 +199,7 @@ let make_string_of formatter x =
 
 let string_of_flowTable = make_string_of format_flowTable
 let string_of_flow = make_string_of format_flow
+let string_of_field = make_string_of format_field
+let string_of_pattern = make_string_of format_pattern
 let string_of_par = make_string_of format_par
 let string_of_action = make_string_of format_action
