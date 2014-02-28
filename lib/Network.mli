@@ -103,7 +103,7 @@ end
 
 module type MAKE = functor (Vertex:VERTEX) -> functor (Edge:EDGE) -> NETWORK
   with module Topology.Vertex = Vertex
-   and module Topology.Edge = Edge
+  and module Topology.Edge = Edge
 
 
 (* Concrete instantations of above functors and module signatures *)

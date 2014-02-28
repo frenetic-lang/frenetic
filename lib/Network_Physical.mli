@@ -1,5 +1,5 @@
 open Network
-module type NODE = sig
+module Node : sig
   include VERTEX
   type device = Switch | Host | Middlebox
 
@@ -13,7 +13,7 @@ module type NODE = sig
 
 end
 
-module type LINK = sig
+module Link : sig
   include EDGE
 
   val create : int64 -> int64 -> t
@@ -21,8 +21,6 @@ module type LINK = sig
   val capacity : t -> int64
 end
 
+module Net : NETWORK with type Topology.Vertex.t = Node.t
+                     and type Topology.Edge.t = Link.t
 
-module Node : NODE
-module Link : LINK
-
-module Net : NETWORK

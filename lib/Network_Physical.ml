@@ -1,26 +1,6 @@
 open Graph
 open Network
 
-module type NODE = sig
-  include VERTEX
-  type device = Switch | Host | Middlebox
-  val default : t
-  val create : string -> int64 -> device -> int32 -> int64 -> t
-  val name : t -> string
-  val id : t -> int64
-  val device : t -> device
-  val mac : t -> int64
-  val ip : t -> int32
-end
-
-module type LINK = sig
-  include EDGE
-
-  val create : int64 -> int64 -> t
-  val cost : t -> int64
-  val capacity : t -> int64
-end
-
 (* Utility functions *)
 let parse_rate (r:string) : Int64.t =
   let a = Str.search_forward (Str.regexp "\\([0-9]+\\)") r 0 in
@@ -68,7 +48,7 @@ let capacity_of_id vo = match maybe vo with
 
 
 
-module Node : NODE = struct
+module Node = struct
   type device = Switch | Host | Middlebox
 
   type t = { dev_type : device ;
@@ -162,7 +142,7 @@ module Node : NODE = struct
     List.fold_left update_gml_attr default vs
 end
 
-module Link : LINK = struct
+module Link = struct
   type t = { cost : int64 ;
              capacity : int64 ; }
 
@@ -205,5 +185,9 @@ module Link : LINK = struct
     link
 end
 
+
+module type PHYSNET = NETWORK
+  with module Topology.Vertex = Node
+  and module Topology.Edge = Link
 
 module Net = Network.Make(Node)(Link)
