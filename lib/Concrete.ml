@@ -137,7 +137,7 @@ module Link = struct
   let compare = Pervasives.compare
 
   let to_string (l:t) : string =
-    Printf.sprintf "{ cost = %s; capacity = %s; }"
+    Printf.sprintf " cost = %s; capacity = %s; "
       (Int64.to_string l.cost)
       (Int64.to_string l.capacity)
 
@@ -147,6 +147,8 @@ module Link = struct
     match key with
       | Dot_ast.Ident("cost") -> {edge with cost = int64_of_id valopt }
       | Dot_ast.Ident("capacity") -> {edge with capacity = capacity_of_id valopt }
+      | Dot_ast.Ident("dport")
+      | Dot_ast.Ident("sport") -> edge
       | _ -> failwith "Unknown edge attribute\n"
 
   let update_gml_attr edge (key, value) = match key with

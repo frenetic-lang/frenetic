@@ -435,12 +435,17 @@ struct
   module Pretty = struct
     open Topology
     let to_dot (t:t) =
-      let es = (EdgeSet.fold (fun (v1,l,v2) acc ->
-        Printf.sprintf "%s%s%d -> %d"
+      let es = (EdgeSet.fold (fun (s,l,d) acc ->
+        let _,sport = edge_src (s,l,d) in
+        let _,dport = edge_dst (s,l,d) in
+        Printf.sprintf "%s%s%s -> %s {sport = %ld; dport= %ld; %s}"
           acc
           (if acc = "" then "" else "\n")
-          v1.VL.id
-          v2.VL.id)
+          (Vertex.to_string s.VL.label)
+          (Vertex.to_string d.VL.label)
+          sport
+          dport
+          (Edge.to_dot l.EL.label))
                   (edges t) "") in
       let vs = (VertexSet.fold (fun v acc ->
         Printf.sprintf "%s%s\n%s"
