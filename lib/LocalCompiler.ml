@@ -24,14 +24,17 @@ struct
     o = None
 end
 
+type 'a posneg =
+  | Pos of 'a
+  | Neg of 'a
+  with sexp
+
 (* PosNeg functor *)
 module PosNeg (H:NetKAT_Types.Headers.HEADER) = struct
   (* TODO(jnf): add the universe, so that operations on Pos and Neg
      make sense *)
   module S = Set.Make(H)
-  type t =
-      Pos of S.t
-    | Neg of S.t
+  type t = S.t posneg
   with sexp
   let singleton x = Pos (S.singleton x)
   let compare y1 y2 = match y1,y2 with
@@ -193,6 +196,35 @@ module Action = struct
 
   module Set = HOVSet
 
+  let action_to_netkat (a:t) : NetKAT_Types.policy =
+    let open NetKAT_Types in
+    let open HOV in
+    let g setter (acc:policy) f : policy =
+      match Field.get f a with
+        | Some v -> Seq (Mod (setter v), acc)
+        | _ -> acc in    
+    HOV.Fields.fold
+      ~init:id (* identity policy *)
+      ~location:(g (fun v -> Location v))
+      ~ethSrc:(g (fun v -> EthSrc v))
+      ~ethDst:(g (fun v ->EthDst v))
+      ~vlan:(g (fun v -> Vlan v))
+      ~vlanPcp:(g (fun v -> VlanPcp v))
+      ~ethType:(g (fun v -> EthType v))
+      ~ipProto:(g (fun v -> IPProto v))
+      (* TODO(arjun): I assume this means an exact match /32 *)
+      ~ipSrc:(g (fun v -> IP4Src (v, 32)))
+      ~ipDst:(g (fun v -> IP4Dst (v, 32)))
+      ~tcpSrcPort:(g (fun v -> TCPSrcPort v))
+      ~tcpDstPort:(g (fun v -> TCPDstPort v))
+
+  (* TODO(jnf): this is bogus. Arjun is just confused. *)
+  let set_to_netkat (s:Set.t) : NetKAT_Types.policy =
+    let open NetKAT_Types in  
+    Set.fold s
+      ~init:id
+      ~f:(fun acc a -> Seq (acc, action_to_netkat a))
+
   let to_string : t -> string =
     HOV.to_string ~init:"id" ~sep:":="
 
@@ -285,6 +317,40 @@ module Pattern = struct
 
   let to_string ?init ?sep (x:t) =
     HPN.to_string ?init ?sep x
+
+  (* For [set = {x1, ... , xn}] returns [x1 || ... || xn].
+    [set_fold] must be a function to fold over [set].
+    [tester x_i] must return a [header_val].
+   *)
+  let make_disjunction set_fold tester set =
+    let open NetKAT_Types in
+    set_fold set ~init:False
+      ~f:(fun acc x -> Or (acc, Test (tester x)))
+
+  let to_netkat_pred (p:t) : NetKAT_Types.pred = 
+    let open NetKAT_Types in
+    let open HPN in
+    (* Maps [Pos {x1, ..., xn}] to [x1 || ... || xn]
+       Map [Neg {x1, ..., xn}] to [!(x1 || ... || xn)] *)
+    let h set_fold tester = function
+      | Pos v -> make_disjunction set_fold tester v
+      | Neg v -> Neg (make_disjunction set_fold tester v) in
+    let g set_fold tester (acc:pred) f : pred =
+      And (acc, h set_fold tester (Field.get f p)) in
+    Fields.fold
+      ~init:True
+      ~location:(g PNL.S.fold (fun v -> Location v))
+      ~ethSrc:(g PN48.S.fold (fun v -> EthSrc v))
+      ~ethDst:(g PN48.S.fold (fun v ->EthDst v))
+      ~vlan:(g PN16.S.fold (fun v -> Vlan v))
+      ~vlanPcp:(g PN8.S.fold (fun v -> VlanPcp v))
+      ~ethType:(g PN16.S.fold (fun v -> EthType v))
+      ~ipProto:(g PN8.S.fold (fun v -> IPProto v))
+      (* TODO(arjun): I assume this means an exact match /32 *)
+      ~ipSrc:(g PNIp.S.fold (fun v -> IP4Src (v, 32)))
+      ~ipDst:(g PNIp.S.fold (fun v -> IP4Dst (v, 32)))
+      ~tcpSrcPort:(g PN16.S.fold (fun v -> TCPSrcPort v))
+      ~tcpDstPort:(g PN16.S.fold (fun v -> TCPDstPort v))
 
   let any : t =
     let open HPN in
@@ -584,7 +650,19 @@ end
 
 module Local = struct
 
+  (* TODO(arjun): Why Action.Set.t? Don't we want to know that each
+     action affects a distinct field? Shouldn't this be Action.Map.t? *)
   type t = Action.Set.t Pattern.Map.t
+
+  let rule_to_netkat p a : NetKAT_Types.policy =
+    let open NetKAT_Types in
+    Seq (Filter (Pattern.to_netkat_pred p), Action.set_to_netkat a)
+
+  let to_netkat (t:t) : NetKAT_Types.policy = 
+    let open NetKAT_Types in
+    Pattern.Map.fold t
+      ~init:drop 
+      ~f:(fun ~key ~data acc -> Union (acc, rule_to_netkat key data))
 
   let compare p q =
     Pattern.Map.compare Action.Set.compare p q
@@ -943,14 +1021,11 @@ type t = RunTime.i
 let of_policy sw pol =
   Local.of_policy (Optimize.specialize_policy sw pol)
 
-let to_netkat _ =
-  failwith "NYI"
+let to_netkat =
+  Local.to_netkat
 
 let compile =
   RunTime.compile
-
-let decompile _ =
-  failwith "NYI"
 
 let to_table =
   RunTime.to_table
