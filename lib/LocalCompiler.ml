@@ -793,8 +793,6 @@ module RunTime = struct
     Action.Set.fold s ~f:f ~init:[]
 
   let expand_rules (x:Pattern.t) (s:Action.Set.t) : (pattern * par) list =
-    Printf.printf "EXPAND_RULES\n%s\n%s\n"
-      (Pattern.to_string x) (Action.set_to_string s);
     let i8 x = VInt.Int8 x in
     let i16 x = VInt.Int16 x in
     let i32 x = VInt.Int32 x in
@@ -827,10 +825,6 @@ module RunTime = struct
         ~ipDst:PNIp.(g expand i32 IP4Dst)
         ~tcpSrcPort:PN16.(g expand i16 TCPSrcPort)
         ~tcpDstPort:PN16.(g expand i16 TCPDstPort) in
-    FieldMap.iter
-      (fun h l ->
-        Printf.printf "|%s| = %d\n" (SDN_Types.string_of_field h) (List.length l))
-      m;
     let rec loop m acc : (fieldVal option FieldMap.t * bool) list =
       if FieldMap.is_empty m then
         acc
@@ -843,7 +837,6 @@ module RunTime = struct
                List.map r
                  ~f:(fun (p,c) -> (FieldMap.add h o p, b && c))) in
     let go l =
-      Printf.printf "go |%d|\n" (List.length l);
       List.fold_left l
         ~init:[]
         ~f:(fun acc (x,b) ->
@@ -857,13 +850,7 @@ module RunTime = struct
                   | Some v -> FieldMap.add h v acc)
               x FieldMap.empty in
           ((y,a)::acc)) in
-    let r = go (loop m [(FieldMap.empty,true)]) in
-    List.iter r
-      (fun (p,a) ->
-        Printf.printf "%s => %s\n"
-          (SDN_Types.string_of_pattern p)
-          (SDN_Types.string_of_par a));
-    r
+    go (loop m [(FieldMap.empty,true)])
 
   type i = Local.t
 
@@ -906,7 +893,6 @@ module RunTime = struct
       hard_timeout = Permanent }
 
   let to_table (m:i) : flowTable =
-    Printf.printf "*** to_table ***\n%s\n" (Local.to_string m);
     let rec loop l acc =
       match l with
         | [] ->
