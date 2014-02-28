@@ -1,5 +1,6 @@
 all: build
 
+TESTS=--enable-tests
 NAME=topology
 J=4
 
@@ -7,7 +8,7 @@ setup.ml: _oasis
 	oasis setup
 
 setup.data: setup.ml
-	ocaml setup.ml -configure
+	ocaml setup.ml -configure $(TESTS)
 
 build: setup.data setup.ml
 	ocaml setup.ml -build -j $(J)
@@ -16,7 +17,7 @@ install: setup.data setup.ml
 	ocaml setup.ml -install
 
 test: setup.ml build
-	ocaml setup.ml -test $(TESTFLAGS)
+	_build/test/Test.byte inline-test-runner topology
 
 reinstall: setup.ml
 	ocamlfind remove $(NAME) || true
