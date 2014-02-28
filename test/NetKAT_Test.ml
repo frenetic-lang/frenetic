@@ -7,7 +7,7 @@ open NetKAT_Pretty
 let test_compile lhs rhs =
   let rhs' =
     LocalCompiler.to_netkat
-      (LocalCompiler.of_policy 0L lhs) in
+      (LocalCompiler.compile 0L lhs) in
   if rhs' = rhs then
     true
   else
@@ -50,7 +50,7 @@ TEST "compile negation of conjunction" =
   let pr = And (pr1, pr2) in 
   test_compile
     (Filter (Neg pr))
-    (Union (Filter(And(Neg pr2, pr1)), Filter (Neg pr1)))
+    (Union (Filter(And(pr1, Neg pr2)), Filter (Neg pr1)))
 
 TEST "commute test annihilator" =
   test_compile

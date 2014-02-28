@@ -201,7 +201,7 @@ module Action = struct
     let open HOV in
     let g setter (acc:policy) f : policy =
       match Field.get f a with
-        | Some v -> Seq (Mod (setter v), acc)
+        | Some v -> Optimize.mk_seq (Mod (setter v)) acc
         | _ -> acc in    
     HOV.Fields.fold
       ~init:id (* identity policy *)
@@ -218,12 +218,11 @@ module Action = struct
       ~tcpSrcPort:(g (fun v -> TCPSrcPort v))
       ~tcpDstPort:(g (fun v -> TCPDstPort v))
 
-  (* TODO(jnf): this is bogus. Arjun is just confused. *)
   let set_to_netkat (s:Set.t) : NetKAT_Types.policy =
     let open NetKAT_Types in  
     Set.fold s
-      ~init:id
-      ~f:(fun acc a -> Seq (acc, action_to_netkat a))
+      ~init:drop
+      ~f:(fun acc a -> Optimize.mk_union acc (action_to_netkat a))
 
   let to_string : t -> string =
     HOV.to_string ~init:"id" ~sep:":="
@@ -325,7 +324,7 @@ module Pattern = struct
   let make_disjunction set_fold tester set =
     let open NetKAT_Types in
     set_fold set ~init:False
-      ~f:(fun acc x -> Or (acc, Test (tester x)))
+      ~f:(fun acc x -> Optimize.mk_or acc (Test (tester x)))
 
   let to_netkat_pred (p:t) : NetKAT_Types.pred = 
     let open NetKAT_Types in
@@ -334,9 +333,9 @@ module Pattern = struct
        Map [Neg {x1, ..., xn}] to [!(x1 || ... || xn)] *)
     let h set_fold tester = function
       | Pos v -> make_disjunction set_fold tester v
-      | Neg v -> Neg (make_disjunction set_fold tester v) in
+      | Neg v -> Optimize.mk_not (make_disjunction set_fold tester v) in
     let g set_fold tester (acc:pred) f : pred =
-      And (acc, h set_fold tester (Field.get f p)) in
+      Optimize.mk_and acc (h set_fold tester (Field.get f p)) in
     Fields.fold
       ~init:True
       ~location:(g PNL.S.fold (fun v -> Location v))
@@ -541,113 +540,6 @@ module Pattern = struct
           ~tcpDstPort:PN16.(g HOV.tcpDstPort is_empty inter singleton)
 end
 
-module Optimize = struct
-  let mk_and pr1 pr2 =
-    match pr1, pr2 with
-      | NetKAT_Types.True, _ ->
-        pr2
-      | _, NetKAT_Types.True ->
-        pr1
-      | NetKAT_Types.False, _ ->
-        NetKAT_Types.False
-      | _, NetKAT_Types.False ->
-        NetKAT_Types.False
-      | _ ->
-        NetKAT_Types.And(pr1, pr2)
-
-  let mk_or pr1 pr2 =
-    match pr1, pr2 with
-      | NetKAT_Types.True, _ ->
-        NetKAT_Types.True
-      | _, NetKAT_Types.True ->
-        NetKAT_Types.True
-      | NetKAT_Types.False, _ ->
-        pr2
-      | _, NetKAT_Types.False ->
-        pr2
-      | _ ->
-        NetKAT_Types.Or(pr1, pr2)
-
-  let mk_not pat =
-    match pat with
-      | NetKAT_Types.False -> NetKAT_Types.True
-      | NetKAT_Types.True -> NetKAT_Types.False
-      | _ -> NetKAT_Types.Neg(pat)
-
-  let mk_filter pr =
-    NetKAT_Types.Filter (pr)
-
-  let mk_par pol1 pol2 =
-    match pol1, pol2 with
-      | NetKAT_Types.Filter NetKAT_Types.False, _ ->
-        pol2
-      | _, NetKAT_Types.Filter NetKAT_Types.False ->
-        pol1
-      | _ ->
-        NetKAT_Types.Union(pol1,pol2)
-
-  let mk_seq pol1 pol2 =
-    match pol1, pol2 with
-      | NetKAT_Types.Filter NetKAT_Types.True, _ ->
-        pol2
-      | _, NetKAT_Types.Filter NetKAT_Types.True ->
-        pol1
-      | NetKAT_Types.Filter NetKAT_Types.False, _ ->
-        pol1
-      | _, NetKAT_Types.Filter NetKAT_Types.False ->
-        pol2
-      | _ ->
-        NetKAT_Types.Seq(pol1,pol2)
-
-  let mk_star pol =
-    match pol with
-      | NetKAT_Types.Filter NetKAT_Types.True ->
-        pol
-      | NetKAT_Types.Filter NetKAT_Types.False ->
-        NetKAT_Types.Filter NetKAT_Types.True
-      | NetKAT_Types.Star(pol1) -> pol
-      | _ -> NetKAT_Types.Star(pol)
-
-  let specialize_pred sw pr =
-    let rec loop pr k =
-      match pr with
-        | NetKAT_Types.True ->
-          k pr
-        | NetKAT_Types.False ->
-          k pr
-        | NetKAT_Types.Neg pr1 ->
-          loop pr1 (fun pr -> k (mk_not pr))
-        | NetKAT_Types.Test (NetKAT_Types.Switch v) ->
-          if v = sw then
-            k NetKAT_Types.True
-          else
-            k NetKAT_Types.False
-        | NetKAT_Types.Test _ ->
-          k pr
-        | NetKAT_Types.And (pr1, pr2) ->
-          loop pr1 (fun p1 -> loop pr2 (fun p2 -> k (mk_and p1 p2)))
-        | NetKAT_Types.Or (pr1, pr2) ->
-          loop pr1 (fun p1 -> loop pr2 (fun p2 -> k (mk_or p1 p2))) in
-    loop pr (fun x -> x)
-
-  let specialize_policy sw pol =
-    let rec loop pol k =
-      match pol with
-        | NetKAT_Types.Filter pr ->
-          k (NetKAT_Types.Filter (specialize_pred sw pr))
-        | NetKAT_Types.Mod hv ->
-          k pol
-        | NetKAT_Types.Union (pol1, pol2) ->
-          loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (mk_par p1 p2)))
-        | NetKAT_Types.Seq (pol1, pol2) ->
-          loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (mk_seq p1 p2)))
-        | NetKAT_Types.Star pol ->
-          loop pol (fun p -> k (mk_star p))
-        | NetKAT_Types.Link(sw,pt,sw',pt') ->
-	  failwith "Not a local policy" in
-    loop pol (fun x -> x)
-end
-
 module Local = struct
 
   (* TODO(arjun): Why Action.Set.t? Don't we want to know that each
@@ -656,13 +548,13 @@ module Local = struct
 
   let rule_to_netkat p a : NetKAT_Types.policy =
     let open NetKAT_Types in
-    Seq (Filter (Pattern.to_netkat_pred p), Action.set_to_netkat a)
+    Optimize.mk_seq (Filter (Pattern.to_netkat_pred p)) (Action.set_to_netkat a)
 
   let to_netkat (t:t) : NetKAT_Types.policy = 
     let open NetKAT_Types in
     Pattern.Map.fold t
       ~init:drop 
-      ~f:(fun ~key ~data acc -> Union (acc, rule_to_netkat key data))
+      ~f:(fun ~key ~data acc -> Optimize.mk_union acc (rule_to_netkat key data))
 
   let compare p q =
     Pattern.Map.compare Action.Set.compare p q
@@ -969,9 +861,6 @@ module RunTime = struct
 
   let compile (sw:switchId) (pol:NetKAT_Types.policy) : i =
     let pol' = Optimize.specialize_policy sw pol in
-    let n,n' = Semantics.size pol, Semantics.size pol' in
-    Printf.printf " [compression: %d -> %d = %.3f]\n\n"
-      n n' (Float.of_int n' /. Float.of_int n);
     Local.of_policy pol'
 
   let dep_compare (x1,s1) (x2,s2) : int =
