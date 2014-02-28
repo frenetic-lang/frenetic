@@ -132,7 +132,7 @@ module Headers = struct
         if is_wild v then acc
         else
           Printf.sprintf "%s%s%s%s"
-            (if acc = "" then acc else acc ^ "; ")
+            (if acc = init then "" else acc ^ "; ")
             (Field.name f) sep (to_string (Field.get f x)) in
       Fields.fold
         ~init:init
