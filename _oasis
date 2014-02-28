@@ -38,6 +38,7 @@ Library netcore
     NetKAT_Pretty,
     NetKAT_Types,
     NetKAT_Util,
+    Optimize,
     Semantics,
     LocalCompiler
 

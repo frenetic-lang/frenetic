@@ -14,12 +14,13 @@ type portId = SDN_Types.portId
 type payload = SDN_Types.payload
 
 (** {2 Policies} *)
-  
-type location = 
-  | Physical of int32
-  | Pipe of string 
 
-type header_val = 
+type location =
+  | Physical of int32
+  | Pipe of string
+  with sexp
+
+type header_val =
   | Switch of switchId
   | Location of location
   | EthSrc of int48
@@ -33,14 +34,14 @@ type header_val =
   | TCPSrcPort of int16
   | TCPDstPort of int16
 
-type pred = 
+type pred =
   | True
   | False
   | Test of header_val
   | And of pred * pred
   | Or of pred * pred
   | Neg of pred
-      
+
 type policy =
   | Filter of pred
   | Mod of header_val
@@ -48,12 +49,12 @@ type policy =
   | Seq of policy * policy
   | Star of policy
   | Link of SDN_Types.switchId * portId * SDN_Types.switchId * portId
-      
+
 let id = Filter True
-  
+
 let drop = Filter False
 
-(** {2 Packets} 
+(** {2 Packets}
 
   If we only defined the semantics and were not building a system, a
   packet would only be a record of headers. However, the runtime needs to
@@ -71,98 +72,139 @@ module Headers = struct
    *
    *   https://github.com/janestreet/fieldslib
    * *)
-  type t = 
-      { location : location option sexp_opaque;
-        ethSrc : int48 option sexp_opaque;
-        ethDst : int48 option sexp_opaque;
-        vlan : int16 option sexp_opaque;
-        vlanPcp : int8 option sexp_opaque;
-        ethType : int16 option sexp_opaque;
-        ipProto : int8 option sexp_opaque;
-        ipSrc : (int32 * int) option sexp_opaque;
-        ipDst : (int32 * int) option sexp_opaque;
-        tcpSrcPort : int16 option sexp_opaque;
-        tcpDstPort : int16 option sexp_opaque
-      } with sexp,fields
 
-  let compare = Pervasives.compare
+  module type HEADER = sig
+    type t with sexp
+    val compare : t -> t -> int
+    val to_string : t -> string
+    val equal : t -> t -> bool
+    val is_wild : t -> bool
+  end
 
-  let empty =
-    { location = None;
-      ethSrc = None;
-      ethDst = None;
-      vlan = None;
-      vlanPcp = None;
-      ethType = None;
-      ipProto = None;
-      ipSrc = None;
-      ipDst = None;
-      tcpSrcPort = None;
-      tcpDstPort = None }
+  module Make =
+    functor(Location:HEADER) ->
+    functor(EthSrc:HEADER) ->
+    functor(EthDst:HEADER) ->
+    functor(Vlan:HEADER) ->
+    functor(VlanPcp:HEADER) ->
+    functor(EthType:HEADER) ->
+    functor(IpProto:HEADER) ->
+    functor(IpSrc:HEADER) ->
+    functor(IpDst:HEADER) ->
+    functor(TcpSrcPort:HEADER) ->
+    functor(TcpDstPort:HEADER) ->
+  struct
+    type t =
+        { location : Location.t sexp_opaque;
+          ethSrc : EthSrc.t sexp_opaque;
+          ethDst : EthDst.t sexp_opaque;
+          vlan : Vlan.t sexp_opaque;
+          vlanPcp : VlanPcp.t sexp_opaque;
+          ethType : EthType.t sexp_opaque;
+          ipProto : IpProto.t sexp_opaque;
+          ipSrc : IpSrc.t sexp_opaque;
+          ipDst : IpDst.t sexp_opaque;
+          tcpSrcPort : TcpSrcPort.t sexp_opaque;
+          tcpDstPort : TcpDstPort.t sexp_opaque
+        } with sexp, fields
 
-  let mk_location l = { empty with location = Some l }
-  let mk_ethSrc n = { empty with ethSrc = Some n }
-  let mk_ethDst n = { empty with ethDst = Some n }
-  let mk_vlan n = { empty with vlan = Some n }
-  let mk_vlanPcp n = { empty with vlanPcp = Some n }
-  let mk_ethType n = { empty with vlanPcp = Some n }
-  let mk_ipProto n = { empty with ipProto = Some n }
-  let mk_ipSrc (n, m) = { empty with ipSrc = Some (n,m) }
-  let mk_ipDst (n, m) = { empty with ipDst = Some (n,m) }
-  let mk_tcpSrcPort n = { empty with tcpSrcPort = Some n }
-  let mk_tcpDstPort n = { empty with tcpDstPort = Some n }
+    let compare x y =
+      let g c a f =
+        if a <> 0 then a
+        else c (Field.get f x) (Field.get f y) in
+      Fields.fold
+        ~init:0
+        ~location:(g Location.compare)
+        ~ethSrc:(g EthSrc.compare)
+        ~ethDst:(g EthDst.compare)
+        ~vlan:(g Vlan.compare)
+        ~vlanPcp:(g VlanPcp.compare)
+        ~ethType:(g EthType.compare)
+        ~ipProto:(g IpProto.compare)
+        ~ipSrc:(g IpSrc.compare)
+        ~ipDst:(g IpDst.compare)
+        ~tcpSrcPort:(g TcpSrcPort.compare)
+        ~tcpDstPort:(g TcpDstPort.compare)
 
-  let to_string ?init:(init="") ?sep:(sep="=") (x:t) : string =
-    let g pp acc f = match Field.get f x with
-      | None -> acc
-      | Some v ->
-        let s = Printf.sprintf "%s%s%s" (Field.name f) sep (pp v) in
-        if acc = "" then s
-        else Printf.sprintf "%s, %s" acc s in
-    let ppl l = match l with
-      | Physical x -> Printf.sprintf "%lu" x
-      | Pipe x -> x in
-    let pp8 = Printf.sprintf "%u" in
-    let pp16 = Printf.sprintf "%u" in
-    let pp32m (n, m) = 
-      match m with 
-        | 32 -> Printf.sprintf "%lu" n 
-        | _ -> Printf.sprintf "%lu/%d" n m in 
-    let pp48 = Printf.sprintf "%Lu" in
-    Fields.fold
-      ~init:""
-      ~location:(g ppl)
-      ~ethSrc:(g pp48)
-      ~ethDst:(g pp48)
-      ~vlan:(g pp16)
-      ~vlanPcp:(g pp8)
-      ~ethType:(g pp16)
-      ~ipProto:(g pp8)
-      ~ipSrc:(g pp32m)
-      ~ipDst:(g pp32m)
-      ~tcpSrcPort:(g pp16)
-      ~tcpDstPort:(g pp16)
+    let to_string ?init:(init="") ?sep:(sep="=") (x:t) : string =
+      let g is_wild to_string acc f =
+        let v = Field.get f x in
+        if is_wild v then acc
+        else
+          Printf.sprintf "%s%s%s%s"
+            (if acc = init then "" else acc ^ "; ")
+            (Field.name f) sep (to_string (Field.get f x)) in
+      Fields.fold
+        ~init:init
+        ~location:Location.(g is_wild to_string)
+        ~ethSrc:EthSrc.(g is_wild to_string)
+        ~ethDst:EthDst.(g is_wild to_string)
+        ~vlan:Vlan.(g is_wild to_string)
+        ~vlanPcp:VlanPcp.(g is_wild to_string)
+        ~ethType:EthType.(g is_wild to_string)
+        ~ipProto:IpProto.(g is_wild to_string)
+        ~ipSrc:IpSrc.(g is_wild to_string)
+        ~ipDst:IpDst.(g is_wild to_string)
+        ~tcpSrcPort:TcpSrcPort.(g is_wild to_string)
+        ~tcpDstPort:TcpDstPort.(g is_wild to_string)
+  end
 end
- 
+
+module LocationHeader = struct
+  type t = location with sexp
+  let compare = Pervasives.compare
+  let equal = (=)
+  let to_string l =
+    match l with
+      | Pipe x -> Printf.sprintf "%s" x
+      | Physical n -> Printf.sprintf "%lu" n
+  let is_wild l = false
+end
+module IntHeader = struct
+  include Int
+  let is_wild _ = false
+end
+module Int32Header = struct
+  include Int32
+  let is_wild _ = false
+end
+module Int64Header = struct
+  include Int64
+  let is_wild _ = false
+end
+
+module HeadersValues =
+  Headers.Make
+    (LocationHeader)
+    (Int64Header)
+    (Int64Header)
+    (IntHeader)
+    (IntHeader)
+    (IntHeader)
+    (IntHeader)
+    (Int32Header)
+    (Int32Header)
+    (IntHeader)
+    (IntHeader)
+
 type packet = {
   switch : switchId;
-  headers : Headers.t;
+  headers : HeadersValues.t;
   payload : payload
 }
 
 module PacketSet = Set.Make (struct
   type t = packet sexp_opaque with sexp
-      
+
   (* First compare by headers, then payload. The payload comparison is a
      little questionable. However, this is safe to use in eval, since
      all output packets have the same payload as the input packet. *)
   let compare x y =
-    let cmp = Headers.compare x.headers y.headers in
+    let cmp = HeadersValues.compare x.headers y.headers in
     if cmp <> 0 then
       cmp
     else
       Pervasives.compare x.payload y.payload
 end)
-  
-module PacketSetSet = Set.Make(PacketSet)
 
+module PacketSetSet = Set.Make(PacketSet)
