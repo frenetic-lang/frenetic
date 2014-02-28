@@ -15,8 +15,8 @@ build: setup.data setup.ml
 install: setup.data setup.ml
 	ocaml setup.ml -install
 
-test:
-	@echo "Note that there are no tests..."
+test: setup.ml build
+	ocaml setup.ml -test $(TESTFLAGS)
 
 reinstall: setup.ml
 	ocamlfind remove $(NAME) || true
