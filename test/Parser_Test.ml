@@ -1,5 +1,5 @@
 open Network
-open Physical
+open Network_Physical.Net
 
 open OUnitHack
 TEST "true" = true

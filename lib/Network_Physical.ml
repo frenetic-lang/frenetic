@@ -1,4 +1,14 @@
 open Graph
+open Network
+module type NODE = sig
+  include VERTEX
+  type device = Switch | Host | Middlebox
+  val default : t
+end
+
+module type LINK = sig
+  include EDGE
+end
 
 (* Utility functions *)
 let parse_rate (r:string) : Int64.t =
@@ -47,7 +57,7 @@ let capacity_of_id vo = match maybe vo with
 
 
 
-module Node = struct
+module Node : NODE = struct
   type device = Switch | Host | Middlebox
 
   type t = { dev_type : device ;
@@ -127,7 +137,7 @@ module Node = struct
     List.fold_left update_gml_attr default vs
 end
 
-module Link = struct
+module Link : LINK = struct
   type t = { cost : int64 ;
              capacity : int64 ; }
 
@@ -163,3 +173,6 @@ module Link = struct
     let link = List.fold_left update_gml_attr default vs in
     link
 end
+
+
+module Net = Network.Make(Node)(Link)

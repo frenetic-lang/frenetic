@@ -477,4 +477,3 @@ struct
   end
 end
 
-module Physical = Make(Concrete.Node)(Concrete.Link)

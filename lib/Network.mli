@@ -105,7 +105,6 @@ module type MAKE = functor (Vertex:VERTEX) -> functor (Edge:EDGE) -> NETWORK
   with module Topology.Vertex = Vertex
    and module Topology.Edge = Edge
 
-module Make : MAKE
 
-module Physical : NETWORK with module Topology.Vertex = Concrete.Node
-                          and module Topology.Edge = Concrete.Link
+(* Concrete instantations of above functors and module signatures *)
+module Make : MAKE

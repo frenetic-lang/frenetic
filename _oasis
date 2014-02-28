@@ -15,10 +15,9 @@ Library topology
     packet,
     ocamlgraph,
     threads
-  InternalModules:
-    Concrete
   Modules:
-    Network
+    Network,
+    Network_Physical
 
 
 Executable unittest
