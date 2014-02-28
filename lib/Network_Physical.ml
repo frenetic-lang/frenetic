@@ -1,13 +1,24 @@
 open Graph
 open Network
+
 module type NODE = sig
   include VERTEX
   type device = Switch | Host | Middlebox
   val default : t
+  val create : string -> int64 -> device -> int32 -> int64 -> t
+  val name : t -> string
+  val id : t -> int64
+  val device : t -> device
+  val mac : t -> int64
+  val ip : t -> int32
 end
 
 module type LINK = sig
   include EDGE
+
+  val create : int64 -> int64 -> t
+  val cost : t -> int64
+  val capacity : t -> int64
 end
 
 (* Utility functions *)
@@ -67,10 +78,24 @@ module Node : NODE = struct
              name : string }
 
   let default = { dev_type = Host ;
+                  dev_id = 0L ;
                   name = "" ;
                   ip = 0l ;
-                  mac = 0L ;
-                  dev_id = 0L }
+                  mac = 0L
+                  }
+
+  let create (n:string) (i:int64) (d:device) (ip:int32) (mac:int64) : t =
+    { dev_type = d ;
+      name = n ;
+      ip = ip ;
+      mac = mac ;
+      dev_id = i }
+
+  let name (n:t) : string = n.name
+  let id (n:t) : int64 = n.dev_id
+  let device (n:t) : device = n.dev_type
+  let mac (n:t) : int64 = n.mac
+  let ip (n:t) : int32 = n.ip
 
   let compare = Pervasives.compare
 
@@ -143,6 +168,12 @@ module Link : LINK = struct
 
   let default = { cost = 1L;
                   capacity = Int64.max_int }
+
+  let create (cost:int64) (cap:int64) : t =
+    { cost = cost; capacity = cap }
+
+  let cost (l:t) = l.cost
+  let capacity (l:t) = l.capacity
 
   let compare = Pervasives.compare
 
