@@ -66,6 +66,18 @@ module Node = struct
 
   let to_string n = n.name
 
+  let to_dot n =
+    let devstr = match n.dev_type with
+      | Switch -> "switch"
+      | Host -> "host"
+      | Middlebox -> "middlebox" in
+    Printf.sprintf "%s [type=%s, ip=\"%s\", mac=\"%s\", id=%Ld]"
+      n.name
+      devstr
+      (Packet.string_of_ip n.ip)
+      (Packet.string_of_mac n.mac)
+      (n.dev_id)
+
 
   (* Update the record for a node *)
   let update_dot_attr n (k,vo) =
@@ -128,6 +140,8 @@ module Link = struct
     Printf.sprintf "{ cost = %s; capacity = %s; }"
       (Int64.to_string l.cost)
       (Int64.to_string l.capacity)
+
+  let to_dot = to_string
 
   let update_dot_attr edge (key,valopt) =
     match key with

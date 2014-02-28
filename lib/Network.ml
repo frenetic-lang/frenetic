@@ -3,6 +3,7 @@ module type VERTEX = sig
 
   val compare : t -> t -> int
   val to_string : t -> string
+  val to_dot : t -> string
   val parse_dot : Graph.Dot_ast.node_id -> Graph.Dot_ast.attr list -> t
   val parse_gml : Graph.Gml.value_list -> t
 end
@@ -12,6 +13,7 @@ module type EDGE = sig
 
   val compare : t -> t -> int
   val to_string : t -> string
+  val to_dot : t -> string
   val parse_dot : Graph.Dot_ast.attr list -> t
   val parse_gml : Graph.Gml.value_list -> t
   val default : t
@@ -433,16 +435,20 @@ struct
   module Pretty = struct
     open Topology
     let to_dot (t:t) =
-      Printf.sprintf "digraph G {\n%s\n}"
-        (EdgeSet.fold
-           (fun (v1,l,v2) acc ->
-             Printf.sprintf "%s%s%d -> %d"
-               acc
-               (if acc = "" then "" else "\n")
-               v1.VL.id
-               v2.VL.id)
-           (edges t)
-           "")
+      let es = (EdgeSet.fold (fun (v1,l,v2) acc ->
+        Printf.sprintf "%s%s%d -> %d"
+          acc
+          (if acc = "" then "" else "\n")
+          v1.VL.id
+          v2.VL.id)
+                  (edges t) "") in
+      let vs = (VertexSet.fold (fun v acc ->
+        Printf.sprintf "%s%s\n%s"
+          acc
+          (if acc = "" then "" else "\n")
+          (Vertex.to_dot v.VL.label)
+      ) (vertexes t) "") in
+      Printf.sprintf "digraph G {\n%s\n%s\n}" vs es
 
     let to_string (t:t) : string =
       to_dot t

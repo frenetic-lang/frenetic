@@ -1,5 +1,5 @@
 digraph g1 {
 
-h1[type=host,ip="10.0.0.1"];
+h1[type=host,ip="10.0.0.1",mac="1:1:1:1:1:1",id=1];
 
 }
