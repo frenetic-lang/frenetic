@@ -276,6 +276,84 @@ module Switch = struct
     (ctl, app)
 end
 
+module Host = struct
+  module Log = Async_OpenFlow.Log
+  let tags = [("netkat", "topology.host")]
+
+  let create ctl () =
+    let open NetKAT_Types in
+    let open Async_NetKAT in
+    let default = Seq(Filter(Test(EthType 0x0806)),
+                      Mod(Location(Pipe("host")))) in
+
+    let handler t w () : event -> result Deferred.t = fun e ->
+      let open Net.Topology in
+      match e with
+        | PacketIn (_, sw_id, pt_id, bytes, len, buf) ->
+          let pt_id' = VInt.get_int32 pt_id in
+          if Switch.Ctl.is_pending ctl sw_id pt_id' then begin
+            ignore (Switch.Ctl.remove ctl sw_id pt_id');
+            let open Packet in
+            let dlAddr, nwAddr = match parse bytes with
+              | { nw = Arp (Arp.Query(dlSrc, nwSrc, _ )) }
+              | { nw = Arp (Arp.Reply(dlSrc, nwSrc, _, _)) } ->
+                (dlSrc, nwSrc)
+              | _ -> assert false in
+            let t', h = add_vertex !t (Host(dlAddr, nwAddr)) in
+            let t', s = add_vertex t' (Switch sw_id) in
+            let t', _ = add_edge t' s pt_id' () h 0l in
+            let t', _ = add_edge t' h 0l () s pt_id' in
+            t := t';
+            Switch.Ctl.send_event ctl (HostUp((sw_id, pt_id), (dlAddr, nwAddr)))
+            >>= fun _ ->
+            return None
+          end else
+            return None
+        | PortDown (sw_id, pt_id) ->
+          let pt_id' = VInt.get_int32 pt_id in
+          Log.info ~tags "PortDown: %Lu@%lu" sw_id pt_id';
+          ignore (Switch.Ctl.remove ctl sw_id pt_id');
+          let v = vertex_of_label !t (Switch sw_id) in
+          let mh = next_hop !t v pt_id' in
+          (* Do not put the above line below the below line. The code needs to
+           * read the current view of the network before modifying it. *)
+          begin match mh with
+            | None -> return ()
+            | Some(e) ->
+              let (v2, pt_id2) = edge_dst e in
+              begin match vertex_to_label !t v2 with
+                | Switch _ ->
+                  return ()
+                | Host (dlAddr, nwAddr) ->
+                  t := remove_endpoint !t (v, pt_id');
+                  Switch.Ctl.send_event ctl
+                    (HostDown((sw_id, pt_id), (dlAddr, nwAddr)))
+              end
+          end >>= fun _ ->
+          return None
+        | HostUp ((sw_id, pt_id), (dlAddr, nwAddr)) ->
+          Log.info ~tags "HostUp: %Lu@%lu <=> %s@%s"
+            sw_id (VInt.get_int32 pt_id)
+            (Packet.string_of_ip nwAddr)
+            (Packet.string_of_mac dlAddr);
+          return None
+        | HostDown ((sw_id, pt_id), (dlAddr, nwAddr)) ->
+          Log.info ~tags "HostDown: %Lu@%lu <=> %s@%s"
+            sw_id (VInt.get_int32 pt_id)
+            (Packet.string_of_ip nwAddr)
+            (Packet.string_of_mac dlAddr);
+          return None
+        | SwitchUp _
+        | SwitchDown _
+        | PortUp _
+        | LinkUp _
+        | LinkDown _
+        | Query _ ->
+          return None in
+
+    create ~pipes:(PipeSet.singleton "host") default handler
+end
+
 let guard app =
   Switch.guard app
 
@@ -283,8 +361,9 @@ let events t =
   Switch.Ctl.events t
 
 let create () =
-  Switch.create ()
-  (* Async_NetKAT.union (Host.create ()) (Switch.create()) *)
+  let ctl, switch = Switch.create () in
+  let host = Host.create ctl () in
+  (ctl, Async_NetKAT.union host switch)
 
 let pause t =
   Switch.Ctl.pause t
