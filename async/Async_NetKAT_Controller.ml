@@ -239,7 +239,7 @@ let to_event w_out (t : t) evt =
           return []
       end
 
-let update_table_for (t : t) (sw_id : switchId) pol =
+let update_table_for (t : t) (sw_id : switchId) pol : unit Deferred.t =
   let delete_flows =
     OpenFlow0x01.Message.FlowModMsg OpenFlow0x01_Core.delete_all_flows in
   let to_flow_mod prio flow =
@@ -247,15 +247,22 @@ let update_table_for (t : t) (sw_id : switchId) pol =
   let c_id = Controller.client_id_of_switch t.ctl sw_id in
   let local = LocalCompiler.compile sw_id pol in
   t.locals <- SwitchMap.add t.locals sw_id local;
-  send t.ctl c_id (5l, delete_flows) >>= fun _ ->
-  let priority = ref 65536 in
-  let table = LocalCompiler.to_table local in
-  if List.length table <= 0
-    then raise (Assertion_failed (Printf.sprintf
-        "Controller.update_table_for: empty table for switch %Lu" sw_id));
-  Deferred.List.iter table ~f:(fun flow ->
-    decr priority;
-    send t.ctl c_id (0l, to_flow_mod !priority flow))
+  Monitor.try_with ~name:"update_table_for" (fun () ->
+    send t.ctl c_id (5l, delete_flows) >>= fun _ ->
+    let priority = ref 65536 in
+    let table = LocalCompiler.to_table local in
+    if List.length table <= 0
+      then raise (Assertion_failed (Printf.sprintf
+          "Controller.update_table_for: empty table for switch %Lu" sw_id));
+    Deferred.List.iter table ~f:(fun flow ->
+      decr priority;
+      send t.ctl c_id (0l, to_flow_mod !priority flow)))
+  >>= function
+    | Ok () -> return ()
+    | Error exn_ ->
+      Log.error ~tags
+        "switch %Lu: Failed to update table" sw_id;
+      Log.flushed ()
 
 let get_switchids nib =
   Net.Topology.fold_vertexes (fun v acc -> match Net.Topology.vertex_to_label nib v with
@@ -293,8 +300,14 @@ let start app ?(port=6633) () =
     let r_out, w_out = Pipe.create () in
     Deferred.don't_wait_for (Pipe.iter r_out ~f:(fun out ->
       let (sw_id, _, _, _, _) = out in
-      let c_id = Controller.client_id_of_switch t sw_id in
-      send t c_id (0l, packet_out_to_message out)));
+      Monitor.try_with ~name:"packet_out" (fun () ->
+        let c_id = Controller.client_id_of_switch t sw_id in
+        send t c_id (0l, packet_out_to_message out))
+      >>= function
+        | Ok () -> return ()
+        | Error exn_ ->
+          Log.error ~tags "switch %Lu: Failed to send packet_out" sw_id;
+          Log.flushed ()));
 
     let stages = let open Controller in
       (local (fun t -> t.ctl)
