@@ -220,23 +220,23 @@ module Switch = struct
           end >>= fun _ ->
           return None
         | SwitchUp sw_id ->
-          Log.info ~tags "SwitchUp: %Lu" sw_id;
+          Log.info ~tags "[topology.switch] ↑ { switch = %Lu }" sw_id;
           t := fst (add_vertex !t (Switch sw_id));
           return None
         | SwitchDown sw_id ->
-          Log.info ~tags "SwitchDown: %Lu" sw_id;
+          Log.info ~tags "[topology.switch] ↓ { switch = %Lu }" sw_id;
           Ctl.remove_switch ctl sw_id;
           t := remove_vertex !t (vertex_of_label !t (Switch sw_id));
           return None
         | PortUp (sw_id, pt_id) ->
           let pt_id' = VInt.get_int32 pt_id in
-          Log.info ~tags "PortUp: %Lu@%lu" sw_id pt_id';
+          Log.info ~tags "[topology.switch] ↑ { switch = %Lu; port = %lu }" sw_id pt_id';
           Ctl.add ctl sw_id pt_id'
           >>| fun () ->
             None
         | PortDown (sw_id, pt_id) ->
           let pt_id' = VInt.get_int32 pt_id in
-          Log.info ~tags "PortDown: %Lu@%lu" sw_id pt_id';
+          Log.info ~tags "[topology.switch] ↓ { switch = %Lu; port = %lu }" sw_id pt_id';
           ignore (Ctl.remove ctl sw_id pt_id');
           let v = vertex_of_label !t (Switch sw_id) in
           let mh = next_hop !t v pt_id' in
@@ -258,12 +258,12 @@ module Switch = struct
           end >>= fun _ ->
           return None
         | LinkUp ((sw1, pt1), (sw2, pt2)) ->
-          Log.info ~tags "LinkUp: %Lu@%lu <=> %Lu@%lu"
+          Log.info ~tags "[topology.switch] ↑ { switch = %Lu; port %lu }, { switch = %Lu; port = %lu }"
             sw1 (VInt.get_int32 pt1)
             sw2 (VInt.get_int32 pt2);
           return None
         | LinkDown ((sw1, pt1), (sw2, pt2)) ->
-          Log.info ~tags "LinkDown: %Lu@%lu <=> %Lu@%lu"
+          Log.info ~tags "[topology.switch] ↓ { switch = %Lu; port %lu }, { switch = %Lu; port = %lu }"
             sw1 (VInt.get_int32 pt1)
             sw2 (VInt.get_int32 pt2);
           return None
@@ -311,7 +311,6 @@ module Host = struct
             return None
         | PortDown (sw_id, pt_id) ->
           let pt_id' = VInt.get_int32 pt_id in
-          Log.info ~tags "PortDown: %Lu@%lu" sw_id pt_id';
           ignore (Switch.Ctl.remove ctl sw_id pt_id');
           let v = vertex_of_label !t (Switch sw_id) in
           let mh = next_hop !t v pt_id' in
@@ -332,13 +331,13 @@ module Host = struct
           end >>= fun _ ->
           return None
         | HostUp ((sw_id, pt_id), (dlAddr, nwAddr)) ->
-          Log.info ~tags "HostUp: %Lu@%lu <=> %s@%s"
+          Log.info ~tags "[topology.host] ↑ { switch = %Lu; port %lu }, { ip = %s; mac = %s }"
             sw_id (VInt.get_int32 pt_id)
             (Packet.string_of_ip nwAddr)
             (Packet.string_of_mac dlAddr);
           return None
         | HostDown ((sw_id, pt_id), (dlAddr, nwAddr)) ->
-          Log.info ~tags "HostDown: %Lu@%lu <=> %s@%s"
+          Log.info ~tags "[topology.host] ↓ { switch = %Lu; port %lu }, { ip = %s; mac = %s }"
             sw_id (VInt.get_int32 pt_id)
             (Packet.string_of_ip nwAddr)
             (Packet.string_of_mac dlAddr);
