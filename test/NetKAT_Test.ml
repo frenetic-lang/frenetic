@@ -146,6 +146,86 @@ TEST "vlan" =
       (Seq (mod_vlan_none, mod_port1)) in 
   test_compile pol pol'
 
+module FromPipe = struct
+  open Core.Std
+
+  module PipeSet = Set.Make(struct
+    type t = string with sexp
+    let compare = String.compare
+  end)
+
+  let test_from_pipes pol pkt pipes =
+    let t = LocalCompiler.compile 0L pol in
+    let ps, _ = LocalCompiler.eval t pkt in
+    PipeSet.(equal (of_list pipes) (of_list (List.map ~f:fst ps)))
+
+  let default_headers =
+    let open NetKAT_Types.HeadersValues in
+    { location = Physical 0l;
+      ethSrc = 0L;
+      ethDst = 0L;
+      vlan = 0;
+      vlanPcp = 0;
+      ethType = 0;
+      ipProto = 0;
+      ipSrc = 0l;
+      ipDst = 0l;
+      tcpSrcPort = 0;
+      tcpDstPort = 0;
+    }
+
+  let default_packet headers =
+    { switch = 0L;
+      headers;
+      payload = SDN_Types.NotBuffered (Cstruct.create 0)
+  }
+
+  TEST "all to controller" =
+    let pol = Mod(Location(Pipe("all"))) in
+    let pkt = default_packet default_headers in
+    test_from_pipes pol pkt ["all"]
+
+  TEST "all to controller, twice" =
+    let pol = Union(
+                Mod(Location(Pipe("all1"))),
+                Mod(Location(Pipe("all2")))) in
+    let pkt = default_packet default_headers in
+    test_from_pipes pol pkt ["all1"; "all2"]
+
+  TEST "ambiguous pipes" =
+    let pol = Seq(Filter(Test(EthDst 2L)),
+                  Union(Seq(Mod(EthDst 3L),
+                            Mod(Location(Pipe("pipe1")))),
+                        Seq(Mod(EthSrc 3L),
+                            Mod(Location(Pipe("pipe2")))))) in
+    let open NetKAT_Types.HeadersValues in
+    let pkt = default_packet { default_headers
+      with ethDst = 2L } in
+    test_from_pipes pol pkt ["pipe2"; "pipe1"]
+
+  TEST "left side" =
+    let pol = Union(
+                Seq(Filter(Test(EthSrc 1L)),
+                    Mod(Location(Pipe("left")))),
+                Seq(Filter(Test(EthSrc 2L)),
+                    Mod(Location(Pipe("right"))))) in
+    let open NetKAT_Types.HeadersValues in
+    let pkt = default_packet { default_headers
+      with ethSrc = 1L } in
+    test_from_pipes pol pkt ["left"]
+
+  TEST "right side" =
+    let pol = Union(
+                Seq(Filter(Test(EthSrc 1L)),
+                    Mod(Location(Pipe("left")))),
+                Seq(Filter(Test(EthSrc 2L)),
+                    Mod(Location(Pipe("right"))))) in
+    let open NetKAT_Types.HeadersValues in
+    let pkt = default_packet { default_headers
+      with ethSrc = 2L } in
+    test_from_pipes pol pkt ["right"]
+end
+
 (* TEST "quickcheck local compiler" = *)
 (*   let testable_pol_pkt_to_bool = *)
 (*     let open QuickCheck in *)

@@ -759,6 +759,36 @@ module Local = struct
         | NetKAT_Types.Link(sw,pt,sw',pt') ->
 	  failwith "Not a local policy" in
     loop pol (fun p -> p)
+
+  let eval (t:t) (packet:NetKAT_Types.packet)
+    : (string * NetKAT_Types.packet) list * NetKAT_Types.packet list =
+    let open NetKAT_Types in
+    (* Determines the pipes that the packet belongs to. Note that a packet may
+     * belong to several pipes for several reasons:
+     *
+     *   1. Multiple points of a single application wish to inspect the packet;
+     *   2. Multiple applications wish to inspect the packet; and
+     *   3. The switch makes modifications to the packet before it is sent to
+     *      the controller, making it impossible to disambiguate the pipe it
+     *      came from, e.g.:
+     *
+     *        (filter ethDst = 2; ethDst := 3; controller pipe1)
+     *        | (filter ethDst = 3; controller pipe2)
+     *
+     * The return value may contain duplicate pipe names.
+     *
+     * Since Local.t is switch-specific, this function assumes but does not
+     * check that the packet came from the same switch as the given Local.t *)
+    let packets = Semantics.eval packet (to_netkat t) in
+    PacketSet.fold packets ~init:([],[]) ~f:(fun (pi,phy) pkt ->
+      (* Running the packet through the switch's policy will label the resultant
+       * packets with the pipe they belong to, if any. All that's left to do is
+       * pick out packets in the PacketSet.t that have a pipe location, and return
+       * those packets (with the location cleared) along with the pipe they belong
+       * to. *)
+      match pkt.headers.HeadersValues.location with
+        | Pipe     p -> ((p, pkt) :: pi,        phy)
+        | Physical _ -> (            pi, pkt :: phy))
 end
 
 module RunTime = struct
@@ -813,7 +843,7 @@ module RunTime = struct
    * *)
   let set_to_action (s:Action.Set.t) (pto : fieldVal option) : par =
     let f par a = (to_action a pto)::par in
-    Action.Set.fold s ~f:f ~init:[]
+    List.dedup (Action.Set.fold s ~f:f ~init:[])
 
   let expand_rules (x:Pattern.t) (s:Action.Set.t) : (pattern * par) list =
     let i8 x = VInt.Int8 x in
@@ -936,3 +966,6 @@ let compile =
 
 let to_table =
   RunTime.to_table
+
+let eval =
+  Local.eval

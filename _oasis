@@ -52,6 +52,7 @@ Library async
     core,
     cstruct,
     cstruct.async,
+    cstruct.syntax,
     netcore,
     ocamlgraph,
     openflow,
@@ -60,9 +61,14 @@ Library async
     threads,
     textutils,
     topology,
+    sexplib,
     sexplib.syntax
+  InternalModules:
+    Discovery,
+    Learning
   Modules:
-    Async_Controller
+    Async_NetKAT,
+    Async_NetKAT_Controller
 
 Library quickcheck
   Findlibparent: netcore

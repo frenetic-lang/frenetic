@@ -9,6 +9,7 @@ type int8 = SDN_Types.int8
 type int16 = SDN_Types.int16
 type int32 = SDN_Types.int32
 type int48 = SDN_Types.int48
+
 type switchId = SDN_Types.switchId
 type portId = SDN_Types.portId
 type payload = SDN_Types.payload
@@ -48,7 +49,7 @@ type policy =
   | Union of policy * policy
   | Seq of policy * policy
   | Star of policy
-  | Link of SDN_Types.switchId * portId * SDN_Types.switchId * portId
+  | Link of switchId * portId * switchId * portId
 
 let id = Filter True
 
@@ -208,3 +209,28 @@ module PacketSet = Set.Make (struct
 end)
 
 module PacketSetSet = Set.Make(PacketSet)
+
+(** {3 Applications} *)
+
+type action = SDN_Types.action
+
+
+type switch_port = switchId * portId
+type host = Packet.dlAddr * Packet.nwAddr
+
+type bufferId = Int32.t (* XXX(seliopou): different than SDN_Types *)
+type bytes = Packet.bytes
+
+type event =
+  | PacketIn of string * switchId * portId * bytes * int * bufferId option
+  | Query of string * int64 * int64
+  | SwitchUp of switchId
+  | SwitchDown of switchId
+  | PortUp of switch_port
+  | PortDown of switch_port
+  | LinkUp of switch_port * switch_port
+  | LinkDown of switch_port * switch_port
+  | HostUp of switch_port * host
+  | HostDown of switch_port * host
+
+type packet_out = switchId * bytes * bufferId option * portId option * action list

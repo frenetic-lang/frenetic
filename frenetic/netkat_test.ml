@@ -73,10 +73,8 @@ module Example = struct
 end
 
 let () =
-  let local p =
-    (fun sw -> LocalCompiler.to_table
-      (LocalCompiler.compile sw p)) in
   print_string (Example.pol_str ^ "\n\n");
   let pol = NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string Example.pol_str) in
-  let _ = Async_Controller.start_static local 6633 pol in
-  Core.Std.never_returns (Async.Std.Scheduler.go ())
+  let static = Async_NetKAT.create_static pol in
+  let main () = Async_NetKAT_Controller.start static () in
+  Core.Std.never_returns (Async.Std.Scheduler.go_main ~main ())
