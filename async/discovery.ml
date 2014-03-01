@@ -1,6 +1,7 @@
 open Core.Std
 open Async.Std
 
+
 exception Assertion_failed of string
 
 module Switch = struct
@@ -72,6 +73,7 @@ module Switch = struct
 
     type t = {
       r_evts : NetKAT_Types.event Pipe.Reader.t;
+      w_evts : NetKAT_Types.event Pipe.Writer.t;
       w_outs : NetKAT_Types.packet_out Pipe.Writer.t;
       mutable pending : PortSet.t SwitchMap.t;
       mutable probe : bool;
@@ -97,6 +99,9 @@ module Switch = struct
         else
           return (`Finished ()))
 
+    let send_event t evt =
+      Pipe.write t.w_evts evt
+
     let events t =
       t.r_evts
 
@@ -116,6 +121,11 @@ module Switch = struct
     let remove_switch t switch_id =
       t.pending <- SwitchMap.remove t.pending switch_id
 
+    let is_pending t switch_id port_id =
+      match SwitchMap.find t.pending switch_id with
+        | None -> false
+        | Some(ps) -> PortSet.mem port_id ps
+
     let pause t =
       t.probe <- false;
       t.loop
@@ -126,9 +136,11 @@ module Switch = struct
       t.probe <- true;
       t.loop <- loop t
 
-    let create r_evts w_outs =
+    let create w_outs =
+      let r_evts, w_evts = Pipe.create () in
       let t = {
         r_evts;
+        w_evts;
         w_outs;
         pending = SwitchMap.empty;
         probe = false;
@@ -153,14 +165,12 @@ module Switch = struct
     let default = Seq(Filter(And(Test(EthType Probe.protocol),
                                  Test(EthSrc  Probe.mac))),
                       Mod(Location(Pipe("probe")))) in
-    (* A pipe for topology events. *)
-    let e_r, e_w = Pipe.create () in
     (* A pipe for packet_outs *)
     let o_r, o_w = Pipe.create () in
 
     (* Stores state for switch topology discovery, and manages the logical
      * thread that sends probes to unknown ports *)
-    let ctl = Ctl.create e_r o_w in
+    let ctl = Ctl.create o_w in
 
     let handle_probe t switch_id port_id probe : Net.Topology.t Deferred.t =
       let open Probe in
@@ -188,7 +198,7 @@ module Switch = struct
           let t, _  = add_edge t v2 probe.port_id () v1 port_id in
           let e1 = (switch_id, VInt.Int32 port_id) in
           let e2 = (probe.switch_id, VInt.Int32 probe.port_id) in
-          Pipe.write e_w (LinkUp (e1, e2)) >>| fun _ -> t in
+          Ctl.send_event ctl (LinkUp (e1, e2)) >>| fun _ -> t in
 
     let handler t w () : event -> result Deferred.t = fun e ->
       (* Transfer all packet_outs from the Clt.t to the pipe passed to the
@@ -232,16 +242,18 @@ module Switch = struct
           let mh = next_hop !t v pt_id' in
           (* Do not put the above line below the below line. The code needs to
            * read the current view of the network before modifying it. *)
-          t := remove_endpoint !t (v, pt_id');
           begin match mh with
             | None -> return ()
             | Some(e) ->
               let (v2, pt_id2) = edge_dst e in
               begin match vertex_to_label !t v2 with
                 | Switch(sw_id2) ->
-                  Pipe.write e_w (LinkDown((sw_id, pt_id), (sw_id2, VInt.Int32 pt_id2)))
-                | Host(dlAddr, nwAddr) ->
-                  Pipe.write e_w (HostDown((sw_id, pt_id), (dlAddr, nwAddr)))
+                  t := remove_endpoint !t (v, pt_id');
+                  Ctl.send_event ctl
+                    (LinkDown((sw_id, pt_id), (sw_id2, VInt.Int32 pt_id2)))
+                | Host _ ->
+                  return ()
+                  (* Pipe.write e_w (HostDown((sw_id, pt_id), (dlAddr, nwAddr))) *)
               end
           end >>= fun _ ->
           return None
