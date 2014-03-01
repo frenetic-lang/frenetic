@@ -1,5 +1,4 @@
 OASISFormat: 0.3
-OCamlVersion: >= 4.01.0
 Name:        topology
 Version:     0.9
 Synopsis:    Network topologies
