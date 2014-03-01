@@ -2,6 +2,9 @@ open Core.Std
 open Async.Std
 
 
+module Log = Async_OpenFlow.Log
+let tags = [("netkat", "learning")]
+
 module SwitchMap = Map.Make(Int64)
 module MacMap = Map.Make(Int64)
 
@@ -16,17 +19,27 @@ let create () =
     if MacMap.mem mac_map ethSrc then
       false
     else begin
+      Log.info ~tags "[learning] switch %Lu: learn %s => %Lu@%lu"
+        switch_id (Packet.string_of_mac ethSrc) switch_id (VInt.get_int32 port_id);
       state := SwitchMap.add !state switch_id (MacMap.add mac_map ethSrc port_id);
       true
     end in
 
-  let forward switch_id packet =
+  let forward switch_id packet : action =
     let ethDst = packet.Packet.dlDst in
     let mac_map = SwitchMap.find_exn !state switch_id in
     let open SDN_Types in
     match MacMap.find mac_map ethDst with
-      | None -> OutputAllPorts
-      | Some(p) -> OutputPort p in
+      | None ->
+        Log.of_lazy ~tags ~level:`Info (lazy (Printf.sprintf
+          "[learning] switch %Lu: flood %s"
+              switch_id (Packet.to_string packet)));
+        OutputAllPorts
+      | Some(p) ->
+        Log.of_lazy ~tags ~level:`Info (lazy (Printf.sprintf
+          "[learning] switch %Lu: port %lu %s"
+              switch_id (VInt.get_int32 p) (Packet.to_string packet)));
+        OutputPort p in
 
   let default = Mod(Location(Pipe "learn")) in
 
