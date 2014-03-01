@@ -14,7 +14,7 @@ module Log = Async_OpenFlow.Log
 
 let max_pending_connections = 64
 
-let _ = Log.set_level `Debug
+let _ = Log.set_level `Info
 
 let _ = Log.set_output
           [Log.make_colored_filtered_output
@@ -23,7 +23,9 @@ let _ = Log.set_output
               ("openflow", "serialization");
               ("openflow", "controller");
               ("openflow", "openflow0x01");
-              ("netkat", "topology.switch")]]
+              ("netkat", "topology.switch");
+              ("netkat", "topology.host");
+              ("netkat", "learning")]]
 
 let tags = [("openflow", "controller")]
 
