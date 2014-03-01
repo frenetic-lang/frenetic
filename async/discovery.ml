@@ -73,6 +73,10 @@ module Switch = struct
 
     type t = {
       r_evts : NetKAT_Types.event Pipe.Reader.t;
+      (* NB: Do not write with pushback to the event pipe. These events will
+       * evetually be fed back into this app, so blocking on the write may cause
+       * a deadlock.
+       * *)
       w_evts : NetKAT_Types.event Pipe.Writer.t;
       w_outs : NetKAT_Types.packet_out Pipe.Writer.t;
       mutable pending : PortSet.t SwitchMap.t;
@@ -100,7 +104,8 @@ module Switch = struct
           return (`Finished ()))
 
     let send_event t evt =
-      Pipe.write t.w_evts evt
+      (* NB: See the deadlock comment above. *)
+      Pipe.write_without_pushback t.w_evts evt
 
     let events t =
       t.r_evts
@@ -172,7 +177,7 @@ module Switch = struct
      * thread that sends probes to unknown ports *)
     let ctl = Ctl.create o_w in
 
-    let handle_probe t switch_id port_id probe : Net.Topology.t Deferred.t =
+    let handle_probe t switch_id port_id probe : Net.Topology.t =
       let open Probe in
       let open Net.Topology in
       begin if not (Ctl.remove ctl probe.switch_id probe.port_id) then
@@ -187,10 +192,11 @@ module Switch = struct
       match next_hop t v port_id with
         | Some(e) ->
           let v, port_id' = edge_dst e in
-          if not (probe.port_id = port_id')
-            then raise (Assertion_failed (Printf.sprintf
-                    "Discovery.handle_probe: probe inconsistent w/ topology"));
-          return t
+          begin if not (probe.port_id = port_id') then
+            raise (Assertion_failed (Printf.sprintf
+                    "Discovery.handle_probe: probe inconsistent w/ topology"))
+          end;
+          t
         | None ->
           let t, v1 = add_vertex t (Switch switch_id) in
           let t, v2 = add_vertex t (Switch probe.switch_id) in
@@ -198,7 +204,8 @@ module Switch = struct
           let t, _  = add_edge t v2 probe.port_id () v1 port_id in
           let e1 = (switch_id, VInt.Int32 port_id) in
           let e2 = (probe.switch_id, VInt.Int32 probe.port_id) in
-          Ctl.send_event ctl (LinkUp (e1, e2)) >>| fun _ -> t in
+          Ctl.send_event ctl (LinkUp (e1, e2));
+          t in
 
     let handler t w () : event -> result Deferred.t = fun e ->
       (* Transfer all packet_outs from the Clt.t to the pipe passed to the
@@ -214,10 +221,9 @@ module Switch = struct
           let pt_id' = VInt.get_int32 pt_id in
           begin match parse bytes with
             | { nw = Unparsable (dlTyp, bytes) } ->
-              handle_probe !t sw_id pt_id' (Probe.parse bytes) >>| fun t' ->
-                t := t'
-            | _ -> return ()
-          end >>= fun _ ->
+              t := handle_probe !t sw_id pt_id' (Probe.parse bytes)
+            | _ -> ();
+          end;
           return None
         | SwitchUp sw_id ->
           Log.info ~tags "[topology.switch] ↑ { switch = %Lu }" sw_id;
@@ -240,10 +246,8 @@ module Switch = struct
           ignore (Ctl.remove ctl sw_id pt_id');
           let v = vertex_of_label !t (Switch sw_id) in
           let mh = next_hop !t v pt_id' in
-          (* Do not put the above line below the below line. The code needs to
-           * read the current view of the network before modifying it. *)
           begin match mh with
-            | None -> return ()
+            | None -> ()
             | Some(e) ->
               let (v2, pt_id2) = edge_dst e in
               begin match vertex_to_label !t v2 with
@@ -251,11 +255,9 @@ module Switch = struct
                   t := remove_endpoint !t (v, pt_id');
                   Ctl.send_event ctl
                     (LinkDown((sw_id, pt_id), (sw_id2, VInt.Int32 pt_id2)))
-                | Host _ ->
-                  return ()
-                  (* Pipe.write e_w (HostDown((sw_id, pt_id), (dlAddr, nwAddr))) *)
+                | Host _ -> ()
               end
-          end >>= fun _ ->
+          end;
           return None
         | LinkUp ((sw1, pt1), (sw2, pt2)) ->
           Log.info ~tags "[topology.switch] ↑ { switch = %Lu; port %lu }, { switch = %Lu; port = %lu }"
@@ -304,8 +306,7 @@ module Host = struct
             let t', _ = add_edge t' s pt_id' () h 0l in
             let t', _ = add_edge t' h 0l () s pt_id' in
             t := t';
-            Switch.Ctl.send_event ctl (HostUp((sw_id, pt_id), (dlAddr, nwAddr)))
-            >>= fun _ ->
+            Switch.Ctl.send_event ctl (HostUp((sw_id, pt_id), (dlAddr, nwAddr)));
             return None
           end else
             return None
@@ -317,18 +318,17 @@ module Host = struct
           (* Do not put the above line below the below line. The code needs to
            * read the current view of the network before modifying it. *)
           begin match mh with
-            | None -> return ()
+            | None -> ()
             | Some(e) ->
               let (v2, pt_id2) = edge_dst e in
               begin match vertex_to_label !t v2 with
-                | Switch _ ->
-                  return ()
+                | Switch _ -> ()
                 | Host (dlAddr, nwAddr) ->
                   t := remove_endpoint !t (v, pt_id');
                   Switch.Ctl.send_event ctl
                     (HostDown((sw_id, pt_id), (dlAddr, nwAddr)))
               end
-          end >>= fun _ ->
+          end;
           return None
         | HostUp ((sw_id, pt_id), (dlAddr, nwAddr)) ->
           Log.info ~tags "[topology.host] ↑ { switch = %Lu; port %lu }, { ip = %s; mac = %s }"
