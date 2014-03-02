@@ -1,6 +1,6 @@
 # OASIS_START
-# DO NOT EDIT (digest: 01ac29d09e869509417993cfa2eb8bfa)
-version = "0.9"
+# DO NOT EDIT (digest: e515ef1193f36eb3ec179e7bafa2fac5)
+version = "0.1.0"
 description = "Network topologies"
 requires = "ocamlgraph threads"
 archive(byte) = "topology.cma"

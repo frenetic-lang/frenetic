@@ -1,6 +1,6 @@
 OASISFormat: 0.3
 Name:        topology
-Version:     0.9
+Version:     0.1.0
 Synopsis:    Network topologies
 Authors:     https://github.com/frenetic-lang/ocaml-topology/contributors
 License:     LGPL
