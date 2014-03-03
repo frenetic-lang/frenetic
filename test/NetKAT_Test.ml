@@ -155,8 +155,7 @@ module FromPipe = struct
   end)
 
   let test_from_pipes pol pkt pipes =
-    let t = LocalCompiler.compile 0L pol in
-    let ps, _ = LocalCompiler.eval t pkt in
+    let ps, _ = Semantics.eval_pipes pkt pol in
     PipeSet.(equal (of_list pipes) (of_list (List.map ~f:fst ps)))
 
   let default_headers =
