@@ -54,7 +54,6 @@ let testable_pol_to_bool =
 let prop_parse_pol_idempotent (p : NetKAT_Types.policy) : bool =
   try policy_parse (string_of_policy p) = p
   with e ->
-    Printf.printf "POL: %s\n" (string_of_policy p);
     raise e
 
 TEST "testing parse-pretty roundtrip" =

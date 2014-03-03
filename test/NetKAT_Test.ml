@@ -15,10 +15,10 @@ let test_compile lhs rhs =
        format_policy lhs format_policy rhs' format_policy rhs;
      false)
 
-let test_compile_table pol tbl = 
-  let open LocalCompiler in 
+let test_compile_table pol tbl =
+  let open LocalCompiler in
   let tbl' = to_table (compile 0L pol) in
-  if tbl = tbl' then 
+  if tbl = tbl' then
     true
   else
     (Format.printf "compile @,%a@, produced %a@,,@,expected %a\n%!"
@@ -45,9 +45,9 @@ TEST "compile negation" =
   test_compile (Filter (Neg pr)) (Filter (Neg pr))
 
 TEST "compile negation of conjunction" =
-  let pr1 = testSrc 0 in 
-  let pr2 = testDst 0 in 
-  let pr = And (pr1, pr2) in 
+  let pr1 = testSrc 0 in
+  let pr2 = testDst 0 in
+  let pr = And (pr1, pr2) in
   test_compile
     (Filter (Neg pr))
     (Union (Filter(And(pr1, Neg pr2)), Filter (Neg pr1)))
@@ -135,15 +135,15 @@ TEST "vlan" =
   let mod_port1 = Mod (Location (Physical 1l)) in
   let id = Filter True in
   let pol =
-    Seq (ite 
-	   test_vlan_none 
+    Seq (ite
+	   test_vlan_none
 	   id
-	   (Seq(id, mod_vlan_none)), 
+	   (Seq(id, mod_vlan_none)),
 	 mod_port1) in
-  let pol' = 
+  let pol' =
     ite test_vlan_none
       mod_port1
-      (Seq (mod_vlan_none, mod_port1)) in 
+      (Seq (mod_vlan_none, mod_port1)) in
   test_compile pol pol'
 
 module FromPipe = struct
@@ -242,7 +242,7 @@ TEST "quickcheck ka-plus-idem" =
     let pol = Seq(Filter(Test(Location(Physical 0l))), pol) in
     let open Semantics in
     PacketSet.compare (eval pkt (Union(pol, pol))) (eval pkt pol) = 0 in
-  let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 1000 } in
+  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
   match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
     QuickCheck.Success -> true
   | _ -> false
@@ -273,7 +273,7 @@ TEST "quickcheck ka-seq-assoc" =
     PacketSet.compare
       (eval pkt (Seq(p, (Seq (q, r)))))
       (eval pkt (Seq((Seq(p, q)), r))) = 0 in
-  let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 1000 } in
+  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
   match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
     QuickCheck.Success -> true
   | _ -> false
@@ -293,7 +293,7 @@ TEST "quickcheck ka-one-seq" =
     let pol = Seq(Filter(Test(Location(Physical 0l))), pol) in
     let open Semantics in
     PacketSet.compare (eval pkt pol) (eval pkt (Seq(id, pol))) = 0 in
-  let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 1000 } in
+  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
   match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
     QuickCheck.Success -> true
   | _ -> false
@@ -313,7 +313,7 @@ TEST "quickcheck ka-seq-one" =
     let pol = Seq(Filter(Test(Location(Physical 0l))), pol) in
     let open Semantics in
     PacketSet.compare (eval pkt pol) (eval pkt (Seq(pol, id))) = 0 in
-  let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 1000 } in
+  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
   match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
     QuickCheck.Success -> true
   | _ -> false
@@ -344,7 +344,7 @@ TEST "quickcheck ka-seq-dist-l" =
     PacketSet.compare
       (eval pkt (Seq(p, (Union (q, r)))))
       (eval pkt (Union ((Seq(p, q)), (Seq(p, r))))) = 0 in
-  let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 1000 } in
+  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
   match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
     QuickCheck.Success -> true
   | _ -> false
@@ -375,7 +375,7 @@ TEST "quickcheck ka-seq-dist-r" =
     PacketSet.compare
       (eval pkt (Seq (Union(p, q), r)))
       (eval pkt (Union (Seq(p, r), Seq(q, r)))) = 0 in
-  let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 1000 } in
+  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
   match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
     QuickCheck.Success -> true
   | _ -> false
@@ -395,7 +395,7 @@ TEST "quickcheck ka-zero-seq" =
     let pol = Seq(Filter(Test(Location(Physical 0l))), pol) in
     let open Semantics in
     PacketSet.compare (eval pkt drop) (eval pkt (Seq(drop, pol))) = 0 in
-  let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 1000 } in
+  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
   match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
     QuickCheck.Success -> true
   | _ -> false
@@ -415,7 +415,7 @@ TEST "quickcheck ka-seq-zero" =
     let pol = Seq(Filter(Test(Location(Physical 0l))), pol) in
     let open Semantics in
     PacketSet.compare (eval pkt drop) (eval pkt (Seq(pol, drop))) = 0 in
-  let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 1000 } in
+  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
   match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
     QuickCheck.Success -> true
   | _ -> false
@@ -437,7 +437,7 @@ TEST "quickcheck ka-unroll-l" =
     PacketSet.compare
       (eval pkt (Star pol))
       (eval pkt (Union(id, Seq(pol, Star pol)))) = 0 in
-  let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 1000 } in
+  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
   match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
     QuickCheck.Success -> true
   | _ -> false
@@ -474,7 +474,7 @@ TEST "quickcheck ka-lfp-l" =
         (eval pkt (Union(Seq(Star p, q), r)))
         (eval pkt r) in
     (lhs != 0) || (rhs = 0) in
-  let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 1000 } in
+  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
   match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
     QuickCheck.Success -> true
   | _ -> false
@@ -496,7 +496,7 @@ TEST "quickcheck ka-unroll-r" =
     PacketSet.compare
       (eval pkt (Star pol))
       (eval pkt (Union(id, Seq(Star pol, pol)))) = 0 in
-  let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 1000 } in
+  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
   match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
     QuickCheck.Success -> true
   | _ -> false
@@ -533,7 +533,7 @@ TEST "quickcheck ka-lfp-r" =
         (eval pkt (Union(Seq(p, Star r), q)))
         (eval pkt q) in
     (lhs != 0) || (rhs = 0) in
-  let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 1000 } in
+  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
   match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
     QuickCheck.Success -> true
   | _ -> false
@@ -555,7 +555,7 @@ TEST "quickcheck ka-lfp-r" =
 (*     NetKAT.PacketSetSet.compare *)
 (*       (NetKAT.eval pkt pol) *)
 (*       (NetKAT.eval pkt (LocalCompiler.Local.to_netkat (LocalCompiler.Local.of_policy pol))) = 0 in *)
-(*   let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 1000 } in *)
+(*   let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in *)
 (*   match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with *)
 (*     | QuickCheck.Success -> true *)
 (*     | _ -> failwith "quickchecking failed" *)
