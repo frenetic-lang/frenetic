@@ -93,9 +93,9 @@ let union ?(how=`Parallel) (a1 : app) (a2 : app) : app =
   { pipes = PipeSet.union a1.pipes a2.pipes
   ; default = Union(a1.default, a2.default)
   ; handler = fun t w () ->
+      let a1' = run a1 t w () in
+      let a2' = run a2 t w () in
       fun e ->
-        let a1' = run a1 t w () in
-        let a2' = run a2 t w () in
         Deferred.List.map ~how:how ~f:(fun a -> a e) [a1'; a2']
         >>= function
           | [m_pol1; m_pol2] ->
