@@ -301,9 +301,8 @@ module Host = struct
             | _ -> assert false in
           let h = try Some(vertex_of_label !t (Host(dlAddr, nwAddr)))
             with _ ->  None in
-          begin match h with
-            | Some(_) -> return None
-            | None ->
+          begin match Switch.Ctl.is_pending ctl sw_id pt_id', h with
+            | true, None    ->
               let t', h = add_vertex !t (Host(dlAddr, nwAddr)) in
               let t', s = add_vertex t' (Switch sw_id) in
               let t', _ = add_edge t' s pt_id' () h 0l in
@@ -311,6 +310,7 @@ module Host = struct
               t := t';
               Switch.Ctl.send_event ctl (HostUp((sw_id, pt_id), (dlAddr, nwAddr)));
               return None
+            | _   , _       -> return None
           end
         | PortDown (sw_id, pt_id) ->
           let pt_id' = VInt.get_int32 pt_id in
