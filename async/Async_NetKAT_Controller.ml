@@ -34,7 +34,7 @@ exception Assertion_failed of string
 type t = {
   ctl : Controller.t;
   nib : Net.Topology.t ref;
-  mutable locals : LocalCompiler.t SwitchMap.t
+  mutable locals : NetKAT_Types.policy SwitchMap.t
 }
 
 let bytes_to_headers port_id (bytes : Cstruct.t) =
@@ -204,7 +204,7 @@ let to_event w_out (t : t) evt =
                 (* XXX(seliopou): What if the packet's modified? Should buf_id be
                  * exposed to the application?
                  * *)
-                let pis, phys = LocalCompiler.eval local packet in
+                let pis, phys = Semantics.eval_pipes packet local in
                 let outs = Deferred.List.iter phys ~f:(fun packet1 ->
                   let acts = headers_to_actions
                     packet1.headers packet.headers in
@@ -245,8 +245,9 @@ let update_table_for (t : t) (sw_id : switchId) pol : unit Deferred.t =
   let to_flow_mod prio flow =
     OpenFlow0x01.Message.FlowModMsg (SDN_OpenFlow0x01.from_flow prio flow) in
   let c_id = Controller.client_id_of_switch t.ctl sw_id in
+  t.locals <- SwitchMap.add t.locals sw_id
+    (Optimize.specialize_policy sw_id pol);
   let local = LocalCompiler.compile sw_id pol in
-  t.locals <- SwitchMap.add t.locals sw_id local;
   Monitor.try_with ~name:"update_table_for" (fun () ->
     send t.ctl c_id (5l, delete_flows) >>= fun _ ->
     let priority = ref 65536 in
@@ -294,6 +295,7 @@ let start app ?(port=6633) () =
       nib = ref (Net.Topology.empty ());
       locals = SwitchMap.empty
     } in
+
     (* The pipe for packet_outs. The Pipe.iter below will run in its own logical
      * thread, sending packet outs to the switch whenever it's scheduled.
      * *)
