@@ -293,23 +293,25 @@ module Host = struct
       match e with
         | PacketIn (_, sw_id, pt_id, bytes, len, buf) ->
           let pt_id' = VInt.get_int32 pt_id in
-          if Switch.Ctl.is_pending ctl sw_id pt_id' then begin
-            ignore (Switch.Ctl.remove ctl sw_id pt_id');
-            let open Packet in
-            let dlAddr, nwAddr = match parse bytes with
-              | { nw = Arp (Arp.Query(dlSrc, nwSrc, _ )) }
-              | { nw = Arp (Arp.Reply(dlSrc, nwSrc, _, _)) } ->
-                (dlSrc, nwSrc)
-              | _ -> assert false in
-            let t', h = add_vertex !t (Host(dlAddr, nwAddr)) in
-            let t', s = add_vertex t' (Switch sw_id) in
-            let t', _ = add_edge t' s pt_id' () h 0l in
-            let t', _ = add_edge t' h 0l () s pt_id' in
-            t := t';
-            Switch.Ctl.send_event ctl (HostUp((sw_id, pt_id), (dlAddr, nwAddr)));
-            return None
-          end else
-            return None
+          let open Packet in
+          let dlAddr, nwAddr = match parse bytes with
+            | { nw = Arp (Arp.Query(dlSrc, nwSrc, _ )) }
+            | { nw = Arp (Arp.Reply(dlSrc, nwSrc, _, _)) } ->
+              (dlSrc, nwSrc)
+            | _ -> assert false in
+          let h = try Some(vertex_of_label !t (Host(dlAddr, nwAddr)))
+            with _ ->  None in
+          begin match h with
+            | Some(_) -> return None
+            | None ->
+              let t', h = add_vertex !t (Host(dlAddr, nwAddr)) in
+              let t', s = add_vertex t' (Switch sw_id) in
+              let t', _ = add_edge t' s pt_id' () h 0l in
+              let t', _ = add_edge t' h 0l () s pt_id' in
+              t := t';
+              Switch.Ctl.send_event ctl (HostUp((sw_id, pt_id), (dlAddr, nwAddr)));
+              return None
+          end
         | PortDown (sw_id, pt_id) ->
           let pt_id' = VInt.get_int32 pt_id in
           ignore (Switch.Ctl.remove ctl sw_id pt_id');
