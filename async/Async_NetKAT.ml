@@ -63,6 +63,10 @@ let create ?pipes (default : policy) (handler : handler) : app =
 let create_static (pol : policy) : app =
   create pol (fun _ _ () _ -> return None)
 
+let create_from_string (str : string) : app =
+  let pol = NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string str) in
+  create_static pol
+
 let create_from_file (filename : string) : app =
   let pol = In_channel.with_file filename ~f:(fun chan ->
     NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan)) in
