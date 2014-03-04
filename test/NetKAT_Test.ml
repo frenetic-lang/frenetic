@@ -226,244 +226,146 @@ module FromPipe = struct
     test_from_pipes pol pkt ["right"]
 end
 
-TEST "quickcheck ka-plus-idem" =
-  let testable_pol_pkt_to_bool =
-    let open QuickCheck in
-    let open QuickCheck_gen in
-    let open NetKAT_Arbitrary in
-    let open Packet_Arbitrary in
-    let open Packet in
-    testable_fun
-      (resize 11
-        (arbitrary_pair arbitrary_lf_pol NetKAT_Arbitrary.arbitrary_tcp))
-      (fun (p,_) -> string_of_policy p)
-      testable_bool in
+let fix_port pol =
+  Seq(Filter(Test(Location(Physical 0l))), pol)
+
+let gen_pol_1 =
+  let open QuickCheck in
+  let open QuickCheck_gen in
+  let open NetKAT_Arbitrary in
+  let open Packet_Arbitrary in
+  let open Packet in
+  testable_fun
+    (resize 11
+      (arbitrary_lf_pol >>= fun p ->
+        NetKAT_Arbitrary.arbitrary_tcp >>= fun packet ->
+          ret_gen (fix_port p, packet)))
+    (fun (p,_) -> string_of_policy p)
+    testable_bool
+
+let gen_pol_2 =
+  let open QuickCheck in
+  let open QuickCheck_gen in
+  let open NetKAT_Arbitrary in
+  let open Packet_Arbitrary in
+  let open Packet in
+  testable_fun
+    (resize 11
+      (arbitrary_lf_pol >>= fun p ->
+        arbitrary_lf_pol >>= fun q ->
+          NetKAT_Arbitrary.arbitrary_tcp >>= fun packet ->
+            ret_gen (fix_port p, fix_port q, packet)))
+    (fun (p,q,_) -> (string_of_policy p) ^ " " ^ (string_of_policy q))
+    testable_bool
+
+let gen_pol_3 =
+  let open QuickCheck in
+  let open QuickCheck_gen in
+  let open NetKAT_Arbitrary in
+  let open Packet_Arbitrary in
+  let open Packet in
+  testable_fun
+    (resize 11
+      (arbitrary_lf_pol >>= fun p ->
+        arbitrary_lf_pol >>= fun q ->
+          arbitrary_lf_pol >>= fun r ->
+            NetKAT_Arbitrary.arbitrary_tcp >>= fun packet ->
+              ret_gen (fix_port p, fix_port q, fix_port r, packet)))
+    (fun (p,q,r,_) ->
+      (string_of_policy p) ^ " " ^ (string_of_policy q) ^ " "
+      ^ (string_of_policy r))
+    testable_bool
+
+let check gen_fn compare_fn =
+  let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 1000 } in
+  match QuickCheck.check gen_fn cfg compare_fn with
+    QuickCheck.Success -> true
+  | _                  -> false
+
+TEST "quickcheck ka-plus-assoc" =
+  let prop_compile_ok (p, q, r, pkt) =
+    let open Semantics in
+    PacketSet.compare
+      (eval pkt (Union(p, (Union (q, r)))))
+      (eval pkt (Union((Union(p, q)), r))) = 0 in
+  check gen_pol_3 prop_compile_ok
+
+TEST "quickcheck ka-plus-comm" =
+  let prop_compile_ok (p, q, pkt) =
+    let open Semantics in
+    PacketSet.compare (eval pkt (Union(p, q))) (eval pkt (Union(q, p))) = 0 in
+  check gen_pol_2 prop_compile_ok
+
+TEST "quickcheck ka-plus-zero" =
   let prop_compile_ok (pol, pkt) =
-    let pol = Seq(Filter(Test(Location(Physical 0l))), pol) in
+    let open Semantics in
+    PacketSet.compare (eval pkt pol) (eval pkt (Union(pol, drop))) = 0 in
+  check gen_pol_1 prop_compile_ok
+
+TEST "quickcheck ka-plus-idem" =
+  let prop_compile_ok (pol, pkt) =
     let open Semantics in
     PacketSet.compare (eval pkt (Union(pol, pol))) (eval pkt pol) = 0 in
-  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
-  match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
-    QuickCheck.Success -> true
-  | _ -> false
+  check gen_pol_1 prop_compile_ok
 
 TEST "quickcheck ka-seq-assoc" =
-  let testable_pol_pkt_to_bool =
-    let open QuickCheck in
-    let open QuickCheck_gen in
-    let open NetKAT_Arbitrary in
-    let open Packet_Arbitrary in
-    let open Packet in
-    testable_fun
-      (resize 11
-        (arbitrary_pair
-          (arbitrary_pair
-            arbitrary_lf_pol
-            (arbitrary_pair arbitrary_lf_pol arbitrary_lf_pol))
-          NetKAT_Arbitrary.arbitrary_tcp))
-      (fun ((p,(q,r)),_) ->
-        (string_of_policy p) ^ " * (" ^
-        (string_of_policy q) ^ " * " ^ (string_of_policy r) ^ ")")
-      testable_bool in
-  let prop_compile_ok ((p, (q, r)), pkt) =
-    let p = Seq(Filter(Test(Location(Physical 0l))), p) in
-    let q = Seq(Filter(Test(Location(Physical 0l))), q) in
-    let r = Seq(Filter(Test(Location(Physical 0l))), r) in
+  let prop_compile_ok (p, q, r, pkt) =
     let open Semantics in
     PacketSet.compare
       (eval pkt (Seq(p, (Seq (q, r)))))
       (eval pkt (Seq((Seq(p, q)), r))) = 0 in
-  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
-  match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
-    QuickCheck.Success -> true
-  | _ -> false
+  check gen_pol_3 prop_compile_ok
 
 TEST "quickcheck ka-one-seq" =
-  let testable_pol_pkt_to_bool =
-    let open QuickCheck in
-    let open QuickCheck_gen in
-    let open NetKAT_Arbitrary in
-    let open Packet_Arbitrary in
-    let open Packet in
-    testable_fun
-      (resize 11
-        (arbitrary_pair arbitrary_lf_pol NetKAT_Arbitrary.arbitrary_tcp))
-      (fun (p,_) -> string_of_policy p) testable_bool in
   let prop_compile_ok (pol, pkt) =
-    let pol = Seq(Filter(Test(Location(Physical 0l))), pol) in
     let open Semantics in
     PacketSet.compare (eval pkt pol) (eval pkt (Seq(id, pol))) = 0 in
-  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
-  match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
-    QuickCheck.Success -> true
-  | _ -> false
+  check gen_pol_1 prop_compile_ok
 
 TEST "quickcheck ka-seq-one" =
-  let testable_pol_pkt_to_bool =
-    let open QuickCheck in
-    let open QuickCheck_gen in
-    let open NetKAT_Arbitrary in
-    let open Packet_Arbitrary in
-    let open Packet in
-    testable_fun
-      (resize 11
-        (arbitrary_pair arbitrary_lf_pol NetKAT_Arbitrary.arbitrary_tcp))
-      (fun (p,_) -> string_of_policy p) testable_bool in
   let prop_compile_ok (pol, pkt) =
-    let pol = Seq(Filter(Test(Location(Physical 0l))), pol) in
     let open Semantics in
     PacketSet.compare (eval pkt pol) (eval pkt (Seq(pol, id))) = 0 in
-  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
-  match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
-    QuickCheck.Success -> true
-  | _ -> false
+  check gen_pol_1 prop_compile_ok
 
 TEST "quickcheck ka-seq-dist-l" =
-  let testable_pol_pkt_to_bool =
-    let open QuickCheck in
-    let open QuickCheck_gen in
-    let open NetKAT_Arbitrary in
-    let open Packet_Arbitrary in
-    let open Packet in
-    testable_fun
-      (resize 11
-        (arbitrary_pair
-          (arbitrary_pair
-            arbitrary_lf_pol
-            (arbitrary_pair arbitrary_lf_pol arbitrary_lf_pol))
-          NetKAT_Arbitrary.arbitrary_tcp))
-      (fun ((p,(q,r)),_) ->
-        (string_of_policy p) ^ " * (" ^
-        (string_of_policy q) ^ " + " ^ (string_of_policy r) ^ ")")
-      testable_bool in
-  let prop_compile_ok ((p, (q, r)), pkt) =
-    let p = Seq(Filter(Test(Location(Physical 0l))), p) in
-    let q = Seq(Filter(Test(Location(Physical 0l))), q) in
-    let r = Seq(Filter(Test(Location(Physical 0l))), r) in
+  let prop_compile_ok (p, q, r, pkt) =
     let open Semantics in
     PacketSet.compare
       (eval pkt (Seq(p, (Union (q, r)))))
       (eval pkt (Union ((Seq(p, q)), (Seq(p, r))))) = 0 in
-  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
-  match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
-    QuickCheck.Success -> true
-  | _ -> false
+  check gen_pol_3 prop_compile_ok
 
 TEST "quickcheck ka-seq-dist-r" =
-  let testable_pol_pkt_to_bool =
-    let open QuickCheck in
-    let open QuickCheck_gen in
-    let open NetKAT_Arbitrary in
-    let open Packet_Arbitrary in
-    let open Packet in
-    testable_fun
-      (resize 11
-        (arbitrary_pair
-          (arbitrary_pair
-            arbitrary_lf_pol
-            (arbitrary_pair arbitrary_lf_pol arbitrary_lf_pol))
-          NetKAT_Arbitrary.arbitrary_tcp))
-      (fun ((p,(q,r)),_) ->
-        "(" ^ (string_of_policy p) ^ " + " ^ (string_of_policy q) ^ ") * "
-        ^ (string_of_policy r))
-      testable_bool in
-  let prop_compile_ok ((p, (q, r)), pkt) =
-    let p = Seq(Filter(Test(Location(Physical 0l))), p) in
-    let q = Seq(Filter(Test(Location(Physical 0l))), q) in
-    let r = Seq(Filter(Test(Location(Physical 0l))), r) in
+  let prop_compile_ok (p, q, r, pkt) =
     let open Semantics in
     PacketSet.compare
       (eval pkt (Seq (Union(p, q), r)))
       (eval pkt (Union (Seq(p, r), Seq(q, r)))) = 0 in
-  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
-  match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
-    QuickCheck.Success -> true
-  | _ -> false
+  check gen_pol_3 prop_compile_ok
 
 TEST "quickcheck ka-zero-seq" =
-  let testable_pol_pkt_to_bool =
-    let open QuickCheck in
-    let open QuickCheck_gen in
-    let open NetKAT_Arbitrary in
-    let open Packet_Arbitrary in
-    let open Packet in
-    testable_fun
-      (resize 11
-        (arbitrary_pair arbitrary_lf_pol NetKAT_Arbitrary.arbitrary_tcp))
-      (fun (p,_) -> string_of_policy p) testable_bool in
   let prop_compile_ok (pol, pkt) =
-    let pol = Seq(Filter(Test(Location(Physical 0l))), pol) in
     let open Semantics in
     PacketSet.compare (eval pkt drop) (eval pkt (Seq(drop, pol))) = 0 in
-  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
-  match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
-    QuickCheck.Success -> true
-  | _ -> false
+  check gen_pol_1 prop_compile_ok
 
 TEST "quickcheck ka-seq-zero" =
-  let testable_pol_pkt_to_bool =
-    let open QuickCheck in
-    let open QuickCheck_gen in
-    let open NetKAT_Arbitrary in
-    let open Packet_Arbitrary in
-    let open Packet in
-    testable_fun
-      (resize 11
-        (arbitrary_pair arbitrary_lf_pol NetKAT_Arbitrary.arbitrary_tcp))
-      (fun (p,_) -> string_of_policy p) testable_bool in
   let prop_compile_ok (pol, pkt) =
-    let pol = Seq(Filter(Test(Location(Physical 0l))), pol) in
     let open Semantics in
     PacketSet.compare (eval pkt drop) (eval pkt (Seq(pol, drop))) = 0 in
-  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
-  match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
-    QuickCheck.Success -> true
-  | _ -> false
+  check gen_pol_1 prop_compile_ok
 
 TEST "quickcheck ka-unroll-l" =
-  let testable_pol_pkt_to_bool =
-    let open QuickCheck in
-    let open QuickCheck_gen in
-    let open NetKAT_Arbitrary in
-    let open Packet_Arbitrary in
-    let open Packet in
-    testable_fun
-      (resize 11
-        (arbitrary_pair arbitrary_lf_pol NetKAT_Arbitrary.arbitrary_tcp))
-      (fun (p,_) -> string_of_policy p) testable_bool in
   let prop_compile_ok (pol, pkt) =
-    let pol = Seq(Filter(Test(Location(Physical 0l))), pol) in
     let open Semantics in
     PacketSet.compare
       (eval pkt (Star pol))
       (eval pkt (Union(id, Seq(pol, Star pol)))) = 0 in
-  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
-  match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
-    QuickCheck.Success -> true
-  | _ -> false
+  check gen_pol_1 prop_compile_ok
 
 TEST "quickcheck ka-lfp-l" =
-  let testable_pol_pkt_to_bool =
-    let open QuickCheck in
-    let open QuickCheck_gen in
-    let open NetKAT_Arbitrary in
-    let open Packet_Arbitrary in
-    let open Packet in
-    testable_fun
-      (resize 11
-        (arbitrary_pair
-          (arbitrary_pair
-            arbitrary_lf_pol
-            (arbitrary_pair arbitrary_lf_pol arbitrary_lf_pol))
-          NetKAT_Arbitrary.arbitrary_tcp))
-      (fun ((p,(q,r)),_) ->
-        (string_of_policy p) ^ " , " ^ (string_of_policy q) ^ " , "
-        ^ (string_of_policy r))
-      testable_bool in
-  let prop_compile_ok ((p, (q, r)), pkt) =
-    let p = Seq(Filter(Test(Location(Physical 0l))), p) in
-    let q = Seq(Filter(Test(Location(Physical 0l))), q) in
-    let r = Seq(Filter(Test(Location(Physical 0l))), r) in
+  let prop_compile_ok (p, q, r, pkt) =
     let open Semantics in
     let lhs =
       PacketSet.compare
@@ -474,55 +376,18 @@ TEST "quickcheck ka-lfp-l" =
         (eval pkt (Union(Seq(Star p, q), r)))
         (eval pkt r) in
     (lhs != 0) || (rhs = 0) in
-  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
-  match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
-    QuickCheck.Success -> true
-  | _ -> false
+  check gen_pol_3 prop_compile_ok
 
 TEST "quickcheck ka-unroll-r" =
-  let testable_pol_pkt_to_bool =
-    let open QuickCheck in
-    let open QuickCheck_gen in
-    let open NetKAT_Arbitrary in
-    let open Packet_Arbitrary in
-    let open Packet in
-    testable_fun
-      (resize 11
-        (arbitrary_pair arbitrary_lf_pol NetKAT_Arbitrary.arbitrary_tcp))
-      (fun (p,_) -> string_of_policy p) testable_bool in
   let prop_compile_ok (pol, pkt) =
-    let pol = Seq(Filter(Test(Location(Physical 0l))), pol) in
     let open Semantics in
     PacketSet.compare
       (eval pkt (Star pol))
       (eval pkt (Union(id, Seq(Star pol, pol)))) = 0 in
-  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
-  match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
-    QuickCheck.Success -> true
-  | _ -> false
+  check gen_pol_1 prop_compile_ok
 
 TEST "quickcheck ka-lfp-r" =
-  let testable_pol_pkt_to_bool =
-    let open QuickCheck in
-    let open QuickCheck_gen in
-    let open NetKAT_Arbitrary in
-    let open Packet_Arbitrary in
-    let open Packet in
-    testable_fun
-      (resize 11
-        (arbitrary_pair
-          (arbitrary_pair
-            arbitrary_lf_pol
-            (arbitrary_pair arbitrary_lf_pol arbitrary_lf_pol))
-          NetKAT_Arbitrary.arbitrary_tcp))
-      (fun ((p,(q,r)),_) ->
-        (string_of_policy p) ^ " , " ^ (string_of_policy q) ^ " , "
-        ^ (string_of_policy r))
-      testable_bool in
-  let prop_compile_ok ((p, (q, r)), pkt) =
-    let p = Seq(Filter(Test(Location(Physical 0l))), p) in
-    let q = Seq(Filter(Test(Location(Physical 0l))), q) in
-    let r = Seq(Filter(Test(Location(Physical 0l))), r) in
+  let prop_compile_ok (p, q, r, pkt) =
     let open Semantics in
     let lhs =
       PacketSet.compare
@@ -533,10 +398,7 @@ TEST "quickcheck ka-lfp-r" =
         (eval pkt (Union(Seq(p, Star r), q)))
         (eval pkt q) in
     (lhs != 0) || (rhs = 0) in
-  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
-  match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with
-    QuickCheck.Success -> true
-  | _ -> false
+  check gen_pol_3 prop_compile_ok
 
 (* TEST "quickcheck local compiler" = *)
 (*   let testable_pol_pkt_to_bool = *)
