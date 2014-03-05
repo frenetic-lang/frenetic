@@ -236,10 +236,9 @@ let gen_pol_1 =
   let open Packet_Arbitrary in
   let open Packet in
   testable_fun
-    (resize 11
-      (arbitrary_lf_pol >>= fun p ->
-        NetKAT_Arbitrary.arbitrary_tcp >>= fun packet ->
-          ret_gen (fix_port p, packet)))
+    (arbitrary_lf_pol >>= fun p ->
+      NetKAT_Arbitrary.arbitrary_tcp >>= fun packet ->
+        ret_gen (fix_port p, packet))
     (fun (p,_) -> string_of_policy p)
     testable_bool
 
@@ -250,11 +249,10 @@ let gen_pol_2 =
   let open Packet_Arbitrary in
   let open Packet in
   testable_fun
-    (resize 11
-      (arbitrary_lf_pol >>= fun p ->
-        arbitrary_lf_pol >>= fun q ->
-          NetKAT_Arbitrary.arbitrary_tcp >>= fun packet ->
-            ret_gen (fix_port p, fix_port q, packet)))
+    (arbitrary_lf_pol >>= fun p ->
+      arbitrary_lf_pol >>= fun q ->
+        NetKAT_Arbitrary.arbitrary_tcp >>= fun packet ->
+          ret_gen (fix_port p, fix_port q, packet))
     (fun (p,q,_) -> (string_of_policy p) ^ " " ^ (string_of_policy q))
     testable_bool
 
@@ -265,19 +263,18 @@ let gen_pol_3 =
   let open Packet_Arbitrary in
   let open Packet in
   testable_fun
-    (resize 11
-      (arbitrary_lf_pol >>= fun p ->
-        arbitrary_lf_pol >>= fun q ->
-          arbitrary_lf_pol >>= fun r ->
-            NetKAT_Arbitrary.arbitrary_tcp >>= fun packet ->
-              ret_gen (fix_port p, fix_port q, fix_port r, packet)))
+    (arbitrary_lf_pol >>= fun p ->
+      arbitrary_lf_pol >>= fun q ->
+        arbitrary_lf_pol >>= fun r ->
+          NetKAT_Arbitrary.arbitrary_tcp >>= fun packet ->
+            ret_gen (fix_port p, fix_port q, fix_port r, packet))
     (fun (p,q,r,_) ->
       (string_of_policy p) ^ " " ^ (string_of_policy q) ^ " "
       ^ (string_of_policy r))
     testable_bool
 
 let check gen_fn compare_fn =
-  let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 1000 } in
+  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
   match QuickCheck.check gen_fn cfg compare_fn with
     QuickCheck.Success -> true
   | _                  -> false
