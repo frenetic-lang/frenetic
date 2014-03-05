@@ -52,6 +52,7 @@ module type NETWORK = sig
     val vertexes : t -> VertexSet.t
     val edges : t -> EdgeSet.t
     val neighbors : t -> vertex -> VertexSet.t
+    val find_edge : t -> vertex -> vertex -> edge
     val vertex_to_ports : t -> vertex -> PortSet.t
     val next_hop : t -> vertex -> port -> edge option
     val edge_src : edge -> (vertex * port)
