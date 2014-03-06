@@ -1,24 +1,37 @@
 OCaml Packet
 ============
 
-A serialization library for ethernet, TCP, IP, ARP, ICMP, and others.
+A serialization library for network packets.
 
 [![Build Status](https://travis-ci.org/frenetic-lang/ocaml-packet.png)](https://travis-ci.org/frenetic-lang/ocaml-packet)
 
-Building from Source
---------------------
+Installation
+------------
 
-This package is available on OPAM:
+You can install the latest release from [OPAM][http://opam.ocamlpro.com/] using
+the following command:
 
     $ opam install packet
 
-Hacking
+Development
+-----------
+
+To build from source, first ensure that you've installed all dependencies,
+which are listed in the `_oasis` file under the `Library packet` and `Library
+quickcheck` sections. Then, run the following commands:
+
+    ./configure --enable-tests --enable-quickcheck
+    $ make
+    $ make test
+    $ make install
+
+While developing, you may want to install your latest changes for testing with
+other packages. `make install` will fail when trying to reinstall, so use this
+command instead:
+
+    $ make reinstall
+
+License
 -------
 
-The `_oasis` file specifies all the dependencies. If you're hacking on the
-library, you should install the dependencies needed to build the main
-library and the test suite.
-
-    $ opam install ocamlfind cstruct quickcheck ounit pa_ounit
-    $ ./configure --enable-tests --enable-quickcheck
-    $ make test
+LGPLv3, see LICENSE file for its text.
