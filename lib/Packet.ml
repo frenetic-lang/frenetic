@@ -202,6 +202,21 @@ module Tcp = struct
     let bits = Cstruct.shift bits sizeof_tcp in 
     Cstruct.blit pkt.payload 0 bits 0 (Cstruct.len pkt.payload)
 
+
+  let checksum (bits : Cstruct.t) (src : nwAddr) (dst : nwAddr) (pkt : t) =
+    (* XXX(seliopou): pseudo_header's allocated on every call. Would it be safe
+     * to allocate once and reuse? *)
+    let pseudo_header = Cstruct.create 12 in
+    Cstruct.BE.set_uint32 pseudo_header 0  src;
+    Cstruct.BE.set_uint32 pseudo_header 4  dst;
+    Cstruct.set_uint8     pseudo_header 8  0;
+    Cstruct.set_uint8     pseudo_header 9  0x6;
+    Cstruct.BE.set_uint16 pseudo_header 10 (len pkt);
+    set_tcp_chksum bits 0;
+    let chksum = Checksum.ones_complement_list
+      [pseudo_header; Cstruct.sub bits 0 (len pkt)] in
+    set_tcp_chksum bits chksum
+
 end
 
 module Udp = struct
@@ -883,7 +898,8 @@ module Ip = struct
     let bits = Cstruct.shift bits header_len in
     match pkt.tp with
       | Tcp tcp -> 
-        Tcp.marshal bits tcp
+        Tcp.marshal bits tcp;
+        Tcp.checksum bits pkt.src pkt.dst tcp
       | Udp udp ->
         Udp.marshal bits udp
       | Icmp icmp -> 
