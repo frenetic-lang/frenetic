@@ -89,7 +89,8 @@ module type NETWORK = sig
 
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
     val all_shortest_paths : Topology.t -> Topology.vertex -> Topology.vertex Topology.VertexHash.t
-
+    val all_pairs_shortest_paths : Topology.t
+      -> (Topology.vertex * Topology.vertex * Topology.vertex list) list
   end
 
   (* Parsing *)

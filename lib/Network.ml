@@ -89,6 +89,8 @@ module type NETWORK = sig
 
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
     val all_shortest_paths : Topology.t -> Topology.vertex -> Topology.vertex Topology.VertexHash.t
+    val all_pairs_shortest_paths : Topology.t -> (Topology.vertex *
+                                                   Topology.vertex * Topology.vertex list) list
   end
 
   (* Parsing *)
@@ -367,6 +369,55 @@ struct
       in
       let r = relax 0 in
       r
+
+
+    let all_pairs_shortest_paths (t:Topology.t) : (vertex * vertex * vertex list) list =
+      let add_opt o1 o2 =
+        match o1, o2 with
+          | Some n1, Some n2 -> Some (n1 + n2)
+          | _ -> None in
+      let lt_opt o1 o2 =
+        match o1, o2 with
+          | Some n1, Some n2 -> n1 < n2
+          | Some _, None -> true
+          | None, Some _ -> false
+          | None, None -> false in
+      let make_matrix (g:Topology.t) =
+        let n = P.nb_vertex g.graph in
+        let vs = vertexes g in
+        let nodes = Array.make n (VertexSet.choose vs) in
+        let _ = VertexSet.fold (fun v i -> Array.set nodes i v; i+1) vs 0 in
+        (Array.init n
+          (fun i -> Array.init n
+            (fun j -> if i = j then (Some 0, [nodes.(i)])
+              else
+                try
+                  let l = find_edge g nodes.(i) nodes.(j) in
+                  let cost = UnitWeight.weight l in
+                  (Some cost, [nodes.(i); nodes.(j)])
+                with Not_found ->
+                  (None,[]))),
+        nodes)
+      in
+      let matrix,vxs = make_matrix t in
+      let n = P.nb_vertex t.graph in
+      let dist i j = fst (matrix.(i).(j)) in
+      let path i j = snd (matrix.(i).(j)) in
+      for k = 0 to n - 1 do
+        for i = 0 to n - 1 do
+          for j = 0 to n - 1 do
+            let dist_ikj = add_opt (dist i k) (dist k j) in
+            if lt_opt dist_ikj (dist i j) then
+              matrix.(i).(j) <- (dist_ikj, path i k @ List.tl (path k j))
+          done
+        done
+      done;
+      let paths = ref [] in
+      Array.iteri (fun i array ->
+        Array.iteri (fun j elt ->
+          let (_, p) = elt in
+          paths := (vxs.(i), vxs.(j),p) :: !paths) array;) matrix;
+      !paths
 
   end
 
