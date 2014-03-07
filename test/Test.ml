@@ -33,7 +33,6 @@ module RoundTrip = struct
     e1.offset = e2.offset &&
     e1.flags = e2.flags &&
     e1.window = e2.window &&
-    e1.chksum = e2.chksum &&
     e1.urgent = e2.urgent &&
     compare (Cstruct.to_string e1.payload) (Cstruct.to_string e2.payload) = 0
 
