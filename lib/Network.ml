@@ -184,9 +184,9 @@ struct
       with Not_found ->
         let id = t.next_node + 1 in
         let v = { id = id; label = l } in
-        let graph = P.add_vertex t.graph v in
-        let node_labels = VertexMap.add l v t.node_labels in
-        ({ t with graph; node_labels; next_node = id}, v)
+        let g = P.add_vertex t.graph v in
+        let nl = VertexMap.add l v t.node_labels in
+        ({ t with graph=g; node_labels=nl; next_node = id}, v)
 
     let add_edge (t:t) (v1:vertex) (p1:port) (l:Edge.t) (v2:vertex) (p2:port) : t * edge =
       let open EL in
@@ -443,11 +443,13 @@ struct
         let remove_edge_e t e =
           { t with graph = P.remove_edge_e t.graph e }
         let add_vertex t v =
-          { t with graph = P.add_vertex t.graph v }
+          { t with graph = P.add_vertex t.graph v ; next_node = v.Topology.VL.id + 1}
         let add_edge t v1 v2 =
-          { t with graph = P.add_edge t.graph v1 v2 }
+          { t with graph = P.add_edge t.graph v1 v2 ; next_edge = t.next_edge + 1}
         let add_edge_e t e =
-          { t with graph = P.add_edge_e t.graph e }
+          let (_,l,_) = e in
+          { t with graph = P.add_edge_e t.graph e ;
+            next_edge = l.Topology.EL.id + 1}
         let fold_pred_e f t i =
           P.fold_pred_e f t.graph i
         let iter_pred_e f t =
