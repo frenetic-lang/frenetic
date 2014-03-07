@@ -85,8 +85,10 @@ module type NETWORK = sig
   (* Paths *)
   module Path : sig
     type t = Topology.edge list
+    exception NegativeCycle of t
 
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
+    val all_shortest_paths : Topology.t -> Topology.vertex -> Topology.vertex Topology.VertexHash.t
   end
 
   (* Parsing *)
@@ -307,6 +309,65 @@ struct
         Some pth
       with Not_found ->
         None
+
+    exception NegativeCycle of edge list
+    (* Implementation of Bellman-Ford algorithm, based on that in ocamlgraph's
+       Path library. Returns a hashtable mapping each node to its predecessor in
+       the path *)
+    let all_shortest_paths (t:Topology.t) (src:vertex) : (vertex VertexHash.t) =
+      let size = P.nb_vertex t.graph in
+      let dist = VertexHash.create size in
+      let prev = VertexHash.create size in
+      let admissible = VertexHash.create size in
+      VertexHash.replace dist src UnitWeight.zero;
+      let build_cycle_from x0 =
+        let rec traverse_parent x ret =
+          let e = VertexHash.find admissible x in
+          let s,_ = edge_src e in
+          if s = x0 then e :: ret else traverse_parent s (e :: ret)
+        in
+        traverse_parent x0 []
+      in
+      let find_cycle x0 =
+        let rec visit x visited =
+          if VertexSet.mem x visited then
+            build_cycle_from x
+          else begin
+            let e = VertexHash.find admissible x in
+            let s,_ = edge_src e in
+            visit s (VertexSet.add x visited)
+          end
+        in
+        visit x0 (VertexSet.empty)
+      in
+      let rec relax i =
+        let update = P.fold_edges_e
+          (fun e x ->
+            let ev1,_ = edge_src e in
+            let ev2,_ = edge_dst e in
+            try begin
+              let dev1 = VertexHash.find dist ev1 in
+              let dev2 = UnitWeight.add dev1 (UnitWeight.weight e) in
+              let improvement =
+                try UnitWeight.compare dev2 (VertexHash.find dist ev2) < 0
+                with Not_found -> true
+              in
+              if improvement then begin
+                VertexHash.replace prev ev2 ev1;
+                VertexHash.replace dist ev2 dev2;
+                VertexHash.replace admissible ev2 e;
+                Some ev2
+              end else x
+            end with Not_found -> x) t.graph None in
+        match update with
+          | Some x ->
+            if i == P.nb_vertex t.graph then raise (NegativeCycle (find_cycle x))
+            else relax (i + 1)
+          | None -> prev
+      in
+      let r = relax 0 in
+      r
+
   end
 
   (* Parsing *)

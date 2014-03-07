@@ -85,8 +85,11 @@ module type NETWORK = sig
   (* Paths *)
   module Path : sig
     type t = Topology.edge list
+    exception NegativeCycle of t
 
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
+    val all_shortest_paths : Topology.t -> Topology.vertex -> Topology.vertex Topology.VertexHash.t
+
   end
 
   (* Parsing *)
