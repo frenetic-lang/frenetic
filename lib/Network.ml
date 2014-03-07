@@ -49,6 +49,8 @@ module type NETWORK = sig
     val add_edge : t -> vertex -> port -> Edge.t -> vertex -> port -> (t * edge)
 
     (* Special Accessors *)
+    val num_vertexes : t -> int
+    val num_edges : t -> int
     val vertexes : t -> VertexSet.t
     val edges : t -> EdgeSet.t
     val neighbors : t -> vertex -> VertexSet.t
@@ -196,6 +198,12 @@ struct
       ({ t with graph = P.add_edge_e t.graph e; next_edge = id }, e)
 
     (* Special Accessors *)
+    let num_vertexes (t:t) : int =
+      P.nb_vertex t.graph
+
+    let num_edges (t:t) : int =
+      P.nb_edges t.graph
+
     let edges (t:t) : EdgeSet.t =
       P.fold_edges_e EdgeSet.add t.graph EdgeSet.empty
 
