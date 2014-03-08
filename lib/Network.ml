@@ -224,6 +224,7 @@ struct
       v.VL.label
 
     let vertex_of_label (t:t) (l:Vertex.t) : vertex =
+      Printf.printf "Size of node labels:%d\n%!" (VertexMap.cardinal t.node_labels);
       VertexMap.find l t.node_labels
 
     let edge_src (e:edge) : (vertex * port) =
@@ -451,7 +452,9 @@ struct
         let remove_edge_e t e =
           { t with graph = P.remove_edge_e t.graph e }
         let add_vertex t v =
-          { t with graph = P.add_vertex t.graph v ; next_node = v.Topology.VL.id + 1}
+          { t with graph = P.add_vertex t.graph v ;
+            node_labels = VertexMap.add v.Topology.VL.label v t.node_labels;
+            next_node = v.Topology.VL.id + 1}
         let add_edge t v1 v2 =
           { t with graph = P.add_edge t.graph v1 v2 ; next_edge = t.next_edge + 1}
         let add_edge_e t e =
