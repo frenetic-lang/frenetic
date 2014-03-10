@@ -224,7 +224,6 @@ struct
       v.VL.label
 
     let vertex_of_label (t:t) (l:Vertex.t) : vertex =
-      Printf.printf "Size of node labels:%d\n%!" (VertexMap.cardinal t.node_labels);
       VertexMap.find l t.node_labels
 
     let edge_src (e:edge) : (vertex * port) =
