@@ -29,7 +29,7 @@ let label_severity msg =
     [ prefix
     ; Log.Message.message msg ]
 
-let make_colored_filtered_output (tags : (string * string) list) 
+let make_filtered_output (tags : (string * string) list) 
   : Log.Output.t =
   let filter = filter_by_tags tags in
   Log.Output.create
@@ -39,10 +39,10 @@ let make_colored_filtered_output (tags : (string * string) list)
          Writer.write writer (label_severity msg);
          Writer.newline writer)))
 
-let colorized_stderr : Log.Output.t =
-  make_colored_filtered_output [("openflow", "")]
+let stderr : Log.Output.t =
+  make_filtered_output [("openflow", "")]
 
-let log = lazy (Log.create ~level:`Info ~output:[colorized_stderr])
+let log = lazy (Log.create ~level:`Info ~output:[stderr])
 
 let set_level = Log.set_level (Lazy.force log)
 
