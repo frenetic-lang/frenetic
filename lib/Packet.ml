@@ -86,6 +86,18 @@ type nwTos = int8
 
 type tpPort = int16
 
+let mk_pseudo_header (src : nwAddr) (dst : nwAddr) (proto : int) (len : int) =
+  (* XXX(seliopou): pseudo_header's allocated on every call. Given the usage
+   * pattern of this library, though, would it be safe to allocate once and
+   * reuse? *)
+  let pseudo_header = Cstruct.create 12 in
+  Cstruct.BE.set_uint32 pseudo_header 0  src;
+  Cstruct.BE.set_uint32 pseudo_header 4  dst;
+  Cstruct.set_uint8     pseudo_header 8  0;
+  Cstruct.set_uint8     pseudo_header 9  proto;
+  Cstruct.BE.set_uint16 pseudo_header 10 len;
+  pseudo_header
+
 module Tcp = struct
 
   module Flags = struct
@@ -204,15 +216,8 @@ module Tcp = struct
 
 
   let checksum (bits : Cstruct.t) (src : nwAddr) (dst : nwAddr) (pkt : t) =
-    (* XXX(seliopou): pseudo_header's allocated on every call. Would it be safe
-     * to allocate once and reuse? *)
-    let pseudo_header = Cstruct.create 12 in
     let length = len pkt in
-    Cstruct.BE.set_uint32 pseudo_header 0  src;
-    Cstruct.BE.set_uint32 pseudo_header 4  dst;
-    Cstruct.set_uint8     pseudo_header 8  0;
-    Cstruct.set_uint8     pseudo_header 9  0x6;
-    Cstruct.BE.set_uint16 pseudo_header 10 length;
+    let pseudo_header = mk_pseudo_header src dst 0x6 length in
     set_tcp_chksum bits 0;
     let chksum = Checksum.ones_complement_list
       (if (length mod 2) = 0
