@@ -55,7 +55,6 @@ Library async
     openflow,
     cstruct.async,
     threads,
-    textutils,
     sexplib.syntax
   InternalModules:
     Async_OpenFlow_Log,

@@ -7,7 +7,7 @@ module Log : sig
 
   include Log.Global_intf
 
-  val make_colored_filtered_output : (string * string) list ->
+  val make_filtered_output : (string * string) list ->
     Log.Output.t
 
 end

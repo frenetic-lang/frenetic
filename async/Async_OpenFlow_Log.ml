@@ -1,30 +1,48 @@
 open Core.Std
 open Async.Std
 
-let filter_by_tags (enabled_tags : (string * string) list) 
-  (messages : Log.Message.t Queue.t) : Log.Message.t Queue.t =
-  Queue.filter_map messages (fun msg ->
-    match Log.Message.tags msg with
-    | [] -> Some msg (* untagged messages are printed indiscriminately *)
-    | msg_tags ->
-      if List.exists ~f:(List.mem enabled_tags) msg_tags then
-        Some msg
-      else
-        None)
+module TagSet = Set.Make(struct
+  type t = string * string with sexp
+  let compare = Pervasives.compare
+end)
 
-let make_colored_filtered_output (tags : (string * string) list) 
+let filter_by_tags (enabled_tags : (string * string) list) =
+  let enabled_tags = TagSet.of_list enabled_tags in
+  (fun msgs ->
+    Queue.filter_map msgs (fun msg ->
+      match Log.Message.tags msg with
+      | [] -> Some msg (* untagged messages are printed indiscriminately *)
+      | msg_tags ->
+        if List.exists ~f:(TagSet.mem enabled_tags) msg_tags then
+          Some msg
+        else
+          None))
+
+let label_severity msg =
+  let debug, info, error = [`Dim], [`Blue], [`Red] in
+  let style, prefix = match Log.Message.level msg with
+    | None -> info, ""
+    | Some `Debug -> debug, "[DEBUG]"
+    | Some `Info  -> info,  " [INFO]"
+    | Some `Error -> error, "[ERROR]" in
+  String.concat ~sep:" "
+    [ prefix
+    ; Log.Message.message msg ]
+
+let make_filtered_output (tags : (string * string) list) 
   : Log.Output.t =
+  let filter = filter_by_tags tags in
   Log.Output.create
-    (fun queue ->
-      Textutils.Console.Log.Output.create 
-         ~debug:[`Dim] ~info:[`Blue] ~error:[`Red]
-         (Lazy.force Writer.stderr)
-         (filter_by_tags tags queue))
+    (fun msgs ->
+      let writer = Lazy.force (Writer.stderr) in
+       return (Queue.iter (filter msgs) ~f:(fun msg ->
+         Writer.write writer (label_severity msg);
+         Writer.newline writer)))
 
-let colorized_stderr : Log.Output.t =
-  make_colored_filtered_output [("openflow", "")]
+let stderr : Log.Output.t =
+  make_filtered_output [("openflow", "")]
 
-let log = lazy (Log.create ~level:`Info ~output:[colorized_stderr])
+let log = lazy (Log.create ~level:`Info ~output:[stderr])
 
 let set_level = Log.set_level (Lazy.force log)
 
