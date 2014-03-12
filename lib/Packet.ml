@@ -207,16 +207,18 @@ module Tcp = struct
     (* XXX(seliopou): pseudo_header's allocated on every call. Would it be safe
      * to allocate once and reuse? *)
     let pseudo_header = Cstruct.create 12 in
+    let length = len pkt in
     Cstruct.BE.set_uint32 pseudo_header 0  src;
     Cstruct.BE.set_uint32 pseudo_header 4  dst;
     Cstruct.set_uint8     pseudo_header 8  0;
     Cstruct.set_uint8     pseudo_header 9  0x6;
-    Cstruct.BE.set_uint16 pseudo_header 10 (len pkt);
+    Cstruct.BE.set_uint16 pseudo_header 10 length;
     set_tcp_chksum bits 0;
     let chksum = Checksum.ones_complement_list
-      [pseudo_header; Cstruct.sub bits 0 (len pkt)] in
+      (if (length mod 2) = 0
+        then [pseudo_header; Cstruct.sub bits 0 length]
+        else [pseudo_header; Cstruct.sub bits 0 length; Cstruct.create 0]) in
     set_tcp_chksum bits chksum
-
 end
 
 module Udp = struct
