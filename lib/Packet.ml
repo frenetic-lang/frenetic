@@ -1136,7 +1136,7 @@ let setNwTos pkt nwTos =
 
 let tp_setTpSrc tp src = match tp with 
   | Ip.Tcp tcp ->
-    Ip.Tcp { tcp with Tcp.src = src } (* JNF: checksum? *)
+    Ip.Tcp { tcp with Tcp.src = src }
   | Ip.Udp udp ->
     Ip.Udp { udp with Udp.src = src }
   | tp -> 
@@ -1144,7 +1144,7 @@ let tp_setTpSrc tp src = match tp with
 
 let tp_setTpDst tp dst = match tp with 
   | Ip.Tcp tcp ->
-    Ip.Tcp { tcp with Tcp.dst = dst } (* JNF: checksum? *)
+    Ip.Tcp { tcp with Tcp.dst = dst }
   | Ip.Udp udp ->
     Ip.Udp { udp with Udp.dst = dst }
   | tp -> 
