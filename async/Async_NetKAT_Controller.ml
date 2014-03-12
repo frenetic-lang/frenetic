@@ -17,7 +17,7 @@ let max_pending_connections = 64
 let _ = Log.set_level `Info
 
 let _ = Log.set_output
-          [Log.make_colored_filtered_output
+          [Log.make_filtered_output
              [("openflow", "socket");
               ("openflow", "platform");
               ("openflow", "serialization");
