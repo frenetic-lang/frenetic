@@ -86,6 +86,18 @@ type nwTos = int8
 
 type tpPort = int16
 
+let mk_pseudo_header (src : nwAddr) (dst : nwAddr) (proto : int) (len : int) =
+  (* XXX(seliopou): pseudo_header's allocated on every call. Given the usage
+   * pattern of this library, though, would it be safe to allocate once and
+   * reuse? *)
+  let pseudo_header = Cstruct.create 12 in
+  Cstruct.BE.set_uint32 pseudo_header 0  src;
+  Cstruct.BE.set_uint32 pseudo_header 4  dst;
+  Cstruct.set_uint8     pseudo_header 8  0;
+  Cstruct.set_uint8     pseudo_header 9  proto;
+  Cstruct.BE.set_uint16 pseudo_header 10 len;
+  pseudo_header
+
 module Tcp = struct
 
   module Flags = struct
@@ -202,6 +214,16 @@ module Tcp = struct
     let bits = Cstruct.shift bits sizeof_tcp in 
     Cstruct.blit pkt.payload 0 bits 0 (Cstruct.len pkt.payload)
 
+
+  let checksum (bits : Cstruct.t) (src : nwAddr) (dst : nwAddr) (pkt : t) =
+    let length = len pkt in
+    let pseudo_header = mk_pseudo_header src dst 0x6 length in
+    set_tcp_chksum bits 0;
+    let chksum = Checksum.ones_complement_list
+      (if (length mod 2) = 0
+        then [pseudo_header; Cstruct.sub bits 0 length]
+        else [pseudo_header; Cstruct.sub bits 0 length; Cstruct.of_string "\x00"]) in
+    set_tcp_chksum bits chksum
 end
 
 module Udp = struct
@@ -883,7 +905,8 @@ module Ip = struct
     let bits = Cstruct.shift bits header_len in
     match pkt.tp with
       | Tcp tcp -> 
-        Tcp.marshal bits tcp
+        Tcp.marshal bits tcp;
+        Tcp.checksum bits pkt.src pkt.dst tcp
       | Udp udp ->
         Udp.marshal bits udp
       | Icmp icmp -> 
@@ -1118,7 +1141,7 @@ let setNwTos pkt nwTos =
 
 let tp_setTpSrc tp src = match tp with 
   | Ip.Tcp tcp ->
-    Ip.Tcp { tcp with Tcp.src = src } (* JNF: checksum? *)
+    Ip.Tcp { tcp with Tcp.src = src }
   | Ip.Udp udp ->
     Ip.Udp { udp with Udp.src = src }
   | tp -> 
@@ -1126,7 +1149,7 @@ let tp_setTpSrc tp src = match tp with
 
 let tp_setTpDst tp dst = match tp with 
   | Ip.Tcp tcp ->
-    Ip.Tcp { tcp with Tcp.dst = dst } (* JNF: checksum? *)
+    Ip.Tcp { tcp with Tcp.dst = dst }
   | Ip.Udp udp ->
     Ip.Udp { udp with Udp.dst = dst }
   | tp -> 
