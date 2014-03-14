@@ -222,7 +222,7 @@ module Tcp = struct
     let chksum = Checksum.ones_complement_list
       (if (length mod 2) = 0
         then [pseudo_header; Cstruct.sub bits 0 length]
-        else [pseudo_header; Cstruct.sub bits 0 length; Cstruct.create 0]) in
+        else [pseudo_header; Cstruct.sub bits 0 length; Cstruct.of_string "\x00"]) in
     set_tcp_chksum bits chksum
 end
 
