@@ -278,11 +278,10 @@ let compare_eval_output p q pkt =
   PacketSet.compare (eval pkt p) (eval pkt q) = 0
 
 let compare_compiler_output p q pkt =
-  let open Semantics in
-  PacketSet.compare
-    (eval pkt (LocalCompiler.to_netkat (LocalCompiler.of_policy pkt.switch p)))
-    (eval pkt (LocalCompiler.to_netkat (LocalCompiler.of_policy pkt.switch q)))
-  = 0
+  compare_eval_output
+    (LocalCompiler.to_netkat (LocalCompiler.of_policy pkt.switch p))
+    (LocalCompiler.to_netkat (LocalCompiler.of_policy pkt.switch q))
+    pkt
 
 let check gen_fn compare_fn =
   let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
