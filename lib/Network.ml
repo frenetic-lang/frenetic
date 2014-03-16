@@ -181,24 +181,23 @@ struct
         
     let add_edge (t:t) (v1:vertex) (p1:port) (l:Edge.t) (v2:vertex) (p2:port) : t * edge = 
       let open EL in
-      let aux t =
+      let add_edge_helper t =
         let id = t.next_edge + 1 in
         let l = { id = id; label = l; src = p1; dst = p2 } in
         let e = (v1,l,v2) in
         ({ t with graph = P.add_edge_e t.graph e; next_edge = id }, e) in
-
       try
         let es = P.find_all_edges t.graph v1 v2 in
         let es' = List.filter ( fun (s,l,d) ->
           l.src = p1 && l.dst = p2 ) es in
         match es' with
-          | [] -> aux t
-          | es ->
-            let graph' = List.fold_left (fun acc e ->
-            P.remove_edge_e acc e) t.graph es in
+          | [] -> add_edge_helper t
+          | [e] ->
+            let graph' = P.remove_edge_e t.graph e in
             let t' = {t with graph = graph'} in
-            aux t'
-      with Not_found -> aux t
+            add_edge_helper t'
+          | _ -> assert false
+      with Not_found -> add_edge_helper t
 
     (* Special Accessors *)
     let num_vertexes (t:t) : int =
