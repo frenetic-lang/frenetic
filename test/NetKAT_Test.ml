@@ -15,10 +15,10 @@ let test_compile lhs rhs =
        format_policy lhs format_policy rhs' format_policy rhs;
      false)
 
-let test_compile_table pol tbl = 
-  let open LocalCompiler in 
+let test_compile_table pol tbl =
+  let open LocalCompiler in
   let tbl' = to_table (compile 0L pol) in
-  if tbl = tbl' then 
+  if tbl = tbl' then
     true
   else
     (Format.printf "compile @,%a@, produced %a@,,@,expected %a\n%!"
@@ -45,9 +45,9 @@ TEST "compile negation" =
   test_compile (Filter (Neg pr)) (Filter (Neg pr))
 
 TEST "compile negation of conjunction" =
-  let pr1 = testSrc 0 in 
-  let pr2 = testDst 0 in 
-  let pr = And (pr1, pr2) in 
+  let pr1 = testSrc 0 in
+  let pr2 = testDst 0 in
+  let pr = And (pr1, pr2) in
   test_compile
     (Filter (Neg pr))
     (Union (Filter(And(pr1, Neg pr2)), Filter (Neg pr1)))
@@ -135,15 +135,15 @@ TEST "vlan" =
   let mod_port1 = Mod (Location (Physical 1l)) in
   let id = Filter True in
   let pol =
-    Seq (ite 
-	   test_vlan_none 
+    Seq (ite
+	   test_vlan_none
 	   id
-	   (Seq(id, mod_vlan_none)), 
+	   (Seq(id, mod_vlan_none)),
 	 mod_port1) in
-  let pol' = 
+  let pol' =
     ite test_vlan_none
       mod_port1
-      (Seq (mod_vlan_none, mod_port1)) in 
+      (Seq (mod_vlan_none, mod_port1)) in
   test_compile pol pol'
 
 module FromPipe = struct
@@ -226,6 +226,233 @@ module FromPipe = struct
     test_from_pipes pol pkt ["right"]
 end
 
+let fix_port pol =
+  Seq(Filter(Test(Location(Physical 0l))), pol)
+
+let gen_pol_1 =
+  let open QuickCheck in
+  let open QuickCheck_gen in
+  let open NetKAT_Arbitrary in
+  let open Packet_Arbitrary in
+  let open Packet in
+  testable_fun
+    (arbitrary_lf_pol >>= fun p ->
+      NetKAT_Arbitrary.arbitrary_tcp >>= fun packet ->
+        ret_gen (fix_port p, packet))
+    (fun (p,_) -> string_of_policy p)
+    testable_bool
+
+let gen_pol_2 =
+  let open QuickCheck in
+  let open QuickCheck_gen in
+  let open NetKAT_Arbitrary in
+  let open Packet_Arbitrary in
+  let open Packet in
+  testable_fun
+    (arbitrary_lf_pol >>= fun p ->
+      arbitrary_lf_pol >>= fun q ->
+        NetKAT_Arbitrary.arbitrary_tcp >>= fun packet ->
+          ret_gen (fix_port p, fix_port q, packet))
+    (fun (p,q,_) -> (string_of_policy p) ^ " " ^ (string_of_policy q))
+    testable_bool
+
+let gen_pol_3 =
+  let open QuickCheck in
+  let open QuickCheck_gen in
+  let open NetKAT_Arbitrary in
+  let open Packet_Arbitrary in
+  let open Packet in
+  testable_fun
+    (arbitrary_lf_pol >>= fun p ->
+      arbitrary_lf_pol >>= fun q ->
+        arbitrary_lf_pol >>= fun r ->
+          NetKAT_Arbitrary.arbitrary_tcp >>= fun packet ->
+            ret_gen (fix_port p, fix_port q, fix_port r, packet))
+    (fun (p,q,r,_) ->
+      (string_of_policy p) ^ " " ^ (string_of_policy q) ^ " "
+      ^ (string_of_policy r))
+    testable_bool
+
+let compare_eval_output p q pkt =
+  let open Semantics in
+  PacketSet.compare (eval pkt p) (eval pkt q) = 0
+
+let compare_compiler_output p q pkt =
+  compare_eval_output
+    (LocalCompiler.to_netkat (LocalCompiler.of_policy pkt.switch p))
+    (LocalCompiler.to_netkat (LocalCompiler.of_policy pkt.switch q))
+    pkt
+
+let check gen_fn compare_fn =
+  let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
+  match QuickCheck.check gen_fn cfg compare_fn with
+    QuickCheck.Success -> true
+  | _                  -> false
+
+TEST "quickcheck ka-plus-assoc compiler" =
+  let prop_compile_ok (p, q, r, pkt) =
+    compare_compiler_output
+      (Union(p,(Union(q,r))))
+      (Union((Union(p,q)), r))
+      pkt in
+  check gen_pol_3 prop_compile_ok
+
+TEST "quickcheck ka-plus-assoc eval" =
+  let prop_compile_ok (p, q, r, pkt) =
+    compare_eval_output
+      (Union(p, (Union (q, r))))
+      (Union((Union(p, q)), r))
+      pkt in
+  check gen_pol_3 prop_compile_ok
+
+TEST "quickcheck ka-plus-comm compiler" =
+  let prop_compile_ok (p, q, pkt) =
+    compare_compiler_output (Union(p, q)) (Union(q, p)) pkt in
+  check gen_pol_2 prop_compile_ok
+
+TEST "quickcheck ka-plus-comm eval" =
+  let prop_compile_ok (p, q, pkt) =
+    compare_eval_output (Union(p, q)) (Union(q, p)) pkt in
+  check gen_pol_2 prop_compile_ok
+
+TEST "quickcheck ka-plus-zero compiler" =
+  let prop_compile_ok (pol, pkt) =
+    compare_compiler_output pol (Union(pol, drop)) pkt in
+  check gen_pol_1 prop_compile_ok
+
+TEST "quickcheck ka-plus-zero eval" =
+  let prop_compile_ok (pol, pkt) =
+    compare_eval_output pol (Union(pol, drop)) pkt in
+  check gen_pol_1 prop_compile_ok
+
+TEST "quickcheck ka-plus-idem compiler" =
+  let prop_compile_ok (pol, pkt) =
+    compare_compiler_output (Union(pol, pol)) pol pkt in
+  check gen_pol_1 prop_compile_ok
+
+TEST "quickcheck ka-plus-idem eval" =
+  let prop_compile_ok (pol, pkt) =
+    compare_eval_output (Union(pol, pol)) pol pkt in
+  check gen_pol_1 prop_compile_ok
+
+TEST "quickcheck ka-seq-assoc compiler" =
+  let prop_compile_ok (p, q, r, pkt) =
+    compare_compiler_output (Seq(p, (Seq (q, r)))) (Seq((Seq(p, q)), r)) pkt in
+  check gen_pol_3 prop_compile_ok
+
+TEST "quickcheck ka-seq-assoc eval" =
+  let prop_compile_ok (p, q, r, pkt) =
+    compare_eval_output (Seq(p, (Seq (q, r)))) (Seq((Seq(p, q)), r)) pkt in
+  check gen_pol_3 prop_compile_ok
+
+TEST "quickcheck ka-one-seq compiler" =
+  let prop_compile_ok (pol, pkt) =
+    compare_compiler_output pol (Seq(id, pol)) pkt in
+  check gen_pol_1 prop_compile_ok
+
+TEST "quickcheck ka-one-seq eval" =
+  let prop_compile_ok (pol, pkt) =
+    compare_eval_output pol (Seq(id, pol)) pkt in
+  check gen_pol_1 prop_compile_ok
+
+TEST "quickcheck ka-seq-one compiler" =
+  let prop_compile_ok (pol, pkt) =
+    compare_compiler_output pol (Seq(pol, id)) pkt in
+  check gen_pol_1 prop_compile_ok
+
+TEST "quickcheck ka-seq-one eval" =
+  let prop_compile_ok (pol, pkt) =
+    compare_eval_output pol (Seq(pol, id)) pkt in
+  check gen_pol_1 prop_compile_ok
+
+TEST "quickcheck ka-seq-dist-l compiler" =
+  let prop_compile_ok (p, q, r, pkt) =
+    compare_compiler_output
+      (Seq(p, (Union (q, r)))) (Union ((Seq(p, q)), (Seq(p, r)))) pkt in
+  check gen_pol_3 prop_compile_ok
+
+TEST "quickcheck ka-seq-dist-l eval" =
+  let prop_compile_ok (p, q, r, pkt) =
+    compare_eval_output
+      (Seq(p, (Union (q, r)))) (Union ((Seq(p, q)), (Seq(p, r)))) pkt in
+  check gen_pol_3 prop_compile_ok
+
+TEST "quickcheck ka-seq-dist-r compiler" =
+  let prop_compile_ok (p, q, r, pkt) =
+    compare_compiler_output
+      (Seq (Union(p, q), r)) (Union (Seq(p, r), Seq(q, r))) pkt in
+  check gen_pol_3 prop_compile_ok
+
+TEST "quickcheck ka-seq-dist-r eval" =
+  let prop_compile_ok (p, q, r, pkt) =
+    compare_eval_output
+      (Seq (Union(p, q), r)) (Union (Seq(p, r), Seq(q, r))) pkt in
+  check gen_pol_3 prop_compile_ok
+
+TEST "quickcheck ka-zero-seq compiler" =
+  let prop_compile_ok (pol, pkt) =
+    compare_compiler_output drop (Seq(drop, pol)) pkt in
+  check gen_pol_1 prop_compile_ok
+
+TEST "quickcheck ka-zero-seq eval" =
+  let prop_compile_ok (pol, pkt) =
+    compare_eval_output drop (Seq(drop, pol)) pkt in
+  check gen_pol_1 prop_compile_ok
+
+TEST "quickcheck ka-seq-zero compiler" =
+  let prop_compile_ok (pol, pkt) =
+    compare_compiler_output drop (Seq(pol, drop)) pkt in
+  check gen_pol_1 prop_compile_ok
+
+TEST "quickcheck ka-seq-zero eval" =
+  let prop_compile_ok (pol, pkt) =
+    compare_eval_output drop (Seq(pol, drop)) pkt in
+  check gen_pol_1 prop_compile_ok
+
+TEST "quickcheck ka-unroll-l compiler" =
+  let prop_compile_ok (pol, pkt) =
+    compare_compiler_output (Star pol) (Union(id, Seq(pol, Star pol))) pkt in
+  check gen_pol_1 prop_compile_ok
+
+TEST "quickcheck ka-unroll-l eval" =
+  let prop_compile_ok (pol, pkt) =
+    compare_eval_output (Star pol) (Union(id, Seq(pol, Star pol))) pkt in
+  check gen_pol_1 prop_compile_ok
+
+TEST "quickcheck ka-lfp-l compiler" =
+  let prop_compile_ok (p, q, r, pkt) =
+    not (compare_compiler_output (Union(Union(q, Seq (p, r)), r)) r pkt)
+    ||  (compare_compiler_output (Union(Seq(Star p, q), r)) r pkt) in
+  check gen_pol_3 prop_compile_ok
+
+TEST "quickcheck ka-lfp-l eval" =
+  let prop_compile_ok (p, q, r, pkt) =
+    not (compare_eval_output (Union(Union(q, Seq (p, r)), r)) r pkt)
+    ||  (compare_eval_output (Union(Seq(Star p, q), r)) r pkt) in
+  check gen_pol_3 prop_compile_ok
+
+TEST "quickcheck ka-unroll-r compiler" =
+  let prop_compile_ok (pol, pkt) =
+    compare_compiler_output (Star pol) (Union(id, Seq(Star pol, pol))) pkt in
+  check gen_pol_1 prop_compile_ok
+
+TEST "quickcheck ka-unroll-r eval" =
+  let prop_compile_ok (pol, pkt) =
+    compare_eval_output (Star pol) (Union(id, Seq(Star pol, pol))) pkt in
+  check gen_pol_1 prop_compile_ok
+
+TEST "quickcheck ka-lfp-r compiler" =
+  let prop_compile_ok (p, q, r, pkt) =
+    not (compare_compiler_output (Union(Union(p, Seq (q, r)), q)) q pkt)
+    ||  (compare_compiler_output (Union(Seq(p, Star r), q)) q pkt) in
+  check gen_pol_3 prop_compile_ok
+
+TEST "quickcheck ka-lfp-r eval" =
+  let prop_compile_ok (p, q, r, pkt) =
+    not (compare_eval_output (Union(Union(p, Seq (q, r)), q)) q pkt)
+    ||  (compare_eval_output (Union(Seq(p, Star r), q)) q pkt) in
+  check gen_pol_3 prop_compile_ok
+
 (* TEST "quickcheck local compiler" = *)
 (*   let testable_pol_pkt_to_bool = *)
 (*     let open QuickCheck in *)
@@ -243,7 +470,7 @@ end
 (*     NetKAT.PacketSetSet.compare *)
 (*       (NetKAT.eval pkt pol) *)
 (*       (NetKAT.eval pkt (LocalCompiler.Local.to_netkat (LocalCompiler.Local.of_policy pol))) = 0 in *)
-(*   let cfg = { QuickCheck.verbose with QuickCheck.maxTest = 1000 } in *)
+(*   let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in *)
 (*   match QuickCheck.check testable_pol_pkt_to_bool cfg prop_compile_ok with *)
 (*     | QuickCheck.Success -> true *)
 (*     | _ -> failwith "quickchecking failed" *)

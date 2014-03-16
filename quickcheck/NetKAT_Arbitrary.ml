@@ -1,4 +1,5 @@
 open NetKAT_Types
+open Packet_Arbitrary
 
 module AB = Arbitrary_Base
 
@@ -148,6 +149,38 @@ and gen_pol arbitrary_atom : policy QuickCheck_gen.gen =
 let arbitrary_policy = gen_pol gen_atom_pol
 
 let arbitrary_lf_pol = gen_pol gen_lf_atom_pol
+
+let arbitrary_tcp : packet QuickCheck_gen.gen =
+  let open QuickCheck_gen in
+  let open QuickCheck in
+  let open NetKAT_Types.Headers in
+  let open Packet in
+  let module Parb = Packet_Arbitrary in
+  let payload = Parb.arbitrary_payload 64 in
+  let tcp = map_gen (fun i -> Packet.Ip.Tcp i) (Parb.arbitrary_tcp payload) in
+  let ip = map_gen (fun i -> Packet.Ip i) (Parb.arbitrary_ip tcp) in
+  Parb.arbitrary_packet ip >>= fun pkt ->
+    arbitrary_int32 >>= fun port_id ->
+      let headers =
+        { HeadersValues.location = NetKAT_Types.Physical port_id
+        ; ethSrc = pkt.dlSrc
+        ; ethDst = pkt.dlDst
+        ; vlan = (match pkt.dlVlan with Some(x) -> x | None -> 0)
+        ; vlanPcp = pkt.dlVlanPcp
+        ; ethType = dlTyp pkt
+        ; ipProto = (try nwProto pkt with Invalid_argument(_) -> 0)
+        ; ipSrc = (try nwSrc pkt with Invalid_argument(_) -> 0l)
+        ; ipDst = (try nwDst pkt with Invalid_argument(_) -> 0l)
+        ; tcpSrcPort = (try tpSrc pkt with Invalid_argument(_) -> 0)
+        ; tcpDstPort = (try tpDst pkt with Invalid_argument(_) -> 0)
+        } in
+      arbitrary_int64 >>= fun switch_id ->
+        payload >>= fun payload ->
+          ret_gen
+            { switch = switch_id
+            ; headers = headers
+            ; payload = (SDN_Types.NotBuffered payload)
+            }
 
 let arbitrary_packet : packet QuickCheck_gen.gen = 
   QuickCheck_gen.Gen 

@@ -89,7 +89,8 @@ let rec eval (pkt : packet) (pol : policy) : PacketSet.t = match pol with
     let rec loop acc =
       let f set pkt' = PacketSet.union (eval pkt' pol) set in
       let acc' = PacketSet.fold acc ~init:PacketSet.empty ~f in
-      if PacketSet.equal acc acc' then acc else loop acc' in
+      let acc'' = PacketSet.union acc acc' in
+      if PacketSet.equal acc acc'' then acc else loop acc'' in
       loop (PacketSet.singleton pkt)
   | Link(sw,pt,sw',pt') ->
     PacketSet.empty (* JNF *)

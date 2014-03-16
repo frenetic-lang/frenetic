@@ -665,7 +665,7 @@ module Local = struct
         loop acc' psucci in
     let p0 = Pattern.Map.singleton Pattern.any Action.id in
     let r = loop p0 p0 in
-    (* debug "### STAR ###\n%s\n%s" *)
+    (* Printf.printf "### STAR ###\n%s\n%s" *)
     (*   (to_string p) *)
     (*   (to_string r); *)
     r
