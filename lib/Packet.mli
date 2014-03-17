@@ -301,11 +301,11 @@ val arpOperation : packet -> int
 (** [setDlSrc pkt addr] sets the ethernet source address of [pkt] to [addr]. *)
 val setDlSrc : packet -> dlAddr -> packet
 
-(** [setDlSrc pkt addr] sets the ethernet destination address of [pkt] to
+(** [setDlDst pkt addr] sets the ethernet destination address of [pkt] to
 [addr]. *)
 val setDlDst : packet -> dlAddr -> packet
 
-(** [setDlSrc pkt vlan] sets the VLAN identifier of [pkt] to [vlan]. *)
+(** [setDlVlan pkt vlan] sets the VLAN identifier of [pkt] to [vlan]. *)
 val setDlVlan : packet -> dlVlan -> packet
 
 (** [setDlVlanPcp pkt pri] sets the VLAN priority of [pkt] to [pri]. *)
