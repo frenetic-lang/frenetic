@@ -878,21 +878,25 @@ module RunTime = struct
         ~ipDst:PNIp.(g expand i32 IP4Dst)
         ~tcpSrcPort:PN16.(g expand i16 TCPSrcPort)
         ~tcpDstPort:PN16.(g expand i16 TCPDstPort) in
+    (* computes a cross product *)
     let rec loop m acc : (fieldVal option FieldMap.t * bool) list =
       if FieldMap.is_empty m then
         acc
       else
         let h,l = FieldMap.min_binding m in
-        let r = loop (FieldMap.remove h m) acc in
-        List.fold_left l
+        let rs = loop (FieldMap.remove h m) acc in
+        List.fold_right l
           ~init:[]
-          ~f:(fun acc (o,b) ->
-            List.map r
-              ~f:(fun (p,c) -> (FieldMap.add h o p, b && c))) in
-    let go l =
-      List.fold_left l
+          ~f:(fun (o,b) acc ->
+            List.fold_right rs
+              ~init:acc
+              ~f:(fun (p,c) acc -> (FieldMap.add h o p, b && c)::acc)) in
+    (* helper function to generate the actual (pattern * par) rules for the SDN_Types.flowTable *)
+    let go (l:(fieldVal option FieldMap.t * bool) list) : (fieldVal FieldMap.t * par) list =
+      (* TODO(jnf): can this just be a map (or maybe a revmap?) *)
+      List.fold_right l
         ~init:[]
-        ~f:(fun acc (x,b) ->
+        ~f:(fun (x,b) acc ->
           let pto = FieldMap.find InPort x in
           let a = if b then set_to_action s pto else [] in
           let y =
