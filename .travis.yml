@@ -3,9 +3,10 @@ script: bash -ex .travis-ci.sh
 env:
   global:
     - OPAM_DEPENDS="ocamlgraph"
-    - FRENETIC_DEPENDS="ocaml-packet core"
   matrix:
     - OCAML_VERSION=4.01.0 OPAM_VERSION=1.1.0
+    - OCAML_VERSION=4.00.1 OPAM_VERSION=1.1.0
+    - OCAML_VERSION=3.12.1 OPAM_VERSION=1.1.0
 notifications:
   irc:
     channels:
