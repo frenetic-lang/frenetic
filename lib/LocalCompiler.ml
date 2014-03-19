@@ -77,13 +77,16 @@ module PosNeg (H:NetKAT_Types.Headers.HEADER) = struct
   let expand y =
     match y with
       | Pos s ->
-        S.fold s
-          ~init:[]
-          ~f:(fun acc x -> (Some x, true)::acc)
+        List.rev
+          (S.fold s
+             ~init:[]
+             ~f:(fun acc x -> (Some x, true)::acc))
       | Neg s ->
-        S.fold s
-          ~init:[(None,true)]
-          ~f:(fun acc x -> (Some x, false)::acc)
+        List.rev
+          ((None,true)::
+              S.fold s
+              ~init:[]
+              ~f:(fun acc x -> (Some x, false)::acc))
   let subseteq y1 y2 =
     match y1, y2 with
       | Pos s1, Pos s2 ->
@@ -202,7 +205,7 @@ module Action = struct
     let g setter (acc:policy) f : policy =
       match Field.get f a with
         | Some v -> Optimize.mk_seq (Mod (setter v)) acc
-        | _ -> acc in    
+        | _ -> acc in
     HOV.Fields.fold
       ~init:id (* identity policy *)
       ~location:(g (fun v -> Location v))
@@ -219,7 +222,7 @@ module Action = struct
       ~tcpDstPort:(g (fun v -> TCPDstPort v))
 
   let set_to_netkat (s:Set.t) : NetKAT_Types.policy =
-    let open NetKAT_Types in  
+    let open NetKAT_Types in
     Set.fold s
       ~init:drop
       ~f:(fun acc a -> Optimize.mk_union acc (action_to_netkat a))
@@ -326,7 +329,7 @@ module Pattern = struct
     set_fold set ~init:False
       ~f:(fun acc x -> Optimize.mk_or acc (Test (tester x)))
 
-  let to_netkat_pred (p:t) : NetKAT_Types.pred = 
+  let to_netkat_pred (p:t) : NetKAT_Types.pred =
     let open NetKAT_Types in
     let open HPN in
     (* Maps [Pos {x1, ..., xn}] to [x1 || ... || xn]
@@ -550,10 +553,10 @@ module Local = struct
     let open NetKAT_Types in
     Optimize.mk_seq (Filter (Pattern.to_netkat_pred p)) (Action.set_to_netkat a)
 
-  let to_netkat (t:t) : NetKAT_Types.policy = 
+  let to_netkat (t:t) : NetKAT_Types.policy =
     let open NetKAT_Types in
     Pattern.Map.fold t
-      ~init:drop 
+      ~init:drop
       ~f:(fun ~key ~data acc -> Optimize.mk_union acc (rule_to_netkat key data))
 
   let compare p q =
@@ -845,7 +848,14 @@ module RunTime = struct
     let f par a = (to_action a pto)::par in
     List.dedup (Action.Set.fold s ~f:f ~init:[])
 
-  let expand_rules (x:Pattern.t) (s:Action.Set.t) : (pattern * par) list =
+  let simpl_flow (p : pattern) (a : par) : flow =
+    { pattern = p;
+      action = [a];
+      cookie = 0L;
+      idle_timeout = Permanent;
+      hard_timeout = Permanent }
+
+  let expand_rules (x:Pattern.t) (s:Action.Set.t) : flowTable =
     let i8 x = VInt.Int8 x in
     let i16 x = VInt.Int16 x in
     let i32 x = VInt.Int32 x in
@@ -879,24 +889,25 @@ module RunTime = struct
         ~tcpSrcPort:PN16.(g expand i16 TCPSrcPort)
         ~tcpDstPort:PN16.(g expand i16 TCPDstPort) in
     (* computes a cross product *)
-    let rec loop m acc : (fieldVal option FieldMap.t * bool) list =
-      if FieldMap.is_empty m then
-        acc
-      else
-        let h,l = FieldMap.min_binding m in
-        let rs = loop (FieldMap.remove h m) acc in
-        List.fold_right l
-          ~init:[]
-          ~f:(fun (o,b) acc ->
-            List.fold_right rs
-              ~init:acc
-              ~f:(fun (p,c) acc -> (FieldMap.add h o p, b && c)::acc)) in
+    let rec cross m : (fieldVal option FieldMap.t * bool) list =
+      FieldMap.fold
+        (fun h l rs ->
+          List.fold_right
+            l
+            ~init:[]
+            ~f:(fun (o,b) acc ->
+              List.fold_right
+                rs
+                ~init:acc
+                ~f:(fun (p,c) acc ->
+                  (FieldMap.add h o p, b && c)::acc)))
+        m [(FieldMap.empty,true)] in
+
     (* helper function to generate the actual (pattern * par) rules for the SDN_Types.flowTable *)
-    let go (l:(fieldVal option FieldMap.t * bool) list) : (fieldVal FieldMap.t * par) list =
-      (* TODO(jnf): can this just be a map (or maybe a revmap?) *)
-      List.fold_right l
-        ~init:[]
-        ~f:(fun (x,b) acc ->
+    let go (l:(fieldVal option FieldMap.t * bool) list) : flowTable =
+      List.map
+        l
+        ~f:(fun (x,b) ->
           let pto = FieldMap.find InPort x in
           let a = if b then set_to_action s pto else [] in
           let y =
@@ -906,8 +917,8 @@ module RunTime = struct
                   | None -> acc
                   | Some v -> FieldMap.add h v acc)
               x FieldMap.empty in
-          ((y,a)::acc)) in
-    go (loop m [(FieldMap.empty,true)])
+          simpl_flow y a) in
+    go (cross m)
 
   type i = Local.t
 
@@ -934,26 +945,10 @@ module RunTime = struct
          ~f:(fun ~key:x ~data:s acc -> (x,s)::acc))
       ~cmp:dep_compare
 
-  let simpl_flow (p : pattern) (a : par) : flow =
-    { pattern = p;
-      action = [a];
-      cookie = 0L;
-      idle_timeout = Permanent;
-      hard_timeout = Permanent }
-
   let to_table (m:i) : flowTable =
-    let rec loop l acc =
-      match l with
-        | [] ->
-          List.fold_left acc
-            ~init:[]
-            ~f:(fun acc r ->
-              List.fold_right r
-                ~init:acc
-                ~f:(fun (p,a) acc -> (simpl_flow p a)::acc))
-        | (p,s)::rest ->
-          loop rest (expand_rules p s::acc) in
-    loop (dep_sort m) []
+    List.concat_map
+      (dep_sort m)
+      ~f:(fun (p,s) -> expand_rules p s)
 end
 
 (* exports *)
