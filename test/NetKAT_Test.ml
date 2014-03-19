@@ -1,4 +1,4 @@
-ggopen OUnitHack
+open OUnitHack
 module QCGen = QuickCheck_gen
 open SDN_Types
 open NetKAT_Types
