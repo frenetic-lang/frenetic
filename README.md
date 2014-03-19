@@ -36,6 +36,27 @@ packages and then build and install Frenetic using the following commands:
     $ make test
     $ make install
 
+## Usage Example
+
+Here's how to create a controller that will do simple forwarding for a tree
+topology with fanout 2 and depth 2:
+
+```ocaml
+open Core.Std
+open Async.Std
+
+let main () =
+  let static = Async_NetKAT.create_from_file "examples/tree-2-2.kat" in
+  Async_NetKAT_Controller.start static () in
+
+never_returns (Scheduler.go_main ~main ())
+```
+
+The static policy can be found in `examples/tree-2-2.kat`. Use the following
+command to run mininet with the topology for this example:
+
+    $ sudo mn --controller=remote --mac --topo=tree,2,2
+
 ## License
 
 LGPLv3, see LICENSE file for its text.
