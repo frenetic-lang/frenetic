@@ -89,7 +89,7 @@ TEST "par1" =
 	     modSrc 2))
        (Union (modSrc 1,
 	     modSrc 3)))
-       
+
 TEST "star id" =
   test_compile
     (Star (Filter True))
@@ -128,7 +128,7 @@ TEST "quickcheck failure on 10/16/2013" =
   test_compile
     (Seq (modSrc 0, Union (Filter (testSrc 2), modDst 2)))
     (Seq (modDst 2, modSrc 0))
-    
+
 TEST "vlan" =
   let test_vlan_none = Test (Vlan 0xFFF) in
   let mod_vlan_none = Mod (Vlan 0xFFF) in
@@ -145,6 +145,26 @@ TEST "vlan" =
       mod_port1
       (Seq (mod_vlan_none, mod_port1)) in
   test_compile pol pol'
+
+    (* Regression test for bug in expand_rules fixed on
+       03/18/2014. The bug in the helper function that computes a
+       cross product of the boolean tables produced by expanding each
+       pattern -- the accumulator was being ignored, which is
+       bogus. This test tickles the bug by simply compiling a
+       predicate with two negated tests. *)
+ TEST "expand_rules" =
+   let flow p a = { pattern = p; action = [a]; cookie = 0L; idle_timeout = Permanent; hard_timeout= Permanent } in
+   let dropEthSrc v = flow (FieldMap.singleton EthSrc (VInt.Int64 v)) [] in
+   let pol = Seq(Filter (And (Neg(Test(EthSrc 0L)), Neg(Test(EthSrc 1L)))),
+                 Mod (Location (Physical 1l))) in
+   (* Not testing the table itself because this is (a) tedious and (b) not stable. *)
+   let a = [(OutputPort (VInt.Int32 1l))] in
+   test_compile_table pol
+     [ dropEthSrc 0L;
+       dropEthSrc 1L;
+       dropEthSrc 0L;
+       dropEthSrc 1L;
+       flow FieldMap.empty [a]]
 
 module FromPipe = struct
   open Core.Std
@@ -171,59 +191,58 @@ module FromPipe = struct
       ipSrc = 0l;
       ipDst = 0l;
       tcpSrcPort = 0;
-      tcpDstPort = 0;
-    }
+      tcpDstPort = 0; }
 
   let default_packet headers =
     { switch = 0L;
       headers;
       payload = SDN_Types.NotBuffered (Cstruct.create 0)
-  }
+    }
 
-  TEST "all to controller" =
-    let pol = Mod(Location(Pipe("all"))) in
-    let pkt = default_packet default_headers in
-    test_from_pipes pol pkt ["all"]
+TEST "all to controller" =
+  let pol = Mod(Location(Pipe("all"))) in
+  let pkt = default_packet default_headers in
+  test_from_pipes pol pkt ["all"]
 
-  TEST "all to controller, twice" =
-    let pol = Union(
-                Mod(Location(Pipe("all1"))),
-                Mod(Location(Pipe("all2")))) in
-    let pkt = default_packet default_headers in
-    test_from_pipes pol pkt ["all1"; "all2"]
+TEST "all to controller, twice" =
+  let pol = Union(
+    Mod(Location(Pipe("all1"))),
+    Mod(Location(Pipe("all2")))) in
+  let pkt = default_packet default_headers in
+  test_from_pipes pol pkt ["all1"; "all2"]
 
-  TEST "ambiguous pipes" =
-    let pol = Seq(Filter(Test(EthDst 2L)),
-                  Union(Seq(Mod(EthDst 3L),
-                            Mod(Location(Pipe("pipe1")))),
-                        Seq(Mod(EthSrc 3L),
-                            Mod(Location(Pipe("pipe2")))))) in
-    let open NetKAT_Types.HeadersValues in
-    let pkt = default_packet { default_headers
-      with ethDst = 2L } in
-    test_from_pipes pol pkt ["pipe2"; "pipe1"]
+TEST "ambiguous pipes" =
+  let pol = Seq(Filter(Test(EthDst 2L)),
+                Union(Seq(Mod(EthDst 3L),
+                          Mod(Location(Pipe("pipe1")))),
+                      Seq(Mod(EthSrc 3L),
+                          Mod(Location(Pipe("pipe2")))))) in
+  let open NetKAT_Types.HeadersValues in
+   let pkt = default_packet { default_headers
+                              with ethDst = 2L } in
+   test_from_pipes pol pkt ["pipe2"; "pipe1"]
 
-  TEST "left side" =
-    let pol = Union(
-                Seq(Filter(Test(EthSrc 1L)),
-                    Mod(Location(Pipe("left")))),
-                Seq(Filter(Test(EthSrc 2L)),
-                    Mod(Location(Pipe("right"))))) in
-    let open NetKAT_Types.HeadersValues in
-    let pkt = default_packet { default_headers
-      with ethSrc = 1L } in
-    test_from_pipes pol pkt ["left"]
+TEST "left side" =
+  let pol = Union(
+    Seq(Filter(Test(EthSrc 1L)),
+        Mod(Location(Pipe("left")))),
+    Seq(Filter(Test(EthSrc 2L)),
+        Mod(Location(Pipe("right"))))) in
+  let open NetKAT_Types.HeadersValues in
+  let pkt = default_packet { default_headers
+                             with ethSrc = 1L } in
+  test_from_pipes pol pkt ["left"]
 
-  TEST "right side" =
-    let pol = Union(
-                Seq(Filter(Test(EthSrc 1L)),
-                    Mod(Location(Pipe("left")))),
-                Seq(Filter(Test(EthSrc 2L)),
-                    Mod(Location(Pipe("right"))))) in
-    let open NetKAT_Types.HeadersValues in
-    let pkt = default_packet { default_headers
-      with ethSrc = 2L } in
-    test_from_pipes pol pkt ["right"]
+TEST "right side" =
+  let pol = Union(
+    Seq(Filter(Test(EthSrc 1L)),
+        Mod(Location(Pipe("left")))),
+    Seq(Filter(Test(EthSrc 2L)),
+        Mod(Location(Pipe("right"))))) in
+  let open NetKAT_Types.HeadersValues in
+      let pkt = default_packet { default_headers
+                                 with ethSrc = 2L } in
+      test_from_pipes pol pkt ["right"]
 end
 
 let fix_port pol =
@@ -237,8 +256,8 @@ let gen_pol_1 =
   let open Packet in
   testable_fun
     (arbitrary_lf_pol >>= fun p ->
-      NetKAT_Arbitrary.arbitrary_tcp >>= fun packet ->
-        ret_gen (fix_port p, packet))
+     NetKAT_Arbitrary.arbitrary_tcp >>= fun packet ->
+     ret_gen (fix_port p, packet))
     (fun (p,_) -> string_of_policy p)
     testable_bool
 
@@ -248,13 +267,13 @@ let gen_pol_2 =
   let open NetKAT_Arbitrary in
   let open Packet_Arbitrary in
   let open Packet in
-  testable_fun
-    (arbitrary_lf_pol >>= fun p ->
-      arbitrary_lf_pol >>= fun q ->
-        NetKAT_Arbitrary.arbitrary_tcp >>= fun packet ->
-          ret_gen (fix_port p, fix_port q, packet))
-    (fun (p,q,_) -> (string_of_policy p) ^ " " ^ (string_of_policy q))
-    testable_bool
+    testable_fun
+      (arbitrary_lf_pol >>= fun p ->
+       arbitrary_lf_pol >>= fun q ->
+       NetKAT_Arbitrary.arbitrary_tcp >>= fun packet ->
+       ret_gen (fix_port p, fix_port q, packet))
+      (fun (p,q,_) -> (string_of_policy p) ^ " " ^ (string_of_policy q))
+      testable_bool
 
 let gen_pol_3 =
   let open QuickCheck in
@@ -264,10 +283,10 @@ let gen_pol_3 =
   let open Packet in
   testable_fun
     (arbitrary_lf_pol >>= fun p ->
-      arbitrary_lf_pol >>= fun q ->
-        arbitrary_lf_pol >>= fun r ->
-          NetKAT_Arbitrary.arbitrary_tcp >>= fun packet ->
-            ret_gen (fix_port p, fix_port q, fix_port r, packet))
+     arbitrary_lf_pol >>= fun q ->
+     arbitrary_lf_pol >>= fun r ->
+     NetKAT_Arbitrary.arbitrary_tcp >>= fun packet ->
+     ret_gen (fix_port p, fix_port q, fix_port r, packet))
     (fun (p,q,r,_) ->
       (string_of_policy p) ^ " " ^ (string_of_policy q) ^ " "
       ^ (string_of_policy r))
@@ -286,8 +305,8 @@ let compare_compiler_output p q pkt =
 let check gen_fn compare_fn =
   let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
   match QuickCheck.check gen_fn cfg compare_fn with
-    QuickCheck.Success -> true
-  | _                  -> false
+        QuickCheck.Success -> true
+    | _                  -> false
 
 TEST "quickcheck ka-plus-assoc compiler" =
   let prop_compile_ok (p, q, r, pkt) =
