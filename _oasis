@@ -15,10 +15,10 @@ Flag quickcheck
   Default: false
 
 Flag async
-    Description: build the netcore.async library
+    Description: build the netkat.async library
     Default: false
 
-Library netcore
+Library netkat
   Path: lib
   BuildDepends:
     cstruct,
@@ -43,7 +43,7 @@ Library netcore
     LocalCompiler
 
 Library async
-  Findlibparent: netcore
+  Findlibparent: netkat
   Findlibname: async
   Path: async
   Build$: flag(async)
@@ -53,7 +53,7 @@ Library async
     cstruct,
     cstruct.async,
     cstruct.syntax,
-    netcore,
+    netkat,
     ocamlgraph,
     openflow,
     openflow.async,
@@ -71,14 +71,14 @@ Library async
     Async_NetKAT_Controller
 
 Library quickcheck
-  Findlibparent: netcore
+  Findlibparent: netkat
   Findlibname: quickcheck
   Path: quickcheck
   Build$: flag(quickcheck) || flag(tests)
   BuildDepends:
     openflow.quickcheck,
     quickcheck,
-    netcore,
+    netkat,
     packet.quickcheck
   Modules:
     NetKAT_Arbitrary
@@ -90,11 +90,11 @@ Executable testtool
   Install: false
   BuildDepends: 
     oUnit,packet,
-    netcore,
+    netkat,
     pa_ounit,
     pa_ounit.syntax,
     quickcheck,
-    netcore.quickcheck
+    netkat.quickcheck
 
 Test all_tests
   Command: $testtool inline-test-runner netkat
@@ -109,8 +109,8 @@ Executable katnetic
   BuildDepends:
     async,
     core,
-    netcore,
-    netcore.async
+    netkat,
+    netkat.async
 
 Executable netkat_test
   Path: frenetic
@@ -120,5 +120,5 @@ Executable netkat_test
   BuildDepends:
     async,
     core,
-    netcore,
-    netcore.async
+    netkat,
+    netkat.async

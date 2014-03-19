@@ -15,4 +15,4 @@
    The solution below works just fine. *)
 let _ = 
   Pa_ounit_lib.Runtime.unset_lib "dummy";
-  Pa_ounit_lib.Runtime.set_lib "netcore"
+  Pa_ounit_lib.Runtime.set_lib "netkat"

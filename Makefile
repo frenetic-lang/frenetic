@@ -4,7 +4,7 @@ all: build
 ASYNC ?= $(shell if ocamlfind query async >/dev/null 2>&1; then echo --enable-async; else echo --disable-async; fi)
 TESTS ?= $(shell if ocamlfind query quickcheck >/dev/null 2>&1; then echo --enable-tests; else echo --disable-tests; fi)
 
-NAME=netcore
+NAME=netkat
 J=4
 
 setup.ml: _oasis
@@ -20,7 +20,7 @@ install: setup.data setup.ml
 	ocaml setup.ml -install
 
 test: setup.ml build
-	_build/test/Test.byte inline-test-runner netcore
+	_build/test/Test.byte inline-test-runner netkat
 
 reinstall: setup.ml
 	ocamlfind remove $(NAME) || true
