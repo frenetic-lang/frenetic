@@ -20,7 +20,7 @@ let mk_or pr1 pr2 =
     | NetKAT_Types.False, _ ->
       pr2
     | _, NetKAT_Types.False ->
-      pr2
+      pr1
     | _ ->
       NetKAT_Types.Or(pr1, pr2)
 
