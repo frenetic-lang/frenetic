@@ -34,7 +34,7 @@ exception Assertion_failed of string
 type t = {
   ctl : Controller.t;
   nib : Net.Topology.t ref;
-  mutable locals : LocalCompiler.t SwitchMap.t
+  mutable locals : NetKAT_Types.policy SwitchMap.t
 }
 
 let bytes_to_headers port_id (bytes : Cstruct.t) =
@@ -204,7 +204,7 @@ let to_event w_out (t : t) evt =
                 (* XXX(seliopou): What if the packet's modified? Should buf_id be
                  * exposed to the application?
                  * *)
-                let pis, phys = LocalCompiler.eval local packet in
+                let pis, phys = Semantics.eval_pipes packet local in
                 let outs = Deferred.List.iter phys ~f:(fun packet1 ->
                   let acts = headers_to_actions
                     packet1.headers packet.headers in
@@ -245,8 +245,9 @@ let update_table_for (t : t) (sw_id : switchId) pol : unit Deferred.t =
   let to_flow_mod prio flow =
     OpenFlow0x01.Message.FlowModMsg (SDN_OpenFlow0x01.from_flow prio flow) in
   let c_id = Controller.client_id_of_switch t.ctl sw_id in
+  t.locals <- SwitchMap.add t.locals sw_id
+    (Optimize.specialize_policy sw_id pol);
   let local = LocalCompiler.compile sw_id pol in
-  t.locals <- SwitchMap.add t.locals sw_id local;
   Monitor.try_with ~name:"update_table_for" (fun () ->
     send t.ctl c_id (5l, delete_flows) >>= fun _ ->
     let priority = ref 65536 in
@@ -288,12 +289,13 @@ let handler (t : t) w app =
 let start app ?(port=6633) () =
   let open Async_OpenFlow.Platform.Trans in
   Controller.create ~max_pending_connections ~port ()
-  >>> fun t ->
-    let t' = {
-      ctl = t;
+  >>> fun ctl ->
+    let t = {
+      ctl = ctl;
       nib = ref (Net.Topology.empty ());
       locals = SwitchMap.empty
     } in
+
     (* The pipe for packet_outs. The Pipe.iter below will run in its own logical
      * thread, sending packet outs to the switch whenever it's scheduled.
      * *)
@@ -301,8 +303,8 @@ let start app ?(port=6633) () =
     Deferred.don't_wait_for (Pipe.iter r_out ~f:(fun out ->
       let (sw_id, _, _, _, _) = out in
       Monitor.try_with ~name:"packet_out" (fun () ->
-        let c_id = Controller.client_id_of_switch t sw_id in
-        send t c_id (0l, packet_out_to_message out))
+        let c_id = Controller.client_id_of_switch ctl sw_id in
+        send ctl c_id (0l, packet_out_to_message out))
       >>= function
         | Ok () -> return ()
         | Error exn_ ->
@@ -317,7 +319,7 @@ let start app ?(port=6633) () =
     (* Build up the application by adding topology discovery into the mix. *)
     let d_ctl, topo = Discovery.create () in
     let app = Async_NetKAT.union ~how:`Sequential topo (Discovery.guard app) in
-    let sdn_events = run stages t' (Controller.listen t) in
+    let sdn_events = run stages t (Controller.listen ctl) in
     (* The discovery application itself will generate events, so the actual
      * event stream must be a combination of switch events and synthetic
      * topology discovery events. Pipe.interleave will wait until one of the
@@ -327,4 +329,4 @@ let start app ?(port=6633) () =
      * *)
     let events = Pipe.interleave [Discovery.events d_ctl; sdn_events] in
 
-    Deferred.don't_wait_for (Pipe.iter events ~f:(handler t' w_out app))
+    Deferred.don't_wait_for (Pipe.iter events ~f:(handler t w_out app))

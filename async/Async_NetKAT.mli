@@ -48,6 +48,9 @@ val create : ?pipes:PipeSet.t -> policy -> handler -> app
 (** [create_static pol] returns a static app for the NetKAT syntax tree [pol] *)
 val create_static : policy -> app
 
+(** [create_from_string str] returns a static app for the NetKAT policy [str] *)
+val create_from_string : string -> app
+
 (** [create_from_file f] returns a static app from the NetKAT policy contained
     in the file [f]. *)
 val create_from_file : string -> app
