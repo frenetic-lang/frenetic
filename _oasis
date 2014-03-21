@@ -1,7 +1,7 @@
 OASISFormat: 0.3
 OCamlVersion: >= 4.01.0
 Name:        frenetic
-Version:     1.0.2
+Version:     2.0.0
 Synopsis:    The Frenetic Compiler and Runtime System
 Authors:     https://github.com/frenetic-lang/frenetic/contributors
 License:     LGPL
