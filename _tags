@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: f28797b8336fddbb3dd8c9a80ee7c9c7)
+# DO NOT EDIT (digest: c12ba59c486d142c63eca65b0b50801f)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -15,12 +15,9 @@
 "_darcs": not_hygienic
 # Library netkat
 "lib/netkat.cmxs": use_netkat
-<lib/*.ml{,i}>: package(packet)
-<lib/*.ml{,i}>: package(cstruct)
-<lib/*.ml{,i}>: package(ocamlgraph)
+<lib/*.ml{,i}>: package(core)
 <lib/*.ml{,i}>: package(openflow)
 <lib/*.ml{,i}>: package(threads)
-<lib/*.ml{,i}>: package(topology)
 <lib/*.ml{,i}>: package(sexplib)
 <lib/*.ml{,i}>: package(sexplib.syntax)
 <lib/*.ml{,i}>: package(fieldslib)
@@ -49,15 +46,12 @@
 # Library quickcheck
 "quickcheck/quickcheck.cmxs": use_quickcheck
 <quickcheck/*.ml{,i}>: use_netkat
-<quickcheck/*.ml{,i}>: package(packet)
+<quickcheck/*.ml{,i}>: package(core)
 <quickcheck/*.ml{,i}>: package(quickcheck)
 <quickcheck/*.ml{,i}>: package(openflow.quickcheck)
 <quickcheck/*.ml{,i}>: package(packet.quickcheck)
-<quickcheck/*.ml{,i}>: package(cstruct)
-<quickcheck/*.ml{,i}>: package(ocamlgraph)
 <quickcheck/*.ml{,i}>: package(openflow)
 <quickcheck/*.ml{,i}>: package(threads)
-<quickcheck/*.ml{,i}>: package(topology)
 <quickcheck/*.ml{,i}>: package(sexplib)
 <quickcheck/*.ml{,i}>: package(sexplib.syntax)
 <quickcheck/*.ml{,i}>: package(fieldslib)
@@ -66,6 +60,7 @@
 # Executable testtool
 "test/Test.byte": use_quickcheck
 "test/Test.byte": use_netkat
+"test/Test.byte": package(core)
 "test/Test.byte": package(oUnit)
 "test/Test.byte": package(packet)
 "test/Test.byte": package(pa_ounit)
@@ -73,11 +68,8 @@
 "test/Test.byte": package(quickcheck)
 "test/Test.byte": package(openflow.quickcheck)
 "test/Test.byte": package(packet.quickcheck)
-"test/Test.byte": package(cstruct)
-"test/Test.byte": package(ocamlgraph)
 "test/Test.byte": package(openflow)
 "test/Test.byte": package(threads)
-"test/Test.byte": package(topology)
 "test/Test.byte": package(sexplib)
 "test/Test.byte": package(sexplib.syntax)
 "test/Test.byte": package(fieldslib)
@@ -85,6 +77,7 @@
 "test/Test.byte": package(str)
 <test/*.ml{,i}>: use_quickcheck
 <test/*.ml{,i}>: use_netkat
+<test/*.ml{,i}>: package(core)
 <test/*.ml{,i}>: package(oUnit)
 <test/*.ml{,i}>: package(packet)
 <test/*.ml{,i}>: package(pa_ounit)
@@ -92,11 +85,8 @@
 <test/*.ml{,i}>: package(quickcheck)
 <test/*.ml{,i}>: package(openflow.quickcheck)
 <test/*.ml{,i}>: package(packet.quickcheck)
-<test/*.ml{,i}>: package(cstruct)
-<test/*.ml{,i}>: package(ocamlgraph)
 <test/*.ml{,i}>: package(openflow)
 <test/*.ml{,i}>: package(threads)
-<test/*.ml{,i}>: package(topology)
 <test/*.ml{,i}>: package(sexplib)
 <test/*.ml{,i}>: package(sexplib.syntax)
 <test/*.ml{,i}>: package(fieldslib)

@@ -21,17 +21,14 @@ Flag async
 Library netkat
   Path: lib
   BuildDepends:
-    cstruct,
+    core,
     fieldslib,
     fieldslib.syntax,
-    str,
-    threads,
-    ocamlgraph,
     openflow,
-    packet,
-    topology,
     sexplib,
-    sexplib.syntax
+    sexplib.syntax,
+    str,
+    threads
   Modules:
     NetKAT_Lexer,
     NetKAT_Parser,
