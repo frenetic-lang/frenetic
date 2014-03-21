@@ -48,15 +48,12 @@ Library async
     async,
     core,
     cstruct,
-    cstruct.async,
     cstruct.syntax,
     netkat,
-    ocamlgraph,
     openflow,
     openflow.async,
     packet,
     threads,
-    textutils,
     topology,
     sexplib,
     sexplib.syntax
@@ -73,10 +70,10 @@ Library quickcheck
   Path: quickcheck
   Build$: flag(quickcheck) || flag(tests)
   BuildDepends:
-    openflow.quickcheck,
-    quickcheck,
     netkat,
-    packet.quickcheck
+    openflow.quickcheck,
+    packet.quickcheck,
+    quickcheck
   Modules:
     NetKAT_Arbitrary
 
@@ -86,12 +83,13 @@ Executable testtool
   Build$: flag(tests)
   Install: false
   BuildDepends: 
-    oUnit,packet,
     netkat,
+    netkat.quickcheck,
+    oUnit,
+    packet,
     pa_ounit,
     pa_ounit.syntax,
-    quickcheck,
-    netkat.quickcheck
+    quickcheck
 
 Test all_tests
   Command: $testtool inline-test-runner netkat
