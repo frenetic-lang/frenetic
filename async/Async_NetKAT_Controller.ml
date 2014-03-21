@@ -204,7 +204,7 @@ let to_event w_out (t : t) evt =
                 (* XXX(seliopou): What if the packet's modified? Should buf_id be
                  * exposed to the application?
                  * *)
-                let pis, phys = Semantics.eval_pipes packet local in
+                let pis, phys = NetKAT_Semantics.eval_pipes packet local in
                 let outs = Deferred.List.iter phys ~f:(fun packet1 ->
                   let acts = headers_to_actions
                     packet1.headers packet.headers in
@@ -247,11 +247,11 @@ let update_table_for (t : t) (sw_id : switchId) pol : unit Deferred.t =
   let c_id = Controller.client_id_of_switch t.ctl sw_id in
   t.locals <- SwitchMap.add t.locals sw_id
     (Optimize.specialize_policy sw_id pol);
-  let local = LocalCompiler.compile sw_id pol in
+  let local = NetKAT_LocalCompiler.compile sw_id pol in
   Monitor.try_with ~name:"update_table_for" (fun () ->
     send t.ctl c_id (5l, delete_flows) >>= fun _ ->
     let priority = ref 65536 in
-    let table = LocalCompiler.to_table local in
+    let table = NetKAT_LocalCompiler.to_table local in
     if List.length table <= 0
       then raise (Assertion_failed (Printf.sprintf
           "Controller.update_table_for: empty table for switch %Lu" sw_id));
