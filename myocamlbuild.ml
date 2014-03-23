@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 7697c47c0d51a884f63e5febce2e9488) *)
+(* DO NOT EDIT (digest: c0e063de0091d6889663f50fde7b7ba7) *)
 module OASISGettext = struct
 (* # 22 "src/oasis/OASISGettext.ml" *)
 
@@ -557,7 +557,7 @@ let package_default =
   {
      MyOCamlbuildBase.lib_ocaml =
        [
-          ("netcore", ["lib"], []);
+          ("netkat", ["lib"], []);
           ("async", ["async"], []);
           ("quickcheck", ["quickcheck"], [])
        ];

@@ -15,7 +15,7 @@ let help args =
 	"  dump   Compile and dump flow table"
 
 module Run = struct
-  open LocalCompiler
+  open NetKAT_LocalCompiler
 
   let main args =
     match args with
@@ -30,7 +30,7 @@ module Run = struct
 end
 
 module Dump = struct
-  open LocalCompiler
+  open NetKAT_LocalCompiler
 
   let with_channel f chan =
     f (NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan))
@@ -43,7 +43,7 @@ module Dump = struct
     let with_compile (sw : SDN_Types.switchId) (p : NetKAT_Types.policy) =
       let _ = 
         Format.printf "@[Compiling switch %Ld [size=%d]...@]%!"
-          sw (Semantics.size p) in
+          sw (NetKAT_Semantics.size p) in
       let t1 = Unix.gettimeofday () in
       let i = compile sw p in
       let t2 = Unix.gettimeofday () in

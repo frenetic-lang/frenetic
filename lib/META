@@ -1,18 +1,18 @@
 # OASIS_START
-# DO NOT EDIT (digest: 989850c7fa0888c8d4d3772db29efc65)
-version = "1.0.2"
+# DO NOT EDIT (digest: 5d5304719cb36dec04e78e99418006c2)
+version = "2.0.0"
 description = "The Frenetic Compiler and Runtime System"
 requires =
-"cstruct fieldslib fieldslib.syntax str threads ocamlgraph openflow packet topology sexplib sexplib.syntax"
-archive(byte) = "netcore.cma"
-archive(byte, plugin) = "netcore.cma"
-archive(native) = "netcore.cmxa"
-archive(native, plugin) = "netcore.cmxs"
-exists_if = "netcore.cma"
+"core fieldslib fieldslib.syntax openflow sexplib sexplib.syntax str threads"
+archive(byte) = "netkat.cma"
+archive(byte, plugin) = "netkat.cma"
+archive(native) = "netkat.cmxa"
+archive(native, plugin) = "netkat.cmxs"
+exists_if = "netkat.cma"
 package "quickcheck" (
- version = "1.0.2"
+ version = "2.0.0"
  description = "The Frenetic Compiler and Runtime System"
- requires = "openflow.quickcheck quickcheck netcore packet.quickcheck"
+ requires = "netkat openflow.quickcheck packet.quickcheck quickcheck"
  archive(byte) = "quickcheck.cma"
  archive(byte, plugin) = "quickcheck.cma"
  archive(native) = "quickcheck.cmxa"
@@ -21,10 +21,10 @@ package "quickcheck" (
 )
 
 package "async" (
- version = "1.0.2"
+ version = "2.0.0"
  description = "The Frenetic Compiler and Runtime System"
  requires =
- "async core cstruct cstruct.async cstruct.syntax netcore ocamlgraph openflow openflow.async packet threads textutils topology sexplib sexplib.syntax"
+ "async core cstruct cstruct.syntax netkat openflow openflow.async packet threads topology sexplib sexplib.syntax"
  archive(byte) = "async.cma"
  archive(byte, plugin) = "async.cma"
  archive(native) = "async.cmxa"

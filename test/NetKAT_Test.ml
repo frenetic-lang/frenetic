@@ -6,8 +6,8 @@ open NetKAT_Pretty
 
 let test_compile lhs rhs =
   let rhs' =
-    LocalCompiler.to_netkat
-      (LocalCompiler.compile 0L lhs) in
+    NetKAT_LocalCompiler.to_netkat
+      (NetKAT_LocalCompiler.compile 0L lhs) in
   if rhs' = rhs then
     true
   else
@@ -16,7 +16,7 @@ let test_compile lhs rhs =
      false)
 
 let test_compile_table pol tbl =
-  let open LocalCompiler in
+  let open NetKAT_LocalCompiler in
   let tbl' = to_table (compile 0L pol) in
   if tbl = tbl' then
     true
@@ -175,7 +175,7 @@ module FromPipe = struct
   end)
 
   let test_from_pipes pol pkt pipes =
-    let ps, _ = Semantics.eval_pipes pkt pol in
+    let ps, _ = NetKAT_Semantics.eval_pipes pkt pol in
     PipeSet.(equal (of_list pipes) (of_list (List.map ~f:fst ps)))
 
   let default_headers =
@@ -292,13 +292,14 @@ let gen_pol_3 =
     testable_bool
 
 let compare_eval_output p q pkt =
-  let open Semantics in
+  let open NetKAT_Semantics in
   PacketSet.compare (eval pkt p) (eval pkt q) = 0
 
 let compare_compiler_output p q pkt =
+  let open NetKAT_LocalCompiler in
   compare_eval_output
-    (LocalCompiler.to_netkat (LocalCompiler.of_policy pkt.switch p))
-    (LocalCompiler.to_netkat (LocalCompiler.of_policy pkt.switch q))
+    (to_netkat (of_policy pkt.switch p))
+    (to_netkat (of_policy pkt.switch q))
     pkt
 
 let check gen_fn compare_fn =

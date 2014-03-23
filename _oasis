@@ -1,7 +1,7 @@
 OASISFormat: 0.3
 OCamlVersion: >= 4.01.0
 Name:        frenetic
-Version:     1.0.2
+Version:     2.0.0
 Synopsis:    The Frenetic Compiler and Runtime System
 Authors:     https://github.com/frenetic-lang/frenetic/contributors
 License:     LGPL
@@ -15,35 +15,33 @@ Flag quickcheck
   Default: false
 
 Flag async
-    Description: build the netcore.async library
+    Description: build the netkat.async library
     Default: false
 
-Library netcore
+Library netkat
   Path: lib
   BuildDepends:
-    cstruct,
+    core,
     fieldslib,
     fieldslib.syntax,
-    str,
-    threads,
-    ocamlgraph,
     openflow,
-    packet,
-    topology,
     sexplib,
-    sexplib.syntax
+    sexplib.syntax,
+    str,
+    threads
+  InternalModules:
+    Optimize
   Modules:
     NetKAT_Lexer,
+    NetKAT_LocalCompiler,
     NetKAT_Parser,
     NetKAT_Pretty,
+    NetKAT_Semantics,
     NetKAT_Types,
-    NetKAT_Util,
-    Optimize,
-    Semantics,
-    LocalCompiler
+    NetKAT_Util
 
 Library async
-  Findlibparent: netcore
+  Findlibparent: netkat
   Findlibname: async
   Path: async
   Build$: flag(async)
@@ -51,15 +49,12 @@ Library async
     async,
     core,
     cstruct,
-    cstruct.async,
     cstruct.syntax,
-    netcore,
-    ocamlgraph,
+    netkat,
     openflow,
     openflow.async,
     packet,
     threads,
-    textutils,
     topology,
     sexplib,
     sexplib.syntax
@@ -71,15 +66,15 @@ Library async
     Async_NetKAT_Controller
 
 Library quickcheck
-  Findlibparent: netcore
+  Findlibparent: netkat
   Findlibname: quickcheck
   Path: quickcheck
   Build$: flag(quickcheck) || flag(tests)
   BuildDepends:
+    netkat,
     openflow.quickcheck,
-    quickcheck,
-    netcore,
-    packet.quickcheck
+    packet.quickcheck,
+    quickcheck
   Modules:
     NetKAT_Arbitrary
 
@@ -89,12 +84,13 @@ Executable testtool
   Build$: flag(tests)
   Install: false
   BuildDepends: 
-    oUnit,packet,
-    netcore,
+    netkat,
+    netkat.quickcheck,
+    oUnit,
+    packet,
     pa_ounit,
     pa_ounit.syntax,
-    quickcheck,
-    netcore.quickcheck
+    quickcheck
 
 Test all_tests
   Command: $testtool inline-test-runner netkat
@@ -109,8 +105,8 @@ Executable katnetic
   BuildDepends:
     async,
     core,
-    netcore,
-    netcore.async
+    netkat,
+    netkat.async
 
 Executable netkat_test
   Path: frenetic
@@ -120,5 +116,5 @@ Executable netkat_test
   BuildDepends:
     async,
     core,
-    netcore,
-    netcore.async
+    netkat,
+    netkat.async
