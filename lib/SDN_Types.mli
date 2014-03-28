@@ -38,8 +38,8 @@ type int48 = Int64.t
 type bytes = Cstruct.t
 
 type switchId = int64
-type portId = VInt.t
-type queueId = VInt.t
+type portId = int32
+type queueId = int32
 
 type bufferId = int32
 

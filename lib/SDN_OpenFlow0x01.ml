@@ -66,7 +66,7 @@ module Common = HighLevelSwitch_common.Make (struct
       | AL.OutputAllPorts -> 
         (Mod.none, Output AllPorts)
       | AL.OutputPort n ->
-        let n = VInt.get_int16 n in 
+        let n = VInt.(get_int16 (Int32 n)) in
         if Some n = inPort then
           (Mod.none, Output InPort)
         else
@@ -74,8 +74,7 @@ module Common = HighLevelSwitch_common.Make (struct
       | AL.Controller n -> 
         (Mod.none, Output (Controller n))
       | AL.Enqueue (m,n) -> 
-        let m = VInt.get_int16 m in 
-        let n = VInt.get_int32 n in 
+        let m = VInt.(get_int16 (Int32 m)) in
         if Some m = inPort then 
           (Mod.none, Enqueue(InPort, n))
         else 

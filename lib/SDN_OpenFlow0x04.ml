@@ -77,11 +77,11 @@ module Common = HighLevelSwitch_common.Make (struct
     match act with
       | AL.Controller n -> (Mod.none, Output (Core.Controller n))
       | AL.OutputAllPorts -> (Mod.none, Output Core.AllPorts)
-      | AL.OutputPort n -> let n = VInt.get_int32 n in
-                        if Some n = inPort then
-                          (Mod.none, Output Core.InPort)
-                        else
-                          (Mod.none, Output (Core.PhysicalPort n))
+      | AL.OutputPort n ->
+        if Some n = inPort then
+          (Mod.none, Output Core.InPort)
+        else
+          (Mod.none, Output (Core.PhysicalPort n))
       | AL.Enqueue(m,n) -> 
         raise (Invalid_argument "cannot enqueue")
       | AL.SetField (AL.InPort, _) -> raise (Invalid_argument "cannot set input port")

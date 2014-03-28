@@ -12,8 +12,8 @@ type int48 = Int64.t
 type bytes = Cstruct.t
 
 type switchId = int64
-type portId = VInt.t
-type queueId = VInt.t
+type portId = int32
+type queueId = int32
 
 type bufferId = int32
 
@@ -137,11 +137,11 @@ let rec format_action (fmt:Format.formatter) (a:action) : unit =
   | OutputAllPorts -> 
     Format.fprintf fmt "OutputAllPorts"
   | OutputPort(n) -> 
-    Format.fprintf fmt "OutputPort(%a)" VInt.format n
+    Format.fprintf fmt "OutputPort(%ld)" n
   | Controller(n) -> 
     Format.fprintf fmt "Controller(%d)" n
   | Enqueue(m,n) -> 
-    Format.fprintf fmt "Enqueue(%a,%a)" VInt.format m VInt.format n
+    Format.fprintf fmt "Enqueue(%ld,%ld)" m n
   | SetField(f,v) -> 
     Format.fprintf fmt "SetField(%a,%a)" format_field f (fun fmt -> format_value fmt f) v
 
