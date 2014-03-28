@@ -197,9 +197,10 @@ let make_string_of formatter x =
   fprintf fmt "@?";
   Buffer.contents buf
 
-let string_of_flowTable = make_string_of format_flowTable
-let string_of_flow = make_string_of format_flow
+let string_of_action = make_string_of format_action
+let string_of_seq = make_string_of format_seq
+let string_of_par = make_string_of format_par
 let string_of_field = make_string_of format_field
 let string_of_pattern = make_string_of format_pattern
-let string_of_par = make_string_of format_par
-let string_of_action = make_string_of format_action
+let string_of_flow = make_string_of format_flow
+let string_of_flowTable = make_string_of format_flowTable
