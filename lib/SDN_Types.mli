@@ -29,13 +29,7 @@
 
 *)
 
-type int8 = int
-type int12 = int
-type int16 = int
-type int32 = Int32.t
-type int64 = Int64.t
-type int48 = Int64.t
-type bytes = Cstruct.t
+open Packet
 
 type switchId = int64
 type portId = int32
@@ -62,11 +56,21 @@ type field =
 
 type fieldVal = VInt.t
 
-module FieldMap : Map.S
-  with type key = field
-
 (** WARNING: There are dependencies between different fields that must be met. *)
-type pattern = fieldVal FieldMap.t
+type pattern =
+    { dlSrc : dlAddr option
+    ; dlDst : dlAddr option
+    ; dlTyp : dlTyp option
+    ; dlVlan : dlVlan option
+    ; dlVlanPcp : dlVlanPcp option
+    ; nwSrc : nwAddr option
+    ; nwDst : nwAddr option
+    ; nwProto : nwProto option
+    ; tpSrc : tpPort option
+    ; tpDst : tpPort option
+    ; inPort : portId option }
+
+val all_pattern : pattern
 
 type action =
   | OutputAllPorts

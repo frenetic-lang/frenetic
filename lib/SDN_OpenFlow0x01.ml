@@ -1,7 +1,6 @@
 module AL = SDN_Types
 module Core = OpenFlow0x01_Core
 module Msg = OpenFlow0x01.Message
-module Fields = AL.FieldMap
 
 
 exception Invalid_port of int32
@@ -34,26 +33,29 @@ let to_packetIn (pktIn : Core.packetIn) : AL.pktIn =
       (to_payload input_payload, total_len, VInt.Int16 port, to_reason reason)
 
 let from_pattern (pat : AL.pattern) : Core.pattern = 
-  let pair_to_mask conv x = let (m, n) = conv x in { Core.m_value = m; m_mask = Some n } in
-  let lookup conv field =
-    try Some (conv (Fields.find field pat))
-    with Not_found -> None in
-  { Core.dlSrc = lookup VInt.get_int48 AL.EthSrc;
-    Core.dlDst = lookup VInt.get_int48 AL.EthDst;
-    Core.dlTyp = lookup VInt.get_int16 AL.EthType;
-    Core.dlVlan = 
-      (try match VInt.get_int16 (Fields.find AL.Vlan pat) with
-  | 0xFFFF -> Some None
-  | x -> Some (Some x)
-       with Not_found -> None);
-    Core.dlVlanPcp = lookup VInt.get_int4 AL.VlanPcp;
-    Core.nwSrc = lookup (pair_to_mask VInt.get_int32m) AL.IP4Src;
-    Core.nwDst = lookup (pair_to_mask VInt.get_int32m) AL.IP4Dst;
-    Core.nwProto = lookup VInt.get_int8 AL.IPProto;
-    Core.nwTos = None; (* Forgot to define it at the abstraction layer *)
-    Core.tpSrc = lookup VInt.get_int16 AL.TCPSrcPort;
-    Core.tpDst = lookup VInt.get_int16 AL.TCPDstPort;
-    Core.inPort = lookup VInt.get_int16 AL.InPort }
+  { Core.dlSrc = pat.AL.dlSrc
+  ; Core.dlDst = pat.AL.dlDst
+  ; Core.dlTyp = pat.AL.dlTyp
+  ; Core.dlVlan = (match pat.AL.dlVlan with
+      | Some(Some(0xffff)) -> Some None
+      | _ -> pat.AL.dlVlan)
+  ; Core.dlVlanPcp = pat.AL.dlVlanPcp
+  ; Core.nwSrc = (match pat.AL.nwSrc with
+    | None   -> None
+    | Some v -> Some { Core.m_value = v; Core.m_mask = None })
+  ; Core.nwDst = (match pat.AL.nwSrc with
+    | None   -> None
+    | Some v -> Some { Core.m_value = v; Core.m_mask = None })
+  ; Core.nwProto = pat.AL.nwProto
+  ; Core.nwTos = None
+  ; Core.tpSrc = pat.AL.tpSrc
+  ; Core.tpDst = pat.AL.tpDst
+  ; Core.inPort = (match pat.AL.inPort with
+    | None   -> None
+    | Some v -> if v >= 0xff00l (* pport_id < OFPP_MAX *)
+      then raise (Invalid_port v)
+      else Some(Int32.to_int v))
+  }
 
 module Common = HighLevelSwitch_common.Make (struct
   type of_action = Core.action

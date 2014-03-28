@@ -1,7 +1,6 @@
 module AL = SDN_Types
 module Core = OpenFlow0x04_Core
 module Msg = OpenFlow0x04.Message
-module Fields = AL.FieldMap
 
 
 exception Invalid_port of int32
@@ -41,26 +40,26 @@ let to_packetIn (pktIn : Core.packetIn) : AL.pktIn =
 
 let from_pattern (pat : AL.pattern) : Core.oxmMatch * Core.portId option = 
   let v_to_m = Core.val_to_mask in
-  let lookup conv field =
-    try [(conv (Fields.find field pat))]
-    with Not_found -> [] in
-    ((lookup (fun x -> Core.OxmEthSrc (v_to_m (VInt.get_int48 x))) AL.EthSrc) 
-     @ (lookup (fun x -> Core.OxmEthDst (v_to_m (VInt.get_int48 x))) AL.EthDst) 
-     @ (lookup (fun x -> Core.OxmEthType (VInt.get_int16 x)) AL.EthType)
-     @ (try match VInt.get_int16 (Fields.find AL.Vlan pat) with
-       | -1 -> [Core.OxmVlanVId {Core.m_value = 0x1000; Core.m_mask = Some 0x1000}]
-       | 0xFFFF -> [Core.OxmVlanVId (v_to_m 0)]
-       | x -> [ Core.OxmVlanVId (v_to_m x) ]
-       with Not_found -> [])
-     @ (lookup (fun x -> Core.OxmVlanPcp (VInt.get_int4 x)) AL.VlanPcp)
-     @ (lookup (fun x -> Core.OxmIP4Src (v_to_m (VInt.get_int32 x))) AL.IP4Src)
-     @ (lookup (fun x -> Core.OxmIP4Dst (v_to_m (VInt.get_int32 x))) AL.IP4Dst)
-     @ (lookup (fun x -> Core.OxmIPProto (VInt.get_int8 x)) AL.IPProto)
-     @ (lookup (fun x -> Core.OxmTCPSrc (v_to_m (VInt.get_int16 x))) AL.TCPSrcPort)
-     @ (lookup (fun x -> Core.OxmTCPDst (v_to_m (VInt.get_int16 x))) AL.TCPDstPort)
-     @ (lookup (fun x -> Core.OxmInPort (VInt.get_int32 x)) AL.InPort),
-     try Some (VInt.get_int32 (Fields.find AL.InPort pat))
-     with Not_found -> None)
+  (Core_kernel.Core_list.filter_opt
+    [ Misc.map_option (fun x -> Core.OxmEthSrc (v_to_m x)) pat.AL.dlSrc
+    ; Misc.map_option (fun x -> Core.OxmEthDst (v_to_m x)) pat.AL.dlDst
+    ; Misc.map_option (fun x -> Core.OxmEthType x) pat.AL.dlTyp
+    ; Misc.map_option (fun x -> match x with
+        | -1 ->
+          Core.OxmVlanVId { Core.m_value = 0x1000; Core.m_mask = Some 0x1000 }
+        | 0xffff ->
+          Core.OxmVlanVId (v_to_m 0)
+        | _ ->
+          Core.OxmVlanVId (v_to_m x))
+      (Core_kernel.Option.join pat.AL.dlVlan)
+    ; Misc.map_option (fun x -> Core.OxmVlanPcp x) pat.AL.dlVlanPcp
+    ; Misc.map_option (fun x -> Core.OxmIP4Src (v_to_m x)) pat.AL.nwSrc
+    ; Misc.map_option (fun x -> Core.OxmIP4Dst (v_to_m x)) pat.AL.nwDst
+    ; Misc.map_option (fun x -> Core.OxmIPProto x) pat.AL.nwProto
+    ; Misc.map_option (fun x -> Core.OxmTCPSrc (v_to_m x)) pat.AL.tpSrc
+    ; Misc.map_option (fun x -> Core.OxmTCPDst (v_to_m x)) pat.AL.tpDst
+    ; Misc.map_option (fun x -> Core.OxmInPort x) pat.AL.inPort
+    ], pat.AL.inPort)
 
 let from_timeout (timeout : AL.timeout) : Core.timeout =
   match timeout with
@@ -188,7 +187,10 @@ let contains_vlan_mod (act : SDN_Types.group) =
     | _ -> false in
   List.exists (List.exists (List.exists vlan_mod)) act
 
-let contains_vlan = SDN_Types.FieldMap.mem SDN_Types.Vlan
+let contains_vlan (pat:AL.pattern) =
+  match pat.AL.dlVlan with
+    | None -> false
+    | Some _ -> true
 
 let strip_vlan_pop = List.map (List.map (List.fold_left (fun acc a -> match a with
   | SDN_Types.SetField (SDN_Types.Vlan, VInt.Int16 0xFFFF) -> acc
@@ -204,16 +206,16 @@ let fix_vlan_in_flow fl =
   let open SDN_Types in
   if contains_vlan_pop fl.action && not (contains_vlan fl.pattern) then
     (* match on vlan_none, then drop the strip_vlan *)
-    [{fl with pattern = FieldMap.add Vlan (VInt.Int16 0xFFFF) fl.pattern;
-      action = strip_vlan_pop fl.action}] @
+    [ {fl with pattern = { fl.pattern with dlVlan = Some(Some(0xffff)) };
+              action = strip_vlan_pop fl.action}
     (* match on vlan_any, use the same actions *)
-      [{fl with pattern = FieldMap.add Vlan (VInt.Int16 (-1)) fl.pattern}]
+    ; {fl with pattern = { fl.pattern with dlVlan = Some(Some(-1)) }}]
   else if contains_vlan_mod fl.action && not (contains_vlan fl.pattern) then
     (* match on vlan_none, then push a vlan tag *)
-    [{fl with pattern = FieldMap.add Vlan (VInt.Int16 0xFFFF) fl.pattern;
-      action = add_vlan_push fl.action}] @
+    [ {fl with pattern = { fl.pattern with dlVlan = Some(Some(0xffff)) };
+               action = add_vlan_push fl.action}
     (* match on vlan_any, use the same actions *)
-      [{fl with pattern = FieldMap.add Vlan (VInt.Int16 (-1)) fl.pattern}]
+    ; {fl with pattern = { fl.pattern with dlVlan = Some(Some(-1)) }} ]
   else
     [fl]
 

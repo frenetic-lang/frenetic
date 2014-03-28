@@ -1,15 +1,9 @@
 module OF10 = OpenFlow0x01_Core
 module OF13 = OpenFlow0x04_Core
 
-exception Unsupported of string
+open Packet
 
-type int8 = int
-type int12 = int
-type int16 = int
-type int32 = Int32.t
-type int64 = Int64.t
-type int48 = Int64.t
-type bytes = Cstruct.t
+exception Unsupported of string
 
 type switchId = int64
 type portId = int32
@@ -32,12 +26,32 @@ type field =
 
 type fieldVal = VInt.t
 
-module FieldMap = Map.Make(struct
-  type t = field
-  let compare = Pervasives.compare
-end)
+type pattern =
+    { dlSrc : dlAddr option
+    ; dlDst : dlAddr option
+    ; dlTyp : dlTyp option
+    ; dlVlan : dlVlan option
+    ; dlVlanPcp : dlVlanPcp option
+    ; nwSrc : nwAddr option
+    ; nwDst : nwAddr option
+    ; nwProto : nwProto option
+    ; tpSrc : tpPort option
+    ; tpDst : tpPort option
+    ; inPort : portId option }
 
-type pattern = fieldVal FieldMap.t
+let all_pattern =
+    { dlSrc = None
+    ; dlDst = None
+    ; dlTyp = None
+    ; dlVlan = None
+    ; dlVlanPcp = None
+    ; nwSrc = None
+    ; nwDst = None
+    ; nwProto = None
+    ; tpSrc = None
+    ; tpDst = None
+    ; inPort = None }
+
 
 type action =
   | OutputAllPorts
@@ -119,17 +133,45 @@ let format_value (fmt : Format.formatter) (f : field) (v : VInt.t) : unit =
     | IP4Dst -> Format.pp_print_string fmt (Packet.string_of_ip (VInt.get_int32 v))
     | _ -> VInt.format fmt v
 
+let format_mac (fmt : Format.formatter) (v:int48) =
+  Format.pp_print_string fmt (Packet.string_of_mac v)
+
+let format_ip (fmt : Format.formatter) (v:int32) =
+  Format.pp_print_string fmt (Packet.string_of_ip v)
+
+let format_hex (fmt : Format.formatter) (v:int) =
+  Format.fprintf fmt "0x%x" v
+
+let format_int (fmt : Format.formatter) (v:int) =
+  Format.fprintf fmt "%u" v
+
+let format_int32 (fmt : Format.formatter) (v:int32) =
+  Format.fprintf fmt "%lu" v
+
 let format_pattern (fmt:Format.formatter) (p:pattern) : unit = 
+  let first = ref true in
+  let format_field name format_val m_val =
+    match m_val with
+      | None   -> ()
+      | Some v ->
+        if not (!first) then Format.fprintf fmt ",@,";
+        Format.fprintf fmt "%s = %a" name format_val v;
+        first := false in
   Format.fprintf fmt "@[{";
-  let _ = 
-    FieldMap.fold 
-      (fun f v b ->
-        if b then Format.fprintf fmt ",@,";
-        format_field fmt f;
-        Format.fprintf fmt "="; 
-        format_value fmt f v;
-        true)
-      p false in 
+  format_field "ethSrc" format_mac p.dlSrc;
+  format_field "ethDst" format_mac p.dlDst;
+  format_field "ethTyp" format_hex p.dlTyp;
+  format_field "vlanId" (fun fmt v -> match v with
+                          | None -> ()
+                          | Some v ->  format_int fmt v)
+                        p.dlVlan;
+  format_field "vlanPcp" format_int p.dlVlanPcp;
+  format_field "nwProto" format_hex p.nwProto;
+  format_field "ipSrc" format_ip p.nwSrc;
+  format_field "ipDst" format_ip p.nwDst;
+  format_field "tcpSrcPort" format_int p.tpSrc;
+  format_field "tcpDstPort" format_int p.tpDst;
+  format_field "port" format_int32 p.inPort;
   Format.fprintf fmt "}@]"
 
 let rec format_action (fmt:Format.formatter) (a:action) : unit = 
