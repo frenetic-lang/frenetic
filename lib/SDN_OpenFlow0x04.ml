@@ -4,6 +4,9 @@ module Msg = OpenFlow0x04.Message
 module Fields = AL.FieldMap
 
 
+exception Invalid_port of int32
+
+
 let to_payload (pay : Core.payload) : AL.payload =
   let open Core in
   match pay with
@@ -77,12 +80,14 @@ module Common = HighLevelSwitch_common.Make (struct
     match act with
       | AL.Controller n -> (Mod.none, Output (Core.Controller n))
       | AL.OutputAllPorts -> (Mod.none, Output Core.AllPorts)
-      | AL.OutputPort n ->
-        if Some n = inPort then
-          (Mod.none, Output Core.InPort)
+      | AL.OutputPort pport_id ->
+        if pport_id >= 0xffffff00l then (* pport_id < OFPP_MAX *)
+          raise (Invalid_port pport_id);
+        if Some pport_id = inPort then
+          (Mod.none, Output InPort)
         else
-          (Mod.none, Output (Core.PhysicalPort n))
-      | AL.Enqueue(m,n) -> 
+          (Mod.none, Output (PhysicalPort pport_id))
+      | AL.Enqueue(_, _) ->
         raise (Invalid_argument "cannot enqueue")
       | AL.SetField (AL.InPort, _) -> raise (Invalid_argument "cannot set input port")
       | AL.SetField (AL.EthType, _) -> raise (Invalid_argument "cannot set frame type")

@@ -4,6 +4,8 @@ module Msg = OpenFlow0x01.Message
 module Fields = AL.FieldMap
 
 
+exception Invalid_port of int32
+
 let to_payload (pay : Core.payload) : AL.payload =
   let open Core in
   match pay with
@@ -65,20 +67,24 @@ module Common = HighLevelSwitch_common.Make (struct
     match act with
       | AL.OutputAllPorts -> 
         (Mod.none, Output AllPorts)
-      | AL.OutputPort n ->
-        let n = VInt.(get_int16 (Int32 n)) in
-        if Some n = inPort then
+      | AL.OutputPort pport_id ->
+        if pport_id >= 0xff00l then (* pport_id < OFPP_MAX *)
+          raise (Invalid_port pport_id);
+        let pport_id = Int32.to_int pport_id in
+        if Some pport_id = inPort then
           (Mod.none, Output InPort)
         else
-          (Mod.none, Output (PhysicalPort n))
+          (Mod.none, Output (PhysicalPort pport_id))
       | AL.Controller n -> 
         (Mod.none, Output (Controller n))
-      | AL.Enqueue (m,n) -> 
-        let m = VInt.(get_int16 (Int32 m)) in
-        if Some m = inPort then 
-          (Mod.none, Enqueue(InPort, n))
+      | AL.Enqueue (pport_id, queue_id) ->
+        if pport_id >= 0xff00l then (* pport_id < OFPP_MAX *)
+          raise (Invalid_port pport_id);
+        let pport_id = Int32.to_int pport_id in
+        if Some pport_id = inPort then
+          (Mod.none, Enqueue(InPort, queue_id))
         else 
-          (Mod.none, Enqueue (PhysicalPort m, n))
+          (Mod.none, Enqueue (PhysicalPort pport_id, queue_id))
       | AL.SetField (AL.InPort, _) -> raise (Invalid_argument "cannot set input port")
       | AL.SetField (AL.EthType, _) -> raise (Invalid_argument "cannot set frame type")
       | AL.SetField (AL.EthSrc, n) -> (Mod.dlSrc, SetDlSrc (VInt.get_int48 n))
