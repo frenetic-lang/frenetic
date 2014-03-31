@@ -36,7 +36,7 @@ let to_packetIn (pktIn : Core.packetIn) : AL.pktIn =
   in
   match pktIn with
     | { pi_payload; pi_total_len; pi_ofp_match; pi_reason } ->
-      (to_payload pi_payload, pi_total_len, VInt.Int32 (get_port pi_ofp_match), to_reason pi_reason)
+      (to_payload pi_payload, pi_total_len, get_port pi_ofp_match, to_reason pi_reason)
 
 let from_pattern (pat : AL.pattern) : Core.oxmMatch * Core.portId option = 
   let v_to_m = Core.val_to_mask in

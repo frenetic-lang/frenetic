@@ -30,7 +30,7 @@ let to_packetIn (pktIn : Core.packetIn) : AL.pktIn =
   let open Core in
   match pktIn with
     | { input_payload; total_len; port; reason } ->
-      (to_payload input_payload, total_len, VInt.Int16 port, to_reason reason)
+      (to_payload input_payload, total_len, Int32.of_int port, to_reason reason)
 
 let from_pattern (pat : AL.pattern) : Core.pattern = 
   { Core.dlSrc = pat.AL.dlSrc

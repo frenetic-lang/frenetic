@@ -88,11 +88,11 @@ type packetInReason =
   | NoMatch
   | ExplicitSend
 
-type pktIn = payload * int * VInt.t * packetInReason
+type pktIn = payload * int * portId * packetInReason
 
 type switchFeatures = {
   switch_id : switchId;
-  switch_ports : VInt.t list
+  switch_ports : portId list
 }
 
 type flowStats = {

@@ -113,14 +113,14 @@ type packetInReason =
   | ExplicitSend
 
 (** [(payload, total_length, in_port, reason)] *)
-type pktIn = payload * int * VInt.t * packetInReason
+type pktIn = payload * int * portId * packetInReason
 
 (* {1 Switch Configuration} *)
 
 (** A simplification of the _switch features_ message from OpenFlow *)
 type switchFeatures = {
   switch_id : switchId;
-  switch_ports : VInt.t list
+  switch_ports : portId list
 }
 
 (* {1 Statistics} *)
