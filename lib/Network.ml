@@ -61,6 +61,7 @@ module type NETWORK = sig
     val edge_dst : edge -> (vertex * port)
 
     (* Label Accessors *)
+    val vertex_to_string : t -> vertex -> string
     val vertex_to_label : t -> vertex -> Vertex.t
     val vertex_of_label : t -> Vertex.t -> vertex
     val edge_to_label : t -> edge -> Edge.t
@@ -131,6 +132,7 @@ struct
       let compare n1 n2 = Pervasives.compare n1.id n2.id
       let hash n1 = Hashtbl.hash n1.id
       let equal n1 n2 = n1.id = n2.id
+      let to_string n = string_of_int n.id
     end
     module VertexSet = Set.Make(VL)
     module VertexMap = Map.Make(Vertex)
@@ -233,6 +235,9 @@ struct
     let edge_to_label (t:t) (e:edge) : Edge.t =
       let (_,l,_) = e in
       l.EL.label
+
+    let vertex_to_string (t:t) (v:vertex) : string =
+      VL.to_string v
 
     let vertex_to_label (t:t) (v:vertex) : Vertex.t =
       v.VL.label
