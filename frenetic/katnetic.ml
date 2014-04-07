@@ -22,9 +22,8 @@ module Run = struct
       | [filename]
       | ("local" :: [filename]) ->
         let main () =
-          let learning = Learning.create () in
           let static = Async_NetKAT.create_from_file filename in
-          Async_NetKAT_Controller.start (Async_NetKAT.union learning static) () in
+          Async_NetKAT_Controller.start static () in
         never_returns (Scheduler.go_main ~max_num_open_file_descrs:4096 ~main ())
       | _ -> help [ "run" ]
 end
