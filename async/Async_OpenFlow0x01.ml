@@ -123,11 +123,15 @@ module Controller = struct
       | `Message (c_id, msg) ->
         return [`Message(c_id, msg)]
       | `Disconnect (c_id, exn) ->
-        let switch_id = ClientMap.find_exn t.feats c_id in
-        t.shakes <- ClientSet.remove t.shakes c_id;
-        t.feats <- ClientMap.remove t.feats c_id;
-        t.clients <- SwitchMap.remove t.clients switch_id;
-        return [`Disconnect(c_id, switch_id, exn)]
+        let m_sw_id = ClientMap.find t.feats c_id in
+        match m_sw_id with
+          | None -> (* features request did not complete *)
+            t.shakes <- ClientSet.remove t.shakes c_id;
+            return []
+          | Some(sw_id) -> (* features request did complete *)
+            t.clients <- SwitchMap.remove t.clients sw_id;
+            t.feats <- ClientMap.remove t.feats c_id;
+            return [`Disconnect(c_id, sw_id, exn)]
 
   let listen t =
     let open Async_OpenFlow_Platform.Trans in
