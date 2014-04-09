@@ -41,7 +41,7 @@ module Controller = struct
   type t = {
     sub : ChunkController.t;
     mutable shakes : ClientSet.t;
-    mutable feats : SDN_Types.switchId ClientMap.t;
+    mutable switches : SDN_Types.switchId ClientMap.t;
     mutable clients : Client_id.t SwitchMap.t;
   }
 
@@ -65,7 +65,7 @@ module Controller = struct
   let listening_port t = ChunkController.listening_port t.sub
 
   (* XXX(seliopou): Raises `Not_found` if the client is no longer connected. *)
-  let switch_id_of_client t c_id = ClientMap.find_exn t.feats c_id
+  let switch_id_of_client t c_id = ClientMap.find_exn t.switches c_id
   let client_id_of_switch t sw_id = SwitchMap.find_exn t.clients sw_id
 
   let create ?max_pending_connections
@@ -77,7 +77,7 @@ module Controller = struct
     >>| function t ->
         { sub = t
         ; shakes = ClientSet.empty
-        ; feats = ClientMap.empty
+        ; switches = ClientMap.empty
         ; clients = SwitchMap.empty
         }
 
@@ -110,7 +110,7 @@ module Controller = struct
         begin match msg with
           | M.SwitchFeaturesReply fs ->
             let switch_id = fs.OpenFlow0x01.SwitchFeatures.switch_id in
-            t.feats <- ClientMap.add t.feats c_id switch_id;
+            t.switches <- ClientMap.add t.switches c_id switch_id;
             t.clients <- SwitchMap.add t.clients switch_id c_id;
             t.shakes <- ClientSet.remove t.shakes c_id;
             return [`Connect(c_id, fs)]
@@ -123,14 +123,14 @@ module Controller = struct
       | `Message (c_id, msg) ->
         return [`Message(c_id, msg)]
       | `Disconnect (c_id, exn) ->
-        let m_sw_id = ClientMap.find t.feats c_id in
+        let m_sw_id = ClientMap.find t.switches c_id in
         match m_sw_id with
           | None -> (* features request did not complete *)
             t.shakes <- ClientSet.remove t.shakes c_id;
             return []
           | Some(sw_id) -> (* features request did complete *)
             t.clients <- SwitchMap.remove t.clients sw_id;
-            t.feats <- ClientMap.remove t.feats c_id;
+            t.switches <- ClientMap.remove t.switches c_id;
             return [`Disconnect(c_id, sw_id, exn)]
 
   let listen t =
