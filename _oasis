@@ -122,3 +122,14 @@ Executable netkat_test
     core,
     netkat,
     netkat.async
+
+Executable test_updates
+  Path: frenetic
+  MainIs: test_updates.ml
+  Build$: flag(async)
+  Install: false
+  BuildDepends:
+    async,
+    core,
+    netkat,
+    netkat.async

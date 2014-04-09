@@ -230,6 +230,163 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
           return []
       end
 
+let get_switchids nib =
+  Net.Topology.fold_vertexes (fun v acc -> match Net.Topology.vertex_to_label nib v with
+    | Async_NetKAT.Switch id -> id::acc
+    | _ -> acc)
+  nib []
+
+let internal_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred.t =
+  let to_flow_mod prio flow =
+    OpenFlow0x01.Message.FlowModMsg (SDN_OpenFlow0x01.from_flow prio flow) in
+  let c_id = Controller.client_id_of_switch t.ctl sw_id in
+  t.locals <- SwitchMap.add t.locals sw_id
+    (Optimize.specialize_policy sw_id pol);
+  let local = NetKAT_LocalCompiler.compile sw_id pol in
+  Monitor.try_with ~name:"internal_update_table_for" (fun _ ->
+    let priority = ref 65536 in
+    let table = NetKAT_LocalCompiler.to_table local in
+    let open SDN_Types in
+    if List.length table <= 0
+      then raise (Assertion_failed (Printf.sprintf
+          "Controller.internal_update_table_for: empty table for switch %Lu" sw_id));
+      Deferred.List.iter table ~f:(fun flow ->
+          (* Add match on ver *)
+          let flow = {flow with pattern = SDN_Types.FieldMap.add Vlan ver flow.pattern} in
+          decr priority;
+          send t.ctl c_id (0l, to_flow_mod !priority flow)))
+  >>= function
+    | Ok () -> return ()
+    | Error exn_ ->
+      Log.error ~tags
+        "switch %Lu: Failed to update table in internal_update_table_for" sw_id;
+      Log.flushed ()
+
+(* Topology detection doesn't really detect hosts. So, I treat any port not connected to a known switch as an edge port *)
+let get_edge_ports (t : t) (sw_id : switchId) =
+  let open Async_NetKAT in
+  let open Net.Topology in
+  let topo = !(t.nib) in
+  let sw = vertex_of_label topo (Switch sw_id) in
+  PortSet.fold (fun pt acc ->
+      match next_hop topo sw pt with
+      | Some e -> let (node, _) = edge_dst e in
+        begin match vertex_to_label topo node with
+          | Host _ -> PortSet.add pt acc
+          | _ -> acc
+        end
+      | _ -> PortSet.add pt acc) (vertex_to_ports topo sw) PortSet.empty
+
+let get_internal_ports (t : t) (sw_id : switchId) =
+  let open Async_NetKAT in
+  let open Net.Topology in
+  let topo = !(t.nib) in
+  (* Log.error ~tags "topo: %s" (Net.Pretty.to_string topo); *)
+  (* Log.flushed (); *)
+  let sw = vertex_of_label topo (Switch sw_id) in
+  PortSet.fold (fun pt acc ->
+      match next_hop topo sw pt with
+      | Some e -> let (node, _) = edge_dst e in
+        begin match vertex_to_label topo node with
+          | Switch _ -> PortSet.add pt acc
+          | _ -> acc
+        end
+      | _ -> acc) (vertex_to_ports topo sw) PortSet.empty
+
+
+let compute_edge_table (t : t) ver table sw_id =
+  let internal_ports = get_internal_ports t sw_id in
+  let vlan_none = VInt.Int16 65535 in
+  (* Fold twice: once to fix match, second to fix fwd *)
+  let open SDN_Types in
+  let open Async_NetKAT.Net.Topology in
+  let rec fix_actions vlan_set = function
+    | (OutputPort pt) :: acts ->
+      let pt32 = VInt.get_int32 pt in
+      if not (PortSet.mem pt32 internal_ports) && vlan_set
+      then (SetField (Vlan, vlan_none)) :: (OutputPort pt) :: (fix_actions false acts)
+             (* else if (PortSet.mem pt32 internal_ports) && not vlan_set *)
+      else
+        (SetField (Vlan, ver)) :: (OutputPort pt) :: (fix_actions true acts)
+    | OutputAllPorts :: acts -> raise (Assertion_failed "Controller.compute_edge_table: OutputAllPorts not supported by consistent updates")
+    | Controller n :: acts -> (SetField (Vlan, vlan_none)) :: (Controller n) :: (fix_actions false acts)
+    | act :: acts -> act :: (fix_actions vlan_set acts)
+    | [] -> [] in
+  let match_table = List.fold table ~init:[] ~f:(fun acc r ->
+      if ((FieldMap.mem InPort r.pattern) && (PortSet.mem (VInt.get_int32 (FieldMap.find InPort r.pattern)) internal_ports))
+      then
+        acc
+      else
+        {r with pattern = FieldMap.add Vlan vlan_none r.pattern} :: acc)
+  in
+  List.fold match_table ~init:[] ~f:(fun acc r ->
+      {r with action = List.map r.action ~f:(fun x -> List.map x ~f:(fix_actions false))} :: acc)
+
+
+
+let edge_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred.t =
+  let to_flow_mod prio flow =
+    OpenFlow0x01.Message.FlowModMsg (SDN_OpenFlow0x01.from_flow prio flow) in
+  let c_id = Controller.client_id_of_switch t.ctl sw_id in
+  t.locals <- SwitchMap.add t.locals sw_id
+    (Optimize.specialize_policy sw_id pol);
+  let local = NetKAT_LocalCompiler.compile sw_id pol in
+  Monitor.try_with ~name:"edge_update_table_for" (fun _ ->
+    let priority = ref 65536 in
+    let table = NetKAT_LocalCompiler.to_table local in
+    let edge_table = compute_edge_table t ver table sw_id in
+    Log.info ~tags
+      "switch %Lu: Installing edge table %s" sw_id (SDN_Types.string_of_flowTable edge_table);
+    Deferred.List.iter edge_table ~f:(fun flow ->
+        decr priority;
+        send t.ctl c_id (0l, to_flow_mod !priority flow)))
+  >>= function
+  | Ok () -> return ()
+  | Error exn_ ->
+    Log.error ~tags
+      "switch %Lu: Failed to update table from edge_update_table_for" sw_id;
+    Log.error ~tags
+      "%s" (Exn.to_string exn_);
+    
+    Log.flushed ()
+
+let clear_old_table_for (t : t) ver sw_id : unit Deferred.t =
+  let open SDN_Types in
+  let delete_flows =
+    OpenFlow0x01.Message.FlowModMsg {(SDN_OpenFlow0x01.from_flow 0 {pattern = FieldMap.singleton Vlan ver;
+                                                                   action = [];
+                                                                   cookie = 0L;
+                                                                   idle_timeout = Permanent;
+                                    hard_timeout = Permanent})
+     with command = DeleteFlow} in
+  let c_id = Controller.client_id_of_switch t.ctl sw_id in
+  Monitor.try_with ~name:"clear_old_table_for" (fun () ->
+    send t.ctl c_id (5l, delete_flows))
+  >>= function
+  | Ok () -> return ()
+  | Error exn_ ->
+    Log.error ~tags
+      "switch %Lu: Failed to update table in delete_flows" sw_id;
+    Log.flushed ()
+
+let ver = ref 1
+
+let consistently_update_table (t : t) pol : unit Deferred.t =
+  let switches = get_switchids !(t.nib) in
+  let ver_num = !ver + 1 in
+  (* Install internal update *)
+  Deferred.List.iter switches (internal_update_table_for t (VInt.Int16 ver_num) pol)
+  (* Should wait, condition var upon return of barriers? *)
+  >>=
+  (* Install edge update *)
+  fun () -> Deferred.List.iter switches (edge_update_table_for t (VInt.Int16 ver_num) pol)
+  >>=
+  (* Delete old rules *)
+  fun () -> Deferred.List.iter switches (clear_old_table_for t (VInt.Int16 (ver_num - 1)))
+  >>=
+  (* Incr ver number *)
+  fun () -> return (incr ver)
+
 let update_table_for (t : t) (sw_id : switchId) pol : unit Deferred.t =
   let delete_flows =
     OpenFlow0x01.Message.FlowModMsg OpenFlow0x01_Core.delete_all_flows in
@@ -253,7 +410,7 @@ let update_table_for (t : t) (sw_id : switchId) pol : unit Deferred.t =
     | Ok () -> return ()
     | Error exn_ ->
       Log.error ~tags
-        "switch %Lu: Failed to update table" sw_id;
+        "switch %Lu: Failed to update table in update_table_for" sw_id;
       Log.flushed ()
 
 let get_switchids nib =
@@ -271,15 +428,15 @@ let handler
   fun e ->
     app' e >>= fun m_pol ->
     match m_pol with
-      | Some (pol) ->
-        Deferred.List.iter (get_switchids !(t.nib)) ~f:(fun sw_id ->
-          update_table_for t sw_id pol)
-      | None ->
-        begin match e with
-          | NetKAT_Types.SwitchUp sw_id ->
-            update_table_for t sw_id (Async_NetKAT.default app)
-          | _ -> return ()
-        end
+    | Some (pol) ->
+      consistently_update_table t pol
+      (* Deferred.List.iter (get_switchids !(t.nib)) (fun sw -> update_table_for t sw pol) *)
+    | None ->
+      begin match e with
+        | NetKAT_Types.SwitchUp sw_id ->
+        update_table_for t sw_id (Async_NetKAT.default app)
+        | _ -> return ()
+      end
 
 let start app ?(port=6633) () =
   let open Stage in
