@@ -66,7 +66,7 @@ module Controller = struct
     >>| function t -> { sub = t }
 
   let listen t =
-    let open Async_OpenFlow_Platform.Trans in
+    let open Async_OpenFlow_Trans in
     let open ChunkController in
     let stages =
       (local (fun t -> t.sub)

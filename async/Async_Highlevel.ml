@@ -179,7 +179,7 @@ let create ?max_pending_connections
       }
 
 let accept_switches (t : t) =
-  let open Async_OpenFlow_Platform.Trans in
+  let open Async_OpenFlow_Trans in
   let open Platform in
   let stages =
     (local (fun t -> t.sub)
