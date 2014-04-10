@@ -37,19 +37,22 @@ module Dump = struct
   let with_file f filename =
     In_channel.with_file filename ~f:(with_channel f)
 
+  let profile f =
+    let t1 = Unix.gettimeofday () in
+    let r = f () in
+    let t2 = Unix.gettimeofday () in
+    (t2 -. t1, r)
+
   module Local = struct
 
     let with_compile (sw : SDN_Types.switchId) (p : NetKAT_Types.policy) =
       let _ = 
         Format.printf "@[Compiling switch %Ld [size=%d]...@]%!"
           sw (NetKAT_Semantics.size p) in
-      let t1 = Unix.gettimeofday () in
-      let i = compile sw p in
-      let t2 = Unix.gettimeofday () in
-      let t = to_table i in
-      let t3 = Unix.gettimeofday () in
+      let c_time, i = profile (fun () -> compile sw p) in
+      let t_time, t = profile (fun () -> to_table i) in
       let _ = Format.printf "@[Done [ctime=%fs ttime=%fs tsize=%d]@\n@]%!"
-        (t2 -. t1) (t3 -. t2) (List.length t) in
+        c_time t_time (List.length t) in
       t
 
     let flowtable (sw : SDN_Types.switchId) t =
