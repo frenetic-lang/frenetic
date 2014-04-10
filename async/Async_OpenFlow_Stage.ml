@@ -1,16 +1,16 @@
 open Core.Std
 open Async.Std
 
-type ('t, 'a, 'b) stage = 't -> 'a -> 'b list Deferred.t
+type ('r, 'a, 'b) t = 'r -> 'a -> 'b list Deferred.t
 
-let compose (f : ('t, 'b, 'c) stage) (g : ('t, 'a, 'b) stage) : ('t, 'a, 'c) stage =
+let compose (f : ('r, 'b, 'c) t) (g : ('r, 'a, 'b) t) : ('r, 'a, 'c) t =
   fun t e -> g t e >>= function es ->
     Deferred.List.map ~f:(f t) es >>| List.concat
 
 let (>=>) f g = compose g f
 let (<=<) f g = compose f g
 
-let combine (f : ('t, 'a, 'b) stage) (g : ('t, 'a, 'b) stage) : ('t, 'a, 'b) stage =
+let combine (f : ('r, 'a, 'b) t) (g : ('r, 'a, 'b) t) : ('r, 'a, 'b) t =
   fun t e ->
     f t e >>= fun es1 ->
     g t e >>= fun es2 ->
@@ -18,10 +18,10 @@ let combine (f : ('t, 'a, 'b) stage) (g : ('t, 'a, 'b) stage) : ('t, 'a, 'b) sta
 
 let (<|>) f g = combine f g
 
-let local (l : 't1 -> 't2) (f : ('t2, 'a, 'b) stage) : ('t1, 'a, 'b) stage =
+let local (l : 'r1 -> 'r2) (f : ('r2, 'a, 'b) t) : ('r1, 'a, 'b) t =
   fun t e -> f (l t) e
 
-let run (f : ('t, 'a, 'b) stage) (t : 't) (r : 'a Pipe.Reader.t) : 'b Pipe.Reader.t =
+let run (f : ('r, 'a, 'b) t) (t : 'r) (r : 'a Pipe.Reader.t) : 'b Pipe.Reader.t =
   Pipe.init (fun w ->
     Pipe.iter r ~f:(fun e ->
       f t e >>| Queue.of_list

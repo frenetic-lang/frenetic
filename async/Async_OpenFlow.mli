@@ -78,18 +78,18 @@ module Platform : sig
 
 end
 
-module Trans : sig
-  type ('t, 'a, 'b) stage = 't -> 'a -> 'b list Deferred.t
+module Stage : sig
+  type ('r, 'a, 'b) t = 'r -> 'a -> 'b list Deferred.t
 
-  val compose : ('t, 'b, 'c) stage -> ('t, 'a, 'b) stage -> ('t, 'a, 'c) stage
-  val (>=>) : ('t, 'a, 'b) stage -> ('t, 'b, 'c) stage -> ('t, 'a, 'c) stage
-  val (<=<) : ('t, 'b, 'c) stage -> ('t, 'a, 'b) stage -> ('t, 'a, 'c) stage
+  val compose : ('r, 'b, 'c) t -> ('r, 'a, 'b) t -> ('r, 'a, 'c) t
+  val (>=>) : ('r, 'a, 'b) t -> ('r, 'b, 'c) t -> ('r, 'a, 'c) t
+  val (<=<) : ('r, 'b, 'c) t -> ('r, 'a, 'b) t -> ('r, 'a, 'c) t
 
-  val combine : ('t, 'a, 'b) stage -> ('t, 'a, 'b) stage -> ('t, 'a, 'b) stage
-  val (<|>) : ('t, 'a, 'b) stage -> ('t, 'a, 'b) stage -> ('t, 'a, 'b) stage
+  val combine : ('r, 'a, 'b) t -> ('r, 'a, 'b) t -> ('r, 'a, 'b) t
+  val (<|>) : ('r, 'a, 'b) t -> ('r, 'a, 'b) t -> ('r, 'a, 'b) t
 
-  val local : ('t1 -> 't2) -> ('t2, 'a, 'b) stage -> ('t1, 'a, 'b) stage
-  val run : ('t, 'a, 'b) stage -> 't -> 'a Pipe.Reader.t -> 'b Pipe.Reader.t
+  val local : ('r1 -> 'r2) -> ('r2, 'a, 'b) t -> ('r1, 'a, 'b) t
+  val run : ('r, 'a, 'b) t -> 'r -> 'a Pipe.Reader.t -> 'b Pipe.Reader.t
 end
 
 module Chunk : sig
@@ -112,8 +112,8 @@ module Chunk : sig
       | `Message of Client_id.t * m
     ]
 
-    val echo : (t, e, e) Trans.stage
-    val handshake : int -> (t, e, h) Trans.stage
+    val echo : (t, e, e) Stage.t
+    val handshake : int -> (t, e, h) Stage.t
   end
 
 end
@@ -136,7 +136,7 @@ module OpenFlow0x01 : sig
     val switch_id_of_client : t -> Client_id.t -> SDN_Types.switchId
     val client_id_of_switch : t -> SDN_Types.switchId -> Client_id.t
 
-    val features : (t, e, f) Trans.stage
+    val features : (t, e, f) Stage.t
   end
 
 end
