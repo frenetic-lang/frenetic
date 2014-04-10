@@ -104,6 +104,7 @@ Executable katnetic
   Install: false
   BuildDepends:
     async,
+    cmdliner,
     core,
     netkat,
     netkat.async

@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: e8e2832cb82a76f9f888a83fe9df8e5e)
+# DO NOT EDIT (digest: 09d87e8fe7d12ef9191f18089cd32129)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -94,6 +94,7 @@
 "frenetic/katnetic.byte": use_netkat
 "frenetic/katnetic.byte": package(async)
 "frenetic/katnetic.byte": package(core)
+"frenetic/katnetic.byte": package(cmdliner)
 "frenetic/katnetic.byte": package(packet)
 "frenetic/katnetic.byte": package(cstruct)
 "frenetic/katnetic.byte": package(cstruct.syntax)
@@ -106,6 +107,7 @@
 "frenetic/katnetic.byte": package(fieldslib)
 "frenetic/katnetic.byte": package(fieldslib.syntax)
 "frenetic/katnetic.byte": package(str)
+<frenetic/*.ml{,i}>: package(cmdliner)
 # Executable netkat_test
 "frenetic/netkat_test.byte": use_async
 "frenetic/netkat_test.byte": use_netkat
