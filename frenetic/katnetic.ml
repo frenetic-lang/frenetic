@@ -1,35 +1,25 @@
-open Core.Std
-open Async.Std
-
-let help args =
-  match args with 
-    | [ "run" ] -> 
-      Format.printf 
-        "@[usage: katnetic run local <filename> @\n@]"
-    | [ "dump" ] -> 
-      Format.printf 
-        "@[usage: katnetic dump local [all|policies|flowtables] <number of switches> <filename> @\n@]"
-    | _ -> 
-      Format.printf "@[usage: katnetic <command> @\n%s@\n%s@\n@]"
-	"  run    Compile and start the controller"  
-	"  dump   Compile and dump flow table"
-
 module Run = struct
-  open NetKAT_LocalCompiler
+  open Core.Std
+  open Async.Std
 
-  let main args =
-    match args with
-      | [filename]
-      | ("local" :: [filename]) ->
-        let main () =
-          let static = Async_NetKAT.create_from_file filename in
-          Async_NetKAT_Controller.start static () in
-        never_returns (Scheduler.go_main ~max_num_open_file_descrs:4096 ~main ())
-      | _ -> help [ "run" ]
+
+  let main learn filename =
+    let open NetKAT_LocalCompiler in
+    let main () =
+      let static = Async_NetKAT.create_from_file filename in
+      let app = if learn
+        then Async_NetKAT.union static (Learning.create ())
+        else static
+      in
+      Async_NetKAT_Controller.start app () in
+    never_returns (Scheduler.go_main ~max_num_open_file_descrs:4096 ~main ())
 end
 
 module Dump = struct
-  open NetKAT_LocalCompiler
+  open Core.Std
+  open Async.Std
+
+  type level = All | Policies | Flowtables | Stats
 
   let with_channel f chan =
     f (NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_channel chan))
@@ -46,6 +36,7 @@ module Dump = struct
   module Local = struct
 
     let with_compile (sw : SDN_Types.switchId) (p : NetKAT_Types.policy) =
+      let open NetKAT_LocalCompiler in
       let _ = 
         Format.printf "@[Compiling switch %Ld [size=%d]...@]%!"
           sw (NetKAT_Semantics.size p) in
@@ -64,16 +55,16 @@ module Dump = struct
     let policy p =
       Format.printf "@[%a@\n@\n@]%!" NetKAT_Pretty.format_policy p
 
-    let local f sw_num p =
-      (* NOTE(seliopou): This may not catch all ports, but it'll catch some of
-       * 'em! Also, lol for loop.
-       * *)
-      for sw = 0 to sw_num do
-        let swL = Int64.of_int sw in 
-        let sw_p = NetKAT_Types.(Seq(Filter(Test(Switch swL)), p)) in 
-        let t = with_compile swL sw_p in
-        f swL t
-      done
+    let local f num_switches p =
+      let rec loop switch_id =
+        if switch_id > num_switches then ()
+        else begin
+          let swL = Int64.of_int32 switch_id in
+          let sw_p = NetKAT_Types.(Seq(Filter(Test(Switch swL)), p)) in
+          let t = with_compile swL sw_p in
+          f swL t; loop Int32.(switch_id + 1l)
+        end in
+      loop 0l
 
     let all sw_num p =
       policy p;
@@ -82,30 +73,59 @@ module Dump = struct
     let stats sw_num p =
       local (fun x y -> ()) sw_num p
 
-    let main args =
-      match args with
-        | (sw_num :: [filename])
-        | ("all"        :: [sw_num; filename]) -> with_file (all (int_of_string sw_num)) filename
-        | ("policies"   :: [sw_num; filename]) -> with_file policy filename
-        | ("flowtables" :: [sw_num; filename]) -> with_file (local flowtable (int_of_string sw_num)) filename
-        | ("stats"      :: [sw_num; filename]) -> with_file (stats (int_of_string sw_num)) filename
-        | _ -> 
-          Format.printf 
-            "@[usage: katnetic dump local [all|policies|flowtables|stats] <number of switches> <filename>@\n@]%!"
+    let main level num_switches filename =
+      match level with
+        | All -> with_file (all num_switches) filename
+        | Policies -> with_file policy filename
+        | Flowtables -> with_file (local flowtable num_switches) filename
+        | Stats -> with_file (stats num_switches) filename
   end
-
-
-  let main args  =
-    match args with
-      | ("local"     :: args') -> Local.main args'
-      | _ -> help [ "dump" ]
 end
 
-let _ = 
-  match Array.to_list Sys.argv with
-    | (_ :: "run"  :: args) -> 
-      Run.main args
-    | (_ :: "dump" :: args) -> 
-      Dump.main args
-    | _ -> 
-      help []
+open Cmdliner
+
+let policy n =
+  let doc = "file containing a static NetKAT policy" in
+  Arg.(required & (pos n (some file) None) & info [] ~docv:"FILE" ~doc)
+
+let run_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
+  let learn =
+    let doc = "enable per-switch L2 learning" in
+    Arg.(value & flag & info ["learn"] ~doc)
+  in
+  let doc = "start a controller that will serve the static policy" in
+  Term.(pure Run.main $ learn $ (policy 0)),
+  Term.info "run" ~doc
+
+let dump_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
+  let doc = "dump per-switch compiler results and statistics" in
+  let switch_id =
+    let doc = "the maximum switch id in the policy" in
+    Arg.(required & (pos 0 (some int32) None) & info [] ~docv:"NUM_SWITCHES" ~doc)
+  in
+  let level =
+    let doc = "Dump all compiler information (default)" in
+    let all = Dump.All, Arg.info ["all"] ~doc in
+
+    let doc = "Dump per-switch policy" in
+    let policies = Dump.Policies, Arg.info ["policies"] ~doc in
+
+    let doc = "Dump per-switch flowtables" in
+    let flowtables = Dump.Flowtables, Arg.info ["flowtables"] ~doc in
+
+    let doc = "Dump per-switch profiling statistics" in
+    let stats = Dump.Stats, Arg.info ["stats"] ~doc in
+
+    Arg.(last & vflag_all [Dump.All] [all;policies;flowtables;stats]) in
+  Term.(pure Dump.Local.main $ level $ switch_id $ (policy 1)),
+  Term.info "dump" ~doc
+
+let default_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
+  let doc = "an sdn controller platform" in
+  Term.(ret (pure (`Help(`Plain, None)))),
+  Term.info "katnetic" ~version:"1.6.1" ~doc
+
+let cmds = [run_cmd; dump_cmd]
+
+let () = match Term.eval_choice default_cmd cmds with
+  | `Error _ -> exit 1 | _ -> exit 0
