@@ -91,30 +91,6 @@ module Platform : sig
   end
 end
 
-(** Lower-level interface. *)
-module ClientServer : sig
-
-  module type S = sig
-
-    type t
-
-    val listen
-      : ([< Socket.Address.t ] as 'a, 'b) Tcp.Where_to_listen.t
-      -> (t Pipe.Reader.t -> t Pipe.Writer.t -> unit Deferred.t)
-      -> ('a, 'b) Tcp.Server.t Deferred.t
-         
-    val connect
-      :  'addr Tcp.where_to_connect
-      -> (([ `Active ], 'addr) Socket.t -> t Pipe.Reader.t -> t Pipe.Writer.t -> 
-          'a Deferred.t)
-      -> 'a Deferred.t
-
-  end
-
-  module Make (M : Message) : S with type t = M.t
-
-end
-
 module Chunk : sig
 
   module Message : Message
@@ -162,11 +138,6 @@ module OpenFlow0x01 : sig
     val features : (t, e, f) Platform.Trans.stage
   end
 
-  val chunk_conv
-    :  Chunk.Message.t Pipe.Reader.t * Chunk.Message.t Pipe.Writer.t
-    -> [`Ok of Message.t | `Chunk of Chunk.Message.t] Pipe.Reader.t * 
-       [`Ok of Message.t | `Chunk of Chunk.Message.t] Pipe.Writer.t
-
 end
 
 module OpenFlow0x04 : sig
@@ -176,11 +147,6 @@ module OpenFlow0x04 : sig
 
   module Controller : Platform.S
     with type m = Message.t
-
-  val chunk_conv
-    :  Chunk.Message.t Pipe.Reader.t * Chunk.Message.t Pipe.Writer.t
-    -> [`Ok of Message.t | `Chunk of Chunk.Message.t] Pipe.Reader.t * 
-       [`Ok of Message.t | `Chunk of Chunk.Message.t] Pipe.Writer.t
 
 end
 
