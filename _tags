@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: e1e26434aaae617000c026272165c731)
+# DO NOT EDIT (digest: 1f1c35800200c5e30e955ebb0255ecd0)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -101,18 +101,6 @@
 <ping-test/*.ml{,i}>: package(str)
 <ping-test/*.ml{,i}>: package(cstruct)
 <ping-test/*.ml{,i}>: package(cstruct.syntax)
-# Executable Hypervisor
-"examples/Hypervisor.byte": use_async
-"examples/Hypervisor.byte": use_openflow
-"examples/Hypervisor.byte": package(threads)
-"examples/Hypervisor.byte": package(core)
-"examples/Hypervisor.byte": package(async)
-"examples/Hypervisor.byte": package(packet)
-"examples/Hypervisor.byte": package(cstruct.async)
-"examples/Hypervisor.byte": package(sexplib.syntax)
-"examples/Hypervisor.byte": package(str)
-"examples/Hypervisor.byte": package(cstruct)
-"examples/Hypervisor.byte": package(cstruct.syntax)
 # Executable learning_switch
 "examples/Learning_Switch.byte": use_async
 "examples/Learning_Switch.byte": use_openflow
