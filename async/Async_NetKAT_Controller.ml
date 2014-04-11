@@ -287,7 +287,7 @@ let handler (t : t) w app =
         end
 
 let start app ?(port=6633) () =
-  let open Async_OpenFlow.Platform.Trans in
+  let open Async_OpenFlow.Stage in
   Controller.create ~max_pending_connections ~port ()
   >>> fun ctl ->
     let t = {
