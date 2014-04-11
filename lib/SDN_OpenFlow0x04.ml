@@ -88,27 +88,32 @@ module Common = HighLevelSwitch_common.Make (struct
           (Mod.none, Output (PhysicalPort pport_id))
       | AL.Enqueue(_, _) ->
         raise (Invalid_argument "cannot enqueue")
-      | AL.SetField (AL.InPort, _) -> raise (Invalid_argument "cannot set input port")
-      | AL.SetField (AL.EthType, _) -> raise (Invalid_argument "cannot set frame type")
-      | AL.SetField (AL.EthSrc, VInt.Int48 n) -> (Mod.dlSrc, Core.SetField (OxmEthSrc (v_to_m n)))
-      | AL.SetField (AL.EthDst, VInt.Int48 n) -> (Mod.dlDst , Core.SetField (OxmEthDst (v_to_m n)))
-      | AL.SetField (AL.Vlan, n) -> let n = VInt.get_int16 n in
-                              begin
-                                match n with
-                                  | 0xFFFF -> (Mod.dlVlan, Core.PopVlan)
-                                  | -1 -> (Mod.dlVlan, Core.PushVlan)
-                                  | _ -> (Mod.dlVlan, Core.SetField (OxmVlanVId (v_to_m (n lor 0x1000 (*OFPVID_PRESENT*) ))))
-                              end
-      | AL.SetField (AL.VlanPcp, n) -> let n = VInt.get_int4 n in
-                                 (Mod.dlVlanPcp, Core.SetField (OxmVlanPcp n))
+      | AL.Modify (AL.SetEthSrc n) ->
+        (Mod.dlSrc, Core.SetField (OxmEthSrc (v_to_m n)))
+      | AL.Modify (AL.SetEthDst n) ->
+        (Mod.dlDst , Core.SetField (OxmEthDst (v_to_m n)))
+      | AL.Modify (AL.SetVlan vlan) ->
+        begin match vlan with
+          | None
+          | Some(0xffff) ->
+            (Mod.dlVlan, Core.PopVlan)
+          | Some(-1) ->
+            (Mod.dlVlan, Core.PushVlan)
+          | Some(n) ->
+            let n = VInt.(get_int12 (Int16 n)) in
+            let vlan_id = v_to_m (n lor 0x1000) (*OFPVID_PRESENT*) in
+            (Mod.dlVlan, Core.SetField (OxmVlanVId vlan_id))
+        end
+      | AL.Modify (AL.SetVlanPcp pcp) ->
+        let pcp = VInt.(get_int4 (Int4 pcp)) in
+        (Mod.dlVlanPcp, Core.SetField (OxmVlanPcp pcp))
       (* MJR: This seems silly. OF 1.3 has no such restriction *)
-      | AL.SetField (AL.IPProto, _) -> raise (Invalid_argument "cannot set IP protocol")
-      | AL.SetField (AL.IP4Src, VInt.Int32 n) -> (Mod.nwSrc, Core.SetField (OxmIP4Src (v_to_m n)))
-      | AL.SetField (AL.IP4Dst, VInt.Int32 n) -> (Mod.nwDst, Core.SetField (OxmIP4Dst (v_to_m n)))
-      | AL.SetField (AL.TCPSrcPort, VInt.Int16 n) -> (Mod.tpSrc, Core.SetField (OxmTCPSrc (v_to_m n)))
-      | AL.SetField (AL.TCPDstPort, VInt.Int16 n) -> (Mod.tpDst, Core.SetField (OxmTCPDst (v_to_m n)))
-      | AL.SetField _ -> raise (Invalid_argument "invalid SetField combination")
-
+      | AL.Modify (AL.SetEthTyp _) -> raise (Invalid_argument "cannot set Ethernet type")
+      | AL.Modify (AL.SetIPProto _) -> raise (Invalid_argument "cannot set IP protocol")
+      | AL.Modify (AL.SetIP4Src n) -> (Mod.nwSrc, Core.SetField (OxmIP4Src (v_to_m n)))
+      | AL.Modify (AL.SetIP4Dst n) -> (Mod.nwDst, Core.SetField (OxmIP4Dst (v_to_m n)))
+      | AL.Modify (AL.SetTCPSrcPort n) -> (Mod.tpSrc, Core.SetField (OxmTCPSrc (v_to_m n)))
+      | AL.Modify (AL.SetTCPDstPort n) -> (Mod.tpDst, Core.SetField (OxmTCPDst (v_to_m n)))
   end)
 
 (* calculates the watch port *)
@@ -176,14 +181,16 @@ let from_flow (groupTable : GroupTable0x04.t) (priority : int) (flow : AL.flow) 
 *)
 let contains_vlan_pop (act : SDN_Types.group) = 
   let vlan_pop a = match a with
-    | SDN_Types.SetField (SDN_Types.Vlan, VInt.Int16 0xFFFF) -> true
+    | AL.Modify (AL.SetVlan None)
+    | AL.Modify (AL.SetVlan (Some 0xFFFF)) -> true
     | _ -> false in
   List.exists (List.exists (List.exists vlan_pop)) act
 
 let contains_vlan_mod (act : SDN_Types.group) = 
   let vlan_mod a = match a with
-    | SDN_Types.SetField (SDN_Types.Vlan, VInt.Int16 0xFFFF) -> false
-    | SDN_Types.SetField (SDN_Types.Vlan, _) -> true
+    | AL.Modify (AL.SetVlan None)
+    | AL.Modify (AL.SetVlan (Some 0xFFFF)) -> false
+    | AL.Modify (AL.SetVlan (Some _)) -> true
     | _ -> false in
   List.exists (List.exists (List.exists vlan_mod)) act
 
@@ -193,12 +200,13 @@ let contains_vlan (pat:AL.pattern) =
     | Some _ -> true
 
 let strip_vlan_pop = List.map (List.map (List.fold_left (fun acc a -> match a with
-  | SDN_Types.SetField (SDN_Types.Vlan, VInt.Int16 0xFFFF) -> acc
+  | AL.Modify (AL.SetVlan None)
+  | AL.Modify (AL.SetVlan (Some 0xFFFF)) -> acc
   | _ -> a :: acc) []))
 
 (* I use set vlan = -1 to signal HighLevelSwitch0x04 for a push_vlan *)
 let add_vlan_push = List.map (List.map (List.fold_left (fun acc a -> match a with
-  | SDN_Types.SetField (SDN_Types.Vlan, _ ) -> SDN_Types.SetField (SDN_Types.Vlan, VInt.Int16 (-1)) :: a :: acc
+  | AL.Modify (AL.SetVlan _) -> AL.Modify (AL.SetVlan (Some (-1))) :: a :: acc
   | _ -> a :: acc) []))
 
 (* I assume that vlan is not both set and popped in the same rule *)

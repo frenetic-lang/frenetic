@@ -11,21 +11,6 @@ type queueId = int32
 
 type bufferId = int32
 
-type field =
-  | InPort
-  | EthType
-  | EthSrc
-  | EthDst
-  | Vlan
-  | VlanPcp
-  | IPProto
-  | IP4Src
-  | IP4Dst
-  | TCPSrcPort
-  | TCPDstPort
-
-type fieldVal = VInt.t
-
 type pattern =
     { dlSrc : dlAddr option
     ; dlDst : dlAddr option
@@ -52,13 +37,24 @@ let all_pattern =
     ; tpDst = None
     ; inPort = None }
 
+type modify =
+  | SetEthSrc of dlAddr
+  | SetEthDst of dlAddr
+  | SetVlan of dlVlan
+  | SetVlanPcp of dlVlanPcp
+  | SetEthTyp of dlTyp
+  | SetIPProto of nwProto
+  | SetIP4Src of nwAddr
+  | SetIP4Dst of nwAddr
+  | SetTCPSrcPort of tpPort
+  | SetTCPDstPort of tpPort
 
 type action =
   | OutputAllPorts
   | OutputPort of portId
   | Controller of int
   | Enqueue of portId * queueId
-  | SetField of field * fieldVal
+  | Modify of modify
 
 type seq = action list
 
@@ -108,31 +104,6 @@ type flowStats = {
   flow_byte_count: int64
 }
 
-let format_field (fmt : Format.formatter) (f : field) : unit =
-  Format.pp_print_string fmt
-    (match f with
-      | InPort -> "port"
-      | EthType -> "ethTyp"
-      | EthSrc -> "ethSrc"
-      | EthDst -> "ethDst"
-      | Vlan -> "vlanId"
-      | VlanPcp -> "vlanPcp"
-      | IPProto -> "ipProto"
-      | IP4Src -> "ipSrc"
-      | IP4Dst -> "ipDst"
-      | TCPSrcPort -> "tcpSrcPort"
-      | TCPDstPort -> "tcpDstPort")
-
-let format_value (fmt : Format.formatter) (f : field) (v : VInt.t) : unit =
-  match f with
-    | EthType -> Format.fprintf fmt "0x%x" (VInt.get_int16 v)
-    | EthSrc
-    | EthDst -> Format.pp_print_string fmt (Packet.string_of_mac (VInt.get_int48 v))
-    | IPProto -> Format.fprintf fmt "0x%x" (VInt.get_int8 v)
-    | IP4Src
-    | IP4Dst -> Format.pp_print_string fmt (Packet.string_of_ip (VInt.get_int32 v))
-    | _ -> VInt.format fmt v
-
 let format_mac (fmt : Format.formatter) (v:int48) =
   Format.pp_print_string fmt (Packet.string_of_mac v)
 
@@ -174,6 +145,32 @@ let format_pattern (fmt:Format.formatter) (p:pattern) : unit =
   format_field "port" format_int32 p.inPort;
   Format.fprintf fmt "}@]"
 
+let format_modify (fmt:Format.formatter) (m:modify) : unit =
+  match m with
+  | SetEthSrc(dlAddr) ->
+    Format.fprintf fmt "SetField(ethSrc, %a)" format_mac dlAddr
+  | SetEthDst(dlAddr) ->
+    Format.fprintf fmt "SetField(ethDst, %a)" format_mac dlAddr
+  | SetVlan(None)
+  | SetVlan(Some(0xffff)) ->
+    Format.fprintf fmt "SetField(vlan, <none>)"
+  | SetVlan(Some(id)) ->
+    Format.fprintf fmt "SetField(vlan, %u)" id
+  | SetVlanPcp(pcp) ->
+    Format.fprintf fmt "SetField(vlanPcp, %u)" pcp
+  | SetEthTyp(dlTyp) ->
+    Format.fprintf fmt "SetField(ethTyp, %u)" dlTyp
+  | SetIPProto(nwProto) ->
+    Format.fprintf fmt "SetField(ipProto, %a)" format_hex nwProto
+  | SetIP4Src(nwAddr) ->
+    Format.fprintf fmt "SetField(ipSrc, %a)" format_ip nwAddr
+  | SetIP4Dst(nwAddr) ->
+    Format.fprintf fmt "SetField(ipDst, %a)" format_ip nwAddr
+  | SetTCPSrcPort(tpPort) ->
+    Format.fprintf fmt "SetField(tcpSrcPort, %a)" format_int tpPort
+  | SetTCPDstPort(tpPort) ->
+    Format.fprintf fmt "SetField(tcpDstPort, %a)" format_int tpPort
+
 let rec format_action (fmt:Format.formatter) (a:action) : unit = 
   match a with         
   | OutputAllPorts -> 
@@ -184,8 +181,8 @@ let rec format_action (fmt:Format.formatter) (a:action) : unit =
     Format.fprintf fmt "Controller(%d)" n
   | Enqueue(m,n) -> 
     Format.fprintf fmt "Enqueue(%ld,%ld)" m n
-  | SetField(f,v) -> 
-    Format.fprintf fmt "SetField(%a,%a)" format_field f (fun fmt -> format_value fmt f) v
+  | Modify(m) ->
+    format_modify fmt m
 
 let rec format_seq (fmt : Format.formatter) (seq : seq) : unit =
   match seq with
@@ -242,7 +239,6 @@ let make_string_of formatter x =
 let string_of_action = make_string_of format_action
 let string_of_seq = make_string_of format_seq
 let string_of_par = make_string_of format_par
-let string_of_field = make_string_of format_field
 let string_of_pattern = make_string_of format_pattern
 let string_of_flow = make_string_of format_flow
 let string_of_flowTable = make_string_of format_flowTable

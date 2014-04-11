@@ -87,21 +87,31 @@ module Common = HighLevelSwitch_common.Make (struct
           (Mod.none, Enqueue(InPort, queue_id))
         else 
           (Mod.none, Enqueue (PhysicalPort pport_id, queue_id))
-      | AL.SetField (AL.InPort, _) -> raise (Invalid_argument "cannot set input port")
-      | AL.SetField (AL.EthType, _) -> raise (Invalid_argument "cannot set frame type")
-      | AL.SetField (AL.EthSrc, n) -> (Mod.dlSrc, SetDlSrc (VInt.get_int48 n))
-      | AL.SetField (AL.EthDst, n) -> (Mod.dlDst , SetDlDst (VInt.get_int48 n))
-      | AL.SetField (AL.Vlan, n) -> 
-  begin match VInt.get_int16 n with 
-    | 0xFFFF -> (Mod.dlVlan, SetDlVlan None)
-    | n -> (Mod.dlVlan, SetDlVlan (Some n))
-  end
-      | AL.SetField (AL.VlanPcp, n) -> (Mod.dlVlanPcp, SetDlVlanPcp (VInt.get_int4 n))
-      | AL.SetField (AL.IPProto, _) -> raise (Invalid_argument "cannot set IP protocol")
-      | AL.SetField (AL.IP4Src, n) -> (Mod.nwSrc, SetNwSrc (VInt.get_int32 n))
-      | AL.SetField (AL.IP4Dst, n) -> (Mod.nwDst, SetNwDst (VInt.get_int32 n))
-      | AL.SetField (AL.TCPSrcPort, n) -> (Mod.tpSrc, SetTpSrc (VInt.get_int16 n))
-      | AL.SetField (AL.TCPDstPort, n) -> (Mod.tpDst, SetTpDst (VInt.get_int16 n))
+      | AL.Modify (AL.SetEthSrc dlAddr) ->
+        (Mod.dlSrc, SetDlSrc VInt.(get_int48 (Int64 dlAddr)))
+      | AL.Modify (AL.SetEthDst dlAddr) ->
+        (Mod.dlDst , SetDlDst VInt.(get_int48 (Int64 dlAddr)))
+      | AL.Modify (AL.SetVlan vlan) ->
+        begin match vlan with
+          | None
+          | Some(0xffff) ->
+            (Mod.dlVlan, SetDlVlan None)
+          | Some(n) ->
+            let n = VInt.(get_int12 (Int16 n)) in
+            (Mod.dlVlan, SetDlVlan (Some n))
+        end
+      | AL.Modify (AL.SetVlanPcp pcp) ->
+        (Mod.dlVlanPcp, SetDlVlanPcp(VInt.(get_int4 (Int4 pcp))))
+      | AL.Modify (AL.SetEthTyp _) -> raise (Invalid_argument "cannot set Ethernet type")
+      | AL.Modify (AL.SetIPProto _) -> raise (Invalid_argument "cannot set IP protocol")
+      | AL.Modify (AL.SetIP4Src nwAddr) ->
+        (Mod.nwSrc, SetNwSrc nwAddr)
+      | AL.Modify (AL.SetIP4Dst nwAddr) ->
+        (Mod.nwDst, SetNwDst nwAddr)
+      | AL.Modify (AL.SetTCPSrcPort tp) ->
+        (Mod.tpSrc, SetTpSrc VInt.(get_int16 (Int16 tp)))
+      | AL.Modify (AL.SetTCPDstPort tp) ->
+        (Mod.tpDst, SetTpDst VInt.(get_int16 (Int16 tp)))
 end)
 
 let from_group (inPort : Core.portId option) (group : AL.group) : Core.action list =

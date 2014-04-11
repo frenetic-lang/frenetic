@@ -41,21 +41,6 @@ exception Unsupported of string
 
 (** {1 Packet Forwarding} *)
 
-type field =
-  | InPort
-  | EthType
-  | EthSrc
-  | EthDst
-  | Vlan
-  | VlanPcp
-  | IPProto
-  | IP4Src
-  | IP4Dst
-  | TCPSrcPort
-  | TCPDstPort
-
-type fieldVal = VInt.t
-
 (** WARNING: There are dependencies between different fields that must be met. *)
 type pattern =
     { dlSrc : dlAddr option
@@ -72,12 +57,24 @@ type pattern =
 
 val all_pattern : pattern
 
+type modify =
+  | SetEthSrc of dlAddr
+  | SetEthDst of dlAddr
+  | SetVlan of dlVlan
+  | SetVlanPcp of dlVlanPcp
+  | SetEthTyp of dlTyp
+  | SetIPProto of nwProto
+  | SetIP4Src of nwAddr
+  | SetIP4Dst of nwAddr
+  | SetTCPSrcPort of tpPort
+  | SetTCPDstPort of tpPort
+
 type action =
   | OutputAllPorts
   | OutputPort of portId
   | Controller of int
   | Enqueue of portId * queueId
-  | SetField of field * fieldVal
+  | Modify of modify
  
 type seq = action list
 
@@ -149,14 +146,12 @@ val format_action : Format.formatter -> action -> unit
 val format_seq : Format.formatter -> seq -> unit
 val format_par : Format.formatter -> par -> unit
 val format_group : Format.formatter -> group -> unit
-val format_field : Format.formatter -> field -> unit
 val format_pattern : Format.formatter -> pattern -> unit
 val format_flow : Format.formatter -> flow -> unit
 val format_flowTable : Format.formatter -> flowTable -> unit
 
 val string_of_action : action -> string
 val string_of_seq : seq -> string
-val string_of_field : field -> string
 val string_of_pattern : pattern -> string
 val string_of_flow : flow -> string
 val string_of_flowTable : flowTable -> string
