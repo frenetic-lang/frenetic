@@ -19,6 +19,8 @@ val get_int32 : t -> Int32.t
 
 val get_int16 : t -> int
 
+val get_int12 : t -> int
+
 val get_int8 : t -> int
 
 val get_int4 : t -> int

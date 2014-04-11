@@ -74,6 +74,11 @@ let get_int16 (v : t) : int =
   if n > 0xFFFF then raise (Invalid_argument "get_int16")
   else n
 
+let get_int12 (v : t) : int =
+  let n = vint_to_int v in
+  if n > 0xFFF then raise (Invalid_argument "get_int12")
+  else n
+
 let get_int8 (v : t) : int =
   let n = vint_to_int v in
   if n > 0xFF then raise (Invalid_argument "get_int8")
