@@ -162,8 +162,6 @@ TEST "vlan" =
    test_compile_table pol
      [ dropEthSrc 0L;
        dropEthSrc 1L;
-       dropEthSrc 0L;
-       dropEthSrc 1L;
        flow FieldMap.empty [a]]
 
 module FromPipe = struct

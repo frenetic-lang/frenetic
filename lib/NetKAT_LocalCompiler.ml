@@ -140,6 +140,8 @@ module PosNeg (H:NetKAT_Types.Headers.HEADER) = struct
     match y with
       | Pos s -> Neg s
       | Neg s -> Pos s
+
+  let diff y1 y2 = inter y1 (neg y2)
 end
 
 module OL = Option(NetKAT_Types.LocationHeader)
@@ -921,6 +923,37 @@ module RunTime = struct
       ~f:(fun (p,s) -> expand_rules p s)
 end
 
+module Local_Optimize = struct
+
+  (*
+   * A pattern p shadows another pattern q if every field f which is defined
+   * for both p and q satisfies p(f)=q(f) and p is a superset of q.
+   *)
+  let pattern_shadows (p: pattern) (q: pattern) : bool =
+    let q_check k v =
+      try FieldMap.find k p = v
+      with Not_found -> true in
+    let p_check k v =
+      try FieldMap.find k q = v
+      with Not_found -> false in
+    FieldMap.for_all p_check p &&
+    FieldMap.for_all q_check q
+
+  (*
+   * Optimize a flow table by removing rules which are shadowed by other rules.
+   *)
+  let optimize_table (table: flowTable) : flowTable =
+    let flow_is_shadowed f t =
+      List.exists t
+        ~f:(fun x -> pattern_shadows x.pattern f.pattern) in
+    List.rev (
+      List.fold_left
+        ~f:(fun acc x -> if flow_is_shadowed x acc then acc else (x::acc))
+        ~init:[]
+        table)
+
+end
+
 (* exports *)
 type t = RunTime.i
 
@@ -933,5 +966,5 @@ let to_netkat =
 let compile =
   RunTime.compile
 
-let to_table =
-  RunTime.to_table
+let to_table t =
+  Local_Optimize.optimize_table (RunTime.to_table t)
