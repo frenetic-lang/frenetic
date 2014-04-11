@@ -76,19 +76,50 @@ module Platform : sig
 
   module Make(Message : Message) : S with type m = Message.t
 
-  module Trans : sig
-    type ('t, 'a, 'b) stage = 't -> 'a -> 'b list Deferred.t
+end
 
-    val compose : ('t, 'b, 'c) stage -> ('t, 'a, 'b) stage -> ('t, 'a, 'c) stage
-    val (>=>) : ('t, 'a, 'b) stage -> ('t, 'b, 'c) stage -> ('t, 'a, 'c) stage
-    val (<=<) : ('t, 'b, 'c) stage -> ('t, 'a, 'b) stage -> ('t, 'a, 'c) stage
+(** A stage is an effectful computation that takes an environment and produces
+ * zero or more results.
+ * *)
+module Stage : sig
+  (** [('r, 'a, 'b') t] is type for stages that take an environment of type 'r,
+   * and argument of type 'a, and produces values of type 'b.
+   * *)
+  type ('r, 'a, 'b) t = 'r -> 'a -> 'b list Deferred.t
 
-    val combine : ('t, 'a, 'b) stage -> ('t, 'a, 'b) stage -> ('t, 'a, 'b) stage
-    val (<|>) : ('t, 'a, 'b) stage -> ('t, 'a, 'b) stage -> ('t, 'a, 'b) stage
+  (** [compose s2 s1] is a stage that, when run, will run the s2 stage first,
+   * and pass any results into the s1 stage. The enviornment will be threaded
+   * through both stages in the same order as the stages are run.
+   * *)
+  val compose : ('r, 'b, 'c) t -> ('r, 'a, 'b) t -> ('r, 'a, 'c) t
 
-    val local : ('t1 -> 't2) -> ('t2, 'a, 'b) stage -> ('t1, 'a, 'b) stage
-    val run : ('t, 'a, 'b) stage -> 't -> 'a Pipe.Reader.t -> 'b Pipe.Reader.t
-  end
+  (** [s1 >=> s2] is equivalent to [compose s2 s1] *)
+  val (>=>) : ('r, 'a, 'b) t -> ('r, 'b, 'c) t -> ('r, 'a, 'c) t
+
+  (** [s2 <=< s1] is equivalent to [compose s2 s1] *)
+  val (<=<) : ('r, 'b, 'c) t -> ('r, 'a, 'b) t -> ('r, 'a, 'c) t
+
+  (** [combine s1 s2] is a stage that, when run, will pass the environment and
+   * argument to both stages. The result of [combine s1 s2] is the result of
+   * [s1] and [s2], concatenated.
+   * *)
+  val combine : ('r, 'a, 'b) t -> ('r, 'a, 'b) t -> ('r, 'a, 'b) t
+
+  (** [s1 <|> s2] is equivalent to [combine s1 s2]. *)
+  val (<|>) : ('r, 'a, 'b) t -> ('r, 'a, 'b) t -> ('r, 'a, 'b) t
+
+  (** [local f] transforms a stage that expects an evironment type of ['r2] into
+   * a stage that expects an environment type of ['r1]. It does this by using
+   * [f] to recover a value of type ['r2] from a value of type ['r1].
+   * *)
+  val local : ('r1 -> 'r2) -> ('r2, 'a, 'b) t -> ('r1, 'a, 'b) t
+
+  (** [run s t] turns the stage into a function that will transform a
+   * [Pipe.Reader.t] that prodcues values of type ['a] to a [Pipe.Reader.t]
+   * that produces values of type ['b]. In essence, [run s t] lifts the stage
+   * into a pipe transformer, and uses the [t] value as the environment on each
+   * invocation of the stage. *)
+  val run : ('r, 'a, 'b) t -> 'r -> 'a Pipe.Reader.t -> 'b Pipe.Reader.t
 end
 
 module Chunk : sig
@@ -111,8 +142,8 @@ module Chunk : sig
       | `Message of Client_id.t * m
     ]
 
-    val echo : (t, e, e) Platform.Trans.stage
-    val handshake : int -> (t, e, h) Platform.Trans.stage
+    val echo : (t, e, e) Stage.t
+    val handshake : int -> (t, e, h) Stage.t
   end
 
 end
@@ -135,7 +166,7 @@ module OpenFlow0x01 : sig
     val switch_id_of_client : t -> Client_id.t -> SDN_Types.switchId
     val client_id_of_switch : t -> SDN_Types.switchId -> Client_id.t
 
-    val features : (t, e, f) Platform.Trans.stage
+    val features : (t, e, f) Stage.t
   end
 
 end

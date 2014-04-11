@@ -134,7 +134,7 @@ module Controller = struct
             return [`Disconnect(c_id, sw_id, exn)]
 
   let listen t =
-    let open Async_OpenFlow_Platform.Trans in
+    let open Async_OpenFlow_Stage in
     let open ChunkController in
     let stages =
       (local (fun t -> t.sub)
