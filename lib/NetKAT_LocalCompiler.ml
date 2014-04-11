@@ -933,8 +933,8 @@ module RunTime = struct
          ~f:(fun ~key:x ~data:s acc -> (x,s)::acc))
       ~cmp:dep_compare
 
-  let to_optimized_table (m:i) : flowTable =
-    let annotated_table : (flow * Pattern.t * Action.Set.t) list =
+  let to_table ?(optimize_fall_through=true) (m:i) : flowTable =
+    let annotated_table () : (flow * Pattern.t * Action.Set.t) list =
       (* Returns a flow table with each entry annotated with the Pattern.t
        * from which it was generated. *)
       List.concat_map
@@ -959,16 +959,15 @@ module RunTime = struct
         else (
           if patterns_intersect xp p then false
           else falls_through (xf,xp,xa) t)) in
-    List.map
-      ~f:(fun (x,_,_) -> x)
-      (List.filter
-        ~f:(fun x -> falls_through x annotated_table)
-        annotated_table)
+    if optimize_fall_through then
+      List.map
+        ~f:(fun (x,_,_) -> x)
+        (List.fold_right
+          ~f:(fun x acc -> if falls_through x acc then acc else (x::acc))
+          ~init:[]
+          (annotated_table ()))
+    else List.concat_map (dep_sort m) ~f:(fun (p,s) -> expand_rules p s)
 
-  let to_table (m:i) : flowTable =
-    List.concat_map
-      (dep_sort m)
-      ~f:(fun (p,s) -> expand_rules p s)
 end
 
 module Local_Optimize = struct
@@ -990,7 +989,7 @@ module Local_Optimize = struct
   (*
    * Optimize a flow table by removing rules which are shadowed by other rules.
    *)
-  let optimize_table (table: flowTable) : flowTable =
+  let remove_shadowed_rules (table: flowTable) : flowTable =
     let flow_is_shadowed f t =
       List.exists t
         ~f:(fun x -> pattern_shadows x.pattern f.pattern) in
@@ -1014,5 +1013,6 @@ let to_netkat =
 let compile =
   RunTime.compile
 
-let to_table t =
-  Local_Optimize.optimize_table (RunTime.to_optimized_table t)
+let to_table ?(optimize_fall_through=true) t =
+  Local_Optimize.remove_shadowed_rules
+    (RunTime.to_table t ~optimize_fall_through:optimize_fall_through)
