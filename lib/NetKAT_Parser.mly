@@ -11,7 +11,7 @@
   let udp  : int64 = Int64.of_int 0x11
 
   (* hack for now *)
-  let vlan_none : int64 = Int64.minus_one
+  let vlan_none : int32 = Int32.minus_one
 %}
 
 %token LPAREN RPAREN BEGIN END LCURLY RCURLY
@@ -29,13 +29,15 @@
 %token FILTER
 %token ASSIGN
 %token AT
-%token PUBLICIP
 %token ID DROP
-%token ARP IP ICMP TCP UDP
 %token MONITOR_POL MONITOR_TBL MONITOR_LOAD MONITOR_PKTS
 %token <Int64.t> INT64
+%token <Int64.t> INT48
+%token <Int32.t> INT32
+%token <Int32.t> INT16
+%token <Int32.t> INT8
 %token <Int64.t> MACADDR
-%token <Int64.t> IPADDR
+%token <Int32.t> IPADDR
 %token <float> FLOAT
 %token <string> STRING
 %token <string> IDENT
@@ -47,26 +49,59 @@
 
 %%
 
-field_value :
-  | INT64   
+int16_value :
+  | INT8
       { $1 }
-  | MACADDR 
+  | INT16
       { $1 }
-  | NONE    
-      { vlan_none }
-  | IPADDR  
+
+int32_value :
+  | int16_value
       { $1 }
-  | ARP
-      { arp }
-  | IP
-      { ip }
-  | ICMP 
-      { icmp }
-  | TCP
-      { tcp }
-  | UDP
-      { udp }
-  
+  | INT32
+      { $1 }
+
+int48_value :
+  | int32_value
+      { Int64.of_int32 $1 }
+  | INT48
+      { $1 }
+
+int64_value :
+  | int48_value
+      { $1 }
+  | INT64
+      { $1 }
+
+
+port_value :
+  | int32_value
+      { Location(Physical $1) }
+  | IDENT
+      { Location(Pipe $1) }
+
+mac_value :
+  | MACADDR
+      { $1 }
+  | int48_value
+      { $1 }
+
+vlan_value :
+  | INT16
+      { Int32.to_int $1 }
+  | NONE
+      { Int32.to_int vlan_none }
+
+ip_value :
+  | IPADDR
+      { $1 }
+  | int32_value
+      { $1 }
+
+tcp_port_value :
+  | int16_value
+      { Int32.to_int $1 }
+
 predicate :
   | predicate OR apredicate
       { Or ($1, $3) }
@@ -92,36 +127,34 @@ xpredicate:
       { True }
   | NONE 
       { False }
-  | SWITCH EQUALS field_value
+  | SWITCH EQUALS int64_value
       { Test(Switch $3) }
-  | PORT EQUALS field_value
-      { Test(Location(Physical (VInt.get_int32 (VInt.Int64 $3))))}
-  | PORT EQUALS IDENT
-      { Test(Location(Pipe $3)) }
-  | SRCMAC EQUALS field_value
-      { Test(EthSrc (VInt.get_int48 (VInt.Int64 $3))) }
-  | DSTMAC EQUALS field_value
-      { Test(EthDst (VInt.get_int48 (VInt.Int64 $3))) }
-  | FRAMETYPE EQUALS field_value
-      { Test(EthType (VInt.get_int16 (VInt.Int64 $3))) }
-  | VLAN EQUALS field_value
-      { Test(EthType (VInt.get_int16 (VInt.Int64 $3))) }
-  | VLANPCP EQUALS field_value
-      { Test(VlanPcp (VInt.get_int8 (VInt.Int64 $3))) }
-  | SRCIP EQUALS field_value
-      { Test(IP4Src (VInt.get_int32 (VInt.Int64 $3), 32)) }
-  | DSTIP EQUALS field_value 
-      { Test(IP4Dst (VInt.get_int32 (VInt.Int64 $3), 32)) }
-  | SRCIP EQUALS field_value SLASH field_value
-      { Test(IP4Src (VInt.get_int32 (VInt.Int64 $3), (VInt.get_int (VInt.Int64 $5)))) }
-  | DSTIP EQUALS field_value SLASH field_value
-      { Test(IP4Dst (VInt.get_int32 (VInt.Int64 $3), (VInt.get_int (VInt.Int64 $5)))) }
-  | PROTOCOLTYPE EQUALS field_value 
-      { Test(IPProto (VInt.get_int8 (VInt.Int64 $3))) }
-  | TCPSRCPORT EQUALS field_value 
-      { Test(TCPSrcPort (VInt.get_int16 (VInt.Int64 $3))) }
-  | TCPDSTPORT EQUALS field_value 
-      { Test(TCPDstPort (VInt.get_int16 (VInt.Int64 $3))) }
+  | PORT EQUALS port_value
+      { Test($3) }
+  | SRCMAC EQUALS mac_value
+      { Test(EthSrc $3) }
+  | DSTMAC EQUALS mac_value
+      { Test(EthDst $3) }
+  | FRAMETYPE EQUALS int16_value
+      { Test(EthType (Int32.to_int $3)) }
+  | VLAN EQUALS vlan_value
+      { Test(Vlan $3) }
+  | VLANPCP EQUALS INT8
+      { Test(VlanPcp (Int32.to_int $3)) }
+  | SRCIP EQUALS ip_value
+      { Test(IP4Src($3, 32l)) }
+  | DSTIP EQUALS ip_value
+      { Test(IP4Dst($3, 32l)) }
+  | SRCIP EQUALS ip_value SLASH int32_value
+      { Test(IP4Src($3, $5)) }
+  | DSTIP EQUALS ip_value SLASH int32_value
+      { Test(IP4Dst($3, $5)) }
+  | PROTOCOLTYPE EQUALS int16_value
+      { Test(IPProto (Int32.to_int $3)) }
+  | TCPSRCPORT EQUALS tcp_port_value
+      { Test(TCPSrcPort $3) }
+  | TCPDSTPORT EQUALS tcp_port_value
+      { Test(TCPDstPort $3) }
 
 /* TODO(jnf): should these be non-associative? */
 policy : 
@@ -151,36 +184,34 @@ kpolicy:
 xpolicy:
   | FILTER predicate 
       { Filter $2 }
-  | PORT ASSIGN field_value
-      { Mod(Location(Physical (VInt.get_int32 (VInt.Int64 $3))))}
-  | PORT ASSIGN IDENT
-      { Mod(Location(Pipe $3)) }
-  | SRCMAC ASSIGN field_value
-      { Mod(EthSrc (VInt.get_int48 (VInt.Int64 $3))) }
-  | DSTMAC ASSIGN field_value
-      { Mod(EthDst (VInt.get_int48 (VInt.Int64 $3))) }
-  | FRAMETYPE ASSIGN field_value
-      { Mod(EthType (VInt.get_int16 (VInt.Int64 $3))) }
-  | VLAN ASSIGN field_value
-      { Mod(EthType (VInt.get_int16 (VInt.Int64 $3))) }
-  | VLANPCP ASSIGN field_value
-      { Mod(VlanPcp (VInt.get_int8 (VInt.Int64 $3))) }
-  | SRCIP ASSIGN field_value
-      { Mod(IP4Src (VInt.get_int32 (VInt.Int64 $3),32)) }
-  | DSTIP ASSIGN field_value 
-      { Mod(IP4Dst (VInt.get_int32 (VInt.Int64 $3),32)) }
-  | PROTOCOLTYPE ASSIGN field_value 
-      { Mod(IPProto (VInt.get_int8 (VInt.Int64 $3))) }
-  | TCPSRCPORT ASSIGN field_value 
-      { Mod(TCPSrcPort (VInt.get_int16 (VInt.Int64 $3))) }
-  | TCPDSTPORT ASSIGN field_value 
-      { Mod(TCPDstPort (VInt.get_int16 (VInt.Int64 $3))) }
+  | PORT ASSIGN port_value
+      { Mod($3) }
+  | SRCMAC ASSIGN mac_value
+      { Mod(EthSrc $3) }
+  | DSTMAC ASSIGN mac_value 
+      { Mod(EthDst $3) }
+  | FRAMETYPE ASSIGN int16_value
+      { Mod(EthType (Int32.to_int $3)) }
+  | VLAN ASSIGN vlan_value
+      { Mod(Vlan $3) }
+  | VLANPCP ASSIGN INT8
+      { Mod(VlanPcp (Int32.to_int $3)) }
+  | SRCIP ASSIGN ip_value
+      { Mod(IP4Src($3, 32l)) }
+  | DSTIP ASSIGN ip_value
+      { Mod(IP4Dst($3, 32l)) }
+  | PROTOCOLTYPE ASSIGN int16_value
+      { Mod(IPProto (Int32.to_int $3)) }
+  | TCPSRCPORT ASSIGN tcp_port_value
+      { Mod(TCPSrcPort $3) }
+  | TCPDSTPORT ASSIGN tcp_port_value
+      { Mod(TCPDstPort $3) }
   | ID
       { id }
   | DROP 
       { drop }
-  | INT64 AT INT64 DBLARROW INT64 AT INT64
-      { Link($1, VInt.Int64 $3, $5, VInt.Int64 $7) }
+  | int64_value AT int32_value DBLARROW int64_value AT int32_value
+      { Link($1, $3, $5, $7) }
   | LPAREN policy RPAREN 
       { $2 }
 

@@ -3,7 +3,7 @@
   open NetKAT_Parser
 
   let parse_byte str = Int64.of_string ("0x" ^ str)
-  let parse_decbyte str = Int64.of_string str
+  let parse_decbyte str = Int32.of_string str
 }
 
 let blank = [ ' ' '\t'  ]
@@ -51,11 +51,6 @@ rule token = parse
   | "ipProto" { PROTOCOLTYPE }
   | "tcpSrcPort" { TCPSRCPORT }
   | "tcpDstPort" { TCPDSTPORT }
-  | "arp" { ARP }
-  | "ip" { IP }
-  | "icmp" { ICMP }
-  | "tcp" { TCP }
-  | "udp" { UDP }
   | "begin" { BEGIN }
   | "end" { END }
   | "if" { IF }
@@ -87,15 +82,43 @@ rule token = parse
   | float_ as f { FLOAT (float_of_string f) }
 
   | (decbyte as b4) "." (decbyte as b3) "." (decbyte as b2) "." (decbyte as b1)
-    { let open Int64 in
+    { let open Int32 in
       IPADDR 
         (logor (shift_left (parse_decbyte b4) 24)
            (logor (shift_left (parse_decbyte b3) 16)
               (logor (shift_left (parse_decbyte b2) 8)
                  (parse_decbyte b1)))) }
 
-  | decimal as n { Scanf.sscanf n "%Lu" (fun i -> INT64 i) }
-  | hex as n { Scanf.sscanf n "0x%Lx" (fun i -> INT64 i) }
+  | decimal as n
+    { Scanf.sscanf n "%Lu" (fun i ->
+        if i >= 0L && i <= 0xffffffffL then
+          let i = Int64.to_int32 i in
+          if i <= 0xffl then
+            INT8 i
+          else if i <= 0xffffl then
+            INT16 i
+          else 
+            INT32 i
+        else if i >= 0L && i < 0xffffffffffffL then
+          INT48 i
+        else
+          INT64 i)
+    }
+  | hex as n
+    { Scanf.sscanf n "0x%Lx" (fun i ->
+        if i >= 0L && i <= 0xffffffffL then
+          let i = Int64.to_int32 i in
+          if i <= 0xffl then
+            INT8 i
+          else if i <= 0xffffl then
+            INT16 i
+          else 
+            INT32 i
+        else if i >= 0L && i < 0xffffffffffffL then
+          INT48 i
+        else
+          INT64 i)
+    }
   | '"' (string_body as s) '"' { STRING s }
   | id as s { IDENT s }
 

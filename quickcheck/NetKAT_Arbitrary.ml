@@ -34,8 +34,8 @@ let arbitrary_test, arbitrary_mod =
      *   vlan, vlanPcp
      * *)
     map_gen (fun i -> IPProto i) AB.arbitrary_uint8;
-    map_gen (fun i -> IP4Src (i,32)) AB.arbitrary_uint32;
-    map_gen (fun i -> IP4Dst (i,32)) AB.arbitrary_uint32;
+    map_gen (fun i -> IP4Src (i,32l)) AB.arbitrary_uint32;
+    map_gen (fun i -> IP4Dst (i,32l)) AB.arbitrary_uint32;
     map_gen (fun i -> TCPSrcPort i) AB.arbitrary_uint16;
     map_gen (fun i -> TCPDstPort i) AB.arbitrary_uint16;
   ] in
@@ -48,10 +48,7 @@ let arbitrary_test, arbitrary_mod =
   oneof ([
   ] @ shared))
 
-let arbitrary_portId =
-  let open QuickCheck_gen in
-  let open Arbitrary_Base in
-  map_gen (fun i -> VInt.Int64 (Int64.of_int i)) arbitrary_uint16
+let arbitrary_portId = Arbitrary_Base.arbitrary_uint32
 
 let treesize n x =
   if n <= 0

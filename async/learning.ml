@@ -20,7 +20,7 @@ let create () =
       false
     else begin
       Log.info ~tags "[learning] switch %Lu: learn %s => %Lu@%lu"
-        switch_id (Packet.string_of_mac ethSrc) switch_id (VInt.get_int32 port_id);
+        switch_id (Packet.string_of_mac ethSrc) switch_id port_id;
       state := SwitchMap.add !state switch_id (MacMap.add mac_map ethSrc port_id);
       true
     end in
@@ -38,7 +38,7 @@ let create () =
       | Some(p) ->
         Log.of_lazy ~tags ~level:`Info (lazy (Printf.sprintf
           "[learning] switch %Lu: port %lu %s"
-              switch_id (VInt.get_int32 p) (Packet.to_string packet)));
+              switch_id p (Packet.to_string packet)));
         OutputPort p in
 
   let default = Mod(Location(Pipe "learn")) in
@@ -49,7 +49,7 @@ let create () =
       let known, unknown_pred = MacMap.fold mac_map ~init:(drop, True)
         ~f:(fun ~key:mac ~data:port (k, u) ->
           let k' = Union(Seq(Filter(Test(EthDst mac)),
-                             Mod(Location(Physical (VInt.get_int32 port)))),
+                             Mod(Location(Physical port))),
                          k) in
           let u' = And(Neg(Test(EthDst mac)), u) in
           (k', u')) in

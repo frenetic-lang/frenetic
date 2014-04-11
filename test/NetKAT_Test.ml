@@ -154,14 +154,14 @@ TEST "vlan" =
        predicate with two negated tests. *)
  TEST "expand_rules" =
    let flow p a = { pattern = p; action = [a]; cookie = 0L; idle_timeout = Permanent; hard_timeout= Permanent } in
-   let dropEthSrc v = flow (FieldMap.singleton EthSrc (VInt.Int64 v)) [] in
+   let dropEthSrc v = flow { all_pattern with dlSrc = Some(v) } [] in
    let pol = Seq(Filter (And (Neg(Test(EthSrc 0L)), Neg(Test(EthSrc 1L)))),
                  Mod (Location (Physical 1l))) in
    (* Not testing the table itself because this is (a) tedious and (b) not stable. *)
-   let a = [(OutputPort (VInt.Int32 1l))] in
+   let a = [(OutputPort 1l)] in
    test_compile_table pol
      [ dropEthSrc 1L;
-       flow FieldMap.empty [a]]
+       flow all_pattern [a]]
 
 module FromPipe = struct
   open Core.Std

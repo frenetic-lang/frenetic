@@ -87,9 +87,8 @@ module Switch = struct
     let to_out switch_id port_id =
       let bytes = Packet.marshal
         Probe.(to_packet { switch_id; port_id = port_id }) in
-      let port_id' = VInt.Int32 port_id in
-      let action = SDN_Types.OutputPort(port_id') in
-      (switch_id, bytes, None, Some(port_id'), [action])
+      let action = SDN_Types.OutputPort(port_id) in
+      (switch_id, bytes, None, Some(port_id), [action])
 
     let loop t =
       Deferred.repeat_until_finished () (fun () ->
@@ -202,8 +201,8 @@ module Switch = struct
           let t, v2 = add_vertex t (Switch probe.switch_id) in
           let t, _  = add_edge t v1 port_id () v2 probe.port_id in
           let t, _  = add_edge t v2 probe.port_id () v1 port_id in
-          let e1 = (switch_id, VInt.Int32 port_id) in
-          let e2 = (probe.switch_id, VInt.Int32 probe.port_id) in
+          let e1 = (switch_id, port_id) in
+          let e2 = (probe.switch_id, probe.port_id) in
           Ctl.send_event ctl (LinkUp (e1, e2));
           t in
 
@@ -218,10 +217,9 @@ module Switch = struct
             then raise (Assertion_failed (Printf.sprintf
                 "Discovery.handler: not listening to pipe \"%s\"" p));
           let open Packet in
-          let pt_id' = VInt.get_int32 pt_id in
           begin match parse bytes with
             | { nw = Unparsable (dlTyp, bytes) } ->
-              t := handle_probe !t sw_id pt_id' (Probe.parse bytes)
+              t := handle_probe !t sw_id pt_id (Probe.parse bytes)
             | _ -> ();
           end;
           return None
@@ -235,39 +233,37 @@ module Switch = struct
           t := remove_vertex !t (vertex_of_label !t (Switch sw_id));
           return None
         | PortUp (sw_id, pt_id) ->
-          let pt_id' = VInt.get_int32 pt_id in
-          Log.info ~tags "[topology.switch] ↑ { switch = %Lu; port = %lu }" sw_id pt_id';
-          Ctl.add ctl sw_id pt_id'
+          Log.info ~tags "[topology.switch] ↑ { switch = %Lu; port = %lu }" sw_id pt_id;
+          Ctl.add ctl sw_id pt_id
           >>| fun () ->
             None
         | PortDown (sw_id, pt_id) ->
-          let pt_id' = VInt.get_int32 pt_id in
-          Log.info ~tags "[topology.switch] ↓ { switch = %Lu; port = %lu }" sw_id pt_id';
-          ignore (Ctl.remove ctl sw_id pt_id');
+          Log.info ~tags "[topology.switch] ↓ { switch = %Lu; port = %lu }" sw_id pt_id;
+          ignore (Ctl.remove ctl sw_id pt_id);
           let v = vertex_of_label !t (Switch sw_id) in
-          let mh = next_hop !t v pt_id' in
+          let mh = next_hop !t v pt_id in
           begin match mh with
             | None -> ()
             | Some(e) ->
               let (v2, pt_id2) = edge_dst e in
               begin match vertex_to_label !t v2 with
                 | Switch(sw_id2) ->
-                  t := remove_endpoint !t (v, pt_id');
+                  t := remove_endpoint !t (v, pt_id);
                   Ctl.send_event ctl
-                    (LinkDown((sw_id, pt_id), (sw_id2, VInt.Int32 pt_id2)))
+                    (LinkDown((sw_id, pt_id), (sw_id2, pt_id2)))
                 | Host _ -> ()
               end
           end;
           return None
         | LinkUp ((sw1, pt1), (sw2, pt2)) ->
           Log.info ~tags "[topology.switch] ↑ { switch = %Lu; port %lu }, { switch = %Lu; port = %lu }"
-            sw1 (VInt.get_int32 pt1)
-            sw2 (VInt.get_int32 pt2);
+            sw1 pt1
+            sw2 pt2;
           return None
         | LinkDown ((sw1, pt1), (sw2, pt2)) ->
           Log.info ~tags "[topology.switch] ↓ { switch = %Lu; port %lu }, { switch = %Lu; port = %lu }"
-            sw1 (VInt.get_int32 pt1)
-            sw2 (VInt.get_int32 pt2);
+            sw1 pt1
+            sw2 pt2;
           return None
         | HostUp _
         | HostDown _
@@ -292,7 +288,6 @@ module Host = struct
       let open Net.Topology in
       match e with
         | PacketIn (_, sw_id, pt_id, bytes, len, buf) ->
-          let pt_id' = VInt.get_int32 pt_id in
           let open Packet in
           let dlAddr, nwAddr = match parse bytes with
             | { nw = Arp (Arp.Query(dlSrc, nwSrc, _ )) }
@@ -301,22 +296,21 @@ module Host = struct
             | _ -> assert false in
           let h = try Some(vertex_of_label !t (Host(dlAddr, nwAddr)))
             with _ ->  None in
-          begin match Switch.Ctl.is_pending ctl sw_id pt_id', h with
+          begin match Switch.Ctl.is_pending ctl sw_id pt_id, h with
             | true, None    ->
               let t', h = add_vertex !t (Host(dlAddr, nwAddr)) in
               let t', s = add_vertex t' (Switch sw_id) in
-              let t', _ = add_edge t' s pt_id' () h 0l in
-              let t', _ = add_edge t' h 0l () s pt_id' in
+              let t', _ = add_edge t' s pt_id () h 0l in
+              let t', _ = add_edge t' h 0l () s pt_id in
               t := t';
               Switch.Ctl.send_event ctl (HostUp((sw_id, pt_id), (dlAddr, nwAddr)));
               return None
             | _   , _       -> return None
           end
         | PortDown (sw_id, pt_id) ->
-          let pt_id' = VInt.get_int32 pt_id in
-          ignore (Switch.Ctl.remove ctl sw_id pt_id');
+          ignore (Switch.Ctl.remove ctl sw_id pt_id);
           let v = vertex_of_label !t (Switch sw_id) in
-          let mh = next_hop !t v pt_id' in
+          let mh = next_hop !t v pt_id in
           (* Do not put the above line below the below line. The code needs to
            * read the current view of the network before modifying it. *)
           begin match mh with
@@ -326,7 +320,7 @@ module Host = struct
               begin match vertex_to_label !t v2 with
                 | Switch _ -> ()
                 | Host (dlAddr, nwAddr) ->
-                  t := remove_endpoint !t (v, pt_id');
+                  t := remove_endpoint !t (v, pt_id);
                   Switch.Ctl.send_event ctl
                     (HostDown((sw_id, pt_id), (dlAddr, nwAddr)))
               end
@@ -334,13 +328,13 @@ module Host = struct
           return None
         | HostUp ((sw_id, pt_id), (dlAddr, nwAddr)) ->
           Log.info ~tags "[topology.host] ↑ { switch = %Lu; port %lu }, { ip = %s; mac = %s }"
-            sw_id (VInt.get_int32 pt_id)
+            sw_id pt_id
             (Packet.string_of_ip nwAddr)
             (Packet.string_of_mac dlAddr);
           return None
         | HostDown ((sw_id, pt_id), (dlAddr, nwAddr)) ->
           Log.info ~tags "[topology.host] ↓ { switch = %Lu; port %lu }, { ip = %s; mac = %s }"
-            sw_id (VInt.get_int32 pt_id)
+            sw_id pt_id
             (Packet.string_of_ip nwAddr)
             (Packet.string_of_mac dlAddr);
           return None

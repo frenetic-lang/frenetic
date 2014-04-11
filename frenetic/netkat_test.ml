@@ -23,7 +23,6 @@ let _  =
 
 module Example = struct
   open SDN_Types
-  open VInt
   open NetKAT_Types
 
   (* End to end connectivity via mac addresses routing, hard coded for a tree topo using 4 nodes *)
