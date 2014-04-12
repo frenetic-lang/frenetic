@@ -800,7 +800,7 @@ module RunTime = struct
           ~ethType:(g EthType i16)
           ~ipProto:(g IPProto i8)
           ~ipSrc:(g IP4Src i32)
-          ~ipDst:(g IP4Src i32)
+          ~ipDst:(g IP4Dst i32)
           ~tcpSrcPort:(g TCPSrcPort i16)
           ~tcpDstPort:(g TCPDstPort i16)
       | None, None ->
