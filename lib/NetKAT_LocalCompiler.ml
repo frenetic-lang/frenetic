@@ -140,6 +140,8 @@ module PosNeg (H:NetKAT_Types.Headers.HEADER) = struct
     match y with
       | Pos s -> Neg s
       | Neg s -> Pos s
+
+  let diff y1 y2 = inter y1 (neg y2)
 end
 
 module OL = Option(NetKAT_Types.LocationHeader)
@@ -487,6 +489,22 @@ module Pattern = struct
           ~ipDst:(g PNIp.obscures)
           ~tcpSrcPort:(g PN16.obscures)
           ~tcpDstPort:(g PN16.obscures)
+
+  let diff (x:t) (y:t) : t =
+    let open HPN in
+    let g c f = c (Field.get f x) (Field.get f y) in
+    Fields.map
+      ~location:(g PNL.diff)
+      ~ethSrc:(g PN48.diff)
+      ~ethDst:(g PN48.diff)
+      ~vlan:(g PN16.diff)
+      ~vlanPcp:(g PN8.diff)
+      ~ethType:(g PN16.diff)
+      ~ipProto:(g PN8.diff)
+      ~ipSrc:(g PNIp.diff)
+      ~ipDst:(g PNIp.diff)
+      ~tcpSrcPort:(g PN16.diff)
+      ~tcpDstPort:(g PN16.diff)
 
   let seq (x:t) (y:t) : t option =
     let open HPN in
@@ -915,10 +933,72 @@ module RunTime = struct
          ~f:(fun ~key:x ~data:s acc -> (x,s)::acc))
       ~cmp:dep_compare
 
-  let to_table (m:i) : flowTable =
-    List.concat_map
-      (dep_sort m)
-      ~f:(fun (p,s) -> expand_rules p s)
+  let to_table ?(optimize_fall_through=true) (m:i) : flowTable =
+    let annotated_table () : (flow * Pattern.t * Action.Set.t) list =
+      (* Returns a flow table with each entry annotated with the Pattern.t
+       * from which it was generated. *)
+      List.concat_map
+        ~f:(fun (p,s) -> List.map ~f:(fun x -> (x,p,s)) (expand_rules p s))
+        (dep_sort m) in
+    let patterns_intersect (p: Pattern.t) (q: Pattern.t) : bool =
+      match Pattern.seq p q with
+        Some s -> not (Pattern.is_empty s)
+      | None -> false in
+    (* A pattern falls through if it is covered by patterns below it in the
+     * table each of which has the same action, and no pattern with a different
+     * action intersects it within the range containing the cover. *)
+    let rec falls_through
+        ((xf,xp,xa): flow * Pattern.t * Action.Set.t)
+        (table: (flow * Pattern.t * Action.Set.t) list) : bool =
+      match table with
+        [] -> false
+      | (f,p,a)::t -> (
+        if Set.equal xa a then (
+          if Pattern.is_empty (Pattern.diff xp p) then true
+          else falls_through (xf,xp,xa) t)
+        else (
+          if patterns_intersect xp p then false
+          else falls_through (xf,xp,xa) t)) in
+    if optimize_fall_through then
+      List.map
+        ~f:(fun (x,_,_) -> x)
+        (List.fold_right
+          ~f:(fun x acc -> if falls_through x acc then acc else (x::acc))
+          ~init:[]
+          (annotated_table ()))
+    else List.concat_map (dep_sort m) ~f:(fun (p,s) -> expand_rules p s)
+
+end
+
+module Local_Optimize = struct
+
+  (*
+   * A pattern p shadows another pattern q if every field f which is defined
+   * for both p and q satisfies p(f)=q(f) and p is a superset of q.
+   *)
+  let pattern_shadows (p: pattern) (q: pattern) : bool =
+    let q_check k v =
+      try FieldMap.find k p = v
+      with Not_found -> true in
+    let p_check k v =
+      try FieldMap.find k q = v
+      with Not_found -> false in
+    FieldMap.for_all p_check p &&
+    FieldMap.for_all q_check q
+
+  (*
+   * Optimize a flow table by removing rules which are shadowed by other rules.
+   *)
+  let remove_shadowed_rules (table: flowTable) : flowTable =
+    let flow_is_shadowed f t =
+      List.exists t
+        ~f:(fun x -> pattern_shadows x.pattern f.pattern) in
+    List.rev (
+      List.fold_left
+        ~f:(fun acc x -> if flow_is_shadowed x acc then acc else (x::acc))
+        ~init:[]
+        table)
+
 end
 
 (* exports *)
@@ -933,5 +1013,6 @@ let to_netkat =
 let compile =
   RunTime.compile
 
-let to_table =
-  RunTime.to_table
+let to_table ?(optimize_fall_through=true) t =
+  Local_Optimize.remove_shadowed_rules
+    (RunTime.to_table t ~optimize_fall_through:optimize_fall_through)

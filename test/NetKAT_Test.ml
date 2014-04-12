@@ -160,10 +160,7 @@ TEST "vlan" =
    (* Not testing the table itself because this is (a) tedious and (b) not stable. *)
    let a = [(OutputPort (VInt.Int32 1l))] in
    test_compile_table pol
-     [ dropEthSrc 0L;
-       dropEthSrc 1L;
-       dropEthSrc 0L;
-       dropEthSrc 1L;
+     [ dropEthSrc 1L;
        flow FieldMap.empty [a]]
 
 module FromPipe = struct
