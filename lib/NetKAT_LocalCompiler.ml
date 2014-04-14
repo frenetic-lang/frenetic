@@ -973,18 +973,27 @@ end
 module Local_Optimize = struct
 
   (*
-   * A pattern p shadows another pattern q if every field f which is defined
-   * for both p and q satisfies p(f)=q(f) and p is a superset of q.
+   * A pattern p shadows another pattern q if
+   *
+   *   ∀f, (p(f) ∩ q(f)) = q(f)
+   *
+   * ... where f ranges over all the fields of the pattern. In other words, p(f)
+   * is a broader match than, but includes, q(f).
+   *
+   * The current reprentation of patterns encodes an any-value wildcard for a
+   * field as the absence of the field in the pattern. In addition, patterns do
+   * not support prefix matches or any other more complex match, so the
+   * intersection is just an equality check on values. The property restated
+   * to take into account the pattern representation is then:
+   *
+   *   ∀f, f ∈ p ⇒ f ∈ q ∧ (p(f) = q(f))
    *)
   let pattern_shadows (p: pattern) (q: pattern) : bool =
-    let q_check k v =
-      try FieldMap.find k p = v
-      with Not_found -> true in
-    let p_check k v =
+    let check k v =
       try FieldMap.find k q = v
-      with Not_found -> false in
-    FieldMap.for_all p_check p &&
-    FieldMap.for_all q_check q
+      with Not_found -> false
+    in
+    FieldMap.for_all check p
 
   (*
    * Optimize a flow table by removing rules which are shadowed by other rules.
