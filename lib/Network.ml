@@ -602,7 +602,7 @@ struct
       let es = (EdgeSet.fold (fun (s,l,d) acc ->
         let _,sport = edge_src (s,l,d) in
         let _,dport = edge_dst (s,l,d) in
-        Printf.sprintf "%s%s%s -> %s {sport=%Ld; dport=%Ld; %s}"
+        Printf.sprintf "%s%s%s -> %s {sport=%Ld; dport=%Ld; %s};"
           acc
           (if acc = "" then "" else "\n")
           (Vertex.to_string s.VL.label)
@@ -612,12 +612,12 @@ struct
           (Edge.to_dot l.EL.label))
                   (edges t) "") in
       let vs = (VertexSet.fold (fun v acc ->
-        Printf.sprintf "%s%s\n%s"
+        Printf.sprintf "%s%s\n%s;"
           acc
           (if acc = "" then "" else "\n")
           (Vertex.to_dot v.VL.label)
       ) (vertexes t) "") in
-      Printf.sprintf "digraph G {\n%s\n%s\n}" vs es
+      Printf.sprintf "digraph G {\n%s\n%s\n}\n" vs es
 
     let to_string (t:t) : string =
       to_dot t
