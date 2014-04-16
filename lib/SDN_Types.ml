@@ -132,10 +132,11 @@ let format_pattern (fmt:Format.formatter) (p:pattern) : unit =
   format_field "ethSrc" format_mac p.dlSrc;
   format_field "ethDst" format_mac p.dlDst;
   format_field "ethTyp" format_hex p.dlTyp;
-  format_field "vlanId" (fun fmt v -> match v with
-                          | None -> ()
-                          | Some v ->  format_int fmt v)
-                        p.dlVlan;
+  begin match p.dlVlan with
+    | None -> ()
+    | Some v ->
+      format_field "vlanId" (fun fmt v -> format_int fmt v) v
+  end;
   format_field "vlanPcp" format_int p.dlVlanPcp;
   format_field "nwProto" format_hex p.nwProto;
   format_field "ipSrc" format_ip p.nwSrc;
