@@ -9,10 +9,10 @@ opam update
 opam install -y frenetic openflow topology packet pa_ounit quickcheck
 
 # There's a bug in bison 2.7 that requires us to use 2.5 to build the of13 softswitch. This grabs an old version of bison, installs it, and then prevents mininet from trying to override our fixed version
-wget http://launchpadlibrarian.net/122078648/libbison-dev_2.5.dfsg-3ubuntu1_amd64.deb
-wget wget http://launchpadlibrarian.net/122078647/bison_2.5.dfsg-3ubuntu1_amd64.deb
-sudo dpkg -i libbison-dev_2.5.dfsg-3ubuntu1_amd64.deb
-sudo dpkg -i bison_2.5.dfsg-3ubuntu1_amd64.deb
+wget http://mirrors.kernel.org/ubuntu/pool/main/b/bison/libbison-dev_2.5.dfsg-3ubuntu1_i386.deb
+wget http://mirrors.kernel.org/ubuntu/pool/main/b/bison/bison_2.5.dfsg-3ubuntu1_i386.deb
+sudo dpkg -i libbison-dev_2.5.dfsg-3ubuntu1_i386.deb
+sudo dpkg -i bison_2.5.dfsg-3ubuntu1_i386.deb
 sudo apt-mark hold libbison-dev bison
 
 git clone git://github.com/mininet/mininet
