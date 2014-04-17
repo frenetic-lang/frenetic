@@ -141,3 +141,11 @@ let from_flow (priority : int) (flow : AL.flow) : Core.flowMod =
       apply_to_packet = None;
       out_port = None;
       check_overlap = false }
+
+let from_packetOut (pktOut : AL.pktOut) : Core.packetOut =
+  let open Core in
+  let output_payload, port_id, apply_actions = pktOut in
+  let output_payload = from_payload output_payload in
+  let port_id = Core_kernel.Option.map port_id from_portId in
+  let apply_actions = Common.flatten_par port_id [apply_actions] in
+  { output_payload; port_id; apply_actions }
