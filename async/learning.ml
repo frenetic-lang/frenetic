@@ -64,16 +64,13 @@ let create () =
     | SwitchDown(switch_id) ->
       state := SwitchMap.remove !state switch_id;
       return (Some(gen_pol ()))
-    | PacketIn(_, switch_id, port_id, bytes, _, buf) ->
-      let packet = Packet.parse bytes in
+    | PacketIn(_, switch_id, port_id, payload, _) ->
+      let packet = Packet.parse (SDN_Types.payload_bytes payload) in
       let pol = if learn switch_id port_id packet then
          Some(gen_pol ())
       else 
          None in
       let action = forward switch_id packet in
-      let payload = match buf with
-        | None -> SDN_Types.NotBuffered(bytes)
-        | Some(buf_id) -> SDN_Types.Buffered(buf_id, bytes) in
       Pipe.write w (switch_id, (payload, Some(port_id), [action])) >>= fun _ ->
       return pol 
     | _ -> return None in

@@ -101,7 +101,7 @@ let packet_sync_headers (pkt:NetKAT_Types.packet) : NetKAT_Types.packet * bool =
       q acc v
     end in
   let fail field = (fun _ -> raise (Unsupported_mod field)) in
-  let packet = Packet.parse (payload_bytes pkt.payload) in
+  let packet = Packet.parse (SDN_Types.payload_bytes pkt.payload) in
   let packet' = HeadersValues.Fields.fold
     ~init:packet
     ~location:(fun acc _ -> acc)
@@ -205,11 +205,14 @@ let to_event w_out (t : t) evt =
                 outs >>= fun _ ->
                 return (List.map pis ~f:(fun (p, pkt) ->
                   let pkt', changed = packet_sync_headers pkt in
-                  if changed then
-                    let bytes = payload_bytes pkt'.payload in
-                    PacketIn(p, switch_id, port_id, bytes, pi.total_len, None)
-                  else
-                    PacketIn(p, switch_id, port_id, bytes, pi.total_len, buf_id)))
+                  let payload = match buf_id, changed with
+                      | None, _
+                      | _   , true ->
+                        SDN_Types.NotBuffered(payload_bytes pkt'.payload)
+                      | Some(buf_id), false ->
+                        SDN_Types.Buffered(buf_id, bytes)
+                  in
+                  PacketIn(p, switch_id, port_id, payload, pi.total_len)))
               end
           end
         | PortStatusMsg ps ->

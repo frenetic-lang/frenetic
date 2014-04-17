@@ -218,7 +218,7 @@ type bufferId = Int32.t (* XXX(seliopou): different than SDN_Types *)
 type bytes = Packet.bytes
 
 type event =
-  | PacketIn of string * switchId * portId * bytes * int * bufferId option
+  | PacketIn of string * switchId * portId * payload * int
   | Query of string * int64 * int64
   | SwitchUp of switchId
   | SwitchDown of switchId

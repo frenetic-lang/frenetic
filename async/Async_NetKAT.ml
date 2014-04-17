@@ -83,7 +83,7 @@ let run
     : event -> result Deferred.t =
   let a' = a.handler t w () in
   fun e -> match e with
-    | PacketIn(p, _, _, _, _, _) when not (PipeSet.mem a.pipes p) ->
+    | PacketIn(p, _, _, _, _) when not (PipeSet.mem a.pipes p) ->
       return None
     | _ ->
       a' e >>| fun m_pol ->

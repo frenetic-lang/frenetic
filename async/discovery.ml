@@ -212,12 +212,12 @@ module Switch = struct
       Deferred.don't_wait_for (Pipe.transfer_id o_r w);
       let open Net.Topology in
       match e with
-        | PacketIn(p, sw_id, pt_id, bytes, len, buf) ->
+        | PacketIn(p, sw_id, pt_id, payload, len) ->
           if not (p = "probe")
             then raise (Assertion_failed (Printf.sprintf
                 "Discovery.handler: not listening to pipe \"%s\"" p));
           let open Packet in
-          begin match parse bytes with
+          begin match parse (SDN_Types.payload_bytes payload) with
             | { nw = Unparsable (dlTyp, bytes) } ->
               t := handle_probe !t sw_id pt_id (Probe.parse bytes)
             | _ -> ();
@@ -287,9 +287,9 @@ module Host = struct
     let handler t w () : event -> result Deferred.t = fun e ->
       let open Net.Topology in
       match e with
-        | PacketIn (_, sw_id, pt_id, bytes, len, buf) ->
+        | PacketIn (_, sw_id, pt_id, payload, len) ->
           let open Packet in
-          let dlAddr, nwAddr = match parse bytes with
+          let dlAddr, nwAddr = match parse (SDN_Types.payload_bytes payload) with
             | { nw = Arp (Arp.Query(dlSrc, nwSrc, _ )) }
             | { nw = Arp (Arp.Reply(dlSrc, nwSrc, _, _)) } ->
               (dlSrc, nwSrc)
