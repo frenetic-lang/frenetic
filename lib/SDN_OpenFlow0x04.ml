@@ -5,6 +5,11 @@ module Msg = OpenFlow0x04.Message
 
 exception Invalid_port of int32
 
+let from_portId (pport_id : AL.portId) : Core.portId =
+  if pport_id > 0xffffff00l then (* pport_id <= OFPP_MAX *)
+    raise (Invalid_port pport_id)
+  else
+    pport_id
 
 let to_payload (pay : Core.payload) : AL.payload =
   let open Core in
@@ -80,8 +85,7 @@ module Common = HighLevelSwitch_common.Make (struct
       | AL.Controller n -> (Mod.none, Output (Core.Controller n))
       | AL.OutputAllPorts -> (Mod.none, Output Core.AllPorts)
       | AL.OutputPort pport_id ->
-        if pport_id >= 0xffffff00l then (* pport_id < OFPP_MAX *)
-          raise (Invalid_port pport_id);
+        let pport_id = from_portId pport_id in
         if Some pport_id = inPort then
           (Mod.none, Output InPort)
         else
