@@ -10,12 +10,13 @@ module SDN = SDN_Types
 type switchId = SDN_Types.switchId
 
 module SwitchMap = Map.Make(Int64)
+module XidMap = Map.Make(Int32)
 
 module Log = Async_OpenFlow.Log
 
 let max_pending_connections = 64
 
-let _ = Log.set_level `Info
+let _ = Log.set_level `Debug
 
 let _ = Log.set_output
           [Log.make_filtered_output
@@ -35,7 +36,8 @@ exception Assertion_failed of string
 type t = {
   ctl : Controller.t;
   nib : Net.Topology.t ref;
-  mutable locals : NetKAT_Types.policy SwitchMap.t
+  mutable locals : NetKAT_Types.policy SwitchMap.t;
+  mutable barriers : (unit Ivar.t) XidMap.t
 }
 
 let bytes_to_headers
@@ -159,6 +161,7 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
         else
           acc)))
     | `Disconnect (c_id, switch_id, exn) ->
+      Log.debug ~tags "switch %Ld disconnected" switch_id;
       let open Net.Topology in
       let v  = vertex_of_label !(t.nib) (Async_NetKAT.Switch switch_id) in
       let ps = vertex_to_ports !(t.nib) v in
@@ -225,6 +228,16 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
             | _ ->
               return []
           end
+        | BarrierReply ->
+          Log.debug ~tags "Received barrier_reply %Lu" switch_id;
+          Log.flushed ();          
+          begin match XidMap.find t.barriers xid with
+            | None -> Log.error ~tags "to_event: received unexpected BarrierReply from %Lu" switch_id;
+              Log.flushed ();
+              ()
+            | Some ivar -> Ivar.fill ivar ()
+          end;
+          return []
         | _ ->
           Log.debug ~tags "Dropped message from %Lu: %s" switch_id (to_string msg);
           return []
@@ -236,6 +249,29 @@ let get_switchids nib =
     | _ -> acc)
   nib []
 
+let _xid = ref 0l
+
+let next_xid () =
+  _xid := Int32.succ (!_xid);
+  !_xid
+  
+let send_barrier_to_sw (t : t) (sw_id : switchId) : unit Deferred.t =
+  let ivar = Ivar.create () in
+  let xid = next_xid () in
+  let c_id = Controller.client_id_of_switch t.ctl sw_id in
+  t.barriers <- XidMap.add t.barriers xid ivar;
+  send t.ctl c_id (xid, OpenFlow0x01.Message.BarrierRequest);
+  Ivar.read ivar
+
+let send_barrier_to_sw_with_timeout (t : t) (sw_id : switchId) : unit Deferred.t =
+  with_timeout (Time.Span.of_sec 15.0) (send_barrier_to_sw t sw_id)
+  >>= function
+  | `Result () -> return ()
+  | `Timeout ->
+    Log.error ~tags
+      "Async_NetKAT_Controller.send_barrier_to_sw_with_timeout: switch %Lu timed out" sw_id;
+    Log.flushed ()
+
 let internal_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred.t =
   let to_flow_mod prio flow =
     OpenFlow0x01.Message.FlowModMsg (SDN_OpenFlow0x01.from_flow prio flow) in
@@ -245,22 +281,28 @@ let internal_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred
   let local = NetKAT_LocalCompiler.compile sw_id pol in
   Monitor.try_with ~name:"internal_update_table_for" (fun _ ->
     let priority = ref 65536 in
-    let table = NetKAT_LocalCompiler.to_table local in
+    (* Add match on ver *)    
+    let table = List.map (NetKAT_LocalCompiler.to_table local) ~f:(fun flow ->
+      {flow with pattern = { flow.pattern with dlVlan = Some ver }}) in
+    Log.debug ~tags
+      "switch %Lu: Installing internal table %s" sw_id (SDN_Types.string_of_flowTable table);
     let open SDN_Types in
     if List.length table <= 0
       then raise (Assertion_failed (Printf.sprintf
           "Controller.internal_update_table_for: empty table for switch %Lu" sw_id));
       Deferred.List.iter table ~f:(fun flow ->
-          (* Add match on ver *)
-          let flow = {flow with pattern = SDN_Types.FieldMap.add Vlan ver flow.pattern} in
           decr priority;
-          send t.ctl c_id (0l, to_flow_mod !priority flow)))
+          send t.ctl c_id (0l, to_flow_mod !priority flow))
+    >>= fun () -> send_barrier_to_sw_with_timeout t sw_id)
   >>= function
-    | Ok () -> return ()
-    | Error exn_ ->
-      Log.error ~tags
-        "switch %Lu: Failed to update table in internal_update_table_for" sw_id;
-      Log.flushed ()
+  | Ok () ->
+    Log.debug ~tags
+      "switch %Lu: installed internal table for ver %d" sw_id ver;
+    Log.flushed ()
+  | Error exn_ ->
+    Log.error ~tags
+      "switch %Lu: Failed to update table in internal_update_table_for" sw_id;
+    Log.flushed ()
 
 (* Topology detection doesn't really detect hosts. So, I treat any port not connected to a known switch as an edge port *)
 let get_edge_ports (t : t) (sw_id : switchId) =
@@ -281,8 +323,7 @@ let get_internal_ports (t : t) (sw_id : switchId) =
   let open Async_NetKAT in
   let open Net.Topology in
   let topo = !(t.nib) in
-  (* Log.error ~tags "topo: %s" (Net.Pretty.to_string topo); *)
-  (* Log.flushed (); *)
+  Log.debug ~tags "topo: %s" (Net.Pretty.to_string topo);
   let sw = vertex_of_label topo (Switch sw_id) in
   PortSet.fold (fun pt acc ->
       match next_hop topo sw pt with
@@ -296,31 +337,38 @@ let get_internal_ports (t : t) (sw_id : switchId) =
 
 let compute_edge_table (t : t) ver table sw_id =
   let internal_ports = get_internal_ports t sw_id in
-  let vlan_none = VInt.Int16 65535 in
+  let vlan_none = 65535 in
   (* Fold twice: once to fix match, second to fix fwd *)
   let open SDN_Types in
   let open Async_NetKAT.Net.Topology in
-  let rec fix_actions vlan_set = function
-    | (OutputPort pt) :: acts ->
-      let pt32 = VInt.get_int32 pt in
-      if not (PortSet.mem pt32 internal_ports) && vlan_set
-      then (SetField (Vlan, vlan_none)) :: (OutputPort pt) :: (fix_actions false acts)
-             (* else if (PortSet.mem pt32 internal_ports) && not vlan_set *)
-      else
-        (SetField (Vlan, ver)) :: (OutputPort pt) :: (fix_actions true acts)
-    | OutputAllPorts :: acts -> raise (Assertion_failed "Controller.compute_edge_table: OutputAllPorts not supported by consistent updates")
-    | Controller n :: acts -> (SetField (Vlan, vlan_none)) :: (Controller n) :: (fix_actions false acts)
-    | act :: acts -> act :: (fix_actions vlan_set acts)
-    | [] -> [] in
-  let match_table = List.fold table ~init:[] ~f:(fun acc r ->
-      if ((FieldMap.mem InPort r.pattern) && (PortSet.mem (VInt.get_int32 (FieldMap.find InPort r.pattern)) internal_ports))
+  let rec fix_actions = function
+    | Output (Physical pt) :: acts ->
+      if not (PortSet.mem pt internal_ports)
       then
-        acc
+        (Modify (SetVlan None)) :: (Output (Physical pt)) :: (fix_actions acts)
       else
-        {r with pattern = FieldMap.add Vlan vlan_none r.pattern} :: acc)
+        (Modify (SetVlan (Some ver))) :: (Modify (SetVlanPcp 1)) :: (Output (Physical pt)) :: (fix_actions acts)
+    | Output (Controller n) :: acts ->
+      (Modify (SetVlan None)) :: (Output (Controller n)) :: (fix_actions acts)
+    | Output _ :: acts ->
+      raise (Assertion_failed "Controller.compute_edge_table: Port not supported by consistent updates")
+    | act :: acts ->
+      act :: (fix_actions acts)
+    | [] -> []
+  in
+  let match_table = List.fold table ~init:[] ~f:(fun acc r ->
+      begin
+        match r.pattern.inPort with
+        | Some pt ->
+          if PortSet.mem pt internal_ports
+          then acc
+          else {r with pattern = {r.pattern with dlVlan = Some vlan_none}} :: acc
+        | None ->
+          {r with pattern = {r.pattern with dlVlan = Some vlan_none}} :: acc
+      end)
   in
   List.fold match_table ~init:[] ~f:(fun acc r ->
-      {r with action = List.map r.action ~f:(fun x -> List.map x ~f:(fix_actions false))} :: acc)
+      {r with action = List.map r.action ~f:(fun x -> List.map x ~f:(fix_actions))} :: acc)
 
 
 
@@ -335,13 +383,17 @@ let edge_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred.t =
     let priority = ref 65536 in
     let table = NetKAT_LocalCompiler.to_table local in
     let edge_table = compute_edge_table t ver table sw_id in
-    Log.info ~tags
+    Log.debug ~tags
       "switch %Lu: Installing edge table %s" sw_id (SDN_Types.string_of_flowTable edge_table);
     Deferred.List.iter edge_table ~f:(fun flow ->
         decr priority;
-        send t.ctl c_id (0l, to_flow_mod !priority flow)))
+        send t.ctl c_id (0l, to_flow_mod !priority flow))
+    >>= fun () ->  send_barrier_to_sw_with_timeout t sw_id)
   >>= function
-  | Ok () -> return ()
+  | Ok () ->
+    Log.debug ~tags
+      "switch %Lu: installed edge table for ver %d" sw_id ver;
+    Log.flushed ()
   | Error exn_ ->
     Log.error ~tags
       "switch %Lu: Failed to update table from edge_update_table_for" sw_id;
@@ -375,11 +427,16 @@ let consistently_update_table (t : t) pol : unit Deferred.t =
   let switches = get_switchids !(t.nib) in
   let ver_num = !ver + 1 in
   (* Install internal update *)
-  Deferred.List.iter switches (internal_update_table_for t (VInt.Int16 ver_num) pol)
-  (* Should wait, condition var upon return of barriers? *)
+  Log.debug ~tags "Installing internal tables for ver %d" ver_num;
+  Log.flushed ()
+  >>=
+  fun () -> Deferred.List.iter switches (internal_update_table_for t ver_num pol)
+  >>=
+  fun () -> Log.debug ~tags "Installing edge tables for ver %d" ver_num;
+  Log.flushed ()
   >>=
   (* Install edge update *)
-  fun () -> Deferred.List.iter switches (edge_update_table_for t (VInt.Int16 ver_num) pol)
+  fun () -> Deferred.List.iter switches (edge_update_table_for t ver_num pol)
   >>=
   (* Delete old rules *)
   fun () -> Deferred.List.iter switches (clear_old_table_for t (VInt.Int16 (ver_num - 1)))
@@ -388,6 +445,7 @@ let consistently_update_table (t : t) pol : unit Deferred.t =
   fun () -> return (incr ver)
 
 let update_table_for (t : t) (sw_id : switchId) pol : unit Deferred.t =
+  Log.info ~tags "switch %Lu: %s" sw_id (NetKAT_Pretty.string_of_policy pol);
   let delete_flows =
     OpenFlow0x01.Message.FlowModMsg OpenFlow0x01_Core.delete_all_flows in
   let to_flow_mod prio flow =
@@ -396,10 +454,13 @@ let update_table_for (t : t) (sw_id : switchId) pol : unit Deferred.t =
   t.locals <- SwitchMap.add t.locals sw_id
     (Optimize.specialize_policy sw_id pol);
   let local = NetKAT_LocalCompiler.compile sw_id pol in
+  Log.info ~tags "switch %Lu local: %s" sw_id (NetKAT_LocalCompiler.to_string local);
   Monitor.try_with ~name:"update_table_for" (fun () ->
     send t.ctl c_id (5l, delete_flows) >>= fun _ ->
     let priority = ref 65536 in
     let table = NetKAT_LocalCompiler.to_table local in
+    Log.info ~tags
+      "switch %Lu: Installing table %s" sw_id (SDN_Types.string_of_flowTable table);
     if List.length table <= 0
       then raise (Assertion_failed (Printf.sprintf
           "Controller.update_table_for: empty table for switch %Lu" sw_id));
@@ -439,13 +500,14 @@ let handler
       end
 
 let start app ?(port=6633) () =
-  let open Stage in
-  Controller.create ~max_pending_connections ~port ()
+  let open Async_OpenFlow.Stage in
+  Controller.create ~log_disconnects:true ~max_pending_connections ~port ()
   >>> fun ctl ->
     let t = {
       ctl = ctl;
       nib = ref (Net.Topology.empty ());
-      locals = SwitchMap.empty
+      locals = SwitchMap.empty;
+      barriers = XidMap.empty;
     } in
 
     (* The pipe for packet_outs. The Pipe.iter below will run in its own logical
@@ -482,4 +544,12 @@ let start app ?(port=6633) () =
      * *)
     let events = Pipe.interleave [Discovery.events d_ctl; sdn_events] in
 
-    Deferred.don't_wait_for (Pipe.iter events ~f:(handler t w_out app))
+    Deferred.don't_wait_for (
+      Monitor.try_with ~name:"start" (fun () ->
+          (Pipe.iter events ~f:(handler t w_out app)))
+      >>= function
+      | Ok a -> return a
+      | Error exn_ ->
+        Log.error ~tags "start: Exception occured %s" (Exn.to_string exn_);
+        Log.flushed ())
+        
