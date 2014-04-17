@@ -5,6 +5,12 @@ module Msg = OpenFlow0x01.Message
 
 exception Invalid_port of int32
 
+let from_portId (pport_id : AL.portId) : Core.portId =
+  if pport_id > 0xff00l then (* pport_id <= OFPP_MAX *)
+    raise (Invalid_port pport_id)
+  else
+    Int32.to_int pport_id
+
 let to_payload (pay : Core.payload) : AL.payload =
   let open Core in
   match pay with
@@ -51,11 +57,7 @@ let from_pattern (pat : AL.pattern) : Core.pattern =
   ; Core.nwTos = None
   ; Core.tpSrc = pat.AL.tpSrc
   ; Core.tpDst = pat.AL.tpDst
-  ; Core.inPort = (match pat.AL.inPort with
-    | None   -> None
-    | Some v -> if v >= 0xff00l (* pport_id < OFPP_MAX *)
-      then raise (Invalid_port v)
-      else Some(Int32.to_int v))
+  ; Core.inPort = Core_kernel.Option.map pat.AL.inPort from_portId
   }
 
 module Common = HighLevelSwitch_common.Make (struct
@@ -71,9 +73,7 @@ module Common = HighLevelSwitch_common.Make (struct
       | AL.OutputAllPorts -> 
         (Mod.none, Output AllPorts)
       | AL.OutputPort pport_id ->
-        if pport_id >= 0xff00l then (* pport_id < OFPP_MAX *)
-          raise (Invalid_port pport_id);
-        let pport_id = Int32.to_int pport_id in
+        let pport_id = from_portId pport_id in
         if Some pport_id = inPort then
           (Mod.none, Output InPort)
         else
@@ -81,9 +81,7 @@ module Common = HighLevelSwitch_common.Make (struct
       | AL.Controller n -> 
         (Mod.none, Output (Controller n))
       | AL.Enqueue (pport_id, queue_id) ->
-        if pport_id >= 0xff00l then (* pport_id < OFPP_MAX *)
-          raise (Invalid_port pport_id);
-        let pport_id = Int32.to_int pport_id in
+        let pport_id = from_portId pport_id in
         if Some pport_id = inPort then
           (Mod.none, Enqueue(InPort, queue_id))
         else 
