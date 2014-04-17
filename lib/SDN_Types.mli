@@ -46,7 +46,7 @@ type pattern =
     { dlSrc : dlAddr option
     ; dlDst : dlAddr option
     ; dlTyp : dlTyp option
-    ; dlVlan : dlVlan option
+    ; dlVlan : dlVlan
     ; dlVlanPcp : dlVlanPcp option
     ; nwSrc : nwAddr option
     ; nwDst : nwAddr option

@@ -51,7 +51,7 @@ let from_pattern (pat : AL.pattern) : Core.oxmMatch * Core.portId option =
           Core.OxmVlanVId (v_to_m 0)
         | _ ->
           Core.OxmVlanVId (v_to_m x))
-      (Core_kernel.Option.join pat.AL.dlVlan)
+      pat.AL.dlVlan
     ; Misc.map_option (fun x -> Core.OxmVlanPcp x) pat.AL.dlVlanPcp
     ; Misc.map_option (fun x -> Core.OxmIP4Src (v_to_m x)) pat.AL.nwSrc
     ; Misc.map_option (fun x -> Core.OxmIP4Dst (v_to_m x)) pat.AL.nwDst
@@ -214,16 +214,16 @@ let fix_vlan_in_flow fl =
   let open SDN_Types in
   if contains_vlan_pop fl.action && not (contains_vlan fl.pattern) then
     (* match on vlan_none, then drop the strip_vlan *)
-    [ {fl with pattern = { fl.pattern with dlVlan = Some(Some(0xffff)) };
+    [ {fl with pattern = { fl.pattern with dlVlan = Some(0xffff) };
               action = strip_vlan_pop fl.action}
     (* match on vlan_any, use the same actions *)
-    ; {fl with pattern = { fl.pattern with dlVlan = Some(Some(-1)) }}]
+    ; {fl with pattern = { fl.pattern with dlVlan = Some(-1) }}]
   else if contains_vlan_mod fl.action && not (contains_vlan fl.pattern) then
     (* match on vlan_none, then push a vlan tag *)
-    [ {fl with pattern = { fl.pattern with dlVlan = Some(Some(0xffff)) };
+    [ {fl with pattern = { fl.pattern with dlVlan = Some(0xffff) };
                action = add_vlan_push fl.action}
     (* match on vlan_any, use the same actions *)
-    ; {fl with pattern = { fl.pattern with dlVlan = Some(Some(-1)) }} ]
+    ; {fl with pattern = { fl.pattern with dlVlan = Some(-1) }} ]
   else
     [fl]
 

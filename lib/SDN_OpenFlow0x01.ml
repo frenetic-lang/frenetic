@@ -37,8 +37,9 @@ let from_pattern (pat : AL.pattern) : Core.pattern =
   ; Core.dlDst = pat.AL.dlDst
   ; Core.dlTyp = pat.AL.dlTyp
   ; Core.dlVlan = (match pat.AL.dlVlan with
-      | Some(Some(0xffff)) -> Some None
-      | _ -> pat.AL.dlVlan)
+      | Some(0xffff) -> Some None
+      | Some(x) -> Some (Some x)
+      | None -> None)
   ; Core.dlVlanPcp = pat.AL.dlVlanPcp
   ; Core.nwSrc = (match pat.AL.nwSrc with
     | None   -> None
