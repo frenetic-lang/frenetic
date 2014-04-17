@@ -126,7 +126,7 @@ let format_pattern (fmt:Format.formatter) (p:pattern) : unit =
       | None   -> ()
       | Some v ->
         if not (!first) then Format.fprintf fmt ",@,";
-        Format.fprintf fmt "%s = %a" name format_val v;
+        Format.fprintf fmt "%s=%a" name format_val v;
         first := false in
   Format.fprintf fmt "@[{";
   format_field "ethSrc" format_mac p.dlSrc;
