@@ -130,19 +130,6 @@ let packet_sync_headers (pkt:NetKAT_Types.packet) : NetKAT_Types.packet * bool =
     | SDN_Types.Buffered(n, _) -> SDN_Types.Buffered(n, Packet.marshal packet')
   }, !change)
 
-let packet_out_to_message (_, bytes, buffer_id, port_id, actions) =
-  let open OpenFlow0x01_Core in
-  let output_payload = match buffer_id with
-    | Some(id) -> Buffered(id, bytes)
-    | None -> NotBuffered bytes in
-  (* XXX(seliopou): This does not do a bounds check on the port. Leaving it for
-   * now as this entire function should be moved to ocaml-openflow in the very
-   * near future, at which point appropriate bounds checking will be added.
-   * *)
-  let port_id = Option.map port_id (fun x -> Int32.to_int_exn x) in
-  let apply_actions = SDN_OpenFlow0x01.from_group port_id [[actions]] in
-  OpenFlow0x01.Message.PacketOutMsg{ output_payload; port_id; apply_actions }
-
 let send t c_id msg =
   Controller.send t c_id msg
   >>| function
@@ -210,7 +197,10 @@ let to_event w_out (t : t) evt =
                 let outs = Deferred.List.iter phys ~f:(fun packet1 ->
                   let acts = headers_to_actions
                     packet1.headers packet.headers in
-                  let out = (switch_id, bytes, buf_id, Some(port_id), acts) in
+                  let payload = match buf_id with
+                    | None -> SDN_Types.NotBuffered(bytes)
+                    | Some(buf_id) -> SDN_Types.Buffered(buf_id, bytes) in
+                  let out = (switch_id, (payload, Some(port_id), acts)) in
                   Pipe.write w_out out) in
                 outs >>= fun _ ->
                 return (List.map pis ~f:(fun (p, pkt) ->
@@ -303,10 +293,11 @@ let start app ?(port=6633) () =
      * *)
     let r_out, w_out = Pipe.create () in
     Deferred.don't_wait_for (Pipe.iter r_out ~f:(fun out ->
-      let (sw_id, _, _, _, _) = out in
+      let (sw_id, pkt_out) = out in
       Monitor.try_with ~name:"packet_out" (fun () ->
         let c_id = Controller.client_id_of_switch ctl sw_id in
-        send ctl c_id (0l, packet_out_to_message out))
+        send ctl c_id (0l, OpenFlow0x01.Message.PacketOutMsg
+          (SDN_OpenFlow0x01.from_packetOut pkt_out)))
       >>= function
         | Ok () -> return ()
         | Error exn_ ->

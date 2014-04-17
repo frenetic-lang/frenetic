@@ -46,7 +46,7 @@ end)
 exception Sequence_error of PipeSet.t * PipeSet.t
 
 type result = policy option
-type handler = Net.Topology.t ref -> packet_out Pipe.Writer.t -> unit -> event -> result Deferred.t
+type handler = Net.Topology.t ref -> (switchId * SDN_Types.pktOut) Pipe.Writer.t -> unit -> event -> result Deferred.t
 
 type app = {
   pipes : PipeSet.t;
@@ -78,7 +78,7 @@ let default (a : app) : policy =
 let run
     (a : app)
     (t : Net.Topology.t ref)
-    (w : packet_out Pipe.Writer.t)
+    (w : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
     (_ : unit)
     : event -> result Deferred.t =
   let a' = a.handler t w () in

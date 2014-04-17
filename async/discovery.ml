@@ -78,7 +78,7 @@ module Switch = struct
        * a deadlock.
        * *)
       w_evts : NetKAT_Types.event Pipe.Writer.t;
-      w_outs : NetKAT_Types.packet_out Pipe.Writer.t;
+      w_outs : (SDN_Types.switchId * SDN_Types.pktOut) Pipe.Writer.t;
       mutable pending : PortSet.t SwitchMap.t;
       mutable probe : bool;
       mutable loop : unit Deferred.t
@@ -88,7 +88,7 @@ module Switch = struct
       let bytes = Packet.marshal
         Probe.(to_packet { switch_id; port_id = port_id }) in
       let action = SDN_Types.OutputPort(port_id) in
-      (switch_id, bytes, None, Some(port_id), [action])
+      (switch_id, (SDN_Types.NotBuffered(bytes), Some(port_id), [action]))
 
     let loop t =
       Deferred.repeat_until_finished () (fun () ->

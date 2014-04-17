@@ -228,5 +228,3 @@ type event =
   | LinkDown of switch_port * switch_port
   | HostUp of switch_port * host
   | HostDown of switch_port * host
-
-type packet_out = switchId * bytes * bufferId option * portId option * action list

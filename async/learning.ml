@@ -71,7 +71,10 @@ let create () =
       else 
          None in
       let action = forward switch_id packet in
-      Pipe.write w (switch_id, bytes, buf, Some(port_id), [action]) >>= fun _ ->
+      let payload = match buf with
+        | None -> SDN_Types.NotBuffered(bytes)
+        | Some(buf_id) -> SDN_Types.Buffered(buf_id, bytes) in
+      Pipe.write w (switch_id, (payload, Some(port_id), [action])) >>= fun _ ->
       return pol 
     | _ -> return None in
       
