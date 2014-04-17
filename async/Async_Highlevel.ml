@@ -110,7 +110,7 @@ let features t evt =
           begin 
             match M1.parse hdr (Cstruct.to_string bits) with 
             | (_, M1.SwitchFeaturesReply feats) -> 
-               let get_port pd = VInt.Int16 pd.OF1.PortDescription.port_no in 
+               let get_port pd = Int32.of_int_exn pd.OF1.PortDescription.port_no in
                let switch_id = feats.OF1.SwitchFeatures.switch_id in
                let switch_ports = List.map feats.OF1.SwitchFeatures.ports ~f:get_port in 
                let feats = { S.switch_id = switch_id;
@@ -139,7 +139,7 @@ let features t evt =
         begin
           match M4.parse hdr (Cstruct.to_string bits) with 
           | (_, M4.MultipartReply (OF4_Core.PortsDescReply ports)) -> 
-             let get_port pd = VInt.Int32 pd.OF4_Core.port_no in 
+             let get_port pd = pd.OF4_Core.port_no in
              let switch_ports = List.map ports ~f:get_port in 
              let feats = { S.switch_id = switch_id;
                            S.switch_ports = switch_ports } in 

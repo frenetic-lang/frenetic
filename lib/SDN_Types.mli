@@ -29,17 +29,11 @@
 
 *)
 
-type int8 = int
-type int12 = int
-type int16 = int
-type int32 = Int32.t
-type int64 = Int64.t
-type int48 = Int64.t
-type bytes = Cstruct.t
+open Packet
 
 type switchId = int64
-type portId = VInt.t
-type queueId = VInt.t
+type portId = int32
+type queueId = int32
 
 type bufferId = int32
 
@@ -47,33 +41,40 @@ exception Unsupported of string
 
 (** {1 Packet Forwarding} *)
 
-type field =
-  | InPort
-  | EthType
-  | EthSrc
-  | EthDst
-  | Vlan
-  | VlanPcp
-  | IPProto
-  | IP4Src
-  | IP4Dst
-  | TCPSrcPort
-  | TCPDstPort
-
-type fieldVal = VInt.t
-
-module FieldMap : Map.S
-  with type key = field
-
 (** WARNING: There are dependencies between different fields that must be met. *)
-type pattern = fieldVal FieldMap.t
+type pattern =
+    { dlSrc : dlAddr option
+    ; dlDst : dlAddr option
+    ; dlTyp : dlTyp option
+    ; dlVlan : dlVlan
+    ; dlVlanPcp : dlVlanPcp option
+    ; nwSrc : nwAddr option
+    ; nwDst : nwAddr option
+    ; nwProto : nwProto option
+    ; tpSrc : tpPort option
+    ; tpDst : tpPort option
+    ; inPort : portId option }
+
+val all_pattern : pattern
+
+type modify =
+  | SetEthSrc of dlAddr
+  | SetEthDst of dlAddr
+  | SetVlan of dlVlan
+  | SetVlanPcp of dlVlanPcp
+  | SetEthTyp of dlTyp
+  | SetIPProto of nwProto
+  | SetIP4Src of nwAddr
+  | SetIP4Dst of nwAddr
+  | SetTCPSrcPort of tpPort
+  | SetTCPDstPort of tpPort
 
 type action =
   | OutputAllPorts
   | OutputPort of portId
   | Controller of int
   | Enqueue of portId * queueId
-  | SetField of field * fieldVal
+  | Modify of modify
  
 type seq = action list
 
@@ -109,14 +110,14 @@ type packetInReason =
   | ExplicitSend
 
 (** [(payload, total_length, in_port, reason)] *)
-type pktIn = payload * int * VInt.t * packetInReason
+type pktIn = payload * int * portId * packetInReason
 
 (* {1 Switch Configuration} *)
 
 (** A simplification of the _switch features_ message from OpenFlow *)
 type switchFeatures = {
   switch_id : switchId;
-  switch_ports : VInt.t list
+  switch_ports : portId list
 }
 
 (* {1 Statistics} *)
@@ -145,14 +146,12 @@ val format_action : Format.formatter -> action -> unit
 val format_seq : Format.formatter -> seq -> unit
 val format_par : Format.formatter -> par -> unit
 val format_group : Format.formatter -> group -> unit
-val format_field : Format.formatter -> field -> unit
 val format_pattern : Format.formatter -> pattern -> unit
 val format_flow : Format.formatter -> flow -> unit
 val format_flowTable : Format.formatter -> flowTable -> unit
 
-val string_of_flowTable : flowTable -> string
-val string_of_flow : flow -> string
-val string_of_pattern : pattern -> string
-val string_of_field : field -> string
-val string_of_par : par -> string
 val string_of_action : action -> string
+val string_of_seq : seq -> string
+val string_of_pattern : pattern -> string
+val string_of_flow : flow -> string
+val string_of_flowTable : flowTable -> string

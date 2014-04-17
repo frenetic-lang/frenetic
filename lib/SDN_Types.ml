@@ -1,50 +1,60 @@
 module OF10 = OpenFlow0x01_Core
 module OF13 = OpenFlow0x04_Core
 
+open Packet
+
 exception Unsupported of string
 
-type int8 = int
-type int12 = int
-type int16 = int
-type int32 = Int32.t
-type int64 = Int64.t
-type int48 = Int64.t
-type bytes = Cstruct.t
-
 type switchId = int64
-type portId = VInt.t
-type queueId = VInt.t
+type portId = int32
+type queueId = int32
 
 type bufferId = int32
 
-type field =
-  | InPort
-  | EthType
-  | EthSrc
-  | EthDst
-  | Vlan
-  | VlanPcp
-  | IPProto
-  | IP4Src
-  | IP4Dst
-  | TCPSrcPort
-  | TCPDstPort
+type pattern =
+    { dlSrc : dlAddr option
+    ; dlDst : dlAddr option
+    ; dlTyp : dlTyp option
+    ; dlVlan : dlVlan
+    ; dlVlanPcp : dlVlanPcp option
+    ; nwSrc : nwAddr option
+    ; nwDst : nwAddr option
+    ; nwProto : nwProto option
+    ; tpSrc : tpPort option
+    ; tpDst : tpPort option
+    ; inPort : portId option }
 
-type fieldVal = VInt.t
+let all_pattern =
+    { dlSrc = None
+    ; dlDst = None
+    ; dlTyp = None
+    ; dlVlan = None
+    ; dlVlanPcp = None
+    ; nwSrc = None
+    ; nwDst = None
+    ; nwProto = None
+    ; tpSrc = None
+    ; tpDst = None
+    ; inPort = None }
 
-module FieldMap = Map.Make(struct
-  type t = field
-  let compare = Pervasives.compare
-end)
-
-type pattern = fieldVal FieldMap.t
+type modify =
+  | SetEthSrc of dlAddr
+  | SetEthDst of dlAddr
+  | SetVlan of dlVlan
+  | SetVlanPcp of dlVlanPcp
+  | SetEthTyp of dlTyp
+  | SetIPProto of nwProto
+  | SetIP4Src of nwAddr
+  | SetIP4Dst of nwAddr
+  | SetTCPSrcPort of tpPort
+  | SetTCPDstPort of tpPort
 
 type action =
   | OutputAllPorts
   | OutputPort of portId
   | Controller of int
   | Enqueue of portId * queueId
-  | SetField of field * fieldVal
+  | Modify of modify
 
 type seq = action list
 
@@ -74,11 +84,11 @@ type packetInReason =
   | NoMatch
   | ExplicitSend
 
-type pktIn = payload * int * VInt.t * packetInReason
+type pktIn = payload * int * portId * packetInReason
 
 type switchFeatures = {
   switch_id : switchId;
-  switch_ports : VInt.t list
+  switch_ports : portId list
 }
 
 type flowStats = {
@@ -94,56 +104,82 @@ type flowStats = {
   flow_byte_count: int64
 }
 
-let format_field (fmt : Format.formatter) (f : field) : unit =
-  Format.pp_print_string fmt
-    (match f with
-      | InPort -> "port"
-      | EthType -> "ethTyp"
-      | EthSrc -> "ethSrc"
-      | EthDst -> "ethDst"
-      | Vlan -> "vlanId"
-      | VlanPcp -> "vlanPcp"
-      | IPProto -> "ipProto"
-      | IP4Src -> "ipSrc"
-      | IP4Dst -> "ipDst"
-      | TCPSrcPort -> "tcpSrcPort"
-      | TCPDstPort -> "tcpDstPort")
+let format_mac (fmt : Format.formatter) (v:int48) =
+  Format.pp_print_string fmt (Packet.string_of_mac v)
 
-let format_value (fmt : Format.formatter) (f : field) (v : VInt.t) : unit =
-  match f with
-    | EthType -> Format.fprintf fmt "0x%x" (VInt.get_int16 v)
-    | EthSrc
-    | EthDst -> Format.pp_print_string fmt (Packet.string_of_mac (VInt.get_int48 v))
-    | IPProto -> Format.fprintf fmt "0x%x" (VInt.get_int8 v)
-    | IP4Src
-    | IP4Dst -> Format.pp_print_string fmt (Packet.string_of_ip (VInt.get_int32 v))
-    | _ -> VInt.format fmt v
+let format_ip (fmt : Format.formatter) (v:int32) =
+  Format.pp_print_string fmt (Packet.string_of_ip v)
+
+let format_hex (fmt : Format.formatter) (v:int) =
+  Format.fprintf fmt "0x%x" v
+
+let format_int (fmt : Format.formatter) (v:int) =
+  Format.fprintf fmt "%u" v
+
+let format_int32 (fmt : Format.formatter) (v:int32) =
+  Format.fprintf fmt "%lu" v
 
 let format_pattern (fmt:Format.formatter) (p:pattern) : unit = 
+  let first = ref true in
+  let format_field name format_val m_val =
+    match m_val with
+      | None   -> ()
+      | Some v ->
+        if not (!first) then Format.fprintf fmt ",@,";
+        Format.fprintf fmt "%s=%a" name format_val v;
+        first := false in
   Format.fprintf fmt "@[{";
-  let _ = 
-    FieldMap.fold 
-      (fun f v b ->
-        if b then Format.fprintf fmt ",@,";
-        format_field fmt f;
-        Format.fprintf fmt "="; 
-        format_value fmt f v;
-        true)
-      p false in 
+  format_field "ethSrc" format_mac p.dlSrc;
+  format_field "ethDst" format_mac p.dlDst;
+  format_field "ethTyp" format_hex p.dlTyp;
+  format_field "vlanId" format_int p.dlVlan;
+  format_field "vlanPcp" format_int p.dlVlanPcp;
+  format_field "nwProto" format_hex p.nwProto;
+  format_field "ipSrc" format_ip p.nwSrc;
+  format_field "ipDst" format_ip p.nwDst;
+  format_field "tcpSrcPort" format_int p.tpSrc;
+  format_field "tcpDstPort" format_int p.tpDst;
+  format_field "port" format_int32 p.inPort;
   Format.fprintf fmt "}@]"
+
+let format_modify (fmt:Format.formatter) (m:modify) : unit =
+  match m with
+  | SetEthSrc(dlAddr) ->
+    Format.fprintf fmt "SetField(ethSrc, %a)" format_mac dlAddr
+  | SetEthDst(dlAddr) ->
+    Format.fprintf fmt "SetField(ethDst, %a)" format_mac dlAddr
+  | SetVlan(None)
+  | SetVlan(Some(0xffff)) ->
+    Format.fprintf fmt "SetField(vlan, <none>)"
+  | SetVlan(Some(id)) ->
+    Format.fprintf fmt "SetField(vlan, %u)" id
+  | SetVlanPcp(pcp) ->
+    Format.fprintf fmt "SetField(vlanPcp, %u)" pcp
+  | SetEthTyp(dlTyp) ->
+    Format.fprintf fmt "SetField(ethTyp, %u)" dlTyp
+  | SetIPProto(nwProto) ->
+    Format.fprintf fmt "SetField(ipProto, %a)" format_hex nwProto
+  | SetIP4Src(nwAddr) ->
+    Format.fprintf fmt "SetField(ipSrc, %a)" format_ip nwAddr
+  | SetIP4Dst(nwAddr) ->
+    Format.fprintf fmt "SetField(ipDst, %a)" format_ip nwAddr
+  | SetTCPSrcPort(tpPort) ->
+    Format.fprintf fmt "SetField(tcpSrcPort, %a)" format_int tpPort
+  | SetTCPDstPort(tpPort) ->
+    Format.fprintf fmt "SetField(tcpDstPort, %a)" format_int tpPort
 
 let rec format_action (fmt:Format.formatter) (a:action) : unit = 
   match a with         
   | OutputAllPorts -> 
     Format.fprintf fmt "OutputAllPorts"
   | OutputPort(n) -> 
-    Format.fprintf fmt "OutputPort(%a)" VInt.format n
+    Format.fprintf fmt "OutputPort(%ld)" n
   | Controller(n) -> 
     Format.fprintf fmt "Controller(%d)" n
   | Enqueue(m,n) -> 
-    Format.fprintf fmt "Enqueue(%a,%a)" VInt.format m VInt.format n
-  | SetField(f,v) -> 
-    Format.fprintf fmt "SetField(%a,%a)" format_field f (fun fmt -> format_value fmt f) v
+    Format.fprintf fmt "Enqueue(%ld,%ld)" m n
+  | Modify(m) ->
+    format_modify fmt m
 
 let rec format_seq (fmt : Format.formatter) (seq : seq) : unit =
   match seq with
@@ -197,9 +233,9 @@ let make_string_of formatter x =
   fprintf fmt "@?";
   Buffer.contents buf
 
-let string_of_flowTable = make_string_of format_flowTable
-let string_of_flow = make_string_of format_flow
-let string_of_field = make_string_of format_field
-let string_of_pattern = make_string_of format_pattern
-let string_of_par = make_string_of format_par
 let string_of_action = make_string_of format_action
+let string_of_seq = make_string_of format_seq
+let string_of_par = make_string_of format_par
+let string_of_pattern = make_string_of format_pattern
+let string_of_flow = make_string_of format_flow
+let string_of_flowTable = make_string_of format_flowTable
