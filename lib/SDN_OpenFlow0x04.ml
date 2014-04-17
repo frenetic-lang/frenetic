@@ -133,7 +133,7 @@ let auto_ff_bucket (inPort : Core.portId option) (par : AL.par) : Core.bucket =
   { bu_weight; bu_watch_port; bu_watch_group; bu_actions }
   
 
-let from_group (groupTable : GroupTable0x04.t) (inPort : Core.portId option)
+let from_group (inPort : Core.portId option) (groupTable : GroupTable0x04.t)
   (act : AL.group) 
   : Core.action list =
   let open SDN_Types in
@@ -155,7 +155,7 @@ let from_flow (groupTable : GroupTable0x04.t) (priority : int) (flow : AL.flow) 
       mfCommand = AddFlow;
       mfOfp_match = pat;
       mfPriority = priority;
-      mfInstructions = [Core.ApplyActions (from_group groupTable inport action)];
+      mfInstructions = [Core.ApplyActions (from_group inport groupTable action)];
       mfCookie = Core.val_to_mask cookie;
       mfIdle_timeout = from_timeout idle_timeout;
       mfHard_timeout = from_timeout hard_timeout;
