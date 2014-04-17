@@ -80,6 +80,11 @@ type payload =
   | Buffered of bufferId * bytes 
   | NotBuffered of bytes
 
+let payload_bytes (payload : payload) : bytes =
+  match payload with
+  | Buffered(_, bytes)
+  | NotBuffered(bytes) -> bytes
+
 type packetInReason =
   | NoMatch
   | ExplicitSend

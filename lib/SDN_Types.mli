@@ -105,6 +105,10 @@ type payload =
     (** [Buffered (id, buf)] is a packet buffered on a switch. *)
   | NotBuffered of bytes
 
+
+(** [payload_bytes payload] returns the bytes for the given payload *)
+val payload_bytes : payload -> bytes
+
 type packetInReason =
   | NoMatch
   | ExplicitSend
