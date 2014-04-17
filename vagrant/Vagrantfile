@@ -27,6 +27,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # Default value: false
   # config.ssh.forward_agent = true
 
+  config.vm.synced_folder "../", "/home/vagrant/frenetic"
+  
   config.vm.provider :virtualbox do |vb|
     # Don't boot with headless mode
     # vb.gui = true
