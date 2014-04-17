@@ -1307,10 +1307,9 @@ module PacketOut = struct
         | NotBuffered _ -> 0xffffffffl
         | Buffered (buffer_id, _) -> buffer_id);
     set_ofp_packet_out_in_port buf
-      (match po.po_in_port with
-        | PhysicalPort pid -> pid
-        | Controller _ -> 0xfffffffdl   (* OFPP_CONTROLLER *)
-        | _ -> failwith "Invalid marshal of packetOut");
+      (match po.po_port_id with
+        | None -> 0l
+        | Some(port_id) -> port_id);
     set_ofp_packet_out_actions_len buf (sum (map Action.sizeof po.po_actions));
     set_ofp_packet_out_pad0 buf 0;
     set_ofp_packet_out_pad1 buf 0;
