@@ -86,6 +86,8 @@ type packetInReason =
 
 type pktIn = payload * int * portId * packetInReason
 
+type pktOut = payload * (portId option) * (action list)
+
 type switchFeatures = {
   switch_id : switchId;
   switch_ports : portId list

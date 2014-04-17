@@ -112,6 +112,9 @@ type packetInReason =
 (** [(payload, total_length, in_port, reason)] *)
 type pktIn = payload * int * portId * packetInReason
 
+(** [(payload, in_port option, action list)] *)
+type pktOut = payload * (portId option) * (action list)
+
 (* {1 Switch Configuration} *)
 
 (** A simplification of the _switch features_ message from OpenFlow *)
