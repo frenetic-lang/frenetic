@@ -176,6 +176,14 @@ let from_flow (groupTable : GroupTable0x04.t) (priority : int) (flow : AL.flow) 
       mfOut_group = None
     }
 
+let from_packetOut (pktOut : AL.pktOut) : Core.packetOut =
+  let open Core in
+  let po_payload, po_port_id, po_actions = pktOut in
+  let po_payload = from_payload po_payload in
+  let po_port_id = Core_kernel.Option.map po_port_id from_portId in
+  let po_actions = Common.flatten_par po_port_id [po_actions] in
+  { po_payload; po_port_id; po_actions }
+
 (* Compiler may generate code that pops vlans w/o matching for vlan
    tags. We have to enforce that pop_vlan is only called on vlan tagged
    packets 
@@ -234,4 +242,3 @@ let fix_vlan_in_flow fl =
 let rec fix_vlan_in_table tbl = match tbl with
   | [] -> []
   | fl :: tbl -> fix_vlan_in_flow fl @ fix_vlan_in_table tbl
- 
