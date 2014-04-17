@@ -183,8 +183,11 @@ type portReason =
 
 type portStatus = { reason : portReason; desc : portDesc }
 
-type packetOut = { po_in_port : pseudoPort;
-                   po_actions : actionSequence; po_payload : payload }
+type packetOut = {
+  po_payload : payload;
+  po_port_id : portId option;
+  po_actions : actionSequence
+}
 
 type multipartRequest = 
   | SwitchDescReq

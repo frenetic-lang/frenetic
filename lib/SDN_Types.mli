@@ -105,12 +105,19 @@ type payload =
     (** [Buffered (id, buf)] is a packet buffered on a switch. *)
   | NotBuffered of bytes
 
+
+(** [payload_bytes payload] returns the bytes for the given payload *)
+val payload_bytes : payload -> bytes
+
 type packetInReason =
   | NoMatch
   | ExplicitSend
 
 (** [(payload, total_length, in_port, reason)] *)
 type pktIn = payload * int * portId * packetInReason
+
+(** [(payload, in_port option, action list)] *)
+type pktOut = payload * (portId option) * (action list)
 
 (* {1 Switch Configuration} *)
 

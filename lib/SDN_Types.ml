@@ -80,11 +80,18 @@ type payload =
   | Buffered of bufferId * bytes 
   | NotBuffered of bytes
 
+let payload_bytes (payload : payload) : bytes =
+  match payload with
+  | Buffered(_, bytes)
+  | NotBuffered(bytes) -> bytes
+
 type packetInReason =
   | NoMatch
   | ExplicitSend
 
 type pktIn = payload * int * portId * packetInReason
+
+type pktOut = payload * (portId option) * (action list)
 
 type switchFeatures = {
   switch_id : switchId;
