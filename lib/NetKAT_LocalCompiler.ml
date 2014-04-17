@@ -2,8 +2,6 @@ open Core.Std
 open Sexplib.Conv
 open SDN_Types
 
-type location = NetKAT_Types.location
-
 (* Option functor *)
 module Option (H:NetKAT_Types.Headers.HEADER) =
 struct
@@ -218,8 +216,8 @@ module Action = struct
       ~ethType:(g (fun v -> EthType v))
       ~ipProto:(g (fun v -> IPProto v))
       (* TODO(arjun): I assume this means an exact match /32 *)
-      ~ipSrc:(g (fun v -> IP4Src (v, 32)))
-      ~ipDst:(g (fun v -> IP4Dst (v, 32)))
+      ~ipSrc:(g (fun v -> IP4Src (v, 32l)))
+      ~ipDst:(g (fun v -> IP4Dst (v, 32l)))
       ~tcpSrcPort:(g (fun v -> TCPSrcPort v))
       ~tcpDstPort:(g (fun v -> TCPDstPort v))
 
@@ -351,8 +349,8 @@ module Pattern = struct
       ~ethType:(g PN16.S.fold (fun v -> EthType v))
       ~ipProto:(g PN8.S.fold (fun v -> IPProto v))
       (* TODO(arjun): I assume this means an exact match /32 *)
-      ~ipSrc:(g PNIp.S.fold (fun v -> IP4Src (v, 32)))
-      ~ipDst:(g PNIp.S.fold (fun v -> IP4Dst (v, 32)))
+      ~ipSrc:(g PNIp.S.fold (fun v -> IP4Src (v, 32l)))
+      ~ipDst:(g PNIp.S.fold (fun v -> IP4Dst (v, 32l)))
       ~tcpSrcPort:(g PN16.S.fold (fun v -> TCPSrcPort v))
       ~tcpDstPort:(g PN16.S.fold (fun v -> TCPDstPort v))
 
@@ -784,14 +782,7 @@ end
 
 module RunTime = struct
 
-  let to_action (a:Action.t) (pto: fieldVal option) : seq =
-    let i8 x = VInt.Int8 x in
-    let i16 x = VInt.Int16 x in
-    let i32 x = VInt.Int32 x in
-    let i48 x = VInt.Int64 x in
-    let pto = match pto with
-      | Some(v) -> Some(VInt.get_int32 v)
-      | None -> None in
+  let to_action (a:Action.t) (pto: portId option) : seq =
     (* If an action sets the location to a pipe, ignore all other modifications.
      * They will be applied at the controller by Semantics.eval. Otherwise, the
      * port must be determined either by the pattern or by the action. The pto
@@ -804,23 +795,23 @@ module RunTime = struct
         [Controller 128]
       | Some (NetKAT_Types.Physical pt), _
       | None, Some pt ->
-        let g h c act f =
+        let g h act f =
           match Field.get f a with
             | None -> act
-            | Some v -> SetField(h,c v)::act in
+            | Some v -> Modify(h v)::act in
         HOV.Fields.fold
-          ~init:[OutputPort (VInt.Int32 pt)]
+          ~init:[OutputPort pt]
           ~location:(fun act _ -> act)
-          ~ethSrc:(g EthSrc i48)
-          ~ethDst:(g EthDst i48)
-          ~vlan:(g Vlan i16)
-          ~vlanPcp:(g VlanPcp i8)
-          ~ethType:(g EthType i16)
-          ~ipProto:(g IPProto i8)
-          ~ipSrc:(g IP4Src i32)
-          ~ipDst:(g IP4Dst i32)
-          ~tcpSrcPort:(g TCPSrcPort i16)
-          ~tcpDstPort:(g TCPDstPort i16)
+          ~ethSrc:(g (fun v -> SetEthSrc v))
+          ~ethDst:(g (fun v -> SetEthDst v))
+          ~vlan:(g (fun v -> SetVlan (Some(v))))
+          ~vlanPcp:(g (fun v -> SetVlanPcp v))
+          ~ethType:(g (fun v -> SetEthTyp v))
+          ~ipProto:(g (fun v -> SetIPProto v))
+          ~ipSrc:(g (fun v -> SetIP4Src v))
+          ~ipDst:(g (fun v -> SetIP4Dst v))
+          ~tcpSrcPort:(g (fun v -> SetTCPSrcPort v))
+          ~tcpDstPort:(g (fun v -> SetTCPDstPort v))
       | None, None ->
         failwith "indeterminate location"
 
@@ -832,7 +823,7 @@ module RunTime = struct
    * requires two copies of the packet at the switch, which is not possible.
    * Policies like these must be implemented at the controller.
    * *)
-  let set_to_action (s:Action.Set.t) (pto : fieldVal option) : par =
+  let set_to_action (s:Action.Set.t) (pto : portId option) : par =
     let f par a = (to_action a pto)::par in
     List.dedup (Action.Set.fold s ~f:f ~init:[])
 
@@ -843,69 +834,121 @@ module RunTime = struct
       idle_timeout = Permanent;
       hard_timeout = Permanent }
 
+  module Expanded(H:NetKAT_Types.Headers.HEADER) = struct
+    type t = (H.t option * bool) list with sexp
+    let compare = Pervasives.compare
+    let equal = (=)
+    let to_string hs =
+      Printf.sprintf "[%s]" 
+        (List.fold_left hs
+          ~init:"" ~f:(fun acc (mh, b) ->
+            Printf.sprintf "%s(%s,%b)"
+            (if acc = "" then acc else "; ")
+            (match mh with None -> "None" | Some(h) -> H.to_string h)
+            b))
+    let is_wild _ = false
+  end
+
+  module EHeaders = struct
+    include NetKAT_Types.Headers.Make
+    (Expanded(NetKAT_Types.LocationHeader))
+    (Expanded(NetKAT_Types.Int64Header))
+    (Expanded(NetKAT_Types.Int64Header))
+    (Expanded(NetKAT_Types.IntHeader))
+    (Expanded(NetKAT_Types.IntHeader))
+    (Expanded(NetKAT_Types.IntHeader))
+    (Expanded(NetKAT_Types.IntHeader))
+    (Expanded(NetKAT_Types.Int32Header))
+    (Expanded(NetKAT_Types.Int32Header))
+    (Expanded(NetKAT_Types.IntHeader))
+    (Expanded(NetKAT_Types.IntHeader))
+
+    let empty =
+      { location = []; 
+        ethSrc = [];
+        ethDst = [];
+        vlan = [];
+        vlanPcp = [];
+        ethType = [];
+        ipProto = [];
+        ipSrc = [];
+        ipDst = [];
+        tcpSrcPort = [];
+        tcpDstPort = [] }
+  end
+
   let expand_rules (x:Pattern.t) (s:Action.Set.t) : flowTable =
-    let i8 x = VInt.Int8 x in
-    let i16 x = VInt.Int16 x in
-    let i32 x = VInt.Int32 x in
-    let i48 x = VInt.Int64 x in
-    let il x = match x with
-      | NetKAT_Types.Pipe _ ->
-        failwith "indeterminate port"
-      | NetKAT_Types.Physical n ->
-        VInt.Int32 n in
-    let g os c h acc f =
-      let v = Field.get f x in
-      let l =
-        List.map (os v)
-          ~f:(fun (o,b) ->
-            match o with
-              | Some v -> (Some (c v), b)
-              | None -> (None, b)) in
-      FieldMap.add h l acc in
-    let m : ((fieldVal option * bool) list) FieldMap.t =
-      HPN.Fields.fold
-        ~init:FieldMap.empty
-        ~location:PNL.(g expand il InPort)
-        ~ethSrc:PN48.(g expand i48 EthSrc)
-        ~ethDst:PN48.(g expand i48 EthDst)
-        ~vlan:PN16.(g expand i16 Vlan)
-        ~vlanPcp:PN8.(g expand i8 VlanPcp)
-        ~ethType:PN16.(g expand i16 EthType)
-        ~ipProto:PN8.(g expand i8 IPProto)
-        ~ipSrc:PNIp.(g expand i32 IP4Src)
-        ~ipDst:PNIp.(g expand i32 IP4Dst)
-        ~tcpSrcPort:PN16.(g expand i16 TCPSrcPort)
-        ~tcpDstPort:PN16.(g expand i16 TCPDstPort) in
+    let m : EHeaders.t = let open EHeaders in
+      { location = PNL.(expand x.HPN.location);
+        ethSrc = PN48.(expand x.HPN.ethSrc);
+        ethDst = PN48.(expand x.HPN.ethDst);
+        vlan = PN16.(expand x.HPN.vlan);
+        vlanPcp = PN8.(expand x.HPN.vlanPcp);
+        ethType = PN16.(expand x.HPN.ethType);
+        ipProto = PN8.(expand x.HPN.ipProto);
+        ipSrc = PNIp.(expand x.HPN.ipSrc);
+        ipDst = PNIp.(expand x.HPN.ipDst);
+        tcpSrcPort = PN16.(expand x.HPN.tcpSrcPort);
+        tcpDstPort = PN16.(expand x.HPN.tcpDstPort);
+      }
+    in
     (* computes a cross product *)
-    let rec cross m : (fieldVal option FieldMap.t * bool) list =
-      FieldMap.fold
-        (fun h l rs ->
-          List.fold_right
-            l
-            ~init:[]
-            ~f:(fun (o,b) acc ->
-              List.fold_right
-                rs
-                ~init:acc
-                ~f:(fun (p,c) acc ->
-                  (FieldMap.add h o p, b && c)::acc)))
-        m [(FieldMap.empty,true)] in
+    let rec cross m : (HOV.t * bool) list =
+      let empty = let open HOV in
+      { location = None; ethSrc = None; ethDst = None;
+        vlan = None; vlanPcp = None; ethType = None;
+        ipProto = None; ipSrc = None; ipDst = None;
+        tcpSrcPort = None; tcpDstPort = None;
+      } in
+      let g h rs f =
+        let l = Field.get f m in
+        List.fold_right
+          l
+          ~init:[]
+          ~f:(fun (o, b) acc ->
+            List.fold_right
+              rs
+              ~init:acc
+              ~f:(fun (p, c) acc -> (h p o, b && c)::acc)) in
+      EHeaders.Fields.fold
+        ~init:[(empty, true)]
+        ~location:(g (fun p o -> { p with HOV.location = o }))
+        ~ethSrc:(g (fun p o -> { p with HOV.ethSrc = o }))
+        ~ethDst:(g (fun p o -> { p with HOV.ethDst = o }))
+        ~vlan:(g (fun p o -> { p with HOV.vlan = o }))
+        ~vlanPcp:(g (fun p o -> { p with HOV.vlanPcp = o }))
+        ~ethType:(g (fun p o -> { p with HOV.ethType = o }))
+        ~ipProto:(g (fun p o -> { p with HOV.ipProto = o }))
+        ~ipSrc:(g (fun p o -> { p with HOV.ipSrc = o }))
+        ~ipDst:(g (fun p o -> { p with HOV.ipDst= o }))
+        ~tcpSrcPort:(g (fun p o -> { p with HOV.tcpSrcPort = o }))
+        ~tcpDstPort:(g (fun p o -> { p with HOV.tcpDstPort = o }))
+      in
 
     (* helper function to generate the actual (pattern * par) rules for the SDN_Types.flowTable *)
-    let go (l:(fieldVal option FieldMap.t * bool) list) : flowTable =
-      List.map
-        l
-        ~f:(fun (x,b) ->
-          let pto = FieldMap.find InPort x in
-          let a = if b then set_to_action s pto else [] in
-          let y =
-            FieldMap.fold
-              (fun h o acc ->
-                match o with
-                  | None -> acc
-                  | Some v -> FieldMap.add h v acc)
-              x FieldMap.empty in
-          simpl_flow y a) in
+    let go (cd : (HOV.t * bool) list) : flowTable =
+      let il x = match x with
+        | NetKAT_Types.Pipe _ ->
+          failwith "indeterminate port"
+        | NetKAT_Types.Physical n ->
+          n in
+      List.map cd ~f:(fun (x, b) ->
+        let default_port = Core_kernel.Option.map ~f:il x.HOV.location in
+        let actions = if b then set_to_action s default_port else [] in
+        let pattern =
+          { SDN_Types.dlSrc = x.HOV.ethSrc
+          ; SDN_Types.dlDst = x.HOV.ethDst
+          ; SDN_Types.dlTyp = x.HOV.ethType
+          ; SDN_Types.dlVlan = x.HOV.vlan
+          ; SDN_Types.dlVlanPcp = x.HOV.vlanPcp
+          ; SDN_Types.nwSrc = x.HOV.ipSrc
+          ; SDN_Types.nwDst = x.HOV.ipDst
+          ; SDN_Types.nwProto = x.HOV.ipProto
+          ; SDN_Types.tpSrc = x.HOV.tcpSrcPort
+          ; SDN_Types.tpDst = x.HOV.tcpSrcPort
+          ; SDN_Types.inPort = default_port }
+        in
+        simpl_flow pattern actions) in
     go (cross m)
 
   type i = Local.t
@@ -989,11 +1032,22 @@ module Local_Optimize = struct
    *   ∀f, f ∈ p ⇒ f ∈ q ∧ (p(f) = q(f))
    *)
   let pattern_shadows (p: pattern) (q: pattern) : bool =
-    let check k v =
-      try FieldMap.find k q = v
-      with Not_found -> false
+    let check m1 m2 =
+      match m1 with
+        | None -> true
+        | Some(v1) ->
+          begin match m2 with
+            | None -> false
+            | Some(v2) -> v1 = v2
+          end
     in
-    FieldMap.for_all check p
+    let open SDN_Types in
+    check p.dlSrc q.dlSrc && check p.dlDst q.dlDst && check p.dlTyp q.dlTyp
+      && check p.dlVlan q.dlVlan && check p.dlVlanPcp q.dlVlanPcp
+      && check p.nwSrc q.nwSrc && check p.nwDst q.nwDst
+      && check p.nwProto q.nwProto
+      && check p.tpSrc q.tpSrc && check p.tpDst q.tpDst
+      && check p.inPort q.inPort
 
   (*
    * Optimize a flow table by removing rules which are shadowed by other rules.

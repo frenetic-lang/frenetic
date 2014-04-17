@@ -68,20 +68,20 @@ let headers_to_actions
      | NetKAT_Types.Pipe p ->
        raise (Assertion_failed (Printf.sprintf
          "Controller.headers_to_action: impossible pipe location \"%s\"" p))
-     | NetKAT_Types.Physical p -> [OutputPort(VInt.Int32 p)] in
+     | NetKAT_Types.Physical p -> [OutputPort(p)] in
   NetKAT_Types.HeadersValues.Fields.fold
     ~init
     ~location:(fun acc f -> acc)
-    ~ethSrc:(g (fun v -> SetField(EthSrc, VInt.Int48 v)))
-    ~ethDst:(g (fun v -> SetField(EthDst, VInt.Int48 v)))
-    ~vlan:(g (fun v -> SetField(Vlan, VInt.Int16 v)))
-    ~vlanPcp:(g (fun v -> SetField(VlanPcp, VInt.Int8 v)))
-    ~ethType:(g (fun v -> SetField(EthType, VInt.Int16 v)))
-    ~ipProto:(g (fun v -> SetField(IPProto, VInt.Int8 v)))
-    ~ipSrc:(g (fun v -> SetField(IP4Src, VInt.Int32 v)))
-    ~ipDst:(g (fun v -> SetField(IP4Dst, VInt.Int32 v)))
-    ~tcpSrcPort:(g (fun v -> SetField(TCPSrcPort, VInt.Int16 v)))
-    ~tcpDstPort:(g (fun v -> SetField(TCPDstPort, VInt.Int16 v)))
+    ~ethSrc:(g (fun v -> Modify(SetEthSrc v)))
+    ~ethDst:(g (fun v -> Modify(SetEthDst v)))
+    ~vlan:(g (fun v -> Modify(SetVlan (Some(v)))))
+    ~vlanPcp:(g (fun v -> Modify(SetVlanPcp v)))
+    ~ethType:(g (fun v -> Modify(SetEthTyp v)))
+    ~ipProto:(g (fun v -> Modify(SetIPProto v)))
+    ~ipSrc:(g (fun v -> Modify(SetIP4Src v)))
+    ~ipDst:(g (fun v -> Modify(SetIP4Dst v)))
+    ~tcpSrcPort:(g (fun v -> Modify(SetTCPSrcPort v)))
+    ~tcpDstPort:(g (fun v -> Modify(SetTCPDstPort v)))
 
 exception Unsupported_mod of string
 
@@ -135,9 +135,11 @@ let packet_out_to_message (_, bytes, buffer_id, port_id, actions) =
   let output_payload = match buffer_id with
     | Some(id) -> Buffered(id, bytes)
     | None -> NotBuffered bytes in
-  let port_id = match port_id with
-    | Some(vi) -> Some(VInt.get_int vi)
-    | None -> None in
+  (* XXX(seliopou): This does not do a bounds check on the port. Leaving it for
+   * now as this entire function should be moved to ocaml-openflow in the very
+   * near future, at which point appropriate bounds checking will be added.
+   * *)
+  let port_id = Option.map port_id (fun x -> Int32.to_int_exn x) in
   let apply_actions = SDN_OpenFlow0x01.from_group port_id [[actions]] in
   OpenFlow0x01.Message.PacketOutMsg{ output_payload; port_id; apply_actions }
 
@@ -164,7 +166,7 @@ let to_event w_out (t : t) evt =
       return ((SwitchUp sw_id) :: (List.fold ports ~init:[] ~f:(fun acc pd ->
         let open OpenFlow0x01.PortDescription in
         if port_desc_useable pd && pd.port_no < 0xff00 then
-          let pt_id = VInt.Int32 (Int32.of_int_exn pd.port_no) in
+          let pt_id = Int32.of_int_exn pd.port_no in
           PortUp(sw_id, pt_id)::acc
         else
           acc)))
@@ -172,7 +174,7 @@ let to_event w_out (t : t) evt =
       let open Net.Topology in
       let v  = vertex_of_label !(t.nib) (Async_NetKAT.Switch switch_id) in
       let ps = vertex_to_ports !(t.nib) v in
-      return (PortSet.fold (fun p acc -> (PortDown(switch_id, VInt.Int32 p))::acc)
+      return (PortSet.fold (fun p acc -> (PortDown(switch_id, p))::acc)
         ps [SwitchDown switch_id])
     | `Message (c_id, (xid, msg)) ->
       let open OpenFlow0x01.Message in
@@ -180,7 +182,7 @@ let to_event w_out (t : t) evt =
       begin match msg with
         | PacketInMsg pi ->
           let open OpenFlow0x01_Core in
-          let port_id = VInt.Int16 pi.port in
+          let port_id = Int32.of_int_exn pi.port in
           let buf_id, bytes = match pi.input_payload with
             | Buffered(n, bs) -> Some(n), bs
             | NotBuffered(bs) -> None, bs in
@@ -226,11 +228,11 @@ let to_event w_out (t : t) evt =
             | ChangeReason.Add, true
             | ChangeReason.Modify, true ->
               let pt_id = Int32.of_int_exn (ps.desc.OpenFlow0x01.PortDescription.port_no) in
-              return [PortUp(switch_id, VInt.Int32 pt_id)]
+              return [PortUp(switch_id, pt_id)]
             | ChangeReason.Delete, _
             | ChangeReason.Modify, false ->
               let pt_id = Int32.of_int_exn (ps.desc.OpenFlow0x01.PortDescription.port_no) in
-              return [PortDown(switch_id, VInt.Int32 pt_id)]
+              return [PortDown(switch_id, pt_id)]
             | _ ->
               return []
           end

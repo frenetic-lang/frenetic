@@ -4,11 +4,7 @@ open Sexplib.Conv
 open Core.Std
 
 (** {2 Basics} *)
-
-type int8 = SDN_Types.int8
-type int16 = SDN_Types.int16
-type int32 = SDN_Types.int32
-type int48 = SDN_Types.int48
+open Packet
 
 type switchId = SDN_Types.switchId
 type portId = SDN_Types.portId
@@ -24,16 +20,16 @@ type location =
 type header_val =
   | Switch of switchId
   | Location of location
-  | EthSrc of int48
-  | EthDst of int48
+  | EthSrc of dlAddr
+  | EthDst of dlAddr
   | Vlan of int16
-  | VlanPcp of int8
-  | EthType of int16
-  | IPProto of int8
-  | IP4Src of int32 * int
-  | IP4Dst of int32 * int
-  | TCPSrcPort of int16
-  | TCPDstPort of int16
+  | VlanPcp of dlVlanPcp
+  | EthType of dlTyp
+  | IPProto of nwProto
+  | IP4Src of nwAddr * int32
+  | IP4Dst of nwAddr * int32
+  | TCPSrcPort of tpPort
+  | TCPDstPort of tpPort
 
 type pred =
   | True

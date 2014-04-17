@@ -8,33 +8,6 @@ module Formatting = struct
     
   type predicate_context = OR_L | OR_R | AND_L | AND_R | NEG | PAREN_PR
       
-  (* TODO(nimish) : Can be changed in SDN_Types.format_feild, will save
-     duplication of effort and can be carried into NetCore pretty parser *)
-  let format_field (fmt : formatter) (f : SDN_Types.field) : unit =
-    Format.fprintf fmt
-      (match f with
-        | SDN_Types.InPort ->     "port"
-        | SDN_Types.EthSrc ->     "ethSrc"
-        | SDN_Types.EthDst ->     "ethDst"
-        | SDN_Types.EthType ->    "ethTyp"
-        | SDN_Types.Vlan ->       "vlanId"
-        | SDN_Types.VlanPcp ->    "vlanPcp"
-        | SDN_Types.IP4Src ->     "ipSrc"
-        | SDN_Types.IP4Dst ->     "ipDst"
-        | SDN_Types.IPProto ->    "ipProto"
-        | SDN_Types.TCPSrcPort -> "tcpSrcPort"
-        | SDN_Types.TCPDstPort -> "tcpDstPort")
-      
-  let format_value (fmt : formatter) (v : VInt.t) : unit =
-    match v with
-      | VInt.Int64 n -> 
-	if (Int64.of_int (-1) = n) then 
-	  fprintf fmt "<none>"
-        else 
-	  VInt.format fmt v
-      | _ -> VInt.format fmt v
-
-
   let format_header_val (fmt : formatter) (hv : header_val) (asgn : string) : unit = match hv with
     | Switch(n) -> fprintf fmt "@[switch %s %Lu@]" asgn n
     | Location(Physical n) -> fprintf fmt "@[port %s %lu@]" asgn n
@@ -45,10 +18,10 @@ module Formatting = struct
     | VlanPcp(n) -> fprintf fmt "@[vlanPcp %s %u@]" asgn n
     | EthType(n) -> fprintf fmt "@[ethTyp %s 0x%x@]" asgn n
     | IPProto(n) -> fprintf fmt "@[ipProto %s 0x%x@]" asgn n
-    | IP4Src(n,32) -> fprintf fmt "@[ipSrc %s %s@]" asgn (Packet.string_of_ip n)
-    | IP4Dst(n,32) -> fprintf fmt "@[ipDst %s %s@]" asgn (Packet.string_of_ip n)
-    | IP4Src(n,m) -> fprintf fmt "@[ipSrc %s %s/%d@]" asgn (Packet.string_of_ip n) m
-    | IP4Dst(n,m) -> fprintf fmt "@[ipDst %s %s/%d@]" asgn (Packet.string_of_ip n) m
+    | IP4Src(n,32l) -> fprintf fmt "@[ipSrc %s %s@]" asgn (Packet.string_of_ip n)
+    | IP4Dst(n,32l) -> fprintf fmt "@[ipDst %s %s@]" asgn (Packet.string_of_ip n)
+    | IP4Src(n,m) -> fprintf fmt "@[ipSrc %s %s/%lu@]" asgn (Packet.string_of_ip n) m
+    | IP4Dst(n,m) -> fprintf fmt "@[ipDst %s %s/%lu@]" asgn (Packet.string_of_ip n) m
     | TCPSrcPort(n) -> fprintf fmt "@[tcpSrcPort %s %u@]" asgn n
     | TCPDstPort(n) -> fprintf fmt "@[tcpDstPort %s %u@]" asgn n
 
@@ -118,9 +91,8 @@ module Formatting = struct
           | _ -> fprintf fmt "@[(@[%a;@ %a@])@]" (pol SEQ_L) p1 (pol SEQ_R) p2
         end
       | Link (sw,pt,sw',pt') ->
-        fprintf fmt "@[%Lu@@%a =>@ %Lu@@%a@]"
-          sw format_value pt
-          sw' format_value pt'
+        fprintf fmt "@[%Lu@@%lu =>@ %Lu@@%lu@]"
+          sw pt sw' pt'
 end
   
 let format_policy = Formatting.pol Formatting.PAREN

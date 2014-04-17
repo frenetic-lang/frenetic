@@ -1,7 +1,6 @@
 open OUnitHack
 open NetKAT_Types
 open NetKAT_Pretty
-open VInt
 module SDN = SDN_Types
 
 let policy_parse (p : string) : NetKAT_Types.policy =
