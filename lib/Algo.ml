@@ -1,4 +1,10 @@
-module Topological(V:Graph.Sig.ORDERED_TYPE) = struct
+module type DEP_TYPE = sig
+  type t
+  val compare : t -> t -> int
+  val dep_compare : t -> t -> int
+end
+
+module Topological(V:DEP_TYPE) = struct
   open Core.Std
 
   module G = Graph.Persistent.Digraph.ConcreteBidirectional(struct
@@ -20,7 +26,7 @@ module Topological(V:Graph.Sig.ORDERED_TYPE) = struct
         | []      -> acc
         | (x::xs) ->
           let acc' = List.fold xs ~init:acc ~f:(fun acc y ->
-            match V.compare x y with
+            match V.dep_compare x y with
             | -1 -> (x, y)::acc
             |  1 -> (y, x)::acc
             |  0 -> acc
