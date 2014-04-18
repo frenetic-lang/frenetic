@@ -1076,6 +1076,6 @@ let to_netkat =
 let compile =
   RunTime.compile
 
-let to_table ?(optimize_fall_through=true) t =
+let to_table ?(optimize_fall_through=false) t =
   Local_Optimize.remove_shadowed_rules
     (RunTime.to_table t ~optimize_fall_through:optimize_fall_through)

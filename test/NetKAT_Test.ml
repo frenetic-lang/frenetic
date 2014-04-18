@@ -160,7 +160,8 @@ TEST "vlan" =
    (* Not testing the table itself because this is (a) tedious and (b) not stable. *)
    let a = [(OutputPort 1l)] in
    test_compile_table pol
-     [ dropEthSrc 1L;
+     [ dropEthSrc 0L;
+       dropEthSrc 1L;
        flow all_pattern [a]]
 
 module FromPipe = struct
