@@ -968,8 +968,8 @@ module RunTime = struct
       (* sanity check: no circular dependencies *)
       assert (not (ac <> 0 && o1 && o2));
       if pc = 0 && ac = 0 then 0
-      else if ac = 0 then pc
-      else if o2 then -1
+      else if ac = 0 then -pc
+      else if o1 then -1
       else 1
   end)
 
