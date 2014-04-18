@@ -963,14 +963,16 @@ module RunTime = struct
     let compare (x1,s1) (x2,s2) : int =
       let pc = Pattern.compare x1 x2 in
       let ac = Action.Set.compare s1 s2 in
-      let o1 = Pattern.obscures x1 x2 in
-      let o2 = Pattern.obscures x2 x1 in
-      (* sanity check: no circular dependencies *)
-      assert (not (ac <> 0 && o1 && o2));
-      if pc = 0 && ac = 0 then 0
-      else if ac = 0 then -pc
-      else if o1 then -1
-      else 1
+      if pc = 0 && ac = 0 then
+        0
+      else if ac = 0 then
+        -pc
+      else
+        let o1 = Pattern.obscures x1 x2 in
+        let o2 = Pattern.obscures x2 x1 in
+        (* sanity check: no circular dependencies *)
+        assert (not (ac <> 0 && o1 && o2));
+        if o1 then -1 else 1
   end)
 
   let to_table ?(optimize_fall_through=true) (m:i) : flowTable =
