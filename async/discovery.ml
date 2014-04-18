@@ -78,7 +78,7 @@ module Switch = struct
        * a deadlock.
        * *)
       w_evts : NetKAT_Types.event Pipe.Writer.t;
-      w_outs : NetKAT_Types.packet_out Pipe.Writer.t;
+      w_outs : (SDN_Types.switchId * SDN_Types.pktOut) Pipe.Writer.t;
       mutable pending : PortSet.t SwitchMap.t;
       mutable probe : bool;
       mutable loop : unit Deferred.t
@@ -88,7 +88,7 @@ module Switch = struct
       let bytes = Packet.marshal
         Probe.(to_packet { switch_id; port_id = port_id }) in
       let action = SDN_Types.OutputPort(port_id) in
-      (switch_id, bytes, None, Some(port_id), [action])
+      (switch_id, (SDN_Types.NotBuffered(bytes), Some(port_id), [action]))
 
     let loop t =
       Deferred.repeat_until_finished () (fun () ->
@@ -212,12 +212,12 @@ module Switch = struct
       Deferred.don't_wait_for (Pipe.transfer_id o_r w);
       let open Net.Topology in
       match e with
-        | PacketIn(p, sw_id, pt_id, bytes, len, buf) ->
+        | PacketIn(p, sw_id, pt_id, payload, len) ->
           if not (p = "probe")
             then raise (Assertion_failed (Printf.sprintf
                 "Discovery.handler: not listening to pipe \"%s\"" p));
           let open Packet in
-          begin match parse bytes with
+          begin match parse (SDN_Types.payload_bytes payload) with
             | { nw = Unparsable (dlTyp, bytes) } ->
               t := handle_probe !t sw_id pt_id (Probe.parse bytes)
             | _ -> ();
@@ -287,9 +287,9 @@ module Host = struct
     let handler t w () : event -> result Deferred.t = fun e ->
       let open Net.Topology in
       match e with
-        | PacketIn (_, sw_id, pt_id, bytes, len, buf) ->
+        | PacketIn (_, sw_id, pt_id, payload, len) ->
           let open Packet in
-          let dlAddr, nwAddr = match parse bytes with
+          let dlAddr, nwAddr = match parse (SDN_Types.payload_bytes payload) with
             | { nw = Arp (Arp.Query(dlSrc, nwSrc, _ )) }
             | { nw = Arp (Arp.Reply(dlSrc, nwSrc, _, _)) } ->
               (dlSrc, nwSrc)

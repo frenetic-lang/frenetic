@@ -35,7 +35,7 @@ type result = policy option
 (** [handler] is a function that's used to both create basic reactive [app]s as
     well as run them. The [unit] argument indicates a partial application point. *)
 type handler = Net.Topology.t ref
-             -> packet_out Pipe.Writer.t
+             -> (switchId * SDN_Types.pktOut) Pipe.Writer.t
              -> unit
              -> event
              -> result Deferred.t
@@ -67,7 +67,7 @@ val default : app -> policy
 val run
   :  app
   -> Net.Topology.t ref
-  -> packet_out Pipe.Writer.t
+  -> (switchId * SDN_Types.pktOut) Pipe.Writer.t
   -> unit
   -> event
   -> result Deferred.t
@@ -76,7 +76,7 @@ val run
 
     The returned app listens on the union of [app1] and [app2]'s [PipeSet.t]s,
     distributes events across the two apps, unions reactive updates to policies,
-    and concatenates the list of [packet_out]s that they produce.
+    and concatenates the list of [(switchId * pktOut)]s that they produce.
 
     If the app produce side effects, you may want to control the order of their
     execution using the optional [how] argument to sequence them from left to
