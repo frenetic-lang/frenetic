@@ -30,6 +30,7 @@ Library netkat
     str,
     threads
   InternalModules:
+    Flowterp,
     Optimize
   Modules:
     NetKAT_Lexer,
