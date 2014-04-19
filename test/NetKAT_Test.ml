@@ -294,11 +294,10 @@ let compare_eval_output p q pkt =
   PacketSet.compare (eval pkt p) (eval pkt q) = 0
 
 let compare_compiler_output p q pkt =
-  let open NetKAT_LocalCompiler in
-  compare_eval_output
-    (to_netkat (of_policy pkt.switch p))
-    (to_netkat (of_policy pkt.switch q))
-    pkt
+  PacketSet.compare
+    (Flowterp.Packet.eval pkt (NetKAT_LocalCompiler.(to_table (of_policy pkt.switch p))))
+    (Flowterp.Packet.eval pkt (NetKAT_LocalCompiler.(to_table (of_policy pkt.switch q))))
+  = 0
 
 let check gen_fn compare_fn =
   let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
