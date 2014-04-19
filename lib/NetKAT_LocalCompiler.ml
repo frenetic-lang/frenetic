@@ -957,24 +957,27 @@ module RunTime = struct
     let pol' = Optimize.specialize_policy sw pol in
     Local.of_policy pol'
 
-  let dep_compare (x1,s1) (x2,s2) : int =
-    let pc = Pattern.compare x1 x2 in
-    let ac = Action.Set.compare s1 s2 in
-    let o1 = Pattern.obscures x1 x2 in
-    let o2 = Pattern.obscures x2 x1 in
-    (* sanity check: no circular dependencies *)
-    assert (not (ac <> 0 && o1 && o2));
-    if pc = 0 && ac = 0 then 0
-    else if ac = 0 then pc
-    else if o2 then -1
-    else 1
+  module Dep = Algo.Topological(struct
+    type t = Pattern.t * Action.Set.t
 
-  let dep_sort (p:i) : (Pattern.t * Action.Set.t) list =
-    List.sort
-      (Pattern.Map.fold p
-         ~init:[]
-         ~f:(fun ~key:x ~data:s acc -> (x,s)::acc))
-      ~cmp:dep_compare
+    let compare (x1,s1) (x2,s2) =
+      match Pattern.compare x1 x2 with
+        | 0 -> Action.Set.compare s1 s2
+        | n -> n
+
+    let dep_compare (x1,s1) (x2,s2) : int =
+      let ac = Action.Set.compare s1 s2 in
+      if ac = 0 then
+        0
+      else
+        let o1 = Pattern.obscures x1 x2 in
+        let o2 = Pattern.obscures x2 x1 in
+        (* sanity check: no circular dependencies *)
+        assert (not (o1 && o2));
+        if o1 then -1
+        else if o2 then 1
+        else 0
+  end)
 
   let to_table ?(optimize_fall_through=true) (m:i) : flowTable =
     let annotated_table () : (flow * Pattern.t * Action.Set.t) list =
@@ -982,7 +985,7 @@ module RunTime = struct
        * from which it was generated. *)
       List.concat_map
         ~f:(fun (p,s) -> List.map ~f:(fun x -> (x,p,s)) (expand_rules p s))
-        (dep_sort m) in
+        (Dep.sort (Pattern.Map.to_alist m)) in
     let patterns_intersect (p: Pattern.t) (q: Pattern.t) : bool =
       match Pattern.seq p q with
         Some s -> not (Pattern.is_empty s)
@@ -1009,7 +1012,9 @@ module RunTime = struct
           ~f:(fun x acc -> if falls_through x acc then acc else (x::acc))
           ~init:[]
           (annotated_table ()))
-    else List.concat_map (dep_sort m) ~f:(fun (p,s) -> expand_rules p s)
+    else
+      List.concat_map (Dep.sort (Pattern.Map.to_alist m)) ~f:(fun (p,s) ->
+        expand_rules p s)
 
 end
 
@@ -1076,6 +1081,6 @@ let to_netkat =
 let compile =
   RunTime.compile
 
-let to_table ?(optimize_fall_through=true) t =
+let to_table ?(optimize_fall_through=false) t =
   Local_Optimize.remove_shadowed_rules
     (RunTime.to_table t ~optimize_fall_through:optimize_fall_through)
