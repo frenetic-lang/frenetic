@@ -945,7 +945,7 @@ module RunTime = struct
           ; SDN_Types.nwDst = x.HOV.ipDst
           ; SDN_Types.nwProto = x.HOV.ipProto
           ; SDN_Types.tpSrc = x.HOV.tcpSrcPort
-          ; SDN_Types.tpDst = x.HOV.tcpSrcPort
+          ; SDN_Types.tpDst = x.HOV.tcpDstPort
           ; SDN_Types.inPort = default_port }
         in
         simpl_flow pattern actions) in
