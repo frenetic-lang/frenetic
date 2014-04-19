@@ -305,6 +305,20 @@ let check gen_fn compare_fn =
         QuickCheck.Success -> true
     | _                  -> false
 
+TEST "semantics agree with flowtable" =
+  let prop_compile_ok (p, pkt) =
+    (* XXX(seliopou): Because flowtables are not pipe-aware, policies that set
+     * the packet location to a pipe will not pass this test. To side-step the
+     * problem, set the location to physical port 0 on the way out.
+     *)
+    let p' = Seq(p, Mod(Location(Physical(0l)))) in
+    PacketSet.compare
+      (NetKAT_Semantics.eval pkt (Optimize.specialize_policy pkt.switch p'))
+      (Flowterp.Packet.eval pkt
+        (NetKAT_LocalCompiler.(to_table (of_policy pkt.switch p'))))
+    = 0 in
+  check gen_pol_1 prop_compile_ok
+
 TEST "quickcheck ka-plus-assoc compiler" =
   let prop_compile_ok (p, q, r, pkt) =
     compare_compiler_output
