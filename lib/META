@@ -1,9 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: 5d5304719cb36dec04e78e99418006c2)
+# DO NOT EDIT (digest: a744270706f9fdf4324404917cf75d89)
 version = "2.0.0"
 description = "The Frenetic Compiler and Runtime System"
 requires =
-"core fieldslib fieldslib.syntax openflow sexplib sexplib.syntax str threads"
+"core fieldslib fieldslib.syntax ocamlgraph openflow sexplib sexplib.syntax str threads"
 archive(byte) = "netkat.cma"
 archive(byte, plugin) = "netkat.cma"
 archive(native) = "netkat.cmxa"
