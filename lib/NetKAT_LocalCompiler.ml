@@ -588,6 +588,26 @@ module Local = struct
              (Pattern.to_string r)
              (Action.set_to_string g)))
 
+  exception IllFormed
+  (* check for well-formedness of a value of type t *)
+  let check (m:t) : bool = 
+    try 
+      Pattern.Map.iter m
+        ~f:(fun ~key:x1 ~data:s1 -> 
+          Pattern.Map.iter m
+            ~f:(fun ~key:x2 ~data:s2 -> 
+              if Pattern.obscures x1 x2 && 
+                Pattern.obscures x2 x1 && 
+                Action.Set.compare s1 s2 <> 0
+              then
+                (Printf.printf "Local.check failed:\n%s=>%s\n%s=>%s\n"
+                   (Pattern.to_string x1) (Action.set_to_string s1)
+                   (Pattern.to_string x2) (Action.set_to_string s2);
+                 raise IllFormed)));
+      true
+    with _ -> 
+      false
+            
   let extend (x:Pattern.t) (s:Action.Set.t) (m:t) : t =
     let r = match Pattern.Map.find m x with
       | None ->
@@ -616,12 +636,15 @@ module Local = struct
                 extend r1_r2 (op s1 s2) acc))
 
   let par p q =
-    let r = intersect Action.Set.union p q in
-    (* Printf.printf "### PAR ###\n%s\n%s\n%s" *)
-    (*   (to_string p) *)
-    (*   (to_string q) *)
-    (*   (to_string r); *)
-    r
+    if Pattern.Map.is_empty p then q
+    else if Pattern.Map.is_empty q then p
+    else 
+      let r = intersect Action.Set.union p q in
+      (* Printf.printf "### PAR ###\n%s\n%s\n%s" *)
+      (*   (to_string p) *)
+      (*   (to_string q) *)
+      (*   (to_string r); *)
+      r
 
   let seq (p:t) (q:t) : t =
     let merge ~key:_ v =
@@ -630,7 +653,7 @@ module Local = struct
         | `Right s2 -> Some s2
         | `Both (s1,s2) -> Some (Action.Set.union s1 s2) in
 
-    let seq_act r1 a q =
+    let seq_act r1 a q : t =
       Pattern.Map.fold q
         ~init:Pattern.Map.empty
         ~f:(fun ~key:r2 ~data:s2 acc ->
@@ -640,17 +663,17 @@ module Local = struct
             | Some r12 ->
               extend r12 (Action.set_seq a s2) acc) in
 
-    let seq_atom_acts_local r1 s1 q =
+    let seq_atom_acts_local r1 s1 q : t =
       if Action.Set.is_empty s1 then
         Pattern.Map.singleton r1 s1
       else
         Action.Set.fold s1
           ~init:Pattern.Map.empty
-          ~f:(fun acc a ->
-            let acc' = seq_act r1 a q in
-            Pattern.Map.merge ~f:merge acc acc') in
+          ~f:(fun acc a -> 
+            let acc' = seq_act r1 a q in 
+            par acc acc') in
 
-    let r =
+    let r : t = 
       Pattern.Map.fold p
         ~init:Pattern.Map.empty
         ~f:(fun ~key:r1 ~data:s1 acc ->
