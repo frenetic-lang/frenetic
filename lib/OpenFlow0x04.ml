@@ -841,6 +841,76 @@ module Oxm = struct
 
 end
 
+module PseudoPort = struct
+  type t = pseudoPort
+
+  cenum ofp_port_no {
+    (* Maximum number of physical and logical switch ports. *)
+    OFPP_MAX        = 0xffffff00l;
+
+    (* Reserved OpenFlow Port (fake output "ports"). *)
+    OFPP_IN_PORT    = 0xfffffff8l; (* Send the packet out the input port. This
+                                      reserved port must be explicitly used
+                                      in order to send back out of the input
+                                      port.*)
+    OFPP_TABLE      = 0xfffffff9l; (* Submit the packet to the first flow table
+                                      NB: This destination port can only be
+                                      used in packet-out messages. *)
+    OFPP_NORMAL     = 0xfffffffal; (* Process with normal L2/L3 switching. *)
+    OFPP_FLOOD      = 0xfffffffbl; (* All physical ports in VLAN, except input
+                                      port and those blocked or link down. *)
+    OFPP_ALL        = 0xfffffffcl; (* All physical ports except input port. *)
+    OFPP_CONTROLLER = 0xfffffffdl; (* Send to controller. *)
+    OFPP_LOCAL      = 0xfffffffel; (* Local openflow "port". *)
+    OFPP_ANY        = 0xffffffffl  (* Wildcard port used only for flow mod
+                                     (delete) and flow stats requests. Selects
+                                     all flows regardless of output port
+                                     (including flows with no output port). *)
+  } as uint32_t
+
+  let size_of _ = 4
+
+  let to_string (t : t) = match t with
+    | PhysicalPort p -> sprintf "%lu" p
+    | InPort -> "InPort"
+    | Table -> "Table"
+    | Normal -> "Normal"
+    | Flood -> "Flood"
+    | AllPorts -> "AllPorts"
+    | Controller n -> sprintf "Controller<%d bytes>" n
+    | Local -> "Local"
+    | Any -> "Any"
+
+  let marshal (t : t) : int32 = match t with
+    | PhysicalPort(p) -> p
+    | InPort -> ofp_port_no_to_int OFPP_IN_PORT
+    | Table -> ofp_port_no_to_int OFPP_TABLE
+    | Normal -> ofp_port_no_to_int OFPP_NORMAL
+    | Flood -> ofp_port_no_to_int  OFPP_FLOOD
+    | AllPorts -> ofp_port_no_to_int OFPP_ALL
+    | Controller(_) -> ofp_port_no_to_int  OFPP_CONTROLLER
+    | Local -> ofp_port_no_to_int  OFPP_LOCAL
+    | Any -> ofp_port_no_to_int  OFPP_ANY
+
+  let make ofp_port_no_code len =
+    match int_to_ofp_port_no ofp_port_no_code with
+      | Some OFPP_IN_PORT -> InPort
+      | Some OFPP_TABLE -> Table
+      | Some OFPP_NORMAL -> Normal
+      | Some OFPP_FLOOD -> Flood
+      | Some OFPP_ALL -> AllPorts
+      | Some OFPP_CONTROLLER -> Controller len
+      | Some OFPP_LOCAL -> Local
+      | Some OFPP_ANY -> Any
+      | _ ->
+        if ofp_port_no_code <= (ofp_port_no_to_int OFPP_MAX) then
+          PhysicalPort ofp_port_no_code
+        else
+          raise
+            (Unparsable (sprintf "unsupported port number (%lu)" ofp_port_no_code))
+
+end
+
 module Action = struct
 
   type sequence = OpenFlow0x04_Core.actionSequence
@@ -861,14 +931,7 @@ module Action = struct
       | Output port ->
         set_ofp_action_output_typ buf 0; (* OFPAT_OUTPUT *)
         set_ofp_action_output_len buf size;
-        set_ofp_action_output_port buf
-          (match port with
-            | PhysicalPort pid -> pid
-            | InPort -> ofpp_in_port         (* OFPP_IN_PORT *)
-            | Flood -> ofpp_flood          (* OFPP_FLOOD *)
-            | AllPorts -> ofpp_all       (* OFPP_ALL *)
-            | Controller _ -> ofpp_controller   (* OFPP_CONTROLLER *)
-            | Any -> ofpp_any);          (* OFPP_ANY *)
+        set_ofp_action_output_port buf (PseudoPort.marshal port);
         set_ofp_action_output_max_len buf
           (match port with
             | Controller max_len -> max_len
@@ -1120,14 +1183,7 @@ module FlowMod = struct
     set_ofp_flow_mod_out_port buf
       (match fm.mfOut_port with
         | None -> Int32.of_int 0
-        | Some port ->
-          (match port with
-            | PhysicalPort pid -> pid
-            | InPort -> Int32.of_int (Int64.to_int 0xfffffff8L)         (* OFPP_IN_PORT *)
-            | Flood -> Int32.of_int (Int64.to_int 0xfffffffbL)          (* OFPP_FLOOD *)
-            | AllPorts -> Int32.of_int (Int64.to_int 0xfffffffcL)       (* OFPP_ALL *)
-            | Controller _ -> Int32.of_int (Int64.to_int 0xfffffffdL);  (* OFPP_CONTROLLER *)
-            | Any -> Int32.of_int (Int64.to_int 0xffffffffL)));         (* OFPP_ANY *)
+        | Some port -> PseudoPort.marshal port);
     set_ofp_flow_mod_out_group buf
       (match fm.mfOut_group with
         | None -> Int32.of_int 0
@@ -1308,9 +1364,9 @@ module PacketOut = struct
         | Buffered (buffer_id, _) -> buffer_id);
     set_ofp_packet_out_in_port buf
       (match po.po_in_port with
-        | PhysicalPort pid -> pid
-        | Controller _ -> 0xfffffffdl   (* OFPP_CONTROLLER *)
-        | _ -> failwith "Invalid marshal of packetOut");
+        | Any
+        | Controller(_) -> failwith "Invalid marshal of packetOut"
+        | pport -> PseudoPort.marshal pport);
     set_ofp_packet_out_actions_len buf (sum (map Action.sizeof po.po_actions));
     set_ofp_packet_out_pad0 buf 0;
     set_ofp_packet_out_pad1 buf 0;

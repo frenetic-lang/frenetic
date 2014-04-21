@@ -53,13 +53,26 @@ type oxmMatch = oxm list
 
 val match_all : oxmMatch
 
+(** A pseudo-port, as described by the [ofp_port_no] enumeration in
+    Section A.2.1 of the OpenFlow 1.3.0 specification. *)
 type pseudoPort =
-| PhysicalPort of portId
-| InPort
-| Flood
-| AllPorts
-| Controller of int16
-| Any
+  | PhysicalPort of portId
+  | InPort            (** Send the packet out the input port. This reserved port
+                          must be explicitly used in order to send back out of
+                          the input port. *)
+  | Table             (** Submit the packet to the first flow table NB: This
+                          destination port can only be used in packet-out
+                          messages. *)
+  | Normal            (** Process with normal L2/L3 switching. *)
+  | Flood             (** All physical ports in VLAN, except input port and
+                          those blocked or link down. *)
+  | AllPorts          (** All physical ports except input port. *)
+  | Controller of int16 (** Send to controller along with [n] (max 1024) bytes
+                            of the packet *)
+  | Local             (** Local openflow "port". *)
+  | Any               (** Wildcard port used only for flow mod (delete) and flow
+                          stats requests. Selects all flows regardless of output
+                          port (including flows with no output port). *)
 
 type action =
 | Output of pseudoPort
