@@ -990,22 +990,27 @@ module Bucket = struct
 
   let marshal (buf : Cstruct.t) (bucket : bucket) : int =
     let size = sizeof bucket in
-      set_ofp_bucket_len buf size;
-      set_ofp_bucket_weight buf bucket.bu_weight;
-      set_ofp_bucket_watch_port buf
-        (match bucket.bu_watch_port with
-          | None -> ofpg_any
-          | Some port -> port);
-      set_ofp_bucket_watch_group buf
-        (match bucket.bu_watch_group with
-          | None -> ofpg_any
-          | Some group_id -> group_id);
-      set_ofp_bucket_pad0 buf 0;
-      set_ofp_bucket_pad1 buf 0;
-      set_ofp_bucket_pad2 buf 0;
-      set_ofp_bucket_pad3 buf 0;
-      sizeof_ofp_bucket + (marshal_fields (Cstruct.shift buf sizeof_ofp_bucket) bucket.bu_actions Action.marshal)
-
+    set_ofp_bucket_len buf size;
+    set_ofp_bucket_weight buf bucket.bu_weight;
+    set_ofp_bucket_watch_port buf
+      (match bucket.bu_watch_port with
+        | None -> ofpg_any
+        | Some port -> port);
+    set_ofp_bucket_watch_group buf
+      (match bucket.bu_watch_group with
+        | None -> ofpg_any
+        | Some group_id -> group_id);
+    set_ofp_bucket_pad0 buf 0;
+    set_ofp_bucket_pad1 buf 0;
+    set_ofp_bucket_pad2 buf 0;
+    set_ofp_bucket_pad3 buf 0;
+    let action_marshal buf act =
+      match act with
+        | Output Table ->
+          failwith "OFPP_TABLE not allowed in installed flow"
+        | _ -> Action.marshal buf act in
+    let buf = Cstruct.shift buf sizeof_ofp_bucket in
+    sizeof_ofp_bucket + (marshal_fields buf bucket.bu_actions action_marshal)
 end
 
 module FlowModCommand = struct
@@ -1191,6 +1196,7 @@ module FlowMod = struct
     set_ofp_flow_mod_flags buf (flags_to_int fm.mfFlags);
     set_ofp_flow_mod_pad0 buf 0;
     set_ofp_flow_mod_pad1 buf 0;
+
     let size = sizeof_ofp_flow_mod +
         OfpMatch.marshal (Cstruct.shift buf sizeof_ofp_flow_mod) fm.mfOfp_match in
       size + Instructions.marshal (Cstruct.shift buf size) fm.mfInstructions

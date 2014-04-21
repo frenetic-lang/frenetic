@@ -766,6 +766,11 @@ module FlowMod = struct
     let bits = Cstruct.shift bits sizeof_ofp_flow_mod in
     let _ = List.fold_left
       (fun bits act ->
+        begin match act with
+          | Output Table ->
+            failwith "OFPP_TABLE not allowed in installed flow"
+          | _ -> ()
+        end;
         Cstruct.shift bits (Action.marshal act bits))
       bits
       (Action.move_controller_last msg.actions) in
