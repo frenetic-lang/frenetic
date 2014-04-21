@@ -166,10 +166,13 @@ module PseudoPort = struct
     let open OpenFlow0x01_Core in
       oneof [
         arbitrary_uint16 >>= (fun p -> ret_gen (PhysicalPort p));
-        ret_gen AllPorts;
         ret_gen InPort;
+        ret_gen Table;
+        ret_gen Normal;
         ret_gen Flood;
-        arbitrary_uint >>= (fun l -> ret_gen (Controller l))
+        ret_gen AllPorts;
+        arbitrary_uint >>= (fun l -> ret_gen (Controller l));
+        ret_gen Local
       ]
 
   (* Use in cases where a `Controller` port is invalid input *)
@@ -178,9 +181,12 @@ module PseudoPort = struct
     let open OpenFlow0x01_Core in
       oneof [
         arbitrary_uint16 >>= (fun p -> ret_gen (PhysicalPort p));
-        ret_gen AllPorts;
         ret_gen InPort;
+        ret_gen Table;
+        ret_gen Normal;
         ret_gen Flood;
+        ret_gen AllPorts;
+        ret_gen Local
       ]
 
   let to_string = PseudoPort.to_string

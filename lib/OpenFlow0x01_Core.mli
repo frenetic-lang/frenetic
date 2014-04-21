@@ -53,16 +53,18 @@ type pattern =
     Section 5.2.1 of the OpenFlow 1.0 specification. *)
 type pseudoPort =
   | PhysicalPort of portId
-  | AllPorts (** All physical ports except input port. *)
-
-  | InPort (** Send the packet out the input port.  This virtual port
-               must be explicitly used in order to send back out of
-               the input port. *)
-  | Flood (** All physical ports except input port and those disabled by 
-              STP. *)
-  | Controller of int (** Send to controller along with [n] (max 1024)
-                          bytes of the packet. *)
-  | Table (** Send the packet out packet through the table *)
+  | InPort            (** Send the packet out the input port. This virtual port
+                          must be explicitly used in order to send back out of
+                          the input port. *)
+  | Table             (** Perform actions in flow table.  NB: This can only be
+                          the destination port for packet-out messages. *)
+  | Normal            (** Process with normal L2/L3 switching. *)
+  | Flood             (** All physical ports except input port and those
+                          disabled by STP. *)
+  | AllPorts          (** All physical ports except input port. *)
+  | Controller of int (** Send to controller along with [n] (max 1024) bytes
+                          of the packet. *)
+  | Local             (** Local openflow "port". *)
 
 (** Flow action data structure.  See Section 5.2.4 of the OpenFlow 1.0
     specification. *)
