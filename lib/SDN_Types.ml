@@ -49,10 +49,18 @@ type modify =
   | SetTCPSrcPort of tpPort
   | SetTCPDstPort of tpPort
 
-type action =
-  | OutputAllPorts
-  | OutputPort of portId
+type pseudoport =
+  | Physical of portId
+  | InPort
+  | Table
+  | Normal
+  | Flood
+  | All
   | Controller of int
+  | Local
+
+type action =
+  | Output of pseudoport
   | Enqueue of portId * queueId
   | Modify of modify
 
@@ -168,14 +176,21 @@ let format_modify (fmt:Format.formatter) (m:modify) : unit =
   | SetTCPDstPort(tpPort) ->
     Format.fprintf fmt "SetField(tcpDstPort, %a)" format_int tpPort
 
-let rec format_action (fmt:Format.formatter) (a:action) : unit = 
+let format_pseudoport (fmt:Format.formatter) (p:pseudoport) : unit =
+  match p with
+  | Physical(portId) -> Format.fprintf fmt "%lu" portId
+  | InPort -> Format.fprintf fmt "InPort"
+  | Table -> Format.fprintf fmt "Table"
+  | Normal -> Format.fprintf fmt "Normal"
+  | Flood -> Format.fprintf fmt "Flood"
+  | All -> Format.fprintf fmt "All"
+  | Controller(bytes) -> Format.fprintf fmt "Controller(%u)" bytes
+  | Local -> Format.fprintf fmt "Local"
+
+let format_action (fmt:Format.formatter) (a:action) : unit =
   match a with         
-  | OutputAllPorts -> 
-    Format.fprintf fmt "OutputAllPorts"
-  | OutputPort(n) -> 
-    Format.fprintf fmt "OutputPort(%ld)" n
-  | Controller(n) -> 
-    Format.fprintf fmt "Controller(%d)" n
+  | Output(p) ->
+    Format.fprintf fmt "Output(%a)" format_pseudoport p
   | Enqueue(m,n) -> 
     Format.fprintf fmt "Enqueue(%ld,%ld)" m n
   | Modify(m) ->

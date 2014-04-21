@@ -72,20 +72,39 @@ module Common = HighLevelSwitch_common.Make (struct
 
   module Mod = ModComposition
 
-  let from_action (inPort : Core.portId option) (act : AL.action) 
-    : Mod.t * Core.action =
-    let v_to_m = Core.val_to_mask in
-    let open Core in
-    match act with
-      | AL.Controller n -> (Mod.none, Output (Core.Controller n))
-      | AL.OutputAllPorts -> (Mod.none, Output Core.AllPorts)
-      | AL.OutputPort pport_id ->
+
+  let from_output (inPort : Core.portId option) (pseudoport : AL.pseudoport) =
+    let open OpenFlow0x04_Core in
+    match pseudoport with
+      | AL.InPort ->
+        (Mod.none, Output InPort)
+      | AL.Table -> (* XXX(seliopou): Maybe table should take the portid *)
+        (Mod.none, Output Table)
+      | AL.Normal ->
+        (Mod.none, Output Normal)
+      | AL.Flood ->
+        (Mod.none, Output Flood)
+      | AL.All ->
+        (Mod.none, Output AllPorts)
+      | AL.Physical pport_id ->
         if pport_id >= 0xffffff00l then (* pport_id < OFPP_MAX *)
           raise (Invalid_port pport_id);
         if Some pport_id = inPort then
           (Mod.none, Output InPort)
         else
           (Mod.none, Output (PhysicalPort pport_id))
+      | AL.Controller n ->
+        (Mod.none, Output (Controller n))
+      | AL.Local ->
+        (Mod.none, Output Local)
+
+  let from_action (inPort : Core.portId option) (act : AL.action)
+    : Mod.t * Core.action =
+    let v_to_m = Core.val_to_mask in
+    let open Core in
+    match act with
+      | AL.Output pseudoport ->
+        from_output inPort pseudoport
       | AL.Enqueue(_, _) ->
         raise (Invalid_argument "cannot enqueue")
       | AL.Modify (AL.SetEthSrc n) ->

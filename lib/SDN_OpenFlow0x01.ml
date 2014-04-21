@@ -63,14 +63,21 @@ module Common = HighLevelSwitch_common.Make (struct
   type of_portId = Core.portId
 
   module Mod = ModComposition
-  
-  let from_action (inPort : Core.portId option) (act : AL.action) 
-    : Mod.t * Core.action  =
+
+  let from_output (inPort : Core.portId option) (pseudoport : AL.pseudoport) =
     let open OpenFlow0x01_Core in
-    match act with
-      | AL.OutputAllPorts -> 
+    match pseudoport with
+      | AL.InPort ->
+        (Mod.none, Output InPort)
+      | AL.Table -> (* XXX(seliopou): Maybe table should take the portid *)
+        (Mod.none, Output Table)
+      | AL.Normal ->
+        (Mod.none, Output Normal)
+      | AL.Flood ->
+        (Mod.none, Output Flood)
+      | AL.All ->
         (Mod.none, Output AllPorts)
-      | AL.OutputPort pport_id ->
+      | AL.Physical pport_id ->
         if pport_id >= 0xff00l then (* pport_id < OFPP_MAX *)
           raise (Invalid_port pport_id);
         let pport_id = Int32.to_int pport_id in
@@ -80,6 +87,15 @@ module Common = HighLevelSwitch_common.Make (struct
           (Mod.none, Output (PhysicalPort pport_id))
       | AL.Controller n -> 
         (Mod.none, Output (Controller n))
+      | AL.Local ->
+        (Mod.none, Output Local)
+
+  let from_action (inPort : Core.portId option) (act : AL.action)
+    : Mod.t * Core.action  =
+    let open OpenFlow0x01_Core in
+    match act with
+      | AL.Output pseudoport ->
+        from_output inPort pseudoport
       | AL.Enqueue (pport_id, queue_id) ->
         if pport_id >= 0xff00l then (* pport_id < OFPP_MAX *)
           raise (Invalid_port pport_id);
