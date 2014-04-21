@@ -167,7 +167,7 @@ module PseudoPort = struct
       oneof [
         arbitrary_uint16 >>= (fun p -> ret_gen (PhysicalPort p));
         ret_gen InPort;
-        ret_gen Table;
+        (* ret_gen Table; *)
         ret_gen Normal;
         ret_gen Flood;
         ret_gen AllPorts;
@@ -182,7 +182,7 @@ module PseudoPort = struct
       oneof [
         arbitrary_uint16 >>= (fun p -> ret_gen (PhysicalPort p));
         ret_gen InPort;
-        ret_gen Table;
+        (* ret_gen Table; *)
         ret_gen Normal;
         ret_gen Flood;
         ret_gen AllPorts;
