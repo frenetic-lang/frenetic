@@ -87,7 +87,7 @@ module Switch = struct
     let to_out switch_id port_id =
       let bytes = Packet.marshal
         Probe.(to_packet { switch_id; port_id = port_id }) in
-      let action = SDN_Types.OutputPort(port_id) in
+      let action = SDN_Types.(Output(Physical(port_id))) in
       (switch_id, bytes, None, Some(port_id), [action])
 
     let loop t =

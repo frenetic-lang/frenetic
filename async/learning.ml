@@ -34,12 +34,12 @@ let create () =
         Log.of_lazy ~tags ~level:`Info (lazy (Printf.sprintf
           "[learning] switch %Lu: flood %s"
               switch_id (Packet.to_string packet)));
-        OutputAllPorts
+        Output(All)
       | Some(p) ->
         Log.of_lazy ~tags ~level:`Info (lazy (Printf.sprintf
           "[learning] switch %Lu: port %lu %s"
               switch_id p (Packet.to_string packet)));
-        OutputPort p in
+        Output(Physical p) in
 
   let default = Mod(Location(Pipe "learn")) in
 

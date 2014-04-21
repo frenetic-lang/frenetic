@@ -158,7 +158,7 @@ TEST "vlan" =
    let pol = Seq(Filter (And (Neg(Test(EthSrc 0L)), Neg(Test(EthSrc 1L)))),
                  Mod (Location (Physical 1l))) in
    (* Not testing the table itself because this is (a) tedious and (b) not stable. *)
-   let a = [(OutputPort 1l)] in
+   let a = [Output(Physical 1l)] in
    test_compile_table pol
      [ dropEthSrc 0L;
        dropEthSrc 1L;

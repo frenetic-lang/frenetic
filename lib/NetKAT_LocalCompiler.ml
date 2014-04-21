@@ -806,37 +806,38 @@ end
 module RunTime = struct
 
   let to_action (a:Action.t) (pto: portId option) : seq =
+    let generate init =
+      let g h act f =
+        match Field.get f a with
+          | None -> act
+          | Some v -> Modify(h v)::act in
+      HOV.Fields.fold
+        ~init
+        ~location:(fun act _ -> act)
+        ~ethSrc:(g (fun v -> SetEthSrc v))
+        ~ethDst:(g (fun v -> SetEthDst v))
+        ~vlan:(g (fun v -> SetVlan (Some(v))))
+        ~vlanPcp:(g (fun v -> SetVlanPcp v))
+        ~ethType:(g (fun v -> SetEthTyp v))
+        ~ipProto:(g (fun v -> SetIPProto v))
+        ~ipSrc:(g (fun v -> SetIP4Src v))
+        ~ipDst:(g (fun v -> SetIP4Dst v))
+        ~tcpSrcPort:(g (fun v -> SetTCPSrcPort v))
+        ~tcpDstPort:(g (fun v -> SetTCPDstPort v)) in
     (* If an action sets the location to a pipe, ignore all other modifications.
      * They will be applied at the controller by Semantics.eval. Otherwise, the
      * port must be determined either by the pattern or by the action. The pto
      * is the port determined by the pattern, if it exists. If the port is not
-     * determinate, we fail though it is technically acceptable to send it out
-     * InPort... if SDN_Types exposed that.
+     * determinate, then send it back out the port it came in.
      * *)
     match HOV.location a, pto with
       | Some (NetKAT_Types.Pipe(_)), _ ->
-        [Controller 128]
+        [Output(Controller 128)]
       | Some (NetKAT_Types.Physical pt), _
       | None, Some pt ->
-        let g h act f =
-          match Field.get f a with
-            | None -> act
-            | Some v -> Modify(h v)::act in
-        HOV.Fields.fold
-          ~init:[OutputPort pt]
-          ~location:(fun act _ -> act)
-          ~ethSrc:(g (fun v -> SetEthSrc v))
-          ~ethDst:(g (fun v -> SetEthDst v))
-          ~vlan:(g (fun v -> SetVlan (Some(v))))
-          ~vlanPcp:(g (fun v -> SetVlanPcp v))
-          ~ethType:(g (fun v -> SetEthTyp v))
-          ~ipProto:(g (fun v -> SetIPProto v))
-          ~ipSrc:(g (fun v -> SetIP4Src v))
-          ~ipDst:(g (fun v -> SetIP4Dst v))
-          ~tcpSrcPort:(g (fun v -> SetTCPSrcPort v))
-          ~tcpDstPort:(g (fun v -> SetTCPDstPort v))
+        generate [Output(Physical pt)]
       | None, None ->
-        failwith "indeterminate location"
+        generate [Output(InPort)]
 
   (* XXX(seliopou, jnf) unimplementable actions will still produce bogus
    * outputs. For example, the following policy:
