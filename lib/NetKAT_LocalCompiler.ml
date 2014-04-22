@@ -488,22 +488,6 @@ module Pattern = struct
           ~tcpSrcPort:(g PN16.obscures)
           ~tcpDstPort:(g PN16.obscures)
 
-  let diff (x:t) (y:t) : t =
-    let open HPN in
-    let g c f = c (Field.get f x) (Field.get f y) in
-    Fields.map
-      ~location:(g PNL.diff)
-      ~ethSrc:(g PN48.diff)
-      ~ethDst:(g PN48.diff)
-      ~vlan:(g PN16.diff)
-      ~vlanPcp:(g PN8.diff)
-      ~ethType:(g PN16.diff)
-      ~ipProto:(g PN8.diff)
-      ~ipSrc:(g PNIp.diff)
-      ~ipDst:(g PNIp.diff)
-      ~tcpSrcPort:(g PN16.diff)
-      ~tcpDstPort:(g PN16.diff)
-
   let seq (x:t) (y:t) : t option =
     let open HPN in
         let g is_empty inter acc f =
@@ -557,6 +541,14 @@ module Pattern = struct
           ~ipDst:PNIp.(g HOV.ipDst is_empty inter singleton)
           ~tcpSrcPort:PN16.(g HOV.tcpSrcPort is_empty inter singleton)
           ~tcpDstPort:PN16.(g HOV.tcpDstPort is_empty inter singleton)
+
+  let diff (x:t) (y:t) : Set.t =
+    let negged:Set.t = neg y in
+    let intersect x a =
+      match seq x a with
+        Some s -> s
+      | None -> empty in
+    Set.map ~f:(fun a -> intersect x a) negged
 end
 
 module Local = struct
@@ -1014,6 +1006,11 @@ module RunTime = struct
       match Pattern.seq p q with
         Some s -> not (Pattern.is_empty s)
       | None -> false in
+    let pattern_diff_empty (xp:Pattern.t) (p:Pattern.t) : bool =
+      Set.fold
+        ~init:true
+        ~f:(fun acc x -> acc && (Pattern.is_empty x))
+        (Pattern.diff xp p) in
     (* A pattern falls through if it is covered by patterns below it in the
      * table each of which has the same action, and no pattern with a different
      * action intersects it within the range containing the cover. *)
@@ -1024,7 +1021,7 @@ module RunTime = struct
         [] -> false
       | (f,p,a)::t -> (
         if Set.equal xa a then (
-          if Pattern.is_empty (Pattern.diff xp p) then true
+          if pattern_diff_empty xp p then true
           else falls_through (xf,xp,xa) t)
         else (
           if patterns_intersect xp p then false
@@ -1105,6 +1102,6 @@ let to_netkat =
 let compile =
   RunTime.compile
 
-let to_table ?(optimize_fall_through=false) t =
+let to_table ?(optimize_fall_through=true) t =
   Local_Optimize.remove_shadowed_rules
     (RunTime.to_table t ~optimize_fall_through:optimize_fall_through)
