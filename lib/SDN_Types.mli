@@ -69,10 +69,18 @@ type modify =
   | SetTCPSrcPort of tpPort
   | SetTCPDstPort of tpPort
 
-type action =
-  | OutputAllPorts
-  | OutputPort of portId
+type pseudoport =
+  | Physical of portId
+  | InPort
+  | Table
+  | Normal
+  | Flood
+  | All
   | Controller of int
+  | Local
+
+type action =
+  | Output of pseudoport
   | Enqueue of portId * queueId
   | Modify of modify
  

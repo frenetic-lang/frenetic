@@ -53,12 +53,15 @@ type oxm =
 type oxmMatch = oxm list
 
 type pseudoPort =
-| PhysicalPort of portId
-| InPort
-| Flood
-| AllPorts
-| Controller of int16
-| Any
+  | PhysicalPort of portId
+  | InPort
+  | Table
+  | Normal
+  | Flood
+  | AllPorts
+  | Controller of int16
+  | Local
+  | Any
 
 type action =
 | Output of pseudoPort

@@ -8,13 +8,13 @@ open Async_OpenFlow
 let handle_switch platform (features : switchFeatures) : unit Deferred.t =
   Highlevel.setup_flow_table platform features.switch_id
     [{ pattern = { all_pattern with inPort = Some(1l) };
-       action = [ [[OutputPort 2l]] ];
+       action = [ [[Output (Physical 2l)]] ];
        cookie = 0L;
        idle_timeout = Permanent;
        hard_timeout = Permanent
      };
      { pattern = { all_pattern with inPort = Some(2l) };
-       action = [ [[OutputPort 1l]] ];
+       action = [ [[Output (Physical 1l)]] ];
        cookie = 0L;
        idle_timeout = Permanent;
        hard_timeout = Permanent

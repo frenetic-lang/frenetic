@@ -26,11 +26,13 @@ type pattern =
 
 type pseudoPort =
   | PhysicalPort of portId
-  | AllPorts
   | InPort
-  | Flood
-  | Controller of int
   | Table
+  | Normal
+  | Flood
+  | AllPorts
+  | Controller of int
+  | Local
 
 type action =
   | Output of pseudoPort

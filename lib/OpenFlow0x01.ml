@@ -316,26 +316,26 @@ module PseudoPort = struct
 
   type t = pseudoPort
 
+      (* Physical ports are numbered starting from 1. *)
       cenum ofp_port {
-    (* Maximum number of physical switch ports. *)
+        (* Maximum number of physical switch ports. *)
         OFPP_MAX = 0xff00;
 
-    (*Fake output "ports". *)
-        OFPP_IN_PORT = 0xfff8;  (* Send the packet out the input port.  This
-                                   virtual port must be explicitly used
-                                   in order to send back out of the input
-                                   port. *)
-
-        OFPP_TABLE = 0xfff9; (* Perform actions in flow table.
-                                NB: This can only be the destination
-                                port for packet-out messages. *)
-        OFPP_NORMAL = 0xfffa; (* Process with normal L2/L3 switching. *)
-        OFPP_FLOOD = 0xfffb; (* All physical porbts except input port and
-                                those disabled by STP. *)
-        OFPP_ALL = 0xfffc; (* All physical ports except input port. *)
+        (*Fake output "ports". *)
+        OFPP_IN_PORT = 0xfff8; (* Send the packet out the input port. This
+                                  virtual port must be explicitly used
+                                  in order to send back out of the input
+                                  port. *)
+        OFPP_TABLE   = 0xfff9; (* Perform actions in flow table.
+                                  NB: This can only be the destination
+                                  port for packet-out messages. *)
+        OFPP_NORMAL  = 0xfffa; (* Process with normal L2/L3 switching. *)
+        OFPP_FLOOD   = 0xfffb; (* All physical porbts except input port and
+                                  those disabled by STP. *)
+        OFPP_ALL     = 0xfffc; (* All physical ports except input port. *)
         OFPP_CONTROLLER = 0xfffd; (* Send to controller. *)
-        OFPP_LOCAL = 0xfffe; (* Local openflow "port". *)
-        OFPP_NONE = 0xffff  (* Not associated with a physical port. *)
+        OFPP_LOCAL   = 0xfffe; (* Local openflow "port". *)
+        OFPP_NONE    = 0xffff  (* Not associated with a physical port. *)
       } as uint16_t
 
   let size_of _ = 2
@@ -355,11 +355,13 @@ module PseudoPort = struct
   let marshal (t : t) : int = match t with
     | PhysicalPort p -> p
     | InPort -> ofp_port_to_int OFPP_IN_PORT
+    | Table -> ofp_port_to_int OFPP_TABLE
+    | Normal -> ofp_port_to_int OFPP_NORMAL
     | Flood -> ofp_port_to_int OFPP_FLOOD
     | AllPorts -> ofp_port_to_int OFPP_ALL
     (* see wall of text above *)
     | Controller _ -> ofp_port_to_int OFPP_CONTROLLER 
-    | Table -> ofp_port_to_int OFPP_TABLE
+    | Local -> ofp_port_to_int OFPP_LOCAL
 
   let marshal_optional (t : t option) : int = match t with
     | None -> ofp_port_to_int OFPP_NONE
@@ -368,25 +370,28 @@ module PseudoPort = struct
   let to_string (t : t) : string = match t with
     | PhysicalPort p -> string_of_int p
     | InPort -> "InPort"
+    | Table -> "Table"
+    | Normal -> "Normal"
     | Flood -> "Flood"
     | AllPorts -> "AllPorts"
     | Controller n -> sprintf "Controller<%d bytes>" n
-    | Table -> "Table"
+    | Local -> "Local"
 
   let make ofp_port_code len =
     match int_to_ofp_port ofp_port_code with
       | Some OFPP_IN_PORT -> InPort
+      | Some OFPP_TABLE -> Table
+      | Some OFPP_NORMAL -> Normal
       | Some OFPP_FLOOD -> Flood
       | Some OFPP_ALL -> AllPorts
-      | Some OFPP_TABLE -> Table
       | Some OFPP_CONTROLLER -> Controller len
+      | Some OFPP_LOCAL -> Local
       | _ ->
         if ofp_port_code <= (ofp_port_to_int OFPP_MAX) then
           PhysicalPort ofp_port_code
         else
           raise
             (Unparsable (sprintf "unsupported port number (%d)" ofp_port_code))
-
 end
 
 module Action = struct
@@ -761,6 +766,11 @@ module FlowMod = struct
     let bits = Cstruct.shift bits sizeof_ofp_flow_mod in
     let _ = List.fold_left
       (fun bits act ->
+        begin match act with
+          | Output Table ->
+            failwith "OFPP_TABLE not allowed in installed flow"
+          | _ -> ()
+        end;
         Cstruct.shift bits (Action.marshal act bits))
       bits
       (Action.move_controller_last msg.actions) in
