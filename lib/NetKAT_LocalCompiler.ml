@@ -588,6 +588,26 @@ module Local = struct
              (Pattern.to_string r)
              (Action.set_to_string g)))
 
+  exception IllFormed
+  (* check for well-formedness of a value of type t *)
+  let check (m:t) : bool = 
+    try 
+      Pattern.Map.iter m
+        ~f:(fun ~key:x1 ~data:s1 -> 
+          Pattern.Map.iter m
+            ~f:(fun ~key:x2 ~data:s2 -> 
+              if Pattern.obscures x1 x2 && 
+                Pattern.obscures x2 x1 && 
+                Action.Set.compare s1 s2 <> 0
+              then
+                (Printf.printf "Local.check failed:\n%s=>%s\n%s=>%s\n"
+                   (Pattern.to_string x1) (Action.set_to_string s1)
+                   (Pattern.to_string x2) (Action.set_to_string s2);
+                 raise IllFormed)));
+      true
+    with _ -> 
+      false
+            
   let extend (x:Pattern.t) (s:Action.Set.t) (m:t) : t =
     let r = match Pattern.Map.find m x with
       | None ->
@@ -616,12 +636,15 @@ module Local = struct
                 extend r1_r2 (op s1 s2) acc))
 
   let par p q =
-    let r = intersect Action.Set.union p q in
-    (* Printf.printf "### PAR ###\n%s\n%s\n%s" *)
-    (*   (to_string p) *)
-    (*   (to_string q) *)
-    (*   (to_string r); *)
-    r
+    if Pattern.Map.is_empty p then q
+    else if Pattern.Map.is_empty q then p
+    else 
+      let r = intersect Action.Set.union p q in
+      (* Printf.printf "### PAR ###\n%s\n%s\n%s" *)
+      (*   (to_string p) *)
+      (*   (to_string q) *)
+      (*   (to_string r); *)
+      r
 
   let seq (p:t) (q:t) : t =
     let merge ~key:_ v =
@@ -630,7 +653,7 @@ module Local = struct
         | `Right s2 -> Some s2
         | `Both (s1,s2) -> Some (Action.Set.union s1 s2) in
 
-    let seq_act r1 a q =
+    let seq_act r1 a q : t =
       Pattern.Map.fold q
         ~init:Pattern.Map.empty
         ~f:(fun ~key:r2 ~data:s2 acc ->
@@ -640,17 +663,17 @@ module Local = struct
             | Some r12 ->
               extend r12 (Action.set_seq a s2) acc) in
 
-    let seq_atom_acts_local r1 s1 q =
+    let seq_atom_acts_local r1 s1 q : t =
       if Action.Set.is_empty s1 then
         Pattern.Map.singleton r1 s1
       else
         Action.Set.fold s1
           ~init:Pattern.Map.empty
-          ~f:(fun acc a ->
-            let acc' = seq_act r1 a q in
-            Pattern.Map.merge ~f:merge acc acc') in
+          ~f:(fun acc a -> 
+            let acc' = seq_act r1 a q in 
+            par acc acc') in
 
-    let r =
+    let r : t = 
       Pattern.Map.fold p
         ~init:Pattern.Map.empty
         ~f:(fun ~key:r1 ~data:s1 acc ->
@@ -783,37 +806,38 @@ end
 module RunTime = struct
 
   let to_action (a:Action.t) (pto: portId option) : seq =
+    let generate init =
+      let g h act f =
+        match Field.get f a with
+          | None -> act
+          | Some v -> Modify(h v)::act in
+      HOV.Fields.fold
+        ~init
+        ~location:(fun act _ -> act)
+        ~ethSrc:(g (fun v -> SetEthSrc v))
+        ~ethDst:(g (fun v -> SetEthDst v))
+        ~vlan:(g (fun v -> SetVlan (Some(v))))
+        ~vlanPcp:(g (fun v -> SetVlanPcp v))
+        ~ethType:(g (fun v -> SetEthTyp v))
+        ~ipProto:(g (fun v -> SetIPProto v))
+        ~ipSrc:(g (fun v -> SetIP4Src v))
+        ~ipDst:(g (fun v -> SetIP4Dst v))
+        ~tcpSrcPort:(g (fun v -> SetTCPSrcPort v))
+        ~tcpDstPort:(g (fun v -> SetTCPDstPort v)) in
     (* If an action sets the location to a pipe, ignore all other modifications.
      * They will be applied at the controller by Semantics.eval. Otherwise, the
      * port must be determined either by the pattern or by the action. The pto
      * is the port determined by the pattern, if it exists. If the port is not
-     * determinate, we fail though it is technically acceptable to send it out
-     * InPort... if SDN_Types exposed that.
+     * determinate, then send it back out the port it came in.
      * *)
     match HOV.location a, pto with
       | Some (NetKAT_Types.Pipe(_)), _ ->
-        [Controller 128]
+        [Output(Controller 128)]
       | Some (NetKAT_Types.Physical pt), _
       | None, Some pt ->
-        let g h act f =
-          match Field.get f a with
-            | None -> act
-            | Some v -> Modify(h v)::act in
-        HOV.Fields.fold
-          ~init:[OutputPort pt]
-          ~location:(fun act _ -> act)
-          ~ethSrc:(g (fun v -> SetEthSrc v))
-          ~ethDst:(g (fun v -> SetEthDst v))
-          ~vlan:(g (fun v -> SetVlan (Some(v))))
-          ~vlanPcp:(g (fun v -> SetVlanPcp v))
-          ~ethType:(g (fun v -> SetEthTyp v))
-          ~ipProto:(g (fun v -> SetIPProto v))
-          ~ipSrc:(g (fun v -> SetIP4Src v))
-          ~ipDst:(g (fun v -> SetIP4Dst v))
-          ~tcpSrcPort:(g (fun v -> SetTCPSrcPort v))
-          ~tcpDstPort:(g (fun v -> SetTCPDstPort v))
+        generate [Output(Physical pt)]
       | None, None ->
-        failwith "indeterminate location"
+        generate [Output(InPort)]
 
   (* XXX(seliopou, jnf) unimplementable actions will still produce bogus
    * outputs. For example, the following policy:
@@ -945,7 +969,7 @@ module RunTime = struct
           ; SDN_Types.nwDst = x.HOV.ipDst
           ; SDN_Types.nwProto = x.HOV.ipProto
           ; SDN_Types.tpSrc = x.HOV.tcpSrcPort
-          ; SDN_Types.tpDst = x.HOV.tcpSrcPort
+          ; SDN_Types.tpDst = x.HOV.tcpDstPort
           ; SDN_Types.inPort = default_port }
         in
         simpl_flow pattern actions) in

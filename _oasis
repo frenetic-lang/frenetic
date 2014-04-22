@@ -32,6 +32,7 @@ Library netkat
     threads
   InternalModules:
     Algo,
+    Flowterp,
     Optimize
   Modules:
     NetKAT_Lexer,

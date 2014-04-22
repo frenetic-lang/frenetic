@@ -68,7 +68,7 @@ let headers_to_actions
      | NetKAT_Types.Pipe p ->
        raise (Assertion_failed (Printf.sprintf
          "Controller.headers_to_action: impossible pipe location \"%s\"" p))
-     | NetKAT_Types.Physical p -> [OutputPort(p)] in
+     | NetKAT_Types.Physical p -> [Output(Physical(p))] in
   NetKAT_Types.HeadersValues.Fields.fold
     ~init
     ~location:(fun acc f -> acc)

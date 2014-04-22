@@ -158,7 +158,7 @@ TEST "vlan" =
    let pol = Seq(Filter (And (Neg(Test(EthSrc 0L)), Neg(Test(EthSrc 1L)))),
                  Mod (Location (Physical 1l))) in
    (* Not testing the table itself because this is (a) tedious and (b) not stable. *)
-   let a = [(OutputPort 1l)] in
+   let a = [Output(Physical 1l)] in
    test_compile_table pol
      [ dropEthSrc 0L;
        dropEthSrc 1L;
@@ -294,17 +294,30 @@ let compare_eval_output p q pkt =
   PacketSet.compare (eval pkt p) (eval pkt q) = 0
 
 let compare_compiler_output p q pkt =
-  let open NetKAT_LocalCompiler in
-  compare_eval_output
-    (to_netkat (of_policy pkt.switch p))
-    (to_netkat (of_policy pkt.switch q))
-    pkt
+  PacketSet.compare
+    (Flowterp.Packet.eval pkt (NetKAT_LocalCompiler.(to_table (of_policy pkt.switch p))))
+    (Flowterp.Packet.eval pkt (NetKAT_LocalCompiler.(to_table (of_policy pkt.switch q))))
+  = 0
 
 let check gen_fn compare_fn =
   let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in
   match QuickCheck.check gen_fn cfg compare_fn with
         QuickCheck.Success -> true
     | _                  -> false
+
+TEST "semantics agree with flowtable" =
+  let prop_compile_ok (p, pkt) =
+    (* XXX(seliopou): Because flowtables are not pipe-aware, policies that set
+     * the packet location to a pipe will not pass this test. To side-step the
+     * problem, set the location to physical port 0 on the way out.
+     *)
+    let p' = Seq(p, Mod(Location(Physical(0l)))) in
+    PacketSet.compare
+      (NetKAT_Semantics.eval pkt (Optimize.specialize_policy pkt.switch p'))
+      (Flowterp.Packet.eval pkt
+        (NetKAT_LocalCompiler.(to_table (of_policy pkt.switch p'))))
+    = 0 in
+  check gen_pol_1 prop_compile_ok
 
 TEST "quickcheck ka-plus-assoc compiler" =
   let prop_compile_ok (p, q, r, pkt) =
