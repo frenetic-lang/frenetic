@@ -33,15 +33,15 @@ Library netkat
   InternalModules:
     Algo,
     Flowterp,
-    Optimize
+    Optimize,
+    Util
   Modules:
     NetKAT_Lexer,
     NetKAT_LocalCompiler,
     NetKAT_Parser,
     NetKAT_Pretty,
     NetKAT_Semantics,
-    NetKAT_Types,
-    NetKAT_Util
+    NetKAT_Types
 
 Library async
   Findlibparent: netkat
