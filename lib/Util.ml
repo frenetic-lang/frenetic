@@ -1,26 +1,30 @@
-let map_option f = function
-  | None -> None
-  | Some x -> Some (f x)
+(*
+ *   (¯`·._.·(¯`·._.· PEOPLE, READ THIS BEFORE YOU EDIT ·._.·´¯)·._.·´¯)
+ *
+ * At times it is necessary to write a function that's super-general and
+ * reusable, but really has no proper place within the codebase. Hence the Util
+ * module. Welcome to the sin bin.
+ *
+ * Before you start to write that function, take a minute to search Core to see
+ * if there is a function there that does what you want to do. Here's convenient
+ * link to its documentation page:
+ *
+ *  https://ocaml.janestreet.com/ocaml-core/latest/doc/
+ *
+ * Next, check this library's dependencies to see if that function's already
+ * been written elsewhere. Finally, give this library a quick grep to see if the
+ * function might have been written in some other module as a one-off. In that
+ * case, for the sake of posterity, move it in here and reuse it.
+ *
+ * If after all that you're still without the function you need, have at it
+ * below.
+ *)
 
 let intercalate f s = function
-  | [] -> 
+  | [] ->
     ""
-  | h::t -> 
+  | h::t ->
     List.fold_left (fun acc x -> acc ^ s ^ f x) (f h) t
-
-let intersperse v lst =
-  List.fold_right (fun x xs -> x :: (v :: xs)) [] lst
-
-let concat_map f lst =
-  List.fold_right (fun a bs -> List.append (f a) bs) lst []
-
-let rec filter_map f xs = match xs with
-  | [] -> []
-  | x :: xs' -> match f x with
-    | Some y -> y :: (filter_map f xs')
-    | None -> filter_map f xs'
-
-let filter_none lst = filter_map (fun x -> x) lst
 
 let load_file f =
   let ic = open_in f in
