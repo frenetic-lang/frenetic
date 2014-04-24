@@ -170,9 +170,7 @@ let to_event w_out (t : t) evt =
         | PacketInMsg pi ->
           let open OpenFlow0x01_Core in
           let port_id = Int32.of_int_exn pi.port in
-          let buf_id, bytes = match pi.input_payload with
-            | Buffered(n, bs) -> Some(n), bs
-            | NotBuffered(bs) -> None, bs in
+          let payload = SDN_OpenFlow0x01.to_payload pi.input_payload in
           begin match SwitchMap.find t.locals switch_id with
             | None ->
               (* The switch may be connected but has yet had rules installed on
@@ -184,35 +182,31 @@ let to_event w_out (t : t) evt =
                * pipes, and the list of packets that can be forwarded to physical
                * locations.
                * *)
-              let packet = {
+              let pkt0 = {
                 switch = switch_id;
-                headers = bytes_to_headers (Int32.of_int_exn pi.port) bytes;
-                payload = SDN_OpenFlow0x01.to_payload pi.input_payload
+                headers = bytes_to_headers port_id (SDN_Types.payload_bytes payload);
+                payload = payload;
               } in
               begin
                 (* XXX(seliopou): What if the packet's modified? Should buf_id be
                  * exposed to the application?
                  * *)
-                let pis, phys = NetKAT_Semantics.eval_pipes packet local in
-                let outs = Deferred.List.iter phys ~f:(fun packet1 ->
-                  let acts = headers_to_actions
-                    packet1.headers packet.headers in
-                  let payload = match buf_id with
-                    | None -> SDN_Types.NotBuffered(bytes)
-                    | Some(buf_id) -> SDN_Types.Buffered(buf_id, bytes) in
-                  let out = (switch_id, (payload, Some(port_id), acts)) in
+                let pis, phys = NetKAT_Semantics.eval_pipes pkt0 local in
+                let outs = Deferred.List.iter phys ~f:(fun pkt1 ->
+                  let acts = headers_to_actions pkt1.headers pkt0.headers in
+                  let out  = (switch_id, (payload, Some(port_id), acts)) in
                   Pipe.write w_out out) in
                 outs >>= fun _ ->
-                return (List.map pis ~f:(fun (p, pkt) ->
-                  let pkt', changed = packet_sync_headers pkt in
-                  let payload = match buf_id, changed with
-                      | None, _
-                      | _   , true ->
-                        SDN_Types.NotBuffered(payload_bytes pkt'.payload)
-                      | Some(buf_id), false ->
+                return (List.map pis ~f:(fun (pipe, pkt2) ->
+                  let pkt3, changed = packet_sync_headers pkt2 in
+                  let payload = match payload, changed with
+                      | SDN_Types.NotBuffered(_), _
+                      | _                       , true ->
+                        SDN_Types.NotBuffered(payload_bytes pkt3.payload)
+                      | SDN_Types.Buffered(buf_id, bytes), false ->
                         SDN_Types.Buffered(buf_id, bytes)
                   in
-                  PacketIn(p, switch_id, port_id, payload, pi.total_len)))
+                  PacketIn(pipe, switch_id, port_id, payload, pi.total_len)))
               end
           end
         | PortStatusMsg ps ->
