@@ -25,7 +25,7 @@ module type NETWORK = sig
 
     type vertex
     type edge
-    type port = int64
+    type port = int32
 
     module Vertex : VERTEX
     module Edge : EDGE
@@ -118,9 +118,9 @@ module Make : MAKE =
     functor (Edge:EDGE) ->
 struct
   module Topology = struct
-    type port = int64
-    module PortSet = Set.Make(Int64)
-    module PortMap = Map.Make(Int64)
+    type port = int32
+    module PortSet = Set.Make(Int32)
+    module PortMap = Map.Make(Int32)
 
     module Vertex = Vertex
     module Edge = Edge
@@ -149,8 +149,8 @@ struct
       let default =
         { id = 0;
           label = Edge.default;
-          src = 0L;
-          dst = 0L }
+          src = 0l;
+          dst = 0l }
     end
     module EdgeSet = Set.Make(struct
       type t = VL.t * EL.t * VL.t
@@ -552,7 +552,7 @@ struct
     module Dot = Graph.Dot.Parse(Build)(struct
       let get_port o = match o with
         | Some(s) -> begin match s with
-            | Graph.Dot_ast.Number(i) -> Int64.of_string i
+            | Graph.Dot_ast.Number(i) -> Int32.of_string i
             | _ -> failwith "Requires number" end
         | None -> failwith "Requires value"
       let next_node = let r = ref 0 in fun _ -> incr r; !r
@@ -568,7 +568,7 @@ struct
           | Graph.Dot_ast.Ident("sport") -> (get_port v,dst,acc)
           | Graph.Dot_ast.Ident("dport") -> (src, get_port v, acc)
           | _ -> (src,dst,(k,v)::acc)
-        ) (0L,0L,[]) ats in
+        ) (0l,0l,[]) ats in
         let attrs' = rest::(List.tl attrs) in
         let open EL in
             { id = next_edge ();
@@ -587,8 +587,8 @@ struct
         let open EL in
             { id = next_edge ();
               label = Edge.parse_gml vs;
-              src = 0L;
-              dst = 0L }
+              src = 0l;
+              dst = 0l }
     end)
 
     let from_dotfile = Dot.parse
@@ -602,7 +602,7 @@ struct
       let es = (EdgeSet.fold (fun (s,l,d) acc ->
         let _,sport = edge_src (s,l,d) in
         let _,dport = edge_dst (s,l,d) in
-        Printf.sprintf "%s%s%s -> %s {sport=%Ld; dport=%Ld; %s};"
+        Printf.sprintf "%s%s%s -> %s {sport=%ld; dport=%ld; %s};"
           acc
           (if acc = "" then "" else "\n")
           (Vertex.to_string s.VL.label)
