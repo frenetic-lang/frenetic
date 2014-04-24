@@ -217,14 +217,15 @@ let to_event w_out (t : t) evt =
           end
         | PortStatusMsg ps ->
           let open OpenFlow0x01.PortStatus in
+          let open OpenFlow0x01.PortDescription in
           begin match ps.reason, port_desc_useable ps.desc with
             | ChangeReason.Add, true
             | ChangeReason.Modify, true ->
-              let pt_id = Int32.of_int_exn (ps.desc.OpenFlow0x01.PortDescription.port_no) in
+              let pt_id = Int32.of_int_exn (ps.desc.port_no) in
               return [PortUp(switch_id, pt_id)]
             | ChangeReason.Delete, _
             | ChangeReason.Modify, false ->
-              let pt_id = Int32.of_int_exn (ps.desc.OpenFlow0x01.PortDescription.port_no) in
+              let pt_id = Int32.of_int_exn (ps.desc.port_no) in
               return [PortDown(switch_id, pt_id)]
             | _ ->
               return []
