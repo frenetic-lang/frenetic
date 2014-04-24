@@ -4,6 +4,7 @@ open Async.Std
 module Net = Async_NetKAT.Net
 
 module Controller = Async_OpenFlow.OpenFlow0x01.Controller
+module Stage = Async_OpenFlow.Stage
 module SDN = SDN_Types
 
 type switchId = SDN_Types.switchId
@@ -37,7 +38,10 @@ type t = {
   mutable locals : NetKAT_Types.policy SwitchMap.t
 }
 
-let bytes_to_headers port_id (bytes : Cstruct.t) =
+let bytes_to_headers
+  (port_id : SDN_Types.portId)
+  (bytes : Cstruct.t)
+  : NetKAT_Types.HeadersValues.t =
   let open NetKAT_Types.HeadersValues in
   let open Packet in
   let pkt = Packet.parse bytes in
@@ -132,15 +136,16 @@ let send t c_id msg =
     | `Sent _ -> ()
     | `Drop exn -> raise exn
 
-let port_desc_useable pd =
+let port_desc_useable (pd : OpenFlow0x01.PortDescription.t) : bool =
   let open OpenFlow0x01.PortDescription in
   if pd.config.PortConfig.down
     then false
     else not (pd.state.PortState.down)
 
-let to_event w_out (t : t) evt =
+let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
+  : (t, Controller.f, NetKAT_Types.event) Stage.t =
   let open NetKAT_Types in
-  match evt with
+  fun t evt -> match evt with
     | `Connect (c_id, feats) ->
       let ports = feats.OpenFlow0x01.SwitchFeatures.ports in
       let sw_id = feats.OpenFlow0x01.SwitchFeatures.switch_id in
@@ -257,7 +262,11 @@ let get_switchids nib =
     | _ -> acc)
   nib []
 
-let handler (t : t) w app =
+let handler
+  (t : t)
+  (w : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
+  (app : Async_NetKAT.app)
+  : (NetKAT_Types.event -> unit Deferred.t) =
   let app' = Async_NetKAT.run app t.nib w () in
   fun e ->
     app' e >>= fun m_pol ->
@@ -273,7 +282,7 @@ let handler (t : t) w app =
         end
 
 let start app ?(port=6633) () =
-  let open Async_OpenFlow.Stage in
+  let open Stage in
   Controller.create ~max_pending_connections ~port ()
   >>> fun ctl ->
     let t = {
