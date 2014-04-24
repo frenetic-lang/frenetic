@@ -85,10 +85,6 @@ let headers_to_actions
 
 exception Unsupported_mod of string
 
-let payload_bytes p = match p with
-  | SDN_Types.NotBuffered(bytes)
-  | SDN_Types.Buffered(_, bytes) -> bytes
-
 let packet_sync_headers (pkt:NetKAT_Types.packet) : NetKAT_Types.packet * bool =
   let open NetKAT_Types in
   let change = ref false in
@@ -202,7 +198,7 @@ let to_event w_out (t : t) evt =
                   let payload = match payload, changed with
                       | SDN_Types.NotBuffered(_), _
                       | _                       , true ->
-                        SDN_Types.NotBuffered(payload_bytes pkt3.payload)
+                        SDN_Types.NotBuffered(SDN_Types.payload_bytes pkt3.payload)
                       | SDN_Types.Buffered(buf_id, bytes), false ->
                         SDN_Types.Buffered(buf_id, bytes)
                   in
