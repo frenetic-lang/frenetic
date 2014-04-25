@@ -185,9 +185,4 @@ module Link = struct
     link
 end
 
-
-module type PHYSNET = NETWORK
-  with module Topology.Vertex = Node
-  and module Topology.Edge = Link
-
 module Net = Network.Make(Node)(Link)
