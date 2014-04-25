@@ -34,3 +34,4 @@ opam install ${FRENETIC_DEPENDS//ocaml-/}
 
 ocaml setup.ml -configure
 make
+make test
