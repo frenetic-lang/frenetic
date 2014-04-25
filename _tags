@@ -1,7 +1,7 @@
 # OASIS_START
-# DO NOT EDIT (digest: a0a36b2d0f0827138eaf3014c41d7e85)
-# Ignore VCS directories, you can use the same kind of rule outside 
-# OASIS_START/STOP if you want to exclude directories that contains 
+# DO NOT EDIT (digest: 0252c395af1465d565ce3b3e8b23f7e9)
+# Ignore VCS directories, you can use the same kind of rule outside
+# OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
 <**/.svn>: -traverse
 <**/.svn>: not_hygienic
@@ -15,23 +15,23 @@
 "_darcs": not_hygienic
 # Library topology
 "lib/topology.cmxs": use_topology
-<lib/*.ml{,i}>: pkg_packet
-<lib/*.ml{,i}>: pkg_ocamlgraph
-<lib/*.ml{,i}>: pkg_threads
+<lib/*.ml{,i}>: package(packet)
+<lib/*.ml{,i}>: package(ocamlgraph)
+<lib/*.ml{,i}>: package(threads)
 # Executable unittest
 "test/Test.byte": use_topology
-"test/Test.byte": pkg_packet
-"test/Test.byte": pkg_oUnit
-"test/Test.byte": pkg_pa_ounit
-"test/Test.byte": pkg_pa_ounit.syntax
-"test/Test.byte": pkg_ocamlgraph
-"test/Test.byte": pkg_threads
+"test/Test.byte": package(packet)
+"test/Test.byte": package(oUnit)
+"test/Test.byte": package(pa_ounit)
+"test/Test.byte": package(pa_ounit.syntax)
+"test/Test.byte": package(ocamlgraph)
+"test/Test.byte": package(threads)
 <test/*.ml{,i}>: use_topology
-<test/*.ml{,i}>: pkg_packet
-<test/*.ml{,i}>: pkg_oUnit
-<test/*.ml{,i}>: pkg_pa_ounit
-<test/*.ml{,i}>: pkg_pa_ounit.syntax
-<test/*.ml{,i}>: pkg_ocamlgraph
-<test/*.ml{,i}>: pkg_threads
+<test/*.ml{,i}>: package(packet)
+<test/*.ml{,i}>: package(oUnit)
+<test/*.ml{,i}>: package(pa_ounit)
+<test/*.ml{,i}>: package(pa_ounit.syntax)
+<test/*.ml{,i}>: package(ocamlgraph)
+<test/*.ml{,i}>: package(threads)
 # OASIS_STOP
 <test/*.ml>: syntax_camlp4o
