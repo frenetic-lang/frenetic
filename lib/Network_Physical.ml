@@ -168,7 +168,7 @@ module Link = struct
     match key with
       | Dot_ast.Ident("cost") -> {edge with cost = int64_of_id valopt }
       | Dot_ast.Ident("capacity") -> {edge with capacity = capacity_of_id valopt }
-      | Dot_ast.Ident("dport")
+      | Dot_ast.Ident("dst_port")
       | Dot_ast.Ident("sport") -> edge
       | _ -> failwith "Unknown edge attribute\n"
 

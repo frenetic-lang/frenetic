@@ -566,7 +566,7 @@ struct
         let ats = List.hd attrs in
         let src,dst,rest = List.fold_left (fun (src,dst,acc) (k,v) -> match k with
           | Graph.Dot_ast.Ident("sport") -> (get_port v,dst,acc)
-          | Graph.Dot_ast.Ident("dport") -> (src, get_port v, acc)
+          | Graph.Dot_ast.Ident("dst_port") -> (src, get_port v, acc)
           | _ -> (src,dst,(k,v)::acc)
         ) (0l,0l,[]) ats in
         let attrs' = rest::(List.tl attrs) in
@@ -601,14 +601,14 @@ struct
     let to_dot (t:t) =
       let es = (EdgeSet.fold (fun (s,l,d) acc ->
         let _,sport = edge_src (s,l,d) in
-        let _,dport = edge_dst (s,l,d) in
-        Printf.sprintf "%s%s%s -> %s {sport=%lu; dport=%lu; %s};"
+        let _,dst_port = edge_dst (s,l,d) in
+        Printf.sprintf "%s%s%s -> %s {sport=%lu; dst_port=%lu; %s};"
           acc
           (if acc = "" then "" else "\n")
           (Vertex.to_string s.VL.label)
           (Vertex.to_string d.VL.label)
           sport
-          dport
+          dst_port
           (Edge.to_dot l.EL.label))
                   (edges t) "") in
       let vs = (VertexSet.fold (fun v acc ->
