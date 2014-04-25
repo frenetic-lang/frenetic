@@ -552,7 +552,7 @@ struct
     module Dot = Graph.Dot.Parse(Build)(struct
       let get_port o = match o with
         | Some(s) -> begin match s with
-            | Graph.Dot_ast.Number(i) -> Int32.of_string i
+            | Graph.Dot_ast.Number(i) -> Scanf.sscanf i "%lu" (fun i -> i)
             | _ -> failwith "Requires number" end
         | None -> failwith "Requires value"
       let next_node = let r = ref 0 in fun _ -> incr r; !r
@@ -602,7 +602,7 @@ struct
       let es = (EdgeSet.fold (fun (s,l,d) acc ->
         let _,sport = edge_src (s,l,d) in
         let _,dport = edge_dst (s,l,d) in
-        Printf.sprintf "%s%s%s -> %s {sport=%ld; dport=%ld; %s};"
+        Printf.sprintf "%s%s%s -> %s {sport=%lu; dport=%lu; %s};"
           acc
           (if acc = "" then "" else "\n")
           (Vertex.to_string s.VL.label)
