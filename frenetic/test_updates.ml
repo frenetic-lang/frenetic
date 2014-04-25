@@ -11,8 +11,6 @@ let create () =
   let open Async_NetKAT in
   let open NetKAT_Types in
 
-  let default = Mod(Location(Pipe "updates")) in
-
   (* let pol  = *)
   (*   Seq(Filter(Test(Switch 1L)), *)
   (*       Union(Seq(Filter(Test(Location(Physical 1l))), Mod(Location(Physical 2l))), *)
