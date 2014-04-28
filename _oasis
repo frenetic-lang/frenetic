@@ -11,7 +11,26 @@ BuildTools:
 Library topology
   Path: lib
   BuildDepends:
+    packet,
     ocamlgraph,
     threads
   Modules:
-    Network
+    Network,
+    Network_Common
+
+
+Executable unittest
+  Path: test
+  Install: false
+  Build$: flag(tests)
+  MainIs: Test.ml
+  BuildDepends:
+    packet,
+    oUnit,
+    pa_ounit,
+    pa_ounit.syntax,
+    topology
+
+Test all_tests
+  Command: $unittest inline-test-runner topology
+  Run$: flag(tests)

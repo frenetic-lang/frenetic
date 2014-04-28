@@ -16,7 +16,7 @@ def convert(graph):
         digraph.add_edge(src,dst,attrs)
 
         # Add the symmetric, reversed edge
-        revattrs = { 'sport' : attrs['dport'], 'dport' : attrs['dport'],
+        revattrs = { 'sport' : attrs['dst_port'], 'dst_port' : attrs['dst_port'],
                      'capacity' : attrs['capacity'], 'cost' : attrs['cost']
                      }
         digraph.add_edge(dst,src,revattrs)

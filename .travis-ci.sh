@@ -32,5 +32,6 @@ done
 opam repository add frenetic-opam https://github.com/frenetic-lang/opam-bleeding.git
 opam install ${FRENETIC_DEPENDS//ocaml-/}
 
-ocaml setup.ml -configure
+ocaml setup.ml -configure ${CONFIG_FLAGS}
 make
+make test
