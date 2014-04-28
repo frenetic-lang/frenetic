@@ -204,8 +204,6 @@ module PacketSet = Set.Make (struct
       Pervasives.compare x.payload y.payload
 end)
 
-module PacketSetSet = Set.Make(PacketSet)
-
 (** {3 Applications} *)
 
 type action = SDN_Types.action
