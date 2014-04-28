@@ -4,6 +4,7 @@ open Async.Std
 module Net = Async_NetKAT.Net
 
 module Controller = Async_OpenFlow.OpenFlow0x01.Controller
+module Stage = Async_OpenFlow.Stage
 module SDN = SDN_Types
 
 type switchId = SDN_Types.switchId
@@ -37,7 +38,10 @@ type t = {
   mutable locals : NetKAT_Types.policy SwitchMap.t
 }
 
-let bytes_to_headers port_id (bytes : Cstruct.t) =
+let bytes_to_headers
+  (port_id : SDN_Types.portId)
+  (bytes : Cstruct.t)
+  : NetKAT_Types.HeadersValues.t =
   let open NetKAT_Types.HeadersValues in
   let open Packet in
   let pkt = Packet.parse bytes in
@@ -84,10 +88,6 @@ let headers_to_actions
     ~tcpDstPort:(g (fun v -> Modify(SetTCPDstPort v)))
 
 exception Unsupported_mod of string
-
-let payload_bytes p = match p with
-  | SDN_Types.NotBuffered(bytes)
-  | SDN_Types.Buffered(_, bytes) -> bytes
 
 let packet_sync_headers (pkt:NetKAT_Types.packet) : NetKAT_Types.packet * bool =
   let open NetKAT_Types in
@@ -136,15 +136,16 @@ let send t c_id msg =
     | `Sent _ -> ()
     | `Drop exn -> raise exn
 
-let port_desc_useable pd =
+let port_desc_useable (pd : OpenFlow0x01.PortDescription.t) : bool =
   let open OpenFlow0x01.PortDescription in
   if pd.config.PortConfig.down
     then false
     else not (pd.state.PortState.down)
 
-let to_event w_out (t : t) evt =
+let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
+  : (t, Controller.f, NetKAT_Types.event) Stage.t =
   let open NetKAT_Types in
-  match evt with
+  fun t evt -> match evt with
     | `Connect (c_id, feats) ->
       let ports = feats.OpenFlow0x01.SwitchFeatures.ports in
       let sw_id = feats.OpenFlow0x01.SwitchFeatures.switch_id in
@@ -170,9 +171,7 @@ let to_event w_out (t : t) evt =
         | PacketInMsg pi ->
           let open OpenFlow0x01_Core in
           let port_id = Int32.of_int_exn pi.port in
-          let buf_id, bytes = match pi.input_payload with
-            | Buffered(n, bs) -> Some(n), bs
-            | NotBuffered(bs) -> None, bs in
+          let payload = SDN_OpenFlow0x01.to_payload pi.input_payload in
           begin match SwitchMap.find t.locals switch_id with
             | None ->
               (* The switch may be connected but has yet had rules installed on
@@ -184,47 +183,44 @@ let to_event w_out (t : t) evt =
                * pipes, and the list of packets that can be forwarded to physical
                * locations.
                * *)
-              let packet = {
+              let pkt0 = {
                 switch = switch_id;
-                headers = bytes_to_headers (Int32.of_int_exn pi.port) bytes;
-                payload = SDN_OpenFlow0x01.to_payload pi.input_payload
+                headers = bytes_to_headers port_id (SDN_Types.payload_bytes payload);
+                payload = payload;
               } in
               begin
                 (* XXX(seliopou): What if the packet's modified? Should buf_id be
                  * exposed to the application?
                  * *)
-                let pis, phys = NetKAT_Semantics.eval_pipes packet local in
-                let outs = Deferred.List.iter phys ~f:(fun packet1 ->
-                  let acts = headers_to_actions
-                    packet1.headers packet.headers in
-                  let payload = match buf_id with
-                    | None -> SDN_Types.NotBuffered(bytes)
-                    | Some(buf_id) -> SDN_Types.Buffered(buf_id, bytes) in
-                  let out = (switch_id, (payload, Some(port_id), acts)) in
+                let pis, phys = NetKAT_Semantics.eval_pipes pkt0 local in
+                let outs = Deferred.List.iter phys ~f:(fun pkt1 ->
+                  let acts = headers_to_actions pkt1.headers pkt0.headers in
+                  let out  = (switch_id, (payload, Some(port_id), acts)) in
                   Pipe.write w_out out) in
                 outs >>= fun _ ->
-                return (List.map pis ~f:(fun (p, pkt) ->
-                  let pkt', changed = packet_sync_headers pkt in
-                  let payload = match buf_id, changed with
-                      | None, _
-                      | _   , true ->
-                        SDN_Types.NotBuffered(payload_bytes pkt'.payload)
-                      | Some(buf_id), false ->
+                return (List.map pis ~f:(fun (pipe, pkt2) ->
+                  let pkt3, changed = packet_sync_headers pkt2 in
+                  let payload = match payload, changed with
+                      | SDN_Types.NotBuffered(_), _
+                      | _                       , true ->
+                        SDN_Types.NotBuffered(SDN_Types.payload_bytes pkt3.payload)
+                      | SDN_Types.Buffered(buf_id, bytes), false ->
                         SDN_Types.Buffered(buf_id, bytes)
                   in
-                  PacketIn(p, switch_id, port_id, payload, pi.total_len)))
+                  PacketIn(pipe, switch_id, port_id, payload, pi.total_len)))
               end
           end
         | PortStatusMsg ps ->
           let open OpenFlow0x01.PortStatus in
+          let open OpenFlow0x01.PortDescription in
           begin match ps.reason, port_desc_useable ps.desc with
             | ChangeReason.Add, true
             | ChangeReason.Modify, true ->
-              let pt_id = Int32.of_int_exn (ps.desc.OpenFlow0x01.PortDescription.port_no) in
+              let pt_id = Int32.of_int_exn (ps.desc.port_no) in
               return [PortUp(switch_id, pt_id)]
             | ChangeReason.Delete, _
             | ChangeReason.Modify, false ->
-              let pt_id = Int32.of_int_exn (ps.desc.OpenFlow0x01.PortDescription.port_no) in
+              let pt_id = Int32.of_int_exn (ps.desc.port_no) in
               return [PortDown(switch_id, pt_id)]
             | _ ->
               return []
@@ -266,7 +262,11 @@ let get_switchids nib =
     | _ -> acc)
   nib []
 
-let handler (t : t) w app =
+let handler
+  (t : t)
+  (w : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
+  (app : Async_NetKAT.app)
+  : (NetKAT_Types.event -> unit Deferred.t) =
   let app' = Async_NetKAT.run app t.nib w () in
   fun e ->
     app' e >>= fun m_pol ->
@@ -282,7 +282,7 @@ let handler (t : t) w app =
         end
 
 let start app ?(port=6633) () =
-  let open Async_OpenFlow.Stage in
+  let open Stage in
   Controller.create ~max_pending_connections ~port ()
   >>> fun ctl ->
     let t = {
