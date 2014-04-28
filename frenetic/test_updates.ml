@@ -11,11 +11,6 @@ let create () =
   let open Async_NetKAT in
   let open NetKAT_Types in
 
-  (* let pol  = *)
-  (*   Seq(Filter(Test(Switch 1L)), *)
-  (*       Union(Seq(Filter(Test(Location(Physical 1l))), Mod(Location(Physical 2l))), *)
-  (*             Seq(Filter(Test(Location(Physical 2l))), Mod(Location(Physical 1l))))) *)
-  (* in *)
   let pol = Async_NetKAT.default (create_from_file "examples/tree-2-2.kat") in
 
   let handler t w () e = match e with
@@ -30,7 +25,5 @@ let create () =
 let _ = 
   let main () =
     let app = create () in
-    Async_NetKAT_Controller.start app () in
+    Async_NetKAT_Controller.start app ~update:`PerPacketConsistent () in
   never_returns (Scheduler.go_main ~max_num_open_file_descrs:4096 ~main ())
-
-

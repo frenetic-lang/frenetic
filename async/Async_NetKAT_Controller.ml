@@ -16,7 +16,7 @@ module Log = Async_OpenFlow.Log
 
 let max_pending_connections = 64
 
-let _ = Log.set_level `Info
+let _ = Log.set_level `Debug
 
 let _ = Log.set_output
           [Log.make_filtered_output
@@ -139,6 +139,29 @@ let send t c_id msg =
     | `Sent _ -> ()
     | `Drop exn -> raise exn
 
+let _barrier_xid = ref 0l
+
+let next_barrier_xid () =
+  _barrier_xid := Int32.succ (!_barrier_xid);
+  !_barrier_xid
+  
+let send_barrier_to_sw (t : t) (sw_id : switchId) : unit Deferred.t =
+  let ivar = Ivar.create () in
+  let xid = next_barrier_xid () in
+  let c_id = Controller.client_id_of_switch t.ctl sw_id in
+  t.barriers <- XidMap.add t.barriers xid ivar;
+  send t.ctl c_id (xid, OpenFlow0x01.Message.BarrierRequest) >>= fun () ->
+  Ivar.read ivar
+
+let send_barrier_to_sw_with_timeout (t : t) (sw_id : switchId) : unit Deferred.t =
+  with_timeout (Time.Span.of_sec 15.0) (send_barrier_to_sw t sw_id)
+  >>= function
+  | `Result () -> return ()
+  | `Timeout ->
+    Log.error ~tags
+      "Async_NetKAT_Controller.send_barrier_to_sw_with_timeout: switch %Lu timed out" sw_id;
+    Log.flushed ()
+
 let port_desc_useable (pd : OpenFlow0x01.PortDescription.t) : bool =
   let open OpenFlow0x01.PortDescription in
   if pd.config.PortConfig.down
@@ -247,44 +270,8 @@ let get_switchids nib =
     | _ -> acc)
   nib []
 
-let _xid = ref 0l
-
-let next_xid () =
-  _xid := Int32.succ (!_xid);
-  !_xid
-  
-let send_barrier_to_sw (t : t) (sw_id : switchId) : unit Deferred.t =
-  let ivar = Ivar.create () in
-  let xid = next_xid () in
-  let c_id = Controller.client_id_of_switch t.ctl sw_id in
-  t.barriers <- XidMap.add t.barriers xid ivar;
-  send t.ctl c_id (xid, OpenFlow0x01.Message.BarrierRequest) >>= fun () ->
-  Ivar.read ivar
-
-let send_barrier_to_sw_with_timeout (t : t) (sw_id : switchId) : unit Deferred.t =
-  with_timeout (Time.Span.of_sec 15.0) (send_barrier_to_sw t sw_id)
-  >>= function
-  | `Result () -> return ()
-  | `Timeout ->
-    Log.error ~tags
-      "Async_NetKAT_Controller.send_barrier_to_sw_with_timeout: switch %Lu timed out" sw_id;
-    Log.flushed ()
-
-(* Topology detection doesn't really detect hosts. So, I treat any port not connected to a known switch as an edge port *)
-let get_edge_ports (t : t) (sw_id : switchId) =
-  let open Async_NetKAT in
-  let open Net.Topology in
-  let topo = !(t.nib) in
-  let sw = vertex_of_label topo (Switch sw_id) in
-  PortSet.fold (fun pt acc ->
-      match next_hop topo sw pt with
-      | Some e -> let (node, _) = edge_dst e in
-        begin match vertex_to_label topo node with
-          | Host _ -> PortSet.add pt acc
-          | _ -> acc
-        end
-      | _ -> PortSet.add pt acc) (vertex_to_ports topo sw) PortSet.empty
-
+(* Topology detection doesn't really detect hosts. So, I treat any
+   port not connected to a known switch as an edge port *)
 let get_internal_ports (t : t) (sw_id : switchId) =
   let open Async_NetKAT in
   let open Net.Topology in
@@ -317,11 +304,9 @@ let compute_internal_table (t : t) ver table sw_id =
       raise (Assertion_failed "Controller.compute_internal_table: Port not supported by consistent updates")
     | act :: acts ->
       act :: (fix_actions acts)
-    | [] -> []
-  in
+    | [] -> [] in
   let match_table = List.fold table ~init:[] ~f:(fun acc r ->
-      {r with pattern = {r.pattern with dlVlan = Some ver}} :: acc)
-  in
+      {r with pattern = {r.pattern with dlVlan = Some ver}} :: acc) in
   List.fold match_table ~init:[] ~f:(fun acc r ->
       {r with action = List.map r.action ~f:(fun x -> List.map x ~f:(fix_actions))} :: acc)
     
@@ -340,11 +325,11 @@ let internal_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred
       "switch %Lu: Installing internal table %s" sw_id (SDN_Types.string_of_flowTable table);
     let open SDN_Types in
     if List.length table <= 0
-      then raise (Assertion_failed (Printf.sprintf
-          "Controller.internal_update_table_for: empty table for switch %Lu" sw_id));
-      Deferred.List.iter table ~f:(fun flow ->
-          decr priority;
-          send t.ctl c_id (0l, to_flow_mod !priority flow))
+    then raise (Assertion_failed (Printf.sprintf
+                                    "Controller.internal_update_table_for: empty table for switch %Lu" sw_id));
+    Deferred.List.iter table ~f:(fun flow ->
+        decr priority;
+        send t.ctl c_id (0l, to_flow_mod !priority flow))
     >>= fun () -> send_barrier_to_sw_with_timeout t sw_id)
   >>= function
   | Ok () ->
@@ -462,22 +447,23 @@ let clear_old_table_for (t : t) ver sw_id : unit Deferred.t =
   let open SDN_Types in
   let open OpenFlow0x01_Core in  
   let delete_flows =
-    OpenFlow0x01.Message.FlowModMsg {(SDN_OpenFlow0x01.from_flow 0
-                                        {pattern = {all_pattern with dlVlan = Some ver};
-                                         action = [];
-                                         cookie = 0L;
-                                         idle_timeout = Permanent;
-                                         hard_timeout = Permanent})
-    with command = DeleteFlow} in
+    OpenFlow0x01.Message.FlowModMsg {
+      (SDN_OpenFlow0x01.from_flow 0
+         {pattern = {all_pattern with dlVlan = Some ver};
+          action = [];
+          cookie = 0L;
+          idle_timeout = Permanent;
+          hard_timeout = Permanent})
+      with command = DeleteFlow} in
   let c_id = Controller.client_id_of_switch t.ctl sw_id in
   Monitor.try_with ~name:"clear_old_table_for" (fun () ->
-    send t.ctl c_id (5l, delete_flows))
-      >>= function
-        | Ok () -> return ()
-        | Error exn_ ->
-          Log.error ~tags
-            "switch %Lu: Failed to update table in delete_flows" sw_id;
-          Log.flushed ()
+      send t.ctl c_id (5l, delete_flows))
+  >>= function
+  | Ok () -> return ()
+  | Error exn_ ->
+    Log.error ~tags
+      "switch %Lu: Failed to update table in delete_flows" sw_id;
+    Log.flushed ()
 
 let ver = ref 1 
   
@@ -499,46 +485,35 @@ let consistently_update_table (t : t) pol : unit Deferred.t =
   (* Delete old rules *)
   Deferred.List.iter switches (clear_old_table_for t (ver_num - 1))
   >>= fun () ->
-  (* Incr ver number *)
   return (incr ver)
 
 let update_table_for (t : t) (sw_id : switchId) pol : unit Deferred.t =
-  Log.info ~tags "switch %Lu: %s" sw_id (NetKAT_Pretty.string_of_policy pol);
   let delete_flows =
     OpenFlow0x01.Message.FlowModMsg OpenFlow0x01_Core.delete_all_flows in
   let to_flow_mod prio flow =
     OpenFlow0x01.Message.FlowModMsg (SDN_OpenFlow0x01.from_flow prio flow) in
   let c_id = Controller.client_id_of_switch t.ctl sw_id in
   t.locals <- SwitchMap.add t.locals sw_id
-    (Optimize.specialize_policy sw_id pol);
+      (Optimize.specialize_policy sw_id pol);
   let local = NetKAT_LocalCompiler.compile sw_id pol in
-  Log.info ~tags "switch %Lu local: %s" sw_id (NetKAT_LocalCompiler.to_string local);
   Monitor.try_with ~name:"update_table_for" (fun () ->
-    send t.ctl c_id (5l, delete_flows) >>= fun _ ->
-    let priority = ref 65536 in
-    let table = NetKAT_LocalCompiler.to_table local in
-    Log.info ~tags
-      "switch %Lu: Installing table %s" sw_id (SDN_Types.string_of_flowTable table);
-    if List.length table <= 0
+      send t.ctl c_id (5l, delete_flows) >>= fun _ ->
+      let priority = ref 65536 in
+      let table = NetKAT_LocalCompiler.to_table local in
+      if List.length table <= 0
       then raise (Assertion_failed (Printf.sprintf
-          "Controller.update_table_for: empty table for switch %Lu" sw_id));
-    Deferred.List.iter table ~f:(fun flow ->
-      decr priority;
-      send t.ctl c_id (0l, to_flow_mod !priority flow)))
+                                      "Controller.update_table_for: empty table for switch %Lu" sw_id));
+      Deferred.List.iter table ~f:(fun flow ->
+          decr priority;
+          send t.ctl c_id (0l, to_flow_mod !priority flow)))
   >>= function
-    | Ok () -> return ()
-    | Error exn_ ->
-      Log.error ~tags
-        "switch %Lu: Failed to update table in update_table_for" sw_id;
-      Log.flushed ()
+  | Ok () -> return ()
+  | Error exn_ ->
+    Log.error ~tags
+      "switch %Lu: Failed to update table in update_table_for" sw_id;
+    Log.flushed ()
 
-let get_switchids nib =
-  Net.Topology.fold_vertexes (fun v acc -> match Net.Topology.vertex_to_label nib v with
-    | Async_NetKAT.Switch id -> id::acc
-    | _ -> acc)
-  nib []
-
-let handler
+let best_effort_handler
   (t : t)
   (w : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
   (app : Async_NetKAT.app)
@@ -548,67 +523,83 @@ let handler
     app' e >>= fun m_pol ->
     match m_pol with
     | Some (pol) ->
-      consistently_update_table t pol
-      (* Deferred.List.iter (get_switchids !(t.nib)) (fun sw -> update_table_for t sw pol) *)
+      Deferred.List.iter (get_switchids !(t.nib)) (fun sw -> update_table_for t sw pol)
     | None ->
       begin match e with
         | NetKAT_Types.SwitchUp sw_id ->
-        update_table_for t sw_id (Async_NetKAT.default app)
+          update_table_for t sw_id (Async_NetKAT.default app)
         | _ -> return ()
       end
 
-let start app ?(port=6633) () =
+let consistent_handler (t : t) w app =
+  let app' = Async_NetKAT.run app t.nib w () in
+  fun e ->
+    app' e >>= fun m_pol ->
+    match m_pol with
+    | Some (pol) ->
+      consistently_update_table t pol
+    | None ->
+      begin match e with
+        | NetKAT_Types.SwitchUp sw_id ->
+          update_table_for t sw_id (Async_NetKAT.default app)
+        | _ -> return ()
+      end
+      
+type how = [`BestEffort | `PerPacketConsistent]
+           
+let start app ?(port=6633) ?(update = `BestEffort) () =
   let open Async_OpenFlow.Stage in
+  let handler = match update with
+    | `BestEffort -> best_effort_handler
+    | `PerPacketConsistent -> consistent_handler in
   Controller.create ~log_disconnects:true ~max_pending_connections ~port ()
   >>> fun ctl ->
-    let t = {
-      ctl = ctl;
-      nib = ref (Net.Topology.empty ());
-      locals = SwitchMap.empty;
-      barriers = XidMap.empty;
-      edge = SwitchMap.empty;
-    } in
+  let t = {
+    ctl = ctl;
+    nib = ref (Net.Topology.empty ());
+    locals = SwitchMap.empty;
+    barriers = XidMap.empty;
+    edge = SwitchMap.empty;
+  } in
 
-    (* The pipe for packet_outs. The Pipe.iter below will run in its own logical
-     * thread, sending packet outs to the switch whenever it's scheduled.
-     * *)
-    let r_out, w_out = Pipe.create () in
-    Deferred.don't_wait_for (Pipe.iter r_out ~f:(fun out ->
+  (* The pipe for packet_outs. The Pipe.iter below will run in its own logical
+   * thread, sending packet outs to the switch whenever it's scheduled.
+   *)
+  let r_out, w_out = Pipe.create () in
+  Deferred.don't_wait_for (Pipe.iter r_out ~f:(fun out ->
       let (sw_id, pkt_out) = out in
       Monitor.try_with ~name:"packet_out" (fun () ->
-        let c_id = Controller.client_id_of_switch ctl sw_id in
-        send ctl c_id (0l, OpenFlow0x01.Message.PacketOutMsg
-          (SDN_OpenFlow0x01.from_packetOut pkt_out)))
+          let c_id = Controller.client_id_of_switch ctl sw_id in
+          send ctl c_id (0l, OpenFlow0x01.Message.PacketOutMsg
+                           (SDN_OpenFlow0x01.from_packetOut pkt_out)))
       >>= function
-        | Ok () -> return ()
-        | Error exn_ ->
-          Log.error ~tags "switch %Lu: Failed to send packet_out" sw_id;
-          Log.flushed ()));
-
-    let stages = let open Controller in
-      (local (fun t -> t.ctl)
-        features)
-       >=> (to_event w_out) in
-
-    (* Build up the application by adding topology discovery into the mix. *)
-    let d_ctl, topo = Discovery.create () in
-    let app = Async_NetKAT.union ~how:`Sequential topo (Discovery.guard app) in
-    let sdn_events = run stages t (Controller.listen ctl) in
-    (* The discovery application itself will generate events, so the actual
-     * event stream must be a combination of switch events and synthetic
-     * topology discovery events. Pipe.interleave will wait until one of the
-     * pipes is readable, take a batch, and send it along.
-     *
-     * Whatever happens, happens. Can't stop won't stop.
-     * *)
-    let events = Pipe.interleave [Discovery.events d_ctl; sdn_events] in
-
-    Deferred.don't_wait_for (
-      Monitor.try_with ~name:"start" (fun () ->
-          (Pipe.iter events ~f:(handler t w_out app)))
-      >>= function
-      | Ok a -> return a
+      | Ok () -> return ()
       | Error exn_ ->
-        Log.error ~tags "start: Exception occured %s" (Exn.to_string exn_);
-        Log.flushed ())
+        Log.error ~tags "switch %Lu: Failed to send packet_out" sw_id;
+        Log.flushed ()));
+  let stages = let open Controller in
+    (local (fun t -> t.ctl)
+       features)
+    >=> (to_event w_out) in
+  
+  (* Build up the application by adding topology discovery into the mix. *)
+  let d_ctl, topo = Discovery.create () in
+  let app = Async_NetKAT.union ~how:`Sequential topo (Discovery.guard app) in
+  let sdn_events = run stages t (Controller.listen ctl) in
+  (* The discovery application itself will generate events, so the actual
+   * event stream must be a combination of switch events and synthetic
+   * topology discovery events. Pipe.interleave will wait until one of the
+   * pipes is readable, take a batch, and send it along.
+   *
+   * Whatever happens, happens. Can't stop won't stop.
+   * *)
+  let events = Pipe.interleave [Discovery.events d_ctl; sdn_events] in
+  Deferred.don't_wait_for (
+    Monitor.try_with ~name:"start" (fun () ->
+        (Pipe.iter events ~f:(handler t w_out app)))
+    >>= function
+    | Ok a -> return a
+    | Error exn_ ->
+      Log.error ~tags "start: Exception occured %s" (Exn.to_string exn_);
+      Log.flushed ())
         

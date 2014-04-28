@@ -3,4 +3,5 @@ open Async.Std
 
 (** Implements a controller for ONF. *)
 
-val start : Async_NetKAT.app -> ?port:int -> unit -> unit
+type how = [`BestEffort | `PerPacketConsistent]
+val start : Async_NetKAT.app -> ?port:int -> ?update:how -> unit -> unit
