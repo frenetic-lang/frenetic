@@ -50,7 +50,7 @@ let from_pattern (pat : AL.pattern) : Core.pattern =
   ; Core.nwSrc = (match pat.AL.nwSrc with
     | None   -> None
     | Some v -> Some { Core.m_value = v; Core.m_mask = None })
-  ; Core.nwDst = (match pat.AL.nwSrc with
+  ; Core.nwDst = (match pat.AL.nwDst with
     | None   -> None
     | Some v -> Some { Core.m_value = v; Core.m_mask = None })
   ; Core.nwProto = pat.AL.nwProto
