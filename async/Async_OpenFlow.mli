@@ -10,6 +10,8 @@ module Log : sig
   val make_filtered_output : (string * string) list ->
     Log.Output.t
 
+  val add_output : Log.Output.t list -> unit
+
 end
 
 module type Message = sig
