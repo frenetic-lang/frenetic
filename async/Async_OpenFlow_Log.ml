@@ -39,6 +39,8 @@ let make_filtered_output (tags : (string * string) list)
          Writer.write writer (label_severity msg);
          Writer.newline writer)))
 
+let current_outputs = ref []
+
 let stderr : Log.Output.t =
   make_filtered_output [("openflow", "")]
 
@@ -46,7 +48,13 @@ let log = lazy (Log.create ~level:`Info ~output:[stderr])
 
 let set_level = Log.set_level (Lazy.force log)
 
-let set_output = Log.set_output (Lazy.force log)
+let set_output outputs = current_outputs := outputs;
+  Log.set_output (Lazy.force log) outputs
+
+let add_output outputs =
+  let outputs = outputs @ !current_outputs in
+  current_outputs := outputs;
+  set_output outputs
 
 let raw ?(tags=[]) fmt = Log.raw (Lazy.force log) ~tags fmt
 
