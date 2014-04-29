@@ -26,15 +26,15 @@ def generate(fanout,depth):
                 p = fanout ** (depth - i)
                 if p == 1:
                     g.add_edge(temp1[fanout * j + k],temp2[j],
-                               attr_dict={'sport':1,'dst_port':k+1,'capacity':'1Gbps','cost':'1'})
+                               attr_dict={'src_port':1,'dst_port':k+1,'capacity':'1Gbps','cost':'1'})
                     g.add_edge(temp2[j],temp1[fanout * j + k],
-                               attr_dict={'sport':k+1,'dst_port':1,'capacity':'1Gbps','cost':'1'})
+                               attr_dict={'src_port':k+1,'dst_port':1,'capacity':'1Gbps','cost':'1'})
                 else:
                     for l in range(p):
                         g.add_edge(temp1[fanout * j + k],temp2[j],
-                                   attr_dict={'sport':p+l+1,'dst_port': fanout * k + l+1,'capacity':'1Gbps','cost':'1'})
+                                   attr_dict={'src_port':p+l+1,'dst_port': fanout * k + l+1,'capacity':'1Gbps','cost':'1'})
                         g.add_edge(temp2[j],temp1[fanout * j + k],
-                                   attr_dict={'sport':fanout * k + l+1,'dst_port': p+l+1,'capacity':'1Gbps','cost':'1'})
+                                   attr_dict={'src_port':fanout * k + l+1,'dst_port': p+l+1,'capacity':'1Gbps','cost':'1'})
 
     return g
 
