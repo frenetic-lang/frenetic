@@ -566,7 +566,7 @@ struct
         (* This is a bit of a hack because we only look at the first list of attrs *)
         let ats = List.hd attrs in
         let src,dst,rest = List.fold_left (fun (src,dst,acc) (k,v) -> match k with
-          | Graph.Dot_ast.Ident("sport") -> (get_port v,dst,acc)
+          | Graph.Dot_ast.Ident("src_port") -> (get_port v,dst,acc)
           | Graph.Dot_ast.Ident("dst_port") -> (src, get_port v, acc)
           | _ -> (src,dst,(k,v)::acc)
         ) (0l,0l,[]) ats in
@@ -601,14 +601,14 @@ struct
     open Topology
     let to_dot (t:t) =
       let es = (EdgeSet.fold (fun (s,l,d) acc ->
-        let _,sport = edge_src (s,l,d) in
+        let _,src_port = edge_src (s,l,d) in
         let _,dst_port = edge_dst (s,l,d) in
-        Printf.sprintf "%s%s%s -> %s {sport=%lu; dst_port=%lu; %s};"
+        Printf.sprintf "%s%s%s -> %s {src_port=%lu; dst_port=%lu; %s};"
           acc
           (if acc = "" then "" else "\n")
           (Vertex.to_string s.VL.label)
           (Vertex.to_string d.VL.label)
-          sport
+          src_port
           dst_port
           (Edge.to_dot l.EL.label))
                   (edges t) "") in

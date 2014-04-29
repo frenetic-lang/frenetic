@@ -5,9 +5,9 @@ h2[type=host,ip="10.0.0.2",mac="2:2:2:2:2:2",id=2];
 
 s1[type=switch, ip="11.0.0.1",mac="11:11:11:11:11:11", id=3];
 
-s1 -> h1 [sport=0, dst_port=0, cost=1];
-h1 -> s1 [sport=0, dst_port=0, cost=1];
+s1 -> h1 [src_port=0, dst_port=0, cost=1];
+h1 -> s1 [src_port=0, dst_port=0, cost=1];
 
-s1 -> h2 [sport=1, dst_port=0, cost=1];
-h2 -> s1 [sport=0, dst_port=1, cost=1];
+s1 -> h2 [src_port=1, dst_port=0, cost=1];
+h2 -> s1 [src_port=0, dst_port=1, cost=1];
 }
