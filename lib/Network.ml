@@ -92,7 +92,7 @@ module type NETWORK = sig
 
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
     val all_shortest_paths : Topology.t -> Topology.vertex -> Topology.vertex Topology.VertexHash.t
-    val all_pairs_shortest_paths : Topology.t -> (Topology.vertex *
+    val all_pairs_shortest_paths : Topology.t -> (float * Topology.vertex *
                                                    Topology.vertex * Topology.vertex list) list
   end
 
@@ -398,7 +398,7 @@ struct
       r
 
 
-    let all_pairs_shortest_paths (t:Topology.t) : (vertex * vertex * vertex list) list =
+    let all_pairs_shortest_paths (t:Topology.t) : (float * vertex * vertex * vertex list) list =
       let add_opt o1 o2 =
         match o1, o2 with
           | Some n1, Some n2 -> Some (n1 + n2)
@@ -442,8 +442,9 @@ struct
       let paths = ref [] in
       Array.iteri (fun i array ->
         Array.iteri (fun j elt ->
-          let (_, p) = elt in
-          paths := (vxs.(i), vxs.(j),p) :: !paths) array;) matrix;
+          let (c, p) = elt in
+          let cost = match c with Some x -> float x | None -> infinity in
+          paths := (cost, vxs.(i), vxs.(j),p) :: !paths) array;) matrix;
       !paths
 
   end
