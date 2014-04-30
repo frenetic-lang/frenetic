@@ -48,8 +48,8 @@ type pattern =
     ; dlTyp : dlTyp option
     ; dlVlan : dlVlan
     ; dlVlanPcp : dlVlanPcp option
-    ; nwSrc : nwAddr option
-    ; nwDst : nwAddr option
+    ; nwSrc : (nwAddr * int32) option
+    ; nwDst : (nwAddr * int32) option
     ; nwProto : nwProto option
     ; tpSrc : tpPort option
     ; tpDst : tpPort option

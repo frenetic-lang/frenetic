@@ -17,8 +17,8 @@ type pattern =
     ; dlTyp : dlTyp option
     ; dlVlan : dlVlan
     ; dlVlanPcp : dlVlanPcp option
-    ; nwSrc : nwAddr option
-    ; nwDst : nwAddr option
+    ; nwSrc : (nwAddr * int32) option
+    ; nwDst : (nwAddr * int32) option
     ; nwProto : nwProto option
     ; tpSrc : tpPort option
     ; tpDst : tpPort option
@@ -125,6 +125,10 @@ let format_mac (fmt : Format.formatter) (v:int48) =
 let format_ip (fmt : Format.formatter) (v:int32) =
   Format.pp_print_string fmt (Packet.string_of_ip v)
 
+let format_ip_mask (fmt : Format.formatter) ((v,m) : nwAddr * int32) =
+  let s = if m = 32l then "" else "/" ^ Int32.to_string m in
+  Format.pp_print_string fmt (Packet.string_of_ip v ^ s)
+
 let format_hex (fmt : Format.formatter) (v:int) =
   Format.fprintf fmt "0x%x" v
 
@@ -150,8 +154,8 @@ let format_pattern (fmt:Format.formatter) (p:pattern) : unit =
   format_field "vlanId" format_int p.dlVlan;
   format_field "vlanPcp" format_int p.dlVlanPcp;
   format_field "nwProto" format_hex p.nwProto;
-  format_field "ipSrc" format_ip p.nwSrc;
-  format_field "ipDst" format_ip p.nwDst;
+  format_field "ipSrc" format_ip_mask p.nwSrc;
+  format_field "ipDst" format_ip_mask p.nwDst;
   format_field "tcpSrcPort" format_int p.tpSrc;
   format_field "tcpDstPort" format_int p.tpDst;
   format_field "port" format_int32 p.inPort;

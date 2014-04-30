@@ -49,10 +49,12 @@ let from_pattern (pat : AL.pattern) : Core.pattern =
   ; Core.dlVlanPcp = pat.AL.dlVlanPcp
   ; Core.nwSrc = (match pat.AL.nwSrc with
     | None   -> None
-    | Some v -> Some { Core.m_value = v; Core.m_mask = None })
+    | Some (v,m) -> let mo = if m = 32l then None else Some m in
+      Some { Core.m_value = v; Core.m_mask = mo })
   ; Core.nwDst = (match pat.AL.nwDst with
     | None   -> None
-    | Some v -> Some { Core.m_value = v; Core.m_mask = None })
+    | Some (v,m) -> let mo = if m = 32l then None else Some m in
+      Some { Core.m_value = v; Core.m_mask = mo })
   ; Core.nwProto = pat.AL.nwProto
   ; Core.nwTos = None
   ; Core.tpSrc = pat.AL.tpSrc

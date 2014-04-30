@@ -45,6 +45,9 @@ let to_packetIn (pktIn : Core.packetIn) : AL.pktIn =
 
 let from_pattern (pat : AL.pattern) : Core.oxmMatch * Core.portId option = 
   let v_to_m = Core.val_to_mask in
+  let vt_to_m (v,m) =
+    let r = Core.val_to_mask v in
+    {r with Core.m_mask = Some m} in
   (Core_kernel.Core_list.filter_opt
     [ Misc.map_option (fun x -> Core.OxmEthSrc (v_to_m x)) pat.AL.dlSrc
     ; Misc.map_option (fun x -> Core.OxmEthDst (v_to_m x)) pat.AL.dlDst
@@ -58,8 +61,8 @@ let from_pattern (pat : AL.pattern) : Core.oxmMatch * Core.portId option =
           Core.OxmVlanVId (v_to_m x))
       pat.AL.dlVlan
     ; Misc.map_option (fun x -> Core.OxmVlanPcp x) pat.AL.dlVlanPcp
-    ; Misc.map_option (fun x -> Core.OxmIP4Src (v_to_m x)) pat.AL.nwSrc
-    ; Misc.map_option (fun x -> Core.OxmIP4Dst (v_to_m x)) pat.AL.nwDst
+    ; Misc.map_option (fun x -> Core.OxmIP4Src (vt_to_m x)) pat.AL.nwSrc
+    ; Misc.map_option (fun x -> Core.OxmIP4Dst (vt_to_m x)) pat.AL.nwDst
     ; Misc.map_option (fun x -> Core.OxmIPProto x) pat.AL.nwProto
     ; Misc.map_option (fun x -> Core.OxmTCPSrc (v_to_m x)) pat.AL.tpSrc
     ; Misc.map_option (fun x -> Core.OxmTCPDst (v_to_m x)) pat.AL.tpDst
