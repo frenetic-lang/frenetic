@@ -165,6 +165,21 @@ module Int32Header = struct
   include Int32
   let is_wild _ = false
 end
+module Int32TupleHeader = struct
+  (* Represents an (ip_address, mask) tuple. *)
+  type t = Int32Header.t * Int32Header.t with sexp
+  let shift (p,m) =
+    let s = match Int32.to_int (Int32.(-) 32l m) with Some i -> i | None -> 0 in
+    Int32.shift_right p s
+  let equal (p,m) (p',m') =
+    Int32Header.equal (shift (p,m)) (shift (p',m'))
+  let compare (p,m) (p',m') =
+    Int32Header.compare (shift (p,m)) (shift (p',m'))
+  let to_string (p,m) =
+    let s = if m = 32l then "" else "/" ^ (Int32Header.to_string m) in
+    Int32Header.to_string p ^ s
+  let is_wild _ = false
+end
 module Int64Header = struct
   include Int64
   let is_wild _ = false

@@ -17,6 +17,16 @@ module Headers = struct
       match p with
         | None -> true
         | Some(p_v) -> Field.get f hdrs = p_v in
+    let matches_mask p f =
+      match p with
+        | None -> true
+        | Some (p,m) ->
+            (* w.x.y.z/m matches if the first m bits match *)
+            let shift = Int32.to_int (Int32.(-) 32l m) in
+            let shift = match shift with Some i -> i | None -> 0 in
+            Int32.compare
+              (Int32.shift_right (Field.get f hdrs) shift)
+              (Int32.shift_right p shift) = 0 in
     HeadersValues.Fields.for_all
       ~location:(fun f ->
         match Field.get f hdrs, pat.inPort with
@@ -29,8 +39,8 @@ module Headers = struct
       ~vlanPcp:(matches pat.dlVlanPcp)
       ~ethType:(matches pat.dlTyp)
       ~ipProto:(matches pat.nwProto)
-      ~ipSrc:(matches pat.nwSrc)
-      ~ipDst:(matches pat.nwDst)
+      ~ipSrc:(matches_mask pat.nwSrc)
+      ~ipDst:(matches_mask pat.nwDst)
       ~tcpSrcPort:(matches pat.tpSrc)
       ~tcpDstPort:(matches pat.tpDst)
 

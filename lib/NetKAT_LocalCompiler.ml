@@ -147,14 +147,14 @@ module O48 = Option(NetKAT_Types.Int64Header)
 module O32 = Option(NetKAT_Types.Int32Header)
 module O16 = Option(NetKAT_Types.IntHeader)
 module O8 = Option(NetKAT_Types.IntHeader)
-module OIp = Option(NetKAT_Types.Int32Header)
+module OIp = Option(NetKAT_Types.Int32TupleHeader)
 
 module PNL = PosNeg(NetKAT_Types.LocationHeader)
 module PN48 = PosNeg(NetKAT_Types.Int64Header)
 module PN32 = PosNeg(NetKAT_Types.Int32Header)
 module PN16 = PosNeg(NetKAT_Types.IntHeader)
 module PN8 = PosNeg(NetKAT_Types.IntHeader)
-module PNIp = PosNeg(NetKAT_Types.Int32Header)
+module PNIp = PosNeg(NetKAT_Types.Int32TupleHeader)
 
 module HeadersOptionalValues =
   NetKAT_Types.Headers.Make
@@ -215,9 +215,8 @@ module Action = struct
       ~vlanPcp:(g (fun v -> VlanPcp v))
       ~ethType:(g (fun v -> EthType v))
       ~ipProto:(g (fun v -> IPProto v))
-      (* TODO(arjun): I assume this means an exact match /32 *)
-      ~ipSrc:(g (fun v -> IP4Src (v, 32l)))
-      ~ipDst:(g (fun v -> IP4Dst (v, 32l)))
+      ~ipSrc:(g (fun (v,m) -> IP4Src (v,m)))
+      ~ipDst:(g (fun (v,m) -> IP4Dst (v,m)))
       ~tcpSrcPort:(g (fun v -> TCPSrcPort v))
       ~tcpDstPort:(g (fun v -> TCPDstPort v))
 
@@ -348,9 +347,8 @@ module Pattern = struct
       ~vlanPcp:(g PN8.S.fold (fun v -> VlanPcp v))
       ~ethType:(g PN16.S.fold (fun v -> EthType v))
       ~ipProto:(g PN8.S.fold (fun v -> IPProto v))
-      (* TODO(arjun): I assume this means an exact match /32 *)
-      ~ipSrc:(g PNIp.S.fold (fun v -> IP4Src (v, 32l)))
-      ~ipDst:(g PNIp.S.fold (fun v -> IP4Dst (v, 32l)))
+      ~ipSrc:(g PNIp.S.fold (fun (v,m) -> IP4Src (v,m)))
+      ~ipDst:(g PNIp.S.fold (fun (v,m) -> IP4Dst (v,m)))
       ~tcpSrcPort:(g PN16.S.fold (fun v -> TCPSrcPort v))
       ~tcpDstPort:(g PN16.S.fold (fun v -> TCPDstPort v))
 
@@ -732,9 +730,9 @@ module Local = struct
             | NetKAT_Types.IPProto n ->
               Pattern.mk_ipProto n
             | NetKAT_Types.IP4Src (n,m) ->
-              Pattern.mk_ipSrc n
+              Pattern.mk_ipSrc (n,m)
             | NetKAT_Types.IP4Dst (n,m) ->
-              Pattern.mk_ipDst n
+              Pattern.mk_ipDst (n,m)
             | NetKAT_Types.TCPSrcPort n ->
               Pattern.mk_tcpSrcPort n
             | NetKAT_Types.TCPDstPort n ->
@@ -774,9 +772,9 @@ module Local = struct
             | NetKAT_Types.IPProto n ->
               Action.mk_ipProto n
             | NetKAT_Types.IP4Src (n,m) ->
-              Action.mk_ipSrc n
+              Action.mk_ipSrc (n,m)
             | NetKAT_Types.IP4Dst (n,m) ->
-              Action.mk_ipDst n
+              Action.mk_ipDst (n,m)
             | NetKAT_Types.TCPSrcPort n ->
               Action.mk_tcpSrcPort n
             | NetKAT_Types.TCPDstPort n ->
@@ -812,8 +810,8 @@ module RunTime = struct
         ~vlanPcp:(g (fun v -> SetVlanPcp v))
         ~ethType:(g (fun v -> SetEthTyp v))
         ~ipProto:(g (fun v -> SetIPProto v))
-        ~ipSrc:(g (fun v -> SetIP4Src v))
-        ~ipDst:(g (fun v -> SetIP4Dst v))
+        ~ipSrc:(g (fun (v,_) -> SetIP4Src v))
+        ~ipDst:(g (fun (v,_) -> SetIP4Dst v))
         ~tcpSrcPort:(g (fun v -> SetTCPSrcPort v))
         ~tcpDstPort:(g (fun v -> SetTCPDstPort v)) in
     (* If an action sets the location to a pipe, ignore all other modifications.
@@ -874,8 +872,8 @@ module RunTime = struct
     (Expanded(NetKAT_Types.IntHeader))
     (Expanded(NetKAT_Types.IntHeader))
     (Expanded(NetKAT_Types.IntHeader))
-    (Expanded(NetKAT_Types.Int32Header))
-    (Expanded(NetKAT_Types.Int32Header))
+    (Expanded(NetKAT_Types.Int32TupleHeader))
+    (Expanded(NetKAT_Types.Int32TupleHeader))
     (Expanded(NetKAT_Types.IntHeader))
     (Expanded(NetKAT_Types.IntHeader))
 

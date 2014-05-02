@@ -305,6 +305,28 @@ let check gen_fn compare_fn =
         QuickCheck.Success -> true
     | _                  -> false
 
+let get_masking_test =
+  let ip1 = Int32.of_int(192 * 256*256*256 + 168 * 256*256 + 0 * 256 + 1 * 1) in
+  let ip2 = Int32.of_int(192 * 256*256*256 + 168 * 256*256 + 0 * 256 + 5 * 1) in
+  let filter_pol_of_ip ip =
+    Seq(Filter(Test(IP4Src(ip, 24l))), Mod(Location(Physical 1l))) in
+  let headers =
+    { HeadersValues.location = NetKAT_Types.Physical 0l
+    ; ethSrc = 0L ; ethDst = 0L ; vlan = 0 ; vlanPcp = 0 ; ethType = 0
+    ; ipProto = 0 ; ipSrc = ip1 ; ipDst = 0l ; tcpSrcPort = 0 ; tcpDstPort = 0
+    } in
+  let payload = SDN_Types.NotBuffered (Cstruct.create 0) in
+  let pkt = {switch = 0L; headers = headers; payload = payload} in
+  (filter_pol_of_ip ip1, filter_pol_of_ip ip2, pkt)
+
+TEST "ip masking eval" =
+  let (pol1, pol2, pkt) = get_masking_test in
+  compare_eval_output pol1 pol2 pkt
+
+TEST "ip masking compile" =
+  let (pol1, pol2, pkt) = get_masking_test in
+  compare_compiler_output pol1 pol2 pkt
+
 TEST "semantics agree with flowtable" =
   let prop_compile_ok (p, pkt) =
     (* XXX(seliopou): Because flowtables are not pipe-aware, policies that set
