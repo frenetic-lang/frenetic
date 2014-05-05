@@ -2,7 +2,6 @@ module Run = struct
   open Core.Std
   open Async.Std
 
-
   let main learn filename =
     let open NetKAT_LocalCompiler in
     let main () =
@@ -82,6 +81,122 @@ module Dump = struct
   end
 end
 
+module Dexterize = struct
+  open Decide_Ast
+  open Decide_Ast.Term
+  let header_value_to_pair h = 
+    let open NetKAT_Types in 
+    match h with
+      | Switch(n) -> ("switch", Int64.to_string n)
+      | Location(Physical n) -> ("port", Int32.to_string n)
+      | Location(Pipe x) -> assert false
+      | EthSrc(n) -> ("ethsrc", Int64.to_string n)
+      | EthDst(n) -> ("ethdst", Int64.to_string n)
+      | Vlan(n) -> ("vlan", string_of_int n)
+      | VlanPcp(n) -> ("vlanpcp", string_of_int n)
+      | EthType(n) -> ("ethtype", string_of_int n)
+      | IPProto(n) -> ("ipproto", string_of_int n)
+      | IP4Src(n,32l) -> ("ipsrc", Int32.to_string n)
+      | IP4Dst(n,32l) -> ("ipdst", Int32.to_string n)
+      | IP4Src(n,m) -> assert false
+      | IP4Dst(n,m) -> assert false
+      | TCPSrcPort(n) -> ("tcpsrcport", string_of_int n)
+      | TCPDstPort(n) -> ("tcpdstport", string_of_int n)
+
+  let rec pred_to_term = function
+    | NetKAT_Types.True -> 
+      One
+    | NetKAT_Types.False -> 
+      Zero
+    | NetKAT_Types.Test(h) -> 
+      let x,n = header_value_to_pair h in 
+      Test(x,n)
+    | NetKAT_Types.And(pr1,pr2) -> 
+      Times[pred_to_term pr1; pred_to_term pr2]
+    | NetKAT_Types.Or(pr1,pr2) -> 
+      Plus (TermSet.add (pred_to_term pr1) (TermSet.singleton (pred_to_term pr2)))
+    | NetKAT_Types.Neg(pr) -> 
+      Not (pred_to_term pr) 
+
+  let rec policy_to_term = function
+    | NetKAT_Types.Filter(p) -> 
+      pred_to_term p
+    | NetKAT_Types.Mod(h) -> 
+      let x,n = header_value_to_pair h in 
+      Assg(x,n)
+    | NetKAT_Types.Union(p1,p2) -> 
+      Plus (TermSet.add (policy_to_term p1) (TermSet.singleton (policy_to_term p2)))
+    | NetKAT_Types.Seq(p1,p2) -> 
+      Times[policy_to_term p1; policy_to_term p2]
+    | NetKAT_Types.Star(p) -> 
+      Star(policy_to_term p)
+    | NetKAT_Types.Link(sw1,pt1,sw2,pt2) -> 
+      Times[Test("switch", Int64.to_string sw1); Test("port", Int32.to_string pt1);
+            Assg("switch", Int64.to_string sw2); Assg("port", Int32.to_string pt2);
+            Dup]
+end
+
+module Verify = 
+struct
+  module Node = Network_Common.Node
+  module Link = Network_Common.Link 
+  module Net = Network_Common.Net
+  module Topology = Net.Topology
+  module Path = Net.Path
+  let main filename = 
+    let topo = Net.Parse.from_dotfile filename in 
+    let is_host v = 
+      match Node.device (Topology.vertex_to_label topo v) with 
+        | Node.Host -> true 
+        | _ -> false in 
+    let is_switch v = 
+      match Node.device (Topology.vertex_to_label topo v) with 
+        | Node.Switch -> true 
+        | _ -> false in 
+    let vertexes = Topology.vertexes topo in 
+    let hosts = Topology.VertexSet.filter is_host vertexes in 
+    let switches = Topology.VertexSet.filter is_switch vertexes in 
+    (* compute shortest paths *)
+    let sw_pol,sw_tbl = 
+      Topology.VertexSet.fold
+        (fun sw (sw_pol,sw_tbl) -> 
+          let i = Node.id (Topology.vertex_to_label topo sw) in 
+          let sw_pol_i = 
+            Topology.VertexSet.fold
+              (fun h sw_pol_i -> 
+                match Path.shortest_path topo sw h with 
+                  | Some(e::_) -> 
+                    let m = Node.mac (Topology.vertex_to_label topo h) in 
+                    let v,pt = Topology.edge_src e in 
+                    NetKAT_Types.(Union(sw_pol_i,
+                                        Seq(Filter(Test(EthDst(m))),
+                                            Mod(Location(Physical(pt))))))
+                  | _ -> sw_pol_i)
+              hosts NetKAT_Types.drop in 
+          let sw_tbl_i = NetKAT_LocalCompiler.(to_netkat (compile i sw_pol_i)) in 
+          NetKAT_Types.(Union(sw_pol, Seq(Filter(Test(Switch(i))), sw_pol_i)),
+                        Union(sw_tbl, Seq(Filter(Test(Switch(i))), sw_tbl_i))))
+        switches NetKAT_Types.(drop,drop) in 
+    let tp_pol = 
+      Topology.EdgeSet.fold
+        (fun e tp_pol -> 
+          let v1,pt1 = Topology.edge_src e in 
+          let v2,pt2 = Topology.edge_dst e in 
+          if is_switch v1 && is_switch v2 then 
+            let n1 = Node.id (Topology.vertex_to_label topo v1) in 
+            let n2 = Node.id (Topology.vertex_to_label topo v2) in 
+            NetKAT_Types.(Union(tp_pol, Link(n1,pt1,n2,pt2)))
+          else tp_pol)
+        (Topology.edges topo) NetKAT_Types.drop in 
+    Printf.printf "## NetKAT_Policy ##\n%s\n## OpenFlow Table ##\n%s\n## Topology ##\n%s\n## Equivalent ##\n%b\n"
+      (NetKAT_Pretty.string_of_policy sw_pol)
+      (NetKAT_Pretty.string_of_policy sw_tbl)
+      (NetKAT_Pretty.string_of_policy tp_pol)
+      (Decide_Deriv.check_equivalent 
+         (Dexterize.policy_to_term (NetKAT_Types.(Star(Seq(sw_pol, tp_pol)))))
+         (Dexterize.policy_to_term (NetKAT_Types.(Star(Seq(sw_tbl, tp_pol))))))
+end
+
 open Cmdliner
 
 let policy n =
@@ -120,12 +235,21 @@ let dump_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   Term.(pure Dump.Local.main $ level $ switch_id $ (policy 1)),
   Term.info "dump" ~doc
 
+let verify_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info = 
+  let doc = "verify shortest-path forwarding compilation" in 
+  let topo = 
+    let doc = "the topology specified as a .dot file" in 
+    Arg.(required & (pos 0 (some file) None) & info [] ~docv:"TOPOLOGY" ~doc)
+  in 
+  Term.(pure Verify.main $ topo), 
+  Term.info "verify" ~doc
+
 let default_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   let doc = "an sdn controller platform" in
   Term.(ret (pure (`Help(`Plain, None)))),
   Term.info "katnetic" ~version:"1.6.1" ~doc
 
-let cmds = [run_cmd; dump_cmd]
+let cmds = [run_cmd; dump_cmd; verify_cmd]
 
 let () = match Term.eval_choice default_cmd cmds with
   | `Error _ -> exit 1 | _ -> exit 0

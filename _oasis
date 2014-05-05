@@ -110,7 +110,9 @@ Executable katnetic
     cmdliner,
     core,
     netkat,
-    netkat.async
+    netkat.async,
+    netkat_decide,
+    topology
 
 Executable netkat_test
   Path: frenetic
