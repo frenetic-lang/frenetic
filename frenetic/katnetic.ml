@@ -157,26 +157,29 @@ struct
     let hosts = Topology.VertexSet.filter is_host vertexes in 
     let switches = Topology.VertexSet.filter is_switch vertexes in 
     (* compute shortest paths *)
-    let sw_pol,sw_tbl = 
+    let sw_pol = 
       Topology.VertexSet.fold
-        (fun sw (sw_pol,sw_tbl) -> 
+        (fun sw pol -> 
           let i = Node.id (Topology.vertex_to_label topo sw) in 
-          let sw_pol_i = 
-            Topology.VertexSet.fold
-              (fun h sw_pol_i -> 
-                match Path.shortest_path topo sw h with 
-                  | Some(e::_) -> 
-                    let m = Node.mac (Topology.vertex_to_label topo h) in 
-                    let v,pt = Topology.edge_src e in 
-                    NetKAT_Types.(Union(sw_pol_i,
-                                        Seq(Filter(Test(EthDst(m))),
-                                            Mod(Location(Physical(pt))))))
-                  | _ -> sw_pol_i)
-              hosts NetKAT_Types.drop in 
-          let sw_tbl_i = NetKAT_LocalCompiler.(to_netkat (compile i sw_pol_i)) in 
-          NetKAT_Types.(Union(sw_pol, Seq(Filter(Test(Switch(i))), sw_pol_i)),
-                        Union(sw_tbl, Seq(Filter(Test(Switch(i))), sw_tbl_i))))
-        switches NetKAT_Types.(drop,drop) in 
+          Topology.VertexSet.fold
+            (fun h pol -> 
+              match Path.shortest_path topo sw h with 
+                | Some(e::_) -> 
+                  let m = Node.mac (Topology.vertex_to_label topo h) in 
+                  let v,pt = Topology.edge_src e in 
+                  NetKAT_Types.(Union(pol,
+                                      Seq(Filter(And(Test(Switch(i)),Test(EthDst(m)))),
+                                          Mod(Location(Physical(pt))))))
+                  | _ -> pol)
+            hosts pol)
+        switches NetKAT_Types.drop in 
+    let sw_tbl = 
+      Topology.VertexSet.fold
+        (fun sw tbl -> 
+          let i = Node.id (Topology.vertex_to_label topo sw) in                     
+          NetKAT_Types.(Union(tbl, Seq(Filter(Test(Switch(i))), 
+                                       NetKAT_LocalCompiler.(to_netkat (compile i sw_pol))))))
+        switches NetKAT_Types.drop in 
     let tp_pol = 
       Topology.EdgeSet.fold
         (fun e tp_pol -> 
@@ -188,10 +191,11 @@ struct
             NetKAT_Types.(Union(tp_pol, Link(n1,pt1,n2,pt2)))
           else tp_pol)
         (Topology.edges topo) NetKAT_Types.drop in 
-    Printf.printf "## NetKAT_Policy ##\n%s\n## OpenFlow Table ##\n%s\n## Topology ##\n%s\n## Equivalent ##\n%b\n"
+    Printf.printf "## NetKAT_Policy ##\n%s\n## OpenFlow Table ##\n%s\n## Topology ##\n%s\n%!"
       (NetKAT_Pretty.string_of_policy sw_pol)
       (NetKAT_Pretty.string_of_policy sw_tbl)
-      (NetKAT_Pretty.string_of_policy tp_pol)
+      (NetKAT_Pretty.string_of_policy tp_pol);
+    Printf.printf "## Equivalent ##\n%b\n"
       (Decide_Deriv.check_equivalent 
          (Dexterize.policy_to_term (NetKAT_Types.(Star(Seq(sw_pol, tp_pol)))))
          (Dexterize.policy_to_term (NetKAT_Types.(Star(Seq(sw_tbl, tp_pol))))))
