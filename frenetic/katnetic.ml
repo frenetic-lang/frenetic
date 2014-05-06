@@ -118,7 +118,7 @@ module Dexterize = struct
     | NetKAT_Types.Neg(pr) -> 
       Not (pred_to_term pr) 
 
-  let rec policy_to_term = function
+  let rec policy_to_term ?dup:(dup=true) = function
     | NetKAT_Types.Filter(p) -> 
       pred_to_term p
     | NetKAT_Types.Mod(h) -> 
@@ -131,9 +131,11 @@ module Dexterize = struct
     | NetKAT_Types.Star(p) -> 
       Star(policy_to_term p)
     | NetKAT_Types.Link(sw1,pt1,sw2,pt2) -> 
-      Times[Test("switch", Int64.to_string sw1); Test("port", Int32.to_string pt1);
-            Assg("switch", Int64.to_string sw2); Assg("port", Int32.to_string pt2);
-            Dup]
+      Times (Test("switch", Int64.to_string sw1) :: 
+             Test("port", Int32.to_string pt1) ::
+             Assg("switch", Int64.to_string sw2) :: 
+             Assg("port", Int32.to_string pt2) ::
+             if dup then [Dup] else []) 
 end
 
 module Verify = 
@@ -143,7 +145,8 @@ struct
   module Net = Network_Common.Net
   module Topology = Net.Topology
   module Path = Net.Path
-  let main filename = 
+
+  let shortest_paths ?dup:(dup=true) filename = 
     let topo = Net.Parse.from_dotfile filename in 
     let is_host v = 
       match Node.device (Topology.vertex_to_label topo v) with 
@@ -197,8 +200,10 @@ struct
       (NetKAT_Pretty.string_of_policy tp_pol);
     Printf.printf "## Equivalent ##\n%b\n"
       (Decide_Deriv.check_equivalent 
-         (Dexterize.policy_to_term (NetKAT_Types.(Star(Seq(sw_pol, tp_pol)))))
-         (Dexterize.policy_to_term (NetKAT_Types.(Star(Seq(sw_tbl, tp_pol))))))
+         (Dexterize.policy_to_term ~dup:dup (NetKAT_Types.(Star(Seq(sw_pol, tp_pol)))))
+         (Dexterize.policy_to_term ~dup:dup (NetKAT_Types.(Star(Seq(sw_tbl, tp_pol))))))
+
+  let main = shortest_paths ~dup:false
 end
 
 open Cmdliner
