@@ -218,7 +218,7 @@ struct
         else tp_pol)
       (Topology.edges topo) NetKAT_Types.id 
 
-  let verify_shortest_path_dup filename = 
+  let verify_shortest_paths filename = 
     let topo, vertexes, switches, hosts = topology filename in 
     let sw_pol = shortest_path_policy topo switches hosts in 
     let sw_tbl = shortest_path_table topo switches sw_pol in 
