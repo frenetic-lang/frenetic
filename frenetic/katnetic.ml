@@ -146,64 +146,128 @@ struct
   module Topology = Net.Topology
   module Path = Net.Path
 
-  let shortest_paths ?dup:(dup=true) filename = 
+  let is_host topo v = 
+    match Node.device (Topology.vertex_to_label topo v) with 
+      | Node.Host -> true 
+      | _ -> false  
+  let is_switch topo v = 
+    match Node.device (Topology.vertex_to_label topo v) with 
+      | Node.Switch -> true 
+      | _ -> false  
+
+  let topology filename = 
     let topo = Net.Parse.from_dotfile filename in 
-    let is_host v = 
-      match Node.device (Topology.vertex_to_label topo v) with 
-        | Node.Host -> true 
-        | _ -> false in 
-    let is_switch v = 
-      match Node.device (Topology.vertex_to_label topo v) with 
-        | Node.Switch -> true 
-        | _ -> false in 
     let vertexes = Topology.vertexes topo in 
-    let hosts = Topology.VertexSet.filter is_host vertexes in 
-    let switches = Topology.VertexSet.filter is_switch vertexes in 
-    (* compute shortest paths *)
-    let sw_pol = 
-      Topology.VertexSet.fold
-        (fun sw pol -> 
+    let hosts = Topology.VertexSet.filter (is_host topo) vertexes in 
+    let switches = Topology.VertexSet.filter (is_switch topo) vertexes in 
+    (topo, vertexes, switches, hosts)  
+
+  let hosts_ports_switches topo hosts = 
+    Topology.VertexSet.fold
+      (fun h pol -> 
+        let sw = Topology.VertexSet.choose (Topology.neighbors topo h) in 
+        let _,pt = Topology.edge_dst (Topology.find_edge topo h sw) in 
+        Printf.printf "HPS: %s %ld %s\n"
+          (Node.name (Topology.vertex_to_label topo h))
+          pt
+          (Node.name (Topology.vertex_to_label topo sw));
+        (h,pt,sw)::pol)
+      hosts []
+
+  let shortest_path_policy topo switches hosts = 
+    Topology.VertexSet.fold
+      (fun sw pol -> 
+        let i = Node.id (Topology.vertex_to_label topo sw) in 
+        Topology.VertexSet.fold
+          (fun h pol -> 
+            match Path.shortest_path topo sw h with 
+              | Some(e::_) -> 
+                let m = Node.mac (Topology.vertex_to_label topo h) in 
+                let v,pt = Topology.edge_src e in 
+                NetKAT_Types.(Union(pol,
+                                    Seq(Filter(And(Test(Switch(i)),Test(EthDst(m)))),
+                                        Mod(Location(Physical(pt))))))
+              | _ -> pol)
+          hosts pol)
+      switches NetKAT_Types.drop 
+
+  let shortest_path_table topo switches policy = 
+    Topology.VertexSet.fold
+      (fun sw tbl -> 
+        let i = Node.id (Topology.vertex_to_label topo sw) in                     
+        NetKAT_Types.(Union(tbl, Seq(Filter(Test(Switch(i))), 
+                                     NetKAT_LocalCompiler.(to_netkat (compile i policy))))))
+      switches NetKAT_Types.drop   
+
+  let connectivity_policy topo hosts = 
+    let hps = hosts_ports_switches topo hosts in 
+    let pol = 
+      List.fold_left
+        (fun pol (h1,pt1,sw1) -> 
+          List.fold_left
+            (fun pol (h2,pt2,sw2) -> 
+              let m = Node.mac (Topology.vertex_to_label topo h2) in               
+              let i1 = Node.id (Topology.vertex_to_label topo sw1) in 
+              let i2 = Node.id (Topology.vertex_to_label topo sw2) in 
+              NetKAT_Types.(Union(pol, Seq(Filter(And(Test(Switch(i1)), 
+                                                      And(Test(Location(Physical(pt1))), 
+                                                          Test(EthDst(m))))),
+                                           Seq(Mod(Switch(i2)), Mod(Location(Physical(pt2))))))))
+            pol hps)
+        NetKAT_Types.drop hps in 
+    let pr = 
+      List.fold_left 
+        (fun pr (_,pt,sw) -> 
           let i = Node.id (Topology.vertex_to_label topo sw) in 
-          Topology.VertexSet.fold
-            (fun h pol -> 
-              match Path.shortest_path topo sw h with 
-                | Some(e::_) -> 
-                  let m = Node.mac (Topology.vertex_to_label topo h) in 
-                  let v,pt = Topology.edge_src e in 
-                  NetKAT_Types.(Union(pol,
-                                      Seq(Filter(And(Test(Switch(i)),Test(EthDst(m)))),
-                                          Mod(Location(Physical(pt))))))
-                  | _ -> pol)
-            hosts pol)
-        switches NetKAT_Types.drop in 
-    let sw_tbl = 
-      Topology.VertexSet.fold
-        (fun sw tbl -> 
-          let i = Node.id (Topology.vertex_to_label topo sw) in                     
-          NetKAT_Types.(Union(tbl, Seq(Filter(Test(Switch(i))), 
-                                       NetKAT_LocalCompiler.(to_netkat (compile i sw_pol))))))
-        switches NetKAT_Types.drop in 
-    let tp_pol = 
-      Topology.EdgeSet.fold
-        (fun e tp_pol -> 
-          let v1,pt1 = Topology.edge_src e in 
-          let v2,pt2 = Topology.edge_dst e in 
-          if is_switch v1 && is_switch v2 then 
-            let n1 = Node.id (Topology.vertex_to_label topo v1) in 
-            let n2 = Node.id (Topology.vertex_to_label topo v2) in 
-            NetKAT_Types.(Union(tp_pol, Link(n1,pt1,n2,pt2)))
-          else tp_pol)
-        (Topology.edges topo) NetKAT_Types.drop in 
-    Printf.printf "## NetKAT_Policy ##\n%s\n## OpenFlow Table ##\n%s\n## Topology ##\n%s\n%!"
+          NetKAT_Types.(And(pr,And(Test(Switch(i)), Test(Location(Physical(pt)))))))
+        NetKAT_Types.False hps in 
+    (pr,pol)
+      
+  let topology_policy topo = 
+    Topology.EdgeSet.fold
+      (fun e tp_pol -> 
+        let v1,pt1 = Topology.edge_src e in 
+        let v2,pt2 = Topology.edge_dst e in 
+        if is_switch topo v1 && is_switch topo v2 then 
+          let n1 = Node.id (Topology.vertex_to_label topo v1) in 
+          let n2 = Node.id (Topology.vertex_to_label topo v2) in 
+          NetKAT_Types.(Union(tp_pol, Link(n1,pt1,n2,pt2)))
+        else tp_pol)
+      (Topology.edges topo) NetKAT_Types.drop 
+
+  let verify_shortest_path_dup filename = 
+    let topo, vertexes, switches, hosts = topology filename in 
+    let sw_pol = shortest_path_policy topo switches hosts in 
+    let sw_tbl = shortest_path_table topo switches sw_pol in 
+    let tp_pol = topology_policy topo in 
+    let net_sw_pol = NetKAT_Types.(Star(Seq(sw_pol, tp_pol))) in 
+    let net_sw_tbl = NetKAT_Types.(Star(Seq(sw_tbl, tp_pol))) in 
+    Printf.printf "## NetKAT Policy ##\n%s\n## OpenFlow Table ##\n%s\n## Topology ##\n%s\n%!"
       (NetKAT_Pretty.string_of_policy sw_pol)
       (NetKAT_Pretty.string_of_policy sw_tbl)
       (NetKAT_Pretty.string_of_policy tp_pol);
     Printf.printf "## Equivalent ##\n%b\n"
       (Decide_Deriv.check_equivalent 
-         (Dexterize.policy_to_term ~dup:dup (NetKAT_Types.(Star(Seq(sw_pol, tp_pol)))))
-         (Dexterize.policy_to_term ~dup:dup (NetKAT_Types.(Star(Seq(sw_tbl, tp_pol))))))
+         (Dexterize.policy_to_term ~dup:true net_sw_pol)
+         (Dexterize.policy_to_term ~dup:true net_sw_tbl))
 
-  let main = shortest_paths ~dup:false
+  let verify_connectivity filename = 
+    let topo, vertexes, switches, hosts = topology filename in 
+    let sw_pol = shortest_path_policy topo switches hosts in 
+    let cn_pr, cn_pol = connectivity_policy topo hosts in 
+    let tp_pol = topology_policy topo in 
+    let net_sw_pol = NetKAT_Types.(Seq(Filter(cn_pr), Star(Seq(sw_pol, tp_pol)))) in 
+    Printf.printf "## NetKAT Policy ##\n%s\n## Connectivity Policy ##\n%s\n## Connectivity Predicate ##\n%s\n## Topology ##\n%s\n%!"
+      (NetKAT_Pretty.string_of_policy sw_pol)
+      (NetKAT_Pretty.string_of_policy cn_pol)
+      (NetKAT_Pretty.string_of_pred cn_pr)
+      (NetKAT_Pretty.string_of_policy tp_pol);
+    Printf.printf "## Equivalent ##\n%b\n"
+      (Decide_Deriv.check_equivalent 
+         (Dexterize.policy_to_term ~dup:false net_sw_pol)
+         (Dexterize.policy_to_term cn_pol))
+
+  let main = verify_connectivity
 end
 
 open Cmdliner
