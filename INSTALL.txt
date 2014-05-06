@@ -1,14 +1,16 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: fdd965bd8b1816eef9a861cba3d5f404) *)
+(* DO NOT EDIT (digest: ba08b1390cd459808561ea7f76ae70c9) *)
+
 This is the INSTALL file for the ox distribution.
 
 This package uses OASIS to generate its build system. See section OASIS for
-full information. 
+full information.
 
 Dependencies
 ============
 
 In order to compile this package, you will need:
+
 * ocaml for all, doc doc
 * findlib
 * lwt
@@ -27,7 +29,7 @@ Installing
 Uninstalling
 ============
 
-1. Go to the root of the package 
+1. Go to the root of the package
 2. Run 'ocaml setup.ml -uninstall'
 
 OASIS
