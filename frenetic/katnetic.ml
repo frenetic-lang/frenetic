@@ -84,6 +84,7 @@ end
 module Dexterize = struct
   open Decide_Ast
   open Decide_Ast.Term
+
   let header_value_to_pair h = 
     let open NetKAT_Types in 
     match h with
@@ -132,10 +133,10 @@ module Dexterize = struct
       Star(policy_to_term p)
     | NetKAT_Types.Link(sw1,pt1,sw2,pt2) -> 
       Times (Test("switch", Int64.to_string sw1) :: 
-             Test("port", Int32.to_string pt1) ::
-             Assg("switch", Int64.to_string sw2) :: 
-             Assg("port", Int32.to_string pt2) ::
-             if dup then [Dup] else []) 
+               Test("port", Int32.to_string pt1) ::
+               Assg("switch", Int64.to_string sw2) :: 
+               Assg("port", Int32.to_string pt2) ::
+               if dup then [Dup] else []) 
 end
 
 module Verify = 
@@ -167,10 +168,6 @@ struct
       (fun h pol -> 
         let sw = Topology.VertexSet.choose (Topology.neighbors topo h) in 
         let _,pt = Topology.edge_dst (Topology.find_edge topo h sw) in 
-        Printf.printf "HPS: %s %ld %s\n"
-          (Node.name (Topology.vertex_to_label topo h))
-          pt
-          (Node.name (Topology.vertex_to_label topo sw));
         (h,pt,sw)::pol)
       hosts []
 
@@ -201,27 +198,14 @@ struct
 
   let connectivity_policy topo hosts = 
     let hps = hosts_ports_switches topo hosts in 
-    let pol = 
-      List.fold_left
-        (fun pol (h1,pt1,sw1) -> 
-          List.fold_left
-            (fun pol (h2,pt2,sw2) -> 
-              let m = Node.mac (Topology.vertex_to_label topo h2) in               
-              let i1 = Node.id (Topology.vertex_to_label topo sw1) in 
-              let i2 = Node.id (Topology.vertex_to_label topo sw2) in 
-              NetKAT_Types.(Union(pol, Seq(Filter(And(Test(Switch(i1)), 
-                                                      And(Test(Location(Physical(pt1))), 
-                                                          Test(EthDst(m))))),
-                                           Seq(Mod(Switch(i2)), Mod(Location(Physical(pt2))))))))
-            pol hps)
-        NetKAT_Types.drop hps in 
-    let pr = 
-      List.fold_left 
-        (fun pr (_,pt,sw) -> 
-          let i = Node.id (Topology.vertex_to_label topo sw) in 
-          NetKAT_Types.(And(pr,And(Test(Switch(i)), Test(Location(Physical(pt)))))))
-        NetKAT_Types.False hps in 
-    (pr,pol)
+    List.fold_left
+      (fun (pr,pol) (h,pt,sw) -> 
+        let m = Node.mac (Topology.vertex_to_label topo h) in               
+        let i = Node.id (Topology.vertex_to_label topo sw) in 
+        NetKAT_Types.(And(pr,And(Test(Switch(i)), Test(Location(Physical(pt))))),
+                      Union(pol, Seq(Filter(Test(EthDst(m))),
+                                     Seq(Mod(Switch(i)), Mod(Location(Physical(pt))))))))
+      NetKAT_Types.(False, drop) hps
       
   let topology_policy topo = 
     Topology.EdgeSet.fold
@@ -247,7 +231,7 @@ struct
       (NetKAT_Pretty.string_of_policy sw_tbl)
       (NetKAT_Pretty.string_of_policy tp_pol);
     Printf.printf "## Equivalent ##\n%b\n"
-      (Decide_Deriv.check_equivalent 
+      (Decide_Bisimulation.check_equivalent
          (Dexterize.policy_to_term ~dup:true net_sw_pol)
          (Dexterize.policy_to_term ~dup:true net_sw_tbl))
 
@@ -256,16 +240,16 @@ struct
     let sw_pol = shortest_path_policy topo switches hosts in 
     let cn_pr, cn_pol = connectivity_policy topo hosts in 
     let tp_pol = topology_policy topo in 
-    let net_sw_pol = NetKAT_Types.(Seq(Filter(cn_pr), Star(Seq(sw_pol, tp_pol)))) in 
+    let net_sw_pol = NetKAT_Types.(Seq(Filter(cn_pr), Seq(Star(Seq(sw_pol, tp_pol)), Filter(cn_pr)))) in 
     Printf.printf "## NetKAT Policy ##\n%s\n## Connectivity Policy ##\n%s\n## Connectivity Predicate ##\n%s\n## Topology ##\n%s\n%!"
       (NetKAT_Pretty.string_of_policy sw_pol)
       (NetKAT_Pretty.string_of_policy cn_pol)
       (NetKAT_Pretty.string_of_pred cn_pr)
       (NetKAT_Pretty.string_of_policy tp_pol);
     Printf.printf "## Equivalent ##\n%b\n"
-      (Decide_Deriv.check_equivalent 
+      (Decide_Bisimulation.check_equivalent 
          (Dexterize.policy_to_term ~dup:false net_sw_pol)
-         (Dexterize.policy_to_term cn_pol))
+         (Dexterize.policy_to_term NetKAT_Types.(Seq(Filter(cn_pr), cn_pol))))
 
   let main = verify_connectivity
 end
