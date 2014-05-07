@@ -46,8 +46,6 @@ let capacity_of_id vo = match maybe vo with
   | Dot_ast.String(s) -> parse_rate s
   | _ -> failwith "Need a string to get capacity\n"
 
-
-
 module Node = struct
   type device = Switch | Host | Middlebox
 
@@ -61,8 +59,7 @@ module Node = struct
                   dev_id = 0L ;
                   name = "" ;
                   ip = 0l ;
-                  mac = 0L
-                  }
+                  mac = 0L }
 
   let create (n:string) (i:int64) (d:device) (ip:int32) (mac:int64) : t =
     { dev_type = d ;
@@ -93,7 +90,6 @@ module Node = struct
       (Packet.string_of_mac n.mac)
       (n.dev_id)
 
-
   (* Update the record for a node *)
   let update_dot_attr n (k,vo) =
     let dev_type_of vo = match string_of_id (maybe vo) with
@@ -118,9 +114,10 @@ module Node = struct
   let parse_dot (i:Dot_ast.node_id) (ats:Dot_ast.attr list) : t =
     let (id, popt) = i in
     let name = string_of_id id in
+    let num = int_of_string (String.sub name 1 (String.length name - 1)) in 
     let at = List.hd ats in
     List.fold_left update_dot_attr
-      {default with name = name} at
+      {default with name = name; ip = Int32.of_int num; mac = Int64.of_int num} at
 
   let int64_of_value v = match v with
     | Gml.Int(i) -> Int64.of_int i
@@ -168,9 +165,8 @@ module Link = struct
     match key with
       | Dot_ast.Ident("cost") -> {edge with cost = int64_of_id valopt }
       | Dot_ast.Ident("capacity") -> {edge with capacity = capacity_of_id valopt }
-      | Dot_ast.Ident("dst_port")
-      | Dot_ast.Ident("src_port") -> edge
-      | _ -> failwith "Unknown edge attribute\n"
+      | Dot_ast.Ident(s) -> edge
+      | _ -> failwith ("Unknown edge attribute\n")
 
   let update_gml_attr edge (key, value) = match key with
     | _ -> edge
