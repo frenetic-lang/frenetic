@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 '''this file generates a simple fat tree in dot notation with few assumptions:
 1) the root is always 1 node
