@@ -1,61 +1,86 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
-'''this file generates a simple fat tree in dot notation with few assumptions:
+'''this file generates a simple tree in dot notation with few assumptions:
 1) the root is always 1 node
-2) all switches have same incoming and outgoing edges, except the root node
-3) all switches have same fan out '''
+2) all switches have same fan out '''
 
+import re
 import sys
 import argparse
 import networkx as nx
 
-def generate(fanout,depth):
-    switches = ['s'+ str(i) for i in range(1, ((1 - (fanout ** depth)) / (1 - fanout))+1)]
-    hosts = ['h' + str(i) for i in range(1, fanout ** depth + 1)]
+def multiply(depth, bw,mult):
+    r = re.compile('(\d+)([KMGT]?[Bb]ps)')
+    m = r.match(bw)
+    num = m.group(1)
+    rate = m.group(2)
+    if depth == 0:
+        coeff = int(num)
+    else:
+        coeff = int(num) * depth * mult
+    return str(coeff) + rate
+
+def mk_topo(fanout,depth,bw,mult):
+    num_hosts = fanout ** depth
+    num_switches = (1 - (fanout ** depth)) / (1 - fanout)
+
+    switch_ids = [('s' + str(i), {'id':i}) for i in range(1,num_switches + 1)]
+    switches = [swid[0] for swid in switch_ids]
+    hosts = ['h' + str(i) for i in range (1, num_hosts + 1)]
     nodes = switches + hosts
-    g = nx.MultiDiGraph()
-    g.add_nodes_from(nodes)
 
-    for i in range(depth,0,-1):
-        '''length of temp1 = (length of temp2) * fanout'''
-        temp1 = nodes[len(nodes) - (fanout ** i):]
-        nodes = nodes[:len(nodes) - (fanout ** i)]
-        temp2 = nodes[len(nodes) - (fanout ** (i-1)):]
-        for j in range(len(temp2)):
-            for k in range(fanout):
-                p = fanout ** (depth - i)
-                if p == 1:
-                    g.add_edge(temp1[fanout * j + k],temp2[j],
-                               attr_dict={'src_port':1,'dst_port':k+1,'capacity':'1Gbps','cost':'1'})
-                    g.add_edge(temp2[j],temp1[fanout * j + k],
-                               attr_dict={'src_port':k+1,'dst_port':1,'capacity':'1Gbps','cost':'1'})
-                else:
-                    for l in range(p):
-                        g.add_edge(temp1[fanout * j + k],temp2[j],
-                                   attr_dict={'src_port':p+l+1,'dst_port': fanout * k + l+1,'capacity':'1Gbps','cost':'1'})
-                        g.add_edge(temp2[j],temp1[fanout * j + k],
-                                   attr_dict={'src_port':fanout * k + l+1,'dst_port': p+l+1,'capacity':'1Gbps','cost':'1'})
+    g = nx.DiGraph()
+    g.add_nodes_from(switch_ids, type='switch')
+    g.add_nodes_from(hosts, type='hosts')
 
+    offset = 0
+    parent_offset = 0
+    for d in range(depth+1):
+        num_nodes = fanout ** d
+        if num_nodes == 1:
+            parent_offset = offset
+            offset += num_nodes
+            continue
+        parents = nodes[parent_offset:offset]
+        currents = nodes[offset:(offset+num_nodes)]
+        for i in range(len(parents)):
+            parent = parents[i]
+            for j in range(fanout):
+                child = currents[i*fanout + j]
+                cap = multiply(depth-i,bw, mult)
+                # Each node connects to its parent on port 0
+                g.add_edge(parent,child,
+                           {'src_port':j,'dst_port':0,'capacity':cap,'cost':'1'})
+                g.add_edge(child, parent,
+                           {'src_port':0,'dst_port':j,'capacity':cap,'cost':'1'})
+        parent_offset = offset
+        offset += num_nodes
     return g
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("fanout", type=int,
+    parser.add_argument('-f',"--fanout", type=int, action='store',dest='fanout',
                         help="number of children each node should have")
-    parser.add_argument("depth", type=int,
+    parser.add_argument('-d',"--depth", type=int,action='store',dest='depth',
                         help="depth of the fattree")
+    parser.add_argument('-b','--bandwidth',type=str,action='store',dest='bw',
+                        default="1Gbps",
+                        help='bandwidth of each link')
+    parser.add_argument('-m','--multiplier',type=int,action='store',dest='mult',
+                        default=1,
+                        help='multiplier for bandwidth at each level')
     parser.add_argument("-o", "--out", dest='output', action='store',
                         default=None,
-                        help='file to write to')
+                        help='file root to write to')
 
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    graph = generate(args.fanout, args.depth)
+    topo = mk_topo(args.fanout, args.depth, args.bw, args.mult)
 
     if args.output:
-        nx.write_dot(graph,args.output)
+        nx.write_dot(topo,args.output + '.dot')
     else:
-        print nx.to_agraph(graph)
+        print nx.to_agraph(topo)
