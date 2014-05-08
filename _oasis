@@ -19,7 +19,8 @@ Library ox
     lwt.syntax,
     cstruct,
     packet,
-    openflow
+    openflow,
+    threads
   InternalModules:
     OxShared
   Modules:
