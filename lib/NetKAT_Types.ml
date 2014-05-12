@@ -179,6 +179,20 @@ module Int32TupleHeader = struct
     let s = if m = 32l then "" else "/" ^ (Int32Header.to_string m) in
     Int32Header.to_string p ^ s
   let is_wild _ = false
+
+  let min_int32 x y = if Int32.(<) x y then x else y
+
+  let intersection ((n,m) as p1: t) ((r,s) as p2: t) : t option =
+    let common_mask = match Int32.to_int (min_int32 m s) with
+    | Some i -> i
+    | None   -> 0 in (* overflow case, never happens because m,s < 32 *)
+    let mask =
+       Int32.shift_left
+         (Int32.(-) (Int32.shift_left 1l common_mask) 1l)
+         (32 - common_mask) in
+    if Int32.bit_and mask n = Int32.bit_and mask m then
+      (if Int32.(<) m s then Some p1 else Some p2)
+    else None
 end
 module Int64Header = struct
   include Int64
