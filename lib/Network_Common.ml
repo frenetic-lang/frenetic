@@ -90,6 +90,16 @@ module Node = struct
       (Packet.string_of_mac n.mac)
       (n.dev_id)
 
+  let to_mininet n = match n.dev_type with
+    | Host ->
+      Printf.sprintf " %s = net.addHost(\'%s\', mac=\'%s\', ip=\'%s\')\n"
+        n.name n.name
+        (Packet.string_of_mac n.mac) (Packet.string_of_ip n.ip)
+    | _ ->
+      Printf.sprintf
+        " s%Ld = net.addSwitch(\'s%Ld\')\n" n.dev_id n.dev_id
+
+
   (* Update the record for a node *)
   let update_dot_attr n (k,vo) =
     let dev_type_of vo = match string_of_id (maybe vo) with

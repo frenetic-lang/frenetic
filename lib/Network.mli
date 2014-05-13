@@ -4,6 +4,7 @@ module type VERTEX = sig
   val compare : t -> t -> int
   val to_string : t -> string
   val to_dot : t -> string
+  val to_mininet : t -> string
   val parse_dot : Graph.Dot_ast.node_id -> Graph.Dot_ast.attr list -> t
   val parse_gml : Graph.Gml.value_list -> t
 end
@@ -107,6 +108,7 @@ module type NETWORK = sig
   module Pretty : sig
     val to_string : Topology.t -> string
     val to_dot : Topology.t -> string
+    val to_mininet : Topology.t -> string
   end
 end
 
