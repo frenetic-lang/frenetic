@@ -59,6 +59,7 @@ module type NETWORK = sig
     val next_hop : t -> vertex -> port -> edge option
     val edge_src : edge -> (vertex * port)
     val edge_dst : edge -> (vertex * port)
+    val inverse_edge : t -> edge -> edge option
 
     (* Label Accessors *)
     val vertex_to_string : t -> vertex -> string
