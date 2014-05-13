@@ -198,7 +198,8 @@ module Int32TupleHeader = struct
 
   let min_int32 x y = if Int32.(<) x y then x else y
 
-  let intersection ((n,m) as p1: t) ((r,s) as p2: t) : t option =
+  let are_compatible ((n,m): t) ((r,s): t) : bool =
+    (* Two masked fields are compatible if their prefixes agree. *)
     let common_mask = match Int32.to_int (min_int32 m s) with
     | Some i -> i
     | None   -> 0 in (* overflow case, never happens because m,s < 32 *)
@@ -206,9 +207,17 @@ module Int32TupleHeader = struct
        Int32.shift_left
          (Int32.(-) (Int32.shift_left 1l common_mask) 1l)
          (32 - common_mask) in
-    if Int32.bit_and mask n = Int32.bit_and mask m then
+    (Int32.bit_and mask n) = (Int32.bit_and mask m)
+
+  let intersection ((n,m) as p1: t) ((r,s) as p2: t) : t option =
+    if are_compatible p1 p2 then
       (if Int32.(<) m s then Some p1 else Some p2)
     else None
+
+  let subseteq ((n,m) as p1: t) ((r,s) as p2: t) : bool =
+    if are_compatible p1 p2 then Int32.(>) m s
+    else false
+
 end
 module Int64Header = struct
   include Int64

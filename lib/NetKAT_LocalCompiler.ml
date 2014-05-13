@@ -38,35 +38,48 @@ module type FIELD = sig
   val is_any : t -> bool
   val empty : t
   val is_empty : t -> bool
-  val inter : t -> t -> t
+  val inter : t -> t -> t option
   val neg : t -> t
   val diff : t -> t -> t
+  val subseteq : v -> v -> bool
   (* conversions *)
   val to_netkat_pred : (v -> NetKAT_Types.header_val) -> t -> NetKAT_Types.pred
-  val expand : t -> (v option * bool) list
+  val expand : t -> (v * bool) list
   val obscures : t -> t -> bool
 end
 
-module PrefixTable = struct
-  type v = Int32.t * Int32.t with sexp
+module PrefixTable (F:FIELD) = struct
+  type v = F.v with sexp
   type t = (v * bool) list with sexp
 
   let singleton (n,m) = [(n,m),true]
 
-  let compare = (* TODO(blc) *)
-    Pervasives.compare
+  let compare ((n,m),b1) ((p,q),b2) =
+    if Pervasives.compare n p = 0 then (
+      if Pervasives.compare m q = 0 then Pervasives.compare b1 b2
+      else Pervasives.compare m q)
+    else Pervasives.compare n p
 
-  let equal = (* TODO(blc) *)
-    (=)
+  let equal t1 t2 = compare t1 t2 = 0
 
-  let to_string t = (* TODO(blc) *)
-    ""
+  let to_string ((n,m),b) =
+    let s = if m = 32l then "" else "/" ^ (Int32.to_string m) in
+    (Int32.to_string n) ^ s ^ " " ^ (string_of_bool b)
 
   let any =
     [(0l,0l), true]
 
-  let is_any t = (* TODO(blc) *)
-    failwith "NYI"
+  let is_shadowed v t = List.exists ~f:(fun (x,_) -> F.subseteq v x) t
+
+  let remove_shadowed (table: t) : t =
+    List.rev (
+      List.fold_left
+        ~f:(fun acc (x,b) -> if is_shadowed x acc then acc else ((x,b)::acc))
+        ~init:[]
+        table)
+
+  let is_any (t:t) : bool =
+    List.for_all (remove_shadowed t) ~f:(fun (_,b) -> b)
 
   let neg t = List.map t ~f:(fun (p,b) -> (p,not b))
 
@@ -80,7 +93,7 @@ module PrefixTable = struct
         ~f:(fun (p1,b1) acc ->
           List.fold_right t2 ~init:acc
             ~f:(fun (p2, b2) acc ->
-              match None (* TODO(blc): ip_prefix_inter p1 p2 *) with
+              match F.inter p1 p2 with
                 | None -> acc
                 | Some p -> (p, b1 && b2)::acc))
 
@@ -88,18 +101,34 @@ module PrefixTable = struct
     inter t1 (neg t2)
 
   let to_netkat_pred v_to_header_val t =
-    (* TODO(blc) *)
-    failwith "NYI"
+    let open NetKAT_Types in
+    let make_pi (plst: pred list) (pi: pred) (b: bool) : pred list =
+      match plst with
+        [] -> if b then pi::plst else (Neg pi)::plst
+      | h::t -> (
+        let disj = List.fold_left ~f:(fun acc x -> Or (acc, x)) ~init:h t in
+        (And(Neg disj, if b then pi else (Neg pi)))::plst) in
+    (* !(p1 | ... | p(i-1)) & (b?pi:!pi) *)
+    match t with
+      [] -> True
+    | (h,hb)::t -> (
+      let l = List.fold_left
+        ~f:(fun acc (v,b) -> make_pi acc (v_to_header_val v) b)
+        ~init:(make_pi [h] (v_to_header_val h) hb)
+        t in
+      match l with [] -> True | h::_ -> h)
 
   let expand t =
     let rec drop_false l =
       match l with
         | (_,false)::t -> drop_false t
         | _ -> List.rev l in
-    drop_false (List.fold_left t ~init:[] ~f:(fun acc (p,b) -> (Some p, b)::acc))
+    drop_false (List.fold_left t ~init:[] ~f:(fun acc (p,b) -> (p, b)::acc))
 
-  let obscures t1 t2 = (* TODO(blc) *)
-    failwith "NYI"
+  let obscures t1 t2 : bool =
+    (* Does any rule in (expand t2) shadow a rule in (expand t1) ? *)
+    let expanded = expand t2 in
+    List.exists ~f:(fun (x,_) -> is_shadowed x expanded) (expand t1)
 
 end
 
