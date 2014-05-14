@@ -1,0 +1,17 @@
+
+    ###### Start of static Mininet epilogue ######
+    # Set up logging etc.
+    lg.setLogLevel('info')
+    lg.setLogLevel('output')
+
+    # Start the network and run the pingall test
+    net.start()
+    print "\nFollowing connections were made:"
+    dumpNodeConnections(net.hosts)
+    print "\nTesting network connectivity"
+    net.pingAll()
+
+    # All done
+    net.stop()
+
+start()
