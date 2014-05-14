@@ -20,6 +20,13 @@ Library topology
 
 
 Executable unittest
+  Path: exe
+  Install: false
+  MainIs: topology.ml
+  BuildDepends:
+    topology
+
+Executable unittest
   Path: test
   Install: false
   Build$: flag(tests)
