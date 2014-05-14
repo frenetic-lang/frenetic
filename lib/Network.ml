@@ -689,7 +689,7 @@ struct
         (fun v acc ->
           let label = vertex_to_label t v in
           let add = Vertex.to_mininet label in
-          acc ^ add
+          acc ^ "    " ^ add
         )
         t "" in
 
@@ -707,7 +707,7 @@ struct
                 (Vertex.to_string src_label) in
               let dst = Str.global_replace (Str.regexp "[ ,]") ""
                 (Vertex.to_string dst_label) in
-              Printf.sprintf " net.addLink(%s, %s, %ld, %ld)\n"
+              Printf.sprintf "    net.addLink(%s, %s, %ld, %ld)\n"
                 src dst src_port dst_port
           in
           seen := EdgeSet.add e !seen;

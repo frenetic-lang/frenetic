@@ -92,12 +92,12 @@ module Node = struct
 
   let to_mininet n = match n.dev_type with
     | Host ->
-      Printf.sprintf " %s = net.addHost(\'%s\', mac=\'%s\', ip=\'%s\')\n"
+      Printf.sprintf "%s = net.addHost(\'%s\', mac=\'%s\', ip=\'%s\')\n"
         n.name n.name
         (Packet.string_of_mac n.mac) (Packet.string_of_ip n.ip)
     | _ ->
       Printf.sprintf
-        " s%Ld = net.addSwitch(\'s%Ld\')\n" n.dev_id n.dev_id
+        "s%Ld = net.addSwitch(\'s%Ld\')\n" n.dev_id n.dev_id
 
 
   (* Update the record for a node *)
