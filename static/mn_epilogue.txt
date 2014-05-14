@@ -6,6 +6,7 @@
 
     # Start the network and prime other ARP caches
     net.start()
+    net.staticArp()
 
     # Enter CLI mode
     output("Network ready\n")

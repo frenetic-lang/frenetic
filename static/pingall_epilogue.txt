@@ -6,6 +6,8 @@
 
     # Start the network and run the pingall test
     net.start()
+    net.staticArp()
+
     print "\nFollowing connections were made:"
     dumpNodeConnections(net.hosts)
     print "\nTesting network connectivity"
