@@ -41,28 +41,38 @@ module Link = struct
 end
 
 module Net = Network.Make(Node)(Link)
-
-module PipeSet = Set.Make(struct
-  type t = string with sexp
-  let compare = Pervasives.compare
-end)
+module PipeSet = Raw_app.PipeSet
 
 exception Sequence_error of PipeSet.t * PipeSet.t
 
+type app = (Net.Topology.t ref) Raw_app.t
+
+type update = Raw_app.update
+
+type send = update Raw_app.send
+type recv = policy Raw_app.recv
+
 type result = policy option
-type handler = Net.Topology.t ref -> (switchId * SDN_Types.pktOut) Pipe.Writer.t -> unit -> event -> result Deferred.t
+type handler
+  = Net.Topology.t ref
+  -> (switchId * SDN_Types.pktOut) Pipe.Writer.t
+  -> unit
+  -> event -> result Deferred.t
 
-type app = {
-  pipes : PipeSet.t;
-  handler : handler;
-  mutable default : policy
-}
+type async_handler = (Net.Topology.t ref, Raw_app.update) Raw_app.handler
 
-let create ?pipes (default : policy) (handler : handler) : app =
-  let pipes = match pipes with
-    | None -> PipeSet.empty
-    | Some(pipes) -> pipes in
-  { pipes; default; handler }
+let create ?pipes (policy : policy) (handler : handler) : app =
+  let open Raw_app in
+  create_primitive ?pipes policy (fun a send () ->
+    let callback = handler a send.pkt_out () in
+    fun e ->
+      callback e
+      >>= function
+        | None    -> Pipe.write send.update Raw_app.EventNoop
+        | Some(p) -> Pipe.write send.update (Raw_app.Event p))
+
+let create_async ?pipes (policy : policy) (handler : async_handler) : app =
+  Raw_app.create_primitive ?pipes policy handler
 
 let create_static (pol : policy) : app =
   create pol (fun _ _ () _ -> return None)
@@ -77,72 +87,21 @@ let create_from_file (filename : string) : app =
   create_static pol
 
 let default (a : app) : policy =
-  a.default
+  a.Raw_app.policy
 
-let run
-    (a : app)
-    (t : Net.Topology.t ref)
-    (w : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
-    (_ : unit)
-    : event -> result Deferred.t =
-  let a' = a.handler t w () in
-  fun e -> match e with
-    | PacketIn(p, _, _, _, _) when not (PipeSet.mem a.pipes p) ->
-      return None
-    | _ ->
-      a' e >>| fun m_pol ->
-        begin match m_pol with
-          | Some(pol) -> a.default <- pol
-          | None -> ()
-        end;
-        m_pol
+let run (app : app) (t : Net.Topology.t ref) () : (recv * (event -> unit Deferred.t)) =
+  Raw_app.run app t ()
 
-let union ?(how=`Parallel) (a1 : app) (a2 : app) : app =
-  { pipes = PipeSet.union a1.pipes a2.pipes
-  ; default = Union(a1.default, a2.default)
-  ; handler = fun t w () ->
-      let a1' = run a1 t w () in
-      let a2' = run a2 t w () in
-      fun e ->
-        Deferred.List.map ~how:how ~f:(fun a -> a e) [a1'; a2']
-        >>= function
-          | [m_pol1; m_pol2] ->
-            begin match m_pol1, m_pol2 with
-              | None, None ->
-                return None
-              | Some(pol1), Some(pol2) ->
-                return (Some(Union(pol1, pol2)))
-              | Some(pol1), None ->
-                return (Some(Union(pol1, a2.default)))
-              | None, Some(pol2) ->
-                return (Some(Union(a1.default, pol2)))
-            end
-          | _ -> raise (Assertion_failed "Async_NetKAT.union: impossible length list")
-  }
+let union ?(how=`Parallel) (app1 : app) (app2 : app) : app =
+  Raw_app.combine ~how:how (fun x y -> Union(x, y)) app1 app2
 
-let seq (a1 : app) (a2: app) : app =
-  begin if not PipeSet.(is_empty (inter a1.pipes a2.pipes)) then
+let seq app1 app2 = (* (app1 : app) (app2: app) : app = *)
+  let open Raw_app in
+  begin if not PipeSet.(is_empty (inter app1.pipes app2.pipes)) then
     (* In order for the form of composition below, the apps must not be
      * listening on the same pipe for `PacketIn` events. In this case,
      * only one of the apps will actually run and produce PacketOut messages
      * on a `PacketIn` event. *)
-    raise (Sequence_error(a1.pipes, a2.pipes))
+    raise (Sequence_error(app1.pipes, app2.pipes))
   end;
-  { pipes = PipeSet.union a1.pipes a2.pipes
-  ; default = Seq(a1.default, a2.default)
-  ; handler = fun t w () ->
-      let a1' = run a1 t w () in
-      let a2' = run a2 t w () in
-      fun e ->
-        a1' e >>= fun m_pol1 ->
-        a2' e >>= fun m_pol2 ->
-          match m_pol1, m_pol2 with
-            | None, None ->
-              return None
-            | Some(pol1), Some(pol2) ->
-              return (Some(Seq(pol1, pol2)))
-            | Some(pol1), None ->
-              return (Some(Seq(pol1, a2.default)))
-            | None, Some(pol2) ->
-              return (Some(Seq(a1.default, pol2)))
-  }
+  Raw_app.combine ~how:`Sequential (fun x y -> Seq(x, y)) app1 app2
