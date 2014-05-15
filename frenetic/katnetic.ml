@@ -8,7 +8,7 @@ module Run = struct
     let main () =
       let static = Async_NetKAT.create_from_file filename in
       let app = if learn
-        then Async_NetKAT.union static (Learning.create ())
+        then Async_NetKAT.seq static (Learning.create ())
         else static
       in
       Async_NetKAT_Controller.start app () in
