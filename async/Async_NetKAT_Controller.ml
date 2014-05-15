@@ -168,7 +168,8 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
       let open OpenFlow0x01.Message in
       let switch_id = Controller.switch_id_of_client t.ctl c_id in
       begin match msg with
-        | PacketInMsg pi ->
+        (* only process packet_ins from physical ports *)
+        | PacketInMsg pi when pi.OpenFlow0x01_Core.port <= 0xff00 ->
           let open OpenFlow0x01_Core in
           let port_id = Int32.of_int_exn pi.port in
           let payload = SDN_OpenFlow0x01.to_payload pi.input_payload in
