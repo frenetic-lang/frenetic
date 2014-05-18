@@ -145,7 +145,19 @@ type capabilities = { flow_stats : bool; table_stats : bool;
 
 type portState = { link_down : bool; blocked : bool; live : bool }
 
-type portDesc = { port_no : portId; state : portState }
+type portConfig = { port_down : bool; no_recv : bool; no_fwd : bool;
+                    no_packet_in : bool }
+
+type portFeatures = { rate_10mb_hd : bool; rate_10mb_fd : bool; 
+											rate_100mb_hd : bool; rate_100mb_fd : bool;
+											rate_1gb_hd : bool; rate_1gb_fd : bool;
+											rate_10gb_fd : bool; rate_40gb_fd : bool;
+											rate_100gb_fd : bool; rate_1tb_fd : bool;
+											other : bool; copper : bool; fiber : bool;
+											autoneg : bool; pause : bool; pause_asym : bool }     
+
+
+type portDesc = { port_no : portId; config : portConfig; state : portState }
 
 type portReason =
   | PortAdd

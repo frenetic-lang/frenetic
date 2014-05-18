@@ -138,7 +138,37 @@ cstruct ofp_switch_features {
 
 
 (* MISSING: ofp_port_config *)
+module PortConfig = struct
+
+  let parse bits : portConfig =
+    { port_down     = Bits.test_bit 0 bits;
+      no_recv       = Bits.test_bit 2 bits;
+      no_fwd        = Bits.test_bit 5 bits;
+      no_packet_in  = Bits.test_bit 6 bits
+    }	  
+end
 (* MISSING: ofp_port_features *)
+module PortFeatures = struct
+
+  let parse bits : portFeatures =
+    { rate_10mb_hd  = Bits.test_bit 0 bits;
+      rate_10mb_fd  = Bits.test_bit 1 bits;
+      rate_100mb_hd = Bits.test_bit 2 bits;
+      rate_100mb_fd = Bits.test_bit 3 bits;
+      rate_1gb_hd   = Bits.test_bit 4 bits;
+      rate_1gb_fd   = Bits.test_bit 5 bits;
+      rate_10gb_fd  = Bits.test_bit 6 bits;
+      rate_40gb_fd  = Bits.test_bit 7 bits;
+      rate_100gb_fd = Bits.test_bit 8 bits;
+      rate_1tb_fd   = Bits.test_bit 9 bits;
+      other         = Bits.test_bit 10 bits;
+      copper        = Bits.test_bit 11 bits;
+      fiber         = Bits.test_bit 12 bits;
+      autoneg       = Bits.test_bit 13 bits;
+      pause         = Bits.test_bit 14 bits;
+      pause_asym    = Bits.test_bit 15 bits
+    }	  
+end
 
 cstruct ofp_port_stats_request {
   uint32_t port_no;
@@ -1253,10 +1283,11 @@ module PortDesc = struct
   let parse (bits : Cstruct.t) : portDesc =
     let port_no = get_ofp_port_port_no bits in
     let state = PortState.parse (get_ofp_port_state bits) in
+		let config = PortConfig.parse (get_ofp_port_config bits) in
     { port_no;
       (* hw_addr; *)
       (* name; *)
-      (* config; *)
+      config; 
       state
       (* curr; *)
       (* advertised; *)
