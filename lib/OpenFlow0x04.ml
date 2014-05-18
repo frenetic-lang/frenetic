@@ -140,13 +140,13 @@ cstruct ofp_switch_features {
 (* MISSING: ofp_port_config *)
 module PortConfig = struct
 
-  let config_to_int (config : portConfig) =
-    (if config.port_down then 1 lsl 0 else 0) lor
-		   (if config.no_recv then 1 lsl 2 else 0) lor
-         (if config.no_fwd then 1 lsl 5 else 0) lor
-           (if config.no_packet_in then 1 lsl 6 else 0)
+  let config_to_int (config : portConfig) : int32 =
+    Int32.logor (if config.port_down then (Int32.shift_left 1l 0) else 0l) 
+		   (Int32.logor (if config.no_recv then (Int32.shift_left 1l 2) else 0l)  
+         (Int32.logor (if config.no_fwd then (Int32.shift_left 1l 5) else 0l)  
+           (if config.no_packet_in then (Int32.shift_left 1l 6) else 0l)))
 
-  let marshal (pc : portConfig) : int = config_to_int pc
+  let marshal (pc : portConfig) : int32 = config_to_int pc
 		
 
   let parse bits : portConfig =
@@ -159,25 +159,25 @@ end
 (* MISSING: ofp_port_features *)
 module PortFeatures = struct
 
-  let features_to_int (features : portFeatures) =
-    (if features.rate_10mb_hd then 1 lsl 0 else 0) lor
-     (if features.rate_10mb_fd then 1 lsl 1 else 0) lor
-      (if features.rate_100mb_hd then 1 lsl 2 else 0) lor
-       (if features.rate_100mb_fd then 1 lsl 3 else 0) lor
-        (if features.rate_1gb_hd then 1 lsl 4 else 0) lor
-         (if features.rate_1gb_fd then 1 lsl 5 else 0) lor
-          (if features.rate_10gb_fd then 1 lsl 6 else 0) lor
-           (if features.rate_40gb_fd then 1 lsl 7 else 0) lor
-            (if features.rate_100gb_fd then 1 lsl 8 else 0) lor
-             (if features.rate_1tb_fd then 1 lsl 9 else 0) lor
-              (if features.other then 1 lsl 10 else 0) lor
-               (if features.copper then 1 lsl 11 else 0) lor
-                (if features.fiber then 1 lsl 12 else 0) lor
-                 (if features.autoneg then 1 lsl 13 else 0) lor
-                  (if features.pause then 1 lsl 14 else 0) lor
-                   (if features.pause_asym then 1 lsl 15 else 0)
+  let features_to_int (features : portFeatures) : int32 =
+    Int32.logor (if features.rate_10mb_hd then (Int32.shift_left 1l 0) else 0l)
+    (Int32.logor (if features.rate_10mb_fd then (Int32.shift_left 1l 1) else 0l)
+     (Int32.logor (if features.rate_100mb_hd then (Int32.shift_left 1l 2) else 0l)
+      (Int32.logor (if features.rate_100mb_fd then (Int32.shift_left 1l 3) else 0l)
+       (Int32.logor (if features.rate_1gb_hd then (Int32.shift_left 1l 4) else 0l)
+        (Int32.logor (if features.rate_1gb_fd then (Int32.shift_left 1l 5) else 0l)
+         (Int32.logor (if features.rate_10gb_fd then (Int32.shift_left 1l 6) else 0l)
+          (Int32.logor (if features.rate_40gb_fd then (Int32.shift_left 1l 7) else 0l)
+           (Int32.logor (if features.rate_100gb_fd then (Int32.shift_left 1l 8) else 0l)
+            (Int32.logor (if features.rate_1tb_fd then (Int32.shift_left 1l 9) else 0l)
+             (Int32.logor (if features.other then (Int32.shift_left 1l 10) else 0l)
+              (Int32.logor (if features.copper then (Int32.shift_left 1l 11) else 0l)
+               (Int32.logor (if features.fiber then (Int32.shift_left 1l 12) else 0l)
+                (Int32.logor (if features.autoneg then (Int32.shift_left 1l 13) else 0l)
+                 (Int32.logor (if features.pause then (Int32.shift_left 1l 14) else 0l)
+                  (if features.pause_asym then (Int32.shift_left 1l 15) else 0l)))))))))))))))
 
-  let marshal (pf : portFeatures) : int = features_to_int pf
+  let marshal (pf : portFeatures) : int32 = features_to_int pf
 
   let parse bits : portFeatures =
     { rate_10mb_hd  = Bits.test_bit 0 bits;
@@ -1300,6 +1300,13 @@ end
 
 module PortState = struct
 
+  let state_to_int (state : portState) : int32 =
+    Int32.logor (if state.link_down then (Int32.shift_left 1l 0) else 0l) 
+     (Int32.logor (if state.blocked then (Int32.shift_left 1l 1) else 0l)  
+      (if state.live then (Int32.shift_left 1l 2) else 0l))
+
+  let marshal (ps : portState) : int32 = state_to_int ps
+
   let parse bits : portState =
     { link_down = Bits.test_bit 0 bits;
       blocked = Bits.test_bit 1 bits;
@@ -1308,7 +1315,22 @@ module PortState = struct
 end
 
 module PortDesc = struct
-    
+
+  let marshal (buf : Cstruct.t) (desc : portDesc) : int =
+    let size = sizeof_ofp_port in
+		set_ofp_port_port_no buf desc.port_no;
+		(* set_ofp_port_hw_addr NIY *)
+		(* set_ofp_port_name NIY *)
+		set_ofp_port_config buf (PortConfig.marshal desc.config);
+		set_ofp_port_state buf (PortState.marshal desc.state);
+		set_ofp_port_curr buf (PortFeatures.marshal desc.curr);
+		set_ofp_port_advertised buf (PortFeatures.marshal desc.advertised);
+		set_ofp_port_supported buf (PortFeatures.marshal desc.supported);
+		set_ofp_port_peer buf (PortFeatures.marshal desc.peer);
+		(* set_ofp_port_curr_speed NIY *)
+		(* set_ofp_port_max_speed NIY *)
+		size
+	    
   let parse (bits : Cstruct.t) : portDesc =
     let port_no = get_ofp_port_port_no bits in
     let state = PortState.parse (get_ofp_port_state bits) in
