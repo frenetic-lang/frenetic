@@ -1704,7 +1704,8 @@ module Message = struct
         Header.size + String.length (Cstruct.to_string bytes)
       | FeaturesRequest ->
         Header.size
-      | FeaturesReply _ -> failwith "NYI: marshal FeaturesReply"
+      | FeaturesReply fr ->
+        Header.size + SwitchFeatures.marshal out fr
       | FlowModMsg fm ->
         Header.size + FlowMod.marshal out fm
       | GroupModMsg gm ->
