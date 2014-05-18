@@ -1318,18 +1318,18 @@ module PortDesc = struct
 
   let marshal (buf : Cstruct.t) (desc : portDesc) : int =
     let size = sizeof_ofp_port in
-		set_ofp_port_port_no buf desc.port_no;
-		(* set_ofp_port_hw_addr NIY *)
-		(* set_ofp_port_name NIY *)
-		set_ofp_port_config buf (PortConfig.marshal desc.config);
-		set_ofp_port_state buf (PortState.marshal desc.state);
-		set_ofp_port_curr buf (PortFeatures.marshal desc.curr);
-		set_ofp_port_advertised buf (PortFeatures.marshal desc.advertised);
-		set_ofp_port_supported buf (PortFeatures.marshal desc.supported);
-		set_ofp_port_peer buf (PortFeatures.marshal desc.peer);
-		(* set_ofp_port_curr_speed NIY *)
-		(* set_ofp_port_max_speed NIY *)
-		size
+    set_ofp_port_port_no buf desc.port_no;
+    (* set_ofp_port_hw_addr NIY *)
+    (* set_ofp_port_name NIY *)
+    set_ofp_port_config buf (PortConfig.marshal desc.config);
+    set_ofp_port_state buf (PortState.marshal desc.state);
+    set_ofp_port_curr buf (PortFeatures.marshal desc.curr);
+    set_ofp_port_advertised buf (PortFeatures.marshal desc.advertised);
+    set_ofp_port_supported buf (PortFeatures.marshal desc.supported);
+    set_ofp_port_peer buf (PortFeatures.marshal desc.peer);
+    (* set_ofp_port_curr_speed NIY *)
+    (* set_ofp_port_max_speed NIY *)
+    size
 	    
   let parse (bits : Cstruct.t) : portDesc =
     let port_no = get_ofp_port_port_no bits in
@@ -1354,6 +1354,12 @@ end
 
 module PortReason = struct
 
+  let marshal (t : portReason) = 
+    match t with
+      | PortAdd -> ofp_port_reason_to_int OFPPR_ADD
+      | PortDelete -> ofp_port_reason_to_int OFPPR_DELETE 
+      | PortModify -> ofp_port_reason_to_int OFPPR_MODIFY
+
   let parse bits : portReason =
     match (int_to_ofp_port_reason bits) with
       | Some OFPPR_ADD -> PortAdd
@@ -1364,6 +1370,15 @@ module PortReason = struct
 end
 
 module PortStatus = struct
+
+  let sizeof (status : portStatus) : int = 
+    sizeof_ofp_port_status + sizeof_ofp_port
+
+  let marshal (buf : Cstruct.t) (status : portStatus) : int =
+		set_ofp_port_status_reason buf (PortReason.marshal status.reason);
+    let size = sizeof_ofp_port_status + 
+        PortDesc.marshal (Cstruct.shift buf sizeof_ofp_port_status) status.desc in
+		size
 
   let parse (bits : Cstruct.t) : portStatus =
     let reason = PortReason.parse (get_ofp_port_status_reason bits) in 
@@ -1686,8 +1701,9 @@ module Message = struct
       | BarrierRequest -> failwith "NYI: marshal BarrierRequest"
       | BarrierReply -> failwith "NYI: marshal BarrierReply"
       | PacketInMsg _ -> failwith "NYI: marshal PacketInMsg"
-      | PortStatusMsg _ -> failwith "NYI: marshal PortStatusMsg"
-      | Error _ -> failwith "NYI: marshall Error"
+      | PortStatusMsg ps -> 
+        Header.size + PortStatus.marshal out ps
+			| Error _ -> failwith "NYI: marshall Error"
 
 
   let header_of xid msg =
