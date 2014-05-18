@@ -157,9 +157,9 @@ type packetInReason =
 | ExplicitSend
 
 type packetIn = { pi_total_len : int16; pi_reason : packetInReason; 
-		  pi_table_id : tableId; pi_cookie : int64;
-		  pi_ofp_match : oxmMatch; pi_payload : payload 
-		}
+          pi_table_id : tableId; pi_cookie : int64;
+          pi_ofp_match : oxmMatch; pi_payload : payload 
+        }
 
 type capabilities = { flow_stats : bool; table_stats : bool;
                       port_stats : bool; group_stats : bool; ip_reasm : 
@@ -179,16 +179,16 @@ type portFeatures = { rate_10mb_hd : bool; rate_10mb_fd : bool;
                       autoneg : bool; pause : bool; pause_asym : bool }    
 
 type portDesc = { port_no : portId;
-		  (* hw_addr : int48; *)
-		  (* name; *)
-      config : portConfig;
-      state : portState;
-      curr : portFeatures;
-      advertised : portFeatures;
-      supported : portFeatures; 
-      peer : portFeatures
-		  (* curr_speed; *)
-		  (* max_speed *) }
+                  (* hw_addr : int48; *)
+                  (* name; *)
+                  config : portConfig;
+                  state : portState;
+                  curr : portFeatures;
+                  advertised : portFeatures;
+                  supported : portFeatures; 
+                  peer : portFeatures
+                  (* curr_speed; *)
+                  (* max_speed *) }
 
 type portReason =
   | PortAdd 

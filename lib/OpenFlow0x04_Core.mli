@@ -159,7 +159,7 @@ type portFeatures = { rate_10mb_hd : bool; rate_10mb_fd : bool;
 
 type portDesc = { port_no : portId; config : portConfig; state : portState;
                   curr : portFeatures; advertised : portFeatures; supported :
-									portFeatures; peer : portFeatures }
+                  portFeatures; peer : portFeatures }
 
 type portReason =
   | PortAdd
