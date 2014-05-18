@@ -1263,6 +1263,15 @@ end
 
 module Capabilities = struct
 
+  let to_int32 (capa : capabilities) : int32 = 
+    Int32.logor (if capa.flow_stats then (Int32.shift_left 1l 0) else 0l)
+     (Int32.logor (if capa.table_stats then (Int32.shift_left 1l 1) else 0l)
+      (Int32.logor (if capa.port_stats then (Int32.shift_left 1l 2) else 0l)
+       (Int32.logor (if capa.group_stats then (Int32.shift_left 1l 3) else 0l)
+        (Int32.logor (if capa.ip_reasm then (Int32.shift_left 1l 5) else 0l)
+         (Int32.logor (if capa.queue_stats then (Int32.shift_left 1l 6) else 0l)
+           (if capa.port_blocked then (Int32.shift_left 1l 7) else 0l))))))
+
   let parse (bits : int32) : capabilities =
     { port_blocked = Bits.test_bit 7 bits;
       queue_stats = Bits.test_bit 6 bits;
@@ -1281,6 +1290,13 @@ module SwitchFeatures = struct
              num_tables : int8; aux_id : int8;
              supported_capabilities : capabilities }
 
+  let marshal (buf : Cstruct.t) (features : t) : int =
+    set_ofp_switch_features_datapath_id buf features.datapath_id;
+    set_ofp_switch_features_n_buffers buf features.num_buffers;
+    set_ofp_switch_features_n_tables buf features.num_tables;
+    set_ofp_switch_features_auxiliary_id buf features.aux_id;
+    set_ofp_switch_features_capabilities buf (Capabilities.to_int32 features.supported_capabilities); 
+    sizeof_ofp_switch_features
 
   let parse (bits : Cstruct.t) : t =
     let datapath_id = get_ofp_switch_features_datapath_id bits in 
