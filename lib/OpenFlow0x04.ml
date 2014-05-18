@@ -1371,7 +1371,7 @@ end
 
 module PortStatus = struct
 
-  let sizeof (status : portStatus) : int = 
+  let sizeof () : int = 
     sizeof_ofp_port_status + sizeof_ofp_port
 
   let marshal (buf : Cstruct.t) (status : portStatus) : int =
@@ -1648,7 +1648,7 @@ module Message = struct
     | GroupModMsg gm -> Header.size + GroupMod.sizeof gm
     | PacketInMsg _ -> failwith "NYI: sizeof PacketInMsg"
     | PacketOutMsg po -> Header.size + PacketOut.sizeof po
-    | PortStatusMsg _ -> failwith "NYI: sizeof PortStatusMsg"
+    | PortStatusMsg _ -> Header.size + PortStatus.sizeof ()
     | MultipartReq req -> Header.size + MultipartReq.sizeof req
     | MultipartReply _ -> failwith "NYI: sizeof MultipartReply"
     | BarrierRequest -> failwith "NYI: sizeof BarrierRequest"
