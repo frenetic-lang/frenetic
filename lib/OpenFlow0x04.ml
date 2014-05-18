@@ -140,6 +140,15 @@ cstruct ofp_switch_features {
 (* MISSING: ofp_port_config *)
 module PortConfig = struct
 
+  let config_to_int (config : portConfig) =
+    (if config.port_down then 1 lsl 0 else 0) lor
+		   (if config.no_recv then 1 lsl 2 else 0) lor
+         (if config.no_fwd then 1 lsl 5 else 0) lor
+           (if config.no_packet_in then 1 lsl 6 else 0)
+
+  let marshal (pc : portConfig) : int = config_to_int pc
+		
+
   let parse bits : portConfig =
     { port_down     = Bits.test_bit 0 bits;
       no_recv       = Bits.test_bit 2 bits;
@@ -149,6 +158,26 @@ module PortConfig = struct
 end
 (* MISSING: ofp_port_features *)
 module PortFeatures = struct
+
+  let features_to_int (features : portFeatures) =
+    (if features.rate_10mb_hd then 1 lsl 0 else 0) lor
+     (if features.rate_10mb_fd then 1 lsl 1 else 0) lor
+      (if features.rate_100mb_hd then 1 lsl 2 else 0) lor
+       (if features.rate_100mb_fd then 1 lsl 3 else 0) lor
+        (if features.rate_1gb_hd then 1 lsl 4 else 0) lor
+         (if features.rate_1gb_fd then 1 lsl 5 else 0) lor
+          (if features.rate_10gb_fd then 1 lsl 6 else 0) lor
+           (if features.rate_40gb_fd then 1 lsl 7 else 0) lor
+            (if features.rate_100gb_fd then 1 lsl 8 else 0) lor
+             (if features.rate_1tb_fd then 1 lsl 9 else 0) lor
+              (if features.other then 1 lsl 10 else 0) lor
+               (if features.copper then 1 lsl 11 else 0) lor
+                (if features.fiber then 1 lsl 12 else 0) lor
+                 (if features.autoneg then 1 lsl 13 else 0) lor
+                  (if features.pause then 1 lsl 14 else 0) lor
+                   (if features.pause_asym then 1 lsl 15 else 0)
+
+  let marshal (pf : portFeatures) : int = features_to_int pf
 
   let parse bits : portFeatures =
     { rate_10mb_hd  = Bits.test_bit 0 bits;
