@@ -1284,15 +1284,19 @@ module PortDesc = struct
     let port_no = get_ofp_port_port_no bits in
     let state = PortState.parse (get_ofp_port_state bits) in
 		let config = PortConfig.parse (get_ofp_port_config bits) in
+		let curr = PortFeatures.parse (get_ofp_port_curr bits) in
+		let advertised = PortFeatures.parse (get_ofp_port_advertised bits) in
+		let supported = PortFeatures.parse (get_ofp_port_supported bits) in
+		let peer = PortFeatures.parse (get_ofp_port_peer bits) in
     { port_no;
       (* hw_addr; *)
       (* name; *)
       config; 
-      state
-      (* curr; *)
-      (* advertised; *)
-      (* supported; *)
-      (* peer; *)
+      state;
+      curr;
+      advertised;
+      supported;
+      peer
       (* curr_speed; *)
       (* max_speed *) }
 end

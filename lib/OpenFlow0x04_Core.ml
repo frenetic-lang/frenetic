@@ -182,11 +182,11 @@ type portDesc = { port_no : portId;
 		  (* hw_addr : int48; *)
 		  (* name; *)
 		  config : portConfig;
-		  state : portState
-		  (* curr; *)
-		  (* advertised; *)
-		  (* supported; *)
-		  (* peer; *)
+		  state : portState;
+		  curr : portFeatures;
+		  advertised : portFeatures;
+		  supported : portFeatures; 
+		  peer : portFeatures
 		  (* curr_speed; *)
 		  (* max_speed *) }
 
