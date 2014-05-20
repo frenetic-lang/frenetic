@@ -1427,6 +1427,10 @@ module PacketIn = struct
    uint64_t cookie
   } as big_endian
 
+  (* have to check this part, (and in marshal too, not sure of the correctness *)
+  let sizeof (pi : packetIn) : int = 
+    pi.pi_total_len + (OfpMatch.sizeof pi.pi_ofp_match) + sizeof_ofp_packet_in
+
   let marshal (buf : Cstruct.t) (pi : packetIn) : int = 
     let bufMatch = Cstruct.shift buf sizeof_ofp_packet_in in
     let size = pi.pi_total_len + (OfpMatch.marshal bufMatch pi.pi_ofp_match) + 
