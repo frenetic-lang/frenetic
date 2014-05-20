@@ -142,9 +142,9 @@ module PortConfig = struct
 
   let config_to_int (config : portConfig) : int32 =
     Int32.logor (if config.port_down then (Int32.shift_left 1l 0) else 0l) 
-		   (Int32.logor (if config.no_recv then (Int32.shift_left 1l 2) else 0l)  
-         (Int32.logor (if config.no_fwd then (Int32.shift_left 1l 5) else 0l)  
-           (if config.no_packet_in then (Int32.shift_left 1l 6) else 0l)))
+     (Int32.logor (if config.no_recv then (Int32.shift_left 1l 2) else 0l)  
+      (Int32.logor (if config.no_fwd then (Int32.shift_left 1l 5) else 0l)
+       (if config.no_packet_in then (Int32.shift_left 1l 6) else 0l)))
 
   let marshal (pc : portConfig) : int32 = config_to_int pc
 		
@@ -234,9 +234,10 @@ cstruct ofp_port_stats {
 
 cstruct ofp_port {
   uint32_t port_no;
-  uint8_t pad[4];
+  uint32_t pad;
   uint8_t hw_addr[6];
-  uint8_t pad2[2]; (* Align to 64 bits. *)
+  uint8_t pad2; (* Align to 64 bits. *)
+  uint8_t pad3;
   uint8_t name[16]; (* OFP_MAX_PORT_NAME_LEN, Null-terminated *)
   uint32_t config; (* Bitmap of OFPPC_* flags. *)
   uint32_t state; (* Bitmap of OFPPS_* flags. *)
@@ -1295,6 +1296,9 @@ module SwitchFeatures = struct
     set_ofp_switch_features_n_buffers buf features.num_buffers;
     set_ofp_switch_features_n_tables buf features.num_tables;
     set_ofp_switch_features_auxiliary_id buf features.aux_id;
+    set_ofp_switch_features_pad0 buf 0;
+    set_ofp_switch_features_pad1 buf 0;
+    set_ofp_switch_features_pad2 buf 0;
     set_ofp_switch_features_capabilities buf (Capabilities.to_int32 features.supported_capabilities); 
     sizeof_ofp_switch_features
 
@@ -1335,7 +1339,10 @@ module PortDesc = struct
   let marshal (buf : Cstruct.t) (desc : portDesc) : int =
     let size = sizeof_ofp_port in
     set_ofp_port_port_no buf desc.port_no;
+    set_ofp_port_pad buf 0l;
     (* set_ofp_port_hw_addr NIY *)
+    set_ofp_port_pad2 buf 0;
+    set_ofp_port_pad3 buf 0;
     (* set_ofp_port_name NIY *)
     set_ofp_port_config buf (PortConfig.marshal desc.config);
     set_ofp_port_state buf (PortState.marshal desc.state);
@@ -1391,10 +1398,10 @@ module PortStatus = struct
     sizeof_ofp_port_status + sizeof_ofp_port
 
   let marshal (buf : Cstruct.t) (status : portStatus) : int =
-		set_ofp_port_status_reason buf (PortReason.marshal status.reason);
+	set_ofp_port_status_reason buf (PortReason.marshal status.reason);
     let size = sizeof_ofp_port_status + 
         PortDesc.marshal (Cstruct.shift buf sizeof_ofp_port_status) status.desc in
-		size
+	size
 
   let parse (bits : Cstruct.t) : portStatus =
     let reason = PortReason.parse (get_ofp_port_status_reason bits) in 
@@ -1408,7 +1415,8 @@ module PacketIn = struct
 
  cenum reasonType {
    NO_MATCH = 0;
-   ACTION = 1
+   ACTION = 1;
+   INVALID_TTL = 2
  } as uint8_t
 
  cstruct ofp_packet_in {
@@ -1418,6 +1426,25 @@ module PacketIn = struct
    uint8_t table_id;
    uint64_t cookie
   } as big_endian
+
+  let marshal (buf : Cstruct.t) (pi : packetIn) : int = 
+    let bufMatch = Cstruct.shift buf sizeof_ofp_packet_in in
+    let size = pi.pi_total_len + (OfpMatch.marshal bufMatch pi.pi_ofp_match) + 
+               sizeof_ofp_packet_in in
+    let buffer_id,bytes = match pi.pi_payload with
+     | Buffered (n,bytes) -> n, bytes
+     | NotBuffered bytes -> -1l, bytes in
+    Cstruct.blit bytes 0 buf (sizeof_ofp_packet_in + OfpMatch.sizeof pi.pi_ofp_match) size;
+    set_ofp_packet_in_buffer_id buf buffer_id;
+	set_ofp_packet_in_total_len buf pi.pi_total_len;
+	set_ofp_packet_in_reason buf
+        (match pi.pi_reason with
+         | NoMatch -> reasonType_to_int NO_MATCH
+         | ExplicitSend -> reasonType_to_int ACTION
+         | InvalidTTL -> reasonType_to_int INVALID_TTL);
+	set_ofp_packet_in_table_id buf pi.pi_table_id;
+	set_ofp_packet_in_cookie buf pi.pi_cookie;
+    size
 
   let parse (bits : Cstruct.t) : packetIn =
     (* let oc = open_out "test-msg-1.3-msg3-bits" in *)
@@ -1432,6 +1459,7 @@ module PacketIn = struct
     let reason = match int_to_reasonType reason_code with
       | Some NO_MATCH -> NoMatch
       | Some ACTION -> ExplicitSend
+	  | Some INVALID_TTL -> InvalidTTL
       | None ->
 	raise (Unparsable (sprintf "bad reason in packet_in (%d)" reason_code)) in
     let table_id = get_ofp_packet_in_table_id bits in

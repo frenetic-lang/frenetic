@@ -31,6 +31,7 @@ let to_reason (reason : Core.packetInReason) : AL.packetInReason =
   match reason with
     | ExplicitSend -> AL.ExplicitSend
     | NoMatch -> AL.NoMatch
+    | InvalidTTL -> AL.InvalidTTL
       
 let to_packetIn (pktIn : Core.packetIn) : AL.pktIn =
   let open Core in

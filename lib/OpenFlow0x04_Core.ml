@@ -155,6 +155,7 @@ let delete_all_flows =
 type packetInReason =
 | NoMatch
 | ExplicitSend
+| InvalidTTL
 
 type packetIn = { pi_total_len : int16; pi_reason : packetInReason; 
           pi_table_id : tableId; pi_cookie : int64;

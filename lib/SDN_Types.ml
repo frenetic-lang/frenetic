@@ -96,6 +96,7 @@ let payload_bytes (payload : payload) : bytes =
 type packetInReason =
   | NoMatch
   | ExplicitSend
+  | InvalidTTL
 
 type pktIn = payload * int * portId * packetInReason
 
