@@ -1770,10 +1770,10 @@ module Message = struct
       | BarrierRequest -> failwith "NYI: marshal BarrierRequest"
       | BarrierReply -> failwith "NYI: marshal BarrierReply"
       | PacketInMsg pi ->
-      Header.size + PacketIn.marshal out pi
+        Header.size + PacketIn.marshal out pi
       | PortStatusMsg ps -> 
         Header.size + PortStatus.marshal out ps
-			| Error _ -> failwith "NYI: marshall Error"
+      | Error _ -> failwith "NYI: marshall Error"
 
 
   let header_of xid msg =
