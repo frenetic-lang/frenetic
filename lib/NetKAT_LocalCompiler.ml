@@ -32,6 +32,7 @@ module type FIELD = sig
   val compare : t -> t -> int
   val equal : t -> t -> bool
   val to_string : t -> string
+  val any : t
   val is_any : t -> bool
   val inter : t -> t -> t option
   val subseteq : t -> t -> bool
@@ -119,17 +120,20 @@ module PrefixTable (F:FIELD) = struct
       match l with [] -> True | h::_ -> h)
 
   let expand t =
+    let any_cons acc (p,b) =
+      if F.is_any p then ((None, b)::acc)
+      else ((Some p, b)::acc) in
     let rec drop_false l =
       match l with
         | (_,false)::t -> drop_false t
         | _ -> List.rev l in
-    drop_false (List.fold_left t ~init:[] ~f:(fun acc (p,b) -> (Some p, b)::acc))
+    drop_false (List.fold_left t ~init:[] ~f:any_cons)
 
   let obscures (t1:t) (t2:t) : bool =
     (* Does any rule in (expand t2) shadow a rule in (expand t1) ? *)
     let unlift = function
       ((Some y),b) -> (y,b)
-    | (None,_) -> failwith "impossible" in
+    | (None,b) -> (F.any, b) in
     let expanded = List.map (expand t2) ~f:unlift in
     List.exists ~f:(fun (x,_) -> is_shadowed x expanded)
       (List.map (expand t1) ~f:unlift)

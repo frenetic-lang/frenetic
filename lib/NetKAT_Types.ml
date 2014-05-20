@@ -199,6 +199,7 @@ module Int32TupleHeader = struct
   let is_any ((_,m):t) : bool =
     (* w.x.y.z/m matches anything if the network mask m is 0. *)
     m = 0l
+  let any = (0l, 0l)
 
   let min_int32 x y = if Int32.(<) x y then x else y
 
@@ -219,7 +220,7 @@ module Int32TupleHeader = struct
     else None
 
   let subseteq ((n,m) as p1: t) ((r,s) as p2: t) : bool =
-    if are_compatible p1 p2 then Int32.(>) m s
+    if are_compatible p1 p2 then Int32.(>=) m s
     else false
 
 end
