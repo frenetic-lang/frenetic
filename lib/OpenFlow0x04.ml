@@ -48,6 +48,7 @@ cenum msg_code {
   ROLE_RESP;
   GET_ASYNC_REQ;
   GET_ASYNC_REP;
+  SET_ASYNC;
   METER_MOD
 } as uint8_t
 
@@ -1665,6 +1666,7 @@ module Message = struct
     | ROLE_RESP -> "ROLE_RESP"
     | GET_ASYNC_REQ -> "GET_ASYNC_REQ"
     | GET_ASYNC_REP -> "GET_ASYNC_REP"
+    | SET_ASYNC -> "SEC_ASYNC"
     | METER_MOD -> "METER_MOD"
 
   module Header = OpenFlow_Header
