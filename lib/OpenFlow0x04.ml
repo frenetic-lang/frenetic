@@ -1749,7 +1749,8 @@ module Message = struct
       | MultipartReply _ -> failwith "NYI: marshal MultipartReply"
       | BarrierRequest -> failwith "NYI: marshal BarrierRequest"
       | BarrierReply -> failwith "NYI: marshal BarrierReply"
-      | PacketInMsg _ -> failwith "NYI: marshal PacketInMsg"
+      | PacketInMsg pi ->
+      Header.size + PacketIn.marshal out pi
       | PortStatusMsg ps -> 
         Header.size + PortStatus.marshal out ps
 			| Error _ -> failwith "NYI: marshall Error"
