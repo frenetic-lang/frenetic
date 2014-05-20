@@ -1714,7 +1714,7 @@ module Message = struct
     | FeaturesReply _ -> Header.size + sizeof_ofp_switch_features
     | FlowModMsg fm -> Header.size + FlowMod.sizeof fm
     | GroupModMsg gm -> Header.size + GroupMod.sizeof gm
-    | PacketInMsg _ -> failwith "NYI: sizeof PacketInMsg"
+    | PacketInMsg pi -> Header.size + PacketIn.sizeof pi
     | PacketOutMsg po -> Header.size + PacketOut.sizeof po
     | PortStatusMsg _ -> Header.size + PortStatus.sizeof ()
     | MultipartReq req -> Header.size + MultipartReq.sizeof req
