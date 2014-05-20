@@ -181,3 +181,7 @@ type multipartRequest =
 
 type multipartReply = 
   | PortsDescReply of portDesc list
+
+type tableConfig = Deprecated
+
+type tableMod = { table_id : tableId; config : tableConfig }

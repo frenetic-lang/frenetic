@@ -1594,6 +1594,24 @@ module MultipartReply = struct
 
 end
 
+module TableMod = struct
+
+    cstruct ofp_table_mod {
+      uint8_t table_id;
+      uint8_t pad[3];
+      uint32_t confi
+    } as big_endian
+    
+    cenum ofp_table_config {
+      OFPTC_DEPRECATED_MASK = 0x00000003l (* currently deprecated *)
+    } as uint32_t
+
+    let sizeof (tab : tableMod) : int =
+    sizeof_ofp_table_mod
+
+end
+
+
 module Error = struct
 
   type t = {
