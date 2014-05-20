@@ -32,6 +32,7 @@ module type FIELD = sig
   val compare : t -> t -> int
   val equal : t -> t -> bool
   val to_string : t -> string
+  val is_any : t -> bool
   val inter : t -> t -> t option
   val subseteq : t -> t -> bool
 end
@@ -98,19 +99,22 @@ module PrefixTable (F:FIELD) = struct
 
   let to_netkat_pred (v_to_header_val: v -> NetKAT_Types.header_val) (t:t) =
     let open NetKAT_Types in
-    let make_pi (plst: pred list) (pi: pred) (b: bool) : pred list =
-      match plst with
-        [] -> if b then [pi] else [Neg pi]
-      | h::t -> (
-        let disj = List.fold_left ~f:(fun acc x -> Or (acc, x)) ~init:h t in
-        (And(Neg disj, if b then pi else (Neg pi)))::plst) in
+    let make_pi (plst: pred list) (p: v) (b: bool) : pred list =
+      if F.is_any p then plst
+      else (
+        let pi = (Test(v_to_header_val p)) in
+        match plst with
+          [] -> if b then [pi] else [Neg pi]
+        | h::t -> (
+          let disj = List.fold_left ~f:(fun acc x -> Or (acc, x)) ~init:h t in
+          (And(Neg disj, if b then pi else (Neg pi)))::plst)) in
     (* !(p1 | ... | p(i-1)) & (b?pi:!pi) *)
     match t with
       [] -> True
     | (h,hb)::t -> (
       let l = List.fold_left
-        ~f:(fun acc (v,b) -> make_pi acc (Test(v_to_header_val v)) b)
-        ~init:(make_pi [] (Test(v_to_header_val h)) hb)
+        ~f:(fun acc (v,b) -> make_pi acc v b)
+        ~init:(make_pi [] h hb)
         t in
       match l with [] -> True | h::_ -> h)
 

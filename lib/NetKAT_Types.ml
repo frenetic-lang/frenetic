@@ -196,7 +196,9 @@ module Int32TupleHeader = struct
   let to_string (p,m) =
     let s = if m = 32l then "" else "/" ^ (Int32Header.to_string m) in
     Int32Header.to_string p ^ s
-  let is_any _ = false
+  let is_any ((_,m):t) : bool =
+    (* w.x.y.z/m matches anything if the network mask m is 0. *)
+    m = 0l
 
   let min_int32 x y = if Int32.(<) x y then x else y
 
