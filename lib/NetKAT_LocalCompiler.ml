@@ -28,43 +28,39 @@ type 'a posneg =
   with sexp
 
 module type FIELD = sig
-  type v with sexp
   type t with sexp
-  val singleton : v -> t
   val compare : t -> t -> int
   val equal : t -> t -> bool
   val to_string : t -> string
-  val any : t
-  val is_any : t -> bool
-  val empty : t
-  val is_empty : t -> bool
   val inter : t -> t -> t option
-  val neg : t -> t
-  val diff : t -> t -> t
-  val subseteq : v -> v -> bool
-  (* conversions *)
-  val to_netkat_pred : (v -> NetKAT_Types.header_val) -> t -> NetKAT_Types.pred
-  val expand : t -> (v * bool) list
-  val obscures : t -> t -> bool
+  val subseteq : t -> t -> bool
 end
 
 module PrefixTable (F:FIELD) = struct
-  type v = F.v with sexp
+  type v = F.t with sexp
   type t = (v * bool) list with sexp
 
-  let singleton (n,m) = [(n,m),true]
+  let singleton x = [x,true]
 
-  let compare ((n,m),b1) ((p,q),b2) =
-    if Pervasives.compare n p = 0 then (
-      if Pervasives.compare m q = 0 then Pervasives.compare b1 b2
-      else Pervasives.compare m q)
-    else Pervasives.compare n p
+  let rec compare (a:t) (b:t) =
+    let compare_entry (n,b1) (p,b2) =
+      if F.compare n p = 0 then Pervasives.compare b1 b2
+      else F.compare n p in
+    match (a,b) with
+      ([],[]) -> 0
+    | ([],_) -> (-1)
+    | (_,[]) -> 1
+    | (h::t, h'::t') -> (
+      if compare_entry h h' = 0 then compare t t'
+      else compare_entry h h')
 
   let equal t1 t2 = compare t1 t2 = 0
 
-  let to_string ((n,m),b) =
-    let s = if m = 32l then "" else "/" ^ (Int32.to_string m) in
-    (Int32.to_string n) ^ s ^ " " ^ (string_of_bool b)
+  let to_string (t:t) =
+    let entry_to_string ((x,b):(v*bool)) : string =
+      (F.to_string x) ^ " " ^ (string_of_bool b) in
+    List.fold_left t ~init:""
+      ~f:(fun acc x -> acc ^ " [" ^ (entry_to_string x) ^ "]")
 
   let any =
     [(0l,0l), true]
@@ -100,11 +96,11 @@ module PrefixTable (F:FIELD) = struct
   let diff t1 t2 =
     inter t1 (neg t2)
 
-  let to_netkat_pred v_to_header_val t =
+  let to_netkat_pred (v_to_header_val: v -> NetKAT_Types.header_val) (t:t) =
     let open NetKAT_Types in
     let make_pi (plst: pred list) (pi: pred) (b: bool) : pred list =
       match plst with
-        [] -> if b then pi::plst else (Neg pi)::plst
+        [] -> if b then [pi] else [Neg pi]
       | h::t -> (
         let disj = List.fold_left ~f:(fun acc x -> Or (acc, x)) ~init:h t in
         (And(Neg disj, if b then pi else (Neg pi)))::plst) in
@@ -113,8 +109,8 @@ module PrefixTable (F:FIELD) = struct
       [] -> True
     | (h,hb)::t -> (
       let l = List.fold_left
-        ~f:(fun acc (v,b) -> make_pi acc (v_to_header_val v) b)
-        ~init:(make_pi [h] (v_to_header_val h) hb)
+        ~f:(fun acc (v,b) -> make_pi acc (Test(v_to_header_val v)) b)
+        ~init:(make_pi [] (Test(v_to_header_val h)) hb)
         t in
       match l with [] -> True | h::_ -> h)
 
@@ -123,12 +119,16 @@ module PrefixTable (F:FIELD) = struct
       match l with
         | (_,false)::t -> drop_false t
         | _ -> List.rev l in
-    drop_false (List.fold_left t ~init:[] ~f:(fun acc (p,b) -> (p, b)::acc))
+    drop_false (List.fold_left t ~init:[] ~f:(fun acc (p,b) -> (Some p, b)::acc))
 
-  let obscures t1 t2 : bool =
+  let obscures (t1:t) (t2:t) : bool =
     (* Does any rule in (expand t2) shadow a rule in (expand t1) ? *)
-    let expanded = expand t2 in
-    List.exists ~f:(fun (x,_) -> is_shadowed x expanded) (expand t1)
+    let unlift = function
+      ((Some y),b) -> (y,b)
+    | (None,_) -> failwith "impossible" in
+    let expanded = List.map (expand t2) ~f:unlift in
+    List.exists ~f:(fun (x,_) -> is_shadowed x expanded)
+      (List.map (expand t1) ~f:unlift)
 
 end
 
@@ -260,6 +260,8 @@ module PN16 = PosNeg(NetKAT_Types.IntHeader)
 module PN8 = PosNeg(NetKAT_Types.IntHeader)
 module PNIp = PosNeg(NetKAT_Types.Int32TupleHeader)
 
+module PTIp = PrefixTable(NetKAT_Types.Int32TupleHeader)
+
 module HeadersOptionalValues =
   NetKAT_Types.Headers.Make
     (OL)
@@ -283,8 +285,8 @@ module HeadersPosNeg =
     (PN8)
     (PN16)
     (PN8)
-    (PNIp)
-    (PNIp)
+    (PTIp)
+    (PTIp)
     (PN16)
     (PN16)
 
@@ -437,8 +439,8 @@ module Pattern = struct
       ~vlanPcp:(g PN8.to_netkat_pred (fun v -> VlanPcp v))
       ~ethType:(g PN16.to_netkat_pred (fun v -> EthType v))
       ~ipProto:(g PN8.to_netkat_pred (fun v -> IPProto v))
-      ~ipSrc:(g PN32.to_netkat_pred (fun (v,m) -> IP4Src (v,m)))
-      ~ipDst:(g PN32.to_netkat_pred (fun (v,m) -> IP4Dst (v,m)))
+      ~ipSrc:(g PTIp.to_netkat_pred (fun (v,m) -> IP4Src (v,m)))
+      ~ipDst:(g PTIp.to_netkat_pred (fun (v,m) -> IP4Dst (v,m)))
       ~tcpSrcPort:(g PN16.to_netkat_pred (fun v -> TCPSrcPort v))
       ~tcpDstPort:(g PN16.to_netkat_pred (fun v -> TCPDstPort v))
 
@@ -451,8 +453,8 @@ module Pattern = struct
           vlanPcp = PN8.any;
           ethType = PN16.any;
           ipProto = PN8.any;
-          ipSrc = PNIp.any;
-          ipDst = PNIp.any;
+          ipSrc = PTIp.any;
+          ipDst = PTIp.any;
           tcpSrcPort = PN16.any;
           tcpDstPort = PN16.any }
 
@@ -465,8 +467,8 @@ module Pattern = struct
           vlanPcp = PN8.empty;
           ethType = PN16.empty;
           ipProto = PN8.empty;
-          ipSrc = PNIp.empty;
-          ipDst = PNIp.empty;
+          ipSrc = PTIp.empty;
+          ipDst = PTIp.empty;
           tcpSrcPort = PN16.empty;
           tcpDstPort = PN16.empty }
 
@@ -480,8 +482,8 @@ module Pattern = struct
       ~vlanPcp:(g PN8.is_any)
       ~ethType:(g PN16.is_any)
       ~ipProto:(g PN8.is_any)
-      ~ipSrc:(g PNIp.is_any)
-      ~ipDst:(g PNIp.is_any)
+      ~ipSrc:(g PTIp.is_any)
+      ~ipDst:(g PTIp.is_any)
       ~tcpSrcPort:(g PN16.is_any)
       ~tcpDstPort:(g PN16.is_any)
 
@@ -495,8 +497,8 @@ module Pattern = struct
       ~vlanPcp:(g PN8.is_empty)
       ~ethType:(g PN16.is_empty)
       ~ipProto:(g PN8.is_empty)
-      ~ipSrc:(g PNIp.is_empty)
-      ~ipDst:(g PNIp.is_empty)
+      ~ipSrc:(g PTIp.is_empty)
+      ~ipDst:(g PTIp.is_empty)
       ~tcpSrcPort:(g PN16.is_empty)
       ~tcpDstPort:(g PN16.is_empty)
 
@@ -507,8 +509,8 @@ module Pattern = struct
   let mk_vlanPcp n = { any with HPN.vlanPcp = PN8.singleton n }
   let mk_ethType n = { any with HPN.ethType = PN16.singleton n }
   let mk_ipProto n = { any with HPN.ipProto = PN16.singleton n }
-  let mk_ipSrc n = { any with HPN.ipSrc = PNIp.singleton n }
-  let mk_ipDst n = { any with HPN.ipDst = PNIp.singleton n }
+  let mk_ipSrc n = { any with HPN.ipSrc = PTIp.singleton n }
+  let mk_ipDst n = { any with HPN.ipDst = PTIp.singleton n }
   let mk_tcpSrcPort n = { any with HPN.tcpSrcPort = PN16.singleton n }
   let mk_tcpDstPort n = { any with HPN.tcpDstPort = PN16.singleton n }
 
@@ -539,8 +541,8 @@ module Pattern = struct
           ~vlanPcp:PN8.(g is_empty neg)
           ~ethType:PN16.(g is_empty neg)
           ~ipProto:PN8.(g is_empty neg)
-          ~ipSrc:PNIp.(g is_empty neg)
-          ~ipDst:PNIp.(g is_empty neg)
+          ~ipSrc:PTIp.(g is_empty neg)
+          ~ipDst:PTIp.(g is_empty neg)
           ~tcpSrcPort:PN16.(g is_empty neg)
           ~tcpDstPort:PN16.(g is_empty neg)
 
@@ -571,8 +573,8 @@ module Pattern = struct
           ~vlanPcp:(g PN8.obscures)
           ~ethType:(g PN16.obscures)
           ~ipProto:(g PN8.obscures)
-          ~ipSrc:(g PNIp.obscures)
-          ~ipDst:(g PNIp.obscures)
+          ~ipSrc:(g PTIp.obscures)
+          ~ipDst:(g PTIp.obscures)
           ~tcpSrcPort:(g PN16.obscures)
           ~tcpDstPort:(g PN16.obscures)
 
@@ -595,8 +597,8 @@ module Pattern = struct
           ~vlanPcp:PN8.(g is_empty inter)
           ~ethType:PN16.(g is_empty inter)
           ~ipProto:PN8.(g is_empty inter)
-          ~ipSrc:PNIp.(g is_empty inter)
-          ~ipDst:PNIp.(g is_empty inter)
+          ~ipSrc:PTIp.(g is_empty inter)
+          ~ipDst:PTIp.(g is_empty inter)
           ~tcpSrcPort:PN16.(g is_empty inter)
           ~tcpDstPort:PN16.(g is_empty inter)
 
@@ -625,8 +627,8 @@ module Pattern = struct
           ~vlanPcp:PN8.(g HOV.vlanPcp is_empty inter singleton)
           ~ethType:PN16.(g HOV.ethType is_empty inter singleton)
           ~ipProto:PN8.(g HOV.ipProto is_empty inter singleton)
-          ~ipSrc:PNIp.(g HOV.ipSrc is_empty inter singleton)
-          ~ipDst:PNIp.(g HOV.ipDst is_empty inter singleton)
+          ~ipSrc:PTIp.(g HOV.ipSrc is_empty inter singleton)
+          ~ipDst:PTIp.(g HOV.ipDst is_empty inter singleton)
           ~tcpSrcPort:PN16.(g HOV.tcpSrcPort is_empty inter singleton)
           ~tcpDstPort:PN16.(g HOV.tcpDstPort is_empty inter singleton)
 
@@ -990,8 +992,8 @@ module RunTime = struct
         vlanPcp = PN8.(expand x.HPN.vlanPcp);
         ethType = PN16.(expand x.HPN.ethType);
         ipProto = PN8.(expand x.HPN.ipProto);
-        ipSrc = PNIp.(expand x.HPN.ipSrc);
-        ipDst = PNIp.(expand x.HPN.ipDst);
+        ipSrc = PTIp.(expand x.HPN.ipSrc);
+        ipDst = PTIp.(expand x.HPN.ipDst);
         tcpSrcPort = PN16.(expand x.HPN.tcpSrcPort);
         tcpDstPort = PN16.(expand x.HPN.tcpDstPort);
       }

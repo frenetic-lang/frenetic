@@ -189,8 +189,10 @@ module Int32TupleHeader = struct
     Int32.shift_right p s
   let equal (p,m) (p',m') =
     Int32Header.equal (shift (p,m)) (shift (p',m'))
-  let compare (p,m) (p',m') =
-    Int32Header.compare (shift (p,m)) (shift (p',m'))
+  let compare ((p,m):t) ((p',m'):t) : int =
+    if Pervasives.compare p p' = 0 then Pervasives.compare m m'
+    else Pervasives.compare p p'
+    (*Int32Header.compare (shift (p,m)) (shift (p',m'))*)
   let to_string (p,m) =
     let s = if m = 32l then "" else "/" ^ (Int32Header.to_string m) in
     Int32Header.to_string p ^ s
@@ -209,7 +211,7 @@ module Int32TupleHeader = struct
          (32 - common_mask) in
     (Int32.bit_and mask n) = (Int32.bit_and mask m)
 
-  let intersection ((n,m) as p1: t) ((r,s) as p2: t) : t option =
+  let inter ((n,m) as p1: t) ((r,s) as p2: t) : t option =
     if are_compatible p1 p2 then
       (if Int32.(<) m s then Some p1 else Some p2)
     else None
