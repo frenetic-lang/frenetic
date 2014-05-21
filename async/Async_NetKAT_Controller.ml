@@ -339,7 +339,7 @@ let start app ?(port=6633) () =
     (* This is the main event handler for the controller. First it sends
      * events to the application callback. Then it checks to see if the event
      * is a SwitchUp event, in which case it's necessary to populate the new
-     * switch's flowtable with the applicaiton's current policy.
+     * switch's flowtable with the application's current policy.
      *)
     let handler e =
       callback e >>= fun () ->
@@ -358,7 +358,7 @@ let start app ?(port=6633) () =
     (* Kick off the three top-level logical threads of the controller. The
      * first handles incoming events from switches. The second sends pkt_out
      * messages to switches that are generated from either the application, or
-     * policy evaluation of pakcets at the controller (described above). The
+     * policy evaluation of packets at the controller (described above). The
      * third listens for policy updates from the application and implements the
      * policy on the switches.
      * *)

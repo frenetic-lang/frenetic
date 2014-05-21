@@ -3,7 +3,7 @@ open Async.Std
 
 open NetKAT_Types
 
-(* A collection of pipes that apps use to communictate with the controller.
+(* A collection of pipes that apps use to communicate with the controller.
  * Currently this allows apps to send packet out messages and push policy
  * updates.
  * *)
@@ -12,7 +12,7 @@ type 'a send = {
   update  : 'a Pipe.Writer.t
 }
 
-(* The other end of the communcation pipes for an application. Running an app
+(* The other end of the communication pipes for an application. Running an app
  * produces this structure, which the controller can consume and process
  * accordingly.
  * *)
@@ -38,17 +38,17 @@ type ('a, 'b) handler = 'a -> 'b send -> unit -> event -> unit Deferred.t
  *   - in response to a network event; and
  *   - asynchronously, according to its own requirements.
  *
- * When a network event occurs, an app must always push an [update], which must
- * either be an [Event(policy)] when the network event necessitates a policy
- * update, or an [EventNoop] when the app does not need to update its policy.
+ * When a network event occurs, an app must always push an [update]. That
+ * [update] must either be an [Event(policy)] when the network event
+ * necessitates a policy update, or an [EventNoop] when the app does not need to
+ * update its policy.
  *
  * When a app wants to update its policy asynchronously, it can push an
  * [Async(policy)] instead. However, NOTE that policies pushed asynchronously
  * in this way are not guaranteed to ever be realized in the network. The
  * runtime may buffer asynchronous updates while awaiting a synchronous update
  * from a network event. If the network event produces an updated policy, that
- * will be installed rather than the buffered policy update that was issued by
- * the application asynchronously.
+ * will be installed rather than the buffered asynchronous policy update.
  * *)
 type update
   = Async of policy
@@ -57,13 +57,13 @@ type update
 
 (* INTERNAL
  *
- * This bit of state is used by primitive apps to indicate whether or
- * not it is processing an event, or creating policy updates asynchronously.
+ * This bit of state is used by primitive apps to indicate whether it is
+ * processing an event or creating policy updates asynchronously.
  *
  * When responding to an event, the application will buffer the most recent
  * [Async(policy_a)] update that the app produces. If the app ultimately
  * produces an [Event(policy_e)] in response to an event, then [policy_a] is
- * discarded and [policy_e] is writen to [send.update]. If the app produces an
+ * discarded and [policy_e] is written to [send.update]. If the app produces an
  * [EventNoop], then [policy_a], i.e., the most recent asynchronous update from
  * above, is written to [send.update].
  *
@@ -113,7 +113,7 @@ let run (app : 'a t) (a : 'a) () : (policy recv * (event -> unit Deferred.t)) =
      * buffered. If the callback results in an EventNoop, then the buffered
      * async policy should be written to the update pipe. If the callback
      * results in an Event update, then that policy should be written to the
-     * update pipe.
+     * update pipe and all previous async policy updates should be discarded.
      *
      * NOTE: It's assumed that [callback e] will not become determined until
      * either an Event or EventNoop update is written to the update pipe.
@@ -140,7 +140,7 @@ let run (app : 'a t) (a : 'a) () : (policy recv * (event -> unit Deferred.t)) =
     let update' =
       let last_async = ref None in
       (* This pipe implements the async update buffering mentioned above. While
-       * not prossing events, it will simply forward Async updates along.
+       * not processing events, it will simply forward Async updates along.
        * *)
       Pipe.filter_map recv.update ~f:(fun (u : update) ->
         match u, !state with
@@ -163,8 +163,8 @@ let run (app : 'a t) (a : 'a) () : (policy recv * (event -> unit Deferred.t)) =
         | EventNoop, Async  -> assert false) in
     { recv with update = update' }, callback'
   | `Composite handler ->
-    (* Composite handlers aren't compilicated. Most of the complexity has been
-     * pushed down to the Primitive case, or the combine function. below.
+    (* Composite handlers aren't complicated. Most of the complexity has been
+     * pushed down to the Primitive case or the combine function below.
      * *)
     let send, recv = create_send_recv app in
     let callback = handler a send () in
@@ -175,7 +175,7 @@ let run (app : 'a t) (a : 'a) () : (policy recv * (event -> unit Deferred.t)) =
       | _ ->
         callback e
         (* XXX(seliopou): I'm not convinced this is necessary. The
-         * syncronization done in [combine] may be sufficient to ensure
+         * synchronization done in [combine] may be sufficient to ensure
          * synchronization of policy updates in the application tree.
          * *)
         >>= fun () -> Deferred.ignore (Pipe.downstream_flushed recv.update)
@@ -216,7 +216,7 @@ let combine
 
       (* Transfer packets form the recv.pkt_out pipes of the sub-applications
        * to the recv.pkt_out pipe of this application. There are no order
-       * guarantees here. Whoever's ready first goes first.
+       * guarantees here. Whoever is ready first goes first.
        *)
       Deferred.don't_wait_for (
         Pipe.transfer_id
@@ -271,7 +271,7 @@ let combine
               | None, None -> return (`Finished ())
               | l   , r    -> return (`Repeat (l, r))));
 
-      (* The result is a callback that will delgate the network event to two
+      (* The result is a callback that will delegate the network event to two
        * sub-applications.
        *
        * NOTE: The result that the callback returns is a [unit Deferred.t] that
