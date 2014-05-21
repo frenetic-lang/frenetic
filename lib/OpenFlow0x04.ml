@@ -1603,6 +1603,8 @@ end
 
 module SwitchDescriptionReply = struct
 
+(* need to fill with Null bytes (I think i should be done) *)
+
   let marshal (buf : Cstruct.t) (sdr : switchDesc) : int =
     set_ofp_desc_mfr_desc sdr.mfr_desc 0 buf;
     set_ofp_desc_hw_desc sdr.hw_desc 0 buf;
