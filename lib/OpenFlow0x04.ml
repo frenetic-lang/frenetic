@@ -1439,7 +1439,7 @@ module PacketIn = struct
     let buffer_id,bytes = match pi.pi_payload with
      | Buffered (n,bytes) -> n, bytes
      | NotBuffered bytes -> -1l, bytes in
-    Cstruct.blit bytes 0 buf (sizeof_ofp_packet_in + OfpMatch.sizeof pi.pi_ofp_match) size;
+    Cstruct.blit bytes 0 buf (sizeof_ofp_packet_in + OfpMatch.sizeof pi.pi_ofp_match) pi.pi_total_len;
     set_ofp_packet_in_buffer_id buf buffer_id;
 	set_ofp_packet_in_total_len buf pi.pi_total_len;
 	set_ofp_packet_in_reason buf
