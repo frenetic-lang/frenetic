@@ -1580,7 +1580,17 @@ module MultipartReq = struct
 end
 
 module PortsDescriptionReply = struct
-    
+
+  let marshal (buf : Cstruct.t) (sdr : multipartReply) =
+    let rec marshalPort (sdrl : portDesc list) off: int = 
+      match sdrl with
+        | [] -> 0
+        | t::q -> PortDesc.marshal (Cstruct.shift buf off) t +
+                  marshalPort q (off + sizeof_ofp_port) in
+    match sdr with 
+     | PortsDescReply a -> marshalPort a 0
+     | _ -> failwith "unexpected reply"
+
   let parse (bits : Cstruct.t) : multipartReply =
     let portIter =
       Cstruct.iter
@@ -1594,7 +1604,11 @@ end
 module SwitchDescriptionReply = struct
 
   let marshal (buf : Cstruct.t) (sdr : switchDesc) : int =
-  3
+    set_ofp_desc_mfr_desc sdr.mfr_desc 0 buf;
+    set_ofp_desc_hw_desc sdr.hw_desc 0 buf;
+    set_ofp_desc_sw_desc sdr.sw_desc 0 buf;
+    set_ofp_desc_serial_num sdr.serial_num 0 buf;
+    sizeof_ofp_desc
 
   let parse (bits : Cstruct.t) : multipartReply = 
     let mfr_desc = copy_ofp_desc_mfr_desc bits in
