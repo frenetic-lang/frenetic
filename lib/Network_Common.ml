@@ -97,7 +97,7 @@ module Node = struct
         (Packet.string_of_mac n.mac) (Packet.string_of_ip n.ip)
     | _ ->
       Printf.sprintf
-        "s%Ld = net.addSwitch(\'s%Ld\')\n" n.dev_id n.dev_id
+        "%s = net.addSwitch(\'s%Ld\')\n" n.name n.dev_id
 
 
   (* Update the record for a node *)
@@ -124,10 +124,9 @@ module Node = struct
   let parse_dot (i:Dot_ast.node_id) (ats:Dot_ast.attr list) : t =
     let (id, popt) = i in
     let name = string_of_id id in
-    let num = int_of_string (String.sub name 1 (String.length name - 1)) in 
     let at = List.hd ats in
     List.fold_left update_dot_attr
-      {default with name = name; ip = Int32.of_int num; mac = Int64.of_int num} at
+      {default with name = name; ip = 0l; mac = 0L} at
 
   let int64_of_value v = match v with
     | Gml.Int(i) -> Int64.of_int i
