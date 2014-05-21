@@ -21,6 +21,9 @@ module Link : sig
   val capacity : t -> int64
 end
 
-module Net : NETWORK with type Topology.Vertex.t = Node.t
-                     and type Topology.Edge.t = Link.t
+module Net : NETWORK 
+  with type Topology.Vertex.t = Node.t
+  and type Topology.Edge.t = Link.t
 
+module Path : Net.PATH 
+  with type weight = Int64.t

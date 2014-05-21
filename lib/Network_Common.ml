@@ -192,4 +192,16 @@ module Link = struct
     link
 end
 
+module Weight = struct
+  type label = Link.t
+  type t = Int64.t
+  let weight l = 
+    let open Link in 
+    l.cost 
+  let compare = Int64.compare
+  let add = Int64.add
+  let zero = Int64.zero
+end
+      
 module Net = Network.Make(Node)(Link)
+module Path = Net.Path(Weight)
