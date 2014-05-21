@@ -35,7 +35,6 @@ type app
     variant of [update]. *)
 type update = Raw_app.update
 
-type send = update Raw_app.send
 type recv = policy Raw_app.recv
 
 (** The set of pipe names that an application is listening on. *)
@@ -47,15 +46,21 @@ type result = policy option
 
 (** A [handler] is a function that's used to both create basic reactive [app]s as
     well as run them. The [unit] argument indicates a partial application point. *)
-type handler = Net.Topology.t ref
-             -> (switchId * SDN_Types.pktOut) Pipe.Writer.t
-             -> unit
-             -> event
-             -> result Deferred.t
+type handler
+  = Net.Topology.t ref
+  -> (switchId * SDN_Types.pktOut) Pipe.Writer.t
+  -> unit
+  -> event
+  -> result Deferred.t
 
- (** [asycn_handler] is a function that's used to build reactive [app]s that
-     are also capable of pushing asynchronous policy updates. *)
-type async_handler = (Net.Topology.t ref, Raw_app.update) Raw_app.handler
+(** [asycn_handler] is a function that's used to build reactive [app]s that
+    are also capable of pushing asynchronous policy updates. The [unit] argument
+    indicates a partial application point. *)
+type async_handler
+  = Net.Topology.t ref
+  -> policy Raw_app.send
+  -> unit
+  -> event -> result Deferred.t
 
 (** [create ?pipes pol handler] returns an [app] that listens to the pipes
     included in [pipes], uses [pol] as the initial default policy to install,

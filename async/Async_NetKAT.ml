@@ -59,7 +59,11 @@ type handler
   -> unit
   -> event -> result Deferred.t
 
-type async_handler = (Net.Topology.t ref, Raw_app.update) Raw_app.handler
+type async_handler
+  = Net.Topology.t ref
+  -> policy Raw_app.send
+  -> unit
+  -> event -> result Deferred.t
 
 let create ?pipes (policy : policy) (handler : handler) : app =
   let open Raw_app in
@@ -72,7 +76,17 @@ let create ?pipes (policy : policy) (handler : handler) : app =
         | Some(p) -> Pipe.write send.update (Raw_app.Event p))
 
 let create_async ?pipes (policy : policy) (handler : async_handler) : app =
-  Raw_app.create_primitive ?pipes policy handler
+  let open Raw_app in
+  create_primitive ?pipes policy (fun a send () ->
+    let r_update, w_update = Pipe.create () in
+    Deferred.don't_wait_for
+      (Pipe.transfer r_update send.update ~f:(fun p -> Raw_app.Async(p)));
+    let callback = handler a { pkt_out = send.pkt_out; update = w_update } () in
+    fun e ->
+      callback e
+      >>= function
+        | None    -> Pipe.write send.update Raw_app.EventNoop
+        | Some(p) -> Pipe.write send.update (Raw_app.Event p))
 
 let create_static (pol : policy) : app =
   create pol (fun _ _ () _ -> return None)
