@@ -43,6 +43,13 @@ end
 module Net = Network.Make(Node)(Link)
 module PipeSet = Raw_app.PipeSet
 
+(* Helper function to get around an issue with Pipe.transfer, reported here:
+ *
+ *   https://github.com/janestreet/async_kernel/issues/3
+ *)
+let transfer_batch r w ~f =
+  Pipe.transfer' r w ~f:(fun q -> return (Queue.map q ~f))
+
 exception Sequence_error of PipeSet.t * PipeSet.t
 
 type app = (Net.Topology.t ref) Raw_app.t
@@ -72,21 +79,21 @@ let create ?pipes (policy : policy) (handler : handler) : app =
     fun e ->
       callback e
       >>= function
-        | None    -> Pipe.write send.update Raw_app.EventNoop
-        | Some(p) -> Pipe.write send.update (Raw_app.Event p))
+        | None    -> Pipe.write send.update EventNoop
+        | Some(p) -> Pipe.write send.update (Event p))
 
 let create_async ?pipes (policy : policy) (handler : async_handler) : app =
   let open Raw_app in
   create_primitive ?pipes policy (fun a send () ->
     let r_update, w_update = Pipe.create () in
     Deferred.don't_wait_for
-      (Pipe.transfer r_update send.update ~f:(fun p -> Raw_app.Async(p)));
+      (transfer_batch r_update send.update ~f:(fun p -> (Async p : update)));
     let callback = handler a { pkt_out = send.pkt_out; update = w_update } () in
     fun e ->
       callback e
       >>= function
-        | None    -> Pipe.write send.update Raw_app.EventNoop
-        | Some(p) -> Pipe.write send.update (Raw_app.Event p))
+        | None    -> Pipe.write send.update EventNoop
+        | Some(p) -> Pipe.write send.update (Event p))
 
 let create_static (pol : policy) : app =
   create pol (fun _ _ () _ -> return None)
