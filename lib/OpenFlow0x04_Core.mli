@@ -179,8 +179,12 @@ type multipartRequest =
   | SwitchDescReq
   | PortsDescReq 
 
+type switchDesc = { mfr_desc : string; hw_desc : string; sw_desc : string;
+                         serial_num : string }
+
 type multipartReply = 
   | PortsDescReply of portDesc list
+  | SwitchDescReply of switchDesc
 
 type tableConfig = Deprecated
 

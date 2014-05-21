@@ -584,6 +584,13 @@ cenum ofp_multipart_types {
     OFPMP_EXPERIMENTER = 0xffff
 } as uint16_t
 
+cstruct ofp_desc {
+    uint8_t mfr_desc[256];
+    uint8_t hw_desc[256];
+    uint8_t sw_desc[256];
+    uint8_t serial_num[32];
+  } as big_endian
+
 cstruct ofp_uint8 {
   uint8_t value
 } as big_endian
@@ -1584,12 +1591,30 @@ module PortsDescriptionReply = struct
 
 end
 
+module SwitchDescriptionReply = struct
+
+  let marshal (buf : Cstruct.t) (sdr : switchDesc) : int =
+  3
+
+  let parse (bits : Cstruct.t) : multipartReply = 
+    let mfr_desc = copy_ofp_desc_mfr_desc bits in
+    let hw_desc = copy_ofp_desc_hw_desc bits in
+    let sw_desc = copy_ofp_desc_sw_desc bits in
+    let serial_num = copy_ofp_desc_serial_num bits in
+    SwitchDescReply { mfr_desc;
+                      hw_desc;
+                      sw_desc;
+                      serial_num}
+
+end
+
 module MultipartReply = struct
     
   let parse (bits : Cstruct.t) : multipartReply =
     let ofp_body_bits = Cstruct.shift bits sizeof_ofp_multipart_reply in
     match int_to_ofp_multipart_types (get_ofp_multipart_reply_typ bits) with
       | Some OFPMP_PORT_DESC -> PortsDescriptionReply.parse ofp_body_bits
+      | Some OFPMP_DESC -> SwitchDescriptionReply.parse ofp_body_bits
       | _ -> raise (Unparsable (sprintf "NYI: can't parse this multipart reply"))
 
 end
