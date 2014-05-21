@@ -108,7 +108,8 @@ module type NETWORK = sig
   module Pretty : sig
     val to_string : Topology.t -> string
     val to_dot : Topology.t -> string
-    val to_mininet : Topology.t -> string
+    val to_mininet : ?prologue_file:string -> ?epilogue_file:string ->
+      Topology.t -> string
   end
 end
 
@@ -667,10 +668,13 @@ struct
       to_dot t
 
     (* Produce a Mininet script that implements the given topology *)
-    let to_mininet (t:t) : string =
+    let to_mininet
+        ?(prologue_file = "static/mn_prologue.txt")
+        ?(epilogue_file = "static/mn_epilogue.txt")
+        (t:t) : string =
       (* Load static strings (maybe there's a better way to do this?) *)
-      let prologue = load_file "static/mn_prologue.txt" in
-      let epilogue = load_file "static/mn_epilogue.txt" in
+      let prologue = load_file prologue_file in
+      let epilogue = load_file epilogue_file in
 
       (* Check if an edge or its reverse has been added already *)
       let seen = ref EdgeSet.empty in

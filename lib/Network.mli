@@ -108,7 +108,8 @@ module type NETWORK = sig
   module Pretty : sig
     val to_string : Topology.t -> string
     val to_dot : Topology.t -> string
-    val to_mininet : Topology.t -> string
+    val to_mininet : ?prologue_file:string -> ?epilogue_file:string ->
+      Topology.t -> string
   end
 end
 
