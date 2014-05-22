@@ -48,7 +48,7 @@ let bytes_to_headers
   { location = NetKAT_Types.Physical port_id
   ; ethSrc = pkt.dlSrc
   ; ethDst = pkt.dlDst
-  ; vlan = (match pkt.dlVlan with Some (v) -> v | None -> 0)
+  ; vlan = pkt.dlVlan
   ; vlanPcp = pkt.dlVlanPcp
   ; ethType = dlTyp pkt
   ; ipProto = (try nwProto pkt with Invalid_argument(_) -> 0)
@@ -78,7 +78,7 @@ let headers_to_actions
     ~location:(fun acc f -> acc)
     ~ethSrc:(g (fun v -> Modify(SetEthSrc v)))
     ~ethDst:(g (fun v -> Modify(SetEthDst v)))
-    ~vlan:(g (fun v -> Modify(SetVlan (Some(v)))))
+    ~vlan:(g (fun v -> Modify(SetVlan v)))
     ~vlanPcp:(g (fun v -> Modify(SetVlanPcp v)))
     ~ethType:(g (fun v -> Modify(SetEthTyp v)))
     ~ipProto:(g (fun v -> Modify(SetIPProto v)))

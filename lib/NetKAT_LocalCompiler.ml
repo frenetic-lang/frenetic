@@ -146,6 +146,7 @@ module OL = Option(NetKAT_Types.LocationHeader)
 module O48 = Option(NetKAT_Types.Int64Header)
 module O32 = Option(NetKAT_Types.Int32Header)
 module O16 = Option(NetKAT_Types.IntHeader)
+module O16O = Option(NetKAT_Types.IntOptionHeader)
 module O8 = Option(NetKAT_Types.IntHeader)
 module OIp = Option(NetKAT_Types.Int32Header)
 
@@ -153,6 +154,7 @@ module PNL = PosNeg(NetKAT_Types.LocationHeader)
 module PN48 = PosNeg(NetKAT_Types.Int64Header)
 module PN32 = PosNeg(NetKAT_Types.Int32Header)
 module PN16 = PosNeg(NetKAT_Types.IntHeader)
+module PN16O = PosNeg(NetKAT_Types.IntOptionHeader)
 module PN8 = PosNeg(NetKAT_Types.IntHeader)
 module PNIp = PosNeg(NetKAT_Types.Int32Header)
 
@@ -161,7 +163,7 @@ module HeadersOptionalValues =
     (OL)
     (O48)
     (O48)
-    (O16)
+    (O16O)
     (O8)
     (O16)
     (O8)
@@ -175,7 +177,7 @@ module HeadersPosNeg =
     (PNL)
     (PN48)
     (PN48)
-    (PN16)
+    (PN16O)
     (PN8)
     (PN16)
     (PN8)
@@ -210,7 +212,7 @@ module Action = struct
       ~init:id (* identity policy *)
       ~location:(g (fun v -> Location v))
       ~ethSrc:(g (fun v -> EthSrc v))
-      ~ethDst:(g (fun v ->EthDst v))
+      ~ethDst:(g (fun v -> EthDst v))
       ~vlan:(g (fun v -> Vlan v))
       ~vlanPcp:(g (fun v -> VlanPcp v))
       ~ethType:(g (fun v -> EthType v))
@@ -344,7 +346,7 @@ module Pattern = struct
       ~location:(g PNL.S.fold (fun v -> Location v))
       ~ethSrc:(g PN48.S.fold (fun v -> EthSrc v))
       ~ethDst:(g PN48.S.fold (fun v ->EthDst v))
-      ~vlan:(g PN16.S.fold (fun v -> Vlan v))
+      ~vlan:(g PN16O.S.fold (fun v -> Vlan v))
       ~vlanPcp:(g PN8.S.fold (fun v -> VlanPcp v))
       ~ethType:(g PN16.S.fold (fun v -> EthType v))
       ~ipProto:(g PN8.S.fold (fun v -> IPProto v))
@@ -359,7 +361,7 @@ module Pattern = struct
         { location = PNL.any;
           ethSrc = PN48.any;
           ethDst = PN48.any;
-          vlan = PN16.any;
+          vlan = PN16O.any;
           vlanPcp = PN8.any;
           ethType = PN16.any;
           ipProto = PN8.any;
@@ -373,7 +375,7 @@ module Pattern = struct
         { location = PNL.empty;
           ethSrc = PN48.empty;
           ethDst = PN48.empty;
-          vlan = PN16.empty;
+          vlan = PN16O.empty;
           vlanPcp = PN8.empty;
           ethType = PN16.empty;
           ipProto = PN8.empty;
@@ -388,7 +390,7 @@ module Pattern = struct
       ~location:(g PNL.is_any)
       ~ethSrc:(g PN48.is_any)
       ~ethDst:(g PN48.is_any)
-      ~vlan:(g PN16.is_any)
+      ~vlan:(g PN16O.is_any)
       ~vlanPcp:(g PN8.is_any)
       ~ethType:(g PN16.is_any)
       ~ipProto:(g PN8.is_any)
@@ -403,7 +405,7 @@ module Pattern = struct
       ~location:(g PNL.is_empty)
       ~ethSrc:(g PN48.is_empty)
       ~ethDst:(g PN48.is_empty)
-      ~vlan:(g PN16.is_empty)
+      ~vlan:(g PN16O.is_empty)
       ~vlanPcp:(g PN8.is_empty)
       ~ethType:(g PN16.is_empty)
       ~ipProto:(g PN8.is_empty)
@@ -415,7 +417,7 @@ module Pattern = struct
   let mk_location l = { any with HPN.location = PNL.singleton l }
   let mk_ethSrc n = { any with HPN.ethSrc = PN48.singleton n }
   let mk_ethDst n = { any with HPN.ethDst = PN48.singleton n }
-  let mk_vlan n = { any with HPN.vlan = PN16.singleton n }
+  let mk_vlan n = { any with HPN.vlan = PN16O.singleton n }
   let mk_vlanPcp n = { any with HPN.vlanPcp = PN8.singleton n }
   let mk_ethType n = { any with HPN.ethType = PN16.singleton n }
   let mk_ipProto n = { any with HPN.ipProto = PN16.singleton n }
@@ -447,7 +449,7 @@ module Pattern = struct
           ~location:PNL.(g is_empty neg)
           ~ethSrc:PN48.(g is_empty neg)
           ~ethDst:PN48.(g is_empty neg)
-          ~vlan:PN16.(g is_empty neg)
+          ~vlan:PN16O.(g is_empty neg)
           ~vlanPcp:PN8.(g is_empty neg)
           ~ethType:PN16.(g is_empty neg)
           ~ipProto:PN8.(g is_empty neg)
@@ -503,7 +505,7 @@ module Pattern = struct
           ~location:PNL.(g is_empty inter)
           ~ethSrc:PN48.(g is_empty inter)
           ~ethDst:PN48.(g is_empty inter)
-          ~vlan:PN16.(g is_empty inter)
+          ~vlan:PN16O.(g is_empty inter)
           ~vlanPcp:PN8.(g is_empty inter)
           ~ethType:PN16.(g is_empty inter)
           ~ipProto:PN8.(g is_empty inter)
@@ -533,7 +535,7 @@ module Pattern = struct
           ~location:PNL.(g HOV.location is_empty inter singleton)
           ~ethSrc:PN48.(g HOV.ethSrc is_empty inter singleton)
           ~ethDst:PN48.(g HOV.ethDst is_empty inter singleton)
-          ~vlan:PN16.(g HOV.vlan is_empty inter singleton)
+          ~vlan:PN16O.(g HOV.vlan is_empty inter singleton)
           ~vlanPcp:PN8.(g HOV.vlanPcp is_empty inter singleton)
           ~ethType:PN16.(g HOV.ethType is_empty inter singleton)
           ~ipProto:PN8.(g HOV.ipProto is_empty inter singleton)
@@ -808,7 +810,7 @@ module RunTime = struct
         ~location:(fun act _ -> act)
         ~ethSrc:(g (fun v -> SetEthSrc v))
         ~ethDst:(g (fun v -> SetEthDst v))
-        ~vlan:(g (fun v -> SetVlan (Some(v))))
+        ~vlan:(g (fun v -> SetVlan v))
         ~vlanPcp:(g (fun v -> SetVlanPcp v))
         ~ethType:(g (fun v -> SetEthTyp v))
         ~ipProto:(g (fun v -> SetIPProto v))
@@ -870,7 +872,7 @@ module RunTime = struct
     (Expanded(NetKAT_Types.LocationHeader))
     (Expanded(NetKAT_Types.Int64Header))
     (Expanded(NetKAT_Types.Int64Header))
-    (Expanded(NetKAT_Types.IntHeader))
+    (Expanded(NetKAT_Types.IntOptionHeader))
     (Expanded(NetKAT_Types.IntHeader))
     (Expanded(NetKAT_Types.IntHeader))
     (Expanded(NetKAT_Types.IntHeader))
@@ -898,7 +900,7 @@ module RunTime = struct
       { location = PNL.(expand x.HPN.location);
         ethSrc = PN48.(expand x.HPN.ethSrc);
         ethDst = PN48.(expand x.HPN.ethDst);
-        vlan = PN16.(expand x.HPN.vlan);
+        vlan = PN16O.(expand x.HPN.vlan);
         vlanPcp = PN8.(expand x.HPN.vlanPcp);
         ethType = PN16.(expand x.HPN.ethType);
         ipProto = PN8.(expand x.HPN.ipProto);
@@ -955,7 +957,11 @@ module RunTime = struct
           { SDN_Types.dlSrc = x.HOV.ethSrc
           ; SDN_Types.dlDst = x.HOV.ethDst
           ; SDN_Types.dlTyp = x.HOV.ethType
-          ; SDN_Types.dlVlan = x.HOV.vlan
+          ; SDN_Types.dlVlan = 
+	      (match x.HOV.vlan with 
+	      | None -> None
+	      | Some None -> Some 0xffff
+	      | Some (Some x) -> Some x)
           ; SDN_Types.dlVlanPcp = x.HOV.vlanPcp
           ; SDN_Types.nwSrc = x.HOV.ipSrc
           ; SDN_Types.nwDst = x.HOV.ipDst

@@ -138,7 +138,7 @@ xpredicate:
   | FRAMETYPE EQUALS int16_value
       { Test(EthType (Int32.to_int $3)) }
   | VLAN EQUALS vlan_value
-      { Test(Vlan $3) }
+      { Test(Vlan (Some $3)) }
   | VLANPCP EQUALS INT8
       { Test(VlanPcp (Int32.to_int $3)) }
   | SRCIP EQUALS ip_value
@@ -193,7 +193,7 @@ xpolicy:
   | FRAMETYPE ASSIGN int16_value
       { Mod(EthType (Int32.to_int $3)) }
   | VLAN ASSIGN vlan_value
-      { Mod(Vlan $3) }
+      { Mod(Vlan (Some $3)) }
   | VLANPCP ASSIGN INT8
       { Mod(VlanPcp (Int32.to_int $3)) }
   | SRCIP ASSIGN ip_value

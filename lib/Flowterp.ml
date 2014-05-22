@@ -20,12 +20,17 @@ module Headers = struct
     HeadersValues.Fields.for_all
       ~location:(fun f ->
         match Field.get f hdrs, pat.inPort with
-         | _, None -> true
-         | Physical p1, Some p2 -> p1 = p2
-         | Pipe _, Some _ -> false)
+        | _, None -> true
+        | Physical p1, Some p2 -> p1 = p2
+        | Pipe _, Some _ -> false)
       ~ethSrc:(matches pat.dlSrc)
       ~ethDst:(matches pat.dlDst)
-      ~vlan:(matches pat.dlVlan)
+      ~vlan:(fun f -> 
+	match Field.get f hdrs, pat.dlVlan with 
+	| _,None -> true
+	| Some x,Some y -> x = y
+	| None,Some 0xffff -> true
+	| None,Some _ -> false)
       ~vlanPcp:(matches pat.dlVlanPcp)
       ~ethType:(matches pat.dlTyp)
       ~ipProto:(matches pat.nwProto)
@@ -46,11 +51,7 @@ module Headers = struct
         begin match m with
           | SetEthSrc dlSrc -> { hdrs with ethSrc = dlSrc }
           | SetEthDst dlDst -> { hdrs with ethDst = dlDst }
-          | SetVlan  dlVlan ->
-            begin match dlVlan with
-             | None -> assert false
-             | Some(vlan_id) -> { hdrs with vlan = vlan_id }
-            end
+          | SetVlan  dlVlan -> { hdrs with vlan = dlVlan }
           | SetVlanPcp dlVlanPcp -> { hdrs with vlanPcp = dlVlanPcp }
           | SetEthTyp dlTyp -> { hdrs with ethType = dlTyp }
           | SetIPProto nwProto -> { hdrs with ipProto = nwProto }
