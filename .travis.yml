@@ -1,0 +1,18 @@
+language: c
+script: bash -ex .travis-ci.sh
+env:
+  global:
+    - OPAM_DEPENDS="core async cstruct"
+    - CONFIG_FLAGS="--enable-tests"
+    - FRENETIC_DEPENDS="ocaml-packet ocaml-openflow"
+  matrix:
+    - OCAML_VERSION=4.01.0 OPAM_VERSION=1.1.0
+notifications:
+  irc:
+    channels:
+      - "irc.freenode.net#frenetic"
+    template:
+      - "%{repository}#%{build_number} (%{branch} - %{commit}): %{message}"
+      - "Build details : %{build_url}"
+    on_success: change
+    on_failure: always

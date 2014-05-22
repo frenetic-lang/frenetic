@@ -15,11 +15,12 @@ XStdFilesAUTHORS: False
 Library ox
   Path: lib
   BuildDepends:
-    lwt,
-    lwt.syntax,
+    core,
+    async,
     cstruct,
     packet,
     openflow,
+    openflow.async,
     threads
   InternalModules:
     OxShared
