@@ -15,6 +15,7 @@ XStdFilesAUTHORS: False
 Library ox
   Path: lib
   BuildDepends:
+    core,
     async,
     cstruct,
     packet,
