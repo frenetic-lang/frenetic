@@ -1,3 +1,5 @@
+open Async.Std
+
 open Printf
 open Packet
 open OpenFlow0x01_Core
@@ -20,5 +22,5 @@ let send_barrier_request sw xid =
 (* TODO(arjun): I'm not happy about this. I want an exception to terminate
    the right swich, unless we have exceptions kill the controller. *)
 let timeout (n : float) (thk : unit -> unit) : unit = 
-  Lwt.async 
-    (fun () -> Lwt_unix.sleep n >> munge_exns thk)
+  after (Core.Std.Time.Span.of_sec n)
+  >>> fun () -> munge_exns thk

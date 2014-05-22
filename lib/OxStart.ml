@@ -31,67 +31,65 @@ end
 
 
 module Make (Handlers:OXMODULE) = struct
+  open Async.Std
+  open Core.Std
 
-  let rec switch_thread_loop sw = 
-    let open Message in
-        begin
-          match_lwt (Platform.recv_from_switch sw) with
-            | (xid, PacketInMsg pktIn) -> Lwt.wrap3 Handlers.packet_in sw xid pktIn
-	          | (xid, BarrierReply) -> Lwt.wrap2 Handlers.barrier_reply sw xid
-            | (xid, StatsReplyMsg rep) -> Lwt.wrap3 Handlers.stats_reply sw xid rep
-            | (xid, msg) -> Log.info_f "ignored a message from %Ld" sw
-                
-        end >>
-          switch_thread_loop sw
-
-  let switch_thread sw =
-    try_lwt
-      switch_thread_loop sw
-    with 
-      | Platform.SwitchDisconnected sw -> 
-        Log.info_f "switch %Ld disconnected\n%!" sw
-      | exn ->
-        Log.info_f ~exn:exn  "unhandled exception raised in handler for \
-                           switch %Ld" sw
+  module Controller = Async_OpenFlow.OpenFlow0x01.Controller
+  module Log = OxShared.Log
+  module Stage = Async_OpenFlow.Stage
 
   (* TODO(arjun): IMO, send_to_switch should *never* fail. *)
-  let handle_deferred () = 
-    let f (sw, xid, msg) =
-      try_lwt
-        Platform.send_to_switch sw xid msg
-      with exn ->
-        Log.info_f ~exn:exn "unhandled exception sending a message to switch \
-                             %Ld"  sw 
-    in
-    Lwt_stream.iter_s f to_send_stream
+  let send_pkt_out ctl ((sw, xid, msg) : to_sw) =
+    let open Controller in
+    send ctl (client_id_of_switch ctl sw) (xid, msg)
+    >>| function
+      | `Sent _ -> ()
+      | `Drop exn ->
+        Log.error ~tags "unhandled exception sending a message to switch \
+                             %Ld" sw
 
-  let rec accept_switches () = 
+  let handler ctl e =
     let open Message in
     let open FlowMod in
-    lwt feats = Platform.accept_switch () in 
-    let sw = feats.SwitchFeatures.switch_id in 
-    lwt _ = Log.info_f "switch %Ld connected" sw in
-    lwt _ = Platform.send_to_switch sw 0l (FlowModMsg delete_all_flows) in
-    lwt _ = Platform.send_to_switch sw 1l BarrierRequest in
-    (* JNF: wait for barrier reply? *)
-    let _ = Handlers.switch_connected sw feats in 
-    Lwt.async (fun () -> switch_thread sw);
-    accept_switches ()
+    match e with
+    | `Connect (c_id, feats) ->
+      Controller.send ctl c_id (0l, FlowModMsg delete_all_flows) >>= fun _ ->
+      Controller.send ctl c_id (1l, BarrierRequest) >>= fun _ ->
+      let sw = feats.SwitchFeatures.switch_id in
+      return (Handlers.switch_connected sw feats)
+    | `Message (c_id, (xid, msg)) ->
+      let sw = Controller.switch_id_of_client ctl c_id in
+      return begin match msg with
+      | PacketInMsg pktIn -> Handlers.packet_in sw xid pktIn
+      | BarrierReply -> Handlers.barrier_reply sw xid
+      | StatsReplyMsg rep -> Handlers.stats_reply sw xid rep
+      | msg -> Log.info ~tags "ignored a message from %Ld" sw
+      end
+    | `Disconnect (c_id, sw_id, exn) ->
+      Log.info "switch %Ld disconnected\n%!" sw_id;
+      return ()
 
-  let start_controller () : unit Lwt.t = 
-    Platform.init_with_port 6633 >>
-    Lwt.pick [ handle_deferred (); accept_switches () ]
+  let start_controller () : unit =
+    Controller.create ~port:6633 () >>>
+    fun ctl ->
+      let events = Stage.run Controller.features ctl (Controller.listen ctl) in
+      Deferred.don't_wait_for
+      (Monitor.try_with ~name:"controller" (fun () ->
+        let pkt_out_d = Pipe.iter pkt_out (send_pkt_out ctl) in
+        let events_d  = Pipe.iter events  (handler ctl) in
+        pkt_out_d >>= fun () -> events_d)
+      >>= function
+        | Ok () ->
+          exit 0
+        | Error exn ->
+          Log.error ~tags "Unexpected exception: %s\n%!"
+            (Exn.to_string exn);
+          exit 1)
 
   let _ =
+    let open Core.Std in
     (* intentionally on stdout *)
     Format.printf "Ox controller launching...\n%!";
     Sys.catch_break true;
-    try
-      Lwt_main.run (start_controller ())
-    with exn ->
-      Handlers.cleanup ();
-      Format.printf "Unexpected exception: %s\n%s\n%!"
-        (Printexc.to_string exn)
-        (Printexc.get_backtrace ());
-      exit 1
+    never_returns (Scheduler.go_main start_controller ());
 end

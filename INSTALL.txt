@@ -1,6 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: ba08b1390cd459808561ea7f76ae70c9) *)
-
+(* DO NOT EDIT (digest: 25ed03cc01a5cbcc8a97f2f6ccf2d961) *)
 This is the INSTALL file for the ox distribution.
 
 This package uses OASIS to generate its build system. See section OASIS for
@@ -10,10 +9,9 @@ Dependencies
 ============
 
 In order to compile this package, you will need:
-
 * ocaml for all, doc doc
 * findlib
-* lwt
+* async
 * cstruct
 * packet
 * openflow
