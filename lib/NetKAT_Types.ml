@@ -22,7 +22,7 @@ type header_val =
   | Location of location
   | EthSrc of dlAddr
   | EthDst of dlAddr
-  | Vlan of int16
+  | Vlan of int16 option
   | VlanPcp of dlVlanPcp
   | EthType of dlTyp
   | IPProto of nwProto
@@ -161,6 +161,16 @@ module IntHeader = struct
   include Int
   let is_wild _ = false
 end
+module IntOptionHeader = struct
+  type t = int option with sexp
+  let compare = Pervasives.compare
+  let equal = (=)
+  let to_string o = 
+    match o with 
+    | None -> "None" 
+    | Some x -> Printf.sprintf "%d" x
+  let is_wild _ = false
+end
 module Int32Header = struct
   include Int32
   let is_wild _ = false
@@ -175,7 +185,7 @@ module HeadersValues =
     (LocationHeader)
     (Int64Header)
     (Int64Header)
-    (IntHeader)
+    (IntOptionHeader)
     (IntHeader)
     (IntHeader)
     (IntHeader)

@@ -14,7 +14,10 @@ module Formatting = struct
     | Location(Pipe x) -> fprintf fmt "@[port %s %s@]" asgn x
     | EthSrc(n) -> fprintf fmt "@[ethSrc %s %s@]" asgn (Packet.string_of_mac n)
     | EthDst(n) -> fprintf fmt "@[ethDst %s %s@]" asgn (Packet.string_of_mac n)
-    | Vlan(n) -> fprintf fmt "@[vlanId %s %d@]" asgn n
+    | Vlan(n) -> fprintf fmt "@[vlanId %s %s@]" asgn 
+      (match n with 
+      | None -> "None" 
+      | Some x -> Printf.sprintf "Some %d" x)
     | VlanPcp(n) -> fprintf fmt "@[vlanPcp %s %u@]" asgn n
     | EthType(n) -> fprintf fmt "@[ethTyp %s 0x%x@]" asgn n
     | IPProto(n) -> fprintf fmt "@[ipProto %s 0x%x@]" asgn n
