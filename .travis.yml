@@ -2,7 +2,7 @@ language: c
 script: bash -ex .travis-ci.sh
 env:
   global:
-    - OPAM_DEPENDS="ocamlgraph core async cstruct"
+    - OPAM_DEPENDS="core async cstruct"
     - CONFIG_FLAGS="--enable-tests"
     - FRENETIC_DEPENDS="ocaml-packet ocaml-openflow"
   matrix:
