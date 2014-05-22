@@ -513,17 +513,24 @@ let update_table_for (t : t) (sw_id : switchId) pol : unit Deferred.t =
       "switch %Lu: Failed to update table in update_table_for" sw_id;
     Log.flushed ()
 
-let best_effort_handler
+let best_effort_update_table t pol =
+  Deferred.List.iter (get_switchids !(t.nib)) (fun sw -> update_table_for t sw pol)
+
+let handler
+  ?(update=`BestEffort)
   (t : t)
   (w : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
   (app : Async_NetKAT.app)
   : (NetKAT_Types.event -> unit Deferred.t) =
   let app' = Async_NetKAT.run app t.nib w () in
+  let updater = match update with
+    | `BestEffort -> best_effort_update_table
+    | `PerPacketConsistent -> consistently_update_table in
   fun e ->
     app' e >>= fun m_pol ->
     match m_pol with
     | Some (pol) ->
-      Deferred.List.iter (get_switchids !(t.nib)) (fun sw -> update_table_for t sw pol)
+      updater t pol
     | None ->
       begin match e with
         | NetKAT_Types.SwitchUp sw_id ->
@@ -531,27 +538,8 @@ let best_effort_handler
         | _ -> return ()
       end
 
-let consistent_handler (t : t) w app =
-  let app' = Async_NetKAT.run app t.nib w () in
-  fun e ->
-    app' e >>= fun m_pol ->
-    match m_pol with
-    | Some (pol) ->
-      consistently_update_table t pol
-    | None ->
-      begin match e with
-        | NetKAT_Types.SwitchUp sw_id ->
-          update_table_for t sw_id (Async_NetKAT.default app)
-        | _ -> return ()
-      end
-      
-type how = [`BestEffort | `PerPacketConsistent]
-           
 let start app ?(port=6633) ?(update = `BestEffort) () =
   let open Async_OpenFlow.Stage in
-  let handler = match update with
-    | `BestEffort -> best_effort_handler
-    | `PerPacketConsistent -> consistent_handler in
   Controller.create ~log_disconnects:true ~max_pending_connections ~port ()
   >>> fun ctl ->
   let t = {
@@ -596,7 +584,7 @@ let start app ?(port=6633) ?(update = `BestEffort) () =
   let events = Pipe.interleave [Discovery.events d_ctl; sdn_events] in
   Deferred.don't_wait_for (
     Monitor.try_with ~name:"start" (fun () ->
-        (Pipe.iter events ~f:(handler t w_out app)))
+        (Pipe.iter events ~f:(handler ~update t w_out app)))
     >>= function
     | Ok a -> return a
     | Error exn_ ->
