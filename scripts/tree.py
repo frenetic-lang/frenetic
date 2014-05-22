@@ -8,6 +8,7 @@ import re
 import sys
 import argparse
 import networkx as nx
+from netaddr import EUI, mac_unix, IPAddress
 
 def multiply(depth, bw,mult):
     r = re.compile('(\d+)([KMGT]?[Bb]ps)')
@@ -20,18 +21,30 @@ def multiply(depth, bw,mult):
         coeff = int(num) * depth * mult
     return str(coeff) + rate
 
+def mk_mac(i):
+    mac = EUI(i)
+    mac.dialect = mac_unix
+    return str(mac)
+
+def mk_ip(i):
+    # Generate IPs starting at 111.0.0.0
+    ip = IPAddress(i)
+    return str(ip)
+
 def mk_topo(fanout,depth,bw,mult):
+    ip_base = 1862270976
     num_hosts = fanout ** depth
     num_switches = (1 - (fanout ** depth)) / (1 - fanout)
 
     switch_ids = [('s' + str(i), {'id':i}) for i in range(1,num_switches + 1)]
     switches = [swid[0] for swid in switch_ids]
-    hosts = ['h' + str(i) for i in range (1, num_hosts + 1)]
+    hosts = [('h' + str(i), {'mac':mk_mac(i) , 'ip':mk_ip(ip_base + i)})
+             for i in range (1, num_hosts + 1)]
     nodes = switches + hosts
 
     g = nx.DiGraph()
     g.add_nodes_from(switch_ids, type='switch')
-    g.add_nodes_from(hosts, type='hosts')
+    g.add_nodes_from(hosts, type='host')
 
     offset = 0
     parent_offset = 0
@@ -44,15 +57,15 @@ def mk_topo(fanout,depth,bw,mult):
         parents = nodes[parent_offset:offset]
         currents = nodes[offset:(offset+num_nodes)]
         for i in range(len(parents)):
-            parent = parents[i]
+            parent = parents[i][0]
             for j in range(fanout):
-                child = currents[i*fanout + j]
+                child = currents[i*fanout + j][0]
                 cap = multiply(depth-i,bw, mult)
                 # Each node connects to its parent on port 0
                 g.add_edge(parent,child,
-                           {'src_port':j,'dst_port':0,'capacity':cap,'cost':'1'})
+                           {'src_port':j+1,'dst_port':0,'capacity':cap,'cost':'1'})
                 g.add_edge(child, parent,
-                           {'src_port':0,'dst_port':j,'capacity':cap,'cost':'1'})
+                           {'src_port':0,'dst_port':j+1,'capacity':cap,'cost':'1'})
         parent_offset = offset
         offset += num_nodes
     return g
