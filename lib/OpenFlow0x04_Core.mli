@@ -175,17 +175,91 @@ type packetOut = {
   po_actions : actionSequence
 }
 
-type multipartRequest = 
+type multipartType =
   | SwitchDescReq
   | PortsDescReq 
+  | FlowStatsReq
+  | AggregFlowStatReq
+  | TableStatsReq
+  | PortStatsReq
+  | QueueStatsReq
+  | GroupStatsReq
+  | GroupDescReq
+  | GroupFeatReq
+  | MeterStatsReq
+  | MeterConfReq
+  | MeterFeatReq
+  | TableFeatReq
+  | ExperimentReq
 
-type switchDesc = { mfr_desc : string; hw_desc : string; sw_desc : string;
+type flowRequest = {fr_table_id : tableId; fr_out_port : portId; 
+                    fr_out_group : portId; fr_cookie : int64 mask;
+                    fr_match : oxmMatch}
+
+type queueRequest = {port_number : portId; queue_id : int32}
+
+type tfpType =
+  | TfpInstruction
+  | TfpInstructionMiss
+  | TfpNextTable
+  | TfpNextTableMiss
+  | TfpWriteAction
+  | TfpWriteActionMiss
+  | TfpApplyAction
+  | TfpApplyActionMiss
+  | TfpMatch
+  | TfpWildcard
+  | TfpWriteSetField
+  | TfpWriteSetFieldMiss
+  | TfpApplySetField
+  | TfpApplySetFieldMiss
+  | TfpExperimenter
+  | TfpExperimenterMiss
+
+type tfpPayload = 
+  | TfpInstruction of instruction list
+  | TfpNextTable of tableId list
+  | TfpAction of action list
+  | TfpSetField of oxm list
+
+type tableFeatureProp = {tfp_type : tfpType; tfp_length : int16; 
+                         tfp_payload : tfpPayload}
+
+type tableConfig = Deprecated
+
+type tableFeatures = {length : int16; table_id : tableId; name : string;
+                      metadata_match : int64; metadata_write : int64;
+                      config : tableConfig; max_entries: int32;
+                      feature_prop : tableFeatureProp}
+
+type tableFeaturesRequest =
+ | None
+ | TablesFeatures of tableFeatures list
+
+type experimenter = {exp_id : int32; exp_type : int32}
+
+type multipartRequestBody =
+  | None
+  | MrbFlow of flowRequest
+  | MrbAggreg of flowRequest
+  | MrbPort of portId
+  | MrbQueue of queueRequest
+  | MrbGroup of groupId
+  | MrbMeter of int32
+  | MrbTable of tableFeaturesRequest
+  | MrbExperimenter of experimenter
+  
+
+type multipartRequest = { mpr_type : multipartType; flags : bool;
+                          body : multipartRequestBody}
+
+
+type switchDesc = { mfr_desc :string ; hw_desc : string; sw_desc : string;
                          serial_num : string }
 
 type multipartReply = 
   | PortsDescReply of portDesc list
   | SwitchDescReply of switchDesc
 
-type tableConfig = Deprecated
-
 type tableMod = { table_id : tableId; config : tableConfig }
+ 
