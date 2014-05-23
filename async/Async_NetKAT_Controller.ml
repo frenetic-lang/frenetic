@@ -35,9 +35,9 @@ exception Assertion_failed of string
 
 type t = {
   ctl : Controller.t;
+  txn : Txn.t;
   nib : Net.Topology.t ref;
   mutable locals : NetKAT_Types.policy SwitchMap.t;
-  mutable barriers : (unit Ivar.t) XidMap.t;
   mutable edge : (SDN_Types.flow*int) list SwitchMap.t;
 }
 
@@ -139,28 +139,19 @@ let send t c_id msg =
     | `Sent _ -> ()
     | `Drop exn -> raise exn
 
-let _barrier_xid = ref 0l
-
-let next_barrier_xid () =
-  _barrier_xid := Int32.succ (!_barrier_xid);
-  !_barrier_xid
-  
-let send_barrier_to_sw (t : t) (sw_id : switchId) : unit Deferred.t =
-  let ivar = Ivar.create () in
-  let xid = next_barrier_xid () in
+let send_barrier_to_sw (t : t) (sw_id : switchId)
+  : [`Disconnect of Sexp.t | `Result of unit ] Deferred.t =
   let c_id = Controller.client_id_of_switch t.ctl sw_id in
-  t.barriers <- XidMap.add t.barriers xid ivar;
-  send t.ctl c_id (xid, OpenFlow0x01.Message.BarrierRequest) >>= fun () ->
-  Ivar.read ivar
-
-let send_barrier_to_sw_with_timeout (t : t) (sw_id : switchId) : unit Deferred.t =
-  with_timeout (Time.Span.of_sec 15.0) (send_barrier_to_sw t sw_id)
+  Txn.send t.txn c_id OpenFlow0x01.Message.BarrierRequest
   >>= function
-  | `Result () -> return ()
-  | `Timeout ->
-    Log.error ~tags
-      "Async_NetKAT_Controller.send_barrier_to_sw_with_timeout: switch %Lu timed out" sw_id;
-    Log.flushed ()
+    | `Sent ivar ->
+      begin Ivar.read ivar
+      >>| function
+        | `Result OpenFlow0x01.Message.BarrierReply -> `Result ()
+        | `Result _ -> assert false
+        | `Disconnect exn_ -> `Disconnect exn_
+      end
+    | `Drop exn -> raise exn
 
 let port_desc_useable (pd : OpenFlow0x01.PortDescription.t) : bool =
   let open OpenFlow0x01.PortDescription in
@@ -252,13 +243,6 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
             | _ ->
               return []
           end
-        | BarrierReply ->
-          Log.debug ~tags "Received barrier_reply %Lu" switch_id;
-          begin match XidMap.find t.barriers xid with
-            | None -> Log.error ~tags "to_event: received unexpected BarrierReply from %Lu" switch_id
-            | Some ivar -> Ivar.fill ivar ()
-          end;
-          return []
         | _ ->
           Log.debug ~tags "Dropped message from %Lu: %s" switch_id (to_string msg);
           return []
@@ -330,16 +314,17 @@ let internal_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred
     Deferred.List.iter table ~f:(fun flow ->
         decr priority;
         send t.ctl c_id (0l, to_flow_mod !priority flow))
-    >>= fun () -> send_barrier_to_sw_with_timeout t sw_id)
+    >>= fun () -> (send_barrier_to_sw t sw_id))
   >>= function
-  | Ok () ->
+  | Ok (`Result ()) ->
     Log.debug ~tags
       "switch %Lu: installed internal table for ver %d" sw_id ver;
     Log.flushed ()
-  | Error exn_ ->
-    Log.error ~tags
-      "switch %Lu: Failed to update table in internal_update_table_for" sw_id;
+  | Ok (`Disconnect exn_) ->
+    Log.debug ~tags
+      "switch %Lu: disconnected while installing internal table for ver %d... skipping" sw_id ver;
     Log.flushed ()
+  | Error exn -> raise exn
 
 let compute_edge_table (t : t) ver table sw_id =
   let internal_ports = get_internal_ports t sw_id in
@@ -429,19 +414,17 @@ let edge_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred.t =
       Log.debug ~tags
         "switch %Lu: Installing edge table %s" sw_id (SDN_Types.string_of_flowTable edge_table);
       swap_update_for t sw_id edge_table
-      >>= fun () -> send_barrier_to_sw_with_timeout t sw_id)
+      >>= fun () -> (send_barrier_to_sw t sw_id))
   >>= function
-  | Ok () ->
+  | Ok (`Result ()) ->
     Log.debug ~tags
       "switch %Lu: installed edge table for ver %d" sw_id ver;
     Log.flushed ()
-  | Error exn_ ->
-    Log.error ~tags
-      "switch %Lu: Failed to update table from edge_update_table_for" sw_id;
-    Log.error ~tags
-      "%s" (Exn.to_string exn_);
-    
+  | Ok (`Disconnect exn_) ->
+    Log.debug ~tags
+      "switch %Lu: disconnected while installing edge table for ver %d... skipping" sw_id ver;
     Log.flushed ()
+  | Error exn -> raise exn
 
 let clear_old_table_for (t : t) ver sw_id : unit Deferred.t =
   let open SDN_Types in
@@ -544,9 +527,9 @@ let start app ?(port=6633) ?(update = `BestEffort) () =
   >>> fun ctl ->
   let t = {
     ctl = ctl;
+    txn = Txn.create ctl;
     nib = ref (Net.Topology.empty ());
     locals = SwitchMap.empty;
-    barriers = XidMap.empty;
     edge = SwitchMap.empty;
   } in
 
@@ -566,8 +549,8 @@ let start app ?(port=6633) ?(update = `BestEffort) () =
         Log.error ~tags "switch %Lu: Failed to send packet_out" sw_id;
         Log.flushed ()));
   let stages = let open Controller in
-    (local (fun t -> t.ctl)
-       features)
+    (local (fun t -> t.ctl) features)
+    >=> (local (fun t -> t.txn) Txn.stage)
     >=> (to_event w_out) in
   
   (* Build up the application by adding topology discovery into the mix. *)
@@ -590,4 +573,3 @@ let start app ?(port=6633) ?(update = `BestEffort) () =
     | Error exn_ ->
       Log.error ~tags "start: Exception occured %s" (Exn.to_string exn_);
       Log.flushed ())
-        
