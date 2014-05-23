@@ -1,6 +1,6 @@
 OASISFormat: 0.3
 Name:        ox
-Version:     1.0.1
+Version:     1.1.0
 Synopsis:    A platform for writing OpenFlow controllers
 Authors:     Nate Foster, Arjun Guha, Mark Reitblatt, and Cole Schlesinger
 License:     LGPL
