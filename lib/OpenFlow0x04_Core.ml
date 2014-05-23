@@ -261,26 +261,23 @@ type tableFeatures = {length : int16; table_id : tableId; name : string;
                       config : tableConfig; max_entries: int32;
                       feature_prop : tableFeatureProp}
 
-type tableFeaturesRequest =
- | None
- | TablesFeatures of tableFeatures list
+type tableFeaturesRequest = tableFeatures list
 
 type experimenter = {exp_id : int32; exp_type : int32}
 
 type multipartRequestBody =
-  | None
   | MrbFlow of flowRequest
   | MrbAggreg of flowRequest
   | MrbPort of portId
   | MrbQueue of queueRequest
   | MrbGroup of groupId
   | MrbMeter of int32
-  | MrbTable of tableFeaturesRequest
+  | MrbTable of tableFeaturesRequest option
   | MrbExperimenter of experimenter
   
 
-type multipartRequest = { mpr_type : multipartType; flags : bool;
-                          body : multipartRequestBody}
+type multipartRequest = { mpr_type : multipartType; mpr_flags : bool;
+                          mpr_body : multipartRequestBody option}
 
 
 type switchDesc = { mfr_desc :string ; hw_desc : string; sw_desc : string;
