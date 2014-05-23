@@ -317,12 +317,12 @@ let start app ?(port=6633) () =
     (* Build up the application by adding topology discovery into the mix. Make
      * the evaluation sequential so that the application can benefit from any
      * topology updates caused by the network event.
+     *
+     * Then, initialize the application to produce an event callback and
+     * Pipe.Reader.t's for packet out messages and policy updates.
      * *)
     let d_ctl, topo = Discovery.create () in
     let app = Async_NetKAT.union ~how:`Sequential topo (Discovery.guard app) in
-    (* Initialize the application, which produces an event callback and
-     * Pipe.Reader.t's for packet out messages and policy updates.
-     * *)
     let recv, callback = Async_NetKAT.run app t.nib () in
 
     (* The discovery application itself will generate events, so the actual
