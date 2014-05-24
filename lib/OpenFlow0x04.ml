@@ -1560,12 +1560,38 @@ module MultipartReq = struct
   let msg_code_of_request mpr = match mpr with
     | SwitchDescReq -> OFPMP_DESC
     | PortsDescReq -> OFPMP_PORT_DESC
+    | FlowStatsReq -> OFPMP_FLOW
+    | AggregFlowStatReq -> OFPMP_AGGREGATE
+    | TableStatsReq -> OFPMP_TABLE
+    | PortStatsReq -> OFPMP_PORT_STATS
+    | QueueStatsReq -> OFPMP_QUEUE
+    | GroupStatsReq -> OFPMP_GROUP
+    | GroupDescReq -> OFPMP_GROUP_DESC
+    | GroupFeatReq -> OFPMP_GROUP_FEATURES
+    | MeterStatsReq -> OFPMP_METER
+    | MeterConfReq -> OFPMP_METER_CONFIG
+    | MeterFeatReq -> OFPMP_METER_FEATURES
+    | TableFeatReq -> OFPMP_TABLE_FEATURES
+    | ExperimentReq -> OFPMP_EXPERIMENTER
 
   let sizeof (mpr : multipartRequest) =
     sizeof_ofp_multipart_request + 
     (match mpr.mpr_type with 
       | SwitchDescReq 
-      | PortsDescReq -> 0)
+      | PortsDescReq 
+      | FlowStatsReq 
+      | AggregFlowStatReq
+      | TableStatsReq
+      | PortStatsReq
+      | QueueStatsReq
+      | GroupStatsReq
+      | GroupDescReq
+      | GroupFeatReq
+      | MeterStatsReq
+      | MeterConfReq
+      | MeterFeatReq
+      | TableFeatReq
+      | ExperimentReq -> 0)
 
   let marshal (buf : Cstruct.t) (mpr : multipartRequest) : int =
     let size = sizeof mpr in
