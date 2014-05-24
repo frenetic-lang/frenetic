@@ -1546,6 +1546,33 @@ module PacketOut = struct
 
 end
 
+module FlowRequest = struct
+
+    cstruct ofp_flow_stats_request {
+      uint8_t table_id;
+      uint8_t pad[3];
+      uint32_t out_port;
+      uint32_t out_group;
+      uint8_t pad2[4];
+      uint64_t cookie;
+      uint64_t cookie_mask;
+    } as big_endian
+    
+    let parse (bits : Cstruct.t) : flowRequest =
+      let tableId = get_ofp_flow_stats_request_table_id bits in
+      let out_port = get_ofp_flow_stats_request_out_port bits in
+      let out_group = get_ofp_flow_stats_request_out_group bits in
+      let cookie = get_ofp_flow_stats_request_cookie bits in
+      let mask = get_ofp_flow_stats_request_cookie_mask bits in
+      let oxmMatch,_ = OfpMatch.parse (Cstruct.shift bits sizeof_ofp_flow_stats_request) in
+      { fr_table_id = tableId
+      ; fr_out_port = out_port
+      ; fr_out_group = out_group
+      ; fr_cookie = {m_value = cookie; m_mask = Some mask}
+      ; fr_match = oxmMatch}
+
+end
+
 module MultipartReq = struct
     
     cstruct ofp_multipart_request {
@@ -1561,7 +1588,7 @@ module MultipartReq = struct
     | SwitchDescReq -> OFPMP_DESC
     | PortsDescReq -> OFPMP_PORT_DESC
     | FlowStatsReq -> OFPMP_FLOW
-    | AggregFlowStatReq -> OFPMP_AGGREGATE
+    | AggregFlowStatsReq -> OFPMP_AGGREGATE
     | TableStatsReq -> OFPMP_TABLE
     | PortStatsReq -> OFPMP_PORT_STATS
     | QueueStatsReq -> OFPMP_QUEUE
@@ -1574,13 +1601,32 @@ module MultipartReq = struct
     | TableFeatReq -> OFPMP_TABLE_FEATURES
     | ExperimentReq -> OFPMP_EXPERIMENTER
 
+  let to_multipartType mpr =
+  match (int_to_ofp_multipart_types mpr) with
+    | Some OFPMP_DESC -> SwitchDescReq
+    | Some OFPMP_PORT_DESC -> PortsDescReq
+    | Some OFPMP_FLOW -> FlowStatsReq
+    | Some OFPMP_AGGREGATE -> AggregFlowStatsReq
+    | Some OFPMP_TABLE -> TableStatsReq
+    | Some OFPMP_PORT_STATS -> PortStatsReq
+    | Some OFPMP_QUEUE -> QueueStatsReq
+    | Some OFPMP_GROUP -> GroupStatsReq
+    | Some OFPMP_GROUP_DESC -> GroupDescReq
+    | Some OFPMP_GROUP_FEATURES -> GroupFeatReq
+    | Some OFPMP_METER -> MeterStatsReq
+    | Some OFPMP_METER_CONFIG -> MeterConfReq
+    | Some OFPMP_METER_FEATURES -> MeterFeatReq
+    | Some OFPMP_TABLE_FEATURES -> TableFeatReq
+    | Some OFPMP_EXPERIMENTER -> ExperimentReq
+    | _ -> raise (Unparsable (sprintf "bad ofp_multipart_types number (%d)" mpr))
+
   let sizeof (mpr : multipartRequest) =
     sizeof_ofp_multipart_request + 
     (match mpr.mpr_type with 
       | SwitchDescReq 
       | PortsDescReq 
       | FlowStatsReq 
-      | AggregFlowStatReq
+      | AggregFlowStatsReq
       | TableStatsReq
       | PortStatsReq
       | QueueStatsReq
@@ -1603,6 +1649,10 @@ module MultipartReq = struct
     set_ofp_multipart_request_pad3 buf 0;
     size
 
+  let parse (bits : Cstruct.t) : multipartRequest =
+    let mprType = to_multipartType (
+         (get_ofp_multipart_request_typ bits)) in
+    portDescReq
 end
 
 module PortsDescriptionReply = struct
