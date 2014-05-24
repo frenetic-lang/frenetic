@@ -65,8 +65,7 @@ let features_request_msg version : Platform.m =
 let port_description_request_msg : Platform.m =
   let open Header in 
   let open OF4 in 
-  let mpr = (0l, Message.MultipartReq ({mpr_type = OF4_Core.PortsDescReq;
-                                        mpr_flags = false; mpr_body = None})) in
+  let mpr = (0l, Message.MultipartReq OF4_Core.portDescReq) in
   Async_OpenFlow0x04.Message.marshal' mpr
   
 let handshake_error (c_id:Platform.Client_id.t) (str:string) : 'a = 
