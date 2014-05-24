@@ -74,6 +74,25 @@ type pseudoPort =
                           stats requests. Selects all flows regardless of output
                           port (including flows with no output port). *)
 
+type actionTyp = 
+ | Output
+ | CopyTTLOut
+ | CopyTTLIn
+ | SetMPLSTTL
+ | DecMPLSTTL
+ | PushVLAN
+ | PopVLAN
+ | PushMPLS
+ | PopMPLS
+ | SetQueue
+ | Group
+ | SetNWTTL
+ | DecNWTTL
+ | SetField
+ | PushPBB
+ | PopPBB
+ | Experimenter
+ 
 type action =
 | Output of pseudoPort
 | Group of groupId

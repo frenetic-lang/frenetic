@@ -205,6 +205,32 @@ cstruct ofp_port_stats_request {
   uint8_t pad[4]
 } as big_endian
 
+cstruct ofp_queue_stats_request {
+  uint32_t port_no;
+  uint32_t queue_id
+} as big_endian
+
+cstruct ofp_group_stats_request {
+  uint32_t group_id;
+  uint8_t pad[4]
+} as big_endian
+
+cstruct ofp_meter_multipart_request {
+  uint32_t meter_id;
+  uint8_t pad[4]
+} as big_endian
+
+cstruct ofp_table_features {
+  uint16_t length;
+  uint8_t table_id;
+  uint8_t pad[5];
+  uint8_t name[32];
+  uint64_t metadata_match;
+  uint64_t metadata_write;
+  uint32_t config; 
+  uint32_t max_entries
+} as big_endian
+
 (* Body of reply to OFPMP_PORT request. If a counter is unsupported, set
 * the field to all ones. *)
 cstruct ofp_port_stats {
@@ -263,6 +289,33 @@ cstruct ofp_port_status {
   uint8_t pad[7]
 } as big_endian
 
+cenum ofp_table_config {
+  OFPTC_DEPRECATED_MASK = 0x00000003l (* currently deprecated *)
+} as uint32_t
+
+cenum ofp_table_feature_prop_type {
+  OFPTFPT_INSTRUCTIONS       = 0;
+  OFPTFPT_INSTRUCTIONS_MISS  = 1;
+  OFPTFPT_NEXT_TABLES        = 2;
+  OFPTFPT_NEXT_TABLES_MISS   = 3;
+  OFPTFPT_WRITE_ACTIONS      = 4;
+  OFPTFPT_WRITE_ACTIONS_MISS  = 5;
+  OFPTFPT_APPLY_ACTIONS       = 6;
+  OFPTFPT_APPLY_ACTIONS_MISS  = 7;
+  OFPTFPT_MATCH               = 8;
+  OFPTFPT_WILDCARDS           = 10;
+  OFPTFPT_WRITE_SETFIELD      = 12;
+  OFPTFPT_WRITE_SETFIELD_MISS = 13;
+  OFPTFPT_APPLY_SETFIELD      = 14;
+  OFPTFPT_APPLY_SETFIELD_MISS = 15;
+  OFPTFPT_EXPERIMENTER        = 0xFFFE;
+  OFPTFPT_EXPERIMENTER_MISS   = 0xFFFF
+} as uint16_t
+
+cstruct ofp_table_feature_prop_header {
+  uint16_t typ;
+  uint16_t length
+} as big_endian
 
 (* MISSING: ofp_ queues *)
 
@@ -404,6 +457,16 @@ cstruct ofp_instruction {
     uint16_t typ;                 (* Instruction type *)
     uint16_t len                  (* Length of this struct in bytes. *)
 } as big_endian
+
+cenum ofp_instruction_type {
+    OFPIT_GOTO_TABLE        = 1;
+    OFPIT_WRITE_METADATA    = 2;
+    OFPIT_WRITE_ACTIONS     = 3;
+    OFPIT_APPLY_ACTIONS     = 4;
+    OFPIT_CLEAR_ACTIONS     = 5;
+    OFPIT_METER             = 6;
+    OFPIT_EXPERIMENTER      = 0xFFFF;
+} as uint16_t
 
 (* Instruction structure for OFPIT_GOTO_TABLE *)
 cstruct ofp_instruction_goto_table {
@@ -979,6 +1042,40 @@ module PseudoPort = struct
 
 end
 
+module OfpMatch = struct
+
+  let sizeof (om : oxmMatch) : int =
+    let n = sizeof_ofp_match + sum (map Oxm.sizeof om) in
+    pad_to_64bits n
+
+  let marshal (buf : Cstruct.t) (om : oxmMatch) : int =
+    let size = sizeof om in
+    set_ofp_match_typ buf 1; (* OXPMT_OXM *)
+    set_ofp_match_length buf (sizeof_ofp_match + sum (map Oxm.sizeof om)); (* Length of ofp_match (excluding padding) *)
+    let buf = Cstruct.shift buf sizeof_ofp_match in
+    let oxm_size = marshal_fields buf om Oxm.marshal in
+    let pad = size - (sizeof_ofp_match + oxm_size) in
+    if pad > 0 then
+      let buf = Cstruct.shift buf oxm_size in
+      let _ = pad_with_zeros buf pad in
+      size
+    else size
+
+  let rec parse_fields (bits : Cstruct.t) : oxmMatch * Cstruct.t =
+    if Cstruct.len bits <= sizeof_ofp_oxm then ([], bits)
+    else let field, bits2 = Oxm.parse bits in
+    let fields, bits3 = parse_fields bits2 in
+    (List.append [field] fields, bits3)
+
+  let parse (bits : Cstruct.t) : oxmMatch * Cstruct.t =
+    let length = get_ofp_match_length bits in
+    let oxm_bits = Cstruct.sub bits sizeof_ofp_match (length - sizeof_ofp_match) in
+    let fields, _ = parse_fields oxm_bits in
+    let bits = Cstruct.shift bits (pad_to_64bits length) in
+    (fields, bits)
+
+end
+
 module Action = struct
 
   type sequence = OpenFlow0x04_Core.actionSequence
@@ -992,6 +1089,25 @@ module Action = struct
     | PushMpls -> sizeof_ofp_action_push
     | SetField oxm -> pad_to_64bits (sizeof_ofp_action_set_field + Oxm.sizeof oxm)
 
+  let to_type t : actionTyp = 
+    match (int_to_ofp_action_type t) with
+      | Some OFPAT_OUTPUT -> Output
+   (*   | Some OFPAT_COPY_TTL_OUT
+      | Some OFPAT_COPY_TTL_IN
+      | Some OFPAT_SET_MPLS_TTL
+      | Some OFPAT_DEC_MPLS_TTL*)
+      | Some OFPAT_PUSH_VLAN -> PushVLAN
+      | Some OFPAT_POP_VLAN -> PopVLAN
+      | Some OFPAT_PUSH_MPLS -> PushMPLS
+      | Some OFPAT_POP_MPLS -> PopMPLS
+    (*  | Some OFPAT_SET_QUEUE*)
+      | Some OFPAT_GROUP -> Group
+    (*  | Some OFPAT_SET_NW_TTL
+      | Some OFPAT_DEC_NW_TTL*)
+      | Some OFPAT_SET_FIELD -> SetField
+   (*   | Some OFPAT_PUSH_PBB
+      | Some OFPAT_POP_PBB
+      | Some OFPAT_EXPERIMENTER*)
 
   let marshal (buf : Cstruct.t) (act : action) : int =
     let size = sizeof act in
@@ -1048,6 +1164,29 @@ module Action = struct
           size
         else size
 
+  let parse (bits : Cstruct.t) : action =
+    match to_type (get_ofp_action_header_typ bits) with
+     | Output -> Output (PseudoPort.make (get_ofp_action_output_port bits) 
+     (get_ofp_action_output_max_len bits))
+     | Group -> Group (get_ofp_action_group_group_id bits)
+     | PushVLAN -> PushVlan
+     | PopVLAN -> PopVlan
+     | PushMPLS -> PushMpls
+     | PopMPLS -> PopMpls
+     | SetField -> let field,_ = Oxm.parse (
+     Cstruct.shift bits sizeof_ofp_action_header) in
+     SetField (field)
+
+  let rec parse_fields (bits : Cstruct.t) : sequence * Cstruct.t =
+    if Cstruct.len bits <= sizeof_ofp_action_header then ([], bits)
+    else let field = parse bits in
+    let bits2 = Cstruct.shift bits (sizeof field) in
+    let fields, bits3 = parse_fields bits2 in
+    (List.append [field] fields, bits3)
+
+  let parse_sequence (bits : Cstruct.t) : sequence =
+    let fields, _ = parse_fields bits in
+    fields
 end
 
 module Bucket = struct
@@ -1135,40 +1274,6 @@ module GroupMod = struct
         sizeof_ofp_group_mod
 end
 
-module OfpMatch = struct
-
-  let sizeof (om : oxmMatch) : int =
-    let n = sizeof_ofp_match + sum (map Oxm.sizeof om) in
-    pad_to_64bits n
-
-  let marshal (buf : Cstruct.t) (om : oxmMatch) : int =
-    let size = sizeof om in
-    set_ofp_match_typ buf 1; (* OXPMT_OXM *)
-    set_ofp_match_length buf (sizeof_ofp_match + sum (map Oxm.sizeof om)); (* Length of ofp_match (excluding padding) *)
-    let buf = Cstruct.shift buf sizeof_ofp_match in
-    let oxm_size = marshal_fields buf om Oxm.marshal in
-    let pad = size - (sizeof_ofp_match + oxm_size) in
-    if pad > 0 then
-      let buf = Cstruct.shift buf oxm_size in
-      let _ = pad_with_zeros buf pad in
-      size
-    else size
-
-  let rec parse_fields (bits : Cstruct.t) : oxmMatch * Cstruct.t =
-    if Cstruct.len bits <= sizeof_ofp_oxm then ([], bits)
-    else let field, bits2 = Oxm.parse bits in
-    let fields, bits3 = parse_fields bits2 in
-    (List.append [field] fields, bits3)
-
-  let parse (bits : Cstruct.t) : oxmMatch * Cstruct.t =
-    let length = get_ofp_match_length bits in
-    let oxm_bits = Cstruct.sub bits sizeof_ofp_match (length - sizeof_ofp_match) in
-    let fields, _ = parse_fields oxm_bits in
-    let bits = Cstruct.shift bits (pad_to_64bits length) in
-    (fields, bits)
-
-end
-
 module Instruction = struct
 (*missing :  writeMeta; clearAction; meter; experimenter*)
   let sizeof (ins : instruction) : int =
@@ -1208,6 +1313,21 @@ module Instruction = struct
           set_ofp_instruction_actions_pad3 buf 0;
           sizeof_ofp_instruction_actions + (marshal_fields (Cstruct.shift buf sizeof_ofp_instruction_actions) actions Action.marshal)
 
+  let parse (bits : Cstruct.t) : instruction =
+    let typ = get_ofp_instruction_typ bits in
+    let len = get_ofp_instruction_len bits in
+      match (int_to_ofp_instruction_type typ) with
+        | Some OFPIT_GOTO_TABLE -> GotoTable (
+        get_ofp_instruction_goto_table_table_id bits)
+        (*OFPIT_WRITE_METADATA*)
+        | Some OFPIT_WRITE_ACTIONS -> WriteActions (
+        Action.parse_sequence (Cstruct.shift bits sizeof_ofp_instruction))
+        | Some OFPIT_APPLY_ACTIONS -> ApplyActions (
+        Action.parse_sequence (Cstruct.shift bits sizeof_ofp_instruction)) 
+        (*OFPIT_CLEAR_ACTIONS*)
+        (*OFPIT_METER*)
+        (*OFPIT_EXPERIMENTER*)
+        
 end
 
 module Instructions = struct
@@ -1217,6 +1337,17 @@ module Instructions = struct
 
   let marshal (buf : Cstruct.t) (inss : instruction list) : int =
     marshal_fields buf inss Instruction.marshal
+
+  let rec parse_field (bits : Cstruct.t) : instruction list*Cstruct.t =
+    if Cstruct.len bits <= sizeof_ofp_instruction then [],bits
+    else let field = Instruction.parse bits in
+    let bits2 = Cstruct.shift bits (Instruction.sizeof field) in
+    let fields, bits3 = parse_field bits2 in
+    (List.append [field] fields, bits3)
+
+  let parse (bits : Cstruct.t) : instruction list =
+    let field,_ = parse_field bits in
+    field
 
 end
 
@@ -1558,6 +1689,19 @@ module FlowRequest = struct
       uint64_t cookie_mask;
     } as big_endian
     
+    let marshal (buf : Cstruct.t) (fr : flowRequest) : int = 
+      set_ofp_flow_stats_request_table_id buf fr.fr_table_id;
+      set_ofp_flow_stats_request_out_port buf fr.fr_out_port;
+      set_ofp_flow_stats_request_out_group buf fr.fr_out_group;
+      set_ofp_flow_stats_request_cookie buf fr.fr_cookie.m_value;
+      set_ofp_flow_stats_request_cookie_mask buf (
+        match fr.fr_cookie.m_mask with
+          | None -> 0L
+          | Some mask -> mask);
+      sizeof_ofp_flow_stats_request + (OfpMatch.marshal 
+       (Cstruct.shift buf sizeof_ofp_flow_stats_request) fr.fr_match)
+    
+    
     let parse (bits : Cstruct.t) : flowRequest =
       let tableId = get_ofp_flow_stats_request_table_id bits in
       let out_port = get_ofp_flow_stats_request_out_port bits in
@@ -1571,6 +1715,79 @@ module FlowRequest = struct
       ; fr_cookie = {m_value = cookie; m_mask = Some mask}
       ; fr_match = oxmMatch}
 
+end
+
+module QueueRequest = struct
+
+    let parse (bits : Cstruct.t) : queueRequest = 
+      let portNumber = get_ofp_queue_stats_request_port_no bits in
+      let queueId = get_ofp_queue_stats_request_queue_id bits in
+      { port_number = portNumber
+      ; queue_id = queueId}
+
+end
+
+module TableFeatureProp = struct
+
+    let to_type t : tfpType = 
+    match (int_to_ofp_table_feature_prop_type t) with
+      | Some OFPTFPT_INSTRUCTIONS -> TfpInstruction
+      | Some OFPTFPT_INSTRUCTIONS_MISS -> TfpInstructionMiss
+      | Some OFPTFPT_NEXT_TABLES -> TfpNextTable
+      | Some OFPTFPT_NEXT_TABLES_MISS -> TfpNextTableMiss
+      | Some OFPTFPT_WRITE_ACTIONS -> TfpWriteAction
+      | Some OFPTFPT_WRITE_ACTIONS_MISS -> TfpWriteActionMiss
+      | Some OFPTFPT_APPLY_ACTIONS -> TfpApplyAction
+      | Some OFPTFPT_APPLY_ACTIONS_MISS -> TfpApplyActionMiss
+      | Some OFPTFPT_MATCH -> TfpMatch
+      | Some OFPTFPT_WILDCARDS -> TfpWildcard
+      | Some OFPTFPT_WRITE_SETFIELD -> TfpWriteSetField
+      | Some OFPTFPT_WRITE_SETFIELD_MISS -> TfpWriteSetFieldMiss
+      | Some OFPTFPT_APPLY_SETFIELD -> TfpApplySetField
+      | Some OFPTFPT_APPLY_SETFIELD_MISS -> TfpApplySetFieldMiss
+      | Some OFPTFPT_EXPERIMENTER -> TfpExperimenter
+      | Some OFPTFPT_EXPERIMENTER_MISS -> TfpExperimenterMiss
+
+    let parse (bits : Cstruct.t) : tableFeatureProp =
+     let tfpType = to_type (get_ofp_table_feature_prop_header_typ bits) in
+     let tfpLength = get_ofp_table_feature_prop_header_length bits in
+     let pay = (
+       match tfpType with
+         | TfpInstruction
+         | TfpInstructionMiss -> TfpInstruction (
+         Instructions.parse (Cstruct.shift bits sizeof_ofp_table_feature_prop_header))
+        ) in
+    { tfp_type = tfpType
+    ; tfp_length = tfpLength
+    ; tfp_payload = pay
+    }
+
+end
+
+module TableFeaturesRequest = struct
+
+    let parse (bits : Cstruct.t) : tableFeaturesRequest = 
+      let length = get_ofp_table_features_length bits in
+      let tableId = get_ofp_table_features_table_id bits in
+      let name = copy_ofp_table_features_name bits in
+      let metadataMatch = get_ofp_table_features_metadata_match bits in
+      let metadataWrite = get_ofp_table_features_metadata_write bits in
+      let config = (
+        match int_to_ofp_table_config (get_ofp_table_features_config bits) with
+          | Some OFPTC_DEPRECATED_MASK -> Deprecated
+          | _ -> raise
+            (Unparsable (sprintf "unsupported config "))
+        ) in
+      let maxEntries = get_ofp_table_features_max_entries bits in
+      let featureProp = TableFeatureProp.parse (Cstruct.shift bits sizeof_ofp_table_features) in
+      [{ length = length;
+        table_id = tableId;
+        name = name;
+        metadata_match = metadataMatch; 
+        metadata_write = metadataWrite;
+        config = config; 
+        max_entries = maxEntries;
+        feature_prop = featureProp}]
 end
 
 module MultipartReq = struct
@@ -1650,9 +1867,39 @@ module MultipartReq = struct
     size
 
   let parse (bits : Cstruct.t) : multipartRequest =
-    let mprType = to_multipartType (
-         (get_ofp_multipart_request_typ bits)) in
-    portDescReq
+    let mprType = to_multipartType (get_ofp_multipart_request_typ bits) in
+    let mprFlags = (
+      match int_to_ofp_multipart_request_flags (get_ofp_multipart_request_flags bits) with
+        | Some OFPMPF_REQ_MORE -> true
+        | _ -> false) in
+    let mprBody = match mprType with
+      | SwitchDescReq 
+      | TableStatsReq
+      | GroupDescReq
+      | GroupFeatReq
+      | MeterFeatReq
+      | PortsDescReq -> None
+      | FlowStatsReq -> Some (MrbFlow (
+      FlowRequest.parse (Cstruct.shift bits sizeof_ofp_multipart_request)))
+      | AggregFlowStatsReq -> Some (MrbAggreg (
+      FlowRequest.parse (Cstruct.shift bits sizeof_ofp_multipart_request)))
+      | PortStatsReq -> Some (MrbPort (
+      get_ofp_port_stats_request_port_no (Cstruct.shift bits sizeof_ofp_multipart_request)))
+      | QueueStatsReq -> Some (MrbQueue (
+      QueueRequest.parse (Cstruct.shift bits sizeof_ofp_multipart_request)))
+      | GroupStatsReq -> Some (MrbGroup (
+      get_ofp_group_stats_request_group_id (Cstruct.shift bits sizeof_ofp_multipart_request)))
+      | MeterStatsReq -> Some (MrbMeter (
+      get_ofp_meter_multipart_request_meter_id (Cstruct.shift bits sizeof_ofp_multipart_request)))
+      | MeterConfReq -> Some (MrbMeter (
+      get_ofp_meter_multipart_request_meter_id (Cstruct.shift bits sizeof_ofp_multipart_request)))
+      | TableFeatReq 
+      | ExperimentReq -> None in
+    { mpr_type = mprType
+    ; mpr_flags = mprFlags
+    ; mpr_body = mprBody}
+    
+
 end
 
 module PortsDescriptionReply = struct
@@ -1725,9 +1972,6 @@ module TableMod = struct
       uint32_t confi
     } as big_endian
     
-    cenum ofp_table_config {
-      OFPTC_DEPRECATED_MASK = 0x00000003l (* currently deprecated *)
-    } as uint32_t
 
     let sizeof (tab : tableMod) : int =
     sizeof_ofp_table_mod

@@ -63,6 +63,25 @@ type pseudoPort =
   | Local
   | Any
 
+type actionTyp = 
+ | Output
+ | CopyTTLOut
+ | CopyTTLIn
+ | SetMPLSTTL
+ | DecMPLSTTL
+ | PushVLAN
+ | PopVLAN
+ | PushMPLS
+ | PopMPLS
+ | SetQueue
+ | Group
+ | SetNWTTL
+ | DecNWTTL
+ | SetField
+ | PushPBB
+ | PopPBB
+ | Experimenter
+  
 type action =
 | Output of pseudoPort
 | Group of groupId
