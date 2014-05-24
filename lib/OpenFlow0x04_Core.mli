@@ -251,6 +251,8 @@ type multipartRequest = { mpr_type : multipartType; mpr_flags : bool;
                           mpr_body : multipartRequestBody option}
 
 
+val portDescReq : multipartRequest
+
 type switchDesc = { mfr_desc :string ; hw_desc : string; sw_desc : string;
                          serial_num : string }
 

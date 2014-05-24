@@ -1170,7 +1170,7 @@ module OfpMatch = struct
 end
 
 module Instruction = struct
-
+(*missing :  writeMeta; clearAction; meter; experimenter*)
   let sizeof (ins : instruction) : int =
     match ins with
       | GotoTable _ ->
@@ -1563,13 +1563,13 @@ module MultipartReq = struct
 
   let sizeof (mpr : multipartRequest) =
     sizeof_ofp_multipart_request + 
-    (match mpr with 
+    (match mpr.mpr_type with 
       | SwitchDescReq 
       | PortsDescReq -> 0)
 
   let marshal (buf : Cstruct.t) (mpr : multipartRequest) : int =
     let size = sizeof mpr in
-    set_ofp_multipart_request_typ buf (ofp_multipart_types_to_int (msg_code_of_request mpr));
+    set_ofp_multipart_request_typ buf (ofp_multipart_types_to_int (msg_code_of_request mpr.mpr_type));
     set_ofp_multipart_request_flags buf 0;
     set_ofp_multipart_request_pad0 buf 0;
     set_ofp_multipart_request_pad1 buf 0;
@@ -1623,6 +1623,12 @@ module SwitchDescriptionReply = struct
                       serial_num}
 
 end
+
+module FLowStatisticsRequest = struct
+
+end
+
+
 
 module MultipartReply = struct
     
@@ -1852,4 +1858,6 @@ module Message = struct
     (hdr.Header.xid, msg)
 end
 
-let portsDescRequest = Message.MultipartReq PortsDescReq
+let portsDescRequest = Message.MultipartReq {mpr_type = PortsDescReq;
+											 mpr_flags = false;
+											 mpr_body = None}

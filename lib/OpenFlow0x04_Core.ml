@@ -279,6 +279,10 @@ type multipartRequestBody =
 type multipartRequest = { mpr_type : multipartType; mpr_flags : bool;
                           mpr_body : multipartRequestBody option}
 
+let portDescReq = 
+  { mpr_type = PortsDescReq
+  ; mpr_flags = false
+  ; mpr_body = None }
 
 type switchDesc = { mfr_desc :string ; hw_desc : string; sw_desc : string;
                          serial_num : string }
