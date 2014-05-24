@@ -179,7 +179,7 @@ type multipartType =
   | SwitchDescReq
   | PortsDescReq 
   | FlowStatsReq
-  | AggregFlowStatReq
+  | AggregFlowStatsReq
   | TableStatsReq
   | PortStatsReq
   | QueueStatsReq
