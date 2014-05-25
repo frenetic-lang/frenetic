@@ -1812,18 +1812,21 @@ module PacketOut = struct
 
 end
 
+cstruct ofp_flow_stats_request {
+  uint8_t table_id;
+  uint8_t pad[3];
+  uint32_t out_port;
+  uint32_t out_group;
+  uint8_t pad2[4];
+  uint64_t cookie;
+  uint64_t cookie_mask;
+} as big_endian
+
 module FlowRequest = struct
 
-    cstruct ofp_flow_stats_request {
-      uint8_t table_id;
-      uint8_t pad[3];
-      uint32_t out_port;
-      uint32_t out_group;
-      uint8_t pad2[4];
-      uint64_t cookie;
-      uint64_t cookie_mask;
-    } as big_endian
-    
+    let sizeof (fr : flowRequest) : int = 
+    sizeof_ofp_flow_stats_request + (OfpMatch.sizeof fr.fr_match)
+  
     let marshal (buf : Cstruct.t) (fr : flowRequest) : int = 
       set_ofp_flow_stats_request_table_id buf fr.fr_table_id;
       set_ofp_flow_stats_request_out_port buf fr.fr_out_port;
@@ -1921,6 +1924,9 @@ end
 
 module TableFeature = struct
 
+    let sizeof (tf : tableFeatures) =
+        tf.length
+
     let parse (bits : Cstruct.t) : tableFeatures*Cstruct.t = 
       let length = get_ofp_table_features_length bits in
       let tableId = get_ofp_table_features_table_id bits in
@@ -1949,6 +1955,9 @@ end
 
 module TableFeaturesRequest = struct
 
+    let sizeof (tfr : tableFeaturesRequest) =
+        sum (map TableFeature.sizeof tfr)
+
     let rec parse_fields (bits : Cstruct.t) len cumul : tableFeaturesRequest*Cstruct.t = 
     if len = cumul then [],bits
     else (
@@ -1964,7 +1973,7 @@ module TableFeaturesRequest = struct
 end
 
 module MultipartReq = struct
-    
+(* TODO : redifine marshal and sizeof*)    
     cstruct ofp_multipart_request {
       uint16_t typ; (* One of the OFPMP_* constants. *)
       uint16_t flags; (* OFPMPF_REQ_* flags. *)
@@ -2012,22 +2021,16 @@ module MultipartReq = struct
 
   let sizeof (mpr : multipartRequest) =
     sizeof_ofp_multipart_request + 
-    (match mpr.mpr_type with 
-      | SwitchDescReq 
-      | PortsDescReq 
-      | FlowStatsReq 
-      | AggregFlowStatsReq
-      | TableStatsReq
-      | PortStatsReq
-      | QueueStatsReq
-      | GroupStatsReq
-      | GroupDescReq
-      | GroupFeatReq
-      | MeterStatsReq
-      | MeterConfReq
-      | MeterFeatReq
-      | TableFeatReq
-      | ExperimentReq -> 0)
+    (match mpr.mpr_body with 
+       | None -> 0
+       | Some MrbFlow fr -> FlowRequest.sizeof fr 
+       | Some MrbAggreg fr -> FlowRequest.sizeof fr
+       | Some MrbPort _ -> sizeof_ofp_port_stats_request 
+       | Some MrbQueue _ -> sizeof_ofp_queue_stats_request
+       | Some MrbGroup _ -> sizeof_ofp_group_stats_request 
+       | Some MrbMeter _ -> sizeof_ofp_meter_multipart_request
+       | Some MrbTable tfr -> TableFeaturesRequest.sizeof tfr
+       | Some MrbExperimenter _ -> raise (Unparsable (sprintf "Not yet implement")) )
 
   let marshal (buf : Cstruct.t) (mpr : multipartRequest) : int =
     let size = sizeof mpr in
