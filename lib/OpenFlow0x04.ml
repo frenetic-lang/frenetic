@@ -1379,6 +1379,10 @@ module Instruction = struct
         sizeof_ofp_instruction_actions + sum (map Action.sizeof actions)
       | WriteActions actions ->
         sizeof_ofp_instruction_actions + sum (map Action.sizeof actions)
+      | WriteMetadata _ -> sizeof_ofp_instruction_write_metadata
+      | Clear -> sizeof_ofp_instruction_actions
+      | Meter _ -> sizeof_ofp_instruction_meter
+      | Experimenter _ -> sizeof_ofp_instruction_experimenter
 
   let marshal (buf : Cstruct.t) (ins : instruction) : int =
     let size = sizeof ins in
@@ -1407,6 +1411,37 @@ module Instruction = struct
           set_ofp_instruction_actions_pad2 buf 0;
           set_ofp_instruction_actions_pad3 buf 0;
           sizeof_ofp_instruction_actions + (marshal_fields (Cstruct.shift buf sizeof_ofp_instruction_actions) actions Action.marshal)
+        | WriteMetadata metadata ->
+          set_ofp_instruction_write_metadata_typ buf 2;
+          set_ofp_instruction_write_metadata_len buf size;
+          set_ofp_instruction_write_metadata_pad0 buf 0;
+          set_ofp_instruction_write_metadata_pad1 buf 0;
+          set_ofp_instruction_write_metadata_pad2 buf 0;
+          set_ofp_instruction_write_metadata_pad3 buf 0;
+          set_ofp_instruction_write_metadata_metadata buf metadata.m_value;
+          set_ofp_instruction_write_metadata_metadata_mask buf (
+            match metadata.m_mask with
+              | None -> 0L
+              | Some mask -> mask);
+          size
+        | Clear -> 
+          set_ofp_instruction_actions_typ buf 5;
+          set_ofp_instruction_actions_len buf size;
+          set_ofp_instruction_actions_pad0 buf 0;
+          set_ofp_instruction_actions_pad1 buf 0;
+          set_ofp_instruction_actions_pad2 buf 0;
+          set_ofp_instruction_actions_pad3 buf 0;
+          size
+        | Meter meterId->
+          set_ofp_instruction_meter_typ buf 6;
+          set_ofp_instruction_meter_len buf size;
+          set_ofp_instruction_meter_meter_id buf meterId;
+          size
+        | Experimenter experimenterId->
+          set_ofp_instruction_experimenter_typ buf 0xffff;
+          set_ofp_instruction_experimenter_len buf size;
+          set_ofp_instruction_experimenter_experimenter buf experimenterId;
+          size
 
 
   let parse (bits : Cstruct.t) : instruction =
@@ -1414,14 +1449,18 @@ module Instruction = struct
       match (int_to_ofp_instruction_type typ) with
         | Some OFPIT_GOTO_TABLE -> GotoTable (
         get_ofp_instruction_goto_table_table_id bits)
-        (*OFPIT_WRITE_METADATA*)
+        | Some OFPIT_WRITE_METADATA -> 
+            let value = get_ofp_instruction_write_metadata_metadata bits in 
+            let mask = get_ofp_instruction_write_metadata_metadata_mask bits in
+            WriteMetadata ({m_value = value; m_mask = Some mask})
         | Some OFPIT_WRITE_ACTIONS -> WriteActions (
         Action.parse_sequence (Cstruct.shift bits sizeof_ofp_instruction))
         | Some OFPIT_APPLY_ACTIONS -> ApplyActions (
         Action.parse_sequence (Cstruct.shift bits sizeof_ofp_instruction)) 
-        (*OFPIT_CLEAR_ACTIONS*)
-        (*OFPIT_METER*)
-        (*OFPIT_EXPERIMENTER*)
+        | Some OFPIT_CLEAR_ACTIONS -> Clear
+        | Some OFPIT_METER -> Meter (get_ofp_instruction_meter_meter_id bits)
+        | Some OFPIT_EXPERIMENTER -> Experimenter (
+        get_ofp_instruction_experimenter_experimenter bits)
         | _ -> raise (Unparsable (sprintf "Not Yet implement"))
         
 end

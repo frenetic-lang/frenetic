@@ -107,6 +107,10 @@ type instruction =
 | GotoTable of tableId
 | ApplyActions of actionSequence
 | WriteActions of actionSequence
+| WriteMetadata of int64 mask
+| Clear
+| Meter of int32
+| Experimenter of int32
 
 type bucket = { bu_weight : int16; bu_watch_port : portId option;
                 bu_watch_group : groupId option; bu_actions : actionSequence }
