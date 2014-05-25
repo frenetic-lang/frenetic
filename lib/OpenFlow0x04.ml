@@ -1461,7 +1461,7 @@ module Instruction = struct
         | Some OFPIT_METER -> Meter (get_ofp_instruction_meter_meter_id bits)
         | Some OFPIT_EXPERIMENTER -> Experimenter (
         get_ofp_instruction_experimenter_experimenter bits)
-        | _ -> raise (Unparsable (sprintf "Not Yet implement"))
+        | _ -> raise (Unparsable (sprintf "Unkown instruction message"))
         
 end
 
@@ -1919,9 +1919,9 @@ module TableFeatureProp = struct
 
 end
 
-module TableFeaturesRequest = struct
+module TableFeature = struct
 
-    let parse (bits : Cstruct.t) : tableFeaturesRequest = 
+    let parse (bits : Cstruct.t) : tableFeatures*Cstruct.t = 
       let length = get_ofp_table_features_length bits in
       let tableId = get_ofp_table_features_table_id bits in
       let name = copy_ofp_table_features_name bits in
@@ -1935,14 +1935,32 @@ module TableFeaturesRequest = struct
         ) in
       let maxEntries = get_ofp_table_features_max_entries bits in
       let featureProp = TableFeatureProp.parse (Cstruct.shift bits sizeof_ofp_table_features) in
-      [{ length = length;
+      { length = length;
         table_id = tableId;
         name = name;
         metadata_match = metadataMatch; 
         metadata_write = metadataWrite;
         config = config; 
         max_entries = maxEntries;
-        feature_prop = featureProp}]
+        feature_prop = featureProp},(Cstruct.shift bits length)
+    
+
+end
+
+module TableFeaturesRequest = struct
+
+    let rec parse_fields (bits : Cstruct.t) len cumul : tableFeaturesRequest*Cstruct.t = 
+    if len = cumul then [],bits
+    else (
+    let field,nextBits = TableFeature.parse bits in
+    let fields,bits3 = parse_fields nextBits len (cumul + field.length) in
+    (List.append [field] fields,bits3)
+    )    
+
+    let parse (bits : Cstruct.t) : tableFeaturesRequest = 
+      let length = Cstruct.len bits in
+      let body,_ = parse_fields bits length 0 in
+      body
 end
 
 module MultipartReq = struct
@@ -2048,7 +2066,11 @@ module MultipartReq = struct
       get_ofp_meter_multipart_request_meter_id (Cstruct.shift bits sizeof_ofp_multipart_request)))
       | MeterConfReq -> Some (MrbMeter (
       get_ofp_meter_multipart_request_meter_id (Cstruct.shift bits sizeof_ofp_multipart_request)))
-      | TableFeatReq 
+      | TableFeatReq -> 
+      if Cstruct.len bits <= sizeof_ofp_multipart_request then None
+      else Some (MrbTable (
+        TableFeaturesRequest.parse (Cstruct.shift bits sizeof_ofp_multipart_request)
+      ))
       | ExperimentReq -> None in
     { mpr_type = mprType
     ; mpr_flags = mprFlags
