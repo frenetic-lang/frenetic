@@ -103,6 +103,15 @@ type action =
 | SetField of oxm
 | CopyTtlOut
 | CopyTtlIn
+| SetNwTtl of int8
+| DecNwTtl
+| PushPbb
+| PopPbb
+| SetMplsTtl of int8
+| DecMplsTtl
+| SetQueue of int32
+| Experimenter of int32
+
 
 type actionSequence = action list
 
