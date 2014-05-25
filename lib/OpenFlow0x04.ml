@@ -1751,11 +1751,29 @@ module TableFeatureProp = struct
     let parse (bits : Cstruct.t) : tableFeatureProp =
      let tfpType = to_type (get_ofp_table_feature_prop_header_typ bits) in
      let tfpLength = get_ofp_table_feature_prop_header_length bits in
+     let tfpPayBits = Cstruct.shift bits sizeof_ofp_table_feature_prop_header in
      let pay = (
        match tfpType with
          | TfpInstruction
          | TfpInstructionMiss -> TfpInstruction (
-         Instructions.parse (Cstruct.shift bits sizeof_ofp_table_feature_prop_header))
+         Instructions.parse tfpPayBits)
+         | TfpNextTable | TfpNextTableMiss -> (
+            let rec parse_fields (bits : Cstruct.t) len = 
+                if Cstruct.len bits < len then ([], bits)
+                else let field, bits2 = get_uint8 bits 0, Cstruct.shift bits 1 in
+                let fields, bits3 = parse_fields bits2 (len -1) in
+                (List.append [field] fields, bits3) in
+            let ids,_ = parse_fields tfpPayBits
+            (tfpLength - 4) in 
+                TfpNextTable ids)
+         | TfpWriteAction | TfpWriteActionMiss | TfpApplyAction 
+         | TfpApplyActionMiss -> TfpAction (
+         Action.parse_sequence tfpPayBits)
+         | TfpMatch | TfpWildcard | TfpWriteSetField | TfpWriteSetFieldMiss
+         | TfpApplySetField | TfpApplySetFieldMiss -> 
+            let fields,_ = OfpMatch.parse tfpPayBits in 
+            TfpSetField fields
+        (* | TfpExperimenter | TfpExperimenterMiss *)
         ) in
     { tfp_type = tfpType
     ; tfp_length = tfpLength

@@ -90,6 +90,8 @@ type action =
 | PopMpls
 | PushMpls
 | SetField of oxm
+| CopyTtlOut
+| CopyTtlIn
 
 type actionSequence = action list
 
@@ -291,7 +293,7 @@ type multipartRequestBody =
   | MrbQueue of queueRequest
   | MrbGroup of groupId
   | MrbMeter of int32
-  | MrbTable of tableFeaturesRequest option
+  | MrbTable of tableFeaturesRequest
   | MrbExperimenter of experimenter
   
 
