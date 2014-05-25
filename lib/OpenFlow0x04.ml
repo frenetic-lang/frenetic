@@ -1857,6 +1857,11 @@ end
 
 module QueueRequest = struct
 
+    let marshal (buf : Cstruct.t) (qr : queueRequest) : int =
+      set_ofp_queue_stats_request_port_no buf qr.port_number;
+      set_ofp_queue_stats_request_queue_id buf qr.queue_id;
+      sizeof_ofp_queue_stats_request
+
     let parse (bits : Cstruct.t) : queueRequest = 
       let portNumber = get_ofp_queue_stats_request_port_no bits in
       let queueId = get_ofp_queue_stats_request_queue_id bits in
@@ -1886,6 +1891,43 @@ module TableFeatureProp = struct
       | Some OFPTFPT_EXPERIMENTER -> TfpExperimenter
       | Some OFPTFPT_EXPERIMENTER_MISS -> TfpExperimenterMiss
       | None -> raise (Unparsable (sprintf "malformed type"))
+
+    let marshal (buf : Cstruct.t) (tfp : tableFeatureProp) =
+      let size = sizeof_ofp_table_feature_prop_header in
+      set_ofp_table_feature_prop_header_typ buf (
+        match tfp.tfp_type with
+          | TfpInstruction -> ofp_table_feature_prop_type_to_int OFPTFPT_INSTRUCTIONS
+          | TfpInstructionMiss -> ofp_table_feature_prop_type_to_int OFPTFPT_INSTRUCTIONS_MISS
+          | TfpNextTable -> ofp_table_feature_prop_type_to_int OFPTFPT_NEXT_TABLES
+          | TfpNextTableMiss -> ofp_table_feature_prop_type_to_int OFPTFPT_NEXT_TABLES_MISS
+          | TfpWriteAction -> ofp_table_feature_prop_type_to_int OFPTFPT_WRITE_ACTIONS
+          | TfpWriteActionMiss -> ofp_table_feature_prop_type_to_int OFPTFPT_WRITE_ACTIONS_MISS
+          | TfpApplyAction -> ofp_table_feature_prop_type_to_int OFPTFPT_APPLY_ACTIONS
+          | TfpApplyActionMiss -> ofp_table_feature_prop_type_to_int OFPTFPT_APPLY_ACTIONS_MISS
+          | TfpMatch -> ofp_table_feature_prop_type_to_int OFPTFPT_MATCH
+          | TfpWildcard -> ofp_table_feature_prop_type_to_int OFPTFPT_WILDCARDS
+          | TfpWriteSetField -> ofp_table_feature_prop_type_to_int OFPTFPT_WRITE_SETFIELD
+          | TfpWriteSetFieldMiss -> ofp_table_feature_prop_type_to_int OFPTFPT_WRITE_SETFIELD_MISS
+          | TfpApplySetField -> ofp_table_feature_prop_type_to_int OFPTFPT_APPLY_SETFIELD
+          | TfpApplySetFieldMiss -> ofp_table_feature_prop_type_to_int OFPTFPT_APPLY_SETFIELD_MISS
+          | TfpExperimenter -> ofp_table_feature_prop_type_to_int OFPTFPT_EXPERIMENTER
+          | TfpExperimenterMiss -> ofp_table_feature_prop_type_to_int OFPTFPT_EXPERIMENTER_MISS);
+      set_ofp_table_feature_prop_header_length buf tfp.tfp_length;
+      size + (
+       match tfp.tfp_payload with
+         | TfpInstruction ins->
+            marshal_fields (Cstruct.shift buf size) ins Instruction.marshal
+         | TfpNextTable nt ->
+           let marsh (buf : Cstruct.t) (id : uint8) : int =
+             set_uint8 buf 0 id;
+             1
+           in
+           marshal_fields (Cstruct.shift buf size) nt marsh
+         | TfpAction act->
+           marshal_fields (Cstruct.shift buf size) act Action.marshal
+         | TfpSetField ox-> 
+           marshal_fields (Cstruct.shift buf size) ox Oxm.marshal
+      )
 
     let parse (bits : Cstruct.t) : tableFeatureProp =
      let tfpType = to_type (get_ofp_table_feature_prop_header_typ bits) in
@@ -1925,7 +1967,22 @@ end
 module TableFeature = struct
 
     let sizeof (tf : tableFeatures) =
-        tf.length
+      tf.length
+
+    let tableConfig_to_int (tc : tableConfig) : int32 =
+      match tc with
+        | Deprecated -> ofp_table_config_to_int OFPTC_DEPRECATED_MASK
+
+    let marshal (buf : Cstruct.t) (tf : tableFeatures) : int =
+      set_ofp_table_features_length buf tf.length;
+      set_ofp_table_features_table_id buf tf.table_id;
+      set_ofp_table_features_name tf.name 0 buf;
+      set_ofp_table_features_metadata_match buf tf.metadata_match;
+      set_ofp_table_features_metadata_write buf tf.metadata_write;
+      set_ofp_table_features_config buf (tableConfig_to_int tf.config);
+      set_ofp_table_features_max_entries buf tf.max_entries;
+      (*marshal of features prop*)
+      tf.length
 
     let parse (bits : Cstruct.t) : tableFeatures*Cstruct.t = 
       let length = get_ofp_table_features_length bits in
@@ -1941,7 +1998,7 @@ module TableFeature = struct
         ) in
       let maxEntries = get_ofp_table_features_max_entries bits in
       let featureProp = TableFeatureProp.parse (Cstruct.shift bits sizeof_ofp_table_features) in
-      { length = length;
+      { length = (pad_to_64bits length);
         table_id = tableId;
         name = name;
         metadata_match = metadataMatch; 
@@ -1958,13 +2015,17 @@ module TableFeaturesRequest = struct
     let sizeof (tfr : tableFeaturesRequest) =
         sum (map TableFeature.sizeof tfr)
 
+    let marshal (buf : Cstruct.t) (tfr : tableFeaturesRequest) =
+      marshal_fields buf tfr TableFeature.marshal
+      
+
     let rec parse_fields (bits : Cstruct.t) len cumul : tableFeaturesRequest*Cstruct.t = 
-    if len = cumul then [],bits
-    else (
-    let field,nextBits = TableFeature.parse bits in
-    let fields,bits3 = parse_fields nextBits len (cumul + field.length) in
-    (List.append [field] fields,bits3)
-    )    
+      if len = cumul then [],bits
+      else (
+        let field,nextBits = TableFeature.parse bits in
+        let fields,bits3 = parse_fields nextBits len (cumul + field.length) in
+        (List.append [field] fields,bits3)
+      )    
 
     let parse (bits : Cstruct.t) : tableFeaturesRequest = 
       let length = Cstruct.len bits in
@@ -2033,14 +2094,32 @@ module MultipartReq = struct
        | Some MrbExperimenter _ -> raise (Unparsable (sprintf "Not yet implement")) )
 
   let marshal (buf : Cstruct.t) (mpr : multipartRequest) : int =
-    let size = sizeof mpr in
+    let size = sizeof_ofp_multipart_request in
     set_ofp_multipart_request_typ buf (ofp_multipart_types_to_int (msg_code_of_request mpr.mpr_type));
     set_ofp_multipart_request_flags buf 0;
     set_ofp_multipart_request_pad0 buf 0;
     set_ofp_multipart_request_pad1 buf 0;
     set_ofp_multipart_request_pad2 buf 0;
     set_ofp_multipart_request_pad3 buf 0;
-    size
+    let pay_buf = Cstruct.shift buf sizeof_ofp_multipart_request in
+    size + (
+    match mpr.mpr_body with
+       | None -> 0
+       | Some MrbTable tfr -> TableFeaturesRequest.marshal pay_buf tfr
+       | Some MrbFlow f -> FlowRequest.marshal pay_buf f
+       | Some MrbAggreg f -> FlowRequest.marshal pay_buf f
+       | Some MrbPort p -> 
+          set_ofp_port_stats_request_port_no pay_buf p;
+          sizeof_ofp_port_stats_request
+       | Some MrbQueue q -> QueueRequest.marshal pay_buf q
+       | Some MrbGroup g ->
+          set_ofp_group_stats_request_group_id pay_buf g;
+          sizeof_ofp_group_stats_request
+       | Some MrbMeter m -> 
+          set_ofp_meter_multipart_request_meter_id pay_buf m;
+          sizeof_ofp_meter_multipart_request
+       | Some MrbExperimenter _ -> raise (Unparsable (sprintf "Not yet implement")) 
+    )
 
   let parse (bits : Cstruct.t) : multipartRequest =
     let mprType = to_multipartType (get_ofp_multipart_request_typ bits) in
@@ -2126,12 +2205,6 @@ module SwitchDescriptionReply = struct
                       serial_num}
 
 end
-
-module FLowStatisticsRequest = struct
-
-end
-
-
 
 module MultipartReply = struct
     
