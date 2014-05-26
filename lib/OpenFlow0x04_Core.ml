@@ -320,9 +320,16 @@ let portDescReq =
 type switchDesc = { mfr_desc :string ; hw_desc : string; sw_desc : string;
                          serial_num : string }
 
+type flowStats = { length : int16; table_id : tableId; duration_sec : int32;
+                   duration_nsec : int32; priority : int16; idle_timeout : timeout;
+                   hard_timeout : timeout; flags : flowModFlags; cookie : int64;
+                   packet_count : int64; byte_count : int64; ofp_match : oxmMatch;
+                   instructions : instruction list}
+
 type multipartReply = 
   | PortsDescReply of portDesc list
   | SwitchDescReply of switchDesc
+  | FlowStatsReply of flowStats
 
 type tableMod = { table_id : tableId; config : tableConfig }
  

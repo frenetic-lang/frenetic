@@ -727,6 +727,9 @@ let rec pad_with_zeros (buf : Cstruct.t) (pad : int) : int =
   else begin set_ofp_uint8_value buf 0;
     1 + pad_with_zeros (Cstruct.shift buf 1) (pad - 1) end
 
+let test_bit16 (n:int) (x:int) : bool =
+  (x lsr n) land 1 = 1
+
 module Oxm = struct
 
   let field_length (oxm : oxm) : int = match oxm with
@@ -1511,7 +1514,7 @@ module FlowMod = struct
         | Permanent -> 0
         | ExpiresAfter value -> value);
     set_ofp_flow_mod_hard_timeout buf
-      (match fm.mfIdle_timeout with
+      (match fm.mfHard_timeout with
         | Permanent -> 0
         | ExpiresAfter value -> value);
     set_ofp_flow_mod_priority buf fm.mfPriority;
@@ -2206,6 +2209,101 @@ module SwitchDescriptionReply = struct
 
 end
 
+cstruct ofp_flow_stats {
+  uint16_t length;
+  uint8_t table_id;
+  uint8_t pad0;
+  uint32_t duration_sec;
+  uint32_t duration_nsec;
+  uint16_t priority;
+  uint16_t idle_timeout;
+  uint16_t hard_timeout;
+  uint16_t flags;
+  uint8_t pad1[4];
+  uint64_t cookie;
+  uint64_t packet_count;
+  uint64_t byte_count;
+} as big_endian
+
+module Flow = struct
+  
+  let sizeof (fs : flowStats) = 
+    sizeof_ofp_multipart_reply + fs.length
+    
+  let flags_to_int (f : flowModFlags) =
+  (if f.fmf_send_flow_rem then 1 lsl 0 else 0) lor
+    (if f.fmf_check_overlap then 1 lsl 1 else 0) lor
+      (if f.fmf_reset_counts then 1 lsl 2 else 0) lor
+        (if f.fmf_no_pkt_counts then 1 lsl 3 else 0) lor
+          (if f.fmf_no_byt_counts then 1 lsl 4 else 0) 
+
+  let int_to_flags i : flowModFlags =
+   { fmf_send_flow_rem = test_bit16 0 i
+   ; fmf_check_overlap = test_bit16 1 i
+   ; fmf_reset_counts = test_bit16 2 i
+   ; fmf_no_pkt_counts = test_bit16 3 i
+   ; fmf_no_byt_counts = test_bit16 4 i}
+
+  let marshal (buf : Cstruct.t) (fs : flowStats) : int =
+    set_ofp_flow_stats_length buf fs.length;
+    set_ofp_flow_stats_table_id buf fs.table_id;
+    set_ofp_flow_stats_pad0 buf 0;
+    set_ofp_flow_stats_duration_sec buf fs.duration_sec;
+    set_ofp_flow_stats_duration_nsec buf fs.duration_nsec;
+    set_ofp_flow_stats_priority buf fs.priority;
+    set_ofp_flow_stats_idle_timeout buf 
+      (match fs.idle_timeout with
+         | Permanent -> 0
+         | ExpiresAfter  v -> v);
+    set_ofp_flow_stats_hard_timeout buf 
+      (match fs.hard_timeout with
+         | Permanent -> 0
+         | ExpiresAfter  v -> v);     
+    set_ofp_flow_stats_flags buf (flags_to_int fs.flags);
+    set_ofp_flow_stats_pad1 "" 0 buf;
+    set_ofp_flow_stats_cookie buf fs.cookie;
+    set_ofp_flow_stats_packet_count buf fs.packet_count;
+    set_ofp_flow_stats_byte_count buf fs.byte_count;
+    let size = sizeof_ofp_multipart_reply + 
+      OfpMatch.marshal (Cstruct.shift buf sizeof_ofp_multipart_reply) fs.ofp_match in
+     size + Instructions.marshal (Cstruct.shift buf size) fs.instructions
+
+  let parse (bits : Cstruct.t) : multipartReply =
+    let length = get_ofp_flow_stats_length bits in
+    let table_id = get_ofp_flow_stats_table_id bits in
+    let duration_sec = get_ofp_flow_stats_duration_sec bits in
+    let duration_nsec = get_ofp_flow_stats_duration_nsec bits in
+    let priority = get_ofp_flow_stats_priority bits in
+    let idle_timeout = match (get_ofp_flow_stats_idle_timeout bits) with
+                         | 0 -> Permanent 
+                         | n -> ExpiresAfter n in
+    let hard_timeout = match (get_ofp_flow_stats_hard_timeout bits) with
+                         | 0 -> Permanent
+                         | n -> ExpiresAfter n in
+    let flagsBits = get_ofp_flow_stats_flags bits in
+    let flags = int_to_flags flagsBits in
+    let cookie = get_ofp_flow_stats_cookie bits in
+    let packet_count = get_ofp_flow_stats_packet_count bits in
+    let byte_count = get_ofp_flow_stats_byte_count bits in
+    let ofp_match_bits = Cstruct.shift bits sizeof_ofp_flow_stats in
+    let ofp_match, instruction_bits = OfpMatch.parse ofp_match_bits in
+    let instructions = Instructions.parse instruction_bits in
+    FlowStatsReply { length
+    ; table_id
+    ; duration_sec
+    ; duration_nsec
+    ; priority
+    ; idle_timeout
+    ; hard_timeout
+    ; flags
+    ; cookie
+    ; packet_count
+    ; byte_count
+    ; ofp_match
+    ; instructions}
+
+end
+
 module MultipartReply = struct
     
   let parse (bits : Cstruct.t) : multipartReply =
@@ -2213,6 +2311,7 @@ module MultipartReply = struct
     match int_to_ofp_multipart_types (get_ofp_multipart_reply_typ bits) with
       | Some OFPMP_PORT_DESC -> PortsDescriptionReply.parse ofp_body_bits
       | Some OFPMP_DESC -> SwitchDescriptionReply.parse ofp_body_bits
+      | Some OFPMP_FLOW -> Flow.parse ofp_body_bits
       | _ -> raise (Unparsable (sprintf "NYI: can't parse this multipart reply"))
 
 end
