@@ -334,7 +334,7 @@ type tableStats = { table_id : tableId; active_count : int32; lookup_count : int
 type multipartReply = 
   | PortsDescReply of portDesc list
   | SwitchDescReply of switchDesc
-  | FlowStatsReply of flowStats
+  | FlowStatsReply of flowStats list
   | AggregateReply of aggregStats
   | TableReply of tableStats list
 

@@ -2225,8 +2225,11 @@ cstruct ofp_flow_stats {
 
 module Flow = struct
   
-  let sizeof (fs : flowStats) = 
-    sizeof_ofp_multipart_reply + fs.length
+  let sizeof_struct (fs : flowStats) = 
+    fs.length
+  
+  let sizeof (fs : flowStats list) = 
+    sum (map sizeof_struct fs)
     
   let flags_to_int (f : flowModFlags) =
   (if f.fmf_send_flow_rem then 1 lsl 0 else 0) lor
@@ -2242,7 +2245,7 @@ module Flow = struct
    ; fmf_no_pkt_counts = test_bit16 3 i
    ; fmf_no_byt_counts = test_bit16 4 i}
 
-  let marshal (buf : Cstruct.t) (fs : flowStats) : int =
+  let marshal_struct (buf : Cstruct.t) (fs : flowStats) : int =
     set_ofp_flow_stats_length buf fs.length;
     set_ofp_flow_stats_table_id buf fs.table_id;
     set_ofp_flow_stats_pad0 buf 0;
@@ -2266,7 +2269,10 @@ module Flow = struct
       OfpMatch.marshal (Cstruct.shift buf sizeof_ofp_multipart_reply) fs.ofp_match in
      size + Instructions.marshal (Cstruct.shift buf size) fs.instructions
 
-  let parse (bits : Cstruct.t) : multipartReply =
+  let marshal (buf : Cstruct.t) (fs : flowStats list) : int =
+    marshal_fields buf fs marshal_struct
+
+  let parse_struct (bits : Cstruct.t) : flowStats =
     let length = get_ofp_flow_stats_length bits in
     let table_id = get_ofp_flow_stats_table_id bits in
     let duration_sec = get_ofp_flow_stats_duration_sec bits in
@@ -2286,7 +2292,7 @@ module Flow = struct
     let ofp_match_bits = Cstruct.shift bits sizeof_ofp_flow_stats in
     let ofp_match, instruction_bits = OfpMatch.parse ofp_match_bits in
     let instructions = Instructions.parse instruction_bits in
-    FlowStatsReply { length
+    { length
     ; table_id
     ; duration_sec
     ; duration_nsec
@@ -2299,6 +2305,14 @@ module Flow = struct
     ; byte_count
     ; ofp_match
     ; instructions}
+    
+    let parse (bits : Cstruct.t) : multipartReply =
+    let flowIter =
+      Cstruct.iter
+        (fun buf -> Some sizeof_ofp_flow_stats)
+        parse_struct
+        bits in
+    FlowStatsReply (Cstruct.fold (fun acc bits -> bits :: acc) flowIter [])
 
 end
 
