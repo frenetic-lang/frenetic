@@ -2166,6 +2166,11 @@ end
 
 module PortsDescriptionReply = struct
 
+  let sizeof_struct (pd : portDesc) = sizeof_ofp_port 
+
+  let sizeof (pd : portDesc list) = 
+    sum (map sizeof_struct pd)
+
   let marshal (buf : Cstruct.t) (sdr : portDesc list) : int =
     let rec marshalPort (sdrl : portDesc list) off: int = 
       match sdrl with
@@ -2350,6 +2355,12 @@ cstruct ofp_table_stats {
 
 module Table = struct
 
+  let sizeof_struct (ts : tableStats) = 
+    sizeof_ofp_table_stats
+  
+  let sizeof (ts : tableStats list) = 
+    sum (map sizeof_struct ts)
+
   let marshal_struct (buf : Cstruct.t) (tr : tableStats) : int =
     set_ofp_table_stats_table_id buf tr.table_id;
     set_ofp_table_stats_pad "" 0 buf;
@@ -2377,6 +2388,16 @@ module Table = struct
 end
 
 module MultipartReply = struct
+
+
+  let sizeof (mpr : multipartReply) =
+    sizeof_ofp_multipart_reply +
+    match mpr with
+      | PortsDescReply pdr -> PortsDescriptionReply.sizeof pdr
+      | SwitchDescReply _ -> sizeof_ofp_desc
+      | FlowStatsReply fsr -> Flow.sizeof fsr
+      | AggregateReply _ -> sizeof_ofp_aggregate_stats_reply
+      | TableReply tr -> Table.sizeof tr
 (*flags is not parsed *)
   let marshal (buf : Cstruct.t) (mpr : multipartReply) : int =
     let ofp_body_bits = Cstruct.shift buf sizeof_ofp_multipart_reply in
