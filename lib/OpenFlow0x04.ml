@@ -2166,15 +2166,13 @@ end
 
 module PortsDescriptionReply = struct
 
-  let marshal (buf : Cstruct.t) (sdr : multipartReply) =
+  let marshal (buf : Cstruct.t) (sdr : portDesc list) : int =
     let rec marshalPort (sdrl : portDesc list) off: int = 
       match sdrl with
         | [] -> 0
         | t::q -> PortDesc.marshal (Cstruct.shift buf off) t +
                   marshalPort q (off + sizeof_ofp_port) in
-    match sdr with 
-     | PortsDescReply a -> marshalPort a 0
-     | _ -> failwith "unexpected reply"
+    marshalPort sdr 0
 
   let parse (bits : Cstruct.t) : multipartReply =
     let portIter =
@@ -2329,6 +2327,23 @@ module Aggregate = struct
 end
 
 module MultipartReply = struct
+(*flags is not parsed *)
+  let marshal (buf : Cstruct.t) (mpr : multipartReply) : int =
+    let ofp_body_bits = Cstruct.shift buf sizeof_ofp_multipart_reply in
+    sizeof_ofp_multipart_reply + (match mpr with
+      | PortsDescReply pdr -> 
+          set_ofp_multipart_reply_typ buf 13;
+          PortsDescriptionReply.marshal ofp_body_bits pdr
+      | SwitchDescReply sdr -> 
+          set_ofp_multipart_reply_typ buf 0;
+          SwitchDescriptionReply.marshal ofp_body_bits sdr
+      | FlowStatsReply fsr -> 
+          set_ofp_multipart_reply_typ buf 1;
+          Flow.marshal ofp_body_bits fsr
+      | AggregateReply ar -> 
+          set_ofp_multipart_reply_typ buf 2;
+          Aggregate.marshal ofp_body_bits ar
+          )
     
   let parse (bits : Cstruct.t) : multipartReply =
     let ofp_body_bits = Cstruct.shift bits sizeof_ofp_multipart_reply in
