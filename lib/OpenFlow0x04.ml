@@ -2332,16 +2332,16 @@ module MultipartReply = struct
     let ofp_body_bits = Cstruct.shift buf sizeof_ofp_multipart_reply in
     sizeof_ofp_multipart_reply + (match mpr with
       | PortsDescReply pdr -> 
-          set_ofp_multipart_reply_typ buf 13;
+          set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_PORT_DESC);
           PortsDescriptionReply.marshal ofp_body_bits pdr
       | SwitchDescReply sdr -> 
-          set_ofp_multipart_reply_typ buf 0;
+          set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_DESC);
           SwitchDescriptionReply.marshal ofp_body_bits sdr
       | FlowStatsReply fsr -> 
-          set_ofp_multipart_reply_typ buf 1;
+          set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_FLOW);
           Flow.marshal ofp_body_bits fsr
       | AggregateReply ar -> 
-          set_ofp_multipart_reply_typ buf 2;
+          set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_AGGREGATE);
           Aggregate.marshal ofp_body_bits ar
           )
     
