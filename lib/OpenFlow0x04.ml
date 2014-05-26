@@ -2326,6 +2326,42 @@ module Aggregate = struct
 
 end
 
+cstruct ofp_table_stats {
+  uint8_t table_id; 
+  uint8_t pad[3]; 
+  uint32_t active_count;
+  uint64_t lookup_count;
+  uint64_t matched_count;
+} as big_endian
+
+module Table = struct
+
+  let marshal_struct (buf : Cstruct.t) (tr : tableStats) : int =
+    set_ofp_table_stats_table_id buf tr.table_id;
+    set_ofp_table_stats_pad "" 0 buf;
+    set_ofp_table_stats_active_count buf tr.active_count;
+    set_ofp_table_stats_lookup_count buf tr.lookup_count;
+    set_ofp_table_stats_matched_count buf tr.matched_count;
+    sizeof_ofp_table_stats
+    
+  let marshal (buf : Cstruct.t) (tr : tableStats list) : int = 
+    marshal_fields buf tr marshal_struct
+
+  let parse_struct (bits : Cstruct.t) : tableStats =
+    { table_id = get_ofp_table_stats_table_id bits
+    ; active_count = get_ofp_table_stats_active_count bits
+    ; lookup_count = get_ofp_table_stats_lookup_count bits
+    ; matched_count = get_ofp_table_stats_matched_count bits}
+
+  let parse (bits : Cstruct.t) : multipartReply =
+    let tableIter =
+      Cstruct.iter
+        (fun buf -> Some sizeof_ofp_table_stats)
+        parse_struct
+        bits in
+    TableReply (Cstruct.fold (fun acc bits -> bits :: acc) tableIter [])
+end
+
 module MultipartReply = struct
 (*flags is not parsed *)
   let marshal (buf : Cstruct.t) (mpr : multipartReply) : int =
@@ -2343,6 +2379,9 @@ module MultipartReply = struct
       | AggregateReply ar -> 
           set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_AGGREGATE);
           Aggregate.marshal ofp_body_bits ar
+      | TableReply tr ->
+          set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_TABLE);
+          Table.marshal  ofp_body_bits tr
           )
     
   let parse (bits : Cstruct.t) : multipartReply =
@@ -2352,6 +2391,7 @@ module MultipartReply = struct
       | Some OFPMP_DESC -> SwitchDescriptionReply.parse ofp_body_bits
       | Some OFPMP_FLOW -> Flow.parse ofp_body_bits
       | Some OFPMP_AGGREGATE -> Aggregate.parse ofp_body_bits
+      | Some OFPMP_TABLE -> Table.parse ofp_body_bits
       | _ -> raise (Unparsable (sprintf "NYI: can't parse this multipart reply"))
 
 end
