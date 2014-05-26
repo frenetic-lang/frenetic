@@ -331,12 +331,20 @@ type aggregStats = { packet_count : int64; byte_count : int64; flow_count : int3
 type tableStats = { table_id : tableId; active_count : int32; lookup_count : int64;
                     matched_count : int64}
 
+type portStats = { psPort_no : portId; rx_packets : int64; tx_packets : int64; 
+                   rx_bytes : int64; tx_bytes : int64; rx_dropped : int64; 
+                   tx_dropped : int64; rx_errors : int64; tx_errors : int64;
+                   rx_frame_err : int64; rx_over_err : int64; rx_crc_err : int64;
+                   collisions : int64; duration_sec : int32; duration_nsec : int32}
+
 type multipartReply = 
   | PortsDescReply of portDesc list
   | SwitchDescReply of switchDesc
   | FlowStatsReply of flowStats list
   | AggregateReply of aggregStats
   | TableReply of tableStats list
+  | PortStatsReply of portStats list
+
 
 type tableMod = { table_id : tableId; config : tableConfig }
  

@@ -2387,6 +2387,82 @@ module Table = struct
     TableReply (Cstruct.fold (fun acc bits -> bits :: acc) tableIter [])
 end
 
+cstruct ofp_port_stats {
+  uint32_t port_no;
+  uint8_t pad[4];
+  uint64_t rx_packets;
+  uint64_t tx_packets;
+  uint64_t rx_bytes;
+  uint64_t tx_bytes;
+  uint64_t rx_dropped;
+  uint64_t tx_dropped;
+  uint64_t rx_errors;
+  uint64_t tx_errors;
+  uint64_t rx_frame_err;
+  uint64_t rx_over_err;
+  uint64_t rx_crc_err;
+  uint64_t collisions;
+  uint32_t duration_sec;
+  uint32_t duration_nsec;
+} as big_endian
+
+module PortStats = struct
+  
+  let sizeof_struct (ps : portStats) = 
+    sizeof_ofp_port_stats
+  
+  let sizeof (ps : portStats list) = 
+    sum (map sizeof_struct ps)
+
+  let marshal_struct (buf : Cstruct.t) (ps : portStats) : int =
+    set_ofp_port_stats_port_no buf ps.psPort_no;
+    set_ofp_port_stats_pad "" 0 buf;
+    set_ofp_port_stats_rx_packets buf ps.rx_packets;
+    set_ofp_port_stats_tx_packets buf ps.tx_packets;
+    set_ofp_port_stats_rx_bytes buf ps.rx_bytes;
+    set_ofp_port_stats_tx_bytes buf ps.tx_bytes;
+    set_ofp_port_stats_rx_dropped buf ps.rx_dropped;
+    set_ofp_port_stats_tx_dropped buf ps.tx_dropped;
+    set_ofp_port_stats_rx_errors buf ps.rx_errors;
+    set_ofp_port_stats_tx_errors buf ps.tx_errors;
+    set_ofp_port_stats_rx_frame_err buf ps.rx_frame_err;
+    set_ofp_port_stats_rx_over_err buf ps.rx_over_err;
+    set_ofp_port_stats_rx_crc_err buf ps.rx_crc_err;
+    set_ofp_port_stats_collisions buf ps.collisions;
+    set_ofp_port_stats_duration_sec buf ps.duration_sec;
+    set_ofp_port_stats_duration_nsec buf ps.duration_nsec;
+    sizeof_ofp_port_stats
+    
+  let marshal (buf : Cstruct.t) (ps : portStats list) : int = 
+    marshal_fields buf ps marshal_struct
+
+  let parse_struct (bits : Cstruct.t) : portStats =
+    { psPort_no     = get_ofp_port_stats_port_no bits;
+      rx_packets    = get_ofp_port_stats_rx_packets bits;
+      tx_packets    = get_ofp_port_stats_tx_packets bits;
+      rx_bytes      = get_ofp_port_stats_rx_bytes bits;
+      tx_bytes      = get_ofp_port_stats_tx_bytes bits;
+      rx_dropped    = get_ofp_port_stats_rx_dropped bits;
+      tx_dropped    = get_ofp_port_stats_tx_dropped bits;
+      rx_errors     = get_ofp_port_stats_rx_errors bits;
+      tx_errors     = get_ofp_port_stats_tx_errors bits;
+      rx_frame_err  = get_ofp_port_stats_rx_frame_err bits;
+      rx_over_err   = get_ofp_port_stats_rx_over_err bits;
+      rx_crc_err    = get_ofp_port_stats_rx_crc_err bits;
+      collisions    = get_ofp_port_stats_collisions bits;
+      duration_sec  = get_ofp_port_stats_duration_sec bits;
+      duration_nsec = get_ofp_port_stats_duration_nsec bits
+    }
+
+  let parse (bits : Cstruct.t) : multipartReply =
+    let portIter =
+      Cstruct.iter
+        (fun buf -> Some sizeof_ofp_port_stats)
+        parse_struct
+        bits in
+    PortStatsReply (Cstruct.fold (fun acc bits -> bits :: acc) portIter [])
+end
+
 module MultipartReply = struct
 
 
@@ -2398,6 +2474,8 @@ module MultipartReply = struct
       | FlowStatsReply fsr -> Flow.sizeof fsr
       | AggregateReply _ -> sizeof_ofp_aggregate_stats_reply
       | TableReply tr -> Table.sizeof tr
+      | PortStatsReply psr -> PortStats.sizeof psr
+
 (*flags is not parsed *)
   let marshal (buf : Cstruct.t) (mpr : multipartReply) : int =
     let ofp_body_bits = Cstruct.shift buf sizeof_ofp_multipart_reply in
@@ -2416,7 +2494,10 @@ module MultipartReply = struct
           Aggregate.marshal ofp_body_bits ar
       | TableReply tr ->
           set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_TABLE);
-          Table.marshal  ofp_body_bits tr
+          Table.marshal ofp_body_bits tr
+      | PortStatsReply psr ->
+          set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_PORT_STATS);
+          PortStats.marshal ofp_body_bits psr
           )
     
   let parse (bits : Cstruct.t) : multipartReply =
@@ -2427,6 +2508,7 @@ module MultipartReply = struct
       | Some OFPMP_FLOW -> Flow.parse ofp_body_bits
       | Some OFPMP_AGGREGATE -> Aggregate.parse ofp_body_bits
       | Some OFPMP_TABLE -> Table.parse ofp_body_bits
+      | Some OFPMP_PORT_STATS -> PortStats.parse ofp_body_bits
       | _ -> raise (Unparsable (sprintf "NYI: can't parse this multipart reply"))
 
 end
