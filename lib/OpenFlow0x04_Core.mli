@@ -296,10 +296,13 @@ type flowStats = { length : int16; table_id : tableId; duration_sec : int32;
                    packet_count : int64; byte_count : int64; ofp_match : oxmMatch;
                    instructions : instruction list}
 
+type aggregStats = { packet_count : int64; byte_count : int64; flow_count : int32}
+
 type multipartReply = 
   | PortsDescReply of portDesc list
   | SwitchDescReply of switchDesc
   | FlowStatsReply of flowStats
+  | AggregateReply of aggregStats
 
 
 type tableMod = { table_id : tableId; config : tableConfig }

@@ -2304,6 +2304,30 @@ module Flow = struct
 
 end
 
+cstruct ofp_aggregate_stats_reply {
+  uint64_t packet_count;
+  uint64_t byte_count;
+  uint32_t flow_count;
+  uint8_t pad[4];
+} as big_endian
+
+module Aggregate = struct
+
+  let marshal (buf : Cstruct.t) (ag : aggregStats) : int =
+    set_ofp_aggregate_stats_reply_packet_count buf ag.packet_count;
+    set_ofp_aggregate_stats_reply_byte_count buf ag.byte_count;
+    set_ofp_aggregate_stats_reply_flow_count buf ag.flow_count;
+    set_ofp_aggregate_stats_reply_pad "" 0 buf;
+    sizeof_ofp_aggregate_stats_reply
+
+  let parse (bits : Cstruct.t) : multipartReply =
+    AggregateReply {
+         packet_count = (get_ofp_aggregate_stats_reply_packet_count bits)
+        ; byte_count = (get_ofp_aggregate_stats_reply_byte_count bits)
+        ; flow_count = (get_ofp_aggregate_stats_reply_flow_count bits)}
+
+end
+
 module MultipartReply = struct
     
   let parse (bits : Cstruct.t) : multipartReply =
@@ -2312,6 +2336,7 @@ module MultipartReply = struct
       | Some OFPMP_PORT_DESC -> PortsDescriptionReply.parse ofp_body_bits
       | Some OFPMP_DESC -> SwitchDescriptionReply.parse ofp_body_bits
       | Some OFPMP_FLOW -> Flow.parse ofp_body_bits
+      | Some OFPMP_AGGREGATE -> Aggregate.parse ofp_body_bits
       | _ -> raise (Unparsable (sprintf "NYI: can't parse this multipart reply"))
 
 end
