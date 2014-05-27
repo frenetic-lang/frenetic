@@ -163,8 +163,6 @@ struct
 
     module P = Graph.Persistent.Digraph.ConcreteBidirectionalLabeled(VL)(EL)
 
-    module EdgeMap = Map.Make (EL)
-
     type vertex = P.vertex
 
     type edge = P.edge
@@ -172,7 +170,6 @@ struct
     type t =
         { graph : P.t;
           node_labels : vertex VertexMap.t;
-          inverse_map : edge EdgeMap.t;
           next_node : int;
           next_edge : int }
 
@@ -183,22 +180,8 @@ struct
     let empty () : t =
       { graph = P.empty;
         node_labels = VertexMap.empty;
-        inverse_map = EdgeMap.empty;
         next_node = 0;
         next_edge = 0 }
-
-    let add_inverse_map (t : t) (e1 : edge) (e2 : edge) =
-      let _,e1t,_ = e1 in
-      let _,e2t,_ = e2 in
-      let oldmap = t.inverse_map in
-      let map1 = EdgeMap.add e1t e2 oldmap in
-      let map2 = EdgeMap.add e2t e1 map1 in
-      { t with inverse_map = map2 }
-
-    let inverse_edge (t : t) (e : edge) =
-      let _,e_t,_ = e in
-      try Some (EdgeMap.find e_t t.inverse_map)
-      with Not_found -> None
 
     let add_vertex (t:t) (l:Vertex.t) : t * vertex =
       let open VL in
@@ -216,7 +199,8 @@ struct
         let id = t.next_edge + 1 in
         let l = { id = id; label = l; src = p1; dst = p2 } in
         let e = (v1,l,v2) in
-        ({ t with graph = P.add_edge_e t.graph e; next_edge = id }, e) in      
+        ({ t with graph = P.add_edge_e t.graph e; next_edge = id }, e) in
+
       try
         let es = P.find_all_edges t.graph v1 v2 in
         let es' = List.filter ( fun (s,l,d) ->
@@ -269,6 +253,16 @@ struct
     let edge_dst (e:edge) : (vertex * port) =
       let (_,l,v2) = e in
       (v2, l.EL.dst)
+
+    let inverse_edge (t:t) (e:edge) : edge option =
+      let src_vertex, src_port = edge_src e in
+      let dst_vertex, dst_port = edge_dst e in
+      try
+        let inv_e = find_edge t dst_vertex src_vertex in
+        if dst_port = snd (edge_src inv_e) && src_port = snd (edge_dst inv_e)
+        then Some(inv_e)
+        else None
+      with _ -> None
 
     let next_hop (t:t) (v1:vertex) (p:port) : edge option =
       let rec loop es = match es with
@@ -492,26 +486,11 @@ struct
             node_labels = VertexMap.add v.Topology.VL.label v t.node_labels;
             next_node = v.Topology.VL.id + 1}
         let add_edge t v1 v2 =
-          let new_t = { t with graph = P.add_edge t.graph v1 v2 ; next_edge = t.next_edge + 1} in
-          try
-            let open Topology.EL in
-            let (_,r,_) as reverse = P.find_edge t.graph v2 v1 in
-            let (_,te,_) as this_edge = P.find_edge new_t.graph v1 v2 in
-            if r.src = te.dst && r.dst = te.src then
-              Topology.add_inverse_map new_t this_edge reverse
-            else new_t
-          with Not_found -> new_t
+          { t with graph = P.add_edge t.graph v1 v2 ; next_edge = t.next_edge + 1}
         let add_edge_e t e =
-          let open Topology.EL in
-          let (v1,l,v2) = e in
-          let new_t = { t with graph = P.add_edge_e t.graph e ;
-            next_edge = l.Topology.EL.id + 1} in
-          try
-            let (_,r,_) as reverse = P.find_edge t.graph v2 v1 in
-            if r.src = l.dst && r.dst = l.src then
-              Topology.add_inverse_map new_t e reverse
-            else new_t
-          with Not_found -> new_t
+          let (_,l,_) = e in
+          { t with graph = P.add_edge_e t.graph e ;
+            next_edge = l.Topology.EL.id + 1}
         let fold_pred_e f t i =
           P.fold_pred_e f t.graph i
         let iter_pred_e f t =
