@@ -140,14 +140,14 @@ let send t c_id msg =
     | `Drop exn -> raise exn
 
 let send_barrier_to_sw (t : t) (sw_id : switchId)
-  : [`Disconnect of Sexp.t | `Result of unit ] Deferred.t =
+  : [`Disconnect of Sexp.t | `Complete ] Deferred.t =
   let c_id = Controller.client_id_of_switch t.ctl sw_id in
   Txn.send t.txn c_id OpenFlow0x01.Message.BarrierRequest
   >>= function
     | `Sent ivar ->
       begin Ivar.read ivar
       >>| function
-        | `Result OpenFlow0x01.Message.BarrierReply -> `Result ()
+        | `Result OpenFlow0x01.Message.BarrierReply -> `Complete
         | `Result _ -> assert false
         | `Disconnect exn_ -> `Disconnect exn_
       end
@@ -316,7 +316,7 @@ let internal_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred
         send t.ctl c_id (0l, to_flow_mod !priority flow))
     >>= fun () -> (send_barrier_to_sw t sw_id))
   >>= function
-  | Ok (`Result ()) ->
+  | Ok `Complete ->
     Log.debug ~tags
       "switch %Lu: installed internal table for ver %d" sw_id ver;
     Log.flushed ()
@@ -416,7 +416,7 @@ let edge_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred.t =
       swap_update_for t sw_id edge_table
       >>= fun () -> (send_barrier_to_sw t sw_id))
   >>= function
-  | Ok (`Result ()) ->
+  | Ok `Complete ->
     Log.debug ~tags
       "switch %Lu: installed edge table for ver %d" sw_id ver;
     Log.flushed ()
