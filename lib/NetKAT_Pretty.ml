@@ -67,7 +67,7 @@ module Formatting = struct
       | Filter (True as pr) | Filter (False as pr) ->  
 	pred PAREN_PR fmt pr
       | Filter pr -> 
-	fprintf fmt "filter "; pred PAREN_PR fmt pr
+	fprintf fmt "filter ("; pred PAREN_PR fmt pr; fprintf fmt ")"
       | Mod hv -> 
         format_header_val fmt hv ":="
       | Star p' -> 

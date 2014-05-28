@@ -83,7 +83,9 @@ end
 
 module Dexterize = struct
   open Decide_Ast
-  open Decide_Ast.Term
+  open Decide_Ast.InitialTerm
+  module Value = Decide_Ast.Term.Value
+  module Field = Decide_Ast.Term.Field
 
   let header_value_to_pair h = 
     let open NetKAT_Types in 
@@ -111,11 +113,11 @@ module Dexterize = struct
       Zero
     | NetKAT_Types.Test(h) -> 
       let x,n = header_value_to_pair h in 
-      Test(x,n)
+      Test(Field.of_string x, Value.of_string n)
     | NetKAT_Types.And(pr1,pr2) -> 
       Times[pred_to_term pr1; pred_to_term pr2]
     | NetKAT_Types.Or(pr1,pr2) -> 
-      Plus (TermSet.add (pred_to_term pr1) (TermSet.singleton (pred_to_term pr2)))
+      Plus (InitialTermSet.add (pred_to_term pr1) (InitialTermSet.singleton (pred_to_term pr2)))
     | NetKAT_Types.Neg(pr) -> 
       Not (pred_to_term pr) 
 
@@ -124,18 +126,18 @@ module Dexterize = struct
       pred_to_term p
     | NetKAT_Types.Mod(h) -> 
       let x,n = header_value_to_pair h in 
-      Assg(x,n)
+      Assg(Field.of_string x, Value.of_string n)
     | NetKAT_Types.Union(p1,p2) -> 
-      Plus (TermSet.add (policy_to_term ~dup:dup p1) (TermSet.singleton (policy_to_term ~dup:dup p2)))
+      Plus (InitialTermSet.add (policy_to_term ~dup:dup p1) (InitialTermSet.singleton (policy_to_term ~dup:dup p2)))
     | NetKAT_Types.Seq(p1,p2) -> 
       Times[policy_to_term ~dup:dup p1; policy_to_term ~dup:dup p2]
     | NetKAT_Types.Star(p) -> 
       Star(policy_to_term ~dup:dup p)
     | NetKAT_Types.Link(sw1,pt1,sw2,pt2) -> 
-      Times (Test("switch", Int64.to_string sw1) :: 
-               Test("port", Int32.to_string pt1) ::
-               Assg("switch", Int64.to_string sw2) :: 
-               Assg("port", Int32.to_string pt2) ::
+      Times (Test(Field.of_string "switch", Value.of_string (Int64.to_string sw1)) :: 
+               Test(Field.of_string "port", Value.of_string (Int32.to_string pt1)) ::
+               Assg(Field.of_string "switch", Value.of_string (Int64.to_string sw2)) :: 
+               Assg(Field.of_string "port", Value.of_string (Int32.to_string pt2)) ::
                if dup then [Dup] else [])
 end
 
@@ -231,8 +233,22 @@ struct
       (NetKAT_Pretty.string_of_policy tp_pol);
     Printf.printf "## Equivalent ##\n%b\n"
       (Decide_Bisimulation.check_equivalent
-         (Dexterize.policy_to_term ~dup:true net_sw_pol)
-         (Dexterize.policy_to_term ~dup:true net_sw_tbl))
+         (Decide_Ast.InitialTerm.to_term (Dexterize.policy_to_term ~dup:true net_sw_pol))
+         (Decide_Ast.InitialTerm.to_term (Dexterize.policy_to_term ~dup:true net_sw_tbl)))
+
+  let verify_serialize filename = 
+    let topo, vertexes, switches, hosts = topology filename in 
+    let sw_pol = shortest_path_policy topo switches hosts in 
+    let cn_pr, cn_pol = connectivity_policy topo hosts in 
+    let wrap pol = NetKAT_Types.(Seq(Seq(Filter cn_pr, pol), Filter cn_pr)) in 
+    let tp_pol = topology_policy topo in 
+    let net_sw_pol = wrap NetKAT_Types.(Star(Seq(sw_pol, tp_pol))) in 
+    let net_cn_pol = wrap NetKAT_Types.(cn_pol) in 
+    let formu = (Decide_Ast.Eq (Dexterize.policy_to_term ~dup:false net_cn_pol,
+				Dexterize.policy_to_term ~dup:false net_sw_pol)) in 
+    Decide_Ast.serialize_formula formu "/tmp/Out.ml"
+    
+    
 
   let verify_connectivity filename = 
     let topo, vertexes, switches, hosts = topology filename in 
@@ -247,10 +263,10 @@ struct
       (NetKAT_Pretty.string_of_policy net_cn_pol);
     Printf.printf "## Equivalent ##\n%b\n"
       (Decide_Bisimulation.check_equivalent 
-         (Dexterize.policy_to_term ~dup:false net_sw_pol)
-         (Dexterize.policy_to_term ~dup:false net_cn_pol))
+         (Decide_Ast.InitialTerm.to_term (Dexterize.policy_to_term ~dup:false net_cn_pol))
+	 (Decide_Ast.InitialTerm.to_term (Dexterize.policy_to_term ~dup:false net_sw_pol)))
 
-  let main = verify_connectivity
+  let main = verify_serialize
 end
 
 open Cmdliner
