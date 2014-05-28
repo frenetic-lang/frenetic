@@ -194,8 +194,9 @@ module Int32TupleHeader = struct
     else Pervasives.compare p p'
     (*Int32Header.compare (shift (p,m)) (shift (p',m'))*)
   let to_string (p,m) =
-    let s = if m = 32l then "" else "/" ^ (Int32Header.to_string m) in
-    Int32Header.to_string p ^ s
+    Printf.sprintf "%s%s"
+      (Packet.string_of_ip p)
+      (if m = 32l then "" else "/" ^ Int32Header.to_string m)
   let is_any ((_,m):t) : bool =
     (* w.x.y.z/m matches anything if the network mask m is 0. *)
     m = 0l

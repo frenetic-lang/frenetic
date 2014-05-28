@@ -126,15 +126,10 @@ module PrefixTable (F:FIELD) = struct
         ~f:(fun acc (p1,b1) ->
           List.fold_left t2 ~init:acc
             ~f:(fun acc (p2, b2) ->
-	      Printf.printf "P1=%s\nP2=%s\n"
-		(F.to_string p1)
-		(F.to_string p2);
               match F.inter p1 p2 with
               | None -> 
-		Printf.printf "R=None\n";
 		acc
               | Some p -> 
-		Printf.printf "R=Some %s %b %b\n" (F.to_string p) b1 b2;
 		(p, b1 && b2)::acc)) in 
     List.rev r
 	
@@ -184,11 +179,11 @@ module PrefixTable (F:FIELD) = struct
     let r : bool =
       List.exists ~f:(fun (x,b) -> b && is_shadowed x expanded)
 	(List.map (drop_false (List.rev (expand t1))) ~f:unlift) in 
-    Printf.printf 
-      "OBSCURES\n%s\n%s\n%b\n" 
-      (to_string t1)
-      (to_string t2) 
-      r;
+    (* Printf.printf  *)
+    (*   "OBSCURES\n%s\n%s\n%b\n"  *)
+    (*   (to_string t1) *)
+    (*   (to_string t2)  *)
+    (*   r; *)
     r
 
 end
@@ -822,10 +817,10 @@ module Local = struct
         ~f:(fun ~key:r1 ~data:s1 acc ->
           let acc' = seq_atom_acts_local r1 s1 q in
           Pattern.Map.merge ~f:merge acc acc') in
-    Printf.printf "### SEQ ###\n%s\n%s\n%s"
-      (to_string p)
-      (to_string q)
-      (to_string r);
+    (* Printf.printf "### SEQ ###\n%s\n%s\n%s" *)
+    (*   (to_string p) *)
+    (*   (to_string q) *)
+    (*   (to_string r); *)
     r
 
   let neg (p:t) : t=
