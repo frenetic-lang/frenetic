@@ -226,7 +226,7 @@ module Int32TupleHeader = struct
     r
 
   let subseteq ((n,m) as p1: t) ((r,s) as p2: t) : bool =
-    if are_compatible p1 p2 then Int32.(<=) m s
+    if are_compatible p1 p2 then Int32.(>=) m s
     else false
 
   let combine ((n,m) as p1:t) ((r,s) as p2:t) : t option = 

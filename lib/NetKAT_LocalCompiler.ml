@@ -73,7 +73,7 @@ module PrefixTable (F:FIELD) = struct
 		 (if acc = "" then acc else " ")
 		 (F.to_string x) 
 		 b))
-      
+
   let any =
     [F.any, true]
 
@@ -94,23 +94,48 @@ module PrefixTable (F:FIELD) = struct
       loop x [] l 
     let is_shadowed x l = 
       List.exists l ~f:(F.subseteq x)
+    let to_string l = 
+      Printf.sprintf "[%s]"
+	(List.fold_left
+	   l 
+	   ~init:""
+	   ~f:(fun acc p -> 
+	     Printf.sprintf "%s%s%s" 
+	       acc 
+	       (if acc = "" then "" else " ")
+	       (F.to_string p)))
   end
 
   let is_shadowed x t = 
-    S.is_shadowed x
-      (List.fold_left t
-	 ~init:S.empty
-	 ~f:(fun s (y,_) -> S.insert y s))
+    let s = 
+      List.fold_left t
+	~init:S.empty
+	~f:(fun s (y,_) -> S.insert y s) in 
+    let b = S.is_shadowed x s in 
+    (* Printf.printf "IS_SHADOWED: %s\n%s\n%b\n" *)
+    (*   (F.to_string x) (S.to_string s) b; *)
+    b
 	 
   let remove_shadowed (table: t) : t =
     List.rev (
       List.fold_left
-        ~f:(fun acc (x,b) -> if is_shadowed x acc then acc else ((x,b)::acc))
+        ~f:(fun acc (x,b) -> 
+	  let s = is_shadowed x acc in 
+	  (* Printf.printf "ACC=%s\nP=%s,%b\n%b\n" *)
+	  (*   (to_string acc) (F.to_string x) b s; *)
+	  if s then acc else ((x,b)::acc))
         ~init:[]
         table)
 
   let is_any (t:t) : bool =
-    List.for_all (remove_shadowed t) ~f:(fun (_,b) -> b)
+    let t' = remove_shadowed t in 
+    let b = List.for_all t' ~f:snd in 
+    (* Printf.printf "IS_ANY\n%s\n%s\n%b\n"  *)
+    (*   (to_string t) *)
+    (*   (to_string t') *)
+    (* b; *)
+    b
+      
 
   let neg t = 
     List.map t ~f:(fun (p,b) -> (p,not b))
@@ -118,7 +143,8 @@ module PrefixTable (F:FIELD) = struct
   let empty =
     [F.any, false]
 
-  let is_empty t = is_any (neg t)
+  let is_empty t = 
+    List.for_all (remove_shadowed t) ~f:(fun (_,b) -> not b)
 
   let inter t1 t2 =
     let r = 
@@ -778,10 +804,10 @@ module Local = struct
     else if Pattern.Map.is_empty q then p
     else 
       let r = intersect Action.Set.union p q in
-      (* Printf.printf "### PAR ###\n%s\n%s\n%s" *)
-      (*   (to_string p) *)
-      (*   (to_string q) *)
-      (*   (to_string r); *)
+      Printf.printf "### PAR ###\n%s\n%s\n%s"
+        (to_string p)
+        (to_string q)
+        (to_string r);
       r
 
   let seq (p:t) (q:t) : t =
@@ -817,10 +843,10 @@ module Local = struct
         ~f:(fun ~key:r1 ~data:s1 acc ->
           let acc' = seq_atom_acts_local r1 s1 q in
           Pattern.Map.merge ~f:merge acc acc') in
-    (* Printf.printf "### SEQ ###\n%s\n%s\n%s" *)
-    (*   (to_string p) *)
-    (*   (to_string q) *)
-    (*   (to_string r); *)
+    Printf.printf "### SEQ ###\n%s\n%s\n%s"
+      (to_string p)
+      (to_string q)
+      (to_string r);
     r
 
   let neg (p:t) : t=
@@ -880,7 +906,10 @@ module Local = struct
             | NetKAT_Types.IP4Src (n,m) ->
               Pattern.mk_ipSrc (n,m)
             | NetKAT_Types.IP4Dst (n,m) ->
-              Pattern.mk_ipDst (n,m)
+              let r = Pattern.mk_ipDst (n,m) in 
+	      Printf.printf "IPDST: [%s]\n%!"
+		(Pattern.to_string r);
+	      r
             | NetKAT_Types.TCPSrcPort n ->
               Pattern.mk_tcpSrcPort n
             | NetKAT_Types.TCPDstPort n ->
@@ -931,7 +960,14 @@ module Local = struct
           let m = Pattern.Map.singleton Pattern.any s in
           k m
         | NetKAT_Types.Union (pol1, pol2) ->
-          loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (par p1 p2)))
+          loop pol1 (fun p1 -> loop pol2 (fun p2 -> 
+	    Printf.printf "POL1: %s\nPOL2: %s\n" 
+	      (NetKAT_Pretty.string_of_policy pol1)
+	      (NetKAT_Pretty.string_of_policy pol2);
+	    Printf.printf "P1: %s\n P2: %s\n" 
+	      (to_string p1)
+	      (to_string p2);
+	    k (par p1 p2)))
         | NetKAT_Types.Seq (pol1, pol2) ->
           loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (seq p1 p2)))
         | NetKAT_Types.Star pol ->
