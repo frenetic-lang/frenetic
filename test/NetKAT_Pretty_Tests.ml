@@ -52,8 +52,7 @@ let testable_pol_to_bool =
 
 let prop_parse_pol_idempotent (p : NetKAT_Types.policy) : bool =
   try policy_parse (string_of_policy p) = p
-  with e ->
-    raise e
+  with _ -> false
 
 TEST "testing parse-pretty roundtrip" =
   let cfg = { QuickCheck.quick with QuickCheck.maxTest = 1000 } in

@@ -20,6 +20,9 @@ let arbitrary_id =
     ret_gen (QuickCheck_util.charlist_to_string (c::cs))
 
 
+let masks = 
+  List.map QuickCheck_gen.ret_gen [ 0l; 8l; 16l; 24l; 32l ] 
+
 let arbitrary_test, arbitrary_mod =
   let open QuickCheck_gen in
   let open NetKAT_Types in
@@ -34,8 +37,10 @@ let arbitrary_test, arbitrary_mod =
      *   vlan, vlanPcp
      * *)
     map_gen (fun i -> IPProto i) AB.arbitrary_uint8;
-    map_gen (fun i -> IP4Src (i,32l)) AB.arbitrary_uint32;
-    map_gen (fun i -> IP4Dst (i,32l)) AB.arbitrary_uint32;
+    (AB.arbitrary_uint32 >>= fun i -> 
+     oneof masks >>= fun j -> ret_gen (IP4Src(i,j)));
+    (AB.arbitrary_uint32 >>= fun i -> 
+     oneof masks >>= fun j -> ret_gen (IP4Dst(i,j)));
     map_gen (fun i -> TCPSrcPort i) AB.arbitrary_uint16;
     map_gen (fun i -> TCPDstPort i) AB.arbitrary_uint16;
   ] in
