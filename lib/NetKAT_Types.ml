@@ -215,14 +215,30 @@ module Int32TupleHeader = struct
     (Int32.bit_and mask n) = (Int32.bit_and mask m)
 
   let inter ((n,m) as p1: t) ((r,s) as p2: t) : t option =
-    if are_compatible p1 p2 then
-      (if Int32.(<) m s then Some p1 else Some p2)
-    else None
+    let r = 
+      if are_compatible p1 p2 then
+	(if Int32.(<) m s then Some p2 else Some p1)
+      else None in 
+    (* Printf.printf "F[%b]\n  %s\n  %s\n  %s\n" *)
+    (*   (are_compatible p1 p2) (to_string p1) (to_string p2)  *)
+    (*   (match r with None -> "None" | Some p -> "Some " ^ to_string p); *)
+    r
 
   let subseteq ((n,m) as p1: t) ((r,s) as p2: t) : bool =
-    if are_compatible p1 p2 then Int32.(>=) m s
+    if are_compatible p1 p2 then Int32.(<=) m s
     else false
 
+  let combine ((n,m) as p1:t) ((r,s) as p2:t) : t option = 
+    if p1 = p2 then Some p1
+    else if m = s then 
+	let p1' = (m, Int32.succ m) in 
+	if are_compatible p1' (r, Int32.succ s) then Some p1'
+	else None 
+    else if are_compatible p1 p2 then 
+      if m > s then Some p1
+      else Some p2
+    else 
+      None
 end
 module Int64Header = struct
   include Int64

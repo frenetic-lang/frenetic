@@ -35,6 +35,7 @@ module type FIELD = sig
   val any : t
   val is_any : t -> bool
   val inter : t -> t -> t option
+  val combine : t -> t -> t option
   val subseteq : t -> t -> bool
 end
 
@@ -42,33 +43,65 @@ module PrefixTable (F:FIELD) = struct
   type v = F.t with sexp
   type t = (v * bool) list with sexp
 
-  let singleton x = [x,true]
+  let singleton x = 
+    [ x,true
+    ; F.any, false
+    ]
 
   let rec compare (a:t) (b:t) =
-    let compare_entry (n,b1) (p,b2) =
-      if F.compare n p = 0 then Pervasives.compare b1 b2
-      else F.compare n p in
     match (a,b) with
-      ([],[]) -> 0
-    | ([],_) -> (-1)
-    | (_,[]) -> 1
-    | (h::t, h'::t') -> (
-      if compare_entry h h' = 0 then compare t t'
-      else compare_entry h h')
+    | [],[] -> 0
+    | [],_ -> (-1)
+    | _,[] -> 1
+    | (p1,b1)::t1, (p2,b2)::t2 ->       
+      begin 
+	match F.compare p1 p2, Pervasives.compare b1 b2 with 
+	| 0,0 -> compare t1 t2
+	| 0,c -> c
+	| c,_ -> c
+      end
 
-  let equal t1 t2 = compare t1 t2 = 0
+  let equal t1 t2 = 
+    compare t1 t2 = 0
 
   let to_string (t:t) =
-    let entry_to_string ((x,b):(v*bool)) : string =
-      (F.to_string x) ^ " " ^ (string_of_bool b) in
-    List.fold_left t ~init:""
-      ~f:(fun acc x -> acc ^ " [" ^ (entry_to_string x) ^ "]")
-
+    Printf.sprintf "[%s]"
+      (List.fold_left t ~init:""
+	 ~f:(fun acc (x,b) -> 
+               Printf.sprintf "%s%s(%s:%b)" 
+		 acc
+		 (if acc = "" then acc else " ")
+		 (F.to_string x) 
+		 b))
+      
   let any =
-    [(0l,0l), true]
+    [F.any, true]
 
-  let is_shadowed v t = List.exists ~f:(fun (x,_) -> F.subseteq v x) t
+  module S = struct
+    let empty = []
+    let insert x l = 
+      let rec loop x acc l = 
+	match l with 
+	| [] -> List.rev (x::acc)
+	| y::t -> 
+	  begin 
+	    match F.combine x y with 
+	    | None -> 
+	      loop x (y::acc) t
+	    | Some z -> 
+	      loop z [] (List.rev_append acc t)
+	  end in
+      loop x [] l 
+    let is_shadowed x l = 
+      List.exists l ~f:(F.subseteq x)
+  end
 
+  let is_shadowed x t = 
+    S.is_shadowed x
+      (List.fold_left t
+	 ~init:S.empty
+	 ~f:(fun s (y,_) -> S.insert y s))
+	 
   let remove_shadowed (table: t) : t =
     List.rev (
       List.fold_left
@@ -79,22 +112,32 @@ module PrefixTable (F:FIELD) = struct
   let is_any (t:t) : bool =
     List.for_all (remove_shadowed t) ~f:(fun (_,b) -> b)
 
-  let neg t = List.map t ~f:(fun (p,b) -> (p,not b))
+  let neg t = 
+    List.map t ~f:(fun (p,b) -> (p,not b))
 
   let empty =
-    [(0l,0l), false]
+    [F.any, false]
 
   let is_empty t = is_any (neg t)
 
   let inter t1 t2 =
-      List.fold_right t1 ~init:[]
-        ~f:(fun (p1,b1) acc ->
-          List.fold_right t2 ~init:acc
-            ~f:(fun (p2, b2) acc ->
+    let r = 
+      List.fold_left t1 ~init:[]
+        ~f:(fun acc (p1,b1) ->
+          List.fold_left t2 ~init:acc
+            ~f:(fun acc (p2, b2) ->
+	      Printf.printf "P1=%s\nP2=%s\n"
+		(F.to_string p1)
+		(F.to_string p2);
               match F.inter p1 p2 with
-                | None -> acc
-                | Some p -> (p, b1 && b2)::acc))
-
+              | None -> 
+		Printf.printf "R=None\n";
+		acc
+              | Some p -> 
+		Printf.printf "R=Some %s %b %b\n" (F.to_string p) b1 b2;
+		(p, b1 && b2)::acc)) in 
+    List.rev r
+	
   let diff t1 t2 =
     inter t1 (neg t2)
 
@@ -119,24 +162,34 @@ module PrefixTable (F:FIELD) = struct
         t in
       match l with [] -> True | h::_ -> h)
 
+  let rec drop_false l =
+    match l with
+    | (_,false)::t -> 
+      drop_false t
+    | _ -> 
+      List.rev l
+  
   let expand t =
     let any_cons acc (p,b) =
       if F.is_any p then ((None, b)::acc)
       else ((Some p, b)::acc) in
-    let rec drop_false l =
-      match l with
-        | (_,false)::t -> drop_false t
-        | _ -> List.rev l in
     drop_false (List.fold_left t ~init:[] ~f:any_cons)
 
   let obscures (t1:t) (t2:t) : bool =
     (* Does any rule in (expand t2) shadow a rule in (expand t1) ? *)
     let unlift = function
-      ((Some y),b) -> (y,b)
-    | (None,b) -> (F.any, b) in
+      | (None, b) -> (F.any, b)
+      | (Some y,b) -> (y,b) in 
     let expanded = List.map (expand t2) ~f:unlift in
-    List.exists ~f:(fun (x,_) -> is_shadowed x expanded)
-      (List.map (expand t1) ~f:unlift)
+    let r : bool =
+      List.exists ~f:(fun (x,b) -> b && is_shadowed x expanded)
+	(List.map (drop_false (List.rev (expand t1))) ~f:unlift) in 
+    Printf.printf 
+      "OBSCURES\n%s\n%s\n%b\n" 
+      (to_string t1)
+      (to_string t2) 
+      r;
+    r
 
 end
 
@@ -769,10 +822,10 @@ module Local = struct
         ~f:(fun ~key:r1 ~data:s1 acc ->
           let acc' = seq_atom_acts_local r1 s1 q in
           Pattern.Map.merge ~f:merge acc acc') in
-    (* Printf.printf "### SEQ ###\n%s\n%s\n%s" *)
-    (*   (to_string p) *)
-    (*   (to_string q) *)
-    (*   (to_string r); *)
+    Printf.printf "### SEQ ###\n%s\n%s\n%s"
+      (to_string p)
+      (to_string q)
+      (to_string r);
     r
 
   let neg (p:t) : t=
