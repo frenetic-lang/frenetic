@@ -137,8 +137,6 @@ cstruct ofp_switch_features {
   uint32_t reserved
 } as big_endian 
 
-
-(* MISSING: ofp_port_config *)
 module PortConfig = struct
 
   let config_to_int (config : portConfig) : int32 =
@@ -157,7 +155,7 @@ module PortConfig = struct
       no_packet_in  = Bits.test_bit 6 bits
     }	  
 end
-(* MISSING: ofp_port_features *)
+
 module PortFeatures = struct
 
   let features_to_int (features : portFeatures) : int32 =
@@ -263,7 +261,7 @@ cstruct ofp_port {
   uint32_t port_no;
   uint32_t pad;
   uint8_t hw_addr[6];
-  uint8_t pad2; (* Align to 64 bits. *)
+  uint8_t pad2;
   uint8_t pad3;
   uint8_t name[16]; (* OFP_MAX_PORT_NAME_LEN, Null-terminated *)
   uint32_t config; (* Bitmap of OFPPC_* flags. *)
@@ -1207,47 +1205,47 @@ module Action = struct
           size
         else size
       | CopyTtlOut ->
-        set_ofp_action_header_typ buf 11;
+        set_ofp_action_header_typ buf 11; (* OFPAT_COPY_TTL_OUT *)
         set_ofp_action_header_len buf size;
         size
       | CopyTtlIn ->
-        set_ofp_action_header_typ buf 12;
+        set_ofp_action_header_typ buf 12; (* OFPAT_COPY_TTL_IN *)
         set_ofp_action_header_len buf size;
         size
       | SetNwTtl newTtl ->
-        set_ofp_action_nw_ttl_typ buf 23;
+        set_ofp_action_nw_ttl_typ buf 23; (* OFPAT_SET_NW_TTL *)
         set_ofp_action_nw_ttl_len buf size;
         set_ofp_action_nw_ttl_nw_ttl buf newTtl;
         size
       | DecNwTtl ->
-        set_ofp_action_header_typ buf 24;
+        set_ofp_action_header_typ buf 24; (* OFPAT_DEC_NW_TTL *)
         set_ofp_action_header_len buf size;
         size
       | PushPbb ->
-        set_ofp_action_push_typ buf 26;
+        set_ofp_action_push_typ buf 26; (* OFPAT_PUSH_PBB *)
         set_ofp_action_push_len buf size;
         set_ofp_action_push_ethertype buf 0x88a8; (* Not sure, maybe need to redefine*)
         size
       | PopPbb ->
-        set_ofp_action_header_typ buf 27;
+        set_ofp_action_header_typ buf 27; (* OFPAT_POP_PBB *)
         set_ofp_action_header_len buf size;      
         size
       | SetMplsTtl newTtl ->
-        set_ofp_action_mpls_ttl_typ buf 15;
+        set_ofp_action_mpls_ttl_typ buf 15; (* OFPAT_SET_MPLS_TTL *)
         set_ofp_action_mpls_ttl_len buf size;
         set_ofp_action_mpls_ttl_mpls_ttl buf newTtl;
         size
       | DecMplsTtl ->
-        set_ofp_action_header_typ buf 16;
+        set_ofp_action_header_typ buf 16; (* OFPAT_DEC_MPLS_TTL *)
         set_ofp_action_header_len buf size;
         size
       | SetQueue queueId ->
-        set_ofp_action_set_queue_typ buf 21;
+        set_ofp_action_set_queue_typ buf 21; (* OFPAT_SET_QUEUE *)
         set_ofp_action_set_queue_len buf size;
         set_ofp_action_set_queue_queue_id buf queueId;
         size
       | Experimenter exp ->
-        set_ofp_action_experimenter_typ buf 0xffff;
+        set_ofp_action_experimenter_typ buf 0xffff; (* OFPAT_EXPERIMENTER *)
         set_ofp_action_experimenter_len buf size;
         set_ofp_action_experimenter_experimenter buf exp;
         size
@@ -1373,7 +1371,7 @@ module GroupMod = struct
 end
 
 module Instruction = struct
-(*missing :  writeMeta; clearAction; meter; experimenter*)
+(* TODO <fugitifduck> : writeMeta; clearAction; meter; experimenter *)
   let sizeof (ins : instruction) : int =
     match ins with
       | GotoTable _ ->
@@ -1415,7 +1413,7 @@ module Instruction = struct
           set_ofp_instruction_actions_pad3 buf 0;
           sizeof_ofp_instruction_actions + (marshal_fields (Cstruct.shift buf sizeof_ofp_instruction_actions) actions Action.marshal)
         | WriteMetadata metadata ->
-          set_ofp_instruction_write_metadata_typ buf 2;
+          set_ofp_instruction_write_metadata_typ buf 2; (* OFPIT_WRITE_METADATA *)
           set_ofp_instruction_write_metadata_len buf size;
           set_ofp_instruction_write_metadata_pad0 buf 0;
           set_ofp_instruction_write_metadata_pad1 buf 0;
@@ -1428,7 +1426,7 @@ module Instruction = struct
               | Some mask -> mask);
           size
         | Clear -> 
-          set_ofp_instruction_actions_typ buf 5;
+          set_ofp_instruction_actions_typ buf 5; (* OFPIT_CLEAR_ACTIONS *)
           set_ofp_instruction_actions_len buf size;
           set_ofp_instruction_actions_pad0 buf 0;
           set_ofp_instruction_actions_pad1 buf 0;
@@ -1436,12 +1434,12 @@ module Instruction = struct
           set_ofp_instruction_actions_pad3 buf 0;
           size
         | Meter meterId->
-          set_ofp_instruction_meter_typ buf 6;
+          set_ofp_instruction_meter_typ buf 6; (* OFPIT_METER *)
           set_ofp_instruction_meter_len buf size;
           set_ofp_instruction_meter_meter_id buf meterId;
           size
         | Experimenter experimenterId->
-          set_ofp_instruction_experimenter_typ buf 0xffff;
+          set_ofp_instruction_experimenter_typ buf 0xffff; (* OFPIT_EXPERIMENTER *)
           set_ofp_instruction_experimenter_len buf size;
           set_ofp_instruction_experimenter_experimenter buf experimenterId;
           size
@@ -1740,7 +1738,7 @@ module PacketIn = struct
     let reason = match int_to_reasonType reason_code with
       | Some NO_MATCH -> NoMatch
       | Some ACTION -> ExplicitSend
-	  | Some INVALID_TTL -> InvalidTTL
+      | Some INVALID_TTL -> InvalidTTL
       | None ->
 	raise (Unparsable (sprintf "bad reason in packet_in (%d)" reason_code)) in
     let table_id = get_ofp_packet_in_table_id bits in
@@ -1815,17 +1813,17 @@ module PacketOut = struct
 
 end
 
-cstruct ofp_flow_stats_request {
-  uint8_t table_id;
-  uint8_t pad[3];
-  uint32_t out_port;
-  uint32_t out_group;
-  uint8_t pad2[4];
-  uint64_t cookie;
-  uint64_t cookie_mask;
-} as big_endian
-
 module FlowRequest = struct
+
+    cstruct ofp_flow_stats_request {
+      uint8_t table_id;
+      uint8_t pad[3];
+      uint32_t out_port;
+      uint32_t out_group;
+      uint8_t pad2[4];
+      uint64_t cookie;
+      uint64_t cookie_mask;
+    } as big_endian
 
     let sizeof (fr : flowRequest) : int = 
     sizeof_ofp_flow_stats_request + (OfpMatch.sizeof fr.fr_match)
