@@ -78,8 +78,8 @@ module PrefixTable (F:FIELD) = struct
     [F.any, true]
 
   module S = struct
-    let empty = []
-    let insert x l = 
+    let empty = ([],[])
+    let insert x b (p,n) = 
       let rec loop x acc l = 
 	match l with 
 	| [] -> List.rev (x::acc)
@@ -91,26 +91,27 @@ module PrefixTable (F:FIELD) = struct
 	    | Some z -> 
 	      loop z [] (List.rev_append acc t)
 	  end in
-      loop x [] l 
-    let is_shadowed x l = 
-      List.exists l ~f:(F.subseteq x)
-    let to_string l = 
-      Printf.sprintf "[%s]"
-	(List.fold_left
-	   l 
-	   ~init:""
-	   ~f:(fun acc p -> 
-	     Printf.sprintf "%s%s%s" 
-	       acc 
-	       (if acc = "" then "" else " ")
-	       (F.to_string p)))
+      if b then (loop x [] p, n)
+      else (p, loop x [] n)
+    let is_shadowed x (p,n) = 
+      List.exists p ~f:(F.subseteq x)
+    let to_string (p,n) = 
+      let f l = 
+	List.fold_left l
+	  ~init:""
+	  ~f:(fun acc p -> 
+	    Printf.sprintf "%s%s%s" 
+	      acc 
+	      (if acc = "" then "" else " ")
+	      (F.to_string p)) in 
+      Printf.sprintf "[%s] ~[%s]" (f p) (f n)
   end
 
   let is_shadowed x t = 
     let s = 
       List.fold_left t
 	~init:S.empty
-	~f:(fun s (y,_) -> S.insert y s) in 
+	~f:(fun s (y,b) -> S.insert y b s) in 
     let b = S.is_shadowed x s in 
     (* Printf.printf "IS_SHADOWED: %s\n%s\n%b\n" *)
     (*   (F.to_string x) (S.to_string s) b; *)
@@ -205,14 +206,25 @@ module PrefixTable (F:FIELD) = struct
 
   let obscures (t1:t) (t2:t) : bool =
     (* Does any rule in (expand t1) shadow a rule in t2? *)
-    let e_t1 = expand t1 in 
-    let r : bool =
-      List.exists 
-	~f:(fun (o,b) -> 
-	  b && match o with 
-	  | None -> true
-	  | Some y -> is_shadowed y t2)
-	e_t1 in 
+    let r,_ = 
+      List.fold_left
+	(expand t1) 
+	~init:(false, S.empty)
+	~f:(fun (ob,s) (x1,b1) -> 
+	  match ob, x1 with 
+	  | false,Some y1 -> 
+	    let s' = S.insert y1 b1 s in 
+	    let ob',_ = 
+	      List.fold_left 
+		t2
+		~init:(ob,s')		 
+	        ~f:(fun (ob,s) (x2,b2) -> 
+		      let ob' = ob || S.is_shadowed x2 s in 
+		      let s' = S.insert x2 b2 s in 
+		      (ob', s')) in 
+	    (ob',s')
+	  | _ -> 
+	    (true,s)) in 
     Printf.printf
       "OBSCURES\n%s\n%s\n%b\n"
       (to_string t1)
