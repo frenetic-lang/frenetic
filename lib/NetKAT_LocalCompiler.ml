@@ -130,10 +130,9 @@ module PrefixTable (F:FIELD) = struct
   let is_any (t:t) : bool =
     let t' = remove_shadowed t in 
     let b = List.for_all t' ~f:snd in 
-    (* Printf.printf "IS_ANY\n%s\n%s\n%b\n"  *)
+    (* Printf.printf "IS_ANY %s %b\n" *)
     (*   (to_string t) *)
-    (*   (to_string t') *)
-    (* b; *)
+    (*   b; *)
     b
       
 
@@ -194,22 +193,31 @@ module PrefixTable (F:FIELD) = struct
     let any_cons acc (p,b) =
       if F.is_any p then ((None, b)::acc)
       else ((Some p, b)::acc) in
-    drop_false (List.fold_left t ~init:[] ~f:any_cons)
+    let x = drop_false (List.fold_left t ~init:[] ~f:any_cons) in 
+    (* Printf.printf "EXPAND\n"; *)
+    (* List.iter x *)
+    (*   ~f:(fun (o,b) ->  *)
+    (* 	Printf.printf  *)
+    (* 	  "%s : %b\n" *)
+    (* 	  (match o with None -> "None" | Some p -> F.to_string p) *)
+    (* 	  b); *)
+    x
 
   let obscures (t1:t) (t2:t) : bool =
-    (* Does any rule in (expand t2) shadow a rule in (expand t1) ? *)
-    let unlift = function
-      | (None, b) -> (F.any, b)
-      | (Some y,b) -> (y,b) in 
-    let expanded = List.map (expand t2) ~f:unlift in
+    (* Does any rule in (expand t1) shadow a rule in t2? *)
+    let e_t1 = expand t1 in 
     let r : bool =
-      List.exists ~f:(fun (x,b) -> b && is_shadowed x expanded)
-	(List.map (drop_false (List.rev (expand t1))) ~f:unlift) in 
-    (* Printf.printf  *)
-    (*   "OBSCURES\n%s\n%s\n%b\n"  *)
-    (*   (to_string t1) *)
-    (*   (to_string t2)  *)
-    (*   r; *)
+      List.exists 
+	~f:(fun (o,b) -> 
+	  b && match o with 
+	  | None -> true
+	  | Some y -> is_shadowed y t2)
+	e_t1 in 
+    Printf.printf
+      "OBSCURES\n%s\n%s\n%b\n"
+      (to_string t1)
+      (to_string t2)
+      r;
     r
 
 end
@@ -1087,16 +1095,21 @@ module RunTime = struct
         ipSrc = PTIp.(expand x.HPN.ipSrc);
         ipDst = PTIp.(expand x.HPN.ipDst);
         tcpSrcPort = PN16.(expand x.HPN.tcpSrcPort);
-        tcpDstPort = PN16.(expand x.HPN.tcpDstPort);
-      }
-    in
+        tcpDstPort = PN16.(expand x.HPN.tcpDstPort) } in 
     (* computes a cross product *)
     let rec cross m : (HOV.t * bool) list =
       let empty = let open HOV in
-      { location = None; ethSrc = None; ethDst = None;
-        vlan = None; vlanPcp = None; ethType = None;
-        ipProto = None; ipSrc = None; ipDst = None;
-        tcpSrcPort = None; tcpDstPort = None;
+      { location = None; 
+	ethSrc = None; 
+	ethDst = None;
+        vlan = None; 
+	vlanPcp = None; 
+	ethType = None;
+        ipProto = None; 
+	ipSrc = None; 
+	ipDst = None;
+        tcpSrcPort = None; 
+	tcpDstPort = None;
       } in
       let g h rs f =
         let l = Field.get f m in
@@ -1120,9 +1133,8 @@ module RunTime = struct
         ~ipSrc:(g (fun p o -> { p with HOV.ipSrc = o }))
         ~ipDst:(g (fun p o -> { p with HOV.ipDst= o }))
         ~tcpSrcPort:(g (fun p o -> { p with HOV.tcpSrcPort = o }))
-        ~tcpDstPort:(g (fun p o -> { p with HOV.tcpDstPort = o }))
-      in
-
+        ~tcpDstPort:(g (fun p o -> { p with HOV.tcpDstPort = o })) in 
+    
     (* helper function to generate the actual (pattern * par) rules for the SDN_Types.flowTable *)
     let go (cd : (HOV.t * bool) list) : flowTable =
       let il x = match x with
@@ -1147,7 +1159,16 @@ module RunTime = struct
           ; SDN_Types.inPort = default_port }
         in
         simpl_flow pattern actions) in
-    go (cross m)
+    let c = cross m in 
+    Printf.printf "\nCROSS:\n%!";
+    List.iter c
+      ~f:(fun (h,b) -> 
+	    Printf.printf "%s : %b\n"
+	      (HOV.to_string h) b);
+    let r = go c in 
+    Printf.printf "FLOWTABLE:\n%s\n" 
+      (SDN_Types.string_of_flowTable r);
+    r
 
   type i = Local.t
 
@@ -1171,7 +1192,10 @@ module RunTime = struct
         let o1 = Pattern.obscures x1 x2 in
         let o2 = Pattern.obscures x2 x1 in
         (* sanity check: no circular dependencies *)
-        assert (not (o1 && o2));
+	if o1 && o2 then 
+	  (Printf.printf "CIRCULAR: %s\n%s\n" 
+	     (Pattern.to_string x1) (Pattern.to_string x2);
+	   assert false);
         if o1 then -1
         else if o2 then 1
         else 0
@@ -1216,9 +1240,10 @@ module RunTime = struct
           ~init:[]
           (annotated_table ()))
     else
-      List.concat_map (Dep.sort (Pattern.Map.to_alist m)) ~f:(fun (p,s) ->
-        expand_rules p s)
-
+      let x = List.concat_map (Dep.sort (Pattern.Map.to_alist m)) 
+	~f:(fun (p,s) -> expand_rules p s) in 
+      Printf.printf "X=%s\n" (SDN_Types.string_of_flowTable x);
+      x
 end
 
 module Local_Optimize = struct
