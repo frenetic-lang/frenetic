@@ -185,6 +185,15 @@ module PrefixTable (F:FIELD) = struct
   let diff t1 t2 =
     inter t1 (neg t2)
 
+  (* semantic compare *)
+  let compare t1 t2 = 
+    if is_empty (diff t1 (neg t2)) && 
+       is_empty (diff t2 (neg t1)) then 
+      0 
+    else compare t1 t2
+  let equal t1 t2 = 
+    compare t1 t2 = 0 
+
   let to_netkat_pred (v_to_pred: v -> NetKAT_Types.pred) (t:t) =
     let open NetKAT_Types in 
     let mk_or l = 
