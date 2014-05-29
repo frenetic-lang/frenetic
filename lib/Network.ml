@@ -80,6 +80,7 @@ module type NETWORK = sig
     val vertex_to_string : t -> vertex -> string
     val vertex_to_label : t -> vertex -> Vertex.t
     val vertex_of_label : t -> Vertex.t -> vertex
+    val edge_to_string : t -> edge -> string
     val edge_to_label : t -> edge -> Edge.t
 
     (* Iterators *)
@@ -171,6 +172,7 @@ struct
       let compare e1 e2 = Pervasives.compare e1.id e2.id
       let hash e1 = Hashtbl.hash e1.id
       let equal e1 e2 = e1.id = e2.id
+      let to_string e = string_of_int e.id
       let default =
         { id = 0;
           label = Edge.default;
@@ -269,10 +271,6 @@ struct
     let find_edge (t:t) (src:vertex) (dst:vertex) : edge =
       P.find_edge t.graph src dst
 
-    let edge_to_label (t:t) (e:edge) : Edge.t =
-      let (_,l,_) = e in
-      l.EL.label
-
     let vertex_to_string (t:t) (v:vertex) : string =
       VL.to_string v
 
@@ -281,6 +279,14 @@ struct
 
     let vertex_of_label (t:t) (l:Vertex.t) : vertex =
       VertexMap.find l t.node_labels
+
+    let edge_to_label (t:t) (e:edge) : Edge.t =
+      let (_,l,_) = e in
+      l.EL.label
+
+    let edge_to_string (t:t) (e:edge) : string =
+      let (_,e,_) = e in 
+      EL.to_string e
 
     let edge_src (e:edge) : (vertex * port) =
       let (v1,l,_) = e in
