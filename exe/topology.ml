@@ -5,13 +5,20 @@ open Network_Common
 let infname = ref None
 let outfname = ref None
 let pingall = ref false
-
+let prologue = ref "static/mn_prologue.txt"
+let epilogue = ref "static/mn_epilogue.txt"
 (* Accepted arguments *)
 let arg_spec =
   [
     ("-o",
        Arg.String (fun s -> outfname := Some s ),
        "\tWrite topology to a file")
+    ; ("--prologue",
+       Arg.String (fun s -> prologue := s),
+       "\tPrologue for Mininet scripts")
+    ; ("--epilogue",
+       Arg.String (fun s -> epilogue := s),
+       "\tEpilogue for Mininet scripts")
     ; ("--pingall",
        Arg.Unit (fun () -> pingall := true),
        "\tGenerate Mininet scripts that run pingall on startup")
@@ -31,7 +38,9 @@ let to_mininet (t:Net.Topology.t) : string =
       ~prologue_file:"static/pingall_prologue.txt"
       ~epilogue_file:"static/pingall_epilogue.txt" t
   else
-    Net.Pretty.to_mininet t
+    Net.Pretty.to_mininet
+      ~prologue_file:!prologue
+      ~epilogue_file:!epilogue t
 
 (* Check extensions on input or output files and parse/print accordingly *)
 let from_extension (fname:string) : Net.Topology.t =

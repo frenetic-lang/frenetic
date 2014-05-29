@@ -10,7 +10,7 @@
 
     print "\nFollowing connections were made:"
     dumpNodeConnections(net.hosts)
-    print "\nTesting network connectivity"
+
     net.pingAll()
 
     # All done
