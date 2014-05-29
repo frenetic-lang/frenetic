@@ -18,14 +18,31 @@ struct
     match o with
       | None -> "None"
       | Some x -> Printf.sprintf "Some(%s)" (H.to_string x)
+  let any = 
+    None
   let is_any o =
     o = None
+  let inter o1 o2 = 
+    match o1,o2 with 
+    | None, _ -> Some o2
+    | _, None -> Some o1
+    | Some x1, Some x2 -> 
+      if H.equal x1 x2 then Some o1
+      else None
+  let subseteq o1 o2 = 
+    match o1,o2 with 
+    | _,None -> true
+    | None,_ -> false
+    | Some x1, Some x2 -> 
+      H.equal x1 x2
+  let combine o1 o2 = 
+    match o1,o2 with
+    | None, _ -> Some None
+    | _, None -> Some None
+    | Some x1, Some x2 -> 
+      if H.equal x1 x2 then Some o1 
+      else None
 end
-
-type 'a posneg =
-  | Pos of 'a
-  | Neg of 'a
-  with sexp
 
 module type FIELD = sig
   type t with sexp
@@ -45,8 +62,7 @@ module PrefixTable (F:FIELD) = struct
 
   let singleton x = 
     [ x,true
-    ; F.any, false
-    ]
+    ; F.any, false ]
 
   let rec compare (a:t) (b:t) =
     match (a,b) with
@@ -79,6 +95,16 @@ module PrefixTable (F:FIELD) = struct
 
   module S = struct
     let empty = ([],[])
+    let to_string (p,n) = 
+      let f l = 
+	List.fold_left l
+	  ~init:""
+	  ~f:(fun acc p -> 
+	    Printf.sprintf "%s%s%s" 
+	      acc 
+	      (if acc = "" then "" else " ")
+	      (F.to_string p)) in 
+      Printf.sprintf "[%s] ~[%s]" (f p) (f n)
     let insert x b (p,n) = 
       let rec loop x acc l = 
 	match l with 
@@ -94,17 +120,14 @@ module PrefixTable (F:FIELD) = struct
       if b then (loop x [] p, n)
       else (p, loop x [] n)
     let is_shadowed x (p,n) = 
-      List.exists p ~f:(F.subseteq x)
-    let to_string (p,n) = 
-      let f l = 
-	List.fold_left l
-	  ~init:""
-	  ~f:(fun acc p -> 
-	    Printf.sprintf "%s%s%s" 
-	      acc 
-	      (if acc = "" then "" else " ")
-	      (F.to_string p)) in 
-      Printf.sprintf "[%s] ~[%s]" (f p) (f n)
+      let l = 
+	List.filter p 
+	  ~f:(fun y -> List.for_all n ~f:(fun z -> not (F.subseteq y z))) in 
+      let r = List.exists l ~f:(fun y -> F.subseteq x y) in 
+      (* Printf.printf "IS_SHADOWED %s %s %b\n"  *)
+      (* 	(F.to_string x) (to_string (p,n)) r; *)
+      r
+      
   end
 
   let is_shadowed x t = 
@@ -162,26 +185,21 @@ module PrefixTable (F:FIELD) = struct
   let diff t1 t2 =
     inter t1 (neg t2)
 
-  let to_netkat_pred (v_to_header_val: v -> NetKAT_Types.header_val) (t:t) =
-    let open NetKAT_Types in
-    let make_pi (plst: pred list) (p: v) (b: bool) : pred list =
-      if F.is_any p then plst
-      else (
-        let pi = (Test(v_to_header_val p)) in
-        match plst with
-          [] -> if b then [pi] else [Neg pi]
-        | h::t -> (
-          let disj = List.fold_left ~f:(fun acc x -> Or (acc, x)) ~init:h t in
-          (And(Neg disj, if b then pi else (Neg pi)))::plst)) in
-    (* !(p1 | ... | p(i-1)) & (b?pi:!pi) *)
-    match t with
-      [] -> True
-    | (h,hb)::t -> (
-      let l = List.fold_left
-        ~f:(fun acc (v,b) -> make_pi acc v b)
-        ~init:(make_pi [] h hb)
-        t in
-      match l with [] -> True | h::_ -> h)
+  let to_netkat_pred (v_to_pred: v -> NetKAT_Types.pred) (t:t) =
+    let open NetKAT_Types in 
+    let mk_or l = 
+      List.fold_left l 
+	~init:False
+	~f:(fun pr1 pr2 -> Or(pr1,pr2)) in 
+    fst 
+      (List.fold_left
+	 t
+	 ~init:(False,[])
+	 ~f:(fun (pr,prs) (v,b) -> 
+	   let v_pr = if b then v_to_pred v else Neg (v_to_pred v) in 
+	   let pr' = Or(pr, And(Neg(mk_or prs), v_pr)) in 
+	   let prs' = v_pr::prs in 
+	   (pr',prs')))
 
   let rec drop_false l =
     match l with
@@ -191,10 +209,7 @@ module PrefixTable (F:FIELD) = struct
       List.rev l
   
   let expand t =
-    let any_cons acc (p,b) =
-      if F.is_any p then ((None, b)::acc)
-      else ((Some p, b)::acc) in
-    let x = drop_false (List.fold_left t ~init:[] ~f:any_cons) in 
+    let x = drop_false (List.rev t) in 
     (* Printf.printf "EXPAND\n"; *)
     (* List.iter x *)
     (*   ~f:(fun (o,b) ->  *)
@@ -211,140 +226,24 @@ module PrefixTable (F:FIELD) = struct
 	(expand t1) 
 	~init:(false, S.empty)
 	~f:(fun (ob,s) (x1,b1) -> 
-	  match ob, x1 with 
-	  | false,Some y1 -> 
-	    let s' = S.insert y1 b1 s in 
+	  if not ob then 
+	    let s' = S.insert x1 b1 s in 
 	    let ob',_ = 
 	      List.fold_left 
 		t2
 		~init:(ob,s')		 
 	        ~f:(fun (ob,s) (x2,b2) -> 
-		      let ob' = ob || S.is_shadowed x2 s in 
+		      let ob' = ob || b2 && S.is_shadowed x2 s in 
 		      let s' = S.insert x2 b2 s in 
 		      (ob', s')) in 
 	    (ob',s')
-	  | _ -> 
-	    (true,s)) in 
-    Printf.printf
-      "OBSCURES\n%s\n%s\n%b\n"
-      (to_string t1)
-      (to_string t2)
-      r;
+	  else (true,s)) in 
+    (* Printf.printf *)
+      (* "OBSCURES\n%s\n%s\n%b\n" *)
+      (* (to_string t1) *)
+      (* (to_string t2) *)
+      (* r; *)
     r
-
-end
-
-
-(* PosNeg functor *)
-module PosNeg (H:NetKAT_Types.Headers.HEADER) = struct
-  (* TODO(jnf): add the universe, so that operations on Pos and Neg
-     make sense *)
-  module S = Set.Make(H)
-  type v = H.t with sexp
-  type t = S.t posneg with sexp
-  let singleton x = Pos (S.singleton x)
-  let compare y1 y2 = match y1,y2 with
-    | Pos _, Neg _ -> -1
-    | Neg _, Pos _ -> 1
-    | Pos s, Pos s' ->
-      S.compare s s'
-    | Neg s, Neg s' ->
-      -1 * (S.compare s s')
-  let equal y1 y2 =
-    compare y1 y2 = 0
-  let fold y = match y with
-    | Pos s -> S.fold s
-    | Neg s -> S.fold s
-  let to_string y =
-    let f acc v =
-      Printf.sprintf "%s%s"
-        (if acc = "" then acc else acc ^ ", ")
-        (H.to_string v) in
-    let c = match y with
-      | Pos s -> ""
-      | Neg s -> "~" in
-    Printf.sprintf "%s{%s}"
-      c (fold y ~init:"" ~f:f)
-  let any =
-    Neg (S.empty)
-  let is_any y =
-    match y with
-      | Neg s -> S.is_empty s
-      | Pos _ -> false
-  let empty =
-    Pos (S.empty)
-  let is_empty y =
-    match y with
-      | Pos s ->
-        S.is_empty s
-      | Neg _ ->
-        false
-
-  let inter y1 y2 =
-    match y1, y2 with
-      | Pos s1, Pos s2 ->
-        Pos (Set.inter s1 s2)
-      | Pos s1, Neg s2 ->
-        Pos (Set.diff s1 s2)
-      | Neg s1, Pos s2 ->
-        Pos (Set.diff s2 s1)
-      | Neg s1, Neg s2 ->
-        Neg (Set.union s1 s2)
-  let neg y =
-    match y with
-      | Pos s -> Neg s
-      | Neg s -> Pos s
-
-  let diff y1 y2 = inter y1 (neg y2)
-
-  let to_netkat_pred v_to_header_val y =
-    let open NetKAT_Types in
-    let make_disjunction set =
-      Set.fold set ~init:False
-        ~f:(fun acc v -> Optimize.mk_or acc (Test (v_to_header_val v))) in
-    match y with
-      | Pos s -> make_disjunction s
-      | Neg s -> Optimize.mk_not (make_disjunction s)
-
-  let expand y =
-    match y with
-      | Pos s ->
-        List.rev
-          (S.fold s
-             ~init:[]
-             ~f:(fun acc x -> (Some x, true)::acc))
-      | Neg s ->
-        List.rev
-          ((None,true)::
-              S.fold s
-              ~init:[]
-              ~f:(fun acc x -> (Some x, false)::acc))
-
-  (* Intuition for obscures
-   *  r1: (f = Neg {v1,...,vk } => s1)
-   *  ----
-   *  f = v1 => drop
-   *   ...
-   *  f = vk => drop
-   *  f = * => s1
-   *  ====
-   *  r2:(f = vl => s1)
-   *  ----
-   *  f = vl => s2
-   * We want to have that r1 obscures r2
-   *)
-  let obscures y1 y2 =
-    match y1, y2 with
-      | Pos s1, Pos s2 ->
-        (* A positive obscures another if their sets have any
-           overlap *)
-        not (Set.is_empty (Set.inter s1 s2))
-      | Pos s1, Neg s2 ->
-        (* A positive obscures a negative unless their sets are complementary *)
-        not (Set.is_empty (Set.diff s1 s2))
-      | Neg _, _ ->
-        (* A negative obscures anything else *)
-        true
 
 end
 
@@ -355,13 +254,11 @@ module O16 = Option(NetKAT_Types.IntHeader)
 module O8 = Option(NetKAT_Types.IntHeader)
 module OIp = Option(NetKAT_Types.Int32TupleHeader)
 
-module PNL = PosNeg(NetKAT_Types.LocationHeader)
-module PN48 = PosNeg(NetKAT_Types.Int64Header)
-module PN32 = PosNeg(NetKAT_Types.Int32Header)
-module PN16 = PosNeg(NetKAT_Types.IntHeader)
-module PN8 = PosNeg(NetKAT_Types.IntHeader)
-module PNIp = PosNeg(NetKAT_Types.Int32TupleHeader)
-
+module PTL = PrefixTable(OL)
+module PT48 = PrefixTable(O48)
+module PT32 = PrefixTable(O32)
+module PT16 = PrefixTable(O16)
+module PT8 = PrefixTable(O8)
 module PTIp = PrefixTable(NetKAT_Types.Int32TupleHeader)
 
 module HeadersOptionalValues =
@@ -378,28 +275,28 @@ module HeadersOptionalValues =
     (O16)
     (O16)
 
-module HeadersPosNeg =
+module HeadersPrefixTable =
   NetKAT_Types.Headers.Make
-    (PNL)
-    (PN48)
-    (PN48)
-    (PN16)
-    (PN8)
-    (PN16)
-    (PN8)
+    (PTL)
+    (PT48)
+    (PT48)
+    (PT16)
+    (PT8)
+    (PT16)
+    (PT8)
     (PTIp)
     (PTIp)
-    (PN16)
-    (PN16)
+    (PT16)
+    (PT16)
 
 (* H to the izz-O, V to the izz-A... *)
 module HOV = HeadersOptionalValues
 module HOVSet = Set.Make(HOV)
 module HOVMap = Map.Make(HOV)
 
-module HPN = HeadersPosNeg
-module HPNSet = Set.Make(HPN)
-module HPNMap = Map.Make(HPN)
+module HPT = HeadersPrefixTable
+module HPTSet = Set.Make(HPT)
+module HPTMap = Map.Make(HPT)
 
 module Action = struct
 
@@ -423,8 +320,8 @@ module Action = struct
       ~vlanPcp:(g (fun v -> VlanPcp v))
       ~ethType:(g (fun v -> EthType v))
       ~ipProto:(g (fun v -> IPProto v))
-      ~ipSrc:(g (fun (v,m) -> IP4Src (v,m)))
-      ~ipDst:(g (fun (v,m) -> IP4Dst (v,m)))
+      ~ipSrc:(g (fun (n,m) -> IP4Src(n,m)))
+      ~ipDst:(g (fun (n,m) -> IP4Dst(n,m)))
       ~tcpSrcPort:(g (fun v -> TCPSrcPort v))
       ~tcpDstPort:(g (fun v -> TCPDstPort v))
 
@@ -516,105 +413,108 @@ module Action = struct
 end
 
 module Pattern = struct
-  type t = HPN.t with sexp
+  type t = HPT.t with sexp
 
-  module Set = HPNSet
-  module Map = HPNMap
+  module Set = HPTSet
+  module Map = HPTMap
 
   let compare (x:t) (y:t) : int =
-    HPN.compare x y
+    HPT.compare x y
 
   let to_string ?init ?sep (x:t) =
-    HPN.to_string ?init ?sep x
+    HPT.to_string ?init ?sep x
 
   let to_netkat_pred (p:t) : NetKAT_Types.pred =
     let open NetKAT_Types in
-    let open HPN in
+    let open HPT in
     let g field_to_pred v_to_pred acc f : pred =
       Optimize.mk_and acc (field_to_pred v_to_pred (Field.get f p)) in
+    let l f = function
+      | None -> NetKAT_Types.True
+      | Some x -> NetKAT_Types.Test (f x) in 
     Fields.fold
       ~init:True
-      ~location:(g PNL.to_netkat_pred (fun v -> Location v))
-      ~ethSrc:(g PN48.to_netkat_pred (fun v -> EthSrc v))
-      ~ethDst:(g PN48.to_netkat_pred (fun v -> EthDst v))
-      ~vlan:(g PN16.to_netkat_pred (fun v -> Vlan v))
-      ~vlanPcp:(g PN8.to_netkat_pred (fun v -> VlanPcp v))
-      ~ethType:(g PN16.to_netkat_pred (fun v -> EthType v))
-      ~ipProto:(g PN8.to_netkat_pred (fun v -> IPProto v))
-      ~ipSrc:(g PTIp.to_netkat_pred (fun (v,m) -> IP4Src (v,m)))
-      ~ipDst:(g PTIp.to_netkat_pred (fun (v,m) -> IP4Dst (v,m)))
-      ~tcpSrcPort:(g PN16.to_netkat_pred (fun v -> TCPSrcPort v))
-      ~tcpDstPort:(g PN16.to_netkat_pred (fun v -> TCPDstPort v))
+      ~location:(g PTL.to_netkat_pred (l (fun v -> Location v)))
+      ~ethSrc:(g PT48.to_netkat_pred (l (fun v -> EthSrc v)))
+      ~ethDst:(g PT48.to_netkat_pred (l (fun v -> EthDst v)))
+      ~vlan:(g PT16.to_netkat_pred (l (fun v -> Vlan v)))
+      ~vlanPcp:(g PT8.to_netkat_pred (l (fun v -> VlanPcp v)))
+      ~ethType:(g PT16.to_netkat_pred (l (fun v -> EthType v)))
+      ~ipProto:(g PT8.to_netkat_pred (l (fun v -> IPProto v)))
+      ~ipSrc:(g PTIp.to_netkat_pred (fun (v,m) -> Test (IP4Src (v,m))))
+      ~ipDst:(g PTIp.to_netkat_pred (fun (v,m) -> Test (IP4Dst (v,m))))
+      ~tcpSrcPort:(g PT16.to_netkat_pred (l (fun v -> TCPSrcPort v)))
+      ~tcpDstPort:(g PT16.to_netkat_pred (l (fun v -> TCPDstPort v)))
 
   let any : t =
-    let open HPN in
-        { location = PNL.any;
-          ethSrc = PN48.any;
-          ethDst = PN48.any;
-          vlan = PN16.any;
-          vlanPcp = PN8.any;
-          ethType = PN16.any;
-          ipProto = PN8.any;
+    let open HPT in
+        { location = PTL.any;
+          ethSrc = PT48.any;
+          ethDst = PT48.any;
+          vlan = PT16.any;
+          vlanPcp = PT8.any;
+          ethType = PT16.any;
+          ipProto = PT8.any;
           ipSrc = PTIp.any;
           ipDst = PTIp.any;
-          tcpSrcPort = PN16.any;
-          tcpDstPort = PN16.any }
+          tcpSrcPort = PT16.any;
+          tcpDstPort = PT16.any }
 
   let empty : t =
-    let open HPN in
-        { location = PNL.empty;
-          ethSrc = PN48.empty;
-          ethDst = PN48.empty;
-          vlan = PN16.empty;
-          vlanPcp = PN8.empty;
-          ethType = PN16.empty;
-          ipProto = PN8.empty;
+    let open HPT in
+        { location = PTL.empty;
+          ethSrc = PT48.empty;
+          ethDst = PT48.empty;
+          vlan = PT16.empty;
+          vlanPcp = PT8.empty;
+          ethType = PT16.empty;
+          ipProto = PT8.empty;
           ipSrc = PTIp.empty;
           ipDst = PTIp.empty;
-          tcpSrcPort = PN16.empty;
-          tcpDstPort = PN16.empty }
+          tcpSrcPort = PT16.empty;
+          tcpDstPort = PT16.empty }
 
   let is_any (x:t) : bool =
     let g is_any f = is_any (Field.get f x) in
-    HPN.Fields.for_all
-      ~location:(g PNL.is_any)
-      ~ethSrc:(g PN48.is_any)
-      ~ethDst:(g PN48.is_any)
-      ~vlan:(g PN16.is_any)
-      ~vlanPcp:(g PN8.is_any)
-      ~ethType:(g PN16.is_any)
-      ~ipProto:(g PN8.is_any)
+    HPT.Fields.for_all
+      ~location:(g PTL.is_any)
+      ~ethSrc:(g PT48.is_any)
+      ~ethDst:(g PT48.is_any)
+      ~vlan:(g PT16.is_any)
+      ~vlanPcp:(g PT8.is_any)
+      ~ethType:(g PT16.is_any)
+      ~ipProto:(g PT8.is_any)
       ~ipSrc:(g PTIp.is_any)
       ~ipDst:(g PTIp.is_any)
-      ~tcpSrcPort:(g PN16.is_any)
-      ~tcpDstPort:(g PN16.is_any)
+      ~tcpSrcPort:(g PT16.is_any)
+      ~tcpDstPort:(g PT16.is_any)
 
   let is_empty (x:t) : bool =
     let g is_empty f = is_empty (Field.get f x) in
-    HPN.Fields.exists
-      ~location:(g PNL.is_empty)
-      ~ethSrc:(g PN48.is_empty)
-      ~ethDst:(g PN48.is_empty)
-      ~vlan:(g PN16.is_empty)
-      ~vlanPcp:(g PN8.is_empty)
-      ~ethType:(g PN16.is_empty)
-      ~ipProto:(g PN8.is_empty)
+    HPT.Fields.exists
+      ~location:(g PTL.is_empty)
+      ~ethSrc:(g PT48.is_empty)
+      ~ethDst:(g PT48.is_empty)
+      ~vlan:(g PT16.is_empty)
+      ~vlanPcp:(g PT8.is_empty)
+      ~ethType:(g PT16.is_empty)
+      ~ipProto:(g PT8.is_empty)
       ~ipSrc:(g PTIp.is_empty)
       ~ipDst:(g PTIp.is_empty)
-      ~tcpSrcPort:(g PN16.is_empty)
-      ~tcpDstPort:(g PN16.is_empty)
+      ~tcpSrcPort:(g PT16.is_empty)
+      ~tcpDstPort:(g PT16.is_empty)
 
-  let mk_location l = { any with HPN.location = PNL.singleton l }
-  let mk_ethSrc n = { any with HPN.ethSrc = PN48.singleton n }
-  let mk_ethDst n = { any with HPN.ethDst = PN48.singleton n }
-  let mk_vlan n = { any with HPN.vlan = PN16.singleton n }
-  let mk_vlanPcp n = { any with HPN.vlanPcp = PN8.singleton n }
-  let mk_ethType n = { any with HPN.ethType = PN16.singleton n }
-  let mk_ipProto n = { any with HPN.ipProto = PN16.singleton n }
-  let mk_ipSrc n = { any with HPN.ipSrc = PTIp.singleton n }
-  let mk_ipDst n = { any with HPN.ipDst = PTIp.singleton n }
-  let mk_tcpSrcPort n = { any with HPN.tcpSrcPort = PN16.singleton n }
-  let mk_tcpDstPort n = { any with HPN.tcpDstPort = PN16.singleton n }
+  let mk_location l = { any with HPT.location = PTL.singleton (Some l) }
+  let mk_ethSrc n = { any with HPT.ethSrc = PT48.singleton (Some n) }
+  let mk_ethDst n = { any with HPT.ethDst = PT48.singleton (Some n) }
+  let mk_vlan n = { any with HPT.vlan = PT16.singleton (Some n) }
+  let mk_vlanPcp n = { any with HPT.vlanPcp = PT8.singleton (Some n) }
+  let mk_ethType n = { any with HPT.ethType = PT16.singleton (Some n) }
+  let mk_ipProto n = { any with HPT.ipProto = PT16.singleton (Some n) }
+  let mk_ipSrc n = { any with HPT.ipSrc = PTIp.singleton n }
+  let mk_ipDst n = { any with HPT.ipDst = PTIp.singleton n }
+  let mk_tcpSrcPort n = { any with HPT.tcpSrcPort = PT16.singleton (Some n) }
+  let mk_tcpDstPort n = { any with HPT.tcpDstPort = PT16.singleton (Some n) }
 
   (* A pattern
    *   f1 = c1 ; ... fk = ck
@@ -629,59 +529,59 @@ module Pattern = struct
    * The final set represents this disjunction, with obvious
    * contradictions removed. *)
   let neg (x:t) : Set.t =
-    let open HPN in
+    let open HPT in
         let g is_empty neg acc f =
           let z = neg (Field.get f x) in
           if is_empty z then acc
           else Set.add acc (Field.fset f any z) in
         Fields.fold
           ~init:Set.empty
-          ~location:PNL.(g is_empty neg)
-          ~ethSrc:PN48.(g is_empty neg)
-          ~ethDst:PN48.(g is_empty neg)
-          ~vlan:PN16.(g is_empty neg)
-          ~vlanPcp:PN8.(g is_empty neg)
-          ~ethType:PN16.(g is_empty neg)
-          ~ipProto:PN8.(g is_empty neg)
+          ~location:PTL.(g is_empty neg)
+          ~ethSrc:PT48.(g is_empty neg)
+          ~ethDst:PT48.(g is_empty neg)
+          ~vlan:PT16.(g is_empty neg)
+          ~vlanPcp:PT8.(g is_empty neg)
+          ~ethType:PT16.(g is_empty neg)
+          ~ipProto:PT8.(g is_empty neg)
           ~ipSrc:PTIp.(g is_empty neg)
           ~ipDst:PTIp.(g is_empty neg)
-          ~tcpSrcPort:PN16.(g is_empty neg)
-          ~tcpDstPort:PN16.(g is_empty neg)
+          ~tcpSrcPort:PT16.(g is_empty neg)
+          ~tcpDstPort:PT16.(g is_empty neg)
 
   (* let subseteq (x:t) (y:t) : bool = *)
   (*   let open NetKAT_Types.Headers in *)
   (*       let g c f = c (Field.get f x) (Field.get f y) in *)
-  (*       HPN.Fields.for_all *)
-  (*         ~location:(g PNL.subseteq) *)
-  (*         ~ethSrc:(g PN48.subseteq) *)
-  (*         ~ethDst:(g PN48.subseteq) *)
-  (*         ~vlan:(g PN16.subseteq) *)
-  (*         ~vlanPcp:(g PN8.subseteq) *)
-  (*         ~ethType:(g PN16.subseteq) *)
-  (*         ~ipProto:(g PN8.subseteq) *)
-  (*         ~ipSrc:(g PNIp.subseteq) *)
-  (*         ~ipDst:(g PNIp.subseteq) *)
-  (*         ~tcpSrcPort:(g PN16.subseteq) *)
-  (*         ~tcpDstPort:(g PN16.subseteq) *)
+  (*       HPT.Fields.for_all *)
+  (*         ~location:(g PTL.subseteq) *)
+  (*         ~ethSrc:(g PT48.subseteq) *)
+  (*         ~ethDst:(g PT48.subseteq) *)
+  (*         ~vlan:(g PT16.subseteq) *)
+  (*         ~vlanPcp:(g PT8.subseteq) *)
+  (*         ~ethType:(g PT16.subseteq) *)
+  (*         ~ipProto:(g PT8.subseteq) *)
+  (*         ~ipSrc:(g PTIp.subseteq) *)
+  (*         ~ipDst:(g PTIp.subseteq) *)
+  (*         ~tcpSrcPort:(g PT16.subseteq) *)
+  (*         ~tcpDstPort:(g PT16.subseteq) *)
 
   let obscures (x:t) (y:t) : bool =
     let open NetKAT_Types.Headers in
         let g c f = c (Field.get f x) (Field.get f y) in
-        HPN.Fields.for_all
-          ~location:(g PNL.obscures)
-          ~ethSrc:(g PN48.obscures)
-          ~ethDst:(g PN48.obscures)
-          ~vlan:(g PN16.obscures)
-          ~vlanPcp:(g PN8.obscures)
-          ~ethType:(g PN16.obscures)
-          ~ipProto:(g PN8.obscures)
+        HPT.Fields.for_all
+          ~location:(g PTL.obscures)
+          ~ethSrc:(g PT48.obscures)
+          ~ethDst:(g PT48.obscures)
+          ~vlan:(g PT16.obscures)
+          ~vlanPcp:(g PT8.obscures)
+          ~ethType:(g PT16.obscures)
+          ~ipProto:(g PT8.obscures)
           ~ipSrc:(g PTIp.obscures)
           ~ipDst:(g PTIp.obscures)
-          ~tcpSrcPort:(g PN16.obscures)
-          ~tcpDstPort:(g PN16.obscures)
+          ~tcpSrcPort:(g PT16.obscures)
+          ~tcpDstPort:(g PT16.obscures)
 
   let seq (x:t) (y:t) : t option =
-    let open HPN in
+    let open HPT in
         let g is_empty inter acc f =
           match acc with
             | None ->
@@ -692,48 +592,49 @@ module Pattern = struct
               else Some (Field.fset f z pn) in
         Fields.fold
           ~init:(Some any)
-          ~location:PNL.(g is_empty inter)
-          ~ethSrc:PN48.(g is_empty inter)
-          ~ethDst:PN48.(g is_empty inter)
-          ~vlan:PN16.(g is_empty inter)
-          ~vlanPcp:PN8.(g is_empty inter)
-          ~ethType:PN16.(g is_empty inter)
-          ~ipProto:PN8.(g is_empty inter)
+          ~location:PTL.(g is_empty inter)
+          ~ethSrc:PT48.(g is_empty inter)
+          ~ethDst:PT48.(g is_empty inter)
+          ~vlan:PT16.(g is_empty inter)
+          ~vlanPcp:PT8.(g is_empty inter)
+          ~ethType:PT16.(g is_empty inter)
+          ~ipProto:PT8.(g is_empty inter)
           ~ipSrc:PTIp.(g is_empty inter)
           ~ipDst:PTIp.(g is_empty inter)
-          ~tcpSrcPort:PN16.(g is_empty inter)
-          ~tcpDstPort:PN16.(g is_empty inter)
+          ~tcpSrcPort:PT16.(g is_empty inter)
+          ~tcpDstPort:PT16.(g is_empty inter)
 
   let seq_act (x:t) (a:Action.t) (y:t) : t option =
-    let open HPN in
-        let g get is_empty inter singleton acc f =
-          match acc with
-            | None ->
-              None
-            | Some z ->
-              begin match Field.get f x, get a, Field.get f y with
-                | pn1, None, pn2 ->
-                  let pn = inter pn1 pn2 in
-                  if is_empty pn then None
-                  else Some (Field.fset f z pn)
-                | pn1, Some n, pn2 ->
-                  if is_empty (inter (singleton n) pn2) then None
-                  else Some (Field.fset f z pn1)
-              end in
-        HPN.Fields.fold
-          ~init:(Some any)
-          ~location:PNL.(g HOV.location is_empty inter singleton)
-          ~ethSrc:PN48.(g HOV.ethSrc is_empty inter singleton)
-          ~ethDst:PN48.(g HOV.ethDst is_empty inter singleton)
-          ~vlan:PN16.(g HOV.vlan is_empty inter singleton)
-          ~vlanPcp:PN8.(g HOV.vlanPcp is_empty inter singleton)
-          ~ethType:PN16.(g HOV.ethType is_empty inter singleton)
-          ~ipProto:PN8.(g HOV.ipProto is_empty inter singleton)
-          ~ipSrc:PTIp.(g HOV.ipSrc is_empty inter singleton)
-          ~ipDst:PTIp.(g HOV.ipDst is_empty inter singleton)
-          ~tcpSrcPort:PN16.(g HOV.tcpSrcPort is_empty inter singleton)
-          ~tcpDstPort:PN16.(g HOV.tcpDstPort is_empty inter singleton)
-
+    let open HPT in
+    let g get is_empty inter singleton acc f =
+      match acc with
+      | None ->
+        None
+      | Some z ->
+        begin match Field.get f x, get a, Field.get f y with
+        | pn1, None, pn2 ->
+          let pn = inter pn1 pn2 in
+          if is_empty pn then None
+          else Some (Field.fset f z pn)
+        | pn1, Some n, pn2 ->
+          if is_empty (inter (singleton n) pn2) then None
+          else Some (Field.fset f z pn1)
+        end in
+    let lo f n = f (Some n) in 
+    HPT.Fields.fold
+      ~init:(Some any)
+      ~location:PTL.(g HOV.location is_empty inter (lo singleton))
+      ~ethSrc:PT48.(g HOV.ethSrc is_empty inter (lo singleton))
+      ~ethDst:PT48.(g HOV.ethDst is_empty inter (lo singleton))
+      ~vlan:PT16.(g HOV.vlan is_empty inter (lo singleton))
+      ~vlanPcp:PT8.(g HOV.vlanPcp is_empty inter (lo singleton))
+      ~ethType:PT16.(g HOV.ethType is_empty inter (lo singleton))
+      ~ipProto:PT8.(g HOV.ipProto is_empty inter (lo singleton))
+      ~ipSrc:PTIp.(g HOV.ipSrc is_empty inter singleton)
+      ~ipDst:PTIp.(g HOV.ipDst is_empty inter singleton)
+      ~tcpSrcPort:PT16.(g HOV.tcpSrcPort is_empty inter (lo singleton))
+      ~tcpDstPort:PT16.(g HOV.tcpDstPort is_empty inter (lo singleton))
+      
   let diff (x:t) (y:t) : Set.t =
     let negged:Set.t = neg y in
     let intersect x a =
@@ -824,10 +725,10 @@ module Local = struct
     else if Pattern.Map.is_empty q then p
     else 
       let r = intersect Action.Set.union p q in
-      Printf.printf "### PAR ###\n%s\n%s\n%s"
-        (to_string p)
-        (to_string q)
-        (to_string r);
+      (* Printf.printf "### PAR ###\n%s\n%s\n%s" *)
+      (*   (to_string p) *)
+      (*   (to_string q) *)
+      (*   (to_string r); *)
       r
 
   let seq (p:t) (q:t) : t =
@@ -863,10 +764,10 @@ module Local = struct
         ~f:(fun ~key:r1 ~data:s1 acc ->
           let acc' = seq_atom_acts_local r1 s1 q in
           Pattern.Map.merge ~f:merge acc acc') in
-    Printf.printf "### SEQ ###\n%s\n%s\n%s"
-      (to_string p)
-      (to_string q)
-      (to_string r);
+    (* Printf.printf "### SEQ ###\n%s\n%s\n%s" *)
+    (*   (to_string p) *)
+    (*   (to_string q) *)
+    (*   (to_string r); *)
     r
 
   let neg (p:t) : t=
@@ -885,7 +786,7 @@ module Local = struct
     let rec loop acc pi =
       let psucci = seq p pi in
       let acc' = par acc psucci in
-      if compare acc acc' = 0 then
+      if Pattern.Map.compare Action.Set.compare acc acc' = 0 then
         acc
       else
         loop acc' psucci in
@@ -926,10 +827,7 @@ module Local = struct
             | NetKAT_Types.IP4Src (n,m) ->
               Pattern.mk_ipSrc (n,m)
             | NetKAT_Types.IP4Dst (n,m) ->
-              let r = Pattern.mk_ipDst (n,m) in 
-	      Printf.printf "IPDST: [%s]\n%!"
-		(Pattern.to_string r);
-	      r
+	      Pattern.mk_ipDst (n,m) 
             | NetKAT_Types.TCPSrcPort n ->
               Pattern.mk_tcpSrcPort n
             | NetKAT_Types.TCPDstPort n ->
@@ -969,8 +867,10 @@ module Local = struct
             | NetKAT_Types.IPProto n ->
               Action.mk_ipProto n
             | NetKAT_Types.IP4Src (n,m) ->
+	      assert (m = 32l);
               Action.mk_ipSrc (n,m)
             | NetKAT_Types.IP4Dst (n,m) ->
+	      assert (m = 32l);
               Action.mk_ipDst (n,m)
             | NetKAT_Types.TCPSrcPort n ->
               Action.mk_tcpSrcPort n
@@ -980,14 +880,7 @@ module Local = struct
           let m = Pattern.Map.singleton Pattern.any s in
           k m
         | NetKAT_Types.Union (pol1, pol2) ->
-          loop pol1 (fun p1 -> loop pol2 (fun p2 -> 
-	    Printf.printf "POL1: %s\nPOL2: %s\n" 
-	      (NetKAT_Pretty.string_of_policy pol1)
-	      (NetKAT_Pretty.string_of_policy pol2);
-	    Printf.printf "P1: %s\n P2: %s\n" 
-	      (to_string p1)
-	      (to_string p2);
-	    k (par p1 p2)))
+          loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (par p1 p2)))
         | NetKAT_Types.Seq (pol1, pol2) ->
           loop pol1 (fun p1 -> loop pol2 (fun p2 -> k (seq p1 p2)))
         | NetKAT_Types.Star pol ->
@@ -1014,8 +907,8 @@ module RunTime = struct
         ~vlanPcp:(g (fun v -> SetVlanPcp v))
         ~ethType:(g (fun v -> SetEthTyp v))
         ~ipProto:(g (fun v -> SetIPProto v))
-        ~ipSrc:(g (fun (v,_) -> SetIP4Src v))
-        ~ipDst:(g (fun (v,_) -> SetIP4Dst v))
+        ~ipSrc:(g (fun (n,m) -> assert (m = 32l); SetIP4Src n))
+        ~ipDst:(g (fun (n,m) -> assert (m = 32l); SetIP4Dst n))
         ~tcpSrcPort:(g (fun v -> SetTCPSrcPort v))
         ~tcpDstPort:(g (fun v -> SetTCPDstPort v)) in
     (* If an action sets the location to a pipe, ignore all other modifications.
@@ -1052,62 +945,20 @@ module RunTime = struct
       idle_timeout = Permanent;
       hard_timeout = Permanent }
 
-  module Expanded(H:NetKAT_Types.Headers.HEADER) = struct
-    type t = (H.t option * bool) list with sexp
-    let compare = Pervasives.compare
-    let equal = (=)
-    let to_string hs =
-      Printf.sprintf "[%s]" 
-        (List.fold_left hs
-          ~init:"" ~f:(fun acc (mh, b) ->
-            Printf.sprintf "%s(%s,%b)"
-            (if acc = "" then acc else "; ")
-            (match mh with None -> "None" | Some(h) -> H.to_string h)
-            b))
-    let is_any x = false (* TODO(jnf) *)
-  end
-
-  module EHeaders = struct
-    include NetKAT_Types.Headers.Make
-    (Expanded(NetKAT_Types.LocationHeader))
-    (Expanded(NetKAT_Types.Int64Header))
-    (Expanded(NetKAT_Types.Int64Header))
-    (Expanded(NetKAT_Types.IntHeader))
-    (Expanded(NetKAT_Types.IntHeader))
-    (Expanded(NetKAT_Types.IntHeader))
-    (Expanded(NetKAT_Types.IntHeader))
-    (Expanded(NetKAT_Types.Int32TupleHeader))
-    (Expanded(NetKAT_Types.Int32TupleHeader))
-    (Expanded(NetKAT_Types.IntHeader))
-    (Expanded(NetKAT_Types.IntHeader))
-
-    let empty =
-      { location = []; 
-        ethSrc = [];
-        ethDst = [];
-        vlan = [];
-        vlanPcp = [];
-        ethType = [];
-        ipProto = [];
-        ipSrc = [];
-        ipDst = [];
-        tcpSrcPort = [];
-        tcpDstPort = [] }
-  end
-
   let expand_rules (x:Pattern.t) (s:Action.Set.t) : flowTable =
-    let m : EHeaders.t = let open EHeaders in
-      { location = PNL.(expand x.HPN.location);
-        ethSrc = PN48.(expand x.HPN.ethSrc);
-        ethDst = PN48.(expand x.HPN.ethDst);
-        vlan = PN16.(expand x.HPN.vlan);
-        vlanPcp = PN8.(expand x.HPN.vlanPcp);
-        ethType = PN16.(expand x.HPN.ethType);
-        ipProto = PN8.(expand x.HPN.ipProto);
-        ipSrc = PTIp.(expand x.HPN.ipSrc);
-        ipDst = PTIp.(expand x.HPN.ipDst);
-        tcpSrcPort = PN16.(expand x.HPN.tcpSrcPort);
-        tcpDstPort = PN16.(expand x.HPN.tcpDstPort) } in 
+    let m : HPT.t = 
+      let open HPT in 
+      { location = PTL.(expand x.HPT.location);
+        ethSrc = PT48.(expand x.HPT.ethSrc);
+        ethDst = PT48.(expand x.HPT.ethDst);
+        vlan = PT16.(expand x.HPT.vlan);
+        vlanPcp = PT8.(expand x.HPT.vlanPcp);
+        ethType = PT16.(expand x.HPT.ethType);
+        ipProto = PT8.(expand x.HPT.ipProto);
+        ipSrc = PTIp.(expand x.HPT.ipSrc);
+        ipDst = PTIp.(expand x.HPT.ipDst);
+        tcpSrcPort = PT16.(expand x.HPT.tcpSrcPort);
+        tcpDstPort = PT16.(expand x.HPT.tcpDstPort) } in 
     (* computes a cross product *)
     let rec cross m : (HOV.t * bool) list =
       let empty = let open HOV in
@@ -1133,7 +984,7 @@ module RunTime = struct
               rs
               ~init:acc
               ~f:(fun (p, c) acc -> (h p o, b && c)::acc)) in
-      EHeaders.Fields.fold
+      HPT.Fields.fold
         ~init:[(empty, true)]
         ~location:(g (fun p o -> { p with HOV.location = o }))
         ~ethSrc:(g (fun p o -> { p with HOV.ethSrc = o }))
@@ -1142,8 +993,12 @@ module RunTime = struct
         ~vlanPcp:(g (fun p o -> { p with HOV.vlanPcp = o }))
         ~ethType:(g (fun p o -> { p with HOV.ethType = o }))
         ~ipProto:(g (fun p o -> { p with HOV.ipProto = o }))
-        ~ipSrc:(g (fun p o -> { p with HOV.ipSrc = o }))
-        ~ipDst:(g (fun p o -> { p with HOV.ipDst= o }))
+        ~ipSrc:(g (fun p o -> 
+	             if NetKAT_Types.Int32TupleHeader.is_any o then p 
+		     else { p with HOV.ipSrc = Some o }))
+        ~ipDst:(g (fun p o -> 
+	             if NetKAT_Types.Int32TupleHeader.is_any o then p 
+		     else { p with HOV.ipDst = Some o }))
         ~tcpSrcPort:(g (fun p o -> { p with HOV.tcpSrcPort = o }))
         ~tcpDstPort:(g (fun p o -> { p with HOV.tcpDstPort = o })) in 
     
@@ -1172,14 +1027,14 @@ module RunTime = struct
         in
         simpl_flow pattern actions) in
     let c = cross m in 
-    Printf.printf "\nCROSS:\n%!";
-    List.iter c
-      ~f:(fun (h,b) -> 
-	    Printf.printf "%s : %b\n"
-	      (HOV.to_string h) b);
+    (* Printf.printf "\nCROSS:\n%!"; *)
+    (* List.iter c *)
+    (*   ~f:(fun (h,b) ->  *)
+    (* 	    Printf.printf "%s : %b\n" *)
+    (* 	      (HOV.to_string h) b); *)
     let r = go c in 
-    Printf.printf "FLOWTABLE:\n%s\n" 
-      (SDN_Types.string_of_flowTable r);
+    (* Printf.printf "FLOWTABLE:\n%s\n"  *)
+    (*   (SDN_Types.string_of_flowTable r); *)
     r
 
   type i = Local.t
