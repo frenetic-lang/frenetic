@@ -304,8 +304,11 @@ let internal_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred
     let priority = ref 65536 in
     (* Add match on ver *)    
     let table = compute_internal_table t ver (NetKAT_LocalCompiler.to_table local) sw_id in
-    Log.debug ~tags
+    (* Log.debug ~tags
       "switch %Lu: Installing internal table %s" sw_id (SDN_Types.string_of_flowTable table);
+    *)
+    Log.debug ~tags
+      "switch %Lu: Installing internal table for ver %d" sw_id ver;
     let open SDN_Types in
     if List.length table <= 0
     then raise (Assertion_failed (Printf.sprintf
@@ -410,8 +413,12 @@ let edge_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred.t =
   Monitor.try_with ~name:"edge_update_table_for" (fun _ ->
       let table = NetKAT_LocalCompiler.to_table local in
       let edge_table = compute_edge_table t ver table sw_id in
+      (*
       Log.debug ~tags
         "switch %Lu: Installing edge table %s" sw_id (SDN_Types.string_of_flowTable edge_table);
+      *)
+      Log.debug ~tags
+        "switch %Lu: Installing edge table for ver %d" sw_id ver;
       swap_update_for t sw_id edge_table
       >>= fun () -> (send_barrier_to_sw t sw_id))
   >>= function
