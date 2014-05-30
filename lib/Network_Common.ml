@@ -92,8 +92,10 @@ module Node = struct
 
   let to_mininet n = match n.dev_type with
     | Host ->
+      (* Mininet doesn't like underscores in host names *)
+      let mnname = Str.global_replace (Str.regexp "_") "" n.name in
       Printf.sprintf "%s = net.addHost(\'%s\', mac=\'%s\', ip=\'%s\')\n"
-        n.name n.name
+        n.name mnname
         (Packet.string_of_mac n.mac) (Packet.string_of_ip n.ip)
     | _ ->
       Printf.sprintf
