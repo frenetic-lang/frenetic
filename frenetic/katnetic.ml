@@ -3,7 +3,7 @@ module Run = struct
   open Async.Std
 
 
-  let main learn filename =
+  let main update learn filename =
     let open NetKAT_LocalCompiler in
     let main () =
       let static = Async_NetKAT.create_from_file filename in
@@ -11,7 +11,7 @@ module Run = struct
         then Async_NetKAT.union static (Learning.create ())
         else static
       in
-      Async_NetKAT_Controller.start app () in
+      Async_NetKAT_Controller.start ~update app () in
     never_returns (Scheduler.go_main ~max_num_open_file_descrs:4096 ~main ())
 end
 
@@ -89,12 +89,22 @@ let policy n =
   Arg.(required & (pos n (some file) None) & info [] ~docv:"FILE" ~doc)
 
 let run_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
+  let update =
+    let strategy = Arg.enum
+      [ ("best-effort", `BestEffort)
+      ; ("per-packet-consistent", `PerPacketConsistent) ] in
+
+    let doc = "specify network strategy. $(docv) can either be
+    `per-packet-consistent' or `best-effort', which provides no consistentcy
+    guarentees." in
+    Arg.(value & opt strategy `BestEffort & info ["update"] ~docv:"STRATEGY" ~doc)
+  in
   let learn =
     let doc = "enable per-switch L2 learning" in
     Arg.(value & flag & info ["learn"] ~doc)
   in
   let doc = "start a controller that will serve the static policy" in
-  Term.(pure Run.main $ learn $ (policy 0)),
+  Term.(pure Run.main $ update $ learn $ (policy 0)),
   Term.info "run" ~doc
 
 let dump_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
