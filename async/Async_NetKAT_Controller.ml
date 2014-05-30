@@ -260,7 +260,6 @@ let get_internal_ports (t : t) (sw_id : switchId) =
   let open Async_NetKAT in
   let open Net.Topology in
   let topo = !(t.nib) in
-  Log.debug ~tags "topo: %s" (Net.Pretty.to_string topo);
   let sw = vertex_of_label topo (Switch sw_id) in
   PortSet.fold (fun pt acc ->
       match next_hop topo sw pt with
