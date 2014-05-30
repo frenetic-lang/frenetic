@@ -520,7 +520,7 @@ let handler
         | _ -> return ()
       end
 
-let start app ?(port=6633) ?(update = `BestEffort) () =
+let start app ?(port=6633) ?(update=`BestEffort) () =
   let open Async_OpenFlow.Stage in
   Controller.create ~log_disconnects:true ~max_pending_connections ~port ()
   >>> fun ctl ->
@@ -564,6 +564,21 @@ let start app ?(port=6633) ?(update = `BestEffort) () =
    * Whatever happens, happens. Can't stop won't stop.
    * *)
   let events = Pipe.interleave [Discovery.events d_ctl; sdn_events] in
+  begin match update with
+  | `PerPacketConsistent ->
+    (* XXX(seliopou): budget has to be big, otherwise consistent updates will
+     * lead to deadlocks where event processing is blocked on a table update,
+     * but the table update can't complete until an event, specifically a
+     * barrier reply, is processed.
+     *
+     * This and other parameters need to be tweaked. This'll happen in the app
+     * branch. For now, the parameter is set so that the controller can manage a
+     * topo,2,3 and achieve connectivity with --learn enabled.
+     *)
+    Pipe.set_size_budget events 50
+  | `BestEffort -> ()
+  end;
+
   Deferred.don't_wait_for (
     Monitor.try_with ~name:"start" (fun () ->
         (Pipe.iter events ~f:(handler ~update t w_out app)))
