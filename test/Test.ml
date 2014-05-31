@@ -104,6 +104,12 @@ module Pattern = struct
     let prop_comparable_least (p1, p2) =
       implies (less_eq p1 p2) (meet p1 p2 = p2) in
     pattern2_quickCheck prop_comparable_least
+
+  TEST "disjoint compare: disjoint p1 p2 = not (less_eq p1 p2 || less_eq p2 p1" =
+    let prop_disjoint_compare (p1, p2) =
+      disjoint p1 p2 = not (less_eq p1 p2 || less_eq p2 p1) in
+    pattern2_quickCheck  prop_disjoint_compare
+
 end
 
 module RoundTripping = struct

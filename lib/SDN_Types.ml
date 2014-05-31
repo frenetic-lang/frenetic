@@ -85,6 +85,25 @@ module Pattern = struct
     && check p1.tpDst p2.tpDst
     && check p1.inPort p2.inPort
 
+  let disjoint p1 p2 =
+    let check m1 m2 =
+      match m1, m2 with
+      | None, _    -> false
+      | _   , None -> false
+      | Some(v1), Some(v2) -> not (v1 = v2)
+    in
+    check p1.dlSrc p2.dlSrc
+    || check p1.dlDst p2.dlDst
+    || check p1.dlTyp p2.dlTyp
+    || check p1.dlVlan p2.dlVlan
+    || check p1.dlVlanPcp p2.dlVlanPcp
+    || check p1.nwSrc p2.nwSrc
+    || check p1.nwDst p2.nwDst
+    || check p1.nwProto p2.nwProto
+    || check p1.tpSrc p2.tpSrc
+    || check p1.tpDst p2.tpDst
+    || check p1.inPort p2.inPort
+
   let meet p1 p2 =
     let meeter m1 m2 =
       match m1, m2 with

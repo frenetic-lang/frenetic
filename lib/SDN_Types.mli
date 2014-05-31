@@ -59,9 +59,13 @@ module Pattern : sig
   (** [match_all] is pattern that matches any packet. *)
   val match_all : t
 
-  (** [less_eq p1 p2] indicates that [p2] will match any packet that [p1] will
-      match *)
+  (** [less_eq p1 p2] returns true when [p2] matches any packet that [p1] will
+      match. *)
   val less_eq : t -> t -> bool
+
+  (** [disjoint p1 p2] returns true when there are no packets that [p1] and [p2]
+      can simultaneously match. *)
+  val disjoint : t -> t -> bool
 
   (** [meet p1 p2] is the least pattern [pm] such that [less_eq p1 pm] and
       [less_eq p2 pm] *)
