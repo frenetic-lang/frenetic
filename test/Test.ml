@@ -12,7 +12,7 @@ let packet_quickCheck arbitrary pred =
       | Exhausted _ -> failwith "No exhaustion expected"
 
 module RoundTrip = struct
-  module Arb = Packet_Arbitrary
+  module Arb = Arbitrary_Packet
 
   let unparsable_eq (l1, b1) (l2, b2) =
     l1 = l2 && compare (Cstruct.to_string b1) (Cstruct.to_string b2) = 0

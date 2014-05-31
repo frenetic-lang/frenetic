@@ -40,7 +40,7 @@ Library quickcheck
     quickcheck
   Modules:
     Arbitrary_Base,
-    Packet_Arbitrary
+    Arbitrary_Packet
 
 Executable testtool
   Path: test
