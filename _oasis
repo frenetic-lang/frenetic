@@ -39,6 +39,7 @@ Library quickcheck
     packet,
     quickcheck
   Modules:
+    Arbitrary_Base,
     Packet_Arbitrary
 
 Executable testtool
