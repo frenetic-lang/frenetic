@@ -43,12 +43,12 @@ let to_packetIn (pktIn : Core.packetIn) : AL.pktIn =
     | { pi_payload; pi_total_len; pi_ofp_match; pi_reason } ->
       (to_payload pi_payload, pi_total_len, get_port pi_ofp_match, to_reason pi_reason)
 
-let from_pattern (pat : AL.pattern) : Core.oxmMatch * Core.portId option = 
+let from_pattern (pat : AL.Pattern.t) : Core.oxmMatch * Core.portId option =
   let v_to_m = Core.val_to_mask in
   (Core_kernel.Core_list.filter_opt
-    [ Misc.map_option (fun x -> Core.OxmEthSrc (v_to_m x)) pat.AL.dlSrc
-    ; Misc.map_option (fun x -> Core.OxmEthDst (v_to_m x)) pat.AL.dlDst
-    ; Misc.map_option (fun x -> Core.OxmEthType x) pat.AL.dlTyp
+    [ Misc.map_option (fun x -> Core.OxmEthSrc (v_to_m x)) pat.AL.Pattern.dlSrc
+    ; Misc.map_option (fun x -> Core.OxmEthDst (v_to_m x)) pat.AL.Pattern.dlDst
+    ; Misc.map_option (fun x -> Core.OxmEthType x) pat.AL.Pattern.dlTyp
     ; Misc.map_option (fun x -> match x with
         | -1 ->
           Core.OxmVlanVId { Core.m_value = 0x1000; Core.m_mask = Some 0x1000 }
@@ -56,15 +56,15 @@ let from_pattern (pat : AL.pattern) : Core.oxmMatch * Core.portId option =
           Core.OxmVlanVId (v_to_m 0)
         | _ ->
           Core.OxmVlanVId (v_to_m x))
-      pat.AL.dlVlan
-    ; Misc.map_option (fun x -> Core.OxmVlanPcp x) pat.AL.dlVlanPcp
-    ; Misc.map_option (fun x -> Core.OxmIP4Src (v_to_m x)) pat.AL.nwSrc
-    ; Misc.map_option (fun x -> Core.OxmIP4Dst (v_to_m x)) pat.AL.nwDst
-    ; Misc.map_option (fun x -> Core.OxmIPProto x) pat.AL.nwProto
-    ; Misc.map_option (fun x -> Core.OxmTCPSrc (v_to_m x)) pat.AL.tpSrc
-    ; Misc.map_option (fun x -> Core.OxmTCPDst (v_to_m x)) pat.AL.tpDst
-    ; Misc.map_option (fun x -> Core.OxmInPort x) pat.AL.inPort
-    ], pat.AL.inPort)
+      pat.AL.Pattern.dlVlan
+    ; Misc.map_option (fun x -> Core.OxmVlanPcp x) pat.AL.Pattern.dlVlanPcp
+    ; Misc.map_option (fun x -> Core.OxmIP4Src (v_to_m x)) pat.AL.Pattern.nwSrc
+    ; Misc.map_option (fun x -> Core.OxmIP4Dst (v_to_m x)) pat.AL.Pattern.nwDst
+    ; Misc.map_option (fun x -> Core.OxmIPProto x) pat.AL.Pattern.nwProto
+    ; Misc.map_option (fun x -> Core.OxmTCPSrc (v_to_m x)) pat.AL.Pattern.tpSrc
+    ; Misc.map_option (fun x -> Core.OxmTCPDst (v_to_m x)) pat.AL.Pattern.tpDst
+    ; Misc.map_option (fun x -> Core.OxmInPort x) pat.AL.Pattern.inPort
+    ], pat.AL.Pattern.inPort)
 
 let from_timeout (timeout : AL.timeout) : Core.timeout =
   match timeout with
@@ -224,8 +224,8 @@ let contains_vlan_mod (act : SDN_Types.group) =
     | _ -> false in
   List.exists (List.exists (List.exists vlan_mod)) act
 
-let contains_vlan (pat:AL.pattern) =
-  match pat.AL.dlVlan with
+let contains_vlan (pat:AL.Pattern.t) =
+  match pat.AL.Pattern.dlVlan with
     | None -> false
     | Some _ -> true
 
@@ -242,6 +242,7 @@ let add_vlan_push = List.map (List.map (List.fold_left (fun acc a -> match a wit
 (* I assume that vlan is not both set and popped in the same rule *)
 let fix_vlan_in_flow fl =
   let open SDN_Types in
+  let open Pattern in
   if contains_vlan_pop fl.action && not (contains_vlan fl.pattern) then
     (* match on vlan_none, then drop the strip_vlan *)
     [ {fl with pattern = { fl.pattern with dlVlan = Some(0xffff) };
