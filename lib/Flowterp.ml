@@ -12,11 +12,12 @@ module Headers = struct
   open NetKAT_Types
   open SDN_Types
 
-  let eval_pattern (hdrs : HeadersValues.t) (pat : pattern) : bool =
+  let eval_pattern (hdrs : HeadersValues.t) (pat : Pattern.t) : bool =
     let matches p f =
       match p with
         | None -> true
         | Some(p_v) -> Field.get f hdrs = p_v in
+    let open Pattern in
     HeadersValues.Fields.for_all
       ~location:(fun f ->
         match Field.get f hdrs, pat.inPort with
