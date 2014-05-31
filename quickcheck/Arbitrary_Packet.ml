@@ -5,7 +5,7 @@ module Gen = QuickCheck_gen
 open Arbitrary_Base
 
 let arbitrary_dlAddr = arbitrary_uint48
-let arbitrary_nwAddr = arbitrary_uint32
+let arbitrary_dlTyp = arbitrary_uint16
 
 let arbitrary_dlVlan =
   let open Gen in
@@ -18,6 +18,10 @@ let arbitrary_dlVlan =
           ret_gen (Some w16, b, Int32.to_int w4)
   end
 
+
+let arbitrary_nwAddr = arbitrary_uint32
+let arbitrary_nwTos = arbitrary_uint8
+let arbitrary_nwProto = arbitrary_uint8
 let arbitrary_tpPort = Arbitrary_Base.arbitrary_uint16
 
 let arbitrary_dl_unparsable_len l =
