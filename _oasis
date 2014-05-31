@@ -75,9 +75,9 @@ Library quickcheck
     Build$: flag(tests) || flag(quickcheck)
     BuildDepends:
       quickcheck,
-      openflow
+      openflow,
+      packet.quickcheck
     Modules:
-      Arbitrary_Base,
       Arbitrary_OpenFlow,
       Arbitrary_OpenFlow0x01,
       Arbitrary_SDN_Types

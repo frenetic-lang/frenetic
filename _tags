@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 1f1c35800200c5e30e955ebb0255ecd0)
+# DO NOT EDIT (digest: d1fc83340b2522fcd10f276c7c3db944)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -41,6 +41,7 @@
 <quickcheck/*.ml{,i}>: package(core)
 <quickcheck/*.ml{,i}>: package(packet)
 <quickcheck/*.ml{,i}>: package(quickcheck)
+<quickcheck/*.ml{,i}>: package(packet.quickcheck)
 <quickcheck/*.ml{,i}>: package(sexplib.syntax)
 <quickcheck/*.ml{,i}>: package(str)
 <quickcheck/*.ml{,i}>: package(cstruct)
@@ -55,6 +56,7 @@
 "test/Test.byte": package(pa_ounit)
 "test/Test.byte": package(pa_ounit.syntax)
 "test/Test.byte": package(quickcheck)
+"test/Test.byte": package(packet.quickcheck)
 "test/Test.byte": package(sexplib.syntax)
 "test/Test.byte": package(str)
 "test/Test.byte": package(cstruct)
@@ -68,6 +70,7 @@
 <test/*.ml{,i}>: package(pa_ounit)
 <test/*.ml{,i}>: package(pa_ounit.syntax)
 <test/*.ml{,i}>: package(quickcheck)
+<test/*.ml{,i}>: package(packet.quickcheck)
 <test/*.ml{,i}>: package(sexplib.syntax)
 <test/*.ml{,i}>: package(str)
 <test/*.ml{,i}>: package(cstruct)
