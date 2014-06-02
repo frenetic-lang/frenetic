@@ -288,6 +288,7 @@ let compute_internal_table (t : t) ver table sw_id =
     | act :: acts ->
       act :: (fix_actions acts)
     | [] -> [] in
+  let open Pattern in
   let match_table = List.fold table ~init:[] ~f:(fun acc r ->
       {r with pattern = {r.pattern with dlVlan = Some ver}} :: acc) in
   List.fold match_table ~init:[] ~f:(fun acc r ->
@@ -349,6 +350,7 @@ let compute_edge_table (t : t) ver table sw_id =
       act :: (fix_actions acts)
     | [] -> []
   in
+  let open Pattern in
   let match_table = List.fold table ~init:[] ~f:(fun acc r ->
       begin
         match r.pattern.inPort with
@@ -438,7 +440,7 @@ let clear_old_table_for (t : t) ver sw_id : unit Deferred.t =
   let delete_flows =
     OpenFlow0x01.Message.FlowModMsg {
       (SDN_OpenFlow0x01.from_flow 0
-         {pattern = {all_pattern with dlVlan = Some ver};
+         {pattern = { Pattern.match_all with Pattern.dlVlan = Some ver};
           action = [];
           cookie = 0L;
           idle_timeout = Permanent;
