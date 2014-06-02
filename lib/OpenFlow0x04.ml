@@ -153,7 +153,14 @@ module PortConfig = struct
       no_recv       = Bits.test_bit 2 bits;
       no_fwd        = Bits.test_bit 5 bits;
       no_packet_in  = Bits.test_bit 6 bits
-    }	  
+    }
+
+  let to_string (config : portConfig) = 
+    Format.sprintf "port_down:%b,no_recv:%b,no_fwd:%b,no_packet_in:%b"
+    config.port_down
+    config.no_recv
+    config.no_fwd
+    config.no_packet_in
 end
 
 module PortFeatures = struct
@@ -195,7 +202,30 @@ module PortFeatures = struct
       autoneg       = Bits.test_bit 13 bits;
       pause         = Bits.test_bit 14 bits;
       pause_asym    = Bits.test_bit 15 bits
-    }	  
+    }
+
+  let to_string (feat : portFeatures) =
+    Format.sprintf
+      "10mhd:%b,10mfd:%b,100mhd:%b,100mfd:%b,1ghd%b\
+      1gfd:%b,10gfd:%b,40gfd:%b,100gfd:%b,1tfd:%b,\
+      other:%b,copper:%b,fiber:%b,autoneg:%b,pause:%b,\
+      pause_asym:%b"
+      feat.rate_10mb_hd
+      feat.rate_10mb_fd
+      feat.rate_100mb_hd
+      feat.rate_100mb_fd
+      feat.rate_1gb_hd
+      feat.rate_1gb_fd
+      feat.rate_10gb_fd
+      feat.rate_40gb_fd
+      feat.rate_100gb_fd
+      feat.rate_1tb_fd
+      feat.other
+      feat.copper
+      feat.fiber
+      feat.autoneg
+      feat.pause
+      feat.pause_asym
 end
 
 cstruct ofp_port_stats_request {
@@ -1607,6 +1637,12 @@ module PortState = struct
       blocked = Bits.test_bit 1 bits;
       live = Bits.test_bit 2 bits
     }
+
+  let to_string (state : portState) =
+    Format.sprintf "link_down:%b,blocked:%b,live:%b"
+    state.link_down
+    state.blocked
+    state.live
 end
 
 module PortDesc = struct
@@ -1648,6 +1684,19 @@ module PortDesc = struct
       peer
       (* curr_speed; *)
       (* max_speed *) }
+
+  let to_string (port : portDesc) =
+    Format.sprintf 
+        "port_no:%s,config:%s,state:%s,curr:%s,advertised:%s\
+        supported:%s,peer:%s"
+        (Int32.to_string (port.port_no))
+        (PortConfig.to_string port.config)
+        (PortState.to_string port.state)
+        (PortFeatures.to_string port.curr)
+        (PortFeatures.to_string port.advertised)
+        (PortFeatures.to_string port.supported)
+        (PortFeatures.to_string port.peer)
+        
 end
 
 module PortReason = struct
@@ -1669,7 +1718,7 @@ end
 
 module PortStatus = struct
 
-  let sizeof () : int = 
+  let sizeof (_ : portStatus) : int = 
     sizeof_ofp_port_status + sizeof_ofp_port
 
   let marshal (buf : Cstruct.t) (status : portStatus) : int =
@@ -1684,6 +1733,16 @@ module PortStatus = struct
     let desc = PortDesc.parse bits in
     { reason;
       desc }
+      
+  let to_string (t : portStatus) = 
+    let reason_to_string (reason : portReason) = match reason with
+        | PortAdd -> "Port Add"
+        | PortDelete -> "Port Delete"
+        | PortModify -> "Port Modify" in
+    Format.sprintf 
+        "reason : %s,\ndesc : %s"
+        (reason_to_string t.reason)
+        (PortDesc.to_string t.desc)
 end
 
 module PacketIn = struct
@@ -1758,7 +1817,7 @@ module PacketIn = struct
       pi_ofp_match = ofp_match;
       pi_payload = pkt
     }
-
+    
 end
 
 module PacketOut = struct
@@ -2035,7 +2094,7 @@ module TableFeaturesRequest = struct
 end
 
 module MultipartReq = struct
-(* TODO : redifine marshal and sizeof*)    
+
     cstruct ofp_multipart_request {
       uint16_t typ; (* One of the OFPMP_* constants. *)
       uint16_t flags; (* OFPMPF_REQ_* flags. *)
@@ -2630,7 +2689,7 @@ module Message = struct
     | GroupModMsg gm -> Header.size + GroupMod.sizeof gm
     | PacketInMsg pi -> Header.size + PacketIn.sizeof pi
     | PacketOutMsg po -> Header.size + PacketOut.sizeof po
-    | PortStatusMsg _ -> Header.size + PortStatus.sizeof ()
+    | PortStatusMsg _ -> Header.size + sizeof_ofp_port_status + sizeof_ofp_port
     | MultipartReq req -> Header.size + MultipartReq.sizeof req
     | MultipartReply _ -> failwith "NYI: sizeof MultipartReply"
     | BarrierRequest -> failwith "NYI: sizeof BarrierRequest"

@@ -7,6 +7,13 @@ let arbitrary_uint = Gen.sized (fun n -> Gen.choose_int (0, n))
 (* arbitrary instance for unsigned int8, using the `int` type. *)
 let arbitrary_uint8 = Gen.choose_int (0, 255)
 
+(* arbitrary instance for unsigned int12, using the `int` type. *)
+let arbitrary_uint12 =
+  let open Gen in
+  arbitrary_uint8 >>= fun a ->
+  arbitrary_uint8 >>= fun b ->
+    ret_gen ((a lsl 4) lor b)
+    
 (* arbitrary instance for unsigned int16, using the `int` type. *)
 let arbitrary_uint16 =
   let open Gen in

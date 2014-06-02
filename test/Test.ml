@@ -39,6 +39,7 @@ let openflow_quickCheck arbitrary show parse marshal =
 
 module RoundTripping = struct
   module Gen = Arbitrary_OpenFlow0x01
+  module Gen0x04 = Arbitrary_OpenFlow0x04
 
   TEST "OpenFlow_Header RoundTrip" =
     let module GenHeader = Gen.OpenFlow0x01_Unsize(Arbitrary_OpenFlow.Header) in
@@ -108,6 +109,11 @@ module RoundTripping = struct
       (openflow_quickCheck GenPortStatus.arbitrary
           GenPortStatus.to_string GenPortStatus.parse GenPortStatus.marshal)
 
+
+  TEST "OpenFlow0x04 PortStatus RoundTrip" =
+      let module GenPortStatus = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.PortStatus) in
+      (openflow_quickCheck GenPortStatus.arbitrary
+          GenPortStatus.to_string GenPortStatus.parse GenPortStatus.marshal)
 
   TEST "OpenFlow Hello Test 1" = 
     let open Message in 

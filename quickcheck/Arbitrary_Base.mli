@@ -6,6 +6,9 @@ val arbitrary_uint : int arbitrary
 (* arbitrary instance for unsigned int8, using the `int` type. *)
 val arbitrary_uint8 : int arbitrary
 
+(* arbitrary instance for unsigned int12, using the `int` type. *)
+val arbitrary_uint12 : int arbitrary
+
 (* arbitrary instance for unsigned int16, using the `int` type. *)
 val arbitrary_uint16 : int arbitrary
 
