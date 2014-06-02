@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: c6492aee0dc64a6c8fdb707e88fe46ef)
+# DO NOT EDIT (digest: 3b82958d1cafc6c585ffb34e624a532b)
 version = "0.3.0"
 description = "Serialization library for OpenFlow"
 requires = "str cstruct cstruct.syntax packet core sexplib.syntax threads"
@@ -11,7 +11,7 @@ exists_if = "openflow.cma"
 package "quickcheck" (
  version = "0.3.0"
  description = "Serialization library for OpenFlow"
- requires = "quickcheck openflow"
+ requires = "quickcheck openflow packet.quickcheck"
  archive(byte) = "quickcheck.cma"
  archive(byte, plugin) = "quickcheck.cma"
  archive(native) = "quickcheck.cmxa"
