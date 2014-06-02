@@ -71,6 +71,21 @@ module Pattern = struct
 
   open Pattern
 
+  TEST "eq reflexive: eq p p" =
+    let prop_eq_reflexive p =
+      eq p p in
+    pattern_quickCheck prop_eq_reflexive
+
+  TEST "eq symmetric: eq p1 p2 <=> eq p2 p1" =
+    let prop_eq_symmetric (p1, p2) =
+      eq p1 p2 = eq p2 p1 in
+    pattern2_quickCheck prop_eq_symmetric
+
+  TEST "eq transitive: eq p1 p2 && eq p2 p3 => eq p1 p3" =
+    let prop_eq_transitive (p1, p2, p3) =
+      implies (eq p1 p2 && eq p2 p3) (eq p1 p3) in
+    pattern3_quickCheck prop_eq_transitive
+
   TEST "less_eq reflexivity: less_eq p p" =
     let prop_reflexive p = less_eq p p = true in
     pattern_quickCheck prop_reflexive
@@ -85,7 +100,12 @@ module Pattern = struct
       implies (less_eq p1 p2 && less_eq p2 p3) (less_eq p2 p3) in
     pattern3_quickCheck prop_transitivity
 
-  TEST "meet symmetry: meet p1 p2 = meet p2 p1" =
+  TEST "less_eq top: less_eq p match_all" =
+    let prop_top p =
+      less_eq p match_all in
+    pattern_quickCheck prop_top
+
+  TEST "meet symmetry: meet p1 p2 <=> meet p2 p1" =
     let prop_symmetry (p1, p2) = meet p1 p2 = meet p2 p1 in
     pattern2_quickCheck prop_symmetry
 
@@ -105,11 +125,15 @@ module Pattern = struct
       implies (less_eq p1 p2) (meet p1 p2 = p2) in
     pattern2_quickCheck prop_comparable_least
 
-  TEST "disjoint compare: disjoint p1 p2 = not (less_eq p1 p2 || less_eq p2 p1" =
+  TEST "disjoint compare: disjoint p1 p2 <=> not (less_eq p1 p2 || less_eq p2 p1" =
     let prop_disjoint_compare (p1, p2) =
       disjoint p1 p2 = not (less_eq p1 p2 || less_eq p2 p1) in
-    pattern2_quickCheck  prop_disjoint_compare
+    pattern2_quickCheck prop_disjoint_compare
 
+  TEST "eq partial: eq p1 p2 <=> less_eq p1 p2 && less_eq p2 p1" =
+    let prop_eq_partial (p1, p2) =
+      eq p1 p2 = (less_eq p1 p2 && less_eq p2 p1) in
+    pattern2_quickCheck prop_eq_partial
 end
 
 module RoundTripping = struct

@@ -85,6 +85,9 @@ module Pattern = struct
     && check p1.tpDst p2.tpDst
     && check p1.inPort p2.inPort
 
+  let eq p1 p2 =
+    p1 = p2
+
   let disjoint p1 p2 =
     let check m1 m2 =
       match m1, m2 with

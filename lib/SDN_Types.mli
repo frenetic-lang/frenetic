@@ -63,6 +63,9 @@ module Pattern : sig
       match. *)
   val less_eq : t -> t -> bool
 
+  (** [eq p1 p2] returns true when [p1] and [p2] match the same set of packets *)
+  val eq : t -> t -> bool
+
   (** [disjoint p1 p2] returns true when there are no packets that [p1] and [p2]
       can simultaneously match. *)
   val disjoint : t -> t -> bool
