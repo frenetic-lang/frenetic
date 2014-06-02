@@ -109,6 +109,25 @@ module RoundTripping = struct
       (openflow_quickCheck GenPortStatus.arbitrary
           GenPortStatus.to_string GenPortStatus.parse GenPortStatus.marshal)
 
+  TEST "OpenFlow0x04 PortDesc.PortConfig RoundTrip" =
+      let module GenPortConfig = Gen0x04.PortDesc.PortConfig in
+      (openflow_quickCheck GenPortConfig.arbitrary
+          GenPortConfig.to_string GenPortConfig.parse GenPortConfig.marshal)
+
+  TEST "OpenFlow0x04 PortDesc.PortState RoundTrip" =
+      let module GenPortState = Gen0x04.PortDesc.PortState in
+      (openflow_quickCheck GenPortState.arbitrary
+          GenPortState.to_string GenPortState.parse GenPortState.marshal)
+
+  TEST "OpenFlow0x04 PortDesc.PortFeatures RoundTrip" =
+      let module GenPortState = Gen0x04.PortDesc.PortState in
+      (openflow_quickCheck GenPortState.arbitrary
+          GenPortState.to_string GenPortState.parse GenPortState.marshal)
+
+  TEST "OpenFlow0x04 PortDesc RoundTrip" =
+      let module PortDesc = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.PortDesc) in
+      (openflow_quickCheck PortDesc.arbitrary
+          PortDesc.to_string PortDesc.parse PortDesc.marshal)
 
   TEST "OpenFlow0x04 PortStatus RoundTrip" =
       let module GenPortStatus = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.PortStatus) in

@@ -140,32 +140,15 @@ module OpenFlow0x04_Unsize(ArbC : OpenFlow0x04_ArbitraryCstruct) = struct
       in ignore (ArbC.marshal bytes m); bytes
 end
 
-module PortStatus = struct
-
-    open Gen
-
-    type t = OpenFlow0x04_Core.portStatus
+module PortDesc = struct
+  module PortFeatures = struct
     
-    let arbitrary_reason =
-        oneof [
-            ret_gen PortAdd;
-            ret_gen PortDelete;
-            ret_gen PortModify
-        ]
-
-    let arbitrary_portConfig = 
-        arbitrary_bool >>= fun port_down ->
-        arbitrary_bool >>= fun no_recv ->
-        arbitrary_bool >>= fun no_fwd ->
-        arbitrary_bool >>= fun no_packet_in ->
-        ret_gen {
-            port_down;
-            no_recv;
-            no_fwd;
-            no_packet_in
-        }
+    type t = OpenFlow0x04_Core.portFeatures
+    type s = Int32.t
     
-    let arbitrary_portFeatures = 
+    let arbitrary = 
+        let open Gen in
+        let open PortFeatures in
         arbitrary_bool >>= fun rate_10mb_hd ->
         arbitrary_bool >>= fun rate_10mb_fd ->
         arbitrary_bool >>= fun rate_100mb_hd ->
@@ -192,7 +175,17 @@ module PortStatus = struct
             autoneg; pause; pause_asym
         }
 
-    let arbitrary_portState =
+    let to_string = PortFeatures.to_string
+    let marshal = PortFeatures.marshal
+    let parse = PortFeatures.parse
+  end
+
+  module PortState = struct
+    type t = OpenFlow0x04_Core.portState
+    type s = Int32.t
+    let arbitrary =
+        let open Gen in
+        let open PortState in
         arbitrary_bool >>= fun link_down ->
         arbitrary_bool >>= fun blocked ->
         arbitrary_bool >>= fun live ->
@@ -201,29 +194,79 @@ module PortStatus = struct
             blocked;
             live
         }
+    let to_string = PortState.to_string
+    let marshal = PortState.marshal
+    let parse = PortState.parse
+  end
 
-    let arbitrary_portDesc =
-        arbitrary_uint32 >>= fun port_no ->
-        arbitrary_portConfig >>= fun config ->
-        arbitrary_portState >>= fun state ->
-        arbitrary_portFeatures >>= fun curr ->
-        arbitrary_portFeatures >>= fun advertised ->
-        arbitrary_portFeatures >>= fun supported ->
-        arbitrary_portFeatures >>= fun peer ->
+  module PortConfig = struct
+    type t = OpenFlow0x04_Core.portConfig
+    type s = Int32.t
+    let arbitrary =
+        let open Gen in
+        let open PortConfig in
+        arbitrary_bool >>= fun port_down ->
+        arbitrary_bool >>= fun no_recv ->
+        arbitrary_bool >>= fun no_fwd ->
+        arbitrary_bool >>= fun no_packet_in ->
         ret_gen {
-            port_no;
-            config;
-            state;
-            curr;
-            advertised;
-            supported; 
-            peer
+            port_down;
+            no_recv;
+            no_fwd;
+            no_packet_in
         }
+    let to_string = PortConfig.to_string
+    let marshal = PortConfig.marshal
+    let parse = PortConfig.parse
+  end
+  
+  type t = OpenFlow0x04_Core.portDesc
+  
+  let arbitrary =
+    let open Gen in
+    let open PortDesc in
+    arbitrary_uint32 >>= fun port_no ->
+    PortConfig.arbitrary >>= fun config ->
+    PortState.arbitrary >>= fun state ->
+    PortFeatures.arbitrary >>= fun curr ->
+    PortFeatures.arbitrary >>= fun advertised ->
+    PortFeatures.arbitrary >>= fun supported ->
+    PortFeatures.arbitrary >>= fun peer ->
+    ret_gen {
+        port_no;
+        config;
+        state;
+        curr;
+        advertised;
+        supported; 
+        peer
+    }
+  
+  let to_string = PortDesc.to_string
+  let parse = PortDesc.parse
+  let marshal = PortDesc.marshal
+  let size_of = PortDesc.sizeof
+
+end
+
+module PortStatus = struct
+
+    open Gen
+
+    type t = OpenFlow0x04_Core.portStatus
+    
+    let arbitrary_reason =
+        oneof [
+            ret_gen PortAdd;
+            ret_gen PortDelete;
+            ret_gen PortModify
+        ]
+
 
     let arbitrary : t arbitrary =
         let open PortStatus in
         arbitrary_reason >>= fun reason ->
-        arbitrary_portDesc >>= fun desc -> 
+        PortDesc.arbitrary >>= fun desc -> 
             ret_gen {
                 reason = reason;
                 desc = desc}

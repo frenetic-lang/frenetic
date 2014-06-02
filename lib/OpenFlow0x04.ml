@@ -1647,6 +1647,9 @@ end
 
 module PortDesc = struct
 
+  let sizeof (_ : portDesc) =
+  sizeof_ofp_port
+
   let marshal (buf : Cstruct.t) (desc : portDesc) : int =
     let size = sizeof_ofp_port in
     set_ofp_port_port_no buf desc.port_no;
