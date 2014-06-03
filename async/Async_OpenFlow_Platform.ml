@@ -94,7 +94,7 @@ module Make(Message : Message) = struct
       ?log_disconnects
       ?buffer_age_limit ~port () =
     Impl.create ?max_pending_connections ?verbose ?log_disconnects
-      ?buffer_age_limit ~port ~auth:(fun _ _ -> return `Allow) ()
+      ?buffer_age_limit ~port ~auth:(fun _ _ _ -> return `Allow) ()
 
   let listen t =
     let open Impl.Server_read_result in
