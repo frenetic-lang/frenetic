@@ -277,3 +277,288 @@ module PortStatus = struct
     let size_of = PortStatus.sizeof
 
 end
+
+module PseudoPort = struct
+  type s = int * (int option)
+  type t = PseudoPort.t
+
+  let arbitrary =
+    let open Gen in
+    let open OpenFlow0x04_Core in
+      oneof [
+        arbitrary_uint32 >>= (fun p -> ret_gen (PhysicalPort p));
+        ret_gen InPort;
+        ret_gen Table;
+        ret_gen Normal;
+        ret_gen Flood;
+        ret_gen AllPorts;
+        arbitrary_uint >>= (fun l -> ret_gen (Controller l));
+        ret_gen Local;
+        ret_gen Any
+      ]
+
+  (* Use in cases where a `Controller` port is invalid input *)
+  let arbitrary_nc =
+    let open Gen in
+    let open OpenFlow0x04_Core in
+      oneof [
+        arbitrary_uint32 >>= (fun p -> ret_gen (PhysicalPort p));
+        ret_gen InPort;
+        ret_gen Table;
+        ret_gen Normal;
+        ret_gen Flood;
+        ret_gen AllPorts;
+        ret_gen Local;
+        ret_gen Any
+      ]
+
+  let to_string = PseudoPort.to_string
+
+  let parse (p, l) =
+    let l' = match l with
+             | None   -> 0
+             | Some i -> i
+      in PseudoPort.make p l'
+
+  let marshal p =
+    let open OpenFlow0x04_Core in
+    let l = match p with
+            | Controller i -> Some i
+            | _            -> None
+      in (PseudoPort.marshal p, l)
+end
+
+module OfpMatch = struct
+    open Gen
+    type t = OpenFlow0x04_Core.oxmMatch
+
+    module Oxm = struct
+        type t = OpenFlow0x04_Core.oxm
+        
+        let arbitrary = 
+            let open Gen in
+            let open Oxm in
+            arbitrary_uint32 >>= fun portId ->
+            arbitrary_uint32 >>= fun portPhyId ->
+            arbitrary_masked arbitrary_uint64 arbitrary_64mask >>= fun oxmMetadata ->
+            arbitrary_uint16 >>= fun oxmEthType ->
+            arbitrary_masked arbitrary_uint48 arbitrary_48mask >>= fun oxmEthDst ->
+            arbitrary_masked arbitrary_uint48 arbitrary_48mask >>= fun oxmEthSrc ->
+            arbitrary_masked arbitrary_uint12 arbitrary_12mask >>= fun oxmVlanVId ->
+            arbitrary_uint8 >>= fun oxmVlanPcp ->
+            arbitrary_uint8 >>= fun oxmIPProto ->
+            arbitrary_uint8 >>= fun oxmIPDscp ->
+            arbitrary_uint8 >>= fun oxmIPEcn ->
+            arbitrary_masked arbitrary_uint32 arbitrary_32mask >>= fun oxmIP4Src ->
+            arbitrary_masked arbitrary_uint32 arbitrary_32mask >>= fun oxmIP4Dst ->
+            arbitrary_masked arbitrary_uint16 arbitrary_16mask >>= fun oxmTCPSrc ->
+            arbitrary_masked arbitrary_uint16 arbitrary_16mask >>= fun oxmTCPDst ->
+            arbitrary_uint16 >>= fun oxmARPOp ->
+            arbitrary_masked arbitrary_uint32 arbitrary_32mask >>= fun oxmARPSpa ->
+            arbitrary_masked arbitrary_uint32 arbitrary_32mask >>= fun oxmARPTpa ->
+            arbitrary_masked arbitrary_uint48 arbitrary_48mask >>= fun oxmARPSha ->
+            arbitrary_masked arbitrary_uint48 arbitrary_48mask >>= fun oxmARPTha ->
+            arbitrary_uint8 >>= fun oxmICMPType ->
+            arbitrary_uint8 >>= fun oxmICMPCode ->
+            arbitrary_uint32 >>= fun oxmMPLSLabel ->
+            arbitrary_uint8 >>= fun oxmMPLSTc ->
+            arbitrary_masked arbitrary_uint64 arbitrary_64mask >>= fun oxmTunnelId ->
+            oneof [
+                ret_gen (OxmInPort portId);
+                ret_gen (OxmInPhyPort portPhyId);
+                ret_gen (OxmMetadata oxmMetadata);
+                ret_gen (OxmEthType oxmEthType);
+                ret_gen (OxmEthDst oxmEthDst);
+                ret_gen (OxmEthSrc oxmEthSrc);
+                ret_gen (OxmVlanVId oxmVlanVId);
+                ret_gen (OxmVlanPcp oxmVlanPcp);
+                ret_gen (OxmIPProto oxmIPProto);
+                ret_gen (OxmIPDscp oxmIPDscp);
+                ret_gen (OxmIPEcn oxmIPEcn);
+                ret_gen (OxmIP4Src oxmIP4Src);
+                ret_gen (OxmIP4Dst oxmIP4Dst);
+                ret_gen (OxmTCPSrc oxmTCPSrc);
+                ret_gen (OxmTCPDst oxmTCPDst);
+                ret_gen (OxmARPOp oxmARPOp);
+                ret_gen (OxmARPSpa oxmARPSpa);
+                ret_gen (OxmARPTpa oxmARPTpa);
+                ret_gen (OxmARPSha oxmARPSha);
+                ret_gen (OxmARPTha oxmARPTha);
+                ret_gen (OxmICMPType oxmICMPType);
+                ret_gen (OxmICMPCode oxmICMPCode);
+                ret_gen (OxmMPLSLabel oxmMPLSLabel);
+                ret_gen (OxmMPLSTc oxmMPLSTc);
+                ret_gen (OxmTunnelId oxmTunnelId)
+            ]
+        let marshal = Oxm.marshal
+        let parse bits = snd (Oxm.parse bits)
+    end
+
+    let arbitrary =
+        let open Gen in
+        let open OfpMatch in
+        arbitrary_list Oxm.arbitrary >>= fun ofpMatch ->
+        ret_gen ofpMatch
+    
+    let marshal = OfpMatch.marshal
+    let parse bits= 
+        let ofpMatch,_ = OfpMatch.parse bits in
+        ofpMatch
+    let to_string = OfpMatch.to_string
+    let size_of = OfpMatch.sizeof
+end
+
+module Action = struct
+  type t = OpenFlow0x04_Core.action
+
+  let arbitrary =
+    let open Gen in
+    let open OpenFlow0x04_Core in
+    oneof [
+      PseudoPort.arbitrary >>= (fun p -> ret_gen (Output p));
+      arbitrary_uint32 >>= (fun p -> ret_gen (Group p));
+      ret_gen PopVlan;
+      ret_gen PushVlan;
+      ret_gen PopMpls;
+      ret_gen PushMpls;
+      ret_gen CopyTtlOut;
+      ret_gen CopyTtlIn;
+      ret_gen DecNwTtl;
+      ret_gen PushPbb;
+      ret_gen PopPbb;
+      ret_gen DecMplsTtl;
+      arbitrary_uint8 >>= (fun p -> ret_gen (SetNwTtl p));
+      arbitrary_uint8 >>= (fun p -> ret_gen (SetMplsTtl p));
+      arbitrary_uint32 >>= (fun p -> ret_gen (SetQueue p));
+      OfpMatch.Oxm.arbitrary >>= (fun p -> ret_gen (SetField p))
+    ]
+
+  let to_string = Action.to_string
+
+  let marshal = Action.marshal
+  let parse = Action.parse
+
+  let size_of = Action.sizeof
+
+end
+
+module Instructions = struct
+    open Gen
+    type t = OpenFlow0x04_Core.instruction list
+    
+    module Instruction = struct
+        type t = OpenFlow0x04_Core.instruction
+        
+        let arbitrary = 
+            let open Gen in
+            let open Instruction in
+            arbitrary_uint8 >>= fun tableid ->
+            arbitrary_uint32 >>= fun meter ->
+            arbitrary_uint32 >>= fun exp ->
+            arbitrary_masked arbitrary_uint64 arbitrary_64mask >>= fun wrMeta ->
+            arbitrary_list Action.arbitrary >>= fun wrAction ->
+            arbitrary_list Action.arbitrary >>= fun appAction ->
+            oneof [
+            ret_gen (GotoTable tableid);
+            ret_gen (WriteMetadata wrMeta);
+            ret_gen (WriteActions wrAction);
+            ret_gen (ApplyActions appAction);
+            ret_gen Clear;
+            ret_gen (Meter meter);
+            ret_gen (Experimenter exp);
+            ]
+
+        let marshal = Instruction.marshal
+        let parse = Instruction.parse
+    end
+    
+    let arbitrary =
+        let open Gen in
+        let open Instructions in
+        arbitrary_list Instruction.arbitrary >>= fun ins ->
+        ret_gen ins
+    
+    let marshal = Instructions.marshal
+    let parse = Instructions.parse
+    let to_string = Instructions.to_string
+    let size_of = Instructions.sizeof    
+end
+
+module FlowMod = struct
+    open Gen
+    module FlowModCommand = struct
+        type t = OpenFlow0x04_Core.flowModCommand
+
+        let arbitrary =
+            let open Gen in
+            let open FlowModCommand in
+            oneof [
+                        ret_gen AddFlow;
+                        ret_gen ModFlow;
+                        ret_gen ModStrictFlow;
+                        ret_gen DeleteFlow;
+                        ret_gen DeleteStrictFlow;
+                    ]
+        let to_string = FlowModCommand.to_string
+        let marshal = FlowModCommand.marshal
+        let parse = FlowModCommand.parse
+    end
+    type t = OpenFlow0x04_Core.flowMod
+
+    let arbitrary_flags =
+        arbitrary_bool >>= fun fmf_send_flow_rem ->
+        arbitrary_bool >>= fun fmf_check_overlap ->
+        arbitrary_bool >>= fun fmf_reset_counts ->
+        arbitrary_bool >>= fun fmf_no_pkt_counts ->
+        arbitrary_bool >>= fun fmf_no_byt_counts ->
+        ret_gen {
+            fmf_send_flow_rem;
+            fmf_check_overlap;
+            fmf_reset_counts;
+            fmf_no_pkt_counts;
+            fmf_no_byt_counts
+        }
+
+    let arbitrary_timeout =
+        let open OpenFlow0x04_Core in
+        oneof [
+            ret_gen Permanent;
+            arbitrary_uint16 >>= (fun n -> ret_gen (ExpiresAfter n))
+        ]
+
+    let arbitrary_buffer_id = 
+        arbitrary_uint32 >>= fun bid ->
+        oneof [
+            ret_gen None;
+            ret_gen (Some bid)
+        ]
+
+    let arbitrary = 
+        arbitrary_masked arbitrary_uint64 arbitrary_64mask >>= fun mfCookie ->
+        arbitrary_uint8 >>= fun mfTable_id ->
+        arbitrary_timeout >>= fun mfIdle_timeout ->
+        arbitrary_timeout >>= fun mfHard_timeout ->
+        arbitrary_uint16 >>= fun mfPriority ->
+        arbitrary_flags >>= fun mfFlags ->
+        arbitrary_buffer_id >>= fun mfBuffer_id ->
+        FlowModCommand.arbitrary >>= fun mfCommand ->
+        PseudoPort.arbitrary >>= fun mfPort ->
+        oneof [ ret_gen None; ret_gen (Some mfPort)] >>= fun mfOut_port ->
+        arbitrary_uint32 >>= fun mfGroup ->
+        oneof [ ret_gen None; ret_gen (Some mfGroup)] >>= fun mfOut_group ->
+        OfpMatch.arbitrary >>= fun mfOfp_match ->
+        Instructions.arbitrary >>= fun mfInstructions ->
+        ret_gen {
+            mfCookie; mfTable_id;
+            mfCommand; mfIdle_timeout;
+            mfHard_timeout; mfPriority;
+            mfBuffer_id;
+            mfOut_port;
+            mfOut_group; mfFlags;
+            mfOfp_match; mfInstructions}
+        
+    let marshal = FlowMod.marshal
+    let parse = FlowMod.parse
+    let to_string = FlowMod.to_string
+    let size_of = FlowMod.sizeof
+end    

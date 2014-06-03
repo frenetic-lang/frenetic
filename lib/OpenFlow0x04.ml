@@ -63,6 +63,8 @@ let ofpp_all = 0xfffffffcl
 let ofpp_controller = 0xfffffffdl
 let ofpp_any = 0xffffffffl
 
+let ofp_no_buffer = 0xffffffffl
+
 (* Not in the spec, comes from C headers. :rolleyes: *)
 let ofpg_all = 0xfffffffcl
 let ofpg_any = 0xffffffffl
@@ -794,6 +796,38 @@ module Oxm = struct
   let sizeof (oxm : oxm) : int =
     sizeof_ofp_oxm + field_length oxm
 
+  let to_string oxm =
+  Format.sprintf "flowmod : %s" (
+    match oxm with
+    | OxmInPort p -> Format.sprintf "InPort : %lu " p
+    | OxmInPhyPort p -> Format.sprintf "InPhyPort : %lu " p
+    | OxmEthType  e -> Format.sprintf "EthType : %X " e
+    | OxmEthDst ethaddr ->
+      (match ethaddr.m_mask with
+        | None -> Format.sprintf "EthDst : %LX" ethaddr.m_value
+        | Some m -> Format.sprintf "EthDst : %LX/%LX" ethaddr.m_value m)
+    | OxmEthSrc ethaddr ->
+      (match ethaddr.m_mask with
+        | None -> Format.sprintf "EthSrc : %LX" ethaddr.m_value
+        | Some m -> Format.sprintf "EthSrc : %LX/%LX" ethaddr.m_value m)
+    | OxmVlanVId vid ->
+      (match vid.m_mask with
+        | None -> Format.sprintf "VlanVId : %u" vid.m_value
+        | Some m -> Format.sprintf "VlanVId : %u/%u" vid.m_value m)
+    | OxmVlanPcp vid -> Format.sprintf "VlanPcp : %u" vid
+    | OxmIP4Src ipaddr -> "IP Addr"
+      (*(match ipaddr.m_mask with
+        | None -> 4
+        | Some _ -> 8)*)
+    | OxmIP4Dst ipaddr -> "IP Addr"
+      (*(match ipaddr.m_mask with
+        | None -> 4
+        | Some _ -> 8)*)
+    | OxmTCPSrc _ -> failwith "Invalid field_length TCPSrc"
+    | OxmTCPDst _ -> failwith "Invalid field_length TCPDst"
+    | OxmMPLSLabel _ -> ""
+    | OxmMPLSTc _ -> "" )
+
   let set_ofp_oxm (buf : Cstruct.t) (c : ofp_oxm_class) (f : oxm_ofb_match_fields) (hm : int) (l : int) = 
     let value = (0x3f land (oxm_ofb_match_fields_to_int f)) lsl 1 in
       let value = value lor (0x1 land hm) in
@@ -1108,6 +1142,8 @@ module OfpMatch = struct
     let n = sizeof_ofp_match + sum (map Oxm.sizeof om) in
     pad_to_64bits n
 
+  let to_string om = ""
+
   let marshal (buf : Cstruct.t) (om : oxmMatch) : int =
     let size = sizeof om in
     set_ofp_match_typ buf 1; (* OXPMT_OXM *)
@@ -1313,6 +1349,9 @@ module Action = struct
   let parse_sequence (bits : Cstruct.t) : sequence =
     let fields, _ = parse_fields bits in
     fields
+
+  let to_string seq =
+    ""
 end
 
 module Bucket = struct
@@ -1351,6 +1390,8 @@ module FlowModCommand = struct
   type t = flowModCommand
 
   let n = ref 0L
+  
+  let sizeof _ = 1
 
   let marshal (t : t) : int = match t with
     | AddFlow -> n := Int64.succ !n; ofp_flow_mod_command_to_int OFPFC_ADD
@@ -1358,7 +1399,24 @@ module FlowModCommand = struct
     | ModStrictFlow -> ofp_flow_mod_command_to_int OFPFC_MODIFY_STRICT
     | DeleteFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE
     | DeleteStrictFlow -> ofp_flow_mod_command_to_int OFPFC_DELETE_STRICT
-     
+
+  let parse bits : flowModCommand = 
+    match (int_to_ofp_flow_mod_command bits) with
+      | Some OFPFC_ADD -> AddFlow
+      | Some OFPFC_MODIFY -> ModFlow
+      | Some OFPFC_MODIFY_STRICT -> ModStrictFlow
+      | Some OFPFC_DELETE -> DeleteFlow
+      | Some OFPFC_DELETE_STRICT -> DeleteStrictFlow
+      | None -> raise (Unparsable (sprintf "malformed command"))
+
+  let to_string t = 
+  Format.sprintf "flowmod : %s" (
+  match t with
+    | AddFlow -> "Add"
+    | ModFlow -> "Modify"
+    | ModStrictFlow -> "ModifyStrict"
+    | DeleteFlow -> "Delete"
+    | DeleteStrictFlow -> "DeleteStrict")
 end
 
 module GroupType = struct
@@ -1511,6 +1569,9 @@ module Instructions = struct
     let fields, bits3 = parse_field bits2 in
     (List.append [field] fields, bits3)
 
+  let to_string ins =
+    ""
+
   let parse (bits : Cstruct.t) : instruction list =
     let field,_ = parse_field bits in
     field
@@ -1528,6 +1589,14 @@ module FlowMod = struct
         (if f.fmf_reset_counts then 1 lsl 2 else 0) lor
           (if f.fmf_no_pkt_counts then 1 lsl 3 else 0) lor
             (if f.fmf_no_byt_counts then 1 lsl 4 else 0)
+
+  let int_to_flags bits : flowModFlags =
+  { fmf_send_flow_rem = test_bit16  0 bits
+  ; fmf_check_overlap = test_bit16  1 bits
+  ; fmf_reset_counts = test_bit16  2 bits
+  ; fmf_no_pkt_counts = test_bit16  3 bits
+  ; fmf_no_byt_counts = test_bit16  4 bits
+  }
 
   let marshal (buf : Cstruct.t) (fm : flowMod) : int =
     set_ofp_flow_mod_cookie buf fm.mfCookie.m_value;
@@ -1548,7 +1617,7 @@ module FlowMod = struct
     set_ofp_flow_mod_priority buf fm.mfPriority;
     set_ofp_flow_mod_buffer_id buf
       (match fm.mfBuffer_id with
-        | None -> 0xffffffffl
+        | None -> ofp_no_buffer
         | Some bid -> bid);
     set_ofp_flow_mod_out_port buf
       (match fm.mfOut_port with
@@ -1565,6 +1634,42 @@ module FlowMod = struct
     let size = sizeof_ofp_flow_mod +
         OfpMatch.marshal (Cstruct.shift buf sizeof_ofp_flow_mod) fm.mfOfp_match in
       size + Instructions.marshal (Cstruct.shift buf size) fm.mfInstructions
+
+  let parse (bits : Cstruct.t) : flowMod =
+    let mfCookie = {m_value = get_ofp_flow_mod_cookie bits;
+                    m_mask = (Some (get_ofp_flow_mod_cookie_mask bits))} in
+    let mfTable_id = get_ofp_flow_mod_table_id bits in
+    let mfCommand = FlowModCommand.parse (get_ofp_flow_mod_command bits) in
+    let mfIdle_timeout = match (get_ofp_flow_mod_idle_timeout bits) with
+                         | 0 -> Permanent 
+                         | n -> ExpiresAfter n in
+    let mfHard_timeout = match (get_ofp_flow_mod_hard_timeout bits) with
+                         | 0 -> Permanent 
+                         | n -> ExpiresAfter n in
+    let mfPriority = get_ofp_flow_mod_priority bits in
+    let mfBuffer_id = match (get_ofp_flow_mod_buffer_id bits) with
+        | 0xffffffffl -> None
+        | n -> Some n in
+    let mfOut_port = match (get_ofp_flow_mod_out_port bits) with
+        | 0l -> None
+        | _ -> Some (PseudoPort.make (get_ofp_flow_mod_out_port bits) 0) in
+    let mfOut_group = match (get_ofp_flow_mod_out_group bits) with
+        | 0l -> None
+        | n -> Some n in
+    let mfFlags = int_to_flags (get_ofp_flow_mod_flags bits) in
+    let mfOfp_match,instructionsBits = OfpMatch.parse (Cstruct.shift bits sizeof_ofp_flow_mod) in
+    let mfInstructions = Instructions.parse instructionsBits in
+    { mfCookie; mfTable_id;
+      mfCommand; mfIdle_timeout;
+      mfHard_timeout; mfPriority;
+      mfBuffer_id;
+      mfOut_port;
+      mfOut_group; mfFlags;
+      mfOfp_match; mfInstructions}
+  
+  let to_string (flow : flowMod) =
+  "dummy"
+
 end
 
 module Capabilities = struct
@@ -1690,9 +1795,9 @@ module PortDesc = struct
 
   let to_string (port : portDesc) =
     Format.sprintf 
-        "port_no:%s,config:%s,state:%s,curr:%s,advertised:%s\
+        "port_no:%lu,config:%s,state:%s,curr:%s,advertised:%s\
         supported:%s,peer:%s"
-        (Int32.to_string (port.port_no))
+        port.port_no
         (PortConfig.to_string port.config)
         (PortState.to_string port.state)
         (PortFeatures.to_string port.curr)
