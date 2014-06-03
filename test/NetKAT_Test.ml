@@ -5,14 +5,14 @@ open NetKAT_Types
 open NetKAT_Pretty
 
 let test_compile lhs rhs =
-  let rhs' =
-    NetKAT_LocalCompiler.to_netkat
-      (NetKAT_LocalCompiler.compile 0L lhs) in
+  let tbl = NetKAT_LocalCompiler.compile 0L lhs in 
+  let rhs' = NetKAT_LocalCompiler.to_netkat tbl in       
   if rhs' = rhs then
     true
   else
-    (Format.printf "compile @,%a@, produced %a@,,@,expected %a\n%!"
-       format_policy lhs format_policy rhs' format_policy rhs;
+    (Format.printf "compile @,%a@, produced %a@,,@,expected %a\n%!%s\n%!"
+       format_policy lhs format_policy rhs' format_policy rhs 
+       (NetKAT_LocalCompiler.to_string tbl);
      false)
 
 let test_compile_table pol tbl =
@@ -21,8 +21,9 @@ let test_compile_table pol tbl =
   if tbl = tbl' then
     true
   else
-    (Format.printf "compile @,%a@, produced %a@,,@,expected %a\n%!"
-       format_policy pol format_flowTable tbl' format_flowTable tbl;
+    (Format.printf "compile @,%a@, produced %a@,,@,expected %a\n%!%s\n"
+       format_policy pol format_flowTable tbl' format_flowTable tbl
+       (string_of_flowTable tbl);
      false)
 
 let ite (pred : pred) (then_pol : policy) (else_pol : policy) : policy =

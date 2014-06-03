@@ -134,7 +134,7 @@ module PrefixTable (F:FIELD) = struct
     let s = 
       List.fold_left t
 	~init:S.empty
-	~f:(fun s (y,b) -> S.insert y b s) in 
+	~f:(fun s (y,b) -> S.insert y true s) in 
     let b = S.is_shadowed x s in 
     (* Printf.printf "IS_SHADOWED: %s\n%s\n%b\n" *)
     (*   (F.to_string x) (S.to_string s) b; *)
@@ -180,35 +180,36 @@ module PrefixTable (F:FIELD) = struct
 		acc
               | Some p -> 
 		(p, b1 && b2)::acc)) in 
-    List.rev r
+    let r = remove_shadowed (List.rev r) in 
+    if List.length r > 2 then
+    Printf.printf "INTER\n  %s\n  %s\n  %s\n"
+      (to_string t1)
+      (to_string t2)
+      (to_string r);
+    r
 	
   let diff t1 t2 =
     inter t1 (neg t2)
 
-  (* semantic compare *)
-  let compare t1 t2 = 
-    if is_empty (diff t1 (neg t2)) && 
-       is_empty (diff t2 (neg t1)) then 
-      0 
-    else compare t1 t2
-  let equal t1 t2 = 
-    compare t1 t2 = 0 
+  (* (\* semantic compare *\) *)
+  (* let compare t1 t2 =  *)
+  (*   if is_empty (diff t1 (neg t2)) &&  *)
+  (*      is_empty (diff t2 (neg t1)) then  *)
+  (*     0  *)
+  (*   else compare t1 t2 *)
+  (* let equal t1 t2 =  *)
+  (*   compare t1 t2 = 0  *)
 
   let to_netkat_pred (v_to_pred: v -> NetKAT_Types.pred) (t:t) =
     let open NetKAT_Types in 
-    let mk_or l = 
-      List.fold_left l 
-	~init:False
-	~f:(fun pr1 pr2 -> Or(pr1,pr2)) in 
-    fst 
-      (List.fold_left
-	 t
-	 ~init:(False,[])
-	 ~f:(fun (pr,prs) (v,b) -> 
-	   let v_pr = if b then v_to_pred v else Neg (v_to_pred v) in 
-	   let pr' = Or(pr, And(Neg(mk_or prs), v_pr)) in 
-	   let prs' = v_pr::prs in 
-	   (pr',prs')))
+    let open Optimize in 
+    fst (List.fold_left t
+   	  ~init:(False,True)
+	  ~f:(fun (pr,prs) (v,b) -> 
+	    let v_pr = v_to_pred v in 
+	    let pr' = mk_or pr (mk_and prs (if b then v_pr else False)) in 
+	    let prs' = mk_and prs (mk_not v_pr) in 
+	    (pr',prs')))
 
   let rec drop_false l =
     match l with
@@ -439,8 +440,8 @@ module Pattern = struct
     let g field_to_pred v_to_pred acc f : pred =
       Optimize.mk_and acc (field_to_pred v_to_pred (Field.get f p)) in
     let l f = function
-      | None -> NetKAT_Types.True
-      | Some x -> NetKAT_Types.Test (f x) in 
+      | None -> True
+      | Some x -> Test (f x) in 
     Fields.fold
       ~init:True
       ~location:(g PTL.to_netkat_pred (l (fun v -> Location v)))
@@ -450,8 +451,12 @@ module Pattern = struct
       ~vlanPcp:(g PT8.to_netkat_pred (l (fun v -> VlanPcp v)))
       ~ethType:(g PT16.to_netkat_pred (l (fun v -> EthType v)))
       ~ipProto:(g PT8.to_netkat_pred (l (fun v -> IPProto v)))
-      ~ipSrc:(g PTIp.to_netkat_pred (fun (v,m) -> Test (IP4Src (v,m))))
-      ~ipDst:(g PTIp.to_netkat_pred (fun (v,m) -> Test (IP4Dst (v,m))))
+      ~ipSrc:(g PTIp.to_netkat_pred (fun (v,m) -> 
+	                               if m = 0l then True
+				       else Test (IP4Src (v,m))))
+      ~ipDst:(g PTIp.to_netkat_pred (fun (v,m) -> 
+	                               if m = 0l then True 
+				       else Test (IP4Dst (v,m))))
       ~tcpSrcPort:(g PT16.to_netkat_pred (l (fun v -> TCPSrcPort v)))
       ~tcpDstPort:(g PT16.to_netkat_pred (l (fun v -> TCPDstPort v)))
 
@@ -1188,3 +1193,6 @@ let compile =
 let to_table ?(optimize_fall_through=true) t =
   Local_Optimize.remove_shadowed_rules
     (RunTime.to_table t ~optimize_fall_through:optimize_fall_through)
+
+let to_string = 
+  Local.to_string 
