@@ -815,18 +815,54 @@ module Oxm = struct
         | None -> Format.sprintf "VlanVId : %u" vid.m_value
         | Some m -> Format.sprintf "VlanVId : %u/%u" vid.m_value m)
     | OxmVlanPcp vid -> Format.sprintf "VlanPcp : %u" vid
-    | OxmIP4Src ipaddr -> "IP Addr"
-      (*(match ipaddr.m_mask with
-        | None -> 4
-        | Some _ -> 8)*)
-    | OxmIP4Dst ipaddr -> "IP Addr"
-      (*(match ipaddr.m_mask with
-        | None -> 4
-        | Some _ -> 8)*)
-    | OxmTCPSrc _ -> failwith "Invalid field_length TCPSrc"
-    | OxmTCPDst _ -> failwith "Invalid field_length TCPDst"
-    | OxmMPLSLabel _ -> ""
-    | OxmMPLSTc _ -> "" )
+    | OxmIP4Src ipaddr ->
+      (match ipaddr.m_mask with
+        | None -> Format.sprintf "IPSrc : %s" (string_of_ip ipaddr.m_value)
+        | Some m -> Format.sprintf "IPSrc : %s/%s" (string_of_ip ipaddr.m_value)
+                                                (string_of_ip m))
+    | OxmIP4Dst ipaddr -> 
+      (match ipaddr.m_mask with
+        | None -> Format.sprintf "IPDst : %s" (string_of_ip ipaddr.m_value)
+        | Some m -> Format.sprintf "IPDst : %s/%s" (string_of_ip ipaddr.m_value)
+                                                   (string_of_ip m))
+    | OxmTCPSrc v -> (match v.m_mask with
+        | None -> Format.sprintf "TCPSrc : %u" v.m_value
+        | Some m -> Format.sprintf "TCPSrc : %u/%u" v.m_value m)
+    | OxmTCPDst v -> (match v.m_mask with
+        | None -> Format.sprintf "TCPDst : %u" v.m_value
+        | Some m -> Format.sprintf "TCPDst : %u/%u" v.m_value m)
+    | OxmMPLSLabel v -> Format.sprintf "MPLSLabel : %lu" v
+    | OxmMPLSTc v -> Format.sprintf "MplsTc : %u" v 
+    | OxmMetadata v ->
+      (match v.m_mask with
+        | None -> Format.sprintf "Metadata : %Lu" v.m_value
+        | Some m -> Format.sprintf "Metadata : %Lu/%Lu" v.m_value m)
+    | OxmIPProto v -> Format.sprintf "IP Proto : %u" v
+    | OxmIPDscp v -> Format.sprintf "IP Dscp : %u" v
+    | OxmIPEcn v -> Format.sprintf "IPEcn : %u" v
+    | OxmARPOp v -> Format.sprintf "ARPOp : %u" v
+    | OxmARPSpa v ->
+      (match v.m_mask with
+        | None -> Format.sprintf "ARP Spa : %lu" v.m_value
+        | Some m -> Format.sprintf "ARP Spa : %lu/%lu" v.m_value m)
+    | OxmARPTpa v ->
+      (match v.m_mask with
+        | None -> Format.sprintf "ARP Tpa : %lu" v.m_value
+        | Some m -> Format.sprintf "ARP Tpa : %lu/%lu" v.m_value m)
+    | OxmARPSha v ->
+      (match v.m_mask with
+        | None -> Format.sprintf "ARP Sha : %Lu" v.m_value
+        | Some m -> Format.sprintf "ARP Sha : %Lu/%Lu" v.m_value m)
+    | OxmARPTha v ->
+      (match v.m_mask with
+        | None -> Format.sprintf "ARP Tha : %Lu" v.m_value
+        | Some m -> Format.sprintf "ARP Tha : %Lu/%Lu" v.m_value m)
+    | OxmICMPType v -> Format.sprintf "ICMP Type : %u" v
+    | OxmICMPCode v -> Format.sprintf "ICMP Code : %u" v
+    | OxmTunnelId v -> 
+      (match v.m_mask with
+        | None -> Format.sprintf "Tunnel ID : %Lu" v.m_value
+        | Some m -> Format.sprintf "Tunnel ID : %Lu/%Lu" v.m_value m))
 
   let set_ofp_oxm (buf : Cstruct.t) (c : ofp_oxm_class) (f : oxm_ofb_match_fields) (hm : int) (l : int) = 
     let value = (0x3f land (oxm_ofb_match_fields_to_int f)) lsl 1 in
@@ -1142,7 +1178,9 @@ module OfpMatch = struct
     let n = sizeof_ofp_match + sum (map Oxm.sizeof om) in
     pad_to_64bits n
 
-  let to_string om = ""
+  let to_string om = 
+    let oxmString = String.concat "\n" (map Oxm.to_string om) in
+    Format.sprintf "Match : %s" oxmString
 
   let marshal (buf : Cstruct.t) (om : oxmMatch) : int =
     let size = sizeof om in
@@ -1460,6 +1498,11 @@ end
 
 module Instruction = struct
 (* TODO <fugitifduck> : writeMeta; clearAction; meter; experimenter *)
+(* TODO <fugitifduck> : complete to_string fun*)
+
+  let to_string ins =
+    ""
+
   let sizeof (ins : instruction) : int =
     match ins with
       | GotoTable _ ->
@@ -1570,7 +1613,8 @@ module Instructions = struct
     (List.append [field] fields, bits3)
 
   let to_string ins =
-    ""
+    let insString = String.concat "\n" (map Instruction.to_string ins) in
+    Format.sprintf "Instructions : %s" insString
 
   let parse (bits : Cstruct.t) : instruction list =
     let field,_ = parse_field bits in
