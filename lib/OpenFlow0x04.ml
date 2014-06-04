@@ -797,7 +797,6 @@ module Oxm = struct
     sizeof_ofp_oxm + field_length oxm
 
   let to_string oxm =
-  Format.sprintf "Oxm : %s" (
     match oxm with
     | OxmInPort p -> Format.sprintf "InPort : %lu " p
     | OxmInPhyPort p -> Format.sprintf "InPhyPort : %lu " p
@@ -862,7 +861,7 @@ module Oxm = struct
     | OxmTunnelId v -> 
       (match v.m_mask with
         | None -> Format.sprintf "Tunnel ID : %Lu" v.m_value
-        | Some m -> Format.sprintf "Tunnel ID : %Lu/%Lu" v.m_value m))
+        | Some m -> Format.sprintf "Tunnel ID : %Lu/%Lu" v.m_value m)
 
   let set_ofp_oxm (buf : Cstruct.t) (c : ofp_oxm_class) (f : oxm_ofb_match_fields) (hm : int) (l : int) = 
     let value = (0x3f land (oxm_ofb_match_fields_to_int f)) lsl 1 in
@@ -1132,8 +1131,7 @@ module PseudoPort = struct
   let size_of _ = 4
 
   let to_string (t : t) = 
-  Format.sprintf "Pseudoport: %s"
-  (match t with
+   match t with
     | PhysicalPort p -> sprintf "%lu" p
     | InPort -> "InPort"
     | Table -> "Table"
@@ -1142,7 +1140,7 @@ module PseudoPort = struct
     | AllPorts -> "AllPorts"
     | Controller n -> sprintf "Controller<%d bytes>" n
     | Local -> "Local"
-    | Any -> "Any")
+    | Any -> "Any"
 
   let marshal (t : t) : int32 = match t with
     | PhysicalPort(p) -> p
@@ -1391,15 +1389,14 @@ module Action = struct
     fields
 
   let to_string seq =
-    Format.sprintf "action: %s" (
       match seq with
-        | Output o -> PseudoPort.to_string o
+        | Output o -> Format.sprintf "PseudoPort: %s" (PseudoPort.to_string o)
         | Group g -> Format.sprintf "Group ID: %lu" g
         | PopVlan -> "Pop Vlan"
         | PushVlan -> "Push Vlan"
         | PopMpls -> "Pop Mpls"
         | PushMpls -> "Push Mpls"
-        | SetField oxm -> Oxm.to_string oxm
+        | SetField oxm -> Format.sprintf "oxm: %s" (Oxm.to_string oxm)
         | CopyTtlOut -> "Copy TTL out"
         | CopyTtlIn -> "Copy TTL In"
         | SetNwTtl t -> Format.sprintf "Set NW TTL %u" t
@@ -1409,7 +1406,7 @@ module Action = struct
         | SetMplsTtl t -> Format.sprintf "Set MPLS TTL: %u" t
         | DecMplsTtl -> "Dec MPLS TTL"
         | SetQueue q -> Format.sprintf "Set Queue: %lu" q
-        | Experimenter e -> Format.sprintf "Experimenter: %lu" e)
+        | Experimenter e -> Format.sprintf "Experimenter: %lu" e
 end
 
 module Bucket = struct
@@ -1468,13 +1465,12 @@ module FlowModCommand = struct
       | None -> raise (Unparsable (sprintf "malformed command"))
 
   let to_string t = 
-  Format.sprintf "flowmod : %s" (
-  match t with
+   match t with
     | AddFlow -> "Add"
     | ModFlow -> "Modify"
     | ModStrictFlow -> "ModifyStrict"
     | DeleteFlow -> "Delete"
-    | DeleteStrictFlow -> "DeleteStrict")
+    | DeleteStrictFlow -> "DeleteStrict"
 end
 
 module GroupType = struct
@@ -1521,7 +1517,6 @@ module Instruction = struct
 (* TODO <fugitifduck> : complete to_string fun*)
 
   let to_string ins =
-    Format.sprintf "Instruction : %s" (
     match ins with
       | GotoTable t -> Format.sprintf "Go to Table: %u" t
       | ApplyActions actions -> Format.sprintf "Apply Actions: \n%s"
@@ -1534,7 +1529,7 @@ module Instruction = struct
           | Some m -> Format.sprintf "WriteMeta : %LX/%LX" meta.m_value m)
       | Clear -> "Clear"
       | Meter m -> Format.sprintf "Meter : %lu" m
-      | Experimenter e -> Format.sprintf "Experimenter : %lu" e)
+      | Experimenter e -> Format.sprintf "Experimenter : %lu" e
 
   let sizeof (ins : instruction) : int =
     match ins with
@@ -1675,6 +1670,15 @@ module FlowMod = struct
   ; fmf_no_byt_counts = test_bit16  4 bits
   }
 
+  let flags_to_string f =
+  Format.sprintf "SendFlowRem:%b;CheckOverlap:%b;ResetCount:%b;\
+                 NoPktCount:%b;NoBytCount:%b"
+                 f.fmf_send_flow_rem
+                 f.fmf_check_overlap
+                 f.fmf_reset_counts
+                 f.fmf_no_pkt_counts
+                 f.fmf_no_byt_counts
+
   let marshal (buf : Cstruct.t) (fm : flowMod) : int =
     set_ofp_flow_mod_cookie buf fm.mfCookie.m_value;
     set_ofp_flow_mod_cookie_mask buf (
@@ -1745,8 +1749,33 @@ module FlowMod = struct
       mfOfp_match; mfInstructions}
   
   let to_string (flow : flowMod) =
-  "dummy"
-
+    Format.sprintf "cookie:%s; table:%u;command:%s;IdleTimeout:%s;HardTimeout:%s;\
+                      priority:%u;bufferId:%s;outPort:%s;outGroup:%s;flags:%s;\
+                      match:%s;instructions:%s"
+    (match flow.mfCookie.m_mask with
+        | None -> Int64.to_string flow.mfCookie.m_value
+        | Some m -> Format.sprintf "%LX/%LX" flow.mfCookie.m_value m)
+    flow.mfTable_id
+    (FlowModCommand.to_string flow.mfCommand)
+    (match flow.mfIdle_timeout with
+        | Permanent -> "Permanent"
+        | ExpiresAfter t-> string_of_int t)
+    (match flow.mfHard_timeout with
+        | Permanent -> "Permanent"
+        | ExpiresAfter t-> string_of_int t)
+    flow.mfPriority
+    (match flow.mfBuffer_id with
+        | None -> "None"
+        | Some t -> Int32.to_string t)
+    (match flow.mfOut_port with
+        | None -> "None"
+        | Some t -> PseudoPort.to_string t)
+    (match flow.mfOut_group with
+        | None -> "None"
+        | Some t -> Int32.to_string t)
+    (flags_to_string flow.mfFlags)
+    (OfpMatch.to_string flow.mfOfp_match)
+    (Instructions.to_string flow.mfInstructions)
 end
 
 module Capabilities = struct
