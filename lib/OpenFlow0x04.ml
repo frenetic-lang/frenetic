@@ -797,7 +797,7 @@ module Oxm = struct
     sizeof_ofp_oxm + field_length oxm
 
   let to_string oxm =
-  Format.sprintf "flowmod : %s" (
+  Format.sprintf "Oxm : %s" (
     match oxm with
     | OxmInPort p -> Format.sprintf "InPort : %lu " p
     | OxmInPhyPort p -> Format.sprintf "InPhyPort : %lu " p
@@ -1131,7 +1131,9 @@ module PseudoPort = struct
 
   let size_of _ = 4
 
-  let to_string (t : t) = match t with
+  let to_string (t : t) = 
+  Format.sprintf "Pseudoport: %s"
+  (match t with
     | PhysicalPort p -> sprintf "%lu" p
     | InPort -> "InPort"
     | Table -> "Table"
@@ -1140,7 +1142,7 @@ module PseudoPort = struct
     | AllPorts -> "AllPorts"
     | Controller n -> sprintf "Controller<%d bytes>" n
     | Local -> "Local"
-    | Any -> "Any"
+    | Any -> "Any")
 
   let marshal (t : t) : int32 = match t with
     | PhysicalPort(p) -> p
@@ -1389,7 +1391,25 @@ module Action = struct
     fields
 
   let to_string seq =
-    ""
+    Format.sprintf "action: %s" (
+      match seq with
+        | Output o -> PseudoPort.to_string o
+        | Group g -> Format.sprintf "Group ID: %lu" g
+        | PopVlan -> "Pop Vlan"
+        | PushVlan -> "Push Vlan"
+        | PopMpls -> "Pop Mpls"
+        | PushMpls -> "Push Mpls"
+        | SetField oxm -> Oxm.to_string oxm
+        | CopyTtlOut -> "Copy TTL out"
+        | CopyTtlIn -> "Copy TTL In"
+        | SetNwTtl t -> Format.sprintf "Set NW TTL %u" t
+        | DecNwTtl -> "Dec NW TTL"
+        | PushPbb -> "Push PBB"
+        | PopPbb -> "POP PBB"
+        | SetMplsTtl t -> Format.sprintf "Set MPLS TTL: %u" t
+        | DecMplsTtl -> "Dec MPLS TTL"
+        | SetQueue q -> Format.sprintf "Set Queue: %lu" q
+        | Experimenter e -> Format.sprintf "Experimenter: %lu" e)
 end
 
 module Bucket = struct
@@ -1501,7 +1521,20 @@ module Instruction = struct
 (* TODO <fugitifduck> : complete to_string fun*)
 
   let to_string ins =
-    ""
+    Format.sprintf "Instruction : %s" (
+    match ins with
+      | GotoTable t -> Format.sprintf "Go to Table: %u" t
+      | ApplyActions actions -> Format.sprintf "Apply Actions: \n%s"
+                                (String.concat "\n" (map Action.to_string actions))
+      | WriteActions actions -> Format.sprintf "Write Actions: \n%s" 
+                                (String.concat "\n" (map Action.to_string actions))
+      | WriteMetadata meta -> 
+        (match meta.m_mask with
+          | None -> Format.sprintf "WriteMeta : %LX" meta.m_value
+          | Some m -> Format.sprintf "WriteMeta : %LX/%LX" meta.m_value m)
+      | Clear -> "Clear"
+      | Meter m -> Format.sprintf "Meter : %lu" m
+      | Experimenter e -> Format.sprintf "Experimenter : %lu" e)
 
   let sizeof (ins : instruction) : int =
     match ins with
