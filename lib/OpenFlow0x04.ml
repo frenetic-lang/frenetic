@@ -1242,6 +1242,39 @@ module Oxm = struct
       |   OFPXMT_OFB_ICMPV4_CODE ->
 	let value = get_ofp_uint8_value bits in
 	  (OxmICMPCode value, bits2)
+      | OFPXMT_OFB_TCP_DST ->
+    let value = get_ofp_uint16_value bits in
+	if hm = 1 then
+	  let bits = Cstruct.shift bits 2 in
+	  let mask = get_ofp_uint16_value bits in
+	  (OxmTCPDst {m_value = value; m_mask = (Some mask)}, bits2)
+	else
+	  (OxmTCPDst {m_value = value; m_mask = None}, bits2)
+      | OFPXMT_OFB_TCP_SRC ->
+    let value = get_ofp_uint16_value bits in
+	if hm = 1 then
+	  let bits = Cstruct.shift bits 2 in
+	  let mask = get_ofp_uint16_value bits in
+	  (OxmTCPSrc {m_value = value; m_mask = (Some mask)}, bits2)
+	else
+	  (OxmTCPSrc {m_value = value; m_mask = None}, bits2)
+      | OFPXMT_OFB_MPLS_LABEL ->
+    let value = get_ofp_uint32_value bits in
+	  (OxmMPLSLabel value, bits2)
+      | OFPXMT_OFB_VLAN_PCP ->
+    let value = get_ofp_uint8_value bits in
+	  (OxmVlanPcp value, bits2)
+      | OFPXMT_OFB_VLAN_VID ->
+    let value = get_ofp_uint16_value bits in
+	if hm = 1 then
+	  let bits = Cstruct.shift bits 2 in
+	  let mask = get_ofp_uint16_value bits in
+	  (OxmVlanVId {m_value = value; m_mask = (Some mask)}, bits2)
+	else
+	  (OxmVlanVId {m_value = value; m_mask = None}, bits2)
+      | OFPXMT_OFB_MPLS_TC ->
+    let value = get_ofp_uint8_value bits in
+	  (OxmMPLSTc value, bits2)
       | _ -> 
         raise (Unparsable (sprintf "malformed packet in oxm %d\n" (value lsr 1)))
 
