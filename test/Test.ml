@@ -134,6 +134,21 @@ module RoundTripping = struct
       (openflow_quickCheck GenPortStatus.arbitrary
           GenPortStatus.to_string GenPortStatus.parse GenPortStatus.marshal)
 
+  TEST "OpenFlow0x04 OfpMatch RoundTrip" =
+      let module GenOfpMatch = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.OfpMatch) in
+      (openflow_quickCheck GenOfpMatch.arbitrary
+          GenOfpMatch.to_string GenOfpMatch.parse GenOfpMatch.marshal)
+
+  TEST "OpenFlow0x04 OfpMatch.Oxm RoundTrip" =
+      let module GenOxm = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.OfpMatch.Oxm) in
+      (openflow_quickCheck GenOxm.arbitrary
+          GenOxm.to_string GenOxm.parse GenOxm.marshal)
+
+  TEST "OpenFlow0x04 Action RoundTrip" =
+      let module GenAction = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.Action) in
+      (openflow_quickCheck GenAction.arbitrary
+          GenAction.to_string GenAction.parse GenAction.marshal)
+
   TEST "OpenFlow0x04 Instructions RoundTrip" =
       let module GenInstructions = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.Instructions) in
       (openflow_quickCheck GenInstructions.arbitrary
@@ -145,9 +160,9 @@ module RoundTripping = struct
           GenFlowMod.to_string GenFlowMod.parse GenFlowMod.marshal)
 
   TEST "OpenFlow0x04 FlowMod.FlowModCommand RoundTrip" =
-      let module GenPFlowModCommand = Gen0x04.FlowMod.FlowModCommand in
-      (openflow_quickCheck GenPFlowModCommand.arbitrary
-          GenPFlowModCommand.to_string GenPFlowModCommand.parse GenPFlowModCommand.marshal)
+      let module GenFlowModCommand = Gen0x04.FlowMod.FlowModCommand in
+      (openflow_quickCheck GenFlowModCommand.arbitrary
+          GenFlowModCommand.to_string GenFlowModCommand.parse GenFlowModCommand.marshal)
 
   TEST "OpenFlow Hello Test 1" = 
     let open Message in 

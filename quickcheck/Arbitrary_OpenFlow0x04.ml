@@ -391,7 +391,11 @@ module OfpMatch = struct
                 ret_gen (OxmTunnelId oxmTunnelId)
             ]
         let marshal = Oxm.marshal
-        let parse bits = snd (Oxm.parse bits)
+        let to_string = Oxm.to_string
+        let size_of = Oxm.sizeof
+        let parse bits = 
+            let p,_ = Oxm.parse bits in
+            p
     end
 
     let arbitrary =
