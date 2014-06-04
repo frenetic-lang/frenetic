@@ -740,6 +740,10 @@ let set_ofp_uint48_value (buf : Cstruct.t) (value : uint48) =
       set_ofp_uint48_high buf high;
       set_ofp_uint48_low buf low
 
+let get_ofp_uint48_value (buf : Cstruct.t) : uint48 =
+  let high = Int64.of_int32 (get_ofp_uint48_high buf) in
+  let low = Int64.shift_left (Int64.of_int (get_ofp_uint48_low buf)) 32 in
+  Int64.logor low high
 
 let rec marshal_fields (buf: Cstruct.t) (fields : 'a list) (marshal_func : Cstruct.t -> 'a -> int ): int =
   if (fields = []) then 0
@@ -1218,19 +1222,19 @@ module Oxm = struct
 	  (OxmARPTpa {m_value = value; m_mask = None}, bits2)
       (* ARP source hardware address. *)
       | OFPXMT_OFB_ARP_SHA ->
-	let value = get_ofp_uint64_value bits in
+	let value = get_ofp_uint48_value bits in
 	if hm = 1 then
 	  let bits = Cstruct.shift bits 6 in
-	  let mask = get_ofp_uint64_value bits in
+	  let mask = get_ofp_uint48_value bits in
 	  (OxmARPSha {m_value = value; m_mask = (Some mask)}, bits2)
 	else
 	  (OxmARPSha {m_value = value; m_mask = None}, bits2)
       (* ARP target hardware address. *)
       | OFPXMT_OFB_ARP_THA ->
-	let value = get_ofp_uint64_value bits in
+	let value = get_ofp_uint48_value bits in
 	if hm = 1 then
 	  let bits = Cstruct.shift bits 6 in
-	  let mask = get_ofp_uint64_value bits in
+	  let mask = get_ofp_uint48_value bits in
 	  (OxmARPTha {m_value = value; m_mask = (Some mask)}, bits2)
 	else
 	  (OxmARPTha {m_value = value; m_mask = None}, bits2)
