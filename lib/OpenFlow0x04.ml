@@ -990,7 +990,118 @@ module Oxm = struct
               set_ofp_oxm buf ofc OFPXMT_OFB_MPLS_TC 0 l;
               set_ofp_uint8_value buf2 vid;
               sizeof_ofp_oxm + l
-            | _ -> failwith "Invalid marshal of oxm"
+            | OxmMetadata meta ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_METADATA  (match meta.m_mask with None -> 0 | _ -> 1)  l;
+              set_ofp_uint64_value buf2 meta.m_value;
+              begin match meta.m_mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 (l/2) in
+                    set_ofp_uint64_value buf3 mask;
+                    sizeof_ofp_oxm + l
+              end
+            | OxmIPProto ipproto ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IP_PROTO 0 l;
+              set_ofp_uint8_value buf2 ipproto;
+              sizeof_ofp_oxm + l
+            | OxmIPDscp ipdscp ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IP_DSCP 0 l;
+              set_ofp_uint8_value buf2 ipdscp;
+              sizeof_ofp_oxm + l
+            | OxmIPEcn ipecn ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_IP_ECN 0 l;
+              set_ofp_uint8_value buf2 ipecn;
+              sizeof_ofp_oxm + l
+            | OxmTCPSrc port ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_TCP_SRC  (match port.m_mask with None -> 0 | _ -> 1)  l;
+              set_ofp_uint16_value buf2 port.m_value;
+              begin match port.m_mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 (l/2) in
+                    set_ofp_uint16_value buf3 mask;
+                    sizeof_ofp_oxm + l
+              end
+            | OxmTCPDst port ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_TCP_DST  (match port.m_mask with None -> 0 | _ -> 1)  l;
+              set_ofp_uint16_value buf2 port.m_value;
+              begin match port.m_mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 (l/2) in
+                    set_ofp_uint16_value buf3 mask;
+                    sizeof_ofp_oxm + l
+              end
+            | OxmARPOp arp ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_ARP_OP 0 l;
+              set_ofp_uint16_value buf2 arp;
+              sizeof_ofp_oxm + l
+            | OxmARPSpa arp ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_ARP_SPA  (match arp.m_mask with None -> 0 | _ -> 1)  l;
+              set_ofp_uint32_value buf2 arp.m_value;
+              begin match arp.m_mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 (l/2) in
+                    set_ofp_uint32_value buf3 mask;
+                    sizeof_ofp_oxm + l
+              end
+            | OxmARPTpa arp ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_ARP_TPA  (match arp.m_mask with None -> 0 | _ -> 1)  l;
+              set_ofp_uint32_value buf2 arp.m_value;
+              begin match arp.m_mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 (l/2) in
+                    set_ofp_uint32_value buf3 mask;
+                    sizeof_ofp_oxm + l
+              end
+            | OxmARPSha arp ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_ARP_SHA  (match arp.m_mask with None -> 0 | _ -> 1)  l;
+              set_ofp_uint48_value buf2 arp.m_value;
+              begin match arp.m_mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 (l/2) in
+                    set_ofp_uint48_value buf3 mask;
+                    sizeof_ofp_oxm + l
+              end
+            | OxmARPTha arp ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_ARP_THA  (match arp.m_mask with None -> 0 | _ -> 1)  l;
+              set_ofp_uint48_value buf2 arp.m_value;
+              begin match arp.m_mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 (l/2) in
+                    set_ofp_uint48_value buf3 mask;
+                    sizeof_ofp_oxm + l
+              end
+            | OxmICMPType t ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_ICMPV4_TYPE 0 l;
+              set_ofp_uint8_value buf2 t;
+              sizeof_ofp_oxm + l
+            | OxmICMPCode c->
+              set_ofp_oxm buf ofc OFPXMT_OFB_ICMPV4_CODE 0 l;
+              set_ofp_uint8_value buf2 c;
+              sizeof_ofp_oxm + l
+            | OxmTunnelId tun ->
+              set_ofp_oxm buf ofc OFPXMT_OFB_TUNNEL_ID  (match tun.m_mask with None -> 0 | _ -> 1)  l;
+              set_ofp_uint64_value buf2 tun.m_value;
+              begin match tun.m_mask with
+                | None ->
+                  sizeof_ofp_oxm + l
+                | Some mask ->
+                  let buf3 = Cstruct.shift buf2 (l/2) in
+                    set_ofp_uint64_value buf3 mask;
+                    sizeof_ofp_oxm + l
+              end
 
   let parse (bits : Cstruct.t) : oxm * Cstruct.t =
     (* printf "class= %d\n" (get_ofp_oxm_oxm_class bits); *)
