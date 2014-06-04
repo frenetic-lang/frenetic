@@ -787,11 +787,46 @@ module Oxm = struct
       (match ipaddr.m_mask with
         | None -> 4
         | Some _ -> 8)
-    | OxmTCPSrc _ -> failwith "Invalid field_length TCPSrc"
-    | OxmTCPDst _ -> failwith "Invalid field_length TCPDst"
+    | OxmTCPSrc tcpPort ->
+      (match tcpPort.m_mask with
+        | None -> 2
+        | Some _ -> 4)
+    | OxmTCPDst tcpPort ->
+      (match tcpPort.m_mask with
+        | None -> 2
+        | Some _ -> 4)
+    | OxmARPOp _ -> 2
+    | OxmARPSpa t->
+      (match t.m_mask with
+        | None -> 4
+        | Some _ -> 8)
+    | OxmARPTpa t->
+      (match t.m_mask with
+        | None -> 4
+        | Some _ -> 8)
+    | OxmARPSha t->
+      (match t.m_mask with
+        | None -> 6
+        | Some _ -> 12)
+    | OxmARPTha t->
+      (match t.m_mask with
+        | None -> 6
+        | Some _ -> 12)
     | OxmMPLSLabel _ -> 4
     | OxmMPLSTc _ -> 1
-    | _ -> failwith "Invalid field_length"
+    | OxmMetadata t -> 
+      (match t.m_mask with
+        | None -> 8
+        | Some _ -> 16)
+    | OxmIPProto _ -> 1
+    | OxmIPDscp _ -> 1
+    | OxmIPEcn _ -> 1
+    | OxmICMPType _ -> 1
+    | OxmICMPCode _ -> 1
+    | OxmTunnelId t ->
+      (match t.m_mask with
+        | None -> 8
+        | Some _ -> 16)
 
   let sizeof (oxm : oxm) : int =
     sizeof_ofp_oxm + field_length oxm
@@ -1614,9 +1649,9 @@ module Instruction = struct
             let mask = get_ofp_instruction_write_metadata_metadata_mask bits in
             WriteMetadata ({m_value = value; m_mask = Some mask})
         | Some OFPIT_WRITE_ACTIONS -> WriteActions (
-        Action.parse_sequence (Cstruct.shift bits sizeof_ofp_instruction))
+        Action.parse_sequence (Cstruct.shift bits sizeof_ofp_instruction_actions ))
         | Some OFPIT_APPLY_ACTIONS -> ApplyActions (
-        Action.parse_sequence (Cstruct.shift bits sizeof_ofp_instruction)) 
+        Action.parse_sequence (Cstruct.shift bits sizeof_ofp_instruction_actions )) 
         | Some OFPIT_CLEAR_ACTIONS -> Clear
         | Some OFPIT_METER -> Meter (get_ofp_instruction_meter_meter_id bits)
         | Some OFPIT_EXPERIMENTER -> Experimenter (
