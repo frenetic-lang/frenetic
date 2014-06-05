@@ -39,64 +39,6 @@ let arbitrary_masked arb arb_mask =
     (3, arb >>= fun v ->
         arb_mask >>= fun m -> ret_gen {OpenFlow0x04_Core.m_value = v; m_mask = Some m}) ]
 
-let arbitrary_oxm =
-    let open Gen in
-        arbitrary_uint32 >>= fun oxmInPort ->
-        arbitrary_uint32 >>= fun oxmInPhyPort ->
-        arbitrary_masked arbitrary_uint64 arbitrary_64mask >>= fun oxmMetadata ->
-        arbitrary_uint16 >>= fun oxmEthType ->
-        arbitrary_masked arbitrary_uint48 arbitrary_48mask >>= fun oxmEthDst ->
-        arbitrary_masked arbitrary_uint48 arbitrary_48mask >>= fun oxmEthSrc ->
-        arbitrary_masked arbitrary_uint12 arbitrary_12mask >>= fun oxmVlanVId ->
-        arbitrary_uint8 >>= fun oxmVlanPcp -> 
-        arbitrary_uint8 >>= fun oxmIPProto -> 
-        arbitrary_uint8 >>= fun oxmIPDscp -> 
-        arbitrary_uint8 >>= fun oxmIPEcn -> 
-        arbitrary_masked arbitrary_uint32 arbitrary_32mask >>= fun oxmIP4Src ->
-        arbitrary_masked arbitrary_uint32 arbitrary_32mask >>= fun oxmIP4Dst ->
-        arbitrary_masked arbitrary_uint16 arbitrary_16mask >>= fun oxmTCPSrc ->
-        arbitrary_masked arbitrary_uint16 arbitrary_16mask >>= fun oxmTCPDst ->
-        arbitrary_uint16 >>= fun oxmARPOp -> 
-        arbitrary_masked arbitrary_uint32 arbitrary_32mask >>= fun oxmARPSpa ->
-        arbitrary_masked arbitrary_uint32 arbitrary_32mask >>= fun oxmARPTpa ->
-        arbitrary_masked arbitrary_uint48 arbitrary_48mask >>= fun oxmARPSha ->
-        arbitrary_masked arbitrary_uint48 arbitrary_48mask >>= fun oxmARPTha ->
-        arbitrary_uint8 >>= fun oxmICMPType -> 
-        arbitrary_uint8 >>= fun oxmICMPCode -> 
-        arbitrary_uint32 >>= fun oxmMPLSLabel -> 
-        arbitrary_uint8 >>= fun oxmMPLSTc -> 
-        arbitrary_masked arbitrary_uint64 arbitrary_64mask >>= fun oxmTunnelId ->
-    oneof [
-        ret_gen (OxmInPort oxmInPort);
-        ret_gen (OxmInPhyPort oxmInPhyPort);
-        ret_gen (OxmMetadata oxmMetadata);
-        ret_gen (OxmEthType oxmEthType);
-        ret_gen (OxmEthDst oxmEthDst);
-        ret_gen (OxmEthSrc oxmEthSrc);
-        ret_gen (OxmVlanVId oxmVlanVId);
-        ret_gen (OxmVlanPcp oxmVlanPcp);
-        ret_gen (OxmIPProto oxmIPProto);
-        ret_gen (OxmIPDscp oxmIPDscp);
-        ret_gen (OxmIPEcn oxmIPEcn);
-        ret_gen (OxmIP4Src oxmIP4Src);
-        ret_gen (OxmIP4Dst oxmIP4Dst);
-        ret_gen (OxmTCPSrc oxmTCPSrc);
-        ret_gen (OxmTCPDst oxmTCPDst);
-        ret_gen (OxmARPOp oxmARPOp);
-        ret_gen (OxmARPSpa oxmARPSpa);
-        ret_gen (OxmARPTpa oxmARPTpa);
-        ret_gen (OxmARPSha oxmARPSha);
-        ret_gen (OxmARPTha oxmARPTha);
-        ret_gen (OxmICMPType oxmICMPType);
-        ret_gen (OxmICMPCode oxmICMPCode);
-        ret_gen (OxmMPLSLabel oxmMPLSLabel);
-        ret_gen (OxmMPLSTc oxmMPLSTc);
-        ret_gen (OxmTunnelId oxmTunnelId)
-    ]
-
-let arbitrary_oxmMatch = 
-    arbitrary_list arbitrary_oxm
-
 module type OpenFlow0x04_Arbitrary = sig
 
     type t

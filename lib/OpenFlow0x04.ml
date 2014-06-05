@@ -741,8 +741,8 @@ let set_ofp_uint48_value (buf : Cstruct.t) (value : uint48) =
       set_ofp_uint48_low buf low
 
 let get_ofp_uint48_value (buf : Cstruct.t) : uint48 =
-  let high = Int64.of_int32 (get_ofp_uint48_high buf) in
-  let low = Int64.shift_left (Int64.of_int (get_ofp_uint48_low buf)) 32 in
+  let high = Int64.shift_left (Int64.of_int32 (get_ofp_uint48_high buf)) 16 in
+  let low = Int64.of_int (get_ofp_uint48_low buf) in
   Int64.logor low high
 
 let rec marshal_fields (buf: Cstruct.t) (fields : 'a list) (marshal_func : Cstruct.t -> 'a -> int ): int =
@@ -1148,19 +1148,19 @@ module Oxm = struct
           (OxmTunnelId {m_value = value; m_mask = None}, bits2)
       (* Ethernet destination address. *)
       | OFPXMT_OFB_ETH_DST ->
-	let value = get_ofp_uint64_value bits in
+	let value = get_ofp_uint48_value bits in
 	if hm = 1 then
 	  let bits = Cstruct.shift bits 6 in
-	  let mask = get_ofp_uint64_value bits in
+	  let mask = get_ofp_uint48_value bits in
 	  (OxmEthDst {m_value = value; m_mask = (Some mask)}, bits2)
 	else
 	  (OxmEthDst {m_value = value; m_mask = None}, bits2)
       (* Ethernet source address. *)
       | OFPXMT_OFB_ETH_SRC ->
-	let value = get_ofp_uint64_value bits in
+	let value = get_ofp_uint48_value bits in
 	if hm = 1 then
 	  let bits = Cstruct.shift bits 6 in
-	  let mask = get_ofp_uint64_value bits in
+	  let mask = get_ofp_uint48_value bits in
 	  (OxmEthSrc {m_value = value; m_mask = (Some mask)}, bits2)
 	else
 	  (OxmEthSrc {m_value = value; m_mask = None}, bits2)
