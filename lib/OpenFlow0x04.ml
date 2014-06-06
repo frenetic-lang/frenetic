@@ -734,6 +734,15 @@ cstruct ofp_uint64 {
   uint64_t value
 } as big_endian
 
+let compare_uint32 a b =
+    let a' = if a < 0l then  
+                Int64.sub 4294967296L (Int64.of_int32 (Int32.abs a))
+             else Int64.of_int32 a in
+    let b' = if b < 0l then
+                Int64.sub 4294967296L (Int64.of_int32 (Int32.abs b))
+             else Int64.of_int32 b in
+    a' <= b'
+
 let set_ofp_uint48_value (buf : Cstruct.t) (value : uint48) =
   let high = Int32.of_int ((Int64.to_int value) lsr 16) in
     let low = ((Int64.to_int value) land 0xffff) in
@@ -741,8 +750,13 @@ let set_ofp_uint48_value (buf : Cstruct.t) (value : uint48) =
       set_ofp_uint48_low buf low
 
 let get_ofp_uint48_value (buf : Cstruct.t) : uint48 =
-  let high = Int64.of_int32 (get_ofp_uint48_high buf) in
-  let low = Int64.shift_left (Int64.of_int (get_ofp_uint48_low buf)) 32 in
+  let highBits = get_ofp_uint48_high buf in
+  let high = Int64.shift_left (
+    if highBits < 0l then
+      Int64.sub 4294967296L (Int64.of_int32 (Int32.abs highBits))
+    else
+      Int64.of_int32 highBits) 16 in
+  let low = Int64.of_int (get_ofp_uint48_low buf) in
   Int64.logor low high
 
 let rec marshal_fields (buf: Cstruct.t) (fields : 'a list) (marshal_func : Cstruct.t -> 'a -> int ): int =
@@ -903,7 +917,7 @@ module Oxm = struct
         | Some m -> Format.sprintf "Tunnel ID : %Lu/%Lu" v.m_value m)
 
   let set_ofp_oxm (buf : Cstruct.t) (c : ofp_oxm_class) (f : oxm_ofb_match_fields) (hm : int) (l : int) = 
-    let value = (0x3f land (oxm_ofb_match_fields_to_int f)) lsl 1 in
+    let value = (0x7f land (oxm_ofb_match_fields_to_int f)) lsl 1 in
       let value = value lor (0x1 land hm) in
         set_ofp_oxm_oxm_class buf (ofp_oxm_class_to_int c);
         set_ofp_oxm_oxm_field_and_hashmask buf value;
@@ -1148,19 +1162,19 @@ module Oxm = struct
           (OxmTunnelId {m_value = value; m_mask = None}, bits2)
       (* Ethernet destination address. *)
       | OFPXMT_OFB_ETH_DST ->
-	let value = get_ofp_uint64_value bits in
+	let value = get_ofp_uint48_value bits in
 	if hm = 1 then
 	  let bits = Cstruct.shift bits 6 in
-	  let mask = get_ofp_uint64_value bits in
+	  let mask = get_ofp_uint48_value bits in
 	  (OxmEthDst {m_value = value; m_mask = (Some mask)}, bits2)
 	else
 	  (OxmEthDst {m_value = value; m_mask = None}, bits2)
       (* Ethernet source address. *)
       | OFPXMT_OFB_ETH_SRC ->
-	let value = get_ofp_uint64_value bits in
+	let value = get_ofp_uint48_value bits in
 	if hm = 1 then
 	  let bits = Cstruct.shift bits 6 in
-	  let mask = get_ofp_uint64_value bits in
+	  let mask = get_ofp_uint48_value bits in
 	  (OxmEthSrc {m_value = value; m_mask = (Some mask)}, bits2)
 	else
 	  (OxmEthSrc {m_value = value; m_mask = None}, bits2)
@@ -1347,7 +1361,7 @@ module PseudoPort = struct
       | Some OFPP_LOCAL -> Local
       | Some OFPP_ANY -> Any
       | _ ->
-        if ofp_port_no_code <= (ofp_port_no_to_int OFPP_MAX) then
+        if compare_uint32 ofp_port_no_code (ofp_port_no_to_int OFPP_MAX) then
           PhysicalPort ofp_port_no_code
         else
           raise
@@ -1435,7 +1449,7 @@ module Action = struct
       | Some OFPAT_PUSH_PBB -> PushPBB
       | Some OFPAT_POP_PBB -> PopPBB
       | Some OFPAT_EXPERIMENTER -> Experimenter
-      | _ -> raise (Unparsable (sprintf "Unknown Type"))
+      | None -> failwith "None type"
 
   let marshal (buf : Cstruct.t) (act : action) : int =
     let size = sizeof act in
@@ -1547,7 +1561,7 @@ module Action = struct
      | PushMPLS -> PushMpls
      | PopMPLS -> PopMpls
      | SetField -> let field,_ = Oxm.parse (
-     Cstruct.shift bits sizeof_ofp_action_header) in
+     Cstruct.shift bits 4) in (*TEST BECAUSE OF WRONG OFFSET??*)
      SetField (field)
      | CopyTTLOut -> CopyTtlOut
      | CopyTTLIn -> CopyTtlIn

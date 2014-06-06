@@ -134,6 +134,11 @@ module RoundTripping = struct
       (openflow_quickCheck GenPortStatus.arbitrary
           GenPortStatus.to_string GenPortStatus.parse GenPortStatus.marshal)
 
+  TEST "OpenFlow0x04 PseudoPort RoundTrip" =
+      let module GenPseudoPort = Gen0x04.PseudoPort in
+      (openflow_quickCheck GenPseudoPort.arbitrary
+          GenPseudoPort.to_string GenPseudoPort.parse GenPseudoPort.marshal)
+
   TEST "OpenFlow0x04 OfpMatch RoundTrip" =
       let module GenOfpMatch = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.OfpMatch) in
       (openflow_quickCheck GenOfpMatch.arbitrary
