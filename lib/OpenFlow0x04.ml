@@ -1189,7 +1189,7 @@ module Oxm = struct
       (* IP DSCP (6 bits in ToS field). *)
       | OFPXMT_OFB_IP_DSCP ->
 	let value = get_ofp_uint8_value bits in
-	  (OxmIPDscp (value land 252), bits2)
+	  (OxmIPDscp (value land 63), bits2)
       (* IP ECN (2 bits in ToS field). *)
       |  OFPXMT_OFB_IP_ECN ->
 	let value = get_ofp_uint8_value bits in
