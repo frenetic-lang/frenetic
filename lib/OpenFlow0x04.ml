@@ -1575,7 +1575,7 @@ module Action = struct
      | Experimenter -> Experimenter (get_ofp_action_experimenter_experimenter bits)
 
   let rec parse_fields (bits : Cstruct.t) : sequence * Cstruct.t =
-    if Cstruct.len bits <= sizeof_ofp_action_header then ([], bits)
+    if Cstruct.len bits < sizeof_ofp_action_header then ([], bits)
     else let field = parse bits in
     let bits2 = Cstruct.shift bits (sizeof field) in
     let fields, bits3 = parse_fields bits2 in
@@ -1759,7 +1759,11 @@ module Instruction = struct
           set_ofp_instruction_actions_pad1 buf 0;
           set_ofp_instruction_actions_pad2 buf 0;
           set_ofp_instruction_actions_pad3 buf 0;
-          sizeof_ofp_instruction_actions + (marshal_fields (Cstruct.shift buf sizeof_ofp_instruction_actions) actions Action.marshal)
+          sizeof_ofp_instruction_actions + (
+          marshal_fields 
+          (Cstruct.shift buf sizeof_ofp_instruction_actions)
+          actions
+          Action.marshal)
         | ApplyActions actions ->
           set_ofp_instruction_actions_typ buf 4; (* OFPIT_APPLY_ACTIONS *)
           set_ofp_instruction_actions_len buf size;
@@ -1809,7 +1813,10 @@ module Instruction = struct
         | Some OFPIT_WRITE_METADATA -> 
             let value = get_ofp_instruction_write_metadata_metadata bits in 
             let mask = get_ofp_instruction_write_metadata_metadata_mask bits in
-            WriteMetadata ({m_value = value; m_mask = Some mask})
+            if mask <> 0L then
+              WriteMetadata ({m_value = value; m_mask = Some mask})
+            else
+              WriteMetadata ({m_value = value; m_mask = None})
         | Some OFPIT_WRITE_ACTIONS -> WriteActions (
         Action.parse_sequence (Cstruct.shift bits sizeof_ofp_instruction_actions ))
         | Some OFPIT_APPLY_ACTIONS -> ApplyActions (

@@ -423,13 +423,18 @@ module Instructions = struct
 
         let marshal = Instruction.marshal
         let parse = Instruction.parse
+        let to_string = Instruction.to_string
+        let size_of = Instruction.sizeof
     end
     
     let arbitrary =
         let open Gen in
         let open Instructions in
         arbitrary_list Instruction.arbitrary >>= fun ins ->
-        ret_gen ins
+        if List.length ins = 0 then (
+        Instruction.arbitrary >>= fun sin ->
+        ret_gen [sin])
+        else ret_gen ins
     
     let marshal = Instructions.marshal
     let parse = Instructions.parse
