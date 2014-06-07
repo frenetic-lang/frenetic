@@ -1879,7 +1879,7 @@ module Instructions = struct
 
   let to_string ins =
     let insString = String.concat "\n" (map Instruction.to_string ins) in
-    Format.sprintf "Instructions : %s" insString
+    insString
 
   let parse (bits : Cstruct.t) : instruction list =
     let field,_ = parse_field bits in
@@ -1939,23 +1939,31 @@ module FlowMod = struct
         | Some bid -> bid);
     set_ofp_flow_mod_out_port buf
       (match fm.mfOut_port with
-        | None -> Int32.of_int 0
+        | None -> 0l
         | Some port -> PseudoPort.marshal port);
     set_ofp_flow_mod_out_group buf
       (match fm.mfOut_group with
-        | None -> Int32.of_int 0
+        | None -> 0l
         | Some gid -> gid);
     set_ofp_flow_mod_flags buf (flags_to_int fm.mfFlags);
     set_ofp_flow_mod_pad0 buf 0;
     set_ofp_flow_mod_pad1 buf 0;
 
     let size = sizeof_ofp_flow_mod +
-        OfpMatch.marshal (Cstruct.shift buf sizeof_ofp_flow_mod) fm.mfOfp_match in
+        OfpMatch.marshal 
+         (Cstruct.sub buf sizeof_ofp_flow_mod (OfpMatch.sizeof fm.mfOfp_match))
+         fm.mfOfp_match in
       size + Instructions.marshal (Cstruct.shift buf size) fm.mfInstructions
 
   let parse (bits : Cstruct.t) : flowMod =
-    let mfCookie = {m_value = get_ofp_flow_mod_cookie bits;
-                    m_mask = (Some (get_ofp_flow_mod_cookie_mask bits))} in
+    let mfMask = get_ofp_flow_mod_cookie_mask bits in
+    let mfCookie =
+      if mfMask <> 0L then
+        {m_value = get_ofp_flow_mod_cookie bits;
+        m_mask = (Some (get_ofp_flow_mod_cookie_mask bits))}
+    else {m_value = get_ofp_flow_mod_cookie bits;
+        m_mask = None}
+      in
     let mfTable_id = get_ofp_flow_mod_table_id bits in
     let mfCommand = FlowModCommand.parse (get_ofp_flow_mod_command bits) in
     let mfIdle_timeout = match (get_ofp_flow_mod_idle_timeout bits) with
@@ -1986,9 +1994,19 @@ module FlowMod = struct
       mfOfp_match; mfInstructions}
   
   let to_string (flow : flowMod) =
-    Format.sprintf "cookie:%s; table:%u;command:%s;IdleTimeout:%s;HardTimeout:%s;\
-                      priority:%u;bufferId:%s;outPort:%s;outGroup:%s;flags:%s;\
-                      match:%s;instructions:%s"
+    Format.sprintf 
+"cookie:%s;
+table:%u;
+command:%s;
+IdleTimeout:%s;
+HardTimeout:%s;
+priority:%u;
+bufferId:%s;
+outPort:%s;
+outGroup:%s;
+flags:%s;
+match:%s;
+instructions:%s\n"
     (match flow.mfCookie.m_mask with
         | None -> Int64.to_string flow.mfCookie.m_value
         | Some m -> Format.sprintf "%LX/%LX" flow.mfCookie.m_value m)

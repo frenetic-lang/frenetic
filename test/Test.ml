@@ -154,6 +154,11 @@ module RoundTripping = struct
       (openflow_quickCheck GenAction.arbitrary
           GenAction.to_string GenAction.parse GenAction.marshal)
 
+  TEST "OpenFlow0x04 Instructions.Instruction RoundTrip" =
+      let module GenInstruction = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.Instructions.Instruction) in
+      (openflow_quickCheck GenInstruction.arbitrary
+          GenInstruction.to_string GenInstruction.parse GenInstruction.marshal)
+
   TEST "OpenFlow0x04 Instructions RoundTrip" =
       let module GenInstructions = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.Instructions) in
       (openflow_quickCheck GenInstructions.arbitrary

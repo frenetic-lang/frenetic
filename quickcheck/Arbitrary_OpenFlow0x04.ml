@@ -431,10 +431,7 @@ module Instructions = struct
         let open Gen in
         let open Instructions in
         arbitrary_list Instruction.arbitrary >>= fun ins ->
-        if List.length ins = 0 then (
-        Instruction.arbitrary >>= fun sin ->
-        ret_gen [sin])
-        else ret_gen ins
+        ret_gen ins
     
     let marshal = Instructions.marshal
     let parse = Instructions.parse
@@ -500,7 +497,7 @@ module FlowMod = struct
         arbitrary_flags >>= fun mfFlags ->
         arbitrary_buffer_id >>= fun mfBuffer_id ->
         FlowModCommand.arbitrary >>= fun mfCommand ->
-        PseudoPort.arbitrary >>= fun mfPort ->
+        PseudoPort.arbitrary_nc >>= fun mfPort ->
         oneof [ ret_gen None; ret_gen (Some mfPort)] >>= fun mfOut_port ->
         arbitrary_uint32 >>= fun mfGroup ->
         oneof [ ret_gen None; ret_gen (Some mfGroup)] >>= fun mfOut_group ->
