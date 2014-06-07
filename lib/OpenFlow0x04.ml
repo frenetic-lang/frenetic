@@ -445,10 +445,10 @@ cstruct ofp_action_group {
 cstruct ofp_action_header {
   uint16_t typ;                   (* POP_VLAN. *)
   uint16_t len;                   (* Length is 8. *)
-  uint8_t pad0;                   (* Pad to 64 bits. *)
-  uint8_t pad1;                   (* Pad to 64 bits. *)
-  uint8_t pad2;                   (* Pad to 64 bits. *)
-  uint8_t pad3                   (* Pad to 64 bits. *)
+  uint8_t pad;
+  uint8_t pad1;
+  uint8_t pad2;
+  uint8_t pad3
 } as big_endian
 
 (* Action structure for POP_MPLS *)
@@ -465,7 +465,9 @@ cstruct ofp_action_nw_ttl {
   uint16_t typ;                   (* SET_NW_TTL. *)
   uint16_t len;                   (* Length is 8. *)
   uint8_t nw_ttl;
-  uint8_t pad[3];
+  uint8_t pad;
+  uint8_t pad1;
+  uint8_t pad2
 } as big_endian
 
 (* Action structure for SET_MPLS_TTL *)
@@ -1477,6 +1479,11 @@ module Action = struct
       | PopVlan ->
 	set_ofp_action_header_typ buf 18; (* POP_VLAN *)
 	set_ofp_action_header_len buf size;
+    set_ofp_action_header_pad buf 0;
+    set_ofp_action_header_pad1 buf 0;
+    set_ofp_action_header_pad2 buf 0;
+    set_ofp_action_header_pad3 buf 0;
+    
 	size
       | PushMpls ->
 	set_ofp_action_push_typ buf 19; (* PUSH_MPLS *)
@@ -1508,19 +1515,34 @@ module Action = struct
       | CopyTtlOut ->
         set_ofp_action_header_typ buf 11; (* OFPAT_COPY_TTL_OUT *)
         set_ofp_action_header_len buf size;
+        set_ofp_action_header_pad buf 0;
+        set_ofp_action_header_pad1 buf 0;
+        set_ofp_action_header_pad2 buf 0;
+        set_ofp_action_header_pad3 buf 0;
         size
       | CopyTtlIn ->
         set_ofp_action_header_typ buf 12; (* OFPAT_COPY_TTL_IN *)
         set_ofp_action_header_len buf size;
+        set_ofp_action_header_pad buf 0;
+        set_ofp_action_header_pad1 buf 0;
+        set_ofp_action_header_pad2 buf 0;
+        set_ofp_action_header_pad3 buf 0;
         size
       | SetNwTtl newTtl ->
         set_ofp_action_nw_ttl_typ buf 23; (* OFPAT_SET_NW_TTL *)
         set_ofp_action_nw_ttl_len buf size;
         set_ofp_action_nw_ttl_nw_ttl buf newTtl;
+        set_ofp_action_nw_ttl_pad buf 0;
+        set_ofp_action_nw_ttl_pad1 buf 0;
+        set_ofp_action_nw_ttl_pad2 buf 0;
         size
       | DecNwTtl ->
         set_ofp_action_header_typ buf 24; (* OFPAT_DEC_NW_TTL *)
         set_ofp_action_header_len buf size;
+        set_ofp_action_header_pad buf 0;
+        set_ofp_action_header_pad1 buf 0;
+        set_ofp_action_header_pad2 buf 0;
+        set_ofp_action_header_pad3 buf 0;
         size
       | PushPbb ->
         set_ofp_action_push_typ buf 26; (* OFPAT_PUSH_PBB *)
@@ -1529,7 +1551,11 @@ module Action = struct
         size
       | PopPbb ->
         set_ofp_action_header_typ buf 27; (* OFPAT_POP_PBB *)
-        set_ofp_action_header_len buf size;      
+        set_ofp_action_header_len buf size;
+        set_ofp_action_header_pad buf 0;
+        set_ofp_action_header_pad1 buf 0;
+        set_ofp_action_header_pad2 buf 0;
+        set_ofp_action_header_pad3 buf 0;
         size
       | SetMplsTtl newTtl ->
         set_ofp_action_mpls_ttl_typ buf 15; (* OFPAT_SET_MPLS_TTL *)
@@ -1539,6 +1565,10 @@ module Action = struct
       | DecMplsTtl ->
         set_ofp_action_header_typ buf 16; (* OFPAT_DEC_MPLS_TTL *)
         set_ofp_action_header_len buf size;
+        set_ofp_action_header_pad buf 0;
+        set_ofp_action_header_pad1 buf 0;
+        set_ofp_action_header_pad2 buf 0;
+        set_ofp_action_header_pad3 buf 0;
         size
       | SetQueue queueId ->
         set_ofp_action_set_queue_typ buf 21; (* OFPAT_SET_QUEUE *)
@@ -1807,6 +1837,7 @@ module Instruction = struct
 
   let parse (bits : Cstruct.t) : instruction =
     let typ = get_ofp_instruction_typ bits in
+    let len = get_ofp_instruction_len bits in
       match (int_to_ofp_instruction_type typ) with
         | Some OFPIT_GOTO_TABLE -> GotoTable (
         get_ofp_instruction_goto_table_table_id bits)
@@ -1818,9 +1849,9 @@ module Instruction = struct
             else
               WriteMetadata ({m_value = value; m_mask = None})
         | Some OFPIT_WRITE_ACTIONS -> WriteActions (
-        Action.parse_sequence (Cstruct.shift bits sizeof_ofp_instruction_actions ))
+        Action.parse_sequence (Cstruct.sub bits sizeof_ofp_instruction_actions (len-sizeof_ofp_instruction_actions)))
         | Some OFPIT_APPLY_ACTIONS -> ApplyActions (
-        Action.parse_sequence (Cstruct.shift bits sizeof_ofp_instruction_actions )) 
+        Action.parse_sequence (Cstruct.sub bits sizeof_ofp_instruction_actions (len-sizeof_ofp_instruction_actions))) 
         | Some OFPIT_CLEAR_ACTIONS -> Clear
         | Some OFPIT_METER -> Meter (get_ofp_instruction_meter_meter_id bits)
         | Some OFPIT_EXPERIMENTER -> Experimenter (
@@ -1835,10 +1866,12 @@ module Instructions = struct
     sum (map Instruction.sizeof inss)
 
   let marshal (buf : Cstruct.t) (inss : instruction list) : int =
-    marshal_fields buf inss Instruction.marshal
+    if sizeof inss <> 0 then
+      marshal_fields buf inss Instruction.marshal
+    else 0
 
   let rec parse_field (bits : Cstruct.t) : instruction list*Cstruct.t =
-    if Cstruct.len bits <= sizeof_ofp_instruction then [],bits
+    if Cstruct.len bits < sizeof_ofp_instruction then [],bits
     else let field = Instruction.parse bits in
     let bits2 = Cstruct.shift bits (Instruction.sizeof field) in
     let fields, bits3 = parse_field bits2 in
