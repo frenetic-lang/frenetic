@@ -2871,15 +2871,14 @@ module Aggregate = struct
 
 end
 
-cstruct ofp_table_stats {
-  uint8_t table_id; 
-  uint8_t pad[3]; 
-  uint32_t active_count;
-  uint64_t lookup_count;
-  uint64_t matched_count;
-} as big_endian
-
 module Table = struct
+  cstruct ofp_table_stats {
+    uint8_t table_id; 
+    uint8_t pad[3]; 
+    uint32_t active_count;
+    uint64_t lookup_count;
+    uint64_t matched_count;
+  } as big_endian
 
   let sizeof_struct (ts : tableStats) = 
     sizeof_ofp_table_stats
@@ -2912,25 +2911,6 @@ module Table = struct
         bits in
     TableReply (Cstruct.fold (fun acc bits -> bits :: acc) tableIter [])
 end
-
-cstruct ofp_port_stats {
-  uint32_t port_no;
-  uint8_t pad[4];
-  uint64_t rx_packets;
-  uint64_t tx_packets;
-  uint64_t rx_bytes;
-  uint64_t tx_bytes;
-  uint64_t rx_dropped;
-  uint64_t tx_dropped;
-  uint64_t rx_errors;
-  uint64_t tx_errors;
-  uint64_t rx_frame_err;
-  uint64_t rx_over_err;
-  uint64_t rx_crc_err;
-  uint64_t collisions;
-  uint32_t duration_sec;
-  uint32_t duration_nsec;
-} as big_endian
 
 module PortStats = struct
   
