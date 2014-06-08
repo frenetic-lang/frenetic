@@ -268,6 +268,7 @@ module PseudoPort = struct
             | Controller i -> Some i
             | _            -> None
       in (PseudoPort.marshal p, l)
+  let size_of = PseudoPort.size_of
 end
 
 module OfpMatch = struct
@@ -280,6 +281,12 @@ module OfpMatch = struct
         let arbitrary = 
             let open Gen in
             let open Oxm in
+            let arbitrary_dscp = 
+              (choose_int (0,64)) >>= fun a ->
+              ret_gen a in
+            let arbitrary_ecn = 
+            (choose_int (0,3)) >>= fun a ->
+              ret_gen a in
             arbitrary_uint32 >>= fun portId ->
             arbitrary_uint32 >>= fun portPhyId ->
             arbitrary_masked arbitrary_uint64 arbitrary_64mask >>= fun oxmMetadata ->
@@ -289,8 +296,8 @@ module OfpMatch = struct
             arbitrary_masked arbitrary_uint12 arbitrary_12mask >>= fun oxmVlanVId ->
             arbitrary_uint8 >>= fun oxmVlanPcp ->
             arbitrary_uint8 >>= fun oxmIPProto ->
-            arbitrary_uint8 >>= fun oxmIPDscp ->
-            arbitrary_uint8 >>= fun oxmIPEcn ->
+            arbitrary_dscp >>= fun oxmIPDscp ->
+            arbitrary_ecn >>= fun oxmIPEcn ->
             arbitrary_masked arbitrary_uint32 arbitrary_32mask >>= fun oxmIP4Src ->
             arbitrary_masked arbitrary_uint32 arbitrary_32mask >>= fun oxmIP4Dst ->
             arbitrary_masked arbitrary_uint16 arbitrary_16mask >>= fun oxmTCPSrc ->
@@ -416,6 +423,8 @@ module Instructions = struct
 
         let marshal = Instruction.marshal
         let parse = Instruction.parse
+        let to_string = Instruction.to_string
+        let size_of = Instruction.sizeof
     end
     
     let arbitrary =
@@ -488,7 +497,7 @@ module FlowMod = struct
         arbitrary_flags >>= fun mfFlags ->
         arbitrary_buffer_id >>= fun mfBuffer_id ->
         FlowModCommand.arbitrary >>= fun mfCommand ->
-        PseudoPort.arbitrary >>= fun mfPort ->
+        PseudoPort.arbitrary_nc >>= fun mfPort ->
         oneof [ ret_gen None; ret_gen (Some mfPort)] >>= fun mfOut_port ->
         arbitrary_uint32 >>= fun mfGroup ->
         oneof [ ret_gen None; ret_gen (Some mfGroup)] >>= fun mfOut_group ->
