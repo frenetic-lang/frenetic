@@ -108,16 +108,16 @@ module Dexterize = struct
 
   let rec pred_to_term = function
     | NetKAT_Types.True -> 
-      make_one
+      make_one ()
     | NetKAT_Types.False -> 
-      make_zero
+      make_zero ()
     | NetKAT_Types.Test(h) -> 
       let x,n = header_value_to_pair h in 
       make_test (Field.of_string x, Value.of_string n)
     | NetKAT_Types.And(pr1,pr2) -> 
       make_times [pred_to_term pr1; pred_to_term pr2]
     | NetKAT_Types.Or(pr1,pr2) -> 
-      make_plus  [(pred_to_term pr1);(pred_to_term pr2)]
+      make_plus (Decide_Ast.TermSet.of_list [(pred_to_term pr1);(pred_to_term pr2)])
     | NetKAT_Types.Neg(pr) -> 
       make_not (pred_to_term pr) 
 
@@ -128,7 +128,7 @@ module Dexterize = struct
       let x,n = header_value_to_pair h in 
       make_assg (Field.of_string x, Value.of_string n)
     | NetKAT_Types.Union(p1,p2) -> 
-      make_plus [policy_to_term ~dup:dup p1; policy_to_term ~dup:dup p2]
+      make_plus (Decide_Ast.TermSet.of_list [policy_to_term ~dup:dup p1; policy_to_term ~dup:dup p2])
     | NetKAT_Types.Seq(p1,p2) -> 
       make_times [policy_to_term ~dup:dup p1; policy_to_term ~dup:dup p2]
     | NetKAT_Types.Star(p) -> 
@@ -138,7 +138,7 @@ module Dexterize = struct
                make_test (Field.of_string "port", Value.of_string (Int32.to_string pt1)) ::
                make_assg (Field.of_string "switch", Value.of_string (Int64.to_string sw2)) :: 
                make_assg (Field.of_string "port", Value.of_string (Int32.to_string pt2)) ::
-               if dup then [make_dup] else [])
+               if dup then [make_dup ()] else [])
 end
 
 module Verify = 
@@ -222,10 +222,10 @@ struct
 
   let check_equivalent t1 t2 = 
   let module UnivMap = Decide_Util.SetMapF (Decide_Util.Field) (Decide_Util.Value) in
-  Printf.printf "getting values in this term: %s\n" (Decide_Ast.Term.to_string_sexpr t1);
-  let t1vals = Decide_Ast.values_in_term t1 in 
-  Printf.printf "getting values in this term: %s\n" (Decide_Ast.Term.to_string_sexpr t2);
-  let t2vals = Decide_Ast.values_in_term t2 in 
+  Printf.printf "getting values in this term: %s\n" (Decide_Ast.Term.to_string t1);
+  let t1vals = Decide_Ast.Term.values t1 in 
+  Printf.printf "getting values in this term: %s\n" (Decide_Ast.Term.to_string t2);
+  let t2vals = Decide_Ast.Term.values t2 in 
   if ((not (UnivMap.is_empty t1vals)) || (not (UnivMap.is_empty t2vals)))
   then 
     begin
@@ -284,10 +284,13 @@ struct
     Printf.printf "## NetKAT Policy ##\n%s\n## Connectivity Policy ##\n%s\n%!"
       (NetKAT_Pretty.string_of_policy net_sw_pol)
       (NetKAT_Pretty.string_of_policy net_cn_pol);
+    let lhs = (Dexterize.policy_to_term ~dup:false net_cn_pol) in 
+    let rhs = Decide_Ast.Term.unfold_star_twice (Dexterize.policy_to_term ~dup:false net_sw_pol) in 
+    Printf.printf "## Dexter NetKAT Policy ##\n%s\n## Dexter Connectivity Policy ##\n%s\n%!"
+      (Decide_Ast.Term.to_string lhs)
+      (Decide_Ast.Term.to_string rhs);
     Printf.printf "## Equivalent ##\n%b\n"
-      (check_equivalent 
-	 (Dexterize.policy_to_term ~dup:false net_cn_pol)
-	 (Dexterize.policy_to_term ~dup:false net_sw_pol))
+      (check_equivalent lhs rhs)
 
   let main = verify_connectivity
 end
