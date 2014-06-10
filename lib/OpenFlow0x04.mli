@@ -242,6 +242,8 @@ module FlowRequest : sig
 
     val sizeof : flowRequest -> int
 
+    val to_string : flowRequest -> string
+
     val marshal : Cstruct.t -> flowRequest -> int
 
     val parse : Cstruct.t -> flowRequest
@@ -254,7 +256,7 @@ module QueueRequest : sig
 
     val parse : Cstruct.t -> queueRequest
 
-
+    val to_string : queueRequest -> string
 end
 
 module TableFeatureProp : sig
@@ -262,7 +264,9 @@ module TableFeatureProp : sig
     val marshal : Cstruct.t -> tableFeatureProp -> int
      
     val parse : Cstruct.t -> tableFeatureProp
-  
+
+    val to_string : tableFeatureProp -> string
+
 end
 
 module TableFeature : sig
@@ -272,6 +276,8 @@ module TableFeature : sig
     val marshal : Cstruct.t -> tableFeatures -> int
 
     val parse : Cstruct.t -> tableFeatures*Cstruct.t
+
+    val to_string : tableFeatures -> string
 
 end
 
@@ -283,11 +289,15 @@ module TableFeaturesRequest : sig
 
     val parse : Cstruct.t -> tableFeaturesRequest
 
+    val to_string : tableFeaturesRequest -> string
+
 end
 
 module MultipartReq : sig
 
   val sizeof : multipartRequest -> int
+
+  val to_string : multipartRequest -> string
 
   val marshal : Cstruct.t -> multipartRequest -> int
  

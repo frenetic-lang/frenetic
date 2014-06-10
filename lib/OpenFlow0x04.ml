@@ -2355,6 +2355,16 @@ module FlowRequest = struct
 
     let sizeof (fr : flowRequest) : int = 
     sizeof_ofp_flow_stats_request + (OfpMatch.sizeof fr.fr_match)
+
+    let to_string (fr : flowRequest) : string =
+      Format.sprintf "TableID:%u\noutPort:%lu\noutGroup:%lu\ncookie:%s\nmatch:%s"
+      fr.fr_table_id
+      fr.fr_out_port
+      fr.fr_out_group
+      (match fr.fr_cookie.m_mask with
+        | None -> Int64.to_string fr.fr_cookie.m_value
+        | Some m -> Format.sprintf "%Lu/%Lu" fr.fr_cookie.m_value m)
+      (OfpMatch.to_string fr.fr_match)
   
     let marshal (buf : Cstruct.t) (fr : flowRequest) : int = 
       set_ofp_flow_stats_request_table_id buf fr.fr_table_id;
@@ -2397,6 +2407,8 @@ module QueueRequest = struct
       { port_number = portNumber
       ; queue_id = queueId}
 
+    let to_string qr =
+        Format.sprintf "Port:%lu;Queue:%lu" qr.port_number qr.queue_id
 end
 
 module TableFeatureProp = struct
@@ -2491,6 +2503,34 @@ module TableFeatureProp = struct
     ; tfp_payload = pay
     }
 
+    let to_string tfp =
+      Format.sprintf "type:%s;len:%u;payload:%s"
+      (match tfp.tfp_type with
+         | TfpInstruction -> "Instruction"
+         | TfpInstructionMiss -> "InstructionMiss"
+         | TfpNextTable -> "NextTable"
+         | TfpNextTableMiss -> "NextTableMiss"
+         | TfpWriteAction -> "WriteAction"
+         | TfpWriteActionMiss -> "WriteActionMiss"
+         | TfpApplyAction -> "ApplyAction"
+         | TfpApplyActionMiss -> "ApplyActionMiss"
+         | TfpMatch -> "Match"
+         | TfpWildcard -> "MatchMiss"
+         | TfpWriteSetField -> "WriteSetField"
+         | TfpWriteSetFieldMiss -> "WriteSetFieldMiss"
+         | TfpApplySetField -> "SetField"
+         | TfpApplySetFieldMiss -> "SetFieldMiss"
+         | TfpExperimenter -> "Experimenter"
+         | TfpExperimenterMiss -> "ExperimenterMiss")
+      tfp.tfp_length
+      (match tfp.tfp_payload with
+         | TfpInstruction i -> Format.sprintf "Instructions : %s" (Instructions.to_string i)
+         | TfpNextTable n-> Format.sprintf "Table : %s" 
+                           (String.concat " " (map string_of_int n))
+         | TfpAction a-> Format.sprintf "Apply Actions: \n%s"
+                        (String.concat "\n" (map Action.to_string a))
+         | TfpSetField s-> Format.sprintf "OfpMatch : %s" (OfpMatch.to_string s))
+
 end
 
 module TableFeature = struct
@@ -2501,6 +2541,10 @@ module TableFeature = struct
     let tableConfig_to_int (tc : tableConfig) : int32 =
       match tc with
         | Deprecated -> ofp_table_config_to_int OFPTC_DEPRECATED_MASK
+
+    let table_config_to_string tc =
+      match tc with
+        | Deprecated -> "Deprecated"
 
     let marshal (buf : Cstruct.t) (tf : tableFeatures) : int =
       set_ofp_table_features_length buf tf.length;
@@ -2536,6 +2580,18 @@ module TableFeature = struct
         max_entries = maxEntries;
         feature_prop = featureProp},(Cstruct.shift bits length)
     
+    let to_string (tf : tableFeatures) =
+      Format.sprintf "len:%u;tableId:%u;name:%s;metadata match:%Lu;\
+                      metadata write:%Lu;config%s;max_entries:%lu;
+                      featuresPro:%s"
+      tf.length
+      tf.table_id
+      tf.name
+      tf.metadata_match
+      tf.metadata_write
+      (table_config_to_string tf.config)
+      tf.max_entries
+      (TableFeatureProp.to_string tf.feature_prop)
 
 end
 
@@ -2560,6 +2616,10 @@ module TableFeaturesRequest = struct
       let length = Cstruct.len bits in
       let body,_ = parse_fields bits length 0 in
       body
+
+    let to_string tfr = 
+      let tfrString = String.concat "\n" (map TableFeature.to_string tfr) in
+      tfrString
 end
 
 module MultipartReq = struct
@@ -2621,6 +2681,39 @@ module MultipartReq = struct
        | Some MrbMeter _ -> sizeof_ofp_meter_multipart_request
        | Some MrbTable tfr -> TableFeaturesRequest.sizeof tfr
        | Some MrbExperimenter _ -> raise (Unparsable (sprintf "Not yet implement")) )
+
+  let to_string (mpr : multipartRequest) : string =
+    match mpr.mpr_type with
+      | SwitchDescReq -> "SwitchDesc Req"
+      | PortsDescReq -> "PortDesc Req"
+      | FlowStatsReq -> Format.sprintf "FlowStats %s Req" (match mpr.mpr_body with
+        | Some MrbFlow p -> FlowRequest.to_string p
+        | _ -> failwith "Unexpected body")
+      | AggregFlowStatsReq -> Format.sprintf "AggregFlowStats %s Req" (match mpr.mpr_body with
+        | Some MrbAggreg p -> FlowRequest.to_string p
+        | _ -> failwith "Unexpected body")
+      | TableStatsReq -> "TableStats Req"
+      | PortStatsReq -> Format.sprintf "PortStats %lu Req" (match mpr.mpr_body with
+        | Some MrbPort p -> p
+        | _ -> failwith "Unexpected body")
+      | QueueStatsReq -> Format.sprintf "QueueStats Req: %s" (match mpr.mpr_body with
+        | Some MrbQueue p -> QueueRequest.to_string p
+        | _ -> failwith "Unexpected body")
+      | GroupStatsReq -> "GroupStats Req"
+      | GroupDescReq -> "GroupDesc Req"
+      | GroupFeatReq -> "GroupFeat Req"
+      | MeterStatsReq -> Format.sprintf "MeterStats Req: %lu " (match mpr.mpr_body with
+        | Some MrbMeter p -> p
+        | _ -> failwith "Unexpected body")
+      | MeterConfReq -> Format.sprintf "MeterConf Req: %lu" (match mpr.mpr_body with
+        | Some MrbMeter p -> p
+        | _ -> failwith "Unexpected body")
+      | MeterFeatReq -> "MeterFeat Req"
+      | TableFeatReq -> Format.sprintf "TableFeat Req: %s" (match mpr.mpr_body with
+        | Some MrbTable p -> TableFeaturesRequest.to_string p
+        | None -> ""
+        | _ -> failwith "Unexpected body")
+      | ExperimentReq -> "Experimenter Req"
 
   let marshal (buf : Cstruct.t) (mpr : multipartRequest) : int =
     let size = sizeof_ofp_multipart_request in
