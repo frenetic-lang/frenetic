@@ -446,33 +446,6 @@ let consistently_update_table (t : t) pol : unit Deferred.t =
   >>= fun () ->
   return (incr ver)
 
-let update_table_for (t : t) (sw_id : switchId) pol : unit Deferred.t =
-  let delete_flows =
-    OpenFlow0x01.Message.FlowModMsg OpenFlow0x01_Core.delete_all_flows in
-  let to_flow_mod prio flow =
-    OpenFlow0x01.Message.FlowModMsg (SDN_OpenFlow0x01.from_flow prio flow) in
-  let c_id = Controller.client_id_of_switch t.ctl sw_id in
-  let local = NetKAT_LocalCompiler.compile sw_id pol in
-  Monitor.try_with ~name:"update_table_for" (fun () ->
-      send t.ctl c_id (5l, delete_flows) >>= fun _ ->
-      let priority = ref 65536 in
-      let table = NetKAT_LocalCompiler.to_table local in
-      if List.length table <= 0
-      then raise (Assertion_failed (Printf.sprintf
-                                      "Controller.update_table_for: empty table for switch %Lu" sw_id));
-      Deferred.List.iter table ~f:(fun flow ->
-          decr priority;
-          send t.ctl c_id (0l, to_flow_mod !priority flow)))
-  >>= function
-  | Ok () -> return ()
-  | Error exn_ ->
-    Log.error ~tags
-      "switch %Lu: Failed to update table in update_table_for" sw_id;
-    Log.flushed ()
-
-let best_effort_update_table t pol =
-  Deferred.List.iter (TUtil.switch_ids !(t.nib)) (fun sw -> update_table_for t sw pol)
-
 let handler
   ?(update=`BestEffort)
   (t : t)
@@ -481,7 +454,8 @@ let handler
   : (NetKAT_Types.event -> unit Deferred.t) =
   let app' = Async_NetKAT.run app t.nib w () in
   let updater = match update with
-    | `BestEffort -> best_effort_update_table
+    | `BestEffort ->
+      fun t -> Update.BestEffort.implement_policy t.ctl !(t.nib)
     | `PerPacketConsistent -> consistently_update_table in
   fun e ->
     app' e >>= fun m_pol ->
@@ -491,7 +465,9 @@ let handler
     | None ->
       begin match e with
         | NetKAT_Types.SwitchUp sw_id ->
-          update_table_for t sw_id (Async_NetKAT.default app)
+          (* BUG: Switches coming up that don't trigger a policy update will not
+           * get a versioned polocy when consistent updates are turned on. *)
+          Update.BestEffort.bring_up_switch t.ctl sw_id (Async_NetKAT.default app)
         | _ -> return ()
       end
 
