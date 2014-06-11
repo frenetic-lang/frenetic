@@ -2633,153 +2633,144 @@ module MultipartReq = struct
       uint8_t pad3
     } as big_endian
 
+    cstruct ofp_experimenter_multipart_header {
+      uint32_t experimenter;
+      uint32_t exp_type
+    } as big_endian
+
   let msg_code_of_request mpr = match mpr with
     | SwitchDescReq -> OFPMP_DESC
     | PortsDescReq -> OFPMP_PORT_DESC
-    | FlowStatsReq -> OFPMP_FLOW
-    | AggregFlowStatsReq -> OFPMP_AGGREGATE
+    | FlowStatsReq _ -> OFPMP_FLOW
+    | AggregFlowStatsReq _ -> OFPMP_AGGREGATE
     | TableStatsReq -> OFPMP_TABLE
-    | PortStatsReq -> OFPMP_PORT_STATS
-    | QueueStatsReq -> OFPMP_QUEUE
-    | GroupStatsReq -> OFPMP_GROUP
+    | PortStatsReq _ -> OFPMP_PORT_STATS
+    | QueueStatsReq _ -> OFPMP_QUEUE
+    | GroupStatsReq _ -> OFPMP_GROUP
     | GroupDescReq -> OFPMP_GROUP_DESC
     | GroupFeatReq -> OFPMP_GROUP_FEATURES
-    | MeterStatsReq -> OFPMP_METER
-    | MeterConfReq -> OFPMP_METER_CONFIG
+    | MeterStatsReq _ -> OFPMP_METER
+    | MeterConfReq _ -> OFPMP_METER_CONFIG
     | MeterFeatReq -> OFPMP_METER_FEATURES
-    | TableFeatReq -> OFPMP_TABLE_FEATURES
-    | ExperimentReq -> OFPMP_EXPERIMENTER
-
-  let to_multipartType mpr =
-  match (int_to_ofp_multipart_types mpr) with
-    | Some OFPMP_DESC -> SwitchDescReq
-    | Some OFPMP_PORT_DESC -> PortsDescReq
-    | Some OFPMP_FLOW -> FlowStatsReq
-    | Some OFPMP_AGGREGATE -> AggregFlowStatsReq
-    | Some OFPMP_TABLE -> TableStatsReq
-    | Some OFPMP_PORT_STATS -> PortStatsReq
-    | Some OFPMP_QUEUE -> QueueStatsReq
-    | Some OFPMP_GROUP -> GroupStatsReq
-    | Some OFPMP_GROUP_DESC -> GroupDescReq
-    | Some OFPMP_GROUP_FEATURES -> GroupFeatReq
-    | Some OFPMP_METER -> MeterStatsReq
-    | Some OFPMP_METER_CONFIG -> MeterConfReq
-    | Some OFPMP_METER_FEATURES -> MeterFeatReq
-    | Some OFPMP_TABLE_FEATURES -> TableFeatReq
-    | Some OFPMP_EXPERIMENTER -> ExperimentReq
-    | _ -> raise (Unparsable (sprintf "bad ofp_multipart_types number (%d)" mpr))
+    | TableFeatReq _ -> OFPMP_TABLE_FEATURES
+    | ExperimentReq _ -> OFPMP_EXPERIMENTER
 
   let sizeof (mpr : multipartRequest) =
     sizeof_ofp_multipart_request + 
-    (match mpr.mpr_body with 
-       | None -> 0
-       | Some MrbFlow fr -> FlowRequest.sizeof fr 
-       | Some MrbAggreg fr -> FlowRequest.sizeof fr
-       | Some MrbPort _ -> sizeof_ofp_port_stats_request 
-       | Some MrbQueue _ -> sizeof_ofp_queue_stats_request
-       | Some MrbGroup _ -> sizeof_ofp_group_stats_request 
-       | Some MrbMeter _ -> sizeof_ofp_meter_multipart_request
-       | Some MrbTable tfr -> TableFeaturesRequest.sizeof tfr
-       | Some MrbExperimenter _ -> raise (Unparsable (sprintf "Not yet implement")) )
+    (match mpr.mpr_type with 
+       | SwitchDescReq | PortsDescReq | TableStatsReq | MeterFeatReq | GroupDescReq
+       | GroupFeatReq -> 0
+       | FlowStatsReq fr -> FlowRequest.sizeof fr 
+       | AggregFlowStatsReq fr -> FlowRequest.sizeof fr
+       | PortStatsReq _ -> sizeof_ofp_port_stats_request 
+       | QueueStatsReq _ -> sizeof_ofp_queue_stats_request
+       | GroupStatsReq _ -> sizeof_ofp_group_stats_request 
+       | MeterStatsReq _  | MeterConfReq _ -> sizeof_ofp_meter_multipart_request
+       | TableFeatReq tfr -> (match tfr with
+          | None -> 0
+          | Some t -> TableFeaturesRequest.sizeof t)
+       | ExperimentReq _ -> sizeof_ofp_experimenter_multipart_header)
 
   let to_string (mpr : multipartRequest) : string =
     match mpr.mpr_type with
       | SwitchDescReq -> "SwitchDesc Req"
       | PortsDescReq -> "PortDesc Req"
-      | FlowStatsReq -> Format.sprintf "FlowStats %s Req" (match mpr.mpr_body with
-        | Some MrbFlow p -> FlowRequest.to_string p
-        | _ -> failwith "Unexpected body")
-      | AggregFlowStatsReq -> Format.sprintf "AggregFlowStats %s Req" (match mpr.mpr_body with
-        | Some MrbAggreg p -> FlowRequest.to_string p
-        | _ -> failwith "Unexpected body")
+      | FlowStatsReq f -> 
+          Format.sprintf "FlowStats %s Req" (FlowRequest.to_string f)
+      | AggregFlowStatsReq f -> 
+          Format.sprintf "AggregFlowStats %s Req" (FlowRequest.to_string f)
       | TableStatsReq -> "TableStats Req"
-      | PortStatsReq -> Format.sprintf "PortStats %lu Req" (match mpr.mpr_body with
-        | Some MrbPort p -> p
-        | _ -> failwith "Unexpected body")
-      | QueueStatsReq -> Format.sprintf "QueueStats Req: %s" (match mpr.mpr_body with
-        | Some MrbQueue p -> QueueRequest.to_string p
-        | _ -> failwith "Unexpected body")
-      | GroupStatsReq -> "GroupStats Req"
+      | PortStatsReq p -> 
+          Format.sprintf "PortStats %lu Req" p
+      | QueueStatsReq q -> 
+          Format.sprintf "QueueStats Req: %s" (QueueRequest.to_string q)
+      | GroupStatsReq g -> Format.sprintf "GroupStats %lu Req" g
       | GroupDescReq -> "GroupDesc Req"
       | GroupFeatReq -> "GroupFeat Req"
-      | MeterStatsReq -> Format.sprintf "MeterStats Req: %lu " (match mpr.mpr_body with
-        | Some MrbMeter p -> p
-        | _ -> failwith "Unexpected body")
-      | MeterConfReq -> Format.sprintf "MeterConf Req: %lu" (match mpr.mpr_body with
-        | Some MrbMeter p -> p
-        | _ -> failwith "Unexpected body")
+      | MeterStatsReq m -> Format.sprintf "MeterStats Req: %lu " m
+      | MeterConfReq m -> Format.sprintf "MeterConf Req: %lu" m
       | MeterFeatReq -> "MeterFeat Req"
-      | TableFeatReq -> Format.sprintf "TableFeat Req: %s" (match mpr.mpr_body with
-        | Some MrbTable p -> TableFeaturesRequest.to_string p
-        | None -> ""
-        | _ -> failwith "Unexpected body")
-      | ExperimentReq -> "Experimenter Req"
+      | TableFeatReq t-> Format.sprintf "TableFeat Req: %s" (match t with
+        | Some v -> TableFeaturesRequest.to_string v
+        | None -> "None" )
+      | ExperimentReq e-> Format.sprintf "Experimenter Req: id: %lu; type: %lu" e.exp_id e.exp_type
 
   let marshal (buf : Cstruct.t) (mpr : multipartRequest) : int =
     let size = sizeof_ofp_multipart_request in
     set_ofp_multipart_request_typ buf (ofp_multipart_types_to_int (msg_code_of_request mpr.mpr_type));
-    set_ofp_multipart_request_flags buf 0;
+    set_ofp_multipart_request_flags buf (
+      match mpr.mpr_flags with
+        | true -> ofp_multipart_request_flags_to_int OFPMPF_REQ_MORE
+        | false -> 0);
     set_ofp_multipart_request_pad0 buf 0;
     set_ofp_multipart_request_pad1 buf 0;
     set_ofp_multipart_request_pad2 buf 0;
     set_ofp_multipart_request_pad3 buf 0;
     let pay_buf = Cstruct.shift buf sizeof_ofp_multipart_request in
-    size + (
-    match mpr.mpr_body with
-       | None -> 0
-       | Some MrbTable tfr -> TableFeaturesRequest.marshal pay_buf tfr
-       | Some MrbFlow f -> FlowRequest.marshal pay_buf f
-       | Some MrbAggreg f -> FlowRequest.marshal pay_buf f
-       | Some MrbPort p -> 
-          set_ofp_port_stats_request_port_no pay_buf p;
-          sizeof_ofp_port_stats_request
-       | Some MrbQueue q -> QueueRequest.marshal pay_buf q
-       | Some MrbGroup g ->
-          set_ofp_group_stats_request_group_id pay_buf g;
-          sizeof_ofp_group_stats_request
-       | Some MrbMeter m -> 
-          set_ofp_meter_multipart_request_meter_id pay_buf m;
-          sizeof_ofp_meter_multipart_request
-       | Some MrbExperimenter _ -> raise (Unparsable (sprintf "Not yet implement")) 
-    )
+    match mpr.mpr_type with
+      | SwitchDescReq
+      | PortsDescReq -> size
+      | FlowStatsReq f -> size + (FlowRequest.marshal pay_buf f)
+      | AggregFlowStatsReq f -> size + (FlowRequest.marshal pay_buf f)
+      | TableStatsReq -> size
+      | PortStatsReq p -> set_ofp_port_stats_request_port_no pay_buf p;
+                          size + sizeof_ofp_port_stats_request
+      | QueueStatsReq q -> size + (QueueRequest.marshal pay_buf q)
+      | GroupStatsReq g -> set_ofp_port_stats_request_port_no pay_buf g;
+                           size + sizeof_ofp_port_stats_request
+      | GroupDescReq
+      | GroupFeatReq -> size
+      | MeterStatsReq m -> set_ofp_meter_multipart_request_meter_id pay_buf m;
+                           size + sizeof_ofp_meter_multipart_request
+      | MeterConfReq m -> set_ofp_meter_multipart_request_meter_id pay_buf m;
+                          size + sizeof_ofp_meter_multipart_request
+      | MeterFeatReq -> size
+      | TableFeatReq t -> 
+        (match t with
+          | None -> 0
+          | Some v -> size + (TableFeaturesRequest.marshal pay_buf v))
+      | ExperimentReq _ -> size
 
   let parse (bits : Cstruct.t) : multipartRequest =
-    let mprType = to_multipartType (get_ofp_multipart_request_typ bits) in
-    let mprFlags = (
+    let mprType = int_to_ofp_multipart_types (get_ofp_multipart_request_typ bits) in
+    let mpr_flags = (
       match int_to_ofp_multipart_request_flags (get_ofp_multipart_request_flags bits) with
         | Some OFPMPF_REQ_MORE -> true
         | _ -> false) in
-    let mprBody = match mprType with
-      | SwitchDescReq 
-      | TableStatsReq
-      | GroupDescReq
-      | GroupFeatReq
-      | MeterFeatReq
-      | PortsDescReq -> None
-      | FlowStatsReq -> Some (MrbFlow (
-      FlowRequest.parse (Cstruct.shift bits sizeof_ofp_multipart_request)))
-      | AggregFlowStatsReq -> Some (MrbAggreg (
-      FlowRequest.parse (Cstruct.shift bits sizeof_ofp_multipart_request)))
-      | PortStatsReq -> Some (MrbPort (
-      get_ofp_port_stats_request_port_no (Cstruct.shift bits sizeof_ofp_multipart_request)))
-      | QueueStatsReq -> Some (MrbQueue (
-      QueueRequest.parse (Cstruct.shift bits sizeof_ofp_multipart_request)))
-      | GroupStatsReq -> Some (MrbGroup (
-      get_ofp_group_stats_request_group_id (Cstruct.shift bits sizeof_ofp_multipart_request)))
-      | MeterStatsReq -> Some (MrbMeter (
-      get_ofp_meter_multipart_request_meter_id (Cstruct.shift bits sizeof_ofp_multipart_request)))
-      | MeterConfReq -> Some (MrbMeter (
-      get_ofp_meter_multipart_request_meter_id (Cstruct.shift bits sizeof_ofp_multipart_request)))
-      | TableFeatReq -> 
+    let mpr_type = match mprType with
+      | Some OFPMP_DESC -> SwitchDescReq
+      | Some OFPMP_PORT_DESC -> PortsDescReq
+      | Some OFPMP_FLOW -> FlowStatsReq (
+        FlowRequest.parse (Cstruct.shift bits sizeof_ofp_multipart_request))
+      | Some OFPMP_AGGREGATE -> AggregFlowStatsReq (
+        FlowRequest.parse (Cstruct.shift bits sizeof_ofp_multipart_request))
+      | Some OFPMP_TABLE -> TableStatsReq
+      | Some OFPMP_PORT_STATS -> PortStatsReq (
+        get_ofp_port_stats_request_port_no (Cstruct.shift bits sizeof_ofp_multipart_request))
+      | Some OFPMP_QUEUE -> QueueStatsReq (
+        QueueRequest.parse (Cstruct.shift bits sizeof_ofp_multipart_request))
+      | Some OFPMP_GROUP -> GroupStatsReq (
+        get_ofp_group_stats_request_group_id (Cstruct.shift bits sizeof_ofp_multipart_request))
+      | Some OFPMP_GROUP_DESC -> GroupDescReq
+      | Some OFPMP_GROUP_FEATURES -> GroupFeatReq
+      | Some OFPMP_METER -> MeterStatsReq (
+        get_ofp_meter_multipart_request_meter_id (Cstruct.shift bits sizeof_ofp_multipart_request))
+      | Some OFPMP_METER_CONFIG -> MeterConfReq (
+        get_ofp_meter_multipart_request_meter_id (Cstruct.shift bits sizeof_ofp_multipart_request))
+      | Some OFPMP_METER_FEATURES -> MeterFeatReq
+      | Some OFPMP_TABLE_FEATURES -> TableFeatReq (
       if Cstruct.len bits <= sizeof_ofp_multipart_request then None
-      else Some (MrbTable (
+      else Some (
         TableFeaturesRequest.parse (Cstruct.shift bits sizeof_ofp_multipart_request)
       ))
-      | ExperimentReq -> None in
-    { mpr_type = mprType
-    ; mpr_flags = mprFlags
-    ; mpr_body = mprBody}
-    
+      | Some OFPMP_EXPERIMENTER -> ExperimentReq (
+      let exp_bits = Cstruct.shift bits sizeof_ofp_multipart_request in
+      let exp_id = get_ofp_experimenter_multipart_header_experimenter exp_bits in
+      let exp_type = get_ofp_experimenter_multipart_header_exp_type exp_bits in
+      {exp_id; exp_type})
+      | _ -> raise (Unparsable (sprintf "bad ofp_multipart_types number"))
+    in {mpr_type; mpr_flags}
+
 
 end
 
@@ -3326,6 +3317,4 @@ module Message = struct
     (hdr.Header.xid, msg)
 end
 
-let portsDescRequest = Message.MultipartReq {mpr_type = PortsDescReq;
-                                             mpr_flags = false;
-                                             mpr_body = None}
+let portsDescRequest = Message.MultipartReq portDescReq

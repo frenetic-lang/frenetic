@@ -209,23 +209,6 @@ type packetOut = {
   po_actions : actionSequence
 }
 
-type multipartType =
-  | SwitchDescReq
-  | PortsDescReq 
-  | FlowStatsReq
-  | AggregFlowStatsReq
-  | TableStatsReq
-  | PortStatsReq
-  | QueueStatsReq
-  | GroupStatsReq
-  | GroupDescReq
-  | GroupFeatReq
-  | MeterStatsReq
-  | MeterConfReq
-  | MeterFeatReq
-  | TableFeatReq
-  | ExperimentReq
-
 type flowRequest = {fr_table_id : tableId; fr_out_port : portId; 
                     fr_out_group : portId; fr_cookie : int64 mask;
                     fr_match : oxmMatch}
@@ -270,19 +253,24 @@ type tableFeaturesRequest = tableFeatures list
 
 type experimenter = {exp_id : int32; exp_type : int32}
 
-type multipartRequestBody =
-  | MrbFlow of flowRequest
-  | MrbAggreg of flowRequest
-  | MrbPort of portId
-  | MrbQueue of queueRequest
-  | MrbGroup of groupId
-  | MrbMeter of int32
-  | MrbTable of tableFeaturesRequest
-  | MrbExperimenter of experimenter
-  
+type multipartType =
+  | SwitchDescReq
+  | PortsDescReq 
+  | FlowStatsReq of flowRequest
+  | AggregFlowStatsReq of flowRequest
+  | TableStatsReq
+  | PortStatsReq of portId
+  | QueueStatsReq of queueRequest
+  | GroupStatsReq of int32
+  | GroupDescReq
+  | GroupFeatReq
+  | MeterStatsReq of int32
+  | MeterConfReq of int32
+  | MeterFeatReq
+  | TableFeatReq of tableFeaturesRequest option
+  | ExperimentReq of experimenter  
 
-type multipartRequest = { mpr_type : multipartType; mpr_flags : bool;
-                          mpr_body : multipartRequestBody option}
+type multipartRequest = { mpr_type : multipartType; mpr_flags : bool }
 
 
 val portDescReq : multipartRequest
