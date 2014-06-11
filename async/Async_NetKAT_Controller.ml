@@ -37,7 +37,7 @@ type t = {
   ctl : Controller.t;
   txn : Txn.t;
   nib : Net.Topology.t ref;
-  mutable locals : NetKAT_Types.policy SwitchMap.t;
+  app : Async_NetKAT.app;
   mutable edge : (SDN_Types.flow*int) list SwitchMap.t;
 }
 
@@ -190,43 +190,37 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
           let open OpenFlow0x01_Core in
           let port_id = Int32.of_int_exn pi.port in
           let payload = SDN_OpenFlow0x01.to_payload pi.input_payload in
-          begin match SwitchMap.find t.locals switch_id with
-            | None ->
-              (* The switch may be connected but has yet had rules installed on
-               * it. In that case, just drop the packet.
-               * *)
-              return []
-            | Some local ->
-              (* Eval the packet to get the list of packets that should go to
-               * pipes, and the list of packets that can be forwarded to physical
-               * locations.
-               * *)
-              let pkt0 = {
-                switch = switch_id;
-                headers = bytes_to_headers port_id (SDN_Types.payload_bytes payload);
-                payload = payload;
-              } in
-              begin
-                (* XXX(seliopou): What if the packet's modified? Should buf_id be
-                 * exposed to the application?
-                 * *)
-                let pis, phys = NetKAT_Semantics.eval_pipes pkt0 local in
-                let outs = Deferred.List.iter phys ~f:(fun pkt1 ->
-                  let acts = headers_to_actions pkt1.headers pkt0.headers in
-                  let out  = (switch_id, (payload, Some(port_id), acts)) in
-                  Pipe.write w_out out) in
-                outs >>= fun _ ->
-                return (List.map pis ~f:(fun (pipe, pkt2) ->
-                  let pkt3, changed = packet_sync_headers pkt2 in
-                  let payload = match payload, changed with
-                      | SDN_Types.NotBuffered(_), _
-                      | _                       , true ->
-                        SDN_Types.NotBuffered(SDN_Types.payload_bytes pkt3.payload)
-                      | SDN_Types.Buffered(buf_id, bytes), false ->
-                        SDN_Types.Buffered(buf_id, bytes)
-                  in
-                  PacketIn(pipe, switch_id, port_id, payload, pi.total_len)))
-              end
+          let local =
+            Optimize.specialize_policy switch_id (Async_NetKAT.default t.app) in
+          (* Eval the packet to get the list of packets that should go to
+           * pipes, and the list of packets that can be forwarded to physical
+           * locations.
+           * *)
+          let pkt0 = {
+            switch = switch_id;
+            headers = bytes_to_headers port_id (SDN_Types.payload_bytes payload);
+            payload = payload;
+          } in
+          begin
+            (* XXX(seliopou): What if the packet's modified? Should buf_id be
+             * exposed to the application?
+             * *)
+            let pis, phys = NetKAT_Semantics.eval_pipes pkt0 local in
+            let outs = Deferred.List.iter phys ~f:(fun pkt1 ->
+              let acts = headers_to_actions pkt1.headers pkt0.headers in
+              let out  = (switch_id, (payload, Some(port_id), acts)) in
+              Pipe.write w_out out) in
+            outs >>= fun _ ->
+            return (List.map pis ~f:(fun (pipe, pkt2) ->
+              let pkt3, changed = packet_sync_headers pkt2 in
+              let payload = match payload, changed with
+                  | SDN_Types.NotBuffered(_), _
+                  | _                       , true ->
+                    SDN_Types.NotBuffered(SDN_Types.payload_bytes pkt3.payload)
+                  | SDN_Types.Buffered(buf_id, bytes), false ->
+                    SDN_Types.Buffered(buf_id, bytes)
+              in
+              PacketIn(pipe, switch_id, port_id, payload, pi.total_len)))
           end
         | PortStatusMsg ps ->
           let open OpenFlow0x01.PortStatus in
@@ -276,8 +270,6 @@ let internal_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred
   let to_flow_mod prio flow =
     OpenFlow0x01.Message.FlowModMsg (SDN_OpenFlow0x01.from_flow prio flow) in
   let c_id = Controller.client_id_of_switch t.ctl sw_id in
-  t.locals <- SwitchMap.add t.locals sw_id
-    (Optimize.specialize_policy sw_id pol);
   let local = NetKAT_LocalCompiler.compile sw_id pol in
   Monitor.try_with ~name:"internal_update_table_for" (fun _ ->
     let priority = ref 65536 in
@@ -387,8 +379,6 @@ let swap_update_for (t : t) sw_id new_table : unit Deferred.t =
 
 
 let edge_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred.t =
-  t.locals <- SwitchMap.add t.locals sw_id
-    (Optimize.specialize_policy sw_id pol);
   let local = NetKAT_LocalCompiler.compile sw_id pol in
   Monitor.try_with ~name:"edge_update_table_for" (fun _ ->
       let table = NetKAT_LocalCompiler.to_table local in
@@ -462,8 +452,6 @@ let update_table_for (t : t) (sw_id : switchId) pol : unit Deferred.t =
   let to_flow_mod prio flow =
     OpenFlow0x01.Message.FlowModMsg (SDN_OpenFlow0x01.from_flow prio flow) in
   let c_id = Controller.client_id_of_switch t.ctl sw_id in
-  t.locals <- SwitchMap.add t.locals sw_id
-      (Optimize.specialize_policy sw_id pol);
   let local = NetKAT_LocalCompiler.compile sw_id pol in
   Monitor.try_with ~name:"update_table_for" (fun () ->
       send t.ctl c_id (5l, delete_flows) >>= fun _ ->
@@ -515,7 +503,7 @@ let start app ?(port=6633) ?(update=`BestEffort) () =
     ctl = ctl;
     txn = Txn.create ctl;
     nib = ref (Net.Topology.empty ());
-    locals = SwitchMap.empty;
+    app = app;
     edge = SwitchMap.empty;
   } in
 
