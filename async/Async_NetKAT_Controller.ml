@@ -248,30 +248,8 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
           return []
       end
 
-let get_switchids nib =
-  Net.Topology.fold_vertexes (fun v acc -> match Net.Topology.vertex_to_label nib v with
-    | Async_NetKAT.Switch id -> id::acc
-    | _ -> acc)
-  nib []
-
-(* Topology detection doesn't really detect hosts. So, I treat any
-   port not connected to a known switch as an edge port *)
-let get_internal_ports (t : t) (sw_id : switchId) =
-  let open Async_NetKAT in
-  let open Net.Topology in
-  let topo = !(t.nib) in
-  let sw = vertex_of_label topo (Switch sw_id) in
-  PortSet.fold (fun pt acc ->
-      match next_hop topo sw pt with
-      | Some e -> let (node, _) = edge_dst e in
-        begin match vertex_to_label topo node with
-          | Switch _ -> PortSet.add pt acc
-          | _ -> acc
-        end
-      | _ -> acc) (vertex_to_ports topo sw) PortSet.empty
-
 let compute_internal_table (t : t) ver table sw_id =
-  let internal_ports = get_internal_ports t sw_id in
+  let internal_ports = TUtil.internal_ports !(t.nib) sw_id in
   let open SDN_Types in
   let open Async_NetKAT.Net.Topology in
   let rec fix_actions = function
@@ -330,7 +308,7 @@ let internal_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred
   | Error exn -> raise exn
 
 let compute_edge_table (t : t) ver table sw_id =
-  let internal_ports = get_internal_ports t sw_id in
+  let internal_ports = TUtil.internal_ports !(t.nib) sw_id in
   let vlan_none = 65535 in
   (* Fold twice: once to fix match, second to fix fwd *)
   let open SDN_Types in
@@ -459,7 +437,7 @@ let clear_old_table_for (t : t) ver sw_id : unit Deferred.t =
 let ver = ref 1 
   
 let consistently_update_table (t : t) pol : unit Deferred.t =
-  let switches = get_switchids !(t.nib) in
+  let switches = TUtil.switch_ids !(t.nib) in
   let ver_num = !ver + 1 in
   (* Install internal update *)
   Log.debug ~tags "Installing internal tables for ver %d" ver_num;
@@ -505,7 +483,7 @@ let update_table_for (t : t) (sw_id : switchId) pol : unit Deferred.t =
     Log.flushed ()
 
 let best_effort_update_table t pol =
-  Deferred.List.iter (get_switchids !(t.nib)) (fun sw -> update_table_for t sw pol)
+  Deferred.List.iter (TUtil.switch_ids !(t.nib)) (fun sw -> update_table_for t sw pol)
 
 let handler
   ?(update=`BestEffort)

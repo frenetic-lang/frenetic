@@ -64,6 +64,7 @@ Library async
   InternalModules:
     Discovery,
     Learning,
+    TUtil,
     Txn
   Modules:
     Async_NetKAT,
