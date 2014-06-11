@@ -843,7 +843,7 @@ module RunTime = struct
     let f par a = (to_action a pto)::par in
     List.dedup (Action.Set.fold s ~f:f ~init:[])
 
-  let simpl_flow (p : pattern) (a : par) : flow =
+  let simpl_flow (p : SDN_Types.Pattern.t) (a : par) : flow =
     { pattern = p;
       action = [a];
       cookie = 0L;
@@ -952,17 +952,18 @@ module RunTime = struct
         let default_port = Core_kernel.Option.map ~f:il x.HOV.location in
         let actions = if b then set_to_action s default_port else [] in
         let pattern =
-          { SDN_Types.dlSrc = x.HOV.ethSrc
-          ; SDN_Types.dlDst = x.HOV.ethDst
-          ; SDN_Types.dlTyp = x.HOV.ethType
-          ; SDN_Types.dlVlan = x.HOV.vlan
-          ; SDN_Types.dlVlanPcp = x.HOV.vlanPcp
-          ; SDN_Types.nwSrc = x.HOV.ipSrc
-          ; SDN_Types.nwDst = x.HOV.ipDst
-          ; SDN_Types.nwProto = x.HOV.ipProto
-          ; SDN_Types.tpSrc = x.HOV.tcpSrcPort
-          ; SDN_Types.tpDst = x.HOV.tcpDstPort
-          ; SDN_Types.inPort = default_port }
+          let open SDN_Types.Pattern in 
+          { dlSrc = x.HOV.ethSrc
+          ; dlDst = x.HOV.ethDst
+          ; dlTyp = x.HOV.ethType
+          ; dlVlan = x.HOV.vlan
+          ; dlVlanPcp = x.HOV.vlanPcp
+          ; nwSrc = x.HOV.ipSrc
+          ; nwDst = x.HOV.ipDst
+          ; nwProto = x.HOV.ipProto
+          ; tpSrc = x.HOV.tcpSrcPort
+          ; tpDst = x.HOV.tcpDstPort
+          ; inPort = default_port }
         in
         simpl_flow pattern actions) in
     go (cross m)
@@ -1057,7 +1058,7 @@ module Local_Optimize = struct
    *
    *   ∀f, f ∈ p ⇒ f ∈ q ∧ (p(f) = q(f))
    *)
-  let pattern_shadows (p: pattern) (q: pattern) : bool =
+  let pattern_shadows (p: SDN_Types.Pattern.t) (q: SDN_Types.Pattern.t) : bool =
     let check m1 m2 =
       match m1 with
         | None -> true
@@ -1067,7 +1068,7 @@ module Local_Optimize = struct
             | Some(v2) -> v1 = v2
           end
     in
-    let open SDN_Types in
+    let open SDN_Types.Pattern in
     check p.dlSrc q.dlSrc && check p.dlDst q.dlDst && check p.dlTyp q.dlTyp
       && check p.dlVlan q.dlVlan && check p.dlVlanPcp q.dlVlanPcp
       && check p.nwSrc q.nwSrc && check p.nwDst q.nwDst

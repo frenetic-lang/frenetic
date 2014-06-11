@@ -153,8 +153,9 @@ TEST "vlan" =
        bogus. This test tickles the bug by simply compiling a
        predicate with two negated tests. *)
  TEST "expand_rules" =
+   let open SDN_Types.Pattern in 
    let flow p a = { pattern = p; action = [a]; cookie = 0L; idle_timeout = Permanent; hard_timeout= Permanent } in
-   let dropEthSrc v = flow { all_pattern with dlSrc = Some(v) } [] in
+   let dropEthSrc v = flow { match_all with dlSrc = Some(v) } [] in
    let pol = Seq(Filter (And (Neg(Test(EthSrc 0L)), Neg(Test(EthSrc 1L)))),
                  Mod (Location (Physical 1l))) in
    (* Not testing the table itself because this is (a) tedious and (b) not stable. *)
@@ -162,7 +163,7 @@ TEST "vlan" =
    test_compile_table pol
      [ dropEthSrc 0L;
        dropEthSrc 1L;
-       flow all_pattern [a]]
+       flow match_all [a]]
 
 module FromPipe = struct
   open Core.Std
@@ -249,7 +250,7 @@ let gen_pol_1 =
   let open QuickCheck in
   let open QuickCheck_gen in
   let open NetKAT_Arbitrary in
-  let open Packet_Arbitrary in
+  let open Arbitrary_Packet in
   let open Packet in
   testable_fun
     (arbitrary_lf_pol >>= fun p ->
@@ -262,7 +263,7 @@ let gen_pol_2 =
   let open QuickCheck in
   let open QuickCheck_gen in
   let open NetKAT_Arbitrary in
-  let open Packet_Arbitrary in
+  let open Arbitrary_Packet in
   let open Packet in
     testable_fun
       (arbitrary_lf_pol >>= fun p ->
@@ -276,7 +277,7 @@ let gen_pol_3 =
   let open QuickCheck in
   let open QuickCheck_gen in
   let open NetKAT_Arbitrary in
-  let open Packet_Arbitrary in
+  let open Arbitrary_Packet in
   let open Packet in
   testable_fun
     (arbitrary_lf_pol >>= fun p ->

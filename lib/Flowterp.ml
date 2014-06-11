@@ -12,7 +12,8 @@ module Headers = struct
   open NetKAT_Types
   open SDN_Types
 
-  let eval_pattern (hdrs : HeadersValues.t) (pat : pattern) : bool =
+  let eval_pattern (hdrs : HeadersValues.t) (pat : Pattern.t) : bool =
+    let open Pattern in 
     let matches p f =
       match p with
         | None -> true
