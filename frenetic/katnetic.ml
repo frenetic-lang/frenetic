@@ -222,9 +222,7 @@ struct
 
   let check_equivalent t1 t2 = 
   let module UnivMap = Decide_Util.SetMapF (Decide_Util.Field) (Decide_Util.Value) in
-  Printf.printf "getting values in this term: %s\n" (Decide_Ast.Term.to_string t1);
   let t1vals = Decide_Ast.Term.values t1 in 
-  Printf.printf "getting values in this term: %s\n" (Decide_Ast.Term.to_string t2);
   let t2vals = Decide_Ast.Term.values t2 in 
   if ((not (UnivMap.is_empty t1vals)) || (not (UnivMap.is_empty t2vals)))
   then 
@@ -259,6 +257,8 @@ struct
   let verify_shortest_paths filename = 
     let topo, vertexes, switches, hosts = topology filename in 
     let sw_pol = shortest_path_policy topo switches hosts in 
+    let edge_pol, _ = connectivity_policy topo hosts in 
+    let wrap pol = NetKAT_Types.(Seq(Seq(Filter edge_pol, pol), Filter edge_pol)) in 
     let sw_tbl = shortest_path_table topo switches sw_pol in 
     let tp_pol = topology_policy topo in 
     let net_sw_pol = NetKAT_Types.(Star(Seq(sw_pol, tp_pol))) in 
@@ -267,10 +267,13 @@ struct
       (NetKAT_Pretty.string_of_policy sw_pol)
       (NetKAT_Pretty.string_of_policy sw_tbl)
       (NetKAT_Pretty.string_of_policy tp_pol);
+    let dl = (Dexterize.policy_to_term ~dup:true (wrap net_sw_pol)) in 
+    let dr = (Dexterize.policy_to_term ~dup:true (wrap net_sw_tbl)) in
+    Printf.printf "## Dexter Policy: ##\n%s\n##Dexter OF policy: ##\n%s\n"
+      (Decide_Ast.Term.to_string dl)
+      (Decide_Ast.Term.to_string dr);
     Printf.printf "## Equivalent ##\n%b\n"
-      (check_equivalent
-	 (Dexterize.policy_to_term ~dup:true net_sw_pol)
-	 (Dexterize.policy_to_term ~dup:true net_sw_tbl))
+      (check_equivalent dl dr)
 
 
   let verify_connectivity filename = 
@@ -284,8 +287,8 @@ struct
     Printf.printf "## NetKAT Policy ##\n%s\n## Connectivity Policy ##\n%s\n%!"
       (NetKAT_Pretty.string_of_policy net_sw_pol)
       (NetKAT_Pretty.string_of_policy net_cn_pol);
-    let lhs = (Dexterize.policy_to_term ~dup:false net_cn_pol) in 
-    let rhs = Decide_Ast.Term.unfold_star_twice (Dexterize.policy_to_term ~dup:false net_sw_pol) in 
+    let lhs = Dexterize.policy_to_term ~dup:false net_cn_pol in 
+    let rhs = Dexterize.policy_to_term ~dup:false net_sw_pol in 
     Printf.printf "## Dexter NetKAT Policy ##\n%s\n## Dexter Connectivity Policy ##\n%s\n%!"
       (Decide_Ast.Term.to_string lhs)
       (Decide_Ast.Term.to_string rhs);
