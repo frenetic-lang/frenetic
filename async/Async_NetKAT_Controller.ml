@@ -242,8 +242,7 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
           return []
       end
 
-let compute_internal_table (t : t) ver table sw_id =
-  let internal_ports = TUtil.internal_ports !(t.nib) sw_id in
+let compute_internal_table ver internal_ports table =
   let open SDN_Types in
   let open Async_NetKAT.Net.Topology in
   let rec fix_actions = function
@@ -270,11 +269,11 @@ let internal_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred
   let to_flow_mod prio flow =
     OpenFlow0x01.Message.FlowModMsg (SDN_OpenFlow0x01.from_flow prio flow) in
   let c_id = Controller.client_id_of_switch t.ctl sw_id in
-  let local = NetKAT_LocalCompiler.compile sw_id pol in
+  let table = NetKAT_LocalCompiler.(to_table (compile sw_id pol)) in
   Monitor.try_with ~name:"internal_update_table_for" (fun _ ->
     let priority = ref 65536 in
     (* Add match on ver *)    
-    let table = compute_internal_table t ver (NetKAT_LocalCompiler.to_table local) sw_id in
+    let table = compute_internal_table ver (TUtil.internal_ports !(t.nib) sw_id) table in
     (* Log.debug ~tags
       "switch %Lu: Installing internal table %s" sw_id (SDN_Types.string_of_flowTable table);
     *)
