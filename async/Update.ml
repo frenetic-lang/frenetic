@@ -41,3 +41,50 @@ module BestEffort : S = struct
     Deferred.List.iter (TUtil.switch_ids nib) (fun sw_id ->
       bring_up_switch t sw_id policy)
 end
+
+(* NB: This module contains internal state. It is here for code organization and
+ * not for code reuse. You can only use this module in one place in each
+ * program.
+ *)
+module PerPacketConsistent = struct
+
+  let specialize_action ver internal_ports actions =
+    let open SDN in
+    List.fold_right actions ~init:[] ~f:(fun action acc ->
+      begin match action with
+      | Output (Physical   pt) ->
+        if not (Net.Topology.PortSet.mem pt internal_ports) then
+          [Modify (SetVlan None)]
+        else
+          [Modify (SetVlan (Some ver))]
+      | Output (Controller n ) ->
+        [Modify (SetVlan None)]
+      | Output _               -> assert false
+      | _                      -> acc
+      end @ (action :: acc))
+
+  let specialize_edge_to (ver : int) internal_ports (table : SDN.flowTable) =
+    let open SDN in
+    let vlan_none = 65535 in
+    List.filter_map table ~f:(fun flow ->
+      begin match flow.pattern.Pattern.inPort with
+      | Some pt when Net.Topology.PortSet.mem pt internal_ports ->
+        None
+      | _ ->
+        Some { flow with
+          pattern = { flow.pattern with Pattern.dlVlan = Some vlan_none }
+        ; action  = List.map flow.action ~f:(fun x ->
+            List.map x ~f:(specialize_action ver internal_ports))
+        }
+      end)
+
+  let specialize_internal_to (ver : int) internal_ports (table : SDN.flowTable) =
+    let open SDN in
+    List.map table ~f:(fun flow ->
+      { flow with
+        pattern = { flow.pattern with Pattern.dlVlan = Some ver }
+      ; action  = List.map flow.action ~f:(fun x ->
+          List.map x ~f:(specialize_action ver internal_ports))
+      })
+
+end

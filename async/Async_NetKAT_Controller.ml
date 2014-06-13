@@ -242,29 +242,6 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
           return []
       end
 
-let compute_internal_table ver internal_ports table =
-  let open SDN_Types in
-  let open Async_NetKAT.Net.Topology in
-  let rec fix_actions = function
-    | Output (Physical pt) :: acts ->
-      if not (PortSet.mem pt internal_ports)
-      then
-        (Modify (SetVlan None)) :: (Output (Physical pt)) :: (fix_actions acts)
-      else
-        (Modify (SetVlan (Some ver))) :: (Output (Physical pt)) :: (fix_actions acts)
-    | Output (Controller n) :: acts ->
-      (Modify (SetVlan None)) :: (Output (Controller n)) :: (fix_actions acts)
-    | Output _ :: acts ->
-      raise (Assertion_failed "Controller.compute_internal_table: Port not supported by consistent updates")
-    | act :: acts ->
-      act :: (fix_actions acts)
-    | [] -> [] in
-  let open Pattern in
-  let match_table = List.fold table ~init:[] ~f:(fun acc r ->
-      {r with pattern = {r.pattern with dlVlan = Some ver}} :: acc) in
-  List.fold match_table ~init:[] ~f:(fun acc r ->
-      {r with action = List.map r.action ~f:(fun x -> List.map x ~f:(fix_actions))} :: acc)
-    
 let internal_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred.t =
   let to_flow_mod prio flow =
     OpenFlow0x01.Message.FlowModMsg (SDN_OpenFlow0x01.from_flow prio flow) in
@@ -273,7 +250,8 @@ let internal_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred
   Monitor.try_with ~name:"internal_update_table_for" (fun _ ->
     let priority = ref 65536 in
     (* Add match on ver *)    
-    let table = compute_internal_table ver (TUtil.internal_ports !(t.nib) sw_id) table in
+    let table = Update.PerPacketConsistent.specialize_internal_to
+      ver (TUtil.internal_ports !(t.nib) sw_id) table in
     (* Log.debug ~tags
       "switch %Lu: Installing internal table %s" sw_id (SDN_Types.string_of_flowTable table);
     *)
@@ -297,41 +275,6 @@ let internal_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred
       "switch %Lu: disconnected while installing internal table for ver %d... skipping" sw_id ver;
     Log.flushed ()
   | Error exn -> raise exn
-
-let compute_edge_table ver internal_ports table =
-  let vlan_none = 65535 in
-  (* Fold twice: once to fix match, second to fix fwd *)
-  let open SDN_Types in
-  let open Async_NetKAT.Net.Topology in
-  let rec fix_actions = function
-    | Output (Physical pt) :: acts ->
-      if not (PortSet.mem pt internal_ports)
-      then
-        (Modify (SetVlan None)) :: (Output (Physical pt)) :: (fix_actions acts)
-      else
-        (Modify (SetVlan (Some ver))) :: (Output (Physical pt)) :: (fix_actions acts)
-    | Output (Controller n) :: acts ->
-      (Modify (SetVlan None)) :: (Output (Controller n)) :: (fix_actions acts)
-    | Output _ :: acts ->
-      raise (Assertion_failed "Controller.compute_edge_table: Port not supported by consistent updates")
-    | act :: acts ->
-      act :: (fix_actions acts)
-    | [] -> []
-  in
-  let open Pattern in
-  let match_table = List.fold table ~init:[] ~f:(fun acc r ->
-      begin
-        match r.pattern.inPort with
-        | Some pt ->
-          if PortSet.mem pt internal_ports
-          then acc
-          else {r with pattern = {r.pattern with dlVlan = Some vlan_none}} :: acc
-        | None ->
-          {r with pattern = {r.pattern with dlVlan = Some vlan_none}} :: acc
-      end)
-  in
-  List.fold match_table ~init:[] ~f:(fun acc r ->
-      {r with action = List.map r.action ~f:(fun x -> List.map x ~f:(fix_actions))} :: acc)
 
 (* Comparison should be made based on patterns only, not actions *)
 (* Assumes both FT are sorted in descending order by priority *)
@@ -375,11 +318,11 @@ let swap_update_for (t : t) sw_id new_table : unit Deferred.t =
   >>= fun () -> (t.edge <- SwitchMap.add t.edge sw_id new_table;
        return ())
 
-
 let edge_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred.t =
   let table = NetKAT_LocalCompiler.(to_table (compile sw_id pol)) in
   Monitor.try_with ~name:"edge_update_table_for" (fun _ ->
-      let edge_table = compute_edge_table ver (TUtil.internal_ports !(t.nib) sw_id) table in
+      let edge_table = Update.PerPacketConsistent.specialize_edge_to
+        ver (TUtil.internal_ports !(t.nib) sw_id) table in
       (*
       Log.debug ~tags
         "switch %Lu: Installing edge table %s" sw_id (SDN_Types.string_of_flowTable edge_table);
