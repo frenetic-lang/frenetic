@@ -298,8 +298,7 @@ let internal_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred
     Log.flushed ()
   | Error exn -> raise exn
 
-let compute_edge_table (t : t) ver table sw_id =
-  let internal_ports = TUtil.internal_ports !(t.nib) sw_id in
+let compute_edge_table ver internal_ports table =
   let vlan_none = 65535 in
   (* Fold twice: once to fix match, second to fix fwd *)
   let open SDN_Types in
@@ -378,10 +377,9 @@ let swap_update_for (t : t) sw_id new_table : unit Deferred.t =
 
 
 let edge_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred.t =
-  let local = NetKAT_LocalCompiler.compile sw_id pol in
+  let table = NetKAT_LocalCompiler.(to_table (compile sw_id pol)) in
   Monitor.try_with ~name:"edge_update_table_for" (fun _ ->
-      let table = NetKAT_LocalCompiler.to_table local in
-      let edge_table = compute_edge_table t ver table sw_id in
+      let edge_table = compute_edge_table ver (TUtil.internal_ports !(t.nib) sw_id) table in
       (*
       Log.debug ~tags
         "switch %Lu: Installing edge table %s" sw_id (SDN_Types.string_of_flowTable edge_table);
