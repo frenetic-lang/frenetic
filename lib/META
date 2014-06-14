@@ -1,9 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: a744270706f9fdf4324404917cf75d89)
+# DO NOT EDIT (digest: dfe02c3219f0d5c1e278bd9bf7a678a4)
 version = "2.0.0"
 description = "The Frenetic Compiler and Runtime System"
 requires =
-"core fieldslib fieldslib.syntax ocamlgraph openflow sexplib sexplib.syntax str threads"
+"core fieldslib fieldslib.syntax ocamlgraph openflow sexplib topology sexplib.syntax netkat_decide str threads"
 archive(byte) = "netkat.cma"
 archive(byte, plugin) = "netkat.cma"
 archive(native) = "netkat.cmxa"
@@ -12,7 +12,8 @@ exists_if = "netkat.cma"
 package "quickcheck" (
  version = "2.0.0"
  description = "The Frenetic Compiler and Runtime System"
- requires = "netkat openflow.quickcheck packet.quickcheck quickcheck"
+ requires =
+ "netkat netkat_decide topology openflow.quickcheck packet.quickcheck quickcheck"
  archive(byte) = "quickcheck.cma"
  archive(byte, plugin) = "quickcheck.cma"
  archive(native) = "quickcheck.cmxa"
@@ -24,7 +25,7 @@ package "async" (
  version = "2.0.0"
  description = "The Frenetic Compiler and Runtime System"
  requires =
- "async core cstruct cstruct.syntax netkat openflow openflow.async packet threads topology sexplib sexplib.syntax"
+ "async core cstruct cstruct.syntax netkat openflow openflow.async packet netkat_decide threads topology sexplib sexplib.syntax"
  archive(byte) = "async.cma"
  archive(byte, plugin) = "async.cma"
  archive(native) = "async.cmxa"

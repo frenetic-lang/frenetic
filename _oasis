@@ -27,7 +27,9 @@ Library netkat
     ocamlgraph,
     openflow,
     sexplib,
+    topology,
     sexplib.syntax,
+    netkat_decide,
     str,
     threads
   InternalModules:
@@ -39,6 +41,7 @@ Library netkat
     NetKAT_Lexer,
     NetKAT_LocalCompiler,
     NetKAT_Parser,
+    NetKAT_Verify,
     NetKAT_Pretty,
     NetKAT_Semantics,
     NetKAT_Types
@@ -57,6 +60,7 @@ Library async
     openflow,
     openflow.async,
     packet,
+    netkat_decide,
     threads,
     topology,
     sexplib,
@@ -75,6 +79,8 @@ Library quickcheck
   Build$: flag(quickcheck) || flag(tests)
   BuildDepends:
     netkat,
+    netkat_decide,
+    topology,
     openflow.quickcheck,
     packet.quickcheck,
     quickcheck
@@ -90,7 +96,9 @@ Executable testtool
     netkat,
     netkat.quickcheck,
     oUnit,
+    netkat_decide,
     packet,
+    topology,
     pa_ounit,
     pa_ounit.syntax,
     quickcheck
@@ -123,4 +131,5 @@ Executable netkat_test
     async,
     core,
     netkat,
+    netkat_decide,
     netkat.async
