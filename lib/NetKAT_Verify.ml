@@ -167,7 +167,7 @@ struct
 	  Decide_Bisimulation.check_equivalent t1 t2
 	end      
       else (
-	true) in 
+	Decide_Ast.Term.equal t1 t2) in 
     Decide_Util.release_univ_lock();
     ret
 
