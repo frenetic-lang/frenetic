@@ -243,32 +243,25 @@ type flowRequest = {fr_table_id : tableId; fr_out_port : portId;
 
 type queueRequest = {port_number : portId; queue_id : int32}
 
-type tfpType =
-  | TfpInstruction
-  | TfpInstructionMiss
-  | TfpNextTable
-  | TfpNextTableMiss
-  | TfpWriteAction
-  | TfpWriteActionMiss
-  | TfpApplyAction
-  | TfpApplyActionMiss
-  | TfpMatch
-  | TfpWildcard
-  | TfpWriteSetField
-  | TfpWriteSetFieldMiss
-  | TfpApplySetField
-  | TfpApplySetFieldMiss
-  | TfpExperimenter
-  | TfpExperimenterMiss
+type experimenter = {exp_id : int32; exp_type : int32}
 
-type tfpPayload = 
-  | TfpInstruction of instruction list
+type tableFeatureProp =
+  | TfpInstruction of instruction list 
+  | TfpInstructionMiss of instruction list
   | TfpNextTable of tableId list
-  | TfpAction of action list
-  | TfpSetField of oxm list
-
-type tableFeatureProp = {tfp_type : tfpType; tfp_length : int16; 
-                         tfp_payload : tfpPayload}
+  | TfpNextTableMiss of tableId list
+  | TfpWriteAction of action list
+  | TfpWriteActionMiss of action list
+  | TfpApplyAction of action list
+  | TfpApplyActionMiss of action list
+  | TfpMatch of oxm list
+  | TfpWildcard of oxm list
+  | TfpWriteSetField of oxm list
+  | TfpWriteSetFieldMiss of oxm list
+  | TfpApplySetField of oxm list
+  | TfpApplySetFieldMiss of oxm list
+  | TfpExperimenter of (experimenter*bytes)
+  | TfpExperimenterMiss of (experimenter*bytes)
 
 type tableConfig = Deprecated
 
@@ -278,8 +271,6 @@ type tableFeatures = {length : int16; table_id : tableId; name : string;
                       feature_prop : tableFeatureProp}
 
 type tableFeaturesRequest = tableFeatures list
-
-type experimenter = {exp_id : int32; exp_type : int32}
 
 type multipartType =
   | SwitchDescReq

@@ -265,6 +265,7 @@ module TableFeatureProp : sig
      
     val parse : Cstruct.t -> tableFeatureProp
 
+    val sizeof : tableFeatureProp -> int
     val to_string : tableFeatureProp -> string
 
 end
