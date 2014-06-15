@@ -2681,6 +2681,8 @@ module QueueRequest = struct
       { port_number = portNumber
       ; queue_id = queueId}
 
+    let sizeof _ = 
+        sizeof_ofp_queue_stats_request
     let to_string qr =
         Format.sprintf "Port:%lu;Queue:%lu" qr.port_number qr.queue_id
 end
@@ -3041,7 +3043,9 @@ module MultipartReq = struct
        | ExperimentReq _ -> sizeof_ofp_experimenter_multipart_header)
 
   let to_string (mpr : multipartRequest) : string =
-    match mpr.mpr_type with
+    Format.sprintf "more:%B;typ:%s"
+    mpr.mpr_flags
+    (match mpr.mpr_type with
       | SwitchDescReq -> "SwitchDesc Req"
       | PortsDescReq -> "PortDesc Req"
       | FlowStatsReq f -> 
@@ -3062,7 +3066,7 @@ module MultipartReq = struct
       | TableFeatReq t-> Format.sprintf "TableFeat Req: %s" (match t with
         | Some v -> TableFeaturesRequest.to_string v
         | None -> "None" )
-      | ExperimentReq e-> Format.sprintf "Experimenter Req: id: %lu; type: %lu" e.exp_id e.exp_type
+      | ExperimentReq e-> Format.sprintf "Experimenter Req: id: %lu; type: %lu" e.exp_id e.exp_type)
 
   let marshal (buf : Cstruct.t) (mpr : multipartRequest) : int =
     let size = sizeof_ofp_multipart_request in

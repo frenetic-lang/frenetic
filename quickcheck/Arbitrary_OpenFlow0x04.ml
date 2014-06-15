@@ -641,7 +641,7 @@ module MultipartReq = struct
     type t = OpenFlow0x04_Core.tableFeaturesRequest
 
     let arbitrary =
-        arbitrary_list TableFeature.arbitrary >>= fun v ->
+        list1 TableFeature.arbitrary >>= fun v ->
         ret_gen v
     let marshal = TableFeaturesRequest.marshal
     let parse = TableFeaturesRequest.parse
@@ -670,4 +670,59 @@ module MultipartReq = struct
     let to_string = FlowRequest.to_string
     let size_of = FlowRequest.sizeof
   end
+
+  module QueueRequest = struct
+    type t = OpenFlow0x04_Core.queueRequest
+
+    let arbitrary = 
+        arbitrary_uint32 >>= fun port_number ->
+        arbitrary_uint32 >>= fun queue_id ->
+        ret_gen {
+            port_number;
+            queue_id
+        }
+
+    let marshal = QueueRequest.marshal
+    let parse = QueueRequest.parse
+    let to_string = QueueRequest.to_string
+    let size_of = QueueRequest.sizeof
+  end
+  
+  type t = OpenFlow0x04_Core.multipartRequest
+  
+  let arbitrary_option =
+     frequency [
+    (1, ret_gen None);
+    (3, TableFeaturesRequest.arbitrary >>= (fun v -> ret_gen (Some v)))
+    ]
+  
+  let arbitrary_type = 
+    oneof [
+        ret_gen SwitchDescReq;
+        ret_gen PortsDescReq;
+        FlowRequest.arbitrary >>= (fun n -> ret_gen (FlowStatsReq n));
+        FlowRequest.arbitrary >>= (fun n -> ret_gen (AggregFlowStatsReq n));
+        ret_gen TableStatsReq;
+        arbitrary_uint32 >>= (fun n -> ret_gen (PortStatsReq n));
+        QueueRequest.arbitrary >>= (fun n -> ret_gen (QueueStatsReq n));
+        arbitrary_uint32 >>= (fun n -> ret_gen (GroupStatsReq n));
+        ret_gen GroupDescReq;
+        ret_gen GroupFeatReq;
+        arbitrary_uint32 >>= (fun n -> ret_gen (MeterStatsReq n));
+        arbitrary_uint32 >>= (fun n -> ret_gen (MeterConfReq n));
+        ret_gen MeterFeatReq;
+        arbitrary_option >>= (fun n -> ret_gen (TableFeatReq n));
+    ]
+  let arbitrary =
+    arbitrary_bool >>= fun mpr_flags ->
+    arbitrary_type >>= fun mpr_type ->
+    ret_gen {
+        mpr_type;
+        mpr_flags
+    }
+  
+  let marshal = MultipartReq.marshal
+  let parse = MultipartReq.parse
+  let to_string = MultipartReq.to_string
+  let size_of = MultipartReq.sizeof
 end

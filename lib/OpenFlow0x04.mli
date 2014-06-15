@@ -264,6 +264,7 @@ module QueueRequest : sig
 
     val parse : Cstruct.t -> queueRequest
 
+    val sizeof : queueRequest -> int
     val to_string : queueRequest -> string
 end
 
