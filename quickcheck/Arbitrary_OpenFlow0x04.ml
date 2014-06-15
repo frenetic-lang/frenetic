@@ -347,6 +347,64 @@ module OfpMatch = struct
             p
     end
 
+    module OxmHeader = struct
+        type t = OpenFlow0x04_Core.oxm
+        
+        module Oxm = OpenFlow0x04.Oxm
+        
+        let arbitrary = 
+            let open Gen in
+            let open Oxm in
+            arbitrary_masked (ret_gen 0L) (ret_gen 0L) >>= fun oxmMetadata ->
+            arbitrary_masked (ret_gen 0L) (ret_gen 0L) >>= fun oxmEthDst ->
+            arbitrary_masked (ret_gen 0L) (ret_gen 0L) >>= fun oxmEthSrc ->
+            arbitrary_masked (ret_gen 0) (ret_gen 0) >>= fun oxmVlanVId ->
+            arbitrary_masked (ret_gen 0l) (ret_gen 0l) >>= fun oxmIP4Src ->
+            arbitrary_masked (ret_gen 0l) (ret_gen 0l) >>= fun oxmIP4Dst ->
+            arbitrary_masked (ret_gen 0) (ret_gen 0) >>= fun oxmTCPSrc ->
+            arbitrary_masked (ret_gen 0) (ret_gen 0) >>= fun oxmTCPDst ->
+            arbitrary_masked (ret_gen 0l) (ret_gen 0l) >>= fun oxmARPSpa ->
+            arbitrary_masked (ret_gen 0l) (ret_gen 0l) >>= fun oxmARPTpa ->
+            arbitrary_masked (ret_gen 0L) (ret_gen 0L) >>= fun oxmARPSha ->
+            arbitrary_masked (ret_gen 0L) (ret_gen 0L) >>= fun oxmARPTha ->
+            arbitrary_masked (ret_gen 0L) (ret_gen 0L) >>= fun oxmTunnelId ->
+            oneof [
+                ret_gen (OxmInPort 0l);
+                ret_gen (OxmInPhyPort 0l);
+                ret_gen (OxmMetadata oxmMetadata);
+                ret_gen (OxmEthType 0);
+                ret_gen (OxmEthDst oxmEthDst);
+                ret_gen (OxmEthSrc oxmEthSrc);
+                ret_gen (OxmVlanVId oxmVlanVId);
+                ret_gen (OxmVlanPcp 0);
+                ret_gen (OxmIPProto 0);
+                ret_gen (OxmIPDscp 0);
+                ret_gen (OxmIPEcn 0);
+                ret_gen (OxmIP4Src oxmIP4Src);
+                ret_gen (OxmIP4Dst oxmIP4Dst);
+                ret_gen (OxmTCPSrc oxmTCPSrc);
+                ret_gen (OxmTCPDst oxmTCPDst);
+                ret_gen (OxmARPOp 0);
+                ret_gen (OxmARPSpa oxmARPSpa);
+                ret_gen (OxmARPTpa oxmARPTpa);
+                ret_gen (OxmARPSha oxmARPSha);
+                ret_gen (OxmARPTha oxmARPTha);
+                ret_gen (OxmICMPType 0);
+                ret_gen (OxmICMPCode 0);
+                ret_gen (OxmMPLSLabel 0l);
+                ret_gen (OxmMPLSTc 0);
+                ret_gen (OxmTunnelId oxmTunnelId)
+            ]
+
+        let marshal = Oxm.marshal_header
+
+        let to_string = Oxm.field_name
+        let size_of = Oxm.sizeof
+        let parse bits = 
+            let p,_ = Oxm.parse_header bits in
+            p
+    end
+
     let arbitrary =
         let open Gen in
         let open OfpMatch in
@@ -517,3 +575,154 @@ module FlowMod = struct
     let to_string = FlowMod.to_string
     let size_of = FlowMod.sizeof
 end    
+
+module MultipartReq = struct
+  open Gen
+  open OpenFlow0x04_Core
+  module TableFeaturesRequest = struct
+    module TableFeatureProp = struct
+      
+      type t = OpenFlow0x04_Core.tableFeatureProp
+      
+      let arbitrary = 
+        oneof [
+          Instructions.arbitrary >>= (fun n -> ret_gen (TfpInstruction n));
+          Instructions.arbitrary >>= (fun n -> ret_gen (TfpInstructionMiss n));
+          arbitrary_list Action.arbitrary >>= (fun n -> ret_gen (TfpWriteAction n));
+          arbitrary_list Action.arbitrary >>= (fun n -> ret_gen (TfpWriteActionMiss n));
+          arbitrary_list Action.arbitrary >>= (fun n -> ret_gen (TfpApplyAction n));
+          arbitrary_list Action.arbitrary >>= (fun n -> ret_gen (TfpApplyActionMiss n));
+          arbitrary_list OfpMatch.OxmHeader.arbitrary >>= (fun n -> ret_gen (TfpMatch n));
+          arbitrary_list OfpMatch.OxmHeader.arbitrary >>= (fun n -> ret_gen (TfpWildcard n));
+          arbitrary_list OfpMatch.OxmHeader.arbitrary >>= (fun n -> ret_gen (TfpWriteSetField n));
+          arbitrary_list OfpMatch.OxmHeader.arbitrary >>= (fun n -> ret_gen (TfpWriteSetFieldMiss n));
+          arbitrary_list OfpMatch.OxmHeader.arbitrary >>= (fun n -> ret_gen (TfpApplySetField n));
+          arbitrary_list OfpMatch.OxmHeader.arbitrary >>= (fun n -> ret_gen (TfpApplySetFieldMiss n))
+          ]
+
+      let marshal = TableFeatureProp.marshal
+      let parse = TableFeatureProp.parse
+      let to_string = TableFeatureProp.to_string
+      let size_of = TableFeatureProp.sizeof
+    end
+    
+    module TableFeature = struct
+      type t = OpenFlow0x04_Core.tableFeatures
+
+      let arbitrary_config =
+        ret_gen Deprecated
+
+      let arbitrary = 
+        arbitrary_uint8 >>= fun table_id ->
+        arbitrary_stringN 32 >>= fun name ->
+        arbitrary_uint64 >>= fun metadata_match ->
+        arbitrary_uint64 >>= fun metadata_write ->
+        arbitrary_config >>= fun config ->
+        arbitrary_uint32 >>= fun max_entries ->
+        TableFeatureProp.arbitrary >>= fun feature_prop ->
+        ret_gen {
+          table_id;
+          name;
+          metadata_match;
+          metadata_write;
+          config;
+          max_entries;
+          feature_prop
+        }
+      
+      let marshal = TableFeature.marshal
+      let parse bits= 
+            let p,_ = TableFeature.parse bits in
+            p
+      let to_string = TableFeature.to_string
+      let size_of = TableFeature.sizeof
+    end
+
+    type t = OpenFlow0x04_Core.tableFeaturesRequest
+
+    let arbitrary =
+        list1 TableFeature.arbitrary >>= fun v ->
+        ret_gen v
+    let marshal = TableFeaturesRequest.marshal
+    let parse = TableFeaturesRequest.parse
+    let to_string = TableFeaturesRequest.to_string
+    let size_of = TableFeaturesRequest.sizeof
+  end
+
+  module FlowRequest = struct
+    type t = OpenFlow0x04_Core.flowRequest
+    
+    let arbitrary =
+        arbitrary_uint8 >>= fun fr_table_id ->
+        arbitrary_uint32 >>= fun fr_out_port ->
+        arbitrary_uint32 >>= fun fr_out_group ->
+        arbitrary_masked arbitrary_uint64 arbitrary_64mask >>= fun fr_cookie ->
+        OfpMatch.arbitrary >>= fun fr_match ->
+        ret_gen {
+        fr_table_id;
+        fr_out_port;
+        fr_out_group;
+        fr_cookie;
+        fr_match
+        }
+    let marshal = FlowRequest.marshal
+    let parse = FlowRequest.parse
+    let to_string = FlowRequest.to_string
+    let size_of = FlowRequest.sizeof
+  end
+
+  module QueueRequest = struct
+    type t = OpenFlow0x04_Core.queueRequest
+
+    let arbitrary = 
+        arbitrary_uint32 >>= fun port_number ->
+        arbitrary_uint32 >>= fun queue_id ->
+        ret_gen {
+            port_number;
+            queue_id
+        }
+
+    let marshal = QueueRequest.marshal
+    let parse = QueueRequest.parse
+    let to_string = QueueRequest.to_string
+    let size_of = QueueRequest.sizeof
+  end
+  
+  type t = OpenFlow0x04_Core.multipartRequest
+  
+  let arbitrary_option =
+     frequency [
+    (1, ret_gen None);
+    (3, TableFeaturesRequest.arbitrary >>= (fun v -> ret_gen (Some v)))
+    ]
+  
+  let arbitrary_type = 
+    oneof [
+        ret_gen SwitchDescReq;
+        ret_gen PortsDescReq;
+        FlowRequest.arbitrary >>= (fun n -> ret_gen (FlowStatsReq n));
+        FlowRequest.arbitrary >>= (fun n -> ret_gen (AggregFlowStatsReq n));
+        ret_gen TableStatsReq;
+        arbitrary_uint32 >>= (fun n -> ret_gen (PortStatsReq n));
+        QueueRequest.arbitrary >>= (fun n -> ret_gen (QueueStatsReq n));
+        arbitrary_uint32 >>= (fun n -> ret_gen (GroupStatsReq n));
+        ret_gen GroupDescReq;
+        ret_gen GroupFeatReq;
+        arbitrary_uint32 >>= (fun n -> ret_gen (MeterStatsReq n));
+        arbitrary_uint32 >>= (fun n -> ret_gen (MeterConfReq n));
+        ret_gen MeterFeatReq;
+        arbitrary_option >>= (fun n -> ret_gen (TableFeatReq n));
+    ]
+  let arbitrary =
+    arbitrary_bool >>= fun mpr_flags ->
+    arbitrary_type >>= fun mpr_type ->
+    ret_gen {
+        mpr_type;
+        mpr_flags
+    }
+  
+  let marshal = MultipartReq.marshal
+  let parse = MultipartReq.parse
+  let to_string = MultipartReq.to_string
+  let size_of = MultipartReq.sizeof
+end

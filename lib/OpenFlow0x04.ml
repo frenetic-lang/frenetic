@@ -798,7 +798,7 @@ module Oxm = struct
       (match vid.m_mask with
         | None -> 2
         | Some _ -> 4)
-    | OxmVlanPcp vid -> 1
+    | OxmVlanPcp _ -> 1
     | OxmIP4Src ipaddr -> 
       (match ipaddr.m_mask with
         | None -> 4
@@ -848,8 +848,77 @@ module Oxm = struct
         | None -> 8
         | Some _ -> 16)
 
+  let field_name (oxm : oxm) : string = match oxm with
+    | OxmInPort _ -> "InPort"
+    | OxmInPhyPort _ -> "InPhyPort"
+    | OxmEthType  _ -> "EthType"
+    | OxmEthDst ethaddr ->
+      (match ethaddr.m_mask with
+        | None -> "EthDst"
+        | Some _ -> "EthDst/mask")
+    | OxmEthSrc ethaddr ->
+      (match ethaddr.m_mask with
+        | None -> "EthSrc"
+        | Some _ -> "EthSrc/mask")
+    | OxmVlanVId vid ->
+      (match vid.m_mask with
+        | None -> "VlanVId"
+        | Some _ -> "VlanVId/mask")
+    | OxmVlanPcp _ -> "VlanPcp"
+    | OxmIP4Src ipaddr -> 
+      (match ipaddr.m_mask with
+        | None -> "IPSrc"
+        | Some _ -> "IPSrc/mask")
+    | OxmIP4Dst ipaddr ->       
+      (match ipaddr.m_mask with
+        | None -> "IPDst"
+        | Some _ -> "IPDst/mask")
+    | OxmTCPSrc tcpPort ->
+      (match tcpPort.m_mask with
+        | None -> "TCPSrc"
+        | Some _ -> "TCPSrc/mask")
+    | OxmTCPDst tcpPort ->
+      (match tcpPort.m_mask with
+        | None -> "TCPDst"
+        | Some _ -> "TCPDst/mask")
+    | OxmARPOp _ -> "ARPOp"
+    | OxmARPSpa t->
+      (match t.m_mask with
+        | None -> "ARPSpa"
+        | Some _ -> "ARPSpa/mask")
+    | OxmARPTpa t->
+      (match t.m_mask with
+        | None -> "ARPTpa"
+        | Some _ -> "ARPTpa/mask")
+    | OxmARPSha t->
+      (match t.m_mask with
+        | None -> "ARPSha"
+        | Some _ -> "ARPSha/mask")
+    | OxmARPTha t->
+      (match t.m_mask with
+        | None -> "ARPTha"
+        | Some _ -> "ARPTha/mask")
+    | OxmMPLSLabel _ -> "MPLSLabel"
+    | OxmMPLSTc _ -> "MplsTc"
+    | OxmMetadata t -> 
+      (match t.m_mask with
+        | None -> "Metadata"
+        | Some _ -> "Metadata/mask")
+    | OxmIPProto _ -> "IPProto"
+    | OxmIPDscp _ -> "IPDscp"
+    | OxmIPEcn _ -> "IPEcn"
+    | OxmICMPType _ -> "ICMP Type"
+    | OxmICMPCode _ -> "ICMP Code"
+    | OxmTunnelId t ->
+      (match t.m_mask with
+        | None -> "Tunnel ID"
+        | Some _ -> "Tunnel ID/mask")
+
   let sizeof (oxm : oxm) : int =
     sizeof_ofp_oxm + field_length oxm
+
+  let sizeof_header (oxml : oxm list) : int =
+    (List.length oxml) * 4
 
   let to_string oxm =
     match oxm with
@@ -891,26 +960,26 @@ module Oxm = struct
       (match v.m_mask with
         | None -> Format.sprintf "Metadata : %Lu" v.m_value
         | Some m -> Format.sprintf "Metadata : %Lu/%Lu" v.m_value m)
-    | OxmIPProto v -> Format.sprintf "IP Proto : %u" v
-    | OxmIPDscp v -> Format.sprintf "IP Dscp : %u" v
+    | OxmIPProto v -> Format.sprintf "IPProto : %u" v
+    | OxmIPDscp v -> Format.sprintf "IPDscp : %u" v
     | OxmIPEcn v -> Format.sprintf "IPEcn : %u" v
     | OxmARPOp v -> Format.sprintf "ARPOp : %u" v
     | OxmARPSpa v ->
       (match v.m_mask with
-        | None -> Format.sprintf "ARP Spa : %lu" v.m_value
-        | Some m -> Format.sprintf "ARP Spa : %lu/%lu" v.m_value m)
+        | None -> Format.sprintf "ARPSpa : %lu" v.m_value
+        | Some m -> Format.sprintf "ARPSpa : %lu/%lu" v.m_value m)
     | OxmARPTpa v ->
       (match v.m_mask with
-        | None -> Format.sprintf "ARP Tpa : %lu" v.m_value
-        | Some m -> Format.sprintf "ARP Tpa : %lu/%lu" v.m_value m)
+        | None -> Format.sprintf "ARPTpa : %lu" v.m_value
+        | Some m -> Format.sprintf "ARPTpa : %lu/%lu" v.m_value m)
     | OxmARPSha v ->
       (match v.m_mask with
-        | None -> Format.sprintf "ARP Sha : %Lu" v.m_value
-        | Some m -> Format.sprintf "ARP Sha : %Lu/%Lu" v.m_value m)
+        | None -> Format.sprintf "ARPSha : %Lu" v.m_value
+        | Some m -> Format.sprintf "ARPSha : %Lu/%Lu" v.m_value m)
     | OxmARPTha v ->
       (match v.m_mask with
-        | None -> Format.sprintf "ARP Tha : %Lu" v.m_value
-        | Some m -> Format.sprintf "ARP Tha : %Lu/%Lu" v.m_value m)
+        | None -> Format.sprintf "ARPTha : %Lu" v.m_value
+        | Some m -> Format.sprintf "ARPTha : %Lu/%Lu" v.m_value m)
     | OxmICMPType v -> Format.sprintf "ICMP Type : %u" v
     | OxmICMPCode v -> Format.sprintf "ICMP Code : %u" v
     | OxmTunnelId v -> 
@@ -1123,6 +1192,86 @@ module Oxm = struct
                     sizeof_ofp_oxm + l
               end
 
+  let marshal_header (buf : Cstruct.t) (oxm : oxm) : int = 
+    let l = field_length oxm in
+      let ofc = OFPXMC_OPENFLOW_BASIC in
+        match oxm with
+          | OxmInPort _ ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IN_PORT 0 l;
+            sizeof_ofp_oxm
+          | OxmInPhyPort _ ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IN_PHY_PORT 0 l;
+            sizeof_ofp_oxm
+          | OxmEthType _ ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_ETH_TYPE 0 l;
+            sizeof_ofp_oxm
+          | OxmEthDst ethaddr ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_ETH_DST (match ethaddr.m_mask with None -> 0 | _ -> 1) l;
+            sizeof_ofp_oxm
+          | OxmEthSrc ethaddr ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_ETH_SRC (match ethaddr.m_mask with None -> 0 | _ -> 1) l;
+            sizeof_ofp_oxm
+          | OxmIP4Src ipaddr ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IPV4_SRC (match ipaddr.m_mask with None -> 0 | _ -> 1) l;
+            sizeof_ofp_oxm
+          | OxmIP4Dst ipaddr ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IPV4_DST (match ipaddr.m_mask with None -> 0 | _ -> 1) l;
+            sizeof_ofp_oxm
+          | OxmVlanVId vid ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_VLAN_VID (match vid.m_mask with None -> 0 | _ -> 1) l;
+            sizeof_ofp_oxm
+          | OxmVlanPcp vid ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_VLAN_PCP 0 l;
+            sizeof_ofp_oxm
+          | OxmMPLSLabel vid ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_MPLS_LABEL 0 l;
+            sizeof_ofp_oxm
+          | OxmMPLSTc vid ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_MPLS_TC 0 l;
+            sizeof_ofp_oxm
+          | OxmMetadata meta ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_METADATA  (match meta.m_mask with None -> 0 | _ -> 1)  l;
+            sizeof_ofp_oxm
+          | OxmIPProto ipproto ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IP_PROTO 0 l;
+            sizeof_ofp_oxm
+          | OxmIPDscp ipdscp ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IP_DSCP 0 l;
+            sizeof_ofp_oxm
+          | OxmIPEcn ipecn ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_IP_ECN 0 l;
+            sizeof_ofp_oxm
+          | OxmTCPSrc port ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_TCP_SRC  (match port.m_mask with None -> 0 | _ -> 1)  l;
+            sizeof_ofp_oxm
+          | OxmTCPDst port ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_TCP_DST  (match port.m_mask with None -> 0 | _ -> 1)  l;
+            sizeof_ofp_oxm
+          | OxmARPOp arp ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_ARP_OP 0 l;
+            sizeof_ofp_oxm
+          | OxmARPSpa arp ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_ARP_SPA  (match arp.m_mask with None -> 0 | _ -> 1)  l;
+            sizeof_ofp_oxm
+          | OxmARPTpa arp ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_ARP_TPA  (match arp.m_mask with None -> 0 | _ -> 1)  l;
+            sizeof_ofp_oxm
+          | OxmARPSha arp ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_ARP_SHA  (match arp.m_mask with None -> 0 | _ -> 1)  l;
+            sizeof_ofp_oxm
+          | OxmARPTha arp ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_ARP_THA  (match arp.m_mask with None -> 0 | _ -> 1)  l;
+            sizeof_ofp_oxm
+          | OxmICMPType t ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_ICMPV4_TYPE 0 l;
+            sizeof_ofp_oxm
+          | OxmICMPCode c->
+            set_ofp_oxm buf ofc OFPXMT_OFB_ICMPV4_CODE 0 l;
+            sizeof_ofp_oxm
+          | OxmTunnelId tun ->
+            set_ofp_oxm buf ofc OFPXMT_OFB_TUNNEL_ID  (match tun.m_mask with None -> 0 | _ -> 1)  l;
+            sizeof_ofp_oxm
+
   let parse (bits : Cstruct.t) : oxm * Cstruct.t =
     (* printf "class= %d\n" (get_ofp_oxm_oxm_class bits); *)
     (* let c = match int_to_ofp_oxm_class (get_ofp_oxm_oxm_class bits) with *)
@@ -1297,6 +1446,128 @@ module Oxm = struct
 	  (OxmMPLSTc value, bits2)
       | _ -> 
         raise (Unparsable (sprintf "malformed packet in oxm %d\n" (value lsr 1)))
+
+    let parse_header (bits : Cstruct.t) : oxm * Cstruct.t =
+    let value = get_ofp_oxm_oxm_field_and_hashmask bits in
+    let f = match int_to_oxm_ofb_match_fields (value lsr 1) with
+      | Some n -> n
+      | None -> 
+        raise (Unparsable (sprintf "malformed field in oxm %d" (value lsr 1))) in
+    let hm = value land 0x1 in
+    let bits2 = Cstruct.shift bits sizeof_ofp_oxm in
+    match f with
+      | OFPXMT_OFB_IN_PORT ->
+        (OxmInPort 0l, bits2)
+      | OFPXMT_OFB_IN_PHY_PORT ->
+        (OxmInPhyPort 0l, bits2)
+      | OFPXMT_OFB_METADATA ->
+        if hm = 1 then
+          (OxmMetadata {m_value = 0L; m_mask = (Some 0L)}, bits2)
+        else
+          (OxmMetadata {m_value = 0L; m_mask = None}, bits2)
+      | OFPXMT_OFB_TUNNEL_ID ->
+        if hm = 1 then
+          (OxmTunnelId {m_value = 0L; m_mask = (Some 0L)}, bits2)
+        else
+          (OxmTunnelId {m_value = 0L; m_mask = None}, bits2)
+      (* Ethernet destination address. *)
+      | OFPXMT_OFB_ETH_DST ->
+	if hm = 1 then
+	  (OxmEthDst {m_value = 0L; m_mask = (Some 0L)}, bits2)
+	else
+	  (OxmEthDst {m_value = 0L; m_mask = None}, bits2)
+      (* Ethernet source address. *)
+      | OFPXMT_OFB_ETH_SRC ->
+	if hm = 1 then
+	  (OxmEthSrc {m_value = 0L; m_mask = (Some 0L)}, bits2)
+	else
+	  (OxmEthSrc {m_value = 0L; m_mask = None}, bits2)
+      (* Ethernet frame type. *)
+      | OFPXMT_OFB_ETH_TYPE ->
+	  (OxmEthType 0, bits2)
+      (* IP protocol. *)
+      | OFPXMT_OFB_IP_PROTO ->
+	  (OxmIPProto 0, bits2)
+      (* IP DSCP (6 bits in ToS field). *)
+      | OFPXMT_OFB_IP_DSCP ->
+	  (OxmIPDscp (0 land 63), bits2)
+      (* IP ECN (2 bits in ToS field). *)
+      |  OFPXMT_OFB_IP_ECN ->
+	  (OxmIPEcn (0 land 3), bits2)
+      (* IPv4 source address. *)
+      | OFPXMT_OFB_IPV4_SRC ->
+	if hm = 1 then
+	  (OxmIP4Src {m_value = 0l; m_mask = (Some 0l)}, bits2)
+	else
+      (OxmIP4Src {m_value = 0l; m_mask = None}, bits2)
+      (* IPv4 destination address. *)
+      | OFPXMT_OFB_IPV4_DST ->
+	if hm = 1 then
+	  (OxmIP4Dst {m_value = 0l; m_mask = (Some 0l)}, bits2)
+	else
+	  (OxmIP4Dst {m_value = 0l; m_mask = None}, bits2)
+      (* ARP opcode. *)
+      | OFPXMT_OFB_ARP_OP ->
+	  (OxmARPOp 0, bits2)
+      (* ARP source IPv4 address. *)
+      | OFPXMT_OFB_ARP_SPA ->
+	if hm = 1 then
+	  (OxmARPSpa {m_value = 0l; m_mask = (Some 0l)}, bits2)
+	else
+	  (OxmARPSpa {m_value = 0l; m_mask = None}, bits2)
+      (* ARP target IPv4 address. *)
+      | OFPXMT_OFB_ARP_TPA ->
+	if hm = 1 then
+	  (OxmARPTpa {m_value = 0l; m_mask = (Some 0l)}, bits2)
+	else
+	  (OxmARPTpa {m_value = 0l; m_mask = None}, bits2)
+      (* ARP source hardware address. *)
+      | OFPXMT_OFB_ARP_SHA ->
+	if hm = 1 then
+	  (OxmARPSha {m_value = 0L; m_mask = (Some 0L)}, bits2)
+	else
+	  (OxmARPSha {m_value = 0L; m_mask = None}, bits2)
+      (* ARP target hardware address. *)
+      | OFPXMT_OFB_ARP_THA ->
+	if hm = 1 then
+	  (OxmARPTha {m_value = 0L; m_mask = (Some 0L)}, bits2)
+	else
+	  (OxmARPTha {m_value = 0L; m_mask = None}, bits2)
+      (* ICMP Type *)
+      | OFPXMT_OFB_ICMPV4_TYPE ->
+	  (OxmICMPType 0, bits2)
+      (* ICMP code. *)
+      |   OFPXMT_OFB_ICMPV4_CODE ->
+	  (OxmICMPCode 0, bits2)
+      | OFPXMT_OFB_TCP_DST ->
+	if hm = 1 then
+	  (OxmTCPDst {m_value = 0; m_mask = (Some 0)}, bits2)
+	else
+	  (OxmTCPDst {m_value = 0; m_mask = None}, bits2)
+      | OFPXMT_OFB_TCP_SRC ->
+	if hm = 1 then
+	  (OxmTCPSrc {m_value = 0; m_mask = (Some 0)}, bits2)
+	else
+	  (OxmTCPSrc {m_value = 0; m_mask = None}, bits2)
+      | OFPXMT_OFB_MPLS_LABEL ->
+	  (OxmMPLSLabel 0l, bits2)
+      | OFPXMT_OFB_VLAN_PCP ->
+	  (OxmVlanPcp 0, bits2)
+      | OFPXMT_OFB_VLAN_VID ->
+	if hm = 1 then
+	  (OxmVlanVId {m_value = 0; m_mask = (Some 0)}, bits2)
+	else
+	  (OxmVlanVId {m_value = 0; m_mask = None}, bits2)
+      | OFPXMT_OFB_MPLS_TC ->
+	  (OxmMPLSTc 0, bits2)
+      | _ -> 
+        raise (Unparsable (sprintf "malformed packet in oxm %d\n" (value lsr 1)))
+
+    let rec parse_headers (bits : Cstruct.t) : oxmMatch*Cstruct.t = 
+      if Cstruct.len bits < sizeof_ofp_oxm then ([], bits)
+      else let field, bits2 = parse_header bits in
+      let fields, bits3 = parse_headers bits2 in    
+      (List.append [field] fields, bits3)
 
 end
 
@@ -2355,6 +2626,16 @@ module FlowRequest = struct
 
     let sizeof (fr : flowRequest) : int = 
     sizeof_ofp_flow_stats_request + (OfpMatch.sizeof fr.fr_match)
+
+    let to_string (fr : flowRequest) : string =
+      Format.sprintf "TableID:%u\noutPort:%lu\noutGroup:%lu\ncookie:%s\nmatch:%s"
+      fr.fr_table_id
+      fr.fr_out_port
+      fr.fr_out_group
+      (match fr.fr_cookie.m_mask with
+        | None -> Int64.to_string fr.fr_cookie.m_value
+        | Some m -> Format.sprintf "%Lu/%Lu" fr.fr_cookie.m_value m)
+      (OfpMatch.to_string fr.fr_match)
   
     let marshal (buf : Cstruct.t) (fr : flowRequest) : int = 
       set_ofp_flow_stats_request_table_id buf fr.fr_table_id;
@@ -2375,11 +2656,14 @@ module FlowRequest = struct
       let out_group = get_ofp_flow_stats_request_out_group bits in
       let cookie = get_ofp_flow_stats_request_cookie bits in
       let mask = get_ofp_flow_stats_request_cookie_mask bits in
+      let fr_cookie = match mask with
+                        | 0L -> {m_value = cookie; m_mask = None}
+                        | n -> {m_value = cookie; m_mask = Some n} in
       let oxmMatch,_ = OfpMatch.parse (Cstruct.shift bits sizeof_ofp_flow_stats_request) in
       { fr_table_id = tableId
       ; fr_out_port = out_port
       ; fr_out_group = out_group
-      ; fr_cookie = {m_value = cookie; m_mask = Some mask}
+      ; fr_cookie = fr_cookie
       ; fr_match = oxmMatch}
 
 end
@@ -2397,126 +2681,259 @@ module QueueRequest = struct
       { port_number = portNumber
       ; queue_id = queueId}
 
+    let sizeof _ = 
+        sizeof_ofp_queue_stats_request
+    let to_string qr =
+        Format.sprintf "Port:%lu;Queue:%lu" qr.port_number qr.queue_id
 end
 
 module TableFeatureProp = struct
 
-    let to_type t : tfpType = 
-    match (int_to_ofp_table_feature_prop_type t) with
-      | Some OFPTFPT_INSTRUCTIONS -> TfpInstruction
-      | Some OFPTFPT_INSTRUCTIONS_MISS -> TfpInstructionMiss
-      | Some OFPTFPT_NEXT_TABLES -> TfpNextTable
-      | Some OFPTFPT_NEXT_TABLES_MISS -> TfpNextTableMiss
-      | Some OFPTFPT_WRITE_ACTIONS -> TfpWriteAction
-      | Some OFPTFPT_WRITE_ACTIONS_MISS -> TfpWriteActionMiss
-      | Some OFPTFPT_APPLY_ACTIONS -> TfpApplyAction
-      | Some OFPTFPT_APPLY_ACTIONS_MISS -> TfpApplyActionMiss
-      | Some OFPTFPT_MATCH -> TfpMatch
-      | Some OFPTFPT_WILDCARDS -> TfpWildcard
-      | Some OFPTFPT_WRITE_SETFIELD -> TfpWriteSetField
-      | Some OFPTFPT_WRITE_SETFIELD_MISS -> TfpWriteSetFieldMiss
-      | Some OFPTFPT_APPLY_SETFIELD -> TfpApplySetField
-      | Some OFPTFPT_APPLY_SETFIELD_MISS -> TfpApplySetFieldMiss
-      | Some OFPTFPT_EXPERIMENTER -> TfpExperimenter
-      | Some OFPTFPT_EXPERIMENTER_MISS -> TfpExperimenterMiss
-      | None -> raise (Unparsable (sprintf "malformed type"))
+    cstruct ofp_table_feature_prop_experimenter {
+        uint16_t typ;
+        uint16_t length;
+        uint32_t experimenter;
+        uint32_t exp_typ
+    } as big_endian
+
+    let sizeof tfp : int = 
+      let size = sizeof_ofp_table_feature_prop_header + (match tfp with
+        | TfpInstruction ins -> 
+            Instructions.sizeof ins
+        | TfpInstructionMiss ins -> 
+            Instructions.sizeof ins
+        | TfpNextTable t -> 
+            List.length t
+        | TfpNextTableMiss t -> 
+            List.length t
+        | TfpWriteAction act -> 
+            sum (map Action.sizeof act)
+        | TfpWriteActionMiss act -> 
+            sum (map Action.sizeof act)
+        | TfpApplyAction act -> 
+            sum (map Action.sizeof act)
+        | TfpApplyActionMiss act -> 
+            sum (map Action.sizeof act)
+        | TfpMatch ox -> 
+            Oxm.sizeof_header ox
+        | TfpWildcard ox -> 
+            Oxm.sizeof_header ox
+        | TfpWriteSetField ox-> 
+            Oxm.sizeof_header ox
+        | TfpWriteSetFieldMiss ox -> 
+            Oxm.sizeof_header ox
+        | TfpApplySetField ox -> 
+            Oxm.sizeof_header ox
+        | TfpApplySetFieldMiss ox -> 
+            Oxm.sizeof_header ox
+        | TfpExperimenter (_,by) -> 
+            Cstruct.len by
+        | TfpExperimenterMiss (_,by) -> 
+            Cstruct.len by
+            ) in
+      pad_to_64bits size
 
     let marshal (buf : Cstruct.t) (tfp : tableFeatureProp) =
-      let size = sizeof_ofp_table_feature_prop_header in
-      set_ofp_table_feature_prop_header_typ buf (
-        match tfp.tfp_type with
-          | TfpInstruction -> ofp_table_feature_prop_type_to_int OFPTFPT_INSTRUCTIONS
-          | TfpInstructionMiss -> ofp_table_feature_prop_type_to_int OFPTFPT_INSTRUCTIONS_MISS
-          | TfpNextTable -> ofp_table_feature_prop_type_to_int OFPTFPT_NEXT_TABLES
-          | TfpNextTableMiss -> ofp_table_feature_prop_type_to_int OFPTFPT_NEXT_TABLES_MISS
-          | TfpWriteAction -> ofp_table_feature_prop_type_to_int OFPTFPT_WRITE_ACTIONS
-          | TfpWriteActionMiss -> ofp_table_feature_prop_type_to_int OFPTFPT_WRITE_ACTIONS_MISS
-          | TfpApplyAction -> ofp_table_feature_prop_type_to_int OFPTFPT_APPLY_ACTIONS
-          | TfpApplyActionMiss -> ofp_table_feature_prop_type_to_int OFPTFPT_APPLY_ACTIONS_MISS
-          | TfpMatch -> ofp_table_feature_prop_type_to_int OFPTFPT_MATCH
-          | TfpWildcard -> ofp_table_feature_prop_type_to_int OFPTFPT_WILDCARDS
-          | TfpWriteSetField -> ofp_table_feature_prop_type_to_int OFPTFPT_WRITE_SETFIELD
-          | TfpWriteSetFieldMiss -> ofp_table_feature_prop_type_to_int OFPTFPT_WRITE_SETFIELD_MISS
-          | TfpApplySetField -> ofp_table_feature_prop_type_to_int OFPTFPT_APPLY_SETFIELD
-          | TfpApplySetFieldMiss -> ofp_table_feature_prop_type_to_int OFPTFPT_APPLY_SETFIELD_MISS
-          | TfpExperimenter -> ofp_table_feature_prop_type_to_int OFPTFPT_EXPERIMENTER
-          | TfpExperimenterMiss -> ofp_table_feature_prop_type_to_int OFPTFPT_EXPERIMENTER_MISS);
-      set_ofp_table_feature_prop_header_length buf tfp.tfp_length;
-      size + (
-       match tfp.tfp_payload with
-         | TfpInstruction ins->
-            marshal_fields (Cstruct.shift buf size) ins Instruction.marshal
-         | TfpNextTable nt ->
-           let marsh (buf : Cstruct.t) (id : uint8) : int =
-             set_uint8 buf 0 id;
-             1
-           in
-           marshal_fields (Cstruct.shift buf size) nt marsh
-         | TfpAction act->
-           marshal_fields (Cstruct.shift buf size) act Action.marshal
-         | TfpSetField ox-> 
-           marshal_fields (Cstruct.shift buf size) ox Oxm.marshal
-      )
+    let buf_payload = Cstruct.shift buf sizeof_ofp_table_feature_prop_header in
+    let size = sizeof_ofp_table_feature_prop_header + (match tfp with
+      | TfpInstruction ins -> 
+          set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_INSTRUCTIONS);
+          Instructions.marshal buf_payload ins
+      | TfpInstructionMiss ins -> 
+          set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_INSTRUCTIONS_MISS);
+          Instructions.marshal buf_payload ins
+      | TfpNextTable t -> 
+          set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_NEXT_TABLES);
+          let marsh (buf : Cstruct.t) (id : uint8) : int =
+            set_uint8 buf 0 id;
+            1 in
+          marshal_fields buf_payload t marsh
+      | TfpNextTableMiss t -> 
+          set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_NEXT_TABLES_MISS);
+          let marsh (buf : Cstruct.t) (id : uint8) : int =
+            set_uint8 buf 0 id;
+            1 in
+          marshal_fields buf_payload t marsh
+      | TfpWriteAction act -> 
+          set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_WRITE_ACTIONS);
+          marshal_fields buf_payload act Action.marshal
+      | TfpWriteActionMiss act -> 
+          set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_WRITE_ACTIONS_MISS);
+          marshal_fields buf_payload act Action.marshal
+      | TfpApplyAction act -> 
+          set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_APPLY_ACTIONS);
+          marshal_fields buf_payload act Action.marshal
+      | TfpApplyActionMiss act -> 
+          set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_APPLY_ACTIONS_MISS);
+          marshal_fields buf_payload act Action.marshal
+      | TfpMatch ox -> 
+          set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_MATCH);
+          marshal_fields buf_payload ox Oxm.marshal_header
+      | TfpWildcard ox -> 
+          set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_WILDCARDS);
+          marshal_fields buf_payload ox Oxm.marshal_header
+      | TfpWriteSetField ox-> 
+          set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_WRITE_SETFIELD);
+          marshal_fields buf_payload ox Oxm.marshal_header
+      | TfpWriteSetFieldMiss ox -> 
+          set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_WRITE_SETFIELD_MISS);
+          marshal_fields buf_payload ox Oxm.marshal_header
+      | TfpApplySetField ox -> 
+          set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_APPLY_SETFIELD);
+          marshal_fields buf_payload ox Oxm.marshal_header
+      | TfpApplySetFieldMiss ox -> 
+          set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_APPLY_SETFIELD_MISS);
+          marshal_fields buf_payload ox Oxm.marshal_header
+      | TfpExperimenter (ex,by) -> 
+          set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_EXPERIMENTER);
+          Cstruct.blit by 0 buf_payload 0 (Cstruct.len by);
+          Cstruct.len by
+      | TfpExperimenterMiss (ex,by) -> 
+          set_ofp_table_feature_prop_header_typ buf (ofp_table_feature_prop_type_to_int OFPTFPT_EXPERIMENTER_MISS);
+          Cstruct.blit by 0 buf_payload 0 (Cstruct.len by);
+          Cstruct.len by
+          ) in
+    set_ofp_table_feature_prop_header_length buf size;
+    pad_to_64bits size
+
+    let rec parse_tables (bits : Cstruct.t) len = 
+        if Cstruct.len bits < 1 then ([], bits)
+        else let field, bits2 = get_uint8 bits 0, Cstruct.shift bits 1 in
+          let fields, bits3 = parse_tables bits2 (len -1) in
+          (List.append [field] fields, bits3)
 
     let parse (bits : Cstruct.t) : tableFeatureProp =
-     let tfpType = to_type (get_ofp_table_feature_prop_header_typ bits) in
+     let tfpType = get_ofp_table_feature_prop_header_typ bits in
      let tfpLength = get_ofp_table_feature_prop_header_length bits in
-     let tfpPayBits = Cstruct.shift bits sizeof_ofp_table_feature_prop_header in
-     let pay = (
-       match tfpType with
-         | TfpInstruction
-         | TfpInstructionMiss -> TfpInstruction (
-         Instructions.parse tfpPayBits)
-         | TfpNextTable | TfpNextTableMiss -> (
-            let rec parse_fields (bits : Cstruct.t) len = 
-                if Cstruct.len bits < len then ([], bits)
-                else let field, bits2 = get_uint8 bits 0, Cstruct.shift bits 1 in
-                let fields, bits3 = parse_fields bits2 (len -1) in
-                (List.append [field] fields, bits3) in
-            let ids,_ = parse_fields tfpPayBits
-            (tfpLength - 4) in 
-                TfpNextTable ids)
-         | TfpWriteAction | TfpWriteActionMiss | TfpApplyAction 
-         | TfpApplyActionMiss -> TfpAction (
-         Action.parse_sequence tfpPayBits)
-         | TfpMatch | TfpWildcard | TfpWriteSetField | TfpWriteSetFieldMiss
-         | TfpApplySetField | TfpApplySetFieldMiss -> 
-            let fields,_ = OfpMatch.parse tfpPayBits in 
-            TfpSetField fields
-        (* | TfpExperimenter | TfpExperimenterMiss *)
-        | _ -> raise (Unparsable (sprintf "NYI"))
-        ) in
-    { tfp_type = tfpType
-    ; tfp_length = tfpLength
-    ; tfp_payload = pay
-    }
+     let tfpPayBits = Cstruct.sub bits sizeof_ofp_table_feature_prop_header (tfpLength - sizeof_ofp_table_feature_prop_header) in
+     match int_to_ofp_table_feature_prop_type tfpType with
+      | Some OFPTFPT_INSTRUCTIONS -> 
+          TfpInstruction (Instructions.parse tfpPayBits)
+      | Some OFPTFPT_INSTRUCTIONS_MISS -> 
+          TfpInstructionMiss (Instructions.parse tfpPayBits)
+      | Some OFPTFPT_NEXT_TABLES -> 
+      let ids,_ = parse_tables tfpPayBits (tfpLength - sizeof_ofp_table_feature_prop_header) in
+          TfpNextTable ids
+      | Some OFPTFPT_NEXT_TABLES_MISS ->
+          let ids,_ = parse_tables tfpPayBits (tfpLength - sizeof_ofp_table_feature_prop_header) in
+          TfpNextTableMiss ids
+      | Some OFPTFPT_WRITE_ACTIONS -> 
+          TfpWriteAction (Action.parse_sequence tfpPayBits)
+      | Some OFPTFPT_WRITE_ACTIONS_MISS -> 
+          TfpWriteActionMiss (Action.parse_sequence tfpPayBits)
+      | Some OFPTFPT_APPLY_ACTIONS -> 
+          TfpApplyAction (Action.parse_sequence tfpPayBits)
+      | Some OFPTFPT_APPLY_ACTIONS_MISS -> 
+          TfpApplyActionMiss (Action.parse_sequence tfpPayBits)
+      | Some OFPTFPT_MATCH -> 
+          let fields,_ = Oxm.parse_headers tfpPayBits in 
+          TfpMatch fields
+      | Some OFPTFPT_WILDCARDS -> 
+          let fields,_ = Oxm.parse_headers tfpPayBits in 
+          TfpWildcard fields
+      | Some OFPTFPT_WRITE_SETFIELD -> 
+          let fields,_ = Oxm.parse_headers tfpPayBits in 
+          TfpWriteSetField fields
+      | Some OFPTFPT_WRITE_SETFIELD_MISS -> 
+          let fields,_ = Oxm.parse_headers tfpPayBits in 
+          TfpWriteSetFieldMiss fields
+      | Some OFPTFPT_APPLY_SETFIELD -> 
+          let fields,_ = Oxm.parse_headers tfpPayBits in 
+          TfpApplySetField fields
+      | Some OFPTFPT_APPLY_SETFIELD_MISS -> 
+          let fields,_ = Oxm.parse_headers tfpPayBits in 
+          TfpApplySetFieldMiss fields
+      | Some OFPTFPT_EXPERIMENTER -> 
+          let exp_id = get_ofp_table_feature_prop_experimenter_experimenter bits in
+          let exp_type = get_ofp_table_feature_prop_experimenter_exp_typ bits in
+          TfpExperimenter ({exp_id;exp_type},tfpPayBits)
+      | Some OFPTFPT_EXPERIMENTER_MISS -> 
+          let exp_id = get_ofp_table_feature_prop_experimenter_experimenter bits in
+          let exp_type = get_ofp_table_feature_prop_experimenter_exp_typ bits in
+          TfpExperimenterMiss ({exp_id;exp_type},tfpPayBits)
+      | _ -> raise (Unparsable (sprintf "malformed type"))
+
+    let to_string tfp =
+      Format.sprintf "type:%s;len:%u"
+      (match tfp with
+         | TfpInstruction i-> 
+            (Format.sprintf "Instructions : %s" (Instructions.to_string i))
+         | TfpInstructionMiss i-> 
+            (Format.sprintf "InstructionMiss : %s" (Instructions.to_string i))
+         | TfpNextTable n-> 
+            (Format.sprintf "NextTable : %s" 
+            (String.concat " " (map string_of_int n)))
+         | TfpNextTableMiss n -> 
+            (Format.sprintf "NextTableMiss : %s" 
+            (String.concat " " (map string_of_int n)))
+         | TfpWriteAction a -> 
+            (Format.sprintf "WriteAction: \n%s"
+            (String.concat "\n" (map Action.to_string a)))
+         | TfpWriteActionMiss a -> 
+            (Format.sprintf "WriteActionMiss: \n%s"
+            (String.concat "\n" (map Action.to_string a)))
+         | TfpApplyAction a -> 
+            (Format.sprintf "ApplyActions: \n%s"
+            (String.concat "\n" (map Action.to_string a)))
+         | TfpApplyActionMiss a -> 
+            (Format.sprintf "ApplyActionsMiss: \n%s"
+            (String.concat "\n" (map Action.to_string a)))
+         | TfpMatch s -> 
+            (Format.sprintf "Match : \n%s"
+            (String.concat "\n" (map Oxm.field_name s)))
+         | TfpWildcard s -> 
+            (Format.sprintf "MatchMiss :\n%s"
+            (String.concat "\n" (map Oxm.field_name s)))
+         | TfpWriteSetField s -> 
+            (Format.sprintf "WriteSetField :\n%s"
+            (String.concat "\n" (map Oxm.field_name s)))
+         | TfpWriteSetFieldMiss s -> 
+            (Format.sprintf "WriteSetFieldMiss :\n%s"
+            (String.concat "\n" (map Oxm.field_name s)))
+         | TfpApplySetField s -> 
+            (Format.sprintf "ApplySetField :\n%s"
+            (String.concat "\n" (map Oxm.field_name s)))
+         | TfpApplySetFieldMiss s -> 
+            (Format.sprintf "ApplySetFieldMiss :\n%s"
+            (String.concat "\n" (map Oxm.field_name s)))
+         | TfpExperimenter (e,_)-> 
+            (Format.sprintf "Experimenter:id:%lu;typ:%lu" e.exp_id e.exp_type)
+         | TfpExperimenterMiss (e,_)-> 
+            (Format.sprintf "ExperimenterMiss:id:%lu;typ:%lu" e.exp_id e.exp_type)
+           )
+      (sizeof tfp)
 
 end
 
 module TableFeature = struct
 
     let sizeof (tf : tableFeatures) =
-      tf.length
+      pad_to_64bits (sizeof_ofp_table_features + (TableFeatureProp.sizeof tf.feature_prop))
 
     let tableConfig_to_int (tc : tableConfig) : int32 =
       match tc with
         | Deprecated -> ofp_table_config_to_int OFPTC_DEPRECATED_MASK
 
+    let table_config_to_string tc =
+      match tc with
+        | Deprecated -> "Deprecated"
+
     let marshal (buf : Cstruct.t) (tf : tableFeatures) : int =
-      set_ofp_table_features_length buf tf.length;
+      set_ofp_table_features_length buf (sizeof_ofp_table_features + (TableFeatureProp.sizeof tf.feature_prop));
       set_ofp_table_features_table_id buf tf.table_id;
+      set_ofp_table_features_pad (Cstruct.to_string (Cstruct.create 5)) 0 buf;
       set_ofp_table_features_name tf.name 0 buf;
       set_ofp_table_features_metadata_match buf tf.metadata_match;
       set_ofp_table_features_metadata_write buf tf.metadata_write;
       set_ofp_table_features_config buf (tableConfig_to_int tf.config);
       set_ofp_table_features_max_entries buf tf.max_entries;
-      (*marshal of features prop*)
-      tf.length
+      sizeof_ofp_table_features + (
+        TableFeatureProp.marshal (Cstruct.shift buf sizeof_ofp_table_features) tf.feature_prop)
 
     let parse (bits : Cstruct.t) : tableFeatures*Cstruct.t = 
       let length = get_ofp_table_features_length bits in
       let tableId = get_ofp_table_features_table_id bits in
-      let name = copy_ofp_table_features_name bits in
+      let name = Cstruct.to_string (get_ofp_table_features_name bits) in
       let metadataMatch = get_ofp_table_features_metadata_match bits in
       let metadataWrite = get_ofp_table_features_metadata_write bits in
       let config = (
@@ -2526,9 +2943,8 @@ module TableFeature = struct
             (Unparsable (sprintf "unsupported config "))
         ) in
       let maxEntries = get_ofp_table_features_max_entries bits in
-      let featureProp = TableFeatureProp.parse (Cstruct.shift bits sizeof_ofp_table_features) in
-      { length = (pad_to_64bits length);
-        table_id = tableId;
+      let featureProp = TableFeatureProp.parse (Cstruct.sub bits sizeof_ofp_table_features (length-sizeof_ofp_table_features)) in
+      { table_id = tableId;
         name = name;
         metadata_match = metadataMatch; 
         metadata_write = metadataWrite;
@@ -2536,6 +2952,17 @@ module TableFeature = struct
         max_entries = maxEntries;
         feature_prop = featureProp},(Cstruct.shift bits length)
     
+    let to_string (tf : tableFeatures) =
+      Format.sprintf "tableId:%u;name:%s;metadata match:%Lu;\
+                      metadata write:%Lu;config%s;max_entries:%lu;
+                      featuresPro:%s"
+      tf.table_id
+      tf.name
+      tf.metadata_match
+      tf.metadata_write
+      (table_config_to_string tf.config)
+      tf.max_entries
+      (TableFeatureProp.to_string tf.feature_prop)
 
 end
 
@@ -2552,7 +2979,7 @@ module TableFeaturesRequest = struct
       if len = cumul then [],bits
       else (
         let field,nextBits = TableFeature.parse bits in
-        let fields,bits3 = parse_fields nextBits len (cumul + field.length) in
+        let fields,bits3 = parse_fields nextBits len (cumul + (TableFeature.sizeof field)) in
         (List.append [field] fields,bits3)
       )    
 
@@ -2560,6 +2987,10 @@ module TableFeaturesRequest = struct
       let length = Cstruct.len bits in
       let body,_ = parse_fields bits length 0 in
       body
+
+    let to_string tfr = 
+      let tfrString = String.concat "\n" (map TableFeature.to_string tfr) in
+      tfrString
 end
 
 module MultipartReq = struct
@@ -2573,120 +3004,146 @@ module MultipartReq = struct
       uint8_t pad3
     } as big_endian
 
+    cstruct ofp_experimenter_multipart_header {
+      uint32_t experimenter;
+      uint32_t exp_type
+    } as big_endian
+
   let msg_code_of_request mpr = match mpr with
     | SwitchDescReq -> OFPMP_DESC
     | PortsDescReq -> OFPMP_PORT_DESC
-    | FlowStatsReq -> OFPMP_FLOW
-    | AggregFlowStatsReq -> OFPMP_AGGREGATE
+    | FlowStatsReq _ -> OFPMP_FLOW
+    | AggregFlowStatsReq _ -> OFPMP_AGGREGATE
     | TableStatsReq -> OFPMP_TABLE
-    | PortStatsReq -> OFPMP_PORT_STATS
-    | QueueStatsReq -> OFPMP_QUEUE
-    | GroupStatsReq -> OFPMP_GROUP
+    | PortStatsReq _ -> OFPMP_PORT_STATS
+    | QueueStatsReq _ -> OFPMP_QUEUE
+    | GroupStatsReq _ -> OFPMP_GROUP
     | GroupDescReq -> OFPMP_GROUP_DESC
     | GroupFeatReq -> OFPMP_GROUP_FEATURES
-    | MeterStatsReq -> OFPMP_METER
-    | MeterConfReq -> OFPMP_METER_CONFIG
+    | MeterStatsReq _ -> OFPMP_METER
+    | MeterConfReq _ -> OFPMP_METER_CONFIG
     | MeterFeatReq -> OFPMP_METER_FEATURES
-    | TableFeatReq -> OFPMP_TABLE_FEATURES
-    | ExperimentReq -> OFPMP_EXPERIMENTER
-
-  let to_multipartType mpr =
-  match (int_to_ofp_multipart_types mpr) with
-    | Some OFPMP_DESC -> SwitchDescReq
-    | Some OFPMP_PORT_DESC -> PortsDescReq
-    | Some OFPMP_FLOW -> FlowStatsReq
-    | Some OFPMP_AGGREGATE -> AggregFlowStatsReq
-    | Some OFPMP_TABLE -> TableStatsReq
-    | Some OFPMP_PORT_STATS -> PortStatsReq
-    | Some OFPMP_QUEUE -> QueueStatsReq
-    | Some OFPMP_GROUP -> GroupStatsReq
-    | Some OFPMP_GROUP_DESC -> GroupDescReq
-    | Some OFPMP_GROUP_FEATURES -> GroupFeatReq
-    | Some OFPMP_METER -> MeterStatsReq
-    | Some OFPMP_METER_CONFIG -> MeterConfReq
-    | Some OFPMP_METER_FEATURES -> MeterFeatReq
-    | Some OFPMP_TABLE_FEATURES -> TableFeatReq
-    | Some OFPMP_EXPERIMENTER -> ExperimentReq
-    | _ -> raise (Unparsable (sprintf "bad ofp_multipart_types number (%d)" mpr))
+    | TableFeatReq _ -> OFPMP_TABLE_FEATURES
+    | ExperimentReq _ -> OFPMP_EXPERIMENTER
 
   let sizeof (mpr : multipartRequest) =
     sizeof_ofp_multipart_request + 
-    (match mpr.mpr_body with 
-       | None -> 0
-       | Some MrbFlow fr -> FlowRequest.sizeof fr 
-       | Some MrbAggreg fr -> FlowRequest.sizeof fr
-       | Some MrbPort _ -> sizeof_ofp_port_stats_request 
-       | Some MrbQueue _ -> sizeof_ofp_queue_stats_request
-       | Some MrbGroup _ -> sizeof_ofp_group_stats_request 
-       | Some MrbMeter _ -> sizeof_ofp_meter_multipart_request
-       | Some MrbTable tfr -> TableFeaturesRequest.sizeof tfr
-       | Some MrbExperimenter _ -> raise (Unparsable (sprintf "Not yet implement")) )
+    (match mpr.mpr_type with 
+       | SwitchDescReq | PortsDescReq | TableStatsReq | MeterFeatReq | GroupDescReq
+       | GroupFeatReq -> 0
+       | FlowStatsReq fr -> FlowRequest.sizeof fr 
+       | AggregFlowStatsReq fr -> FlowRequest.sizeof fr
+       | PortStatsReq _ -> sizeof_ofp_port_stats_request 
+       | QueueStatsReq _ -> sizeof_ofp_queue_stats_request
+       | GroupStatsReq _ -> sizeof_ofp_group_stats_request 
+       | MeterStatsReq _  | MeterConfReq _ -> sizeof_ofp_meter_multipart_request
+       | TableFeatReq tfr -> (match tfr with
+          | None -> 0
+          | Some t -> TableFeaturesRequest.sizeof t)
+       | ExperimentReq _ -> sizeof_ofp_experimenter_multipart_header)
+
+  let to_string (mpr : multipartRequest) : string =
+    Format.sprintf "more:%B;typ:%s"
+    mpr.mpr_flags
+    (match mpr.mpr_type with
+      | SwitchDescReq -> "SwitchDesc Req"
+      | PortsDescReq -> "PortDesc Req"
+      | FlowStatsReq f -> 
+          Format.sprintf "FlowStats %s Req" (FlowRequest.to_string f)
+      | AggregFlowStatsReq f -> 
+          Format.sprintf "AggregFlowStats %s Req" (FlowRequest.to_string f)
+      | TableStatsReq -> "TableStats Req"
+      | PortStatsReq p -> 
+          Format.sprintf "PortStats %lu Req" p
+      | QueueStatsReq q -> 
+          Format.sprintf "QueueStats Req: %s" (QueueRequest.to_string q)
+      | GroupStatsReq g -> Format.sprintf "GroupStats %lu Req" g
+      | GroupDescReq -> "GroupDesc Req"
+      | GroupFeatReq -> "GroupFeat Req"
+      | MeterStatsReq m -> Format.sprintf "MeterStats Req: %lu " m
+      | MeterConfReq m -> Format.sprintf "MeterConf Req: %lu" m
+      | MeterFeatReq -> "MeterFeat Req"
+      | TableFeatReq t-> Format.sprintf "TableFeat Req: %s" (match t with
+        | Some v -> TableFeaturesRequest.to_string v
+        | None -> "None" )
+      | ExperimentReq e-> Format.sprintf "Experimenter Req: id: %lu; type: %lu" e.exp_id e.exp_type)
 
   let marshal (buf : Cstruct.t) (mpr : multipartRequest) : int =
     let size = sizeof_ofp_multipart_request in
     set_ofp_multipart_request_typ buf (ofp_multipart_types_to_int (msg_code_of_request mpr.mpr_type));
-    set_ofp_multipart_request_flags buf 0;
+    set_ofp_multipart_request_flags buf (
+      match mpr.mpr_flags with
+        | true -> ofp_multipart_request_flags_to_int OFPMPF_REQ_MORE
+        | false -> 0);
     set_ofp_multipart_request_pad0 buf 0;
     set_ofp_multipart_request_pad1 buf 0;
     set_ofp_multipart_request_pad2 buf 0;
     set_ofp_multipart_request_pad3 buf 0;
     let pay_buf = Cstruct.shift buf sizeof_ofp_multipart_request in
-    size + (
-    match mpr.mpr_body with
-       | None -> 0
-       | Some MrbTable tfr -> TableFeaturesRequest.marshal pay_buf tfr
-       | Some MrbFlow f -> FlowRequest.marshal pay_buf f
-       | Some MrbAggreg f -> FlowRequest.marshal pay_buf f
-       | Some MrbPort p -> 
-          set_ofp_port_stats_request_port_no pay_buf p;
-          sizeof_ofp_port_stats_request
-       | Some MrbQueue q -> QueueRequest.marshal pay_buf q
-       | Some MrbGroup g ->
-          set_ofp_group_stats_request_group_id pay_buf g;
-          sizeof_ofp_group_stats_request
-       | Some MrbMeter m -> 
-          set_ofp_meter_multipart_request_meter_id pay_buf m;
-          sizeof_ofp_meter_multipart_request
-       | Some MrbExperimenter _ -> raise (Unparsable (sprintf "Not yet implement")) 
-    )
+    match mpr.mpr_type with
+      | SwitchDescReq
+      | PortsDescReq -> size
+      | FlowStatsReq f -> size + (FlowRequest.marshal pay_buf f)
+      | AggregFlowStatsReq f -> size + (FlowRequest.marshal pay_buf f)
+      | TableStatsReq -> size
+      | PortStatsReq p -> set_ofp_port_stats_request_port_no pay_buf p;
+                          size + sizeof_ofp_port_stats_request
+      | QueueStatsReq q -> size + (QueueRequest.marshal pay_buf q)
+      | GroupStatsReq g -> set_ofp_port_stats_request_port_no pay_buf g;
+                           size + sizeof_ofp_port_stats_request
+      | GroupDescReq
+      | GroupFeatReq -> size
+      | MeterStatsReq m -> set_ofp_meter_multipart_request_meter_id pay_buf m;
+                           size + sizeof_ofp_meter_multipart_request
+      | MeterConfReq m -> set_ofp_meter_multipart_request_meter_id pay_buf m;
+                          size + sizeof_ofp_meter_multipart_request
+      | MeterFeatReq -> size
+      | TableFeatReq t -> 
+        (match t with
+          | None -> 0
+          | Some v -> size + (TableFeaturesRequest.marshal pay_buf v))
+      | ExperimentReq _ -> size
 
   let parse (bits : Cstruct.t) : multipartRequest =
-    let mprType = to_multipartType (get_ofp_multipart_request_typ bits) in
-    let mprFlags = (
+    let mprType = int_to_ofp_multipart_types (get_ofp_multipart_request_typ bits) in
+    let mpr_flags = (
       match int_to_ofp_multipart_request_flags (get_ofp_multipart_request_flags bits) with
         | Some OFPMPF_REQ_MORE -> true
         | _ -> false) in
-    let mprBody = match mprType with
-      | SwitchDescReq 
-      | TableStatsReq
-      | GroupDescReq
-      | GroupFeatReq
-      | MeterFeatReq
-      | PortsDescReq -> None
-      | FlowStatsReq -> Some (MrbFlow (
-      FlowRequest.parse (Cstruct.shift bits sizeof_ofp_multipart_request)))
-      | AggregFlowStatsReq -> Some (MrbAggreg (
-      FlowRequest.parse (Cstruct.shift bits sizeof_ofp_multipart_request)))
-      | PortStatsReq -> Some (MrbPort (
-      get_ofp_port_stats_request_port_no (Cstruct.shift bits sizeof_ofp_multipart_request)))
-      | QueueStatsReq -> Some (MrbQueue (
-      QueueRequest.parse (Cstruct.shift bits sizeof_ofp_multipart_request)))
-      | GroupStatsReq -> Some (MrbGroup (
-      get_ofp_group_stats_request_group_id (Cstruct.shift bits sizeof_ofp_multipart_request)))
-      | MeterStatsReq -> Some (MrbMeter (
-      get_ofp_meter_multipart_request_meter_id (Cstruct.shift bits sizeof_ofp_multipart_request)))
-      | MeterConfReq -> Some (MrbMeter (
-      get_ofp_meter_multipart_request_meter_id (Cstruct.shift bits sizeof_ofp_multipart_request)))
-      | TableFeatReq -> 
+    let mpr_type = match mprType with
+      | Some OFPMP_DESC -> SwitchDescReq
+      | Some OFPMP_PORT_DESC -> PortsDescReq
+      | Some OFPMP_FLOW -> FlowStatsReq (
+        FlowRequest.parse (Cstruct.shift bits sizeof_ofp_multipart_request))
+      | Some OFPMP_AGGREGATE -> AggregFlowStatsReq (
+        FlowRequest.parse (Cstruct.shift bits sizeof_ofp_multipart_request))
+      | Some OFPMP_TABLE -> TableStatsReq
+      | Some OFPMP_PORT_STATS -> PortStatsReq (
+        get_ofp_port_stats_request_port_no (Cstruct.shift bits sizeof_ofp_multipart_request))
+      | Some OFPMP_QUEUE -> QueueStatsReq (
+        QueueRequest.parse (Cstruct.shift bits sizeof_ofp_multipart_request))
+      | Some OFPMP_GROUP -> GroupStatsReq (
+        get_ofp_group_stats_request_group_id (Cstruct.shift bits sizeof_ofp_multipart_request))
+      | Some OFPMP_GROUP_DESC -> GroupDescReq
+      | Some OFPMP_GROUP_FEATURES -> GroupFeatReq
+      | Some OFPMP_METER -> MeterStatsReq (
+        get_ofp_meter_multipart_request_meter_id (Cstruct.shift bits sizeof_ofp_multipart_request))
+      | Some OFPMP_METER_CONFIG -> MeterConfReq (
+        get_ofp_meter_multipart_request_meter_id (Cstruct.shift bits sizeof_ofp_multipart_request))
+      | Some OFPMP_METER_FEATURES -> MeterFeatReq
+      | Some OFPMP_TABLE_FEATURES -> TableFeatReq (
       if Cstruct.len bits <= sizeof_ofp_multipart_request then None
-      else Some (MrbTable (
+      else Some (
         TableFeaturesRequest.parse (Cstruct.shift bits sizeof_ofp_multipart_request)
       ))
-      | ExperimentReq -> None in
-    { mpr_type = mprType
-    ; mpr_flags = mprFlags
-    ; mpr_body = mprBody}
-    
+      | Some OFPMP_EXPERIMENTER -> ExperimentReq (
+      let exp_bits = Cstruct.shift bits sizeof_ofp_multipart_request in
+      let exp_id = get_ofp_experimenter_multipart_header_experimenter exp_bits in
+      let exp_type = get_ofp_experimenter_multipart_header_exp_type exp_bits in
+      {exp_id; exp_type})
+      | _ -> raise (Unparsable (sprintf "bad ofp_multipart_types number"))
+    in {mpr_type; mpr_flags}
+
 
 end
 
@@ -3233,6 +3690,4 @@ module Message = struct
     (hdr.Header.xid, msg)
 end
 
-let portsDescRequest = Message.MultipartReq {mpr_type = PortsDescReq;
-                                             mpr_flags = false;
-                                             mpr_body = None}
+let portsDescRequest = Message.MultipartReq portDescReq

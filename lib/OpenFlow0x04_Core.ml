@@ -237,85 +237,63 @@ type packetOut = {
   po_actions : actionSequence
 }
 
-type multipartType =
-  | SwitchDescReq
-  | PortsDescReq 
-  | FlowStatsReq
-  | AggregFlowStatsReq
-  | TableStatsReq
-  | PortStatsReq
-  | QueueStatsReq
-  | GroupStatsReq
-  | GroupDescReq
-  | GroupFeatReq
-  | MeterStatsReq
-  | MeterConfReq
-  | MeterFeatReq
-  | TableFeatReq
-  | ExperimentReq
-
 type flowRequest = {fr_table_id : tableId; fr_out_port : portId; 
                     fr_out_group : portId; fr_cookie : int64 mask;
                     fr_match : oxmMatch}
 
 type queueRequest = {port_number : portId; queue_id : int32}
 
-type tfpType =
-  | TfpInstruction
-  | TfpInstructionMiss
-  | TfpNextTable
-  | TfpNextTableMiss
-  | TfpWriteAction
-  | TfpWriteActionMiss
-  | TfpApplyAction
-  | TfpApplyActionMiss
-  | TfpMatch
-  | TfpWildcard
-  | TfpWriteSetField
-  | TfpWriteSetFieldMiss
-  | TfpApplySetField
-  | TfpApplySetFieldMiss
-  | TfpExperimenter
-  | TfpExperimenterMiss
+type experimenter = {exp_id : int32; exp_type : int32}
 
-type tfpPayload = 
-  | TfpInstruction of instruction list
+type tableFeatureProp =
+  | TfpInstruction of instruction list 
+  | TfpInstructionMiss of instruction list
   | TfpNextTable of tableId list
-  | TfpAction of action list
-  | TfpSetField of oxm list
-
-type tableFeatureProp = {tfp_type : tfpType; tfp_length : int16; 
-                         tfp_payload : tfpPayload}
+  | TfpNextTableMiss of tableId list
+  | TfpWriteAction of action list
+  | TfpWriteActionMiss of action list
+  | TfpApplyAction of action list
+  | TfpApplyActionMiss of action list
+  | TfpMatch of oxm list
+  | TfpWildcard of oxm list
+  | TfpWriteSetField of oxm list
+  | TfpWriteSetFieldMiss of oxm list
+  | TfpApplySetField of oxm list
+  | TfpApplySetFieldMiss of oxm list
+  | TfpExperimenter of (experimenter*bytes)
+  | TfpExperimenterMiss of (experimenter*bytes)
 
 type tableConfig = Deprecated
 
-type tableFeatures = {length : int16; table_id : tableId; name : string;
+type tableFeatures = {table_id : tableId; name : string;
                       metadata_match : int64; metadata_write : int64;
                       config : tableConfig; max_entries: int32;
                       feature_prop : tableFeatureProp}
 
 type tableFeaturesRequest = tableFeatures list
 
-type experimenter = {exp_id : int32; exp_type : int32}
+type multipartType =
+  | SwitchDescReq
+  | PortsDescReq 
+  | FlowStatsReq of flowRequest
+  | AggregFlowStatsReq of flowRequest
+  | TableStatsReq
+  | PortStatsReq of portId
+  | QueueStatsReq of queueRequest
+  | GroupStatsReq of int32
+  | GroupDescReq
+  | GroupFeatReq
+  | MeterStatsReq of int32
+  | MeterConfReq of int32
+  | MeterFeatReq
+  | TableFeatReq of tableFeaturesRequest option
+  | ExperimentReq of experimenter  
 
-type multipartRequestBody =
-  | MrbFlow of flowRequest
-  | MrbAggreg of flowRequest
-  | MrbPort of portId
-  | MrbQueue of queueRequest
-  | MrbGroup of groupId
-  | MrbMeter of int32
-  | MrbTable of tableFeaturesRequest
-  | MrbExperimenter of experimenter
-  
-
-type multipartRequest = { mpr_type : multipartType; mpr_flags : bool;
-                          mpr_body : multipartRequestBody option}
+type multipartRequest = { mpr_type : multipartType; mpr_flags : bool }
 
 let portDescReq = 
   { mpr_type = PortsDescReq
-  ; mpr_flags = false
-  ; mpr_body = None }
+  ; mpr_flags = false }
 
 type switchDesc = { mfr_desc :string ; hw_desc : string; sw_desc : string;
                          serial_num : string }
