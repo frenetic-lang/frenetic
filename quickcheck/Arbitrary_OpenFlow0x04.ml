@@ -347,6 +347,64 @@ module OfpMatch = struct
             p
     end
 
+    module OxmHeader = struct
+        type t = OpenFlow0x04_Core.oxm
+        
+        module Oxm = OpenFlow0x04.Oxm
+        
+        let arbitrary = 
+            let open Gen in
+            let open Oxm in
+            arbitrary_masked (ret_gen 0L) (ret_gen 0L) >>= fun oxmMetadata ->
+            arbitrary_masked (ret_gen 0L) (ret_gen 0L) >>= fun oxmEthDst ->
+            arbitrary_masked (ret_gen 0L) (ret_gen 0L) >>= fun oxmEthSrc ->
+            arbitrary_masked (ret_gen 0) (ret_gen 0) >>= fun oxmVlanVId ->
+            arbitrary_masked (ret_gen 0l) (ret_gen 0l) >>= fun oxmIP4Src ->
+            arbitrary_masked (ret_gen 0l) (ret_gen 0l) >>= fun oxmIP4Dst ->
+            arbitrary_masked (ret_gen 0) (ret_gen 0) >>= fun oxmTCPSrc ->
+            arbitrary_masked (ret_gen 0) (ret_gen 0) >>= fun oxmTCPDst ->
+            arbitrary_masked (ret_gen 0l) (ret_gen 0l) >>= fun oxmARPSpa ->
+            arbitrary_masked (ret_gen 0l) (ret_gen 0l) >>= fun oxmARPTpa ->
+            arbitrary_masked (ret_gen 0L) (ret_gen 0L) >>= fun oxmARPSha ->
+            arbitrary_masked (ret_gen 0L) (ret_gen 0L) >>= fun oxmARPTha ->
+            arbitrary_masked (ret_gen 0L) (ret_gen 0L) >>= fun oxmTunnelId ->
+            oneof [
+                ret_gen (OxmInPort 0l);
+                ret_gen (OxmInPhyPort 0l);
+                ret_gen (OxmMetadata oxmMetadata);
+                ret_gen (OxmEthType 0);
+                ret_gen (OxmEthDst oxmEthDst);
+                ret_gen (OxmEthSrc oxmEthSrc);
+                ret_gen (OxmVlanVId oxmVlanVId);
+                ret_gen (OxmVlanPcp 0);
+                ret_gen (OxmIPProto 0);
+                ret_gen (OxmIPDscp 0);
+                ret_gen (OxmIPEcn 0);
+                ret_gen (OxmIP4Src oxmIP4Src);
+                ret_gen (OxmIP4Dst oxmIP4Dst);
+                ret_gen (OxmTCPSrc oxmTCPSrc);
+                ret_gen (OxmTCPDst oxmTCPDst);
+                ret_gen (OxmARPOp 0);
+                ret_gen (OxmARPSpa oxmARPSpa);
+                ret_gen (OxmARPTpa oxmARPTpa);
+                ret_gen (OxmARPSha oxmARPSha);
+                ret_gen (OxmARPTha oxmARPTha);
+                ret_gen (OxmICMPType 0);
+                ret_gen (OxmICMPCode 0);
+                ret_gen (OxmMPLSLabel 0l);
+                ret_gen (OxmMPLSTc 0);
+                ret_gen (OxmTunnelId oxmTunnelId)
+            ]
+
+        let marshal = Oxm.marshal_header
+
+        let to_string = Oxm.field_name
+        let size_of = Oxm.sizeof
+        let parse bits = 
+            let p,_ = Oxm.parse_header bits in
+            p
+    end
+
     let arbitrary =
         let open Gen in
         let open OfpMatch in
@@ -517,3 +575,35 @@ module FlowMod = struct
     let to_string = FlowMod.to_string
     let size_of = FlowMod.sizeof
 end    
+
+module MultipartReq = struct
+  open Gen
+  open OpenFlow0x04_Core
+  module TableFeaturesRequest = struct
+    module TableFeatureProp = struct
+      
+      type t = OpenFlow0x04_Core.tableFeatureProp
+      
+      let arbitrary = 
+        oneof [
+          Instructions.arbitrary >>= (fun n -> ret_gen (TfpInstruction n));
+          Instructions.arbitrary >>= (fun n -> ret_gen (TfpInstructionMiss n));
+          arbitrary_list Action.arbitrary >>= (fun n -> ret_gen (TfpWriteAction n));
+          arbitrary_list Action.arbitrary >>= (fun n -> ret_gen (TfpWriteActionMiss n));
+          arbitrary_list Action.arbitrary >>= (fun n -> ret_gen (TfpApplyAction n));
+          arbitrary_list Action.arbitrary >>= (fun n -> ret_gen (TfpApplyActionMiss n));
+          arbitrary_list OfpMatch.OxmHeader.arbitrary >>= (fun n -> ret_gen (TfpMatch n));
+          arbitrary_list OfpMatch.OxmHeader.arbitrary >>= (fun n -> ret_gen (TfpWildcard n));
+          arbitrary_list OfpMatch.OxmHeader.arbitrary >>= (fun n -> ret_gen (TfpWriteSetField n));
+          arbitrary_list OfpMatch.OxmHeader.arbitrary >>= (fun n -> ret_gen (TfpWriteSetFieldMiss n));
+          arbitrary_list OfpMatch.OxmHeader.arbitrary >>= (fun n -> ret_gen (TfpApplySetField n));
+          arbitrary_list OfpMatch.OxmHeader.arbitrary >>= (fun n -> ret_gen (TfpApplySetFieldMiss n))
+          ]
+
+      let marshal = TableFeatureProp.marshal
+      let parse = TableFeatureProp.parse
+      let to_string = TableFeatureProp.to_string
+      let size_of = TableFeatureProp.sizeof
+    end
+  end
+end

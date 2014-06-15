@@ -148,6 +148,11 @@ module RoundTripping = struct
       let module GenOxm = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.OfpMatch.Oxm) in
       (openflow_quickCheck GenOxm.arbitrary
           GenOxm.to_string GenOxm.parse GenOxm.marshal)
+  
+  TEST "OpenFlow0x04 OfpMatch.OxmHeader RoundTrip" =
+      let module GenOxm = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.OfpMatch.OxmHeader) in
+      (openflow_quickCheck GenOxm.arbitrary
+          GenOxm.to_string GenOxm.parse GenOxm.marshal)
 
   TEST "OpenFlow0x04 Action RoundTrip" =
       let module GenAction = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.Action) in
@@ -173,6 +178,11 @@ module RoundTripping = struct
       let module GenFlowModCommand = Gen0x04.FlowMod.FlowModCommand in
       (openflow_quickCheck GenFlowModCommand.arbitrary
           GenFlowModCommand.to_string GenFlowModCommand.parse GenFlowModCommand.marshal)
+
+  TEST "OpenFlow0x04 MultipartReq.TableFeaturesRequest.TableFeatureProp RoundTrip" =
+      let module GenTableFeatureProp = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReq.TableFeaturesRequest.TableFeatureProp) in
+      (openflow_quickCheck GenTableFeatureProp.arbitrary
+          GenTableFeatureProp.to_string GenTableFeatureProp.parse GenTableFeatureProp.marshal)
 
   TEST "OpenFlow Hello Test 1" = 
     let open Message in 

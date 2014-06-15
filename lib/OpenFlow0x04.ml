@@ -1207,7 +1207,7 @@ module Oxm = struct
             sizeof_ofp_oxm
           | OxmEthDst ethaddr ->
             set_ofp_oxm buf ofc OFPXMT_OFB_ETH_DST (match ethaddr.m_mask with None -> 0 | _ -> 1) l;
-            sizeof_ofp_oxm + l
+            sizeof_ofp_oxm
           | OxmEthSrc ethaddr ->
             set_ofp_oxm buf ofc OFPXMT_OFB_ETH_SRC (match ethaddr.m_mask with None -> 0 | _ -> 1) l;
             sizeof_ofp_oxm
@@ -1454,8 +1454,7 @@ module Oxm = struct
       | None -> 
         raise (Unparsable (sprintf "malformed field in oxm %d" (value lsr 1))) in
     let hm = value land 0x1 in
-    let oxm_length = get_ofp_oxm_oxm_length bits in
-    let bits2 = Cstruct.shift bits oxm_length in
+    let bits2 = Cstruct.shift bits sizeof_ofp_oxm in
     match f with
       | OFPXMT_OFB_IN_PORT ->
         (OxmInPort 0l, bits2)
@@ -1565,9 +1564,9 @@ module Oxm = struct
         raise (Unparsable (sprintf "malformed packet in oxm %d\n" (value lsr 1)))
 
     let rec parse_headers (bits : Cstruct.t) : oxmMatch*Cstruct.t = 
-      if Cstruct.len bits <= sizeof_ofp_oxm then ([], bits)
+      if Cstruct.len bits < sizeof_ofp_oxm then ([], bits)
       else let field, bits2 = parse_header bits in
-      let fields, bits3 = parse_headers bits2 in
+      let fields, bits3 = parse_headers bits2 in    
       (List.append [field] fields, bits3)
 
 end

@@ -33,13 +33,21 @@ end
 
 module Oxm : sig
 
+  val field_name : oxm -> string
+
   val sizeof : oxm -> int 
 
-  val to_string :oxm -> string
+  val sizeof_header : oxm list -> int
+
+  val to_string : oxm -> string
 
   val marshal : Cstruct.t -> oxm -> int
 
+  val marshal_header : Cstruct.t -> oxm -> int
+
   val parse : Cstruct.t -> oxm * Cstruct.t
+
+  val parse_header : Cstruct.t -> oxm * Cstruct.t
 
 end
 
