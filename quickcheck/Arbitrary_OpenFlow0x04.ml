@@ -637,5 +637,15 @@ module MultipartReq = struct
       let to_string = TableFeature.to_string
       let size_of = TableFeature.sizeof
     end
+
+    type t = OpenFlow0x04_Core.tableFeaturesRequest
+
+    let arbitrary =
+        arbitrary_list TableFeature.arbitrary >>= fun v ->
+        ret_gen v
+    let marshal = TableFeaturesRequest.marshal
+    let parse = TableFeaturesRequest.parse
+    let to_string = TableFeaturesRequest.to_string
+    let size_of = TableFeaturesRequest.sizeof
   end
 end

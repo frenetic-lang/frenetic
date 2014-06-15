@@ -189,6 +189,11 @@ module RoundTripping = struct
       (openflow_quickCheck GenTableFeature.arbitrary
           GenTableFeature.to_string GenTableFeature.parse GenTableFeature.marshal)
 
+  TEST "OpenFlow0x04 MultipartReq.TableFeaturesRequest RoundTrip" =
+      let module GenTableFeatureReq = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReq.TableFeaturesRequest) in
+      (openflow_quickCheck GenTableFeatureReq.arbitrary
+          GenTableFeatureReq.to_string GenTableFeatureReq.parse GenTableFeatureReq.marshal)
+
   TEST "OpenFlow Hello Test 1" = 
     let open Message in 
     let bs = Cstruct.create 101 in
