@@ -2691,6 +2691,43 @@ module TableFeatureProp = struct
         uint32_t exp_typ
     } as big_endian
 
+    let sizeof tfp : int = 
+      let size = sizeof_ofp_table_feature_prop_header + (match tfp with
+        | TfpInstruction ins -> 
+            Instructions.sizeof ins
+        | TfpInstructionMiss ins -> 
+            Instructions.sizeof ins
+        | TfpNextTable t -> 
+            List.length t
+        | TfpNextTableMiss t -> 
+            List.length t
+        | TfpWriteAction act -> 
+            sum (map Action.sizeof act)
+        | TfpWriteActionMiss act -> 
+            sum (map Action.sizeof act)
+        | TfpApplyAction act -> 
+            sum (map Action.sizeof act)
+        | TfpApplyActionMiss act -> 
+            sum (map Action.sizeof act)
+        | TfpMatch ox -> 
+            Oxm.sizeof_header ox
+        | TfpWildcard ox -> 
+            Oxm.sizeof_header ox
+        | TfpWriteSetField ox-> 
+            Oxm.sizeof_header ox
+        | TfpWriteSetFieldMiss ox -> 
+            Oxm.sizeof_header ox
+        | TfpApplySetField ox -> 
+            Oxm.sizeof_header ox
+        | TfpApplySetFieldMiss ox -> 
+            Oxm.sizeof_header ox
+        | TfpExperimenter (_,by) -> 
+            Cstruct.len by
+        | TfpExperimenterMiss (_,by) -> 
+            Cstruct.len by
+            ) in
+      pad_to_64bits size
+
     let marshal (buf : Cstruct.t) (tfp : tableFeatureProp) =
     let buf_payload = Cstruct.shift buf sizeof_ofp_table_feature_prop_header in
     let size = sizeof_ofp_table_feature_prop_header + (match tfp with
@@ -2752,7 +2789,7 @@ module TableFeatureProp = struct
           Cstruct.len by
           ) in
     set_ofp_table_feature_prop_header_length buf size;
-    size
+    pad_to_64bits size
 
     let rec parse_tables (bits : Cstruct.t) len = 
         if Cstruct.len bits < 1 then ([], bits)
@@ -2762,8 +2799,8 @@ module TableFeatureProp = struct
 
     let parse (bits : Cstruct.t) : tableFeatureProp =
      let tfpType = get_ofp_table_feature_prop_header_typ bits in
-     let tfpPayBits = Cstruct.shift bits sizeof_ofp_table_feature_prop_header in
      let tfpLength = get_ofp_table_feature_prop_header_length bits in
+     let tfpPayBits = Cstruct.sub bits sizeof_ofp_table_feature_prop_header (tfpLength - sizeof_ofp_table_feature_prop_header) in
      match int_to_ofp_table_feature_prop_type tfpType with
       | Some OFPTFPT_INSTRUCTIONS -> 
           TfpInstruction (Instructions.parse tfpPayBits)
@@ -2810,43 +2847,6 @@ module TableFeatureProp = struct
           let exp_type = get_ofp_table_feature_prop_experimenter_exp_typ bits in
           TfpExperimenterMiss ({exp_id;exp_type},tfpPayBits)
       | _ -> raise (Unparsable (sprintf "malformed type"))
-
-    let sizeof tfp : int = 
-      let size = sizeof_ofp_table_feature_prop_header + (match tfp with
-        | TfpInstruction ins -> 
-            Instructions.sizeof ins
-        | TfpInstructionMiss ins -> 
-            Instructions.sizeof ins
-        | TfpNextTable t -> 
-            List.length t
-        | TfpNextTableMiss t -> 
-            List.length t
-        | TfpWriteAction act -> 
-            sum (map Action.sizeof act)
-        | TfpWriteActionMiss act -> 
-            sum (map Action.sizeof act)
-        | TfpApplyAction act -> 
-            sum (map Action.sizeof act)
-        | TfpApplyActionMiss act -> 
-            sum (map Action.sizeof act)
-        | TfpMatch ox -> 
-            Oxm.sizeof_header ox
-        | TfpWildcard ox -> 
-            Oxm.sizeof_header ox
-        | TfpWriteSetField ox-> 
-            Oxm.sizeof_header ox
-        | TfpWriteSetFieldMiss ox -> 
-            Oxm.sizeof_header ox
-        | TfpApplySetField ox -> 
-            Oxm.sizeof_header ox
-        | TfpApplySetFieldMiss ox -> 
-            Oxm.sizeof_header ox
-        | TfpExperimenter (_,by) -> 
-            Cstruct.len by
-        | TfpExperimenterMiss (_,by) -> 
-            Cstruct.len by
-            ) in
-      size
 
     let to_string tfp =
       Format.sprintf "type:%s;len:%u"
@@ -2903,7 +2903,7 @@ end
 module TableFeature = struct
 
     let sizeof (tf : tableFeatures) =
-      tf.length
+      pad_to_64bits (sizeof_ofp_table_features + (TableFeatureProp.sizeof tf.feature_prop))
 
     let tableConfig_to_int (tc : tableConfig) : int32 =
       match tc with
@@ -2914,20 +2914,21 @@ module TableFeature = struct
         | Deprecated -> "Deprecated"
 
     let marshal (buf : Cstruct.t) (tf : tableFeatures) : int =
-      set_ofp_table_features_length buf tf.length;
+      set_ofp_table_features_length buf (sizeof_ofp_table_features + (TableFeatureProp.sizeof tf.feature_prop));
       set_ofp_table_features_table_id buf tf.table_id;
+      set_ofp_table_features_pad (Cstruct.to_string (Cstruct.create 5)) 0 buf;
       set_ofp_table_features_name tf.name 0 buf;
       set_ofp_table_features_metadata_match buf tf.metadata_match;
       set_ofp_table_features_metadata_write buf tf.metadata_write;
       set_ofp_table_features_config buf (tableConfig_to_int tf.config);
       set_ofp_table_features_max_entries buf tf.max_entries;
-      (*marshal of features prop*)
-      tf.length
+      sizeof_ofp_table_features + (
+        TableFeatureProp.marshal (Cstruct.shift buf sizeof_ofp_table_features) tf.feature_prop)
 
     let parse (bits : Cstruct.t) : tableFeatures*Cstruct.t = 
       let length = get_ofp_table_features_length bits in
       let tableId = get_ofp_table_features_table_id bits in
-      let name = copy_ofp_table_features_name bits in
+      let name = Cstruct.to_string (get_ofp_table_features_name bits) in
       let metadataMatch = get_ofp_table_features_metadata_match bits in
       let metadataWrite = get_ofp_table_features_metadata_write bits in
       let config = (
@@ -2937,9 +2938,8 @@ module TableFeature = struct
             (Unparsable (sprintf "unsupported config "))
         ) in
       let maxEntries = get_ofp_table_features_max_entries bits in
-      let featureProp = TableFeatureProp.parse (Cstruct.shift bits sizeof_ofp_table_features) in
-      { length = (pad_to_64bits length);
-        table_id = tableId;
+      let featureProp = TableFeatureProp.parse (Cstruct.sub bits sizeof_ofp_table_features (length-sizeof_ofp_table_features)) in
+      { table_id = tableId;
         name = name;
         metadata_match = metadataMatch; 
         metadata_write = metadataWrite;
@@ -2948,10 +2948,9 @@ module TableFeature = struct
         feature_prop = featureProp},(Cstruct.shift bits length)
     
     let to_string (tf : tableFeatures) =
-      Format.sprintf "len:%u;tableId:%u;name:%s;metadata match:%Lu;\
+      Format.sprintf "tableId:%u;name:%s;metadata match:%Lu;\
                       metadata write:%Lu;config%s;max_entries:%lu;
                       featuresPro:%s"
-      tf.length
       tf.table_id
       tf.name
       tf.metadata_match
@@ -2975,7 +2974,7 @@ module TableFeaturesRequest = struct
       if len = cumul then [],bits
       else (
         let field,nextBits = TableFeature.parse bits in
-        let fields,bits3 = parse_fields nextBits len (cumul + field.length) in
+        let fields,bits3 = parse_fields nextBits len (cumul + (TableFeature.sizeof field)) in
         (List.append [field] fields,bits3)
       )    
 

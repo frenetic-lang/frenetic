@@ -605,5 +605,37 @@ module MultipartReq = struct
       let to_string = TableFeatureProp.to_string
       let size_of = TableFeatureProp.sizeof
     end
+    
+    module TableFeature = struct
+      type t = OpenFlow0x04_Core.tableFeatures
+
+      let arbitrary_config =
+        ret_gen Deprecated
+
+      let arbitrary = 
+        arbitrary_uint8 >>= fun table_id ->
+        arbitrary_stringN 32 >>= fun name ->
+        arbitrary_uint64 >>= fun metadata_match ->
+        arbitrary_uint64 >>= fun metadata_write ->
+        arbitrary_config >>= fun config ->
+        arbitrary_uint32 >>= fun max_entries ->
+        TableFeatureProp.arbitrary >>= fun feature_prop ->
+        ret_gen {
+          table_id;
+          name;
+          metadata_match;
+          metadata_write;
+          config;
+          max_entries;
+          feature_prop
+        }
+      
+      let marshal = TableFeature.marshal
+      let parse bits= 
+            let p,_ = TableFeature.parse bits in
+            p
+      let to_string = TableFeature.to_string
+      let size_of = TableFeature.sizeof
+    end
   end
 end
