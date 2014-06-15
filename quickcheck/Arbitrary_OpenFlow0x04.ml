@@ -648,4 +648,26 @@ module MultipartReq = struct
     let to_string = TableFeaturesRequest.to_string
     let size_of = TableFeaturesRequest.sizeof
   end
+
+  module FlowRequest = struct
+    type t = OpenFlow0x04_Core.flowRequest
+    
+    let arbitrary =
+        arbitrary_uint8 >>= fun fr_table_id ->
+        arbitrary_uint32 >>= fun fr_out_port ->
+        arbitrary_uint32 >>= fun fr_out_group ->
+        arbitrary_masked arbitrary_uint64 arbitrary_64mask >>= fun fr_cookie ->
+        OfpMatch.arbitrary >>= fun fr_match ->
+        ret_gen {
+        fr_table_id;
+        fr_out_port;
+        fr_out_group;
+        fr_cookie;
+        fr_match
+        }
+    let marshal = FlowRequest.marshal
+    let parse = FlowRequest.parse
+    let to_string = FlowRequest.to_string
+    let size_of = FlowRequest.sizeof
+  end
 end

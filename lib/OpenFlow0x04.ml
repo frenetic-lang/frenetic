@@ -2656,11 +2656,14 @@ module FlowRequest = struct
       let out_group = get_ofp_flow_stats_request_out_group bits in
       let cookie = get_ofp_flow_stats_request_cookie bits in
       let mask = get_ofp_flow_stats_request_cookie_mask bits in
+      let fr_cookie = match mask with
+                        | 0L -> {m_value = cookie; m_mask = None}
+                        | n -> {m_value = cookie; m_mask = Some n} in
       let oxmMatch,_ = OfpMatch.parse (Cstruct.shift bits sizeof_ofp_flow_stats_request) in
       { fr_table_id = tableId
       ; fr_out_port = out_port
       ; fr_out_group = out_group
-      ; fr_cookie = {m_value = cookie; m_mask = Some mask}
+      ; fr_cookie = fr_cookie
       ; fr_match = oxmMatch}
 
 end
