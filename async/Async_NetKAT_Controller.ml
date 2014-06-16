@@ -247,34 +247,32 @@ let internal_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred
     OpenFlow0x01.Message.FlowModMsg (SDN_OpenFlow0x01.from_flow prio flow) in
   let c_id = Controller.client_id_of_switch t.ctl sw_id in
   let table = NetKAT_LocalCompiler.(to_table (compile sw_id pol)) in
-  Monitor.try_with ~name:"internal_update_table_for" (fun _ ->
-    let priority = ref 65536 in
-    (* Add match on ver *)    
-    let table = Update.PerPacketConsistent.specialize_internal_to
-      ver (TUtil.internal_ports !(t.nib) sw_id) table in
-    (* Log.debug ~tags
-      "switch %Lu: Installing internal table %s" sw_id (SDN_Types.string_of_flowTable table);
-    *)
-    Log.debug ~tags
-      "switch %Lu: Installing internal table for ver %d" sw_id ver;
-    let open SDN_Types in
-    if List.length table <= 0
-    then raise (Assertion_failed (Printf.sprintf
-                                    "Controller.internal_update_table_for: empty table for switch %Lu" sw_id));
-    Deferred.List.iter table ~f:(fun flow ->
-        decr priority;
-        send t.ctl c_id (0l, to_flow_mod !priority flow))
-    >>= fun () -> (send_barrier_to_sw t sw_id))
+  let priority = ref 65536 in
+  (* Add match on ver *)
+  let table = Update.PerPacketConsistent.specialize_internal_to
+    ver (TUtil.internal_ports !(t.nib) sw_id) table in
+  (* Log.debug ~tags
+    "switch %Lu: Installing internal table %s" sw_id (SDN_Types.string_of_flowTable table);
+  *)
+  Log.debug ~tags
+    "switch %Lu: Installing internal table for ver %d" sw_id ver;
+  let open SDN_Types in
+  if List.length table <= 0
+  then raise (Assertion_failed
+    (Printf.sprintf "Controller.internal_update_table_for: empty table for switch %Lu" sw_id));
+  Deferred.List.iter table ~f:(fun flow ->
+      decr priority;
+      send t.ctl c_id (0l, to_flow_mod !priority flow))
+  >>= fun () -> send_barrier_to_sw t sw_id
   >>= function
-  | Ok `Complete ->
+  | `Complete ->
     Log.debug ~tags
       "switch %Lu: installed internal table for ver %d" sw_id ver;
     Log.flushed ()
-  | Ok (`Disconnect exn_) ->
+  | `Disconnect exn_ ->
     Log.debug ~tags
       "switch %Lu: disconnected while installing internal table for ver %d... skipping" sw_id ver;
     Log.flushed ()
-  | Error exn -> raise exn
 
 (* Comparison should be made based on patterns only, not actions *)
 (* Assumes both FT are sorted in descending order by priority *)
@@ -320,27 +318,25 @@ let swap_update_for (t : t) sw_id new_table : unit Deferred.t =
 
 let edge_update_table_for (t : t) ver pol (sw_id : switchId) : unit Deferred.t =
   let table = NetKAT_LocalCompiler.(to_table (compile sw_id pol)) in
-  Monitor.try_with ~name:"edge_update_table_for" (fun _ ->
-      let edge_table = Update.PerPacketConsistent.specialize_edge_to
-        ver (TUtil.internal_ports !(t.nib) sw_id) table in
-      (*
-      Log.debug ~tags
-        "switch %Lu: Installing edge table %s" sw_id (SDN_Types.string_of_flowTable edge_table);
-      *)
-      Log.debug ~tags
-        "switch %Lu: Installing edge table for ver %d" sw_id ver;
-      swap_update_for t sw_id edge_table
-      >>= fun () -> (send_barrier_to_sw t sw_id))
+  let edge_table = Update.PerPacketConsistent.specialize_edge_to
+    ver (TUtil.internal_ports !(t.nib) sw_id) table in
+  (*
+  Log.debug ~tags
+    "switch %Lu: Installing edge table %s" sw_id (SDN_Types.string_of_flowTable edge_table);
+  *)
+  Log.debug ~tags
+    "switch %Lu: Installing edge table for ver %d" sw_id ver;
+  swap_update_for t sw_id edge_table
+  >>= fun () -> send_barrier_to_sw t sw_id
   >>= function
-  | Ok `Complete ->
+  | `Complete ->
     Log.debug ~tags
       "switch %Lu: installed edge table for ver %d" sw_id ver;
     Log.flushed ()
-  | Ok (`Disconnect exn_) ->
+  | `Disconnect exn_ ->
     Log.debug ~tags
       "switch %Lu: disconnected while installing edge table for ver %d... skipping" sw_id ver;
     Log.flushed ()
-  | Error exn -> raise exn
 
 let clear_old_table_for (t : t) ver sw_id : unit Deferred.t =
   let open SDN_Types in
