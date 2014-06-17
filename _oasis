@@ -1,7 +1,7 @@
 OASISFormat: 0.3
 OCamlVersion:     >= 4.01.0
 Name:        openflow
-Version:     0.3.0
+Version:     0.4.0
 Synopsis:    Serialization library for OpenFlow
 Authors:     https://github.com/frenetic-lang/ocaml-openflow/contributors
 License:     LGPL
