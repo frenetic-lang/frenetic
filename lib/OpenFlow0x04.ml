@@ -3175,13 +3175,21 @@ end
 
 module SwitchDescriptionReply = struct
 
-(* need to fill with Null bytes (I think i should be done) *)
+  let sizeof (sdr : switchDesc) : int = 
+    sizeof_ofp_desc
+  
+  let to_string (sdr : switchDesc) : string =
+    Format.sprintf "Manufacture desc: %s\nHardware desc: %s\nSoftware desc: %s\nSerial Num:%s\n"
+    sdr.mfr_desc
+    sdr.hw_desc
+    sdr.sw_desc
+    sdr.serial_num
 
   let marshal (buf : Cstruct.t) (sdr : switchDesc) : int =
-    set_ofp_desc_mfr_desc sdr.mfr_desc 0 buf;
-    set_ofp_desc_hw_desc sdr.hw_desc 0 buf;
-    set_ofp_desc_sw_desc sdr.sw_desc 0 buf;
-    set_ofp_desc_serial_num sdr.serial_num 0 buf;
+    Cstruct.blit_from_string sdr.mfr_desc 0 buf 0 (String.length sdr.mfr_desc);
+    Cstruct.blit_from_string sdr.hw_desc 0 buf 256 (String.length sdr.hw_desc);
+    Cstruct.blit_from_string sdr.sw_desc 0 buf 512 (String.length sdr.sw_desc);
+    Cstruct.blit_from_string sdr.serial_num 0 buf 768 (String.length sdr.serial_num);
     sizeof_ofp_desc
 
   let parse (bits : Cstruct.t) : switchDesc = 
@@ -3351,17 +3359,20 @@ module Aggregate = struct
     uint8_t pad[4];
   } as big_endian
 
-  let sizeof ts = 
+  let sizeof ag = 
     sizeof_ofp_aggregate_stats_reply
 
-  let to_string ts =
-  ""
+  let to_string ag =
+    Format.sprintf "packet count:%Lu;\nbyte count:%Lu;\nflow count:%lu\n"
+    ag.packet_count
+    ag.byte_count
+    ag.flow_count
 
   let marshal (buf : Cstruct.t) (ag : aggregStats) : int =
     set_ofp_aggregate_stats_reply_packet_count buf ag.packet_count;
     set_ofp_aggregate_stats_reply_byte_count buf ag.byte_count;
     set_ofp_aggregate_stats_reply_flow_count buf ag.flow_count;
-    set_ofp_aggregate_stats_reply_pad "" 0 buf;
+    set_ofp_aggregate_stats_reply_pad (Cstruct.to_string (Cstruct.create 4)) 0 buf;
     sizeof_ofp_aggregate_stats_reply
 
   let parse (bits : Cstruct.t) : aggregStats =
@@ -3386,19 +3397,27 @@ module Table = struct
   let sizeof (ts : tableStats list) = 
     sum (map sizeof_struct ts)
 
-  let to_string ts =
-    ""
+  let to_string_struct (ts : tableStats) =
+    Format.sprintf "table id: %u;\nactive count: %lu;\nlookup count: %Lu;\n\
+    matched count : %Lu;\n"
+    ts.table_id
+    ts.active_count
+    ts.lookup_count
+    ts.matched_count
+    
+  let to_string (t : tableStats list) = 
+   String.concat "\n" (map to_string_struct t) 
 
-  let marshal_struct (buf : Cstruct.t) (tr : tableStats) : int =
-    set_ofp_table_stats_table_id buf tr.table_id;
-    set_ofp_table_stats_pad "" 0 buf;
-    set_ofp_table_stats_active_count buf tr.active_count;
-    set_ofp_table_stats_lookup_count buf tr.lookup_count;
-    set_ofp_table_stats_matched_count buf tr.matched_count;
+  let marshal_struct (buf : Cstruct.t) (ts : tableStats) : int =
+    set_ofp_table_stats_table_id buf ts.table_id;
+    set_ofp_table_stats_pad (Cstruct.to_string (Cstruct.create 3)) 0 buf;
+    set_ofp_table_stats_active_count buf ts.active_count;
+    set_ofp_table_stats_lookup_count buf ts.lookup_count;
+    set_ofp_table_stats_matched_count buf ts.matched_count;
     sizeof_ofp_table_stats
     
-  let marshal (buf : Cstruct.t) (tr : tableStats list) : int = 
-    marshal_fields buf tr marshal_struct
+  let marshal (buf : Cstruct.t) (ts : tableStats list) : int = 
+    marshal_fields buf ts marshal_struct
 
   let parse_struct (bits : Cstruct.t) : tableStats =
     { table_id = get_ofp_table_stats_table_id bits
@@ -3423,13 +3442,32 @@ module PortStats = struct
   let sizeof (ps : portStats list) = 
     sum (map sizeof_struct ps)
 
-  let to_string ps =
-    ""
-    
+  let to_string_struct ps =
+    Format.sprintf "PortNo: %lu\nrx/tx pkt: %Lu/%Lu\nrx/tx byt: %Lu/%Lu\n\
+    rx/tx dropped : %Lu/%Lu\nrx/tx error: %Lu/%Lu\nrx frame error: %Lu\nrx over err: \n
+    %Lu \nrx crc err: %Lu\ncollisisions: %Lu\nduration (s/ns): %lu/%lu"
+    ps.psPort_no
+    ps.rx_packets
+    ps.tx_packets
+    ps.rx_bytes
+    ps.tx_bytes
+    ps.rx_dropped
+    ps.tx_dropped
+    ps.rx_errors
+    ps.tx_errors
+    ps.rx_frame_err
+    ps.rx_over_err
+    ps.rx_crc_err
+    ps.collisions
+    ps.duration_sec
+    ps.duration_nsec
+
+  let to_string (t : portStats list) = 
+   String.concat "\n" (map to_string_struct t) 
 
   let marshal_struct (buf : Cstruct.t) (ps : portStats) : int =
     set_ofp_port_stats_port_no buf ps.psPort_no;
-    set_ofp_port_stats_pad "" 0 buf;
+    set_ofp_port_stats_pad (Cstruct.to_string (Cstruct.create 4)) 0 buf;
     set_ofp_port_stats_rx_packets buf ps.rx_packets;
     set_ofp_port_stats_tx_packets buf ps.tx_packets;
     set_ofp_port_stats_rx_bytes buf ps.rx_bytes;

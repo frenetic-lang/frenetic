@@ -327,6 +327,10 @@ end
 
 module SwitchDescriptionReply : sig
 
+  val sizeof : switchDesc -> int
+
+  val to_string : switchDesc -> string
+
   val marshal : Cstruct.t -> switchDesc -> int
 
   val parse : Cstruct.t -> switchDesc
@@ -347,6 +351,9 @@ end
 
 module Aggregate : sig
 
+  val sizeof : aggregStats -> int
+  val to_string : aggregStats -> string
+
   val marshal : Cstruct.t -> aggregStats -> int
 
   val parse : Cstruct.t -> aggregStats
@@ -356,6 +363,8 @@ end
 module Table : sig
 
   val sizeof : tableStats list -> int
+
+  val to_string : tableStats list -> string
 
   val marshal : Cstruct.t -> tableStats list -> int
 
@@ -367,6 +376,7 @@ module PortStats : sig
  
   val sizeof : portStats list-> int
 
+  val to_string : portStats list -> string
 
   val marshal : Cstruct.t -> portStats list -> int
 

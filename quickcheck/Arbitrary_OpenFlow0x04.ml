@@ -796,5 +796,117 @@ module MultipartReply = struct
     let to_string = Flow.to_string
     let size_of = Flow.sizeof
   end
+  
+  module Aggregate = struct
+    type t = OpenFlow0x04_Core.aggregStats
+    
+    let arbitrary =
+        arbitrary_uint64 >>= fun packet_count ->
+        arbitrary_uint64 >>= fun byte_count ->
+        arbitrary_uint32 >>= fun flow_count ->
+        ret_gen {
+            packet_count;
+            byte_count;
+            flow_count
+        }
+    
+    let marshal = Aggregate.marshal
+    let parse = Aggregate.parse
+    let to_string = Aggregate.to_string
+    let size_of = Aggregate.sizeof
+  end
+  
+  module Table = struct
+        type t = OpenFlow0x04_Core.tableStats list
+    
+    let arbitrary_table =
+        arbitrary_uint8 >>= fun table_id ->
+        arbitrary_uint32 >>= fun active_count ->
+        arbitrary_uint64 >>= fun lookup_count ->
+        arbitrary_uint64 >>= fun matched_count ->
+        ret_gen {
+            table_id;
+            active_count;
+            lookup_count;
+            matched_count
+        }
+    
+    let arbitrary = 
+        list1 arbitrary_table >>= fun v ->
+        ret_gen v
+    
+    let marshal = Table.marshal
+    let parse = Table.parse
+    let to_string = Table.to_string
+    let size_of = Table.sizeof
+  end
+
+  module PortStats = struct
+        type t = OpenFlow0x04_Core.portStats list
+    
+    let arbitrary_portStats =
+        arbitrary_uint32 >>= fun psPort_no ->
+        arbitrary_uint64 >>= fun rx_packets ->
+        arbitrary_uint64 >>= fun tx_packets ->
+        arbitrary_uint64 >>= fun rx_bytes ->
+        arbitrary_uint64 >>= fun tx_bytes ->
+        arbitrary_uint64 >>= fun rx_dropped ->
+        arbitrary_uint64 >>= fun tx_dropped ->
+        arbitrary_uint64 >>= fun rx_errors ->
+        arbitrary_uint64 >>= fun tx_errors ->
+        arbitrary_uint64 >>= fun rx_frame_err ->
+        arbitrary_uint64 >>= fun rx_over_err ->
+        arbitrary_uint64 >>= fun rx_crc_err ->
+        arbitrary_uint64 >>= fun collisions ->
+        arbitrary_uint32 >>= fun duration_sec ->
+        arbitrary_uint32 >>= fun duration_nsec ->
+        ret_gen {
+            psPort_no;
+            rx_packets;
+            tx_packets;
+            rx_bytes;
+            tx_bytes;
+            rx_dropped;
+            tx_dropped;
+            rx_errors;
+            tx_errors;
+            rx_frame_err;
+            rx_over_err;
+            rx_crc_err;
+            collisions;
+            duration_sec;
+            duration_nsec
+        }
+    
+    let arbitrary = 
+        list1 arbitrary_portStats >>= fun v ->
+        ret_gen v
+    
+    let marshal = PortStats.marshal
+    let parse = PortStats.parse
+    let to_string = PortStats.to_string
+    let size_of = PortStats.sizeof
+  end
+
+  module SwitchDescriptionReply = struct
+    type t = OpenFlow0x04_Core.switchDesc
+    
+    let arbitrary =
+        arbitrary_stringN 256 >>= fun mfr_desc ->
+        arbitrary_stringN 256 >>= fun hw_desc ->
+        arbitrary_stringN 256 >>= fun sw_desc ->
+        arbitrary_stringN 32 >>= fun serial_num ->
+        ret_gen {
+            mfr_desc;
+            hw_desc;
+            sw_desc;
+            serial_num
+        }
+    
+    let marshal = SwitchDescriptionReply.marshal
+    let parse = SwitchDescriptionReply.parse
+    let to_string = SwitchDescriptionReply.to_string
+    let size_of = SwitchDescriptionReply.sizeof
+  end
 end
 
