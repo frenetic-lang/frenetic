@@ -27,7 +27,7 @@ let test_compile_table pol tbl =
      false)
 
 let ite (pred : pred) (then_pol : policy) (else_pol : policy) : policy =
-  Union (Seq (Filter pred, then_pol), Seq (Filter (Neg pred), else_pol))
+  Union (Seq (Filter (Neg pred), else_pol), Seq (Filter pred, then_pol))
 
 let testSrc n = Test (EthSrc (Int64.of_int n))
 let testDst n = Test (EthDst (Int64.of_int n))
@@ -51,7 +51,7 @@ TEST "compile negation of conjunction" =
   let pr = And (pr1, pr2) in
   test_compile
     (Filter (Neg pr))
-    (Union (Filter(And(pr1, Neg pr2)), Filter (Neg pr1)))
+    (Union (Filter (Neg pr1), (Filter(And(pr1, Neg pr2)))))
 
 TEST "commute test annihilator" =
   test_compile
@@ -250,7 +250,7 @@ let gen_pol_1 =
   let open QuickCheck in
   let open QuickCheck_gen in
   let open NetKAT_Arbitrary in
-  let open Packet_Arbitrary in
+  let open Arbitrary_Packet in
   let open Packet in
   testable_fun
     (arbitrary_lf_pol >>= fun p ->
@@ -263,7 +263,7 @@ let gen_pol_2 =
   let open QuickCheck in
   let open QuickCheck_gen in
   let open NetKAT_Arbitrary in
-  let open Packet_Arbitrary in
+  let open Arbitrary_Packet in
   let open Packet in
     testable_fun
       (arbitrary_lf_pol >>= fun p ->
@@ -277,7 +277,7 @@ let gen_pol_3 =
   let open QuickCheck in
   let open QuickCheck_gen in
   let open NetKAT_Arbitrary in
-  let open Packet_Arbitrary in
+  let open Arbitrary_Packet in
   let open Packet in
   testable_fun
     (arbitrary_lf_pol >>= fun p ->

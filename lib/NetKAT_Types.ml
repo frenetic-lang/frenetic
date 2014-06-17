@@ -213,8 +213,12 @@ module Int32TupleHeader = struct
        Int32.shift_left
          (Int32.(-) (Int32.shift_left 1l common_mask) 1l)
          (32 - common_mask) in
-    (Int32.bit_and mask n) = (Int32.bit_and mask m)
-
+  let x1 = Int32.bit_and mask n in 
+  let x2 = Int32.bit_and mask r in 
+    (* Printf.printf "ARE_COMPATIBLE %s %s %d %ld %ld %ld %b\n" *)
+    (*   (to_string (n,m)) (to_string (r,s)) common_mask mask x1 x2 (x1 = x2); *)
+  x1 = x2
+  
   let inter ((n,m) as p1: t) ((r,s) as p2: t) : t option =
     let r = 
       if are_compatible p1 p2 then
@@ -226,8 +230,13 @@ module Int32TupleHeader = struct
     r
 
   let subseteq ((n,m) as p1: t) ((r,s) as p2: t) : bool =
-    if are_compatible p1 p2 then Int32.(>=) m s
-    else false
+    let r = 
+      if are_compatible p1 p2 then Int32.(>=) m s
+      else false in 
+    (* Printf.printf "IP.subseteq %s %s [%b] %b\n" *)
+    (*   (to_string p1) (to_string p2) (are_compatible p1 p2) r; *)
+    r
+    
 
   let combine ((n,m) as p1:t) ((r,s) as p2:t) : t option = 
     if p1 = p2 then Some p1

@@ -2,16 +2,28 @@ open Core.Std
 open Sexplib.Conv
 open SDN_Types
 
+module type FIELD = sig
+  type t with sexp
+  val compare : t -> t -> int
+  val equal : t -> t -> bool
+  val to_string : t -> string
+  val any : t
+  val is_any : t -> bool
+  val inter : t -> t -> t option
+  val subseteq : t -> t -> bool
+  val combine : t -> t -> t option
+end
+
 (* Option functor *)
 module Option (H:NetKAT_Types.Headers.HEADER) =
 struct
   type t = H.t option with sexp
   let compare o1 o2 =
     match o1,o2 with
-      | Some x1, Some x2 -> H.compare x1 x2
       | None, Some _ -> -1
       | Some _, None -> 1
       | None, None -> 0
+      | Some x1, Some x2 -> H.compare x1 x2
   let equal o1 o2 =
     compare o1 o2 = 0
   let to_string o =
@@ -44,38 +56,30 @@ struct
       else None
 end
 
-module type FIELD = sig
-  type t with sexp
-  val compare : t -> t -> int
-  val equal : t -> t -> bool
-  val to_string : t -> string
-  val any : t
-  val is_any : t -> bool
-  val inter : t -> t -> t option
-  val combine : t -> t -> t option
-  val subseteq : t -> t -> bool
-end
-
 module PrefixTable (F:FIELD) = struct
   type v = F.t with sexp
+
   type t = (v * bool) list with sexp
 
   let singleton x = 
-    [ x,true
-    ; F.any, false ]
+    if F.is_any x then 
+      [ (x,true) ]
+    else
+      [ (x,true)
+      ; (F.any, false) ]
 
   let rec compare (a:t) (b:t) =
     match (a,b) with
     | [],[] -> 0
-    | [],_ -> (-1)
+    | [],_ -> -1
     | _,[] -> 1
     | (p1,b1)::t1, (p2,b2)::t2 ->       
-      begin 
-	match F.compare p1 p2, Pervasives.compare b1 b2 with 
-	| 0,0 -> compare t1 t2
-	| 0,c -> c
-	| c,_ -> c
-      end
+      let cmp1 = F.compare p1 p2 in 
+      if cmp1 <> 0 then cmp1
+      else 
+	let cmp2 = Pervasives.compare b1 b2 in 
+	if cmp2 <> 0 then cmp2
+	else compare t1 t2
 
   let equal t1 t2 = 
     compare t1 t2 = 0
@@ -93,54 +97,41 @@ module PrefixTable (F:FIELD) = struct
   let any =
     [F.any, true]
 
-  module S = struct
-    let empty = ([],[])
-    let to_string (p,n) = 
-      let f l = 
-	List.fold_left l
-	  ~init:""
-	  ~f:(fun acc p -> 
-	    Printf.sprintf "%s%s%s" 
-	      acc 
-	      (if acc = "" then "" else " ")
-	      (F.to_string p)) in 
-      Printf.sprintf "[%s] ~[%s]" (f p) (f n)
-    let insert x b (p,n) = 
-      let rec loop x acc l = 
-	match l with 
-	| [] -> List.rev (x::acc)
-	| y::t -> 
-	  begin 
-	    match F.combine x y with 
-	    | None -> 
-	      loop x (y::acc) t
-	    | Some z -> 
-	      loop z [] (List.rev_append acc t)
-	  end in
-      if b then (loop x [] p, n)
-      else (p, loop x [] n)
-    let is_shadowed x (p,n) = 
-      let l = 
-	List.filter p 
-	  ~f:(fun y -> List.for_all n ~f:(fun z -> not (F.subseteq y z))) in 
-      let r = List.exists l ~f:(fun y -> F.subseteq x y) in 
-      (* Printf.printf "IS_SHADOWED %s %s %b\n"  *)
-      (* 	(F.to_string x) (to_string (p,n)) r; *)
-      r
-      
-  end
+  module S = Set.Make(F)
+  let set_to_string s = 
+    S.fold s
+      ~init:""
+      ~f:(fun acc x -> 
+    	    Printf.sprintf "%s%s%s"
+	      acc
+	      (if acc = "" then "" else ", ")
+	      (F.to_string x))
+    
+  let footprint t : S.t = 
+    let rec loop y l s = 
+      match l with 
+      | [] -> 
+	Set.add s y
+      | h::t -> 
+	(match F.combine h y with 
+	| Some z -> 
+	  loop z ((S.to_list s) @ t) S.empty
+	| None -> 
+	  loop y t (S.add s h)) in 
+    begin 
+      match List.map t ~f:fst with 
+      | [] -> S.empty
+      | x::t -> loop x t S.empty
+    end
 
   let is_shadowed x t = 
-    let s = 
-      List.fold_left t
-	~init:S.empty
-	~f:(fun s (y,b) -> S.insert y true s) in 
-    let b = S.is_shadowed x s in 
-    (* Printf.printf "IS_SHADOWED: %s\n%s\n%b\n" *)
-    (*   (F.to_string x) (S.to_string s) b; *)
+    let f = footprint t in 
+    let b = S.exists f (fun y -> F.subseteq x y) in 
+    (* Printf.printf "IS_SHADOWED: %s\n%s\n{%s}\n%b\n" *)
+    (*   (F.to_string x) (to_string t) (set_to_string f) b; *)
     b
 	 
-  let remove_shadowed (table: t) : t =
+  let remove_shadowed (t:t) : t =
     List.rev (
       List.fold_left
         ~f:(fun acc (x,b) -> 
@@ -149,17 +140,11 @@ module PrefixTable (F:FIELD) = struct
 	  (*   (to_string acc) (F.to_string x) b s; *)
 	  if s then acc else ((x,b)::acc))
         ~init:[]
-        table)
+        t)
 
   let is_any (t:t) : bool =
-    let t' = remove_shadowed t in 
-    let b = List.for_all t' ~f:snd in 
-    (* Printf.printf "IS_ANY %s %b\n" *)
-    (*   (to_string t) *)
-    (*   b; *)
-    b
+    List.for_all (remove_shadowed t) ~f:snd
       
-
   let neg t = 
     List.map t ~f:(fun (p,b) -> (p,not b))
 
@@ -167,7 +152,7 @@ module PrefixTable (F:FIELD) = struct
     [F.any, false]
 
   let is_empty t = 
-    List.for_all (remove_shadowed t) ~f:(fun (_,b) -> not b)
+    not (List.exists (remove_shadowed t) ~f:snd)
 
   let inter t1 t2 =
     let r = 
@@ -181,11 +166,10 @@ module PrefixTable (F:FIELD) = struct
               | Some p -> 
 		(p, b1 && b2)::acc)) in 
     let r = remove_shadowed (List.rev r) in 
-    if List.length r > 2 then
-    Printf.printf "INTER\n  %s\n  %s\n  %s\n"
-      (to_string t1)
-      (to_string t2)
-      (to_string r);
+    (* Printf.printf "INTER\n  %s\n  %s\n  %s\n" *)
+    (*   (to_string t1) *)
+    (*   (to_string t2) *)
+    (*   (to_string r); *)
     r
 	
   let diff t1 t2 =
@@ -232,29 +216,20 @@ module PrefixTable (F:FIELD) = struct
   let obscures (t1:t) (t2:t) : bool =
     (* Does any rule in (expand t1) shadow a rule in t2? *)
     let r,_ = 
-      List.fold_left
-	(expand t1) 
-	~init:(false, S.empty)
-	~f:(fun (ob,s) (x1,b1) -> 
-	  if not ob then 
-	    let s' = S.insert x1 b1 s in 
-	    let ob',_ = 
-	      List.fold_left 
-		t2
-		~init:(ob,s')		 
-	        ~f:(fun (ob,s) (x2,b2) -> 
-		      let ob' = ob || b2 && S.is_shadowed x2 s in 
-		      let s' = S.insert x2 b2 s in 
-		      (ob', s')) in 
-	    (ob',s')
-	  else (true,s)) in 
+      List.fold_left t2
+	~init:(true, expand t1)
+	~f:(fun (ok,t) (x,b) -> 
+	      if not ok then (ok,t) 
+	      else	  
+		let ok' = not (is_shadowed x t) in 
+		let t' = (x,b)::t in 
+		(ok',t')) in 
     (* Printf.printf *)
       (* "OBSCURES\n%s\n%s\n%b\n" *)
       (* (to_string t1) *)
       (* (to_string t2) *)
       (* r; *)
     r
-
 end
 
 module OL = Option(NetKAT_Types.LocationHeader)
@@ -797,7 +772,9 @@ module Local = struct
     r
 
   let star (p:t) : t =
+    (* let c = ref 0 in  *)
     let rec loop acc pi =
+      (* Printf.printf "STAR LOOP %d\n" (incr c; !c); *)
       let psucci = seq p pi in
       let acc' = par acc psucci in
       if Pattern.Map.compare Action.Set.compare acc acc' = 0 then

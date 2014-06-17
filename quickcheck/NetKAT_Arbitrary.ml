@@ -1,5 +1,5 @@
 open NetKAT_Types
-open Packet_Arbitrary
+open Arbitrary_Packet
 
 module AB = Arbitrary_Base
 
@@ -157,7 +157,7 @@ let arbitrary_tcp : packet QuickCheck_gen.gen =
   let open QuickCheck in
   let open NetKAT_Types.Headers in
   let open Packet in
-  let module Parb = Packet_Arbitrary in
+  let module Parb = Arbitrary_Packet in
   let payload = Parb.arbitrary_payload 64 in
   let tcp = map_gen (fun i -> Packet.Ip.Tcp i) (Parb.arbitrary_tcp payload) in
   let ip = map_gen (fun i -> Packet.Ip i) (Parb.arbitrary_ip tcp) in
