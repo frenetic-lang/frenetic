@@ -21,12 +21,17 @@ module Headers = struct
       match p with
         | None -> true
         | Some (p,m) ->
+	  begin 
             (* w.x.y.z/m matches if the first m bits match *)
-            let shift = Int32.to_int (Int32.(-) 32l m) in
-            let shift = match shift with Some i -> i | None -> 0 in
-            Int32.compare
-              (Int32.shift_right (Field.get f hdrs) shift)
-              (Int32.shift_right p shift) = 0 in
+            match Int32.to_int (Int32.(-) 32l m) with 
+	    | Some shift when shift >= 0 && shift <= 32 -> 
+	      shift = 32 ||
+		(Int32.compare
+		   (Int32.shift_right_logical (Field.get f hdrs) shift)
+		   (Int32.shift_right_logical p shift) = 0)
+	    | _ -> 
+	      failwith (Printf.sprintf "eval_pattern: invalid mask %ld" m)
+	  end in 
     HeadersValues.Fields.for_all
       ~location:(fun f ->
         match Field.get f hdrs, pat.inPort with
