@@ -39,6 +39,14 @@ let arbitrary_masked arb arb_mask =
     (3, arb >>= fun v ->
         arb_mask >>= fun m -> ret_gen {OpenFlow0x04_Core.m_value = v; m_mask = Some m}) ]
 
+let arbitrary_timeout =
+    let open OpenFlow0x04_Core in
+    let open Gen in
+    oneof [
+        ret_gen Permanent;
+        arbitrary_uint16 >>= (fun n -> ret_gen (ExpiresAfter n))
+    ]
+
 module type OpenFlow0x04_Arbitrary = sig
 
     type t
@@ -532,13 +540,6 @@ module FlowMod = struct
             fmf_no_byt_counts
         }
 
-    let arbitrary_timeout =
-        let open OpenFlow0x04_Core in
-        oneof [
-            ret_gen Permanent;
-            arbitrary_uint16 >>= (fun n -> ret_gen (ExpiresAfter n))
-        ]
-
     let arbitrary_buffer_id = 
         arbitrary_uint32 >>= fun bid ->
         oneof [
@@ -726,3 +727,74 @@ module MultipartReq = struct
   let to_string = MultipartReq.to_string
   let size_of = MultipartReq.sizeof
 end
+
+module MultipartReply = struct
+  open Gen
+  open OpenFlow0x04_Core
+  module PortsDescriptionReply = struct
+    type t = OpenFlow0x04_Core.portDesc list
+    
+    let arbitrary =
+        list1 PortDesc.arbitrary >>= fun v ->
+        ret_gen v
+    
+    let marshal = PortsDescriptionReply.marshal
+    let parse = PortsDescriptionReply.parse
+    let to_string = PortsDescriptionReply.to_string
+    let size_of = PortsDescriptionReply.sizeof
+  end
+  
+  module Flow = struct
+    type t = OpenFlow0x04_Core.flowStats list
+
+    let arbitrary_flags =
+        arbitrary_bool >>= fun fmf_send_flow_rem ->
+        arbitrary_bool >>= fun fmf_check_overlap ->
+        arbitrary_bool >>= fun fmf_reset_counts ->
+        arbitrary_bool >>= fun fmf_no_pkt_counts ->
+        arbitrary_bool >>= fun fmf_no_byt_counts ->
+        ret_gen {
+        fmf_send_flow_rem;
+        fmf_check_overlap;
+        fmf_reset_counts;
+        fmf_no_pkt_counts;
+        fmf_no_byt_counts
+        }
+
+    let arbitrary_flow =
+        Instructions.arbitrary >>= fun instructions ->
+        arbitrary_uint8 >>= fun table_id ->
+        list1 OfpMatch.Oxm.arbitrary >>= fun ofp_match ->
+        arbitrary_uint64 >>= fun byte_count ->
+        arbitrary_uint64 >>= fun packet_count ->
+        arbitrary_uint64 >>= fun cookie ->
+        arbitrary_uint32 >>= fun duration_sec ->
+        arbitrary_uint32 >>= fun duration_nsec ->
+        arbitrary_uint16 >>= fun priority ->
+        arbitrary_timeout >>= fun idle_timeout ->
+        arbitrary_timeout >>= fun hard_timeout ->
+        arbitrary_flags >>= fun flags ->
+        ret_gen { table_id
+                ; duration_sec
+                ; duration_nsec
+                ; priority
+                ; idle_timeout
+                ; hard_timeout
+                ; flags
+                ; cookie
+                ; packet_count
+                ; byte_count
+                ; ofp_match
+                ; instructions}
+    
+    let arbitrary =
+        list1 arbitrary_flow >>= fun v ->
+        ret_gen v
+    
+    let marshal = Flow.marshal
+    let parse = Flow.parse
+    let to_string = Flow.to_string
+    let size_of = Flow.sizeof
+  end
+end
+

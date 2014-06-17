@@ -208,6 +208,17 @@ module RoundTripping = struct
       let module GenMultipartReq = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReq) in
       (openflow_quickCheck GenMultipartReq.arbitrary
           GenMultipartReq.to_string GenMultipartReq.parse GenMultipartReq.marshal)
+
+  TEST "OpenFlow0x04 MultipartReply.PortsDescriptionReply RoundTrip" =
+      let module GenPortDescReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.PortsDescriptionReply) in
+      (openflow_quickCheck GenPortDescReply.arbitrary
+          GenPortDescReply.to_string GenPortDescReply.parse GenPortDescReply.marshal)
+
+  TEST "OpenFlow0x04 MultipartReply.Flow RoundTrip" =
+      let module GenFlowReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.Flow) in
+      (openflow_quickCheck GenFlowReply.arbitrary
+          GenFlowReply.to_string GenFlowReply.parse GenFlowReply.marshal)
+
   TEST "OpenFlow Hello Test 1" = 
     let open Message in 
     let bs = Cstruct.create 101 in

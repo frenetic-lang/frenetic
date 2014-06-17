@@ -318,10 +318,10 @@ end
 module PortsDescriptionReply : sig
 
   val sizeof : portDesc list -> int
-
+  val to_string : portDesc list -> string
   val marshal : Cstruct.t ->  portDesc list -> int
 
-  val parse : Cstruct.t ->  multipartReply
+  val parse : Cstruct.t ->  portDesc list
 
 end
 
@@ -329,7 +329,7 @@ module SwitchDescriptionReply : sig
 
   val marshal : Cstruct.t -> switchDesc -> int
 
-  val parse : Cstruct.t -> multipartReply
+  val parse : Cstruct.t -> switchDesc
 
 end
 
@@ -337,10 +337,10 @@ end
 module Flow : sig
 
   val sizeof : flowStats list -> int
-
+  val to_string : flowStats list -> string
   val marshal : Cstruct.t -> flowStats list -> int
 
-  val parse : Cstruct.t -> multipartReply
+  val parse : Cstruct.t -> flowStats list
 
 end
 
@@ -349,7 +349,7 @@ module Aggregate : sig
 
   val marshal : Cstruct.t -> aggregStats -> int
 
-  val parse : Cstruct.t -> multipartReply
+  val parse : Cstruct.t -> aggregStats
 
 end
 
@@ -359,7 +359,7 @@ module Table : sig
 
   val marshal : Cstruct.t -> tableStats list -> int
 
-  val parse : Cstruct.t -> multipartReply
+  val parse : Cstruct.t -> tableStats list
 
 end
 
@@ -370,7 +370,7 @@ module PortStats : sig
 
   val marshal : Cstruct.t -> portStats list -> int
 
-  val parse : Cstruct.t -> multipartReply
+  val parse : Cstruct.t -> portStats list
 
 end
 

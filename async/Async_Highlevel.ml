@@ -138,7 +138,8 @@ let features t evt =
         Log.info ~tags "SentPortDescriptionRequest0x04";
         begin
           match M4.parse hdr (Cstruct.to_string bits) with 
-          | (_, M4.MultipartReply (OF4_Core.PortsDescReply ports)) -> 
+          | (_, M4.MultipartReply {OF4_Core.mpreply_typ =(OF4_Core.PortsDescReply ports);
+                                   OF4_Core.mpreply_flags = _}) -> (*<fugitifduck> temp fixe for multipart flags*)
              let get_port pd = pd.OF4_Core.port_no in
              let switch_ports = List.map ports ~f:get_port in 
              let feats = { S.switch_id = switch_id;

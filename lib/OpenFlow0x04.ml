@@ -3149,10 +3149,11 @@ end
 
 module PortsDescriptionReply = struct
 
-  let sizeof_struct (pd : portDesc) = sizeof_ofp_port 
-
   let sizeof (pd : portDesc list) = 
-    sum (map sizeof_struct pd)
+    sum (map PortDesc.sizeof pd)
+
+  let to_string pd = 
+   String.concat "\n" (map PortDesc.to_string pd) 
 
   let marshal (buf : Cstruct.t) (sdr : portDesc list) : int =
     let rec marshalPort (sdrl : portDesc list) off: int = 
@@ -3162,13 +3163,13 @@ module PortsDescriptionReply = struct
                   marshalPort q (off + sizeof_ofp_port) in
     marshalPort sdr 0
 
-  let parse (bits : Cstruct.t) : multipartReply =
+  let parse (bits : Cstruct.t) : portDesc list =
     let portIter =
       Cstruct.iter
         (fun buf -> Some sizeof_ofp_port)
         PortDesc.parse
         bits in
-    PortsDescReply (Cstruct.fold (fun acc bits -> bits :: acc) portIter [])
+    List.rev (Cstruct.fold (fun acc bits -> bits :: acc) portIter [])
 
 end
 
@@ -3183,15 +3184,15 @@ module SwitchDescriptionReply = struct
     set_ofp_desc_serial_num sdr.serial_num 0 buf;
     sizeof_ofp_desc
 
-  let parse (bits : Cstruct.t) : multipartReply = 
+  let parse (bits : Cstruct.t) : switchDesc = 
     let mfr_desc = copy_ofp_desc_mfr_desc bits in
     let hw_desc = copy_ofp_desc_hw_desc bits in
     let sw_desc = copy_ofp_desc_sw_desc bits in
     let serial_num = copy_ofp_desc_serial_num bits in
-    SwitchDescReply { mfr_desc;
-                      hw_desc;
-                      sw_desc;
-                      serial_num}
+    { mfr_desc;
+      hw_desc;
+      sw_desc;
+      serial_num}
 
 end
 
@@ -3214,11 +3215,46 @@ cstruct ofp_flow_stats {
 module Flow = struct
   
   let sizeof_struct (fs : flowStats) = 
-    fs.length
+    sizeof_ofp_flow_stats + 
+    (OfpMatch.sizeof fs.ofp_match)+
+    (Instructions.sizeof fs.instructions)
   
   let sizeof (fs : flowStats list) = 
     sum (map sizeof_struct fs)
-    
+  
+  let to_string_struct f =
+    Format.sprintf "length:%u;\ntableId:%u;\nduration:%lus:%luns\npriority:%u\n\
+    idle_timeout:%s;\nhard_timeout:%s;\nflags:%s;\ncookie:%Lu\npkt_count:%Lu\n\
+    byt_count:%Lu;\nmatch:%s;\ninstructions:%s\n"
+    (sizeof_struct f)
+    f.table_id
+    f.duration_sec
+    f.duration_nsec
+    f.priority
+    (match f.idle_timeout with
+       | Permanent -> "Permanent"
+       | ExpiresAfter v -> string_of_int v)
+    (match f.hard_timeout with
+       | Permanent -> "Permanent"
+       | ExpiresAfter v -> string_of_int v)
+    (Format.sprintf 
+    "send_flow_rem:%B\ncheck_overlap:%B\nreset_count:%B\nno_pkt_count:%B\n\
+    no_byt_count:%B"
+    f.flags.fmf_send_flow_rem 
+    f.flags.fmf_check_overlap 
+    f.flags.fmf_reset_counts 
+    f.flags.fmf_no_pkt_counts 
+    f.flags.fmf_no_byt_counts 
+    )
+    f.cookie
+    f.packet_count
+    f.byte_count
+    (OfpMatch.to_string f.ofp_match)
+    (Instructions.to_string f.instructions)
+
+  let to_string (f : flowStats list) = 
+   String.concat "\n" (map to_string_struct f)   
+
   let flags_to_int (f : flowModFlags) =
   (if f.fmf_send_flow_rem then 1 lsl 0 else 0) lor
     (if f.fmf_check_overlap then 1 lsl 1 else 0) lor
@@ -3234,7 +3270,7 @@ module Flow = struct
    ; fmf_no_byt_counts = test_bit16 4 i}
 
   let marshal_struct (buf : Cstruct.t) (fs : flowStats) : int =
-    set_ofp_flow_stats_length buf fs.length;
+    set_ofp_flow_stats_length buf (sizeof_struct fs);
     set_ofp_flow_stats_table_id buf fs.table_id;
     set_ofp_flow_stats_pad0 buf 0;
     set_ofp_flow_stats_duration_sec buf fs.duration_sec;
@@ -3249,19 +3285,18 @@ module Flow = struct
          | Permanent -> 0
          | ExpiresAfter  v -> v);     
     set_ofp_flow_stats_flags buf (flags_to_int fs.flags);
-    set_ofp_flow_stats_pad1 "" 0 buf;
+    set_ofp_flow_stats_pad1 (Cstruct.to_string (Cstruct.create 4)) 0 buf;
     set_ofp_flow_stats_cookie buf fs.cookie;
     set_ofp_flow_stats_packet_count buf fs.packet_count;
     set_ofp_flow_stats_byte_count buf fs.byte_count;
-    let size = sizeof_ofp_multipart_reply + 
-      OfpMatch.marshal (Cstruct.shift buf sizeof_ofp_multipart_reply) fs.ofp_match in
+    let size = sizeof_ofp_flow_stats + 
+      OfpMatch.marshal (Cstruct.shift buf sizeof_ofp_flow_stats) fs.ofp_match in
      size + Instructions.marshal (Cstruct.shift buf size) fs.instructions
 
   let marshal (buf : Cstruct.t) (fs : flowStats list) : int =
     marshal_fields buf fs marshal_struct
 
   let parse_struct (bits : Cstruct.t) : flowStats =
-    let length = get_ofp_flow_stats_length bits in
     let table_id = get_ofp_flow_stats_table_id bits in
     let duration_sec = get_ofp_flow_stats_duration_sec bits in
     let duration_nsec = get_ofp_flow_stats_duration_nsec bits in
@@ -3280,8 +3315,7 @@ module Flow = struct
     let ofp_match_bits = Cstruct.shift bits sizeof_ofp_flow_stats in
     let ofp_match, instruction_bits = OfpMatch.parse ofp_match_bits in
     let instructions = Instructions.parse instruction_bits in
-    { length
-    ; table_id
+    { table_id
     ; duration_sec
     ; duration_nsec
     ; priority
@@ -3293,25 +3327,35 @@ module Flow = struct
     ; byte_count
     ; ofp_match
     ; instructions}
-    
-    let parse (bits : Cstruct.t) : multipartReply =
+
+    let length_fn (buf :  Cstruct.t) : int option =
+        if Cstruct.len buf < sizeof_ofp_flow_stats then None
+        else Some (get_ofp_flow_stats_length buf)
+
+    let parse (bits : Cstruct.t) : flowStats list =
     let flowIter =
       Cstruct.iter
-        (fun buf -> Some sizeof_ofp_flow_stats)
+        length_fn (* /*\ size if variable *)
         parse_struct
         bits in
-    FlowStatsReply (Cstruct.fold (fun acc bits -> bits :: acc) flowIter [])
+    List.rev (Cstruct.fold (fun acc bits -> bits :: acc) flowIter [])
 
 end
 
-cstruct ofp_aggregate_stats_reply {
-  uint64_t packet_count;
-  uint64_t byte_count;
-  uint32_t flow_count;
-  uint8_t pad[4];
-} as big_endian
-
 module Aggregate = struct
+  
+  cstruct ofp_aggregate_stats_reply {
+    uint64_t packet_count;
+    uint64_t byte_count;
+    uint32_t flow_count;
+    uint8_t pad[4];
+  } as big_endian
+
+  let sizeof ts = 
+    sizeof_ofp_aggregate_stats_reply
+
+  let to_string ts =
+  ""
 
   let marshal (buf : Cstruct.t) (ag : aggregStats) : int =
     set_ofp_aggregate_stats_reply_packet_count buf ag.packet_count;
@@ -3320,11 +3364,10 @@ module Aggregate = struct
     set_ofp_aggregate_stats_reply_pad "" 0 buf;
     sizeof_ofp_aggregate_stats_reply
 
-  let parse (bits : Cstruct.t) : multipartReply =
-    AggregateReply {
-         packet_count = (get_ofp_aggregate_stats_reply_packet_count bits)
-        ; byte_count = (get_ofp_aggregate_stats_reply_byte_count bits)
-        ; flow_count = (get_ofp_aggregate_stats_reply_flow_count bits)}
+  let parse (bits : Cstruct.t) : aggregStats =
+    { packet_count = (get_ofp_aggregate_stats_reply_packet_count bits)
+    ; byte_count = (get_ofp_aggregate_stats_reply_byte_count bits)
+    ; flow_count = (get_ofp_aggregate_stats_reply_flow_count bits)}
 
 end
 
@@ -3343,6 +3386,9 @@ module Table = struct
   let sizeof (ts : tableStats list) = 
     sum (map sizeof_struct ts)
 
+  let to_string ts =
+    ""
+
   let marshal_struct (buf : Cstruct.t) (tr : tableStats) : int =
     set_ofp_table_stats_table_id buf tr.table_id;
     set_ofp_table_stats_pad "" 0 buf;
@@ -3360,13 +3406,13 @@ module Table = struct
     ; lookup_count = get_ofp_table_stats_lookup_count bits
     ; matched_count = get_ofp_table_stats_matched_count bits}
 
-  let parse (bits : Cstruct.t) : multipartReply =
+  let parse (bits : Cstruct.t) : tableStats list =
     let tableIter =
       Cstruct.iter
         (fun buf -> Some sizeof_ofp_table_stats)
         parse_struct
         bits in
-    TableReply (Cstruct.fold (fun acc bits -> bits :: acc) tableIter [])
+    List.rev (Cstruct.fold (fun acc bits -> bits :: acc) tableIter [])
 end
 
 module PortStats = struct
@@ -3376,6 +3422,10 @@ module PortStats = struct
   
   let sizeof (ps : portStats list) = 
     sum (map sizeof_struct ps)
+
+  let to_string ps =
+    ""
+    
 
   let marshal_struct (buf : Cstruct.t) (ps : portStats) : int =
     set_ofp_port_stats_port_no buf ps.psPort_no;
@@ -3417,13 +3467,13 @@ module PortStats = struct
       duration_nsec = get_ofp_port_stats_duration_nsec bits
     }
 
-  let parse (bits : Cstruct.t) : multipartReply =
+  let parse (bits : Cstruct.t) : portStats list =
     let portIter =
       Cstruct.iter
         (fun buf -> Some sizeof_ofp_port_stats)
         parse_struct
         bits in
-    PortStatsReply (Cstruct.fold (fun acc bits -> bits :: acc) portIter [])
+    List.rev (Cstruct.fold (fun acc bits -> bits :: acc) portIter [])
 end
 
 module MultipartReply = struct
@@ -3431,18 +3481,21 @@ module MultipartReply = struct
 
   let sizeof (mpr : multipartReply) =
     sizeof_ofp_multipart_reply +
-    match mpr with
+    match mpr.mpreply_typ with
       | PortsDescReply pdr -> PortsDescriptionReply.sizeof pdr
       | SwitchDescReply _ -> sizeof_ofp_desc
       | FlowStatsReply fsr -> Flow.sizeof fsr
-      | AggregateReply _ -> sizeof_ofp_aggregate_stats_reply
+      | AggregateReply ag -> Aggregate.sizeof ag
       | TableReply tr -> Table.sizeof tr
       | PortStatsReply psr -> PortStats.sizeof psr
 
-(*flags is not parsed *)
   let marshal (buf : Cstruct.t) (mpr : multipartReply) : int =
     let ofp_body_bits = Cstruct.shift buf sizeof_ofp_multipart_reply in
-    sizeof_ofp_multipart_reply + (match mpr with
+    set_ofp_multipart_reply_flags buf (
+      match mpr.mpreply_flags with
+        | true -> ofp_multipart_request_flags_to_int OFPMPF_REQ_MORE
+        | false -> 0);
+    sizeof_ofp_multipart_reply + (match mpr.mpreply_typ with
       | PortsDescReply pdr -> 
           set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_PORT_DESC);
           PortsDescriptionReply.marshal ofp_body_bits pdr
@@ -3465,14 +3518,25 @@ module MultipartReply = struct
     
   let parse (bits : Cstruct.t) : multipartReply =
     let ofp_body_bits = Cstruct.shift bits sizeof_ofp_multipart_reply in
-    match int_to_ofp_multipart_types (get_ofp_multipart_reply_typ bits) with
-      | Some OFPMP_PORT_DESC -> PortsDescriptionReply.parse ofp_body_bits
-      | Some OFPMP_DESC -> SwitchDescriptionReply.parse ofp_body_bits
-      | Some OFPMP_FLOW -> Flow.parse ofp_body_bits
-      | Some OFPMP_AGGREGATE -> Aggregate.parse ofp_body_bits
-      | Some OFPMP_TABLE -> Table.parse ofp_body_bits
-      | Some OFPMP_PORT_STATS -> PortStats.parse ofp_body_bits
-      | _ -> raise (Unparsable (sprintf "NYI: can't parse this multipart reply"))
+    let typ = (match int_to_ofp_multipart_types (get_ofp_multipart_reply_typ bits) with
+      | Some OFPMP_PORT_DESC -> 
+          PortsDescReply (PortsDescriptionReply.parse ofp_body_bits)
+      | Some OFPMP_DESC -> 
+          SwitchDescReply (SwitchDescriptionReply.parse ofp_body_bits)
+      | Some OFPMP_FLOW -> 
+          FlowStatsReply (Flow.parse ofp_body_bits)
+      | Some OFPMP_AGGREGATE -> 
+          AggregateReply (Aggregate.parse ofp_body_bits)
+      | Some OFPMP_TABLE -> 
+          TableReply (Table.parse ofp_body_bits)
+      | Some OFPMP_PORT_STATS -> 
+          PortStatsReply (PortStats.parse ofp_body_bits)
+      | _ -> raise (Unparsable (sprintf "NYI: can't parse this multipart reply"))) in
+    let flags = (
+      match int_to_ofp_multipart_request_flags (get_ofp_multipart_request_flags bits) with
+        | Some OFPMPF_REQ_MORE -> true
+        | _ -> false) in
+    {mpreply_typ = typ; mpreply_flags = flags}
 
 end
 
