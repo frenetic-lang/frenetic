@@ -138,7 +138,6 @@ struct
       (Topology.edges topo) NetKAT_Types.id 
 
   let check_equivalent t1 t2 = 
-    Decide_Util.get_univ_lock();
     let module UnivMap = Decide_Util.SetMapF (Decide_Util.Field) (Decide_Util.Value) in
     let t1vals = Decide_Ast.Term.values t1 in 
     let t2vals = Decide_Ast.Term.values t2 in 
@@ -168,7 +167,6 @@ struct
 	end      
       else (
 	Decide_Ast.Term.equal t1 t2) in 
-    Decide_Util.release_univ_lock();
     ret
 
 
@@ -207,8 +205,8 @@ struct
     Printf.printf "## NetKAT Policy ##\n%s\n## Connectivity Policy ##\n%s\n%!"
       (NetKAT_Pretty.string_of_policy net_sw_pol)
       (NetKAT_Pretty.string_of_policy net_cn_pol);
-    let lhs = Dexterize.policy_to_term ~dup:false net_cn_pol in 
-    let rhs = Dexterize.policy_to_term ~dup:false net_sw_pol in 
+    let lhs = Dexterize.policy_to_term ~dup:false net_sw_pol in 
+    let rhs = Dexterize.policy_to_term ~dup:false net_cn_pol in 
     Printf.printf "## Dexter NetKAT Policy ##\n%s\n## Dexter Connectivity Policy ##\n%s\n%!"
       (Decide_Ast.Term.to_string lhs)
       (Decide_Ast.Term.to_string rhs);
