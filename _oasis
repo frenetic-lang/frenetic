@@ -1,6 +1,6 @@
 OASISFormat: 0.3
 Name:        packet
-Version:     0.2.1
+Version:     0.3.0
 Synopsis:    Serialization for some common network packets, including
              ethernet frames, IP, TCP, and ARP.
 Authors:     https://github.com/frenetic-lang/ocaml-packet/contributors

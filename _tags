@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 3c7e732d4e333ae1acfd5e06c0b2d31a)
+# DO NOT EDIT (digest: c53dcb3b24d3ca38ca313d3ea6cbeb08)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -21,38 +21,38 @@
 <lib/*.ml{,i}>: oasis_library_packet_byte
 "lib/checksum_stubs.c": oasis_library_packet_byte
 <lib/packet.{cma,cmxa}>: use_libpacket_stubs
-<lib/*.ml{,i}>: pkg_str
 <lib/*.ml{,i}>: pkg_cstruct
 <lib/*.ml{,i}>: pkg_cstruct.syntax
-"lib/checksum_stubs.c": pkg_str
+<lib/*.ml{,i}>: pkg_str
 "lib/checksum_stubs.c": pkg_cstruct
 "lib/checksum_stubs.c": pkg_cstruct.syntax
+"lib/checksum_stubs.c": pkg_str
 # Library quickcheck
 "quickcheck/quickcheck.cmxs": use_quickcheck
-<quickcheck/*.ml{,i}>: use_packet
-<quickcheck/*.ml{,i}>: pkg_quickcheck
-<quickcheck/*.ml{,i}>: pkg_str
 <quickcheck/*.ml{,i}>: pkg_cstruct
 <quickcheck/*.ml{,i}>: pkg_cstruct.syntax
+<quickcheck/*.ml{,i}>: pkg_quickcheck
+<quickcheck/*.ml{,i}>: pkg_str
+<quickcheck/*.ml{,i}>: use_packet
 # Executable testtool
-"test/Test.byte": use_quickcheck
-"test/Test.byte": use_packet
+"test/Test.byte": pkg_cstruct
+"test/Test.byte": pkg_cstruct.syntax
 "test/Test.byte": pkg_oUnit
 "test/Test.byte": pkg_pa_ounit
 "test/Test.byte": pkg_pa_ounit.syntax
 "test/Test.byte": pkg_quickcheck
 "test/Test.byte": pkg_str
-"test/Test.byte": pkg_cstruct
-"test/Test.byte": pkg_cstruct.syntax
-<test/*.ml{,i}>: use_quickcheck
-<test/*.ml{,i}>: use_packet
+"test/Test.byte": use_packet
+"test/Test.byte": use_quickcheck
+<test/*.ml{,i}>: pkg_cstruct
+<test/*.ml{,i}>: pkg_cstruct.syntax
 <test/*.ml{,i}>: pkg_oUnit
 <test/*.ml{,i}>: pkg_pa_ounit
 <test/*.ml{,i}>: pkg_pa_ounit.syntax
 <test/*.ml{,i}>: pkg_quickcheck
 <test/*.ml{,i}>: pkg_str
-<test/*.ml{,i}>: pkg_cstruct
-<test/*.ml{,i}>: pkg_cstruct.syntax
+<test/*.ml{,i}>: use_packet
+<test/*.ml{,i}>: use_quickcheck
 # OASIS_STOP
 <lib/*.ml>: syntax_camlp4o
 <test/*.ml>: syntax_camlp4o
