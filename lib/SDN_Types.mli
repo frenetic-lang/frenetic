@@ -79,9 +79,9 @@ module Pattern : sig
   (** [eq p1 p2] returns true when [p1] and [p2] match the same set of packets *)
   val eq : t -> t -> bool
 
-  (** [disjoint p1 p2] returns true when there are no packets that [p1] and [p2]
-      can simultaneously match *)
-  val disjoint : t -> t -> bool
+  (* (\** [disjoint p1 p2] returns true when there are no packets that [p1] and [p2] *)
+  (*     can simultaneously match *\) *)
+  (* val disjoint : t -> t -> bool *)
 
   (** [meet p1 p2] is the least pattern [pm] such that [less_eq p1 pm] and
       [less_eq p2 pm] *)

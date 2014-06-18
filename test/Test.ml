@@ -92,7 +92,7 @@ module Pattern = struct
 
   TEST "less_eq antisymmetry: less_eq p1 p2 && less_eq p2 p1 => p1 = p2" =
     let prop_antisymmetry (p1, p2) =
-      implies (less_eq p1 p2 && less_eq p2 p1) (p1 = p2) in
+      implies (less_eq p1 p2 && less_eq p2 p1) (eq p1 p2) in
     pattern2_quickCheck prop_antisymmetry
 
   TEST "less_eq transitivity: less_eq p1 p2 && less_eq p2 p3 => less_eq p1 p3" =
@@ -106,7 +106,7 @@ module Pattern = struct
     pattern_quickCheck prop_top
 
   TEST "meet symmetry: meet p1 p2 <=> meet p2 p1" =
-    let prop_symmetry (p1, p2) = meet p1 p2 = meet p2 p1 in
+    let prop_symmetry (p1, p2) = eq (meet p1 p2) (meet p2 p1) in 
     pattern2_quickCheck prop_symmetry
 
   TEST "meet exact: less_eq p1 (meet p1 p2) && less_eq p2 (meet p1 p2)" =
@@ -125,6 +125,20 @@ module Pattern = struct
       implies (less_eq p1 p2) (meet p1 p2 = p2) in
     pattern2_quickCheck prop_comparable_least
 
+  (* TEST "disjoint compare: disjoint p1 p2 <=> not (less_eq p1 p2 || less_eq p2 p1" = *)
+  (*   let prop_disjoint_compare (p1, p2) = *)
+  (*     let b = disjoint p1 p2 = not (less_eq p1 p2 || less_eq p2 p1) in *)
+  (*     if not b then  *)
+  (* 	begin  *)
+  (* 	  Printf.printf "P1=%s\n" (Pattern.string_of p1); *)
+  (* 	  Printf.printf "P2=%s\n" (Pattern.string_of p2); *)
+  (* 	  Printf.printf " D=%b\n\n" (disjoint p1 p2); *)
+  (* 	  Printf.printf "L1=%b\n\n" (less_eq p1 p2); *)
+  (* 	  Printf.printf "L2=%b\n\n" (less_eq p2 p1); *)
+  (* 	end; *)
+  (*     true in  *)
+  (*   pattern2_quickCheck prop_disjoint_compare *)
+      
   TEST "eq partial: eq p1 p2 <=> less_eq p1 p2 && less_eq p2 p1" =
     let prop_eq_partial (p1, p2) =
       eq p1 p2 = (less_eq p1 p2 && less_eq p2 p1) in
