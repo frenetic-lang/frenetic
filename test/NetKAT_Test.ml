@@ -147,13 +147,13 @@ TEST "vlan" =
       (Seq (mod_vlan_none, mod_port1)) in
   test_compile pol pol'
 
-    (* Regression test for bug in expand_rules fixed on
-       03/18/2014. The bug in the helper function that computes a
-       cross product of the boolean tables produced by expanding each
-       pattern -- the accumulator was being ignored, which is
-       bogus. This test tickles the bug by simply compiling a
-       predicate with two negated tests. *)
- TEST "expand_rules" =
+(* Regression test for bug in expand_rules fixed on
+   03/18/2014. The bug in the helper function that computes a
+   cross product of the boolean tables produced by expanding each
+   pattern -- the accumulator was being ignored, which is
+   bogus. This test tickles the bug by simply compiling a
+   predicate with two negated tests. *)
+TEST "expand_rules" =
    let flow p a = { pattern = p; action = [a]; cookie = 0L; idle_timeout = Permanent; hard_timeout= Permanent } in
    let dropEthSrc v = flow { all_pattern with dlSrc = Some(v) } [] in
    let pol = Seq(Filter (And (Neg(Test(EthSrc 0L)), Neg(Test(EthSrc 1L)))),
@@ -246,6 +246,16 @@ end
 let fix_port pol =
   Seq(Filter(Test(Location(Physical 0l))), pol)
 
+let gen_pkt = 
+  let open QuickCheck in
+  let open QuickCheck_gen in
+  let open NetKAT_Arbitrary in
+  let open Arbitrary_Packet in
+  let open Packet in
+  testable_fun (NetKAT_Arbitrary.arbitrary_tcp >>= fun pkt -> ret_gen pkt)
+    (fun pkt -> NetKAT_Types.(HeadersValues.to_string pkt.headers))
+    testable_bool
+
 let gen_pol_1 =
   let open QuickCheck in
   let open QuickCheck_gen in
@@ -327,6 +337,17 @@ TEST "ip masking eval" =
 TEST "ip masking compile" =
   let (pol1, pol2, pkt) = get_masking_test in
   compare_compiler_output pol1 pol2 pkt
+
+(* regression test for bug in flowterp handling of patterns with IP mask 0 *)
+TEST "zero mask" =
+  let prop_compile_ok (pkt) =
+    let pol = Seq(Filter(Test(Location(Physical 0l))),
+		  Filter(Test(IP4Dst(0l,0l)))) in
+    PacketSet.compare
+      (NetKAT_Semantics.eval pkt (Optimize.specialize_policy pkt.switch pol))
+      (Flowterp.Packet.eval pkt
+	 (NetKAT_LocalCompiler.(to_table (of_policy pkt.switch pol)))) = 0 in
+  check gen_pkt prop_compile_ok
 
 TEST "semantics agree with flowtable" =
   let prop_compile_ok (p, pkt) =

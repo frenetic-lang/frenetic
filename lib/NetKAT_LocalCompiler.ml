@@ -176,13 +176,14 @@ module PrefixTable (F:FIELD) = struct
     inter t1 (neg t2)
 
   (* (\* semantic compare *\) *)
-  (* let compare t1 t2 =  *)
-  (*   if is_empty (diff t1 (neg t2)) &&  *)
-  (*      is_empty (diff t2 (neg t1)) then  *)
-  (*     0  *)
+  (* let compare t1 t2 = *)
+  (*   if is_empty (diff t1 t2) && *)
+  (*      is_empty (diff t2 t1) then *)
+  (*     0 *)
   (*   else compare t1 t2 *)
-  (* let equal t1 t2 =  *)
-  (*   compare t1 t2 = 0  *)
+
+  (* let equal t1 t2 = *)
+  (*   compare t1 t2 = 0 *)
 
   let to_netkat_pred (v_to_pred: v -> NetKAT_Types.pred) (t:t) =
     let open NetKAT_Types in 
@@ -926,8 +927,11 @@ module RunTime = struct
    * Policies like these must be implemented at the controller.
    * *)
   let set_to_action (s:Action.Set.t) (pto : portId option) : par =
-    let f par a = (to_action a pto)::par in
-    List.dedup (Action.Set.fold s ~f:f ~init:[])
+    let f par a = 
+      let act = to_action a pto in 
+      if List.mem par act then par 
+      else act::par in
+    Action.Set.fold s ~f:f ~init:[]
 
   let simpl_flow (p : pattern) (a : par) : flow =
     { pattern = p;
@@ -1100,7 +1104,6 @@ module RunTime = struct
     else
       let x = List.concat_map (Dep.sort (Pattern.Map.to_alist m)) 
 	~f:(fun (p,s) -> expand_rules p s) in 
-      Printf.printf "X=%s\n" (SDN_Types.string_of_flowTable x);
       x
 end
 
@@ -1152,7 +1155,6 @@ module Local_Optimize = struct
         ~f:(fun acc x -> if flow_is_shadowed x acc then acc else (x::acc))
         ~init:[]
         table)
-
 end
 
 (* exports *)
@@ -1164,10 +1166,10 @@ let of_policy sw pol =
 let to_netkat =
   Local.to_netkat
 
-let compile =
-  RunTime.compile
+let compile sw p =
+  RunTime.compile sw p
 
-let to_table ?(optimize_fall_through=true) t =
+let to_table ?(optimize_fall_through=false) t =
   Local_Optimize.remove_shadowed_rules
     (RunTime.to_table t ~optimize_fall_through:optimize_fall_through)
 

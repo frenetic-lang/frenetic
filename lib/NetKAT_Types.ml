@@ -186,7 +186,8 @@ module Int32TupleHeader = struct
   type t = Int32Header.t * Int32Header.t with sexp
   let shift (p,m) =
     let s = match Int32.to_int (Int32.(-) 32l m) with Some i -> i | None -> 0 in
-    Int32.shift_right p s
+    if s = 32 then 0l
+    else Int32.shift_right_logical p s
   let equal (p,m) (p',m') =
     Int32Header.equal (shift (p,m)) (shift (p',m'))
   let compare ((p,m):t) ((p',m'):t) : int =

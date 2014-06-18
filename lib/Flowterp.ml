@@ -19,19 +19,10 @@ module Headers = struct
         | Some(p_v) -> Field.get f hdrs = p_v in
     let matches_mask p f =
       match p with
-        | None -> true
-        | Some (p,m) ->
-	  begin 
-            (* w.x.y.z/m matches if the first m bits match *)
-            match Int32.to_int (Int32.(-) 32l m) with 
-	    | Some shift when shift >= 0 && shift <= 32 -> 
-	      shift = 32 ||
-		(Int32.compare
-		   (Int32.shift_right_logical (Field.get f hdrs) shift)
-		   (Int32.shift_right_logical p shift) = 0)
-	    | _ -> 
-	      failwith (Printf.sprintf "eval_pattern: invalid mask %ld" m)
-	  end in 
+        | None -> 
+	  true
+        | Some (x,m) ->
+	  Int32TupleHeader.subseteq (Field.get f hdrs,32l) (x,m) in 
     HeadersValues.Fields.for_all
       ~location:(fun f ->
         match Field.get f hdrs, pat.inPort with
