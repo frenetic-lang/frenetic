@@ -1750,11 +1750,10 @@ module Action = struct
       | PopVlan ->
 	set_ofp_action_header_typ buf 18; (* POP_VLAN *)
 	set_ofp_action_header_len buf size;
-    set_ofp_action_header_pad buf 0;
-    set_ofp_action_header_pad1 buf 0;
-    set_ofp_action_header_pad2 buf 0;
-    set_ofp_action_header_pad3 buf 0;
-    
+        set_ofp_action_header_pad buf 0;
+        set_ofp_action_header_pad1 buf 0;
+        set_ofp_action_header_pad2 buf 0;
+        set_ofp_action_header_pad3 buf 0;
 	size
       | PushMpls ->
 	set_ofp_action_push_typ buf 19; (* PUSH_MPLS *)
@@ -2522,7 +2521,7 @@ module PacketIn = struct
          | InvalidTTL -> reasonType_to_int INVALID_TTL);
 	set_ofp_packet_in_table_id buf pi.pi_table_id;
 	set_ofp_packet_in_cookie buf pi.pi_cookie;
-    size
+        size
 
   let parse (bits : Cstruct.t) : packetIn =
     (* let oc = open_out "test-msg-1.3-msg3-bits" in *)
@@ -2538,8 +2537,7 @@ module PacketIn = struct
       | Some NO_MATCH -> NoMatch
       | Some ACTION -> ExplicitSend
       | Some INVALID_TTL -> InvalidTTL
-      | None ->
-	raise (Unparsable (sprintf "bad reason in packet_in (%d)" reason_code)) in
+      | None -> raise (Unparsable (sprintf "bad reason in packet_in (%d)" reason_code)) in
     let table_id = get_ofp_packet_in_table_id bits in
     let cookie = get_ofp_packet_in_cookie bits in
     let ofp_match_bits = Cstruct.shift bits sizeof_ofp_packet_in in
