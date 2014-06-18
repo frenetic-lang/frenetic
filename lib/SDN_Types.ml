@@ -158,25 +158,6 @@ module Pattern = struct
   let eq_meet x1 x2 = 
     if x1 = x2 then Some x1 else None 
 
-  let disjoint p1 p2 =
-    let check inter m1 m2 =
-      match m1, m2 with
-      | None, _    -> false
-      | _   , None -> false
-      | Some(v1), Some(v2) -> 
-        inter v1 v2 = None in 
-       check eq_inter p1.dlSrc p2.dlSrc
-    || check eq_inter p1.dlDst p2.dlDst
-    || check eq_inter p1.dlTyp p2.dlTyp
-    || check eq_inter p1.dlVlan p2.dlVlan
-    || check eq_inter p1.dlVlanPcp p2.dlVlanPcp
-    || check ip_intersect p1.nwSrc p2.nwSrc
-    || check ip_intersect p1.nwDst p2.nwDst
-    || check eq_inter p1.nwProto p2.nwProto
-    || check eq_inter p1.tpSrc p2.tpSrc
-    || check eq_inter p1.tpDst p2.tpDst
-    || check eq_inter p1.inPort p2.inPort
-
   let meet p1 p2 =
     let meeter m m1 m2 =
       match m1, m2 with
