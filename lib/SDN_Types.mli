@@ -167,6 +167,7 @@ val format_flowTable : Format.formatter -> flowTable -> unit
 
 val string_of_action : action -> string
 val string_of_seq : seq -> string
+val string_of_par : par -> string
 val string_of_pattern : pattern -> string
 val string_of_flow : flow -> string
 val string_of_flowTable : flowTable -> string
