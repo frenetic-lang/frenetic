@@ -65,8 +65,7 @@ Library async
     Discovery,
     Learning,
     TUtil,
-    Txn,
-    Update
+    Txn
   Modules:
     Async_NetKAT,
     Async_NetKAT_Controller
