@@ -38,28 +38,28 @@ let to_packetIn (pktIn : Core.packetIn) : AL.pktIn =
     | { input_payload; total_len; port; reason } ->
       (to_payload input_payload, total_len, Int32.of_int port, to_reason reason)
 
-let from_pattern (pat : AL.pattern) : Core.pattern = 
-  { Core.dlSrc = pat.AL.dlSrc
-  ; Core.dlDst = pat.AL.dlDst
-  ; Core.dlTyp = pat.AL.dlTyp
-  ; Core.dlVlan = (match pat.AL.dlVlan with
+let from_pattern (pat : AL.Pattern.t) : Core.pattern =
+  { Core.dlSrc = pat.AL.Pattern.dlSrc
+  ; Core.dlDst = pat.AL.Pattern.dlDst
+  ; Core.dlTyp = pat.AL.Pattern.dlTyp
+  ; Core.dlVlan = (match pat.AL.Pattern.dlVlan with
       | Some(0xffff) -> Some None
       | Some(x) -> Some (Some x)
       | None -> None)
-  ; Core.dlVlanPcp = pat.AL.dlVlanPcp
-  ; Core.nwSrc = (match pat.AL.nwSrc with
+  ; Core.dlVlanPcp = pat.AL.Pattern.dlVlanPcp
+  ; Core.nwSrc = (match pat.AL.Pattern.nwSrc with
     | None   -> None
-    | Some (v,m) -> let mo = if m = 32l then None else Some m in
-      Some { Core.m_value = v; Core.m_mask = mo })
-  ; Core.nwDst = (match pat.AL.nwDst with
+    | Some (p,m) -> let mo = if m = 32l then None else Some m in
+      Some { Core.m_value = p; Core.m_mask = mo })
+  ; Core.nwDst = (match pat.AL.Pattern.nwDst with
     | None   -> None
-    | Some (v,m) -> let mo = if m = 32l then None else Some m in
-      Some { Core.m_value = v; Core.m_mask = mo })
-  ; Core.nwProto = pat.AL.nwProto
+    | Some (p,m) -> let mo = if m = 32l then None else Some m in
+      Some { Core.m_value = p; Core.m_mask = mo })
+  ; Core.nwProto = pat.AL.Pattern.nwProto
   ; Core.nwTos = None
-  ; Core.tpSrc = pat.AL.tpSrc
-  ; Core.tpDst = pat.AL.tpDst
-  ; Core.inPort = Core_kernel.Option.map pat.AL.inPort from_portId
+  ; Core.tpSrc = pat.AL.Pattern.tpSrc
+  ; Core.tpDst = pat.AL.Pattern.tpDst
+  ; Core.inPort = Core_kernel.Option.map pat.AL.Pattern.inPort from_portId
   }
 
 module Common = HighLevelSwitch_common.Make (struct

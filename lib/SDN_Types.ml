@@ -11,31 +11,190 @@ type queueId = int32
 
 type bufferId = int32
 
-type pattern =
-    { dlSrc : dlAddr option
-    ; dlDst : dlAddr option
-    ; dlTyp : dlTyp option
-    ; dlVlan : dlVlan
-    ; dlVlanPcp : dlVlanPcp option
-    ; nwSrc : (nwAddr * int32) option
-    ; nwDst : (nwAddr * int32) option
-    ; nwProto : nwProto option
-    ; tpSrc : tpPort option
-    ; tpDst : tpPort option
-    ; inPort : portId option }
+let format_mac (fmt : Format.formatter) (v:int48) =
+  Format.pp_print_string fmt (Packet.string_of_mac v)
 
-let all_pattern =
-    { dlSrc = None
-    ; dlDst = None
-    ; dlTyp = None
-    ; dlVlan = None
-    ; dlVlanPcp = None
-    ; nwSrc = None
-    ; nwDst = None
-    ; nwProto = None
-    ; tpSrc = None
-    ; tpDst = None
-    ; inPort = None }
+let format_ip (fmt : Format.formatter) (v:int32) =
+  Format.pp_print_string fmt (Packet.string_of_ip v)
+
+let format_hex (fmt : Format.formatter) (v:int) =
+  Format.fprintf fmt "0x%x" v
+
+let format_int (fmt : Format.formatter) (v:int) =
+  Format.fprintf fmt "%u" v
+
+let format_int32 (fmt : Format.formatter) (v:int32) =
+  Format.fprintf fmt "%lu" v
+
+let format_ip_mask (fmt : Format.formatter) ((p,m) : nwAddr * int32) = 
+  Format.fprintf fmt "%a%s" 
+    format_ip p 
+    (if m = 32l then "" else Printf.sprintf "/%ld" m)
+
+let make_string_of formatter x =
+  let open Format in
+  let buf = Buffer.create 100 in
+  let fmt = formatter_of_buffer buf in
+  pp_set_margin fmt 80;
+  formatter fmt x;
+  fprintf fmt "@?";
+  Buffer.contents buf
+
+module Pattern = struct
+
+  type t =
+      { dlSrc : dlAddr option
+      ; dlDst : dlAddr option
+      ; dlTyp : dlTyp option
+      ; dlVlan : dlVlan
+      ; dlVlanPcp : dlVlanPcp option
+      ; nwSrc : (nwAddr * int32) option
+      ; nwDst : (nwAddr * int32) option
+      ; nwProto : nwProto option
+      ; tpSrc : tpPort option
+      ; tpDst : tpPort option
+      ; inPort : portId option }
+
+  let match_all =
+      { dlSrc = None
+      ; dlDst = None
+      ; dlTyp = None
+      ; dlVlan = None
+      ; dlVlanPcp = None
+      ; nwSrc = None
+      ; nwDst = None
+      ; nwProto = None
+      ; tpSrc = None
+      ; tpDst = None
+      ; inPort = None }
+
+  let ip_shift (p,m) =
+    try 
+      match Int32.to_int (Int32.(sub 32l m)) with 
+      | 32 -> 0l
+      | i when 0 <= i && i < 32 -> 
+	Int32.shift_right_logical p i
+      | _ -> 
+	failwith "Pattern.ip_shift: invalid mask"
+    with _ -> 
+      failwith "Pattern.ip_shift: invalid mask" 
+
+  let ip_compatible (p1,m1) (p2,m2) = 
+    (* Two masked IPs are compatible if their prefixes agree. *)
+    try 
+      let common_mask = 
+	match Int32.to_int (min m1 m2) with
+	| i when 0 <= i && i <= 32 -> 
+	  i
+	| _ -> 
+	  failwith "Pattern.ip_compatible: invalid mask" in 
+      let mask =
+	Int32.shift_left
+          (Int32.(sub) (Int32.shift_left 1l common_mask) 1l)
+          (32 - common_mask) in
+      (Int32.logand mask p1) = (Int32.logand mask p2)
+    with _ -> 
+      failwith "Pattern.ip_compatible: invalid mask"        
+
+  let ip_subseteq (p1,m1) (p2,m2) = 
+    ip_compatible (p1,m1) (p2,m2) && m1 >= m2 
+      
+  let ip_inter (p1,m1) (p2,m2) = 
+    if ip_compatible (p1,m1) (p2,m2) then 
+      if m1 <= m2 then Some (p1,m1) else Some (p2,m2)
+    else None  
+
+  (* TODO(jnf): rename subseteq ?*)
+  let less_eq p1 p2 =
+    let check f m1 m2 =
+      match m2 with
+        | None -> true
+        | Some(v2) ->
+          begin match m1 with
+            | None -> false
+            | Some(v1) -> f v1 v2
+          end in 
+    check (=) p1.dlSrc p2.dlSrc
+    && check (=) p1.dlDst p2.dlDst
+    && check (=) p1.dlTyp p2.dlTyp
+    && check (=) p1.dlVlan p2.dlVlan
+    && check (=) p1.dlVlanPcp p2.dlVlanPcp
+    && check ip_subseteq p1.nwSrc p2.nwSrc
+    && check ip_subseteq p1.nwDst p2.nwDst
+    && check (=) p1.nwProto p2.nwProto
+    && check (=) p1.tpSrc p2.tpSrc
+    && check (=) p1.tpDst p2.tpDst
+    && check (=) p1.inPort p2.inPort
+
+  let eq p1 p2 =
+    p1 = p2
+
+  let eq_inter x1 x2 = 
+    if x1 = x2 then Some x1 else None 
+
+  let disjoint p1 p2 =
+    let check inter m1 m2 =
+      match m1, m2 with
+      | None, _    -> false
+      | _   , None -> false
+      | Some(v1), Some(v2) -> 
+	inter v1 v2 = None in 
+    check eq_inter p1.dlSrc p2.dlSrc
+    || check eq_inter p1.dlDst p2.dlDst
+    || check eq_inter p1.dlTyp p2.dlTyp
+    || check eq_inter p1.dlVlan p2.dlVlan
+    || check eq_inter p1.dlVlanPcp p2.dlVlanPcp
+    || check ip_inter p1.nwSrc p2.nwSrc
+    || check ip_inter p1.nwDst p2.nwDst
+    || check eq_inter p1.nwProto p2.nwProto
+    || check eq_inter p1.tpSrc p2.tpSrc
+    || check eq_inter p1.tpDst p2.tpDst
+    || check eq_inter p1.inPort p2.inPort
+
+  let meet p1 p2 =
+    let meeter inter m1 m2 =
+      match m1, m2 with
+      | Some v1, Some v2 -> 
+	inter v1 v2 
+      | _ -> 
+        None in 
+    { dlSrc = meeter eq_inter p1.dlSrc p2.dlSrc
+    ; dlDst = meeter eq_inter p1.dlDst p2.dlDst
+    ; dlTyp = meeter eq_inter p1.dlTyp p2.dlTyp
+    ; dlVlan = meeter eq_inter p1.dlVlan p2.dlVlan
+    ; dlVlanPcp = meeter eq_inter p1.dlVlanPcp p2.dlVlanPcp
+    ; nwSrc = meeter ip_inter p1.nwSrc p2.nwSrc
+    ; nwDst = meeter ip_inter p1.nwDst p2.nwDst
+    ; nwProto = meeter eq_inter p1.nwProto p2.nwProto
+    ; tpSrc = meeter eq_inter p1.tpSrc p2.tpSrc
+    ; tpDst = meeter eq_inter p1.tpDst p2.tpDst
+    ; inPort = meeter eq_inter p1.inPort p2.inPort }
+
+  let format (fmt:Format.formatter) (p:t) : unit =
+    let first = ref true in
+    let format_field name format_val m_val =
+      match m_val with
+        | None   -> ()
+        | Some v ->
+          if not (!first) then Format.fprintf fmt ",@,";
+          Format.fprintf fmt "%s=%a" name format_val v;
+          first := false in
+    Format.fprintf fmt "@[{";
+    format_field "ethSrc" format_mac p.dlSrc;
+    format_field "ethDst" format_mac p.dlDst;
+    format_field "ethTyp" format_hex p.dlTyp;
+    format_field "vlanId" format_int p.dlVlan;
+    format_field "vlanPcp" format_int p.dlVlanPcp;
+    format_field "nwProto" format_hex p.nwProto;
+    format_field "ipSrc" format_ip_mask p.nwSrc;
+    format_field "ipDst" format_ip_mask p.nwDst;
+    format_field "tcpSrcPort" format_int p.tpSrc;
+    format_field "tcpDstPort" format_int p.tpDst;
+    format_field "port" format_int32 p.inPort;
+    Format.fprintf fmt "}@]"
+
+  let string_of = make_string_of format
+end
 
 type modify =
   | SetEthSrc of dlAddr
@@ -75,7 +234,7 @@ type timeout =
   | ExpiresAfter of int16
 
 type flow = {
-  pattern: pattern;
+  pattern: Pattern.t;
   action: group;
   cookie: int64;
   idle_timeout: timeout;
@@ -108,7 +267,7 @@ type switchFeatures = {
 
 type flowStats = {
   flow_table_id : int8; (** ID of table flow came from. *)
-  flow_pattern : pattern;
+  flow_pattern : Pattern.t;
   flow_duration_sec: int32;
   flow_duration_nsec: int32;
   flow_priority: int16;
@@ -118,48 +277,6 @@ type flowStats = {
   flow_packet_count: int64;
   flow_byte_count: int64
 }
-
-let format_mac (fmt : Format.formatter) (v:int48) =
-  Format.pp_print_string fmt (Packet.string_of_mac v)
-
-let format_ip (fmt : Format.formatter) (v:int32) =
-  Format.pp_print_string fmt (Packet.string_of_ip v)
-
-let format_ip_mask (fmt : Format.formatter) ((v,m) : nwAddr * int32) =
-  let s = if m = 32l then "" else "/" ^ Int32.to_string m in
-  Format.pp_print_string fmt (Packet.string_of_ip v ^ s)
-
-let format_hex (fmt : Format.formatter) (v:int) =
-  Format.fprintf fmt "0x%x" v
-
-let format_int (fmt : Format.formatter) (v:int) =
-  Format.fprintf fmt "%u" v
-
-let format_int32 (fmt : Format.formatter) (v:int32) =
-  Format.fprintf fmt "%lu" v
-
-let format_pattern (fmt:Format.formatter) (p:pattern) : unit = 
-  let first = ref true in
-  let format_field name format_val m_val =
-    match m_val with
-      | None   -> ()
-      | Some v ->
-        if not (!first) then Format.fprintf fmt ",@,";
-        Format.fprintf fmt "%s=%a" name format_val v;
-        first := false in
-  Format.fprintf fmt "@[{";
-  format_field "ethSrc" format_mac p.dlSrc;
-  format_field "ethDst" format_mac p.dlDst;
-  format_field "ethTyp" format_hex p.dlTyp;
-  format_field "vlanId" format_int p.dlVlan;
-  format_field "vlanPcp" format_int p.dlVlanPcp;
-  format_field "nwProto" format_hex p.nwProto;
-  format_field "ipSrc" format_ip_mask p.nwSrc;
-  format_field "ipDst" format_ip_mask p.nwDst;
-  format_field "tcpSrcPort" format_int p.tpSrc;
-  format_field "tcpDstPort" format_int p.tpDst;
-  format_field "port" format_int32 p.inPort;
-  Format.fprintf fmt "}@]"
 
 let format_modify (fmt:Format.formatter) (m:modify) : unit =
   match m with
@@ -234,7 +351,7 @@ let format_timeout (fmt:Format.formatter) (t:timeout) : unit =
     | ExpiresAfter(n) -> Format.fprintf fmt "ExpiresAfter(%d)" n
 
 let format_flow (fmt: Format.formatter) (f : flow) : unit = 
-  Format.fprintf fmt "@[{pattern=%a,@," format_pattern f.pattern;
+  Format.fprintf fmt "@[{pattern=%a,@," Pattern.format f.pattern;
   Format.fprintf fmt "action=%a,@," format_group f.action;
   Format.fprintf fmt "cookie=%s,@," (Int64.to_string f.cookie);
   Format.fprintf fmt "idle_timeout=%a,@," format_timeout f.idle_timeout;
@@ -250,18 +367,8 @@ let format_flowTable (fmt:Format.formatter) (l:flowTable) : unit =
         true) false l in 
   Format.fprintf fmt "]@]"
 
-let make_string_of formatter x =
-  let open Format in
-  let buf = Buffer.create 100 in
-  let fmt = formatter_of_buffer buf in
-  pp_set_margin fmt 80;
-  formatter fmt x;
-  fprintf fmt "@?";
-  Buffer.contents buf
-
 let string_of_action = make_string_of format_action
 let string_of_seq = make_string_of format_seq
 let string_of_par = make_string_of format_par
-let string_of_pattern = make_string_of format_pattern
 let string_of_flow = make_string_of format_flow
 let string_of_flowTable = make_string_of format_flowTable
