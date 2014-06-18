@@ -99,7 +99,7 @@ module Pattern = struct
   let ip_subseteq (p1,m1) (p2,m2) = 
     ip_compatible (p1,m1) (p2,m2) && m1 >= m2 
       
-  let ip_inter (p1,m1) (p2,m2) = 
+  let ip_intersect (p1,m1) (p2,m2) = 
     if ip_compatible (p1,m1) (p2,m2) then 
       if m1 <= m2 then Some (p1,m1) else Some (p2,m2)
     else None  
@@ -144,8 +144,8 @@ module Pattern = struct
     || check eq_inter p1.dlTyp p2.dlTyp
     || check eq_inter p1.dlVlan p2.dlVlan
     || check eq_inter p1.dlVlanPcp p2.dlVlanPcp
-    || check ip_inter p1.nwSrc p2.nwSrc
-    || check ip_inter p1.nwDst p2.nwDst
+    || check ip_intersect p1.nwSrc p2.nwSrc
+    || check ip_intersect p1.nwDst p2.nwDst
     || check eq_inter p1.nwProto p2.nwProto
     || check eq_inter p1.tpSrc p2.tpSrc
     || check eq_inter p1.tpDst p2.tpDst
@@ -163,8 +163,8 @@ module Pattern = struct
     ; dlTyp = meeter eq_inter p1.dlTyp p2.dlTyp
     ; dlVlan = meeter eq_inter p1.dlVlan p2.dlVlan
     ; dlVlanPcp = meeter eq_inter p1.dlVlanPcp p2.dlVlanPcp
-    ; nwSrc = meeter ip_inter p1.nwSrc p2.nwSrc
-    ; nwDst = meeter ip_inter p1.nwDst p2.nwDst
+    ; nwSrc = meeter ip_intersect p1.nwSrc p2.nwSrc
+    ; nwDst = meeter ip_intersect p1.nwDst p2.nwDst
     ; nwProto = meeter eq_inter p1.nwProto p2.nwProto
     ; tpSrc = meeter eq_inter p1.tpSrc p2.tpSrc
     ; tpDst = meeter eq_inter p1.tpDst p2.tpDst
