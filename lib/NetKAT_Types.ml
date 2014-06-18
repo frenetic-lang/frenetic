@@ -184,71 +184,48 @@ end
 module Int32TupleHeader = struct
   (* Represents an (ip_address, mask) tuple. *)
   type t = Int32Header.t * Int32Header.t with sexp
-  let shift (p,m) =
-    let s = match Int32.to_int (Int32.(-) 32l m) with Some i -> i | None -> 0 in
-    if s = 32 then 0l
-    else Int32.shift_right_logical p s
-  let equal (p,m) (p',m') =
-    Int32Header.equal (shift (p,m)) (shift (p',m'))
+  let equal x1 x2 = 
+    Int32Header.equal 
+      (SDN_Types.Pattern.ip_shift x1)
+      (SDN_Types.Pattern.ip_shift x2)
   let compare ((p,m):t) ((p',m'):t) : int =
-    if Pervasives.compare p p' = 0 then Pervasives.compare m m'
+    if Pervasives.compare p p' = 0 then 
+      Pervasives.compare m m'
     else Pervasives.compare p p'
-    (*Int32Header.compare (shift (p,m)) (shift (p',m'))*)
   let to_string (p,m) =
     Printf.sprintf "%s%s"
       (Packet.string_of_ip p)
       (if m = 32l then "" else "/" ^ Int32Header.to_string m)
   let is_any ((_,m):t) : bool =
-    (* w.x.y.z/m matches anything if the network mask m is 0. *)
     m = 0l
   let any = (0l, 0l)
 
-  let min_int32 x y = if Int32.(<) x y then x else y
+  let inter (x1:t) (x2:t) : t option = 
+    SDN_Types.Pattern.ip_intersect x1 x2 
 
-  let are_compatible ((n,m): t) ((r,s): t) : bool =
-    (* Two masked fields are compatible if their prefixes agree. *)
-    let common_mask = match Int32.to_int (min_int32 m s) with
-    | Some i -> i
-    | None   -> 0 in (* overflow case, never happens because m,s < 32 *)
-    let mask =
-       Int32.shift_left
-         (Int32.(-) (Int32.shift_left 1l common_mask) 1l)
-         (32 - common_mask) in
-  let x1 = Int32.bit_and mask n in 
-  let x2 = Int32.bit_and mask r in 
-    (* Printf.printf "ARE_COMPATIBLE %s %s %d %ld %ld %ld %b\n" *)
-    (*   (to_string (n,m)) (to_string (r,s)) common_mask mask x1 x2 (x1 = x2); *)
-  x1 = x2
-  
-  let inter ((n,m) as p1: t) ((r,s) as p2: t) : t option =
-    let r = 
-      if are_compatible p1 p2 then
-	(if Int32.(<) m s then Some p2 else Some p1)
-      else None in 
-    (* Printf.printf "F[%b]\n  %s\n  %s\n  %s\n" *)
-    (*   (are_compatible p1 p2) (to_string p1) (to_string p2)  *)
-    (*   (match r with None -> "None" | Some p -> "Some " ^ to_string p); *)
-    r
-
-  let subseteq ((n,m) as p1: t) ((r,s) as p2: t) : bool =
-    let r = 
-      if are_compatible p1 p2 then Int32.(>=) m s
-      else false in 
-    (* Printf.printf "IP.subseteq %s %s [%b] %b\n" *)
-    (*   (to_string p1) (to_string p2) (are_compatible p1 p2) r; *)
-    r
+  let subseteq (x1:t) (x2:t) : bool = 
+    SDN_Types.Pattern.ip_subseteq x1 x2
     
-
-  let combine ((n,m) as p1:t) ((r,s) as p2:t) : t option = 
-    if p1 = p2 then Some p1
-    else if m = s then 
-	let p1' = (m, Int32.succ m) in 
-	if are_compatible p1' (r, Int32.succ s) then Some p1'
-	else None 
-    else if are_compatible p1 p2 then 
-      if m > s then Some p1
-      else Some p2
-    else 
+  let combine ((p1,m1) as x1:t) ((p2,m2) as x2:t) : t option = 
+    if x1 = x2 then Some x1
+    else if m1 = m2 then 
+      let x1' = (p1, Int32.succ m1) in 
+      let x2' = (p2, Int32.succ m2) in 
+      if SDN_Types.Pattern.ip_compatible x1' x2' then 
+	Some x1' 
+      else 
+	None
+    else if m1 = Int32.(+) m2 1l then 
+      if SDN_Types.Pattern.ip_compatible x1 x2 then 
+	Some x2
+      else 
+	None
+    else if m2 = Int32.(+) m1 1l then 
+      if SDN_Types.Pattern.ip_compatible x1 x2 then 
+	Some x1
+      else 
+	None
+    else
       None
 end
 module Int64Header = struct
