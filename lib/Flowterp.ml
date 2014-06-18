@@ -12,8 +12,7 @@ module Headers = struct
   open NetKAT_Types
   open SDN_Types
 
-  let eval_pattern (hdrs : HeadersValues.t) (pat:Pattern.t) : bool =
-    let open Pattern in 
+  let eval_pattern (hdrs : HeadersValues.t) (pat : Pattern.t) : bool =
     let matches p f =
       match p with
         | None -> true
@@ -24,6 +23,7 @@ module Headers = struct
 	  true
         | Some (x,m) ->
 	  Int32TupleHeader.subseteq (Field.get f hdrs,32l) (x,m) in 
+    let open Pattern in
     HeadersValues.Fields.for_all
       ~location:(fun f ->
         match Field.get f hdrs, pat.inPort with

@@ -933,7 +933,7 @@ module RunTime = struct
       else act::par in
     Action.Set.fold s ~f:f ~init:[]
 
-  let simpl_flow (p:SDN_Types.Pattern.t) (a : par) : flow =
+  let simpl_flow (p : SDN_Types.Pattern.t) (a : par) : flow =
     { pattern = p;
       action = [a];
       cookie = 0L;
@@ -1108,48 +1108,13 @@ module RunTime = struct
 end
 
 module Local_Optimize = struct
-
-  (*
-   * A pattern p shadows another pattern q if
-   *
-   *   ∀f, (p(f) ∩ q(f)) = q(f)
-   *
-   * ... where f ranges over all the fields of the pattern. In other words, p(f)
-   * is a broader match than, but includes, q(f).
-   *
-   * The current reprentation of patterns encodes an any-value wildcard for a
-   * field as the absence of the field in the pattern. In addition, patterns do
-   * not support prefix matches or any other more complex match, so the
-   * intersection is just an equality check on values. The property restated
-   * to take into account the pattern representation is then:
-   *
-   *   ∀f, f ∈ p ⇒ f ∈ q ∧ (p(f) = q(f))
-   *)
-  let pattern_shadows (p:SDN_Types.Pattern.t) (q:SDN_Types.Pattern.t) : bool =
-    let check m1 m2 =
-      match m1 with
-        | None -> true
-        | Some(v1) ->
-          begin match m2 with
-            | None -> false
-            | Some(v2) -> v1 = v2
-          end
-    in
-    let open SDN_Types.Pattern in
-    check p.dlSrc q.dlSrc && check p.dlDst q.dlDst && check p.dlTyp q.dlTyp
-      && check p.dlVlan q.dlVlan && check p.dlVlanPcp q.dlVlanPcp
-      && check p.nwSrc q.nwSrc && check p.nwDst q.nwDst
-      && check p.nwProto q.nwProto
-      && check p.tpSrc q.tpSrc && check p.tpDst q.tpDst
-      && check p.inPort q.inPort
-
   (*
    * Optimize a flow table by removing rules which are shadowed by other rules.
    *)
   let remove_shadowed_rules (table: flowTable) : flowTable =
     let flow_is_shadowed f t =
       List.exists t
-        ~f:(fun x -> pattern_shadows x.pattern f.pattern) in
+        ~f:(fun x -> SDN_Types.Pattern.less_eq f.pattern x.pattern) in
     List.rev (
       List.fold_left
         ~f:(fun acc x -> if flow_is_shadowed x acc then acc else (x::acc))
