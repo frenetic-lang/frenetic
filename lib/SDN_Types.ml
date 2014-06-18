@@ -145,8 +145,8 @@ module Pattern = struct
     && check (=) p1.dlTyp p2.dlTyp
     && check (=) p1.dlVlan p2.dlVlan
     && check (=) p1.dlVlanPcp p2.dlVlanPcp
-    && check (fun x y -> ip_subseteq x y || ip_subseteq y x) p1.nwSrc p2.nwSrc
-    && check (fun x y -> ip_subseteq x y || ip_subseteq y x)p1.nwDst p2.nwDst
+    && check (fun x y -> ip_subseteq x y && ip_subseteq y x) p1.nwSrc p2.nwSrc
+    && check (fun x y -> ip_subseteq x y && ip_subseteq y x)p1.nwDst p2.nwDst
     && check (=) p1.nwProto p2.nwProto
     && check (=) p1.tpSrc p2.tpSrc
     && check (=) p1.tpDst p2.tpDst
