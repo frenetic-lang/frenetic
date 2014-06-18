@@ -736,12 +736,15 @@ cstruct ofp_uint64 {
   uint64_t value
 } as big_endian
 
+let max_uint32 = 4294967296L (* = 2^32*)
+
 let compare_uint32 a b =
+(* val compare_uint32 : uint32 -> uint32 -> bool ; return a < b, for a, b uint32  *)
     let a' = if a < 0l then  
-                Int64.sub 4294967296L (Int64.of_int32 (Int32.abs a))
+                Int64.sub max_uint32 (Int64.of_int32 (Int32.abs a))
              else Int64.of_int32 a in
     let b' = if b < 0l then
-                Int64.sub 4294967296L (Int64.of_int32 (Int32.abs b))
+                Int64.sub max_uint32 (Int64.of_int32 (Int32.abs b))
              else Int64.of_int32 b in
     a' <= b'
 
@@ -1193,6 +1196,7 @@ module Oxm = struct
               end
 
   let marshal_header (buf : Cstruct.t) (oxm : oxm) : int = 
+  (* Same as marshal, but without the payload *)
     let l = field_length oxm in
       let ofc = OFPXMC_OPENFLOW_BASIC in
         match oxm with
@@ -1444,124 +1448,123 @@ module Oxm = struct
       | OFPXMT_OFB_MPLS_TC ->
     let value = get_ofp_uint8_value bits in
 	  (OxmMPLSTc value, bits2)
-      | _ -> 
-        raise (Unparsable (sprintf "malformed packet in oxm %d\n" (value lsr 1)))
+      | _ -> raise (Unparsable (sprintf "malformed packet in oxm %d\n" (value lsr 1)))
 
     let parse_header (bits : Cstruct.t) : oxm * Cstruct.t =
-    let value = get_ofp_oxm_oxm_field_and_hashmask bits in
-    let f = match int_to_oxm_ofb_match_fields (value lsr 1) with
-      | Some n -> n
-      | None -> 
-        raise (Unparsable (sprintf "malformed field in oxm %d" (value lsr 1))) in
-    let hm = value land 0x1 in
-    let bits2 = Cstruct.shift bits sizeof_ofp_oxm in
-    match f with
-      | OFPXMT_OFB_IN_PORT ->
-        (OxmInPort 0l, bits2)
-      | OFPXMT_OFB_IN_PHY_PORT ->
-        (OxmInPhyPort 0l, bits2)
-      | OFPXMT_OFB_METADATA ->
-        if hm = 1 then
-          (OxmMetadata {m_value = 0L; m_mask = (Some 0L)}, bits2)
-        else
-          (OxmMetadata {m_value = 0L; m_mask = None}, bits2)
-      | OFPXMT_OFB_TUNNEL_ID ->
-        if hm = 1 then
-          (OxmTunnelId {m_value = 0L; m_mask = (Some 0L)}, bits2)
-        else
-          (OxmTunnelId {m_value = 0L; m_mask = None}, bits2)
-      (* Ethernet destination address. *)
-      | OFPXMT_OFB_ETH_DST ->
-	if hm = 1 then
-	  (OxmEthDst {m_value = 0L; m_mask = (Some 0L)}, bits2)
-	else
-	  (OxmEthDst {m_value = 0L; m_mask = None}, bits2)
-      (* Ethernet source address. *)
-      | OFPXMT_OFB_ETH_SRC ->
-	if hm = 1 then
-	  (OxmEthSrc {m_value = 0L; m_mask = (Some 0L)}, bits2)
-	else
-	  (OxmEthSrc {m_value = 0L; m_mask = None}, bits2)
-      (* Ethernet frame type. *)
-      | OFPXMT_OFB_ETH_TYPE ->
-	  (OxmEthType 0, bits2)
-      (* IP protocol. *)
-      | OFPXMT_OFB_IP_PROTO ->
-	  (OxmIPProto 0, bits2)
-      (* IP DSCP (6 bits in ToS field). *)
-      | OFPXMT_OFB_IP_DSCP ->
-	  (OxmIPDscp (0 land 63), bits2)
-      (* IP ECN (2 bits in ToS field). *)
-      |  OFPXMT_OFB_IP_ECN ->
-	  (OxmIPEcn (0 land 3), bits2)
-      (* IPv4 source address. *)
-      | OFPXMT_OFB_IPV4_SRC ->
-	if hm = 1 then
-	  (OxmIP4Src {m_value = 0l; m_mask = (Some 0l)}, bits2)
-	else
-      (OxmIP4Src {m_value = 0l; m_mask = None}, bits2)
-      (* IPv4 destination address. *)
-      | OFPXMT_OFB_IPV4_DST ->
-	if hm = 1 then
-	  (OxmIP4Dst {m_value = 0l; m_mask = (Some 0l)}, bits2)
-	else
-	  (OxmIP4Dst {m_value = 0l; m_mask = None}, bits2)
-      (* ARP opcode. *)
-      | OFPXMT_OFB_ARP_OP ->
-	  (OxmARPOp 0, bits2)
-      (* ARP source IPv4 address. *)
-      | OFPXMT_OFB_ARP_SPA ->
-	if hm = 1 then
-	  (OxmARPSpa {m_value = 0l; m_mask = (Some 0l)}, bits2)
-	else
-	  (OxmARPSpa {m_value = 0l; m_mask = None}, bits2)
-      (* ARP target IPv4 address. *)
-      | OFPXMT_OFB_ARP_TPA ->
-	if hm = 1 then
-	  (OxmARPTpa {m_value = 0l; m_mask = (Some 0l)}, bits2)
-	else
-	  (OxmARPTpa {m_value = 0l; m_mask = None}, bits2)
-      (* ARP source hardware address. *)
-      | OFPXMT_OFB_ARP_SHA ->
-	if hm = 1 then
-	  (OxmARPSha {m_value = 0L; m_mask = (Some 0L)}, bits2)
-	else
-	  (OxmARPSha {m_value = 0L; m_mask = None}, bits2)
+    (* parse Oxm header function for TableFeatureProp. Similar to parse, but without
+       parsing the payload *)
+      let value = get_ofp_oxm_oxm_field_and_hashmask bits in
+      let f = match int_to_oxm_ofb_match_fields (value lsr 1) with
+        | Some n -> n
+        | None -> raise (Unparsable (sprintf "malformed field in oxm %d" (value lsr 1))) in
+      let hm = value land 0x1 in
+      let bits2 = Cstruct.shift bits sizeof_ofp_oxm in
+      match f with
+        | OFPXMT_OFB_IN_PORT ->
+          (OxmInPort 0l, bits2)
+        | OFPXMT_OFB_IN_PHY_PORT ->
+          (OxmInPhyPort 0l, bits2)
+        | OFPXMT_OFB_METADATA ->
+          if hm = 1 then
+            (OxmMetadata {m_value = 0L; m_mask = (Some 0L)}, bits2)
+          else
+            (OxmMetadata {m_value = 0L; m_mask = None}, bits2)
+        | OFPXMT_OFB_TUNNEL_ID ->
+          if hm = 1 then
+            (OxmTunnelId {m_value = 0L; m_mask = (Some 0L)}, bits2)
+          else
+            (OxmTunnelId {m_value = 0L; m_mask = None}, bits2)
+        (* Ethernet destination address. *)
+        | OFPXMT_OFB_ETH_DST ->
+          if hm = 1 then
+            (OxmEthDst {m_value = 0L; m_mask = (Some 0L)}, bits2)
+          else
+            (OxmEthDst {m_value = 0L; m_mask = None}, bits2)
+        (* Ethernet source address. *)
+        | OFPXMT_OFB_ETH_SRC ->
+          if hm = 1 then
+            (OxmEthSrc {m_value = 0L; m_mask = (Some 0L)}, bits2)
+          else
+            (OxmEthSrc {m_value = 0L; m_mask = None}, bits2)
+         (* Ethernet frame type. *)
+        | OFPXMT_OFB_ETH_TYPE ->
+            (OxmEthType 0, bits2)
+         (* IP protocol. *)
+        | OFPXMT_OFB_IP_PROTO ->
+            (OxmIPProto 0, bits2)
+        (* IP DSCP (6 bits in ToS field). *)
+        | OFPXMT_OFB_IP_DSCP ->
+            (OxmIPDscp (0 land 63), bits2)
+        (* IP ECN (2 bits in ToS field). *)
+        |  OFPXMT_OFB_IP_ECN ->
+            (OxmIPEcn (0 land 3), bits2)
+        (* IPv4 source address. *)
+        | OFPXMT_OFB_IPV4_SRC ->
+          if hm = 1 then
+            (OxmIP4Src {m_value = 0l; m_mask = (Some 0l)}, bits2)
+          else
+            (OxmIP4Src {m_value = 0l; m_mask = None}, bits2)
+        (* IPv4 destination address. *)
+        | OFPXMT_OFB_IPV4_DST ->
+          if hm = 1 then
+            (OxmIP4Dst {m_value = 0l; m_mask = (Some 0l)}, bits2)
+          else
+            (OxmIP4Dst {m_value = 0l; m_mask = None}, bits2)
+        (* ARP opcode. *)
+        | OFPXMT_OFB_ARP_OP ->
+          (OxmARPOp 0, bits2)
+        (* ARP source IPv4 address. *)
+        | OFPXMT_OFB_ARP_SPA ->
+          if hm = 1 then
+            (OxmARPSpa {m_value = 0l; m_mask = (Some 0l)}, bits2)
+          else
+            (OxmARPSpa {m_value = 0l; m_mask = None}, bits2)
+        (* ARP target IPv4 address. *)
+        | OFPXMT_OFB_ARP_TPA ->
+          if hm = 1 then
+            (OxmARPTpa {m_value = 0l; m_mask = (Some 0l)}, bits2)
+          else
+            (OxmARPTpa {m_value = 0l; m_mask = None}, bits2)
+        (* ARP source hardware address. *)
+        | OFPXMT_OFB_ARP_SHA ->
+          if hm = 1 then
+            (OxmARPSha {m_value = 0L; m_mask = (Some 0L)}, bits2)
+          else
+            (OxmARPSha {m_value = 0L; m_mask = None}, bits2)
       (* ARP target hardware address. *)
-      | OFPXMT_OFB_ARP_THA ->
-	if hm = 1 then
-	  (OxmARPTha {m_value = 0L; m_mask = (Some 0L)}, bits2)
-	else
-	  (OxmARPTha {m_value = 0L; m_mask = None}, bits2)
-      (* ICMP Type *)
-      | OFPXMT_OFB_ICMPV4_TYPE ->
-	  (OxmICMPType 0, bits2)
-      (* ICMP code. *)
-      |   OFPXMT_OFB_ICMPV4_CODE ->
-	  (OxmICMPCode 0, bits2)
-      | OFPXMT_OFB_TCP_DST ->
-	if hm = 1 then
-	  (OxmTCPDst {m_value = 0; m_mask = (Some 0)}, bits2)
-	else
-	  (OxmTCPDst {m_value = 0; m_mask = None}, bits2)
-      | OFPXMT_OFB_TCP_SRC ->
-	if hm = 1 then
-	  (OxmTCPSrc {m_value = 0; m_mask = (Some 0)}, bits2)
-	else
-	  (OxmTCPSrc {m_value = 0; m_mask = None}, bits2)
-      | OFPXMT_OFB_MPLS_LABEL ->
-	  (OxmMPLSLabel 0l, bits2)
-      | OFPXMT_OFB_VLAN_PCP ->
-	  (OxmVlanPcp 0, bits2)
-      | OFPXMT_OFB_VLAN_VID ->
-	if hm = 1 then
-	  (OxmVlanVId {m_value = 0; m_mask = (Some 0)}, bits2)
-	else
-	  (OxmVlanVId {m_value = 0; m_mask = None}, bits2)
-      | OFPXMT_OFB_MPLS_TC ->
-	  (OxmMPLSTc 0, bits2)
-      | _ -> 
-        raise (Unparsable (sprintf "malformed packet in oxm %d\n" (value lsr 1)))
+        | OFPXMT_OFB_ARP_THA ->
+          if hm = 1 then
+            (OxmARPTha {m_value = 0L; m_mask = (Some 0L)}, bits2)
+          else
+            (OxmARPTha {m_value = 0L; m_mask = None}, bits2)
+        (* ICMP Type *)
+        | OFPXMT_OFB_ICMPV4_TYPE ->
+            (OxmICMPType 0, bits2)
+        (* ICMP code. *)
+        |   OFPXMT_OFB_ICMPV4_CODE ->
+            (OxmICMPCode 0, bits2)
+        | OFPXMT_OFB_TCP_DST ->
+          if hm = 1 then
+            (OxmTCPDst {m_value = 0; m_mask = (Some 0)}, bits2)
+          else
+            (OxmTCPDst {m_value = 0; m_mask = None}, bits2)
+        | OFPXMT_OFB_TCP_SRC ->
+          if hm = 1 then
+            (OxmTCPSrc {m_value = 0; m_mask = (Some 0)}, bits2)
+          else
+            (OxmTCPSrc {m_value = 0; m_mask = None}, bits2)
+        | OFPXMT_OFB_MPLS_LABEL ->
+            (OxmMPLSLabel 0l, bits2)
+        | OFPXMT_OFB_VLAN_PCP ->
+            (OxmVlanPcp 0, bits2)
+        | OFPXMT_OFB_VLAN_VID ->
+          if hm = 1 then
+            (OxmVlanVId {m_value = 0; m_mask = (Some 0)}, bits2)
+          else
+            (OxmVlanVId {m_value = 0; m_mask = None}, bits2)
+        | OFPXMT_OFB_MPLS_TC ->
+            (OxmMPLSTc 0, bits2)
+        | _ -> raise (Unparsable (sprintf "malformed packet in oxm %d\n" (value lsr 1)))
 
     let rec parse_headers (bits : Cstruct.t) : oxmMatch*Cstruct.t = 
       if Cstruct.len bits < sizeof_ofp_oxm then ([], bits)
@@ -2010,8 +2013,6 @@ module GroupMod = struct
 end
 
 module Instruction = struct
-(* TODO <fugitifduck> : writeMeta; clearAction; meter; experimenter *)
-(* TODO <fugitifduck> : complete to_string fun*)
 
   let to_string ins =
     match ins with
