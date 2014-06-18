@@ -382,6 +382,12 @@ let consistently_update_table (t : t) pol : unit Deferred.t =
   >>= fun () ->
   return (incr ver)
 
+let consistently_bring_up_switch (t : t) sw_id pol =
+  let c_id = Controller.client_id_of_switch t.ctl sw_id in
+  Update.BestEffort.delete_flows_for t.ctl c_id >>= fun () ->
+  internal_update_table_for t !ver pol sw_id >>= fun () ->
+  edge_update_table_for t !ver pol sw_id
+
 let handler
   ?(update=`BestEffort)
   (t : t)
@@ -389,21 +395,21 @@ let handler
   (app : Async_NetKAT.app)
   : (NetKAT_Types.event -> unit Deferred.t) =
   let app' = Async_NetKAT.run app t.nib w () in
-  let updater = match update with
+  let update, bring_up = match update with
     | `BestEffort ->
-      fun t -> Update.BestEffort.implement_policy t.ctl !(t.nib)
-    | `PerPacketConsistent -> consistently_update_table in
+      ((fun t -> Update.BestEffort.implement_policy t.ctl !(t.nib)),
+       (fun t -> Update.BestEffort.bring_up_switch t.ctl))
+    | `PerPacketConsistent ->
+      (consistently_update_table, consistently_bring_up_switch) in
   fun e ->
     app' e >>= fun m_pol ->
     match m_pol with
     | Some (pol) ->
-      updater t pol
+      update t pol
     | None ->
       begin match e with
         | NetKAT_Types.SwitchUp sw_id ->
-          (* BUG: Switches coming up that don't trigger a policy update will not
-           * get a versioned polocy when consistent updates are turned on. *)
-          Update.BestEffort.bring_up_switch t.ctl sw_id (Async_NetKAT.default app)
+          bring_up t sw_id (Async_NetKAT.default app)
         | _ -> return ()
       end
 
