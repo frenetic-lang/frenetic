@@ -60,6 +60,11 @@ end
 
 module IPMasks = struct
 
+  let string_of_ip_mask (p,m) = 
+    Printf.sprintf " %s%s" 
+      (Packet.string_of_ip p) 
+      (if m = 32l then "" else "/" ^ Int32.to_string m) 
+
   module IPMask = struct
     type t = int32 * int32
     let compare = compare
@@ -158,6 +163,13 @@ module IPMasks = struct
 	      let l = Brx.mk_diff bx by in 
 	      let i = Brx.mk_inter bx by in 
 	      let r = Brx.mk_diff by bx in 
+	      Printf.printf "X=%s/%ld\nBX=%s\nBY=%s\nL[%b]=%s\nI[%b]=%s\nR[%b]=%s\n\n"
+		(Packet.string_of_ip (fst x)) (snd x)
+		(Brx.string_of_t bx)
+		(Brx.string_of_t by)
+		(Brx.is_empty l) (Brx.string_of_t l)
+		(Brx.is_empty i) (Brx.string_of_t i)
+		(Brx.is_empty r) (Brx.string_of_t r);
 	      let accl = 
 		if Brx.is_empty l then acc 
 		else BrxMap.add l sx acc in 
@@ -166,19 +178,23 @@ module IPMasks = struct
 		else BrxMap.add i (IPMaskSet.union s sx) accl in
 	      let accr = 
 		if Brx.is_empty r then acci 
-		else BrxMap.add r s accl in 
+		else BrxMap.add r s acci in 
 	      accr)
 	    acc BrxMap.empty)
 	ips 
 	(BrxMap.singleton any_ip IPMaskSet.empty) in 
     BrxMap.fold
       (fun bx s acc -> 
+	Printf.printf "PROCESSING %s %d\n" (Brx.string_of_t bx) (IPMaskSet.cardinal s);
 	match ip_of_brx bx with 
-	| None -> acc
+	| None -> 
+	  acc
 	| Some a -> 
+	  Printf.printf "%s -> %s\n" (Brx.string_of_t bx) (Packet.string_of_ip a);
 	  let sa = IPSet.singleton a in 
 	  IPMaskSet.fold
 	    (fun y acc -> 
+	      Printf.printf "ADDING %s\n" (string_of_ip_mask y);
 	      let sy = 
 		try IPMaskMap.find y acc
 		with Not_found -> IPSet.empty in 
@@ -193,6 +209,7 @@ module IPMasks = struct
       pr
     | NetKAT_Types.Test(NetKAT_Types.IP4Src(p,m)) -> 
       NetKAT_Types.(try 
+	 Printf.printf "FINDING %s\n" (string_of_ip_mask (p,m));
 	 IPSet.fold 
 	   (fun a acc -> Optimize.mk_or (Test(IP4Src(a,32l))) acc)
 	   (IPMaskMap.find (p,m) subst)
@@ -201,6 +218,7 @@ module IPMasks = struct
 	 failwith "subst_pred")
     | NetKAT_Types.Test(NetKAT_Types.IP4Dst(p,m)) -> 
       NetKAT_Types.(try 
+	 Printf.printf "FINDING %s\n" (string_of_ip_mask (p,m));
 	 IPSet.fold 
 	   (fun a acc -> Optimize.mk_or (Test(IP4Dst(a,32l))) acc)
 	   (IPMaskMap.find (p,m) subst)
@@ -218,10 +236,6 @@ module IPMasks = struct
   let rec subst_policy subst pol = match pol with 
     | NetKAT_Types.Filter(pr) -> 
       NetKAT_Types.Filter(subst_pred subst pr)
-    | NetKAT_Types.Mod(NetKAT_Types.IP4Src(p,m)) -> 
-      pol (* should be identical to what's in subst *)
-    | NetKAT_Types.Mod(NetKAT_Types.IP4Dst(p,m)) -> 
-      pol (* should be identical to what's in subst *)
     | NetKAT_Types.Mod(_) -> 
       pol
     | NetKAT_Types.Union(p1,p2) -> 
@@ -236,6 +250,12 @@ module IPMasks = struct
   let skolemize pol = 
     let ips = ips_of_policy pol in 
     let subst = partition_ips ips in 
+    IPMaskMap.iter
+      (fun x s -> 
+	Printf.printf "%s:" (string_of_ip_mask x);
+	IPSet.iter (fun i -> Printf.printf " %s" (Packet.string_of_ip i)) s;
+	Printf.printf "\n")
+      subst;
     let pol' = subst_policy subst pol in 
     pol'
 end
@@ -313,7 +333,7 @@ struct
 	failwith (Printf.sprintf "bad file: %s" (Json.to_string j)) in 
     parse_file (Json.from_file filename)
 
-  (* let () = Printf.printf "%s" (NetKAT_Pretty.string_of_policy (IPMasks.skolemize (stanford_json "foo.of"))) *)
+  let () = Printf.printf "%s" (NetKAT_Pretty.string_of_policy (IPMasks.skolemize (stanford_json "foo.of")))
 
   let topology filename = 
     let topo = Net.Parse.from_dotfile filename in 
