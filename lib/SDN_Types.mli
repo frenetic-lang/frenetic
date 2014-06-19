@@ -57,9 +57,9 @@ module Pattern : sig
         addresses *)
     val eq : t -> t -> bool
 
-    (** [meet p1 p2] is the least pattern [pm] such that [less_eq p1 pm] and
+    (** [join p1 p2] is the least pattern [pm] such that [less_eq p1 pm] and
         [less_eq p2 pm] *)
-    val meet : t -> t -> t
+    val join : t -> t -> t
 
     (** [intersect x1 x2] returns the intersection of when [x1] and [x2] *)
     val intersect : t -> t -> t option
@@ -98,9 +98,9 @@ module Pattern : sig
   (** [eq p1 p2] returns true when [p1] and [p2] match the same set of packets *)
   val eq : t -> t -> bool
 
-  (** [meet p1 p2] is the least pattern [pm] such that [less_eq p1 pm] and
+  (** [join p1 p2] is the least pattern [pm] such that [less_eq p1 pm] and
       [less_eq p2 pm] *)
-  val meet : t -> t -> t
+  val join : t -> t -> t
 
   val format : Format.formatter -> t -> unit
   val string_of : t -> string

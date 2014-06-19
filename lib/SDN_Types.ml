@@ -67,12 +67,12 @@ module Pattern = struct
       end
 
     let eq (p1, m1) (p2, m2) =
-      m1 = m2 && begin
+      m1 = m2 && (m1 = 0l || begin
         check_mask m1;
         unsafe_shift (p1, m1) = unsafe_shift (p2, m2)
-      end
+      end)
 
-    let meet (p1, m1) (p2, m2) =
+    let join (p1, m1) (p2, m2) =
       let rec loop m =
         if m = 0l then
           (0l, 0l)
@@ -171,27 +171,27 @@ module Pattern = struct
     && check (=) p1.tpDst p2.tpDst
     && check (=) p1.inPort p2.inPort
     
-  let eq_meet x1 x2 = 
+  let eq_join x1 x2 =
     if x1 = x2 then Some x1 else None 
 
-  let meet p1 p2 =
-    let meeter m m1 m2 =
+  let join p1 p2 =
+    let joiner m m1 m2 =
       match m1, m2 with
       | Some v1, Some v2 -> 
         m v1 v2
       | _ -> 
         None in 
-    { dlSrc = meeter eq_meet p1.dlSrc p2.dlSrc
-    ; dlDst = meeter eq_meet p1.dlDst p2.dlDst
-    ; dlTyp = meeter eq_meet p1.dlTyp p2.dlTyp
-    ; dlVlan = meeter eq_meet p1.dlVlan p2.dlVlan
-    ; dlVlanPcp = meeter eq_meet p1.dlVlanPcp p2.dlVlanPcp
-    ; nwSrc = meeter (fun x y -> Some(Ip.meet x y)) p1.nwSrc p2.nwSrc
-    ; nwDst = meeter (fun x y -> Some(Ip.meet x y)) p1.nwDst p2.nwDst
-    ; nwProto = meeter eq_meet p1.nwProto p2.nwProto
-    ; tpSrc = meeter eq_meet p1.tpSrc p2.tpSrc
-    ; tpDst = meeter eq_meet p1.tpDst p2.tpDst
-    ; inPort = meeter eq_meet p1.inPort p2.inPort }
+    { dlSrc = joiner eq_join p1.dlSrc p2.dlSrc
+    ; dlDst = joiner eq_join p1.dlDst p2.dlDst
+    ; dlTyp = joiner eq_join p1.dlTyp p2.dlTyp
+    ; dlVlan = joiner eq_join p1.dlVlan p2.dlVlan
+    ; dlVlanPcp = joiner eq_join p1.dlVlanPcp p2.dlVlanPcp
+    ; nwSrc = joiner (fun x y -> Some(Ip.join x y)) p1.nwSrc p2.nwSrc
+    ; nwDst = joiner (fun x y -> Some(Ip.join x y)) p1.nwDst p2.nwDst
+    ; nwProto = joiner eq_join p1.nwProto p2.nwProto
+    ; tpSrc = joiner eq_join p1.tpSrc p2.tpSrc
+    ; tpDst = joiner eq_join p1.tpDst p2.tpDst
+    ; inPort = joiner eq_join p1.inPort p2.inPort }
 
   let format (fmt:Format.formatter) (p:t) : unit =
     let first = ref true in

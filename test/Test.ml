@@ -33,7 +33,7 @@ module LatticeTest(L : sig
 
   val less_eq : t -> t -> bool
   val eq : t -> t -> bool
-  val meet : t -> t -> t
+  val join : t -> t -> t
 
   val string_of : t -> string
 end) = struct
@@ -113,24 +113,24 @@ end) = struct
       less_eq p match_all in
     t_quickCheck prop_top
 
-  TEST "meet symmetry: meet p1 p2 <=> meet p2 p1" =
-    let prop_symmetry (p1, p2) = eq (meet p1 p2) (meet p2 p1) in 
+  TEST "join symmetry: join p1 p2 <=> join p2 p1" =
+    let prop_symmetry (p1, p2) = eq (join p1 p2) (join p2 p1) in
     t2_quickCheck prop_symmetry
 
-  TEST "meet exact: less_eq p1 (meet p1 p2) && less_eq p2 (meet p1 p2)" =
+  TEST "join exact: less_eq p1 (join p1 p2) && less_eq p2 (join p1 p2)" =
     let prop_exact (p1, p2) =
-      less_eq p1 (meet p1 p2) && less_eq p2 (meet p1 p2) in 
+      less_eq p1 (join p1 p2) && less_eq p2 (join p1 p2) in
     t2_quickCheck prop_exact
 
-  TEST "meet least: less_eq p1 p3 && less_eq p2 p3 <=> less_eq (meet p1 p2) p3" =
+  TEST "join least: less_eq p1 p3 && less_eq p2 p3 <=> less_eq (join p1 p2) p3" =
     let prop_least (p1, p2, p3) =
-      (less_eq p1 p3 && less_eq p2 p3) = (less_eq (meet p1 p2) p3) in
+      (less_eq p1 p3 && less_eq p2 p3) = (less_eq (join p1 p2) p3) in
     t3_quickCheck prop_least
 
-  TEST "meet comparable least: less_eq p1 p2 <=> meet p1 p2 = p2" =
-    (* This is the same as "meet least" when p2 = p3 *)
+  TEST "join comparable least: less_eq p1 p2 <=> join p1 p2 = p2" =
+    (* This is the same as "join least" when p2 = p3 *)
     let prop_comparable_least (p1, p2) =
-      (less_eq p1 p2) = (eq (meet p1 p2) p2) in
+      (less_eq p1 p2) = (eq (join p1 p2) p2) in
     t2_quickCheck prop_comparable_least
       
   TEST "eq partial: eq p1 p2 <=> less_eq p1 p2 && less_eq p2 p1" =
