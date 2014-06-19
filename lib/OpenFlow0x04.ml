@@ -3626,6 +3626,7 @@ module MultipartReply = struct
       | AggregateReply ag -> Aggregate.sizeof ag
       | TableReply tr -> Table.sizeof tr
       | PortStatsReply psr -> PortStats.sizeof psr
+      | QueueStatsReply qsr -> QueueStats.sizeof qsr
 
   let to_string (mpr : multipartReply) =
     match mpr.mpreply_typ with
@@ -3635,6 +3636,7 @@ module MultipartReply = struct
       | AggregateReply ag -> Format.sprintf "Aggregate Flow: %s" (Aggregate.to_string ag)
       | TableReply tr -> Format.sprintf "TableReply: %s" (Table.to_string tr)
       | PortStatsReply psr -> Format.sprintf "PortStatsReply: %s" (PortStats.to_string psr)
+      | QueueStatsReply qsr -> Format.sprintf "QueueStats: %s" (QueueStats.to_string qsr)
 
   let marshal (buf : Cstruct.t) (mpr : multipartReply) : int =
     let ofp_body_bits = Cstruct.shift buf sizeof_ofp_multipart_reply in
@@ -3661,6 +3663,9 @@ module MultipartReply = struct
       | PortStatsReply psr ->
           set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_PORT_STATS);
           PortStats.marshal ofp_body_bits psr
+      | QueueStatsReply qsr ->
+          set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_QUEUE);
+          QueueStats.marshal ofp_body_bits qsr
           )
     
   let parse (bits : Cstruct.t) : multipartReply =
@@ -3678,6 +3683,8 @@ module MultipartReply = struct
           TableReply (Table.parse ofp_body_bits)
       | Some OFPMP_PORT_STATS -> 
           PortStatsReply (PortStats.parse ofp_body_bits)
+      | Some OFPMP_QUEUE ->
+          QueueStatsReply (QueueStats.parse ofp_body_bits)
       | _ -> raise (Unparsable (sprintf "NYI: can't parse this multipart reply"))) in
     let flags = (
       match int_to_ofp_multipart_request_flags (get_ofp_multipart_request_flags bits) with

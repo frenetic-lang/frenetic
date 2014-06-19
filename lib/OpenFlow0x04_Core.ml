@@ -326,6 +326,7 @@ type multipartReplyTyp =
   | AggregateReply of aggregStats
   | TableReply of tableStats list
   | PortStatsReply of portStats list
+  | QueueStatsReply of queueStats list
 
 type multipartReply = {mpreply_typ : multipartReplyTyp; mpreply_flags : bool}
 
