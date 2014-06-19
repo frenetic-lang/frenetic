@@ -266,7 +266,7 @@ struct
       | Node.Switch -> true 
       | _ -> false  
 
-  let stanford_json filename = 
+  let policy_of_stanford filename = 
     let parse_rule = function
       | `Assoc [("in_ports", `List in_ports); 
 		("ip_dst_wc", ip_dst_wc); 
@@ -320,7 +320,14 @@ struct
 	failwith (Printf.sprintf "bad file: %s" (Json.to_string j)) in 
     parse_file (Json.from_file filename)
 
-  let () = Printf.printf "%s\n" (NetKAT_Pretty.string_of_policy (IPMasks.skolemize (stanford_json "foo.of")))
+  let convert in_file out_file = 
+    let pol = policy_of_stanford in_file in 
+    let pol' = IPMasks.skolemize pol in 
+    let fd = open_out out_file in  
+    Printf.fprintf fd "%s" (NetKAT_Pretty.string_of_policy pol');
+    close_out fd
+
+  let () = convert "foo.of" "foo.kat"
 
   let topology filename = 
     let topo = Net.Parse.from_dotfile filename in 
