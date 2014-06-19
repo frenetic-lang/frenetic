@@ -2505,6 +2505,22 @@ module PacketIn = struct
   let sizeof (pi : packetIn) : int = 
     pi.pi_total_len + (OfpMatch.sizeof pi.pi_ofp_match) + sizeof_ofp_packet_in
 
+  let to_string (pi: packetIn) : string =
+    Format.sprintf "Total Len: %u\nReason: %s\nTable ID:%u\nCookie:%Lu\nOfmPatch:%s\nPayload:%s"
+    pi.pi_total_len
+    (match pi.pi_reason with
+      | NoMatch -> "NO_MATCH"
+      | ExplicitSend -> "ACTION"
+      | InvalidTTL -> "INVALID_TTL")
+    pi.pi_table_id
+    pi.pi_cookie
+    (OfpMatch.to_string pi.pi_ofp_match)
+    (match pi.pi_payload with 
+      | Buffered (n,bytes) -> Format.sprintf "Buffered %lu:%s" n (Cstruct.to_string bytes)
+      | NotBuffered bytes -> Format.sprintf "NotBuffered: %s" (Cstruct.to_string bytes))
+    
+
+
   let marshal (buf : Cstruct.t) (pi : packetIn) : int = 
     let bufMatch = Cstruct.shift buf sizeof_ofp_packet_in in
     let size = pi.pi_total_len + (OfpMatch.marshal bufMatch pi.pi_ofp_match) + 
@@ -3525,6 +3541,15 @@ module MultipartReply = struct
       | AggregateReply ag -> Aggregate.sizeof ag
       | TableReply tr -> Table.sizeof tr
       | PortStatsReply psr -> PortStats.sizeof psr
+
+  let to_string (mpr : multipartReply) =
+    match mpr.mpreply_typ with
+      | PortsDescReply pdr -> Format.sprintf "PortsDescReply: %s" (PortsDescriptionReply.to_string pdr)
+      | SwitchDescReply sdc -> Format.sprintf "SwitchDescReply: %s" (SwitchDescriptionReply.to_string sdc)
+      | FlowStatsReply fsr -> Format.sprintf "Flow: %s" (Flow.to_string fsr)
+      | AggregateReply ag -> Format.sprintf "Aggregate Flow: %s" (Aggregate.to_string ag)
+      | TableReply tr -> Format.sprintf "TableReply: %s" (Table.to_string tr)
+      | PortStatsReply psr -> Format.sprintf "PortStatsReply: %s" (PortStats.to_string psr)
 
   let marshal (buf : Cstruct.t) (mpr : multipartReply) : int =
     let ofp_body_bits = Cstruct.shift buf sizeof_ofp_multipart_reply in

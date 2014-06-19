@@ -232,6 +232,8 @@ module PacketIn : sig
 
   val sizeof : packetIn -> int
 
+  val to_string : packetIn -> string
+
   val marshal : Cstruct.t -> packetIn -> int
 
   val parse : Cstruct.t -> packetIn
@@ -387,6 +389,8 @@ end
 module MultipartReply : sig
 
   val sizeof : multipartReply -> int
+
+  val to_string : multipartReply -> string
 
   val marshal : Cstruct.t -> multipartReply -> int
 
