@@ -19,6 +19,13 @@ Library topology
     Network_Common
 
 
+Executable topotool
+  Path: exe
+  Install: false
+  MainIs: topology.ml
+  BuildDepends:
+    topology
+
 Executable unittest
   Path: test
   Install: false

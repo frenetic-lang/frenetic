@@ -4,14 +4,16 @@
     lg.setLogLevel('info')
     lg.setLogLevel('output')
 
-    # Start the network and prime other ARP caches
+    # Start the network and run the pingall test
     net.start()
     net.staticArp()
 
-    # Enter CLI mode
-    output("Network ready\n")
-    output("Press Ctrl-d or type exit to quit\n")
-    CLI(net)
+    print "\nFollowing connections were made:"
+    dumpNodeConnections(net.hosts)
+
+    net.pingAll()
+
+    # All done
     net.stop()
 
 start()

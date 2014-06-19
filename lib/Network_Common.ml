@@ -90,6 +90,18 @@ module Node = struct
       (Packet.string_of_mac n.mac)
       (n.dev_id)
 
+  let to_mininet n = match n.dev_type with
+    | Host ->
+      (* Mininet doesn't like underscores in host names *)
+      let mnname = Str.global_replace (Str.regexp "_") "" n.name in
+      Printf.sprintf "%s = net.addHost(\'%s\', mac=\'%s\', ip=\'%s\')\n"
+        n.name mnname
+        (Packet.string_of_mac n.mac) (Packet.string_of_ip n.ip)
+    | _ ->
+      Printf.sprintf
+        "%s = net.addSwitch(\'s%Ld\')\n" n.name n.dev_id
+
+
   (* Update the record for a node *)
   let update_dot_attr n (k,vo) =
     let dev_type_of vo = match string_of_id (maybe vo) with
@@ -114,10 +126,9 @@ module Node = struct
   let parse_dot (i:Dot_ast.node_id) (ats:Dot_ast.attr list) : t =
     let (id, popt) = i in
     let name = string_of_id id in
-    let num = int_of_string (String.sub name 1 (String.length name - 1)) in 
     let at = List.hd ats in
     List.fold_left update_dot_attr
-      {default with name = name; ip = Int32.of_int num; mac = Int64.of_int num} at
+      {default with name = name; ip = 0l; mac = 0L} at
 
   let int64_of_value v = match v with
     | Gml.Int(i) -> Int64.of_int i

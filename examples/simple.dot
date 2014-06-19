@@ -1,8 +1,12 @@
-strict graph g1 {
-s1 -- h1 [src_port=0, dport=0, cost=1, capacity="1Gbps"]
-s1 -- h2 [src_port=1, dport=0, cost=1, capacity="1Gbps"]
-s1 -- h3 [src_port=2, dport=0, cost=1, capacity="1Gbps"]
-h1 -- h1 [src_port=1, dport=2, cost=0, capacity="10Gbps"]
-h2 -- h2 [src_port=1, dport=2, cost=0, capacity="10Gbps"]
-h3 -- h3 [src_port=1, dport=2, cost=0, capacity="10Gbps"]
+digraph g1 {
+
+h1[type=host,ip="10.0.0.1"];
+h2[type=host,ip="10.0.0.2"];
+s1[type=switch, ip="11.0.0.1", id=1];
+
+s1 -> h1 [src_port=1, dst_port=0, cost=1];
+h1 -> s1 [src_port=0, dst_port=1, cost=1];
+
+s1 -> h2 [src_port=2, dst_port=0, cost=1];
+h2 -> s1 [src_port=0, dst_port=2, cost=1];
 }

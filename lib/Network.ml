@@ -4,6 +4,7 @@ module type VERTEX = sig
   val compare : t -> t -> int
   val to_string : t -> string
   val to_dot : t -> string
+  val to_mininet : t -> string
   val parse_dot : Graph.Dot_ast.node_id -> Graph.Dot_ast.attr list -> t
   val parse_gml : Graph.Gml.value_list -> t
 end
@@ -107,6 +108,8 @@ module type NETWORK = sig
   module Pretty : sig
     val to_string : Topology.t -> string
     val to_dot : Topology.t -> string
+    val to_mininet : ?prologue_file:string -> ?epilogue_file:string ->
+      Topology.t -> string
   end
 end
 
@@ -610,6 +613,15 @@ struct
   (* Pretty Printing *)
   module Pretty = struct
     open Topology
+
+    let load_file f =
+      let ic = open_in f in
+      let n = in_channel_length ic in
+      let s = String.create n in
+      really_input ic s 0 n;
+      close_in ic;
+      (s)
+
     let to_dot (t:t) =
       let es = (EdgeSet.fold (fun (s,l,d) acc ->
         let _,src_port = edge_src (s,l,d) in
@@ -633,6 +645,60 @@ struct
 
     let to_string (t:t) : string =
       to_dot t
+
+    (* Produce a Mininet script that implements the given topology *)
+    let to_mininet
+        ?(prologue_file = "static/mn_prologue.txt")
+        ?(epilogue_file = "static/mn_epilogue.txt")
+        (t:t) : string =
+      (* Load static strings (maybe there's a better way to do this?) *)
+      let prologue = load_file prologue_file in
+      let epilogue = load_file epilogue_file in
+
+      (* Check if an edge or its reverse has been added already *)
+      let seen = ref EdgeSet.empty in
+      let not_printable e =
+        let (src,edge,dst) = e in
+        let inverse = match inverse_edge t e with
+          | None -> false
+          | Some e -> EdgeSet.mem e !seen in
+        src = dst ||
+        EdgeSet.mem e !seen ||
+        inverse
+      in
+
+      (* Add the hosts and switches *)
+      let add_hosts = fold_vertexes
+        (fun v acc ->
+          let label = vertex_to_label t v in
+          let add = Vertex.to_mininet label in
+          acc ^ "    " ^ add
+        )
+        t "" in
+
+      (* Add links between them *)
+      let links = fold_edges
+        (fun e acc ->
+          let add =
+            if (not_printable e) then "" (* Mininet links are bidirectional *)
+            else
+              let src_vertex,src_port = edge_src e in
+              let dst_vertex,dst_port = edge_dst e in
+              let src_label = vertex_to_label t src_vertex in
+              let dst_label = vertex_to_label t dst_vertex in
+              let src = Str.global_replace (Str.regexp "[ ,]") ""
+                (Vertex.to_string src_label) in
+              let dst = Str.global_replace (Str.regexp "[ ,]") ""
+                (Vertex.to_string dst_label) in
+              Printf.sprintf "    net.addLink(%s, %s, %ld, %ld)\n"
+                src dst src_port dst_port
+          in
+          seen := EdgeSet.add e !seen;
+          acc ^ add
+        )
+        t "" in
+      prologue ^ add_hosts ^ links ^ epilogue
+
   end
 end
 
