@@ -2460,36 +2460,29 @@ module PortDesc = struct
         
 end
 
-module PortReason = struct
-
-  let marshal (t : portReason) = 
-    match t with
-      | PortAdd -> ofp_port_reason_to_int OFPPR_ADD
-      | PortDelete -> ofp_port_reason_to_int OFPPR_DELETE 
-      | PortModify -> ofp_port_reason_to_int OFPPR_MODIFY
-
-  let parse bits : portReason =
-    match (int_to_ofp_port_reason bits) with
-      | Some OFPPR_ADD -> PortAdd
-      | Some OFPPR_DELETE -> PortDelete
-      | Some OFPPR_MODIFY -> PortModify
-      | _ -> raise
-            (Unparsable (sprintf "bad port_reason number (%d)" bits))
-end
-
 module PortStatus = struct
 
   let sizeof (_ : portStatus) : int = 
     sizeof_ofp_port_status + sizeof_ofp_port
 
+  let reason_to_int (pr : portReason) : int =
+     match pr with
+      | PortAdd -> ofp_port_reason_to_int OFPPR_ADD
+      | PortDelete -> ofp_port_reason_to_int OFPPR_DELETE
+      | PortModify -> ofp_port_reason_to_int OFPPR_MODIFY
+
   let marshal (buf : Cstruct.t) (status : portStatus) : int =
-    set_ofp_port_status_reason buf (PortReason.marshal status.reason);
+    set_ofp_port_status_reason buf (reason_to_int status.reason);
     let size = sizeof_ofp_port_status + 
         PortDesc.marshal (Cstruct.shift buf sizeof_ofp_port_status) status.desc in
     size
 
   let parse (bits : Cstruct.t) : portStatus =
-    let reason = PortReason.parse (get_ofp_port_status_reason bits) in 
+    let reason = (match int_to_ofp_port_reason (get_ofp_port_status_reason bits) with
+                    | Some OFPPR_ADD -> PortAdd
+                    | Some OFPPR_DELETE -> PortDelete
+                    | Some OFPPR_MODIFY -> PortModify
+                    | None -> raise (Unparsable (sprintf "unexpected port reason"))) in 
     let bits = Cstruct.shift bits sizeof_ofp_port_status in
     let desc = PortDesc.parse bits in
     { reason;

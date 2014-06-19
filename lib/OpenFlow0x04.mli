@@ -214,14 +214,6 @@ module PortDesc : sig
   val to_string : portDesc -> string
 end
 
-module PortReason : sig
-
-  val marshal : portReason -> int
-
-  val parse : int -> portReason
-
-end
-
 module PortStatus : sig
 
   val sizeof : portStatus -> int
