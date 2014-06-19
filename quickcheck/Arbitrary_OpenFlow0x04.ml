@@ -622,6 +622,10 @@ module MultipartReq = struct
       let arbitrary_config =
         ret_gen Deprecated
 
+      let calc_length tfp =
+        (* sizeof_ofp_table_feature = 64*)
+        ret_gen (64+(TableFeatureProp.size_of tfp))
+
       let arbitrary = 
         arbitrary_uint8 >>= fun table_id ->
         arbitrary_stringN 32 >>= fun name ->
@@ -630,7 +634,9 @@ module MultipartReq = struct
         arbitrary_config >>= fun config ->
         arbitrary_uint32 >>= fun max_entries ->
         TableFeatureProp.arbitrary >>= fun feature_prop ->
+        calc_length feature_prop>>= fun length ->
         ret_gen {
+          length;
           table_id;
           name;
           metadata_match;

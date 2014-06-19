@@ -2928,6 +2928,7 @@ end
 module TableFeature = struct
 
     let sizeof (tf : tableFeatures) =
+      (* should be equal to tf.length *)
       pad_to_64bits (sizeof_ofp_table_features + (TableFeatureProp.sizeof tf.feature_prop))
 
     let tableConfig_to_int (tc : tableConfig) : int32 =
@@ -2939,7 +2940,7 @@ module TableFeature = struct
         | Deprecated -> "Deprecated"
 
     let marshal (buf : Cstruct.t) (tf : tableFeatures) : int =
-      set_ofp_table_features_length buf (sizeof_ofp_table_features + (TableFeatureProp.sizeof tf.feature_prop));
+      set_ofp_table_features_length buf tf.length;
       set_ofp_table_features_table_id buf tf.table_id;
       set_ofp_table_features_pad (Cstruct.to_string (Cstruct.create 5)) 0 buf;
       set_ofp_table_features_name tf.name 0 buf;
@@ -2964,7 +2965,8 @@ module TableFeature = struct
         ) in
       let maxEntries = get_ofp_table_features_max_entries bits in
       let featureProp = TableFeatureProp.parse (Cstruct.sub bits sizeof_ofp_table_features (length-sizeof_ofp_table_features)) in
-      { table_id = tableId;
+      { length = length;
+        table_id = tableId;
         name = name;
         metadata_match = metadataMatch; 
         metadata_write = metadataWrite;
