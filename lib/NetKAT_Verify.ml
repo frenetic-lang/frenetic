@@ -158,7 +158,7 @@ module IPMasks = struct
     let part = 
       IPMaskSet.fold
 	(fun x acc -> 
-	  Printf.printf "Partition: [2K\r%d / %d (%d)%!" !i n (BrxMap.cardinal acc);
+	  Printf.printf "[2K\r[32m[Partitioning][0m: %d / %d (%d)%!" !i n (BrxMap.cardinal acc);
 	  incr i;
 	  let bx = brx_of_ip x in 
 	  let sx = IPMaskSet.singleton x in 
