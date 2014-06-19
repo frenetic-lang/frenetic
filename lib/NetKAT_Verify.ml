@@ -80,20 +80,20 @@ module IPMasks = struct
 
   let brx_of_ip (p,m) = 
     let open Brx in 
-    let m = Int32.to_int m in 
-    let zero = mk_cset [(0,0)] in 
-    let one = mk_cset [(1,1)] in 
-    let any = mk_cset [(0,1)] in 
-    let rec loop x n acc = 
+    let mtch = Int32.to_int m in 
+    let mask = 32 - mtch in 
+    let pat = if mask = 0 then p else Int32.shift_right_logical p mask in 
+    let rec bits x n acc = 
       if n = 0 then acc
       else
-	let acc' = 
-	  if Int32.rem x 2l = 0l then mk_seq zero acc
-	  else mk_seq one acc in 
+	let acc' = String.make 1 (if Int32.rem x 2l = 0l then '\000' else '\001') ^ acc in 
 	let n' = pred n in 
 	let x' = Int32.shift_right_logical x 1 in 
-	loop x' n' acc'  in 
-    loop p m (mk_iter any (32 - m) (32 - m))
+	bits x' n' acc' in 
+    let bs = bits pat mtch "" in 
+    let r = mk_seq (mk_string bs) (mk_iter ascii_set mask (Some mask)) in 
+    (* Printf.printf "BRX_OF_IP: %s -> %s\n" (string_of_ip_mask (p,m)) (Brx.string_of_t r); *)
+    r
 
   let any_ip = brx_of_ip (0l,0l)
 
@@ -102,18 +102,18 @@ module IPMasks = struct
     | None -> 
       None
     | Some s -> 
-      let n = String.length s in 
+      let n = String.length s - 1 in 
       let rec loop i acc = 
-	if i >= n then acc
+	if i > n then acc
 	else
 	  begin 
-	    match Char.code s.[i] with
-	    | 0 -> 
+	    match s.[i] with
+	    | '0' -> 
 	      loop (succ i) (Int32.shift_left acc 1)
-	    | 1 ->
+	    | '1' -> 
 	      loop (succ i) (Int32.add (Int32.shift_left acc 1) 1l)
 	    | c -> 
-	      failwith (Printf.sprintf "invalid regular expression: %d" c)
+	      failwith (Printf.sprintf "invalid regular expression: %c" c)
 	  end in 
       Some (loop 0 0l)
 	
@@ -163,13 +163,6 @@ module IPMasks = struct
 	      let l = Brx.mk_diff bx by in 
 	      let i = Brx.mk_inter bx by in 
 	      let r = Brx.mk_diff by bx in 
-	      (* Printf.printf "X=%s/%ld\nBX=%s\nBY=%s\nL[%b]=%s\nI[%b]=%s\nR[%b]=%s\n\n" *)
-	      (* 	(Packet.string_of_ip (fst x)) (snd x) *)
-	      (* 	(Brx.string_of_t bx) *)
-	      (* 	(Brx.string_of_t by) *)
-	      (* 	(Brx.is_empty l) (Brx.string_of_t l) *)
-	      (* 	(Brx.is_empty i) (Brx.string_of_t i) *)
-	      (* 	(Brx.is_empty r) (Brx.string_of_t r); *)
 	      let accl = 
 		if Brx.is_empty l then acc 
 		else BrxMap.add l sx acc in 
@@ -185,16 +178,14 @@ module IPMasks = struct
 	(BrxMap.singleton any_ip IPMaskSet.empty) in 
     BrxMap.fold
       (fun bx s acc -> 
-	(* Printf.printf "PROCESSING %s %d\n" (Brx.string_of_t bx) (IPMaskSet.cardinal s); *)
 	match ip_of_brx bx with 
 	| None -> 
 	  acc
 	| Some a -> 
-	  (* Printf.printf "%s -> %s\n" (Brx.string_of_t bx) (Packet.string_of_ip a); *)
+	  (* if true then Printf.printf "%s -> %s\n" (Brx.string_of_t bx) (Packet.string_of_ip a); *)
 	  let sa = IPSet.singleton a in 
 	  IPMaskSet.fold
 	    (fun y acc -> 
-	      (* Printf.printf "ADDING %s\n" (string_of_ip_mask y); *)
 	      let sy = 
 		try IPMaskMap.find y acc
 		with Not_found -> IPSet.empty in 
@@ -248,12 +239,6 @@ module IPMasks = struct
   let skolemize pol = 
     let ips = ips_of_policy pol in 
     let subst = partition_ips ips in 
-    IPMaskMap.iter
-      (fun x s -> 
-	Printf.printf "%s:" (string_of_ip_mask x);
-	IPSet.iter (fun i -> Printf.printf " %s" (Packet.string_of_ip i)) s;
-	Printf.printf "\n")
-      subst;
     let pol' = subst_policy subst pol in 
     pol'
 end
@@ -331,7 +316,7 @@ struct
 	failwith (Printf.sprintf "bad file: %s" (Json.to_string j)) in 
     parse_file (Json.from_file filename)
 
-  let () = Printf.printf "%s" (NetKAT_Pretty.string_of_policy (IPMasks.skolemize (stanford_json "foo.of")))
+  let () = Printf.printf "%s\n" (NetKAT_Pretty.string_of_policy (IPMasks.skolemize (stanford_json "foo.of")))
 
   let topology filename = 
     let topo = Net.Parse.from_dotfile filename in 
