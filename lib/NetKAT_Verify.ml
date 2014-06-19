@@ -153,9 +153,13 @@ module IPMasks = struct
       IPMaskSet.empty
 
   let partition_ips ips = 
+    let n = IPMaskSet.cardinal ips in 
+    let i = ref 0 in 
     let part = 
       IPMaskSet.fold
 	(fun x acc -> 
+	  Printf.printf "Partition: [2K\r%d / %d (%d)%!" !i n (BrxMap.cardinal acc);
+	  incr i;
 	  let bx = brx_of_ip x in 
 	  let sx = IPMaskSet.singleton x in 
 	  BrxMap.fold
@@ -176,6 +180,7 @@ module IPMasks = struct
 	    acc BrxMap.empty)
 	ips 
 	(BrxMap.singleton any_ip IPMaskSet.empty) in 
+    Printf.printf "\n%!";
     BrxMap.fold
       (fun bx s acc -> 
 	match ip_of_brx bx with 
