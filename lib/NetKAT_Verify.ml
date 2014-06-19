@@ -165,18 +165,19 @@ module IPMasks = struct
 	  let bx',acc' = 
 	    BrxMap.fold
 	      (fun by s (b,acc) -> 
-		let i = Brx.mk_inter bx by in 
-		let r = Brx.mk_diff by bx in 
+		let i = Brx.mk_inter b by in 
+		let r = Brx.mk_diff by b in 
 		let acci = 
 		  if Brx.is_empty i then acc 
 		  else BrxMap.add i (IPMaskSet.union s sx) acc in
 		let accr = 
 		  if Brx.is_empty r then acci 
 		  else BrxMap.add r s acci in 
-		(Brx.mk_diff bx by, accr))
+		(Brx.mk_diff b by, accr))
 	      acc (bx,BrxMap.empty) in 
 	  (* TODO(jnf): why is bx' not empty? *)
-	  if Brx.is_empty bx' then acc' else BrxMap.add bx' sx acc')
+	  assert (Brx.is_empty bx');
+	  acc')
 	ips 
 	(BrxMap.singleton any_ip IPMaskSet.empty) in 
     Printf.printf "\n%!";
@@ -326,6 +327,9 @@ struct
     let fd = open_out out_file in  
     Printf.fprintf fd "%s" (NetKAT_Pretty.string_of_policy pol');
     close_out fd
+
+
+  let () = convert_stanford "foo.of" "foo.kat"
 
   let topology filename = 
     let topo = Net.Parse.from_dotfile filename in 
