@@ -162,22 +162,21 @@ module IPMasks = struct
 	  incr i;
 	  let bx = brx_of_ip x in 
 	  let sx = IPMaskSet.singleton x in 
-	  BrxMap.fold
-	    (fun by s acc -> 
-	      let l = Brx.mk_diff bx by in 
-	      let i = Brx.mk_inter bx by in 
-	      let r = Brx.mk_diff by bx in 
-	      let accl = 
-		if Brx.is_empty l then acc 
-		else BrxMap.add l sx acc in 
-	      let acci = 
-		if Brx.is_empty i then accl 
-		else BrxMap.add i (IPMaskSet.union s sx) accl in
-	      let accr = 
-		if Brx.is_empty r then acci 
-		else BrxMap.add r s acci in 
-	      accr)
-	    acc BrxMap.empty)
+	  let bx',acc' = 
+	    BrxMap.fold
+	      (fun by s (b,acc) -> 
+		let i = Brx.mk_inter bx by in 
+		let r = Brx.mk_diff by bx in 
+		let acci = 
+		  if Brx.is_empty i then acc 
+		  else BrxMap.add i (IPMaskSet.union s sx) acc in
+		let accr = 
+		  if Brx.is_empty r then acci 
+		  else BrxMap.add r s acci in 
+		(Brx.mk_diff bx by, accr))
+	      acc (bx,BrxMap.empty) in 
+	  (* TODO(jnf): why is bx' not empty? *)
+	  if Brx.is_empty bx' then acc' else BrxMap.add bx' sx acc')
 	ips 
 	(BrxMap.singleton any_ip IPMaskSet.empty) in 
     Printf.printf "\n%!";
