@@ -2315,6 +2315,16 @@ module Capabilities = struct
          (Int32.logor (if capa.queue_stats then (Int32.shift_left 1l 6) else 0l)
            (if capa.port_blocked then (Int32.shift_left 1l 7) else 0l))))))
 
+  let to_string (cap : capabilities) : string =
+      Format.sprintf "Port Blocked:%B\nQueue Stats:%B\nIP Reasm:%B\nGroup Stats:%B\nPort Stats:%B\nTable Stats:%B\nFlow Stats:%B"
+      cap.port_blocked
+      cap.queue_stats
+      cap.ip_reasm
+      cap.group_stats
+      cap.port_stats
+      cap.table_stats
+      cap.flow_stats
+
   let parse (bits : int32) : capabilities =
     { port_blocked = Bits.test_bit 7 bits;
       queue_stats = Bits.test_bit 6 bits;
@@ -2332,6 +2342,17 @@ module SwitchFeatures = struct
   type t = { datapath_id : int64; num_buffers : int32;
              num_tables : int8; aux_id : int8;
              supported_capabilities : capabilities }
+
+  let sizeof (sw : t) : int =
+      sizeof_ofp_switch_features
+
+  let to_string (sw : t) : string =
+      Format.sprintf "Datapath ID: %Lu\nNum Buffers: %lu\nNum Tables: %u\nAux ID: %u\nCapabilities: %s"
+      sw.datapath_id
+      sw.num_buffers
+      sw.num_tables
+      sw.aux_id
+      (Capabilities.to_string sw.supported_capabilities)
 
   let marshal (buf : Cstruct.t) (features : t) : int =
     set_ofp_switch_features_datapath_id buf features.datapath_id;

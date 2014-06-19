@@ -169,6 +169,8 @@ module FlowMod : sig
 end
 
 module Capabilities : sig
+ 
+  val to_string : capabilities -> string
 
   val parse : int32  -> capabilities
 
@@ -179,6 +181,10 @@ module SwitchFeatures : sig
   type t = { datapath_id : int64; num_buffers : int32;
              num_tables : int8; aux_id : int8;
              supported_capabilities : capabilities }
+
+  val sizeof : t -> int
+
+  val to_string : t -> string
 
   val marshal : Cstruct.t -> t -> int
 
