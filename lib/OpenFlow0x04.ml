@@ -3208,10 +3208,10 @@ module SwitchDescriptionReply = struct
     sdr.serial_num
 
   let marshal (buf : Cstruct.t) (sdr : switchDesc) : int =
-    Cstruct.blit_from_string sdr.mfr_desc 0 buf 0 (String.length sdr.mfr_desc);
-    Cstruct.blit_from_string sdr.hw_desc 0 buf 256 (String.length sdr.hw_desc);
-    Cstruct.blit_from_string sdr.sw_desc 0 buf 512 (String.length sdr.sw_desc);
-    Cstruct.blit_from_string sdr.serial_num 0 buf 768 (String.length sdr.serial_num);
+    set_ofp_desc_mfr_desc sdr.mfr_desc 0 buf;
+    set_ofp_desc_hw_desc sdr.hw_desc 0 buf;
+    set_ofp_desc_sw_desc sdr.sw_desc 0 buf;
+    set_ofp_desc_serial_num sdr.serial_num 0 buf;
     sizeof_ofp_desc
 
   let parse (bits : Cstruct.t) : switchDesc = 

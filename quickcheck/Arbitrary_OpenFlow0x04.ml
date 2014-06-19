@@ -906,11 +906,11 @@ module MultipartReply = struct
   module SwitchDescriptionReply = struct
     type t = OpenFlow0x04_Core.switchDesc
     
-    let arbitrary =
-        arbitrary_stringN 256 >>= fun mfr_desc ->
-        arbitrary_stringN 256 >>= fun hw_desc ->
-        arbitrary_stringN 256 >>= fun sw_desc ->
-        arbitrary_stringN 32 >>= fun serial_num ->
+    let arbitrary = 
+        arbitrary_stringl 256 >>= fun mfr_desc ->
+        arbitrary_stringl 256 >>= fun hw_desc ->
+        arbitrary_stringl 256 >>= fun sw_desc ->
+        arbitrary_stringl 32 >>= fun serial_num ->
         ret_gen {
             mfr_desc;
             hw_desc;
