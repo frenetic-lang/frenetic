@@ -32,7 +32,8 @@ Library netkat
     sexplib.syntax,
     netkat_decide,
     str,
-    threads
+    threads,
+    yojson
   InternalModules:
     Algo,
     Flowterp,

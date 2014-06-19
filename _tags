@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 9f5f6cd3efe7dff64b1b661a81b3be6e)
+# DO NOT EDIT (digest: 2ddc709efb5138dc0211443c2e917dbb)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -27,6 +27,7 @@
 <lib/*.ml{,i}>: package(str)
 <lib/*.ml{,i}>: package(threads)
 <lib/*.ml{,i}>: package(topology)
+<lib/*.ml{,i}>: package(yojson)
 # Library async
 "async/async.cmxs": use_async
 <async/*.ml{,i}>: package(async)
@@ -46,6 +47,7 @@
 <async/*.ml{,i}>: package(str)
 <async/*.ml{,i}>: package(threads)
 <async/*.ml{,i}>: package(topology)
+<async/*.ml{,i}>: package(yojson)
 <async/*.ml{,i}>: use_netkat
 # Library quickcheck
 "quickcheck/quickcheck.cmxs": use_quickcheck
@@ -64,6 +66,7 @@
 <quickcheck/*.ml{,i}>: package(str)
 <quickcheck/*.ml{,i}>: package(threads)
 <quickcheck/*.ml{,i}>: package(topology)
+<quickcheck/*.ml{,i}>: package(yojson)
 <quickcheck/*.ml{,i}>: use_netkat
 # Executable testtool
 "test/Test.byte": package(brx)
@@ -85,6 +88,7 @@
 "test/Test.byte": package(str)
 "test/Test.byte": package(threads)
 "test/Test.byte": package(topology)
+"test/Test.byte": package(yojson)
 "test/Test.byte": use_netkat
 "test/Test.byte": use_quickcheck
 <test/*.ml{,i}>: package(brx)
@@ -106,6 +110,7 @@
 <test/*.ml{,i}>: package(str)
 <test/*.ml{,i}>: package(threads)
 <test/*.ml{,i}>: package(topology)
+<test/*.ml{,i}>: package(yojson)
 <test/*.ml{,i}>: use_netkat
 <test/*.ml{,i}>: use_quickcheck
 # Executable katnetic
@@ -127,6 +132,7 @@
 "frenetic/katnetic.byte": package(str)
 "frenetic/katnetic.byte": package(threads)
 "frenetic/katnetic.byte": package(topology)
+"frenetic/katnetic.byte": package(yojson)
 "frenetic/katnetic.byte": use_async
 "frenetic/katnetic.byte": use_netkat
 <frenetic/*.ml{,i}>: package(cmdliner)
@@ -148,6 +154,7 @@
 "frenetic/netkat_test.byte": package(str)
 "frenetic/netkat_test.byte": package(threads)
 "frenetic/netkat_test.byte": package(topology)
+"frenetic/netkat_test.byte": package(yojson)
 "frenetic/netkat_test.byte": use_async
 "frenetic/netkat_test.byte": use_netkat
 <frenetic/*.ml{,i}>: package(async)
@@ -167,6 +174,7 @@
 <frenetic/*.ml{,i}>: package(str)
 <frenetic/*.ml{,i}>: package(threads)
 <frenetic/*.ml{,i}>: package(topology)
+<frenetic/*.ml{,i}>: package(yojson)
 <frenetic/*.ml{,i}>: use_async
 <frenetic/*.ml{,i}>: use_netkat
 # OASIS_STOP

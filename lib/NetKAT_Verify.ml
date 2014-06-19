@@ -248,6 +248,8 @@ struct
   module Topology = Net.Topology
   module Path = Net.Path
 
+  module Json = Yojson.Safe
+
   let is_host topo v = 
     match Node.device (Topology.vertex_to_label topo v) with 
       | Node.Host -> true 
@@ -256,6 +258,57 @@ struct
     match Node.device (Topology.vertex_to_label topo v) with 
       | Node.Switch -> true 
       | _ -> false  
+
+  let stanford_json filename = 
+    let parse_rule = function
+      | `Assoc [("in_ports", `List in_ports); 
+		("ip_dst_wc", ip_dst_wc); 
+		("ip_dst_new", ip_dst_new);
+		("out_ports", `List out_ports);
+		("ip_dst_match", ip_dst_match)] -> 
+	let ip_pat = 
+	  match ip_dst_match, ip_dst_wc with 
+	  | `Int p, `Int m -> 
+	    NetKAT_Types.(Filter(Test(IP4Dst(Int32.of_int p, Int32.of_int m))))
+	  | j1,j2 -> 
+	    failwith (Printf.sprintf "bad ip_dst_match or ip_dst_wc: %s %s" (Json.to_string j1) (Json.to_string j2)) in 
+	let ip_mod = 
+	  match ip_dst_new with 
+	  | `Int n -> NetKAT_Types.(Mod(IP4Dst(Int32.of_int n,32l)))
+	  | `Null -> NetKAT_Types.(Filter True)
+	  | j -> 
+	    failwith (Printf.sprintf "bad ip_dst_new: %s" (Json.to_string j)) in 
+	let outs = 
+	  List.fold_left  
+	    (fun acc outp -> 
+	      match outp with 
+	      | `Int n -> NetKAT_Types.(Union(acc, Mod(Location(Physical(Int32.of_int n)))))
+	      | j -> 
+		failwith (Printf.sprintf "bad out_port: %s" (Json.to_string j)))
+	    NetKAT_Types.(Filter False) out_ports in
+	let acts = NetKAT_Types.(Seq(ip_mod, outs)) in 
+	let pol = 
+	  List.fold_left
+	    (fun acc inp -> 
+	      match inp with 
+	      | `Int n -> 
+		let pr = NetKAT_Types.(Seq(Filter(Test(Location(Physical(Int32.of_int n)))), ip_pat)) in 
+		NetKAT_Types.(Union(acc,Seq(pr,acts)))
+	      | j -> 
+		failwith (Printf.sprintf "bad in_port: %s" (Json.to_string j)))
+	    NetKAT_Types.(Filter False) in_ports in 
+	pol
+     | j -> 
+       failwith (Printf.sprintf "bad_rule: %s" (Json.to_string j)) in 
+    let parse_file = function
+      | `Assoc ["rules", `List rules] -> 
+	List.fold_left
+	  (fun acc rule -> 
+	    NetKAT_Types.Union(acc, parse_rule rule))
+	  NetKAT_Types.(Filter False) rules
+      | j -> 
+	failwith (Printf.sprintf "bad file: %s" (Json.to_string j)) in 
+    parse_file (Json.from_file filename)
 
   let topology filename = 
     let topo = Net.Parse.from_dotfile filename in 
