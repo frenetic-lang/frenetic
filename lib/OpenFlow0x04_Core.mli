@@ -286,6 +286,9 @@ type portStats = { psPort_no : portId; rx_packets : int64; tx_packets : int64;
                    rx_frame_err : int64; rx_over_err : int64; rx_crc_err : int64;
                    collisions : int64; duration_sec : int32; duration_nsec : int32}
 
+type queueStats = { qsPort_no : portId; queue_id : int32; tx_bytes : int64; tx_packets : int64;
+                    tx_errors : int64; duration_sec : int32; duration_nsec : int32 }
+
 type multipartReplyTyp = 
   | PortsDescReply of portDesc list
   | SwitchDescReply of switchDesc

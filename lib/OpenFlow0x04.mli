@@ -384,6 +384,15 @@ module PortStats : sig
 
 end
 
+module QueueStats : sig
+
+  val sizeof : queueStats list -> int
+  val to_string : queueStats list -> string
+  val marshal : Cstruct.t -> queueStats list -> int
+  val parse : Cstruct.t -> queueStats list 
+
+end
+
 module MultipartReply : sig
 
   val sizeof : multipartReply -> int

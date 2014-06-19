@@ -3550,6 +3550,70 @@ module PortStats = struct
     List.rev (Cstruct.fold (fun acc bits -> bits :: acc) portIter [])
 end
 
+module QueueStats = struct
+
+    cstruct ofp_queue_stats {
+      uint32_t port_no;
+      uint32_t queue_id;
+      uint64_t tx_bytes;
+      uint64_t tx_packets;
+      uint64_t tx_errors;
+      uint32_t duration_sec;
+      uint32_t duration_nsec
+    } as big_endian
+
+    let sizeof_struct (qs : queueStats) : int =
+      sizeof_ofp_queue_stats
+
+    let sizeof (qs : queueStats list) : int =
+      sum (map sizeof_struct qs)
+
+    let to_string_struct (qs : queueStats) : string =
+      Format.sprintf "Port no:%lu\nQueue ID:%lu\ntx bytes:%Lu\ntx pkt:%Lu\ntx errors:%Lu\nduration (s/ns):%lu/%lu"
+      qs.qsPort_no
+      qs.queue_id
+      qs.tx_bytes
+      qs.tx_packets
+      qs.tx_errors
+      qs.duration_sec
+      qs.duration_nsec
+
+    let to_string (t : queueStats list) =
+      String.concat "\n" (map to_string_struct t)
+
+    let marshal_struct (buf : Cstruct.t) (qs : queueStats) : int = 
+      set_ofp_queue_stats_port_no buf qs.qsPort_no;
+      set_ofp_queue_stats_queue_id buf qs.queue_id;
+      set_ofp_queue_stats_tx_bytes buf qs.tx_bytes;
+      set_ofp_queue_stats_tx_packets buf qs.tx_packets;
+      set_ofp_queue_stats_tx_errors buf qs.tx_errors;
+      set_ofp_queue_stats_duration_sec buf qs.duration_sec;
+      set_ofp_queue_stats_duration_nsec buf qs.duration_nsec;
+      sizeof_ofp_queue_stats
+
+    let marshal (buf : Cstruct.t) (qs : queueStats list) : int =
+      marshal_fields buf qs marshal_struct
+
+    let parse_struct (bits : Cstruct.t) : queueStats =
+      { qsPort_no = get_ofp_queue_stats_port_no bits
+      ; queue_id = get_ofp_queue_stats_queue_id bits
+      ; tx_bytes = get_ofp_queue_stats_tx_bytes bits
+      ; tx_packets = get_ofp_queue_stats_tx_packets bits
+      ; tx_errors = get_ofp_queue_stats_tx_errors bits
+      ; duration_sec = get_ofp_queue_stats_duration_sec bits
+      ; duration_nsec = get_ofp_queue_stats_duration_nsec bits
+      }
+
+    let parse (bits : Cstruct.t) : queueStats list= 
+      let queueIter =
+        Cstruct.iter
+          (fun buf -> Some sizeof_ofp_queue_stats)
+          parse_struct
+          bits in
+      List.rev (Cstruct.fold (fun acc bits -> bits :: acc) queueIter [])
+end
+
+
 module MultipartReply = struct
 
 

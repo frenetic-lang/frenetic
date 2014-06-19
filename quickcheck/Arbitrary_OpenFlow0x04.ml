@@ -924,6 +924,40 @@ module MultipartReply = struct
     let size_of = SwitchDescriptionReply.sizeof
   end
 
+  module QueueStats = struct
+
+    type t = OpenFlow0x04_Core.queueStats list
+
+    let arbitrary_queueStats =
+        arbitrary_uint32 >>= fun qsPort_no ->
+        arbitrary_uint32 >>= fun queue_id ->
+        arbitrary_uint64 >>= fun tx_bytes ->
+        arbitrary_uint64 >>= fun tx_packets ->
+        arbitrary_uint64 >>= fun tx_errors ->
+        arbitrary_uint32 >>= fun duration_sec ->
+        arbitrary_uint32 >>= fun duration_nsec ->
+        ret_gen { 
+            qsPort_no;
+            queue_id;
+            tx_bytes;
+            tx_packets;
+            tx_errors;
+            duration_sec;
+            duration_nsec
+        }
+
+    let arbitrary =
+        list1 arbitrary_queueStats >>= fun v ->
+        ret_gen v
+
+    let marshal = QueueStats.marshal
+    let parse = QueueStats.parse
+    let to_string = QueueStats.to_string
+    let size_of = QueueStats.sizeof
+
+
+  end
+
   type t = OpenFlow0x04_Core.multipartReply
 
   let arbitrary =
