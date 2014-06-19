@@ -21,6 +21,7 @@ Flag async
 Library netkat
   Path: lib
   BuildDepends:
+    brx,
     core,
     fieldslib,
     fieldslib.syntax,

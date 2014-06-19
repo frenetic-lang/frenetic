@@ -58,6 +58,188 @@ module Dexterize = struct
                if dup then [make_dup ()] else [])
 end
 
+module IPMasks = struct
+
+  module IPMask = struct
+    type t = int32 * int32
+    let compare = compare
+  end
+  module IP = struct
+    type t = int32
+    let compare = compare
+  end
+  module IPMaskSet = Set.Make(IPMask)
+  module IPMaskMap = Map.Make(IPMask)
+  module IPSet = Set.Make(IP)
+  module BrxMap = Map.Make(Brx)
+
+  let brx_of_ip (p,m) = 
+    let open Brx in 
+    let m = Int32.to_int m in 
+    let zero = mk_cset [(0,0)] in 
+    let one = mk_cset [(1,1)] in 
+    let any = mk_cset [(0,1)] in 
+    let rec loop x n acc = 
+      if n = 0 then acc
+      else
+	let acc' = 
+	  if Int32.rem x 2l = 0l then mk_seq zero acc
+	  else mk_seq one acc in 
+	let n' = pred n in 
+	let x' = Int32.shift_right_logical x 1 in 
+	loop x' n' acc'  in 
+    loop p m (mk_iter any (32 - m) (32 - m))
+
+  let any_ip = brx_of_ip (0l,0l)
+
+  let ip_of_brx b = 
+    match Brx.representative b with 
+    | None -> 
+      None
+    | Some s -> 
+      let n = String.length s in 
+      let rec loop i acc = 
+	if i >= n then acc
+	else
+	  begin 
+	    match Char.code s.[i] with
+	    | 0 -> 
+	      loop (succ i) (Int32.shift_left acc 1)
+	    | 1 ->
+	      loop (succ i) (Int32.add (Int32.shift_left acc 1) 1l)
+	    | c -> 
+	      failwith (Printf.sprintf "invalid regular expression: %d" c)
+	  end in 
+      Some (loop 0 0l)
+	
+  let rec ips_of_pred = function
+    | NetKAT_Types.True -> 
+      IPMaskSet.empty
+    | NetKAT_Types.False -> 
+      IPMaskSet.empty
+    | NetKAT_Types.Test(NetKAT_Types.IP4Src(p,m)) -> 
+      IPMaskSet.singleton (p,m)
+    | NetKAT_Types.Test(NetKAT_Types.IP4Dst(p,m)) -> 
+      IPMaskSet.singleton (p,m)
+    | NetKAT_Types.Test(_) -> 
+      IPMaskSet.empty
+    | NetKAT_Types.And(pr1,pr2) -> 
+      IPMaskSet.union (ips_of_pred pr1) (ips_of_pred pr2)
+    | NetKAT_Types.Or(pr1,pr2) -> 
+      IPMaskSet.union (ips_of_pred pr1) (ips_of_pred pr2)
+    | NetKAT_Types.Neg(pr) -> 
+      ips_of_pred pr
+  let rec ips_of_policy = function
+    | NetKAT_Types.Filter(pr) -> 
+      ips_of_pred pr
+    | NetKAT_Types.Mod(NetKAT_Types.IP4Src(p,m)) -> 
+      IPMaskSet.singleton (p,m)
+    | NetKAT_Types.Mod(NetKAT_Types.IP4Dst(p,m)) -> 
+      IPMaskSet.singleton (p,m)
+    | NetKAT_Types.Mod(_) -> 
+      IPMaskSet.empty
+    | NetKAT_Types.Union(p1,p2) -> 
+      IPMaskSet.union (ips_of_policy p1) (ips_of_policy p2)
+    | NetKAT_Types.Seq(p1,p2) -> 
+      IPMaskSet.union (ips_of_policy p1) (ips_of_policy p2)
+    | NetKAT_Types.Star(p) -> 
+      ips_of_policy p
+    | NetKAT_Types.Link(sw1,pt1,sw2,pt2) -> 
+      IPMaskSet.empty
+
+  let partition_ips ips = 
+    let part = 
+      IPMaskSet.fold
+	(fun x acc -> 
+	  let bx = brx_of_ip x in 
+	  let sx = IPMaskSet.singleton x in 
+	  BrxMap.fold
+	    (fun by s acc -> 
+	      let l = Brx.mk_diff bx by in 
+	      let i = Brx.mk_inter bx by in 
+	      let r = Brx.mk_diff by bx in 
+	      let accl = 
+		if Brx.is_empty l then acc 
+		else BrxMap.add l sx acc in 
+	      let acci = 
+		if Brx.is_empty i then accl 
+		else BrxMap.add i (IPMaskSet.union s sx) accl in
+	      let accr = 
+		if Brx.is_empty r then acci 
+		else BrxMap.add r s accl in 
+	      accr)
+	    acc BrxMap.empty)
+	ips 
+	(BrxMap.singleton any_ip IPMaskSet.empty) in 
+    BrxMap.fold
+      (fun bx s acc -> 
+	match ip_of_brx bx with 
+	| None -> acc
+	| Some a -> 
+	  let sa = IPSet.singleton a in 
+	  IPMaskSet.fold
+	    (fun y acc -> 
+	      let sy = 
+		try IPMaskMap.find y acc
+		with Not_found -> IPSet.empty in 
+	      IPMaskMap.add y (IPSet.union sa sy) acc)
+	    s acc)
+      part IPMaskMap.empty
+
+  let rec subst_pred subst pr = match pr with 
+    | NetKAT_Types.True -> 
+      pr
+    | NetKAT_Types.False -> 
+      pr
+    | NetKAT_Types.Test(NetKAT_Types.IP4Src(p,m)) -> 
+      NetKAT_Types.(try 
+	 IPSet.fold 
+	   (fun a acc -> Or(Test(IP4Src(a,32l)), acc)) 
+	   (IPMaskMap.find (p,m) subst)
+	   (False)
+       with Not_found -> 
+	 failwith "subst_pred")
+    | NetKAT_Types.Test(NetKAT_Types.IP4Dst(p,m)) -> 
+      NetKAT_Types.(try 
+	 IPSet.fold 
+	   (fun a acc -> Or(Test(IP4Dst(a,32l)), acc)) 
+	   (IPMaskMap.find (p,m) subst)
+	   (False)
+       with Not_found -> 
+	 failwith "subst_pred")
+    | NetKAT_Types.Test(_) -> 
+      pr
+    | NetKAT_Types.And(pr1,pr2) -> 
+      NetKAT_Types.And(subst_pred subst pr1, subst_pred subst pr2)
+    | NetKAT_Types.Or(pr1,pr2) -> 
+      NetKAT_Types.Or(subst_pred subst pr1, subst_pred subst pr2)
+    | NetKAT_Types.Neg(pr) -> 
+      NetKAT_Types.Neg(subst_pred subst pr)
+  let rec subst_policy subst pol = match pol with 
+    | NetKAT_Types.Filter(pr) -> 
+      NetKAT_Types.Filter(subst_pred subst pr)
+    | NetKAT_Types.Mod(NetKAT_Types.IP4Src(p,m)) -> 
+      pol (* should be identical to what's in subst *)
+    | NetKAT_Types.Mod(NetKAT_Types.IP4Dst(p,m)) -> 
+      pol (* should be identical to what's in subst *)
+    | NetKAT_Types.Mod(_) -> 
+      pol
+    | NetKAT_Types.Union(p1,p2) -> 
+      NetKAT_Types.Union(subst_policy subst p1, subst_policy subst p2)
+    | NetKAT_Types.Seq(p1,p2) -> 
+      NetKAT_Types.Seq(subst_policy subst p1, subst_policy subst p2)
+    | NetKAT_Types.Star(p) -> 
+      NetKAT_Types.Star(subst_policy subst p)
+    | NetKAT_Types.Link(sw1,pt1,sw2,pt2) -> 
+      pol
+	
+  let skolemize pol = 
+    let ips = ips_of_policy pol in 
+    let subst = partition_ips ips in 
+    let pol' = subst_policy subst pol in 
+    pol'
+end
+
 module Verify = 
 struct
   module Node = Network_Common.Node
