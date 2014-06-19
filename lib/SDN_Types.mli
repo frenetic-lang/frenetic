@@ -69,6 +69,9 @@ module Pattern : sig
 
     (** [ip_shift x] returns an [int32] after shifting [x] by its mask *)
     val shift : t -> int32
+
+    val format : Format.formatter -> t -> unit
+    val string_of : t -> string
   end
 
   (** WARNING: There are dependencies between different fields that must be met *)

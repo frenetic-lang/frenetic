@@ -97,6 +97,9 @@ module Pattern = struct
       match intersect ip1 ip2 with
         | Some _ -> true
         | None   -> false
+
+    let format = format_ip_mask
+    let string_of ip = make_string_of format ip
   end
 
   type t =
