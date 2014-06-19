@@ -98,9 +98,9 @@ end) = struct
     let prop_reflexive p = less_eq p p = true in
     t_quickCheck prop_reflexive
 
-  TEST "less_eq antisymmetry: less_eq p1 p2 && less_eq p2 p1 => p1 = p2" =
+  TEST "less_eq antisymmetry: less_eq p1 p2 && less_eq p2 p1 <=> p1 = p2" =
     let prop_antisymmetry (p1, p2) =
-      implies (less_eq p1 p2 && less_eq p2 p1) (eq p1 p2) in
+      (less_eq p1 p2 && less_eq p2 p1) = (eq p1 p2) in
     t2_quickCheck prop_antisymmetry
 
   TEST "less_eq transitivity: less_eq p1 p2 && less_eq p2 p3 => less_eq p1 p3" =
@@ -122,15 +122,15 @@ end) = struct
       less_eq p1 (meet p1 p2) && less_eq p2 (meet p1 p2) in 
     t2_quickCheck prop_exact
 
-  TEST "meet least: less_eq p1 p3 && less_eq p2 p3 => less_eq (meet p1 p2) p3" =
+  TEST "meet least: less_eq p1 p3 && less_eq p2 p3 <=> less_eq (meet p1 p2) p3" =
     let prop_least (p1, p2, p3) =
-      implies (less_eq p1 p3 && less_eq p2 p3) (less_eq (meet p1 p2) p3) in
+      (less_eq p1 p3 && less_eq p2 p3) = (less_eq (meet p1 p2) p3) in
     t3_quickCheck prop_least
 
-  TEST "meet comparable least: less_eq p1 p2 => meet p1 p2 = p2" =
+  TEST "meet comparable least: less_eq p1 p2 <=> meet p1 p2 = p2" =
     (* This is the same as "meet least" when p2 = p3 *)
     let prop_comparable_least (p1, p2) =
-      implies (less_eq p1 p2) (eq (meet p1 p2) p2) in
+      (less_eq p1 p2) = (eq (meet p1 p2) p2) in
     t2_quickCheck prop_comparable_least
       
   TEST "eq partial: eq p1 p2 <=> less_eq p1 p2 && less_eq p2 p1" =
