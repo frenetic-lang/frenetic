@@ -42,14 +42,71 @@ let make_string_of formatter x =
 
 module Pattern = struct
 
+  module Ip = struct
+    type t = nwAddr * int32
+
+    let match_all = (0l, 0l)
+
+    let unsafe_shift (p, m) =
+      match Int32.(to_int (sub 32l m)) with
+      | 32 -> 0l
+      | i  -> Int32.shift_right_logical p i
+
+    let check_mask m =
+      if m < 0l || m > 32l then
+        failwith "Pattern.Ip: invalid mask"
+
+    let shift (p, m) =
+      check_mask m;
+      unsafe_shift (p, m)
+
+    let less_eq (p1, m1) (p2, m2) =
+      m1 >= m2 && begin
+        check_mask m2;
+        unsafe_shift (p1, m2) = unsafe_shift (p2, m2)
+      end
+
+    let eq (p1, m1) (p2, m2) =
+      m1 = m2 && begin
+        check_mask m1;
+        unsafe_shift (p1, m1) = unsafe_shift (p2, m2)
+      end
+
+    let meet (p1, m1) (p2, m2) =
+      let rec loop m =
+        if m = 0l then
+          (0l, 0l)
+        else if unsafe_shift (p1, m) = unsafe_shift (p2, m) then
+          (p1, m)
+        else
+          loop Int32.(sub m 1l)
+      in
+      let m = min m1 m2 in
+      check_mask m;
+      loop m
+
+    let intersect ip1 ip2 =
+      if less_eq ip1 ip2 then
+        Some ip1
+      else if less_eq ip2 ip1 then
+        Some ip2
+      else
+        None
+
+    let compatible ip1 ip2 =
+      match intersect ip1 ip2 with
+        | Some _ -> true
+        | None   -> false
+  end
+
   type t =
       { dlSrc : dlAddr option
       ; dlDst : dlAddr option
       ; dlTyp : dlTyp option
       ; dlVlan : dlVlan
       ; dlVlanPcp : dlVlanPcp option
-      ; nwSrc : (nwAddr * int32) option
-      ; nwDst : (nwAddr * int32) option
+      ; nwSrc : Ip.t option
+      ; nwDst : Ip.t option
       ; nwProto : nwProto option
       ; tpSrc : tpPort option
       ; tpDst : tpPort option
@@ -68,47 +125,6 @@ module Pattern = struct
       ; tpDst = None
       ; inPort = None }
 
-  let ip_shift (p,m) =
-    try 
-      match Int32.to_int (Int32.(sub 32l m)) with 
-      | 32 -> 0l
-      | i when 0 <= i && i < 32 -> 
-	Int32.shift_right_logical p i
-      | _ -> 
-	failwith "Pattern.ip_shift: invalid mask"
-    with _ -> 
-      failwith "Pattern.ip_shift: invalid mask" 
-
-  let ip_compatible (p1,m1) (p2,m2) = 
-    (* Two masked IPs are compatible if their prefixes agree. *)
-    try 
-      let common_mask = 
-	match Int32.to_int (min m1 m2) with
-	| i when 0 <= i && i <= 32 -> 
-	  i
-	| _ -> 
-	  failwith "Pattern.ip_compatible: invalid mask" in 
-      let mask =
-	Int32.shift_left
-          (Int32.(sub) (Int32.shift_left 1l common_mask) 1l)
-          (32 - common_mask) in
-      mask = 0l || (Int32.logand mask p1) = (Int32.logand mask p2)
-    with _ -> 
-      failwith "Pattern.ip_compatible: invalid mask"        
-
-  let ip_subseteq (p1,m1) (p2,m2) = 
-    ip_compatible (p1,m1) (p2,m2) && m1 >= m2 
-      
-  let ip_intersect (p1,m1) (p2,m2) = 
-    if ip_compatible (p1,m1) (p2,m2) then 
-      if m1 >= m2 then Some (p1,m1) else Some (p2,m2)
-    else None 
-
-  let ip_meet (p1,m1) (p2,m2) = 
-    if ip_compatible (p1,m1) (p2,m2) then 
-      if m1 >= m2 then Some (p2,m2) else Some (p1,m1)
-    else None 
-
   (* TODO(jnf): rename subseteq ?*)
   let less_eq p1 p2 =
     let check f m1 m2 =
@@ -124,8 +140,8 @@ module Pattern = struct
     && check (=) p1.dlTyp p2.dlTyp
     && check (=) p1.dlVlan p2.dlVlan
     && check (=) p1.dlVlanPcp p2.dlVlanPcp
-    && check ip_subseteq p1.nwSrc p2.nwSrc
-    && check ip_subseteq p1.nwDst p2.nwDst
+    && check Ip.less_eq p1.nwSrc p2.nwSrc
+    && check Ip.less_eq p1.nwDst p2.nwDst
     && check (=) p1.nwProto p2.nwProto
     && check (=) p1.tpSrc p2.tpSrc
     && check (=) p1.tpDst p2.tpDst
@@ -145,16 +161,13 @@ module Pattern = struct
     && check (=) p1.dlTyp p2.dlTyp
     && check (=) p1.dlVlan p2.dlVlan
     && check (=) p1.dlVlanPcp p2.dlVlanPcp
-    && check (fun x y -> ip_subseteq x y && ip_subseteq y x) p1.nwSrc p2.nwSrc
-    && check (fun x y -> ip_subseteq x y && ip_subseteq y x)p1.nwDst p2.nwDst
+    && check Ip.eq p1.nwSrc p2.nwSrc
+    && check Ip.eq p1.nwDst p2.nwDst
     && check (=) p1.nwProto p2.nwProto
     && check (=) p1.tpSrc p2.tpSrc
     && check (=) p1.tpDst p2.tpDst
     && check (=) p1.inPort p2.inPort
     
-  let eq_inter x1 x2 = 
-    if x1 = x2 then Some x1 else None 
-
   let eq_meet x1 x2 = 
     if x1 = x2 then Some x1 else None 
 
@@ -162,7 +175,7 @@ module Pattern = struct
     let meeter m m1 m2 =
       match m1, m2 with
       | Some v1, Some v2 -> 
-	m v1 v2 
+        m v1 v2
       | _ -> 
         None in 
     { dlSrc = meeter eq_meet p1.dlSrc p2.dlSrc
@@ -170,8 +183,8 @@ module Pattern = struct
     ; dlTyp = meeter eq_meet p1.dlTyp p2.dlTyp
     ; dlVlan = meeter eq_meet p1.dlVlan p2.dlVlan
     ; dlVlanPcp = meeter eq_meet p1.dlVlanPcp p2.dlVlanPcp
-    ; nwSrc = meeter ip_meet p1.nwSrc p2.nwSrc
-    ; nwDst = meeter ip_meet p1.nwDst p2.nwDst
+    ; nwSrc = meeter (fun x y -> Some(Ip.meet x y)) p1.nwSrc p2.nwSrc
+    ; nwDst = meeter (fun x y -> Some(Ip.meet x y)) p1.nwDst p2.nwDst
     ; nwProto = meeter eq_meet p1.nwProto p2.nwProto
     ; tpSrc = meeter eq_meet p1.tpSrc p2.tpSrc
     ; tpDst = meeter eq_meet p1.tpDst p2.tpDst

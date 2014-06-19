@@ -42,6 +42,35 @@ exception Unsupported of string
 (** {1 Packet Forwarding} *)
 
 module Pattern : sig
+
+  module Ip : sig
+    type t = nwAddr * int32
+
+    (** [match_all] is pattern that matches any address *)
+    val match_all : t
+
+    (** [less_eq x1 x2] returns true when [x2] matches any address that [x1] will
+        match *)
+    val less_eq : t -> t -> bool
+
+    (** [eq p1 p2] returns true when [p1] and [p2] match the same set of
+        addresses *)
+    val eq : t -> t -> bool
+
+    (** [meet p1 p2] is the least pattern [pm] such that [less_eq p1 pm] and
+        [less_eq p2 pm] *)
+    val meet : t -> t -> t
+
+    (** [intersect x1 x2] returns the intersection of when [x1] and [x2] *)
+    val intersect : t -> t -> t option
+
+    (** [compatible x1 x2] returns true when [x1] and [x2] have a non-empty intersection *)
+    val compatible : t -> t -> bool
+
+    (** [ip_shift x] returns an [int32] after shifting [x] by its mask *)
+    val shift : t -> int32
+  end
+
   (** WARNING: There are dependencies between different fields that must be met *)
   type t =
       { dlSrc : dlAddr option
@@ -49,8 +78,8 @@ module Pattern : sig
       ; dlTyp : dlTyp option
       ; dlVlan : dlVlan
       ; dlVlanPcp : dlVlanPcp option
-      ; nwSrc : (nwAddr * int32) option
-      ; nwDst : (nwAddr * int32) option
+      ; nwSrc : Ip.t option
+      ; nwDst : Ip.t option
       ; nwProto : nwProto option
       ; tpSrc : tpPort option
       ; tpDst : tpPort option
@@ -58,19 +87,6 @@ module Pattern : sig
 
   (** [match_all] is pattern that matches any packet *)
   val match_all : t
-
-  (** [ip_compatible x1 x2] returns true when [x1] and [x2] have a non-empty intersection *)
-  val ip_compatible : (nwAddr * int32 ) -> (nwAddr * int32 ) -> bool
-
-  (** [ip_intersect x1 x2] returns the intersection of when [x1] and [x2] *)
-  val ip_intersect : (nwAddr * int32 ) -> (nwAddr * int32 ) -> (nwAddr * int32) option
-
-  (** [ip_subeteq x1 x2] returns true when [x2] matches any packet that [x1] will
-      match *)
-  val ip_subseteq : (nwAddr * int32 ) -> (nwAddr * int32 ) -> bool
-
-  (** [ip_shift x] returns an [int32] after shifting [x] by its mask *)
-  val ip_shift : (nwAddr * int32 ) -> int32
 
   (** [less_eq p1 p2] returns true when [p2] matches any packet that [p1] will
       match *)
