@@ -152,13 +152,10 @@ module Pattern = struct
 
   let eq p1 p2 =
     let check f m1 m2 =
-      match m2 with
-        | None -> true
-        | Some(v2) ->
-          begin match m1 with
-            | None -> false
-            | Some(v1) -> f v1 v2
-          end in 
+      match m1, m2 with
+        | None   , None    -> true
+        | Some v1, Some v2 -> f v1 v2
+        | _      , _       -> false in
     check (=) p1.dlSrc p2.dlSrc
     && check (=) p1.dlDst p2.dlDst
     && check (=) p1.dlTyp p2.dlTyp
