@@ -313,7 +313,7 @@ struct
 	failwith (Printf.sprintf "bad file: %s" (Json.to_string j)) in 
     parse_file (Json.from_file filename)
 
-  let () = Printf.printf "%s" (NetKAT_Pretty.string_of_policy (stanford_json "foo.of"))
+  (* let () = Printf.printf "%s" (NetKAT_Pretty.string_of_policy (IPMasks.skolemize (stanford_json "foo.of"))) *)
 
   let topology filename = 
     let topo = Net.Parse.from_dotfile filename in 
