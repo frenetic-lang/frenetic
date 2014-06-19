@@ -163,13 +163,13 @@ module IPMasks = struct
 	      let l = Brx.mk_diff bx by in 
 	      let i = Brx.mk_inter bx by in 
 	      let r = Brx.mk_diff by bx in 
-	      Printf.printf "X=%s/%ld\nBX=%s\nBY=%s\nL[%b]=%s\nI[%b]=%s\nR[%b]=%s\n\n"
-		(Packet.string_of_ip (fst x)) (snd x)
-		(Brx.string_of_t bx)
-		(Brx.string_of_t by)
-		(Brx.is_empty l) (Brx.string_of_t l)
-		(Brx.is_empty i) (Brx.string_of_t i)
-		(Brx.is_empty r) (Brx.string_of_t r);
+	      (* Printf.printf "X=%s/%ld\nBX=%s\nBY=%s\nL[%b]=%s\nI[%b]=%s\nR[%b]=%s\n\n" *)
+	      (* 	(Packet.string_of_ip (fst x)) (snd x) *)
+	      (* 	(Brx.string_of_t bx) *)
+	      (* 	(Brx.string_of_t by) *)
+	      (* 	(Brx.is_empty l) (Brx.string_of_t l) *)
+	      (* 	(Brx.is_empty i) (Brx.string_of_t i) *)
+	      (* 	(Brx.is_empty r) (Brx.string_of_t r); *)
 	      let accl = 
 		if Brx.is_empty l then acc 
 		else BrxMap.add l sx acc in 
@@ -185,16 +185,16 @@ module IPMasks = struct
 	(BrxMap.singleton any_ip IPMaskSet.empty) in 
     BrxMap.fold
       (fun bx s acc -> 
-	Printf.printf "PROCESSING %s %d\n" (Brx.string_of_t bx) (IPMaskSet.cardinal s);
+	(* Printf.printf "PROCESSING %s %d\n" (Brx.string_of_t bx) (IPMaskSet.cardinal s); *)
 	match ip_of_brx bx with 
 	| None -> 
 	  acc
 	| Some a -> 
-	  Printf.printf "%s -> %s\n" (Brx.string_of_t bx) (Packet.string_of_ip a);
+	  (* Printf.printf "%s -> %s\n" (Brx.string_of_t bx) (Packet.string_of_ip a); *)
 	  let sa = IPSet.singleton a in 
 	  IPMaskSet.fold
 	    (fun y acc -> 
-	      Printf.printf "ADDING %s\n" (string_of_ip_mask y);
+	      (* Printf.printf "ADDING %s\n" (string_of_ip_mask y); *)
 	      let sy = 
 		try IPMaskMap.find y acc
 		with Not_found -> IPSet.empty in 
@@ -209,22 +209,20 @@ module IPMasks = struct
       pr
     | NetKAT_Types.Test(NetKAT_Types.IP4Src(p,m)) -> 
       NetKAT_Types.(try 
-	 Printf.printf "FINDING %s\n" (string_of_ip_mask (p,m));
 	 IPSet.fold 
 	   (fun a acc -> Optimize.mk_or (Test(IP4Src(a,32l))) acc)
 	   (IPMaskMap.find (p,m) subst)
 	   (False)
        with Not_found -> 
-	 failwith "subst_pred")
+	 failwith (Printf.sprintf "subst_pred: no entry for %s" (string_of_ip_mask (p,m))))
     | NetKAT_Types.Test(NetKAT_Types.IP4Dst(p,m)) -> 
       NetKAT_Types.(try 
-	 Printf.printf "FINDING %s\n" (string_of_ip_mask (p,m));
 	 IPSet.fold 
 	   (fun a acc -> Optimize.mk_or (Test(IP4Dst(a,32l))) acc)
 	   (IPMaskMap.find (p,m) subst)
 	   (False)
        with Not_found -> 
-	 failwith "subst_pred")
+	 failwith (Printf.sprintf "subst_pred: no entry for %s" (string_of_ip_mask (p,m))))
     | NetKAT_Types.Test(_) -> 
       pr
     | NetKAT_Types.And(pr1,pr2) -> 
