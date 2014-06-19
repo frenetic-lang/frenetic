@@ -2408,11 +2408,11 @@ module PortDesc = struct
   let parse (bits : Cstruct.t) : portDesc =
     let port_no = get_ofp_port_port_no bits in
     let state = PortState.parse (get_ofp_port_state bits) in
-		let config = PortConfig.parse (get_ofp_port_config bits) in
-		let curr = PortFeatures.parse (get_ofp_port_curr bits) in
-		let advertised = PortFeatures.parse (get_ofp_port_advertised bits) in
-		let supported = PortFeatures.parse (get_ofp_port_supported bits) in
-		let peer = PortFeatures.parse (get_ofp_port_peer bits) in
+    let config = PortConfig.parse (get_ofp_port_config bits) in
+    let curr = PortFeatures.parse (get_ofp_port_curr bits) in
+    let advertised = PortFeatures.parse (get_ofp_port_advertised bits) in
+    let supported = PortFeatures.parse (get_ofp_port_supported bits) in
+    let peer = PortFeatures.parse (get_ofp_port_peer bits) in
     { port_no;
       (* hw_addr; *)
       (* name; *)
@@ -2462,10 +2462,10 @@ module PortStatus = struct
     sizeof_ofp_port_status + sizeof_ofp_port
 
   let marshal (buf : Cstruct.t) (status : portStatus) : int =
-	set_ofp_port_status_reason buf (PortReason.marshal status.reason);
+    set_ofp_port_status_reason buf (PortReason.marshal status.reason);
     let size = sizeof_ofp_port_status + 
         PortDesc.marshal (Cstruct.shift buf sizeof_ofp_port_status) status.desc in
-	size
+    size
 
   let parse (bits : Cstruct.t) : portStatus =
     let reason = PortReason.parse (get_ofp_port_status_reason bits) in 
@@ -2503,7 +2503,7 @@ module PacketIn = struct
 
   (* have to check this part, (and in marshal too, not sure of the correctness *)
   let sizeof (pi : packetIn) : int = 
-    pi.pi_total_len + (OfpMatch.sizeof pi.pi_ofp_match) + sizeof_ofp_packet_in
+    pi.pi_total_len + (OfpMatch.sizeof pi.pi_ofp_match) + sizeof_ofp_packet_in + 2 (*2 bytes of pad*)
 
   let to_string (pi: packetIn) : string =
     Format.sprintf "Total Len: %u\nReason: %s\nTable ID:%u\nCookie:%Lu\nOfmPatch:%s\nPayload:%s"
@@ -2516,8 +2516,8 @@ module PacketIn = struct
     pi.pi_cookie
     (OfpMatch.to_string pi.pi_ofp_match)
     (match pi.pi_payload with 
-      | Buffered (n,bytes) -> Format.sprintf "Buffered %lu:%s" n (Cstruct.to_string bytes)
-      | NotBuffered bytes -> Format.sprintf "NotBuffered: %s" (Cstruct.to_string bytes))
+      | Buffered (n,bytes) -> Format.sprintf "Buffered %lu:%s, len:%u" n (Cstruct.to_string bytes) (Cstruct.len bytes)
+      | NotBuffered bytes -> Format.sprintf "NotBuffered: %s, len: %u" (Cstruct.to_string bytes) (Cstruct.len bytes))
     
 
 
@@ -2528,17 +2528,19 @@ module PacketIn = struct
     let buffer_id,bytes = match pi.pi_payload with
      | Buffered (n,bytes) -> n, bytes
      | NotBuffered bytes -> -1l, bytes in
-    Cstruct.blit bytes 0 buf (sizeof_ofp_packet_in + OfpMatch.sizeof pi.pi_ofp_match) pi.pi_total_len;
+    set_ofp_uint8_value (Cstruct.shift bufMatch (OfpMatch.sizeof pi.pi_ofp_match)) 0; (*pad*)
+    set_ofp_uint8_value (Cstruct.shift bufMatch (OfpMatch.sizeof pi.pi_ofp_match + 1)) 0; (*pad*)
+    Cstruct.blit bytes 0 bufMatch (2 + OfpMatch.sizeof pi.pi_ofp_match) pi.pi_total_len;
     set_ofp_packet_in_buffer_id buf buffer_id;
-	set_ofp_packet_in_total_len buf pi.pi_total_len;
-	set_ofp_packet_in_reason buf
-        (match pi.pi_reason with
+    set_ofp_packet_in_total_len buf pi.pi_total_len;
+    set_ofp_packet_in_reason buf
+      (match pi.pi_reason with
          | NoMatch -> reasonType_to_int NO_MATCH
          | ExplicitSend -> reasonType_to_int ACTION
          | InvalidTTL -> reasonType_to_int INVALID_TTL);
-	set_ofp_packet_in_table_id buf pi.pi_table_id;
-	set_ofp_packet_in_cookie buf pi.pi_cookie;
-        size
+    set_ofp_packet_in_table_id buf pi.pi_table_id;
+    set_ofp_packet_in_cookie buf pi.pi_cookie;
+    size
 
   let parse (bits : Cstruct.t) : packetIn =
     (* let oc = open_out "test-msg-1.3-msg3-bits" in *)
@@ -2559,11 +2561,14 @@ module PacketIn = struct
     let cookie = get_ofp_packet_in_cookie bits in
     let ofp_match_bits = Cstruct.shift bits sizeof_ofp_packet_in in
     let ofp_match, pkt_bits = OfpMatch.parse ofp_match_bits in
-    let pkt_bits = Cstruct.shift pkt_bits 2 in (* pad bytes *)
+    let pkt_bits = Cstruct.sub pkt_bits 2 total_len in (* pad bytes *)
+    let final_bits = Cstruct.create total_len in
+    (* create a new Cstruct to set the offset to 0 *)
+    Cstruct.blit pkt_bits 0 final_bits 0 total_len;
     (* printf "len = %d\n" (Cstruct.len pkt_bits); *)
     let pkt = match bufId with
-      | None -> NotBuffered pkt_bits
-      | Some n -> Buffered (n,pkt_bits)
+      | None -> NotBuffered final_bits
+      | Some n -> Buffered (n,final_bits)
     in
     { pi_total_len = total_len;
       pi_reason = reason;

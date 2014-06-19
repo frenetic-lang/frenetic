@@ -47,6 +47,15 @@ let arbitrary_timeout =
         arbitrary_uint16 >>= (fun n -> ret_gen (ExpiresAfter n))
     ]
 
+let fill_with_0 n= 
+    String.make n '\000'
+
+let arbitrary_stringl n=
+    let open Gen in
+    (choose_int (0,n)) >>= fun a ->
+    arbitrary_stringN a >>= fun str ->
+    ret_gen  (str ^ (fill_with_0 (n-a)))
+
 module type OpenFlow0x04_Arbitrary = sig
 
     type t
@@ -908,5 +917,78 @@ module MultipartReply = struct
     let to_string = SwitchDescriptionReply.to_string
     let size_of = SwitchDescriptionReply.sizeof
   end
+
+  type t = OpenFlow0x04_Core.multipartReply
+
+  let arbitrary =
+      arbitrary_bool >>= fun flags ->
+      oneof [
+          PortsDescriptionReply.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (PortsDescReply n); mpreply_flags = flags});
+          SwitchDescriptionReply.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (SwitchDescReply n); mpreply_flags = flags});
+          Flow.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (FlowStatsReply n); mpreply_flags = flags});
+          Aggregate.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (AggregateReply n); mpreply_flags = flags});
+          Table.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (TableReply n); mpreply_flags = flags});
+          PortStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (PortStatsReply n); mpreply_flags = flags})
+          ]
+
+  let marshal = MultipartReply.marshal
+  let parse = MultipartReply.parse
+  let to_string = MultipartReply.to_string
+  let size_of = MultipartReply.sizeof
 end
 
+module PacketIn = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = OpenFlow0x04_Core.packetIn
+
+  let arbitrary_len =
+      (choose_int (24, 1500)) >>= fun a ->
+       ret_gen a
+
+  let arbitrary_byte n =
+  (* construct an arbitrary byte of length n*)
+      arbitrary_stringN n  >>= fun a ->
+      let byte = Cstruct.create n in
+      Cstruct.blit_from_string a 0 byte 0 n;
+      ret_gen (byte)
+
+  let arbitrary_reason =
+      oneof [
+          ret_gen (OpenFlow0x04_Core.NoMatch);
+          ret_gen (OpenFlow0x04_Core.ExplicitSend);
+          ret_gen (OpenFlow0x04_Core.InvalidTTL)
+      ]
+
+  let arbitrary_pay byte = 
+      frequency [
+          (1, ret_gen (NotBuffered byte));
+          (3, arbitrary_uint32 >>= fun bid ->
+              ret_gen (Buffered (bid,byte)))
+      ]
+
+  let arbitrary =
+      arbitrary_len  >>= fun pi_total_len ->
+      arbitrary_reason >>= fun pi_reason ->
+      arbitrary_uint8 >>= fun pi_table_id ->
+      arbitrary_uint64 >>= fun pi_cookie ->
+      OfpMatch.arbitrary >>= fun pi_ofp_match ->
+      arbitrary_byte pi_total_len >>= fun byte ->
+      arbitrary_pay byte >>= fun pi_payload ->
+      ret_gen {
+          pi_total_len;
+          pi_reason;
+          pi_table_id;
+          pi_cookie;
+          pi_ofp_match;
+          pi_payload
+      }
+  
+
+  let marshal = PacketIn.marshal
+  let parse = PacketIn.parse
+  let to_string = PacketIn.to_string
+  let size_of = PacketIn.sizeof
+
+end
