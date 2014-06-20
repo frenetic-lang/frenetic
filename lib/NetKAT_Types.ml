@@ -184,50 +184,58 @@ end
 module Int32TupleHeader = struct
   (* Represents an (ip_address, mask) tuple. *)
   type t = Int32Header.t * Int32Header.t with sexp
-  let equal x1 x2 = 
-    Int32Header.equal 
-      (SDN_Types.Pattern.Ip.shift x1)
-      (SDN_Types.Pattern.Ip.shift x2)
+
+  module Ip = SDN_Types.Pattern.Ip
+
+  let equal x1 x2 = Ip.eq x1 x2
+
   let compare ((p,m):t) ((p',m'):t) : int =
     if Pervasives.compare p p' = 0 then 
       Pervasives.compare m m'
     else Pervasives.compare p p'
-  let to_string (p,m) =
-    Printf.sprintf "%s%s"
-      (Packet.string_of_ip p)
-      (if m = 32l then "" else "/" ^ Int32Header.to_string m)
-  let is_any ((_,m):t) : bool =
-    m = 0l
-  let any = (0l, 0l)
+
+  let any = Ip.match_all
+
+  let is_any x1 = equal x1 any
 
   let inter (x1:t) (x2:t) : t option = 
-    SDN_Types.Pattern.Ip.intersect x1 x2
+    Ip.intersect x1 x2
 
   let subseteq (x1:t) (x2:t) : bool = 
-    SDN_Types.Pattern.Ip.less_eq x1 x2
+    Ip.less_eq x1 x2
     
+  (* Given two Ip.t's x1 and x2, attempt to combine them into a single Ip.t x
+   * with the following property:
+   *
+   *   ∀y, subseteq y x <=> subseteq y x1 || subseteq y x2 || eq y x
+   *
+   * In other words, if combine x1 x2 exists, then it is an upper-bound on
+   * x1 and x2 that bounds elements transitively through x1 and x2 and no
+   * other elements, besides itself.
+   *
+   * Examples:
+   *
+   *   combine 0.0.0.0/32 0.0.0.1/32 = Some(0.0.0.0/31)
+   *   combine 0.0.0.2/31 0.0.0.4/31 = Some(0.0.0.0/30)
+   *   combine 0.0.0.2/31 0.0.0.3/32 = Some(0.0.0.2/31)
+   *   combine 1.0.0.2/31 2.0.0.2/31 = None
+   *)
   let combine ((p1,m1) as x1:t) ((p2,m2) as x2:t) : t option = 
-    if x1 = x2 then Some x1
-    else if m1 = m2 then 
-      let x1' = (p1, Int32.succ m1) in 
-      let x2' = (p2, Int32.succ m2) in 
-      if SDN_Types.Pattern.Ip.compatible x1' x2' then
-	Some x1' 
-      else 
-	None
-    else if m1 = Int32.(+) m2 1l then 
-      if SDN_Types.Pattern.Ip.compatible x1 x2 then
-	Some x2
-      else 
-	None
-    else if m2 = Int32.(+) m1 1l then 
-      if SDN_Types.Pattern.Ip.compatible x1 x2 then
-	Some x1
-      else 
-	None
+    if equal x1 x2 then
+      Some x1
+    else if m1 = m2 then
+      let x1', x2' = Int32.(p1, m1 - 1l), Int32.(p2, m2 - 1l) in
+      if equal x1' x2' then Some x1' else None
+    else if m1 = Int32.(m2 - 1l) && subseteq x2 x1 then
+      Some(x1)
+    else if m2 = Int32.(m1 - 1l) && subseteq x1 x2 then
+      Some(x2)
     else
       None
+
+  let to_string x = Ip.string_of x
 end
+
 module Int64Header = struct
   include Int64
   let is_any _ = false
