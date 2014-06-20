@@ -25,19 +25,130 @@ open QuickCheck
 
 module Gen = QuickCheck_gen
 
-(* Test that `parse` is the left inverse of `marshal` *)
-let prop_roundtrip parse marshal e =
-    parse (marshal e) = e
+module Pattern = struct
+  module Pattern = SDN_Types.Pattern
 
-(* Setup a quickCheck for a serlalizable OpenFlow datatype *)
-let openflow_quickCheck arbitrary show parse marshal = 
-    let test = testable_fun arbitrary show testable_bool in
-    match quickCheck test (prop_roundtrip parse marshal) with
+  let pattern_quickCheck prop =
+    let arb = Arbitrary_SDN_Types.arbitrary_pattern in
+    let show = Pattern.string_of in
+    let test = testable_fun arb show testable_bool in
+    match quickCheck test prop with
       | Success -> true
       | Failure _ -> failwith "No failure expected"
       | Exhausted _ -> failwith "No exhaustion expected"
 
+  let pattern2_quickCheck prop =
+    let arb =
+      let open Gen in
+      Arbitrary_SDN_Types.arbitrary_pattern >>= fun p1 ->
+      Arbitrary_SDN_Types.arbitrary_pattern >>= fun p2 ->
+        ret_gen (p1, p2) in
+    let show (p1, p2) =
+      Printf.sprintf "%s, %s" (Pattern.string_of p1) (Pattern.string_of p2) in
+    let test = testable_fun arb show testable_bool in
+    match quickCheck test prop with
+      | Success -> true
+      | Failure _ -> failwith "No failure expected"
+      | Exhausted _ -> failwith "No exhaustion expected"
+
+  let pattern3_quickCheck prop =
+    let arb =
+      let open Gen in
+      Arbitrary_SDN_Types.arbitrary_pattern >>= fun p1 ->
+      Arbitrary_SDN_Types.arbitrary_pattern >>= fun p2 ->
+      Arbitrary_SDN_Types.arbitrary_pattern >>= fun p3 ->
+        ret_gen (p1, p2, p3) in
+    let show (p1, p2, p3) =
+      Printf.sprintf "%s, %s, %s"
+        (Pattern.string_of p1) (Pattern.string_of p2) (Pattern.string_of p3) in
+    let test = testable_fun arb show testable_bool in
+    match quickCheck test prop with
+      | Success -> true
+      | Failure _ -> failwith "No failure expected"
+      | Exhausted _ -> failwith "No exhaustion expected"
+
+  let implies a b = b || (not a)
+
+  open Pattern
+
+  TEST "eq reflexive: eq p p" =
+    let prop_eq_reflexive p =
+      eq p p in
+    pattern_quickCheck prop_eq_reflexive
+
+  TEST "eq symmetric: eq p1 p2 <=> eq p2 p1" =
+    let prop_eq_symmetric (p1, p2) =
+      eq p1 p2 = eq p2 p1 in
+    pattern2_quickCheck prop_eq_symmetric
+
+  TEST "eq transitive: eq p1 p2 && eq p2 p3 => eq p1 p3" =
+    let prop_eq_transitive (p1, p2, p3) =
+      implies (eq p1 p2 && eq p2 p3) (eq p1 p3) in
+    pattern3_quickCheck prop_eq_transitive
+
+  TEST "less_eq reflexivity: less_eq p p" =
+    let prop_reflexive p = less_eq p p = true in
+    pattern_quickCheck prop_reflexive
+
+  TEST "less_eq antisymmetry: less_eq p1 p2 && less_eq p2 p1 => p1 = p2" =
+    let prop_antisymmetry (p1, p2) =
+      implies (less_eq p1 p2 && less_eq p2 p1) (p1 = p2) in
+    pattern2_quickCheck prop_antisymmetry
+
+  TEST "less_eq transitivity: less_eq p1 p2 && less_eq p2 p3 => less_eq p1 p3" =
+    let prop_transitivity (p1, p2, p3) =
+      implies (less_eq p1 p2 && less_eq p2 p3) (less_eq p2 p3) in
+    pattern3_quickCheck prop_transitivity
+
+  TEST "less_eq top: less_eq p match_all" =
+    let prop_top p =
+      less_eq p match_all in
+    pattern_quickCheck prop_top
+
+  TEST "meet symmetry: meet p1 p2 <=> meet p2 p1" =
+    let prop_symmetry (p1, p2) = meet p1 p2 = meet p2 p1 in
+    pattern2_quickCheck prop_symmetry
+
+  TEST "meet exact: less_eq p1 (meet p1 p2) && less_eq p2 (meet p1 p2)" =
+    let prop_exact (p1, p2) =
+      less_eq p1 (meet p1 p2) && less_eq p2 (meet p1 p2) in
+    pattern2_quickCheck prop_exact
+
+  TEST "meet least: less_eq p1 p3 && less_eq p2 p3 => less_eq (meet p1 p2) p3" =
+    let prop_least (p1, p2, p3) =
+      implies (less_eq p1 p3 && less_eq p2 p3) (less_eq (meet p1 p2) p3) in
+    pattern3_quickCheck prop_least
+
+  TEST "meet comparable least: less_eq p1 p2 => meet p1 p2 = p2" =
+    (* This is the same as "meet least" when p2 = p3 *)
+    let prop_comparable_least (p1, p2) =
+      implies (less_eq p1 p2) (meet p1 p2 = p2) in
+    pattern2_quickCheck prop_comparable_least
+
+  TEST "disjoint compare: disjoint p1 p2 <=> not (less_eq p1 p2 || less_eq p2 p1" =
+    let prop_disjoint_compare (p1, p2) =
+      disjoint p1 p2 = not (less_eq p1 p2 || less_eq p2 p1) in
+    pattern2_quickCheck prop_disjoint_compare
+
+  TEST "eq partial: eq p1 p2 <=> less_eq p1 p2 && less_eq p2 p1" =
+    let prop_eq_partial (p1, p2) =
+      eq p1 p2 = (less_eq p1 p2 && less_eq p2 p1) in
+    pattern2_quickCheck prop_eq_partial
+end
+
 module RoundTripping = struct
+  (* Test that `parse` is the left inverse of `marshal` *)
+  let prop_roundtrip parse marshal e =
+      parse (marshal e) = e
+
+  (* Setup a quickCheck for a serlalizable OpenFlow datatype *)
+  let openflow_quickCheck arbitrary show parse marshal =
+      let test = testable_fun arbitrary show testable_bool in
+      match quickCheck test (prop_roundtrip parse marshal) with
+        | Success -> true
+        | Failure _ -> failwith "No failure expected"
+        | Exhausted _ -> failwith "No exhaustion expected"
+
   module Gen = Arbitrary_OpenFlow0x01
   module Gen0x04 = Arbitrary_OpenFlow0x04
 

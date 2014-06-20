@@ -1,7 +1,7 @@
 OASISFormat: 0.3
 OCamlVersion:     >= 4.01.0
 Name:        openflow
-Version:     0.3.0
+Version:     0.4.0
 Synopsis:    Serialization library for OpenFlow
 Authors:     https://github.com/frenetic-lang/ocaml-openflow/contributors
 License:     LGPL
@@ -75,9 +75,9 @@ Library quickcheck
     Build$: flag(tests) || flag(quickcheck)
     BuildDepends:
       quickcheck,
-      openflow
+      openflow,
+      packet.quickcheck
     Modules:
-      Arbitrary_Base,
       Arbitrary_OpenFlow,
       Arbitrary_OpenFlow0x01,
       Arbitrary_OpenFlow0x04,
