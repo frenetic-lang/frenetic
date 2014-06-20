@@ -186,8 +186,8 @@ module Int32TupleHeader = struct
   type t = Int32Header.t * Int32Header.t with sexp
   let equal x1 x2 = 
     Int32Header.equal 
-      (SDN_Types.Pattern.ip_shift x1)
-      (SDN_Types.Pattern.ip_shift x2)
+      (SDN_Types.Pattern.Ip.shift x1)
+      (SDN_Types.Pattern.Ip.shift x2)
   let compare ((p,m):t) ((p',m'):t) : int =
     if Pervasives.compare p p' = 0 then 
       Pervasives.compare m m'
@@ -201,27 +201,27 @@ module Int32TupleHeader = struct
   let any = (0l, 0l)
 
   let inter (x1:t) (x2:t) : t option = 
-    SDN_Types.Pattern.ip_intersect x1 x2 
+    SDN_Types.Pattern.Ip.intersect x1 x2
 
   let subseteq (x1:t) (x2:t) : bool = 
-    SDN_Types.Pattern.ip_subseteq x1 x2
+    SDN_Types.Pattern.Ip.less_eq x1 x2
     
   let combine ((p1,m1) as x1:t) ((p2,m2) as x2:t) : t option = 
     if x1 = x2 then Some x1
     else if m1 = m2 then 
       let x1' = (p1, Int32.succ m1) in 
       let x2' = (p2, Int32.succ m2) in 
-      if SDN_Types.Pattern.ip_compatible x1' x2' then 
+      if SDN_Types.Pattern.Ip.compatible x1' x2' then
 	Some x1' 
       else 
 	None
     else if m1 = Int32.(+) m2 1l then 
-      if SDN_Types.Pattern.ip_compatible x1 x2 then 
+      if SDN_Types.Pattern.Ip.compatible x1 x2 then
 	Some x2
       else 
 	None
     else if m2 = Int32.(+) m1 1l then 
-      if SDN_Types.Pattern.ip_compatible x1 x2 then 
+      if SDN_Types.Pattern.Ip.compatible x1 x2 then
 	Some x1
       else 
 	None
