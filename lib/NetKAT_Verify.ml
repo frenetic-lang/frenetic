@@ -1,3 +1,5 @@
+module Int32Set = Set.Make(Int32)
+
 module Dexterize = struct
   open Decide_Ast
   open Decide_Ast.Term
@@ -117,42 +119,8 @@ module IPMasks = struct
 	  end in 
       Some (loop 0 0l)
 	
-  let rec ips_of_pred = function
-    | NetKAT_Types.True -> 
-      IPMaskSet.empty
-    | NetKAT_Types.False -> 
-      IPMaskSet.empty
-    | NetKAT_Types.Test(NetKAT_Types.IP4Src(p,m)) -> 
-      IPMaskSet.singleton (p,m)
-    | NetKAT_Types.Test(NetKAT_Types.IP4Dst(p,m)) -> 
-      IPMaskSet.singleton (p,m)
-    | NetKAT_Types.Test(_) -> 
-      IPMaskSet.empty
-    | NetKAT_Types.And(pr1,pr2) -> 
-      IPMaskSet.union (ips_of_pred pr1) (ips_of_pred pr2)
-    | NetKAT_Types.Or(pr1,pr2) -> 
-      IPMaskSet.union (ips_of_pred pr1) (ips_of_pred pr2)
-    | NetKAT_Types.Neg(pr) -> 
-      ips_of_pred pr
-  let rec ips_of_policy = function
-    | NetKAT_Types.Filter(pr) -> 
-      ips_of_pred pr
-    | NetKAT_Types.Mod(NetKAT_Types.IP4Src(p,m)) -> 
-      IPMaskSet.singleton (p,m)
-    | NetKAT_Types.Mod(NetKAT_Types.IP4Dst(p,m)) -> 
-      IPMaskSet.singleton (p,m)
-    | NetKAT_Types.Mod(_) -> 
-      IPMaskSet.empty
-    | NetKAT_Types.Union(p1,p2) -> 
-      IPMaskSet.union (ips_of_policy p1) (ips_of_policy p2)
-    | NetKAT_Types.Seq(p1,p2) -> 
-      IPMaskSet.union (ips_of_policy p1) (ips_of_policy p2)
-    | NetKAT_Types.Star(p) -> 
-      ips_of_policy p
-    | NetKAT_Types.Link(sw1,pt1,sw2,pt2) -> 
-      IPMaskSet.empty
-
   let partition_ips ips = 
+    IPMaskSet.iter (fun x -> Printf.printf "%s\n" (string_of_ip_mask x)) ips;
     let n = IPMaskSet.cardinal ips in 
     let i = ref 0 in 
     let part = 
@@ -175,19 +143,18 @@ module IPMasks = struct
 		  else BrxMap.add r s acci in 
 		(Brx.mk_diff b by, accr))
 	      acc (bx,BrxMap.empty) in 
-	  (* TODO(jnf): why is bx' not empty? *)
 	  assert (Brx.is_empty bx');
 	  acc')
 	ips 
 	(BrxMap.singleton any_ip IPMaskSet.empty) in 
     Printf.printf "\n%!";
+    Printf.printf "FINAL: %d\n" (BrxMap.cardinal part);
     BrxMap.fold
       (fun bx s acc -> 
 	match ip_of_brx bx with 
 	| None -> 
 	  acc
 	| Some a -> 
-	  (* if true then Printf.printf "%s -> %s\n" (Brx.string_of_t bx) (Packet.string_of_ip a); *)
 	  let sa = IPSet.singleton a in 
 	  IPMaskSet.fold
 	    (fun y acc -> 
@@ -198,54 +165,39 @@ module IPMasks = struct
 	    s acc)
       part IPMaskMap.empty
 
-  let rec subst_pred subst pr = match pr with 
-    | NetKAT_Types.True -> 
-      pr
-    | NetKAT_Types.False -> 
-      pr
-    | NetKAT_Types.Test(NetKAT_Types.IP4Src(p,m)) -> 
-      NetKAT_Types.(try 
-	 IPSet.fold 
-	   (fun a acc -> Optimize.mk_or (Test(IP4Src(a,32l))) acc)
-	   (IPMaskMap.find (p,m) subst)
-	   (False)
-       with Not_found -> 
-	 failwith (Printf.sprintf "subst_pred: no entry for %s" (string_of_ip_mask (p,m))))
-    | NetKAT_Types.Test(NetKAT_Types.IP4Dst(p,m)) -> 
-      NetKAT_Types.(try 
-	 IPSet.fold 
-	   (fun a acc -> Optimize.mk_or (Test(IP4Dst(a,32l))) acc)
-	   (IPMaskMap.find (p,m) subst)
-	   (False)
-       with Not_found -> 
-	 failwith (Printf.sprintf "subst_pred: no entry for %s" (string_of_ip_mask (p,m))))
-    | NetKAT_Types.Test(_) -> 
-      pr
-    | NetKAT_Types.And(pr1,pr2) -> 
-      NetKAT_Types.And(subst_pred subst pr1, subst_pred subst pr2)
-    | NetKAT_Types.Or(pr1,pr2) -> 
-      NetKAT_Types.Or(subst_pred subst pr1, subst_pred subst pr2)
-    | NetKAT_Types.Neg(pr) -> 
-      NetKAT_Types.Neg(subst_pred subst pr)
-  let rec subst_policy subst pol = match pol with 
-    | NetKAT_Types.Filter(pr) -> 
-      NetKAT_Types.Filter(subst_pred subst pr)
-    | NetKAT_Types.Mod(_) -> 
-      pol
-    | NetKAT_Types.Union(p1,p2) -> 
-      NetKAT_Types.Union(subst_policy subst p1, subst_policy subst p2)
-    | NetKAT_Types.Seq(p1,p2) -> 
-      NetKAT_Types.Seq(subst_policy subst p1, subst_policy subst p2)
-    | NetKAT_Types.Star(p) -> 
-      NetKAT_Types.Star(subst_policy subst p)
-    | NetKAT_Types.Link(sw1,pt1,sw2,pt2) -> 
-      pol
+  let ips_of_rule (ins,ip_pats,ip_modo,outs) = 
+      IPMaskSet.union 
+	ip_pats 
+	(match ip_modo with 
+	| None -> IPMaskSet.empty 
+	| Some ip_mod -> IPMaskSet.singleton (ip_mod, 32l))
+
+  let ips_of_rules rules = 
+    List.fold_left 
+      (fun acc rule -> IPMaskSet.union (ips_of_rule rule) acc)
+      IPMaskSet.empty rules 
+
+  let subst_rule subst (ins,ip_pats,ip_modo,outs) = 
+    let ip_pats' = 
+      IPMaskSet.fold 
+	(fun x acc -> 
+	  try 
+	    IPSet.fold 
+	      (fun a acc -> IPMaskSet.add (a,32l) acc) 
+	      (IPMaskMap.find x subst) acc
+	  with Not_found ->
+	    failwith (Printf.sprintf "subst_rule: no entry for %s" (string_of_ip_mask x)))
+	ip_pats IPMaskSet.empty in 
+    (ins,ip_pats',ip_modo,outs)
+
+  let rec subst_rules subst rules = 
+    List.map (subst_rule subst) rules
 	
-  let skolemize pol = 
-    let ips = ips_of_policy pol in 
+  let skolemize rules = 
+    let ips = ips_of_rules rules in 
     let subst = partition_ips ips in 
-    let pol' = subst_policy subst pol in 
-    pol'
+    let rules' = subst_rules subst rules in 
+    rules'
 end
 
 module Verify = 
@@ -272,25 +224,35 @@ struct
     (* NetKAT_Types.(Optimize.(mk_union (mk_seq (mk_filter pr) pol1) (mk_seq (mk_filter (mk_not pr)) pol2))) *)
     NetKAT_Types.(Optimize.(mk_union (mk_seq (mk_filter pr) pol1) pol2))
 
-  let policy_of_stanford filename = 
+  let rules_of_stanford filename = 
     let parse_rule = function
       | `Assoc [("in_ports", `List in_ports); 
 		("ip_dst_wc", ip_dst_wc); 
 		("ip_dst_new", ip_dst_new);
 		("out_ports", `List out_ports);
 		("ip_dst_match", ip_dst_match)] -> 
-	let ip_pat = 
+	let ins = 
+	  List.fold_left  
+	    (fun acc inp -> 
+	      match inp with 
+	      | `Int n -> 
+		Int32Set.add (Int32.of_int n) acc
+	      | j -> 
+		failwith (Printf.sprintf "bad in_port: %s" (Json.to_string j)))
+	    Int32Set.empty in_ports in 
+	let ip_pats = 
 	  match ip_dst_match, ip_dst_wc with 
 	  | `Int p, `Int m -> 
-	    NetKAT_Types.(Optimize.(Test(IP4Dst(Int32.of_int p, Int32.of_int m))))
+	    IPMasks.IPMaskSet.singleton (Int32.of_int p, Int32.of_int m)
 	  | j1,j2 -> 
-	    failwith (Printf.sprintf "bad ip_dst_match or ip_dst_wc: %s %s" (Json.to_string j1) (Json.to_string j2)) in 
-	let ip_mod = 
+	    failwith (Printf.sprintf "bad ip_dst_match or ip_dst_wc: %s %s" 
+			(Json.to_string j1) (Json.to_string j2)) in 
+	let ip_modo = 
 	  match ip_dst_new with 
 	  | `Int n -> 
-	    NetKAT_Types.(Optimize.(Mod(IP4Dst(Int32.of_int n,32l))))
+	    Some (Int32.of_int n)
 	  | `Null -> 
-	    NetKAT_Types.(Optimize.(mk_filter True))
+	    None
 	  | j -> 
 	    failwith (Printf.sprintf "bad ip_dst_new: %s" (Json.to_string j)) in 
 	let outs = 
@@ -298,41 +260,80 @@ struct
 	    (fun acc outp -> 
 	      match outp with 
 	      | `Int n -> 
-		NetKAT_Types.(Optimize.(mk_union acc (Mod(Location(Physical(Int32.of_int n))))))
+		Int32Set.add (Int32.of_int n) acc
 	      | j -> 
 		failwith (Printf.sprintf "bad out_port: %s" (Json.to_string j)))
-	    NetKAT_Types.(Optimize.(mk_filter False)) out_ports in
-	let acts = NetKAT_Types.(Optimize.(mk_seq ip_mod outs)) in 
-	let pol = 
-	  List.fold_right
-	    (fun inp acc -> 
-	      match inp with 
-	      | `Int n -> 
-		let pr = NetKAT_Types.(Optimize.(mk_and (Test(Location(Physical(Int32.of_int n)))) ip_pat)) in 
-		(pr,acts)::acc
-	      | j -> 
-		failwith (Printf.sprintf "bad in_port: %s" (Json.to_string j)))
-	    in_ports [] in 
-	pol
+	    Int32Set.empty out_ports in 
+	(ins,ip_pats,ip_modo,outs)
       | j -> 
 	failwith (Printf.sprintf "bad_rule: %s" (Json.to_string j)) in 
+
     let parse_file = function
       | `Assoc ["rules", `List rules] -> 
 	List.fold_right  
-	  (fun rule acc -> List.fold_right ite (parse_rule rule) acc)
-	  rules NetKAT_Types.(Optimize.(mk_filter False))
+	  (fun rule acc -> (parse_rule rule) :: acc)
+	  rules []
       | j -> 
 	failwith (Printf.sprintf "bad file: %s" (Json.to_string j)) in 
     parse_file (Json.from_file filename)
 
+  module S = Set.Make(struct
+    type t = int32 * (int32 * int32) 
+    let compare (i1,(p1,m1)) (i2,(p2,m2)) = 
+      let cmp1 = compare i1 i2 in 
+      if cmp1 <> 0 then cmp1
+      else
+	let cmp2 = compare p1 p2 in 
+	if cmp2 <> 0 then cmp2 
+	else compare m1 m2
+  end)
+
+  let policy_of_rule neg (ins,ip_pats,ip_modo,outs) = 
+    let open NetKAT_Types in 
+    let open Optimize in 
+    let ins_pats,neg' = 
+      IPMasks.IPMaskSet.fold (fun (p,m) (acc,neg') -> 	
+	let pats,neg' = 
+	  Int32Set.fold 
+	    (fun i (acc,neg') -> 
+	      let x = (i,(p,m)) in 
+	      if S.mem x neg' then (acc,neg') 
+	      else i::acc, S.add x neg')
+	    ins ([], neg') in 
+	((pats,(p,m))::acc, neg'))
+	ip_pats 
+	([],neg) in 
+    let pr = 
+      List.fold_left 
+	(fun acc (ins,(p,m)) ->
+	  let ins_pr = List.fold_left (fun acc i -> mk_or (Test(Location(Physical i))) acc) False ins in 
+	  mk_or (mk_and ins_pr (Test(IP4Dst(p,m)))) acc)
+	False ins_pats in 
+    let ip_mod_pol = match ip_modo with Some a -> Mod(IP4Dst(a,32l)) | None -> mk_filter True in 
+    let outs_pol = Int32Set.fold (fun n acc -> mk_union acc (Mod(Location(Physical n)))) outs (mk_filter False) in 
+    let pat = mk_filter pr in 
+    let acts = mk_seq ip_mod_pol outs_pol in 
+    (neg', mk_seq pat acts)
+
+  let policy_of_rules rules = 
+    let open NetKAT_Types in 
+    let open Optimize in 
+    let _,pol = 
+      List.fold_right (fun rule (neg,pol) -> 
+	let neg',rule_pol = policy_of_rule neg rule in 
+	(neg', mk_union rule_pol pol)) 
+	rules (S.empty, mk_filter False) in 
+    pol
+
   let convert_stanford in_file out_file = 
-    let pol = policy_of_stanford in_file in 
-    let pol' = IPMasks.skolemize pol in 
+    let rules = rules_of_stanford in_file in 
+    let rules' = IPMasks.skolemize rules in 
+    let pol = policy_of_rules rules' in 
     let fd = open_out out_file in  
-    Printf.fprintf fd "%s" (NetKAT_Pretty.string_of_policy pol');
+    Printf.fprintf fd "%s" (NetKAT_Pretty.string_of_policy pol);
     close_out fd
 
-  let () = convert_stanford "foo.of" "foo.kat"
+  let () = convert_stanford "foo.of" "foo.kat" 
 
   let topology filename = 
     let topo = Net.Parse.from_dotfile filename in 
