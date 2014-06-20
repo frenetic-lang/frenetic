@@ -267,6 +267,11 @@ struct
       | Node.Switch -> true 
       | _ -> false  
 
+  let ite (pr,pol1) pol2 = 
+    (* JNF: the first line produces true tables; the second assumes the rules are disjoint. *)
+    (* NetKAT_Types.(Optimize.(mk_union (mk_seq (mk_filter pr) pol1) (mk_seq (mk_filter (mk_not pr)) pol2))) *)
+    NetKAT_Types.(Optimize.(mk_union (mk_seq (mk_filter pr) pol1) pol2))
+
   let policy_of_stanford filename = 
     let parse_rule = function
       | `Assoc [("in_ports", `List in_ports); 
@@ -277,7 +282,7 @@ struct
 	let ip_pat = 
 	  match ip_dst_match, ip_dst_wc with 
 	  | `Int p, `Int m -> 
-	    NetKAT_Types.(Optimize.(mk_filter (Test(IP4Dst(Int32.of_int p, Int32.of_int m)))))
+	    NetKAT_Types.(Optimize.(Test(IP4Dst(Int32.of_int p, Int32.of_int m))))
 	  | j1,j2 -> 
 	    failwith (Printf.sprintf "bad ip_dst_match or ip_dst_wc: %s %s" (Json.to_string j1) (Json.to_string j2)) in 
 	let ip_mod = 
@@ -299,24 +304,23 @@ struct
 	    NetKAT_Types.(Optimize.(mk_filter False)) out_ports in
 	let acts = NetKAT_Types.(Optimize.(mk_seq ip_mod outs)) in 
 	let pol = 
-	  List.fold_left
-	    (fun acc inp -> 
+	  List.fold_right
+	    (fun inp acc -> 
 	      match inp with 
 	      | `Int n -> 
-		let pr = NetKAT_Types.(Optimize.(mk_seq (mk_filter(Test(Location(Physical(Int32.of_int n))))) ip_pat)) in 
-		NetKAT_Types.(Optimize.(mk_union acc (mk_seq pr acts)))
+		let pr = NetKAT_Types.(Optimize.(mk_and (Test(Location(Physical(Int32.of_int n)))) ip_pat)) in 
+		(pr,acts)::acc
 	      | j -> 
 		failwith (Printf.sprintf "bad in_port: %s" (Json.to_string j)))
-	    NetKAT_Types.(Optimize.(mk_filter False)) in_ports in 
+	    in_ports [] in 
 	pol
       | j -> 
 	failwith (Printf.sprintf "bad_rule: %s" (Json.to_string j)) in 
     let parse_file = function
       | `Assoc ["rules", `List rules] -> 
-	List.fold_left
-	  (fun acc rule -> 
-	    NetKAT_Types.(Optimize.(mk_union acc (parse_rule rule))))
-	  NetKAT_Types.(Optimize.(mk_filter False)) rules
+	List.fold_right  
+	  (fun rule acc -> List.fold_right ite (parse_rule rule) acc)
+	  rules NetKAT_Types.(Optimize.(mk_filter False))
       | j -> 
 	failwith (Printf.sprintf "bad file: %s" (Json.to_string j)) in 
     parse_file (Json.from_file filename)
@@ -327,7 +331,6 @@ struct
     let fd = open_out out_file in  
     Printf.fprintf fd "%s" (NetKAT_Pretty.string_of_policy pol');
     close_out fd
-
 
   let () = convert_stanford "foo.of" "foo.kat"
 
