@@ -1059,10 +1059,7 @@ module RunTime = struct
         Some s -> not (Pattern.is_empty s)
       | None -> false in
     let pattern_diff_empty (xp:Pattern.t) (p:Pattern.t) : bool =
-      Set.fold
-        ~init:true
-        ~f:(fun acc x -> acc && (Pattern.is_empty x))
-        (Pattern.diff xp p) in
+      Set.for_all (Pattern.diff xp p) ~f:Pattern.is_empty in
     (* A pattern falls through if it is covered by patterns below it in the
      * table each of which has the same action, and no pattern with a different
      * action intersects it within the range containing the cover. *)
@@ -1086,9 +1083,8 @@ module RunTime = struct
           ~init:[]
           (annotated_table ()))
     else
-      let x = List.concat_map (Dep.sort (Pattern.Map.to_alist m)) 
-	~f:(fun (p,s) -> expand_rules p s) in 
-      x
+      List.concat_map (Dep.sort (Pattern.Map.to_alist m))
+        ~f:(fun (p,s) -> expand_rules p s)
 end
 
 module Local_Optimize = struct
@@ -1118,7 +1114,7 @@ let to_netkat =
 let compile sw p =
   RunTime.compile sw p
 
-let to_table ?(optimize_fall_through=false) t =
+let to_table ?(optimize_fall_through=true) t =
   Local_Optimize.remove_shadowed_rules
     (RunTime.to_table t ~optimize_fall_through:optimize_fall_through)
 
