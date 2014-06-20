@@ -538,22 +538,6 @@ module Pattern = struct
           ~tcpSrcPort:PT16.(g is_empty neg)
           ~tcpDstPort:PT16.(g is_empty neg)
 
-  (* let subseteq (x:t) (y:t) : bool = *)
-  (*   let open NetKAT_Types.Headers in *)
-  (*       let g c f = c (Field.get f x) (Field.get f y) in *)
-  (*       HPT.Fields.for_all *)
-  (*         ~location:(g PTL.subseteq) *)
-  (*         ~ethSrc:(g PT48.subseteq) *)
-  (*         ~ethDst:(g PT48.subseteq) *)
-  (*         ~vlan:(g PT16.subseteq) *)
-  (*         ~vlanPcp:(g PT8.subseteq) *)
-  (*         ~ethType:(g PT16.subseteq) *)
-  (*         ~ipProto:(g PT8.subseteq) *)
-  (*         ~ipSrc:(g PTIp.subseteq) *)
-  (*         ~ipDst:(g PTIp.subseteq) *)
-  (*         ~tcpSrcPort:(g PT16.subseteq) *)
-  (*         ~tcpDstPort:(g PT16.subseteq) *)
-
   let obscures (x:t) (y:t) : bool =
     let open NetKAT_Types.Headers in
         let g c f = c (Field.get f x) (Field.get f y) in
