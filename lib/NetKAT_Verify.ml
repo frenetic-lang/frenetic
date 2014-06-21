@@ -60,30 +60,48 @@ module Dexterize = struct
                if dup then [make_dup ()] else [])
 end
 
+module IPMask = struct
+  type t = int32 * int32
+  let compare = compare
+end
+module IP = struct
+  type t = int32
+  let compare = compare
+end
+module IPMaskSet = Set.Make(IPMask)
+module IPMaskMap = Map.Make(IPMask)
+module IPSet = Set.Make(IP)
+  
+let string_of_ip_mask (p,m) = 
+  Printf.sprintf "%s%s" 
+    (Packet.string_of_ip p) 
+    (if m = 32l then "" else "/" ^ Int32.to_string m) 
+    
+let f32s s =
+  Int32Set.fold 
+    (fun x acc -> Printf.sprintf "%s%s%ld" acc (if acc = "" then acc else ", ") x)
+    s ""  
+
+let fms s = 
+  IPMaskSet.fold
+    (fun x acc -> Printf.sprintf "%s%s%s" acc (if acc = "" then acc else ", ") (string_of_ip_mask x)) 
+    s ""  
+
+let fr (ins,ip_pats,ip_modo,outs)= 
+  Printf.sprintf "<{%s},%s%s,{%s}>" 
+    (f32s ins)
+    (fms ip_pats)
+    (match ip_modo with None -> "" | Some a -> ", " ^ Packet.string_of_ip a)
+    (f32s outs) 
+  
 module IPMasks = struct
 
-  let string_of_ip_mask (p,m) = 
-    Printf.sprintf " %s%s" 
-      (Packet.string_of_ip p) 
-      (if m = 32l then "" else "/" ^ Int32.to_string m) 
-
-  module IPMask = struct
-    type t = int32 * int32
-    let compare = compare
-  end
-  module IP = struct
-    type t = int32
-    let compare = compare
-  end
-  module IPMaskSet = Set.Make(IPMask)
-  module IPMaskMap = Map.Make(IPMask)
-  module IPSet = Set.Make(IP)
   module BrxMap = Map.Make(Brx)
 
   let brx_of_ip (p,m) = 
     let open Brx in 
-    let mtch = Int32.to_int m in 
-    let mask = 32 - mtch in 
+    let mask = Int32.to_int m in (* NB: this is the opposite of the usual convention! *)
+    let mtch = 32 - mask in 
     let pat = if mask = 0 then p else Int32.shift_right_logical p mask in 
     let rec bits x n acc = 
       if n = 0 then acc
@@ -97,7 +115,7 @@ module IPMasks = struct
     (* Printf.printf "BRX_OF_IP: %s -> %s\n" (string_of_ip_mask (p,m)) (Brx.string_of_t r); *)
     r
 
-  let any_ip = brx_of_ip (0l,0l)
+  let any_ip = brx_of_ip (0l,32l)
 
   let ip_of_brx b = 
     match Brx.representative b with 
@@ -120,13 +138,14 @@ module IPMasks = struct
       Some (loop 0 0l)
 	
   let partition_ips ips = 
-    IPMaskSet.iter (fun x -> Printf.printf "%s\n" (string_of_ip_mask x)) ips;
+    (* IPMaskSet.iter (fun x -> Printf.printf "%s\n" (string_of_ip_mask x)) ips; *)
     let n = IPMaskSet.cardinal ips in 
     let i = ref 0 in 
     let part = 
       IPMaskSet.fold
 	(fun x acc -> 
-	  Printf.printf "[2K\r[32m[Partitioning][0m: %d / %d (%d)%!" !i n (BrxMap.cardinal acc);
+	  Printf.printf "[2K\r[32m[Partitioning][0m: %s %d / %d (%d)%!" 
+	    (string_of_ip_mask x) !i n (BrxMap.cardinal acc);
 	  incr i;
 	  let bx = brx_of_ip x in 
 	  let sx = IPMaskSet.singleton x in 
@@ -134,21 +153,18 @@ module IPMasks = struct
 	    BrxMap.fold
 	      (fun by s (b,acc) -> 
 		let i = Brx.mk_inter b by in 
-		let r = Brx.mk_diff by b in 
-		let acci = 
-		  if Brx.is_empty i then acc 
-		  else BrxMap.add i (IPMaskSet.union s sx) acc in
-		let accr = 
-		  if Brx.is_empty r then acci 
-		  else BrxMap.add r s acci in 
-		(Brx.mk_diff b by, accr))
+		if Brx.is_empty i then 
+		  (b,BrxMap.add by s acc)
+		else
+		  let r = Brx.mk_diff by b in 
+		  let l = Brx.mk_diff b by in 
+		  (l, BrxMap.add r s (BrxMap.add i (IPMaskSet.union s sx) acc)))
 	      acc (bx,BrxMap.empty) in 
-	  assert (Brx.is_empty bx');
+	  assert (Brx.is_empty bx'); 
 	  acc')
 	ips 
 	(BrxMap.singleton any_ip IPMaskSet.empty) in 
     Printf.printf "\n%!";
-    Printf.printf "FINAL: %d\n" (BrxMap.cardinal part);
     BrxMap.fold
       (fun bx s acc -> 
 	match ip_of_brx bx with 
@@ -184,16 +200,20 @@ module IPMasks = struct
 	  try 
 	    IPSet.fold 
 	      (fun a acc -> IPMaskSet.add (a,32l) acc) 
-	      (IPMaskMap.find x subst) acc
+	      (IPMaskMap.find x subst) acc 
 	  with Not_found ->
 	    failwith (Printf.sprintf "subst_rule: no entry for %s" (string_of_ip_mask x)))
 	ip_pats IPMaskSet.empty in 
-    (ins,ip_pats',ip_modo,outs)
+    let rule' = (ins,ip_pats',ip_modo,outs) in 
+    (* Printf.printf "RULE\n  %s\n  %s\n\n" *)
+    (*   (fr rule) (fr rule'); *)
+    rule'
 
   let rec subst_rules subst rules = 
     List.map (subst_rule subst) rules
 	
   let skolemize rules = 
+    (* Printf.printf "%d rules\n" (List.length rules); *)
     let ips = ips_of_rules rules in 
     let subst = partition_ips ips in 
     let rules' = subst_rules subst rules in 
@@ -243,7 +263,7 @@ struct
 	let ip_pats = 
 	  match ip_dst_match, ip_dst_wc with 
 	  | `Int p, `Int m -> 
-	    IPMasks.IPMaskSet.singleton (Int32.of_int p, Int32.of_int m)
+	    IPMaskSet.singleton (Int32.of_int p, Int32.of_int m)
 	  | j1,j2 -> 
 	    failwith (Printf.sprintf "bad ip_dst_match or ip_dst_wc: %s %s" 
 			(Json.to_string j1) (Json.to_string j2)) in 
@@ -292,11 +312,12 @@ struct
     let open NetKAT_Types in 
     let open Optimize in 
     let ins_pats,neg' = 
-      IPMasks.IPMaskSet.fold (fun (p,m) (acc,neg') -> 	
+      IPMaskSet.fold (fun (p,m) (acc,neg') -> 	
 	let pats,neg' = 
 	  Int32Set.fold 
 	    (fun i (acc,neg') -> 
 	      let x = (i,(p,m)) in 
+	      (* Printf.printf "  %ld %s %b\n" i (string_of_ip_mask (p,m)) (S.mem x neg'); *)
 	      if S.mem x neg' then (acc,neg') 
 	      else i::acc, S.add x neg')
 	    ins ([], neg') in 
@@ -309,20 +330,23 @@ struct
 	  let ins_pr = List.fold_left (fun acc i -> mk_or (Test(Location(Physical i))) acc) False ins in 
 	  mk_or (mk_and ins_pr (Test(IP4Dst(p,m)))) acc)
 	False ins_pats in 
-    let ip_mod_pol = match ip_modo with Some a -> Mod(IP4Dst(a,32l)) | None -> mk_filter True in 
-    let outs_pol = Int32Set.fold (fun n acc -> mk_union acc (Mod(Location(Physical n)))) outs (mk_filter False) in 
     let pat = mk_filter pr in 
+    let outs_pol = Int32Set.fold (fun n acc -> mk_union acc (Mod(Location(Physical n)))) outs (mk_filter False) in 	
+    let ip_mod_pol = match ip_modo with Some a -> Mod(IP4Dst(a,32l)) | None -> mk_filter True in 
     let acts = mk_seq ip_mod_pol outs_pol in 
-    (neg', mk_seq pat acts)
+    let pol = mk_seq pat acts in 
+    (* Format.printf "TRANSLATE\n  %s\n  %s\n\n"  *)
+    (*   (fr rule) (NetKAT_Pretty.string_of_policy pol); *)
+    (neg', pol)
 
   let policy_of_rules rules = 
     let open NetKAT_Types in 
     let open Optimize in 
     let _,pol = 
-      List.fold_right (fun rule (neg,pol) -> 
+      List.fold_left (fun (neg,pol) rule -> 
 	let neg',rule_pol = policy_of_rule neg rule in 
 	(neg', mk_union rule_pol pol)) 
-	rules (S.empty, mk_filter False) in 
+	(S.empty, mk_filter False) rules in 
     pol
 
   let convert_stanford in_file out_file = 
@@ -452,8 +476,6 @@ struct
     if print then Printf.printf "## Equivalent ##\n%b\n" ret;
     ret
       
-
-
   let verify_connectivity ?(print=true) filename = 
     let topo, vertexes, switches, hosts = topology filename in 
     let sw_pol = shortest_path_policy topo switches hosts in 
