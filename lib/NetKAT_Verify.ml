@@ -357,7 +357,7 @@ struct
     Printf.fprintf fd "%s" (NetKAT_Pretty.string_of_policy pol);
     close_out fd
 
-  let () = convert_stanford "foo.of" "foo.kat" 
+  (* let () = convert_stanford "foo.of" "foo.kat"  *)
 
   let topology filename = 
     let topo = Net.Parse.from_dotfile filename in 
