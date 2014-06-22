@@ -111,7 +111,7 @@ module IPMasks = struct
 	let x' = Int32.shift_right_logical x 1 in 
 	bits x' n' acc' in 
     let bs = bits pat mtch "" in 
-    let r = mk_seq (mk_string bs) (mk_iter ascii_set mask (Some mask)) in 
+    let r = mk_seq (mk_string bs) (mk_iter alphabet mask (Some mask)) in 
     (* Printf.printf "BRX_OF_IP: %s -> %s\n" (string_of_ip_mask (p,m)) (Brx.string_of_t r); *)
     r
 
