@@ -212,12 +212,6 @@ module IPMasks = struct
   let rec subst_rules subst rules = 
     List.map (subst_rule subst) rules
 	
-  let skolemize rules = 
-    (* Printf.printf "%d rules\n" (List.length rules); *)
-    let ips = ips_of_rules rules in 
-    let subst = partition_ips ips in 
-    let rules' = subst_rules subst rules in 
-    rules'
 end
 
 module Verify = 
@@ -349,15 +343,36 @@ struct
 	(S.empty, mk_filter False) rules in 
     pol
 
-  let convert_stanford in_file out_file = 
-    let rules = rules_of_stanford in_file in 
-    let rules' = IPMasks.skolemize rules in 
-    let pol = policy_of_rules rules' in 
-    let fd = open_out out_file in  
-    Printf.fprintf fd "%s" (NetKAT_Pretty.string_of_policy pol);
-    close_out fd
+  let convert_stanford switches = 
+    let open IPMasks in 
+    let rules = 
+      List.map 
+	(fun sw -> (sw,rules_of_stanford (sw ^ ".of")))
+	switches in 
+    let ips = 
+      List.fold_left
+	(fun acc (_,rs) -> 
+	  IPMaskSet.union acc (ips_of_rules rs))
+	IPMaskSet.empty rules in 
+    let subst = partition_ips ips in 
+    let rules' = 
+      List.map
+	(fun (sw,rs) -> (sw,subst_rules subst rs))
+	rules in 
+    let policies = 
+      List.map 
+	(fun (sw,rs) -> (sw,policy_of_rules rs))
+	rules' in 
+    let () = 
+      List.iter
+	(fun (sw,pol) -> 
+	  let fd = open_out (sw ^ ".kat") in 
+	  Printf.fprintf fd "%s" (NetKAT_Pretty.string_of_policy pol);
+	  close_out fd)
+	policies in 
+    ()
 
-  (* let () = convert_stanford "foo.of" "foo.kat"  *)
+  (* let () = convert_stanford ["foo"] *)
 
   let topology filename = 
     let topo = Net.Parse.from_dotfile filename in 
