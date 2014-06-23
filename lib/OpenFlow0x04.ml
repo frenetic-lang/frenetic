@@ -3398,7 +3398,7 @@ module Aggregate = struct
   let sizeof ag = 
     sizeof_ofp_aggregate_stats_reply
 
-  let to_string ag =
+  let to_string (ag : aggregStats) =
     Format.sprintf "packet count:%Lu;\nbyte count:%Lu;\nflow count:%lu\n"
     ag.packet_count
     ag.byte_count
@@ -3613,6 +3613,110 @@ module QueueStats = struct
       List.rev (Cstruct.fold (fun acc bits -> bits :: acc) queueIter [])
 end
 
+module GroupStats = struct
+
+  cstruct ofp_group_stats {
+    uint16_t length;
+    uint8_t pad[2];
+    uint32_t group_id;
+    uint32_t ref_count;
+    uint8_t pad2[4];
+    uint64_t packet_count;
+    uint64_t byte_count;
+    uint32_t duration_sec;
+    uint32_t duration_nsec
+  } as big_endian
+
+  module BucketStats = struct
+
+    cstruct ofp_bucket_counter {
+    uint64_t packet_count;
+    uint64_t byte_count
+    } as big_endian
+
+    let to_string_struct (bs : bucketStats) : string =
+      Format.sprintf "Bucket: packet_count: %Lu;byte_count: %Lu"
+      bs.packet_count
+      bs.byte_count
+
+    let to_string (bs : bucketStats list) : string =
+      String.concat "\n" (map to_string_struct bs)   
+ 
+    let marshal_struct (buf : Cstruct.t) (bs : bucketStats) : int =
+      set_ofp_bucket_counter_packet_count buf bs.packet_count;
+      set_ofp_bucket_counter_byte_count buf bs.byte_count;
+      sizeof_ofp_bucket_counter
+
+    let marshal (buf : Cstruct.t) (bs : bucketStats list) : int =
+      marshal_fields buf bs marshal_struct
+
+    let parse_struct (bits : Cstruct.t) : bucketStats =
+      { packet_count = get_ofp_bucket_counter_packet_count bits
+      ; byte_count = get_ofp_bucket_counter_byte_count bits }
+
+    let parse (bits : Cstruct.t) : bucketStats list =
+      let bucketIter =
+        Cstruct.iter 
+          (fun buf -> Some sizeof_ofp_bucket_counter)
+          parse_struct
+          bits in
+       List.rev (Cstruct.fold (fun acc bits -> bits :: acc) bucketIter [])
+  end
+
+  let sizeof_struct (gs : groupStats) : int =
+    gs.length
+
+  let sizeof (gs : groupStats list) = 
+    sum (map sizeof_struct gs)
+
+  let to_string_struct (gs : groupStats) : string =
+    Format.sprintf "length: %u; group id: %lu; ref count: %lu; packet count: %Lu;\
+    byte count: %Lu; duration (s/ns): %lu/%lu;bucket stats:%s"
+    gs.length
+    gs.group_id
+    gs.ref_count
+    gs.packet_count
+    gs.byte_count
+    gs.duration_sec
+    gs.duration_nsec
+    (BucketStats.to_string gs.bucket_stats)
+
+  let marshal_struct (buf : Cstruct.t) (gs : groupStats) : int = 
+    set_ofp_group_stats_length buf gs.length;
+    set_ofp_group_stats_group_id buf gs.group_id;
+    set_ofp_group_stats_ref_count buf gs.ref_count;
+    set_ofp_group_stats_packet_count buf gs.packet_count;
+    set_ofp_group_stats_byte_count buf gs.byte_count;
+    set_ofp_group_stats_duration_sec buf gs.duration_sec;
+    set_ofp_group_stats_duration_nsec buf gs.duration_nsec;
+    sizeof_ofp_group_stats + (BucketStats.marshal (Cstruct.shift buf sizeof_ofp_group_stats) gs.bucket_stats)
+    
+  let marshal (buf : Cstruct.t) (gs : groupStats list) : int =
+    marshal_fields buf gs marshal_struct
+
+  let parse_struct (bits : Cstruct.t) : groupStats =
+    { length = get_ofp_group_stats_length bits
+    ; group_id = get_ofp_group_stats_group_id bits
+    ; ref_count = get_ofp_group_stats_ref_count bits
+    ; packet_count = get_ofp_group_stats_packet_count bits
+    ; byte_count = get_ofp_group_stats_byte_count bits
+    ; duration_sec = get_ofp_group_stats_duration_sec bits
+    ; duration_nsec = get_ofp_group_stats_duration_nsec bits
+    ; bucket_stats = BucketStats.parse bits
+    }
+
+  let length_fn (buf :  Cstruct.t) : int option =
+        if Cstruct.len buf < sizeof_ofp_group_stats then None
+        else Some (get_ofp_group_stats_length buf)
+
+  let parse (bits : Cstruct.t) : groupStats list =
+    let groupStatsIter =
+      Cstruct.iter 
+        length_fn
+        parse_struct
+        bits in
+     List.rev (Cstruct.fold (fun acc bits -> bits :: acc) groupStatsIter [])
+end
 
 module MultipartReply = struct
 
