@@ -3634,6 +3634,12 @@ module GroupStats = struct
     uint64_t byte_count
     } as big_endian
 
+    let sizeof_struct (gs : bucketStats) : int =
+      sizeof_ofp_bucket_counter
+
+    let sizeof (gs : bucketStats list) = 
+      sum (map sizeof_struct gs)    
+    
     let to_string_struct (bs : bucketStats) : string =
       Format.sprintf "Bucket: packet_count: %Lu;byte_count: %Lu"
       bs.packet_count
@@ -3734,6 +3740,7 @@ module MultipartReply = struct
       | TableReply tr -> Table.sizeof tr
       | PortStatsReply psr -> PortStats.sizeof psr
       | QueueStatsReply qsr -> QueueStats.sizeof qsr
+      | GroupStatsReply gs -> GroupStats.sizeof gs
 
   let to_string (mpr : multipartReply) =
     match mpr.mpreply_typ with
@@ -3744,6 +3751,7 @@ module MultipartReply = struct
       | TableReply tr -> Format.sprintf "TableReply: %s" (Table.to_string tr)
       | PortStatsReply psr -> Format.sprintf "PortStatsReply: %s" (PortStats.to_string psr)
       | QueueStatsReply qsr -> Format.sprintf "QueueStats: %s" (QueueStats.to_string qsr)
+      | GroupStatsReply gs -> Format.sprintf "GroupSTats: %S" (GroupStats.to_string gs)
 
   let marshal (buf : Cstruct.t) (mpr : multipartReply) : int =
     let ofp_body_bits = Cstruct.shift buf sizeof_ofp_multipart_reply in
@@ -3773,6 +3781,9 @@ module MultipartReply = struct
       | QueueStatsReply qsr ->
           set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_QUEUE);
           QueueStats.marshal ofp_body_bits qsr
+      | GroupStatsReply gs ->
+          set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_GROUP);
+          GroupStats.marshal ofp_body_bits gs
           )
     
   let parse (bits : Cstruct.t) : multipartReply =
@@ -3792,6 +3803,8 @@ module MultipartReply = struct
           PortStatsReply (PortStats.parse ofp_body_bits)
       | Some OFPMP_QUEUE ->
           QueueStatsReply (QueueStats.parse ofp_body_bits)
+      | Some OFPMP_GROUP ->
+          GroupStatsReply (GroupStats.parse ofp_body_bits)
       | _ -> raise (Unparsable (sprintf "NYI: can't parse this multipart reply"))) in
     let flags = (
       match int_to_ofp_multipart_request_flags (get_ofp_multipart_request_flags bits) with

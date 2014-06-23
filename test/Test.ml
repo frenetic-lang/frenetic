@@ -350,6 +350,11 @@ module RoundTripping = struct
       (openflow_quickCheck GenSwDescReply.arbitrary
           GenSwDescReply.to_string GenSwDescReply.parse GenSwDescReply.marshal)
 
+  TEST "OpenFlow0x04 MultipartReply.GroupStats RoundTrip" =
+      let module GenGroupStatsReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.GroupStats) in
+      (openflow_quickCheck GenGroupStatsReply.arbitrary
+          GenGroupStatsReply.to_string GenGroupStatsReply.parse GenGroupStatsReply.marshal)
+
   TEST "OpenFlow0x04 MultipartReply RoundTrip" =
       let module GenMultipartReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply) in
       (openflow_quickCheck GenMultipartReply.arbitrary

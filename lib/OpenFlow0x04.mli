@@ -329,6 +329,7 @@ module GroupStats : sig
 
   module BucketStats : sig
 
+      val sizeof : bucketStats list -> int
       val to_string : bucketStats list -> string
       val marshal : Cstruct.t -> bucketStats list -> int
       val parse : Cstruct.t -> bucketStats list
