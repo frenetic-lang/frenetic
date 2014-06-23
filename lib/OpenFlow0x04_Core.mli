@@ -12,6 +12,8 @@ type int12 = int16
 
 val val_to_mask : 'a1 -> 'a1 mask
 
+val ip_to_mask : (nwAddr * int32) -> nwAddr mask
+
 type switchId = int64
 
 type groupId = int32

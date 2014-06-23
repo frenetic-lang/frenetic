@@ -26,6 +26,11 @@ let format_int (fmt : Format.formatter) (v:int) =
 let format_int32 (fmt : Format.formatter) (v:int32) =
   Format.fprintf fmt "%lu" v
 
+let format_ip_mask (fmt : Format.formatter) ((p,m) : nwAddr * int32) = 
+  Format.fprintf fmt "%a%s" 
+    format_ip p 
+    (if m = 32l then "" else Printf.sprintf "/%ld" m)
+
 let make_string_of formatter x =
   let open Format in
   let buf = Buffer.create 100 in
@@ -37,14 +42,74 @@ let make_string_of formatter x =
 
 module Pattern = struct
 
+  module Ip = struct
+    type t = nwAddr * int32
+
+    let match_all = (0l, 0l)
+
+    let unsafe_shift (p, m) =
+      match Int32.(to_int (sub 32l m)) with
+      | 32 -> 0l
+      | i  -> Int32.shift_right_logical p i
+
+    let check_mask m =
+      if m < 0l || m > 32l then
+        failwith "Pattern.Ip: invalid mask"
+
+    let shift (p, m) =
+      check_mask m;
+      unsafe_shift (p, m)
+
+    let less_eq (p1, m1) (p2, m2) =
+      m1 >= m2 && begin
+        check_mask m2;
+        unsafe_shift (p1, m2) = unsafe_shift (p2, m2)
+      end
+
+    let eq (p1, m1) (p2, m2) =
+      m1 = m2 && (m1 = 0l || begin
+        check_mask m1;
+        unsafe_shift (p1, m1) = unsafe_shift (p2, m2)
+      end)
+
+    let join (p1, m1) (p2, m2) =
+      let rec loop m =
+        if m = 0l then
+          (0l, 0l)
+        else if unsafe_shift (p1, m) = unsafe_shift (p2, m) then
+          (p1, m)
+        else
+          loop Int32.(sub m 1l)
+      in
+      let m = min m1 m2 in
+      check_mask m;
+      loop m
+
+    let intersect ip1 ip2 =
+      if less_eq ip1 ip2 then
+        Some ip1
+      else if less_eq ip2 ip1 then
+        Some ip2
+      else
+        None
+
+    let compatible ip1 ip2 =
+      match intersect ip1 ip2 with
+        | Some _ -> true
+        | None   -> false
+
+    let format = format_ip_mask
+    let string_of ip = make_string_of format ip
+  end
+
   type t =
       { dlSrc : dlAddr option
       ; dlDst : dlAddr option
       ; dlTyp : dlTyp option
       ; dlVlan : dlVlan
       ; dlVlanPcp : dlVlanPcp option
-      ; nwSrc : nwAddr option
-      ; nwDst : nwAddr option
+      ; nwSrc : Ip.t option
+      ; nwDst : Ip.t option
       ; nwProto : nwProto option
       ; tpSrc : tpPort option
       ; tpDst : tpPort option
@@ -63,70 +128,67 @@ module Pattern = struct
       ; tpDst = None
       ; inPort = None }
 
+  (* TODO(jnf): rename subseteq ?*)
   let less_eq p1 p2 =
-    let check m1 m2 =
+    let check f m1 m2 =
       match m2 with
         | None -> true
         | Some(v2) ->
           begin match m1 with
             | None -> false
-            | Some(v1) -> v1 = v2
-          end
-    in
-    check p1.dlSrc p2.dlSrc
-    && check p1.dlDst p2.dlDst
-    && check p1.dlTyp p2.dlTyp
-    && check p1.dlVlan p2.dlVlan
-    && check p1.dlVlanPcp p2.dlVlanPcp
-    && check p1.nwSrc p2.nwSrc
-    && check p1.nwDst p2.nwDst
-    && check p1.nwProto p2.nwProto
-    && check p1.tpSrc p2.tpSrc
-    && check p1.tpDst p2.tpDst
-    && check p1.inPort p2.inPort
+            | Some(v1) -> f v1 v2
+          end in 
+    check (=) p1.dlSrc p2.dlSrc
+    && check (=) p1.dlDst p2.dlDst
+    && check (=) p1.dlTyp p2.dlTyp
+    && check (=) p1.dlVlan p2.dlVlan
+    && check (=) p1.dlVlanPcp p2.dlVlanPcp
+    && check Ip.less_eq p1.nwSrc p2.nwSrc
+    && check Ip.less_eq p1.nwDst p2.nwDst
+    && check (=) p1.nwProto p2.nwProto
+    && check (=) p1.tpSrc p2.tpSrc
+    && check (=) p1.tpDst p2.tpDst
+    && check (=) p1.inPort p2.inPort
 
   let eq p1 p2 =
-    p1 = p2
-
-  let disjoint p1 p2 =
-    let check m1 m2 =
+    let check f m1 m2 =
       match m1, m2 with
-      | None, _    -> false
-      | _   , None -> false
-      | Some(v1), Some(v2) -> not (v1 = v2)
-    in
-    check p1.dlSrc p2.dlSrc
-    || check p1.dlDst p2.dlDst
-    || check p1.dlTyp p2.dlTyp
-    || check p1.dlVlan p2.dlVlan
-    || check p1.dlVlanPcp p2.dlVlanPcp
-    || check p1.nwSrc p2.nwSrc
-    || check p1.nwDst p2.nwDst
-    || check p1.nwProto p2.nwProto
-    || check p1.tpSrc p2.tpSrc
-    || check p1.tpDst p2.tpDst
-    || check p1.inPort p2.inPort
+        | None   , None    -> true
+        | Some v1, Some v2 -> f v1 v2
+        | _      , _       -> false in
+    check (=) p1.dlSrc p2.dlSrc
+    && check (=) p1.dlDst p2.dlDst
+    && check (=) p1.dlTyp p2.dlTyp
+    && check (=) p1.dlVlan p2.dlVlan
+    && check (=) p1.dlVlanPcp p2.dlVlanPcp
+    && check Ip.eq p1.nwSrc p2.nwSrc
+    && check Ip.eq p1.nwDst p2.nwDst
+    && check (=) p1.nwProto p2.nwProto
+    && check (=) p1.tpSrc p2.tpSrc
+    && check (=) p1.tpDst p2.tpDst
+    && check (=) p1.inPort p2.inPort
+    
+  let eq_join x1 x2 =
+    if x1 = x2 then Some x1 else None 
 
-  let meet p1 p2 =
-    let meeter m1 m2 =
+  let join p1 p2 =
+    let joiner m m1 m2 =
       match m1, m2 with
-      | Some(v1), Some(v2) when v1 = v2 ->
-        Some(v1)
-      | _       , _ ->
-        None
-    in
-    { dlSrc = meeter p1.dlSrc p2.dlSrc
-    ; dlDst = meeter p1.dlDst p2.dlDst
-    ; dlTyp = meeter p1.dlTyp p2.dlTyp
-    ; dlVlan = meeter p1.dlVlan p2.dlVlan
-    ; dlVlanPcp = meeter p1.dlVlanPcp p2.dlVlanPcp
-    ; nwSrc = meeter p1.nwSrc p2.nwSrc
-    ; nwDst = meeter p1.nwDst p2.nwDst
-    ; nwProto = meeter p1.nwProto p2.nwProto
-    ; tpSrc = meeter p1.tpSrc p2.tpSrc
-    ; tpDst = meeter p1.tpDst p2.tpDst
-    ; inPort = meeter p1.inPort p2.inPort
-    }
+      | Some v1, Some v2 -> 
+        m v1 v2
+      | _ -> 
+        None in 
+    { dlSrc = joiner eq_join p1.dlSrc p2.dlSrc
+    ; dlDst = joiner eq_join p1.dlDst p2.dlDst
+    ; dlTyp = joiner eq_join p1.dlTyp p2.dlTyp
+    ; dlVlan = joiner eq_join p1.dlVlan p2.dlVlan
+    ; dlVlanPcp = joiner eq_join p1.dlVlanPcp p2.dlVlanPcp
+    ; nwSrc = joiner (fun x y -> Some(Ip.join x y)) p1.nwSrc p2.nwSrc
+    ; nwDst = joiner (fun x y -> Some(Ip.join x y)) p1.nwDst p2.nwDst
+    ; nwProto = joiner eq_join p1.nwProto p2.nwProto
+    ; tpSrc = joiner eq_join p1.tpSrc p2.tpSrc
+    ; tpDst = joiner eq_join p1.tpDst p2.tpDst
+    ; inPort = joiner eq_join p1.inPort p2.inPort }
 
   let format (fmt:Format.formatter) (p:t) : unit =
     let first = ref true in
@@ -144,8 +206,8 @@ module Pattern = struct
     format_field "vlanId" format_int p.dlVlan;
     format_field "vlanPcp" format_int p.dlVlanPcp;
     format_field "nwProto" format_hex p.nwProto;
-    format_field "ipSrc" format_ip p.nwSrc;
-    format_field "ipDst" format_ip p.nwDst;
+    format_field "ipSrc" format_ip_mask p.nwSrc;
+    format_field "ipDst" format_ip_mask p.nwDst;
     format_field "tcpSrcPort" format_int p.tpSrc;
     format_field "tcpDstPort" format_int p.tpDst;
     format_field "port" format_int32 p.inPort;

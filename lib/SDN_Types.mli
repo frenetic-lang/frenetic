@@ -18,7 +18,7 @@
   tables to realize actions efficiently. This requires a global analysis
   of all the actions in a flow table. Therefore, Frenetic needs to
   supply the entire flow table at once and cannot add and remove flow table
-  entries individually. *)
+  entries individually *)
 
 (** {1 OpenFlow Identifier Types}
 
@@ -42,37 +42,65 @@ exception Unsupported of string
 (** {1 Packet Forwarding} *)
 
 module Pattern : sig
-  (** WARNING: There are dependencies between different fields that must be met. *)
+
+  module Ip : sig
+    type t = nwAddr * int32
+
+    (** [match_all] is pattern that matches any address *)
+    val match_all : t
+
+    (** [less_eq x1 x2] returns true when [x2] matches any address that [x1] will
+        match *)
+    val less_eq : t -> t -> bool
+
+    (** [eq p1 p2] returns true when [p1] and [p2] match the same set of
+        addresses *)
+    val eq : t -> t -> bool
+
+    (** [join p1 p2] is the least pattern [pm] such that [less_eq p1 pm] and
+        [less_eq p2 pm] *)
+    val join : t -> t -> t
+
+    (** [intersect x1 x2] returns the intersection of when [x1] and [x2] *)
+    val intersect : t -> t -> t option
+
+    (** [compatible x1 x2] returns true when [x1] and [x2] have a non-empty intersection *)
+    val compatible : t -> t -> bool
+
+    (** [ip_shift x] returns an [int32] after shifting [x] by its mask *)
+    val shift : t -> int32
+
+    val format : Format.formatter -> t -> unit
+    val string_of : t -> string
+  end
+
+  (** WARNING: There are dependencies between different fields that must be met *)
   type t =
       { dlSrc : dlAddr option
       ; dlDst : dlAddr option
       ; dlTyp : dlTyp option
       ; dlVlan : dlVlan
       ; dlVlanPcp : dlVlanPcp option
-      ; nwSrc : nwAddr option
-      ; nwDst : nwAddr option
+      ; nwSrc : Ip.t option
+      ; nwDst : Ip.t option
       ; nwProto : nwProto option
       ; tpSrc : tpPort option
       ; tpDst : tpPort option
       ; inPort : portId option }
 
-  (** [match_all] is pattern that matches any packet. *)
+  (** [match_all] is pattern that matches any packet *)
   val match_all : t
 
   (** [less_eq p1 p2] returns true when [p2] matches any packet that [p1] will
-      match. *)
+      match *)
   val less_eq : t -> t -> bool
 
   (** [eq p1 p2] returns true when [p1] and [p2] match the same set of packets *)
   val eq : t -> t -> bool
 
-  (** [disjoint p1 p2] returns true when there are no packets that [p1] and [p2]
-      can simultaneously match. *)
-  val disjoint : t -> t -> bool
-
-  (** [meet p1 p2] is the least pattern [pm] such that [less_eq p1 pm] and
+  (** [join p1 p2] is the least pattern [pm] such that [less_eq p1 pm] and
       [less_eq p2 pm] *)
-  val meet : t -> t -> t
+  val join : t -> t -> t
 
   val format : Format.formatter -> t -> unit
   val string_of : t -> string
@@ -112,8 +140,8 @@ type par = seq list
 type group = par list
 
 type timeout =
-  | Permanent (** No timeout. *)
-  | ExpiresAfter of int16 (** Time out after [n] seconds. *)
+  | Permanent (** No timeout *)
+  | ExpiresAfter of int16 (** Time out after [n] seconds *)
 
 type flow = {
   pattern: Pattern.t;
@@ -128,10 +156,10 @@ type flowTable = flow list
 
 (** {1 Controller Packet Processing} *)
 
-(** The payload for [packetIn] and [packetOut] messages. *)
+(** The payload for [packetIn] and [packetOut] messages *)
 type payload =
   | Buffered of bufferId * bytes 
-    (** [Buffered (id, buf)] is a packet buffered on a switch. *)
+    (** [Buffered (id, buf)] is a packet buffered on a switch *)
   | NotBuffered of bytes
 
 
@@ -158,9 +186,9 @@ type switchFeatures = {
 
 (* {1 Statistics} *)
 
-(** The body of a reply to an individual flow statistics request. *)
+(** The body of a reply to an individual flow statistics request *)
 type flowStats = {
-  flow_table_id : int8; (** ID of table flow came from. *)
+  flow_table_id : int8; (** ID of table flow came from *)
   flow_pattern : Pattern.t;
   flow_duration_sec: int32;
   flow_duration_nsec: int32;
@@ -187,5 +215,6 @@ val format_flowTable : Format.formatter -> flowTable -> unit
 
 val string_of_action : action -> string
 val string_of_seq : seq -> string
+val string_of_par : par -> string
 val string_of_flow : flow -> string
 val string_of_flowTable : flowTable -> string
