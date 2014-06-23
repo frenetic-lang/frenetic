@@ -325,6 +325,23 @@ module PortsDescriptionReply : sig
 
 end
 
+module GroupStats : sig
+
+  module BucketStats : sig
+
+      val to_string : bucketStats list -> string
+      val marshal : Cstruct.t -> bucketStats list -> int
+      val parse : Cstruct.t -> bucketStats list
+
+  end
+
+  val sizeof : groupStats list -> int
+  val to_string : groupStats list -> string
+  val marshal : Cstruct.t ->  groupStats list -> int
+
+  val parse : Cstruct.t ->  groupStats list
+end
+
 module SwitchDescriptionReply : sig
 
   val sizeof : switchDesc -> int

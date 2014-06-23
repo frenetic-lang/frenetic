@@ -3681,6 +3681,9 @@ module GroupStats = struct
     gs.duration_nsec
     (BucketStats.to_string gs.bucket_stats)
 
+  let to_string (gs : groupStats list) : string =
+    String.concat "\n" (map to_string_struct gs)   
+
   let marshal_struct (buf : Cstruct.t) (gs : groupStats) : int = 
     set_ofp_group_stats_length buf gs.length;
     set_ofp_group_stats_group_id buf gs.group_id;
