@@ -20,7 +20,7 @@ install: setup.data setup.ml
 	ocaml setup.ml -install
 
 test: setup.ml build
-	_build/test/Test.byte inline-test-runner netkat
+	_build/test/Test.byte inline-test-runner netkat -verbose
 
 reinstall: setup.ml
 	ocamlfind remove $(NAME) || true

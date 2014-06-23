@@ -64,7 +64,9 @@ Library async
   InternalModules:
     Discovery,
     Learning,
-    Raw_app
+    Raw_app,
+    TUtil,
+    Txn
   Modules:
     Async_NetKAT,
     Async_NetKAT_Controller
@@ -116,6 +118,17 @@ Executable katnetic
 Executable netkat_test
   Path: frenetic
   MainIs: netkat_test.ml
+  Build$: flag(async)
+  Install: false
+  BuildDepends:
+    async,
+    core,
+    netkat,
+    netkat.async
+
+Executable test_updates
+  Path: frenetic
+  MainIs: test_updates.ml
   Build$: flag(async)
   Install: false
   BuildDepends:

@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 86bb732491d32aa3c54d25305a446007)
+# DO NOT EDIT (digest: 52f89c0e9cf5ca2ab7031b713a481b4f)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -132,6 +132,24 @@
 "frenetic/netkat_test.byte": package(topology)
 "frenetic/netkat_test.byte": use_async
 "frenetic/netkat_test.byte": use_netkat
+# Executable test_updates
+"frenetic/test_updates.byte": package(async)
+"frenetic/test_updates.byte": package(core)
+"frenetic/test_updates.byte": package(cstruct)
+"frenetic/test_updates.byte": package(cstruct.syntax)
+"frenetic/test_updates.byte": package(fieldslib)
+"frenetic/test_updates.byte": package(fieldslib.syntax)
+"frenetic/test_updates.byte": package(ocamlgraph)
+"frenetic/test_updates.byte": package(openflow)
+"frenetic/test_updates.byte": package(openflow.async)
+"frenetic/test_updates.byte": package(packet)
+"frenetic/test_updates.byte": package(sexplib)
+"frenetic/test_updates.byte": package(sexplib.syntax)
+"frenetic/test_updates.byte": package(str)
+"frenetic/test_updates.byte": package(threads)
+"frenetic/test_updates.byte": package(topology)
+"frenetic/test_updates.byte": use_async
+"frenetic/test_updates.byte": use_netkat
 <frenetic/*.ml{,i}>: package(async)
 <frenetic/*.ml{,i}>: package(core)
 <frenetic/*.ml{,i}>: package(cstruct)
