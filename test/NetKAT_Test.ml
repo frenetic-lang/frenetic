@@ -5,14 +5,14 @@ open NetKAT_Types
 open NetKAT_Pretty
 
 let test_compile lhs rhs =
-  let rhs' =
-    NetKAT_LocalCompiler.to_netkat
-      (NetKAT_LocalCompiler.compile 0L lhs) in
+  let tbl = NetKAT_LocalCompiler.compile 0L lhs in 
+  let rhs' = NetKAT_LocalCompiler.to_netkat tbl in       
   if rhs' = rhs then
     true
   else
-    (Format.printf "compile @,%a@, produced %a@,,@,expected %a\n%!"
-       format_policy lhs format_policy rhs' format_policy rhs;
+    (Format.printf "compile @,%a@, produced %a@,,@,expected %a\n%!%s\n%!"
+       format_policy lhs format_policy rhs' format_policy rhs 
+       (NetKAT_LocalCompiler.to_string tbl);
      false)
 
 let test_compile_table pol tbl =
@@ -21,12 +21,13 @@ let test_compile_table pol tbl =
   if tbl = tbl' then
     true
   else
-    (Format.printf "compile @,%a@, produced %a@,,@,expected %a\n%!"
-       format_policy pol format_flowTable tbl' format_flowTable tbl;
+    (Format.printf "compile @,%a@, produced %a@,,@,expected %a\n%!%s\n"
+       format_policy pol format_flowTable tbl' format_flowTable tbl
+       (string_of_flowTable tbl);
      false)
 
 let ite (pred : pred) (then_pol : policy) (else_pol : policy) : policy =
-  Union (Seq (Filter pred, then_pol), Seq (Filter (Neg pred), else_pol))
+  Union (Seq (Filter (Neg pred), else_pol), Seq (Filter pred, then_pol))
 
 let testSrc n = Test (EthSrc (Int64.of_int n))
 let testDst n = Test (EthDst (Int64.of_int n))
@@ -50,7 +51,7 @@ TEST "compile negation of conjunction" =
   let pr = And (pr1, pr2) in
   test_compile
     (Filter (Neg pr))
-    (Union (Filter(And(pr1, Neg pr2)), Filter (Neg pr1)))
+    (Union (Filter (Neg pr1), (Filter(And(pr1, Neg pr2)))))
 
 TEST "commute test annihilator" =
   test_compile
@@ -146,13 +147,13 @@ TEST "vlan" =
       (Seq (mod_vlan_none, mod_port1)) in
   test_compile pol pol'
 
-    (* Regression test for bug in expand_rules fixed on
-       03/18/2014. The bug in the helper function that computes a
-       cross product of the boolean tables produced by expanding each
-       pattern -- the accumulator was being ignored, which is
-       bogus. This test tickles the bug by simply compiling a
-       predicate with two negated tests. *)
- TEST "expand_rules" =
+(* Regression test for bug in expand_rules fixed on
+   03/18/2014. The bug in the helper function that computes a
+   cross product of the boolean tables produced by expanding each
+   pattern -- the accumulator was being ignored, which is
+   bogus. This test tickles the bug by simply compiling a
+   predicate with two negated tests. *)
+TEST "expand_rules" =
    let flow p a = { pattern = p; action = [a]; cookie = 0L; idle_timeout = Permanent; hard_timeout= Permanent } in
    let dropEthSrc v = flow { Pattern.match_all with Pattern.dlSrc = Some(v) } [] in
    let pol = Seq(Filter (And (Neg(Test(EthSrc 0L)), Neg(Test(EthSrc 1L)))),
@@ -245,6 +246,16 @@ end
 let fix_port pol =
   Seq(Filter(Test(Location(Physical 0l))), pol)
 
+let gen_pkt = 
+  let open QuickCheck in
+  let open QuickCheck_gen in
+  let open NetKAT_Arbitrary in
+  let open Arbitrary_Packet in
+  let open Packet in
+  testable_fun (NetKAT_Arbitrary.arbitrary_tcp >>= fun pkt -> ret_gen pkt)
+    (fun pkt -> NetKAT_Types.(HeadersValues.to_string pkt.headers))
+    testable_bool
+
 let gen_pol_1 =
   let open QuickCheck in
   let open QuickCheck_gen in
@@ -304,6 +315,39 @@ let check gen_fn compare_fn =
   match QuickCheck.check gen_fn cfg compare_fn with
         QuickCheck.Success -> true
     | _                  -> false
+
+let get_masking_test =
+  let ip1 = Int32.of_int(192 * 256*256*256 + 168 * 256*256 + 0 * 256 + 1 * 1) in
+  let ip2 = Int32.of_int(192 * 256*256*256 + 168 * 256*256 + 0 * 256 + 5 * 1) in
+  let filter_pol_of_ip ip =
+    Seq(Filter(Test(IP4Src(ip, 24l))), Mod(Location(Physical 1l))) in
+  let headers =
+    { HeadersValues.location = NetKAT_Types.Physical 0l
+    ; ethSrc = 0L ; ethDst = 0L ; vlan = 0 ; vlanPcp = 0 ; ethType = 0
+    ; ipProto = 0 ; ipSrc = ip1 ; ipDst = 0l ; tcpSrcPort = 0 ; tcpDstPort = 0
+    } in
+  let payload = SDN_Types.NotBuffered (Cstruct.create 0) in
+  let pkt = {switch = 0L; headers = headers; payload = payload} in
+  (filter_pol_of_ip ip1, filter_pol_of_ip ip2, pkt)
+
+TEST "ip masking eval" =
+  let (pol1, pol2, pkt) = get_masking_test in
+  compare_eval_output pol1 pol2 pkt
+
+TEST "ip masking compile" =
+  let (pol1, pol2, pkt) = get_masking_test in
+  compare_compiler_output pol1 pol2 pkt
+
+(* regression test for bug in flowterp handling of patterns with IP mask 0 *)
+TEST "zero mask" =
+  let prop_compile_ok (pkt) =
+    let pol = Seq(Filter(Test(Location(Physical 0l))),
+		  Filter(Test(IP4Dst(0l,0l)))) in
+    PacketSet.compare
+      (NetKAT_Semantics.eval pkt (Optimize.specialize_policy pkt.switch pol))
+      (Flowterp.Packet.eval pkt
+	 (NetKAT_LocalCompiler.(to_table (of_policy pkt.switch pol)))) = 0 in
+  check gen_pkt prop_compile_ok
 
 TEST "semantics agree with flowtable" =
   let prop_compile_ok (p, pkt) =

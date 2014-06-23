@@ -75,7 +75,7 @@ module Headers = struct
     val compare : t -> t -> int
     val to_string : t -> string
     val equal : t -> t -> bool
-    val is_wild : t -> bool
+    val is_any : t -> bool
   end
 
   module Make =
@@ -124,26 +124,42 @@ module Headers = struct
         ~tcpDstPort:(g TcpDstPort.compare)
 
     let to_string ?init:(init="") ?sep:(sep="=") (x:t) : string =
-      let g is_wild to_string acc f =
+      let g is_any to_string acc f =
         let v = Field.get f x in
-        if is_wild v then acc
+        if is_any v then acc
         else
           Printf.sprintf "%s%s%s%s"
             (if acc = init then "" else acc ^ "; ")
             (Field.name f) sep (to_string (Field.get f x)) in
       Fields.fold
         ~init:init
-        ~location:Location.(g is_wild to_string)
-        ~ethSrc:EthSrc.(g is_wild to_string)
-        ~ethDst:EthDst.(g is_wild to_string)
-        ~vlan:Vlan.(g is_wild to_string)
-        ~vlanPcp:VlanPcp.(g is_wild to_string)
-        ~ethType:EthType.(g is_wild to_string)
-        ~ipProto:IpProto.(g is_wild to_string)
-        ~ipSrc:IpSrc.(g is_wild to_string)
-        ~ipDst:IpDst.(g is_wild to_string)
-        ~tcpSrcPort:TcpSrcPort.(g is_wild to_string)
-        ~tcpDstPort:TcpDstPort.(g is_wild to_string)
+        ~location:Location.(g is_any to_string)
+        ~ethSrc:EthSrc.(g is_any to_string)
+        ~ethDst:EthDst.(g is_any to_string)
+        ~vlan:Vlan.(g is_any to_string)
+        ~vlanPcp:VlanPcp.(g is_any to_string)
+        ~ethType:EthType.(g is_any to_string)
+        ~ipProto:IpProto.(g is_any to_string)
+        ~ipSrc:IpSrc.(g is_any to_string)
+        ~ipDst:IpDst.(g is_any to_string)
+        ~tcpSrcPort:TcpSrcPort.(g is_any to_string)
+        ~tcpDstPort:TcpDstPort.(g is_any to_string)
+
+    let is_any (x:t) : bool = 
+      let g is_any f = is_any (Field.get f x) in 
+      Fields.for_all
+        ~location:Location.(g is_any)
+        ~ethSrc:EthSrc.(g is_any)
+        ~ethDst:EthDst.(g is_any)
+        ~vlan:Vlan.(g is_any)
+        ~vlanPcp:VlanPcp.(g is_any)
+        ~ethType:EthType.(g is_any)
+        ~ipProto:IpProto.(g is_any)
+        ~ipSrc:IpSrc.(g is_any)
+        ~ipDst:IpDst.(g is_any)
+        ~tcpSrcPort:TcpSrcPort.(g is_any)
+        ~tcpDstPort:TcpDstPort.(g is_any)
+
   end
 end
 
@@ -155,19 +171,74 @@ module LocationHeader = struct
     match l with
       | Pipe x -> Printf.sprintf "%s" x
       | Physical n -> Printf.sprintf "%lu" n
-  let is_wild l = false
+  let is_any l = false
 end
 module IntHeader = struct
   include Int
-  let is_wild _ = false
+  let is_any _ = false
 end
 module Int32Header = struct
   include Int32
-  let is_wild _ = false
+  let is_any _ = false
 end
+module Int32TupleHeader = struct
+  (* Represents an (ip_address, mask) tuple. *)
+  type t = Int32Header.t * Int32Header.t with sexp
+
+  module Ip = SDN_Types.Pattern.Ip
+
+  let equal x1 x2 = Ip.eq x1 x2
+
+  let compare ((p,m):t) ((p',m'):t) : int =
+    if Pervasives.compare p p' = 0 then 
+      Pervasives.compare m m'
+    else Pervasives.compare p p'
+
+  let any = Ip.match_all
+
+  let is_any x1 = equal x1 any
+
+  let inter (x1:t) (x2:t) : t option = 
+    Ip.intersect x1 x2
+
+  let subseteq (x1:t) (x2:t) : bool = 
+    Ip.less_eq x1 x2
+    
+  (* Given two Ip.t's x1 and x2, attempt to combine them into a single Ip.t x
+   * with the following property:
+   *
+   *   ∀y, subseteq y x <=> subseteq y x1 || subseteq y x2 || eq y x
+   *
+   * In other words, if combine x1 x2 exists, then it is an upper-bound on
+   * x1 and x2 that bounds elements transitively through x1 and x2 and no
+   * other elements, besides itself.
+   *
+   * Examples:
+   *
+   *   combine 0.0.0.0/32 0.0.0.1/32 = Some(0.0.0.0/31)
+   *   combine 0.0.0.2/31 0.0.0.4/31 = Some(0.0.0.0/30)
+   *   combine 0.0.0.2/31 0.0.0.3/32 = Some(0.0.0.2/31)
+   *   combine 1.0.0.2/31 2.0.0.2/31 = None
+   *)
+  let combine ((p1,m1) as x1:t) ((p2,m2) as x2:t) : t option = 
+    if equal x1 x2 then
+      Some x1
+    else if m1 = m2 then
+      let x1', x2' = Int32.(p1, m1 - 1l), Int32.(p2, m2 - 1l) in
+      if equal x1' x2' then Some x1' else None
+    else if m1 = Int32.(m2 - 1l) && subseteq x2 x1 then
+      Some(x1)
+    else if m2 = Int32.(m1 - 1l) && subseteq x1 x2 then
+      Some(x2)
+    else
+      None
+
+  let to_string x = Ip.string_of x
+end
+
 module Int64Header = struct
   include Int64
-  let is_wild _ = false
+  let is_any _ = false
 end
 
 module HeadersValues =
