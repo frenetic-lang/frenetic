@@ -3705,7 +3705,7 @@ module GroupStats = struct
     ; byte_count = get_ofp_group_stats_byte_count bits
     ; duration_sec = get_ofp_group_stats_duration_sec bits
     ; duration_nsec = get_ofp_group_stats_duration_nsec bits
-    ; bucket_stats = BucketStats.parse bits
+    ; bucket_stats = BucketStats.parse (Cstruct.shift bits sizeof_ofp_group_stats)
     }
 
   let length_fn (buf :  Cstruct.t) : int option =
