@@ -199,8 +199,6 @@ struct
 
     module P = Graph.Persistent.Digraph.ConcreteBidirectionalLabeled(VL)(EL)
 
-    module EdgeMap = Map.Make (EL)
-
     type vertex = P.vertex
 
     type edge = P.edge
