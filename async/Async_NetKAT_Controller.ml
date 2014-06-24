@@ -489,7 +489,8 @@ let start app ?(port=6633) ?(update=`BestEffort) () =
     let stages =
       let features = local (fun t -> t.ctl) Controller.features in
       let events   = to_event s_pkt_out in
-      features >=> events in
+      let txns     = local (fun t -> t.txn) Txn.stage in
+      features >=> txns >=> events in
 
     (* Initialize the application to produce an event callback and
      * Pipe.Reader.t's for packet out messages and policy updates.
