@@ -25,6 +25,18 @@ module Net : Network.NETWORK
     parts. *)
 type app
 
+(** [update] represents a policy upate for asychronous applications. When
+    responding to a network event, applications must write either an
+    [Event(pol)] or [EventNoop] [update] before allow the returned
+    [unit Deferred.t] to become determined. A good way to do this is to have
+    that write be in the the return position of your event callback.
+
+    All asychronous policy updates should exclusively use the [Async(pol)]
+    variant of [update]. *)
+type update = Raw_app.update
+
+type recv = policy Raw_app.recv
+
 (** The set of pipe names that an application is listening on. *)
 module PipeSet : Set.S
   with type Elt.t = string
@@ -32,18 +44,39 @@ module PipeSet : Set.S
 (** [result] is the result of a handler, which is just an optional policy. *)
 type result = policy option
 
-(** [handler] is a function that's used to both create basic reactive [app]s as
+(** A [handler] is a function that's used to both create basic reactive [app]s as
     well as run them. The [unit] argument indicates a partial application point. *)
-type handler = Net.Topology.t ref
-             -> (switchId * SDN_Types.pktOut) Pipe.Writer.t
-             -> unit
-             -> event
-             -> result Deferred.t
+type handler
+  = Net.Topology.t ref
+  -> (switchId * SDN_Types.pktOut) Pipe.Writer.t
+  -> unit
+  -> event
+  -> result Deferred.t
+
+(** [asycn_handler] is a function that's used to build reactive [app]s that
+    are also capable of pushing asynchronous policy updates. The [unit] argument
+    indicates a partial application point. *)
+type async_handler
+  = Net.Topology.t ref
+  -> policy Raw_app.send
+  -> unit
+  -> event -> result Deferred.t
 
 (** [create ?pipes pol handler] returns an [app] that listens to the pipes
     included in [pipes], uses [pol] as the initial default policy to install,
     and [handler] as the function to handle network events. *)
 val create : ?pipes:PipeSet.t -> policy -> handler -> app
+
+(** [create_async ?pipes pol async_handler] returns an [app] that listens to
+    the pipes included in [pipes], uses [pol] as the initial default policy to
+    install, and [async_handler] as the function used to handle network events.
+
+    NOTE: It's assumed that [handler nib send () e] will not become determined
+    until either an [Event(pol)] or [EventNoop] [update] has been written to
+    the [send.update] pipe. It is very important that you satisfy this
+    assumption! Not doing so will cause your application to lock up the
+    controller. *)
+val create_async : ?pipes:PipeSet.t -> policy -> async_handler -> app
 
 (** [create_static pol] returns a static app for the NetKAT syntax tree [pol] *)
 val create_static : policy -> app
@@ -67,10 +100,8 @@ val default : app -> policy
 val run
   :  app
   -> Net.Topology.t ref
-  -> (switchId * SDN_Types.pktOut) Pipe.Writer.t
   -> unit
-  -> event
-  -> result Deferred.t
+  -> (recv * (event -> unit Deferred.t))
 
 (** [union ?how app1 app2] returns the union of [app1] and [app2].
 

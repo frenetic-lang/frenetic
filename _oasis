@@ -64,6 +64,7 @@ Library async
   InternalModules:
     Discovery,
     Learning,
+    Raw_app,
     TUtil,
     Txn
   Modules:
