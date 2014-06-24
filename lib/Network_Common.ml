@@ -152,18 +152,23 @@ end
 
 module Link = struct
   type t = { cost : int64 ;
-             capacity : int64 ; }
+             capacity : int64 ;
+             mutable weight : float }
 
   let default = { cost = 1L;
-                  capacity = Int64.max_int }
+                  capacity = Int64.max_int;
+                  weight = 1. }
 
   let create (cost:int64) (cap:int64) : t =
-    { cost = cost; capacity = cap }
+    { default with cost = cost; capacity = cap }
 
   let cost (l:t) = l.cost
   let capacity (l:t) = l.capacity
 
   let compare = Pervasives.compare
+
+  let weight (l:t) = l.weight
+  let set_weight (l:t) (w:float) = l.weight <- w
 
   let to_string (l:t) : string =
     Printf.sprintf " cost = %s; capacity = %s; "
@@ -192,4 +197,16 @@ module Link = struct
     link
 end
 
+module Weight = struct
+  type label = Link.t
+  type t = float
+  let weight l = 
+    let open Link in 
+    l.weight
+  let compare = compare
+  let add = (+.)
+  let zero = 0.
+end
+      
 module Net = Network.Make(Node)(Link)
+module NetPath = Net.Path(Weight)

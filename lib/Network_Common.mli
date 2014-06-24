@@ -19,8 +19,15 @@ module Link : sig
   val create : int64 -> int64 -> t
   val cost : t -> int64
   val capacity : t -> int64
+
+  val weight : t -> float
+  val set_weight : t -> float -> unit
+
 end
 
-module Net : NETWORK with type Topology.Vertex.t = Node.t
-                     and type Topology.Edge.t = Link.t
+module Net : NETWORK 
+  with type Topology.Vertex.t = Node.t
+  and type Topology.Edge.t = Link.t
 
+module NetPath : Net.PATH 
+  with type weight = float

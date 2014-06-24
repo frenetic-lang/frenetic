@@ -20,6 +20,16 @@ module type EDGE = sig
   val default : t
 end
 
+module type WEIGHT = sig
+  type t
+  type label
+
+  val weight : label -> t
+  val compare : t -> t -> int
+  val add : t -> t -> t
+  val zero : t
+end
+
 module type NETWORK = sig
   module Topology : sig
     type t
@@ -30,6 +40,10 @@ module type NETWORK = sig
 
     module Vertex : VERTEX
     module Edge : EDGE
+
+    module UnitWeight : WEIGHT 
+      with type t = int 
+      and type label = Edge.t
 
     module EdgeSet : Set.S
       with type elt = edge
@@ -66,6 +80,7 @@ module type NETWORK = sig
     val vertex_to_string : t -> vertex -> string
     val vertex_to_label : t -> vertex -> Vertex.t
     val vertex_of_label : t -> Vertex.t -> vertex
+    val edge_to_string : t -> edge -> string
     val edge_to_label : t -> edge -> Edge.t
 
     (* Iterators *)
@@ -88,15 +103,22 @@ module type NETWORK = sig
   end
 
   (* Paths *)
-  module Path : sig
+  module type PATH = sig 
+    type weight 
     type t = Topology.edge list
     exception NegativeCycle of t
-
+        
     val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
     val all_shortest_paths : Topology.t -> Topology.vertex -> Topology.vertex Topology.VertexHash.t
-    val all_pairs_shortest_paths : Topology.t -> (float * Topology.vertex *
-                                                   Topology.vertex * Topology.vertex list) list
+    val all_pairs_shortest_paths : Topology.t
+      -> (weight * Topology.vertex * Topology.vertex * Topology.vertex list) list
   end
+
+  module Path (Weight : WEIGHT with type label = Topology.Edge.t) : 
+    PATH with type weight = Weight.t
+
+  module UnitPath : PATH
+    with type weight = int
 
   (* Parsing *)
   module Parse : sig
@@ -150,12 +172,23 @@ struct
       let compare e1 e2 = Pervasives.compare e1.id e2.id
       let hash e1 = Hashtbl.hash e1.id
       let equal e1 e2 = e1.id = e2.id
+      let to_string e = string_of_int e.id
       let default =
         { id = 0;
           label = Edge.default;
           src = 0l;
           dst = 0l }
     end
+
+    module UnitWeight = struct
+      type label = Edge.t
+      type t = int
+      let weight _ = 1
+      let compare = Pervasives.compare
+      let add = (+)
+      let zero = 0
+    end
+
     module EdgeSet = Set.Make(struct
       type t = VL.t * EL.t * VL.t
       let compare (e1:t) (e2:t) : int =
@@ -236,10 +269,6 @@ struct
     let find_edge (t:t) (src:vertex) (dst:vertex) : edge =
       P.find_edge t.graph src dst
 
-    let edge_to_label (t:t) (e:edge) : Edge.t =
-      let (_,l,_) = e in
-      l.EL.label
-
     let vertex_to_string (t:t) (v:vertex) : string =
       VL.to_string v
 
@@ -248,6 +277,14 @@ struct
 
     let vertex_of_label (t:t) (l:Vertex.t) : vertex =
       VertexMap.find l t.node_labels
+
+    let edge_to_label (t:t) (e:edge) : Edge.t =
+      let (_,l,_) = e in
+      l.EL.label
+
+    let edge_to_string (t:t) (e:edge) : string =
+      let (_,e,_) = e in 
+      EL.to_string e
 
     let edge_src (e:edge) : (vertex * port) =
       let (v1,l,_) = e in
@@ -315,7 +352,6 @@ struct
           then remove_edge acc e
           else acc)
         t t
-
   end
 
   (* Traversals *)
@@ -332,18 +368,34 @@ struct
   end
 
   (* Paths *)
-  module Path = struct
-    open Topology
-    module UnitWeight = struct
-      type label = EL.t
-      type t = int
-      let weight _ = 1
-      let compare = Pervasives.compare
-      let add = (+)
-      let zero = 0
-    end
+  module type PATH = sig 
+    type weight 
+    type t = Topology.edge list
+    exception NegativeCycle of t
+        
+    val shortest_path : Topology.t -> Topology.vertex -> Topology.vertex -> t option
+    val all_shortest_paths : Topology.t -> Topology.vertex -> Topology.vertex Topology.VertexHash.t
+    val all_pairs_shortest_paths : Topology.t
+      -> (weight * Topology.vertex * Topology.vertex * Topology.vertex list) list
+  end
 
-    module Dijkstra = Graph.Path.Dijkstra(P)(UnitWeight)
+  module Path = functor (Weight : WEIGHT with type label = Topology.Edge.t) ->
+  struct
+    open Topology
+
+    module WL = struct
+      type t = Weight.t
+      type label = EL.t
+
+      let weight l = Weight.weight (l.EL.label)
+      let compare = Weight.compare
+      let add = Weight.add
+      let zero = Weight.zero
+    end 
+
+    module Dijkstra = Graph.Path.Dijkstra(P)(WL)
+
+    type weight = Weight.t
     type t = edge list
 
     let shortest_path (t:Topology.t) (v1:vertex) (v2:vertex) : t option =
@@ -362,15 +414,13 @@ struct
       let dist = VertexHash.create size in
       let prev = VertexHash.create size in
       let admissible = VertexHash.create size in
-      VertexHash.replace dist src UnitWeight.zero;
+      VertexHash.replace dist src Weight.zero;
       let build_cycle_from x0 =
         let rec traverse_parent x ret =
           let e = VertexHash.find admissible x in
           let s,_ = edge_src e in
-          if s = x0 then e :: ret else traverse_parent s (e :: ret)
-        in
-        traverse_parent x0 []
-      in
+          if s = x0 then e :: ret else traverse_parent s (e :: ret) in 
+        traverse_parent x0 [] in 
       let find_cycle x0 =
         let rec visit x visited =
           if VertexSet.mem x visited then
@@ -383,16 +433,16 @@ struct
         in
         visit x0 (VertexSet.empty)
       in
-      let rec relax i =
+      let rec relax (i:int) =
         let update = P.fold_edges_e
           (fun e x ->
             let ev1,_ = edge_src e in
             let ev2,_ = edge_dst e in
             try begin
               let dev1 = VertexHash.find dist ev1 in
-              let dev2 = UnitWeight.add dev1 (UnitWeight.weight e) in
+              let dev2 = Weight.add dev1 (Weight.weight (Topology.edge_to_label t e)) in
               let improvement =
-                try UnitWeight.compare dev2 (VertexHash.find dist ev2) < 0
+                try Weight.compare dev2 (VertexHash.find dist ev2) < 0
                 with Not_found -> true
               in
               if improvement then begin
@@ -406,20 +456,21 @@ struct
           | Some x ->
             if i == P.nb_vertex t.graph then raise (NegativeCycle (find_cycle x))
             else relax (i + 1)
-          | None -> prev
-      in
+          | None -> prev in 
       let r = relax 0 in
       r
 
-
-    let all_pairs_shortest_paths (t:Topology.t) : (float * vertex * vertex * vertex list) list =
+    let all_pairs_shortest_paths (t:Topology.t) : (Weight.t * vertex * vertex * vertex list) list =
+      (* Because Weight does not provide infinity, we lift Weight.t
+         using an option: None corresponds to infinity, and Some w
+         corresponds to a finite weight. *)
       let add_opt o1 o2 =
         match o1, o2 with
-          | Some n1, Some n2 -> Some (n1 + n2)
+          | Some w1, Some w2 -> Some (Weight.add w1 w2)
           | _ -> None in
       let lt_opt o1 o2 =
         match o1, o2 with
-          | Some n1, Some n2 -> n1 < n2
+          | Some w1, Some w2 -> Weight.compare w1 w2 < 0
           | Some _, None -> true
           | None, Some _ -> false
           | None, None -> false in
@@ -429,16 +480,15 @@ struct
         let nodes = Array.make n (VertexSet.choose vs) in
         let _ = VertexSet.fold (fun v i -> Array.set nodes i v; i+1) vs 0 in
         (Array.init n
-          (fun i -> Array.init n
-            (fun j -> if i = j then (Some 0, [nodes.(i)])
-              else
-                try
-                  let l = find_edge g nodes.(i) nodes.(j) in
-                  let cost = UnitWeight.weight l in
-                  (Some cost, [nodes.(i); nodes.(j)])
-                with Not_found ->
-                  (None,[]))),
-        nodes)
+           (fun i -> Array.init n
+             (fun j -> if i = j then (Some Weight.zero, [nodes.(i)])
+               else
+                 try
+                   let l = find_edge g nodes.(i) nodes.(j) in
+                   let w = Weight.weight (Topology.edge_to_label g l) in
+                   (Some w, [nodes.(i); nodes.(j)])
+                 with Not_found -> (None,[]))),
+         nodes)
       in
       let matrix,vxs = make_matrix t in
       let n = P.nb_vertex t.graph in
@@ -456,12 +506,16 @@ struct
       let paths = ref [] in
       Array.iteri (fun i array ->
         Array.iteri (fun j elt ->
-          let (c, p) = elt in
-          let cost = match c with Some x -> float x | None -> infinity in
-          paths := (cost, vxs.(i), vxs.(j),p) :: !paths) array;) matrix;
+          match elt with 
+            | None, _ -> ()
+            | Some w, p -> 
+              paths := (w, vxs.(i), vxs.(j),p) :: !paths) 
+          array;) 
+        matrix;
       !paths
-
   end
+
+  module UnitPath = Path(Topology.UnitWeight)
 
   (* Parsing *)
   module Parse = struct
