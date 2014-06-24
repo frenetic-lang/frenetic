@@ -972,7 +972,6 @@ module OASISLicense = struct
     | DEP5Or of license_dep_5 list
     | DEP5And of license_dep_5 list
 
-
   type t =
     | DEP5License of license_dep_5
     | OtherLicense of string (* URL *)
@@ -6920,6 +6919,7 @@ let setup_t =
                            FindlibPackage ("packet", None);
                            FindlibPackage ("core", None);
                            FindlibPackage ("sexplib.syntax", None);
+                           FindlibPackage ("sexplib", None);
                            FindlibPackage ("threads", None)
                         ];
                       bs_build_tools = [ExternalTool "ocamlbuild"];
@@ -6980,7 +6980,8 @@ let setup_t =
                            InternalLibrary "openflow";
                            FindlibPackage ("cstruct.async", None);
                            FindlibPackage ("threads", None);
-                           FindlibPackage ("sexplib.syntax", None)
+                           FindlibPackage ("sexplib.syntax", None);
+                           FindlibPackage ("sexplib", None)
                         ];
                       bs_build_tools = [ExternalTool "ocamlbuild"];
                       bs_c_sources = [];

@@ -31,11 +31,10 @@
 
 open Packet
 
-type switchId = int64
-type portId = int32
-type queueId = int32
-
-type bufferId = int32
+type switchId = int64 with sexp
+type portId = int32 with sexp
+type queueId = int32 with sexp
+type bufferId = int32 with sexp
 
 exception Unsupported of string
 
@@ -161,6 +160,7 @@ type payload =
   | Buffered of bufferId * bytes 
     (** [Buffered (id, buf)] is a packet buffered on a switch *)
   | NotBuffered of bytes
+with sexp
 
 
 (** [payload_bytes payload] returns the bytes for the given payload *)

@@ -2,7 +2,7 @@ language: c
 script: bash -ex .travis-ci.sh
 env:
   global:
-    - OPAM_DEPENDS="cstruct quickcheck ounit pa_ounit textutils core async"
+    - OPAM_DEPENDS="cstruct quickcheck ounit pa_ounit textutils core async sexplib"
     - CONFIG_FLAGS="--enable-tests --enable-quickcheck --enable-async"
     - FRENETIC_DEPENDS="ocaml-packet"
   matrix:
