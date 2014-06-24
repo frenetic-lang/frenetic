@@ -128,14 +128,8 @@ let run (app : 'a t) (a : 'a) () : (policy recv * (event -> unit Deferred.t)) =
       | _ ->
         state := Event;
         callback e
-        >>= fun () ->
-          state := Async;
-          (* XXX(seliopou): I'm not convinced this is necessary. The assumption
-           * about [callback e] not becoming determined until an Event or
-           * EventNoop update has bee written to the pipe may be sufficient to
-           * ensure synchronization of policy updates in the application tree.
-           * *)
-          Deferred.ignore (Pipe.downstream_flushed recv.update)
+        >>| fun () ->
+          state := Async
       end in
     let update' =
       let last_async = ref None in
@@ -174,11 +168,6 @@ let run (app : 'a t) (a : 'a) () : (policy recv * (event -> unit Deferred.t)) =
         return ()
       | _ ->
         callback e
-        (* XXX(seliopou): I'm not convinced this is necessary. The
-         * synchronization done in [combine] may be sufficient to ensure
-         * synchronization of policy updates in the application tree.
-         * *)
-        >>= fun () -> Deferred.ignore (Pipe.downstream_flushed recv.update)
       end in
     let update' = Pipe.map recv.update ~f:(fun p -> app.policy <- p; p) in
     { recv with update = update' }, callback'
