@@ -530,6 +530,15 @@ let start app ?(port=6633) ?(update=`BestEffort) () =
         PerPacketConsistent.(implement_policy, bring_up_switch)
     in
 
+    let implement_policy' t q =
+      let len = Queue.length q in
+      assert (len > 0);
+      Log.debug ~tags "Processing policy queue of size %d" len;
+      implement_policy t (Queue.get q (len - 1))
+    in
+
+    Pipe.set_size_budget recv.update 10;
+
     (* This is the main event handler for the controller. First it sends
      * events to the application callback. Then it checks to see if the event
      * is a SwitchUp event, in which case it's necessary to populate the new
@@ -557,6 +566,6 @@ let start app ?(port=6633) ?(update=`BestEffort) () =
      * policy on the switches.
      * *)
     let open Deferred in
-    don't_wait_for (Pipe.iter events      handler);                 (* input  *)
-    don't_wait_for (Pipe.iter pkt_outs    (send_pkt_out ctl));      (* output *)
-    don't_wait_for (Pipe.iter recv.update (implement_policy t))     (* output *)
+    don't_wait_for (Pipe.iter  events      handler);                (* input  *)
+    don't_wait_for (Pipe.iter  pkt_outs    (send_pkt_out ctl));     (* output *)
+    don't_wait_for (Pipe.iter' recv.update (implement_policy' t))   (* output *)
