@@ -23,9 +23,13 @@
 <lib/packet.{cma,cmxa}>: use_libpacket_stubs
 <lib/*.ml{,i}>: pkg_cstruct
 <lib/*.ml{,i}>: pkg_cstruct.syntax
+<lib/*.ml{,i}>: pkg_sexplib
+<lib/*.ml{,i}>: pkg_sexplib.syntax
 <lib/*.ml{,i}>: pkg_str
 "lib/checksum_stubs.c": pkg_cstruct
 "lib/checksum_stubs.c": pkg_cstruct.syntax
+"lib/checksum_stubs.c": pkg_sexplib
+"lib/checksum_stubs.c": pkg_sexplib.syntax
 "lib/checksum_stubs.c": pkg_str
 # Library quickcheck
 "quickcheck/quickcheck.cmxs": use_quickcheck

@@ -3,7 +3,7 @@
 version = "0.3.0"
 description =
 "Serialization for some common network packets, including ethernet frames, IP, TCP, and ARP."
-requires = "str cstruct cstruct.syntax"
+requires = "str cstruct cstruct.syntax sexplib sexplib.syntax"
 archive(byte) = "packet.cma"
 archive(byte, plugin) = "packet.cma"
 archive(native) = "packet.cmxa"
