@@ -507,6 +507,10 @@ let start app ?(port=6633) ?(update=`BestEffort) () =
     let network_events = run stages t (Controller.listen ctl) in
     let events = Pipe.interleave [Discovery.events d_ctl; network_events] in
 
+    (* Pick a method for updating the network. Each method needs to be able to
+     * implement a policy across the entire network as well as handle new
+     * switches entering the network.
+     * *)
     let implement_policy, bring_up_switch = match update with
       | `BestEffort ->
         BestEffort.(
