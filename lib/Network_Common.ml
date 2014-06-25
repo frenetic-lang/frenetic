@@ -55,11 +55,24 @@ module Node = struct
              mac : int64 ;
              name : string }
 
+  type partial_t = { partial_dev_type : device option ;
+                     partial_dev_id : int64 option ;
+                     partial_ip : int32 option ;
+                     partial_mac : int64 option ;
+                     partial_name : string option }
+
   let default = { dev_type = Host ;
                   dev_id = 0L ;
-                  name = "" ;
-                  ip = 0l ;
-                  mac = 0L }
+                  name   = "" ;
+                  ip     = 0l ;
+                  mac    = 0L }
+
+  let partial_default = { partial_dev_type = None ;
+                            partial_dev_id = None ;
+                            partial_ip     = None ;
+                            partial_mac    = None ;
+                            partial_name   = None }
+
 
   let create (n:string) (i:int64) (d:device) (ip:int32) (mac:int64) : t =
     { dev_type = d ;
@@ -117,18 +130,31 @@ module Node = struct
       | Dot_ast.String(s) -> Packet.mac_of_string s
       | _ -> failwith "MAC must be represented as a string (in quotes)\n" in
     match k with
-      | Dot_ast.Ident("type") -> {n with dev_type = dev_type_of vo}
-      | Dot_ast.Ident("id") -> {n with dev_id = int64_of_id vo}
-      | Dot_ast.Ident("ip") -> {n with ip = ip_of vo}
-      | Dot_ast.Ident("mac") -> {n with mac = mac_of vo}
+      | Dot_ast.Ident("type") -> {n with partial_dev_type = Some (dev_type_of vo)}
+      | Dot_ast.Ident("id") -> {n with partial_dev_id = Some (int64_of_id vo)}
+      | Dot_ast.Ident("ip") -> {n with partial_ip = Some (ip_of vo)}
+      | Dot_ast.Ident("mac") -> {n with partial_mac = Some (mac_of vo)}
       | _ -> failwith "Unknown node attribute\n"
+
+  (* Take the partial node record and remove the option types, or
+     raise an error if it is not fully filled *)
+  let unbox (partial:partial_t) : t = match partial with
+    | { partial_dev_type = Some dt ;
+        partial_dev_id = Some did ;
+        partial_ip     = Some ip ;
+        partial_mac    = Some mac ;
+        partial_name   = Some name } -> { dev_type = dt ; dev_id =  did ;
+                                          ip = ip ; mac = mac ; name = name ;}
+    | _ -> failwith "Must specify all node attributes"
+
 
   let parse_dot (i:Dot_ast.node_id) (ats:Dot_ast.attr list) : t =
     let (id, popt) = i in
     let name = string_of_id id in
     let at = List.hd ats in
-    List.fold_left update_dot_attr
-      {default with name = name; ip = 0l; mac = 0L} at
+    let partial = List.fold_left update_dot_attr
+      {partial_default with partial_name = Some name} at in
+    unbox partial
 
   let int64_of_value v = match v with
     | Gml.Int(i) -> Int64.of_int i
