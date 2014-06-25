@@ -61,7 +61,6 @@ let bytes_to_headers
   ; tcpDstPort = (try tpDst pkt with Invalid_argument(_) -> 0)
   }
 
-
 let headers_to_actions
   (h_new:NetKAT_Types.HeadersValues.t)
   (h_old:NetKAT_Types.HeadersValues.t)
@@ -172,7 +171,8 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
       let open OpenFlow0x01.Message in
       let switch_id = Controller.switch_id_of_client t.ctl c_id in
       begin match msg with
-        | PacketInMsg pi ->
+        (* only process packet_ins from physical ports *)
+        | PacketInMsg pi when pi.OpenFlow0x01_Core.port <= 0xff00 ->
           let open OpenFlow0x01_Core in
           let port_id = Int32.of_int_exn pi.port in
           let payload = SDN_OpenFlow0x01.to_payload pi.input_payload in
@@ -435,98 +435,128 @@ module PerPacketConsistent = struct
 
 end
 
-let handler
-  ?(update=`BestEffort)
-  (t : t)
-  (w : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
-  (app : Async_NetKAT.app)
-  : (NetKAT_Types.event -> unit Deferred.t) =
-  let app' = Async_NetKAT.run app t.nib w () in
-  let update, bring_up = match update with
-    | `BestEffort ->
-      BestEffort.(
-       (fun t -> implement_policy t.ctl !(t.nib)),
-       (fun t -> bring_up_switch t.ctl))
-    | `PerPacketConsistent ->
-      PerPacketConsistent.(
-        implement_policy,
-        bring_up_switch) in
-  fun e ->
-    app' e >>= fun m_pol ->
-    match m_pol with
-    | Some (pol) ->
-      update t pol
-    | None ->
-      begin match e with
-        | NetKAT_Types.SwitchUp sw_id ->
-          bring_up t sw_id (Async_NetKAT.default app)
-        | _ -> return ()
-      end
+(* Send a packet_out message to the specified switch, and log any errors that
+ * may occur.
+ * *)
+let send_pkt_out (ctl : Controller.t) (sw_id, pkt_out) =
+  let c_id = Controller.client_id_of_switch ctl sw_id in
+  Controller.send ctl c_id (0l, OpenFlow0x01.Message.PacketOutMsg
+    (SDN_OpenFlow0x01.from_packetOut pkt_out))
+  >>= function
+    | `Sent _   -> return ()
+    | `Drop exn ->
+      Log.error ~tags "switch %Lu: Failed to send packet_out" sw_id;
+      Log.flushed () >>| fun () ->
+        Printf.eprintf "%s\n%!" (Exn.to_string exn)
 
+(* Start the controller, running the given application.
+ * *)
 let start app ?(port=6633) ?(update=`BestEffort) () =
-  let open Async_OpenFlow.Stage in
-  Controller.create ~log_disconnects:true ~max_pending_connections ~port ()
+  let open Stage in
+  Controller.create ~max_pending_connections ~port ()
   >>> fun ctl ->
-  let t = {
-    ctl = ctl;
-    txn = Txn.create ctl;
-    nib = ref (Net.Topology.empty ());
-    app = app;
-    edge = SwitchMap.empty;
-  } in
+    (* Build up the application by adding topology discovery into the mix. Make
+     * the evaluation sequential so that the application can benefit from any
+     * topology updates caused by the network event.
+     * *)
+    let d_ctl, topo = Discovery.create () in
+    let app = Async_NetKAT.union ~how:`Sequential topo (Discovery.guard app) in
 
-  (* The pipe for packet_outs. The Pipe.iter below will run in its own logical
-   * thread, sending packet outs to the switch whenever it's scheduled.
-   *)
-  let r_out, w_out = Pipe.create () in
-  Deferred.don't_wait_for (Pipe.iter r_out ~f:(fun out ->
-      let (sw_id, pkt_out) = out in
-      Monitor.try_with ~name:"packet_out" (fun () ->
-          let c_id = Controller.client_id_of_switch ctl sw_id in
-          send ctl c_id (0l, OpenFlow0x01.Message.PacketOutMsg
-                           (SDN_OpenFlow0x01.from_packetOut pkt_out)))
-      >>= function
-      | Ok () -> return ()
-      | Error exn_ ->
-        Log.error ~tags "switch %Lu: Failed to send packet_out" sw_id;
-        Log.flushed ()));
-  let stages = let open Controller in
-    (local (fun t -> t.ctl) features)
-    >=> (local (fun t -> t.txn) Txn.stage)
-    >=> (to_event w_out) in
-  
-  (* Build up the application by adding topology discovery into the mix. *)
-  let d_ctl, topo = Discovery.create () in
-  let app = Async_NetKAT.union ~how:`Sequential topo (Discovery.guard app) in
-  let sdn_events = run stages t (Controller.listen ctl) in
-  (* The discovery application itself will generate events, so the actual
-   * event stream must be a combination of switch events and synthetic
-   * topology discovery events. Pipe.interleave will wait until one of the
-   * pipes is readable, take a batch, and send it along.
-   *
-   * Whatever happens, happens. Can't stop won't stop.
-   * *)
-  let events = Pipe.interleave [Discovery.events d_ctl; sdn_events] in
-  begin match update with
-  | `PerPacketConsistent ->
-    (* XXX(seliopou): budget has to be big, otherwise consistent updates will
-     * lead to deadlocks where event processing is blocked on a table update,
-     * but the table update can't complete until an event, specifically a
-     * barrier reply, is processed.
+    (* Create the controller struct to contain all the state of the controller.
+     * *)
+    let t = {
+      ctl = ctl;
+      txn = Txn.create ctl;
+      nib = ref (Net.Topology.empty ());
+      app = app;
+      edge = SwitchMap.empty;
+    } in
+
+    (* Setup the controller stages. Use the provides features stage to collect
+     * switch features, and sequence that with a stage that will transform
+     * OpenFlow 1.0 events to the high-level event type that applications know
+     * how to consume.
      *
-     * This and other parameters need to be tweaked. This'll happen in the app
-     * branch. For now, the parameter is set so that the controller can manage a
-     * topo,2,3 and achieve connectivity with --learn enabled.
-     *)
-    Pipe.set_size_budget events 50
-  | `BestEffort -> ()
-  end;
+     * The process of transforming OpenFlow 1.0 events into network events may
+     * produce packet_out messages, as each packet_in message is evaluated
+     * against the current policy. Only packets that remain at controller
+     * locations, i.e., "pipes", will produce a PacketIn network event. Those
+     * that end up at a physical port will produce packet_out messages. Create
+     * a pipe that to_event can write packet_out messages to, and handle them
+     * below.
+     * *)
+    let r_pkt_out, s_pkt_out = Pipe.create () in
+    let stages =
+      let features = local (fun t -> t.ctl) Controller.features in
+      let events   = to_event s_pkt_out in
+      let txns     = local (fun t -> t.txn) Txn.stage in
+      features >=> txns >=> events in
 
-  Deferred.don't_wait_for (
-    Monitor.try_with ~name:"start" (fun () ->
-        (Pipe.iter events ~f:(handler ~update t w_out app)))
-    >>= function
-    | Ok a -> return a
-    | Error exn_ ->
-      Log.error ~tags "start: Exception occured %s" (Exn.to_string exn_);
-      Log.flushed ())
+    (* Initialize the application to produce an event callback and
+     * Pipe.Reader.t's for packet out messages and policy updates.
+     * *)
+    let recv, callback = Async_NetKAT.run t.app t.nib () in
+
+    (* The discovery application itself will generate events, so the actual
+     * event stream must be a combination of switch events and synthetic
+     * topology discovery events. Pipe.interleave will wait until one of the
+     * pipes is readable, take a batch, and send it along.
+     *
+     * Whatever happens, happens. Can't stop won't stop.
+     * *)
+    let network_events = run stages t (Controller.listen ctl) in
+    let events = Pipe.interleave [Discovery.events d_ctl; network_events] in
+
+    (* Pick a method for updating the network. Each method needs to be able to
+     * implement a policy across the entire network as well as handle new
+     * switches entering the network.
+     * *)
+    let implement_policy, bring_up_switch = match update with
+      | `BestEffort ->
+        BestEffort.(
+          (fun t pol -> implement_policy t.ctl !(t.nib) pol),
+          (fun t sw_id pol -> bring_up_switch t.ctl sw_id pol))
+      | `PerPacketConsistent ->
+        (* XXX(seliopou): budget has to be big, otherwise consistent updates will
+         * lead to deadlocks where event processing is blocked on a table update,
+         * but the table update can't complete until an event, specifically a
+         * barrier reply, is processed.
+         *
+         * This and other parameters need to be tweaked. This'll happen in the app
+         * branch. For now, the parameter is set so that the controller can manage a
+         * topo,2,3 and achieve connectivity with --learn enabled.
+         *)
+        Pipe.set_size_budget events 50;
+        PerPacketConsistent.(implement_policy, bring_up_switch)
+    in
+
+    (* This is the main event handler for the controller. First it sends
+     * events to the application callback. Then it checks to see if the event
+     * is a SwitchUp event, in which case it's necessary to populate the new
+     * switch's flowtable with the application's current policy.
+     *)
+    let handler e =
+      callback e >>= fun () ->
+      match e with
+      | NetKAT_Types.SwitchUp sw_id ->
+        bring_up_switch t sw_id (Async_NetKAT.default t.app)
+      | _ ->
+        return () in
+
+    (* Combine the pkt_out messages receied from the application and those that
+     * are generated from evaluating the policy at the controller.
+     * *)
+    let open Raw_app in
+    let pkt_outs = Pipe.interleave [r_pkt_out; recv.pkt_out] in
+
+    (* Kick off the three top-level logical threads of the controller. The
+     * first handles incoming events from switches. The second sends pkt_out
+     * messages to switches that are generated from either the application, or
+     * policy evaluation of packets at the controller (described above). The
+     * third listens for policy updates from the application and implements the
+     * policy on the switches.
+     * *)
+    let open Deferred in
+    don't_wait_for (Pipe.iter events      handler);                 (* input  *)
+    don't_wait_for (Pipe.iter pkt_outs    (send_pkt_out ctl));      (* output *)
+    don't_wait_for (Pipe.iter recv.update (implement_policy t))     (* output *)

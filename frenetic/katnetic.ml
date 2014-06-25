@@ -2,13 +2,15 @@ module Run = struct
   open Core.Std
   open Async.Std
 
-
   let main update learn filename =
     let open NetKAT_LocalCompiler in
     let main () =
-      let static = Async_NetKAT.create_from_file filename in
+      let static = match filename with
+      | None   -> Async_NetKAT.create_from_string "filter *"
+      | Some f -> Async_NetKAT.create_from_file f
+      in
       let app = if learn
-        then Async_NetKAT.union static (Learning.create ())
+        then Async_NetKAT.seq static (Learning.create ())
         else static
       in
       Async_NetKAT_Controller.start ~update app () in
@@ -84,10 +86,6 @@ end
 
 open Cmdliner
 
-let policy n =
-  let doc = "file containing a static NetKAT policy" in
-  Arg.(required & (pos n (some file) None) & info [] ~docv:"FILE" ~doc)
-
 let run_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   let update =
     let strategy = Arg.enum
@@ -103,8 +101,12 @@ let run_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
     let doc = "enable per-switch L2 learning" in
     Arg.(value & flag & info ["learn"] ~doc)
   in
+  let policy =
+    let doc = "file containing a static NetKAT policy" in
+    Arg.(value & (pos 0 (some file) None) & info [] ~docv:"FILE" ~doc)
+  in
   let doc = "start a controller that will serve the static policy" in
-  Term.(pure Run.main $ update $ learn $ (policy 0)),
+  Term.(pure Run.main $ update $ learn $ policy),
   Term.info "run" ~doc
 
 let dump_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
@@ -126,8 +128,14 @@ let dump_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
     let doc = "Dump per-switch profiling statistics" in
     let stats = Dump.Stats, Arg.info ["stats"] ~doc in
 
-    Arg.(last & vflag_all [Dump.All] [all;policies;flowtables;stats]) in
-  Term.(pure Dump.Local.main $ level $ switch_id $ (policy 1)),
+    Arg.(last & vflag_all [Dump.All] [all;policies;flowtables;stats])
+  in
+  let policy =
+    let doc = "file containing a static NetKAT policy" in
+    Arg.(required & (pos 1 (some file) None) & info [] ~docv:"FILE" ~doc)
+  in
+
+  Term.(pure Dump.Local.main $ level $ switch_id $ policy),
   Term.info "dump" ~doc
 
 let default_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
