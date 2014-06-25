@@ -356,7 +356,7 @@ module SwitchDescriptionReply : sig
 end
 
 
-module Flow : sig
+module FlowStats : sig
 
   val sizeof : flowStats list -> int
   val to_string : flowStats list -> string
@@ -367,7 +367,7 @@ module Flow : sig
 end
 
 
-module Aggregate : sig
+module AggregateStats : sig
 
   val sizeof : aggregStats -> int
   val to_string : aggregStats -> string
@@ -378,7 +378,7 @@ module Aggregate : sig
 
 end
 
-module Table : sig
+module TableStats : sig
 
   val sizeof : tableStats list -> int
 
