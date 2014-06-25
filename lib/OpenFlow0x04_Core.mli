@@ -289,6 +289,12 @@ type portStats = { psPort_no : portId; rx_packets : int64; tx_packets : int64;
 type queueStats = { qsPort_no : portId; queue_id : int32; tx_bytes : int64; tx_packets : int64;
                     tx_errors : int64; duration_sec : int32; duration_nsec : int32 }
 
+type bucketStats = { packet_count : int64; byte_count : int64}
+
+type groupStats = { length : int16; group_id : int32; ref_count : int32;
+                    packet_count : int64; byte_count : int64; duration_sec : int32;
+                    duration_nsec : int32; bucket_stats : bucketStats list}
+
 type multipartReplyTyp = 
   | PortsDescReply of portDesc list
   | SwitchDescReply of switchDesc
@@ -297,6 +303,7 @@ type multipartReplyTyp =
   | TableReply of tableStats list
   | PortStatsReply of portStats list
   | QueueStatsReply of queueStats list
+  | GroupStatsReply of groupStats list
 
 type multipartReply = {mpreply_typ : multipartReplyTyp; mpreply_flags : bool}
 

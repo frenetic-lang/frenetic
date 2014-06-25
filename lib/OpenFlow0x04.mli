@@ -325,6 +325,24 @@ module PortsDescriptionReply : sig
 
 end
 
+module GroupStats : sig
+
+  module BucketStats : sig
+
+      val sizeof : bucketStats list -> int
+      val to_string : bucketStats list -> string
+      val marshal : Cstruct.t -> bucketStats list -> int
+      val parse : Cstruct.t -> bucketStats list
+
+  end
+
+  val sizeof : groupStats list -> int
+  val to_string : groupStats list -> string
+  val marshal : Cstruct.t ->  groupStats list -> int
+
+  val parse : Cstruct.t ->  groupStats list
+end
+
 module SwitchDescriptionReply : sig
 
   val sizeof : switchDesc -> int
@@ -338,7 +356,7 @@ module SwitchDescriptionReply : sig
 end
 
 
-module Flow : sig
+module FlowStats : sig
 
   val sizeof : flowStats list -> int
   val to_string : flowStats list -> string
@@ -349,7 +367,7 @@ module Flow : sig
 end
 
 
-module Aggregate : sig
+module AggregateStats : sig
 
   val sizeof : aggregStats -> int
   val to_string : aggregStats -> string
@@ -360,7 +378,7 @@ module Aggregate : sig
 
 end
 
-module Table : sig
+module TableStats : sig
 
   val sizeof : tableStats list -> int
 

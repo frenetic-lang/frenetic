@@ -326,17 +326,17 @@ module RoundTripping = struct
           GenPortDescReply.to_string GenPortDescReply.parse GenPortDescReply.marshal)
 
   TEST "OpenFlow0x04 MultipartReply.Flow RoundTrip" =
-      let module GenFlowReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.Flow) in
+      let module GenFlowReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.FlowStats) in
       (openflow_quickCheck GenFlowReply.arbitrary
           GenFlowReply.to_string GenFlowReply.parse GenFlowReply.marshal)
 
   TEST "OpenFlow0x04 MultipartReply.Aggregate RoundTrip" =
-      let module GenAggregReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.Aggregate) in
+      let module GenAggregReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.AggregateStats) in
       (openflow_quickCheck GenAggregReply.arbitrary
           GenAggregReply.to_string GenAggregReply.parse GenAggregReply.marshal)
 
   TEST "OpenFlow0x04 MultipartReply.Table RoundTrip" =
-      let module GenTableReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.Table) in
+      let module GenTableReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.TableStats) in
       (openflow_quickCheck GenTableReply.arbitrary
           GenTableReply.to_string GenTableReply.parse GenTableReply.marshal)
 
@@ -349,6 +349,11 @@ module RoundTripping = struct
       let module GenSwDescReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.SwitchDescriptionReply) in
       (openflow_quickCheck GenSwDescReply.arbitrary
           GenSwDescReply.to_string GenSwDescReply.parse GenSwDescReply.marshal)
+
+  TEST "OpenFlow0x04 MultipartReply.GroupStats RoundTrip" =
+      let module GenGroupStatsReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.GroupStats) in
+      (openflow_quickCheck GenGroupStatsReply.arbitrary
+          GenGroupStatsReply.to_string GenGroupStatsReply.parse GenGroupStatsReply.marshal)
 
   TEST "OpenFlow0x04 MultipartReply RoundTrip" =
       let module GenMultipartReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply) in
