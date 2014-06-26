@@ -1,3 +1,6 @@
+open Sexplib
+open Sexplib.Std
+
 module OF10 = OpenFlow0x01_Core
 module OF13 = OpenFlow0x04_Core
 
@@ -5,11 +8,10 @@ open Packet
 
 exception Unsupported of string
 
-type switchId = int64
-type portId = int32
-type queueId = int32
-
-type bufferId = int32
+type switchId = int64 with sexp
+type portId = int32 with sexp
+type queueId = int32 with sexp
+type bufferId = int32 with sexp
 
 let format_mac (fmt : Format.formatter) (v:int48) =
   Format.pp_print_string fmt (Packet.string_of_mac v)
@@ -266,6 +268,7 @@ type flowTable = flow list
 type payload =
   | Buffered of bufferId * bytes 
   | NotBuffered of bytes
+with sexp
 
 let payload_bytes (payload : payload) : bytes =
   match payload with
