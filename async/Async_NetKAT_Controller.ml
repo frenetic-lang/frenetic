@@ -169,10 +169,9 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
         ps [SwitchDown switch_id])
     | `Message (c_id, (xid, msg)) ->
       let open OpenFlow0x01.Message in
-      let switch_id = Controller.switch_id_of_client t.ctl c_id in
-      begin match msg with
+      begin match Controller.switch_id_of_client t.ctl c_id, msg with
         (* only process packet_ins from physical ports *)
-        | PacketInMsg pi when pi.OpenFlow0x01_Core.port <= 0xff00 ->
+        | Some(switch_id), PacketInMsg pi when pi.OpenFlow0x01_Core.port <= 0xff00 ->
           let open OpenFlow0x01_Core in
           let port_id = Int32.of_int_exn pi.port in
           let payload = SDN_OpenFlow0x01.to_payload pi.input_payload in
@@ -208,7 +207,7 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
               in
               PacketIn(pipe, switch_id, port_id, payload, pi.total_len)))
           end
-        | PortStatusMsg ps ->
+        | Some(switch_id), PortStatusMsg ps ->
           let open OpenFlow0x01.PortStatus in
           let open OpenFlow0x01.PortDescription in
           begin match ps.reason, port_desc_useable ps.desc with
@@ -223,9 +222,14 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
             | _ ->
               return []
           end
-        | _ ->
-          Log.debug ~tags "Dropped message from %Lu: %s" switch_id (to_string msg);
+        | Some(switch_id), _ ->
+          Log.debug ~tags "switch %Lu: dropped unhandled message: %s" switch_id (to_string msg);
           return []
+        | None, _ ->
+          Log.debug ~tags "client %s: dropped message from disconnected client: %s"
+            (Controller.Client_id.to_string c_id) (to_string msg);
+          return []
+
       end
 
 module BestEffort = struct
@@ -250,9 +254,14 @@ module BestEffort = struct
 
   let bring_up_switch (t : Controller.t) (sw_id : SDN.switchId) (policy : NetKAT_Types.policy) =
     let table = NetKAT_LocalCompiler.(to_table (compile sw_id policy)) in
-    let c_id = Controller.client_id_of_switch t sw_id in
-    delete_flows_for t c_id >>= fun () ->
-    install_flows_for t c_id table
+    match Controller.client_id_of_switch t sw_id with
+      | Some(c_id) ->
+        delete_flows_for t c_id >>= fun () ->
+        install_flows_for t c_id table
+      | None ->
+        Log.debug ~tags
+          "switch %Lu: disconnected while attempting to bring up... skipping" sw_id;
+        Log.flushed ()
 
   let implement_policy (t : Controller.t) (nib : Net.Topology.t) (policy : NetKAT_Types.policy) =
     Deferred.List.iter (TUtil.switch_ids nib) (fun sw_id ->
@@ -321,30 +330,38 @@ module PerPacketConsistent = struct
       ; idle_timeout = Permanent
       ; hard_timeout = Permanent
       } with command = DeleteFlow } in
-    let c_id = Controller.client_id_of_switch t sw_id in
-    Controller.send t c_id (5l, clear_version_message )
-    >>= function
-      | `Sent _    -> return ()
-      | `Drop exn_ ->
-        Log.error ~tags "switch %Lu: Failed to update table in delete_flows" sw_id;
+    match Controller.client_id_of_switch t sw_id with
+      | None ->
+        Log.info ~tags "switch %Lu: disconnected while clearing flows for ver %d... skipping" sw_id ver;
         Log.flushed ()
+      | Some(c_id) ->
+        Controller.send t c_id (5l, clear_version_message)
+        >>= (function
+          | `Sent _    -> return ()
+          | `Drop exn_ ->
+            Log.error ~tags "switch %Lu: Failed to delete flows for ver %d" sw_id ver;
+            Log.flushed ())
 
-  let internal_install_policy_for (t :t) (ver : int) pol (sw_id : switchId) =
+  let internal_install_policy_for (t : t) (ver : int) pol (sw_id : switchId) =
     let table0 = NetKAT_LocalCompiler.(to_table (compile sw_id pol)) in
     let table1 = specialize_internal_to
       ver (TUtil.internal_ports !(t.nib) sw_id) table0 in
     assert (List.length table1 > 0);
-    let c_id = Controller.client_id_of_switch t.ctl sw_id in
-    BestEffort.install_flows_for t.ctl c_id table1
-    >>= barrier t c_id
-    >>= function
-      | `Complete ->
-        Log.debug ~tags
-          "switch %Lu: installed internal table for ver %d" sw_id ver;
-        Log.flushed ()
-      | `Disconnect exn_ ->
-        Log.debug ~tags
-          "switch %Lu: disconnected while installing internal table for ver %d... skipping" sw_id ver;
+    match Controller.client_id_of_switch t.ctl sw_id with
+      | Some(c_id) ->
+        BestEffort.install_flows_for t.ctl c_id table1
+        >>= barrier t c_id
+        >>= (function
+          | `Complete ->
+            Log.debug ~tags
+              "switch %Lu: installed internal table for ver %d" sw_id ver;
+            Log.flushed ()
+          | `Disconnect exn_ ->
+            Log.debug ~tags
+              "switch %Lu: disconnected while installing internal table for ver %d... skipping" sw_id ver;
+            Log.flushed ())
+      | None ->
+        Log.debug ~tags "switch %Lu: disconnected before installing internal table for ver %d... skipping" sw_id ver;
         Log.flushed ()
 
   (* Comparison should be made based on patterns only, not actions *)
@@ -365,7 +382,7 @@ module PerPacketConsistent = struct
   (* Assumptions:
      - switch respects priorities when deleting flows
   *)
-  let swap_update_for (t : t) sw_id new_table : unit Deferred.t =
+  let swap_update_for (t : t) sw_id c_id new_table : unit Deferred.t =
     let open OpenFlow0x01_Core in
     let max_priority = 65535 in
     let old_table = match SwitchMap.find t.edge sw_id with
@@ -375,7 +392,6 @@ module PerPacketConsistent = struct
         ~f:(fun (acc,pri) x -> ((x,pri) :: acc, pri - 1)) in
     let new_table = List.rev new_table in
     let del_table = List.rev (flowtable_diff old_table new_table) in
-    let c_id = Controller.client_id_of_switch t.ctl sw_id in
     let to_flow_mod prio flow =
       M.FlowModMsg (SDN_OpenFlow0x01.from_flow prio flow) in
     let to_flow_del prio flow =
@@ -394,16 +410,21 @@ module PerPacketConsistent = struct
       ver (TUtil.internal_ports !(t.nib) sw_id) table in
     Log.debug ~tags
       "switch %Lu: Installing edge table for ver %d" sw_id ver;
-    let c_id = Controller.client_id_of_switch t.ctl sw_id in
-    swap_update_for t sw_id edge_table
-    >>= barrier t c_id
-    >>= function
-      | `Complete ->
-        Log.debug ~tags "switch %Lu: installed edge table for ver %d" sw_id ver;
+    match Controller.client_id_of_switch t.ctl sw_id with
+      | Some(c_id) ->
+        swap_update_for t sw_id c_id edge_table
+        >>= barrier t c_id
+        >>= (function
+          | `Complete ->
+            Log.debug ~tags "switch %Lu: installed edge table for ver %d" sw_id ver;
+            Log.flushed ()
+          | `Disconnect exn_ ->
+            Log.debug ~tags "switch %Lu: disconnected while installing edge table for ver %d... skipping" sw_id ver;
+            Log.flushed ())
+      | None ->
+        Log.debug ~tags "switch %Lu: disconnected before installing edge table for ver %d... skipping" sw_id ver;
         Log.flushed ()
-      | `Disconnect exn_ ->
-        Log.debug ~tags "switch %Lu: disconnected while installing edge table for ver %d... skipping" sw_id ver;
-        Log.flushed ()
+
 
   let ver = ref 1
 
@@ -428,10 +449,15 @@ module PerPacketConsistent = struct
       incr ver
 
   let bring_up_switch (t : t) (sw_id : switchId) (pol : NetKAT_Types.policy) =
-    let c_id = Controller.client_id_of_switch t.ctl sw_id in
-    BestEffort.delete_flows_for t.ctl c_id >>= fun () ->
-    internal_install_policy_for t !ver pol sw_id >>= fun () ->
-    edge_install_policy_for t !ver pol sw_id
+    match Controller.client_id_of_switch t.ctl sw_id with
+      | Some(c_id) ->
+        BestEffort.delete_flows_for t.ctl c_id >>= fun () ->
+        internal_install_policy_for t !ver pol sw_id >>= fun () ->
+        edge_install_policy_for t !ver pol sw_id
+      | None ->
+        Log.debug ~tags
+          "switch %Lu: disconnected while attempting to bring up... skipping" sw_id;
+        Log.flushed ()
 
 end
 
@@ -439,15 +465,20 @@ end
  * may occur.
  * *)
 let send_pkt_out (ctl : Controller.t) (sw_id, pkt_out) =
-  let c_id = Controller.client_id_of_switch ctl sw_id in
-  Controller.send ctl c_id (0l, OpenFlow0x01.Message.PacketOutMsg
-    (SDN_OpenFlow0x01.from_packetOut pkt_out))
-  >>= function
-    | `Sent _   -> return ()
-    | `Drop exn ->
-      Log.error ~tags "switch %Lu: Failed to send packet_out" sw_id;
-      Log.flushed () >>| fun () ->
-        Printf.eprintf "%s\n%!" (Exn.to_string exn)
+  match Controller.client_id_of_switch ctl sw_id with
+    | Some(c_id) ->
+      Controller.send ctl c_id (0l, OpenFlow0x01.Message.PacketOutMsg
+        (SDN_OpenFlow0x01.from_packetOut pkt_out))
+      >>= (function
+        | `Sent _   -> return ()
+        | `Drop exn ->
+          Log.error ~tags "switch %Lu: Failed to send packet_out" sw_id;
+          Log.flushed () >>| fun () ->
+            Printf.eprintf "%s\n%!" (Exn.to_string exn))
+    | None ->
+      Log.debug ~tags
+        "switch %Lu: disconnected while attempting to send packet_out... skipping" sw_id;
+      Log.flushed ()
 
 (* Start the controller, running the given application.
  * *)
@@ -488,8 +519,8 @@ let start app ?(port=6633) ?(update=`BestEffort) () =
     let r_pkt_out, s_pkt_out = Pipe.create () in
     let stages =
       let features = local (fun t -> t.ctl) Controller.features in
-      let events   = to_event s_pkt_out in
       let txns     = local (fun t -> t.txn) Txn.stage in
+      let events   = to_event s_pkt_out in
       features >=> txns >=> events in
 
     (* Initialize the application to produce an event callback and
