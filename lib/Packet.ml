@@ -1,3 +1,6 @@
+open Sexplib
+open Sexplib.Std
+
 let icmp_code = 0x01
 let igmp_code = 0x02
 let tcp_code = 0x06
@@ -60,31 +63,53 @@ let string_of_mac (x:int64) : string =
     (get_byte x 5) (get_byte x 4) (get_byte x 3)
     (get_byte x 2) (get_byte x 1) (get_byte x 0)
 
+let bytes_of_sexp s = 
+  match s with 
+  | Sexp.Atom w -> 
+    begin 
+      let n = String.length w in 
+      let buf = Cstruct.create n in 
+      for i = 0 to n - 1 do 
+  Cstruct.set_char buf i w.[i]
+      done;
+      buf
+    end
+  | _ -> 
+    failwith "bytes_of_sexp: expected Atom"
+
+let sexp_of_bytes s = 
+  let n = Cstruct.len s in 
+  let buf = Buffer.create n in 
+  for i = 0 to n - 1 do 
+    Buffer.add_char buf (Cstruct.get_char s i)
+  done;
+  Sexp.Atom (Buffer.contents buf)
+
 type bytes = Cstruct.t
 
-type int8 = int
+type int8 = int with sexp
 
-type int16 = int
+type int16 = int with sexp
 
-type int48 = int64
+type int48 = int64 with sexp
 
-type dlAddr = int48
+type dlAddr = int48 with sexp
 
-type dlTyp = int16
+type dlTyp = int16 with sexp
 
-type dlVlan = int16 option
+type dlVlan = int16 option with sexp
 
-type dlVlanPcp = int8
+type dlVlanPcp = int8 with sexp
 
-type dlVlanDei = bool
+type dlVlanDei = bool with sexp
 
-type nwAddr = int32
+type nwAddr = int32 with sexp
 
-type nwProto = int8
+type nwProto = int8 with sexp
 
-type nwTos = int8
+type nwTos = int8 with sexp
 
-type tpPort = int16
+type tpPort = int16 with sexp
 
 let mk_pseudo_header (src : nwAddr) (dst : nwAddr) (proto : int) (len : int) =
   (* XXX(seliopou): pseudo_header's allocated on every call. Given the usage
@@ -111,7 +136,7 @@ module Tcp = struct
       ; psh : bool
       ; rst : bool
       ; syn : bool
-      ; fin : bool }
+      ; fin : bool } with sexp
 
     let to_string f = Printf.sprintf
       "{ ns = %B; cwr = %B; ece = %B; urg = %B; ack = %B; psh = %B; rst = %B; \
@@ -154,7 +179,7 @@ module Tcp = struct
     ; window : int16
     ; chksum : int8
     ; urgent : int8
-    ; payload : bytes }
+    ; payload : bytes } with sexp
 
   let format fmt v =
     let open Format in
@@ -233,6 +258,7 @@ module Udp = struct
     ; dst : tpPort
     ; chksum : int16
     ; payload : bytes }
+  with sexp
 
   let format fmt v =
     let open Format in
@@ -277,7 +303,7 @@ module Icmp = struct
     code : int8;
     chksum : int16;
     payload : bytes
-  }
+  } with sexp
 
   cstruct icmp { 
     uint8_t typ;
@@ -361,7 +387,7 @@ module Dns = struct
       name : string;
       typ : int16;
       class_ : int16
-    }
+    } with sexp
 
     cstruct qd {
       (* preceeded by name *)
@@ -402,7 +428,7 @@ module Dns = struct
       class_ : int16;
       ttl : int; (* TTL is signed 32-bit int *)
       rdata : bytes
-    }
+    } with sexp
 
     cstruct rr {
       (* preceeded by name *)
@@ -455,6 +481,7 @@ module Dns = struct
     ; answers : Rr.t list
     ; authority : Rr.t list
     ; additional : Rr.t list }
+  with sexp
 
   let format fmt v =
     let open Format in
@@ -534,7 +561,7 @@ module Igmp1and2 = struct
     mrt: int8;
     chksum : int16;
     addr : nwAddr;
-  }
+  } with sexp
 
   cstruct igmp1and2 {
     uint8_t mrt;
@@ -578,7 +605,7 @@ module Igmp3 = struct
       typ : int8;
       addr : nwAddr;
       sources : nwAddr list;
-    }
+    } with sexp
 
     cstruct grouprec {
       uint8_t typ;
@@ -622,7 +649,7 @@ module Igmp3 = struct
   type t = {
     chksum : int16;
     grs : GroupRec.t list;
-  }
+  } with sexp
 
   cstruct igmp3 {
     uint8_t reserved1;
@@ -675,11 +702,12 @@ module Igmp = struct
     | Igmp1and2 of Igmp1and2.t
     | Igmp3 of Igmp3.t
     | Unparsable of (int8 * bytes)
+  with sexp
 
   type t = {
     ver_and_typ : int8;
     msg : msg
-  }
+  } with sexp
 
   cenum igmp_msg_type {
     IGMP_MSG_QUERY = 0x11;
@@ -758,6 +786,7 @@ module Ip = struct
     | Icmp of Icmp.t
     | Igmp of Igmp.t
     | Unparsable of (nwProto * bytes)
+  with sexp
 
   module Flags = struct
   (** [Flags] is the type of IPv4 flags. *)
@@ -765,7 +794,7 @@ module Ip = struct
     type t =
       { df : bool (** Don't fragment. *)
       ; mf : bool (** More fragments. *)
-      }
+      } with sexp
 
     let to_string v = Printf.sprintf "{ df = %B; mf = %B }" v.df v.mf
 
@@ -792,7 +821,7 @@ module Ip = struct
     dst : nwAddr;
     options : bytes;
     tp : tp
-  }
+  } with sexp
 
   let format_tp fmt = function
     | Tcp tcp -> Tcp.format fmt tcp
@@ -923,6 +952,7 @@ module Arp = struct
   type t =
     | Query of dlAddr * nwAddr * nwAddr
     | Reply of dlAddr * nwAddr * dlAddr * nwAddr
+  with sexp
 
   let format fmt v =
     let open Format in
@@ -1011,6 +1041,7 @@ type nw =
   | Ip of Ip.t
   | Arp of Arp.t
   | Unparsable of (dlTyp * bytes)
+  with sexp
 
 type packet = {
   dlSrc : dlAddr;
@@ -1019,7 +1050,7 @@ type packet = {
   dlVlanDei : dlVlanDei;
   dlVlanPcp : dlVlanPcp;
   nw : nw
-}
+} with sexp
 
 let format_nw fmt v =
   let open Format in

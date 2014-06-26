@@ -16,7 +16,7 @@ Flag quickcheck
 
 Library packet
   Path: lib
-  BuildDepends: str, cstruct, cstruct.syntax
+  BuildDepends: str, cstruct, cstruct.syntax, sexplib, sexplib.syntax
   Modules: Packet, Checksum
   CSources: checksum_stubs.c
   CCOpt: -g

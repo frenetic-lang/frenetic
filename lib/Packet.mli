@@ -14,45 +14,45 @@
 (** [bytes] is the type of arbitrary byte arrays, accessible via the Cstruct
 library. *)
 (* TODO(cole): Do we really need to expose Cstruct, or could this be opaque? *)
-type bytes = Cstruct.t
+type bytes = Cstruct.t with sexp
 
 (** [int8] is the type of 8-bit integers. *)
-type int8 = int
+type int8 = int with sexp
 
 (** [int16] is the type of 16-bit integers. *)
-type int16 = int
+type int16 = int with sexp
 
 (** [int48] is the type of 48-bit integers. *)
-type int48 = int64
+type int48 = int64 with sexp
 
 (** [dlAddr] is the type of Ethernet addresses. *)
-type dlAddr = int48
+type dlAddr = int48 with sexp
 
 (** [dlTyp] is the type of Ethernet frame types. *)
-type dlTyp = int16
+type dlTyp = int16 with sexp
 
 (** [dlVlan] is the type of VLAN identifiers.  A value of [None] indicates that
 no 802.1Q (VLAN) header is set, which is distinct from setting the VLAN to 0.
 *)
-type dlVlan = int16 option
+type dlVlan = int16 option with sexp
 
 (** [dlVlanPcp] is the type of 802.1Q (VLAN) priorities. *)
-type dlVlanPcp = int8
+type dlVlanPcp = int8 with sexp
 
 (** [dlVlanDei] is the type of 802.1Q (VLAN) drop eligible indicator. *)
-type dlVlanDei = bool
+type dlVlanDei = bool with sexp
 
 (** [nwAddr] is the type of IPv4 addresses. *)
-type nwAddr = int32
+type nwAddr = int32 with sexp
 
 (** [nwProto] is the type of IPv4 protocol numbers. *)
-type nwProto = int8
+type nwProto = int8 with sexp
 
 (** [nwTos] is the type of IPv4 types of service. *)
-type nwTos = int8
+type nwTos = int8 with sexp
 
 (** [tpPort] is the type of transport protocol ports. *)
-type tpPort = int16
+type tpPort = int16 with sexp
 
 (** TCP frame of a packet. *)
 module Tcp : sig
@@ -72,7 +72,7 @@ module Tcp : sig
       ; rst : bool (** Reset the connection. *)
       ; syn : bool (** Synchronize sequence numbers. *)
       ; fin : bool (** No more data from sender. *)
-      }
+      } with sexp
 
   end
 
@@ -87,7 +87,7 @@ module Tcp : sig
     ; chksum : int8  (** Checksum. *)
     ; urgent : int8 (** Urgent pointer. *)
     ; payload : bytes (** TCP payload. *)
-    }
+    } with sexp
 
 end
 
@@ -99,7 +99,7 @@ module Udp : sig
     ; dst : tpPort  (** Destination port. *)
     ; chksum : int16  (** Checksum. *)
     ; payload : bytes (** UDP payload. *)
-    }
+    } with sexp
 
 end
 
@@ -111,7 +111,7 @@ module Icmp : sig
     ; code : int8 (** ICMP subtype. *)
     ; chksum : int16 (** Checksum. *)
     ; payload : bytes (** ICMP payload. *)
-    }
+    } with sexp
 
 end
 
@@ -124,7 +124,7 @@ module Dns : sig
       { name : string
       ; typ : int16
       ; class_ : int16
-      }
+      } with sexp
   end
 
   (* DNS Resource Records *)
@@ -135,7 +135,7 @@ module Dns : sig
       ; class_ : int16
       ; ttl : int (* TTL is a signed 32-bit int *)
       ; rdata : bytes
-      }
+      } with sexp
   end
 
   type t =
@@ -145,7 +145,7 @@ module Dns : sig
     ; answers : Rr.t list
     ; authority : Rr.t list
     ; additional : Rr.t list
-    }
+    } with sexp
 
   (** [serialize pkt] serializes [pkt] into a bit sequence, suitable
       for placing in a UDP or TCP payload. *)
@@ -159,7 +159,7 @@ module Igmp1and2 : sig
     mrt: int8; (** Maximum response time. *)
     chksum : int16; (** Checksum. *)
     addr : nwAddr; (** IGMP group address. *)
-  }
+  } with sexp
 
 end
 
@@ -171,13 +171,13 @@ module Igmp3 : sig
       typ : int8; (** Group Record type. *)
       addr : nwAddr; (** Multicast Group. *)
       sources : nwAddr list; (** List of sources addresses. *)
-    }
+    } with sexp
   end
 
   type t = {
     chksum : int16; (** Checksum. *)
     grs : GroupRec.t list; (** Group records. *)
-  }
+  } with sexp
 
 end
 
@@ -188,11 +188,12 @@ module Igmp : sig
     | Igmp1and2 of Igmp1and2.t
     | Igmp3 of Igmp3.t
     | Unparsable of (int8 * bytes)
+  with sexp
 
   type t = {
     ver_and_typ : int8; (** IGMP version/type. *)
     msg : msg (** enclosed IGMP message *)
-  }
+  } with sexp
 
 end
 
@@ -209,6 +210,7 @@ module Ip : sig
     | Icmp of Icmp.t
     | Igmp of Igmp.t
     | Unparsable of (nwProto * bytes)
+  with sexp
 
   module Flags : sig
   (** [Flags] is the type of IPv4 flags. *)
@@ -216,7 +218,7 @@ module Ip : sig
     type t =
       { df : bool (** Don't fragment. *)
       ; mf : bool (** More fragments. *)
-      }
+      } with sexp
 
   end
 
@@ -231,7 +233,7 @@ module Ip : sig
     ; dst : nwAddr (** IP destination address. *)
     ; options : bytes (** Uninterpreted IP options. *)
     ; tp : tp (** Packet payload. *)
-    }
+    } with sexp
 
 end
 
@@ -241,6 +243,7 @@ module Arp : sig
   type t =
     | Query of dlAddr * nwAddr * nwAddr
     | Reply of dlAddr * nwAddr * dlAddr * nwAddr
+  with sexp
 
 end
 
@@ -250,6 +253,7 @@ type nw =
   | Arp of Arp.t (** Address Resolution Protocol (ARP). *)
   | Unparsable of (dlTyp * bytes) (** The EtherType code accompanied by the 
                                   uninterpreted ethernet payload. *)
+  with sexp
 
 (** [packet] is the type of ethernet data packets. *)
 type packet = 
@@ -261,7 +265,7 @@ type packet =
   ; dlVlanPcp : dlVlanPcp (** 802.1Q VLAN priority.  Ignored if [dlVlan] is 
                           [None]. *)
   ; nw : nw (** Ethernet payload. *)
-  }
+  } with sexp
 
 (** {9:accs Accessors} *)
 
