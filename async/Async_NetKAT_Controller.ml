@@ -161,7 +161,6 @@ let to_event (w_out : (switchId * SDN_Types.pktOut) Pipe.Writer.t)
         else
           acc)))
     | `Disconnect (c_id, switch_id, exn) ->
-      Log.debug ~tags "switch %Ld disconnected" switch_id;
       let open Net.Topology in
       let v  = vertex_of_label !(t.nib) (Async_NetKAT.Switch switch_id) in
       let ps = vertex_to_ports !(t.nib) v in
