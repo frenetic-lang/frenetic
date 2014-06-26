@@ -6,9 +6,9 @@ open Core.Std
 (** {2 Basics} *)
 open Packet
 
-type switchId = SDN_Types.switchId
-type portId = SDN_Types.portId
-type payload = SDN_Types.payload
+type switchId = SDN_Types.switchId with sexp
+type portId = SDN_Types.portId with sexp
+type payload = SDN_Types.payload with sexp
 
 (** {2 Policies} *)
 
@@ -30,6 +30,7 @@ type header_val =
   | IP4Dst of nwAddr * int32
   | TCPSrcPort of tpPort
   | TCPDstPort of tpPort
+  with sexp
 
 type pred =
   | True
@@ -38,6 +39,7 @@ type pred =
   | And of pred * pred
   | Or of pred * pred
   | Neg of pred
+  with sexp
 
 type policy =
   | Filter of pred
@@ -46,6 +48,7 @@ type policy =
   | Seq of policy * policy
   | Star of policy
   | Link of switchId * portId * switchId * portId
+  with sexp
 
 let id = Filter True
 
@@ -280,11 +283,11 @@ end)
 type action = SDN_Types.action
 
 
-type switch_port = switchId * portId
-type host = Packet.dlAddr * Packet.nwAddr
+type switch_port = switchId * portId with sexp
+type host = Packet.dlAddr * Packet.nwAddr with sexp
 
-type bufferId = Int32.t (* XXX(seliopou): different than SDN_Types *)
-type bytes = Packet.bytes
+type bufferId = Int32.t with sexp (* XXX(seliopou): different than SDN_Types *)
+type bytes = Packet.bytes with sexp
 
 type event =
   | PacketIn of string * switchId * portId * payload * int
@@ -297,3 +300,4 @@ type event =
   | LinkDown of switch_port * switch_port
   | HostUp of switch_port * host
   | HostDown of switch_port * host
+  with sexp
