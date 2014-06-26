@@ -65,8 +65,11 @@ module Controller = struct
   let listening_port t = ChunkController.listening_port t.sub
 
   (* XXX(seliopou): Raises `Not_found` if the client is no longer connected. *)
-  let switch_id_of_client t c_id = ClientMap.find_exn t.switches c_id
-  let client_id_of_switch t sw_id = SwitchMap.find_exn t.clients sw_id
+  let switch_id_of_client_exn t c_id = ClientMap.find_exn t.switches c_id
+  let client_id_of_switch_exn t sw_id = SwitchMap.find_exn t.clients sw_id
+
+  let switch_id_of_client t c_id = ClientMap.find t.switches c_id
+  let client_id_of_switch t sw_id = SwitchMap.find t.clients sw_id
 
   let create ?max_pending_connections
       ?verbose
