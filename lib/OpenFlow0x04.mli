@@ -98,8 +98,11 @@ module Bucket : sig
 
   val sizeof : bucket -> int
 
+  val to_string : bucket -> string
+
   val marshal : Cstruct.t -> bucket -> int
-   
+
+  val parse : Cstruct.t -> bucket  
 end
 
 module FlowModCommand : sig
@@ -120,7 +123,11 @@ module GroupType : sig
     
   type t = groupType
 
+  val to_string : t -> string
+
   val marshal : t -> int
+
+  val parse : int -> t
 
 end
 
@@ -408,6 +415,30 @@ module QueueStats : sig
   val to_string : queueStats list -> string
   val marshal : Cstruct.t -> queueStats list -> int
   val parse : Cstruct.t -> queueStats list 
+
+end
+
+module GroupDesc : sig
+
+  val sizeof : groupDesc list -> int
+
+  val to_string : groupDesc list -> string
+
+  val marshal : Cstruct.t -> groupDesc list -> int
+
+  val parse : Cstruct.t -> groupDesc list
+
+end
+
+module GroupFeatures : sig
+
+  val sizeof : groupFeatures -> int
+
+  val to_string : groupFeatures -> string
+
+  val marshal : Cstruct.t -> groupFeatures -> int
+
+  val parse : Cstruct.t -> groupFeatures 
 
 end
 

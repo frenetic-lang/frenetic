@@ -295,6 +295,26 @@ type groupStats = { length : int16; group_id : int32; ref_count : int32;
                     packet_count : int64; byte_count : int64; duration_sec : int32;
                     duration_nsec : int32; bucket_stats : bucketStats list}
 
+type groupDesc = { length : int16; typ : groupType; group_id : int32; bucket : bucket list}
+
+type groupCapabilities = { select_weight : bool; select_liveness : bool;
+                           chaining : bool; chaining_checks : bool}
+
+type groupTypeMap = { all : bool; select : bool; indirect : bool; ff : bool}
+
+type actionTypeMap = { output : bool; copy_ttl_out : bool; copy_ttl_in : bool;
+                       set_mpls_ttl : bool; dec_mpls_ttl : bool; push_vlan : bool;
+                       pop_vlan : bool; push_mpls : bool; pop_mpls : bool; set_queue : bool;
+                       group : bool; set_nw_ttl : bool; dec_nw_ttl : bool; set_field : bool;
+                       push_pbb : bool; pop_pbb : bool }
+
+type groupFeatures = { typ : groupTypeMap; capabilities : groupCapabilities; 
+                       max_groups_all : int32; max_groups_select : int32; 
+                       max_groups_indirect : int32; max_groups_ff : int32;
+                       actions_all : actionTypeMap; actions_select : actionTypeMap; 
+                       actions_indirect : actionTypeMap; actions_ff : actionTypeMap }
+                       
+
 type multipartReplyTyp = 
   | PortsDescReply of portDesc list
   | SwitchDescReply of switchDesc
