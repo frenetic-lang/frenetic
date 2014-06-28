@@ -442,6 +442,18 @@ module GroupFeatures : sig
 
 end
 
+module MeterStats : sig
+
+  val sizeof : meterStats list -> int
+
+  val to_string : meterStats list -> string
+
+  val marshal : Cstruct.t -> meterStats list -> int
+
+  val parse : Cstruct.t -> meterStats list
+
+end
+
 module MultipartReply : sig
 
   val sizeof : multipartReply -> int

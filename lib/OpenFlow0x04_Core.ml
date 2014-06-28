@@ -344,6 +344,11 @@ type groupFeatures = { typ : groupTypeMap; capabilities : groupCapabilities;
                        int32; actions_all : actionTypeMap; actions_select : actionTypeMap; 
                        actions_indirect : actionTypeMap; actions_ff : actionTypeMap }
 
+type meterBandStats = { packet_band_count : int64; byte_band_count : int64 }
+
+type meterStats = { meter_id: int32; len : int16; flow_count : int32; packet_in_count :
+                    int64; byte_in_count : int64; duration_sec : int32; duration_nsec : 
+                    int32; band : meterBandStats list}
 
 type multipartReplyTyp = 
   | PortsDescReply of portDesc list
