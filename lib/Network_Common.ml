@@ -138,14 +138,42 @@ module Node = struct
 
   (* Take the partial node record and remove the option types, or
      raise an error if it is not fully filled *)
-  let unbox (partial:partial_t) : t = match partial with
-    | { partial_dev_type = Some dt ;
-        partial_dev_id = Some did ;
-        partial_ip     = Some ip ;
-        partial_mac    = Some mac ;
-        partial_name   = Some name } -> { dev_type = dt ; dev_id =  did ;
-                                          ip = ip ; mac = mac ; name = name ;}
-    | _ -> failwith "Must specify all node attributes"
+  let unbox (p:partial_t) : t =
+    let unbox_host (p:partial_t) =
+      let i = match p.partial_ip with
+        | Some i -> i
+        | None -> failwith "Host must have an IP address" in
+      let m = match p.partial_mac with
+        | Some m -> m
+        | None -> failwith "Host must have a MAC address" in
+      let n = match p.partial_name with
+        | Some n -> n
+        | None -> failwith "Host must have a name" in
+      let id = match p.partial_dev_id with
+        | Some i -> i
+        | None -> m in
+      { dev_type = Host ; dev_id = id ; ip = i ; mac = m ; name = n} in
+
+    let unbox_switch (p:partial_t) =
+      let id = match p.partial_dev_id with
+        | Some i -> i
+        | None -> failwith "Switches must have a unique id" in
+      let n = match p.partial_name with
+        | Some n -> n
+        | None -> failwith "Switch must have a name" in
+      let m = match p.partial_mac with
+        | Some m -> m
+        | None -> 0L in
+      let i = match p.partial_ip with
+        | Some i -> i
+        | None -> 0l in
+      { dev_type = Switch ; dev_id = id ; ip = i ; mac = m ; name = n} in
+
+    match p.partial_dev_type with
+    | Some Host -> unbox_host p
+    | Some Switch -> unbox_switch p
+    | Some Middlebox -> unbox_switch p
+    | _ -> failwith "Must provide valid devide type for all nodes"
 
 
   let parse_dot (i:Dot_ast.node_id) (ats:Dot_ast.attr list) : t =
