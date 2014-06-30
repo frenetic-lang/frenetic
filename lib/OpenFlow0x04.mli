@@ -454,6 +454,18 @@ module MeterStats : sig
 
 end
 
+module MeterFeaturesStats : sig
+
+  val sizeof : meterFeaturesStats -> int
+
+  val to_string : meterFeaturesStats -> string
+
+  val marshal : Cstruct.t -> meterFeaturesStats -> int
+
+  val parse : Cstruct.t -> meterFeaturesStats
+
+end
+
 module MultipartReply : sig
 
   val sizeof : multipartReply -> int

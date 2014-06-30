@@ -23,6 +23,8 @@ type tableId = int8
 
 type bufferId = int32
 
+type length = int16
+
 type oxm =
 | OxmInPort of portId
 | OxmInPhyPort of portId
@@ -237,6 +239,17 @@ type packetOut = {
   po_actions : actionSequence
 }
 
+type rate = int32
+
+type burst = int32
+
+type experimenterId = int32
+
+type meterBand =
+  | Drop of (length*rate*burst)
+  | DscpRemark of (length*rate*burst*int8)
+  | ExpMeter of (length*rate*burst*experimenterId)
+
 type flowRequest = {fr_table_id : tableId; fr_out_port : portId; 
                     fr_out_group : portId; fr_cookie : int64 mask;
                     fr_match : oxmMatch}
@@ -350,6 +363,14 @@ type meterStats = { meter_id: int32; len : int16; flow_count : int32; packet_in_
                     int64; byte_in_count : int64; duration_sec : int32; duration_nsec : 
                     int32; band : meterBandStats list}
 
+type meterBandMaps = { drop : bool; dscpRemark : bool}
+
+type meterFlagsMap = { kbps : bool; pktps : bool; burst : bool; stats : bool }
+
+type meterFeaturesStats = { max_meter : int32; band_typ : meterBandMaps; 
+                            capabilities : meterFlagsMap; max_band : int8;
+                            max_color : int8 }
+
 type multipartReplyTyp = 
   | PortsDescReply of portDesc list
   | SwitchDescReply of switchDesc
@@ -359,6 +380,10 @@ type multipartReplyTyp =
   | PortStatsReply of portStats list
   | QueueStatsReply of queueStats list
   | GroupStatsReply of groupStats list
+  | GroupDescReply of groupDesc list
+  | GroupFeaturesReply of groupFeatures
+  | MeterReply of meterStats list
+  | MeterFeaturesReply of meterFeaturesStats
 
 type multipartReply = {mpreply_typ : multipartReplyTyp; mpreply_flags : bool}
 
