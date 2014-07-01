@@ -1,5 +1,19 @@
 module Int32Set = Set.Make(Int32)
 
+let read_file (fname : string) : string = 
+  let open Util in 
+  let lines = ref [] in
+  let chan = open_in fname in 
+  try 
+	while true; do
+	  lines := input_line chan :: 
+		!lines
+	done; ""
+  with End_of_file -> 
+	close_in chan;
+	(intercalate (fun x -> x) "\n" (List.rev !lines))
+
+
 module Dexterize = struct
   open Decide_Ast
   open Decide_Ast.Term
@@ -468,6 +482,27 @@ struct
 	Decide_Ast.Term.equal t1 t2) in 
     ret
 
+
+  let sanity_check topo pol = 
+    let parse str = 
+      NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string (read_file str)) in
+    let topo, vertexes, switches, hosts = topology topo in 
+    let parsed_pol = parse pol in 
+    let edge_pol,_ = connectivity_policy topo hosts in 
+    let wrap pol = NetKAT_Types.(Seq(Seq(Filter edge_pol, pol), Filter edge_pol)) in 
+    let sanity_pol = NetKAT_Types.drop in 
+    let tp_pol = topology_policy topo in
+    let sw_pol = NetKAT_Types.(Star(Seq(parsed_pol, tp_pol))) in 
+    let dl = (Dexterize.policy_to_term ~dup:true (wrap sw_pol)) in 
+    let dr = Dexterize.policy_to_term ~dup:true (wrap sanity_pol) in 
+    Printf.printf "## NetKAT Policy ##\n%s\n## Topology ##\n%s\n%!"
+      "turned off for debugging" (*(NetKAT_Pretty.string_of_policy parsed_pol)*)
+      (NetKAT_Pretty.string_of_policy tp_pol);
+    Printf.printf "Term: %s\n " "turned off for debugging" (*(Decide_Ast.Term.to_string dl) *);
+    let ret = (check_equivalent dl dr) in 
+    Printf.printf "## Equivalent ##\n%b\n" ret;
+    ret
+    
 
   let verify_shortest_paths ?(print=true) filename = 
     let topo, vertexes, switches, hosts = topology filename in 

@@ -81,8 +81,13 @@ module Dump = struct
   end
 end
 
+
 module Verify = struct 
   let main = NetKAT_Verify.Verify.verify_connectivity
+  let convert a = NetKAT_Verify.Verify.convert_stanford [a]
+  let sanity_check pol topo = 
+    let ret = NetKAT_Verify.Verify.sanity_check pol topo in 
+    Printf.printf "Returned: %b" ret;
 end
 
 open Cmdliner
@@ -132,12 +137,39 @@ let verify_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   Term.(pure (Verify.main ~print:true) $ topo), 
   Term.info "verify" ~doc
 
+
+let translate_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info = 
+  let doc = "convert stanford OF dumps to NetKAT" in 
+  let topo = 
+    let doc = "the policy specified as a .of file" in 
+    Arg.(required & (pos 0 (some file) None) & info [] ~docv:"TOPOLOGY" ~doc)
+  in 
+  Term.(pure (Verify.convert) $ topo), 
+  Term.info "translate" ~doc
+
+
+let sanity_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info = 
+  let doc = "sanity check for verify" in 
+  let pol = 
+    let doc = "the policy specified as a .kat file" in 
+    Arg.(required & (pos 0 (some file) None) & info [] ~docv:"POLICY" ~doc)
+  in 
+
+  let topo = 
+    let doc = "the topology specified as a .dot file" in 
+    Arg.(required & (pos 1 (some file) None) & info [] ~docv:"TOPOLOGY" ~doc)
+  in 
+  Term.(pure (Verify.sanity_check) $ pol $ topo), 
+  Term.info "sanity" ~doc
+
+
+
 let default_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   let doc = "an sdn controller platform" in
   Term.(ret (pure (`Help(`Plain, None)))),
   Term.info "katnetic" ~version:"1.6.1" ~doc
 
-let cmds = [run_cmd; dump_cmd; verify_cmd]
+let cmds = [run_cmd; dump_cmd; verify_cmd; translate_cmd; sanity_cmd]
 
 let () = match Term.eval_choice default_cmd cmds with
   | `Error _ -> exit 1 | _ -> exit 0
