@@ -360,34 +360,49 @@ struct
   let convert_stanford switches = 
     let open IPMasks in 
     let rules = 
-      List.map 
-	(fun sw -> (sw,rules_of_stanford (sw ^ ".of")))
+      List.mapi 
+	(fun i sw -> (i,sw,rules_of_stanford (sw ^ ".of")))
 	switches in 
     let ips = 
       List.fold_left
-	(fun acc (_,rs) -> 
+	(fun acc (_,_,rs) -> 
 	  IPMaskSet.union acc (ips_of_rules rs))
 	IPMaskSet.empty rules in 
-    let subst = partition_ips ips in 
+    let subst = 
+      partition_ips ips in 
     let rules' = 
       List.map
-	(fun (sw,rs) -> (sw,subst_rules subst rs))
+	(fun (i,sw,rs) -> (i,sw,subst_rules subst rs))
 	rules in 
     let policies = 
       List.map 
-	(fun (sw,rs) -> (sw,policy_of_rules rs))
+	(fun (i,sw,rs) -> 
+	  let pol = policy_of_rules rs in 
+	  let pr = NetKAT_Types.(Optimize.(mk_filter (Test(Switch(Int64.of_int i))))) in 
+	  (i, sw, NetKAT_Types.(Optimize.(mk_seq pr pol))))
 	rules' in 
-    let () = 
+    let () =
       List.iter
-	(fun (sw,pol) -> 
-	  let fd = open_out (sw ^ ".kat") in 
-	  Printf.fprintf fd "%s" (NetKAT_Pretty.string_of_policy pol);
-	  close_out fd)
+    	(fun (i,sw,pol) ->
+    	  let fd = open_out (sw ^ ".kat") in
+    	  Printf.fprintf fd "%s" (NetKAT_Pretty.string_of_policy pol);
+    	  close_out fd)
+    	policies in
+    let assoc, policy = 
+      List.fold_left
+	(fun (aacc,pacc) (i,sw,pol) -> 
+	  ((sw,i)::aacc, NetKAT_Types.(Optimize.(mk_union pol pacc))))
+	([], NetKAT_Types.(Filter False)) 
 	policies in 
-    ()
+    (assoc, policy)
 
-  (* let () = convert_stanford ["foo"] *)
-
+  (* let () =  *)
+  (*   let assoc, policy = convert_stanford ["foo"] in  *)
+  (*   List.iter  *)
+  (*     (fun (x,sw) -> Printf.printf "%d => %s\n" x sw) *)
+  (*     assoc; *)
+  (*   Printf.printf "%s\n" (NetKAT_Pretty.string_of_policy policy) *)
+  
   let topology filename = 
     let topo = Net.Parse.from_dotfile filename in 
     let vertexes = Topology.vertexes topo in 
