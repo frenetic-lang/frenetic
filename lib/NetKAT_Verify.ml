@@ -581,7 +581,7 @@ struct
     let cn_pr, cn_pol = connectivity_policy topo hosts in 
     let wrap pol = NetKAT_Types.(Optimize.(mk_seq (mk_seq (mk_filter cn_pr) pol) (mk_filter cn_pr))) in 
     let tp_pol = topology_policy topo in 
-    let net_sw_pol = wrap NetKAT_Types.(Optimize.(mk_star (mk_seq sw_pol tp_pol))) in 
+    let net_sw_pol = wrap NetKAT_Types.(Optimize.(mk_seq (mk_star (mk_seq sw_pol tp_pol)) sw_pol)) in 
     let net_cn_pol = wrap NetKAT_Types.(cn_pol) in 
 (*    Printf.printf "## NetKAT Policy ##\n%s\n## Connectivity Policy ##\n%s\n%!"
       (NetKAT_Pretty.string_of_policy net_sw_pol)
