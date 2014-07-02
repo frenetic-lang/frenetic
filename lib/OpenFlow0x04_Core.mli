@@ -256,8 +256,6 @@ type tableFeatures = {length : int16; table_id : tableId; name : string;
                       config : tableConfig; max_entries: int32;
                       feature_prop : tableFeatureProp}
 
-type tableFeaturesRequest = tableFeatures list
-
 type multipartType =
   | SwitchDescReq
   | PortsDescReq 
@@ -272,7 +270,7 @@ type multipartType =
   | MeterStatsReq of int32
   | MeterConfReq of int32
   | MeterFeatReq
-  | TableFeatReq of tableFeaturesRequest option
+  | TableFeatReq of (tableFeatures list) option
   | ExperimentReq of experimenter  
 
 type multipartRequest = { mpr_type : multipartType; mpr_flags : bool }
@@ -348,6 +346,7 @@ type multipartReplyTyp =
   | FlowStatsReply of flowStats list
   | AggregateReply of aggregStats
   | TableReply of tableStats list
+  | TableFeaturesReply of tableFeatures list
   | PortStatsReply of portStats list
   | QueueStatsReply of queueStats list
   | GroupStatsReply of groupStats list

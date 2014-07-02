@@ -589,7 +589,7 @@ end
 module MultipartReq = struct
   open Gen
   open OpenFlow0x04_Core
-  module TableFeaturesRequest = struct
+  module TableFeatures = struct
     module TableFeatureProp = struct
       
       type t = OpenFlow0x04_Core.tableFeatureProp
@@ -654,15 +654,15 @@ module MultipartReq = struct
       let size_of = TableFeature.sizeof
     end
 
-    type t = OpenFlow0x04_Core.tableFeaturesRequest
+    type t = OpenFlow0x04_Core.tableFeatures list
 
     let arbitrary =
         list1 TableFeature.arbitrary >>= fun v ->
         ret_gen v
-    let marshal = TableFeaturesRequest.marshal
-    let parse = TableFeaturesRequest.parse
-    let to_string = TableFeaturesRequest.to_string
-    let size_of = TableFeaturesRequest.sizeof
+    let marshal = TableFeatures.marshal
+    let parse = TableFeatures.parse
+    let to_string = TableFeatures.to_string
+    let size_of = TableFeatures.sizeof
   end
 
   module FlowRequest = struct
@@ -709,7 +709,7 @@ module MultipartReq = struct
   let arbitrary_option =
      frequency [
     (1, ret_gen None);
-    (3, TableFeaturesRequest.arbitrary >>= (fun v -> ret_gen (Some v)))
+    (3, TableFeatures.arbitrary >>= (fun v -> ret_gen (Some v)))
     ]
   
   let arbitrary_type = 

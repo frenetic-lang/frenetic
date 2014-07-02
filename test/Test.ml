@@ -290,18 +290,18 @@ module RoundTripping = struct
       (openflow_quickCheck GenFlowModCommand.arbitrary
           GenFlowModCommand.to_string GenFlowModCommand.parse GenFlowModCommand.marshal)
 
-  TEST "OpenFlow0x04 MultipartReq.TableFeaturesRequest.TableFeatureProp RoundTrip" =
-      let module GenTableFeatureProp = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReq.TableFeaturesRequest.TableFeatureProp) in
+  TEST "OpenFlow0x04 MultipartReq.TableFeatures.TableFeatureProp RoundTrip" =
+      let module GenTableFeatureProp = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReq.TableFeatures.TableFeatureProp) in
       (openflow_quickCheck GenTableFeatureProp.arbitrary
           GenTableFeatureProp.to_string GenTableFeatureProp.parse GenTableFeatureProp.marshal)
 
-  TEST "OpenFlow0x04 MultipartReq.TableFeaturesRequest.TableFeature RoundTrip" =
-      let module GenTableFeature = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReq.TableFeaturesRequest.TableFeature) in
+  TEST "OpenFlow0x04 MultipartReq.TableFeatures.TableFeature RoundTrip" =
+      let module GenTableFeature = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReq.TableFeatures.TableFeature) in
       (openflow_quickCheck GenTableFeature.arbitrary
           GenTableFeature.to_string GenTableFeature.parse GenTableFeature.marshal)
 
-  TEST "OpenFlow0x04 MultipartReq.TableFeaturesRequest RoundTrip" =
-      let module GenTableFeatureReq = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReq.TableFeaturesRequest) in
+  TEST "OpenFlow0x04 MultipartReq.TableFeatures RoundTrip" =
+      let module GenTableFeatureReq = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReq.TableFeatures) in
       (openflow_quickCheck GenTableFeatureReq.arbitrary
           GenTableFeatureReq.to_string GenTableFeatureReq.parse GenTableFeatureReq.marshal)
 

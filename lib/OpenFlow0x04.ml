@@ -3160,16 +3160,16 @@ module TableFeature = struct
 
 end
 
-module TableFeaturesRequest = struct
+module TableFeatures = struct
 
-    let sizeof (tfr : tableFeaturesRequest) =
+    let sizeof (tfr : tableFeatures list) =
         sum (map TableFeature.sizeof tfr)
 
-    let marshal (buf : Cstruct.t) (tfr : tableFeaturesRequest) =
+    let marshal (buf : Cstruct.t) (tfr : tableFeatures list) =
       marshal_fields buf tfr TableFeature.marshal
       
 
-    let rec parse_fields (bits : Cstruct.t) len cumul : tableFeaturesRequest*Cstruct.t = 
+    let rec parse_fields (bits : Cstruct.t) len cumul : tableFeatures list*Cstruct.t = 
       if len = cumul then [],bits
       else (
         let field,nextBits = TableFeature.parse bits in
@@ -3177,7 +3177,7 @@ module TableFeaturesRequest = struct
         (List.append [field] fields,bits3)
       )    
 
-    let parse (bits : Cstruct.t) : tableFeaturesRequest = 
+    let parse (bits : Cstruct.t) : tableFeatures list = 
       let length = Cstruct.len bits in
       let body,_ = parse_fields bits length 0 in
       body
@@ -3233,7 +3233,7 @@ module MultipartReq = struct
        | MeterStatsReq _  | MeterConfReq _ -> sizeof_ofp_meter_multipart_request
        | TableFeatReq tfr -> (match tfr with
           | None -> 0
-          | Some t -> TableFeaturesRequest.sizeof t)
+          | Some t -> TableFeatures.sizeof t)
        | ExperimentReq _ -> sizeof_ofp_experimenter_multipart_header)
 
   let to_string (mpr : multipartRequest) : string =
@@ -3258,7 +3258,7 @@ module MultipartReq = struct
       | MeterConfReq m -> Format.sprintf "MeterConf Req: %lu" m
       | MeterFeatReq -> "MeterFeat Req"
       | TableFeatReq t-> Format.sprintf "TableFeat Req: %s" (match t with
-        | Some v -> TableFeaturesRequest.to_string v
+        | Some v -> TableFeatures.to_string v
         | None -> "None" )
       | ExperimentReq e-> Format.sprintf "Experimenter Req: id: %lu; type: %lu" e.exp_id e.exp_type)
 
@@ -3295,7 +3295,7 @@ module MultipartReq = struct
       | TableFeatReq t -> 
         (match t with
           | None -> 0
-          | Some v -> size + (TableFeaturesRequest.marshal pay_buf v))
+          | Some v -> size + (TableFeatures.marshal pay_buf v))
       | ExperimentReq _ -> size
 
   let parse (bits : Cstruct.t) : multipartRequest =
@@ -3328,7 +3328,7 @@ module MultipartReq = struct
       | Some OFPMP_TABLE_FEATURES -> TableFeatReq (
       if Cstruct.len bits <= sizeof_ofp_multipart_request then None
       else Some (
-        TableFeaturesRequest.parse (Cstruct.shift bits sizeof_ofp_multipart_request)
+        TableFeatures.parse (Cstruct.shift bits sizeof_ofp_multipart_request)
       ))
       | Some OFPMP_EXPERIMENTER -> ExperimentReq (
       let exp_bits = Cstruct.shift bits sizeof_ofp_multipart_request in
@@ -4302,6 +4302,7 @@ module MultipartReply = struct
       | FlowStatsReply fsr -> FlowStats.sizeof fsr
       | AggregateReply ag -> AggregateStats.sizeof ag
       | TableReply tr -> TableStats.sizeof tr
+      | TableFeaturesReply tf -> TableFeatures.sizeof tf
       | PortStatsReply psr -> PortStats.sizeof psr
       | QueueStatsReply qsr -> QueueStats.sizeof qsr
       | GroupStatsReply gs -> GroupStats.sizeof gs
@@ -4317,6 +4318,7 @@ module MultipartReply = struct
       | FlowStatsReply fsr -> Format.sprintf "Flow: %s" (FlowStats.to_string fsr)
       | AggregateReply ag -> Format.sprintf "Aggregate Flow: %s" (AggregateStats.to_string ag)
       | TableReply tr -> Format.sprintf "TableReply: %s" (TableStats.to_string tr)
+      | TableFeaturesReply tf -> Format.sprintf "TableFeatures Reply: %S" (TableFeatures.to_string tf)
       | PortStatsReply psr -> Format.sprintf "PortStatsReply: %s" (PortStats.to_string psr)
       | QueueStatsReply qsr -> Format.sprintf "QueueStats: %s" (QueueStats.to_string qsr)
       | GroupStatsReply gs -> Format.sprintf "GroupStats: %s" (GroupStats.to_string gs)
@@ -4347,6 +4349,9 @@ module MultipartReply = struct
       | TableReply tr ->
           set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_TABLE);
           TableStats.marshal ofp_body_bits tr
+      | TableFeaturesReply tf ->
+          set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_TABLE_FEATURES);
+          TableFeatures.marshal ofp_body_bits tf
       | PortStatsReply psr ->
           set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_PORT_STATS);
           PortStats.marshal ofp_body_bits psr
@@ -4383,6 +4388,8 @@ module MultipartReply = struct
           AggregateReply (AggregateStats.parse ofp_body_bits)
       | Some OFPMP_TABLE -> 
           TableReply (TableStats.parse ofp_body_bits)
+      | Some OFPMP_TABLE_FEATURES ->
+          TableFeaturesReply (TableFeatures.parse ofp_body_bits)
       | Some OFPMP_PORT_STATS -> 
           PortStatsReply (PortStats.parse ofp_body_bits)
       | Some OFPMP_QUEUE ->

@@ -298,15 +298,15 @@ module TableFeature : sig
 
 end
 
-module TableFeaturesRequest : sig
+module TableFeatures : sig
 
-    val sizeof : tableFeaturesRequest -> int
+    val sizeof : tableFeatures list -> int
 
-    val marshal : Cstruct.t -> tableFeaturesRequest -> int
+    val marshal : Cstruct.t -> tableFeatures list -> int
 
-    val parse : Cstruct.t -> tableFeaturesRequest
+    val parse : Cstruct.t -> tableFeatures list
 
-    val to_string : tableFeaturesRequest -> string
+    val to_string : tableFeatures list -> string
 
 end
 
