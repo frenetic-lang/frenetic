@@ -409,7 +409,7 @@ struct
     let hosts = Topology.VertexSet.filter (is_host topo) vertexes in 
     let _,hosts = Topology.VertexSet.(fold (fun e (cntr,acc) -> if cntr < 25
       then (cntr + 1, add e acc)
-      else (cntr,acc)) hosts (0,empty)) in 
+      else (cntr,acc)) hosts (0,empty)) in  
     let switches = Topology.VertexSet.filter (is_switch topo) vertexes in 
     (topo, vertexes, switches, hosts)  
 
