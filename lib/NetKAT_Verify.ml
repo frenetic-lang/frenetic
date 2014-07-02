@@ -357,7 +357,7 @@ struct
 	(S.empty, mk_filter False) rules in 
     pol
 
-  let convert_stanford switches = 
+  let convert_stanford (switches : string list) : (((string * int) list) * NetKAT_Types.policy)= 
     let open IPMasks in 
     let rules = 
       List.mapi 
@@ -407,6 +407,9 @@ struct
     let topo = Net.Parse.from_dotfile filename in 
     let vertexes = Topology.vertexes topo in 
     let hosts = Topology.VertexSet.filter (is_host topo) vertexes in 
+    let _,hosts = Topology.VertexSet.(fold (fun e (cntr,acc) -> if cntr < 25
+      then (cntr + 1, add e acc)
+      else (cntr,acc)) hosts (0,empty)) in 
     let switches = Topology.VertexSet.filter (is_switch topo) vertexes in 
     (topo, vertexes, switches, hosts)  
 
@@ -463,7 +466,7 @@ struct
           let n2 = Node.id (Topology.vertex_to_label topo v2) in 
           NetKAT_Types.(Union(tp_pol, Link(n1,pt1,n2,pt2)))
         else tp_pol)
-      (Topology.edges topo) NetKAT_Types.id 
+      (Topology.edges topo) NetKAT_Types.drop 
 
   let check_equivalent t1 t2 = 
     let module UnivMap = Decide_Util.SetMapF (Decide_Util.Field) (Decide_Util.Value) in
@@ -510,16 +513,16 @@ struct
     let sw_pol = NetKAT_Types.(Star(Seq(parsed_pol, tp_pol))) in 
     let dl = (Dexterize.policy_to_term ~dup:true (wrap sw_pol)) in 
     let dr = Dexterize.policy_to_term ~dup:true (wrap sanity_pol) in 
-    Printf.printf "## NetKAT Policy ##\n%s\n## Topology ##\n%s\n%!"
+(*    Printf.printf "## NetKAT Policy ##\n%s\n## Topology ##\n%s\n%!"
       "turned off for debugging" (*(NetKAT_Pretty.string_of_policy parsed_pol)*)
       (NetKAT_Pretty.string_of_policy tp_pol);
-    Printf.printf "Term: %s\n " "turned off for debugging" (*(Decide_Ast.Term.to_string dl) *);
+    Printf.printf "Term: %s\n " "turned off for debugging" (*(Decide_Ast.Term.to_string dl) *); *)
     let ret = (check_equivalent dl dr) in 
-    Printf.printf "## Equivalent ##\n%b\n" ret;
+    Printf.printf "## Equivalent ##\n%b\n" ret; 
     ret
     
 
-  let verify_shortest_paths ?(print=true) filename = 
+  let verify_shortest_paths ?(print=false) filename = 
     let topo, vertexes, switches, hosts = topology filename in 
     let sw_pol = shortest_path_policy topo switches hosts in 
     let edge_pol, _ = connectivity_policy topo hosts in 
@@ -541,7 +544,7 @@ struct
     if print then Printf.printf "## Equivalent ##\n%b\n" ret;
     ret
       
-  let verify_connectivity ?(print=true) filename = 
+  let verify_connectivity ?(print=false) filename = 
     let topo, vertexes, switches, hosts = topology filename in 
     let sw_pol = shortest_path_policy topo switches hosts in 
     let cn_pr, cn_pol = connectivity_policy topo hosts in 
@@ -549,14 +552,14 @@ struct
     let tp_pol = topology_policy topo in 
     let net_sw_pol = wrap NetKAT_Types.(Star(Seq(sw_pol, tp_pol))) in 
     let net_cn_pol = wrap NetKAT_Types.(cn_pol) in 
-    Printf.printf "## NetKAT Policy ##\n%s\n## Connectivity Policy ##\n%s\n%!"
+(*    Printf.printf "## NetKAT Policy ##\n%s\n## Connectivity Policy ##\n%s\n%!"
       (NetKAT_Pretty.string_of_policy net_sw_pol)
-      (NetKAT_Pretty.string_of_policy net_cn_pol);
+      (NetKAT_Pretty.string_of_policy net_cn_pol); *)
     let lhs = Dexterize.policy_to_term ~dup:false net_sw_pol in 
     let rhs = Dexterize.policy_to_term ~dup:false net_cn_pol in 
-    Printf.printf "## Dexter NetKAT Policy ##\n%s\n## Dexter Connectivity Policy ##\n%s\n%!"
+(*    Printf.printf "## Dexter NetKAT Policy ##\n%s\n## Dexter Connectivity Policy ##\n%s\n%!" 
       (Decide_Ast.Term.to_string lhs)
-      (Decide_Ast.Term.to_string rhs);
+      (Decide_Ast.Term.to_string rhs); *)
     Printf.printf "## Equivalent ##\n%b\n"
       (check_equivalent lhs rhs)
 

@@ -84,7 +84,12 @@ end
 
 module Verify = struct 
   let main = NetKAT_Verify.Verify.verify_connectivity
-  let convert a = NetKAT_Verify.Verify.convert_stanford [a]
+  let convert sw = 
+    let _,pol = NetKAT_Verify.Verify.convert_stanford [sw] in 
+    let fd = open_out (sw ^ ".kat") in
+    Printf.fprintf fd "%s" (NetKAT_Pretty.string_of_policy pol);
+    close_out fd
+
   let sanity_check pol topo = 
     let ret = NetKAT_Verify.Verify.sanity_check pol topo in 
     Printf.printf "Returned: %b" ret;
@@ -138,14 +143,14 @@ let verify_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   Term.info "verify" ~doc
 
 
-let translate_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info = 
-  let doc = "convert stanford OF dumps to NetKAT" in 
+let stanford_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info = 
+  let doc = "Run Stanford " in 
   let topo = 
     let doc = "the policy specified as a .of file" in 
     Arg.(required & (pos 0 (some file) None) & info [] ~docv:"TOPOLOGY" ~doc)
   in 
   Term.(pure (Verify.convert) $ topo), 
-  Term.info "translate" ~doc
+  Term.info "stanford" ~doc
 
 
 let sanity_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info = 
@@ -169,7 +174,7 @@ let default_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   Term.(ret (pure (`Help(`Plain, None)))),
   Term.info "katnetic" ~version:"1.6.1" ~doc
 
-let cmds = [run_cmd; dump_cmd; verify_cmd; translate_cmd; sanity_cmd]
+let cmds = [run_cmd; dump_cmd; verify_cmd; stanford_cmd; sanity_cmd]
 
 let () = match Term.eval_choice default_cmd cmds with
   | `Error _ -> exit 1 | _ -> exit 0

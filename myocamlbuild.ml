@@ -1,7 +1,7 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 7deb2c28d293bbd97486a4819b1b5603) *)
+(* DO NOT EDIT (digest: 6862f9d10431a527d2c8079632fe1a89) *)
 module OASISGettext = struct
-(* # 22 "src/oasis/OASISGettext.ml" *)
+(* # 22 "/var/tmp/portage/dev-ml/oasis-0.4.1/work/oasis-0.4.1/src/oasis/OASISGettext.ml" *)
 
 
   let ns_ str =
@@ -30,7 +30,7 @@ module OASISGettext = struct
 end
 
 module OASISExpr = struct
-(* # 22 "src/oasis/OASISExpr.ml" *)
+(* # 22 "/var/tmp/portage/dev-ml/oasis-0.4.1/work/oasis-0.4.1/src/oasis/OASISExpr.ml" *)
 
 
 
@@ -39,10 +39,10 @@ module OASISExpr = struct
   open OASISGettext
 
 
-  type test = string
+  type test = string 
 
 
-  type flag = string
+  type flag = string 
 
 
   type t =
@@ -52,10 +52,10 @@ module OASISExpr = struct
     | EOr of t * t
     | EFlag of flag
     | ETest of test * string
+    
 
 
-
-  type 'a choices = (t * 'a) list
+  type 'a choices = (t * 'a) list 
 
 
   let eval var_get t =
@@ -131,7 +131,7 @@ end
 
 # 132 "myocamlbuild.ml"
 module BaseEnvLight = struct
-(* # 22 "src/base/BaseEnvLight.ml" *)
+(* # 22 "/var/tmp/portage/dev-ml/oasis-0.4.1/work/oasis-0.4.1/src/base/BaseEnvLight.ml" *)
 
 
   module MapString = Map.Make(String)
@@ -204,27 +204,26 @@ module BaseEnvLight = struct
       end
 
 
-  let rec var_expand str env =
-    let buff =
-      Buffer.create ((String.length str) * 2)
-    in
-      Buffer.add_substitute
-        buff
-        (fun var ->
-           try
-             var_expand (MapString.find var env) env
-           with Not_found ->
-             failwith
-               (Printf.sprintf
-                  "No variable %s defined when trying to expand %S."
-                  var
-                  str))
-        str;
-      Buffer.contents buff
-
-
   let var_get name env =
-    var_expand (MapString.find name env) env
+    let rec var_expand str =
+      let buff =
+        Buffer.create ((String.length str) * 2)
+      in
+        Buffer.add_substitute
+          buff
+          (fun var ->
+             try
+               var_expand (MapString.find var env)
+             with Not_found ->
+               failwith
+                 (Printf.sprintf
+                    "No variable %s defined when trying to expand %S."
+                    var
+                    str))
+          str;
+        Buffer.contents buff
+    in
+      var_expand (MapString.find name env)
 
 
   let var_choose lst env =
@@ -234,9 +233,9 @@ module BaseEnvLight = struct
 end
 
 
-# 237 "myocamlbuild.ml"
+# 236 "myocamlbuild.ml"
 module MyOCamlbuildFindlib = struct
-(* # 22 "src/plugins/ocamlbuild/MyOCamlbuildFindlib.ml" *)
+(* # 22 "/var/tmp/portage/dev-ml/oasis-0.4.1/work/oasis-0.4.1/src/plugins/ocamlbuild/MyOCamlbuildFindlib.ml" *)
 
 
   (** OCamlbuild extension, copied from
@@ -258,31 +257,6 @@ module MyOCamlbuildFindlib = struct
   let blank_sep_strings =
     Ocamlbuild_pack.Lexers.blank_sep_strings
 
-
-  let exec_from_conf exec =
-    let exec =
-      let env_filename = Pathname.basename BaseEnvLight.default_filename in
-      let env = BaseEnvLight.load ~filename:env_filename ~allow_empty:true () in
-      try
-        BaseEnvLight.var_get exec env
-      with Not_found ->
-        Printf.eprintf "W: Cannot get variable %s\n" exec;
-        exec
-    in
-    let fix_win32 str =
-      if Sys.os_type = "Win32" then begin
-        let buff = Buffer.create (String.length str) in
-        (* Adapt for windowsi, ocamlbuild + win32 has a hard time to handle '\\'.
-         *)
-        String.iter
-          (fun c -> Buffer.add_char buff (if c = '\\' then '/' else c))
-          str;
-        Buffer.contents buff
-      end else begin
-        str
-      end
-    in
-      fix_win32 exec
 
   let split s ch =
     let buf = Buffer.create 13 in
@@ -311,7 +285,17 @@ module MyOCamlbuildFindlib = struct
     with Not_found -> s
 
   (* ocamlfind command *)
-  let ocamlfind x = S[Sh (exec_from_conf "ocamlfind"); x]
+  let ocamlfind x =
+    let ocamlfind_prog =
+      let env_filename = Pathname.basename BaseEnvLight.default_filename in
+      let env = BaseEnvLight.load ~filename:env_filename ~allow_empty:true () in
+      try
+        BaseEnvLight.var_get "ocamlfind" env
+      with Not_found ->
+        Printf.eprintf "W: Cannot get variable ocamlfind";
+        "ocamlfind"
+    in
+      S[Sh ocamlfind_prog; x]
 
   (* This lists all supported packages. *)
   let find_packages () =
@@ -322,25 +306,9 @@ module MyOCamlbuildFindlib = struct
   let find_syntaxes () = ["camlp4o"; "camlp4r"]
 
 
-  let well_known_syntax = [
-    "camlp4.quotations.o";
-    "camlp4.quotations.r";
-    "camlp4.exceptiontracer";
-    "camlp4.extend";
-    "camlp4.foldgenerator";
-    "camlp4.listcomprehension";
-    "camlp4.locationstripper";
-    "camlp4.macro";
-    "camlp4.mapgenerator";
-    "camlp4.metagenerator";
-    "camlp4.profiler";
-    "camlp4.tracer"
-  ]
-
-
   let dispatch =
     function
-      | After_options ->
+      | Before_options ->
           (* By using Before_options one let command line options have an higher
            * priority on the contrary using After_options will guarantee to have
            * the higher priority override default commands by ocamlfind ones *)
@@ -363,17 +331,13 @@ module MyOCamlbuildFindlib = struct
           List.iter
             begin fun pkg ->
               let base_args = [A"-package"; A pkg] in
-              (* TODO: consider how to really choose camlp4o or camlp4r. *)
               let syn_args = [A"-syntax"; A "camlp4o"] in
               let args =
-              (* Heuristic to identify syntax extensions: whether they end in
-                 ".syntax"; some might not.
-               *)
-                if Filename.check_suffix pkg "syntax" ||
-                   List.mem pkg well_known_syntax then
-                  syn_args @ base_args
-                else
-                  base_args
+          (* Heuristic to identify syntax extensions: whether they end in
+           * ".syntax"; some might not *)
+                if Filename.check_suffix pkg "syntax"
+                then syn_args @ base_args
+                else base_args
               in
               flag ["ocaml"; "compile";  "pkg_"^pkg] & S args;
               flag ["ocaml"; "ocamldep"; "pkg_"^pkg] & S args;
@@ -415,7 +379,7 @@ module MyOCamlbuildFindlib = struct
 end
 
 module MyOCamlbuildBase = struct
-(* # 22 "src/plugins/ocamlbuild/MyOCamlbuildBase.ml" *)
+(* # 22 "/var/tmp/portage/dev-ml/oasis-0.4.1/work/oasis-0.4.1/src/plugins/ocamlbuild/MyOCamlbuildBase.ml" *)
 
 
   (** Base functions for writing myocamlbuild.ml
@@ -430,13 +394,13 @@ module MyOCamlbuildBase = struct
   module OC = Ocamlbuild_pack.Ocaml_compiler
 
 
-  type dir = string
-  type file = string
-  type name = string
-  type tag = string
+  type dir = string 
+  type file = string 
+  type name = string 
+  type tag = string 
 
 
-(* # 62 "src/plugins/ocamlbuild/MyOCamlbuildBase.ml" *)
+(* # 62 "/var/tmp/portage/dev-ml/oasis-0.4.1/work/oasis-0.4.1/src/plugins/ocamlbuild/MyOCamlbuildBase.ml" *)
 
 
   type t =
@@ -448,7 +412,7 @@ module MyOCamlbuildBase = struct
          * directory.
          *)
         includes:  (dir * dir list) list;
-      }
+      } 
 
 
   let env_filename =
@@ -491,7 +455,7 @@ module MyOCamlbuildBase = struct
                    try
                      opt := no_trailing_dot (BaseEnvLight.var_get var env)
                    with Not_found ->
-                     Printf.eprintf "W: Cannot get variable %s\n" var)
+                     Printf.eprintf "W: Cannot get variable %s" var)
                 [
                   Options.ext_obj, "ext_obj";
                   Options.ext_lib, "ext_lib";
@@ -567,14 +531,10 @@ module MyOCamlbuildBase = struct
               (* Add flags *)
               List.iter
               (fun (tags, cond_specs) ->
-                 let spec = BaseEnvLight.var_choose cond_specs env in
-                 let rec eval_specs =
-                   function
-                     | S lst -> S (List.map eval_specs lst)
-                     | A str -> A (BaseEnvLight.var_expand str env)
-                     | spec -> spec
+                 let spec =
+                   BaseEnvLight.var_choose cond_specs env
                  in
-                   flag tags & (eval_specs spec))
+                   flag tags & spec)
               t.flags
         | _ ->
             ()
@@ -591,7 +551,7 @@ module MyOCamlbuildBase = struct
 end
 
 
-# 594 "myocamlbuild.ml"
+# 554 "myocamlbuild.ml"
 open Ocamlbuild_plugin;;
 let package_default =
   {
@@ -615,6 +575,6 @@ let package_default =
 
 let dispatch_default = MyOCamlbuildBase.dispatch_default package_default;;
 
-# 619 "myocamlbuild.ml"
+# 579 "myocamlbuild.ml"
 (* OASIS_STOP *)
 Ocamlbuild_plugin.dispatch dispatch_default;;
