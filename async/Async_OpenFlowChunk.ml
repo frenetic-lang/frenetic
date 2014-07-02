@@ -55,9 +55,11 @@ module Controller = struct
       | `Connect s_id ->
         let header = { version = v; type_code = type_code_hello;
                        length = size; xid = 0l; } in
+        t.handshakes <- SwitchSet.add t.handshakes s_id;
         Platform.send t.platform s_id (header, Cstruct.of_string "")
-        >>| ensure
-        >>| (fun e -> t.handshakes <- SwitchSet.add t.handshakes s_id; e)
+        >>| (function
+          | `Sent _ -> []
+          | `Drop _ -> t.handshakes <- SwitchSet.remove t.handshakes s_id; [])
       | `Message (s_id, msg) when SwitchSet.mem t.handshakes s_id ->
         let hdr, bits = msg in
         begin

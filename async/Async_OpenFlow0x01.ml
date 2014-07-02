@@ -84,11 +84,6 @@ module Controller = struct
         ; clients = SwitchMap.empty
         }
 
-  let _send t c_id m =
-    send t c_id (0l, m) >>| function
-      | `Drop exn -> raise exn
-      | `Sent _ -> ()
-
   let openflow0x01 t evt =
     match evt with
       | `Connect (c_id, version) ->
@@ -107,6 +102,7 @@ module Controller = struct
   let features t evt =
     match evt with
       | `Connect (c_id) ->
+        assert (not (ClientSet.mem t.shakes c_id));
         t.shakes <- ClientSet.add t.shakes c_id;
         send t c_id (0l, M.SwitchFeaturesRequest) >>| ChunkController.ensure
       | `Message (c_id, (xid, msg)) when ClientSet.mem t.shakes c_id ->
@@ -114,8 +110,8 @@ module Controller = struct
           | M.SwitchFeaturesReply fs ->
             let switch_id = fs.OpenFlow0x01.SwitchFeatures.switch_id in
             t.switches <- ClientMap.add t.switches c_id switch_id;
-            t.clients <- SwitchMap.add t.clients switch_id c_id;
-            t.shakes <- ClientSet.remove t.shakes c_id;
+            t.clients  <- SwitchMap.add t.clients switch_id c_id;
+            t.shakes   <- ClientSet.remove t.shakes c_id;
             return [`Connect(c_id, fs)]
           | _ ->
             Log.of_lazy ~tags ~level:`Debug (lazy
@@ -129,11 +125,12 @@ module Controller = struct
         let m_sw_id = ClientMap.find t.switches c_id in
         match m_sw_id with
           | None -> (* features request did not complete *)
+            assert (ClientSet.mem t.shakes c_id);
             t.shakes <- ClientSet.remove t.shakes c_id;
             return []
           | Some(sw_id) -> (* features request did complete *)
-            t.clients <- SwitchMap.remove t.clients sw_id;
             t.switches <- ClientMap.remove t.switches c_id;
+            t.clients  <- SwitchMap.remove t.clients sw_id;
             return [`Disconnect(c_id, sw_id, exn)]
 
   let listen t =
