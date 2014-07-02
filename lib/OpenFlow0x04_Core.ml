@@ -13,6 +13,10 @@ type int12 = int16
 let val_to_mask v =
   { m_value = v; m_mask = None }
 
+let ip_to_mask (p,m) =
+  if m = 32l then { m_value = p; m_mask = None }
+  else { m_value = p; m_mask = Some m }
+
 type switchId = int64
 
 type groupId = int32

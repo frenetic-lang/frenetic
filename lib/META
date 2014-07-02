@@ -2,7 +2,8 @@
 # DO NOT EDIT (digest: 2e02827bd52fb83f4c7288443e1a31cd)
 version = "0.4.0"
 description = "Serialization library for OpenFlow"
-requires = "str cstruct cstruct.syntax packet core sexplib.syntax threads"
+requires =
+"str cstruct cstruct.syntax packet core sexplib.syntax sexplib threads"
 archive(byte) = "openflow.cma"
 archive(byte, plugin) = "openflow.cma"
 archive(native) = "openflow.cmxa"
@@ -22,7 +23,7 @@ package "quickcheck" (
 package "async" (
  version = "0.4.0"
  description = "Serialization library for OpenFlow"
- requires = "async openflow cstruct.async threads sexplib.syntax"
+ requires = "async openflow cstruct.async threads sexplib.syntax sexplib"
  archive(byte) = "async.cma"
  archive(byte, plugin) = "async.cma"
  archive(native) = "async.cmxa"

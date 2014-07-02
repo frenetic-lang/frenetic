@@ -19,6 +19,7 @@
 <lib/*.ml{,i}>: package(cstruct)
 <lib/*.ml{,i}>: package(cstruct.syntax)
 <lib/*.ml{,i}>: package(packet)
+<lib/*.ml{,i}>: package(sexplib)
 <lib/*.ml{,i}>: package(sexplib.syntax)
 <lib/*.ml{,i}>: package(str)
 <lib/*.ml{,i}>: package(threads)
@@ -30,6 +31,7 @@
 <async/*.ml{,i}>: package(cstruct.async)
 <async/*.ml{,i}>: package(cstruct.syntax)
 <async/*.ml{,i}>: package(packet)
+<async/*.ml{,i}>: package(sexplib)
 <async/*.ml{,i}>: package(sexplib.syntax)
 <async/*.ml{,i}>: package(str)
 <async/*.ml{,i}>: package(threads)
@@ -42,6 +44,7 @@
 <quickcheck/*.ml{,i}>: package(packet)
 <quickcheck/*.ml{,i}>: package(packet.quickcheck)
 <quickcheck/*.ml{,i}>: package(quickcheck)
+<quickcheck/*.ml{,i}>: package(sexplib)
 <quickcheck/*.ml{,i}>: package(sexplib.syntax)
 <quickcheck/*.ml{,i}>: package(str)
 <quickcheck/*.ml{,i}>: package(threads)
@@ -56,6 +59,7 @@
 "test/Test.byte": package(packet)
 "test/Test.byte": package(packet.quickcheck)
 "test/Test.byte": package(quickcheck)
+"test/Test.byte": package(sexplib)
 "test/Test.byte": package(sexplib.syntax)
 "test/Test.byte": package(str)
 "test/Test.byte": package(threads)
@@ -70,6 +74,7 @@
 <test/*.ml{,i}>: package(packet)
 <test/*.ml{,i}>: package(packet.quickcheck)
 <test/*.ml{,i}>: package(quickcheck)
+<test/*.ml{,i}>: package(sexplib)
 <test/*.ml{,i}>: package(sexplib.syntax)
 <test/*.ml{,i}>: package(str)
 <test/*.ml{,i}>: package(threads)
@@ -85,6 +90,7 @@
 "ping-test/PingTest.byte": package(pa_ounit)
 "ping-test/PingTest.byte": package(pa_ounit.syntax)
 "ping-test/PingTest.byte": package(packet)
+"ping-test/PingTest.byte": package(sexplib)
 "ping-test/PingTest.byte": package(sexplib.syntax)
 "ping-test/PingTest.byte": package(str)
 "ping-test/PingTest.byte": package(threads)
@@ -99,6 +105,7 @@
 <ping-test/*.ml{,i}>: package(pa_ounit)
 <ping-test/*.ml{,i}>: package(pa_ounit.syntax)
 <ping-test/*.ml{,i}>: package(packet)
+<ping-test/*.ml{,i}>: package(sexplib)
 <ping-test/*.ml{,i}>: package(sexplib.syntax)
 <ping-test/*.ml{,i}>: package(str)
 <ping-test/*.ml{,i}>: package(threads)
@@ -111,6 +118,7 @@
 "examples/Learning_Switch.byte": package(cstruct.async)
 "examples/Learning_Switch.byte": package(cstruct.syntax)
 "examples/Learning_Switch.byte": package(packet)
+"examples/Learning_Switch.byte": package(sexplib)
 "examples/Learning_Switch.byte": package(sexplib.syntax)
 "examples/Learning_Switch.byte": package(str)
 "examples/Learning_Switch.byte": package(threads)
@@ -122,13 +130,14 @@
 <examples/*.ml{,i}>: package(cstruct.async)
 <examples/*.ml{,i}>: package(cstruct.syntax)
 <examples/*.ml{,i}>: package(packet)
+<examples/*.ml{,i}>: package(sexplib)
 <examples/*.ml{,i}>: package(sexplib.syntax)
 <examples/*.ml{,i}>: package(str)
 <examples/*.ml{,i}>: package(threads)
 <examples/*.ml{,i}>: use_async
 <examples/*.ml{,i}>: use_openflow
 # OASIS_STOP
-<lib/*.ml>: syntax_camlp4o
-<async/*.ml>: syntax_camlp4o
-<test/*.ml>: syntax_camlp4o
-<examples/*.ml>: syntax_camlp4o
+<lib/*.ml{,i}>: syntax_camlp4o
+<async/*.ml{,i}>: syntax_camlp4o
+<test/*.ml{,i}>: syntax_camlp4o
+<examples/*.ml{,i}>: syntax_camlp4o

@@ -17,6 +17,13 @@ let arbitrary_payload =
     arbitrary_bufferId >>= (fun id -> ret_gen (SDN_Types.Buffered (id, bytes)));
     ret_gen (SDN_Types.NotBuffered bytes)]
 
+let arbitrary_ip_mask = 
+  let open Gen in 
+  let open Arbitrary_Packet in 
+  arbitrary_nwAddr >>= fun p ->
+  choose_int32 (0l, 32l) >>= fun m -> 
+    ret_gen (p,m)
+
 let arbitrary_pattern =
   let open Gen in
   let open Pattern in
@@ -27,8 +34,8 @@ let arbitrary_pattern =
   opt arbitrary_dlAddr >>= fun dlDst ->
   opt arbitrary_dlTyp  >>= fun dlTyp ->
   arbitrary_dlVlan     >>= fun (dlVlan, _, dlVlanPcp) ->
-  opt arbitrary_nwAddr >>= fun nwSrc ->
-  opt arbitrary_nwAddr >>= fun nwDst ->
+  opt arbitrary_ip_mask >>= fun nwSrc ->
+  opt arbitrary_ip_mask >>= fun nwDst ->
   opt arbitrary_nwProto >>= fun nwProto ->
   opt arbitrary_tpPort >>= fun tpSrc ->
   opt arbitrary_tpPort >>= fun tpDst ->

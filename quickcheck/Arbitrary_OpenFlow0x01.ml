@@ -165,7 +165,7 @@ module PseudoPort = struct
     let open Gen in
     let open OpenFlow0x01_Core in
       oneof [
-        arbitrary_uint16 >>= (fun p -> ret_gen (PhysicalPort p));
+        choose_int(0,0xff00) >>= (fun p -> ret_gen (PhysicalPort p));
         ret_gen InPort;
         (* ret_gen Table; *)
         ret_gen Normal;
