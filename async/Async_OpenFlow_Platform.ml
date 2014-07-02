@@ -4,6 +4,8 @@ open Core.Std
 module Header = OpenFlow_Header
 module type Message = Async_OpenFlow_Message.Message
 
+exception Flush_closed_writer
+
 module type S = sig
 
   type t 
@@ -69,7 +71,14 @@ module Make(Message : Message) = struct
 
       let close ((_, w) : t) = Writer.close w
 
-      let flushed_time ((_, w) : t) = Writer.flushed_time w
+      let flushed_time ((_, w) : t) =
+        let open Deferred in
+        choose [ choice (Writer.flushed_time  w) (fun x  -> `F x)
+               ; choice (Writer.consumer_left w) (fun () -> `C ())
+               ]
+        >>| function
+          | `F x -> x
+          | `C () -> raise Flush_closed_writer
 
       let read ((r, _) : t) = Serialization.deserialize r
 
@@ -109,7 +118,11 @@ module Make(Message : Message) = struct
 
   let has_client_id = Impl.has_client_id
 
-  let send = Impl.send
+  let send t c_id m =
+    Monitor.try_with (fun () -> Impl.send t c_id m)
+    >>| function
+      | Ok x       -> x
+      | Error _exn -> `Drop _exn
 
   let send_to_all = Impl.send_to_all
 
