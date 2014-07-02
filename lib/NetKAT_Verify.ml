@@ -234,7 +234,7 @@ struct
   module Link = Network_Common.Link 
   module Net = Network_Common.Net
   module Topology = Net.Topology
-  module Path = Net.Path
+  module Path = Net.UnitPath
 
   module Json = Yojson.Safe
 
@@ -422,28 +422,59 @@ struct
       hosts []
 
   let shortest_path_policy topo switches hosts = 
-    Topology.VertexSet.fold
-      (fun sw pol -> 
-        let i = Node.id (Topology.vertex_to_label topo sw) in 
-        Topology.VertexSet.fold
-          (fun h pol -> 
-            match Path.shortest_path topo sw h with 
-              | Some(e::_) -> 
-                let m = Node.mac (Topology.vertex_to_label topo h) in 
-                let v,pt = Topology.edge_src e in 
-                NetKAT_Types.(Union(pol,
-                                    Seq(Filter(And(Test(Switch(i)),Test(EthDst(m)))),
-                                        Mod(Location(Physical(pt))))))
-              | _ -> pol)
-          hosts pol)
-      switches NetKAT_Types.drop 
+    let h = Hashtbl.create 101 in 
+    let () = 
+      Topology.VertexSet.iter
+      (fun h1 -> 
+	Topology.VertexSet.iter
+	  (fun h2 -> 	    
+	    match Path.shortest_path topo h1 h2 with 
+	    | Some [] -> ()
+	    | Some p -> Hashtbl.add h (h1,h2) p
+	    | None -> ())
+	  hosts)
+      hosts in 
+    Hashtbl.fold
+      (fun (h1,h2) pi pol -> 
+	let m = Node.mac (Topology.vertex_to_label topo h2) in 
+	Printf.printf "DOING %s -> %s : [%s]\n" 
+	  (Topology.vertex_to_string topo h1)
+	  (Topology.vertex_to_string topo h2)
+	  (List.fold_left 
+	     (fun acc e -> 
+	       Printf.sprintf "%s%s%s => %s"
+		 acc 
+		 (if acc = "" then "" else ";")
+		 (Topology.vertex_to_string topo (fst (Topology.edge_src e)))
+		 (Topology.vertex_to_string topo (fst (Topology.edge_dst e))))
+	     "" pi);
+	List.fold_left
+	  (fun pol e -> 
+	    let v,pt = Topology.edge_src e in 
+	    let n = Topology.vertex_to_label topo v in 
+	    match Node.device n with 
+	    | Node.Switch -> 
+	      let i = Node.id n in 
+	      Printf.printf "Forwarding sw%Ld mac(%Ld) : %ld\n" i m pt;
+              NetKAT_Types.(Optimize.(
+		mk_union
+		  (mk_seq 
+		     (mk_filter (mk_and (Test(Switch(i))) (Test(EthDst(m)))))
+		     (Mod(Location(Physical(pt)))))
+		  pol))
+	    | _ -> pol)	      
+	  pol pi)
+      h NetKAT_Types.drop
 
   let shortest_path_table topo switches policy = 
     Topology.VertexSet.fold
       (fun sw tbl -> 
-        let i = Node.id (Topology.vertex_to_label topo sw) in                     
-        NetKAT_Types.(Union(tbl, Seq(Filter(Test(Switch(i))), 
-                                     NetKAT_LocalCompiler.(to_netkat (compile i policy))))))
+        let i = Node.id (Topology.vertex_to_label topo sw) in                             NetKAT_Types.(Optimize.(NetKAT_LocalCompiler.(
+	  mk_union 
+	    (mk_seq 
+	       (mk_filter(Test(Switch(i))))
+	       (to_netkat (compile i policy)))
+	    tbl))))
       switches NetKAT_Types.drop   
 
   let connectivity_policy topo hosts = 
@@ -452,9 +483,10 @@ struct
       (fun (pr,pol) (h,pt,sw) -> 
         let m = Node.mac (Topology.vertex_to_label topo h) in               
         let i = Node.id (Topology.vertex_to_label topo sw) in 
-        NetKAT_Types.(Or(pr,And(Test(Switch(i)), Test(Location(Physical(pt))))),
-                      Union(pol, Seq(Seq(Filter(Test(EthDst(m))), Mod(Switch(i))), Mod(Location(Physical(pt)))))))
-      NetKAT_Types.(False, id) hps
+        NetKAT_Types.(Optimize.(
+	  (mk_or pr (mk_and (Test(Switch(i))) (Test(Location(Physical(pt))))),
+           mk_union pol (mk_seq (mk_seq (mk_filter (Test(EthDst(m)))) (Mod(Switch(i)))) (Mod(Location(Physical(pt)))))))))
+      NetKAT_Types.(False, drop) hps
       
   let topology_policy topo = 
     Topology.EdgeSet.fold
@@ -464,7 +496,7 @@ struct
         if is_switch topo v1 && is_switch topo v2 then 
           let n1 = Node.id (Topology.vertex_to_label topo v1) in 
           let n2 = Node.id (Topology.vertex_to_label topo v2) in 
-          NetKAT_Types.(Union(tp_pol, Link(n1,pt1,n2,pt2)))
+          NetKAT_Types.(Optimize.(mk_union tp_pol (Link(n1,pt1,n2,pt2))))
         else tp_pol)
       (Topology.edges topo) NetKAT_Types.drop 
 
@@ -521,16 +553,15 @@ struct
     Printf.printf "## Equivalent ##\n%b\n" ret; 
     ret
     
-
-  let verify_shortest_paths ?(print=false) filename = 
+  let verify_shortest_paths ?(print=true) filename = 
     let topo, vertexes, switches, hosts = topology filename in 
     let sw_pol = shortest_path_policy topo switches hosts in 
     let edge_pol, _ = connectivity_policy topo hosts in 
-    let wrap pol = NetKAT_Types.(Seq(Seq(Filter edge_pol, pol), Filter edge_pol)) in 
+    let wrap pol = NetKAT_Types.(Optimize.(mk_seq (mk_seq (mk_filter edge_pol) pol) (mk_filter edge_pol))) in 
     let sw_tbl = shortest_path_table topo switches sw_pol in 
     let tp_pol = topology_policy topo in 
-    let net_sw_pol = NetKAT_Types.(Star(Seq(sw_pol, tp_pol))) in 
-    let net_sw_tbl = NetKAT_Types.(Star(Seq(sw_tbl, tp_pol))) in 
+    let net_sw_pol = NetKAT_Types.(Optimize.(mk_star (mk_seq sw_pol tp_pol))) in 
+    let net_sw_tbl = NetKAT_Types.(Optimize.(mk_star (mk_seq sw_tbl tp_pol))) in 
     if print then Printf.printf "## NetKAT Policy ##\n%s\n## OpenFlow Table ##\n%s\n## Topology ##\n%s\n%!"
       (NetKAT_Pretty.string_of_policy sw_pol)
       (NetKAT_Pretty.string_of_policy sw_tbl)
@@ -548,9 +579,9 @@ struct
     let topo, vertexes, switches, hosts = topology filename in 
     let sw_pol = shortest_path_policy topo switches hosts in 
     let cn_pr, cn_pol = connectivity_policy topo hosts in 
-    let wrap pol = NetKAT_Types.(Seq(Seq(Filter cn_pr, pol), Filter cn_pr)) in 
+    let wrap pol = NetKAT_Types.(Optimize.(mk_seq (mk_seq (mk_filter cn_pr) pol) (mk_filter cn_pr))) in 
     let tp_pol = topology_policy topo in 
-    let net_sw_pol = wrap NetKAT_Types.(Star(Seq(sw_pol, tp_pol))) in 
+    let net_sw_pol = wrap NetKAT_Types.(Optimize.(mk_star (mk_seq sw_pol tp_pol))) in 
     let net_cn_pol = wrap NetKAT_Types.(cn_pol) in 
 (*    Printf.printf "## NetKAT Policy ##\n%s\n## Connectivity Policy ##\n%s\n%!"
       (NetKAT_Pretty.string_of_policy net_sw_pol)
@@ -562,6 +593,4 @@ struct
       (Decide_Ast.Term.to_string rhs); *)
     Printf.printf "## Equivalent ##\n%b\n"
       (check_equivalent lhs rhs)
-
-
 end
