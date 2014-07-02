@@ -138,6 +138,7 @@ type groupType =
 type groupMod =
 | AddGroup of groupType * groupId * bucket list
 | DeleteGroup of groupType * groupId
+| ModifyGroup of groupType * groupId * bucket list
 
 type timeout =
 | Permanent

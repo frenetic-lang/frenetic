@@ -808,6 +808,14 @@ let rec marshal_fields (buf: Cstruct.t) (fields : 'a list) (marshal_func : Cstru
   else let size = marshal_func buf (List.hd fields) in
     size + (marshal_fields (Cstruct.shift buf size) (List.tl fields) marshal_func)
 
+let parse_fields (bits : Cstruct.t) (parse_func : Cstruct.t -> 'a) (length_func : Cstruct.t -> int option) :'a list =
+  let iter =
+    Cstruct.iter
+        length_func
+        parse_func
+        bits in
+    List.rev (Cstruct.fold (fun acc bits -> bits :: acc) iter [])
+
 let pad_to_64bits (n : int) : int =
   if n land 0x7 <> 0 then
     n + (8 - (n land 0x7))
@@ -1965,6 +1973,10 @@ module Bucket = struct
       | Some n -> Int32.to_string n
       | None -> "None")
     (String.concat "\n" (map Action.to_string bucket.bu_actions))
+
+  let length_func (buf : Cstruct.t) : int option =
+    if Cstruct.len buf < sizeof_ofp_bucket then None
+    else Some (get_ofp_bucket_len buf)
  
   let marshal (buf : Cstruct.t) (bucket : bucket) : int =
     let size = sizeof bucket in
@@ -2066,12 +2078,20 @@ end
 
 module GroupMod = struct
 
+  cenum ofp_group_mod_command {
+    OFPGC_ADD = 0;
+    OFPGC_MODIFY = 1;
+    OFPGC_DELETE = 2
+  } as uint16_t
+
   let sizeof (gm: groupMod) : int =
     match gm with
       | AddGroup (typ, gid, buckets) -> 
         sizeof_ofp_group_mod + sum (map Bucket.sizeof buckets)
       | DeleteGroup (typ, gid) -> 
         sizeof_ofp_group_mod
+      | ModifyGroup (typ, _, buckets) -> 
+        sizeof_ofp_group_mod + sum (map Bucket.sizeof buckets)
 
   let marshal (buf : Cstruct.t) (gm : groupMod) : int =
     match gm with
@@ -2087,6 +2107,26 @@ module GroupMod = struct
         set_ofp_group_mod_pad buf 0;
         set_ofp_group_mod_group_id buf gid;
         sizeof_ofp_group_mod
+      | ModifyGroup (typ, gid, buckets) -> 
+        set_ofp_group_mod_command buf 1; (* OFPGC_MODIFY *)
+        set_ofp_group_mod_typ buf (GroupType.marshal typ);
+        set_ofp_group_mod_pad buf 0;
+        set_ofp_group_mod_group_id buf gid;
+        sizeof_ofp_group_mod + (marshal_fields (Cstruct.shift buf sizeof_ofp_group_mod) buckets Bucket.marshal)
+
+  let parse (bits : Cstruct.t) : groupMod =
+    let typ = GroupType.parse (get_ofp_group_mod_typ bits) in
+    let gid = get_ofp_group_mod_group_id bits in
+    let command = get_ofp_group_mod_command bits in
+    match int_to_ofp_group_mod_command command with
+      | Some OFPGC_ADD -> 
+        let bucket = parse_fields (Cstruct.shift bits sizeof_ofp_group_mod) Bucket.parse (Bucket.length_func) in
+        AddGroup (typ,gid,bucket)
+      | Some OFPGC_MODIFY -> DeleteGroup (typ,gid)
+      | Some OFPGC_DELETE -> 
+        let bucket = parse_fields (Cstruct.shift bits sizeof_ofp_group_mod) Bucket.parse (Bucket.length_func) in
+        ModifyGroup (typ,gid,bucket)
+      | None -> raise (Unparsable (sprintf "malformed group command"))
 end
 
 module Instruction = struct
