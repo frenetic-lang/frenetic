@@ -437,7 +437,7 @@ struct
     Hashtbl.fold
       (fun (h1,h2) pi pol -> 
 	let m = Node.mac (Topology.vertex_to_label topo h2) in 
-	Printf.printf "DOING %s -> %s : [%s]\n" 
+(*	Printf.printf "DOING %s -> %s : [%s]\n" 
 	  (Topology.vertex_to_string topo h1)
 	  (Topology.vertex_to_string topo h2)
 	  (List.fold_left 
@@ -447,7 +447,7 @@ struct
 		 (if acc = "" then "" else ";")
 		 (Topology.vertex_to_string topo (fst (Topology.edge_src e)))
 		 (Topology.vertex_to_string topo (fst (Topology.edge_dst e))))
-	     "" pi);
+	     "" pi); *)
 	List.fold_left
 	  (fun pol e -> 
 	    let v,pt = Topology.edge_src e in 
@@ -455,7 +455,7 @@ struct
 	    match Node.device n with 
 	    | Node.Switch -> 
 	      let i = Node.id n in 
-	      Printf.printf "Forwarding sw%Ld mac(%Ld) : %ld\n" i m pt;
+	      (* Printf.printf "Forwarding sw%Ld mac(%Ld) : %ld\n" i m pt; *)
               NetKAT_Types.(Optimize.(
 		mk_union
 		  (mk_seq 
