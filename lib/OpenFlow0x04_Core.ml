@@ -247,9 +247,11 @@ type burst = int32
 type experimenterId = int32
 
 type meterBand =
-  | Drop of (length*rate*burst)
-  | DscpRemark of (length*rate*burst*int8)
-  | ExpMeter of (length*rate*burst*experimenterId)
+  | Drop of (rate*burst)
+  | DscpRemark of (rate*burst*int8)
+  | ExpMeter of (rate*burst*experimenterId)
+
+type meterFlags = { kbps : bool; pktps : bool; burst : bool; stats : bool}
 
 type flowRequest = {fr_table_id : tableId; fr_out_port : portId; 
                     fr_out_group : portId; fr_cookie : int64 mask;
@@ -340,7 +342,7 @@ type groupStats = { length : int16; group_id : int32; ref_count : int32;
 type groupDesc = { length : int16; typ : groupType; group_id : int32; bucket : bucket list}
 
 type groupCapabilities = { select_weight : bool; select_liveness : bool;
-                           chaining : bool; chaining_checks : bool}
+                           chaining : bool; chaining_checks : bool }
 
 type groupTypeMap = { all : bool; select : bool; indirect : bool; ff : bool}
 
@@ -362,12 +364,12 @@ type meterStats = { meter_id: int32; len : int16; flow_count : int32; packet_in_
                     int64; byte_in_count : int64; duration_sec : int32; duration_nsec : 
                     int32; band : meterBandStats list}
 
+type meterConfig = { length : length; flags : meterFlags; meter_id : int32; bands : meterBand list}
+
 type meterBandMaps = { drop : bool; dscpRemark : bool}
 
-type meterFlagsMap = { kbps : bool; pktps : bool; burst : bool; stats : bool }
-
 type meterFeaturesStats = { max_meter : int32; band_typ : meterBandMaps; 
-                            capabilities : meterFlagsMap; max_band : int8;
+                            capabilities : meterFlags; max_band : int8;
                             max_color : int8 }
 
 type multipartReplyTyp = 
@@ -383,6 +385,7 @@ type multipartReplyTyp =
   | GroupDescReply of groupDesc list
   | GroupFeaturesReply of groupFeatures
   | MeterReply of meterStats list
+  | MeterConfig of meterConfig list
   | MeterFeaturesReply of meterFeaturesStats
 
 type multipartReply = {mpreply_typ : multipartReplyTyp; mpreply_flags : bool}

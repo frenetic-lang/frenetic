@@ -2770,37 +2770,85 @@ module MeterBand = struct
     OFPMBT_EXPERIMENTER = 0xffff
   } as uint16_t
 
-  let marshal_header (buf : Cstruct.t) (mb : meterBand) : int =
+  let sizeof (mb : meterBand) : int =
     match mb with
-      | Drop (l,r,b) ->
-        set_ofp_meter_band_header_typ buf 1; (* OFPMBT_DROP *)
-        set_ofp_meter_band_header_len buf l;
-        set_ofp_meter_band_header_rate buf r;
-        set_ofp_meter_band_header_burst_size buf b;
-        sizeof_ofp_meter_band_header
-      | DscpRemark (l,r,b,_) ->
-        set_ofp_meter_band_header_typ buf 2; (* OFPMBT_DSCP_REMARK *)
-        set_ofp_meter_band_header_len buf l;
-        set_ofp_meter_band_header_rate buf r;
-        set_ofp_meter_band_header_burst_size buf b;
-        sizeof_ofp_meter_band_header
-      | ExpMeter (l,r,b,_) ->
-        set_ofp_meter_band_header_typ buf 0xffff; (* OFPMBT_EXPERIMENTER *)
-        set_ofp_meter_band_header_len buf l;
-        set_ofp_meter_band_header_rate buf r;
-        set_ofp_meter_band_header_burst_size buf b;
-        sizeof_ofp_meter_band_header
+      | Drop _ -> sizeof_ofp_meter_band_drop
+      | DscpRemark _ -> sizeof_ofp_meter_band_dscp_remark
+      | ExpMeter _ ->  sizeof_ofp_meter_band_experimenter
 
-  let parse_header (bits : Cstruct.t) : meterBand =
-    let len = get_ofp_meter_band_header_len bits in
+  let length_fun (buf : Cstruct.t) : int option =
+    if Cstruct.len buf < sizeof_ofp_meter_band_header then None
+    else Some (get_ofp_meter_band_header_len buf)
+
+  let to_string (mb : meterBand) : string =
+    match mb with
+      | Drop (r,b) ->
+        Format.sprintf "Drop; rate:%lu; burst size:%lu" r b
+      | DscpRemark (r,b,p) ->
+        Format.sprintf "Dscp Remark; rate:%lu; burst size:%lu; prec level: %u" r b p
+      | ExpMeter (r,b,e) ->
+        Format.sprintf "Experimetner; rate:%lu; burst size:%lu; experimenter id: %lu" r b e
+
+  let marshal (buf : Cstruct.t) (mb : meterBand) : int =
+    match mb with
+      | Drop (r,b) ->
+        set_ofp_meter_band_drop_typ buf 1; (* OFPMBT_DROP *)
+        set_ofp_meter_band_drop_len buf sizeof_ofp_meter_band_drop;
+        set_ofp_meter_band_drop_rate buf r;
+        set_ofp_meter_band_drop_burst_size buf b;
+        sizeof_ofp_meter_band_drop
+      | DscpRemark (r,b,p) ->
+        set_ofp_meter_band_dscp_remark_typ buf 2; (* OFPMBT_DSCP_REMARK *)
+        set_ofp_meter_band_dscp_remark_len buf sizeof_ofp_meter_band_dscp_remark;
+        set_ofp_meter_band_dscp_remark_rate buf r;
+        set_ofp_meter_band_dscp_remark_burst_size buf b;
+        set_ofp_meter_band_dscp_remark_prec_level buf p;
+        sizeof_ofp_meter_band_dscp_remark
+      | ExpMeter (r,b,e) ->
+        set_ofp_meter_band_experimenter_typ buf 0xffff; (* OFPMBT_EXPERIMENTER *)
+        set_ofp_meter_band_experimenter_len buf sizeof_ofp_meter_band_experimenter;
+        set_ofp_meter_band_experimenter_rate buf r;
+        set_ofp_meter_band_experimenter_burst_size buf b;
+        set_ofp_meter_band_experimenter_experimenter buf e;
+        sizeof_ofp_meter_band_experimenter 
+
+  let parse (bits : Cstruct.t) : meterBand =
     let rate = get_ofp_meter_band_header_rate bits in
     let burst = get_ofp_meter_band_header_burst_size bits in
     let typ = get_ofp_meter_band_header_typ bits in
     match int_to_ofp_meter_band_type typ with 
-      | Some OFPMBT_DROP -> Drop (len,rate,burst)
-      | Some OFPMBT_DSCP_REMARK -> DscpRemark (len,rate,burst,0)
-      | Some OFPMBT_EXPERIMENTER -> ExpMeter (len,rate,burst,0l)
+      | Some OFPMBT_DROP -> 
+        Drop (rate,burst)
+      | Some OFPMBT_DSCP_REMARK -> 
+        let p = get_ofp_meter_band_dscp_remark_prec_level bits in
+        DscpRemark (rate,burst,p)
+      | Some OFPMBT_EXPERIMENTER -> 
+        let e = get_ofp_meter_band_experimenter_experimenter bits in
+        ExpMeter (rate,burst,e)
       | None -> raise (Unparsable (sprintf "malformed typ"))
+
+end
+
+module MeterFlags = struct
+
+  let marshal (mfm : meterFlags) : int =
+    (if mfm.kbps then 1 lsl 0 else 0) lor 
+     (if mfm.pktps then 1 lsl 1 else 0) lor
+      (if mfm.burst then 1 lsl 2 else 0) lor
+       (if mfm.stats then 1 lsl 3 else 0)
+
+  let parse bits : meterFlags = 
+    { kbps = test_bit16 0 bits
+    ; pktps = test_bit16 1 bits 
+    ; burst = test_bit16 2 bits 
+    ; stats = test_bit16 3 bits }
+
+  let to_string (mfm : meterFlags) : string =
+    Format.sprintf "kpbs: %B; pktps: %B; burst: %B; stats: %B"
+    mfm.kbps
+    mfm.pktps
+    mfm.burst
+    mfm.stats
 
 end
 
@@ -4218,6 +4266,49 @@ module MeterConfig = struct
     uint32_t meter_id
   } as big_endian
 
+  let sizeof_struct (mc : meterConfig) : int =
+    sizeof_ofp_meter_config + sum (map MeterBand.sizeof mc.bands)
+
+  let sizeof (mc : meterConfig list) : int =
+    sum (map sizeof_struct mc)  
+
+  let to_string_struct (mc : meterConfig) : string =
+    Format.sprintf "len: %u; flags: %s; meter id: %lu; bands:%s"
+    mc.length
+    (MeterFlags.to_string mc.flags)
+    mc.meter_id
+    (String.concat "\n" (map MeterBand.to_string mc.bands))
+
+  let to_string (mc : meterConfig list) : string =
+    String.concat "\n" (map to_string_struct mc)
+
+  let marshal_struct (buf : Cstruct.t) (mc : meterConfig) : int =
+    set_ofp_meter_config_length buf mc.length;
+    set_ofp_meter_config_flags buf (MeterFlags.marshal mc.flags);
+    set_ofp_meter_config_meter_id buf mc.meter_id;
+    sizeof_ofp_meter_config + (marshal_fields (Cstruct.shift buf sizeof_ofp_meter_config) mc.bands MeterBand.marshal)
+
+  let marshal (buf : Cstruct.t) (mc : meterConfig list) : int =
+    marshal_fields buf mc marshal_struct
+
+  let parse_struct (bits : Cstruct.t) : meterConfig =
+    let length = get_ofp_meter_config_length bits in
+    let flags = MeterFlags.parse (get_ofp_meter_config_flags bits) in
+    let meter_id = get_ofp_meter_config_meter_id bits in
+    let bands_bits = Cstruct.sub bits sizeof_ofp_meter_config (length-sizeof_ofp_meter_config) in
+    let bands = parse_fields bands_bits MeterBand.parse MeterBand.length_fun in
+    { length
+    ; flags
+    ; meter_id
+    ; bands
+    }
+
+  let length_func (buf : Cstruct.t) : int option =
+    if Cstruct.len buf < sizeof_ofp_meter_config then None
+    else Some (get_ofp_meter_config_length buf)
+
+  let parse (buf : Cstruct.t) : meterConfig list =
+    parse_fields buf parse_struct length_func
 end
 
 module MeterFeaturesStats = struct
@@ -4244,25 +4335,6 @@ module MeterFeaturesStats = struct
     mbm.drop
     mbm.dscpRemark
 
-  let meterFlagsMap_to_int (mfm : meterFlagsMap) : int32 =
-    Int32.logor (if mfm.kbps then (Int32.shift_left 1l 0) else 0l) 
-     (Int32.logor (if mfm.pktps then (Int32.shift_left 1l 1) else 0l)
-      (Int32.logor (if mfm.burst then (Int32.shift_left 1l 2) else 0l)
-       (if mfm.stats then (Int32.shift_left 1l 3) else 0l)))
-
-  let int_to_meterFlagsMap bits : meterFlagsMap = 
-    { kbps = Bits.test_bit 0 bits
-    ; pktps = Bits.test_bit 1 bits 
-    ; burst = Bits.test_bit 2 bits 
-    ; stats = Bits.test_bit 3 bits }
-
-  let meterFlagsMap_to_string (mfm : meterFlagsMap) : string =
-    Format.sprintf "kpbs: %B; pktps: %B; burst: %B; stats: %B"
-    mfm.kbps
-    mfm.pktps
-    mfm.burst
-    mfm.stats
-
   let sizeof (mfs : meterFeaturesStats) : int =
     sizeof_ofp_meter_features
 
@@ -4270,14 +4342,15 @@ module MeterFeaturesStats = struct
     Format.sprintf "max meter: %lu; band typ:%s; capabilities: %s; max band: %u; max color: %u"
     mfs.max_meter
     (meterBandMaps_to_string mfs.band_typ)
-    (meterFlagsMap_to_string mfs.capabilities)
+    (MeterFlags.to_string mfs.capabilities)
     mfs.max_band
     mfs.max_color
   
   let marshal (buf : Cstruct.t) (mfs : meterFeaturesStats) : int =
     set_ofp_meter_features_max_meter buf mfs.max_meter;
     set_ofp_meter_features_band_types buf (meterBandMaps_to_int mfs.band_typ);
-    set_ofp_meter_features_capabilities buf (meterFlagsMap_to_int mfs.capabilities);
+    (* int -> int32 fix, before release of OF1.3.5 *)
+    set_ofp_meter_features_capabilities buf (Int32.of_int (MeterFlags.marshal mfs.capabilities));
     set_ofp_meter_features_max_bands buf mfs.max_band;
     set_ofp_meter_features_max_color buf mfs.max_color;
     sizeof_ofp_meter_features
@@ -4285,7 +4358,8 @@ module MeterFeaturesStats = struct
   let parse (bits : Cstruct.t) : meterFeaturesStats =
     { max_meter = get_ofp_meter_features_max_meter bits
     ; band_typ = int_to_meterBandMaps (get_ofp_meter_features_band_types bits)
-    ; capabilities = int_to_meterFlagsMap (get_ofp_meter_features_capabilities bits)
+    (* int32 -> int fix, before release of OF1.3.5 *)
+    ; capabilities = MeterFlags.parse (Int32.to_int (get_ofp_meter_features_capabilities bits))
     ; max_band = get_ofp_meter_features_max_bands bits
     ; max_color = get_ofp_meter_features_max_color bits
     }
@@ -4309,6 +4383,7 @@ module MultipartReply = struct
       | GroupDescReply gd -> GroupDesc.sizeof gd
       | GroupFeaturesReply gf -> GroupFeatures.sizeof gf
       | MeterReply mr -> MeterStats.sizeof mr
+      | MeterConfig mc -> MeterConfig.sizeof mc
       | MeterFeaturesReply mf -> MeterFeaturesStats.sizeof mf
 
   let to_string (mpr : multipartReply) =
@@ -4325,6 +4400,7 @@ module MultipartReply = struct
       | GroupDescReply gd -> Format.sprintf "GroupSDesc: %s" (GroupDesc.to_string gd)
       | GroupFeaturesReply gf -> Format.sprintf "GroupFeatures: %s" (GroupFeatures.to_string gf)
       | MeterReply mr -> Format.sprintf "MeterStats: %s" (MeterStats.to_string mr)
+      | MeterConfig mc -> Format.sprintf "MeterConfig: %s" (MeterConfig.to_string mc)
       | MeterFeaturesReply mf -> Format.sprintf "MeterFeaturesStats: %s" (MeterFeaturesStats.to_string mf)
 
   let marshal (buf : Cstruct.t) (mpr : multipartReply) : int =
@@ -4370,6 +4446,9 @@ module MultipartReply = struct
       | MeterReply mr ->
           set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_METER);
           MeterStats.marshal ofp_body_bits mr
+      | MeterConfig mc ->
+          set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_METER_CONFIG);
+          MeterConfig.marshal ofp_body_bits mc
       | MeterFeaturesReply mfr ->
           set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_METER_FEATURES);
           MeterFeaturesStats.marshal ofp_body_bits mfr
@@ -4402,6 +4481,8 @@ module MultipartReply = struct
           GroupFeaturesReply (GroupFeatures.parse ofp_body_bits)
       | Some OFPMP_METER ->
           MeterReply (MeterStats.parse ofp_body_bits)
+      | Some OFPMP_METER_CONFIG ->
+          MeterConfig (MeterConfig.parse ofp_body_bits)
       | Some OFPMP_METER_FEATURES ->
           MeterFeaturesReply (MeterFeaturesStats.parse ofp_body_bits)
       | _ -> raise (Unparsable (sprintf "NYI: can't parse this multipart reply"))) in

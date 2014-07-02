@@ -350,10 +350,25 @@ module RoundTripping = struct
       (openflow_quickCheck GenSwDescReply.arbitrary
           GenSwDescReply.to_string GenSwDescReply.parse GenSwDescReply.marshal)
 
-  TEST "OpenFlow0x04 MultipartReply.GroupStats RoundTrip" =
-      let module GenGroupStatsReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.GroupStats) in
-      (openflow_quickCheck GenGroupStatsReply.arbitrary
-          GenGroupStatsReply.to_string GenGroupStatsReply.parse GenGroupStatsReply.marshal)
+  TEST "OpenFlow0x04 MultipartReply.GroupFeatures RoundTrip" =
+      let module GenGroupFeaturesReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.GroupFeatures) in
+      (openflow_quickCheck GenGroupFeaturesReply.arbitrary
+          GenGroupFeaturesReply.to_string GenGroupFeaturesReply.parse GenGroupFeaturesReply.marshal)
+  
+  TEST "OpenFlow0x04 MultipartReply.MeterStats RoundTrip" =
+      let module GenMeterStatsReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.MeterStats) in
+      (openflow_quickCheck GenMeterStatsReply.arbitrary
+          GenMeterStatsReply.to_string GenMeterStatsReply.parse GenMeterStatsReply.marshal)
+
+  TEST "OpenFlow0x04 MultipartReply.MeterConfig RoundTrip" =
+      let module GenMeterConfigReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.MeterConfig) in
+      (openflow_quickCheck GenMeterConfigReply.arbitrary
+          GenMeterConfigReply.to_string GenMeterConfigReply.parse GenMeterConfigReply.marshal)
+
+  TEST "OpenFlow0x04 MultipartReply.MeterFeaturesStats RoundTrip" =
+      let module GenMeterFeaturesReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.MeterFeaturesStats) in
+      (openflow_quickCheck GenMeterFeaturesReply.arbitrary
+          GenMeterFeaturesReply.to_string GenMeterFeaturesReply.parse GenMeterFeaturesReply.marshal)
 
   TEST "OpenFlow0x04 MultipartReply RoundTrip" =
       let module GenMultipartReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply) in

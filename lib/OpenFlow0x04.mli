@@ -253,6 +253,18 @@ module PacketOut : sig
 
 end
 
+module MeterBand : sig
+
+  val sizeof : meterBand -> int
+
+  val to_string : meterBand -> string
+
+  val marshal : Cstruct.t -> meterBand -> int
+
+  val parse : Cstruct.t -> meterBand
+
+end
+
 module FlowRequest : sig
 
     val sizeof : flowRequest -> int
@@ -453,6 +465,19 @@ module MeterStats : sig
   val parse : Cstruct.t -> meterStats list
 
 end
+
+module MeterConfig : sig
+
+  val sizeof : meterConfig list -> int
+
+  val to_string : meterConfig list -> string
+
+  val marshal : Cstruct.t -> meterConfig list -> int
+
+  val parse : Cstruct.t -> meterConfig list
+
+end
+
 
 module MeterFeaturesStats : sig
 
