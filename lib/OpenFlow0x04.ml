@@ -3004,7 +3004,7 @@ end
 module TableFeaturesRequest = struct
 
     let sizeof (tfr : tableFeaturesRequest) =
-        sum (map TableFeature.sizeof tfr)
+      sum (map TableFeature.sizeof tfr)
 
     let marshal (buf : Cstruct.t) (tfr : tableFeaturesRequest) =
       marshal_fields buf tfr TableFeature.marshal
@@ -3030,19 +3030,19 @@ end
 
 module MultipartReq = struct
 
-    cstruct ofp_multipart_request {
-      uint16_t typ; (* One of the OFPMP_* constants. *)
-      uint16_t flags; (* OFPMPF_REQ_* flags. *)
-      uint8_t pad0;
-      uint8_t pad1;
-      uint8_t pad2;
-      uint8_t pad3
-    } as big_endian
+  cstruct ofp_multipart_request {
+    uint16_t typ; (* One of the OFPMP_* constants. *)
+    uint16_t flags; (* OFPMPF_REQ_* flags. *)
+    uint8_t pad0;
+    uint8_t pad1;
+    uint8_t pad2;
+    uint8_t pad3
+  } as big_endian
 
-    cstruct ofp_experimenter_multipart_header {
-      uint32_t experimenter;
-      uint32_t exp_type
-    } as big_endian
+  cstruct ofp_experimenter_multipart_header {
+    uint32_t experimenter;
+    uint32_t exp_type
+  } as big_endian
 
   let msg_code_of_request mpr = match mpr with
     | SwitchDescReq -> OFPMP_DESC
@@ -3204,7 +3204,8 @@ module PortsDescriptionReply = struct
         (fun buf -> Some sizeof_ofp_port)
         PortDesc.parse
         bits in
-    List.rev (Cstruct.fold (fun acc bits -> bits :: acc) portIter [])
+    List.rev (Cstruct.fold (fun acc bits -> bits :: acc) portIter []) 
+    (* reverse the need to preserve the order *)
 
 end
 
@@ -3371,17 +3372,18 @@ module FlowStats = struct
     ; ofp_match
     ; instructions}
 
-    let length_fn (buf :  Cstruct.t) : int option =
-        if Cstruct.len buf < sizeof_ofp_flow_stats then None
-        else Some (get_ofp_flow_stats_length buf)
+  let length_fn (buf :  Cstruct.t) : int option =
+    if Cstruct.len buf < sizeof_ofp_flow_stats then None
+    else Some (get_ofp_flow_stats_length buf)
 
-    let parse (bits : Cstruct.t) : flowStats list =
-    let flowIter =
-      Cstruct.iter
-        length_fn (* /*\ size if variable *)
-        parse_struct
-        bits in
-    List.rev (Cstruct.fold (fun acc bits -> bits :: acc) flowIter [])
+  let parse (bits : Cstruct.t) : flowStats list =
+  let flowIter =
+    Cstruct.iter
+      length_fn (* /*\ size if variable *)
+      parse_struct
+      bits in
+  List.rev (Cstruct.fold (fun acc bits -> bits :: acc) flowIter [])
+  (* reverse the need to preserve the order *)
 
 end
 
@@ -3467,6 +3469,7 @@ module TableStats = struct
         parse_struct
         bits in
     List.rev (Cstruct.fold (fun acc bits -> bits :: acc) tableIter [])
+    (* reverse the need to preserve the order *)
 end
 
 module PortStats = struct
@@ -3547,6 +3550,7 @@ module PortStats = struct
         parse_struct
         bits in
     List.rev (Cstruct.fold (fun acc bits -> bits :: acc) portIter [])
+    (* reverse the need to preserve the order *)
 end
 
 module QueueStats = struct
@@ -3610,6 +3614,7 @@ module QueueStats = struct
           parse_struct
           bits in
       List.rev (Cstruct.fold (fun acc bits -> bits :: acc) queueIter [])
+      (* reverse the need to preserve the order *)
 end
 
 module GroupStats = struct
@@ -3666,6 +3671,7 @@ module GroupStats = struct
           parse_struct
           bits in
        List.rev (Cstruct.fold (fun acc bits -> bits :: acc) bucketIter [])
+       (* reverse the need to preserve the order *)
   end
 
   let sizeof_struct (gs : groupStats) : int =
@@ -3714,8 +3720,8 @@ module GroupStats = struct
     }
 
   let length_fn (buf :  Cstruct.t) : int option =
-        if Cstruct.len buf < sizeof_ofp_group_stats then None
-        else Some (get_ofp_group_stats_length buf)
+    if Cstruct.len buf < sizeof_ofp_group_stats then None
+    else Some (get_ofp_group_stats_length buf)
 
   let parse (bits : Cstruct.t) : groupStats list =
     let groupStatsIter =
@@ -3724,6 +3730,7 @@ module GroupStats = struct
         parse_struct
         bits in
      List.rev (Cstruct.fold (fun acc bits -> bits :: acc) groupStatsIter [])
+     (* reverse the need to preserve the order *)
 end
 
 module MultipartReply = struct
