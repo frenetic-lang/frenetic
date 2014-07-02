@@ -435,36 +435,22 @@ struct
 	  hosts)
       hosts in 
     Hashtbl.fold
-      (fun (h1,h2) pi pol -> 
+      (fun (h1,h2) pi (pol,l) -> 
 	let m = Node.mac (Topology.vertex_to_label topo h2) in 
-(*	Printf.printf "DOING %s -> %s : [%s]\n" 
-	  (Topology.vertex_to_string topo h1)
-	  (Topology.vertex_to_string topo h2)
-	  (List.fold_left 
-	     (fun acc e -> 
-	       Printf.sprintf "%s%s%s => %s"
-		 acc 
-		 (if acc = "" then "" else ";")
-		 (Topology.vertex_to_string topo (fst (Topology.edge_src e)))
-		 (Topology.vertex_to_string topo (fst (Topology.edge_dst e))))
-	     "" pi); *)
 	List.fold_left
-	  (fun pol e -> 
+	  (fun (pol,l) e -> 
 	    let v,pt = Topology.edge_src e in 
 	    let n = Topology.vertex_to_label topo v in 
 	    match Node.device n with 
 	    | Node.Switch -> 
 	      let i = Node.id n in 
-	      (* Printf.printf "Forwarding sw%Ld mac(%Ld) : %ld\n" i m pt; *)
-              NetKAT_Types.(Optimize.(
-		mk_union
-		  (mk_seq 
+	      let inner = NetKAT_Types.(Optimize.(mk_seq 
 		     (mk_filter (mk_and (Test(Switch(i))) (Test(EthDst(m)))))
-		     (Mod(Location(Physical(pt)))))
-		  pol))
-	    | _ -> pol)	      
-	  pol pi)
-      h NetKAT_Types.drop
+		     (Mod(Location(Physical(pt)))))) in
+	      NetKAT_Types.(Optimize.( mk_union inner pol)), (inner::l)
+	    | _ -> (pol,l))	      
+	  (pol,l) pi)
+      h (NetKAT_Types.drop,[])
 
   let shortest_path_table topo switches policy = 
     Topology.VertexSet.fold
@@ -555,7 +541,7 @@ struct
     
   let verify_shortest_paths ?(print=true) filename = 
     let topo, vertexes, switches, hosts = topology filename in 
-    let sw_pol = shortest_path_policy topo switches hosts in 
+    let sw_pol,_ = shortest_path_policy topo switches hosts in 
     let edge_pol, _ = connectivity_policy topo hosts in 
     let wrap pol = NetKAT_Types.(Optimize.(mk_seq (mk_seq (mk_filter edge_pol) pol) (mk_filter edge_pol))) in 
     let sw_tbl = shortest_path_table topo switches sw_pol in 
@@ -577,7 +563,7 @@ struct
       
   let verify_connectivity ?(print=false) filename = 
     let topo, vertexes, switches, hosts = topology filename in 
-    let sw_pol = shortest_path_policy topo switches hosts in 
+    let sw_pol,per_sw_policies = shortest_path_policy topo switches hosts in 
     let cn_pr, cn_pol = connectivity_policy topo hosts in 
     let wrap pol = NetKAT_Types.(Optimize.(mk_seq (mk_seq (mk_filter cn_pr) pol) (mk_filter cn_pr))) in 
     let tp_pol = topology_policy topo in 
@@ -588,9 +574,13 @@ struct
       (NetKAT_Pretty.string_of_policy net_cn_pol); *)
     let lhs = Dexterize.policy_to_term ~dup:false net_sw_pol in 
     let rhs = Dexterize.policy_to_term ~dup:false net_cn_pol in 
-    Printf.printf "## Dexter NetKAT Policy ##\n%s\n## Dexter Connectivity Policy ##\n%s\n%!" 
+(*    Printf.printf "## Dexter NetKAT Policy ##\n%s\n## Dexter Connectivity Policy ##\n%s\n%!" 
       (Decide_Ast.Term.to_string lhs)
-      (Decide_Ast.Term.to_string rhs); 
+      (Decide_Ast.Term.to_string rhs); *)
+    Printf.printf ">< %s\n" 
+      (List.fold_right  
+	 (fun a -> Printf.sprintf "%s # %s" (Decide_Ast.Term.to_string (Dexterize.policy_to_term a))) 
+	 per_sw_policies "");
     Printf.printf "## Equivalent ##\n%b\n"
       (check_equivalent lhs rhs)
 end
