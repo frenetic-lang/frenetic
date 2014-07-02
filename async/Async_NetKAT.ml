@@ -24,6 +24,7 @@ module Node = struct
   let parse_gml _ = failwith "NYI: Node.parse_dot"
 
   let to_dot _ = failwith "NYI: Node.to_dot"
+  let to_mininet _ = failwith "NYI: Node.to_mininet"
 end
 
 module Link = struct
@@ -38,6 +39,7 @@ module Link = struct
   let parse_gml _ = failwith "NYI: Link.parse_dot"
 
   let to_dot _ = failwith "NYI: Link.to_dot"
+  let to_mininet _ = failwith "NYI: Link.to_mininet"
 end
 
 module Net = Network.Make(Node)(Link)

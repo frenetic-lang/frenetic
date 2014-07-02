@@ -220,7 +220,7 @@ struct
   module Link = Network_Common.Link 
   module Net = Network_Common.Net
   module Topology = Net.Topology
-  module Path = Net.Path
+  module Path = Net.UnitPath
 
   module Json = Yojson.Safe
 
@@ -420,6 +420,17 @@ struct
     Hashtbl.fold
       (fun (h1,h2) pi pol -> 
 	let m = Node.mac (Topology.vertex_to_label topo h2) in 
+	Printf.printf "DOING %s -> %s : [%s]\n" 
+	  (Topology.vertex_to_string topo h1)
+	  (Topology.vertex_to_string topo h2)
+	  (List.fold_left 
+	     (fun acc e -> 
+	       Printf.sprintf "%s%s%s => %s"
+		 acc 
+		 (if acc = "" then "" else ";")
+		 (Topology.vertex_to_string topo (fst (Topology.edge_src e)))
+		 (Topology.vertex_to_string topo (fst (Topology.edge_dst e))))
+	     "" pi);
 	List.fold_left
 	  (fun pol e -> 
 	    let v,pt = Topology.edge_src e in 
@@ -427,6 +438,7 @@ struct
 	    match Node.device n with 
 	    | Node.Switch -> 
 	      let i = Node.id n in 
+	      Printf.printf "Forwarding sw%Ld mac(%Ld) : %ld\n" i m pt;
               NetKAT_Types.(Optimize.(
 		mk_union
 		  (mk_seq 
@@ -457,7 +469,7 @@ struct
         NetKAT_Types.(Optimize.(
 	  (mk_or pr (mk_and (Test(Switch(i))) (Test(Location(Physical(pt))))),
            mk_union pol (mk_seq (mk_seq (mk_filter (Test(EthDst(m)))) (Mod(Switch(i)))) (Mod(Location(Physical(pt)))))))))
-      NetKAT_Types.(False, id) hps
+      NetKAT_Types.(False, drop) hps
       
   let topology_policy topo = 
     Topology.EdgeSet.fold
