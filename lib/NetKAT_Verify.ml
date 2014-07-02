@@ -447,15 +447,17 @@ struct
 	      let inner = NetKAT_Types.(Optimize.(mk_seq 
 		     (mk_filter (mk_and (Test(Switch(i))) (Test(EthDst(m)))))
 		     (Mod(Location(Physical(pt)))))) in
-	      NetKAT_Types.(Optimize.( mk_union inner pol)), (inner::l)
+	      NetKAT_Types.(Optimize.( mk_union inner pol)), 
+	      (Decide_Ast.TermSet.add (Dexterize.policy_to_term inner) l)
 	    | _ -> (pol,l))	      
 	  (pol,l) pi)
-      h (NetKAT_Types.drop,[])
+      h (NetKAT_Types.drop,Decide_Ast.TermSet.empty)
 
   let shortest_path_table topo switches policy = 
     Topology.VertexSet.fold
       (fun sw tbl -> 
-        let i = Node.id (Topology.vertex_to_label topo sw) in                             NetKAT_Types.(Optimize.(NetKAT_LocalCompiler.(
+        let i = Node.id (Topology.vertex_to_label topo sw) in                             
+	NetKAT_Types.(Optimize.(NetKAT_LocalCompiler.(
 	  mk_union 
 	    (mk_seq 
 	       (mk_filter(Test(Switch(i))))
@@ -578,8 +580,8 @@ struct
       (Decide_Ast.Term.to_string lhs)
       (Decide_Ast.Term.to_string rhs); *)
     Printf.printf ">< %s\n" 
-      (List.fold_right  
-	 (fun a -> Printf.sprintf "%s # %s" (Decide_Ast.Term.to_string (Dexterize.policy_to_term a))) 
+      (Decide_Ast.TermSet.fold
+	 (fun a -> Printf.sprintf "%s # %s" (Decide_Ast.Term.to_string a)) 
 	 per_sw_policies "");
     Printf.printf "## Equivalent ##\n%b\n"
       (check_equivalent lhs rhs)
