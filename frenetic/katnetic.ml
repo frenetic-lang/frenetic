@@ -148,6 +148,12 @@ let verify_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   Term.info "verify" ~doc
 
 
+let nate_convert : unit Cmdliner.Term.t * Cmdliner.Term.info = 
+  let doc = "hardcoded - convert stanford OF files to netkat ones." in 
+  Term.(pure (NetKAT_Verify.Verify.nate_convert) $ pure ()), 
+  Term.info "nate" ~doc
+
+
 let stanford_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info = 
   let doc = "Run Stanford " in 
   let pol_dir = 
@@ -183,7 +189,8 @@ let default_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   Term.(ret (pure (`Help(`Plain, None)))),
   Term.info "katnetic" ~version:"1.6.1" ~doc
 
-let cmds = [run_cmd; dump_cmd; verify_cmd; stanford_cmd; sanity_cmd]
+let cmds = [run_cmd; dump_cmd; verify_cmd; stanford_cmd; 
+	    nate_convert; sanity_cmd]
 
 let () = match Term.eval_choice default_cmd cmds with
   | `Error _ -> exit 1 | _ -> exit 0
