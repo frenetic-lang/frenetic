@@ -577,9 +577,16 @@ struct
     ret
 
   let parse str = 
+    let lexbuf = Lexing.from_string (read_file str) in 
     try 
-      NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string (read_file str))
-    with e -> Printf.printf "Error parsing: %s\n" str; raise e
+      NetKAT_Parser.program NetKAT_Lexer.token lexbuf 
+    with _ -> 
+      let pos = Lexing.lexeme_start_p lexbuf in       
+      Printf.printf "Parse error in %s at line %d character %d\n"
+        (pos.Lexing.pos_fname)
+        (pos.Lexing.pos_lnum)
+        (pos.Lexing.pos_cnum);
+      exit 1
 
   let run_stanford pols topo = 
     let topo, vertexes, switches, hosts = topology topo in 
