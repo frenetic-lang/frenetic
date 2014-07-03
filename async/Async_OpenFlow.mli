@@ -144,7 +144,7 @@ module Chunk : sig
       | `Message of Client_id.t * m
     ]
 
-    val echo : (t, e, e) Stage.t
+    val echo : (t, h, h) Stage.t
     val handshake : int -> (t, e, h) Stage.t
   end
 
