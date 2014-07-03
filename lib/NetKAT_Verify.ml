@@ -112,6 +112,8 @@ module IPMasks = struct
 
   module BrxMap = Map.Make(Brx)
 
+  let is_wild (_,m) = m = 32l
+
   let brx_of_ip (p,m) = 
     let open Brx in 
     let mask = Int32.to_int m in (* NB: this is the opposite of the usual convention! *)
@@ -161,21 +163,30 @@ module IPMasks = struct
 	  Printf.printf "[2K\r[32m[Partitioning][0m: %s %d / %d (%d)%!" 
 	    (string_of_ip_mask x) !i n (BrxMap.cardinal acc);
 	  incr i;
-	  let bx = brx_of_ip x in 
-	  let sx = IPMaskSet.singleton x in 
-	  let bx',acc' = 
-	    BrxMap.fold
-	      (fun by s (b,acc) -> 
-		let i = Brx.mk_inter b by in 
-		if Brx.is_empty i then 
-		  (b,BrxMap.add by s acc)
-		else
-		  let r = Brx.mk_diff by b in 
-		  let l = Brx.mk_diff b by in 
-		  (l, BrxMap.add r s (BrxMap.add i (IPMaskSet.union s sx) acc)))
-	      acc (bx,BrxMap.empty) in 
-	  assert (Brx.is_empty bx'); 
-	  acc')
+	  if is_wild x then 
+	    begin
+	      BrxMap.fold
+		(fun by s acc -> BrxMap.add by (IPMaskSet.add x s) acc)
+		acc (BrxMap.empty)
+	    end
+	  else 
+	    begin 
+	      let bx = brx_of_ip x in 
+	      let sx = IPMaskSet.singleton x in 
+	      let bx',acc' = 
+		BrxMap.fold
+		  (fun by s (b,acc) -> 
+		    let i = Brx.mk_inter b by in 
+		    if Brx.is_empty i then 
+		      (b,BrxMap.add by s acc)
+		    else
+		      let r = Brx.mk_diff by b in 
+		      let l = Brx.mk_diff b by in 
+		      (l, BrxMap.add r s (BrxMap.add i (IPMaskSet.union s sx) acc)))
+		  acc (bx,BrxMap.empty) in 
+	      assert (Brx.is_empty bx'); 
+	      acc'
+	    end)
 	ips 
 	(BrxMap.singleton any_ip IPMaskSet.empty) in 
     Printf.printf "\n%!";
