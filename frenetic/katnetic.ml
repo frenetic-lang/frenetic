@@ -90,15 +90,10 @@ module Verify = struct
       let pols = ref [] in 
       try while true do pols := (Unix.readdir poldir_h)::!pols; done; 
 	  !pols with End_of_file -> !pols in 
-    let pols = List.filter (fun s -> String.length s > 3) pols in 
-    let pols = List.map (fun s -> poldir ^ (String.sub s 0 ((String.length s) - 3))) pols in 
-    let tbl,pol = NetKAT_Verify.Verify.convert_stanford pols in 
-    Printf.printf "Table!\n%s\n" 
-      (List.fold_right (fun (s,n) -> Printf.sprintf "%s: %u\n%s" s n) tbl "");
-    assert(false);
-    let fd = open_out (poldir ^ "all-sw.kat") in
-    Printf.fprintf fd "%s" (NetKAT_Pretty.string_of_policy pol);
-    close_out fd
+    let pols = List.filter (fun s -> String.length s > 4) pols in 
+    let pols = List.map (fun s -> poldir ^ s) pols in 
+    let ret = NetKAT_Verify.Verify.run_stanford pols topo in 
+    Printf.printf "Loop detection: %b\n" ret
 
   let sanity_check pol topo = 
     let ret = NetKAT_Verify.Verify.sanity_check pol topo in 
