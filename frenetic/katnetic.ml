@@ -150,14 +150,18 @@ let verify_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
 
 let nate_convert : unit Cmdliner.Term.t * Cmdliner.Term.info = 
   let doc = "hardcoded - convert stanford OF files to netkat ones." in 
-  Term.(pure (NetKAT_Verify.Verify.nate_convert) $ pure ()), 
+  let pol_dir = 
+    let doc = "A directory containing .of files" in 
+    Arg.(required & (pos 0 (some dir) None) & info [] ~docv:"OFDIR" ~doc)
+  in 
+  Term.(pure (NetKAT_Verify.Verify.nate_convert) $ pol_dir), 
   Term.info "nate" ~doc
 
 
 let stanford_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info = 
   let doc = "Run Stanford " in 
   let pol_dir = 
-    let doc = "A directory containing .of files" in 
+    let doc = "A directory containing .kat files" in 
     Arg.(required & (pos 0 (some dir) None) & info [] ~docv:"OFDIR" ~doc)
   in 
   let topo = 

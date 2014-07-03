@@ -439,8 +439,8 @@ struct
 	policies in 
     (assoc, policy)
 
-  let nate_convert () =
-    let routers =
+  let nate_convert _ =
+     let routers =
       ["/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/bbra_rtr";
        "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/bbrb_rtr";
        "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/boza_rtr";
@@ -456,7 +456,7 @@ struct
        "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/soza_rtr";
        "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/sozb_rtr";
        "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/yoza_rtr";
-       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/yozb_rtr" ] in
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/yozb_rtr" ] in 
     ignore (convert_stanford routers)
 
   let topology filename = 
