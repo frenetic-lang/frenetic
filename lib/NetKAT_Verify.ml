@@ -439,31 +439,25 @@ struct
 	policies in 
     (assoc, policy)
 
-  (* let () = *)
-  (*   let routers =  *)
-  (*     [(\* "/home/merlin/stanford/bbra_rtr";  *\) *)
-  (*      (\* "/home/merlin/stanford/bbrb_rtr";  *\) *)
-  (*      "/home/merlin/stanford/boza_rtr";  *)
-  (*      "/home/merlin/stanford/bozb_rtr"; *)
-  (*      "/home/merlin/stanford/coza_rtr"; *)
-  (*      (\* "/home/merlin/stanford/cozb_rtr";  *\) *)
-  (*      (\* "/home/merlin/stanford/goza_rtr";  *\) *)
-  (*      (\* "/home/merlin/stanford/gozb_rtr";  *\) *)
-  (*      (\* "/home/merlin/stanford/poza_rtr";  *\) *)
-  (*      (\* "/home/merlin/stanford/pozb_rtr";  *\) *)
-  (*      (\* "/home/merlin/stanford/roza_rtr";  *\) *)
-  (*      (\* "/home/merlin/stanford/rozb_rtr";  *\) *)
-  (*      (\* "/home/merlin/stanford/soza_rtr";  *\) *)
-  (*      (\* "/home/merlin/stanford/sozb_rtr";  *\) *)
-  (*      (\* "/home/merlin/stanford/yoza_rtr";  *\) *)
-  (*      "/home/merlin/stanford/yozb_rtr" ] in  *)
-
-  (*   let assoc, policy = convert_stanford routers in *)
-  (*   (\* List.iter *\) *)
-  (*   (\*   (fun (sw,x) -> Printf.printf "%d => %s\n" x sw) *\) *)
-  (*   (\*   assoc; *\) *)
-  (*   (\* Printf.printf "%s\n" (NetKAT_Pretty.string_of_policy policy) *\) *)
-  (*   () *)
+  let nate_convert () =
+    let routers =
+      ["/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/bbra_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/bbrb_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/boza_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/bozb_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/coza_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/cozb_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/goza_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/gozb_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/poza_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/pozb_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/roza_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/rozb_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/soza_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/sozb_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/yoza_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/yozb_rtr" ] in
+    ignore (convert_stanford routers)
 
   let topology filename = 
     let topo = Net.Parse.from_dotfile filename in 
@@ -583,7 +577,9 @@ struct
     ret
 
   let parse str = 
-    NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string (read_file str))
+    try 
+      NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string (read_file str))
+    with e -> Printf.printf "Error parsing: %s\n" str; raise e
 
   let run_stanford pols topo = 
     let topo, vertexes, switches, hosts = topology topo in 
