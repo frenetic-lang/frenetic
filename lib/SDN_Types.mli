@@ -169,7 +169,6 @@ val payload_bytes : payload -> bytes
 type packetInReason =
   | NoMatch
   | ExplicitSend
-  | InvalidTTL (* Only in OF1.3 *)
 
 (** [(payload, total_length, in_port, reason)] *)
 type pktIn = payload * int * portId * packetInReason
