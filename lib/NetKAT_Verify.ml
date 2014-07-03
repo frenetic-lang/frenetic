@@ -583,9 +583,9 @@ struct
     with _ -> 
       let pos = Lexing.lexeme_start_p lexbuf in       
       Printf.printf "Parse error in %s at line %d character %d\n"
-        (pos.Lexing.pos_fname)
+        str
         (pos.Lexing.pos_lnum)
-        (pos.Lexing.pos_cnum);
+        (pos.Lexing.pos_cnum - pos.Lexing.pos_bol - 1);
       exit 1
 
   let run_stanford pols topo = 
