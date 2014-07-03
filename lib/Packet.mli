@@ -51,6 +51,9 @@ type nwProto = int8 with sexp
 (** [nwTos] is the type of IPv4 types of service. *)
 type nwTos = int8 with sexp
 
+(** [ipv6Addr] is the type of IPv6 addresses. *)
+type ipv6Addr = int64*int64 with sexp
+
 (** [tpPort] is the type of transport protocol ports. *)
 type tpPort = int16 with sexp
 
@@ -375,6 +378,12 @@ val string_of_nwProto : nwProto -> string
 
 (** [string_of_nwTos t] pretty-prints an IPv4 type of service. *)
 val string_of_nwTos : nwTos -> string
+
+(** [string_of_ipv6 t] pretty-prints an IPv6 address. **)
+val string_of_ipv6 : ipv6Addr -> string
+
+(** [string_of_ipv6 t] Converts a colon-separated IPv6 address to ipv6Addr. **)
+val ipv6_of_string : string -> ipv6Addr
 
 (** [string_of_tpPort p] pretty-prints a transport protocol port number. *)
 val string_of_tpPort : tpPort -> string
