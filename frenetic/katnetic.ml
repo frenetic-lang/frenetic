@@ -84,9 +84,19 @@ end
 
 module Verify = struct 
   let main = NetKAT_Verify.Verify.verify_connectivity
-  let convert sw = 
-    let _,pol = NetKAT_Verify.Verify.convert_stanford [sw] in 
-    let fd = open_out (sw ^ ".kat") in
+  let run_stanford poldir topo = 
+    let poldir_h = Unix.opendir poldir in 
+    let pols = 
+      let pols = ref [] in 
+      try while true do pols := (Unix.readdir poldir_h)::!pols; done; 
+	  !pols with End_of_file -> !pols in 
+    let pols = List.filter (fun s -> String.length s > 3) pols in 
+    let pols = List.map (fun s -> poldir ^ (String.sub s 0 ((String.length s) - 3))) pols in 
+    let tbl,pol = NetKAT_Verify.Verify.convert_stanford pols in 
+    Printf.printf "Table!\n%s\n" 
+      (List.fold_right (fun (s,n) -> Printf.sprintf "%s: %u\n%s" s n) tbl "");
+    assert(false);
+    let fd = open_out (poldir ^ "all-sw.kat") in
     Printf.fprintf fd "%s" (NetKAT_Pretty.string_of_policy pol);
     close_out fd
 
@@ -145,11 +155,15 @@ let verify_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
 
 let stanford_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info = 
   let doc = "Run Stanford " in 
-  let topo = 
-    let doc = "the policy specified as a .of file" in 
-    Arg.(required & (pos 0 (some file) None) & info [] ~docv:"TOPOLOGY" ~doc)
+  let pol_dir = 
+    let doc = "A directory containing .of files" in 
+    Arg.(required & (pos 0 (some dir) None) & info [] ~docv:"OFDIR" ~doc)
   in 
-  Term.(pure (Verify.convert) $ topo), 
+  let topo = 
+    let doc = "A .dot file" in 
+    Arg.(required & (pos 1 (some file) None) & info [] ~docv:"TOPOLOGY" ~doc)
+  in 
+  Term.(pure (Verify.run_stanford) $ pol_dir $ topo), 
   Term.info "stanford" ~doc
 
 
