@@ -439,31 +439,31 @@ struct
 	policies in 
     (assoc, policy)
 
-  let () =
-    let routers = 
-      [(* "/home/merlin/stanford/bbra_rtr";  *)
-       (* "/home/merlin/stanford/bbrb_rtr";  *)
-       "/home/merlin/stanford/boza_rtr"; 
-       "/home/merlin/stanford/bozb_rtr";
-       "/home/merlin/stanford/coza_rtr";
-       (* "/home/merlin/stanford/cozb_rtr";  *)
-       (* "/home/merlin/stanford/goza_rtr";  *)
-       (* "/home/merlin/stanford/gozb_rtr";  *)
-       (* "/home/merlin/stanford/poza_rtr";  *)
-       (* "/home/merlin/stanford/pozb_rtr";  *)
-       (* "/home/merlin/stanford/roza_rtr";  *)
-       (* "/home/merlin/stanford/rozb_rtr";  *)
-       (* "/home/merlin/stanford/soza_rtr";  *)
-       (* "/home/merlin/stanford/sozb_rtr";  *)
-       (* "/home/merlin/stanford/yoza_rtr";  *)
-       "/home/merlin/stanford/yozb_rtr" ] in 
+  (* let () = *)
+  (*   let routers =  *)
+  (*     [(\* "/home/merlin/stanford/bbra_rtr";  *\) *)
+  (*      (\* "/home/merlin/stanford/bbrb_rtr";  *\) *)
+  (*      "/home/merlin/stanford/boza_rtr";  *)
+  (*      "/home/merlin/stanford/bozb_rtr"; *)
+  (*      "/home/merlin/stanford/coza_rtr"; *)
+  (*      (\* "/home/merlin/stanford/cozb_rtr";  *\) *)
+  (*      (\* "/home/merlin/stanford/goza_rtr";  *\) *)
+  (*      (\* "/home/merlin/stanford/gozb_rtr";  *\) *)
+  (*      (\* "/home/merlin/stanford/poza_rtr";  *\) *)
+  (*      (\* "/home/merlin/stanford/pozb_rtr";  *\) *)
+  (*      (\* "/home/merlin/stanford/roza_rtr";  *\) *)
+  (*      (\* "/home/merlin/stanford/rozb_rtr";  *\) *)
+  (*      (\* "/home/merlin/stanford/soza_rtr";  *\) *)
+  (*      (\* "/home/merlin/stanford/sozb_rtr";  *\) *)
+  (*      (\* "/home/merlin/stanford/yoza_rtr";  *\) *)
+  (*      "/home/merlin/stanford/yozb_rtr" ] in  *)
 
-    let assoc, policy = convert_stanford routers in
-    (* List.iter *)
-    (*   (fun (sw,x) -> Printf.printf "%d => %s\n" x sw) *)
-    (*   assoc; *)
-    (* Printf.printf "%s\n" (NetKAT_Pretty.string_of_policy policy) *)
-    ()
+  (*   let assoc, policy = convert_stanford routers in *)
+  (*   (\* List.iter *\) *)
+  (*   (\*   (fun (sw,x) -> Printf.printf "%d => %s\n" x sw) *\) *)
+  (*   (\*   assoc; *\) *)
+  (*   (\* Printf.printf "%s\n" (NetKAT_Pretty.string_of_policy policy) *\) *)
+  (*   () *)
 
   let topology filename = 
     let topo = Net.Parse.from_dotfile filename in 
