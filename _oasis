@@ -25,12 +25,12 @@ Library netkat
     core,
     fieldslib,
     fieldslib.syntax,
+    netkat_decide,
     ocamlgraph,
     openflow,
     sexplib,
     topology,
     sexplib.syntax,
-    netkat_decide,
     str,
     threads,
     yojson
@@ -58,11 +58,11 @@ Library async
     core,
     cstruct,
     cstruct.syntax,
+    netkat_decide,
     netkat,
     openflow,
     openflow.async,
     packet,
-    netkat_decide,
     threads,
     topology,
     sexplib,
@@ -95,10 +95,10 @@ Executable testtool
   Build$: flag(tests)
   Install: false
   BuildDepends: 
+    netkat_decide,
     netkat,
     netkat.quickcheck,
     oUnit,
-    netkat_decide,
     packet,
     topology,
     pa_ounit,
@@ -121,19 +121,20 @@ Executable katnetic
     async,
     cmdliner,
     core,
+    netkat_decide,
     netkat,
     netkat.async,
-    netkat_decide,
     topology
 
 Executable netkat_test
   Path: frenetic
   MainIs: netkat_test.ml
+  CompiledObject: best
   Build$: flag(async)
   Install: false
   BuildDepends:
     async,
     core,
-    netkat,
     netkat_decide,
+    netkat,
     netkat.async

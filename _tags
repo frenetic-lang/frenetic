@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: edf4345bfa0717fc3594896e58cbf45b)
+# DO NOT EDIT (digest: 194bbf1e2873d16bd49bae349421aa25)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -139,26 +139,26 @@
 <frenetic/katnetic.{native,byte}>: use_netkat
 <frenetic/*.ml{,i}>: package(cmdliner)
 # Executable netkat_test
-"frenetic/netkat_test.byte": package(async)
-"frenetic/netkat_test.byte": package(brx)
-"frenetic/netkat_test.byte": package(core)
-"frenetic/netkat_test.byte": package(cstruct)
-"frenetic/netkat_test.byte": package(cstruct.syntax)
-"frenetic/netkat_test.byte": package(fieldslib)
-"frenetic/netkat_test.byte": package(fieldslib.syntax)
-"frenetic/netkat_test.byte": package(netkat_decide)
-"frenetic/netkat_test.byte": package(ocamlgraph)
-"frenetic/netkat_test.byte": package(openflow)
-"frenetic/netkat_test.byte": package(openflow.async)
-"frenetic/netkat_test.byte": package(packet)
-"frenetic/netkat_test.byte": package(sexplib)
-"frenetic/netkat_test.byte": package(sexplib.syntax)
-"frenetic/netkat_test.byte": package(str)
-"frenetic/netkat_test.byte": package(threads)
-"frenetic/netkat_test.byte": package(topology)
-"frenetic/netkat_test.byte": package(yojson)
-"frenetic/netkat_test.byte": use_async
-"frenetic/netkat_test.byte": use_netkat
+<frenetic/netkat_test.{native,byte}>: package(async)
+<frenetic/netkat_test.{native,byte}>: package(brx)
+<frenetic/netkat_test.{native,byte}>: package(core)
+<frenetic/netkat_test.{native,byte}>: package(cstruct)
+<frenetic/netkat_test.{native,byte}>: package(cstruct.syntax)
+<frenetic/netkat_test.{native,byte}>: package(fieldslib)
+<frenetic/netkat_test.{native,byte}>: package(fieldslib.syntax)
+<frenetic/netkat_test.{native,byte}>: package(netkat_decide)
+<frenetic/netkat_test.{native,byte}>: package(ocamlgraph)
+<frenetic/netkat_test.{native,byte}>: package(openflow)
+<frenetic/netkat_test.{native,byte}>: package(openflow.async)
+<frenetic/netkat_test.{native,byte}>: package(packet)
+<frenetic/netkat_test.{native,byte}>: package(sexplib)
+<frenetic/netkat_test.{native,byte}>: package(sexplib.syntax)
+<frenetic/netkat_test.{native,byte}>: package(str)
+<frenetic/netkat_test.{native,byte}>: package(threads)
+<frenetic/netkat_test.{native,byte}>: package(topology)
+<frenetic/netkat_test.{native,byte}>: package(yojson)
+<frenetic/netkat_test.{native,byte}>: use_async
+<frenetic/netkat_test.{native,byte}>: use_netkat
 <frenetic/*.ml{,i}>: package(async)
 <frenetic/*.ml{,i}>: package(brx)
 <frenetic/*.ml{,i}>: package(core)

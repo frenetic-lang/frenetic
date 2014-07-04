@@ -39,39 +39,45 @@ module Dexterize = struct
       | TCPSrcPort(n) -> ("tcpsrcport", string_of_int n)
       | TCPDstPort(n) -> ("tcpdstport", string_of_int n)
 
-  let rec pred_to_term = function
-    | NetKAT_Types.True -> 
-      make_one ()
-    | NetKAT_Types.False -> 
-      make_zero ()
-    | NetKAT_Types.Test(h) -> 
-      let x,n = header_value_to_pair h in 
-      make_test (Field.of_string x, Value.of_string n)
-    | NetKAT_Types.And(pr1,pr2) -> 
-      make_times [pred_to_term pr1; pred_to_term pr2]
-    | NetKAT_Types.Or(pr1,pr2) -> 
-      make_plus (Decide_Ast.TermSet.of_list [(pred_to_term pr1);(pred_to_term pr2)])
-    | NetKAT_Types.Neg(pr) -> 
-      make_not (pred_to_term pr) 
+  let rec pred_to_term pr = 
+    let rec loop pr k = 
+      match pr with 
+        | NetKAT_Types.True -> 
+          k (make_one ())
+        | NetKAT_Types.False -> 
+          k (make_zero ())
+        | NetKAT_Types.Test(h) -> 
+          let x,n = header_value_to_pair h in 
+          k (make_test (Field.of_string x, Value.of_string n))
+        | NetKAT_Types.And(pr1,pr2) -> 
+          loop pr1 (fun t1 -> loop pr2 (fun t2 -> k (make_times [t1;t2])))
+        | NetKAT_Types.Or(pr1,pr2) -> 
+          loop pr1 (fun t1 -> loop pr2 (fun t2 -> k (make_plus (Decide_Ast.TermSet.of_list [t1;t2]))))
+        | NetKAT_Types.Neg(pr) -> 
+          loop pr (fun t -> make_not t) in 
+    loop pr (fun x -> x)
 
-  let rec policy_to_term ?dup:(dup=true) = function
-    | NetKAT_Types.Filter(p) -> 
-      pred_to_term p
-    | NetKAT_Types.Mod(h) -> 
-      let x,n = header_value_to_pair h in 
-      make_assg (Field.of_string x, Value.of_string n)
-    | NetKAT_Types.Union(p1,p2) -> 
-      make_plus (Decide_Ast.TermSet.of_list [policy_to_term ~dup:dup p1; policy_to_term ~dup:dup p2])
-    | NetKAT_Types.Seq(p1,p2) -> 
-      make_times [policy_to_term ~dup:dup p1; policy_to_term ~dup:dup p2]
-    | NetKAT_Types.Star(p) -> 
-      make_star (policy_to_term ~dup:dup p)
-    | NetKAT_Types.Link(sw1,pt1,sw2,pt2) -> 
-      make_times (make_test (Field.of_string "switch", Value.of_string (Int64.to_string sw1)) :: 
-               make_test (Field.of_string "port", Value.of_string (Int32.to_string pt1)) ::
-               make_assg (Field.of_string "switch", Value.of_string (Int64.to_string sw2)) :: 
-               make_assg (Field.of_string "port", Value.of_string (Int32.to_string pt2)) ::
-               if dup then [make_dup ()] else [])
+  let policy_to_term ?dup:(dup=true) pol = 
+    let rec loop pol k = 
+      match pol with 
+        | NetKAT_Types.Filter(p) -> 
+          k (pred_to_term p)
+        | NetKAT_Types.Mod(h) -> 
+          let x,n = header_value_to_pair h in 
+          k (make_assg (Field.of_string x, Value.of_string n))
+        | NetKAT_Types.Union(p1,p2) -> 
+          loop p1 (fun t1 -> loop p2 (fun t2 -> make_plus (Decide_Ast.TermSet.of_list [t1;t2])))
+        | NetKAT_Types.Seq(p1,p2) -> 
+          loop p1 (fun t1 -> loop p2 (fun t2 -> make_times [t1;t2]))
+        | NetKAT_Types.Star(p) -> 
+          loop p (fun t -> make_star t)
+        | NetKAT_Types.Link(sw1,pt1,sw2,pt2) -> 
+          k (make_times (make_test (Field.of_string "switch", Value.of_string (Int64.to_string sw1)) :: 
+                         make_test (Field.of_string "port", Value.of_string (Int32.to_string pt1)) ::
+                         make_assg (Field.of_string "switch", Value.of_string (Int64.to_string sw2)) :: 
+                         make_assg (Field.of_string "port", Value.of_string (Int32.to_string pt2)) ::
+                         if dup then [make_dup ()] else [])) in 
+    loop pol (fun x -> x)
 end
 
 module IPMask = struct
