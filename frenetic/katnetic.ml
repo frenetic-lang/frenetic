@@ -149,6 +149,7 @@ let verify_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   Term.info "verify" ~doc
 
 
+
 let loopfree_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info = 
   let doc = "verify shortest-path forwarding compilation is loopfree" in 
   let topo = 
@@ -159,10 +160,20 @@ let loopfree_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   Term.info "loopfree" ~doc
 
 
+let nate_convert : unit Cmdliner.Term.t * Cmdliner.Term.info = 
+  let doc = "hardcoded - convert stanford OF files to netkat ones." in 
+  let pol_dir = 
+    let doc = "A directory containing .of files" in 
+    Arg.(required & (pos 0 (some dir) None) & info [] ~docv:"OFDIR" ~doc)
+  in 
+  Term.(pure (NetKAT_Verify.Verify.nate_convert) $ pol_dir), 
+  Term.info "nate" ~doc
+
+
 let stanford_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info = 
   let doc = "Run Stanford " in 
   let pol_dir = 
-    let doc = "A directory containing .of files" in 
+    let doc = "A directory containing .kat files" in 
     Arg.(required & (pos 0 (some dir) None) & info [] ~docv:"OFDIR" ~doc)
   in 
   let topo = 
@@ -171,7 +182,6 @@ let stanford_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   in 
   Term.(pure (Verify.run_stanford) $ pol_dir $ topo), 
   Term.info "stanford" ~doc
-
 
 let sanity_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info = 
   let doc = "sanity check for verify" in 
@@ -194,7 +204,9 @@ let default_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   Term.(ret (pure (`Help(`Plain, None)))),
   Term.info "katnetic" ~version:"1.6.1" ~doc
 
-let cmds = [run_cmd; dump_cmd; verify_cmd; loopfree_cmd; stanford_cmd; sanity_cmd]
+let cmds = [run_cmd; dump_cmd; verify_cmd; loopfree_cmd; stanford_cmd; nate_convert; sanity_cmd]
 
-let () = match Term.eval_choice default_cmd cmds with
-  | `Error _ -> exit 1 | _ -> exit 0
+let () = 
+  match Term.eval_choice default_cmd cmds with
+    | `Error _ -> exit 1
+    | _ -> exit 0

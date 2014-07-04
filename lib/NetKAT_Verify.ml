@@ -327,46 +327,78 @@ struct
 	else compare m1 m2
   end)
 
-  let policy_of_rule neg (ins,ip_pats,ip_modo,outs) = 
+  let policy_of_rule is_last (ins,ip_pats,ip_modo,outs) = 
     let open NetKAT_Types in 
     let open Optimize in 
-    let ins_pats,neg' = 
-      IPMaskSet.fold (fun (p,m) (acc,neg') -> 	
-	let pats,neg' = 
-	  Int32Set.fold 
-	    (fun i (acc,neg') -> 
-	      let x = (i,(p,m)) in 
-	      (* Printf.printf "  %ld %s %b\n" i (string_of_ip_mask (p,m)) (S.mem x neg'); *)
-	      if S.mem x neg' then (acc,neg') 
-	      else i::acc, S.add x neg')
-	    ins ([], neg') in 
-	((pats,(p,m))::acc, neg'))
-	ip_pats 
-	([],neg) in 
-    let pr = 
-      List.fold_left 
-	(fun acc (ins,(p,m)) ->
-	  let ins_pr = List.fold_left (fun acc i -> mk_or (Test(Location(Physical i))) acc) False ins in 
-	  mk_or (mk_and ins_pr (Test(IP4Dst(p,m)))) acc)
-	False ins_pats in 
-    let pat = mk_filter pr in 
-    let outs_pol = Int32Set.fold (fun n acc -> mk_union acc (Mod(Location(Physical n)))) outs (mk_filter False) in 	
-    let ip_mod_pol = match ip_modo with Some a -> Mod(IP4Dst(a,32l)) | None -> mk_filter True in 
-    let acts = mk_seq ip_mod_pol outs_pol in 
-    let pol = mk_seq pat acts in 
-    (* Format.printf "TRANSLATE\n  %s\n  %s\n\n"  *)
-    (*   (fr rule) (NetKAT_Pretty.string_of_policy pol); *)
-    (neg', pol)
+    let ins_pr = 
+      Int32Set.fold
+	(fun i acc -> mk_or acc (Test(Location(Physical i))))
+	ins False in 
+    let ip_pats_pr = 
+      IPMaskSet.fold
+	(fun (p,m) acc -> mk_or acc (Test(IP4Dst(p,m))))
+	ip_pats False in 
+    let pr = mk_and ins_pr ip_pats_pr in 
+    let ip_mod_pol = match ip_modo with 
+      | None -> mk_filter True
+      | Some a -> Mod(IP4Dst(a,32l)) in 
+    let outs_pol = 
+      Int32Set.fold
+	(fun o acc -> mk_union acc (Mod(Location(Physical o))))
+	outs (mk_filter False) in 
+    let acts = mk_seq ip_mod_pol outs_pol in     
+    if not is_last then 
+      mk_union
+	(mk_filter (Test(Vlan(0x0001))))
+	(mk_seq
+	   (mk_filter (Test(Vlan(0x0000))))
+	   (mk_union
+	      (mk_seq (mk_filter pr)
+		 (mk_seq (Mod(Vlan(0x0001))) acts))
+	      (mk_filter (mk_not pr))))
+    else
+      mk_union 
+	(mk_filter (Test(Vlan(0x0001))))
+	(mk_seq (mk_filter (Test(Vlan(0x000)))) (mk_seq (mk_filter ins_pr) acts))
+	
+  (* let open NetKAT_Types in  *)
+    (* let open Optimize in  *)
+    (* let ins_pats,neg' =  *)
+    (*   IPMaskSet.fold (fun (p,m) (acc,neg') -> 	 *)
+    (* 	let pats,neg' =  *)
+    (* 	  Int32Set.fold  *)
+    (* 	    (fun i (acc,neg') ->  *)
+    (* 	      let x = (i,(p,m)) in  *)
+    (* 	      (\* Printf.printf "  %ld %s %b\n" i (string_of_ip_mask (p,m)) (S.mem x neg'); *\) *)
+    (* 	      if S.mem x neg' then (Printf.printf "Hullo %d\n%!" !c; incr c; (acc,neg')) *)
+    (* 	      else i::acc, S.add x neg') *)
+    (* 	    ins ([], neg') in  *)
+    (* 	((pats,(p,m))::acc, neg')) *)
+    (* 	ip_pats  *)
+    (* 	([],neg) in  *)
+    (* let pr =  *)
+    (*   List.fold_left  *)
+    (* 	(fun acc (ins,(p,m)) -> *)
+    (* 	  let ins_pr = List.fold_left (fun acc i -> mk_or (Test(Location(Physical i))) acc) False ins in  *)
+    (* 	  mk_or (mk_and ins_pr (Test(IP4Dst(p,m)))) acc) *)
+    (* 	False ins_pats in  *)
+    (* let pat = mk_filter pr in  *)
+    (* let outs_pol = Int32Set.fold (fun n acc -> mk_union acc (Mod(Location(Physical n)))) outs (mk_filter False) in 	 *)
+    (* let ip_mod_pol = match ip_modo with Some a -> Mod(IP4Dst(a,32l)) | None -> mk_filter True in  *)
+    (* let acts = mk_seq ip_mod_pol outs_pol in  *)
+    (* let pol = mk_seq pat acts in  *)
+    (* (\* Format.printf "TRANSLATE\n  %s\n  %s\n\n"  *\) *)
+    (* (\*   (fr rule) (NetKAT_Pretty.string_of_policy pol); *\) *)
+    (* (neg', pol) *)
 
   let policy_of_rules rules = 
     let open NetKAT_Types in 
     let open Optimize in 
-    let _,pol = 
-      List.fold_left (fun (neg,pol) rule -> 
-	let neg',rule_pol = policy_of_rule neg rule in 
-	(neg', mk_union rule_pol pol)) 
-	(S.empty, mk_filter False) rules in 
-    pol
+    let n = List.length rules in 
+    snd 
+      (List.fold_left
+	 (fun (i,pol) rule -> (succ i, mk_seq pol (policy_of_rule (i=pred n) rule)))
+	 (0,Mod(Vlan(0x0000))) rules)
 
   let convert_stanford (switches : string list) : (((string * int) list) * NetKAT_Types.policy)= 
     let open IPMasks in 
@@ -407,13 +439,26 @@ struct
 	policies in 
     (assoc, policy)
 
-  (* let () =  *)
-  (*   let assoc, policy = convert_stanford ["foo"] in  *)
-  (*   List.iter  *)
-  (*     (fun (x,sw) -> Printf.printf "%d => %s\n" x sw) *)
-  (*     assoc; *)
-  (*   Printf.printf "%s\n" (NetKAT_Pretty.string_of_policy policy) *)
-  
+  let nate_convert _ =
+     let routers =
+      ["/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/bbra_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/bbrb_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/boza_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/bozb_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/coza_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/cozb_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/goza_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/gozb_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/poza_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/pozb_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/roza_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/rozb_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/soza_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/sozb_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/yoza_rtr";
+       "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/yozb_rtr" ] in 
+    ignore (convert_stanford routers)
+
   let topology filename = 
     let topo = Net.Parse.from_dotfile filename in 
     let vertexes = Topology.vertexes topo in 
@@ -532,7 +577,16 @@ struct
     ret
 
   let parse str = 
-    NetKAT_Parser.program NetKAT_Lexer.token (Lexing.from_string (read_file str))
+    let lexbuf = Lexing.from_string (read_file str) in 
+    try 
+      NetKAT_Parser.program NetKAT_Lexer.token lexbuf 
+    with _ -> 
+      let pos = Lexing.lexeme_start_p lexbuf in       
+      Printf.printf "Parse error in %s at line %d character %d\n"
+        str
+        (pos.Lexing.pos_lnum)
+        (pos.Lexing.pos_cnum - pos.Lexing.pos_bol - 1);
+      exit 1
 
   let run_stanford pols topo = 
     let topo, vertexes, switches, hosts = topology topo in 
@@ -546,7 +600,6 @@ struct
     Printf.printf "Parsed, checking loop freedom!\nWe've taken %f seconds so far...%!"
     (Sys.time());
     Decide_Loopfree.loop_freedom edge_pol pol topo_pol ()
-    
     
 
   let sanity_check topo pol = 
