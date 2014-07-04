@@ -31,8 +31,8 @@ let to_reason (reason : Core.packetInReason) : AL.packetInReason =
   match reason with
     | ExplicitSend -> AL.ExplicitSend
     | NoMatch -> AL.NoMatch
-    | InvalidTTL -> AL.InvalidTTL
-      
+    | InvalidTTL -> failwith "InvalidTTL NYI"
+     
 let to_packetIn (pktIn : Core.packetIn) : AL.pktIn =
   let open Core in
   let get_port = 
@@ -59,8 +59,8 @@ let from_pattern (pat : AL.Pattern.t) : Core.oxmMatch * Core.portId option =
           Core.OxmVlanVId (v_to_m x))
       pat.AL.Pattern.dlVlan
     ; Misc.map_option (fun x -> Core.OxmVlanPcp x) pat.AL.Pattern.dlVlanPcp
-    ; Misc.map_option (fun x -> Core.OxmIP4Src (v_to_m x)) pat.AL.Pattern.nwSrc
-    ; Misc.map_option (fun x -> Core.OxmIP4Dst (v_to_m x)) pat.AL.Pattern.nwDst
+    ; Misc.map_option (fun x -> Core.(OxmIP4Src (ip_to_mask x))) pat.AL.Pattern.nwSrc
+    ; Misc.map_option (fun x -> Core.(OxmIP4Dst (ip_to_mask x))) pat.AL.Pattern.nwDst
     ; Misc.map_option (fun x -> Core.OxmIPProto x) pat.AL.Pattern.nwProto
     ; Misc.map_option (fun x -> Core.OxmTCPSrc (v_to_m x)) pat.AL.Pattern.tpSrc
     ; Misc.map_option (fun x -> Core.OxmTCPDst (v_to_m x)) pat.AL.Pattern.tpDst
