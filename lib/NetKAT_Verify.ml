@@ -601,7 +601,6 @@ struct
     (Sys.time());
     Decide_Loopfree.loop_freedom edge_pol pol topo_pol ()
     
-    
 
   let sanity_check topo pol = 
     let topo, vertexes, switches, hosts = topology topo in 

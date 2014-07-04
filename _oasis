@@ -114,6 +114,7 @@ Executable katnetic
   Path: frenetic
   MainIs: katnetic.ml
   CompiledObject: best
+  NativeOpt: -g
   Build$: flag(async)
   Install: false
   BuildDepends:

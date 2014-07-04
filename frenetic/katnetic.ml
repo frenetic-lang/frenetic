@@ -171,7 +171,6 @@ let stanford_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   Term.(pure (Verify.run_stanford) $ pol_dir $ topo), 
   Term.info "stanford" ~doc
 
-
 let sanity_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info = 
   let doc = "sanity check for verify" in 
   let pol = 
@@ -196,5 +195,7 @@ let default_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
 let cmds = [run_cmd; dump_cmd; verify_cmd; stanford_cmd; 
 	    nate_convert; sanity_cmd]
 
-let () = match Term.eval_choice default_cmd cmds with
-  | `Error _ -> exit 1 | _ -> exit 0
+let () = 
+  match Term.eval_choice default_cmd cmds with
+    | `Error _ -> exit 1
+    | _ -> exit 0
