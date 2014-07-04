@@ -9,6 +9,8 @@ type payload =
 
 type xid = OpenFlow_Header.xid
 type int12 = int16
+type int24 = int32
+type int128 = int64 * int64
 
 let val_to_mask v =
   { m_value = v; m_mask = None }
@@ -41,8 +43,8 @@ type oxm =
 | OxmIPEcn of int8
 | OxmIP4Src of int32 mask
 | OxmIP4Dst of int32 mask
-| OxmTCPSrc of int16 mask
-| OxmTCPDst of int16 mask
+| OxmTCPSrc of int16
+| OxmTCPDst of int16
 | OxmARPOp of int16
 | OxmARPSpa of int32 mask
 | OxmARPTpa of int32 mask
@@ -53,6 +55,21 @@ type oxm =
 | OxmMPLSLabel of int32
 | OxmMPLSTc of int8
 | OxmTunnelId of int64 mask
+| OxmUDPSrc of int16
+| OxmUDPDst of int16
+| OxmSCTPSrc of int16
+| OxmSCTPDst of int16
+| OxmIPv6Src of int128 mask
+| OxmIPv6Dst of int128 mask
+| OxmIPv6FLabel of int32 mask
+| OxmICMPv6Type of int8
+| OxmICMPv6Code of int8
+| OxmIPv6NDTarget of int128 mask
+| OxmIPv6NDSll of int48
+| OxmIPv6NDTll of int48
+| OxmMPLSBos of int8
+| OxmPBBIsid of int24 mask
+| OxmIPv6ExtHdr of int16 mask
 
 type oxmMatch = oxm list
 
