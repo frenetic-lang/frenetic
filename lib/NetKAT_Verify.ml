@@ -54,7 +54,7 @@ module Dexterize = struct
         | NetKAT_Types.Or(pr1,pr2) -> 
           loop pr1 (fun t1 -> loop pr2 (fun t2 -> k (make_plus (Decide_Ast.TermSet.of_list [t1;t2]))))
         | NetKAT_Types.Neg(pr) -> 
-          loop pr (fun t -> make_not t) in 
+          loop pr (fun t -> k (make_not t)) in 
     loop pr (fun x -> x)
 
   let policy_to_term ?dup:(dup=true) pol = 
@@ -66,11 +66,11 @@ module Dexterize = struct
           let x,n = header_value_to_pair h in 
           k (make_assg (Field.of_string x, Value.of_string n))
         | NetKAT_Types.Union(p1,p2) -> 
-          loop p1 (fun t1 -> loop p2 (fun t2 -> make_plus (Decide_Ast.TermSet.of_list [t1;t2])))
+          loop p1 (fun t1 -> loop p2 (fun t2 -> k (make_plus (Decide_Ast.TermSet.of_list [t1;t2]))))
         | NetKAT_Types.Seq(p1,p2) -> 
-          loop p1 (fun t1 -> loop p2 (fun t2 -> make_times [t1;t2]))
+          loop p1 (fun t1 -> loop p2 (fun t2 -> k (make_times [t1;t2])))
         | NetKAT_Types.Star(p) -> 
-          loop p (fun t -> make_star t)
+          loop p (fun t -> k (make_star t))
         | NetKAT_Types.Link(sw1,pt1,sw2,pt2) -> 
           k (make_times (make_test (Field.of_string "switch", Value.of_string (Int64.to_string sw1)) :: 
                          make_test (Field.of_string "port", Value.of_string (Int32.to_string pt1)) ::
