@@ -611,4 +611,20 @@ struct
 	 per_sw_policies "");
     Printf.printf "## Equivalent ##\n%b\n"
       (check_equivalent lhs rhs)
+
+  let verify_loop_freedom ?(print=false) filename = 
+    let topo, vertexes, switches, hosts = topology filename in 
+    let sw_pol,per_sw_policies = shortest_path_policy topo switches hosts in 
+    let edge, _ = connectivity_policy topo hosts in 
+    let tp_pol = topology_policy topo in 
+    let ed = Dexterize.policy_to_term ~dup:false (NetKAT_Types.(Optimize.mk_filter edge)) in 
+    let p =  Dexterize.policy_to_term ~dup:false sw_pol in 
+    let t = Dexterize.policy_to_term ~dup:false tp_pol in 
+    let ret = (Decide_Loopfree.loop_freedom ed p t ed) in 
+    if not ret then Printf.printf "Edge: %s\nPol: %s\n Topo: %s\n" 
+      (Decide_Ast.Term.to_string ed)
+      (Decide_Ast.Term.to_string p)
+      (Decide_Ast.Term.to_string t);
+    Printf.printf "## Loop-Free ##\n%b\n" ret
+
 end

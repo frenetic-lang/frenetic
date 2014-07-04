@@ -84,6 +84,7 @@ end
 
 module Verify = struct 
   let main = NetKAT_Verify.Verify.verify_connectivity
+  let loopfree = NetKAT_Verify.Verify.verify_loop_freedom
   let run_stanford poldir topo = 
     let poldir_h = Unix.opendir poldir in 
     let pols = 
@@ -148,6 +149,16 @@ let verify_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   Term.info "verify" ~doc
 
 
+let loopfree_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info = 
+  let doc = "verify shortest-path forwarding compilation is loopfree" in 
+  let topo = 
+    let doc = "the topology specified as a .dot file" in 
+    Arg.(required & (pos 0 (some file) None) & info [] ~docv:"TOPOLOGY" ~doc)
+  in 
+  Term.(pure (Verify.loopfree ~print:true) $ topo), 
+  Term.info "loopfree" ~doc
+
+
 let stanford_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info = 
   let doc = "Run Stanford " in 
   let pol_dir = 
@@ -183,7 +194,7 @@ let default_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   Term.(ret (pure (`Help(`Plain, None)))),
   Term.info "katnetic" ~version:"1.6.1" ~doc
 
-let cmds = [run_cmd; dump_cmd; verify_cmd; stanford_cmd; sanity_cmd]
+let cmds = [run_cmd; dump_cmd; verify_cmd; loopfree_cmd; stanford_cmd; sanity_cmd]
 
 let () = match Term.eval_choice default_cmd cmds with
   | `Error _ -> exit 1 | _ -> exit 0
