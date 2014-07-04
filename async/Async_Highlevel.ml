@@ -65,7 +65,7 @@ let features_request_msg version : Platform.m =
 let port_description_request_msg : Platform.m =
   let open Header in 
   let open OF4 in 
-  let mpr = (0l, Message.MultipartReq (OF4_Core.PortsDescReq)) in
+  let mpr = (0l, Message.MultipartReq OF4_Core.portDescReq) in
   Async_OpenFlow0x04.Message.marshal' mpr
   
 let handshake_error (c_id:Platform.Client_id.t) (str:string) : 'a = 
@@ -138,7 +138,8 @@ let features t evt =
         Log.info ~tags "SentPortDescriptionRequest0x04";
         begin
           match M4.parse hdr (Cstruct.to_string bits) with 
-          | (_, M4.MultipartReply (OF4_Core.PortsDescReply ports)) -> 
+          | (_, M4.MultipartReply {OF4_Core.mpreply_typ =(OF4_Core.PortsDescReply ports);
+                                   OF4_Core.mpreply_flags = _}) -> (*<fugitifduck> temp fixe for multipart flags*)
              let get_port pd = pd.OF4_Core.port_no in
              let switch_ports = List.map ports ~f:get_port in 
              let feats = { S.switch_id = switch_id;

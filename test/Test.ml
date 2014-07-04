@@ -164,6 +164,7 @@ module RoundTripping = struct
         | Exhausted _ -> failwith "No exhaustion expected"
 
   module Gen = Arbitrary_OpenFlow0x01
+  module Gen0x04 = Arbitrary_OpenFlow0x04
 
   TEST "OpenFlow_Header RoundTrip" =
     let module GenHeader = Gen.OpenFlow0x01_Unsize(Arbitrary_OpenFlow.Header) in
@@ -233,6 +234,150 @@ module RoundTripping = struct
       (openflow_quickCheck GenPortStatus.arbitrary
           GenPortStatus.to_string GenPortStatus.parse GenPortStatus.marshal)
 
+  TEST "OpenFlow0x04 PortDesc.PortConfig RoundTrip" =
+      let module GenPortConfig = Gen0x04.PortDesc.PortConfig in
+      (openflow_quickCheck GenPortConfig.arbitrary
+          GenPortConfig.to_string GenPortConfig.parse GenPortConfig.marshal)
+
+  TEST "OpenFlow0x04 PortDesc.PortState RoundTrip" =
+      let module GenPortState = Gen0x04.PortDesc.PortState in
+      (openflow_quickCheck GenPortState.arbitrary
+          GenPortState.to_string GenPortState.parse GenPortState.marshal)
+
+  TEST "OpenFlow0x04 PortDesc.PortFeatures RoundTrip" =
+      let module GenPortState = Gen0x04.PortDesc.PortState in
+      (openflow_quickCheck GenPortState.arbitrary
+          GenPortState.to_string GenPortState.parse GenPortState.marshal)
+
+  TEST "OpenFlow0x04 PortDesc RoundTrip" =
+      let module PortDesc = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.PortDesc) in
+      (openflow_quickCheck PortDesc.arbitrary
+          PortDesc.to_string PortDesc.parse PortDesc.marshal)
+
+  TEST "OpenFlow0x04 PortStatus RoundTrip" =
+      let module GenPortStatus = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.PortStatus) in
+      (openflow_quickCheck GenPortStatus.arbitrary
+          GenPortStatus.to_string GenPortStatus.parse GenPortStatus.marshal)
+
+  TEST "OpenFlow0x04 PseudoPort RoundTrip" =
+      let module GenPseudoPort = Gen0x04.PseudoPort in
+      (openflow_quickCheck GenPseudoPort.arbitrary
+          GenPseudoPort.to_string GenPseudoPort.parse GenPseudoPort.marshal)
+
+  TEST "OpenFlow0x04 OfpMatch RoundTrip" =
+      let module GenOfpMatch = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.OfpMatch) in
+      (openflow_quickCheck GenOfpMatch.arbitrary
+          GenOfpMatch.to_string GenOfpMatch.parse GenOfpMatch.marshal)
+
+  TEST "OpenFlow0x04 OfpMatch.Oxm RoundTrip" =
+      let module GenOxm = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.OfpMatch.Oxm) in
+      (openflow_quickCheck GenOxm.arbitrary
+          GenOxm.to_string GenOxm.parse GenOxm.marshal)
+  
+  TEST "OpenFlow0x04 OfpMatch.OxmHeader RoundTrip" =
+      let module GenOxm = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.OfpMatch.OxmHeader) in
+      (openflow_quickCheck GenOxm.arbitrary
+          GenOxm.to_string GenOxm.parse GenOxm.marshal)
+
+  TEST "OpenFlow0x04 Action RoundTrip" =
+      let module GenAction = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.Action) in
+      (openflow_quickCheck GenAction.arbitrary
+          GenAction.to_string GenAction.parse GenAction.marshal)
+
+  TEST "OpenFlow0x04 Instructions.Instruction RoundTrip" =
+      let module GenInstruction = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.Instructions.Instruction) in
+      (openflow_quickCheck GenInstruction.arbitrary
+          GenInstruction.to_string GenInstruction.parse GenInstruction.marshal)
+
+  TEST "OpenFlow0x04 Instructions RoundTrip" =
+      let module GenInstructions = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.Instructions) in
+      (openflow_quickCheck GenInstructions.arbitrary
+          GenInstructions.to_string GenInstructions.parse GenInstructions.marshal)
+
+  TEST "OpenFlow0x04 FlowMod RoundTrip" =
+      let module GenFlowMod = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.FlowMod) in
+      (openflow_quickCheck GenFlowMod.arbitrary
+          GenFlowMod.to_string GenFlowMod.parse GenFlowMod.marshal)
+
+  TEST "OpenFlow0x04 FlowMod.FlowModCommand RoundTrip" =
+      let module GenFlowModCommand = Gen0x04.FlowMod.FlowModCommand in
+      (openflow_quickCheck GenFlowModCommand.arbitrary
+          GenFlowModCommand.to_string GenFlowModCommand.parse GenFlowModCommand.marshal)
+
+  TEST "OpenFlow0x04 MultipartReq.TableFeaturesRequest.TableFeatureProp RoundTrip" =
+      let module GenTableFeatureProp = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReq.TableFeaturesRequest.TableFeatureProp) in
+      (openflow_quickCheck GenTableFeatureProp.arbitrary
+          GenTableFeatureProp.to_string GenTableFeatureProp.parse GenTableFeatureProp.marshal)
+
+  TEST "OpenFlow0x04 MultipartReq.TableFeaturesRequest.TableFeature RoundTrip" =
+      let module GenTableFeature = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReq.TableFeaturesRequest.TableFeature) in
+      (openflow_quickCheck GenTableFeature.arbitrary
+          GenTableFeature.to_string GenTableFeature.parse GenTableFeature.marshal)
+
+  TEST "OpenFlow0x04 MultipartReq.TableFeaturesRequest RoundTrip" =
+      let module GenTableFeatureReq = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReq.TableFeaturesRequest) in
+      (openflow_quickCheck GenTableFeatureReq.arbitrary
+          GenTableFeatureReq.to_string GenTableFeatureReq.parse GenTableFeatureReq.marshal)
+
+  TEST "OpenFlow0x04 MultipartReq.FlowRequest RoundTrip" =
+      let module GenTableFlowReq = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReq.FlowRequest) in
+      (openflow_quickCheck GenTableFlowReq.arbitrary
+          GenTableFlowReq.to_string GenTableFlowReq.parse GenTableFlowReq.marshal)
+
+  TEST "OpenFlow0x04 MultipartReq.QueueRequest RoundTrip" =
+      let module GenTableQueueReq = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReq.QueueRequest) in
+      (openflow_quickCheck GenTableQueueReq.arbitrary
+          GenTableQueueReq.to_string GenTableQueueReq.parse GenTableQueueReq.marshal)
+
+  TEST "OpenFlow0x04 MultipartReq RoundTrip" =
+      let module GenMultipartReq = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReq) in
+      (openflow_quickCheck GenMultipartReq.arbitrary
+          GenMultipartReq.to_string GenMultipartReq.parse GenMultipartReq.marshal)
+
+  TEST "OpenFlow0x04 MultipartReply.PortsDescriptionReply RoundTrip" =
+      let module GenPortDescReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.PortsDescriptionReply) in
+      (openflow_quickCheck GenPortDescReply.arbitrary
+          GenPortDescReply.to_string GenPortDescReply.parse GenPortDescReply.marshal)
+
+  TEST "OpenFlow0x04 MultipartReply.Flow RoundTrip" =
+      let module GenFlowReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.FlowStats) in
+      (openflow_quickCheck GenFlowReply.arbitrary
+          GenFlowReply.to_string GenFlowReply.parse GenFlowReply.marshal)
+
+  TEST "OpenFlow0x04 MultipartReply.Aggregate RoundTrip" =
+      let module GenAggregReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.AggregateStats) in
+      (openflow_quickCheck GenAggregReply.arbitrary
+          GenAggregReply.to_string GenAggregReply.parse GenAggregReply.marshal)
+
+  TEST "OpenFlow0x04 MultipartReply.Table RoundTrip" =
+      let module GenTableReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.TableStats) in
+      (openflow_quickCheck GenTableReply.arbitrary
+          GenTableReply.to_string GenTableReply.parse GenTableReply.marshal)
+
+  TEST "OpenFlow0x04 MultipartReply.PortStats RoundTrip" =
+      let module GenPortStatsReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.PortStats) in
+      (openflow_quickCheck GenPortStatsReply.arbitrary
+          GenPortStatsReply.to_string GenPortStatsReply.parse GenPortStatsReply.marshal)
+
+  TEST "OpenFlow0x04 MultipartReply.SwitchDescriptionReply RoundTrip" =
+      let module GenSwDescReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.SwitchDescriptionReply) in
+      (openflow_quickCheck GenSwDescReply.arbitrary
+          GenSwDescReply.to_string GenSwDescReply.parse GenSwDescReply.marshal)
+
+  TEST "OpenFlow0x04 MultipartReply.GroupStats RoundTrip" =
+      let module GenGroupStatsReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply.GroupStats) in
+      (openflow_quickCheck GenGroupStatsReply.arbitrary
+          GenGroupStatsReply.to_string GenGroupStatsReply.parse GenGroupStatsReply.marshal)
+
+  TEST "OpenFlow0x04 MultipartReply RoundTrip" =
+      let module GenMultipartReply = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.MultipartReply) in
+      (openflow_quickCheck GenMultipartReply.arbitrary
+          GenMultipartReply.to_string GenMultipartReply.parse GenMultipartReply.marshal)
+
+  TEST "OpenFlow0x04 PacketIn RoundTrip" =
+      let module GenPacketIn = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.PacketIn) in
+      (openflow_quickCheck GenPacketIn.arbitrary
+          GenPacketIn.to_string GenPacketIn.parse GenPacketIn.marshal)
 
   TEST "OpenFlow Hello Test 1" = 
     let open Message in 
