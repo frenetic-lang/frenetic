@@ -606,6 +606,22 @@ struct
     Printf.printf "Parsed, checking loop freedom!\nWe've taken %f seconds so far...%!"
     (Sys.time());
     Decide_Loopfree.loop_freedom edge_pol pol topo_pol ()
+
+
+
+  let run_fattree pols topo = 
+    let topo, vertexes, switches, hosts = topology topo in 
+    Printf.printf "1\n%!";
+    let parsed_pols = List.map parse pols in 
+    let dexter_parsed_pols = List.map (Dexterize.policy_to_term ~dup:false) parsed_pols in 
+    let pol = Decide_Ast.Term.make_plus 
+      (List.fold_right Decide_Ast.TermSet.add dexter_parsed_pols Decide_Ast.TermSet.empty) in
+    let edge_pol, _ =  (connectivity_policy topo hosts) in 
+    let edge_pol = Dexterize.policy_to_term ~dup:false (NetKAT_Types.(Filter edge_pol)) in 
+    let topo_pol = Dexterize.policy_to_term ~dup:false (topology_policy topo) in
+    Printf.printf "Parsed, checking loop freedom!\nWe've taken %f seconds so far...%!"
+      (Sys.time());
+    Decide_Loopfree.loop_freedom edge_pol pol topo_pol ()
     
 
   let sanity_check topo pol = 
@@ -648,6 +664,7 @@ struct
     if print then Printf.printf "## Equivalent ##\n%b\n" ret;
     ret
       
+
   let verify_connectivity ?(print=false) filename = 
     Decide_Ast.disable_unfolding_opt ();
     let topo, vertexes, switches, hosts = topology filename in 
@@ -665,10 +682,6 @@ struct
 (*    Printf.printf "## Dexter NetKAT Policy ##\n%s\n## Dexter Connectivity Policy ##\n%s\n%!" 
       (Decide_Ast.Term.to_string lhs)
       (Decide_Ast.Term.to_string rhs); *)
-    Printf.printf ">< %s\n" 
-      (Decide_Ast.TermSet.fold
-	 (fun a -> Printf.sprintf "%s # %s" (Decide_Ast.Term.to_string a)) 
-	 per_sw_policies "");
     Printf.printf "## Equivalent ##\n%b\n"
       (check_equivalent lhs rhs)
 
