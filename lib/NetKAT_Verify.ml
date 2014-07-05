@@ -649,6 +649,7 @@ struct
     ret
       
   let verify_connectivity ?(print=false) filename = 
+    Decide_Ast.disable_unfolding_opt ();
     let topo, vertexes, switches, hosts = topology filename in 
     let sw_pol,per_sw_policies = shortest_path_policy topo switches hosts in 
     let cn_pr, cn_pol = connectivity_policy topo hosts in 
