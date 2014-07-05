@@ -609,7 +609,7 @@ struct
     let out_pol = NetKAT_Types.(Seq(Mod (Switch 15L), Seq (Mod (Location (Physical (1600001l))), Mod(IP4Dst(ip,32l))))) in 
     let topo_pol = topology_policy topo in
     let rhs = NetKAT_Types.(Optimize.(mk_seq in_pol (mk_seq (mk_star (mk_seq pol topo_pol)) pol))) in 
-    let lhs = NetKAT_Types.(Optimize.(mk_union rhs out_pol)) in 
+    let lhs = NetKAT_Types.(Optimize.(mk_union rhs (mk_seq in_pol out_pol))) in 
     Printf.printf "Parsed, checking connectivity!\nWe've taken %f seconds so far...%!"
     (Sys.time());
     check_equivalent 
