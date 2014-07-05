@@ -8,7 +8,9 @@ let mk_and pr1 pr2 =
       NetKAT_Types.False
     | _, NetKAT_Types.False ->
       NetKAT_Types.False
-    | _ ->
+    | _ when pr1 = pr2 ->
+      pr1
+    | _ -> 
       NetKAT_Types.And(pr1, pr2)
 
 let mk_or pr1 pr2 =
@@ -21,7 +23,9 @@ let mk_or pr1 pr2 =
       pr2
     | _, NetKAT_Types.False ->
       pr1
-    | _ ->
+    | _ when pr1 = pr2 -> 
+      pr1
+    | _ -> 
       NetKAT_Types.Or(pr1, pr2)
 
 let mk_not pat =
@@ -33,16 +37,22 @@ let mk_not pat =
 let mk_filter pr =
   NetKAT_Types.Filter (pr)
 
-let mk_union pol1 pol2 =
+let rec mk_union pol1 pol2 =
   match pol1, pol2 with
     | NetKAT_Types.Filter NetKAT_Types.False, _ ->
       pol2
     | _, NetKAT_Types.Filter NetKAT_Types.False ->
       pol1
+    | NetKAT_Types.Filter pr1, NetKAT_Types.Filter pr2 -> 
+      NetKAT_Types.Filter (mk_or pr1 pr2)
+    | NetKAT_Types.Filter pr1, NetKAT_Types.Union (NetKAT_Types.Filter pr21, pol2) -> 
+      mk_union (NetKAT_Types.Filter (mk_or pr1 pr21)) pol2
+    | NetKAT_Types.Union (pol11,pol12), _ -> 
+      NetKAT_Types.Union (pol11, mk_union pol12 pol2)
     | _ ->
       NetKAT_Types.Union(pol1,pol2)
 
-let mk_seq pol1 pol2 =
+let rec mk_seq pol1 pol2 =
   match pol1, pol2 with
     | NetKAT_Types.Filter NetKAT_Types.True, _ ->
       pol2
@@ -52,6 +62,12 @@ let mk_seq pol1 pol2 =
       pol1
     | _, NetKAT_Types.Filter NetKAT_Types.False ->
       pol2
+    | NetKAT_Types.Filter pr1, NetKAT_Types.Filter pr2 -> 
+      NetKAT_Types.Filter (mk_and pr1 pr2)
+    | NetKAT_Types.Filter pr1, NetKAT_Types.Seq (NetKAT_Types.Filter pr21, pol2) -> 
+      mk_seq (NetKAT_Types.Filter (mk_and pr1 pr21)) pol2
+    | NetKAT_Types.Seq (pol11,pol12), _ -> 
+      NetKAT_Types.Seq (pol11, mk_seq pol12 pol2)
     | _ ->
       NetKAT_Types.Seq(pol1,pol2)
 

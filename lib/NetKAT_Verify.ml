@@ -603,18 +603,27 @@ struct
       | NetKAT_Types.IP4Dst _ -> 
         Some NetKAT_Types.False
       | _ -> None in 
-    let parsed_pols = List.map (fun fn -> Optimize.specialize_policy spec (parse fn)) pols in 
-    let pol = List.fold_left (fun acc pol -> NetKAT_Types.(Optimize.(mk_union acc pol))) NetKAT_Types.(Filter False) parsed_pols in 
+    let parsed_pols = List.map (fun fn -> 
+      let pol = parse fn in 
+      let pol' = Optimize.specialize_policy spec pol in 
+      NetKAT_Semantics.(size pol, size pol', pol')) pols in 
+    List.iter
+      (fun (n1,n2,pol) -> Printf.printf "%d:%d\n%s\n\n" n1 n2 (NetKAT_Pretty.string_of_policy pol)) 
+      parsed_pols;
+    let pol = List.fold_left (fun acc (_,_,pol) -> NetKAT_Types.(Optimize.(mk_union acc pol))) NetKAT_Types.(Filter False) parsed_pols in 
     let in_pol = NetKAT_Types.(Filter(And (Test (Switch 6L), And (Test (Location (Physical (700001l))), Test(IP4Dst(ip,32l)))))) in 
     let out_pol = NetKAT_Types.(Seq(Mod (Switch 15L), Seq (Mod (Location (Physical (1600001l))), Mod(IP4Dst(ip,32l))))) in 
     let topo_pol = topology_policy topo in
-    let rhs = NetKAT_Types.(Optimize.(mk_seq in_pol (mk_seq (mk_star (mk_seq pol topo_pol)) pol))) in 
+    let rhs = NetKAT_Types.(Optimize.(mk_seq in_pol (mk_seq (mk_star (mk_seq pol topo_pol)) (mk_seq pol out_pol)))) in 
     let lhs = NetKAT_Types.(Optimize.(mk_union rhs (mk_seq in_pol out_pol))) in 
-    Printf.printf "Parsed, checking connectivity!\nWe've taken %f seconds so far...%!"
-    (Sys.time());
-    check_equivalent 
-      (Dexterize.policy_to_term ~dup:false lhs) 
-      (Dexterize.policy_to_term ~dup:false rhs)
+    let t1 = Sys.time () in 
+    let lhs' = Dexterize.policy_to_term ~dup:false lhs in 
+    let rhs' = Dexterize.policy_to_term ~dup:false rhs in 
+    let t2 = Sys.time () in 
+    let b = check_equivalent lhs' rhs' in 
+    let t3 = Sys.time () in 
+    Printf.printf "Time: %.3f\t%.3f\n" (t2 -. t1) (t3 -. t2);
+    b
 
   let run_fattree pols topo = 
     let topo, vertexes, switches, hosts = topology topo in 
