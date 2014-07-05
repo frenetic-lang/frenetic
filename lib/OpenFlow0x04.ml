@@ -4623,8 +4623,8 @@ module Message = struct
     | PortStatusMsg _ -> Header.size + sizeof_ofp_port_status + sizeof_ofp_port
     | MultipartReq req -> Header.size + MultipartReq.sizeof req
     | MultipartReply _ -> failwith "NYI: sizeof MultipartReply"
-    | BarrierRequest -> failwith "NYI: sizeof BarrierRequest"
-    | BarrierReply -> failwith "NYI: sizeof BarrierReply"
+    | BarrierRequest -> Header.size
+    | BarrierReply -> Header.size
     | Error _ -> failwith "NYI: sizeof Error"
 
   let to_string (msg : t) : string = match msg with
@@ -4671,8 +4671,10 @@ module Message = struct
       | MultipartReq mpr ->
         Header.size + MultipartReq.marshal out mpr
       | MultipartReply _ -> failwith "NYI: marshal MultipartReply"
-      | BarrierRequest -> failwith "NYI: marshal BarrierRequest"
-      | BarrierReply -> failwith "NYI: marshal BarrierReply"
+      | BarrierRequest -> 
+        Header.size
+      | BarrierReply -> 
+        Header.size
       | PacketInMsg pi ->
         Header.size + PacketIn.marshal out pi
       | PortStatusMsg ps -> 
@@ -4710,6 +4712,8 @@ module Message = struct
       | ECHO_REQ -> EchoRequest body_bits
       | PORT_STATUS -> PortStatusMsg (PortStatus.parse body_bits)
       | MULTIPART_RESP -> MultipartReply (MultipartReply.parse body_bits)
+      | BARRIER_REQ -> BarrierRequest
+      | BARRIER_RESP -> BarrierReply
       | ERROR -> Error (Error.parse body_bits)
       | code -> raise (Unparsable (Printf.sprintf "unexpected message type %s" (string_of_msg_code typ))) in
     (hdr.Header.xid, msg)
