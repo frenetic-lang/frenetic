@@ -601,7 +601,7 @@ struct
     let dexter_parsed_pols = List.map (Dexterize.policy_to_term ~dup:false) parsed_pols in 
     let pol = Decide_Ast.Term.make_plus 
       (List.fold_right Decide_Ast.TermSet.add dexter_parsed_pols Decide_Ast.TermSet.empty) in     
-    let edge_pol = Decide_Ast.Term.make_one () in 
+    let edge_pol = Dexterize.policy_to_term ~dup:false (NetKAT_Types.(Filter(Or (Test (Switch 6L), Test (Switch 7L))))) in 
     let topo_pol = Dexterize.policy_to_term ~dup:false (topology_policy topo) in
     Printf.printf "Parsed, checking loop freedom!\nWe've taken %f seconds so far...%!"
     (Sys.time());
