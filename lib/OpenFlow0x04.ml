@@ -4622,7 +4622,7 @@ module Message = struct
     | PacketOutMsg po -> Header.size + PacketOut.sizeof po
     | PortStatusMsg _ -> Header.size + sizeof_ofp_port_status + sizeof_ofp_port
     | MultipartReq req -> Header.size + MultipartReq.sizeof req
-    | MultipartReply _ -> failwith "NYI: sizeof MultipartReply"
+    | MultipartReply rep -> Header.size + MultipartReply.sizeof rep
     | BarrierRequest -> failwith "NYI: sizeof BarrierRequest"
     | BarrierReply -> failwith "NYI: sizeof BarrierReply"
     | Error _ -> failwith "NYI: sizeof Error"
@@ -4670,7 +4670,8 @@ module Message = struct
         Header.size + PacketOut.marshal out po
       | MultipartReq mpr ->
         Header.size + MultipartReq.marshal out mpr
-      | MultipartReply _ -> failwith "NYI: marshal MultipartReply"
+      | MultipartReply mpr -> 
+        Header.size + MultipartReply.marshal out mpr
       | BarrierRequest -> failwith "NYI: marshal BarrierRequest"
       | BarrierReply -> failwith "NYI: marshal BarrierReply"
       | PacketInMsg pi ->
@@ -4709,6 +4710,7 @@ module Message = struct
       | PACKET_IN -> PacketInMsg (PacketIn.parse body_bits)
       | ECHO_REQ -> EchoRequest body_bits
       | PORT_STATUS -> PortStatusMsg (PortStatus.parse body_bits)
+      | MULTIPART_REQ -> MultipartReq (MultipartReq.parse body_bits)
       | MULTIPART_RESP -> MultipartReply (MultipartReply.parse body_bits)
       | ERROR -> Error (Error.parse body_bits)
       | code -> raise (Unparsable (Printf.sprintf "unexpected message type %s" (string_of_msg_code typ))) in
