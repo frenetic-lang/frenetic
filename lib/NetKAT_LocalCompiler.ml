@@ -971,7 +971,11 @@ module RunTime = struct
   type i = Local.t
 
   let compile (sw:switchId) (pol:NetKAT_Types.policy) : i =
-    let pol' = Optimize.specialize_policy sw pol in
+    let pol' = Optimize.specialize_policy 
+      (fun t -> match t with 
+        | NetKAT_Types.Switch(sw') when sw = sw' -> Some NetKAT_Types.True
+        | NetKAT_Types.Switch(_) -> Some NetKAT_Types.False
+        | _ -> None) pol in 
     Local.of_policy pol'
 
   module Dep = Algo.Topological(struct
@@ -1095,7 +1099,13 @@ end
 type t = RunTime.i
 
 let of_policy sw pol =
-  Local.of_policy (Optimize.specialize_policy sw pol)
+  Local.of_policy 
+    (Optimize.specialize_policy 
+       (function 
+         | NetKAT_Types.Switch(sw') when sw = sw' -> Some NetKAT_Types.True 
+         | NetKAT_Types.Switch _ -> Some NetKAT_Types.False 
+         | _ -> None) 
+       pol)
 
 let to_netkat =
   Local.to_netkat

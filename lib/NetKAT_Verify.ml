@@ -596,20 +596,25 @@ struct
 
   let run_stanford pols topo = 
     let topo, vertexes, switches, hosts = topology topo in 
-    Printf.printf "1\n%!";
-    let parsed_pols = List.map parse pols in 
-    let dexter_parsed_pols = List.map (Dexterize.policy_to_term ~dup:false) parsed_pols in 
-    let pol = Decide_Ast.Term.make_plus 
-      (List.fold_right Decide_Ast.TermSet.add dexter_parsed_pols Decide_Ast.TermSet.empty) in     
-    let x,y = (Int32.of_int 2886992003, 32l) in 
-    let edge_pol = Dexterize.policy_to_term ~dup:false (NetKAT_Types.(Filter(Or (And (Test (Switch 6L), And (Test (Location (Physical (700001l))), Test(IP4Dst(x,y)))),
-                                                                                 And (Test (Switch 15L), And (Test (Location (Physical (1600001l))), Test(IP4Dst(x,y)))))))) in 
-    let topo_pol = Dexterize.policy_to_term ~dup:false (topology_policy topo) in
-    Printf.printf "Parsed, checking loop freedom!\nWe've taken %f seconds so far...%!"
+    let ip = Int32.of_int 2886992003 in 
+    let spec = function
+      | NetKAT_Types.IP4Dst(y,m) when (y = ip && m = 32l) -> 
+        Some NetKAT_Types.True
+      | NetKAT_Types.IP4Dst _ -> 
+        Some NetKAT_Types.False
+      | _ -> None in 
+    let parsed_pols = List.map (fun fn -> Optimize.specialize_policy spec (parse fn)) pols in 
+    let pol = List.fold_left (fun acc pol -> NetKAT_Types.(Optimize.(mk_union acc pol))) NetKAT_Types.(Filter False) parsed_pols in 
+    let in_pol = NetKAT_Types.(Filter(And (Test (Switch 6L), And (Test (Location (Physical (700001l))), Test(IP4Dst(ip,32l)))))) in 
+    let out_pol = NetKAT_Types.(Seq(Mod (Switch 15L), Seq (Mod (Location (Physical (1600001l))), Mod(IP4Dst(ip,32l))))) in 
+    let topo_pol = topology_policy topo in
+    let rhs = NetKAT_Types.(Optimize.(mk_seq in_pol (mk_seq (mk_star (mk_seq pol topo_pol)) pol))) in 
+    let lhs = NetKAT_Types.(Optimize.(mk_union rhs out_pol)) in 
+    Printf.printf "Parsed, checking connectivity!\nWe've taken %f seconds so far...%!"
     (Sys.time());
-    Decide_Loopfree.loop_freedom edge_pol pol topo_pol ()
-
-
+    check_equivalent 
+      (Dexterize.policy_to_term ~dup:false lhs) 
+      (Dexterize.policy_to_term ~dup:false rhs)
 
   let run_fattree pols topo = 
     let topo, vertexes, switches, hosts = topology topo in 

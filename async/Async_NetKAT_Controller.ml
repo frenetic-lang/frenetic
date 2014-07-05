@@ -236,8 +236,14 @@ let update_table_for (t : t) (sw_id : switchId) pol : unit Deferred.t =
   let to_flow_mod prio flow =
     OpenFlow0x01.Message.FlowModMsg (SDN_OpenFlow0x01.from_flow prio flow) in
   let c_id = Controller.client_id_of_switch t.ctl sw_id in
-  t.locals <- SwitchMap.add t.locals sw_id
-    (Optimize.specialize_policy sw_id pol);
+  t.locals <- 
+    SwitchMap.add t.locals sw_id
+      (Optimize.specialize_policy 
+         (function 
+           | NetKAT_Types.Switch sw' when sw' = sw_id -> Some NetKAT_Types.True 
+           | NetKAT_Types.Switch _ -> Some NetKAT_Types.False 
+           | _ -> None) 
+         pol);
   let local = NetKAT_LocalCompiler.compile sw_id pol in
   Monitor.try_with ~name:"update_table_for" (fun () ->
     send t.ctl c_id (5l, delete_flows) >>= fun _ ->

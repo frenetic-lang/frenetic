@@ -64,7 +64,7 @@ let mk_star pol =
     | NetKAT_Types.Star(pol1) -> pol
     | _ -> NetKAT_Types.Star(pol)
 
-let specialize_pred sw pr =
+let specialize_pred f pr =
   let rec loop pr k =
     match pr with
       | NetKAT_Types.True ->
@@ -73,13 +73,10 @@ let specialize_pred sw pr =
         k pr
       | NetKAT_Types.Neg pr1 ->
         loop pr1 (fun pr -> k (mk_not pr))
-      | NetKAT_Types.Test (NetKAT_Types.Switch v) ->
-        if v = sw then
-          k NetKAT_Types.True
-        else
-          k NetKAT_Types.False
-      | NetKAT_Types.Test _ ->
-        k pr
+      | NetKAT_Types.Test t -> 
+        (match f t with 
+          | None -> k pr 
+          | Some pr' -> k pr')
       | NetKAT_Types.And (pr1, pr2) ->
         loop pr1 (fun p1 -> loop pr2 (fun p2 -> k (mk_and p1 p2)))
       | NetKAT_Types.Or (pr1, pr2) ->
