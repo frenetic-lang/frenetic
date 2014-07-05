@@ -684,8 +684,7 @@ struct
       (Decide_Ast.Term.to_string dl)
       (Decide_Ast.Term.to_string dr);
     let ret = (check_equivalent dl dr) in 
-    if print then Printf.printf "## Equivalent ##\n%b\n" ret;
-    ret
+    if print then Printf.printf "## Equivalent ##\n%b\n" ret
       
 
   let verify_connectivity ?(print=false) filename = 

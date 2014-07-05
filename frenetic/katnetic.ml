@@ -96,6 +96,8 @@ module Verify = struct
     let ret = NetKAT_Verify.Verify.run_stanford pols topo in 
     Printf.printf "Stanford: %b\n" ret
 
+  let validate = NetKAT_Verify.Verify.verify_shortest_paths ~print:false
+
   let run_fattree poldir topo = 
     let poldir_h = Unix.opendir poldir in 
     let pols = 
@@ -159,6 +161,16 @@ let verify_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   in 
   Term.(pure (Verify.main ~print:true) $ topo), 
   Term.info "verify" ~doc
+
+
+let validation_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info = 
+  let doc = "verify shortest-path forwarding compilation" in 
+  let topo = 
+    let doc = "the topology specified as a .dot file" in 
+    Arg.(required & (pos 0 (some file) None) & info [] ~docv:"TOPOLOGY" ~doc)
+  in 
+  Term.(pure (Verify.validate ) $ topo), 
+  Term.info "validate" ~doc
 
 
 
@@ -230,7 +242,7 @@ let default_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   Term.(ret (pure (`Help(`Plain, None)))),
   Term.info "katnetic" ~version:"1.6.1" ~doc
 
-let cmds = [run_cmd; dump_cmd; verify_cmd; loopfree_cmd; stanford_cmd; fattree_cmd; nate_convert; sanity_cmd]
+let cmds = [run_cmd; dump_cmd; verify_cmd; loopfree_cmd; stanford_cmd; fattree_cmd; nate_convert; sanity_cmd; validation_cmd]
 
 let () = 
   match Term.eval_choice default_cmd cmds with
