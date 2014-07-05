@@ -94,7 +94,7 @@ module Verify = struct
     let pols = List.filter (fun s -> String.length s > 4) pols in 
     let pols = List.map (fun s -> poldir ^ s) pols in 
     let ret = NetKAT_Verify.Verify.run_stanford pols topo in 
-    Printf.printf "Loop detection: %b\n" ret
+    Printf.printf "Stanford: %b\n" ret
 
   let run_fattree poldir topo = 
     let poldir_h = Unix.opendir poldir in 
