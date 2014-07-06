@@ -1035,6 +1035,56 @@ module MultipartReply = struct
   let size_of = MultipartReply.sizeof
 end
 
+module PacketOut = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = OpenFlow0x04_Core.packetOut
+
+  let arbitrary_len =
+    (choose_int (24, 1500)) >>= fun a ->
+    ret_gen a
+
+  let arbitrary_byte n =
+  (* construct an arbitrary byte of length n*)
+    arbitrary_stringN n  >>= fun a ->
+    let byte = Cstruct.create n in
+    Cstruct.blit_from_string a 0 byte 0 n;
+    ret_gen (byte)
+
+  let arbitrary_pay byte = 
+    frequency [
+      (1, ret_gen (NotBuffered byte));
+      (3, arbitrary_uint32 >>= fun bid ->
+          arbitrary_byte 0 >>= fun byte -> (* buffered packet out don't have payload *)
+          ret_gen (Buffered (bid,byte)))
+    ]
+
+  let arbitrary_port_id = 
+    frequency [
+      (1, ret_gen None);
+      (9, arbitrary_uint32 >>= fun port_id ->
+          ret_gen (Some port_id))
+    ]
+
+  let arbitrary = 
+    arbitrary_list Action.arbitrary >>= fun po_actions ->
+    arbitrary_len >>= fun len ->
+    arbitrary_byte len >>= fun byte ->
+    arbitrary_pay byte >>= fun po_payload ->
+    arbitrary_port_id >>= fun po_port_id ->
+    ret_gen {
+      po_payload;
+      po_port_id;
+      po_actions
+    }
+
+  let parse = PacketOut.parse
+  let marshal = PacketOut.marshal
+  let to_string = PacketOut.to_string
+  let size_of = PacketOut.sizeof
+end
+
 module PacketIn = struct
   open Gen
   open OpenFlow0x04_Core
