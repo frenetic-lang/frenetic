@@ -465,13 +465,16 @@ struct
        "/home/milano/hassel-public/hsa-python/examples/stanford/stanford_openflow_rules/yozb_rtr" ] in 
     ignore (convert_stanford routers)
 
-  let topology filename = 
+  let topology ?hostlimit:(hostlimit=1000000) filename = 
     let topo = Net.Parse.from_dotfile filename in 
     let vertexes = Topology.vertexes topo in 
     let hosts = Topology.VertexSet.filter (is_host topo) vertexes in 
-(*    let _,hosts = Topology.VertexSet.(fold (fun e (cntr,acc) -> if cntr < 25
-      then (cntr + 1, add e acc)
-      else (cntr,acc)) hosts (0,empty)) in  *)
+    let _,hosts = if hostlimit < 1000000 then 
+	(Printf.printf "We are doing the thing!\n%!";
+	  Topology.VertexSet.(fold (fun e (cntr,acc) -> if cntr < hostlimit
+	  then (cntr + 1, add e acc)
+	  else (cntr,acc)) hosts (0,empty)))
+      else (0,hosts) in
     let switches = Topology.VertexSet.filter (is_switch topo) vertexes in 
     (topo, vertexes, switches, hosts)  
 
@@ -683,13 +686,12 @@ struct
       (Decide_Ast.Term.to_string dl)
       (Decide_Ast.Term.to_string dr);
     let ret = (check_equivalent dl dr) in 
-    if print then Printf.printf "## Equivalent ##\n%b\n" ret;
-    ret
+    if print then Printf.printf "## Equivalent ##\n%b\n" ret
       
 
-  let verify_connectivity ?(print=false) filename = 
+  let verify_connectivity ?(print=false) ?(hostlimit=1000000) filename = 
     Decide_Ast.disable_unfolding_opt ();
-    let topo, vertexes, switches, hosts = topology filename in 
+    let topo, vertexes, switches, hosts = topology ~hostlimit:hostlimit filename in 
     let sw_pol,per_sw_policies = shortest_path_policy topo switches hosts in 
     let cn_pr, cn_pol = connectivity_policy topo hosts in 
     let wrap pol = NetKAT_Types.(Optimize.(mk_seq (mk_seq (mk_filter cn_pr) pol) (mk_filter cn_pr))) in 
