@@ -1090,3 +1090,39 @@ module PacketIn = struct
   let size_of = PacketIn.sizeof
 
 end
+
+module FlowRemoved = struct
+
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = OpenFlow0x04_Core.flowRemoved
+
+  let arbitrary_reason = 
+    oneof [ 
+      ret_gen FlowIdleTimeout;
+      ret_gen FlowHardTiemout;
+      ret_gen FlowDelete;
+      ret_gen FlowGroupDelete]
+
+  let arbitrary =
+    arbitrary_uint64 >>= fun cookie ->
+    arbitrary_uint16 >>= fun priority ->
+    arbitrary_reason >>= fun reason ->
+    arbitrary_uint8 >>= fun table_id ->
+    arbitrary_uint32 >>= fun duration_sec ->
+    arbitrary_uint32 >>= fun duration_nsec ->
+    arbitrary_timeout >>= fun idle_timeout ->
+    arbitrary_timeout >>= fun hard_timeout ->
+    arbitrary_uint64 >>= fun packet_count ->
+    arbitrary_uint64 >>= fun byte_count ->
+    OfpMatch.arbitrary >>= fun oxm ->
+    ret_gen { cookie; priority; reason; table_id; duration_sec; duration_nsec;
+              idle_timeout; hard_timeout; packet_count; byte_count; oxm }
+
+  let marshal = FlowRemoved.marshal
+  let parse = FlowRemoved.parse
+  let to_string = FlowRemoved.to_string
+  let size_of = FlowRemoved.sizeof
+
+end

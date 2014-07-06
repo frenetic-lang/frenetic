@@ -2645,6 +2645,118 @@ module PacketOut = struct
 
 end
 
+module FlowRemoved = struct
+
+  module RemovedReason = struct
+
+    cenum ofp_flow_removed_reason {
+      OFPRR_IDLE_TIMEOUT = 0;
+      OFPRR_HARD_TIMEOUT = 1;
+      OFPRR_DELETE = 2;
+      OFPRR_GROUP_DELETE = 3
+    } as uint8_t
+
+    let to_string (t : flowReason) : string =
+      match t with
+        | FlowIdleTimeout -> "OFPRR_IDLE_TIMEOUT"
+        | FlowHardTiemout -> "OFPRR_HARD_TIMEOUT"
+        | FlowDelete -> "OFPRR_DELETE"
+        | FlowGroupDelete -> "OFPRR_GROUP_DELETE"
+
+    let marshal (t : flowReason) : int8 =
+      match t with
+        | FlowIdleTimeout -> ofp_flow_removed_reason_to_int OFPRR_IDLE_TIMEOUT
+        | FlowHardTiemout -> ofp_flow_removed_reason_to_int OFPRR_HARD_TIMEOUT
+        | FlowDelete -> ofp_flow_removed_reason_to_int OFPRR_DELETE
+        | FlowGroupDelete -> ofp_flow_removed_reason_to_int OFPRR_GROUP_DELETE
+
+    let parse bits : flowReason =
+      match (int_to_ofp_flow_removed_reason bits) with
+        | Some OFPRR_IDLE_TIMEOUT -> FlowIdleTimeout
+        | Some OFPRR_HARD_TIMEOUT -> FlowHardTiemout
+        | Some OFPRR_DELETE -> FlowDelete
+        | Some OFPRR_GROUP_DELETE -> FlowGroupDelete
+        | None -> raise (Unparsable (sprintf "malformed reason"))
+  
+  end
+
+  cstruct ofp_flow_removed {
+    uint64_t cookie;
+    uint16_t priority;
+    uint8_t reason;
+    uint8_t table_id;
+    uint32_t duration_sec;
+    uint32_t duration_nsec;
+    uint16_t idle_timeout;
+    uint16_t hard_timeout;
+    uint64_t packet_count;
+    uint64_t byte_count
+  } as big_endian
+
+  let sizeof (f : flowRemoved) : int =
+    sizeof_ofp_flow_removed + (OfpMatch.sizeof f.oxm)
+
+  let to_string (f : flowRemoved) : string =
+   Format.sprintf "cookie: %Lu; priotity: %u; reason: %s; table ID: %u;\
+   duration s/ns: %lu/%lu; idle timeout: %s; hard timeout: %s; packet count: %Lu;\
+   byte count: %Lu; match: %s"
+   f.cookie
+   f.priority
+   (RemovedReason.to_string f.reason)
+   f.table_id
+   f.duration_sec
+   f.duration_nsec
+   (match f.idle_timeout with
+      | Permanent -> "Permanent"
+      | ExpiresAfter t-> string_of_int t)
+   (match f.hard_timeout with
+      | Permanent -> "Permanent"
+      | ExpiresAfter t-> string_of_int t)
+   f.packet_count
+   f.byte_count
+   (OfpMatch.to_string f.oxm)
+
+   let marshal (buf : Cstruct.t) (f : flowRemoved) : int =
+     set_ofp_flow_removed_cookie buf f.cookie;
+     set_ofp_flow_removed_priority buf f.priority;
+     set_ofp_flow_removed_reason buf (RemovedReason.marshal f.reason);
+     set_ofp_flow_removed_table_id buf f.table_id;
+     set_ofp_flow_removed_duration_sec buf f.duration_sec;
+     set_ofp_flow_removed_duration_nsec buf f.duration_nsec;
+     set_ofp_flow_removed_idle_timeout buf (match f.idle_timeout with
+                                              | Permanent -> 0
+                                              | ExpiresAfter v -> v);
+     set_ofp_flow_removed_hard_timeout buf (match f.hard_timeout with
+                                              | Permanent -> 0
+                                              | ExpiresAfter v -> v);
+     set_ofp_flow_removed_packet_count buf f.packet_count;
+     set_ofp_flow_removed_byte_count buf f.byte_count;
+     let oxm_buf = Cstruct.shift buf sizeof_ofp_flow_removed in
+     sizeof_ofp_flow_removed + (OfpMatch.marshal oxm_buf f.oxm)
+
+   let parse (bits : Cstruct.t) : flowRemoved = 
+     let cookie = get_ofp_flow_removed_cookie bits in
+     let priority = get_ofp_flow_removed_priority bits in
+     let reason = RemovedReason.parse (get_ofp_flow_removed_reason bits) in
+     let table_id = get_ofp_flow_removed_table_id bits in
+     let duration_sec = get_ofp_flow_removed_duration_sec bits in
+     let duration_nsec = get_ofp_flow_removed_duration_nsec bits in
+     let idle_timeout = match (get_ofp_flow_removed_idle_timeout bits) with
+                         | 0 -> Permanent 
+                         | n -> ExpiresAfter n in
+     let hard_timeout = match (get_ofp_flow_removed_hard_timeout bits) with
+                         | 0 -> Permanent 
+                         | n -> ExpiresAfter n in
+     let packet_count = get_ofp_flow_removed_packet_count bits in
+     let byte_count = get_ofp_flow_removed_byte_count bits in
+     let oxm,_ = OfpMatch.parse (Cstruct.shift bits sizeof_ofp_flow_removed) in
+     { cookie; priority; reason; table_id; duration_sec; duration_nsec; idle_timeout;
+       hard_timeout; packet_count; byte_count; oxm }
+     
+
+end
+
+
 module FlowRequest = struct
 
     cstruct ofp_flow_stats_request {
@@ -3869,6 +3981,7 @@ module Message = struct
     | FlowModMsg of flowMod
     | GroupModMsg of groupMod
     | PacketInMsg of packetIn
+    | FlowRemoved of flowRemoved
     | PacketOutMsg of packetOut
     | PortStatusMsg of portStatus
     | MultipartReq of multipartRequest
@@ -3921,6 +4034,7 @@ module Message = struct
     | FlowModMsg _ -> FLOW_MOD
     | GroupModMsg _ -> GROUP_MOD
     | PacketInMsg _ -> PACKET_IN
+    | FlowRemoved _ -> FLOW_REMOVED
     | PacketOutMsg _ -> PACKET_OUT
     | PortStatusMsg _ ->   PORT_STATUS
     | MultipartReq _ -> MULTIPART_REQ
@@ -3938,6 +4052,7 @@ module Message = struct
     | FlowModMsg fm -> Header.size + FlowMod.sizeof fm
     | GroupModMsg gm -> Header.size + GroupMod.sizeof gm
     | PacketInMsg pi -> Header.size + PacketIn.sizeof pi
+    | FlowRemoved fr -> Header.size + FlowRemoved.sizeof fr
     | PacketOutMsg po -> Header.size + PacketOut.sizeof po
     | PortStatusMsg _ -> Header.size + sizeof_ofp_port_status + sizeof_ofp_port
     | MultipartReq req -> Header.size + MultipartReq.sizeof req
@@ -3956,6 +4071,7 @@ module Message = struct
     | FlowModMsg _ -> "FlowMod"
     | GroupModMsg _ -> "GroupMod"
     | PacketInMsg _ -> "PacketIn"
+    | FlowRemoved _ -> "FlowRemoved"
     | PacketOutMsg _ -> "PacketOut"
     | PortStatusMsg _ -> "PortStatus"
     | MultipartReq _ -> "MultipartRequest"
@@ -3997,6 +4113,8 @@ module Message = struct
       | PortStatusMsg ps -> 
         Header.size + PortStatus.marshal out ps
       | Error _ -> failwith "NYI: marshall Error"
+      | FlowRemoved fr ->
+        Header.size + FlowRemoved.marshal out fr
 
 
   let header_of xid msg =
@@ -4030,6 +4148,7 @@ module Message = struct
       | PORT_STATUS -> PortStatusMsg (PortStatus.parse body_bits)
       | MULTIPART_RESP -> MultipartReply (MultipartReply.parse body_bits)
       | ERROR -> Error (Error.parse body_bits)
+      | FLOW_REMOVED -> FlowRemoved (FlowRemoved.parse body_bits)
       | code -> raise (Unparsable (Printf.sprintf "unexpected message type %s" (string_of_msg_code typ))) in
     (hdr.Header.xid, msg)
 end
