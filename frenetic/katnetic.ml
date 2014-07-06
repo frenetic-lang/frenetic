@@ -110,6 +110,28 @@ module Verify = struct
     Printf.printf "Loop detection: %b\n" ret
 
 
+  let run_fattree_reach poldir topo = 
+    let poldir_h = Unix.opendir poldir in 
+    let pols = 
+      let pols = ref [] in 
+      try while true do pols := (Unix.readdir poldir_h)::!pols; done; 
+	  !pols with End_of_file -> !pols in 
+    let pols = List.filter (fun s -> String.length s > 4) pols in 
+    let pols = List.map (fun s -> poldir ^ s) pols in 
+    NetKAT_Verify.Verify.connetive_fattree pols topo
+
+
+  let run_fattree_valid poldir topo = 
+    let poldir_h = Unix.opendir poldir in 
+    let pols = 
+      let pols = ref [] in 
+      try while true do pols := (Unix.readdir poldir_h)::!pols; done; 
+	  !pols with End_of_file -> !pols in 
+    let pols = List.filter (fun s -> String.length s > 4) pols in 
+    let pols = List.map (fun s -> poldir ^ s) pols in 
+    NetKAT_Verify.Verify.shortest_path_fattree pols topo 
+
+
   let sanity_check pol topo = 
     let ret = NetKAT_Verify.Verify.sanity_check pol topo in 
     Printf.printf "Returned: %b" ret;
@@ -229,6 +251,35 @@ let fattree_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   Term.(pure (Verify.run_fattree) $ pol_dir $ topo), 
   Term.info "abfat" ~doc
 
+
+let fattree_cmd_reach : unit Cmdliner.Term.t * Cmdliner.Term.info = 
+  let doc = "Run ABFattree " in 
+  let pol_dir = 
+    let doc = "A directory containing .kat files" in 
+    Arg.(required & (pos 0 (some dir) None) & info [] ~docv:"OFDIR" ~doc)
+  in 
+  let topo = 
+    let doc = "A .dot file" in 
+    Arg.(required & (pos 1 (some file) None) & info [] ~docv:"TOPOLOGY" ~doc)
+  in 
+  Term.(pure (Verify.run_fattree_reach) $ pol_dir $ topo), 
+  Term.info "abfat-reach" ~doc
+
+
+let fattree_cmd_valid : unit Cmdliner.Term.t * Cmdliner.Term.info = 
+  let doc = "Run ABFattree " in 
+  let pol_dir = 
+    let doc = "A directory containing .kat files" in 
+    Arg.(required & (pos 0 (some dir) None) & info [] ~docv:"OFDIR" ~doc)
+  in 
+  let topo = 
+    let doc = "A .dot file" in 
+    Arg.(required & (pos 1 (some file) None) & info [] ~docv:"TOPOLOGY" ~doc)
+  in 
+  Term.(pure (Verify.run_fattree_valid) $ pol_dir $ topo), 
+  Term.info "abfat-valid" ~doc
+
+
 let sanity_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info = 
   let doc = "sanity check for verify" in 
   let pol = 
@@ -250,7 +301,7 @@ let default_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   Term.(ret (pure (`Help(`Plain, None)))),
   Term.info "katnetic" ~version:"1.6.1" ~doc
 
-let cmds = [run_cmd; dump_cmd; verify_cmd; loopfree_cmd; stanford_cmd; fattree_cmd; nate_convert; sanity_cmd; validation_cmd; verify_small_policies_cmd]
+let cmds = [run_cmd; dump_cmd; verify_cmd; loopfree_cmd; stanford_cmd; fattree_cmd; nate_convert; sanity_cmd; validation_cmd; verify_small_policies_cmd;fattree_cmd_valid; fattree_cmd_reach]
 
 let () = 
   match Term.eval_choice default_cmd cmds with

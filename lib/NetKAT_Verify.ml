@@ -640,10 +640,7 @@ struct
     let edge_pol = Dexterize.policy_to_term ~dup:false (NetKAT_Types.(Filter edge_pol)) in 
 
     let topo_pol = Dexterize.policy_to_term ~dup:false (topology_policy topo) in
-    Printf.printf "Parsed, checking loop freedom!\nWe've taken %f seconds so far...%!"
-      (Sys.time());
     Decide_Loopfree.loop_freedom edge_pol pol topo_pol ()
-    
 
   let sanity_check topo pol = 
     let topo, vertexes, switches, hosts = topology topo in 
@@ -683,7 +680,48 @@ struct
       (Decide_Ast.Term.to_string dr);
     let ret = (check_equivalent dl dr) in 
     if print then Printf.printf "## Equivalent ##\n%b\n" ret
+
+  let shortest_path_fattree pols topo = 
+    let topo, vertexes, switches, hosts = topology topo in 
+    let parsed_pols = List.map parse pols in 
+    let sw_pol = match parsed_pols with | [e] -> e | _ -> failwith "bad assumption?" in 
+    let edge_pol, _ =  (connectivity_policy topo hosts) in 
+    let wrap pol = NetKAT_Types.(Optimize.(mk_seq (mk_seq (mk_filter edge_pol) pol) (mk_filter edge_pol))) in 
+    let sw_tbl = shortest_path_table topo switches sw_pol in 
+    let tp_pol = topology_policy topo in 
+    let net_sw_pol = wrap NetKAT_Types.(Optimize.(mk_seq (mk_star (mk_seq sw_pol tp_pol)) sw_pol)) in 
+    let net_sw_tbl = wrap NetKAT_Types.(Optimize.(mk_seq (mk_star (mk_seq sw_tbl tp_pol)) sw_tbl)) in 
+(*    Printf.printf "## NetKAT Policy ##\n%s\n## Connectivity Policy ##\n%s\n%!"
+      (NetKAT_Pretty.string_of_policy net_sw_pol)
+      (NetKAT_Pretty.string_of_policy net_cn_pol); *)
+    let lhs = Dexterize.policy_to_term ~dup:false net_sw_pol in 
+    let rhs = Dexterize.policy_to_term ~dup:false net_sw_tbl in 
+(*    Printf.printf "## Dexter NetKAT Policy ##\n%s\n## Dexter Connectivity Policy ##\n%s\n%!" 
+      (Decide_Ast.Term.to_string lhs)
+      (Decide_Ast.Term.to_string rhs); *)
+    Printf.printf "## Equivalent ##\n%b\n"
+      (check_equivalent lhs rhs)
       
+  let connetive_fattree pols topo = 
+    let topo, vertexes, switches, hosts = topology topo in 
+    let parsed_pols = List.map parse pols in 
+    let sw_pol = match parsed_pols with | [e] -> e | _ -> failwith "bad assumption?" in 
+    let edge_pol, cn_pol =  (connectivity_policy topo hosts) in 
+    let wrap pol = NetKAT_Types.(Optimize.(mk_seq (mk_seq (mk_filter edge_pol) pol) (mk_filter edge_pol))) in 
+    let tp_pol = topology_policy topo in 
+    let net_sw_pol = wrap NetKAT_Types.(Optimize.(mk_seq (mk_star (mk_seq sw_pol tp_pol)) sw_pol)) in 
+    let net_cn_pol = wrap NetKAT_Types.(cn_pol) in 
+(*    Printf.printf "## NetKAT Policy ##\n%s\n## Connectivity Policy ##\n%s\n%!"
+      (NetKAT_Pretty.string_of_policy net_sw_pol)
+      (NetKAT_Pretty.string_of_policy net_cn_pol); *)
+    let lhs = Dexterize.policy_to_term ~dup:false net_sw_pol in 
+    let rhs = Dexterize.policy_to_term ~dup:false net_cn_pol in 
+(*    Printf.printf "## Dexter NetKAT Policy ##\n%s\n## Dexter Connectivity Policy ##\n%s\n%!" 
+      (Decide_Ast.Term.to_string lhs)
+      (Decide_Ast.Term.to_string rhs); *)
+    Printf.printf "## Equivalent ##\n%b\n"
+      (check_equivalent lhs rhs)
+
 
   let verify_connectivity ?(print=false) ?(hostlimit=1000000) filename = 
     Decide_Ast.disable_unfolding_opt ();
