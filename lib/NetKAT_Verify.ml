@@ -1,3 +1,4 @@
+
 module Int32Set = Set.Make(Int32)
 
 let read_file (fname : string) : string = 
@@ -625,8 +626,8 @@ struct
     let t2 = Sys.time () in 
     let b = check_equivalent lhs' rhs' in 
     let t3 = Sys.time () in 
-    Printf.printf "Parse: %.3f\nDexterize [%d => %d]: %.3f\nEquivalence: %.3f\n" 
-      (t1 -. t0) (Decide_Ast.Term.size rhs) (Decide_Ast.Term.size rhs') (t2 -. t1) (t3 -. t2);
+    Printf.printf "Parse: %.3f\nDexterize: %.3f\nEquivalence: %.3f\n" 
+      (t1 -. t0) (t2 -. t1) (t3 -. t2);
     b
 
   let run_fattree pols topo = 
