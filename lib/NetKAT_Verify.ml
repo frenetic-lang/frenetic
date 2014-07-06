@@ -595,21 +595,7 @@ struct
       exit 1
 
   let run_stanford pols topo = 
-    let topo, vertexes, switches, hosts = topology topo in 
     let ip = Int32.of_int 2886992003 in 
-    let spec = function
-      | NetKAT_Types.IP4Dst(y,m) when (y = ip && m = 32l) -> 
-        Some NetKAT_Types.True
-      | NetKAT_Types.IP4Dst _ -> 
-        Some NetKAT_Types.False
-      | _ -> None in 
-    let t0 = Sys.time () in 
-    let parsed_pols = List.map parse pols in 
-    let topo_pol = topology_policy topo in
-    let t1 = Sys.time () in 
-    let specd_pols = List.map (Optimize.specialize_policy spec) parsed_pols in 
-    let pol = List.fold_left (fun acc pol -> 
-      NetKAT_Types.(Optimize.(mk_union acc pol))) NetKAT_Types.(Filter False) specd_pols in 
     let in_pol = 
       NetKAT_Types.(Filter(And(Test (Switch 6L), 
                            And(Test (Location (Physical (700001l))), 
@@ -618,18 +604,31 @@ struct
       NetKAT_Types.(Seq(Mod(Switch 15L), 
                     Seq(Mod(Location (Physical (1600001l))), 
                         Mod(IP4Dst(ip,32l))))) in 
+    let topo, vertexes, switches, hosts = topology topo in 
+    let t0 = Sys.time () in 
+    let parsed_pols = List.map parse pols in 
+    let topo_pol = topology_policy topo in
+    let t1 = Sys.time () in 
+    let pol = 
+      List.fold_left (fun acc pol -> 
+        NetKAT_Types.(Optimize.(mk_union acc pol))) 
+        NetKAT_Types.(Filter False) 
+        parsed_pols in 
     let rhs = 
-      NetKAT_Types.(Optimize.(mk_seq in_pol (mk_seq (mk_star (mk_seq pol topo_pol)) (mk_seq pol out_pol)))) in 
+      NetKAT_Types.(Optimize.(mk_seq in_pol 
+                                (mk_seq (mk_star (mk_seq pol topo_pol)) 
+                                   (mk_seq pol out_pol)))) in 
     let lhs = 
       NetKAT_Types.(Optimize.(mk_union rhs (mk_seq in_pol out_pol))) in 
     let t2 = Sys.time () in 
     let lhs' = Dexterize.policy_to_term ~dup:false lhs in 
+
     let rhs' = Dexterize.policy_to_term ~dup:false rhs in 
     let t3 = Sys.time () in 
     let b = check_equivalent lhs' rhs' in 
     let t4 = Sys.time () in 
     Printf.printf "Parse: %.3f\nSpecialize: %.3f\nDexterize: %.3f\nEquivalence: %.3f\n" 
-      (t1 -. t0) (t2 -. t1) (t3 -. t2) (t4 -. t3);
+      (t1 -. t0) (t2 -. t1) (t3 -. t2) (t4 -. t3); 
     b
 
   let run_fattree pols topo = 
