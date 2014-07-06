@@ -226,7 +226,7 @@ let fattree_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
     let doc = "A .dot file" in 
     Arg.(required & (pos 1 (some file) None) & info [] ~docv:"TOPOLOGY" ~doc)
   in 
-  Term.(pure (Verify.run_stanford) $ pol_dir $ topo), 
+  Term.(pure (Verify.run_fattree) $ pol_dir $ topo), 
   Term.info "abfat" ~doc
 
 let sanity_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info = 
