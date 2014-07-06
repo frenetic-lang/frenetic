@@ -13,13 +13,11 @@ let read_file (fname : string) : string =
 	close_in chan;
 	(intercalate (fun x -> x) "\n" (List.rev !lines))
 
-
 module Dexterize = struct
   open Decide_Ast
   open Decide_Ast.Term
   module Value = Decide_Util.Value
   module Field = Decide_Util.Field
-
   let header_value_to_pair h = 
     let open NetKAT_Types in 
     match h with
@@ -64,7 +62,7 @@ module Dexterize = struct
           k (pred_to_term p)
         | NetKAT_Types.Mod(h) -> 
           let x,n = header_value_to_pair h in 
-          k (make_assg (Field.of_string x, Value.of_string n))
+           k (make_assg (Field.of_string x, Value.of_string n))
         | NetKAT_Types.Union(p1,p2) -> 
           loop p1 (fun t1 -> loop p2 (fun t2 -> k (make_plus (Decide_Ast.TermSet.of_list [t1;t2]))))
         | NetKAT_Types.Seq(p1,p2) -> 
@@ -281,13 +279,13 @@ struct
 	    (fun acc inp -> 
 	      match inp with 
 	      | `Int n -> 
-		Int32Set.add (Int32.of_int n) acc
+		Int32Set.add (Int32.of_int n)  acc
 	      | j -> 
 		failwith (Printf.sprintf "bad in_port: %s" (Json.to_string j)))
 	    Int32Set.empty in_ports in 
 	let ip_pats = 
 	  match ip_dst_match, ip_dst_wc with 
-	  | `Int p, `Int m -> 
+	  | `Int p, `Int m ->
 	    IPMaskSet.singleton (Int32.of_int p, Int32.of_int m)
 	  | j1,j2 -> 
 	    failwith (Printf.sprintf "bad ip_dst_match or ip_dst_wc: %s %s" 
@@ -336,6 +334,7 @@ struct
   let policy_of_rule is_last (ins,ip_pats,ip_modo,outs) = 
     let open NetKAT_Types in 
     let open Optimize in 
+
     let ins_pr = 
       Int32Set.fold
 	(fun i acc -> mk_or acc (Test(Location(Physical i))))
@@ -613,25 +612,21 @@ struct
     let topo_pol = topology_policy topo in
     let t1 = Sys.time () in 
     let pol = 
-      List.fold_left (fun acc pol -> 
-        NetKAT_Types.(Optimize.(mk_union acc pol))) 
-        NetKAT_Types.(Filter False) 
-        parsed_pols in 
+      List.fold_left (fun acc pol ->
+        NetKAT_Types.(Optimize.(mk_union acc pol)))
+        NetKAT_Types.(Filter False)
+        parsed_pols in
     let rhs = 
-      NetKAT_Types.(Optimize.(mk_seq in_pol 
-                                (mk_seq (mk_star (mk_seq pol topo_pol)) 
-                                   (mk_seq pol out_pol)))) in 
+      NetKAT_Types.(Optimize.(mk_seq in_pol (mk_seq (mk_star (mk_seq pol topo_pol)) pol))) in 
     let lhs = 
       NetKAT_Types.(Optimize.(mk_union rhs (mk_seq in_pol out_pol))) in 
-    let t2 = Sys.time () in 
     let lhs' = Dexterize.policy_to_term ~dup:false lhs in 
-
     let rhs' = Dexterize.policy_to_term ~dup:false rhs in 
-    let t3 = Sys.time () in 
+    let t2 = Sys.time () in 
     let b = check_equivalent lhs' rhs' in 
-    let t4 = Sys.time () in 
-    Printf.printf "Parse: %.3f\nSpecialize: %.3f\nDexterize: %.3f\nEquivalence: %.3f\n" 
-      (t1 -. t0) (t2 -. t1) (t3 -. t2) (t4 -. t3); 
+    let t3 = Sys.time () in 
+    Printf.printf "Parse: %.3f\nDexterize [%d => %d]: %.3f\nEquivalence: %.3f\n" 
+      (t1 -. t0) (Decide_Ast.Term.size rhs) (Decide_Ast.Term.size rhs') (t2 -. t1) (t3 -. t2);
     b
 
   let run_fattree pols topo = 
@@ -639,10 +634,11 @@ struct
     Printf.printf "1\n%!";
     let parsed_pols = List.map parse pols in 
     let dexter_parsed_pols = List.map (Dexterize.policy_to_term ~dup:false) parsed_pols in 
-    let pol = Decide_Ast.Term.make_plus 
+    let pol = Decide_Ast.Term.make_plus  
       (List.fold_right Decide_Ast.TermSet.add dexter_parsed_pols Decide_Ast.TermSet.empty) in
     let edge_pol, _ =  (connectivity_policy topo hosts) in 
     let edge_pol = Dexterize.policy_to_term ~dup:false (NetKAT_Types.(Filter edge_pol)) in 
+
     let topo_pol = Dexterize.policy_to_term ~dup:false (topology_policy topo) in
     Printf.printf "Parsed, checking loop freedom!\nWe've taken %f seconds so far...%!"
       (Sys.time());

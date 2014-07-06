@@ -30,6 +30,7 @@ let mk_or pr1 pr2 =
 
 let mk_not pat =
   match pat with
+
     | NetKAT_Types.False -> NetKAT_Types.True
     | NetKAT_Types.True -> NetKAT_Types.False
     | _ -> NetKAT_Types.Neg(pat)
