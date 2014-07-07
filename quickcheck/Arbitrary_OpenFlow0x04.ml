@@ -5,6 +5,7 @@ open Arbitrary_Base
 open QuickCheck
 module Gen = QuickCheck_gen
 
+let sum (lst : int list) = List.fold_left (fun x y -> x + y) 0 lst
 
 let arbitrary_32mask =
   let open Gen in
@@ -444,6 +445,30 @@ module OfpMatch = struct
     let size_of = OfpMatch.sizeof
 end
 
+module MeterBand = struct
+
+  type t = OpenFlow0x04_Core.meterBand
+
+  let arbitrary =
+    let open Gen in
+    let open OpenFlow0x04_Core in
+    arbitrary_uint32 >>= fun rate ->
+    arbitrary_uint32 >>= fun burst ->
+    oneof [
+      ret_gen (Drop (rate, burst));
+      arbitrary_uint8 >>= (fun p -> ret_gen (DscpRemark (rate,burst,p)));
+      arbitrary_uint32 >>= (fun p -> ret_gen (ExpMeter (rate,burst,p)))
+    ]
+
+  let to_string = MeterBand.to_string
+
+  let marshal = MeterBand.marshal
+  let parse = MeterBand.parse
+
+  let size_of = MeterBand.sizeof
+
+end
+
 module Action = struct
   type t = OpenFlow0x04_Core.action
 
@@ -594,10 +619,40 @@ module FlowMod = struct
     let size_of = FlowMod.sizeof
 end    
 
+module Bucket = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = OpenFlow0x04_Core.bucket
+
+  let arbitrary_option =
+     frequency [
+    (1, ret_gen None);
+    (5, arbitrary_uint32 >>= (fun v -> ret_gen (Some v)))
+    ]
+
+  let arbitrary =
+    arbitrary_uint16 >>= fun bu_weight ->
+    arbitrary_option >>= fun bu_watch_port ->
+    arbitrary_option >>= fun bu_watch_group ->
+    list1 Action.arbitrary >>= fun bu_actions ->
+    ret_gen {
+       bu_weight; 
+       bu_watch_port; 
+       bu_watch_group; 
+       bu_actions
+    }
+    
+  let marshal = Bucket.marshal
+  let parse = Bucket.parse
+  let to_string = Bucket.to_string
+  let size_of = Bucket.sizeof
+end
+
 module MultipartReq = struct
   open Gen
   open OpenFlow0x04_Core
-  module TableFeaturesRequest = struct
+  module TableFeatures = struct
     module TableFeatureProp = struct
       
       type t = OpenFlow0x04_Core.tableFeatureProp
@@ -662,15 +717,15 @@ module MultipartReq = struct
       let size_of = TableFeature.sizeof
     end
 
-    type t = OpenFlow0x04_Core.tableFeaturesRequest
+    type t = OpenFlow0x04_Core.tableFeatures list
 
     let arbitrary =
         list1 TableFeature.arbitrary >>= fun v ->
         ret_gen v
-    let marshal = TableFeaturesRequest.marshal
-    let parse = TableFeaturesRequest.parse
-    let to_string = TableFeaturesRequest.to_string
-    let size_of = TableFeaturesRequest.sizeof
+    let marshal = TableFeatures.marshal
+    let parse = TableFeatures.parse
+    let to_string = TableFeatures.to_string
+    let size_of = TableFeatures.sizeof
   end
 
   module FlowRequest = struct
@@ -717,7 +772,7 @@ module MultipartReq = struct
   let arbitrary_option =
      frequency [
     (1, ret_gen None);
-    (3, TableFeaturesRequest.arbitrary >>= (fun v -> ret_gen (Some v)))
+    (3, TableFeatures.arbitrary >>= (fun v -> ret_gen (Some v)))
     ]
   
   let arbitrary_type = 
@@ -1022,6 +1077,263 @@ module MultipartReply = struct
     let size_of = GroupStats.sizeof
   end
 
+  module GroupDesc = struct
+  
+    type t = OpenFlow0x04_Core.groupDesc list
+
+    let arbitrary_groupTyp =
+      oneof [
+        ret_gen All;
+        ret_gen Select;
+        ret_gen Indirect;
+        ret_gen FF]
+
+    let calc_length bucket =
+      (* ofp_group_desc = 8*)
+      ret_gen (8+ sum (List.map Bucket.size_of bucket))
+      
+    let arbitrary_groupDesc =
+      arbitrary_uint32 >>= fun group_id ->
+      arbitrary_groupTyp >>= fun typ ->
+      list1 Bucket.arbitrary >>= fun bucket ->
+      calc_length bucket>>= fun length ->
+      ret_gen {
+        length;
+        typ;
+        group_id;
+        bucket
+      }
+
+    let arbitrary = 
+      list1 arbitrary_groupDesc >>= fun v ->
+      ret_gen v
+    let marshal = GroupDesc.marshal
+    let parse = GroupDesc.parse
+    let to_string = GroupDesc.to_string
+    let size_of = GroupDesc.sizeof
+  end
+  module GroupFeatures = struct
+  
+    type t = OpenFlow0x04_Core.groupFeatures 
+    
+    let arbitrary_groupTypeMap =
+      arbitrary_bool >>= fun all ->
+      arbitrary_bool >>= fun select ->
+      arbitrary_bool >>= fun indirect ->
+      arbitrary_bool >>= fun ff ->
+      ret_gen {
+        all;
+        select;
+        indirect;
+        ff
+    }
+
+    let arbitrary_groupCapabilities =
+      arbitrary_bool >>= fun select_weight ->
+      arbitrary_bool >>= fun select_liveness ->
+      arbitrary_bool >>= fun chaining ->
+      arbitrary_bool >>= fun chaining_checks ->
+      ret_gen {
+        select_weight;
+        select_liveness;
+        chaining;
+        chaining_checks
+      }
+
+    let arbitrary_actionTypeMap =
+      arbitrary_bool >>= fun output ->
+      arbitrary_bool >>= fun copy_ttl_out ->
+      arbitrary_bool >>= fun copy_ttl_in ->
+      arbitrary_bool >>= fun set_mpls_ttl ->
+      arbitrary_bool >>= fun dec_mpls_ttl ->
+      arbitrary_bool >>= fun push_vlan ->
+      arbitrary_bool >>= fun pop_vlan ->
+      arbitrary_bool >>= fun push_mpls ->
+      arbitrary_bool >>= fun pop_mpls ->
+      arbitrary_bool >>= fun set_queue ->
+      arbitrary_bool >>= fun group ->
+      arbitrary_bool >>= fun set_nw_ttl ->
+      arbitrary_bool >>= fun dec_nw_ttl ->
+      arbitrary_bool >>= fun set_field ->
+      arbitrary_bool >>= fun push_pbb ->
+      arbitrary_bool >>= fun pop_pbb ->
+      ret_gen {
+        output;
+        copy_ttl_out;
+        copy_ttl_in;
+        set_mpls_ttl;
+        dec_mpls_ttl;
+        push_vlan;
+        pop_vlan;
+        push_mpls;
+        pop_mpls;
+        set_queue;
+        group;
+        set_nw_ttl;
+        dec_nw_ttl;
+        set_field;
+        push_pbb;
+        pop_pbb
+      }
+      
+
+    let arbitrary = 
+      arbitrary_groupTypeMap >>= fun typ ->
+      arbitrary_groupCapabilities >>= fun capabilities ->
+      arbitrary_uint32 >>= fun max_groups_all ->
+      arbitrary_uint32 >>= fun max_groups_select ->
+      arbitrary_uint32 >>= fun max_groups_indirect ->
+      arbitrary_uint32 >>= fun max_groups_ff ->
+      arbitrary_actionTypeMap >>= fun actions_all ->
+      arbitrary_actionTypeMap >>= fun actions_select ->
+      arbitrary_actionTypeMap >>= fun actions_indirect ->
+      arbitrary_actionTypeMap >>= fun actions_ff ->
+      ret_gen {
+        typ;
+        capabilities;
+        max_groups_all;
+        max_groups_select;
+        max_groups_indirect;
+        max_groups_ff;
+        actions_all;
+        actions_select;
+        actions_indirect;
+        actions_ff
+      }
+
+    let marshal = GroupFeatures.marshal
+    let parse = GroupFeatures.parse
+    let to_string = GroupFeatures.to_string
+    let size_of = GroupFeatures.sizeof
+  end
+  
+  module MeterStats = struct
+  
+    type t = OpenFlow0x04_Core.meterStats list
+
+    let calc_length band =
+      (* sizeof_ofp_meter_stats = 40*)
+      ret_gen (40+(List.length band)*16)
+
+    let arbitrary_meterBandStats =
+      arbitrary_uint64 >>= fun packet_band_count ->
+      arbitrary_uint64 >>= fun byte_band_count ->
+      ret_gen { packet_band_count; byte_band_count }
+
+    let arbitrary_meterStats =
+      arbitrary_uint32 >>= fun meter_id ->
+      arbitrary_uint32 >>= fun flow_count ->
+      arbitrary_uint64 >>= fun packet_in_count ->
+      arbitrary_uint64 >>= fun byte_in_count ->
+      arbitrary_uint32 >>= fun duration_sec ->
+      arbitrary_uint32 >>= fun duration_nsec ->
+      list1 arbitrary_meterBandStats >>= fun band ->
+      calc_length band >>= fun len ->
+      ret_gen {
+        meter_id;
+        len;
+        flow_count;
+        packet_in_count;
+        byte_in_count;
+        duration_sec;
+        duration_nsec;
+        band
+      }
+
+    let arbitrary = 
+      list1 arbitrary_meterStats >>= fun v ->
+      ret_gen v
+
+    let marshal = MeterStats.marshal
+    let parse = MeterStats.parse
+    let to_string = MeterStats.to_string
+    let size_of = MeterStats.sizeof
+  end
+
+  module MeterConfig = struct
+    type t = OpenFlow0x04_Core.meterConfig list
+
+    let arbitrary_meterFlagsMap =
+      arbitrary_bool >>= fun kbps ->
+      arbitrary_bool >>= fun pktps ->
+      arbitrary_bool >>= fun burst ->
+      arbitrary_bool >>= fun stats ->
+      ret_gen {
+        kbps;
+        pktps;
+        burst;
+        stats
+      }
+
+    let calc_length bands =
+      (* sizeof_ofp_meter_config = 8*)
+      ret_gen (8 + sum (List.map MeterBand.size_of bands))
+
+    let arbitrary_meterConfig = 
+      arbitrary_meterFlagsMap >>= fun flags ->
+      arbitrary_uint32 >>= fun meter_id ->
+      list1 MeterBand.arbitrary >>= fun bands ->
+      calc_length bands >>= fun length ->
+      ret_gen {
+        length;
+        flags;
+        meter_id;
+        bands
+      }
+      
+
+    let arbitrary = 
+      list1 arbitrary_meterConfig >>= fun v ->
+      ret_gen v
+
+    let marshal = MeterConfig.marshal
+    let parse = MeterConfig.parse
+    let to_string = MeterConfig.to_string
+    let size_of = MeterConfig.sizeof
+  end
+
+  module MeterFeaturesStats = struct
+    type t = OpenFlow0x04_Core.meterFeaturesStats 
+    
+    let arbitrary_meterBandMaps =
+      arbitrary_bool >>= fun drop ->
+      arbitrary_bool >>= fun dscpRemark ->
+      ret_gen {
+        drop;
+        dscpRemark }
+
+    let arbitrary_meterFlagsMap =
+      arbitrary_bool >>= fun kbps ->
+      arbitrary_bool >>= fun pktps ->
+      arbitrary_bool >>= fun burst ->
+      arbitrary_bool >>= fun stats ->
+      ret_gen {
+        kbps;
+        pktps;
+        burst;
+        stats
+      }
+
+    let arbitrary = 
+      arbitrary_uint32 >>= fun max_meter ->
+      arbitrary_meterBandMaps >>= fun band_typ ->
+      arbitrary_meterFlagsMap >>= fun capabilities ->
+      arbitrary_uint8 >>= fun max_band ->
+      arbitrary_uint8 >>= fun max_color ->
+      ret_gen {
+        max_meter;
+        band_typ;
+        capabilities;
+        max_band;
+        max_color
+      }
+
+    let marshal = MeterFeaturesStats.marshal
+    let parse = MeterFeaturesStats.parse
+    let to_string = MeterFeaturesStats.to_string
+    let size_of = MeterFeaturesStats.sizeof
+  end
+
   type t = OpenFlow0x04_Core.multipartReply
 
   let arbitrary =
@@ -1035,6 +1347,10 @@ module MultipartReply = struct
           PortStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (PortStatsReply n); mpreply_flags = flags});
           QueueStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (QueueStatsReply n);  mpreply_flags = flags});
           GroupStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (GroupStatsReply n);  mpreply_flags = flags});
+          GroupFeatures.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (GroupFeaturesReply n);  mpreply_flags = flags});
+          MeterStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterReply n);  mpreply_flags = flags});
+          MeterConfig.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterConfig n);  mpreply_flags = flags});
+          MeterFeaturesStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterFeaturesReply n);  mpreply_flags = flags});
           ]
 
   let marshal = MultipartReply.marshal

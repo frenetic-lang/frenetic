@@ -98,8 +98,11 @@ module Bucket : sig
 
   val sizeof : bucket -> int
 
+  val to_string : bucket -> string
+
   val marshal : Cstruct.t -> bucket -> int
-   
+
+  val parse : Cstruct.t -> bucket  
 end
 
 module FlowModCommand : sig
@@ -120,7 +123,11 @@ module GroupType : sig
     
   type t = groupType
 
+  val to_string : t -> string
+
   val marshal : t -> int
+
+  val parse : int -> t
 
 end
 
@@ -246,6 +253,18 @@ module PacketOut : sig
 
 end
 
+module MeterBand : sig
+
+  val sizeof : meterBand -> int
+
+  val to_string : meterBand -> string
+
+  val marshal : Cstruct.t -> meterBand -> int
+
+  val parse : Cstruct.t -> meterBand
+
+end
+
 module FlowRequest : sig
 
     val sizeof : flowRequest -> int
@@ -291,15 +310,15 @@ module TableFeature : sig
 
 end
 
-module TableFeaturesRequest : sig
+module TableFeatures : sig
 
-    val sizeof : tableFeaturesRequest -> int
+    val sizeof : tableFeatures list -> int
 
-    val marshal : Cstruct.t -> tableFeaturesRequest -> int
+    val marshal : Cstruct.t -> tableFeatures list -> int
 
-    val parse : Cstruct.t -> tableFeaturesRequest
+    val parse : Cstruct.t -> tableFeatures list
 
-    val to_string : tableFeaturesRequest -> string
+    val to_string : tableFeatures list -> string
 
 end
 
@@ -408,6 +427,67 @@ module QueueStats : sig
   val to_string : queueStats list -> string
   val marshal : Cstruct.t -> queueStats list -> int
   val parse : Cstruct.t -> queueStats list 
+
+end
+
+module GroupDesc : sig
+
+  val sizeof : groupDesc list -> int
+
+  val to_string : groupDesc list -> string
+
+  val marshal : Cstruct.t -> groupDesc list -> int
+
+  val parse : Cstruct.t -> groupDesc list
+
+end
+
+module GroupFeatures : sig
+
+  val sizeof : groupFeatures -> int
+
+  val to_string : groupFeatures -> string
+
+  val marshal : Cstruct.t -> groupFeatures -> int
+
+  val parse : Cstruct.t -> groupFeatures 
+
+end
+
+module MeterStats : sig
+
+  val sizeof : meterStats list -> int
+
+  val to_string : meterStats list -> string
+
+  val marshal : Cstruct.t -> meterStats list -> int
+
+  val parse : Cstruct.t -> meterStats list
+
+end
+
+module MeterConfig : sig
+
+  val sizeof : meterConfig list -> int
+
+  val to_string : meterConfig list -> string
+
+  val marshal : Cstruct.t -> meterConfig list -> int
+
+  val parse : Cstruct.t -> meterConfig list
+
+end
+
+
+module MeterFeaturesStats : sig
+
+  val sizeof : meterFeaturesStats -> int
+
+  val to_string : meterFeaturesStats -> string
+
+  val marshal : Cstruct.t -> meterFeaturesStats -> int
+
+  val parse : Cstruct.t -> meterFeaturesStats
 
 end
 

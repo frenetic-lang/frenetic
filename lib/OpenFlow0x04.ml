@@ -601,10 +601,10 @@ cstruct ofp_instruction_experimenter {
 
 
 cenum ofp_group_type {
-  OFPGC_ALL = 0; (* All (multicast/broadcast) group. *)
-  OFPGC_SELECT = 1; (* Select group. *)
-  OFPGC_INDIRECT = 2; (* Indirect group. *)
-  OFPGC_FF = 3 (* Fast failover group. *)
+  OFPGT_ALL = 0; (* All (multicast/broadcast) group. *)
+  OFPGT_SELECT = 1; (* Select group. *)
+  OFPGT_INDIRECT = 2; (* Indirect group. *)
+  OFPGT_FF = 3 (* Fast failover group. *)
 } as uint16_t
 
 (* Group setup and teardown (controller -> datapath). *)
@@ -640,6 +640,45 @@ cstruct ofp_oxm {
   uint8_t oxm_length
 } as big_endian
 
+
+cstruct ofp_meter_band_header {
+  uint16_t typ;
+  uint16_t len;
+  uint32_t rate;
+  uint32_t burst_size
+} as big_endian
+
+cstruct ofp_meter_band_drop {
+  uint16_t typ;
+  uint16_t len;
+  uint32_t rate;
+  uint32_t burst_size;
+  uint8_t pad[4]
+} as big_endian
+
+cstruct ofp_meter_band_dscp_remark {
+  uint16_t typ;
+  uint16_t len;
+  uint32_t rate;
+  uint32_t burst_size;
+  uint8_t prec_level;
+  uint8_t pad[3]
+} as big_endian
+
+cstruct ofp_meter_band_experimenter {
+  uint16_t typ;
+  uint16_t len;
+  uint32_t rate;
+  uint32_t burst_size;
+  uint32_t experimenter
+} as big_endian
+
+cenum ofp_meter_flags {
+  OFPMF_KBPS = 1;
+  OFPMF_PKTPS = 2;
+  OFPMF_BURST = 4;
+  OFPMF_STATS = 8;
+} as uint32_t
 
 cstruct ofp_multipart_request {
 	uint16_t typ;   (* One of the OFPMP_* constants. *)
@@ -790,6 +829,14 @@ let rec marshal_fields (buf: Cstruct.t) (fields : 'a list) (marshal_func : Cstru
   if (fields = []) then 0
   else let size = marshal_func buf (List.hd fields) in
     size + (marshal_fields (Cstruct.shift buf size) (List.tl fields) marshal_func)
+
+let parse_fields (bits : Cstruct.t) (parse_func : Cstruct.t -> 'a) (length_func : Cstruct.t -> int option) :'a list =
+  let iter =
+    Cstruct.iter
+        length_func
+        parse_func
+        bits in
+    List.rev (Cstruct.fold (fun acc bits -> bits :: acc) iter [])
 
 let pad_to_64bits (n : int) : int =
   if n land 0x7 <> 0 then
@@ -1937,6 +1984,22 @@ module Bucket = struct
     let n = sizeof_ofp_bucket + sum (map Action.sizeof bucket.bu_actions) in
     pad_to_64bits n
 
+  let to_string (bucket : bucket) : string = 
+    Format.sprintf "length: %u\nweight: %u\nwatch port: %s\nwatch group: %sactions:\n%s"
+    (sizeof bucket)
+    bucket.bu_weight
+    (match bucket.bu_watch_port with
+      | Some n -> Int32.to_string n
+      | None -> "None")
+    (match bucket.bu_watch_group with
+      | Some n -> Int32.to_string n
+      | None -> "None")
+    (String.concat "\n" (map Action.to_string bucket.bu_actions))
+
+  let length_func (buf : Cstruct.t) : int option =
+    if Cstruct.len buf < sizeof_ofp_bucket then None
+    else Some (get_ofp_bucket_len buf)
+ 
   let marshal (buf : Cstruct.t) (bucket : bucket) : int =
     let size = sizeof bucket in
     set_ofp_bucket_len buf size;
@@ -1960,6 +2023,18 @@ module Bucket = struct
         | _ -> Action.marshal buf act in
     let buf = Cstruct.shift buf sizeof_ofp_bucket in
     sizeof_ofp_bucket + (marshal_fields buf bucket.bu_actions action_marshal)
+
+  let parse (bits : Cstruct.t) : bucket =
+    let len = get_ofp_bucket_len bits in
+    let bu_weight = get_ofp_bucket_weight bits in
+    let bu_watch_port = match get_ofp_bucket_watch_port bits with
+                          | 0xffffffffl -> None (* ofpp_any *)
+                          | n -> Some n in
+    let bu_watch_group = match get_ofp_bucket_watch_port bits with
+                          | 0xffffffffl -> None (* ofpg_any *)
+                          | n -> Some n in
+    let bu_actions = Action.parse_sequence (Cstruct.sub bits sizeof_ofp_bucket (len - sizeof_ofp_bucket)) in
+    {bu_weight; bu_watch_port; bu_watch_group; bu_actions}
 end
 
 module FlowModCommand = struct
@@ -2001,15 +2076,35 @@ module GroupType = struct
 
   let n = ref 0L
 
+  let to_string (t : t) : string = match t with
+    | All -> "All"
+    | Select -> "Select"
+    | Indirect -> "Indirect"
+    | FF -> "FF"
+
   let marshal (t : t) : int = match t with
-    | All -> ofp_group_type_to_int OFPGC_ALL
-    | Select -> ofp_group_type_to_int OFPGC_SELECT
-    | Indirect -> ofp_group_type_to_int OFPGC_INDIRECT
-    | FF -> ofp_group_type_to_int OFPGC_FF
-     
+    | All -> ofp_group_type_to_int OFPGT_ALL
+    | Select -> ofp_group_type_to_int OFPGT_SELECT
+    | Indirect -> ofp_group_type_to_int OFPGT_INDIRECT
+    | FF -> ofp_group_type_to_int OFPGT_FF
+
+  let parse (bits : int) : t =
+    match int_to_ofp_group_type bits with
+      | Some OFPGT_ALL -> All
+      | Some OFPGT_SELECT  -> Select
+      | Some OFPGT_INDIRECT -> Indirect
+      | Some OFPGT_FF  -> FF
+      | None -> raise (Unparsable (sprintf "malformed ofp_group_type"))
+
 end
 
 module GroupMod = struct
+
+  cenum ofp_group_mod_command {
+    OFPGC_ADD = 0;
+    OFPGC_MODIFY = 1;
+    OFPGC_DELETE = 2
+  } as uint16_t
 
   let sizeof (gm: groupMod) : int =
     match gm with
@@ -2017,6 +2112,8 @@ module GroupMod = struct
         sizeof_ofp_group_mod + sum (map Bucket.sizeof buckets)
       | DeleteGroup (typ, gid) -> 
         sizeof_ofp_group_mod
+      | ModifyGroup (typ, _, buckets) -> 
+        sizeof_ofp_group_mod + sum (map Bucket.sizeof buckets)
 
   let marshal (buf : Cstruct.t) (gm : groupMod) : int =
     match gm with
@@ -2032,6 +2129,26 @@ module GroupMod = struct
         set_ofp_group_mod_pad buf 0;
         set_ofp_group_mod_group_id buf gid;
         sizeof_ofp_group_mod
+      | ModifyGroup (typ, gid, buckets) -> 
+        set_ofp_group_mod_command buf 1; (* OFPGC_MODIFY *)
+        set_ofp_group_mod_typ buf (GroupType.marshal typ);
+        set_ofp_group_mod_pad buf 0;
+        set_ofp_group_mod_group_id buf gid;
+        sizeof_ofp_group_mod + (marshal_fields (Cstruct.shift buf sizeof_ofp_group_mod) buckets Bucket.marshal)
+
+  let parse (bits : Cstruct.t) : groupMod =
+    let typ = GroupType.parse (get_ofp_group_mod_typ bits) in
+    let gid = get_ofp_group_mod_group_id bits in
+    let command = get_ofp_group_mod_command bits in
+    match int_to_ofp_group_mod_command command with
+      | Some OFPGC_ADD -> 
+        let bucket = parse_fields (Cstruct.shift bits sizeof_ofp_group_mod) Bucket.parse (Bucket.length_func) in
+        AddGroup (typ,gid,bucket)
+      | Some OFPGC_MODIFY -> DeleteGroup (typ,gid)
+      | Some OFPGC_DELETE -> 
+        let bucket = parse_fields (Cstruct.shift bits sizeof_ofp_group_mod) Bucket.parse (Bucket.length_func) in
+        ModifyGroup (typ,gid,bucket)
+      | None -> raise (Unparsable (sprintf "malformed group command"))
 end
 
 module PortMod = struct
@@ -2704,6 +2821,96 @@ module PacketOut = struct
 
 end
 
+module MeterBand = struct
+
+  cenum ofp_meter_band_type {
+    OFPMBT_DROP = 1;
+    OFPMBT_DSCP_REMARK = 2;
+    OFPMBT_EXPERIMENTER = 0xffff
+  } as uint16_t
+
+  let sizeof (mb : meterBand) : int =
+    match mb with
+      | Drop _ -> sizeof_ofp_meter_band_drop
+      | DscpRemark _ -> sizeof_ofp_meter_band_dscp_remark
+      | ExpMeter _ ->  sizeof_ofp_meter_band_experimenter
+
+  let length_fun (buf : Cstruct.t) : int option =
+    if Cstruct.len buf < sizeof_ofp_meter_band_header then None
+    else Some (get_ofp_meter_band_header_len buf)
+
+  let to_string (mb : meterBand) : string =
+    match mb with
+      | Drop (r,b) ->
+        Format.sprintf "Drop; rate:%lu; burst size:%lu" r b
+      | DscpRemark (r,b,p) ->
+        Format.sprintf "Dscp Remark; rate:%lu; burst size:%lu; prec level: %u" r b p
+      | ExpMeter (r,b,e) ->
+        Format.sprintf "Experimetner; rate:%lu; burst size:%lu; experimenter id: %lu" r b e
+
+  let marshal (buf : Cstruct.t) (mb : meterBand) : int =
+    match mb with
+      | Drop (r,b) ->
+        set_ofp_meter_band_drop_typ buf 1; (* OFPMBT_DROP *)
+        set_ofp_meter_band_drop_len buf sizeof_ofp_meter_band_drop;
+        set_ofp_meter_band_drop_rate buf r;
+        set_ofp_meter_band_drop_burst_size buf b;
+        sizeof_ofp_meter_band_drop
+      | DscpRemark (r,b,p) ->
+        set_ofp_meter_band_dscp_remark_typ buf 2; (* OFPMBT_DSCP_REMARK *)
+        set_ofp_meter_band_dscp_remark_len buf sizeof_ofp_meter_band_dscp_remark;
+        set_ofp_meter_band_dscp_remark_rate buf r;
+        set_ofp_meter_band_dscp_remark_burst_size buf b;
+        set_ofp_meter_band_dscp_remark_prec_level buf p;
+        sizeof_ofp_meter_band_dscp_remark
+      | ExpMeter (r,b,e) ->
+        set_ofp_meter_band_experimenter_typ buf 0xffff; (* OFPMBT_EXPERIMENTER *)
+        set_ofp_meter_band_experimenter_len buf sizeof_ofp_meter_band_experimenter;
+        set_ofp_meter_band_experimenter_rate buf r;
+        set_ofp_meter_band_experimenter_burst_size buf b;
+        set_ofp_meter_band_experimenter_experimenter buf e;
+        sizeof_ofp_meter_band_experimenter 
+
+  let parse (bits : Cstruct.t) : meterBand =
+    let rate = get_ofp_meter_band_header_rate bits in
+    let burst = get_ofp_meter_band_header_burst_size bits in
+    let typ = get_ofp_meter_band_header_typ bits in
+    match int_to_ofp_meter_band_type typ with 
+      | Some OFPMBT_DROP -> 
+        Drop (rate,burst)
+      | Some OFPMBT_DSCP_REMARK -> 
+        let p = get_ofp_meter_band_dscp_remark_prec_level bits in
+        DscpRemark (rate,burst,p)
+      | Some OFPMBT_EXPERIMENTER -> 
+        let e = get_ofp_meter_band_experimenter_experimenter bits in
+        ExpMeter (rate,burst,e)
+      | None -> raise (Unparsable (sprintf "malformed typ"))
+
+end
+
+module MeterFlags = struct
+
+  let marshal (mfm : meterFlags) : int =
+    (if mfm.kbps then 1 lsl 0 else 0) lor 
+     (if mfm.pktps then 1 lsl 1 else 0) lor
+      (if mfm.burst then 1 lsl 2 else 0) lor
+       (if mfm.stats then 1 lsl 3 else 0)
+
+  let parse bits : meterFlags = 
+    { kbps = test_bit16 0 bits
+    ; pktps = test_bit16 1 bits 
+    ; burst = test_bit16 2 bits 
+    ; stats = test_bit16 3 bits }
+
+  let to_string (mfm : meterFlags) : string =
+    Format.sprintf "kpbs: %B; pktps: %B; burst: %B; stats: %B"
+    mfm.kbps
+    mfm.pktps
+    mfm.burst
+    mfm.stats
+
+end
+
 module FlowRequest = struct
 
     cstruct ofp_flow_stats_request {
@@ -3060,16 +3267,16 @@ module TableFeature = struct
 
 end
 
-module TableFeaturesRequest = struct
+module TableFeatures = struct
 
-    let sizeof (tfr : tableFeaturesRequest) =
+    let sizeof (tfr : tableFeatures list) =
       sum (map TableFeature.sizeof tfr)
 
-    let marshal (buf : Cstruct.t) (tfr : tableFeaturesRequest) =
+    let marshal (buf : Cstruct.t) (tfr : tableFeatures list) =
       marshal_fields buf tfr TableFeature.marshal
       
 
-    let rec parse_fields (bits : Cstruct.t) len cumul : tableFeaturesRequest*Cstruct.t = 
+    let rec parse_fields (bits : Cstruct.t) len cumul : tableFeatures list*Cstruct.t = 
       if len = cumul then [],bits
       else (
         let field,nextBits = TableFeature.parse bits in
@@ -3077,7 +3284,7 @@ module TableFeaturesRequest = struct
         (List.append [field] fields,bits3)
       )    
 
-    let parse (bits : Cstruct.t) : tableFeaturesRequest = 
+    let parse (bits : Cstruct.t) : tableFeatures list = 
       let length = Cstruct.len bits in
       let body,_ = parse_fields bits length 0 in
       body
@@ -3133,7 +3340,7 @@ module MultipartReq = struct
        | MeterStatsReq _  | MeterConfReq _ -> sizeof_ofp_meter_multipart_request
        | TableFeatReq tfr -> (match tfr with
           | None -> 0
-          | Some t -> TableFeaturesRequest.sizeof t)
+          | Some t -> TableFeatures.sizeof t)
        | ExperimentReq _ -> sizeof_ofp_experimenter_multipart_header)
 
   let to_string (mpr : multipartRequest) : string =
@@ -3158,7 +3365,7 @@ module MultipartReq = struct
       | MeterConfReq m -> Format.sprintf "MeterConf Req: %lu" m
       | MeterFeatReq -> "MeterFeat Req"
       | TableFeatReq t-> Format.sprintf "TableFeat Req: %s" (match t with
-        | Some v -> TableFeaturesRequest.to_string v
+        | Some v -> TableFeatures.to_string v
         | None -> "None" )
       | ExperimentReq e-> Format.sprintf "Experimenter Req: id: %lu; type: %lu" e.exp_id e.exp_type)
 
@@ -3195,7 +3402,7 @@ module MultipartReq = struct
       | TableFeatReq t -> 
         (match t with
           | None -> 0
-          | Some v -> size + (TableFeaturesRequest.marshal pay_buf v))
+          | Some v -> size + (TableFeatures.marshal pay_buf v))
       | ExperimentReq _ -> size
 
   let parse (bits : Cstruct.t) : multipartRequest =
@@ -3228,7 +3435,7 @@ module MultipartReq = struct
       | Some OFPMP_TABLE_FEATURES -> TableFeatReq (
       if Cstruct.len bits <= sizeof_ofp_multipart_request then None
       else Some (
-        TableFeaturesRequest.parse (Cstruct.shift bits sizeof_ofp_multipart_request)
+        TableFeatures.parse (Cstruct.shift bits sizeof_ofp_multipart_request)
       ))
       | Some OFPMP_EXPERIMENTER -> ExperimentReq (
       let exp_bits = Cstruct.shift bits sizeof_ofp_multipart_request in
@@ -3792,6 +3999,438 @@ module GroupStats = struct
      (* reverse the need to preserve the order *)
 end
 
+module GroupDesc = struct
+
+  cstruct ofp_group_desc {
+    uint16_t length;
+    uint8_t typ;
+    uint8_t pad;
+    uint32_t group_id;
+  } as big_endian
+
+  let sizeof_struct (gd : groupDesc) : int =
+    sizeof_ofp_group_desc + sum (map Bucket.sizeof gd.bucket)
+
+  let sizeof (gd : groupDesc list) : int = 
+    sum (map sizeof_struct gd)
+
+  let to_string_struct (gd : groupDesc) : string =
+    Format.sprintf "length: %u \nroup Type:%s\ngroup id:%lu\nbucket:%s"
+    gd.length
+    (GroupType.to_string gd.typ)
+    gd.group_id
+    (String.concat "\n" (map Bucket.to_string gd.bucket))
+
+  let to_string (gd : groupDesc list) : string =
+    String.concat "\n" (map to_string_struct gd)
+
+  let marshal_struct (buf : Cstruct.t) (gd : groupDesc) : int =
+    set_ofp_group_desc_length buf gd.length;
+    set_ofp_group_desc_typ buf (GroupType.marshal gd.typ);
+    set_ofp_group_desc_group_id buf gd.group_id;
+    let size_bucket = 
+      (marshal_fields (Cstruct.shift buf sizeof_ofp_group_desc) gd.bucket Bucket.marshal) in
+    sizeof_ofp_group_desc + size_bucket
+
+  let marshal (buf : Cstruct.t) (gd : groupDesc list) : int =
+    marshal_fields buf gd marshal_struct
+
+  let parse_struct (bits : Cstruct.t) : groupDesc =
+    let len = get_ofp_group_desc_length bits in
+    let typ = GroupType.parse (get_ofp_group_desc_typ bits) in
+    let group_id = get_ofp_group_desc_group_id bits in
+    let length_fn (buf : Cstruct.t) = 
+      if Cstruct.len buf < sizeof_ofp_bucket  then None
+        else Some (get_ofp_bucket_len buf) in
+    let parse_bucket bits = 
+      let bucketIter =
+        Cstruct.iter 
+          length_fn
+          (Bucket.parse)
+          bits in
+      List.rev (Cstruct.fold (fun acc bits -> bits :: acc) bucketIter []) in
+    let bucket_bits = Cstruct.sub bits sizeof_ofp_group_desc (len - sizeof_ofp_group_desc) in
+    let bucket = parse_bucket bucket_bits in
+    { length = len
+    ; typ = typ
+    ; group_id = group_id
+    ; bucket = bucket}
+
+  let parse (bits : Cstruct.t) : groupDesc list =
+    let length_fn buf = 
+      if Cstruct.len buf < sizeof_ofp_group_desc  then None
+      else Some (get_ofp_group_desc_length buf) in
+    let groupDescIter =
+      Cstruct.iter 
+        length_fn
+        parse_struct
+        bits in
+    List.rev (Cstruct.fold (fun acc bits -> bits :: acc) groupDescIter [])
+end
+
+module GroupFeatures = struct
+
+  cstruct ofp_group_features {
+    uint32_t typ;
+    uint32_t capabilities;
+    uint32_t max_groups_all;
+    uint32_t max_groups_select;
+    uint32_t max_groups_indirect;
+    uint32_t max_groups_fastfailover;
+    uint32_t actions_all;
+    uint32_t actions_select;
+    uint32_t actions_indirect;
+    uint32_t actions_fastfailover
+  } as big_endian
+
+  let groupTypeMap_to_int (gtm : groupTypeMap) : int32 =
+    Int32.logor (if gtm.all then (Int32.shift_left 1l 0) else 0l) 
+     (Int32.logor (if gtm.select then (Int32.shift_left 1l 1) else 0l)
+      (Int32.logor (if gtm.indirect then (Int32.shift_left 1l 2) else 0l)
+       (if gtm.ff then (Int32.shift_left 1l 3) else 0l)))
+
+  let int_to_groupTypeMap bits : groupTypeMap = 
+    { all = Bits.test_bit 0 bits
+    ; select = Bits.test_bit 1 bits
+    ; indirect = Bits.test_bit 2 bits
+    ; ff = Bits.test_bit 3 bits }
+
+  let groupTypeMap_to_string (gtm : groupTypeMap) : string =
+    Format.sprintf "all: %B; select: %B; indirect: %B; ff: %B"
+    gtm.all
+    gtm.select
+    gtm.indirect
+    gtm.ff
+
+  let groupCapabilities_to_int (gc : groupCapabilities) : int32 =
+    Int32.logor (if gc.select_weight then (Int32.shift_left 1l 0) else 0l) 
+     (Int32.logor (if gc.select_liveness then (Int32.shift_left 1l 1) else 0l)
+      (Int32.logor (if gc.chaining then (Int32.shift_left 1l 2) else 0l)
+       (if gc.chaining_checks then (Int32.shift_left 1l 3) else 0l)))
+
+  let int_to_groupCapabilities bits : groupCapabilities = 
+    { select_weight = Bits.test_bit 0 bits
+    ; select_liveness = Bits.test_bit 1 bits
+    ; chaining = Bits.test_bit 2 bits
+    ; chaining_checks = Bits.test_bit 3 bits }
+
+  let groupCapabilities_to_string (gc : groupCapabilities) : string =
+    Format.sprintf "select_weight: %B; select_liveness: %B; chaining: %B; chaining_checks: %B"
+    gc.select_weight
+    gc.select_liveness
+    gc.chaining
+    gc.chaining_checks
+
+  let actionTypeMap_to_int (atm : actionTypeMap) : int32 =
+    Int32.logor (if atm.output then (Int32.shift_left 1l 0) else 0l) 
+     (Int32.logor (if atm.copy_ttl_out then (Int32.shift_left 1l 11) else 0l)
+      (Int32.logor (if atm.copy_ttl_in then (Int32.shift_left 1l 12) else 0l)
+       (Int32.logor (if atm.set_mpls_ttl then (Int32.shift_left 1l 15) else 0l)
+        (Int32.logor (if atm.dec_mpls_ttl then (Int32.shift_left 1l 16) else 0l)
+         (Int32.logor (if atm.push_vlan then (Int32.shift_left 1l 17) else 0l)
+          (Int32.logor (if atm.pop_vlan then (Int32.shift_left 1l 18) else 0l)
+           (Int32.logor (if atm.push_mpls then (Int32.shift_left 1l 19) else 0l)
+            (Int32.logor (if atm.pop_mpls then (Int32.shift_left 1l 20) else 0l)
+             (Int32.logor (if atm.set_queue then (Int32.shift_left 1l 21) else 0l)
+              (Int32.logor (if atm.group then (Int32.shift_left 1l 22) else 0l)
+               (Int32.logor (if atm.set_nw_ttl then (Int32.shift_left 1l 23) else 0l)
+                (Int32.logor (if atm.dec_nw_ttl then (Int32.shift_left 1l 24) else 0l)
+                 (Int32.logor (if atm.set_field then (Int32.shift_left 1l 25) else 0l)
+                  (Int32.logor (if atm.push_pbb then (Int32.shift_left 1l 26) else 0l)
+                   (if atm.pop_pbb then (Int32.shift_left 1l 27) else 0l)))))))))))))))
+
+  let int_to_actionTypeMap bits : actionTypeMap = 
+    { output = Bits.test_bit 0 bits
+    ; copy_ttl_out = Bits.test_bit 11 bits
+    ; copy_ttl_in = Bits.test_bit 12 bits
+    ; set_mpls_ttl = Bits.test_bit 15 bits
+    ; dec_mpls_ttl = Bits.test_bit 16 bits
+    ; push_vlan = Bits.test_bit 17 bits
+    ; pop_vlan = Bits.test_bit 18 bits
+    ; push_mpls = Bits.test_bit 19 bits
+    ; pop_mpls = Bits.test_bit 20 bits
+    ; set_queue = Bits.test_bit 21 bits
+    ; group = Bits.test_bit 22 bits
+    ; set_nw_ttl = Bits.test_bit 23 bits
+    ; dec_nw_ttl = Bits.test_bit 24 bits
+    ; set_field = Bits.test_bit 25 bits
+    ; push_pbb = Bits.test_bit 26 bits
+    ; pop_pbb = Bits.test_bit 27 bits }
+
+  let actionTypeMap_to_string (atm : actionTypeMap) : string =
+    Format.sprintf "output:%B; copy ttl out:%B; copy ttl in:%B; set mpls ttl:%B; \
+    dec mpls ttl:%B; push vlan:%B; pop vlan:%B; push mpls:%B; pop mpls:%B; \
+    set queue:%B; group:%B; set nw ttl:%B; dec nw ttl:%B set field:%B; \
+    push pbb:%B; pop PBB:%B"
+    atm.output
+    atm.copy_ttl_out
+    atm.copy_ttl_in
+    atm.set_mpls_ttl
+    atm.dec_mpls_ttl
+    atm.push_vlan
+    atm.pop_vlan
+    atm.push_mpls
+    atm.pop_mpls
+    atm.set_queue
+    atm.group
+    atm.set_nw_ttl
+    atm.dec_nw_ttl
+    atm.set_field
+    atm.push_pbb
+    atm.pop_pbb
+
+  let sizeof (gf : groupFeatures) : int =
+    sizeof_ofp_group_features
+
+  let to_string (gf : groupFeatures) : string =
+    Format.sprintf "type supported: %s\ncapbailities supported: %s\nmax group:\n\
+    all: %lu; select: %lu; indirect: %lu; fastfailover: %lu\nactions supported:\n
+    all: %s; select: %s; indirect: %s; fastfailover: %s"
+    (groupTypeMap_to_string gf.typ)
+    (groupCapabilities_to_string gf.capabilities)
+    gf.max_groups_all
+    gf.max_groups_select
+    gf.max_groups_indirect
+    gf.max_groups_ff
+    (actionTypeMap_to_string gf.actions_all)
+    (actionTypeMap_to_string gf.actions_select)
+    (actionTypeMap_to_string gf.actions_indirect)
+    (actionTypeMap_to_string gf.actions_ff)
+
+  let marshal (buf : Cstruct.t) (gf : groupFeatures) : int =
+    set_ofp_group_features_typ buf (groupTypeMap_to_int gf.typ);
+    set_ofp_group_features_capabilities buf (groupCapabilities_to_int gf.capabilities);
+    set_ofp_group_features_max_groups_all buf gf.max_groups_all;
+    set_ofp_group_features_max_groups_select buf gf.max_groups_select;
+    set_ofp_group_features_max_groups_indirect buf gf.max_groups_indirect;
+    set_ofp_group_features_max_groups_fastfailover buf gf.max_groups_ff;
+    set_ofp_group_features_actions_all buf (actionTypeMap_to_int gf.actions_all);
+    set_ofp_group_features_actions_select buf (actionTypeMap_to_int gf.actions_select);
+    set_ofp_group_features_actions_indirect buf (actionTypeMap_to_int gf.actions_indirect);
+    set_ofp_group_features_actions_fastfailover buf (actionTypeMap_to_int gf.actions_ff);
+    sizeof_ofp_group_features
+
+  let parse (bits : Cstruct.t) : groupFeatures =
+  { typ = int_to_groupTypeMap (get_ofp_group_features_typ bits)
+  ; capabilities = int_to_groupCapabilities (get_ofp_group_features_capabilities bits)
+  ; max_groups_all = get_ofp_group_features_max_groups_all bits
+  ; max_groups_select = get_ofp_group_features_max_groups_select bits
+  ; max_groups_indirect = get_ofp_group_features_max_groups_indirect bits
+  ; max_groups_ff = get_ofp_group_features_max_groups_fastfailover bits
+  ; actions_all = int_to_actionTypeMap (get_ofp_group_features_actions_all bits)
+  ; actions_select = int_to_actionTypeMap (get_ofp_group_features_actions_select bits)
+  ; actions_indirect = int_to_actionTypeMap (get_ofp_group_features_actions_indirect bits)
+  ; actions_ff =int_to_actionTypeMap (get_ofp_group_features_actions_fastfailover bits)
+  }
+
+end
+
+module MeterStats = struct
+
+  cstruct ofp_meter_stats {
+    uint32_t meter_id;
+    uint16_t len;
+    uint8_t pad[6];
+    uint32_t flow_count;
+    uint64_t packet_in_count;
+    uint64_t byte_in_count;
+    uint32_t duration_sec;
+    uint32_t duration_nsec
+  } as big_endian
+
+  cstruct ofp_meter_band_stats {
+    uint64_t packet_band_count;
+    uint64_t byte_band_count
+  } as big_endian
+  
+  let marshal_band (buf : Cstruct.t) (mbs : meterBandStats) : int =
+    set_ofp_meter_band_stats_packet_band_count buf mbs.packet_band_count;
+    set_ofp_meter_band_stats_byte_band_count buf mbs.byte_band_count;
+    sizeof_ofp_meter_band_stats
+
+  let parse_band (bits : Cstruct.t) : meterBandStats =
+    { packet_band_count = get_ofp_meter_band_stats_packet_band_count bits
+    ; byte_band_count = get_ofp_meter_band_stats_byte_band_count bits}
+
+  let to_string_band (mbs : meterBandStats) : string =
+    Format.sprintf "packet count:%Lu; byte count:%Lu"
+    mbs.packet_band_count
+    mbs.byte_band_count
+
+  let sizeof_struct (ms : meterStats) : int =
+    ms.len
+
+  let sizeof (ms : meterStats list) : int =
+    sum (map sizeof_struct ms)
+
+  let to_string_struct (ms : meterStats) : string =
+    Format.sprintf "meter id:%lu; len:%u; flow count:%lu; packet in count:%Lu\
+    byte in count:%Lu; duration (s/ns):%lu/%lu; band:%s"
+    ms.meter_id
+    ms.len
+    ms.flow_count
+    ms.packet_in_count
+    ms.byte_in_count
+    ms.duration_sec
+    ms.duration_nsec
+    (String.concat "," (map to_string_band ms.band))
+
+  let to_string (ms : meterStats list) : string =
+    String.concat "\n" (map to_string_struct ms)
+
+  let marshal_struct (buf : Cstruct.t) (ms : meterStats) =
+    set_ofp_meter_stats_meter_id buf ms.meter_id;
+    set_ofp_meter_stats_len buf ms.len;
+    set_ofp_meter_stats_flow_count buf ms.flow_count;
+    set_ofp_meter_stats_packet_in_count buf ms.packet_in_count;
+    set_ofp_meter_stats_byte_in_count buf ms.byte_in_count;
+    set_ofp_meter_stats_duration_sec buf ms.duration_sec;
+    set_ofp_meter_stats_duration_nsec buf ms.duration_nsec;
+    let band_buf = Cstruct.sub buf sizeof_ofp_meter_stats (ms.len - sizeof_ofp_meter_stats) in
+    sizeof_ofp_meter_stats + (marshal_fields band_buf ms.band marshal_band)
+
+  let marshal (buf : Cstruct.t) (ms : meterStats list) : int =
+      marshal_fields buf ms marshal_struct
+
+  let parse_struct (bits : Cstruct.t) : meterStats = 
+    let meter_id = get_ofp_meter_stats_meter_id bits in
+    let len = get_ofp_meter_stats_len bits in
+    let flow_count = get_ofp_meter_stats_flow_count bits in
+    let packet_in_count = get_ofp_meter_stats_packet_in_count bits in
+    let byte_in_count = get_ofp_meter_stats_byte_in_count bits in
+    let duration_sec = get_ofp_meter_stats_duration_sec bits in
+    let duration_nsec = get_ofp_meter_stats_duration_nsec bits in
+    let band_bits = Cstruct.sub bits sizeof_ofp_meter_stats (len - sizeof_ofp_meter_stats) in
+    let parse_band bits =
+      let bandIter =
+        Cstruct.iter
+          (fun buf -> Some sizeof_ofp_meter_band_stats)
+          parse_band
+          bits in
+      List.rev (Cstruct.fold (fun acc bits -> bits :: acc) bandIter []) in
+    let band = parse_band band_bits in
+    { meter_id; len; flow_count; packet_in_count; byte_in_count; duration_sec; duration_nsec; band }
+
+    let parse (bits : Cstruct.t) : meterStats list = 
+      let length_fn buf = 
+      if Cstruct.len buf < sizeof_ofp_meter_stats  then None
+      else Some (get_ofp_meter_stats_len buf) in
+      let meterIter =
+        Cstruct.iter
+          length_fn
+          parse_struct
+          bits in
+      List.rev (Cstruct.fold (fun acc bits -> bits :: acc) meterIter [])
+
+end
+
+module MeterConfig = struct
+
+  cstruct ofp_meter_config {
+    uint16_t length;
+    uint16_t flags;
+    uint32_t meter_id
+  } as big_endian
+
+  let sizeof_struct (mc : meterConfig) : int =
+    sizeof_ofp_meter_config + sum (map MeterBand.sizeof mc.bands)
+
+  let sizeof (mc : meterConfig list) : int =
+    sum (map sizeof_struct mc)  
+
+  let to_string_struct (mc : meterConfig) : string =
+    Format.sprintf "len: %u; flags: %s; meter id: %lu; bands:%s"
+    mc.length
+    (MeterFlags.to_string mc.flags)
+    mc.meter_id
+    (String.concat "\n" (map MeterBand.to_string mc.bands))
+
+  let to_string (mc : meterConfig list) : string =
+    String.concat "\n" (map to_string_struct mc)
+
+  let marshal_struct (buf : Cstruct.t) (mc : meterConfig) : int =
+    set_ofp_meter_config_length buf mc.length;
+    set_ofp_meter_config_flags buf (MeterFlags.marshal mc.flags);
+    set_ofp_meter_config_meter_id buf mc.meter_id;
+    sizeof_ofp_meter_config + (marshal_fields (Cstruct.shift buf sizeof_ofp_meter_config) mc.bands MeterBand.marshal)
+
+  let marshal (buf : Cstruct.t) (mc : meterConfig list) : int =
+    marshal_fields buf mc marshal_struct
+
+  let parse_struct (bits : Cstruct.t) : meterConfig =
+    let length = get_ofp_meter_config_length bits in
+    let flags = MeterFlags.parse (get_ofp_meter_config_flags bits) in
+    let meter_id = get_ofp_meter_config_meter_id bits in
+    let bands_bits = Cstruct.sub bits sizeof_ofp_meter_config (length-sizeof_ofp_meter_config) in
+    let bands = parse_fields bands_bits MeterBand.parse MeterBand.length_fun in
+    { length
+    ; flags
+    ; meter_id
+    ; bands
+    }
+
+  let length_func (buf : Cstruct.t) : int option =
+    if Cstruct.len buf < sizeof_ofp_meter_config then None
+    else Some (get_ofp_meter_config_length buf)
+
+  let parse (buf : Cstruct.t) : meterConfig list =
+    parse_fields buf parse_struct length_func
+end
+
+module MeterFeaturesStats = struct
+
+  cstruct ofp_meter_features {
+    uint32_t max_meter;
+    uint32_t band_types;
+    uint32_t capabilities;
+    uint8_t max_bands;
+    uint8_t max_color;
+    uint8_t pad[2]
+  } as big_endian
+
+  let meterBandMaps_to_int (mbm : meterBandMaps) : int32 =
+    Int32.logor (if mbm.drop then (Int32.shift_left 1l 1) else 0l) 
+     (if mbm.dscpRemark then (Int32.shift_left 1l 2) else 0l)
+
+  let int_to_meterBandMaps bits : meterBandMaps = 
+    { drop = Bits.test_bit 1 bits
+    ; dscpRemark = Bits.test_bit 2 bits }
+
+  let meterBandMaps_to_string (mbm : meterBandMaps) : string =
+    Format.sprintf "drop: %B; dscp remark: %B"
+    mbm.drop
+    mbm.dscpRemark
+
+  let sizeof (mfs : meterFeaturesStats) : int =
+    sizeof_ofp_meter_features
+
+  let to_string (mfs : meterFeaturesStats) : string =
+    Format.sprintf "max meter: %lu; band typ:%s; capabilities: %s; max band: %u; max color: %u"
+    mfs.max_meter
+    (meterBandMaps_to_string mfs.band_typ)
+    (MeterFlags.to_string mfs.capabilities)
+    mfs.max_band
+    mfs.max_color
+  
+  let marshal (buf : Cstruct.t) (mfs : meterFeaturesStats) : int =
+    set_ofp_meter_features_max_meter buf mfs.max_meter;
+    set_ofp_meter_features_band_types buf (meterBandMaps_to_int mfs.band_typ);
+    (* int -> int32 fix, before release of OF1.3.5 *)
+    set_ofp_meter_features_capabilities buf (Int32.of_int (MeterFlags.marshal mfs.capabilities));
+    set_ofp_meter_features_max_bands buf mfs.max_band;
+    set_ofp_meter_features_max_color buf mfs.max_color;
+    sizeof_ofp_meter_features
+  
+  let parse (bits : Cstruct.t) : meterFeaturesStats =
+    { max_meter = get_ofp_meter_features_max_meter bits
+    ; band_typ = int_to_meterBandMaps (get_ofp_meter_features_band_types bits)
+    (* int32 -> int fix, before release of OF1.3.5 *)
+    ; capabilities = MeterFlags.parse (Int32.to_int (get_ofp_meter_features_capabilities bits))
+    ; max_band = get_ofp_meter_features_max_bands bits
+    ; max_color = get_ofp_meter_features_max_color bits
+    }
+end
+
 module MultipartReply = struct
 
 
@@ -3803,9 +4442,15 @@ module MultipartReply = struct
       | FlowStatsReply fsr -> FlowStats.sizeof fsr
       | AggregateReply ag -> AggregateStats.sizeof ag
       | TableReply tr -> TableStats.sizeof tr
+      | TableFeaturesReply tf -> TableFeatures.sizeof tf
       | PortStatsReply psr -> PortStats.sizeof psr
       | QueueStatsReply qsr -> QueueStats.sizeof qsr
       | GroupStatsReply gs -> GroupStats.sizeof gs
+      | GroupDescReply gd -> GroupDesc.sizeof gd
+      | GroupFeaturesReply gf -> GroupFeatures.sizeof gf
+      | MeterReply mr -> MeterStats.sizeof mr
+      | MeterConfig mc -> MeterConfig.sizeof mc
+      | MeterFeaturesReply mf -> MeterFeaturesStats.sizeof mf
 
   let to_string (mpr : multipartReply) =
     match mpr.mpreply_typ with
@@ -3814,9 +4459,15 @@ module MultipartReply = struct
       | FlowStatsReply fsr -> Format.sprintf "Flow: %s" (FlowStats.to_string fsr)
       | AggregateReply ag -> Format.sprintf "Aggregate Flow: %s" (AggregateStats.to_string ag)
       | TableReply tr -> Format.sprintf "TableReply: %s" (TableStats.to_string tr)
+      | TableFeaturesReply tf -> Format.sprintf "TableFeatures Reply: %S" (TableFeatures.to_string tf)
       | PortStatsReply psr -> Format.sprintf "PortStatsReply: %s" (PortStats.to_string psr)
       | QueueStatsReply qsr -> Format.sprintf "QueueStats: %s" (QueueStats.to_string qsr)
-      | GroupStatsReply gs -> Format.sprintf "GroupSTats: %S" (GroupStats.to_string gs)
+      | GroupStatsReply gs -> Format.sprintf "GroupStats: %s" (GroupStats.to_string gs)
+      | GroupDescReply gd -> Format.sprintf "GroupSDesc: %s" (GroupDesc.to_string gd)
+      | GroupFeaturesReply gf -> Format.sprintf "GroupFeatures: %s" (GroupFeatures.to_string gf)
+      | MeterReply mr -> Format.sprintf "MeterStats: %s" (MeterStats.to_string mr)
+      | MeterConfig mc -> Format.sprintf "MeterConfig: %s" (MeterConfig.to_string mc)
+      | MeterFeaturesReply mf -> Format.sprintf "MeterFeaturesStats: %s" (MeterFeaturesStats.to_string mf)
 
   let marshal (buf : Cstruct.t) (mpr : multipartReply) : int =
     let ofp_body_bits = Cstruct.shift buf sizeof_ofp_multipart_reply in
@@ -3840,6 +4491,9 @@ module MultipartReply = struct
       | TableReply tr ->
           set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_TABLE);
           TableStats.marshal ofp_body_bits tr
+      | TableFeaturesReply tf ->
+          set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_TABLE_FEATURES);
+          TableFeatures.marshal ofp_body_bits tf
       | PortStatsReply psr ->
           set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_PORT_STATS);
           PortStats.marshal ofp_body_bits psr
@@ -3849,6 +4503,21 @@ module MultipartReply = struct
       | GroupStatsReply gs ->
           set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_GROUP);
           GroupStats.marshal ofp_body_bits gs
+      | GroupDescReply gd ->
+          set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_GROUP_DESC);
+          GroupDesc.marshal ofp_body_bits gd
+      | GroupFeaturesReply gf ->
+          set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_GROUP_FEATURES);
+          GroupFeatures.marshal ofp_body_bits gf
+      | MeterReply mr ->
+          set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_METER);
+          MeterStats.marshal ofp_body_bits mr
+      | MeterConfig mc ->
+          set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_METER_CONFIG);
+          MeterConfig.marshal ofp_body_bits mc
+      | MeterFeaturesReply mfr ->
+          set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_METER_FEATURES);
+          MeterFeaturesStats.marshal ofp_body_bits mfr
           )
     
   let parse (bits : Cstruct.t) : multipartReply =
@@ -3864,12 +4533,24 @@ module MultipartReply = struct
           AggregateReply (AggregateStats.parse ofp_body_bits)
       | Some OFPMP_TABLE -> 
           TableReply (TableStats.parse ofp_body_bits)
+      | Some OFPMP_TABLE_FEATURES ->
+          TableFeaturesReply (TableFeatures.parse ofp_body_bits)
       | Some OFPMP_PORT_STATS -> 
           PortStatsReply (PortStats.parse ofp_body_bits)
       | Some OFPMP_QUEUE ->
           QueueStatsReply (QueueStats.parse ofp_body_bits)
       | Some OFPMP_GROUP ->
           GroupStatsReply (GroupStats.parse ofp_body_bits)
+      | Some OFPMP_GROUP_DESC ->
+          GroupDescReply (GroupDesc.parse ofp_body_bits)
+      | Some OFPMP_GROUP_FEATURES ->
+          GroupFeaturesReply (GroupFeatures.parse ofp_body_bits)
+      | Some OFPMP_METER ->
+          MeterReply (MeterStats.parse ofp_body_bits)
+      | Some OFPMP_METER_CONFIG ->
+          MeterConfig (MeterConfig.parse ofp_body_bits)
+      | Some OFPMP_METER_FEATURES ->
+          MeterFeaturesReply (MeterFeaturesStats.parse ofp_body_bits)
       | _ -> raise (Unparsable (sprintf "NYI: can't parse this multipart reply"))) in
     let flags = (
       match int_to_ofp_multipart_request_flags (get_ofp_multipart_request_flags bits) with
@@ -4000,7 +4681,7 @@ module Message = struct
     | PacketOutMsg po -> Header.size + PacketOut.sizeof po
     | PortStatusMsg _ -> Header.size + sizeof_ofp_port_status + sizeof_ofp_port
     | MultipartReq req -> Header.size + MultipartReq.sizeof req
-    | MultipartReply _ -> failwith "NYI: sizeof MultipartReply"
+    | MultipartReply rep -> Header.size + MultipartReply.sizeof rep
     | BarrierRequest -> failwith "NYI: sizeof BarrierRequest"
     | BarrierReply -> failwith "NYI: sizeof BarrierReply"
     | Error _ -> failwith "NYI: sizeof Error"
@@ -4048,7 +4729,8 @@ module Message = struct
         Header.size + PacketOut.marshal out po
       | MultipartReq mpr ->
         Header.size + MultipartReq.marshal out mpr
-      | MultipartReply _ -> failwith "NYI: marshal MultipartReply"
+      | MultipartReply mpr -> 
+        Header.size + MultipartReply.marshal out mpr
       | BarrierRequest -> failwith "NYI: marshal BarrierRequest"
       | BarrierReply -> failwith "NYI: marshal BarrierReply"
       | PacketInMsg pi ->
@@ -4087,6 +4769,7 @@ module Message = struct
       | PACKET_IN -> PacketInMsg (PacketIn.parse body_bits)
       | ECHO_REQ -> EchoRequest body_bits
       | PORT_STATUS -> PortStatusMsg (PortStatus.parse body_bits)
+      | MULTIPART_REQ -> MultipartReq (MultipartReq.parse body_bits)
       | MULTIPART_RESP -> MultipartReply (MultipartReply.parse body_bits)
       | ERROR -> Error (Error.parse body_bits)
       | code -> raise (Unparsable (Printf.sprintf "unexpected message type %s" (string_of_msg_code typ))) in
