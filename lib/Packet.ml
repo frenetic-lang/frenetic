@@ -30,7 +30,7 @@ let get_byte32 (n : Int32.t) (i : int) : int =
   to_int (logand 0xFFl (shift_right_logical n (8 * i)))
 
 let get_byte (n:int64) (i:int) : int =
-  if i < 0 || i > 5 then
+  if i < 0 || i > 7 then
     raise (Invalid_argument "Int64.get_byte index out of range");
   Int64.to_int (Int64.logand 0xFFL (Int64.shift_right_logical n (8 * i)))
 
@@ -57,6 +57,13 @@ let mac_of_bytes (str:string) : int64 =
 let string_of_ip (ip : Int32.t) : string = 
   Format.sprintf "%d.%d.%d.%d" (get_byte32 ip 3) (get_byte32 ip 2) 
     (get_byte32 ip 1) (get_byte32 ip 0)
+
+let string_of_ipv6 ((ip1,ip2) : int64*int64) : string =
+  Format.sprintf "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x"
+   (get_byte ip1 7) (get_byte ip1 6) (get_byte ip1 5) (get_byte ip1 4)
+   (get_byte ip1 3) (get_byte ip1 2) (get_byte ip1 1) (get_byte ip1 0)
+   (get_byte ip2 7) (get_byte ip2 6) (get_byte ip2 5) (get_byte ip2 4)
+   (get_byte ip2 3) (get_byte ip2 2) (get_byte ip2 1) (get_byte ip2 0)
 
 let string_of_mac (x:int64) : string =
   Format.sprintf "%02x:%02x:%02x:%02x:%02x:%02x"
@@ -108,6 +115,8 @@ type nwAddr = int32 with sexp
 type nwProto = int8 with sexp
 
 type nwTos = int8 with sexp
+
+type ipv6Addr = int64*int64 with sexp
 
 type tpPort = int16 with sexp
 
@@ -1376,3 +1385,27 @@ let mac_of_string (s : string) : dlAddr =
                (logor (shift_left (parse_byte (List.nth bytes 3)) 16)
                   (logor (shift_left (parse_byte (List.nth bytes 4)) 8)
                      (parse_byte (List.nth bytes 5)))))))
+
+let ipv6_of_string (s : string) : ipv6Addr =
+  let bytes = Str.split (Str.regexp ":") s in
+  let bytes_len = List.length bytes in
+  let rec fill_with_0 n =
+    if n = 0 then ["0"]
+    else "0"::(fill_with_0 (n-1)) in
+  let rec fill_bytes bytes =
+    match bytes with
+      | [] -> []
+      | ""::q -> List.append (fill_with_0 (8-bytes_len)) q
+      | t::q -> t::(fill_bytes q) in
+  let bytes = fill_bytes bytes in
+  let parse_byte str = Int64.of_string ("0x" ^ str) in
+  let open Int64 in
+      (logor (shift_left (parse_byte (List.nth bytes 0)) 48)
+         (logor (shift_left (parse_byte (List.nth bytes 1)) 32)
+            (logor (shift_left (parse_byte (List.nth bytes 2)) 16)
+               (parse_byte (List.nth bytes 3))))),
+      (logor (shift_left (parse_byte (List.nth bytes 4)) 48)
+         (logor (shift_left (parse_byte (List.nth bytes 5)) 32)
+            (logor (shift_left (parse_byte (List.nth bytes 6)) 16)
+               (parse_byte (List.nth bytes 7)))))
+                        

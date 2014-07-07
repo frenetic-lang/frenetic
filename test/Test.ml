@@ -1,5 +1,6 @@
 open Packet
 open QuickCheck
+open Arbitrary_Base
 
 module Gen = QuickCheck_gen
 
@@ -103,6 +104,23 @@ module RoundTrip = struct
           (Arb.arbitrary_tcp (Arb.arbitrary_payload (65507 - 128))) in
     (packet_quickCheck (mk_ip tcp)
       (prop_roundtrip2 parse marshal))
+
+  let addr_roundtrip parse marshal e =
+    (parse (marshal e)) = e
+
+  let addr_quickcheck arbitrary parse marshal =
+    let show (p1,p2) = 
+      Format.sprintf "%Lu %Lu" p1 p2 in
+    let test = testable_fun arbitrary show testable_bool in
+    match quickCheck test (addr_roundtrip parse marshal) with
+      | Success -> true
+      | Failure _ -> failwith "No failure expected"
+      | Exhausted _ -> failwith "No exhaustion expected"
+
+  TEST "Roundtrip property for IPv6 Address" =
+    (addr_quickcheck arbitrary_uint128
+      ipv6_of_string string_of_ipv6)
+
 
 end
 

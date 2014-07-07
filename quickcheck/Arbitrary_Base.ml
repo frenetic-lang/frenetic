@@ -1,6 +1,8 @@
 open QuickCheck
 module Gen = QuickCheck_gen
 
+type int128 = int64 * int64
+
 (* arbitrary instance for usigned integers, using `int` type. *)
 let arbitrary_uint = Gen.sized (fun n -> Gen.choose_int (0, n))
 
@@ -42,7 +44,7 @@ let arbitrary_uint48 =
     let lo = of_int c in
     ret_gen Int64.(logor (logor hi mid) lo)
 
-(* arbitrary instance for unsigned int48, using the `int64` type. *)
+(* arbitrary instance for unsigned int68, using the `int64` type. *)
 let arbitrary_uint64 =
   let open Gen in
   arbitrary_uint16 >>= fun a ->
@@ -55,6 +57,13 @@ let arbitrary_uint64 =
     let mid2 = shift_left (of_int c) 16 in
     let lo = of_int d in
     ret_gen Int64.(logor (logor hi (logor mid1 mid2)) lo)
+
+(* arbitrary instance for unsigned int128, using the `int64` type. *)
+let arbitrary_uint128 =
+  let open Gen in
+  arbitrary_uint64 >>= fun a ->
+  arbitrary_uint64 >>= fun b ->
+    ret_gen (a,b)
 
 
 (* arbitrary instance for option type, favoring `Some` rather than `None` *)
