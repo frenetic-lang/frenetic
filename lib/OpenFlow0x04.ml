@@ -2193,6 +2193,96 @@ module PortMod = struct
   
 end
 
+module MeterBand = struct
+
+  cenum ofp_meter_band_type {
+    OFPMBT_DROP = 1;
+    OFPMBT_DSCP_REMARK = 2;
+    OFPMBT_EXPERIMENTER = 0xffff
+  } as uint16_t
+
+  let sizeof (mb : meterBand) : int =
+    match mb with
+      | Drop _ -> sizeof_ofp_meter_band_drop
+      | DscpRemark _ -> sizeof_ofp_meter_band_dscp_remark
+      | ExpMeter _ ->  sizeof_ofp_meter_band_experimenter
+
+  let length_fun (buf : Cstruct.t) : int option =
+    if Cstruct.len buf < sizeof_ofp_meter_band_header then None
+    else Some (get_ofp_meter_band_header_len buf)
+
+  let to_string (mb : meterBand) : string =
+    match mb with
+      | Drop (r,b) ->
+        Format.sprintf "Drop; rate:%lu; burst size:%lu" r b
+      | DscpRemark (r,b,p) ->
+        Format.sprintf "Dscp Remark; rate:%lu; burst size:%lu; prec level: %u" r b p
+      | ExpMeter (r,b,e) ->
+        Format.sprintf "Experimetner; rate:%lu; burst size:%lu; experimenter id: %lu" r b e
+
+  let marshal (buf : Cstruct.t) (mb : meterBand) : int =
+    match mb with
+      | Drop (r,b) ->
+        set_ofp_meter_band_drop_typ buf 1; (* OFPMBT_DROP *)
+        set_ofp_meter_band_drop_len buf sizeof_ofp_meter_band_drop;
+        set_ofp_meter_band_drop_rate buf r;
+        set_ofp_meter_band_drop_burst_size buf b;
+        sizeof_ofp_meter_band_drop
+      | DscpRemark (r,b,p) ->
+        set_ofp_meter_band_dscp_remark_typ buf 2; (* OFPMBT_DSCP_REMARK *)
+        set_ofp_meter_band_dscp_remark_len buf sizeof_ofp_meter_band_dscp_remark;
+        set_ofp_meter_band_dscp_remark_rate buf r;
+        set_ofp_meter_band_dscp_remark_burst_size buf b;
+        set_ofp_meter_band_dscp_remark_prec_level buf p;
+        sizeof_ofp_meter_band_dscp_remark
+      | ExpMeter (r,b,e) ->
+        set_ofp_meter_band_experimenter_typ buf 0xffff; (* OFPMBT_EXPERIMENTER *)
+        set_ofp_meter_band_experimenter_len buf sizeof_ofp_meter_band_experimenter;
+        set_ofp_meter_band_experimenter_rate buf r;
+        set_ofp_meter_band_experimenter_burst_size buf b;
+        set_ofp_meter_band_experimenter_experimenter buf e;
+        sizeof_ofp_meter_band_experimenter 
+
+  let parse (bits : Cstruct.t) : meterBand =
+    let rate = get_ofp_meter_band_header_rate bits in
+    let burst = get_ofp_meter_band_header_burst_size bits in
+    let typ = get_ofp_meter_band_header_typ bits in
+    match int_to_ofp_meter_band_type typ with 
+      | Some OFPMBT_DROP -> 
+        Drop (rate,burst)
+      | Some OFPMBT_DSCP_REMARK -> 
+        let p = get_ofp_meter_band_dscp_remark_prec_level bits in
+        DscpRemark (rate,burst,p)
+      | Some OFPMBT_EXPERIMENTER -> 
+        let e = get_ofp_meter_band_experimenter_experimenter bits in
+        ExpMeter (rate,burst,e)
+      | None -> raise (Unparsable (sprintf "malformed typ"))
+
+end
+
+module MeterFlags = struct
+
+  let marshal (mfm : meterFlags) : int =
+    (if mfm.kbps then 1 lsl 0 else 0) lor 
+     (if mfm.pktps then 1 lsl 1 else 0) lor
+      (if mfm.burst then 1 lsl 2 else 0) lor
+       (if mfm.stats then 1 lsl 3 else 0)
+
+  let parse bits : meterFlags = 
+    { kbps = test_bit16 0 bits
+    ; pktps = test_bit16 1 bits 
+    ; burst = test_bit16 2 bits 
+    ; stats = test_bit16 3 bits }
+
+  let to_string (mfm : meterFlags) : string =
+    Format.sprintf "kpbs: %B; pktps: %B; burst: %B; stats: %B"
+    mfm.kbps
+    mfm.pktps
+    mfm.burst
+    mfm.stats
+
+end
+
 module MeterMod = struct
 
   cstruct ofp_meter_mod {
@@ -2200,6 +2290,58 @@ module MeterMod = struct
     uint16_t flags;
     uint32_t meter_id
   } as big_endian
+
+  module Command = struct
+
+    cenum ofp_meter_mod_command {
+      OFPMC_ADD;
+      OFPMC_MODIFY;
+      OFPMC_DELETE
+    } as uint16_t
+
+    let to_string (t :  meterCommand) = 
+      match t with
+        | AddMeter -> "New meter"
+        | ModifyMeter -> "Modify specified meter"
+        | DeleteMeter -> "Delete specified meter"
+
+    let marshal (t : meterCommand) : int =
+      match t with
+        | AddMeter -> ofp_meter_mod_command_to_int OFPMC_ADD
+        | ModifyMeter -> ofp_meter_mod_command_to_int OFPMC_MODIFY
+        | DeleteMeter -> ofp_meter_mod_command_to_int OFPMC_DELETE
+
+    let parse t : meterCommand =
+      match int_to_ofp_meter_mod_command t with
+        | Some OFPMC_ADD -> AddMeter
+        | Some OFPMC_MODIFY -> ModifyMeter
+        | Some OFPMC_DELETE -> DeleteMeter
+        | None -> raise (Unparsable (sprintf "malformed command"))
+  end
+
+  let sizeof (mm : meterMod) : int =
+    sizeof_ofp_meter_mod + (sum (map MeterBand.sizeof mm.bands))
+
+  let to_string (mm : meterMod) : string =
+    Format.sprintf "command : %s; flags: %s; meter id: %lu; bands: \n%s"
+    (Command.to_string mm.command)
+    (MeterFlags.to_string mm.flags)
+    mm.meter_id
+    (String.concat "\n" (map MeterBand.to_string mm.bands))
+
+  let marshal (buf : Cstruct.t) (mm : meterMod) : int =
+    set_ofp_meter_mod_commands buf (Command.marshal mm.command);
+    set_ofp_meter_mod_flags buf (MeterFlags.marshal mm.flags);
+    set_ofp_meter_mod_meter_id buf mm.meter_id;
+    sizeof_ofp_meter_mod + (marshal_fields (Cstruct.shift buf sizeof_ofp_meter_mod) mm.bands MeterBand.marshal)
+
+  let parse (bits : Cstruct.t) : meterMod = 
+    let command = Command.parse (get_ofp_meter_mod_commands bits) in
+    let flags = MeterFlags.parse (get_ofp_meter_mod_flags bits) in
+    let meter_id = get_ofp_meter_mod_meter_id bits in
+    let bandsBits = Cstruct.shift bits sizeof_ofp_meter_mod in
+    let bands = parse_fields bandsBits MeterBand.parse MeterBand.length_fun in
+    { command; flags; meter_id; bands }
 
 end
 
@@ -2818,96 +2960,6 @@ module PacketOut = struct
       | NotBuffered pkt_buf ->
         Cstruct.blit pkt_buf 0 buf act_size (Cstruct.len pkt_buf);
         size
-
-end
-
-module MeterBand = struct
-
-  cenum ofp_meter_band_type {
-    OFPMBT_DROP = 1;
-    OFPMBT_DSCP_REMARK = 2;
-    OFPMBT_EXPERIMENTER = 0xffff
-  } as uint16_t
-
-  let sizeof (mb : meterBand) : int =
-    match mb with
-      | Drop _ -> sizeof_ofp_meter_band_drop
-      | DscpRemark _ -> sizeof_ofp_meter_band_dscp_remark
-      | ExpMeter _ ->  sizeof_ofp_meter_band_experimenter
-
-  let length_fun (buf : Cstruct.t) : int option =
-    if Cstruct.len buf < sizeof_ofp_meter_band_header then None
-    else Some (get_ofp_meter_band_header_len buf)
-
-  let to_string (mb : meterBand) : string =
-    match mb with
-      | Drop (r,b) ->
-        Format.sprintf "Drop; rate:%lu; burst size:%lu" r b
-      | DscpRemark (r,b,p) ->
-        Format.sprintf "Dscp Remark; rate:%lu; burst size:%lu; prec level: %u" r b p
-      | ExpMeter (r,b,e) ->
-        Format.sprintf "Experimetner; rate:%lu; burst size:%lu; experimenter id: %lu" r b e
-
-  let marshal (buf : Cstruct.t) (mb : meterBand) : int =
-    match mb with
-      | Drop (r,b) ->
-        set_ofp_meter_band_drop_typ buf 1; (* OFPMBT_DROP *)
-        set_ofp_meter_band_drop_len buf sizeof_ofp_meter_band_drop;
-        set_ofp_meter_band_drop_rate buf r;
-        set_ofp_meter_band_drop_burst_size buf b;
-        sizeof_ofp_meter_band_drop
-      | DscpRemark (r,b,p) ->
-        set_ofp_meter_band_dscp_remark_typ buf 2; (* OFPMBT_DSCP_REMARK *)
-        set_ofp_meter_band_dscp_remark_len buf sizeof_ofp_meter_band_dscp_remark;
-        set_ofp_meter_band_dscp_remark_rate buf r;
-        set_ofp_meter_band_dscp_remark_burst_size buf b;
-        set_ofp_meter_band_dscp_remark_prec_level buf p;
-        sizeof_ofp_meter_band_dscp_remark
-      | ExpMeter (r,b,e) ->
-        set_ofp_meter_band_experimenter_typ buf 0xffff; (* OFPMBT_EXPERIMENTER *)
-        set_ofp_meter_band_experimenter_len buf sizeof_ofp_meter_band_experimenter;
-        set_ofp_meter_band_experimenter_rate buf r;
-        set_ofp_meter_band_experimenter_burst_size buf b;
-        set_ofp_meter_band_experimenter_experimenter buf e;
-        sizeof_ofp_meter_band_experimenter 
-
-  let parse (bits : Cstruct.t) : meterBand =
-    let rate = get_ofp_meter_band_header_rate bits in
-    let burst = get_ofp_meter_band_header_burst_size bits in
-    let typ = get_ofp_meter_band_header_typ bits in
-    match int_to_ofp_meter_band_type typ with 
-      | Some OFPMBT_DROP -> 
-        Drop (rate,burst)
-      | Some OFPMBT_DSCP_REMARK -> 
-        let p = get_ofp_meter_band_dscp_remark_prec_level bits in
-        DscpRemark (rate,burst,p)
-      | Some OFPMBT_EXPERIMENTER -> 
-        let e = get_ofp_meter_band_experimenter_experimenter bits in
-        ExpMeter (rate,burst,e)
-      | None -> raise (Unparsable (sprintf "malformed typ"))
-
-end
-
-module MeterFlags = struct
-
-  let marshal (mfm : meterFlags) : int =
-    (if mfm.kbps then 1 lsl 0 else 0) lor 
-     (if mfm.pktps then 1 lsl 1 else 0) lor
-      (if mfm.burst then 1 lsl 2 else 0) lor
-       (if mfm.stats then 1 lsl 3 else 0)
-
-  let parse bits : meterFlags = 
-    { kbps = test_bit16 0 bits
-    ; pktps = test_bit16 1 bits 
-    ; burst = test_bit16 2 bits 
-    ; stats = test_bit16 3 bits }
-
-  let to_string (mfm : meterFlags) : string =
-    Format.sprintf "kpbs: %B; pktps: %B; burst: %B; stats: %B"
-    mfm.kbps
-    mfm.pktps
-    mfm.burst
-    mfm.stats
 
 end
 
@@ -4608,6 +4660,8 @@ module Message = struct
     | FeaturesReply of SwitchFeatures.t
     | FlowModMsg of flowMod
     | GroupModMsg of groupMod
+    | PortModMsg of portMod
+    | MeterModMsg of meterMod
     | PacketInMsg of packetIn
     | PacketOutMsg of packetOut
     | PortStatusMsg of portStatus
@@ -4660,6 +4714,8 @@ module Message = struct
     | FeaturesReply _ -> FEATURES_RESP
     | FlowModMsg _ -> FLOW_MOD
     | GroupModMsg _ -> GROUP_MOD
+    | PortModMsg _ -> PORT_MOD
+    | MeterModMsg _ -> METER_MOD
     | PacketInMsg _ -> PACKET_IN
     | PacketOutMsg _ -> PACKET_OUT
     | PortStatusMsg _ ->   PORT_STATUS
@@ -4677,6 +4733,8 @@ module Message = struct
     | FeaturesReply _ -> Header.size + sizeof_ofp_switch_features
     | FlowModMsg fm -> Header.size + FlowMod.sizeof fm
     | GroupModMsg gm -> Header.size + GroupMod.sizeof gm
+    | PortModMsg pm -> Header.size + PortMod.sizeof pm
+    | MeterModMsg mm -> Header.size + MeterMod.sizeof mm 
     | PacketInMsg pi -> Header.size + PacketIn.sizeof pi
     | PacketOutMsg po -> Header.size + PacketOut.sizeof po
     | PortStatusMsg _ -> Header.size + sizeof_ofp_port_status + sizeof_ofp_port
@@ -4695,6 +4753,8 @@ module Message = struct
     | FeaturesReply _ -> "FeaturesReply"
     | FlowModMsg _ -> "FlowMod"
     | GroupModMsg _ -> "GroupMod"
+    | PortModMsg _ -> "PortMod"
+    | MeterModMsg _ -> "MeterMod"
     | PacketInMsg _ -> "PacketIn"
     | PacketOutMsg _ -> "PacketOut"
     | PortStatusMsg _ -> "PortStatus"
@@ -4725,6 +4785,10 @@ module Message = struct
         Header.size + FlowMod.marshal out fm
       | GroupModMsg gm ->
         Header.size + GroupMod.marshal out gm
+      | PortModMsg pm ->
+        Header.size + PortMod.marshal out pm
+      | MeterModMsg mm ->
+        Header.size + MeterMod.marshal out mm
       | PacketOutMsg po ->
         Header.size + PacketOut.marshal out po
       | MultipartReq mpr ->
@@ -4766,6 +4830,10 @@ module Message = struct
       | HELLO -> Hello
       | ECHO_RESP -> EchoReply body_bits
       | FEATURES_RESP -> FeaturesReply (SwitchFeatures.parse body_bits)
+      | FLOW_MOD -> FlowModMsg (FlowMod.parse body_bits)
+      | GROUP_MOD -> GroupModMsg (GroupMod.parse body_bits)
+      | PORT_MOD -> PortModMsg (PortMod.parse body_bits)
+      | METER_MOD -> MeterModMsg (MeterMod.parse body_bits)
       | PACKET_IN -> PacketInMsg (PacketIn.parse body_bits)
       | ECHO_REQ -> EchoRequest body_bits
       | PORT_STATUS -> PortStatusMsg (PortStatus.parse body_bits)

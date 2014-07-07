@@ -229,7 +229,15 @@ type meterBand =
   | DscpRemark of (rate*burst*int8)
   | ExpMeter of (rate*burst*experimenterId)
 
+type meterCommand = 
+  | AddMeter
+  | ModifyMeter
+  | DeleteMeter
+
 type meterFlags = { kbps : bool; pktps : bool; burst : bool; stats : bool}
+
+type meterMod = { command : meterCommand; flags : meterFlags; meter_id : int32;
+                  bands : meterBand list}
 
 type flowRequest = {fr_table_id : tableId; fr_out_port : portId; 
                     fr_out_group : portId; fr_cookie : int64 mask;
