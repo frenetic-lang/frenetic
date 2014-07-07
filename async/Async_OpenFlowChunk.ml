@@ -179,7 +179,6 @@ module Controller = struct
                           (Header.to_string hdr)))
               end
             end;
-            print_endline "HANDSHAKE COMPLETE";
             Handler.handshake t c_id (min hdr.version v);
             return [`Connect (c_id, min hdr.version v)]
           | Some(_) ->
