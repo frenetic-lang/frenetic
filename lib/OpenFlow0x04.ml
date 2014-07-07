@@ -230,6 +230,28 @@ module PortFeatures = struct
       feat.pause_asym
 end
 
+module PortState = struct
+
+  let state_to_int (state : portState) : int32 =
+    Int32.logor (if state.link_down then (Int32.shift_left 1l 0) else 0l) 
+     (Int32.logor (if state.blocked then (Int32.shift_left 1l 1) else 0l)  
+      (if state.live then (Int32.shift_left 1l 2) else 0l))
+
+  let marshal (ps : portState) : int32 = state_to_int ps
+
+  let parse bits : portState =
+    { link_down = Bits.test_bit 0 bits;
+      blocked = Bits.test_bit 1 bits;
+      live = Bits.test_bit 2 bits
+    }
+
+  let to_string (state : portState) =
+    Format.sprintf "link_down:%b,blocked:%b,live:%b"
+    state.link_down
+    state.blocked
+    state.live
+end
+
 cstruct ofp_port_stats_request {
   uint32_t port_no;
   uint8_t pad[4]
@@ -2012,6 +2034,58 @@ module GroupMod = struct
         sizeof_ofp_group_mod
 end
 
+module PortMod = struct
+
+  cstruct ofp_port_mod {
+    uint32_t port_no;
+    uint8_t pad[4];
+    uint8_t hw_addr[6];
+    uint8_t pad2[2];
+    uint32_t config;
+    uint32_t mask;
+    uint32_t advertise;
+    uint8_t pad3[4]
+  } as big_endian
+
+  let sizeof pm : int =
+    sizeof_ofp_port_mod
+
+  let to_string (pm : portMod) : string =
+    Format.sprintf "port no: %lu; hw addr: %s; config: %s; mask: %s; advertise: %s"
+    pm.mpPortNo
+    (string_of_mac pm.mpHw_addr)
+    (PortConfig.to_string pm.mpConfig)
+    (PortConfig.to_string pm.mpMask)
+    (PortState.to_string pm.mpAdvertise)
+    
+  let marshal (buf : Cstruct.t) (pm : portMod) : int =
+    set_ofp_port_mod_port_no buf pm.mpPortNo;
+    set_ofp_port_mod_hw_addr (bytes_of_mac pm.mpHw_addr) 0 buf;
+    set_ofp_port_mod_config buf (PortConfig.marshal pm.mpConfig);
+    set_ofp_port_mod_mask buf (PortConfig.marshal pm.mpMask);
+    set_ofp_port_mod_advertise buf (PortState.marshal pm.mpAdvertise);
+    sizeof_ofp_port_mod
+
+  let parse (bits : Cstruct.t) : portMod =
+    let mpPortNo = get_ofp_port_mod_port_no bits in
+    let mpHw_addr = mac_of_bytes (copy_ofp_port_mod_hw_addr bits) in
+    let mpConfig = PortConfig.parse (get_ofp_port_mod_config bits) in
+    let mpMask = PortConfig.parse (get_ofp_port_mod_mask bits) in
+    let mpAdvertise = PortState.parse (get_ofp_port_mod_advertise bits) in
+    { mpPortNo; mpHw_addr; mpConfig; mpMask; mpAdvertise}
+  
+end
+
+module MeterMod = struct
+
+  cstruct ofp_meter_mod {
+    uint16_t commands;
+    uint16_t flags;
+    uint32_t meter_id
+  } as big_endian
+
+end
+
 module Instruction = struct
 
   let to_string ins =
@@ -2378,29 +2452,6 @@ module SwitchFeatures = struct
       aux_id; 
       supported_capabilities }
 
-end
-
-
-module PortState = struct
-
-  let state_to_int (state : portState) : int32 =
-    Int32.logor (if state.link_down then (Int32.shift_left 1l 0) else 0l) 
-     (Int32.logor (if state.blocked then (Int32.shift_left 1l 1) else 0l)  
-      (if state.live then (Int32.shift_left 1l 2) else 0l))
-
-  let marshal (ps : portState) : int32 = state_to_int ps
-
-  let parse bits : portState =
-    { link_down = Bits.test_bit 0 bits;
-      blocked = Bits.test_bit 1 bits;
-      live = Bits.test_bit 2 bits
-    }
-
-  let to_string (state : portState) =
-    Format.sprintf "link_down:%b,blocked:%b,live:%b"
-    state.link_down
-    state.blocked
-    state.live
 end
 
 module PortDesc = struct

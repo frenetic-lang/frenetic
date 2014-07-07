@@ -228,6 +228,9 @@ type portDesc = { port_no : portId;
                   curr_speed : int32;
                   max_speed : int32}
 
+type portMod = { mpPortNo : portId; mpHw_addr : int48; mpConfig : portConfig;
+                 mpMask : portConfig; mpAdvertise : portState }
+
 type portReason =
   | PortAdd 
   | PortDelete
