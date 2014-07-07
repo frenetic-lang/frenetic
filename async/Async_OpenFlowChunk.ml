@@ -146,6 +146,8 @@ module Controller = struct
       | `Sent x -> Handler.activity t c_id; `Sent x
       | `Drop x -> `Drop x
 
+  let send_ignore_errors t = Platform.send_ignore_errors t.platform
+
   let send_to_all t = Platform.send_to_all t.platform
   let client_addr_port t = Platform.client_addr_port t.platform
   let listening_port t = Platform.listening_port t.platform

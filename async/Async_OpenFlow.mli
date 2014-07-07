@@ -65,6 +65,8 @@ module Platform : sig
       -> m
       -> [ `Drop of exn | `Sent of Time.t ] Deferred.t
 
+    val send_ignore_errors : t -> Client_id.t -> m -> unit
+
     val send_to_all : t -> m -> unit
 
     val client_addr_port
