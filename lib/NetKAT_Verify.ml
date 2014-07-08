@@ -700,8 +700,8 @@ struct
 (*    Printf.printf "## NetKAT Policy ##\n%s\n## Connectivity Policy ##\n%s\n%!"
       (NetKAT_Pretty.string_of_policy net_sw_pol)
       (NetKAT_Pretty.string_of_policy net_cn_pol); *)
-    let lhs = Dexterize.policy_to_term ~dup:false net_sw_pol in 
-    let rhs = Dexterize.policy_to_term ~dup:false net_sw_tbl in 
+    let lhs = Dexterize.policy_to_term ~dup:true net_sw_pol in 
+    let rhs = Dexterize.policy_to_term ~dup:true net_sw_tbl in 
 (*    Printf.printf "## Dexter NetKAT Policy ##\n%s\n## Dexter Connectivity Policy ##\n%s\n%!" 
       (Decide_Ast.Term.to_string lhs)
       (Decide_Ast.Term.to_string rhs); *)
