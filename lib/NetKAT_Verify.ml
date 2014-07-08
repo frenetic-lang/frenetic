@@ -1,4 +1,3 @@
-
 module Int32Set = Set.Make(Int32)
 
 let read_file (fname : string) : string = 
@@ -598,20 +597,26 @@ struct
       exit 1
 
   let run_stanford pols topo = 
-    let ip = Int32.of_int 2886992003 in 
+    let ip1 = Int32.of_int 2886992003 in 
+    let ip2 = Int32.of_int 2887031808 in 
+    let pt1 = 700001l in 
+    let pt2 = 700002l in 
     let in_pol = 
       NetKAT_Types.(Filter(And(Test (Switch 6L), 
-                           And(Test (Location (Physical (700001l))), 
-                               Test(IP4Dst(ip,32l)))))) in 
+                           And(Or (Test (Location (Physical (pt1))),
+                                   Test (Location (Physical (pt2)))),
+                               Or (Test (IP4Dst(ip1,32l)),
+                                   Test (IP4Dst(ip2,32l))))))) in 
     let out_pol = 
       NetKAT_Types.(Seq(Mod(Switch 15L), 
                     Seq(Mod(Location (Physical (1600001l))), 
-                        Mod(IP4Dst(ip,32l))))) in 
+                        Mod(IP4Dst(ip1,32l))))) in 
+
+
     let topo, vertexes, switches, hosts = topology topo in 
     let t0 = Sys.time () in 
     let parsed_pols = List.map parse pols in 
     let topo_pol = topology_policy topo in
-    let t1 = Sys.time () in 
     let pol = 
       List.fold_left (fun acc pol ->
         NetKAT_Types.(Optimize.(mk_union acc pol)))
@@ -621,12 +626,13 @@ struct
       NetKAT_Types.(Optimize.(mk_seq in_pol (mk_seq (mk_star (mk_seq pol topo_pol)) pol))) in 
     let lhs = 
       NetKAT_Types.(Optimize.(mk_union rhs (mk_seq in_pol out_pol))) in 
+    let t1 = Sys.time () in 
     let lhs' = Dexterize.policy_to_term ~dup:false lhs in 
-    let rhs' = Dexterize.policy_to_term ~dup:false rhs in 
+    let rhs' = Dexterize.policy_to_term ~dup:false rhs in
     let t2 = Sys.time () in 
     let b = check_equivalent lhs' rhs' in 
     let t3 = Sys.time () in 
-    Printf.printf "Parse: %.3f\nDexterize: %.3f\nEquivalence: %.3f\n" 
+    Printf.printf "Parse: %.3f\nDexterize: %.3f\nEquivalence: %.3f\n"
       (t1 -. t0) (t2 -. t1) (t3 -. t2);
     b
 
@@ -639,7 +645,6 @@ struct
       (List.fold_right Decide_Ast.TermSet.add dexter_parsed_pols Decide_Ast.TermSet.empty) in
     let edge_pol, _ =  (connectivity_policy topo hosts) in 
     let edge_pol = Dexterize.policy_to_term ~dup:false (NetKAT_Types.(Filter edge_pol)) in 
-
     let topo_pol = Dexterize.policy_to_term ~dup:false (topology_policy topo) in
     Decide_Loopfree.loop_freedom edge_pol pol topo_pol ()
 
