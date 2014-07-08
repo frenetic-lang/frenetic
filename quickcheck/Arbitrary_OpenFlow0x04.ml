@@ -1414,3 +1414,71 @@ module PacketIn = struct
   let size_of = PacketIn.sizeof
 
 end
+
+module PortMod = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = OpenFlow0x04_Core.portMod
+
+  let arbitrary = 
+    arbitrary_uint32 >>= fun mpPortNo ->
+    arbitrary_uint48 >>= fun mpHw_addr ->
+    PortDesc.PortConfig.arbitrary >>= fun mpConfig ->
+    PortDesc.PortConfig.arbitrary >>= fun mpMask ->
+    PortDesc.PortState.arbitrary >>= fun mpAdvertise ->
+    ret_gen { mpPortNo; mpHw_addr; mpConfig; mpMask; mpAdvertise}
+    
+
+  let marshal = PortMod.marshal
+  let parse = PortMod.parse
+  let to_string = PortMod.to_string
+  let size_of = PortMod.sizeof
+
+end
+
+module MeterMod = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = OpenFlow0x04_Core.meterMod
+
+  let arbitrary_command = 
+    oneof [
+      ret_gen AddMeter;
+      ret_gen ModifyMeter;
+      ret_gen DeleteMeter
+    ]
+
+      let arbitrary_meterFlagsMap =
+      arbitrary_bool >>= fun kbps ->
+      arbitrary_bool >>= fun pktps ->
+      arbitrary_bool >>= fun burst ->
+      arbitrary_bool >>= fun stats ->
+      ret_gen {
+        kbps;
+        pktps;
+        burst;
+        stats
+      }
+
+  let arbitrary = 
+    arbitrary_command >>= fun command ->
+    arbitrary_meterFlagsMap >>= fun flags ->
+    arbitrary_uint32 >>= fun meter_id ->
+    list1 MeterBand.arbitrary >>= fun bands ->
+    ret_gen {
+      command;
+      flags;
+      meter_id;
+      bands
+    }
+
+  
+  let marshal = MeterMod.marshal
+  let parse = MeterMod.parse
+  let to_string = MeterMod.to_string
+  let size_of = MeterMod.sizeof
+
+end
+  
