@@ -110,6 +110,25 @@ module Verify = struct
     Printf.printf "Loop detection: %b\n" ret
 
 
+  let kat_file_size poldir = 
+    let poldir_h = Unix.opendir poldir in 
+    let pols = 
+      let pols = ref [] in 
+      try while true do pols := (Unix.readdir poldir_h)::!pols; done; 
+	  !pols with End_of_file -> !pols in 
+    let pols_nopath = List.filter (fun s -> String.length s > 4) pols in 
+    List.iter (fun pol -> 
+      Printf.printf "%s : %!" pol;
+      let oldtime = Sys.time () in
+      let pol_path = poldir ^ pol in 
+      let parsed_pol = NetKAT_Verify.Verify.parse pol_path in 
+      let dterm = NetKAT_Verify.Dexterize.policy_to_term ~dup:true parsed_pol in 
+      let tm = (Sys.time ()) -. oldtime in 
+      let trmsize = (Decide_Ast.Term.size dterm) in 
+      Printf.printf "%u %f\n%!" trmsize tm
+    ) pols_nopath 
+
+
   let run_fattree_reach poldir topo = 
     let poldir_h = Unix.opendir poldir in 
     let pols = 
@@ -203,7 +222,6 @@ let validation_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   Term.info "validate" ~doc
 
 
-
 let loopfree_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info = 
   let doc = "verify shortest-path forwarding compilation is loopfree" in 
   let topo = 
@@ -295,13 +313,22 @@ let sanity_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   Term.info "sanity" ~doc
 
 
+let katsize_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info = 
+  let doc = "Print size of Dexter Term of this KAT file" in 
+  let topo = 
+    let doc = "the KAT file (.kat)" in 
+    Arg.(required & (pos 0 (some dir) None) & info [] ~docv:"TERM" ~doc)
+  in 
+  Term.(pure (Verify.kat_file_size) $ topo), 
+  Term.info "katsize" ~doc
+
 
 let default_cmd : unit Cmdliner.Term.t * Cmdliner.Term.info =
   let doc = "an sdn controller platform" in
   Term.(ret (pure (`Help(`Plain, None)))),
   Term.info "katnetic" ~version:"1.6.1" ~doc
 
-let cmds = [run_cmd; dump_cmd; verify_cmd; loopfree_cmd; stanford_cmd; fattree_cmd; nate_convert; sanity_cmd; validation_cmd; verify_small_policies_cmd;fattree_cmd_valid; fattree_cmd_reach]
+let cmds = [run_cmd; dump_cmd; verify_cmd; loopfree_cmd; stanford_cmd; fattree_cmd; nate_convert; sanity_cmd; validation_cmd; verify_small_policies_cmd;fattree_cmd_valid; fattree_cmd_reach; katsize_cmd]
 
 let () = 
   match Term.eval_choice default_cmd cmds with
