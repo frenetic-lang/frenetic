@@ -152,11 +152,6 @@ module Controller = struct
   let client_addr_port t = Platform.client_addr_port t.platform
   let listening_port t = Platform.listening_port t.platform
 
-  let ensure response =
-    match response with
-      | `Sent _ -> []
-      | `Drop exn -> raise exn
-
   let handshake v t evt =
     let open Header in
     match evt with

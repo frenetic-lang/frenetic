@@ -105,7 +105,10 @@ module Controller = struct
       | `Connect (c_id) ->
         assert (not (ClientSet.mem t.shakes c_id));
         t.shakes <- ClientSet.add t.shakes c_id;
-        send t c_id (0l, M.SwitchFeaturesRequest) >>| ChunkController.ensure
+        send t c_id (0l, M.SwitchFeaturesRequest)
+        >>| (function
+          | `Sent _ -> []
+          | `Drop exn -> raise exn)
       | `Message (c_id, (xid, msg)) when ClientSet.mem t.shakes c_id ->
         begin match msg with
           | M.SwitchFeaturesReply fs ->
