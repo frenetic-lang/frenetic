@@ -65,6 +65,21 @@ module PseudoPort : sig
 
 end
 
+module QueueDesc : sig
+
+  module QueueProp : sig
+    val sizeof : queueProp -> int
+    val to_string : queueProp -> string
+    val marshal : Cstruct.t -> queueProp -> int
+    val parse : Cstruct.t -> queueProp
+  end
+  val sizeof : queueDesc -> int
+  val to_string : queueDesc -> string
+  val marshal : Cstruct.t -> queueDesc -> int
+  val parse : Cstruct.t -> queueDesc
+
+end  
+
 module OfpMatch : sig
 
   val sizeof : oxmMatch -> int

@@ -374,6 +374,16 @@ module RoundTripping = struct
       (openflow_quickCheck GenMultipartReply.arbitrary
           GenMultipartReply.to_string GenMultipartReply.parse GenMultipartReply.marshal)
 
+  TEST "OpenFlow0x04 QueueDesc.QueueProp RoundTrip" =
+      let module GenQueueProp = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.QueueDesc.QueueProp) in
+      (openflow_quickCheck GenQueueProp.arbitrary
+          GenQueueProp.to_string GenQueueProp.parse GenQueueProp.marshal)
+
+  TEST "OpenFlow0x04 QueueDesc RoundTrip" =
+      let module GenQueueDesc = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.QueueDesc) in
+      (openflow_quickCheck GenQueueDesc.arbitrary
+          GenQueueDesc.to_string GenQueueDesc.parse GenQueueDesc.marshal)
+
   TEST "OpenFlow0x04 PacketIn RoundTrip" =
       let module GenPacketIn = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.PacketIn) in
       (openflow_quickCheck GenPacketIn.arbitrary

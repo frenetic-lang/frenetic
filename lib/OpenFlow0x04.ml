@@ -769,6 +769,14 @@ let rec marshal_fields (buf: Cstruct.t) (fields : 'a list) (marshal_func : Cstru
   else let size = marshal_func buf (List.hd fields) in
     size + (marshal_fields (Cstruct.shift buf size) (List.tl fields) marshal_func)
 
+let parse_fields (bits : Cstruct.t) (parse_func : Cstruct.t -> 'a) (length_func : Cstruct.t -> int option) :'a list =
+  let iter =
+    Cstruct.iter
+        length_func
+        parse_func
+        bits in
+    List.rev (Cstruct.fold (fun acc bits -> bits :: acc) iter [])
+
 let pad_to_64bits (n : int) : int =
   if n land 0x7 <> 0 then
     n + (8 - (n land 0x7))
@@ -1642,6 +1650,147 @@ module PseudoPort = struct
         else
           raise
             (Unparsable (sprintf "unsupported port number (%lu)" ofp_port_no_code))
+
+end
+
+module QueueDesc = struct
+
+  cstruct ofp_packet_queue {
+    uint32_t queue_id;
+    uint32_t port;
+    uint16_t len;
+    uint8_t pad[6]
+  } as big_endian
+
+  module QueueProp = struct
+
+    cstruct ofp_queue_prop_header {
+      uint16_t property;
+      uint16_t len;
+      uint8_t pad[4]
+    } as big_endian
+    
+    cenum ofp_queue_properties {
+      OFPQT_MIN_RATE = 1;
+      OFPQT_MAX_RATE = 2;
+      OFPQT_EXPERIMENTER = 0xffff
+    } as uint16_t
+
+    cstruct ofp_queue_prop_min_rate {
+      uint16_t property;
+      uint16_t len;
+      uint8_t pad[4];
+      uint16_t rate;
+      uint8_t pad[6]
+    } as big_endian
+
+    cstruct ofp_queue_prop_max_rate {
+      uint16_t property;
+      uint16_t len;
+      uint8_t pad[4];
+      uint16_t rate;
+      uint8_t pad[6]
+    } as big_endian
+
+    cstruct ofp_queue_prop_experimenter {
+      uint16_t property;
+      uint16_t len;
+      uint8_t pad[4];
+      uint32_t experimenter;
+      uint8_t pad[4]
+    } as big_endian
+
+    let sizeof (qp : queueProp) : int =
+      match qp with
+        | MinRateProp _ -> sizeof_ofp_queue_prop_min_rate
+        | MaxRateProp _-> sizeof_ofp_queue_prop_max_rate
+        | ExperimenterProp _ -> sizeof_ofp_queue_prop_experimenter
+
+    let to_string (qp : queueProp) : string =
+      match qp with
+        | MinRateProp rate -> 
+          Format.sprintf "min rate: %s"
+          (match rate with
+            | Rate n -> string_of_int n
+            | Disabled -> "disabled")
+        | MaxRateProp rate -> 
+          Format.sprintf "max rate: %s"
+          (match rate with
+            | Rate n -> string_of_int n
+            | Disabled -> "disabled")
+        | ExperimenterProp id -> 
+          Format.sprintf "experimenter queue: id: %lu"
+          id
+
+    let length_func (buf : Cstruct.t) : int option =
+      if Cstruct.len buf < sizeof_ofp_queue_prop_header then None
+      else Some (get_ofp_queue_prop_header_len buf)
+
+    let marshal (buf : Cstruct.t) (qp : queueProp) : int =
+      match qp with 
+        | MinRateProp rate ->
+          set_ofp_queue_prop_min_rate_property buf (ofp_queue_properties_to_int OFPQT_MIN_RATE);
+          set_ofp_queue_prop_min_rate_len buf 16; (* fixed by specification *)
+          set_ofp_queue_prop_min_rate_rate buf (
+          match rate with
+            | Rate n -> n
+            | Disabled -> 0xffff);
+          sizeof_ofp_queue_prop_min_rate
+        | MaxRateProp rate ->
+          set_ofp_queue_prop_max_rate_property buf (ofp_queue_properties_to_int OFPQT_MAX_RATE);
+          set_ofp_queue_prop_max_rate_len buf 16; (* fixed by specification *)
+          set_ofp_queue_prop_max_rate_rate buf (
+          match rate with
+            | Rate n -> n
+            | Disabled -> 0xffff);
+          sizeof_ofp_queue_prop_max_rate
+        | ExperimenterProp id ->
+          set_ofp_queue_prop_experimenter_property buf (ofp_queue_properties_to_int OFPQT_EXPERIMENTER);
+          set_ofp_queue_prop_experimenter_len buf 16; (* fixed by specification *)
+          set_ofp_queue_prop_experimenter_experimenter buf id;
+          sizeof_ofp_queue_prop_experimenter
+
+    let parse (bits : Cstruct.t) : queueProp = 
+      let typ = int_to_ofp_queue_properties (get_ofp_queue_prop_header_property bits) in
+      match typ with 
+        | Some OFPQT_MIN_RATE -> 
+          let rate = get_ofp_queue_prop_min_rate_rate bits in
+          if rate > 1000 then MinRateProp Disabled
+          else MinRateProp (Rate rate)
+        | Some OFPQT_MAX_RATE ->
+          let rate = get_ofp_queue_prop_max_rate_rate bits in
+          if rate > 1000 then MaxRateProp Disabled
+          else MaxRateProp (Rate rate)
+        | Some OFPQT_EXPERIMENTER ->
+          let exp_id = get_ofp_queue_prop_experimenter_experimenter bits
+          in ExperimenterProp exp_id
+        | None -> raise (Unparsable (sprintf "malformed property"))
+  end
+
+  let sizeof (qd : queueDesc) : int =
+    sizeof_ofp_packet_queue + sum (map QueueProp.sizeof qd.properties)
+
+  let to_string (qd : queueDesc) : string =
+    Format.sprintf "queue id: %lu; port: %lu; len: %u; properties:\n%s"
+    qd.queue_id
+    qd.port
+    qd.len
+    (String.concat "\n" (map QueueProp.to_string qd.properties))
+
+  let marshal (buf : Cstruct.t) (qd : queueDesc) : int =
+    set_ofp_packet_queue_queue_id buf qd.queue_id;
+    set_ofp_packet_queue_port buf qd.port;
+    set_ofp_packet_queue_len buf qd.len;
+    let propBuf = Cstruct.sub buf sizeof_ofp_packet_queue (qd.len - sizeof_ofp_packet_queue) in
+    sizeof_ofp_packet_queue + (marshal_fields propBuf qd.properties QueueProp.marshal)
+    
+  let parse (bits : Cstruct.t) : queueDesc = 
+    let queue_id = get_ofp_packet_queue_queue_id bits in
+    let port = get_ofp_packet_queue_port bits in
+    let len = get_ofp_packet_queue_len bits in
+    let propBits = Cstruct.sub bits sizeof_ofp_packet_queue (len - sizeof_ofp_packet_queue) in
+    let properties = parse_fields propBits QueueProp.parse QueueProp.length_func in
+    { queue_id; port; len; properties}
 
 end
 

@@ -5,6 +5,7 @@ open Arbitrary_Base
 open QuickCheck
 module Gen = QuickCheck_gen
 
+let sum (lst : int list) = List.fold_left (fun x y -> x + y) 0 lst
 
 let arbitrary_32mask =
   let open Gen in
@@ -1097,4 +1098,55 @@ module PacketIn = struct
   let to_string = PacketIn.to_string
   let size_of = PacketIn.sizeof
 
+end
+
+module QueueDesc = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  module QueueProp = struct
+    open Gen
+    open OpenFlow0x04_Core
+    type t = OpenFlow0x04_Core.queueProp
+    
+    let arbitrary_rate = 
+      frequency [
+        (1, ret_gen Disabled);
+        (10, choose_int (0,1000) >>= fun a ->
+             ret_gen (Rate a))
+      ]
+
+    let arbitrary = 
+      arbitrary_rate >>= fun min_rate ->
+      arbitrary_rate >>= fun max_rate ->
+      arbitrary_uint32 >>= fun exp_id ->
+      oneof [
+        ret_gen (MinRateProp min_rate);
+        ret_gen (MaxRateProp max_rate);
+        ret_gen (ExperimenterProp exp_id)
+      ]
+
+    let marshal = QueueDesc.QueueProp.marshal
+    let parse = QueueDesc.QueueProp.parse
+    let to_string = QueueDesc.QueueProp.to_string
+    let size_of = QueueDesc.QueueProp.sizeof
+  end
+
+  type t = OpenFlow0x04_Core.queueDesc
+
+  let calc_length prop =
+    (* sizeof_ofp_packet_queue = 16*)
+    ret_gen (16+sum (List.map QueueProp.size_of prop))
+
+  let arbitrary = 
+    arbitrary_uint32 >>= fun queue_id ->
+    arbitrary_uint32 >>= fun port ->
+    arbitrary_list QueueProp.arbitrary >>= fun properties ->
+    calc_length properties >>= fun len ->
+    ret_gen { queue_id; port; len; properties}
+    
+  let marshal = QueueDesc.marshal
+  let parse = QueueDesc.parse
+  let to_string = QueueDesc.to_string
+  let size_of = QueueDesc.sizeof
 end
