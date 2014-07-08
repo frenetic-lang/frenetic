@@ -442,6 +442,15 @@ module Error : sig
 
 end
 
+module RoleRequest : sig
+
+  val sizeof : roleRequest -> int
+  val to_string : roleRequest -> string
+  val marshal : Cstruct.t -> roleRequest -> int
+  val parse : Cstruct.t -> roleRequest
+
+end
+
 module Message : sig
 
   type t =
@@ -460,6 +469,8 @@ module Message : sig
     | BarrierRequest
     | BarrierReply
     | Error of Error.t
+    | RoleRequest of roleRequest
+    | RoleReply of roleRequest
 
   val sizeof : t -> int
 

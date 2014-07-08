@@ -379,6 +379,11 @@ module RoundTripping = struct
       (openflow_quickCheck GenPacketIn.arbitrary
           GenPacketIn.to_string GenPacketIn.parse GenPacketIn.marshal)
 
+  TEST "OpenFlow0x04 RoleRequest RoundTrip" =
+      let module GenRoleReq = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.RoleRequest) in
+      (openflow_quickCheck GenRoleReq.arbitrary
+          GenRoleReq.to_string GenRoleReq.parse GenRoleReq.marshal)
+
   TEST "OpenFlow Hello Test 1" = 
     let open Message in 
     let bs = Cstruct.create 101 in

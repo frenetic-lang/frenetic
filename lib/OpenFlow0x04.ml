@@ -3843,6 +3843,64 @@ module TableMod = struct
 end
 
 
+module RoleRequest = struct
+
+  cstruct ofp_role_request {
+    uint32_t role;
+    uint8_t pad[4];
+    uint64_t generation_id
+  } as big_endian
+
+  module Role = struct
+    cenum ofp_controller_role {
+      OFPCR_ROLE_NOCHANGE = 0;
+      OFPCR_ROLE_EQUAL = 1;
+      OFPCR_ROLE_MASTER = 2;
+      OFPCR_ROLE_SLAVE = 3
+    } as uint32_t
+
+    let to_string (role : controllerRole) : string =
+      match role with
+        | NoChangeRole -> "Don't change"
+        | EqualRole -> "Default role"
+        | MasterRole -> "Full access"
+        | SlaveRole -> "Read-Only"
+
+    let marshal (role : controllerRole) : int32 =
+      match role with
+        | NoChangeRole -> ofp_controller_role_to_int OFPCR_ROLE_NOCHANGE
+        | EqualRole -> ofp_controller_role_to_int OFPCR_ROLE_EQUAL
+        | MasterRole -> ofp_controller_role_to_int OFPCR_ROLE_MASTER
+        | SlaveRole -> ofp_controller_role_to_int OFPCR_ROLE_SLAVE
+  
+    let parse t : controllerRole = 
+      match int_to_ofp_controller_role t with
+        | Some OFPCR_ROLE_NOCHANGE -> NoChangeRole
+        | Some OFPCR_ROLE_EQUAL -> EqualRole
+        | Some OFPCR_ROLE_MASTER -> MasterRole
+        | Some OFPCR_ROLE_SLAVE -> SlaveRole
+        | None -> raise (Unparsable (sprintf "malformed role"))
+
+  end
+
+  let sizeof (role : roleRequest) : int =
+    sizeof_ofp_role_request
+
+  let to_string (role : roleRequest) : string =
+    Format.sprintf "role: %s; generation_id: %Lu"
+    (Role.to_string role.role)
+    role.generation_id
+
+  let marshal (buf : Cstruct.t) (role : roleRequest) : int =
+    set_ofp_role_request_role buf (Role.marshal role.role);
+    set_ofp_role_request_generation_id buf role.generation_id;
+    sizeof_ofp_role_request
+
+  let parse (bits : Cstruct.t) : roleRequest = 
+    { role = Role.parse (get_ofp_role_request_role bits)
+    ; generation_id = get_ofp_role_request_generation_id bits }
+end
+
 module Error = struct
 
   type t = {
@@ -3884,6 +3942,8 @@ module Message = struct
     | BarrierRequest
     | BarrierReply
     | Error of Error.t
+    | RoleRequest of roleRequest
+    | RoleReply of roleRequest
 
 
   let string_of_msg_code (msg : msg_code) : string = match msg with
@@ -3936,6 +3996,8 @@ module Message = struct
     | BarrierRequest ->   BARRIER_REQ
     | BarrierReply ->   BARRIER_RESP
     | Error _ -> ERROR
+    | RoleRequest _ -> ROLE_REQ
+    | RoleReply _ -> ROLE_RESP
 
   let sizeof (msg : t) : int = match msg with
     | Hello -> Header.size
@@ -3953,6 +4015,8 @@ module Message = struct
     | BarrierRequest -> failwith "NYI: sizeof BarrierRequest"
     | BarrierReply -> failwith "NYI: sizeof BarrierReply"
     | Error _ -> failwith "NYI: sizeof Error"
+    | RoleRequest rr -> Header.size + RoleRequest.sizeof rr
+    | RoleReply rr -> Header.size + RoleRequest.sizeof rr
 
   let to_string (msg : t) : string = match msg with
     | Hello -> "Hello"
@@ -3970,6 +4034,8 @@ module Message = struct
     | MultipartReply _ -> "MultipartReply"
     | BarrierRequest -> "BarrierRequest"
     | BarrierReply -> "BarrierReply"
+    | RoleRequest _ -> "RoleRequest"
+    | RoleReply _ -> "RoleReply"
 
   (* let marshal (buf : Cstruct.t) (msg : message) : int = *)
   (*   let buf2 = (Cstruct.shift buf Header.size) in *)
@@ -4005,6 +4071,10 @@ module Message = struct
       | PortStatusMsg ps -> 
         Header.size + PortStatus.marshal out ps
       | Error _ -> failwith "NYI: marshall Error"
+      | RoleRequest rr ->
+        Header.size + RoleRequest.marshal out rr
+      | RoleReply rr ->
+        Header.size + RoleRequest.marshal out rr
 
 
   let header_of xid msg =
@@ -4038,6 +4108,8 @@ module Message = struct
       | PORT_STATUS -> PortStatusMsg (PortStatus.parse body_bits)
       | MULTIPART_RESP -> MultipartReply (MultipartReply.parse body_bits)
       | ERROR -> Error (Error.parse body_bits)
+      | ROLE_REQ -> RoleRequest (RoleRequest.parse body_bits)
+      | ROLE_RESP -> RoleReply (RoleRequest.parse body_bits)
       | code -> raise (Unparsable (Printf.sprintf "unexpected message type %s" (string_of_msg_code typ))) in
     (hdr.Header.xid, msg)
 end

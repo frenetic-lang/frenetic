@@ -343,3 +343,10 @@ type multipartReply = {mpreply_typ : multipartReplyTyp; mpreply_flags : bool}
 
 type tableMod = { table_id : tableId; config : tableConfig }
  
+type controllerRole = 
+  | NoChangeRole
+  | EqualRole
+  | MasterRole
+  | SlaveRole
+
+type roleRequest = { role : controllerRole; generation_id : int64 }
