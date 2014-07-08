@@ -1150,3 +1150,35 @@ module QueueDesc = struct
   let to_string = QueueDesc.to_string
   let size_of = QueueDesc.sizeof
 end
+
+module QueueConfReq = struct
+  open Gen
+  open OpenFlow0x04_Core
+  type t = OpenFlow0x04_Core.queueConfReq
+
+  let arbitrary = 
+    arbitrary_uint32 >>= fun port ->
+    ret_gen {port}
+
+  let marshal = QueueConfReq.marshal
+  let parse = QueueConfReq.parse
+  let to_string = QueueConfReq.to_string
+  let size_of = QueueConfReq.sizeof
+end
+
+module QueueConfReply = struct
+  open Gen
+  open OpenFlow0x04_Core
+  type t = OpenFlow0x04_Core.queueConfReply
+
+  let arbitrary = 
+    arbitrary_uint32 >>= fun port ->
+    arbitrary_list QueueDesc.arbitrary >>= fun queues ->
+    ret_gen {port; queues}
+
+  let marshal = QueueConfReply.marshal
+  let parse = QueueConfReply.parse
+  let to_string = QueueConfReply.to_string
+  let size_of = QueueConfReply.sizeof
+
+end

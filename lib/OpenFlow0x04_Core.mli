@@ -322,3 +322,7 @@ type queueProp =
   | ExperimenterProp of int32
 
 type queueDesc = { queue_id : int32; port : portId; len : int16; properties : queueProp list }
+
+type queueConfReq = { port : portId }
+
+type queueConfReply = { port : portId; queues : queueDesc list }

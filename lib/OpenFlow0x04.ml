@@ -1777,6 +1777,10 @@ module QueueDesc = struct
     qd.len
     (String.concat "\n" (map QueueProp.to_string qd.properties))
 
+  let length_func (buf : Cstruct.t) : int option =
+    if Cstruct.len buf < sizeof_ofp_packet_queue then None
+    else Some (get_ofp_packet_queue_len buf)
+
   let marshal (buf : Cstruct.t) (qd : queueDesc) : int =
     set_ofp_packet_queue_queue_id buf qd.queue_id;
     set_ofp_packet_queue_port buf qd.port;
@@ -3991,6 +3995,56 @@ module TableMod = struct
 
 end
 
+module QueueConfReq = struct
+
+  cstruct ofp_queue_get_config_request {
+    uint32_t port;
+    uint8_t pad[4]
+  } as big_endian
+
+  let sizeof (qr : queueConfReq) : int = 
+    sizeof_ofp_queue_get_config_request
+
+  let to_string (qr : queueConfReq) : string =
+    Format.sprintf "port: %lu" qr.port
+
+  let marshal (buf : Cstruct.t) (qr : queueConfReq) : int =
+    set_ofp_queue_get_config_request_port buf qr.port;
+    sizeof_ofp_queue_get_config_request
+
+  let parse (bits : Cstruct.t) : queueConfReq = 
+    let port = get_ofp_queue_get_config_request_port bits in
+    { port }
+end
+
+module QueueConfReply = struct
+
+  cstruct ofp_queue_get_config_reply {
+    uint32_t port;
+    uint8_t pad[4];
+  } as big_endian
+
+  let sizeof (qr : queueConfReply) : int = 
+    sizeof_ofp_queue_get_config_reply + sum (map QueueDesc.sizeof qr.queues)
+
+  let to_string (qr : queueConfReply) : string =
+    Format.sprintf "port: %lu; queue=\n%s" 
+    qr.port 
+    (String.concat "\n" (map QueueDesc.to_string qr.queues))
+
+  let marshal (buf : Cstruct.t) (qr : queueConfReply) : int =
+    set_ofp_queue_get_config_reply_port buf qr.port;
+    let queueBuf = Cstruct.shift buf sizeof_ofp_queue_get_config_reply in
+    sizeof_ofp_queue_get_config_reply + (marshal_fields queueBuf qr.queues QueueDesc.marshal)
+
+  let parse (bits : Cstruct.t) : queueConfReply = 
+    let port = get_ofp_queue_get_config_reply_port bits in
+    let queuesBits = Cstruct.shift bits sizeof_ofp_queue_get_config_reply in
+    let queues = parse_fields queuesBits QueueDesc.parse QueueDesc.length_func in
+    { port; queues}
+    
+
+end
 
 module Error = struct
 
@@ -4032,6 +4086,8 @@ module Message = struct
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
+    | QueueGetConfigReq	of queueConfReq
+    | QueueGetConfigReply of queueConfReply
     | Error of Error.t
 
 
@@ -4084,6 +4140,8 @@ module Message = struct
     | MultipartReply _ -> MULTIPART_RESP
     | BarrierRequest ->   BARRIER_REQ
     | BarrierReply ->   BARRIER_RESP
+    | QueueGetConfigReq	_ -> QUEUE_GET_CONFIG_REQ
+    | QueueGetConfigReply _ -> QUEUE_GET_CONFIG_RESP
     | Error _ -> ERROR
 
   let sizeof (msg : t) : int = match msg with
@@ -4101,6 +4159,8 @@ module Message = struct
     | MultipartReply _ -> failwith "NYI: sizeof MultipartReply"
     | BarrierRequest -> failwith "NYI: sizeof BarrierRequest"
     | BarrierReply -> failwith "NYI: sizeof BarrierReply"
+    | QueueGetConfigReq	qc -> Header.size + QueueConfReq.sizeof qc
+    | QueueGetConfigReply qc -> Header.size + QueueConfReply.sizeof qc
     | Error _ -> failwith "NYI: sizeof Error"
 
   let to_string (msg : t) : string = match msg with
@@ -4119,6 +4179,8 @@ module Message = struct
     | MultipartReply _ -> "MultipartReply"
     | BarrierRequest -> "BarrierRequest"
     | BarrierReply -> "BarrierReply"
+    | QueueGetConfigReq _ -> "QueueGetConfigReq"
+    | QueueGetConfigReply _ -> "QueueGetConfigReply"
 
   (* let marshal (buf : Cstruct.t) (msg : message) : int = *)
   (*   let buf2 = (Cstruct.shift buf Header.size) in *)
@@ -4149,6 +4211,10 @@ module Message = struct
       | MultipartReply _ -> failwith "NYI: marshal MultipartReply"
       | BarrierRequest -> failwith "NYI: marshal BarrierRequest"
       | BarrierReply -> failwith "NYI: marshal BarrierReply"
+      | QueueGetConfigReq qr -> 
+        Header.size + QueueConfReq.marshal out qr
+      | QueueGetConfigReply qr ->
+        Header.size + QueueConfReply.marshal out qr
       | PacketInMsg pi ->
         Header.size + PacketIn.marshal out pi
       | PortStatusMsg ps -> 
@@ -4186,6 +4252,8 @@ module Message = struct
       | ECHO_REQ -> EchoRequest body_bits
       | PORT_STATUS -> PortStatusMsg (PortStatus.parse body_bits)
       | MULTIPART_RESP -> MultipartReply (MultipartReply.parse body_bits)
+      | QUEUE_GET_CONFIG_REQ -> QueueGetConfigReq (QueueConfReq.parse body_bits)
+      | QUEUE_GET_CONFIG_RESP -> QueueGetConfigReply (QueueConfReply.parse body_bits)
       | ERROR -> Error (Error.parse body_bits)
       | code -> raise (Unparsable (Printf.sprintf "unexpected message type %s" (string_of_msg_code typ))) in
     (hdr.Header.xid, msg)

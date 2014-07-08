@@ -444,6 +444,20 @@ module TableMod : sig
 
 end
 
+module QueueConfReq : sig
+  val sizeof : queueConfReq -> int
+  val to_string : queueConfReq -> string
+  val marshal : Cstruct.t -> queueConfReq -> int
+  val parse : Cstruct.t -> queueConfReq
+end
+
+module QueueConfReply : sig
+  val sizeof : queueConfReply -> int
+  val to_string : queueConfReply -> string
+  val marshal : Cstruct.t -> queueConfReply -> int
+  val parse : Cstruct.t -> queueConfReply
+end
+
 module Error : sig
 
   type t = {
@@ -474,6 +488,8 @@ module Message : sig
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
+    | QueueGetConfigReq	of queueConfReq
+    | QueueGetConfigReply of queueConfReply
     | Error of Error.t
 
   val sizeof : t -> int
