@@ -673,8 +673,8 @@ struct
     let wrap pol = NetKAT_Types.(Optimize.(mk_seq (mk_seq (mk_filter edge_pol) pol) (mk_filter edge_pol))) in 
     let sw_tbl = shortest_path_table topo switches sw_pol in 
     let tp_pol = topology_policy topo in 
-    let net_sw_pol = NetKAT_Types.(Optimize.(mk_star (mk_seq sw_pol tp_pol))) in 
-    let net_sw_tbl = NetKAT_Types.(Optimize.(mk_star (mk_seq sw_tbl tp_pol))) in 
+    let net_sw_pol = NetKAT_Types.(Optimize.(mk_seq (mk_star (mk_seq sw_pol tp_pol)) sw_pol)) in 
+    let net_sw_tbl = NetKAT_Types.(Optimize.(mk_seq (mk_star (mk_seq sw_tbl tp_pol)) sw_tbl)) in 
     if print then Printf.printf "## NetKAT Policy ##\n%s\n## OpenFlow Table ##\n%s\n## Topology ##\n%s\n%!"
       (NetKAT_Pretty.string_of_policy sw_pol)
       (NetKAT_Pretty.string_of_policy sw_tbl)
