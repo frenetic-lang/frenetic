@@ -1645,6 +1645,67 @@ module PseudoPort = struct
 
 end
 
+module SwitchConfig = struct
+
+  cstruct ofp_switch_config {
+    uint16_t flags;
+    uint16_t miss_send_len
+  } as big_endian
+
+  module Flags = struct
+
+    cenum ofp_config_flags {
+      OFPC_FRAG_NORMAL = 0;
+      OFPC_FRAG_DROP = 1;
+      OFPC_FRAG_REASM = 2;
+      OFPC_FRAG_MASK = 3
+    } as uint16_t
+
+    let to_string (flags : switchFlags) : string = 
+      match flags with
+        | NormalFrag -> "Normal handling"
+        | DropFrag -> "Drop fragments"
+        | ReasmFrag -> "Reasemble"
+        | MaskFrag -> ""
+
+    let marshal (flags : switchFlags) : int = 
+      match flags with
+        | NormalFrag -> ofp_config_flags_to_int OFPC_FRAG_NORMAL
+        | DropFrag -> ofp_config_flags_to_int OFPC_FRAG_DROP
+        | ReasmFrag -> ofp_config_flags_to_int OFPC_FRAG_REASM
+        | MaskFrag -> ofp_config_flags_to_int OFPC_FRAG_MASK
+
+    let parse t : switchFlags = 
+      match int_to_ofp_config_flags t with
+        | Some OFPC_FRAG_NORMAL -> NormalFrag
+        | Some OFPC_FRAG_DROP -> DropFrag
+        | Some OFPC_FRAG_REASM -> ReasmFrag
+        | Some OFPC_FRAG_MASK -> MaskFrag
+        | None -> raise (Unparsable (sprintf "Malformed flags"))
+  end
+
+  type t = switchConfig
+
+  let sizeof (sc : switchConfig) : int =
+    sizeof_ofp_switch_config
+
+  let to_string (sc : switchConfig) : string = 
+    Format.sprintf "Fragment handling: %s; length to send to ctrl: %u"
+    (Flags.to_string sc.flags)
+    sc.miss_send_len
+
+  let marshal (buf : Cstruct.t) (sc : switchConfig) : int =
+    set_ofp_switch_config_flags buf (Flags.marshal sc.flags);
+    set_ofp_switch_config_miss_send_len buf sc.miss_send_len;
+    sizeof_ofp_switch_config
+
+  let parse (bits : Cstruct.t) : switchConfig = 
+    let flags = Flags.parse (get_ofp_switch_config_flags bits) in
+    let miss_send_len = get_ofp_switch_config_miss_send_len bits in 
+    { flags; miss_send_len }
+    
+end
+
 module OfpMatch = struct
 
   let sizeof (om : oxmMatch) : int =
@@ -3883,6 +3944,9 @@ module Message = struct
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
+    | GetConfigRequestMsg of switchConfig
+    | GetConfigReplyMsg of switchConfig
+    | SetConfigMsg of switchConfig
     | Error of Error.t
 
 
@@ -3935,6 +3999,9 @@ module Message = struct
     | MultipartReply _ -> MULTIPART_RESP
     | BarrierRequest ->   BARRIER_REQ
     | BarrierReply ->   BARRIER_RESP
+    | GetConfigRequestMsg _ -> GET_CONFIG_REQ
+    | GetConfigReplyMsg _ -> GET_CONFIG_RESP
+    | SetConfigMsg _ -> SET_CONFIG
     | Error _ -> ERROR
 
   let sizeof (msg : t) : int = match msg with
@@ -3952,6 +4019,9 @@ module Message = struct
     | MultipartReply _ -> failwith "NYI: sizeof MultipartReply"
     | BarrierRequest -> failwith "NYI: sizeof BarrierRequest"
     | BarrierReply -> failwith "NYI: sizeof BarrierReply"
+    | GetConfigRequestMsg conf -> Header.size + SwitchConfig.sizeof conf
+    | GetConfigReplyMsg conf -> Header.size + SwitchConfig.sizeof conf
+    | SetConfigMsg conf -> Header.size + SwitchConfig.sizeof conf
     | Error _ -> failwith "NYI: sizeof Error"
 
   let to_string (msg : t) : string = match msg with
@@ -3970,6 +4040,9 @@ module Message = struct
     | MultipartReply _ -> "MultipartReply"
     | BarrierRequest -> "BarrierRequest"
     | BarrierReply -> "BarrierReply"
+    | GetConfigRequestMsg _ -> "GetConfigRequest"
+    | GetConfigReplyMsg _ -> "GetConfigReply"
+    | SetConfigMsg _ -> "SetConfig"
 
   (* let marshal (buf : Cstruct.t) (msg : message) : int = *)
   (*   let buf2 = (Cstruct.shift buf Header.size) in *)
@@ -4004,6 +4077,12 @@ module Message = struct
         Header.size + PacketIn.marshal out pi
       | PortStatusMsg ps -> 
         Header.size + PortStatus.marshal out ps
+      | GetConfigRequestMsg conf ->
+        Header.size + SwitchConfig.marshal out conf
+      | GetConfigReplyMsg conf ->
+        Header.size + SwitchConfig.marshal out conf
+      | SetConfigMsg conf ->
+        Header.size + SwitchConfig.marshal out conf
       | Error _ -> failwith "NYI: marshall Error"
 
 
@@ -4038,6 +4117,9 @@ module Message = struct
       | PORT_STATUS -> PortStatusMsg (PortStatus.parse body_bits)
       | MULTIPART_RESP -> MultipartReply (MultipartReply.parse body_bits)
       | ERROR -> Error (Error.parse body_bits)
+      | GET_CONFIG_REQ -> GetConfigRequestMsg (SwitchConfig.parse body_bits)
+      | GET_CONFIG_RESP -> GetConfigReplyMsg (SwitchConfig.parse body_bits)
+      | SET_CONFIG -> SetConfigMsg (SwitchConfig.parse body_bits)
       | code -> raise (Unparsable (Printf.sprintf "unexpected message type %s" (string_of_msg_code typ))) in
     (hdr.Header.xid, msg)
 end

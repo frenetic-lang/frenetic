@@ -24,6 +24,14 @@ type tableId = int8
 
 type bufferId = int32
 
+type switchFlags = 
+  | NormalFrag
+  | DropFrag
+  | ReasmFrag
+  | MaskFrag
+
+type switchConfig = {flags : switchFlags; miss_send_len : int16 }
+
 type oxm =
 | OxmInPort of portId
 | OxmInPhyPort of portId
