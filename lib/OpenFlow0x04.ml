@@ -2084,6 +2084,8 @@ module GroupMod = struct
     OFPGC_DELETE = 2
   } as uint16_t
 
+  type t = groupMod
+
   let sizeof (gm: groupMod) : int =
     match gm with
       | AddGroup (typ, gid, buckets) -> 
@@ -2864,6 +2866,8 @@ module FlowRequest = struct
       uint64_t cookie_mask;
     } as big_endian
 
+    type t = flowRequest
+
     let sizeof (fr : flowRequest) : int = 
     sizeof_ofp_flow_stats_request + (OfpMatch.sizeof fr.fr_match)
 
@@ -2910,6 +2914,8 @@ end
 
 module QueueRequest = struct
 
+    type t = queueRequest
+
     let marshal (buf : Cstruct.t) (qr : queueRequest) : int =
       set_ofp_queue_stats_request_port_no buf qr.port_number;
       set_ofp_queue_stats_request_queue_id buf qr.queue_id;
@@ -2935,6 +2941,8 @@ module TableFeatureProp = struct
         uint32_t experimenter;
         uint32_t exp_typ
     } as big_endian
+
+    type t = tableFeatureProp
 
     let sizeof tfp : int = 
       let size = sizeof_ofp_table_feature_prop_header + (match tfp with
@@ -3147,6 +3155,8 @@ end
 
 module TableFeature = struct
 
+    type t = tableFeatures
+
     let sizeof (tf : tableFeatures) =
       (* should be equal to tf.length *)
       pad_to_64bits (sizeof_ofp_table_features + (TableFeatureProp.sizeof tf.feature_prop))
@@ -3210,6 +3220,8 @@ end
 
 module TableFeatures = struct
 
+    type t = tableFeatures list
+
     let sizeof (tfr : tableFeatures list) =
       sum (map TableFeature.sizeof tfr)
 
@@ -3250,6 +3262,8 @@ module MultipartReq = struct
     uint32_t experimenter;
     uint32_t exp_type
   } as big_endian
+
+  type t = multipartRequest
 
   let msg_code_of_request mpr = match mpr with
     | SwitchDescReq -> OFPMP_DESC
@@ -3391,6 +3405,8 @@ end
 
 module PortsDescriptionReply = struct
 
+  type t = portDesc list
+
   let sizeof (pd : portDesc list) = 
     sum (map PortDesc.sizeof pd)
 
@@ -3417,6 +3433,8 @@ module PortsDescriptionReply = struct
 end
 
 module SwitchDescriptionReply = struct
+
+  type t = switchDesc
 
   let sizeof (sdr : switchDesc) : int = 
     sizeof_ofp_desc
@@ -3464,6 +3482,8 @@ module FlowStats = struct
     uint64_t packet_count;
     uint64_t byte_count;
   } as big_endian
+
+  type t = flowStats list
 
   let sizeof_struct (fs : flowStats) = 
     sizeof_ofp_flow_stats + 
@@ -3603,6 +3623,8 @@ module AggregateStats = struct
     uint8_t pad[4];
   } as big_endian
 
+  type t = aggregStats
+
   let sizeof ag = 
     sizeof_ofp_aggregate_stats_reply
 
@@ -3634,6 +3656,8 @@ module TableStats = struct
     uint64_t lookup_count;
     uint64_t matched_count;
   } as big_endian
+
+  type t = tableStats list
 
   let sizeof_struct (ts : tableStats) = 
     sizeof_ofp_table_stats
@@ -3681,6 +3705,8 @@ end
 
 module PortStats = struct
   
+  type t = portStats list
+
   let sizeof_struct (ps : portStats) = 
     sizeof_ofp_port_stats
   
@@ -3772,6 +3798,8 @@ module QueueStats = struct
       uint32_t duration_nsec
     } as big_endian
 
+    type t = queueStats list
+
     let sizeof_struct (qs : queueStats) : int =
       sizeof_ofp_queue_stats
 
@@ -3845,6 +3873,8 @@ module GroupStats = struct
     uint64_t byte_count
     } as big_endian
 
+    type t = bucketStats list
+
     let sizeof_struct (gs : bucketStats) : int =
       sizeof_ofp_bucket_counter
 
@@ -3880,6 +3910,8 @@ module GroupStats = struct
        List.rev (Cstruct.fold (fun acc bits -> bits :: acc) bucketIter [])
        (* reverse the need to preserve the order *)
   end
+
+  type t = groupStats list
 
   let sizeof_struct (gs : groupStats) : int =
     gs.length
@@ -3948,6 +3980,8 @@ module GroupDesc = struct
     uint8_t pad;
     uint32_t group_id;
   } as big_endian
+
+  type t = groupDesc list
 
   let sizeof_struct (gd : groupDesc) : int =
     sizeof_ofp_group_desc + sum (map Bucket.sizeof gd.bucket)
@@ -4120,6 +4154,8 @@ module GroupFeatures = struct
     atm.push_pbb
     atm.pop_pbb
 
+  type t = groupFeatures
+
   let sizeof (gf : groupFeatures) : int =
     sizeof_ofp_group_features
 
@@ -4198,6 +4234,8 @@ module MeterStats = struct
     mbs.packet_band_count
     mbs.byte_band_count
 
+  type t = meterStats list
+
   let sizeof_struct (ms : meterStats) : int =
     ms.len
 
@@ -4273,6 +4311,8 @@ module MeterConfig = struct
     uint32_t meter_id
   } as big_endian
 
+  type t = meterConfig list
+
   let sizeof_struct (mc : meterConfig) : int =
     sizeof_ofp_meter_config + sum (map MeterBand.sizeof mc.bands)
 
@@ -4342,6 +4382,8 @@ module MeterFeaturesStats = struct
     mbm.drop
     mbm.dscpRemark
 
+  type t = meterFeaturesStats
+
   let sizeof (mfs : meterFeaturesStats) : int =
     sizeof_ofp_meter_features
 
@@ -4374,6 +4416,7 @@ end
 
 module MultipartReply = struct
 
+  type t = multipartReply
 
   let sizeof (mpr : multipartReply) =
     sizeof_ofp_multipart_reply +
