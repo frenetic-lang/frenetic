@@ -451,7 +451,7 @@ let send_pkt_out (ctl : Controller.t) (sw_id, pkt_out) =
 
 (* Start the controller, running the given application.
  * *)
-let start app ?(port=6633) ?(update=`BestEffort) () =
+let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
   let open Stage in
   Controller.create ~max_pending_connections ~port ()
   >>> fun ctl ->
@@ -537,7 +537,7 @@ let start app ?(port=6633) ?(update=`BestEffort) () =
       implement_policy t (Queue.get q (len - 1))
     in
 
-    Pipe.set_size_budget recv.update 10;
+    Pipe.set_size_budget recv.update policy_queue_size;
 
     (* This is the main event handler for the controller. First it sends
      * events to the application callback. Then it checks to see if the event
