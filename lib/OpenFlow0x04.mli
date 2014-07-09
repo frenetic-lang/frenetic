@@ -246,6 +246,15 @@ module PacketOut : sig
 
 end
 
+module FlowRemoved : sig
+
+  val sizeof : flowRemoved -> int
+  val to_string : flowRemoved -> string
+  val marshal : Cstruct.t -> flowRemoved -> int
+  val parse : Cstruct.t -> flowRemoved
+
+end
+
 module FlowRequest : sig
 
     val sizeof : flowRequest -> int
@@ -453,6 +462,7 @@ module Message : sig
     | FlowModMsg of flowMod
     | GroupModMsg of groupMod
     | PacketInMsg of packetIn
+    | FlowRemoved of flowRemoved
     | PacketOutMsg of packetOut
     | PortStatusMsg of portStatus
     | MultipartReq of multipartRequest

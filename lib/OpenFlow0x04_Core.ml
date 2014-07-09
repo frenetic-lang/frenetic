@@ -195,9 +195,19 @@ type packetInReason =
 | InvalidTTL
 
 type packetIn = { pi_total_len : int16; pi_reason : packetInReason; 
-          pi_table_id : tableId; pi_cookie : int64;
-          pi_ofp_match : oxmMatch; pi_payload : payload 
-        }
+                  pi_table_id : tableId; pi_cookie : int64;
+                  pi_ofp_match : oxmMatch; pi_payload : payload }
+
+type flowReason = 
+  | FlowIdleTimeout
+  | FlowHardTiemout
+  | FlowDelete
+  | FlowGroupDelete
+
+type flowRemoved = { cookie : int64; priority : int16; reason : flowReason;
+                     table_id : tableId; duration_sec : int32; duration_nsec : int32;
+                     idle_timeout : timeout; hard_timeout : timeout; packet_count : int64;
+                     byte_count : int64; oxm : oxmMatch }
 
 type capabilities = { flow_stats : bool; table_stats : bool;
                       port_stats : bool; group_stats : bool; ip_reasm : 
