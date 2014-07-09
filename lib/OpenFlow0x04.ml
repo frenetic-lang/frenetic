@@ -815,6 +815,8 @@ let test_bit16 (n:int) (x:int) : bool =
 
 module Oxm = struct
 
+  type t = oxm
+
   let field_length (oxm : oxm) : int = match oxm with
     | OxmInPort _ -> 4
     | OxmInPhyPort _ -> 4

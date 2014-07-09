@@ -299,7 +299,7 @@ module OfpMatch = struct
     type t = OpenFlow0x04_Core.oxmMatch
 
     module Oxm = struct
-        type t = OpenFlow0x04_Core.oxm
+        type t = Oxm.t
         
         let arbitrary = 
             let open Gen in
