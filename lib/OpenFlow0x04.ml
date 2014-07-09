@@ -4233,24 +4233,32 @@ module MeterStats = struct
     uint32_t duration_nsec
   } as big_endian
 
-  cstruct ofp_meter_band_stats {
-    uint64_t packet_band_count;
-    uint64_t byte_band_count
-  } as big_endian
-  
-  let marshal_band (buf : Cstruct.t) (mbs : meterBandStats) : int =
-    set_ofp_meter_band_stats_packet_band_count buf mbs.packet_band_count;
-    set_ofp_meter_band_stats_byte_band_count buf mbs.byte_band_count;
-    sizeof_ofp_meter_band_stats
+  module Band = struct
 
-  let parse_band (bits : Cstruct.t) : meterBandStats =
-    { packet_band_count = get_ofp_meter_band_stats_packet_band_count bits
-    ; byte_band_count = get_ofp_meter_band_stats_byte_band_count bits}
+    cstruct ofp_meter_band_stats {
+      uint64_t packet_band_count;
+      uint64_t byte_band_count
+    } as big_endian
 
-  let to_string_band (mbs : meterBandStats) : string =
-    Format.sprintf "packet count:%Lu; byte count:%Lu"
-    mbs.packet_band_count
-    mbs.byte_band_count
+    type t = meterBandStats
+
+    let length_func = fun buf -> Some sizeof_ofp_meter_band_stats
+      
+    let marshal (buf : Cstruct.t) (mbs : meterBandStats) : int =
+      set_ofp_meter_band_stats_packet_band_count buf mbs.packet_band_count;
+      set_ofp_meter_band_stats_byte_band_count buf mbs.byte_band_count;
+      sizeof_ofp_meter_band_stats
+
+    let parse (bits : Cstruct.t) : meterBandStats =
+      { packet_band_count = get_ofp_meter_band_stats_packet_band_count bits
+      ; byte_band_count = get_ofp_meter_band_stats_byte_band_count bits}
+
+    let to_string (mbs : meterBandStats) : string =
+      Format.sprintf "packet count:%Lu; byte count:%Lu"
+      mbs.packet_band_count
+      mbs.byte_band_count
+
+  end
 
   type t = meterStats list
 
@@ -4270,7 +4278,7 @@ module MeterStats = struct
     ms.byte_in_count
     ms.duration_sec
     ms.duration_nsec
-    (String.concat "," (map to_string_band ms.band))
+    (String.concat "," (map Band.to_string ms.band))
 
   let to_string (ms : meterStats list) : string =
     String.concat "\n" (map to_string_struct ms)
@@ -4284,7 +4292,7 @@ module MeterStats = struct
     set_ofp_meter_stats_duration_sec buf ms.duration_sec;
     set_ofp_meter_stats_duration_nsec buf ms.duration_nsec;
     let band_buf = Cstruct.sub buf sizeof_ofp_meter_stats (ms.len - sizeof_ofp_meter_stats) in
-    sizeof_ofp_meter_stats + (marshal_fields band_buf ms.band marshal_band)
+    sizeof_ofp_meter_stats + (marshal_fields band_buf ms.band Band.marshal)
 
   let marshal (buf : Cstruct.t) (ms : meterStats list) : int =
       marshal_fields buf ms marshal_struct
@@ -4298,26 +4306,19 @@ module MeterStats = struct
     let duration_sec = get_ofp_meter_stats_duration_sec bits in
     let duration_nsec = get_ofp_meter_stats_duration_nsec bits in
     let band_bits = Cstruct.sub bits sizeof_ofp_meter_stats (len - sizeof_ofp_meter_stats) in
-    let parse_band bits =
-      let bandIter =
-        Cstruct.iter
-          (fun buf -> Some sizeof_ofp_meter_band_stats)
-          parse_band
-          bits in
-      List.rev (Cstruct.fold (fun acc bits -> bits :: acc) bandIter []) in
-    let band = parse_band band_bits in
+    let band = parse_fields band_bits Band.parse Band.length_func in
     { meter_id; len; flow_count; packet_in_count; byte_in_count; duration_sec; duration_nsec; band }
 
-    let parse (bits : Cstruct.t) : meterStats list = 
-      let length_fn buf = 
-      if Cstruct.len buf < sizeof_ofp_meter_stats  then None
-      else Some (get_ofp_meter_stats_len buf) in
-      let meterIter =
-        Cstruct.iter
-          length_fn
-          parse_struct
-          bits in
-      List.rev (Cstruct.fold (fun acc bits -> bits :: acc) meterIter [])
+  let parse (bits : Cstruct.t) : meterStats list = 
+    let length_fn buf = 
+    if Cstruct.len buf < sizeof_ofp_meter_stats  then None
+    else Some (get_ofp_meter_stats_len buf) in
+    let meterIter =
+      Cstruct.iter
+        length_fn
+        parse_struct
+        bits in
+    List.rev (Cstruct.fold (fun acc bits -> bits :: acc) meterIter [])
 
 end
 
