@@ -4387,18 +4387,23 @@ module MeterFeaturesStats = struct
     uint8_t pad[2]
   } as big_endian
 
-  let meterBandMaps_to_int (mbm : meterBandMaps) : int32 =
-    Int32.logor (if mbm.drop then (Int32.shift_left 1l 1) else 0l) 
-     (if mbm.dscpRemark then (Int32.shift_left 1l 2) else 0l)
+  module Bands = struct
+    type t = meterBandMaps
 
-  let int_to_meterBandMaps bits : meterBandMaps = 
-    { drop = Bits.test_bit 1 bits
-    ; dscpRemark = Bits.test_bit 2 bits }
+    let marshal (mbm : meterBandMaps) : int32 =
+      Int32.logor (if mbm.drop then (Int32.shift_left 1l 1) else 0l) 
+       (if mbm.dscpRemark then (Int32.shift_left 1l 2) else 0l)
 
-  let meterBandMaps_to_string (mbm : meterBandMaps) : string =
-    Format.sprintf "drop: %B; dscp remark: %B"
-    mbm.drop
-    mbm.dscpRemark
+    let parse bits : meterBandMaps = 
+      { drop = Bits.test_bit 1 bits
+      ; dscpRemark = Bits.test_bit 2 bits }
+
+    let to_string (mbm : meterBandMaps) : string =
+      Format.sprintf "drop: %B; dscp remark: %B"
+      mbm.drop
+      mbm.dscpRemark
+
+  end
 
   type t = meterFeaturesStats
 
@@ -4408,14 +4413,14 @@ module MeterFeaturesStats = struct
   let to_string (mfs : meterFeaturesStats) : string =
     Format.sprintf "max meter: %lu; band typ:%s; capabilities: %s; max band: %u; max color: %u"
     mfs.max_meter
-    (meterBandMaps_to_string mfs.band_typ)
+    (Bands.to_string mfs.band_typ)
     (MeterFlags.to_string mfs.capabilities)
     mfs.max_band
     mfs.max_color
   
   let marshal (buf : Cstruct.t) (mfs : meterFeaturesStats) : int =
     set_ofp_meter_features_max_meter buf mfs.max_meter;
-    set_ofp_meter_features_band_types buf (meterBandMaps_to_int mfs.band_typ);
+    set_ofp_meter_features_band_types buf (Bands.marshal mfs.band_typ);
     (* int -> int32 fix, before release of OF1.3.5 *)
     set_ofp_meter_features_capabilities buf (Int32.of_int (MeterFlags.marshal mfs.capabilities));
     set_ofp_meter_features_max_bands buf mfs.max_band;
@@ -4424,7 +4429,7 @@ module MeterFeaturesStats = struct
   
   let parse (bits : Cstruct.t) : meterFeaturesStats =
     { max_meter = get_ofp_meter_features_max_meter bits
-    ; band_typ = int_to_meterBandMaps (get_ofp_meter_features_band_types bits)
+    ; band_typ = Bands.parse (get_ofp_meter_features_band_types bits)
     (* int32 -> int fix, before release of OF1.3.5 *)
     ; capabilities = MeterFlags.parse (Int32.to_int (get_ofp_meter_features_capabilities bits))
     ; max_band = get_ofp_meter_features_max_bands bits
