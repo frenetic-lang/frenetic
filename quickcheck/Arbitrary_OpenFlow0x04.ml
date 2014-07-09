@@ -1098,3 +1098,23 @@ module PacketIn = struct
   let size_of = PacketIn.sizeof
 
 end
+
+module TableMod = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = TableMod.t
+
+  let arbitrary_config =
+    ret_gen Deprecated
+
+  let arbitrary = 
+    arbitrary_uint8 >>= fun table_id ->
+    arbitrary_config >>= fun config ->
+    ret_gen { table_id; config }
+
+  let marshal = TableMod.marshal
+  let parse = TableMod.parse
+  let to_string = TableMod.to_string
+  let size_of = TableMod.sizeof
+end

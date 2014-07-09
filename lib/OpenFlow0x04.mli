@@ -425,7 +425,15 @@ end
 
 module TableMod : sig
 
-    val sizeof : tableMod -> int
+  type t = tableMod
+
+  val sizeof : tableMod -> int
+
+  val to_string : tableMod -> string
+
+  val marshal : Cstruct.t -> tableMod -> int
+
+  val parse : Cstruct.t -> tableMod
 
 end
 
@@ -459,6 +467,7 @@ module Message : sig
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
+    | TableModMsg of tableMod
     | Error of Error.t
 
   val sizeof : t -> int

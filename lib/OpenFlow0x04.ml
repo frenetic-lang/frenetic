@@ -2946,19 +2946,33 @@ module TableFeatureProp = struct
 
 end
 
+module TableConfig = struct
+
+  cenum ofp_table_config {
+    OFPTC_DEPRECATED_MASK = 3
+  } as uint32_t
+
+  type t = tableConfig
+  let marshal (tc : tableConfig) : int32 =
+    match tc with
+      | Deprecated -> ofp_table_config_to_int OFPTC_DEPRECATED_MASK
+
+  let parse t : tableConfig = 
+    match int_to_ofp_table_config t with
+      | Some OFPTC_DEPRECATED_MASK -> Deprecated
+      | _ -> raise (Unparsable (sprintf "unsupported config "))
+
+  let to_string tc =
+    match tc with
+      | Deprecated -> "Deprecated"
+
+end
+
 module TableFeature = struct
 
     let sizeof (tf : tableFeatures) =
       (* should be equal to tf.length *)
       pad_to_64bits (sizeof_ofp_table_features + (TableFeatureProp.sizeof tf.feature_prop))
-
-    let tableConfig_to_int (tc : tableConfig) : int32 =
-      match tc with
-        | Deprecated -> ofp_table_config_to_int OFPTC_DEPRECATED_MASK
-
-    let table_config_to_string tc =
-      match tc with
-        | Deprecated -> "Deprecated"
 
     let marshal (buf : Cstruct.t) (tf : tableFeatures) : int =
       set_ofp_table_features_length buf tf.length;
@@ -2967,7 +2981,7 @@ module TableFeature = struct
       set_ofp_table_features_name tf.name 0 buf;
       set_ofp_table_features_metadata_match buf tf.metadata_match;
       set_ofp_table_features_metadata_write buf tf.metadata_write;
-      set_ofp_table_features_config buf (tableConfig_to_int tf.config);
+      set_ofp_table_features_config buf (TableConfig.marshal tf.config);
       set_ofp_table_features_max_entries buf tf.max_entries;
       sizeof_ofp_table_features + (
         TableFeatureProp.marshal (Cstruct.shift buf sizeof_ofp_table_features) tf.feature_prop)
@@ -2978,12 +2992,7 @@ module TableFeature = struct
       let name = Cstruct.to_string (get_ofp_table_features_name bits) in
       let metadataMatch = get_ofp_table_features_metadata_match bits in
       let metadataWrite = get_ofp_table_features_metadata_write bits in
-      let config = (
-        match int_to_ofp_table_config (get_ofp_table_features_config bits) with
-          | Some OFPTC_DEPRECATED_MASK -> Deprecated
-          | _ -> raise
-            (Unparsable (sprintf "unsupported config "))
-        ) in
+      let config = TableConfig.parse (get_ofp_table_features_config bits) in
       let maxEntries = get_ofp_table_features_max_entries bits in
       let featureProp = TableFeatureProp.parse (Cstruct.sub bits sizeof_ofp_table_features (length-sizeof_ofp_table_features)) in
       { length = length;
@@ -3003,7 +3012,7 @@ module TableFeature = struct
       tf.name
       tf.metadata_match
       tf.metadata_write
-      (table_config_to_string tf.config)
+      (TableConfig.to_string tf.config)
       tf.max_entries
       (TableFeatureProp.to_string tf.feature_prop)
 
@@ -3830,15 +3839,31 @@ end
 
 module TableMod = struct
 
-    cstruct ofp_table_mod {
-      uint8_t table_id;
-      uint8_t pad[3];
-      uint32_t confi
-    } as big_endian
-    
+  cstruct ofp_table_mod {
+    uint8_t table_id;
+    uint8_t pad[3];
+    uint32_t config
+  } as big_endian
 
-    let sizeof (tab : tableMod) : int =
+  type t = tableMod
+
+  let sizeof (tab : tableMod) : int =
     sizeof_ofp_table_mod
+
+  let to_string (tab : tableMod) : string =
+    Format.sprintf "tabled id: %u, config: %s"
+    tab.table_id
+    (TableConfig.to_string tab.config)
+
+  let marshal (buf : Cstruct.t) (tab : tableMod) : int =
+    set_ofp_table_mod_table_id buf tab.table_id;
+    set_ofp_table_mod_config buf (TableConfig.marshal tab.config);
+    sizeof_ofp_table_mod
+
+  let parse (bits : Cstruct.t) : tableMod =
+    let table_id = get_ofp_table_mod_table_id bits in
+    let config = TableConfig.parse (get_ofp_table_mod_config bits) in
+    { table_id; config }
 
 end
 
@@ -3883,6 +3908,7 @@ module Message = struct
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
+    | TableModMsg of tableMod
     | Error of Error.t
 
 
@@ -3935,6 +3961,7 @@ module Message = struct
     | MultipartReply _ -> MULTIPART_RESP
     | BarrierRequest ->   BARRIER_REQ
     | BarrierReply ->   BARRIER_RESP
+    | TableModMsg _ -> TABLE_MOD
     | Error _ -> ERROR
 
   let sizeof (msg : t) : int = match msg with
@@ -3952,6 +3979,7 @@ module Message = struct
     | MultipartReply _ -> failwith "NYI: sizeof MultipartReply"
     | BarrierRequest -> failwith "NYI: sizeof BarrierRequest"
     | BarrierReply -> failwith "NYI: sizeof BarrierReply"
+    | TableModMsg tm -> Header.size + TableMod.sizeof tm
     | Error _ -> failwith "NYI: sizeof Error"
 
   let to_string (msg : t) : string = match msg with
@@ -3970,6 +3998,7 @@ module Message = struct
     | MultipartReply _ -> "MultipartReply"
     | BarrierRequest -> "BarrierRequest"
     | BarrierReply -> "BarrierReply"
+    | TableModMsg _ -> "TableMod"
 
   (* let marshal (buf : Cstruct.t) (msg : message) : int = *)
   (*   let buf2 = (Cstruct.shift buf Header.size) in *)
@@ -4004,6 +4033,8 @@ module Message = struct
         Header.size + PacketIn.marshal out pi
       | PortStatusMsg ps -> 
         Header.size + PortStatus.marshal out ps
+      | TableModMsg tm ->
+        Header.size + TableMod.marshal out tm
       | Error _ -> failwith "NYI: marshall Error"
 
 
@@ -4038,6 +4069,7 @@ module Message = struct
       | PORT_STATUS -> PortStatusMsg (PortStatus.parse body_bits)
       | MULTIPART_RESP -> MultipartReply (MultipartReply.parse body_bits)
       | ERROR -> Error (Error.parse body_bits)
+      | TABLE_MOD -> TableModMsg (TableMod.parse body_bits)
       | code -> raise (Unparsable (Printf.sprintf "unexpected message type %s" (string_of_msg_code typ))) in
     (hdr.Header.xid, msg)
 end
