@@ -533,7 +533,9 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
     let implement_policy' t q =
       let len = Queue.length q in
       assert (len > 0);
-      Log.debug ~tags "Processing policy queue of size %d" len;
+      if policy_queue_size > 0 then
+        Log.info ~tags "[policy] Processing queue of size %d" len;
+
       implement_policy t (Queue.get q (len - 1))
     in
 
