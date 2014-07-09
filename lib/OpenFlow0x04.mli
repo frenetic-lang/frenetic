@@ -240,6 +240,8 @@ end
 
 module PacketOut : sig
 
+  type t = packetOut
+
   val sizeof : packetOut -> int
   val to_string : packetOut -> string
 

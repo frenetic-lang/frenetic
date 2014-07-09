@@ -1039,7 +1039,7 @@ module PacketOut = struct
   open Gen
   open OpenFlow0x04_Core
 
-  type t = OpenFlow0x04_Core.packetOut
+  type t = PacketOut.t
 
   let arbitrary_len =
     (choose_int (24, 1500)) >>= fun a ->

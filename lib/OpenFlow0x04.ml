@@ -2612,6 +2612,8 @@ module PacketOut = struct
                                        (Only meaningful if buffer_id == -1.) *)
   } as big_endian
 
+  type t = packetOut
+
   let sizeof (po : packetOut) =
     sizeof_ofp_packet_out + sum (map Action.sizeof po.po_actions) +
     (match po.po_payload with
