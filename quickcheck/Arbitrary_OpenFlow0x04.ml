@@ -655,7 +655,7 @@ module MultipartReq = struct
   module TableFeatures = struct
     module TableFeatureProp = struct
       
-      type t = OpenFlow0x04_Core.tableFeatureProp
+      type t = TableFeatureProp.t
       
       let arbitrary = 
         oneof [
@@ -680,7 +680,7 @@ module MultipartReq = struct
     end
     
     module TableFeature = struct
-      type t = OpenFlow0x04_Core.tableFeatures
+      type t = TableFeature.t
 
       let arbitrary_config =
         ret_gen Deprecated
@@ -717,7 +717,7 @@ module MultipartReq = struct
       let size_of = TableFeature.sizeof
     end
 
-    type t = OpenFlow0x04_Core.tableFeatures list
+    type t = TableFeatures.t
 
     let arbitrary =
         list1 TableFeature.arbitrary >>= fun v ->
@@ -729,7 +729,7 @@ module MultipartReq = struct
   end
 
   module FlowRequest = struct
-    type t = OpenFlow0x04_Core.flowRequest
+    type t = FlowRequest.t
     
     let arbitrary =
         arbitrary_uint8 >>= fun fr_table_id ->
@@ -751,7 +751,7 @@ module MultipartReq = struct
   end
 
   module QueueRequest = struct
-    type t = OpenFlow0x04_Core.queueRequest
+    type t = QueueRequest.t
 
     let arbitrary = 
         arbitrary_uint32 >>= fun port_number ->
@@ -767,7 +767,7 @@ module MultipartReq = struct
     let size_of = QueueRequest.sizeof
   end
   
-  type t = OpenFlow0x04_Core.multipartRequest
+  type t = MultipartReq.t
   
   let arbitrary_option =
      frequency [
@@ -810,7 +810,7 @@ module MultipartReply = struct
   open Gen
   open OpenFlow0x04_Core
   module PortsDescriptionReply = struct
-    type t = OpenFlow0x04_Core.portDesc list
+    type t = PortsDescriptionReply.t
     
     let arbitrary =
         list1 PortDesc.arbitrary >>= fun v ->
@@ -823,7 +823,7 @@ module MultipartReply = struct
   end
   
   module FlowStats = struct
-    type t = OpenFlow0x04_Core.flowStats list
+    type t = FlowStats.t
 
     let arbitrary_flags =
         arbitrary_bool >>= fun fmf_send_flow_rem ->
@@ -876,7 +876,7 @@ module MultipartReply = struct
   end
   
   module AggregateStats = struct
-    type t = OpenFlow0x04_Core.aggregStats
+    type t = AggregateStats.t
     
     let arbitrary =
         arbitrary_uint64 >>= fun packet_count ->
@@ -895,7 +895,7 @@ module MultipartReply = struct
   end
   
   module TableStats = struct
-        type t = OpenFlow0x04_Core.tableStats list
+    type t = TableStats.t
     
     let arbitrary_table =
         arbitrary_uint8 >>= fun table_id ->
@@ -920,7 +920,8 @@ module MultipartReply = struct
   end
 
   module PortStats = struct
-        type t = OpenFlow0x04_Core.portStats list
+
+    type t = PortStats.t
     
     let arbitrary_portStats =
         arbitrary_uint32 >>= fun psPort_no ->
@@ -967,7 +968,7 @@ module MultipartReply = struct
   end
 
   module SwitchDescriptionReply = struct
-    type t = OpenFlow0x04_Core.switchDesc
+    type t = SwitchDescriptionReply.t
     
     let arbitrary = 
         arbitrary_stringl 256 >>= fun mfr_desc ->
@@ -989,7 +990,7 @@ module MultipartReply = struct
 
   module QueueStats = struct
 
-    type t = OpenFlow0x04_Core.queueStats list
+    type t = QueueStats.t
 
     let arbitrary_queueStats =
         arbitrary_uint32 >>= fun qsPort_no ->
@@ -1025,7 +1026,7 @@ module MultipartReply = struct
 
     module BucketStats = struct
 
-        type t = OpenFlow0x04_Core.bucketStats list
+        type t = GroupStats.BucketStats.t
 
         let arbitrary_bucketStats =
             arbitrary_uint64 >>= fun packet_count ->
@@ -1042,7 +1043,7 @@ module MultipartReply = struct
         let size_of = GroupStats.BucketStats.sizeof
     end
   
-    type t = OpenFlow0x04_Core.groupStats list
+    type t = GroupStats.t
 
     let calc_length bs =
         (* sizeof_ofp_group_stats = 40*)
@@ -1079,7 +1080,7 @@ module MultipartReply = struct
 
   module GroupDesc = struct
   
-    type t = OpenFlow0x04_Core.groupDesc list
+    type t = GroupDesc.t
 
     let arbitrary_groupTyp =
       oneof [
@@ -1114,7 +1115,7 @@ module MultipartReply = struct
   end
   module GroupFeatures = struct
   
-    type t = OpenFlow0x04_Core.groupFeatures 
+    type t = GroupFeatures.t
     
     let arbitrary_groupTypeMap =
       arbitrary_bool >>= fun all ->
@@ -1209,7 +1210,7 @@ module MultipartReply = struct
   
   module MeterStats = struct
   
-    type t = OpenFlow0x04_Core.meterStats list
+    type t = MeterStats.t
 
     let calc_length band =
       (* sizeof_ofp_meter_stats = 40*)
@@ -1251,7 +1252,7 @@ module MultipartReply = struct
   end
 
   module MeterConfig = struct
-    type t = OpenFlow0x04_Core.meterConfig list
+    type t = MeterConfig.t
 
     let arbitrary_meterFlagsMap =
       arbitrary_bool >>= fun kbps ->
@@ -1293,7 +1294,7 @@ module MultipartReply = struct
   end
 
   module MeterFeaturesStats = struct
-    type t = OpenFlow0x04_Core.meterFeaturesStats 
+    type t = MeterFeaturesStats.t
     
     let arbitrary_meterBandMaps =
       arbitrary_bool >>= fun drop ->
@@ -1334,7 +1335,7 @@ module MultipartReply = struct
     let size_of = MeterFeaturesStats.sizeof
   end
 
-  type t = OpenFlow0x04_Core.multipartReply
+  type t = MultipartReply.t
 
   let arbitrary =
       arbitrary_bool >>= fun flags ->
