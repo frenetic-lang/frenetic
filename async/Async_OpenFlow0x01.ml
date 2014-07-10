@@ -106,9 +106,14 @@ module Controller = struct
         assert (not (ClientSet.mem t.shakes c_id));
         t.shakes <- ClientSet.add t.shakes c_id;
         send t c_id (0l, M.SwitchFeaturesRequest)
-        >>| (function
-          | `Sent _ -> []
-          | `Drop exn -> raise exn)
+        (* XXX(seliopou): This swallows any errors that might have occurred
+         * while attemping the handshake. Any such error should not be raised,
+         * since as far as the user is concerned the connection never existed.
+         * At the very least, the exception should be logged, which it will be
+         * as long as the log_disconnects option is not disabled when creating
+         * the controller.
+         * *)
+        >>| (function _ -> [])
       | `Message (c_id, (xid, msg)) when ClientSet.mem t.shakes c_id ->
         begin match msg with
           | M.SwitchFeaturesReply fs ->

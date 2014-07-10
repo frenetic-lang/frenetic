@@ -160,9 +160,14 @@ module Controller = struct
         let header = { version = v; type_code = type_code_hello;
                        length = size; xid = 0l; } in
         Platform.send t.platform c_id (header, Cstruct.of_string "")
-        >>| (function
-          | `Sent _   -> []
-          | `Drop exn -> raise exn)
+        (* XXX(seliopou): This swallows any errors that might have occurred
+         * while attemping the handshake. Any such error should not be raised,
+         * since as far as the user is concerned the connection never existed.
+         * At the very least, the exception should be logged, which it will be
+         * as long as the log_disconnects option is not disabled when creating
+         * the controller.
+         * *)
+        >>| (function _ -> [])
       | `Message (c_id, msg) ->
         begin match ClientTbl.find t.clients c_id with
           | None -> assert false
@@ -201,9 +206,14 @@ module Controller = struct
           (* Echo requests get a reply *)
           let hdr = { hdr with type_code = type_code_echo_reply } in
           send t c_id (hdr , bytes)
-          >>| function
-            | `Sent _   -> []
-            | `Drop exn -> raise exn
+          (* XXX(seliopou): This swallows any errors that might have occurred
+           * while attemping the handshake. Any such error should not be raised,
+           * since as far as the user is concerned the connection never existed.
+           * At the very least, the exception should be logged, which it will be
+           * as long as the log_disconnects option is not disabled when creating
+           * the controller.
+           * *)
+          >>| (function _ -> [])
         else if hdr.Header.type_code = type_code_echo_reply then
           (* Echo replies get eaten *)
           return []
