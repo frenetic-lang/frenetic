@@ -4020,7 +4020,15 @@ module AsyncConfig = struct
     sizeof_ofp_async_config
 
   let to_string (async : asyncConfig) : string =
-    ""
+    Format.sprintf "packet_in Reason (master/slave): %s/%s\n\
+    port_status reason (master/slave): %s/%s\n\
+    flow_removed reason (master/slave): %s/%s"
+    (PacketIn.Reason.to_string async.packet_in.m_master)
+    (PacketIn.Reason.to_string async.packet_in.m_slave)
+    (PortStatus.Reason.to_string async.port_status.m_master)
+    (PortStatus.Reason.to_string async.port_status.m_slave)
+    (FlowRemoved.RemovedReason.to_string async.flow_removed.m_master)
+    (FlowRemoved.RemovedReason.to_string async.flow_removed.m_slave)
 
   let marshal (buf : Cstruct.t) (async : asyncConfig) : int =
     set_ofp_async_config_packet_in_mask0 buf (Int32.of_int (PacketIn.Reason.marshal async.packet_in.m_master));
@@ -4060,6 +4068,9 @@ module Message = struct
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
+    | GetAsyncRequest
+    | GetAsyncReply of asyncConfig
+    | SetAsync of asyncConfig
     | Error of Error.t
 
 
@@ -4092,7 +4103,7 @@ module Message = struct
     | ROLE_RESP -> "ROLE_RESP"
     | GET_ASYNC_REQ -> "GET_ASYNC_REQ"
     | GET_ASYNC_REP -> "GET_ASYNC_REP"
-    | SET_ASYNC -> "SEC_ASYNC"
+    | SET_ASYNC -> "SET_ASYNC"
     | METER_MOD -> "METER_MOD"
 
   module Header = OpenFlow_Header
@@ -4113,6 +4124,9 @@ module Message = struct
     | MultipartReply _ -> MULTIPART_RESP
     | BarrierRequest ->   BARRIER_REQ
     | BarrierReply ->   BARRIER_RESP
+    | GetAsyncRequest -> GET_ASYNC_REQ
+    | GetAsyncReply _ -> GET_ASYNC_REP
+    | SetAsync _ -> SET_ASYNC
     | Error _ -> ERROR
 
   let sizeof (msg : t) : int = match msg with
@@ -4131,6 +4145,9 @@ module Message = struct
     | MultipartReply _ -> failwith "NYI: sizeof MultipartReply"
     | BarrierRequest -> failwith "NYI: sizeof BarrierRequest"
     | BarrierReply -> failwith "NYI: sizeof BarrierReply"
+    | GetAsyncRequest -> Header.size
+    | GetAsyncReply async -> Header.size + AsyncConfig.sizeof async
+    | SetAsync async -> Header.size + AsyncConfig.sizeof async
     | Error _ -> failwith "NYI: sizeof Error"
 
   let to_string (msg : t) : string = match msg with
@@ -4150,6 +4167,9 @@ module Message = struct
     | MultipartReply _ -> "MultipartReply"
     | BarrierRequest -> "BarrierRequest"
     | BarrierReply -> "BarrierReply"
+    | GetAsyncRequest -> "GetAsyncRequest"
+    | GetAsyncReply _ -> "GetAsyncReply"
+    | SetAsync _ -> "SetAsync"
 
   (* let marshal (buf : Cstruct.t) (msg : message) : int = *)
   (*   let buf2 = (Cstruct.shift buf Header.size) in *)
@@ -4187,6 +4207,12 @@ module Message = struct
       | Error _ -> failwith "NYI: marshall Error"
       | FlowRemoved fr ->
         Header.size + FlowRemoved.marshal out fr
+      | GetAsyncRequest -> 
+        Header.size
+      | GetAsyncReply async -> 
+        Header.size + AsyncConfig.marshal out async
+      | SetAsync async -> 
+        Header.size + AsyncConfig.marshal out async
 
 
   let header_of xid msg =
@@ -4221,6 +4247,9 @@ module Message = struct
       | MULTIPART_RESP -> MultipartReply (MultipartReply.parse body_bits)
       | ERROR -> Error (Error.parse body_bits)
       | FLOW_REMOVED -> FlowRemoved (FlowRemoved.parse body_bits)
+      | GET_ASYNC_REQ -> GetAsyncRequest 
+      | GET_ASYNC_REP -> GetAsyncReply (AsyncConfig.parse body_bits)
+      | SET_ASYNC -> SetAsync (AsyncConfig.parse body_bits)
       | code -> raise (Unparsable (Printf.sprintf "unexpected message type %s" (string_of_msg_code typ))) in
     (hdr.Header.xid, msg)
 end

@@ -488,6 +488,9 @@ module Message : sig
     | MultipartReply of multipartReply
     | BarrierRequest
     | BarrierReply
+    | GetAsyncRequest
+    | GetAsyncReply of asyncConfig
+    | SetAsync of asyncConfig
     | Error of Error.t
 
   val sizeof : t -> int
