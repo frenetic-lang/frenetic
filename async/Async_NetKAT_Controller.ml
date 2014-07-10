@@ -253,14 +253,16 @@ module BestEffort = struct
 
   let bring_up_switch (t : Controller.t) (sw_id : SDN.switchId) (policy : NetKAT_Types.policy) =
     let table = NetKAT_LocalCompiler.(to_table (compile sw_id policy)) in
-    match Controller.client_id_of_switch t sw_id with
-      | Some(c_id) ->
-        delete_flows_for t c_id >>= fun () ->
-        install_flows_for t c_id table
-      | None ->
+    Monitor.try_with ~name:"BestEffort.bring_up_switch" (fun () ->
+      let c_id = Controller.client_id_of_switch_exn t sw_id in
+      delete_flows_for t c_id >>= fun () ->
+      install_flows_for t c_id table)
+    >>= function
+      | Ok x       -> return x
+      | Error _exn ->
         Log.debug ~tags
           "switch %Lu: disconnected while attempting to bring up... skipping" sw_id;
-        Log.flushed ()
+        Log.flushed () >>| fun () -> Printf.eprintf "%s\n%!" (Exn.to_string _exn)
 
   let implement_policy (t : Controller.t) (nib : Net.Topology.t) (policy : NetKAT_Types.policy) =
     Deferred.List.iter (TUtil.switch_ids nib) (fun sw_id ->
@@ -464,20 +466,20 @@ end
  * may occur.
  * *)
 let send_pkt_out (ctl : Controller.t) (sw_id, pkt_out) =
-  match Controller.client_id_of_switch ctl sw_id with
-    | Some(c_id) ->
-      Controller.send ctl c_id (0l, OpenFlow0x01.Message.PacketOutMsg
-        (SDN_OpenFlow0x01.from_packetOut pkt_out))
-      >>= (function
-        | `Sent _   -> return ()
-        | `Drop exn ->
-          Log.error ~tags "switch %Lu: Failed to send packet_out" sw_id;
-          Log.flushed () >>| fun () ->
-            Printf.eprintf "%s\n%!" (Exn.to_string exn))
-    | None ->
-      Log.debug ~tags
-        "switch %Lu: disconnected while attempting to send packet_out... skipping" sw_id;
-      Log.flushed ()
+  Monitor.try_with ~name:"send_pkt_out" (fun () ->
+    let c_id = Controller.client_id_of_switch_exn ctl sw_id in
+    Controller.send ctl c_id (0l, OpenFlow0x01.Message.PacketOutMsg
+      (SDN_OpenFlow0x01.from_packetOut pkt_out))
+    >>= function
+      | `Sent _   -> return ()
+      | `Drop exn -> raise exn)
+  >>= function
+    | Ok x       -> return x
+    | Error _exn ->
+      Log.error ~tags "switch %Lu: Failed to send packet_out" sw_id;
+      Log.flushed () >>| fun () ->
+        if not (_exn = Not_found) then
+          Printf.eprintf "%s\n%!" (Exn.to_string _exn)
 
 (* Start the controller, running the given application.
  * *)
