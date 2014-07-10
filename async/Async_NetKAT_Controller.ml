@@ -539,7 +539,7 @@ let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
       implement_policy t (Queue.get q (len - 1))
     in
 
-    Pipe.set_size_budget recv.update policy_queue_size;
+    Pipe.set_size_budget recv.Raw_app.update policy_queue_size;
 
     (* This is the main event handler for the controller. First it sends
      * events to the application callback. Then it checks to see if the event
