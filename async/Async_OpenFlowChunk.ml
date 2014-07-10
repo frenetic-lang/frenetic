@@ -33,7 +33,7 @@ module Controller = struct
 
   module Conn = struct
     type t = {
-      state : [ `Handshake | `Active | `Idle ];
+      state : [ `Handshake | `Active | `Idle | `Probe | `Kill ];
       version : int option;
       state_entered : Time.t;
       last_activity : Time.t
@@ -57,12 +57,27 @@ module Controller = struct
     let complete_handshake (t:t) (version:int) : t =
       activity { t with version = Some(version) }
 
-    let idle (t:t) (expires : Time.Span.t) : t =
+    let idle (t:t) (span : Time.Span.t) : t * bool =
       let right_now = Time.now () in
-      if t.state = `Idle || Time.(add t.last_activity expires > right_now) then
-        t
+      if t.state = `Active && Time.(add t.last_activity span <= right_now) then
+        { t with state = `Idle; state_entered = right_now }, true
       else
-        { t with state = `Idle; state_entered = right_now }
+        t, false
+
+    let probe (t:t) (span : Time.Span.t) : t * bool =
+      let right_now = Time.now () in
+      if t.state = `Idle && Time.(add t.state_entered span <= right_now) then
+        { t with state = `Probe; state_entered = right_now }, true
+      else
+        t, false
+
+    let kill (t:t) (span : Time.Span.t) : t * bool =
+      let right_now = Time.now () in
+      if t.state = `Probe && Time.(add t.state_entered span <= right_now) then
+        { t with state = `Kill; state_entered = right_now }, true
+      else
+        t, false
+
   end
 
   type t = {
@@ -78,6 +93,15 @@ module Controller = struct
       | `Message of Client_id.t * m
     ]
 
+  let echo_request : int option -> Message.t =
+    let body = Cstruct.create 0 in
+    fun v ->
+      match v with
+        | None    -> assert false
+        | Some(v) ->
+          let open Header in
+          { version = v; type_code = type_code_echo_request; length = size; xid = 0l }, body
+
   module Handler = struct
     let connect (t:t) (c_id:Client_id.t) =
       ClientTbl.add_exn t.clients c_id (Conn.create ())
@@ -92,24 +116,61 @@ module Controller = struct
         | None       -> assert false
         | Some(conn) -> Some(Conn.activity conn))
 
-    let idle (t:t) (c_id:Client_id.t) (expires : Time.Span.t) =
+    let idle (t:t) (c_id:Client_id.t) (span : Time.Span.t) =
       ClientTbl.change t.clients c_id (function
         | None       -> assert false
         | Some(conn) ->
-          let conn' = Conn.idle conn expires in
-          begin if not (conn = conn') then
-            printf "client %s marked as idle" (Client_id.to_string c_id)
+          let conn', change = Conn.idle conn span in
+          if change then begin
+            printf "client %s marked as idle\n%!" (Client_id.to_string c_id)
           end;
           Some(conn'))
 
+    let probe (t:t) (c_id:Client_id.t) (span : Time.Span.t) =
+      ClientTbl.change t.clients c_id (function
+        | None       -> assert false
+        | Some(conn) ->
+          let conn', change = Conn.probe conn span in
+          if change then begin
+            printf "client %s probed\n%!" (Client_id.to_string c_id);
+            let echo_req = echo_request conn'.version in
+            let result = Result.try_with (fun () ->
+              Platform.send_ignore_errors t.platform c_id echo_req) in
+            match result with
+              | Error exn ->
+                printf "client %s write failed: %s\n%!"
+                  (Client_id.to_string c_id) (Exn.to_string exn);
+                Platform.close t.platform c_id
+              | Ok () -> ()
+          end;
+          Some(conn'))
+
+    let kill (t:t) (c_id:Client_id.t) (span : Time.Span.t) =
+      ClientTbl.change t.clients c_id (function
+        | None       -> assert false
+        | Some(conn) ->
+          let conn', change = Conn.kill conn span in
+          if change then begin
+            printf "client %s killed\n%!" (Client_id.to_string c_id);
+            Platform.close t.platform c_id;
+          end;
+          Some(conn'))
   end
 
   module Mon = struct
-    let rec mark_idle t wait expires =
+    let rec monitor t wait span f =
       after wait >>> fun () ->
-      ClientTbl.iter t.clients (fun ~key:c_id ~data:_ ->
-        Handler.idle t c_id expires);
-      mark_idle t wait expires
+      ClientTbl.iter t.clients (fun ~key:c_id ~data:_ -> f t c_id span);
+      monitor t wait span f
+
+    let rec mark_idle t wait expires =
+      monitor t wait expires Handler.idle
+
+    let rec probe_idle t wait expires =
+      monitor t wait expires Handler.probe
+
+    let rec kill_idle t wait expires =
+      monitor t wait expires Handler.kill
   end
 
   let create ?max_pending_connections
@@ -123,7 +184,9 @@ module Controller = struct
         platform = t;
         clients = ClientTbl.create ();
       } in
-      Mon.mark_idle ctl (Time.Span.of_sec 1.0) (Time.Span.of_sec 3.0);
+      Mon.mark_idle  ctl (Time.Span.of_sec 1.0) (Time.Span.of_sec 4.0);
+      Mon.probe_idle ctl (Time.Span.of_sec 1.0) (Time.Span.of_sec 2.0);
+      Mon.kill_idle  ctl (Time.Span.of_sec 1.0) (Time.Span.of_sec 3.0);
       ctl
 
   let listen t = Platform.listen t.platform
