@@ -4235,15 +4235,12 @@ module MeterStats = struct
 
   end
 
-  type t = meterStats list
+  type t = meterStats
 
-  let sizeof_struct (ms : meterStats) : int =
+  let sizeof (ms : meterStats) : int =
     ms.len
 
-  let sizeof (ms : meterStats list) : int =
-    sum (map sizeof_struct ms)
-
-  let to_string_struct (ms : meterStats) : string =
+  let to_string (ms : meterStats) : string =
     Format.sprintf "meter id:%lu; len:%u; flow count:%lu; packet in count:%Lu\
     byte in count:%Lu; duration (s/ns):%lu/%lu; band:%s"
     ms.meter_id
@@ -4255,10 +4252,7 @@ module MeterStats = struct
     ms.duration_nsec
     (String.concat "," (map Band.to_string ms.band))
 
-  let to_string (ms : meterStats list) : string =
-    String.concat "\n" (map to_string_struct ms)
-
-  let marshal_struct (buf : Cstruct.t) (ms : meterStats) =
+  let marshal (buf : Cstruct.t) (ms : meterStats) =
     set_ofp_meter_stats_meter_id buf ms.meter_id;
     set_ofp_meter_stats_len buf ms.len;
     set_ofp_meter_stats_flow_count buf ms.flow_count;
@@ -4269,10 +4263,7 @@ module MeterStats = struct
     let band_buf = Cstruct.sub buf sizeof_ofp_meter_stats (ms.len - sizeof_ofp_meter_stats) in
     sizeof_ofp_meter_stats + (marshal_fields band_buf ms.band Band.marshal)
 
-  let marshal (buf : Cstruct.t) (ms : meterStats list) : int =
-      marshal_fields buf ms marshal_struct
-
-  let parse_struct (bits : Cstruct.t) : meterStats = 
+  let parse (bits : Cstruct.t) : meterStats = 
     let meter_id = get_ofp_meter_stats_meter_id bits in
     let len = get_ofp_meter_stats_len bits in
     let flow_count = get_ofp_meter_stats_flow_count bits in
@@ -4284,16 +4275,9 @@ module MeterStats = struct
     let band = parse_fields band_bits Band.parse Band.length_func in
     { meter_id; len; flow_count; packet_in_count; byte_in_count; duration_sec; duration_nsec; band }
 
-  let parse (bits : Cstruct.t) : meterStats list = 
-    let length_fn buf = 
+  let length_func buf = 
     if Cstruct.len buf < sizeof_ofp_meter_stats  then None
-    else Some (get_ofp_meter_stats_len buf) in
-    let meterIter =
-      Cstruct.iter
-        length_fn
-        parse_struct
-        bits in
-    List.rev (Cstruct.fold (fun acc bits -> bits :: acc) meterIter [])
+    else Some (get_ofp_meter_stats_len buf)
 
 end
 
@@ -4431,7 +4415,7 @@ module MultipartReply = struct
       | GroupStatsReply gs -> GroupStats.sizeof gs
       | GroupDescReply gd -> sum (map GroupDesc.sizeof gd)
       | GroupFeaturesReply gf -> GroupFeatures.sizeof gf
-      | MeterReply mr -> MeterStats.sizeof mr
+      | MeterReply mr -> sum (map MeterStats.sizeof mr)
       | MeterConfig mc -> MeterConfig.sizeof mc
       | MeterFeaturesReply mf -> MeterFeaturesStats.sizeof mf
 
@@ -4448,7 +4432,7 @@ module MultipartReply = struct
       | GroupStatsReply gs -> Format.sprintf "GroupStats: %s" (GroupStats.to_string gs)
       | GroupDescReply gd -> Format.sprintf "GroupSDesc: %s" (String.concat "\n" (map GroupDesc.to_string gd))
       | GroupFeaturesReply gf -> Format.sprintf "GroupFeatures: %s" (GroupFeatures.to_string gf)
-      | MeterReply mr -> Format.sprintf "MeterStats: %s" (MeterStats.to_string mr)
+      | MeterReply mr -> Format.sprintf "MeterStats: %s" (String.concat "\n" (map MeterStats.to_string mr))
       | MeterConfig mc -> Format.sprintf "MeterConfig: %s" (MeterConfig.to_string mc)
       | MeterFeaturesReply mf -> Format.sprintf "MeterFeaturesStats: %s" (MeterFeaturesStats.to_string mf)
 
@@ -4494,7 +4478,7 @@ module MultipartReply = struct
           GroupFeatures.marshal ofp_body_bits gf
       | MeterReply mr ->
           set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_METER);
-          MeterStats.marshal ofp_body_bits mr
+          marshal_fields ofp_body_bits mr MeterStats.marshal
       | MeterConfig mc ->
           set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_METER_CONFIG);
           MeterConfig.marshal ofp_body_bits mc
@@ -4529,7 +4513,7 @@ module MultipartReply = struct
       | Some OFPMP_GROUP_FEATURES ->
           GroupFeaturesReply (GroupFeatures.parse ofp_body_bits)
       | Some OFPMP_METER ->
-          MeterReply (MeterStats.parse ofp_body_bits)
+          MeterReply (parse_fields ofp_body_bits MeterStats.parse MeterStats.length_func)
       | Some OFPMP_METER_CONFIG ->
           MeterConfig (MeterConfig.parse ofp_body_bits)
       | Some OFPMP_METER_FEATURES ->

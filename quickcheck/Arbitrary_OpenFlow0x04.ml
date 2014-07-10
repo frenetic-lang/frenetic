@@ -1215,7 +1215,7 @@ module MultipartReply = struct
       arbitrary_uint64 >>= fun byte_band_count ->
       ret_gen { packet_band_count; byte_band_count }
 
-    let arbitrary_meterStats =
+    let arbitrary =
       arbitrary_uint32 >>= fun meter_id ->
       arbitrary_uint32 >>= fun flow_count ->
       arbitrary_uint64 >>= fun packet_in_count ->
@@ -1234,10 +1234,6 @@ module MultipartReply = struct
         duration_nsec;
         band
       }
-
-    let arbitrary = 
-      list1 arbitrary_meterStats >>= fun v ->
-      ret_gen v
 
     let marshal = MeterStats.marshal
     let parse = MeterStats.parse
@@ -1344,7 +1340,7 @@ module MultipartReply = struct
           GroupStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (GroupStatsReply n);  mpreply_flags = flags});
           GroupFeatures.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (GroupFeaturesReply n);  mpreply_flags = flags});
           list1 GroupDesc.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (GroupDescReply n);  mpreply_flags = flags});
-          MeterStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterReply n);  mpreply_flags = flags});
+          list1 MeterStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterReply n);  mpreply_flags = flags});
           MeterConfig.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterConfig n);  mpreply_flags = flags});
           MeterFeaturesStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterFeaturesReply n);  mpreply_flags = flags});
           ]

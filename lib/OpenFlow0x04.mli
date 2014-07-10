@@ -506,15 +506,15 @@ end
 
 module MeterStats : sig
 
-  type t = meterStats list
+  type t = meterStats
 
-  val sizeof : meterStats list -> int
+  val sizeof : meterStats -> int
 
-  val to_string : meterStats list -> string
+  val to_string : meterStats -> string
 
-  val marshal : Cstruct.t -> meterStats list -> int
+  val marshal : Cstruct.t -> meterStats -> int
 
-  val parse : Cstruct.t -> meterStats list
+  val parse : Cstruct.t -> meterStats
 
 end
 
