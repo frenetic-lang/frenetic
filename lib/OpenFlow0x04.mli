@@ -478,15 +478,15 @@ end
 
 module GroupDesc : sig
 
-  type t = groupDesc list
+  type t = groupDesc
 
-  val sizeof : groupDesc list -> int
+  val sizeof : groupDesc -> int
 
-  val to_string : groupDesc list -> string
+  val to_string : groupDesc -> string
 
-  val marshal : Cstruct.t -> groupDesc list -> int
+  val marshal : Cstruct.t -> groupDesc -> int
 
-  val parse : Cstruct.t -> groupDesc list
+  val parse : Cstruct.t -> groupDesc
 
 end
 

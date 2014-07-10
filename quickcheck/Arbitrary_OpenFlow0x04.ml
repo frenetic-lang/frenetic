@@ -623,11 +623,16 @@ module Bucket = struct
     (5, arbitrary_uint32 >>= (fun v -> ret_gen (Some v)))
     ]
 
+  let no_output act = 
+    match act with
+      | Output _ -> false
+      | _ -> true
+
   let arbitrary =
     arbitrary_uint16 >>= fun bu_weight ->
     arbitrary_option >>= fun bu_watch_port ->
     arbitrary_option >>= fun bu_watch_group ->
-    list1 Action.arbitrary >>= fun bu_actions ->
+    list1 (such_that no_output Action.arbitrary) >>= fun bu_actions ->
     ret_gen {
        bu_weight; 
        bu_watch_port; 
@@ -1085,7 +1090,7 @@ module MultipartReply = struct
       (* ofp_group_desc = 8*)
       ret_gen (8+ sum (List.map Bucket.size_of bucket))
       
-    let arbitrary_groupDesc =
+    let arbitrary =
       arbitrary_uint32 >>= fun group_id ->
       arbitrary_groupTyp >>= fun typ ->
       list1 Bucket.arbitrary >>= fun bucket ->
@@ -1097,9 +1102,6 @@ module MultipartReply = struct
         bucket
       }
 
-    let arbitrary = 
-      list1 arbitrary_groupDesc >>= fun v ->
-      ret_gen v
     let marshal = GroupDesc.marshal
     let parse = GroupDesc.parse
     let to_string = GroupDesc.to_string
@@ -1341,6 +1343,7 @@ module MultipartReply = struct
           QueueStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (QueueStatsReply n);  mpreply_flags = flags});
           GroupStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (GroupStatsReply n);  mpreply_flags = flags});
           GroupFeatures.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (GroupFeaturesReply n);  mpreply_flags = flags});
+          list1 GroupDesc.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (GroupDescReply n);  mpreply_flags = flags});
           MeterStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterReply n);  mpreply_flags = flags});
           MeterConfig.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterConfig n);  mpreply_flags = flags});
           MeterFeaturesStats.arbitrary >>= (fun n -> ret_gen {mpreply_typ = (MeterFeaturesReply n);  mpreply_flags = flags});

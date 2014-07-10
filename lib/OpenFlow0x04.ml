@@ -1976,7 +1976,7 @@ module Bucket = struct
 
   let length_func (buf : Cstruct.t) : int option =
     if Cstruct.len buf < sizeof_ofp_bucket then None
-    else Some (get_ofp_bucket_len buf)
+    else Some (pad_to_64bits (get_ofp_bucket_len buf))
  
   let marshal (buf : Cstruct.t) (bucket : bucket) : int =
     let size = sizeof bucket in
@@ -2000,7 +2000,7 @@ module Bucket = struct
           failwith "OFPP_TABLE not allowed in installed flow"
         | _ -> Action.marshal buf act in
     let buf = Cstruct.shift buf sizeof_ofp_bucket in
-    sizeof_ofp_bucket + (marshal_fields buf bucket.bu_actions action_marshal)
+    (sizeof_ofp_bucket + (marshal_fields buf bucket.bu_actions action_marshal))
 
   let parse (bits : Cstruct.t) : bucket =
     let len = get_ofp_bucket_len bits in
@@ -2008,7 +2008,7 @@ module Bucket = struct
     let bu_watch_port = match get_ofp_bucket_watch_port bits with
                           | 0xffffffffl -> None (* ofpp_any *)
                           | n -> Some n in
-    let bu_watch_group = match get_ofp_bucket_watch_port bits with
+    let bu_watch_group = match get_ofp_bucket_watch_group bits with
                           | 0xffffffffl -> None (* ofpg_any *)
                           | n -> Some n in
     let bu_actions = Action.parse_sequence (Cstruct.sub bits sizeof_ofp_bucket (len - sizeof_ofp_bucket)) in
@@ -3981,25 +3981,19 @@ module GroupDesc = struct
     uint32_t group_id;
   } as big_endian
 
-  type t = groupDesc list
+  type t = groupDesc
 
-  let sizeof_struct (gd : groupDesc) : int =
+  let sizeof (gd : groupDesc) : int =
     sizeof_ofp_group_desc + sum (map Bucket.sizeof gd.bucket)
 
-  let sizeof (gd : groupDesc list) : int = 
-    sum (map sizeof_struct gd)
-
-  let to_string_struct (gd : groupDesc) : string =
+  let to_string (gd : groupDesc) : string =
     Format.sprintf "length: %u \nroup Type:%s\ngroup id:%lu\nbucket:%s"
     gd.length
     (GroupType.to_string gd.typ)
     gd.group_id
     (String.concat "\n" (map Bucket.to_string gd.bucket))
 
-  let to_string (gd : groupDesc list) : string =
-    String.concat "\n" (map to_string_struct gd)
-
-  let marshal_struct (buf : Cstruct.t) (gd : groupDesc) : int =
+  let marshal (buf : Cstruct.t) (gd : groupDesc) : int =
     set_ofp_group_desc_length buf gd.length;
     set_ofp_group_desc_typ buf (GroupType.marshal gd.typ);
     set_ofp_group_desc_group_id buf gd.group_id;
@@ -4007,40 +4001,21 @@ module GroupDesc = struct
       (marshal_fields (Cstruct.shift buf sizeof_ofp_group_desc) gd.bucket Bucket.marshal) in
     sizeof_ofp_group_desc + size_bucket
 
-  let marshal (buf : Cstruct.t) (gd : groupDesc list) : int =
-    marshal_fields buf gd marshal_struct
-
-  let parse_struct (bits : Cstruct.t) : groupDesc =
+  let parse (bits : Cstruct.t) : groupDesc =
     let len = get_ofp_group_desc_length bits in
     let typ = GroupType.parse (get_ofp_group_desc_typ bits) in
     let group_id = get_ofp_group_desc_group_id bits in
-    let length_fn (buf : Cstruct.t) = 
-      if Cstruct.len buf < sizeof_ofp_bucket  then None
-        else Some (get_ofp_bucket_len buf) in
-    let parse_bucket bits = 
-      let bucketIter =
-        Cstruct.iter 
-          length_fn
-          (Bucket.parse)
-          bits in
-      List.rev (Cstruct.fold (fun acc bits -> bits :: acc) bucketIter []) in
     let bucket_bits = Cstruct.sub bits sizeof_ofp_group_desc (len - sizeof_ofp_group_desc) in
-    let bucket = parse_bucket bucket_bits in
+    let bucket = parse_fields bucket_bits Bucket.parse Bucket.length_func in
     { length = len
     ; typ = typ
     ; group_id = group_id
     ; bucket = bucket}
 
-  let parse (bits : Cstruct.t) : groupDesc list =
-    let length_fn buf = 
-      if Cstruct.len buf < sizeof_ofp_group_desc  then None
-      else Some (get_ofp_group_desc_length buf) in
-    let groupDescIter =
-      Cstruct.iter 
-        length_fn
-        parse_struct
-        bits in
-    List.rev (Cstruct.fold (fun acc bits -> bits :: acc) groupDescIter [])
+  let length_func buf = 
+    if Cstruct.len buf < sizeof_ofp_group_desc  then None
+    else Some (get_ofp_group_desc_length buf)
+
 end
 
 module GroupFeatures = struct
@@ -4454,7 +4429,7 @@ module MultipartReply = struct
       | PortStatsReply psr -> PortStats.sizeof psr
       | QueueStatsReply qsr -> QueueStats.sizeof qsr
       | GroupStatsReply gs -> GroupStats.sizeof gs
-      | GroupDescReply gd -> GroupDesc.sizeof gd
+      | GroupDescReply gd -> sum (map GroupDesc.sizeof gd)
       | GroupFeaturesReply gf -> GroupFeatures.sizeof gf
       | MeterReply mr -> MeterStats.sizeof mr
       | MeterConfig mc -> MeterConfig.sizeof mc
@@ -4471,7 +4446,7 @@ module MultipartReply = struct
       | PortStatsReply psr -> Format.sprintf "PortStatsReply: %s" (PortStats.to_string psr)
       | QueueStatsReply qsr -> Format.sprintf "QueueStats: %s" (QueueStats.to_string qsr)
       | GroupStatsReply gs -> Format.sprintf "GroupStats: %s" (GroupStats.to_string gs)
-      | GroupDescReply gd -> Format.sprintf "GroupSDesc: %s" (GroupDesc.to_string gd)
+      | GroupDescReply gd -> Format.sprintf "GroupSDesc: %s" (String.concat "\n" (map GroupDesc.to_string gd))
       | GroupFeaturesReply gf -> Format.sprintf "GroupFeatures: %s" (GroupFeatures.to_string gf)
       | MeterReply mr -> Format.sprintf "MeterStats: %s" (MeterStats.to_string mr)
       | MeterConfig mc -> Format.sprintf "MeterConfig: %s" (MeterConfig.to_string mc)
@@ -4513,7 +4488,7 @@ module MultipartReply = struct
           GroupStats.marshal ofp_body_bits gs
       | GroupDescReply gd ->
           set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_GROUP_DESC);
-          GroupDesc.marshal ofp_body_bits gd
+          marshal_fields ofp_body_bits gd GroupDesc.marshal
       | GroupFeaturesReply gf ->
           set_ofp_multipart_reply_typ buf (ofp_multipart_types_to_int OFPMP_GROUP_FEATURES);
           GroupFeatures.marshal ofp_body_bits gf
@@ -4550,7 +4525,7 @@ module MultipartReply = struct
       | Some OFPMP_GROUP ->
           GroupStatsReply (GroupStats.parse ofp_body_bits)
       | Some OFPMP_GROUP_DESC ->
-          GroupDescReply (GroupDesc.parse ofp_body_bits)
+          GroupDescReply (parse_fields ofp_body_bits GroupDesc.parse GroupDesc.length_func)
       | Some OFPMP_GROUP_FEATURES ->
           GroupFeaturesReply (GroupFeatures.parse ofp_body_bits)
       | Some OFPMP_METER ->
