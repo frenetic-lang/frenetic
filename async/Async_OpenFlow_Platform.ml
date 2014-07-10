@@ -111,10 +111,10 @@ module Make(Message : Message) = struct
     let open Impl.Server_read_result in
     Pipe.map (Impl.listen t)
     ~f:(function
-        | Connect id -> `Connect id
+        | Connect id            -> `Connect id
         | Disconnect (id, sexp) -> `Disconnect (id, sexp)
-        | Denied_access msg -> raise (Invalid_argument "Denied_access should not happen")
-        | Data (id, m) -> `Message (id, m))
+        | Data (id, m)          -> `Message (id, m)
+        | Denied_access msg     -> assert false)
 
   let close = Impl.close
 
