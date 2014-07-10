@@ -2473,54 +2473,86 @@ module PortStatus = struct
   let sizeof (_ : portStatus) : int = 
     sizeof_ofp_port_status + sizeof_ofp_port
 
-  let reason_to_int (pr : portReason) : int =
-     match pr with
-      | PortAdd -> ofp_port_reason_to_int OFPPR_ADD
-      | PortDelete -> ofp_port_reason_to_int OFPPR_DELETE
-      | PortModify -> ofp_port_reason_to_int OFPPR_MODIFY
+  module Reason = struct 
+
+    let marshal (pr : portReason) : int =
+       match pr with
+        | PortAdd -> ofp_port_reason_to_int OFPPR_ADD
+        | PortDelete -> ofp_port_reason_to_int OFPPR_DELETE
+        | PortModify -> ofp_port_reason_to_int OFPPR_MODIFY
+
+    let to_string (pr : portReason) = 
+      match pr with
+        | PortAdd -> "Port Add"
+        | PortDelete -> "Port Delete"
+        | PortModify -> "Port Modify"
+
+    let parse t : portReason = 
+      match int_to_ofp_port_reason t with
+        | Some OFPPR_ADD -> PortAdd
+        | Some OFPPR_DELETE -> PortDelete
+        | Some OFPPR_MODIFY -> PortModify
+        | None -> raise (Unparsable (sprintf "unexpected port reason"))
+  end
 
   let marshal (buf : Cstruct.t) (status : portStatus) : int =
-    set_ofp_port_status_reason buf (reason_to_int status.reason);
+    set_ofp_port_status_reason buf (Reason.marshal status.reason);
     let size = sizeof_ofp_port_status + 
         PortDesc.marshal (Cstruct.shift buf sizeof_ofp_port_status) status.desc in
     size
 
   let parse (bits : Cstruct.t) : portStatus =
-    let reason = (match int_to_ofp_port_reason (get_ofp_port_status_reason bits) with
-                    | Some OFPPR_ADD -> PortAdd
-                    | Some OFPPR_DELETE -> PortDelete
-                    | Some OFPPR_MODIFY -> PortModify
-                    | None -> raise (Unparsable (sprintf "unexpected port reason"))) in 
+    let reason = Reason.parse (get_ofp_port_status_reason bits)in 
     let bits = Cstruct.shift bits sizeof_ofp_port_status in
     let desc = PortDesc.parse bits in
     { reason;
       desc }
       
   let to_string (t : portStatus) = 
-    let reason_to_string (reason : portReason) = match reason with
-        | PortAdd -> "Port Add"
-        | PortDelete -> "Port Delete"
-        | PortModify -> "Port Modify" in
     Format.sprintf 
         "reason : %s,\ndesc : %s"
-        (reason_to_string t.reason)
+        (Reason.to_string t.reason)
         (PortDesc.to_string t.desc)
 end
 
 module PacketIn = struct
 
- cenum reasonType {
-   NO_MATCH = 0;
-   ACTION = 1;
-   INVALID_TTL = 2
- } as uint8_t
+  module Reason = struct 
 
- cstruct ofp_packet_in {
-   uint32_t buffer_id;     
-   uint16_t total_len;     
-   uint8_t reason;         
-   uint8_t table_id;
-   uint64_t cookie
+    cenum ofp_packet_in_reason {
+      NO_MATCH = 0;
+      ACTION = 1;
+      INVALID_TTL = 2
+    } as uint8_t
+
+    type t = packetInReason
+
+    let to_string t : string =
+      match t with
+        | NoMatch -> "NO_MATCH"
+        | ExplicitSend -> "ACTION"
+        | InvalidTTL -> "INVALID_TTL"
+
+    let marshal t : int =
+      match t with
+         | NoMatch -> ofp_packet_in_reason_to_int NO_MATCH
+         | ExplicitSend -> ofp_packet_in_reason_to_int ACTION
+         | InvalidTTL -> ofp_packet_in_reason_to_int INVALID_TTL
+
+    let parse t : packetInReason =
+      match int_to_ofp_packet_in_reason t with
+        | Some NO_MATCH -> NoMatch
+        | Some ACTION -> ExplicitSend
+        | Some INVALID_TTL -> InvalidTTL
+        | None -> raise (Unparsable (sprintf "bad reason in packet_in (%d)" t))  
+  end
+
+  cstruct ofp_packet_in {
+    uint32_t buffer_id;     
+    uint16_t total_len;     
+    uint8_t reason;         
+    uint8_t table_id;
+    uint64_t cookie
   } as big_endian
 
   let sizeof (pi : packetIn) : int = 
@@ -2529,10 +2561,7 @@ module PacketIn = struct
   let to_string (pi: packetIn) : string =
     Format.sprintf "Total Len: %u\nReason: %s\nTable ID:%u\nCookie:%Lu\nOfmPatch:%s\nPayload:%s"
     pi.pi_total_len
-    (match pi.pi_reason with
-      | NoMatch -> "NO_MATCH"
-      | ExplicitSend -> "ACTION"
-      | InvalidTTL -> "INVALID_TTL")
+    (Reason.to_string pi.pi_reason)
     pi.pi_table_id
     pi.pi_cookie
     (OfpMatch.to_string pi.pi_ofp_match)
@@ -2554,11 +2583,7 @@ module PacketIn = struct
     Cstruct.blit bytes 0 bufMatch (2 + OfpMatch.sizeof pi.pi_ofp_match) pi.pi_total_len;
     set_ofp_packet_in_buffer_id buf buffer_id;
     set_ofp_packet_in_total_len buf pi.pi_total_len;
-    set_ofp_packet_in_reason buf
-      (match pi.pi_reason with
-         | NoMatch -> reasonType_to_int NO_MATCH
-         | ExplicitSend -> reasonType_to_int ACTION
-         | InvalidTTL -> reasonType_to_int INVALID_TTL);
+    set_ofp_packet_in_reason buf (Reason.marshal pi.pi_reason);
     set_ofp_packet_in_table_id buf pi.pi_table_id;
     set_ofp_packet_in_cookie buf pi.pi_cookie;
     size
@@ -2573,11 +2598,7 @@ module PacketIn = struct
       | n -> Some n in
     let total_len = get_ofp_packet_in_total_len bits in
     let reason_code = get_ofp_packet_in_reason bits in
-    let reason = match int_to_reasonType reason_code with
-      | Some NO_MATCH -> NoMatch
-      | Some ACTION -> ExplicitSend
-      | Some INVALID_TTL -> InvalidTTL
-      | None -> raise (Unparsable (sprintf "bad reason in packet_in (%d)" reason_code)) in
+    let reason = Reason.parse (reason_code) in
     let table_id = get_ofp_packet_in_table_id bits in
     let cookie = get_ofp_packet_in_cookie bits in
     let ofp_match_bits = Cstruct.shift bits sizeof_ofp_packet_in in
@@ -3976,6 +3997,45 @@ module Error = struct
   let to_string (error : t) : string =
     Format.sprintf "error type=%d, code=%d" error.typ error.code
 
+end
+
+module AsyncConfig = struct
+
+  cstruct ofp_async_config {
+    uint32_t packet_in_mask0;
+    uint32_t packet_in_mask1;
+    uint32_t port_status_mask0;
+    uint32_t port_status_mask1;
+    uint32_t flow_removed_mask0;
+    uint32_t flow_removed_mask1;
+  } as big_endian
+
+  type t = asyncConfig
+
+  let sizeof (async : asyncConfig) : int = 
+    sizeof_ofp_async_config
+
+  let to_string (async : asyncConfig) : string =
+    ""
+
+  let marshal (buf : Cstruct.t) (async : asyncConfig) : int =
+    set_ofp_async_config_packet_in_mask0 buf (Int32.of_int (PacketIn.Reason.marshal async.packet_in.m_master));
+    set_ofp_async_config_packet_in_mask1 buf (Int32.of_int (PacketIn.Reason.marshal async.packet_in.m_slave));
+    set_ofp_async_config_port_status_mask0 buf (Int32.of_int (PortStatus.Reason.marshal async.port_status.m_master));
+    set_ofp_async_config_port_status_mask1 buf (Int32.of_int (PortStatus.Reason.marshal async.port_status.m_slave));
+    set_ofp_async_config_flow_removed_mask0 buf (Int32.of_int (FlowRemoved.RemovedReason.marshal async.flow_removed.m_master));
+    set_ofp_async_config_flow_removed_mask1 buf (Int32.of_int (FlowRemoved.RemovedReason.marshal async.flow_removed.m_slave));
+    sizeof_ofp_async_config
+
+  let parse (bits : Cstruct.t) : asyncConfig = 
+    let packet_in = { m_master = PacketIn.Reason.parse (Int32.to_int (get_ofp_async_config_packet_in_mask0 bits));
+                      m_slave = PacketIn.Reason.parse (Int32.to_int (get_ofp_async_config_packet_in_mask1 bits))} in
+    let port_status = { m_master = PortStatus.Reason.parse (Int32.to_int (get_ofp_async_config_port_status_mask0 bits));
+                        m_slave = PortStatus.Reason.parse (Int32.to_int (get_ofp_async_config_port_status_mask1 bits))} in
+    let flow_removed = { m_master = FlowRemoved.RemovedReason.parse (Int32.to_int (get_ofp_async_config_flow_removed_mask0 bits));
+                         m_slave = FlowRemoved.RemovedReason.parse (Int32.to_int (get_ofp_async_config_flow_removed_mask1 bits))} in
+    { packet_in; port_status; flow_removed }
+  
 end
 
 module Message = struct

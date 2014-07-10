@@ -2,6 +2,8 @@ open Packet
 
 type 'a mask = { m_value : 'a; m_mask : 'a option }
 
+type 'a asyncMask = { m_master : 'a ; m_slave : 'a }
+
 type payload =
   | Buffered of int32 * bytes 
     (** [Buffered (id, buf)] is a packet buffered on a switch. *)
@@ -323,3 +325,6 @@ type multipartReply = {mpreply_typ : multipartReplyTyp; mpreply_flags : bool}
 
 type tableMod = { table_id : tableId; config : tableConfig }
  
+type asyncConfig = { packet_in : packetInReason asyncMask; 
+                     port_status : portReason asyncMask;
+                     flow_removed : flowReason asyncMask }
