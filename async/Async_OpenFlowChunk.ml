@@ -102,8 +102,6 @@ module Controller = struct
           end;
           Some(conn'))
 
-    let disconnect (t:t) (c_id:Client_id.t) =
-      ClientTbl.remove t.clients c_id
   end
 
   module Mon = struct
@@ -131,14 +129,13 @@ module Controller = struct
   let listen t = Platform.listen t.platform
 
   let close t c_id =
-    Handler.disconnect t c_id;
     Platform.close t.platform c_id
 
   let has_client_id t c_id =
-    match ClientTbl.find t.clients c_id with
-      | None
-      | Some({ Conn.state = `Handshake }) -> false
-      | _ -> true
+    Platform.has_client_id t.platform c_id &&
+      match ClientTbl.find t.clients c_id with
+        | Some(conn) -> not (conn.Conn.state = `Handshake)
+        | _          -> false
 
   let send t c_id m =
     Platform.send t.platform c_id m
@@ -191,10 +188,10 @@ module Controller = struct
         begin match ClientTbl.find t.clients c_id with
           | None -> assert false
           | Some({ Conn.state = `Handshake }) ->
-            Handler.disconnect t c_id;
+            ClientTbl.remove t.clients c_id;
             return []
           | Some(_) ->
-            Handler.disconnect t c_id;
+            ClientTbl.remove t.clients c_id;
             return [`Disconnect (c_id, exn)]
         end
 
