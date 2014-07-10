@@ -82,7 +82,8 @@ module Controller = struct
 
   type t = {
     platform : Platform.t;
-    clients  : Conn.t ClientTbl.t
+    clients  : Conn.t ClientTbl.t;
+    mutable monitor_interval : Time.Span.t
   }
 
   type m = Platform.m
@@ -158,20 +159,23 @@ module Controller = struct
   end
 
   module Mon = struct
-    let rec monitor t wait span f =
-      after wait >>> fun () ->
+    let rec monitor t span f =
+      after t.monitor_interval >>> fun () ->
       ClientTbl.iter t.clients (fun ~key:c_id ~data:_ -> f t c_id span);
-      monitor t wait span f
+      monitor t span f
 
-    let rec mark_idle t wait expires =
-      monitor t wait expires Handler.idle
+    let rec mark_idle t expires =
+      monitor t expires Handler.idle
 
-    let rec probe_idle t wait expires =
-      monitor t wait expires Handler.probe
+    let rec probe_idle t expires =
+      monitor t expires Handler.probe
 
-    let rec kill_idle t wait expires =
-      monitor t wait expires Handler.kill
+    let rec kill_idle t expires =
+      monitor t expires Handler.kill
   end
+
+  let set_monitor_interval (t:t) (s:Time.Span.t) : unit =
+    t.monitor_interval <- s
 
   let create ?max_pending_connections
       ?verbose
@@ -183,10 +187,11 @@ module Controller = struct
       let ctl = {
         platform = t;
         clients = ClientTbl.create ();
+        monitor_interval = Time.Span.of_ms 500.0;
       } in
-      Mon.mark_idle  ctl (Time.Span.of_sec 1.0) (Time.Span.of_sec 4.0);
-      Mon.probe_idle ctl (Time.Span.of_sec 1.0) (Time.Span.of_sec 2.0);
-      Mon.kill_idle  ctl (Time.Span.of_sec 1.0) (Time.Span.of_sec 3.0);
+      Mon.mark_idle  ctl (Time.Span.of_sec 4.0);
+      Mon.probe_idle ctl (Time.Span.of_sec 2.0);
+      Mon.kill_idle  ctl (Time.Span.of_sec 3.0);
       ctl
 
   let listen t = Platform.listen t.platform

@@ -146,6 +146,8 @@ module Chunk : sig
       | `Message of Client_id.t * m
     ]
 
+    val set_monitor_interval : t -> Time.Span.t -> unit
+
     val echo : (t, h, h) Stage.t
     val handshake : int -> (t, e, h) Stage.t
   end
