@@ -312,3 +312,9 @@ type multipartReply = {mpreply_typ : multipartReplyTyp; mpreply_flags : bool}
 
 type tableMod = { table_id : tableId; config : tableConfig }
  
+type supportedList = int list
+ 
+type element = 
+  | VersionBitMap of supportedList
+
+type helloElement = element list

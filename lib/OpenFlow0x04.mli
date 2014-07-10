@@ -442,10 +442,52 @@ module Error : sig
 
 end
 
+module Hello : sig
+
+  module Element : sig
+
+    module VersionBitMap : sig
+
+      type t = supportedList
+
+      val sizeof : supportedList -> int
+
+      val to_string : supportedList -> string
+
+      val marshal : Cstruct.t -> supportedList -> int
+
+      val parse : Cstruct.t -> supportedList
+    
+    end
+  
+    type t = element
+
+    val sizeof : element -> int
+
+    val to_string : element -> string
+
+    val marshal : Cstruct.t -> element -> int
+
+    val parse : Cstruct.t -> element
+
+  end
+
+  type t = helloElement
+
+  val sizeof : helloElement -> int
+
+  val to_string : helloElement -> string
+
+  val marshal : Cstruct.t -> helloElement -> int
+
+  val parse : Cstruct.t -> helloElement
+
+end
+
 module Message : sig
 
   type t =
-    | Hello
+    | Hello of element list
     | EchoRequest of bytes
     | EchoReply of bytes
     | FeaturesRequest

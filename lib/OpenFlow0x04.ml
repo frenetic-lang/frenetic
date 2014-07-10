@@ -769,6 +769,14 @@ let rec marshal_fields (buf: Cstruct.t) (fields : 'a list) (marshal_func : Cstru
   else let size = marshal_func buf (List.hd fields) in
     size + (marshal_fields (Cstruct.shift buf size) (List.tl fields) marshal_func)
 
+let parse_fields (bits : Cstruct.t) (parse_func : Cstruct.t -> 'a) (length_func : Cstruct.t -> int option) :'a list =
+  let iter =
+    Cstruct.iter
+        length_func
+        parse_func
+        bits in
+    List.rev (Cstruct.fold (fun acc bits -> bits :: acc) iter [])
+
 let pad_to_64bits (n : int) : int =
   if n land 0x7 <> 0 then
     n + (8 - (n land 0x7))
@@ -3866,10 +3874,125 @@ module Error = struct
 
 end
 
+module Hello = struct
+
+  module Element = struct
+
+    cstruct ofp_hello_elem_header {
+      uint16_t typ;
+      uint16_t len
+    } as big_endian
+
+    cenum ofp_hello_elem_type {
+      OFPHET_VERSIONBITMAP = 1
+    } as uint16_t
+
+    module VersionBitMap = struct
+    
+      type t = supportedList
+
+      let sizeof (l : supportedList) : int = 
+        match l with 
+            | [] -> 0
+            | t::q -> ((t / 32 ) + 1 ) * 4
+
+      let to_string (l : supportedList) : string =
+        let rec printVersion ls =
+          match ls with
+            | [] -> ""
+            | t::q -> Format.sprintf "0x%x;%s" t (printVersion q) in
+        printVersion l
+
+      let marshal (buf : Cstruct.t) (t : supportedList) : int =
+        let rec marshal_bitmap (ls : supportedList) acc curr =
+          match ls,curr with 
+            | [],0 -> 
+              set_ofp_uint32_value buf acc;
+            | [],n-> 
+              set_ofp_uint32_value (Cstruct.shift buf (4*n)) acc;
+              marshal_bitmap [] 0l (n-1)
+            | t::q,n -> 
+              if t / 32 <> n then (
+                set_ofp_uint32_value (Cstruct.shift buf (4*n)) acc;
+                marshal_bitmap ls 0l (n-1))
+              else (
+                let acc = Int32.logor (Int32.shift_left 1l (t mod 32)) acc in
+                marshal_bitmap q acc n
+              ) in
+        marshal_bitmap t 0l (List.hd t / 32);
+        ((List.hd t / 32) + 1) * 4
+
+      let parse (bits : Cstruct.t) : supportedList =
+        let rec parse_uint32 (bits : Cstruct.t) index curr (acc : supportedList) : supportedList =
+          if Cstruct.len bits < sizeof_ofp_uint32 then acc
+          else (
+            let acc = if Bits.test_bit index (get_ofp_uint32_value bits) then 
+              (index+(curr*32))::acc
+              else acc in
+            if index = 31 then 
+              parse_uint32 (Cstruct.shift bits 4) 0 (curr+1) acc
+            else
+              parse_uint32 bits (index+1) (curr) acc) in
+        parse_uint32 bits 0 0 []
+
+    end
+    type t = element
+
+    let sizeof (t : element) : int = 
+      let size = sizeof_ofp_hello_elem_header + (
+      match t with
+        | VersionBitMap v ->
+          VersionBitMap.sizeof v) in
+      pad_to_64bits size
+
+    let to_string (t : element) : string =
+      match t with 
+        | VersionBitMap v ->
+          Format.sprintf "version bitmap: %s" (VersionBitMap.to_string v)
+
+    let length_func (buf : Cstruct.t) : int option = 
+      if Cstruct.len buf < sizeof_ofp_hello_elem_header then None
+      else Some (pad_to_64bits (get_ofp_hello_elem_header_len buf))
+
+    let marshal (buf : Cstruct.t) (t : element) : int =
+      match t with
+        | VersionBitMap v ->
+          set_ofp_hello_elem_header_typ buf (ofp_hello_elem_type_to_int OFPHET_VERSIONBITMAP);
+          set_ofp_hello_elem_header_len buf (sizeof_ofp_hello_elem_header + 
+          VersionBitMap.marshal (Cstruct.shift buf sizeof_ofp_hello_elem_header) v);
+          sizeof t
+
+    let parse (bits : Cstruct.t) : element = 
+      let typ = get_ofp_hello_elem_header_typ bits in
+      let len = get_ofp_hello_elem_header_len bits in
+      let payBits = Cstruct.sub bits sizeof_ofp_hello_elem_header (len - sizeof_ofp_hello_elem_header) in
+      match int_to_ofp_hello_elem_type typ with 
+        | Some OFPHET_VERSIONBITMAP -> VersionBitMap (VersionBitMap.parse payBits)
+        | None -> raise (Unparsable (sprintf "malformed type"))
+    
+  end
+
+  type t = helloElement
+
+  let sizeof (t : helloElement) : int =
+    sum (map Element.sizeof t)
+
+  let to_string (t : helloElement) : string =
+    String.concat "\n" (map Element.to_string t)
+
+  let marshal (buf : Cstruct.t) (t : helloElement) : int =
+    marshal_fields buf t Element.marshal
+  
+  let parse (bits : Cstruct.t) : helloElement =
+    parse_fields bits Element.parse Element.length_func 
+  
+
+end
+
 module Message = struct
 
   type t =
-    | Hello
+    | Hello of element list
     | EchoRequest of bytes
     | EchoReply of bytes
     | FeaturesRequest
@@ -3921,7 +4044,7 @@ module Message = struct
   module Header = OpenFlow_Header
 
   let msg_code_of_message (msg : t) : msg_code = match msg with
-    | Hello -> HELLO
+    | Hello _ -> HELLO
     | EchoRequest _ -> ECHO_REQ
     | EchoReply _ -> ECHO_RESP
     | FeaturesRequest -> FEATURES_REQ
@@ -3938,7 +4061,7 @@ module Message = struct
     | Error _ -> ERROR
 
   let sizeof (msg : t) : int = match msg with
-    | Hello -> Header.size
+    | Hello e -> Header.size + Hello.sizeof e
     | EchoRequest bytes -> Header.size + (String.length (Cstruct.to_string bytes))
     | EchoReply bytes -> Header.size + (String.length (Cstruct.to_string bytes))
     | FeaturesRequest -> Header.size
@@ -3955,7 +4078,7 @@ module Message = struct
     | Error _ -> failwith "NYI: sizeof Error"
 
   let to_string (msg : t) : string = match msg with
-    | Hello -> "Hello"
+    | Hello _ -> "Hello"
     | Error _ -> "Error"
     | EchoRequest _ -> "EchoRequest"
     | EchoReply _ -> "EchoReply"
@@ -3979,8 +4102,8 @@ module Message = struct
 
   let blit_message (msg : t) (out : Cstruct.t) =
     match msg with
-      | Hello ->
-        Header.size
+      | Hello e ->
+        Header.size + Hello.marshal out e
       | EchoRequest bytes
       | EchoReply bytes ->
         Cstruct.blit_from_string (Cstruct.to_string bytes) 0 out 0 (String.length (Cstruct.to_string bytes));
@@ -4030,7 +4153,7 @@ module Message = struct
       | Some code -> code
       | None -> raise (Unparsable "unknown message code") in
     let msg = match typ with
-      | HELLO -> Hello
+      | HELLO -> Hello (Hello.parse body_bits)
       | ECHO_RESP -> EchoReply body_bits
       | FEATURES_RESP -> FeaturesReply (SwitchFeatures.parse body_bits)
       | PACKET_IN -> PacketInMsg (PacketIn.parse body_bits)

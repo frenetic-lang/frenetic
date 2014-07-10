@@ -1098,3 +1098,54 @@ module PacketIn = struct
   let size_of = PacketIn.sizeof
 
 end
+
+module Hello = struct
+  open Gen
+  open OpenFlow0x04_Core
+
+  module Element = struct
+    open Gen
+    open OpenFlow0x04_Core
+
+    module VersionBitMap = struct
+      open Gen
+      open OpenFlow0x04_Core
+      
+      type t = Hello.Element.VersionBitMap.t
+
+      let lower a b =
+        a > b
+        
+      let arbitrary = 
+        choose_int (1,60) >>= fun a ->
+        ret_gen [a]
+      
+      let marshal = Hello.Element.VersionBitMap.marshal
+      let parse = Hello.Element.VersionBitMap.parse
+      let to_string = Hello.Element.VersionBitMap.to_string
+      let size_of = Hello.Element.VersionBitMap.sizeof
+    end
+    
+    type t = Hello.Element.t
+
+    let arbitrary = 
+      VersionBitMap.arbitrary >>= fun version ->
+      ret_gen (VersionBitMap version)
+
+    let marshal = Hello.Element.marshal
+    let parse = Hello.Element.parse
+    let to_string = Hello.Element.to_string
+    let size_of = Hello.Element.sizeof
+  end
+  
+  type t = Hello.t
+
+  let arbitrary = 
+    list1 Element.arbitrary >>= fun element ->
+    ret_gen element
+
+  let marshal = Hello.marshal
+  let parse = Hello.parse
+  let to_string = Hello.to_string
+  let size_of = Hello.sizeof
+end
