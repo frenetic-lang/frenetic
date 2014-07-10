@@ -33,7 +33,7 @@ module Controller = struct
 
   module Conn = struct
     type t = {
-      state : [ `Handshake | `Active | `Idle | `Probe | `Kill ];
+      state : [ `Handshake | `Active | `Idle | `Kill ];
       version : int option;
       state_entered : Time.t;
       last_activity : Time.t
@@ -64,16 +64,9 @@ module Controller = struct
       else
         t, false
 
-    let probe (t:t) (span : Time.Span.t) : t * bool =
-      let right_now = Time.now () in
-      if t.state = `Idle && Time.(add t.state_entered span <= right_now) then
-        { t with state = `Probe; state_entered = right_now }, true
-      else
-        t, false
-
     let kill (t:t) (span : Time.Span.t) : t * bool =
       let right_now = Time.now () in
-      if t.state = `Probe && Time.(add t.state_entered span <= right_now) then
+      if t.state = `Idle && Time.(add t.state_entered span <= right_now) then
         { t with state = `Kill; state_entered = right_now }, true
       else
         t, false
@@ -83,7 +76,9 @@ module Controller = struct
   type t = {
     platform : Platform.t;
     clients  : Conn.t ClientTbl.t;
-    mutable monitor_interval : Time.Span.t
+    mutable monitor_interval : Time.Span.t;
+    mutable idle_wait : Time.Span.t;
+    mutable kill_wait : Time.Span.t;
   }
 
   type m = Platform.m
@@ -123,18 +118,8 @@ module Controller = struct
         | Some(conn) ->
           let conn', change = Conn.idle conn span in
           if change then begin
-            printf "client %s marked as idle\n%!" (Client_id.to_string c_id)
-          end;
-          Some(conn'))
-
-    let probe (t:t) (c_id:Client_id.t) (span : Time.Span.t) =
-      ClientTbl.change t.clients c_id (function
-        | None       -> assert false
-        | Some(conn) ->
-          let conn', change = Conn.probe conn span in
-          if change then begin
-            printf "client %s probed\n%!" (Client_id.to_string c_id);
-            let echo_req = echo_request conn'.version in
+            printf "client %s marked as idle... probing\n%!" (Client_id.to_string c_id);
+            let echo_req = echo_request conn'.Conn.version in
             let result = Result.try_with (fun () ->
               Platform.send_ignore_errors t.platform c_id echo_req) in
             match result with
@@ -159,23 +144,26 @@ module Controller = struct
   end
 
   module Mon = struct
-    let rec monitor t span f =
+    let rec monitor t f =
       after t.monitor_interval >>> fun () ->
-      ClientTbl.iter t.clients (fun ~key:c_id ~data:_ -> f t c_id span);
-      monitor t span f
+      ClientTbl.iter t.clients (fun ~key:c_id ~data:_ -> f t c_id);
+      monitor t f
 
-    let rec mark_idle t expires =
-      monitor t expires Handler.idle
+    let rec mark_idle t =
+      monitor t (fun t c_id -> Handler.idle t c_id t.idle_wait)
 
-    let rec probe_idle t expires =
-      monitor t expires Handler.probe
-
-    let rec kill_idle t expires =
-      monitor t expires Handler.kill
+    let rec kill_idle t =
+      monitor t (fun t c_id -> Handler.kill t c_id t.kill_wait)
   end
 
   let set_monitor_interval (t:t) (s:Time.Span.t) : unit =
     t.monitor_interval <- s
+
+  let set_idle_wait (t:t) (s:Time.Span.t) : unit =
+    t.idle_wait <- s
+
+  let set_kill_wait (t:t) (s:Time.Span.t) : unit =
+    t.kill_wait <- s
 
   let create ?max_pending_connections
       ?verbose
@@ -188,10 +176,11 @@ module Controller = struct
         platform = t;
         clients = ClientTbl.create ();
         monitor_interval = Time.Span.of_ms 500.0;
+        idle_wait = Time.Span.of_sec 5.0;
+        kill_wait = Time.Span.of_sec 3.0;
       } in
-      Mon.mark_idle  ctl (Time.Span.of_sec 4.0);
-      Mon.probe_idle ctl (Time.Span.of_sec 2.0);
-      Mon.kill_idle  ctl (Time.Span.of_sec 3.0);
+      Mon.mark_idle ctl;
+      Mon.kill_idle ctl;
       ctl
 
   let listen t = Platform.listen t.platform

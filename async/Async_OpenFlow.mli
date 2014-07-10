@@ -147,6 +147,8 @@ module Chunk : sig
     ]
 
     val set_monitor_interval : t -> Time.Span.t -> unit
+    val set_idle_wait : t -> Time.Span.t -> unit
+    val set_kill_wait : t -> Time.Span.t -> unit
 
     val echo : (t, h, h) Stage.t
     val handshake : int -> (t, e, h) Stage.t
