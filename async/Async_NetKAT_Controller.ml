@@ -451,7 +451,7 @@ let send_pkt_out (ctl : Controller.t) (sw_id, pkt_out) =
 
 (* Start the controller, running the given application.
  * *)
-let start app ?(port=6633) ?(update=`BestEffort) () =
+let start app ?(port=6633) ?(update=`BestEffort) ?(policy_queue_size=0) () =
   let open Stage in
   Controller.create ~max_pending_connections ~port ()
   >>> fun ctl ->
@@ -530,6 +530,17 @@ let start app ?(port=6633) ?(update=`BestEffort) () =
         PerPacketConsistent.(implement_policy, bring_up_switch)
     in
 
+    let implement_policy' t q =
+      let len = Queue.length q in
+      assert (len > 0);
+      if policy_queue_size > 0 then
+        Log.info ~tags "[policy] Processing queue of size %d" len;
+
+      implement_policy t (Queue.get q (len - 1))
+    in
+
+    Pipe.set_size_budget recv.update policy_queue_size;
+
     (* This is the main event handler for the controller. First it sends
      * events to the application callback. Then it checks to see if the event
      * is a SwitchUp event, in which case it's necessary to populate the new
@@ -557,6 +568,6 @@ let start app ?(port=6633) ?(update=`BestEffort) () =
      * policy on the switches.
      * *)
     let open Deferred in
-    don't_wait_for (Pipe.iter events      handler);                 (* input  *)
-    don't_wait_for (Pipe.iter pkt_outs    (send_pkt_out ctl));      (* output *)
-    don't_wait_for (Pipe.iter recv.update (implement_policy t))     (* output *)
+    don't_wait_for (Pipe.iter  events      handler);                (* input  *)
+    don't_wait_for (Pipe.iter  pkt_outs    (send_pkt_out ctl));     (* output *)
+    don't_wait_for (Pipe.iter' recv.update (implement_policy' t))   (* output *)
