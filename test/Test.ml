@@ -384,6 +384,11 @@ module RoundTripping = struct
       (openflow_quickCheck GenFlowRemoved.arbitrary
           GenFlowRemoved.to_string GenFlowRemoved.parse GenFlowRemoved.marshal)
 
+  TEST "OpenFlow0x04 AsyncConfig RoundTrip" =
+      let module GenAsyncConfig = Gen0x04.OpenFlow0x04_Unsize(Gen0x04.AsyncConfig) in
+      (openflow_quickCheck GenAsyncConfig.arbitrary
+          GenAsyncConfig.to_string GenAsyncConfig.parse GenAsyncConfig.marshal)
+
   TEST "OpenFlow Hello Test 1" = 
     let open Message in 
     let bs = Cstruct.create 101 in

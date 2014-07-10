@@ -248,9 +248,14 @@ end
 
 module FlowRemoved : sig
 
+  type t = flowRemoved
+
   val sizeof : flowRemoved -> int
+
   val to_string : flowRemoved -> string
+
   val marshal : Cstruct.t -> flowRemoved -> int
+
   val parse : Cstruct.t -> flowRemoved
 
 end
@@ -448,6 +453,20 @@ module Error : sig
   val parse : Cstruct.t -> t
 
   val to_string : t -> string
+
+end
+
+module AsyncConfig : sig
+
+  type t = asyncConfig
+
+  val sizeof : asyncConfig -> int
+
+  val to_string : asyncConfig -> string 
+
+  val marshal : Cstruct.t -> asyncConfig -> int
+
+  val parse : Cstruct.t -> asyncConfig
 
 end
 

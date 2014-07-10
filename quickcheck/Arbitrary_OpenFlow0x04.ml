@@ -1104,7 +1104,7 @@ module FlowRemoved = struct
   open Gen
   open OpenFlow0x04_Core
 
-  type t = OpenFlow0x04_Core.flowRemoved
+  type t = FlowRemoved.t
 
   let arbitrary_reason = 
     oneof [ 
@@ -1133,4 +1133,52 @@ module FlowRemoved = struct
   let to_string = FlowRemoved.to_string
   let size_of = FlowRemoved.sizeof
 
+end
+
+module AsyncConfig = struct
+
+  open Gen
+  open OpenFlow0x04_Core
+
+  type t = AsyncConfig.t
+
+  let arbitrary_FlowReason = 
+    oneof [ 
+      ret_gen FlowIdleTimeout;
+      ret_gen FlowHardTiemout;
+      ret_gen FlowDelete;
+      ret_gen FlowGroupDelete]
+
+  let arbitrary_PacketInReason =
+      oneof [
+          ret_gen NoMatch;
+          ret_gen ExplicitSend;
+          ret_gen InvalidTTL
+      ]
+
+  let arbitrary_PortStatusReason =
+        oneof [
+            ret_gen PortAdd;
+            ret_gen PortDelete;
+            ret_gen PortModify
+        ]
+
+  let arbitrary_mask arb =
+    arb >>= fun m_master ->
+    arb >>= fun m_slave ->
+    ret_gen { m_master; m_slave }
+
+  let arbitrary = 
+    arbitrary_mask arbitrary_PacketInReason >>= fun packet_in ->
+    arbitrary_mask arbitrary_PortStatusReason >>= fun port_status ->
+    arbitrary_mask arbitrary_FlowReason >>= fun flow_removed ->
+    ret_gen { packet_in; port_status; flow_removed }
+
+    
+
+  
+  let marshal = AsyncConfig.marshal
+  let parse = AsyncConfig.parse
+  let to_string = AsyncConfig.to_string
+  let size_of = AsyncConfig.sizeof
 end

@@ -2685,6 +2685,8 @@ module FlowRemoved = struct
       OFPRR_GROUP_DELETE = 3
     } as uint8_t
 
+    type t = flowReason
+
     let to_string (t : flowReason) : string =
       match t with
         | FlowIdleTimeout -> "OFPRR_IDLE_TIMEOUT"
@@ -2721,6 +2723,8 @@ module FlowRemoved = struct
     uint64_t packet_count;
     uint64_t byte_count
   } as big_endian
+
+  type t = flowRemoved
 
   let sizeof (f : flowRemoved) : int =
     sizeof_ofp_flow_removed + (OfpMatch.sizeof f.oxm)
